@@ -187,3 +187,51 @@ Layout discovered/verified during the matching project; see
 `et3_pixel_match.py` docstring for the Big5 lead/tail mapping rules
 (Lead 0xA4..0xC5 = 157 each; Lead 0xC6 = 63 only; Lead 0xC9..0xF8 = 157
 each; Lead 0xF9 = 116; final 41 are ETEN extension chars in PUA).
+
+## calling_convention_audit/
+
+Five-phase pipeline (plus two cleanup passes) for correcting Ghidra's
+auto-inferred calling convention on every function in FD2.LE so the
+decompiled source can be recompiled into an ABI-equivalent binary. Mixes
+Python orchestrators with Ghidra Java workers run via
+`mcp__ghidra__run_script_inline`.
+
+Each `.py` script accepts `--workdir DIR` (default
+`<repo>/workspace/calling_convention_audit/`) and is resumable across
+sessions via `progress.json`. Each `.java` script has its workdir paths
+declared as `final String` constants at the top — edit there if
+relocating.
+
+Pipeline (run in order):
+
+```bash
+# Phase 1 — Ghidra-side: dump per-function ABI evidence
+# (run tools/calling_convention_audit/ghidra_dump.java via run_script_inline)
+
+# Phase 2 — derive cc + rename recommendations
+python tools/calling_convention_audit/classify.py
+
+# Phase 4 — apply cc/rename in batches (loop until done)
+python tools/calling_convention_audit/apply_batch.py prepare --batch-size 100
+# (run ghidra_apply.java via run_script_inline)
+python tools/calling_convention_audit/apply_batch.py consume
+# repeat until `apply_batch.py status` reports remaining=0
+
+# Phase 5 — verify
+# (re-run ghidra_dump.java with OUT_PATH set to audit_after.json)
+python tools/calling_convention_audit/verify.py
+
+# Phase 6 — clean up arg_eax_in/edx_in/ecx_in parameter-name artifacts
+# (run ghidra_param_cleanup.java via run_script_inline)
+
+# Phase 7 — correct phantom parameter counts
+python tools/calling_convention_audit/param_count_classify.py
+# (run ghidra_param_count_apply.java via run_script_inline)
+```
+
+Verified: produces 0 Bad Instruction bookmarks, 0 errors; final cc
+distribution `__cdecl` 869 / `__fastcall` 130 / `__stdcall` 1 (722 cc
+changes, 1 rename, 1684 parameter renames, 469 parameter-count
+adjustments). ABI rules and signal interpretation: see
+`program_info/calling_convention.md`. Pipeline detail: see
+`tools/calling_convention_audit/_index.md`.

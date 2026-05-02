@@ -193,6 +193,52 @@
   reorganize 後是否能各自獨立執行成功 (新自帶路徑常數)，待 final 驗證。
 - **解需要做什麼**：跑 `tools/README.md` 內列出的各 script 至少一次。
 
+## Calling convention 校正後的剩餘限制
+
+### 24. Ghidra 拆出的 inlined fragment 難以獨立編譯
+
+- **現狀**：`set_runtime_char_evade @ 0x114fb` 之類由 Ghidra 拆出的小 function
+  (body 只有 5~6 條指令)，body 依賴 EDI 等 callee-saved register，但這些
+  register 不是 cc 認可的傳參通道，是 parent function 留下的 register state。
+  目前 cc 已標 `__fastcall` (符合 ABI 觀察)，但若直接編譯這些小 function 會
+  讀到未初始化的值。
+- **為什麼還沒解**：這類 function 不是真正的獨立 callable entity，是
+  decompiler 的拆解產物。要真正可編譯需把它們 inline 回 parent。
+- **解需要做什麼**：找 caller 為 fall-through (而非 CALL) 的 fragment，標記
+  為「不要獨立宣告」；或是在 source 層級把它們手動 inline 回 parent。
+
+### 25. 0x4b502 FUN_0004b502 的 struct 型別未還原
+
+- **現狀**：cc 已 pin 為 `__fastcall` (EAX = 結構指標，讀
+  `[EAX+0]/[EAX+4]/[EAX+8]`，加 3 個 stack args，`RET 0xc`)。decomp 仍顯示
+  `in_ECX/unaff_EBX/extraout_EDX/unaff_ESI` 等 register ghost — Ghidra 的型別
+  還沒理解 struct layout。recommendations.json 已標
+  `needs_signature_review:true`。
+- **解需要做什麼**：emulator trace + 對 Borland CRT 反查，決定 EAX 指向的
+  struct 是哪一個 (可能是某種 SI:DI far pointer 包裝或 long long ops)；建立
+  對應 struct datatype 後重設 prototype。
+
+### 26. Phase 7 跳過的 277 個 LOW-confidence function 的 param 數量
+
+- **現狀**：這 277 個 function 因為「無 caller 樣本」或「caller 訊號不一致」
+  而被 Phase 7 跳過，保留 Ghidra 自動推斷的 param 數量 (大多是 0..3)。可能
+  含 phantom params 或漏報 params。
+- **為什麼還沒解**：caller 訊號是 ABI 推論的最強依據，沒有訊號或訊號矛盾時
+  自動裁決會破壞 ABI。
+- **解需要做什麼**：對這些 function 個別 decompile 比對 — body 內實際讀取了
+  幾個 stack offset (`[ESP+4]`, `[ESP+8]`, ...)；對於透過 function pointer
+  間接呼叫的 case，找出 function pointer 指向的所有可能值並合併 caller 訊號。
+
+### 27. 新加入 param 的型別都是 `unsigned int`
+
+- **現狀**：Phase 7 為 60 個 function 補了遺漏的 param，型別一律是 `uint`
+  (4 bytes)。實際型別 (`char *` / `struct foo *` / `byte` / `int *` 等) 未
+  細化。對 ABI 正確性無影響 (4-byte stack slot 大小一致即可正確編譯)，但
+  decompile 可讀性受影響。
+- **解需要做什麼**：對每個新加 param 看 callee 內部如何使用 (deref？算術？
+  傳給已知 prototype 的 callee？) 推斷型別；或對 caller pre-CALL push 的
+  source 推斷型別。屬可選 readability 工作，不阻擋編譯。
+
 ## 已解問題（記錄為基線）
 
 - ✅ 哈瓦特暴走機制 (ch1) — char_spawn_record +0x94/0x95/0x96 → protective AI fall-through

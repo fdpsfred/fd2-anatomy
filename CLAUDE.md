@@ -6,17 +6,21 @@
 要遵守的工作步驟:
 
 - 每個新session的一開始要讀取這個檔案以了解逆向工程知識庫結構和基礎知識: @index.md
+- 在開始規劃或執行每個 plan 之前，都要先確認下述的可用工具可以使用，否則立刻停下來等我檢查
 - 工作完成後，如果新得到的資訊或是新寫出的scripts是現有的知識庫所沒有的而且適合加進知識庫，就停下來先讓我 review ，我許可後才整合進去
 - 新增/修改知識庫的寫作規範:
-  -- scripts要放到tools/下面
+  -- 在我許可之前，所有的新文件包含scripts都不能寫在workspace/以外的地方
+  -- 許可之後，新的scripts要放到tools/{工作簡稱} subfolder 下面並且參考已有的 scripts 的規範進行修改整理
   -- 新撰寫的文件描述必須是「最後的結論」，不能是描述分析過程的流水帳
   -- 新撰寫的文件如果要引用其他文件或資料，不能引用到 legacy/ 或是 workspace/ 下面的東西
+  -- 任何文件和scrtips的更新都要反映到相對應的 _index.md 內
+  -- 工作過程中新發現的問題或是工作結束後產生的待做事項在我許可以後要寫進 open_issues.md
 
 可用的工具:
 
 - Ghidra 已經啟動並且打開 FD2.LE 的 code browser，所有的 decompiled source 都已經被解析過並且根據語意重新命名，可以透過 Ghidra mcp 存取
 - DOSBox-X 和 Open Watcom v2 執行檔路徑已經在 path 環境變數內
-- DosBox-X 要使用 silent mode 執行 (-silent command-line option)，以達成全自動化開發
+- DOSBox-X 要使用 silent mode 執行 (-silent command-line option)，以達成全自動化開發
 
 Ghidra 操作規範:
 
