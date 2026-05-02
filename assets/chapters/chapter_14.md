@@ -1,0 +1,221 @@
+# 第 14 章 — 平原的會戰
+
+於蘭迪平原襲擊獸人駐囤部隊；得知首領薩卡正率另一隊在拉卡湖攻打豹人族。
+
+## 加入角色
+
+無加入。
+
+## 敵人配置
+
+由 FDFIELD.DAT entry 40 的 char_spawn_records 決定（chapter_id × 3 + 1, chapter_id = 13）。詳見 `resource_info/fdfield.md`。
+
+## 寶物
+
+由 FDFIELD tile_event_id 觸發 pickup。
+
+## 特殊機制
+
+- **失敗條件**：索爾死亡（default post_action）。
+- **位置觸發援軍**：攻略「當己方通過地圖中央一帶，則敵軍便會前來攻擊」屬 FDFIELD position-trigger event。
+
+## 對話
+
+對話文字 4 pages 來自 FDTXT.DAT entry 14。Init 引用 page 0，End handler 引用 page 2 與 page 3。Page 1 由 FDFIELD event handler 引用。
+
+### Page 0
+
+```text
+[PORTRAIT_RIGHT_BY_ID=0x000C]
+『看到了！
+[PAGE_BREAK]
+　那裡有一大群獸人，
+[PAGE_BREAK]
+　好像還在休息呢！』
+[PAGE_BREAK]
+[PORTRAIT_RIGHT_BY_ID=0x0000]
+『好極了，
+[PAGE_BREAK]
+　我們去叫醒牠們！』
+[PAGE_BREAK]
+[PORTRAIT_RIGHT_BY_ID=0x0003]
+『別太猴急，小子！
+[PAGE_BREAK]
+　我們先小心接近，
+[PAGE_BREAK]
+　再伺機而動！』
+[PAGE_BREAK]
+[PORTRAIT_RIGHT_BY_ID=0x0004]
+『好，我們上吧！』
+[END]
+```
+
+### Page 1
+
+```text
+[PORTRAIT_LEFT_BY_CHAR=0x0020]
+『吼嗚！
+[PAGE_BREAK]
+　注意，有人接近了！』
+[PAGE_BREAK]
+[PORTRAIT_LEFT_BY_CHAR=0x0010]
+『通通給我醒來！開打了！』
+[PAGE_BREAK]
+[PORTRAIT_LEFT_BY_CHAR=0x0011]
+『咦？對手呢？
+[PAGE_BREAK]
+　怎麼都是一堆小鬼頭‥‥』
+[PAGE_BREAK]
+[PORTRAIT_LEFT_BY_CHAR=0x0012]
+『管他的，知道我們大軍在此
+[PAGE_BREAK]
+　集結而還敢接近的，
+[PAGE_BREAK]
+　一定不是一般的小鬼，
+[PARAGRAPH]
+　先打了再說！』
+[END]
+```
+
+### Page 2
+
+```text
+[PORTRAIT_RIGHT_BY_ID=0x0000]
+『你們來這裡幹什麼？
+[PAGE_BREAK]
+　想要命的話就趕快說！』
+[PAGE_BREAK]
+[PORTRAIT_LEFT_BY_ID=0x0066]
+『‥我‥我不知道啊，
+[PAGE_BREAK]
+　首領薩卡大人‥
+[PAGE_BREAK]
+　四天前命令我們在此集結，
+[PARAGRAPH]
+　準備‥準備攻打精靈族的都
+[PAGE_BREAK]
+　城哈斯米爾，
+[PAGE_BREAK]
+　有一隊伙伴已經先去了，
+[PARAGRAPH]
+　到現在還沒回來，結果‥
+[PAGE_BREAK]
+　結果你們就先來了‥‥』
+[PAGE_BREAK]
+[PORTRAIT_RIGHT_BY_ID=0x0004]
+『笨蛋，那一隊早就被我們宰
+[PAGE_BREAK]
+　光了！那麼，你們的首領薩
+[PAGE_BREAK]
+　卡為何要攻打哈斯米爾？
+[PARAGRAPH]
+　趕快說清楚！』
+[PAGE_BREAK]
+[PORTRAIT_LEFT_BY_ID=0x0066]
+『‥這‥這‥我也不太清楚，
+[PAGE_BREAK]
+　只記得首領吩咐隊長的時候
+[PAGE_BREAK]
+　有提到要殺光精靈族以及務
+[PARAGRAPH]
+　必要搶到寶物，其它的我就
+[PAGE_BREAK]
+　沒聽清楚了‥‥』
+[PAGE_BREAK]
+[PORTRAIT_RIGHT_BY_ID=0x0011]
+『什麼寶物？』
+[PAGE_BREAK]
+[PORTRAIT_LEFT_BY_ID=0x0066]
+『‥哎，我怎麼可能知道‥‥
+[PAGE_BREAK]
+　求你們饒了我吧，我保證不
+[PAGE_BREAK]
+　會回去向首領通風報信‥』
+[PAGE_BREAK]
+[PORTRAIT_RIGHT_BY_ID=0x0000]
+『好吧，
+[PAGE_BREAK]
+　再回答我們一個問題，
+[PAGE_BREAK]
+　我們就放你走。
+[PARAGRAPH]
+　你們的首領薩卡現在
+[PAGE_BREAK]
+　在哪裡？』
+[PAGE_BREAK]
+[PORTRAIT_LEFT_BY_ID=0x0066]
+『首領啊‥他應該是率領另一
+[PAGE_BREAK]
+　隊到拉卡湖去攻打豹人族了
+[PAGE_BREAK]
+　如果沒錯的話，他應該還在
+[PARAGRAPH]
+　那一帶才對。
+[PAGE_BREAK]
+　‥‥我知道的都告訴你們了
+[PAGE_BREAK]
+　可以放我走了吧？』
+[PAGE_BREAK]
+[PORTRAIT_RIGHT_BY_ID=0x0000]
+『好，你可以走了！
+[PAGE_BREAK]
+　快滾吧！』
+[PAGE_BREAK]
+[PORTRAIT_LEFT_BY_ID=0x0066]
+『謝‥謝謝！』
+[END]
+```
+
+### Page 3
+
+```text
+[PORTRAIT_RIGHT_BY_ID=0x0004]
+『索爾，你怎麼可以未經大家
+[PAGE_BREAK]
+　的同意就放他走呢！』
+[PAGE_BREAK]
+[PORTRAIT_RIGHT_BY_ID=0x000D]
+『不要緊，我們需要的都已經
+[PAGE_BREAK]
+　知道了，不過情況好像更加
+[PAGE_BREAK]
+　麻煩了‥‥』
+[PAGE_BREAK]
+[PORTRAIT_RIGHT_BY_ID=0x0001]
+『獸人族是吃了什麼熊心豹子
+[PAGE_BREAK]
+　膽，竟敢同時攻打精靈族和
+[PAGE_BREAK]
+　豹人族！』
+[PAGE_BREAK]
+[PORTRAIT_RIGHT_BY_ID=0x0008]
+『我看啊，一定是有人在背後
+[PAGE_BREAK]
+　指使，不然獸人族那來這麼
+[PAGE_BREAK]
+　大的膽量。』
+[PAGE_BREAK]
+[PORTRAIT_RIGHT_BY_ID=0x000E]
+『豹人族的戰鬥力在這大陸的
+[PAGE_BREAK]
+　幾個種族中雖然也是數一數
+[PAGE_BREAK]
+　二的，但這種規模的攻擊他
+[PARAGRAPH]
+　們也未必擋得住，我們還是
+[PAGE_BREAK]
+　先去拉卡湖看看吧，
+[PAGE_BREAK]
+　必要時還可以支援他們。』
+[PAGE_BREAK]
+[PORTRAIT_RIGHT_BY_ID=0x000D]
+『拉卡湖離此地不遠，途中好
+[PAGE_BREAK]
+　像有個小村落，我們可以先
+[PAGE_BREAK]
+　在那裡休息一下。』
+[PAGE_BREAK]
+[PORTRAIT_RIGHT_BY_ID=0x0000]
+『那我們還等什麼？走吧！』
+[END]
+```

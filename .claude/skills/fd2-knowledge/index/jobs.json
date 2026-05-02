@@ -1,0 +1,218 @@
+{
+  "00": {
+    "id_hex": "00h",
+    "id_dec": 0,
+    "name": "龍",
+    "magic_resist_pct": null,
+    "crit_pct": null,
+    "md_section": "data/jobs.md"
+  },
+  "01": {
+    "id_hex": "01h",
+    "id_dec": 1,
+    "name": "劍士",
+    "magic_resist_pct": null,
+    "crit_pct": 5,
+    "md_section": "data/jobs.md"
+  },
+  "02": {
+    "id_hex": "02h",
+    "id_dec": 2,
+    "name": "戰士",
+    "magic_resist_pct": null,
+    "crit_pct": 3,
+    "md_section": "data/jobs.md"
+  },
+  "03": {
+    "id_hex": "03h",
+    "id_dec": 3,
+    "name": "騎士",
+    "magic_resist_pct": null,
+    "crit_pct": 3,
+    "md_section": "data/jobs.md"
+  },
+  "04": {
+    "id_hex": "04h",
+    "id_dec": 4,
+    "name": "弓兵",
+    "magic_resist_pct": null,
+    "crit_pct": 5,
+    "md_section": "data/jobs.md"
+  },
+  "05": {
+    "id_hex": "05h",
+    "id_dec": 5,
+    "name": "法師",
+    "magic_resist_pct": 30,
+    "crit_pct": 3,
+    "md_section": "data/jobs.md"
+  },
+  "06": {
+    "id_hex": "06h",
+    "id_dec": 6,
+    "name": "僧侶",
+    "magic_resist_pct": 30,
+    "crit_pct": 3,
+    "md_section": "data/jobs.md"
+  },
+  "07": {
+    "id_hex": "07h",
+    "id_dec": 7,
+    "name": "盜賊",
+    "magic_resist_pct": null,
+    "crit_pct": 0,
+    "md_section": "data/jobs.md"
+  },
+  "08": {
+    "id_hex": "08h",
+    "id_dec": 8,
+    "name": "武者",
+    "magic_resist_pct": null,
+    "crit_pct": 18,
+    "md_section": "data/jobs.md"
+  },
+  "09": {
+    "id_hex": "09h",
+    "id_dec": 9,
+    "name": "劍聖",
+    "magic_resist_pct": null,
+    "crit_pct": 5,
+    "md_section": "data/jobs.md"
+  },
+  "0A": {
+    "id_hex": "0Ah",
+    "id_dec": 10,
+    "name": "聖戰士",
+    "magic_resist_pct": null,
+    "crit_pct": 3,
+    "md_section": "data/jobs.md"
+  },
+  "0B": {
+    "id_hex": "0Bh",
+    "id_dec": 11,
+    "name": "聖騎士",
+    "magic_resist_pct": 10,
+    "crit_pct": 3,
+    "md_section": "data/jobs.md"
+  },
+  "0C": {
+    "id_hex": "0Ch",
+    "id_dec": 12,
+    "name": "狙擊手",
+    "magic_resist_pct": null,
+    "crit_pct": 12,
+    "md_section": "data/jobs.md"
+  },
+  "0D": {
+    "id_hex": "0Dh",
+    "id_dec": 13,
+    "name": "大法師",
+    "magic_resist_pct": 50,
+    "crit_pct": 3,
+    "md_section": "data/jobs.md"
+  },
+  "0E": {
+    "id_hex": "0Eh",
+    "id_dec": 14,
+    "name": "祭師",
+    "magic_resist_pct": 50,
+    "crit_pct": 3,
+    "md_section": "data/jobs.md"
+  },
+  "0F": {
+    "id_hex": "0Fh",
+    "id_dec": 15,
+    "name": "龍劍士",
+    "magic_resist_pct": 20,
+    "crit_pct": 12,
+    "md_section": "data/jobs.md"
+  },
+  "10": {
+    "id_hex": "10h",
+    "id_dec": 16,
+    "name": "鬥士",
+    "magic_resist_pct": null,
+    "crit_pct": 10,
+    "md_section": "data/jobs.md"
+  },
+  "11": {
+    "id_hex": "11h",
+    "id_dec": 17,
+    "name": "英雄",
+    "magic_resist_pct": 40,
+    "crit_pct": 6,
+    "md_section": "data/jobs.md"
+  },
+  "12": {
+    "id_hex": "12h",
+    "id_dec": 18,
+    "name": "魔戰士",
+    "magic_resist_pct": 20,
+    "crit_pct": 3,
+    "md_section": "data/jobs.md"
+  },
+  "13": {
+    "id_hex": "13h",
+    "id_dec": 19,
+    "name": "龍騎士",
+    "magic_resist_pct": null,
+    "crit_pct": 3,
+    "md_section": "data/jobs.md"
+  },
+  "14": {
+    "id_hex": "14h",
+    "id_dec": 20,
+    "name": "神射手",
+    "magic_resist_pct": 10,
+    "crit_pct": 7,
+    "md_section": "data/jobs.md"
+  },
+  "15": {
+    "id_hex": "15h",
+    "id_dec": 21,
+    "name": "召喚師",
+    "magic_resist_pct": 50,
+    "crit_pct": 3,
+    "md_section": "data/jobs.md"
+  },
+  "16": {
+    "id_hex": "16h",
+    "id_dec": 22,
+    "name": "聖者",
+    "magic_resist_pct": 50,
+    "crit_pct": 3,
+    "md_section": "data/jobs.md"
+  },
+  "17": {
+    "id_hex": "17h",
+    "id_dec": 23,
+    "name": "忍者",
+    "magic_resist_pct": null,
+    "crit_pct": 30,
+    "md_section": "data/jobs.md"
+  },
+  "18": {
+    "id_hex": "18h",
+    "id_dec": 24,
+    "name": "武聖",
+    "magic_resist_pct": 20,
+    "crit_pct": 18,
+    "md_section": "data/jobs.md"
+  },
+  "19": {
+    "id_hex": "19h",
+    "id_dec": 25,
+    "name": "機兵",
+    "magic_resist_pct": 20,
+    "crit_pct": 0,
+    "md_section": "data/jobs.md"
+  },
+  "1A": {
+    "id_hex": "1Ah",
+    "id_dec": 26,
+    "name": "？？？",
+    "magic_resist_pct": 60,
+    "crit_pct": 0,
+    "md_section": "data/jobs.md"
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "540AC": {
+    "name": "item_effect_table",
+    "title": "物品功效資訊",
+    "exe_addr_sample": "0x792C1",
+    "le_addr_sample": "0x540AC",
+    "version_note": "位址為攻略所記載版本；實際位址可能隨 FD2.EXE 版本浮動，以 signature 為準。",
+    "entry_size": 23,
+    "search_bytes": "0B 01 0A 00 5F 00",
+    "signature_stable_across_versions": true,
+    "notes_md_file": "data/offsets.md",
+    "md_anchor": "offset-540AC"
+  },
+  "792C1": {
+    "alias_of": "540AC"
+  },
+  "56190": {
+    "name": "shop_table",
+    "title": "商店出售物品資訊",
+    "exe_addr_sample": "0x7B3A4",
+    "le_addr_sample": "0x56190",
+    "version_note": "位址為攻略所記載版本；實際位址可能隨 FD2.EXE 版本浮動，以 signature 為準。",
+    "entry_size": 28,
+    "search_bytes": "80 81 84 A5 FF",
+    "signature_stable_across_versions": true,
+    "notes_md_file": "data/offsets.md",
+    "md_anchor": "offset-56190"
+  },
+  "7B3A4": {
+    "alias_of": "56190"
+  },
+  "557FD": {
+    "name": "spell_effect_table",
+    "title": "法術功效資訊",
+    "exe_addr_sample": "0x7AA11",
+    "le_addr_sample": "0x557FD",
+    "version_note": "位址為攻略所記載版本；實際位址可能隨 FD2.EXE 版本浮動，以 signature 為準。",
+    "entry_size": 7,
+    "search_bytes": "32 00 5A 05",
+    "signature_stable_across_versions": true,
+    "notes_md_file": "data/offsets.md",
+    "md_anchor": "offset-557FD"
+  },
+  "7AA11": {
+    "alias_of": "557FD"
+  },
+  "55BA1": {
+    "name": "character_base_table",
+    "title": "人物出場屬性資訊",
+    "exe_addr_sample": "0x7ADB5",
+    "le_addr_sample": "0x55BA1",
+    "version_note": "位址為攻略所記載版本；實際位址可能隨 FD2.EXE 版本浮動，以 signature 為準。",
+    "entry_size": 24,
+    "search_bytes": "01 01 01 2A",
+    "signature_stable_across_versions": true,
+    "notes_md_file": "data/offsets.md",
+    "md_anchor": "offset-55BA1"
+  },
+  "7ADB5": {
+    "alias_of": "55BA1"
+  },
+  "55EA1": {
+    "name": "character_growth_table",
+    "title": "升級屬性資料",
+    "exe_addr_sample": "0x7B0B5",
+    "le_addr_sample": "0x55EA1",
+    "version_note": "位址為攻略所記載版本；實際位址可能隨 FD2.EXE 版本浮動，以 signature 為準。",
+    "entry_size": 11,
+    "search_bytes": "06 08 04 06",
+    "signature_stable_across_versions": true,
+    "notes_md_file": "data/offsets.md",
+    "md_anchor": "offset-55EA1"
+  },
+  "7B0B5": {
+    "alias_of": "55EA1"
+  },
+  "564B3": {
+    "name": "spell_learning_table",
+    "title": "法術習得等級資料",
+    "exe_addr_sample": "0x7B6C7",
+    "le_addr_sample": "0x564B3",
+    "version_note": "位址為攻略所記載版本；實際位址可能隨 FD2.EXE 版本浮動，以 signature 為準。",
+    "entry_size": 12,
+    "search_bytes": "05 11 09 01",
+    "signature_stable_across_versions": true,
+    "notes_md_file": "data/offsets.md",
+    "md_anchor": "offset-564B3"
+  },
+  "7B6C7": {
+    "alias_of": "564B3"
+  },
+  "558F9": {
+    "name": "enemy_data_table",
+    "title": "敵人／友軍等級資訊",
+    "exe_addr_sample": "0x7AB0D",
+    "le_addr_sample": "0x558F9",
+    "version_note": "位址為攻略所記載版本；實際位址可能隨 FD2.EXE 版本浮動，以 signature 為準。",
+    "entry_size": 10,
+    "search_bytes": "01 02 12 00 00 05",
+    "signature_stable_across_versions": true,
+    "notes_md_file": "data/offsets.md",
+    "md_anchor": "offset-558F9"
+  },
+  "7AB0D": {
+    "alias_of": "558F9"
+  },
+  "51D96": {
+    "name": "job_magic_resist_table",
+    "title": "魔法抗性資料",
+    "exe_addr_sample": "0x76FAA",
+    "le_addr_sample": "0x51D96",
+    "version_note": "位址為攻略所記載版本；實際位址可能隨 FD2.EXE 版本浮動，以 signature 為準。",
+    "entry_size": 4,
+    "entry_unit": "職業",
+    "search_bytes": "09 0A 00 00 00",
+    "signature_stable_across_versions": true,
+    "notes_md_file": "data/offsets.md",
+    "md_anchor": "offset-51D96"
+  },
+  "76FAA": {
+    "alias_of": "51D96"
+  },
+  "5219B": {
+    "name": "job_crit_table",
+    "title": "暴擊率資料",
+    "exe_addr_sample": "0x773AF",
+    "le_addr_sample": "0x5219B",
+    "version_note": "位址為攻略所記載版本；實際位址可能隨 FD2.EXE 版本浮動，以 signature 為準。",
+    "entry_size": 1,
+    "entry_unit": "職業",
+    "search_bytes": "05 03 03 05",
+    "signature_stable_across_versions": true,
+    "notes_md_file": "data/offsets.md",
+    "md_anchor": "offset-5219B"
+  },
+  "773AF": {
+    "alias_of": "5219B"
+  }
+}

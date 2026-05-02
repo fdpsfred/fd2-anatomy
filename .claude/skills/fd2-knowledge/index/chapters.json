@@ -1,0 +1,212 @@
+{
+  "1": {
+    "chapter": 1,
+    "title": "初試身手",
+    "md_file": "data/chapters/chapter_01.md",
+    "join": "戰士哈諾",
+    "note": "若哈諾還未出現便已消滅完敵人，那麼哈諾便不會加入了。"
+  },
+  "2": {
+    "chapter": 2,
+    "title": "羅德鎮",
+    "md_file": "data/chapters/chapter_02.md",
+    "join": "弓兵希莉亞",
+    "note": "若要在第四章買到風精之羽，此處別幫悠妮置裝（包括法師袍和釘頭鎚）。"
+  },
+  "3": {
+    "chapter": 3,
+    "title": "往塞拉村途中",
+    "md_file": "data/chapters/chapter_03.md",
+    "join": "劍士鐵諾若未死時加入",
+    "note": "第二章撿到的旅行裝先別賣掉，第四章可給鐵諾用。"
+  },
+  "4": {
+    "chapter": 4,
+    "title": "塞拉村前",
+    "md_file": "data/chapters/chapter_04.md",
+    "join": "",
+    "note": "如果前幾章練功夠，錢也足夠時，本章最好別置裝，改購買風精之羽。"
+  },
+  "5": {
+    "chapter": 5,
+    "title": "塞拉村",
+    "md_file": "data/chapters/chapter_05.md",
+    "join": "僧侶瑪琳",
+    "note": ""
+  },
+  "6": {
+    "chapter": 6,
+    "title": "普里茲港",
+    "md_file": "data/chapters/chapter_06.md",
+    "join": "弓兵貝克威",
+    "note": "迴旋斧是戰士系唯一兩格攻擊的武器，若第四章沒有買，這裡要買一下（永不賣出）。"
+  },
+  "7": {
+    "chapter": 7,
+    "title": "往王城的途中",
+    "md_file": "data/chapters/chapter_07.md",
+    "join": "武者凱麗未死時加入",
+    "note": "如果想將所有僧侶／法師都轉職為聖者，所有戰士轉職為魔戰士，則此處要各買一個"
+  },
+  "8": {
+    "chapter": 8,
+    "title": "王城前的戰鬥",
+    "md_file": "data/chapters/chapter_08.md",
+    "join": "騎士洛娜",
+    "note": "先鋒矛要多買一支給洛娜用。"
+  },
+  "9": {
+    "chapter": 9,
+    "title": "騎士的抉擇",
+    "md_file": "data/chapters/chapter_09.md",
+    "join": "",
+    "note": "洛娜身上的魔法皮甲可移轉出來給其他人使用，不必再買一個。"
+  },
+  "10": {
+    "chapter": 10,
+    "title": "洞窟中的激戰",
+    "md_file": "data/chapters/chapter_10.md",
+    "join": "騎士萊汀、僧侶索菲亞（黃金徽章在索菲亞身上）",
+    "note": "儘早將瑪琳練到３０級以上以學到傳送術，後面幾個關卡都很有用。"
+  },
+  "11": {
+    "chapter": 11,
+    "title": "幻之森林",
+    "md_file": "data/chapters/chapter_11.md",
+    "join": "魔法師珊",
+    "note": "珊會跟著貝克威走。"
+  },
+  "12": {
+    "chapter": 12,
+    "title": "北山道",
+    "md_file": "data/chapters/chapter_12.md",
+    "join": "龍劍士米亞斯多德加入",
+    "note": "米亞斯多德會跟著貝克威或珊走。"
+  },
+  "13": {
+    "chapter": 13,
+    "title": "哈斯米爾之戰",
+    "md_file": "data/chapters/chapter_13.md",
+    "join": "",
+    "note": "哈瓦諾有沒有出現都會加入。"
+  },
+  "14": {
+    "chapter": 14,
+    "title": "平原的會戰",
+    "md_file": "data/chapters/chapter_14.md",
+    "join": "",
+    "note": ""
+  },
+  "15": {
+    "chapter": 15,
+    "title": "拉卡湖的激戰",
+    "md_file": "data/chapters/chapter_15.md",
+    "join": "武者賽可邦勒",
+    "note": ""
+  },
+  "16": {
+    "chapter": 16,
+    "title": "冰原之戰",
+    "md_file": "data/chapters/chapter_16.md",
+    "join": "索爾HP320以上，十八回合敵全滅，且蜜蒂八個部下陣亡未超過一半，則劍聖蜜蒂加入。",
+    "note": "此處最好將所有錢都拿來買力量藥水，而不要買霧之袍。"
+  },
+  "17": {
+    "chapter": 17,
+    "title": "血與冰之刃",
+    "md_file": "data/chapters/chapter_17.md",
+    "join": "龍劍士凱拉斯",
+    "note": "若蜜蒂未加入，則本章她仍會出戰，且可以控制，但本章結束後便會離開。"
+  },
+  "18": {
+    "chapter": 18,
+    "title": "遙遠的彼岸",
+    "md_file": "data/chapters/chapter_18.md",
+    "join": "聖者約拿、聖騎士蘭斯洛特",
+    "note": ""
+  },
+  "19": {
+    "chapter": 19,
+    "title": "黑暗中的狙擊",
+    "md_file": "data/chapters/chapter_19.md",
+    "join": "龍劍士巴拿羅西亞",
+    "note": "若巴拿羅西亞尚未出現便消滅完敵人，則巴拿羅西亞不會加入。"
+  },
+  "20": {
+    "chapter": 20,
+    "title": "死亡般的沈寂",
+    "md_file": "data/chapters/chapter_20.md",
+    "join": "忍者謝多。若在十五回合內結束，則魔族達可塞加入。",
+    "note": ""
+  },
+  "21": {
+    "chapter": 21,
+    "title": "亞述森林",
+    "md_file": "data/chapters/chapter_21.md",
+    "join": "祭司希爾法、神射手羅蘭",
+    "note": ""
+  },
+  "22": {
+    "chapter": 22,
+    "title": "遠古呼喚",
+    "md_file": "data/chapters/chapter_22.md",
+    "join": "龍騎士莎拉",
+    "note": "從本章開始必須連戰四場後才有商店買賣，因此要先處理好身上的物品。"
+  },
+  "23": {
+    "chapter": 23,
+    "title": "向天空之旅",
+    "md_file": "data/chapters/chapter_23.md",
+    "join": "若有天空之鑰，則武聖卡里斯加入。",
+    "note": ""
+  },
+  "24": {
+    "chapter": 24,
+    "title": "在天空的彼方",
+    "md_file": "data/chapters/chapter_24.md",
+    "join": "",
+    "note": ""
+  },
+  "25": {
+    "chapter": 25,
+    "title": "火焰的審判",
+    "md_file": "data/chapters/chapter_25.md",
+    "join": "大法師亞奇梅吉、龍劍士聖寇拉斯",
+    "note": ""
+  },
+  "26": {
+    "chapter": 26,
+    "title": "未知的迴廊",
+    "md_file": "data/chapters/chapter_26.md",
+    "join": "機器人渥德",
+    "note": ""
+  },
+  "27": {
+    "chapter": 27,
+    "title": "命運的交會點",
+    "md_file": "data/chapters/chapter_27.md",
+    "join": "",
+    "note": "這是最後可以買賣物品的地方，盡情地買吧。"
+  },
+  "28": {
+    "chapter": 28,
+    "title": "探索者",
+    "md_file": "data/chapters/chapter_28.md",
+    "join": "",
+    "note": ""
+  },
+  "29": {
+    "chapter": 29,
+    "title": "無邊的黑暗之中",
+    "md_file": "data/chapters/chapter_29.md",
+    "join": "",
+    "note": ""
+  },
+  "30": {
+    "chapter": 30,
+    "title": "傳說的終章－結局",
+    "md_file": "data/chapters/chapter_30.md",
+    "join": "",
+    "note": "以下為在第一回合便殺掉空魔神的方式："
+  }
+}

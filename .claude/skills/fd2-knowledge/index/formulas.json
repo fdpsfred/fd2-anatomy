@@ -1,0 +1,67 @@
+{
+  "物理攻擊傷害": {
+    "name": "物理攻擊傷害",
+    "md_file": "data/formulas.md",
+    "md_anchor": null
+  },
+  "物理攻擊命中率": {
+    "name": "物理攻擊命中率",
+    "md_file": "data/formulas.md",
+    "md_anchor": null
+  },
+  "劍技攻擊傷害": {
+    "name": "劍技攻擊傷害",
+    "md_file": "data/formulas.md",
+    "md_anchor": null
+  },
+  "法術攻擊傷害": {
+    "name": "法術攻擊傷害",
+    "md_file": "data/formulas.md",
+    "md_anchor": null
+  },
+  "法術攻擊命中率": {
+    "name": "法術攻擊命中率",
+    "md_file": "data/formulas.md",
+    "md_anchor": null
+  },
+  "攻擊經驗值": {
+    "name": "攻擊經驗值",
+    "md_file": "data/formulas.md",
+    "md_anchor": null
+  },
+  "法術恢復力": {
+    "name": "法術恢復力",
+    "md_file": "data/formulas.md",
+    "md_anchor": null
+  },
+  "恢復法術經驗值": {
+    "name": "恢復法術經驗值",
+    "md_file": "data/formulas.md",
+    "md_anchor": null
+  },
+  "傳送術經驗值": {
+    "name": "傳送術經驗值",
+    "md_file": "data/formulas.md",
+    "md_anchor": null
+  },
+  "行動術經驗值": {
+    "name": "行動術經驗值",
+    "md_file": "data/formulas.md",
+    "md_anchor": null
+  },
+  "魔刃術／魔鎧術／風行術經驗值": {
+    "name": "魔刃術／魔鎧術／風行術經驗值",
+    "md_file": "data/formulas.md",
+    "md_anchor": null
+  },
+  "麻痹術／毒擊術經驗值": {
+    "name": "麻痹術／毒擊術經驗值",
+    "md_file": "data/formulas.md",
+    "md_anchor": null
+  },
+  "解毒術／祛麻術經驗值": {
+    "name": "解毒術／祛麻術經驗值",
+    "md_file": "data/formulas.md",
+    "md_anchor": null
+  }
+}
