@@ -5,23 +5,6 @@
 
 ## 資源檔未完整解析的格式段落
 
-### 1. ANI.DAT entry header `+0xA5..+0xA6` 後的 byte 用途
-
-- **現狀**：ANI.DAT 每 entry 含 0xAD byte header，只解出 `+0xA5..+0xA6` 是
-  `frame_count`。其餘 `0..0xA4` 與 `0xA7..0xAC` 用途未明。
-- **為什麼還沒解**：ANI.DAT 是 cinematic 動畫，frame_count 已足夠播放；其餘
-  metadata 不影響 decoder 正確運作。
-- **解需要做什麼**：對 9 個 entries 統計各 byte 分布，與 `play_ani_file_animation_sequence`
-  其他用途的 byte 對齊；對照 in-game 觀察推測 metadata 含義 (e.g. palette index
-  / loop flags / frame size)。
-
-### 2. ANI.DAT per-frame metadata `+0x04..+0x07`
-
-- **現狀**：每 frame `frame_header` 8 bytes 中 `+0x00..+0x01 data_size` 與
-  `+0x02..+0x03 decoded_size` 已解。`+0x04..+0x07` 4 bytes 用途待確認。
-- **解需要做什麼**：對多 frame 統計這 4 bytes 模式；可能是 timing override
-  或 frame-specific palette。
-
 ### 3. TAI.DAT byte-stream payload format
 
 - **現狀**：每 entry 已知 `+0x00..+0x03` 是 width/height (u16 LE × 2)，後續
@@ -40,11 +23,38 @@
 - **解需要做什麼**：對每個 nested sub-archive parse 出 sub-entry 後在
   binary 內字串比對 / call-site 觀察推測用途。
 
+## Data-only / 不影響 emission
+
+caller 端已確認不對 unknown bytes 做條件分支，純 decoder semantic 層空白；
+emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipeline
+站起來再做 backlog。
+
+### 1. ANI.DAT entry header `+0xA5..+0xA6` 後的 byte 用途
+
+- **現狀**：ANI.DAT 每 entry 含 0xAD byte header，只解出 `+0xA5..+0xA6` 是
+  `frame_count`。其餘 `0..0xA4` 與 `0xA7..0xAC` 用途未明。
+- **解需要做什麼**：對 9 個 entries 統計各 byte 分布，對照 in-game 觀察推測
+  metadata 含義 (e.g. palette index / loop flags / frame size)。
+- **Status:** data-only — `play_ani_file_animation_sequence @ 0x20421` 讀
+  全 0xAD header 但只用 `+0xA5..0xA6` (frame_count)，其餘 byte 無條件分支。
+
+### 2. ANI.DAT per-frame metadata `+0x04..+0x07`
+
+- **現狀**：每 frame `frame_header` 8 bytes 中 `+0x00..+0x01 data_size` 與
+  `+0x02..+0x03 decoded_size` 已解。`+0x04..+0x07` 4 bytes 用途待確認。
+- **解需要做什麼**：對多 frame 統計這 4 bytes 模式；可能是 timing override
+  或 frame-specific palette。
+- **Status:** data-only — `play_ani_file_animation_sequence` 不讀 +0x04..+0x07，
+  emission 不受影響。
+
 ### 5. FD2.SAV slot trailer `+0xA0A..+0xA28` (30 bytes)
 
 - **現狀**：每個 4-slot snapshot 結尾 30 bytes 未細分 sub-field。
 - **解需要做什麼**：trace `save_current_state_to_slot @ 0x30012` 寫入這段時
   的 source globals。
+- **Status:** data-only — `save_current_state_to_slot @ 0x30012` 寫 0xA00
+  map + 9 個 scalar (gold/chapter/speed/sfx flags)，+0xA0A..0xA28 未被操作；
+  存檔讀寫走 memcpy 整段保留，emission 不受影響。
 
 ### 6. tile_attribute_flags 4-byte/tile 中 +0/+1/+3 byte 用途
 
@@ -52,6 +62,9 @@
   的 animation/palette flag bits 已解 (`0x04` / `0x08` / `0x10`)。其餘 byte 未明。
 - **解需要做什麼**：對多章 tile_attribute_flags dump 後 cross-tile 比對；
   可能含 terrain_id / movement cost / passability。
+- **Status:** data-only — `composite_battle_tile_map @ 0x12247` 與
+  `read_tile_attribute_at_pos` 只讀 +0 byte 的 bit 0x04/0x08/0x10
+  (animation/palette flag)；+0/+1/+3 其他 byte 不做條件分支。
 
 ### 7. FIGANI per-pose metadata 細節
 
@@ -60,6 +73,8 @@
   未細究。
 - **解需要做什麼**：對 multiple poses 統計 byte 分布，trace
   `step_figani_pose_animation @ 0x2B9A1` 詳細 state machine。
+- **Status:** data-only — `step_figani_pose_animation @ 0x2B9A1` 只讀 per-pose
+  +6 (sub_frame_count)，+7.. 未被讀取。
 
 ## 章節中未確認的機制
 
@@ -142,23 +157,30 @@
 
 ## Calling convention 校正後的剩餘限制
 
-### 26. Phase 7 跳過的 277 個 LOW-confidence function 的 param 數量 (部分 resolved)
+### 26. ✅ LOW-confidence (caller-signal-unreliable) 277 個 function param 數量 — RESOLVED
 
-- **現狀**：已透過 function-pointer dispatch table callee 識別 bulk-fix 176 個
-  (= 64%)：`chapter_NN_post_action / init / end / event_handler / cast_*`，全部
-  設為 `void __cdecl func(void)`（0 stack args，匹配 `(*table[idx])()` call site）。
-  詳見 `program_info/calling_convention.md`。
-- **剩餘 ~101 個** 含：`spell_handler_id_*` × 13（disasm 顯示有 stack arg
-  reads，非 0-arg dispatch callee）、`execute_*` × 4、`FUN_*` × 17、其他 16 個
-  unmatched no-caller、~38 mixed-signal caller、~14 其他原因。
-- **解需要做什麼**：對剩餘 101 個個別 disasm + decomp 確認 signature；
-  函式指標 case 找出 dispatch site 共同 push pattern。屬 readability /
-  完整性工作，不阻擋當前編譯目標（4-byte stack slot 一致即可編譯）。
+- 277 個 LOW-confidence 已全部處理：176 個 function-pointer dispatch table
+  callee 在前期 bulk-fix 為 `void __cdecl func(void)`；剩 102 個 (audit 重新清點數)
+  逐一 disasm 驗證，47 個 `set_function_prototype` 補正、55 個 ratify (Ghidra
+  cc-correction 後計數已正確或 Borland CRT 自訂 ABI deferred)。
+- 47 個 apply 分布：`spell_handler_id_*` × 11 (3 cdecl args，移除 3 phantom reg)、
+  `execute_*` × 7 (各 2-7 cdecl + 移除 3 phantom)、`tick_summon` family × 7
+  (5 cdecl args)、`tick_chapter_palette_animation` / `tick_tile_event_animations`
+  / `chapter_19_20_21_init_shared` 等 0-arg cdecl × 多筆、其他單獨 case × 多筆。
+- 0 emission blocker 全程維持：`list_bookmarks(category="Bad Instruction")` = 0
+  在所有 `set_function_prototype` apply 之間皆 0。
+- Borland CRT soft-FP / long-double family (`FUN_0004b761` divide、
+  `FUN_0004cb34` mantissa add、`FUN_0004cb86`、`FUN_0004d53c` 等) 用 custom
+  ABI (EBX/ESI/EDI 也帶輸入)，Ghidra 標準 fastcall 無法精確建模 — defer 到
+  build pipeline 站起來再 byte-level 比對。
+- 工具：`tools/lowconf_signature/` (`inventory.py` 抽 LOW set + signal、
+  `plan_apply.py` 規則化 apply plan 產出後**未**直接套用，per-function disasm
+  驗證後逐一 apply)。
 
 ### 27. 新加入 param 的型別都是 `unsigned int` (部分 audit，留 backlog)
 
-- **現狀**：Phase 7 為 41 個 function 補了 61 個遺漏 param，型別一律 `uint`
-  (4 bytes)。抽樣分析發現：
+- **現狀**：auto param-count classifier 為 41 個 function 補了 61 個遺漏 param，
+  型別一律 `uint` (4 bytes)。抽樣分析發現：
   - 30 個 chapter_NN_init / chapter_NN_end 的 added param 多為 unused
     passthrough (body 不讀，僅是 caller pre-CALL EAX 訊號的反映)；改型別
     無 codegen 影響，僅 readability。
@@ -221,3 +243,8 @@
   function (chapter_NN_post_action × 17 + chapter_NN_init × 26 + chapter_NN_end
   × 30 + chapter_event_handler_* × 89 + cast_* × 13 + 1) 確認 caller_count=0
   且 dispatch site `(*table[idx])()` 無 args，全部 `void __cdecl func(void)`
+- ✅ LOW-confidence (caller-signal-unreliable) 102 個 function 全部逐一審完
+  — 47 個 `set_function_prototype` apply、55 個 ratify；常見模式為
+  spell_handler_id / execute / tick_summon family 共用「Borland stack-probe
+  prologue + 3 phantom reg + N cdecl stack args」結構；Borland CRT soft-FP /
+  long-double family custom ABI (EBX/ESI/EDI 帶輸入) 留 backlog

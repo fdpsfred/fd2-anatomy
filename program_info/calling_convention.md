@@ -71,7 +71,8 @@ register 的 implicit write。
 | `0x36cd7` | `crt_frame_setup` | `__stdcall` | Borland CRT 的 stack-probe helper，每個 function 都會呼叫；1 個 stack arg = framesize |
 | `0x4b502` | `FUN_0004b502` | `__fastcall` | Borland soft-FP: 80-bit long double in-place add of immediate constant (`*operand_a += B_imm`)。EAX = `long_double_80 *operand_a_inout`；3 stack args = B 的 `dwMantissa_lo / dwMantissa_hi / wSign_exp`；caller 須設 EBX = 同 EAX 作 result_ptr (內部 PUSH/POP 暫存，CALL 期間 EBX 被 overwrite 為 B mantissa_lo)。`RET 0xc`. 完整 register-level ABI 見函式 plate comment。 |
 
-兩者在 Phase 2 classifier 內 hardcode 為 `pinned: true`，避免 re-classify 被誤判。
+兩者在 cc classifier (`tools/calling_convention_audit/classify.py`) 內
+hardcode 為 `pinned: true`，避免 re-classify 被誤判。
 
 ## Parameter 數量規則 (caller-derived)
 
@@ -108,17 +109,20 @@ __fastcall : N_reg   = max consecutive prefix of (EAX, EDX, ECX) that ALL caller
 
 ## 工具 (tools/calling_convention_audit/)
 
-完整 5-phase pipeline 的 scripts 與用法見 `tools/calling_convention_audit/_index.md`：
+完整 pipeline 的 scripts 與用法見 `tools/calling_convention_audit/_index.md`：
 
-- Phase 1 (dump)：`ghidra_dump.java` — 對 1000 個 function dump per-function ABI 證據
-- Phase 2 (classify)：`classify.py` — 用上述規則決定每個 function 的推薦 cc
-- Phase 4 (apply)：`apply_batch.py` + `ghidra_apply.java` — 跨 session 批次套用 cc/rename
-- Phase 5 (verify)：`verify.py` — 重 dump + diff + bad-instr check
-- Phase 6 (param 名清理)：`ghidra_param_cleanup.java` — `arg_*_in` → `param_N`
-- Phase 7 (param 數量校正)：`param_count_classify.py` + `ghidra_param_count_apply.java` — 用 caller 訊號推論真實 param 數量並套用
+| 角色 | Script | 說明 |
+|---|---|---|
+| dump | `ghidra_dump.java` | 對 1000 個 function dump per-function ABI 證據 |
+| classify | `classify.py` | 用上述規則決定每個 function 的推薦 cc |
+| apply | `apply_batch.py` + `ghidra_apply.java` | 跨 session 批次套用 cc/rename |
+| verify | `verify.py` | 重 dump + diff + bad-instr check |
+| param-name cleanup | `ghidra_param_cleanup.java` | `arg_*_in` → `param_N` |
+| param-count apply | `param_count_classify.py` + `ghidra_param_count_apply.java` | 用 caller 訊號推論真實 param 數量並套用 |
 
-Phases 1+2+4+5 是 cc 校正主線 (跨 session 可恢復，progress.json checkpoint)；
-6 與 7 是 cc 修正後的 cleanup pass，one-shot single-transaction。
+dump / classify / apply / verify 是 cc 校正主線 (跨 session 可恢復，
+progress.json checkpoint)；param-name cleanup 與 param-count apply 是 cc
+修正後的 cleanup pass，one-shot single-transaction。
 
 ## Function-pointer dispatch table callees 的 0-arg signature
 
@@ -138,11 +142,31 @@ Phases 1+2+4+5 是 cc 校正主線 (跨 session 可恢復，progress.json checkp
 = False`，dispatch site `(*table[idx])()` 也無 push 任何 stack arg，故 callee
 應為 0-arg signature。
 
-剩下 ~101 個 LOW-confidence functions（`spell_handler_id_*` × 13 有 stack arg
-reads、`execute_*` × 4、`FUN_*` × 17、其他 16 個 unmatched no-caller、~38
-mixed-signal、~14 其他）需個別 disasm + decomp 確認 signature；保留 Phase 7
-預設的 `__fastcall` + 3 reg params 不阻擋編譯（4-byte stack slot 大小一致
-即可正確編譯），列為 backlog。
+LOW-confidence 102 個 function (caller signal 不確定，auto param-count
+classifier 跳過；audit 重新清點數，原估計 ~101) 已全部逐一 disasm + 必要時
+caller call site cross-check 後處理：47 個 apply 新 prototype、55 個 ratify
+(Ghidra cc-correction 後計數已正確或 Borland CRT 自訂 ABI)。
+
+常見模式：
+
+- **Borland stack-probe prologue 函式** (有 `PUSH framesize_imm; CALL 0x36cd7
+  (crt_frame_setup)`)：3 個 phantom reg slot 來自舊 fastcall 預設，body 不讀
+  EAX/EDX/ECX 作 input；strip 3 phantom + 保留 N cdecl stack args。包含
+  `spell_handler_id_*` × 11 (3 args: caster_unit_id, num_targets, target_id_array)、
+  `execute_*` × 7 (各 2-7 args)、`tick_summon` family × 7 (5 args)、章節共用 init
+  / handler 與 tick_chapter_palette_animation / tick_tile_event_animations 等
+  0-arg cdecl × 多筆。
+- **標準 EBP prologue 函式** (有 `PUSH EBP; MOV EBP, ESP`)：N cdecl stack args
+  讀自 `[EBP+8/c/10/...]`，無 phantom reg；Ghidra cc-correction 已正確處理，
+  只需 ratify (例：`memcpy` @ 0x3cbd6、`itoa` @ 0x46bba 等)。
+- **Borland CRT soft-FP / long-double family** (`FUN_0004b761` divide、
+  `FUN_0004cb34` mantissa add、`FUN_0004cb86`、`FUN_0004d53c`)：custom ABI
+  (EBX/ESI/EDI 也帶輸入)，標準 `__fastcall` 無法精確建模。defer 到 build
+  pipeline 站起來再 byte-level 比對驗證。
+
+工具：`tools/lowconf_signature/` (`inventory.py` 抽 LOW set + signal、
+`plan_apply.py` 規則化 plan 產出後**未**直接套用，per-function disasm 驗證
+後逐一 apply)。
 
 ## Decompiler fragments — 不可獨立宣告的「函式」
 

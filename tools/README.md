@@ -190,11 +190,11 @@ each; Lead 0xF9 = 116; final 41 are ETEN extension chars in PUA).
 
 ## calling_convention_audit/
 
-Five-phase pipeline (plus two cleanup passes) for correcting Ghidra's
-auto-inferred calling convention on every function in FD2.LE so the
-decompiled source can be recompiled into an ABI-equivalent binary. Mixes
-Python orchestrators with Ghidra Java workers run via
-`mcp__ghidra__run_script_inline`.
+Pipeline (cc-correction main line + two one-shot cleanup passes) for
+correcting Ghidra's auto-inferred calling convention on every function
+in FD2.LE so the decompiled source can be recompiled into an
+ABI-equivalent binary. Mixes Python orchestrators with Ghidra Java
+workers run via `mcp__ghidra__run_script_inline`.
 
 Each `.py` script accepts `--workdir DIR` (default
 `<repo>/workspace/calling_convention_audit/`) and is resumable across
@@ -205,26 +205,26 @@ relocating.
 Pipeline (run in order):
 
 ```bash
-# Phase 1 — Ghidra-side: dump per-function ABI evidence
+# dump — Ghidra-side: dump per-function ABI evidence
 # (run tools/calling_convention_audit/ghidra_dump.java via run_script_inline)
 
-# Phase 2 — derive cc + rename recommendations
+# classify — derive cc + rename recommendations
 python tools/calling_convention_audit/classify.py
 
-# Phase 4 — apply cc/rename in batches (loop until done)
+# apply — apply cc/rename in batches (loop until done)
 python tools/calling_convention_audit/apply_batch.py prepare --batch-size 100
 # (run ghidra_apply.java via run_script_inline)
 python tools/calling_convention_audit/apply_batch.py consume
 # repeat until `apply_batch.py status` reports remaining=0
 
-# Phase 5 — verify
+# verify
 # (re-run ghidra_dump.java with OUT_PATH set to audit_after.json)
 python tools/calling_convention_audit/verify.py
 
-# Phase 6 — clean up arg_eax_in/edx_in/ecx_in parameter-name artifacts
+# param-name cleanup — clean up arg_eax_in/edx_in/ecx_in artifacts
 # (run ghidra_param_cleanup.java via run_script_inline)
 
-# Phase 7 — correct phantom parameter counts
+# param-count apply — correct phantom parameter counts
 python tools/calling_convention_audit/param_count_classify.py
 # (run ghidra_param_count_apply.java via run_script_inline)
 ```
@@ -235,3 +235,51 @@ changes, 1 rename, 1684 parameter renames, 469 parameter-count
 adjustments). ABI rules and signal interpretation: see
 `program_info/calling_convention.md`. Pipeline detail: see
 `tools/calling_convention_audit/_index.md`.
+
+## lowconf_signature/
+
+Follow-on cleanup for the 277 LOW-confidence functions that the auto
+param-count classifier skipped (caller signal too weak to auto-classify).
+Inventory + planning helpers; final apply is per-function disasm
+verification, not bulk apply.
+
+- `inventory.py` — re-run the param-count classifier
+  (`expected_param_count` from
+  `tools/calling_convention_audit/param_count_classify.py`) against
+  `workspace/calling_convention_audit/audit.json` + `recommendations.json`
+  and emit the LOW set with full per-function signal (caller_count,
+  reads_eax/edx/ecx, last_insn, callers' set_eax/set_edx/set_ecx,
+  add_esp_seen/min/max). Splits into seven categories (dispatch_callee /
+  spell_handler_id / execute / fun_low / unmatched_no_caller /
+  mixed_signal / other). Filters out 174 already-confirmed dispatch
+  callees + decompiler fragments / pinned addresses / thunks.
+
+  ```bash
+  python tools/lowconf_signature/inventory.py
+  ```
+
+  Outputs `workspace/lowconf_signature/lowconf_inventory.{csv,json}` +
+  `lowconf_summary.txt`. Verified: 102 actionable rows after filtering
+  (44 fun_low / 22 mixed_signal / 18 unmatched_no_caller / 11
+  spell_handler_id / 7 execute).
+
+- `plan_apply.py` — rule-based prototype generator (one suggested
+  prototype per LOW entry under conservative ratify rules). Emits
+  `workspace/lowconf_signature/apply_plan.tsv` for review only — do
+  NOT bulk-apply this without per-function disasm verification first.
+  Rules are intentionally conservative for ratify cases (R-fastcall-K-
+  ratify, R-cdecl-reads-true-ratify) because `reads_eax/edx/ecx` flags
+  hit false positives on globals/locals; the body of a Borland CRT
+  soft-FP helper that reads EAX/EDX/ECX is often using those for
+  custom ABI input not visible to the standard fastcall classifier.
+
+  ```bash
+  python tools/lowconf_signature/plan_apply.py
+  ```
+
+The intended workflow is: run `inventory.py` → for each row, do
+`disassemble_function` + `decompile_function` to confirm prologue type
+(Borland stack-probe vs standard EBP) and stack arg count from
+`[ebp+K]` / `[esp+K]` reads → call `mcp__ghidra__set_function_prototype`
+with the verified signature. `plan_apply.py` output is reference
+material, not a substitute for disasm.
