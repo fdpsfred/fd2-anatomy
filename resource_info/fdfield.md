@@ -118,8 +118,22 @@ Header total = 3 + 16×3 + 16×2 + 16×3 = **131 bytes = 0x83** ✓
 | endgame_ch32 | 0x20 | 30 | 1171 (+10 records) | 0 |
 
 ch1 與 endgame_ch31 各多 1 個 reserved record (race_id=0xFF 永不被 load)。
-endgame_ch32 的 char_spawn_count 與實際 record 數有 10 records 差距，推測
-endgame_ch32 的 `char_spawn_count` 語意特殊 (reserved/inactive 部分不計入 count byte)。
+endgame_ch32 的 char_spawn_count = 30 但實際 file payload 含 40 records (10 個
+額外 = 260 bytes)。
+
+**Loader 行為**：`load_chapter_portraits_and_dump_tmp @ 0x10b4e` 的核心 loop
+用 `portrait_cache_alloc_offset = char_spawn_count` (header byte +2) 當迭代
+上限：
+
+```
+for (i = 0; i < char_spawn_count; i++) {
+  if (records[i].race_id == target_race_id) init_runtime_char_for_battle(i, ...)
+}
+```
+
+`char_spawn_count` 絕對控制讀取範圍 — 之後的 record bytes 完全不被存取。
+endgame_ch32 的 10 個額外 records 是 dead payload（cut content / reserved
+expansion / 編譯殘留），永遠不被 loader 觸碰，binary 行為上等於不存在。
 
 全 33 章每章 16/16 tile_step_event_hooks active（**0 sentinel**）；16/16 pickup
 entries active（**0 sentinel**）；turn_event_hooks variable (78 active 跨 33 章，

@@ -82,30 +82,6 @@
 - **解需要做什麼**：用 `fdfield_char_spawn_decoder.py` dump ch1 entry 1 的 30
   records，比對 char_id 與 ai_class。
 
-### 10. ch9 boss 死亡 → tile_event_consumed_flags[0x10] 起始值的設定點
-
-- **現狀**：ch9 reinforcement chain 機制已確認 (handler_1F state-machine
-  spawner)。`tile_event_consumed_flags[0x10]` 起始為 1 推測，但具體 ch9_init
-  哪行設定這個 flag 未確認。
-- **解需要做什麼**：trace `chapter_09_init` decompile 看是否有
-  `tile_event_consumed_flags[0x10] = 1` 寫入。可能是 `init_battle_state_for_chapter`
-  全 zero 後遞增。
-
-### 11. attack_action_dispatch 內 pickup_kind=2 的 ai_post_action 寫入
-
-- **現狀**：ch9 機制描述「enemy 死亡時 attack_action_dispatch 內某 hook 把
-  `ai_post_action_consequence_idx` 設為 pickup_param 對應 event_code」，但具體
-  寫入 path 未 trace 完。
-- **解需要做什麼**：在 `attack_action_dispatch` 與 `execute_ai_*` executors 內
-  搜尋 `pickup_kind == 2` 的條件分支。
-
-### 12. ch23 mid-handler reload 的具體 byte trigger
-
-- **現狀**：ch23_end 中段 `current_chapter_id += 1` 然後 `load_chapter_battle_data(24)`
-  載入 ch24 場景。已知是「30 章中唯一」。
-- **解需要做什麼**：trace ch23_end 哪一步觸發此 reload (cutscene 完成後？
-  特定 dialog page 後？)。
-
 ## 程式行為未完全理解的段落
 
 ### 13. runtime_char `+0x4E wStat4_current` 的真實語意
@@ -115,28 +91,7 @@
   其他) 未 emulator 驗證。
 - **解需要做什麼**：emulator 觀察戰鬥中此值如何影響擊中率 / 傷害計算。
 
-### 14. runtime_char `+0x08[1]` byte 用途
-
-- **現狀**：`pChar_identity_combat_byte[1]` init=0；在 `ai_score_physical_attack`
-  / `score_spell_candidate` 等 path 未見 read/write，推測是 reserved padding。
-- **解需要做什麼**：全 binary 搜 `runtime_char[N].pChar_identity_combat_byte[1]`
-  的 read/write 點。若全無，標 confirmed reserved。
-
-### 15. runtime_char `+0x27` 21-byte block 內未識別 sub-field
-
-- **現狀**：已知 `[0]`, `[0xA-0xC]`, `[0xD-0xF]`, `[0x10-0x14]` 共約 13 bytes。
-  其餘 7-8 bytes (`[1..9]`, `[0x15..]`) 未解。
-- **解需要做什麼**：emulator trace + 全 binary write 點 search。
-
 ## 未做的批次分析
-
-### 16. 28 個 unref chapter event handlers 的 binary content 用途
-
-- **現狀**：`ai_post_action_consequence_table @ 0x51B91` 內 28 個 handler 在
-  binary 內 exactly 2 hits = LE reloc fixup + table entry。確定無 caller，
-  歸類為 cut content / 編譯殘留。但每個 handler 內部邏輯仍在 .text 中。
-- **解需要做什麼**：對 28 個 unref handler 解 decompile 看是否有 cut feature
-  線索 (e.g. 特定 race_id reinforcement、未使用的 dialog pattern)。
 
 ### 17. FDOTHER 21 個 confirmed_dead idx 的 binary content
 
@@ -151,14 +106,6 @@
   in-game 場景。
 - **解需要做什麼**：in-game 觀察各 cinematic 觸發時 caller 傳入哪個 idx，
   反查對應內容。
-
-### 19. fdfield_entry_layout endgame_ch32 char_spawn_count 異常
-
-- **現狀**：endgame_ch32 (FDFIELD idx 96..98) entry char_spawn_count = 30 但
-  實際內容含 40 records (260 bytes 額外)。
-- **解需要做什麼**：deep dump endgame_ch32 entry 看 count 與 actual record
-  數的差異意義 (可能是 count 不計 reserved / inactive records，或 binary 設計
-  上的 sentinel marker)。
 
 ## 與攻略本對照差異
 
@@ -195,49 +142,31 @@
 
 ## Calling convention 校正後的剩餘限制
 
-### 24. Ghidra 拆出的 inlined fragment 難以獨立編譯
+### 26. Phase 7 跳過的 277 個 LOW-confidence function 的 param 數量 (部分 resolved)
 
-- **現狀**：`set_runtime_char_evade @ 0x114fb` 之類由 Ghidra 拆出的小 function
-  (body 只有 5~6 條指令)，body 依賴 EDI 等 callee-saved register，但這些
-  register 不是 cc 認可的傳參通道，是 parent function 留下的 register state。
-  目前 cc 已標 `__fastcall` (符合 ABI 觀察)，但若直接編譯這些小 function 會
-  讀到未初始化的值。
-- **為什麼還沒解**：這類 function 不是真正的獨立 callable entity，是
-  decompiler 的拆解產物。要真正可編譯需把它們 inline 回 parent。
-- **解需要做什麼**：找 caller 為 fall-through (而非 CALL) 的 fragment，標記
-  為「不要獨立宣告」；或是在 source 層級把它們手動 inline 回 parent。
+- **現狀**：已透過 function-pointer dispatch table callee 識別 bulk-fix 176 個
+  (= 64%)：`chapter_NN_post_action / init / end / event_handler / cast_*`，全部
+  設為 `void __cdecl func(void)`（0 stack args，匹配 `(*table[idx])()` call site）。
+  詳見 `program_info/calling_convention.md`。
+- **剩餘 ~101 個** 含：`spell_handler_id_*` × 13（disasm 顯示有 stack arg
+  reads，非 0-arg dispatch callee）、`execute_*` × 4、`FUN_*` × 17、其他 16 個
+  unmatched no-caller、~38 mixed-signal caller、~14 其他原因。
+- **解需要做什麼**：對剩餘 101 個個別 disasm + decomp 確認 signature；
+  函式指標 case 找出 dispatch site 共同 push pattern。屬 readability /
+  完整性工作，不阻擋當前編譯目標（4-byte stack slot 一致即可編譯）。
 
-### 25. 0x4b502 FUN_0004b502 的 struct 型別未還原
+### 27. 新加入 param 的型別都是 `unsigned int` (部分 audit，留 backlog)
 
-- **現狀**：cc 已 pin 為 `__fastcall` (EAX = 結構指標，讀
-  `[EAX+0]/[EAX+4]/[EAX+8]`，加 3 個 stack args，`RET 0xc`)。decomp 仍顯示
-  `in_ECX/unaff_EBX/extraout_EDX/unaff_ESI` 等 register ghost — Ghidra 的型別
-  還沒理解 struct layout。recommendations.json 已標
-  `needs_signature_review:true`。
-- **解需要做什麼**：emulator trace + 對 Borland CRT 反查，決定 EAX 指向的
-  struct 是哪一個 (可能是某種 SI:DI far pointer 包裝或 long long ops)；建立
-  對應 struct datatype 後重設 prototype。
-
-### 26. Phase 7 跳過的 277 個 LOW-confidence function 的 param 數量
-
-- **現狀**：這 277 個 function 因為「無 caller 樣本」或「caller 訊號不一致」
-  而被 Phase 7 跳過，保留 Ghidra 自動推斷的 param 數量 (大多是 0..3)。可能
-  含 phantom params 或漏報 params。
-- **為什麼還沒解**：caller 訊號是 ABI 推論的最強依據，沒有訊號或訊號矛盾時
-  自動裁決會破壞 ABI。
-- **解需要做什麼**：對這些 function 個別 decompile 比對 — body 內實際讀取了
-  幾個 stack offset (`[ESP+4]`, `[ESP+8]`, ...)；對於透過 function pointer
-  間接呼叫的 case，找出 function pointer 指向的所有可能值並合併 caller 訊號。
-
-### 27. 新加入 param 的型別都是 `unsigned int`
-
-- **現狀**：Phase 7 為 60 個 function 補了遺漏的 param，型別一律是 `uint`
-  (4 bytes)。實際型別 (`char *` / `struct foo *` / `byte` / `int *` 等) 未
-  細化。對 ABI 正確性無影響 (4-byte stack slot 大小一致即可正確編譯)，但
-  decompile 可讀性受影響。
-- **解需要做什麼**：對每個新加 param 看 callee 內部如何使用 (deref？算術？
-  傳給已知 prototype 的 callee？) 推斷型別；或對 caller pre-CALL push 的
-  source 推斷型別。屬可選 readability 工作，不阻擋編譯。
+- **現狀**：Phase 7 為 41 個 function 補了 61 個遺漏 param，型別一律 `uint`
+  (4 bytes)。抽樣分析發現：
+  - 30 個 chapter_NN_init / chapter_NN_end 的 added param 多為 unused
+    passthrough (body 不讀，僅是 caller pre-CALL EAX 訊號的反映)；改型別
+    無 codegen 影響，僅 readability。
+  - 11 個 misc functions (FUN_xxxxx / noop_stub) 含部分指標型別已正確
+    (e.g. FUN_000361a5 已是 `uint *`)，少數需個別 decomp 推 ptr/struct type。
+- **狀態**：對 ABI 正確性無影響 (4-byte stack slot 大小一致即可正確編譯)，
+  純粹是 decompile 可讀性。Per-function manual analysis 工作量大，列為
+  backlog；當前編譯目標不受影響。
 
 ## 已解問題（記錄為基線）
 
@@ -257,3 +186,38 @@
 - ✅ 20% HP_max idle heal mechanism
 - ✅ Two-pass enemy phase (smart caster 先動)
 - ✅ FD2.SAV 主要 layout (header / map / runtime_char / 4 slots / checksum)
+- ✅ runtime_char +0x09 — `pChar_identity_combat_byte[1]` (split 為
+  `bChar_id` + `bReserved_padding_09`)；reserved padding，僅兩個 init
+  函式寫 0，AI / combat / save / death / XP / item / cutscene 等 paths
+  皆無讀取
+- ✅ runtime_char +0x27 pCombat_aux_block[1..9] — reserved padding (9 bytes)；
+  loader / runtime 無讀寫，save/load 走 memcpy 整段保留
+- ✅ FUN_0004b502 (0x4b502) — Borland soft-FP 80-bit long double in-place add
+  of immediate constant；helper struct `long_double_80` (10 bytes:
+  `dwMantissa_lo / dwMantissa_hi / wSign_exp`)
+- ✅ Decompiler fragments (6 個 epilogue clusters + 1 tail JMP thunk) — caller
+  透過 TAIL JMP 進入，Ghidra UNCONDITIONAL_CALL 是 display quirk；plate comment
+  標 `DECOMPILER FRAGMENT — DO NOT DECLARE INDEPENDENTLY`，emit pipeline 跳過
+- ✅ ch9 `tile_event_consumed_flags[0x10]` 起始值 = 0 — 由
+  `init_battle_state_for_chapter @ 0x205DA` 的 `crt_memset(flags, 0, 0x20)` 清 0；
+  handler_1F 從 race_id=0 遞增
+- ✅ pickup_kind=2 path — `process_battle_drop_entries` type 2 case 直接
+  dispatch via `ai_post_action_consequence_table[ushort_value]()`，不寫
+  `ai_post_action_consequence_idx` global；tile-step trigger (Path 1) 與
+  death-drop (Path 2) 不共用 state variable
+- ✅ endgame_ch32 char_spawn_count = 30 vs 40 records — `char_spawn_count`
+  (header byte +2) 絕對控制 loader 讀取範圍；`load_chapter_portraits_and_dump_tmp
+  @ 0x10b4e` 的 loop 只跑 30 iterations，10 個額外 records 是 dead payload
+- ✅ ch23 mid-handler reload — 用 `load_dat_resource` 手動 reload (FDFIELD
+  idx 0x45 + FDSHAP 0x2E/0x2F)，不是 `load_chapter_battle_data`；trigger
+  hardcoded 在 dialog page 0x10 + 第 3 次 rising effect + 64-step palette
+  fade-out 之後 unconditional 執行；無 byte/flag 條件
+- ✅ 28 個 unref chapter event handlers — 全部 decompile 並 categorize：
+  8 sentinel + 4 state_machine_mutator + 4 dialog_with_state + 3 drop_dialog +
+  2 major_endgame_cinematic + 2 dialog_only + 1 each of first_time_gated /
+  char_conditional / turn_conditional / item_pickup / ai_setup；cut content
+  集中在 endgame (idx ≥ 0x4D) sentinel slots
+- ✅ Function-pointer dispatch table callees 的 0-arg signature — 176 個
+  function (chapter_NN_post_action × 17 + chapter_NN_init × 26 + chapter_NN_end
+  × 30 + chapter_event_handler_* × 89 + cast_* × 13 + 1) 確認 caller_count=0
+  且 dispatch site `(*table[idx])()` 無 args，全部 `void __cdecl func(void)`

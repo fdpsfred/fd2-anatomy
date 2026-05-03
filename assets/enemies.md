@@ -118,5 +118,5 @@ enemy_id = (table_address - 0x7AB0D) / 10
 
 `portrait_id == char_id` (per `init_runtime_char_for_battle` 設
 `pSlot->bPortrait_id = char_id`)。所以「char[N] 變身」設 `bPortrait_id` 與
-`pChar_identity_combat_byte[0]` 為新 char_id 即可切換 sprite + identity
+`bChar_id` 為新 char_id 即可切換 sprite + identity
 (FDICON.B24 portrait 對應 char_id namespace)。

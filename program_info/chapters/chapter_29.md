@@ -34,7 +34,7 @@ Page 0..6 由 FDFIELD turn-event / tile-step handler 引用（含護送悠妮到
 
 無 `init_runtime_char_from_base_growth` 呼叫；本章不加入新角色。
 
-End handler 執行 char 變身：`chars[0x14].bPortrait_id = 0x7E` + `chars[0x14].pChar_identity_combat_byte[0] = 0x7E` → 變身為**空魔神**（enemy_data_table entry 58 @ 0x7AD51）。
+End handler 執行 char 變身：`chars[0x14].bPortrait_id = 0x7E` + `chars[0x14].bChar_id = 0x7E` → 變身為**空魔神**（enemy_data_table entry 58 @ 0x7AD51）。
 
 ## Cutscene events
 
@@ -59,7 +59,7 @@ FD2 唯一用 `tile_event_consumed_flags` 而非 char 死活作勝利判定的�
 2. `FUN_00035bba(0x14)` — char[0x14] 操作 helper
 3. **char[0x14] 變身為空魔神**：
    - `chars[0x14].bPortrait_id = 0x7E`
-   - `chars[0x14].pChar_identity_combat_byte[0] = 0x7E`
+   - `chars[0x14].bChar_id = 0x7E`
    - char_id 0x7E 屬 enemy class (>= 0x44) → enemy_data_table entry (0x7E - 0x44) / 10 = entry 58 → 位址 0x7AB0D + 58 × 10 = `0x7AD51` (空魔神)
 4. `display_dialog_scene(page=0xB)`
 5. `load_chapter_portraits_and_dump_tmp(9)` + `pan` + `pan_cursor_to_tile_animated(0xF, 10)`

@@ -102,10 +102,15 @@ AI post-action consequence 共用）。
 +0x05 bFlags          bit 0x01 = dead；bit 0x04 = cannot act；bit 0x80 = acted-this-turn
 +0x06 bTeam           0 = enemy, 1 = NPC ally, 2 = player
 +0x07 bPortrait_id    portrait sprite 索引
-+0x08 pChar_identity_combat_byte[2]
-                      [0] init = char_id (0..0x44 player / 0x44+ enemy)；
-                          ai_score_physical_attack 用 ==0 判斷 flanking +50%
-                      [1] init = 0；推測為 reserved
++0x08 bChar_id         char_id (0..0x43 player / 0x44+ enemy)；
+                      AI scoring / find_char_by_id 等以此判定身份。
+                      值 0 觸發 flanking +50% 判斷。
++0x09 bReserved_padding_09  reserved padding。只有兩個 init 函式
+                      (init_runtime_char_for_battle @ 0x10c50、
+                      init_runtime_char_from_base_growth @ 0x112a5) 寫 0；
+                      AI / combat / save / death / XP / item-use / cutscene
+                      paths 無任何讀取點。save/load 透過 0x50-byte memcpy
+                      整段保留但無語意讀取。
 +0x0A pInventory_slots[8]   8 × (bSlot_flag, bItem_id)
                       slot_flag bit 0x40 = equipped, bit 0x80 = empty
 +0x1A pSpells_known_bitmap[5]   40 spells × 1 bit
@@ -119,19 +124,23 @@ AI post-action consequence 共用）。
                       [4] 狀態 A (毒？AI score_spell_candidate spell 0x14 檢查)
 +0x26 bStatus_sleep_flag  spell 0x15 解；scorer +6 if non-zero
 +0x27 pCombat_aux_block[21]
-                      [0]    bSilence_flag
-                      [0xA]  bPickup_kind (init from char_spawn_record +0x16)
-                      [0xB-C] wPickup_param (ushort)
-                      [0xD]  bAi_class_and_flags
-                             low nibble = AI behavior class (0..11)
-                             bit 0x01 = heal-boost (×2 score)
-                             bit 0x40 = tie-break modifier
-                             bit 0x80 = 高價值/脆弱目標 (×3 score)
-                      [0xE]  bAi_aux_byte (movement param)
-                      [0xF]  bAi_target_pos
+                      [0]      bSilence_flag
+                      [1..9]   reserved padding (9 bytes)。AI / combat /
+                               status / item / cutscene 等 path 無讀寫；
+                               兩個 init 函式不寫；save/load 走 memcpy
+                               整段保留但無語意讀取
+                      [0xA]    bPickup_kind (init from char_spawn_record +0x16)
+                      [0xB-C]  wPickup_param (ushort)
+                      [0xD]    bAi_class_and_flags
+                               low nibble = AI behavior class (0..11)
+                               bit 0x01 = heal-boost (×2 score)
+                               bit 0x40 = tie-break modifier
+                               bit 0x80 = 高價值/脆弱目標 (×3 score)
+                      [0xE]    bAi_aux_byte (movement param)
+                      [0xF]    bAi_target_pos
                       [0x10-0x11] wAP_total (ushort)
                       [0x12-0x13] wDP_total (ushort)
-                      [0x14] bMagic_resist (= base[7])
+                      [0x14]   bMagic_resist (= base[7])
 +0x3C bMovement_order  0 = 已動 / 0xFF = 未動 (init: player=0, NPC/enemy=0xFF)
 +0x3D pAi_target_and_DX_block[3]
                       [0] bAi_target_id

@@ -213,3 +213,50 @@ tie-break = raw_dmg 數值；側背 (+0x08[0]==0) 再 ×1.5
 | 9 | advance_to_char | `find_char_by_id(9,...)` pathfind |
 | 10 | hardcoded_attack | `attack(10)`；fail → 同 class 4 (pass) |
 | 11 | smart_caster | spell-then-physical fallback (boss-tier) |
+
+## 死亡掉落與 post-action consequence dispatch
+
+兩條獨立 path 都會 dispatch `ai_post_action_consequence_table @ 0x51B91` 內的
+handler，但機制完全不同：
+
+### Path 1 — Tile-step trigger (deferred via global state)
+
+`check_tile_event_post_action @ 0x13A8F` 在 player/AI 走到 trigger tile 時呼叫：
+
+1. 讀 tile attribute；若 tile 帶 event flag 且未消耗
+2. 從 `tile_event_data_table + (tile_event_id - 1) * 2 + 0x33` 取 byte
+3. 若 byte != 0xFF 且 event_type 匹配 → `ai_post_action_consequence_idx = byte`
+4. 下一輪 `game_main_loop` 看到 `ai_post_action_consequence_idx != 0xFF`，
+   dispatch `ai_post_action_consequence_table[idx]()`，然後 reset 為 0xFF
+
+### Path 2 — Death drop (direct via process_battle_drop_entries)
+
+當 enemy 死亡 (HP_current = 0)：
+
+1. **Pre-death**：
+   - AI class 5 (item_pickup) 撿 pickup tile 時，`enemy_turn_action_dispatcher`
+     case 5 把 `tile_event_data_table` 的 `(kind, param)` 抄到 enemy 自己的
+     `pCombat_aux_block[10..12]` (= `bPickup_kind` + `wPickup_param`)
+   - 或 chapter init / FDFIELD char_spawn record 直接初始化這 3 byte
+2. **Death**：`collect_pending_death_drops` / `collect_dead_char_drops` 掃描所有
+   alive char，挑 (`HP_current == 0` AND `pCombat_aux_block[10] != 0xFF`) 的
+   3-byte block 抄到 caller-提供的 `drops_buffer`
+3. **Process**：caller (typically `execute_ai_*` / `apply_use_effect_dispatch`)
+   呼叫 `process_battle_drop_entries(killer_idx, count, drops_array)`
+4. **Per-entry dispatch by drop_type byte**:
+   - `0` = ITEM：dialog 0x1B0 / `add_item_to_inventory`
+   - `1` = GOLD：dialog 0x1B3 / `party_total_gold += amount`
+   - `2` = BATTLE EVENT CONSEQUENCE：**直接** `(*ai_post_action_consequence_table[ushort_value])()`
+     呼叫 handler，**不**寫入 `ai_post_action_consequence_idx` global
+   - `3` = SCRIPTED DIALOG：`display_dialog_scene(current_chapter_text, page=ushort_value, ...)`
+
+### 為什麼 type 2 不走 Path 1？
+
+Tile-step trigger (Path 1) 是「玩家踩到 tile → 下回合 dispatch」的 deferred
+模式，需要回到 main loop 才會 fire。Death-drop type 2 (Path 2) 是「殺死敵人 →
+立即 dispatch」的 in-flight 模式，因為 killer 已經在動畫流程中。兩者不共用
+state variable 是設計上的分離。
+
+ch9 援軍 (handler_1F)、ch7/13/14/25/27/28/29 各種 cinematic / dyn-turn-event
+都有 entry 進這個 90-entry table；Path 2 (death drop type 2) 是給敵人「死亡
+觸發劇本事件」用的（少見，多數 entry 是 Path 1 的 tile-step trigger）。

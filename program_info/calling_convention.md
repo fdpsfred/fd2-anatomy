@@ -69,7 +69,7 @@ register 的 implicit write。
 | 地址 | 名稱 | cc | 說明 |
 |---|---|---|---|
 | `0x36cd7` | `crt_frame_setup` | `__stdcall` | Borland CRT 的 stack-probe helper，每個 function 都會呼叫；1 個 stack arg = framesize |
-| `0x4b502` | `FUN_0004b502` | `__fastcall` | Borland CRT helper，EAX = 結構指標 (讀 `[EAX]/[EAX+4]/[EAX+8]`)，加 3 個 stack args，`RET 0xc` |
+| `0x4b502` | `FUN_0004b502` | `__fastcall` | Borland soft-FP: 80-bit long double in-place add of immediate constant (`*operand_a += B_imm`)。EAX = `long_double_80 *operand_a_inout`；3 stack args = B 的 `dwMantissa_lo / dwMantissa_hi / wSign_exp`；caller 須設 EBX = 同 EAX 作 result_ptr (內部 PUSH/POP 暫存，CALL 期間 EBX 被 overwrite 為 B mantissa_lo)。`RET 0xc`. 完整 register-level ABI 見函式 plate comment。 |
 
 兩者在 Phase 2 classifier 內 hardcode 為 `pinned: true`，避免 re-classify 被誤判。
 
@@ -119,6 +119,71 @@ __fastcall : N_reg   = max consecutive prefix of (EAX, EDX, ECX) that ALL caller
 
 Phases 1+2+4+5 是 cc 校正主線 (跨 session 可恢復，progress.json checkpoint)；
 6 與 7 是 cc 修正後的 cleanup pass，one-shot single-transaction。
+
+## Function-pointer dispatch table callees 的 0-arg signature
+
+176 個 function 屬於 function-pointer table 的 dispatch callee（caller_count=0，
+透過 `(*table[idx])()` 0-arg 呼叫），全部設 `void __cdecl func(void)`：
+
+| 群組 | 函式數 | dispatch 表 |
+|---|---|---|
+| `chapter_NN_post_action` | 17 | `per_chapter_post_action_handler[30]` |
+| `chapter_NN_init` | 26 | per-chapter init 表 |
+| `chapter_NN_end` | 30 | per-chapter end 表 |
+| `chapter_event_handler_*` | 89 | `ai_post_action_consequence_table @ 0x51B91` |
+| `cast_*` | 13 | spell-cast helpers |
+| 其他 | 1 | sample fix |
+
+驗證：所有 176 個 function 的 audit 訊號都是 `reads_eax / reads_edx / reads_ecx
+= False`，dispatch site `(*table[idx])()` 也無 push 任何 stack arg，故 callee
+應為 0-arg signature。
+
+剩下 ~101 個 LOW-confidence functions（`spell_handler_id_*` × 13 有 stack arg
+reads、`execute_*` × 4、`FUN_*` × 17、其他 16 個 unmatched no-caller、~38
+mixed-signal、~14 其他）需個別 disasm + decomp 確認 signature；保留 Phase 7
+預設的 `__fastcall` + 3 reg params 不阻擋編譯（4-byte stack slot 大小一致
+即可正確編譯），列為 backlog。
+
+## Decompiler fragments — 不可獨立宣告的「函式」
+
+Ghidra 自動分析把某些 parent function 的 epilogue 或 prologue adapter 拆成
+獨立 function。這些不是真實 callable entity，無法獨立編譯。caller 透過
+TAIL JMP (`e9` rel32) 進入 fragment，Ghidra 把它顯示為 `UNCONDITIONAL_CALL`
+是因為 JMP target 落在 function entry 上的 display quirk。
+
+每個 fragment 在 plate comment 內標 `DECOMPILER FRAGMENT — DO NOT DECLARE
+INDEPENDENTLY`，emit pipeline 必須跳過這些 address，把 logic 收回 parent。
+
+### Epilogue cluster (parent stack cleanup 共用)
+
+| 地址 | 內容 | 對應 parent locals + saved regs |
+|---|---|---|
+| `0x114fb` | `set_runtime_char_evade` (1 logic + ADD ESP 0x10 + POP EDI/ESI/EBX + RET) | recalculate_combat_stats (locals=0x10) |
+| `0x10b43` | ADD ESP 0x4 + ADD ESP 0x8 + POP EBP/EDI/ESI/EBX + RET | locals=0xC + 4 saved regs |
+| `0x10c49` | ADD ESP 0x4 + POP EDI/ESI/EBX + RET | locals=0x4 + 3 saved regs |
+| `0x11011` | ADD ESP 0x34 + POP EBP/EDI/ESI/EBX + RET | locals=0x34 + 4 saved regs |
+| `0x11452` | ADD ESP 0x20 + POP EBP/EDI/ESI/EBX + RET | locals=0x20 + 4 saved regs |
+| `0x13994` | ADD ESP 0x5C + POP EBP/EDI/ESI/EBX + RET | locals=0x5C + 4 saved regs |
+
+Borland C++ 用這個共用 epilogue 機制節省 code size — 多個 stack frame layout
+相同的 parent 共用同一段 epilogue。
+
+### Prologue adapter (tail JMP thunk)
+
+| 地址 | 內容 | 用途 |
+|---|---|---|
+| `0x15983` | `MOV EAX, EDI` + `JMP 0x22bbe` | 把 caller 的 EDI 移到 EAX（標準 reg-arg slot），然後 tail call 真實實作 FUN_00022bbe |
+
+Emit pipeline 看到 plate comment 內 `DECOMPILER FRAGMENT — DO NOT DECLARE
+INDEPENDENTLY` 字串自動跳過該位址，logic 收回 parent。
+
+## 已建立的 helper 型別
+
+- `long_double_80` (10 bytes) — Borland C++ 80-bit extended precision long double
+  的 struct 定義 (`dwMantissa_lo: uint32 @+0`，`dwMantissa_hi: uint32 @+4`，
+  `wSign_exp: uint16 @+8`)。soft-FP CRT helpers (`FUN_0004b502` add-immediate /
+  `FUN_0004b532` mantissa add / `FUN_0004b761` / `FUN_0004b936` mantissa shift /
+  `FUN_0004c00a`..`0x4cb34` transcendentals) 都對這個型別操作。
 
 ## 寫程式碼時的速查
 

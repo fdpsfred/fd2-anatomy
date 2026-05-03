@@ -228,5 +228,29 @@ ch27 / 28 / 29 / 30 的「turn=0xFF 但 event_code 非 0xFF」entries 是動態�
 3. **28 個 `unref_*` handler**：未在 30 章任何 FDFIELD turn-event/tile-step hook
    出現，binary 內 exactly 2 hits = LE reloc fixup record + 0x51B91 dispatch
    table entry。確定屬 cut content / 編譯殘留 / unreachable trigger path。
+
+   **28 個 unref handler 的 cut-feature pattern 分布**：
+
+   | category | 數量 | 含義 |
+   |---|---|---|
+   | sentinel | 8 | 7-byte 空 stub (`crt_frame_setup` + `RET`)；reserved table slots，沒有實際邏輯。idx 0x49 設 flag[0x12]=1 是唯一含寫入的 sentinel |
+   | state_machine_mutator | 4 | 含 `flag[0x10]++` + `tile_event_data_table +3=save_meta+1` 等 turn-event 動態啟動邏輯；推測為 cut 章節的 dyn-turn-event 觸發 |
+   | dialog_with_state | 4 | 純 dialog page + state mutation；推測為 cut dialog branch |
+   | drop_dialog | 3 | 含 inventory full / pickup ok 的 dialog；推測為 cut item drop |
+   | major_endgame_cinematic | 2 | 完整 cinematic 含 char spawn / dialog / portrait load；推測為 cut endgame variant |
+   | dialog_only | 2 | 純 dialog page；推測為 cut 場景 |
+   | first_time_gated | 1 | flag[0x10]=0 → AI ctrl + dialog + flag=1 模式；cut tile event |
+   | char_conditional | 1 | check_char_is_dead loop + branch dialog；cut conditional |
+   | turn_conditional | 1 | save_metadata<0xF gate + boss kill cinematic；cut turn-gated event |
+   | item_pickup | 1 | tile_event_consumed_flags 寫入 + add_item；cut pickup |
+   | ai_setup | 1 | 2× state_change + battle_anim_phase=1；cut AI setup |
+
+   **觀察**：cut content 主要集中在 endgame (handler idx ≥ 0x4D) 的 sentinel slots
+   — 連續 5 個 sentinel (0x55..0x59) + 散布的 0x49/0x4D/0x4E。這暗示 dispatch 表
+   原本預留更多 endgame variant slots，最終發行版只用了部分。中段 unref
+   handler 多為 dialog / state_machine 變體，可能是同一場景的不同腳本被換掉。
+
+   每個 unref handler 的具體 dialog page、flag write、helper call 詳見其
+   Ghidra plate comment（`get_plate_comment(addr)` 取得）。
 4. **idx 0x05 (chapter_event_handler_05) 在 0x34D68**：由 ch13 turn-event
    使用，是 `chapter_event_handler_07__ch13_dialog_with_state` 的 thunk。

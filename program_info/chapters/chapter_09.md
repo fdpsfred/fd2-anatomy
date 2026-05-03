@@ -71,3 +71,9 @@ header `+0..+2` = shap_id_byte / party_count = 11 / char_count = 60；`+3..+50` 
 | 0xFF | 0 (enemy_turn_intro) | 0x1F | `0x00034B5D` | 同上 dormant entry |
 
 `fire_chapter_turn_events_for_phase` 比對 `turn == save_metadata_block` — 0xFF 永遠不會等於回合計數，故這些 entries 不會在初始狀態下 fire。觸發機制：tile-step-event handlers 在某些劇本 tile 被踩到時，動態 rewrite 本 chapter 的 turn-event-hook table 的 turn byte (0xFF → current_save_metadata_block 或 +1)，把原本 dormant 的 entry 啟動成下一回合 fire 的 event。
+
+## Reinforcement state machine — `tile_event_consumed_flags[0x10]`
+
+ch9 援軍 chain 由 `chapter_event_handler_1f__ch9_reinforcement @ 0x34B5D` 驅動：每次被觸發時 read 當前 `tile_event_consumed_flags[0x10]` 當 race_id 餵給 `load_chapter_portraits_and_dump_tmp`，然後遞增 1。state machine 從 race_id=0 開始。
+
+起始值 `tile_event_consumed_flags[0x10] = 0` 由 `init_battle_state_for_chapter @ 0x205DA` 內的 `crt_memset(tile_event_consumed_flags, 0, 0x20)` 統一清 0 設定（全 chapter 共用同一段 32-byte block 的清 0 邏輯）。chapter_09_init 內沒有 ch9-specific 的 flag[0x10] 設值。
