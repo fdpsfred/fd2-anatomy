@@ -16,7 +16,3 @@ import shared lib、不依賴 `legacy/`、不讀寫 `catalog/*.json`。
   自動推斷錯誤狀態校正成 ABI 正確的 pipeline (Python orchestrator + Ghidra
   Java workers)，跨 session 可恢復；尾端含 param-name cleanup 與 param-count
   apply 兩個 one-shot pass
-- `lowconf_signature/` — LOW-confidence (caller signal 不確定，auto
-  param-count classifier 跳過的 277 個 function) 後續清理：`inventory.py`
-  重建逐筆 LOW set + per-function signal、`plan_apply.py` 規則化 plan
-  generator (參考用，per-function disasm 驗證才是預設工作流)

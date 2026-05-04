@@ -18,7 +18,7 @@ Classification cascade (first-match):
 
     1. PINNED addresses override all rules:
          0x36cd7 crt_frame_setup -> __stdcall
-         0x4b502                 -> __fastcall (Borland CRT helper, EAX = struct ptr)
+         0x4b502                 -> __fastcall (Watcom CRT helper, EAX = struct ptr)
     2. is_thunk -> inherit from thunked_addr (resolved in pass 2)
     3. last_insn_kind == 'RETN':
          reads_eax/edx/ecx OR any callers_set_eax/edx/ecx > 0 -> __fastcall
@@ -31,7 +31,7 @@ Classification cascade (first-match):
        > 0 -> __fastcall (no caller cleans, at least one passes args via
        EAX/EDX/ECX)
     7. caller_count == 0 AND any reads_eax/edx/ecx -> __fastcall
-    8. otherwise -> __cdecl  (Borland 32-bit default)
+    8. otherwise -> __cdecl  (default for stack-based functions)
 
 Naming check: any function name matching r'_(cdecl|stdcall|fastcall|thiscall)
 (_|$)' whose suffix disagrees with recommended_cc gets a `suggested_name`
@@ -56,8 +56,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_WORKDIR = REPO_ROOT / "workspace" / "calling_convention_audit"
 
 PINNED = {
-    "0x00036cd7": ("__stdcall", "Borland CRT stack-probe helper (XCHG/CALL/MOV/RET 4)"),
-    "0x0004b502": ("__fastcall", "Borland CRT helper, takes struct* in EAX, RET 12"),
+    "0x00036cd7": ("__stdcall", "Watcom CRT stack-probe helper (XCHG/CALL/MOV/RET 4)"),
+    "0x0004b502": ("__fastcall", "Watcom CRT helper, takes struct* in EAX, RET 12"),
 }
 
 CC_SUFFIX_RE = re.compile(r"_(cdecl|stdcall|fastcall|thiscall)(_|$)", re.IGNORECASE)

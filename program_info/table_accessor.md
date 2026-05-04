@@ -1,9 +1,9 @@
 # table_accessor
 
 5 個 tiny function，每個 return 一張 `.object3` 資料表的 base pointer 加上
-index offset。Borland C++ 編譯器把「take address of global array indexed by
-variable」的表達式發成共用 helper function，而不是直接 inline，可能是 code-size
-最佳化或 debug build artifact。
+index offset。Open Watcom C++ 編譯器把「take address of global array indexed
+by variable」的表達式發成共用 helper function，而不是直接 inline，可能是
+code-size 最佳化或 debug build artifact。
 
 ## 5 個 getter
 

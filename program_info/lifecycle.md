@@ -2,7 +2,7 @@
 
 包含三類 function：
 
-1. **Borland C++ runtime (CRT)**：fopen/fread/fclose/fseek/fwrite, memset/memmove,
+1. **Watcom C runtime (CRT)**：fopen/fread/fclose/fseek/fwrite, memset/memmove,
    malloc/free，全部 `crt_*` 前綴。
 2. **Entry point / startup / exit**：`crt_entry_start @ 0x3C964` →
    `crt_main_trampoline @ 0x45D4B` → `fd2_main @ 0x25BF4`。
@@ -12,7 +12,7 @@
 
 | 位址 | 名稱 | 標準對應 |
 |---|---|---|
-| `0x00036CD7` | `crt_frame_setup` | 函式進入 prologue / stack frame 保護 |
+| `0x00036CD7` | `crt_frame_setup` | Watcom stack-check helper（XCHG framesize→EAX, CALL stack-overflow check, RET 4） |
 | `0x00036D16` | `crt_malloc_track` | malloc wrapper + tracking |
 | `0x00036D26` | `crt_malloc_track_impl` | 內部 impl |
 | `0x00036FA1` | `crt_fopen_impl` | fopen 底層 |
@@ -30,9 +30,12 @@
 
 ## CRT 程式碼地理位置
 
-Borland CRT 集中在 `0x36000-0x37700` 與 `0x3D???-0x3E???` (errno getter @ 0x3D7F6,
-delay @ 0x3DCCD, memset_impl @ 0x3DD10 等)。加上 AIL library 的 `0x37000-0x3C2E6`，
-整個 `0x36000-0x3E???` 約 55 KB 都是 library code，非 FD2 自寫。
+Watcom CRT 函式分散在 `.object1` 各處（與 game logic、Miles AIL library
+**互相交錯**，不是連續區段）。已命名的 13 個 CRT helper 集中出現在
+`0x36000-0x37700` 與 `0x3D???-0x3E???` 附近（如 errno getter @ 0x3D7F6、delay
+@ 0x3DCCD、memset_impl @ 0x3DD10），但這只是觀察到的密集區，**不能用 address
+range 來判定某 function 是否屬於 CRT**。判別方式見 `overview.md` 的 library
+boundary 段。
 
 ## 結局 cinematic
 
@@ -42,6 +45,6 @@ FD2.SAV。為何屬 lifecycle 而非 field_map：它是 game session 的最後�
 
 ## 不細究的 library helpers
 
-`FUN_0003DCCD` 是 Borland CRT `_sleep` style helper，FD2 透過此 thunk 進入 BIOS
-interrupt。`rand` / `srand` 是 Borland CRT RNG；FD2 game-logic 的隨機性
+`FUN_0003DCCD` 是 Watcom CRT `_sleep` style helper，FD2 透過此 thunk 進入 BIOS
+interrupt。`rand` / `srand` 是 Watcom CRT RNG；FD2 game-logic 的隨機性
 （attack roll、spell 命中等）走自己的 named wrapper，不直接命名 CRT RNG。

@@ -1,78 +1,128 @@
 # Calling Convention (FD2.LE)
 
-FD2.LE 是 Borland C++ 32-bit DOS LE executable，1000 個 function 全部 cc 與
-parameter 數量已校正至 ABI 正確、可以重新編譯產生對等 binary 的狀態。本文是
-ABI 結論與規則參考。
+FD2.LE 是 **Open Watcom C++ 編譯**的 32-bit DOS LE executable。本檔案是 Watcom
+ABI 結論與規則參考，作為復刻 / 重新編譯時的 C signature 推導依據。
 
-## Final cc 分佈
+1000 函式的 cc 已全部對齊 Watcom ABI，本檔末段含最終分布統計。
 
-| cc | 數量 | 用途 |
-|---|---|---|
-| `__cdecl` | 869 | Borland 32-bit 預設；caller cleanup，args 從右到左 push 到 stack |
-| `__fastcall` | 130 | 前 K 個 args 在 EAX/EDX/ECX (依序，K=1..3)，餘下 args on stack；callee cleanup |
-| `__stdcall` | 1 | 僅 `crt_frame_setup`；全 stack args，callee cleanup |
+## Watcom 32-bit Register-Based ABI 摘要
 
-`__thiscall` 不使用 — Borland 32-bit thiscall 等價於 `__fastcall` + 顯式 `this`
-為第一參數，故 C++ member-like function 全部宣告為 free function 加 explicit
-`this` 配 `__fastcall`。可用 cc 縮減為三種。
+Open Watcom 對 32-bit DOS / OS/2 / Windows target 的預設呼叫慣例是 `__watcall`
+（register-based）。FD2.LE 觀察到的實際情況是 **混用**：
 
-## Borland 32-bit ABI 細節
+- 自寫 game logic：多數採 cdecl 風格（純 stack args + caller cleanup）—
+  原始碼推測編譯時用 `-3s` (stack-based) 或函式級指定 `__cdecl`
+- soft-FP / 部分 helper：採 watcall 風格（register input + callee cleanup `RET N`）
+- 標準 C runtime 入口（fopen/fread/malloc/printf 等）：cdecl，與 ANSI C 約定相容
 
-每個 Borland-compiled function 開頭都有 stack probe 序列：
+故 FD2 的修正策略是 **per-function disasm 判定**，不能假設整體使用同一個 cc。
+
+### 三種 Watcom cc 的核心差異
+
+| 項目 | `__watcall` (Watcom register) | `__cdecl` (stack, caller cleanup) | `__stdcall` (stack, callee cleanup) |
+| --- | --- | --- | --- |
+| 前 4 個整數/指標 args | EAX, EDX, EBX, ECX（依序） | 全部 push 到 stack | 全部 push 到 stack |
+| 第 5 個及以後 args | push 到 stack（右到左） | 同 | 同 |
+| Stack cleanup | callee (`RET N`) | caller (`ADD ESP, K`) | callee (`RET N`) |
+| Args push 順序 | 右到左 | 右到左 | 右到左 |
+| Return value (int / pointer) | EAX | EAX | EAX |
+| Return value (long long) | EDX:EAX | EDX:EAX | EDX:EAX |
+| Return value (float / double) | 8087 stack（ST(0)） | 同 | 同 |
+| Callee-saved registers | EBP, ESI, EDI（**EBX 不保**，是 arg reg） | EBP, EBX, ESI, EDI | EBP, EBX, ESI, EDI |
+| `this` (C++ member) | EAX = `this`（同 watcall 第一 arg） | 第 0 個 stack arg | 第 0 個 stack arg |
+
+### 可變參數函式 (varargs)
+
+任何含 varargs（`...`）的函式必須使用 `__cdecl` — caller cleanup 是 ANSI C
+varargs 的 ABI 強制要求。
+
+## Stack-probe Helper (`crt_frame_setup` @ 0x36cd7)
+
+Watcom CRT 在每個有 stack frame 的函式入口會插入一段 stack-overflow check 序列：
 
 ```
 PUSH <framesize_imm>            ; 預留的 frame 大小
-CALL 0x36cd7  (crt_frame_setup) ; runtime 端 stack-check helper
+CALL 0x36cd7                    ; CRT 端 stack-check helper
 ```
 
-`crt_frame_setup` 的內部邏輯：
+`0x36cd7` 的內部邏輯（disasm 已驗證）：
 
 ```
-00036cd7  XCHG dword ptr [ESP + 0x4], EAX   ; 把 framesize 換到 EAX
-00036cdb  CALL 0x36cea                       ; 真正的 stack-probe routine
+00036cd7  XCHG dword ptr [ESP + 0x4], EAX   ; 把 framesize 換到 EAX，原 EAX 保到 stack
+00036cdb  CALL 0x36cea                       ; 真正的 stack-check routine
 00036ce0  MOV EAX, dword ptr [ESP + 0x4]    ; 還原 EAX
 00036ce4  RET 0x4                            ; pop 那個 framesize arg
 ```
+
+`0x36cea` 內部用 `CMP AX, SS` + 與 stack-limit global 比較，溢出時 trap。
+這個 helper 對應 Watcom CRT 中的 stack-grow / stack-check 機制（Watcom 16-bit
+源頭命名為 `__GRO`，32-bit 等價物常見命名 `__GRO` / `__CHK` / `__STK`，FD2 內
+本檔暫稱 `crt_frame_setup`）。
 
 probe 完成後 callee 才接 callee-saved register push (`PUSH EBX/ESI/EDI/EBP`) 與
 local-variable allocation (`SUB ESP, N`)。**辨識 prologue 時要跳過這 2 條 stack
 probe 指令** — 它們不是 cc 訊號。
 
-CALL 會 clobber EAX/EDX/ECX (caller-saved + return value register)，所以 prologue
-偵測「callee 在 frame setup 前讀取 EAX/EDX/ECX」必須把每個 CALL 視為對這 3 個
-register 的 implicit write。
+CALL 會 clobber EAX/EDX/ECX/EBX (caller-saved + watcall reg arg 全在內)，所以
+prologue 偵測「callee 在 frame setup 前讀取 EAX/EDX/EBX/ECX」必須把每個 CALL
+視為對這 4 個 register 的 implicit write。
 
-## ABI 判斷規則 (caller-side signal-based)
+## ABI 判斷規則 (disasm signal-based)
 
 | 情境 | cc 判定 |
-|---|---|
-| 末指令 `RET 0` (caller cleanup) + caller 一致做 `ADD ESP, K` | `__cdecl`，N args = K/4 |
-| 末指令 `RET 0` + caller 不做 cleanup + caller 一致設 EAX/EDX/ECX | `__fastcall`，K reg args |
-| 末指令 `RET N` + callee prologue 讀 EAX/EDX/ECX | `__fastcall`，含 reg + N/4 stack |
+| --- | --- |
+| 末指令 `RET 0` (caller cleanup) + caller 一致做 `ADD ESP, K` | `__cdecl`，N stack args = K/4 |
+| 末指令 `RET 0` + caller 不做 cleanup + caller 一致設 EAX/EDX/EBX/ECX | `__watcall`，K reg args |
+| 末指令 `RET N` + callee prologue 讀 EAX/EDX/EBX/ECX | `__watcall`，含 reg + N/4 stack |
 | 末指令 `RET N` + 無 reg evidence | `__stdcall`，N/4 stack args |
 | 末指令 `TAIL_JMP` 直接到已知 function | 沿用 jump target 的 cc |
-| 末指令 `OTHER` (fall-through) / `NONE` (空 body) | `__cdecl` (default，cc 對非真正 return 的 function 不影響 codegen) |
 | Thunk | 沿用 thunked target 的 cc |
 | 名稱含 `printf|sprintf|scanf|format` 或 varargs 證據 | 強制 `__cdecl` 並設 VarArgs flag |
 
 判斷信號**強度排序**：
 
-1. Caller 一致 `ADD ESP, K` → `__cdecl` 最強訊號 (caller cleanup 是 ABI 強約束)
-2. Callee 末指令 `RET N` → callee-cleanup 訊號 (`__stdcall` 或 `__fastcall`)
-3. Caller pre-CALL 設定 EAX/EDX/ECX → `__fastcall` 訊號
-4. Callee prologue 讀 EAX/EDX/ECX (在 frame setup 之前) → `__fastcall` 訊號 (僅做 fallback，會被 CALL clobber 干擾)
+1. **Caller 一致 `ADD ESP, K`** → `__cdecl` 最強訊號（caller cleanup 是 ABI 強約束）
+2. **Callee 末指令 `RET N`** → callee-cleanup 訊號（`__stdcall` 或 `__watcall`）
+3. **Caller pre-CALL 設定 EAX / EDX / EBX / ECX**（不是 push 出來再讀的）→ `__watcall` 訊號
+4. **Callee prologue 在 stack-probe 後立刻讀 EAX/EDX/EBX/ECX**（且不是先被 CALL 汙染）→ `__watcall` 訊號（fallback）
+5. **EBX 在 entry 被當輸入讀（沒有先 PUSH EBX 保留）** → 強烈 `__watcall` 信號
+   （cdecl/stdcall callee 視 EBX 為 callee-saved，一定先 `PUSH EBX` 再讀；
+   只有 watcall 把 EBX 當第 3 個 reg arg 直接讀）
 
-## 真實 callee-cleanup function (pinned)
+### Watcall 的特例：register count 由 caller 集合決定
 
-整個 binary 只有 2 個 function 是真正 callee-cleanup (RET N)：
+Watcom 的 `__watcall` 允許函式只用前 K 個 register（K = 0..4）作 reg arg，
+其餘走 stack。判定 K 時要看所有 caller 對 EAX/EDX/EBX/ECX 的設定一致性：
+
+- 若所有 caller 都設 EAX 但不設 EDX → K = 1
+- 若所有 caller 都設 EAX, EDX, EBX 但不設 ECX → K = 3
+- 若 caller 對某 register 有時設有時不設 → 該 register 不算 reg arg
+
+## Reference Program (`FD2_watcall_ref.LE`) 的過估警告
+
+User 已在 `FD2_watcall_ref.LE` (Ghidra MCP 內 program name `FD2 - test.LE`) 對
+FD2 重新做一次自動分析，這是 watcomcpp spec 下的初始狀態。它對很多實際是
+`__cdecl` 或 `__stdcall` 的函式會誤判為 `__watcall` — 因為 Ghidra 的 watcom
+spec 預設盡量套 watcall，看到 entry 偶然碰到 EAX/EDX/EBX/ECX 就標 watcall。
+
+**reference 的 cc 與 param_count 只能當作候選**，最終判定一律以 disasm signal
+為準。
+
+範例：
+- `load_dat_resource @ 0x111ba` 在 reference 內 param_count = 7、cc = watcall；
+  實際 disasm 顯示 prologue `PUSH EBX/ESI/EDI; MOV EBX, [ESP+0x14]`（EBX 是
+  callee-saved 不是 input），caller `ADD ESP, K`，是 cdecl 3 stack args
+- `crt_frame_setup @ 0x36cd7` 在 reference 內 param_count = 5；實際只 1 個
+  stack arg (framesize)，是 stdcall
+
+## 已知 special-case function (pinned)
 
 | 地址 | 名稱 | cc | 說明 |
-|---|---|---|---|
-| `0x36cd7` | `crt_frame_setup` | `__stdcall` | Borland CRT 的 stack-probe helper，每個 function 都會呼叫；1 個 stack arg = framesize |
-| `0x4b502` | `FUN_0004b502` | `__fastcall` | Borland soft-FP: 80-bit long double in-place add of immediate constant (`*operand_a += B_imm`)。EAX = `long_double_80 *operand_a_inout`；3 stack args = B 的 `dwMantissa_lo / dwMantissa_hi / wSign_exp`；caller 須設 EBX = 同 EAX 作 result_ptr (內部 PUSH/POP 暫存，CALL 期間 EBX 被 overwrite 為 B mantissa_lo)。`RET 0xc`. 完整 register-level ABI 見函式 plate comment。 |
+| --- | --- | --- | --- |
+| `0x36cd7` | `crt_frame_setup` | `__stdcall` | Watcom CRT stack-check helper；1 個 stack arg = framesize；`RET 4` |
+| `0x4b502` | `FUN_0004b502` | hybrid (watcall-like) | Watcom soft-FP: 80-bit long double in-place add of immediate constant (`*operand_a += B_imm`)。`EAX = long_double_80 *operand_a_inout`（reg arg）；3 stack args = B 的 `dwMantissa_lo / dwMantissa_hi / wSign_exp`；`RET 0xc`。完整 register-level ABI 見函式 plate comment |
 
-兩者在 cc classifier (`tools/calling_convention_audit/classify.py`) 內
-hardcode 為 `pinned: true`，避免 re-classify 被誤判。
+兩者在 cc classifier 內 hardcode 為 `pinned: true`，避免 re-classify 被誤判。
 
 ## Parameter 數量規則 (caller-derived)
 
@@ -82,47 +132,15 @@ ABI 要求宣告的 param 數量與 caller 行為一致：
 __cdecl    : N_params = max(callers_add_esp_K) / 4
              若無 caller cleanup 訊號 → N_params = 0
 __stdcall  : N_params = RET_N / 4
-__fastcall : N_reg   = max consecutive prefix of (EAX, EDX, ECX) that ALL callers agree on
+__watcall  : N_reg   = max consecutive prefix of (EAX, EDX, EBX, ECX) that
+                       ALL callers agree on (K = 0..4)
              N_stack = RET_N / 4
              N_params = N_reg + N_stack
 ```
 
-宣告 param 數**少於**實際 ABI → callee 從 stack 讀垃圾，crash。  
+宣告 param 數**少於**實際 ABI → callee 從 stack 讀垃圾，crash。
 宣告 param 數**多於**實際 ABI → caller 多 push 不會被 callee 用到的 args，浪費但
 不破。**少報比多報危險。**
-
-校正後 469 個 function 的 param 數量已對齊 caller 訊號 (1220 phantom params 移除
-+ 60 個遺漏 param 補齊)。277 個無 caller / mixed-signal function 保留 Ghidra 預設
-數量 (見 `open_issues.md`)。
-
-## 已校正狀態快速表
-
-| 項目 | 數值 |
-|---|---|
-| Function 總數 | 1000 |
-| 套用後 cc 分佈 | `__cdecl` 869 / `__fastcall` 130 / `__stdcall` 1 |
-| 校正前 cc 分佈 (Ghidra auto-analysis) | `__cdecl` 242 / `__fastcall` 659 / `__stdcall` 99 |
-| cc 校正套用 | 722 |
-| Function 重命名 (cc 名稱不一致) | 1 (`wrapper_clear_keyboard_buffer_stdcall` → `wrapper_clear_keyboard_buffer`) |
-| Param 名稱清理 (`arg_eax_in/edx_in/ecx_in` → `param_N`) | 1684 個 / 565 functions |
-| Param 數量校正 | 469 functions (1220 removes + 60 adds) |
-
-## 工具 (tools/calling_convention_audit/)
-
-完整 pipeline 的 scripts 與用法見 `tools/calling_convention_audit/_index.md`：
-
-| 角色 | Script | 說明 |
-|---|---|---|
-| dump | `ghidra_dump.java` | 對 1000 個 function dump per-function ABI 證據 |
-| classify | `classify.py` | 用上述規則決定每個 function 的推薦 cc |
-| apply | `apply_batch.py` + `ghidra_apply.java` | 跨 session 批次套用 cc/rename |
-| verify | `verify.py` | 重 dump + diff + bad-instr check |
-| param-name cleanup | `ghidra_param_cleanup.java` | `arg_*_in` → `param_N` |
-| param-count apply | `param_count_classify.py` + `ghidra_param_count_apply.java` | 用 caller 訊號推論真實 param 數量並套用 |
-
-dump / classify / apply / verify 是 cc 校正主線 (跨 session 可恢復，
-progress.json checkpoint)；param-name cleanup 與 param-count apply 是 cc
-修正後的 cleanup pass，one-shot single-transaction。
 
 ## Function-pointer dispatch table callees 的 0-arg signature
 
@@ -130,7 +148,7 @@ progress.json checkpoint)；param-name cleanup 與 param-count apply 是 cc
 透過 `(*table[idx])()` 0-arg 呼叫），全部設 `void __cdecl func(void)`：
 
 | 群組 | 函式數 | dispatch 表 |
-|---|---|---|
+| --- | --- | --- |
 | `chapter_NN_post_action` | 17 | `per_chapter_post_action_handler[30]` |
 | `chapter_NN_init` | 26 | per-chapter init 表 |
 | `chapter_NN_end` | 30 | per-chapter end 表 |
@@ -138,35 +156,9 @@ progress.json checkpoint)；param-name cleanup 與 param-count apply 是 cc
 | `cast_*` | 13 | spell-cast helpers |
 | 其他 | 1 | sample fix |
 
-驗證：所有 176 個 function 的 audit 訊號都是 `reads_eax / reads_edx / reads_ecx
-= False`，dispatch site `(*table[idx])()` 也無 push 任何 stack arg，故 callee
-應為 0-arg signature。
-
-LOW-confidence 102 個 function (caller signal 不確定，auto param-count
-classifier 跳過；audit 重新清點數，原估計 ~101) 已全部逐一 disasm + 必要時
-caller call site cross-check 後處理：47 個 apply 新 prototype、55 個 ratify
-(Ghidra cc-correction 後計數已正確或 Borland CRT 自訂 ABI)。
-
-常見模式：
-
-- **Borland stack-probe prologue 函式** (有 `PUSH framesize_imm; CALL 0x36cd7
-  (crt_frame_setup)`)：3 個 phantom reg slot 來自舊 fastcall 預設，body 不讀
-  EAX/EDX/ECX 作 input；strip 3 phantom + 保留 N cdecl stack args。包含
-  `spell_handler_id_*` × 11 (3 args: caster_unit_id, num_targets, target_id_array)、
-  `execute_*` × 7 (各 2-7 args)、`tick_summon` family × 7 (5 args)、章節共用 init
-  / handler 與 tick_chapter_palette_animation / tick_tile_event_animations 等
-  0-arg cdecl × 多筆。
-- **標準 EBP prologue 函式** (有 `PUSH EBP; MOV EBP, ESP`)：N cdecl stack args
-  讀自 `[EBP+8/c/10/...]`，無 phantom reg；Ghidra cc-correction 已正確處理，
-  只需 ratify (例：`memcpy` @ 0x3cbd6、`itoa` @ 0x46bba 等)。
-- **Borland CRT soft-FP / long-double family** (`FUN_0004b761` divide、
-  `FUN_0004cb34` mantissa add、`FUN_0004cb86`、`FUN_0004d53c`)：custom ABI
-  (EBX/ESI/EDI 也帶輸入)，標準 `__fastcall` 無法精確建模。defer 到 build
-  pipeline 站起來再 byte-level 比對驗證。
-
-工具：`tools/lowconf_signature/` (`inventory.py` 抽 LOW set + signal、
-`plan_apply.py` 規則化 plan 產出後**未**直接套用，per-function disasm 驗證
-後逐一 apply)。
+驗證：所有 176 個 function 的 audit 訊號都是 `reads_eax / reads_edx /
+reads_ebx / reads_ecx = False`，dispatch site `(*table[idx])()` 也無 push 任
+何 stack arg，故 callee 應為 0-arg signature。
 
 ## Decompiler fragments — 不可獨立宣告的「函式」
 
@@ -181,7 +173,7 @@ INDEPENDENTLY`，emit pipeline 必須跳過這些 address，把 logic 收回 par
 ### Epilogue cluster (parent stack cleanup 共用)
 
 | 地址 | 內容 | 對應 parent locals + saved regs |
-|---|---|---|
+| --- | --- | --- |
 | `0x114fb` | `set_runtime_char_evade` (1 logic + ADD ESP 0x10 + POP EDI/ESI/EBX + RET) | recalculate_combat_stats (locals=0x10) |
 | `0x10b43` | ADD ESP 0x4 + ADD ESP 0x8 + POP EBP/EDI/ESI/EBX + RET | locals=0xC + 4 saved regs |
 | `0x10c49` | ADD ESP 0x4 + POP EDI/ESI/EBX + RET | locals=0x4 + 3 saved regs |
@@ -189,13 +181,13 @@ INDEPENDENTLY`，emit pipeline 必須跳過這些 address，把 logic 收回 par
 | `0x11452` | ADD ESP 0x20 + POP EBP/EDI/ESI/EBX + RET | locals=0x20 + 4 saved regs |
 | `0x13994` | ADD ESP 0x5C + POP EBP/EDI/ESI/EBX + RET | locals=0x5C + 4 saved regs |
 
-Borland C++ 用這個共用 epilogue 機制節省 code size — 多個 stack frame layout
-相同的 parent 共用同一段 epilogue。
+Watcom C 對於有相同 frame layout 的多個函式會共用同一段 epilogue 來節省 code
+size — emit pipeline 須把 logic 還原到各 parent。
 
 ### Prologue adapter (tail JMP thunk)
 
 | 地址 | 內容 | 用途 |
-|---|---|---|
+| --- | --- | --- |
 | `0x15983` | `MOV EAX, EDI` + `JMP 0x22bbe` | 把 caller 的 EDI 移到 EAX（標準 reg-arg slot），然後 tail call 真實實作 FUN_00022bbe |
 
 Emit pipeline 看到 plate comment 內 `DECOMPILER FRAGMENT — DO NOT DECLARE
@@ -203,7 +195,7 @@ INDEPENDENTLY` 字串自動跳過該位址，logic 收回 parent。
 
 ## 已建立的 helper 型別
 
-- `long_double_80` (10 bytes) — Borland C++ 80-bit extended precision long double
+- `long_double_80` (10 bytes) — Watcom C++ 80-bit extended precision long double
   的 struct 定義 (`dwMantissa_lo: uint32 @+0`，`dwMantissa_hi: uint32 @+4`，
   `wSign_exp: uint16 @+8`)。soft-FP CRT helpers (`FUN_0004b502` add-immediate /
   `FUN_0004b532` mantissa add / `FUN_0004b761` / `FUN_0004b936` mantissa shift /
@@ -213,12 +205,55 @@ INDEPENDENTLY` 字串自動跳過該位址，logic 收回 parent。
 
 要復刻 FD2 function 的 C 簽名時：
 
-1. **預設 `__cdecl`** — 87% 的 function 是這個。除非有以下訊號：
-2. 看 caller assembly：caller 在 CALL 前用 `MOV EAX, ...` / `MOV EDX, ...` /
-   `MOV ECX, ...` 設 register → `__fastcall`，前 K 個 arg 是這些 register
-3. 看 callee 末指令：`RET N` (而非 `RET`) → callee cleanup → `__fastcall` 或
-   `__stdcall`
-4. 看 prologue：跳過 `PUSH framesize; CALL 0x36cd7` 的 stack probe，再看 callee
-   是否在第一個 PUSH/SUB ESP 之前讀取 EAX/EDX/ECX (注意排除 CALL 的回傳值汙染)
-5. C++ member function 不要用 `__thiscall` — 一律宣告為 free function 加
-   `void *this` (或 struct pointer) 第一參數，cc 用 `__fastcall`
+1. **看 callee 末指令**：
+   - `RET 0` → 候選 cdecl 或 watcall(0 stack arg)
+   - `RET N` → 候選 stdcall 或 watcall(N/4 stack args + 可能 reg)
+2. **看 caller 端**：
+   - CALL 前用 `MOV EAX/EDX/EBX/ECX` 設定 register（不是先 PUSH 再 POP 的）→ watcall，前 K 個 arg 是這些 register
+   - CALL 後 `ADD ESP, K` → caller cleanup，K/4 = stack args
+3. **看 callee 入口**：跳過 `PUSH framesize; CALL 0x36cd7` 的 stack probe，再看
+   callee 是否在第一個 PUSH/SUB ESP 之前讀取 EAX/EDX/EBX/ECX（注意排除 CALL 的
+   回傳值汙染）。**EBX 被讀但沒 PUSH EBX 保留** → 強烈 watcall 信號
+4. **C++ member function**：用 watcall + EAX = `this`（Watcom 把 `this` 當第一
+   個 reg arg）；或宣告為 free function 加顯式 `void *this` 第一參數
+5. **varargs (`...`)**：強制 `__cdecl`，禁用 watcall（callee 無法知道 stack arg
+   數量無法 cleanup）
+
+## 工具 (tools/calling_convention_audit/)
+
+`tools/calling_convention_audit/` — 原 cc audit pipeline (dump / classify /
+apply / verify / param-name cleanup)。本檔末段的最終 cc 分布是把全 1000
+函式逐一比對 `FD2_watcall_ref.LE`（watcomcpp spec 自動分析的 reference）並
+per-function disasm 驗證後 apply 的結果。Reference 對 cdecl 過估嚴重，**不可**
+依其結果 bulk apply。
+
+## 最終 cc 分布
+
+### Final cc 分佈 (Watcom)
+
+| cc | 數量 | 用途 |
+| --- | --- | --- |
+| `__cdecl` | 957 | 預設 stack-based 函式（含 game logic 主體 + ANSI C runtime + 全部 varargs） |
+| `__watcall` | 42 | Watcom CRT soft-FP / long-double family（custom register ABI）+ 少數 register-passing helper |
+| `__stdcall` | 1 | `crt_frame_setup @ 0x36cd7`（Watcom stack-check helper） |
+| `__thiscall` | 0 | C++ class member function 在 FD2 不採用 |
+
+### 已校正狀態快速表
+
+| 項目 | 數值 |
+| --- | --- |
+| Function 總數 | 1000 |
+| 切換 spec 至 watcomcpp 後的初始 cc 分布 | `__cdecl` 878 / `__fastcall` 121 / `__stdcall` 1（`__fastcall` 為 borlandcpp 時代殘留標籤，watcomcpp spec 不含此 cc） |
+| 修正後 cc 分布 | `__cdecl` 957 / `__watcall` 42 / `__stdcall` 1 |
+| cc 校正套用 function 數 | 121（全部 `__fastcall` → 73 cdecl + 26 watcall + 22 cdecl pc=0 fragment/dispatch helper） |
+| Param 數量校正 function 數 | 約 100（多數為 phantom reg 移除：原 fastcall pc=1..3 → cdecl pc=0） |
+| Bad Instruction bookmark | 0（全程維持） |
+
+### 修正過程的關鍵發現
+
+- FD2 編譯時偏向 `-3s`（stack-based）— 95% function 是 `__cdecl`
+- Watcom register-based ABI（`__watcall`）僅出現於：
+  - Watcom CRT soft-FP / long-double family（21+ 個位於 `0x4b400-0x4dfff` 附近）
+  - 少數手寫 helper（task-switch、stream decoder）
+  - 5 個 reference 高信心 watcall candidate 中只有 `decode_dialog_pixel_byte` 是真實標準 watcall，其他全是 custom register ABI（無法用標準 watcall 完整建模，已加 plate comment 標註）
+- Reference (`FD2_watcall_ref.LE`) 對 cdecl function 的過估嚴重：1000 函式對照中 0 個完全 match，621 個 cc + pc 都不一致 — **不可** bulk apply reference cc

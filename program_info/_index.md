@@ -6,7 +6,7 @@
 
 - `overview.md` — 整體架構：FD2.LE binary segments、entry chain、12 systems 總覽、
   runtime_char struct (80 bytes) 完整 layout、`.object3` 資料表清單、關鍵遊戲機制
-- `lifecycle.md` — Borland CRT layer + entry/cutscene glue + ending sequence
+- `lifecycle.md` — Watcom CRT layer + entry/cutscene glue + ending sequence
 - `resource.md` — `load_dat_resource @ 0x111BA` 與 32 個 caller 的歸屬原則
 - `save_load.md` — FD2.SAV 存讀寫 8 個 helper、4-slot 選擇器、checksum/加密用途
 - `field_map.md` — 30 章 init/end handler、4 張 chapter jump table、
@@ -31,10 +31,10 @@
 - `chapter_event_dispatch.md` — FDFIELD turn-event hook 機制、
   `ai_post_action_consequence_table @ 0x51B91` 90-entry handler 對照表、
   動態 turn-event 啟動機制 (ch27..30)、tile-step-event hooks
-- `calling_convention.md` — Borland 32-bit cc 的 ABI 規則、判斷訊號 (caller
-  ADD ESP / RET N / EAX/EDX/ECX 設定)、最終 cc 分佈 (`__cdecl` 869 /
-  `__fastcall` 130 / `__stdcall` 1)、pinned 真實 callee-cleanup function、
-  param 數量推論公式
+- `calling_convention.md` — Watcom 32-bit cc 的 ABI 規則（`__watcall` /
+  `__cdecl` / `__stdcall`）、判斷訊號 (caller ADD ESP / RET N /
+  EAX/EDX/EBX/ECX 設定)、pinned 真實 callee-cleanup function、param 數量
+  推論公式、最終 cc 分布（`__cdecl` 957 / `__watcall` 42 / `__stdcall` 1）
 
 ## chapters/ 子資料夾
 

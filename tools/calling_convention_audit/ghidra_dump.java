@@ -14,8 +14,10 @@
 //     'OTHER' / 'NONE'), last_insn_mnem, last_insn_n, tail_jmp_target,
 //     prologue (first 16 instr text up to JMP/RET stop),
 //     reads_eax/edx/ecx (read-before-write before frame setup, with CALL
-//     treated as clobbering all 3 caller-saved regs and self-zero XOR
-//     not counted as a read),
+//     treated as clobbering 3 caller-saved regs and self-zero XOR
+//     not counted as a read; this script was authored under the prior
+//     Borland-cc assumption — under Watcom watcall, EBX is also a reg
+//     arg / caller-saved and should be tracked alongside EAX/EDX/ECX),
 //     caller_count, callers_add_esp_seen, callers_add_esp_max,
 //     callers_add_esp_min, callers_set_eax/edx/ecx, callers_push_only,
 //     callers (per-caller detail array),
@@ -163,7 +165,9 @@ while (it.hasNext()) {
         }
       }
       if (mnem.equals("CALL")) {
-        // Borland 32-bit CALL clobbers caller-saved EAX/EDX/ECX (and EAX is the return register)
+        // 32-bit CALL clobbers caller-saved EAX/EDX/ECX (and EAX is the return register).
+        // Under Watcom watcall, EBX is also a reg arg / caller-saved and should be
+        // added to this set when re-running for watcall-aware analysis.
         writtenRegs.add("EAX"); writtenRegs.add("EDX"); writtenRegs.add("ECX");
       }
     }

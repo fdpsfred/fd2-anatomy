@@ -151,4 +151,6 @@ binary 內這些字串可精確定位每個函式位址。FD2 自身呼叫的 AI
 - 第一個 AIL 函式 @ `0x379EE`
 - 最後一個 @ `0x3C2E6`
 - 約 19 KB library 程式碼
-- entry point @ `0x3C964` 在 AIL 區塊之後 (Borland linker 把 library 放在 main 之前)
+- entry point @ `0x3C964` 在這段 AIL 集中區之後（Watcom linker 把 library code
+  放在 main 之前；但要注意 game logic / library 在 `.object1` 中整體仍是
+  interleaved，0x37000-0x3C963 只是 AIL 函式較密集的觀察區段）

@@ -1,6 +1,6 @@
 # 整體架構
 
-FD2.LE 是 1995 年 Borland C++ 編譯的 DOS 32-bit Linear Executable，搭配
+FD2.LE 是 1995 年 Open Watcom C++ 編譯的 DOS 32-bit Linear Executable，搭配
 DOS/4GW Protected Mode Extender 在 386+ 環境執行。畫面用 VGA mode 13h
 (320×200×256 色)，音訊用 Miles Sound System (AIL) 走連結進來的 driver。
 
@@ -10,12 +10,9 @@ DOS/4GW Protected Mode Extender 在 386+ 環境執行。畫面用 VGA mode 13h
 
 ```
 0x00010000  .object1 (code, ~252 KB)
-  0x00010000-0x00036000   FD2 遊戲邏輯 (~154 KB)
-  0x00036000-0x00037000   Borland CRT 前段 (malloc/fopen/fclose 核心)
-  0x00037000-0x0003C300   AIL Miles Sound System library (~21 KB)
-  0x0003C300-0x0003CAAA   雜項 CRT
+  0x00010000-0x0004EBD8   game logic + Watcom CRT + Miles AIL library
+                          (在 binary 中 interleaved — 不是分區擺放)
   0x0003C964              entry point (crt_entry_start)
-  0x0003CAAA-0x0004EBD8   更多 CRT + low-level helpers + table_accessor
 0x00050000  .object2 (靜態資料 + runtime state)
   0x00050000-0x00053900   string tables, jump tables, lookup data
   0x00053A00-0x000543FF   runtime variables (cursor pos, char array 等)
@@ -29,14 +26,16 @@ DOS/4GW Protected Mode Extender 在 386+ 環境執行。畫面用 VGA mode 13h
   0x000626B3 spell_learning_table[20]
 ```
 
-FD2 真正自寫的遊戲邏輯壓在 `0x10000-0x36000` 的 154 KB 內；其餘是 Borland
-CRT 與 AIL library。
+`.object1` 內 FD2 自寫遊戲邏輯、Watcom C runtime、Miles Sound System library
+這三類函式 **互相交錯擺放**（Watcom linker 沒有依模組分區）。判別任一函式屬於
+哪一類必須看：函式名稱前綴（`crt_*` / `AIL_*` / 已命名 game function）、callee
+模式、字串引用，不能依 address range。
 
 ## 執行流程
 
 ```
 crt_entry_start (0x3C964)
- └─ crt_main_trampoline (0x45D4B)  ← Borland CRT startup
+ └─ crt_main_trampoline (0x45D4B)  ← Watcom CRT startup
      └─ fd2_main (0x25BF4)
          ├─ AIL_startup() — audio init
          ├─ load .DAT resources (FDTXT/FDOTHER/FDFIELD/FDSHAP/DATO/FDMUS/...)

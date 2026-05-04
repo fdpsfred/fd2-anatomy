@@ -157,27 +157,7 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
 
 ## Calling convention 校正後的剩餘限制
 
-### 26. ✅ LOW-confidence (caller-signal-unreliable) 277 個 function param 數量 — RESOLVED
-
-- 277 個 LOW-confidence 已全部處理：176 個 function-pointer dispatch table
-  callee 在前期 bulk-fix 為 `void __cdecl func(void)`；剩 102 個 (audit 重新清點數)
-  逐一 disasm 驗證，47 個 `set_function_prototype` 補正、55 個 ratify (Ghidra
-  cc-correction 後計數已正確或 Borland CRT 自訂 ABI deferred)。
-- 47 個 apply 分布：`spell_handler_id_*` × 11 (3 cdecl args，移除 3 phantom reg)、
-  `execute_*` × 7 (各 2-7 cdecl + 移除 3 phantom)、`tick_summon` family × 7
-  (5 cdecl args)、`tick_chapter_palette_animation` / `tick_tile_event_animations`
-  / `chapter_19_20_21_init_shared` 等 0-arg cdecl × 多筆、其他單獨 case × 多筆。
-- 0 emission blocker 全程維持：`list_bookmarks(category="Bad Instruction")` = 0
-  在所有 `set_function_prototype` apply 之間皆 0。
-- Borland CRT soft-FP / long-double family (`FUN_0004b761` divide、
-  `FUN_0004cb34` mantissa add、`FUN_0004cb86`、`FUN_0004d53c` 等) 用 custom
-  ABI (EBX/ESI/EDI 也帶輸入)，Ghidra 標準 fastcall 無法精確建模 — defer 到
-  build pipeline 站起來再 byte-level 比對。
-- 工具：`tools/lowconf_signature/` (`inventory.py` 抽 LOW set + signal、
-  `plan_apply.py` 規則化 apply plan 產出後**未**直接套用，per-function disasm
-  驗證後逐一 apply)。
-
-### 27. 新加入 param 的型別都是 `unsigned int` (部分 audit，留 backlog)
+### 26. 新加入 param 的型別都是 `unsigned int` (部分 audit，留 backlog)
 
 - **現狀**：auto param-count classifier 為 41 個 function 補了 61 個遺漏 param，
   型別一律 `uint` (4 bytes)。抽樣分析發現：
@@ -214,7 +194,7 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
   皆無讀取
 - ✅ runtime_char +0x27 pCombat_aux_block[1..9] — reserved padding (9 bytes)；
   loader / runtime 無讀寫，save/load 走 memcpy 整段保留
-- ✅ FUN_0004b502 (0x4b502) — Borland soft-FP 80-bit long double in-place add
+- ✅ FUN_0004b502 (0x4b502) — Watcom soft-FP 80-bit long double in-place add
   of immediate constant；helper struct `long_double_80` (10 bytes:
   `dwMantissa_lo / dwMantissa_hi / wSign_exp`)
 - ✅ Decompiler fragments (6 個 epilogue clusters + 1 tail JMP thunk) — caller
@@ -243,8 +223,8 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
   function (chapter_NN_post_action × 17 + chapter_NN_init × 26 + chapter_NN_end
   × 30 + chapter_event_handler_* × 89 + cast_* × 13 + 1) 確認 caller_count=0
   且 dispatch site `(*table[idx])()` 無 args，全部 `void __cdecl func(void)`
-- ✅ LOW-confidence (caller-signal-unreliable) 102 個 function 全部逐一審完
-  — 47 個 `set_function_prototype` apply、55 個 ratify；常見模式為
-  spell_handler_id / execute / tick_summon family 共用「Borland stack-probe
-  prologue + 3 phantom reg + N cdecl stack args」結構；Borland CRT soft-FP /
-  long-double family custom ABI (EBX/ESI/EDI 帶輸入) 留 backlog
+- ✅ Watcom cc 重校正 — 全 121 個 `__fastcall` 標籤重新分配為
+  `__cdecl` 73 + `__watcall` 26 + fragment/dispatch `__cdecl pc=0` 22；最終
+  cc 分布 `__cdecl` 957 / `__watcall` 42 / `__stdcall` 1；soft-FP family custom
+  ABI 標 `__watcall` 加 plate 註明 register layout，build pipeline 階段再
+  byte-level 比對
