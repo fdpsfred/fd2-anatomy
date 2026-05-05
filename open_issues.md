@@ -228,3 +228,49 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
   cc 分布 `__cdecl` 957 / `__watcall` 42 / `__stdcall` 1；soft-FP family custom
   ABI 標 `__watcall` 加 plate 註明 register layout，build pipeline 階段再
   byte-level 比對
+- ✅ AIL 內部 helper 命名 — 46 個 entry-point 之外的 helper 全部命名：~93 個
+  人工命名 `*_inner` worker / ISR / log / timer / DIG mixer / MDI sequence /
+  XMIDI parser，54 對 vendor-internal log-wrapped public API（`AIL_xxx` +
+  `AIL_xxx_inner` 配對，從 fprintf format string 自動抽取名稱，47 對有獨立
+  inner function），38 個 `AIL_helper_<addr>` / `AIL_<descriptor>_<addr>`
+  best-effort placeholder（plate comment 紀錄 callees）。3 對 helper 因
+  AIL3DIG / AIL3MDI 兩 .obj 各帶一份而出現 same-name duplicate
+  （`AIL_log_lock_acquire / release / get_isr_lock_count`），Ghidra unique key
+  是 name+address 故保留兩份原名
+- ✅ AIL function body 內 fall-through dead-code stub — 剩 2 個 dead stub
+  (`AIL_resume_sample @ 0x39522` / `AIL_set_sequence_tempo @ 0x3AD52`，
+  caller_count=0)，emit pipeline 連結 Watcom AIL 後對 binary 影響為 0
+- ✅ Function-boundary fall-through audit — 對 1699 個 function 跑「prev_fn
+  最後 inst 有 fall-through 進 this_fn entry」audit，扣除 7 個已結構性修復
+  的案例後共 98 個 candidate，個別驗證後分為 6 種 benign 模式：73 個
+  `align_nop_*` (zero ref 確認 — entry/body 任何 byte 都無 CALL/JUMP/DATA/
+  INDIRECTION 等 reference) + 8 個 SHARED EPILOGUE STUB (`noop_stub_b43` /
+  `noop_stub_c49` / `noop_stub_1011` / `noop_stub_1452` / `noop_stub_13994` /
+  `set_battle_anim_phase_to_1` / `AIL_log_decrement_nesting` / `noop_stub_3cbc4`，
+  共用 epilogue 由多個 source function 經 fall-through 或 tail-JMP 進入) +
+  3 個 SHARED BODY 多 entry (`play_palette_fade_to_black` /
+  `check_battle_end_condition` / `crt_softfp_uint32_to_ld`，與其同伴 entry 共用
+  邏輯主體) + 4 個 HEADER-ONLY ENTRY (chapter_event_handler 系列，prev 只 PUSH
+  args / frame_size，fall-through 進真正執行的 this) + 5 個 DEAD FALL-THROUGH
+  (prev 末尾的 fall-through 在執行流上死掉，例如 `exit` / `crt_terminate`) +
+  4 個 DATA TABLE FRAGMENT (jump table 區段被 Phase F 誤 disassemble 為 code) +
+  1 個 STATE-MACHINE INIT-ENTRY (`AIL_helper_41834` → `AIL_helper_4183d`)。
+  emulator-level 驗證（noop_stub_b43）確認 ESP 平衡邏輯正確。詳細逐 case
+  分析見 `workspace/function_review/phase_g_25_classification.md`，
+  emit pipeline 對每個模式的處理規則寫在 `program_info/emit_pipeline_spec.md`
+- ✅ 全 binary function 完整化 + 命名審視 — 1699 個 function 100% 命名
+  （FUN_* 0 個、vendor_* 0 個、Bad Instruction bookmark 0 個、
+  find_code_gaps min_size=1 為 0、`.object1` uncovered instruction byte
+  全部歸屬於某 function；唯一例外是 0x4A8E8 的 5-byte JMP thunk，Ghidra
+  createFunction 拒絕單 JMP-into-existing-function，保留 disassembled 並標
+  label `crt_dpmi_signal_handler_jmp_thunk`，emit pipeline 階段交給 vendor
+  relink）。category 分布：ail 278 / crt 783（含 178 個 `crt_*` 前綴 +
+  47 個 Watcom 公開符號 + 256 個 `crt_dpmi_int_NN` DPMI 軟中斷 stub +
+  74 個 `align_nop_*` Watcom alignment fill + ~226 個 `crt_helper_*` /
+  `crt_<descriptor>_<addr>` vendor placeholder）/ game 638；call graph
+  凍結於 `program_info/call_graph.{json,dot,md}`，4370 條 edge。
+  `AIL_end_sample @ 0x3958f` 涵蓋 PUSH EDI prologue（body 0x3958f-0x395FB，
+  3 caller，對應 `AIL_end_sample_inner @ 0x41460` 1 caller）；
+  `chapter_01_init` / `chapter_08_end` / `chapter_29_end` /
+  `crt_capture_ss_for_stkchk` / `crt_sin_inner` / `crt_abort_thunk` /
+  `save_runtime_char_to_template` 等 function body 涵蓋全部 reachable 指令

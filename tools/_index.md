@@ -16,3 +16,7 @@ import shared lib、不依賴 `legacy/`、不讀寫 `catalog/*.json`。
   自動推斷錯誤狀態校正成 ABI 正確的 pipeline (Python orchestrator + Ghidra
   Java workers)，跨 session 可恢復；尾端含 param-name cleanup 與 param-count
   apply 兩個 one-shot pass
+- `function_review/` — 全 function 命名審視 + call graph 建立工作流的支援
+  scripts。從 Ghidra MCP dump 建 per-function review registry / 進度面板 / DOT
+  call graph snapshot + Phase E call_graph 凍結。經 1004 function 完整 review
+  工作流跑過；命名與分類判斷由人親自做，scripts 只做機械處理
