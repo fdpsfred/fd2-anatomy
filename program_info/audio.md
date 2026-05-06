@@ -23,7 +23,12 @@ data ref / 結構推敲命名 — 共約 93 個經人工命名 + 約 38 個以
 placeholder，行為說明寫在各 function 的 plate comment。
 
 剩餘 dead-code stub function（Ghidra 把它們切成獨立 function 並命名，但無 caller）：
-`AIL_resume_sample @ 0x39522` / `AIL_set_sequence_tempo @ 0x3AD52`。emit
+`AIL_resume_sample @ 0x39522` / `AIL_set_sequence_tempo @ 0x3AD52`。另兩個
+完全沒 caller 也沒 xref 的 driver dispatch trampoline 屬 best-effort
+placeholder helper：`AIL_driver_call_helper_3fe6b @ 0x3FE6B`（`AIL_call_driver(drv, 0x401)`
+配 `flag[0x15]: 0→1`）與 `AIL_driver_call_helper_3feb3 @ 0x3FEB3`
+（`AIL_call_driver(drv, 0x402)` 配 `flag[0x15]: 1→0`）構成 start/stop pair，
+linker 從 AIL3DIG/AIL3MDI 帶入但 binary 從未引用。emit
 pipeline 連結 Watcom AIL 後對 binary 影響為 0。另有 57 個 function-name 字串
 沒被任何 code site 引用（dead code，linker 帶入但 printf 整個被 elide），
 以及 2 個字串引用點落在已命名 AIL function 的 fall-through dead-code 區段：

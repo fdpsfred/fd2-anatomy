@@ -171,6 +171,10 @@ def build():
         callees_by_addr.setdefault(caller_addr, set()).add(callee_addr)
         callers_by_addr.setdefault(callee_addr, set()).add(caller_addr)
 
+    # Stable order: Ghidra's adjacency dump iteration is non-deterministic across
+    # runs. Sorting here keeps program_info regenerations diff-clean.
+    edges.sort(key=lambda e: (e["from"], e["to"]))
+
     # Map each AIL string xref code-address -> containing function
     fn_to_ail_strings: dict[str, list[dict]] = {}
     for s_addr, content in ail_strings.items():

@@ -94,6 +94,7 @@ def system_for(name: str, category: str, tentative: str | None) -> str | None:
 def build():
     registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
     edges = json.loads(EDGES.read_text(encoding="utf-8"))
+    edges.sort(key=lambda e: (e["from"], e["to"]))
 
     nodes = []
     counts = {"ail": 0, "crt": 0, "game": 0}
