@@ -235,3 +235,62 @@ labels were reassigned per-function; final cc distribution is
 `__cdecl` 957 / `__watcall` 42 / `__stdcall` 1. ABI rules and signal
 interpretation: see `program_info/calling_convention.md`. Pipeline detail:
 see `tools/calling_convention_audit/_index.md`.
+
+## crt_fid_match/
+
+Ghidra Function ID pipeline for identifying Watcom CRT functions inside
+FD2.LE. Mixes Python preparation (lib extraction, OMF patching, manifest
+build) with Ghidra-side Java scripts (import / analyze / populate fidb /
+query) run via `mcp__ghidra__run_ghidra_script`. Final result: 131 of
+1692 FD2.LE functions identified as Watcom 9.5a CRT functions; full
+research write-up in `rebuild_info/crt_fid_match.md`.
+
+Pipeline (run in order):
+
+```bash
+# 1. extract — Watcom wlib unpacks .lib archives into .obj files
+for V in 9.5 9.5a 9.5b 9.5c; do for L in CLIB3S EMU387 GRAPH; do
+  python tools/crt_fid_match/omf_lib_extract.py \
+    --lib "C:/Users/fdpsf/Documents/WATCOM_$V/LIB386/DOS/$L.LIB" \
+    --out "workspace/crt_fid_match/extracted/$V/$L" --quiet
+done; done
+
+# 2. manifest + dedup — index unique .obj across all 4 versions
+python tools/crt_fid_match/build_manifest.py \
+  --extracted workspace/crt_fid_match/extracted \
+  --out workspace/crt_fid_match/manifest.json
+python tools/crt_fid_match/build_dedup_dir.py \
+  --manifest workspace/crt_fid_match/manifest.json \
+  --out workspace/crt_fid_match/dedup
+# (then rewrite manifest.json's `src` field to point at dedup; see
+# rebuild_info/crt_fid_match.md §4 for the one-liner)
+
+# 3. patch Watcom Easy OMF-386 quirky records (in-place on dedup)
+python tools/crt_fid_match/omf_patch_segdef.py \
+  --in-dir workspace/crt_fid_match/dedup --in-place
+
+# 4–8. Ghidra-side. The Java scripts live in crt_fid_match/ghidra_scripts/;
+# Ghidra only loads scripts from ~/ghidra_scripts/ so cp them there first.
+cp tools/crt_fid_match/ghidra_scripts/*.java ~/ghidra_scripts/
+# 4. wipe target folder
+#   FidWipeFolder /watcom_libs
+# 5. batch import 770 .obj
+#   FidImportBatch <manifest.json> /watcom_libs 0 770
+# 6. auto-analyze imported programs
+#   FidAnalyzeAll /watcom_libs 0 1000
+# 7. populate per-version .fidb files
+#   FidPopulate <manifest.json> /watcom_libs <fidb_out_dir> x86:LE:32:watcom
+# 8. query each .fidb against FD2.LE; threshold=0 surfaces all candidates
+#   FidQuery <fidb_out_dir> <results_dir> 0
+
+# 9. cross-version comparison report
+python tools/crt_fid_match/compare_results.py \
+  --results-dir workspace/crt_fid_match/results \
+  --out workspace/crt_fid_match/results/report.md
+```
+
+Verified: 767/770 .obj import successfully after patcher runs (3 EOF
+failures are font8x8 / fpeinth — Ghidra OmfLoader bug, FD2 doesn't
+link them anyway). 131 FD2 functions matched against 9.5a fidb,
+forming a strict superset over 9.5/9.5b/9.5c → FD2.LE compiled with
+Watcom 9.5a. Full result file: `rebuild_info/crt_matches_9.5a.json`.

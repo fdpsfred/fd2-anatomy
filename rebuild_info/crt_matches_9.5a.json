@@ -1,0 +1,1056 @@
+{
+  "version": "9.5a",
+  "threshold": 0.0,
+  "match_count": 131,
+  "matches": [
+    {
+      "address": "000353cc",
+      "current_name": "delay_400ms_via_idle_thunk",
+      "body_size": 14,
+      "candidates": [
+        {"matched_name":"fgetchar","score":3.0,"source_obj":"/watcom_libs/df7f6053275e_fgetchar.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00036cd7",
+      "current_name": "crt_frame_setup",
+      "body_size": 16,
+      "candidates": [
+        {"matched_name":"__CHK","score":16.01,"source_obj":"/watcom_libs/71a26af32e1b_stk.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00036cea",
+      "current_name": "crt_check_stack_overflow_inner",
+      "body_size": 29,
+      "candidates": [
+        {"matched_name":"__STK","score":14.0,"source_obj":"/watcom_libs/71a26af32e1b_stk.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00036d16",
+      "current_name": "malloc",
+      "body_size": 16,
+      "candidates": [
+        {"matched_name":"malloc","score":188.34,"source_obj":"/watcom_libs/9afea117227c_nmalloc.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00036d26",
+      "current_name": "_nmalloc",
+      "body_size": 114,
+      "candidates": [
+        {"matched_name":"_nmalloc","score":380.37,"source_obj":"/watcom_libs/9afea117227c_nmalloc.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00036d98",
+      "current_name": "wait_key_input",
+      "body_size": 41,
+      "candidates": [
+        {"matched_name":"int386","score":54.36,"source_obj":"/watcom_libs/d85276984e7d_int386.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00036dc1",
+      "current_name": "crt_fprintf_stderr",
+      "body_size": 34,
+      "candidates": [
+        {"matched_name":"printf","score":60.02,"source_obj":"/watcom_libs/23990787aee2_printf.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00036e0d",
+      "current_name": "crt_parse_fopen_mode",
+      "body_size": 175,
+      "candidates": [
+        {"matched_name":"__open_flags","score":93.77,"source_obj":"/watcom_libs/34f4a927de36_fopen.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00036fa1",
+      "current_name": "crt_fopen_impl",
+      "body_size": 43,
+      "candidates": [
+        {"matched_name":"_fsopen","score":75.020004,"source_obj":"/watcom_libs/34f4a927de36_fopen.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00036fcc",
+      "current_name": "crt_fopen_read",
+      "body_size": 21,
+      "candidates": [
+        {"matched_name":"fopen","score":26.68,"source_obj":"/watcom_libs/34f4a927de36_fopen.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00037046",
+      "current_name": "crt_helper_37046",
+      "body_size": 44,
+      "candidates": [
+        {"matched_name":"freopen","score":19.36,"source_obj":"/watcom_libs/34f4a927de36_fopen.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00037072",
+      "current_name": "fread",
+      "body_size": 466,
+      "candidates": [
+        {"matched_name":"fread","score":332.59,"source_obj":"/watcom_libs/e4cfbf258e44_fread.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00037244",
+      "current_name": "fclose",
+      "body_size": 44,
+      "candidates": [
+        {"matched_name":"fclose","score":33.35,"source_obj":"/watcom_libs/0aa510ba4f71_fclose.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00037270",
+      "current_name": "crt_fclose_impl",
+      "body_size": 36,
+      "candidates": [
+        {"matched_name":"__shutdown_stream","score":103.35,"source_obj":"/watcom_libs/0aa510ba4f71_fclose.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000372a7",
+      "current_name": "crt_make_temp_filename",
+      "body_size": 127,
+      "candidates": [
+        {"matched_name":"__MkTmpFile","score":113.1,"source_obj":"/watcom_libs/0aa510ba4f71_fclose.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00037326",
+      "current_name": "crt_fclose_inner",
+      "body_size": 158,
+      "candidates": [
+        {"matched_name":"__doclose","score":255.1,"source_obj":"/watcom_libs/0aa510ba4f71_fclose.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000373c4",
+      "current_name": "memmove",
+      "body_size": 82,
+      "candidates": [
+        {"matched_name":"memmove","score":52.03,"source_obj":"/watcom_libs/1481a08b40ca_memmove.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00037416",
+      "current_name": "free",
+      "body_size": 16,
+      "candidates": [
+        {"matched_name":"free","score":77.34,"source_obj":"/watcom_libs/01d4e7789167_nfree.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00037426",
+      "current_name": "_nfree",
+      "body_size": 37,
+      "candidates": [
+        {"matched_name":"_nfree","score":367.34,"source_obj":"/watcom_libs/01d4e7789167_nfree.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003744b",
+      "current_name": "fwrite",
+      "body_size": 359,
+      "candidates": [
+        {"matched_name":"fwrite","score":479.25,"source_obj":"/watcom_libs/184e37b9c956_fwrite.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000375c0",
+      "current_name": "memset",
+      "body_size": 34,
+      "candidates": [
+        {"matched_name":"memset","score":96.020004,"source_obj":"/watcom_libs/26c70b6cd69b_memset.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000375e2",
+      "current_name": "abs_value",
+      "body_size": 14,
+      "candidates": [
+        {"matched_name":"abs","score":8.67,"source_obj":"/watcom_libs/a46b440ab99c_abs.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"},
+        {"matched_name":"labs","score":8.67,"source_obj":"/watcom_libs/cfbf7c272283_labs.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000375f0",
+      "current_name": "fseek",
+      "body_size": 421,
+      "candidates": [
+        {"matched_name":"fseek","score":376.91,"source_obj":"/watcom_libs/1ce0e32395b8_fseek.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00037795",
+      "current_name": "outp",
+      "body_size": 12,
+      "candidates": [
+        {"matched_name":"outp","score":8.34,"source_obj":"/watcom_libs/1d6757f02585_outp.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000377d9",
+      "current_name": "sprintf",
+      "body_size": 44,
+      "candidates": [
+        {"matched_name":"sprintf","score":220.7,"source_obj":"/watcom_libs/aade3259b5a5_sprintf.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00037805",
+      "current_name": "strlen",
+      "body_size": 28,
+      "candidates": [
+        {"matched_name":"strlen","score":54.67,"source_obj":"/watcom_libs/4720124ddae2_strlen.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00037821",
+      "current_name": "crt_dos_get_char",
+      "body_size": 27,
+      "candidates": [
+        {"matched_name":"getch","score":9.01,"source_obj":"/watcom_libs/5d91ab104c50_getch.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003c92d",
+      "current_name": "crt_rand_update_seed",
+      "body_size": 34,
+      "candidates": [
+        {"matched_name":"rand","score":11.68,"source_obj":"/watcom_libs/e64bae7e23f3_rand.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003c94f",
+      "current_name": "crt_set_rand_seed",
+      "body_size": 19,
+      "candidates": [
+        {"matched_name":"srand","score":8.67,"source_obj":"/watcom_libs/e64bae7e23f3_rand.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003cbd6",
+      "current_name": "memcpy",
+      "body_size": 42,
+      "candidates": [
+        {"matched_name":"memcpy","score":346.35,"source_obj":"/watcom_libs/59aa526358b1_memcpy.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003cc00",
+      "current_name": "lseek",
+      "body_size": 75,
+      "candidates": [
+        {"matched_name":"lseek","score":345.38,"source_obj":"/watcom_libs/d0b66a0d4814_lseek.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003cc4b",
+      "current_name": "crt_read_with_text_xlate",
+      "body_size": 217,
+      "candidates": [
+        {"matched_name":"read","score":171.13,"source_obj":"/watcom_libs/c8c9f304ef5c_read.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003cd24",
+      "current_name": "open",
+      "body_size": 31,
+      "candidates": [
+        {"matched_name":"open","score":165.69,"source_obj":"/watcom_libs/478979bcfaf2_open.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003cd43",
+      "current_name": "crt_open_impl",
+      "body_size": 448,
+      "candidates": [
+        {"matched_name":"sopen","score":320.33002,"source_obj":"/watcom_libs/478979bcfaf2_open.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003cf03",
+      "current_name": "crt_dos_errno_helper_3cf03",
+      "body_size": 108,
+      "candidates": [
+        {"matched_name":"__set_binary","score":135.74,"source_obj":"/watcom_libs/478979bcfaf2_open.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003d01c",
+      "current_name": "close",
+      "body_size": 58,
+      "candidates": [
+        {"matched_name":"close","score":88.03,"source_obj":"/watcom_libs/659aec4b3766_close.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003d056",
+      "current_name": "_filelength",
+      "body_size": 63,
+      "candidates": [
+        {"matched_name":"filelength","score":63.7,"source_obj":"/watcom_libs/29c1008fc4ff_filelen.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003d095",
+      "current_name": "crt_write_with_text_xlate",
+      "body_size": 473,
+      "candidates": [
+        {"matched_name":"write","score":387.28,"source_obj":"/watcom_libs/e73a1f1394c4_write.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003d270",
+      "current_name": "crt_heap_alloc_block",
+      "body_size": 171,
+      "candidates": [
+        {"matched_name":"__MemAllocator","score":135.09,"source_obj":"/watcom_libs/59c35008174c_memalloc.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003d320",
+      "current_name": "crt_heap_free_block",
+      "body_size": 272,
+      "candidates": [
+        {"matched_name":"__MemFree","score":160.14,"source_obj":"/watcom_libs/59c35008174c_memalloc.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003d42b",
+      "current_name": "crt_heap_get_last_segment",
+      "body_size": 35,
+      "candidates": [
+        {"matched_name":"__LastFree","score":159.34,"source_obj":"/watcom_libs/57a37044e08d_grownear.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003d4f2",
+      "current_name": "crt_heap_grow",
+      "body_size": 512,
+      "candidates": [
+        {"matched_name":"__ExpandDGROUP","score":310.85,"source_obj":"/watcom_libs/57a37044e08d_grownear.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003d6f2",
+      "current_name": "crt_heap_oom_handler_default",
+      "body_size": 7,
+      "candidates": [
+        {"matched_name":"__nmemneed","score":49.0,"source_obj":"/watcom_libs/e82fe0e54cb7_nmemneed.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003d6f9",
+      "current_name": "crt_save_segment_regs",
+      "body_size": 45,
+      "candidates": [
+        {"matched_name":"segread","score":37.02,"source_obj":"/watcom_libs/018a8423f53c_segread.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003d726",
+      "current_name": "crt_heap_query_d726",
+      "body_size": 33,
+      "candidates": [
+        {"matched_name":"int386x","score":60.35,"source_obj":"/watcom_libs/45eb6cdde4d8_int386x.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003d761",
+      "current_name": "vfprintf",
+      "body_size": 128,
+      "candidates": [
+        {"matched_name":"__fprtf","score":373.1,"source_obj":"/watcom_libs/2584dd7771f2_fprtf.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003d7e1",
+      "current_name": "tolower",
+      "body_size": 21,
+      "candidates": [
+        {"matched_name":"tolower","score":75.68,"source_obj":"/watcom_libs/379418752ba8_tolower.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003d802",
+      "current_name": "crt_alloc_file_entry",
+      "body_size": 149,
+      "candidates": [
+        {"matched_name":"__allocfp","score":80.39,"source_obj":"/watcom_libs/3fa95c836703_allocfp.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003d897",
+      "current_name": "crt_free_file_entry",
+      "body_size": 51,
+      "candidates": [
+        {"matched_name":"__freefp","score":36.68,"source_obj":"/watcom_libs/3fa95c836703_allocfp.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003d8ca",
+      "current_name": "crt_helper_3d8ca",
+      "body_size": 34,
+      "candidates": [
+        {"matched_name":"__purgefp","score":18.34,"source_obj":"/watcom_libs/3fa95c836703_allocfp.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003d8ec",
+      "current_name": "crt_classify_stream_handle",
+      "body_size": 45,
+      "candidates": [
+        {"matched_name":"__chktty","score":117.37,"source_obj":"/watcom_libs/6e9aaef6bf71_chktty.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003d919",
+      "current_name": "crt_init_file_buffer",
+      "body_size": 119,
+      "candidates": [
+        {"matched_name":"__ioalloc","score":712.1,"source_obj":"/watcom_libs/cbc3461dce6c_ioalloc.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003d990",
+      "current_name": "read",
+      "body_size": 49,
+      "candidates": [
+        {"matched_name":"__qread","score":265.36,"source_obj":"/watcom_libs/d2e9bd1cd5ea_qread.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003d9c1",
+      "current_name": "getc",
+      "body_size": 121,
+      "candidates": [
+        {"matched_name":"fgetc","score":116.740005,"source_obj":"/watcom_libs/0b3778e9e319_fgetc.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003da3a",
+      "current_name": "crt_filbuf_first_byte",
+      "body_size": 43,
+      "candidates": [
+        {"matched_name":"__filbuf","score":113.35,"source_obj":"/watcom_libs/0b3778e9e319_fgetc.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003da65",
+      "current_name": "__filbuf",
+      "body_size": 171,
+      "candidates": [
+        {"matched_name":"__fill_buffer","score":441.0,"source_obj":"/watcom_libs/0b3778e9e319_fgetc.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003db16",
+      "current_name": "crt_flush_stream_buffer",
+      "body_size": 157,
+      "candidates": [
+        {"matched_name":"__flush","score":616.11,"source_obj":"/watcom_libs/4b8db5c65d34_flush.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003dbb3",
+      "current_name": "crt_lseek_current_pos",
+      "body_size": 52,
+      "candidates": [
+        {"matched_name":"ftell","score":217.7,"source_obj":"/watcom_libs/e2f62781b3ef_ftell.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003dbe7",
+      "current_name": "crt_putc_tty",
+      "body_size": 16,
+      "candidates": [
+        {"matched_name":"remove","score":71.34,"source_obj":"/watcom_libs/af352101ce83_remove.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003dbf7",
+      "current_name": "putc",
+      "body_size": 168,
+      "candidates": [
+        {"matched_name":"fputc","score":321.11,"source_obj":"/watcom_libs/1b6f918a9f82_fputc.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003dccd",
+      "current_name": "delay",
+      "body_size": 59,
+      "candidates": [
+        {"matched_name":"__delay","score":30.69,"source_obj":"/watcom_libs/7f8f24524bd7_delay.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003dd10",
+      "current_name": "_memset_inner",
+      "body_size": 49,
+      "candidates": [
+        {"matched_name":"__STOSB","score":75.020004,"source_obj":"/watcom_libs/f955fd443227___stos.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003dd47",
+      "current_name": "_memset_bulk",
+      "body_size": 108,
+      "candidates": [
+        {"matched_name":"__STOSD","score":85.740005,"source_obj":"/watcom_libs/f955fd443227___stos.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003ddb3",
+      "current_name": "_tell",
+      "body_size": 20,
+      "candidates": [
+        {"matched_name":"tell","score":193.68,"source_obj":"/watcom_libs/b7ff66273954_tell.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003ddc7",
+      "current_name": "crt_format_engine",
+      "body_size": 544,
+      "candidates": [
+        {"matched_name":"__prtf","score":335.05,"source_obj":"/watcom_libs/cd8d6fb39de4_prtf.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003f11b",
+      "current_name": "fprintf",
+      "body_size": 32,
+      "candidates": [
+        {"matched_name":"fprintf","score":60.690002,"source_obj":"/watcom_libs/6aba693ddccb_fprintf.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003f13b",
+      "current_name": "getenv",
+      "body_size": 85,
+      "candidates": [
+        {"matched_name":"getenv","score":104.7,"source_obj":"/watcom_libs/d77a5300be03_getenv.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003fb0f",
+      "current_name": "crt_isatty_dos",
+      "body_size": 32,
+      "candidates": [
+        {"matched_name":"isatty","score":214.69,"source_obj":"/watcom_libs/41fec40d99c4_isatty.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003fb2f",
+      "current_name": "crt_setvbuf_default",
+      "body_size": 40,
+      "candidates": [
+        {"matched_name":"setbuf","score":61.02,"source_obj":"/watcom_libs/16f30c7a4117_setbuf.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003fb57",
+      "current_name": "time",
+      "body_size": 57,
+      "candidates": [
+        {"matched_name":"time","score":174.36,"source_obj":"/watcom_libs/0fc969d455a2_time.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003fb90",
+      "current_name": "crt_format_time_local",
+      "body_size": 85,
+      "candidates": [
+        {"matched_name":"_localtime","score":360.69,"source_obj":"/watcom_libs/a5a707b79833_localtim.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003fbe5",
+      "current_name": "crt_format_time_default_buf",
+      "body_size": 21,
+      "candidates": [
+        {"matched_name":"localtime","score":44.34,"source_obj":"/watcom_libs/a5a707b79833_localtim.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003fc3b",
+      "current_name": "asctime",
+      "body_size": 240,
+      "candidates": [
+        {"matched_name":"_asctime","score":161.18,"source_obj":"/watcom_libs/6c41bff3293c_asctime.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003fd2b",
+      "current_name": "crt_asctime_default_buf",
+      "body_size": 21,
+      "candidates": [
+        {"matched_name":"asctime","score":93.34,"source_obj":"/watcom_libs/6c41bff3293c_asctime.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003fd40",
+      "current_name": "crt_helper_3fd40",
+      "body_size": 35,
+      "candidates": [
+        {"matched_name":"_ctime","score":121.020004,"source_obj":"/watcom_libs/6c41bff3293c_asctime.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003fd63",
+      "current_name": "crt_helper_3fd63",
+      "body_size": 25,
+      "candidates": [
+        {"matched_name":"ctime","score":17.01,"source_obj":"/watcom_libs/6c41bff3293c_asctime.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0003fd7c",
+      "current_name": "strcpy",
+      "body_size": 41,
+      "candidates": [
+        {"matched_name":"strcpy","score":23.36,"source_obj":"/watcom_libs/908bbce3add0_strcpy.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00045d4b",
+      "current_name": "crt_main_trampoline",
+      "body_size": 79,
+      "candidates": [
+        {"matched_name":"__CMain","score":22.01,"source_obj":"/watcom_libs/7bb91b602be1_cmain386.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00045d9a",
+      "current_name": "crt_run_init_list",
+      "body_size": 67,
+      "candidates": [
+        {"matched_name":"__InitRtns","score":36.69,"source_obj":"/watcom_libs/e51bb5866685_initrtns.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00045ddd",
+      "current_name": "crt_run_exit_list",
+      "body_size": 67,
+      "candidates": [
+        {"matched_name":"__FiniRtns","score":36.69,"source_obj":"/watcom_libs/e51bb5866685_initrtns.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000460a2",
+      "current_name": "crt_helper_460a2",
+      "body_size": 41,
+      "candidates": [
+        {"matched_name":"__init_8087","score":44.67,"source_obj":"/watcom_libs/031c7b66c5e1_chk8087.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000460d5",
+      "current_name": "crt_helper_460d5",
+      "body_size": 63,
+      "candidates": [
+        {"matched_name":"__chk8087","score":27.01,"source_obj":"/watcom_libs/031c7b66c5e1_chk8087.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00046114",
+      "current_name": "crt_init_argv",
+      "body_size": 179,
+      "candidates": [
+        {"matched_name":"__Init_Argv","score":95.05,"source_obj":"/watcom_libs/8b7a6a85015f_initargv.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000462a2",
+      "current_name": "crt_helper_462a2",
+      "body_size": 24,
+      "candidates": [
+        {"matched_name":"_dosret0","score":21.01,"source_obj":"/watcom_libs/6e73902af0df_dosret.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000462ba",
+      "current_name": "crt_dos_errno_helper_462ba",
+      "body_size": 23,
+      "candidates": [
+        {"matched_name":"_dosretax","score":59.68,"source_obj":"/watcom_libs/6e73902af0df_dosret.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000462d1",
+      "current_name": "crt_helper_462d1",
+      "body_size": 17,
+      "candidates": [
+        {"matched_name":"__EINVAL","score":4.34,"source_obj":"/watcom_libs/6e73902af0df_dosret.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000462e2",
+      "current_name": "crt_dos_to_errno",
+      "body_size": 112,
+      "candidates": [
+        {"matched_name":"_set_errno","score":591.72,"source_obj":"/watcom_libs/6e73902af0df_dosret.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00046352",
+      "current_name": "crt_get_fd_entry",
+      "body_size": 82,
+      "candidates": [
+        {"matched_name":"__IOMode","score":522.38,"source_obj":"/watcom_libs/37c54b985f96_iomode.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000463a4",
+      "current_name": "crt_set_fd_entry",
+      "body_size": 24,
+      "candidates": [
+        {"matched_name":"__SetIOMode","score":227.68,"source_obj":"/watcom_libs/37c54b985f96_iomode.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000463c5",
+      "current_name": "crt_helper_463c5",
+      "body_size": 19,
+      "candidates": [
+        {"matched_name":"_heapenable","score":7.67,"source_obj":"/watcom_libs/44e3321078e7_heapen.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000463d8",
+      "current_name": "crt_dpmi_or_dos_alloc",
+      "body_size": 157,
+      "candidates": [
+        {"matched_name":"sbrk","score":120.39,"source_obj":"/watcom_libs/c0313e8c4d0d_sbrk386.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00046475",
+      "current_name": "crt_dos_resize_alloc",
+      "body_size": 170,
+      "candidates": [
+        {"matched_name":"__brk","score":273.09,"source_obj":"/watcom_libs/c0313e8c4d0d_sbrk386.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00046520",
+      "current_name": "crt_capture_regs",
+      "body_size": 55,
+      "candidates": [
+        {"matched_name":"__int386x_","score":49.03,"source_obj":"/watcom_libs/168bb609d2af_int386xa.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0004657b",
+      "current_name": "crt_dpmi_int_invoke",
+      "body_size": 74,
+      "candidates": [
+        {"matched_name":"_DoINTR_","score":42.38,"source_obj":"/watcom_libs/168bb609d2af_int386xa.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000468f8",
+      "current_name": "crt_helper_468f8",
+      "body_size": 69,
+      "candidates": [
+        {"matched_name":"__InitFiles","score":67.03,"source_obj":"/watcom_libs/912c4d366640_initfile.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0004693d",
+      "current_name": "crt_helper_4693d",
+      "body_size": 15,
+      "candidates": [
+        {"matched_name":"__full_io_exit","score":12.34,"source_obj":"/watcom_libs/aa0b826f7c04_ioexit.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0004694c",
+      "current_name": "crt_helper_4694c",
+      "body_size": 11,
+      "candidates": [
+        {"matched_name":"fcloseall","score":4.34,"source_obj":"/watcom_libs/aa0b826f7c04_ioexit.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000469b0",
+      "current_name": "crt_flush_streams_matching_mask",
+      "body_size": 56,
+      "candidates": [
+        {"matched_name":"__flushall","score":132.02,"source_obj":"/watcom_libs/d8d0c9de78e5_flushall.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000469e8",
+      "current_name": "crt_dos_get_char_dup",
+      "body_size": 27,
+      "candidates": [
+        {"matched_name":"getche","score":60.010002,"source_obj":"/watcom_libs/3dc313a87fa1_getche.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00046a03",
+      "current_name": "crt_dos_write_handle",
+      "body_size": 125,
+      "candidates": [
+        {"matched_name":"__qwrite","score":179.73,"source_obj":"/watcom_libs/0c455ab70502_qwrite.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00046a80",
+      "current_name": "crt_putc_dos",
+      "body_size": 36,
+      "candidates": [
+        {"matched_name":"unlink","score":63.02,"source_obj":"/watcom_libs/c313e1089de3_unlink.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00046ac9",
+      "current_name": "crt_uint_to_string_base",
+      "body_size": 72,
+      "candidates": [
+        {"matched_name":"utoa","score":63.37,"source_obj":"/watcom_libs/8456c2248f37_itoa.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00046b11",
+      "current_name": "crt_int_to_string_base",
+      "body_size": 48,
+      "candidates": [
+        {"matched_name":"itoa","score":60.690002,"source_obj":"/watcom_libs/8456c2248f37_itoa.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00046b72",
+      "current_name": "crt_uint32_to_string_base",
+      "body_size": 72,
+      "candidates": [
+        {"matched_name":"ultoa","score":63.37,"source_obj":"/watcom_libs/aea270c9f81a_ltoa.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00046bba",
+      "current_name": "crt_int32_to_string_base",
+      "body_size": 48,
+      "candidates": [
+        {"matched_name":"ltoa","score":60.690002,"source_obj":"/watcom_libs/aea270c9f81a_ltoa.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00046bea",
+      "current_name": "toupper",
+      "body_size": 21,
+      "candidates": [
+        {"matched_name":"toupper","score":12.68,"source_obj":"/watcom_libs/2f7b4656e340_toupper.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00046bff",
+      "current_name": "strnicmp",
+      "body_size": 77,
+      "candidates": [
+        {"matched_name":"strnicmp","score":79.03,"source_obj":"/watcom_libs/0c403d1d9661_strnicmp.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00046c4c",
+      "current_name": "fgets",
+      "body_size": 106,
+      "candidates": [
+        {"matched_name":"fgets","score":100.75,"source_obj":"/watcom_libs/935078b71f33_fgets.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00046cb6",
+      "current_name": "strncpy",
+      "body_size": 51,
+      "candidates": [
+        {"matched_name":"strncpy","score":32.35,"source_obj":"/watcom_libs/881ce259ef4c_strncpy.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00046ce9",
+      "current_name": "crt_setvbuf_internal",
+      "body_size": 120,
+      "candidates": [
+        {"matched_name":"setvbuf","score":123.07,"source_obj":"/watcom_libs/81fd4203f5f1_setvbuf.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00046d61",
+      "current_name": "crt_dos_gettime_components",
+      "body_size": 162,
+      "candidates": [
+        {"matched_name":"__getctime","score":104.47,"source_obj":"/watcom_libs/f196f48e7372_getctime.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00046e03",
+      "current_name": "mktime",
+      "body_size": 284,
+      "candidates": [
+        {"matched_name":"mktime","score":473.13,"source_obj":"/watcom_libs/42f83915bcc9_mktime.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00046f1f",
+      "current_name": "crt_init_timezone",
+      "body_size": 27,
+      "candidates": [
+        {"matched_name":"tzset","score":207.34,"source_obj":"/watcom_libs/3940ec1c1105_tzset.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00047138",
+      "current_name": "crt_parse_tz_string",
+      "body_size": 157,
+      "candidates": [
+        {"matched_name":"__parse_tz","score":60.72,"source_obj":"/watcom_libs/3940ec1c1105_tzset.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000471d5",
+      "current_name": "crt_seconds_to_tm",
+      "body_size": 303,
+      "candidates": [
+        {"matched_name":"__brktime","score":294.8,"source_obj":"/watcom_libs/3c31341c06a5_gmtime.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00047304",
+      "current_name": "crt_helper_47304",
+      "body_size": 36,
+      "candidates": [
+        {"matched_name":"_gmtime","score":135.69,"source_obj":"/watcom_libs/3c31341c06a5_gmtime.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00047328",
+      "current_name": "crt_helper_47328",
+      "body_size": 21,
+      "candidates": [
+        {"matched_name":"gmtime","score":20.34,"source_obj":"/watcom_libs/3c31341c06a5_gmtime.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0004733d",
+      "current_name": "crt_is_leap_year",
+      "body_size": 52,
+      "candidates": [
+        {"matched_name":"__leapyear","score":421.35,"source_obj":"/watcom_libs/fee92bb59e09_timeutil.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00047371",
+      "current_name": "crt_compute_is_dst",
+      "body_size": 609,
+      "candidates": [
+        {"matched_name":"__isindst","score":375.53998,"source_obj":"/watcom_libs/fee92bb59e09_timeutil.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00047602",
+      "current_name": "crt_divmod_helper",
+      "body_size": 51,
+      "candidates": [
+        {"matched_name":"div","score":110.020004,"source_obj":"/watcom_libs/bb9fedfb9a05_div.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0004962e",
+      "current_name": "strncmp",
+      "body_size": 50,
+      "candidates": [
+        {"matched_name":"strncmp","score":28.68,"source_obj":"/watcom_libs/1109b8612cd1_strncmp.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00049788",
+      "current_name": "crt_format_float_spec",
+      "body_size": 223,
+      "candidates": [
+        {"matched_name":"_EFG_Format","score":111.82,"source_obj":"/watcom_libs/c44ebd7c06f7_efgfmt.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000498d6",
+      "current_name": "crt_init_windows_notification",
+      "body_size": 207,
+      "candidates": [
+        {"matched_name":"__hook387","score":120.45,"source_obj":"/watcom_libs/59ab203f79f5_hook387.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "000499a5",
+      "current_name": "crt_deinit_windows_notification",
+      "body_size": 85,
+      "candidates": [
+        {"matched_name":"__unhook387","score":40.72,"source_obj":"/watcom_libs/59ab203f79f5_hook387.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "00049d98",
+      "current_name": "crt_softfp_signal_49d98",
+      "body_size": 28,
+      "candidates": [
+        {"matched_name":"__int7","score":15.35,"source_obj":"/watcom_libs/fb5b3f690802_emu387.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0004cbd0",
+      "current_name": "crt_helper_4cbd0",
+      "body_size": 45,
+      "candidates": [
+        {"matched_name":"__init_80x87","score":25.34,"source_obj":"/watcom_libs/ccc721b858c5_init8087.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0004cbfd",
+      "current_name": "crt_init_env_array",
+      "body_size": 228,
+      "candidates": [
+        {"matched_name":"__setenvp","score":163.41,"source_obj":"/watcom_libs/698cb0f41935_setenvp.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0004d306",
+      "current_name": "crt_dos_set_int_vector",
+      "body_size": 55,
+      "candidates": [
+        {"matched_name":"_dos_setvect","score":103.7,"source_obj":"/watcom_libs/14f37d2448a8_d_setvec.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0004d345",
+      "current_name": "fputs",
+      "body_size": 121,
+      "candidates": [
+        {"matched_name":"fputs","score":201.75,"source_obj":"/watcom_libs/d14e2fe74712_fputs.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0004d84c",
+      "current_name": "crt_softfp_digits_to_bcd64",
+      "body_size": 75,
+      "candidates": [
+        {"matched_name":"__ZBuf2F","score":42.35,"source_obj":"/watcom_libs/904423069b96_amodf.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    },
+    {
+      "address": "0004d8ea",
+      "current_name": "crt_helper_4d8ea",
+      "body_size": 7,
+      "candidates": [
+        {"matched_name":"__nmemneed","score":5.0,"source_obj":"/watcom_libs/e82fe0e54cb7_nmemneed.obj","library_family":"watcom_9.5a","library_version":"9.5a","library_variant":"DOS-32"}
+      ]
+    }
+  ]
+}

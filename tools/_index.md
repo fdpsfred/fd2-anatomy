@@ -20,3 +20,7 @@ import shared lib、不依賴 `legacy/`、不讀寫 `catalog/*.json`。
   scripts。從 Ghidra MCP dump 建 per-function review registry / 進度面板 / DOT
   call graph snapshot + Phase E call_graph 凍結。經 1004 function 完整 review
   工作流跑過；命名與分類判斷由人親自做，scripts 只做機械處理
+- `crt_fid_match/` — Ghidra Function ID 比對 pipeline 識別 FD2.LE 內
+  Watcom CRT 函式。Python 端做 lib 拆解 / OMF 修補 / 跨版本 dedup /
+  結果比對；Ghidra 端 Java scripts 在 `ghidra_scripts/` 下做 import /
+  analyze / populate / query。完整說明見 `rebuild_info/crt_fid_match.md`

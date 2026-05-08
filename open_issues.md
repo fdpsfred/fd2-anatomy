@@ -170,6 +170,34 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
   純粹是 decompile 可讀性。Per-function manual analysis 工作量大，列為
   backlog；當前編譯目標不受影響。
 
+## 重建相關 backlog
+
+### 27. 套 `crt_matches_9.5a.json` 的 high-confidence 命名回 FD2.LE
+
+- **現狀**：`rebuild_info/crt_matches_9.5a.json` 列 131 個 FD2 function 對應的
+  Watcom 9.5a CRT symbol，其中 score ≥ 14.6 的 106 筆是高信心命中。FD2.LE
+  內這批位址多數仍是 `crt_helper_*` 佔位命名。
+- **解需要做什麼**：批次把 high-confidence 命中套回 Ghidra symbol table，
+  並對 score < 14.6 的 12 筆用 §7.2 (body size vs lib symbol expected size)
+  準則逐筆人工判斷。
+
+### 28. 找出 FD2 連結時的 wlink linker 設定
+
+- **現狀**：已知 FD2.LE 是 LE format + DOS/4GW DPMI extender，但詳細的
+  wlink script (segment ordering / DGROUP layout / stack size / heap
+  setup / `runtime` 連結選項等) 還沒拆出來。
+- **解需要做什麼**：對 FD2.LE 的 LE header / segment table / DGROUP 配置做
+  static 分析，反推 wlink 命令列。
+
+### 29. 手動 patch 3 個無法 import 的 .obj
+
+- **現狀**：770 個 dedup 後的 Watcom CRT .obj 中 3 個觸發 Ghidra OmfLoader
+  的 EOF bug 而 import 失敗：`fpeinth.obj` (FPE handler)、`font8x8.obj` ×2
+  (VGA ROM 字型 bitmap)。FD2 都不連結這 3 個，所以對版本判定與 CRT
+  識別結果無影響，但理論完整度上仍是缺口。
+- **解需要做什麼**：trace Ghidra OmfLoader 為何在處理完 MODEND 後仍試圖
+  多讀 1 byte，patch loader 或重組 .obj 結構。
+
 ## 已解問題（記錄為基線）
 
 - ✅ 哈瓦特暴走機制 (ch1) — char_spawn_record +0x94/0x95/0x96 → protective AI fall-through
