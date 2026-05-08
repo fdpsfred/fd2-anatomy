@@ -248,19 +248,35 @@ threshold=0)：
 `vfprintf` 373、`__prtf` 335、`putc` 321、`sopen` 320、`__brktime` 294、
 `__brk` 273、`__qread` 265、`__doclose` 255、…等)。完整列表見 JSON。
 
-### 8.3 低信心 match (score < 14.6) 判讀準則
+### 8.3 低信心 match (score < 20) 實測誤判率
 
-threshold=0 拉出來的 12 筆 score < 14.6 中約一半是真誤判（短函式
-hash 碰撞），一半實際對（函式本來就只有 5–10 條 instruction）。
+把門檻設在 score < 20 拉出 18 筆候選，逐筆對 disassembly + decompile +
+callees 與 Watcom CRT 預期行為比對後，實測誤判率 **3/18 = 16.7%**（細節
+見 §11.4 與 `crt_verify_rejected.md`）。誤判模式三種：
 
-判斷準則：**body size 跟該 lib symbol 預期實作大小是否吻合**。
+- **行為完全無關的 hash 碰撞**：4-instruction stub 在 reference 遮罩後
+  hash 與某 CRT symbol 巧合（例 `0x353cc` 的 `delay(400)` wrapper 被標
+  為 `fgetchar`，score 3.0）
+- **same-family hash identical**：dosret.obj 內 `__EINVAL` /
+  `__EBADF` / `__ENOENT` 等 set-errno-X helper 的位元組型樣只在 32-bit
+  immediate 上不同，遮罩後完全 identical；FidDb 從 family 中挑一個
+  symbol 名作為標籤，例 `0x462d1` 真實是 `__EBADF`（store errno=9）
+  但被標為 `__EINVAL`（store errno=0x16）
+- **thin-wrapper hash 巧合**：`PUSH imm + CALL helper + RET` 這類短
+  pattern 在多個短 CRT 函式間 hash 同型；例 `0x4694c` body 11 與
+  `fcloseall` 簽名碰撞但實際是 close-streams-with-mask wrapper 的某
+  個變體
 
-| addr | 當前命名 | body | 命中 (score) | 判斷 |
-|---|---|---:|---|---|
-| `0x4694c` | `crt_helper_4694c` | 11 | `fcloseall` (4.3) | ✗ 假 — `fcloseall` 真正實作數十 byte，不可能只有 11 byte |
-| `0x4d8ea` | `crt_helper_4d8ea` | 7 | `__nmemneed` (5.0) | ✓ 真 — `__nmemneed` 預設 stub 就是 `xor eax,eax; ret` 的 4–7 byte |
-| `0x462d1` | `crt_helper_462d1` | 17 | `__EINVAL` (4.3) | ✓ 真 — set-errno helper，body size 吻合 |
-| `0x37795` | `outp` | 12 | `outp` (8.3) | ✓ 真 — 名字本來就同步 |
+15 筆 PASS 的 score < 20 entries 多半是 Watcom CRT 內合法的 thin
+wrapper（abs/labs 14、outp 12、toupper 21、__nmemneed 7、ctime 25、
+freopen 44 等）— 它們 score 低是因為 FidHasher 對短函式分配的 code-unit
+分數自然偏低（待 score 的 instruction 少），不是因為 hash 巧合。
+
+判斷準則：**body size + 行為簽章** 雙檢查。單看 body size 不夠（例
+`0x462d1` body 17 與 __EINVAL 預期吻合，但實際 errno value 不對），
+要進一步比對 INT 21h AH 值、callee 名單、key instruction pattern。
+詳見 `tools/crt_fid_match/verify_rules.py` 內 RULES 表與
+`apply_rule()` 套用器。
 
 ## 9. Pipeline 步驟與工具
 
@@ -284,6 +300,9 @@ hash 碰撞），一半實際對（函式本來就只有 5–10 條 instruction�
 |---|---|
 | `crt_fid_match.md` | 本檔 |
 | `crt_matches_9.5a.json` | FidQuery 對 9.5a fidb 的 raw 輸出 (131 個 match) |
+| `crt_lookup_9.5a.json` | 經行為驗證後的 address ↔ Watcom CRT symbol 對照表 (§11) |
+| `crt_verify_report.md` | Phase B + Phase D 31 個受驗 entry 的逐筆紀錄 |
+| `crt_verify_rejected.md` | 3 個未通過 candidate 的拒絕原因 |
 
 `tools/crt_fid_match/` 下：
 
@@ -294,6 +313,10 @@ hash 碰撞），一半實際對（函式本來就只有 5–10 條 instruction�
 | `build_manifest.py` | 建跨版本 dedup 索引 |
 | `build_dedup_dir.py` | 把 dedup 後的 .obj 集中到一個 flat dir |
 | `compare_results.py` | 從 4 份 query JSON 生 markdown 比對報告 |
+| `build_crt_lookup.py` | 從 `crt_matches_9.5a.json` 分流 4 個 verify queue (§11) |
+| `verify_rules.py` | 每個 Watcom CRT symbol 的行為簽章規則表 (§11) |
+| `verify_crt_samples.py` | 套 verify_rules 對受驗 entry 出 PASS/FAIL 報告 (§11) |
+| `build_final_lookup.py` | 整合 auto + manual + 衝突解決 → `crt_lookup_9.5a.json` (§11) |
 | `ghidra_scripts/FidWipeFolder.java` | 清 Ghidra project folder |
 | `ghidra_scripts/FidImportBatch.java` | batch import .obj，含 setLanguage |
 | `ghidra_scripts/FidAnalyzeAll.java` | 對 import 的 program 跑 auto-analysis |
@@ -303,3 +326,113 @@ hash 碰撞），一半實際對（函式本來就只有 5–10 條 instruction�
 | `crt_fidb/watcom_9.5a.fidb` | 9.5a (115002 byte) — **正本** |
 | `crt_fidb/watcom_9.5b.fidb` | 9.5b (117574 byte) |
 | `crt_fidb/watcom_9.5c.fidb` | 9.5c (117087 byte) |
+
+## 11. 已驗證 lookup table
+
+`crt_lookup_9.5a.json` 是 §8 raw FidQuery 輸出經行為驗證後的精煉版，
+收 **128 個確認的** FD2 function ↔ Watcom CLIB3S symbol 對照，作為後續
+rename audit / calling convention 補齊 / CRT 行為復刻工作的快速查表來源。
+
+### 11.1 Schema
+
+```jsonc
+{
+  "version": "9.5a",
+  "auto_threshold": 20.0,
+  "stats": { "total_input": 131, "auto_pass": 110,
+             "conflict_resolved": 3, "manual_pass": 15, "rejected": 3,
+             "in_lookup": 128 },
+  "by_address": {
+    "0003cbd6": {
+      "name":         "memcpy",       // Watcom lib PUBDEF 名（主鍵）
+      "current_name": "memcpy",       // Ghidra 內現有名（audit 輔欄）
+      "score":        346.4,
+      "body_size":    42,
+      "source_obj":   "59aa526358b1_memcpy.obj",
+      "verified":     "auto_threshold",
+      "aliases":      []              // 同 addr 多 candidate 時填
+    }
+  },
+  "by_name": { "memcpy": ["0003cbd6"], "abs": ["000375e2"], "labs": ["000375e2"] }
+}
+```
+
+`name` 一律以 Watcom lib PUBDEF 為主、`current_name` 保留 Ghidra 內名以利
+audit。0x375e2 abs/labs 是 32-bit Watcom 唯一同 addr 同 score 雙 candidate
+案，`aliases` 列雙名、`by_name` 兩個 key 反向索引到同一 addr。`__nmemneed`
+有 2 個 addr (`0x3d6f2` / `0x4d8ea`) 因 binary 內存在 weak stub 雙拷貝，
+`by_name["__nmemneed"]` 雙條目反映這個事實。
+
+### 11.2 收錄條件
+
+| verified | 條件 | 數量 |
+|---|---|---:|
+| `auto_threshold` | score ≥ 20 且 current_name 與 matched_name 無語意衝突 | 110 |
+| `conflict_resolved` | score ≥ 20 但 current_name 與 matched_name 衝突；經行為驗證確認 matched_name 才正確 | 3 |
+| `manual` | score < 20，逐筆套 verify_rules 行為簽章規則 PASS | 15 |
+| _rejected_ | 行為與 matched_name 不符；不入表，僅紀錄於 `crt_verify_rejected.md` | 3 |
+
+`auto_threshold = 20` 由「在 [20, 712.1] score 範圍內按等距取 10 個樣本逐筆
+驗證 (10/10 PASS)」轉移成立 — 涵蓋 gmtime / memset / time / __doclose /
+fread / __leapyear / fwrite / _set_errno / __flush / __ioalloc。
+
+3 個 conflict_resolved（`0x36dc1 printf` / `0x3dbe7 remove` / `0x46a80
+unlink`）的 Ghidra 現有名 (`crt_fprintf_stderr` / `crt_putc_tty` /
+`crt_putc_dos`) 是先前命名者誤判：例如 0x36dc1 push 的 stream constant
+0x5285a 經 `workspace/ail_audit/crt_globals_map.json` 計算
+`(0x5285a − 0x52840) / 0x1A = 1` 證明是 __iob[1] = stdout 不是 stderr。
+
+### 11.3 驗證規則
+
+`tools/crt_fid_match/verify_rules.py` 內 `RULES` 對 60+ Watcom CRT symbol
+各寫一條 PASS criteria，由五類條件 AND 起來：
+
+- `body_size_range` — function body 落在 [lo, hi] 之內
+- `callees_required_any` / `_all` / `_forbidden` — callee 名單檢查（callee
+  地址需先用 `crt_matches_9.5a.json` 翻譯回 Watcom 符號）
+- `instructions_any` / `_all` — assembly 內必須出現的指令模式（如
+  `STOSB` / `MOVSB` / `IDIV` / `OUT`）
+- `int21_ah_any` — DOS INT 21h 的 AH 值（如 unlink 是 0x41，getch 是 0x08）
+- `is_leaf` — 是否為 leaf function
+
+任一子條件 fail 即整體 fail；不開「callee 名 plausible 即過」的後門。
+`apply_rule()` 回傳 failure 列表，空 list 才 PASS。observation 中可加
+`manual_verdict: "REJECT" + manual_reason` 顯式覆寫規則結果，用於規則
+PASS 但語意實際不符的案例（例如 dosret.obj 內 set-errno-X helper family
+因 imm 遮罩 hash identical，需用實際 errno 立即值區分）。
+
+### 11.4 三個 rejected 案例
+
+- **`0x353cc` matched=fgetchar** — 實際 `PUSH 0x190; CALL delay; RET`，是
+  delay(400ms) wrapper；fgetchar 應 `fgetc(stdin)`，行為完全無關。score
+  3.0 是 4-instruction stub 巧合命中
+- **`0x462d1` matched=__EINVAL** — 實際 store `errno = 9`，但 Watcom errno.h
+  定義 EBADF=9 / EINVAL=22 (0x16)；故為 `__EBADF` helper，FidDb 因
+  dosret.obj 內 set-errno-X family（CALL get_errno_ptr; MOV [EAX],imm32;
+  MOV EAX,-1; RET）在 imm 遮罩後位元組型樣 identical 而誤標
+- **`0x4694c` matched=fcloseall** — body 11 的 thin wrapper（PUSH 0x5;
+  CALL helper; RET），未 loop _iob[]；與 fcloseall 標準實作（迴圈 fclose
+  每個 open 流）不符；score 4.34 也低於默認 14.6 門檻，與 §8.3 已紀錄為
+  已知 false positive 一致
+
+### 11.5 重產流程
+
+```bash
+# 1. 從 raw FidQuery 結果分流 4 個 verify queue（不需 Ghidra）
+python tools/crt_fid_match/build_crt_lookup.py
+
+# 2. 在 Ghidra MCP 環境收集 disasm + callees 並寫成 observations JSON
+#    (workspace/crt_fid_match/observations_phaseB.json + observations_phaseD.json)
+#    此步由 Claude Code 完成，不能 EXE-execute
+
+# 3. 套規則出 verify report
+python tools/crt_fid_match/verify_crt_samples.py \
+    --queue workspace/crt_fid_match/sample_queue.json \
+    --queue workspace/crt_fid_match/conflict_queue.json \
+    --queue workspace/crt_fid_match/manual_queue.json \
+    --observations workspace/crt_fid_match/observations_all.json \
+    --out rebuild_info/crt_verify_report.md
+
+# 4. 整合成最終 lookup
+python tools/crt_fid_match/build_final_lookup.py
+```
