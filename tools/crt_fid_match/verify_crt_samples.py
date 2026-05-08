@@ -93,12 +93,16 @@ def render_entry(e: dict, observation: dict | None) -> tuple[str, str]:
         lines.append("**Verdict**: `<TBD>`")
     else:
         callees = observation.get("callees", [])
+        callers = observation.get("callers")  # may be None
         asm_text = observation.get("asm", "")
         decomp = observation.get("decomp", "")
         body = e["body_size"]
 
         lines.append("**Observed**:")
         lines.append(f"- callees: `{callees}`")
+        if callers is not None:
+            shown = callers if len(callers) <= 6 else callers[:6] + [f"... ({len(callers)} total)"]
+            lines.append(f"- callers: `{shown}`")
         if "key_instructions" in observation:
             lines.append(f"- key instructions: `{observation['key_instructions']}`")
         if "notes" in observation:
@@ -112,7 +116,8 @@ def render_entry(e: dict, observation: dict | None) -> tuple[str, str]:
             if "manual_reason" in observation:
                 lines.append(f"- reason: {observation['manual_reason']}")
         else:
-            failures = apply_rule(sym, asm_text, callees, body, decomp)
+            failures = apply_rule(sym, asm_text, callees, body, decomp,
+                                  caller_names=callers)
             if not failures:
                 verdict = "PASS"
                 lines.append("**Verdict**: **PASS** (all rule conditions satisfied)")

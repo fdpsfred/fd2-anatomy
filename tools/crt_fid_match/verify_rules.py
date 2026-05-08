@@ -37,6 +37,9 @@ class Rule:
     callees_required_any: list[str] = field(default_factory=list)
     callees_required_all: list[str] = field(default_factory=list)
     callees_forbidden: list[str] = field(default_factory=list)
+    callers_required_any: list[str] = field(default_factory=list)
+    callers_required_all: list[str] = field(default_factory=list)
+    callers_forbidden: list[str] = field(default_factory=list)
     instructions_any: list[str] = field(default_factory=list)
     instructions_all: list[str] = field(default_factory=list)
     int21_ah_any: list[int] = field(default_factory=list)
@@ -466,9 +469,13 @@ RULES: dict[str, Rule] = {
         body_size_range=(80, 250),
     ),
     "__nmemneed": Rule(
-        notes="Default OOM callback; weak stub returning 0.",
+        notes="Default OOM callback; weak stub returning 0. CLIB3S has multiple "
+              "byte-identical 7-byte XOR-RET stubs (signal default, etc.) that "
+              "hash to the same family; require a heap-pathway caller to "
+              "discriminate.",
         body_size_range=(3, 15),
         is_leaf=True,
+        callers_required_any=["_nmalloc", "__MemAllocator"],
     ),
     "_heapenable": Rule(
         notes="Enable/disable heap; toggles flag.",
@@ -607,9 +614,13 @@ RULES: dict[str, Rule] = {
 
     # --- runtime startup / shutdown ---
     "__CMain": Rule(
-        notes="Entry: parse args, init heap/8087, call main, exit.",
+        notes="Watcom CRT entry: setup stack frame, init streams, push (argv, "
+              "argc), call user main, push retval, JMP exit. Watcom 9.5a "
+              "splits the __CMain logic across multiple .obj — the init-phase "
+              "(__InitRtns/__Init_Argv/__init_8087) is in the bootstrap caller, "
+              "this entry is the user-main invoker post-init segment.",
         body_size_range=(40, 200),
-        callees_required_any=["__InitRtns", "__Init_Argv", "__init_8087"],
+        callers_required_any=["crt_dos_main_bootstrap"],
     ),
     "__InitRtns": Rule(
         notes="Walk init list; call each ctor.",
@@ -726,7 +737,8 @@ def detect_int21_ah_values(asm_text: str) -> set[int]:
 
 
 def apply_rule(matched_name: str, asm_text: str, callee_names: list[str],
-               body_size: int, decomp: str = "") -> list[str]:
+               body_size: int, decomp: str = "",
+               caller_names: list[str] | None = None) -> list[str]:
     """Apply RULES[matched_name] to the gathered evidence.
 
     Returns list of failure messages (empty list = PASS). Returns ["no_rule"] if
@@ -778,5 +790,23 @@ def apply_rule(matched_name: str, asm_text: str, callee_names: list[str],
                 f"none of INT 21h AH={rule.int21_ah_any} detected "
                 f"(seen AH values: {sorted(seen)})"
             )
+
+    # Caller checks (skip if caller_names not supplied)
+    if caller_names is not None:
+        caller_set = set(caller_names)
+        if rule.callers_required_any:
+            if not any(c in caller_set for c in rule.callers_required_any):
+                failures.append(
+                    f"none of expected callers {rule.callers_required_any} "
+                    f"found (observed: {sorted(caller_set)[:8]})"
+                )
+        if rule.callers_required_all:
+            missing = [c for c in rule.callers_required_all if c not in caller_set]
+            if missing:
+                failures.append(f"required callers missing: {missing}")
+        if rule.callers_forbidden:
+            bad = [c for c in rule.callers_forbidden if c in caller_set]
+            if bad:
+                failures.append(f"forbidden callers present: {bad}")
 
     return failures

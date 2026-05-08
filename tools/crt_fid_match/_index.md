@@ -26,14 +26,17 @@
 | script | 用途 |
 |---|---|
 | `build_crt_lookup.py` | 讀 `rebuild_info/crt_matches_9.5a.json`，分流出 4 個 verify queue (`auto_candidates` / `sample` / `conflict` / `manual`) 到 `workspace/crt_fid_match/` |
-| `verify_rules.py` | 60+ 個 Watcom CRT symbol 的行為簽章 RULES 表 + `apply_rule()` 套用器；五類條件（body_size / callees / instructions / int21_ah / is_leaf）AND 起來 |
+| `verify_rules.py` | 60+ 個 Watcom CRT symbol 的行為簽章 RULES 表 + `apply_rule()` 套用器；六類條件（body_size / callees / **callers** / instructions / int21_ah / is_leaf）AND 起來 |
 | `verify_crt_samples.py` | 接 queue + observations JSON，套 `verify_rules` 出 markdown verify report；`--observations` 缺則出 scaffold 模式（待填空白） |
 | `build_final_lookup.py` | 整合 `auto_candidates.json` + manual observations + 衝突解決 → `rebuild_info/crt_lookup_9.5a.json` + `rebuild_info/crt_verify_rejected.md` |
 
 每個 entry 在 lookup 內標 `verified` ∈ `{auto_threshold, conflict_resolved,
-manual}`。`auto_threshold = 20` 的可靠性由 10 個等距樣本（10/10 PASS）轉移
-成立。observation 中加 `manual_verdict: "REJECT" + manual_reason` 可顯式覆寫
-規則 PASS 結果，用於 set-errno-X family 等 hash-identical 但語意不符的案例。
+manual}`。`auto_threshold = 30` 的可靠性由「[20, 712] 等距 10 樣本 10/10
+PASS」+「對 score < 30 的 26 筆全部逐筆 caller-aware 驗證 (4 reject)」共同
+建立。observation 中加 `manual_verdict: "REJECT" + manual_reason` 可顯式
+覆寫規則 PASS 結果，用於 set-errno-X family 等 hash-identical 但語意不符
+的案例（包括 `__nmemneed` 與 signal subsystem default-zero stub 的 caller-
+distinguishable family）。
 
 ## 一個典型驗證 session 流程
 
@@ -70,20 +73,26 @@ class Rule:
     callees_required_any: list[str] = field(default_factory=list)
     callees_required_all: list[str] = field(default_factory=list)
     callees_forbidden: list[str] = field(default_factory=list)
+    callers_required_any: list[str] = field(default_factory=list)
+    callers_required_all: list[str] = field(default_factory=list)
+    callers_forbidden: list[str] = field(default_factory=list)
     instructions_any: list[str] = field(default_factory=list)
     instructions_all: list[str] = field(default_factory=list)
     int21_ah_any: list[int] = field(default_factory=list)
     is_leaf: bool | None = None
 ```
 
-`apply_rule(matched_name, asm, callee_names, body_size, decomp="")` 回傳
-failure 字串列表（空 list = PASS）。
+`apply_rule(matched_name, asm, callee_names, body_size, decomp="",
+caller_names=None)` 回傳 failure 字串列表（空 list = PASS）。
+`caller_names` 不傳時跳過 caller 條件檢查。
 
 ## 既知問題
 
 - callee 名翻譯：Ghidra 內 callee 多半是描述性名稱（如 `crt_fprintf_stderr`），
   套規則前須先用 `crt_matches_9.5a.json` 的 address → matched_name 映射轉
   回 Watcom 符號名。`observations_*.json` 內的 `callees` 欄已是翻譯後結果。
+  caller 名同理；FD2.LE 在 Phase C/D 之後 Ghidra 內 CRT function 已 rename
+  為 Watcom 名，所以 caller list (Ghidra 回的) 不需要再翻譯。
 - `is_leaf=True` 對 wrapper-pattern function 太嚴 — 例如 Watcom 9.5a 的
   memset 是「broadcast val + CALL __STOSB」wrapper、rand 是「CALL seed_ptr_getter
   + LCG」wrapper、__CHK 是「XCHG + CALL __STK」wrapper；rule 已分別放寬。
@@ -92,3 +101,9 @@ failure 字串列表（空 list = PASS）。
   byte signature identical，FidDb 只能標出 family 不能區分具體 errno。
   rule 若要區分需加 `instructions_any=["MOV dword ptr [EAX] ,0x16"]` 之類的
   immediate-aware pattern。
+- default-zero stub family（CLIB3S 內 `XOR EAX,EAX; RET` 的 7-byte 函式）
+  byte-identical 跨多個 .obj — `__nmemneed` 預設 stub 與 signal subsystem
+  default callback 共用。score-only 與 instruction-pattern 不能區分；唯一
+  discriminator 是 caller 路徑。`__nmemneed` rule 用
+  `callers_required_any=["_nmalloc", "__MemAllocator"]` 區分；其他可能存在
+  的同 family helpers 在識別時也應加 caller-pathway constraint。

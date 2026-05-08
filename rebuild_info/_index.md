@@ -13,15 +13,17 @@
   table 產生流程
 - `crt_matches_9.5a.json` — FidQuery 對 9.5a fidb 的 raw 輸出
   (131 個 FD2 function 被識別，含完整 candidate / score / source obj)
-- `crt_lookup_9.5a.json` — 經 Phase B/D 驗證後的 address ↔ Watcom CRT
-  symbol 對照表（128 entries：110 auto_threshold + 3 conflict_resolved
-  + 15 manual）。`by_address` / `by_name` 雙向索引，`current_name` 欄保留
-  Ghidra 內現有名以利 audit
-- `crt_verify_report.md` — Phase B + Phase D 全部 31 個受驗 entry 的逐筆
-  紀錄（assembly + decomp + callees + 規則套用結果），28 PASS / 3 REJECT
+- `crt_lookup_9.5a.json` — 行為驗證後的 address ↔ Watcom CRT symbol 對照表
+  （140 entries：102 auto_threshold (score≥30) + 3 conflict_resolved + 22
+  manual FidDB-driven + 13 callee-driven 補抓）。`by_address` / `by_name` 雙向
+  索引，`current_name` 欄保留 Ghidra 內現有名以利 audit；命名規則為「lookup
+  `name` 與 Ghidra function 名 byte-identical」
+- `crt_verify_report.md` — 受驗 entry 逐筆紀錄（assembly + callees +
+  callers + 規則套用結果），25 PASS / 4 REJECT
 - `crt_verify_rejected.md` — 3 個未通過的 candidate 與拒絕原因（fgetchar
-  / __EINVAL / fcloseall — 全部是 hash 巧合或 set-errno helper 名稱
-  family 內錯標）
+  / __EINVAL / __nmemneed @ 0x4d8ea — 全部是 hash 巧合或 family 識別錯標；
+  最後一個由 caller-pathway 分析才確認；另 fcloseall 因 Ghidra split 後 body 過
+  小被誤拒，補抓後已從 rejected 移到 lookup）
 
 對照用 4 個版本 fidb (9.5a 正本 + 9.5/9.5b/9.5c 對照組) 放在
 `tools/crt_fid_match/crt_fidb/` (跟產生它們的 pipeline 同位置)。

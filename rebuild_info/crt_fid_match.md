@@ -5,8 +5,8 @@
 | FD2.LE 編譯器版本 | **Watcom C/C++ 9.5a** (DOS 32-bit DPMI) |
 | 連結的 lib | **CLIB3S.LIB** (stack-call ABI) + **EMU387.LIB** + **GRAPH.LIB** |
 | FD2.LE function 總數 | 1692 |
-| 識別為 CRT 的 function 數 | 131，其中 106 筆 score ≥ 14.6 (Ghidra 預設信心門檻) |
-| 主資料檔 | `crt_matches_9.5a.json` |
+| 識別為 CRT 的 function 數 | 131 FidDB match + 13 補抓 = 140 |
+| 主資料檔 | `crt_matches_9.5a.json`（FidDB raw）+ `crt_lookup_9.5a.json`（驗證後 140 entries） |
 | 對照 fidb | `crt_fidb/watcom_<ver>.fidb` × 4 (9.5 / 9.5a / 9.5b / 9.5c) |
 
 ---
@@ -248,35 +248,45 @@ threshold=0)：
 `vfprintf` 373、`__prtf` 335、`putc` 321、`sopen` 320、`__brktime` 294、
 `__brk` 273、`__qread` 265、`__doclose` 255、…等)。完整列表見 JSON。
 
-### 8.3 低信心 match (score < 20) 實測誤判率
+### 8.3 低信心 match (score < 30) 實測誤判率
 
-把門檻設在 score < 20 拉出 18 筆候選，逐筆對 disassembly + decompile +
-callees 與 Watcom CRT 預期行為比對後，實測誤判率 **3/18 = 16.7%**（細節
-見 §11.4 與 `crt_verify_rejected.md`）。誤判模式三種：
+把門檻設在 score < 30 拉出 26 筆候選，逐筆對 disassembly + decompile +
+callees + **callers** 與 Watcom CRT 預期行為比對後，實測誤判率
+**4/26 = 15.4%**（細節見 §11.4 與 `crt_verify_rejected.md`）。誤判模式三種：
 
 - **行為完全無關的 hash 碰撞**：4-instruction stub 在 reference 遮罩後
   hash 與某 CRT symbol 巧合（例 `0x353cc` 的 `delay(400)` wrapper 被標
   為 `fgetchar`，score 3.0）
-- **same-family hash identical**：dosret.obj 內 `__EINVAL` /
-  `__EBADF` / `__ENOENT` 等 set-errno-X helper 的位元組型樣只在 32-bit
-  immediate 上不同，遮罩後完全 identical；FidDb 從 family 中挑一個
-  symbol 名作為標籤，例 `0x462d1` 真實是 `__EBADF`（store errno=9）
+- **same-family hash identical (immediate-distinguished)**：dosret.obj 內
+  `__EINVAL` / `__EBADF` / `__ENOENT` 等 set-errno-X helper 的位元組型樣
+  只在 32-bit immediate 上不同，遮罩後完全 identical；FidDb 從 family 中
+  挑一個 symbol 名作為標籤，例 `0x462d1` 真實是 `__EBADF`（store errno=9）
   但被標為 `__EINVAL`（store errno=0x16）
+- **same-family hash identical (caller-distinguished)**：CLIB3S 內若干
+  default-zero stub（`PUSH EBP; MOV EBP,ESP; XOR EAX,EAX; POP EBP; RET`
+  共 7 byte）byte-identical 跨多個 .obj — 例如 `__nmemneed` 預設 stub 與
+  signal subsystem 的 default zero callback。FidDb 標其中一個 symbol，
+  唯一可區分的是 caller 路徑：真 `__nmemneed` 被 `_nmalloc` (heap path)
+  呼叫；signal default 被 `crt_signal_handler_print` 路徑觸達。例
+  `0x4d8ea` 標為 `__nmemneed` 但 caller 是 signal 路徑而非 heap，故為
+  false positive
 - **thin-wrapper hash 巧合**：`PUSH imm + CALL helper + RET` 這類短
   pattern 在多個短 CRT 函式間 hash 同型；例 `0x4694c` body 11 與
-  `fcloseall` 簽名碰撞但實際是 close-streams-with-mask wrapper 的某
-  個變體
+  `fcloseall` 簽名碰撞但實際是 close-streams-with-mask wrapper 的某個
+  變體
 
-15 筆 PASS 的 score < 20 entries 多半是 Watcom CRT 內合法的 thin
+22 筆 PASS 的 score < 30 entries 多半是 Watcom CRT 內合法的 thin
 wrapper（abs/labs 14、outp 12、toupper 21、__nmemneed 7、ctime 25、
-freopen 44 等）— 它們 score 低是因為 FidHasher 對短函式分配的 code-unit
-分數自然偏低（待 score 的 instruction 少），不是因為 hash 巧合。
+freopen 44、fopen 21、_dosret0 24 等）— 它們 score 低是因為 FidHasher
+對短函式分配的 code-unit 分數自然偏低（待 score 的 instruction 少），
+不是因為 hash 巧合。
 
-判斷準則：**body size + 行為簽章** 雙檢查。單看 body size 不夠（例
-`0x462d1` body 17 與 __EINVAL 預期吻合，但實際 errno value 不對），
-要進一步比對 INT 21h AH 值、callee 名單、key instruction pattern。
-詳見 `tools/crt_fid_match/verify_rules.py` 內 RULES 表與
-`apply_rule()` 套用器。
+判斷準則：**body size + 行為簽章 + caller 路徑** 三檢查。`__nmemneed`
+案例證明前兩條件不夠（0x4d8ea body 7 + leaf XOR-RET 完全 fit signature
+但 caller 是 signal 不是 heap → 仍是 false positive）。caller 路徑是
+discriminator of last resort for hash-identical helper families。詳見
+`tools/crt_fid_match/verify_rules.py` 內 RULES 表（含 `callers_required_any`
+等欄位）與 `apply_rule()` 套用器。
 
 ## 9. Pipeline 步驟與工具
 
@@ -329,19 +339,20 @@ freopen 44 等）— 它們 score 低是因為 FidHasher 對短函式分配的 c
 
 ## 11. 已驗證 lookup table
 
-`crt_lookup_9.5a.json` 是 §8 raw FidQuery 輸出經行為驗證後的精煉版，
-收 **128 個確認的** FD2 function ↔ Watcom CLIB3S symbol 對照，作為後續
-rename audit / calling convention 補齊 / CRT 行為復刻工作的快速查表來源。
+`crt_lookup_9.5a.json` 是 §8 raw FidQuery 輸出經行為驗證 + §12 callee 比對
+補抓後的精煉版，收 **140 個確認的** FD2 function ↔ Watcom CLIB3S symbol 對照
+（127 FidDB-driven + 13 byte-level callee match），作為後續 rename audit /
+calling convention 補齊 / CRT 行為復刻工作的快速查表來源。
 
 ### 11.1 Schema
 
 ```jsonc
 {
   "version": "9.5a",
-  "auto_threshold": 20.0,
-  "stats": { "total_input": 131, "auto_pass": 110,
-             "conflict_resolved": 3, "manual_pass": 15, "rejected": 3,
-             "in_lookup": 128 },
+  "auto_threshold": 30.0,
+  "stats": { "total_input": 131, "auto_pass": 102,
+             "conflict_resolved": 3, "manual_pass": 22, "rejected": 4,
+             "in_lookup": 127 },
   "by_address": {
     "0003cbd6": {
       "name":         "memcpy",       // Watcom lib PUBDEF 名（主鍵）
@@ -367,14 +378,17 @@ audit。0x375e2 abs/labs 是 32-bit Watcom 唯一同 addr 同 score 雙 candidat
 
 | verified | 條件 | 數量 |
 |---|---|---:|
-| `auto_threshold` | score ≥ 20 且 current_name 與 matched_name 無語意衝突 | 110 |
-| `conflict_resolved` | score ≥ 20 但 current_name 與 matched_name 衝突；經行為驗證確認 matched_name 才正確 | 3 |
-| `manual` | score < 20，逐筆套 verify_rules 行為簽章規則 PASS | 15 |
+| `auto_threshold` | score ≥ 30 且 current_name 與 matched_name 無語意衝突 | 102 |
+| `conflict_resolved` | score ≥ 30 但 current_name 與 matched_name 衝突；經行為驗證確認 matched_name 才正確 | 3 |
+| `manual` (FidDB) | score < 30，逐筆套 verify_rules 行為簽章規則（含 caller 路徑檢查）PASS | 22 |
+| `manual` (callee match) | FidDB 沒抓到（hash 太短或 lib 端無 PUBDEF），用 §12 byte-level pipeline 補抓 PASS | 13 |
 | _rejected_ | 行為與 matched_name 不符；不入表，僅紀錄於 `crt_verify_rejected.md` | 3 |
 
-`auto_threshold = 20` 由「在 [20, 712.1] score 範圍內按等距取 10 個樣本逐筆
-驗證 (10/10 PASS)」轉移成立 — 涵蓋 gmtime / memset / time / __doclose /
-fread / __leapyear / fwrite / _set_errno / __flush / __ioalloc。
+`auto_threshold = 30` 由「在 [20, 712.1] 範圍按等距取 10 個樣本驗證
+(10/10 PASS)」+「對 score < 30 的 26 筆全部逐筆 caller-aware 驗證」共同
+建立。Threshold 從 20 提升到 30 的觸發點是 `__nmemneed` family 的 caller
+分析發現 — 證明 score-only 對 hash-identical helper family 不夠強，需用
+caller 路徑作為最終 discriminator。
 
 3 個 conflict_resolved（`0x36dc1 printf` / `0x3dbe7 remove` / `0x46a80
 unlink`）的 Ghidra 現有名 (`crt_fprintf_stderr` / `crt_putc_tty` /
@@ -385,11 +399,14 @@ unlink`）的 Ghidra 現有名 (`crt_fprintf_stderr` / `crt_putc_tty` /
 ### 11.3 驗證規則
 
 `tools/crt_fid_match/verify_rules.py` 內 `RULES` 對 60+ Watcom CRT symbol
-各寫一條 PASS criteria，由五類條件 AND 起來：
+各寫一條 PASS criteria，由六類條件 AND 起來：
 
 - `body_size_range` — function body 落在 [lo, hi] 之內
 - `callees_required_any` / `_all` / `_forbidden` — callee 名單檢查（callee
   地址需先用 `crt_matches_9.5a.json` 翻譯回 Watcom 符號）
+- `callers_required_any` / `_all` / `_forbidden` — caller 路徑檢查
+  （discriminator of last resort for hash-identical helper families；例
+  `__nmemneed` rule 要求 caller 含 `_nmalloc` 才 PASS）
 - `instructions_any` / `_all` — assembly 內必須出現的指令模式（如
   `STOSB` / `MOVSB` / `IDIV` / `OUT`）
 - `int21_ah_any` — DOS INT 21h 的 AH 值（如 unlink 是 0x41，getch 是 0x08）
@@ -401,33 +418,46 @@ unlink`）的 Ghidra 現有名 (`crt_fprintf_stderr` / `crt_putc_tty` /
 PASS 但語意實際不符的案例（例如 dosret.obj 內 set-errno-X helper family
 因 imm 遮罩 hash identical，需用實際 errno 立即值區分）。
 
-### 11.4 三個 rejected 案例
+### 11.4 四個 rejected 案例
 
 - **`0x353cc` matched=fgetchar** — 實際 `PUSH 0x190; CALL delay; RET`，是
   delay(400ms) wrapper；fgetchar 應 `fgetc(stdin)`，行為完全無關。score
-  3.0 是 4-instruction stub 巧合命中
+  3.0 是 4-instruction stub 巧合命中。caller 是 game cinematic function，
+  非 stdio 路徑
 - **`0x462d1` matched=__EINVAL** — 實際 store `errno = 9`，但 Watcom errno.h
   定義 EBADF=9 / EINVAL=22 (0x16)；故為 `__EBADF` helper，FidDb 因
   dosret.obj 內 set-errno-X family（CALL get_errno_ptr; MOV [EAX],imm32;
-  MOV EAX,-1; RET）在 imm 遮罩後位元組型樣 identical 而誤標
+  MOV EAX,-1; RET）在 imm 遮罩後位元組型樣 identical 而誤標。同 family
+  case 用 immediate value 區分
 - **`0x4694c` matched=fcloseall** — body 11 的 thin wrapper（PUSH 0x5;
   CALL helper; RET），未 loop _iob[]；與 fcloseall 標準實作（迴圈 fclose
-  每個 open 流）不符；score 4.34 也低於默認 14.6 門檻，與 §8.3 已紀錄為
-  已知 false positive 一致
+  每個 open 流）不符；score 4.34 低於默認 14.6 門檻
+- **`0x4d8ea` matched=__nmemneed** — body 7 與真 `__nmemneed` (0x3d6f2)
+  byte-identical 的 `XOR EAX,EAX; RET` stub，且 score 5.0、leaf、body
+  fit — 完全 fit `__nmemneed` rule 的 instruction-level signature。但
+  caller 分析顯示 0x4d8ea 唯一 inbound chain 是 `crt_signal_handler_print`
+  經 `0x4d340` (一條 `JMP 0x4d8ea` thunk) 進入，不是 heap allocator
+  路徑。真 `__nmemneed` (0x3d6f2) 由 `_nmalloc` 直接呼叫。同 7-byte
+  XOR-RET pattern 在 CLIB3S 內被 nmemneed.obj 與 signal subsystem
+  default callback 重複使用，hash 完全 identical，唯一可區分的是 caller
+  路徑。Ghidra 內 0x4d8ea 改名為 `noop_stub_4d8ea_zero` 與 sibling
+  thunk `noop_stub_4d340_zero` 對齊
 
 ### 11.5 重產流程
 
 ```bash
-# 1. 從 raw FidQuery 結果分流 4 個 verify queue（不需 Ghidra）
+# 1. 從 raw FidQuery 結果分流出 verify queue（不需 Ghidra；threshold 默認 30.0）
 python tools/crt_fid_match/build_crt_lookup.py
 
-# 2. 在 Ghidra MCP 環境收集 disasm + callees 並寫成 observations JSON
-#    (workspace/crt_fid_match/observations_phaseB.json + observations_phaseD.json)
-#    此步由 Claude Code 完成，不能 EXE-execute
+# 2. 在 Ghidra MCP 環境收集 disasm + callees + callers 寫成 observations JSON
+#    每筆 entry: {callees, callers, asm, key_instructions, notes,
+#                 manual_verdict?, manual_reason?}
+#    callees / callers 名稱需用 Watcom matched_name (Ghidra 內 callee 地址
+#    用 crt_matches_9.5a.json 翻譯)。此步由 Claude Code 完成，不能 EXE-execute
 
-# 3. 套規則出 verify report
+# 3. 套規則出 verify report (sample queue 是 threshold validation only,
+#    不入 final report)
 python tools/crt_fid_match/verify_crt_samples.py \
-    --queue workspace/crt_fid_match/sample_queue.json \
     --queue workspace/crt_fid_match/conflict_queue.json \
     --queue workspace/crt_fid_match/manual_queue.json \
     --observations workspace/crt_fid_match/observations_all.json \
@@ -436,3 +466,73 @@ python tools/crt_fid_match/verify_crt_samples.py \
 # 4. 整合成最終 lookup
 python tools/crt_fid_match/build_final_lookup.py
 ```
+
+## 12. Callee-driven 補抓（FidDB 漏抓的 small helper / split fragment）
+
+§11 lookup 完成後，對「已識別 CRT function 之間的呼叫關係」做反向 audit：
+若 callee 不在 lookup 內，要嘛是 Ghidra 把一個 lib function 切成多塊（splitter
+false positive），要嘛是 lib 端的 small helper（例如 `__get_errno_ptr` 6 byte）
+被 FidDB 因 hash 過短而漏抓，要嘛是 lib 端 anonymous static（無 PUBDEF，FidDB
+本來就不收）。
+
+對 FD2.LE 跑這個 audit 找出 28 個未識別 callee。經 byte-level 比對全部 PASS：
+
+- **14 個 split fragment**（Ghidra 把一個 lib function 切成 parent + tail；
+  parent 的 lookup `body_size` 比 lib total 小，差額 = tail fragment size）。
+  典型案例：`__open_flags` lookup 175 + tail 0x36ebc 229 = lib 404 ✓；
+  `_DoINTR_` lookup 74 + 內部多個 chunk = lib 893 ✓（內含 256 個 INT 0x00..0xff
+  jump-table entry，3 byte 一個）；`__int7` lookup 28 + 多 chunk = lib 11830 ✓
+  （x87 emulator 主體）。處置：刪掉 fragment、用 `Function.setBody()` 把
+  parent body 強制延伸到 lib total
+- **13 個獨立 function 補入 lookup**：`exit` / `_exit` / `__get_errno_ptr` /
+  `__get_doserrno_ptr` / `__STKOVERFLOW` / `stackavail` / `getpid` /
+  `__CommonInit` / `fcloseall`（從 rejected reinstate）/ `__GRO`（stk.obj 第三
+  個 PUBDEF）+ 3 個 lib 端 anonymous static（lib 標 `L$1`，合成命名為
+  `L$1_<obj>_<purpose>`：`L$1_stk_save_ss` / `L$1_rand_seed_ptr` /
+  `L$1_asctime_fmt2`）
+
+驗證方法：對每筆 (FD2 byte range, lib .obj function)，用 lib FIXUPP 標記的
+reference 位置遮罩，遮罩外 byte 必須完全相等。Pipeline 在
+`tools/crt_callee_match/`（見該目錄 `_index.md`）。
+
+### 12.1 發現的 OMF parser quirk
+
+Ghidra OmfLoader 的 §3 quirky-record 修補只是入門。本次補寫的
+`extract_obj_bytes.py` 還補上兩個 byte-level 比對才會踩到的細節：
+
+- **SEGDEF USE32 判斷**：32-bit segment 由 record type 0x99（或 quirky 0x98）
+  標示，**不能**靠 ACBP P-bit。實測 stk.obj 所有 SEGDEF 的 P-bit 都是 0，
+  但這些 segment 全部是 USE32（從程式內 32-bit 暫存器使用可推斷）
+- **FIXUPP LOCAT field 解析**：byte0 = `1 M LLLL OO`（M=mode bit6,
+  location_type=bits5..2, offset hi=bits1..0），byte1 = offset low 8 bit；
+  total offset 是 10-bit 不是 12-bit
+- **Fixup width**：32-bit segment 內 `location_type=1` / `5` 是 4-byte fixup
+  （標準 OMF 是 2-byte）；要從 SEGDEF type / quirky 推得，否則 mask 抓錯位置
+  造成 byte 比對誤判
+
+### 12.2 Jump table 漏抓警示
+
+A 類 14 個 fragment 都是 Watcom 9.5a 對 ≥4 case `switch` 編成 jump table 後
+Ghidra 沒識別 jump table 造成的。Ghidra 沿著直接 control flow 只能 trace 到
+第一條 RET 路徑，從 jump table 進入的 case body 全部漏掉。
+
+實作 fix：刪 fragment + `Function.setBody(AddressSet)` 強制把所有 byte 塞回
+parent body。Ghidra 的 control-flow analysis 不會自動延伸（`removeFunction`
+不會 trigger 重 analyze），必須手動 setBody。
+
+對遊戲端 / AIL 端的影響：同樣的 jump-table 漏抓也會發生在遊戲程式（章節
+event dispatcher / 戰鬥 AI / FDFIELD opcode interpreter）和 AIL 函式。建議
+未來 AIL 抽 lib 工作開始前先做一次「indirect-JMP target 是否落在 body 外」
+的全域 audit。
+
+### 12.3 非 CLIB3S 函式
+
+`0x45fb6` 在 `__FiniRtns` 的 finalize table 內登記為 callback（`__FiniRtns` →
+0x3cbd1 5-byte JMP thunk → 0x45fb6 122 byte function）。byte 內含 `B4 F3 CD 21`
+(`MOV AH,0xF3; INT 21h`)。掃過 CLIB3S / CLIB3R 的 770 / 770 個 dedup .obj 都
+找不到此 byte sequence — 證實 `0x45fb6` **不是 Watcom CRT function**。
+
+`INT 21h AH=0xF3` 是 Phar Lap 386|DOS-Extender 的 "Switch to real mode" service。
+故 0x45fb6 屬於 FD2.LE 連結進來的 Phar Lap LE runtime（不是 Watcom CLIB），
+不收進 `crt_lookup_9.5a.json`。後續若要識別 Phar Lap runtime 函式需要另一份
+fidb（建在 `tools/` 下另開資料夾）。

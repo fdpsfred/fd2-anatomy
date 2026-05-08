@@ -1,14 +1,14 @@
 {
   "version": "9.5a",
   "source": "rebuild_info/crt_matches_9.5a.json",
-  "auto_threshold": 20.0,
+  "auto_threshold": 30.0,
   "stats": {
     "total_input": 131,
-    "auto_pass": 110,
+    "auto_pass": 102,
     "conflict_resolved": 3,
-    "manual_pass": 15,
+    "manual_pass": 35,
     "rejected": 3,
-    "in_lookup": 128
+    "in_lookup": 140
   },
   "by_address": {
     "00036cd7": {
@@ -67,9 +67,9 @@
     },
     "00036e0d": {
       "name": "__open_flags",
-      "current_name": "crt_parse_fopen_mode",
+      "current_name": "__open_flags",
       "score": 93.77,
-      "body_size": 175,
+      "body_size": 404,
       "source_obj": "34f4a927de36_fopen.obj",
       "verified": "auto_threshold",
       "aliases": []
@@ -85,11 +85,11 @@
     },
     "00036fcc": {
       "name": "fopen",
-      "current_name": "crt_fopen_read",
+      "current_name": "fopen",
       "score": 26.68,
-      "body_size": 21,
+      "body_size": 122,
       "source_obj": "34f4a927de36_fopen.obj",
-      "verified": "auto_threshold",
+      "verified": "manual",
       "aliases": []
     },
     "00037046": {
@@ -121,9 +121,9 @@
     },
     "00037270": {
       "name": "__shutdown_stream",
-      "current_name": "crt_fclose_impl",
+      "current_name": "__shutdown_stream",
       "score": 103.35,
-      "body_size": 36,
+      "body_size": 55,
       "source_obj": "0aa510ba4f71_fclose.obj",
       "verified": "auto_threshold",
       "aliases": []
@@ -367,9 +367,9 @@
     },
     "0003d42b": {
       "name": "__LastFree",
-      "current_name": "crt_heap_get_last_segment",
+      "current_name": "__LastFree",
       "score": 159.34,
-      "body_size": 35,
+      "body_size": 199,
       "source_obj": "57a37044e08d_grownear.obj",
       "verified": "auto_threshold",
       "aliases": []
@@ -583,9 +583,9 @@
     },
     "0003ddc7": {
       "name": "__prtf",
-      "current_name": "crt_format_engine",
+      "current_name": "__prtf",
       "score": 335.05,
-      "body_size": 544,
+      "body_size": 2395,
       "source_obj": "cd8d6fb39de4_prtf.obj",
       "verified": "auto_threshold",
       "aliases": []
@@ -695,7 +695,7 @@
       "score": 23.36,
       "body_size": 41,
       "source_obj": "908bbce3add0_strcpy.obj",
-      "verified": "auto_threshold",
+      "verified": "manual",
       "aliases": []
     },
     "00045d4b": {
@@ -704,7 +704,7 @@
       "score": 22.01,
       "body_size": 79,
       "source_obj": "7bb91b602be1_cmain386.obj",
-      "verified": "auto_threshold",
+      "verified": "manual",
       "aliases": []
     },
     "00045d9a": {
@@ -740,14 +740,14 @@
       "score": 27.01,
       "body_size": 63,
       "source_obj": "031c7b66c5e1_chk8087.obj",
-      "verified": "auto_threshold",
+      "verified": "manual",
       "aliases": []
     },
     "00046114": {
       "name": "__Init_Argv",
-      "current_name": "crt_init_argv",
+      "current_name": "__Init_Argv",
       "score": 95.05,
-      "body_size": 179,
+      "body_size": 398,
       "source_obj": "8b7a6a85015f_initargv.obj",
       "verified": "auto_threshold",
       "aliases": []
@@ -758,7 +758,7 @@
       "score": 21.01,
       "body_size": 24,
       "source_obj": "6e73902af0df_dosret.obj",
-      "verified": "auto_threshold",
+      "verified": "manual",
       "aliases": []
     },
     "000462ba": {
@@ -826,18 +826,18 @@
     },
     "00046520": {
       "name": "__int386x_",
-      "current_name": "crt_capture_regs",
+      "current_name": "__int386x_",
       "score": 49.03,
-      "body_size": 55,
+      "body_size": 91,
       "source_obj": "168bb609d2af_int386xa.obj",
       "verified": "auto_threshold",
       "aliases": []
     },
     "0004657b": {
       "name": "_DoINTR_",
-      "current_name": "crt_dpmi_int_invoke",
+      "current_name": "_DoINTR_",
       "score": 42.38,
-      "body_size": 74,
+      "body_size": 893,
       "source_obj": "168bb609d2af_int386xa.obj",
       "verified": "auto_threshold",
       "aliases": []
@@ -997,9 +997,9 @@
     },
     "00046f1f": {
       "name": "tzset",
-      "current_name": "crt_init_timezone",
+      "current_name": "tzset",
       "score": 207.34,
-      "body_size": 27,
+      "body_size": 537,
       "source_obj": "3940ec1c1105_tzset.obj",
       "verified": "auto_threshold",
       "aliases": []
@@ -1037,7 +1037,7 @@
       "score": 20.34,
       "body_size": 21,
       "source_obj": "3c31341c06a5_gmtime.obj",
-      "verified": "auto_threshold",
+      "verified": "manual",
       "aliases": []
     },
     "0004733d": {
@@ -1051,9 +1051,9 @@
     },
     "00047371": {
       "name": "__isindst",
-      "current_name": "crt_compute_is_dst",
+      "current_name": "__isindst",
       "score": 375.53998,
-      "body_size": 609,
+      "body_size": 657,
       "source_obj": "fee92bb59e09_timeutil.obj",
       "verified": "auto_threshold",
       "aliases": []
@@ -1073,14 +1073,14 @@
       "score": 28.68,
       "body_size": 50,
       "source_obj": "1109b8612cd1_strncmp.obj",
-      "verified": "auto_threshold",
+      "verified": "manual",
       "aliases": []
     },
     "00049788": {
       "name": "_EFG_Format",
-      "current_name": "crt_format_float_spec",
+      "current_name": "_EFG_Format",
       "score": 111.82,
-      "body_size": 223,
+      "body_size": 299,
       "source_obj": "c44ebd7c06f7_efgfmt.obj",
       "verified": "auto_threshold",
       "aliases": []
@@ -1105,9 +1105,9 @@
     },
     "00049d98": {
       "name": "__int7",
-      "current_name": "crt_softfp_signal_49d98",
+      "current_name": "__int7",
       "score": 15.35,
-      "body_size": 28,
+      "body_size": 11830,
       "source_obj": "fb5b3f690802_emu387.obj",
       "verified": "manual",
       "aliases": []
@@ -1118,7 +1118,7 @@
       "score": 25.34,
       "body_size": 45,
       "source_obj": "ccc721b858c5_init8087.obj",
-      "verified": "auto_threshold",
+      "verified": "manual",
       "aliases": []
     },
     "0004cbfd": {
@@ -1150,24 +1150,156 @@
     },
     "0004d84c": {
       "name": "__ZBuf2F",
-      "current_name": "crt_softfp_digits_to_bcd64",
+      "current_name": "__ZBuf2F",
       "score": 42.35,
-      "body_size": 75,
+      "body_size": 158,
       "source_obj": "904423069b96_amodf.obj",
       "verified": "auto_threshold",
       "aliases": []
     },
-    "0004d8ea": {
-      "name": "__nmemneed",
-      "current_name": "crt_helper_4d8ea",
-      "score": 5.0,
-      "body_size": 7,
-      "source_obj": "e82fe0e54cb7_nmemneed.obj",
+    "00036d07": {
+      "name": "__STKOVERFLOW",
+      "current_name": "__STKOVERFLOW",
+      "body_size": 15,
+      "source_obj": "71a26af32e1b_stk.obj",
       "verified": "manual",
-      "aliases": []
+      "aliases": [],
+      "score": 0.0
+    },
+    "000463bc": {
+      "name": "stackavail",
+      "current_name": "stackavail",
+      "body_size": 9,
+      "source_obj": "64e136f79228_stack386.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0
+    },
+    "0003db10": {
+      "name": "getpid",
+      "current_name": "getpid",
+      "body_size": 6,
+      "source_obj": "0afbbbd060a4_getpid.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0
+    },
+    "0004977d": {
+      "name": "__CommonInit",
+      "current_name": "__CommonInit",
+      "body_size": 11,
+      "source_obj": "396ee5d8b8ff_cinit.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0
+    },
+    "0003d7f6": {
+      "name": "__get_errno_ptr",
+      "current_name": "__get_errno_ptr",
+      "body_size": 6,
+      "source_obj": "046c7fbb59e1_errno.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0
+    },
+    "0003d7fc": {
+      "name": "__get_doserrno_ptr",
+      "current_name": "__get_doserrno_ptr",
+      "body_size": 6,
+      "source_obj": "046c7fbb59e1_errno.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0
+    },
+    "00036df6": {
+      "name": "_exit",
+      "current_name": "_exit",
+      "body_size": 23,
+      "source_obj": "93ce9e3ff4ac_exit.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0
+    },
+    "0004694c": {
+      "name": "fcloseall",
+      "current_name": "fcloseall",
+      "body_size": 89,
+      "source_obj": "aa0b826f7c04_ioexit.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0
+    },
+    "00036cd0": {
+      "name": "L$1_stk_save_ss",
+      "current_name": "L$1_stk_save_ss",
+      "body_size": 7,
+      "source_obj": "71a26af32e1b_stk.obj",
+      "verified": "manual",
+      "aliases": [
+        "L$1"
+      ],
+      "score": 0.0,
+      "notes": "Static helper at offset 0 of stk.obj; captures SS to L$3 for __STK comparison"
+    },
+    "0003c927": {
+      "name": "L$1_rand_seed_ptr",
+      "current_name": "L$1_rand_seed_ptr",
+      "body_size": 6,
+      "source_obj": "e64bae7e23f3_rand.obj",
+      "verified": "manual",
+      "aliases": [
+        "L$1"
+      ],
+      "score": 0.0,
+      "notes": "Static helper at offset 0 of rand.obj; returns &_RandSeed"
+    },
+    "0003fbfa": {
+      "name": "L$1_asctime_fmt2",
+      "current_name": "L$1_asctime_fmt2",
+      "body_size": 65,
+      "source_obj": "6c41bff3293c_asctime.obj",
+      "verified": "manual",
+      "aliases": [
+        "L$1"
+      ],
+      "score": 0.0,
+      "notes": "Static helper at offset 0 of asctime.obj; formats two decimal digits at buffer position"
+    },
+    "00036de4": {
+      "name": "exit",
+      "current_name": "exit",
+      "body_size": 18,
+      "source_obj": "93ce9e3ff4ac_exit.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0
+    },
+    "00036ce7": {
+      "name": "__GRO",
+      "current_name": "__GRO",
+      "score": 0.0,
+      "body_size": 3,
+      "source_obj": "71a26af32e1b_stk.obj",
+      "verified": "manual",
+      "aliases": [],
+      "notes": "Watcom 9.5a stk.obj 3rd PUBDEF \u2014 single RET 0x4 instruction; positioned between __CHK and __STK."
     }
   },
   "by_name": {
+    "L$1": [
+      "00036cd0",
+      "0003c927",
+      "0003fbfa"
+    ],
+    "L$1_asctime_fmt2": [
+      "0003fbfa"
+    ],
+    "L$1_rand_seed_ptr": [
+      "0003c927"
+    ],
+    "L$1_stk_save_ss": [
+      "00036cd0"
+    ],
     "_DoINTR_": [
       "0004657b"
     ],
@@ -1180,11 +1312,17 @@
     "__CMain": [
       "00045d4b"
     ],
+    "__CommonInit": [
+      "0004977d"
+    ],
     "__ExpandDGROUP": [
       "0003d4f2"
     ],
     "__FiniRtns": [
       "00045ddd"
+    ],
+    "__GRO": [
+      "00036ce7"
     ],
     "__IOMode": [
       "00046352"
@@ -1212,6 +1350,9 @@
     ],
     "__STK": [
       "00036cea"
+    ],
+    "__STKOVERFLOW": [
+      "00036d07"
     ],
     "__STOSB": [
       "0003dd10"
@@ -1267,6 +1408,12 @@
     "__full_io_exit": [
       "0004693d"
     ],
+    "__get_doserrno_ptr": [
+      "0003d7fc"
+    ],
+    "__get_errno_ptr": [
+      "0003d7f6"
+    ],
     "__getctime": [
       "00046d61"
     ],
@@ -1295,8 +1442,7 @@
       "0004733d"
     ],
     "__nmemneed": [
-      "0003d6f2",
-      "0004d8ea"
+      "0003d6f2"
     ],
     "__open_flags": [
       "00036e0d"
@@ -1343,6 +1489,9 @@
     "_dosretax": [
       "000462ba"
     ],
+    "_exit": [
+      "00036df6"
+    ],
     "_fsopen": [
       "00036fa1"
     ],
@@ -1379,8 +1528,14 @@
     "div": [
       "00047602"
     ],
+    "exit": [
+      "00036de4"
+    ],
     "fclose": [
       "00037244"
+    ],
+    "fcloseall": [
+      "0004694c"
     ],
     "fgetc": [
       "0003d9c1"
@@ -1429,6 +1584,9 @@
     ],
     "getenv": [
       "0003f13b"
+    ],
+    "getpid": [
+      "0003db10"
     ],
     "gmtime": [
       "00047328"
@@ -1510,6 +1668,9 @@
     ],
     "srand": [
       "0003c94f"
+    ],
+    "stackavail": [
+      "000463bc"
     ],
     "strcpy": [
       "0003fd7c"

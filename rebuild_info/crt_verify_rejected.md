@@ -10,9 +10,9 @@ Total rejected: **3** of 131 input candidates.
 - source_obj: `df7f6053275e_fgetchar.obj`
 - observed key instructions: PUSH 0x190 (=400); CALL 0x375b2 (a delay function, NOT fgetc); ADD ESP,0x4; RET
 
-**Notes**: This is a `delay(400)` wrapper for a 400ms idle thunk. Watcom fgetchar would be `return fgetc(stdin)` — push __iob[0] then call fgetc. The two have nothing in common semantically. Score 3.0 is FidDb's lowest among 131 matches and is clearly a hash collision against a generic 4-instruction stub.
+**Notes**: Game-side delay(400ms) wrapper for cinematic chapter portrait flash effect. Single caller is a game cinematic function — no CRT pathway. Watcom fgetchar would be `return fgetc(stdin)` and would be called from user main loop or other stdio.
 
-**Reason**: Calls a delay function with arg 400ms; no FILE/_iob touch, no fgetc call. fgetchar must read a byte from stdin. Behavior fundamentally inconsistent with matched_name.
+**Reason**: Calls a delay function with arg 400ms; no FILE/_iob touch, no fgetc call. Caller is game cinematic logic, not stdio. Behavior fundamentally inconsistent with matched_name.
 
 ## `000462d1` — claimed `__EINVAL` (score 4.34, body 17)
 
@@ -20,16 +20,16 @@ Total rejected: **3** of 131 input candidates.
 - source_obj: `6e73902af0df_dosret.obj`
 - observed key instructions: CALL __get_errno_ptr; STORE 0x9 (= EBADF in Watcom errno.h); return -1
 
-**Notes**: This is the __EBADF helper, NOT __EINVAL. Watcom errno.h defines EBADF=9 and EINVAL=22 (0x16). The function stores 9, so it's __EBADF. FidDb labelled it __EINVAL because the family of set-errno helpers in dosret.obj all hash to identical bytes (the immediate is masked).
+**Notes**: This is the __EBADF helper, NOT __EINVAL. Watcom errno.h defines EBADF=9 and EINVAL=22 (0x16). FidDb labelled it __EINVAL because the family of set-errno helpers in dosret.obj all hash to identical bytes (the immediate is masked).
 
-**Reason**: Function sets errno=9 (EBADF), but matched_name is __EINVAL (which would store 0x16). Behavior matches __EBADF, not __EINVAL. Safe-list rejects this specific match; the function itself is a real CRT helper but mislabeled by FidDb.
+**Reason**: Function sets errno=9 (EBADF), but matched_name is __EINVAL (would store 0x16). Behavior matches __EBADF in the same dosret.obj family. Mislabeled by FidDb due to imm32-masking.
 
-## `0004694c` — claimed `fcloseall` (score 4.34, body 11)
+## `0004d8ea` — claimed `__nmemneed` (score 5.00, body 7)
 
-- current_name: `crt_helper_4694c`
-- source_obj: `aa0b826f7c04_ioexit.obj`
-- observed key instructions: PUSH 5 (some flags mask); CALL close-streams helper; RET
+- current_name: `crt_helper_4d8ea`
+- source_obj: `e82fe0e54cb7_nmemneed.obj`
+- observed key instructions: PUSH EBP / MOV EBP,ESP / XOR EAX,EAX / POP EBP / RET — return 0
 
-**Notes**: Body 11 with score 4.34 (lowest cluster). The function is just a thin wrapper that calls 0x46957 with arg 5. The standard Watcom fcloseall is a loop over _iob[] that fcloses each open stream — typically 50+ bytes. This entry is too short to be the real fcloseall body, and per crt_fid_match.md §8.3 the doc author independently flagged this as a hash collision.
+**Notes**: Body byte-identical to 0x3d6f2 (the real __nmemneed). FidDb hash family contains every CLIB3S 7-byte XOR-RET stub (signal default, nmemneed default, etc.) since they're literally the same bytes. Caller analysis is the discriminator: 0x3d6f2 is called directly by `_nmalloc` (heap path); 0x4d8ea has no direct caller — only an UNCONDITIONAL_JUMP from `0x4d340` which is itself called by `crt_signal_handler_print` (signal subsystem path). This entry is a different default-zero stub in the signal subsystem, not __nmemneed.
 
-**Reason**: Body 11 bytes is too small for fcloseall's expected _iob[] loop. No iteration, no _iob field touch. Matches a generic 'PUSH imm + CALL helper' pattern that hashes weakly (score 4.34) to fcloseall's signature. Per crt_fid_match.md §8.3, this match is documented as false positive.
+**Reason**: Caller analysis: 0x4d8ea reached only via JMP from 0x4d340 -> crt_signal_handler_print (signal subsystem), not from _nmalloc / heap allocator path. Real __nmemneed (0x3d6f2) IS called by _nmalloc. Same byte pattern, different role. Renamed in Ghidra to noop_stub_4d8ea_zero to match its sibling thunk noop_stub_4d340_zero.

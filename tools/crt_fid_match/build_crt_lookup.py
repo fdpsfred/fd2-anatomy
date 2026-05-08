@@ -41,7 +41,7 @@ import json
 from pathlib import Path
 
 
-AUTO_THRESHOLD = 20.0
+AUTO_THRESHOLD = 30.0
 N_SAMPLES = 10
 
 # Hand-identified conflict cases — current_name and matched_name diverge in

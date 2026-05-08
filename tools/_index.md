@@ -24,3 +24,7 @@ import shared lib、不依賴 `legacy/`、不讀寫 `catalog/*.json`。
   Watcom CRT 函式。Python 端做 lib 拆解 / OMF 修補 / 跨版本 dedup /
   結果比對；Ghidra 端 Java scripts 在 `ghidra_scripts/` 下做 import /
   analyze / populate / query。完整說明見 `rebuild_info/crt_fid_match.md`
+- `crt_callee_match/` — 比對 FidDB 已識別 CRT function 內呼叫到的「未識別 callee」
+  與 Watcom CRT lib symbol。OMF parser（含 Watcom Easy OMF-386 quirks 處理）+
+  size + caller-source-obj heuristic + byte-level FIXUPP-aware 比對。用於補抓
+  CRT splitter 切錯的尾段碎片與 FidDB 漏抓的 small helper
