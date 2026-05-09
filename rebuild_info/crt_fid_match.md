@@ -520,10 +520,54 @@ Ghidra 沒識別 jump table 造成的。Ghidra 沿著直接 control flow 只能 
 parent body。Ghidra 的 control-flow analysis 不會自動延伸（`removeFunction`
 不會 trigger 重 analyze），必須手動 setBody。
 
-對遊戲端 / AIL 端的影響：同樣的 jump-table 漏抓也會發生在遊戲程式（章節
-event dispatcher / 戰鬥 AI / FDFIELD opcode interpreter）和 AIL 函式。建議
-未來 AIL 抽 lib 工作開始前先做一次「indirect-JMP target 是否落在 body 外」
-的全域 audit。
+### 12.2.1 全 binary indirect-JMP / body 完整性 audit 結論
+
+全 binary 對 indirect JMP / orphan instruction / abnormally small body /
+fragmented body / CRT lookup size diff 做的 audit 與修復結果。
+
+**indirect JMP target 在 body 內**：63 個 indirect JMP（AIL 4 / CRT 59 /
+GAME 0），全部 target 落在 enclosing function body 內，0 out-of-body。
+**遊戲端完全沒有 indirect-JMP 分派** — FD2 game code 的 switch 全部展開
+為 if/else 鏈（典型 ≤4 case），沒踩 Watcom ≥4-case jump-table 編譯路徑；
+所以 game 端不會有 jump-table 切走 case body 的問題。
+
+**CRT lookup 全面 size diff**：`tools/jump_table_audit/compare_lookup_sizes.py`
+對 `crt_lookup_9.5a.json` 140 entry 的 `body_size` 比對 `obj_funcs_clib3s.json`
+內對應 `.obj` 的 lib size，達成 137 match / 0 mismatch / 3 anonymous-static
+（L$1，lib 端無 PUBDEF 故無 size 可比，正常）。修法紀錄：
+
+| addr | name | 舊 body | lib size | 修法 |
+|---|---|---:|---:|---|
+| `0x3d270` | `__MemAllocator` | 171 | 176 | 5-byte alternate-exit thunk 0x3d31b..0x3d31f 被誤歸 `__MemFree`；setBody 還給 `__MemAllocator` |
+| `0x3d320` | `__MemFree` | 272 | 267 | 同上 boundary 修正 |
+| `0x3dd10` | `__STOSB` | 49 | 55 | 6-byte 尾段 alignment NOP 屬於 lib `__STOSB`；setBody 延伸 |
+
+`compare_lookup_sizes.py` 留作日後新增/調整 lookup 時的 regression 檢查。
+
+**AIL / 遊戲端 disassembly miss 修復**：3 種 pattern 共 5 個 case：
+
+- `AIL_internal_mix_loop_8bit_stereo @ 0x49306` (8-bit stereo PCM mix loop)
+  body 只有 1 byte，0x49306..0x4933f 共 58 byte 是 undefined byte（bytes
+  present but not disassembled）。disassemble_bytes + setBody 還原為 58 byte。
+- `AIL_set_sequence_volume @ 0x3add4` 130-byte function 的 bytes 全被
+  clearCodeUnits。disassemble_bytes 還原。
+- `crt_set_word_global_52758 @ 0x3615e` / `crt_set_word_global_5275c @ 0x3616e`
+  各 16 byte 的 get-and-set helper（`MOV EAX,[gvar]; MOV EDX,[ESP+4];
+  MOV [gvar],EDX; RET`），bytes present 但無 create_function。
+- `chapter_01_init @ 0x3231b` body 從 2 range（[0x3231b..0x3231b] +
+  [0x32320..0x32974]）合併為 1 range：entry 指令 PUSH 0x2c 是 5 byte，
+  跨越 hole 0x3231c..0x3231f；hole 純為 Ghidra body fragmentation。
+- `crt_abort_thunk @ 0x46b41` body 同類 fragmentation，合併為 1 range。
+
+**對 AIL 抽 lib 工作的影響**：AIL 端 4 個 indirect-JMP 全 in body，
+`AIL_internal_mix_loop_8bit_stereo` 的 body=1 與 jump table 無關（純
+disassembly miss，無 indirect JMP）。AIL 抽 lib 工作可進行，不需再做
+jump-table audit。
+
+**audit 工具**：`tools/jump_table_audit/` 含 Phase 2 regression script
+（`compare_lookup_sizes.py`）；Phase 1 indirect-JMP scan 與 Phase 3 orphan/gap
+scan 用 Ghidra MCP `run_script_inline` 一次性掃，腳本範本記在
+`tools/jump_table_audit/_index.md`。
 
 ### 12.3 非 CLIB3S 函式
 

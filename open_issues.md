@@ -286,13 +286,35 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
   emulator-level 驗證（noop_stub_b43）確認 ESP 平衡邏輯正確。詳細逐 case
   分析見 `workspace/function_review/phase_g_25_classification.md`，
   emit pipeline 對每個模式的處理規則寫在 `program_info/emit_pipeline_spec.md`
+
+- ✅ Ghidra jump table 漏抓 audit (issue #30) — 全 binary 對 indirect JMP /
+  orphan code / 異常小 body / fragmented body 做 audit。**結論**：63 個
+  indirect JMP 全 target 在 body 內 (AIL 4 + CRT 59 + GAME 0)；遊戲端 0 個
+  indirect JMP（switch 用 if/else 鏈分派，不走 jump table）；CRT lookup 140
+  entry vs lib `.obj` size 全面 diff 在 3 個 mismatch 修完後 0 不一致。修復
+  項目：(a) `AIL_internal_mix_loop_8bit_stereo @ 0x49306` body 1→58 byte
+  (bytes 已存在但未 disassembled)、(b) `AIL_set_sequence_volume @ 0x3add4`
+  130 byte function 全部 bytes-cleared，re-disassemble 還原、(c) 兩個遺漏
+  setter `crt_set_word_global_52758 @ 0x3615e` / `crt_set_word_global_5275c
+  @ 0x3616e` (各 16 byte，get-and-set helper) create_function 補齊、(d)
+  `chapter_01_init` body 2-range→1-range (entry 5-byte instruction 跨越 hole)、
+  (e) `crt_abort_thunk` body 2-range→1-range (同類 hole)、(f) `__MemAllocator`
+  body 171→176 (5-byte 尾段 alternate-exit thunk)、(g) `__MemFree` body 272
+  →267 (前述 5 byte 從 MemFree 改歸 MemAllocator)、(h) `__STOSB` body 49
+  →55 (含 6-byte 尾段 alignment NOPs)。Ghidra category=Bad Instruction 0、
+  find_code_gaps min_size=1 為 0。新工具 `tools/jump_table_audit/`
+  compare_lookup_sizes.py 可重複跑做 regression。詳見 `rebuild_info/crt_fid_match.md`
+  §12.2、`tools/jump_table_audit/_index.md`
 - ✅ 全 binary function 完整化 + 命名審視 — 1699 個 function 100% 命名
   （FUN_* 0 個、vendor_* 0 個、Bad Instruction bookmark 0 個、
   find_code_gaps min_size=1 為 0、`.object1` uncovered instruction byte
-  全部歸屬於某 function；唯一例外是 0x4A8E8 的 5-byte JMP thunk，Ghidra
-  createFunction 拒絕單 JMP-into-existing-function，保留 disassembled 並標
-  label `crt_dpmi_signal_handler_jmp_thunk`，emit pipeline 階段交給 vendor
-  relink）。category 分布：ail 278 / crt 783（含 178 個 `crt_*` 前綴 +
+  全部歸屬於某 function；兩個例外是 0x4A8E8 與 0x3CBD1 的 5-byte JMP thunk
+  （label `crt_dpmi_signal_handler_jmp_thunk` 與 `crt_phar_lap_exit_jmp_thunk`），
+  Ghidra createFunction 拒絕單 JMP-into-existing-function，保留 disassembled
+  並標 label，emit pipeline 階段交給 vendor relink；後者由 §12 callee 比對
+  時刪除原本錯誤的 1-byte function 後留下，target 0x45fb6 是 Phar Lap
+  DOS-extender exit dispatcher (非 Watcom CRT)）。category 分布：ail 278 /
+  crt 783（含 178 個 `crt_*` 前綴 +
   47 個 Watcom 公開符號 + 256 個 `crt_dpmi_int_NN` DPMI 軟中斷 stub +
   74 個 `align_nop_*` Watcom alignment fill + ~226 個 `crt_helper_*` /
   `crt_<descriptor>_<addr>` vendor placeholder）/ game 638；call graph

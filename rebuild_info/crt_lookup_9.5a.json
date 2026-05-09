@@ -351,7 +351,7 @@
       "name": "__MemAllocator",
       "current_name": "crt_heap_alloc_block",
       "score": 135.09,
-      "body_size": 171,
+      "body_size": 176,
       "source_obj": "59c35008174c_memalloc.obj",
       "verified": "auto_threshold",
       "aliases": []
@@ -360,7 +360,7 @@
       "name": "__MemFree",
       "current_name": "crt_heap_free_block",
       "score": 160.14,
-      "body_size": 272,
+      "body_size": 267,
       "source_obj": "59c35008174c_memalloc.obj",
       "verified": "auto_threshold",
       "aliases": []
@@ -558,7 +558,7 @@
       "name": "__STOSB",
       "current_name": "_memset_inner",
       "score": 75.020004,
-      "body_size": 49,
+      "body_size": 55,
       "source_obj": "f955fd443227___stos.obj",
       "verified": "auto_threshold",
       "aliases": []

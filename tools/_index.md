@@ -28,3 +28,7 @@ import shared lib、不依賴 `legacy/`、不讀寫 `catalog/*.json`。
   與 Watcom CRT lib symbol。OMF parser（含 Watcom Easy OMF-386 quirks 處理）+
   size + caller-source-obj heuristic + byte-level FIXUPP-aware 比對。用於補抓
   CRT splitter 切錯的尾段碎片與 FidDB 漏抓的 small helper
+- `jump_table_audit/` — 全 binary indirect-JMP / orphan code / fragmented body
+  audit。Phase 2 跑 `compare_lookup_sizes.py` 對 lookup body_size vs lib `.obj`
+  size 全面 diff（regression check）；Phase 1+3 用 Ghidra MCP run_script_inline
+  一次性掃 + 修。對應 `rebuild_info/crt_fid_match.md` §12.2.1
