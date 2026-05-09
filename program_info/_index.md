@@ -6,9 +6,9 @@
 
 - `overview.md` — 整體架構：FD2.LE binary segments、entry chain、12 systems 總覽、
   runtime_char struct (80 bytes) 完整 layout、`.object3` 資料表清單、關鍵遊戲機制
-- `call_graph.md` + `call_graph.json` + `call_graph.dot` — FD2.LE 1699 個
-  function 的全程式 call graph，nodes 含 category（ail 278 / crt 783 / game 638）
-  與 thunk flag，edges 4370 條
+- `call_graph.md` + `call_graph.json` + `call_graph.dot` — FD2.LE 1343 個
+  function 的全程式 call graph，nodes 含 category（ail 283 / crt 324 / game 736）
+  與 thunk flag，edges 4262 條
 - `lifecycle.md` — Watcom CRT layer：47 個 Watcom 公開符號（malloc/fread/...）+
   178 個自寫 `crt_*` wrapper + 256 個 `crt_dpmi_int_NN` 軟中斷 dispatch table +
   74 個 `align_nop_*` Watcom alignment fill +  ~226 個 `crt_helper_*` /
@@ -29,10 +29,11 @@
   panel/dialog slide、死亡/爆炸動畫、召喚 palette-cycle FX
 - `graphics.md` — DOS mode13h 320×200 + RLE blit、tile_attribute_flags、
   palette FX、composite_battle_frame finalizer
-- `audio.md` — Miles AIL 共 278 個 function：46 個 entry-point + ~93 個 internal
-  helper + 54 個 `AIL_xxx` log-wrapped public API + 47 個 `AIL_xxx_inner`
-  implementation pair + ~38 個 `AIL_helper_<addr>` / `AIL_*_helper_<addr>` vendor
-  helper；自寫 BGM dispatcher (`set_bgm_track_with_fade @ 0x25977`)、
+- `audio.md` — Miles AIL 共 287 個 function（103 個 `AIL_*` 公開 API + 184 個
+  `AIL_internal_*`）；其中 9 個從 `crt_*` 反向 reclassify 為 AIL，36 個 BFS
+  不可達 orphan 加 plate 標 sub-case；另保留 10 個 Watcom CRT primitive
+  （DPMI region/size lock/unlock/alloc/free、filesize_path、abort helper、
+  get_eflags）；自寫 BGM dispatcher (`set_bgm_track_with_fade @ 0x25977`)、
   `play_sfx_with_handle`、driver/patch 檔
 - `input.md` — BIOS keyboard area direct access、scancode 表、
   `wait_for_input_with_idle` poll loop、為何不用 INT 16h

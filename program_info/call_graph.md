@@ -1,6 +1,6 @@
 # Call graph
 
-FD2.LE 全程式 1699 個 function 的呼叫關係，由 Ghidra 直接匯出 + 經過完整命名審視
+FD2.LE 全程式 1343 個 function 的呼叫關係，由 Ghidra 直接匯出 + 經過完整命名審視
 後以 `tools/function_review/build_call_graph.py` 凍結而成。
 
 ## 三檔用途
@@ -35,15 +35,15 @@ FD2.LE 全程式 1699 個 function 的呼叫關係，由 Ghidra 直接匯出 + �
 
 | 指標 | 數量 |
 |---|---|
-| function 總數 | 1699 |
-| edge 總數 | 4370 |
-| ail 節點 | 289 |
-| crt 節點 | 776 |
-| game 節點 | 634 |
+| function 總數 | 1343 |
+| edge 總數 | 4262 |
+| ail 節點 | 287 |
+| crt 節點 | 323 |
+| game 節點 | 733 |
 
 ## 渲染子圖範例
 
-全圖 1699 個節點直接 render 不易讀，建議過濾感興趣的子集。例：
+全圖 1343 個節點直接 render 不易讀，建議過濾感興趣的子集。例：
 
 ```bash
 # 全圖（需大張紙）

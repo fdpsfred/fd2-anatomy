@@ -324,3 +324,26 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
   `chapter_01_init` / `chapter_08_end` / `chapter_29_end` /
   `crt_capture_ss_for_stkchk` / `crt_sin_inner` / `crt_abort_thunk` /
   `save_runtime_char_to_template` 等 function body 涵蓋全部 reachable 指令
+- ✅ AIL function classification — 287 個 AIL ecosystem function 完成分類：
+  103 個 `AIL_*` 公開 API + 184 個 `AIL_internal_*`。9 個 `crt_*` 經三向誤分類
+  audit（xref-source / orphan-disasm / reverse caller-set）reclassify 為
+  AIL：4 個 BFS-reached 的 caller-全 AIL + 引用 AIL global（`alloc_and_commit` /
+  `decommit_and_free` / `load_file_to_memory` / `parse_int_with_base`），
+  另 5 個 BFS-unreached 的 vtable-indirect / orphan placeholder（3 個
+  dpmi_unlock helper unlock 特定 AIL region 0x3f190.. / 0x41dc0.. / 0x45320..；
+  2 個 wave-synth instrument lookup helper — `helper_454fd` byte-level 確認
+  770 個 CLIB3S obj + CLIB3R obj 全部 0 match）。10 個 `crt_*` 確認為 Watcom
+  CRT primitive 保留：6 個 DPMI region/size lock/unlock + alloc/free（`lock_size`
+  有 game caller `set_bgm_track_with_fade`）、`filesize_path`、2 個 abort
+  helper（`with_log` / `thunk`，CRT path caller `__prtf` / `__STKOVERFLOW`）、
+  `get_eflags`（`pushfd; pop eax; cli; ret` = Watcom `_disable` 4-byte primitive）。
+  36 個 BFS 不可達 AIL_internal_* 經 xref pattern 分為 vtable_indirect 11 /
+  cluster_member 9 / tail_call_target 1 / dead_code_stub 15，全部以 plate
+  comment 標明 sub-case。14 個 placeholder helper 名（AIL_internal_helper_<addr>
+  / `<desc>_helper_<addr>`）全部改為語意命名；1 個誤分類為 AIL 的 `helper_377c3`
+  經 byte-level 比對 Watcom CLIB3S sprintf.obj leading anonymous static 完全
+  相符（22 bytes，0 FIXUPP）→ 重歸 `L$1_sprintf_put_char` 並加進
+  crt_lookup_9.5a.json (in_lookup 140→141, manual_pass 35→36, L$1 entries 3→4)。
+  reusable script 於 `tools/ail_audit/`（xref_source_audit / reverse_classification_audit
+  / orphan_review / build_inventory），per-function inventory 由
+  `tools/ail_audit/build_inventory.py` 從 Ghidra 即時產生

@@ -6,7 +6,7 @@
 | 連結的 lib | **CLIB3S.LIB** (stack-call ABI) + **EMU387.LIB** + **GRAPH.LIB** |
 | FD2.LE function 總數 | 1692 |
 | 識別為 CRT 的 function 數 | 131 FidDB match + 13 補抓 = 140 |
-| 主資料檔 | `crt_matches_9.5a.json`（FidDB raw）+ `crt_lookup_9.5a.json`（驗證後 140 entries） |
+| 主資料檔 | `crt_matches_9.5a.json`（FidDB raw）+ `crt_lookup_9.5a.json`（驗證後 141 entries） |
 | 對照 fidb | `crt_fidb/watcom_<ver>.fidb` × 4 (9.5 / 9.5a / 9.5b / 9.5c) |
 
 ---
@@ -340,8 +340,8 @@ discriminator of last resort for hash-identical helper families。詳見
 ## 11. 已驗證 lookup table
 
 `crt_lookup_9.5a.json` 是 §8 raw FidQuery 輸出經行為驗證 + §12 callee 比對
-補抓後的精煉版，收 **140 個確認的** FD2 function ↔ Watcom CLIB3S symbol 對照
-（127 FidDB-driven + 13 byte-level callee match），作為後續 rename audit /
+補抓後的精煉版，收 **141 個確認的** FD2 function ↔ Watcom CLIB3S symbol 對照
+（127 FidDB-driven + 14 byte-level callee match），作為後續 rename audit /
 calling convention 補齊 / CRT 行為復刻工作的快速查表來源。
 
 ### 11.1 Schema
@@ -484,12 +484,14 @@ false positive），要嘛是 lib 端的 small helper（例如 `__get_errno_ptr`
   jump-table entry，3 byte 一個）；`__int7` lookup 28 + 多 chunk = lib 11830 ✓
   （x87 emulator 主體）。處置：刪掉 fragment、用 `Function.setBody()` 把
   parent body 強制延伸到 lib total
-- **13 個獨立 function 補入 lookup**：`exit` / `_exit` / `__get_errno_ptr` /
+- **14 個獨立 function 補入 lookup**：`exit` / `_exit` / `__get_errno_ptr` /
   `__get_doserrno_ptr` / `__STKOVERFLOW` / `stackavail` / `getpid` /
   `__CommonInit` / `fcloseall`（從 rejected reinstate）/ `__GRO`（stk.obj 第三
-  個 PUBDEF）+ 3 個 lib 端 anonymous static（lib 標 `L$1`，合成命名為
+  個 PUBDEF）+ 4 個 lib 端 anonymous static（lib 標 `L$1`，合成命名為
   `L$1_<obj>_<purpose>`：`L$1_stk_save_ss` / `L$1_rand_seed_ptr` /
-  `L$1_asctime_fmt2`）
+  `L$1_asctime_fmt2` / `L$1_sprintf_put_char`，其中最後一個是 AIL audit
+  反向復查中發現原本被誤命名為 `AIL_internal_helper_377c3` 的 sprintf char-emit
+  callback，byte-level 對到 sprintf.obj 的 leading anonymous static 22 bytes）
 
 驗證方法：對每筆 (FD2 byte range, lib .obj function)，用 lib FIXUPP 標記的
 reference 位置遮罩，遮罩外 byte 必須完全相等。Pipeline 在

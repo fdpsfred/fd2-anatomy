@@ -28,12 +28,17 @@
 對照用 4 個版本 fidb (9.5a 正本 + 9.5/9.5b/9.5c 對照組) 放在
 `tools/crt_fid_match/crt_fidb/` (跟產生它們的 pipeline 同位置)。
 
+## AIL audio library 重建
+
+- `ail_extraction_prep.md` — 抽 AIL `.obj` 工作的前置資料：283 個 AIL function
+  邊界（103 public + 180 internal）、9 個 game/CRT 共享 helper 的處置策略、
+  8 個違反 v2 cdecl EBX preservation 約定的 `__watcall` 例外函式、CRT 替換
+  EXTDEF map、`_iobuf` layout 90s ↔ v2 兼容性、build pipeline 草案
+
 ## 後續預定主題
 
 當對應分析完成後會在這個資料夾擴增：
 
-- AIL audio library 重建 (Miles Audio Interface Library — 已知
-  FD2 的音樂/音效系統用 AIL，例如 `AIL_sequence_volume @ 0x3b096`)
 - 連結環境 (wlink linker 設定、LE format DOS/4GW extender、
   segment ordering、DGROUP layout)
 - source 拆分策略 (從 1 個 LE 倒推回 .c 檔結構)

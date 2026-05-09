@@ -78,6 +78,7 @@ def categorise(name: str) -> str:
     if name.startswith("AIL_"):
         return "ail"
     if (name.startswith("crt_") or name.startswith("align_nop_")
+            or name.startswith("L$")
             or name in PUBLIC_CRT_SYMBOLS):
         return "crt"
     return "game"

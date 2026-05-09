@@ -1,10 +1,10 @@
 {
-  "function_count": 1699,
-  "edge_count": 4370,
+  "function_count": 1343,
+  "edge_count": 4262,
   "category_counts": {
-    "ail": 289,
-    "crt": 776,
-    "game": 634
+    "ail": 287,
+    "crt": 323,
+    "game": 733
   },
   "nodes": [
     {
@@ -3970,18 +3970,32 @@
       "system": null
     },
     {
-      "address": "0003617e",
-      "name": "crt_alloc_and_commit",
+      "address": "0003615e",
+      "name": "crt_set_word_global_52758",
       "category": "crt",
       "is_thunk": false,
       "system": null
     },
     {
-      "address": "000361a5",
-      "name": "crt_decommit_and_free",
+      "address": "0003616e",
+      "name": "crt_set_word_global_5275c",
       "category": "crt",
       "is_thunk": false,
       "system": null
+    },
+    {
+      "address": "0003617e",
+      "name": "AIL_internal_alloc_and_commit",
+      "category": "ail",
+      "is_thunk": false,
+      "system": "audio"
+    },
+    {
+      "address": "000361a5",
+      "name": "AIL_internal_decommit_and_free",
+      "category": "ail",
+      "is_thunk": false,
+      "system": "audio"
     },
     {
       "address": "000361cc",
@@ -4055,10 +4069,10 @@
     },
     {
       "address": "00036955",
-      "name": "crt_load_file_to_memory",
-      "category": "crt",
+      "name": "AIL_internal_load_file_to_memory",
+      "category": "ail",
       "is_thunk": false,
-      "system": null
+      "system": "audio"
     },
     {
       "address": "00036c7d",
@@ -4076,29 +4090,36 @@
     },
     {
       "address": "00036cd0",
-      "name": "crt_capture_ss_for_stkchk",
+      "name": "L$1_stk_save_ss",
       "category": "crt",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00036cd7",
-      "name": "crt_frame_setup",
-      "category": "crt",
+      "name": "__CHK",
+      "category": "game",
+      "is_thunk": false,
+      "system": null
+    },
+    {
+      "address": "00036ce7",
+      "name": "__GRO",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00036cea",
-      "name": "crt_check_stack_overflow_inner",
-      "category": "crt",
+      "name": "__STK",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00036d07",
-      "name": "crt_abort_thunk2",
-      "category": "crt",
+      "name": "__STKOVERFLOW",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
@@ -4118,15 +4139,15 @@
     },
     {
       "address": "00036d98",
-      "name": "wait_key_input",
+      "name": "int386",
       "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00036dc1",
-      "name": "crt_fprintf_stderr",
-      "category": "crt",
+      "name": "printf",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
@@ -4145,44 +4166,37 @@
       "system": null
     },
     {
-      "address": "00036e0d",
-      "name": "crt_parse_fopen_mode",
-      "category": "crt",
+      "address": "00036df6",
+      "name": "_exit",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
-      "address": "00036ebc",
-      "name": "crt_fopen_open_helper",
-      "category": "crt",
+      "address": "00036e0d",
+      "name": "__open_flags",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00036fa1",
-      "name": "crt_fopen_impl",
-      "category": "crt",
+      "name": "_fsopen",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00036fcc",
-      "name": "crt_fopen_read",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00036fe1",
-      "name": "crt_helper_36fe1",
+      "name": "fopen",
       "category": "crt",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00037046",
-      "name": "crt_helper_37046",
-      "category": "crt",
+      "name": "freopen",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
@@ -4202,29 +4216,22 @@
     },
     {
       "address": "00037270",
-      "name": "crt_fclose_impl",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00037294",
-      "name": "crt_int_to_hex_char",
-      "category": "crt",
+      "name": "__shutdown_stream",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "000372a7",
-      "name": "crt_make_temp_filename",
-      "category": "crt",
+      "name": "__MkTmpFile",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00037326",
-      "name": "crt_fclose_inner",
-      "category": "crt",
+      "name": "__doclose",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
@@ -4258,8 +4265,8 @@
     },
     {
       "address": "000375b2",
-      "name": "delay",
-      "category": "crt",
+      "name": "__delay",
+      "category": "game",
       "is_thunk": true,
       "system": null
     },
@@ -4272,7 +4279,7 @@
     },
     {
       "address": "000375e2",
-      "name": "abs_value",
+      "name": "abs",
       "category": "game",
       "is_thunk": false,
       "system": null
@@ -4300,10 +4307,10 @@
     },
     {
       "address": "000377c3",
-      "name": "AIL_helper_377c3",
-      "category": "ail",
+      "name": "L$1_sprintf_put_char",
+      "category": "crt",
       "is_thunk": false,
-      "system": "audio"
+      "system": null
     },
     {
       "address": "000377d9",
@@ -4321,28 +4328,28 @@
     },
     {
       "address": "00037821",
-      "name": "crt_dos_get_char",
-      "category": "crt",
+      "name": "getch",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003783c",
-      "name": "AIL_init_globals_once",
+      "name": "AIL_internal_init_globals_once",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "000378e0",
-      "name": "AIL_helper_378e0",
+      "name": "AIL_internal_log_timer_tick",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003794c",
-      "name": "AIL_log_print_timestamp_prefix",
+      "name": "AIL_internal_log_print_timestamp_prefix",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -4370,14 +4377,14 @@
     },
     {
       "address": "00037d1a",
-      "name": "AIL_log_lock_acquire",
+      "name": "AIL_internal_log_lock_acquire",
       "category": "ail",
       "is_thunk": true,
       "system": "audio"
     },
     {
       "address": "00037d1f",
-      "name": "AIL_log_lock_release",
+      "name": "AIL_internal_log_lock_release",
       "category": "ail",
       "is_thunk": true,
       "system": "audio"
@@ -4405,7 +4412,7 @@
     },
     {
       "address": "00037f05",
-      "name": "AIL_log_decrement_nesting",
+      "name": "AIL_internal_log_decrement_nesting",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -4426,7 +4433,7 @@
     },
     {
       "address": "00037f8b",
-      "name": "AIL_helper_37f8b",
+      "name": "AIL_internal_isr_eflags_restore_thunk_37f8b",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -4447,7 +4454,7 @@
     },
     {
       "address": "0003810e",
-      "name": "AIL_get_isr_lock_count",
+      "name": "AIL_internal_get_isr_lock_count",
       "category": "ail",
       "is_thunk": true,
       "system": "audio"
@@ -4790,7 +4797,7 @@
     },
     {
       "address": "0003a548",
-      "name": "AIL_helper_3a548",
+      "name": "AIL_internal_dead_jmp_to_log_decrement_3a548",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -5119,7 +5126,7 @@
     },
     {
       "address": "0003c6d3",
-      "name": "AIL_dpmi_unlock_helper_3c6d3",
+      "name": "AIL_internal_dpmi_unlock_main_3c6d3",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -5133,31 +5140,10 @@
     },
     {
       "address": "0003c736",
-      "name": "AIL_helper_3c736",
-      "category": "ail",
+      "name": "crt_sqrt_with_domain_check",
+      "category": "crt",
       "is_thunk": false,
-      "system": "audio"
-    },
-    {
-      "address": "0003c776",
-      "name": "AIL_helper_3c776",
-      "category": "ail",
-      "is_thunk": false,
-      "system": "audio"
-    },
-    {
-      "address": "0003c786",
-      "name": "AIL_helper_3c786",
-      "category": "ail",
-      "is_thunk": false,
-      "system": "audio"
-    },
-    {
-      "address": "0003c7b4",
-      "name": "AIL_helper_3c7b4",
-      "category": "ail",
-      "is_thunk": false,
-      "system": "audio"
+      "system": null
     },
     {
       "address": "0003c7b6",
@@ -5182,17 +5168,17 @@
     },
     {
       "address": "0003c84b",
-      "name": "AIL_helper_3c84b",
-      "category": "ail",
+      "name": "crt_fpu_neg_swap_div",
+      "category": "crt",
       "is_thunk": false,
-      "system": "audio"
+      "system": null
     },
     {
       "address": "0003c852",
-      "name": "AIL_helper_3c852",
-      "category": "ail",
+      "name": "crt_fpu_neg_div_swap",
+      "category": "crt",
       "is_thunk": false,
-      "system": "audio"
+      "system": null
     },
     {
       "address": "0003c859",
@@ -5217,45 +5203,38 @@
     },
     {
       "address": "0003c8ab",
-      "name": "AIL_helper_3c8ab",
-      "category": "ail",
+      "name": "crt_tan_inner",
+      "category": "crt",
       "is_thunk": false,
-      "system": "audio"
+      "system": null
     },
     {
       "address": "0003c914",
-      "name": "AIL_helper_3c914",
-      "category": "ail",
+      "name": "crt_tan",
+      "category": "crt",
       "is_thunk": false,
-      "system": "audio"
+      "system": null
     },
     {
       "address": "0003c927",
-      "name": "crt_get_rand_seed_ptr",
+      "name": "L$1_rand_seed_ptr",
       "category": "crt",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003c92d",
-      "name": "crt_rand_update_seed",
-      "category": "crt",
+      "name": "rand",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003c94f",
-      "name": "AIL_helper_3c94f",
-      "category": "ail",
+      "name": "srand",
+      "category": "game",
       "is_thunk": false,
-      "system": "audio"
-    },
-    {
-      "address": "0003c962",
-      "name": "AIL_helper_3c962",
-      "category": "ail",
-      "is_thunk": false,
-      "system": "audio"
+      "system": null
     },
     {
       "address": "0003c964",
@@ -5266,7 +5245,7 @@
     },
     {
       "address": "0003c9de",
-      "name": "crt_entry_start_dup",
+      "name": "crt_dos_main_bootstrap",
       "category": "crt",
       "is_thunk": false,
       "system": null
@@ -5300,13 +5279,6 @@
       "system": null
     },
     {
-      "address": "0003cbd1",
-      "name": "crt_dos_mode_exit_cleanup",
-      "category": "crt",
-      "is_thunk": true,
-      "system": null
-    },
-    {
       "address": "0003cbd6",
       "name": "memcpy",
       "category": "crt",
@@ -5322,7 +5294,7 @@
     },
     {
       "address": "0003cc4b",
-      "name": "crt_read_with_text_xlate",
+      "name": "read",
       "category": "crt",
       "is_thunk": false,
       "system": null
@@ -5336,15 +5308,15 @@
     },
     {
       "address": "0003cd43",
-      "name": "crt_open_impl",
-      "category": "crt",
+      "name": "sopen",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003cf03",
-      "name": "crt_dos_errno_helper_3cf03",
-      "category": "crt",
+      "name": "__set_binary",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
@@ -5364,14 +5336,14 @@
     },
     {
       "address": "0003d056",
-      "name": "_filelength",
-      "category": "crt",
+      "name": "filelength",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003d095",
-      "name": "crt_write_with_text_xlate",
+      "name": "write",
       "category": "crt",
       "is_thunk": false,
       "system": null
@@ -5385,57 +5357,50 @@
     },
     {
       "address": "0003d270",
-      "name": "crt_heap_alloc_block",
-      "category": "crt",
+      "name": "__MemAllocator",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003d320",
-      "name": "crt_heap_free_block",
-      "category": "crt",
+      "name": "__MemFree",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003d42b",
-      "name": "crt_heap_get_last_segment",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0003d44e",
-      "name": "crt_dpmi_alloc_memory",
-      "category": "crt",
+      "name": "__LastFree",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003d4f2",
-      "name": "crt_heap_grow",
-      "category": "crt",
+      "name": "__ExpandDGROUP",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003d6f2",
-      "name": "crt_heap_oom_handler_default",
-      "category": "crt",
+      "name": "__nmemneed",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003d6f9",
-      "name": "crt_save_segment_regs",
-      "category": "crt",
+      "name": "segread",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003d726",
-      "name": "crt_heap_query_d726",
-      "category": "crt",
+      "name": "int386x",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
@@ -5448,8 +5413,8 @@
     },
     {
       "address": "0003d761",
-      "name": "vfprintf",
-      "category": "crt",
+      "name": "__fprtf",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
@@ -5476,210 +5441,147 @@
     },
     {
       "address": "0003d802",
-      "name": "crt_alloc_file_entry",
-      "category": "crt",
+      "name": "__allocfp",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003d897",
-      "name": "crt_free_file_entry",
-      "category": "crt",
+      "name": "__freefp",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003d8ca",
-      "name": "crt_helper_3d8ca",
-      "category": "crt",
+      "name": "__purgefp",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003d8ec",
-      "name": "crt_classify_stream_handle",
-      "category": "crt",
+      "name": "__chktty",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003d919",
-      "name": "crt_init_file_buffer",
-      "category": "crt",
+      "name": "__ioalloc",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003d990",
-      "name": "read",
-      "category": "crt",
+      "name": "__qread",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003d9c1",
-      "name": "getc",
-      "category": "crt",
+      "name": "fgetc",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003da3a",
-      "name": "crt_filbuf_first_byte",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0003da65",
       "name": "__filbuf",
       "category": "crt",
       "is_thunk": false,
       "system": null
     },
     {
+      "address": "0003da65",
+      "name": "__fill_buffer",
+      "category": "game",
+      "is_thunk": false,
+      "system": null
+    },
+    {
       "address": "0003db10",
-      "name": "crt_get_dgroup_segment",
-      "category": "crt",
+      "name": "getpid",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003db16",
-      "name": "crt_flush_stream_buffer",
-      "category": "crt",
+      "name": "__flush",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003dbb3",
-      "name": "crt_lseek_current_pos",
-      "category": "crt",
+      "name": "ftell",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003dbe7",
-      "name": "crt_putc_tty",
-      "category": "crt",
+      "name": "remove",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003dbf7",
-      "name": "putc",
-      "category": "crt",
+      "name": "fputc",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003dccd",
-      "name": "delay",
-      "category": "crt",
+      "name": "__delay",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003dd10",
-      "name": "_memset_inner",
-      "category": "crt",
+      "name": "__STOSB",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003dd47",
-      "name": "_memset_bulk",
-      "category": "crt",
+      "name": "__STOSD",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003ddb3",
-      "name": "_tell",
-      "category": "crt",
+      "name": "tell",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003ddc7",
-      "name": "crt_format_engine",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0003dfe7",
-      "name": "crt_parse_format_spec",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0003e0f0",
-      "name": "crt_parse_format_flags",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0003e143",
-      "name": "crt_strnlen_ascii",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0003e16c",
-      "name": "crt_strnlen_wide",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0003e193",
-      "name": "crt_format_hex_fixed_width",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0003e1e6",
-      "name": "crt_format_fixed_decimal",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0003e2b2",
-      "name": "crt_format_float_dispatch",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0003e2c9",
-      "name": "crt_format_dispatch_one_spec",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0003e702",
-      "name": "crt_strupr",
-      "category": "crt",
+      "name": "__prtf",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003e724",
-      "name": "AIL_log_lock_acquire",
+      "name": "AIL_internal_log_lock_acquire_3e724",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003e731",
-      "name": "AIL_log_lock_release",
+      "name": "AIL_internal_log_lock_release_3e731",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -5693,42 +5595,42 @@
     },
     {
       "address": "0003e864",
-      "name": "AIL_set_pit_divisor",
+      "name": "AIL_internal_set_pit_divisor",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003e894",
-      "name": "AIL_set_timer_period_pit",
+      "name": "AIL_internal_set_timer_period_pit",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003e8c7",
-      "name": "AIL_recompute_pit_divisor",
+      "name": "AIL_internal_recompute_pit_divisor",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003ea1a",
-      "name": "AIL_uninstall_timer_isr",
+      "name": "AIL_internal_uninstall_timer_isr",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003ea55",
-      "name": "AIL_get_int_vector_inner",
+      "name": "AIL_internal_get_real_vect_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003ea81",
-      "name": "AIL_set_int_vector_inner",
+      "name": "AIL_internal_set_real_vect_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -5749,14 +5651,14 @@
     },
     {
       "address": "0003eafd",
-      "name": "crt_helper_3eafd",
-      "category": "crt",
+      "name": "AIL_internal_set_USE16_ISR_inner",
+      "category": "ail",
       "is_thunk": false,
-      "system": null
+      "system": "audio"
     },
     {
       "address": "0003ed13",
-      "name": "AIL_restore_isr_inner",
+      "name": "AIL_internal_restore_USE16_ISR_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -5770,7 +5672,7 @@
     },
     {
       "address": "0003ed5c",
-      "name": "AIL_helper_3ed5c",
+      "name": "AIL_internal_isr_eflags_restore_3ed5c",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -5791,112 +5693,112 @@
     },
     {
       "address": "0003edc3",
-      "name": "AIL_call_driver_inner",
+      "name": "AIL_internal_call_driver_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003ee9d",
-      "name": "AIL_busy_wait_vsync",
+      "name": "AIL_internal_busy_wait_vsync",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003eeda",
-      "name": "AIL_get_isr_lock_count",
+      "name": "AIL_internal_get_isr_lock_count_3eeda",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003eee6",
-      "name": "AIL_timer_alloc_slot",
+      "name": "AIL_internal_register_timer_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003ef2d",
-      "name": "AIL_timer_set_user_inner",
+      "name": "AIL_internal_set_timer_user_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003ef55",
-      "name": "AIL_timer_release_slot_inner",
+      "name": "AIL_internal_release_timer_handle_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003ef7c",
-      "name": "AIL_release_all_timers_inner",
+      "name": "AIL_internal_release_all_timers_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003efa0",
-      "name": "AIL_start_timer_inner",
+      "name": "AIL_internal_start_timer_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003efd0",
-      "name": "AIL_start_all_timers_inner",
+      "name": "AIL_internal_start_all_timers_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003eff4",
-      "name": "AIL_stop_timer_inner",
+      "name": "AIL_internal_stop_timer_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003f024",
-      "name": "AIL_stop_all_timers_inner",
+      "name": "AIL_internal_stop_all_timers_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003f048",
-      "name": "AIL_set_timer_period_inner",
+      "name": "AIL_internal_set_timer_period_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003f078",
-      "name": "AIL_set_timer_frequency_inner",
+      "name": "AIL_internal_set_timer_frequency_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003f0a8",
-      "name": "AIL_set_timer_divisor_inner",
+      "name": "AIL_internal_set_timer_divisor_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003f0ea",
-      "name": "AIL_get_interrupt_divisor",
+      "name": "AIL_internal_interrupt_divisor_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003f0f6",
-      "name": "AIL_register_state_globals",
+      "name": "AIL_internal_register_state_globals",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -5917,92 +5819,92 @@
     },
     {
       "address": "0003f190",
-      "name": "AIL_init_state_arrays",
+      "name": "AIL_internal_init_state_arrays",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003f215",
-      "name": "AIL_driver_call_helper_3f215",
+      "name": "AIL_internal_driver_timer_isr",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003f264",
-      "name": "crt_parse_int_with_base",
-      "category": "crt",
+      "name": "AIL_internal_parse_int_with_base",
+      "category": "ail",
       "is_thunk": false,
-      "system": null
+      "system": "audio"
     },
     {
       "address": "0003f306",
-      "name": "AIL_parse_INI_driver_config",
+      "name": "AIL_internal_API_read_INI_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003f5e7",
-      "name": "AIL_set_preference_inner",
+      "name": "AIL_internal_set_preference_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003f600",
-      "name": "AIL_install_driver_inner",
+      "name": "AIL_internal_install_driver_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003f840",
-      "name": "AIL_uninstall_driver_inner",
+      "name": "AIL_internal_uninstall_driver_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003f8e3",
-      "name": "AIL_query_io_environment_inner",
+      "name": "AIL_internal_get_IO_environment_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003f959",
-      "name": "AIL_init_runtime_defaults",
+      "name": "AIL_internal_init_runtime_defaults",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003fa5f",
-      "name": "AIL_shutdown_inner",
+      "name": "AIL_internal_shutdown_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003fa8c",
-      "name": "crt_dpmi_unlock_helper_3fa8c",
-      "category": "crt",
+      "name": "AIL_internal_dpmi_unlock_state_arrays_3fa8c",
+      "category": "ail",
       "is_thunk": false,
-      "system": null
+      "system": "audio"
     },
     {
       "address": "0003fb0f",
-      "name": "crt_isatty_dos",
-      "category": "crt",
+      "name": "isatty",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003fb2f",
-      "name": "crt_setvbuf_default",
-      "category": "crt",
+      "name": "setbuf",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
@@ -6015,50 +5917,50 @@
     },
     {
       "address": "0003fb90",
-      "name": "crt_format_time_local",
-      "category": "crt",
+      "name": "_localtime",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003fbe5",
-      "name": "crt_format_time_default_buf",
-      "category": "crt",
+      "name": "localtime",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003fbfa",
-      "name": "crt_format_2digit_at",
+      "name": "L$1_asctime_fmt2",
       "category": "crt",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003fc3b",
+      "name": "_asctime",
+      "category": "game",
+      "is_thunk": false,
+      "system": null
+    },
+    {
+      "address": "0003fd2b",
       "name": "asctime",
       "category": "crt",
       "is_thunk": false,
       "system": null
     },
     {
-      "address": "0003fd2b",
-      "name": "crt_asctime_default_buf",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
       "address": "0003fd40",
-      "name": "crt_helper_3fd40",
-      "category": "crt",
+      "name": "_ctime",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0003fd63",
-      "name": "crt_helper_3fd63",
-      "category": "crt",
+      "name": "ctime",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
@@ -6071,21 +5973,21 @@
     },
     {
       "address": "0003fdb0",
-      "name": "AIL_init_clock_globals",
+      "name": "AIL_internal_init_clock_globals",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003fe6b",
-      "name": "AIL_driver_call_helper_3fe6b",
+      "name": "AIL_internal_driver_start_output_3fe6b",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0003feb3",
-      "name": "AIL_driver_call_helper_3feb3",
+      "name": "AIL_internal_driver_stop_output_3feb3",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6099,21 +6001,21 @@
     },
     {
       "address": "0003fef0",
-      "name": "AIL_build_pan_volume_table",
+      "name": "AIL_internal_build_pan_volume_table",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00040162",
-      "name": "AIL_driver_call_helper_40162",
+      "name": "AIL_internal_audio_mix_isr",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00040360",
-      "name": "AIL_dig_driver_configure",
+      "name": "AIL_internal_dig_driver_configure",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6127,14 +6029,14 @@
     },
     {
       "address": "000407f0",
-      "name": "AIL_dig_apply_io_parms",
+      "name": "AIL_internal_dig_apply_io_parms",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "000408e9",
-      "name": "AIL_driver_call_helper_408e9",
+      "name": "AIL_internal_dig_driver_teardown",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6148,7 +6050,7 @@
     },
     {
       "address": "000409a0",
-      "name": "AIL_dig_driver_setup_full",
+      "name": "AIL_internal_dig_driver_setup_full",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6162,7 +6064,7 @@
     },
     {
       "address": "00040fb0",
-      "name": "AIL_install_DIG_driver_file_inner",
+      "name": "AIL_internal_install_DIG_driver_file_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6176,7 +6078,7 @@
     },
     {
       "address": "00041030",
-      "name": "AIL_install_DIG_driver_image_inner",
+      "name": "AIL_internal_install_DIG_driver_image_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6190,7 +6092,7 @@
     },
     {
       "address": "00041070",
-      "name": "AIL_install_DIG_INI_inner",
+      "name": "AIL_internal_install_DIG_INI_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6204,14 +6106,14 @@
     },
     {
       "address": "000410d0",
-      "name": "AIL_uninstall_DIG_driver_inner",
+      "name": "AIL_internal_uninstall_DIG_driver_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "000410e0",
-      "name": "AIL_active_sample_count_inner",
+      "name": "AIL_internal_active_sample_count_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6225,7 +6127,7 @@
     },
     {
       "address": "00041110",
-      "name": "AIL_allocate_sample_handle_inner",
+      "name": "AIL_internal_allocate_sample_handle_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6239,14 +6141,14 @@
     },
     {
       "address": "00041180",
-      "name": "AIL_release_sample_handle_inner",
+      "name": "AIL_internal_release_sample_handle_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00041190",
-      "name": "AIL_init_sample_inner",
+      "name": "AIL_internal_init_sample_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6260,7 +6162,7 @@
     },
     {
       "address": "00041240",
-      "name": "AIL_sample_status_inner",
+      "name": "AIL_internal_sample_status_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6274,7 +6176,7 @@
     },
     {
       "address": "00041250",
-      "name": "AIL_set_sample_address_inner",
+      "name": "AIL_internal_set_sample_address_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6288,7 +6190,7 @@
     },
     {
       "address": "00041280",
-      "name": "AIL_set_sample_type_inner",
+      "name": "AIL_internal_set_sample_type_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6302,7 +6204,7 @@
     },
     {
       "address": "000412b0",
-      "name": "AIL_sample_playback_rate_inner",
+      "name": "AIL_internal_sample_playback_rate_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6316,14 +6218,14 @@
     },
     {
       "address": "000412c0",
-      "name": "AIL_set_sample_playback_rate_inner",
+      "name": "AIL_internal_set_sample_playback_rate_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "000412d0",
-      "name": "AIL_sample_volume_inner",
+      "name": "AIL_internal_sample_volume_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6337,7 +6239,7 @@
     },
     {
       "address": "000412e0",
-      "name": "AIL_set_sample_volume_inner",
+      "name": "AIL_internal_set_sample_volume_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6351,7 +6253,7 @@
     },
     {
       "address": "00041300",
-      "name": "AIL_sample_pan_inner",
+      "name": "AIL_internal_sample_pan_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6365,7 +6267,7 @@
     },
     {
       "address": "00041310",
-      "name": "AIL_set_sample_pan_inner",
+      "name": "AIL_internal_set_sample_pan_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6379,7 +6281,7 @@
     },
     {
       "address": "00041330",
-      "name": "AIL_sample_position_inner",
+      "name": "AIL_internal_sample_position_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6393,7 +6295,7 @@
     },
     {
       "address": "00041350",
-      "name": "AIL_set_sample_position_inner",
+      "name": "AIL_internal_set_sample_position_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6407,7 +6309,7 @@
     },
     {
       "address": "00041370",
-      "name": "AIL_sample_loop_count_inner",
+      "name": "AIL_internal_sample_loop_count_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6421,14 +6323,14 @@
     },
     {
       "address": "00041390",
-      "name": "AIL_set_sample_loop_count_inner",
+      "name": "AIL_internal_set_sample_loop_count_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "000413a0",
-      "name": "AIL_start_sample_inner",
+      "name": "AIL_internal_start_sample_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6442,7 +6344,7 @@
     },
     {
       "address": "00041420",
-      "name": "AIL_stop_sample_inner",
+      "name": "AIL_internal_stop_sample_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6456,7 +6358,7 @@
     },
     {
       "address": "00041440",
-      "name": "AIL_resume_sample_inner",
+      "name": "AIL_internal_resume_sample_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6470,7 +6372,7 @@
     },
     {
       "address": "00041460",
-      "name": "AIL_end_sample_inner",
+      "name": "AIL_internal_end_sample_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6484,7 +6386,7 @@
     },
     {
       "address": "000414b0",
-      "name": "AIL_register_SOB_callback_inner",
+      "name": "AIL_internal_register_SOB_callback_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6498,7 +6400,7 @@
     },
     {
       "address": "000414d0",
-      "name": "AIL_register_EOB_callback_inner",
+      "name": "AIL_internal_register_EOB_callback_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6512,35 +6414,28 @@
     },
     {
       "address": "000414f0",
-      "name": "AIL_register_EOS_callback_inner",
+      "name": "AIL_internal_register_EOS_callback_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0004150b",
-      "name": "AIL_helper_4150b",
+      "name": "AIL_internal_set_sample_user_data_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00041530",
-      "name": "AIL_sample_user_data_inner",
-      "category": "ail",
-      "is_thunk": false,
-      "system": "audio"
-    },
-    {
-      "address": "00041548",
-      "name": "AIL_helper_41548",
+      "name": "AIL_internal_sample_user_data_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00041560",
-      "name": "AIL_minimum_sample_buffer_size_inner",
+      "name": "AIL_internal_minimum_sample_buffer_size_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6554,7 +6449,7 @@
     },
     {
       "address": "00041600",
-      "name": "AIL_load_sample_buffer_inner",
+      "name": "AIL_internal_load_sample_buffer_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6568,112 +6463,105 @@
     },
     {
       "address": "00041690",
-      "name": "AIL_sample_buffer_ready_inner",
+      "name": "AIL_internal_sample_buffer_ready_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "000416e4",
-      "name": "AIL_dpmi_unlock_helper_416e4",
+      "name": "AIL_internal_dpmi_unlock_dig_mix_416e4",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "000417a4",
-      "name": "AIL_dpmi_lock_helper_417a4",
+      "name": "AIL_internal_dpmi_lock_voc_dispatcher_417a4",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "000417cc",
-      "name": "AIL_helper_417cc",
+      "name": "AIL_internal_voc_block_size_extract_417cc",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "000417d6",
-      "name": "AIL_helper_417d6_sample_teardown",
+      "name": "AIL_internal_file_sample_teardown",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00041834",
-      "name": "AIL_helper_41834",
+      "name": "AIL_internal_voc_dispatcher",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0004183d",
-      "name": "AIL_helper_4183d",
+      "name": "AIL_internal_voc_dispatcher_v2",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00041a8b",
-      "name": "AIL_helper_41a8b",
+      "name": "AIL_internal_voc_dispatcher_autostart_thunk_41a8b",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00041a9b",
-      "name": "AIL_helper_41a9b",
+      "name": "AIL_internal_wav_chunk_dispatch",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00041b71",
-      "name": "AIL_allocate_file_sample_inner",
+      "name": "AIL_internal_allocate_file_sample_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00041c9e",
-      "name": "AIL_set_sample_file_inner",
+      "name": "AIL_internal_set_sample_file_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00041d76",
-      "name": "AIL_register_EOF_callback_inner",
+      "name": "AIL_internal_register_EOF_callback_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00041d91",
-      "name": "AIL_dpmi_unlock_helper_41d91",
-      "category": "ail",
-      "is_thunk": false,
-      "system": "audio"
-    },
-    {
-      "address": "00041db7",
-      "name": "AIL_helper_41db7",
+      "name": "AIL_internal_dpmi_unlock_voc_dispatcher_41d91",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00041dc0",
-      "name": "AIL_init_mdi_state_arrays",
+      "name": "AIL_internal_init_mdi_state_arrays",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00041eb3",
-      "name": "AIL_helper_41eb3",
+      "name": "AIL_internal_midi_status_length",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6687,21 +6575,21 @@
     },
     {
       "address": "00041f20",
-      "name": "AIL_midi_flush_pending",
+      "name": "AIL_internal_midi_flush_pending",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00041f70",
-      "name": "AIL_midi_send_message",
+      "name": "AIL_internal_midi_send_message",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00042088",
-      "name": "AIL_driver_call_helper_42088",
+      "name": "AIL_internal_dig_load_buffer_chunk_42088",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6715,14 +6603,14 @@
     },
     {
       "address": "00042160",
-      "name": "AIL_xmidi_read_vlq",
+      "name": "AIL_internal_xmidi_read_vlq",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "0004218d",
-      "name": "AIL_helper_4218d",
+      "name": "AIL_internal_byteswap_u32_4218d",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6736,7 +6624,7 @@
     },
     {
       "address": "000421d0",
-      "name": "AIL_xmidi_find_chunk",
+      "name": "AIL_internal_xmidi_find_chunk",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6750,7 +6638,7 @@
     },
     {
       "address": "000422f0",
-      "name": "AIL_helper_422f0",
+      "name": "AIL_internal_sequence_controller_read",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6764,7 +6652,7 @@
     },
     {
       "address": "00042470",
-      "name": "AIL_sequence_controller_write",
+      "name": "AIL_internal_sequence_controller_write",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6778,7 +6666,7 @@
     },
     {
       "address": "00042630",
-      "name": "AIL_sequence_handle_midi_event",
+      "name": "AIL_internal_sequence_handle_midi_event",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6792,7 +6680,7 @@
     },
     {
       "address": "00042a80",
-      "name": "AIL_sequence_silence_active_notes",
+      "name": "AIL_internal_sequence_silence_active_notes",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6806,28 +6694,28 @@
     },
     {
       "address": "00042b50",
-      "name": "AIL_sequence_release_channel_inner",
+      "name": "AIL_internal_sequence_release_channel_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00042c00",
-      "name": "AIL_sequence_restore_channel_state",
+      "name": "AIL_internal_sequence_restore_channel_state",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00042e10",
-      "name": "AIL_sequence_reset_state",
+      "name": "AIL_internal_sequence_reset_state",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00042ebb",
-      "name": "AIL_helper_42ebb",
+      "name": "AIL_internal_sequence_init",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6841,14 +6729,14 @@
     },
     {
       "address": "00042ee0",
-      "name": "AIL_sequence_send_volumes",
+      "name": "AIL_internal_sequence_send_volumes",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00042f1d",
-      "name": "AIL_driver_call_helper_42f1d",
+      "name": "AIL_internal_sequence_timer_isr",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6862,21 +6750,21 @@
     },
     {
       "address": "00043650",
-      "name": "AIL_mdi_apply_io_parms",
+      "name": "AIL_internal_mdi_apply_io_parms",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00043720",
-      "name": "AIL_free_helper_43720",
+      "name": "AIL_internal_mdi_driver_teardown",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00043780",
-      "name": "AIL_mdi_driver_setup_full",
+      "name": "AIL_internal_mdi_driver_setup_full",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6890,7 +6778,7 @@
     },
     {
       "address": "00043e30",
-      "name": "AIL_install_MDI_driver_file_inner",
+      "name": "AIL_internal_install_MDI_driver_file_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6904,7 +6792,7 @@
     },
     {
       "address": "00043eb0",
-      "name": "AIL_install_MDI_driver_image_inner",
+      "name": "AIL_internal_install_MDI_driver_image_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6918,7 +6806,7 @@
     },
     {
       "address": "00043ef0",
-      "name": "AIL_install_MDI_INI_inner",
+      "name": "AIL_internal_install_MDI_INI_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6932,14 +6820,14 @@
     },
     {
       "address": "00043f50",
-      "name": "AIL_uninstall_MDI_driver_inner",
+      "name": "AIL_internal_uninstall_MDI_driver_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00043f60",
-      "name": "AIL_set_GTL_filename_prefix_inner",
+      "name": "AIL_internal_set_GTL_filename_prefix_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6953,7 +6841,7 @@
     },
     {
       "address": "00043fe0",
-      "name": "AIL_allocate_sequence_handle_inner",
+      "name": "AIL_internal_allocate_sequence_handle_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6967,7 +6855,7 @@
     },
     {
       "address": "00044060",
-      "name": "AIL_release_sequence_handle_inner",
+      "name": "AIL_internal_release_sequence_handle_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6981,7 +6869,7 @@
     },
     {
       "address": "00044080",
-      "name": "AIL_init_sequence_inner",
+      "name": "AIL_internal_init_sequence_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -6995,7 +6883,7 @@
     },
     {
       "address": "00044440",
-      "name": "AIL_start_sequence_inner",
+      "name": "AIL_internal_start_sequence_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7009,7 +6897,7 @@
     },
     {
       "address": "00044480",
-      "name": "AIL_stop_sequence_inner",
+      "name": "AIL_internal_stop_sequence_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7022,22 +6910,15 @@
       "system": null
     },
     {
-      "address": "00044548",
-      "name": "AIL_helper_44548",
-      "category": "ail",
-      "is_thunk": false,
-      "system": "audio"
-    },
-    {
       "address": "00044550",
-      "name": "AIL_resume_sequence_inner",
+      "name": "AIL_internal_resume_sequence_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "000445e0",
-      "name": "AIL_end_sequence_inner",
+      "name": "AIL_internal_end_sequence_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7051,14 +6932,14 @@
     },
     {
       "address": "00044610",
-      "name": "AIL_set_sequence_loop_count_inner",
+      "name": "AIL_internal_set_sequence_loop_count_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00044620",
-      "name": "AIL_set_sequence_tempo_inner",
+      "name": "AIL_internal_set_sequence_tempo_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7072,14 +6953,14 @@
     },
     {
       "address": "00044690",
-      "name": "AIL_set_sequence_volume_inner",
+      "name": "AIL_internal_set_sequence_volume_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00044710",
-      "name": "AIL_sequence_status_inner",
+      "name": "AIL_internal_sequence_status_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7093,7 +6974,7 @@
     },
     {
       "address": "00044720",
-      "name": "AIL_sequence_loop_count_inner",
+      "name": "AIL_internal_sequence_loop_count_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7107,7 +6988,7 @@
     },
     {
       "address": "00044740",
-      "name": "AIL_sequence_tempo_inner",
+      "name": "AIL_internal_sequence_tempo_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7121,7 +7002,7 @@
     },
     {
       "address": "00044750",
-      "name": "AIL_sequence_volume_inner",
+      "name": "AIL_internal_sequence_volume_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7135,7 +7016,7 @@
     },
     {
       "address": "00044760",
-      "name": "AIL_timbre_status_inner",
+      "name": "AIL_internal_timbre_status_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7149,7 +7030,7 @@
     },
     {
       "address": "000447a0",
-      "name": "AIL_install_timbre_inner",
+      "name": "AIL_internal_install_timbre_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7163,7 +7044,7 @@
     },
     {
       "address": "000448a0",
-      "name": "AIL_protect_timbre_inner",
+      "name": "AIL_internal_protect_timbre_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7177,7 +7058,7 @@
     },
     {
       "address": "000448e0",
-      "name": "AIL_unprotect_timbre_inner",
+      "name": "AIL_internal_unprotect_timbre_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7191,7 +7072,7 @@
     },
     {
       "address": "00044920",
-      "name": "AIL_active_sequence_count_inner",
+      "name": "AIL_internal_active_sequence_count_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7205,7 +7086,7 @@
     },
     {
       "address": "00044950",
-      "name": "AIL_controller_value_inner",
+      "name": "AIL_internal_controller_value_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7219,7 +7100,7 @@
     },
     {
       "address": "00044980",
-      "name": "AIL_channel_notes_inner",
+      "name": "AIL_internal_channel_notes_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7233,7 +7114,7 @@
     },
     {
       "address": "000449c0",
-      "name": "AIL_sequence_position_inner",
+      "name": "AIL_internal_sequence_position_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7247,7 +7128,7 @@
     },
     {
       "address": "00044a30",
-      "name": "AIL_branch_index_inner",
+      "name": "AIL_internal_branch_index_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7261,7 +7142,7 @@
     },
     {
       "address": "00044ac0",
-      "name": "AIL_register_prefix_callback_inner",
+      "name": "AIL_internal_register_prefix_callback_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7275,7 +7156,7 @@
     },
     {
       "address": "00044ae0",
-      "name": "AIL_register_trigger_callback_inner",
+      "name": "AIL_internal_register_trigger_callback_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7289,7 +7170,7 @@
     },
     {
       "address": "00044b00",
-      "name": "AIL_register_sequence_callback_inner",
+      "name": "AIL_internal_register_sequence_callback_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7303,7 +7184,7 @@
     },
     {
       "address": "00044b20",
-      "name": "AIL_register_event_callback_inner",
+      "name": "AIL_internal_register_event_callback_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7317,7 +7198,7 @@
     },
     {
       "address": "00044b40",
-      "name": "AIL_register_timbre_callback_inner",
+      "name": "AIL_internal_register_timbre_callback_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7331,14 +7212,14 @@
     },
     {
       "address": "00044b60",
-      "name": "AIL_set_sequence_user_data_inner",
+      "name": "AIL_internal_set_sequence_user_data_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00044b80",
-      "name": "AIL_sequence_user_data_inner",
+      "name": "AIL_internal_sequence_user_data_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7352,21 +7233,21 @@
     },
     {
       "address": "00044ba0",
-      "name": "AIL_register_ICA_array_inner",
+      "name": "AIL_internal_register_ICA_array_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00044bb0",
-      "name": "AIL_lock_channel_inner",
+      "name": "AIL_internal_lock_channel_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00044d60",
-      "name": "AIL_release_channel_inner",
+      "name": "AIL_internal_release_channel_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7380,7 +7261,7 @@
     },
     {
       "address": "00044e90",
-      "name": "AIL_map_sequence_channel_inner",
+      "name": "AIL_internal_map_sequence_channel_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7394,7 +7275,7 @@
     },
     {
       "address": "00044ed0",
-      "name": "AIL_true_sequence_channel_inner",
+      "name": "AIL_internal_true_sequence_channel_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7408,7 +7289,7 @@
     },
     {
       "address": "00044ef0",
-      "name": "AIL_send_channel_voice_message_inner",
+      "name": "AIL_internal_send_channel_voice_message_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -7422,87 +7303,87 @@
     },
     {
       "address": "00044fa0",
-      "name": "AIL_xmidi_handle_meta_event",
+      "name": "AIL_internal_send_sysex_message_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00045026",
-      "name": "crt_dpmi_unlock_helper_45026",
-      "category": "crt",
+      "name": "AIL_internal_dpmi_unlock_mdi_state_arrays_45026",
+      "category": "ail",
       "is_thunk": false,
-      "system": null
+      "system": "audio"
     },
     {
       "address": "00045320",
-      "name": "crt_dpmi_lock_helper_45320",
-      "category": "crt",
+      "name": "AIL_internal_dpmi_lock_wave_synth",
+      "category": "ail",
       "is_thunk": false,
-      "system": null
+      "system": "audio"
     },
     {
       "address": "00045348",
-      "name": "crt_helper_45348",
-      "category": "crt",
+      "name": "AIL_internal_wave_synth_dispatch_midi_status_inner",
+      "category": "ail",
       "is_thunk": false,
-      "system": null
+      "system": "audio"
     },
     {
       "address": "000454fd",
-      "name": "crt_helper_454fd",
-      "category": "crt",
+      "name": "AIL_internal_wave_synth_program_lookup_454fd",
+      "category": "ail",
       "is_thunk": false,
-      "system": null
+      "system": "audio"
     },
     {
       "address": "00045530",
-      "name": "AIL_dig_apply_sample_volume_pan",
+      "name": "AIL_internal_dig_apply_sample_volume_pan",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "000455a0",
-      "name": "AIL_dig_apply_pitch_bend",
+      "name": "AIL_internal_dig_apply_pitch_bend",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "000456a5",
-      "name": "crt_helper_456a5",
-      "category": "crt",
+      "name": "AIL_internal_wave_synth_program_exists_456a5",
+      "category": "ail",
       "is_thunk": false,
-      "system": null
+      "system": "audio"
     },
     {
       "address": "000456d0",
-      "name": "AIL_helper_456d0",
+      "name": "AIL_internal_wave_synth_handle_midi",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00045ad1",
-      "name": "AIL_alloc_helper_45ad1",
+      "name": "AIL_internal_create_wave_synthesizer_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00045c49",
-      "name": "AIL_free_helper_45c49",
+      "name": "AIL_internal_destroy_wave_synthesizer_inner",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00045c9d",
-      "name": "crt_dpmi_unlock_helper_45c9d",
-      "category": "crt",
+      "name": "AIL_internal_dpmi_unlock_wave_synth_45c9d",
+      "category": "ail",
       "is_thunk": false,
-      "system": null
+      "system": "audio"
     },
     {
       "address": "00045cc3",
@@ -7513,22 +7394,22 @@
     },
     {
       "address": "00045d4b",
-      "name": "crt_main_trampoline",
-      "category": "crt",
+      "name": "__CMain",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00045d9a",
-      "name": "crt_run_init_list",
-      "category": "crt",
+      "name": "__InitRtns",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00045ddd",
-      "name": "crt_run_exit_list",
-      "category": "crt",
+      "name": "__FiniRtns",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
@@ -7611,8 +7492,8 @@
     },
     {
       "address": "000460a2",
-      "name": "crt_helper_460a2",
-      "category": "crt",
+      "name": "__init_8087",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
@@ -7625,36 +7506,29 @@
     },
     {
       "address": "000460d5",
-      "name": "crt_helper_460d5",
-      "category": "crt",
+      "name": "__chk8087",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00046114",
-      "name": "crt_init_argv",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000461c7",
-      "name": "crt_parse_cmdline_args",
-      "category": "crt",
+      "name": "__Init_Argv",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "000462a2",
-      "name": "crt_helper_462a2",
-      "category": "crt",
+      "name": "_dosret0",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "000462ba",
-      "name": "crt_dos_errno_helper_462ba",
-      "category": "crt",
+      "name": "_dosretax",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
@@ -7667,1947 +7541,127 @@
     },
     {
       "address": "000462e2",
-      "name": "crt_dos_to_errno",
-      "category": "crt",
+      "name": "_set_errno",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00046352",
-      "name": "crt_get_fd_entry",
-      "category": "crt",
+      "name": "__IOMode",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "000463a4",
-      "name": "crt_set_fd_entry",
-      "category": "crt",
+      "name": "__SetIOMode",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "000463bc",
-      "name": "crt_get_stack_avail",
-      "category": "crt",
+      "name": "stackavail",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "000463c5",
-      "name": "crt_helper_463c5",
-      "category": "crt",
+      "name": "_heapenable",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "000463d8",
-      "name": "crt_dpmi_or_dos_alloc",
-      "category": "crt",
+      "name": "sbrk",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00046475",
-      "name": "crt_dos_resize_alloc",
-      "category": "crt",
+      "name": "__brk",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00046520",
-      "name": "crt_capture_regs",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046557",
-      "name": "crt_capture_edi_helper",
-      "category": "crt",
+      "name": "__int386x_",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0004657b",
-      "name": "crt_dpmi_int_invoke",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000465c5",
-      "name": "crt_dpmi_int_invoke_inner",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000465f8",
-      "name": "crt_dpmi_int_00",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000465fb",
-      "name": "crt_dpmi_int_01",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000465fe",
-      "name": "crt_dpmi_int_02",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046601",
-      "name": "crt_dpmi_int_03",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046602",
-      "name": "crt_helper_46602",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046604",
-      "name": "crt_dpmi_int_04",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046607",
-      "name": "crt_dpmi_int_05",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004660a",
-      "name": "crt_dpmi_int_06",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004660d",
-      "name": "crt_dpmi_int_07",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046610",
-      "name": "crt_dpmi_int_08",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046613",
-      "name": "crt_dpmi_int_09",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046616",
-      "name": "crt_dpmi_int_0a",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046619",
-      "name": "crt_dpmi_int_0b",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004661c",
-      "name": "crt_dpmi_int_0c",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004661f",
-      "name": "crt_dpmi_int_0d",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046622",
-      "name": "crt_dpmi_int_0e",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046625",
-      "name": "crt_dpmi_int_0f",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046628",
-      "name": "crt_dpmi_int_10",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004662b",
-      "name": "crt_dpmi_int_11",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004662e",
-      "name": "crt_dpmi_int_12",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046631",
-      "name": "crt_dpmi_int_13",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046634",
-      "name": "crt_dpmi_int_14",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046637",
-      "name": "crt_dpmi_int_15",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004663a",
-      "name": "crt_dpmi_int_16",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004663d",
-      "name": "crt_dpmi_int_17",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046640",
-      "name": "crt_dpmi_int_18",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046643",
-      "name": "crt_dpmi_int_19",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046646",
-      "name": "crt_dpmi_int_1a",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046649",
-      "name": "crt_dpmi_int_1b",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004664c",
-      "name": "crt_dpmi_int_1c",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004664f",
-      "name": "crt_dpmi_int_1d",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046652",
-      "name": "crt_dpmi_int_1e",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046655",
-      "name": "crt_dpmi_int_1f",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046658",
-      "name": "crt_dpmi_int_20",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004665b",
-      "name": "crt_dpmi_int_21",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004665e",
-      "name": "crt_dpmi_int_22",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046661",
-      "name": "crt_dpmi_int_23",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046664",
-      "name": "crt_dpmi_int_24",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046667",
-      "name": "crt_dpmi_int_25",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004666a",
-      "name": "crt_dpmi_int_26",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004666d",
-      "name": "crt_dpmi_int_27",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046670",
-      "name": "crt_dpmi_int_28",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046673",
-      "name": "crt_dpmi_int_29",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046676",
-      "name": "crt_dpmi_int_2a",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046679",
-      "name": "crt_dpmi_int_2b",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004667c",
-      "name": "crt_dpmi_int_2c",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004667f",
-      "name": "crt_dpmi_int_2d",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046682",
-      "name": "crt_dpmi_int_2e",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046685",
-      "name": "crt_dpmi_int_2f",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046688",
-      "name": "crt_dpmi_int_30",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004668b",
-      "name": "crt_dpmi_int_31",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004668e",
-      "name": "crt_dpmi_int_32",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046691",
-      "name": "crt_dpmi_int_33",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046694",
-      "name": "crt_dpmi_int_34",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046697",
-      "name": "crt_dpmi_int_35",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004669a",
-      "name": "crt_dpmi_int_36",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004669d",
-      "name": "crt_dpmi_int_37",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466a0",
-      "name": "crt_dpmi_int_38",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466a3",
-      "name": "crt_dpmi_int_39",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466a6",
-      "name": "crt_dpmi_int_3a",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466a9",
-      "name": "crt_dpmi_int_3b",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466ac",
-      "name": "crt_dpmi_int_3c",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466af",
-      "name": "crt_dpmi_int_3d",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466b2",
-      "name": "crt_dpmi_int_3e",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466b5",
-      "name": "crt_dpmi_int_3f",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466b8",
-      "name": "crt_dpmi_int_40",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466bb",
-      "name": "crt_dpmi_int_41",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466be",
-      "name": "crt_dpmi_int_42",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466c1",
-      "name": "crt_dpmi_int_43",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466c4",
-      "name": "crt_dpmi_int_44",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466c7",
-      "name": "crt_dpmi_int_45",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466ca",
-      "name": "crt_dpmi_int_46",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466cd",
-      "name": "crt_dpmi_int_47",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466d0",
-      "name": "crt_dpmi_int_48",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466d3",
-      "name": "crt_dpmi_int_49",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466d6",
-      "name": "crt_dpmi_int_4a",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466d9",
-      "name": "crt_dpmi_int_4b",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466dc",
-      "name": "crt_dpmi_int_4c",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466df",
-      "name": "crt_dpmi_int_4d",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466e2",
-      "name": "crt_dpmi_int_4e",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466e5",
-      "name": "crt_dpmi_int_4f",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466e8",
-      "name": "crt_dpmi_int_50",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466eb",
-      "name": "crt_dpmi_int_51",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466ee",
-      "name": "crt_dpmi_int_52",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466f1",
-      "name": "crt_dpmi_int_53",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466f4",
-      "name": "crt_dpmi_int_54",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466f7",
-      "name": "crt_dpmi_int_55",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466fa",
-      "name": "crt_dpmi_int_56",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000466fd",
-      "name": "crt_dpmi_int_57",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046700",
-      "name": "crt_dpmi_int_58",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046703",
-      "name": "crt_dpmi_int_59",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046706",
-      "name": "crt_dpmi_int_5a",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046709",
-      "name": "crt_dpmi_int_5b",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004670c",
-      "name": "crt_dpmi_int_5c",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004670f",
-      "name": "crt_dpmi_int_5d",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046712",
-      "name": "crt_dpmi_int_5e",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046715",
-      "name": "crt_dpmi_int_5f",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046718",
-      "name": "crt_dpmi_int_60",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004671b",
-      "name": "crt_dpmi_int_61",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004671e",
-      "name": "crt_dpmi_int_62",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046721",
-      "name": "crt_dpmi_int_63",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046724",
-      "name": "crt_dpmi_int_64",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046727",
-      "name": "crt_dpmi_int_65",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004672a",
-      "name": "crt_dpmi_int_66",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004672d",
-      "name": "crt_dpmi_int_67",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046730",
-      "name": "crt_dpmi_int_68",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046733",
-      "name": "crt_dpmi_int_69",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046736",
-      "name": "crt_dpmi_int_6a",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046739",
-      "name": "crt_dpmi_int_6b",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004673c",
-      "name": "crt_dpmi_int_6c",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004673f",
-      "name": "crt_dpmi_int_6d",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046742",
-      "name": "crt_dpmi_int_6e",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046745",
-      "name": "crt_dpmi_int_6f",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046748",
-      "name": "crt_dpmi_int_70",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004674b",
-      "name": "crt_dpmi_int_71",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004674e",
-      "name": "crt_dpmi_int_72",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046751",
-      "name": "crt_dpmi_int_73",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046754",
-      "name": "crt_dpmi_int_74",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046757",
-      "name": "crt_dpmi_int_75",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004675a",
-      "name": "crt_dpmi_int_76",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004675d",
-      "name": "crt_dpmi_int_77",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046760",
-      "name": "crt_dpmi_int_78",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046763",
-      "name": "crt_dpmi_int_79",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046766",
-      "name": "crt_dpmi_int_7a",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046769",
-      "name": "crt_dpmi_int_7b",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004676c",
-      "name": "crt_dpmi_int_7c",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004676f",
-      "name": "crt_dpmi_int_7d",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046772",
-      "name": "crt_dpmi_int_7e",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046775",
-      "name": "crt_dpmi_int_7f",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046778",
-      "name": "crt_dpmi_int_80",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004677b",
-      "name": "crt_dpmi_int_81",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004677e",
-      "name": "crt_dpmi_int_82",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046781",
-      "name": "crt_dpmi_int_83",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046784",
-      "name": "crt_dpmi_int_84",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046787",
-      "name": "crt_dpmi_int_85",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004678a",
-      "name": "crt_dpmi_int_86",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004678d",
-      "name": "crt_dpmi_int_87",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046790",
-      "name": "crt_dpmi_int_88",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046793",
-      "name": "crt_dpmi_int_89",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046796",
-      "name": "crt_dpmi_int_8a",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046799",
-      "name": "crt_dpmi_int_8b",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004679c",
-      "name": "crt_dpmi_int_8c",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004679f",
-      "name": "crt_dpmi_int_8d",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467a2",
-      "name": "crt_dpmi_int_8e",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467a5",
-      "name": "crt_dpmi_int_8f",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467a8",
-      "name": "crt_dpmi_int_90",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467ab",
-      "name": "crt_dpmi_int_91",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467ae",
-      "name": "crt_dpmi_int_92",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467b1",
-      "name": "crt_dpmi_int_93",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467b4",
-      "name": "crt_dpmi_int_94",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467b7",
-      "name": "crt_dpmi_int_95",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467ba",
-      "name": "crt_dpmi_int_96",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467bd",
-      "name": "crt_dpmi_int_97",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467c0",
-      "name": "crt_dpmi_int_98",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467c3",
-      "name": "crt_dpmi_int_99",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467c6",
-      "name": "crt_dpmi_int_9a",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467c9",
-      "name": "crt_dpmi_int_9b",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467cc",
-      "name": "crt_dpmi_int_9c",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467cf",
-      "name": "crt_dpmi_int_9d",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467d2",
-      "name": "crt_dpmi_int_9e",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467d5",
-      "name": "crt_dpmi_int_9f",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467d8",
-      "name": "crt_dpmi_int_a0",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467db",
-      "name": "crt_dpmi_int_a1",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467de",
-      "name": "crt_dpmi_int_a2",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467e1",
-      "name": "crt_dpmi_int_a3",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467e4",
-      "name": "crt_dpmi_int_a4",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467e7",
-      "name": "crt_dpmi_int_a5",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467ea",
-      "name": "crt_dpmi_int_a6",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467ed",
-      "name": "crt_dpmi_int_a7",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467f0",
-      "name": "crt_dpmi_int_a8",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467f3",
-      "name": "crt_dpmi_int_a9",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467f6",
-      "name": "crt_dpmi_int_aa",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467f9",
-      "name": "crt_dpmi_int_ab",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467fc",
-      "name": "crt_dpmi_int_ac",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000467ff",
-      "name": "crt_dpmi_int_ad",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046802",
-      "name": "crt_dpmi_int_ae",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046805",
-      "name": "crt_dpmi_int_af",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046808",
-      "name": "crt_dpmi_int_b0",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004680b",
-      "name": "crt_dpmi_int_b1",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004680e",
-      "name": "crt_dpmi_int_b2",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046811",
-      "name": "crt_dpmi_int_b3",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046814",
-      "name": "crt_dpmi_int_b4",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046817",
-      "name": "crt_dpmi_int_b5",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004681a",
-      "name": "crt_dpmi_int_b6",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004681d",
-      "name": "crt_dpmi_int_b7",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046820",
-      "name": "crt_dpmi_int_b8",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046823",
-      "name": "crt_dpmi_int_b9",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046826",
-      "name": "crt_dpmi_int_ba",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046829",
-      "name": "crt_dpmi_int_bb",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004682c",
-      "name": "crt_dpmi_int_bc",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004682f",
-      "name": "crt_dpmi_int_bd",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046832",
-      "name": "crt_dpmi_int_be",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046835",
-      "name": "crt_dpmi_int_bf",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046838",
-      "name": "crt_dpmi_int_c0",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004683b",
-      "name": "crt_dpmi_int_c1",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004683e",
-      "name": "crt_dpmi_int_c2",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046841",
-      "name": "crt_dpmi_int_c3",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046844",
-      "name": "crt_dpmi_int_c4",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046847",
-      "name": "crt_dpmi_int_c5",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004684a",
-      "name": "crt_dpmi_int_c6",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004684d",
-      "name": "crt_dpmi_int_c7",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046850",
-      "name": "crt_dpmi_int_c8",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046853",
-      "name": "crt_dpmi_int_c9",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046856",
-      "name": "crt_dpmi_int_ca",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046859",
-      "name": "crt_dpmi_int_cb",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004685c",
-      "name": "crt_dpmi_int_cc",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004685f",
-      "name": "crt_dpmi_int_cd",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046862",
-      "name": "crt_dpmi_int_ce",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046865",
-      "name": "crt_dpmi_int_cf",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046868",
-      "name": "crt_dpmi_int_d0",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004686b",
-      "name": "crt_dpmi_int_d1",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004686e",
-      "name": "crt_dpmi_int_d2",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046871",
-      "name": "crt_dpmi_int_d3",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046874",
-      "name": "crt_dpmi_int_d4",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046877",
-      "name": "crt_dpmi_int_d5",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004687a",
-      "name": "crt_dpmi_int_d6",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004687d",
-      "name": "crt_dpmi_int_d7",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046880",
-      "name": "crt_dpmi_int_d8",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046883",
-      "name": "crt_dpmi_int_d9",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046886",
-      "name": "crt_dpmi_int_da",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046889",
-      "name": "crt_dpmi_int_db",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004688c",
-      "name": "crt_dpmi_int_dc",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004688f",
-      "name": "crt_dpmi_int_dd",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046892",
-      "name": "crt_dpmi_int_de",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046895",
-      "name": "crt_dpmi_int_df",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046898",
-      "name": "crt_dpmi_int_e0",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004689b",
-      "name": "crt_dpmi_int_e1",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004689e",
-      "name": "crt_dpmi_int_e2",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468a1",
-      "name": "crt_dpmi_int_e3",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468a4",
-      "name": "crt_dpmi_int_e4",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468a7",
-      "name": "crt_dpmi_int_e5",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468aa",
-      "name": "crt_dpmi_int_e6",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468ad",
-      "name": "crt_dpmi_int_e7",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468b0",
-      "name": "crt_dpmi_int_e8",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468b3",
-      "name": "crt_dpmi_int_e9",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468b6",
-      "name": "crt_dpmi_int_ea",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468b9",
-      "name": "crt_dpmi_int_eb",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468bc",
-      "name": "crt_dpmi_int_ec",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468bf",
-      "name": "crt_dpmi_int_ed",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468c2",
-      "name": "crt_dpmi_int_ee",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468c5",
-      "name": "crt_dpmi_int_ef",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468c8",
-      "name": "crt_dpmi_int_f0",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468cb",
-      "name": "crt_dpmi_int_f1",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468ce",
-      "name": "crt_dpmi_int_f2",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468d1",
-      "name": "crt_dpmi_int_f3",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468d4",
-      "name": "crt_dpmi_int_f4",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468d7",
-      "name": "crt_dpmi_int_f5",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468da",
-      "name": "crt_dpmi_int_f6",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468dd",
-      "name": "crt_dpmi_int_f7",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468e0",
-      "name": "crt_dpmi_int_f8",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468e3",
-      "name": "crt_dpmi_int_f9",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468e6",
-      "name": "crt_dpmi_int_fa",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468e9",
-      "name": "crt_dpmi_int_fb",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468ec",
-      "name": "crt_dpmi_int_fc",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468ef",
-      "name": "crt_dpmi_int_fd",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468f2",
-      "name": "crt_dpmi_int_fe",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000468f5",
-      "name": "crt_dpmi_int_ff",
-      "category": "crt",
+      "name": "_DoINTR_",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "000468f8",
-      "name": "crt_helper_468f8",
-      "category": "crt",
+      "name": "__InitFiles",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0004693d",
-      "name": "crt_helper_4693d",
-      "category": "crt",
+      "name": "__full_io_exit",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0004694c",
-      "name": "crt_helper_4694c",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046957",
-      "name": "crt_close_streams_for_pgrp",
-      "category": "crt",
+      "name": "fcloseall",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "000469b0",
-      "name": "crt_flush_streams_matching_mask",
-      "category": "crt",
+      "name": "__flushall",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "000469e8",
-      "name": "crt_dos_get_char_dup",
-      "category": "crt",
+      "name": "getche",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00046a03",
-      "name": "crt_dos_write_handle",
-      "category": "crt",
+      "name": "__qwrite",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00046a80",
-      "name": "crt_putc_dos",
-      "category": "crt",
+      "name": "unlink",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00046ac9",
-      "name": "crt_uint_to_string_base",
-      "category": "crt",
+      "name": "utoa",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00046b11",
-      "name": "crt_int_to_string_base",
-      "category": "crt",
+      "name": "itoa",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
@@ -9620,15 +7674,15 @@
     },
     {
       "address": "00046b72",
-      "name": "crt_uint32_to_string_base",
-      "category": "crt",
+      "name": "ultoa",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00046bba",
-      "name": "crt_int32_to_string_base",
-      "category": "crt",
+      "name": "ltoa",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
@@ -9662,15 +7716,15 @@
     },
     {
       "address": "00046ce9",
-      "name": "crt_setvbuf_internal",
-      "category": "crt",
+      "name": "setvbuf",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00046d61",
-      "name": "crt_dos_gettime_components",
-      "category": "crt",
+      "name": "__getctime",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
@@ -9683,85 +7737,57 @@
     },
     {
       "address": "00046f1f",
-      "name": "crt_init_timezone",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046f3a",
-      "name": "crt_parse_uint_decimal",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00046f63",
-      "name": "crt_parse_tz_offset",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00047046",
-      "name": "crt_parse_tz_dst_rule",
-      "category": "crt",
+      "name": "tzset",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00047138",
-      "name": "crt_parse_tz_string",
-      "category": "crt",
+      "name": "__parse_tz",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "000471d5",
-      "name": "crt_seconds_to_tm",
-      "category": "crt",
+      "name": "__brktime",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00047304",
-      "name": "crt_helper_47304",
-      "category": "crt",
+      "name": "_gmtime",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00047328",
-      "name": "crt_helper_47328",
-      "category": "crt",
+      "name": "gmtime",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0004733d",
-      "name": "crt_is_leap_year",
-      "category": "crt",
+      "name": "__leapyear",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00047371",
-      "name": "crt_compute_is_dst",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000475d2",
-      "name": "crt_tm_time_less",
-      "category": "crt",
+      "name": "__isindst",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00047602",
-      "name": "crt_divmod_helper",
-      "category": "crt",
+      "name": "div",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
@@ -10670,35 +8696,35 @@
     },
     {
       "address": "00049306",
-      "name": "AIL_mix_loop_8bit_stereo",
+      "name": "AIL_internal_mix_loop_8bit_stereo",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00049340",
-      "name": "AIL_mix_dispatch_sample",
+      "name": "AIL_internal_mix_dispatch_sample",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "00049541",
-      "name": "AIL_mix_dispatch_format",
+      "name": "AIL_internal_mix_dispatch_format",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "000495d3",
-      "name": "AIL_clear_dma_buffer",
+      "name": "AIL_internal_clear_dma_buffer",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
     },
     {
       "address": "000495ff",
-      "name": "AIL_register_mix_globals",
+      "name": "AIL_internal_register_mix_globals",
       "category": "ail",
       "is_thunk": false,
       "system": "audio"
@@ -10726,22 +8752,15 @@
     },
     {
       "address": "0004977d",
-      "name": "crt_init_stream_threshold",
-      "category": "crt",
+      "name": "__CommonInit",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "00049788",
-      "name": "crt_format_float_spec",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00049867",
-      "name": "crt_format_float_strip_zeros",
-      "category": "crt",
+      "name": "_EFG_Format",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
@@ -10754,540 +8773,36 @@
     },
     {
       "address": "000498d6",
-      "name": "crt_init_windows_notification",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "000499a5",
-      "name": "crt_deinit_windows_notification",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00049d98",
-      "name": "crt_softfp_signal_49d98",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00049db4",
-      "name": "crt_dpmi_signal_handler_dispatch",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00049ee8",
-      "name": "crt_softfp_signal_49ee8",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00049f24",
-      "name": "crt_softfp_signal_49f24",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00049f56",
-      "name": "crt_dpmi_signal_emulate",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00049fa8",
-      "name": "crt_dpmi_exception_dispatch",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "00049fc4",
-      "name": "crt_dpmi_raise_signal",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a012",
-      "name": "crt_helper_4a012",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a018",
-      "name": "crt_helper_4a018",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a01e",
-      "name": "crt_helper_4a01e",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a024",
-      "name": "crt_helper_4a024",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a02a",
-      "name": "crt_helper_4a02a",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a032",
-      "name": "crt_helper_4a032",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a038",
-      "name": "crt_helper_4a038",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a03e",
-      "name": "crt_helper_4a03e",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a044",
-      "name": "crt_helper_4a044",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a04c",
-      "name": "crt_helper_4a04c",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a054",
-      "name": "crt_helper_4a054",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a05c",
-      "name": "crt_helper_4a05c",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a064",
-      "name": "crt_helper_4a064",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a06e",
-      "name": "crt_helper_4a06e",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a078",
-      "name": "crt_helper_4a078",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a080",
-      "name": "crt_helper_4a080",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a088",
-      "name": "crt_helper_4a088",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a091",
-      "name": "crt_helper_4a091",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a09a",
-      "name": "crt_helper_4a09a",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a0a3",
-      "name": "crt_helper_4a0a3",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a0ac",
-      "name": "crt_helper_4a0ac",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a0b7",
-      "name": "crt_helper_4a0b7",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a0c2",
-      "name": "crt_helper_4a0c2",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a0cb",
-      "name": "crt_helper_4a0cb",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a0d4",
-      "name": "crt_helper_4a0d4",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a111",
-      "name": "crt_softfp_f2ld_4a111",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004a91a",
-      "name": "crt_softfp_add_helper_4a91a",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004af7b",
-      "name": "crt_softfp_signal_4af7b",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004afa7",
-      "name": "crt_softfp_signal_4afa7",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004b184",
-      "name": "crt_helper_4b184",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004b431",
-      "name": "crt_softfp_signal_4b431",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004b449",
-      "name": "crt_softfp_signal_4b449",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004b4ba",
-      "name": "crt_softfp_signal_4b4ba",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004b4ca",
-      "name": "crt_softfp_ld_add_inplace",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004b4d8",
-      "name": "crt_softfp_ld_add",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004b502",
-      "name": "crt_softfp_ld_add_imm",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004b532",
-      "name": "crt_softfp_ld_add_worker",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004b69e",
-      "name": "crt_softfp_ld_check_nan_inf",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004b737",
-      "name": "crt_softfp_ld_mul_wrapper",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004b761",
-      "name": "crt_softfp_ld_div_worker",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004b90c",
-      "name": "crt_softfp_ld_mul_inplace",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004b936",
-      "name": "crt_softfp_ld_mul_worker",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004ba87",
-      "name": "crt_softfp_ld_to_int32",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004ba8c",
-      "name": "crt_softfp_ld_range_check",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004baf6",
-      "name": "crt_softfp_int32_to_ld",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004bb07",
-      "name": "crt_softfp_uint32_to_ld",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004bb3c",
-      "name": "crt_softfp_double_to_ld",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004bbbc",
-      "name": "noop_stub_4bbbc",
+      "name": "__hook387",
       "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
-      "address": "0004bc3b",
-      "name": "crt_softfp_ld_to_double_round",
-      "category": "crt",
+      "address": "000499a5",
+      "name": "__unhook387",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
-      "address": "0004bd02",
-      "name": "crt_softfp_float_to_ld",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004bdc7",
-      "name": "crt_softfp_ld_round_to_int",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004befa",
-      "name": "crt_helper_4befa",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004bf54",
-      "name": "crt_softfp_atan2_inner",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004c00a",
-      "name": "crt_softfp_atan_worker",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004c16d",
-      "name": "crt_softfp_fmod_wrapper",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004c1d3",
-      "name": "crt_softfp_fmod_worker",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004c24e",
-      "name": "crt_softfp_fp_class_set_flags",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004c355",
-      "name": "crt_softfp_sin_normalize",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004c398",
-      "name": "crt_softfp_sincos_polynomial",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004c630",
-      "name": "crt_softfp_tan_worker",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004c83e",
-      "name": "crt_softfp_tan_thunk",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004c874",
-      "name": "crt_softfp_exp_worker",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004ca48",
-      "name": "crt_helper_4ca48",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004cb14",
-      "name": "crt_helper_4cb14",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004cb34",
-      "name": "crt_softfp_horner_loop",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004cb86",
-      "name": "crt_softfp_horner_wrap",
-      "category": "crt",
+      "address": "00049d98",
+      "name": "__int7",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0004cbd0",
-      "name": "crt_helper_4cbd0",
-      "category": "crt",
+      "name": "__init_80x87",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0004cbfd",
-      "name": "crt_init_env_array",
-      "category": "crt",
+      "name": "__setenvp",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
@@ -11349,8 +8864,8 @@
     },
     {
       "address": "0004d306",
-      "name": "crt_dos_set_int_vector",
-      "category": "crt",
+      "name": "_dos_setvect",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
@@ -11440,22 +8955,15 @@
     },
     {
       "address": "0004d84c",
-      "name": "crt_softfp_digits_to_bcd64",
-      "category": "crt",
-      "is_thunk": false,
-      "system": null
-    },
-    {
-      "address": "0004d897",
-      "name": "crt_softfp_normalize_bcd64",
-      "category": "crt",
+      "name": "__ZBuf2F",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
     {
       "address": "0004d8ea",
-      "name": "crt_helper_4d8ea",
-      "category": "crt",
+      "name": "noop_stub_4d8ea_zero",
+      "category": "game",
       "is_thunk": false,
       "system": null
     },
@@ -24979,8 +22487,24 @@
       "to": "00036de3"
     },
     {
-      "from": "00036de4",
+      "from": "00036df6",
+      "to": "00036de3"
+    },
+    {
+      "from": "00036df6",
       "to": "0003cbb6"
+    },
+    {
+      "from": "00036e0d",
+      "to": "00036e0d"
+    },
+    {
+      "from": "00036e0d",
+      "to": "000375f0"
+    },
+    {
+      "from": "00036e0d",
+      "to": "0003cd43"
     },
     {
       "from": "00036e0d",
@@ -24991,32 +22515,12 @@
       "to": "0003d7f6"
     },
     {
-      "from": "00036ebc",
-      "to": "00036e0d"
-    },
-    {
-      "from": "00036ebc",
-      "to": "000375f0"
-    },
-    {
-      "from": "00036ebc",
-      "to": "0003cd43"
-    },
-    {
-      "from": "00036ebc",
-      "to": "0003d7e1"
-    },
-    {
-      "from": "00036ebc",
+      "from": "00036e0d",
       "to": "0003d897"
     },
     {
-      "from": "00036ebc",
+      "from": "00036e0d",
       "to": "0003d8ec"
-    },
-    {
-      "from": "00036fa1",
-      "to": "00036ebc"
     },
     {
       "from": "00036fa1",
@@ -25027,20 +22531,12 @@
       "to": "00036fa1"
     },
     {
-      "from": "00036fe1",
+      "from": "00036fcc",
       "to": "00037326"
     },
     {
-      "from": "00036fe1",
+      "from": "00036fcc",
       "to": "0003d7f6"
-    },
-    {
-      "from": "00037046",
-      "to": "00036ebc"
-    },
-    {
-      "from": "00037046",
-      "to": "00036fe1"
     },
     {
       "from": "00037072",
@@ -25073,10 +22569,6 @@
     {
       "from": "00037270",
       "to": "0003d897"
-    },
-    {
-      "from": "000372a7",
-      "to": "00037294"
     },
     {
       "from": "000372a7",
@@ -27076,10 +24568,6 @@
     },
     {
       "from": "0003d4f2",
-      "to": "0003d44e"
-    },
-    {
-      "from": "0003d4f2",
       "to": "00046475"
     },
     {
@@ -27200,70 +24688,26 @@
     },
     {
       "from": "0003ddc7",
-      "to": "0003dfe7"
-    },
-    {
-      "from": "0003ddc7",
-      "to": "0003e2c9"
-    },
-    {
-      "from": "0003dfe7",
-      "to": "0003e0f0"
-    },
-    {
-      "from": "0003e193",
       "to": "00037805"
     },
     {
-      "from": "0003e193",
+      "from": "0003ddc7",
       "to": "00046b11"
     },
     {
-      "from": "0003e1e6",
-      "to": "00046b11"
-    },
-    {
-      "from": "0003e2b2",
+      "from": "0003ddc7",
       "to": "00046b41"
     },
     {
-      "from": "0003e2c9",
-      "to": "0003e143"
-    },
-    {
-      "from": "0003e2c9",
-      "to": "0003e16c"
-    },
-    {
-      "from": "0003e2c9",
-      "to": "0003e193"
-    },
-    {
-      "from": "0003e2c9",
-      "to": "0003e1e6"
-    },
-    {
-      "from": "0003e2c9",
-      "to": "0003e2b2"
-    },
-    {
-      "from": "0003e2c9",
-      "to": "0003e702"
-    },
-    {
-      "from": "0003e2c9",
-      "to": "00046b11"
-    },
-    {
-      "from": "0003e2c9",
+      "from": "0003ddc7",
       "to": "00046b72"
     },
     {
-      "from": "0003e2c9",
+      "from": "0003ddc7",
       "to": "00046bba"
     },
     {
-      "from": "0003e702",
+      "from": "0003ddc7",
       "to": "00046bea"
     },
     {
@@ -27272,11 +24716,11 @@
     },
     {
       "from": "0003e8c7",
-      "to": "0003e724"
+      "to": "00037d1a"
     },
     {
       "from": "0003e8c7",
-      "to": "0003e731"
+      "to": "00037d1f"
     },
     {
       "from": "0003e8c7",
@@ -27288,95 +24732,95 @@
     },
     {
       "from": "0003edc3",
-      "to": "0003e724"
+      "to": "00037d1a"
     },
     {
       "from": "0003edc3",
-      "to": "0003e731"
+      "to": "00037d1f"
     },
     {
       "from": "0003eee6",
-      "to": "0003e724"
+      "to": "00037d1a"
     },
     {
       "from": "0003eee6",
-      "to": "0003e731"
+      "to": "00037d1f"
     },
     {
       "from": "0003ef2d",
-      "to": "0003e724"
+      "to": "00037d1a"
     },
     {
       "from": "0003ef2d",
-      "to": "0003e731"
+      "to": "00037d1f"
     },
     {
       "from": "0003ef55",
-      "to": "0003e724"
+      "to": "00037d1a"
     },
     {
       "from": "0003ef55",
-      "to": "0003e731"
+      "to": "00037d1f"
+    },
+    {
+      "from": "0003ef7c",
+      "to": "00037d1a"
+    },
+    {
+      "from": "0003ef7c",
+      "to": "00037d1f"
     },
     {
       "from": "0003ef7c",
       "to": "00038a27"
     },
     {
-      "from": "0003ef7c",
-      "to": "0003e724"
-    },
-    {
-      "from": "0003ef7c",
-      "to": "0003e731"
+      "from": "0003efa0",
+      "to": "00037d1a"
     },
     {
       "from": "0003efa0",
-      "to": "0003e724"
+      "to": "00037d1f"
     },
     {
-      "from": "0003efa0",
-      "to": "0003e731"
+      "from": "0003efd0",
+      "to": "00037d1a"
+    },
+    {
+      "from": "0003efd0",
+      "to": "00037d1f"
     },
     {
       "from": "0003efd0",
       "to": "00038889"
     },
     {
-      "from": "0003efd0",
-      "to": "0003e724"
-    },
-    {
-      "from": "0003efd0",
-      "to": "0003e731"
+      "from": "0003eff4",
+      "to": "00037d1a"
     },
     {
       "from": "0003eff4",
-      "to": "0003e724"
+      "to": "00037d1f"
     },
     {
-      "from": "0003eff4",
-      "to": "0003e731"
+      "from": "0003f024",
+      "to": "00037d1a"
+    },
+    {
+      "from": "0003f024",
+      "to": "00037d1f"
     },
     {
       "from": "0003f024",
       "to": "00038958"
     },
     {
-      "from": "0003f024",
-      "to": "0003e724"
-    },
-    {
-      "from": "0003f024",
-      "to": "0003e731"
+      "from": "0003f048",
+      "to": "00037d1a"
     },
     {
       "from": "0003f048",
-      "to": "0003e724"
-    },
-    {
-      "from": "0003f048",
-      "to": "0003e731"
+      "to": "00037d1f"
     },
     {
       "from": "0003f048",
@@ -27384,27 +24828,27 @@
     },
     {
       "from": "0003f078",
-      "to": "0003864a"
+      "to": "00037d1a"
     },
     {
       "from": "0003f078",
-      "to": "0003e724"
+      "to": "00037d1f"
     },
     {
       "from": "0003f078",
-      "to": "0003e731"
-    },
-    {
-      "from": "0003f0a8",
       "to": "0003864a"
     },
     {
       "from": "0003f0a8",
-      "to": "0003e724"
+      "to": "00037d1a"
     },
     {
       "from": "0003f0a8",
-      "to": "0003e731"
+      "to": "00037d1f"
+    },
+    {
+      "from": "0003f0a8",
+      "to": "0003864a"
     },
     {
       "from": "0003f0f6",
@@ -27872,15 +25316,15 @@
     },
     {
       "from": "00041110",
+      "to": "00037d1a"
+    },
+    {
+      "from": "00041110",
+      "to": "00037d1f"
+    },
+    {
+      "from": "00041110",
       "to": "000391d1"
-    },
-    {
-      "from": "00041110",
-      "to": "0003e724"
-    },
-    {
-      "from": "00041110",
-      "to": "0003e731"
     },
     {
       "from": "00041190",
@@ -28080,7 +25524,7 @@
     },
     {
       "from": "00042a80",
-      "to": "0003eeda"
+      "to": "0003810e"
     },
     {
       "from": "00042a80",
@@ -28268,11 +25712,11 @@
     },
     {
       "from": "00043fe0",
-      "to": "0003e724"
+      "to": "00037d1a"
     },
     {
       "from": "00043fe0",
-      "to": "0003e731"
+      "to": "00037d1f"
     },
     {
       "from": "00043fe0",
@@ -28296,7 +25740,7 @@
     },
     {
       "from": "00044080",
-      "to": "0003eeda"
+      "to": "0003810e"
     },
     {
       "from": "00044080",
@@ -28551,10 +25995,6 @@
       "to": "00036cd0"
     },
     {
-      "from": "00045ddd",
-      "to": "0003cbd1"
-    },
-    {
       "from": "00045e35",
       "to": "00045e67"
     },
@@ -28611,10 +26051,6 @@
       "to": "0003cbd6"
     },
     {
-      "from": "00046114",
-      "to": "000461c7"
-    },
-    {
       "from": "000462a2",
       "to": "000462ba"
     },
@@ -28651,14 +26087,6 @@
       "to": "0003d7f6"
     },
     {
-      "from": "00046520",
-      "to": "00046557"
-    },
-    {
-      "from": "0004657b",
-      "to": "000465c5"
-    },
-    {
       "from": "000468f8",
       "to": "00036d26"
     },
@@ -28667,15 +26095,7 @@
       "to": "0003d8ca"
     },
     {
-      "from": "0004693d",
-      "to": "00046957"
-    },
-    {
       "from": "0004694c",
-      "to": "00046957"
-    },
-    {
-      "from": "00046957",
       "to": "00037270"
     },
     {
@@ -28740,31 +26160,15 @@
     },
     {
       "from": "00046f1f",
+      "to": "0003cbd6"
+    },
+    {
+      "from": "00046f1f",
       "to": "0003f13b"
     },
     {
       "from": "00046f1f",
       "to": "00047138"
-    },
-    {
-      "from": "00046f63",
-      "to": "0003cbd6"
-    },
-    {
-      "from": "00046f63",
-      "to": "00046f3a"
-    },
-    {
-      "from": "00047046",
-      "to": "00046f3a"
-    },
-    {
-      "from": "00047138",
-      "to": "00046f63"
-    },
-    {
-      "from": "00047138",
-      "to": "00047046"
     },
     {
       "from": "000471d5",
@@ -28781,10 +26185,6 @@
     {
       "from": "00047371",
       "to": "0004733d"
-    },
-    {
-      "from": "00047371",
-      "to": "000475d2"
     },
     {
       "from": "00049340",
@@ -28804,10 +26204,6 @@
     },
     {
       "from": "00049788",
-      "to": "00049867"
-    },
-    {
-      "from": "00049788",
       "to": "0004cf0b"
     },
     {
@@ -28820,327 +26216,11 @@
     },
     {
       "from": "00049d98",
-      "to": "00049db4"
-    },
-    {
-      "from": "00049db4",
       "to": "0003cbc4"
     },
     {
-      "from": "00049db4",
-      "to": "00049db4"
-    },
-    {
-      "from": "00049db4",
-      "to": "00049f56"
-    },
-    {
-      "from": "00049db4",
-      "to": "00049fa8"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004afa7"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004b4ca"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004b4d8"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004b69e"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004b737"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004b90c"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004ba87"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004ba8c"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004baf6"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004bb07"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004bb3c"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004bbbc"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004bc3b"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004bd02"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004bdc7"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004bf54"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004c16d"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004c24e"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004c355"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004c83e"
-    },
-    {
-      "from": "00049db4",
-      "to": "0004c874"
-    },
-    {
-      "from": "00049ee8",
-      "to": "00049db4"
-    },
-    {
-      "from": "00049f24",
-      "to": "00049db4"
-    },
-    {
-      "from": "00049f56",
-      "to": "00049db4"
-    },
-    {
-      "from": "00049fa8",
-      "to": "00049db4"
-    },
-    {
-      "from": "00049fc4",
+      "from": "00049d98",
       "to": "0003d26e"
-    },
-    {
-      "from": "0004a111",
-      "to": "0004b4d8"
-    },
-    {
-      "from": "0004a111",
-      "to": "0004bd02"
-    },
-    {
-      "from": "0004a91a",
-      "to": "0004b4d8"
-    },
-    {
-      "from": "0004af7b",
-      "to": "00049db4"
-    },
-    {
-      "from": "0004afa7",
-      "to": "00049db4"
-    },
-    {
-      "from": "0004b431",
-      "to": "00049db4"
-    },
-    {
-      "from": "0004b431",
-      "to": "0004bdc7"
-    },
-    {
-      "from": "0004b449",
-      "to": "00049db4"
-    },
-    {
-      "from": "0004b449",
-      "to": "0004ba87"
-    },
-    {
-      "from": "0004b4ba",
-      "to": "00049db4"
-    },
-    {
-      "from": "0004b4d8",
-      "to": "0004b532"
-    },
-    {
-      "from": "0004b502",
-      "to": "0004b532"
-    },
-    {
-      "from": "0004b737",
-      "to": "0004b761"
-    },
-    {
-      "from": "0004b761",
-      "to": "00049fc4"
-    },
-    {
-      "from": "0004b90c",
-      "to": "0004b936"
-    },
-    {
-      "from": "0004bb3c",
-      "to": "00049fc4"
-    },
-    {
-      "from": "0004bc3b",
-      "to": "00049fc4"
-    },
-    {
-      "from": "0004bf54",
-      "to": "0004b502"
-    },
-    {
-      "from": "0004bf54",
-      "to": "0004b737"
-    },
-    {
-      "from": "0004bf54",
-      "to": "0004c00a"
-    },
-    {
-      "from": "0004c00a",
-      "to": "0004b502"
-    },
-    {
-      "from": "0004c00a",
-      "to": "0004b532"
-    },
-    {
-      "from": "0004c00a",
-      "to": "0004b761"
-    },
-    {
-      "from": "0004c00a",
-      "to": "0004b936"
-    },
-    {
-      "from": "0004c00a",
-      "to": "0004cb86"
-    },
-    {
-      "from": "0004c16d",
-      "to": "0004c1d3"
-    },
-    {
-      "from": "0004c355",
-      "to": "0004b90c"
-    },
-    {
-      "from": "0004c355",
-      "to": "0004b936"
-    },
-    {
-      "from": "0004c355",
-      "to": "0004c398"
-    },
-    {
-      "from": "0004c398",
-      "to": "0004b532"
-    },
-    {
-      "from": "0004c398",
-      "to": "0004b761"
-    },
-    {
-      "from": "0004c398",
-      "to": "0004b936"
-    },
-    {
-      "from": "0004c398",
-      "to": "0004baf6"
-    },
-    {
-      "from": "0004c398",
-      "to": "0004cb34"
-    },
-    {
-      "from": "0004c630",
-      "to": "0004b502"
-    },
-    {
-      "from": "0004c630",
-      "to": "0004b761"
-    },
-    {
-      "from": "0004c630",
-      "to": "0004b936"
-    },
-    {
-      "from": "0004c630",
-      "to": "0004c1d3"
-    },
-    {
-      "from": "0004c630",
-      "to": "0004cb34"
-    },
-    {
-      "from": "0004c630",
-      "to": "0004cb86"
-    },
-    {
-      "from": "0004c83e",
-      "to": "0004c630"
-    },
-    {
-      "from": "0004c874",
-      "to": "0004b502"
-    },
-    {
-      "from": "0004c874",
-      "to": "0004b532"
-    },
-    {
-      "from": "0004c874",
-      "to": "0004b761"
-    },
-    {
-      "from": "0004c874",
-      "to": "0004b936"
-    },
-    {
-      "from": "0004cb14",
-      "to": "0004cb34"
-    },
-    {
-      "from": "0004cb34",
-      "to": "0004b532"
-    },
-    {
-      "from": "0004cb34",
-      "to": "0004b936"
-    },
-    {
-      "from": "0004cb86",
-      "to": "0004b936"
-    },
-    {
-      "from": "0004cb86",
-      "to": "0004cb34"
     },
     {
       "from": "0004cbfd",
@@ -29293,10 +26373,6 @@
     {
       "from": "0004d616",
       "to": "0004db64"
-    },
-    {
-      "from": "0004d84c",
-      "to": "0004d897"
     },
     {
       "from": "0004d8f1",

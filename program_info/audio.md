@@ -8,6 +8,31 @@ library 連進 FD2.LE。
 `SETSOUND.EXE`（FLAME2 目錄裡的工具）就是 AIL 的設定程式，會產生 `.MDI` /
 `.DIG` driver 設定。
 
+## AIL function inventory
+
+FD2.LE 內 AIL ecosystem 共 287 個 function：
+
+| 群組 | 數量 | 命名 / 進入點 |
+|---|---:|---|
+| 公開 API | 103 | `AIL_*`（非 `AIL_internal_*`），每個都有 self-print `fprintf(log, "AIL_xxx(...)\n", ...)` |
+| 由 public BFS 可達的 internal | 144 | `AIL_internal_*` worker / ISR / log / timer / DIG mixer / MDI sequence / XMIDI parser，以及 54 對 vendor-internal log-wrapped API 的 inner pair |
+| BFS-reached 的 promoted internal | 4 | 從 `crt_*` 改名（`alloc_and_commit` / `decommit_and_free` / `load_file_to_memory` / `parse_int_with_base`；caller 全 AIL + 引用 AIL global） |
+| BFS 不可達的 internal | 36 | 11 vtable_indirect + 9 cluster_member + 1 tail_call_target + 15 dead_code_stub；plate comment 註明 sub-case。內含 5 個從 `crt_*` reclassify 的（3 個 dpmi_unlock 特定 AIL region + `wave_synth_program_lookup_454fd` byte-level 確認非 CLIB3S + 其 wrapper `_program_exists_456a5`） |
+
+被 AIL 使用但確認為 Watcom CRT primitive 的 helper 保留 `crt_*` 命名（不抽進
+AIL，build pipeline 經 EXTDEF 由 v2 CLIB 解析）共 10 個：6 個 DPMI 原語
+（`crt_dpmi_lock_region` / `_unlock_region` / `_lock_size` / `_unlock_size` /
+`_alloc_dos_memory` / `_free_dos_memory`，其中 `_lock_size` 直接被 game
+`set_bgm_track_with_fade` 呼叫）、`crt_filesize_path`（open + filelength + close
+組合）、2 個 abort helper（`crt_abort_with_log` / `crt_abort_thunk`，caller path
+含 `__prtf` / `__STKOVERFLOW`）、`crt_get_eflags`（4-byte `pushfd; pop eax; cli;
+ret` = Watcom `_disable` primitive）。
+
+per-function 對照表可由 `tools/ail_audit/build_inventory.py` 重新產生（讀
+Ghidra 當前狀態與 call graph）；三向誤分類 audit（正向 xref-source / 反向
+caller-set / orphan disasm 三道交叉驗證）的 reusable script 與分類偵測規則
+寫在 `tools/ail_audit/`（見該目錄 `_index.md`）。
+
 ## AIL 函式辨識方式
 
 每個 **AIL 公開 entry-point** 啟動時會走 `AIL_DEBUG` flag 檢查並印出如
@@ -17,24 +42,22 @@ FD2 自身直接呼叫的 AIL entry-point 有 46 個（FD2 game-logic 端的 cal
 的 logged entry，全部以「`fprintf(log, "AIL_xxx(...)\n", ...)` + 呼叫
 `AIL_xxx_inner` 實作 + decrement nesting」三段式組成（透過 fprintf format
 string 自動命名）。AIL 內部 helper（vendor 自己的私有 worker function、ISR
-相關、format-specific mixer routine 等）沒有 debug printf 字串，得靠 callees /
-data ref / 結構推敲命名 — 共約 93 個經人工命名 + 約 38 個以
-`AIL_helper_<addr>` / `AIL_<callee>_helper_<addr>` 命名為 best-effort
-placeholder，行為說明寫在各 function 的 plate comment。
+相關、format-specific mixer routine 等）沒有 debug printf 字串，命名依
+callees / data ref / 結構推敲決定，全部完整命名為 `AIL_internal_<descriptor>`
+或 `AIL_internal_<X>_inner` — 不留 `_helper_<addr>` 形式的 placeholder。
 
 剩餘 dead-code stub function（Ghidra 把它們切成獨立 function 並命名，但無 caller）：
 `AIL_resume_sample @ 0x39522` / `AIL_set_sequence_tempo @ 0x3AD52`。另兩個
-完全沒 caller 也沒 xref 的 driver dispatch trampoline 屬 best-effort
-placeholder helper：`AIL_driver_call_helper_3fe6b @ 0x3FE6B`（`AIL_call_driver(drv, 0x401)`
-配 `flag[0x15]: 0→1`）與 `AIL_driver_call_helper_3feb3 @ 0x3FEB3`
-（`AIL_call_driver(drv, 0x402)` 配 `flag[0x15]: 1→0`）構成 start/stop pair，
-linker 從 AIL3DIG/AIL3MDI 帶入但 binary 從未引用。emit
-pipeline 連結 Watcom AIL 後對 binary 影響為 0。另有 57 個 function-name 字串
-沒被任何 code site 引用（dead code，linker 帶入但 printf 整個被 elide），
-以及 2 個字串引用點落在已命名 AIL function 的 fall-through dead-code 區段：
-`AIL_resume_sample` 字串 @ 0x508A8 引用點 0x3956C 位於 `AIL_stop_sample @ 0x394B5`
-body 內，`AIL_set_sequence_tempo` 字串 @ 0x50CE8 引用點 0x3ADA7 位於
-`AIL_end_sequence @ 0x3ACE5` body 內。
+完全沒 caller 也沒 xref 的 driver dispatch trampoline 構成 start/stop pair：
+`AIL_internal_driver_start_output_3fe6b @ 0x3FE6B`（`AIL_call_driver(drv, 0x401)`
+配 `drv->state[0x15]: 0→1`）與 `AIL_internal_driver_stop_output_3feb3 @ 0x3FEB3`
+（`AIL_call_driver(drv, 0x402)` 配 `drv->state[0x15]: 1→0`），linker 從
+AIL3DIG/AIL3MDI 帶入但 binary 從未引用。emit pipeline 連結 Watcom AIL 後對
+binary 影響為 0。另有 57 個 function-name 字串沒被任何 code site 引用（dead code，
+linker 帶入但 printf 整個被 elide），以及 2 個字串引用點落在已命名 AIL function
+的 fall-through dead-code 區段：`AIL_resume_sample` 字串 @ 0x508A8 引用點
+0x3956C 位於 `AIL_stop_sample @ 0x394B5` body 內，`AIL_set_sequence_tempo` 字串
+@ 0x50CE8 引用點 0x3ADA7 位於 `AIL_end_sequence @ 0x3ACE5` body 內。
 
 每個 entry-point 命名都透過 `FUN_0003f11b(..., "AIL_xxx(...)\n", ...)` debug
 printf 親自驗證；當函式 body 含多個 AIL 字串引用時，**以 entry-point 第一條

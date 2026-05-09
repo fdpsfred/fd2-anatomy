@@ -6,11 +6,23 @@
     "total_input": 131,
     "auto_pass": 102,
     "conflict_resolved": 3,
-    "manual_pass": 35,
+    "manual_pass": 36,
     "rejected": 3,
-    "in_lookup": 140
+    "in_lookup": 141
   },
   "by_address": {
+    "00036cd0": {
+      "name": "L$1_stk_save_ss",
+      "current_name": "L$1_stk_save_ss",
+      "body_size": 7,
+      "source_obj": "71a26af32e1b_stk.obj",
+      "verified": "manual",
+      "aliases": [
+        "L$1"
+      ],
+      "score": 0.0,
+      "notes": "Static helper at offset 0 of stk.obj; captures SS to L$3 for __STK comparison"
+    },
     "00036cd7": {
       "name": "__CHK",
       "current_name": "crt_frame_setup",
@@ -20,6 +32,16 @@
       "verified": "manual",
       "aliases": []
     },
+    "00036ce7": {
+      "name": "__GRO",
+      "current_name": "__GRO",
+      "score": 0.0,
+      "body_size": 3,
+      "source_obj": "71a26af32e1b_stk.obj",
+      "verified": "manual",
+      "aliases": [],
+      "notes": "Watcom 9.5a stk.obj 3rd PUBDEF — single RET 0x4 instruction; positioned between __CHK and __STK."
+    },
     "00036cea": {
       "name": "__STK",
       "current_name": "crt_check_stack_overflow_inner",
@@ -28,6 +50,15 @@
       "source_obj": "71a26af32e1b_stk.obj",
       "verified": "manual",
       "aliases": []
+    },
+    "00036d07": {
+      "name": "__STKOVERFLOW",
+      "current_name": "__STKOVERFLOW",
+      "body_size": 15,
+      "source_obj": "71a26af32e1b_stk.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0
     },
     "00036d16": {
       "name": "malloc",
@@ -64,6 +95,24 @@
       "source_obj": "23990787aee2_printf.obj",
       "verified": "conflict_resolved",
       "aliases": []
+    },
+    "00036de4": {
+      "name": "exit",
+      "current_name": "exit",
+      "body_size": 18,
+      "source_obj": "93ce9e3ff4ac_exit.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0
+    },
+    "00036df6": {
+      "name": "_exit",
+      "current_name": "_exit",
+      "body_size": 23,
+      "source_obj": "93ce9e3ff4ac_exit.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0
     },
     "00036e0d": {
       "name": "__open_flags",
@@ -221,6 +270,18 @@
       "verified": "manual",
       "aliases": []
     },
+    "000377c3": {
+      "name": "L$1_sprintf_put_char",
+      "current_name": "L$1_sprintf_put_char",
+      "body_size": 22,
+      "source_obj": "aade3259b5a5_sprintf.obj",
+      "verified": "manual",
+      "aliases": [
+        "L$1"
+      ],
+      "score": 0.0,
+      "notes": "Static helper at offset 0 of sprintf.obj; writes one byte to buffer struct {head_ptr@+0, count@+0x10} — sprintf passes &this as __prtf char-emit callback. Byte-level verified against aade3259b5a5_sprintf.obj segment offset 0..21 (22 bytes, 0 FIXUPP positions)."
+    },
     "000377d9": {
       "name": "sprintf",
       "current_name": "sprintf",
@@ -247,6 +308,18 @@
       "source_obj": "5d91ab104c50_getch.obj",
       "verified": "manual",
       "aliases": []
+    },
+    "0003c927": {
+      "name": "L$1_rand_seed_ptr",
+      "current_name": "L$1_rand_seed_ptr",
+      "body_size": 6,
+      "source_obj": "e64bae7e23f3_rand.obj",
+      "verified": "manual",
+      "aliases": [
+        "L$1"
+      ],
+      "score": 0.0,
+      "notes": "Static helper at offset 0 of rand.obj; returns &_RandSeed"
     },
     "0003c92d": {
       "name": "rand",
@@ -428,6 +501,24 @@
       "verified": "auto_threshold",
       "aliases": []
     },
+    "0003d7f6": {
+      "name": "__get_errno_ptr",
+      "current_name": "__get_errno_ptr",
+      "body_size": 6,
+      "source_obj": "046c7fbb59e1_errno.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0
+    },
+    "0003d7fc": {
+      "name": "__get_doserrno_ptr",
+      "current_name": "__get_doserrno_ptr",
+      "body_size": 6,
+      "source_obj": "046c7fbb59e1_errno.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0
+    },
     "0003d802": {
       "name": "__allocfp",
       "current_name": "crt_alloc_file_entry",
@@ -508,6 +599,15 @@
       "source_obj": "0b3778e9e319_fgetc.obj",
       "verified": "auto_threshold",
       "aliases": []
+    },
+    "0003db10": {
+      "name": "getpid",
+      "current_name": "getpid",
+      "body_size": 6,
+      "source_obj": "0afbbbd060a4_getpid.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0
     },
     "0003db16": {
       "name": "__flush",
@@ -653,6 +753,18 @@
       "verified": "auto_threshold",
       "aliases": []
     },
+    "0003fbfa": {
+      "name": "L$1_asctime_fmt2",
+      "current_name": "L$1_asctime_fmt2",
+      "body_size": 65,
+      "source_obj": "6c41bff3293c_asctime.obj",
+      "verified": "manual",
+      "aliases": [
+        "L$1"
+      ],
+      "score": 0.0,
+      "notes": "Static helper at offset 0 of asctime.obj; formats two decimal digits at buffer position"
+    },
     "0003fc3b": {
       "name": "_asctime",
       "current_name": "asctime",
@@ -797,6 +909,15 @@
       "verified": "auto_threshold",
       "aliases": []
     },
+    "000463bc": {
+      "name": "stackavail",
+      "current_name": "stackavail",
+      "body_size": 9,
+      "source_obj": "64e136f79228_stack386.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0
+    },
     "000463c5": {
       "name": "_heapenable",
       "current_name": "crt_helper_463c5",
@@ -859,6 +980,15 @@
       "source_obj": "aa0b826f7c04_ioexit.obj",
       "verified": "manual",
       "aliases": []
+    },
+    "0004694c": {
+      "name": "fcloseall",
+      "current_name": "fcloseall",
+      "body_size": 89,
+      "source_obj": "aa0b826f7c04_ioexit.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0
     },
     "000469b0": {
       "name": "__flushall",
@@ -1076,6 +1206,15 @@
       "verified": "manual",
       "aliases": []
     },
+    "0004977d": {
+      "name": "__CommonInit",
+      "current_name": "__CommonInit",
+      "body_size": 11,
+      "source_obj": "396ee5d8b8ff_cinit.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0
+    },
     "00049788": {
       "name": "_EFG_Format",
       "current_name": "_EFG_Format",
@@ -1156,138 +1295,12 @@
       "source_obj": "904423069b96_amodf.obj",
       "verified": "auto_threshold",
       "aliases": []
-    },
-    "00036d07": {
-      "name": "__STKOVERFLOW",
-      "current_name": "__STKOVERFLOW",
-      "body_size": 15,
-      "source_obj": "71a26af32e1b_stk.obj",
-      "verified": "manual",
-      "aliases": [],
-      "score": 0.0
-    },
-    "000463bc": {
-      "name": "stackavail",
-      "current_name": "stackavail",
-      "body_size": 9,
-      "source_obj": "64e136f79228_stack386.obj",
-      "verified": "manual",
-      "aliases": [],
-      "score": 0.0
-    },
-    "0003db10": {
-      "name": "getpid",
-      "current_name": "getpid",
-      "body_size": 6,
-      "source_obj": "0afbbbd060a4_getpid.obj",
-      "verified": "manual",
-      "aliases": [],
-      "score": 0.0
-    },
-    "0004977d": {
-      "name": "__CommonInit",
-      "current_name": "__CommonInit",
-      "body_size": 11,
-      "source_obj": "396ee5d8b8ff_cinit.obj",
-      "verified": "manual",
-      "aliases": [],
-      "score": 0.0
-    },
-    "0003d7f6": {
-      "name": "__get_errno_ptr",
-      "current_name": "__get_errno_ptr",
-      "body_size": 6,
-      "source_obj": "046c7fbb59e1_errno.obj",
-      "verified": "manual",
-      "aliases": [],
-      "score": 0.0
-    },
-    "0003d7fc": {
-      "name": "__get_doserrno_ptr",
-      "current_name": "__get_doserrno_ptr",
-      "body_size": 6,
-      "source_obj": "046c7fbb59e1_errno.obj",
-      "verified": "manual",
-      "aliases": [],
-      "score": 0.0
-    },
-    "00036df6": {
-      "name": "_exit",
-      "current_name": "_exit",
-      "body_size": 23,
-      "source_obj": "93ce9e3ff4ac_exit.obj",
-      "verified": "manual",
-      "aliases": [],
-      "score": 0.0
-    },
-    "0004694c": {
-      "name": "fcloseall",
-      "current_name": "fcloseall",
-      "body_size": 89,
-      "source_obj": "aa0b826f7c04_ioexit.obj",
-      "verified": "manual",
-      "aliases": [],
-      "score": 0.0
-    },
-    "00036cd0": {
-      "name": "L$1_stk_save_ss",
-      "current_name": "L$1_stk_save_ss",
-      "body_size": 7,
-      "source_obj": "71a26af32e1b_stk.obj",
-      "verified": "manual",
-      "aliases": [
-        "L$1"
-      ],
-      "score": 0.0,
-      "notes": "Static helper at offset 0 of stk.obj; captures SS to L$3 for __STK comparison"
-    },
-    "0003c927": {
-      "name": "L$1_rand_seed_ptr",
-      "current_name": "L$1_rand_seed_ptr",
-      "body_size": 6,
-      "source_obj": "e64bae7e23f3_rand.obj",
-      "verified": "manual",
-      "aliases": [
-        "L$1"
-      ],
-      "score": 0.0,
-      "notes": "Static helper at offset 0 of rand.obj; returns &_RandSeed"
-    },
-    "0003fbfa": {
-      "name": "L$1_asctime_fmt2",
-      "current_name": "L$1_asctime_fmt2",
-      "body_size": 65,
-      "source_obj": "6c41bff3293c_asctime.obj",
-      "verified": "manual",
-      "aliases": [
-        "L$1"
-      ],
-      "score": 0.0,
-      "notes": "Static helper at offset 0 of asctime.obj; formats two decimal digits at buffer position"
-    },
-    "00036de4": {
-      "name": "exit",
-      "current_name": "exit",
-      "body_size": 18,
-      "source_obj": "93ce9e3ff4ac_exit.obj",
-      "verified": "manual",
-      "aliases": [],
-      "score": 0.0
-    },
-    "00036ce7": {
-      "name": "__GRO",
-      "current_name": "__GRO",
-      "score": 0.0,
-      "body_size": 3,
-      "source_obj": "71a26af32e1b_stk.obj",
-      "verified": "manual",
-      "aliases": [],
-      "notes": "Watcom 9.5a stk.obj 3rd PUBDEF \u2014 single RET 0x4 instruction; positioned between __CHK and __STK."
     }
   },
   "by_name": {
     "L$1": [
       "00036cd0",
+      "000377c3",
       "0003c927",
       "0003fbfa"
     ],
@@ -1713,6 +1726,9 @@
     ],
     "write": [
       "0003d095"
+    ],
+    "L$1_sprintf_put_char": [
+      "000377c3"
     ]
   }
 }
