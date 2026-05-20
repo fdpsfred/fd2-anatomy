@@ -9,8 +9,8 @@
 | Init | `chapter_03_init @ 0x00032E8C` | 324 B |
 | End | `chapter_03_end @ 0x000230F2` | 214 B |
 | Post-action | `check_battle_end_default_handler @ 0x000205B4` | (default — 無自訂勝負) |
-| BGM (player turn) | `per_chapter_player_turn_bgm[2]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[2]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[2]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[2]` |  |
 
 ## Init handler 階段
 
@@ -42,18 +42,18 @@ End handler 條件式 `init_runtime_char_from_base_growth(2)` → 鐵諾加入�
 
 - Init: `0x11, 0x12, 0x13` (3 events)
 
-每 event 對應 `cutscene_event_script_table[event_id]` 的 walk-animation script。
+每 event 對應 `data_fd2_chapter_cutscene_event_script_ptr_table_106[event_id]` 的 walk-animation script。
 
 ## Post-action handler
 
-`per_chapter_post_action_handler[2]` 指向 `check_battle_end_default_handler`，
+`data_fd2_chapter_post_action_handler_table[2]` 指向 `check_battle_end_default_handler`，
 無自訂勝負條件：所有 team-0 死 → win，索爾 (char_id 0) 死 → lose。
 
 ## End handler events
 
 `chapter_03_end @ 0x000230F2` (214 B)：
 
-1. 從 `chapter_03_end_scene_pos_x_table` / `pos_y_table` / `facing_table` (各 8 entries @ 0x520BD/0x520C4/0x520CB) 讀 4 entries → local recruit_block × 3
+1. 從 `data_fd2_chapter_ch03_end_scene_char_pos_x_table` / `pos_y_table` / `facing_table` (各 8 entries @ 0x520BD/0x520C4/0x520CB) 讀 4 entries → local recruit_block × 3
 2. `save_runtime_char_to_template`
 3. **Conditional**：`check_char_is_dead(6)`
    - 若 char[6] 活著 → `setup_chars_and_camera_for_intro(...)` + `display_dialog_scene(page=7)` +

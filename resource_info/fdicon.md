@@ -45,7 +45,7 @@ monotonic non-decreasing。
 
 24×24 tile sprite 1680 個不直接對應 char_id：
 - player char_id 0..0x43 (68 IDs)
-- enemy_data_table 68 entries (0x44+)
+- data_fd2_battle_enemy_data_table 68 entries (0x44+)
 - 總 char namespace ~154
 
 1680 likely 對應：

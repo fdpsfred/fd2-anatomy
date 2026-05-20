@@ -1,0 +1,155 @@
+{
+  "_comment": "Phase D observations for the 18 score<20 entries. Now augmented with `callers` (gathered via Ghidra MCP get_function_callers) to support caller-aware rule discrimination — primarily for the `__nmemneed` hash-identical family of 7-byte XOR-RET stubs. 0x4d8ea was previously accepted as a real __nmemneed but caller analysis showed its only inbound chain comes from crt_signal_handler_print via a JMP thunk (signal subsystem path, not heap allocator path); rejected as false positive in the post-Phase-D revision.",
+
+  "000353cc": {
+    "callees": ["delay_unrelated@0x375b2"],
+    "callers": ["cinematic_chapter_portrait_dump_with_white_flash"],
+    "asm": "000353cc: PUSH 0x190\n000353d1: CALL 0x000375b2\n000353d6: ADD ESP,0x4\n000353d9: RET",
+    "key_instructions": "PUSH 0x190 (=400); CALL 0x375b2 (a delay function, NOT fgetc); ADD ESP,0x4; RET",
+    "notes": "Game-side delay(400ms) wrapper for cinematic chapter portrait flash effect. Single caller is a game cinematic function — no CRT pathway. Watcom fgetchar would be `return fgetc(stdin)` and would be called from user main loop or other stdio.",
+    "manual_verdict": "REJECT",
+    "manual_reason": "Calls a delay function with arg 400ms; no FILE/_iob touch, no fgetc call. Caller is game cinematic logic, not stdio. Behavior fundamentally inconsistent with matched_name."
+  },
+
+  "00036cd7": {
+    "callees": ["__STK"],
+    "callers": ["add_item_to_inventory", "ai_advance_to_nearest_team_target", "ai_pass_turn_with_heal", "ai_score_item_use", "ai_score_offensive_spell", "ai_score_physical_attack", "...100+ game funcs (compiler-inserted stack-check at every prologue needing >4K stack)"],
+    "asm": "00036cd7: XCHG dword ptr [ESP + 0x4],EAX\n00036cdb: CALL 0x00036cea\n00036ce0: MOV EAX,dword ptr [ESP + 0x4]\n00036ce4: RET 0x4",
+    "key_instructions": "XCHG saves caller's EAX onto stack then loads stack-need into EAX; CALL __STK to probe; restore EAX; RET 0x4",
+    "notes": "Watcom __CHK entry stub. The very large caller list (100+) is exactly the expected pattern: Watcom compiler emits a CALL __CHK at the prologue of every function whose frame would touch beyond a single guard page. body 16 fits."
+  },
+
+  "00036cea": {
+    "callees": [],
+    "callers": ["__CHK"],
+    "asm": "00036cea: CMP EAX,ESP\n00036cec: JNC 0x00036cfb\n00036cee: SUB EAX,ESP\n00036cf0: NEG EAX\n00036cf2: CMP EAX,dword ptr [0x00052814]\n00036cf8: JBE 0x00036cfb\n00036cfa: RET\n00036cfb: MOV AX,SS\n00036cfd: CMP AX,word ptr [0x00052794]\n00036d04: JZ 0x00036d07\n00036d06: RET",
+    "key_instructions": "Compare requested stack size (EAX) vs current ESP. If overflow risk, compare against stack-limit global at 0x52814 and selector at 0x52794. Pure leaf, no callees.",
+    "notes": "Standard Watcom __STK: probes that EAX bytes can be allocated on the stack. Sole caller is __CHK — exactly the expected entry-point pair. body 29 fits."
+  },
+
+  "00037046": {
+    "callees": ["fopen_open_helper@0x36ebc", "fopen_inner@0x36fe1"],
+    "callers": [],
+    "asm": "00037046: PUSH EBP\n00037047: MOV EBP,ESP\n00037049: PUSH dword ptr [EBP + 0x10]\n0003704c: CALL 0x00036fe1\n00037051: ADD ESP,0x4\n00037054: TEST EAX,EAX\n00037056: JZ 0x00037070\n00037058: PUSH EAX\n00037059: PUSH 0x0\n0003705b: PUSH dword ptr [EBP + 0xc]\n0003705e: PUSH dword ptr [EBP + 0x8]\n00037061: AND dword ptr [EAX + 0xc],0x4000\n00037068: CALL 0x00036ebc\n0003706d: ADD ESP,0x10\n00037070: POP EBP\n00037071: RET",
+    "key_instructions": "3-arg cdecl freopen(filename, mode, fp): PUSH fp; CALL shutdown helper (returns FILE*); if non-null, AND clear flag bits; PUSH (fp, 0, mode, filename); CALL fopen helper",
+    "notes": "Standard freopen. Body 44 fits expected. No callers in FD2 — game does not call freopen, but it's still pulled into the binary by transitive dependency from fclose/fopen helpers. Behavior matches Watcom freopen pattern."
+  },
+
+  "000375e2": {
+    "callees": [],
+    "callers": ["ai_advance_to_nearest_team_target", "ai_walk_to_target_tile", "check_can_counter_attack", "check_can_default_attack_target", "compute_aoe_targets", "face_char_toward_target", "init_runtime_char_for_battle", "render_circle_anim_row", "render_signed_modifier_with_icon", "scan_chars_within_manhattan_range"],
+    "asm": "000375e2: PUSH EBP\n000375e3: MOV EBP,ESP\n000375e5: MOV EAX,dword ptr [EBP + 0x8]\n000375e8: TEST EAX,EAX\n000375ea: JGE 0x000375ee\n000375ec: NEG EAX\n000375ee: POP EBP\n000375ef: RET",
+    "key_instructions": "Load arg into EAX; TEST sign; if negative NEG EAX; return |x|",
+    "notes": "Classic abs/labs (32-bit equivalent on Watcom 386). All 10 callers are game-side functions computing absolute distances (Manhattan distance, signed deltas, modifier display). Caller pattern is consistent with abs(x)."
+  },
+
+  "00037795": {
+    "callees": [],
+    "callers": ["execute_combat_hit_cinematic", "interpolate_palette_range_toward_color", "play_figani_animation_loop", "play_pc_speaker_beep_pattern", "set_full_vga_palette_to_color", "set_vga_palette_range", "set_vga_palette_range_with_add"],
+    "asm": "00037795: PUSH EBP\n00037796: MOV EBP,ESP\n00037798: MOV EDX,dword ptr [EBP + 0x8]\n0003779b: MOV AL,byte ptr [EBP + 0xc]\n0003779e: OUT DX,AL\n0003779f: POP EBP\n000377a0: RET",
+    "key_instructions": "EDX = port (arg1), AL = value (arg2 byte); OUT DX,AL writes byte to I/O port",
+    "notes": "Standard outp(port, value). 7 callers all write to VGA (palette / DAC) and PC speaker ports — exact use case for outp(). body 12 fits."
+  },
+
+  "00037821": {
+    "callees": [],
+    "callers": ["debug_print_ans_and_length"],
+    "asm": "00037821: MOV EAX,[0x00052824]\n00037826: MOV dword ptr [0x00052824],0x0\n00037830: TEST EAX,EAX\n00037832: JNZ 0x0003783b\n00037834: MOV AH,0x8\n00037836: INT 0x21\n00037838: MOVZX EAX,AL\n0003783b: RET",
+    "key_instructions": "Load and clear stashed-char global at 0x52824 (used by ungetch); if non-zero, return it; else INT 21h AH=0x08 (DOS get char without echo) and zero-extend AL",
+    "notes": "Watcom getch with ungetch buffer. Single caller is debug_print_ans_and_length — debug pause path. INT 21h AH=0x08 + ungetch stash buffer is a perfect getch signature."
+  },
+
+  "0003c92d": {
+    "callees": ["rand_seed_ptr@0x3c927"],
+    "callers": ["fd2_main"],
+    "asm": "0003c92d: CALL 0x0003c927\n0003c932: TEST EAX,EAX\n0003c934: JZ 0x0003c94e\n0003c936: IMUL EDX,dword ptr [EAX],0x41c64e6d\n0003c93c: ADD EDX,0x3039\n0003c942: MOV dword ptr [EAX],EDX\n0003c944: MOV EAX,EDX\n0003c946: SHR EAX,0x10\n0003c949: AND EAX,0x7fff\n0003c94e: RET",
+    "key_instructions": "CALL seed-pointer getter; if non-null, IMUL by 0x41c64e6d (BSD multiplier), ADD 0x3039 (BSD increment); store new seed; return (seed>>16) & 0x7FFF",
+    "notes": "Classic BSD/POSIX rand LCG. Single caller fd2_main suggests game uses its own RNG wrapper for in-game random and only calls rand() once (likely seed init / sanity test). LCG constants 0x41c64e6d/0x3039 are conclusive."
+  },
+
+  "0003c94f": {
+    "callees": ["rand_seed_ptr@0x3c927"],
+    "callers": [],
+    "asm": "0003c94f: PUSH EBP\n0003c950: MOV EBP,ESP\n0003c952: CALL 0x0003c927\n0003c957: TEST EAX,EAX\n0003c959: JZ 0x0003c960\n0003c95b: MOV EDX,dword ptr [EBP + 0x8]\n0003c95e: MOV dword ptr [EAX],EDX\n0003c960: POP EBP\n0003c961: RET",
+    "key_instructions": "CALL seed-pointer getter; if non-null, store arg into seed",
+    "notes": "Standard srand(seed) via seed-pointer thunk. No callers — game probably writes directly to seed global or uses its own RNG. Body matches srand pattern exactly."
+  },
+
+  "0003d8ca": {
+    "callees": ["free"],
+    "callers": ["__full_io_exit"],
+    "asm": "0003d8ca: PUSH EBX\n0003d8cb: CMP dword ptr [0x000541a0],0x0\n0003d8d2: JZ 0x0003d8c8\n0003d8d4: MOV EAX,[0x000541a0]\n0003d8d9: PUSH EAX\n0003d8da: MOV EBX,dword ptr [EAX]\n0003d8dc: CALL 0x00037416\n0003d8e1: ADD ESP,0x4\n0003d8e4: MOV dword ptr [0x000541a0],EBX\n0003d8ea: JMP 0x0003d8cb",
+    "key_instructions": "Loop: CMP __ClosedStreams (0x541a0) head; if NULL exit; else free head and advance head pointer",
+    "notes": "Loops over the __ClosedStreams linked list at 0x541a0 (per crt_globals_map.json) and frees each node. Sole caller __full_io_exit — exact expected callsite. body 34 fits."
+  },
+
+  "0003fd63": {
+    "callees": ["localtime", "asctime"],
+    "callers": [],
+    "asm": "0003fd63: PUSH EBP\n0003fd64: MOV EBP,ESP\n0003fd66: PUSH dword ptr [EBP + 0x8]\n0003fd69: CALL 0x0003fbe5\n0003fd6e: ADD ESP,0x4\n0003fd71: PUSH EAX\n0003fd72: CALL 0x0003fd2b\n0003fd77: ADD ESP,0x4\n0003fd7a: POP EBP\n0003fd7b: RET",
+    "key_instructions": "PUSH t arg; CALL localtime; PUSH result; CALL asctime; return its result",
+    "notes": "Standard ctime(t) = asctime(localtime(t)). No callers — game does not use ctime; pulled in by transitive dependency on time helpers. body 25 fits."
+  },
+
+  "000462d1": {
+    "callees": ["__get_errno_ptr@0x3d7f6"],
+    "callers": [],
+    "asm": "000462d1: CALL 0x0003d7f6\n000462d6: MOV dword ptr [EAX],0x9\n000462dc: MOV EAX,0xffffffff\n000462e1: RET",
+    "key_instructions": "CALL __get_errno_ptr; STORE 0x9 (= EBADF in Watcom errno.h); return -1",
+    "notes": "This is the __EBADF helper, NOT __EINVAL. Watcom errno.h defines EBADF=9 and EINVAL=22 (0x16). FidDb labelled it __EINVAL because the family of set-errno helpers in dosret.obj all hash to identical bytes (the immediate is masked).",
+    "manual_verdict": "REJECT",
+    "manual_reason": "Function sets errno=9 (EBADF), but matched_name is __EINVAL (would store 0x16). Behavior matches __EBADF in the same dosret.obj family. Mislabeled by FidDb due to imm32-masking."
+  },
+
+  "000463c5": {
+    "callees": [],
+    "callers": [],
+    "asm": "000463c5: PUSH EBP\n000463c6: MOV EBP,ESP\n000463c8: MOV EDX,dword ptr [EBP + 0x8]\n000463cb: MOV EAX,[0x000537ec]\n000463d0: MOV dword ptr [0x000537ec],EDX\n000463d6: POP EBP\n000463d7: RET",
+    "key_instructions": "Load arg into EDX; load old global at 0x537ec into EAX; store new value; return old",
+    "notes": "Standard _heapenable(int) swap-and-return. No callers — game does not toggle heap-enable. Body matches signature exactly."
+  },
+
+  "0004693d": {
+    "callees": ["close_streams_helper@0x46957", "__purgefp"],
+    "callers": [],
+    "asm": "0004693d: PUSH 0x0\n0004693f: CALL 0x00046957\n00046944: ADD ESP,0x4\n00046947: JMP 0x0003d8ca",
+    "key_instructions": "PUSH 0 (full-mode); CALL close-streams helper; JMP (tail-call) __purgefp",
+    "notes": "Watcom __full_io_exit: closes all streams (mode 0) then tail-calls __purgefp. No direct callers because it's invoked via atexit/exit indirection (exit handler table), not direct CALL."
+  },
+
+  "0004694c": {
+    "callees": ["close_streams_helper@0x46957"],
+    "callers": [],
+    "asm": "0004694c: PUSH 0x5\n0004694e: CALL 0x00046957\n00046953: ADD ESP,0x4\n00046956: RET",
+    "key_instructions": "PUSH 5 (some flags mask); CALL close-streams helper; RET",
+    "notes": "Body 11 with score 4.34 (lowest cluster). Thin wrapper that calls 0x46957 with arg 5. Standard Watcom fcloseall iterates _iob[] and fcloses each open stream (50+ bytes). No iteration here, no _iob field touch. Per crt_fid_match.md §8.3 doc author independently flagged false positive.",
+    "manual_verdict": "REJECT",
+    "manual_reason": "Body 11 bytes too small for fcloseall's expected _iob[] loop. No iteration, no _iob field access. Generic 'PUSH imm + CALL helper' pattern that hashes weakly (4.34) to fcloseall's signature."
+  },
+
+  "00046bea": {
+    "callees": [],
+    "callers": ["crt_parse_int_with_base", "crt_strupr"],
+    "asm": "00046bea: PUSH EBP\n00046beb: MOV EBP,ESP\n00046bed: MOV EAX,dword ptr [EBP + 0x8]\n00046bf0: CMP EAX,0x61\n00046bf3: JL 0x00046bfd\n00046bf5: CMP EAX,0x7a\n00046bf8: JG 0x00046bfd\n00046bfa: SUB EAX,0x20\n00046bfd: POP EBP\n00046bfe: RET",
+    "key_instructions": "If 'a' (0x61) <= c <= 'z' (0x7a), SUB EAX,0x20 (fold to upper); else passthrough",
+    "notes": "Standard ASCII toupper. Both callers (crt_parse_int_with_base, crt_strupr) are CRT-pathway uses of toupper for case folding. body 21 fits."
+  },
+
+  "00049d98": {
+    "callees": ["softfp_dispatch@0x49db4"],
+    "callers": [],
+    "asm": "00049d98: STI\n00049d99: SUB ESP,0xc\n00049d9c: PUSHAD\n00049d9d: PUSH ES\n00049d9e: PUSH DS\n00049d9f: MOV word ptr [ESP + 0x2],SS\n00049da3: ADD dword ptr [ESP + 0x14],0x18\n00049da8: CALL 0x00049db4\n00049dad: POP DS\n00049dae: POP ES\n00049daf: POPAD\n00049db0: ADD ESP,0xc\n00049db3: IRETD",
+    "key_instructions": "STI; reserve frame; PUSHAD + segment regs; fix saved EAX; CALL dispatcher; restore; IRETD",
+    "notes": "x87 emulator INT 7 (FPU device-not-available) handler. Standard Watcom EMU387.LIB structure. No direct callers — invoked via DOS interrupt vector (int 7), set up at startup by __hook387. IRETD epilogue is conclusive."
+  },
+
+  "0004d8ea": {
+    "callees": [],
+    "callers": [],
+    "asm": "0004d8ea: PUSH EBP\n0004d8eb: MOV EBP,ESP\n0004d8ed: XOR EAX,EAX\n0004d8ef: POP EBP\n0004d8f0: RET",
+    "key_instructions": "PUSH EBP / MOV EBP,ESP / XOR EAX,EAX / POP EBP / RET — return 0",
+    "notes": "Body byte-identical to 0x3d6f2 (the real __nmemneed). FidDb hash family contains every CLIB3S 7-byte XOR-RET stub (signal default, nmemneed default, etc.) since they're literally the same bytes. Caller analysis is the discriminator: 0x3d6f2 is called directly by `_nmalloc` (heap path); 0x4d8ea has no direct caller — only an UNCONDITIONAL_JUMP from `0x4d340` which is itself called by `crt_signal_handler_print` (signal subsystem path). This entry is a different default-zero stub in the signal subsystem, not __nmemneed.",
+    "manual_verdict": "REJECT",
+    "manual_reason": "Caller analysis: 0x4d8ea reached only via JMP from 0x4d340 -> crt_signal_handler_print (signal subsystem), not from _nmalloc / heap allocator path. Real __nmemneed (0x3d6f2) IS called by _nmalloc. Same byte pattern, different role. Renamed in Ghidra to noop_stub_4d8ea_zero to match its sibling thunk noop_stub_4d340_zero."
+  }
+}

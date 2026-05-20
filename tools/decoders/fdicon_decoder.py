@@ -21,8 +21,9 @@ import sys
 from pathlib import Path
 
 # tools/decoders/fdicon_decoder.py -> decoders -> tools -> fd2_reverse
-REPO_ROOT = Path(__file__).resolve().parents[4]
-FDICON_PATH = REPO_ROOT / "FDICON.B24"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+FDICON_PATH = REPO_ROOT / "fd2_game_files" / "FDICON.B24"
+DEFAULT_OUT_DIR = REPO_ROOT / "workspace" / "decoders" / "fdicon"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from rle_decoder import rle_decode  # noqa: E402
@@ -101,8 +102,9 @@ def main() -> int:
                    help="decode one icon by idx")
     g.add_argument("--samples", type=str,
                    help="decode comma-separated idx list, e.g. '0,1,2,840,1679'")
-    p.add_argument("--out-dir", type=Path,
-                   help="directory to write atlas PGM")
+    p.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR,
+                   help="directory to write atlas PGM. "
+                   f"default: workspace/decoders/fdicon")
     args = p.parse_args()
     if args.info:
         return cmd_info()

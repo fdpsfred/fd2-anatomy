@@ -16,7 +16,7 @@ phase) 三元組，`event_code` 索引到一張 90-entry function pointer table�
 
 ## Dispatch table @ 0x51B91
 
-`ai_post_action_consequence_table @ 0x51B91`：90 entries (idx 0x00..0x59)，
+`data_fd2_battle_ai_post_action_consequence_table @ 0x51B91`：90 entries (idx 0x00..0x59)，
 4-byte LE function pointer，指向 .text `0x34000-0x36100` 範圍內的
 `chapter_event_handler_*` 函數。**雙重用途**：FDFIELD chapter event hook
 與 AI post-action consequence 共用同一張表。
@@ -68,14 +68,14 @@ phase 1/0 fire (沒有「上一回合 end」)，但有 phase 2 fire
 
 ```c
 struct tile_step_event_hook {
-    uint8_t consequence_idx;   // event_code 索引到 ai_post_action_consequence_table
+    uint8_t consequence_idx;   // event_code 索引到 data_fd2_battle_ai_post_action_consequence_table
     uint8_t event_type;        // 觸發 context 過濾 (0/1/2 對應 post-walk/post-attack/etc.)
 };
 ```
 
 機制：char 移動到一個有 `tile_event_id != 0` 的 tile 時，`check_tile_event_post_action`
-查表後設 `ai_post_action_consequence_idx`，下一 phase loop iteration 觸發
-`ai_post_action_consequence_table[consequence_idx]()`。
+查表後設 `data_fd2_battle_ai_post_action_consequence_idx`，下一 phase loop iteration 觸發
+`data_fd2_battle_ai_post_action_consequence_table[consequence_idx]()`。
 
 30 章 `+0x33..+0x52` 觀察：
 - ch1-6 / 8-12 / 15-24：全 sentinel (`FF 00`) — 無 tile-step events
@@ -96,7 +96,7 @@ ch27 / 28 / 29 / 30 的「turn=0xFF 但 event_code 非 0xFF」entries 是動態�
 
 ```
 1. char (典型為主角索爾) 走到 tile_event_id=N 的 tile
-2. check_tile_event_post_action → 派發 ai_post_action_consequence_table[idx]()
+2. check_tile_event_post_action → 派發 data_fd2_battle_ai_post_action_consequence_table[idx]()
 3. handler 內檢查 tile_event_consumed_flags[+0x11] (first-time flag)
 4. 如果 first time，HANDLER 直接 WRITE 到 tile_event_data_table 的 turn-event 區段:
      tile_event_data_table[+3] = save_metadata_block      // turn_event[0].turn = current turn
@@ -233,7 +233,7 @@ ch27 / 28 / 29 / 30 的「turn=0xFF 但 event_code 非 0xFF」entries 是動態�
 
    | category | 數量 | 含義 |
    |---|---|---|
-   | sentinel | 8 | 7-byte 空 stub (`crt_frame_setup` + `RET`)；reserved table slots，沒有實際邏輯。idx 0x49 設 flag[0x12]=1 是唯一含寫入的 sentinel |
+   | sentinel | 8 | 7-byte 空 stub (`__CHK` + `RET`)；reserved table slots，沒有實際邏輯。idx 0x49 設 flag[0x12]=1 是唯一含寫入的 sentinel |
    | state_machine_mutator | 4 | 含 `flag[0x10]++` + `tile_event_data_table +3=save_meta+1` 等 turn-event 動態啟動邏輯；推測為 cut 章節的 dyn-turn-event 觸發 |
    | dialog_with_state | 4 | 純 dialog page + state mutation；推測為 cut dialog branch |
    | drop_dialog | 3 | 含 inventory full / pickup ok 的 dialog；推測為 cut item drop |
@@ -243,7 +243,7 @@ ch27 / 28 / 29 / 30 的「turn=0xFF 但 event_code 非 0xFF」entries 是動態�
    | char_conditional | 1 | check_char_is_dead loop + branch dialog；cut conditional |
    | turn_conditional | 1 | save_metadata<0xF gate + boss kill cinematic；cut turn-gated event |
    | item_pickup | 1 | tile_event_consumed_flags 寫入 + add_item；cut pickup |
-   | ai_setup | 1 | 2× state_change + battle_anim_phase=1；cut AI setup |
+   | ai_setup | 1 | 2× state_change + data_fd2_battle_anim_phase=1；cut AI setup |
 
    **觀察**：cut content 主要集中在 endgame (handler idx ≥ 0x4D) 的 sentinel slots
    — 連續 5 個 sentinel (0x55..0x59) + 散布的 0x49/0x4D/0x4E。這暗示 dispatch 表

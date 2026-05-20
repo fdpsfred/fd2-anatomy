@@ -9,8 +9,8 @@
 | Init | `chapter_02_init @ 0x00032D18` | 402 B |
 | End | `chapter_02_end @ 0x00022F37` | 443 B |
 | Post-action | `chapter_02_post_action @ 0x000206C5` | 自訂 — 額外 lose if 任一 chars[5..10] 死 |
-| BGM (player turn) | `per_chapter_player_turn_bgm[1]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[1]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[1]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[1]` |  |
 
 ## Init handler 階段
 
@@ -47,7 +47,7 @@ End handler 末段 `init_runtime_char_from_base_growth(8)` → 希莉亞加入�
 - Init: `0x09, 0x0A, 0x0B, 0x0C` (4 events)
 - End: `0x0E, 0x0F, 0x10` (3 events)
 
-每 event 對應 `cutscene_event_script_table[event_id]` 的 walk-animation script。
+每 event 對應 `data_fd2_chapter_cutscene_event_script_ptr_table_106[event_id]` 的 walk-animation script。
 
 ## Post-action handler
 

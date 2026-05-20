@@ -9,8 +9,8 @@
 | Init | `chapter_07_init @ 0x00033169` | 176 B |
 | End | `chapter_07_end @ 0x000232E8` | 222 B |
 | Post-action | `check_battle_end_default_handler @ 0x000205B4` | (default) |
-| BGM (player turn) | `per_chapter_player_turn_bgm[6]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[6]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[6]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[6]` |  |
 
 ## Init handler 階段
 
@@ -44,14 +44,14 @@ End handler 條件式 `init_runtime_char_from_base_growth(0xC)` → 凱麗加入
 
 ## Post-action handler
 
-`per_chapter_post_action_handler[6]` 指向 `check_battle_end_default_handler`，
+`data_fd2_chapter_post_action_handler_table[6]` 指向 `check_battle_end_default_handler`，
 無自訂勝負條件。
 
 ## End handler events
 
 `chapter_07_end @ 0x000232E8` (222 B) — double-conditional recruit：
 
-1. 從 `chapter_07_end_scene_pos_x_table` / `pos_y_table` / `facing_table`
+1. 從 `data_fd2_chapter_ch07_end_scene_char_pos_x_table` / `pos_y_table` / `facing_table`
    (@ 0x520E1/0x520EA/0x520F3) 讀 4 chars 位置
 2. `save_runtime_char_to_template`
 3. **Conditional 1**：`tile_event_consumed_flags[0x11] == 1` (某 tile event 已觸發)

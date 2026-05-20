@@ -9,8 +9,8 @@ Init handler 僅 17 B（30 章中最小），戰鬥邏輯全部位於 189 B 的 
 | Init | `chapter_13_init @ 0x0003346B` | 17 B (最小 init) |
 | End | `chapter_13_end @ 0x0002389F` | 61 B |
 | Post-action | `chapter_13_post_action @ 0x00020765` | 189 B (最複雜 non-default) |
-| BGM (player turn) | `per_chapter_player_turn_bgm[12]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[12]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[12]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[12]` |  |
 
 ## Init handler 階段
 

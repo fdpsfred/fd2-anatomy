@@ -1,4 +1,4 @@
-# job_magic_resist_table
+# data_fd2_battle_job_magic_resist_table
 
 `.object2 @ 0x51F96`，27 entries × 4 bytes = 108 bytes。signature `09 0A 00 00 00`
 (注意：`09` 是表前一個 anchor byte，**不**在表內)。

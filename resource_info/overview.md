@@ -63,4 +63,4 @@ FIGANI、BG、TAI。走獨立 fopen (但同 LLLLLL 格式) 的 2 個：TITLE、A
 
 FLAME2 目錄下的 `.MDI` / `.DIG` 是 Miles AIL 的 driver；`.AD` / `.OPL` / `.BNK`
 是 instrument patch；`AILDRVR.LST` 是 driver 清單；`SETSOUND.EXE` 是 vendor
-配置工具。完整清單見 `program_info/audio.md`。
+配置工具。完整清單見 `rebuild_info/ail/inventory.md` §DOS-side driver 檔案。

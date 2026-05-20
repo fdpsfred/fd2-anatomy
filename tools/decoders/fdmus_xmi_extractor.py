@@ -23,8 +23,9 @@ import sys
 from pathlib import Path
 
 # tools/decoders/fdmus_xmi_extractor.py -> decoders -> tools -> fd2_reverse
-REPO_ROOT = Path(__file__).resolve().parents[4]
-FDMUS_PATH = REPO_ROOT / "FDMUS.DAT"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+FDMUS_PATH = REPO_ROOT / "fd2_game_files" / "FDMUS.DAT"
+DEFAULT_OUT_DIR = REPO_ROOT / "workspace" / "decoders" / "fdmus"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from dat_header_parser import parse_dat_header, read_dat_entry  # noqa: E402
@@ -135,7 +136,9 @@ def main() -> int:
                    help="extract every IFF/XMI entry to --out-dir")
     g.add_argument("--bgm-table", action="store_true",
                    help="print per-chapter BGM idx table")
-    p.add_argument("--out-dir", type=Path, default=Path("fdmus_out"))
+    p.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR,
+                   help="directory to write XMI artifacts + summary JSON. "
+                   f"default: workspace/decoders/fdmus")
     args = p.parse_args()
     if args.list:
         return cmd_list()

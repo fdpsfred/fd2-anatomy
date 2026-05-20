@@ -1,4 +1,4 @@
-# spell_learning_table
+# data_fd2_battle_spell_learning_table
 
 `.object3 @ 0x626B3`，20 entries × 12 bytes = 240 bytes。signature `05 11 09 01`。
 
@@ -9,7 +9,7 @@
 ```c
 struct spell_learn_pair {
     u8 lv;         // 學得等級 (0xFF = 空 slot)
-    u8 spell_id;   // 法術 ID (參 spell_effect_table)
+    u8 spell_id;   // 法術 ID (參 data_fd2_battle_spell_effect_table)
 };
 ```
 
@@ -60,5 +60,5 @@ pair 5: empty
 
 ## table 後續未知資料段
 
-`0x627A3..0x627D8` 25 bytes 是對齊 padding 與後續 cutscene_event_script_table 的
+`0x627A3..0x627D8` 25 bytes 是對齊 padding 與後續 data_fd2_chapter_cutscene_event_script_ptr_table_106 的
 起點，與 spell_learning 無關。

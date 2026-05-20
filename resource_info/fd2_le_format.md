@@ -16,13 +16,13 @@ Protected Mode Extender 在 386+ 環境執行。檔案大小約 346,650 bytes。
   0x00050000-0x00053900   string tables, jump tables, lookup data
   0x00053A00-0x000543FF   runtime variables (cursor pos, char array 等)
 0x00060000  .object3 (initialization image, 遊戲資料表)
-  0x000602AC item_effect_table[215]
-  0x000619FD spell_effect_table[36]
-  0x00061AF9 enemy_data_table[68]
-  0x00061DA1 character_base_table[32]
-  0x000620A1 character_growth_table[68]
-  0x00062390 shop_table[28]
-  0x000626B3 spell_learning_table[20]
+  0x000602AC data_fd2_battle_item_effect_table[215]
+  0x000619FD data_fd2_battle_spell_effect_table[36]
+  0x00061AF9 data_fd2_battle_enemy_data_table[68]
+  0x00061DA1 data_fd2_battle_character_base_table[32]
+  0x000620A1 data_fd2_battle_character_growth_table[68]
+  0x0006238D data_fd2_chapter_intro_metadata_table[26]
+  0x000626B3 data_fd2_battle_spell_learning_table[20]
   0x00063400+ orphan / unused 資料區
 ```
 
@@ -48,7 +48,7 @@ image），而把「簡單的 u32 或 u8 array」留在 `.object2` 與 C runtime
 
 - **FD2 自寫遊戲邏輯**：散布於整個 `.object1`，但 `0x10000-0x36000` 較密集
 - **Watcom CRT helper**：散布於整個 `.object1`，但 `0x36000-0x37700` 與
-  `0x3D000-0x3E000` 附近較密集（如 `crt_frame_setup @ 0x36cd7`）
+  `0x3D000-0x3E000` 附近較密集（如 `__CHK @ 0x36cd7`）
 - **Miles AIL library**：第一個 AIL 函式 @ `0x379EE`、最後一個 @ `0x3C2E6`，
   `0x37000-0x3C2E6` 是 AIL 函式較密集的區段，但區段內仍混入其他類別函式
 - **entry point**：`0x3C964` (`crt_entry_start`)

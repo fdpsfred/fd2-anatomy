@@ -1,7 +1,7 @@
 # 角色
 
-可加入角色 32 名（char_id 0..0x1F），對應 `character_base_table @ 0x61DA1`
-與 `character_growth_table @ 0x620A1`。完整 stat schema 見 `assets/tables/character_base.md`
+可加入角色 32 名（char_id 0..0x1F），對應 `data_fd2_battle_character_base_table @ 0x61DA1`
+與 `data_fd2_battle_character_growth_table @ 0x620A1`。完整 stat schema 見 `assets/tables/character_base.md`
 與 `assets/tables/character_growth.md`。
 
 ## 角色列表
@@ -43,15 +43,15 @@
 
 ## 出場屬性 schema
 
-`character_base_table @ 0x61DA1`，每筆 24 bytes。實際出場數值 =
+`data_fd2_battle_character_base_table @ 0x61DA1`，每筆 24 bytes。實際出場數值 =
 `base + (LV-1) × growth_min`（HP/MP）或 `base + LV × growth_min`（AP/DP/DX）。
 
 詳細 struct layout 見 `assets/tables/character_base.md`。
 
-## 升級屬性 (character_growth_table @ 0x620A1)
+## 升級屬性 (data_fd2_battle_character_growth_table @ 0x620A1)
 
 每筆 11 bytes：`AP_min/max DP_min/max DX_min/max HP_min/max MP_min/max spell_learning_idx`。
-`spell_learning_idx` 是 `spell_learning_table @ 0x626B3` 的 index；0xFF = 不會升級
+`spell_learning_idx` 是 `data_fd2_battle_spell_learning_table @ 0x626B3` 的 index；0xFF = 不會升級
 學技能。
 
 68 entries (= 32 角色 × 2 種職業狀態 + 2 reserved)。

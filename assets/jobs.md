@@ -36,8 +36,8 @@
 
 ## 魔法抗性 + 暴擊率 (job 0x01..0x1A)
 
-職業 0x00 (龍) 沒有魔抗 / 暴擊率資料。`job_magic_resist_table @ 0x51F96`
-為 dword[27]；`job_crit_table @ 0x5239B` 為 byte[27]。
+職業 0x00 (龍) 沒有魔抗 / 暴擊率資料。`data_fd2_battle_job_magic_resist_table @ 0x51F96`
+為 dword[27]；`data_fd2_battle_job_crit_rate_table @ 0x5239B` 為 byte[27]。
 
 魔法抗性公式：`抗性 = (10 - 數值) / 10`。例如 7 表示 30% 抗性。
 

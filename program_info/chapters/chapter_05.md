@@ -9,8 +9,8 @@ End handler 用 scene_pos tables 排版 cutscene + `init_runtime_char_from_base_
 | Init | `chapter_05_init @ 0x00033049` | 258 B |
 | End | `chapter_05_end @ 0x000231F9` | 157 B |
 | Post-action | `check_battle_end_default_handler @ 0x000205B4` | (default) |
-| BGM (player turn) | `per_chapter_player_turn_bgm[4]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[4]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[4]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[4]` |  |
 
 ## Init handler 階段
 
@@ -41,14 +41,14 @@ End handler 末段 `init_runtime_char_from_base_growth(10)` → 瑪琳加入。
 
 ## Post-action handler
 
-`per_chapter_post_action_handler[4]` 指向 `check_battle_end_default_handler`，
+`data_fd2_chapter_post_action_handler_table[4]` 指向 `check_battle_end_default_handler`，
 無自訂勝負條件。
 
 ## End handler events
 
 `chapter_05_end @ 0x000231F9` (157 B)：
 
-1. 從 `chapter_05_end_scene_pos_x_table` / `pos_y_table` / `facing_table`
+1. 從 `data_fd2_chapter_ch05_end_scene_char_pos_x_table` / `pos_y_table` / `facing_table`
    (各 4 entries @ 0x520D2/0x520D9/0x520E0) 讀 4 entries → recruit_block × 3
 2. `setup_chars_and_camera_for_intro(...)` 設置 camera + chars positions
 3. `display_dialog_scene(page=9)`

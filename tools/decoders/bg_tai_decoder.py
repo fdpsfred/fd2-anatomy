@@ -19,9 +19,10 @@ import sys
 from pathlib import Path
 
 # tools/decoders/bg_tai_decoder.py -> decoders -> tools -> fd2_reverse
-REPO_ROOT = Path(__file__).resolve().parents[4]
-BG_PATH = REPO_ROOT / "BG.DAT"
-TAI_PATH = REPO_ROOT / "TAI.DAT"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+BG_PATH = REPO_ROOT / "fd2_game_files" / "BG.DAT"
+TAI_PATH = REPO_ROOT / "fd2_game_files" / "TAI.DAT"
+DEFAULT_OUT_DIR = REPO_ROOT / "workspace" / "decoders" / "bg_tai"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from dat_header_parser import parse_dat_header, read_dat_entry  # noqa: E402
@@ -80,8 +81,9 @@ def main() -> int:
                    help="decode BG[IDX] as RLE-encoded image")
     g.add_argument("--tai-summary", action="store_true",
                    help="size histogram for TAI.DAT")
-    p.add_argument("--out-dir", type=Path,
-                   help="directory to write PGM artifacts (with --decode-bg)")
+    p.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR,
+                   help="directory to write PGM artifacts (with --decode-bg). "
+                   f"default: workspace/decoders/bg_tai")
     args = p.parse_args()
     if args.list:
         return cmd_list()

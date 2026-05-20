@@ -26,7 +26,8 @@ import sys
 from pathlib import Path
 
 # tools/decoders/fdtxt_dialog_decoder.py -> decoders -> tools -> fd2_reverse
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_OUT_DIR = REPO_ROOT / "workspace" / "decoders" / "fdtxt_dialog"
 
 # Make sibling fdtxt_parser importable
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -149,7 +150,8 @@ def _build_parser() -> argparse.ArgumentParser:
     g.add_argument("--list", action="store_true",
                    help="list all 34 entries with their page counts")
     p.add_argument("--out", type=Path,
-                   help="write rendered markdown to file (default: stdout)")
+                   help=f"write rendered markdown to file (default: stdout). "
+                   f"When writing files, prefer workspace/decoders/fdtxt_dialog/")
     p.add_argument("--readable", action="store_true",
                    help="substitute glyph ids with Chinese chars from --glyph-table")
     p.add_argument("--glyph-table", type=Path,

@@ -1,4 +1,4 @@
-# item_effect_table
+# data_fd2_battle_item_effect_table
 
 `.object3 @ 0x602AC`，215 entries × 23 bytes = 4945 bytes。signature
 `0B 01 0A 00 5F 00`。

@@ -94,7 +94,7 @@ DAT_00053B17[N]     = 第 N 個 cached portrait_id (線性比對用)
 - 讀 BIOS tick (0x46C)；每 30 ticks (~1.65 秒) 切換文字 blink state
 - `animated_cursor_mode == 1`：每 3 ticks 在 sprite 0x12 / 0x13 之間切換對話框
   「向下箭頭」frame
-- 等 `check_input_ready` 回報有輸入後，`wait_key_input` → scancode 標準化 → return
+- 等 `check_input_ready` 回報有輸入後，呼叫 `int386(0x16, ...)` → scancode 標準化 → return
 
 ## 對話框幾何相關 globals
 

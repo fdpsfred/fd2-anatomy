@@ -1,0 +1,6767 @@
+{
+  "version": "9.5a",
+  "source": "workspace/crt_fid_match/results/matches_9.5a.json",
+  "auto_threshold": 30.0,
+  "stats": {
+    "total_input": 131,
+    "auto_pass": 102,
+    "conflict_resolved": 3,
+    "manual_pass": 35,
+    "rejected": 3,
+    "in_lookup": 193,
+    "byte_match": 52
+  },
+  "by_address": {
+    "00036cd0": {
+      "name": "L$1_stk_save_ss",
+      "current_name": "L$1_stk_save_ss",
+      "body_size": 7,
+      "source_obj": "71a26af32e1b_stk.obj",
+      "verified": "manual",
+      "aliases": [
+        "L$1"
+      ],
+      "score": 0.0,
+      "notes": "Static helper at offset 0 of stk.obj; captures SS to L$3 for __STK comparison",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "stk"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "stk"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "stk"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "stk"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00036cd7": {
+      "name": "__CHK",
+      "current_name": "__CHK",
+      "score": 16.01,
+      "body_size": 16,
+      "source_obj": "71a26af32e1b_stk.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "stk"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "stk"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "stk"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "stk"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00036ce7": {
+      "name": "__GRO",
+      "current_name": "__GRO",
+      "score": 0.0,
+      "body_size": 3,
+      "source_obj": "71a26af32e1b_stk.obj",
+      "verified": "manual",
+      "aliases": [],
+      "notes": "Watcom 9.5a stk.obj 3rd PUBDEF — single RET 0x4 instruction; positioned between __CHK and __STK.",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "stk"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "stk"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "stk"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "stk"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00036cea": {
+      "name": "__STK",
+      "current_name": "__STK",
+      "score": 14.0,
+      "body_size": 29,
+      "source_obj": "71a26af32e1b_stk.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "stk"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "stk"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "stk"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "stk"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00036d07": {
+      "name": "__STKOVERFLOW",
+      "current_name": "__STKOVERFLOW",
+      "body_size": 15,
+      "source_obj": "71a26af32e1b_stk.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0,
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "stk"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "stk"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "stk"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "stk"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00036d16": {
+      "name": "malloc",
+      "current_name": "malloc",
+      "score": 188.34,
+      "body_size": 16,
+      "source_obj": "9afea117227c_nmalloc.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "nmalloc"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "nmalloc"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "nmalloc"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b"
+    },
+    "00036d26": {
+      "name": "_nmalloc",
+      "current_name": "_nmalloc",
+      "score": 380.37,
+      "body_size": 114,
+      "source_obj": "9afea117227c_nmalloc.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "nmalloc"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "nmalloc"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "nmalloc"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b"
+    },
+    "00036d98": {
+      "name": "int386",
+      "current_name": "int386",
+      "score": 54.36,
+      "body_size": 41,
+      "source_obj": "d85276984e7d_int386.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "int386"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "int386"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "int386"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "int386"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00036dc1": {
+      "name": "printf",
+      "current_name": "printf",
+      "score": 60.02,
+      "body_size": 34,
+      "source_obj": "23990787aee2_printf.obj",
+      "verified": "conflict_resolved",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "printf"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "printf"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "printf"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "printf"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00036de4": {
+      "name": "exit",
+      "current_name": "exit",
+      "body_size": 18,
+      "source_obj": "93ce9e3ff4ac_exit.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0,
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "exit"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "exit"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a"
+    },
+    "00036df6": {
+      "name": "_exit",
+      "current_name": "_exit",
+      "body_size": 23,
+      "source_obj": "93ce9e3ff4ac_exit.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0,
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "exit"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "exit"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a"
+    },
+    "00036e0d": {
+      "name": "__open_flags",
+      "current_name": "__open_flags",
+      "score": 93.77,
+      "body_size": 404,
+      "source_obj": "34f4a927de36_fopen.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "fopen"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "fopen"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "fopen"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "fopen"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00036fa1": {
+      "name": "_fsopen",
+      "current_name": "_fsopen",
+      "score": 75.020004,
+      "body_size": 43,
+      "source_obj": "34f4a927de36_fopen.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "fopen"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "fopen"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "fopen"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "fopen"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00036fcc": {
+      "name": "fopen",
+      "current_name": "fopen",
+      "score": 26.68,
+      "body_size": 122,
+      "source_obj": "34f4a927de36_fopen.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "fopen"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "fopen"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "fopen"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "fopen"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00037046": {
+      "name": "freopen",
+      "current_name": "freopen",
+      "score": 19.36,
+      "body_size": 44,
+      "source_obj": "34f4a927de36_fopen.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "fopen"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "fopen"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "fopen"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "fopen"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00037072": {
+      "name": "fread",
+      "current_name": "fread",
+      "score": 332.59,
+      "body_size": 466,
+      "source_obj": "e4cfbf258e44_fread.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "fread"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a"
+    },
+    "00037244": {
+      "name": "fclose",
+      "current_name": "fclose",
+      "score": 33.35,
+      "body_size": 44,
+      "source_obj": "0aa510ba4f71_fclose.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "fclose"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "fclose"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "fclose"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b"
+    },
+    "00037270": {
+      "name": "__shutdown_stream",
+      "current_name": "__shutdown_stream",
+      "score": 103.35,
+      "body_size": 55,
+      "source_obj": "0aa510ba4f71_fclose.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "fclose"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "fclose"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "fclose"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b"
+    },
+    "000372a7": {
+      "name": "__MkTmpFile",
+      "current_name": "__MkTmpFile",
+      "score": 113.1,
+      "body_size": 127,
+      "source_obj": "0aa510ba4f71_fclose.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "fclose"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "fclose"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "fclose"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b"
+    },
+    "00037326": {
+      "name": "__doclose",
+      "current_name": "__doclose",
+      "score": 255.1,
+      "body_size": 158,
+      "source_obj": "0aa510ba4f71_fclose.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "fclose"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "fclose"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "fclose"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b"
+    },
+    "000373c4": {
+      "name": "memmove",
+      "current_name": "memmove",
+      "score": 52.03,
+      "body_size": 82,
+      "source_obj": "1481a08b40ca_memmove.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "memmove"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "memmove"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "memmove"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "memmove"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00037416": {
+      "name": "free",
+      "current_name": "free",
+      "score": 77.34,
+      "body_size": 16,
+      "source_obj": "01d4e7789167_nfree.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "nfree"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "nfree"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "nfree"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "nfree"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00037426": {
+      "name": "_nfree",
+      "current_name": "_nfree",
+      "score": 367.34,
+      "body_size": 37,
+      "source_obj": "01d4e7789167_nfree.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "nfree"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "nfree"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "nfree"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "nfree"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003744b": {
+      "name": "fwrite",
+      "current_name": "fwrite",
+      "score": 479.25,
+      "body_size": 359,
+      "source_obj": "184e37b9c956_fwrite.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "fwrite"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "fwrite"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "fwrite"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a+9.5b+9.5c"
+    },
+    "000375c0": {
+      "name": "memset",
+      "current_name": "memset",
+      "score": 96.020004,
+      "body_size": 34,
+      "source_obj": "26c70b6cd69b_memset.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "memset"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "memset"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "memset"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "memset"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "000375e2": {
+      "name": "abs",
+      "current_name": "abs",
+      "score": 8.67,
+      "body_size": 14,
+      "source_obj": "a46b440ab99c_abs.obj",
+      "verified": "manual",
+      "aliases": [
+        "abs",
+        "labs"
+      ],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "abs"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "abs"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "abs"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "abs"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "000375f0": {
+      "name": "fseek",
+      "current_name": "fseek",
+      "score": 376.91,
+      "body_size": 421,
+      "source_obj": "1ce0e32395b8_fseek.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "fseek"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "fseek"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a"
+    },
+    "00037795": {
+      "name": "outp",
+      "current_name": "outp",
+      "score": 8.34,
+      "body_size": 12,
+      "source_obj": "1d6757f02585_outp.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "outp"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "outp"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "outp"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "outp"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "000377a4": {
+      "name": "__CHP",
+      "current_name": "__CHP",
+      "body_size": 31,
+      "source_obj": "5a2db35937a4_fchop.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "31-byte 387-hardware FPU chop-to-int helper. Body: PUSH EAX / FSTCW [ESP] / dup CW / OR byte [ESP+1], 0x1F (set chop rounding) / FLDCW / FRNDINT / restore CW / LEA ESP+8 / RET. Called by Watcom CRT modf + _FtoS soft-fp primitives + FD2 game math (combat stat scaling, rendering). Sister of __Rnd2Int @ 0x4d976 (software emulator version). Found via batch 9 fd2_audit byte_match — plate misclassified as 'noop_stub_377a4 just RET' before FIXUPP-aware compare against fchop.obj revealed the real identity.",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387R",
+          "module": "fchop"
+        },
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "fchop"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387R",
+          "module": "fchop"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "fchop"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387R",
+          "module": "fchop"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "fchop"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387R",
+          "module": "fchop"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "fchop"
+        }
+      ],
+      "source_summary": "MATH387R+S:9.5+9.5a+9.5b+9.5c"
+    },
+    "000377c3": {
+      "name": "L$1_sprintf_put_char",
+      "current_name": "L$1_sprintf_put_char",
+      "body_size": 22,
+      "source_obj": "aade3259b5a5_sprintf.obj",
+      "verified": "manual",
+      "aliases": [
+        "L$1"
+      ],
+      "score": 0.0,
+      "notes": "Static helper at offset 0 of sprintf.obj; writes one byte to buffer struct {head_ptr@+0, count@+0x10} — sprintf passes &this as __prtf char-emit callback. Byte-level verified against aade3259b5a5_sprintf.obj segment offset 0..21 (22 bytes, 0 FIXUPP positions).",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "sprintf"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "sprintf"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "sprintf"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "sprintf"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "000377d9": {
+      "name": "sprintf",
+      "current_name": "sprintf",
+      "score": 220.7,
+      "body_size": 44,
+      "source_obj": "aade3259b5a5_sprintf.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "sprintf"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "sprintf"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "sprintf"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "sprintf"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00037805": {
+      "name": "strlen",
+      "current_name": "strlen",
+      "score": 54.67,
+      "body_size": 28,
+      "source_obj": "4720124ddae2_strlen.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "strlen"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "strlen"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "strlen"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "strlen"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00037821": {
+      "name": "getch",
+      "current_name": "getch",
+      "score": 9.01,
+      "body_size": 27,
+      "source_obj": "5d91ab104c50_getch.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "getch"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "getch"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "getch"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "getch"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003c6fc": {
+      "name": "sqrt",
+      "current_name": "sqrt",
+      "body_size": 58,
+      "source_obj": "aa20ff98fe90_sqrt387.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "sqrt387"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "sqrt387"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "sqrt387"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "sqrt387"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=rename. obj=aa20ff98fe90_sqrt387.obj, lib_func=sqrt"
+    },
+    "0003c736": {
+      "name": "IF@SQRT",
+      "current_name": "IF@SQRT",
+      "body_size": 2,
+      "source_obj": "aa20ff98fe90_sqrt387.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "2-byte mode-A preamble (MOV AL, 0x3) — sqrt mode-3 entry into __@DSQRT @ 0x3c738.",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "sqrt387"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "sqrt387"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "sqrt387"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "sqrt387"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003c738": {
+      "name": "__@DSQRT",
+      "current_name": "__@DSQRT",
+      "body_size": 62,
+      "source_obj": "aa20ff98fe90_sqrt387.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "Canonical sqrt-with-domain-check worker; reached via IF@SQRT preamble fall-through (mode 0x3).",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "sqrt387"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "sqrt387"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "sqrt387"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "sqrt387"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003c7b6": {
+      "name": "IF@COS",
+      "current_name": "IF@COS",
+      "body_size": 25,
+      "source_obj": "b70811dbd1b6_trig387.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "cos public entry (mode 0x2). CALL into IF@SIN @ +0x8A and JNZ into IF@SIN @ +0x15 — shared software path.",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "trig387"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "trig387"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "trig387"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "trig387"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003c7cf": {
+      "name": "IF@SIN",
+      "current_name": "IF@SIN",
+      "body_size": 182,
+      "source_obj": "b70811dbd1b6_trig387.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "sin/sincos public entry. 182-byte body contains alt entries at +0x15/+0x71/+0x7C/+0x83/+0x8A used by IF@COS/IF@TAN. Previously Ghidra split into 5 false-positive fragments; merged per byte-match.",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "trig387"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "trig387"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "trig387"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "trig387"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003c8ab": {
+      "name": "IF@TAN",
+      "current_name": "IF@TAN",
+      "body_size": 105,
+      "source_obj": "b70811dbd1b6_trig387.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "tan public entry; same software-fallback structure as IF@COS/IF@SIN. Called by tan() wrapper.",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "trig387"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "trig387"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "trig387"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "trig387"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003c914": {
+      "name": "tan",
+      "current_name": "tan",
+      "body_size": 19,
+      "source_obj": "b70811dbd1b6_trig387.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "trig387"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "trig387"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "trig387"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "trig387"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=rename. obj=b70811dbd1b6_trig387.obj, lib_func=tan"
+    },
+    "0003c927": {
+      "name": "L$1_rand_seed_ptr",
+      "current_name": "L$1_rand_seed_ptr",
+      "body_size": 6,
+      "source_obj": "e64bae7e23f3_rand.obj",
+      "verified": "manual",
+      "aliases": [
+        "L$1"
+      ],
+      "score": 0.0,
+      "notes": "Static helper at offset 0 of rand.obj; returns &_RandSeed",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "rand"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "rand"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "rand"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "rand"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003c92d": {
+      "name": "rand",
+      "current_name": "rand",
+      "score": 11.68,
+      "body_size": 34,
+      "source_obj": "e64bae7e23f3_rand.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "rand"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "rand"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "rand"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "rand"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003c94f": {
+      "name": "srand",
+      "current_name": "srand",
+      "score": 8.67,
+      "body_size": 19,
+      "source_obj": "e64bae7e23f3_rand.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "rand"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "rand"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "rand"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "rand"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003cb91": {
+      "name": "__exit",
+      "current_name": "__exit",
+      "body_size": 2,
+      "source_obj": "ec67ee7a9d15_cstart.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit byte-level match to lib symbol `__exit` (2026-05-10)",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "cstart"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "cstart"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a"
+    },
+    "0003cb93": {
+      "name": "__exit_with_msg",
+      "current_name": "__exit_with_msg",
+      "body_size": 49,
+      "source_obj": "ec67ee7a9d15_cstart.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "cstart"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "cstart"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=splitter_setbody. obj=ec67ee7a9d15_cstart.obj, lib_func=__exit_with_msg",
+      "splitter_fragments": [
+        "0003cbb6"
+      ],
+      "match_start_addr": "0003cb93",
+      "match_end_addr": "0003cbc4"
+    },
+    "0003cbc4": {
+      "name": "__GETDS",
+      "current_name": "__GETDS",
+      "body_size": 8,
+      "source_obj": "73721e07b4f4_cstart.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "8-byte Watcom CRT startup helper that loads DS register from data segment descriptor. Body: 2e 8e 1d <off32> c3 = MOV DS, CS:[0x3c9d8] / RET. PUBDEF appears identically in 8 dedup'd startup obj (cstart / adiestrt / adifstrt / adsstart variants). Sole caller __int7 (CRT FPU exception vector init at 0x49d98). Found via batch 10 fd2_audit byte_match.",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "cstart"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "cstart"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "cstart"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "cstart"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c (also in adiestrt/adifstrt/adsstart variants)"
+    },
+    "0003cbd6": {
+      "name": "memcpy",
+      "current_name": "memcpy",
+      "score": 346.35,
+      "body_size": 42,
+      "source_obj": "59aa526358b1_memcpy.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "memcpy"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "memcpy"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "memcpy"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "memcpy"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003cc00": {
+      "name": "lseek",
+      "current_name": "lseek",
+      "score": 345.38,
+      "body_size": 75,
+      "source_obj": "d0b66a0d4814_lseek.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "lseek"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "lseek"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "lseek"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a+9.5b+9.5c"
+    },
+    "0003cc4b": {
+      "name": "read",
+      "current_name": "read",
+      "score": 171.13,
+      "body_size": 217,
+      "source_obj": "c8c9f304ef5c_read.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "read"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "read"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "read"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b"
+    },
+    "0003cd24": {
+      "name": "open",
+      "current_name": "open",
+      "score": 165.69,
+      "body_size": 31,
+      "source_obj": "478979bcfaf2_open.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "open"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "open"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "open"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "open"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003cd43": {
+      "name": "sopen",
+      "current_name": "sopen",
+      "score": 320.33002,
+      "body_size": 448,
+      "source_obj": "478979bcfaf2_open.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "open"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "open"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "open"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "open"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003cf03": {
+      "name": "__set_binary",
+      "current_name": "__set_binary",
+      "score": 135.74,
+      "body_size": 108,
+      "source_obj": "478979bcfaf2_open.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "open"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "open"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "open"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "open"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003cf70": {
+      "name": "strcmp",
+      "current_name": "strcmp",
+      "body_size": 172,
+      "source_obj": "f8ea754154cb__strcmp.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "Watcom CLIB3S strcmp (SWAR null detection, 4-byte aligned compare unrolled 4x). PUBDEF symbol = strcmp (no underscore). Stack-call ABI per CLIB3S. Body 172 bytes, 0 FIXUPP. byte_match found AFTER fixing function entry from 0x3cf6f (off-by-one alignment padding 0x00 byte) to 0x3cf70 (real PUSH EDX entry). Zero xref in code.",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "_strcmp"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "_strcmp"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "_strcmp"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "_strcmp"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003d01c": {
+      "name": "close",
+      "current_name": "close",
+      "score": 88.03,
+      "body_size": 58,
+      "source_obj": "659aec4b3766_close.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "close"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "close"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "close"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b"
+    },
+    "0003d056": {
+      "name": "filelength",
+      "current_name": "filelength",
+      "score": 63.7,
+      "body_size": 63,
+      "source_obj": "29c1008fc4ff_filelen.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "filelen"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "filelen"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "filelen"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "filelen"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003d095": {
+      "name": "write",
+      "current_name": "write",
+      "score": 387.28,
+      "body_size": 473,
+      "source_obj": "e73a1f1394c4_write.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "write"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "write"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "write"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a+9.5b+9.5c"
+    },
+    "0003d270": {
+      "name": "__MemAllocator",
+      "current_name": "__MemAllocator",
+      "score": 135.09,
+      "body_size": 176,
+      "source_obj": "59c35008174c_memalloc.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "memalloc"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "memalloc"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "memalloc"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "memalloc"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003d320": {
+      "name": "__MemFree",
+      "current_name": "__MemFree",
+      "score": 160.14,
+      "body_size": 267,
+      "source_obj": "59c35008174c_memalloc.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "memalloc"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "memalloc"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "memalloc"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "memalloc"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003d42b": {
+      "name": "__LastFree",
+      "current_name": "__LastFree",
+      "score": 159.34,
+      "body_size": 199,
+      "source_obj": "57a37044e08d_grownear.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "grownear"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a"
+    },
+    "0003d4f2": {
+      "name": "__ExpandDGROUP",
+      "current_name": "__ExpandDGROUP",
+      "score": 310.85,
+      "body_size": 512,
+      "source_obj": "57a37044e08d_grownear.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "grownear"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a"
+    },
+    "0003d6f2": {
+      "name": "__nmemneed",
+      "current_name": "__nmemneed",
+      "score": 49.0,
+      "body_size": 7,
+      "source_obj": "e82fe0e54cb7_nmemneed.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "nmemneed"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "nmemneed"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "nmemneed"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "nmemneed"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003d6f9": {
+      "name": "segread",
+      "current_name": "segread",
+      "score": 37.02,
+      "body_size": 45,
+      "source_obj": "018a8423f53c_segread.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "segread"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "segread"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "segread"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "segread"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003d726": {
+      "name": "int386x",
+      "current_name": "int386x",
+      "score": 60.35,
+      "body_size": 33,
+      "source_obj": "45eb6cdde4d8_int386x.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "int386x"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "int386x"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "int386x"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "int386x"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003d747": {
+      "name": "L$1_fprtf_fprtf",
+      "current_name": "L$1_fprtf_fprtf",
+      "body_size": 26,
+      "source_obj": "2584dd7771f2_fprtf.obj",
+      "verified": "byte_match",
+      "aliases": [
+        "L$1"
+      ],
+      "score": 0.0,
+      "notes": "crt_audit byte-level match to lib symbol `__static_pre___fprtf` (2026-05-10)",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "fprtf"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "fprtf"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "fprtf"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "fprtf"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003d761": {
+      "name": "__fprtf",
+      "current_name": "__fprtf",
+      "score": 373.1,
+      "body_size": 128,
+      "source_obj": "2584dd7771f2_fprtf.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "fprtf"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "fprtf"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "fprtf"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "fprtf"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003d7e1": {
+      "name": "tolower",
+      "current_name": "tolower",
+      "score": 75.68,
+      "body_size": 21,
+      "source_obj": "379418752ba8_tolower.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "tolower"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "tolower"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "tolower"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "tolower"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003d7f6": {
+      "name": "__get_errno_ptr",
+      "current_name": "__get_errno_ptr",
+      "body_size": 6,
+      "source_obj": "046c7fbb59e1_errno.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0,
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "errno"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "errno"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "errno"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "errno"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003d7fc": {
+      "name": "__get_doserrno_ptr",
+      "current_name": "__get_doserrno_ptr",
+      "body_size": 6,
+      "source_obj": "046c7fbb59e1_errno.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0,
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "errno"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "errno"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "errno"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "errno"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003d802": {
+      "name": "__allocfp",
+      "current_name": "__allocfp",
+      "score": 80.39,
+      "body_size": 149,
+      "source_obj": "3fa95c836703_allocfp.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "allocfp"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "allocfp"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a"
+    },
+    "0003d897": {
+      "name": "__freefp",
+      "current_name": "__freefp",
+      "score": 36.68,
+      "body_size": 51,
+      "source_obj": "3fa95c836703_allocfp.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "allocfp"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "allocfp"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a"
+    },
+    "0003d8ca": {
+      "name": "__purgefp",
+      "current_name": "__purgefp",
+      "score": 18.34,
+      "body_size": 34,
+      "source_obj": "3fa95c836703_allocfp.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "allocfp"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "allocfp"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a"
+    },
+    "0003d8ec": {
+      "name": "__chktty",
+      "current_name": "__chktty",
+      "score": 117.37,
+      "body_size": 45,
+      "source_obj": "6e9aaef6bf71_chktty.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "chktty"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "chktty"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "chktty"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "chktty"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003d919": {
+      "name": "__ioalloc",
+      "current_name": "__ioalloc",
+      "score": 712.1,
+      "body_size": 119,
+      "source_obj": "cbc3461dce6c_ioalloc.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "ioalloc"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "ioalloc"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "ioalloc"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "ioalloc"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003d990": {
+      "name": "__qread",
+      "current_name": "__qread",
+      "score": 265.36,
+      "body_size": 49,
+      "source_obj": "d2e9bd1cd5ea_qread.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "qread"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "qread"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "qread"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "qread"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003d9c1": {
+      "name": "fgetc",
+      "current_name": "fgetc",
+      "score": 116.740005,
+      "body_size": 121,
+      "source_obj": "0b3778e9e319_fgetc.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "fgetc"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "fgetc"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "fgetc"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "fgetc"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003da3a": {
+      "name": "__filbuf",
+      "current_name": "__filbuf",
+      "score": 113.35,
+      "body_size": 43,
+      "source_obj": "0b3778e9e319_fgetc.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "fgetc"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "fgetc"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "fgetc"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "fgetc"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003da65": {
+      "name": "__fill_buffer",
+      "current_name": "__fill_buffer",
+      "score": 441.0,
+      "body_size": 171,
+      "source_obj": "0b3778e9e319_fgetc.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "fgetc"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "fgetc"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "fgetc"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "fgetc"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003db10": {
+      "name": "getpid",
+      "current_name": "getpid",
+      "body_size": 6,
+      "source_obj": "0afbbbd060a4_getpid.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0,
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "getpid"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "getpid"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "getpid"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "getpid"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003db16": {
+      "name": "__flush",
+      "current_name": "__flush",
+      "score": 616.11,
+      "body_size": 157,
+      "source_obj": "4b8db5c65d34_flush.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "flush"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "flush"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "flush"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "flush"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003dbb3": {
+      "name": "ftell",
+      "current_name": "ftell",
+      "score": 217.7,
+      "body_size": 52,
+      "source_obj": "e2f62781b3ef_ftell.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "ftell"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "ftell"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "ftell"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "ftell"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003dbe7": {
+      "name": "remove",
+      "current_name": "remove",
+      "score": 71.34,
+      "body_size": 16,
+      "source_obj": "af352101ce83_remove.obj",
+      "verified": "conflict_resolved",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "remove"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "remove"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "remove"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "remove"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003dbf7": {
+      "name": "fputc",
+      "current_name": "fputc",
+      "score": 321.11,
+      "body_size": 168,
+      "source_obj": "1b6f918a9f82_fputc.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "fputc"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "fputc"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "fputc"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "fputc"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003dc9f": {
+      "name": "__delay_init",
+      "current_name": "__delay_init",
+      "score": 0.0,
+      "body_size": 46,
+      "source_obj": "7f8f24524bd7_delay.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "delay"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "delay"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "delay"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "delay"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c",
+      "notes": "Watcom CRT delay calibration init helper. 42/46 byte_match against delay.obj LEDATA seg=_TEXT ofs=0; bytes [0x27..0x2A] are FIXUPP-resolved pointer to data_crt_delay_calibration_counter @ 0x541B0. PUBDEF in delay.obj precedes __delay (which is at offset 0x2E within the same .obj). Added 2026-05-17 — original byte_match pipeline missed this entry (possibly first-byte 0x53 PUSH EBX filtered out)."
+    },
+    "0003dccd": {
+      "name": "__delay",
+      "current_name": "__delay",
+      "score": 30.69,
+      "body_size": 59,
+      "source_obj": "7f8f24524bd7_delay.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "delay"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "delay"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "delay"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "delay"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003dd10": {
+      "name": "__STOSB",
+      "current_name": "__STOSB",
+      "score": 75.020004,
+      "body_size": 55,
+      "source_obj": "f955fd443227___stos.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "__stos"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "__stos"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "__stos"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "__stos"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003dd47": {
+      "name": "__STOSD",
+      "current_name": "__STOSD",
+      "score": 85.740005,
+      "body_size": 108,
+      "source_obj": "f955fd443227___stos.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "__stos"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "__stos"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "__stos"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "__stos"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003ddb3": {
+      "name": "tell",
+      "current_name": "tell",
+      "score": 193.68,
+      "body_size": 20,
+      "source_obj": "b7ff66273954_tell.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "tell"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "tell"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "tell"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a+9.5b+9.5c"
+    },
+    "0003ddc7": {
+      "name": "__prtf",
+      "current_name": "__prtf",
+      "score": 335.05,
+      "body_size": 2395,
+      "source_obj": "cd8d6fb39de4_prtf.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "prtf"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "prtf"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "prtf"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a+9.5b+9.5c"
+    },
+    "0003f11b": {
+      "name": "fprintf",
+      "current_name": "fprintf",
+      "score": 60.690002,
+      "body_size": 32,
+      "source_obj": "6aba693ddccb_fprintf.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "fprintf"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "fprintf"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "fprintf"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "fprintf"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003f13b": {
+      "name": "getenv",
+      "current_name": "getenv",
+      "score": 104.7,
+      "body_size": 85,
+      "source_obj": "d77a5300be03_getenv.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "getenv"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "getenv"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "getenv"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "getenv"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003fb0f": {
+      "name": "isatty",
+      "current_name": "isatty",
+      "score": 214.69,
+      "body_size": 32,
+      "source_obj": "41fec40d99c4_isatty.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "isatty"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "isatty"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "isatty"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "isatty"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003fb2f": {
+      "name": "setbuf",
+      "current_name": "setbuf",
+      "score": 61.02,
+      "body_size": 40,
+      "source_obj": "16f30c7a4117_setbuf.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "setbuf"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "setbuf"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "setbuf"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "setbuf"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003fb57": {
+      "name": "time",
+      "current_name": "time",
+      "score": 174.36,
+      "body_size": 57,
+      "source_obj": "0fc969d455a2_time.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "time"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "time"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "time"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "time"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003fb90": {
+      "name": "_localtime",
+      "current_name": "_localtime",
+      "score": 360.69,
+      "body_size": 85,
+      "source_obj": "a5a707b79833_localtim.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "localtim"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "localtim"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "localtim"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a+9.5b+9.5c"
+    },
+    "0003fbe5": {
+      "name": "localtime",
+      "current_name": "localtime",
+      "score": 44.34,
+      "body_size": 21,
+      "source_obj": "a5a707b79833_localtim.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "localtim"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "localtim"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "localtim"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a+9.5b+9.5c"
+    },
+    "0003fbfa": {
+      "name": "L$1_asctime_fmt2",
+      "current_name": "L$1_asctime_fmt2",
+      "body_size": 65,
+      "source_obj": "6c41bff3293c_asctime.obj",
+      "verified": "manual",
+      "aliases": [
+        "L$1"
+      ],
+      "score": 0.0,
+      "notes": "Static helper at offset 0 of asctime.obj; formats two decimal digits at buffer position",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "asctime"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "asctime"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "asctime"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "asctime"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003fc3b": {
+      "name": "_asctime",
+      "current_name": "_asctime",
+      "score": 161.18,
+      "body_size": 240,
+      "source_obj": "6c41bff3293c_asctime.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "asctime"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "asctime"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "asctime"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "asctime"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003fd2b": {
+      "name": "asctime",
+      "current_name": "asctime",
+      "score": 93.34,
+      "body_size": 21,
+      "source_obj": "6c41bff3293c_asctime.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "asctime"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "asctime"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "asctime"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "asctime"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003fd40": {
+      "name": "_ctime",
+      "current_name": "_ctime",
+      "score": 121.020004,
+      "body_size": 35,
+      "source_obj": "6c41bff3293c_asctime.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "asctime"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "asctime"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "asctime"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "asctime"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003fd63": {
+      "name": "ctime",
+      "current_name": "ctime",
+      "score": 17.01,
+      "body_size": 25,
+      "source_obj": "6c41bff3293c_asctime.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "asctime"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "asctime"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "asctime"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "asctime"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003fd7c": {
+      "name": "strcpy",
+      "current_name": "strcpy",
+      "score": 23.36,
+      "body_size": 41,
+      "source_obj": "908bbce3add0_strcpy.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "strcpy"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "strcpy"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "strcpy"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "strcpy"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00045cc3": {
+      "name": "__math87_err",
+      "current_name": "__math87_err",
+      "body_size": 136,
+      "source_obj": "532db80487ba_math87e.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "math87e"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "math87e"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "math87e"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "math87e"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=rename. obj=532db80487ba_math87e.obj, lib_func=__math87_err"
+    },
+    "00045d4b": {
+      "name": "__CMain",
+      "current_name": "__CMain",
+      "score": 22.01,
+      "body_size": 79,
+      "source_obj": "7bb91b602be1_cmain386.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "cmain386"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "cmain386"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "cmain386"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "cmain386"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00045d9a": {
+      "name": "__InitRtns",
+      "current_name": "__InitRtns",
+      "score": 36.69,
+      "body_size": 67,
+      "source_obj": "e51bb5866685_initrtns.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "initrtns"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "initrtns"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "initrtns"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "initrtns"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00045ddd": {
+      "name": "__FiniRtns",
+      "current_name": "__FiniRtns",
+      "score": 36.69,
+      "body_size": 67,
+      "source_obj": "e51bb5866685_initrtns.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "initrtns"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "initrtns"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "initrtns"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "initrtns"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00045e20": {
+      "name": "__setEFGfmt",
+      "current_name": "__setEFGfmt",
+      "body_size": 21,
+      "source_obj": "ab4e21c8ec05_setefg.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit byte-level match to lib symbol `__setEFGfmt` (2026-05-10)",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "setefg"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "setefg"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "setefg"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "setefg"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00045e36": {
+      "name": "__sys_init_387_emulator",
+      "current_name": "__sys_init_387_emulator",
+      "body_size": 384,
+      "source_obj": "0a80153ccce8_dosinite.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387R",
+          "module": "dosinite"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387R",
+          "module": "dosinite"
+        },
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "dosinite"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "dosinite"
+        }
+      ],
+      "source_summary": "MATH387R:9.5+9.5a, MATH387S:9.5+9.5a",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=splitter_create_new. obj=0a80153ccce8_dosinite.obj, lib_func=__sys_init_387_emulator",
+      "alternate_shas": [
+        "a0b79eb7629b_dosinite.obj"
+      ],
+      "splitter_fragments": [
+        "00045e67",
+        "00045f2f",
+        "00045f4a",
+        "00045f96"
+      ],
+      "match_start_addr": "00045e36",
+      "match_end_addr": "00045fb6"
+    },
+    "00045fb6": {
+      "name": "__sys_fini_387_emulator",
+      "current_name": "__sys_fini_387_emulator",
+      "body_size": 213,
+      "source_obj": "0a80153ccce8_dosinite.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387R",
+          "module": "dosinite"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387R",
+          "module": "dosinite"
+        },
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "dosinite"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "dosinite"
+        }
+      ],
+      "source_summary": "MATH387R:9.5+9.5a, MATH387S:9.5+9.5a",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=splitter_setbody. obj=0a80153ccce8_dosinite.obj, lib_func=__sys_fini_387_emulator",
+      "alternate_shas": [
+        "a0b79eb7629b_dosinite.obj"
+      ],
+      "splitter_fragments": [
+        "00046030",
+        "0004606a"
+      ],
+      "match_start_addr": "00045fb6",
+      "match_end_addr": "0004608b"
+    },
+    "0004608b": {
+      "name": "L$1_chk8087_save_fpu_env",
+      "current_name": "L$1_chk8087_save_fpu_env",
+      "body_size": 12,
+      "source_obj": "031c7b66c5e1_chk8087.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "chk8087"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "chk8087"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "chk8087"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "chk8087"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c",
+      "verified": "byte_match",
+      "aliases": [
+        "L$1"
+      ],
+      "score": 0.0,
+      "notes": "Anonymous static helper inside chk8087.obj's 23-byte leading static (no PUBDEF). FD2's 12+11 byte split corresponds to lib bytes [0..11] (FSTENV) and [12..22] (FLDENV). Caught by manual byte-comparison; byte_match_audit reported size-mismatch (looking for 12/11-byte PUBDEFs)."
+    },
+    "00046097": {
+      "name": "L$2_chk8087_load_fpu_env",
+      "current_name": "L$2_chk8087_load_fpu_env",
+      "body_size": 11,
+      "source_obj": "031c7b66c5e1_chk8087.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "chk8087"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "chk8087"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "chk8087"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "chk8087"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c",
+      "verified": "byte_match",
+      "aliases": [
+        "L$2"
+      ],
+      "score": 0.0,
+      "notes": "Anonymous static helper inside chk8087.obj's 23-byte leading static (no PUBDEF). FD2's 12+11 byte split corresponds to lib bytes [0..11] (FSTENV) and [12..22] (FLDENV). Caught by manual byte-comparison; byte_match_audit reported size-mismatch (looking for 12/11-byte PUBDEFs)."
+    },
+    "000460a2": {
+      "name": "__init_8087",
+      "current_name": "__init_8087",
+      "score": 44.67,
+      "body_size": 41,
+      "source_obj": "031c7b66c5e1_chk8087.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "chk8087"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "chk8087"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "chk8087"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "chk8087"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "000460cb": {
+      "name": "_fpreset",
+      "current_name": "_fpreset",
+      "body_size": 10,
+      "source_obj": "031c7b66c5e1_chk8087.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit byte-level match to lib symbol `_fpreset` (2026-05-10)",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "chk8087"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "chk8087"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "chk8087"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "chk8087"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "000460d5": {
+      "name": "__chk8087",
+      "current_name": "__chk8087",
+      "score": 27.01,
+      "body_size": 63,
+      "source_obj": "031c7b66c5e1_chk8087.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "chk8087"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "chk8087"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "chk8087"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "chk8087"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00046114": {
+      "name": "__Init_Argv",
+      "current_name": "__Init_Argv",
+      "score": 95.05,
+      "body_size": 398,
+      "source_obj": "8b7a6a85015f_initargv.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "initargv"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "initargv"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "initargv"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "initargv"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "000462a2": {
+      "name": "_dosret0",
+      "current_name": "_dosret0",
+      "score": 21.01,
+      "body_size": 24,
+      "source_obj": "6e73902af0df_dosret.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "dosret"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "dosret"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "dosret"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "dosret"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "000462ba": {
+      "name": "_dosretax",
+      "current_name": "_dosretax",
+      "score": 59.68,
+      "body_size": 23,
+      "source_obj": "6e73902af0df_dosret.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "dosret"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "dosret"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "dosret"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "dosret"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "000462d1": {
+      "name": "__EINVAL",
+      "current_name": "__EINVAL",
+      "body_size": 17,
+      "source_obj": "6e73902af0df_dosret.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit byte-level match to lib symbol `__EINVAL` (2026-05-10)",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "dosret"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "dosret"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "dosret"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "dosret"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "000462e2": {
+      "name": "_set_errno",
+      "current_name": "_set_errno",
+      "score": 591.72,
+      "body_size": 112,
+      "source_obj": "6e73902af0df_dosret.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "dosret"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "dosret"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "dosret"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "dosret"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00046352": {
+      "name": "__IOMode",
+      "current_name": "__IOMode",
+      "score": 522.38,
+      "body_size": 82,
+      "source_obj": "37c54b985f96_iomode.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "iomode"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "iomode"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "iomode"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "iomode"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "000463a4": {
+      "name": "__SetIOMode",
+      "current_name": "__SetIOMode",
+      "score": 227.68,
+      "body_size": 24,
+      "source_obj": "37c54b985f96_iomode.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "iomode"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "iomode"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "iomode"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "iomode"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "000463bc": {
+      "name": "stackavail",
+      "current_name": "stackavail",
+      "body_size": 9,
+      "source_obj": "64e136f79228_stack386.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0,
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "stack386"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "stack386"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "stack386"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "stack386"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "000463c5": {
+      "name": "_heapenable",
+      "current_name": "_heapenable",
+      "score": 7.67,
+      "body_size": 19,
+      "source_obj": "44e3321078e7_heapen.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "heapen"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "heapen"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "heapen"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a+9.5b+9.5c"
+    },
+    "000463d8": {
+      "name": "sbrk",
+      "current_name": "sbrk",
+      "score": 120.39,
+      "body_size": 157,
+      "source_obj": "c0313e8c4d0d_sbrk386.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "sbrk386"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "sbrk386"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "sbrk386"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b"
+    },
+    "00046475": {
+      "name": "__brk",
+      "current_name": "__brk",
+      "score": 273.09,
+      "body_size": 170,
+      "source_obj": "c0313e8c4d0d_sbrk386.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "sbrk386"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "sbrk386"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "sbrk386"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b"
+    },
+    "00046520": {
+      "name": "__int386x_",
+      "current_name": "__int386x_",
+      "score": 49.03,
+      "body_size": 91,
+      "source_obj": "168bb609d2af_int386xa.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "int386xa"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "int386xa"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "int386xa"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "int386xa"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0004657b": {
+      "name": "_DoINTR_",
+      "current_name": "_DoINTR_",
+      "score": 42.38,
+      "body_size": 893,
+      "source_obj": "168bb609d2af_int386xa.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "int386xa"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "int386xa"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "int386xa"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "int386xa"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "000468f8": {
+      "name": "__InitFiles",
+      "current_name": "__InitFiles",
+      "score": 67.03,
+      "body_size": 69,
+      "source_obj": "912c4d366640_initfile.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "initfile"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "initfile"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "initfile"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a+9.5b+9.5c"
+    },
+    "0004693d": {
+      "name": "__full_io_exit",
+      "current_name": "__full_io_exit",
+      "score": 12.34,
+      "body_size": 15,
+      "source_obj": "aa0b826f7c04_ioexit.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "ioexit"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "ioexit"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "ioexit"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "ioexit"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0004694c": {
+      "name": "fcloseall",
+      "current_name": "fcloseall",
+      "body_size": 11,
+      "source_obj": "aa0b826f7c04_ioexit.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "ioexit"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "ioexit"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "ioexit"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "ioexit"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c",
+      "notes": "PUBLIC fcloseall in CLIB3S/ioexit.obj. Byte-match verified via wdis on aa0b826f7c04_ioexit.obj (2026-05-19): 11B wrapper PUSH 5 ; CALL L$1_ioexit_close_streams_with_mask ; ADD ESP,4 ; RET. Previously merged with L$1 helper (89B) by Ghidra auto-analyzer; split during K2 audit."
+    },
+    "000469a5": {
+      "name": "flushall",
+      "current_name": "flushall",
+      "body_size": 11,
+      "source_obj": "d8d0c9de78e5_flushall.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "Public C flushall (flush all open streams). No caller in FD2 — linker leftover preserved by wlink. Lib match in CLIB3S/flushall.obj (single-PUBDEF, behavior matches PUSH -1; CALL helper; ADD ESP, 4; RET signature).",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "flushall"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "flushall"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "flushall"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "flushall"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "000469b0": {
+      "name": "__flushall",
+      "current_name": "__flushall",
+      "score": 132.02,
+      "body_size": 56,
+      "source_obj": "d8d0c9de78e5_flushall.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "flushall"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "flushall"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "flushall"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "flushall"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "000469e8": {
+      "name": "getche",
+      "current_name": "getche",
+      "score": 60.010002,
+      "body_size": 27,
+      "source_obj": "3dc313a87fa1_getche.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "getche"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "getche"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "getche"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "getche"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00046a03": {
+      "name": "__qwrite",
+      "current_name": "__qwrite",
+      "score": 179.73,
+      "body_size": 125,
+      "source_obj": "0c455ab70502_qwrite.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "qwrite"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "qwrite"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "qwrite"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "qwrite"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00046a80": {
+      "name": "unlink",
+      "current_name": "unlink",
+      "score": 63.02,
+      "body_size": 36,
+      "source_obj": "c313e1089de3_unlink.obj",
+      "verified": "conflict_resolved",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "unlink"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "unlink"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "unlink"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "unlink"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00046ac9": {
+      "name": "utoa",
+      "current_name": "utoa",
+      "score": 63.37,
+      "body_size": 72,
+      "source_obj": "8456c2248f37_itoa.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "itoa"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "itoa"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "itoa"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a+9.5b+9.5c"
+    },
+    "00046b11": {
+      "name": "itoa",
+      "current_name": "itoa",
+      "score": 60.690002,
+      "body_size": 48,
+      "source_obj": "8456c2248f37_itoa.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "itoa"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "itoa"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "itoa"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a+9.5b+9.5c"
+    },
+    "00046b41": {
+      "name": "_Not_Enough_Memory",
+      "current_name": "__FpAbort",
+      "body_size": 12,
+      "source_obj": "9d1f5c0476e0_nomem.obj",
+      "verified": "byte_match_disputed",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit byte-level match to lib symbol `_Not_Enough_Memory` (2026-05-10) was a false positive: after immediate masking the PUSH/PUSH/JMP pattern is identical to nomem.obj, but actual PUSH-msg immediate 0x516cc points to \"Floating-point support not loaded\r\n\" (verified by Ghidra read_memory at 0x516cc). Re-identified 2026-05-14 as Watcom __FpAbort (FP-not-loaded abort thunk that tail-calls __exit_with_msg with exit_code=1 and the FP-error msg). Frozen lib `name` field retained but source_obj / source_libs no longer trustworthy for this entry — needs full lookup rebuild against fpabort.obj / null_fp.obj candidates from CLIB3S.",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "nomem"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "nomem"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "nomem"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "nomem"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00046b72": {
+      "name": "ultoa",
+      "current_name": "ultoa",
+      "score": 63.37,
+      "body_size": 72,
+      "source_obj": "aea270c9f81a_ltoa.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "ltoa"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "ltoa"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "ltoa"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a+9.5b+9.5c"
+    },
+    "00046bba": {
+      "name": "ltoa",
+      "current_name": "ltoa",
+      "score": 60.690002,
+      "body_size": 48,
+      "source_obj": "aea270c9f81a_ltoa.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "ltoa"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "ltoa"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "ltoa"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a+9.5b+9.5c"
+    },
+    "00046bea": {
+      "name": "toupper",
+      "current_name": "toupper",
+      "score": 12.68,
+      "body_size": 21,
+      "source_obj": "2f7b4656e340_toupper.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "toupper"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "toupper"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "toupper"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "toupper"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00046bff": {
+      "name": "strnicmp",
+      "current_name": "strnicmp",
+      "score": 79.03,
+      "body_size": 77,
+      "source_obj": "0c403d1d9661_strnicmp.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "strnicmp"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "strnicmp"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "strnicmp"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "strnicmp"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00046c4c": {
+      "name": "fgets",
+      "current_name": "fgets",
+      "score": 100.75,
+      "body_size": 106,
+      "source_obj": "935078b71f33_fgets.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "fgets"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "fgets"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "fgets"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a+9.5b+9.5c"
+    },
+    "00046cb6": {
+      "name": "strncpy",
+      "current_name": "strncpy",
+      "score": 32.35,
+      "body_size": 51,
+      "source_obj": "881ce259ef4c_strncpy.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "strncpy"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "strncpy"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "strncpy"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "strncpy"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00046ce9": {
+      "name": "setvbuf",
+      "current_name": "setvbuf",
+      "score": 123.07,
+      "body_size": 120,
+      "source_obj": "81fd4203f5f1_setvbuf.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "setvbuf"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "setvbuf"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "setvbuf"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "setvbuf"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00046d61": {
+      "name": "__getctime",
+      "current_name": "__getctime",
+      "score": 104.47,
+      "body_size": 162,
+      "source_obj": "f196f48e7372_getctime.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "getctime"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "getctime"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "getctime"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "getctime"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00046e03": {
+      "name": "mktime",
+      "current_name": "mktime",
+      "score": 473.13,
+      "body_size": 284,
+      "source_obj": "42f83915bcc9_mktime.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "mktime"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a"
+    },
+    "00046f1f": {
+      "name": "tzset",
+      "current_name": "tzset",
+      "score": 207.34,
+      "body_size": 537,
+      "source_obj": "3940ec1c1105_tzset.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "tzset"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "tzset"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a"
+    },
+    "00047138": {
+      "name": "__parse_tz",
+      "current_name": "__parse_tz",
+      "score": 60.72,
+      "body_size": 157,
+      "source_obj": "3940ec1c1105_tzset.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "tzset"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "tzset"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a"
+    },
+    "000471d5": {
+      "name": "__brktime",
+      "current_name": "__brktime",
+      "score": 294.8,
+      "body_size": 303,
+      "source_obj": "3c31341c06a5_gmtime.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "gmtime"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "gmtime"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "gmtime"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a+9.5b+9.5c"
+    },
+    "00047304": {
+      "name": "_gmtime",
+      "current_name": "_gmtime",
+      "score": 135.69,
+      "body_size": 36,
+      "source_obj": "3c31341c06a5_gmtime.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "gmtime"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "gmtime"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "gmtime"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a+9.5b+9.5c"
+    },
+    "00047328": {
+      "name": "gmtime",
+      "current_name": "gmtime",
+      "score": 20.34,
+      "body_size": 21,
+      "source_obj": "3c31341c06a5_gmtime.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "gmtime"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "gmtime"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "gmtime"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a+9.5b+9.5c"
+    },
+    "0004733d": {
+      "name": "__leapyear",
+      "current_name": "__leapyear",
+      "score": 421.35,
+      "body_size": 52,
+      "source_obj": "fee92bb59e09_timeutil.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "timeutil"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "timeutil"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "timeutil"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b"
+    },
+    "00047371": {
+      "name": "__isindst",
+      "current_name": "__isindst",
+      "score": 375.53998,
+      "body_size": 657,
+      "source_obj": "fee92bb59e09_timeutil.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "timeutil"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "timeutil"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "timeutil"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b"
+    },
+    "00047602": {
+      "name": "div",
+      "current_name": "div",
+      "score": 110.020004,
+      "body_size": 51,
+      "source_obj": "bb9fedfb9a05_div.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "div"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "div"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "div"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "div"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0004962e": {
+      "name": "strncmp",
+      "current_name": "strncmp",
+      "score": 28.68,
+      "body_size": 50,
+      "source_obj": "1109b8612cd1_strncmp.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "strncmp"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "strncmp"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "strncmp"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "strncmp"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00049660": {
+      "name": "__math1err",
+      "current_name": "__math1err",
+      "body_size": 42,
+      "source_obj": "adf8cd710dd5_math2err.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "math2err"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "math2err"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "math2err"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "math2err"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=rename. obj=adf8cd710dd5_math2err.obj, lib_func=__math1err"
+    },
+    "0004968a": {
+      "name": "__math2err",
+      "current_name": "__math2err",
+      "body_size": 243,
+      "source_obj": "adf8cd710dd5_math2err.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "math2err"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "math2err"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "math2err"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "math2err"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=rename. obj=adf8cd710dd5_math2err.obj, lib_func=__math2err"
+    },
+    "0004977d": {
+      "name": "__CommonInit",
+      "current_name": "__CommonInit",
+      "body_size": 11,
+      "source_obj": "396ee5d8b8ff_cinit.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0,
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "cinit"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "cinit"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "cinit"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "cinit"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "00049788": {
+      "name": "_EFG_Format",
+      "current_name": "_EFG_Format",
+      "score": 111.82,
+      "body_size": 299,
+      "source_obj": "c44ebd7c06f7_efgfmt.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "efgfmt"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "efgfmt"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "efgfmt"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "efgfmt"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "000498b3": {
+      "name": "__cnvs2d",
+      "current_name": "__cnvs2d",
+      "body_size": 35,
+      "source_obj": "b0e463be2159_cnvs2d.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "cnvs2d"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "cnvs2d"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "cnvs2d"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "cnvs2d"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=rename. obj=b0e463be2159_cnvs2d.obj, lib_func=__cnvs2d"
+    },
+    "000498d6": {
+      "name": "__hook387",
+      "current_name": "__hook387",
+      "score": 120.45,
+      "body_size": 207,
+      "source_obj": "59ab203f79f5_hook387.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "hook387"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "hook387"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "hook387"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a+9.5b+9.5c"
+    },
+    "000499a5": {
+      "name": "__unhook387",
+      "current_name": "__unhook387",
+      "score": 40.72,
+      "body_size": 85,
+      "source_obj": "59ab203f79f5_hook387.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "hook387"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "hook387"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "hook387"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a+9.5b+9.5c"
+    },
+    "00049d98": {
+      "name": "__int7",
+      "current_name": "__int7",
+      "score": 15.35,
+      "body_size": 11830,
+      "source_obj": "fb5b3f690802_emu387.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "EMU387",
+          "module": "emu387"
+        },
+        {
+          "version": "9.5a",
+          "lib": "EMU387",
+          "module": "emu387"
+        }
+      ],
+      "source_summary": "EMU387:9.5+9.5a"
+    },
+    "0004cbd0": {
+      "name": "__init_80x87",
+      "current_name": "__init_80x87",
+      "score": 25.34,
+      "body_size": 45,
+      "source_obj": "ccc721b858c5_init8087.obj",
+      "verified": "manual",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "init8087"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "init8087"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "init8087"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "init8087"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0004cbfd": {
+      "name": "__setenvp",
+      "current_name": "__setenvp",
+      "score": 163.41,
+      "body_size": 228,
+      "source_obj": "698cb0f41935_setenvp.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "setenvp"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "setenvp"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "setenvp"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5a+9.5b+9.5c"
+    },
+    "0004cce1": {
+      "name": "_set_matherr",
+      "current_name": "_set_matherr",
+      "body_size": 13,
+      "source_obj": "c45d6324f6e1__matherr.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "PUSH EBP; MOV EBP,ESP; MOV EAX,[EBP+8]; MOV [fix_off32_000539a8],EAX; POP EBP; RET. Installs user matherr handler. Found in MATH3S/_matherr.obj and MATH387S/_matherr.obj (FD2 statically linked at least one variant). Originally classified byte_match_ambiguous in v2 but the 4 hits are all the same function across CLIB/MATH lib versions.",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH3S",
+          "module": "_matherr"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH3S",
+          "module": "_matherr"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH3S",
+          "module": "_matherr"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH3S",
+          "module": "_matherr"
+        },
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "_matherr"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "_matherr"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "_matherr"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "_matherr"
+        }
+      ],
+      "source_summary": "MATH3S+MATH387S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0004ccee": {
+      "name": "_matherr",
+      "current_name": "_matherr",
+      "body_size": 133,
+      "source_obj": "f3c15156dffb__matherr.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "_matherr"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "_matherr"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "_matherr"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=rename. obj=f3c15156dffb__matherr.obj, lib_func=_matherr"
+    },
+    "0004cd73": {
+      "name": "_SetMaxPrec",
+      "current_name": "_SetMaxPrec",
+      "body_size": 408,
+      "source_obj": "a95bc9fb1bf2_ftos.obj",
+      "source_libs": [
+        {
+          "version": "9.5b",
+          "lib": "MATH3S",
+          "module": "ftos"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH3S",
+          "module": "ftos"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "ftos"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "ftos"
+        },
+        {
+          "version": "9.5",
+          "lib": "MATH3S",
+          "module": "ftos"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH3S",
+          "module": "ftos"
+        },
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "ftos"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "ftos"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c, MATH3S:9.5+9.5a+9.5b+9.5c",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=splitter_setbody. obj=a95bc9fb1bf2_ftos.obj, lib_func=_SetMaxPrec",
+      "alternate_shas": [
+        "0cb4b1d0e3ef_ftos.obj",
+        "96ab1a4c68d4_ftos.obj",
+        "f534ecb54a35_ftos.obj"
+      ],
+      "splitter_fragments": [
+        "0004cd80",
+        "0004ce24",
+        "0004cea0"
+      ],
+      "match_start_addr": "0004cd73",
+      "match_end_addr": "0004cf0b"
+    },
+    "0004cf0b": {
+      "name": "_FtoS",
+      "current_name": "_FtoS",
+      "body_size": 577,
+      "source_obj": "f534ecb54a35_ftos.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "ftos"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "ftos"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=rename. obj=f534ecb54a35_ftos.obj, lib_func=_FtoS"
+    },
+    "0004d306": {
+      "name": "_dos_setvect",
+      "current_name": "_dos_setvect",
+      "score": 103.7,
+      "body_size": 55,
+      "source_obj": "14f37d2448a8_d_setvec.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "d_setvec"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "d_setvec"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "d_setvec"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "d_setvec"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0004d345": {
+      "name": "fputs",
+      "current_name": "fputs",
+      "score": 201.75,
+      "body_size": 121,
+      "source_obj": "d14e2fe74712_fputs.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "fputs"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "fputs"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "fputs"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b"
+    },
+    "0004d3be": {
+      "name": "__set_EDOM",
+      "current_name": "__set_EDOM",
+      "body_size": 7,
+      "source_obj": "9ea3227de9a5_seterrno.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit byte-level match to lib symbol `__set_EDOM` (2026-05-10)",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "seterrno"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "seterrno"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "seterrno"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "seterrno"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0004d3c5": {
+      "name": "__set_ERANGE",
+      "current_name": "__set_ERANGE",
+      "body_size": 5,
+      "source_obj": "9ea3227de9a5_seterrno.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "5-byte mode-setter preamble (MOV EAX, 0xE = ERANGE) fall-through to __set_errno @ 0x4d3ca. Sibling __set_EDOM @ 0x4d3be uses MOV+JMP form.",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "seterrno"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "seterrno"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "seterrno"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "seterrno"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0004d3ca": {
+      "name": "__set_errno",
+      "current_name": "__set_errno",
+      "body_size": 12,
+      "source_obj": "9ea3227de9a5_seterrno.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "errno common worker: PUSH EBX; MOV EBX,EAX; CALL __get_errno_ptr; MOV [EAX],EBX; POP EBX; RET. Reached from __set_ERANGE (fall-through) and __set_EDOM (JMP).",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "seterrno"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "seterrno"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "seterrno"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "seterrno"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0004d3d6": {
+      "name": "__FPE_exception_",
+      "current_name": "__FPE_exception_",
+      "body_size": 11,
+      "source_obj": "9ea3227de9a5_seterrno.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "PUSH EAX; CALL [0x528283c]; ADD ESP, 4; RET. Indirect FPE-exception dispatch via runtime-installed handler pointer at 0x528283c.",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "seterrno"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "seterrno"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "seterrno"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "seterrno"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0004d3e1": {
+      "name": "__Nan_Inf",
+      "current_name": "__Nan_Inf",
+      "body_size": 110,
+      "source_obj": "6de6ff4cc6b8_nan_inf.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "nan_inf"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "nan_inf"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "nan_inf"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "nan_inf"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=rename. obj=6de6ff4cc6b8_nan_inf.obj, lib_func=__Nan_Inf"
+    },
+    "0004d450": {
+      "name": "fabs",
+      "current_name": "fabs",
+      "body_size": 14,
+      "source_obj": "8c7557b22166_fabs387.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "14-byte software-emulator fabs PUBDEF (canonical C entry). Body `8064240b 7f 8b442404 8b542408 c3` = AND byte [ESP+0xB], 0x7F (clear MSB sign bit of double) / MOV EAX, [ESP+4] / MOV EDX, [ESP+8] / RET. Same fabs387.obj as IF@DABS @ 0x4d45e (already in lookup) — 0x4d450 is canonical PUBDEF at obj offset 0, 0x4d45e is 387-hardware alt-entry PUBDEF at obj offset +14 (3B `D9 E1 C3` = FABS; RET). Both PUBDEFs survived from fabs387.obj. Found via batch 10 fd2_audit byte_match.",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "fabs387"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "fabs387"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "fabs387"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "fabs387"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0004d45e": {
+      "name": "IF@DABS",
+      "current_name": "IF@DABS",
+      "body_size": 3,
+      "source_obj": "8c7557b22166_fabs387.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "3-byte FPU absolute value entry: FABS; RET (D9 E1 C3). PUBDEF in fabs387.obj alongside IF@ABS / fabs. Zero xref in FD2 — linker leftover preserved by wlink. Originally renamed _fabs by prior reverse engineer.",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "fabs387"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "fabs387"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "fabs387"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "fabs387"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0004d464": {
+      "name": "IF@LOG",
+      "current_name": "IF@LOG",
+      "body_size": 76,
+      "source_obj": "d9a05561b4f2_log387.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "log(x) public entry; 2-byte mode-A preamble at offset 0 (MOV AL, 0xA = ln mode) fall-through to canonical body @ +2. Sibling thunks IF@LOG2 / IF@LOG10 JMP +2.",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "log387"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "log387"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "log387"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "log387"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0004d4b0": {
+      "name": "IF@LOG2",
+      "current_name": "IF@LOG2",
+      "body_size": 4,
+      "source_obj": "d9a05561b4f2_log387.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "4-byte log2 thunk: MOV AL, 0x9; JMP IF@LOG+2.",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "log387"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "log387"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "log387"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "log387"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0004d4b4": {
+      "name": "IF@LOG10",
+      "current_name": "IF@LOG10",
+      "body_size": 4,
+      "source_obj": "d9a05561b4f2_log387.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "4-byte log10 thunk: MOV AL, 0xB; JMP IF@LOG+2. Created post-jmp_target_audit (orphan disasm bytes were not previously a function).",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "log387"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "log387"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "log387"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "log387"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0004d4cb": {
+      "name": "log10",
+      "current_name": "log10",
+      "body_size": 19,
+      "source_obj": "d9a05561b4f2_log387.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "log387"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "log387"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "log387"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "log387"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=rename. obj=d9a05561b4f2_log387.obj, lib_func=log10"
+    },
+    "0004d4f1": {
+      "name": "_Scale",
+      "current_name": "_Scale",
+      "body_size": 75,
+      "source_obj": "ab3b63c7c67c_scale.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "scale"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "scale"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "scale"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "scale"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=rename. obj=ab3b63c7c67c_scale.obj, lib_func=_Scale"
+    },
+    "0004d53c": {
+      "name": "_Scale10V",
+      "current_name": "_Scale10V",
+      "body_size": 218,
+      "source_obj": "ab3b63c7c67c_scale.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "scale"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "scale"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "scale"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "scale"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=rename. obj=ab3b63c7c67c_scale.obj, lib_func=_Scale10V"
+    },
+    "0004d616": {
+      "name": "__cvt",
+      "current_name": "__cvt",
+      "body_size": 420,
+      "source_obj": "5e6dafa551e3_cvt.obj",
+      "source_libs": [
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "cvt"
+        }
+      ],
+      "source_summary": "MATH387S:9.5a",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=rename. obj=5e6dafa551e3_cvt.obj, lib_func=__cvt"
+    },
+    "0004d84c": {
+      "name": "__ZBuf2F",
+      "current_name": "__ZBuf2F",
+      "score": 42.35,
+      "body_size": 158,
+      "source_obj": "904423069b96_amodf.obj",
+      "verified": "auto_threshold",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "amodf"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "amodf"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a"
+    },
+    "0004d8f1": {
+      "name": "__log87_err",
+      "current_name": "__log87_err",
+      "body_size": 72,
+      "source_obj": "e8a3e61d00b6_log87e.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "log87e"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "log87e"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "log87e"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "log87e"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=rename. obj=e8a3e61d00b6_log87e.obj, lib_func=__log87_err"
+    },
+    "0004d93c": {
+      "name": "__CmpBigInt",
+      "current_name": "__CmpBigInt",
+      "body_size": 58,
+      "source_obj": "a0b712117bdb_i64tos.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH3R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5",
+          "lib": "MATH3S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5",
+          "lib": "MATH387R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH3R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH3S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH3R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH3S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH3R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH3S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "i64tos"
+        }
+      ],
+      "source_summary": "MATH387R:9.5+9.5a+9.5b+9.5c, MATH387S:9.5+9.5a+9.5b+9.5c, MATH3R:9.5+9.5a+9.5b+9.5c, MATH3S:9.5+9.5a+9.5b+9.5c",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=rename. obj=a0b712117bdb_i64tos.obj, lib_func=__CmpBigInt"
+    },
+    "0004d976": {
+      "name": "__Rnd2Int",
+      "current_name": "__Rnd2Int",
+      "body_size": 107,
+      "source_obj": "a0b712117bdb_i64tos.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH3R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5",
+          "lib": "MATH3S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5",
+          "lib": "MATH387R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH3R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH3S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH3R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH3S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH3R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH3S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "i64tos"
+        }
+      ],
+      "source_summary": "MATH387R:9.5+9.5a+9.5b+9.5c, MATH387S:9.5+9.5a+9.5b+9.5c, MATH3R:9.5+9.5a+9.5b+9.5c, MATH3S:9.5+9.5a+9.5b+9.5c",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=rename. obj=a0b712117bdb_i64tos.obj, lib_func=__Rnd2Int"
+    },
+    "0004d9e1": {
+      "name": "__Bin2String",
+      "current_name": "__Bin2String",
+      "score": 0.0,
+      "body_size": 297,
+      "source_obj": "a0b712117bdb_i64tos.obj",
+      "verified": "byte_match",
+      "aliases": [],
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH3R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5",
+          "lib": "MATH3S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5",
+          "lib": "MATH387R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH3R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH3S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH3R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH3S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH3R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH3S",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387R",
+          "module": "i64tos"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "i64tos"
+        }
+      ],
+      "source_summary": "MATH387R:9.5+9.5a+9.5b+9.5c, MATH387S:9.5+9.5a+9.5b+9.5c, MATH3R:9.5+9.5a+9.5b+9.5c, MATH3S:9.5+9.5a+9.5b+9.5c",
+      "notes": "Watcom CRT 64-bit binary->ASCII decimal converter. 297B byte-EXACT match (0 fixups, fully position-independent). Sibling PUBDEFs in same .obj: __Rnd2Int (107B) at 0x4D976, __CmpBigInt (58B). Body spans 0x4D9E1..0x4DB09 but Ghidra erroneously split into 3 functions (0x4D9E1 entry / 0x4DA53 internal CALL stub / 0x4DB08 POP EDI;RET trampoline) plus the inline pow10 table at 0x4DA58 (179B of u64 powers reached via CALL/POP EDI getip idiom). Discovered 2026-05-18 during crt_equivalent_* byte_match audit."
+    },
+    "0004db0a": {
+      "name": "frexp",
+      "current_name": "frexp",
+      "body_size": 88,
+      "source_obj": "3bf50f39eafd_frexp.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "frexp"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "frexp"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "frexp"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "frexp"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=rename. obj=3bf50f39eafd_frexp.obj, lib_func=frexp"
+    },
+    "0004db64": {
+      "name": "modf",
+      "current_name": "modf",
+      "body_size": 32,
+      "source_obj": "3ede649993e4_modf387.obj",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "MATH387S",
+          "module": "modf387"
+        },
+        {
+          "version": "9.5a",
+          "lib": "MATH387S",
+          "module": "modf387"
+        },
+        {
+          "version": "9.5b",
+          "lib": "MATH387S",
+          "module": "modf387"
+        },
+        {
+          "version": "9.5c",
+          "lib": "MATH387S",
+          "module": "modf387"
+        }
+      ],
+      "source_summary": "MATH387S:9.5+9.5a+9.5b+9.5c",
+      "verified": "byte_match",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "crt_audit_v2 byte-level match. action=rename. obj=3ede649993e4_modf387.obj, lib_func=modf"
+    },
+    "00046957": {
+      "name": "L$1_ioexit_close_streams_with_mask",
+      "current_name": "L$1_ioexit_close_streams_with_mask",
+      "body_size": 78,
+      "source_obj": "aa0b826f7c04_ioexit.obj",
+      "verified": "byte_match",
+      "aliases": [
+        "L$1"
+      ],
+      "score": 0.0,
+      "notes": "PRIVATE L$1 helper in CLIB3S/ioexit.obj, 78B. Byte-match verified via wdis on aa0b826f7c04_ioexit.obj (2026-05-19). Shared close-streams-with-mask helper called by fcloseall(5) and __full_io_exit(0). Algorithm: iterates data_crt_open_files_list_head_ptr; protects first n_protected_stdio slots in static FILE pool at data_crt_fopen_static_file_pool_20entries; closes the rest via __shutdown_stream.",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "ioexit"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "ioexit"
+        },
+        {
+          "version": "9.5b",
+          "lib": "CLIB3S",
+          "module": "ioexit"
+        },
+        {
+          "version": "9.5c",
+          "lib": "CLIB3S",
+          "module": "ioexit"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    }
+  },
+  "by_name": {
+    "IF@COS": [
+      "0003c7b6"
+    ],
+    "IF@DABS": [
+      "0004d45e"
+    ],
+    "IF@LOG": [
+      "0004d464"
+    ],
+    "IF@LOG10": [
+      "0004d4b4"
+    ],
+    "IF@LOG2": [
+      "0004d4b0"
+    ],
+    "IF@SIN": [
+      "0003c7cf"
+    ],
+    "IF@SQRT": [
+      "0003c736"
+    ],
+    "IF@TAN": [
+      "0003c8ab"
+    ],
+    "L$1": [
+      "00036cd0",
+      "000377c3",
+      "0003c927",
+      "0003d747",
+      "0003fbfa",
+      "0004608b"
+    ],
+    "L$1_asctime_fmt2": [
+      "0003fbfa"
+    ],
+    "L$1_chk8087_save_fpu_env": [
+      "0004608b"
+    ],
+    "L$1_fprtf_fprtf": [
+      "0003d747"
+    ],
+    "L$1_rand_seed_ptr": [
+      "0003c927"
+    ],
+    "L$1_sprintf_put_char": [
+      "000377c3"
+    ],
+    "L$1_stk_save_ss": [
+      "00036cd0"
+    ],
+    "L$2": [
+      "00046097"
+    ],
+    "L$2_chk8087_load_fpu_env": [
+      "00046097"
+    ],
+    "_DoINTR_": [
+      "0004657b"
+    ],
+    "_EFG_Format": [
+      "00049788"
+    ],
+    "_FtoS": [
+      "0004cf0b"
+    ],
+    "_Not_Enough_Memory": [
+      "00046b41"
+    ],
+    "_Scale": [
+      "0004d4f1"
+    ],
+    "_Scale10V": [
+      "0004d53c"
+    ],
+    "_SetMaxPrec": [
+      "0004cd73"
+    ],
+    "__@DSQRT": [
+      "0003c738"
+    ],
+    "__Bin2String": [
+      "0004d9e1"
+    ],
+    "__CHK": [
+      "00036cd7"
+    ],
+    "__CHP": [
+      "000377a4"
+    ],
+    "__CMain": [
+      "00045d4b"
+    ],
+    "__CmpBigInt": [
+      "0004d93c"
+    ],
+    "__CommonInit": [
+      "0004977d"
+    ],
+    "__EINVAL": [
+      "000462d1"
+    ],
+    "__ExpandDGROUP": [
+      "0003d4f2"
+    ],
+    "__FPE_exception_": [
+      "0004d3d6"
+    ],
+    "__FiniRtns": [
+      "00045ddd"
+    ],
+    "__GETDS": [
+      "0003cbc4"
+    ],
+    "__GRO": [
+      "00036ce7"
+    ],
+    "__IOMode": [
+      "00046352"
+    ],
+    "__InitFiles": [
+      "000468f8"
+    ],
+    "__InitRtns": [
+      "00045d9a"
+    ],
+    "__Init_Argv": [
+      "00046114"
+    ],
+    "__LastFree": [
+      "0003d42b"
+    ],
+    "__MemAllocator": [
+      "0003d270"
+    ],
+    "__MemFree": [
+      "0003d320"
+    ],
+    "__MkTmpFile": [
+      "000372a7"
+    ],
+    "__Nan_Inf": [
+      "0004d3e1"
+    ],
+    "__Rnd2Int": [
+      "0004d976"
+    ],
+    "__STK": [
+      "00036cea"
+    ],
+    "__STKOVERFLOW": [
+      "00036d07"
+    ],
+    "__STOSB": [
+      "0003dd10"
+    ],
+    "__STOSD": [
+      "0003dd47"
+    ],
+    "__SetIOMode": [
+      "000463a4"
+    ],
+    "__ZBuf2F": [
+      "0004d84c"
+    ],
+    "__allocfp": [
+      "0003d802"
+    ],
+    "__brk": [
+      "00046475"
+    ],
+    "__brktime": [
+      "000471d5"
+    ],
+    "__chk8087": [
+      "000460d5"
+    ],
+    "__chktty": [
+      "0003d8ec"
+    ],
+    "__cnvs2d": [
+      "000498b3"
+    ],
+    "__cvt": [
+      "0004d616"
+    ],
+    "__delay": [
+      "0003dccd"
+    ],
+    "__delay_init": [
+      "0003dc9f"
+    ],
+    "__doclose": [
+      "00037326"
+    ],
+    "__exit": [
+      "0003cb91"
+    ],
+    "__exit_with_msg": [
+      "0003cb93"
+    ],
+    "__filbuf": [
+      "0003da3a"
+    ],
+    "__fill_buffer": [
+      "0003da65"
+    ],
+    "__flush": [
+      "0003db16"
+    ],
+    "__flushall": [
+      "000469b0"
+    ],
+    "__fprtf": [
+      "0003d761"
+    ],
+    "__freefp": [
+      "0003d897"
+    ],
+    "__full_io_exit": [
+      "0004693d"
+    ],
+    "__get_doserrno_ptr": [
+      "0003d7fc"
+    ],
+    "__get_errno_ptr": [
+      "0003d7f6"
+    ],
+    "__getctime": [
+      "00046d61"
+    ],
+    "__hook387": [
+      "000498d6"
+    ],
+    "__init_8087": [
+      "000460a2"
+    ],
+    "__init_80x87": [
+      "0004cbd0"
+    ],
+    "__int386x_": [
+      "00046520"
+    ],
+    "__int7": [
+      "00049d98"
+    ],
+    "__ioalloc": [
+      "0003d919"
+    ],
+    "__isindst": [
+      "00047371"
+    ],
+    "__leapyear": [
+      "0004733d"
+    ],
+    "__log87_err": [
+      "0004d8f1"
+    ],
+    "__math1err": [
+      "00049660"
+    ],
+    "__math2err": [
+      "0004968a"
+    ],
+    "__math87_err": [
+      "00045cc3"
+    ],
+    "__nmemneed": [
+      "0003d6f2"
+    ],
+    "__open_flags": [
+      "00036e0d"
+    ],
+    "__parse_tz": [
+      "00047138"
+    ],
+    "__prtf": [
+      "0003ddc7"
+    ],
+    "__purgefp": [
+      "0003d8ca"
+    ],
+    "__qread": [
+      "0003d990"
+    ],
+    "__qwrite": [
+      "00046a03"
+    ],
+    "__setEFGfmt": [
+      "00045e20"
+    ],
+    "__set_EDOM": [
+      "0004d3be"
+    ],
+    "__set_ERANGE": [
+      "0004d3c5"
+    ],
+    "__set_binary": [
+      "0003cf03"
+    ],
+    "__set_errno": [
+      "0004d3ca"
+    ],
+    "__setenvp": [
+      "0004cbfd"
+    ],
+    "__shutdown_stream": [
+      "00037270"
+    ],
+    "__sys_fini_387_emulator": [
+      "00045fb6"
+    ],
+    "__sys_init_387_emulator": [
+      "00045e36"
+    ],
+    "__unhook387": [
+      "000499a5"
+    ],
+    "_asctime": [
+      "0003fc3b"
+    ],
+    "_ctime": [
+      "0003fd40"
+    ],
+    "_dos_setvect": [
+      "0004d306"
+    ],
+    "_dosret0": [
+      "000462a2"
+    ],
+    "_dosretax": [
+      "000462ba"
+    ],
+    "_exit": [
+      "00036df6"
+    ],
+    "_fpreset": [
+      "000460cb"
+    ],
+    "_fsopen": [
+      "00036fa1"
+    ],
+    "_gmtime": [
+      "00047304"
+    ],
+    "_heapenable": [
+      "000463c5"
+    ],
+    "_localtime": [
+      "0003fb90"
+    ],
+    "_matherr": [
+      "0004ccee"
+    ],
+    "_nfree": [
+      "00037426"
+    ],
+    "_nmalloc": [
+      "00036d26"
+    ],
+    "_set_errno": [
+      "000462e2"
+    ],
+    "_set_matherr": [
+      "0004cce1"
+    ],
+    "abs": [
+      "000375e2",
+      "000375e2"
+    ],
+    "asctime": [
+      "0003fd2b"
+    ],
+    "close": [
+      "0003d01c"
+    ],
+    "ctime": [
+      "0003fd63"
+    ],
+    "div": [
+      "00047602"
+    ],
+    "exit": [
+      "00036de4"
+    ],
+    "fabs": [
+      "0004d450"
+    ],
+    "fclose": [
+      "00037244"
+    ],
+    "fcloseall": [
+      "0004694c"
+    ],
+    "fgetc": [
+      "0003d9c1"
+    ],
+    "fgets": [
+      "00046c4c"
+    ],
+    "filelength": [
+      "0003d056"
+    ],
+    "flushall": [
+      "000469a5"
+    ],
+    "fopen": [
+      "00036fcc"
+    ],
+    "fprintf": [
+      "0003f11b"
+    ],
+    "fputc": [
+      "0003dbf7"
+    ],
+    "fputs": [
+      "0004d345"
+    ],
+    "fread": [
+      "00037072"
+    ],
+    "free": [
+      "00037416"
+    ],
+    "freopen": [
+      "00037046"
+    ],
+    "frexp": [
+      "0004db0a"
+    ],
+    "fseek": [
+      "000375f0"
+    ],
+    "ftell": [
+      "0003dbb3"
+    ],
+    "fwrite": [
+      "0003744b"
+    ],
+    "getch": [
+      "00037821"
+    ],
+    "getche": [
+      "000469e8"
+    ],
+    "getenv": [
+      "0003f13b"
+    ],
+    "getpid": [
+      "0003db10"
+    ],
+    "gmtime": [
+      "00047328"
+    ],
+    "int386": [
+      "00036d98"
+    ],
+    "int386x": [
+      "0003d726"
+    ],
+    "isatty": [
+      "0003fb0f"
+    ],
+    "itoa": [
+      "00046b11"
+    ],
+    "labs": [
+      "000375e2"
+    ],
+    "localtime": [
+      "0003fbe5"
+    ],
+    "log10": [
+      "0004d4cb"
+    ],
+    "lseek": [
+      "0003cc00"
+    ],
+    "ltoa": [
+      "00046bba"
+    ],
+    "malloc": [
+      "00036d16"
+    ],
+    "memcpy": [
+      "0003cbd6"
+    ],
+    "memmove": [
+      "000373c4"
+    ],
+    "memset": [
+      "000375c0"
+    ],
+    "mktime": [
+      "00046e03"
+    ],
+    "modf": [
+      "0004db64"
+    ],
+    "open": [
+      "0003cd24"
+    ],
+    "outp": [
+      "00037795"
+    ],
+    "printf": [
+      "00036dc1"
+    ],
+    "rand": [
+      "0003c92d"
+    ],
+    "read": [
+      "0003cc4b"
+    ],
+    "remove": [
+      "0003dbe7"
+    ],
+    "sbrk": [
+      "000463d8"
+    ],
+    "segread": [
+      "0003d6f9"
+    ],
+    "setbuf": [
+      "0003fb2f"
+    ],
+    "setvbuf": [
+      "00046ce9"
+    ],
+    "sopen": [
+      "0003cd43"
+    ],
+    "sprintf": [
+      "000377d9"
+    ],
+    "sqrt": [
+      "0003c6fc"
+    ],
+    "srand": [
+      "0003c94f"
+    ],
+    "stackavail": [
+      "000463bc"
+    ],
+    "strcmp": [
+      "0003cf70"
+    ],
+    "strcpy": [
+      "0003fd7c"
+    ],
+    "strlen": [
+      "00037805"
+    ],
+    "strncmp": [
+      "0004962e"
+    ],
+    "strncpy": [
+      "00046cb6"
+    ],
+    "strnicmp": [
+      "00046bff"
+    ],
+    "tan": [
+      "0003c914"
+    ],
+    "tell": [
+      "0003ddb3"
+    ],
+    "time": [
+      "0003fb57"
+    ],
+    "tolower": [
+      "0003d7e1"
+    ],
+    "toupper": [
+      "00046bea"
+    ],
+    "tzset": [
+      "00046f1f"
+    ],
+    "ultoa": [
+      "00046b72"
+    ],
+    "unlink": [
+      "00046a80"
+    ],
+    "utoa": [
+      "00046ac9"
+    ],
+    "write": [
+      "0003d095"
+    ],
+    "L$1_ioexit_close_streams_with_mask": [
+      "00046957"
+    ]
+  }
+}

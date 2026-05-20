@@ -1,4 +1,4 @@
-# spell_effect_table
+# data_fd2_battle_spell_effect_table
 
 `.object3 @ 0x619FD`，36 entries × 7 bytes = 252 bytes。signature `32 00 5A 05`。
 
@@ -37,5 +37,5 @@ offset  size  field  意義
 
 ## 邊界
 
-`spell_effect_table` 結束 at `0x619FD + 252 = 0x61AF9`，剛好接 `enemy_data_table`
+`data_fd2_battle_spell_effect_table` 結束 at `0x619FD + 252 = 0x61AF9`，剛好接 `data_fd2_battle_enemy_data_table`
 起點。表之間零 padding。

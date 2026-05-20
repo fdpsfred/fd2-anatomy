@@ -9,8 +9,8 @@
 | Init | `chapter_18_init @ 0x000335DA` | 154 B |
 | End | `chapter_18_end @ 0x00023CD5` | 356 B |
 | Post-action | `chapter_18_post_action @ 0x000208CF` | bypass default; 自行實作勝負 |
-| BGM (player turn) | `per_chapter_player_turn_bgm[17]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[17]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[17]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[17]` |  |
 
 ## Init handler 階段
 

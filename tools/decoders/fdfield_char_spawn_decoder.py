@@ -34,7 +34,7 @@ import sys
 from pathlib import Path
 
 # tools/decoders/fdfield_char_spawn_decoder.py -> decoders -> tools -> fd2_reverse
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import fdfield_event_decoder as fd  # noqa: E402

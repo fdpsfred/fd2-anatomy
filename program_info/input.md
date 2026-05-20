@@ -31,7 +31,7 @@ loop:
   decompress_save_snapshot(0)     // 保持畫面
   if BIOS tick changed (0x46C):
     composite_battle_frame()      // cursor 閃爍動畫
-wait_key_input()                  // 真正讀 scancode
+int386(0x16, &regs, &out)         // INT 16h BIOS keyboard wait/read scancode
 remap_special:
   -0x20 (0xE0) or 'R' (0x52) → 0x1C  (Enter)
   'S' (0x53)                  → 0x01  (Esc)
@@ -88,7 +88,7 @@ wraparound。儲存上次 reference tick 在 `0x53A2C`。
 | `0x53A2C` | `wait_n_bios_ticks` 的 reference tick |
 | `0x539F0` | `idle_tick_value` (BIOS tick copy) |
 | `0x539F2` | `previous_idle_tick` |
-| `0x51AAC` | `ui_input_lockout_flag` (transition 期間阻擋) |
+| `0x51AAC` | `data_fd2_ui_play_active_flag` (1=normal play; 0 during transition lockout) |
 
 ## 為何用 BIOS 而非 INT 16h
 

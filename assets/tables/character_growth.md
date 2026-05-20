@@ -1,4 +1,4 @@
-# character_growth_table
+# data_fd2_battle_character_growth_table
 
 `.object3 @ 0x620A1`，68 entries × 11 bytes = 748 bytes (+3 bytes padding 至
 0x62390)。signature `06 08 04 06`。
@@ -17,7 +17,7 @@ offset  size  field                 意義
 +7      1     HP_max
 +8      1     MP_min
 +9      1     MP_max
-+10     1     spell_learning_idx    spell_learning_table 的 index；0xFF = 無
++10     1     spell_learning_idx    data_fd2_battle_spell_learning_table 的 index；0xFF = 無
 ```
 
 ## 跨版本偏移
@@ -53,5 +53,5 @@ table 尾端 3 bytes (`00 00 54` @ `0x6238D-0x6238F`) 是對齊 padding，與本
 
 ## 對應 spell_learning
 
-`spell_learning_idx` 指向 `spell_learning_table @ 0x626B3` 的對應 entry，描述
+`spell_learning_idx` 指向 `data_fd2_battle_spell_learning_table @ 0x626B3` 的對應 entry，描述
 此職業在哪些等級學什麼 spell。詳 `assets/tables/spell_learning.md`。

@@ -27,7 +27,7 @@ LV30 火龍 / 雷龍 / 暗黑龍 (HP 2400-3600, MP 2400, 天火 / 神雷 / 咒�
 - **擊毀第一隻機甲隊長 → 寶箱平台援軍**：FDFIELD tile-step handler rewrite turn-event hook，使下回合中央左右寶箱平台 spawn 援軍。
 - **護送悠妮到控制中心石碑**：tile-step 觸發後再過 3 回合，`fire_chapter_turn_events_for_phase` 觸發 3 條巨龍 boss 戰。
 - **End handler 高潮 cinematic**：
-  - char[0x14] 變身為空魔神 (`bPortrait_id = 0x7E`，對應 enemy_data_table entry 58 @ `0x7AD51`)
+  - char[0x14] 變身為空魔神 (`bPortrait_id = 0x7E`，對應 data_fd2_battle_enemy_data_table entry 58 @ `0x7AD51`)
   - 9 連震動 (3 + 3 + 3，最後一震 strength = 0x28，3 倍長度)
   - 3 道全螢幕白光閃 (`animate_palette_flash_pulse_white` × 3)
   - 64-step palette fade-out (white-out) → 黑屏 800ms → 64-step palette fade-in

@@ -8,7 +8,7 @@
 
 ## 敵人配置
 
-空魔神 (chars[0x14], char_id 0x7E, enemy_data_table entry 58 @ `0x7AD51`)、水魔神 (id 0x7B)、地魔神 (id 0x7A)、風魔神 (id 0x7C)、火魔神 (id 0x7D)、機甲 — FDFIELD.DAT[30]。
+空魔神 (chars[0x14], char_id 0x7E, data_fd2_battle_enemy_data_table entry 58 @ `0x7AD51`)、水魔神 (id 0x7B)、地魔神 (id 0x7A)、風魔神 (id 0x7C)、火魔神 (id 0x7D)、機甲 — FDFIELD.DAT[30]。
 init 階段以 7× cinematic warp 將魔神群傳送進場（4 個上方 + 3 個下方）。
 
 ## 寶物

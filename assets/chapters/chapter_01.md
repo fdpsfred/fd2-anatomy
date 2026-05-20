@@ -36,8 +36,23 @@ char_spawn_records），不在 init handler。
 
 - **獨家 prologue**：3-phase init handler（其他章大多只有 Phase 2/3）。FDTXT 對話
   跨 entry 33 (prologue) → entry 32 (intro) → entry 1 (start)。
-- **哈瓦特暴走**：哈諾死後，哈瓦特的 protective AI 因失去 ai_target 自然 fall
-  through 為 default attacker。屬 implicit consequence，非 turn-triggered AI flip。
+- **哈瓦特暴走**：哈諾死後，哈瓦特的 AI 因失去 ai_target 自然 fall-through 為
+  default attacker。屬 implicit consequence，非 turn-triggered AI flip。
+  - FDFIELD entry 1 共 30 records，唯二的 `team=2 player_class` 是
+    record[8] @+0x153 (char_id 0x03 哈瓦特, lv3, race=7) 與 record[9] @+0x16D
+    (char_id 0x01 哈諾, lv1, race=3, pickup_kind=2 param=4 = 第 3 回合
+    reinforcement 觸發)；其餘 28 筆為 enemy_class 與 team=1 NPC（友方海防隊
+    士兵 ×4 @ record[19..22]）。
+  - **三 byte AI override** (`+0x11/+0x12/+0x13` = `ai_class+flags / ai_aux /
+    ai_target_pos`，由 `init_runtime_char_for_battle @ 0x10c50` 拷貝到
+    runtime_char `+0x34/+0x35/+0x36`)：哈瓦特 / 哈諾 兩者皆 `(0, 0, 0)`，無顯式
+    protective AI 設定。
+  - **protective 行為實際來源**：哈瓦特 record[8] 的 `+0x02 ai_target_id = 0x01`
+    (= 哈諾 char_id 1)；default_attacker AI 透過 ai_target_id 偏好接近哈諾的
+    敵人，達到 protective 效果。哈諾死後 ai_target_id 指向已 dead runtime_char，
+    fall-through 為純粹 default attacker = 「暴走」。
+  - 索爾 / 亞雷斯 / 悠妮 / 蓋亞 為何不在 FDFIELD records：這 4 名主角由
+    `chapter_01_init` 直接 register（不走 FDFIELD char_spawn 機制）。
 - **勝負條件**：default — 全敵死=勝、索爾死=負。
 
 ## 對話

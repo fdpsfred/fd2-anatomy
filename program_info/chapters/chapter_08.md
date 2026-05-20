@@ -9,8 +9,8 @@ End handler 含 fade-to-black 轉場 (palette darken + framebuffer clear)；FDFI
 | Init | `chapter_08_init @ 0x00033219` | 100 B |
 | End | `chapter_08_end @ 0x000234BB` | 140 B |
 | Post-action | `check_battle_end_default_handler @ 0x000205B4` | (default) |
-| BGM (player turn) | `per_chapter_player_turn_bgm[7]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[7]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[7]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[7]` |  |
 
 ## Init handler 階段
 
@@ -40,7 +40,7 @@ End handler 末段 `init_runtime_char_from_base_growth(5)` → 洛娜加入。
 
 ## Post-action handler
 
-`per_chapter_post_action_handler[7]` 指向 `check_battle_end_default_handler`，
+`data_fd2_chapter_post_action_handler_table[7]` 指向 `check_battle_end_default_handler`，
 無自訂勝負條件。每回合敵騎兵援軍 6 組由 FDFIELD turn-event hooks 處理，**不是**
 post_action_handler。
 
@@ -48,7 +48,7 @@ post_action_handler。
 
 `chapter_08_end @ 0x000234BB` (140 B)：
 
-1. 從 `chapter_08_end_scene_pos_x_table` / `pos_y_table` (@ 0x520FC/0x52106, 各 4 entries) 讀 4 chars 位置
+1. 從 `data_fd2_chapter_ch08_end_scene_char_pos_x_table` / `pos_y_table` (@ 0x520FC/0x52106, 各 4 entries) 讀 4 chars 位置
 2. `setup_chars_and_camera_for_intro(...)`
 3. `display_dialog_scene(page=3)`
 4. `cutscene_event_trigger(0x21)`

@@ -9,8 +9,8 @@
 | Init | `chapter_06_init @ 0x0003314B` | 79 B |
 | End | `chapter_06_end @ 0x00023296` | 82 B |
 | Post-action | `check_battle_end_default_handler @ 0x000205B4` | (default) |
-| BGM (player turn) | `per_chapter_player_turn_bgm[5]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[5]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[5]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[5]` |  |
 
 ## Init handler 階段
 
@@ -42,7 +42,7 @@ End handler 開頭 `init_runtime_char_from_base_growth(0xD)` → 貝克威加入
 
 ## Post-action handler
 
-`per_chapter_post_action_handler[5]` 指向 `check_battle_end_default_handler`，
+`data_fd2_chapter_post_action_handler_table[5]` 指向 `check_battle_end_default_handler`，
 無自訂勝負條件。
 
 ## End handler events

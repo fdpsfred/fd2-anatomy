@@ -1,34 +1,52 @@
 # tools/
 
 可重複利用的 Python script。每個 script self-contained — 自帶路徑常數、不
-import shared lib、不依賴 `legacy/`、不讀寫 `catalog/*.json`。
+import shared lib、不依賴 `legacy/`。
 
-完整 script 用法 + 驗證指令見 `README.md`。
+CLI 用法看 `python <script> --help`；預設輸出路徑都已標註在 help 文字內。
+
+## 資料儲放慣例
+
+| 位置                      | 用途                                                                                                  |
+| ------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `tools/{tool}/data/`    | primary input data only：無法靠 script 重產的資料（外部 dependency snapshot、人工 authored verdicts） |
+| `workspace/{工作名稱}/` | script 一切新增/編輯檔案的目的地：pipeline intermediate / output、audit state、KB-freeze 候選稿       |
+
+KB（`rebuild_info` / `program_info` / `resource_info` / `assets`）不引用
+`workspace/` path。
+
+兩類 script 處理方式不同：
+
+- **即時重生** — `build_call_graph.py` / `build_data_inventory.py` 寫到
+  `workspace/{call_graph,data_audit}/`，不留 KB snapshot；要 fresh 資料時
+  直接重跑。KB 文件引用 script 名稱，不引用輸出檔。
+- **KB-freeze 候選稿** — `build_final_lookup.py` 寫到 workspace，要 publish
+  到 `rebuild_info/crt/lookup_9.5a.json` 時人工複製（lookup 需要混合多個
+  pipeline 結果，不適合純機械重生）。
+
+工作名稱 ↔ workspace 路徑：
+
+| Subfolder                                      | Workspace                       |
+| ---------------------------------------------- | ------------------------------- |
+| `tools/decoders/`                            | `workspace/decoders/<sub>/`   |
+| `tools/glyph/`                               | `workspace/glyph/<sub>/`      |
+| `tools/program_analysis/build_call_graph.py` | `workspace/call_graph/`       |
+| `tools/program_analysis/crt_fid_match/`      | `workspace/crt_fid_match/`    |
+| `tools/program_analysis/crt_callee_match/`   | `workspace/crt_callee_match/` |
+| `tools/program_analysis/data_audit/`         | `workspace/data_audit/`       |
+| `tools/program_analysis/function_audit/`     | `workspace/function_audit/`   |
+| `tools/program_analysis/jump_table_audit/`   | `workspace/jump_table_audit/` |
+
+`tools/program_analysis/crt_fid_match/data/` 內的 primary input：
+
+- `observations_*.json` — 人工 verify observation（manual verdict 來源；
+  build_final_lookup.py 依此決定 inclusion / rejection）
+
+FidQuery raw 輸出 (`matches_9.5a.json`) 屬 pipeline intermediate，不入 git；
+重跑時由 `ghidra_scripts/FidQuery.java` 寫到 `workspace/crt_fid_match/results/`
 
 ## 子資料夾
 
-- `decoders/` — LLLLLL DAT archive parser + 各資源檔解碼器 (FDTXT / FDFIELD /
-  FDSHAP / FDOTHER / DATO / FDMUS / FDICON / BG / TAI 等)
-- `glyph/` — 中文字 glyph atlas 渲染 + ET3 STDFONT pixel-match lookup
-- `glyph/ET3_fonts/` — ET3 字型檔 (ASCFONT.15, STDFONT.15)，glyph 比對工具的
-  唯一外部依賴
-- `calling_convention_audit/` — 把 FD2.LE 全 1000 個 function 的 cc 從 Ghidra
-  自動推斷錯誤狀態校正成 ABI 正確的 pipeline (Python orchestrator + Ghidra
-  Java workers)，跨 session 可恢復；尾端含 param-name cleanup 與 param-count
-  apply 兩個 one-shot pass
-- `function_review/` — 全 function 命名審視 + call graph 建立工作流的支援
-  scripts。從 Ghidra MCP dump 建 per-function review registry / 進度面板 / DOT
-  call graph snapshot + Phase E call_graph 凍結。經 1004 function 完整 review
-  工作流跑過；命名與分類判斷由人親自做，scripts 只做機械處理
-- `crt_fid_match/` — Ghidra Function ID 比對 pipeline 識別 FD2.LE 內
-  Watcom CRT 函式。Python 端做 lib 拆解 / OMF 修補 / 跨版本 dedup /
-  結果比對；Ghidra 端 Java scripts 在 `ghidra_scripts/` 下做 import /
-  analyze / populate / query。完整說明見 `rebuild_info/crt_fid_match.md`
-- `crt_callee_match/` — 比對 FidDB 已識別 CRT function 內呼叫到的「未識別 callee」
-  與 Watcom CRT lib symbol。OMF parser（含 Watcom Easy OMF-386 quirks 處理）+
-  size + caller-source-obj heuristic + byte-level FIXUPP-aware 比對。用於補抓
-  CRT splitter 切錯的尾段碎片與 FidDB 漏抓的 small helper
-- `jump_table_audit/` — 全 binary indirect-JMP / orphan code / fragmented body
-  audit。Phase 2 跑 `compare_lookup_sizes.py` 對 lookup body_size vs lib `.obj`
-  size 全面 diff（regression check）；Phase 1+3 用 Ghidra MCP run_script_inline
-  一次性掃 + 修。對應 `rebuild_info/crt_fid_match.md` §12.2.1
+- `decoders/` — LLLLLL DAT archive parser + 各資源檔解碼器
+- `glyph/` — 中文字 glyph atlas 渲染 + ET3 STDFONT pixel-match
+- `program_analysis/` — FD2.LE 結構性分析工具集合（5 audit pipeline + call_graph builder）

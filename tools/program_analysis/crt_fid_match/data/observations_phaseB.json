@@ -1,0 +1,98 @@
+{
+  "_comment": "Phase B observations for 10 score-distance samples + 3 name-conflict cases. Callee names translated from Ghidra current_name to Watcom matched_name using crt_matches_9.5a.json. Helper functions outside the FidDb match set keep their Ghidra current_name.",
+  "_addr_to_matched": "Built from crt_matches_9.5a.json: e.g. 0x47304 -> _gmtime, 0x46d61 -> __getctime, 0x3dd10 -> __STOSB, 0x3da65 -> __fill_buffer, 0x3d990 -> __qread, 0x3db16 -> __flush, 0x3d919 -> __ioalloc, 0x3d8ec -> __chktty, 0x3d761 -> __fprtf, 0x46a03 -> __qwrite, 0x462e2 -> _set_errno, 0x46a80 -> unlink, 0x3dbe7 -> remove, 0x46e03 -> mktime, 0x36d16 -> malloc, etc.",
+
+  "00047328": {
+    "callees": ["_gmtime"],
+    "asm": "00047328: PUSH EBP\n00047329: MOV EBP,ESP\n0004732b: PUSH 0x54604\n00047330: PUSH dword ptr [EBP + 0x8]\n00047333: CALL 0x00047304\n00047338: ADD ESP,0x8\n0004733b: POP EBP\n0004733c: RET",
+    "key_instructions": "PUSH 0x54604 (static struct tm*); PUSH time arg; CALL _gmtime; thin wrapper",
+    "notes": "Watcom gmtime(t) is a 2-arg wrapper around _gmtime(t, &static_tm). Static buffer at 0x54604 in DGROUP is the dedicated gmtime tm struct."
+  },
+
+  "000375c0": {
+    "callees": ["__STOSB"],
+    "asm": "000375c0: MOV EAX,dword ptr [ESP + 0x4]\n000375c4: MOV EDX,dword ptr [ESP + 0x8]\n000375c8: MOV ECX,dword ptr [ESP + 0xc]\n000375cc: MOV DH,DL\n000375ce: SHL EDX,0x8\n000375d1: MOV DL,DH\n000375d3: SHL EDX,0x8\n000375d6: MOV DL,DH\n000375d8: CALL 0x0003dd10\n000375dd: MOV EAX,dword ptr [ESP + 0x4]\n000375e1: RET",
+    "key_instructions": "Args via [ESP+4]/[ESP+8]/[ESP+0xC] (cdecl); broadcast val byte to 4 bytes of EDX (DH=DL, SHL/MOV pairs); CALL __STOSB helper; return dest",
+    "notes": "Watcom 9.5a CLIB3S memset wrapper. The actual REP STOSB lives in __STOSB @ 0x3dd10 (matched_name __STOSB)."
+  },
+
+  "0003fb57": {
+    "callees": ["__getctime", "mktime"],
+    "asm": "0003fb57: PUSH EBX\n0003fb58: PUSH EBP\n0003fb59: MOV EBP,ESP\n0003fb5b: SUB ESP,0x24\n0003fb5e: MOV EBX,dword ptr [EBP + 0xc]\n0003fb61: LEA EAX,[EBP + -0x24]\n0003fb64: PUSH EAX\n0003fb65: CALL 0x00046d61\n0003fb6a: ADD ESP,0x4\n0003fb6d: CMP EAX,0x1f4\n0003fb72: JL 0x0003fb77\n0003fb74: INC dword ptr [EBP + -0x24]\n0003fb77: LEA EAX,[EBP + -0x24]\n0003fb7a: PUSH EAX\n0003fb7b: CALL 0x00046e03\n0003fb80: ADD ESP,0x4\n0003fb83: MOV EDX,EAX\n0003fb85: TEST EBX,EBX\n0003fb87: JZ 0x0003fb8b\n0003fb89: MOV dword ptr [EBX] ,EAX\n0003fb8b: MOV EAX,EDX\n0003fb8d: LEAVE\n0003fb8e: POP EBX\n0003fb8f: RET",
+    "key_instructions": "Allocate 0x24 byte tm on stack; CALL __getctime(&tm); year normalization (CMP 0x1f4=500 / JL / INC); CALL mktime(&tm); store in *timer if non-NULL",
+    "notes": "time(timer) gathers DOS date+time via __getctime, then converts to time_t via mktime. Optional timer pointer stored before return."
+  },
+
+  "00037326": {
+    "callees": ["close", "__flush", "ftell", "__MkTmpFile", "remove", "free", "lseek"],
+    "asm": "00037326: PUSH EBX\n00037327: PUSH ESI\n00037328: PUSH EBP\n00037329: MOV EBP,ESP\n0003732b: SUB ESP,0x10\n0003732e: MOV EBX,dword ptr [EBP + 0x10]\n00037331: CMP dword ptr [EBX + 0xc] ,0x0\n00037335: JNZ 0x00037341\n00037337: MOV EAX,0xffffffff\n0003733c: JMP 0x000373c0\n00037341: XOR ESI,ESI\n00037343: TEST byte ptr [EBX + 0xd] ,0x10\n00037347: JZ 0x00037354\n00037349: PUSH EBX\n0003734a: CALL 0x0003db16\n0003734f: ADD ESP,0x4\n00037352: MOV ESI,EAX\n00037354: PUSH EBX\n00037355: CALL 0x0003dbb3\n0003735a: ADD ESP,0x4\n0003735d: CMP EAX,-0x1\n00037360: JZ 0x00037370\n00037362: PUSH 0x0\n00037364: PUSH EAX\n00037365: PUSH dword ptr [EBX + 0x10]\n00037368: CALL 0x0003cc00\n0003736d: ADD ESP,0xc\n00037370: CMP dword ptr [EBP + 0x14] ,0x0\n00037374: JZ 0x00037383\n00037376: PUSH dword ptr [EBX + 0x10]\n00037379: CALL 0x0003d01c\n0003737e: ADD ESP,0x4\n00037381: OR ESI,EAX\n00037383: TEST byte ptr [EBX + 0xc] ,0x8\n00037387: JZ 0x0003739b\n00037389: PUSH dword ptr [EBX + 0x8]\n0003738c: CALL 0x00037416\n00037391: ADD ESP,0x4\n00037394: MOV dword ptr [EBX + 0x8] ,0x0\n0003739b: TEST byte ptr [EBX + 0xd] ,0x8\n0003739f: JZ 0x000373be\n000373a1: MOVZX EAX,byte ptr [EBX + 0x19]\n000373a5: PUSH EAX\n000373a6: LEA EAX,[EBP + -0x10]\n000373a9: PUSH EAX\n000373aa: CALL 0x000372a7\n000373af: ADD ESP,0x8\n000373b2: LEA EAX,[EBP + -0x10]\n000373b5: PUSH EAX\n000373b6: CALL 0x0003dbe7\n000373bb: ADD ESP,0x4\n000373be: MOV EAX,ESI\n000373c0: LEAVE\n000373c1: POP ESI\n000373c2: POP EBX\n000373c3: RET",
+    "key_instructions": "Tests _flag at [EBX+0xC]; if 0x10 set -> CALL __flush; CALL ftell; if pos!=-1 -> CALL lseek(handle,pos,0); if close-flag arg -> CALL close(handle); if 0x8 in _flag -> free(_base) and zero it; if temp-file flag -> CALL __MkTmpFile + CALL remove",
+    "notes": "Final close path: drains buffer, repositions for unread bytes, closes handle, frees buffer, removes tmpfile. Body 158 bytes."
+  },
+
+  "00037072": {
+    "callees": ["__fill_buffer", "__get_errno_ptr", "__ioalloc", "memcpy", "__qread"],
+    "asm_excerpt": "first 30 lines: arg load; size*count; FILE* checks; calls __ioalloc / __fill_buffer / __qread / memcpy in loop",
+    "asm": "00037072: PUSH EDI\n00037073: PUSH ESI\n00037074: PUSH EBX\n00037075: PUSH EBP\n00037076: MOV EBP,ESP\n00037078: SUB ESP,0x14\n0003707b: MOV ECX,dword ptr [EBP + 0x18]\n0003707e: MOV EDI,dword ptr [EBP + 0x14]\n00037081: MOV EBX,dword ptr [EBP + 0x1c]\n00037084: MOV ESI,dword ptr [EBP + 0x20]\n00037087: TEST EDI,EDI\n00037089: JZ 0x000370c0\n0003708b: TEST ESI,ESI\n0003708d: JZ 0x000370c0\n... [calls 0x3d919 (__ioalloc), 0x3da65 (__fill_buffer), 0x3d990 (__qread), 0x3cbd6 (memcpy), 0x3d7f6 (__get_errno_ptr) ...] (full body 466 bytes; size*count loop with buffer refill via __fill_buffer, fallback __qread for unbuffered, memcpy for buffered chunks)",
+    "key_instructions": "4 args [EBP+0x14]/[EBP+0x18]/[EBP+0x1C]/[EBP+0x20] (buf,size,count,fp); CALL __ioalloc to ensure buffer; loop with __fill_buffer for refill, __qread for direct read, memcpy for buffered copy",
+    "notes": "Full fread implementation. Handles size*count, partial reads, EOF, error via __get_errno_ptr. Body 466 bytes fits expected 200-700 range."
+  },
+
+  "0004733d": {
+    "callees": [],
+    "asm": "0004733d: PUSH EBX\n0004733e: PUSH EBP\n0004733f: MOV EBP,ESP\n00047341: MOV EBX,dword ptr [EBP + 0xc]\n00047344: TEST BL,0x3\n00047347: JNZ 0x0004736c\n00047349: MOV EAX,EBX\n0004734b: MOV ECX,0x64\n00047350: CDQ\n00047351: IDIV ECX\n00047353: TEST EDX,EDX\n00047355: JZ 0x0004735e\n00047357: MOV EAX,0x1\n0004735c: JMP 0x0004736e\n0004735e: MOV EAX,EBX\n00047360: MOV ECX,0x190\n00047365: CDQ\n00047366: IDIV ECX\n00047368: TEST EDX,EDX\n0004736a: JZ 0x00047357\n0004736c: XOR EAX,EAX\n0004736e: POP EBP\n0004736f: POP EBX\n00047370: RET",
+    "key_instructions": "TEST BL,0x3 (year & 3 != 0 -> not leap, return 0); IDIV by 100 (0x64); if remainder != 0 -> leap (return 1); else IDIV by 400 (0x190); if remainder == 0 -> leap; else not leap",
+    "notes": "Classic Gregorian leap-year rule: divisible by 4 AND (not divisible by 100 OR divisible by 400). Pure leaf, no callees, body 52."
+  },
+
+  "0003744b": {
+    "callees": ["__get_errno_ptr", "__flush", "__ioalloc", "write", "memcpy", "fputc"],
+    "asm_excerpt": "(full body 359 bytes; size*count loop with __flush for buffer drain, write for direct, memcpy for buffered)",
+    "asm": "0003744b: PUSH EDI\n0003744c: PUSH ESI\n0003744d: PUSH EBX\n0003744e: PUSH EBP\n0003744f: MOV EBP,ESP\n00037451: SUB ESP,0x18\n... [calls 0x3db16 (__flush), 0x3d919 (__ioalloc), 0x3d095 (write), 0x3cbd6 (memcpy), 0x3dbf7 (fputc), 0x3d7f6 (__get_errno_ptr); body 359 bytes total] ...",
+    "key_instructions": "4 args (buf, size, count, fp); CALL __ioalloc to ensure buffer; loop drains with __flush, falls back to write for direct, memcpy for buffered copy",
+    "notes": "Full fwrite implementation. body 359 fits expected 200-600 range."
+  },
+
+  "000462e2": {
+    "callees": ["__get_doserrno_ptr", "__get_errno_ptr"],
+    "asm": "000462e2: PUSH EBX\n000462e3: PUSH ESI\n000462e4: PUSH EBP\n000462e5: MOV EBP,ESP\n000462e7: MOV BL,byte ptr [EBP + 0x10]\n000462ea: MOVZX ESI,BL\n000462ed: CALL 0x0003d7fc\n000462f2: MOV dword ptr [EAX] ,ESI\n000462f4: CMP dword ptr [EBP + 0x10] ,0x100\n000462fb: JNC 0x00046336\n000462fd: CMP byte ptr [0x0005283a] ,0x3\n00046304: JC 0x0004631f\n00046306: CMP BL,0x50\n00046309: JNZ 0x0004630f\n0004630b: MOV BL,0xe\n0004630d: JMP 0x0004631f\n0004630f: CMP BL,0x22\n00046312: JC 0x00046318\n00046314: MOV BL,0x13\n00046316: JMP 0x0004631f\n00046318: CMP BL,0x20\n0004631b: JC 0x0004631f\n0004631d: MOV BL,0x5\n0004631f: CMP BL,0x13\n00046322: JBE 0x00046326\n00046324: MOV BL,0x13\n00046326: MOVZX EAX,BL\n00046329: MOVSX AX,byte ptr [EAX + 0x5377c]\n00046331: MOVSX EBX,AX\n00046334: JMP 0x00046342\n00046336: MOV EBX,dword ptr [EBP + 0x10]\n00046339: SHR EBX,0x8\n0004633c: AND EBX,0xff\n00046342: CALL 0x0003d7f6\n00046347: MOV dword ptr [EAX] ,EBX\n00046349: MOV EAX,0xffffffff\n0004634e: POP EBP\n0004634f: POP ESI\n00046350: POP EBX\n00046351: RET",
+    "key_instructions": "Stores DOS error code into _doserrno (via __get_doserrno_ptr); maps DOS code to errno via lookup table at 0x5377c (only when DOS<0x100); writes errno (via __get_errno_ptr); returns -1",
+    "notes": "Maps DOS error codes (0..0x13) to POSIX errno via 20-entry lookup table. DOS_VERSION threshold check (0x5283a). For codes >=0x100 (Watcom internal), uses high byte directly. Body 112 fits 60-200 range."
+  },
+
+  "0003db16": {
+    "callees": ["__get_errno_ptr", "__qwrite", "lseek"],
+    "asm_excerpt": "(body 157 bytes; calls __qwrite for raw write of buffered data, lseek for position adjustment)",
+    "asm": "0003db16: ... CALL 0x00046a03 (__qwrite) ... CALL 0x0003cc00 (lseek) ... CALL 0x0003d7f6 (__get_errno_ptr) ... operates on _ptr/_cnt/_flag (_iob fields at [EBX+0]/[EBX+4]/[EBX+0xC])",
+    "key_instructions": "Drains buffer between _ptr and _cnt; calls __qwrite to flush bytes; on error sets errno via __get_errno_ptr",
+    "notes": "Standard FILE-buffer flush. body 157 fits 80-250 range."
+  },
+
+  "0003d919": {
+    "callees": ["__chktty", "malloc"],
+    "asm": "0003d919: PUSH EBX\n0003d91a: PUSH EBP\n0003d91b: MOV EBP,ESP\n0003d91d: MOV EBX,dword ptr [EBP + 0xc]\n0003d920: PUSH EBX\n0003d921: CALL 0x0003d8ec\n0003d926: ADD ESP,0x4\n0003d929: CMP dword ptr [EBX + 0x14] ,0x0\n0003d92d: JNZ 0x0003d954\n0003d92f: TEST byte ptr [EBX + 0xd] ,0x2\n0003d933: JZ 0x0003d93e\n0003d935: MOV dword ptr [EBX + 0x14] ,0x86\n0003d93c: JMP 0x0003d954\n0003d93e: TEST byte ptr [EBX + 0xd] ,0x4\n0003d942: JZ 0x0003d94d\n0003d944: MOV dword ptr [EBX + 0x14] ,0x1\n0003d94b: JMP 0x0003d954\n0003d94d: MOV dword ptr [EBX + 0x14] ,0x1000\n0003d954: PUSH dword ptr [EBX + 0x14]\n0003d957: CALL 0x00036d16\n0003d95c: ADD ESP,0x4\n0003d95f: MOV dword ptr [EBX + 0x8] ,EAX\n0003d962: TEST EAX,EAX\n0003d964: JNZ 0x0003d97d\n0003d966: AND byte ptr [EBX + 0xd] ,0xf8\n0003d96a: LEA EAX,[EBX + 0x18]\n0003d96d: OR byte ptr [EBX + 0xd] ,0x4\n0003d971: MOV dword ptr [EBX + 0x8] ,EAX\n0003d974: MOV dword ptr [EBX + 0x14] ,0x1\n0003d97b: JMP 0x0003d981\n0003d97d: OR byte ptr [EBX + 0xc] ,0x8\n0003d981: MOV EAX,dword ptr [EBX + 0x8]\n0003d984: MOV dword ptr [EBX] ,EAX\n0003d986: MOV dword ptr [EBX + 0x4] ,0x0\n0003d98d: POP EBP\n0003d98e: POP EBX\n0003d98f: RET",
+    "key_instructions": "CALL __chktty to set TTY flag; selects bufsiz (0x86 line, 0x1000 block, 0x1 unbuffered) based on flag bits; CALL malloc(bufsiz); on alloc failure falls back to inline 1-byte stash at [EBX+0x18]; sets _ptr/_cnt/_base in _iob entry",
+    "notes": "Allocates FILE buffer based on stream type (line / block / unbuffered). Body 119 fits 80-200 range."
+  },
+
+  "00036dc1": {
+    "callees": ["__fprtf"],
+    "asm": "00036dc1: PUSH EBP\n00036dc2: MOV EBP,ESP\n00036dc4: SUB ESP,0x4\n00036dc7: LEA EAX,[EBP + 0xc]\n00036dca: MOV dword ptr [EBP + -0x4] ,EAX\n00036dcd: LEA EAX,[EBP + -0x4]\n00036dd0: PUSH EAX\n00036dd1: PUSH dword ptr [EBP + 0x8]\n00036dd4: PUSH 0x5285a\n00036dd9: CALL 0x0003d761\n00036dde: ADD ESP,0xc\n00036de1: LEAVE\n00036de2: RET",
+    "key_instructions": "PUSH 0x5285a (= __iob[1] = stdout, computed as 0x52840 + 1*0x1A from crt_globals_map); PUSH fmt arg; PUSH &va_list; CALL __fprtf (Ghidra current name 'vfprintf')",
+    "notes": "**Stream constant 0x5285a is stdout, NOT stderr.** __iob starts at 0x52840 with stride 0x1A; (0x5285a - 0x52840) / 0x1A = 1 = stdout. The function pushes stdout + fmt + va_list and calls __fprtf, which is exactly Watcom's printf wrapper. The Ghidra current_name 'crt_fprintf_stderr' is incorrect — the namer mistook stdout for stderr. matched_name 'printf' is correct."
+  },
+
+  "0003dbe7": {
+    "callees": ["unlink"],
+    "asm": "0003dbe7: PUSH EBP\n0003dbe8: MOV EBP,ESP\n0003dbea: PUSH dword ptr [EBP + 0x8]\n0003dbed: CALL 0x00046a80\n0003dbf2: ADD ESP,0x4\n0003dbf5: POP EBP\n0003dbf6: RET",
+    "key_instructions": "Thin wrapper: PUSH filename arg; CALL unlink (0x46a80, which does INT 21h AH=0x41); return its result",
+    "notes": "Watcom's `remove(filename)` is a thin alias for `unlink(filename)`. Body 16. The Ghidra current_name 'crt_putc_tty' is incorrect — this is not a character-output function but a file-deletion alias. matched_name 'remove' is correct."
+  },
+
+  "00046a80": {
+    "callees": ["_set_errno"],
+    "asm": "00046a80: PUSH EBP\n00046a81: MOV EBP,ESP\n00046a83: MOV EDX,dword ptr [EBP + 0x8]\n00046a86: MOV AH,0x41\n00046a88: INT 0x21\n00046a8a: RCL EAX,0x1\n00046a8c: ROR EAX,0x1\n00046a8e: TEST EAX,EAX\n00046a90: JGE 0x00046aa0\n00046a92: MOVZX EAX,AX\n00046a95: PUSH EAX\n00046a96: CALL 0x000462e2\n00046a9b: ADD ESP,0x4\n00046a9e: JMP 0x00046aa2\n00046aa0: XOR EAX,EAX\n00046aa2: POP EBP\n00046aa3: RET",
+    "key_instructions": "MOV EDX = filename; MOV AH=0x41; INT 0x21 (DOS delete file); RCL/ROR EAX,1 to expose CF as sign bit; if error -> CALL _set_errno(dos_err); else return 0",
+    "notes": "Pure DOS unlink: INT 21h AH=0x41 unlinks file at DS:DX. Body 36. Ghidra current_name 'crt_putc_dos' is incorrect — this is a file-deletion DOS call. matched_name 'unlink' is correct."
+  }
+}

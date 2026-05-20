@@ -9,8 +9,8 @@ Init 全清隊 20 chars + revive HP>0；3× 重複觸發同一 cutscene event 0x
 | Init | `chapter_28_init @ 0x00033C9D` | 285 B |
 | End | `chapter_28_end @ 0x00025464` | 40 B (最小 end) |
 | Post-action | `chapter_22_27_28_post_action_shared @ 0x00020A87` | default + lose if char[1] dead (與 ch22/27 共用) |
-| BGM (player turn) | `per_chapter_player_turn_bgm[27]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[27]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[27]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[27]` |  |
 
 ## Init handler 階段
 

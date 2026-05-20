@@ -9,8 +9,8 @@ Init handler 在進入對話前，迴圈把 `runtime_char_array[0..0xA]` 11 個 
 | Init | `chapter_09_init @ 0x0003327D` | 174 B |
 | End | `chapter_09_end @ 0x000235BC` | 61 B |
 | Post-action | `check_battle_end_default_handler @ 0x000205B4` | (default) |
-| BGM (player turn) | `per_chapter_player_turn_bgm[8]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[8]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[8]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[8]` |  |
 
 ## Init handler 階段
 
@@ -37,11 +37,11 @@ End handler 透過 `runtime_char_array[0xB].bFlags = 0` 復活 char[11]（非新
 
 `0x23` (init), `0x24` (end)。
 
-每 event 對應 `cutscene_event_script_table[event_id] @ 0x627D8` 的 walk-animation script。
+每 event 對應 `data_fd2_chapter_cutscene_event_script_ptr_table_106[event_id] @ 0x627D8` 的 walk-animation script。
 
 ## Post-action handler
 
-`per_chapter_post_action_handler[8]` 指向 `check_battle_end_default_handler` — 全敵死 = win，索爾 (char_id 0) 死 = lose。
+`data_fd2_chapter_post_action_handler_table[8]` 指向 `check_battle_end_default_handler` — 全敵死 = win，索爾 (char_id 0) 死 = lose。
 
 攻略「萊汀被打敗時敵方騎兵援軍立即出現」由 FDFIELD event 處理，不在 post_action handler。
 

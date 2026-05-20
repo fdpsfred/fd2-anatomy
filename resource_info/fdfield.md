@@ -147,7 +147,7 @@ per `init_runtime_char_for_battle @ 0x10C50`：
 struct char_spawn_record {
     uint8_t bTeam;              // +0x00 (0=team0/enemy, 1=NPC, 2=player)
     uint8_t char_id;            // +0x01 (< 0x44 = player class via char_base/growth;
-                                //        ≥ 0x44 = enemy_data_table[id-0x44])
+                                //        ≥ 0x44 = data_fd2_battle_enemy_data_table[id-0x44])
     uint8_t ai_target_id;       // +0x02 (initial AI target char_idx)
     uint8_t _pad03;             // +0x03 (always observed = 1 in ch1)
     uint8_t level;              // +0x04
@@ -191,7 +191,7 @@ handler 內被呼叫時，loop 全 records 篩選 `record.race_id == target_race
 ```c
 struct turn_event_hook {
     uint8_t turn;        // matches save_metadata_block (1-based player turn)
-    uint8_t event_code;  // index into ai_post_action_consequence_table @ 0x51B91
+    uint8_t event_code;  // index into data_fd2_battle_ai_post_action_consequence_table @ 0x51B91
     uint8_t phase;       // 0=enemy_turn_intro, 1=end_of_player_turn,
                          // 2=new_player_turn_intro
 };
@@ -207,7 +207,7 @@ ch9 / ch27 / ch28 / ch29 / ch30 有 `(turn=0xFF, event_code≠0xFF)` 形態，�
 
 ```c
 struct tile_step_event_hook {
-    uint8_t consequence_idx;   // event_code 索引 ai_post_action_consequence_table
+    uint8_t consequence_idx;   // event_code 索引 data_fd2_battle_ai_post_action_consequence_table
     uint8_t event_type;        // 觸發 context (0/1/2 對應 post-walk/post-attack/etc.)
 };
 ```

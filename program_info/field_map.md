@@ -11,15 +11,15 @@
 |---|---|---|
 | `0x00051D71` | `chapter_init_jump_table` | 進入章節時呼叫 |
 | `0x00051DE9` | `chapter_end_jump_table` | 結束章節時呼叫 |
-| `0x00051B19` | `per_chapter_post_action_handler` (= `chapter_misc_jump_table`) | 5 個 turn-cycle 點觸發 |
-| `0x00051B91` | `ai_post_action_consequence_table` | 由 `tile_event_consumed_idx` 與 FDFIELD turn-event hook 索引 (詳 `chapter_event_dispatch.md`) |
+| `0x00051B19` | `data_fd2_chapter_post_action_handler_table` (= `chapter_misc_jump_table`) | 5 個 turn-cycle 點觸發 |
+| `0x00051B91` | `data_fd2_battle_ai_post_action_consequence_table` | 由 `tile_event_consumed_idx` 與 FDFIELD turn-event hook 索引 (詳 `chapter_event_dispatch.md`) |
 
 ## Per-chapter byte arrays
 
 | 位址 | 名稱 | 每章 1 byte，值範圍 |
 |---|---|---|
-| `0x00051E63` | `per_chapter_player_turn_bgm[30]` | BGM track id (0x03/0x04/0x08/0x13) |
-| `0x00051E81` | `per_chapter_enemy_turn_bgm[30]`  | BGM track id (0x01/0x04/0x06/0x08/0x0C) |
+| `0x00051E63` | `data_fd2_audio_per_chapter_player_turn_bgm_track[30]` | BGM track id (0x03/0x04/0x08/0x13) |
+| `0x00051E81` | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[30]`  | BGM track id (0x01/0x04/0x06/0x08/0x0C) |
 
 `run_full_turn_cycle` 把兩者 cast 為 BGM track id 餵給 `set_bgm_track_with_fade`。
 
@@ -130,7 +130,7 @@
 
 只有 chapter_01_init 同時有 Phase 1+2+3，其他章大多只有 Phase 2+3 或更簡。
 
-## per_chapter_post_action_handler (`0x51B19`)
+## data_fd2_chapter_post_action_handler_table (`0x51B19`)
 
 30-entry 函式指標表，由 `current_chapter_id` 索引。從 5 個 turn-cycle 點觸發
 （`game_main_loop` / `tick_status_effects` / `npc_turn_phase_team1` /

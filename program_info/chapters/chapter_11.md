@@ -9,8 +9,8 @@ Init handler 含 2 個 cutscene + dialog 序列；FDFIELD 完全靜態（無 act
 | Init | `chapter_11_init @ 0x00033367` | 142 B |
 | End | `chapter_11_end @ 0x00023790` | 69 B |
 | Post-action | `check_battle_end_default_handler @ 0x000205B4` | (default) |
-| BGM (player turn) | `per_chapter_player_turn_bgm[10]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[10]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[10]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[10]` |  |
 
 ## Init handler 階段
 
@@ -41,7 +41,7 @@ End handler 中：
 
 ## Post-action handler
 
-`per_chapter_post_action_handler[10]` 指向 `check_battle_end_default_handler` — 全敵死 = win，索爾 (char_id 0) 死 = lose。
+`data_fd2_chapter_post_action_handler_table[10]` 指向 `check_battle_end_default_handler` — 全敵死 = win，索爾 (char_id 0) 死 = lose。
 
 攻略「珊會跟著貝克威走」屬 NPC follow AI behavior（NPC class 0xB heal/follow logic），不在 post_action handler。
 

@@ -9,20 +9,20 @@
 | Init | `chapter_25_init @ 0x0003396A` | 324 B |
 | End | `chapter_25_end @ 0x00024DF2` | 142 B |
 | Post-action | `chapter_25_post_action @ 0x00020B14` | default + lose if char[0x10] dead |
-| BGM (player turn) | `per_chapter_player_turn_bgm[24]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[24]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[24]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[24]` |  |
 
 ## Init handler 階段
 
 開場 4 連震 cutscene + 152 KB game state buffer 清空：
 
 1. `init_battle_state_for_chapter`
-2. `sfx_play_handle_table = NULL` 清空
-3. `sfx_play_handle_table = load_dat_resource("FDOTHER.DAT", idx=0x58)` — 載入地震 sfx wave
+2. `data_fd2_audio_status_effect_sfx_handle_ptr = NULL` 清空
+3. `data_fd2_audio_status_effect_sfx_handle_ptr = load_dat_resource("FDOTHER.DAT", idx=0x58)` — 載入地震 sfx wave
 4. `pan_cursor_and_window(5, 0)`
 5. `display_dialog_scene(page=1)` (從 page 1 起，非 page 0)
 6. `crt_memset(large_game_state_buffer, 0, 0x25680)` — 清 152 KB game state buffer
-7. **4× 連續地震**：`play_sfx_with_handle(sfx_play_handle_table)` + `animate_screen_shake(strength)` + 600ms 等待
+7. **4× 連續地震**：`play_sfx_with_handle(data_fd2_audio_status_effect_sfx_handle_ptr)` + `animate_screen_shake(strength)` + 600ms 等待
    - 第 1、2、3 次：strength = 0x14
    - 第 4 次：strength = 0x3C (3 倍長度 climax)
 8. `display_dialog_scene(page=2)`

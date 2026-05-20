@@ -1,0 +1,67 @@
+{
+  "_comment": "Phase D2 observations for the 7 entries in the score 20-30 range. Threshold raised from 20 to 30 after Phase D's 0x4d8ea false-positive showed that score-only criteria (without caller analysis) can miss family-confusion cases. These 7 entries were originally auto_threshold but are now manually verified with full caller + callee + asm evidence.",
+
+  "00047328": {
+    "callees": ["_gmtime"],
+    "callers": [],
+    "asm": "00047328: PUSH EBP\n00047329: MOV EBP,ESP\n0004732b: PUSH 0x54604\n00047330: PUSH dword ptr [EBP + 0x8]\n00047333: CALL 0x00047304\n00047338: ADD ESP,0x8\n0004733b: POP EBP\n0004733c: RET",
+    "key_instructions": "PUSH 0x54604 (static struct tm*); PUSH time arg; CALL _gmtime; thin wrapper",
+    "notes": "Watcom gmtime(t) is a 2-arg wrapper around _gmtime(t, &static_tm). No callers in FD2 — game does not use UTC time. Static buffer at 0x54604 in DGROUP."
+  },
+
+  "000462a2": {
+    "callees": ["_dosretax"],
+    "callers": [],
+    "asm": "000462a2: PUSH EBP\n000462a3: MOV EBP,ESP\n000462a5: MOV EAX,dword ptr [EBP + 0xc]\n000462a8: TEST EAX,EAX\n000462aa: JZ 0x000462b8\n000462ac: PUSH EAX\n000462ad: PUSH dword ptr [EBP + 0x8]\n000462b0: CALL 0x000462ba\n000462b5: ADD ESP,0x8\n000462b8: POP EBP\n000462b9: RET",
+    "key_instructions": "If arg2 (DOS error flag) == 0, return success (do nothing); else PUSH arg1, arg2, CALL _dosretax to map and set errno",
+    "notes": "Standard Watcom _dosret0: 'DOS-call return helper for status==0 path'. If carry-flag was clear (status=0), no-op return; else delegate to _dosretax which calls _set_errno. No direct callers because it's typically inlined or referenced via the DOS-call macro expansion in Watcom system-call wrappers. body 24 fits."
+  },
+
+  "00045d4b": {
+    "callees": ["crt_get_stack_avail@0x463bc", "crt_init_stream_threshold@0x4977d", "exit", "fd2_main"],
+    "callers": ["crt_dos_main_bootstrap"],
+    "asm": "00045d4b: PUSH EBX\n00045d4c: PUSH EBP\n00045d4d: MOV EBP,ESP\n00045d4f: MOV EBX,dword ptr [0x0005281c]\n00045d55: ADD EBX,0x3\n00045d58: AND BL,0xfc\n00045d5b: CALL 0x000463bc\n00045d60: CMP EBX,EAX\n00045d62: JNC 0x00045d6c\n... CALL 0x4977d (init streams) ... PUSH argc, argv ... CALL fd2_main ... PUSH retval ... JMP exit ...",
+    "key_instructions": "Compute stack frame size (round up to 4-byte align), reserve via SUB ESP, init stream threshold, push (argv, argc) from globals, call fd2_main(argc, argv), push retval and JMP exit",
+    "notes": "Classic Watcom __CMain entry sequence. Sole caller is crt_dos_main_bootstrap — the LE startup glue. Calls user main (fd2_main) and exits with its return value. body 79 fits."
+  },
+
+  "0003fd7c": {
+    "callees": [],
+    "callers": ["AIL_internal_API_read_INI_inner", "AIL_startup", "crt_softfp_double_to_digits"],
+    "asm": "0003fd7c: PUSH EBP\n0003fd7d: MOV EBP,ESP\n0003fd7f: MOV EAX,dword ptr [EBP + 0x8]\n0003fd82: MOV EDX,dword ptr [EBP + 0xc]\n0003fd85: PUSH EAX\n0003fd86: MOV CL,byte ptr [EDX]\n0003fd88: MOV byte ptr [EAX],CL\n0003fd8a: CMP CL,0x0\n0003fd8d: JZ 0x0003fda2\n0003fd8f: MOV CL,byte ptr [EDX + 0x1]\n0003fd92: ADD EDX,0x2\n0003fd95: MOV byte ptr [EAX + 0x1],CL\n0003fd98: ADD EAX,0x2\n0003fd9d: CMP CL,0x0\n0003fda0: JNZ 0x0003fd86\n0003fda2: POP EAX\n0003fda3: POP EBP\n0003fda4: RET",
+    "key_instructions": "Save dest pointer; loop copying 2 bytes per iteration (unrolled); break on NUL byte; return original dest",
+    "notes": "Standard Watcom strcpy with 2-byte unroll. All 3 callers are CRT/AIL pathway — AIL_startup and INI parser use strcpy for string moves, crt_softfp_double_to_digits uses it for float-to-string buffer copy. body 41 fits."
+  },
+
+  "0004cbd0": {
+    "callees": [],
+    "callers": ["__init_8087"],
+    "asm": "0004cbd0: PUSH AX\n0004cbd2: FINIT\n0004cbd5: FLD1\n0004cbd7: FLDZ\n0004cbd9: FDIVP\n0004cbdb: FLD ST0\n0004cbdd: FCHS\n0004cbdf: FCOMPP\n0004cbe1: FSTSW AX\n0004cbe4: MOV AL,0x2\n0004cbe6: SAHF\n0004cbe7: JZ 0x0004cbef\n0004cbed: MOV AL,0x3\n0004cbef: FINIT\n0004cbf2: WAIT\n0004cbf3: FLDCW word ptr [ESP]\n0004cbf6: XCHG word ptr [ESP],AX\n0004cbfa: POP AX\n0004cbfc: RET",
+    "key_instructions": "FINIT; FLD1/FLDZ/FDIVP (1.0/0.0 -> +Inf); FLD ST0/FCHS/FCOMPP (compare +Inf vs -Inf for FPU type detection); FSTSW + SAHF; return AL = 2 or 3 (FPU type code); FINIT + FLDCW (restore control word)",
+    "notes": "Watcom __init_80x87: FPU detection probe. Generates +Inf and -Inf via 1.0/0.0 and FCHS, then FCOMPP detects whether FPU treats them as equal (8087 quirk) or distinct (287/387). Returns FPU type code. Caller is __init_8087 — exact init chain position. body 45 fits."
+  },
+
+  "00036fcc": {
+    "callees": ["_fsopen"],
+    "callers": ["AIL_internal_API_read_INI_inner", "AIL_startup", "chapter_transition_menu", "load_chapter_battle_data", "load_chapter_portraits_and_dump_tmp", "load_dat_resource", "load_save_and_init_engine", "load_state_from_selected_slot", "main_menu_continue_dispatcher", "menu_confirm_save_load_newgame", "pin_required_char_to_party_slot1", "play_ani_file_animation_sequence", "play_ending_and_record_clear", "restore_portrait_cache_from_tmp", "run_class_promotion_menu_main", "run_recruitment_or_branch_screen", "save_current_state_to_slot"],
+    "asm": "00036fcc: PUSH EBP\n00036fcd: MOV EBP,ESP\n00036fcf: PUSH 0x0\n00036fd1: PUSH dword ptr [EBP + 0xc]\n00036fd4: PUSH dword ptr [EBP + 0x8]\n00036fd7: CALL 0x00036fa1\n00036fdc: ADD ESP,0xc\n00036fdf: POP EBP\n00036fe0: RET",
+    "key_instructions": "2-arg fopen(filename, mode); PUSH 0 (default share=SH_COMPAT); PUSH mode; PUSH filename; CALL _fsopen; passthrough return value",
+    "notes": "Standard fopen wrapper that delegates to _fsopen with default share mode. 17 callers covering all FD2 file I/O surfaces (chapter loading, save/load, AIL audio, animation/portrait files). body 21 fits."
+  },
+
+  "000460d5": {
+    "callees": ["__init_8087"],
+    "callers": [],
+    "asm": "000460d5: PUSH EBX\n000460d6: CMP byte ptr [0x000527f4],0x0\n000460dd: JNZ 0x00046112\n000460df: XOR BL,BL\n000460e1: MOV byte ptr [0x000527f5],BL\n000460e7: SUB EAX,EAX\n000460e9: PUSH EAX\n000460ea: FNINIT\n000460ec: FNSTCW word ptr [ESP]\n000460ef: POP EAX\n000460f0: MOV AL,AH\n000460f2: CMP AL,0x3\n000460f4: JNZ 0x000460fd\n000460f6: CALL 0x000460a2\n000460fb: MOV BL,AL\n000460fd: CMP byte ptr [0x00052830],0x0\n00046104: JNZ 0x00046112\n00046106: MOV byte ptr [0x000527f4],BL\n0004610c: MOV byte ptr [0x000527f5],BL\n00046112: POP EBX\n00046113: RET",
+    "key_instructions": "Skip if FPU-flag global at 0x527f4 already set; FNINIT; FNSTCW [ESP]; check AH==3 (287/387 with both control/status visible); if FPU detected, CALL __init_8087 to setup; record FPU presence in globals 0x527f4 / 0x527f5",
+    "notes": "Watcom __chk8087: lazy FPU detection + init. FNINIT/FNSTCW probe + control word inspection (AH=3 means present). Calls __init_8087 (which itself calls __init_80x87) when FPU found. No direct callers — invoked indirectly via the FPU init chain hooked at startup. body 63 fits."
+  },
+
+  "0004962e": {
+    "callees": [],
+    "callers": ["AIL_internal_init_sequence_inner", "AIL_internal_xmidi_find_chunk"],
+    "asm": "0004962e: PUSH EBX\n0004962f: PUSH EBP\n00049630: MOV EBP,ESP\n00049632: MOV EAX,dword ptr [EBP + 0xc]\n00049635: MOV EDX,dword ptr [EBP + 0x10]\n00049638: MOV EBX,dword ptr [EBP + 0x14]\n0004963b: TEST EBX,EBX\n0004963d: JNZ 0x00049643\n0004963f: XOR EAX,EAX\n00049641: JMP 0x0004965d\n00049643: MOV CL,byte ptr [EAX]\n00049645: CMP CL,byte ptr [EDX]\n00049647: JZ 0x00049653\n00049649: MOVZX EAX,CL\n0004964c: MOVZX EDX,byte ptr [EDX]\n0004964f: SUB EAX,EDX\n00049651: JMP 0x0004965d\n00049653: CMP byte ptr [EAX],0x0\n00049656: JZ 0x0004963f\n00049658: DEC EBX\n00049659: INC EDX\n0004965a: INC EAX\n0004965b: JMP 0x0004963b\n0004965d: POP EBP\n0004965e: POP EBX\n0004965f: RET",
+    "key_instructions": "3 args (str1, str2, n); if n==0 return 0; loop char compare; on diff return signed difference; on NUL or n exhausted return 0",
+    "notes": "Standard strncmp. Both callers (AIL_internal_init_sequence_inner, AIL_internal_xmidi_find_chunk) are AIL audio-engine paths comparing magic bytes / chunk identifiers in MIDI files. body 50 fits."
+  }
+}

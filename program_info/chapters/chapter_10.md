@@ -9,8 +9,8 @@ Init handler 把 `runtime_char_array[0x32]` 與 `runtime_char_array[0x33]` 的 `
 | Init | `chapter_10_init @ 0x0003332B` | 90 B |
 | End | `chapter_10_end @ 0x000235F9` | 407 B |
 | Post-action | `chapter_10_post_action @ 0x00020707` | (custom) |
-| BGM (player turn) | `per_chapter_player_turn_bgm[9]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[9]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[9]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[9]` |  |
 
 ## Init handler 階段
 
@@ -55,7 +55,7 @@ End handler 中：
 
 `chapter_10_end @ 0x235F9`（大型轉場 + 多 char 復活）：
 
-1. 從 `chapter_10_end_scene_pos_x_table_chars_0_6` 與 `chapter_10_end_scene_pos_y_table` 讀位置
+1. 從 `data_fd2_chapter_ch10_end_scene_char_pos_x_table_chars_0_6` 與 `data_fd2_chapter_ch10_end_scene_char_pos_y_table` 讀位置
 2. `play_palette_fade_to_black` + `clear_all_chars_acted_flag`
 3. Reposition `chars[0..0xA]` (11 chars)：每個 char 設 bPos_x/y from table、sprite_state[1] = 2 (face north)
 4. Special chars revival/repositioning：
@@ -64,7 +64,7 @@ End handler 中：
    - `chars[0x34]`: bPos_x = 0x10, bPos_y = 0x23, `bFlags = 0`（revive）
    - `chars[5].bFlags = 0`（revive char[5]）
 5. Reset battle camera：`battle_window_origin_x/y = 9, 0x22`；`cursor_world/screen_x/y = 9/0x22/0/0`
-6. `composite_battle_frame` + `fade_palette_to_black` + 200ms wait
+6. `composite_battle_frame` + `play_palette_fade_in` + 200ms wait
 7. `display_dialog_scene(page=4)` + `cutscene_event_trigger(0x25)` + `display_dialog_scene(page=5)`
 8. `save_runtime_char_to_template`
 9. `init_runtime_char_from_base_growth(0xB = 11)` — 索菲亞

@@ -27,8 +27,9 @@ import sys
 from pathlib import Path
 
 # tools/decoders/dato_decoder.py -> decoders -> tools -> fd2_reverse
-REPO_ROOT = Path(__file__).resolve().parents[4]
-DATO_PATH = REPO_ROOT / "DATO.DAT"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DATO_PATH = REPO_ROOT / "fd2_game_files" / "DATO.DAT"
+DEFAULT_OUT_DIR = REPO_ROOT / "workspace" / "decoders" / "dato"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from dat_header_parser import parse_dat_header, read_dat_entry  # noqa: E402
@@ -142,8 +143,9 @@ def main() -> int:
                    help="decode one portrait by idx")
     g.add_argument("--samples", type=str,
                    help="decode comma-separated idx list, e.g. '0,1,2,50,100'")
-    p.add_argument("--out-dir", type=Path,
-                   help="directory to write PGM + JSON artifacts")
+    p.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR,
+                   help="directory to write PGM + JSON artifacts. "
+                   f"default: workspace/decoders/dato")
     args = p.parse_args()
     if args.list:
         return cmd_list()

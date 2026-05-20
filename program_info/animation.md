@@ -48,9 +48,9 @@ per pose entry:
 `animate_spell_impact_per_target @ 0x1C4CC` 用 3 個平行 byte-table 驅動 spell
 視覺效果 (spell_id 0..35 索引)：
 
-- `spell_anim_sprite_offset_table @ 0x51F33`
-- `spell_anim_frame_count_table @ 0x51F54`
-- `spell_anim_sfx_frame_table @ 0x51F75`
+- `data_fd2_animation_spell_sprite_offset_table @ 0x51F33`
+- `data_fd2_animation_spell_frame_count_table @ 0x51F54`
+- `data_fd2_animation_spell_sfx_frame_table @ 0x51F75`
 
 ## Panel / Dialog slide 動畫
 

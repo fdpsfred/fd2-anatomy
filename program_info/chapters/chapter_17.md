@@ -9,8 +9,8 @@ Conditional init handler：依隊上是否有蜜蒂 (char_id 0x12) 而分支載�
 | Init | `chapter_17_init @ 0x000335AA` | 48 B |
 | End | `chapter_17_end @ 0x00023B5F` | 374 B |
 | Post-action | `chapter_17_post_action @ 0x00020872` | default + 條件 lose |
-| BGM (player turn) | `per_chapter_player_turn_bgm[16]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[16]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[16]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[16]` |  |
 
 ## Init handler 階段
 

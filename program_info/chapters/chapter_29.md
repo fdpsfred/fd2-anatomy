@@ -9,8 +9,8 @@
 | Init | `chapter_29_init @ 0x00033DBA` | 130 B |
 | End | `chapter_29_end @ 0x0002548C` | 451 B |
 | Post-action | `chapter_29_post_action @ 0x00020B72` | bypass default; tile_event_consumed_flags-based win |
-| BGM (player turn) | `per_chapter_player_turn_bgm[28]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[28]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[28]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[28]` |  |
 
 ## Init handler 階段
 
@@ -34,7 +34,7 @@ Page 0..6 由 FDFIELD turn-event / tile-step handler 引用（含護送悠妮到
 
 無 `init_runtime_char_from_base_growth` 呼叫；本章不加入新角色。
 
-End handler 執行 char 變身：`chars[0x14].bPortrait_id = 0x7E` + `chars[0x14].bChar_id = 0x7E` → 變身為**空魔神**（enemy_data_table entry 58 @ 0x7AD51）。
+End handler 執行 char 變身：`chars[0x14].bPortrait_id = 0x7E` + `chars[0x14].bChar_id = 0x7E` → 變身為**空魔神**（data_fd2_battle_enemy_data_table entry 58 @ 0x7AD51）。
 
 ## Cutscene events
 
@@ -60,7 +60,7 @@ FD2 唯一用 `tile_event_consumed_flags` 而非 char 死活作勝利判定的�
 3. **char[0x14] 變身為空魔神**：
    - `chars[0x14].bPortrait_id = 0x7E`
    - `chars[0x14].bChar_id = 0x7E`
-   - char_id 0x7E 屬 enemy class (>= 0x44) → enemy_data_table entry (0x7E - 0x44) / 10 = entry 58 → 位址 0x7AB0D + 58 × 10 = `0x7AD51` (空魔神)
+   - char_id 0x7E 屬 enemy class (>= 0x44) → data_fd2_battle_enemy_data_table entry (0x7E - 0x44) / 10 = entry 58 → 位址 0x7AB0D + 58 × 10 = `0x7AD51` (空魔神)
 4. `display_dialog_scene(page=0xB)`
 5. `load_chapter_portraits_and_dump_tmp(9)` + `pan` + `pan_cursor_to_tile_animated(0xF, 10)`
 6. `animate_warp_teleport_char(party_member_count - 1, 0xF, 0xA, 0xF, 0xA)` — 傳送最後 party char (warp 動畫)

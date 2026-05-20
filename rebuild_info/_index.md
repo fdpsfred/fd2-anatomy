@@ -4,41 +4,19 @@
 的研究紀錄。`program_info/` 著重在「FD2 現在做什麼」，本資料夾著重
 在「重建這個 binary 需要哪些 toolchain / lib / 連結環境細節」。
 
-## 內容
+## 結構
 
-- `crt_fid_match.md` — Ghidra Function ID 機制把 FD2.LE 內 Watcom CRT
-  函式準確識別出來。確定編譯器是 **Watcom 9.5a**、連結的是 CLIB3S +
-  EMU387 + GRAPH。內含完整 pipeline 說明、Watcom Easy OMF-386
-  quirky record patcher 細節、版本判定證據、CRT 識別結果樣本、lookup
-  table 產生流程
-- `crt_matches_9.5a.json` — FidQuery 對 9.5a fidb 的 raw 輸出
-  (131 個 FD2 function 被識別，含完整 candidate / score / source obj)
-- `crt_lookup_9.5a.json` — 行為驗證後的 address ↔ Watcom CRT symbol 對照表
-  （140 entries：102 auto_threshold (score≥30) + 3 conflict_resolved + 22
-  manual FidDB-driven + 13 callee-driven 補抓）。`by_address` / `by_name` 雙向
-  索引，`current_name` 欄保留 Ghidra 內現有名以利 audit；命名規則為「lookup
-  `name` 與 Ghidra function 名 byte-identical」
-- `crt_verify_report.md` — 受驗 entry 逐筆紀錄（assembly + callees +
-  callers + 規則套用結果），25 PASS / 4 REJECT
-- `crt_verify_rejected.md` — 3 個未通過的 candidate 與拒絕原因（fgetchar
-  / __EINVAL / __nmemneed @ 0x4d8ea — 全部是 hash 巧合或 family 識別錯標；
-  最後一個由 caller-pathway 分析才確認；另 fcloseall 因 Ghidra split 後 body 過
-  小被誤拒，補抓後已從 rejected 移到 lookup）
+| Sub-folder | 內容 |
+|---|---|
+| `ail/` | Miles AIL audio library 在 FD2.LE 內的 inventory、抽 `.obj` 邊界、CRT 替換 EXTDEF、ABI 兼容性 |
+| `crt/` | Watcom v2 CRT 的命名約定、符號 inventory、`crt_*` wrapper、Function ID lookup table（驗證細節 inline 進 lookup entry notes） |
+| `emission/` | 把 1342 個 function 的 decompiled state 產出 C source 並重新 compile 為 byte-equivalent FD2.LE 的 pool 路由、calling convention、fall-through pattern、全程式 call graph |
+| `link/` | FD2.LE 的 LE binary layout (3 object / DGROUP 內部排列 / fixup section 統計 / 入口流程) 與從 binary 反推的 `wlink` 連結命令、`system dos4g` directive、`option stack=4K`、DOS bind stub |
 
-對照用 4 個版本 fidb (9.5a 正本 + 9.5/9.5b/9.5c 對照組) 放在
-`tools/crt_fid_match/crt_fidb/` (跟產生它們的 pipeline 同位置)。
-
-## AIL audio library 重建
-
-- `ail_extraction_prep.md` — 抽 AIL `.obj` 工作的前置資料：283 個 AIL function
-  邊界（103 public + 180 internal）、9 個 game/CRT 共享 helper 的處置策略、
-  8 個違反 v2 cdecl EBX preservation 約定的 `__watcall` 例外函式、CRT 替換
-  EXTDEF map、`_iobuf` layout 90s ↔ v2 兼容性、build pipeline 草案
+各 sub-folder 內含自己的 `_index.md`。對照用 4 個版本 fidb (9.5a 正本 + 9.5/9.5b/9.5c 對照組) 放在 `workspace/crt_fid_match/fidb/`。
 
 ## 後續預定主題
 
 當對應分析完成後會在這個資料夾擴增：
 
-- 連結環境 (wlink linker 設定、LE format DOS/4GW extender、
-  segment ordering、DGROUP layout)
 - source 拆分策略 (從 1 個 LE 倒推回 .c 檔結構)

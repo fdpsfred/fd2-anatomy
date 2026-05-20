@@ -20,4 +20,4 @@ LLLLLL DAT archive parser + 各遊戲資源檔解碼器。
 - `bg_tai_decoder.py` — BG.DAT count/color RLE + TAI.DAT 配對 decoder。
 - `fdicon_decoder.py` — FDICON.B24 1680 個 24×24 8bpp icon RLE decoder。
 
-完整 CLI 用法與驗證範例見 `tools/README.md`。
+每個 script 的完整 CLI 用法看 `python <script> --help`；所有檔案輸出預設目的地為 `workspace/decoders/<sub>/`。

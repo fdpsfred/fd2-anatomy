@@ -26,8 +26,9 @@ import sys
 from pathlib import Path
 
 # tools/decoders/fdfield_layout_inspector.py -> decoders -> tools -> fd2_reverse
-REPO_ROOT = Path(__file__).resolve().parents[4]
-FDFIELD_PATH = REPO_ROOT / "FDFIELD.DAT"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+FDFIELD_PATH = REPO_ROOT / "fd2_game_files" / "FDFIELD.DAT"
+DEFAULT_OUT_PATH = REPO_ROOT / "workspace" / "decoders" / "fdfield_layout" / "report.json"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from dat_header_parser import read_dat_entry  # noqa: E402
@@ -204,8 +205,9 @@ def main() -> int:
                    help="inspect one chapter (1..30) and print JSON")
     p.add_argument("--json", action="store_true",
                    help="emit JSON report (with --all)")
-    p.add_argument("--out", type=Path,
-                   help="JSON output path (with --json)")
+    p.add_argument("--out", type=Path, default=DEFAULT_OUT_PATH,
+                   help="JSON output path (with --json). "
+                   f"default: workspace/decoders/fdfield_layout/report.json")
     args = p.parse_args()
     if args.all:
         return cmd_all(args.json, args.out)

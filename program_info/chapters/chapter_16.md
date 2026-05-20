@@ -9,8 +9,8 @@
 | Init | `chapter_16_init @ 0x000335A0` | 10 B (stub-tier) |
 | End | `chapter_16_end @ 0x00023A0A` | 341 B |
 | Post-action | `chapter_16_post_action @ 0x0002084A` | default + 額外 lose if char[0x41] dead |
-| BGM (player turn) | `per_chapter_player_turn_bgm[15]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[15]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[15]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[15]` |  |
 
 ## Init handler 階段
 

@@ -32,7 +32,7 @@ import sys
 from pathlib import Path
 
 # tools/decoders/dat_header_parser.py -> decoders -> tools -> fd2_reverse
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 SIGNATURE_LEN = 6
 EXPECTED_SIG = b"LLLLLL"
@@ -145,7 +145,7 @@ def main() -> int:
         print(f"{'file':14s} {'size':>10s} {'header':>8s} {'N(u32)':>8s} "
               f"{'entries':>8s} {'min':>7s} {'max':>8s}")
         for fname in DAT_FILES:
-            path = REPO_ROOT / fname
+            path = REPO_ROOT / "fd2_game_files" / fname
             if not path.exists():
                 print(f"{fname:14s} (missing)")
                 continue

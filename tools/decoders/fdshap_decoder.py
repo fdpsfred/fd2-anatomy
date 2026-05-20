@@ -18,8 +18,9 @@ import sys
 from pathlib import Path
 
 # tools/decoders/fdshap_decoder.py -> decoders -> tools -> fd2_reverse
-REPO_ROOT = Path(__file__).resolve().parents[4]
-FDSHAP_PATH = REPO_ROOT / "FDSHAP.DAT"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+FDSHAP_PATH = REPO_ROOT / "fd2_game_files" / "FDSHAP.DAT"
+DEFAULT_OUT_DIR = REPO_ROOT / "workspace" / "decoders" / "fdshap"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from dat_header_parser import parse_dat_header, read_dat_entry  # noqa: E402
@@ -88,8 +89,9 @@ def main() -> int:
                    help="list FDSHAP entries with their sizes")
     g.add_argument("--shap-id", type=lambda s: int(s, 0),
                    help="decode the snapshot + tile_attr pair for this shap_id")
-    p.add_argument("--out-dir", type=Path,
-                   help="directory to write PGM + JSON artifacts")
+    p.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR,
+                   help="directory to write PGM + JSON artifacts. "
+                   f"default: workspace/decoders/fdshap")
     p.add_argument("--width", type=int, default=320)
     p.add_argument("--height", type=int, default=200)
     args = p.parse_args()

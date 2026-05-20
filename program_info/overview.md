@@ -17,13 +17,13 @@ DOS/4GW Protected Mode Extender 在 386+ 環境執行。畫面用 VGA mode 13h
   0x00050000-0x00053900   string tables, jump tables, lookup data
   0x00053A00-0x000543FF   runtime variables (cursor pos, char array 等)
 0x00060000  .object3 (initialization image, 遊戲資料表)
-  0x000602AC item_effect_table[215]
-  0x000619FD spell_effect_table[36]
-  0x00061AF9 enemy_data_table[68]
-  0x00061DA1 character_base_table[32]
-  0x000620A1 character_growth_table[68]
-  0x00062390 shop_table[28]
-  0x000626B3 spell_learning_table[20]
+  0x000602AC data_fd2_battle_item_effect_table[215]
+  0x000619FD data_fd2_battle_spell_effect_table[36]
+  0x00061AF9 data_fd2_battle_enemy_data_table[68]
+  0x00061DA1 data_fd2_battle_character_base_table[32]
+  0x000620A1 data_fd2_battle_character_growth_table[68]
+  0x0006238D data_fd2_chapter_intro_metadata_table[26]
+  0x000626B3 data_fd2_battle_spell_learning_table[20]
 ```
 
 `.object1` 內 FD2 自寫遊戲邏輯、Watcom C runtime、Miles Sound System library
@@ -86,6 +86,14 @@ crt_entry_start (0x3C964)
 另有跨系統的 **chapter_event_dispatch**：FDFIELD 章節 event hook table → jump
 table @ 0x51B91 → 編譯好的 cinematic C 函數的 dispatch 機制（同一張表也被
 AI post-action consequence 共用）。
+
+四 pool 分類 (`ail` / `crt` / `fd2` / `binary_artifact`)、entry chain
+(`crt_equivalent_entry_start` → `crt_equivalent_dos_main_bootstrap` → `__CMain`
+→ `fd2_main`)、結局 cinematic、binary_artifact pool 的 alignment NOP 詳見
+`rebuild_info/emission/pool_routing.md`；Watcom CRT 真符號 inventory 見
+`rebuild_info/crt/lookup_9.5a.json` 與 `matched_function_sources.md`，
+15 個 `crt_equivalent_*` / 10 個 `fd2_*` CRT-style primitive 見
+`rebuild_info/crt/symbol_inventory.md`。
 
 ## 共享資料結構
 
@@ -161,15 +169,15 @@ AI post-action consequence 共用）。
 
 | 表 | 結構 size | 數量 | 詳細 schema |
 |---|---|---|---|
-| `item_effect_table` | 23 B | 215 | `assets/tables/item_effect.md` |
-| `spell_effect_table` | 7 B | 36 | `assets/tables/spell_effect.md` |
-| `enemy_data_table` | 10 B | 68 | `assets/tables/enemy_data.md` |
-| `character_base_table` | 24 B | 32 | `assets/tables/character_base.md` |
-| `character_growth_table` | 11 B | 68 | `assets/tables/character_growth.md` |
-| `shop_table` | 28 B | 28 | `assets/tables/shop.md` |
-| `spell_learning_table` | 12 B | 20 | `assets/tables/spell_learning.md` |
-| `job_magic_resist_table` | dword × 27 | 27 | `assets/tables/job_magic_resist.md` |
-| `job_crit_table` | byte × 27 | 27 | `assets/tables/job_crit.md` |
+| `data_fd2_battle_item_effect_table` | 23 B | 215 | `assets/tables/item_effect.md` |
+| `data_fd2_battle_spell_effect_table` | 7 B | 36 | `assets/tables/spell_effect.md` |
+| `data_fd2_battle_enemy_data_table` | 10 B | 68 | `assets/tables/enemy_data.md` |
+| `data_fd2_battle_character_base_table` | 24 B | 32 | `assets/tables/character_base.md` |
+| `data_fd2_battle_character_growth_table` | 11 B | 68 | `assets/tables/character_growth.md` |
+| `data_fd2_chapter_intro_metadata_table` | 31 B | 26 | `assets/tables/chapter_intro_metadata.md` |
+| `data_fd2_battle_spell_learning_table` | 12 B | 20 | `assets/tables/spell_learning.md` |
+| `data_fd2_battle_job_magic_resist_table` | dword × 27 | 27 | `assets/tables/job_magic_resist.md` |
+| `data_fd2_battle_job_crit_rate_table` | byte × 27 | 27 | `assets/tables/job_crit.md` |
 
 ## 關鍵遊戲機制
 

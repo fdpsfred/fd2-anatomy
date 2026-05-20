@@ -48,8 +48,8 @@ from pathlib import Path
 from typing import Optional
 
 # tools/decoders/fdtxt_parser.py -> decoders -> tools -> fd2_reverse
-REPO_ROOT = Path(__file__).resolve().parents[4]
-FDTXT_PATH = REPO_ROOT / "FDTXT.DAT"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+FDTXT_PATH = REPO_ROOT / "fd2_game_files" / "FDTXT.DAT"
 
 MAGIC = b"LLLLLL"
 MAGIC_LEN = 6

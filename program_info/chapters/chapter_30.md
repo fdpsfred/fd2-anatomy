@@ -9,8 +9,8 @@ GOOD ENDING + staff roll：擊殺空魔神 (chars[0x14]) 後，end handler 推�
 | Init | `chapter_30_init @ 0x00033E3C` | 316 B |
 | End | `chapter_30_end @ 0x00025757` | 544 B |
 | Post-action | `chapter_30_post_action @ 0x00020BF5` | bypass default; final boss check |
-| BGM (player turn) | `per_chapter_player_turn_bgm[29]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[29]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[29]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[29]` |  |
 
 ## Init handler 階段
 

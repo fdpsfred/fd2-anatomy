@@ -9,8 +9,8 @@ End handler 為 FD2 全 30 章中唯一以「全螢幕白屏 → palette fade �
 | Init | `chapter_22_init @ 0x0003367E` | 34 B |
 | End | `chapter_22_end @ 0x000244B6` | 354 B |
 | Post-action | `chapter_22_27_28_post_action_shared @ 0x00020A87` | 與 ch27/28 共用 |
-| BGM (player turn) | `per_chapter_player_turn_bgm[21]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[21]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[21]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[21]` |  |
 
 ## Init handler 階段
 

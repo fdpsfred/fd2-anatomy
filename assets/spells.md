@@ -107,12 +107,12 @@
 
 ## struct layout
 
-詳 `assets/tables/spell_effect.md` (`spell_effect_table @ 0x619FD`，36 entries
+詳 `assets/tables/spell_effect.md` (`data_fd2_battle_spell_effect_table @ 0x619FD`，36 entries
 × 7 B)。
 
 ## 法術習得
 
-`character_growth_table.spell_learning_idx` 是 `spell_learning_table` 的 index；
+`data_fd2_battle_character_growth_table.spell_learning_idx` 是 `data_fd2_battle_spell_learning_table` 的 index；
 角色升到對應 LV 時自動加入 known_spells。詳 `assets/tables/spell_learning.md`。
 
 ## 各角色法術習得

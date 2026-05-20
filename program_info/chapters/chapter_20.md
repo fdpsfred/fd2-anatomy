@@ -9,8 +9,8 @@
 | Init | `chapter_19_20_21_init_shared @ 0x00033674` | 10 B (與 ch19/21 共用) |
 | End | `chapter_20_end @ 0x00023E74` | 646 B |
 | Post-action | `chapter_20_post_action @ 0x00020957` | 250 B (FD2 最大 non-default) |
-| BGM (player turn) | `per_chapter_player_turn_bgm[19]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[19]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[19]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[19]` |  |
 
 ## Init handler 階段
 

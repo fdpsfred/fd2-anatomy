@@ -9,8 +9,8 @@
 | Init | `chapter_23_init @ 0x000336A0` | 548 B (最大 init) |
 | End | `chapter_23_end @ 0x00024754` | 960 B (最大 end) |
 | Post-action | `chapter_23_post_action @ 0x00020AAF` | bypass default |
-| BGM (player turn) | `per_chapter_player_turn_bgm[22]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[22]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[22]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[22]` |  |
 
 ## Init handler 階段
 
@@ -59,7 +59,7 @@ End handler conditional `mark_char_as_dead(0x11)`：若蜜蒂在 template，或�
 - Init: `0x44, 0x45, 0x46`
 - End: `0x47` (若無天空之鑰) 或 `0x48` (若蜜蒂在或錯過 15 回合)；`0x49` × 3 (進入第二戰場)
 
-每 event 對應 `cutscene_event_script_table[event_id]` 的 walk-animation script。
+每 event 對應 `data_fd2_chapter_cutscene_event_script_ptr_table_106[event_id]` 的 walk-animation script。
 
 ## Post-action handler
 

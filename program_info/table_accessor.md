@@ -9,11 +9,11 @@ code-size 最佳化或 debug build artifact。
 
 | 位址 | 名稱 | 回傳 | Entry size | Entry count |
 |---|---|---|---|---|
-| `0x0004E4A2` | `get_spell_learning_entry` | `&spell_learning_table[idx]` | 12 B | 20 |
-| `0x0004E4D1` | `get_char_growth_entry` | `&character_growth_table[idx]` | 11 B | 68 |
-| `0x0004E4E8` | `get_char_base_entry` | `&character_base_table[idx]` | 24 B | 32 |
-| `0x0004E4FF` | `get_enemy_data_entry` | `&enemy_data_table[idx]` | 10 B | 68 |
-| `0x0004E516` | `get_spell_effect_entry` | `&spell_effect_table[idx]` | 7 B | 36 |
+| `0x0004E4A2` | `get_spell_learning_entry` | `&data_fd2_battle_spell_learning_table[idx]` | 12 B | 20 |
+| `0x0004E4D1` | `get_char_growth_entry` | `&data_fd2_battle_character_growth_table[idx]` | 11 B | 68 |
+| `0x0004E4E8` | `get_char_base_entry` | `&data_fd2_battle_character_base_table[idx]` | 24 B | 32 |
+| `0x0004E4FF` | `get_enemy_data_entry` | `&data_fd2_battle_enemy_data_table[idx]` | 10 B | 68 |
+| `0x0004E516` | `get_spell_effect_entry` | `&data_fd2_battle_spell_effect_table[idx]` | 7 B | 36 |
 
 5 個 helper 連續排列在 `.object1` 的 `0x4E4A2-0x4E51A` (116 bytes)，緊接在其他
 battle-相關 function 之後、靠近 `.object1` 尾端 (0x4EBD8)。
@@ -22,7 +22,7 @@ battle-相關 function 之後、靠近 `.object1` 尾端 (0x4EBD8)。
 
 ```c
 undefined1 * __cdecl get_char_growth_entry(int param_1) {
-    return &character_growth_table[param_1].AP_min;
+    return &data_fd2_battle_character_growth_table[param_1].AP_min;
 }
 ```
 
@@ -32,6 +32,6 @@ undefined1 * __cdecl get_char_growth_entry(int param_1) {
 
 ## 為何只有 5 個
 
-`item_effect_table` / `shop_table` / `job_magic_resist_table` / `job_crit_table`
+`data_fd2_battle_item_effect_table` / `data_fd2_battle_job_magic_resist_table` / `data_fd2_battle_job_crit_rate_table`
 沒有對應的 helper。這 4 張表的 access pattern 是直接從 global pointer 做 offset，
 編譯器選擇直接 inline 沒產生共享 helper。

@@ -8,7 +8,7 @@
 - `characters.md` — 32 角色名單 (id ↔ 中文名 + base/growth 屬性 + 法術習得)
 - `items.md` — 215 道具完整清單 (0x00..0xD6)
 - `spells.md` — 36 法術 (攻擊 / 劍技 / 恢復 / 輔助 / 召喚)
-- `enemies.md` — 68 敵人 / 友軍 unit (`enemy_data_table`)
+- `enemies.md` — 68 敵人 / 友軍 unit (`data_fd2_battle_enemy_data_table`)
 - `jobs.md` — 27 職業 ID + 魔抗 / 暴擊率 + 轉職物品
 
 ## chapters/ 子資料夾
@@ -35,6 +35,6 @@ binary `.object3` 主要 data table 的 struct layout 說明：
 - `item_effect.md` — 215 道具 (23 B/筆)
 - `spell_effect.md` — 36 法術 (7 B/筆)
 - `spell_learning.md` — 20 升級習得序列 (12 B/筆)
-- `shop.md` — 28 商店組合 (28 B/筆)
+- `chapter_intro_metadata.md` — 26 章 intro metadata (category + hotkey + 武 / 道 / 神秘三店 item IDs；31 B/筆)
 - `job_crit.md` — 27 職業暴擊率 (1 B/筆)
 - `job_magic_resist.md` — 27 職業魔法抗性 (4 B/筆)

@@ -9,8 +9,8 @@ Init handler 僅 29 B（30 章中第二小）；FDFIELD 完全靜態（無 activ
 | Init | `chapter_14_init @ 0x0003347C` | 29 B (第二小) |
 | End | `chapter_14_end @ 0x000238DC` | 225 B |
 | Post-action | `check_battle_end_default_handler @ 0x000205B4` | (default) |
-| BGM (player turn) | `per_chapter_player_turn_bgm[13]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[13]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[13]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[13]` |  |
 
 ## Init handler 階段
 
@@ -39,7 +39,7 @@ End handler 也無——ch14 結算無新加入。
 
 ## Post-action handler
 
-`per_chapter_post_action_handler[13]` 指向 `check_battle_end_default_handler` — 全敵死 = win，索爾 (char_id 0) 死 = lose。
+`data_fd2_chapter_post_action_handler_table[13]` 指向 `check_battle_end_default_handler` — 全敵死 = win，索爾 (char_id 0) 死 = lose。
 
 攻略「當己方通過地圖中央一帶，則敵軍便會前來攻擊」屬 FDFIELD position-trigger event，不在 post_action handler。
 

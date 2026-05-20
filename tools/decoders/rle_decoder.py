@@ -29,8 +29,9 @@ import sys
 from pathlib import Path
 
 # tools/decoders/rle_decoder.py -> decoders -> tools -> fd2_reverse
-REPO_ROOT = Path(__file__).resolve().parents[4]
-FDOTHER_PATH = REPO_ROOT / "FDOTHER.DAT"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+FDOTHER_PATH = REPO_ROOT / "fd2_game_files" / "FDOTHER.DAT"
+DEFAULT_OUT_PATH = REPO_ROOT / "workspace" / "decoders" / "rle" / "rle_decoded.pgm"
 
 
 def rle_decode(src: bytes, max_pixels: int) -> bytes:
@@ -169,7 +170,8 @@ def main() -> int:
                    help="decode FDOTHER[IDX] as RLE pixels and write a PGM")
     p.add_argument("--width", type=int, default=320)
     p.add_argument("--height", type=int, default=200)
-    p.add_argument("--out", type=Path, default=Path("rle_decoded.pgm"))
+    p.add_argument("--out", type=Path, default=DEFAULT_OUT_PATH,
+                   help=f"output PGM path. default: workspace/decoders/rle/rle_decoded.pgm")
     args = p.parse_args()
 
     if args.self_test:

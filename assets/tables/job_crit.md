@@ -1,4 +1,4 @@
-# job_crit_table
+# data_fd2_battle_job_crit_rate_table
 
 `.object2 @ 0x5239B`，27 entries × 1 byte = 27 bytes。signature `05 03 03 05`。
 

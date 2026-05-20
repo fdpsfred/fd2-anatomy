@@ -66,7 +66,7 @@ raw_damage = attacker.wAP - target.wDP;     // offset +0x48 - +0x4A
 ### 魔法 (calc_magic_damage)
 
 ```c
-adStack[28] = copy(job_magic_resist_table);   // 攻擊對目標 job 的抗性
+adStack[28] = copy(data_fd2_battle_job_magic_resist_table);   // 攻擊對目標 job 的抗性
 caster_ap = runtime_char[caster].AP (+0x48);
 target_job = runtime_char[target].bJob_id (+0x20);
 target_resist = adStack[target_job];
@@ -123,8 +123,8 @@ if (hit_roll > spell.HT) return 0;            // miss
 
   Per-action postlude (in phase loops):
     if (DAT_00051A8F != 0xFF):
-        ai_post_action_consequence_table[DAT_00051A8F]()  ← 反擊 / 死亡 / 狀態
-    per_chapter_post_action_handler[current_chapter_id]() ← 章節觸發事件
+        data_fd2_battle_ai_post_action_consequence_table[DAT_00051A8F]()  ← 反擊 / 死亡 / 狀態
+    data_fd2_chapter_post_action_handler_table[current_chapter_id]() ← 章節觸發事件
     if (game_event_flag != 0): break loop
 ```
 
@@ -152,7 +152,7 @@ tie-break = raw_dmg 數值；側背 (+0x08[0]==0) 再 ×1.5
 |---|---|---|
 | C4F (物理) | `execute_ai_physical_attack @ 0x1548E` | 全套物理動畫；plain vs animated 由 `physical_attack_fx_preset @ 0x53AF9` 切換 |
 | C23 (法術) | `execute_ai_offensive_spell @ 0x15311` |  |
-| C33 (道具) | `execute_ai_item_use @ 0x15055` | 短距 vs 長距由 `item_effect_table.range_class` (offset 0x10) 切換 |
+| C33 (道具) | `execute_ai_item_use @ 0x15055` | 短距 vs 長距由 `data_fd2_battle_item_effect_table.range_class` (offset 0x10) 切換 |
 
 ### Tie-break 規則
 
@@ -216,7 +216,7 @@ tie-break = raw_dmg 數值；側背 (+0x08[0]==0) 再 ×1.5
 
 ## 死亡掉落與 post-action consequence dispatch
 
-兩條獨立 path 都會 dispatch `ai_post_action_consequence_table @ 0x51B91` 內的
+兩條獨立 path 都會 dispatch `data_fd2_battle_ai_post_action_consequence_table @ 0x51B91` 內的
 handler，但機制完全不同：
 
 ### Path 1 — Tile-step trigger (deferred via global state)
@@ -225,9 +225,9 @@ handler，但機制完全不同：
 
 1. 讀 tile attribute；若 tile 帶 event flag 且未消耗
 2. 從 `tile_event_data_table + (tile_event_id - 1) * 2 + 0x33` 取 byte
-3. 若 byte != 0xFF 且 event_type 匹配 → `ai_post_action_consequence_idx = byte`
-4. 下一輪 `game_main_loop` 看到 `ai_post_action_consequence_idx != 0xFF`，
-   dispatch `ai_post_action_consequence_table[idx]()`，然後 reset 為 0xFF
+3. 若 byte != 0xFF 且 event_type 匹配 → `data_fd2_battle_ai_post_action_consequence_idx = byte`
+4. 下一輪 `game_main_loop` 看到 `data_fd2_battle_ai_post_action_consequence_idx != 0xFF`，
+   dispatch `data_fd2_battle_ai_post_action_consequence_table[idx]()`，然後 reset 為 0xFF
 
 ### Path 2 — Death drop (direct via process_battle_drop_entries)
 
@@ -246,8 +246,8 @@ handler，但機制完全不同：
 4. **Per-entry dispatch by drop_type byte**:
    - `0` = ITEM：dialog 0x1B0 / `add_item_to_inventory`
    - `1` = GOLD：dialog 0x1B3 / `party_total_gold += amount`
-   - `2` = BATTLE EVENT CONSEQUENCE：**直接** `(*ai_post_action_consequence_table[ushort_value])()`
-     呼叫 handler，**不**寫入 `ai_post_action_consequence_idx` global
+   - `2` = BATTLE EVENT CONSEQUENCE：**直接** `(*data_fd2_battle_ai_post_action_consequence_table[ushort_value])()`
+     呼叫 handler，**不**寫入 `data_fd2_battle_ai_post_action_consequence_idx` global
    - `3` = SCRIPTED DIALOG：`display_dialog_scene(current_chapter_text, page=ushort_value, ...)`
 
 ### 為什麼 type 2 不走 Path 1？

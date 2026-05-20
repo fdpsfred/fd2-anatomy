@@ -21,9 +21,10 @@ import struct
 import sys
 from pathlib import Path
 
-# tools/glyph/render_glyph_atlas.py -> glyph -> tools -> fd2_reverse
-REPO_ROOT = Path(__file__).resolve().parents[4]
-FDOTHER_PATH = REPO_ROOT / "FDOTHER.DAT"
+# tools/glyph/render_glyph_atlas.py -> glyph -> tools -> repo root
+REPO_ROOT = Path(__file__).resolve().parents[2]
+FDOTHER_PATH = REPO_ROOT / "fd2_game_files" / "FDOTHER.DAT"
+DEFAULT_OUT_DIR = REPO_ROOT / "workspace" / "glyph" / "atlas"
 
 GLYPH_W = 16
 GLYPH_H = 16
@@ -51,8 +52,9 @@ def read_dat_entry(path: Path, idx: int) -> bytes:
 
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--out-dir", type=Path, required=True,
-                   help="directory to write atlas PNGs and index CSV")
+    p.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR,
+                   help="directory to write atlas PNGs and index CSV. "
+                   f"default: workspace/glyph/atlas")
     args = p.parse_args()
 
     try:

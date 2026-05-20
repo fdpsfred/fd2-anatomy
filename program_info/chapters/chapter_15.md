@@ -9,8 +9,8 @@
 | Init | `chapter_15_init @ 0x000334D9` | 199 B (首章帶 conditional dialog branch) |
 | End | `chapter_15_end @ 0x000239BD` | 77 B |
 | Post-action | `chapter_15_post_action @ 0x00020822` | (custom) |
-| BGM (player turn) | `per_chapter_player_turn_bgm[14]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[14]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[14]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[14]` |  |
 
 ## Init handler 階段
 

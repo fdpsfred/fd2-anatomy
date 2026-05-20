@@ -90,7 +90,7 @@ modal UI 含 spell list overlay。3-buffer slide-in 動畫：
 - `check_input_ready` 檢查鍵盤輸入；無輸入時：
   - `update_palette_cycle_anim` 更新水/熔岩 palette
   - 若 BIOS tick 變化：`composite_battle_frame` (cursor 閃爍)
-- 有輸入時：`wait_key_input` → 標準化掃描碼 (0xE0 / 0x52 → 0x1C；0x53 → 0x01)
+- 有輸入時：呼叫 `int386(0x16, ...)` → 標準化掃描碼 (0xE0 / 0x52 → 0x1C；0x53 → 0x01)
 - 回傳 scancode
 
 ## 鏡頭
@@ -100,4 +100,4 @@ modal UI 含 spell list overlay。3-buffer slide-in 動畫：
 ## SFX 觸發
 
 `play_sfx_with_handle @ 0x25A96` 是通用 AIL SFX 播放器，UI 各處呼叫
-(cursor 移動 sfx 0、確認 sfx 7、取消等)。3 個 gate flag 詳見 `audio.md`。
+(cursor 移動 sfx 0、確認 sfx 7、取消等)。3 個 gate flag 詳見 `audio.md` §SFX 觸發。

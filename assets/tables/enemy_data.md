@@ -1,4 +1,4 @@
-# enemy_data_table
+# data_fd2_battle_enemy_data_table
 
 `.object3 @ 0x61AF9`，68 entries × 10 bytes = 680 bytes。signature
 `01 02 12 00 00 05`。
@@ -51,5 +51,5 @@ RA=1 CL=2 HP=18 MP=0 AP=5 DP=2 DX=1 MV=4 EX=30
 
 ## 邊界精確驗證
 
-`character_base_table` 在 `0x61DA1`，所以 enemy_data 大小 =
+`data_fd2_battle_character_base_table` 在 `0x61DA1`，所以 enemy_data 大小 =
 `0x61DA1 - 0x61AF9 = 0x2A8 = 680 bytes = 68 × 10`。表之間零 padding，緊密排列。

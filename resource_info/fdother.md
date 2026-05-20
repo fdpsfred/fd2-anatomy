@@ -11,7 +11,7 @@ sub-entries 各自獨立索引。
 
 ## 啟動載入靜態 (fd2_main 序列)
 
-`fd2_main @ 0x3C964` 啟動時依序載入 8 個 FDOTHER + 1 個 FDTXT entry：
+`fd2_main @ 0x25BF4` 啟動時依序載入 8 個 FDOTHER + 1 個 FDTXT entry：
 
 | idx | 全域變數 | 用途 | 大小 |
 |---|---|---|---|

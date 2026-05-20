@@ -9,8 +9,8 @@ Init 含獨家 4-stage camera scan，預先掃過地圖四角；end 為 FD2 唯�
 | Init | `chapter_24_init @ 0x000338C4` | 166 B |
 | End | `chapter_24_end @ 0x00024C1E` | 260 B |
 | Post-action | `check_battle_end_default_handler @ 0x000205B4` | (default) |
-| BGM (player turn) | `per_chapter_player_turn_bgm[23]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[23]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[23]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[23]` |  |
 
 ## Init handler 階段
 
@@ -45,7 +45,7 @@ Init 含獨家 4-stage camera scan，預先掃過地圖四角；end 為 FD2 唯�
 
 ## Post-action handler
 
-`per_chapter_post_action_handler[23]` 指向 `check_battle_end_default_handler`，無自訂勝負條件：
+`data_fd2_chapter_post_action_handler_table[23]` 指向 `check_battle_end_default_handler`，無自訂勝負條件：
 - 全敵死 → win
 - 索爾 (chars[0]) 死 → lose
 

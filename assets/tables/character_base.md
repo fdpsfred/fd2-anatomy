@@ -1,4 +1,4 @@
-# character_base_table
+# data_fd2_battle_character_base_table
 
 `.object3 @ 0x61DA1`，32 entries × 24 bytes = 768 bytes。
 signature `01 01 01 2A`。

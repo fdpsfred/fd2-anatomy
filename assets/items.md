@@ -1,6 +1,6 @@
 # 道具
 
-道具編號 0x00..0xD6，共 215 項。資料位於 `item_effect_table @ 0x602AC`，每筆
+道具編號 0x00..0xD6，共 215 項。資料位於 `data_fd2_battle_item_effect_table @ 0x602AC`，每筆
 23 bytes (詳 `assets/tables/item_effect.md`)。
 
 ## 商店中最強的武器與防具

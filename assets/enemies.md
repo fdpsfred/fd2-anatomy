@@ -1,6 +1,6 @@
-# 敵人 / 友軍 (enemy_data_table)
+# 敵人 / 友軍 (data_fd2_battle_enemy_data_table)
 
-`enemy_data_table @ 0x61AF9` 共 68 entries × 10 bytes = 680 bytes。
+`data_fd2_battle_enemy_data_table @ 0x61AF9` 共 68 entries × 10 bytes = 680 bytes。
 char_id 範圍 0x44..0x87 對應 enemy_id 0..67：`enemy_id = char_id - 0x44`。
 
 ## struct layout

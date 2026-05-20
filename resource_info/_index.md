@@ -28,3 +28,17 @@
 - `fdicon.md` — FDICON.B24 (1680 個 24×24 8bpp icon)，唯一非 LLLLLL 資源
 - `chinese_glyph_encoding.md` — FDOTHER.DAT[4] 1bpp 字模 atlas (1824 glyphs)、
   渲染管線、ET3 STDFONT.15 lookup
+## 全程式 data inventory
+
+不在本資料夾常駐，要時即時重生：
+
+```bash
+# 1. Claude Code 跑 mcp__ghidra__list_data_items(limit=10000) → workspace/data_audit/ghidra_data_dump_<utc>.json
+# 2. python tools/program_analysis/data_audit/build_data_inventory.py
+# 產出 workspace/data_audit/data_inventory.md
+```
+
+Per-segment 完整 data 主索引（addr / name / type / size / pool /
+subsystem / emit_action / data_kind）；emit pipeline 階段的 data routing
+主索引。emit_action 對應規則寫在 `tools/program_analysis/data_audit/build_data_inventory.py`
+的 `derive_emit_action()`。

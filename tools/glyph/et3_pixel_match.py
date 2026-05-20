@@ -29,9 +29,10 @@ import struct
 import sys
 from pathlib import Path
 
-# tools/glyph/et3_pixel_match.py -> glyph -> tools -> fd2_reverse
-REPO_ROOT = Path(__file__).resolve().parents[4]
-FDOTHER_PATH = REPO_ROOT / "FDOTHER.DAT"
+# tools/glyph/et3_pixel_match.py -> glyph -> tools -> repo root
+REPO_ROOT = Path(__file__).resolve().parents[2]
+FDOTHER_PATH = REPO_ROOT / "fd2_game_files" / "FDOTHER.DAT"
+DEFAULT_OUT_CSV = REPO_ROOT / "workspace" / "glyph" / "match" / "glyph_match.csv"
 
 # ET3 fonts ship next to this script
 ET3_DIR = Path(__file__).resolve().parent / "ET3_fonts"
@@ -123,8 +124,9 @@ def lead_tail_to_unicode(lead: int, tail: int) -> str:
 
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--out-csv", type=Path, required=True,
-                   help="output CSV (glyph_id_hex, character, confidence, alternatives)")
+    p.add_argument("--out-csv", type=Path, default=DEFAULT_OUT_CSV,
+                   help="output CSV (glyph_id_hex, character, confidence, alternatives). "
+                   f"default: workspace/glyph/match/glyph_match.csv")
     p.add_argument("--limit", type=int, default=0,
                    help="for quick testing, only process first N glyphs (0=all)")
     args = p.parse_args()

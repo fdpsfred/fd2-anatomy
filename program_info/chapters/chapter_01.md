@@ -9,8 +9,8 @@
 | Init | `chapter_01_init @ 0x0003231B` | 最大 init handler |
 | End | `chapter_01_end @ 0x00022EF6` | 65 B |
 | Post-action | `check_battle_end_default_handler @ 0x000205B4` | (default — 無自訂勝負) |
-| BGM (player turn) | `per_chapter_player_turn_bgm[0] @ 0x51E63` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[0] @ 0x51E81` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[0] @ 0x51E63` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[0] @ 0x51E81` |  |
 
 ## Init handler 三階段
 
@@ -23,7 +23,7 @@
 - `walk_step_up(...) × 0xF` 然後 `display_dialog_scene(page=0)` — 開場走位
 - `walk_step_up × 0xD` 然後 `display_dialog_scene(page=1)`
 - `set_bgm_track_with_fade(-1, 0)` 停 BGM；`cutscene_event_trigger(100)` (event 0x64)
-- `set_bgm_track_with_fade(0xB, 0)` 切 BGM track 11；`fade_palette_to_black`
+- `set_bgm_track_with_fade(0xB, 0)` 切 BGM track 11；`play_palette_fade_in`
 - 連續 5 段 cutscene + dialog: `0x65→page2`, `0x66→page3`, `0x67→page4`, `0x68→page5`, `0x69`
 - 共 6 個 prologue dialog pages (FDTXT entry 33 pages 0..5) + cutscene events 0x65..0x69
 
@@ -87,12 +87,12 @@
 - `0x5A..0x69` = ch1 prologue/intro 專用 walk-animation
 - `0x63=99` 與 `0x64=100` 在 binary 顯示為十進位
 
-每 event 對應 `cutscene_event_script_table[event_id] @ 0x627D8` 的 walk-animation
+每 event 對應 `data_fd2_chapter_cutscene_event_script_ptr_table_106[event_id] @ 0x627D8` 的 walk-animation
 script (`[n_groups][group: walk_count|step_count|{char_idx,dir}*N]+`)。
 
 ## Post-action handler
 
-`per_chapter_post_action_handler[0]` 指向 `check_battle_end_default_handler`，
+`data_fd2_chapter_post_action_handler_table[0]` 指向 `check_battle_end_default_handler`，
 無自訂勝負條件：所有 team-0 死 → win，索爾 (char_id 0) 死 → lose。
 
 攻略提到的 reinforcement events 由 FDFIELD event script (turn-event hooks) 處理，

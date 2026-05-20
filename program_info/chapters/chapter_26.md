@@ -9,8 +9,8 @@ End handler 用 `tile_event_consumed_flags[0xC]` 動態決定 dialog page (5 條
 | Init | `chapter_26_init @ 0x00033AAE` | 67 B |
 | End | `chapter_26_end @ 0x00024E80` | 466 B |
 | Post-action | `chapter_26_post_action @ 0x00020B3C` | default + lose if char[1] OR char[2] dead |
-| BGM (player turn) | `per_chapter_player_turn_bgm[25]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[25]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[25]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[25]` |  |
 
 ## Init handler 階段
 

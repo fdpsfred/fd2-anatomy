@@ -25,8 +25,8 @@ DOS mode 13h (320×200×256-color)，primary surface @ `0xA0000` (linear)。
 | `0b10xxxxxx` | RLE run: 後續 1 byte 重複 len 次 |
 | `0b11xxxxxx` | skip len 個像素 (透明) |
 
-每行寬度由 `rle_current_width @ 0x627B4` 計數，遇 0 換行並
-`rle_remaining_rows @ 0x627B6 --`。
+每行寬度由 `data_fd2_graphics_rle_blit_cur_width @ 0x627B4` 計數，遇 0 換行並
+`data_fd2_graphics_rle_blit_remaining_rows @ 0x627B6 --`。
 
 ### Palette 模式 (`rle_blit_sprite` 的 `param_6`)
 
@@ -70,7 +70,7 @@ DOS mode 13h (320×200×256-color)，primary surface @ `0xA0000` (linear)。
 - bit 0x10 → chapter palette half-step
 
 Animation 計數器：`bg_anim_frame_idx @ 0x53C1F` (0..0x14)，可由
-`forced_tile_anim_frame @ 0x51A93` 強制鎖定到特定 frame；
+`data_fd2_graphics_forced_tile_anim_frame @ 0x51A93` 強制鎖定到特定 frame；
 `bg_anim_flip_flag @ 0x53A40` 是「每隔一 frame 翻轉」flip flag。
 
 ## Palette FX

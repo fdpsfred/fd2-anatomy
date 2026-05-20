@@ -27,8 +27,8 @@ import sys
 from pathlib import Path
 
 # tools/decoders/fdfield_event_decoder.py -> decoders -> tools -> fd2_reverse
-REPO_ROOT = Path(__file__).resolve().parents[4]
-FDFIELD = REPO_ROOT / "FDFIELD.DAT"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+FDFIELD = REPO_ROOT / "fd2_game_files" / "FDFIELD.DAT"
 
 NUM_CHAPTERS = 30
 TURN_EVENT_OFFSET = 3

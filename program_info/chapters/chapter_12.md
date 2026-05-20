@@ -9,8 +9,8 @@ Init handler 的 cutscene 在 dialog 之前先觸發（0x28、0x29），dialog �
 | Init | `chapter_12_init @ 0x000333F5` | 118 B |
 | End | `chapter_12_end @ 0x000237D5` | 214 B |
 | Post-action | `chapter_12_post_action @ 0x0002073D` | (custom) |
-| BGM (player turn) | `per_chapter_player_turn_bgm[11]` |  |
-| BGM (enemy turn) | `per_chapter_enemy_turn_bgm[11]` |  |
+| BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[11]` |  |
+| BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[11]` |  |
 
 ## Init handler 階段
 

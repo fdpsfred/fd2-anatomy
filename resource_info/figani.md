@@ -69,9 +69,9 @@ A0 3D 00 00  pose_offset[3] = 0x3DA0 (15776)
 
 | Table | Address | 用途 |
 |---|---|---|
-| `spell_anim_sprite_offset_table` | 0x51F33 | sprite frame 偏移 |
-| `spell_anim_frame_count_table` | 0x51F54 | frame count |
-| `spell_anim_sfx_frame_table` | 0x51F75 | SFX 觸發 frame index |
+| `data_fd2_animation_spell_sprite_offset_table` | 0x51F33 | sprite frame 偏移 |
+| `data_fd2_animation_spell_frame_count_table` | 0x51F54 | frame count |
+| `data_fd2_animation_spell_sfx_frame_table` | 0x51F75 | SFX 觸發 frame index |
 
 這三張 table 並非直接 index FIGANI，而是控制 `animate_spell_impact_per_target`
 內 per-spell sprite frame loop 的參數（FIGANI 載入由 `play_spell_cast_sequence`
