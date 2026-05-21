@@ -93,14 +93,14 @@ char_id 範圍 0x44..0x87 對應 enemy_id 0..67：`enemy_id = char_id - 0x44`。
 
 ## char_id ↔ enemy_id 對應
 
-`init_runtime_char_for_battle @ 0x10C50` 中 char_id < 0x44 為 player class，
+`fd2_init_runtime_char_for_battle @ 0x10C50` 中 char_id < 0x44 為 player class，
 ≥ 0x44 為 enemy class：
 
 ```c
 if (char_id_uint < 0x44)
-    pBase = get_char_base_entry(char_id_uint);
+    pBase = fd2_get_char_base_entry(char_id_uint);
 else
-    pBase = get_enemy_data_entry(char_id_uint - 0x44);
+    pBase = fd2_get_enemy_data_entry(char_id_uint - 0x44);
 ```
 
 **`enemy_id = char_id - 0x44`**，**address-based numbering** 是正確 mapping：
@@ -116,7 +116,7 @@ enemy_id = (table_address - 0x7AB0D) / 10
 - char_id 0x7E → enemy_id 58 (= 0x3A) → 0x7AD51 → **空魔神** (ch30 final boss)
 - char_id 0x7F → enemy_id 59 → 0x7AD5B → 暗黑龍
 
-`portrait_id == char_id` (per `init_runtime_char_for_battle` 設
+`portrait_id == char_id` (per `fd2_init_runtime_char_for_battle` 設
 `pSlot->bPortrait_id = char_id`)。所以「char[N] 變身」設 `bPortrait_id` 與
 `bChar_id` 為新 char_id 即可切換 sprite + identity
 (FDICON.B24 portrait 對應 char_id namespace)。

@@ -6,18 +6,18 @@
 
 | 角色 | 位址 | 大小 |
 |---|---|---|
-| Init | `chapter_19_20_21_init_shared @ 0x00033674` | 10 B (與 ch19/20 共用) |
-| End | `chapter_21_end @ 0x000240FA` | 572 B |
-| Post-action | `chapter_21_post_action @ 0x00020A51` | default + 額外 lose if char[0x10] OR char[0x11] dead |
+| Init | `fd2_chapter_19_20_21_init_shared @ 0x00033674` | 10 B (與 ch19/20 共用) |
+| End | `fd2_chapter_21_end @ 0x000240FA` | 572 B |
+| Post-action | `fd2_chapter_21_post_action @ 0x00020A51` | default + 額外 lose if char[0x10] OR char[0x11] dead |
 | BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[20]` |  |
 | BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[20]` |  |
 
 ## Init handler 階段
 
 Shared minimal init (同 ch19/20)：
-1. `init_battle_state_for_chapter`
-2. `display_dialog_scene(page=0)`
-3. `pan_cursor_to_char(0)`
+1. `fd2_init_battle_state_for_chapter`
+2. `fd2_display_dialog_scene(page=0)`
+3. `fd2_pan_cursor_to_char(0)`
 
 ## Dialog page 引用
 
@@ -38,7 +38,7 @@ Shared minimal init (同 ch19/20)：
 
 ## Post-action handler
 
-`chapter_21_post_action @ 0x20A51`：
+`fd2_chapter_21_post_action @ 0x20A51`：
 - default
 - 額外 lose：if `char[0x10]` OR `char[0x11]` 死亡 → game_event_flag = 1
 
@@ -46,32 +46,32 @@ Shared minimal init (同 ch19/20)：
 
 ## End handler events
 
-`chapter_21_end @ 0x240FA` (572 B) — **6-item collection 換天空之鑰**：
+`fd2_chapter_21_end @ 0x240FA` (572 B) — **6-item collection 換天空之鑰**：
 
 1. 從 scene tables (6 entries inc facing) 讀位置
-2. `setup_chars_and_camera_for_intro(0x18, 0x19, 0x17, 0xE, 1, 0xE, 0xA)` 配 6 chars
-3. `display_dialog_scene(page=5)`
+2. `fd2_setup_chars_and_camera_for_intro(0x18, 0x19, 0x17, 0xE, 1, 0xE, 0xA)` 配 6 chars
+3. `fd2_display_dialog_scene(page=5)`
 4. **6 件物品 collection check** — 雙重迴圈：
    ```c
    iVar5 = 0;
    for item_id in [0xD1..0xD6]:
      for char_idx in [0..0x10]:
-       if find_inventory_slot_with_item(char, item_id) != -1:
+       if fd2_find_inventory_slot_with_item(char, item_id) != -1:
          iVar5++;
    ```
 5. **if `iVar5 == 6`** (全 6 件物品都被某個 char 持有)：
-   - 內層迴圈移除全部 6 件 item (`remove_inventory_slot_at`)
-   - `give_item_to_first_player_char(100)` — **發放 item 100 = 天空之鑰**
-   - `display_dialog_scene(page=7)` + `cutscene_event_trigger(0x3F)` + `display_dialog_scene(page=8)` + `cutscene_event_trigger(0x40)` + `display_dialog_scene(page=9)` + `play_chapter_intro_sprite_slideshow(...)` (特殊 cinematic)
+   - 內層迴圈移除全部 6 件 item (`fd2_remove_inventory_slot_at`)
+   - `fd2_give_item_to_first_player_char(100)` — **發放 item 100 = 天空之鑰**
+   - `fd2_display_dialog_scene(page=7)` + `fd2_cutscene_event_trigger(0x3F)` + `fd2_display_dialog_scene(page=8)` + `fd2_cutscene_event_trigger(0x40)` + `fd2_display_dialog_scene(page=9)` + `fd2_play_chapter_intro_sprite_slideshow(...)` (特殊 cinematic)
    - 後續 dialog 設 typewriter_mode=0x4A、page=10 (與 std page 6 不同的 dialog 渲染)
-6. **Else** (沒收齊 6 件)：`display_dialog_scene(page=6)` (標準分支)
-7. (兩路徑合流) `display_dialog_scene` 用條件決定的 page (10 若收齊 / 6 若未收齊)
-8. `init_runtime_char_from_base_growth(0x18=24)` (希爾法) + `init_runtime_char_from_base_growth(0x17=23)` (羅蘭)
-9. `save_runtime_char_to_template` + `current_chapter_id += 1`
+6. **Else** (沒收齊 6 件)：`fd2_display_dialog_scene(page=6)` (標準分支)
+7. (兩路徑合流) `fd2_display_dialog_scene` 用條件決定的 page (10 若收齊 / 6 若未收齊)
+8. `fd2_init_runtime_char_from_base_growth(0x18=24)` (希爾法) + `fd2_init_runtime_char_from_base_growth(0x17=23)` (羅蘭)
+9. `fd2_save_runtime_char_to_template` + `current_chapter_id += 1`
 
 跨章機制 — 天空之鑰 (item 100) 兌換鏈起點：
-- ch23：若持有天空之鑰，武聖卡里斯加入 (chapter_23_end 內 `any_char_has_item(100)` 觸發)
-- ch27_init：條件 dialog page 3 — `any_char_has_item(100)`
+- ch23：若持有天空之鑰，武聖卡里斯加入 (chapter_23_end 內 `fd2_any_char_has_item(100)` 觸發)
+- ch27_init：條件 dialog page 3 — `fd2_any_char_has_item(100)`
 - ch27_end：GOOD/BAD path — 持有則進 ch28+，未持有則悠妮獨自回黃金城
 
 ## FDFIELD event script

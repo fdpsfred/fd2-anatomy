@@ -6,24 +6,25 @@ ABI 兼容性、build pipeline 草案。AIL function 命名分類詳見 `./inven
 
 ## 抽 `.obj` 的 function 邊界
 
-要抽的 287 個 function 對應分布見 `./inventory.md` 的 inventory 段；
+要抽的 291 個 function 對應分布見 `./inventory.md` 的 inventory 段（另 5 個
+`reclassify-from-crt` BFS-unreached internal 細項見 inventory.md L26）；
 依用途決定如何寫進 .obj：
 
 | 群組 | 數量 | .obj 處置 |
 |---|---:|---|
-| `AIL_*` 公開 API | 103 | 全部寫進 PUBDEF（外部 caller 透過這些名稱 link） |
-| `AIL_internal_*` BFS 可達 + 4 個從 `crt_*` 改名 | 148 | 全部納入 .obj，**不**寫 PUBDEF（vendor 內部，linker 不需 export） |
+| `AIL_*` 公開 API | 106 | 全部寫進 PUBDEF（外部 caller 透過這些名稱 link） |
+| `AIL_internal_*` BFS 可達 + 4 個 promoted | 151 | 全部納入 .obj，**不**寫 PUBDEF（vendor 內部，linker 不需 export） |
 | `AIL_internal_*` orphan — `vtable_indirect` | 11 | 必納入（function-pointer 註冊點仍指向它） |
-| `AIL_internal_*` orphan — `cluster_member` | 9 | 必納入（被 vtable_indirect / 其他 internal call） |
+| `AIL_internal_*` orphan — `cluster_member` | 8 | 必納入（被 vtable_indirect / 其他 internal call） |
 | `AIL_internal_*` orphan — `tail_call_target` | 1 | 必納入 |
-| `AIL_internal_*` orphan — `dead_code_stub` | 15 | **可省略** — linker 帶入但 binary 從未引用；省略不影響等價性 |
+| `AIL_internal_*` orphan — `dead_code_stub` | 14 | **可省略** — linker 帶入但 binary 從未引用；省略不影響等價性 |
 
 「可省略」的 14 個 dead_code_stub（plate comment 已標 sub-case）：
-`AIL_internal_audio_mix_isr` / `_sequence_timer_isr` / `_helper_3fe6b` /
-`_helper_3feb3` / `_dig_driver_teardown` / `_set_sample_user_data_inner` /
-`_dpmi_unlock_helper_416e4` / `_midi_status_length` / `_helper_42088` /
-`_helper_4218d` / `_sequence_init` / `_helper_3a548` / `_start_all_timers_inner` /
-`_stop_all_timers_inner`。可選擇：
+`AIL_internal_audio_mix_isr` / `_sequence_timer_isr` / `_driver_start_output_3fe6b` /
+`_driver_stop_output_3feb3` / `_dig_driver_teardown` / `_set_sample_user_data_inner` /
+`_dpmi_unlock_dig_mix_416e4` / `_midi_status_length` / `_dig_load_buffer_chunk_42088` /
+`_byteswap_u32_4218d` / `_sequence_init` / `_dead_jmp_to_log_decrement_3a548` /
+`_start_all_timers_inner` / `_stop_all_timers_inner`。可選擇：
 - 完整保留 → 產生與原 binary byte-identical 的 .obj
 - 全部省略 → 縮小 .obj，binary 行為等價（原 binary 也未引用）
 
@@ -44,7 +45,7 @@ CRT primitive），EXTDEF 路徑只剩 abort thunk 一個成立。emit pipeline 
   `fd2_dpmi_alloc_dos_memory @ 0x361cc` / `fd2_dpmi_free_dos_memory @ 0x36255` /
   `fd2_dpmi_lock_region @ 0x36284` / `fd2_dpmi_unlock_region @ 0x362f1` /
   `fd2_dpmi_lock_size @ 0x36316` / `fd2_dpmi_unlock_size @ 0x3632d`。
-  `fd2_dpmi_lock_size` 被 game `set_bgm_track_with_fade` 直接共享。emit_action =
+  `fd2_dpmi_lock_size` 被 game `fd2_set_bgm_track_with_fade` 直接共享。emit_action =
   `emit_fd2_source`（FD2 source 端 emit），不是 CRT EXTDEF。
 - **AIL-internal file/global accessor (2 個)** — 經 caller 分析升入 AIL pool：
   - `AIL_internal_filesize_path @ 0x36900`（open + filelength + close 組合 helper）
@@ -138,7 +139,7 @@ CRT global 位址（90s fd2 → v2 對應）：
 AIL function 不直接 absolute reference 這些 global，全部透過 fopen / fclose /
 errno_addr 等函式呼叫間接存取，故 v2 重連結時這些 global 的位址換移無影響。
 
-## AIL string / data byte ranges (from D3 vendor_string audit)
+## AIL string / data byte ranges
 
 AIL ecosystem 在 `.object2` 字串區佔據 0x50000..0x53800 範圍（與 CRT 字串
 interleave）。AIL extraction 必須帶入下列字串 group，rebuild 時 .obj 內部
@@ -393,12 +394,11 @@ AIL extraction 時：
 
 注：FD2.LE 內 0x54170/74 是 AIL 在編譯時的 .obj BSS 一部分，被 wlink 放在 `.object3` segment（與 game .object3 globals interleave）。
 
-### AIL `.object1` inline data items (from D8 audit, first 50 items)
+### AIL `.object1` inline data items
 
-D8 fd2_o1_inline group audit 識別出下列分布在 `.object1` 內、與 AIL 函式邊
-彼此 interleave 的 read-only 常數 / dispatch table。全部 emit_action =
-`emit_fd2_source` (AIL-built 但 wlink 把 table 放回 obj1 code segment 旁，
-FD2 自家 re-build 須能精確重現 byte layout)。
+下列分布在 `.object1` 內、與 AIL 函式邊彼此 interleave 的 read-only 常數 /
+dispatch table。全部 emit_action = `emit_fd2_source` (AIL-built 但 wlink 把
+table 放回 obj1 code segment 旁，FD2 自家 re-build 須能精確重現 byte layout)。
 
 #### AIL DIG mixer dispatch tables（pair）
 
@@ -411,7 +411,7 @@ FD2 自家 re-build 須能精確重現 byte layout)。
 
 `AIL_internal_register_mix_globals` 透過 `fd2_dpmi_lock_region(0x47638, 0x495ff)` 鎖整段 0x47638..0x495FF (含 dispatch table + 132 個 mix callback function bodies)。AIL extraction 時須**保留** dispatch table byte layout（非零 slot fixup 對 wlink relink 可正確還原）。
 
-#### AIL DIG / VOC driver dispatch tables（D8 audit 新識別）
+#### AIL DIG / VOC driver dispatch tables
 
 | Addr | Name | Type | 用途 |
 |---|---|---|---|
@@ -419,7 +419,7 @@ FD2 自家 re-build 須能精確重現 byte layout)。
 | `0x40344` | `data_ail_dig_driver_configure_channel_init_jump_table` | pointer[4] (16B) | 同函數 channel-init switch (param[6] ∈ 0..3) 為 channel-format 寫入 samples-per-block + channel multiplier (8m / 8s / 16m / 16s) |
 | `0x40354` | `data_align_40354_lea_nop_pad_12b` | byte[12] | alignment NOPs (2× 6-byte LEA) 對齊下個 fn @0x40360 |
 | `0x41548` | `L_AIL_min_sample_buf_switchtable_41548` | pointer[4] (16B) | `AIL_internal_minimum_sample_buffer_size_inner` 內 format switch (`format` ∈ 0..3)，case-body 設 in_EDX = bytes-per-sample 1/2/2/4 |
-| `0x41558` | `data_align_41558_lea_nop_pad_8b` | byte[8] | alignment NOPs (6-byte LEA + 2-byte MOV EDX,EDX) 對齊下個 fn @0x41560；audit 過程 split 自原 0x41548 24B switchdataD |
+| `0x41558` | `data_align_41558_lea_nop_pad_8b` | byte[8] | alignment NOPs (6-byte LEA + 2-byte MOV EDX,EDX) 對齊下個 fn @0x41560 |
 | `0x4180c` | `data_ail_voc_dispatcher_v2_chunk_type_jump_table` | pointer[10] (40B) | `AIL_internal_voc_dispatcher_v2` 內 VOC chunk-type switch (0..9)；含 3 個 slot (continuation / silence / text) 共享 no-op handler 0x41a72，其餘 7 個 unique handler |
 | `0x45120` | `data_ail_dig_pitch_bend_freq_scale_lookup_uint32_127` | uint32[127] (508B) | `AIL_internal_dig_apply_pitch_bend` 內 lookup table，index ∈ [0, 0x7F]；3 read sites (base_attack / velocity-with-attack / divisor)；單調遞增 quasi-exponential curve (8, 17, 18, ..., 98 at idx 0..31)。Used in pitch/velocity-to-sample-rate conversion |
 

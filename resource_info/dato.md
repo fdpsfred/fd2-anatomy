@@ -23,7 +23,7 @@ LLLLLL archive (詳 `overview.md`)。
 ```
 
 每 frame 是獨立 RLE-encoded 80×80 pixel 8bpp indexed image (RLE format 同
-`rle_blit_sprite @ 0x4E63D`，詳 `program_info/graphics.md`)。
+`fd2_rle_blit_sprite @ 0x4E63D`，詳 `program_info/graphics.md`)。
 
 4 frames 用途推測為 portrait 的 4 個表情或視角 (normal/smile/sad/special 或
 north/south/east/west)。
@@ -33,13 +33,13 @@ north/south/east/west)。
 `DATO idx = portrait_id` (直接對應，全 136 entries 各為 1 個 portrait)。
 
 Caller chain:
-- `display_dialog_scene @ 0x16ABC` — dialog 講者 portrait blit
-- `load_chapter_portrait @ 0x11019` — 200KB linear-probe portrait cache
+- `fd2_display_dialog_scene @ 0x15F84` — dialog 講者 portrait blit
+- `fd2_load_portrait_to_cache @ 0x11019` — 200KB linear-probe portrait cache
 - `render_status_screen_static_layout` — status screen char portrait
 - `run_equip_member_menu` / `run_status_screen_member_menu` — menu portraits
-- `play_final_chapter_30_ending` — endgame char portraits
+- `fd2_play_final_chapter_30_ending` — endgame char portraits
 
-`display_dialog_scene` 內部用 `portrait_id × 0x50` 做 stride 計算 (80-byte row)，
+`fd2_display_dialog_scene` 內部用 `portrait_id × 0x50` 做 stride 計算 (80-byte row)，
 但 loader 端傳的 idx 是 `portrait_id` 直接。
 
 ## 與 FIGANI 的對應

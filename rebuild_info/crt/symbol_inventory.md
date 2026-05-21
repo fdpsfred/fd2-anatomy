@@ -1,7 +1,7 @@
 # CRT 符號 inventory
 
-Watcom v2 C runtime 在 FD2.LE 內的命名約定、static-link duplicates、15 個
-`crt_equivalent_*` 與 10 個 `fd2_*` CRT-style primitive 對照。完整 Watcom
+Watcom v2 C runtime 在 FD2.LE 內的命名約定、static-link duplicates、13 個
+`crt_equivalent_*` 與 8 個 `fd2_*` CRT-style primitive 對照。完整 Watcom
 真符號 inventory 見同層 `lookup_9.5a.json` / `matched_function_sources.md`
 （個別 entry 的 verify 紀錄合併進 `notes` 欄位）。
 
@@ -13,9 +13,9 @@ Watcom linker 直接解析」為目標：
 - **Watcom 真符號**（公開或 hidden PUBDEF；行為 byte-match Watcom 9.5/9.5a/9.5b/9.5c
   lib obj 或語意 1:1 對應）→ 使用 Watcom 原名（`malloc` / `memset` / `fopen` /
   `_nmalloc` / `__filbuf` / `IF@COS` / `__CHK` / `L$1_*` 等）。在
-  `rebuild_info/crt/lookup_9.5a.json.by_address` 內有 190 個 entry。re-emit 後
+  `rebuild_info/crt/lookup_9.5a.json.by_address` 內有 193 個 entry。re-emit 後
   Watcom 直接 link 同名函式。
-- **`crt_equivalent_*` (15 個)** — 行為等價 Watcom CRT 但 byte 不 match 任一
+- **`crt_equivalent_*` (13 個)** — 行為等價 Watcom CRT 但 byte 不 match 任一
   lib obj 版本。emit_action = `emit_fd2_source`（FD2 source 端 emit 一個
   behaviour-equivalent C function；wlink 無法 lib resolve）。Ghidra 內以
   `search_functions_enhanced(name_pattern="^crt_equivalent_")` 列出。
@@ -36,7 +36,7 @@ Watcom linker 直接解析」為目標：
 
 ## CRT 公開 / hidden 符號清單
 
-全部 186 個 byte-match 確認的 Watcom 真符號（公開 + hidden PUBDEF）按
+全部 193 個 byte-match 確認的 Watcom 真符號（公開 + hidden PUBDEF）按
 address ↔ lib symbol 對照存於 `lookup_9.5a.json`，human-readable view 見
 `matched_function_sources.md`。本檔不重複維護分群子集。
 
@@ -45,10 +45,10 @@ address ↔ lib symbol 對照存於 `lookup_9.5a.json`，human-readable view 見
 本段把 Watcom CRT 相關但 lookup 沒命中（=必須 emit 為 FD2 source）的 function
 按 CRT 角色分組。涵蓋兩類命名：
 
-- **`crt_equivalent_*` (15 個)** — 行為等價於 Watcom CRT 但 byte 不 match
+- **`crt_equivalent_*` (13 個)** — 行為等價於 Watcom CRT 但 byte 不 match
   任一 lib obj。`categorise()` 歸 `crt` pool,emit_action = `emit_fd2_source`。
-- **`fd2_*` 中的 10 個 CRT-style primitive** — FD2 工程師自寫的 helper,
-  主要為 Miles AIL callback 提供 DPMI / file / global accessor。
+- **`fd2_*` 中的 8 個 CRT-style primitive** — FD2 工程師自寫的 helper,
+  主要為 Miles AIL callback 提供 DPMI / global accessor。
   `categorise()` 歸 `fd2` pool,emit_action = `emit_fd2_source`。
 
 當前 Ghidra 內所有其他 `crt_*` 系列函式（softfp / format / fopen / heap /
@@ -56,7 +56,7 @@ dpmi / init / time / errno / signal / stream I/O / math 等）皆已歸 lookup
 真名（Watcom 9.5/9.5a 公開或 hidden PUBDEF）,由 `rebuild_info/crt/lookup_9.5a.json`
 維護。需要列出時查 `mcp__ghidra__search_functions_enhanced` 或 lookup file。
 
-### 15 個 `crt_equivalent_*`（依角色分組）
+### 13 個 `crt_equivalent_*`（依角色分組）
 
 **Startup / entry / exit (2)**：
 - `crt_equivalent_entry_start @ 0x3C964` — DOS LE entry point；JMP 到 dos_main_bootstrap
@@ -72,10 +72,13 @@ dpmi / init / time / errno / signal / stream I/O / math 等）皆已歸 lookup
 - `crt_equivalent_lx_header_reader_36344 @ 0x36344` — 311B LX header reader (open + 0x40-byte MZ + 4-byte LX magic + 0xac LX header + 0x18-byte object table)
 - `crt_equivalent_lx_module_loader_3647b @ 0x3647B` — 1151B 完整 LX loader (header + page table + fixup application + buffer alloc via [0x52758])
 
-**Softfp / 64-bit int formatting (3)**：
-- `crt_equivalent_uint64_to_decimal_ascii_4d9e1 @ 0x4D9E1` — 114B 64-bit unsigned int → decimal ASCII,被 __cvt 從 printf %g/%e/%f 路徑呼叫
-- `crt_equivalent_getip_4da53 @ 0x4DA53` — 5B `__GETIP` idiom (CALL 0x4db08 取下一條指令位址至 EDI)
-- `crt_equivalent_getip_body_4db08 @ 0x4DB08` — 2B `__GETIP` body (POP EDI; RET),配對 0x4da53
+**Softfp (1)**：
+- `crt_equivalent_softfp_tan_worker_4c630 @ 0x4C630` — soft-FP tan worker（被 `IF@TAN` 引用）
+
+註：原 KB 列入此段的 `crt_equivalent_uint64_to_decimal_ascii_4d9e1` / `_getip_4da53` /
+`_getip_body_4db08` 三個已 byte-match 為 Watcom `__Bin2String` 主體（297B 跨
+0x4D9E1..0x4DB09，Ghidra 分成 entry + 兩個 alt-entry label `L_Bin2String_alt_72_getip_call`
+@ 0x4DA53 / `L_Bin2String_alt_127_getip_landing` @ 0x4DB08），歸 lookup 真名，不再屬 crt_equivalent。
 
 **FPE / matherr / linker padding stub (5)**：
 - `crt_equivalent_exit_chain_stub_36de3 @ 0x36DE3` — Watcom CRT atexit chain 1B RET
@@ -84,7 +87,7 @@ dpmi / init / time / errno / signal / stream I/O / math 等）皆已歸 lookup
 - `crt_equivalent_matherr_default_thunk_4d340 @ 0x4D340` — 5B JMP thunk to matherr_default_return_zero
 - `crt_equivalent_matherr_default_return_zero_4d8ea @ 0x4D8EA` — `_matherr` default "ignore" path
 
-### 10 個 `fd2_*` CRT-style primitive
+### 8 個 `fd2_*` CRT-style primitive
 
 **DPMI region/size primitives (6)** — 為 Miles AIL callback 提供 DPMI INT 31h fn 0x100/0x101/0x600/0x601 wrapper：
 - `fd2_dpmi_alloc_dos_memory @ 0x361CC`
@@ -94,10 +97,10 @@ dpmi / init / time / errno / signal / stream I/O / math 等）皆已歸 lookup
 - `fd2_dpmi_lock_size @ 0x36316`
 - `fd2_dpmi_unlock_size @ 0x3632D`
 
-**File helper (1)**：
-- `fd2_filesize_path @ 0x36900` — 取 path file size
-
-**FD2 global accessors (3)**：
-- `fd2_get_word_global_52754 @ 0x368FA`
+**FD2 global accessors (2)**：
 - `fd2_set_word_global_52758 @ 0x3615E`
 - `fd2_set_word_global_5275c @ 0x3616E`
+
+註：原 `fd2_filesize_path @ 0x36900` 與 `fd2_get_word_global_52754 @ 0x368FA`
+已 reclassify 為 AIL pool（`AIL_internal_filesize_path` / `AIL_get_last_error_code`），
+詳見 `rebuild_info/ail/extraction_prep.md` AIL 共用 / 邊界 helper 段。

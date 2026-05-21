@@ -9,7 +9,7 @@
 | 6 | 萊汀 | 章末 | End handler 加入 |
 | 11 (0xB) | 索菲亞 | 章末 | End handler 加入 |
 
-攻略提及加入「騎士萊汀、僧侶索菲亞」——對應 char 6 + char 11 兩個於 End handler 透過 `init_runtime_char_from_base_growth` 加入。
+攻略提及加入「騎士萊汀、僧侶索菲亞」——對應 char 6 + char 11 兩個於 End handler 透過 `fd2_init_runtime_char_from_base_growth` 加入。
 
 ## 敵人配置
 

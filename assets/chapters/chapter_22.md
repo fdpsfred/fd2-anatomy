@@ -22,9 +22,9 @@ LV13 黑暗法師×4 (HP507, 炎龍術, 地震術, 毒擊術, 麻痺術) 等。�
 
 ## 特殊機制
 
-- **失敗條件**：索爾死亡，或希爾法 (char[1]) 死亡。Post-action handler 與第 27、28 章共用 (chapter_22_27_28_post_action_shared)。
-- **白屏 fade-to-black 結尾**：FD2 全 30 章中唯一以「全螢幕白屏 → palette fade → 黑屏」收尾的章節。end handler 在 page 6 後播 cast_screen_wide_spell_with_fade (大範圍 spell 視覺) → 500ms 等待 → crt_memset(0xA0000, 0xFF, 64000) 全螢幕白 → palette fade-to-black → crt_memset(0xA0000, 0, 64000) 全螢幕黑。
-- **連戰無商店**：本章與後續章節之間 chapter_transition_menu 抑制商店出現。
+- **失敗條件**：索爾死亡，或希爾法 (char[1]) 死亡。Post-action handler 與第 27、28 章共用 (fd2_chapter_22_27_28_post_action_shared)。
+- **白屏 fade-to-black 結尾**：FD2 全 30 章中唯一以「全螢幕白屏 → palette fade → 黑屏」收尾的章節。end handler 在 page 6 後播 fd2_cast_screen_wide_spell_with_fade (大範圍 spell 視覺) → 500ms 等待 → memset(0xA0000, 0xFF, 64000) 全螢幕白 → palette fade-to-black → memset(0xA0000, 0, 64000) 全螢幕黑。
+- **連戰無商店**：本章與後續章節之間 fd2_chapter_transition_menu 抑制商店出現。
 - **第 3、7 回合三角魔鬼 spawn**：FDFIELD turn event 控制。
 
 ## 對話

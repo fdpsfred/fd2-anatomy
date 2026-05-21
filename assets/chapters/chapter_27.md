@@ -21,10 +21,10 @@ FDFIELD.DAT[27]：機甲衛兵 + ASR-07 控制單元。
 ## 特殊機制
 
 - **Init 條件式對話**：若隊伍持有「天空之鑰」(item 100)，init 階段 page 0 之後額外播放 page 3 (希爾法說明傳送平台需要天空之鑰)。
-- **Init 3× spell cast cinematic**：`cast_screen_wide_spell_with_fade` 在三個不同位置觸發小範圍光效（劇情中三方人物使用魔法/技能）。
-- **GOOD/BAD ENDING 分歧**：end handler 用 `any_char_has_item(100)` 判定：
+- **Init 3× spell cast cinematic**：`fd2_cast_screen_wide_spell_with_fade` 在三個不同位置觸發小範圍光效（劇情中三方人物使用魔法/技能）。
+- **GOOD/BAD ENDING 分歧**：end handler 用 `fd2_any_char_has_item(100)` 判定：
   - **GOOD**：有天空之鑰 → 大家一同上黃金城 → 進入 ch28+
-  - **BAD**：無天空之鑰 → 悠妮獨自傳送離去 (`animate_warp_teleport_char(1, ...)`) → `play_game_ending_cinematic` + 無限迴圈，遊戲結束無法繼續
+  - **BAD**：無天空之鑰 → 悠妮獨自傳送離去 (`fd2_animate_warp_teleport_char(1, ...)`) → `fd2_play_game_ending_cinematic` + 無限迴圈，遊戲結束無法繼續
 - **跨章天空之鑰兌換鏈**（ch21 → ch23 → ch27 → ch28+）：
   - ch21 結束時可由 6 件物品集齊兌換得到天空之鑰
   - ch23 持鑰 → 卡里斯加入

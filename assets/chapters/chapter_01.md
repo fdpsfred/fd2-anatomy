@@ -44,7 +44,7 @@ char_spawn_records），不在 init handler。
     reinforcement 觸發)；其餘 28 筆為 enemy_class 與 team=1 NPC（友方海防隊
     士兵 ×4 @ record[19..22]）。
   - **三 byte AI override** (`+0x11/+0x12/+0x13` = `ai_class+flags / ai_aux /
-    ai_target_pos`，由 `init_runtime_char_for_battle @ 0x10c50` 拷貝到
+    ai_target_pos`，由 `fd2_init_runtime_char_for_battle @ 0x10c50` 拷貝到
     runtime_char `+0x34/+0x35/+0x36`)：哈瓦特 / 哈諾 兩者皆 `(0, 0, 0)`，無顯式
     protective AI 設定。
   - **protective 行為實際來源**：哈瓦特 record[8] 的 `+0x02 ai_target_id = 0x01`
@@ -59,7 +59,7 @@ char_spawn_records），不在 init handler。
 
 對話文字 12 pages 來自 FDTXT.DAT entry 1。Init Phase 3 引用 page 0/1/2，
 End handler 引用 page 9。其他 pages 由 FDFIELD turn-event handler 內部
-`display_dialog_scene` 引用。
+`fd2_display_dialog_scene` 引用。
 
 (prologue 階段使用的 FDTXT entry 32 / 33 內容歸屬 ch1 prologue / intro，
 詳見對應章節的 endgame 區段。本章對話內容下列以 entry 1 為主。)

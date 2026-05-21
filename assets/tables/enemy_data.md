@@ -34,8 +34,8 @@ offset  size  field  意義
 enemy_id = (table_address - 0x7AB0D) / 10
 ```
 
-`init_runtime_char_for_battle @ 0x10C50`：char_id < 0x44 走
-`get_char_base_entry`，≥ 0x44 走 `get_enemy_data_entry(char_id - 0x44)`。
+`fd2_init_runtime_char_for_battle @ 0x10C50`：char_id < 0x44 走
+`fd2_get_char_base_entry`，≥ 0x44 走 `fd2_get_enemy_data_entry(char_id - 0x44)`。
 
 ## 全 68 entries
 

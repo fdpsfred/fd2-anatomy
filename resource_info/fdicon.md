@@ -19,7 +19,7 @@ monotonic non-decreasing。
 
 ## 載入方式
 
-由 `crt_fopen_read("FDICON.B24"...)` 直接 fopen — 不走 LLLLLL `load_dat_resource`。
+由 `fopen("FDICON.B24"...)` 直接 fopen — 不走 LLLLLL `fd2_load_dat_resource`。
 唯一的非 LLLLLL 資源。
 
 ## 副檔名「.B24」推測
@@ -32,7 +32,7 @@ monotonic non-decreasing。
 
 ## RLE 格式
 
-與 6 主 DAT 共用 `rle_blit_sprite @ 0x4E63D` 格式 (詳 `program_info/graphics.md`)：
+與 6 主 DAT 共用 `fd2_rle_blit_sprite @ 0x4E63D` 格式 (詳 `program_info/graphics.md`)：
 
 - `0b00xxxxxx` = literal copy
 - `0b01xxxxxx` = stretched literal (1 src → 2 dst)
@@ -58,19 +58,19 @@ portrait_id 如何映射到 FDICON idx。
 
 ## 載入時機
 
-`load_chapter_battle_data @ 0x1088D` 內：
+`fd2_load_chapter_battle_data @ 0x1088D` 內：
 
 ```c
-crt_fopen_read("FDICON.B24", &DAT_00050078);
+fopen("FDICON.B24", &DAT_00050078);
 for (char_iter = 0; char_iter < portrait_cache_total_size; char_iter++) {
-    portrait_idx = load_portrait_to_cache(
+    portrait_idx = fd2_load_portrait_to_cache(
         bPortrait_id, bPos_x, ECX, bPortrait_id, file_handle);
     pSlot_iter->pSprite_state[0] = (byte)portrait_idx;
 }
 crt_fclose(file_handle);
 ```
 
-`load_portrait_to_cache @ 0x11019` 是 200 KB linear-probe 快取系統。每次 chapter
+`fd2_load_portrait_to_cache @ 0x11019` 是 200 KB linear-probe 快取系統。每次 chapter
 init 開啟 FDICON.B24 → 對該章每個 char 讀 portrait_id 對應的 24×24 icon → 存到
 portrait_sprite_cache。
 

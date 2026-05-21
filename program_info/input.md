@@ -14,23 +14,23 @@ FD2 直接讀寫 BIOS data area (segment 0x40) 的鍵盤緩衝區指標，不走
 
 | 位址 | 名稱 | 角色 |
 |---|---|---|
-| `0x10620` | `check_input_ready` | 比對 0x41A vs 0x41C 看 buffer 是否非空 |
-| `0x4E031` | `clear_keyboard_buffer` | 寫 `*0x41C = *0x41A`，丟棄所有 pending key |
-| `0x11AA8` | `wait_for_input_with_idle` | 主 poll loop (含 idle 動畫) |
-| `0x16C57` | `wait_for_input_dialog_with_blink` | dialog 中變體 |
-| `0x117E7` | `game_main_loop` | per-frame scancode 分派 (歸 ui_menu) |
-| `0x17AA9` | `wait_n_bios_ticks` | 18.2Hz 為單位的 busy-wait |
+| `0x10620` | `fd2_check_keyboard_buffer_nonempty` | 比對 0x41A vs 0x41C 看 buffer 是否非空 |
+| `0x4E031` | `fd2_clear_keyboard_buffer` | 寫 `*0x41C = *0x41A`，丟棄所有 pending key |
+| `0x11AA8` | `fd2_wait_for_input_with_idle` | 主 poll loop (含 idle 動畫) |
+| `0x16C57` | `fd2_wait_for_input_dialog_with_blink` | dialog 中變體 |
+| `0x117E7` | `fd2_game_main_loop` | per-frame scancode 分派 (歸 ui_menu) |
+| `0x17AA9` | `fd2_wait_n_bios_ticks` | 18.2Hz 為單位的 busy-wait |
 
-## wait_for_input_with_idle 流程
+## fd2_wait_for_input_with_idle 流程
 
 ```
 key_input_mode = 0x10
 loop:
-  if check_input_ready():
+  if fd2_check_keyboard_buffer_nonempty():
     break
-  decompress_save_snapshot(0)     // 保持畫面
+  fd2_update_palette_cycle_anim()    // palette cycling 動畫 (水/火炬等)
   if BIOS tick changed (0x46C):
-    composite_battle_frame()      // cursor 閃爍動畫
+    fd2_composite_battle_frame()      // cursor 閃爍動畫
 int386(0x16, &regs, &out)         // INT 16h BIOS keyboard wait/read scancode
 remap_special:
   -0x20 (0xE0) or 'R' (0x52) → 0x1C  (Enter)
@@ -40,25 +40,25 @@ return key_input_mode
 
 擴展鍵 (0xE0 prefix) 標準化為 Enter；Numpad 5 (0x53) 標準化為 Esc。
 
-## clear_keyboard_buffer
+## fd2_clear_keyboard_buffer
 
 兩 byte BIOS area 寫入：`*0x41C = *0x41A`，等同丟棄所有 pending key，下個
 wait_for_input 不會被舊輸入污染。被呼叫時機：cursor 動畫 step 之間、SFX 觸發後、
 frame boundary、對話切換之間。
 
-## wait_n_bios_ticks(n)
+## fd2_wait_n_bios_ticks(n)
 
 Busy-wait 直到 BIOS tick 推進 n ticks (每 tick ~55ms = 1/18.2Hz)。處理 16-bit
 wraparound。儲存上次 reference tick 在 `0x53A2C`。
 
 常用值：
-- `wait_n_bios_ticks(1)` ≈ 55ms (一 BIOS frame，cursor blink、sprite step)
-- `wait_n_bios_ticks(2)` ≈ 110ms (動畫 pacing)
-- `wait_n_bios_ticks(6)` ≈ 330ms (post-cast 等較長停頓)
+- `fd2_wait_n_bios_ticks(1)` ≈ 55ms (一 BIOS frame，cursor blink、sprite step)
+- `fd2_wait_n_bios_ticks(2)` ≈ 110ms (動畫 pacing)
+- `fd2_wait_n_bios_ticks(6)` ≈ 330ms (post-cast 等較長停頓)
 
 ## Scancode 表 (IBM PC keyboard set 1)
 
-`game_main_loop` 處理的 scancode：
+`fd2_game_main_loop` 處理的 scancode：
 
 | Scancode | 鍵 |
 |---|---|
@@ -85,7 +85,7 @@ wraparound。儲存上次 reference tick 在 `0x53A2C`。
 |---|---|
 | `0x53A8D` | `last_key_pressed` (raw scancode buffer) |
 | `0x53A8E` | `key_input_mode` (timeout/mode 值) |
-| `0x53A2C` | `wait_n_bios_ticks` 的 reference tick |
+| `0x53A2C` | `fd2_wait_n_bios_ticks` 的 reference tick |
 | `0x539F0` | `idle_tick_value` (BIOS tick copy) |
 | `0x539F2` | `previous_idle_tick` |
 | `0x51AAC` | `data_fd2_ui_play_active_flag` (1=normal play; 0 during transition lockout) |

@@ -7,7 +7,7 @@ FD2 game-side 自寫的 audio 派遣層（BGM dispatcher、SFX trigger）。Mile
 
 ## FD2 自寫的 BGM 派遣器
 
-`set_bgm_track_with_fade @ 0x25977` — FDMUS 音樂的 dispatcher。
+`fd2_set_bgm_track_with_fade @ 0x25977` — FDMUS 音樂的 dispatcher。
 
 - `track_id` 經 ECX register 傳入 (Watcom 4-arg register convention)
 - `track_id` 直接對應 FDMUS idx (沒有 lookup table)
@@ -19,11 +19,11 @@ FD2 game-side 自寫的 audio 派遣層（BGM dispatcher、SFX trigger）。Mile
 
 - `data_fd2_audio_per_chapter_player_turn_bgm_track[30] @ 0x51E63` — 每章玩家回合 BGM track_id
 - `data_fd2_audio_per_chapter_enemy_turn_bgm_track[30] @ 0x51E81` — 每章敵方回合 BGM track_id
-- `run_full_turn_cycle` 把這兩個 byte cast 為 BGM track_id 餵給 `set_bgm_track_with_fade`
+- `fd2_run_full_turn_cycle` 把這兩個 byte cast 為 BGM track_id 餵給 `fd2_set_bgm_track_with_fade`
 
 ## SFX 觸發
 
-`play_sfx_with_handle @ 0x25A96` — 通用 AIL SFX 播放器，UI 各處呼叫
+`fd2_play_sfx_with_handle @ 0x25A96` — 通用 AIL SFX 播放器，UI 各處呼叫
 (cursor 移動 sfx 0、確認 sfx 7、取消等)。3 個 gate flag：
 `audio_master_enable @ 0x53EF1`、`sample_system_ready @ 0x51E62`、
 `audio_mute_flag @ 0x540FF`。

@@ -25,13 +25,13 @@ LV30 火龍 / 雷龍 / 暗黑龍 (HP 2400-3600, MP 2400, 天火 / 神雷 / 咒�
 - **勝利條件 (FD2 唯一)**：用 `tile_event_consumed_flags[0x12, 0x13, 0x14]` 全部觸發 = 解除防衛系統 = 勝。不是擊敗特定敵人。
 - **失敗條件**：索爾 (chars[0]) 死 = 負；悠妮 (chars[1]) 死 → 顯示 page 9 「不能輸給那傢伙‥索爾‥」對話 + 負。
 - **擊毀第一隻機甲隊長 → 寶箱平台援軍**：FDFIELD tile-step handler rewrite turn-event hook，使下回合中央左右寶箱平台 spawn 援軍。
-- **護送悠妮到控制中心石碑**：tile-step 觸發後再過 3 回合，`fire_chapter_turn_events_for_phase` 觸發 3 條巨龍 boss 戰。
+- **護送悠妮到控制中心石碑**：tile-step 觸發後再過 3 回合，`fd2_fire_chapter_turn_events_for_phase` 觸發 3 條巨龍 boss 戰。
 - **End handler 高潮 cinematic**：
   - char[0x14] 變身為空魔神 (`bPortrait_id = 0x7E`，對應 data_fd2_battle_enemy_data_table entry 58 @ `0x7AD51`)
   - 9 連震動 (3 + 3 + 3，最後一震 strength = 0x28，3 倍長度)
-  - 3 道全螢幕白光閃 (`animate_palette_flash_pulse_white` × 3)
+  - 3 道全螢幕白光閃 (`fd2_animate_palette_flash_pulse_white` × 3)
   - 64-step palette fade-out (white-out) → 黑屏 800ms → 64-step palette fade-in
-  - `animate_warp_teleport_char(party_member_count - 1, ...)` 傳送最後一個 party char
+  - `fd2_animate_warp_teleport_char(party_member_count - 1, ...)` 傳送最後一個 party char
 - **跨章天空之鑰兌換鏈**：本章悠妮使用「天空之鑰」接管要塞中樞 (page 7 對白「只要有這天空之鑰，我就可以接管要塞的中樞系統」)。
 
 ## 對話

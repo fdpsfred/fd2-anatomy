@@ -6,9 +6,9 @@
 
 | 角色 | 位址 | 大小 |
 |---|---|---|
-| Init | `chapter_06_init @ 0x0003314B` | 79 B |
-| End | `chapter_06_end @ 0x00023296` | 82 B |
-| Post-action | `check_battle_end_default_handler @ 0x000205B4` | (default) |
+| Init | `fd2_chapter_06_init @ 0x0003314B` | 79 B |
+| End | `fd2_chapter_06_end @ 0x00023296` | 82 B |
+| Post-action | `fd2_check_battle_end_default_handler @ 0x000205B4` | (default) |
 | BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[5]` |  |
 | BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[5]` |  |
 
@@ -16,11 +16,11 @@
 
 極簡：
 
-- `init_battle_state_for_chapter`
-- `display_dialog_scene(page=0)`
-- `pan_cursor_to_char(0)`
+- `fd2_init_battle_state_for_chapter`
+- `fd2_display_dialog_scene(page=0)`
+- `fd2_pan_cursor_to_char(0)`
 
-無 cutscene、無 portrait load、無 `pan_cursor_and_window` — 純戰鬥準備章。
+無 cutscene、無 portrait load、無 `fd2_pan_cursor_and_window` — 純戰鬥準備章。
 
 ## Dialog page 引用
 
@@ -31,9 +31,9 @@
 
 ## char_id 初始化序列
 
-Init handler 內無 `init_runtime_char_from_base_growth` 呼叫。
+Init handler 內無 `fd2_init_runtime_char_from_base_growth` 呼叫。
 
-End handler 開頭 `init_runtime_char_from_base_growth(0xD)` → 貝克威加入。
+End handler 開頭 `fd2_init_runtime_char_from_base_growth(0xD)` → 貝克威加入。
 
 ## Cutscene events
 
@@ -42,18 +42,18 @@ End handler 開頭 `init_runtime_char_from_base_growth(0xD)` → 貝克威加入
 
 ## Post-action handler
 
-`data_fd2_chapter_post_action_handler_table[5]` 指向 `check_battle_end_default_handler`，
+`data_fd2_chapter_post_action_handler_table[5]` 指向 `fd2_check_battle_end_default_handler`，
 無自訂勝負條件。
 
 ## End handler events
 
-`chapter_06_end @ 0x00023296` (82 B)：
+`fd2_chapter_06_end @ 0x00023296` (82 B)：
 
-1. `init_runtime_char_from_base_growth(0xD)` — char 13 = 貝克威加入
-2. `load_chapter_portraits_and_dump_tmp(race_id=3)` 載入加入時的肖像
-3. `pan_cursor_and_window(5, 0xE)` + `cutscene_event_trigger(0x1B)`
-4. `display_dialog_scene(page=6)`
-5. `save_runtime_char_to_template` + `current_chapter_id += 1`
+1. `fd2_init_runtime_char_from_base_growth(0xD)` — char 13 = 貝克威加入
+2. `fd2_load_chapter_portraits_and_dump_tmp(race_id=3)` 載入加入時的肖像
+3. `fd2_pan_cursor_and_window(5, 0xE)` + `fd2_cutscene_event_trigger(0x1B)`
+4. `fd2_display_dialog_scene(page=6)`
+5. `fd2_save_runtime_char_to_template` + `current_chapter_id += 1`
 
 ## FDFIELD event script
 

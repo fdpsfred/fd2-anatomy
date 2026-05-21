@@ -16,7 +16,7 @@
 - `fdshap.md` — FDSHAP.DAT (66 entries) 戰鬥 snapshot + tile_attribute
   33 章 × 2 idx 對照
 - `fdmus.md` — FDMUS.DAT (20 entries: 15 XMI + 5 placeholder)、
-  `set_bgm_track_with_fade` dispatcher、per_chapter BGM 表
+  `fd2_set_bgm_track_with_fade` dispatcher、per_chapter BGM 表
 - `fdother.md` — FDOTHER.DAT 103 entries (含 29 nested sub-archive)、
   分類統計、21 個 confirmed_dead idx
 - `dato.md` — DATO.DAT 80×80 portrait sprite (136 entries × 4 view)

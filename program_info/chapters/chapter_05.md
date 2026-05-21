@@ -1,26 +1,26 @@
 # 第 5 章 — chapter_05
 
-End handler 用 scene_pos tables 排版 cutscene + `init_runtime_char_from_base_growth(10)` 加入瑪琳。
+End handler 用 scene_pos tables 排版 cutscene + `fd2_init_runtime_char_from_base_growth(10)` 加入瑪琳。
 
 ## Function 位址
 
 | 角色 | 位址 | 大小 |
 |---|---|---|
-| Init | `chapter_05_init @ 0x00033049` | 258 B |
-| End | `chapter_05_end @ 0x000231F9` | 157 B |
-| Post-action | `check_battle_end_default_handler @ 0x000205B4` | (default) |
+| Init | `fd2_chapter_05_init @ 0x00033049` | 258 B |
+| End | `fd2_chapter_05_end @ 0x000231F9` | 157 B |
+| Post-action | `fd2_check_battle_end_default_handler @ 0x000205B4` | (default) |
 | BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[4]` |  |
 | BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[4]` |  |
 
 ## Init handler 階段
 
-`init_battle_state_for_chapter` 後依序：
+`fd2_init_battle_state_for_chapter` 後依序：
 
-- `display_dialog_scene(page=0)`
-- `pan_cursor_and_window(3, 3)` + `load_chapter_portraits_and_dump_tmp(race_id=1)`
-- `cutscene_event_trigger(0x16)` + `display_dialog_scene(page=1)`
-- `pan_cursor_and_window(8, 0xE)` + `cutscene_event_trigger(0x15)`
-- `display_dialog_scene(page=2)` + `pan_cursor_to_char(0)`
+- `fd2_display_dialog_scene(page=0)`
+- `fd2_pan_cursor_and_window(3, 3)` + `fd2_load_chapter_portraits_and_dump_tmp(race_id=1)`
+- `fd2_cutscene_event_trigger(0x16)` + `fd2_display_dialog_scene(page=1)`
+- `fd2_pan_cursor_and_window(8, 0xE)` + `fd2_cutscene_event_trigger(0x15)`
+- `fd2_display_dialog_scene(page=2)` + `fd2_pan_cursor_to_char(0)`
 
 ## Dialog page 引用
 
@@ -31,9 +31,9 @@ End handler 用 scene_pos tables 排版 cutscene + `init_runtime_char_from_base_
 
 ## char_id 初始化序列
 
-Init handler 內無 `init_runtime_char_from_base_growth` 呼叫。
+Init handler 內無 `fd2_init_runtime_char_from_base_growth` 呼叫。
 
-End handler 末段 `init_runtime_char_from_base_growth(10)` → 瑪琳加入。
+End handler 末段 `fd2_init_runtime_char_from_base_growth(10)` → 瑪琳加入。
 
 ## Cutscene events
 
@@ -41,19 +41,19 @@ End handler 末段 `init_runtime_char_from_base_growth(10)` → 瑪琳加入。
 
 ## Post-action handler
 
-`data_fd2_chapter_post_action_handler_table[4]` 指向 `check_battle_end_default_handler`，
+`data_fd2_chapter_post_action_handler_table[4]` 指向 `fd2_check_battle_end_default_handler`，
 無自訂勝負條件。
 
 ## End handler events
 
-`chapter_05_end @ 0x000231F9` (157 B)：
+`fd2_chapter_05_end @ 0x000231F9` (157 B)：
 
 1. 從 `data_fd2_chapter_ch05_end_scene_char_pos_x_table` / `pos_y_table` / `facing_table`
    (各 4 entries @ 0x520D2/0x520D9/0x520E0) 讀 4 entries → recruit_block × 3
-2. `setup_chars_and_camera_for_intro(...)` 設置 camera + chars positions
-3. `display_dialog_scene(page=9)`
-4. `init_runtime_char_from_base_growth(10)` — char 10 = 瑪琳加入
-5. `save_runtime_char_to_template` + `current_chapter_id += 1`
+2. `fd2_setup_chars_and_camera_for_intro(...)` 設置 camera + chars positions
+3. `fd2_display_dialog_scene(page=9)`
+4. `fd2_init_runtime_char_from_base_growth(10)` — char 10 = 瑪琳加入
+5. `fd2_save_runtime_char_to_template` + `current_chapter_id += 1`
 
 ## FDFIELD event script
 

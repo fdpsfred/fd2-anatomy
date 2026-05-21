@@ -26,7 +26,7 @@
 ## 特殊機制
 
 - **失敗條件**：索爾死亡（default handler）。
-- **章末加入**：瑪琳 (char 10) 由 end handler `init_runtime_char_from_base_growth(10)` 加入。
+- **章末加入**：瑪琳 (char 10) 由 end handler `fd2_init_runtime_char_from_base_growth(10)` 加入。
 - **跨章劇情**：祭司告知「失憶症神術不能治」並指引去普里茲港找賢者約拿，串聯下一章。
 
 ## 對話

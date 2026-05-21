@@ -14,7 +14,7 @@ DOS mode 13h (320×200×256-color)，primary surface @ `0xA0000` (linear)。
 0x53C5B/5F/63   render_workspace_a/b/c (3 × 64000 bytes UI render)
 ```
 
-## 核心 RLE 解碼器：`rle_blit_sprite @ 0x4E63D`
+## 核心 RLE 解碼器：`fd2_rle_blit_sprite @ 0x4E63D`
 
 所有 sprite 繪製的核心。每個 byte 高 2 bit 編碼操作 + 低 6 bit 編碼長度 (+1)：
 
@@ -28,7 +28,7 @@ DOS mode 13h (320×200×256-color)，primary surface @ `0xA0000` (linear)。
 每行寬度由 `data_fd2_graphics_rle_blit_cur_width @ 0x627B4` 計數，遇 0 換行並
 `data_fd2_graphics_rle_blit_remaining_rows @ 0x627B6 --`。
 
-### Palette 模式 (`rle_blit_sprite` 的 `param_6`)
+### Palette 模式 (`fd2_rle_blit_sprite` 的 `param_6`)
 
 | 值 | 模式 |
 |---|---|
@@ -40,19 +40,19 @@ DOS mode 13h (320×200×256-color)，primary surface @ `0xA0000` (linear)。
 
 | 位址 | 名稱 | 簽章 / 用途 |
 |---|---|---|
-| `0x11EB0` | `blit_rectangle` | 通用 2D copy `(dst, dst_pitch, src, src_pitch, w_bytes, h)` |
-| `0x2935B` | `blit_indexed_sprite` | sheet+offset_table → `rle_blit_sprite` dispatch |
-| `0x4E63D` | `rle_blit_sprite` | 核心 RLE decoder |
-| `0x4E583` | `rle_blit_with_palette_remap` | RLE + 256-byte palette indirection |
-| `0x4DCC6` | `tile_blit_24x24_remap` | 24×24 tile 專用 (含 palette table) |
-| `0x4DEDA` | `tile_blit_24x24_passthrough` | 24×24 tile 專用 (透明變體) |
-| `0x4E8AF` | `dialog_sprite_blit_normal` | dialog 專用左→右 pixel order |
-| `0x4E8E1` | `dialog_sprite_blit_mirrored` | 右→左 pixel order (盟友面向左) |
-| `0x4E916` | `decode_dialog_pixel_byte` | dialog 格式 per-pixel state machine |
-| `0x15E9E` | `blit_indexed_sprite_with_alloc` | 含 malloc 的 wrapper |
-| `0x15E71` | `cleanup_dialog_sprite_buffer` | 配對 free |
+| `0x11EB0` | `fd2_blit_rectangle` | 通用 2D copy `(dst, dst_pitch, src, src_pitch, w_bytes, h)` |
+| `0x2935B` | `fd2_blit_indexed_sprite` | sheet+offset_table → `fd2_rle_blit_sprite` dispatch |
+| `0x4E63D` | `fd2_rle_blit_sprite` | 核心 RLE decoder |
+| `0x4E583` | `fd2_rle_blit_with_palette_remap` | RLE + 256-byte palette indirection |
+| `0x4DCC6` | `fd2_tile_blit_24x24_remap` | 24×24 tile 專用 (含 palette table) |
+| `0x4DEDA` | `fd2_tile_blit_24x24_passthrough` | 24×24 tile 專用 (透明變體) |
+| `0x4E8AF` | `fd2_dialog_sprite_blit_normal` | dialog 專用左→右 pixel order |
+| `0x4E8E1` | `fd2_dialog_sprite_blit_mirrored` | 右→左 pixel order (盟友面向左) |
+| `0x4E916` | `fd2_decode_dialog_pixel_byte` | dialog 格式 per-pixel state machine |
+| `0x15E9E` | `fd2_blit_indexed_sprite_with_alloc` | 含 malloc 的 wrapper |
+| `0x15E71` | `fd2_cleanup_dialog_sprite_buffer` | 配對 free |
 
-## Tile-map 渲染：`composite_battle_tile_map @ 0x11EEE`
+## Tile-map 渲染：`fd2_composite_battle_tile_map @ 0x11EEE`
 
 戰鬥背景的主渲染器，含 chapter-aware 邏輯：
 
@@ -77,23 +77,23 @@ Animation 計數器：`bg_anim_frame_idx @ 0x53C1F` (0..0x14)，可由
 
 | 位址 | 名稱 | 用途 |
 |---|---|---|
-| `0x11D40` | `set_vga_palette_range` | 寫 0x3C8/0x3C9 ports；含 brightness subtract |
-| `0x1F882` | `play_palette_fade_to_black` | 64-frame 淡出 (~128 ms) |
-| `0x4DFCC` | `update_palette_cycle_anim` | 16-color top-range 循環 (水/熔岩/火) |
+| `0x11D40` | `fd2_set_vga_palette_range` | 寫 0x3C8/0x3C9 ports；含 brightness subtract |
+| `0x1F882` | `fd2_play_palette_fade_to_black` | 64-frame 淡出 (~128 ms) |
+| `0x4DFCC` | `fd2_update_palette_cycle_anim` | 16-color top-range 循環 (水/熔岩/火) |
 
 VGA palette 來源：`vga_palette_data @ 0x53A65` — 768-byte 標準 256×3 RGB。
 
-## Battle frame finalizer：`composite_battle_frame @ 0x11CAC`
+## Battle frame finalizer：`fd2_composite_battle_frame @ 0x11CAC`
 
 戰鬥畫面的 frame finalizer，幾乎每個 UI 狀態變更後都被呼叫。Pipeline：
 
 1. `FUN_0001297D` — tile render state setup
 2. 若 `skip_decompress_flag == 0`：`FUN_0004DFCC` 解壓 snapshot
-3. `composite_battle_tile_map` — paint 背景
+3. `fd2_composite_battle_tile_map` — paint 背景
 4. `FUN_000122DC` — 角色 sprite 層
 5. `FUN_000127A9` — HP bar / status icon overlay
 6. `FUN_0001ACF3` — UI text overlay
-7. `blit_rectangle` → `0xA0504` (mode13h primary 視窗起點)
+7. `fd2_blit_rectangle` → `0xA0504` (mode13h primary 視窗起點)
 
 像素常數：
 - `0x1C8 = 456` = render workspace pitch (含 padding)

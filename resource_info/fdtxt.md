@@ -14,7 +14,7 @@ LLLLLL archive (詳 `overview.md`):
 +0x92..EOF      34 個 entry 的 payload, contiguous
 ```
 
-`load_dat_resource(idx)` 從 offset `idx*4 + 6` 讀 8 bytes 拿 `(start, end)` 配對
+`fd2_load_dat_resource(idx)` 從 offset `idx*4 + 6` 讀 8 bytes 拿 `(start, end)` 配對
 然後 fread `end-start` bytes。
 
 ## Entry idx → 用途對照表
@@ -63,8 +63,8 @@ LLLLLL archive (詳 `overview.md`):
 | Callsite | 函式 | 條件 | 目標 buffer |
 |---|---|---|---|
 | `0x25D07` | `fd2_main` | 程式啟動 (一次性) | `all_game_text @ 0x53A7D` ← idx 0 |
-| `0x108B7` | `load_chapter_battle_data` | 每章開戰前 | `current_chapter_text @ 0x53A79` ← idx = chapter_id + 1 |
-| `0x101E9` | `load_save_and_init_engine` | save 載入 | `current_chapter_text` ← idx = chapter_id + 1 |
+| `0x108B7` | `fd2_load_chapter_battle_data` | 每章開戰前 | `current_chapter_text @ 0x53A79` ← idx = chapter_id + 1 |
+| `0x101E9` | `fd2_load_save_and_init_engine` | save 載入 | `current_chapter_text` ← idx = chapter_id + 1 |
 
 ## Entry payload layout
 
@@ -85,17 +85,17 @@ LLLLLL archive (詳 `overview.md`):
 
 ## Dialog VM bytecode
 
-每個 page 是 little-endian u16 stream，由 `display_dialog_scene @ 0x15F84`
+每個 page 是 little-endian u16 stream，由 `fd2_display_dialog_scene @ 0x15F84`
 逐一 dispatch 直到 `0xFFFF` END。
 
 ### 10 個 control opcodes
 
 | u16 value | 名稱 | args | 語意 |
 |---|---|---|---|
-| `0xFFFF` | `END` | 0 | 終止 page (return from `display_dialog_scene`) |
+| `0xFFFF` | `END` | 0 | 終止 page (return from `fd2_display_dialog_scene`) |
 | `0xFFFE` | `PAGE_BREAK` | 0 | 推進到下一行 + 等待按鍵 |
 | `0xFFFD` | `PARAGRAPH` | 0 | 段落分隔 (含 cinematic scroll if portrait active) |
-| `0xFFFC` | `SUB_DIALOG_A` | 0 | 遞迴呼叫 `display_dialog_scene` 載入 `all_game_text[last_action_sprite_id]` 的 page |
+| `0xFFFC` | `SUB_DIALOG_A` | 0 | 遞迴呼叫 `fd2_display_dialog_scene` 載入 `all_game_text[last_action_sprite_id]` 的 page |
 | `0xFFFB` | `SUB_DIALOG_B` | 0 | 遞迴載入 `all_game_text[drop_dialog_swap_text_id]` 的 page |
 | `0xFFFA` | `NUMBER` | 0 | runtime 數字代入 (sprintf via `0x5014C`，digit-by-digit blit) |
 | `0xFFEF` | `PORTRAIT_LEFT_BY_ID` | 1 (portrait_id) | 左側 portrait (`dialog_portrait_mode = 0x728`) |
@@ -104,7 +104,7 @@ LLLLLL archive (詳 `overview.md`):
 | `0xFFEC` | `PORTRAIT_RIGHT_BY_CHAR` | 1 (runtime_char_array idx) | 右側 portrait (同上) |
 
 任何 < `0xFFEC` 的 u16 都被解讀為 `TEXT_CHARACTER`，直接傳入
-`blit_glyph_2bpp_with_outline(code = u16, atlas = chinese_font_sheet, ...)`
+`fd2_blit_glyph_2bpp_with_outline(code = u16, atlas = chinese_font_sheet, ...)`
 渲染一個字模。
 
 ### 控制碼出現次數 (across 1016 pages, 51155 glyphs)
@@ -140,15 +140,15 @@ glyph_id 渲染英文/數字/符號。`NUMBER` opcode 內部從 `0x5014C` 讀 sp
 
 ## Dialog rendering pipeline
 
-`display_dialog_scene` 是完整 VM (do-while loop byte-by-byte u16 dispatch)。
+`fd2_display_dialog_scene` 是完整 VM (do-while loop byte-by-byte u16 dispatch)。
 下游組件由 text_dialog system 詳述 (`program_info/text_dialog.md`)：
 
-- `play_dialog_open_animation` — 5-stage 對話框 slide-in
-- `paint_portrait_to_dialog_area` — speaker 切換 (mirrored vs normal blit)
-- `wait_for_input_dialog_with_blink` — ▼ 按鍵提示動畫
-- `blit_glyph_2bpp_with_outline` — 16×16 字模渲染 (含 outline)
-- `cinematic_scroll_text_up_for_special_scenes` — `PARAGRAPH` 觸發的 scroll-up
-- `close_dialog_panels_then_slide_in_at` — `END` 後 slide-out
+- `fd2_play_dialog_open_animation` — 5-stage 對話框 slide-in
+- `fd2_paint_portrait_to_dialog_area` — speaker 切換 (mirrored vs normal blit)
+- `fd2_wait_for_input_dialog_with_blink` — ▼ 按鍵提示動畫
+- `fd2_blit_glyph_2bpp_with_outline` — 16×16 字模渲染 (含 outline)
+- `fd2_cinematic_scroll_text_up_for_special_scenes` — `PARAGRAPH` 觸發的 scroll-up
+- `fd2_close_dialog_panels_then_slide_in_at` — `END` 後 slide-out
 
 ## 內容 dump
 

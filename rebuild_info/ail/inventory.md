@@ -8,31 +8,31 @@ library 連進 FD2.LE。
 `SETSOUND.EXE`（FLAME2 目錄裡的工具）就是 AIL 的設定程式，會產生 `.MDI` /
 `.DIG` driver 設定。
 
-本檔記錄 FD2.LE 內 AIL ecosystem 的 422 個 function inventory、靜態鏈接 thunk
+本檔記錄 FD2.LE 內 AIL ecosystem 的 428 個 function inventory、靜態鏈接 thunk
 配對、命名規約、library 邊界。FD2 自寫的 game-side audio 層（BGM
 dispatcher、SFX trigger）與 DOS-side driver / patch 檔清單見
 `program_info/audio.md`。
 
 ## AIL function inventory
 
-FD2.LE 內 AIL ecosystem 共 422 個 function：
+FD2.LE 內 AIL ecosystem 共 428 個 function：
 
 | 群組 | 數量 | 命名 / 進入點 |
 |---|---:|---|
-| 公開 API | 103 | `AIL_*`（非 `AIL_internal_*`），每個都有 self-print `fprintf(log, "AIL_xxx(...)\n", ...)` |
+| 公開 API | 106 | `AIL_*`（非 `AIL_internal_*`），每個都有 self-print `fprintf(log, "AIL_xxx(...)\n", ...)` |
 | 由 public BFS 可達的 internal | 144 | `AIL_internal_*` worker / ISR / log / timer / DIG mixer / MDI sequence / XMIDI parser，以及 54 對 vendor-internal log-wrapped API 的 inner pair |
-| DIG mixer dispatch table callbacks | 132 | `AIL_internal_mix_finalize_<idx>` (60) + `AIL_internal_mix_loop_<idx>` (72)；indirect dispatch via `mix_dispatch_format` / `mix_dispatch_sample` (詳見下方 DIG mixer dispatch tables 段落) |
-| BFS-reached 的 promoted internal | 4 | 從 `crt_*` 改名（`alloc_and_commit` / `decommit_and_free` / `load_file_to_memory` / `parse_int_with_base`；caller 全 AIL + 引用 AIL global） |
-| BFS 不可達的 internal | 39 | 11 vtable_indirect + 8 cluster_member (原 9 個，`AIL_internal_mix_loop_8bit_stereo @ 0x49306` 移到 dispatch-table callback 分類) + 1 tail_call_target + 14 dead_code_stub (原 15 個，`AIL_internal_dead_jmp_to_log_decrement_3a548` 已合併回 `AIL_set_sample_user_data` body 末尾為標準 AIL public API tail-call pattern) + 5 crt_audit promotions (`AIL_internal_timer_isr_master @ 0x3e73e` (29 個 AIL globals；AIL 主時鐘 ISR，掃 16 個 timer slot + PIC EOI + nested-ISR 重入防護) / `AIL_internal_use16_isr_3eaa8` 被 `AIL_internal_set_USE16_ISR_inner` 透過 DATA xref 註冊為 USE16 ISR / `AIL_internal_use16_isr_iret_tail @ 0x3eaf2` 是 use16_isr_3eaa8 的 RETF→IRETD 後尾巴 / `AIL_internal_dpmi_use32_save_jmp_3ed71` + `AIL_internal_dpmi_use32_restore_jmp_3eda7` stack-switch 配對，位於 AIL ISR 區段 zero xref)；plate comment 註明 sub-case。內含 5 個從 `crt_*` reclassify 的（3 個 dpmi_unlock 特定 AIL region + `wave_synth_program_lookup_454fd` byte-level 確認非 CLIB3S + 其 wrapper `_program_exists_456a5`） |
+| DIG mixer dispatch table callbacks | 132 | `AIL_internal_mix_finalize_<idx>` (60) + `AIL_internal_mix_loop_<idx>` (72)；indirect dispatch via `AIL_internal_mix_dispatch_format` / `AIL_internal_mix_dispatch_sample` (詳見下方 DIG mixer dispatch tables 段落) |
+| BFS-reached 的 promoted internal | 4 | `AIL_internal_alloc_and_commit` / `AIL_internal_decommit_and_free` / `AIL_internal_load_file_to_memory` / `AIL_internal_parse_int_with_base`（caller 全 AIL + 引用 AIL global） |
+| BFS 不可達的 internal | 39 | 11 vtable_indirect + 8 cluster_member + 1 tail_call_target + 14 dead_code_stub + 5 reclassify-from-crt (`AIL_internal_timer_isr_master @ 0x3e73e` (29 個 AIL globals；AIL 主時鐘 ISR，掃 16 個 timer slot + PIC EOI + nested-ISR 重入防護) / `AIL_internal_use16_isr_3eaa8` 被 `AIL_internal_set_USE16_ISR_inner` 透過 DATA xref 註冊為 USE16 ISR / `AIL_internal_use16_isr_iret_tail @ 0x3eaf2` 是 `AIL_internal_use16_isr_3eaa8` 的 RETF→IRETD 後尾巴 / `AIL_internal_dpmi_use32_save_jmp_3ed71` + `AIL_internal_dpmi_use32_restore_jmp_3eda7` stack-switch 配對，位於 AIL ISR 區段 zero xref)；plate comment 註明 sub-case。內含 5 個（3 個 dpmi_unlock 特定 AIL region + `AIL_internal_wave_synth_program_lookup_454fd` byte-level 確認非 CLIB3S + 其 wrapper `_program_exists_456a5`） |
 
-被 AIL 使用但確認為 Watcom CRT primitive 的 helper 保留 `crt_*` 命名（不抽進
-AIL，build pipeline 經 EXTDEF 由 v2 CLIB 解析）共 10 個：6 個 DPMI 原語
-（`crt_dpmi_lock_region` / `_unlock_region` / `_lock_size` / `_unlock_size` /
-`_alloc_dos_memory` / `_free_dos_memory`，其中 `_lock_size` 直接被 game
-`set_bgm_track_with_fade` 呼叫）、`crt_filesize_path`（open + filelength + close
-組合）、2 個 abort helper（`crt_abort_with_log` / `crt_abort_thunk`，caller path
-含 `__prtf` / `__STKOVERFLOW`）、`crt_get_eflags`（4-byte `pushfd; pop eax; cli;
-ret` = Watcom `_disable` primitive）。
+被 AIL 使用的 helper 詳細歸類與 emit 路徑見 `./extraction_prep.md` 「AIL 共用 /
+邊界 helper（後續 reclassify 結果）」段。摘要：6 個 DPMI 原語為 FD2 自寫
+（`fd2_dpmi_alloc_dos_memory` / `_free_dos_memory` / `_lock_region` /
+`_unlock_region` / `_lock_size` / `_unlock_size`，其中 `fd2_dpmi_lock_size` 直接被
+game `fd2_set_bgm_track_with_fade` 呼叫）；`AIL_internal_filesize_path` 與
+`AIL_get_last_error_code` 屬 AIL pool；`__FpAbort @ 0x46b41` 走 Watcom CLIB
+EXTDEF；`crt_equivalent_get_eflags` + `_thunk` 為 `_disable` primitive 行為等價
+但 byte 不 match。
 
 per-function 對照表透過 Ghidra MCP `search_functions(name_pattern="^AIL_")`
 即時拉取；三向誤分類 audit（正向 xref-source / 反向 caller-set / orphan disasm
@@ -168,14 +168,14 @@ timer setter `_inner`、`AIL_install_DIG_INI_inner` /
 
 ### Initialization & state globals (8 個)
 
-- `AIL_init_globals_once` — once-only init guard，多 entry 統一進入
-- `AIL_init_runtime_defaults` — runtime 初始 config (e.g. ISR lock counter 清 0)
-- `AIL_init_state_arrays` — 通用 state slot table 初始化
-- `AIL_init_mdi_state_arrays` — MDI-specific state 初始化
-- `AIL_register_state_globals` / `AIL_register_mix_globals` — 把 state /
+- `AIL_internal_init_globals_once` — once-only init guard，多 entry 統一進入
+- `AIL_internal_init_runtime_defaults` — runtime 初始 config (e.g. ISR lock counter 清 0)
+- `AIL_internal_init_state_arrays` — 通用 state slot table 初始化
+- `AIL_internal_init_mdi_state_arrays` — MDI-specific state 初始化
+- `AIL_internal_register_state_globals` / `AIL_internal_register_mix_globals` — 把 state /
   mixer global 指標表 register 進 driver dispatch
-- `AIL_parse_INI_driver_config` — 從 `.MDI` / `.DIG` INI 解析 driver 參數
-- `AIL_timer_alloc_slot` — 配發空 timer slot
+- INI driver-config 解析 — 走 `AIL_API_read_INI` + `AIL_internal_API_read_INI_inner` 路徑
+- Timer-slot 配發 — 透過 `AIL_register_timer` + slot table
 
 ### Logging & ISR re-entry guard (5 個)
 
@@ -187,27 +187,26 @@ timer setter `_inner`、`AIL_install_DIG_INI_inner` /
 
 ### Timer / PIT helpers (5 個)
 
-- `AIL_set_pit_divisor` / `AIL_recompute_pit_divisor` — 直接寫 8254 PIT
-- `AIL_get_interrupt_divisor` / `AIL_set_timer_divisor_inner` — 從 frequency
-  推 divisor
-- `AIL_busy_wait_vsync` — VGA vertical retrace 同步
-- `AIL_uninstall_timer_isr` — ISR vector 還原
+- `AIL_internal_set_pit_divisor` / `AIL_internal_recompute_pit_divisor` — 直接寫 8254 PIT
+- `AIL_internal_set_timer_divisor_inner` — 從 frequency 推 divisor（public wrapper `AIL_interrupt_divisor` 經此 inner 執行）
+- `AIL_internal_busy_wait_vsync` — VGA vertical retrace 同步
+- `AIL_internal_uninstall_timer_isr` — ISR vector 還原
 
 ### DIG mixer / playback engine (10 個)
 
-- `AIL_dig_driver_setup_full` / `AIL_dig_driver_configure` /
-  `AIL_dig_apply_io_parms` — driver 一次性設定
-- `AIL_dig_apply_pitch_bend` / `AIL_dig_apply_sample_volume_pan` —
+- `AIL_internal_dig_driver_setup_full` / `AIL_internal_dig_driver_configure` /
+  `AIL_internal_dig_apply_io_parms` — driver 一次性設定
+- `AIL_internal_dig_apply_pitch_bend` / `AIL_internal_dig_apply_sample_volume_pan` —
   per-sample runtime 控制
-- `AIL_clear_dma_buffer` — DMA buffer 清 0
-- `AIL_build_pan_volume_table` — pan + volume → 8-bit/16-bit lookup table
-- `AIL_mix_dispatch_format` / `AIL_mix_dispatch_sample` —
+- `AIL_internal_clear_dma_buffer` — DMA buffer 清 0
+- `AIL_internal_build_pan_volume_table` — pan + volume → 8-bit/16-bit lookup table
+- `AIL_internal_mix_dispatch_format` / `AIL_internal_mix_dispatch_sample` —
   sample-format-specific mixer dispatch (132 callbacks 詳見下方 DIG mixer dispatch tables 段落)
 
 ### DIG mixer dispatch tables + 132 callbacks
 
 兩個 function-pointer dispatch table 各 128 entries × 4 bytes = 512 bytes，
-被 `AIL_internal_register_mix_globals @ 0x495FF` 用 `crt_dpmi_lock_region` lock
+被 `AIL_internal_register_mix_globals @ 0x495FF` 用 `fd2_dpmi_lock_region` lock
 住整個 `0x47638..0x495FF` mix-loop code+data 區段（DPMI page-lock 保證 ISR
 ctx 不缺頁）。
 
@@ -233,19 +232,19 @@ saturation clip、stereo↔mono pack/unpack、8↔16 bit 轉換、stereo volume 
 
 ### MDI / sequence engine (12 個)
 
-- `AIL_mdi_driver_setup_full` / `AIL_mdi_apply_io_parms` — driver 設定
-- `AIL_midi_send_message` / `AIL_midi_flush_pending` — 送 MIDI byte 到 driver
-- `AIL_sequence_controller_write` / `AIL_sequence_handle_midi_event` — 處理
+- `AIL_internal_mdi_driver_setup_full` / `AIL_internal_mdi_apply_io_parms` — driver 設定
+- `AIL_internal_midi_send_message` / `AIL_internal_midi_flush_pending` — 送 MIDI byte 到 driver
+- `AIL_internal_sequence_controller_write` / `AIL_internal_sequence_handle_midi_event` — 處理
   sequence 事件
-- `AIL_sequence_send_volumes` / `AIL_sequence_silence_active_notes` /
-  `AIL_sequence_reset_state` / `AIL_sequence_restore_channel_state` /
-  `AIL_sequence_release_channel_inner` — channel state 操作
+- `AIL_internal_sequence_send_volumes` / `AIL_internal_sequence_silence_active_notes` /
+  `AIL_internal_sequence_reset_state` / `AIL_internal_sequence_restore_channel_state` /
+  `AIL_internal_sequence_release_channel_inner` — channel state 操作
 
 ### XMIDI 解析 (3 個)
 
-- `AIL_xmidi_find_chunk` — 在 .XMI byte stream 中找到 EVNT chunk
-- `AIL_xmidi_read_vlq` — variable-length quantity 解
-- `AIL_xmidi_handle_meta_event` — meta-event (tempo / loop) 處理
+- `AIL_internal_xmidi_find_chunk` — 在 .XMI byte stream 中找到 EVNT chunk
+- `AIL_internal_xmidi_read_vlq` — variable-length quantity 解
+- `AIL_internal_xmidi_handle_meta_event` — meta-event (tempo / loop) 處理
 
 ## DOS-side driver 檔案
 

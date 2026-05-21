@@ -24,53 +24,53 @@ sub-entries 各自獨立索引。
 | **0x1F** | `fdother_resource_buffer @ 0x53EEC` | nested archive (13 sub-entries) UI sprite + sfx | 31,771 |
 
 `chinese_font_sheet` 是 **1bpp** (58368 ÷ 1824 ÷ 32 = 1.0)。
-`blit_glyph_2bpp_with_outline @ 0x4EA2A` 命名指 **output buffer** 是 2bpp
+`fd2_blit_glyph_2bpp_with_outline @ 0x4EA2A` 命名指 **output buffer** 是 2bpp
 (fill + outline 兩 channel)，input glyph 是 1bpp。
 
 ## 章節載入靜態 (chapter_id-dispatched)
 
 | idx | caller | 用途 |
 |---|---|---|
-| 0x09 | `animate_party_addition_with_appear_effect` | 角色加入動畫 |
-| 0x0A | `chapter_transition_menu` | chapter_transition_menu_panel_buffer |
-| 0x0D | `chapter_transition_menu` / `main_menu_continue` / `run_chapter_intro_menu_typeB` | chapter intro sprite atlas |
-| 0x0E | `run_chapter_intro_menu_typeC` | chapter intro typeC sprites |
-| 0x22 | `play_chapter_intro_sprite_slideshow` | chapter intro slideshow |
-| 0x2A | `load_chapter_background_layers` | chapter background |
-| 0x2D | `chapter_event_handler_3d__ch26_pickup` | ch26 pickup 動畫 |
-| 0x4F | `play_chapter_clear_fanfare` | chapter clear fanfare |
-| 0x58 | `chapter_25_init` | earthquake_sfx (nested archive 2 sub-entries) |
+| 0x09 | `fd2_animate_party_addition_with_appear_effect` | 角色加入動畫 |
+| 0x0A | `fd2_chapter_transition_menu` | chapter_transition_menu_panel_buffer |
+| 0x0D | `fd2_chapter_transition_menu` / `fd2_main_menu_continue_dispatcher` / `fd2_run_chapter_intro_menu_typeB` | chapter intro sprite atlas |
+| 0x0E | `fd2_run_chapter_intro_menu_typeC` | chapter intro typeC sprites |
+| 0x22 | `fd2_play_chapter_intro_sprite_slideshow` | chapter intro slideshow |
+| 0x2A | `fd2_load_chapter_background_layers` | chapter background |
+| 0x2D | `fd2_chapter_event_handler_3d__ch26_pickup` | ch26 pickup 動畫 |
+| 0x4F | `fd2_play_chapter_clear_fanfare` | chapter clear fanfare |
+| 0x58 | `fd2_chapter_25_init` | earthquake_sfx (nested archive 2 sub-entries) |
 
 ## Cinematic / Ending 序列靜態
 
 | idx | caller | 用途 |
 |---|---|---|
-| 0x07 | `play_ending_and_record_clear` | nested archive 7 sub-entries — ending sprite group |
-| 0x08 | `play_ending_and_record_clear` | ending sprite group |
-| 0x36 | `play_game_ending_cinematic` | 263 KB RLE 320×200 cinematic image |
-| 0x38 | `play_final_chapter_30_ending` | final chapter 30 ending image |
-| 0x39, 0x3A, 0x3B, 0x3C | `play_game_ending_cinematic` | game ending cinematic 4 連續 idx |
-| 0x4A, 0x4C | `play_ending_and_record_clear` | ending sequence images |
-| 0x4D | `play_ending_and_record_clear` | nested archive 4 sub-entries — ending image bank |
-| 0x4E | `play_ani_file_animation_sequence` | nested archive 1 sub-entry — ANI 配套 SFX |
-| 0x63 | `play_ending_and_record_clear` | ending text/banner image |
-| **0x65** | `display_cinematic_image_with_fade` (×4) + `play_ending` | VGA palette (768 bytes = 256 × 3 RGB DAC) |
-| 0x66 | `play_ending_and_record_clear` | ending image |
+| 0x07 | `fd2_play_ending_and_record_clear` | nested archive 7 sub-entries — ending sprite group |
+| 0x08 | `fd2_play_ending_and_record_clear` | ending sprite group |
+| 0x36 | `fd2_play_game_ending_cinematic` | 263 KB RLE 320×200 cinematic image |
+| 0x38 | `fd2_play_final_chapter_30_ending` | final chapter 30 ending image |
+| 0x39, 0x3A, 0x3B, 0x3C | `fd2_play_game_ending_cinematic` | game ending cinematic 4 連續 idx |
+| 0x4A, 0x4C | `fd2_play_ending_and_record_clear` | ending sequence images |
+| 0x4D | `fd2_play_ending_and_record_clear` | nested archive 4 sub-entries — ending image bank |
+| 0x4E | `fd2_play_ani_file_animation_sequence` | nested archive 1 sub-entry — ANI 配套 SFX |
+| 0x63 | `fd2_play_ending_and_record_clear` | ending text/banner image |
+| **0x65** | `fd2_display_cinematic_image_with_fade` (×4) + `fd2_play_ending_and_record_clear` | VGA palette (768 bytes = 256 × 3 RGB DAC) |
+| 0x66 | `fd2_play_ending_and_record_clear` | ending image |
 
 ## SFX / Animation 群組靜態
 
 | idx | caller | 用途 |
 |---|---|---|
-| 0x40 | `maybe_load_speed_mode_overlay` | nested archive 6 sub-entries — speed mode overlay |
-| 0x50 | `load_status_effect_sfx` | nested archive 16 sub-entries — status effect SFX bank |
-| 0x51 | `animate_warp_teleport_char` | nested archive 2 sub-entries — warp teleport 動畫 |
-| 0x5F | `animate_party_addition_with_appear_effect` | nested archive 1 sub-entry |
+| 0x40 | `fd2_maybe_load_speed_mode_overlay` | nested archive 6 sub-entries — speed mode overlay |
+| 0x50 | `fd2_load_status_effect_sfx` | nested archive 16 sub-entries — status effect SFX bank |
+| 0x51 | `fd2_animate_warp_teleport_char` | nested archive 2 sub-entries — warp teleport 動畫 |
+| 0x5F | `fd2_animate_party_addition_with_appear_effect` | nested archive 1 sub-entry |
 
 ## Dynamic-domain 公式
 
-### chapter-id-dispatched (`load_chapter_background_layers`)
+### chapter-id-dispatched (`fd2_load_chapter_background_layers`)
 
-`load_chapter_background_layers` 內部用 `CMP [current_chapter_id], 0xNN` 派發
+`fd2_load_chapter_background_layers` 內部用 `CMP [current_chapter_id], 0xNN` 派發
 FDOTHER bg image idx：
 
 | idx range | dispatch 條件 |
@@ -79,22 +79,22 @@ FDOTHER bg image idx：
 | 0x10..0x1E | chapter_id 0x10..0x1E mapping (各章 BG 變體) |
 | 0x20, 0x23, 0x24 | chapter-state-dependent BG variant |
 | 0x27, 0x28, 0x2E, 0x2F | chapter-state BG |
-| 0x37 | `load_chapter_background_layers` explicit static |
+| 0x37 | `fd2_load_chapter_background_layers` explicit static |
 | 0x64 | chapter ending state BG |
 
-### spell_id derived (`execute_summon_spell_cast`)
+### spell_id derived (`fd2_execute_summon_spell_cast`)
 
-`load_dat_resource(... "FDOTHER.DAT", NULL, spell_id + 0x21)` 對 summon spells
+`fd2_load_dat_resource(... "FDOTHER.DAT", NULL, spell_id + 0x21)` 對 summon spells
 spell_id ∈ {0x20, 0x21, 0x22, 0x23} → FDOTHER idx **0x41 / 0x42 / 0x43 / 0x44**。
 
-### main_iter loop (`play_ending_and_record_clear`)
+### main_iter loop (`fd2_play_ending_and_record_clear`)
 
 ending 序列 loop `for(main_iter=0..8) load("FDOTHER", main_iter+0x45)` →
 FDOTHER idx **0x45..0x4D** (9 entries 連續 image sequence)。
 
 ## 21 個 confirmed dead idx
 
-binary 內 immediate value **從未** 出現在 `load_dat_resource` 任何 callsite 50
+binary 內 immediate value **從未** 出現在 `fd2_load_dat_resource` 任何 callsite 50
 instruction 範圍內：
 
 | idx | total uses elsewhere | classification |
@@ -137,7 +137,7 @@ instruction 範圍內：
 
 | outer idx | size (bytes) | sub-entries | 用途 |
 |---|---|---|---|
-| 0x07 | 23377 | 7 | ending sprite (`play_ending`) |
+| 0x07 | 23377 | 7 | ending sprite (`fd2_play_ending_and_record_clear`) |
 | 0x0C | 51759 | 28 | dynamic |
 | 0x1F | 31771 | 13 | UI sprite + sfx (`fd2_main` 啟動) |
 | 0x30 | 24183 | 6 | dynamic |
@@ -165,7 +165,7 @@ instruction 範圍內：
 | 0x5C | 20247 | 2 | dynamic |
 | 0x5D | 20247 | 2 | confirmed_dead |
 | 0x5E | 33581 | 3 | dynamic |
-| 0x5F | 10458 | 1 | animate_party_addition |
+| 0x5F | 10458 | 1 | fd2_animate_party_addition_with_appear_effect |
 
 ## 工具
 

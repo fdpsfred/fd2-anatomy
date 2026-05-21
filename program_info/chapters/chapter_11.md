@@ -6,20 +6,20 @@ Init handler 含 2 個 cutscene + dialog 序列；FDFIELD 完全靜態（無 act
 
 | 角色 | 位址 | 大小 |
 |---|---|---|
-| Init | `chapter_11_init @ 0x00033367` | 142 B |
-| End | `chapter_11_end @ 0x00023790` | 69 B |
-| Post-action | `check_battle_end_default_handler @ 0x000205B4` | (default) |
+| Init | `fd2_chapter_11_init @ 0x00033367` | 142 B |
+| End | `fd2_chapter_11_end @ 0x00023790` | 69 B |
+| Post-action | `fd2_check_battle_end_default_handler @ 0x000205B4` | (default) |
 | BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[10]` |  |
 | BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[10]` |  |
 
 ## Init handler 階段
 
-1. `init_battle_state_for_chapter`
-2. `display_dialog_scene(page=0)`
-3. `pan_cursor_and_window(10, 7)` + `load_chapter_portraits_and_dump_tmp(1)`
-4. `cutscene_event_trigger(0x26)` + `display_dialog_scene(page=1)`
-5. `cutscene_event_trigger(0x27)` + `display_dialog_scene(page=2)`
-6. `pan_cursor_to_char(0)` + `clear_all_chars_facing`
+1. `fd2_init_battle_state_for_chapter`
+2. `fd2_display_dialog_scene(page=0)`
+3. `fd2_pan_cursor_and_window(10, 7)` + `fd2_load_chapter_portraits_and_dump_tmp(1)`
+4. `fd2_cutscene_event_trigger(0x26)` + `fd2_display_dialog_scene(page=1)`
+5. `fd2_cutscene_event_trigger(0x27)` + `fd2_display_dialog_scene(page=2)`
+6. `fd2_pan_cursor_to_char(0)` + `fd2_clear_all_chars_facing`
 
 ## Dialog page 引用
 
@@ -30,10 +30,10 @@ Init handler 含 2 個 cutscene + dialog 序列；FDFIELD 完全靜態（無 act
 
 ## char_id 初始化序列
 
-Init handler 內無 `init_runtime_char_from_base_growth` 呼叫。
+Init handler 內無 `fd2_init_runtime_char_from_base_growth` 呼叫。
 
 End handler 中：
-- `init_runtime_char_from_base_growth(0xE = 14)` — 珊
+- `fd2_init_runtime_char_from_base_growth(0xE = 14)` — 珊
 
 ## Cutscene events
 
@@ -41,17 +41,17 @@ End handler 中：
 
 ## Post-action handler
 
-`data_fd2_chapter_post_action_handler_table[10]` 指向 `check_battle_end_default_handler` — 全敵死 = win，索爾 (char_id 0) 死 = lose。
+`data_fd2_chapter_post_action_handler_table[10]` 指向 `fd2_check_battle_end_default_handler` — 全敵死 = win，索爾 (char_id 0) 死 = lose。
 
 攻略「珊會跟著貝克威走」屬 NPC follow AI behavior（NPC class 0xB heal/follow logic），不在 post_action handler。
 
 ## End handler events
 
-`chapter_11_end @ 0x23790`：
+`fd2_chapter_11_end @ 0x23790`：
 
-1. `display_dialog_scene(page=3)`
-2. `save_runtime_char_to_template`
-3. `init_runtime_char_from_base_growth(0xE = 14)` — 珊加入
+1. `fd2_display_dialog_scene(page=3)`
+2. `fd2_save_runtime_char_to_template`
+3. `fd2_init_runtime_char_from_base_growth(0xE = 14)` — 珊加入
 4. `current_chapter_id += 1`
 
 ## FDFIELD event script

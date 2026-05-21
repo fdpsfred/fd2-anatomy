@@ -6,20 +6,20 @@
 
 | 角色 | 位址 | 大小 |
 |---|---|---|
-| Init | `chapter_18_init @ 0x000335DA` | 154 B |
-| End | `chapter_18_end @ 0x00023CD5` | 356 B |
-| Post-action | `chapter_18_post_action @ 0x000208CF` | bypass default; 自行實作勝負 |
+| Init | `fd2_chapter_18_init @ 0x000335DA` | 154 B |
+| End | `fd2_chapter_18_end @ 0x00023CD5` | 356 B |
+| Post-action | `fd2_chapter_18_post_action @ 0x000208CF` | bypass default; 自行實作勝負 |
 | BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[17]` |  |
 | BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[17]` |  |
 
 ## Init handler 階段
 
-1. `init_battle_state_for_chapter`
-2. `display_dialog_scene(page=0)`
-3. `pan_cursor_and_window(0x10, 4)` + `cutscene_event_trigger(0x36)`
-4. `display_dialog_scene(page=1)`
-5. `pan_cursor_and_window(0x10, 4)` + `cutscene_event_trigger(0x37)`
-6. `display_dialog_scene(page=2)` + `pan_cursor_to_char(0)`
+1. `fd2_init_battle_state_for_chapter`
+2. `fd2_display_dialog_scene(page=0)`
+3. `fd2_pan_cursor_and_window(0x10, 4)` + `fd2_cutscene_event_trigger(0x36)`
+4. `fd2_display_dialog_scene(page=1)`
+5. `fd2_pan_cursor_and_window(0x10, 4)` + `fd2_cutscene_event_trigger(0x37)`
+6. `fd2_display_dialog_scene(page=2)` + `fd2_pan_cursor_to_char(0)`
 
 ## Dialog page 引用
 
@@ -39,7 +39,7 @@
 
 ## Post-action handler
 
-`chapter_18_post_action @ 0x208CF` (bypass default — 自行實作所有勝負邏輯)：
+`fd2_chapter_18_post_action @ 0x208CF` (bypass default — 自行實作所有勝負邏輯)：
 
 - if `chars[0]` OR `chars[0x10]` OR `chars[0x11]` 任一死亡 → game_event_flag = 1 (lose)
 - if `char[0x34]` 死亡 → game_event_flag = 2 (win)
@@ -55,16 +55,16 @@
 
 ## End handler events
 
-`chapter_18_end @ 0x23CD5` (356 B)：
+`fd2_chapter_18_end @ 0x23CD5` (356 B)：
 
 1. 從 scene tables (`chapter_18_end_scene_pos_x/y_table` + `facing_table`) 讀 5 entries
-2. `save_runtime_char_to_template`
-3. `setup_chars_and_camera_for_intro(0x10, 0x11, 0x19, 8, 1, 0x12, 4)`
-4. `display_dialog_scene(page=7)` + `cutscene_event_trigger(0x38)`
-5. `display_dialog_scene(page=8)` + `cutscene_event_trigger(0x39)`
-6. `display_dialog_scene(page=9)` + `cutscene_event_trigger(0x3A)`
-7. `display_dialog_scene(page=10)`
-8. `init_runtime_char_from_base_growth(0x15=21)` (約拿) + `init_runtime_char_from_base_growth(7)` (蘭斯洛特)
+2. `fd2_save_runtime_char_to_template`
+3. `fd2_setup_chars_and_camera_for_intro(0x10, 0x11, 0x19, 8, 1, 0x12, 4)`
+4. `fd2_display_dialog_scene(page=7)` + `fd2_cutscene_event_trigger(0x38)`
+5. `fd2_display_dialog_scene(page=8)` + `fd2_cutscene_event_trigger(0x39)`
+6. `fd2_display_dialog_scene(page=9)` + `fd2_cutscene_event_trigger(0x3A)`
+7. `fd2_display_dialog_scene(page=10)`
+8. `fd2_init_runtime_char_from_base_growth(0x15=21)` (約拿) + `fd2_init_runtime_char_from_base_growth(7)` (蘭斯洛特)
 9. `current_chapter_id += 1`
 
 ## FDFIELD event script

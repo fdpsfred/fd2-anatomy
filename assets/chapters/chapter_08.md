@@ -26,9 +26,9 @@ reinforcement event。
 - **失敗條件**：索爾死亡（default handler）。
 - **Turn-based reinforcement**：城門守軍由 FDFIELD event `0x1B` 在 turn 2-7 的 enemy_turn_intro
   各 fire 一次，總共 6 波（每波 2 名敵騎兵）。
-- **章末加入**：洛娜 (char 5) 由 end handler `init_runtime_char_from_base_growth(5)` 加入。
-- **Fade-to-black 轉場**：end handler 末段執行 `set_vga_palette_range(0, 0xFF, 0x40)` palette darken
-  + `crt_memset(0xA0000, 0, 64000)` framebuffer clear，作章末黑屏淡出效果。
+- **章末加入**：洛娜 (char 5) 由 end handler `fd2_init_runtime_char_from_base_growth(5)` 加入。
+- **Fade-to-black 轉場**：end handler 末段執行 `fd2_set_vga_palette_range(0, 0xFF, 0x40)` palette darken
+  + `memset(0xA0000, 0, 64000)` framebuffer clear，作章末黑屏淡出效果。
 - **跨章劇情**：希莉亞=亞克斯王國公主身份揭曉；女神之淚首飾為信物道具（後續章節有相關劇情）。
 
 ## 對話

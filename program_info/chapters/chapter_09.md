@@ -6,20 +6,20 @@ Init handler 在進入對話前，迴圈把 `runtime_char_array[0..0xA]` 11 個 
 
 | 角色 | 位址 | 大小 |
 |---|---|---|
-| Init | `chapter_09_init @ 0x0003327D` | 174 B |
-| End | `chapter_09_end @ 0x000235BC` | 61 B |
-| Post-action | `check_battle_end_default_handler @ 0x000205B4` | (default) |
+| Init | `fd2_chapter_09_init @ 0x0003327D` | 174 B |
+| End | `fd2_chapter_09_end @ 0x000235BC` | 61 B |
+| Post-action | `fd2_check_battle_end_default_handler @ 0x000205B4` | (default) |
 | BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[8]` |  |
 | BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[8]` |  |
 
 ## Init handler 階段
 
-1. `init_battle_state_for_chapter`
+1. `fd2_init_battle_state_for_chapter`
 2. 迴圈：`runtime_char_array[0..0xA].pSprite_state[1] = 2` — 前 11 個 char 全部面朝 north
-3. `pan_cursor_and_window(6, 0)`
-4. `display_dialog_scene(page=0)` + `cutscene_event_trigger(0x23)`
-5. `display_dialog_scene(page=1)`
-6. `pan_cursor_to_char(0)` + `clear_all_chars_facing`
+3. `fd2_pan_cursor_and_window(6, 0)`
+4. `fd2_display_dialog_scene(page=0)` + `fd2_cutscene_event_trigger(0x23)`
+5. `fd2_display_dialog_scene(page=1)`
+6. `fd2_pan_cursor_to_char(0)` + `fd2_clear_all_chars_facing`
 
 ## Dialog page 引用
 
@@ -30,7 +30,7 @@ Init handler 在進入對話前，迴圈把 `runtime_char_array[0..0xA]` 11 個 
 
 ## char_id 初始化序列
 
-Init handler 內無 `init_runtime_char_from_base_growth` 呼叫。
+Init handler 內無 `fd2_init_runtime_char_from_base_growth` 呼叫。
 End handler 透過 `runtime_char_array[0xB].bFlags = 0` 復活 char[11]（非新加入；ch9 init 已預初始化但 marked dead）。
 
 ## Cutscene events
@@ -41,22 +41,22 @@ End handler 透過 `runtime_char_array[0xB].bFlags = 0` 復活 char[11]（非新
 
 ## Post-action handler
 
-`data_fd2_chapter_post_action_handler_table[8]` 指向 `check_battle_end_default_handler` — 全敵死 = win，索爾 (char_id 0) 死 = lose。
+`data_fd2_chapter_post_action_handler_table[8]` 指向 `fd2_check_battle_end_default_handler` — 全敵死 = win，索爾 (char_id 0) 死 = lose。
 
 攻略「萊汀被打敗時敵方騎兵援軍立即出現」由 FDFIELD event 處理，不在 post_action handler。
 
 ## End handler events
 
-`chapter_09_end @ 0x235BC`：
+`fd2_chapter_09_end @ 0x235BC`：
 
 1. `runtime_char_array[0xB].bFlags = 0` — 復活 char[11]（清死亡 flag）
-2. `pan_cursor_and_window(6, 1)` + `load_chapter_portraits_and_dump_tmp(4)`
-3. `cutscene_event_trigger(0x24)`
-4. `display_dialog_scene(page=4)`
-5. `save_runtime_char_to_template`
+2. `fd2_pan_cursor_and_window(6, 1)` + `fd2_load_chapter_portraits_and_dump_tmp(4)`
+3. `fd2_cutscene_event_trigger(0x24)`
+4. `fd2_display_dialog_scene(page=4)`
+5. `fd2_save_runtime_char_to_template`
 6. `current_chapter_id += 1`
 
-無 `init_runtime_char_from_base_growth`——char[11] 是 revive 而非新加入。
+無 `fd2_init_runtime_char_from_base_growth`——char[11] 是 revive 而非新加入。
 
 ## FDFIELD event script
 
@@ -70,10 +70,10 @@ header `+0..+2` = shap_id_byte / party_count = 11 / char_count = 60；`+3..+50` 
 | 0xFF | 0 (enemy_turn_intro) | 0x1F | `0x00034B5D` | turn=0xFF dormant entry — 不會在初始 hook table 狀態下 fire |
 | 0xFF | 0 (enemy_turn_intro) | 0x1F | `0x00034B5D` | 同上 dormant entry |
 
-`fire_chapter_turn_events_for_phase` 比對 `turn == save_metadata_block` — 0xFF 永遠不會等於回合計數，故這些 entries 不會在初始狀態下 fire。觸發機制：tile-step-event handlers 在某些劇本 tile 被踩到時，動態 rewrite 本 chapter 的 turn-event-hook table 的 turn byte (0xFF → current_save_metadata_block 或 +1)，把原本 dormant 的 entry 啟動成下一回合 fire 的 event。
+`fd2_fire_chapter_turn_events_for_phase` 比對 `turn == save_metadata_block` — 0xFF 永遠不會等於回合計數，故這些 entries 不會在初始狀態下 fire。觸發機制：tile-step-event handlers 在某些劇本 tile 被踩到時，動態 rewrite 本 chapter 的 turn-event-hook table 的 turn byte (0xFF → current_save_metadata_block 或 +1)，把原本 dormant 的 entry 啟動成下一回合 fire 的 event。
 
 ## Reinforcement state machine — `tile_event_consumed_flags[0x10]`
 
-ch9 援軍 chain 由 `chapter_event_handler_1f__ch9_reinforcement @ 0x34B5D` 驅動：每次被觸發時 read 當前 `tile_event_consumed_flags[0x10]` 當 race_id 餵給 `load_chapter_portraits_and_dump_tmp`，然後遞增 1。state machine 從 race_id=0 開始。
+ch9 援軍 chain 由 `fd2_chapter_event_handler_1f__ch9_reinforcement @ 0x34B5D` 驅動：每次被觸發時 read 當前 `tile_event_consumed_flags[0x10]` 當 race_id 餵給 `fd2_load_chapter_portraits_and_dump_tmp`，然後遞增 1。state machine 從 race_id=0 開始。
 
-起始值 `tile_event_consumed_flags[0x10] = 0` 由 `init_battle_state_for_chapter @ 0x205DA` 內的 `crt_memset(tile_event_consumed_flags, 0, 0x20)` 統一清 0 設定（全 chapter 共用同一段 32-byte block 的清 0 邏輯）。chapter_09_init 內沒有 ch9-specific 的 flag[0x10] 設值。
+起始值 `tile_event_consumed_flags[0x10] = 0` 由 `fd2_init_battle_state_for_chapter @ 0x205DA` 內的 `memset(tile_event_consumed_flags, 0, 0x20)` 統一清 0 設定（全 chapter 共用同一段 32-byte block 的清 0 邏輯）。chapter_09_init 內沒有 ch9-specific 的 flag[0x10] 設值。

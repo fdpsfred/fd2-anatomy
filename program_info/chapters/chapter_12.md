@@ -6,21 +6,21 @@ Init handler 的 cutscene 在 dialog 之前先觸發（0x28、0x29），dialog �
 
 | 角色 | 位址 | 大小 |
 |---|---|---|
-| Init | `chapter_12_init @ 0x000333F5` | 118 B |
-| End | `chapter_12_end @ 0x000237D5` | 214 B |
-| Post-action | `chapter_12_post_action @ 0x0002073D` | (custom) |
+| Init | `fd2_chapter_12_init @ 0x000333F5` | 118 B |
+| End | `fd2_chapter_12_end @ 0x000237D5` | 214 B |
+| Post-action | `fd2_chapter_12_post_action @ 0x0002073D` | (custom) |
 | BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[11]` |  |
 | BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[11]` |  |
 
 ## Init handler 階段
 
-1. `init_battle_state_for_chapter`
-2. `pan_cursor_and_window(4, 4)`
-3. `chapter_init_phase_flag = 1`；`load_chapter_portraits_and_dump_tmp(1)`；flag = 0
-4. `cutscene_event_trigger(0x28)`
-5. `pan_cursor_and_window(0xB, 0x28)` + `cutscene_event_trigger(0x29)`
-6. `clear_all_chars_facing` + `display_dialog_scene(page=0)`
-7. `pan_cursor_to_char(0)`
+1. `fd2_init_battle_state_for_chapter`
+2. `fd2_pan_cursor_and_window(4, 4)`
+3. `chapter_init_phase_flag = 1`；`fd2_load_chapter_portraits_and_dump_tmp(1)`；flag = 0
+4. `fd2_cutscene_event_trigger(0x28)`
+5. `fd2_pan_cursor_and_window(0xB, 0x28)` + `fd2_cutscene_event_trigger(0x29)`
+6. `fd2_clear_all_chars_facing` + `fd2_display_dialog_scene(page=0)`
+7. `fd2_pan_cursor_to_char(0)`
 
 ## Dialog page 引用
 
@@ -31,10 +31,10 @@ Init handler 的 cutscene 在 dialog 之前先觸發（0x28、0x29），dialog �
 
 ## char_id 初始化序列
 
-Init handler 內無 `init_runtime_char_from_base_growth` 呼叫。
+Init handler 內無 `fd2_init_runtime_char_from_base_growth` 呼叫。
 
 End handler 中：
-- `init_runtime_char_from_base_growth(0x11 = 17)` — 米亞斯多德
+- `fd2_init_runtime_char_from_base_growth(0x11 = 17)` — 米亞斯多德
 
 ## Cutscene events
 
@@ -42,7 +42,7 @@ End handler 中：
 
 ## Post-action handler
 
-`chapter_12_post_action @ 0x2073D`：
+`fd2_chapter_12_post_action @ 0x2073D`：
 
 - default 判定（全敵死 = win，索爾死 = lose）
 - 額外 lose 條件：char[0xE = 14] 死亡
@@ -53,15 +53,15 @@ End handler 中：
 
 ## End handler events
 
-`chapter_12_end @ 0x237D5`：
+`fd2_chapter_12_end @ 0x237D5`：
 
 1. 從 scene tables (`chapter_12_end_scene_pos_x/y/facing_table`) 讀 4 chars 位置
-2. `setup_chars_and_camera_for_intro(0xD, 0xE, 10, 2, 0, 4, 0)` — 配 6 chars 進場
-3. `display_dialog_scene(page=3)`
-4. `cutscene_event_trigger(0x2D)`
-5. `display_dialog_scene(page=4)`
-6. `save_runtime_char_to_template`
-7. `init_runtime_char_from_base_growth(0x11 = 17)` — 米亞斯多德加入
+2. `fd2_setup_chars_and_camera_for_intro(0xD, 0xE, 10, 2, 0, 4, 0)` — 配 6 chars 進場
+3. `fd2_display_dialog_scene(page=3)`
+4. `fd2_cutscene_event_trigger(0x2D)`
+5. `fd2_display_dialog_scene(page=4)`
+6. `fd2_save_runtime_char_to_template`
+7. `fd2_init_runtime_char_from_base_growth(0x11 = 17)` — 米亞斯多德加入
 8. `current_chapter_id += 1`
 
 ## FDFIELD event script

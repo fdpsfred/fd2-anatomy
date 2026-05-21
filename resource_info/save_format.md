@@ -54,8 +54,8 @@ offset     size     內容
 
 ## 加密與 checksum
 
-`save_crypt_buffer @ 0x4DBD8` 是 XOR-based involution（同一 function 加密與解密
-雙向使用）。`save_compute_checksum @ 0x4DBB9` 是 4-byte sum/xor/rot 的快速 checksum
+`fd2_save_crypt_buffer @ 0x4DBD8` 是 XOR-based involution（同一 function 加密與解密
+雙向使用）。`fd2_save_compute_checksum @ 0x4DBB9` 是 4-byte sum/xor/rot 的快速 checksum
 (非 CRC32)。
 
 ### 寫流程

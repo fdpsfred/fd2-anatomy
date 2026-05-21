@@ -57,13 +57,13 @@ FDSHAP[shap_id × 2 + 1] = tile_attribute_flags    (4 bytes/tile)
 0 unused、0 共用 — 每章獨佔一對。
 
 ch23 mid-switch 切到 ch24 用 ch24 自己的 shap_id 0x17 → FDSHAP[46/47]
-(load `current_chapter_id = 24` 然後 `load_chapter_battle_data(24)` 讀 FDFIELD ch24
+(load `current_chapter_id = 24` 然後 `fd2_load_chapter_battle_data(24)` 讀 FDFIELD ch24
 tile_event[0] = 0x17)。
 
 ## battle_scene_snapshot (`shap_id × 2 + 0`)
 
 - RLE-encoded indexed 320×200 image
-- 由 `rle_blit_sprite @ 0x4E63D` 解 (RLE format 詳 `program_info/graphics.md`)
+- 由 `fd2_rle_blit_sprite @ 0x4E63D` 解 (RLE format 詳 `program_info/graphics.md`)
 - 用為 chapter battle 的 pre-render snapshot (特殊技 cinematic 暫存)
 
 ch1 sample (FDSHAP[0])：147,740 bytes RLE，解開為 320×200 = 64,000 pixels，250

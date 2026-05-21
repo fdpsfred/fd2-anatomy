@@ -17,7 +17,7 @@ LLLLLL archive (詳 `overview.md`)。
                 count 通常 ≤ 63 (= 0x3F)，可能跨多 pair 描繪同色
 ```
 
-注意：BG 的 RLE 格式與 `rle_blit_sprite @ 0x4E63D` 的 opcode-based RLE **不同**。
+注意：BG 的 RLE 格式與 `fd2_rle_blit_sprite @ 0x4E63D` 的 opcode-based RLE **不同**。
 BG 的 (count, color) 配對更簡單，每對 2 bytes 直接展開為 count 個 color 像素。
 
 ## Placeholder marker
@@ -31,11 +31,11 @@ Placeholder idx：11, 12, 13, 15, 20, ... (共 10 個)。
 
 主要 caller：
 
-- `execute_special_attack_skill` (4 callsites: idx 0/1/2 + dynamic terrain_id)
-- `execute_summon_spell_cast` (1 dynamic — terrain from tile_attribute)
-- `play_full_combat_cinematic` (3 + dynamic — terrain dispatch)
-- `play_spell_cast_cinematic` (3 + dynamic)
-- `play_figani_char_intro_animation` (1 dynamic — terrain)
+- `fd2_execute_special_attack_skill` (4 callsites: idx 0/1/2 + dynamic terrain_id)
+- `fd2_execute_summon_spell_cast` (1 dynamic — terrain from tile_attribute)
+- `fd2_play_full_combat_cinematic` (3 + dynamic — terrain dispatch)
+- `fd2_play_spell_cast_cinematic` (3 + dynamic)
+- `fd2_play_figani_char_intro_animation` (1 dynamic — terrain)
 
 Domain：`terrain_id` derived from
 `tile_attribute_flags_buffer[(tile_id & 0x3FF) × 4]` 查 BG idx。每章 tile 系
@@ -45,10 +45,10 @@ Domain：`terrain_id` derived from
 
 | idx | callsite | 用途 |
 |---|---|---|
-| 0x00 | `execute_special_attack_skill` / `execute_summon_spell_cast` / `play_figani_char_intro_animation` 等 (5 callsites) | 通用基礎 BG |
-| 0x01 | `execute_special_attack_skill` / `play_full_combat_cinematic` / `play_spell_cast_cinematic` | 通用變體 |
+| 0x00 | `fd2_execute_special_attack_skill` / `fd2_execute_summon_spell_cast` / `fd2_play_figani_char_intro_animation` 等 (5 callsites) | 通用基礎 BG |
+| 0x01 | `fd2_execute_special_attack_skill` / `fd2_play_full_combat_cinematic` / `fd2_play_spell_cast_cinematic` | 通用變體 |
 | 0x02 | 同上 | 通用變體 2 |
-| 0x38 | `play_spell_cast_cinematic` | 特殊 spell BG |
+| 0x38 | `fd2_play_spell_cast_cinematic` | 特殊 spell BG |
 
 ## 完整分類
 

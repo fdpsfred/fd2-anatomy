@@ -26,7 +26,7 @@ LLLLLL archive (詳 `overview.md`)，搭配兩種 entry：
 
 ## BGM dispatch
 
-- Dispatcher：`set_bgm_track_with_fade @ 0x25977`
+- Dispatcher：`fd2_set_bgm_track_with_fade @ 0x25977`
 - `track_id` (4th arg via ECX register, Watcom convention) 直接當 FDMUS idx
 - **無 lookup table** — track_id ≡ FDMUS idx (1:1)
 - Loop count：5th arg via stack
@@ -57,7 +57,7 @@ LLLLLL archive (詳 `overview.md`)，搭配兩種 entry：
 | 0x0F | 4128 | XMI | dynamic-only |
 | 0x10 | 562 | XMI | special (instant fade-in, no smooth ramp) — 推測 victory fanfare 或 short stinger |
 | 0x11 | 1530 | XMI | special (instant fade-in) — 推測 defeat / chapter clear stinger |
-| 0x12 | 9884 | XMI | main_menu (`fd2_main` 0x25BF4 `set_bgm_track_with_fade(0x12, 0)`) |
+| 0x12 | 9884 | XMI | main_menu (`fd2_main` 0x25BF4 `fd2_set_bgm_track_with_fade(0x12, 0)`) |
 | 0x13 | 1590 | XMI | player_turn ch1 / ch2 / ch3 / ch4 / ch6 / ch7 / ch8 / ch11..14 / ch16 / ch18..21 / ch24 / ch26 / ch28 / ch29 |
 
 ## per_chapter BGM 表 (30 章 dump)

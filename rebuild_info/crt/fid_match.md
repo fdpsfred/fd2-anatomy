@@ -5,8 +5,8 @@
 | FD2.LE 編譯器版本 | **Watcom C/C++ 9.5a** (DOS 32-bit DPMI) |
 | 連結的 lib | **CLIB3S.LIB** (stack-call ABI) + **EMU387.LIB** + **GRAPH.LIB** + **MATH387S.LIB** |
 | DOS extender | **DOS/4G** (`BINW/dos4gw.exe` as stub，FD2.LE strings 含 `RATIONAL DOS/4G`，無 Phar Lap) |
-| 識別為 CRT 的 function 數 | **186**（127 FidDB-driven + 14 callee-driven + 45 byte_match audit）|
-| 主資料檔 | `lookup_9.5a.json` (address ↔ Watcom symbol 對照，186 entries，含 source_libs 欄位) |
+| 識別為 CRT 的 function 數 | **193**（102 auto_threshold + 3 conflict_resolved + 35 manual + 52 byte_match + 1 byte_match_disputed）|
+| 主資料檔 | `lookup_9.5a.json` (address ↔ Watcom symbol 對照，193 entries，含 source_libs 欄位) |
 
 完整 address ↔ symbol ↔ source_obj 對照見 `lookup_9.5a.json` 與 human-readable
 view `matched_function_sources.md`。FidDB query / OMF quirky record patcher
@@ -85,9 +85,9 @@ Ghidra OmfLoader EOF bug 無法 import。三個都不影響 FD2 識別 — FD2 �
 |---|---|---:|
 | `auto_threshold` | FidDB score ≥ 30 且 current_name 與 matched_name 無語意衝突 | 102 |
 | `conflict_resolved` | FidDB score ≥ 30，name 衝突經行為驗證 | 3 |
-| `manual` (FidDB) | FidDB score < 30，逐筆讀 disasm + callees 後 PASS | 22 |
-| `manual` (callee match) | FidDB 漏抓，§callee-driven 補抓 PASS | 14 |
-| `byte_match` | crt_audit 對全 LIB386 1548 obj × 7040 lib func 跑 FIXUPP-aware byte-exact 比對 PASS（含 splitter 修復 + sliding-window 補抓） | 45 |
+| `manual` | FidDB score < 30 / 漏抓 / callee match 等逐筆讀 disasm + callees 後 PASS | 35 |
+| `byte_match` | FIXUPP-aware byte-exact 比對全 LIB386 1548 obj × 7040 lib func 後 PASS | 52 |
+| `byte_match_disputed` | byte_match 命中但語意 disputed（如 immediate masking 後 PUSH/PUSH/JMP 多 obj 通用） | 1 |
 
 **所有 FIXUPP-aware byte-match 比對**（lib FIXUPP 標記的 reference 位置遮罩、
 遮罩外完全相等）；caller 路徑作為 hash-identical helper family 的最終

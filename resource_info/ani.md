@@ -5,18 +5,18 @@ file size 2,437,547 bytes (~2.4 MB)，9 entries (idx 0..8)。
 
 ## 檔案格式
 
-LLLLLL archive (詳 `overview.md`)，但 **不**經 `load_dat_resource @ 0x111BA`，
-有獨立的 `play_ani_file_animation_sequence @ 0x20497` fopen pipeline (因為
+LLLLLL archive (詳 `overview.md`)，但 **不**經 `fd2_load_dat_resource @ 0x111BA`，
+有獨立的 `fd2_play_ani_file_animation_sequence @ 0x20421` fopen pipeline (因為
 ANI.DAT 動畫是 frame-by-frame streamed，不一次性 malloc 整個 entry)。
 
-## Loader：`play_ani_file_animation_sequence @ 0x20497`
+## Loader：`fd2_play_ani_file_animation_sequence @ 0x20421`
 
 ```c
-play_ani_file_animation_sequence(_, _, _, ani_idx, ms_per_frame, skip_on_key)
+fd2_play_ani_file_animation_sequence(_, _, _, ani_idx, ms_per_frame, skip_on_key)
 ```
 
 ```c
-crt_fopen_read("ANI.DAT", &DAT_000501c4);
+fopen("ANI.DAT", &DAT_000501c4);
 fseek(file, ani_idx * 4 + 6, SEEK_SET);
 fread(start_end_pair, 8, 1, file);
 fseek(file, *frame_buf, SEEK_SET);     // jump to entry start
@@ -55,6 +55,6 @@ for i in 0..frame_count:
 | 1 | 開場動畫 / intro animation | 特殊：載入 FDOTHER[0x4E] 為配套 SFX |
 | 2..8 | 其他 cinematic animations | format 100% decoded，具體場景 deferred |
 
-Caller：全 ANI.DAT 載入皆透過 `play_ani_file_animation_sequence`，由 cinematic
-chain 函式 (chapter intro / outro / endgame) 按需呼叫。`load_dat_resource("FDOTHER",
+Caller：全 ANI.DAT 載入皆透過 `fd2_play_ani_file_animation_sequence`，由 cinematic
+chain 函式 (chapter intro / outro / endgame) 按需呼叫。`fd2_load_dat_resource("FDOTHER",
 0x4E)` 是 ANI 配套 (nested archive 1 sub-entry)。

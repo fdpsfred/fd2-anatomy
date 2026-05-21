@@ -6,9 +6,9 @@ Init handler 僅 29 B（30 章中第二小）；FDFIELD 完全靜態（無 activ
 
 | 角色 | 位址 | 大小 |
 |---|---|---|
-| Init | `chapter_14_init @ 0x0003347C` | 29 B (第二小) |
-| End | `chapter_14_end @ 0x000238DC` | 225 B |
-| Post-action | `check_battle_end_default_handler @ 0x000205B4` | (default) |
+| Init | `fd2_chapter_14_init @ 0x0003347C` | 29 B (第二小) |
+| End | `fd2_chapter_14_end @ 0x000238DC` | 225 B |
+| Post-action | `fd2_check_battle_end_default_handler @ 0x000205B4` | (default) |
 | BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[13]` |  |
 | BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[13]` |  |
 
@@ -16,10 +16,10 @@ Init handler 僅 29 B（30 章中第二小）；FDFIELD 完全靜態（無 activ
 
 極簡：
 
-1. `init_battle_state_for_chapter`
-2. `pan_cursor_and_window(0x14, 0x14)`
-3. `display_dialog_scene(page=0)`
-4. `pan_cursor_to_char(0)`
+1. `fd2_init_battle_state_for_chapter`
+2. `fd2_pan_cursor_and_window(0x14, 0x14)`
+3. `fd2_display_dialog_scene(page=0)`
+4. `fd2_pan_cursor_to_char(0)`
 
 ## Dialog page 引用
 
@@ -30,7 +30,7 @@ Init handler 僅 29 B（30 章中第二小）；FDFIELD 完全靜態（無 activ
 
 ## char_id 初始化序列
 
-Init handler 內無 `init_runtime_char_from_base_growth` 呼叫。
+Init handler 內無 `fd2_init_runtime_char_from_base_growth` 呼叫。
 End handler 也無——ch14 結算無新加入。
 
 ## Cutscene events
@@ -39,24 +39,24 @@ End handler 也無——ch14 結算無新加入。
 
 ## Post-action handler
 
-`data_fd2_chapter_post_action_handler_table[13]` 指向 `check_battle_end_default_handler` — 全敵死 = win，索爾 (char_id 0) 死 = lose。
+`data_fd2_chapter_post_action_handler_table[13]` 指向 `fd2_check_battle_end_default_handler` — 全敵死 = win，索爾 (char_id 0) 死 = lose。
 
 攻略「當己方通過地圖中央一帶，則敵軍便會前來攻擊」屬 FDFIELD position-trigger event，不在 post_action handler。
 
 ## End handler events
 
-`chapter_14_end @ 0x238DC`：
+`fd2_chapter_14_end @ 0x238DC`：
 
 1. 從 scene tables (`chapter_14_end_scene_pos_x/y/facing_table`) 讀 4 chars 位置
-2. `load_chapter_portraits_and_dump_tmp(1)`
-3. `setup_chars_and_camera_for_intro(0xF, 0, 0, 0, 0, 0xC, 10)`
-4. `display_dialog_scene(page=2)`
-5. `cutscene_event_trigger(0x2F)`
-6. `display_dialog_scene(page=3)`
-7. `save_runtime_char_to_template`
+2. `fd2_load_chapter_portraits_and_dump_tmp(1)`
+3. `fd2_setup_chars_and_camera_for_intro(0xF, 0, 0, 0, 0, 0xC, 10)`
+4. `fd2_display_dialog_scene(page=2)`
+5. `fd2_cutscene_event_trigger(0x2F)`
+6. `fd2_display_dialog_scene(page=3)`
+7. `fd2_save_runtime_char_to_template`
 8. `current_chapter_id += 1`
 
-無 `init_runtime_char_from_base_growth`。
+無 `fd2_init_runtime_char_from_base_growth`。
 
 ## FDFIELD event script
 

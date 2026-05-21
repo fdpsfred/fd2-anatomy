@@ -3,9 +3,9 @@
 全 binary indirect-JMP / orphan code / fragmented body audit 工具。
 三段流程：
 
-- **Phase 1**：Ghidra-side detection（沒有獨立 .py，用 `run_script_inline`）
-- **Phase 2**：lookup vs lib `.obj` size diff regression（`compare_lookup_sizes.py`）
-- **Phase 3**：orphan / gap scan + 修（沒有獨立 .py，用 `run_script_inline`）
+- **Step 1**：Ghidra-side detection（沒有獨立 .py，用 `run_script_inline`）
+- **Step 2**：lookup vs lib `.obj` size diff regression（`compare_lookup_sizes.py`）
+- **Step 3**：orphan / gap scan + 修（沒有獨立 .py，用 `run_script_inline`）
 
 ## Scripts
 
@@ -13,7 +13,7 @@
 |---|---|
 | `compare_lookup_sizes.py` | 對 `crt_lookup_9.5a.json` 全 entry 跑 `lookup body_size` vs lib `.obj` size 全面 diff，輸出 `workspace/jump_table_audit/lookup_size_diff.{json,md}` |
 
-## Phase 1 (Ghidra-side detection)
+## Step 1 (Ghidra-side detection)
 
 `run_script_inline` 流程：
 
@@ -23,7 +23,7 @@
    解析的 target 集合，比對是否 `function.getBody().contains(target)`
 3. 旗標 `out_of_body > 0` 的 case；輸出 byte hex / asm / function 名
 
-## Phase 3 (orphan / gap fix)
+## Step 3 (orphan / gap fix)
 
 `run_script_inline` 掃描三項：
 
@@ -38,7 +38,7 @@
 - `Function.setBody(AddressSet)` 直接呼叫修 body（注意：
   `SetFunctionBodyCmd` class 在當前 Ghidra MCP 版本不存在）
 
-## Phase 2 執行
+## Step 2 執行
 
 ```bash
 python tools/program_analysis/jump_table_audit/compare_lookup_sizes.py

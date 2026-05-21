@@ -1,27 +1,27 @@
 # ui_menu
 
-## Per-frame 主迴圈：`game_main_loop @ 0x117E7`
+## Per-frame 主迴圈：`fd2_game_main_loop @ 0x117E7`
 
 從 `fd2_main` 的內迴圈每 frame 呼叫，分派鍵盤掃描碼：
 
 | Scancode | 動作 | 處理函式 |
 |---|---|---|
-| 0x01 / 0x2C / 0x4C (Esc) | cancel / 切換到下一友軍 | inline + `clear_keyboard_buffer` |
-| 0x39 / 0x1C (Space/Enter) | 行動 | `find_char_at_cursor_pos` → 三路分派 |
-| 0x48 (↑) | cursor up | `cursor_move_up` |
-| 0x50 (↓) | cursor down | `cursor_move_down` |
-| 0x4B (←) | cursor left | `cursor_move_left` |
-| 0x4D (→) | cursor right | `cursor_move_right` |
-| 0x3B / 0x49 (F1) | 主選單 | `open_main_menu_or_status` (`FUN_0002000A`) |
-| 0x3C / 0x47 (F2) | 游標目標 status query | `open_char_status_screen` |
+| 0x01 / 0x2C / 0x4C (Esc) | cancel / 切換到下一友軍 | inline + `fd2_clear_keyboard_buffer` |
+| 0x39 / 0x1C (Space/Enter) | 行動 | `fd2_find_char_at_cursor_pos` → 三路分派 |
+| 0x48 (↑) | cursor up | `fd2_cursor_move_up` |
+| 0x50 (↓) | cursor down | `fd2_cursor_move_down` |
+| 0x4B (←) | cursor left | `fd2_cursor_move_left` |
+| 0x4D (→) | cursor right | `fd2_cursor_move_right` |
+| 0x3B / 0x49 (F1) | 主選單 | `fd2_open_tactical_overview_zoom` |
+| 0x3C / 0x47 (F2) | 游標目標 status query | `fd2_open_char_status_screen` |
 
 ### Space/Enter 三路分派
 
-`find_char_at_cursor_pos` 回傳 char_idx 或 -1：
+`fd2_find_char_at_cursor_pos` 回傳 char_idx 或 -1：
 
-- **-1** (空 tile)：開 `field_command_menu_loop` (Save/EndTurn/Suspend modal)
-- **bTeam == 2 + 未動作** (己方角色未行動)：`player_action_menu_loop` — 移動 + 動作環
-- **其他** (己方已動或敵方/NPC)：`open_char_status_screen` — 唯讀狀態檢視
+- **-1** (空 tile)：開 `fd2_field_command_menu_loop` (Save/EndTurn/Suspend modal)
+- **bTeam == 2 + 未動作** (己方角色未行動)：`fd2_player_action_menu_loop` — 移動 + 動作環
+- **其他** (己方已動或敵方/NPC)：`fd2_open_char_status_screen` — 唯讀狀態檢視
 
 ## 三層 cursor 座標
 
@@ -37,10 +37,10 @@
 | `0x53AC5` | `map_height_tiles` | 上限 |
 
 `cursor_move_up/down/left/right` 維護三層座標的同步：靠近邊緣時自動 scroll
-window origin，否則只動 screen cursor。每次都 trigger `composite_battle_frame`
+window origin，否則只動 screen cursor。每次都 trigger `fd2_composite_battle_frame`
 （除非動畫進行中）。
 
-## Player 行動 UI：`player_action_menu_loop @ 0x18890`
+## Player 行動 UI：`fd2_player_action_menu_loop @ 0x18890`
 
 250 行的核心 UI orchestrator：
 
@@ -56,48 +56,48 @@ window origin，否則只動 screen cursor。每次都 trigger `composite_battle
 9. `FUN_00018D8C` 開行動子選單 (Attack/Item/Wait/Cancel — 已動則限制動作集)
 10. `FUN_00013A44` 完成位置 finalize
 
-`player_action_result_code @ 0x53C53` 把選擇結果傳回 `game_main_loop`。
+`player_action_result_code @ 0x53C53` 把選擇結果傳回 `fd2_game_main_loop`。
 
 ## Field command menu (空 tile + Space)
 
-`field_command_menu_loop @ 0x16F55` 開出 4 選項 modal：
+`fd2_field_command_menu_loop @ 0x16F55` 開出 4 選項 modal：
 
 | 選項 | 動作 |
 |---|---|
-| 0 | Save / Load / NewGame → `menu_confirm_save_load_newgame` |
+| 0 | Save / Load / NewGame → `fd2_field_menu_status_save_load_quit_dispatch` |
 | 1 | End my turn → 全 team 2 角色 walk to cursor + game_event |
-| 2 | `game_options_menu_loop @ 0x1728C` — game options/preferences sub-menu |
+| 2 | `fd2_game_options_menu_loop @ 0x1728C` — game options/preferences sub-menu |
 | 3 | Suspend → 確認 + save+exit |
 
 讀 `current_menu_cursor_idx @ 0x53C57` 來判斷選擇 (多個 modal 共用)。
 
-## Status screen：`open_char_status_screen @ 0x17AED`
+## Status screen：`fd2_open_char_status_screen @ 0x17AED`
 
 modal UI 含 spell list overlay。3-buffer slide-in 動畫：
 
 1. `FUN_00017E0B` 填 stat 顯示資料
 2. `FUN_00016C57(0)` 等 ACK
-3. `build_usable_spell_list` count spells
+3. `fd2_build_usable_spell_list` count spells
 4. 若有 spell：7-frame slide-in (`paint_status_panel_layer_left/right` 階段
-   + `FUN_0001839B` slide step) → `draw_spell_selection_list` 唯讀顯示 → 7-frame
+   + `FUN_0001839B` slide step) → `fd2_draw_spell_selection_list` 唯讀顯示 → 7-frame
    slide-out
-5. 12-frame outro 透過 `play_status_screen_outro_step`
+5. 12-frame outro 透過 `fd2_play_status_screen_outro_step`
 
 ## 輸入等待
 
-`wait_for_input_with_idle @ 0x11AA8` 是主要 input poll：
+`fd2_wait_for_input_with_idle @ 0x11AA8` 是主要 input poll：
 
-- `check_input_ready` 檢查鍵盤輸入；無輸入時：
-  - `update_palette_cycle_anim` 更新水/熔岩 palette
-  - 若 BIOS tick 變化：`composite_battle_frame` (cursor 閃爍)
+- `fd2_check_keyboard_buffer_nonempty` 檢查鍵盤輸入；無輸入時：
+  - `fd2_update_palette_cycle_anim` 更新水/熔岩 palette
+  - 若 BIOS tick 變化：`fd2_composite_battle_frame` (cursor 閃爍)
 - 有輸入時：呼叫 `int386(0x16, ...)` → 標準化掃描碼 (0xE0 / 0x52 → 0x1C；0x53 → 0x01)
 - 回傳 scancode
 
 ## 鏡頭
 
-`pan_cursor_to_char` / `pan_cursor_to_tile_animated @ 0x12CEA`：鏡頭動畫平移。
+`fd2_pan_cursor_to_char` / `fd2_pan_cursor_to_tile_animated @ 0x12CEA`：鏡頭動畫平移。
 
 ## SFX 觸發
 
-`play_sfx_with_handle @ 0x25A96` 是通用 AIL SFX 播放器，UI 各處呼叫
+`fd2_play_sfx_with_handle @ 0x25A96` 是通用 AIL SFX 播放器，UI 各處呼叫
 (cursor 移動 sfx 0、確認 sfx 7、取消等)。3 個 gate flag 詳見 `audio.md` §SFX 觸發。

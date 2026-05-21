@@ -29,7 +29,7 @@
 - **失敗條件**：索爾死亡，或 6 個村民 (chars[5..10]) 任一死亡。
 - **隱藏 reward**：6 個村民全活 → end handler 給予 item 0xC6 = 力量藥水 (AP+9)。
   攻略本「為了保住所有村民，最好幫亞雷斯買長戟」即此機制。
-- **章末加入**：希莉亞 (char 8) 由 end handler `init_runtime_char_from_base_growth(8)` 加入。
+- **章末加入**：希莉亞 (char 8) 由 end handler `fd2_init_runtime_char_from_base_growth(8)` 加入。
 
 ## 對話
 

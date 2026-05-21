@@ -32,10 +32,10 @@
 | 24 | 在天空的彼方 | (無)                  | (無)                      | init 4-stage camera scan; end text-scroll cinematic (FD2 唯一) |
 | 25 | 火焰的審判 | end +26 +29 (聖寇拉斯+亞奇梅吉) | 大法師亞奇梅吉、龍劍士聖寇拉斯 | init 地震 cutscene + FDOTHER[0x58] sfx; end 亞奇梅吉 init 在 save 後 |
 | 26 | 未知的迴廊 | (無)                   | 機器人渥德 (FDFIELD)      | dynamic dialog page (5 寶箱選 1 切 5 路線) |
-| 27 | 命運的交會點 | (無)                  | (無)                      | 🔑 **GOOD/BAD ENDING FORK** (`any_char_has_item(0x64)` = 天空之鑰) |
+| 27 | 命運的交會點 | (無)                  | (無)                      | 🔑 **GOOD/BAD ENDING FORK** (`fd2_fd2_any_char_has_item(0x64)` = 天空之鑰) |
 | 28 | 探索者     | (無)                   | (無)                      | 全清隊 20 chars + revive HP>0; 3× 重複 cutscene 0x55 |
 | 29 | 無邊的黑暗之中 | (無)                | (無)                      | 唯一 tile_event win; end 9 連震 + 3 白光 + 64+64 palette + char[0x14] 變身 |
-| 30 | 傳說的終章－結局 | (無)              | (無)                      | 🏆 **GOOD ENDING** + staff roll (load chapter 31 epilogue map + `play_game_ending_cinematic`) |
+| 30 | 傳說的終章－結局 | (無)              | (無)                      | 🏆 **GOOD ENDING** + staff roll (load chapter 31 epilogue map + `fd2_play_game_ending_cinematic`) |
 
 ## 跨章節隱藏機制鏈
 
@@ -46,17 +46,17 @@ ch21_end (6-item collection: 黃金徽章 0xD1 + 5 顆眼 0xD2..0xD6)
   ↓ 全 6 件收齊
   → give_item(0x64 = 天空之鑰)
   ↓
-ch23_end: any_char_has_item(0x64=天空之鑰)
+ch23_end: fd2_any_char_has_item(0x64=天空之鑰)
   → init_char(0x16=22=卡里斯) [武聖加入 GOOD PATH]
   ↓
-ch27_end: any_char_has_item(0x64=天空之鑰)
+ch27_end: fd2_any_char_has_item(0x64=天空之鑰)
   ├─ 有 → 進 ch28+ (continue good path)
-  └─ 無 → animate_warp_teleport_char(悠妮) + play_game_ending_cinematic + INFINITE LOOP (BAD ENDING)
+  └─ 無 → fd2_animate_warp_teleport_char(悠妮) + fd2_play_game_ending_cinematic + INFINITE LOOP (BAD ENDING)
   ↓
 ch28-29 戰鬥序列
   ↓
 ch30_end: 殺空魔神 (char[0x14]) → game_event_flag = 2
-  → load_chapter_battle_data(31) epilogue map + play_game_ending_cinematic + INFINITE LOOP (🏆 GOOD ENDING)
+  → fd2_load_chapter_battle_data(31) epilogue map + fd2_play_game_ending_cinematic + INFINITE LOOP (🏆 GOOD ENDING)
 ```
 
 ### Conditional Recruit 矩陣
@@ -67,8 +67,8 @@ ch30_end: 殺空魔神 (char[0x14]) → game_event_flag = 2
 | ch7 | char 12 = 凱麗 | tile_event[0x11] == 1 AND char[0x2B] alive |
 | ch16 | char 18 = 蜜蒂 | chars[0].HP_max > 319 + save_metadata < 19 + chars[0x42..0x49] dead ≤ 4 |
 | ch20 | char 28 = 達可賽 | save_metadata < 16 (15 回合內) |
-| ch23 | char 22 = 卡里斯 | any_char_has_item(0x64 = 天空之鑰) |
-| ch23 | char 19 = 羅德曼 | find_template_char_by_id(0x12 = 蜜蒂) == 0 (蜜蒂不在) AND save_metadata < 15 |
+| ch23 | char 22 = 卡里斯 | fd2_any_char_has_item(0x64 = 天空之鑰) |
+| ch23 | char 19 = 羅德曼 | fd2_find_template_char_by_id(0x12 = 蜜蒂) == 0 (蜜蒂不在) AND save_metadata < 15 |
 
 ### 隱藏 reward / 兌換機制
 

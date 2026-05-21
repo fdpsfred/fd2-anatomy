@@ -1,23 +1,23 @@
 # 第 22 章 — chapter_22
 
-End handler 為 FD2 全 30 章中唯一以「全螢幕白屏 → palette fade → 黑屏」收尾的章節 (`crt_memset(0xA0000, 0xFF, 64000)` 後再 fade-to-black)。
+End handler 為 FD2 全 30 章中唯一以「全螢幕白屏 → palette fade → 黑屏」收尾的章節 (`memset(0xA0000, 0xFF, 64000)` 後再 fade-to-black)。
 
 ## Function 位址
 
 | 角色 | 位址 | 大小 |
 |---|---|---|
-| Init | `chapter_22_init @ 0x0003367E` | 34 B |
-| End | `chapter_22_end @ 0x000244B6` | 354 B |
-| Post-action | `chapter_22_27_28_post_action_shared @ 0x00020A87` | 與 ch27/28 共用 |
+| Init | `fd2_chapter_22_init @ 0x0003367E` | 34 B |
+| End | `fd2_chapter_22_end @ 0x000244B6` | 354 B |
+| Post-action | `fd2_chapter_22_27_28_post_action_shared @ 0x00020A87` | 與 ch27/28 共用 |
 | BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[21]` |  |
 | BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[21]` |  |
 
 ## Init handler 階段
 
-1. `init_battle_state_for_chapter`
-2. `pan_cursor_and_window(0x10, 0x1C)`
-3. `cutscene_event_trigger(0x43)` + `clear_all_chars_facing`
-4. `display_dialog_scene(page=0)` + `pan_cursor_to_char(0)`
+1. `fd2_init_battle_state_for_chapter`
+2. `fd2_pan_cursor_and_window(0x10, 0x1C)`
+3. `fd2_cutscene_event_trigger(0x43)` + `fd2_clear_all_chars_facing`
+4. `fd2_display_dialog_scene(page=0)` + `fd2_pan_cursor_to_char(0)`
 
 ## Dialog page 引用
 
@@ -37,7 +37,7 @@ End handler 為 FD2 全 30 章中唯一以「全螢幕白屏 → palette fade �
 
 ## Post-action handler
 
-`chapter_22_27_28_post_action_shared @ 0x20A87` (與 ch27/28 共用)：
+`fd2_chapter_22_27_28_post_action_shared @ 0x20A87` (與 ch27/28 共用)：
 - default
 - 額外 lose：if `char[1]` 死亡
 
@@ -45,21 +45,21 @@ End handler 為 FD2 全 30 章中唯一以「全螢幕白屏 → palette fade �
 
 ## End handler events
 
-`chapter_22_end @ 0x244B6` (354 B) — 白屏 fade-to-black 結尾：
+`fd2_chapter_22_end @ 0x244B6` (354 B) — 白屏 fade-to-black 結尾：
 
 1. 從 scene tables (含 facing_table) 讀位置
-2. `setup_chars_and_camera_for_intro(0xF, 0x48, 0x16, 0x19, 2, 0x10, 0x12)`
-3. `display_dialog_scene(page=4)` + `cutscene_event_trigger(0x41)`
-4. `display_dialog_scene(page=5)` + `pan_cursor_and_window(0x10, 0x10)` + `cutscene_event_trigger(0x42)`
-5. `display_dialog_scene(page=6)` + `pan_cursor_and_window(0x10, 0xE)`
-6. `cast_screen_wide_spell_with_fade(cursor_y+3, ..., 10, 8)` — 大範圍 spell visual
+2. `fd2_setup_chars_and_camera_for_intro(0xF, 0x48, 0x16, 0x19, 2, 0x10, 0x12)`
+3. `fd2_display_dialog_scene(page=4)` + `fd2_cutscene_event_trigger(0x41)`
+4. `fd2_display_dialog_scene(page=5)` + `fd2_pan_cursor_and_window(0x10, 0x10)` + `fd2_cutscene_event_trigger(0x42)`
+5. `fd2_display_dialog_scene(page=6)` + `fd2_pan_cursor_and_window(0x10, 0xE)`
+6. `fd2_cast_screen_wide_spell_with_fade(cursor_y+3, ..., 10, 8)` — 大範圍 spell visual
 7. 500ms wait
-8. `crt_memset(0xA0000, 0xFF, 64000)` — **白屏 (整 framebuffer = 0xFF)**
-9. `play_palette_fade_to_black` — palette 漸暗
-10. `crt_memset(0xA0000, 0, 64000)` — 黑屏
-11. `save_runtime_char_to_template` + `current_chapter_id += 1`
+8. `memset(0xA0000, 0xFF, 64000)` — **白屏 (整 framebuffer = 0xFF)**
+9. `fd2_play_palette_fade_to_black` — palette 漸暗
+10. `memset(0xA0000, 0, 64000)` — 黑屏
+11. `fd2_save_runtime_char_to_template` + `current_chapter_id += 1`
 
-「連戰四場後才有商店」屬 `chapter_transition_menu @ 0x2CAD7` 處理 (與 end handler 解耦)。
+「連戰四場後才有商店」屬 `fd2_chapter_transition_menu @ 0x2CAD7` 處理 (與 end handler 解耦)。
 
 ## FDFIELD event script
 

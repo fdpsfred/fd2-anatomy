@@ -6,21 +6,21 @@
 
 | 角色 | 位址 | 大小 |
 |---|---|---|
-| Init | `chapter_07_init @ 0x00033169` | 176 B |
-| End | `chapter_07_end @ 0x000232E8` | 222 B |
-| Post-action | `check_battle_end_default_handler @ 0x000205B4` | (default) |
+| Init | `fd2_chapter_07_init @ 0x00033169` | 176 B |
+| End | `fd2_chapter_07_end @ 0x000232E8` | 222 B |
+| Post-action | `fd2_check_battle_end_default_handler @ 0x000205B4` | (default) |
 | BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[6]` |  |
 | BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[6]` |  |
 
 ## Init handler 階段
 
-`init_battle_state_for_chapter` 後依序：
+`fd2_init_battle_state_for_chapter` 後依序：
 
-- `display_dialog_scene(page=0)`
-- `chapter_init_phase_flag = 1`; `load_chapter_portraits_and_dump_tmp(race_id=1)`; `chapter_init_phase_flag = 0`
-- `pan_cursor_and_window(8, 1)` + `cutscene_event_trigger(0x1C)`
-- `pan_cursor_and_window(8, 0)` + `cutscene_event_trigger(0x1D)`
-- `display_dialog_scene(page=1)` + `pan_cursor_to_char(0)`
+- `fd2_display_dialog_scene(page=0)`
+- `chapter_init_phase_flag = 1`; `fd2_load_chapter_portraits_and_dump_tmp(race_id=1)`; `chapter_init_phase_flag = 0`
+- `fd2_pan_cursor_and_window(8, 1)` + `fd2_cutscene_event_trigger(0x1C)`
+- `fd2_pan_cursor_and_window(8, 0)` + `fd2_cutscene_event_trigger(0x1D)`
+- `fd2_display_dialog_scene(page=1)` + `fd2_pan_cursor_to_char(0)`
 
 `chapter_init_phase_flag` 在 portrait load 期間短暫升起（可能影響 dialog rendering）。
 
@@ -34,9 +34,9 @@
 
 ## char_id 初始化序列
 
-Init handler 內無 `init_runtime_char_from_base_growth` 呼叫。
+Init handler 內無 `fd2_init_runtime_char_from_base_growth` 呼叫。
 
-End handler 條件式 `init_runtime_char_from_base_growth(0xC)` → 凱麗加入（雙條件滿足時）。
+End handler 條件式 `fd2_init_runtime_char_from_base_growth(0xC)` → 凱麗加入（雙條件滿足時）。
 
 ## Cutscene events
 
@@ -44,22 +44,22 @@ End handler 條件式 `init_runtime_char_from_base_growth(0xC)` → 凱麗加入
 
 ## Post-action handler
 
-`data_fd2_chapter_post_action_handler_table[6]` 指向 `check_battle_end_default_handler`，
+`data_fd2_chapter_post_action_handler_table[6]` 指向 `fd2_check_battle_end_default_handler`，
 無自訂勝負條件。
 
 ## End handler events
 
-`chapter_07_end @ 0x000232E8` (222 B) — double-conditional recruit：
+`fd2_chapter_07_end @ 0x000232E8` (222 B) — double-conditional recruit：
 
 1. 從 `data_fd2_chapter_ch07_end_scene_char_pos_x_table` / `pos_y_table` / `facing_table`
    (@ 0x520E1/0x520EA/0x520F3) 讀 4 chars 位置
-2. `save_runtime_char_to_template`
+2. `fd2_save_runtime_char_to_template`
 3. **Conditional 1**：`tile_event_consumed_flags[0x11] == 1` (某 tile event 已觸發)
-   - 若是 → **Conditional 2**：`check_char_is_dead(0x2B)` (char 43)
-     - 若 char[43] 活著 → `setup_chars_and_camera_for_intro(...)` + `display_dialog_scene(page=4)` +
-       `init_runtime_char_from_base_growth(0xC)` — char 12 = 凱麗加入
-     - 若 char[43] 已死 → `display_dialog_scene(page=5)` (skip recruit)
-   - 若 `tile_event_consumed_flags[0x11] != 1` → `display_dialog_scene(page=5)`
+   - 若是 → **Conditional 2**：`fd2_check_char_is_dead(0x2B)` (char 43)
+     - 若 char[43] 活著 → `fd2_setup_chars_and_camera_for_intro(...)` + `fd2_display_dialog_scene(page=4)` +
+       `fd2_init_runtime_char_from_base_growth(0xC)` — char 12 = 凱麗加入
+     - 若 char[43] 已死 → `fd2_display_dialog_scene(page=5)` (skip recruit)
+   - 若 `tile_event_consumed_flags[0x11] != 1` → `fd2_display_dialog_scene(page=5)`
 4. `current_chapter_id += 1`
 
 雙重條件：必須觸發過特定 tile event AND 保住 char[43] 才會加入凱麗。

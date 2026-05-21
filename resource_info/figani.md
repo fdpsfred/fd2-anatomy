@@ -42,7 +42,7 @@ Total placeholder (3-byte): 144 entries (= 136 frame_c slots + 8 extra slot
 +payload                                    per-pose data
 ```
 
-per pose entry (per `step_figani_pose_animation @ 0x2B9A1`):
+per pose entry (per `fd2_step_figani_pose_animation @ 0x2B9A1`):
 
 - byte +4: type (1 = spell-cast frame，會觸發 `deduct_caster_mp` + flash)
 - byte +5: sfx_hook_id (0 = no sfx; non-0 = index into special_attack_sfx_bank)
@@ -74,20 +74,20 @@ A0 3D 00 00  pose_offset[3] = 0x3DA0 (15776)
 | `data_fd2_animation_spell_sfx_frame_table` | 0x51F75 | SFX 觸發 frame index |
 
 這三張 table 並非直接 index FIGANI，而是控制 `animate_spell_impact_per_target`
-內 per-spell sprite frame loop 的參數（FIGANI 載入由 `play_spell_cast_sequence`
+內 per-spell sprite frame loop 的參數（FIGANI 載入由 `fd2_play_spell_cast_sequence`
 等 cinematic function 動態做）。
 
 ## Caller 分布
 
 | Caller | 推測 idx 公式 |
 |---|---|
-| `execute_special_attack_skill` | caster_portrait × 3 + 0/1, target_portrait × 3 + 0/1 |
-| `execute_summon_spell_cast` | caster_portrait × 3 (basic) + spell_id-derived |
-| `play_full_combat_cinematic` | defender_portrait × 3, attacker_portrait × 3 |
-| `play_spell_cast_sequence` | char_portrait × 3 (caster), char_portrait × 3 + 2 (alt) |
-| `play_spell_cast_cinematic` | spell_id × 3 |
-| `play_figani_char_intro_animation` | figani_idx (caller-passed) |
-| `play_final_chapter_30_ending` | iVar6 (loop-based portrait sequence) |
+| `fd2_execute_special_attack_skill` | caster_portrait × 3 + 0/1, target_portrait × 3 + 0/1 |
+| `fd2_execute_summon_spell_cast` | caster_portrait × 3 (basic) + spell_id-derived |
+| `fd2_play_full_combat_cinematic` | defender_portrait × 3, attacker_portrait × 3 |
+| `fd2_play_spell_cast_sequence` | char_portrait × 3 (caster), char_portrait × 3 + 2 (alt) |
+| `fd2_play_spell_cast_cinematic` | spell_id × 3 |
+| `fd2_play_figani_char_intro_animation` | figani_idx (caller-passed) |
+| `fd2_play_final_chapter_30_ending` | iVar6 (loop-based portrait sequence) |
 
 ## 完整分類
 

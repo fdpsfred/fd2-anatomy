@@ -17,7 +17,7 @@ FD2.SAV 存檔、FD2.LE binary 本身，以及 Miles Sound System 用的 .MDI / 
 讀取 index `i` 的資源：start = offset[i]、end = offset[i+1]、size = end − start、
 內容 = file[start..end]。entry_count = N − 1（最後一個 u32 是 sentinel = file_size）。
 
-`load_dat_resource @ 0x111BA` 是統一 loader，演算法與 caller 細節見
+`fd2_load_dat_resource @ 0x111BA` 是統一 loader，演算法與 caller 細節見
 `program_info/resource.md`。
 
 ## 11 個 LLLLLL 資源檔
@@ -36,12 +36,12 @@ FD2.SAV 存檔、FD2.LE binary 本身，以及 Miles Sound System 用的 .MDI / 
 | TITLE.DAT | 23,377 | 7 | `title.md` | dead resource (FD2 從未載入) |
 | ANI.DAT | 2,437,547 | 9 | `ani.md` | 多 frame RLE delta 動畫序列 |
 
-走 `load_dat_resource` 的 9 個：FDTXT、FDOTHER、FDFIELD、FDSHAP、DATO、FDMUS、
+走 `fd2_load_dat_resource` 的 9 個：FDTXT、FDOTHER、FDFIELD、FDSHAP、DATO、FDMUS、
 FIGANI、BG、TAI。走獨立 fopen (但同 LLLLLL 格式) 的 2 個：TITLE、ANI。
 
 ## 非 LLLLLL 資源檔
 
-- **FDICON.B24** — 唯一非 LLLLLL，由 `crt_fopen_read` 直接讀。1680 個 24×24 8bpp
+- **FDICON.B24** — 唯一非 LLLLLL，由 `fopen` 直接讀。1680 個 24×24 8bpp
   RLE icon。詳 `fdicon.md`。
 - **FD2.SAV** — 22987-byte 存檔，header + map snapshot + runtime_char_array +
   4 個 slot snapshot + checksum。詳 `save_format.md`。
@@ -50,7 +50,7 @@ FIGANI、BG、TAI。走獨立 fopen (但同 LLLLLL 格式) 的 2 個：TITLE、A
 
 ## 與 program 端的對應
 
-每個 chapter 開戰前 `load_chapter_battle_data @ 0x1088D` 載入該章對應的：
+每個 chapter 開戰前 `fd2_load_chapter_battle_data @ 0x1088D` 載入該章對應的：
 - FDFIELD `chapter_id × 3 + 0` / `+1` / `+2` → tile_map / tile_event / portrait_load_buffer
 - FDSHAP `shap_id × 2 + 0` / `+1` → battle_scene_snapshot / tile_attribute_flags
   (其中 `shap_id = tile_event_data_table[0]`)

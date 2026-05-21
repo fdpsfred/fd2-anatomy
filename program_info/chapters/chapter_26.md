@@ -6,17 +6,17 @@ End handler 用 `tile_event_consumed_flags[0xC]` 動態決定 dialog page (5 條
 
 | 角色 | 位址 | 大小 |
 |---|---|---|
-| Init | `chapter_26_init @ 0x00033AAE` | 67 B |
-| End | `chapter_26_end @ 0x00024E80` | 466 B |
-| Post-action | `chapter_26_post_action @ 0x00020B3C` | default + lose if char[1] OR char[2] dead |
+| Init | `fd2_chapter_26_init @ 0x00033AAE` | 67 B |
+| End | `fd2_chapter_26_end @ 0x00024E80` | 466 B |
+| Post-action | `fd2_chapter_26_post_action @ 0x00020B3C` | default + lose if char[1] OR char[2] dead |
 | BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[25]` |  |
 | BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[25]` |  |
 
 ## Init handler 階段
 
-1. `init_battle_state_for_chapter`
-2. `pan_cursor_and_window(9, 0x27)` + `cutscene_event_trigger(0x4C)`
-3. `display_dialog_scene(page=0)` + `pan_cursor_to_char(0)`
+1. `fd2_init_battle_state_for_chapter`
+2. `fd2_pan_cursor_and_window(9, 0x27)` + `fd2_cutscene_event_trigger(0x4C)`
+3. `fd2_display_dialog_scene(page=0)` + `fd2_pan_cursor_to_char(0)`
 
 ## Dialog page 引用
 
@@ -30,7 +30,7 @@ End handler 用 `tile_event_consumed_flags[0xC]` 動態決定 dialog page (5 條
 
 ## char_id 初始化序列
 
-無 `init_runtime_char_from_base_growth` 呼叫；本章不在 init 或 end 直接加入新角色。
+無 `fd2_init_runtime_char_from_base_growth` 呼叫；本章不在 init 或 end 直接加入新角色。
 機器人渥德加入由 FDFIELD tile-step / dialog event 處理 (見 entry 26 dialog page 4)。
 
 ## Cutscene events
@@ -40,7 +40,7 @@ End handler 用 `tile_event_consumed_flags[0xC]` 動態決定 dialog page (5 條
 
 ## Post-action handler
 
-`chapter_26_post_action @ 0x00020B3C`：
+`fd2_chapter_26_post_action @ 0x00020B3C`：
 - 標準 default 判定（全敵死 = 勝、索爾死 = 負）
 - **額外 lose 條件**：if chars[1] (悠妮) OR chars[2] (亞奇梅吉) 死 → `game_event_flag = 1`
 
@@ -48,20 +48,20 @@ End handler 用 `tile_event_consumed_flags[0xC]` 動態決定 dialog page (5 條
 
 ## End handler events
 
-`chapter_26_end @ 0x00024E80` (466 B) — `tile_event_consumed_flags[0xC]` 動態 dialog page selection：
+`fd2_chapter_26_end @ 0x00024E80` (466 B) — `tile_event_consumed_flags[0xC]` 動態 dialog page selection：
 
 1. 從 `chapter_26_end_scene_pos_x/y/facing_table` 讀位置
 2. **Reposition NPCs**：迴圈 chars[0x10..party_member_count]，若 `bPortrait_id == 0x1F` → 設 bPos = (0x10, 6)
-3. `setup_chars_and_camera_for_intro(0xF, 0, 0, 0, 0, 9, 5)`
-4. **Dynamic page #1**：`page = tile_event_consumed_flags[0xC] + 5` → `display_dialog_scene(page = 5..9)`
-5. `cutscene_event_trigger(0x4D)`
-6. `display_dialog_scene(page=7)` (固定)
-7. `cutscene_event_trigger(0x4E)`
-8. **Dynamic page #2**：`page = tile_event_consumed_flags[0xC] + 8` → `display_dialog_scene(page = 8..12)`
-9. `cutscene_event_trigger(0x4F)`
-10. `display_dialog_scene(page=10)` + `cutscene_event_trigger(0x50)`
-11. `display_dialog_scene(page=11)`
-12. `save_runtime_char_to_template` + `current_chapter_id += 1`
+3. `fd2_setup_chars_and_camera_for_intro(0xF, 0, 0, 0, 0, 9, 5)`
+4. **Dynamic page #1**：`page = tile_event_consumed_flags[0xC] + 5` → `fd2_display_dialog_scene(page = 5..9)`
+5. `fd2_cutscene_event_trigger(0x4D)`
+6. `fd2_display_dialog_scene(page=7)` (固定)
+7. `fd2_cutscene_event_trigger(0x4E)`
+8. **Dynamic page #2**：`page = tile_event_consumed_flags[0xC] + 8` → `fd2_display_dialog_scene(page = 8..12)`
+9. `fd2_cutscene_event_trigger(0x4F)`
+10. `fd2_display_dialog_scene(page=10)` + `fd2_cutscene_event_trigger(0x50)`
+11. `fd2_display_dialog_scene(page=11)`
+12. `fd2_save_runtime_char_to_template` + `current_chapter_id += 1`
 
 flag 值與 dialog page 對應：
 

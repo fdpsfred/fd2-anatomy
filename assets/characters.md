@@ -30,7 +30,7 @@
 | 19 | 羅德曼 (0x13) | ch23_end (蜜蒂未在 + save_metadata<15) | 劍聖 |
 | 20 | 莎拉 (0x14)   | FDFIELD event (ch22) | 龍騎士 |
 | 21 | 約拿 (0x15)   | ch18_end | 聖者 |
-| 22 | 卡里斯 (0x16) | ch23_end (any_char_has_item(0x64=天空之鑰)) | 武聖 |
+| 22 | 卡里斯 (0x16) | ch23_end (fd2_any_char_has_item(0x64=天空之鑰)) | 武聖 |
 | 23 | 羅蘭 (0x17)   | ch21_end | 神射手 |
 | 24 | 希爾法 (0x18) | ch21_end | 祭師 |
 | 25 | 謝多 (0x19)   | ch20_end | 忍者 |

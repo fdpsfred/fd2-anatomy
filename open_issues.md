@@ -9,9 +9,9 @@
 
 - **現狀**：每 entry 已知 `+0x00..+0x03` 是 width/height (u16 LE × 2)，後續
   payload 是 opcode/payload 序列。具體 opcode 解碼未做。
-- **為什麼還沒解**：BG/TAI 配對載入後實際呈現的視覺由 `play_full_combat_cinematic`
-  / `execute_summon_spell_cast` 等 caller 控制，TAI 內容是輔助資料。
-- **解需要做什麼**：在 in-game 呈現時 trace `play_spell_cast_sequence` 內如何
+- **為什麼還沒解**：BG/TAI 配對載入後實際呈現的視覺由 `fd2_play_full_combat_cinematic`
+  / `fd2_execute_summon_spell_cast` 等 caller 控制，TAI 內容是輔助資料。
+- **解需要做什麼**：在 in-game 呈現時 trace `fd2_play_spell_cast_sequence` 內如何
   消費 TAI buffer，比對 byte stream 與 visual output。
 
 ### 4. FDOTHER nested sub-archive 的 sub-entry 用途
@@ -35,7 +35,7 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
   `frame_count`。其餘 `0..0xA4` 與 `0xA7..0xAC` 用途未明。
 - **解需要做什麼**：對 9 個 entries 統計各 byte 分布，對照 in-game 觀察推測
   metadata 含義 (e.g. palette index / loop flags / frame size)。
-- **Status:** data-only — `play_ani_file_animation_sequence @ 0x20421` 讀
+- **Status:** data-only — `fd2_play_ani_file_animation_sequence @ 0x20421` 讀
   全 0xAD header 但只用 `+0xA5..0xA6` (frame_count)，其餘 byte 無條件分支。
 
 ### 2. ANI.DAT per-frame metadata `+0x04..+0x07`
@@ -44,15 +44,15 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
   `+0x02..+0x03 decoded_size` 已解。`+0x04..+0x07` 4 bytes 用途待確認。
 - **解需要做什麼**：對多 frame 統計這 4 bytes 模式；可能是 timing override
   或 frame-specific palette。
-- **Status:** data-only — `play_ani_file_animation_sequence` 不讀 +0x04..+0x07，
+- **Status:** data-only — `fd2_play_ani_file_animation_sequence` 不讀 +0x04..+0x07，
   emission 不受影響。
 
 ### 5. FD2.SAV slot trailer `+0xA0A..+0xA28` (30 bytes)
 
 - **現狀**：每個 4-slot snapshot 結尾 30 bytes 未細分 sub-field。
-- **解需要做什麼**：trace `save_current_state_to_slot @ 0x30012` 寫入這段時
+- **解需要做什麼**：trace `fd2_save_current_state_to_slot @ 0x30012` 寫入這段時
   的 source globals。
-- **Status:** data-only — `save_current_state_to_slot @ 0x30012` 寫 0xA00
+- **Status:** data-only — `fd2_save_current_state_to_slot @ 0x30012` 寫 0xA00
   map + 9 個 scalar (gold/chapter/speed/sfx flags)，+0xA0A..0xA28 未被操作；
   存檔讀寫走 memcpy 整段保留，emission 不受影響。
 
@@ -62,8 +62,8 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
   的 animation/palette flag bits 已解 (`0x04` / `0x08` / `0x10`)。其餘 byte 未明。
 - **解需要做什麼**：對多章 tile_attribute_flags dump 後 cross-tile 比對；
   可能含 terrain_id / movement cost / passability。
-- **Status:** data-only — `composite_battle_tile_map @ 0x12247` 與
-  `read_tile_attribute_at_pos` 只讀 +0 byte 的 bit 0x04/0x08/0x10
+- **Status:** data-only — `fd2_composite_battle_tile_map @ 0x11eee` 與
+  `fd2_read_tile_attribute_at_pos @ 0x12e38` 只讀 +0 byte 的 bit 0x04/0x08/0x10
   (animation/palette flag)；+0/+1/+3 其他 byte 不做條件分支。
 
 ### 7. FIGANI per-pose metadata 細節
@@ -72,8 +72,8 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
   已解；`+7..` (sub-frame data 之前) 用途與 sub-frame 之間的 inter-frame timing
   未細究。
 - **解需要做什麼**：對 multiple poses 統計 byte 分布，trace
-  `step_figani_pose_animation @ 0x2B9A1` 詳細 state machine。
-- **Status:** data-only — `step_figani_pose_animation @ 0x2B9A1` 只讀 per-pose
+  `fd2_step_figani_pose_animation @ 0x2B9A1` 詳細 state machine。
+- **Status:** data-only — `fd2_step_figani_pose_animation @ 0x2B9A1` 只讀 per-pose
   +6 (sub_frame_count)，+7.. 未被讀取。
 
 ## 章節中未確認的機制
@@ -113,7 +113,7 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
 ### 13. runtime_char `+0x4E wStat4_current` 的真實語意
 
 - **現狀**：已知 `wStat4_current = DX_total + sum item.short@+7`，由
-  `recalculate_combat_stats` 寫入。但這個 stat 的遊戲意義 (魔抗 / 命中 / 迴避 /
+  `fd2_recalculate_combat_stats @ 0x1b750` 寫入。但這個 stat 的遊戲意義 (魔抗 / 命中 / 迴避 /
   其他) 未 emulator 驗證。
 - **解需要做什麼**：emulator 觀察戰鬥中此值如何影響擊中率 / 傷害計算。
 
@@ -269,7 +269,7 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
   透過 TAIL JMP 進入，Ghidra UNCONDITIONAL_CALL 是 display quirk；plate comment
   標 `DECOMPILER FRAGMENT — DO NOT DECLARE INDEPENDENTLY`，emit pipeline 跳過
 - ✅ ch9 `tile_event_consumed_flags[0x10]` 起始值 = 0 — 由
-  `init_battle_state_for_chapter @ 0x205DA` 的 `crt_memset(flags, 0, 0x20)` 清 0；
+  `fd2_init_battle_state_for_chapter @ 0x205DA` 的 `crt_memset(flags, 0, 0x20)` 清 0；
   handler_1F 從 race_id=0 遞增
 - ✅ pickup_kind=2 path — `process_battle_drop_entries` type 2 case 直接
   dispatch via `data_fd2_battle_ai_post_action_consequence_table[ushort_value]()`，不寫

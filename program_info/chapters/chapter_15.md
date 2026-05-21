@@ -6,32 +6,32 @@
 
 | 角色 | 位址 | 大小 |
 |---|---|---|
-| Init | `chapter_15_init @ 0x000334D9` | 199 B (首章帶 conditional dialog branch) |
-| End | `chapter_15_end @ 0x000239BD` | 77 B |
-| Post-action | `chapter_15_post_action @ 0x00020822` | (custom) |
+| Init | `fd2_chapter_15_init @ 0x000334D9` | 199 B (首章帶 conditional dialog branch) |
+| End | `fd2_chapter_15_end @ 0x000239BD` | 77 B |
+| Post-action | `fd2_chapter_15_post_action @ 0x00020822` | (custom) |
 | BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[14]` |  |
 | BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[14]` |  |
 
 ## Init handler 階段
 
-dialog page 索引依 `check_party_has_char_id(0xC)`（凱麗）決定：
+dialog page 索引依 `fd2_check_party_has_char_id(0xC)`（凱麗）決定：
 
 ```c
-uVar3 = check_party_has_char_id(0xC);  // 隊上是否有 char_id 12 (凱麗)?
+uVar3 = fd2_check_party_has_char_id(0xC);  // 隊上是否有 char_id 12 (凱麗)?
 bVar1 = (byte)uVar3 ^ 1;        // 反轉 (有 → 0、無 → 1)
 page_idx = (ushort)bVar1 * 3;   // (有 → 0、無 → 3)
-display_dialog_scene(page_idx);             // page 0 OR 3
-pan_cursor_and_window(0x18, 0x11);
-display_dialog_scene(page_idx + 1);         // page 1 OR 4
-cutscene_event_trigger(0x30);
-display_dialog_scene(page_idx + 2);         // page 2 OR 5
-pan_cursor_to_char(0);
+fd2_display_dialog_scene(page_idx);             // page 0 OR 3
+fd2_pan_cursor_and_window(0x18, 0x11);
+fd2_display_dialog_scene(page_idx + 1);         // page 1 OR 4
+fd2_cutscene_event_trigger(0x30);
+fd2_display_dialog_scene(page_idx + 2);         // page 2 OR 5
+fd2_pan_cursor_to_char(0);
 ```
 
 - 隊伍含凱麗 → dialog pages 0, 1, 2
 - 隊伍不含凱麗 → dialog pages 3, 4, 5
 
-`check_party_has_char_id` 檢查 `runtime_char[+0x8] = char_id_init`。
+`fd2_check_party_has_char_id` 檢查 `runtime_char[+0x8] = char_id_init`。
 
 ## Dialog page 引用
 
@@ -44,10 +44,10 @@ pan_cursor_to_char(0);
 
 ## char_id 初始化序列
 
-Init handler 內無 `init_runtime_char_from_base_growth` 呼叫。
+Init handler 內無 `fd2_init_runtime_char_from_base_growth` 呼叫。
 
 End handler 中：
-- `init_runtime_char_from_base_growth(0xF = 15)` — 賽可邦勒
+- `fd2_init_runtime_char_from_base_growth(0xF = 15)` — 賽可邦勒
 
 ## Cutscene events
 
@@ -55,7 +55,7 @@ End handler 中：
 
 ## Post-action handler
 
-`chapter_15_post_action @ 0x20822`：
+`fd2_chapter_15_post_action @ 0x20822`：
 
 - default 判定（全敵死 = win，索爾死 = lose）
 - 額外 lose 條件：char[0x40 = 64] 死亡
@@ -66,14 +66,14 @@ End handler 中：
 
 ## End handler events
 
-`chapter_15_end @ 0x239BD`（第二處 conditional dialog）：
+`fd2_chapter_15_end @ 0x239BD`（第二處 conditional dialog）：
 
 ```c
-uVar1 = check_party_has_char_id(0xC);                 // 隊上有凱麗?
+uVar1 = fd2_check_party_has_char_id(0xC);                 // 隊上有凱麗?
 page_idx = ((byte)uVar1 ^ 1) + 0xC;                   // 0xC if 凱麗 present, 0xD if not
-display_dialog_scene(page=page_idx);
-save_runtime_char_to_template;
-init_runtime_char_from_base_growth(0xF = 15);         // 賽可邦勒加入
+fd2_display_dialog_scene(page=page_idx);
+fd2_save_runtime_char_to_template;
+fd2_init_runtime_char_from_base_growth(0xF = 15);         // 賽可邦勒加入
 current_chapter_id += 1;
 ```
 

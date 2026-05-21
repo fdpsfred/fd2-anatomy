@@ -11,7 +11,7 @@
 
 ## 敵人配置
 
-FDFIELD.DAT[23]：古代機兵守衛，含機甲隊長 boss (char[0x12])。後段戰場由 end handler 中段 `load_dat_resource("FDFIELD.DAT", 0x45)` 載入新地圖。
+FDFIELD.DAT[23]：古代機兵守衛，含機甲隊長 boss (char[0x12])。後段戰場由 end handler 中段 `fd2_load_dat_resource("FDFIELD.DAT", 0x45)` 載入新地圖。
 
 ## 寶物
 

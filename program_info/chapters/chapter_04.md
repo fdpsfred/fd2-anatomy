@@ -6,20 +6,20 @@ End handler 為極小 (61 B) 的 trivial 結算 — 純對話 + 推進。
 
 | 角色 | 位址 | 大小 |
 |---|---|---|
-| Init | `chapter_04_init @ 0x00032FB2` | 181 B |
-| End | `chapter_04_end @ 0x000231BC` | 61 B |
-| Post-action | `check_battle_end_default_handler @ 0x000205B4` | (default) |
+| Init | `fd2_chapter_04_init @ 0x00032FB2` | 181 B |
+| End | `fd2_chapter_04_end @ 0x000231BC` | 61 B |
+| Post-action | `fd2_check_battle_end_default_handler @ 0x000205B4` | (default) |
 | BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[3]` |  |
 | BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[3]` |  |
 
 ## Init handler 階段
 
-`init_battle_state_for_chapter` 後依序：
+`fd2_init_battle_state_for_chapter` 後依序：
 
-- `pan_cursor_and_window(4, 0xB)`
-- `cutscene_event_trigger(0x14)` + `display_dialog_scene(page=0)`
-- `load_chapter_portraits_and_dump_tmp(race_id=1)` + `pan_cursor_and_window(4, 0)`
-- `display_dialog_scene(page=1)` + `pan_cursor_to_char(0)`
+- `fd2_pan_cursor_and_window(4, 0xB)`
+- `fd2_cutscene_event_trigger(0x14)` + `fd2_display_dialog_scene(page=0)`
+- `fd2_load_chapter_portraits_and_dump_tmp(race_id=1)` + `fd2_pan_cursor_and_window(4, 0)`
+- `fd2_display_dialog_scene(page=1)` + `fd2_pan_cursor_to_char(0)`
 
 ## Dialog page 引用
 
@@ -30,7 +30,7 @@ End handler 為極小 (61 B) 的 trivial 結算 — 純對話 + 推進。
 
 ## char_id 初始化序列
 
-無 `init_runtime_char_from_base_growth` 呼叫（init/end 皆無）。
+無 `fd2_init_runtime_char_from_base_growth` 呼叫（init/end 皆無）。
 
 ## Cutscene events
 
@@ -38,15 +38,15 @@ End handler 為極小 (61 B) 的 trivial 結算 — 純對話 + 推進。
 
 ## Post-action handler
 
-`data_fd2_chapter_post_action_handler_table[3]` 指向 `check_battle_end_default_handler`，
+`data_fd2_chapter_post_action_handler_table[3]` 指向 `fd2_check_battle_end_default_handler`，
 無自訂勝負條件。
 
 ## End handler events
 
-`chapter_04_end @ 0x000231BC` (61 B) — trivial：
+`fd2_chapter_04_end @ 0x000231BC` (61 B) — trivial：
 
-1. `display_dialog_scene(page=4)`
-2. `save_runtime_char_to_template`
+1. `fd2_display_dialog_scene(page=4)`
+2. `fd2_save_runtime_char_to_template`
 3. `current_chapter_id += 1`
 
 無 cutscene、無 reward、無加入。

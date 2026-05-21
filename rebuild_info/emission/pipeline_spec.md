@@ -1,6 +1,6 @@
 # Emit pipeline 規格
 
-emit pipeline 的目標：從 Ghidra 1342 個 function 的 decompiled state 產出 C
+emit pipeline 的目標：從 Ghidra 1361 個 function 的 decompiled state 產出 C
 source code，經 Open Watcom v2 重新 compile / link 出 byte-for-byte 等價的
 DOS executable（FD2.LE）。
 
@@ -14,12 +14,12 @@ binary 行為。
 
 | category            | emit_action         | 數量           | emit 策略                                                                                                       |
 | ------------------- | ------------------- | -------------- | --------------------------------------------------------------------------------------------------------------- |
-| `ail`             | `link_vendor_lib` | 422            | **不 emit**。Watcom AIL3DIG / AIL3MDI 靜態 library 直接 link，FD2 source 端只保留 `extern` declaration  |
-| `crt`             | `link_vendor_lib` | 194            | **不 emit**。Watcom v2 RTL 直接 link（lookup-resolved Watcom 真符號 + `PUBLIC_CRT_SYMBOLS`）            |
-| `crt`             | `emit_fd2_source` | 15             | **emit 為 C source**。涵蓋 15 個 `crt_equivalent_*`（Watcom CRT 行為等價但 byte 不 match 任一 lib obj） |
-| `fd2`             | `emit_fd2_source` | 632            | **emit 為 C source**。game logic / glue / dispatch / wrapper / dead code / 10 個 CRT-style primitive      |
+| `ail`             | `link_vendor_lib` | 428            | **不 emit**。Watcom AIL3DIG / AIL3MDI 靜態 library 直接 link，FD2 source 端只保留 `extern` declaration  |
+| `crt`             | `link_vendor_lib` | 201            | **不 emit**。Watcom v2 RTL 直接 link（193 個 lookup-resolved Watcom 真符號 + 8 個 fast-path `PUBLIC_CRT_SYMBOLS` 不在 lookup）          |
+| `crt`             | `emit_fd2_source` | 13             | **emit 為 C source**。涵蓋 13 個 `crt_equivalent_*`（Watcom CRT 行為等價但 byte 不 match 任一 lib obj） |
+| `fd2`             | `emit_fd2_source` | 640            | **emit 為 C source**。game logic / glue / dispatch / wrapper / dead code / 8 個 CRT-style primitive       |
 | `binary_artifact` | `skip_artifact`   | 79             | **不 emit**。Watcom v2 重 compile 自動生成 alignment NOP padding                                          |
-| **合計**      |                     | **1342** |                                                                                                                 |
+| **合計**      |                     | **1361** |                                                                                                                 |
 
 路由規則由 `tools/program_analysis/build_call_graph.py` 內 `categorise()` /
 `emit_action_for()` 機械決定（純看 name 前綴 + lookup 表）。emit pipeline
@@ -48,7 +48,7 @@ Watcom v2 編譯每個 `.obj` 時內部會 dedup string literals，但**不跨 `
 - 每個 fd2 `.obj` source 各自 emit 自己的字串 literal，不做 source-tree 全域 pool
 - vendor `.obj` 的多 copy 字串透過 `link_vendor` 自動帶入，FD2 source 不重新 declare
 
-FD2.LE 觀察到的 cross-`.obj` 多 copy 字串（D3 audit 確認）：
+FD2.LE 觀察到的 cross-`.obj` 多 copy 字串：
 
 | 字串                                         | 位址                        | 所在 `.obj`                                  |
 | -------------------------------------------- | --------------------------- | ---------------------------------------------- |
@@ -96,9 +96,8 @@ emit pipeline 必須：
 
 ### 規則 E-5: data type 與 caller-side 用法不一致時即時修正
 
-D3 audit 內若發現 Ghidra data type 與 caller 端實際語意不符（例如 string
-type 但 caller 端視為 writable buffer），**audit 過程內就地用 `apply_data_type`
-修正，不延後到後續 group**。已修正案例：
+當 Ghidra data type 與 caller 端實際語意不符（例如 string type 但 caller 端
+視為 writable buffer），須就地用 `apply_data_type` 修正。已修正案例：
 
 - `0x53698` — Ghidra 原 `string` size=8（"SAMPLE\0"），caller
   `AIL_internal_set_GTL_filename_prefix_inner` 證實是 128B writable buffer
@@ -107,9 +106,8 @@ type 但 caller 端視為 writable buffer），**audit 過程內就地用 `apply
 ### 規則 E-6: Boundary unification（多 stale items 合併為 single struct/array）
 
 當多個鄰接的 Ghidra-auto-split items 實際是 caller copy loop 取 single
-struct / array 時，audit 過程內用 `apply_data_type(addr, type, clear_existing=true)`
-unify boundary，把原本分散的 items 合併為 single semantic item。已修正案例
-（D6 audit）：
+struct / array 時，用 `apply_data_type(addr, type, clear_existing=true)`
+unify boundary，把原本分散的 items 合併為 single semantic item。已修正案例：
 
 - `0x526DA dword[4]` ← 合併自 `0x526D7 byte[5] tail` (truncated to byte[3]) +
   `0x526DC..0x526DD unmapped` + `0x526DE byte[4]` + `0x526E2 BYTE_ARRAY[8]`
@@ -129,17 +127,17 @@ unify boundary，把原本分散的 items 合併為 single semantic item。已�
 - `0x523E1 byte[7]` ← 合併自 `undefined4(0x523e1) + undefined2(0x523e5) + undefined1(0x523e7)` → `data_fd2_battle_summon_spell_8slot_visibility_table`
   (per-slot visibility mask 0/1, 跨 state 4/5 inverse gate)
 - `0x523E8 dword[7]` / `0x52404 int[7]` / `0x52420 int[8]` / `0x52440 int[8]` /
-  `0x52460 int[12]` / `0x524A8 int[10]` / `0x524D0 int[10]` ← 同類 D7 batch3 boundary
+  `0x52460 int[12]` / `0x524A8 int[10]` / `0x524D0 int[10]` ← 同類 boundary
   fix，全部是 summon-spell animation 系列 const tables 被 Ghidra 切成
   `undefined4 + undefined4 + byte[N-8]` 三段、各自還原為單一連續 array。
 - `0x524F8 int[5]` / `0x52511 int[10]` / `0x52539 byte[16]` / `0x5266B short[30]` /
   `0x526A7 byte[18]` / `0x5274E byte[5]` / `0x52840 byte[520]` (CRT FILE pool) /
   `0x5360C byte[128]` (AIL pan_volume LUT) / `0x53720 byte[80]` (AIL MIDI timbre
-  packet) ← D7 batch4 boundary fix，summon spell variant C/D/E offset tables +
+  packet) ← boundary fix，summon spell variant C/D/E offset tables +
   revive/promote cost table + class-change key item table + CRT FILE pool + AIL
   vendor data tables。同模式：Watcom emit const array → Ghidra split as
   `undefined4 + undefined4 + byte[tail]` → unify via `apply_data_type(type, clear=true)`.
-- `0x52659 byte[6]` ← D7 batch4 misclassification fix: 原 `typeB_portrait_id` (byte) +
+- `0x52659 byte[6]` ← misclassification fix: 原 `typeB_portrait_id` (byte) +
   `typeC_portrait_id` (byte) 各為單獨 byte，實際 caller 透過
   `(&typeB_portrait_id)[chapter_intro_menu_cursor_state]` 索引 6 byte 表 →
   `data_fd2_chapter_intro_menu_speaker_portrait_id_table`. 原 typeB/typeC
@@ -149,7 +147,7 @@ unify boundary，把原本分散的 items 合併為 single semantic item。已�
 #### Multi-field heterogeneous boundary split
 
 某些 Ghidra-auto-merged 大 lump 實際是多個**不同 type** 連續 field（非單一 array）。
-D7 batch4 觀察：
+已觀察案例：
 
 - `0x52760 byte[52]` ← split 為 `ushort target_width + uint dst_buf + uint src_buf + pointer[10] frame_dispatch_table + 2B trailing zeros` (ANI.DAT decoder state block) — 4 個獨立 field + dispatch table，必須 split。
 - `0x5266B byte[78]` ← split 為 `short[30] cost_table + byte[18] key_item_table` (two distinct access patterns: short indexed by `(job_id-1)*2`, byte indexed by `portrait_id + 0x3C`)。
@@ -157,7 +155,7 @@ D7 batch4 觀察：
 
 修復 SOP：apply 個別 type 到每個 sub-region (clear_existing=true 自第一個位址，後續 type apply 自動取代覆蓋)；plate 內標明 split 邊界。新 split-出來的 sub-items 在下個 worklist rebuild 時會自動被識別為新 defined data。
 
-D7 batch3 觀察：Watcom v2 emit `static const int arr[N] = {...};` 在 .object2
+已觀察模式：Watcom v2 emit `static const int arr[N] = {...};` 在 .object2
 .rodata 區段時，Ghidra auto-analyzer 看到頭兩個 dword 因配對寫入 stack copy
 loop (decomp 顯示為 dword copy `*piVar5 = *puVar4;`) 而 disassemble 為 dword，
 然後第 3 個 dword 起的 trailing bytes 因落在 anonymous byte 區被合併為單一
@@ -182,7 +180,7 @@ declaration；不為被消除的 sub-items emit 任何 source-level declaration�
 
 ### 規則 E-7a: LE FIXUP-only data refs from CRT ctor / init table
 
-D8 audit 發現一類「無直接 code xref，僅透過 CRT auto-init constructor table
+有一類「無直接 code xref，僅透過 CRT auto-init constructor table
 的 4-byte pointer entry 在 load time relocate」的 data items。典型例：
 
 - `data_crt_jmp_thunk_to_sys_init_387_emulator @ 0x3cbcc` — 5B `E9 disp32` JMP thunk → `__sys_init_387_emulator @ 0x45e36`；
@@ -204,7 +202,7 @@ D8 audit 發現一類「無直接 code xref，僅透過 CRT auto-init constructo
 
 ### 規則 E-7b: 387 emulator state init constants → link_vendor_lib
 
-D8 audit 識別出 Watcom 387 software emulator (`__int7 @ 0x49d98`) 的初始狀態
+Watcom 387 software emulator (`__int7 @ 0x49d98`) 的初始狀態
 常數，分散於 `.object1` 0x499fc..0x49a05 共 4 個 items（uint32 @+6c / uint32
 @+70 / uint16 @+74 + 1 個 174B 多 sub-table constant database @0x49a06）。
 __int7 在 INT 7 (Coprocessor-Not-Available) exception entry 把這些常數
@@ -220,7 +218,7 @@ runtime 不可達；emit 仍須完整保留以維持 byte-identical `.obj` size 
 
 ### 規則 E-7c: Ghidra immediate-vs-data xref false positive
 
-D8 audit 0x10000 verdict 案例：Ghidra 對 instruction immediate constant 與
+已觀察 case：Ghidra 對 instruction immediate constant 與
 .object1 base address 碰撞時，會把 immediate 誤分類為 [DATA] xref。例：
 
 - `ADD EAX, 0x10000` (16-bit wrap-around adjust)
@@ -244,8 +242,8 @@ emit pipeline 從 verdict 取 `actions=["rename_data"]` 即 (不依 xref count) 
 
 ### 規則 E-7d: Dangling LE-FIXUP-patched pointer storage（loader 寫 0 reader）
 
-D7 deferred re-verify 發現一類「LE FIXUP 表確有 source 記錄、但 binary 內 0
-function 讀取該 storage」的 data items。典型例：
+有一類「LE FIXUP 表確有 source 記錄、但 binary 內 0 function 讀取該 storage」
+的 data items。典型例：
 
 - `data_orphan_52a4d_dangling_ptr_to_open_files_list_head_final_unreachable_unknown @ 0x52A4D` (4B,
   unaligned) — LE FIXUP src 0x52A4D → trg 0x541AC (= `data_crt_open_files_list_head_ptr`
@@ -271,7 +269,7 @@ emit pipeline 規則：
 
 ### 規則 E-7e: Co-dead data + accessor chain（同一 .obj 內互引用但無外部 caller）
 
-D5 deferred re-verify 發現「data + 專屬 accessor function 互相 reference，整個 .obj
+有「data + 專屬 accessor function 互相 reference，整個 .obj
 無外部 caller」的死碼鏈結。典型例：
 
 - `data_orphan_6017d_303b_4b_prefix_plus_99x3byte_table_final_unreachable_unknown @ 0x6017D` (303B
@@ -294,8 +292,8 @@ emit pipeline 規則：
 
 ### 規則 E-7f: 大型 "blob orphan" 必須先做 internal LE FIXUP target probe
 
-D5 deferred re-verify 發現 `data_orphan_615fd_unknown_blob_1024b` (1024B, 標為
-orphan) 內部包含一個 LIVE pointer table + script pool 子區段：
+`data_orphan_615fd_unknown_blob_1024b` (1024B, 標為 orphan) 內部包含一個
+LIVE pointer table + script pool 子區段：
 
 - 0x615FD..0x61954 (856B): 真 orphan leading prefix（已標 final_unreachable_unknown）
 - 0x61955..0x619A8 (84B): `data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21`
@@ -347,12 +345,6 @@ exception，per Ghidra LE FIXUP analyzer 行為設計。
 合計 **12 個 pointer-array dispatch tables**。每個 array 的 base plate
 （透過 `set_decompiler_comment` PRE_COMMENT）末段須附「Audit naming convention
 for the N absorbed slots (known exception)」段落。
-
-> **歷史說明**：早期此規則限定為 9 個 array；2026-05-18 audit 發現 0x4AA34 /
-> 0x4ACD0 / 0x4B184 三個 inline jump table 雖有 base label 但 type 只 4B
-> `undefined *`，導致後續 7 個 entries 各自留下獨立 `fix_off32_*` data item。
-> 修正方法：對 base 套 `pointer[8]` (32B)，14 個 fix_off32_* leftover 全部
-> 被吸收進 array extent 消失於 list_data_items。
 
 #### 套 `pointer[N]` 對 list_data_items 與 symbol table 的影響
 
@@ -587,7 +579,7 @@ void fd2_play_palette_fade_to_black(int frame_arg) {
 
 void fd2_load_and_fade_in_cinematic_image(uint chapter_id, uint flag, uint frame_arg) {
     /* 載圖 setup */
-    set_vga_palette_range(...);
+    fd2_set_vga_palette_range(...);
     fd2_load_dat_resource(0x51a4d, 0x53a65, chapter_id);
     memset(0xa0000, 0xff, 0xfa00);
     fd2_play_ani_file_animation_sequence(...);
@@ -717,9 +709,9 @@ emit pipeline 完成後 re-link 出的 binary 必須滿足下列三層 invariant
 驗證手段：DOSBox-X silent mode 跑 scripted gameplay session（按既定 input
 scancode 序列），dump screen buffer / FD2.SAV / 觸發的 BGM track ID 與原版對比。
 
-### Layer 2: functionally-exact（emit_action = emit_fd2_source 全部 647 個 function）
+### Layer 2: functionally-exact（emit_action = emit_fd2_source 全部 653 個 function）
 
-對於這 647 個 emit-out-of-source 的 function（632 個 `fd2_*` + 15 個
+對於這 653 個 emit-out-of-source 的 function（640 個 `fd2_*` + 13 個
 `crt_equivalent_*`），每個 function 在「相同 input register / stack / memory
 state」下執行完，必須產出「相同的 return value / register state /
 寫入 memory 的 bytes」。
@@ -748,11 +740,11 @@ hash / checksum）跑 emulator 雙邊 trace（原 FD2.LE vs 重建版），對�
 
 範圍說明（依 emit_action 分組）：
 
-- **`link_vendor_lib` (616 個 = ail 422 + crt 內 lookup-resolved + PUBLIC_CRT_SYMBOLS 194)**：
+- **`link_vendor_lib` (629 個 = ail 428 + crt 內 lookup-resolved + PUBLIC_CRT_SYMBOLS 201)**：
   不適用 byte-exact；Layer 2 由 vendor lib 本身保證；只需要 Layer 1
 - **`skip_artifact` (79 個 binary_artifact)**: 不適用 byte-exact；Watcom v2
   重 compile 自動產生對應 alignment padding；只需要 Layer 1
-- **`emit_fd2_source` (647 個 = fd2 632 + crt_equivalent_* 15)**: 強制 Layer 2，
+- **`emit_fd2_source` (653 個 = fd2 640 + crt_equivalent_* 13)**: 強制 Layer 2，
   期望 Layer 3 但不強求
 
 ### 結構性不變式（與 binary 等價無關）

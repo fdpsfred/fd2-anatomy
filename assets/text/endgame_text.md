@@ -2,8 +2,8 @@
 
 最終結局時序內所引用的對話 entries：
 
-- entry 31 — `ch30_end load_chapter_battle_data(31)` 載入的 first epilogue
-  dialogue。`play_final_chapter_30_ending` 大量引用此 entry 的 page 0xC..0x2D
+- entry 31 — `ch30_end fd2_load_chapter_battle_data(31)` 載入的 first epilogue
+  dialogue。`fd2_play_final_chapter_30_ending` 大量引用此 entry 的 page 0xC..0x2D
   作為 per-character ending text，page 10/11/0x2C 為 narrator/description/title 框。
 - entry 32 — endgame extras (chapter_id=31)
 - entry 33 — endgame extras (chapter_id=32)
@@ -683,7 +683,7 @@ range [0x1a7ea, 0x1c24e), size 6756 bytes, 46 pages.
 
 range [0x1c24e, 0x1caea), size 2204 bytes, 11 pages — 推測為 staff roll 文字
 或 game-over fallback。未在 named handlers 中找到直接 callsite，可能由
-`play_game_ending_cinematic` 或未命名 chapter_event_handler 載入。
+`fd2_play_game_ending_cinematic` 或未命名 chapter_event_handler 載入。
 
 ### Pages
 

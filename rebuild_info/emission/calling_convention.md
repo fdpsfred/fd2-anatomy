@@ -3,7 +3,7 @@
 FD2.LE 是 **Open Watcom C++ 編譯**的 32-bit DOS LE executable。本檔案是 Watcom
 ABI 結論與規則參考，作為復刻 / 重新編譯時的 C signature 推導依據。
 
-1000 函式的 cc 已全部對齊 Watcom ABI，本檔末段含最終分布統計。
+1361 函式的 cc 已全部對齊 Watcom ABI，本檔末段含最終分布統計。
 
 ## Watcom 32-bit Register-Based ABI 摘要
 

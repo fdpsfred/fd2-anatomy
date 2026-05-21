@@ -6,23 +6,23 @@
 
 | 角色 | 位址 | 大小 |
 |---|---|---|
-| Init | `chapter_03_init @ 0x00032E8C` | 324 B |
-| End | `chapter_03_end @ 0x000230F2` | 214 B |
-| Post-action | `check_battle_end_default_handler @ 0x000205B4` | (default — 無自訂勝負) |
+| Init | `fd2_chapter_03_init @ 0x00032E8C` | 324 B |
+| End | `fd2_chapter_03_end @ 0x000230F2` | 214 B |
+| Post-action | `fd2_check_battle_end_default_handler @ 0x000205B4` | (default — 無自訂勝負) |
 | BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[2]` |  |
 | BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[2]` |  |
 
 ## Init handler 階段
 
-`init_battle_state_for_chapter` 進入正式戰鬥模式後，依序：
+`fd2_init_battle_state_for_chapter` 進入正式戰鬥模式後，依序：
 
-- `pan_cursor_and_window(3, 0x11)` 場景
-- `display_dialog_scene(page=0)`
-- `cutscene_event_trigger(0x12)` + `load_chapter_portraits_and_dump_tmp(race_id=1)`
-- `pan_cursor_and_window(3, 6)` + `cutscene_event_trigger(0x11)`
-- `display_dialog_scene(page=1)` + `cutscene_event_trigger(0x13)`
-- `display_dialog_scene(page=2)` + `pan_cursor_and_window(3, 0x11)`
-- `display_dialog_scene(page=3)` + `pan_cursor_to_char(0)`
+- `fd2_pan_cursor_and_window(3, 0x11)` 場景
+- `fd2_display_dialog_scene(page=0)`
+- `fd2_cutscene_event_trigger(0x12)` + `fd2_load_chapter_portraits_and_dump_tmp(race_id=1)`
+- `fd2_pan_cursor_and_window(3, 6)` + `fd2_cutscene_event_trigger(0x11)`
+- `fd2_display_dialog_scene(page=1)` + `fd2_cutscene_event_trigger(0x13)`
+- `fd2_display_dialog_scene(page=2)` + `fd2_pan_cursor_and_window(3, 0x11)`
+- `fd2_display_dialog_scene(page=3)` + `fd2_pan_cursor_to_char(0)`
 
 ## Dialog page 引用
 
@@ -34,9 +34,9 @@
 
 ## char_id 初始化序列
 
-Init handler 內無 `init_runtime_char_from_base_growth` 呼叫。
+Init handler 內無 `fd2_init_runtime_char_from_base_growth` 呼叫。
 
-End handler 條件式 `init_runtime_char_from_base_growth(2)` → 鐵諾加入（僅當 char[6] 存活）。
+End handler 條件式 `fd2_init_runtime_char_from_base_growth(2)` → 鐵諾加入（僅當 char[6] 存活）。
 
 ## Cutscene events
 
@@ -46,19 +46,19 @@ End handler 條件式 `init_runtime_char_from_base_growth(2)` → 鐵諾加入�
 
 ## Post-action handler
 
-`data_fd2_chapter_post_action_handler_table[2]` 指向 `check_battle_end_default_handler`，
+`data_fd2_chapter_post_action_handler_table[2]` 指向 `fd2_check_battle_end_default_handler`，
 無自訂勝負條件：所有 team-0 死 → win，索爾 (char_id 0) 死 → lose。
 
 ## End handler events
 
-`chapter_03_end @ 0x000230F2` (214 B)：
+`fd2_chapter_03_end @ 0x000230F2` (214 B)：
 
 1. 從 `data_fd2_chapter_ch03_end_scene_char_pos_x_table` / `pos_y_table` / `facing_table` (各 8 entries @ 0x520BD/0x520C4/0x520CB) 讀 4 entries → local recruit_block × 3
-2. `save_runtime_char_to_template`
-3. **Conditional**：`check_char_is_dead(6)`
-   - 若 char[6] 活著 → `setup_chars_and_camera_for_intro(...)` + `display_dialog_scene(page=7)` +
-     `init_runtime_char_from_base_growth(2)` — char 2 = 鐵諾加入
-   - 若 char[6] 已死 → `display_dialog_scene(page=6)` (skip recruit)
+2. `fd2_save_runtime_char_to_template`
+3. **Conditional**：`fd2_check_char_is_dead(6)`
+   - 若 char[6] 活著 → `fd2_setup_chars_and_camera_for_intro(...)` + `fd2_display_dialog_scene(page=7)` +
+     `fd2_init_runtime_char_from_base_growth(2)` — char 2 = 鐵諾加入
+   - 若 char[6] 已死 → `fd2_display_dialog_scene(page=6)` (skip recruit)
 4. `current_chapter_id += 1`
 
 ## FDFIELD event script

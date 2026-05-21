@@ -22,7 +22,7 @@ FDFIELD.DAT[28]：要塞防衛機甲部隊（多 wave）。
 
 - **Init 全清隊 20 chars + revive HP>0**：與 ch23 同設計但範圍更大（20 chars vs 16 chars）。HP=0 的角色不上場，但 ch28 不設 sprite facing。
 - **3× 重複 cutscene 0x55**：3 個並行 group 各執行一次同 walk-animation script，模擬多隊伍同時出場 cinematic。
-- **最小 end handler**（40 B）：僅 `display_dialog_scene(page=7)` + save + chapter_id +1。
+- **最小 end handler**（40 B）：僅 `fd2_display_dialog_scene(page=7)` + save + chapter_id +1。
 - **勝負條件**：default + chars[1] (悠妮) 死 = 負。
 - **藍色平台左側火焰 tile-step**：到達該 tile 時，FDFIELD tile-step handler rewrite turn-event hook table，使下回合敵 turn 觸發援軍 spawn。
 

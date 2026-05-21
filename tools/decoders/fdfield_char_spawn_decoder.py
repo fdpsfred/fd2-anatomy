@@ -8,7 +8,7 @@ Each tile_event entry layout:
     +0x53..+0x82 16 x 3-byte tile_pickup table (kind, param_lo, param_hi)
     +0x83..      char_spawn_records (x active_char_count, stride 0x1A)
 
-char_spawn_record (0x1A bytes; derived from init_runtime_char_for_battle @ 0x10C50):
+char_spawn_record (0x1A bytes; derived from fd2_init_runtime_char_for_battle @ 0x10C50):
     +0x00 bTeam              (0=enemy, 1=NPC, 2=player)
     +0x01 char_id            (<0x44 = player class; >=0x44 = enemy class)
     +0x02 ai_target_id

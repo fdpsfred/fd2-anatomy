@@ -1050,7 +1050,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=rename. obj=aa20ff98fe90_sqrt387.obj, lib_func=sqrt"
+      "notes": "byte-level match against aa20ff98fe90_sqrt387.obj (lib symbol sqrt)"
     },
     "0003c736": {
       "name": "IF@SQRT",
@@ -1159,7 +1159,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "sin/sincos public entry. 182-byte body contains alt entries at +0x15/+0x71/+0x7C/+0x83/+0x8A used by IF@COS/IF@TAN. Previously Ghidra split into 5 false-positive fragments; merged per byte-match.",
+      "notes": "sin/sincos public entry. 182-byte body contains alt entries at +0x15/+0x71/+0x7C/+0x83/+0x8A used by IF@COS/IF@TAN.",
       "source_libs": [
         {
           "version": "9.5",
@@ -1248,7 +1248,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=rename. obj=b70811dbd1b6_trig387.obj, lib_func=tan"
+      "notes": "byte-level match against b70811dbd1b6_trig387.obj (lib symbol tan)"
     },
     "0003c927": {
       "name": "L$1_rand_seed_ptr",
@@ -1357,7 +1357,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit byte-level match to lib symbol `__exit` (2026-05-10)",
+      "notes": "byte-level match to lib symbol `__exit`",
       "source_libs": [
         {
           "version": "9.5",
@@ -1393,7 +1393,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=splitter_setbody. obj=ec67ee7a9d15_cstart.obj, lib_func=__exit_with_msg",
+      "notes": "byte-level match against ec67ee7a9d15_cstart.obj (lib symbol __exit_with_msg)",
       "splitter_fragments": [
         "0003cbb6"
       ],
@@ -1938,7 +1938,7 @@
         "L$1"
       ],
       "score": 0.0,
-      "notes": "crt_audit byte-level match to lib symbol `__static_pre___fprtf` (2026-05-10)",
+      "notes": "byte-level match to lib symbol `__static_pre___fprtf`",
       "source_libs": [
         {
           "version": "9.5",
@@ -2540,7 +2540,7 @@
         }
       ],
       "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c",
-      "notes": "Watcom CRT delay calibration init helper. 42/46 byte_match against delay.obj LEDATA seg=_TEXT ofs=0; bytes [0x27..0x2A] are FIXUPP-resolved pointer to data_crt_delay_calibration_counter @ 0x541B0. PUBDEF in delay.obj precedes __delay (which is at offset 0x2E within the same .obj). Added 2026-05-17 — original byte_match pipeline missed this entry (possibly first-byte 0x53 PUSH EBX filtered out)."
+      "notes": "Watcom CRT delay calibration init helper. 42/46 byte_match against delay.obj LEDATA seg=_TEXT ofs=0; bytes [0x27..0x2A] are FIXUPP-resolved pointer to data_crt_delay_calibration_counter @ 0x541B0. PUBDEF in delay.obj precedes __delay (which is at offset 0x2E within the same .obj)."
     },
     "0003dccd": {
       "name": "__delay",
@@ -3132,7 +3132,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=rename. obj=532db80487ba_math87e.obj, lib_func=__math87_err"
+      "notes": "byte-level match against 532db80487ba_math87e.obj (lib symbol __math87_err)"
     },
     "00045d4b": {
       "name": "__CMain",
@@ -3238,7 +3238,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit byte-level match to lib symbol `__setEFGfmt` (2026-05-10)",
+      "notes": "byte-level match to lib symbol `__setEFGfmt`",
       "source_libs": [
         {
           "version": "9.5",
@@ -3294,7 +3294,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=splitter_create_new. obj=0a80153ccce8_dosinite.obj, lib_func=__sys_init_387_emulator",
+      "notes": "byte-level match against 0a80153ccce8_dosinite.obj (lib symbol __sys_init_387_emulator)",
       "alternate_shas": [
         "a0b79eb7629b_dosinite.obj"
       ],
@@ -3338,7 +3338,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=splitter_setbody. obj=0a80153ccce8_dosinite.obj, lib_func=__sys_fini_387_emulator",
+      "notes": "byte-level match against 0a80153ccce8_dosinite.obj (lib symbol __sys_fini_387_emulator)",
       "alternate_shas": [
         "a0b79eb7629b_dosinite.obj"
       ],
@@ -3459,7 +3459,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit byte-level match to lib symbol `_fpreset` (2026-05-10)",
+      "notes": "byte-level match to lib symbol `_fpreset`",
       "source_libs": [
         {
           "version": "9.5",
@@ -3620,7 +3620,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit byte-level match to lib symbol `__EINVAL` (2026-05-10)",
+      "notes": "byte-level match to lib symbol `__EINVAL`",
       "source_libs": [
         {
           "version": "9.5",
@@ -4008,7 +4008,7 @@
         }
       ],
       "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c",
-      "notes": "PUBLIC fcloseall in CLIB3S/ioexit.obj. Byte-match verified via wdis on aa0b826f7c04_ioexit.obj (2026-05-19): 11B wrapper PUSH 5 ; CALL L$1_ioexit_close_streams_with_mask ; ADD ESP,4 ; RET. Previously merged with L$1 helper (89B) by Ghidra auto-analyzer; split during K2 audit."
+      "notes": "PUBLIC fcloseall in CLIB3S/ioexit.obj. 11B wrapper: PUSH 5 ; CALL L$1_ioexit_close_streams_with_mask ; ADD ESP,4 ; RET."
     },
     "000469a5": {
       "name": "flushall",
@@ -4233,7 +4233,7 @@
       "verified": "byte_match_disputed",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit byte-level match to lib symbol `_Not_Enough_Memory` (2026-05-10) was a false positive: after immediate masking the PUSH/PUSH/JMP pattern is identical to nomem.obj, but actual PUSH-msg immediate 0x516cc points to \"Floating-point support not loaded\r\n\" (verified by Ghidra read_memory at 0x516cc). Re-identified 2026-05-14 as Watcom __FpAbort (FP-not-loaded abort thunk that tail-calls __exit_with_msg with exit_code=1 and the FP-error msg). Frozen lib `name` field retained but source_obj / source_libs no longer trustworthy for this entry — needs full lookup rebuild against fpabort.obj / null_fp.obj candidates from CLIB3S.",
+      "notes": "PUSH-msg immediate 0x516cc → \"Floating-point support not loaded\\r\\n\". Semantically Watcom __FpAbort thunk (tail-calls __exit_with_msg with exit_code=1). PUSH 1 / PUSH 0x516cc / JMP __exit_with_msg byte pattern matches both nomem.obj and fpabort.obj — frozen lib `name` field reflects nomem.obj byte-match, current_name reflects true semantic. source_obj / source_libs not authoritative for this entry; needs lookup rebuild against fpabort.obj / null_fp.obj candidates from CLIB3S.",
       "source_libs": [
         {
           "version": "9.5",
@@ -4790,7 +4790,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=rename. obj=adf8cd710dd5_math2err.obj, lib_func=__math1err"
+      "notes": "byte-level match against adf8cd710dd5_math2err.obj (lib symbol __math1err)"
     },
     "0004968a": {
       "name": "__math2err",
@@ -4823,7 +4823,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=rename. obj=adf8cd710dd5_math2err.obj, lib_func=__math2err"
+      "notes": "byte-level match against adf8cd710dd5_math2err.obj (lib symbol __math2err)"
     },
     "0004977d": {
       "name": "__CommonInit",
@@ -4920,7 +4920,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=rename. obj=b0e463be2159_cnvs2d.obj, lib_func=__cnvs2d"
+      "notes": "byte-level match against b0e463be2159_cnvs2d.obj (lib symbol __cnvs2d)"
     },
     "000498d6": {
       "name": "__hook387",
@@ -5136,7 +5136,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=rename. obj=f3c15156dffb__matherr.obj, lib_func=_matherr"
+      "notes": "byte-level match against f3c15156dffb__matherr.obj (lib symbol _matherr)"
     },
     "0004cd73": {
       "name": "_SetMaxPrec",
@@ -5189,7 +5189,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=splitter_setbody. obj=a95bc9fb1bf2_ftos.obj, lib_func=_SetMaxPrec",
+      "notes": "byte-level match against a95bc9fb1bf2_ftos.obj (lib symbol _SetMaxPrec)",
       "alternate_shas": [
         "0cb4b1d0e3ef_ftos.obj",
         "96ab1a4c68d4_ftos.obj",
@@ -5224,7 +5224,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=rename. obj=f534ecb54a35_ftos.obj, lib_func=_FtoS"
+      "notes": "byte-level match against f534ecb54a35_ftos.obj (lib symbol _FtoS)"
     },
     "0004d306": {
       "name": "_dos_setvect",
@@ -5293,7 +5293,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit byte-level match to lib symbol `__set_EDOM` (2026-05-10)",
+      "notes": "byte-level match to lib symbol `__set_EDOM`",
       "source_libs": [
         {
           "version": "9.5",
@@ -5448,7 +5448,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=rename. obj=6de6ff4cc6b8_nan_inf.obj, lib_func=__Nan_Inf"
+      "notes": "byte-level match against 6de6ff4cc6b8_nan_inf.obj (lib symbol __Nan_Inf)"
     },
     "0004d450": {
       "name": "fabs",
@@ -5646,7 +5646,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=rename. obj=d9a05561b4f2_log387.obj, lib_func=log10"
+      "notes": "byte-level match against d9a05561b4f2_log387.obj (lib symbol log10)"
     },
     "0004d4f1": {
       "name": "_Scale",
@@ -5679,7 +5679,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=rename. obj=ab3b63c7c67c_scale.obj, lib_func=_Scale"
+      "notes": "byte-level match against ab3b63c7c67c_scale.obj (lib symbol _Scale)"
     },
     "0004d53c": {
       "name": "_Scale10V",
@@ -5712,7 +5712,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=rename. obj=ab3b63c7c67c_scale.obj, lib_func=_Scale10V"
+      "notes": "byte-level match against ab3b63c7c67c_scale.obj (lib symbol _Scale10V)"
     },
     "0004d616": {
       "name": "__cvt",
@@ -5730,7 +5730,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=rename. obj=5e6dafa551e3_cvt.obj, lib_func=__cvt"
+      "notes": "byte-level match against 5e6dafa551e3_cvt.obj (lib symbol __cvt)"
     },
     "0004d84c": {
       "name": "__ZBuf2F",
@@ -5785,7 +5785,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=rename. obj=e8a3e61d00b6_log87e.obj, lib_func=__log87_err"
+      "notes": "byte-level match against e8a3e61d00b6_log87e.obj (lib symbol __log87_err)"
     },
     "0004d93c": {
       "name": "__CmpBigInt",
@@ -5878,7 +5878,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=rename. obj=a0b712117bdb_i64tos.obj, lib_func=__CmpBigInt"
+      "notes": "byte-level match against a0b712117bdb_i64tos.obj (lib symbol __CmpBigInt)"
     },
     "0004d976": {
       "name": "__Rnd2Int",
@@ -5971,7 +5971,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=rename. obj=a0b712117bdb_i64tos.obj, lib_func=__Rnd2Int"
+      "notes": "byte-level match against a0b712117bdb_i64tos.obj (lib symbol __Rnd2Int)"
     },
     "0004d9e1": {
       "name": "__Bin2String",
@@ -6064,7 +6064,7 @@
         }
       ],
       "source_summary": "MATH387R:9.5+9.5a+9.5b+9.5c, MATH387S:9.5+9.5a+9.5b+9.5c, MATH3R:9.5+9.5a+9.5b+9.5c, MATH3S:9.5+9.5a+9.5b+9.5c",
-      "notes": "Watcom CRT 64-bit binary->ASCII decimal converter. 297B byte-EXACT match (0 fixups, fully position-independent). Sibling PUBDEFs in same .obj: __Rnd2Int (107B) at 0x4D976, __CmpBigInt (58B). Body spans 0x4D9E1..0x4DB09 but Ghidra erroneously split into 3 functions (0x4D9E1 entry / 0x4DA53 internal CALL stub / 0x4DB08 POP EDI;RET trampoline) plus the inline pow10 table at 0x4DA58 (179B of u64 powers reached via CALL/POP EDI getip idiom). Discovered 2026-05-18 during crt_equivalent_* byte_match audit."
+      "notes": "Watcom CRT 64-bit binary->ASCII decimal converter. 297B byte-EXACT match (0 fixups, fully position-independent). Sibling PUBDEFs in same .obj: __Rnd2Int (107B) at 0x4D976, __CmpBigInt (58B). Body spans 0x4D9E1..0x4DB09; Ghidra splits into 3 functions (0x4D9E1 entry / 0x4DA53 internal CALL stub L_Bin2String_alt_72_getip_call / 0x4DB08 POP EDI;RET trampoline L_Bin2String_alt_127_getip_landing) plus inline pow10 table at 0x4DA58 (179B of u64 powers reached via CALL/POP EDI getip idiom)."
     },
     "0004db0a": {
       "name": "frexp",
@@ -6097,7 +6097,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=rename. obj=3bf50f39eafd_frexp.obj, lib_func=frexp"
+      "notes": "byte-level match against 3bf50f39eafd_frexp.obj (lib symbol frexp)"
     },
     "0004db64": {
       "name": "modf",
@@ -6130,7 +6130,7 @@
       "verified": "byte_match",
       "aliases": [],
       "score": 0.0,
-      "notes": "crt_audit_v2 byte-level match. action=rename. obj=3ede649993e4_modf387.obj, lib_func=modf"
+      "notes": "byte-level match against 3ede649993e4_modf387.obj (lib symbol modf)"
     },
     "00046957": {
       "name": "L$1_ioexit_close_streams_with_mask",
@@ -6142,7 +6142,7 @@
         "L$1"
       ],
       "score": 0.0,
-      "notes": "PRIVATE L$1 helper in CLIB3S/ioexit.obj, 78B. Byte-match verified via wdis on aa0b826f7c04_ioexit.obj (2026-05-19). Shared close-streams-with-mask helper called by fcloseall(5) and __full_io_exit(0). Algorithm: iterates data_crt_open_files_list_head_ptr; protects first n_protected_stdio slots in static FILE pool at data_crt_fopen_static_file_pool_20entries; closes the rest via __shutdown_stream.",
+      "notes": "PRIVATE L$1 helper in CLIB3S/ioexit.obj, 78B. Shared close-streams-with-mask helper called by fcloseall(5) and __full_io_exit(0). Algorithm: iterates data_crt_open_files_list_head_ptr; protects first n_protected_stdio slots in static FILE pool at data_crt_fopen_static_file_pool_20entries; closes the rest via __shutdown_stream.",
       "source_libs": [
         {
           "version": "9.5",

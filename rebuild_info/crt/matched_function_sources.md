@@ -3,7 +3,7 @@
 Each row maps a FD2.LE function address to the Watcom 9.5 lib that
 contains the matching obj. Generated from `rebuild_info/crt/lookup_9.5a.json` (read field `source_libs`).
 
-Total entries: **192**
+Total entries: **193**
 
 | FD2 addr | lib symbol | body | verified | source obj | source lib(s) / versions |
 |---|---|---:|---|---|---|
@@ -135,7 +135,8 @@ Total entries: **192**
 | `0x0004657b` | `_DoINTR_` | 893 | auto_threshold | `168bb609d2af_int386xa.obj` | CLIB3S:9.5+9.5a+9.5b+9.5c |
 | `0x000468f8` | `__InitFiles` | 69 | auto_threshold | `912c4d366640_initfile.obj` | CLIB3S:9.5a+9.5b+9.5c |
 | `0x0004693d` | `__full_io_exit` | 15 | manual | `aa0b826f7c04_ioexit.obj` | CLIB3S:9.5+9.5a+9.5b+9.5c |
-| `0x0004694c` | `fcloseall` | 89 | manual | `aa0b826f7c04_ioexit.obj` | CLIB3S:9.5+9.5a+9.5b+9.5c |
+| `0x0004694c` | `fcloseall` | 11 | byte_match | `aa0b826f7c04_ioexit.obj` | CLIB3S:9.5+9.5a+9.5b+9.5c |
+| `0x00046957` | `L$1_ioexit_close_streams_with_mask` | 78 | byte_match | `aa0b826f7c04_ioexit.obj` | CLIB3S:9.5+9.5a+9.5b+9.5c |
 | `0x000469a5` | `flushall` | 11 | byte_match | `d8d0c9de78e5_flushall.obj` | CLIB3S:9.5+9.5a+9.5b+9.5c |
 | `0x000469b0` | `__flushall` | 56 | auto_threshold | `d8d0c9de78e5_flushall.obj` | CLIB3S:9.5+9.5a+9.5b+9.5c |
 | `0x000469e8` | `getche` | 27 | auto_threshold | `3dc313a87fa1_getche.obj` | CLIB3S:9.5+9.5a+9.5b+9.5c |

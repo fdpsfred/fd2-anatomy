@@ -21,14 +21,14 @@ init 階段以 7× cinematic warp 將魔神群傳送進場（4 個上方 + 3 個
 
 ## 特殊機制
 
-- **Init 7× cinematic warp 進場**：`cinematic_warp_char_to_tile` 把 7 個魔神 / boss 從不同方向傳送到戰場（4 個上方 group：char 0x15/0x16/0x17/0x18；3 個下方 group：char 0x18/0x19/0x1A），中間穿插 `animate_palette_flash_pulse_white` 全螢幕白光閃爍。
+- **Init 7× cinematic warp 進場**：`fd2_cinematic_warp_char_to_tile` 把 7 個魔神 / boss 從不同方向傳送到戰場（4 個上方 group：char 0x15/0x16/0x17/0x18；3 個下方 group：char 0x18/0x19/0x1A），中間穿插 `fd2_animate_palette_flash_pulse_white` 全螢幕白光閃爍。
 - **GOOD ENDING 路徑**：擊殺空魔神 (chars[0x14]) → post_action 設 `game_event_flag = 2` → end handler 執行：
   - cast spell visual + palette fade
   - 推進 `current_chapter_id` 到 31 (out-of-range)
-  - `load_chapter_battle_data(31)` 載入 epilogue map (FDFIELD.DAT entry 30, 0-indexed)
+  - `fd2_load_chapter_battle_data(31)` 載入 epilogue map (FDFIELD.DAT entry 30, 0-indexed)
   - 64-step palette fade-in + 40 frame composite
   - 引用 epilogue dialog page 0/1（屬「chapter 31」FDTXT entry，包含悠妮的真相說明與道別）
-  - `play_game_ending_cinematic` 觸發 staff roll
+  - `fd2_play_game_ending_cinematic` 觸發 staff roll
   - infinite loop 結束於此
 - **Speedrun 支援**：post_action 對 chars[0x14] 死亡判定不依賴回合數，任何 turn 殺空魔神都直接觸發 win 路徑（攻略「以下為在第一回合便殺掉空魔神的方式」對應此設計）。
 - **勝負條件**：
@@ -590,4 +590,4 @@ init 階段以 7× cinematic warp 將魔神群傳送進場（4 個上方 + 3 個
 
 ### Epilogue (chapter 31 entry, page 0)
 
-End handler 推進 `current_chapter_id` 到 31 後 `load_chapter_battle_data(31)` 載入 chapter 31 dialog entry，引用其 page 0 與 page 1（內容為 staff roll 前的最終道別場景，未在 FDTXT entry 30 範圍內）。
+End handler 推進 `current_chapter_id` 到 31 後 `fd2_load_chapter_battle_data(31)` 載入 chapter 31 dialog entry，引用其 page 0 與 page 1（內容為 staff roll 前的最終道別場景，未在 FDTXT entry 30 範圍內）。

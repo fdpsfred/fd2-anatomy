@@ -14,7 +14,7 @@ Watcom v2 CRT 在 FD2.LE 內的符號 inventory、與重建 EXTDEF 對照。
 ## Lookup 資料
 
 - `lookup_9.5a.json` — 行為驗證後的 address ↔ Watcom CRT symbol 對照表
-  （186 entries）。`by_address` / `by_name` 雙向索引，`source_libs` 欄位記錄
+  （193 entries）。`by_address` / `by_name` 雙向索引，`source_libs` 欄位記錄
   每個 obj 在 Watcom 9.5/9.5a/9.5b/9.5c × 各 lib 的 appearances；命名規則為
   「lookup `name` 與 Ghidra function 名 byte-identical」
 - `matched_function_sources.md` — 每個 lookup entry 的 source 版本/lib 對照

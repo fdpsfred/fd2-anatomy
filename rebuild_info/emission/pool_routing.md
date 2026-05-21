@@ -1,34 +1,35 @@
 # pool routing
 
-FD2.LE 全 1342 個 function 依 **四 pool + 兩維度** 分類（命名規範強制由
+FD2.LE 全 1361 個 function 依 **四 pool + 兩維度** 分類（命名規範強制由
 `tools/program_analysis/build_call_graph.py` 的 `categorise()` /
 `emit_action_for()` 推導）：
 
 | pool (category) | 命名前綴 | 數量 | emit_action |
 |---|---|---|---|
-| `ail` | `AIL_*` | 422 | `link_vendor_lib` |
-| `crt` | `crt_equivalent_*` / `crt_*` / `L$*` / lookup-resolved name / `PUBLIC_CRT_SYMBOLS` | 209 | `link_vendor_lib`（lookup-resolved + PUBLIC_CRT_SYMBOLS）或 `emit_fd2_source`（`crt_equivalent_*` 與 FD2 自寫 `crt_*` wrapper） |
-| `fd2` | `fd2_*` | 632 | `emit_fd2_source` |
+| `ail` | `AIL_*` | 428 | `link_vendor_lib` |
+| `crt` | `crt_equivalent_*` / `crt_*` / `L$*` / Watcom natural name (`cos`/`fopen`/...) / lookup-resolved / `PUBLIC_CRT_SYMBOLS` | 214 | `link_vendor_lib`（lookup-resolved + PUBLIC_CRT_SYMBOLS）或 `emit_fd2_source`（`crt_equivalent_*`） |
+| `fd2` | `fd2_*` | 640 | `emit_fd2_source` |
 | `binary_artifact` | `binary_artifact_*` | 79 | `skip_artifact` |
-| **小計** |  | **1342** |  |
+| **小計** |  | **1361** |  |
 
 emit_action 對應 wlink / Watcom v2 recompile pipeline 的處理：
 
-- `link_vendor_lib` (616) — wlink 從 Miles AIL static lib 或 Watcom v2 RTL
-  直接解析，FD2 source 端只保留 `extern` declaration
-- `emit_fd2_source` (647) — FD2 source 端 emit C function。涵蓋全部
-  `fd2_*` + 15 個 `crt_equivalent_*` + FD2 自寫 `crt_*` wrapper / helper
+- `link_vendor_lib` — wlink 從 Miles AIL static lib 或 Watcom v2 RTL
+  直接解析（ail 全部 + crt 內 lookup-resolved + PUBLIC_CRT_SYMBOLS），
+  FD2 source 端只保留 `extern` declaration
+- `emit_fd2_source` — FD2 source 端 emit C function。涵蓋全部
+  `fd2_*` + 13 個 `crt_equivalent_*`
 - `skip_artifact` (79) — Watcom v2 重 compile 自動生成 alignment padding，
   FD2 source 不需要寫
 
 四 pool 的具體分布：
 
-1. **AIL pool** (`AIL_*`, 422 個) — Miles AIL3DIG / AIL3MDI audio static lib
+1. **AIL pool** (`AIL_*`, 428 個) — Miles AIL3DIG / AIL3MDI audio static lib
    的 mixer / sequencer / driver wrapper / ISR helper / DPMI thunk。全部走
    `link_vendor_lib`，FD2 source 不需重寫。
-2. **CRT pool** (`crt_*` / `crt_equivalent_*` / `L$*` / lookup / PUBLIC_CRT_SYMBOLS,
-   209 個) — Watcom v2 C runtime：
-   - 190 個 lookup-resolved Watcom 真符號（`malloc` / `free` / `fread` /
+2. **CRT pool** (`crt_equivalent_*` / `L$*` / Watcom natural name / lookup / PUBLIC_CRT_SYMBOLS,
+   214 個) — Watcom v2 C runtime：
+   - 193 個 lookup-resolved Watcom 真符號（`malloc` / `free` / `fread` /
      `fwrite` / `memset` / `memmove` / `strcpy` 等公開符號 + Watcom near-pointer
      內部 `_nmalloc` / `_nfree` + Watcom hidden `__filbuf` / `__get_errno_ptr` /
      `__sys_init/fini_387_emulator` / `_SetMaxPrec` / `_set_matherr` +
@@ -38,15 +39,14 @@ emit_action 對應 wlink / Watcom v2 recompile pipeline 的處理：
      `__set_errno` + `__FPE_exception_` / `flushall` + Watcom 387 helper
      `__CHP` / `__GETDS` / `fabs`；本 binary 的 `fopen` 入口走 FD2 wrapper
      `fopen` lookup-resolved at 0x36FCC（FD2 hardcoded "rb" 用 wrapper），無另外的公開 wrapper 符號）
-   - 54 個 `PUBLIC_CRT_SYMBOLS` (hard-coded set 在 `build_call_graph.py`，用於
+   - 56 個 `PUBLIC_CRT_SYMBOLS` (hard-coded set 在 `build_call_graph.py`，用於
      Ghidra 已還原 Watcom 公開符號但未進 lookup 的 fast-path：`malloc` / `free` /
      `fread` / `fwrite` / `sprintf` / `vfprintf` 等)
-   - 15 個 `crt_equivalent_*` — 行為等價 Watcom CRT 但 byte 不 match 任一 lib obj：
+   - 13 個 `crt_equivalent_*` — 行為等價 Watcom CRT 但 byte 不 match 任一 lib obj：
      `entry_start` / `dos_main_bootstrap` (cstart pair)、`get_eflags` /
      `get_eflags_thunk` (`_disable` primitive)、LX module loader chain
      (`lx_header_reader_36344` / `lx_module_loader_3647b` / `lx_chunk_read_36107`)、
-     softfp 殘留 (`getip_4da53` / `uint64_to_decimal_ascii_4d9e1` /
-     `getip_body_4db08`)、Watcom CRT exit chain / FPE default /
+     softfp (`softfp_tan_worker_4c630`)、Watcom CRT exit chain / FPE default /
      linker padding / matherr default 系列 stub
      (`exit_chain_stub_36de3` / `fpe_default_handler_3d26e` /
      `linker_padding_4cbce` / `matherr_default_thunk_4d340` /
@@ -54,14 +54,14 @@ emit_action 對應 wlink / Watcom v2 recompile pipeline 的處理：
    - 上述 lookup 真符號 + PUBLIC_CRT_SYMBOLS 涵蓋 Watcom CRT 提供的全部 FD2.LE
      使用的 RTL 函式（softfp / format / fopen / heap / dpmi / init / time /
      errno / signal / stream I/O / math 系列）。當前 Ghidra 內 `crt_*` 前綴
-     **僅剩 `crt_equivalent_*` (15 個)**；其餘 CRT-style 函式都已歸 lookup 真名
+     **僅剩 `crt_equivalent_*` (13 個)**；其餘 CRT-style 函式都已歸 lookup 真名
      （以 Watcom 9.5a CRT 公開或 hidden symbol 命名）。
-3. **FD2 pool** (`fd2_*`, 632 個) — FD2 工程師自寫的 game logic / glue / dispatch /
+3. **FD2 pool** (`fd2_*`, 640 個) — FD2 工程師自寫的 game logic / glue / dispatch /
    wrapper / dead code。涵蓋：載 / 存檔、章節 init/end/post_action handler、
    spell handler、戰鬥流程、AI 控制、地圖渲染、portrait / sprite blit、
    FDFIELD / FDSHAP / FDOTHER / FDTXT 資源解碼、cursor / menu、chapter
    event handler、SHARED EPILOGUE / TAIL JMP THUNK stub (`fd2_noop_stub_*`)、
-   6 個 DPMI region/size primitive (`fd2_dpmi_*`)、3 個 FD2 global accessor、`fd2_main`。
+   6 個 DPMI region/size primitive (`fd2_dpmi_*`)、2 個 FD2 global accessor、`fd2_main`。
 4. **binary_artifact pool** (`binary_artifact_*`, 79 個) — Watcom v2 compiler
    在 function 之間插入的多位元組 NOP padding (`LEA EAX,[EAX]` / `MOV EDX,EDX`
    等)，建為 Function entity 但 0 caller、永不執行。詳見下文「binary_artifact

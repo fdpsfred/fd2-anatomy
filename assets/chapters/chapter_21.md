@@ -26,13 +26,13 @@
 End handler 對隊伍進行雙重迴圈，計算「持有 item 0xD1..0xD6 任一物品」的 char 數。若 6 件全齊：
 
 1. 移除全部 6 件 item
-2. 透過 give_item_to_first_player_char(100) 發放 item 100 = **天空之鑰**
+2. 透過 fd2_give_item_to_first_player_char(100) 發放 item 100 = **天空之鑰**
 3. 走 dialog page 7/8/9 + cutscene 0x3F/0x40 + 特殊 cinematic + dialog page 10
 
 天空之鑰 (item 100) 由 ch21 自動兌換，是 FD2 隱藏機制的核心。對後續章節影響：
 
-- **第 23 章**：若持有天空之鑰，武聖卡里斯加入 (chapter_23_end 內 ny_char_has_item(100) 觸發)。
-- **第 27 章**：init 條件 dialog page 3、end handler GOOD/BAD path 分支均依 ny_char_has_item(100) 判定；若 BAD path，悠妮會獨自回到黃金城。
+- **第 23 章**：若持有天空之鑰，武聖卡里斯加入 (fd2_chapter_23_end 內 fd2_any_char_has_item(100) 觸發)。
+- **第 27 章**：init 條件 dialog page 3、end handler GOOD/BAD path 分支均依 fd2_any_char_has_item(100) 判定；若 BAD path，悠妮會獨自回到黃金城。
 
 未收齊 6 件則走標準 dialog page 6，希爾法與羅蘭仍會無條件加入但不發給天空之鑰。
 

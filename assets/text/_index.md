@@ -5,7 +5,7 @@
 ## 檔案
 
 - `global_text.md` — entry 0 全遊戲共用對話庫 (661 pages)。`SUB_DIALOG_A` /
-  `SUB_DIALOG_B` opcode 從 chapter dialogs 遞迴到此；`play_final_chapter_30_ending`
+  `SUB_DIALOG_B` opcode 從 chapter dialogs 遞迴到此；`fd2_play_final_chapter_30_ending`
   用 `char.identity+1` (角色名) 與 `char.bJob_id+0x96` (職業名) 動態 page 索引
   拿系統文字。
 - `endgame_text.md` — entry 31..33 結局文字。entry 31 是 first epilogue dialogue

@@ -9,11 +9,11 @@ code-size 最佳化或 debug build artifact。
 
 | 位址 | 名稱 | 回傳 | Entry size | Entry count |
 |---|---|---|---|---|
-| `0x0004E4A2` | `get_spell_learning_entry` | `&data_fd2_battle_spell_learning_table[idx]` | 12 B | 20 |
-| `0x0004E4D1` | `get_char_growth_entry` | `&data_fd2_battle_character_growth_table[idx]` | 11 B | 68 |
-| `0x0004E4E8` | `get_char_base_entry` | `&data_fd2_battle_character_base_table[idx]` | 24 B | 32 |
-| `0x0004E4FF` | `get_enemy_data_entry` | `&data_fd2_battle_enemy_data_table[idx]` | 10 B | 68 |
-| `0x0004E516` | `get_spell_effect_entry` | `&data_fd2_battle_spell_effect_table[idx]` | 7 B | 36 |
+| `0x0004E4A2` | `fd2_get_spell_learning_entry` | `&data_fd2_battle_spell_learning_table[idx]` | 12 B | 20 |
+| `0x0004E4D1` | `fd2_get_char_growth_entry` | `&data_fd2_battle_character_growth_table[idx]` | 11 B | 68 |
+| `0x0004E4E8` | `fd2_get_char_base_entry` | `&data_fd2_battle_character_base_table[idx]` | 24 B | 32 |
+| `0x0004E4FF` | `fd2_get_enemy_data_entry` | `&data_fd2_battle_enemy_data_table[idx]` | 10 B | 68 |
+| `0x0004E516` | `fd2_get_spell_effect_entry` | `&data_fd2_battle_spell_effect_table[idx]` | 7 B | 36 |
 
 5 個 helper 連續排列在 `.object1` 的 `0x4E4A2-0x4E51A` (116 bytes)，緊接在其他
 battle-相關 function 之後、靠近 `.object1` 尾端 (0x4EBD8)。
@@ -26,7 +26,7 @@ undefined1 * __cdecl get_char_growth_entry(int param_1) {
 }
 ```
 
-命名後其他 function (例如 `calc_magic_damage`) 的 decompile 會顯示成
+命名後其他 function (例如 `fd2_calc_magic_damage`) 的 decompile 會顯示成
 `psVar3 = (short *)get_spell_effect_entry(param_5); sVar1 = *psVar3;` (= spell.DA)，
 比 raw `FUN_0004e516` 容易讀。
 

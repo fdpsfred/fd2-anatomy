@@ -2,51 +2,51 @@
 
 FD2 沒有獨立的 `battle_turn_loop()` 或 `start_battle()` function。戰鬥狀態
 由 chapter init 把地圖設定好之後，透過 `fd2_main` 外迴圈反覆呼叫
-`game_main_loop` 推進。「回合」概念分散在 `game_main_loop` 的鍵盤分派、
-`enemy_turn_phase_team0` / `npc_turn_phase_team1` 與底下的
-`enemy_turn_action_dispatcher` (12-case AI behavior class lookup)。
+`fd2_game_main_loop` 推進。「回合」概念分散在 `fd2_game_main_loop` 的鍵盤分派、
+`fd2_enemy_turn_phase_team0` / `fd2_npc_turn_phase_team1` 與底下的
+`fd2_enemy_turn_action_dispatcher` (12-case AI behavior class lookup)。
 
 ## 戰鬥指令分派
 
 | 位址 | 名稱 | 角色 |
 |---|---|---|
-| `0x00014EF0` | `attack_action_dispatch` | 三路評分動作選擇器 |
-| `0x00015311` | `execute_ai_offensive_spell` | 法術 winner 執行 |
-| `0x0001548E` | `execute_ai_physical_attack` | 物理 winner 執行 |
-| `0x00015055` | `execute_ai_item_use` | 道具 winner 執行 |
-| `0x0001CA89` | `deduct_caster_mp` | 法術消耗 MP |
+| `0x00014EF0` | `fd2_attack_action_dispatch` | 三路評分動作選擇器 |
+| `0x00015311` | `fd2_execute_ai_offensive_spell` | 法術 winner 執行 |
+| `0x0001548E` | `fd2_execute_ai_physical_attack` | 物理 winner 執行 |
+| `0x00015055` | `fd2_execute_ai_item_use` | 道具 winner 執行 |
+| `0x0001CA89` | `fd2_deduct_caster_mp` | 法術消耗 MP |
 
 ## Spell 選單 (modal UI)
 
 | 位址 | 名稱 |
 |---|---|
-| `0x0001C269` | `build_usable_spell_list` |
-| `0x0001CEED` | `draw_spell_selection_list` |
-| `0x0001CFF0` | `spell_selection_menu_main` |
-| `0x0001D51D` | `spell_select_input_loop` |
+| `0x0001C269` | `fd2_build_usable_spell_list` |
+| `0x0001CEED` | `fd2_draw_spell_selection_list` |
+| `0x0001CFF0` | `fd2_spell_selection_menu_main` |
+| `0x0001D51D` | `fd2_spell_select_input_loop` |
 
 ## Damage pipeline
 
 | 位址 | 名稱 | 角色 |
 |---|---|---|
-| `0x0001C75E` | `calc_magic_damage` | 法術傷害計算 |
-| `0x0002A6BD` | `play_spell_cast_sequence` | 2 KB 大函式，spell cast 全套動畫 |
-| `0x00020C6F` | `apply_use_effect_dispatch` | 17 個 effect code dispatcher |
-| `0x0002111A` | `apply_attack_spell_damage` | 攻擊型法術傷害 apply |
-| `0x00014818` | `compute_aoe_targets` | AoE 範圍目標計算 |
-| `0x0001E0DB` | `show_damage_number` | 浮動傷害數字 |
-| `0x0001E1DC` | `show_miss_indicator` | miss 顯示 |
+| `0x0001C75E` | `fd2_calc_magic_damage` | 法術傷害計算 |
+| `0x0002A6BD` | `fd2_play_spell_cast_sequence` | 2 KB 大函式，spell cast 全套動畫 |
+| `0x00020C6F` | `fd2_apply_use_effect_dispatch` | 17 個 effect code dispatcher |
+| `0x0002111A` | `fd2_apply_attack_spell_damage` | 攻擊型法術傷害 apply |
+| `0x00014818` | `fd2_compute_aoe_targets` | AoE 範圍目標計算 |
+| `0x0001E0DB` | `fd2_show_damage_number` | 浮動傷害數字 |
+| `0x0001E1DC` | `fd2_show_miss_indicator` | miss 顯示 |
 
 ## Battle lifecycle (章節層)
 
 | 位址 | 名稱 |
 |---|---|
-| `0x00022E5C` | `play_chapter_clear_fanfare` |
-| `0x00010B4E` | `load_chapter_portraits_and_dump_tmp` |
+| `0x00022E5C` | `fd2_play_chapter_clear_fanfare` |
+| `0x00010B4E` | `fd2_load_chapter_portraits_and_dump_tmp` |
 
 ## runtime_char 存取 helper
 
-`get_runtime_char_known_spell @ 0x0001B722`。runtime_char struct 完整 layout
+`fd2_get_inventory_slot_item_id @ 0x0001B722` (回傳 `runtime_char[char_idx].pInventory_slots[slot_idx].bItem_id`)。runtime_char struct 完整 layout
 見 `overview.md`。
 
 ## 攻擊傷害公式
@@ -70,7 +70,7 @@ adStack[28] = copy(data_fd2_battle_job_magic_resist_table);   // 攻擊對目標
 caster_ap = runtime_char[caster].AP (+0x48);
 target_job = runtime_char[target].bJob_id (+0x20);
 target_resist = adStack[target_job];
-spell = get_spell_effect_entry(spell_id);
+spell = fd2_get_spell_effect_entry(spell_id);
 damage = spell.DA * target_resist / 10;       // 線性
 hit_roll = uVar4 % 100;
 if (hit_roll > spell.HT) return 0;            // miss
@@ -113,13 +113,13 @@ if (hit_roll > spell.HT) return 0;            // miss
                   execute_ai_item_use
 
   Helpers (when scoring fails / for movement):
-    ai_seek_optimal_position @ 0x14121      job-aware pathfind
-    ai_walk_to_target_tile  @ 0x14B78       path execute
-    ai_pass_turn_with_heal  @ 0x13FD4       passing-turn 回 +20% HP_max
-    count_usable_inventory_slots @ 0x1B8A6
-    get_inventory_slot_item_id   @ 0x1B722
-    score_item_candidate         @ 0x15880
-    score_spell_candidate        @ 0x15B77
+    fd2_ai_seek_optimal_position @ 0x14121      job-aware pathfind
+    fd2_ai_walk_to_target_tile  @ 0x14B78       path execute
+    fd2_ai_pass_turn_with_heal  @ 0x13FD4       passing-turn 回 +20% HP_max
+    fd2_count_usable_inventory_slots @ 0x1B8A6
+    fd2_get_inventory_slot_item_id   @ 0x1B722
+    fd2_score_item_candidate         @ 0x15880
+    fd2_score_spell_candidate        @ 0x15B77
 
   Per-action postlude (in phase loops):
     if (DAT_00051A8F != 0xFF):
@@ -132,9 +132,9 @@ if (hit_roll > spell.HT) return 0;            // miss
 
 | Scorer | 類別 | score global | target_x/y | id global |
 |---|---|---|---|---|
-| `ai_score_physical_attack` @ `0x14237` | 物理攻擊 | `0x53C4F` | C43 / C47 | C4B (target_idx) |
-| `ai_score_offensive_spell` @ `0x1598A` | 法術攻擊 | `0x53C23` | C27 / C2B | C2F (spell_id) |
-| `ai_score_item_use`        @ `0x1567E` | 道具使用 | `0x53C33` | C37 / C3B | C3F (slot_idx) |
+| `fd2_ai_score_physical_attack` @ `0x14237` | 物理攻擊 | `0x53C4F` | C43 / C47 | C4B (target_idx) |
+| `fd2_ai_score_offensive_spell` @ `0x1598A` | 法術攻擊 | `0x53C23` | C27 / C2B | C2F (spell_id) |
+| `fd2_ai_score_item_use`        @ `0x1567E` | 道具使用 | `0x53C33` | C37 / C3B | C3F (slot_idx) |
 
 ### 物理評分公式
 
@@ -150,9 +150,9 @@ tie-break = raw_dmg 數值；側背 (+0x08[0]==0) 再 ×1.5
 
 | Winner | Executor | 備註 |
 |---|---|---|
-| C4F (物理) | `execute_ai_physical_attack @ 0x1548E` | 全套物理動畫；plain vs animated 由 `physical_attack_fx_preset @ 0x53AF9` 切換 |
-| C23 (法術) | `execute_ai_offensive_spell @ 0x15311` |  |
-| C33 (道具) | `execute_ai_item_use @ 0x15055` | 短距 vs 長距由 `data_fd2_battle_item_effect_table.range_class` (offset 0x10) 切換 |
+| C4F (物理) | `fd2_execute_ai_physical_attack @ 0x1548E` | 全套物理動畫；plain vs animated 由 `physical_attack_fx_preset @ 0x53AF9` 切換 |
+| C23 (法術) | `fd2_execute_ai_offensive_spell @ 0x15311` |  |
+| C33 (道具) | `fd2_execute_ai_item_use @ 0x15055` | 短距 vs 長距由 `data_fd2_battle_item_effect_table.range_class` (offset 0x10) 切換 |
 
 ### Tie-break 規則
 
@@ -163,14 +163,14 @@ tie-break = raw_dmg 數值；側背 (+0x08[0]==0) 再 ×1.5
 
 ## Per-candidate scorer
 
-### `score_item_candidate @ 0x15880` 依 `item.b0D` effect-code
+### `fd2_score_item_candidate @ 0x15880` 依 `item.b0D` effect-code
 
 - `0x05` / `0x0D` (HP-damage type)：per target，HP/max 比例決定 0/3/8 分。
   `pCombat_aux_block[0xD] & 0x80` 旗標 ×3 加成（高價值目標）。
 - `0x14` / `0x15` / `0x18` (spell-wrapper items)：查 spell 基礎傷害，
   `HP < 傷害` → 0x12 (kill shot)，否則 8。
 
-### `score_spell_candidate @ 0x15B77` 依 `spell_id` 分段
+### `fd2_score_spell_candidate @ 0x15B77` 依 `spell_id` 分段
 
 | spell_id 區段 | 類別 | 評分邏輯 |
 |---|---|---|
@@ -188,7 +188,7 @@ tie-break = raw_dmg 數值；側背 (+0x08[0]==0) 再 ×1.5
 
 - **AI kill-shot 權重**：物理 `0x12` (18)、item `0x12` (18)、**spell `0x18` (24)**
   → AI 顯著偏好用法術秒殺。
-- **Pass-turn auto heal**：`ai_pass_turn_with_heal` 在 AI 沒有有效行動時自動回
+- **Pass-turn auto heal**：`fd2_ai_pass_turn_with_heal` 在 AI 沒有有效行動時自動回
   20% HP_max；FD2 重型敵人「拖不死」的程式根源。
 - **Two-pass enemy phase**：smart casters 第一輪先動 (佔 AoE 位置與秒殺)，melee
   第二輪。AI 戰術設計，不是 bug。
@@ -198,19 +198,19 @@ tie-break = raw_dmg 數值；側背 (+0x08[0]==0) 再 ×1.5
 
 ## 12 個 AI behavior class semantic
 
-(per `enemy_turn_action_dispatcher @ 0x13A9F`)
+(per `fd2_enemy_turn_action_dispatcher @ 0x13A9F`)
 
 | class | 名稱 | 行為 |
 |---|---|---|
-| 0 | default_attacker | `attack_action_dispatch(0)`；fall to `ai_seek/advance` |
+| 0 | default_attacker | `fd2_attack_action_dispatch(0)`；fall to `ai_seek/advance` |
 | 1 | defensive_kiter | `attack(1)`；fail → seek + pass_with_heal |
-| 2 | aggressive_physical | `attack(2)`；fail → `ai_score_physical_attack` 強制 |
-| 3 | targeted_approach | `attack(3)`；fail → `find_char_by_id(0,...)` pathfind |
+| 2 | aggressive_physical | `attack(2)`；fail → `fd2_ai_score_physical_attack` 強制 |
+| 3 | targeted_approach | `attack(3)`；fail → `fd2_find_char_by_id_or_template(0,...)` pathfind |
 | 4 | pass_turn | 只 face direction；exit |
 | 5 | item_pickup | `attack(5)`；fail → find_tile + pickup；下 turn class=7 |
-| 7 | charge_dash | pan + `walk_to_target_tile` (kamikaze) |
+| 7 | charge_dash | pan + `fd2_ai_walk_to_target_tile` (kamikaze) |
 | 8 | hard_skip | 純 return (stunned/scripted-passive) |
-| 9 | advance_to_char | `find_char_by_id(9,...)` pathfind |
+| 9 | advance_to_char | `fd2_find_char_by_id_or_template(9,...)` pathfind |
 | 10 | hardcoded_attack | `attack(10)`；fail → 同 class 4 (pass) |
 | 11 | smart_caster | spell-then-physical fallback (boss-tier) |
 
@@ -221,34 +221,34 @@ handler，但機制完全不同：
 
 ### Path 1 — Tile-step trigger (deferred via global state)
 
-`check_tile_event_post_action @ 0x13A8F` 在 player/AI 走到 trigger tile 時呼叫：
+`fd2_check_tile_event_post_action @ 0x13A44` 在 player/AI 走到 trigger tile 時呼叫：
 
 1. 讀 tile attribute；若 tile 帶 event flag 且未消耗
 2. 從 `tile_event_data_table + (tile_event_id - 1) * 2 + 0x33` 取 byte
 3. 若 byte != 0xFF 且 event_type 匹配 → `data_fd2_battle_ai_post_action_consequence_idx = byte`
-4. 下一輪 `game_main_loop` 看到 `data_fd2_battle_ai_post_action_consequence_idx != 0xFF`，
+4. 下一輪 `fd2_game_main_loop` 看到 `data_fd2_battle_ai_post_action_consequence_idx != 0xFF`，
    dispatch `data_fd2_battle_ai_post_action_consequence_table[idx]()`，然後 reset 為 0xFF
 
-### Path 2 — Death drop (direct via process_battle_drop_entries)
+### Path 2 — Death drop (direct via fd2_process_battle_drop_entries)
 
 當 enemy 死亡 (HP_current = 0)：
 
 1. **Pre-death**：
-   - AI class 5 (item_pickup) 撿 pickup tile 時，`enemy_turn_action_dispatcher`
+   - AI class 5 (item_pickup) 撿 pickup tile 時，`fd2_enemy_turn_action_dispatcher`
      case 5 把 `tile_event_data_table` 的 `(kind, param)` 抄到 enemy 自己的
      `pCombat_aux_block[10..12]` (= `bPickup_kind` + `wPickup_param`)
    - 或 chapter init / FDFIELD char_spawn record 直接初始化這 3 byte
-2. **Death**：`collect_pending_death_drops` / `collect_dead_char_drops` 掃描所有
+2. **Death**：`fd2_collect_pending_death_drops` / `fd2_collect_dead_char_drops` 掃描所有
    alive char，挑 (`HP_current == 0` AND `pCombat_aux_block[10] != 0xFF`) 的
    3-byte block 抄到 caller-提供的 `drops_buffer`
-3. **Process**：caller (typically `execute_ai_*` / `apply_use_effect_dispatch`)
-   呼叫 `process_battle_drop_entries(killer_idx, count, drops_array)`
+3. **Process**：caller (typically `execute_ai_*` / `fd2_apply_use_effect_dispatch`)
+   呼叫 `fd2_process_battle_drop_entries(killer_idx, count, drops_array)`
 4. **Per-entry dispatch by drop_type byte**:
-   - `0` = ITEM：dialog 0x1B0 / `add_item_to_inventory`
+   - `0` = ITEM：dialog 0x1B0 / `fd2_add_item_to_inventory`
    - `1` = GOLD：dialog 0x1B3 / `party_total_gold += amount`
    - `2` = BATTLE EVENT CONSEQUENCE：**直接** `(*data_fd2_battle_ai_post_action_consequence_table[ushort_value])()`
      呼叫 handler，**不**寫入 `data_fd2_battle_ai_post_action_consequence_idx` global
-   - `3` = SCRIPTED DIALOG：`display_dialog_scene(current_chapter_text, page=ushort_value, ...)`
+   - `3` = SCRIPTED DIALOG：`fd2_display_dialog_scene(current_chapter_text, page=ushort_value, ...)`
 
 ### 為什麼 type 2 不走 Path 1？
 

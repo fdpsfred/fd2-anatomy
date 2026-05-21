@@ -6,7 +6,7 @@
 
 | char_id | 角色 | 加入時機 | 條件 |
 |---|---|---|---|
-| 26 (0x1A) | 龍劍士聖寇拉斯 | end handler | 無條件 (在 save_runtime_char_to_template 之前 init) |
+| 26 (0x1A) | 龍劍士聖寇拉斯 | end handler | 無條件 (在 fd2_save_runtime_char_to_template 之前 init) |
 | 29 (0x1D) | 大法師亞奇梅吉 | end handler | 無條件 (在 save 之後 init — 不被 template 保留) |
 
 ## 敵人配置
@@ -23,9 +23,9 @@ LV24 龍騎士 ×2 (HP744)、LV25 龍人戰士 ×16、LV24 龍人法師 ×4 (咒
 
 ## 特殊機制
 
-- **Init 開場 4 連震**：載入 FDOTHER[0x58] 地震音效 + 4× `animate_screen_shake` (前 3 次強度 0x14、第 4 次強度 0x3C 為 climax 大地震)。FD2 唯一在 init 階段播放程式化 cutscene + sfx 的章節。
+- **Init 開場 4 連震**：載入 FDOTHER[0x58] 地震音效 + 4× `fd2_animate_screen_shake` (前 3 次強度 0x14、第 4 次強度 0x3C 為 climax 大地震)。FD2 唯一在 init 階段播放程式化 cutscene + sfx 的章節。
 - **Init 從 page 1 開始**：跳過 page 0 (預留給 alternate dialog beat — 火魔神被打擾的睡眠對話)。
-- **Save-split 加入**：聖寇拉斯在 `save_runtime_char_to_template` 前 init (進入 saved template)；亞奇梅吉在 save 之後 init，不被 saved template 保留 (runtime-only，下章 init 時可能重新加入)。
+- **Save-split 加入**：聖寇拉斯在 `fd2_save_runtime_char_to_template` 前 init (進入 saved template)；亞奇梅吉在 save 之後 init，不被 saved template 保留 (runtime-only，下章 init 時可能重新加入)。
 - **勝負條件**：default + 聖寇拉斯 (chars[0x10]) 死 = 負。
 - **Turn 6 dialog event**：FDFIELD 在第 6 回合玩家 turn 結束時觸發 dialog_with_state 對話事件。
 

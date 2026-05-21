@@ -6,9 +6,9 @@ Init 全清隊 20 chars + revive HP>0；3× 重複觸發同一 cutscene event 0x
 
 | 角色 | 位址 | 大小 |
 |---|---|---|
-| Init | `chapter_28_init @ 0x00033C9D` | 285 B |
-| End | `chapter_28_end @ 0x00025464` | 40 B (最小 end) |
-| Post-action | `chapter_22_27_28_post_action_shared @ 0x00020A87` | default + lose if char[1] dead (與 ch22/27 共用) |
+| Init | `fd2_chapter_28_init @ 0x00033C9D` | 285 B |
+| End | `fd2_chapter_28_end @ 0x00025464` | 40 B (最小 end) |
+| Post-action | `fd2_chapter_22_27_28_post_action_shared @ 0x00020A87` | default + lose if char[1] dead (與 ch22/27 共用) |
 | BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[27]` |  |
 | BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[27]` |  |
 
@@ -16,17 +16,17 @@ Init 全清隊 20 chars + revive HP>0；3× 重複觸發同一 cutscene event 0x
 
 與 ch23 init 結構類似（清隊 + spell visual）但範圍更大 (20 chars vs 16 chars)：
 
-1. `init_battle_state_for_chapter`
-2. **大規模清隊**：`for i in [0, 0x14): mark_char_as_dead(i)` (20 chars 全標 dead)
-3. `pan_cursor_and_window(0x1D, 0xF)` + `cast_screen_wide_spell_with_fade(cursor+6, +5, 10, 8)`
+1. `fd2_init_battle_state_for_chapter`
+2. **大規模清隊**：`for i in [0, 0x14): fd2_mark_char_as_dead(i)` (20 chars 全標 dead)
+3. `fd2_pan_cursor_and_window(0x1D, 0xF)` + `fd2_cast_screen_wide_spell_with_fade(cursor+6, +5, 10, 8)`
 4. **revive 過濾**：`for i in [0, 0x14): if chars[i].wHP_current != 0: chars[i].bFlags = 0`
    - 與 ch23 不同：ch28 此處 **不設 sprite facing**
-5. `composite_battle_frame` + `set_vga_palette_range_with_add(0, 0xFF, 0)` palette restore
+5. `fd2_composite_battle_frame` + `fd2_set_vga_palette_range_with_add(0, 0xFF, 0)` palette restore
 6. 500ms wait
-7. **3× `cutscene_event_trigger(0x55)`** — 同 event 觸發三次 (3 個並行 group 各執行一次同 walk script)
-8. `clear_all_chars_facing` + `display_dialog_scene(page=0)`
-9. `FUN_00035822(0, 0x10, 6)` + `FUN_00035822(7, 0x10, 7)` — pan + load_chapter_portraits + palette flash + composite_battle_frame cinematic transition helper
-10. `pan_cursor_to_char(0)`
+7. **3× `fd2_cutscene_event_trigger(0x55)`** — 同 event 觸發三次 (3 個並行 group 各執行一次同 walk script)
+8. `fd2_clear_all_chars_facing` + `fd2_display_dialog_scene(page=0)`
+9. `fd2_cinematic_chapter_portrait_dump_with_white_flash(0, 0x10, 6)` + `fd2_cinematic_chapter_portrait_dump_with_white_flash(7, 0x10, 7)` — pan + load_chapter_portraits + palette flash + composite_battle_frame cinematic transition helper
+10. `fd2_pan_cursor_to_char(0)`
 
 ## Dialog page 引用
 
@@ -37,7 +37,7 @@ Init 全清隊 20 chars + revive HP>0；3× 重複觸發同一 cutscene event 0x
 
 ## char_id 初始化序列
 
-無 `init_runtime_char_from_base_growth` 呼叫；本章不在 init 或 end 加入新角色。
+無 `fd2_init_runtime_char_from_base_growth` 呼叫；本章不在 init 或 end 加入新角色。
 
 ## Cutscene events
 
@@ -45,7 +45,7 @@ Init 全清隊 20 chars + revive HP>0；3× 重複觸發同一 cutscene event 0x
 
 ## Post-action handler
 
-`chapter_22_27_28_post_action_shared @ 0x00020A87` (與 ch22/27 共用)：
+`fd2_chapter_22_27_28_post_action_shared @ 0x00020A87` (與 ch22/27 共用)：
 - 標準 default 判定（全敵死 = 勝、索爾死 = 負）
 - **額外 lose 條件**：if chars[1] dead → `game_event_flag = 1`
 
@@ -53,10 +53,10 @@ Init 全清隊 20 chars + revive HP>0；3× 重複觸發同一 cutscene event 0x
 
 ## End handler events
 
-`chapter_28_end @ 0x00025464` (40 B) — 30 章中最小 end：
+`fd2_chapter_28_end @ 0x00025464` (40 B) — 30 章中最小 end：
 
-1. `display_dialog_scene(page=7)`
-2. `save_runtime_char_to_template`
+1. `fd2_display_dialog_scene(page=7)`
+2. `fd2_save_runtime_char_to_template`
 3. `current_chapter_id += 1`
 
 無 cutscene、無加入。

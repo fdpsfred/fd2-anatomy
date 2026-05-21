@@ -47,40 +47,40 @@ crt_entry_start (0x3C964)
              │   ├─ chapter_init_jump_table[chapter_id]() — 30 章 init
              │   └─ inner per-chapter loop:
              │       ├─ game_main_loop()  — per-frame input dispatcher
-             │       │   ├─ wait_for_input_with_idle (cursor blink + palette cycle)
+             │       │   ├─ fd2_wait_for_input_with_idle (cursor blink + palette cycle)
              │       │   ├─ scancode dispatch (cursor moves / actions / menus)
-             │       │   ├─ player_action_menu_loop (玩家選行動)
-             │       │   ├─ field_command_menu_loop (Save/EndTurn/Suspend modal)
-             │       │   ├─ open_char_status_screen (角色狀態)
-             │       │   ├─ enemy_turn_phase_team0 (敵方 AI phase)
-             │       │   └─ npc_turn_phase_team1 (友方 NPC AI phase)
-             │       ├─ if (game_event_flag == 1): play_chapter_clear_fanfare
+             │       │   ├─ fd2_player_action_menu_loop (玩家選行動)
+             │       │   ├─ fd2_field_command_menu_loop (Save/EndTurn/Suspend modal)
+             │       │   ├─ fd2_open_char_status_screen (角色狀態)
+             │       │   ├─ fd2_enemy_turn_phase_team0 (敵方 AI phase)
+             │       │   └─ fd2_npc_turn_phase_team1 (友方 NPC AI phase)
+             │       ├─ if (game_event_flag == 1): fd2_play_chapter_clear_fanfare
              │       └─ if (game_event_flag == 2):
              │           ├─ chapter_end_jump_table[chapter_id]()
-             │           ├─ chapter_transition_menu (save/continue prompt)
+             │           ├─ fd2_chapter_transition_menu (save/continue prompt)
              │           └─ chapter_init_jump_table[next_chapter]()
              └─ if game_over: break outer loop
 ```
 
 關鍵：FD2 沒有獨立的 `battle_loop()` function。戰鬥就是 `fd2_main` 的內迴圈反覆呼叫
-`game_main_loop`，每 frame 處理一個輸入或繼續動畫。chapter init 把地圖、敵人配置好之後，
-`game_main_loop` 自己跑，直到 `game_event_flag` 變成 1（主角索爾死）或 2（敵全滅）。
+`fd2_game_main_loop`，每 frame 處理一個輸入或繼續動畫。chapter init 把地圖、敵人配置好之後，
+`fd2_game_main_loop` 自己跑，直到 `game_event_flag` 變成 1（主角索爾死）或 2（敵全滅）。
 
 ## 12 個 systems 概觀
 
 | System | 主要 functions | 進入點 |
 |---|---|---|
-| **lifecycle** | fd2_main, AIL_startup/shutdown, load_save_and_init_engine | crt_main_entry |
-| **resource** | load_dat_resource | 各 system 自己呼叫 |
-| **save_load** | save/load FD2.SAV (8 helpers), menu_confirm_save_load_newgame | field_command_menu_loop |
-| **field_map** | 60 個 chapter init/end handlers, chapter_transition_menu | jump tables |
-| **battle** | attack_action_dispatch (AI 三路 score), 12-class enemy AI dispatcher | enemy_turn_phase_team0 |
-| **ui_menu** | game_main_loop, cursor moves, player_action_menu_loop, field_command_menu_loop | scancode dispatch |
-| **text_dialog** | display_dialog_scene, blit_glyph_2bpp_with_outline, portrait cache | display_dialog_scene |
-| **animation** | play_figani_animation_loop, slide animations | spell/cinematic 執行 |
-| **graphics** | rle_blit_sprite, blit_rectangle, composite_battle_tile_map | composite_battle_frame |
-| **audio** | AIL wrappers + play_sfx_with_handle | per-event |
-| **input** | wait_for_input_with_idle, BIOS keyboard direct access | game_main_loop |
+| **lifecycle** | fd2_main, AIL_startup/shutdown, fd2_load_save_and_init_engine | crt_main_entry |
+| **resource** | fd2_load_dat_resource | 各 system 自己呼叫 |
+| **save_load** | save/load FD2.SAV (8 helpers), fd2_field_menu_status_save_load_quit_dispatch | fd2_field_command_menu_loop |
+| **field_map** | 60 個 chapter init/end handlers, fd2_chapter_transition_menu | jump tables |
+| **battle** | fd2_attack_action_dispatch (AI 三路 score), 12-class enemy AI dispatcher | fd2_enemy_turn_phase_team0 |
+| **ui_menu** | fd2_game_main_loop, cursor moves, fd2_player_action_menu_loop, fd2_field_command_menu_loop | scancode dispatch |
+| **text_dialog** | fd2_display_dialog_scene, fd2_blit_glyph_2bpp_with_outline, portrait cache | fd2_display_dialog_scene |
+| **animation** | fd2_play_figani_animation_loop, slide animations | spell/cinematic 執行 |
+| **graphics** | fd2_rle_blit_sprite, fd2_blit_rectangle, fd2_composite_battle_tile_map | fd2_composite_battle_frame |
+| **audio** | AIL wrappers + fd2_play_sfx_with_handle | per-event |
+| **input** | fd2_wait_for_input_with_idle, BIOS keyboard direct access | fd2_game_main_loop |
 | **table_accessor** | 5 個 get_*_entry helpers | 各 system 查表 |
 
 另有跨系統的 **chapter_event_dispatch**：FDFIELD 章節 event hook table → jump
@@ -110,25 +110,25 @@ AI post-action consequence 共用）。
 +0x06 bTeam           0 = enemy, 1 = NPC ally, 2 = player
 +0x07 bPortrait_id    portrait sprite 索引
 +0x08 bChar_id         char_id (0..0x43 player / 0x44+ enemy)；
-                      AI scoring / find_char_by_id 等以此判定身份。
+                      AI scoring / fd2_find_char_by_id_or_template 等以此判定身份。
                       值 0 觸發 flanking +50% 判斷。
 +0x09 bReserved_padding_09  reserved padding。只有兩個 init 函式
-                      (init_runtime_char_for_battle @ 0x10c50、
-                      init_runtime_char_from_base_growth @ 0x112a5) 寫 0；
+                      (fd2_init_runtime_char_for_battle @ 0x10c50、
+                      fd2_init_runtime_char_from_base_growth @ 0x112a5) 寫 0；
                       AI / combat / save / death / XP / item-use / cutscene
                       paths 無任何讀取點。save/load 透過 0x50-byte memcpy
                       整段保留但無語意讀取。
 +0x0A pInventory_slots[8]   8 × (bSlot_flag, bItem_id)
                       slot_flag bit 0x40 = equipped, bit 0x80 = empty
 +0x1A pSpells_known_bitmap[5]   40 spells × 1 bit
-+0x1F bArchetype_flag  game_main_loop 檢查值 == 10 特殊化（boss/NPC 種類）
++0x1F bArchetype_flag  fd2_game_main_loop 檢查值 == 10 特殊化（boss/NPC 種類）
 +0x20 bJob_id         職業 ID，決定移動/抗性
 +0x21 pStatus_flags_block[5]
                       [0] level (init = base[2])
-                      [1] AP buff flag (recalculate_combat_stats × 1.5)
+                      [1] AP buff flag (fd2_recalculate_combat_stats × 1.5)
                       [2] DP buff flag
                       [3] DX buff flag (+0xF)
-                      [4] 狀態 A (毒？AI score_spell_candidate spell 0x14 檢查)
+                      [4] 狀態 A (毒？AI fd2_score_spell_candidate spell 0x14 檢查)
 +0x26 bStatus_sleep_flag  spell 0x15 解；scorer +6 if non-zero
 +0x27 pCombat_aux_block[21]
                       [0]      bSilence_flag
@@ -186,14 +186,14 @@ AI post-action consequence 共用）。
    到 class 8「完全不動」。詳 `battle.md`。
 2. **AI kill-shot 加權**：物理 score = 0x12 (18)、道具 score = 0x12、**法術
    score = 0x18 (24)**。敵法師會優先用魔法秒殺玩家殘血。
-3. **20% HP_max idle heal** (`ai_pass_turn_with_heal`)：AI 待機自動恢復 20%
+3. **20% HP_max idle heal** (`fd2_ai_pass_turn_with_heal`)：AI 待機自動恢復 20%
    最大 HP。FD2 重型敵人「拖不死」的程式根源。
 4. **Two-pass enemy phase**：smart caster 第一輪先動（佔 AoE 位置與秒殺），
    melee 第二輪。AI 戰術設計，不是 bug。
-5. **Mirror dialog blit** (`dialog_sprite_blit_mirrored`)：友軍對話用右→左
+5. **Mirror dialog blit** (`fd2_dialog_sprite_blit_mirrored`)：友軍對話用右→左
    pixel order blit，產生「兩人面對面」視覺效果。
 6. **20-bit pitch state** (AIL mixer)：`ail_mix_pitch_int/_low/_int_plus_one`
    是 16.16 fixed-point pitch increment；雙倍 stereo / 16-bit 時 left-shift 一次。
-7. **Save data obfuscation** (`save_crypt_buffer`)：XOR-style involution
-   (同一 function 加密與解密)；`save_compute_checksum` 是 4-byte 快速 checksum
+7. **Save data obfuscation** (`fd2_save_crypt_buffer`)：XOR-style involution
+   (同一 function 加密與解密)；`fd2_save_compute_checksum` 是 4-byte 快速 checksum
    (非 CRC32，作為完整性檢查 / cheat deterrent，不是 cryptographic 安全)。

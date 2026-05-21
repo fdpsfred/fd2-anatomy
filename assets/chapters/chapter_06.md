@@ -24,7 +24,7 @@
 ## 特殊機制
 
 - **失敗條件**：索爾死亡（default handler）。
-- **章末加入**：貝克威 (char 13) 由 end handler 第一步 `init_runtime_char_from_base_growth(0xD)` 加入。
+- **章末加入**：貝克威 (char 13) 由 end handler 第一步 `fd2_init_runtime_char_from_base_growth(0xD)` 加入。
 - **極簡 init**：30 章中最小級 init handler (79 B)，僅顯示 1 頁對話、無 cutscene、無 portrait load。
 
 ## 對話

@@ -21,7 +21,7 @@ chapter_id × 3 + 2  →  portrait_load_buffer   (chapter_portrait_load_buffer: 
 | chapter_id | FDFIELD idx | tile_map | tile_event | portrait | 用途 |
 |---|---|---|---|---|---|
 | 30 (extra) | 90/91/92 | 6304 B | 157 B | 194 B | endgame cinematic map 1 |
-| 31 (extra) | 93/94/95 | 4004 B | 937 B | 182 B | epilogue map (`ch30_end load_chapter_battle_data(31)` staff roll) |
+| 31 (extra) | 93/94/95 | 4004 B | 937 B | 182 B | epilogue map (`ch30_end fd2_load_chapter_battle_data(31)` staff roll) |
 | 32 (extra) | 96/97/98 | 3676 B | 1171 B | 182 B | endgame cinematic map 3 |
 
 ## 30 章 idx 對照表
@@ -121,13 +121,13 @@ ch1 與 endgame_ch31 各多 1 個 reserved record (race_id=0xFF 永不被 load)�
 endgame_ch32 的 char_spawn_count = 30 但實際 file payload 含 40 records (10 個
 額外 = 260 bytes)。
 
-**Loader 行為**：`load_chapter_portraits_and_dump_tmp @ 0x10b4e` 的核心 loop
+**Loader 行為**：`fd2_load_chapter_portraits_and_dump_tmp @ 0x10b4e` 的核心 loop
 用 `portrait_cache_alloc_offset = char_spawn_count` (header byte +2) 當迭代
 上限：
 
 ```
 for (i = 0; i < char_spawn_count; i++) {
-  if (records[i].race_id == target_race_id) init_runtime_char_for_battle(i, ...)
+  if (records[i].race_id == target_race_id) fd2_init_runtime_char_for_battle(i, ...)
 }
 ```
 
@@ -141,7 +141,7 @@ ch26=9 最多，多章 0)。全 char_spawn_records 共 1887 個。
 
 ## char_spawn_record layout (0x1A bytes)
 
-per `init_runtime_char_for_battle @ 0x10C50`：
+per `fd2_init_runtime_char_for_battle @ 0x10C50`：
 
 ```c
 struct char_spawn_record {
@@ -175,13 +175,13 @@ struct char_spawn_record {
 
 ### race_id (+0x15)：conditional spawn 機制的關鍵
 
-`load_chapter_portraits_and_dump_tmp(target_race_id)` 在 chapter init / turn-event
+`fd2_load_chapter_portraits_and_dump_tmp(target_race_id)` 在 chapter init / turn-event
 handler 內被呼叫時，loop 全 records 篩選 `record.race_id == target_race_id`，
-匹配的 records 才呼 `init_runtime_char_for_battle` 載入到 battle map。
+匹配的 records 才呼 `fd2_init_runtime_char_for_battle` 載入到 battle map。
 
 - chapter init 不同階段 (prologue/intro/start) 可呼叫不同 race_id 載 cinematic 角色
 - turn-event handler 可在特定 turn 觸發新 race 載入 = 援軍 / 轉場
-- ch1「turn 3 哈諾加入」 = handler_00 呼 `load_chapter_portraits_and_dump_tmp(3)`
+- ch1「turn 3 哈諾加入」 = handler_00 呼 `fd2_load_chapter_portraits_and_dump_tmp(3)`
   載 race=3 records (含 char_id 0x01 = 哈諾)
 
 ## turn-event hook table (offset +0x03..+0x32)

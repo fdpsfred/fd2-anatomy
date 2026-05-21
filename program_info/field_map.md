@@ -21,89 +21,89 @@
 | `0x00051E63` | `data_fd2_audio_per_chapter_player_turn_bgm_track[30]` | BGM track id (0x03/0x04/0x08/0x13) |
 | `0x00051E81` | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[30]`  | BGM track id (0x01/0x04/0x06/0x08/0x0C) |
 
-`run_full_turn_cycle` 把兩者 cast 為 BGM track id 餵給 `set_bgm_track_with_fade`。
+`fd2_run_full_turn_cycle` 把兩者 cast 為 BGM track id 餵給 `fd2_set_bgm_track_with_fade`。
 
 ## Chapter init handlers (30 個，3 個共用)
 
 | ID | 位址 | 名稱 | 大小 |
 |---|---|---|---|
-| 1 | `0x0003231B` | `chapter_01_init` | 含獨家 prologue (3-phase) |
-| 2 | `0x00032D18` | `chapter_02_init` | 402 B |
-| 3 | `0x00032E8C` | `chapter_03_init` | 324 B |
-| 4 | `0x00032FB2` | `chapter_04_init` | 181 B |
-| 5 | `0x00033049` | `chapter_05_init` | 258 B |
-| 6 | `0x0003314B` | `chapter_06_init` | 79 B |
-| 7 | `0x00033169` | `chapter_07_init` | 176 B |
-| 8 | `0x00033219` | `chapter_08_init` | 100 B |
-| 9 | `0x0003327D` | `chapter_09_init` | 174 B |
-| 10 | `0x0003332B` | `chapter_10_init` | 90 B |
-| 11 | `0x00033367` | `chapter_11_init` | 142 B |
-| 12 | `0x000333F5` | `chapter_12_init` | 118 B |
-| 13 | `0x0003346B` | `chapter_13_init` | 17 B |
-| 14 | `0x0003347C` | `chapter_14_init` | 29 B |
-| 15 | `0x000334D9` | `chapter_15_init` | 199 B |
-| 16 | `0x000335A0` | `chapter_16_init` | 10 B (stub) |
-| 17 | `0x000335AA` | `chapter_17_init` | 48 B |
-| 18 | `0x000335DA` | `chapter_18_init` | 154 B |
-| 19-21 | `0x00033674` | `chapter_19_20_21_init_shared` | 10 B (三章共用) |
-| 22 | `0x0003367E` | `chapter_22_init` | 34 B |
-| 23 | `0x000336A0` | `chapter_23_init` | 548 B (最大) |
-| 24 | `0x000338C4` | `chapter_24_init` | 166 B |
-| 25 | `0x0003396A` | `chapter_25_init` | 324 B |
-| 26 | `0x00033AAE` | `chapter_26_init` | 67 B |
-| 27 | `0x00033AF1` | `chapter_27_init` | 428 B |
-| 28 | `0x00033C9D` | `chapter_28_init` | 285 B |
-| 29 | `0x00033DBA` | `chapter_29_init` | 130 B |
-| 30 | `0x00033E3C` | `chapter_30_init` | 316 B |
+| 1 | `0x0003231B` | `fd2_chapter_01_init` | 含獨家 prologue (3-phase) |
+| 2 | `0x00032D18` | `fd2_chapter_02_init` | 402 B |
+| 3 | `0x00032E8C` | `fd2_chapter_03_init` | 324 B |
+| 4 | `0x00032FB2` | `fd2_chapter_04_init` | 181 B |
+| 5 | `0x00033049` | `fd2_chapter_05_init` | 258 B |
+| 6 | `0x0003314B` | `fd2_chapter_06_init` | 79 B |
+| 7 | `0x00033169` | `fd2_chapter_07_init` | 176 B |
+| 8 | `0x00033219` | `fd2_chapter_08_init` | 100 B |
+| 9 | `0x0003327D` | `fd2_chapter_09_init` | 174 B |
+| 10 | `0x0003332B` | `fd2_chapter_10_init` | 90 B |
+| 11 | `0x00033367` | `fd2_chapter_11_init` | 142 B |
+| 12 | `0x000333F5` | `fd2_chapter_12_init` | 118 B |
+| 13 | `0x0003346B` | `fd2_chapter_13_init` | 17 B |
+| 14 | `0x0003347C` | `fd2_chapter_14_init` | 29 B |
+| 15 | `0x000334D9` | `fd2_chapter_15_init` | 199 B |
+| 16 | `0x000335A0` | `fd2_chapter_16_init` | 10 B (stub) |
+| 17 | `0x000335AA` | `fd2_chapter_17_init` | 48 B |
+| 18 | `0x000335DA` | `fd2_chapter_18_init` | 154 B |
+| 19-21 | `0x00033674` | `fd2_chapter_19_20_21_init_shared` | 10 B (三章共用) |
+| 22 | `0x0003367E` | `fd2_chapter_22_init` | 34 B |
+| 23 | `0x000336A0` | `fd2_chapter_23_init` | 548 B (最大) |
+| 24 | `0x000338C4` | `fd2_chapter_24_init` | 166 B |
+| 25 | `0x0003396A` | `fd2_chapter_25_init` | 324 B |
+| 26 | `0x00033AAE` | `fd2_chapter_26_init` | 67 B |
+| 27 | `0x00033AF1` | `fd2_chapter_27_init` | 428 B |
+| 28 | `0x00033C9D` | `fd2_chapter_28_init` | 285 B |
+| 29 | `0x00033DBA` | `fd2_chapter_29_init` | 130 B |
+| 30 | `0x00033E3C` | `fd2_chapter_30_init` | 316 B |
 
 ## Chapter end handlers (30 個)
 
 | ID | 位址 | 名稱 | 大小 |
 |---|---|---|---|
-| 1 | `0x00022EF6` | `chapter_01_end` | 65 B |
-| 2 | `0x00022F37` | `chapter_02_end` | 443 B |
-| 3 | `0x000230F2` | `chapter_03_end` | 214 B |
-| 4 | `0x000231BC` | `chapter_04_end` | 61 B |
-| 5 | `0x000231F9` | `chapter_05_end` | 157 B |
-| 6 | `0x00023296` | `chapter_06_end` | 82 B |
-| 7 | `0x000232E8` | `chapter_07_end` | 222 B |
-| 8 | `0x000234BB` | `chapter_08_end` | 140 B |
-| 9 | `0x000235BC` | `chapter_09_end` | 61 B |
-| 10 | `0x000235F9` | `chapter_10_end` | 407 B |
-| 11 | `0x00023790` | `chapter_11_end` | 69 B |
-| 12 | `0x000237D5` | `chapter_12_end` | 214 B |
-| 13 | `0x0002389F` | `chapter_13_end` | 61 B |
-| 14 | `0x000238DC` | `chapter_14_end` | 225 B |
-| 15 | `0x000239BD` | `chapter_15_end` | 77 B |
-| 16 | `0x00023A0A` | `chapter_16_end` | 341 B |
-| 17 | `0x00023B5F` | `chapter_17_end` | 374 B |
-| 18 | `0x00023CD5` | `chapter_18_end` | 356 B |
-| 19 | `0x00023E39` | `chapter_19_end` | 59 B |
-| 20 | `0x00023E74` | `chapter_20_end` | 646 B |
-| 21 | `0x000240FA` | `chapter_21_end` | 572 B |
-| 22 | `0x000244B6` | `chapter_22_end` | 354 B |
-| 23 | `0x00024754` | `chapter_23_end` | 960 B (最大) |
-| 24 | `0x00024C1E` | `chapter_24_end` | 260 B |
-| 25 | `0x00024DF2` | `chapter_25_end` | 142 B |
-| 26 | `0x00024E80` | `chapter_26_end` | 466 B |
-| 27 | `0x000250CC` | `chapter_27_end` | 920 B |
-| 28 | `0x00025464` | `chapter_28_end` | 40 B |
-| 29 | `0x0002548C` | `chapter_29_end` | 451 B |
-| 30 | `0x00025757` | `chapter_30_end` | 544 B |
+| 1 | `0x00022EF6` | `fd2_chapter_01_end` | 65 B |
+| 2 | `0x00022F37` | `fd2_chapter_02_end` | 443 B |
+| 3 | `0x000230F2` | `fd2_chapter_03_end` | 214 B |
+| 4 | `0x000231BC` | `fd2_chapter_04_end` | 61 B |
+| 5 | `0x000231F9` | `fd2_chapter_05_end` | 157 B |
+| 6 | `0x00023296` | `fd2_chapter_06_end` | 82 B |
+| 7 | `0x000232E8` | `fd2_chapter_07_end` | 222 B |
+| 8 | `0x000234BB` | `fd2_chapter_08_end` | 140 B |
+| 9 | `0x000235BC` | `fd2_chapter_09_end` | 61 B |
+| 10 | `0x000235F9` | `fd2_chapter_10_end` | 407 B |
+| 11 | `0x00023790` | `fd2_chapter_11_end` | 69 B |
+| 12 | `0x000237D5` | `fd2_chapter_12_end` | 214 B |
+| 13 | `0x0002389F` | `fd2_chapter_13_end` | 61 B |
+| 14 | `0x000238DC` | `fd2_chapter_14_end` | 225 B |
+| 15 | `0x000239BD` | `fd2_chapter_15_end` | 77 B |
+| 16 | `0x00023A0A` | `fd2_chapter_16_end` | 341 B |
+| 17 | `0x00023B5F` | `fd2_chapter_17_end` | 374 B |
+| 18 | `0x00023CD5` | `fd2_chapter_18_end` | 356 B |
+| 19 | `0x00023E39` | `fd2_chapter_19_end` | 59 B |
+| 20 | `0x00023E74` | `fd2_chapter_20_end` | 646 B |
+| 21 | `0x000240FA` | `fd2_chapter_21_end` | 572 B |
+| 22 | `0x000244B6` | `fd2_chapter_22_end` | 354 B |
+| 23 | `0x00024754` | `fd2_chapter_23_end` | 960 B (最大) |
+| 24 | `0x00024C1E` | `fd2_chapter_24_end` | 260 B |
+| 25 | `0x00024DF2` | `fd2_chapter_25_end` | 142 B |
+| 26 | `0x00024E80` | `fd2_chapter_26_end` | 466 B |
+| 27 | `0x000250CC` | `fd2_chapter_27_end` | 920 B |
+| 28 | `0x00025464` | `fd2_chapter_28_end` | 40 B |
+| 29 | `0x0002548C` | `fd2_chapter_29_end` | 451 B |
+| 30 | `0x00025757` | `fd2_chapter_30_end` | 544 B |
 
 ## Chapter handler 共用 helpers
 
 | 位址 | 名稱 | 用途 |
 |---|---|---|
-| `0x205DA` | `init_battle_state_for_chapter` | 章節進入時設定 active FDTXT entry / 初始 turn |
-| `0x135DD` | `pan_cursor_and_window` | cursor + window origin 移動到指定座標 |
-| `0x112A5` | `init_runtime_char_from_base_growth` | 從 character_base / character_growth 初始化一個 runtime_char (player class) |
-| `0x10B4E` | `load_chapter_portraits_and_dump_tmp` | 依 race_id 篩選 char_spawn_records，載入 portrait set 並 dump 到 FD2.TMP |
-| `0x1366A` | `cutscene_event_trigger` | 觸發 milestone event (歸 text_dialog) |
-| `0x32975` | `mark_char_as_dead` | 把指定 runtime_char 標 dead bit |
-| `0x2CAD7` | `chapter_transition_menu` | 章間 modal (save/continue) |
-| `0x10C50` | `init_runtime_char_for_battle` | 從 char_spawn_record 創建 runtime_char (含 enemy class) |
-| `0x205B4` | `check_battle_end_default_handler` | 11 章共用的 post-action 預設 (`check_battle_end_condition` inlined) |
+| `0x205DA` | `fd2_init_battle_state_for_chapter` | 章節進入時設定 active FDTXT entry / 初始 turn |
+| `0x135DD` | `fd2_pan_cursor_and_window` | cursor + window origin 移動到指定座標 |
+| `0x112A5` | `fd2_init_runtime_char_from_base_growth` | 從 character_base / character_growth 初始化一個 runtime_char (player class) |
+| `0x10B4E` | `fd2_load_chapter_portraits_and_dump_tmp` | 依 race_id 篩選 char_spawn_records，載入 portrait set 並 dump 到 FD2.TMP |
+| `0x1366A` | `fd2_cutscene_event_trigger` | 觸發 milestone event (歸 text_dialog) |
+| `0x32975` | `fd2_mark_char_as_dead` | 把指定 runtime_char 標 dead bit |
+| `0x2CAD7` | `fd2_chapter_transition_menu` | 章間 modal (save/continue) |
+| `0x10C50` | `fd2_init_runtime_char_for_battle` | 從 char_spawn_record 創建 runtime_char (含 enemy class) |
+| `0x205B4` | `fd2_check_battle_end_default_handler` | 11 章共用的 post-action 預設 (`fd2_check_battle_end_condition` inlined) |
 
 ## Chapter handler 三 phase 結構
 
@@ -111,20 +111,20 @@
 
 **Phase 1 — Prologue** (`current_chapter_id = 0x20`)
 - 清畫面、palette
-- `cutscene_event_trigger(99)` — 開場音樂
+- `fd2_cutscene_event_trigger(99)` — 開場音樂
 - 淡入淡出迴圈
-- `display_dialog_scene` 顯示 prologue 對話 pages 0..N
-- 每頁配 `cutscene_event_trigger(0x5A..0x69)` event cue
+- `fd2_display_dialog_scene` 顯示 prologue 對話 pages 0..N
+- 每頁配 `fd2_cutscene_event_trigger(0x5A..0x69)` event cue
 
 **Phase 2 — 章節本體** (`current_chapter_id = 0x1F`)
 - 場景切換 palette
-- `load_chapter_portraits_and_dump_tmp(race_id)` 載入該章 portrait set
+- `fd2_load_chapter_portraits_and_dump_tmp(race_id)` 載入該章 portrait set
 - 顯示章節 intro 對話
 
 **Phase 3 — 正式進入章節** (`current_chapter_id = 0..0x1D`)
-- `init_runtime_char_from_base_growth(char_id)` 加入隊伍角色
-- `init_battle_state_for_chapter` 進入正式戰鬥模式
-- `pan_cursor_and_window(...)` 移到地圖開始位置
+- `fd2_init_runtime_char_from_base_growth(char_id)` 加入隊伍角色
+- `fd2_init_battle_state_for_chapter` 進入正式戰鬥模式
+- `fd2_pan_cursor_and_window(...)` 移到地圖開始位置
 - 開場 cutscene 與 dialog
 - 戰鬥開始
 
@@ -133,12 +133,12 @@
 ## data_fd2_chapter_post_action_handler_table (`0x51B19`)
 
 30-entry 函式指標表，由 `current_chapter_id` 索引。從 5 個 turn-cycle 點觸發
-（`game_main_loop` / `tick_status_effects` / `npc_turn_phase_team1` /
-`enemy_turn_phase_team0`），每章可自訂回合結束後的勝負判定邏輯。
+（`fd2_game_main_loop` / `fd2_tick_status_effects_and_show_messages` / `fd2_npc_turn_phase_team1` /
+`fd2_enemy_turn_phase_team0`），每章可自訂回合結束後的勝負判定邏輯。
 
 ### Stub vs 非 stub 分類
 
-- **11 章用 stub** 指向 `check_battle_end_default_handler @ 0x205B4`：
+- **11 章用 stub** 指向 `fd2_check_battle_end_default_handler @ 0x205B4`：
   ch1, 3, 4, 5, 6, 7, 8, 9, 11, 14, 24
 - **17 個 distinct 非 stub** + ch22/27/28 共用 = 19 章有自訂邏輯：
   ch2, 10, 12, 13, 15, 16, 17, 18, 19, 20, 21, 22 (≡27, 28), 23, 25, 26, 29, 30
@@ -150,7 +150,7 @@
 | **Simple extra-lose** | 在 default 判定後加 `if char[X] dead → lose` | ch10 (chars[0x32,0x33])、12 (char[0xE])、15 (char[0x40])、16 (char[0x41])、21 (chars[0x10,0x11])、22/27/28 (char[1])、25 (char[0x10])、26 (chars[1,2]) |
 | **Group survival** | 整個 NPC group 全死 → lose | ch2 (chars[5..10] 6 villagers)、13 (chars[0xF..0x1A] 12 elves)、20 (chars[0x35..0x3D] 8 elves) |
 | **Gated by save_metadata_block** | 條件依「回合計數」生效 | ch13 (>5)、19 (>6)、20 (<16)、23 (<15) |
-| **Bypass default** | 不呼叫 `check_battle_end_condition`，自行實作完整邏輯 | ch18, 23, 29, 30 |
+| **Bypass default** | 不呼叫 `fd2_check_battle_end_condition`，自行實作完整邏輯 | ch18, 23, 29, 30 |
 | **Win condition (boss kill)** | `if char[X] dead → game_event_flag = 2`，多在 bypass-default 章 | ch18 (char[0x34]=黑暗騎士)、23 (char[0x12]=機甲隊長)、30 (char[0x14]=空魔神) |
 
 ### char_idx 在 post_action 中的意義
@@ -178,8 +178,8 @@
 | 0x41 | ch16 | 蜜蒂 |
 | 0x42..0x49 | ch16 | 蜜蒂 8 部下 |
 
-要逐章對應 char_idx → char_id，需根據 `chapter_NN_init` 內
-`init_runtime_char_from_base_growth` 呼叫順序追蹤。詳細對照見
+要逐章對應 char_idx → char_id，需根據 `fd2_chapter_NN_init` 內
+`fd2_init_runtime_char_from_base_growth` 呼叫順序追蹤。詳細對照見
 `program_info/chapters/`。
 
 ## save_metadata_block：精確 turn counter
@@ -210,7 +210,7 @@ each full turn cycle (player → NPC → enemy → next player intro):
 
 關鍵：turn 1 是初始進入 player turn 那一輪 (screen 顯示 "TURN 1")；經過完整
 player→NPC→enemy 循環後，下一輪 player turn 開場時才 += 1。所以
-`chapter_NN_post_action` 與 `chapter_NN_end` 期間檢查 `save_metadata_block` 等於
+`fd2_chapter_NN_post_action` 與 `fd2_chapter_NN_end` 期間檢查 `save_metadata_block` 等於
 **當前** player turn 編號。
 
 ## game_event_flag 三態
@@ -221,8 +221,8 @@ player→NPC→enemy 循環後，下一輪 player turn 開場時才 += 1。所�
 - **1** = char[0] (索爾) dead → game over (`fd2_main` 觸發 fanfare/over screen 然後 reset 0)
 - **2** = all team-0 (敵全滅) → chapter cleared (`fd2_main` 觸發 chapter_end + transition + next_init)
 
-寫入由 `check_battle_end_condition @ 0x205BE` 在每次 turn cycle 結束時計算寫入；
-guard 在 `run_full_turn_cycle` 多處用 `if (game_event_flag == 0)` 在每階段切換前
+寫入由 `fd2_check_battle_end_condition @ 0x205BE` 在每次 turn cycle 結束時計算寫入；
+guard 在 `fd2_run_full_turn_cycle` 多處用 `if (game_event_flag == 0)` 在每階段切換前
 檢查是否提前結束。
 
 ## tile_event_consumed_flags 用途
@@ -240,8 +240,8 @@ end handler 中也用到：
 詳細的 conditional recruit、reward、Good/Bad ending fork 見
 `assets/chapters/_index.md`。簡列：
 
-- ch21_end (6-item collection 0xD1..0xD6) → `give_item(100=天空之鑰)`
-- ch23_end: `any_char_has_item(100)` → 卡里斯 (char 22) 加入 (good path)
-- ch27_end: `any_char_has_item(100)` 否則 game over (bad ending)
+- ch21_end (6-item collection 0xD1..0xD6) → `fd2_give_item_to_first_player_char(100=天空之鑰)`
+- ch23_end: `fd2_any_char_has_item(100)` → 卡里斯 (char 22) 加入 (good path)
+- ch27_end: `fd2_any_char_has_item(100)` 否則 game over (bad ending)
 - ch30_end: 殺空魔神 → `game_event_flag = 2` → load chapter 31 epilogue map +
-  `play_game_ending_cinematic` (good ending)
+  `fd2_play_game_ending_cinematic` (good ending)

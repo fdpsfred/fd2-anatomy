@@ -12,7 +12,7 @@ FD2.LE: standalone "TITLE.DAT" string occurrences = 0
 FD2.EXE: standalone "TITLE.DAT" string occurrences = 0
 ```
 
-無任何 fopen / `load_dat_resource` caller 引用 "TITLE.DAT" 字串。對 FD2 主
+無任何 fopen / `fd2_load_dat_resource` caller 引用 "TITLE.DAT" 字串。對 FD2 主
 遊戲而言是 dead resource，永遠不會被載入。
 
 ## 推測用途 (非主遊戲)
