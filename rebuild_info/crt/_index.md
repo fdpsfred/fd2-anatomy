@@ -1,6 +1,7 @@
 # rebuild_info/crt/
 
-Watcom v2 CRT 在 FD2.LE 內的符號 inventory、與重建 EXTDEF 對照。
+Watcom 9.5a CRT 在 FD2.LE 內的符號 inventory、與重建 EXTDEF 對照（rebuild
+toolchain 用 9.5a，與原 binary 同版）。
 
 ## 文件
 

@@ -6,7 +6,7 @@
 
 | 欄位 | 值 | 說明 |
 |---|---|---|
-| signature | `'LE'` | Linear Executable (不是 LX)。Watcom v2 wlink `system dos4g` 的預設格式 |
+| signature | `'LE'` | Linear Executable (不是 LX)。Watcom 9.5a wlink `system dos4g` 的預設格式 |
 | cpu_type | 2 | i386 |
 | os_type | 1 | OS/2（LE format 規範要求；DOS/4GW 模組仍標 OS/2）|
 | module_flags | `0x00000200` | bits 17:15 = 0 → Program / executable；bits 9:8 = 2 → PM-compatible (wlink dos4g 預設旗標) |
@@ -60,7 +60,7 @@ LE 檔案實際存了 4 個 page (16384 B = 0x4000) of object 2，剩下的 0x16
 
 `data_crt_cmdline_and_env_path_buffer_4kb @ 0x546B0` 是 cstart 在 startup 早期填入 PSP cmdline + env path 的 4 KB 緩衝區。它的虛擬地址 `0x546B0..0x556AF` 與 initial ESP=0x556B0 開始往下長的 stack 完全重疊。
 
-Watcom v2 `system dos4g` 的 cstart 設計：
+Watcom 9.5a `system dos4g` 的 cstart 設計：
 1. LE loader 把 ESP 設成 obj2 頂端 0x556B0。
 2. cstart 用 EBP-relative 暫存器存取自己的 frame，把 PSP cmdline 解析後寫進 `[0x546B0..]`（buffer 起點等於「stack 底」）。
 3. 解析完 cmdline 後 `__InitRtns` 與 `__CMain` 把 stack 用滿，buffer 自動被覆蓋 — 由於 cmdline 已經被 main 函數複製到自己的 argv 陣列，buffer 不再需要。
@@ -162,7 +162,7 @@ Object 3 內的 pointer table（cutscene script ptr table、weapon attack anim p
 - MZ stub 的 strings 含 `DOS4GPATH` / `dos4gw.exe` / `dos4g.exe` / `WATCOM C Run-Time system code is provided ... (c) Copyright by WATCOM Systems Inc. 1988-1992`
 - 行為：使用者在 DOS 直接執行 FD2.EXE → MZ stub 找 `DOS4GPATH` env var 或 PATH 上的 `dos4gw.exe` / `dos4g.exe` → `EXEC` 它把 FD2.EXE 自己當第一個 argument 傳入
 - DOS/4GW.EXE (244716 byte，獨立檔) 接管後讀 FD2.EXE 內部的 LE 模組 (從 e_lfanew=0x28B8 開始)，做 protected mode setup + load LE
-- 此 stub 是 Watcom v2 wlink `system dos4g` 預設打包進去的「small loader stub」，不是把整個 DOS/4GW.EXE 嵌進來
+- 此 stub 是 Watcom 9.5a wlink `system dos4g` 預設打包進去的「small loader stub」，不是把整個 DOS/4GW.EXE 嵌進來
 - Stub 的 MZ header: pages=21, last_page=178, hdrsize=6 para (96 byte), CS:IP=0000:0210, SS:SP=028B:0800, n_relocs=6
 - Stub 的 SHA-1: `b3abb6da8acecec47dae9b3a454aa5aad88c3d16`
 

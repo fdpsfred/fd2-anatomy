@@ -1,7 +1,8 @@
 # 重建 FD2.LE 的 wlink 連結設定
 
 從 LE binary layout (`le_layout.md`)、CRT 識別結論 (`../crt/fid_match.md`)、pool routing
-(`../emission/pool_routing.md`) 反推出的 Watcom v2 `wlink` 連結命令重建。
+(`../emission/pool_routing.md`) 反推出的 Watcom 9.5a `wlink` 連結命令重建（rebuild
+toolchain 用 9.5a，與原 binary 同版，避免引入 `_iobuf` layout 等 ABI 差異）。
 
 ## 結論：wlink 命令列骨架
 
@@ -40,7 +41,7 @@ file <fd2_crt_wrapper.obj>         # 15 個 `crt_equivalent_*` + 10 個 `fd2_*` 
 # ---- Miles AIL static lib ----
 library miles.lib                  # AIL3DIG + AIL3MDI merged (Miles Sound System 3.x for Watcom)
 
-# ---- Watcom CRT (由 `system dos4g` 自動 pull，不用顯式列；列出僅為驗證用) ----
+# ---- Watcom 9.5a CRT (由 `system dos4g` 自動 pull，不用顯式列；列出僅為驗證用) ----
 # libfile cstart.obj                # _cstart_ entry (Watcom 9.5a)
 # library clib3s.lib                # 標準 C runtime (stack-call ABI)
 # library math387s.lib              # x87 數學 + 387 emu init/fini + softfp
@@ -49,16 +50,10 @@ library miles.lib                  # AIL3DIG + AIL3MDI merged (Miles Sound Syste
 # library dos4gw.lib                # DPMI / int31 helpers
 ```
 
-執行：
+執行（在 DOSBox-X 內跑 Watcom 9.5a `wlink`，bin 路徑 `C:\Users\fdpsf\Documents\WATCOM_9.5a\BIN`）：
 
 ```sh
-%WATCOM%\binnt\wlink.exe @fd2.lnk
-```
-
-或舊式 DOS host：
-
-```sh
-%WATCOM%\binw\wlink.exe @fd2.lnk
+wlink @fd2.lnk
 ```
 
 ## 證據鏈：directive ↔ binary 對照

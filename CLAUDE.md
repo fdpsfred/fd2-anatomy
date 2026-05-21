@@ -16,13 +16,14 @@
   -- 新撰寫的知識庫內容描述必須是「最後的結論」，不能是描述分析過程的流水帳
   -- 新撰寫的知識庫內容如果要引用其他文件或資料，不能引用到 legacy/ 或是 workspace/ 下面的東西
   -- 任何文件和scrtips的更新都要反映到相對應的 _index.md 內
-  -- 修改完文件以後，要再次 review 剛剛修改的內容，確定沒有出現「在某個時間解出、以前原本是甚麼、phase」這類流水帳內容，若有則立刻修正  
+  -- 修改完文件以後，要再次 review 剛剛修改的內容，確定沒有出現「在某個時間解出、以前原本是甚麼、phase」這類流水帳內容，若有則立刻修正
 
 可用的工具:
 
 - Ghidra 已經啟動並且打開 FD2.LE 的 code browser，所有的 decompiled source 都已經被解析過並且根據語意重新命名，可以透過 Ghidra mcp 存取
-- DOSBox-X 和 Open Watcom v2 執行檔路徑已經在 path 環境變數內
+- DOSBox-X 執行檔路徑已經在 path 環境變數內
 - DOSBox-X 要使用 silent mode 執行 (-silent command-line option)，以達成全自動化開發
+- Watcom C/C++ 9.5a 的執行檔路徑: C:\Users\fdpsf\Documents\WATCOM_9.5a\BIN，要在 DOSBox-X 裡面執行
 
 Ghidra 操作規範:
 

@@ -106,7 +106,7 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
 
 - **現狀**：Watcom near-heap descriptor struct @ 0x527B0 經 __MemAllocator 訪問 `[EBX+0x8..0x24]` 已對應到 head_search_ptr / max_free_hint / max_free_cap / grow_counter / node_count / sentinel.size / sentinel.prev / sentinel.next。但 +0x0..+0x7（前 8 bytes）無直接 asm 訪問。
 - **推測**：Watcom 標準 near-heap layout 通常含 heap_top (+0) + heap_limit (+4) 兩個 dword，但 FD2.LE 內未見直接讀寫。Plate 標 `inferred ... pending verify`.
-- **解需要做什麼**：(1) 在 v2 RTL source 查 `__nheap` descriptor struct 完整定義；(2) 對其他類似 binary（同 Watcom 11 版本）比對 0x527B0 起始 byte 在啟動後的填入值 — 如執行期 dump 是 `heap_top` 則確認。Static-only 分析無法確定，需要 emulator-level 驗證。
+- **解需要做什麼**：(1) 在 Watcom 9.5a RTL source 查 `__nheap` descriptor struct 完整定義；(2) 對其他類似 binary（同 Watcom 9.5a 版本）比對 0x527B0 起始 byte 在啟動後的填入值 — 如執行期 dump 是 `heap_top` 則確認。Static-only 分析無法確定，需要 emulator-level 驗證。
 
 ## 程式行為未完全理解的段落
 

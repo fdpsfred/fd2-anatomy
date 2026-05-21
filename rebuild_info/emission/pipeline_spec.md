@@ -1,7 +1,8 @@
 # Emit pipeline 規格
 
 emit pipeline 的目標：從 Ghidra 1361 個 function 的 decompiled state 產出 C
-source code，經 Open Watcom v2 重新 compile / link 出 byte-for-byte 等價的
+source code，經 Watcom C/C++ 9.5a（原 binary 同版編譯器，見
+`../crt/fid_match.md`）重新 compile / link 出 byte-for-byte 等價的
 DOS executable（FD2.LE）。
 
 本檔規範 emit pipeline 在處理 function boundary 與 fall-through 模式時必須
@@ -15,10 +16,10 @@ binary 行為。
 | category            | emit_action         | 數量           | emit 策略                                                                                                       |
 | ------------------- | ------------------- | -------------- | --------------------------------------------------------------------------------------------------------------- |
 | `ail`             | `link_vendor_lib` | 428            | **不 emit**。Watcom AIL3DIG / AIL3MDI 靜態 library 直接 link，FD2 source 端只保留 `extern` declaration  |
-| `crt`             | `link_vendor_lib` | 201            | **不 emit**。Watcom v2 RTL 直接 link（193 個 lookup-resolved Watcom 真符號 + 8 個 fast-path `PUBLIC_CRT_SYMBOLS` 不在 lookup）          |
+| `crt`             | `link_vendor_lib` | 201            | **不 emit**。Watcom 9.5a CLIB3S 直接 link（193 個 lookup-resolved Watcom 真符號 + 8 個 fast-path `PUBLIC_CRT_SYMBOLS` 不在 lookup）          |
 | `crt`             | `emit_fd2_source` | 13             | **emit 為 C source**。涵蓋 13 個 `crt_equivalent_*`（Watcom CRT 行為等價但 byte 不 match 任一 lib obj） |
 | `fd2`             | `emit_fd2_source` | 640            | **emit 為 C source**。game logic / glue / dispatch / wrapper / dead code / 8 個 CRT-style primitive       |
-| `binary_artifact` | `skip_artifact`   | 79             | **不 emit**。Watcom v2 重 compile 自動生成 alignment NOP padding                                          |
+| `binary_artifact` | `skip_artifact`   | 79             | **不 emit**。Watcom 9.5a 重 compile 自動生成 alignment NOP padding                                          |
 | **合計**      |                     | **1361** |                                                                                                                 |
 
 路由規則由 `tools/program_analysis/build_call_graph.py` 內 `categorise()` /
@@ -34,15 +35,15 @@ data 端 1300 items 的 emit 路徑由 verdict 內 `caller_pool` + `actions` 決
 | `caller_pool` (verdict 欄)   | emit_action           | emit 策略                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | ------------------------------ | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ail`                        | `link_vendor`       | AIL3DIG/AIL3MDI 靜態 lib byte-preserve；string / table / lookup 全部從 lib 帶入，FD2 source 端只寫 `extern char *` declaration                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `crt`                        | `link_vendor`       | Watcom v2 RTL 對應的 .obj 含相同字串 / table 與 state：fp_not_loaded、matherr msg、math fn name table、asctime packed table、stack_overflow 字串、heap descriptor (`0x527B0..0x527D7`)、FILE pool (`0x52840..0x52A47`)、atexit chain (`0x527D8..0x527E0`)、bootstrap state (`0x52800..0x52833`)、DOS extender callback ptr (`0x527EC`)、env block selector (`0x52834..0x52838`)、rand seed (`0x527E8`)、getch pushback (`0x52824`)、_fmode (`0x52A49`)、387 emulator state (`0x53770..0x53776`、`0x527F4..0x527F5`) 等全部 vendor-resolved；rebuild 時 EXTDEF 到 v2 RTL 對應 symbol |
+| `crt`                        | `link_vendor`       | Watcom 9.5a CLIB3S 對應的 .obj 含相同字串 / table 與 state：fp_not_loaded、matherr msg、math fn name table、asctime packed table、stack_overflow 字串、heap descriptor (`0x527B0..0x527D7`)、FILE pool (`0x52840..0x52A47`)、atexit chain (`0x527D8..0x527E0`)、bootstrap state (`0x52800..0x52833`)、DOS extender callback ptr (`0x527EC`)、env block selector (`0x52834..0x52838`)、rand seed (`0x527E8`)、getch pushback (`0x52824`)、_fmode (`0x52A49`)、387 emulator state (`0x53770..0x53776`、`0x527F4..0x527F5`) 等全部 vendor-resolved；rebuild 時 EXTDEF 到 9.5a CLIB3S 對應 symbol |
 | `fd2` (const)                | `emit_c_const`      | game-side 字串 / 常數 emit 為 C source 字面值（`static const char *` / array literal）；典型例：FD2 .DAT filename 8 個 / OOM msgs / debug fmts / RGB palette tables / shake offset tables / 各 spell 表                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `fd2` (BSS-style state)      | `emit_c_const_zero` | game-side zero-init writable globals emit 為 `static <type> <name>;`（隱含 zero-init，C standard 保證），不寫 explicit `= 0`；典型例：runtime_char_array_ptr / cursor state / portrait cache count                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `none` (padding)             | `skip_align`        | wlink 自動 emit segment alignment，不需 source 端寫                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `fd2` (explicit align bytes) | `emit_align_pad`    | 顯式 byte 序列 padding（如 `byte[3] = {0,0,0}` 不對齊到 4-byte boundary）；非 `skip_align` 因 source 端 emit declaration 順序須精確控制 byte offset；典型例：spell_cast_cinematic_phase_handler_table 前 3-byte pad                                                                                                                                                                                                                                                                                                                                                                                   |
 
-### 規則 E-2: Watcom v2 string-pool 不跨 `.obj` boundary dedup
+### 規則 E-2: Watcom 9.5a string-pool 不跨 `.obj` boundary dedup
 
-Watcom v2 編譯每個 `.obj` 時內部會 dedup string literals，但**不跨 `.obj` 去重**。
+Watcom 9.5a 編譯每個 `.obj` 時內部會 dedup string literals，但**不跨 `.obj` 去重**。
 同字串若在多個 `.obj` 用到，binary 中會有多 copy。emit pipeline 必須對應：
 
 - 每個 fd2 `.obj` source 各自 emit 自己的字串 literal，不做 source-tree 全域 pool
@@ -68,7 +69,7 @@ caller 透過 `BYTE_ARRAY_<addr>` 形式的 pointer 引用 string item 內部 of
 emit pipeline 必須：
 
 - 對每個 sub-string anchor，emit 的 C source 寫成 `(parent_string + offset)`
-  或直接寫該子字串的 literal（Watcom v2 string-pool 會在 `.obj` 內部 dedup
+  或直接寫該子字串的 literal（Watcom 9.5a string-pool 會在 `.obj` 內部 dedup
   使其指向相同的字串末尾）
 - **不**單獨 emit 為 named global — Ghidra 內 `BYTE_ARRAY_<addr>` symbol 是
   audit 工具的 disambiguation label，非真正獨立 data item
@@ -155,7 +156,7 @@ unify boundary，把原本分散的 items 合併為 single semantic item。已�
 
 修復 SOP：apply 個別 type 到每個 sub-region (clear_existing=true 自第一個位址，後續 type apply 自動取代覆蓋)；plate 內標明 split 邊界。新 split-出來的 sub-items 在下個 worklist rebuild 時會自動被識別為新 defined data。
 
-已觀察模式：Watcom v2 emit `static const int arr[N] = {...};` 在 .object2
+已觀察模式：Watcom 9.5a emit `static const int arr[N] = {...};` 在 .object2
 .rodata 區段時，Ghidra auto-analyzer 看到頭兩個 dword 因配對寫入 stack copy
 loop (decomp 顯示為 dword copy `*piVar5 = *puVar4;`) 而 disassemble 為 dword，
 然後第 3 個 dword 起的 trailing bytes 因落在 anonymous byte 區被合併為單一
@@ -210,7 +211,7 @@ load 到 FPU emulator state struct（DGROUP-resident，由 `__sys_init_387_emula
 分配）作 default-clear init。
 
 emit_action 全部 = `link_vendor_lib`（Watcom CLIB3S `__int7.obj` 的內嵌
-常數，FD2 不直接寫；rebuild 時 EXTDEF 到 v2 RTL 的 `__int7` symbol）。
+常數，FD2 不直接寫；rebuild 時 EXTDEF 到 9.5a CLIB3S 的 `__int7` symbol）。
 
 注意：FD2.LE 是 DOS/4G hardware-FPU 環境，CPU 不會觸發 INT 7，所以這條 path
 runtime 不可達；emit 仍須完整保留以維持 byte-identical `.obj` size match
@@ -477,7 +478,7 @@ emit pipeline 對 BSS group 只需要：
 
 當某個 4-byte global 的 binary 位址不滿足 4-byte alignment（addr % 4 ≠ 0），
 但 caller 用 `MOV [addr], reg32` 整 dword access 時，emit C source 必須避免
-Watcom v2 預設 4-byte align 變數位址 — 否則 declared variable 與 binary
+Watcom 9.5a 預設 4-byte align 變數位址 — 否則 declared variable 與 binary
 位址會錯位。
 
 **FD2.LE 觀察案例**（單一已知 instance）：
@@ -614,7 +615,7 @@ void fd2_chapter_event_handler_20__ch10_dialog(void) {
 local 大小決定，**無法直接在 source 端為「同一個 wrapper function」指定與
 callee 不同的 frame_size**。三種實作選項：
 
-1. **Compiler pragma**：驗證 Open Watcom v2 是否有 compiler-specific pragma 或
+1. **Compiler pragma**：驗證 Watcom 9.5a 是否有 compiler-specific pragma 或
    `#pragma aux` 標記可控制單一 function 的 `__CHK` frame_size。優先選此 path。
 2. **Inline asm prologue**：若 Watcom 無 pragma 支援，為這 4 個 case 手寫
    `__declspec(naked)` + `__asm` 顯式 emit `PUSH <prev_framesize>; CALL __CHK;
@@ -623,7 +624,7 @@ callee 不同的 frame_size**。三種實作選項：
    各別 emit 為 wrapper（呼叫 helper）。需 Layer 2 functional equivalence
    驗證 — wrapper 的 frame layout 與原 binary 不同，但行為等價。
 
-實際選擇須在 wlink + Watcom v2 build pipeline 起來後 byte-level 比對驗證。
+實際選擇須在 wlink + Watcom 9.5a build pipeline 起來後 byte-level 比對驗證。
 
 ### 模式 D: DEAD FALL-THROUGH
 
@@ -662,9 +663,9 @@ emit pipeline iterate 函式時自然不會 emit 這些 byte：
 
 - `0x41548` switch jump table：以 `dword[6]` array 存在 Ghidra 內，emit
   pipeline 對應 `AIL_internal_minimum_sample_buffer_size_inner` 的 switch
-  分派可由 Watcom v2 自行生 jump table（C source 寫 switch 即可）
-- `0x3c962` / `0x41db7` align pad：完全 skip（Watcom v2 重新對齊）
-- `0x3c776` MATH387S 常數池：屬 CRT pool 走 `link_vendor_lib`，Watcom v2
+  分派可由 Watcom 9.5a 自行生 jump table（C source 寫 switch 即可）
+- `0x3c962` / `0x41db7` align pad：完全 skip（Watcom 9.5a 重新對齊）
+- `0x3c776` MATH387S 常數池：屬 CRT pool 走 `link_vendor_lib`，Watcom 9.5a
   CRT 自帶等效常數，無須 emit
 
 ### 模式 F: STATE-MACHINE INIT-ENTRY
@@ -716,36 +717,42 @@ scancode 序列），dump screen buffer / FD2.SAV / 觸發的 BGM track ID 與�
 state」下執行完，必須產出「相同的 return value / register state /
 寫入 memory 的 bytes」。
 
-不要求 instruction 級別 byte-相同 —— 因為 Open Watcom v2 的 register
-allocation / instruction selection / scheduling 與 1998 年 Watcom 不可能完全
-一致。
+不要求 instruction 級別 byte-相同 —— register allocation / instruction
+selection / scheduling 細節由 source code 結構 + 編譯器旗標決定，emit pipeline
+產出的 C source 可能與原 1998 年 FD2 source 結構不同，導致部分 function 即使
+用同版編譯器（Watcom 9.5a）也 emit 出不同 instruction sequence。
 
 驗證手段：對 pure-compute leaf function（damage 計算、softfp、decoder helper、
 hash / checksum）跑 emulator 雙邊 trace（原 FD2.LE vs 重建版），對相同 input
 比對 final state。
 
-### Layer 3: byte-exact（aspirational，無強制範圍）
+### Layer 3: byte-exact（高達成性，無強制範圍）
 
-`.object1` section 在某段 address range 內 byte 完全相同。**這是 nice-to-have
-而非要求**——只在某個 function 真的編出 byte-exact 時當作額外信心指標，不能 byte-exact
-也不算 emit pipeline 失敗。
+`.object1` section 在某段 address range 內 byte 完全相同。**因 rebuild 用原版
+Watcom 9.5a（FD2.LE 同版編譯器），emit pipeline 有合理機會達成此 layer**，但
+仍非強制：單一 function 編不出 byte-exact 不算 emit pipeline 失敗；但若大量
+function 編不出 byte-exact，表示 source 還原品質有問題，應回頭審視 decomp。
 
-不可強求 byte-exact 的原因：
+byte-exact 不能保證 100% 的原因（即使同版編譯器）：
 
-- Watcom v11/12 (1998) → Open Watcom v2 (現代) 之間的 instruction selection /
-  register allocation / scheduling 差異
-- function 排列順序由 linker 決定（`.obj` 順序、CRT `.obj` 插入點影響相對 jump offset）
-- alignment padding byte 內容（Watcom 不同版本選不同 NOP encoding）
-- jump table vs branch tree 等 switch 實作策略差異
+- emit pipeline 產出的 C source 結構可能與原 1998 年 FD2 source 不同
+  （local variable 順序 / temp 拆分 / loop unroll 寫法），影響 register
+  allocation 與 instruction selection
+- function 排列順序由 linker 決定（`.obj` 順序、CRT `.obj` 插入點影響相對
+  jump offset）
+- alignment padding byte 內容由 wlink `.obj` boundary 對齊策略決定，可能與
+  原 binary 不同位置出現
+- jump table vs branch tree 等 switch 實作策略差異（source 寫法不同會
+  trigger 不同的 compiler 路徑）
 
 範圍說明（依 emit_action 分組）：
 
 - **`link_vendor_lib` (629 個 = ail 428 + crt 內 lookup-resolved + PUBLIC_CRT_SYMBOLS 201)**：
-  不適用 byte-exact；Layer 2 由 vendor lib 本身保證；只需要 Layer 1
-- **`skip_artifact` (79 個 binary_artifact)**: 不適用 byte-exact；Watcom v2
+  Layer 3 自然滿足（同版 lib byte-identical resolve）；Layer 2 由 vendor lib 保證
+- **`skip_artifact` (79 個 binary_artifact)**: 不適用 byte-exact；Watcom 9.5a
   重 compile 自動產生對應 alignment padding；只需要 Layer 1
 - **`emit_fd2_source` (653 個 = fd2 640 + crt_equivalent_* 13)**: 強制 Layer 2，
-  期望 Layer 3 但不強求
+  期望 Layer 3（用 9.5a 同版編譯器後達成率高，但不強求每個 function 都達成）
 
 ### 結構性不變式（與 binary 等價無關）
 

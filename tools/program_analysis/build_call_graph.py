@@ -48,7 +48,7 @@ JSON_OUT = OUT / "call_graph.json"
 DOT_OUT = OUT / "call_graph.dot"
 MD_OUT = OUT / "call_graph.md"
 
-# Watcom v2 public C-RTL symbols that are present in FD2.LE without a
+# Watcom 9.5a public C-RTL symbols that are present in FD2.LE without a
 # `crt_` prefix because Ghidra recovered the original public symbol name.
 # Treated as crt category for graph colouring.
 PUBLIC_CRT_SYMBOLS = {
@@ -313,7 +313,7 @@ FD2.LE 全程式 function 呼叫關係，由 Ghidra 直接匯出 + 經過完整�
 |---|---|
 | `link_vendor_lib` | wlink 從 vendor lib 解析 — ail 全部 + crt 內 lookup name + PUBLIC_CRT_SYMBOLS |
 | `emit_fd2_source` | FD2 source 端 emit C function — 全部 fd2_* + crt_equivalent_* |
-| `skip_artifact` | Watcom v2 重 compile 自動生成 — binary_artifact 全部 |
+| `skip_artifact` | Watcom 9.5a 重 compile 自動生成 — binary_artifact 全部 |
 
 ## DOT 視覺規範
 

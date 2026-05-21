@@ -11,7 +11,7 @@
   CRT 程式碼地理位置
 - `pipeline_spec.md` — emit 路由規則 E-1..E-9、fall-through pattern 的 6 種
   模式 (A..F)、三層 binary 等價不變式（specification-exact / functionally-exact
-  / byte-exact）、Watcom v2 string-pool dedup 規則
+  / byte-exact）、Watcom 9.5a string-pool dedup 規則
 - `calling_convention.md` — Watcom 32-bit cc ABI 規則（`__watcall` /
   `__cdecl` / `__stdcall`）、disasm signal-based 判斷規則
 

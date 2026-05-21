@@ -1,8 +1,9 @@
 # AIL `.obj` extraction handoff
 
-把 FD2.LE 內 Miles AIL ecosystem 抽出成獨立 `.obj` 並與 Open Watcom v2 CRT
-重新連結時需要的前置資料：邊界、calling-convention 例外、CRT 替換對應、
-ABI 兼容性、build pipeline 草案。AIL function 命名分類詳見 `./inventory.md`。
+把 FD2.LE 內 Miles AIL ecosystem 抽出成獨立 `.obj` 並與 Watcom C/C++ 9.5a CRT
+（原 binary 同版編譯器，見 `../crt/fid_match.md`）重新連結時需要的前置資料：
+邊界、calling-convention 例外、CRT 替換對應、build pipeline 草案。AIL function
+命名分類詳見 `./inventory.md`。
 
 ## 抽 `.obj` 的 function 邊界
 
@@ -33,12 +34,11 @@ ABI 兼容性、build pipeline 草案。AIL function 命名分類詳見 `./inven
 最密集但與 CRT helper interleave；抽取時必須依 inventory 列表（用 Ghidra MCP
 `search_functions(name_pattern="^AIL_")` 從 Ghidra 即時生成）而非 address range。
 
-## AIL 共用 / 邊界 helper（後續 reclassify 結果）
+## AIL 共用 / 邊界 helper
 
-下列原以為「保留 `crt_*` 命名、由 v2 CLIB 直接 EXTDEF 解析」的 helper，經
-後續 byte_match + caller 分析後**多數 reclassify 為 fd2 / AIL pool**（非 Watcom
-CRT primitive），EXTDEF 路徑只剩 abort thunk 一個成立。emit pipeline 分流
-按下表處理：
+下列原以為「保留 `crt_*` 命名、由 CLIB3S 9.5a 直接 EXTDEF 解析」的 helper，經
+byte_match + caller 分析後**多數歸 fd2 / AIL pool**（非 Watcom CRT primitive），
+EXTDEF 路徑只剩 abort thunk 一個成立。emit pipeline 分流按下表處理：
 
 - **FD2 自寫 DPMI primitive (6 個 `fd2_dpmi_*`)** — 為 Miles AIL callback 提供
   DPMI INT 31h fn 0x100 / 0x101 / 0x600 / 0x601 wrapper：
@@ -54,9 +54,9 @@ CRT primitive），EXTDEF 路徑只剩 abort thunk 一個成立。emit pipeline 
   emit_action = `link_vendor_lib`（隨 AIL3DIG/AIL3MDI relink 帶入）。
 - **Abort 路徑 (1 個 Watcom CRT EXTDEF)** — `__FpAbort @ 0x46b41`
   （原 `crt_abort_thunk`，caller path 含 `__prtf` / `__STKOVERFLOW`）。
-  Watcom CLIB3S 真符號 byte_match，emit_action = `link_vendor_lib`，由 v2 CLIB
-  EXTDEF 解析。原 `crt_abort_with_log` placeholder 經 boundary cleanup 後已併入
-  __FpAbort body 或同等 wrapper；不再單獨存在。
+  Watcom CLIB3S 9.5a 真符號 byte_match，emit_action = `link_vendor_lib`，由
+  CLIB3S EXTDEF 解析。原 `crt_abort_with_log` placeholder 經 boundary cleanup
+  後已併入 __FpAbort body 或同等 wrapper；不再單獨存在。
 - **EFLAGS / `_disable` primitive (2 個 `crt_equivalent_*`)** — 行為等價於 Watcom
   `_disable` 但 byte 不 match 任何 lib obj：
   `crt_equivalent_get_eflags @ 0x3ed58` + `crt_equivalent_get_eflags_thunk @ 0x37f86`。
@@ -65,13 +65,13 @@ CRT primitive），EXTDEF 路徑只剩 abort thunk 一個成立。emit pipeline 
 
 AIL `.obj` 抽取時的處置：上述 helper **都不抽進 AIL `.obj`**（fd2/crt 命名
 都歸 FD2-source 端 emit，AIL 端走 EXTDEF reference）。但要注意只有 `__FpAbort`
-是 Watcom CLIB EXTDEF；其他 fd2_* 與 crt_equivalent_* 都需 FD2 source 端先
+是 Watcom CLIB3S EXTDEF；其他 fd2_* 與 crt_equivalent_* 都需 FD2 source 端先
 emit 出來才能被 AIL `.obj` 的 EXTDEF reference 找到。
 
 ## Calling convention 例外
 
-8 個違反 v2 `__cdecl` EBX preservation 約定的 AIL function（內部用 EBX 為 loop
-counter，prologue 無 `push ebx` / epilogue 無 `pop ebx`）：
+8 個違反 Watcom 9.5a `__cdecl` EBX preservation 約定的 AIL function（內部用
+EBX 為 loop counter，prologue 無 `push ebx` / epilogue 無 `pop ebx`）：
 
 | 函式 | 地址 |
 |---|---|
@@ -84,66 +84,50 @@ counter，prologue 無 `push ebx` / epilogue 無 `pop ebx`）：
 | `AIL_allocate_sequence_handle` | 0x3A953 |
 | `AIL_lock_channel` | 0x3C18B |
 
-這 8 個函式在 client C declaration 應標 `__watcall` 而非 `__cdecl`，否則 v2
+這 8 個函式在 client C declaration 應標 `__watcall` 而非 `__cdecl`，否則
 wcc386 會 emit caller code 預期 EBX preservation 並產生實際執行錯誤。
 
-## CRT 替換 EXTDEF map
+## CRT EXTDEF map
 
-90s fd2 函式 → v2 CRT symbol（v2 clib3r.lib）對照（完整 lookup 在
-`crt_lookup_9.5a.json`）：
+AIL function body 內每個 `E8 disp32` CALL 到 CRT 的指令，target 對應 CLIB3S
+9.5a 真符號（完整 lookup 在 `../crt/lookup_9.5a.json`）。因 rebuild 用 9.5a
+（與原 binary 同版），symbol name 在 lib obj 內 byte-identical，EXTDEF 直接
+解析無需 wrapper：
 
-| 90s addr | 90s 函式 | v2 CRT symbol |
+| FD2.LE addr | Ghidra 名 | CLIB3S 9.5a 符號 |
 |---|---|---|
 | `0x36CD7` | `crt_frame_setup` | `__CHK` |
-| `0x36D16` | `crt_malloc_track` | `_malloc` (with size+tracking wrapper) |
-| `0x36DE4` | `crt_exit` (Watcom) | `_exit` |
+| `0x36D16` | `crt_malloc_track` | `_nmalloc` (Watcom near-pointer alloc) |
+| `0x36DE4` | `crt_exit` | `_exit` |
 | `0x36FA1` | `crt_fopen_impl` | `_fopen` |
-| `0x36FCC` | `crt_fopen_read` | `fopen(name, "rb")` wrapper |
+| `0x36FCC` | `crt_fopen_read` | `fopen("rb")` wrapper (FD2-source emit) |
 | `0x37072` | `crt_fread` | `_fread` |
 | `0x37244` | `crt_fclose` | `_fclose` |
 | `0x373C4` | `crt_memmove` | `_memmove` |
-| `0x37416` | `crt_free` | `_free` |
+| `0x37416` | `crt_free` | `_nfree` |
 | `0x3744B` | `crt_fwrite` | `_fwrite` |
 | `0x375C0` | `crt_memset` | `_memset` |
 | `0x375F0` | `crt_fseek` | `_fseek` |
-| `0x3D7F6` | `errno_addr` | `__get_errno()` 或 inline `mov eax, &errno` |
+| `0x3D7F6` | `errno_addr` | `__get_errno_ptr` (CLIB3S 9.5a 真符號) |
 
-## ABI 兼容性
+## ABI 與 CRT global 位址
 
-90s Watcom 11.0 (FD2 連結的版本) vs Open Watcom v2 的 `_iobuf` layout：
+因 rebuild 用 Watcom 9.5a（FD2.LE 同版），`_iobuf` layout / `__iob[]` stride /
+`errno` / `_ClosedStreams_head` / `_OpenStreams_head` 等 CRT struct 與 global
+位址在 lib obj 內與原 binary byte-identical。AIL 函式不直接 absolute reference
+這些 global（全部透過 fopen / fclose / `__get_errno_ptr` 等函式呼叫間接存取），
+即使 wlink relink 後位址改變也不影響。
 
-| 結構欄位 | 90s offset | v2 offset | 兼容 |
-|---|---:|---:|---|
-| `_ptr` | 0 (4B) | 0 (4B) | ✅ |
-| `_cnt` | 4 (4B) | 4 (4B) | ✅ |
-| offset 8 | `_base` (buffer base ptr) | `_link` (linked-list ptr) | ⚠️ 唯一差別 |
-| `_flag` | 12 (4B) | 12 (4B) | ✅ |
-| `_handle` | 16 (4B) | 16 (4B) | ✅ |
-| `_bufsize` | 20 (4B) | 20 (4B) | ✅ |
-| FILE struct total | 26 bytes | 26 bytes | ✅ |
-| `__iob[]` stride | 0x1A (26 bytes) | 0x1A | ✅ |
-| `__iob[]` entry count | 20 | 20 (`_NFILES`) | ✅ |
-
-AIL function 從不訪問 `[reg+8]`（offset 8 是 90s ↔ v2 唯一差別欄位），故
-offset 8 layout 差異對 AIL 無影響。
-
-CRT global 位址（90s fd2 → v2 對應）：
-
-| 90s symbol | 90s linear | v2 對應 |
-|---|---|---|
-| `__iob` | 0x52840..0x52A48 (520B) | `__iob[]` |
-| `errno` | 0x541A4 (4B) | `errno` (透過 `__get_errno()`) |
-| `_ClosedStreams_head` | 0x541A0 (4B) | `__ClosedStreams` |
-| `_OpenStreams_head` | 0x541AC (4B) | `__OpenStreams` |
-
-AIL function 不直接 absolute reference 這些 global，全部透過 fopen / fclose /
-errno_addr 等函式呼叫間接存取，故 v2 重連結時這些 global 的位址換移無影響。
+不需要跨版本 _iobuf shim：CRT global 位址（`__iob @ 0x52840..0x52A48` 520B、
+`errno @ 0x541A4` 4B、`_ClosedStreams_head @ 0x541A0`、`_OpenStreams_head @
+0x541AC`）由 9.5a CLIB3S 提供，重 link 自然會 patch 到對應位址，emit pipeline
+不需要顯式處理。
 
 ## AIL string / data byte ranges
 
 AIL ecosystem 在 `.object2` 字串區佔據 0x50000..0x53800 範圍（與 CRT 字串
 interleave）。AIL extraction 必須帶入下列字串 group，rebuild 時 .obj 內部
-emit 為 string literal（Watcom v2 string-pool 處理 dedup）。
+emit 為 string literal（Watcom 9.5a string-pool 處理 dedup）。
 
 ### AIL log / API trace 字串（143 條，pool=ail）
 
@@ -174,9 +158,9 @@ log_api / log_result / log_separator / log_banner / log_timestamp / log_ini /
 ini_key / signature_dig / signature_mdi / signature_voc / err_* / filename /
 hex_digit / envvar_* / gtl_filename）。
 
-### Watcom v2 `.obj`-boundary string-pool 不 dedup（rebuild 必須對應）
+### Watcom 9.5a `.obj`-boundary string-pool 不 dedup（rebuild 必須對應）
 
-Watcom v2 在編譯每個 `.obj` 時內部 dedup string literals，但**不跨 `.obj`
+Watcom 9.5a 在編譯每個 `.obj` 時內部 dedup string literals，但**不跨 `.obj`
 boundary 去重**。同字串若在多個 `.obj` source file 用，binary 內會有多 copy。
 AIL extraction 必須對下列已觀察到的 cross-`.obj` 多 copy 字串保留各 copy：
 
@@ -186,7 +170,7 @@ AIL extraction 必須對下列已觀察到的 cross-`.obj` 多 copy 字串保留
 | `"Unrecognized digital audio file type\n"` | 0x51428 + 0x5146d | allocate_file_sample.OBJ + set_sample_file.OBJ |
 
 rebuild pipeline 對應規則：在 AIL 各 `.obj` 重新 compile 時，各 source file
-內保留自己的 string literal（Watcom v2 編譯器在 `.obj` 內部自動 dedup，
+內保留自己的 string literal（Watcom 9.5a 編譯器在 `.obj` 內部自動 dedup，
 但不跨 `.obj`）。
 
 ### dead_code_stub 對應的 data items
@@ -453,18 +437,20 @@ AIL extraction 時這些 alignment byte sequences 須 byte-preserve（wlink 會�
 2. 新工具 extract_ail.py（從 Ghidra MCP 拉 AIL function 清單 + body bytes）
      → ail_code.bin: AIL functions byte image (concatenated)
      → ail_data.bin: AIL globals byte image (subrange of obj2)
-     → ail_fixups.json: fixup records 從 LE format 抽出
+     → ail_fixups.json: fixup records 從 LE format 抽出 + disasm 補
+       同 obj1 內 E8/E9 disp32 的合成條目
 3. tools/le_unpack/bin_to_omf.py (extended)
-     → AIL.obj：SEGDEF AIL_CODE + AIL_DATA、PUBDEF for 103 public、
-       EXTDEF for v2 CRT symbols + 9 個 CRT 共享 helper、FIXUPP32 records
-       translated from LE fixups
-4. wcc386 -bt=dos -mf my_main.c → my_main.obj  (uses v2 cstart + clib3r)
-5. wlink AIL.obj my_main.obj clib3r.lib → poc.exe
-6. DOSBox-X 跑 → 驗證 OPL3 出聲
+     → ail_<NN>_<group>.obj × ~30：SEGDEF AIL_CODE + AIL_DATA、
+       PUBDEF for 106 public、EXTDEF for CLIB3S 9.5a 真符號 + 8 個
+       FD2-side helper、FIXUPP32 records translated from LE fixups + 合成
+4. DOSBox-X 內 wlib (9.5a) -b -t -q ailv3.lib +ail_*.obj
+5. DOSBox-X 內 wcc386 -bt=dos -mf my_main.c → my_main.obj
+6. DOSBox-X 內 wlink ailv3.lib my_main.obj clib3s.lib → poc.exe
+7. 在 DOSBox-X 跑 → 驗證 OPL3 出聲
 ```
 
 跑 build pipeline 之前的前置：
-- 對 9 個 CRT 共享 helper 改寫成「v2 CRT 入口 + 同名 wrapper」（保 byte-identical），
-  或直接 EXTDEF 到 v2 對應 symbol（不需 byte-identical）
+- 對 8 個 FD2-side helper（6 fd2_dpmi_* + 2 crt_equivalent_get_eflags）改寫
+  為 FD2 source 端 emit；AIL 端走 EXTDEF reference
 - 對 8 個 `__watcall` 例外函式在 client header 標對 calling convention
 - 對 14 個 dead_code_stub 標 weak 或排除

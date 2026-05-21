@@ -1,8 +1,9 @@
 # 整體架構
 
-FD2.LE 是 1995 年 Open Watcom C++ 編譯的 DOS 32-bit Linear Executable，搭配
-DOS/4GW Protected Mode Extender 在 386+ 環境執行。畫面用 VGA mode 13h
-(320×200×256 色)，音訊用 Miles Sound System (AIL) 走連結進來的 driver。
+FD2.LE 是 Watcom C/C++ 9.5a 編譯的 DOS 32-bit Linear Executable（見
+`rebuild_info/crt/fid_match.md`），搭配 DOS/4GW Protected Mode Extender 在 386+
+環境執行。畫面用 VGA mode 13h (320×200×256 色)，音訊用 Miles Sound System
+(AIL) 走連結進來的 driver。
 
 ## 模組與記憶體佈局
 

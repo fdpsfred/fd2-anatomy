@@ -12,14 +12,14 @@ FD2.LE 全 1361 個 function 依 **四 pool + 兩維度** 分類（命名規範�
 | `binary_artifact` | `binary_artifact_*` | 79 | `skip_artifact` |
 | **小計** |  | **1361** |  |
 
-emit_action 對應 wlink / Watcom v2 recompile pipeline 的處理：
+emit_action 對應 wlink / Watcom 9.5a recompile pipeline 的處理：
 
-- `link_vendor_lib` — wlink 從 Miles AIL static lib 或 Watcom v2 RTL
+- `link_vendor_lib` — wlink 從 Miles AIL static lib 或 Watcom 9.5a CLIB3S
   直接解析（ail 全部 + crt 內 lookup-resolved + PUBLIC_CRT_SYMBOLS），
   FD2 source 端只保留 `extern` declaration
 - `emit_fd2_source` — FD2 source 端 emit C function。涵蓋全部
   `fd2_*` + 13 個 `crt_equivalent_*`
-- `skip_artifact` (79) — Watcom v2 重 compile 自動生成 alignment padding，
+- `skip_artifact` (79) — Watcom 9.5a 重 compile 自動生成 alignment padding，
   FD2 source 不需要寫
 
 四 pool 的具體分布：
@@ -28,7 +28,7 @@ emit_action 對應 wlink / Watcom v2 recompile pipeline 的處理：
    的 mixer / sequencer / driver wrapper / ISR helper / DPMI thunk。全部走
    `link_vendor_lib`，FD2 source 不需重寫。
 2. **CRT pool** (`crt_equivalent_*` / `L$*` / Watcom natural name / lookup / PUBLIC_CRT_SYMBOLS,
-   214 個) — Watcom v2 C runtime：
+   214 個) — Watcom 9.5a C runtime (CLIB3S + MATH387S + EMU387 + GRAPH)：
    - 193 個 lookup-resolved Watcom 真符號（`malloc` / `free` / `fread` /
      `fwrite` / `memset` / `memmove` / `strcpy` 等公開符號 + Watcom near-pointer
      內部 `_nmalloc` / `_nfree` + Watcom hidden `__filbuf` / `__get_errno_ptr` /
@@ -62,7 +62,7 @@ emit_action 對應 wlink / Watcom v2 recompile pipeline 的處理：
    FDFIELD / FDSHAP / FDOTHER / FDTXT 資源解碼、cursor / menu、chapter
    event handler、SHARED EPILOGUE / TAIL JMP THUNK stub (`fd2_noop_stub_*`)、
    6 個 DPMI region/size primitive (`fd2_dpmi_*`)、2 個 FD2 global accessor、`fd2_main`。
-4. **binary_artifact pool** (`binary_artifact_*`, 79 個) — Watcom v2 compiler
+4. **binary_artifact pool** (`binary_artifact_*`, 79 個) — Watcom 9.5a compiler
    在 function 之間插入的多位元組 NOP padding (`LEA EAX,[EAX]` / `MOV EDX,EDX`
    等)，建為 Function entity 但 0 caller、永不執行。詳見下文「binary_artifact
    pool」段落。
@@ -77,12 +77,12 @@ emit pipeline 只需知道前三個屬 crt pool，後者屬 fd2 pool。
 ## binary_artifact pool
 
 兩種 Watcom 工具鏈在 `_TEXT` segment 內 emit 的 padding，emit_action 都是
-`skip_artifact`（Watcom v2 重 compile + wlink 重 link 自動產生，FD2 source
+`skip_artifact`（Watcom 9.5a 重 compile + wlink 重 link 自動產生，FD2 source
 不需要寫）：
 
 ### Watcom compiler alignment NOP (79 個 `binary_artifact_align_nop_<addr>`，屬 binary_artifact pool)
 
-Watcom v2 compiler 為了讓 hot function 的 entry 對齊到 16-byte 邊界，在
+Watcom 9.5a compiler 為了讓 hot function 的 entry 對齊到 16-byte 邊界，在
 function 之間插入多位元組 NOP 指令當 padding。常見 encoding：
 
 - `8d 80 00 00 00 00` = `LEA EAX,[EAX]` (6-byte NOP)

@@ -1,14 +1,14 @@
 # CRT 符號 inventory
 
-Watcom v2 C runtime 在 FD2.LE 內的命名約定、static-link duplicates、13 個
+Watcom 9.5a C runtime 在 FD2.LE 內的命名約定、static-link duplicates、13 個
 `crt_equivalent_*` 與 8 個 `fd2_*` CRT-style primitive 對照。完整 Watcom
 真符號 inventory 見同層 `lookup_9.5a.json` / `matched_function_sources.md`
 （個別 entry 的 verify 紀錄合併進 `notes` 欄位）。
 
 ## CRT 命名約定
 
-最終 emit 出的 game source 直接 link Open Watcom v2 CRT，因此命名以「能被
-Watcom linker 直接解析」為目標：
+最終 emit 出的 game source 直接 link Watcom 9.5a CLIB3S（與原 binary 同版），
+因此命名以「能被 Watcom linker 直接解析」為目標：
 
 - **Watcom 真符號**（公開或 hidden PUBDEF；行為 byte-match Watcom 9.5/9.5a/9.5b/9.5c
   lib obj 或語意 1:1 對應）→ 使用 Watcom 原名（`malloc` / `memset` / `fopen` /
