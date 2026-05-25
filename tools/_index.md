@@ -36,6 +36,7 @@ KB（`rebuild_info` / `program_info` / `resource_info` / `assets`）不引用
 | `tools/program_analysis/data_audit/`         | `workspace/data_audit/`       |
 | `tools/program_analysis/function_audit/`     | `workspace/function_audit/`   |
 | `tools/program_analysis/jump_table_audit/`   | `workspace/jump_table_audit/` |
+| `tools/ail_extract/`                         | `workspace/ail_extract/`        |
 
 `tools/program_analysis/crt_fid_match/data/` 內的 primary input：
 
@@ -50,3 +51,4 @@ FidQuery raw 輸出 (`matches_9.5a.json`) 屬 pipeline intermediate，不入 git
 - `decoders/` — LLLLLL DAT archive parser + 各資源檔解碼器
 - `glyph/` — 中文字 glyph atlas 渲染 + ET3 STDFONT pixel-match
 - `program_analysis/` — FD2.LE 結構性分析工具集合（5 audit pipeline + call_graph builder）
+- `ail_extract/` — Miles AIL audio library 從 FD2.LE 抽出重建為 ailv3.lib + ailv3.h + fd2common.lib + test_audio.exe（Watcom 9.5a target，在 DOSBox-X 內 build / run）

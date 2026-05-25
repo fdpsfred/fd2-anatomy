@@ -27,7 +27,9 @@
 
 Ghidra 操作規範:
 
-- 如果有對 FD2.LE 進行修改，例如新建 function、重新 decompile，在修改結束後都要檢查有沒有產生 error bookmark，若有就要全部修復
+- 如果有對 FD2.LE 進行修改，例如新建 function、重新 decompile，在修改結束後要:
+  -- 檢查有沒有產生 error bookmark，若有就要全部修復
+  -- 檢查發生變更的 function 的 calling convention 是否正確，若有錯誤就要全部修復
 - Ghidra 搜尋 error bookmark 的指令是 list_bookmarks(category="Bad Instruction")
 - Error bookmark 在問題修正後不會自己消失，要手動移除
 - 如果有對 FD2.LE 修改過，在工作完成後要儲存變更

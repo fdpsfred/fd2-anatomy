@@ -3,7 +3,7 @@
 FD2 game-side 自寫的 audio 派遣層（BGM dispatcher、SFX trigger）。Miles AIL
 (Audio Interface Library) vendor library 的完整 inventory / 抽 `.obj` 工作的
 前置資料 / driver 與 patch 檔對應，詳見 `rebuild_info/ail/inventory.md` 與
-`rebuild_info/ail/extraction_prep.md`。
+`rebuild_info/ail/_index.md`。
 
 ## FD2 自寫的 BGM 派遣器
 

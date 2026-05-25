@@ -6,7 +6,7 @@ FD2.LE 全 1361 個 function 依 **四 pool + 兩維度** 分類（命名規範�
 
 | pool (category) | 命名前綴 | 數量 | emit_action |
 |---|---|---|---|
-| `ail` | `AIL_*` | 428 | `link_vendor_lib` |
+| `ail` | `AIL_*` | (即時 dump) | `link_vendor_lib` |
 | `crt` | `crt_equivalent_*` / `crt_*` / `L$*` / Watcom natural name (`cos`/`fopen`/...) / lookup-resolved / `PUBLIC_CRT_SYMBOLS` | 214 | `link_vendor_lib`（lookup-resolved + PUBLIC_CRT_SYMBOLS）或 `emit_fd2_source`（`crt_equivalent_*`） |
 | `fd2` | `fd2_*` | 640 | `emit_fd2_source` |
 | `binary_artifact` | `binary_artifact_*` | 79 | `skip_artifact` |
@@ -24,7 +24,7 @@ emit_action 對應 wlink / Watcom 9.5a recompile pipeline 的處理：
 
 四 pool 的具體分布：
 
-1. **AIL pool** (`AIL_*`, 428 個) — Miles AIL3DIG / AIL3MDI audio static lib
+1. **AIL pool** (`AIL_*`，count 即時透過 `search_functions("^AIL_")` dump) — Miles AIL3DIG / AIL3MDI audio static lib
    的 mixer / sequencer / driver wrapper / ISR helper / DPMI thunk。全部走
    `link_vendor_lib`，FD2 source 不需重寫。
 2. **CRT pool** (`crt_equivalent_*` / `L$*` / Watcom natural name / lookup / PUBLIC_CRT_SYMBOLS,

@@ -1,0 +1,12 @@
+system dos4g
+name test_aud.exe
+option stack=16K
+option heapsize=2M
+option quiet
+option map=test_aud.map
+file test_audio.obj
+library ailv3.lib
+library fd2common.lib
+library c:\lib386\dos\clib3s.lib
+library c:\lib386\math387s.lib
+library c:\lib386\dos\emu387.lib

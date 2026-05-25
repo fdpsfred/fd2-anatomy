@@ -103,4 +103,4 @@ dpmi / init / time / errno / signal / stream I/O / math 等）皆已歸 lookup
 
 註：原 `fd2_filesize_path @ 0x36900` 與 `fd2_get_word_global_52754 @ 0x368FA`
 已 reclassify 為 AIL pool（`AIL_internal_filesize_path` / `AIL_get_last_error_code`），
-詳見 `rebuild_info/ail/extraction_prep.md` AIL 共用 / 邊界 helper 段。
+詳見 `rebuild_info/ail/calling_convention.md` fd2common pool 段。

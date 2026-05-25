@@ -30,6 +30,6 @@
 - 想理解戰鬥 AI：`program_info/battle.md`
 - 想知道 FD2 用哪個編譯器和 CRT lib：`rebuild_info/crt/fid_match.md`
 - 想理解 emit pipeline / pool routing / fall-through pattern：`rebuild_info/emission/_index.md`
-- 想抽 AIL `.obj` 重建：`rebuild_info/ail/extraction_prep.md`
+- 想抽 AIL `.obj` 重建：`rebuild_info/ail/_index.md` + `tools/ail_extract/_index.md`
 - 想知道 FD2.LE 怎麼連結出來 / wlink 設定：`rebuild_info/link/wlink_settings.md` + `rebuild_info/link/le_layout.md`
 - 想看每個 folder 的檔案清單：各 folder 內的 `_index.md`

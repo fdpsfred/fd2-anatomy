@@ -129,23 +129,47 @@ __watcall  : N_reg   = max consecutive prefix of (EAX, EDX, EBX, ECX) that
 宣告 param 數**多於**實際 ABI → caller 多 push 不會被 callee 用到的 args，浪費但
 不破。**少報比多報危險。**
 
-## Function-pointer dispatch table callees 的 0-arg signature
+## Function-pointer dispatch table callees 的 signature
 
-176 個 function 屬於 function-pointer table 的 dispatch callee（caller_count=0，
-透過 `(*table[idx])()` 0-arg 呼叫），全部設 `void __cdecl func(void)`：
+Dispatch callee 分兩組，差別在 dispatch site 是否 push args：
+
+### 0-arg dispatch callees — `void __cdecl func(void)`
 
 | 群組 | 函式數 | dispatch 表 |
 | --- | --- | --- |
-| `chapter_NN_post_action` | 17 | `data_fd2_chapter_post_action_handler_table[30]` |
-| `chapter_NN_init` | 26 | per-chapter init 表 |
-| `chapter_NN_end` | 30 | per-chapter end 表 |
-| `chapter_event_handler_*` | 89 | `data_fd2_battle_ai_post_action_consequence_table @ 0x51B91` |
-| `cast_*` | 13 | spell-cast helpers |
-| 其他 | 1 | sample fix |
+| `chapter_NN_init` | 26 | `chapter_init_handler_table @ 0x51D71` (28 slot) |
+| `chapter_NN_end` | 30 | `chapter_end_handler_table @ 0x51DE9` (30 slot) |
 
-驗證：所有 176 個 function 的 audit 訊號都是 `reads_eax / reads_edx /
-reads_ebx / reads_ecx = False`，dispatch site `(*table[idx])()` 也無 push 任
-何 stack arg，故 callee 應為 0-arg signature。
+dispatch sites (`fd2_main_menu_continue_dispatcher @ 0x25f10/0x260f5`, `fd2_main @ 0x25e3a/0x25e23`)
+皆 `CALL dword ptr [EAX*4 + table]` 無 PUSH/ADD ESP，故 callee 為 0-arg signature。
+
+### 1-arg dispatch callees — `void __cdecl func(uint event_arg)`
+
+| 群組 | 函式數 | dispatch 表 |
+| --- | --- | --- |
+| `chapter_NN_post_action` | 17 | `data_fd2_chapter_post_action_handler_table @ 0x51B19` (30 slot) |
+| `chapter_event_handler_*` | 89 | `data_fd2_battle_ai_post_action_consequence_table @ 0x51B91` |
+
+`0x51B19` dispatch sites (5): `fd2_game_main_loop @ 0x1197b`,
+`fd2_tick_status_effects_and_show_messages @ 0x1a94d`,
+`fd2_npc_turn_phase_team1 @ 0x1d8a0`,
+`fd2_enemy_turn_phase_team0 @ 0x1d96c/0x1d9fc`，皆 PUSH 1 arg + ADD ESP, 0x4 (K=1 cdecl)。
+
+`0x51B91` dispatch sites (3): `fd2_handle_tile_event_interaction @ 0x19511`,
+`fd2_fire_chapter_turn_events_for_phase @ 0x1a85a`,
+`fd2_process_battle_drop_entries @ 0x1ac1a`，皆 PUSH 1 arg + ADD ESP, 0x4 (K=1 cdecl)。
+
+function pointer table 型別必須統一，即使某些 handler 不讀該 arg 仍需宣告為 1-arg。
+
+### 3-arg dispatch callees — `void __cdecl func(uint caster_unit_id, uint num_targets, byte * target_id_array)`
+
+| 群組 | 函式數 | dispatch 表 |
+| --- | --- | --- |
+| `cast_*` | 13 | spell dispatch table `@ 0x51D01` |
+
+dispatch sites: `fd2_execute_ai_offensive_spell @ 0x1541f`,
+`fd2_spell_selection_menu_main @ 0x1d479`，PUSH 3 args + ADD ESP, 0xc (K=3 cdecl)。
+function pointer table 型別必須統一。
 
 ## Decompiler fragments — 不可獨立宣告的「函式」
 
@@ -167,6 +191,7 @@ INDEPENDENTLY`，emit pipeline 必須跳過這些 address，把 logic 收回 par
 | `0x11011` | ADD ESP 0x34 + POP EBP/EDI/ESI/EBX + RET | locals=0x34 + 4 saved regs |
 | `0x11452` | ADD ESP 0x20 + POP EBP/EDI/ESI/EBX + RET | locals=0x20 + 4 saved regs |
 | `0x13994` | ADD ESP 0x5C + POP EBP/EDI/ESI/EBX + RET | locals=0x5C + 4 saved regs |
+| `0x17ee8` | `CALL fd2_clear_keyboard_buffer` + POP EBX + RET | locals=0 + 1 saved reg (EBX). Parents: `fd2_open_status_screen_with_slide_in @ 0x17e0b` (JL fall-through at 0x17ec8) + `fd2_init_battle_state_for_chapter @ 0x205da` (tail JMP at 0x20678) |
 
 Watcom C 對於有相同 frame layout 的多個函式會共用同一段 epilogue 來節省 code
 size — emit pipeline 須把 logic 還原到各 parent。

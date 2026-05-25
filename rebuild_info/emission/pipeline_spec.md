@@ -15,7 +15,7 @@ binary 行為。
 
 | category            | emit_action         | 數量           | emit 策略                                                                                                       |
 | ------------------- | ------------------- | -------------- | --------------------------------------------------------------------------------------------------------------- |
-| `ail`             | `link_vendor_lib` | 428            | **不 emit**。Watcom AIL3DIG / AIL3MDI 靜態 library 直接 link，FD2 source 端只保留 `extern` declaration  |
+| `ail`             | `link_vendor_lib` | (即時 dump)    | **不 emit**。Watcom AIL3DIG / AIL3MDI 靜態 library 直接 link，FD2 source 端只保留 `extern` declaration  |
 | `crt`             | `link_vendor_lib` | 201            | **不 emit**。Watcom 9.5a CLIB3S 直接 link（193 個 lookup-resolved Watcom 真符號 + 8 個 fast-path `PUBLIC_CRT_SYMBOLS` 不在 lookup）          |
 | `crt`             | `emit_fd2_source` | 13             | **emit 為 C source**。涵蓋 13 個 `crt_equivalent_*`（Watcom CRT 行為等價但 byte 不 match 任一 lib obj） |
 | `fd2`             | `emit_fd2_source` | 640            | **emit 為 C source**。game logic / glue / dispatch / wrapper / dead code / 8 個 CRT-style primitive       |
@@ -747,7 +747,7 @@ byte-exact 不能保證 100% 的原因（即使同版編譯器）：
 
 範圍說明（依 emit_action 分組）：
 
-- **`link_vendor_lib` (629 個 = ail 428 + crt 內 lookup-resolved + PUBLIC_CRT_SYMBOLS 201)**：
+- **`link_vendor_lib` (ail + crt 內 lookup-resolved + PUBLIC_CRT_SYMBOLS；count 即時 dump)**：
   Layer 3 自然滿足（同版 lib byte-identical resolve）；Layer 2 由 vendor lib 保證
 - **`skip_artifact` (79 個 binary_artifact)**: 不適用 byte-exact；Watcom 9.5a
   重 compile 自動產生對應 alignment padding；只需要 Layer 1

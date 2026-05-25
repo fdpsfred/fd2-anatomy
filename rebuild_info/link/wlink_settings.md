@@ -213,6 +213,6 @@ wlink system dos4g name FD2.EXE option stack=4K \
 
 - LE binary 細部 layout：`le_layout.md`
 - CRT lib 構成與符號 lookup：`../crt/fid_match.md`、`../crt/symbol_inventory.md`、`../crt/lookup_9.5a.json`
-- Miles AIL lib inventory：`../ail/inventory.md`、`../ail/extraction_prep.md`
+- Miles AIL lib inventory：`../ail/inventory.md`、`../ail/_index.md`
 - emit_action 路由與 pipeline rule：`../emission/pool_routing.md`、`../emission/pipeline_spec.md`
 - Calling convention 規則：`../emission/calling_convention.md`
