@@ -1845,7 +1845,8 @@
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0002137d": {
     "name": "fd2_spell_handler_id_3_via_targeted_blink",
