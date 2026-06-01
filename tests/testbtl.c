@@ -817,6 +817,111 @@ static void test_summon_a_state6_terminate(void)
     ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_a_terminate_flag, 1);
 }
 
+/* state 3 is a pure constant return (disasm 0x26a9c CMP EAX,3 -> MOV EAX,0xc). */
+static void test_summon_a_state3(void)
+{
+    int r;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    r = fd2_tick_summon_anim_variant_a_6slot(0, 0, 0, 0, 3);
+    ASSERT_EQ((long)r, 0xC);
+}
+
+/* TICK (state 2) blit-gate + frame-0 SFX + done_flag, rotation suppressed via
+ * terminate_flag==1 so the frame-8 path is isolated out:
+ *   slot0 frame 0  -> in [0,7) blit, frame==0 SFX (with_handle), ++ ->1
+ *   slot1 frame 2  -> blit, ++ ->3 sets done_flag (disasm 0x26b64 CMP ...,3)
+ *   slot2 frame 6  -> blit (6<7), ++ ->7
+ *   slot3 frame -1 -> NOT in [0,7), no blit, ++ ->0
+ *   slot4 frame -2 -> no blit, ++ ->-1
+ *   slot5 frame 3  -> blit, ++ ->4
+ * Variant-A TICK only ever calls fd2_play_sfx_with_handle (single CALL 0x25a96
+ * at 0x26b51); it never calls fd2_play_sfx_sample_from_bank. */
+static void test_summon_a_tick_blit_gate_sfx_done(void)
+{
+    int r;
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    data_fd2_battle_summon_anim_variant_a_terminate_flag = 1;
+    for (i = 0; i < 6; i++)
+        data_fd2_battle_summon_anim_variant_a_6slot_color_idx_array[i] = 0;
+    data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[0] = 0;
+    data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[1] = 2;
+    data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[2] = 6;
+    data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[3] = -1;
+    data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[4] = -2;
+    data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[5] = 3;
+    g_blit_indexed_sprite_calls = 0;
+    g_play_sfx_with_handle_calls = 0;
+    g_play_sfx_sample_from_bank_calls = 0;
+    r = fd2_tick_summon_anim_variant_a_6slot(0, 0, 0, 0, 2);
+    ASSERT_EQ((long)r, 1);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 4);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 1);
+    ASSERT_EQ((long)g_play_sfx_sample_from_bank_calls, 0);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[0], 1);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[1], 3);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[2], 7);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[3], 0);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[5], 4);
+}
+
+/* TICK color rotation at frame 8 (terminate_flag==0): counter=(counter+1)%10,
+ * color_idx[i]=counter, frame_counter[i]=0, then RNG jitter=7*(rng%2)
+ * (disasm 0x26bc8 CALL rng; 0x26bcf..0x26bde IDIV 2 -> 7*(rng%2); the emitter
+ * corrected the decompiler EAX bug that used the loop index). seed=8192 ->
+ * fd2_advance_rng_state ROL16(0x2000+0x9014,3)=0x80A5 (odd) -> jitter 7. slot0
+ * is the only slot at frame 7 (->8); other slots stay at frame 4 (blit, ++ ->5,
+ * never reach 3 or 8) so done stays 0. */
+static void test_summon_a_tick_color_rotation(void)
+{
+    int r;
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    data_fd2_battle_summon_anim_variant_a_terminate_flag = 0;
+    data_fd2_battle_summon_anim_variant_a_color_rotation_counter = 3;
+    data_fd2_shared_rng_seed = 8192;
+    for (i = 0; i < 6; i++) {
+        data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[i] = 4;
+        data_fd2_battle_summon_anim_variant_a_6slot_color_idx_array[i] = 0;
+        data_fd2_battle_summon_anim_variant_a_6slot_jitter_byte_array[i] = 0;
+    }
+    data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[0] = 7;
+    r = fd2_tick_summon_anim_variant_a_6slot(0, 0, 0, 0, 2);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_a_color_rotation_counter, 4);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_a_6slot_color_idx_array[0], 4);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[0], 0);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_a_6slot_jitter_byte_array[0], 7);
+    ASSERT_EQ((long)r, 0);
+}
+
+/* TICK rotation mod-10 wrap + even-RNG jitter branch: counter 9 -> (9+1)%10==0,
+ * and seed=0 -> fd2_advance_rng_state ROL16(0x9014,3)=0x80A4 (even) ->
+ * jitter 7*(0)=0 (overwriting the preset 7, proving the RNG branch). Only slot0
+ * reaches frame 8; other slots at frame -2 stay out of every gate. */
+static void test_summon_a_tick_rotation_mod10_wrap(void)
+{
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    data_fd2_battle_summon_anim_variant_a_terminate_flag = 0;
+    data_fd2_battle_summon_anim_variant_a_color_rotation_counter = 9;
+    data_fd2_shared_rng_seed = 0;
+    for (i = 0; i < 6; i++) {
+        data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[i] = -2;
+        data_fd2_battle_summon_anim_variant_a_6slot_color_idx_array[i] = 0;
+    }
+    data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[0] = 7;
+    data_fd2_battle_summon_anim_variant_a_6slot_jitter_byte_array[0] = 7;
+    fd2_tick_summon_anim_variant_a_6slot(0, 0, 0, 0, 2);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_a_color_rotation_counter, 0);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_a_6slot_color_idx_array[0], 0);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[0], 0);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_a_6slot_jitter_byte_array[0], 0);
+}
+
 static void test_summon_8slot_init(void)
 {
     int r;
@@ -2112,6 +2217,10 @@ void run_battle_tests(void)
     RUN_TEST(test_summon_generic_state5_advance);
     RUN_TEST(test_summon_a_init);
     RUN_TEST(test_summon_a_state6_terminate);
+    RUN_TEST(test_summon_a_state3);
+    RUN_TEST(test_summon_a_tick_blit_gate_sfx_done);
+    RUN_TEST(test_summon_a_tick_color_rotation);
+    RUN_TEST(test_summon_a_tick_rotation_mod10_wrap);
     RUN_TEST(test_summon_b_init);
     RUN_TEST(test_summon_b_state3);
     RUN_TEST(test_summon_b_state6_terminate);
