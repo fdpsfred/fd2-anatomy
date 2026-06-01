@@ -1793,7 +1793,8 @@
     "target": "spell/spellwk.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00021190": {
     "name": "fd2_composite_then_animate_projectiles",

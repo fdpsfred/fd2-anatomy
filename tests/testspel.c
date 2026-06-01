@@ -13,6 +13,7 @@
 /* globals + stubs in testglob.c */
 extern runtime_char g_test_rc_array[8];
 extern int g_remove_inventory_calls;
+extern int g_composite_call_count;
 
 /* ----------------------------------------------------------------
  * fd2_apply_use_effect_dispatch coverage.
@@ -213,6 +214,52 @@ static void test_apply_item_stat_modifier(void)
     ASSERT_EQ(g_test_rc_array[1].ap, 10);
 }
 
+/* fd2_apply_attack_spell_damage @ 0x2111A runs the per-target damage loop,
+ * then a Pattern-A SHARED EPILOGUE (loop-exit JGE 0x21190 falls into
+ * fd2_composite_then_animate_projectiles): fd2_composite_battle_frame(0)
+ * then fd2_animate_spell_projectile_paths(). The composite call is the
+ * observable state transition — pinned via g_composite_call_count. Dropping
+ * either tail call (the bug this guards) leaves the count at 0 -> fail.
+ * Two live targets exercise the loop with the REAL fd2_calc_magic_damage
+ * (hit_rate=100 -> damage-number branch each iter); job_id=1 + nonzero HP
+ * keep the damage formula in-bounds (mirrors testbtl setup). The damage
+ * VALUE and the per-iter hit/miss branch are owned by testbtl's magic-damage
+ * tests; here we assert only that the composite fires exactly ONCE (post-loop,
+ * not per iteration) over a 2-target run. */
+static void test_attack_spell_damage_composites_once(void)
+{
+    uint8 target_ids[2];
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    g_test_rc_array[0].hp_current = 200;
+    g_test_rc_array[0].hp_max = 200;
+    g_test_rc_array[0].job_id = 1;
+    g_test_rc_array[0].portrait_id = 0x01;
+    g_test_rc_array[1].hp_current = 200;
+    g_test_rc_array[1].hp_max = 200;
+    g_test_rc_array[1].job_id = 1;
+    g_test_rc_array[1].portrait_id = 0x01;
+    data_fd2_battle_job_magic_resist_table[0] = 10;
+    data_fd2_battle_spell_effect_table[0].damage = 50;
+    data_fd2_battle_spell_effect_table[0].hit_rate = 100;
+    data_fd2_shared_rng_seed = 0;
+    target_ids[0] = 0;
+    target_ids[1] = 1;
+    g_composite_call_count = 0;
+    fd2_apply_attack_spell_damage(0, 2, (uint32)target_ids, 0);
+    ASSERT_EQ(g_composite_call_count, 1);
+}
+
+/* Empty target list (count 0): loop body never runs, but the shared
+ * epilogue still composites exactly once. Guards against the tail being
+ * mistakenly placed inside the loop. */
+static void test_attack_spell_damage_zero_targets_still_composites(void)
+{
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    g_composite_call_count = 0;
+    fd2_apply_attack_spell_damage(0, 0, (uint32)0, 0);
+    ASSERT_EQ(g_composite_call_count, 1);
+}
+
 static void test_set_full_palette_smoke(void)
 {
     fd2_set_full_vga_palette_to_color(0x3F, 0x3F, 0x3F);
@@ -237,6 +284,8 @@ void run_spell_tests(void)
     RUN_TEST(test_spell_17_xp_no_job_bonus);
     RUN_TEST(test_apply_status_effect_deducts_mp);
     RUN_TEST(test_apply_item_stat_modifier);
+    RUN_TEST(test_attack_spell_damage_composites_once);
+    RUN_TEST(test_attack_spell_damage_zero_targets_still_composites);
     RUN_TEST(test_set_full_palette_smoke);
     RUN_TEST(test_spell_handler_0_smoke);
     RUN_TEST(test_use_effect_code5_consumes);

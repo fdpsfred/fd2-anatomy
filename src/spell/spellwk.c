@@ -219,6 +219,8 @@ void fd2_apply_attack_spell_damage(uint32 caster_idx,
             fd2_show_miss_indicator((uint32)target_id);
         }
     }
+    fd2_composite_battle_frame(0);
+    fd2_animate_spell_projectile_paths();
 }
 
 /* ----------------------------------------------------------------
