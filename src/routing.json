@@ -1861,7 +1861,8 @@
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "000213b7": {
     "name": "fd2_execute_offensive_full_screen_flash_spell",
