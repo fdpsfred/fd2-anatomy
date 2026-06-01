@@ -11,7 +11,8 @@
     "target": "input/input.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00010652": {
     "name": "fd2_load_chapter_background_layers",
