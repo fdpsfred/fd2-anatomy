@@ -369,7 +369,8 @@
     "target": "anim/anim.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "000134e4": {
     "name": "fd2_clear_all_chars_facing",
