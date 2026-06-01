@@ -1034,7 +1034,8 @@
     "target": "battle/btl_turn.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0001aa1d": {
     "name": "fd2_process_battle_drop_entries",
