@@ -419,10 +419,13 @@
   },
   "00013994": {
     "name": "fd2_noop_stub_13994",
-    "target": "util/noop.c",
+    "target": "<fragment:inline-epilogue>",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": false,
+    "reviewed": true,
+    "skip": true,
+    "skip_reason": "DECOMPILER FRAGMENT (shared epilogue; calling_convention.md epilogue cluster 0x13994 = ADD ESP 0x5C + POP EBP/EDI/ESI/EBX + RET, locals=0x5C + 4 saved regs; pipeline_spec.md 模式A rule A-1). Not a callable C function: pure caller-frame unwind (call_count=0, param_count=0, cyclomatic=1) reached only by tail-JMP (parent's last instruction `JMP 0x13994` @0x1ff74, preceded by `MOV EAX,EBP` @0x1ff72 so the return value flows through) from the sole parent fd2_play_ending_and_record_clear @0x1f894. Raw bytes @0x1ff72 = 89 e8 e9 1b 3a ff ff: opcode 0xE9 is near JMP, NOT 0xE8 CALL (Ghidra get_xrefs_to mislabels this UNCONDITIONAL_CALL but the opcode is JMP). Parent prologue PUSH EBX/ESI/EDI/EBP + SUB ESP,0x5c @0x1f89e is the exact inverse; this is the tail-merged epilogue of that single parent. Emit pipeline skips this address; epilogue is regenerated inside the parent as return ebp_value;. NOT emitted to util/noop.c."
   },
   "0001399c": {
     "name": "fd2_convert_battle_tiles_to_24px",

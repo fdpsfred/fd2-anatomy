@@ -85,6 +85,18 @@
       }
     ]
   },
+  "00013994": {
+    "name": "fd2_noop_stub_13994",
+    "target": "<fragment:inline-epilogue>",
+    "issues": [
+      {
+        "type": "fragment_equivalence_handoff",
+        "desc": "0x13994 fd2_noop_stub_13994 是 SHARED EPILOGUE fragment (calling_convention.md epilogue cluster 0x13994 = ADD ESP 0x5C + POP EBP/EDI/ESI/EBX + RET, locals=0x5C + 4 saved regs; pipeline_spec.md 模式A rule A-1)，已正確 skip、不再 emit 到 util/noop.c。等價性疑慮：此 fragment 的行為（caller-frame unwind + 把 EBP 載入 EAX 當回傳值）需靠唯一 parent fd2_play_ending_and_record_clear 的 return ebp_value; 由 Watcom 9.5a 重新生成 epilogue「等價」，而非 byte-identical。Layer 2 跨檔語意驗證責任轉移到 parent emit 時確認：parent 的 PUSH EBX/ESI/EDI/EBP + SUB ESP,0x5c (@0x1f89e) prologue 對應的 stack-cleanup 段 (ADD ESP 還原 locals=0x5C + POP EBP/EDI/ESI/EBX) 與原 binary 相同，且 MOV EAX,EBP (@0x1ff72) 的回傳值語意被 return 述句保留。非由 fragment 自身可驗，待下游 parent emit 時的覆蓋點。",
+        "severity": "info",
+        "verify_method": "verify_at_parent_emit"
+      }
+    ]
+  },
   "00011aa8": {
     "name": "fd2_wait_for_input_with_idle",
     "target": "input/input.c",
