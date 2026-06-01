@@ -201,7 +201,8 @@
     "target": "gfx/palette.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00011eb0": {
     "name": "fd2_blit_rectangle",
