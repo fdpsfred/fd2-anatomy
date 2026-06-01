@@ -116,7 +116,7 @@
 |------|---------------------|-----|
 | `dpmi.c` | DPMI DOS 記憶體操作 (`dpmi_alloc/free_dos_memory`, `dpmi_lock/unlock_region`, `dpmi_lock/unlock_size`) | 6 |
 | `pathfnd.c` | 移動範圍洪水填充 (`init_movement_range_floodfill`, `flood_fill_movement_range_recursive`, `flood_fill_neighbor_step`), A* 路徑搜索 (`pathfind_to_destination`, `pathfind_recursive_with_direction`, `pathfind_neighbor_step_with_tiebreak`, `pathfind_record_destination_xy`, `pathfind_count_unique_directions`, `pathfind_check_destination_save_path`) | 9 |
-| `noop.c` | fall-through Pattern A 候選的 noop stub。`noop_stub_b43`/`c49`/`1011`/`1452`/`13994` 已逐一確認為 DECOMPILER FRAGMENT（shared epilogue），已改 `<fragment:inline-epilogue>` skip、不落在 noop.c。其餘 `noop_stub_15983/4e915` 仍待各自 review 時逐一確認是否為 fragment（確認後比照 b43/c49/1011/1452/13994 改 skip） | 0 |
+| `noop.c` | fall-through Pattern A 候選的 noop stub。`noop_stub_b43`/`c49`/`1011`/`1452`/`13994`/`15983` 已逐一確認為 DECOMPILER FRAGMENT（shared epilogue／return-tail），已改 `<fragment:inline-epilogue>` skip、不落在 noop.c。其餘 `noop_stub_4e915` 仍待各自 review 時逐一確認是否為 fragment（確認後比照前列改 skip） | 0 |
 | `misc.c` | Debug (`debug_print_ans_and_length`), 原子交換 (`set_word_global_52758/5275c`), 隊伍查詢 (`any_char_has_item`, `check_party_has_char_id`, `require_char_id_in_active_party`, `count_selected_chars`, `reorder_party_by_selection`, `pin_required_char_to_party_slot1`, `find_template_char_by_id`), delay (`delay_400ms_via_idle_thunk`) | 11 |
 
 ### `crt/` — CRT 等價函式
@@ -240,6 +240,18 @@ python -c "import json; d=json.load(open('src/routing.json')); e=d['000115b6']; 
     epilogue cluster 0x13994 + `pipeline_spec.md` 模式A rule A-1，**不**獨立 emit 為 C function（原 `util/noop.c` 路由為誤判，已更正）；
     epilogue 由 compiler 在 parent 重新生成（`return ebp_value;`）。routing.json 標 `skip:true`，不進 emit/review queue。
 
+17. **`fd2_score_item_candidate_tail_15983` (0x15983) → `<fragment:inline-epilogue>` (skip)**
+    SHARED RETURN/EPILOGUE fragment（**非** no-op；帶回傳值）。Disasm 兩條：`MOV EAX,EDI`（把回傳值載入 EAX）
+    + `JMP 0x22bbe`（落入共用 epilogue `ADD ESP,4 / POP EBP/EDI/ESI/EBX / RET`，此 epilogue 同時也是
+    `fd2_composite_battle_frame_zero @0x22bb7` 的 tail）。被兩個 prologue 相同
+    （`PUSH framesize; CALL __CHK; PUSH EBX/ESI/EDI/EBP; SUB ESP,0x4`）的 parent 共用：(1) `fd2_score_item_candidate`
+    @0x15880（主要；3 條 early-exit conditional jump：JGE @0x158e5 / JNZ @0x15936 / JGE @0x15959，此處 EDI=total_score，
+    即 `return total_score;`）；(2) `fd2_alloc_and_blit_indexed_sprite_chunk` @0x15f0e（tail-JMP @0x15f7f，為 parent 最後一條指令；
+    Ghidra `get_xrefs_to` 標 `UNCONDITIONAL_CALL` 是 display quirk、opcode 實為 JMP/0xE9；此處 EDI=malloc 出的 buffer pointer，
+    來自 `MOV EDI,EAX` @0x15f51）。依 `rebuild_info/emission/calling_convention.md` §「Decompiler fragments」
+    + `pipeline_spec.md` 模式A rule A-1，**不**獨立 emit 為 C function（原 `util/noop.c` 路由 + `fd2_noop_stub_15983` 命名為誤判，已更正）；
+    `MOV EAX,EDI` 回傳值載入 + epilogue 由 compiler 在各 parent 的 `return` 重新生成。routing.json 標 `skip:true`，不進 emit/review queue。
+
 ## 四、File 統計摘要（from routing.json）
 
 | Target | Phase 分布 | 總數 |
@@ -272,8 +284,8 @@ python -c "import json; d=json.load(open('src/routing.json')); e=d['000115b6']; 
 | field/chtrans.c | P4+P5+P6 | 4 |
 | util/dpmi.c | P2 | 6 |
 | util/pathfnd.c | P2 | 9 |
-| util/noop.c | P2 | 2 |
-| &lt;fragment:inline-epilogue&gt; | P2 | 5 |
+| util/noop.c | P2 | 1 |
+| &lt;fragment:inline-epilogue&gt; | P2 | 6 |
 | util/misc.c | P2+P4+P5 | 11 |
 | crt/crt.c | P3 | 13 |
 | **Total** | | **653** |

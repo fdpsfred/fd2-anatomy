@@ -1,13 +1,13 @@
 # Calling Convention (FD2.LE)
 
-FD2.LE 是 **Open Watcom C++ 編譯**的 32-bit DOS LE executable。本檔案是 Watcom
+FD2.LE 是 **Watcom C/C++ 9.5a 編譯**的 32-bit DOS LE executable。本檔案是 Watcom
 ABI 結論與規則參考，作為復刻 / 重新編譯時的 C signature 推導依據。
 
-1361 函式的 cc 已全部對齊 Watcom ABI，本檔末段含最終分布統計。
+1375 函式的 cc 已全部對齊 Watcom ABI，本檔末段含最終分布統計。
 
 ## Watcom 32-bit Register-Based ABI 摘要
 
-Open Watcom 對 32-bit DOS / OS/2 / Windows target 的預設呼叫慣例是 `__watcall`
+Watcom 對 32-bit DOS / OS/2 / Windows target 的預設呼叫慣例是 `__watcall`
 （register-based）。FD2.LE 觀察到的實際情況是 **混用**：
 
 - 自寫 game logic：多數採 cdecl 風格（純 stack args + caller cleanup）—
@@ -192,18 +192,19 @@ INDEPENDENTLY`，emit pipeline 必須跳過這些 address，把 logic 收回 par
 | `0x11452` | ADD ESP 0x20 + POP EBP/EDI/ESI/EBX + RET | locals=0x20 + 4 saved regs |
 | `0x13994` | ADD ESP 0x5C + POP EBP/EDI/ESI/EBX + RET | locals=0x5C + 4 saved regs |
 | `0x17ee8` | `CALL fd2_clear_keyboard_buffer` + POP EBX + RET | locals=0 + 1 saved reg (EBX). Parents: `fd2_open_status_screen_with_slide_in @ 0x17e0b` (JL fall-through at 0x17ec8) + `fd2_init_battle_state_for_chapter @ 0x205da` (tail JMP at 0x20678) |
+| `0x15983` | `MOV EAX,EDI` + `JMP 0x22bbe`，其中 0x22bbe = `ADD ESP,4 + POP EBP/EDI/ESI/EBX + RET`（與 `fd2_composite_battle_frame_zero @ 0x22bb7` 共用同一段 epilogue） | locals=0x4 + 4 saved regs。**帶回傳值** epilogue：`MOV EAX,EDI` 先把回傳值載入 EAX。Parents（prologue 皆為 `PUSH framesize; CALL __CHK; PUSH EBX/ESI/EDI/EBP; SUB ESP,0x4`）：`fd2_score_item_candidate @ 0x15880`（3 條 conditional-jump early-exit：JGE 0x158e5 / JNZ 0x15936 / JGE 0x15959，EDI=total_score）+ `fd2_alloc_and_blit_indexed_sprite_chunk @ 0x15f0e`（tail JMP at 0x15f7f，EDI=malloc buffer pointer） |
 
 Watcom C 對於有相同 frame layout 的多個函式會共用同一段 epilogue 來節省 code
-size — emit pipeline 須把 logic 還原到各 parent。
-
-### Prologue adapter (tail JMP thunk)
-
-| 地址 | 內容 | 用途 |
-| --- | --- | --- |
-| `0x15983` | `MOV EAX, EDI` + `JMP 0x22bbe` | 把 caller 的 EDI 移到 EAX（標準 reg-arg slot），然後 tail call 進 `fd2_composite_battle_frame_zero @ 0x22bb7` 的 +7 alt-entry（跳過 `__CHK` prologue 部分） |
+size — emit pipeline 須把 logic 還原到各 parent。其中 `0x15983` 是**帶回傳值**的
+shared return-tail：`MOV EAX,EDI` 先把 parent 的回傳值（`fd2_score_item_candidate`
+的 total_score／`fd2_alloc_and_blit_indexed_sprite_chunk` 的 buffer pointer）載入
+EAX，再 `JMP 0x22bbe` 落入共用的 `ADD ESP,4 / POP×4 / RET` epilogue（該 epilogue
+亦為 `fd2_composite_battle_frame_zero @ 0x22bb7` 的尾段）。它不是「進入別的 function」的
+prologue adapter — 0x22bbe 只是被多個函式共用的 stack-cleanup 尾段。
 
 Emit pipeline 看到 plate comment 內 `DECOMPILER FRAGMENT — DO NOT DECLARE
-INDEPENDENTLY` 字串自動跳過該位址，logic 收回 parent。
+INDEPENDENTLY` 字串自動跳過該位址，logic 收回 parent（回傳值由各 parent 的 `return`
+重新生成）。
 
 ## 已建立的 helper 型別
 
