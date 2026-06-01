@@ -159,7 +159,8 @@ void fd2_show_damage_number(uint32 v, uint32 t, uint32 tg) { }
 void fd2_show_miss_indicator(uint32 t) { }
 void fd2_show_status_effect_overlay(uint32 t, uint32 s) { }
 void fd2_animate_spell_projectile_paths(void) { }
-void fd2_remove_inventory_slot_at(uint32 c, uint32 s) { }
+int g_remove_inventory_calls = 0;
+void fd2_remove_inventory_slot_at(uint32 c, uint32 s) { g_remove_inventory_calls++; (void)c; (void)s; }
 void fd2_load_status_effect_sfx(void) { }
 void fd2_play_and_free_status_effect_sfx(void) { }
 /* fd2_collect_pending_death_drops: now in btl_turn.c */

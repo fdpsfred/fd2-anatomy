@@ -87,6 +87,7 @@ consume_item:
         }
         fd2_composite_battle_frame(0);
         fd2_animate_spell_projectile_paths();
+        goto consume_item;
     } else if (effect_code == 0x0C) {
         fd2_cast_speed_boost_spell(
             caster_idx, target_count, p_target_array);
@@ -149,7 +150,7 @@ consume_item:
 
     data_fd2_battle_pending_xp_credit = 0;
     fd2_play_and_free_status_effect_sfx();
-    pending_drops = fd2_collect_pending_death_drops();
+    pending_drops = fd2_collect_pending_death_drops((uint32)drops_buf);
     fd2_play_death_animation_and_mark_dead();
     fd2_process_battle_drop_entries(
         caster_idx, pending_drops, (uint32)drops_buf);
