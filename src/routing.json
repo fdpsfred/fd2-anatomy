@@ -848,7 +848,8 @@
     "target": "input/input.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00017eef": {
     "name": "fd2_render_status_screen_static_layout",
