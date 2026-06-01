@@ -118,6 +118,65 @@ static void test_damage_floor_at_zero(void)
     ASSERT_EQ(g_test_rc_array[0].hp_current, 0);
 }
 
+/* XP-award branch, KILL case (portrait_id >= 0x44 -> the 0x1c8aa JL is NOT
+ * taken, so the whole XP block runs). This block contains three high-risk
+ * elements the two tests above never reach (both use portrait 0x01 < 0x44):
+ *   (a) CALL fd2_get_enemy_data_entry then dereference the RETURN value as a
+ *       pointer (asm 0x1c8b4 CALL; 0x1c8bc MOVZX EDX,[EAX+9]) -- the Ghidra
+ *       EAX-tracking-bug class. fd2_get_enemy_data_entry is the REAL accessor
+ *       (&enemy_data_table[idx]), so seeding the table drives the read.
+ *   (b) xp = exp_reward * level  (0x1c8c4 IMUL).
+ *   (c) the kill/survive split (0x1c8cd JZ on HP_after==0).
+ * portrait_id 0x44 -> enemy index 0x44-0x44 = 0. seed 0 -> jitter 32, so
+ * actual_damage = (500*9)/10 + (32*500)/1000 = 450 + 16 = 466. HP 5 - 466
+ * floors to 0 => KILL: HP_after==0 takes the JZ, skipping the proportional
+ * IDIV, so the FULL xp is credited: exp_reward(10) * level(1) = 10.
+ * Pure integer arithmetic (RNG value 0x80a4 confirmed via emulation). */
+static void test_damage_xp_kill_full_reward(void)
+{
+    int result;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(data_fd2_battle_enemy_data_table, 0,
+           sizeof(data_fd2_battle_enemy_data_table));
+    g_test_rc_array[0].hp_current = 5;
+    g_test_rc_array[0].hp_max = 200;
+    g_test_rc_array[0].portrait_id = 0x44;        /* enemy idx 0 */
+    g_test_rc_array[0].status_flags_block[0] = 1; /* level */
+    data_fd2_battle_enemy_data_table[0].exp_reward = 10;
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+    result = fd2_apply_damage_and_award_xp(0, 500);
+    ASSERT_EQ(result, 466);
+    ASSERT_EQ(g_test_rc_array[0].hp_current, 0);             /* kill */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 10);        /* full xp */
+}
+
+/* XP-award branch, SURVIVE case: HP_after != 0 so the 0x1c8cd JZ is NOT taken
+ * and the proportional IDIV runs (0x1c8cf IMUL xp,actual_damage; 0x1c8d7 IDIV
+ * by HP_max). portrait 0x44 -> idx 0, level 1, exp_reward 10. seed 0 -> jitter
+ * 32, base 50 -> actual_damage = (50*9)/10 + (32*50)/1000 = 45 + 1 = 46.
+ * HP 200 - 46 = 154 (> 0, survives). xp = exp_reward(10) * level(1) = 10, then
+ * scaled by damage: (10 * 46) / HP_max(200) = 460 / 200 = 2. This case asserts
+ * the proportional path distinct from the kill case's full-reward path. */
+static void test_damage_xp_survive_proportional(void)
+{
+    int result;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(data_fd2_battle_enemy_data_table, 0,
+           sizeof(data_fd2_battle_enemy_data_table));
+    g_test_rc_array[0].hp_current = 200;
+    g_test_rc_array[0].hp_max = 200;
+    g_test_rc_array[0].portrait_id = 0x44;        /* enemy idx 0 */
+    g_test_rc_array[0].status_flags_block[0] = 1; /* level */
+    data_fd2_battle_enemy_data_table[0].exp_reward = 10;
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+    result = fd2_apply_damage_and_award_xp(0, 50);
+    ASSERT_EQ(result, 46);
+    ASSERT_EQ(g_test_rc_array[0].hp_current, 154);          /* survives */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 2);        /* (10*46)/200 */
+}
+
 /* ---- Test: magic damage ---- */
 
 static void test_magic_damage_miss(void)
@@ -3512,6 +3571,8 @@ void run_battle_tests(void)
     RUN_TEST(test_heal_spell_to_target);
     RUN_TEST(test_damage_basic);
     RUN_TEST(test_damage_floor_at_zero);
+    RUN_TEST(test_damage_xp_kill_full_reward);
+    RUN_TEST(test_damage_xp_survive_proportional);
     RUN_TEST(test_magic_damage_miss);
     RUN_TEST(test_magic_damage_hit);
     RUN_TEST(test_magic_damage_hit_boundary_33);
