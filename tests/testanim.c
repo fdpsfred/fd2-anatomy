@@ -347,11 +347,17 @@ static void test_mark_aoe_plus_pattern(void)
     data_fd2_battle_tile_map_ptr = save_tm;
 }
 
+/* fd2_collect_pending_death_drops @ 0x1B6B7 — 3-condition AND filter
+ * (flags&CHARFLAG_DEAD==0, combat_aux_block[10]!=0xFF, hp_current==0)
+ * packing each kept 3-byte entry (combat_aux_block[10..12]) at
+ * out + drop_count*3 (asm 0x1b70d MOV EAX,ESI; SHL 2; SUB ESI -> ESI*3).
+ * Expectations derived statically from disasm; emulate blocked by __CHK LOCK. */
 static void test_collect_pending_drops(void)
 {
     uint8 out[12];
     int result;
 
+    /* Happy path: single qualifying char -> 1 entry, type byte at out[0]. */
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     g_test_rc_array[0].flags = 0;
     g_test_rc_array[0].combat_aux_block[10] = 1;
@@ -362,6 +368,73 @@ static void test_collect_pending_drops(void)
     result = fd2_collect_pending_death_drops((uint32)out);
     ASSERT_EQ(result, 1);
     ASSERT_EQ(out[0], 1);
+
+    /* (a) Two qualifying chars at idx0/idx1 with distinct 3-byte entries.
+     * Pins the *3 packing stride (entry1 must land at out[3], not out[1]/out[2])
+     * and confirms the full 3-byte memmove of combat_aux_block[10..12]. */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].flags = 0;
+    g_test_rc_array[0].hp_current = 0;
+    g_test_rc_array[0].combat_aux_block[10] = 1;   /* type */
+    g_test_rc_array[0].combat_aux_block[11] = 0x11;
+    g_test_rc_array[0].combat_aux_block[12] = 0x22;
+    g_test_rc_array[1].flags = 0;
+    g_test_rc_array[1].hp_current = 0;
+    g_test_rc_array[1].combat_aux_block[10] = 2;   /* type */
+    g_test_rc_array[1].combat_aux_block[11] = 0x33;
+    g_test_rc_array[1].combat_aux_block[12] = 0x44;
+    data_fd2_battle_party_member_count = 2;
+
+    memset(out, 0, sizeof(out));
+    result = fd2_collect_pending_death_drops((uint32)out);
+    ASSERT_EQ(result, 2);
+    ASSERT_EQ(out[0], 1);
+    ASSERT_EQ(out[1], 0x11);
+    ASSERT_EQ(out[2], 0x22);
+    ASSERT_EQ(out[3], 2);
+    ASSERT_EQ(out[4], 0x33);
+    ASSERT_EQ(out[5], 0x44);
+
+    /* (b) combat_aux_block[10]==0xFF empty-entry skip. This is the sole
+     * semantic distinguishing this fn from fd2_collect_dead_char_drops
+     * (which keeps ==3). char0 empty + char1 qualifying -> only char1 kept,
+     * compacted to out[0]. */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].flags = 0;
+    g_test_rc_array[0].hp_current = 0;
+    g_test_rc_array[0].combat_aux_block[10] = 0xFF;  /* empty -> skip */
+    g_test_rc_array[1].flags = 0;
+    g_test_rc_array[1].hp_current = 0;
+    g_test_rc_array[1].combat_aux_block[10] = 7;
+    data_fd2_battle_party_member_count = 2;
+
+    memset(out, 0, sizeof(out));
+    result = fd2_collect_pending_death_drops((uint32)out);
+    ASSERT_EQ(result, 1);
+    ASSERT_EQ(out[0], 7);
+
+    /* (c) flags & CHARFLAG_DEAD dead-skip (others passing). */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].flags = CHARFLAG_DEAD;        /* dead -> skip */
+    g_test_rc_array[0].hp_current = 0;
+    g_test_rc_array[0].combat_aux_block[10] = 5;
+    data_fd2_battle_party_member_count = 1;
+
+    memset(out, 0xEE, sizeof(out));
+    result = fd2_collect_pending_death_drops((uint32)out);
+    ASSERT_EQ(result, 0);
+
+    /* (d) hp_current != 0 alive-skip (others passing). asm uses MOVZX word
+     * + TEST + JG, i.e. keep only when HP<=0 (HP is u16 -> ==0). */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].flags = 0;
+    g_test_rc_array[0].hp_current = 1;               /* alive -> skip */
+    g_test_rc_array[0].combat_aux_block[10] = 5;
+    data_fd2_battle_party_member_count = 1;
+
+    memset(out, 0xEE, sizeof(out));
+    result = fd2_collect_pending_death_drops((uint32)out);
+    ASSERT_EQ(result, 0);
 }
 
 static void test_collect_dead_char_drops(void)

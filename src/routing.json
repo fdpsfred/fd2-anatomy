@@ -1132,7 +1132,8 @@
     "target": "battle/btl_turn.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0001b722": {
     "name": "fd2_get_inventory_slot_item_id",
