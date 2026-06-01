@@ -1380,7 +1380,8 @@
     "target": "battle/btl_ai.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0001da16": {
     "name": "fd2_paint_char_sprite_at_world_with_mode",
