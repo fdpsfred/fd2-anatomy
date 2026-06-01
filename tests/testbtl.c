@@ -91,6 +91,65 @@ static void test_heal_cap_at_max(void)
     ASSERT_EQ(g_test_rc_array[0].hp_current, 200);
 }
 
+/* Heal XP-credit path WITH the mid-tier-job modifier (the two heal tests
+ * above use portrait 0x50 >= 0x4b, so the whole XP block at battle.c L79-83 /
+ * asm 0x1c9ba-0x1c9cf is skipped). portrait 0 < 0x4b -> the 0x1c9b8 JGE is NOT
+ * taken, so the XP block runs. job_id 10 is in [9,24] (asm 0x1c9a4 CMP EDX,8
+ * JLE / 0x1c9a9 CMP EDX,0x19 JGE both fall through), so the +0x1e modifier at
+ * 0x1c9ae ADD EAX,0x1e IS applied -> level_mod = level(5) + 0x1e = 35.
+ * Deterministic (seed 0 -> fd2_advance_rng_state returns 0x80A4 = 32932,
+ * emulation-confirmed; %100 = 32):
+ *   base_heal_90 = (100*9)/10 = 90
+ *   extra_heal   = (32*100)/1000 = 3
+ *   hp_after     = 50 + 90 + 3 = 143  (<= max 200, no cap)
+ *   hp_gained    = 143 - 50 = 93
+ *   return       = extra_heal + base_heal_90 = 3 + 90 = 93
+ *   pending_xp  += (level_mod 35 * 0x28 * 93) / hp_max 200
+ *               = (35*40*93)/200 = 130200/200 = 651
+ * Asserting EXACT pending_xp_credit pins the level_mod*40*hp_gained/hp_max
+ * formula AND the modifier-branch-taken side (this is a unique numeric+branch+
+ * state-transition path; the sibling damage XP formula enemy[9]*level has no
+ * job modifier so it gives no coverage here). */
+static void test_heal_xp_job_modifier(void)
+{
+    int result;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].hp_current = 50;
+    g_test_rc_array[0].hp_max = 200;
+    g_test_rc_array[0].portrait_id = 0x00;          /* < 0x4b -> XP runs */
+    g_test_rc_array[0].status_flags_block[0] = 5;   /* level */
+    g_test_rc_array[0].job_id = 10;                 /* in [9,24] -> +0x1e */
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+    result = fd2_apply_hp_heal_and_award_xp(0, 100);
+    ASSERT_EQ(result, 93);                           /* 90 + 3 */
+    ASSERT_EQ(g_test_rc_array[0].hp_current, 143);   /* 50 + 90 + 3 */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 651); /* (35*40*93)/200 */
+}
+
+/* Companion to test_heal_xp_job_modifier proving the +0x1e modifier branch is
+ * CONDITIONAL: job_id 5 (<= 8) takes the 0x1c9a7 JLE, so level_mod stays at the
+ * raw level (5, no +0x1e). Everything else identical, so the XP credit drops to
+ * (level_mod 5 * 0x28 * 93) / 200 = (5*40*93)/200 = 18600/200 = 93. If the
+ * emitted C ever dropped the job guard and always added 0x1e, this would read
+ * 651 like the other test and fail. */
+static void test_heal_xp_no_job_modifier(void)
+{
+    int result;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].hp_current = 50;
+    g_test_rc_array[0].hp_max = 200;
+    g_test_rc_array[0].portrait_id = 0x00;          /* < 0x4b -> XP runs */
+    g_test_rc_array[0].status_flags_block[0] = 5;   /* level */
+    g_test_rc_array[0].job_id = 5;                  /* <= 8 -> no +0x1e */
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+    result = fd2_apply_hp_heal_and_award_xp(0, 100);
+    ASSERT_EQ(result, 93);                           /* 90 + 3 */
+    ASSERT_EQ(g_test_rc_array[0].hp_current, 143);   /* 50 + 90 + 3 */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 93);  /* (5*40*93)/200 */
+}
+
 /* ---- Test: damage ---- */
 
 static void test_damage_basic(void)
@@ -3579,6 +3638,8 @@ void run_battle_tests(void)
     RUN_TEST(test_deduct_mp);
     RUN_TEST(test_heal_basic);
     RUN_TEST(test_heal_cap_at_max);
+    RUN_TEST(test_heal_xp_job_modifier);
+    RUN_TEST(test_heal_xp_no_job_modifier);
     RUN_TEST(test_heal_spell_to_target);
     RUN_TEST(test_damage_basic);
     RUN_TEST(test_damage_floor_at_zero);
