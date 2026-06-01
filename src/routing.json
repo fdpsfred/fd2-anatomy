@@ -2370,7 +2370,8 @@
     "target": "anim/anim.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "000262ef": {
     "name": "fd2_render_summon_aura_sprite_ring",

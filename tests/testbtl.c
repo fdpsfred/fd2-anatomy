@@ -828,6 +828,226 @@ static void test_summon_8slot_init(void)
     ASSERT_EQ((long)data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[7], -14);
 }
 
+/* Helper-free shared setup note: in the unit-test build the three rodata
+ * tables (visibility / y_offset / row_multiplier) are the zero-initialised
+ * globals in testglob.c, so every 8slot test that depends on them sets the
+ * entries it needs explicitly. */
+
+/* state 5 done_flag return: loop increments each of slots 0..6, then sets
+ * done=1 iff a post-increment counter == 9 (disasm 0x262cb INC; 0x262d2 CMP
+ * ...,9). vis all 1 -> state-5 inverse gate (vis==0) never fires, isolating
+ * the counter/return. slot 0 preset to 8 -> ++ -> 9 -> done; slot 1 at 0 ->
+ * 1. Returns done_flag (read at 0x262e6 from [ESP+0x40]). */
+static void test_summon_8slot_state5_done_flag(void)
+{
+    int r;
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    for (i = 0; i < 7; i++)
+        data_fd2_battle_summon_spell_8slot_visibility_table[i] = 1;
+    for (i = 0; i < 8; i++)
+        data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[i] = 0;
+    data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[0] = 8;
+    g_blit_indexed_sprite_calls = 0;
+    r = fd2_tick_summon_spell_setup_pre_animation_8slot(0, 0, 0, 0, 5);
+    ASSERT_EQ((long)r, 1);
+    ASSERT_EQ((long)data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[0], 9);
+    ASSERT_EQ((long)data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[1], 1);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 0);
+}
+
+/* state 5 no-done: all slots 0..6 at 0 -> ++ -> 1, none reaches 9 -> return 0.
+ * vis all 1 keeps the inverse gate closed (no blit). */
+static void test_summon_8slot_state5_no_done(void)
+{
+    int r;
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    for (i = 0; i < 7; i++)
+        data_fd2_battle_summon_spell_8slot_visibility_table[i] = 1;
+    for (i = 0; i < 8; i++)
+        data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[i] = 0;
+    g_blit_indexed_sprite_calls = 0;
+    r = fd2_tick_summon_spell_setup_pre_animation_8slot(0, 0, 0, 0, 5);
+    ASSERT_EQ((long)r, 0);
+    for (i = 0; i < 7; i++)
+        ASSERT_EQ(
+            (long)data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[i],
+            1);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 0);
+}
+
+/* state 5 inverse blit gate vis[i]==0 (disasm 0x262a0 TEST/JNZ skips blit when
+ * vis!=0): slot 0 vis==0 + counter in [0,0x10) -> blit; slot 1 vis==1 +
+ * in-range -> no blit; remaining slots out of range. Pre-increment counter
+ * gates the blit, so counter 2 (in range) blits then becomes 3. No slot hits
+ * post-inc 9 -> return 0. Exactly 1 blit. */
+static void test_summon_8slot_state5_inverse_gate(void)
+{
+    int r;
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    for (i = 0; i < 7; i++)
+        data_fd2_battle_summon_spell_8slot_visibility_table[i] = 1;
+    data_fd2_battle_summon_spell_8slot_visibility_table[0] = 0;
+    for (i = 0; i < 8; i++)
+        data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[i] = -100;
+    data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[0] = 2;
+    data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[1] = 2;
+    g_blit_indexed_sprite_calls = 0;
+    r = fd2_tick_summon_spell_setup_pre_animation_8slot(0, 0, 0, 0, 5);
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 1);
+}
+
+/* state 4 SFX trigger: fd2_play_sfx_with_handle fires when a slot counter == 3
+ * (disasm 0x2620b CMP ...,3; 0x2621f CALL). vis all 0 keeps the state-4 gate
+ * (vis==1) closed so no blit confounds the count. slot 0 == 3 -> exactly one
+ * SFX; state 4 always returns 0. */
+static void test_summon_8slot_state4_sfx_trigger(void)
+{
+    int r;
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    for (i = 0; i < 7; i++)
+        data_fd2_battle_summon_spell_8slot_visibility_table[i] = 0;
+    for (i = 0; i < 8; i++)
+        data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[i] = -100;
+    data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[0] = 3;
+    g_play_sfx_with_handle_calls = 0;
+    g_blit_indexed_sprite_calls = 0;
+    r = fd2_tick_summon_spell_setup_pre_animation_8slot(0, 0, 0, 0, 4);
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 1);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 0);
+}
+
+/* state 4 SFX negative: no slot 0..6 counter == 3 -> no SFX. */
+static void test_summon_8slot_state4_sfx_no_trigger(void)
+{
+    int r;
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    for (i = 0; i < 7; i++)
+        data_fd2_battle_summon_spell_8slot_visibility_table[i] = 0;
+    for (i = 0; i < 8; i++)
+        data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[i] = 4;
+    g_play_sfx_with_handle_calls = 0;
+    r = fd2_tick_summon_spell_setup_pre_animation_8slot(0, 0, 0, 0, 4);
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 0);
+}
+
+/* state 4 visibility gate vis[i]==1 (disasm 0x2623e MOVZX; 0x26243 CMP ...,1):
+ * slot 0 vis==1 + counter in range -> blit; slot 1 vis==0 + in range -> no
+ * blit; rest out of range. Counters kept != 3 so no SFX confounds the count.
+ * Exactly 1 blit. */
+static void test_summon_8slot_state4_visibility_gate(void)
+{
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    for (i = 0; i < 7; i++)
+        data_fd2_battle_summon_spell_8slot_visibility_table[i] = 0;
+    data_fd2_battle_summon_spell_8slot_visibility_table[0] = 1;
+    for (i = 0; i < 8; i++)
+        data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[i] = -100;
+    data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[0] = 2;
+    data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[1] = 2;
+    g_blit_indexed_sprite_calls = 0;
+    g_play_sfx_with_handle_calls = 0;
+    fd2_tick_summon_spell_setup_pre_animation_8slot(0, 0, 0, 0, 4);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 1);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 0);
+}
+
+/* state 4 blit-y arithmetic, player team (no enemy adjust): single visible
+ * in-range slot 0. The display-y expression row_mul[0]*row_stride + origin_y +
+ * y_off[0] (disasm 0x26257 IMUL EBP; 0x2625a ADD) is the 3rd blit argument, so
+ * it lands in the stub's x slot (g_blit_indexed_sprite_last_x); the 4th
+ * argument row_stride lands in last_y. With row_mul[0]=-10, row_stride=10,
+ * origin_y=100, y_off[0]=40 -> -10*10 + 100 + 40 = 40. frame = counter = 5
+ * (!=3 so no SFX). */
+static void test_summon_8slot_state4_blit_y_arithmetic(void)
+{
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    for (i = 0; i < 7; i++) {
+        data_fd2_battle_summon_spell_8slot_visibility_table[i] = 0;
+        data_fd2_battle_summon_spell_8slot_y_offset_table[i] = 0;
+        data_fd2_battle_summon_spell_8slot_row_multiplier_table[i] = 0;
+    }
+    data_fd2_battle_summon_spell_8slot_visibility_table[0] = 1;
+    data_fd2_battle_summon_spell_8slot_y_offset_table[0] = 40;
+    data_fd2_battle_summon_spell_8slot_row_multiplier_table[0] = -10;
+    for (i = 0; i < 8; i++)
+        data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[i] = -100;
+    data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[0] = 5;
+    g_blit_indexed_sprite_calls = 0;
+    g_blit_indexed_sprite_last_x = 0;
+    g_blit_indexed_sprite_last_y = 0;
+    g_blit_indexed_sprite_last_frame = 0;
+    g_play_sfx_with_handle_calls = 0;
+    fd2_tick_summon_spell_setup_pre_animation_8slot(0, 0, 100, 10, 4);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 1);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_frame, 5);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_x, 40);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_y, 10);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 0);
+}
+
+/* state 4 blit-y enemy-team offset: team==0 adds 0x94 (148) to every y_off
+ * before the blit math (disasm 0x261b3 TEST/JZ then 0x261bb ADD ...,0x94).
+ * Same inputs as the arithmetic test but team=0 -> y_off[0] 40+148=188 ->
+ * -10*10 + 100 + 188 = 188, landing in last_x (3rd arg). frame unchanged (5). */
+static void test_summon_8slot_state4_blit_y_enemy_team_offset(void)
+{
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 0;
+    for (i = 0; i < 7; i++) {
+        data_fd2_battle_summon_spell_8slot_visibility_table[i] = 0;
+        data_fd2_battle_summon_spell_8slot_y_offset_table[i] = 0;
+        data_fd2_battle_summon_spell_8slot_row_multiplier_table[i] = 0;
+    }
+    data_fd2_battle_summon_spell_8slot_visibility_table[0] = 1;
+    data_fd2_battle_summon_spell_8slot_y_offset_table[0] = 40;
+    data_fd2_battle_summon_spell_8slot_row_multiplier_table[0] = -10;
+    for (i = 0; i < 8; i++)
+        data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[i] = -100;
+    data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[0] = 5;
+    g_blit_indexed_sprite_calls = 0;
+    g_blit_indexed_sprite_last_x = 0;
+    g_blit_indexed_sprite_last_y = 0;
+    g_blit_indexed_sprite_last_frame = 0;
+    fd2_tick_summon_spell_setup_pre_animation_8slot(0, 0, 100, 10, 4);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 1);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_frame, 5);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_x, 188);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_y, 10);
+}
+
+/* default state: any state_code other than 3/4/5 returns 0 with no SFX/blit
+ * (fall-through epilogue, EAX=0). */
+static void test_summon_8slot_default_state(void)
+{
+    int r;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    g_blit_indexed_sprite_calls = 0;
+    g_play_sfx_with_handle_calls = 0;
+    r = fd2_tick_summon_spell_setup_pre_animation_8slot(0, 0, 0, 0, 7);
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 0);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 0);
+}
+
 static void test_summon_main_init(void)
 {
     int r;
@@ -1864,6 +2084,15 @@ void run_battle_tests(void)
     RUN_TEST(test_summon_d_tick_color_rotation);
     RUN_TEST(test_summon_d_tick_sfx_bucket_split);
     RUN_TEST(test_summon_8slot_init);
+    RUN_TEST(test_summon_8slot_state5_done_flag);
+    RUN_TEST(test_summon_8slot_state5_no_done);
+    RUN_TEST(test_summon_8slot_state5_inverse_gate);
+    RUN_TEST(test_summon_8slot_state4_sfx_trigger);
+    RUN_TEST(test_summon_8slot_state4_sfx_no_trigger);
+    RUN_TEST(test_summon_8slot_state4_visibility_gate);
+    RUN_TEST(test_summon_8slot_state4_blit_y_arithmetic);
+    RUN_TEST(test_summon_8slot_state4_blit_y_enemy_team_offset);
+    RUN_TEST(test_summon_8slot_default_state);
     RUN_TEST(test_summon_main_init);
     RUN_TEST(test_summon_main_state3_hold);
     RUN_TEST(test_summon_main_state6_terminate);
