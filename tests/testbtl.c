@@ -135,6 +135,89 @@ static void test_magic_damage_miss(void)
     ASSERT_EQ(result, 0);
 }
 
+/* Hit path: hit_rate=100 always lands -> damage formula (50*10)/10=50
+ * is applied via fd2_apply_damage_and_award_xp, dropping HP below max
+ * and returning the non-zero actual damage. Exercises the branch the
+ * miss test never reaches. */
+static void test_magic_damage_hit(void)
+{
+    int result;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].hp_current = 200;
+    g_test_rc_array[0].hp_max = 200;
+    g_test_rc_array[0].job_id = 1;
+    g_test_rc_array[0].portrait_id = 0x01;
+    data_fd2_battle_job_magic_resist_table[0] = 10;
+    data_fd2_battle_spell_effect_table[0].damage = 50;
+    data_fd2_battle_spell_effect_table[0].hit_rate = 100;
+    data_fd2_shared_rng_seed = 0;
+    result = fd2_calc_magic_damage(0, 0);
+    ASSERT_TRUE(result != 0);
+    ASSERT_TRUE(g_test_rc_array[0].hp_current < 200);
+}
+
+/* EAX-bug boundary (deterministic): seed=0 -> first fd2_advance_rng_state
+ * returns 0x80A4=32932 -> rng%100=32. The correct emitted form is
+ * "(rng%100) >= chance -> miss"; the buggy Ghidra-decompiled form compares
+ * chance_pct%100 against itself and would never reflect the RNG roll.
+ * hit_rate=33: 32>=33 false -> HIT (result!=0).
+ * hit_rate=32: 32>=32 true  -> MISS (result==0).
+ * This pair fails unless the RNG value (not chance_pct) drives the compare,
+ * so it distinguishes the fix from the decompiler bug. */
+static void test_magic_damage_hit_boundary_33(void)
+{
+    int result;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].hp_current = 200;
+    g_test_rc_array[0].hp_max = 200;
+    g_test_rc_array[0].job_id = 1;
+    g_test_rc_array[0].portrait_id = 0x01;
+    data_fd2_battle_job_magic_resist_table[0] = 10;
+    data_fd2_battle_spell_effect_table[0].damage = 50;
+    data_fd2_battle_spell_effect_table[0].hit_rate = 33;
+    data_fd2_shared_rng_seed = 0;
+    result = fd2_calc_magic_damage(0, 0);
+    ASSERT_TRUE(result != 0);
+}
+
+static void test_magic_damage_miss_boundary_32(void)
+{
+    int result;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].hp_current = 200;
+    g_test_rc_array[0].hp_max = 200;
+    g_test_rc_array[0].job_id = 1;
+    g_test_rc_array[0].portrait_id = 0x01;
+    data_fd2_battle_job_magic_resist_table[0] = 10;
+    data_fd2_battle_spell_effect_table[0].damage = 50;
+    data_fd2_battle_spell_effect_table[0].hit_rate = 32;
+    data_fd2_shared_rng_seed = 0;
+    result = fd2_calc_magic_damage(0, 0);
+    ASSERT_EQ(result, 0);
+}
+
+/* Immunity branch: status spell (id 10, in 10..12) on an immune target
+ * (job_id 0x13, portrait != 0x1C) returns 0 before any RNG roll, even
+ * with hit_rate=100. Covers the spell_id 10-12 pre-check the miss test
+ * skips (spell_id 0). */
+static void test_magic_damage_status_immune(void)
+{
+    int result;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].hp_current = 200;
+    g_test_rc_array[0].hp_max = 200;
+    g_test_rc_array[0].job_id = 0x13;
+    g_test_rc_array[0].portrait_id = 0x01;
+    g_test_rc_array[0].archetype_flag = 0;
+    data_fd2_battle_job_magic_resist_table[0x12] = 10;
+    data_fd2_battle_spell_effect_table[10].damage = 50;
+    data_fd2_battle_spell_effect_table[10].hit_rate = 100;
+    data_fd2_shared_rng_seed = 0;
+    result = fd2_calc_magic_damage(0, 10);
+    ASSERT_EQ(result, 0);
+    ASSERT_EQ(g_test_rc_array[0].hp_current, 200);
+}
+
 /* ---- Test: check counter attack ---- */
 
 static void test_counter_attack_sleep(void)
@@ -3430,6 +3513,10 @@ void run_battle_tests(void)
     RUN_TEST(test_damage_basic);
     RUN_TEST(test_damage_floor_at_zero);
     RUN_TEST(test_magic_damage_miss);
+    RUN_TEST(test_magic_damage_hit);
+    RUN_TEST(test_magic_damage_hit_boundary_33);
+    RUN_TEST(test_magic_damage_miss_boundary_32);
+    RUN_TEST(test_magic_damage_status_immune);
     RUN_TEST(test_counter_attack_sleep);
     RUN_TEST(test_recompute_stats_basic);
     RUN_TEST(test_recompute_stats_equipped);
