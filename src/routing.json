@@ -884,7 +884,8 @@
     "target": "anim/anim.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00018409": {
     "name": "fd2_play_status_screen_outro_step",
