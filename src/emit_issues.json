@@ -108,5 +108,17 @@
         "verify_method": "compile_and_disasm"
       }
     ]
+  },
+  "00011d40": {
+    "name": "fd2_set_vga_palette_range",
+    "target": "gfx/palette.c",
+    "issues": [
+      {
+        "type": "test_deferral_note_missing",
+        "desc": "[deferral note missing] The palette outp-stream tests (test_set_vga_palette_range_basic and siblings) defer value-level verification of the subtract/clamp arithmetic to Phase 9 integration because the test harness lacks an outp-capture stub. The risk-based test policy requires such deferral to be explicitly noted with reason ('须在输出注明延后与理由'), but no such note exists in tests/testui.c or tests/_index.md. Emitter should add either (a) a short comment at the test marking the deferral + reason, or (b) a recording outp stub so the clamp branch can be asserted (e.g. fake_pal[3]=0x05,brightness=0x10 -> expect 0; fake_pal[0]=0x3F,brightness=0x10 -> expect 0x2F).",
+        "severity": "low",
+        "verify_method": "add_test_comment_or_outp_stub"
+      }
+    ]
   }
 }
