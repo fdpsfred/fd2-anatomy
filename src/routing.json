@@ -455,7 +455,8 @@
     "target": "battle/btl_ai.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00013fd4": {
     "name": "fd2_ai_pass_turn_with_heal",
