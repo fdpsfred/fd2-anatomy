@@ -46,13 +46,20 @@ uint16 fd2_read_bios_midnight_tick(void)
  * fd2_wait_one_bios_tick @ 0x13460  (4 callers)
  *
  * Busy-spins until BIOS tick advances at least 1 step (~55 ms).
+ *
+ * The BIOS tick is read as a SIGN-EXTENDED 16-bit word (asm:
+ * MOVSX EAX,word ptr [0x46C]) at both the spin-compare and the
+ * cache-store, NOT as a full 32-bit dword. The sign-extended int32
+ * is stored verbatim into the uint32 cache (MOV [0x53A0C],EAX), so
+ * a low word of 0xFFFF caches as 0xFFFFFFFF.
  * ---------------------------------------------------------------- */
 void fd2_wait_one_bios_tick(void)
 {
-    while (BIOS_TICK_COUNT
+    while ((uint32)(int32)(int16)BIOS_TICK_WORD
            == data_fd2_engine_wait_one_bios_tick_last_seen) {
     }
-    data_fd2_engine_wait_one_bios_tick_last_seen = BIOS_TICK_COUNT;
+    data_fd2_engine_wait_one_bios_tick_last_seen =
+        (uint32)(int32)(int16)BIOS_TICK_WORD;
 }
 
 /* ----------------------------------------------------------------

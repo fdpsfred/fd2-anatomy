@@ -275,10 +275,42 @@ static void test_clear_kbd_buffer(void)
 
 static void test_wait_one_bios_tick_smoke(void)
 {
-    data_fd2_engine_wait_one_bios_tick_last_seen =
-        *(volatile uint32 *)0x46CuL - 1;
+    /* Deterministic: tick low word = 0x0100, cache preset to a
+     * different value so the spin exits on the first compare. */
+    *(volatile uint32 *)0x46CuL = 0x00000100uL;
+    data_fd2_engine_wait_one_bios_tick_last_seen = 0x00000099uL;
     fd2_wait_one_bios_tick();
-    ASSERT_TRUE(1);
+    ASSERT_EQ(data_fd2_engine_wait_one_bios_tick_last_seen,
+              0x00000100uL);
+}
+
+/* Pins the SIGN-EXTENDED 16-bit read (asm MOVSX EAX,word ptr [0x46C]).
+ * Tick dword 0x0001FFFF -> low word 0xFFFF -> sx16 -> 0xFFFFFFFF cached.
+ * A full-32-bit read (the prior bug) would cache 0x0001FFFF instead.
+ * Cache preset to 0 (!= 0xFFFFFFFF) so the spin exits on the first
+ * compare; the assertion then discriminates the two widths. */
+static void test_wait_one_bios_tick_sign_extend(void)
+{
+    *(volatile uint32 *)0x46CuL = 0x0001FFFFuL;
+    data_fd2_engine_wait_one_bios_tick_last_seen = 0;
+    fd2_wait_one_bios_tick();
+    ASSERT_EQ(data_fd2_engine_wait_one_bios_tick_last_seen,
+              0xFFFFFFFFuL);
+}
+
+/* Positive low word (high bit clear): 0x00007FFF sign-extends to
+ * itself, and the upper tick word (0x0001) must be discarded.
+ * Distinguishes the 16-bit read from a full-32-bit read once more,
+ * and confirms the spin-compare matches on a re-read of the same
+ * (sign-extended) value: cache preset equal -> would spin -> so we
+ * preset NOT equal to guarantee exit, then verify the store width. */
+static void test_wait_one_bios_tick_positive_word(void)
+{
+    *(volatile uint32 *)0x46CuL = 0x00017FFFuL;
+    data_fd2_engine_wait_one_bios_tick_last_seen = 0;
+    fd2_wait_one_bios_tick();
+    ASSERT_EQ(data_fd2_engine_wait_one_bios_tick_last_seen,
+              0x00007FFFuL);
 }
 
 /* ---- Tests: update_palette_cycle_anim ---- */
@@ -545,6 +577,8 @@ void run_ui_tests(void)
     RUN_TEST(test_kbd_buffer_nonempty);
     RUN_TEST(test_clear_kbd_buffer);
     RUN_TEST(test_wait_one_bios_tick_smoke);
+    RUN_TEST(test_wait_one_bios_tick_sign_extend);
+    RUN_TEST(test_wait_one_bios_tick_positive_word);
     RUN_TEST(test_update_palette_cycle_anim_no_update);
     RUN_TEST(test_get_inventory_slot_item_id);
     RUN_TEST(test_read_tile_attribute);

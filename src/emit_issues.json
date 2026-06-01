@@ -19,18 +19,6 @@
       }
     ]
   },
-  "00013460": {
-    "name": "fd2_wait_one_bios_tick",
-    "target": "input/input.c",
-    "issues": [
-      {
-        "type": "word_width",
-        "desc": "Assembly 用 MOVSX word ptr [0x46C] 讀 16-bit；emitted C 用 BIOS_TICK_COUNT (uint32 deref) 讀 32-bit。行為等價因 last_seen 為私有且只做 != 比較，但 machine code 會不同。",
-        "severity": "info",
-        "verify_method": "compile_and_disasm"
-      }
-    ]
-  },
   "00015b77": {
     "name": "fd2_score_spell_candidate",
     "target": "battle/btl_ai.c",
@@ -154,6 +142,19 @@
         "desc": "fd2_walk_step_right @00013315 (src/anim/anim.c, testanim.c:764): test exercises NO-SCROLL arm only. UNCOVERED equivalence-relevant paths: (1) scroll arm else-branch -> scroll_delta_x=4 / scroll_window_flag=1 / composite_width=0xE / persistent data_fd2_battle_view_window_origin_x += 1; (2) right-edge-clamp OR operand data_fd2_battle_map_width_tiles - data_fd2_battle_view_window_max_x == data_fd2_battle_view_window_origin_x. Both verified correct against assembly during review. Recommend a scroll-path test in Phase 9 integration (set pos_x - origin_x > 0xA with map_width - max_x != origin_x; assert origin_x incremented by 1 and cursor_screen_x unchanged). Deferred consistent with sibling walk-step down/left/up tests.",
         "severity": "low",
         "verify_method": "add_test"
+      }
+    ]
+  },
+  "00017aa9": {
+    "name": "fd2_wait_n_bios_ticks",
+    "target": "input/input.c",
+    "issues": [
+      {
+        "type": "sign_extend_mismatch",
+        "desc": "FOLLOW-UP (sibling, out of scope for this review): fd2_wait_n_bios_ticks @0x17AA9 stores data_fd2_engine_wait_n_bios_ticks_last_seen = BIOS_TICK_COUNT (full uint32) at input.c:77 and input.c:86, but its asm at 0x17abf/0x17ae7 stores the SIGN-EXTENDED MOVSX value (MOV [0x53A2C],EAX from MOVSX EAX,word ptr [0x46C]). This is the same width-equivalence class just fixed in fd2_wait_one_bios_tick. The intermediate subtraction uses (uint16)BIOS_TICK_COUNT (truncated, fine), but the two cache stores at last_seen may diverge from asm at the 0xFFFF boundary. Verify and, if confirmed, fix to (uint32)(int32)(int16)BIOS_TICK_WORD when that function is next reviewed/emitted.",
+        "severity": "medium",
+        "verify_method": "compile_and_disasm",
+        "source_review": "fd2_wait_one_bios_tick @00013460"
       }
     ]
   }
