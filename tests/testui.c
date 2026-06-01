@@ -101,6 +101,38 @@ static void test_cursor_move_right_basic(void)
     ASSERT_EQ(data_fd2_battle_cursor_screen_x, 6);
 }
 
+/* Scroll branch: world_x!=width-1 && screen_x>0xa && origin_x!=width-0xd ->
+ * world_x++ AND origin_x++, screen_x unchanged, then composite (JMP 0x11C37).
+ * width=20 so width-0xd=7 != origin_x(3); screen_x(11)>0xa.
+ * Mirrors test_cursor_move_down_scroll for the right (X) direction; note the
+ * X viewport width is 0xd (13) vs Y's 8, so down's tests do not cover this. */
+static void test_cursor_move_right_scroll(void)
+{
+    data_fd2_battle_map_width_tiles = 20;
+    data_fd2_battle_cursor_world_x = 5;
+    data_fd2_battle_cursor_screen_x = 11;
+    data_fd2_battle_view_window_origin_x = 3;
+    data_fd2_battle_anim_phase = 1;
+    g_composite_call_count = 0;
+    fd2_cursor_move_right();
+    ASSERT_EQ(data_fd2_battle_cursor_world_x, 6);
+    ASSERT_EQ(data_fd2_battle_view_window_origin_x, 4);
+    ASSERT_EQ(data_fd2_battle_cursor_screen_x, 11);
+    ASSERT_EQ(g_composite_call_count, 1);
+}
+
+/* Right-edge no-op: world_x == map_width_tiles-1 -> JZ 0x11C10, no INC at all,
+ * world_x unchanged, only composite refresh. width=20 -> world_x=19. */
+static void test_cursor_move_right_at_right_edge(void)
+{
+    data_fd2_battle_map_width_tiles = 20;
+    data_fd2_battle_cursor_world_x = 19;
+    g_composite_call_count = 0;
+    fd2_cursor_move_right();
+    ASSERT_EQ(data_fd2_battle_cursor_world_x, 19);
+    ASSERT_EQ(g_composite_call_count, 1);
+}
+
 static void test_cursor_move_left_basic(void)
 {
     data_fd2_battle_cursor_world_x = 5;
@@ -419,6 +451,8 @@ void run_ui_tests(void)
     RUN_TEST(test_cursor_move_down_scroll);
     RUN_TEST(test_cursor_move_down_at_bottom);
     RUN_TEST(test_cursor_move_right_basic);
+    RUN_TEST(test_cursor_move_right_scroll);
+    RUN_TEST(test_cursor_move_right_at_right_edge);
     RUN_TEST(test_cursor_move_left_basic);
     RUN_TEST(test_pan_to_char);
     RUN_TEST(test_pan_to_tile_same_pos);
