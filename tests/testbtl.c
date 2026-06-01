@@ -985,6 +985,36 @@ static void test_face_toward_target_left(void)
     ASSERT_EQ(g_test_rc_array[0].sprite_state[1], 1);
 }
 
+/* abs_dx(0) <= abs_dy(3) -> vertical; target.y(2) < actor.y(5) -> up=2 */
+static void test_face_toward_target_up(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].pos_x = 5; g_test_rc_array[0].pos_y = 5;
+    g_test_rc_array[1].pos_x = 5; g_test_rc_array[1].pos_y = 2;
+    fd2_face_char_toward_target(0, 1);
+    ASSERT_EQ(g_test_rc_array[0].sprite_state[1], 2);
+}
+
+/* abs_dx(3) > abs_dy(0) -> horizontal; actor.x(5) !< target.x(8) -> right=3 */
+static void test_face_toward_target_right(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].pos_x = 5; g_test_rc_array[0].pos_y = 5;
+    g_test_rc_array[1].pos_x = 8; g_test_rc_array[1].pos_y = 5;
+    fd2_face_char_toward_target(0, 1);
+    ASSERT_EQ(g_test_rc_array[0].sprite_state[1], 3);
+}
+
+/* abs_dx(3) == abs_dy(3) tie -> vertical preferred; target.y !< actor.y -> down=0 */
+static void test_face_toward_target_tie_prefers_vertical(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].pos_x = 5; g_test_rc_array[0].pos_y = 5;
+    g_test_rc_array[1].pos_x = 8; g_test_rc_array[1].pos_y = 8;
+    fd2_face_char_toward_target(0, 1);
+    ASSERT_EQ(g_test_rc_array[0].sprite_state[1], 0);
+}
+
 static void test_immunity_job_0x13(void)
 {
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
@@ -4016,6 +4046,9 @@ void run_battle_tests(void)
     RUN_TEST(test_combat_hit_outcome_zero_stats);
     RUN_TEST(test_face_toward_target_down);
     RUN_TEST(test_face_toward_target_left);
+    RUN_TEST(test_face_toward_target_up);
+    RUN_TEST(test_face_toward_target_right);
+    RUN_TEST(test_face_toward_target_tie_prefers_vertical);
     RUN_TEST(test_immunity_job_0x13);
     RUN_TEST(test_immunity_portrait_0x1c_overrides);
     RUN_TEST(test_immunity_archetype_4);

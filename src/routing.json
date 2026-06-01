@@ -1511,7 +1511,8 @@
     "target": "battle/battle.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0001f0dc": {
     "name": "fd2_check_can_counter_attack",
