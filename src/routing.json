@@ -337,7 +337,8 @@
     "target": "anim/anim.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00013185": {
     "name": "fd2_walk_step_up",
