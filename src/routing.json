@@ -1785,7 +1785,8 @@
     "target": "spell/spellwk.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0002111a": {
     "name": "fd2_apply_attack_spell_damage",
