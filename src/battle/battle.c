@@ -86,12 +86,20 @@ int fd2_apply_hp_heal_and_award_xp(uint32 target_idx, uint32 base_heal)
 
 /* ----------------------------------------------------------------
  * fd2_apply_heal_spell_to_target @ 0x1C8ED  (1 caller)
+ *
+ * Returns the heal amount (EAX). The body tail-propagates the inner
+ * heal fn's EAX: asm 0x1c90c CALL fd2_apply_hp_heal_and_award_xp then
+ * ADD ESP,8 / POP EBX / RET (none touch EAX), so the inner return
+ * (extra_heal + base_heal_90) IS this fn's return. The sole caller
+ * fd2_dispatch_variant_b_cast consumes it: @0x21b77 CALL, @0x21b86
+ * PUSH EAX -> fd2_show_damage_number(heal_amount, 0x69, target_id).
  * ---------------------------------------------------------------- */
-void fd2_apply_heal_spell_to_target(uint32 target_idx, uint32 spell_id)
+int fd2_apply_heal_spell_to_target(uint32 target_idx, uint32 spell_id)
 {
     int16 *spell_entry;
     spell_entry = (int16 *)fd2_get_spell_effect_entry(spell_id);
-    fd2_apply_hp_heal_and_award_xp(target_idx, (uint32)(int)*spell_entry);
+    return fd2_apply_hp_heal_and_award_xp(target_idx,
+                                          (uint32)(int)*spell_entry);
 }
 
 /* ----------------------------------------------------------------

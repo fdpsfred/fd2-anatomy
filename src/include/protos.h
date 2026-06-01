@@ -30,7 +30,7 @@ uint8 *fd2_get_cutscene_event_script(int event_id);
 uint32 fd2_advance_rng_state(void);
 void fd2_deduct_caster_mp(uint32 caster_idx, uint32 spell_id);
 int fd2_apply_hp_heal_and_award_xp(uint32 target_idx, uint32 base_heal);
-void fd2_apply_heal_spell_to_target(uint32 target_idx, uint32 spell_id);
+int fd2_apply_heal_spell_to_target(uint32 target_idx, uint32 spell_id);
 int fd2_apply_damage_and_award_xp(uint32 target_idx, uint32 base_damage);
 int fd2_apply_mp_heal_and_award_xp(uint32 target_idx, uint32 base_heal);
 void fd2_compute_combat_bubble_screen_pos(uint32 out_xy_ptr, uint32 char_idx);

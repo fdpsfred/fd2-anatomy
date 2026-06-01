@@ -290,16 +290,27 @@ static void test_counter_attack_sleep(void)
 
 /* ---- Test: heal spell wrapper ---- */
 
+/* The wrapper RETURNS the heal amount (EAX), which its sole caller
+ * fd2_dispatch_variant_b_cast feeds into fd2_show_damage_number. The
+ * return value must be the inner heal fn's (extra_heal + base_heal_90),
+ * not discarded. spell.damage @+0 = 80 -> base_heal = 80. seed 0 ->
+ * fd2_advance_rng_state returns 0x80A4 (emulation-confirmed) -> rng%100
+ * = 32. base_heal_90 = (80*9)/10 = 72; extra_heal = (32*80)/1000 = 2;
+ * return = 74. HP 50 + 72 + 2 = 124 (< max 300, no cap). Exact integer
+ * arithmetic. Asserting the EXACT return distinguishes the int contract
+ * from the old void declaration (which discarded EAX). */
 static void test_heal_spell_to_target(void)
 {
+    int result;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     g_test_rc_array[0].hp_current = 50;
     g_test_rc_array[0].hp_max = 300;
     g_test_rc_array[0].portrait_id = 0x50;
     data_fd2_battle_spell_effect_table[3].damage = 80;
     data_fd2_shared_rng_seed = 0;
-    fd2_apply_heal_spell_to_target(0, 3);
-    ASSERT_TRUE(g_test_rc_array[0].hp_current > 50);
+    result = fd2_apply_heal_spell_to_target(0, 3);
+    ASSERT_EQ(result, 74);                          /* 72 + 2 */
+    ASSERT_EQ(g_test_rc_array[0].hp_current, 124);  /* 50 + 72 + 2 */
 }
 
 /* ---- Test: recompute_runtime_char_total_stats ---- */
