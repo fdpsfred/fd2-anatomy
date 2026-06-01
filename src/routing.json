@@ -2427,7 +2427,8 @@
     "target": "anim/anim.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "000274b0": {
     "name": "fd2_tick_summon_anim_variant_e_16slot",

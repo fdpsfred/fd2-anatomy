@@ -649,6 +649,151 @@ static void test_summon_d_state6_terminate(void)
     ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_d_terminate_flag, 1);
 }
 
+/* TICK (states 2/5/8) first toggles odd_even (mod 2). When the pre-call
+ * toggle is 0 it becomes 1, so the whole even-frame update block is gated
+ * OFF: slots still blit if visible, but frame counters do NOT advance, no
+ * SFX, no done. State 2. */
+static void test_summon_d_tick_toggle_skips_update(void)
+{
+    int r;
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    data_fd2_battle_summon_anim_variant_d_terminate_flag = 0;
+    data_fd2_battle_summon_anim_variant_d_odd_even_frame_toggle = 0;
+    g_blit_indexed_sprite_calls = 0;
+    g_play_sfx_with_handle_calls = 0;
+    g_play_sfx_sample_from_bank_calls = 0;
+    for (i = 0; i < 3; i++) {
+        data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[i] = 0;
+        data_fd2_battle_summon_anim_variant_d_4slot_color_idx_array[i] = 0;
+    }
+    r = fd2_tick_summon_anim_variant_d_3slot(0, 0, 0, 0, 2);
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_d_odd_even_frame_toggle, 1);
+    for (i = 0; i < 3; i++)
+        ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[i], 0);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 3);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 0);
+    ASSERT_EQ((long)g_play_sfx_sample_from_bank_calls, 0);
+}
+
+/* TICK with pre-call toggle 1 -> becomes 0 -> update block runs. Only the
+ * 3 active slots iterate; each in-range (post-init staggered) slot advances
+ * frame by 1, slot 0 frame 0 (in range) blits, slots 1/2 hidden (negative).
+ * No slot hits frame 1 (no SFX) or post-inc 2 (no done). State 2. */
+static void test_summon_d_tick_advance_no_done(void)
+{
+    int r;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    data_fd2_battle_summon_anim_variant_d_terminate_flag = 0;
+    data_fd2_battle_summon_anim_variant_d_odd_even_frame_toggle = 1;
+    g_blit_indexed_sprite_calls = 0;
+    g_play_sfx_with_handle_calls = 0;
+    g_play_sfx_sample_from_bank_calls = 0;
+    data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[0] = 0;
+    data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[1] = -3;
+    data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[2] = -6;
+    data_fd2_battle_summon_anim_variant_d_4slot_color_idx_array[0] = 0;
+    data_fd2_battle_summon_anim_variant_d_4slot_color_idx_array[1] = 0;
+    data_fd2_battle_summon_anim_variant_d_4slot_color_idx_array[2] = 0;
+    r = fd2_tick_summon_anim_variant_d_3slot(0, 0, 0, 0, 2);
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_d_odd_even_frame_toggle, 0);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[0], 1);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[1], -2);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[2], -5);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 1);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 0);
+    ASSERT_EQ((long)g_play_sfx_sample_from_bank_calls, 0);
+}
+
+/* done_flag (return 1) is set iff some slot's post-increment counter == 2.
+ * slot 0 goes 1->2 (done); slots 1/2 go 0->1 (no done). Pre-call toggle 1
+ * -> 0 so update runs. slot 0 frame 1 also fires the i==0 SFX bucket. */
+static void test_summon_d_tick_done_at_frame2(void)
+{
+    int r;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    data_fd2_battle_summon_anim_variant_d_terminate_flag = 0;
+    data_fd2_battle_summon_anim_variant_d_odd_even_frame_toggle = 1;
+    g_blit_indexed_sprite_calls = 0;
+    g_play_sfx_with_handle_calls = 0;
+    g_play_sfx_sample_from_bank_calls = 0;
+    data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[0] = 1;
+    data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[1] = 0;
+    data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[2] = 0;
+    data_fd2_battle_summon_anim_variant_d_4slot_color_idx_array[0] = 0;
+    data_fd2_battle_summon_anim_variant_d_4slot_color_idx_array[1] = 0;
+    data_fd2_battle_summon_anim_variant_d_4slot_color_idx_array[2] = 0;
+    r = fd2_tick_summon_anim_variant_d_3slot(0, 0, 0, 0, 2);
+    ASSERT_EQ((long)r, 1);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[0], 2);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[1], 1);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[2], 1);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 3);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 1);
+    ASSERT_EQ((long)g_play_sfx_sample_from_bank_calls, 0);
+}
+
+/* Frame-7 color rotation (terminate_flag==0): on the slot whose post-inc
+ * frame reaches 7, rotation_counter=(counter+1)%10, color_idx[i]=counter,
+ * frame_counter[i]=0. slot 0 frame 6 (hidden, no blit) -> post-inc 7 ->
+ * rotation. counter 3 -> 4. State 5 also TICKs. Pre-call toggle 1 -> 0. */
+static void test_summon_d_tick_color_rotation(void)
+{
+    int r;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    data_fd2_battle_summon_anim_variant_d_terminate_flag = 0;
+    data_fd2_battle_summon_anim_variant_d_odd_even_frame_toggle = 1;
+    data_fd2_battle_summon_anim_variant_d_color_rotation_counter = 3;
+    g_blit_indexed_sprite_calls = 0;
+    data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[0] = 6;
+    data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[1] = -3;
+    data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[2] = -6;
+    data_fd2_battle_summon_anim_variant_d_4slot_color_idx_array[0] = 0;
+    data_fd2_battle_summon_anim_variant_d_4slot_color_idx_array[1] = 0;
+    data_fd2_battle_summon_anim_variant_d_4slot_color_idx_array[2] = 0;
+    r = fd2_tick_summon_anim_variant_d_3slot(0, 0, 0, 0, 5);
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_d_color_rotation_counter, 4);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_d_4slot_color_idx_array[0], 4);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[0], 0);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[1], -2);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[2], -5);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 0);
+}
+
+/* 2-bucket frame-1 SFX: all 3 slots at frame 1 -> slot 0 plays with_handle,
+ * slot 1 plays sample_from_bank, slot 2 silent. All 3 in range so all blit;
+ * each post-inc 1->2 sets done (return 1). Pre-call toggle 1 -> 0. State 8. */
+static void test_summon_d_tick_sfx_bucket_split(void)
+{
+    int r;
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    data_fd2_battle_summon_anim_variant_d_terminate_flag = 0;
+    data_fd2_battle_summon_anim_variant_d_odd_even_frame_toggle = 1;
+    g_blit_indexed_sprite_calls = 0;
+    g_play_sfx_with_handle_calls = 0;
+    g_play_sfx_sample_from_bank_calls = 0;
+    for (i = 0; i < 3; i++) {
+        data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[i] = 1;
+        data_fd2_battle_summon_anim_variant_d_4slot_color_idx_array[i] = 0;
+    }
+    r = fd2_tick_summon_anim_variant_d_3slot(0, 0, 0, 0, 8);
+    ASSERT_EQ((long)r, 1);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 1);
+    ASSERT_EQ((long)g_play_sfx_sample_from_bank_calls, 1);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 3);
+    for (i = 0; i < 3; i++)
+        ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[i], 2);
+}
+
 static void test_summon_a_init(void)
 {
     int r;
@@ -1281,6 +1426,11 @@ void run_battle_tests(void)
     RUN_TEST(test_summon_d_init);
     RUN_TEST(test_summon_d_state3_hold);
     RUN_TEST(test_summon_d_state6_terminate);
+    RUN_TEST(test_summon_d_tick_toggle_skips_update);
+    RUN_TEST(test_summon_d_tick_advance_no_done);
+    RUN_TEST(test_summon_d_tick_done_at_frame2);
+    RUN_TEST(test_summon_d_tick_color_rotation);
+    RUN_TEST(test_summon_d_tick_sfx_bucket_split);
     RUN_TEST(test_summon_8slot_init);
     RUN_TEST(test_summon_main_init);
     RUN_TEST(test_summon_generic_reset);
