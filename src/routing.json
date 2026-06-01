@@ -2435,7 +2435,8 @@
     "target": "anim/anim.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "000275d6": {
     "name": "fd2_tick_summon_spell_minor_animation_state",

@@ -1068,6 +1068,112 @@ static void test_summon_e_state3(void)
     ASSERT_EQ((long)r, 0x22);
 }
 
+/* TICK (state 2): every slot advances frame_counter by 1; done_flag (return 1)
+ * is set iff some slot's post-increment counter == 4. All 16 frames 3 -> all
+ * become 4: all in visible range [0,8) so all 16 blit, every slot reaches
+ * done(4), and frame 3 triggers no SFX (not 0, not 4). */
+static void test_summon_e_tick_done_and_counter(void)
+{
+    int r;
+    int i;
+    g_blit_indexed_sprite_calls = 0;
+    g_play_sfx_with_handle_calls = 0;
+    g_play_sfx_sample_from_bank_calls = 0;
+    for (i = 0; i < 16; i++)
+        data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[i] = 3;
+    r = fd2_tick_summon_anim_variant_e_16slot(0, 0, 0, 0, 2);
+    ASSERT_EQ((long)r, 1);
+    for (i = 0; i < 16; i++)
+        ASSERT_EQ(
+            (long)data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[i],
+            4);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 16);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 0);
+    ASSERT_EQ((long)g_play_sfx_sample_from_bank_calls, 0);
+}
+
+/* frame==0 SFX branch: all 16 frames 0 -> each plays with_handle, none plays
+ * sample_from_bank; 0 is in [0,8) so all 16 blit; post-increment 1 != 4 so no
+ * done. State 5 also TICKs (same path as state 2). */
+static void test_summon_e_tick_sfx_frame0(void)
+{
+    int r;
+    int i;
+    g_blit_indexed_sprite_calls = 0;
+    g_play_sfx_with_handle_calls = 0;
+    g_play_sfx_sample_from_bank_calls = 0;
+    for (i = 0; i < 16; i++)
+        data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[i] = 0;
+    r = fd2_tick_summon_anim_variant_e_16slot(0, 0, 0, 0, 5);
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 16);
+    ASSERT_EQ((long)g_play_sfx_sample_from_bank_calls, 0);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 16);
+    for (i = 0; i < 16; i++)
+        ASSERT_EQ(
+            (long)data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[i],
+            1);
+}
+
+/* frame==4 SFX branch: all 16 frames 4 -> each plays sample_from_bank, none
+ * plays with_handle; 4 is in [0,8) so all 16 blit; post-increment 5 != 4 so no
+ * done. */
+static void test_summon_e_tick_sfx_frame4(void)
+{
+    int r;
+    int i;
+    g_blit_indexed_sprite_calls = 0;
+    g_play_sfx_with_handle_calls = 0;
+    g_play_sfx_sample_from_bank_calls = 0;
+    for (i = 0; i < 16; i++)
+        data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[i] = 4;
+    r = fd2_tick_summon_anim_variant_e_16slot(0, 0, 0, 0, 2);
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)g_play_sfx_sample_from_bank_calls, 16);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 0);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 16);
+    for (i = 0; i < 16; i++)
+        ASSERT_EQ(
+            (long)data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[i],
+            5);
+}
+
+/* Blit visibility gate boundaries: blit fires iff pre-increment frame in [0,8).
+ * slot0=-1 (below range, no blit), slot1=7 (top in-range, blit),
+ * slot2=8 (above range boundary, no blit), all others -1 (no blit) -> 1 blit.
+ * No frame is 0 or 4, so no SFX fires (isolates the blit gate). */
+static void test_summon_e_tick_blit_visibility_guard(void)
+{
+    int i;
+    g_blit_indexed_sprite_calls = 0;
+    g_play_sfx_with_handle_calls = 0;
+    g_play_sfx_sample_from_bank_calls = 0;
+    for (i = 0; i < 16; i++)
+        data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[i] = -1;
+    data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[1] = 7;
+    data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[2] = 8;
+    fd2_tick_summon_anim_variant_e_16slot(0, 0, 0, 0, 2);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 1);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 0);
+    ASSERT_EQ((long)g_play_sfx_sample_from_bank_calls, 0);
+}
+
+/* state 6: variant-E has no terminate logic, returns 2 with no side effects. */
+static void test_summon_e_state6(void)
+{
+    int r;
+    r = fd2_tick_summon_anim_variant_e_16slot(0, 0, 0, 0, 6);
+    ASSERT_EQ((long)r, 2);
+}
+
+/* default branch: any other state_code returns 0. */
+static void test_summon_e_default_state(void)
+{
+    int r;
+    r = fd2_tick_summon_anim_variant_e_16slot(0, 0, 0, 0, 7);
+    ASSERT_EQ((long)r, 0);
+}
+
 static void test_summon_minor_init_state(void)
 {
     int r;
@@ -1450,6 +1556,12 @@ void run_battle_tests(void)
     RUN_TEST(test_summon_b_tick_rotation_mod10_wrap);
     RUN_TEST(test_summon_e_init);
     RUN_TEST(test_summon_e_state3);
+    RUN_TEST(test_summon_e_tick_done_and_counter);
+    RUN_TEST(test_summon_e_tick_sfx_frame0);
+    RUN_TEST(test_summon_e_tick_sfx_frame4);
+    RUN_TEST(test_summon_e_tick_blit_visibility_guard);
+    RUN_TEST(test_summon_e_state6);
+    RUN_TEST(test_summon_e_default_state);
     RUN_TEST(test_summon_minor_init_state);
     RUN_TEST(test_summon_minor_state3_hold);
     RUN_TEST(test_summon_minor_state5_ramp);
