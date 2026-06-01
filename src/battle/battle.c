@@ -585,7 +585,7 @@ void fd2_recalculate_combat_stats(uint32 char_idx)
     rc = data_fd2_battle_runtime_char_array_ptr;
     ap_total = (int)*(int16 *)(rc[char_idx].combat_aux_block + 0x10);
     dp_total = (int)*(int16 *)(rc[char_idx].combat_aux_block + 0x12);
-    dx_total = (int)*(uint16 *)(rc[char_idx].ai_target_and_dx_block + 1);
+    dx_total = (int)*(int16 *)(rc[char_idx].ai_target_and_dx_block + 1);
     if (rc[char_idx].status_flags_block[3] != 0) {
         dx_total = dx_total + 0xf;
     }

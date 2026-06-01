@@ -126,8 +126,8 @@ AI post-action consequence 共用）。
 +0x20 bJob_id         職業 ID，決定移動/抗性
 +0x21 pStatus_flags_block[5]
                       [0] level (init = base[2])
-                      [1] AP buff flag (fd2_recalculate_combat_stats × 1.5)
-                      [2] DP buff flag
+                      [1] AP buff flag (fd2_recalculate_combat_stats AP × 1.15, 截斷)
+                      [2] DP buff flag (fd2_recalculate_combat_stats DP × 1.15, 截斷)
                       [3] DX buff flag (+0xF)
                       [4] 狀態 A (毒？AI fd2_score_spell_candidate spell 0x14 檢查)
 +0x26 bStatus_sleep_flag  spell 0x15 解；scorer +6 if non-zero

@@ -6,16 +6,10 @@
     "issues": [
       {
         "type": "fpu_rounding",
-        "desc": "Assembly 用 FISTP + default rounding mode (round-to-nearest)；emitted C 用 (int)((double)x * 1.15) 可能產生 truncation。需實際 Watcom 9.5a 編譯後比對 codegen 確認是否等價。",
+        "desc": "AP/DP x1.15 buff. Assembly @0x1B7EF-0x1B819 = FILD/FMUL m64[0x5018D]/CALL __CHP/FISTP. __CHP (0x377A4) sets FPU RC=11 (round-toward-zero) then FRNDINT, so the value is TRUNCATED before FISTP stores it — i.e. assembly truncates, it does NOT round-to-nearest. The emitted C (int)((double)x * 1.15) ALSO truncates toward zero, so the rounding DIRECTION matches. Residual concern is only Watcom 9.5a codegen precision (x87 80-bit FMUL vs C 64-bit double intermediate); for unit-test ground-truth this is bypassed by choosing bases where 80-bit and 64-bit truncation agree (100->114, 200->229, tested in testbtl.c). Still recommend a post-build -d disasm to confirm byte-identical FILD/FMUL/__CHP/FISTP emission. [reviewer KEEP-confirmed valid] Precision-ordering refinement: the FMUL at 0x1B7F3 runs BEFORE __CHP sets PC=64-bit, so it uses the entry control-word precision. Cross-check: bases 100->114 and 200->229 agree at 64-bit and exact-80-bit truncation; base 40 would give 46 at 64-bit but 45 at exact-80-bit and was correctly AVOIDED in the tests. Unit tests pass under real Watcom, empirically confirming truncation; a post-build -d disasm to confirm byte-identical FILD/FMUL/__CHP/FISTP emission remains the recommended final check. No code change needed.",
         "severity": "low",
-        "verify_method": "compile_and_disasm"
-      },
-      {
-        "type": "sign_extend_mismatch",
-        "desc": "EQUIVALENCE (parent-scoped, NOT the reviewed fragment): src/battle/battle.c:588 in fd2_recalculate_combat_stats loads base DX (+0x3E) via (int)*(uint16 *)(...) = ZERO-extend, but the assembly at 0x1B786 is MOVSX EAX,word ptr [EDI+0x3e] = SIGN-extend, and the sibling fd2_recompute_runtime_char_total_stats (battle.c:549) correctly uses (int)*(int16 *)(...). Sibling base-stat loads in the same parent (lines 586/587, offsets +0x37/+0x39) are correctly (int)*(int16 *). Because stat4_total (the evade value this epilogue stores) initializes from dx_total, a negative base DX would make the stored wEvade differ between rebuild and original. Fix: change battle.c:588 cast from (uint16 *) to (int16 *). This belongs to fd2_recalculate_combat_stats @0x1B750 (phase-1, separately reviewed routing entry), so it is logged here rather than blocking the 000114fb epilogue review.",
-        "severity": "medium",
         "verify_method": "compile_and_disasm",
-        "source_review": "fd2_set_runtime_char_evade @000114fb"
+        "reviewer_verdict": "KEEP (confirmed valid, no code change needed)"
       }
     ]
   },

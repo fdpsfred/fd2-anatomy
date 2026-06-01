@@ -234,6 +234,80 @@ static void test_recalc_combat_stats_basic(void)
     ASSERT_EQ(g_test_rc_array[0].stat4_current, 15);
 }
 
+/*
+ * AP/DP x1.15 buff path (status_flags_block[1]=AP buff, [2]=DP buff).
+ * asm 0x1B7EF-0x1B819: FILD / FMUL m64[0x5018D] / CALL __CHP / FISTP.
+ * __CHP (0x377A4) does FRNDINT with RC=11 (round-toward-zero) => TRUNCATION,
+ * so the stored result is trunc((double)base * 1.15), NOT round-to-nearest.
+ * The m64 constant 0x5018D = 0x3FF2666666666666 = the double 1.15, which is
+ * stored as 1.1499999999999999..., so products land just below the integer:
+ *   100 * 1.15 = 114.9999... -> trunc 114 (NOT 115)
+ *   200 * 1.15 = 229.9999... -> trunc 229 (NOT 230)
+ * These two bases are stable: exact-rational (x87 80-bit) and 64-bit double
+ * truncation agree, and the product is far from the integer boundary. Bases
+ * like 40 (exact 46.0 in 64-bit but 45.9999.. exact -> 45) are deliberately
+ * AVOIDED because they straddle the 80-bit/64-bit boundary.
+ * DX/stat4 carry NO multiplicative buff, so they stay at their base here.
+ */
+static void test_recalc_combat_stats_ap_dp_buff(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    *(int16 *)(g_test_rc_array[0].combat_aux_block + 0x10) = 100; /* base AP */
+    *(int16 *)(g_test_rc_array[0].combat_aux_block + 0x12) = 200; /* base DP */
+    *(uint16 *)(g_test_rc_array[0].ai_target_and_dx_block + 1) = 50; /* base DX */
+    g_test_rc_array[0].status_flags_block[1] = 1;  /* AP x1.15 */
+    g_test_rc_array[0].status_flags_block[2] = 1;  /* DP x1.15 */
+    fd2_recalculate_combat_stats(0);
+    ASSERT_EQ(g_test_rc_array[0].ap, 114);          /* trunc(100*1.15) */
+    ASSERT_EQ(g_test_rc_array[0].dp, 229);          /* trunc(200*1.15) */
+    ASSERT_EQ(g_test_rc_array[0].dx_current, 50);   /* no buff on DX */
+    ASSERT_EQ(g_test_rc_array[0].stat4_current, 50);
+}
+
+/*
+ * DX +0xF buff (status_flags_block[3]). asm 0x1B796: ADD [ESP+4],0xF runs
+ * BEFORE stat4 is seeded from dx (0x1B79B: stat4 = dx), so the +0xF must
+ * reach BOTH dx_current (+0x4C) and stat4_current/Evade (+0x4E). With no
+ * equipped item and no x1.15 buff, base 40 -> 40+15 = 55 in both outputs.
+ */
+static void test_recalc_combat_stats_dx_buff(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    *(uint16 *)(g_test_rc_array[0].ai_target_and_dx_block + 1) = 40; /* base DX */
+    g_test_rc_array[0].status_flags_block[3] = 1;  /* +0xF DX buff */
+    fd2_recalculate_combat_stats(0);
+    ASSERT_EQ(g_test_rc_array[0].dx_current, 55);   /* 40 + 0xF */
+    ASSERT_EQ(g_test_rc_array[0].stat4_current, 55);/* +0xF reaches stat4 too */
+}
+
+/*
+ * Equipped-item accumulation slot mapping for THIS function.
+ * fd2_get_item_effect_entry returns &item.type (struct +1), so the loop's
+ * (pItem+1/+3/+5/+7) read item_effect fields .ap/.ht/.dp/.ev (struct +2/+4/
+ * +6/+8) and route them to AP / DX_current / DP / stat4_current respectively.
+ * Distinct ht(4) vs ev(6) prove +3 and +7 land in different outputs.
+ */
+static void test_recalc_combat_stats_equipped_item(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(data_fd2_battle_item_effect_table, 0,
+           sizeof(data_fd2_battle_item_effect_table));
+    *(int16 *)(g_test_rc_array[0].combat_aux_block + 0x10) = 20; /* base AP */
+    *(int16 *)(g_test_rc_array[0].combat_aux_block + 0x12) = 15; /* base DP */
+    *(uint16 *)(g_test_rc_array[0].ai_target_and_dx_block + 1) = 10; /* base DX */
+    g_test_rc_array[0].inventory_slots[0] = 0x40;  /* slot 0 equipped */
+    g_test_rc_array[0].inventory_slots[1] = 5;     /* item id = 5    */
+    data_fd2_battle_item_effect_table[5].ap = 3;   /* item+1 -> AP    */
+    data_fd2_battle_item_effect_table[5].ht = 4;   /* item+3 -> DX    */
+    data_fd2_battle_item_effect_table[5].dp = 5;   /* item+5 -> DP    */
+    data_fd2_battle_item_effect_table[5].ev = 6;   /* item+7 -> Evade */
+    fd2_recalculate_combat_stats(0);
+    ASSERT_EQ(g_test_rc_array[0].ap, 23);           /* 20 + 3 */
+    ASSERT_EQ(g_test_rc_array[0].dp, 20);           /* 15 + 5 */
+    ASSERT_EQ(g_test_rc_array[0].dx_current, 14);   /* 10 + 4 */
+    ASSERT_EQ(g_test_rc_array[0].stat4_current, 16);/* 10 + 6 */
+}
+
 /* ---- Test: check_can_default_attack_target ---- */
 
 static void test_default_attack_sleep(void)
@@ -3360,6 +3434,9 @@ void run_battle_tests(void)
     RUN_TEST(test_recompute_stats_basic);
     RUN_TEST(test_recompute_stats_equipped);
     RUN_TEST(test_recalc_combat_stats_basic);
+    RUN_TEST(test_recalc_combat_stats_ap_dp_buff);
+    RUN_TEST(test_recalc_combat_stats_dx_buff);
+    RUN_TEST(test_recalc_combat_stats_equipped_item);
     RUN_TEST(test_default_attack_sleep);
     RUN_TEST(test_default_attack_not_adjacent);
     RUN_TEST(test_mp_heal_basic);

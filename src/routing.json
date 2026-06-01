@@ -1148,7 +1148,8 @@
     "target": "battle/battle.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0001b83d": {
     "name": "fd2_find_equipped_item_by_kind",
