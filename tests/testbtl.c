@@ -402,6 +402,10 @@ extern int g_execute_spell_calls;
 extern int g_execute_physical_calls;
 extern int g_find_equipped_return;
 extern int g_pathfind_return;
+extern int g_pathfind_walk_return;
+extern int g_pathfind_write_dst;
+extern int g_pathfind_dst_x;
+extern int g_pathfind_dst_y;
 
 static uint8 t_ai_tile_map[20 * 15 * 4];
 
@@ -417,6 +421,11 @@ static void reset_ai_stubs(void)
     g_pass_turn_calls = 0;
     g_execute_spell_calls = 0;
     g_execute_physical_calls = 0;
+    g_pathfind_return = 0;
+    g_pathfind_walk_return = 0;
+    g_pathfind_write_dst = 0;
+    g_pathfind_dst_x = 0;
+    g_pathfind_dst_y = 0;
     memset(t_ai_tile_map, 0xFF, sizeof(t_ai_tile_map));
     data_fd2_battle_tile_map_ptr = (uint32)t_ai_tile_map;
 }
@@ -515,14 +524,65 @@ static void test_ai_pass_turn_clamps_at_max(void)
     ASSERT_EQ(g_test_rc_array[0].hp_current, 200);
 }
 
+/* Genuine unreachable: the seek's "find optimal cell" pathfind (md==2)
+ * returns 0xFF -> the function must return 0 and leave anim_phase untouched
+ * (the no-anim early-out at btl_ai.c). reset_ai_stubs() sets g_pathfind_return
+ * to a deterministic value, so here we force 0xFF explicitly. */
 static void test_ai_seek_optimal_unreachable(void)
 {
     int result;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     reset_ai_stubs();
     g_test_rc_array[0].pos_x = 5; g_test_rc_array[0].pos_y = 5;
+    g_pathfind_return = 0xFF;
+    data_fd2_battle_anim_phase = 7;     /* sentinel: must stay untouched */
     result = fd2_ai_seek_optimal_position(0, 0);
     ASSERT_EQ(result, 0);
+    ASSERT_EQ((long)data_fd2_battle_anim_phase, 7);
+}
+
+/* Already at optimum: pathfind reports a destination equal to the source
+ * (dst==src) -> no walk, no animation, return 0, anim_phase untouched. */
+static void test_ai_seek_optimal_already_at_best(void)
+{
+    int result;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    reset_ai_stubs();
+    g_test_rc_array[0].pos_x = 5; g_test_rc_array[0].pos_y = 5;
+    g_pathfind_return = 3;              /* reachable (not 0xFF) */
+    g_pathfind_write_dst = 1;
+    g_pathfind_dst_x = 5;               /* dst == src */
+    g_pathfind_dst_y = 5;
+    data_fd2_battle_anim_phase = 7;     /* sentinel: must stay untouched */
+    result = fd2_ai_seek_optimal_position(0, 0);
+    ASSERT_EQ(result, 0);
+    ASSERT_EQ((long)data_fd2_battle_anim_phase, 7);
+}
+
+/* EAX-tracking lock-in: did_move must derive from the WALK return value
+ * (asm 0x1421d TEST EAX,EAX on the fd2_ai_walk_to_target_tile CALL at 0x14215),
+ * NOT from the pathfind result that the buggy decompiled C reinterprets (iVar1).
+ * Setup: the seek's md==2 pathfind returns NONZERO (3) and reports dst!=src, so
+ * the buggy "did_move = pathfind_result != 0" would yield 1; the walk routine's
+ * own pathfinds (md==0/1) return 0 so the real walk returns 0. Correct semantics
+ * => did_move = (walk_result==0) => result 0. Walk returning 0 also means no
+ * animation pipeline runs, keeping this case fully deterministic. anim_phase is
+ * driven 0 then 1 across the walk branch, so it ends at 1. */
+static void test_ai_seek_optimal_walk_branch_returns_zero(void)
+{
+    int result;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    reset_ai_stubs();
+    g_test_rc_array[0].pos_x = 5; g_test_rc_array[0].pos_y = 5;
+    g_pathfind_return = 3;              /* seek pathfind: reachable, nonzero */
+    g_pathfind_write_dst = 1;
+    g_pathfind_dst_x = 8;              /* dst != src -> enters walk branch */
+    g_pathfind_dst_y = 8;
+    g_pathfind_walk_return = 0;         /* walk routes -> walk returns 0 */
+    data_fd2_battle_anim_phase = 7;
+    result = fd2_ai_seek_optimal_position(0, 0);
+    ASSERT_EQ(result, 0);              /* fails on buggy iVar1-based did_move */
+    ASSERT_EQ((long)data_fd2_battle_anim_phase, 1);
 }
 
 static void test_ai_advance_no_target(void)
@@ -2242,6 +2302,8 @@ void run_battle_tests(void)
     RUN_TEST(test_compute_aoe_no_targets);
     RUN_TEST(test_ai_score_phys_no_weapon);
     RUN_TEST(test_ai_seek_optimal_unreachable);
+    RUN_TEST(test_ai_seek_optimal_already_at_best);
+    RUN_TEST(test_ai_seek_optimal_walk_branch_returns_zero);
     RUN_TEST(test_ai_advance_no_target);
     RUN_TEST(test_ai_advance_target_found);
     RUN_TEST(test_spell_score_damage_kill_shot);

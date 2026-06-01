@@ -349,10 +349,33 @@ void fd2_play_sfx_sample_from_bank(uint32 b, uint32 s, uint32 p) { g_play_sfx_sa
 void fd2_clear_all_chars_facing(void) { }
 void fd2_paint_char_sprite_at_world_with_mode(uint32 w, uint32 s, uint32 c, uint32 m, uint32 co) { }
 void fd2_paint_threat_overlay_for_team(uint32 ctx) { }
+/* Pathfind stub. Two modes are distinguished by the `md` (mode) arg:
+ *   md==2  -> "find optimal reachable cell" call (fd2_ai_seek_optimal_position).
+ *            When g_pathfind_write_dst!=0 it writes the discovered destination
+ *            (g_pathfind_dst_x, g_pathfind_dst_y) into the db output buffer, and
+ *            returns g_pathfind_return (the step/0xFF code).
+ *   md==0/1 -> "route toward a specific target" call (inside
+ *            fd2_ai_walk_to_target_tile). Returns g_pathfind_walk_return.
+ * This separation lets a seek-position test pin the seek's pathfind result and
+ * reported destination independently of the walk routine's own return value,
+ * which is required to lock in the EAX-tracking semantics of did_move. */
 int g_pathfind_return = 0;
+int g_pathfind_walk_return = 0;
+int g_pathfind_write_dst = 0;
+int g_pathfind_dst_x = 0;
+int g_pathfind_dst_y = 0;
 int fd2_pathfind_to_destination(uint32 ct, uint32 sx, uint32 sy, uint32 ms,
     uint32 db, uint32 f1, uint32 f2, uint32 md, uint32 tm, uint32 af) {
-    return g_pathfind_return;
+    (void)ct; (void)sx; (void)sy; (void)ms;
+    (void)f1; (void)f2; (void)tm; (void)af;
+    if (md == 2) {
+        if (g_pathfind_write_dst != 0 && db != 0) {
+            ((uint8 *)db)[0] = (uint8)g_pathfind_dst_x;
+            ((uint8 *)db)[1] = (uint8)g_pathfind_dst_y;
+        }
+        return g_pathfind_return;
+    }
+    return g_pathfind_walk_return;
 }
 void fd2_obfuscate_battle_tile_map(uint32 tm) { }
 void fd2_init_movement_range_floodfill(uint32 ct, uint32 x, uint32 y,
