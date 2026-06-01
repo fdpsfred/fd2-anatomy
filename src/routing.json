@@ -518,7 +518,8 @@
     "target": "battle/btl_ai.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00014818": {
     "name": "fd2_compute_aoe_targets",
