@@ -640,7 +640,8 @@
     "target": "battle/btl_ai.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00015e71": {
     "name": "fd2_cleanup_dialog_sprite_buffer",
