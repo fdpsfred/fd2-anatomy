@@ -463,7 +463,8 @@
     "target": "battle/btl_ai.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00014121": {
     "name": "fd2_ai_seek_optimal_position",
