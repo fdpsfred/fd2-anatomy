@@ -2447,7 +2447,8 @@
     "target": "anim/anim.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "000276ec": {
     "name": "fd2_execute_special_attack_skill",
