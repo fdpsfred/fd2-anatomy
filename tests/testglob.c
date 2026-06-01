@@ -117,7 +117,28 @@ void fd2_paint_cursor_overlay_pattern(void) { }
 void fd2_composite_all_chars_overlay(void) { }
 void fd2_render_terrain_info_hud_panel(uint32 b, uint32 s) { }
 void fd2_blit_rectangle(uint32 d, uint32 ds, uint32 s, uint32 ss, uint32 w, uint32 h) { }
-void fd2_repaint_settings_dialog_borders(uint32 s, uint32 a) { }
+/* fd2_repaint_settings_dialog_borders stub with test-controllable loop break.
+ * The real routine repaints the settings/options dialog borders (pure display).
+ * For fd2_wait_input_with_dialog_repaint the only harness-driveable way to run
+ * the idle loop BODY (and thus its blink oscillator) exactly once is to flip the
+ * BIOS keyboard buffer from empty->nonempty from inside the loop, since every
+ * other loop callee is a no-op stub and nothing else mutates the buffer. When
+ * g_repaint_flip_buffer_after != 0, the call counter reaching that threshold
+ * makes the buffer nonempty (tail 0x41C := head 0x41A + 2) so the next loop-top
+ * fd2_check_keyboard_buffer_nonempty() returns nonzero and the loop exits.
+ * Default 0 keeps the historical no-op behavior for all other tests. */
+int g_repaint_settings_calls = 0;
+int g_repaint_flip_buffer_after = 0;
+void fd2_repaint_settings_dialog_borders(uint32 s, uint32 a)
+{
+    (void)s; (void)a;
+    g_repaint_settings_calls++;
+    if (g_repaint_flip_buffer_after != 0 &&
+        g_repaint_settings_calls >= g_repaint_flip_buffer_after) {
+        *(volatile uint16 *)0x41CuL =
+            (uint16)(*(volatile uint16 *)0x41AuL + 2);
+    }
+}
 void fd2_render_recruitment_party_screen(void) { }
 uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch = 0;
 uint32 data_fd2_ui_slide_composed_target_buf_ptr = 0;

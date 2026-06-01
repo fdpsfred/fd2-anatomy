@@ -497,6 +497,109 @@ static void test_wait_dialog_blink_esc(void)
     ASSERT_EQ(r, 0x01);
 }
 
+/* ---- Tests: wait_input_with_dialog_repaint ---- */
+
+/* Loop-break control for driving the idle loop body exactly once; see the stub
+ * fd2_repaint_settings_dialog_borders in testglob.c. */
+extern int g_repaint_settings_calls;
+extern int g_repaint_flip_buffer_after;
+
+/* Scancode remap path (loop skipped: head!=tail so the buffer reads nonempty
+ * and execution falls straight through to INT 16h + remap). The INT 16h scancode
+ * is the HIGH byte of the word at the buffer head 0x41E (AH from INT 16h AH=10h),
+ * exactly as the sibling fd2_wait_for_input_with_idle tests above. asm 0x179a4-
+ * 0x179c3: 0xE0->0x1C, 0x52->0x1C, 0x53->0x01, else passthrough. */
+static void test_wait_dialog_repaint_remap_52(void)
+{
+    int r;
+    g_repaint_flip_buffer_after = 0;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0x5200;
+    r = fd2_wait_input_with_dialog_repaint(0, 0);
+    ASSERT_EQ(r, 0x1c);
+}
+
+static void test_wait_dialog_repaint_remap_e0(void)
+{
+    int r;
+    g_repaint_flip_buffer_after = 0;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0xE000;
+    r = fd2_wait_input_with_dialog_repaint(0, 0);
+    ASSERT_EQ(r, 0x1c);
+}
+
+static void test_wait_dialog_repaint_remap_53(void)
+{
+    int r;
+    g_repaint_flip_buffer_after = 0;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0x5300;
+    r = fd2_wait_input_with_dialog_repaint(0, 0);
+    ASSERT_EQ(r, 0x01);
+}
+
+static void test_wait_dialog_repaint_passthrough(void)
+{
+    int r;
+    g_repaint_flip_buffer_after = 0;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0x3920;
+    r = fd2_wait_input_with_dialog_repaint(0, 0);
+    ASSERT_EQ(r, 0x39);
+}
+
+/* Blink oscillator state-transition (asm 0x178bf-0x178f8): runs the idle loop
+ * BODY exactly once via the repaint-stub buffer flip, then the seeded passthrough
+ * scancode exits. Buffer starts EMPTY (head==tail==0x1E) so the loop is entered;
+ * the stub flips tail->head+2 on its first call so the next top-of-loop check
+ * exits. Oscillator trigger is forced deterministically: tick_latch=0 and BIOS
+ * tick low word 0x4000 give diff=0x4000 (>3, high bit clear) regardless of the
+ * free-running timer ISR (wrap into 0..3 is impossible in one tick from 0x4000),
+ * so the 0/1 oscillator advances (+1, wrap at 2). 0->1 here (no wrap). */
+static void test_wait_dialog_repaint_oscillator_0_to_1(void)
+{
+    int r;
+    g_repaint_settings_calls = 0;
+    g_repaint_flip_buffer_after = 1;
+    data_fd2_dialog_blink_phase_oscillator = 0;
+    data_fd2_dialog_blink_phase_oscillator_tick_latch = 0;
+    *(volatile uint32 *)0x46CuL = 0x00004000uL;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x1E;
+    *(volatile uint16 *)0x41EuL = 0x3920;
+    r = fd2_wait_input_with_dialog_repaint(0, 0);
+    g_repaint_flip_buffer_after = 0;
+    ASSERT_EQ(g_repaint_settings_calls, 1);
+    ASSERT_EQ(data_fd2_dialog_blink_phase_oscillator, 1);
+    ASSERT_EQ(r, 0x39);
+}
+
+/* Same single-body drive as above but oscillator preset to 1 so the +1 hits 2
+ * and wraps back to 0 (asm 0x178dd CMP ==2 -> 0x178e6 store 0). Pins the modulo-2
+ * wrap that the 0->1 case does not exercise. */
+static void test_wait_dialog_repaint_oscillator_1_to_0(void)
+{
+    int r;
+    g_repaint_settings_calls = 0;
+    g_repaint_flip_buffer_after = 1;
+    data_fd2_dialog_blink_phase_oscillator = 1;
+    data_fd2_dialog_blink_phase_oscillator_tick_latch = 0;
+    *(volatile uint32 *)0x46CuL = 0x00004000uL;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x1E;
+    *(volatile uint16 *)0x41EuL = 0x3920;
+    r = fd2_wait_input_with_dialog_repaint(0, 0);
+    g_repaint_flip_buffer_after = 0;
+    ASSERT_EQ(g_repaint_settings_calls, 1);
+    ASSERT_EQ(data_fd2_dialog_blink_phase_oscillator, 0);
+    ASSERT_EQ(r, 0x39);
+}
+
 /* ---- Tests: wait_ticks_or_keypress ---- */
 
 static void test_wait_ticks_or_keypress_timeout(void)
@@ -629,6 +732,12 @@ void run_ui_tests(void)
     RUN_TEST(test_palette_remap_run);
     RUN_TEST(test_interpolate_palette);
     RUN_TEST(test_wait_dialog_blink_esc);
+    RUN_TEST(test_wait_dialog_repaint_remap_52);
+    RUN_TEST(test_wait_dialog_repaint_remap_e0);
+    RUN_TEST(test_wait_dialog_repaint_remap_53);
+    RUN_TEST(test_wait_dialog_repaint_passthrough);
+    RUN_TEST(test_wait_dialog_repaint_oscillator_0_to_1);
+    RUN_TEST(test_wait_dialog_repaint_oscillator_1_to_0);
     RUN_TEST(test_wait_ticks_or_keypress_timeout);
     RUN_TEST(test_wait_input_v2_basic);
     RUN_TEST(test_wait_input_idle_arrow);
