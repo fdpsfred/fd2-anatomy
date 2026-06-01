@@ -521,9 +521,136 @@ static void test_score_item_candidate_spell_0x18(void)
     ASSERT_EQ(result, 0x12 + 8);
 }
 
+/* fd2_slide_panel_step_left_main copies 0x75 rows of `row_bytes` from
+ * src_buffer (offset src_x+0x2E40) into large_game_state_buffer
+ * (offset dst_x+0x2E40), stride 0x140. row_bytes/src_x/dst_x are computed
+ * from frame_idx by the verified prologue (0001af30-0001af5d):
+ *   frame>=5 (stationary): row_bytes=0xAA, src_x=0x4B, dst_x=0x4B
+ *   frame<5: x_shift=(4-frame)*0x32; dst_x=0x4B-x_shift; if dst_x<0 then
+ *            row_bytes=0xAA+dst_x, src_x=0x4B-dst_x, dst_x=0 (full left clip).
+ * Tests below pin all three derived quantities at once: src is poisoned with
+ * 0xFE outside the expected read window and 0xBB inside it, so a wrong src_x
+ * or row_bytes leaks 0xFE into dst; dst is pre-filled 0x11 so a wrong dst_x or
+ * row_bytes leaves 0x11 where 0xBB is expected (or writes 0xBB where 0x11 is).
+ * Buffers are 64000 (>= max touched offset 49205). */
+static uint8 g_lp_dst[64000];
+static uint8 g_lp_src[64000];
+
+/* Lay one row's worth of src markers and assert one row's worth of dst result
+ * for the given derived (src_x, dst_x, row_bytes) at row `r`. Reused by every
+ * path so the expected-value math lives in exactly one place per call site. */
+static void lp_check_row(int r, long dst_x, long row_bytes)
+{
+    long d_base;
+    long i;
+
+    d_base = dst_x + 0x2E40 + (long)r * 0x140;
+
+    /* copied span: every byte 0xBB (a wrong src_x on row 0 leaks the 0xFE
+     * guard here; a wrong row_bytes shortens/lengthens the span). */
+    for (i = 0; i < row_bytes; i++) {
+        ASSERT_EQ((long)g_lp_dst[d_base + i], 0xBB);
+    }
+    /* byte just before the dst span: still background (proves dst_x exact). */
+    ASSERT_EQ((long)g_lp_dst[d_base - 1], 0x11);
+    /* byte just after the dst span: still background (proves row_bytes exact). */
+    ASSERT_EQ((long)g_lp_dst[d_base + row_bytes], 0x11);
+}
+
+/* frame_idx >= 5: stationary placement. row_bytes=0xAA, src_x=dst_x=0x4B. */
 static void test_slide_panel_left_main_stationary(void)
 {
-    ASSERT_TRUE(1);
+    uint32 save_buf;
+    long src_x;
+    long dst_x;
+    long row_bytes;
+    long s_row0;
+
+    save_buf = data_fd2_large_game_state_buffer_ptr;
+    src_x = 0x4B;
+    dst_x = 0x4B;
+    row_bytes = 0xAA;
+
+    memset(g_lp_dst, 0x11, sizeof(g_lp_dst));
+    memset(g_lp_src, 0xBB, sizeof(g_lp_src));
+    /* poison the bytes flanking row 0's expected read window with 0xFE. */
+    s_row0 = src_x + 0x2E40;
+    g_lp_src[s_row0 - 1] = 0xFE;
+    g_lp_src[s_row0 + row_bytes] = 0xFE;
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_lp_dst;
+    fd2_slide_panel_step_left_main((uint32)g_lp_src, 5);
+    data_fd2_large_game_state_buffer_ptr = save_buf;
+
+    /* row 0: exact widths + guards (catches 0xFE leak from wrong src_x). */
+    lp_check_row(0, dst_x, row_bytes);
+    /* last copied row 0x74: proves loop ran 0x75 rows at stride 0x140. */
+    lp_check_row(0x74, dst_x, row_bytes);
+    /* row 0x75 would start at dst_x+0x2E40+0x75*0x140: must stay background. */
+    ASSERT_EQ((long)g_lp_dst[dst_x + 0x2E40 + 0x75 * 0x140], 0x11);
+}
+
+/* frame_idx = 0: full left clip. x_shift=200 -> dst_x=-125<0 ->
+ * row_bytes=0xAA-125=0x2D, src_x=0x4B+125=0xC8, dst_x=0 (left-aligned). */
+static void test_slide_panel_left_main_full_clip(void)
+{
+    uint32 save_buf;
+    long src_x;
+    long dst_x;
+    long row_bytes;
+    long s_row0;
+
+    save_buf = data_fd2_large_game_state_buffer_ptr;
+    src_x = 0xC8;       /* 0x4B - (-125) */
+    dst_x = 0;
+    row_bytes = 0x2D;   /* 0xAA + (-125) */
+
+    memset(g_lp_dst, 0x11, sizeof(g_lp_dst));
+    memset(g_lp_src, 0xBB, sizeof(g_lp_src));
+    s_row0 = src_x + 0x2E40;
+    g_lp_src[s_row0 - 1] = 0xFE;
+    g_lp_src[s_row0 + row_bytes] = 0xFE;
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_lp_dst;
+    fd2_slide_panel_step_left_main((uint32)g_lp_src, 0);
+    data_fd2_large_game_state_buffer_ptr = save_buf;
+
+    /* dst_off must be 0x2E40 (dst_x=0), NOT 0x4B+0x2E40: the byte at
+     * 0x2E40-1 is background and 0x2E40 itself is the copied span start. */
+    ASSERT_EQ((long)g_lp_dst[0x2E40], 0xBB);
+    lp_check_row(0, dst_x, row_bytes);
+    lp_check_row(0x74, dst_x, row_bytes);
+    ASSERT_EQ((long)g_lp_dst[dst_x + 0x2E40 + 0x75 * 0x140], 0x11);
+}
+
+/* frame_idx = 2: partial left clip. x_shift=100 -> dst_x=-25<0 ->
+ * row_bytes=0xAA-25=0x91, src_x=0x4B+25=0x64, dst_x=0. */
+static void test_slide_panel_left_main_partial_clip(void)
+{
+    uint32 save_buf;
+    long src_x;
+    long dst_x;
+    long row_bytes;
+    long s_row0;
+
+    save_buf = data_fd2_large_game_state_buffer_ptr;
+    src_x = 0x64;       /* 0x4B - (-25) */
+    dst_x = 0;
+    row_bytes = 0x91;   /* 0xAA + (-25) */
+
+    memset(g_lp_dst, 0x11, sizeof(g_lp_dst));
+    memset(g_lp_src, 0xBB, sizeof(g_lp_src));
+    s_row0 = src_x + 0x2E40;
+    g_lp_src[s_row0 - 1] = 0xFE;
+    g_lp_src[s_row0 + row_bytes] = 0xFE;
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_lp_dst;
+    fd2_slide_panel_step_left_main((uint32)g_lp_src, 2);
+    data_fd2_large_game_state_buffer_ptr = save_buf;
+
+    lp_check_row(0, dst_x, row_bytes);
+    lp_check_row(0x74, dst_x, row_bytes);
+    ASSERT_EQ((long)g_lp_dst[dst_x + 0x2E40 + 0x75 * 0x140], 0x11);
 }
 
 /* slide_panel_down_step restores the *background snapshot* (0x53C5F) into the
@@ -1233,6 +1360,8 @@ void run_anim_tests(void)
     RUN_TEST(test_mark_aoe_plus_pattern);
     RUN_TEST(test_scan_chars_along_line);
     RUN_TEST(test_slide_panel_left_main_stationary);
+    RUN_TEST(test_slide_panel_left_main_full_clip);
+    RUN_TEST(test_slide_panel_left_main_partial_clip);
     RUN_TEST(test_slide_panel_down_step_restores_snapshot);
     RUN_TEST(test_slide_panel_down_step_bottom_clip);
     RUN_TEST(test_score_item_candidate_damage);
