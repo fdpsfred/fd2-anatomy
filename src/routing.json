@@ -223,7 +223,8 @@
     "target": "anim/anim.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "000122dc": {
     "name": "fd2_paint_cursor_overlay_pattern",
