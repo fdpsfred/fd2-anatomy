@@ -1095,7 +1095,8 @@
     "target": "anim/anim.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0001b1e7": {
     "name": "fd2_open_party_status_overview_screen",

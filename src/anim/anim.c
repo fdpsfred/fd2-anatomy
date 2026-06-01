@@ -608,7 +608,7 @@ void fd2_slide_panel_step_bottom_small(uint32 src_buffer, uint32 frame_idx)
         y_shift = (4 - ((int)frame_idx - 8)) * 4;
         dst_y = y_shift + 0xAC;
         if (dst_y + 0xF > 200) {
-            row_count = 200 - dst_y;
+            row_count = dst_y - 200;
         }
     }
 
