@@ -447,7 +447,8 @@
     "target": "battle/btl_ai.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00013e9c": {
     "name": "fd2_ai_advance_to_nearest_team_target",

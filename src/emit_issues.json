@@ -169,5 +169,29 @@
         "source_review": "fd2_wait_one_bios_tick @00013460"
       }
     ]
+  },
+  "00013a9f": {
+    "name": "fd2_enemy_turn_action_dispatcher",
+    "target": "battle/btl_ai.c",
+    "issues": [
+      {
+        "type": "test_coverage_gap",
+        "desc": "TEST GAP (deferrable, not blocking): test_ai_dispatch_case11_both_execute (testbtl.c:451) makes ZERO assertions -- it is a no-crash smoke test only. Minimum strengthening: assert g_composite_call_count >= 1 (postlude reached). Currently it sets scores 7/7, calls, and resets without checking any observable.",
+        "severity": "low",
+        "verify_method": "add_test"
+      },
+      {
+        "type": "test_coverage_gap",
+        "desc": "TEST GAP (deferrable): the EAX-bug-corrected paths (case 4 pass_turn gating, case 5 item-pickup -> add_item/tile-consume/sfx/transition-to-class-7, case 7 dead-impact) and cases 9/10 are UNTESTED. They are not cheaply assertable in the current harness because the distinguishing callees (ai_ai_pass_turn_with_heal, ai_walk_to_target_tile, etc.) were promoted from counting-stubs to real implementations, so which callee ran is no longer observable. Recommend (Phase 9 integration or a harness counter-reinstatement) to cover case 5s state machine specifically, as it has the most independent logic + an EAX trap.",
+        "severity": "low",
+        "verify_method": "add_test"
+      },
+      {
+        "type": "dead_test_globals",
+        "desc": "DEAD TEST GLOBALS: testglob.c lines 318-326 (g_attack_dispatch_return, g_attack_dispatch_calls, g_seek_optimal_return, g_advance_nearest_return, g_walk_return, g_score_physical_return, g_pass_turn_calls, g_execute_spell_calls, g_execute_physical_calls) plus their extern decls in testbtl.c (394-402) are now orphaned -- the stubs they backed were replaced by real btl_ai.c implementations. They are still referenced/reset by reset_ai_stubs() but never read for assertions. Either remove them or re-wire observable counters to make the above EAX-sensitive paths assertable.",
+        "severity": "low",
+        "verify_method": "remove_or_rewire_test_globals"
+      }
+    ]
   }
 }
