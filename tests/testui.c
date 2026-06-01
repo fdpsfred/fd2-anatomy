@@ -305,6 +305,9 @@ static void test_get_inventory_slot_item_id(void)
 
 /* ---- Tests: read_tile_attribute ---- */
 
+/* sprite_idx==0 baseline: pins the +0 attr lookup and the terrain 0x1F mask
+ * (meta byte 0xA3 -> 0x03). The sprite word is 0 here so the 0x3FF mask is not
+ * exercised; that is covered by test_read_tile_attribute_sprite_mask below. */
 static void test_read_tile_attribute(void)
 {
     uint8 fake_map[16];
@@ -324,6 +327,38 @@ static void test_read_tile_attribute(void)
     ASSERT_EQ(*(uint16 *)(out + 2), 3);
     ASSERT_EQ(out[4], 0xAA);
     ASSERT_EQ(out[7], 0xDD);
+}
+
+/* 10-bit sprite mask: asm `MOV BX,[EAX]; AND BH,0x3` (0x12e67/0x12e6a) masks the
+ * sprite word to 0x3FF before both the out[+0] store and the attr-table index.
+ * Sprite word 0xFC07 -> 0xFC07 & 0x3FF == 0x0007 (high 6 bits dropped). A
+ * mistranscribed mask (0x1FF / 0xFFF / missing) would change out[+0] and the
+ * looked-up attr bytes, so both are asserted. Index 7 -> attr base + (int16)7*4
+ * == +28, so fake_attr is sized to 32 with distinct bytes at 28..31; the
+ * (int16) sign-extension equals zero-extension here since masked idx <= 0x3FF.
+ * Terrain meta 0x5C & 0x1F == 0x1C also keeps the 5-bit mask exercised. */
+static void test_read_tile_attribute_sprite_mask(void)
+{
+    uint8 fake_map[16];
+    uint8 fake_attr[32];
+    uint8 out[8];
+
+    memset(fake_map, 0, sizeof(fake_map));
+    memset(fake_attr, 0, sizeof(fake_attr));
+    *(uint16 *)(fake_map + 4) = 0xFC07;
+    fake_map[6] = 0x5C;
+    data_fd2_battle_tile_map_ptr = (uint32)fake_map;
+    data_fd2_battle_map_width_tiles = 1;
+    fake_attr[28] = 0x11; fake_attr[29] = 0x22;
+    fake_attr[30] = 0x33; fake_attr[31] = 0x44;
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)fake_attr;
+    fd2_read_tile_attribute_at_pos(0, 0, (uint32)out);
+    ASSERT_EQ(*(uint16 *)out, 0x0007);
+    ASSERT_EQ(*(uint16 *)(out + 2), 0x1C);
+    ASSERT_EQ(out[4], 0x11);
+    ASSERT_EQ(out[5], 0x22);
+    ASSERT_EQ(out[6], 0x33);
+    ASSERT_EQ(out[7], 0x44);
 }
 
 /* ---- Tests: palette range ---- */
@@ -513,6 +548,7 @@ void run_ui_tests(void)
     RUN_TEST(test_update_palette_cycle_anim_no_update);
     RUN_TEST(test_get_inventory_slot_item_id);
     RUN_TEST(test_read_tile_attribute);
+    RUN_TEST(test_read_tile_attribute_sprite_mask);
     RUN_TEST(test_set_vga_palette_range_basic);
     RUN_TEST(test_set_vga_palette_range_with_add);
     RUN_TEST(test_palette_fade_to_black);
