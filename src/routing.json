@@ -345,7 +345,8 @@
     "target": "anim/anim.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00013315": {
     "name": "fd2_walk_step_right",

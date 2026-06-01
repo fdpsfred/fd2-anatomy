@@ -132,5 +132,17 @@
         "verify_method": "add_test"
       }
     ]
+  },
+  "00013185": {
+    "name": "fd2_walk_step_up",
+    "target": "anim/anim.c",
+    "issues": [
+      {
+        "type": "test_coverage_gap",
+        "desc": "fd2_walk_step_up @ 00013185: scroll-up code path (origin_y!=0 && char in top-2 rows) is not unit-tested. Same gap exists for the 3 approved siblings (down/left/right). Recommend a future consolidated test that sets origin_y!=0 with pos within top 2 rows and asserts origin_y decrements by 1 (the one non-display observable effect of the scroll branch). Deferred to Phase 9 integration per risk-based policy (rest of branch is pure blit/display).",
+        "severity": "low",
+        "verify_method": "add_test"
+      }
+    ]
   }
 }
