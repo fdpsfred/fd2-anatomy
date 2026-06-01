@@ -664,7 +664,7 @@ void fd2_slide_panel_down_step(uint32 y_offset,
     uint32 row_stride;
 
     memmove((void *)dst_workspace,
-            (void *)data_fd2_ui_slide_composed_target_buf_ptr,
+            (void *)data_fd2_ui_slide_bg_snapshot_buf_ptr,
             0xFA00);
 
     row_count = 0x56;

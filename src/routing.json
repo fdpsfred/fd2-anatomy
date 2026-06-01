@@ -977,7 +977,8 @@
     "target": "anim/anim.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "000197e5": {
     "name": "fd2_animate_dialog_page_advance_collapse",

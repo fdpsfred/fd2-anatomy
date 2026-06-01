@@ -142,6 +142,7 @@ void fd2_repaint_settings_dialog_borders(uint32 s, uint32 a)
 void fd2_render_recruitment_party_screen(void) { }
 uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch = 0;
 uint32 data_fd2_ui_slide_composed_target_buf_ptr = 0;
+uint32 data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
 uint32 data_fd2_ui_menu_cursor_idx = 0;
 uint32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4] = {0};
 uint32 data_fd2_chapter_intro_dialog_anim_frame_idx = 0;

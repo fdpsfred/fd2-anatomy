@@ -526,6 +526,88 @@ static void test_slide_panel_left_main_stationary(void)
     ASSERT_TRUE(1);
 }
 
+/* slide_panel_down_step restores the *background snapshot* (0x53C5F) into the
+ * workspace, then overlays src_buffer rows. This test pins the global the
+ * first memmove reads from: snapshot bytes (0xAA) must reach workspace top,
+ * NOT composed_target bytes (0xCC). Catches the wrong-source-global
+ * regression. Row 0 copies src_buffer+0x8C05 (0xBB) to workspace+5, so
+ * workspace[0..4] stay snapshot, workspace[5] becomes src. With y_offset=0,
+ * row_count = min(0x56,200) = 0x56. Assertions read only dst_workspace,
+ * which is fully written before the final VGA blit. */
+static uint8 g_dp_workspace[64000];
+static uint8 g_dp_snapshot[64000];
+static uint8 g_dp_composed[64000];
+static uint8 g_dp_src[64000];
+
+static void test_slide_panel_down_step_restores_snapshot(void)
+{
+    uint32 save_snap;
+    uint32 save_comp;
+    long last_row_dst;
+
+    save_snap = data_fd2_ui_slide_bg_snapshot_buf_ptr;
+    save_comp = data_fd2_ui_slide_composed_target_buf_ptr;
+
+    memset(g_dp_workspace, 0x11, sizeof(g_dp_workspace));
+    memset(g_dp_snapshot, 0xAA, sizeof(g_dp_snapshot));
+    memset(g_dp_composed, 0xCC, sizeof(g_dp_composed));
+    memset(g_dp_src, 0xBB, sizeof(g_dp_src));
+
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = (uint32)g_dp_snapshot;
+    data_fd2_ui_slide_composed_target_buf_ptr = (uint32)g_dp_composed;
+
+    fd2_slide_panel_down_step(0, (uint32)g_dp_workspace, (uint32)g_dp_src);
+
+    /* workspace top 5 bytes untouched by row copy -> must be snapshot (0xAA),
+     * proving the restore read bg_snapshot, not composed_target (0xCC). */
+    ASSERT_EQ((long)g_dp_workspace[0], 0xAA);
+    ASSERT_EQ((long)g_dp_workspace[4], 0xAA);
+    /* row 0 copy: dst offset 5, 0x136 bytes from src (0xBB). */
+    ASSERT_EQ((long)g_dp_workspace[5], 0xBB);
+    ASSERT_EQ((long)g_dp_workspace[5 + 0x135], 0xBB);
+    /* byte just past row 0's 0x136-wide copy is snapshot again. */
+    ASSERT_EQ((long)g_dp_workspace[5 + 0x136], 0xAA);
+    /* last copied row is row 0x55: dst = 5 + 0x55*0x140. */
+    last_row_dst = 5 + 0x55 * 0x140;
+    ASSERT_EQ((long)g_dp_workspace[last_row_dst], 0xBB);
+    /* row 0x56 would start at 5 + 0x56*0x140; must NOT be copied (snapshot). */
+    ASSERT_EQ((long)g_dp_workspace[5 + 0x56 * 0x140], 0xAA);
+
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = save_snap;
+    data_fd2_ui_slide_composed_target_buf_ptr = save_comp;
+}
+
+/* Clip branch: y_offset = 195 -> 195+0x56=281 >= 200 -> row_count = 200-195 = 5.
+ * Only 5 rows (195..199) get overlaid; row 200 region stays snapshot. */
+static void test_slide_panel_down_step_bottom_clip(void)
+{
+    uint32 save_snap;
+    long row5_dst;
+
+    save_snap = data_fd2_ui_slide_bg_snapshot_buf_ptr;
+
+    memset(g_dp_workspace, 0x11, sizeof(g_dp_workspace));
+    memset(g_dp_snapshot, 0xAA, sizeof(g_dp_snapshot));
+    memset(g_dp_src, 0xBB, sizeof(g_dp_src));
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = (uint32)g_dp_snapshot;
+
+    fd2_slide_panel_down_step(195, (uint32)g_dp_workspace, (uint32)g_dp_src);
+
+    /* row 0 (screen y=195): dst = 5 + 195*0x140 -> src (0xBB). */
+    ASSERT_EQ((long)g_dp_workspace[5 + 195 * 0x140], 0xBB);
+    /* row 4 (screen y=199, last): dst = 5 + 199*0x140 -> src (0xBB). */
+    row5_dst = 5 + 199 * 0x140;
+    ASSERT_EQ((long)g_dp_workspace[row5_dst], 0xBB);
+    /* row 5 (screen y=200) clipped off: never reached (200*0x140 = 64000,
+     * past buffer end), so verify a still-snapshot interior byte at y=199
+     * just before the copied span start instead: workspace[199*0x140] is
+     * outside the 5-byte left margin? offset 199*0x140 = 63680 < 63685 (copy
+     * start), so it stays snapshot. */
+    ASSERT_EQ((long)g_dp_workspace[199 * 0x140], 0xAA);
+
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = save_snap;
+}
+
 /* ---- ANI decoder tests ---- */
 
 static uint8 g_test_palette_buf[768];
@@ -1151,6 +1233,8 @@ void run_anim_tests(void)
     RUN_TEST(test_mark_aoe_plus_pattern);
     RUN_TEST(test_scan_chars_along_line);
     RUN_TEST(test_slide_panel_left_main_stationary);
+    RUN_TEST(test_slide_panel_down_step_restores_snapshot);
+    RUN_TEST(test_slide_panel_down_step_bottom_clip);
     RUN_TEST(test_score_item_candidate_damage);
     RUN_TEST(test_score_item_candidate_score3);
     RUN_TEST(test_score_item_candidate_score0);
