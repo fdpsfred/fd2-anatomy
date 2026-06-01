@@ -582,7 +582,8 @@
     "target": "battle/btl_ai.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0001567e": {
     "name": "fd2_ai_score_item_use",
