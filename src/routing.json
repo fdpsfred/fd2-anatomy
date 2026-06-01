@@ -534,7 +534,8 @@
     "target": "battle/btl_ai.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00014b16": {
     "name": "fd2_collect_unmarked_tile_positions",
