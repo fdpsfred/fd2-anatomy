@@ -1433,6 +1433,327 @@ static void test_ai_score_item_best_candidate_gating(void)
     ti_restore_item(save_pmc, save_w, save_h, save_cnt);
 }
 
+/* ---- Full scoring-path tests for fd2_ai_score_offensive_spell @ 0x1598A ----
+ *
+ * Drive the real per-spell / per-tile / per-target offensive-spell scoring loop
+ * end to end. Callees on the path that are REAL in the test build:
+ *   fd2_get_spell_effect_entry / fd2_get_movement_cost_table_for_job (table.c),
+ *   fd2_compute_aoe_targets / fd2_collect_unmarked_tile_positions /
+ *   fd2_score_spell_candidate (btl_ai.c).
+ * Stubs: fd2_build_usable_spell_list (count via g_build_spell_list_return AND
+ *   buffer contents via g_spell_list_buf[] — extended in testglob.c to mirror the
+ *   real "write spell ids into out_buf, return count" contract; without that the
+ *   loop's spell_list[i] would read garbage), fd2_init_movement_range_floodfill /
+ *   fd2_obfuscate_battle_tile_map (no-ops).
+ *
+ * fd2_get_spell_effect_entry returns &spell_effect_table[id] (struct base, no +1
+ * offset), so the function's pSpell[N] reads spell_effect_table[id] byte N and
+ * *(uint16*)pSpell reads the 'damage' word:
+ *   *(uint16*)pSpell = +0 damage     (base_dmg tiebreak key; also the
+ *                                      score_spell_candidate kill threshold)
+ *   pSpell[3] = +3 cast_range_flags  (floodfill range — floodfill is a no-op stub)
+ *   pSpell[4] = +4 area              (spell_range arg to compute_aoe_targets; <0x10)
+ *   pSpell[5] = +5 mp_cost           (gate: skip spell if > caster mp_current)
+ *   pSpell[6] = +6 target_side       (ctx_flag==0: 0->aoe_arg 1, !=0->aoe_arg 0)
+ *
+ * Map: 3x3, party set per test. The per-tile fd2_compute_aoe_targets(cx,cy,buf,
+ * area, 0, aoe_arg) takes the spell_range<0x10 branch -> runs floodfill (no-op
+ * stub) and, with aoe_radius 0, skips the radius clear. So the collected target
+ * set does NOT depend on (cx,cy): it is every team-matching, alive char whose own
+ * tile (+7 byte) is not 0xFF. reset_ai_stubs() sets the whole map 0xFF, so the
+ * test clears the +7 byte of each candidate tile (for collect_unmarked to surface
+ * it) and places each target char on a cleared tile (so compute_aoe_targets keeps
+ * it). aoe_arg maps to compute_aoe_targets team_filter: 0->team==0, 1->team!=0,
+ * 2->team==1, 3->team==2.
+ *
+ * fd2_score_spell_candidate damage path (spell_id<0xD, asm 0x15baf-0x15c1f): per
+ * target per_score = (hp_current < damage) ? 0x18 : 8, then *1.5 (FILD/FMUL/FISTP)
+ * if pChar[8] (char_id) == 0. The happy-path / tiebreak targets set char_id != 0
+ * so the multiplier is skipped and per_score is the exact integer 0x18 (=24) for a
+ * kill shot (hp < damage) — matching the existing test_spell_score_damage_kill_shot
+ * ground truth. spell ids stay < 0xA so the score path's >=0xA immunity check is
+ * not entered. */
+extern uint8 g_spell_list_buf[12];
+
+static void ts_setup_spell(uint32 *save_pmc, uint32 *save_w, uint32 *save_h,
+                           int *save_ret)
+{
+    *save_pmc = data_fd2_battle_party_member_count;
+    *save_w = data_fd2_battle_map_width_tiles;
+    *save_h = data_fd2_battle_map_height_tiles;
+    *save_ret = g_build_spell_list_return;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(data_fd2_battle_spell_effect_table, 0,
+           sizeof(data_fd2_battle_spell_effect_table));
+    memset(g_spell_list_buf, 0, sizeof(g_spell_list_buf));
+    reset_ai_stubs();                 /* tile map -> 0xFF, ptr wired */
+    data_fd2_battle_map_width_tiles = 3;
+    data_fd2_battle_map_height_tiles = 3;
+
+    g_test_rc_array[0].pos_x = 0;     /* caster */
+    g_test_rc_array[0].pos_y = 0;
+    g_test_rc_array[0].team = 0;
+    g_test_rc_array[0].mp_current = 50;
+    g_test_rc_array[0].combat_aux_block[0] = 0;   /* +0x27 not silenced */
+
+    data_fd2_battle_ai_best_spell_target_x = 0xEE;
+    data_fd2_battle_ai_best_spell_target_y = 0xEE;
+    data_fd2_battle_ai_best_spell_id = 0xEE;
+}
+
+static void ts_restore_spell(uint32 save_pmc, uint32 save_w, uint32 save_h,
+                             int save_ret)
+{
+    data_fd2_battle_party_member_count = save_pmc;
+    data_fd2_battle_map_width_tiles = save_w;
+    data_fd2_battle_map_height_tiles = save_h;
+    g_build_spell_list_return = save_ret;
+}
+
+/* Gate: no castable spell (count 0) -> early return at entry. ai_best_spell_score
+ * is cleared to 0 first thing; target/id sentinels stay untouched. A live target
+ * sits on an unmarked tile to prove the gate (not an empty candidate list) is what
+ * stops the scan. */
+static void test_ai_spell_gate_no_castable(void)
+{
+    uint32 save_pmc, save_w, save_h;
+    int save_ret;
+    ts_setup_spell(&save_pmc, &save_w, &save_h, &save_ret);
+    data_fd2_battle_party_member_count = 2;
+    g_build_spell_list_return = 0;                 /* gate fail */
+    data_fd2_battle_spell_effect_table[0].damage = 50;
+    data_fd2_battle_spell_effect_table[0].area = 2;
+    g_spell_list_buf[0] = 0;
+    g_test_rc_array[1].team = 2;
+    g_test_rc_array[1].char_id = 9;
+    g_test_rc_array[1].pos_x = 1; g_test_rc_array[1].pos_y = 1;
+    g_test_rc_array[1].hp_current = 5;
+    t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
+    data_fd2_battle_ai_best_spell_score = 99;
+    fd2_ai_score_offensive_spell(0, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_x, 0xEE);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_id, 0xEE);
+    ts_restore_spell(save_pmc, save_w, save_h, save_ret);
+}
+
+/* Gate: caster combat_aux_block[0] (+0x27, silence) != 0 -> early return even with
+ * a castable spell and a valid target present. */
+static void test_ai_spell_gate_silenced(void)
+{
+    uint32 save_pmc, save_w, save_h;
+    int save_ret;
+    ts_setup_spell(&save_pmc, &save_w, &save_h, &save_ret);
+    data_fd2_battle_party_member_count = 2;
+    g_build_spell_list_return = 1;
+    g_spell_list_buf[0] = 0;
+    data_fd2_battle_spell_effect_table[0].damage = 50;
+    data_fd2_battle_spell_effect_table[0].mp_cost = 5;
+    data_fd2_battle_spell_effect_table[0].area = 2;
+    data_fd2_battle_spell_effect_table[0].target_side = 0;
+    g_test_rc_array[0].combat_aux_block[0] = 1;    /* +0x27 silenced */
+    g_test_rc_array[1].team = 2;
+    g_test_rc_array[1].char_id = 9;
+    g_test_rc_array[1].pos_x = 1; g_test_rc_array[1].pos_y = 1;
+    g_test_rc_array[1].hp_current = 5;
+    t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
+    data_fd2_battle_ai_best_spell_score = 77;
+    fd2_ai_score_offensive_spell(0, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_x, 0xEE);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_id, 0xEE);
+    ts_restore_spell(save_pmc, save_w, save_h, save_ret);
+}
+
+/* MP gate: the single castable spell costs more MP (+5 mp_cost) than the caster's
+ * mp_current -> spell skipped before any tile work -> no update, score stays 0. A
+ * killable target is present to prove the MP gate is the stopper. */
+static void test_ai_spell_mp_gate_skips(void)
+{
+    uint32 save_pmc, save_w, save_h;
+    int save_ret;
+    ts_setup_spell(&save_pmc, &save_w, &save_h, &save_ret);
+    data_fd2_battle_party_member_count = 2;
+    g_build_spell_list_return = 1;
+    g_spell_list_buf[0] = 0;
+    data_fd2_battle_spell_effect_table[0].damage = 50;
+    data_fd2_battle_spell_effect_table[0].mp_cost = 99;   /* > caster mp 50 */
+    data_fd2_battle_spell_effect_table[0].area = 2;
+    data_fd2_battle_spell_effect_table[0].target_side = 0;
+    g_test_rc_array[0].mp_current = 50;
+    g_test_rc_array[1].team = 2;
+    g_test_rc_array[1].char_id = 9;
+    g_test_rc_array[1].pos_x = 1; g_test_rc_array[1].pos_y = 1;
+    g_test_rc_array[1].hp_current = 5;
+    t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
+    data_fd2_battle_ai_best_spell_score = 0;
+    fd2_ai_score_offensive_spell(0, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_x, 0xEE);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_id, 0xEE);
+    ts_restore_spell(save_pmc, save_w, save_h, save_ret);
+}
+
+/* Happy path: one castable damage spell (id 0, damage 50, mp_cost 5, area 2,
+ * target_side 0 -> ctx_flag 0 gives aoe_arg 1 -> team_filter 1 collects team!=0).
+ * One team-2 target (char 1) on candidate tile (1,1), hp 5 < damage 50, char_id 9
+ * (!=0 -> no x1.5) -> per_score 0x18 = 24. The expected score is cross-checked
+ * against the REAL fd2_score_spell_candidate with the same (spell_id, target) so
+ * no value is assumed. Asserts the best globals captured (1,1) and spell id 0. */
+static void test_ai_spell_happy_path_capture(void)
+{
+    uint32 save_pmc, save_w, save_h;
+    int save_ret;
+    uint8 xcheck_buf[1];
+    int expected;
+    ts_setup_spell(&save_pmc, &save_w, &save_h, &save_ret);
+    data_fd2_battle_party_member_count = 2;
+    g_build_spell_list_return = 1;
+    g_spell_list_buf[0] = 0;                        /* spell id 0 */
+    data_fd2_battle_spell_effect_table[0].damage = 50;
+    data_fd2_battle_spell_effect_table[0].mp_cost = 5;
+    data_fd2_battle_spell_effect_table[0].area = 2;
+    data_fd2_battle_spell_effect_table[0].target_side = 0;
+    g_test_rc_array[0].mp_current = 50;
+    g_test_rc_array[1].team = 2;
+    g_test_rc_array[1].char_id = 9;
+    g_test_rc_array[1].pos_x = 1; g_test_rc_array[1].pos_y = 1;
+    g_test_rc_array[1].hp_current = 5;
+    t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;         /* candidate + target tile (1,1) */
+    data_fd2_battle_ai_best_spell_score = 0;
+
+    /* ground truth from the real scorer for spell 0 against target char 1 */
+    xcheck_buf[0] = 1;
+    expected = fd2_score_spell_candidate(0, 1, (uint32)xcheck_buf);
+
+    fd2_ai_score_offensive_spell(0, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, (long)expected);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0x18);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_x, 1);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_y, 1);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_id, 0);
+    ts_restore_spell(save_pmc, save_w, save_h, save_ret);
+}
+
+/* aoe_arg divergence on ctx_flag with target_side(+6)=2 (!=0):
+ *   ctx_flag 0 -> aoe_arg = (pSpell[6]==0)?1:0 = 0 -> team_filter 0 (team==0)
+ *   ctx_flag 1 -> aoe_arg = pSpell[6] = 2          -> team_filter 2 (team==1)
+ * A team-0 char (char 1) sits on candidate (1,1). ctx 0 collects it (kill shot,
+ * char_id 9 -> score 0x18); ctx 1 (team_filter 2, no team-1 char) collects
+ * nothing -> no update -> score stays 0, target/id keep sentinels. Same map/target
+ * for both runs, only ctx_flag differs. */
+static void test_ai_spell_ctx_flag_aoe_arg(void)
+{
+    uint32 save_pmc, save_w, save_h;
+    int save_ret;
+    /* ctx_flag 0: team_filter 0 collects the team-0 char -> score 0x18 */
+    ts_setup_spell(&save_pmc, &save_w, &save_h, &save_ret);
+    data_fd2_battle_party_member_count = 2;
+    g_build_spell_list_return = 1;
+    g_spell_list_buf[0] = 0;
+    data_fd2_battle_spell_effect_table[0].damage = 50;
+    data_fd2_battle_spell_effect_table[0].mp_cost = 5;
+    data_fd2_battle_spell_effect_table[0].area = 2;
+    data_fd2_battle_spell_effect_table[0].target_side = 2;   /* +6 != 0 */
+    g_test_rc_array[1].team = 0;
+    g_test_rc_array[1].char_id = 9;
+    g_test_rc_array[1].pos_x = 1; g_test_rc_array[1].pos_y = 1;
+    g_test_rc_array[1].hp_current = 5;
+    t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
+    data_fd2_battle_ai_best_spell_score = 0;
+    fd2_ai_score_offensive_spell(0, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0x18);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_x, 1);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_y, 1);
+    ts_restore_spell(save_pmc, save_w, save_h, save_ret);
+
+    /* ctx_flag 1: team_filter 2 finds no team-1 char -> no update */
+    ts_setup_spell(&save_pmc, &save_w, &save_h, &save_ret);
+    data_fd2_battle_party_member_count = 2;
+    g_build_spell_list_return = 1;
+    g_spell_list_buf[0] = 0;
+    data_fd2_battle_spell_effect_table[0].damage = 50;
+    data_fd2_battle_spell_effect_table[0].mp_cost = 5;
+    data_fd2_battle_spell_effect_table[0].area = 2;
+    data_fd2_battle_spell_effect_table[0].target_side = 2;
+    g_test_rc_array[1].team = 0;
+    g_test_rc_array[1].char_id = 9;
+    g_test_rc_array[1].pos_x = 1; g_test_rc_array[1].pos_y = 1;
+    g_test_rc_array[1].hp_current = 5;
+    t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
+    data_fd2_battle_ai_best_spell_score = 0;
+    fd2_ai_score_offensive_spell(0, 1);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_x, 0xEE);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_id, 0xEE);
+    ts_restore_spell(save_pmc, save_w, save_h, save_ret);
+}
+
+/* base_dmg tiebreak (asm 0x15aec-0x15af3, untested by any other test): when a
+ * later candidate produces a score EQUAL to the current best, it overwrites only
+ * if its spell 'damage' (base_dmg) is strictly greater than the best so far.
+ * Both spells (ids 2 and 3) are damage spells; the single target (char 1, hp 5,
+ * char_id 9) is a kill shot for any damage > 5, so BOTH score 0x18 (equal). One
+ * candidate tile so target coords are fixed; spell-list order decides which sets
+ * best_dmg first.
+ *   Scenario A: list [2(dmg50), 3(dmg60)] -> spell 3 score==best, 60>50 -> wins.
+ *   Scenario B: list [2(dmg60), 3(dmg50)] -> spell 3 score==best, 50<=60 -> JLE,
+ *               best stays spell 2. */
+static void test_ai_spell_base_dmg_tiebreak(void)
+{
+    uint32 save_pmc, save_w, save_h;
+    int save_ret;
+    /* Scenario A: later higher base_dmg wins the equal-score tiebreak */
+    ts_setup_spell(&save_pmc, &save_w, &save_h, &save_ret);
+    data_fd2_battle_party_member_count = 2;
+    g_build_spell_list_return = 2;
+    g_spell_list_buf[0] = 2;                        /* evaluated first */
+    g_spell_list_buf[1] = 3;                        /* evaluated second */
+    data_fd2_battle_spell_effect_table[2].damage = 50;
+    data_fd2_battle_spell_effect_table[2].mp_cost = 5;
+    data_fd2_battle_spell_effect_table[2].area = 2;
+    data_fd2_battle_spell_effect_table[2].target_side = 0;
+    data_fd2_battle_spell_effect_table[3].damage = 60;
+    data_fd2_battle_spell_effect_table[3].mp_cost = 5;
+    data_fd2_battle_spell_effect_table[3].area = 2;
+    data_fd2_battle_spell_effect_table[3].target_side = 0;
+    g_test_rc_array[1].team = 2;
+    g_test_rc_array[1].char_id = 9;
+    g_test_rc_array[1].pos_x = 1; g_test_rc_array[1].pos_y = 1;
+    g_test_rc_array[1].hp_current = 5;
+    t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
+    data_fd2_battle_ai_best_spell_score = 0;
+    fd2_ai_score_offensive_spell(0, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0x18);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_id, 3);   /* higher base_dmg */
+    ts_restore_spell(save_pmc, save_w, save_h, save_ret);
+
+    /* Scenario B: later lower base_dmg does NOT overwrite (JLE skip) */
+    ts_setup_spell(&save_pmc, &save_w, &save_h, &save_ret);
+    data_fd2_battle_party_member_count = 2;
+    g_build_spell_list_return = 2;
+    g_spell_list_buf[0] = 2;
+    g_spell_list_buf[1] = 3;
+    data_fd2_battle_spell_effect_table[2].damage = 60;
+    data_fd2_battle_spell_effect_table[2].mp_cost = 5;
+    data_fd2_battle_spell_effect_table[2].area = 2;
+    data_fd2_battle_spell_effect_table[2].target_side = 0;
+    data_fd2_battle_spell_effect_table[3].damage = 50;
+    data_fd2_battle_spell_effect_table[3].mp_cost = 5;
+    data_fd2_battle_spell_effect_table[3].area = 2;
+    data_fd2_battle_spell_effect_table[3].target_side = 0;
+    g_test_rc_array[1].team = 2;
+    g_test_rc_array[1].char_id = 9;
+    g_test_rc_array[1].pos_x = 1; g_test_rc_array[1].pos_y = 1;
+    g_test_rc_array[1].hp_current = 5;
+    t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
+    data_fd2_battle_ai_best_spell_score = 0;
+    fd2_ai_score_offensive_spell(0, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0x18);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_spell_id, 2);   /* first kept */
+    ts_restore_spell(save_pmc, save_w, save_h, save_ret);
+}
+
 static void test_pan_cursor_to_origin(void)
 {
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
@@ -3080,6 +3401,12 @@ void run_battle_tests(void)
     RUN_TEST(test_ai_score_item_ctx_flag_aoe_arg);
     RUN_TEST(test_ai_score_item_non_offensive_skip);
     RUN_TEST(test_ai_score_item_best_candidate_gating);
+    RUN_TEST(test_ai_spell_gate_no_castable);
+    RUN_TEST(test_ai_spell_gate_silenced);
+    RUN_TEST(test_ai_spell_mp_gate_skips);
+    RUN_TEST(test_ai_spell_happy_path_capture);
+    RUN_TEST(test_ai_spell_ctx_flag_aoe_arg);
+    RUN_TEST(test_ai_spell_base_dmg_tiebreak);
     RUN_TEST(test_ai_seek_optimal_unreachable);
     RUN_TEST(test_ai_seek_optimal_already_at_best);
     RUN_TEST(test_ai_seek_optimal_walk_branch_returns_zero);

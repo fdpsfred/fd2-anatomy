@@ -218,7 +218,22 @@ void fd2_run_full_turn_cycle(void) { }
 /* fd2_enemy_turn_action_dispatcher: now in btl_ai.c */
 /* fd2_ai_score_offensive_spell: now in btl_ai.c */
 int g_build_spell_list_return = 0;
-int fd2_build_usable_spell_list(uint32 ci, uint32 buf) { return g_build_spell_list_return; }
+/* Test-controllable spell-id list. The real fd2_build_usable_spell_list writes
+ * out_buf[i] = spell_id for each known spell (when out_buf != 0) and returns the
+ * count; this stub mirrors that observable contract so AI scoring loops that read
+ * spell_list[i] see deterministic ids set by the test. */
+uint8 g_spell_list_buf[12] = {0};
+int fd2_build_usable_spell_list(uint32 ci, uint32 buf)
+{
+    int i;
+    (void)ci;
+    if (buf != 0) {
+        for (i = 0; i < g_build_spell_list_return && i < 12; i++) {
+            *(uint8 *)(buf + i) = g_spell_list_buf[i];
+        }
+    }
+    return g_build_spell_list_return;
+}
 /* fd2_score_spell_candidate: now in btl_ai.c */
 double data_fd2_battle_ai_enemy_spell_score_multiplier_15 = 1.5;
 /* fd2_ai_score_item_use: now in btl_ai.c */

@@ -616,7 +616,8 @@
     "target": "battle/btl_ai.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00015b77": {
     "name": "fd2_score_spell_candidate",
