@@ -253,5 +253,18 @@
         "verify_method": "fix_at_function_review"
       }
     ]
+  },
+  "0002147b": {
+    "name": "fd2_spell_handler_id_7_via_full_screen_flash",
+    "target": "spell/spell.c",
+    "issues": [
+      {
+        "type": "test_coverage_gap",
+        "desc": "Consistency note (non-equivalence): the full_screen_flash spell-handler family (id 4-7) has NO direct forwarding/smoke test, whereas the targeted_blink family has test_spell_handler_0_smoke. Since the per-handler high-risk path is just 'forward 3 args + inject the correct spell_id literal', a single parametrized forwarding assertion (e.g. capture the spell_id arg in the testglob.c worker stub and assert ==7 for id_7, ==4/5/6 for siblings) would cheaply pin the only thing that distinguishes these thunks. Optional / can be deferred to Phase 9 integration, but if deferred the rationale should be annotated per the risk-based test policy. Applies retroactively to already-reviewed id_4/5/6 as well.",
+        "severity": "low",
+        "verify_method": "add_forwarding_test",
+        "source_review": "fd2_spell_handler_id_7_via_full_screen_flash @0002147b (reviewer-approved)"
+      }
+    ]
   }
 }
