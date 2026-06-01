@@ -725,20 +725,30 @@ static void test_check_tile_event_no_trigger(void)
 
 static void test_check_all_acted_not_done(void)
 {
+    /* char[1] is an active player (flags bit0/bit7 clear, team 2, awake)
+       so all_done becomes false and the branch is SKIPPED. Use sentinels
+       on both written globals to prove the branch body never ran:
+       anim_phase=9 must survive (branch would set 0 then 1), and
+       ui_play_active_flag=7 must survive (branch would set 0 then 1). */
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     g_test_rc_array[0].flags = 0x80;
     g_test_rc_array[0].team = 2;
     g_test_rc_array[1].flags = 0;
     g_test_rc_array[1].team = 2;
     data_fd2_battle_party_member_count = 2;
-    data_fd2_battle_anim_phase = 1;
+    data_fd2_battle_anim_phase = 9;
+    data_fd2_ui_play_active_flag = 7;
 
     fd2_check_all_player_acted_or_asleep();
-    ASSERT_EQ(data_fd2_battle_anim_phase, 1);
+    ASSERT_EQ(data_fd2_battle_anim_phase, 9);
+    ASSERT_EQ((long)data_fd2_ui_play_active_flag, 7);
 }
 
 static void test_check_all_acted_triggers(void)
 {
+    /* Every player char is acted/asleep/dead so all_done stays true and
+       the branch is TAKEN: anim_phase ends at 1 and ui_play_active_flag
+       ends at 1 (both written to 0 then 1 around the turn-cycle call). */
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     g_test_rc_array[0].flags = 0x80;
     g_test_rc_array[0].team = 2;
@@ -746,9 +756,11 @@ static void test_check_all_acted_triggers(void)
     g_test_rc_array[1].team = 2;
     data_fd2_battle_party_member_count = 2;
     data_fd2_battle_anim_phase = 5;
+    data_fd2_ui_play_active_flag = 7;
 
     fd2_check_all_player_acted_or_asleep();
     ASSERT_EQ(data_fd2_battle_anim_phase, 1);
+    ASSERT_EQ((long)data_fd2_ui_play_active_flag, 1);
 }
 
 static void test_mark_char_acted(void)
