@@ -590,7 +590,8 @@
     "target": "battle/btl_ai.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00015880": {
     "name": "fd2_score_item_candidate",

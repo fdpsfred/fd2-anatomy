@@ -222,7 +222,8 @@ int fd2_build_usable_spell_list(uint32 ci, uint32 buf) { return g_build_spell_li
 /* fd2_score_spell_candidate: now in btl_ai.c */
 double data_fd2_battle_ai_enemy_spell_score_multiplier_15 = 1.5;
 /* fd2_ai_score_item_use: now in btl_ai.c */
-int fd2_count_usable_inventory_slots(uint32 ci) { return 0; }
+int g_count_usable_slots_return = 0;
+int fd2_count_usable_inventory_slots(uint32 ci) { (void)ci; return g_count_usable_slots_return; }
 void (*data_fd2_battle_ai_post_action_consequence_table[90])(uint32);
 void (*data_fd2_battle_spell_handler_table[28])(uint32, uint32, uint8 *);
 static void g_noop_post_action_handler(uint32 x) { (void)x; }

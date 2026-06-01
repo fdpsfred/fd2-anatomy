@@ -1160,6 +1160,279 @@ static void test_ai_score_phys_terrain_bonus_lifts_class(void)
     ti_restore_phys(save_pmc, save_w, save_h, save_eq);
 }
 
+/* ---- Full scoring-path tests for fd2_ai_score_item_use @ 0x1567E ----
+ *
+ * Drive the real per-slot / per-tile / per-target item-scoring loop end to end.
+ * Callees on the path that are REAL in the test build:
+ *   fd2_get_item_effect_entry / fd2_get_movement_cost_table_for_job (table.c),
+ *   fd2_compute_aoe_targets / fd2_collect_unmarked_tile_positions /
+ *   fd2_scan_chars_along_line_with_team_filter / fd2_score_item_candidate
+ *   (btl_ai.c), fd2_find_char_at_cursor_pos (btl_turn.c).
+ * Stubs: fd2_count_usable_inventory_slots (controllable via
+ *   g_count_usable_slots_return — status.c not yet emitted),
+ *   fd2_check_char_is_dead (-> 0, never dead),
+ *   fd2_init_movement_range_floodfill / fd2_obfuscate_battle_tile_map (no-ops).
+ *
+ * fd2_get_item_effect_entry returns &item_effect_table[id]+1 (struct base +1),
+ * so the function's pItem[N] reads item_effect_table[id] byte (N+1):
+ *   pItem[0xD]  = +14 use_effect      (offensive gate; also score effect_code)
+ *   pItem[0x10] = +17 cast_range_flags (range_class: <0x10 short / >=0x10 line)
+ *   pItem[0x11] = +18 target_side      (ctx_flag==0: 0->aoe_arg 1, !=0->aoe_arg 0)
+ *   pItem[0x12] = +19 area             (short-range aoe radius arg)
+ *
+ * Map: 3x3, party set per test. The precompute fd2_compute_aoe_targets(caster,0,
+ * range_for_aoe, range_class>0xf, 0) runs floodfill (no-op stub) then, only for
+ * the long-range case (range_for_aoe=1, aoe_radius=1), re-marks just the caster
+ * tile 0xFF (manhattan<1). So the unmarked-tile set collected for candidates is
+ * exactly the tiles whose +7 byte the test cleared (minus the caster tile in the
+ * long-range case). Because the floodfill that would gate reachability is a
+ * no-op, the SHORT-range per-tile fd2_compute_aoe_targets target set does NOT
+ * depend on (cx,cy): it is every team-matching char on an unmarked tile. The
+ * LONG-range per-tile fd2_scan_chars_along_line_with_team_filter DOES depend on
+ * (cx,cy) (it walks the caster->candidate line), so per-candidate score
+ * divergence (gating tests) is driven through the long-range branch.
+ *
+ * fd2_score_item_candidate with effect_code 5 (use_effect=5) is the HP-threshold
+ * path (asm 0x158b9-0x158de): per target hp_cur<=hp_max/3 -> 8; hp_cur>hp_max/2
+ * -> 0; else 3; *3 if pChar[0x34]&0x80. ai_class byte (pChar[0x34]) left 0 so no
+ * x3. All expected scores below are exact (no emulation needed). */
+extern int g_count_usable_slots_return;
+
+static void ti_setup_item(uint32 *save_pmc, uint32 *save_w, uint32 *save_h,
+                          int *save_cnt)
+{
+    *save_pmc = data_fd2_battle_party_member_count;
+    *save_w = data_fd2_battle_map_width_tiles;
+    *save_h = data_fd2_battle_map_height_tiles;
+    *save_cnt = g_count_usable_slots_return;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(data_fd2_battle_item_effect_table, 0,
+           sizeof(data_fd2_battle_item_effect_table));
+    reset_ai_stubs();                 /* tile map -> 0xFF, ptr wired */
+    data_fd2_battle_map_width_tiles = 3;
+    data_fd2_battle_map_height_tiles = 3;
+    g_count_usable_slots_return = 1;  /* one usable inventory slot */
+
+    g_test_rc_array[0].pos_x = 0;     /* caster */
+    g_test_rc_array[0].pos_y = 0;
+    g_test_rc_array[0].team = 0;
+    g_test_rc_array[0].inventory_slots[1] = 7;   /* slot 0 item id = 7 */
+
+    data_fd2_battle_ai_best_item_target_x = 0xEE;
+    data_fd2_battle_ai_best_item_target_y = 0xEE;
+    data_fd2_battle_ai_best_item_slot = 0xEE;
+}
+
+static void ti_restore_item(uint32 save_pmc, uint32 save_w, uint32 save_h,
+                            int save_cnt)
+{
+    data_fd2_battle_party_member_count = save_pmc;
+    data_fd2_battle_map_width_tiles = save_w;
+    data_fd2_battle_map_height_tiles = save_h;
+    g_count_usable_slots_return = save_cnt;
+}
+
+/* Short-range item (range_class 2 < 0x10), ctx_flag 0, target_side 0 ->
+ * aoe_arg 1 -> team_filter 1 (team != 0). Single candidate tile (1,1) with a
+ * team-2 target (char 1) on it -> n_targets 1. HP 5/100 -> score 8. Asserts the
+ * best globals captured slot 0 at (1,1). */
+static void test_ai_score_item_short_range_score8(void)
+{
+    uint32 save_pmc;
+    uint32 save_w;
+    uint32 save_h;
+    int save_cnt;
+    ti_setup_item(&save_pmc, &save_w, &save_h, &save_cnt);
+    data_fd2_battle_party_member_count = 2;
+    data_fd2_battle_item_effect_table[7].use_effect = 5;       /* +14 effect/gate */
+    data_fd2_battle_item_effect_table[7].cast_range_flags = 2; /* +17 short range  */
+    data_fd2_battle_item_effect_table[7].target_side = 0;      /* +18 -> aoe_arg 1  */
+    data_fd2_battle_item_effect_table[7].area = 2;             /* +19 short aoe arg */
+    g_test_rc_array[1].team = 2;
+    g_test_rc_array[1].pos_x = 1;
+    g_test_rc_array[1].pos_y = 1;
+    g_test_rc_array[1].hp_current = 5;
+    g_test_rc_array[1].hp_max = 100;
+    t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;   /* candidate (1,1) */
+    data_fd2_battle_ai_best_item_score = 99;
+    fd2_ai_score_item_use(0, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_score, 8);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_slot, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_x, 1);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_y, 1);
+    ti_restore_item(save_pmc, save_w, save_h, save_cnt);
+}
+
+/* Long-range item (range_class 0x12 -> line scan, step_count 2). Precompute
+ * marks only the caster tile (0,0); candidate (0,2) stays unmarked. The line
+ * scan from caster (0,0) toward (0,2) walks (0,1),(0,2) and collects the team-2
+ * char on (0,2) (team_filter hardcoded 0 -> team != 0). HP 5/100 -> score 8.
+ * Exercises the pItem[0x10]>=0x10 branch + EAX-return use from the line scan. */
+static void test_ai_score_item_long_range_line(void)
+{
+    uint32 save_pmc;
+    uint32 save_w;
+    uint32 save_h;
+    int save_cnt;
+    ti_setup_item(&save_pmc, &save_w, &save_h, &save_cnt);
+    data_fd2_battle_party_member_count = 2;
+    data_fd2_battle_item_effect_table[7].use_effect = 5;          /* +14 */
+    data_fd2_battle_item_effect_table[7].cast_range_flags = 0x12; /* +17 line, step 2 */
+    g_test_rc_array[1].team = 2;
+    g_test_rc_array[1].pos_x = 0;
+    g_test_rc_array[1].pos_y = 2;
+    g_test_rc_array[1].hp_current = 5;
+    g_test_rc_array[1].hp_max = 100;
+    t_ai_tile_map[(2 * 3 + 0) * 4 + 7] = 0;   /* candidate (0,2) */
+    data_fd2_battle_ai_best_item_score = 99;
+    fd2_ai_score_item_use(0, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_score, 8);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_slot, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_x, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_y, 2);
+    ti_restore_item(save_pmc, save_w, save_h, save_cnt);
+}
+
+/* aoe_arg divergence on ctx_flag with target_side(+18)=2 (!=0):
+ *   ctx_flag 0 -> aoe_arg = (pItem[0x11]==0)?1:0 = 0 -> team_filter 0 (team==0)
+ *   ctx_flag 1 -> aoe_arg = pItem[0x11] = 2          -> team_filter 2 (team==1)
+ * One team-0 char (char 2) sits on candidate (1,1). ctx 0 collects it (score 8);
+ * ctx 1 (team_filter 2, no team-1 char) collects nothing -> no update -> score
+ * stays 0 with target/slot untouched (sentinels). Short-range (range_class 1). */
+static void test_ai_score_item_ctx_flag_aoe_arg(void)
+{
+    uint32 save_pmc;
+    uint32 save_w;
+    uint32 save_h;
+    int save_cnt;
+    /* ctx_flag 0 path: team_filter 0 collects the team-0 char -> score 8 */
+    ti_setup_item(&save_pmc, &save_w, &save_h, &save_cnt);
+    data_fd2_battle_party_member_count = 3;
+    data_fd2_battle_item_effect_table[7].use_effect = 5;
+    data_fd2_battle_item_effect_table[7].cast_range_flags = 1;  /* short */
+    data_fd2_battle_item_effect_table[7].target_side = 2;       /* +18 != 0 */
+    data_fd2_battle_item_effect_table[7].area = 2;
+    g_test_rc_array[2].team = 0;
+    g_test_rc_array[2].pos_x = 1;
+    g_test_rc_array[2].pos_y = 1;
+    g_test_rc_array[2].hp_current = 5;
+    g_test_rc_array[2].hp_max = 100;
+    t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
+    data_fd2_battle_ai_best_item_score = 0;
+    fd2_ai_score_item_use(0, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_score, 8);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_x, 1);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_y, 1);
+    ti_restore_item(save_pmc, save_w, save_h, save_cnt);
+
+    /* ctx_flag 1 path: team_filter 2 finds no team-1 char -> no update */
+    ti_setup_item(&save_pmc, &save_w, &save_h, &save_cnt);
+    data_fd2_battle_party_member_count = 3;
+    data_fd2_battle_item_effect_table[7].use_effect = 5;
+    data_fd2_battle_item_effect_table[7].cast_range_flags = 1;
+    data_fd2_battle_item_effect_table[7].target_side = 2;
+    data_fd2_battle_item_effect_table[7].area = 2;
+    g_test_rc_array[2].team = 0;
+    g_test_rc_array[2].pos_x = 1;
+    g_test_rc_array[2].pos_y = 1;
+    g_test_rc_array[2].hp_current = 5;
+    g_test_rc_array[2].hp_max = 100;
+    t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
+    data_fd2_battle_ai_best_item_score = 0;
+    fd2_ai_score_item_use(0, 1);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_score, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_x, 0xEE);  /* untouched */
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_slot, 0xEE);
+    ti_restore_item(save_pmc, save_w, save_h, save_cnt);
+}
+
+/* Non-offensive item: use_effect(+14)=0 -> pItem[0xD]==0 -> slot skipped before
+ * any tile work. No global update; score reset to 0 at entry, target/slot keep
+ * their sentinels. A target is present on an unmarked tile to prove the skip is
+ * the gate (not an empty candidate list). */
+static void test_ai_score_item_non_offensive_skip(void)
+{
+    uint32 save_pmc;
+    uint32 save_w;
+    uint32 save_h;
+    int save_cnt;
+    ti_setup_item(&save_pmc, &save_w, &save_h, &save_cnt);
+    data_fd2_battle_party_member_count = 2;
+    data_fd2_battle_item_effect_table[7].use_effect = 0;        /* +14 -> skip */
+    data_fd2_battle_item_effect_table[7].cast_range_flags = 2;
+    data_fd2_battle_item_effect_table[7].target_side = 0;
+    data_fd2_battle_item_effect_table[7].area = 2;
+    g_test_rc_array[1].team = 2;
+    g_test_rc_array[1].pos_x = 1;
+    g_test_rc_array[1].pos_y = 1;
+    g_test_rc_array[1].hp_current = 5;
+    g_test_rc_array[1].hp_max = 100;
+    t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
+    data_fd2_battle_ai_best_item_score = 77;
+    fd2_ai_score_item_use(0, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_score, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_x, 0xEE);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_y, 0xEE);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_slot, 0xEE);
+    ti_restore_item(save_pmc, save_w, save_h, save_cnt);
+}
+
+/* Best-candidate gating across two long-range candidates. Candidates collected
+ * row-major: (2,0) (y=0) before (0,2) (y=2). The line scan is per-candidate
+ * (caster->candidate), so each tile resolves a distinct target with its own
+ * score. Scenario A: (2,0) target score 3, (0,2) target score 8 -> the higher
+ * later score overwrites (best 8 at (0,2)). Scenario B swaps the HPs: (2,0)
+ * score 8 first, (0,2) score 3 second -> the lower later score does NOT
+ * overwrite (best 8 stays at (2,0)). char1 on (2,0), char2 on (0,2); both
+ * team 2 so the team_filter-0 line scan collects each. score 8 = hp 5/100;
+ * score 3 = hp 40/100 (40 > 100/3=33 and 40 <= 100/2=50). */
+static void test_ai_score_item_best_candidate_gating(void)
+{
+    uint32 save_pmc;
+    uint32 save_w;
+    uint32 save_h;
+    int save_cnt;
+    /* Scenario A: higher (later) overwrites */
+    ti_setup_item(&save_pmc, &save_w, &save_h, &save_cnt);
+    data_fd2_battle_party_member_count = 3;
+    data_fd2_battle_item_effect_table[7].use_effect = 5;
+    data_fd2_battle_item_effect_table[7].cast_range_flags = 0x12;  /* line, step 2 */
+    g_test_rc_array[1].team = 2;
+    g_test_rc_array[1].pos_x = 2; g_test_rc_array[1].pos_y = 0;   /* on (2,0) */
+    g_test_rc_array[1].hp_current = 40; g_test_rc_array[1].hp_max = 100;  /* score 3 */
+    g_test_rc_array[2].team = 2;
+    g_test_rc_array[2].pos_x = 0; g_test_rc_array[2].pos_y = 2;   /* on (0,2) */
+    g_test_rc_array[2].hp_current = 5; g_test_rc_array[2].hp_max = 100;   /* score 8 */
+    t_ai_tile_map[(0 * 3 + 2) * 4 + 7] = 0;   /* candidate (2,0) */
+    t_ai_tile_map[(2 * 3 + 0) * 4 + 7] = 0;   /* candidate (0,2) */
+    data_fd2_battle_ai_best_item_score = 0;
+    fd2_ai_score_item_use(0, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_score, 8);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_x, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_y, 2);
+    ti_restore_item(save_pmc, save_w, save_h, save_cnt);
+
+    /* Scenario B: lower (later) does NOT overwrite */
+    ti_setup_item(&save_pmc, &save_w, &save_h, &save_cnt);
+    data_fd2_battle_party_member_count = 3;
+    data_fd2_battle_item_effect_table[7].use_effect = 5;
+    data_fd2_battle_item_effect_table[7].cast_range_flags = 0x12;
+    g_test_rc_array[1].team = 2;
+    g_test_rc_array[1].pos_x = 2; g_test_rc_array[1].pos_y = 0;   /* on (2,0) */
+    g_test_rc_array[1].hp_current = 5; g_test_rc_array[1].hp_max = 100;   /* score 8 */
+    g_test_rc_array[2].team = 2;
+    g_test_rc_array[2].pos_x = 0; g_test_rc_array[2].pos_y = 2;   /* on (0,2) */
+    g_test_rc_array[2].hp_current = 40; g_test_rc_array[2].hp_max = 100;  /* score 3 */
+    t_ai_tile_map[(0 * 3 + 2) * 4 + 7] = 0;
+    t_ai_tile_map[(2 * 3 + 0) * 4 + 7] = 0;
+    data_fd2_battle_ai_best_item_score = 0;
+    fd2_ai_score_item_use(0, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_score, 8);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_x, 2);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_y, 0);
+    ti_restore_item(save_pmc, save_w, save_h, save_cnt);
+}
+
 static void test_pan_cursor_to_origin(void)
 {
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
@@ -2802,6 +3075,11 @@ void run_battle_tests(void)
     RUN_TEST(test_ai_score_phys_negligible_score0);
     RUN_TEST(test_ai_score_phys_counter_and_flank);
     RUN_TEST(test_ai_score_phys_terrain_bonus_lifts_class);
+    RUN_TEST(test_ai_score_item_short_range_score8);
+    RUN_TEST(test_ai_score_item_long_range_line);
+    RUN_TEST(test_ai_score_item_ctx_flag_aoe_arg);
+    RUN_TEST(test_ai_score_item_non_offensive_skip);
+    RUN_TEST(test_ai_score_item_best_candidate_gating);
     RUN_TEST(test_ai_seek_optimal_unreachable);
     RUN_TEST(test_ai_seek_optimal_already_at_best);
     RUN_TEST(test_ai_seek_optimal_walk_branch_returns_zero);
