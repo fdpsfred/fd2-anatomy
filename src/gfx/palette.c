@@ -46,7 +46,9 @@ void fd2_set_vga_palette_range(uint32 start_idx, uint32 end_idx,
  * fd2_set_full_vga_palette_to_color @ 0x203BD
  *
  * Set all 256 VGA palette entries to a single (R,G,B) color.
- * Used for full-screen flash effects (critical hit, lightning).
+ * Used for the poison-weapon green flash: sole caller
+ * fd2_execute_attack_damage_calculation flashes the screen dark
+ * green (1,0x20,0) twice when a poison hit lands.
  * ---------------------------------------------------------------- */
 void fd2_set_full_vga_palette_to_color(uint32 r, uint32 g, uint32 b)
 {

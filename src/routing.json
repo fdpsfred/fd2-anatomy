@@ -1619,7 +1619,8 @@
     "target": "gfx/palette.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00020421": {
     "name": "fd2_play_ani_file_animation_sequence",
