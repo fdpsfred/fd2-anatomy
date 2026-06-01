@@ -1445,7 +1445,8 @@
     "target": "input/input.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0001e611": {
     "name": "fd2_render_combat_combatant_panels",
