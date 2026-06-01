@@ -193,5 +193,17 @@
         "verify_method": "remove_or_rewire_test_globals"
       }
     ]
+  },
+  "00014ef0": {
+    "name": "fd2_attack_action_dispatch",
+    "target": "battle/btl_ai.c",
+    "issues": [
+      {
+        "type": "test_deferral_note_missing",
+        "desc": "Winner-selection coverage for fd2_attack_action_dispatch is deferred to Phase 9 integration but the deferral+reason is NOT documented in tests/testbtl.c. Policy requires noting deferral rationale for any high-risk path left uncovered. The selection logic (complex control flow + numeric tie comparisons + EAX-deref spell-damage path + no-op tie) is in the force-test category; it is left uncovered because the only observation channel is the real, un-stubbable, display-heavy executors (fd2_execute_ai_offensive_spell etc. deref spell tables, call handler-table fn-ptrs, run cinematics) driven by three real scorers. Equivalence is fully verified statically, so this is logged rather than blocked, but the test file should carry an explicit deferral comment.",
+        "severity": "low",
+        "verify_method": "add_test_comment"
+      }
+    ]
   }
 }
