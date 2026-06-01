@@ -65,5 +65,17 @@
         "verify_method": "per_function_review"
       }
     ]
+  },
+  "00010c49": {
+    "name": "fd2_noop_stub_c49",
+    "target": "<fragment:inline-epilogue>",
+    "issues": [
+      {
+        "type": "fragment_equivalence_handoff",
+        "desc": "0x10c49 fd2_noop_stub_c49 屬 SHARED EPILOGUE fragment (calling_convention.md epilogue cluster 0x10c49 = ADD ESP 0x4 + POP EDI/ESI/EBX + RET, locals=0x4 + 3 saved regs; pipeline_spec.md 模式A rule A-1)，正確 skip 不獨立 emit 到 util/noop.c。等價性靠『各 parent 的 return; 由 Watcom 9.5a 重新生成 epilogue』達成，而非 byte-identical。Layer 2 等價驗證責任轉移到 3 個 tail-JMP parent — fd2_convert_battle_tiles_to_24px (JMP @0x13a3f) / fd2_equip_unequip_inventory_menu (JMP @0x1c13d) / fd2_open_party_status_overview_screen (JMP @0x1b418) — 各自 emit 時須確認其 epilogue stack-cleanup 量 (ADD ESP 對應 locals=0x4 + POP EDI/ESI/EBX) 與原 binary 等價。此非本 fragment 自身可驗，屬下游 parent emit 時的覆蓋點。",
+        "severity": "info",
+        "verify_method": "verify_at_parent_emit"
+      }
+    ]
   }
 }

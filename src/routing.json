@@ -47,10 +47,13 @@
   },
   "00010c49": {
     "name": "fd2_noop_stub_c49",
-    "target": "util/noop.c",
+    "target": "<fragment:inline-epilogue>",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": false,
+    "reviewed": true,
+    "skip": true,
+    "skip_reason": "SHARED EPILOGUE fragment (pipeline_spec.md 模式A rule A-1; calling_convention.md epilogue cluster 0x10c49 = ADD ESP 0x4 + POP EDI/ESI/EBX + RET, locals=0x4 + 3 saved regs). Not a callable C function: pure caller-frame unwind reached by tail-JMP (last inst of each parent) from fd2_convert_battle_tiles_to_24px @0x13a3f / fd2_equip_unequip_inventory_menu @0x1c13d / fd2_open_party_status_overview_screen @0x1b418 (Ghidra get_xrefs_to mislabels these UNCONDITIONAL_CALL but the opcodes are JMP). Emit pipeline skips this address; epilogue is regenerated inside each parent return;. NOT emitted to util/noop.c."
   },
   "00010c50": {
     "name": "fd2_init_runtime_char_for_battle",
