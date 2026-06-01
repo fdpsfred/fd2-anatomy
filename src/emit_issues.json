@@ -47,5 +47,23 @@
         "verify_method": "compile_and_compare_behavior"
       }
     ]
+  },
+  "0x10b43": {
+    "name": "fd2_noop_stub_b43",
+    "target": "<fragment:inline-epilogue>",
+    "issues": [
+      {
+        "type": "fragment_equivalence_handoff",
+        "desc": "0x10b43 fd2_noop_stub_b43 屬 SHARED EPILOGUE fragment，正確 skip 不獨立 emit。等價性疑慮：此 fragment 的等價靠『各 parent 的 return; 由 Watcom 9.5a 重新生成 ADD ESP/POP regs/RET』達成，而非 byte-identical。因此 Layer 2 等價驗證的責任轉移到 3 個 +0x00 parent (fd2_load_chapter_battle_data / fd2_play_rising_pre_cast_effect / fd2_play_variant_b_slide_pre_effect) 與 26 個 +0x03 parent 的 epilogue 各自 emit 時 — 屆時須確認每個 parent emit 出的 epilogue stack-cleanup 量(ADD ESP 對應其 locals + saved regs)與原 binary 等價。此非本 fragment 自身可驗，屬下游 parent emit 時的覆蓋點，建議記錄以免遺漏。",
+        "severity": "info",
+        "verify_method": "verify_at_parent_emit"
+      },
+      {
+        "type": "sibling_noop_stub_policy",
+        "desc": "其餘 6 個 noop stub (c49/1011/1452/13994/15983/4e915) 仍 route 到 util/noop.c 且 done:true / reviewed:false，將在各自被 review 時逐一處理。emitter 已正確標註其為 out-of-scope(單一 function 規則)。提醒：依 calling_convention.md epilogue cluster 表，c49/1011/1452/13994 同屬 epilogue fragment(且 15983 屬 prologue adapter tail-JMP thunk)，極可能也需與 b43 相同的 skip 處理 — 屆時各自 review 時應套用同一 fragment 政策(plate marker + routing skip)，不可預先批次處理。",
+        "severity": "info",
+        "verify_method": "per_function_review"
+      }
+    ]
   }
 }

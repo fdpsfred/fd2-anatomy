@@ -30,10 +30,13 @@
   },
   "00010b43": {
     "name": "fd2_noop_stub_b43",
-    "target": "util/noop.c",
+    "target": "<fragment:inline-epilogue>",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": false,
+    "reviewed": true,
+    "skip": true,
+    "skip_reason": "DECOMPILER FRAGMENT (shared epilogue, calling_convention.md epilogue cluster 0x10b43; pipeline_spec.md 模式A rule A-1). Not a callable C function: pure caller-frame unwind (ADD ESP 0x4+0x8; POP EBP/EDI/ESI/EBX; RET) reached by fall-through from fd2_load_chapter_battle_data + tail-JMP from fd2_play_rising_pre_cast_effect / fd2_play_variant_b_slide_pre_effect (+0x00) and 26 tail-JMP at +0x03. Emit pipeline skips this address; epilogue is regenerated inside each parent. NOT emitted to util/noop.c."
   },
   "00010b4e": {
     "name": "fd2_load_chapter_portraits_and_dump_tmp",
