@@ -60,6 +60,37 @@ static void test_cursor_move_down_basic(void)
     ASSERT_EQ(data_fd2_battle_cursor_screen_y, 4);
 }
 
+/* Scroll branch: world_y!=height-1 && screen_y>=6 && origin_y!=height-8 ->
+ * world_y++ AND origin_y++, screen_y unchanged, then composite (JMP 0x11BEF).
+ * height=15 (default) so height-8=7 != origin_y(3); screen_y(10)>5.
+ * Mirrors test_cursor_move_up_scroll for the down direction. */
+static void test_cursor_move_down_scroll(void)
+{
+    data_fd2_battle_map_height_tiles = 15;
+    data_fd2_battle_cursor_world_y = 5;
+    data_fd2_battle_cursor_screen_y = 10;
+    data_fd2_battle_view_window_origin_y = 3;
+    data_fd2_battle_anim_phase = 1;
+    g_composite_call_count = 0;
+    fd2_cursor_move_down();
+    ASSERT_EQ(data_fd2_battle_cursor_world_y, 6);
+    ASSERT_EQ(data_fd2_battle_view_window_origin_y, 4);
+    ASSERT_EQ(data_fd2_battle_cursor_screen_y, 10);
+    ASSERT_EQ(g_composite_call_count, 1);
+}
+
+/* Bottom-edge no-op: world_y == map_height_tiles-1 -> JZ 0x11BEF, no INC at
+ * all, world_y unchanged, only composite refresh. height=15 -> world_y=14. */
+static void test_cursor_move_down_at_bottom(void)
+{
+    data_fd2_battle_map_height_tiles = 15;
+    data_fd2_battle_cursor_world_y = 14;
+    g_composite_call_count = 0;
+    fd2_cursor_move_down();
+    ASSERT_EQ(data_fd2_battle_cursor_world_y, 14);
+    ASSERT_EQ(g_composite_call_count, 1);
+}
+
 static void test_cursor_move_right_basic(void)
 {
     data_fd2_battle_cursor_world_x = 5;
@@ -385,6 +416,8 @@ void run_ui_tests(void)
     RUN_TEST(test_cursor_move_up_at_top);
     RUN_TEST(test_cursor_move_up_scroll);
     RUN_TEST(test_cursor_move_down_basic);
+    RUN_TEST(test_cursor_move_down_scroll);
+    RUN_TEST(test_cursor_move_down_at_bottom);
     RUN_TEST(test_cursor_move_right_basic);
     RUN_TEST(test_cursor_move_left_basic);
     RUN_TEST(test_pan_to_char);
