@@ -305,7 +305,8 @@
     "target": "ui_menu/cursor.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00012dac": {
     "name": "fd2_wait_for_input_v2",
