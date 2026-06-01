@@ -429,12 +429,33 @@ void fd2_wait_ticks_or_keypress_with_palette(uint32 max_ticks)
  * fd2_wait_for_input_v2 @ 0x12DAC
  *
  * Block until keyboard input, with palette-cycle anim + battle-frame
- * redraw per BIOS tick. Uses a local (ESI) for tick state instead of
- * globals (cf. fd2_wait_for_input_with_idle which uses 0x539F0/F2).
- * Same INT 16h + scancode remap as fd2_wait_for_input_with_idle.
+ * redraw per BIOS tick. Same INT 16h + scancode remap as
+ * fd2_wait_for_input_with_idle.
+ *
+ * Tick state: the binary keeps last_tick in the ESI register, which it
+ * PUSH/POP-saves, so no state is propagated back to the caller. ESI is
+ * NOT initialized inside this routine — on entry last_tick is whatever
+ * the caller left in ESI (the sole caller, fd2_wait_for_action_target_input,
+ * holds target_iter there: an arbitrary option index 0..n_options-1).
+ * Unlike fd2_wait_for_input_with_idle (which persists tick state across
+ * calls via globals 0x539F0/0x539F2), v2 tracks the redraw tick per-call.
+ * The seed only affects whether the FIRST idle iteration redraws before
+ * the first BIOS-tick change; both the binary's junk seed and our 0 almost
+ * always differ from the free-running tick, so iteration 1 redraws either
+ * way. See the declaration note below for the equivalence divergence.
  * ---------------------------------------------------------------- */
 int fd2_wait_for_input_v2(void)
 {
+    /*
+     * The binary seeds last_tick from the incoming ESI register (= caller
+     * target_iter); we use 0. This is unportable to express exactly (reading
+     * a caller's register), and 0 is the correct portable rendering. It only
+     * changes the iteration-1 redraw decision: fd2_composite_battle_frame(0)
+     * advances chapter/cycle palette-anim counters (display state only), and
+     * the divergence is bounded to at most one redraw on the FIRST loop pass
+     * before the first BIOS-tick change — it converges immediately and never
+     * affects the return value, game state, RNG, or save data.
+     */
     int last_tick;
 
     last_tick = 0;

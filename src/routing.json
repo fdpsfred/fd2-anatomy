@@ -313,7 +313,8 @@
     "target": "input/input.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00012e38": {
     "name": "fd2_read_tile_attribute_at_pos",
