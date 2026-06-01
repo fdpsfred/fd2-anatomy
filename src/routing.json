@@ -259,7 +259,8 @@
     "target": "gfx/palette.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "000129ec": {
     "name": "fd2_paint_chars_shadow_overlay",

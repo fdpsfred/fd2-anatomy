@@ -154,6 +154,36 @@ static void test_tick_chapter_palette_slow_triggers(void)
     ASSERT_EQ(data_fd2_graphics_chapter_ambient_palette_anim_idx, 1);
 }
 
+/*
+ * Slow-branch condition is a two-part OR: assembly @0x12995 tests
+ * delta>4 (JG), and on fall-through @0x129a8 tests delta<0 (JGE skips
+ * the slow body when delta>=0). The slow body therefore also runs for
+ * a NEGATIVE delta, which production hits when the BIOS midnight tick
+ * wraps (latch from the previous day is above the post-rollover tick).
+ * Set latch = tick + 10 so delta = -10 < 0, exercising the JGE-not-taken
+ * arm; ambient_idx must advance 0 -> 1.
+ *
+ * Determinism note: 0x46C is the live BIOS tick (advances ~18.2/s).
+ * The ambient_idx assertion holds regardless of jitter — for the slow
+ * body to be skipped the tick would have to advance into [10,14] counts
+ * (~0.6 s) between adjacent statements; any larger advance re-enters the
+ * slow body via the delta>4 arm. The latch-update side effect is NOT
+ * asserted: the function re-reads 0x46C internally, so a value compare
+ * against a re-read in the test would be a genuine race, not a fixture.
+ */
+static void test_tick_chapter_palette_slow_triggers_negative_delta(void)
+{
+    int tick_val;
+
+    tick_val = (int)(int16)BIOS_TICK_WORD;
+    data_fd2_graphics_chapter_ambient_palette_anim_tick_latch =
+        (uint32)(tick_val + 10);
+    data_fd2_graphics_chapter_ambient_palette_anim_idx = 0;
+
+    fd2_tick_chapter_palette_animation();
+    ASSERT_EQ(data_fd2_graphics_chapter_ambient_palette_anim_idx, 1);
+}
+
 static void test_find_char_by_id_found(void)
 {
     int result;
@@ -861,6 +891,7 @@ void run_anim_tests(void)
     RUN_TEST(test_tick_chapter_palette_fast_cycle);
     RUN_TEST(test_tick_chapter_palette_fast_wrap);
     RUN_TEST(test_tick_chapter_palette_slow_triggers);
+    RUN_TEST(test_tick_chapter_palette_slow_triggers_negative_delta);
     RUN_TEST(test_find_char_at_cursor_found);
     RUN_TEST(test_find_char_at_cursor_not_found);
     RUN_TEST(test_find_char_by_id_found);
