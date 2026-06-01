@@ -353,7 +353,8 @@
     "target": "anim/anim.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00013460": {
     "name": "fd2_wait_one_bios_tick",

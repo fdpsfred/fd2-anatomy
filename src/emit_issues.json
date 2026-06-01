@@ -144,5 +144,17 @@
         "verify_method": "add_test"
       }
     ]
+  },
+  "00013315": {
+    "name": "fd2_walk_step_right",
+    "target": "anim/anim.c",
+    "issues": [
+      {
+        "type": "test_coverage_gap",
+        "desc": "fd2_walk_step_right @00013315 (src/anim/anim.c, testanim.c:764): test exercises NO-SCROLL arm only. UNCOVERED equivalence-relevant paths: (1) scroll arm else-branch -> scroll_delta_x=4 / scroll_window_flag=1 / composite_width=0xE / persistent data_fd2_battle_view_window_origin_x += 1; (2) right-edge-clamp OR operand data_fd2_battle_map_width_tiles - data_fd2_battle_view_window_max_x == data_fd2_battle_view_window_origin_x. Both verified correct against assembly during review. Recommend a scroll-path test in Phase 9 integration (set pos_x - origin_x > 0xA with map_width - max_x != origin_x; assert origin_x incremented by 1 and cursor_screen_x unchanged). Deferred consistent with sibling walk-step down/left/up tests.",
+        "severity": "low",
+        "verify_method": "add_test"
+      }
+    ]
   }
 }
