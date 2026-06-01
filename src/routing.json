@@ -632,7 +632,8 @@
     "target": "battle/btl_ai.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00015df3": {
     "name": "fd2_find_tile_with_attribute_match",
