@@ -3921,7 +3921,7 @@ static void test_init_battle_state_zeros_cursor(void)
     ASSERT_EQ((long)data_fd2_battle_view_window_origin_y, 0);
     ASSERT_EQ((long)data_fd2_chapter_event_or_battle_end_code, 0);
     ASSERT_EQ((long)data_fd2_battle_anim_phase, 1);
-    ASSERT_EQ((long)data_fd2_save_load_save_slot_id, 1);
+    ASSERT_EQ((long)data_fd2_battle_turn_counter, 1);
 }
 
 /* ---- Test: fd2_score_spell_candidate ---- */

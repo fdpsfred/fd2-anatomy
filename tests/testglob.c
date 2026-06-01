@@ -23,7 +23,7 @@ uint8  data_fd2_battle_last_hit_or_miss_flag = 1;
 uint16 data_fd2_shared_rng_seed = 0;
 uint32 data_fd2_battle_job_magic_resist_table[27];
 uint8  data_fd2_battle_job_crit_rate_table[27];
-uint32 data_fd2_save_load_save_slot_id = 0;
+uint32 data_fd2_battle_turn_counter = 0;
 uint32 data_fd2_runtime_battle_state_ptr = 0;
 uint32 data_fd2_menu_dialog_state_handle = 0;
 uint32 data_fd2_tile_anim_table_base = 0;

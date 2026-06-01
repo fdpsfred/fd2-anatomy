@@ -109,7 +109,7 @@ void fd2_init_battle_state_for_chapter(void)
     fd2_composite_battle_frame(1);
     data_fd2_battle_anim_phase = 1;
     fd2_play_palette_fade_in();
-    data_fd2_save_load_save_slot_id = 1;
+    data_fd2_battle_turn_counter = 1;
     fd2_clear_keyboard_buffer();
 }
 

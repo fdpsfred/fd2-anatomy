@@ -11,7 +11,7 @@ offset     size     內容
 +0x08A3    0xA00    map / terrain data (DAT_00053BF7 來源)
 +0x12A3    N×0x50   runtime_char_array (N = party_member_count)
 +0x30A3    0x20     DAT_00053AD5 block
-+0x30C3    u8       DAT_00053BEF (音效設定相關)
++0x30C3    u8       DAT_00053BEF (全域回合計數 battle_turn_counter)
 +0x30C4    u8       party_member_count (DAT_00053BEB)
 +0x30C5    u8       current_chapter_id (DAT_00053C03)
 +0x30C6    u8       DAT_00053AA9   battle_window_origin_x

@@ -147,8 +147,10 @@ extern uint8  data_fd2_resource_portrait_cache_id_list_base[40];        /* 0x53B
 extern uint32 data_fd2_resource_last_loaded_resource_size;              /* 0x53BFF */
 extern uint32 data_fd2_field_map_tile_event_consumed_flags_ptr;         /* 0x53AD5 */
 
+/* ---- battle turn counter (serialized to FD2.SAV header +0x30C3) ---- */
+extern uint32 data_fd2_battle_turn_counter;                             /* 0x53BEF */
+
 /* ---- save/load ---- */
-extern uint32 data_fd2_save_load_save_slot_id;                          /* 0x53BEF */
 extern uint32 data_fd2_shared_party_total_gold;                         /* 0x53BF3 */
 extern uint32 data_fd2_shared_menu_party_roster_buffer_ptr;             /* 0x53BF7 */
 extern uint32 data_fd2_shared_menu_party_member_count;                  /* 0x53BFB */
