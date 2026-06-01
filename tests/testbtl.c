@@ -625,6 +625,124 @@ static void test_counter_attack_sleep(void)
     ASSERT_EQ(result, -1);
 }
 
+/* Full-path coverage for fd2_check_can_counter_attack @ 0x1F0DC. Defender is
+ * idx 1 (the call is always counter(attacker=0, defender=1)). The weapon-range
+ * gate reads weapon_entry[0xB]; fd2_get_item_effect_entry returns &item.type
+ * (struct base +1), so weapon_entry[0xB] == item_effect.range_min (struct +0xC).
+ * fd2_find_equipped_item_by_kind is the g_find_equipped_return stub; the slot it
+ * returns indexes inventory_slots[slot*2+1] (the REAL fd2_get_inventory_slot_item_id),
+ * which holds the equipped item id fed to the REAL fd2_get_item_effect_entry.
+ *
+ * The success path is the load-bearing one: in the binary the returned 1 is NOT
+ * an explicit MOV EAX,1 -- it is the fall-through of the MOVZX'd range_min byte
+ * that CMP EAX,1 already proved ==1 (shared epilogue at 0x1F17F; the JZ at
+ * 0x1F15E for find==-1 lands there with EAX=-1, the fall-through at 0x1F17D with
+ * EAX=1). The emit rewrote both to explicit return -1 / return 1, so that
+ * equivalence is exercised here. Outcomes are pure integer/branch results
+ * derivable from the disasm; no emulate needed. */
+
+/* (a) adjacency fail: awake, non-adjacent (dx+dy = 10 != 1).
+ * 0x1F148 CMP EAX,1 / 0x1F14B JNZ 0x1F117 -> EAX=-1. */
+static void test_counter_attack_not_adjacent(void)
+{
+    int result;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].pos_x = 0;
+    g_test_rc_array[0].pos_y = 0;
+    g_test_rc_array[1].pos_x = 5;
+    g_test_rc_array[1].pos_y = 5;
+    result = fd2_check_can_counter_attack(0, 1);
+    ASSERT_EQ(result, -1);
+}
+
+/* (b) no weapon: adjacent, awake, equip lookup returns -1.
+ * 0x1F15B CMP EAX,-1 / 0x1F15E JZ 0x1F17F reaches the epilogue with EAX=-1. */
+static void test_counter_attack_no_weapon(void)
+{
+    int result;
+    int save_eq;
+    save_eq = g_find_equipped_return;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].pos_x = 1;
+    g_test_rc_array[0].pos_y = 0;
+    g_test_rc_array[1].pos_x = 0;        /* dx=1, dy=0 -> adjacent */
+    g_test_rc_array[1].pos_y = 0;
+    g_find_equipped_return = -1;
+    result = fd2_check_can_counter_attack(0, 1);
+    ASSERT_EQ(result, -1);
+    g_find_equipped_return = save_eq;
+}
+
+/* (c) weapon range != 1 (bow/spear): adjacent, awake, slot 0 holds item 5,
+ * item 5 range_min = 2. 0x1F176 MOVZX [EAX+0xB] / 0x1F17A CMP 1 /
+ * 0x1F17D JNZ 0x1F117 -> EAX=-1. */
+static void test_counter_attack_weapon_range_not_one(void)
+{
+    int result;
+    int save_eq;
+    save_eq = g_find_equipped_return;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(data_fd2_battle_item_effect_table, 0,
+           sizeof(data_fd2_battle_item_effect_table));
+    g_test_rc_array[0].pos_x = 1;
+    g_test_rc_array[0].pos_y = 0;
+    g_test_rc_array[1].pos_x = 0;
+    g_test_rc_array[1].pos_y = 0;
+    g_test_rc_array[1].inventory_slots[1] = 5;   /* slot 0 item id = 5 */
+    g_find_equipped_return = 0;
+    data_fd2_battle_item_effect_table[5].range_min = 2;  /* range != 1 */
+    result = fd2_check_can_counter_attack(0, 1);
+    ASSERT_EQ(result, -1);
+    g_find_equipped_return = save_eq;
+}
+
+/* (d) SUCCESS, positive delta: adjacent, awake, slot 0 holds item 5 with
+ * range_min == 1 (melee). Fall-through to 0x1F17F with EAX=1 -> returns 1.
+ * This is the EAX-fall-through equivalence the emit's explicit return 1 claims. */
+static void test_counter_attack_success_melee(void)
+{
+    int result;
+    int save_eq;
+    save_eq = g_find_equipped_return;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(data_fd2_battle_item_effect_table, 0,
+           sizeof(data_fd2_battle_item_effect_table));
+    g_test_rc_array[0].pos_x = 1;
+    g_test_rc_array[0].pos_y = 0;
+    g_test_rc_array[1].pos_x = 0;        /* dx=1, dy=0 -> adjacent */
+    g_test_rc_array[1].pos_y = 0;
+    g_test_rc_array[1].inventory_slots[1] = 5;
+    g_find_equipped_return = 0;
+    data_fd2_battle_item_effect_table[5].range_min = 1;  /* melee */
+    result = fd2_check_can_counter_attack(0, 1);
+    ASSERT_EQ(result, 1);
+    g_find_equipped_return = save_eq;
+}
+
+/* (e) SUCCESS with NEGATIVE delta: attacker pos < defender pos so the SUB
+ * underflows (e.g. 4-5 = -1) before abs(). attacker (5,4), defender (5,5):
+ * dx=abs(0)=0, dy=abs(-1)=1, sum=1. Proves abs() handles the signed delta;
+ * a broken abs would yield a huge sum != 1 and return -1 instead of 1. */
+static void test_counter_attack_success_negative_delta(void)
+{
+    int result;
+    int save_eq;
+    save_eq = g_find_equipped_return;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(data_fd2_battle_item_effect_table, 0,
+           sizeof(data_fd2_battle_item_effect_table));
+    g_test_rc_array[0].pos_x = 5;
+    g_test_rc_array[0].pos_y = 4;        /* attacker.y < defender.y */
+    g_test_rc_array[1].pos_x = 5;
+    g_test_rc_array[1].pos_y = 5;        /* SUB y: 4-5 = -1 -> abs -> 1 */
+    g_test_rc_array[1].inventory_slots[1] = 5;
+    g_find_equipped_return = 0;
+    data_fd2_battle_item_effect_table[5].range_min = 1;
+    result = fd2_check_can_counter_attack(0, 1);
+    ASSERT_EQ(result, 1);
+    g_find_equipped_return = save_eq;
+}
+
 /* ---- Test: heal spell wrapper ---- */
 
 /* The wrapper RETURNS the heal amount (EAX), which its sole caller
@@ -4028,6 +4146,11 @@ void run_battle_tests(void)
     RUN_TEST(test_magic_damage_miss_boundary_32);
     RUN_TEST(test_magic_damage_status_immune);
     RUN_TEST(test_counter_attack_sleep);
+    RUN_TEST(test_counter_attack_not_adjacent);
+    RUN_TEST(test_counter_attack_no_weapon);
+    RUN_TEST(test_counter_attack_weapon_range_not_one);
+    RUN_TEST(test_counter_attack_success_melee);
+    RUN_TEST(test_counter_attack_success_negative_delta);
     RUN_TEST(test_recompute_stats_basic);
     RUN_TEST(test_recompute_stats_equipped);
     RUN_TEST(test_recalc_combat_stats_basic);
