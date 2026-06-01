@@ -1900,7 +1900,8 @@
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "000214ad": {
     "name": "fd2_execute_offensive_single_target_spell_id_9",
