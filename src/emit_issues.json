@@ -48,7 +48,7 @@
       }
     ]
   },
-  "0x10b43": {
+  "00010b43": {
     "name": "fd2_noop_stub_b43",
     "target": "<fragment:inline-epilogue>",
     "issues": [
