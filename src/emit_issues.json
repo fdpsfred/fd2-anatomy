@@ -96,5 +96,17 @@
         "verify_method": "verify_at_parent_emit"
       }
     ]
+  },
+  "00011aa8": {
+    "name": "fd2_wait_for_input_with_idle",
+    "target": "input/input.c",
+    "issues": [
+      {
+        "type": "single_read_vs_double_read",
+        "desc": "Single-read-reuse vs double-volatile-read on BIOS_TICK_WORD at 0x46C (store-to-0x539F0 + comparison): the original reuses one read; emitted C reads twice. Documented as unobservable because 0x539F0 has 0 readers binary-wide. If a wlink ORDER/byte-layout audit later cares about the exact bytes written to 0x539F0, note this write can lag the comparison value by one tick relative to the original. Recommend an inline comment in input.c near line 474 stating 0x539F0 is a dead/write-only latch (0 readers) so the double-read is intentional-equivalent.",
+        "severity": "info",
+        "verify_method": "compile_and_disasm"
+      }
+    ]
   }
 }
