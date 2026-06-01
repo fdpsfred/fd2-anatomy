@@ -179,6 +179,46 @@ static void test_recompute_stats_basic(void)
     ASSERT_EQ(*(uint16 *)(slot + 0x4e), 10);
 }
 
+/* Exercises the equipped-item summation loop body (the path skipped by
+ * test_recompute_stats_basic). Inventory slot 0's marker byte (slot+0xA)
+ * gets bit 0x40, id byte (slot+0xB) selects table entry 5. The function
+ * calls fd2_get_item_effect_entry (the REAL table.c accessor, returning
+ * &item_effect_table[5].type, i.e. struct base +1) and uses the returned
+ * pointer for four MOVSX accumulations:
+ *   AP    += item[+1] = table[5].ap  (.ap is struct +2 = ptr +1)
+ *   DP    += item[+5] = table[5].dp
+ *   DX    += item[+3] = table[5].ht
+ *   Evade += item[+7] = table[5].ev
+ * This covers the EAX-return-value-as-pointer use (000114b7 CALL then
+ * 000114bf/c7/cf/d6 MOVSX [EAX+1/5/3/7]) and the branch-taken side of the
+ * equipped-marker test (000114ad TEST byte [EAX],0x40). Slot index 0 keeps
+ * the marker/id bytes (+0xA/+0xB) clear of the +0x37/0x39/0x3e base stats
+ * and the +0x48..0x4f outputs. Exact sums (no emulation needed). */
+static void test_recompute_stats_equipped(void)
+{
+    uint32 buf[0x50 / 4 + 1];
+    uint8 *slot;
+    memset(buf, 0, sizeof(buf));
+    memset(data_fd2_battle_item_effect_table, 0,
+           sizeof(data_fd2_battle_item_effect_table));
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)buf;
+    slot = (uint8 *)buf;
+    *(int16 *)(slot + 0x37) = 20;   /* base AP    */
+    *(int16 *)(slot + 0x39) = 15;   /* base DP    */
+    *(int16 *)(slot + 0x3e) = 10;   /* base DX (Evade baseline = DX) */
+    slot[0xA] = 0x40;               /* inv slot 0: equipped marker  */
+    slot[0xB] = 5;                  /* inv slot 0: item id = 5      */
+    data_fd2_battle_item_effect_table[5].ap = 3;  /* item[+1] -> AP    */
+    data_fd2_battle_item_effect_table[5].ht = 4;  /* item[+3] -> DX    */
+    data_fd2_battle_item_effect_table[5].dp = 5;  /* item[+5] -> DP    */
+    data_fd2_battle_item_effect_table[5].ev = 6;  /* item[+7] -> Evade */
+    fd2_recompute_runtime_char_total_stats(0);
+    ASSERT_EQ(*(uint16 *)(slot + 0x48), 23);   /* 20 + 3  */
+    ASSERT_EQ(*(uint16 *)(slot + 0x4a), 20);   /* 15 + 5  */
+    ASSERT_EQ(*(uint16 *)(slot + 0x4c), 14);   /* 10 + 4  */
+    ASSERT_EQ(*(uint16 *)(slot + 0x4e), 16);   /* 10 + 6  */
+}
+
 /* ---- Test: recalculate_combat_stats ---- */
 
 static void test_recalc_combat_stats_basic(void)
@@ -2173,6 +2213,7 @@ void run_battle_tests(void)
     RUN_TEST(test_magic_damage_miss);
     RUN_TEST(test_counter_attack_sleep);
     RUN_TEST(test_recompute_stats_basic);
+    RUN_TEST(test_recompute_stats_equipped);
     RUN_TEST(test_recalc_combat_stats_basic);
     RUN_TEST(test_default_attack_sleep);
     RUN_TEST(test_default_attack_not_adjacent);

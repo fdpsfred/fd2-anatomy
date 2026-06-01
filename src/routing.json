@@ -108,7 +108,8 @@
     "target": "battle/battle.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "000114fb": {
     "name": "fd2_set_runtime_char_evade",
