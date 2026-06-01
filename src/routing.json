@@ -494,7 +494,8 @@
     "target": "battle/btl_ai.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "000146a7": {
     "name": "fd2_set_tile_overlay_bit_80",
