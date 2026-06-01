@@ -154,7 +154,8 @@
     "target": "ui_menu/cursor.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00011b9b": {
     "name": "fd2_cursor_move_down",

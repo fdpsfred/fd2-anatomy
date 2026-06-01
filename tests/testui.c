@@ -35,6 +35,21 @@ static void test_cursor_move_up_at_top(void)
     ASSERT_EQ(g_composite_call_count, 1);
 }
 
+/* Scroll branch: screen_y<2 && origin_y!=0 -> world_y-- AND origin_y--,
+ * screen_y unchanged, then composite (JMP 0x11B90). */
+static void test_cursor_move_up_scroll(void)
+{
+    data_fd2_battle_cursor_world_y = 5;
+    data_fd2_battle_cursor_screen_y = 1;
+    data_fd2_battle_view_window_origin_y = 3;
+    g_composite_call_count = 0;
+    fd2_cursor_move_up();
+    ASSERT_EQ(data_fd2_battle_cursor_world_y, 4);
+    ASSERT_EQ(data_fd2_battle_view_window_origin_y, 2);
+    ASSERT_EQ(data_fd2_battle_cursor_screen_y, 1);
+    ASSERT_EQ(g_composite_call_count, 1);
+}
+
 static void test_cursor_move_down_basic(void)
 {
     data_fd2_battle_cursor_world_y = 5;
@@ -368,6 +383,7 @@ void run_ui_tests(void)
     printf("Suite: ui_cursor\n");
     RUN_TEST(test_cursor_move_up_basic);
     RUN_TEST(test_cursor_move_up_at_top);
+    RUN_TEST(test_cursor_move_up_scroll);
     RUN_TEST(test_cursor_move_down_basic);
     RUN_TEST(test_cursor_move_right_basic);
     RUN_TEST(test_cursor_move_left_basic);
