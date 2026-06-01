@@ -297,7 +297,8 @@
     "target": "ui_menu/cursor.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00012d7b": {
     "name": "fd2_pan_cursor_to_char",
