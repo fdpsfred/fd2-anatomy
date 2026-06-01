@@ -865,6 +865,172 @@ static void test_slide_panel_down_step_bottom_clip(void)
     data_fd2_ui_slide_bg_snapshot_buf_ptr = save_snap;
 }
 
+/* fd2_slide_panel_step_top_small @0x1B019 copies a 0x66-wide column band from
+ * src_buffer down into large_game_state_buffer, both at x-offset 0x6D, stride
+ * 0x140. src_y/dst_y/row_count are computed from frame_idx by the verified
+ * prologue (0001b02f-0001b082):
+ *   frame_idx < 3            -> early return, no write at all.
+ *   frame_idx > 7 (>=8)      -> stationary: src_y=0x13, dst_y=0x13, row_count=0x11.
+ *   frame_idx 3..7           -> y_shift=(4-(frame_idx-3))*6; dst_y=0x13-y_shift;
+ *                               if dst_y<0 (TOP clip): src_y=0x13-dst_y,
+ *                               row_count=0x11+dst_y, dst_y=0.
+ * Unlike left/right_main the clip is VERTICAL: a wrong src_y reads the wrong
+ * source ROW, a wrong dst_y/row_count writes the wrong destination ROWS. The
+ * shared 64000-byte g_lp_dst/g_lp_src cover the max touched offset (0x2C93).
+ *
+ * Derived per-frame values (exact integer arithmetic straight from the
+ * IMUL/SUB/TEST/JGE/ADD/XOR sequence; emulate_function cannot derive them
+ * because the function's __CHK stack-probe prologue (CALL 00036cd7) hits an
+ * "Unimplemented CALLOTHER pcodeop (LOCK)" in the Ghidra emulator):
+ *   frame 2: early return.
+ *   frame 3: y_shift=24 -> dst_y=-5<0 -> CLIP: src_y=0x18(24), row_count=0x0C(12),
+ *            dst_y=0.
+ *   frame 4: y_shift=18 -> dst_y=1 (no clip): src_y=0x13(19), row_count=0x11(17).
+ *   frame 8: stationary: src_y=0x13, dst_y=0x13, row_count=0x11(17).
+ */
+
+/* Assert one fully-written dst row: the 0x66-wide span at column 0x6D is all
+ * 0xBB, flanked by 0x11 background. A wrong src_y leaks the 0xFE row-guard
+ * (planted one row above/below the read window) into the 0xBB span. */
+static void tp_check_dst_row(long dst_row)
+{
+    long d_base;
+    long i;
+
+    d_base = dst_row * 0x140 + 0x6D;
+
+    /* copied span: every byte is 0xBB (catches wrong src_y via 0xFE leak). */
+    for (i = 0; i < 0x66; i++) {
+        ASSERT_EQ((long)g_lp_dst[d_base + i], 0xBB);
+    }
+    /* byte just before the dst span: still background (pins x-offset 0x6D). */
+    ASSERT_EQ((long)g_lp_dst[d_base - 1], 0x11);
+    /* byte just after the dst span: still background (pins width 0x66). */
+    ASSERT_EQ((long)g_lp_dst[d_base + 0x66], 0x11);
+}
+
+/* Plant 0xFE across the 0x66-wide src band on the rows immediately ABOVE the
+ * first read row and BELOW the last read row, so reading one row too high/low
+ * (wrong src_y or row_count) leaks 0xFE into the dst band. */
+static void tp_poison_src_vguards(long src_y, long row_count)
+{
+    long i;
+    long above;
+    long below;
+
+    above = (src_y - 1) * 0x140 + 0x6D;
+    below = (src_y + row_count) * 0x140 + 0x6D;
+    for (i = 0; i < 0x66; i++) {
+        g_lp_src[above + i] = 0xFE;
+        g_lp_src[below + i] = 0xFE;
+    }
+}
+
+/* frame_idx = 2 (<3): function must early-return; dst stays fully background. */
+static void test_slide_panel_top_small_early_return(void)
+{
+    uint32 save_buf;
+
+    save_buf = data_fd2_large_game_state_buffer_ptr;
+
+    memset(g_lp_dst, 0x11, sizeof(g_lp_dst));
+    memset(g_lp_src, 0xBB, sizeof(g_lp_src));
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_lp_dst;
+    fd2_slide_panel_step_top_small((uint32)g_lp_src, 2);
+    data_fd2_large_game_state_buffer_ptr = save_buf;
+
+    /* nothing copied: the would-be first/last destination bytes stay 0x11. */
+    ASSERT_EQ((long)g_lp_dst[0x13 * 0x140 + 0x6D], 0x11);
+    ASSERT_EQ((long)g_lp_dst[0x6D], 0x11);
+}
+
+/* frame_idx = 3: TOP clip. dst_y=0, src_y=0x18, row_count=0x0C (12 rows). */
+static void test_slide_panel_top_small_top_clip(void)
+{
+    uint32 save_buf;
+    long src_y;
+    long dst_y;
+    long row_count;
+
+    save_buf = data_fd2_large_game_state_buffer_ptr;
+    src_y = 0x18;
+    dst_y = 0;
+    row_count = 0x0C;
+
+    memset(g_lp_dst, 0x11, sizeof(g_lp_dst));
+    memset(g_lp_src, 0xBB, sizeof(g_lp_src));
+    tp_poison_src_vguards(src_y, row_count);
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_lp_dst;
+    fd2_slide_panel_step_top_small((uint32)g_lp_src, 3);
+    data_fd2_large_game_state_buffer_ptr = save_buf;
+
+    /* first written row 0 maps dst_y=0 <- src_y=0x18 (top-aligned). */
+    tp_check_dst_row(dst_y + 0);
+    /* last written row 11 maps dst_y=11 <- src_y=0x18+11=0x23. */
+    tp_check_dst_row(dst_y + (row_count - 1));
+    /* row just past the last written row stays background (pins row_count). */
+    ASSERT_EQ((long)g_lp_dst[(dst_y + row_count) * 0x140 + 0x6D], 0x11);
+}
+
+/* frame_idx = 4: moved but NOT clipped. dst_y=1, src_y=0x13, row_count=0x11. */
+static void test_slide_panel_top_small_no_clip(void)
+{
+    uint32 save_buf;
+    long src_y;
+    long dst_y;
+    long row_count;
+
+    save_buf = data_fd2_large_game_state_buffer_ptr;
+    src_y = 0x13;
+    dst_y = 1;
+    row_count = 0x11;
+
+    memset(g_lp_dst, 0x11, sizeof(g_lp_dst));
+    memset(g_lp_src, 0xBB, sizeof(g_lp_src));
+    tp_poison_src_vguards(src_y, row_count);
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_lp_dst;
+    fd2_slide_panel_step_top_small((uint32)g_lp_src, 4);
+    data_fd2_large_game_state_buffer_ptr = save_buf;
+
+    /* dst row just ABOVE the first written row (dst_y-1=0) stays background:
+     * proves dst_y is exactly 1, not 0 (the clip path was NOT taken). */
+    ASSERT_EQ((long)g_lp_dst[0 * 0x140 + 0x6D], 0x11);
+    tp_check_dst_row(dst_y + 0);
+    tp_check_dst_row(dst_y + (row_count - 1));
+    ASSERT_EQ((long)g_lp_dst[(dst_y + row_count) * 0x140 + 0x6D], 0x11);
+}
+
+/* frame_idx = 8 (>7): stationary. dst_y=0x13, src_y=0x13, row_count=0x11. */
+static void test_slide_panel_top_small_stationary(void)
+{
+    uint32 save_buf;
+    long src_y;
+    long dst_y;
+    long row_count;
+
+    save_buf = data_fd2_large_game_state_buffer_ptr;
+    src_y = 0x13;
+    dst_y = 0x13;
+    row_count = 0x11;
+
+    memset(g_lp_dst, 0x11, sizeof(g_lp_dst));
+    memset(g_lp_src, 0xBB, sizeof(g_lp_src));
+    tp_poison_src_vguards(src_y, row_count);
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_lp_dst;
+    fd2_slide_panel_step_top_small((uint32)g_lp_src, 8);
+    data_fd2_large_game_state_buffer_ptr = save_buf;
+
+    /* dst row just above first written row (dst_y-1=0x12) stays background. */
+    ASSERT_EQ((long)g_lp_dst[0x12 * 0x140 + 0x6D], 0x11);
+    tp_check_dst_row(dst_y + 0);
+    tp_check_dst_row(dst_y + (row_count - 1));
+    ASSERT_EQ((long)g_lp_dst[(dst_y + row_count) * 0x140 + 0x6D], 0x11);
+}
+
 /* ---- ANI decoder tests ---- */
 
 static uint8 g_test_palette_buf[768];
@@ -1498,6 +1664,10 @@ void run_anim_tests(void)
     RUN_TEST(test_slide_panel_right_main_no_clip);
     RUN_TEST(test_slide_panel_down_step_restores_snapshot);
     RUN_TEST(test_slide_panel_down_step_bottom_clip);
+    RUN_TEST(test_slide_panel_top_small_early_return);
+    RUN_TEST(test_slide_panel_top_small_top_clip);
+    RUN_TEST(test_slide_panel_top_small_no_clip);
+    RUN_TEST(test_slide_panel_top_small_stationary);
     RUN_TEST(test_score_item_candidate_damage);
     RUN_TEST(test_score_item_candidate_score3);
     RUN_TEST(test_score_item_candidate_score0);

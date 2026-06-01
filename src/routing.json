@@ -1079,7 +1079,8 @@
     "target": "anim/anim.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0001b0ad": {
     "name": "fd2_slide_panel_step_bottom_main",
