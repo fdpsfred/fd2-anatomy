@@ -143,6 +143,50 @@ static void test_cursor_move_left_basic(void)
     ASSERT_EQ(data_fd2_battle_cursor_screen_x, 4);
 }
 
+/* Scroll branch: world_x!=0 && screen_x<2 && origin_x!=0 -> world_x-- AND
+ * origin_x--, screen_x unchanged, then composite (JMP 0x11CA1).
+ * X-axis mirror of test_cursor_move_up_scroll. */
+static void test_cursor_move_left_scroll(void)
+{
+    data_fd2_battle_cursor_world_x = 5;
+    data_fd2_battle_cursor_screen_x = 1;
+    data_fd2_battle_view_window_origin_x = 3;
+    data_fd2_battle_anim_phase = 1;
+    g_composite_call_count = 0;
+    fd2_cursor_move_left();
+    ASSERT_EQ(data_fd2_battle_cursor_world_x, 4);
+    ASSERT_EQ(data_fd2_battle_view_window_origin_x, 2);
+    ASSERT_EQ(data_fd2_battle_cursor_screen_x, 1);
+    ASSERT_EQ(g_composite_call_count, 1);
+}
+
+/* Left-edge no-op: world_x == 0 -> JZ 0x11CA1, no DEC at all, world_x
+ * unchanged, only composite refresh. Mirrors the up/right edge tests. */
+static void test_cursor_move_left_at_left_edge(void)
+{
+    data_fd2_battle_cursor_world_x = 0;
+    g_composite_call_count = 0;
+    fd2_cursor_move_left();
+    ASSERT_EQ(data_fd2_battle_cursor_world_x, 0);
+    ASSERT_EQ(g_composite_call_count, 1);
+}
+
+/* Inner-step with animation: world_x!=0 && screen_x>=2 -> world_x-- AND
+ * screen_x--; anim_phase!=0 so the early-return (JZ 0x11CAB) is NOT taken and
+ * composite still runs. Complements test_cursor_move_left_basic, which sets
+ * anim_phase==0 to take the early-return (no composite). */
+static void test_cursor_move_left_inner_step_anim(void)
+{
+    data_fd2_battle_cursor_world_x = 5;
+    data_fd2_battle_cursor_screen_x = 5;
+    data_fd2_battle_anim_phase = 1;
+    g_composite_call_count = 0;
+    fd2_cursor_move_left();
+    ASSERT_EQ(data_fd2_battle_cursor_world_x, 4);
+    ASSERT_EQ(data_fd2_battle_cursor_screen_x, 4);
+    ASSERT_EQ(g_composite_call_count, 1);
+}
+
 /* ---- Tests: pan ---- */
 
 static void test_pan_to_char(void)
@@ -454,6 +498,9 @@ void run_ui_tests(void)
     RUN_TEST(test_cursor_move_right_scroll);
     RUN_TEST(test_cursor_move_right_at_right_edge);
     RUN_TEST(test_cursor_move_left_basic);
+    RUN_TEST(test_cursor_move_left_scroll);
+    RUN_TEST(test_cursor_move_left_at_left_edge);
+    RUN_TEST(test_cursor_move_left_inner_step_anim);
     RUN_TEST(test_pan_to_char);
     RUN_TEST(test_pan_to_tile_same_pos);
     RUN_TEST(test_pan_to_tile_moves_x);
