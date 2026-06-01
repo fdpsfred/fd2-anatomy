@@ -120,5 +120,17 @@
         "verify_method": "add_test_comment_or_outp_stub"
       }
     ]
+  },
+  "00012c0d": {
+    "name": "fd2_find_char_at_cursor_pos",
+    "target": "battle/btl_turn.c",
+    "issues": [
+      {
+        "type": "test_coverage_gap",
+        "desc": "No dedicated test for the 'cursor matches a DEAD char then a later ALIVE char' path; consider adding to testanim.c to cover the JNZ-continue branch after fd2_check_char_is_dead (currently the is_dead stub always returns 0, so the dead-skip continuation is never exercised).",
+        "severity": "low",
+        "verify_method": "add_test"
+      }
+    ]
   }
 }
