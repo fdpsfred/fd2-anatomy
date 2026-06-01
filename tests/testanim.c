@@ -1031,6 +1031,170 @@ static void test_slide_panel_top_small_stationary(void)
     ASSERT_EQ((long)g_lp_dst[(dst_y + row_count) * 0x140 + 0x6D], 0x11);
 }
 
+/* fd2_slide_panel_step_bottom_main @0x1B0AD copies a 0xAA-wide band from a
+ * FIXED source window (src_buffer + 0xC20B, never frame-adjusted — asm 0001b112
+ * ADD EDI,0xc20b) down into large_game_state_buffer at x-offset 0x4B, stride
+ * 0x140. dst_y/row_count are computed from frame_idx by the verified prologue
+ * (0001b0c3-0001b108):
+ *   frame_idx < 5            -> early return, no write at all.
+ *   frame_idx > 9 (>=10)     -> stationary: dst_y=0x9B, row_count=0x10.
+ *   frame_idx 5..9           -> y_shift=(4-(frame_idx-5))*9; dst_y=y_shift+0x9B;
+ *                               if (dst_y+0x10 > 200) BOTTOM clip:
+ *                               row_count = dst_y - 200  (asm 0001b102
+ *                               LEA EBP,[EAX-200], EAX=dst_y; signed loop
+ *                               CMP EBX,EBP / JL @0001b142,0001b144).
+ * Unlike left/right_main the clip is VERTICAL and SIGNED: only frame 5 reaches
+ * it (dst_y=191, 191+0x10=207>200) and yields row_count = 191-200 = -9, a
+ * NEGATIVE count -> the signed loop copies ZERO rows. This is the vendor's
+ * genuine behavior on the clipped frame, not a bug to "correct" to positive.
+ *
+ * Derived per-frame values (exact integer arithmetic straight from the
+ * SUB/SUB/SHL/ADD/LEA/CMP/LEA sequence; emulate_function cannot derive them
+ * because the function's __CHK stack-probe prologue (CALL 00036cd7) hits an
+ * "Unimplemented CALLOTHER pcodeop (LOCK)" in the Ghidra emulator):
+ *   frame 4 : early return (frame_idx < 5).
+ *   frame 5 : y_shift=36 -> dst_y=191(0xBF); 207>200 CLIP -> row_count=-9 -> 0 rows.
+ *   frame 6 : y_shift=27 -> dst_y=182(0xB6); 198<=200 no clip -> row_count=0x10.
+ *   frame 10: stationary -> dst_y=0x9B(155); row_count=0x10.
+ * The shared 64000-byte g_lp_dst/g_lp_src cover the max touched offsets
+ * (dst (182+15)*0x140+0x4B+0xAA = 40565; src 0xC20B+16*0x140+0xAA = 54965).
+ */
+
+/* Assert one fully-written dst row: the 0xAA-wide span at column 0x4B is all
+ * 0xBB, flanked by 0x11 background. A wrong source window leaks the 0xFE
+ * row-guard (planted one row above/below the FIXED read window) into the span. */
+static void bp_check_dst_row(long dst_row)
+{
+    long d_base;
+    long i;
+
+    d_base = dst_row * 0x140 + 0x4B;
+
+    /* copied span: every byte is 0xBB (catches wrong src window via 0xFE leak). */
+    for (i = 0; i < 0xAA; i++) {
+        ASSERT_EQ((long)g_lp_dst[d_base + i], 0xBB);
+    }
+    /* byte just before the dst span: still background (pins x-offset 0x4B). */
+    ASSERT_EQ((long)g_lp_dst[d_base - 1], 0x11);
+    /* byte just after the dst span: still background (pins width 0xAA). */
+    ASSERT_EQ((long)g_lp_dst[d_base + 0xAA], 0x11);
+}
+
+/* Plant 0xFE across the 0xAA-wide src band on the rows immediately ABOVE the
+ * first read row (src_buffer+0xC20B) and BELOW the last read row, so reading
+ * one row too high/low (wrong src start or row_count) leaks 0xFE into the dst
+ * band. The src start is FIXED, so this depends only on row_count. */
+static void bp_poison_src_vguards(long row_count)
+{
+    long i;
+    long above;
+    long below;
+
+    above = 0xC20B - 0x140;
+    below = 0xC20B + row_count * 0x140;
+    for (i = 0; i < 0xAA; i++) {
+        g_lp_src[above + i] = 0xFE;
+        g_lp_src[below + i] = 0xFE;
+    }
+}
+
+/* frame_idx = 4 (<5): function must early-return; dst stays fully background. */
+static void test_slide_panel_bottom_main_early_return(void)
+{
+    uint32 save_buf;
+
+    save_buf = data_fd2_large_game_state_buffer_ptr;
+
+    memset(g_lp_dst, 0x11, sizeof(g_lp_dst));
+    memset(g_lp_src, 0xBB, sizeof(g_lp_src));
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_lp_dst;
+    fd2_slide_panel_step_bottom_main((uint32)g_lp_src, 4);
+    data_fd2_large_game_state_buffer_ptr = save_buf;
+
+    /* nothing copied: the would-be dst row at every reachable dst_y stays 0x11. */
+    ASSERT_EQ((long)g_lp_dst[0x9B * 0x140 + 0x4B], 0x11);
+    ASSERT_EQ((long)g_lp_dst[0xBF * 0x140 + 0x4B], 0x11);
+}
+
+/* frame_idx = 5: BOTTOM clip. dst_y=191, row_count = 191-200 = -9 (signed) ->
+ * the loop copies ZERO rows. This is the exact path that was emitted with the
+ * wrong sign (200-dst_y = +9 would have copied 9 rows); pin it at 0 writes. */
+static void test_slide_panel_bottom_main_clip_zero_rows(void)
+{
+    uint32 save_buf;
+
+    save_buf = data_fd2_large_game_state_buffer_ptr;
+
+    memset(g_lp_dst, 0x11, sizeof(g_lp_dst));
+    memset(g_lp_src, 0xBB, sizeof(g_lp_src));
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_lp_dst;
+    fd2_slide_panel_step_bottom_main((uint32)g_lp_src, 5);
+    data_fd2_large_game_state_buffer_ptr = save_buf;
+
+    /* dst row 0 (the row that WOULD be written if row_count were +9) at
+     * dst_y=191 must remain background: the negative count copies nothing. */
+    ASSERT_EQ((long)g_lp_dst[191 * 0x140 + 0x4B], 0x11);
+    ASSERT_EQ((long)g_lp_dst[191 * 0x140 + 0x4B + 0xA9], 0x11);
+    /* and row 8 (the last of the would-be 9 rows) likewise stays background. */
+    ASSERT_EQ((long)g_lp_dst[(191 + 8) * 0x140 + 0x4B], 0x11);
+}
+
+/* frame_idx = 6: moved but NOT clipped. dst_y=182, row_count=0x10 (16 rows). */
+static void test_slide_panel_bottom_main_no_clip(void)
+{
+    uint32 save_buf;
+    long dst_y;
+    long row_count;
+
+    save_buf = data_fd2_large_game_state_buffer_ptr;
+    dst_y = 182;        /* 0xB6 */
+    row_count = 0x10;
+
+    memset(g_lp_dst, 0x11, sizeof(g_lp_dst));
+    memset(g_lp_src, 0xBB, sizeof(g_lp_src));
+    bp_poison_src_vguards(row_count);
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_lp_dst;
+    fd2_slide_panel_step_bottom_main((uint32)g_lp_src, 6);
+    data_fd2_large_game_state_buffer_ptr = save_buf;
+
+    /* dst row just ABOVE the first written row (dst_y-1) stays background:
+     * proves dst_y is exactly 182, not the stationary 155. */
+    ASSERT_EQ((long)g_lp_dst[(dst_y - 1) * 0x140 + 0x4B], 0x11);
+    bp_check_dst_row(dst_y + 0);
+    bp_check_dst_row(dst_y + (row_count - 1));
+    /* row just past the last written row stays background (pins row_count=0x10). */
+    ASSERT_EQ((long)g_lp_dst[(dst_y + row_count) * 0x140 + 0x4B], 0x11);
+}
+
+/* frame_idx = 10 (>9): stationary. dst_y=0x9B, row_count=0x10 (16 rows). */
+static void test_slide_panel_bottom_main_stationary(void)
+{
+    uint32 save_buf;
+    long dst_y;
+    long row_count;
+
+    save_buf = data_fd2_large_game_state_buffer_ptr;
+    dst_y = 0x9B;
+    row_count = 0x10;
+
+    memset(g_lp_dst, 0x11, sizeof(g_lp_dst));
+    memset(g_lp_src, 0xBB, sizeof(g_lp_src));
+    bp_poison_src_vguards(row_count);
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_lp_dst;
+    fd2_slide_panel_step_bottom_main((uint32)g_lp_src, 10);
+    data_fd2_large_game_state_buffer_ptr = save_buf;
+
+    /* dst row just above first written row (dst_y-1=0x9A) stays background. */
+    ASSERT_EQ((long)g_lp_dst[(dst_y - 1) * 0x140 + 0x4B], 0x11);
+    bp_check_dst_row(dst_y + 0);
+    bp_check_dst_row(dst_y + (row_count - 1));
+    ASSERT_EQ((long)g_lp_dst[(dst_y + row_count) * 0x140 + 0x4B], 0x11);
+}
+
 /* ---- ANI decoder tests ---- */
 
 static uint8 g_test_palette_buf[768];
@@ -1668,6 +1832,10 @@ void run_anim_tests(void)
     RUN_TEST(test_slide_panel_top_small_top_clip);
     RUN_TEST(test_slide_panel_top_small_no_clip);
     RUN_TEST(test_slide_panel_top_small_stationary);
+    RUN_TEST(test_slide_panel_bottom_main_early_return);
+    RUN_TEST(test_slide_panel_bottom_main_clip_zero_rows);
+    RUN_TEST(test_slide_panel_bottom_main_no_clip);
+    RUN_TEST(test_slide_panel_bottom_main_stationary);
     RUN_TEST(test_score_item_candidate_damage);
     RUN_TEST(test_score_item_candidate_score3);
     RUN_TEST(test_score_item_candidate_score0);
