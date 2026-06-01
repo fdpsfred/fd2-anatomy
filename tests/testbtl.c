@@ -408,6 +408,7 @@ extern int g_pathfind_dst_x;
 extern int g_pathfind_dst_y;
 
 static uint8 t_ai_tile_map[20 * 15 * 4];
+static uint8 t_ai_attr_buf[8];
 
 static void reset_ai_stubs(void)
 {
@@ -667,6 +668,231 @@ static void test_ai_score_phys_no_weapon(void)
     ASSERT_EQ(result, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_score, 0);
     g_find_equipped_return = save_eq;
+}
+
+/* ---- Full scoring-path tests for fd2_ai_score_physical_attack @ 0x14237 ----
+ *
+ * Drive the real per-tile / per-target scoring loop end to end. All callees on
+ * the path are the REAL functions: fd2_get_inventory_slot_item_id /
+ * fd2_get_item_effect_entry / fd2_get_movement_cost_table_for_job (table.c),
+ * fd2_check_char_status_immunity / fd2_read_tile_attribute_at_pos /
+ * fd2_check_can_default_attack_target (battle.c), and
+ * fd2_mark_char_occupant_tiles_for_team / fd2_collect_unmarked_tile_positions /
+ * fd2_compute_aoe_targets (btl_ai.c). Only fd2_find_equipped_item_by_kind,
+ * fd2_init_movement_range_floodfill, fd2_paint_threat_overlay_for_team and
+ * fd2_obfuscate_battle_tile_map are stubs (the equip stub via
+ * g_find_equipped_return; the rest are no-ops that leave the tile map intact).
+ *
+ * Geometry (shared by ti_setup): 3x3 map, party_member_count=2.
+ *   char 0 = caster, team 0 (TEAM_ENEMY), pos (0,0), non-immune.
+ *   char 1 = target, team 2 (player), pos (1,1).
+ * Only tile (1,1) is left unmarked (+7 != 0xFF); every other tile stays 0xFF
+ * from reset_ai_stubs. The caster-occupant pass marks nothing (exclude_idx==0
+ * skips the caster; char 1 is team 2 so the team_selector==0 pass ignores it),
+ * so the candidate list is exactly [(1,1)]. ctx_flag==0 -> use_smaller_aoe=1 ->
+ * fd2_compute_aoe_targets runs with team_filter==1, collecting char 1 (team!=0)
+ * because its tile (1,1) is unmarked. aoe_radius (item range_min, +0xB) is 0 so
+ * no radius re-marking; spell_range (item range_max, +0xC) is 1 (<0x10).
+ * Both attacker and target are non-immune, so terrain modifiers are skipped and
+ * effective_AP/DP == base AP/DP. With the single candidate equal to the target
+ * tile (Manhattan distance 0) the counter-bonus default-attack check returns -1
+ * (dist != 1), isolating raw_damage = AP - DP for tests 1-3.
+ *
+ * raw_damage paths (verified against disasm 0x14586/0x1458c kill at 0x1447b):
+ *   raw <= 2            -> score_class 0
+ *   raw  > 2            -> score_class 8
+ *   raw  > target HP    -> raw *= 2, score_class 0x12  (kill-shot)
+ * Best-slot update fires when score_class > best OR (== best && raw > tiebreak);
+ * both start at 0. */
+static void ti_setup_phys(uint32 *save_pmc, uint32 *save_w,
+                          uint32 *save_h, int *save_eq)
+{
+    *save_pmc = data_fd2_battle_party_member_count;
+    *save_w = data_fd2_battle_map_width_tiles;
+    *save_h = data_fd2_battle_map_height_tiles;
+    *save_eq = g_find_equipped_return;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(data_fd2_battle_item_effect_table, 0,
+           sizeof(data_fd2_battle_item_effect_table));
+    reset_ai_stubs();                 /* tile map -> 0xFF, ptr wired */
+    data_fd2_battle_party_member_count = 2;
+    data_fd2_battle_map_width_tiles = 3;
+    data_fd2_battle_map_height_tiles = 3;
+    g_find_equipped_return = 0;        /* slot 0 valid for all chars */
+
+    g_test_rc_array[0].pos_x = 0;      /* caster */
+    g_test_rc_array[0].pos_y = 0;
+    g_test_rc_array[0].team = 0;
+    g_test_rc_array[0].inventory_slots[1] = 5;   /* equipped item id 5 */
+
+    g_test_rc_array[1].pos_x = 1;      /* target on the single candidate */
+    g_test_rc_array[1].pos_y = 1;
+    g_test_rc_array[1].team = 2;
+
+    /* item 5: range_min(+0xB)=0 -> aoe_radius 0; range_max(+0xC)=1 -> range 1 */
+    data_fd2_battle_item_effect_table[5].range_min = 0;
+    data_fd2_battle_item_effect_table[5].range_max = 1;
+
+    /* unmark tile (1,1) only: byte (y*w + x)*4 + 7 with w=3 */
+    t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
+}
+
+static void ti_restore_phys(uint32 save_pmc, uint32 save_w,
+                            uint32 save_h, int save_eq)
+{
+    data_fd2_battle_party_member_count = save_pmc;
+    data_fd2_battle_map_width_tiles = save_w;
+    data_fd2_battle_map_height_tiles = save_h;
+    g_find_equipped_return = save_eq;
+}
+
+/* Normal hit: AP 20, DP 10 -> raw 10 (>2 -> class 8), HP 100 (no kill),
+ * char_id != 0 (no flank), distance 0 (no counter). Best slots take the
+ * single candidate (1,1) targeting char 1. */
+static void test_ai_score_phys_normal_hit_score8(void)
+{
+    uint32 save_pmc;
+    uint32 save_w;
+    uint32 save_h;
+    int save_eq;
+    ti_setup_phys(&save_pmc, &save_w, &save_h, &save_eq);
+    g_test_rc_array[0].ap = 20;
+    g_test_rc_array[1].dp = 10;
+    g_test_rc_array[1].hp_current = 100;
+    g_test_rc_array[1].char_id = 7;          /* non-leader: no flank */
+    data_fd2_battle_ai_best_physical_target_idx = 0xFF;
+    fd2_ai_score_physical_attack(0, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_physical_score, 8);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_idx, 1);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_x, 1);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_y, 1);
+    ti_restore_phys(save_pmc, save_w, save_h, save_eq);
+}
+
+/* Kill shot: AP 20, DP 10 -> raw 10 > HP 5 -> raw doubled, class 0x12. */
+static void test_ai_score_phys_kill_shot_score12(void)
+{
+    uint32 save_pmc;
+    uint32 save_w;
+    uint32 save_h;
+    int save_eq;
+    ti_setup_phys(&save_pmc, &save_w, &save_h, &save_eq);
+    g_test_rc_array[0].ap = 20;
+    g_test_rc_array[1].dp = 10;
+    g_test_rc_array[1].hp_current = 5;
+    g_test_rc_array[1].char_id = 7;
+    data_fd2_battle_ai_best_physical_target_idx = 0xFF;
+    fd2_ai_score_physical_attack(0, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_physical_score, 0x12);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_idx, 1);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_x, 1);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_y, 1);
+    ti_restore_phys(save_pmc, save_w, save_h, save_eq);
+}
+
+/* Negligible damage: AP 11, DP 10 -> raw 1 (<=2 -> class 0), no kill. Score
+ * class stays 0 but the (score==best && raw>tiebreak) branch still writes the
+ * target slots once (raw 1 > initial tiebreak 0). Covers the class-0 path and
+ * the tiebreak-only update. */
+static void test_ai_score_phys_negligible_score0(void)
+{
+    uint32 save_pmc;
+    uint32 save_w;
+    uint32 save_h;
+    int save_eq;
+    ti_setup_phys(&save_pmc, &save_w, &save_h, &save_eq);
+    g_test_rc_array[0].ap = 11;
+    g_test_rc_array[1].dp = 10;
+    g_test_rc_array[1].hp_current = 100;
+    g_test_rc_array[1].char_id = 7;
+    data_fd2_battle_ai_best_physical_target_idx = 0xFF;
+    fd2_ai_score_physical_attack(0, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_physical_score, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_idx, 1);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_x, 1);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_y, 1);
+    ti_restore_phys(save_pmc, save_w, save_h, save_eq);
+}
+
+/* Counter-bonus + flank: two unmarked candidate tiles (1,0) and (1,1); target
+ * char 1 (leader: char_id 0, awake) sits on (1,1). For candidate (1,0) the
+ * target is Manhattan-distance 1 away, so fd2_check_can_default_attack_target
+ * returns 1 (awake, adjacent, weapon range_min 0<=1) and adds effective_DP -
+ * target_AP; then the leader flank multiplies raw by 3/2. Candidate (1,1) has
+ * distance 0 (no counter) and a lower final raw, so it loses the score-8
+ * tiebreak. Best slot must therefore be (1,0).
+ *   AP 30, DP(target) 10 -> raw 20 (class 8, 20<=HP100 no kill)
+ *   counter: + caster_DP(10) - target_AP(8) = +2 -> 22
+ *   flank: 22*3/2 = 33
+ * Asserts the counter+flank candidate (1,0) won. */
+static void test_ai_score_phys_counter_and_flank(void)
+{
+    uint32 save_pmc;
+    uint32 save_w;
+    uint32 save_h;
+    int save_eq;
+    ti_setup_phys(&save_pmc, &save_w, &save_h, &save_eq);
+    /* second candidate tile (1,0) */
+    t_ai_tile_map[(0 * 3 + 1) * 4 + 7] = 0;
+    g_test_rc_array[0].ap = 30;
+    g_test_rc_array[0].dp = 10;        /* caster effective_DP */
+    g_test_rc_array[1].dp = 10;
+    g_test_rc_array[1].ap = 8;         /* target_AP for counter term */
+    g_test_rc_array[1].hp_current = 100;
+    g_test_rc_array[1].char_id = 0;    /* leader -> flank */
+    g_test_rc_array[1].status_sleep_flag = 0;  /* awake -> counter eligible */
+    data_fd2_battle_ai_best_physical_target_idx = 0xFF;
+    fd2_ai_score_physical_attack(0, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_physical_score, 8);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_idx, 1);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_x, 1);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_y, 0);
+    ti_restore_phys(save_pmc, save_w, save_h, save_eq);
+}
+
+/* Terrain modifier (signed *AP/100 IDIV at disasm 0x143f1): make the CASTER
+ * immune (job 0x13) so the attacker terrain bonus applies; the target stays
+ * non-immune so its DP is unmodified. Base AP 12, DP 10 -> base raw 2 (class 0).
+ * The candidate tile (1,1) resolves to tile_id T via fd2_read_tile_attribute_at_pos:
+ * the tile cell's sprite_idx word (cell+4) is 0, so attr_ptr = attr_buffer+0 and
+ * tile_buf[5] = attr_buffer[1] = T. mv_modifier[T] = 50 (%):
+ *   effective_AP = 12 + (50 * 12)/100 = 12 + 6 = 18  ->  raw = 18 - 10 = 8 (class 8).
+ * Asserting score == 8 (not 0) proves the terrain IDIV path executed with the
+ * expected magnitude; a missing/incorrect terrain read would leave raw 2 -> 0.
+ * Tile-map bytes for the (1,1) cell (k=4, stride 4): overlay byte base+7+k*4=+23
+ * cleared so the tile is the single candidate; sprite_idx word at cell+4 = +20/+21
+ * zeroed. The target (also at (1,1)) is non-immune so no target terrain read. */
+static void test_ai_score_phys_terrain_bonus_lifts_class(void)
+{
+    uint32 save_pmc;
+    uint32 save_w;
+    uint32 save_h;
+    int save_eq;
+    uint32 save_attr_ptr;
+    ti_setup_phys(&save_pmc, &save_w, &save_h, &save_eq);
+    save_attr_ptr = data_fd2_tile_attribute_flags_buffer_ptr;
+    memset(t_ai_attr_buf, 0, sizeof(t_ai_attr_buf));
+    t_ai_attr_buf[1] = 9;                 /* tile_id T = 9 */
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)t_ai_attr_buf;
+    data_fd2_battle_tile_attr_mv_modifier_table[9] = 50;   /* +50% AP */
+    data_fd2_battle_tile_attr_def_modifier_table[9] = 0;
+    t_ai_tile_map[(1 * 3 + 1) * 4 + 4] = 0;    /* sprite_idx low byte = 0 */
+    t_ai_tile_map[(1 * 3 + 1) * 4 + 5] = 0;    /* sprite_idx high byte = 0 */
+
+    g_test_rc_array[0].job_id = 0x13;     /* caster immune -> terrain applies */
+    g_test_rc_array[0].ap = 12;
+    g_test_rc_array[1].dp = 10;
+    g_test_rc_array[1].hp_current = 100;
+    g_test_rc_array[1].char_id = 7;
+    data_fd2_battle_ai_best_physical_target_idx = 0xFF;
+    fd2_ai_score_physical_attack(0, 0);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_physical_score, 8);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_idx, 1);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_x, 1);
+    ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_y, 1);
+    data_fd2_tile_attribute_flags_buffer_ptr = save_attr_ptr;
+    data_fd2_battle_tile_attr_mv_modifier_table[9] = 0;
+    ti_restore_phys(save_pmc, save_w, save_h, save_eq);
 }
 
 static void test_pan_cursor_to_origin(void)
@@ -2301,6 +2527,11 @@ void run_battle_tests(void)
     RUN_TEST(test_ai_walk_no_path);
     RUN_TEST(test_compute_aoe_no_targets);
     RUN_TEST(test_ai_score_phys_no_weapon);
+    RUN_TEST(test_ai_score_phys_normal_hit_score8);
+    RUN_TEST(test_ai_score_phys_kill_shot_score12);
+    RUN_TEST(test_ai_score_phys_negligible_score0);
+    RUN_TEST(test_ai_score_phys_counter_and_flank);
+    RUN_TEST(test_ai_score_phys_terrain_bonus_lifts_class);
     RUN_TEST(test_ai_seek_optimal_unreachable);
     RUN_TEST(test_ai_seek_optimal_already_at_best);
     RUN_TEST(test_ai_seek_optimal_walk_branch_returns_zero);
