@@ -205,5 +205,23 @@
         "verify_method": "add_test_comment"
       }
     ]
+  },
+  "00015055": {
+    "name": "fd2_execute_ai_item_use",
+    "target": "battle/btl_ai.c",
+    "issues": [
+      {
+        "type": "concat31_equivalence_note",
+        "desc": "Equivalence note for the emitter to record: data_fd2_ui_menu_cursor_idx assignment. Asm stores full 32-bit EAX (MOV [0x53c57],EAX at 0x1508b) and then PUSHes that same EAX to fd2_get_item_effect_entry. C truncates to uint8 item_id then zero-extends (uint32)item_id. This is EXACT because the source fd2_get_inventory_slot_item_id (0x1b722) ends in MOVZX EAX,byte ptr [EAX]; RET so EAX upper 24 bits are guaranteed 0. The Ghidra decompile CONCAT31(extraout_var,item_id) is conservative-only; the C is correct. Worth a one-line comment in the source so a future reviewer does not re-flag the CONCAT31.",
+        "severity": "info",
+        "verify_method": "add_source_comment"
+      },
+      {
+        "type": "test_deferral_note_missing",
+        "desc": "Test-deferral note (mandatory per risk-based policy): emitter should record in the emit output that test coverage for fd2_execute_ai_item_use is deferred to Phase 9 integration, with the reason that the function is display/animation orchestration and its only arithmetic block (interp+clamp) is display-bound (drives cursor pan only, not effect dispatch). This explicit deferral note is currently MISSING.",
+        "severity": "low",
+        "verify_method": "add_test_comment"
+      }
+    ]
   }
 }
