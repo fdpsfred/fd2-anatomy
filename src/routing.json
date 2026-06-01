@@ -502,7 +502,8 @@
     "target": "battle/btl_turn.c",
     "phase": 5,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "000146d1": {
     "name": "fd2_mark_char_occupant_tiles_for_team",
