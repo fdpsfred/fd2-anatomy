@@ -8,11 +8,20 @@ source、寫 unit test、經 build gate + 獨立 reviewer 三源復驗、per-fun
 
 ## 0. 新 session 快速啟動
 
+### 必讀文件（依序）
+
+1. 本檔 `src/handoff.md` — 現況、工作方式、checkpoint、鐵則（讀完即可開工）
+2. `tools/emit/_index.md` — workflow 操作指南（元件、跑批步驟、踩過的坑）
+3. `~/.claude/plans/wiggly-skipping-ripple.md` — 整體計畫與規格（目錄結構 / header 來源 / AIL / Watcom build flags / Phase 8-9 規劃 / 驗證標準）
+4. 需要時：`rebuild_info/emission/`（pipeline_spec / calling_convention / pool_routing）、`rebuild_info/link/wlink_settings.md`。
+   （`CLAUDE.md` / `index.md` / `MEMORY.md` 由 session 自動載入，含 `project_emit_review_workflow` memory。）
+
+### 開工步驟
+
 1. 確認工具：Ghidra MCP 已開 FD2.LE、DOSBox-X 在 PATH、Watcom 9.5a（per `CLAUDE.md`）。不可用就停下問使用者。
 2. 看現況（單一事實來源，不靠任何對話記憶）：`python tools/emit/next_batch.py --stats`
    → `{total, emitted, reviewed, await_review, await_emit}`。`reviewed` 欄就是進度。
-3. 操作細節（元件、跑批步驟、踩過的坑）：`tools/emit/_index.md`。
-4. 全自動接續：使用者貼 §5 的 /loop 指令 → 自動推進直到 `await_review` 與 `await_emit` 皆為 0。
+3. 全自動接續：使用者貼 §5 的 /loop 指令 → 自動推進直到 `await_review` 與 `await_emit` 皆為 0。
 
 ---
 
