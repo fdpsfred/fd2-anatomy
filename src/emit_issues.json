@@ -1,0 +1,51 @@
+{
+  "_doc": "三源交叉驗證時發現的待後續確認問題。Key = function address, value = {name, issues: [...]}。所有 emit phase 完成後統一解決。",
+  "0001b750": {
+    "name": "fd2_recalculate_combat_stats",
+    "target": "battle/battle.c",
+    "issues": [
+      {
+        "type": "fpu_rounding",
+        "desc": "Assembly 用 FISTP + default rounding mode (round-to-nearest)；emitted C 用 (int)((double)x * 1.15) 可能產生 truncation。需實際 Watcom 9.5a 編譯後比對 codegen 確認是否等價。",
+        "severity": "low",
+        "verify_method": "compile_and_disasm"
+      }
+    ]
+  },
+  "00013460": {
+    "name": "fd2_wait_one_bios_tick",
+    "target": "input/input.c",
+    "issues": [
+      {
+        "type": "word_width",
+        "desc": "Assembly 用 MOVSX word ptr [0x46C] 讀 16-bit；emitted C 用 BIOS_TICK_COUNT (uint32 deref) 讀 32-bit。行為等價因 last_seen 為私有且只做 != 比較，但 machine code 會不同。",
+        "severity": "info",
+        "verify_method": "compile_and_disasm"
+      }
+    ]
+  },
+  "00015b77": {
+    "name": "fd2_score_spell_candidate",
+    "target": "battle/btl_ai.c",
+    "issues": [
+      {
+        "type": "fpu_rounding",
+        "desc": "Assembly uses FILD+FMUL+__CHP+FISTP (round-to-nearest by default FPU mode); emitted C uses (int)((double)per_score * multiplier_1_5). For actual values 8*1.5=12 and 24*1.5=36 the result is exact integer so truncation vs rounding doesn't matter, but Watcom codegen may differ.",
+        "severity": "low",
+        "verify_method": "compile_and_disasm"
+      }
+    ]
+  },
+  "0001c75e": {
+    "name": "fd2_calc_magic_damage",
+    "target": "battle/battle.c",
+    "issues": [
+      {
+        "type": "resist_table_copy",
+        "desc": "Assembly 先 REP MOVSD 複製 28-dword resist table 到 stack 再索引；emitted C 直接讀 global。行為等價 (table 不在執行中被修改)，但 machine code 顯著不同。",
+        "severity": "info",
+        "verify_method": "compile_and_compare_behavior"
+      }
+    ]
+  }
+}

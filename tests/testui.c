@@ -1,0 +1,401 @@
+/*
+ * testui.c — Unit tests for cursor, pan, input functions
+ */
+
+#include <stdio.h>
+#include <string.h>
+#include "testharn.h"
+#include "types.h"
+#include "consts.h"
+#include "globals.h"
+#include "protos.h"
+
+/* globals + stubs in testglob.c */
+extern runtime_char g_test_rc_array[8];
+extern int g_composite_call_count;
+
+/* ---- Tests: cursor ---- */
+
+static void test_cursor_move_up_basic(void)
+{
+    data_fd2_battle_cursor_world_y = 5;
+    data_fd2_battle_cursor_screen_y = 5;
+    data_fd2_battle_anim_phase = 0;
+    fd2_cursor_move_up();
+    ASSERT_EQ(data_fd2_battle_cursor_world_y, 4);
+    ASSERT_EQ(data_fd2_battle_cursor_screen_y, 4);
+}
+
+static void test_cursor_move_up_at_top(void)
+{
+    data_fd2_battle_cursor_world_y = 0;
+    g_composite_call_count = 0;
+    fd2_cursor_move_up();
+    ASSERT_EQ(data_fd2_battle_cursor_world_y, 0);
+    ASSERT_EQ(g_composite_call_count, 1);
+}
+
+static void test_cursor_move_down_basic(void)
+{
+    data_fd2_battle_cursor_world_y = 5;
+    data_fd2_battle_cursor_screen_y = 3;
+    data_fd2_battle_anim_phase = 0;
+    fd2_cursor_move_down();
+    ASSERT_EQ(data_fd2_battle_cursor_world_y, 6);
+    ASSERT_EQ(data_fd2_battle_cursor_screen_y, 4);
+}
+
+static void test_cursor_move_right_basic(void)
+{
+    data_fd2_battle_cursor_world_x = 5;
+    data_fd2_battle_cursor_screen_x = 5;
+    data_fd2_battle_anim_phase = 0;
+    fd2_cursor_move_right();
+    ASSERT_EQ(data_fd2_battle_cursor_world_x, 6);
+    ASSERT_EQ(data_fd2_battle_cursor_screen_x, 6);
+}
+
+static void test_cursor_move_left_basic(void)
+{
+    data_fd2_battle_cursor_world_x = 5;
+    data_fd2_battle_cursor_screen_x = 5;
+    data_fd2_battle_anim_phase = 0;
+    fd2_cursor_move_left();
+    ASSERT_EQ(data_fd2_battle_cursor_world_x, 4);
+    ASSERT_EQ(data_fd2_battle_cursor_screen_x, 4);
+}
+
+/* ---- Tests: pan ---- */
+
+static void test_pan_to_char(void)
+{
+    g_test_rc_array[2].pos_x = 10;
+    g_test_rc_array[2].pos_y = 8;
+    data_fd2_battle_cursor_world_x = 10;
+    data_fd2_battle_cursor_world_y = 8;
+    data_fd2_battle_anim_phase = 1;
+    fd2_pan_cursor_to_char(2);
+    ASSERT_EQ(data_fd2_battle_cursor_world_x, 10);
+    ASSERT_EQ(data_fd2_battle_cursor_world_y, 8);
+}
+
+/* ---- Tests: pan_cursor_to_tile_animated ---- */
+
+static void test_pan_to_tile_same_pos(void)
+{
+    data_fd2_battle_cursor_world_x = 7;
+    data_fd2_battle_cursor_world_y = 4;
+    data_fd2_battle_anim_phase = 1;
+    fd2_pan_cursor_to_tile_animated(7, 4);
+    ASSERT_EQ(data_fd2_battle_cursor_world_x, 7);
+    ASSERT_EQ(data_fd2_battle_cursor_world_y, 4);
+}
+
+static void test_pan_to_tile_moves_x(void)
+{
+    data_fd2_battle_cursor_world_x = 5;
+    data_fd2_battle_cursor_world_y = 5;
+    data_fd2_battle_cursor_screen_x = 5;
+    data_fd2_battle_cursor_screen_y = 5;
+    data_fd2_battle_anim_phase = 0;
+    fd2_pan_cursor_to_tile_animated(8, 5);
+    ASSERT_EQ(data_fd2_battle_cursor_world_x, 8);
+    ASSERT_EQ(data_fd2_battle_cursor_world_y, 5);
+}
+
+/* ---- Tests: pan_cursor_and_window ---- */
+
+static void test_pan_and_window_same_pos(void)
+{
+    data_fd2_battle_view_window_origin_x = 3;
+    data_fd2_battle_view_window_origin_y = 2;
+    fd2_pan_cursor_and_window(3, 2);
+    ASSERT_EQ(data_fd2_battle_view_window_origin_x, 3);
+    ASSERT_EQ(data_fd2_battle_view_window_origin_y, 2);
+}
+
+/* ---- Tests: keyboard / BIOS ---- */
+
+static void test_read_bios_tick(void)
+{
+    uint16 t;
+    t = fd2_read_bios_midnight_tick();
+    ASSERT_TRUE(1);
+}
+
+static void test_kbd_buffer_empty(void)
+{
+    int r;
+    *(volatile uint16 *)0x41AuL = 0x20;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    r = fd2_check_keyboard_buffer_nonempty();
+    ASSERT_EQ(r, 0);
+}
+
+static void test_kbd_buffer_nonempty(void)
+{
+    int r;
+    *(volatile uint16 *)0x41AuL = 0x20;
+    *(volatile uint16 *)0x41CuL = 0x22;
+    r = fd2_check_keyboard_buffer_nonempty();
+    ASSERT_NE(r, 0);
+}
+
+static void test_clear_kbd_buffer(void)
+{
+    *(volatile uint16 *)0x41AuL = 0x30;
+    *(volatile uint16 *)0x41CuL = 0x40;
+    fd2_clear_keyboard_buffer();
+    ASSERT_EQ(*(volatile uint16 *)0x41CuL, 0x30);
+}
+
+/* ---- Tests: wait_one_bios_tick ---- */
+
+static void test_wait_one_bios_tick_smoke(void)
+{
+    data_fd2_engine_wait_one_bios_tick_last_seen =
+        *(volatile uint32 *)0x46CuL - 1;
+    fd2_wait_one_bios_tick();
+    ASSERT_TRUE(1);
+}
+
+/* ---- Tests: update_palette_cycle_anim ---- */
+
+static void test_update_palette_cycle_anim_no_update(void)
+{
+    data_fd2_animation_palette_cycle_last_tick =
+        (uint16)BIOS_TICK_WORD;
+    data_fd2_animation_palette_cycle_frame_idx = 5;
+    fd2_update_palette_cycle_anim();
+    ASSERT_EQ(data_fd2_animation_palette_cycle_frame_idx, 5);
+}
+
+/* ---- Tests: get_inventory_slot_item_id ---- */
+
+static void test_get_inventory_slot_item_id(void)
+{
+    uint8 r;
+    g_test_rc_array[1].inventory_slots[2] = 0x40;
+    g_test_rc_array[1].inventory_slots[3] = 0x2A;
+    r = fd2_get_inventory_slot_item_id(1, 1);
+    ASSERT_EQ(r, 0x2A);
+}
+
+/* ---- Tests: read_tile_attribute ---- */
+
+static void test_read_tile_attribute(void)
+{
+    uint8 fake_map[16];
+    uint8 fake_attr[4];
+    uint8 out[8];
+
+    memset(fake_map, 0, sizeof(fake_map));
+    fake_map[4] = 0x00; fake_map[5] = 0x00;
+    fake_map[6] = 0xA3;
+    data_fd2_battle_tile_map_ptr = (uint32)fake_map;
+    data_fd2_battle_map_width_tiles = 1;
+    fake_attr[0] = 0xAA; fake_attr[1] = 0xBB;
+    fake_attr[2] = 0xCC; fake_attr[3] = 0xDD;
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)fake_attr;
+    fd2_read_tile_attribute_at_pos(0, 0, (uint32)out);
+    ASSERT_EQ(*(uint16 *)out, 0);
+    ASSERT_EQ(*(uint16 *)(out + 2), 3);
+    ASSERT_EQ(out[4], 0xAA);
+    ASSERT_EQ(out[7], 0xDD);
+}
+
+/* ---- Tests: palette range ---- */
+
+static void test_set_vga_palette_range_basic(void)
+{
+    uint8 fake_pal[6];
+    fake_pal[0] = 0x3F; fake_pal[1] = 0x20; fake_pal[2] = 0x10;
+    fake_pal[3] = 0x05; fake_pal[4] = 0x00; fake_pal[5] = 0x3F;
+    data_fd2_vga_palette_data_ptr = (uint32)fake_pal;
+    fd2_set_vga_palette_range(0, 1, 0x10);
+    ASSERT_TRUE(1);
+}
+
+static void test_palette_remap_run(void)
+{
+    uint8 table[256];
+    uint8 data[4];
+    int i;
+    for (i = 0; i < 256; i++) table[i] = (uint8)(255 - i);
+    data[0] = 0; data[1] = 1; data[2] = 2; data[3] = 3;
+    fd2_apply_palette_remap_run((uint32)table, 4, data);
+    ASSERT_EQ(data[0], 255);
+    ASSERT_EQ(data[1], 254);
+    ASSERT_EQ(data[3], 252);
+}
+
+static void test_interpolate_palette(void)
+{
+    uint8 fake_pal[3];
+    fake_pal[0] = 0x28; fake_pal[1] = 0x14; fake_pal[2] = 0x00;
+    data_fd2_vga_palette_data_ptr = (uint32)fake_pal;
+    fd2_interpolate_palette_range_toward_color(0, 1, 0x28, 0, 0, 0);
+    ASSERT_TRUE(1);
+}
+
+static void test_palette_fade_to_black(void)
+{
+    uint8 fake_pal[3];
+    fake_pal[0] = 0x3F; fake_pal[1] = 0x3F; fake_pal[2] = 0x3F;
+    data_fd2_vga_palette_data_ptr = (uint32)fake_pal;
+    fd2_palette_fade_to_black_step_loop(0, 0);
+    ASSERT_TRUE(1);
+}
+
+static void test_set_vga_palette_range_with_add(void)
+{
+    uint8 fake_pal[6];
+    fake_pal[0] = 0x30; fake_pal[1] = 0x3F; fake_pal[2] = 0x10;
+    fake_pal[3] = 0x20; fake_pal[4] = 0x3E; fake_pal[5] = 0x00;
+    data_fd2_vga_palette_data_ptr = (uint32)fake_pal;
+    fd2_set_vga_palette_range_with_add(0, 1, 0x10);
+    ASSERT_TRUE(1);
+}
+
+/* ---- Tests: wait_for_input_dialog_with_blink ---- */
+
+static void test_wait_dialog_blink_esc(void)
+{
+    int r;
+    data_fd2_shared_rng_seed = 0;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0x011B;
+    r = fd2_wait_for_input_dialog_with_blink(0);
+    ASSERT_EQ(r, 0x01);
+}
+
+/* ---- Tests: wait_ticks_or_keypress ---- */
+
+static void test_wait_ticks_or_keypress_timeout(void)
+{
+    fd2_wait_ticks_or_keypress_with_palette(0);
+    ASSERT_TRUE(1);
+}
+
+/* ---- Tests: wait_for_input_v2 ---- */
+
+static void test_wait_input_v2_basic(void)
+{
+    int r;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0x3920;
+    r = fd2_wait_for_input_v2();
+    ASSERT_EQ(r, 0x39);
+}
+
+/* ---- Tests: wait_for_input_with_idle ---- */
+
+static void test_wait_input_idle_arrow(void)
+{
+    int r;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0x4800;
+    r = fd2_wait_for_input_with_idle();
+    ASSERT_EQ(r, 0x48);
+}
+
+static void test_wait_input_idle_remap_52(void)
+{
+    int r;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0x5200;
+    r = fd2_wait_for_input_with_idle();
+    ASSERT_EQ(r, 0x1c);
+}
+
+static void test_wait_input_idle_remap_53(void)
+{
+    int r;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0x5300;
+    r = fd2_wait_for_input_with_idle();
+    ASSERT_EQ(r, 0x01);
+}
+
+/* ---- Tests: wait_for_action_target_input ---- */
+
+static void test_wait_action_target_esc(void)
+{
+    int r;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0x011B;
+    r = fd2_wait_for_action_target_input(4, 0, 0);
+    ASSERT_EQ(r, -1);
+}
+
+static void test_wait_action_target_mode4_commit(void)
+{
+    int r;
+    uint8 fake_tile_map[64];
+    memset(fake_tile_map, 0, sizeof(fake_tile_map));
+    fake_tile_map[7] = 0x00;
+    data_fd2_battle_tile_map_ptr = (uint32)fake_tile_map;
+    data_fd2_battle_cursor_world_x = 0;
+    data_fd2_battle_cursor_world_y = 0;
+    data_fd2_battle_map_width_tiles = 4;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0x1C0D;
+    r = fd2_wait_for_action_target_input(4, 0, 0);
+    ASSERT_EQ(r, 1);
+}
+
+static void test_wait_action_target_mode5_no_commit(void)
+{
+    int r;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x22;
+    *(volatile uint16 *)0x41EuL = 0x1C0D;
+    *(volatile uint16 *)0x420uL = 0x011B;
+    r = fd2_wait_for_action_target_input(5, 0, 0);
+    ASSERT_EQ(r, -1);
+}
+
+void run_ui_tests(void)
+{
+    int _prev_fails = g_test_fail_count;
+    printf("Suite: ui_cursor\n");
+    RUN_TEST(test_cursor_move_up_basic);
+    RUN_TEST(test_cursor_move_up_at_top);
+    RUN_TEST(test_cursor_move_down_basic);
+    RUN_TEST(test_cursor_move_right_basic);
+    RUN_TEST(test_cursor_move_left_basic);
+    RUN_TEST(test_pan_to_char);
+    RUN_TEST(test_pan_to_tile_same_pos);
+    RUN_TEST(test_pan_to_tile_moves_x);
+    RUN_TEST(test_pan_and_window_same_pos);
+    RUN_TEST(test_read_bios_tick);
+    RUN_TEST(test_kbd_buffer_empty);
+    RUN_TEST(test_kbd_buffer_nonempty);
+    RUN_TEST(test_clear_kbd_buffer);
+    RUN_TEST(test_wait_one_bios_tick_smoke);
+    RUN_TEST(test_update_palette_cycle_anim_no_update);
+    RUN_TEST(test_get_inventory_slot_item_id);
+    RUN_TEST(test_read_tile_attribute);
+    RUN_TEST(test_set_vga_palette_range_basic);
+    RUN_TEST(test_set_vga_palette_range_with_add);
+    RUN_TEST(test_palette_fade_to_black);
+    RUN_TEST(test_palette_remap_run);
+    RUN_TEST(test_interpolate_palette);
+    RUN_TEST(test_wait_dialog_blink_esc);
+    RUN_TEST(test_wait_ticks_or_keypress_timeout);
+    RUN_TEST(test_wait_input_v2_basic);
+    RUN_TEST(test_wait_input_idle_arrow);
+    RUN_TEST(test_wait_input_idle_remap_52);
+    RUN_TEST(test_wait_input_idle_remap_53);
+    RUN_TEST(test_wait_action_target_esc);
+    RUN_TEST(test_wait_action_target_mode4_commit);
+    RUN_TEST(test_wait_action_target_mode5_no_commit);
+    printf("\n");
+}

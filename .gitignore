@@ -3,3 +3,8 @@ workspace/
 fd2_game_files/
 **/__pycache__/
 .claude/settings.local.json
+
+# emit pipeline build artifacts (DOSBox-X compile/link/run output)
+tests/OUT/
+src/DIAG.TXT
+src/TEST.OUT

@@ -1,0 +1,35 @@
+#ifndef CRT_COMPAT_H
+#define CRT_COMPAT_H
+
+/*
+ * Prototypes for 13 crt_equivalent_* functions.
+ * These behave identically to Watcom CRT counterparts but do not
+ * byte-match any CLIB3S .obj, so they are emitted as FD2 source.
+ *
+ * See rebuild_info/crt/symbol_inventory.md for details.
+ */
+
+/* cstart pair */
+void crt_equivalent_entry_start(void);
+void crt_equivalent_dos_main_bootstrap(void);
+
+/* _disable primitive pair */
+unsigned long crt_equivalent_get_eflags(void);
+void crt_equivalent_get_eflags_thunk(void);
+
+/* LX module loader chain */
+void crt_equivalent_lx_chunk_read_36107(void);
+void crt_equivalent_lx_header_reader_36344(void);
+void crt_equivalent_lx_module_loader_3647b(void);
+
+/* exit / error handlers */
+void crt_equivalent_exit_chain_stub_36de3(void);
+void crt_equivalent_fpe_default_handler_3d26e(void);
+void crt_equivalent_linker_padding_4cbce(void);
+void crt_equivalent_matherr_default_thunk_4d340(void);
+void crt_equivalent_matherr_default_return_zero_4d8ea(void);
+
+/* softfp */
+void crt_equivalent_softfp_tan_worker_4c630(void);
+
+#endif /* CRT_COMPAT_H */

@@ -1,0 +1,285 @@
+/*
+ * spellwk.c — Complex spell workers (non-thunk spell handlers)
+ */
+
+#include "types.h"
+#include "consts.h"
+#include "globals.h"
+#include "protos.h"
+
+/* ----------------------------------------------------------------
+ * fd2_apply_use_effect_dispatch @ 0x20C6F  (2 callers)
+ *
+ * Top-level dispatcher for item/spell USE effects. Reads the item's
+ * effect_code and dispatches to the appropriate handler. Effect codes
+ * 5-0x18 are supported. Finalizes with XP reset + death/drop processing.
+ * ---------------------------------------------------------------- */
+void fd2_apply_use_effect_dispatch(uint32 caster_idx, uint32 inv_slot,
+                                    uint32 target_count,
+                                    uint32 p_target_array)
+{
+    uint8 item_id;
+    uint8 *item_entry;
+    uint32 effect_param;
+    uint8 effect_code;
+    uint32 drops_buf[25];
+    uint32 pending_drops;
+    uint8 target_id;
+    uint8 saved_mv;
+
+    fd2_load_status_effect_sfx();
+    data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
+    item_id = fd2_get_inventory_slot_item_id(caster_idx, inv_slot);
+    item_entry = fd2_get_item_effect_entry((uint32)item_id);
+    effect_param = (uint32)*(uint16 *)(item_entry + 0xE);
+    effect_code = item_entry[0xD];
+
+    if (effect_code == 0x05 || effect_code == 0x0D) {
+        fd2_cast_group_hp_heal_spell(
+            caster_idx, target_count, p_target_array, effect_param);
+        if (effect_code == 0x05) goto consume_item;
+    } else if (effect_code == 0x06) {
+        fd2_cast_status_cure_spell(
+            caster_idx, 0x14, target_count, p_target_array, 0x25);
+        if (data_fd2_battle_spell_aoe_count_and_fx_queue_idx != 0) {
+            fd2_animate_spell_projectile_paths();
+        }
+consume_item:
+        fd2_remove_inventory_slot_at(caster_idx, inv_slot);
+    } else if (effect_code == 0x07) {
+        fd2_cast_status_cure_spell(
+            caster_idx, 0x15, target_count, p_target_array, 0x26);
+        if (data_fd2_battle_spell_aoe_count_and_fx_queue_idx != 0) {
+            fd2_animate_spell_projectile_paths();
+        }
+        goto consume_item;
+    } else if (effect_code == 0x08) {
+        fd2_apply_item_stat_modifier_with_anim(
+            caster_idx, effect_param, 0x37, inv_slot,
+            target_count, p_target_array, 0x11);
+    } else if (effect_code == 0x09) {
+        fd2_apply_item_stat_modifier_with_anim(
+            caster_idx, effect_param, 0x39, inv_slot,
+            target_count, p_target_array, 0x12);
+    } else if (effect_code == 0x0A) {
+        fd2_apply_item_stat_modifier_with_anim(
+            caster_idx, effect_param, 0x3E, inv_slot,
+            target_count, p_target_array, 0x13);
+    } else if (effect_code == 0x0B) {
+        uint32 i;
+        fd2_animate_spell_impact_per_target(
+            caster_idx, 0x0D, target_count, p_target_array);
+        fd2_animate_status_effect_overlay_flicker(
+            caster_idx, 0x0D, target_count, p_target_array);
+        for (i = 0; (int)i < (int)target_count; i++) {
+            uint8 tid;
+            tid = *((uint8 *)p_target_array + i);
+            if (data_fd2_battle_runtime_char_array_ptr[
+                    (uint32)tid].mp_max == 0) {
+                fd2_show_miss_indicator((uint32)tid);
+            } else {
+                int heal;
+                heal = fd2_apply_mp_heal_and_award_xp(
+                           (uint32)tid, effect_param);
+                fd2_show_damage_number((uint32)heal, 0x69,
+                                        (uint32)tid);
+            }
+        }
+        fd2_composite_battle_frame(0);
+        fd2_animate_spell_projectile_paths();
+    } else if (effect_code == 0x0C) {
+        fd2_cast_speed_boost_spell(
+            caster_idx, target_count, p_target_array);
+    } else if (effect_code == 0x0E) {
+        fd2_cast_status_inflict_spell(
+            caster_idx, 0x1B, target_count, p_target_array, 0x26);
+    } else if (effect_code == 0x0F) {
+        fd2_cast_dp_boost_spell(
+            caster_idx, target_count, p_target_array);
+    } else if (effect_code == 0x10) {
+        fd2_cast_ap_boost_spell(
+            caster_idx, target_count, (uint8 *)p_target_array);
+    } else if (effect_code == 0x11) {
+        fd2_apply_item_stat_modifier_with_anim(
+            caster_idx, effect_param, 0x42, inv_slot,
+            target_count, p_target_array, 0x0D);
+    } else if (effect_code == 0x12) {
+        fd2_apply_item_stat_modifier_with_anim(
+            caster_idx, effect_param, 0x46, inv_slot,
+            target_count, p_target_array, 0x0D);
+    } else if (effect_code == 0x13) {
+        target_id = *(uint8 *)p_target_array;
+        saved_mv = data_fd2_battle_runtime_char_array_ptr[
+                       (uint32)target_id].movement_order;
+        fd2_apply_item_stat_modifier_with_anim(
+            caster_idx, effect_param, 0x3B, inv_slot,
+            target_count, p_target_array, 0x13);
+        data_fd2_battle_runtime_char_array_ptr[
+            (uint32)target_id].movement_order = saved_mv;
+    } else if (effect_code == 0x14 || effect_code == 0x18) {
+        uint32 j;
+        fd2_animate_spell_impact_per_target(
+            caster_idx, effect_param, target_count, p_target_array);
+        fd2_animate_spell_overlay_blink(
+            caster_idx, effect_param, target_count, p_target_array);
+        for (j = 0; (int)j < (int)target_count; j++) {
+            uint8 tid2;
+            int dmg;
+            tid2 = *((uint8 *)p_target_array + j);
+            dmg = fd2_calc_magic_damage((uint32)tid2, effect_param);
+            if (dmg != 0) {
+                fd2_show_damage_number((uint32)dmg, 0x5E,
+                                        (uint32)tid2);
+            } else {
+                fd2_show_miss_indicator((uint32)tid2);
+            }
+        }
+        fd2_composite_battle_frame(0);
+        fd2_animate_spell_projectile_paths();
+    } else if (effect_code == 0x15) {
+        fd2_apply_attack_spell_damage(
+            caster_idx, target_count, p_target_array, effect_param);
+    } else if (effect_code == 0x16) {
+        fd2_cast_status_inflict_spell(
+            caster_idx, 0x16, target_count, p_target_array, 0x27);
+    } else if (effect_code == 0x17) {
+        fd2_cast_spell_17_complex(
+            caster_idx, target_count, p_target_array);
+    }
+
+    data_fd2_battle_pending_xp_credit = 0;
+    fd2_play_and_free_status_effect_sfx();
+    pending_drops = fd2_collect_pending_death_drops();
+    fd2_play_death_animation_and_mark_dead();
+    fd2_process_battle_drop_entries(
+        caster_idx, pending_drops, (uint32)drops_buf);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_apply_item_stat_modifier_with_anim @ 0x21082
+ *
+ * Permanent stat-up (scrolls): animate impact, bump the stat word
+ * at field_offset in the target's runtime_char, then consume item.
+ * Only first target in array receives the stat change.
+ * ---------------------------------------------------------------- */
+void fd2_apply_item_stat_modifier_with_anim(
+    uint32 caster_idx, uint32 stat_delta, uint32 field_offset,
+    uint32 inv_slot, uint32 target_count,
+    uint32 p_target_array, uint32 anim_idx)
+{
+    uint8 target_id;
+    uint32 rc_addr;
+
+    fd2_animate_spell_impact_per_target(
+        caster_idx, anim_idx, target_count, p_target_array);
+    fd2_animate_status_effect_overlay_flicker(
+        caster_idx, anim_idx, target_count, p_target_array);
+
+    target_id = *(uint8 *)p_target_array;
+    rc_addr = (uint32)&data_fd2_battle_runtime_char_array_ptr[
+                  (uint32)target_id];
+    *(int16 *)(rc_addr + field_offset) =
+        *(int16 *)(rc_addr + field_offset) + (int16)stat_delta;
+
+    fd2_show_damage_number(stat_delta, 0x5E, (uint32)target_id);
+    fd2_composite_battle_frame(0);
+    fd2_animate_spell_projectile_paths();
+    fd2_recalculate_combat_stats(caster_idx);
+    fd2_remove_inventory_slot_at(caster_idx, inv_slot);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_apply_attack_spell_damage @ 0x2111A
+ *
+ * Attack spell (effect 0x15): animate impact + full-screen flash,
+ * then apply magic damage per target. Shows miss or damage number.
+ * ---------------------------------------------------------------- */
+void fd2_apply_attack_spell_damage(uint32 caster_idx,
+                                    uint32 target_count,
+                                    uint32 p_target_array,
+                                    uint32 effect_param)
+{
+    uint32 i;
+    uint8 target_id;
+    int dmg;
+
+    fd2_animate_spell_impact_per_target(
+        caster_idx, effect_param, target_count, p_target_array);
+    fd2_animate_spell_full_screen_flash(
+        caster_idx, effect_param, target_count, p_target_array);
+
+    for (i = 0; (int)i < (int)target_count; i++) {
+        target_id = *((uint8 *)p_target_array + i);
+        dmg = fd2_calc_magic_damage((uint32)target_id, effect_param);
+        if (dmg != 0) {
+            fd2_show_damage_number((uint32)dmg, 0x5E,
+                                    (uint32)target_id);
+        } else {
+            fd2_show_miss_indicator((uint32)target_id);
+        }
+    }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_apply_status_effect_with_anim @ 0x22AA8
+ *
+ * Wrapper: reset aoe count, deduct MP, then delegate to
+ * fd2_cast_status_spell_via_d1b. If any targets affected,
+ * tail-calls fd2_animate_spell_projectile_paths.
+ * ---------------------------------------------------------------- */
+void fd2_apply_status_effect_with_anim(int caster_idx,
+    int status_spell_id, int target_count,
+    int p_target_array, int status_byte_offset)
+{
+    data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
+    fd2_deduct_caster_mp(caster_idx, status_spell_id);
+    fd2_cast_status_spell_via_d1b(caster_idx, status_spell_id,
+        target_count, p_target_array, status_byte_offset);
+    if (data_fd2_battle_spell_aoe_count_and_fx_queue_idx != 0) {
+        fd2_animate_spell_projectile_paths();
+    }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_cast_spell_17_complex @ 0x2218A  (2 callers)
+ *
+ * Teleport spell: job-based XP + dual-position warp animation.
+ * ---------------------------------------------------------------- */
+void fd2_cast_spell_17_complex(uint32 caster, uint32 spell_arg,
+                               uint32 p_target_byte)
+{
+    uint8 target_id;
+    runtime_char *target_rc;
+    uint32 base_dmg;
+
+    target_id = *(uint8 *)p_target_byte;
+    fd2_pan_cursor_to_char((uint32)target_id);
+    fd2_deduct_caster_mp(caster, 0x17);
+
+    target_rc = &data_fd2_battle_runtime_char_array_ptr[target_id];
+    base_dmg = (uint32)target_rc->status_flags_block[0];
+    if (target_rc->job_id > 8 && target_rc->job_id < 0x19) {
+        base_dmg = base_dmg + 0x1e;
+    }
+    data_fd2_battle_pending_xp_credit =
+        data_fd2_battle_pending_xp_credit + base_dmg * 10;
+
+    fd2_animate_warp_teleport_char(
+        (uint32)target_id, 0xff, 0xff,
+        (uint32)target_rc->pos_x, (uint32)target_rc->pos_y);
+
+    data_fd2_battle_anim_phase = 0;
+
+    fd2_pan_cursor_to_tile_animated(
+        (int)data_fd2_battle_teleport_dest_world_x,
+        (int)data_fd2_battle_teleport_dest_world_y);
+
+    fd2_animate_warp_teleport_char(
+        (uint32)target_id,
+        data_fd2_battle_teleport_dest_world_x,
+        data_fd2_battle_teleport_dest_world_y,
+        data_fd2_battle_teleport_dest_world_x,
+        data_fd2_battle_teleport_dest_world_y);
+
+    data_fd2_battle_anim_phase = 1;
+}
