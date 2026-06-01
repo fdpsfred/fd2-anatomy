@@ -656,6 +656,139 @@ static void test_compute_aoe_no_targets(void)
     data_fd2_battle_party_member_count = 4;
 }
 
+/* ---- Direct coverage for the two high-risk marking modes of
+ *      fd2_compute_aoe_targets @ 0x14818 ----
+ *
+ * fd2_init_movement_range_floodfill is a no-op stub (testglob.c), so in Mode 1
+ * the floodfill leaves the tile map exactly as the test left it; this lets each
+ * test pin a known +7-overlay state before the radius/cross marking runs.
+ * fd2_get_movement_cost_table_for_job is the REAL table.c accessor (its returned
+ * pointer is only consumed by the stubbed floodfill, so the value is irrelevant).
+ * All expected values are hand-derived from the disassembly trace (the +7 byte of
+ * each cell at (y*width + x)*4 + 7 is the marker the collection loop reads). */
+
+/* Mode 2 (spell_range >= 0x10): orthogonal cross. asm 0x148c7-0x1493e.
+ * extent = spell_range - 0x10. The X-stripe clears +7 along row center_y for
+ * |col-center_x| <= extent; the Y-stripe clears +7 along col center_x for
+ * |row-center_y| <= extent. Map starts all-0xFF, so the cleared (0) plus-shape
+ * tiles are the only includable ones. Call (2,2, buf, 0x11, 0, 0): extent 1 ->
+ * plus = {(1,2),(2,2),(3,2),(2,1),(2,3)}. team_filter 0 collects team==0 chars
+ * whose tile is cleared. char0 (3,2) lies on the X arm, char1 (2,3) on the Y arm
+ * -> both collected (covers both stripes + the sequential out_buf writes at
+ * count 0 and 1); char2 (0,0) is outside the plus -> excluded. */
+static void test_compute_aoe_mode2_cross(void)
+{
+    int result;
+    uint8 buf[8];
+    uint32 save_pmc;
+    uint32 save_w;
+    uint32 save_h;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    reset_ai_stubs();                  /* tile map -> 0xFF, ptr wired */
+    memset(buf, 0xAA, sizeof(buf));
+    save_pmc = data_fd2_battle_party_member_count;
+    save_w = data_fd2_battle_map_width_tiles;
+    save_h = data_fd2_battle_map_height_tiles;
+    data_fd2_battle_map_width_tiles = 5;
+    data_fd2_battle_map_height_tiles = 5;
+    data_fd2_battle_party_member_count = 3;
+    g_test_rc_array[0].team = 0; g_test_rc_array[0].pos_x = 3; g_test_rc_array[0].pos_y = 2;
+    g_test_rc_array[1].team = 0; g_test_rc_array[1].pos_x = 2; g_test_rc_array[1].pos_y = 3;
+    g_test_rc_array[2].team = 0; g_test_rc_array[2].pos_x = 0; g_test_rc_array[2].pos_y = 0;
+    result = fd2_compute_aoe_targets(2, 2, (uint32)buf, 0x11, 0, 0);
+    ASSERT_EQ(result, 2);
+    ASSERT_EQ((long)buf[0], 0);
+    ASSERT_EQ((long)buf[1], 1);
+    data_fd2_battle_map_width_tiles = save_w;
+    data_fd2_battle_map_height_tiles = save_h;
+    data_fd2_battle_party_member_count = save_pmc;
+}
+
+/* Mode 1 (spell_range < 0x10) with aoe_radius != 0: manhattan bubble.
+ * asm 0x1486a-0x148c5. After the (stubbed, no-op) floodfill the map is whatever
+ * the test set it to; here it is memset to 0x00 so every tile is includable
+ * (+7 == 0). The radius block then re-marks +7 = 0xFF for every cell with
+ * manhattan((col,row),(center)) < aoe_radius. Call (2,2, buf, 2, 2, 0): radius 2
+ * -> bubble (manhattan 0 or 1) = {(2,2),(1,2),(3,2),(2,1),(2,3)}. char0 team0 at
+ * (2,2) is inside the bubble -> +7 == 0xFF -> excluded; char1 team0 at (0,0) has
+ * manhattan 4 (not < 2) -> +7 stays 0 -> collected, out_buf[0] = 1. Pins the
+ * abs()+manhattan bubble AND the *(out_buf+count)=ci write for this path. */
+static void test_compute_aoe_mode1_radius_bubble(void)
+{
+    int result;
+    uint8 buf[8];
+    uint32 save_pmc;
+    uint32 save_w;
+    uint32 save_h;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    reset_ai_stubs();
+    memset(t_ai_tile_map, 0, sizeof(t_ai_tile_map));   /* includable baseline */
+    memset(buf, 0xAA, sizeof(buf));
+    save_pmc = data_fd2_battle_party_member_count;
+    save_w = data_fd2_battle_map_width_tiles;
+    save_h = data_fd2_battle_map_height_tiles;
+    data_fd2_battle_map_width_tiles = 5;
+    data_fd2_battle_map_height_tiles = 5;
+    data_fd2_battle_party_member_count = 2;
+    g_test_rc_array[0].team = 0; g_test_rc_array[0].pos_x = 2; g_test_rc_array[0].pos_y = 2;
+    g_test_rc_array[1].team = 0; g_test_rc_array[1].pos_x = 0; g_test_rc_array[1].pos_y = 0;
+    result = fd2_compute_aoe_targets(2, 2, (uint32)buf, 2, 2, 0);
+    ASSERT_EQ(result, 1);
+    ASSERT_EQ((long)buf[0], 1);
+    data_fd2_battle_map_width_tiles = save_w;
+    data_fd2_battle_map_height_tiles = save_h;
+    data_fd2_battle_party_member_count = save_pmc;
+}
+
+/* team_filter branches 1/2/3 of the collection loop (asm 0x149a1/0x149b0/0x149c0).
+ * Isolate the team filter from the marking: Mode 1, aoe_radius 0 (no bubble), map
+ * memset to 0x00 so the (no-op) floodfill leaves every tile includable -> every
+ * alive char qualifies on the tile test and only the team predicate decides.
+ *   char0 team0, char1 team1, char2 team2 (all alive, distinct tiles).
+ *   team_filter 1 (any ally, team != 0) -> {char1,char2}: result 2, buf 1 then 2.
+ *   team_filter 2 (NPC ally, team == 1) -> {char1}:       result 1, buf[0] 1.
+ *   team_filter 3 (player,   team == 2) -> {char2}:       result 1, buf[0] 2. */
+static void test_compute_aoe_team_filter_branches(void)
+{
+    int result;
+    uint8 buf[8];
+    uint32 save_pmc;
+    uint32 save_w;
+    uint32 save_h;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    reset_ai_stubs();
+    memset(t_ai_tile_map, 0, sizeof(t_ai_tile_map));   /* all tiles includable */
+    save_pmc = data_fd2_battle_party_member_count;
+    save_w = data_fd2_battle_map_width_tiles;
+    save_h = data_fd2_battle_map_height_tiles;
+    data_fd2_battle_map_width_tiles = 5;
+    data_fd2_battle_map_height_tiles = 5;
+    data_fd2_battle_party_member_count = 3;
+    g_test_rc_array[0].team = 0; g_test_rc_array[0].pos_x = 0; g_test_rc_array[0].pos_y = 0;
+    g_test_rc_array[1].team = 1; g_test_rc_array[1].pos_x = 1; g_test_rc_array[1].pos_y = 0;
+    g_test_rc_array[2].team = 2; g_test_rc_array[2].pos_x = 2; g_test_rc_array[2].pos_y = 0;
+
+    memset(buf, 0xAA, sizeof(buf));
+    result = fd2_compute_aoe_targets(0, 0, (uint32)buf, 2, 0, 1);
+    ASSERT_EQ(result, 2);
+    ASSERT_EQ((long)buf[0], 1);
+    ASSERT_EQ((long)buf[1], 2);
+
+    memset(buf, 0xAA, sizeof(buf));
+    result = fd2_compute_aoe_targets(0, 0, (uint32)buf, 2, 0, 2);
+    ASSERT_EQ(result, 1);
+    ASSERT_EQ((long)buf[0], 1);
+
+    memset(buf, 0xAA, sizeof(buf));
+    result = fd2_compute_aoe_targets(0, 0, (uint32)buf, 2, 0, 3);
+    ASSERT_EQ(result, 1);
+    ASSERT_EQ((long)buf[0], 2);
+
+    data_fd2_battle_map_width_tiles = save_w;
+    data_fd2_battle_map_height_tiles = save_h;
+    data_fd2_battle_party_member_count = save_pmc;
+}
+
 static void test_ai_score_phys_no_weapon(void)
 {
     int result;
@@ -2526,6 +2659,9 @@ void run_battle_tests(void)
     RUN_TEST(test_attack_dispatch_all_low);
     RUN_TEST(test_ai_walk_no_path);
     RUN_TEST(test_compute_aoe_no_targets);
+    RUN_TEST(test_compute_aoe_mode2_cross);
+    RUN_TEST(test_compute_aoe_mode1_radius_bubble);
+    RUN_TEST(test_compute_aoe_team_filter_branches);
     RUN_TEST(test_ai_score_phys_no_weapon);
     RUN_TEST(test_ai_score_phys_normal_hit_score8);
     RUN_TEST(test_ai_score_phys_kill_shot_score12);
