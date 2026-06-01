@@ -934,7 +934,8 @@
     "target": "input/input.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00018c6d": {
     "name": "fd2_render_mini_char_status_panel",

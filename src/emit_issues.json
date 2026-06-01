@@ -229,5 +229,23 @@
         "verify_method": "add_test_comment"
       }
     ]
+  },
+  "00018b84": {
+    "name": "fd2_wait_input_with_status_panel_repaint",
+    "target": "input/input.c",
+    "issues": [
+      {
+        "type": "equivalence_note",
+        "desc": "FAITHFUL EQUIVALENCE (not a defect): local 'last_tick' (asm reg ESI) is read-before-write on the first loop iteration -- ESI is never initialized before CMP ESI,EAX at 0x18bc1, and the emitted C 'int last_tick;' is likewise uninitialized, read at input.c:241 before its first assignment at input.c:261. On iteration 1 the status-panel repaint MAY be skipped depending on the garbage value vs the current tick. The emitted C correctly PRESERVES this original (technically-UB) behavior; Watcom 9.5a register-allocates last_tick with no implicit init, matching the original binary. Logged so the intentional non-initialization is documented -- a future tool/reviewer must NOT 'fix' it by zero-initializing last_tick (that would diverge from the binary).",
+        "severity": "info",
+        "verify_method": "compile_and_disasm"
+      },
+      {
+        "type": "test_deferral_note_missing",
+        "desc": "Test deferral for this display-only function is not recorded anywhere (no note in input.c, routing.json, or a tests file). Risk-based policy requires display deferrals be noted with reason. Suggest adding a brief 'Phase 9 integration: display-only, no assertable non-display effect' deferral marker near the function in src/input/input.c or in the tests file.",
+        "severity": "low",
+        "verify_method": "add_test_comment"
+      }
+    ]
   }
 }
