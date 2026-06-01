@@ -241,5 +241,17 @@
         "verify_method": "add_test_comment"
       }
     ]
+  },
+  "00029f72": {
+    "name": "fd2_calculate_combat_hit_outcome",
+    "target": "battle/battle.c",
+    "issues": [
+      {
+        "type": "uninitialized_tile_id_and_undersized_outbuf",
+        "desc": "SAME bug just fixed in sibling fd2_execute_attack_damage_calculation @0x1ECC7 (battle.c). The terrain AP/DP block here (battle.c:268-269, 302-316) declares 'uint32 tile_attr_buf;' (4 bytes) + a SEPARATE 'uint8 tile_id;' that is NEVER assigned from the buffer, then indexes data_fd2_battle_tile_attr_mv_modifier_table[tile_id] / _def_modifier_table[tile_id] on the uninitialized tile_id. Ghidra get_function_variables on 0x29F72 confirms tile_attr_word = Stack[-0x4c]:4 and tile_attr_byte = Stack[-0x47]:1, and -0x4c+5 = -0x47, i.e. the real table index is buffer[+5] (= attr_ptr[+1] from the 8-byte writer fd2_read_tile_attribute_at_pos). Two defects: (1) wrong terrain modifier index (reads garbage stack instead of tile_attr_buf[5]); (2) the helper writes out_buf[+0..+7] (8 bytes) into a 4-byte local -> 4-byte stack overflow. Out of scope for the 0x1ECC7 fix round (different function); MUST be fixed when fd2_calculate_combat_hit_outcome is reviewed, using the same pattern as the proven-correct btl_ai.c reference (uint8 tile_attr_buf[8]; pass (uint32)tile_attr_buf; tile_id = tile_attr_buf[5]; before each modifier-table index). Reference fix landed at battle.c fd2_execute_attack_damage_calculation and the passing test test_eatk_terrain_ap_bonus in testbtl.c.",
+        "severity": "high",
+        "verify_method": "fix_at_function_review"
+      }
+    ]
   }
 }

@@ -236,6 +236,284 @@ static void test_damage_xp_survive_proportional(void)
     ASSERT_EQ(data_fd2_battle_pending_xp_credit, 2);        /* (10*46)/200 */
 }
 
+/* ================================================================
+ * fd2_execute_attack_damage_calculation @ 0x1ECC7 — full-path tests.
+ *
+ * CORE PHYSICAL COMBAT FORMULA. Drives the REAL accessors compiled into
+ * the test build: fd2_get_item_effect_entry / fd2_get_enemy_data_entry
+ * (table.c), fd2_get_inventory_slot_item_id / fd2_check_char_status_immunity
+ * / fd2_read_tile_attribute_at_pos (battle.c), fd2_advance_rng_state (misc),
+ * and the REAL VGA palette routines (palette.c) on the crit/poison branches.
+ * Stubs: fd2_find_equipped_item_by_kind -> g_find_equipped_return (slot 0),
+ * fd2_delay_ticks -> no-op.
+ *
+ * RNG is the real ROL16(seed+0x9014,3) LFSR. seed 0 draws (each call returns
+ * the NEW seed; values confirmed via emulate_function on fd2_advance_rng_state,
+ * which returns 0x80A4 for seed 0):
+ *   draw1 = 0x80A4 = 32932  (%100 = 32)
+ *   draw2 = 0x85C0 = 34240  (%100 = 40, %4 = 0)
+ *   draw3 = 0xAEA0 = 44704  (jitter numerator)
+ * Per-hit RNG order: hit-roll (draw1); on hit, crit-roll (draw2, ALWAYS drawn
+ * after a hit); on hit with jitter_range!=0, jitter-roll (draw3). weapon_class
+ * 2 adds one (poison-roll) draw BEFORE the hit-roll, and a second (duration)
+ * draw only if the poison-roll lands.
+ *
+ * A 768-byte fake VGA palette (g_eatk_pal) backs data_fd2_vga_palette_data_ptr
+ * for the crit/poison flash (fd2_set_vga_palette_range_with_add reads
+ * pal[idx*3] for idx 0..0xFF). g_eatk_map / g_eatk_attr back the tile-attribute
+ * reader for the terrain-bonus test. ---------------------------------------- */
+static uint8 g_eatk_pal[768];
+static uint8 g_eatk_map[3 * 3 * 4];
+static uint8 g_eatk_attr[8];
+
+extern int g_find_equipped_return;
+
+static void eatk_reset(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(data_fd2_battle_item_effect_table, 0,
+           sizeof(data_fd2_battle_item_effect_table));
+    memset(data_fd2_battle_enemy_data_table, 0,
+           sizeof(data_fd2_battle_enemy_data_table));
+    memset(data_fd2_battle_job_crit_rate_table, 0,
+           sizeof(data_fd2_battle_job_crit_rate_table));
+    g_find_equipped_return = 0;
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_last_hit_or_miss_flag = 1;
+    data_fd2_battle_pending_xp_credit = 0;
+}
+
+/* (a) HIT-vs-MISS boundary. dx_diff = attacker_DX - defender_DX = 0; the hit
+ * test is (draw1 % 100 == 32) < dx_diff, i.e. 32 < 0 -> FALSE -> MISS. Only one
+ * RNG draw happens (no crit/jitter on a miss). Both combatants immune (job 0x13)
+ * so the terrain blocks are skipped; team 1 (npc) so the XP block is skipped.
+ * Expect: HP untouched (200), return == 200, last_hit flag stays 1 (MISS). */
+static void test_eatk_miss_boundary(void)
+{
+    int result;
+    eatk_reset();
+    g_test_rc_array[0].team = 1;          /* attacker: skip XP block */
+    g_test_rc_array[0].job_id = 0x13;     /* immune -> no terrain */
+    g_test_rc_array[0].dx_current = 10;
+    g_test_rc_array[1].job_id = 0x13;     /* immune -> no terrain */
+    g_test_rc_array[1].stat4_current = 10;/* dx_diff = 10 - 10 = 0 */
+    g_test_rc_array[1].hp_current = 200;
+    g_test_rc_array[1].hp_max = 200;
+    g_test_rc_array[1].ap = 0;
+    g_test_rc_array[1].dp = 0;
+    result = fd2_execute_attack_damage_calculation(0, 1);
+    ASSERT_EQ(result, 200);
+    ASSERT_EQ(g_test_rc_array[1].hp_current, 200);
+    ASSERT_EQ(data_fd2_battle_last_hit_or_miss_flag, 1);   /* MISS */
+}
+
+/* (b) HIT, NO crit: damage = (AP-DP)*9/10 + jitter. dx_diff = 100 > 32 -> HIT
+ * (last_hit -> 0). crit-roll draw2 % 100 = 40; total_crit = job_crit[job-1] = 0
+ * -> 40 < 0 FALSE -> no crit, DP unchanged. AP 110, DP 10 -> base = (100*9)/10 =
+ * 90; jitter_range = 90/9 = 10; jitter = draw3 % 10 = 44704 % 10 = 4 -> damage =
+ * 94. HP 200 - 94 = 106. Both immune (skip terrain); team 1 (skip XP). */
+static void test_eatk_hit_no_crit_damage(void)
+{
+    int result;
+    eatk_reset();
+    g_test_rc_array[0].team = 1;
+    g_test_rc_array[0].job_id = 0x13;
+    g_test_rc_array[0].ap = 110;
+    g_test_rc_array[0].dx_current = 100;
+    g_test_rc_array[1].job_id = 0x13;
+    g_test_rc_array[1].stat4_current = 0;  /* dx_diff = 100 */
+    g_test_rc_array[1].dp = 10;
+    g_test_rc_array[1].hp_current = 200;
+    g_test_rc_array[1].hp_max = 200;
+    result = fd2_execute_attack_damage_calculation(0, 1);
+    ASSERT_EQ(result, 106);
+    ASSERT_EQ(g_test_rc_array[1].hp_current, 106);
+    ASSERT_EQ(data_fd2_battle_last_hit_or_miss_flag, 0);   /* HIT */
+}
+
+/* (c) CRIT branch halves defender DP. total_crit = job_crit[job-1] = 50; crit-
+ * roll draw2 % 100 = 40 < 50 -> CRIT. DP 20 -> 10 (halved). damage = (110-10)*
+ * 9/10 = 90; jitter_range = 10; jitter = 44704 % 10 = 4 -> 94; HP 200 -> 106.
+ * The no-crit counterfactual (DP stays 20) would give (110-20)*9/10 = 81, jr =
+ * 9, jitter = 44704 % 9 = 1 -> 82, HP 118 — so asserting 106 (not 118) proves
+ * the crit DP-halving executed. The crit path also fires the white-flash
+ * fd2_set_vga_palette_range_with_add, backed by g_eatk_pal. job 0x13 keeps both
+ * immune (no terrain); team 1 (skip XP). */
+static void test_eatk_crit_halves_dp(void)
+{
+    int result;
+    uint32 save_pal;
+    eatk_reset();
+    save_pal = data_fd2_vga_palette_data_ptr;
+    memset(g_eatk_pal, 0, sizeof(g_eatk_pal));
+    data_fd2_vga_palette_data_ptr = (uint32)g_eatk_pal;
+    g_test_rc_array[0].team = 1;
+    g_test_rc_array[0].job_id = 0x13;
+    g_test_rc_array[0].ap = 110;
+    g_test_rc_array[0].dx_current = 100;
+    data_fd2_battle_job_crit_rate_table[0x13 - 1] = 50;  /* total_crit = 50 */
+    g_test_rc_array[1].job_id = 0x13;
+    g_test_rc_array[1].stat4_current = 0;
+    g_test_rc_array[1].dp = 20;
+    g_test_rc_array[1].hp_current = 200;
+    g_test_rc_array[1].hp_max = 200;
+    result = fd2_execute_attack_damage_calculation(0, 1);
+    ASSERT_EQ(result, 106);
+    ASSERT_EQ(g_test_rc_array[1].hp_current, 106);
+    data_fd2_vga_palette_data_ptr = save_pal;
+}
+
+/* (d) POISON weapon (weapon_class == 2) writes defender status_flags_block[4].
+ * Weapon item 0 with special_type(+10) = 2 and poison-chance(+11) = 50. The
+ * poison-roll (draw1 % 100 = 32) < 50 -> lands; duration draw2 % 4 = 0 ->
+ * status_flags_block[4] = (0)+2 = 2. The poison flash uses g_eatk_pal. Then the
+ * hit-roll uses draw3 (44704 % 100 = 4); dx_diff = 0 -> 4 < 0 FALSE -> MISS, so
+ * HP is untouched and the poison write is isolated. fd2_get_item_effect_entry
+ * returns &item_effect_table[id].type (struct+1), so weapon_entry[9] = struct
+ * byte +10 and weapon_entry[10] = struct byte +11. */
+static void test_eatk_poison_sets_status(void)
+{
+    int result;
+    uint32 save_pal;
+    uint8 *wp;
+    eatk_reset();
+    save_pal = data_fd2_vga_palette_data_ptr;
+    memset(g_eatk_pal, 0, sizeof(g_eatk_pal));
+    data_fd2_vga_palette_data_ptr = (uint32)g_eatk_pal;
+    wp = (uint8 *)&data_fd2_battle_item_effect_table[0];
+    wp[10] = 2;                            /* special_type -> weapon_class 2 */
+    wp[11] = 50;                           /* poison chance % */
+    g_test_rc_array[0].team = 1;
+    g_test_rc_array[0].job_id = 0x13;
+    g_test_rc_array[0].dx_current = 4;
+    g_test_rc_array[1].job_id = 0x13;
+    g_test_rc_array[1].stat4_current = 4;  /* dx_diff = 0 -> miss */
+    g_test_rc_array[1].hp_current = 100;
+    g_test_rc_array[1].hp_max = 100;
+    result = fd2_execute_attack_damage_calculation(0, 1);
+    ASSERT_EQ(g_test_rc_array[1].status_flags_block[4], 2);  /* poison 2 */
+    ASSERT_EQ(g_test_rc_array[1].hp_current, 100);           /* miss: no dmg */
+    ASSERT_EQ(result, 100);
+    data_fd2_vga_palette_data_ptr = save_pal;
+}
+
+/* (e) XP KILL = full reward. attacker team 2 + defender portrait 0x44 (>=0x44)
+ * enters the XP block; enemy index = 0x44-0x44 = 0. Both combatants immune via
+ * archetype_flag 4 (portrait != 0x1C) so terrain is skipped without touching
+ * job; attacker job 5 (<=8) and char_id 0 (!=0x1C) so the +0x1E level modifier
+ * is NOT applied. AP 200, DP 10, no crit (job_crit[4]=0): base = (190*9)/10 =
+ * 171; jitter_range = 171/9 = 19; jitter = 44704 % 19 = 16 -> damage = 187.
+ * HP 5 - 187 underflows -> floored to 0 -> KILL. KILL takes the HP==0 path so
+ * pending_xp = exp_reward(10) * def_level(3) / atk_level(4) = 30/4 = 7 with NO
+ * proportional scaling. This exercises the EAX-as-pointer return of
+ * fd2_get_enemy_data_entry (asm 0x1EFE8 CALL then 0x1F00C MOVZX [EAX+9]). */
+static void test_eatk_xp_kill_full(void)
+{
+    int result;
+    eatk_reset();
+    g_test_rc_array[0].team = 2;           /* player attacker */
+    g_test_rc_array[0].archetype_flag = 4; /* immune -> no terrain */
+    g_test_rc_array[0].portrait_id = 0x10; /* != 0x1C */
+    g_test_rc_array[0].char_id = 0;        /* != 0x1C -> no +0x1E */
+    g_test_rc_array[0].job_id = 5;         /* <= 8 -> no +0x1E */
+    g_test_rc_array[0].status_flags_block[0] = 4;  /* attacker level */
+    g_test_rc_array[0].ap = 200;
+    g_test_rc_array[0].dx_current = 100;   /* dx_diff = 100 -> hit */
+    g_test_rc_array[1].archetype_flag = 4; /* immune -> no terrain */
+    g_test_rc_array[1].portrait_id = 0x44; /* enemy idx 0 */
+    g_test_rc_array[1].status_flags_block[0] = 3;  /* defender level */
+    g_test_rc_array[1].stat4_current = 0;
+    g_test_rc_array[1].dp = 10;
+    g_test_rc_array[1].hp_current = 5;
+    g_test_rc_array[1].hp_max = 200;
+    data_fd2_battle_enemy_data_table[0].exp_reward = 10;
+    result = fd2_execute_attack_damage_calculation(0, 1);
+    ASSERT_EQ(result, 0);                                   /* kill */
+    ASSERT_EQ(g_test_rc_array[1].hp_current, 0);
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 7);        /* 10*3/4 full */
+}
+
+/* (f) XP SURVIVE = proportional reward. Same XP entry as (e) but the defender
+ * survives, so pending_xp is scaled by (damage / HP_max). AP 80, DP 10, no crit:
+ * base = (70*9)/10 = 63; jitter_range = 63/9 = 7; jitter = 44704 % 7 = 2 ->
+ * damage = 65; HP 200 - 65 = 135 (> 0, SURVIVE). full = 10*3/4 = 7; proportional
+ * = (7 * 65) / 200 = 455/200 = 2. Asserting 2 (not the full 7) pins the
+ * survive-path proportional IDIV distinct from the kill path in (e). */
+static void test_eatk_xp_survive_proportional(void)
+{
+    int result;
+    eatk_reset();
+    g_test_rc_array[0].team = 2;
+    g_test_rc_array[0].archetype_flag = 4;
+    g_test_rc_array[0].portrait_id = 0x10;
+    g_test_rc_array[0].char_id = 0;
+    g_test_rc_array[0].job_id = 5;
+    g_test_rc_array[0].status_flags_block[0] = 4;  /* attacker level */
+    g_test_rc_array[0].ap = 80;
+    g_test_rc_array[0].dx_current = 100;
+    g_test_rc_array[1].archetype_flag = 4;
+    g_test_rc_array[1].portrait_id = 0x44;
+    g_test_rc_array[1].status_flags_block[0] = 3;  /* defender level */
+    g_test_rc_array[1].stat4_current = 0;
+    g_test_rc_array[1].dp = 10;
+    g_test_rc_array[1].hp_current = 200;
+    g_test_rc_array[1].hp_max = 200;
+    data_fd2_battle_enemy_data_table[0].exp_reward = 10;
+    result = fd2_execute_attack_damage_calculation(0, 1);
+    ASSERT_EQ(result, 135);                                 /* survive */
+    ASSERT_EQ(g_test_rc_array[1].hp_current, 135);
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 2);        /* (7*65)/200 */
+}
+
+/* (g) TERRAIN AP bonus — locks the fixed tile_id = tile_attr_buf[5] index.
+ * Attacker is NON-immune (job 1, archetype 0) so the attacker terrain block
+ * runs: fd2_read_tile_attribute_at_pos reads the (1,1) cell of g_eatk_map (width
+ * 3); cell+4 sprite_idx word = 0 so attr_ptr = g_eatk_attr+0 and tile_attr_buf
+ * [5] = g_eatk_attr[1] = 9 (the tile_id). mv_modifier[9] = 50 -> attacker_AP =
+ * 20 + (20*50)/100 = 30. Defender immune (job 0x13) so its DP is unmodified.
+ * No crit (job_crit[0]=0). damage = (30-10)*9/10 = 18; jitter_range = 18/9 = 2;
+ * jitter = 44704 % 2 = 0 -> 18; HP 200 - 18 = 182. If tile_id were the old
+ * uninitialized/garbage value the bonus would differ (e.g. modifier 0 -> AP 20
+ * -> damage (20-10)*9/10 = 9, jr 1, jitter 0 -> 9 -> HP 191), so asserting 182
+ * locks the tile_attr_buf[5] read AND the 8-byte buffer. team 1 -> skip XP. */
+static void test_eatk_terrain_ap_bonus(void)
+{
+    int result;
+    uint32 save_map;
+    uint32 save_attr;
+    uint32 save_w;
+    eatk_reset();
+    save_map = data_fd2_battle_tile_map_ptr;
+    save_attr = data_fd2_tile_attribute_flags_buffer_ptr;
+    save_w = data_fd2_battle_map_width_tiles;
+    memset(g_eatk_map, 0, sizeof(g_eatk_map));
+    memset(g_eatk_attr, 0, sizeof(g_eatk_attr));
+    g_eatk_attr[1] = 9;                    /* tile_id T = 9 (= attr_ptr[1]) */
+    data_fd2_battle_tile_map_ptr = (uint32)g_eatk_map;
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)g_eatk_attr;
+    data_fd2_battle_map_width_tiles = 3;
+    data_fd2_battle_tile_attr_mv_modifier_table[9] = 50;   /* +50% AP */
+    g_test_rc_array[0].team = 1;           /* skip XP */
+    g_test_rc_array[0].job_id = 1;         /* NON-immune -> terrain runs */
+    g_test_rc_array[0].archetype_flag = 0;
+    g_test_rc_array[0].pos_x = 1;
+    g_test_rc_array[0].pos_y = 1;          /* cell (1,1) -> sprite_idx 0 */
+    g_test_rc_array[0].ap = 20;
+    g_test_rc_array[0].dx_current = 100;   /* dx_diff = 100 -> hit */
+    g_test_rc_array[1].job_id = 0x13;      /* immune -> defender no terrain */
+    g_test_rc_array[1].stat4_current = 0;
+    g_test_rc_array[1].dp = 10;
+    g_test_rc_array[1].hp_current = 200;
+    g_test_rc_array[1].hp_max = 200;
+    result = fd2_execute_attack_damage_calculation(0, 1);
+    ASSERT_EQ(result, 182);
+    ASSERT_EQ(g_test_rc_array[1].hp_current, 182);
+    data_fd2_battle_tile_map_ptr = save_map;
+    data_fd2_tile_attribute_flags_buffer_ptr = save_attr;
+    data_fd2_battle_map_width_tiles = save_w;
+    data_fd2_battle_tile_attr_mv_modifier_table[9] = 0;
+}
+
 /* ---- Test: magic damage ---- */
 
 static void test_magic_damage_miss(void)
@@ -3707,6 +3985,13 @@ void run_battle_tests(void)
     RUN_TEST(test_damage_floor_at_zero);
     RUN_TEST(test_damage_xp_kill_full_reward);
     RUN_TEST(test_damage_xp_survive_proportional);
+    RUN_TEST(test_eatk_miss_boundary);
+    RUN_TEST(test_eatk_hit_no_crit_damage);
+    RUN_TEST(test_eatk_crit_halves_dp);
+    RUN_TEST(test_eatk_poison_sets_status);
+    RUN_TEST(test_eatk_xp_kill_full);
+    RUN_TEST(test_eatk_xp_survive_proportional);
+    RUN_TEST(test_eatk_terrain_ap_bonus);
     RUN_TEST(test_magic_damage_miss);
     RUN_TEST(test_magic_damage_hit);
     RUN_TEST(test_magic_damage_hit_boundary_33);

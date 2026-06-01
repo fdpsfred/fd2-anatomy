@@ -728,7 +728,7 @@ int fd2_execute_attack_damage_calculation(int attacker_idx, int defender_idx)
     uint32 damage;
     uint32 jitter_range;
     int immunity;
-    uint32 tile_attr_buf;
+    uint8 tile_attr_buf[8];
     uint8 tile_id;
     uint8 *enemy_entry;
     uint32 rng_val;
@@ -759,7 +759,8 @@ int fd2_execute_attack_damage_calculation(int attacker_idx, int defender_idx)
     immunity = fd2_check_char_status_immunity(attacker_idx);
     if (immunity == 0) {
         fd2_read_tile_attribute_at_pos(
-            (uint32)pAttacker[0], (uint32)pAttacker[1], (uint32)&tile_attr_buf);
+            (uint32)pAttacker[0], (uint32)pAttacker[1], (uint32)tile_attr_buf);
+        tile_id = tile_attr_buf[5];
         attacker_AP = attacker_AP +
             (int)(data_fd2_battle_tile_attr_mv_modifier_table[tile_id]
                   * attacker_AP) / 100;
@@ -767,7 +768,8 @@ int fd2_execute_attack_damage_calculation(int attacker_idx, int defender_idx)
     immunity = fd2_check_char_status_immunity(defender_idx);
     if (immunity == 0) {
         fd2_read_tile_attribute_at_pos(
-            (uint32)pDefender[0], (uint32)pDefender[1], (uint32)&tile_attr_buf);
+            (uint32)pDefender[0], (uint32)pDefender[1], (uint32)tile_attr_buf);
+        tile_id = tile_attr_buf[5];
         defender_DP = defender_DP +
             (int)(data_fd2_battle_tile_attr_def_modifier_table[tile_id]
                   * defender_DP) / 100;
