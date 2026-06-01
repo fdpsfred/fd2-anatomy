@@ -725,7 +725,8 @@
     "target": "input/input.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00016e24": {
     "name": "fd2_cinematic_scroll_text_up_for_special_scenes",
