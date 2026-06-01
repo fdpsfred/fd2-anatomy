@@ -407,7 +407,8 @@
     "target": "ui_menu/cursor.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0001366a": {
     "name": "fd2_cutscene_event_trigger",

@@ -236,6 +236,44 @@ static void test_pan_and_window_same_pos(void)
     ASSERT_EQ(data_fd2_battle_view_window_origin_y, 2);
 }
 
+/* X-loop increment path: target_ox(3) > origin_x(0) -> JGE 0x13614 taken each
+ * step, INC cursor_world_x AND INC origin_x in lockstep (asm 0x13614/0x1361a),
+ * 3 steps until origin_x==target_ox. Y-loop skipped (origin_y==target_oy==4 ->
+ * JZ 0x13181). Per-step composite pinned: g_composite_call_count==3. Deltas
+ * hand-derived from the +1-per-step DEC/INC asm (emulate blocked by __CHK LOCK
+ * pcodeop). cursor_world_x advances +1 each step: 5 -> 8. */
+static void test_pan_and_window_inc_x_lockstep(void)
+{
+    data_fd2_battle_view_window_origin_x = 0;
+    data_fd2_battle_view_window_origin_y = 4;
+    data_fd2_battle_cursor_world_x = 5;
+    g_composite_call_count = 0;
+    fd2_pan_cursor_and_window(3, 4);
+    ASSERT_EQ(data_fd2_battle_view_window_origin_x, 3);
+    ASSERT_EQ(data_fd2_battle_cursor_world_x, 8);
+    ASSERT_EQ(data_fd2_battle_view_window_origin_y, 4);
+    ASSERT_EQ(g_composite_call_count, 3);
+}
+
+/* Y-loop decrement path: target_oy(2) < origin_y(5) -> JGE 0x1364d NOT taken,
+ * DEC cursor_world_y AND DEC origin_y in lockstep (asm 0x1363f/0x13645), 3
+ * steps until origin_y==target_oy. X-loop skipped (origin_x==target_ox==3 ->
+ * JZ 0x13631). Per-step composite pinned: g_composite_call_count==3. cursor_
+ * world_y retreats -1 each step: 9 -> 6. Complements the inc-X test to cover
+ * the opposite signed branch and the Y axis. */
+static void test_pan_and_window_dec_y_lockstep(void)
+{
+    data_fd2_battle_view_window_origin_x = 3;
+    data_fd2_battle_view_window_origin_y = 5;
+    data_fd2_battle_cursor_world_y = 9;
+    g_composite_call_count = 0;
+    fd2_pan_cursor_and_window(3, 2);
+    ASSERT_EQ(data_fd2_battle_view_window_origin_y, 2);
+    ASSERT_EQ(data_fd2_battle_cursor_world_y, 6);
+    ASSERT_EQ(data_fd2_battle_view_window_origin_x, 3);
+    ASSERT_EQ(g_composite_call_count, 3);
+}
+
 /* ---- Tests: keyboard / BIOS ---- */
 
 static void test_read_bios_tick(void)
@@ -572,6 +610,8 @@ void run_ui_tests(void)
     RUN_TEST(test_pan_to_tile_same_pos);
     RUN_TEST(test_pan_to_tile_moves_x);
     RUN_TEST(test_pan_and_window_same_pos);
+    RUN_TEST(test_pan_and_window_inc_x_lockstep);
+    RUN_TEST(test_pan_and_window_dec_y_lockstep);
     RUN_TEST(test_read_bios_tick);
     RUN_TEST(test_kbd_buffer_empty);
     RUN_TEST(test_kbd_buffer_nonempty);
