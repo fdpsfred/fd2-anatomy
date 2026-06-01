@@ -413,6 +413,114 @@ static void test_score_item_candidate_damage(void)
     ASSERT_EQ(result, 8);
 }
 
+/* HP-damage effect path (use_effect 5/0xD), middle band:
+ * hp_max/3 < hp <= hp_max/2  -> per_score 3 (asm 0x158c4 CMP/JG, 0x158c8 MOV 3).
+ * hp 40, max 100: max/3=33 (40>33), max/2=50 (40<=50) -> 3. aux[0x34] clear. */
+static void test_score_item_candidate_score3(void)
+{
+    uint8 tgt[1];
+    int result;
+
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].hp_current = 40;
+    g_test_rc_array[0].hp_max = 100;
+    data_fd2_battle_item_effect_table[0].use_effect = 5;
+    tgt[0] = 0;
+    result = fd2_score_item_candidate(0, 1, (uint32)tgt);
+    ASSERT_EQ(result, 3);
+}
+
+/* HP-damage effect path, high band: hp > hp_max/2 -> per_score 0
+ * (asm 0x158c6 JG -> 0x158cf XOR EAX,EAX). hp 60, max 100: 60>50 -> 0. */
+static void test_score_item_candidate_score0(void)
+{
+    uint8 tgt[1];
+    int result;
+
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].hp_current = 60;
+    g_test_rc_array[0].hp_max = 100;
+    data_fd2_battle_item_effect_table[0].use_effect = 5;
+    tgt[0] = 0;
+    result = fd2_score_item_candidate(0, 1, (uint32)tgt);
+    ASSERT_EQ(result, 0);
+}
+
+/* HP-damage effect path, high-value-target amplification: if
+ * combat_aux_block[0x0D] bit 0x80 set (struct +0x34), per_score *= 3
+ * (asm 0x158d1 TEST .. 0x158d9 SHL EAX,2 / SUB EAX,EBX). Two targets in one
+ * call cover both amplified bands: base 8 (hp<=max/3) -> 24, base 3 -> 9;
+ * total 33. Asserts the *3 is applied per-target before summation. */
+static void test_score_item_candidate_x3_amplify(void)
+{
+    uint8 tgt[2];
+    int result;
+
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].hp_current = 10;          /* base 8  -> *3 = 24 */
+    g_test_rc_array[0].hp_max = 100;
+    g_test_rc_array[0].combat_aux_block[0x0D] = 0x80;
+    g_test_rc_array[1].hp_current = 40;          /* base 3  -> *3 = 9  */
+    g_test_rc_array[1].hp_max = 100;
+    g_test_rc_array[1].combat_aux_block[0x0D] = 0x80;
+    data_fd2_battle_item_effect_table[0].use_effect = 5;
+    tgt[0] = 0;
+    tgt[1] = 1;
+    result = fd2_score_item_candidate(0, 2, (uint32)tgt);
+    ASSERT_EQ(result, 33);
+}
+
+/* Spell-wrapper effect path, non-0x18 (use_effect 0x14/0x15): threshold comes
+ * from the wrapped spell's damage (pSpell[0]); the spell id is item.use_param
+ * (uint16 at struct +15/+16, read via fd2_get_spell_effect_entry's EAX return,
+ * asm 0x15938 CALL / 0x15946 MOVZX EBP,[EAX]). Per target: hp<=threshold ->
+ * 0x12 (kill), hp>threshold -> 8. spell 4 damage 50; two targets hp 30 (<=50
+ * kill 0x12) and hp 70 (>50 normal 8) -> 0x12+8 = 0x1A. Item index 9. */
+static void test_score_item_candidate_spell_wrapper(void)
+{
+    uint8 tgt[2];
+    int result;
+
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].hp_current = 30;          /* 30 <= 50 -> 0x12 */
+    g_test_rc_array[0].hp_max = 100;
+    g_test_rc_array[1].hp_current = 70;          /* 70 >  50 -> 8    */
+    g_test_rc_array[1].hp_max = 100;
+    data_fd2_battle_spell_effect_table[4].damage = 50;
+    data_fd2_battle_item_effect_table[9].use_effect = 0x14;
+    data_fd2_battle_item_effect_table[9].use_param_lo = 4;   /* spell id 4 */
+    data_fd2_battle_item_effect_table[9].use_param_hi = 0;
+    tgt[0] = 0;
+    tgt[1] = 1;
+    result = fd2_score_item_candidate(9, 2, (uint32)tgt);
+    ASSERT_EQ(result, 0x12 + 8);
+}
+
+/* Spell-wrapper effect path, 0x18: threshold is item.use_param itself (the
+ * uint16 at struct +15/+16); the spell getter's result is IGNORED (asm 0x15941
+ * CMP ESI,0x18 / JZ 0x15949 skips MOVZX EBP,[EAX]). use_param 50, wrapped spell
+ * id 4 damage deliberately 999 to prove its damage is NOT used as threshold.
+ * Two targets hp 30 (<=50 -> 0x12) and hp 70 (>50 -> 8) -> 0x1A. Item index 10. */
+static void test_score_item_candidate_spell_0x18(void)
+{
+    uint8 tgt[2];
+    int result;
+
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].hp_current = 30;          /* 30 <= 50 -> 0x12 */
+    g_test_rc_array[0].hp_max = 100;
+    g_test_rc_array[1].hp_current = 70;          /* 70 >  50 -> 8    */
+    g_test_rc_array[1].hp_max = 100;
+    data_fd2_battle_spell_effect_table[4].damage = 999; /* must be ignored */
+    data_fd2_battle_item_effect_table[10].use_effect = 0x18;
+    data_fd2_battle_item_effect_table[10].use_param_lo = 50; /* threshold 50 */
+    data_fd2_battle_item_effect_table[10].use_param_hi = 0;
+    tgt[0] = 0;
+    tgt[1] = 1;
+    result = fd2_score_item_candidate(10, 2, (uint32)tgt);
+    ASSERT_EQ(result, 0x12 + 8);
+}
+
 static void test_slide_panel_left_main_stationary(void)
 {
     ASSERT_TRUE(1);
@@ -1044,6 +1152,11 @@ void run_anim_tests(void)
     RUN_TEST(test_scan_chars_along_line);
     RUN_TEST(test_slide_panel_left_main_stationary);
     RUN_TEST(test_score_item_candidate_damage);
+    RUN_TEST(test_score_item_candidate_score3);
+    RUN_TEST(test_score_item_candidate_score0);
+    RUN_TEST(test_score_item_candidate_x3_amplify);
+    RUN_TEST(test_score_item_candidate_spell_wrapper);
+    RUN_TEST(test_score_item_candidate_spell_0x18);
     RUN_TEST(test_ani_palette_fill_byte);
     RUN_TEST(test_ani_row_copy_literal);
     RUN_TEST(test_ani_sparse_set_byte);

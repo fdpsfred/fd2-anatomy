@@ -598,7 +598,8 @@
     "target": "battle/btl_ai.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00015983": {
     "name": "fd2_noop_stub_15983",
