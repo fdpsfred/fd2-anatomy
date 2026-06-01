@@ -1884,7 +1884,8 @@
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0002147b": {
     "name": "fd2_spell_handler_id_7_via_full_screen_flash",
