@@ -653,6 +653,136 @@ static void test_slide_panel_left_main_partial_clip(void)
     ASSERT_EQ((long)g_lp_dst[dst_x + 0x2E40 + 0x75 * 0x140], 0x11);
 }
 
+/* fd2_slide_panel_step_right_main is the right-side mirror. It copies 0x75 rows
+ * from src_buffer (offset *always* 0x2E8B, verified at asm 0001afe2 ADD EDI,0x2e8b
+ * — the src start is NEVER adjusted) into large_game_state_buffer (offset
+ * dst_x+0x2E40), stride 0x140. row_bytes/dst_x are computed from frame_idx by
+ * the verified prologue (0001afab-0001afde):
+ *   frame>=5 (stationary): dst_x=0x4B, row_bytes=0xAA.
+ *   frame<5: x_shift=(4-frame)*0x32; dst_x=x_shift+0x4B;
+ *            if (x_shift+0xF5 > 0x140) then row_bytes = 0x140-dst_x  (right clip).
+ * CRITICAL difference from left_main: the clip drops bytes off the RIGHT edge —
+ * src start stays at 0x2E8B and only row_bytes shrinks (left_main instead shifts
+ * src_x forward on a LEFT clip). So row 0's first copied byte must equal
+ * src_buffer[0x2E8B]; the 0xFE poison goes at src[0x2E8B+row_bytes] (right side)
+ * and at src[0x2E8B-1] (proves the start is exact, not shifted). dst guards are
+ * the shared lp_check_row checks (0x11 at dst_x+0x2E40-1 and +row_bytes). Reuses
+ * the shared 64000-byte g_lp_dst/g_lp_src (max touched dst offset 0xC080 < 64000),
+ * memset fresh each call. Expected dst_x/row_bytes are exact integer arithmetic
+ * read straight from the IMUL/LEA/CMP/SUB sequence above. */
+
+/* Set src markers for right_main: copy window starts at 0x2E8B (fixed), with
+ * 0xFE guards flanking [0x2E8B-1] and [0x2E8B+row_bytes]. */
+static void rp_set_src(long row_bytes)
+{
+    long s_row0;
+
+    memset(g_lp_dst, 0x11, sizeof(g_lp_dst));
+    memset(g_lp_src, 0xBB, sizeof(g_lp_src));
+    s_row0 = 0x2E8B;
+    g_lp_src[s_row0 - 1] = 0xFE;            /* start not shifted left */
+    g_lp_src[s_row0 + row_bytes] = 0xFE;    /* clip drops the RIGHT edge */
+}
+
+/* frame_idx >= 5: stationary placement. dst_x=0x4B, row_bytes=0xAA, no clip. */
+static void test_slide_panel_right_main_stationary(void)
+{
+    uint32 save_buf;
+    long dst_x;
+    long row_bytes;
+
+    save_buf = data_fd2_large_game_state_buffer_ptr;
+    dst_x = 0x4B;
+    row_bytes = 0xAA;
+
+    rp_set_src(row_bytes);
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_lp_dst;
+    fd2_slide_panel_step_right_main((uint32)g_lp_src, 5);
+    data_fd2_large_game_state_buffer_ptr = save_buf;
+
+    /* row 0: exact widths + guards (a wrong src start leaks 0xFE here). */
+    lp_check_row(0, dst_x, row_bytes);
+    /* last copied row 0x74: proves loop ran 0x75 rows at stride 0x140. */
+    lp_check_row(0x74, dst_x, row_bytes);
+    /* row 0x75 would start one stride past row 0x74: must stay background. */
+    ASSERT_EQ((long)g_lp_dst[dst_x + 0x2E40 + 0x75 * 0x140], 0x11);
+}
+
+/* frame_idx = 0: max right clip. x_shift=(4-0)*0x32=200 -> dst_x=200+0x4B=0x113;
+ * x_shift+0xF5=200+245=445(0x1BD)>320(0x140) -> row_bytes=0x140-0x113=0x2D.
+ * src start stays 0x2E8B. */
+static void test_slide_panel_right_main_full_clip(void)
+{
+    uint32 save_buf;
+    long dst_x;
+    long row_bytes;
+
+    save_buf = data_fd2_large_game_state_buffer_ptr;
+    dst_x = 0x113;
+    row_bytes = 0x2D;
+
+    rp_set_src(row_bytes);
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_lp_dst;
+    fd2_slide_panel_step_right_main((uint32)g_lp_src, 0);
+    data_fd2_large_game_state_buffer_ptr = save_buf;
+
+    /* row 0's first copied byte is src[0x2E8B] (0xBB) reaching dst[0x113+0x2E40];
+     * a wrong (shifted) src start would put 0xFE here instead. */
+    ASSERT_EQ((long)g_lp_dst[dst_x + 0x2E40], 0xBB);
+    lp_check_row(0, dst_x, row_bytes);
+    lp_check_row(0x74, dst_x, row_bytes);
+    ASSERT_EQ((long)g_lp_dst[dst_x + 0x2E40 + 0x75 * 0x140], 0x11);
+}
+
+/* frame_idx = 2: partial right clip. x_shift=100 -> dst_x=100+0x4B=0xAF;
+ * x_shift+0xF5=100+245=345(0x159)>320(0x140) -> row_bytes=0x140-0xAF=0x91. */
+static void test_slide_panel_right_main_partial_clip(void)
+{
+    uint32 save_buf;
+    long dst_x;
+    long row_bytes;
+
+    save_buf = data_fd2_large_game_state_buffer_ptr;
+    dst_x = 0xAF;
+    row_bytes = 0x91;
+
+    rp_set_src(row_bytes);
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_lp_dst;
+    fd2_slide_panel_step_right_main((uint32)g_lp_src, 2);
+    data_fd2_large_game_state_buffer_ptr = save_buf;
+
+    lp_check_row(0, dst_x, row_bytes);
+    lp_check_row(0x74, dst_x, row_bytes);
+    ASSERT_EQ((long)g_lp_dst[dst_x + 0x2E40 + 0x75 * 0x140], 0x11);
+}
+
+/* frame_idx = 3: moved but NOT clipped. x_shift=50 -> dst_x=50+0x4B=0x7D;
+ * x_shift+0xF5=50+245=295(0x127) <= 320(0x140) -> NO clip, row_bytes=0xAA.
+ * Pins the JLE-skips-clip branch with a non-stationary dst_x. */
+static void test_slide_panel_right_main_no_clip(void)
+{
+    uint32 save_buf;
+    long dst_x;
+    long row_bytes;
+
+    save_buf = data_fd2_large_game_state_buffer_ptr;
+    dst_x = 0x7D;
+    row_bytes = 0xAA;
+
+    rp_set_src(row_bytes);
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_lp_dst;
+    fd2_slide_panel_step_right_main((uint32)g_lp_src, 3);
+    data_fd2_large_game_state_buffer_ptr = save_buf;
+
+    lp_check_row(0, dst_x, row_bytes);
+    lp_check_row(0x74, dst_x, row_bytes);
+    ASSERT_EQ((long)g_lp_dst[dst_x + 0x2E40 + 0x75 * 0x140], 0x11);
+}
+
 /* slide_panel_down_step restores the *background snapshot* (0x53C5F) into the
  * workspace, then overlays src_buffer rows. This test pins the global the
  * first memmove reads from: snapshot bytes (0xAA) must reach workspace top,
@@ -1362,6 +1492,10 @@ void run_anim_tests(void)
     RUN_TEST(test_slide_panel_left_main_stationary);
     RUN_TEST(test_slide_panel_left_main_full_clip);
     RUN_TEST(test_slide_panel_left_main_partial_clip);
+    RUN_TEST(test_slide_panel_right_main_stationary);
+    RUN_TEST(test_slide_panel_right_main_full_clip);
+    RUN_TEST(test_slide_panel_right_main_partial_clip);
+    RUN_TEST(test_slide_panel_right_main_no_clip);
     RUN_TEST(test_slide_panel_down_step_restores_snapshot);
     RUN_TEST(test_slide_panel_down_step_bottom_clip);
     RUN_TEST(test_score_item_candidate_damage);
