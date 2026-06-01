@@ -1652,6 +1652,38 @@ static void test_check_battle_end_continues(void)
     ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 0);
 }
 
+/* flag=1 game-over path: protagonist (char[0]) dead. char[1] is a dead
+ * enemy so the loop's "alive enemy -> flag=0" does not fire; the final
+ * "if char[0] dead -> flag=1" sets the lose code. */
+static void test_check_battle_end_gameover(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    g_test_rc_array[0].flags = 1;   /* protagonist dead */
+    g_test_rc_array[1].team = 0;
+    g_test_rc_array[1].flags = 1;   /* enemy dead (no flag=0 reset) */
+    data_fd2_battle_party_member_count = 2;
+
+    fd2_check_battle_end_condition();
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+}
+
+/* flag=1 precedence: even with an alive enemy (loop writes flag=0), a dead
+ * protagonist makes the trailing check override the result back to 1. This
+ * pins the loop-then-final ordering proven by the assembly. */
+static void test_check_battle_end_gameover_overrides_continue(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    g_test_rc_array[0].flags = 1;   /* protagonist dead */
+    g_test_rc_array[1].team = 0;
+    g_test_rc_array[1].flags = 0;   /* enemy alive -> loop sets flag=0 */
+    data_fd2_battle_party_member_count = 2;
+
+    fd2_check_battle_end_condition();
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+}
+
 static void test_find_tile_attr_match_miss(void)
 {
     uint8 t_tmap[24];
@@ -2049,6 +2081,8 @@ void run_anim_tests(void)
     RUN_TEST(test_find_tile_attr_match_miss);
     RUN_TEST(test_check_battle_end_victory);
     RUN_TEST(test_check_battle_end_continues);
+    RUN_TEST(test_check_battle_end_gameover);
+    RUN_TEST(test_check_battle_end_gameover_overrides_continue);
     RUN_TEST(test_collect_unmarked_tiles);
     RUN_TEST(test_pathfind_count_unique_dirs);
     RUN_TEST(test_mark_occupant_tiles_team0);
