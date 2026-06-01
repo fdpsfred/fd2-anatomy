@@ -1517,6 +1517,42 @@ static void test_summon_generic_state5_advance(void)
     ASSERT_EQ((long)r, 1);
 }
 
+/* State 6: SFX chime + persistent phase write 0xA + distinct return 0xA.
+ * asm 0x265af-0x265cd: PUSH 3/CALL sfx; MOV [phase],0xa; MOV EAX,0xa; return.
+ * Same risk class (persistent mutation + distinct frame-budget value) as
+ * the tested state 3. Inputs other than state_code do not affect this path. */
+static void test_summon_generic_state6(void)
+{
+    int r;
+    data_fd2_battle_summon_spell_anim_phase_byte = 0xFF;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_play_sfx_with_handle_calls = 0;
+    r = fd2_tick_summon_spell_animation_state(0, 0, 0, 0, 6);
+    ASSERT_EQ((long)r, 0xA);
+    ASSERT_EQ((long)data_fd2_battle_summon_spell_anim_phase_byte, 0xA);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 1);
+}
+
+/* State 5 wrap path: phase 0x11 -> INC -> 0x12 -> reset to 0x10, return 0.
+ * Complements state5_advance (0x10->0x11). asm 0x26701 INC; 0x2670e CMP 0x11
+ * (miss); 0x2672c CMP 0x12 (hit) -> 0x26731 MOV [phase],0x10; return EDI=0.
+ * team=2 -> is_enemy=0, so only the single unconditional blit fires; the
+ * 0x11 SFX branch is skipped (phase is 0x12 after INC). */
+static void test_summon_generic_state5_wrap(void)
+{
+    int r;
+    data_fd2_battle_summon_spell_anim_phase_byte = 0x11;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    g_blit_indexed_sprite_calls = 0;
+    g_play_sfx_with_handle_calls = 0;
+    r = fd2_tick_summon_spell_animation_state(0, 0, 100, 320, 5);
+    ASSERT_EQ((long)data_fd2_battle_summon_spell_anim_phase_byte, 0x10);
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 1);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 0);
+}
+
 static void test_summon_b_init(void)
 {
     int r;
@@ -2215,6 +2251,8 @@ void run_battle_tests(void)
     RUN_TEST(test_summon_generic_reset);
     RUN_TEST(test_summon_generic_state3);
     RUN_TEST(test_summon_generic_state5_advance);
+    RUN_TEST(test_summon_generic_state6);
+    RUN_TEST(test_summon_generic_state5_wrap);
     RUN_TEST(test_summon_a_init);
     RUN_TEST(test_summon_a_state6_terminate);
     RUN_TEST(test_summon_a_state3);

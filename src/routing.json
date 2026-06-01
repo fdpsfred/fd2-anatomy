@@ -2385,7 +2385,8 @@
     "target": "anim/anim.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0002673f": {
     "name": "fd2_tick_sprite_animation_step",
