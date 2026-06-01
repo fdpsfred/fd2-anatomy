@@ -569,6 +569,68 @@ static void test_mp_heal_cap_at_max(void)
     ASSERT_EQ(g_test_rc_array[0].mp_current, 100);
 }
 
+/* MP XP-credit path (the two MP tests above leave status_flags_block[0]=0, so
+ * their XP block computes 0 and verifies nothing). portrait 0x01 < 0x4b -> the
+ * 0x1ca6d JGE is NOT taken, so the XP block runs. Deterministic (seed 0 ->
+ * fd2_advance_rng_state returns 0x80A4 = 32932, emulation-confirmed; %100 = 32):
+ *   base_heal_90 = (50*9)/10 = 45
+ *   extra_heal   = (32*50)/1000 = 1
+ *   mp_after     = 10 + 45 + 1 = 56  (<= max 100, no cap)
+ *   mp_gained    = 56 - 10 = 46
+ *   return       = extra_heal + base_heal_90 = 1 + 45 = 46
+ * The XP epilogue is SHARED with hp_heal via tail-JMP 0x1c9c7, but the BODY
+ * differs in two MP-specific ways this asserts:
+ *   - multiplier = status_flags_block[0]*0x28 (asm 0x1ca73-0x1ca7e: level*0x28),
+ *     with NO +0x1e job modifier (the HP version's 0x1c9a4-0x1c9ae job branch is
+ *     absent from the MP body);
+ *   - divisor = mp_max (asm 0x1ca0c pushes [ESI+0x46]=wMP_max into [ESP], which
+ *     the shared 0x1c9cc IDIV [ESP] consumes -- it BORROWS the hp_max slot but
+ *     the value is mp_max, not hp_max).
+ *   pending_xp += (level 5 * 0x28 * 46) / mp_max 100
+ *              = (5*40*46)/100 = 9200/100 = 92
+ * Asserting EXACT pending_xp_credit pins the *0x28 multiplier and the
+ * mp_max(borrowed-slot) divisor; the companion below pins the no-job-modifier
+ * behavior. */
+static void test_mp_heal_xp_credit(void)
+{
+    int result;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].mp_current = 10;
+    g_test_rc_array[0].mp_max = 100;
+    g_test_rc_array[0].portrait_id = 0x01;          /* < 0x4b -> XP runs */
+    g_test_rc_array[0].status_flags_block[0] = 5;   /* level */
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+    result = fd2_apply_mp_heal_and_award_xp(0, 50);
+    ASSERT_EQ(result, 46);                            /* 45 + 1 */
+    ASSERT_EQ(g_test_rc_array[0].mp_current, 56);     /* 10 + 45 + 1 */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 92); /* (5*40*46)/100 */
+}
+
+/* Companion to test_mp_heal_xp_credit proving the MP body has NO +0x1e mid-tier
+ * job modifier (unlike the HP sibling, whose body adds 0x1e when job_id is in
+ * [9,24]). Here job_id 10 IS in [9,24], yet the MP body never reads job_id
+ * (+0x20) -- it goes straight from status_flags_block[0] (+0x21) to the *0x28
+ * multiply. So with everything else identical to the test above, the XP credit
+ * stays 92. If the MP emit ever grew the HP version's +0x1e branch, level_mod
+ * would become 5+0x1e = 35 and this would read (35*40*46)/100 = 644 and fail. */
+static void test_mp_heal_xp_no_job_modifier(void)
+{
+    int result;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].mp_current = 10;
+    g_test_rc_array[0].mp_max = 100;
+    g_test_rc_array[0].portrait_id = 0x01;          /* < 0x4b -> XP runs */
+    g_test_rc_array[0].status_flags_block[0] = 5;   /* level */
+    g_test_rc_array[0].job_id = 10;                 /* in [9,24], but ignored */
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+    result = fd2_apply_mp_heal_and_award_xp(0, 50);
+    ASSERT_EQ(result, 46);                            /* 45 + 1 */
+    ASSERT_EQ(g_test_rc_array[0].mp_current, 56);     /* 10 + 45 + 1 */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 92); /* STILL 92, no +0x1e */
+}
+
 /* ---- Test: combat bubble pos ---- */
 
 static void test_stat_preview_basic(void)
@@ -3661,6 +3723,8 @@ void run_battle_tests(void)
     RUN_TEST(test_default_attack_not_adjacent);
     RUN_TEST(test_mp_heal_basic);
     RUN_TEST(test_mp_heal_cap_at_max);
+    RUN_TEST(test_mp_heal_xp_credit);
+    RUN_TEST(test_mp_heal_xp_no_job_modifier);
     RUN_TEST(test_combat_bubble_pos_facing_down);
     RUN_TEST(test_stat_preview_basic);
     RUN_TEST(test_flash_char_hit_enemy);
