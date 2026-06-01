@@ -95,10 +95,13 @@
   },
   "00011452": {
     "name": "fd2_noop_stub_1452",
-    "target": "util/noop.c",
+    "target": "<fragment:inline-epilogue>",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": false,
+    "reviewed": true,
+    "skip": true,
+    "skip_reason": "SHARED EPILOGUE fragment (pipeline_spec.md rule A-1; calling_convention.md epilogue cluster 0x11452 = ADD ESP 0x20 + POP EBP/EDI/ESI/EBX + RET, locals=0x20 + 4 saved regs). Not a callable C function: pure caller-frame unwind (emulate_function ESP 0x100000->0x100034 = +0x20 locals +0x10 four POPs +0x4 RET). Reached at +0x00 (full epilogue) by JZ from fd2_animate_spell_projectile_paths @0x1df7f, JMP from fd2_animate_spell_projectile_paths @0x1e0d6, JGE from fd2_assemble_dialog_frame_layered @0x16b39, JGE from fd2_render_inventory_item_grid @0x186e4 (all three +0x00 parents have matching PUSH EBX/ESI/EDI/EBP + SUB ESP,0x20 prologue); and at +0x03 (alt-entry 0x11455, skips ADD ESP, no local frame) by JGE from fd2_save_runtime_char_to_template @0x1151f (PUSH EBX/ESI/EDI/EBP only, no SUB ESP). Emit pipeline skips this address; epilogue is regenerated inside each parent return;. NOT emitted to util/noop.c (no such file for this address)."
   },
   "0001145a": {
     "name": "fd2_recompute_runtime_char_total_stats",

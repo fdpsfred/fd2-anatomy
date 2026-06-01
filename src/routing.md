@@ -116,7 +116,7 @@
 |------|---------------------|-----|
 | `dpmi.c` | DPMI DOS 記憶體操作 (`dpmi_alloc/free_dos_memory`, `dpmi_lock/unlock_region`, `dpmi_lock/unlock_size`) | 6 |
 | `pathfnd.c` | 移動範圍洪水填充 (`init_movement_range_floodfill`, `flood_fill_movement_range_recursive`, `flood_fill_neighbor_step`), A* 路徑搜索 (`pathfind_to_destination`, `pathfind_recursive_with_direction`, `pathfind_neighbor_step_with_tiebreak`, `pathfind_record_destination_xy`, `pathfind_count_unique_directions`, `pathfind_check_destination_save_path`) | 9 |
-| `noop.c` | fall-through Pattern A 候選的 noop stub。`noop_stub_1011` 已逐一確認為 DECOMPILER FRAGMENT（shared epilogue），已改 `<fragment:inline-epilogue>` skip、不落在 noop.c。其餘 `noop_stub_1452/13994/15983/4e915` 仍待各自 review 時逐一確認是否為 fragment（確認後比照 b43/c49/1011 改 skip） | 0 |
+| `noop.c` | fall-through Pattern A 候選的 noop stub。`noop_stub_1011`/`noop_stub_1452` 已逐一確認為 DECOMPILER FRAGMENT（shared epilogue），已改 `<fragment:inline-epilogue>` skip、不落在 noop.c。其餘 `noop_stub_13994/15983/4e915` 仍待各自 review 時逐一確認是否為 fragment（確認後比照 b43/c49/1011 改 skip） | 0 |
 | `misc.c` | Debug (`debug_print_ans_and_length`), 原子交換 (`set_word_global_52758/5275c`), 隊伍查詢 (`any_char_has_item`, `check_party_has_char_id`, `require_char_id_in_active_party`, `count_selected_chars`, `reorder_party_by_selection`, `pin_required_char_to_party_slot1`, `find_template_char_by_id`), delay (`delay_400ms_via_idle_thunk`) | 11 |
 
 ### `crt/` — CRT 等價函式
@@ -220,6 +220,16 @@ python -c "import json; d=json.load(open('src/routing.json')); e=d['000115b6']; 
     + `pipeline_spec.md` 模式A rule A-1，**不**獨立 emit 為 C function（原 `util/noop.c` 路由為誤判，已更正）；
     epilogue 由 compiler 在 parent 重新生成（`return ebp_value;`）。routing.json 標 `skip:true`，不進 emit/review queue。
 
+15. **`fd2_noop_stub_1452` (0x11452) → `<fragment:inline-epilogue>` (skip)**
+    DECOMPILER FRAGMENT：純 caller-frame unwind（ADD ESP 0x20 / POP EBP/EDI/ESI/EBX / RET，locals=0x20 + 4 saved regs；
+    emulate_function ESP 0x100000→0x100034 = +0x20 locals +0x10 four POPs +0x4 RET）。+0x00 全 epilogue 被 3 個
+    parent 共用（各有 `PUSH EBX/ESI/EDI/EBP` + `SUB ESP,0x20` prologue）：`fd2_animate_spell_projectile_paths`
+    (JZ @0x1df7f + JMP @0x1e0d6) / `fd2_assemble_dialog_frame_layered` (JGE @0x16b39) / `fd2_render_inventory_item_grid`
+    (JGE @0x186e4)；+0x03 alt-entry (0x11455，跳過 ADD ESP，無 local frame) 被 `fd2_save_runtime_char_to_template`
+    (JGE @0x1151f，prologue 僅 `PUSH EBX/ESI/EDI/EBP`、無 SUB ESP) 共用。依 `rebuild_info/emission/calling_convention.md`
+    §「Decompiler fragments」epilogue cluster 0x11452 + `pipeline_spec.md` rule A-1，**不**獨立 emit 為 C function
+    （原 `util/noop.c` 路由為誤判，已更正）；epilogue 由 compiler 在各 parent 重新生成。routing.json 標 `skip:true`，不進 emit/review queue。
+
 ## 四、File 統計摘要（from routing.json）
 
 | Target | Phase 分布 | 總數 |
@@ -252,8 +262,8 @@ python -c "import json; d=json.load(open('src/routing.json')); e=d['000115b6']; 
 | field/chtrans.c | P4+P5+P6 | 4 |
 | util/dpmi.c | P2 | 6 |
 | util/pathfnd.c | P2 | 9 |
-| util/noop.c | P2 | 4 |
-| &lt;fragment:inline-epilogue&gt; | P2 | 3 |
+| util/noop.c | P2 | 3 |
+| &lt;fragment:inline-epilogue&gt; | P2 | 4 |
 | util/misc.c | P2+P4+P5 | 11 |
 | crt/crt.c | P3 | 13 |
 | **Total** | | **653** |

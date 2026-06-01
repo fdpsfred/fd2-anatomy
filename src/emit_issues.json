@@ -77,5 +77,17 @@
         "verify_method": "verify_at_parent_emit"
       }
     ]
+  },
+  "00011452": {
+    "name": "fd2_noop_stub_1452",
+    "target": "<fragment:inline-epilogue>",
+    "issues": [
+      {
+        "type": "fragment_equivalence_handoff",
+        "desc": "0x11452 fd2_noop_stub_1452 屬 SHARED EPILOGUE fragment (calling_convention.md epilogue cluster 0x11452 = ADD ESP 0x20 + POP EBP/EDI/ESI/EBX + RET, locals=0x20 + 4 saved regs; pipeline_spec.md rule A-1)，正確 skip 不獨立 emit 到 util/noop.c。等價性靠『各 parent 的 return; 由 Watcom 9.5a 重新生成 epilogue』達成，而非 byte-identical。Layer 2 等價驗證責任轉移到 3 個 +0x00 全 epilogue parent — fd2_animate_spell_projectile_paths (JZ @0x1df7f + JMP @0x1e0d6) / fd2_assemble_dialog_frame_layered (JGE @0x16b39) / fd2_render_inventory_item_grid (JGE @0x186e4)，各有 PUSH EBX/ESI/EDI/EBP + SUB ESP,0x20 prologue — 以及 1 個 +0x03 alt-entry parent fd2_save_runtime_char_to_template (JGE @0x1151f，無 SUB ESP、僅 POP 4 regs)。各自 emit 時須確認其 epilogue stack-cleanup 量 (ADD ESP 對應 locals + POP regs) 與原 binary 等價。此非本 fragment 自身可驗，屬下游 parent emit 時的覆蓋點。",
+        "severity": "info",
+        "verify_method": "verify_at_parent_emit"
+      }
+    ]
   }
 }
