@@ -351,6 +351,37 @@ static void test_wait_one_bios_tick_positive_word(void)
               0x00007FFFuL);
 }
 
+/* ---- Tests: wait_n_bios_ticks ---- */
+
+/* Pins the SIGN-EXTENDED 16-bit store width (asm MOVSX EAX,word ptr
+ * [0x46C]; MOV [0x53A2C],EAX), identical to the wait_one_bios_tick
+ * idiom. n_ticks=0 makes the spin exit on the first compare
+ * (elapsed = sx16(tick)-sx16(tick) = 0, and 0 < 0 is false), so the
+ * assertion isolates the store width. Tick dword 0x0001FFFF -> low
+ * word 0xFFFF -> sx16 -> 0xFFFFFFFF; a full-32-bit store would leave
+ * 0x0001FFFF instead. */
+static void test_wait_n_bios_ticks_sign_extend(void)
+{
+    *(volatile uint32 *)0x46CuL = 0x0001FFFFuL;
+    data_fd2_engine_wait_n_bios_ticks_last_seen = 0;
+    fd2_wait_n_bios_ticks(0);
+    ASSERT_EQ(data_fd2_engine_wait_n_bios_ticks_last_seen,
+              0xFFFFFFFFuL);
+}
+
+/* Positive low word (high bit clear): 0x00007FFF sign-extends to
+ * itself, and the upper tick word (0x0001) must be discarded. Once
+ * more distinguishes the 16-bit store from a full-32-bit store.
+ * n_ticks=0 exits immediately (no spin). */
+static void test_wait_n_bios_ticks_positive_word(void)
+{
+    *(volatile uint32 *)0x46CuL = 0x00017FFFuL;
+    data_fd2_engine_wait_n_bios_ticks_last_seen = 0;
+    fd2_wait_n_bios_ticks(0);
+    ASSERT_EQ(data_fd2_engine_wait_n_bios_ticks_last_seen,
+              0x00007FFFuL);
+}
+
 /* ---- Tests: update_palette_cycle_anim ---- */
 
 static void test_update_palette_cycle_anim_no_update(void)
@@ -722,6 +753,8 @@ void run_ui_tests(void)
     RUN_TEST(test_wait_one_bios_tick_smoke);
     RUN_TEST(test_wait_one_bios_tick_sign_extend);
     RUN_TEST(test_wait_one_bios_tick_positive_word);
+    RUN_TEST(test_wait_n_bios_ticks_sign_extend);
+    RUN_TEST(test_wait_n_bios_ticks_positive_word);
     RUN_TEST(test_update_palette_cycle_anim_no_update);
     RUN_TEST(test_get_inventory_slot_item_id);
     RUN_TEST(test_read_tile_attribute);
