@@ -723,6 +723,111 @@ static void test_check_tile_event_no_trigger(void)
     data_fd2_tile_attribute_flags_buffer_ptr = save_af;
 }
 
+/*
+ * Positive-trigger path: exercise the state-transition WRITE at asm
+ * 00013a95  MOV [data_fd2_battle_ai_post_action_consequence_idx],EDX,
+ * which the prior no-trigger test never reaches (it early-exits at the
+ * 00013a64 `TEST byte [ESP+4],0x60` / JNZ 00013a9b guard).
+ *
+ * Data flow (verified byte-exact vs disasm of 00013a44 + callee 00012e38):
+ *   read_tile_attribute_at_pos(0,0,buf):
+ *     tile_meta = tile_map + (0*width+0)*4 = tile_map+0
+ *     sprite_idx    = *(u16)(tile_meta+4) & 0x3FF      -> set 0
+ *     terrain_byte  = *(u8)(tile_meta+6)               -> set 5
+ *     buf[+2 u16]   = terrain_byte & 0x1F  = 5  (terrain_class, nonzero)
+ *     attr_ptr      = attr_flags + sprite_idx*4 = attr_flags+0
+ *     buf[+4]       = attr_ptr[0]                       -> set 0 (bit 0x60 clear)
+ *   back in check_tile_event_post_action:
+ *     (buf[4] & 0x60)==0 && terrain_class!=0  -> enter body
+ *     rec = tile_event_data_table + (5-1)*2 = table+8
+ *     consequence_idx = *(u8)(rec+0x33) = table[0x3B]   -> set 0x42 (!=0xFF)
+ *     event_type      = *(u8)(rec+0x34) = table[0x3C]   -> set 0x55
+ *     event_type == expected_event_type(0x55) -> WRITE idx = 0x42
+ *
+ * Ground-truth value (0x42) is the consequence_idx byte stored verbatim
+ * by MOV [...],EDX. emulate_function(00013a44) cannot be used to derive
+ * it because the function's __CHK stack-probe prologue (CALL 00036cd7)
+ * begins with `XCHG [ESP+4],EAX`, whose implicit-LOCK semantics raise an
+ * "Unimplemented CALLOTHER pcodeop (LOCK)" in the Ghidra emulator; the
+ * expected value is instead hand-derived from the asm and asserted here.
+ */
+static void test_check_tile_event_triggers(void)
+{
+    uint8 t_tmap[24];
+    uint8 t_attr[32];
+    uint8 t_table[64];
+    uint32 save_tm;
+    uint32 save_af;
+    uint32 save_te;
+
+    save_tm = data_fd2_battle_tile_map_ptr;
+    save_af = data_fd2_tile_attribute_flags_buffer_ptr;
+    save_te = data_fd2_tile_event_data_table_ptr;
+
+    memset(t_tmap, 0, sizeof(t_tmap));
+    memset(t_attr, 0, sizeof(t_attr));
+    memset(t_table, 0, sizeof(t_table));
+    data_fd2_battle_tile_map_ptr = (uint32)t_tmap;
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)t_attr;
+    data_fd2_tile_event_data_table_ptr = (uint32)t_table;
+    data_fd2_battle_map_width_tiles = 2;
+    data_fd2_battle_map_height_tiles = 2;
+
+    t_tmap[6] = 5;          /* terrain_class = 5 (nonzero) */
+    t_attr[0] = 0;          /* attr flags bit 0x60 clear   */
+    t_table[(5 - 1) * 2 + 0x33] = 0x42;   /* consequence_idx != 0xFF */
+    t_table[(5 - 1) * 2 + 0x34] = 0x55;   /* event_type              */
+
+    data_fd2_battle_ai_post_action_consequence_idx = 99;
+    fd2_check_tile_event_post_action(0, 0, 0x55);
+    ASSERT_EQ(data_fd2_battle_ai_post_action_consequence_idx, 0x42);
+
+    data_fd2_battle_tile_map_ptr = save_tm;
+    data_fd2_tile_attribute_flags_buffer_ptr = save_af;
+    data_fd2_tile_event_data_table_ptr = save_te;
+}
+
+/*
+ * Same trigger setup but expected_event_type != table event_type, so the
+ * 00013a8f `CMP EAX,[ESP+0x14]` / JNZ 00013a9b guard skips the write; the
+ * consequence_idx sentinel must survive unchanged.
+ */
+static void test_check_tile_event_event_type_mismatch(void)
+{
+    uint8 t_tmap[24];
+    uint8 t_attr[32];
+    uint8 t_table[64];
+    uint32 save_tm;
+    uint32 save_af;
+    uint32 save_te;
+
+    save_tm = data_fd2_battle_tile_map_ptr;
+    save_af = data_fd2_tile_attribute_flags_buffer_ptr;
+    save_te = data_fd2_tile_event_data_table_ptr;
+
+    memset(t_tmap, 0, sizeof(t_tmap));
+    memset(t_attr, 0, sizeof(t_attr));
+    memset(t_table, 0, sizeof(t_table));
+    data_fd2_battle_tile_map_ptr = (uint32)t_tmap;
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)t_attr;
+    data_fd2_tile_event_data_table_ptr = (uint32)t_table;
+    data_fd2_battle_map_width_tiles = 2;
+    data_fd2_battle_map_height_tiles = 2;
+
+    t_tmap[6] = 5;
+    t_attr[0] = 0;
+    t_table[(5 - 1) * 2 + 0x33] = 0x42;   /* consequence_idx != 0xFF */
+    t_table[(5 - 1) * 2 + 0x34] = 0x55;   /* event_type = 0x55       */
+
+    data_fd2_battle_ai_post_action_consequence_idx = 77;
+    fd2_check_tile_event_post_action(0, 0, 0x12);   /* expected != 0x55 */
+    ASSERT_EQ(data_fd2_battle_ai_post_action_consequence_idx, 77);
+
+    data_fd2_battle_tile_map_ptr = save_tm;
+    data_fd2_tile_attribute_flags_buffer_ptr = save_af;
+    data_fd2_tile_event_data_table_ptr = save_te;
+}
+
 static void test_check_all_acted_not_done(void)
 {
     /* char[1] is an active player (flags bit0/bit7 clear, team 2, awake)
@@ -917,6 +1022,8 @@ void run_anim_tests(void)
     RUN_TEST(test_check_all_acted_not_done);
     RUN_TEST(test_check_all_acted_triggers);
     RUN_TEST(test_check_tile_event_no_trigger);
+    RUN_TEST(test_check_tile_event_triggers);
+    RUN_TEST(test_check_tile_event_event_type_mismatch);
     RUN_TEST(test_mark_char_as_dead);
     RUN_TEST(test_set_chapter_init_done_flag);
     RUN_TEST(test_set_combat_aux_low4);

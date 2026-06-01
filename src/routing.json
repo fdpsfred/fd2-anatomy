@@ -439,7 +439,8 @@
     "target": "battle/btl_turn.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00013a9f": {
     "name": "fd2_enemy_turn_action_dispatcher",
