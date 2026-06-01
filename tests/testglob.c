@@ -274,10 +274,14 @@ uint32 data_fd2_battle_ai_best_physical_target_idx = 0;
 uint32 data_fd2_battle_ai_best_physical_score = 0;
 int g_blit_indexed_sprite_calls = 0;
 uint32 g_blit_indexed_sprite_last_frame = 0;
+int g_blit_indexed_sprite_last_x = 0;
+int g_blit_indexed_sprite_last_y = 0;
 void fd2_blit_indexed_sprite(uint32 a, uint32 f, int x, int y, int m) {
     g_blit_indexed_sprite_calls++;
     g_blit_indexed_sprite_last_frame = f;
-    (void)a; (void)x; (void)y; (void)m;
+    g_blit_indexed_sprite_last_x = x;
+    g_blit_indexed_sprite_last_y = y;
+    (void)a; (void)m;
 }
 uint8  data_fd2_chapter_chapter_init_done_flag = 0;
 uint8  data_fd2_ui_play_active_flag = 0;
