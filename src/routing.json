@@ -510,7 +510,8 @@
     "target": "battle/btl_ai.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00014742": {
     "name": "fd2_scan_chars_within_manhattan_range",
