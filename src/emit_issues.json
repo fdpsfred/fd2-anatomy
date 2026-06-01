@@ -9,6 +9,13 @@
         "desc": "Assembly 用 FISTP + default rounding mode (round-to-nearest)；emitted C 用 (int)((double)x * 1.15) 可能產生 truncation。需實際 Watcom 9.5a 編譯後比對 codegen 確認是否等價。",
         "severity": "low",
         "verify_method": "compile_and_disasm"
+      },
+      {
+        "type": "sign_extend_mismatch",
+        "desc": "EQUIVALENCE (parent-scoped, NOT the reviewed fragment): src/battle/battle.c:588 in fd2_recalculate_combat_stats loads base DX (+0x3E) via (int)*(uint16 *)(...) = ZERO-extend, but the assembly at 0x1B786 is MOVSX EAX,word ptr [EDI+0x3e] = SIGN-extend, and the sibling fd2_recompute_runtime_char_total_stats (battle.c:549) correctly uses (int)*(int16 *)(...). Sibling base-stat loads in the same parent (lines 586/587, offsets +0x37/+0x39) are correctly (int)*(int16 *). Because stat4_total (the evade value this epilogue stores) initializes from dx_total, a negative base DX would make the stored wEvade differ between rebuild and original. Fix: change battle.c:588 cast from (uint16 *) to (int16 *). This belongs to fd2_recalculate_combat_stats @0x1B750 (phase-1, separately reviewed routing entry), so it is logged here rather than blocking the 000114fb epilogue review.",
+        "severity": "medium",
+        "verify_method": "compile_and_disasm",
+        "source_review": "fd2_set_runtime_char_evade @000114fb"
       }
     ]
   },
