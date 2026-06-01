@@ -64,10 +64,13 @@
   },
   "00011011": {
     "name": "fd2_noop_stub_1011",
-    "target": "util/noop.c",
+    "target": "<fragment:inline-epilogue>",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": false,
+    "reviewed": true,
+    "skip": true,
+    "skip_reason": "SHARED EPILOGUE fragment (pipeline_spec.md 模式A rule A-1; calling_convention.md epilogue cluster 0x11011 = ADD ESP 0x34 + POP EBP/EDI/ESI/EBX + RET, locals=0x34 + 4 saved regs). Not a callable C function: pure caller-frame unwind reached by tail-JMP (parent's last instruction `JMP 0x11011` @0x14eeb, preceded by `MOV EAX,EBP` so the return value flows through) from the sole parent fd2_ai_walk_to_target_tile @0x14b78 (Ghidra get_xrefs_to mislabels this UNCONDITIONAL_CALL but the opcode is JMP). Parent prologue PUSH EBX/ESI/EDI/EBP + SUB ESP,0x34 is the exact inverse. No mid-fragment xrefs (0x11014/0x11015/0x11018). Emit pipeline skips this address; the epilogue is regenerated inside the parent as return ebp_value;. NOT emitted to util/noop.c."
   },
   "00011019": {
     "name": "fd2_load_portrait_to_cache",
