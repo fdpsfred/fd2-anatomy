@@ -406,6 +406,13 @@ extern int g_pathfind_walk_return;
 extern int g_pathfind_write_dst;
 extern int g_pathfind_dst_x;
 extern int g_pathfind_dst_y;
+extern int g_pathfind_seq_enable;
+extern int g_pathfind_seq[4];
+extern int g_pathfind_seq_idx;
+extern int g_pathfind_seq_steps;
+extern uint8 g_pathfind_step_bytes[8];
+extern int g_pathfind_md0_dst_x;
+extern int g_pathfind_md0_dst_y;
 
 static uint8 t_ai_tile_map[20 * 15 * 4];
 static uint8 t_ai_attr_buf[8];
@@ -427,6 +434,14 @@ static void reset_ai_stubs(void)
     g_pathfind_write_dst = 0;
     g_pathfind_dst_x = 0;
     g_pathfind_dst_y = 0;
+    g_pathfind_seq_enable = 0;
+    g_pathfind_seq[0] = 0; g_pathfind_seq[1] = 0;
+    g_pathfind_seq[2] = 0; g_pathfind_seq[3] = 0;
+    g_pathfind_seq_idx = 0;
+    g_pathfind_seq_steps = 0;
+    memset(g_pathfind_step_bytes, 0, sizeof(g_pathfind_step_bytes));
+    g_pathfind_md0_dst_x = -1;
+    g_pathfind_md0_dst_y = -1;
     memset(t_ai_tile_map, 0xFF, sizeof(t_ai_tile_map));
     data_fd2_battle_tile_map_ptr = (uint32)t_ai_tile_map;
 }
@@ -640,6 +655,123 @@ static void test_ai_walk_no_path(void)
     g_pathfind_return = 0;
     result = fd2_ai_walk_to_target_tile(8, 8, 0, 0);
     ASSERT_EQ(result, 0);
+}
+
+/* ---- High-risk coverage for fd2_ai_walk_to_target_tile @ 0x14B78 ----
+ *
+ * The two tests below drive the routine's two unasserted high-risk regions:
+ * the candidate-selection loop with its abs()-chain + taxi/diag tiebreak
+ * (asm 0x14dc5-0x14e56) and the Stage B furthest-passable step-decode scan
+ * (asm 0x14c4d-0x14d47). Both keep the FINAL md==0 route returning 0 so the
+ * REAL fd2_walk_path_animation_loop never runs -> fully deterministic, return 0.
+ *
+ * On the test path fd2_collect_unmarked_tile_positions and
+ * fd2_mark_char_occupant_tiles_for_team are the REAL btl_ai.c functions, and
+ * fd2_check_char_status_immunity / fd2_get_movement_cost_table_for_job are REAL.
+ * fd2_pathfind_to_destination, fd2_init_movement_range_floodfill,
+ * fd2_obfuscate_battle_tile_map and fd2_paint_threat_overlay_for_team are stubs.
+ * party_member_count is pinned to 1 so the occupant-mark pass (which excludes the
+ * mover, char 0) marks nothing and cannot pollute the candidate tiles. The
+ * non-0xFF cells of t_ai_tile_map (byte (y*width + x)*4 + 7) are exactly the
+ * candidate / walkable tiles the REAL collection + scan loops read. char 0 is
+ * memset-zero: portrait/job/archetype 0 -> non-immune; char_id(+8) 0 != 0x1c, so
+ * the movement class stays job_id 0 (no override). The chosen "best adjacent
+ * tile" is observed via g_pathfind_md0_dst_x/y (the stub records the LAST md==0
+ * destination, which is the routine's final route target). Expected winners are
+ * enumerated directly from the verbatim taxi/diag formula (identical in disasm
+ * and decompiler): taxi=|dx|+|dy|, diag=||dx|-|dy||, update when taxi<best_taxi
+ * OR (taxi==best_taxi AND diag<best_diag), best_taxi/best_diag seeded 0xFF. */
+
+/* Candidate-selection loop + abs-chain + taxi/diag tiebreak. Stage A md==0
+ * returns 0 (reset default) != 0xFF, so Stage B is skipped and target stays the
+ * passed (4,0). Two cells are unmarked -> 2 candidates (row-major order):
+ *   cand0 (0,0): dx=0-4=-4, dy=0-0=0 -> taxi 4, diag |4-0|=4
+ *   cand1 (2,2): dx=2-4=-2, dy=2-0= 2 -> taxi 4, diag |2-2|=0
+ * cand0 seeds best (taxi 4 < 0xFF). cand1 ties on taxi (4==4) and wins the diag
+ * tiebreak (0 < 4) -> best becomes (2,2). This locks the negative-delta abs
+ * handling, the |dx|-|dy| diag term, and the tiebreak firing on a LATER
+ * candidate. The final md==0 route then targets (2,2). */
+static void test_ai_walk_candidate_taxi_tiebreak(void)
+{
+    int result;
+    uint32 save_pmc;
+    uint32 save_w;
+    uint32 save_h;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    reset_ai_stubs();
+    save_pmc = data_fd2_battle_party_member_count;
+    save_w = data_fd2_battle_map_width_tiles;
+    save_h = data_fd2_battle_map_height_tiles;
+    data_fd2_battle_party_member_count = 1;     /* only the (excluded) mover */
+    data_fd2_battle_map_width_tiles = 5;
+    data_fd2_battle_map_height_tiles = 5;
+    g_test_rc_array[0].pos_x = 0;
+    g_test_rc_array[0].pos_y = 0;
+    /* unmark the two candidate cells: (0,0) and (2,2), width 5 */
+    t_ai_tile_map[(0 * 5 + 0) * 4 + 7] = 0;
+    t_ai_tile_map[(2 * 5 + 2) * 4 + 7] = 0;
+    g_pathfind_walk_return = 0;                 /* Stage A !=0xFF, final route 0 */
+    result = fd2_ai_walk_to_target_tile(4, 0, 0, 0);
+    ASSERT_EQ(result, 0);
+    ASSERT_EQ((long)g_pathfind_md0_dst_x, 2);   /* tiebreak winner (2,2) */
+    ASSERT_EQ((long)g_pathfind_md0_dst_y, 2);
+    data_fd2_battle_party_member_count = save_pmc;
+    data_fd2_battle_map_width_tiles = save_w;
+    data_fd2_battle_map_height_tiles = save_h;
+}
+
+/* Stage B furthest-passable step-decode scan. Sequenced pathfind:
+ *   call 0 (Stage A, md==0) -> 0xFF  -> forces Stage B
+ *   call 1 (Stage B, md==1) -> 5     -> 5 step bytes written into the path buf
+ *   call 2 (final,   md==0) -> 0     -> no walk animation, deterministic
+ * src = char 0 at (0,0). Step bytes [3,0,3,2,1] exercise all four decode
+ * branches (0:S y++, 1:W x--, 2:N y--, 3:E x++) and trace:
+ *   step0 E -> (1,0)   step1 S -> (1,1)   step2 E -> (2,1)
+ *   step3 N -> (2,0)   step4 W -> (1,0)
+ * Walkable cells (+7 != 0xFF) are (1,1) and (2,0). The scan keeps the FURTHEST
+ * (last-visited) walkable tile: (1,1) at step1 then overridden by (2,0) at step3;
+ * step4 (1,0) is 0xFF so best stays (2,0). Stage B therefore sets target=(2,0).
+ * The candidate loop then collects the same two unmarked cells (row-major: (2,0)
+ * at y=0, (1,1) at y=1); (2,0) has taxi 0 to the Stage B target (2,0) and wins,
+ * so the final route targets (2,0). Asserting the final md==0 dst == (2,0) proves
+ * Stage B was entered, all four step decodes ran, the furthest-walkable override
+ * works, and the result propagated into the final route. */
+static void test_ai_walk_stage_b_furthest_tile(void)
+{
+    int result;
+    uint32 save_pmc;
+    uint32 save_w;
+    uint32 save_h;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    reset_ai_stubs();
+    save_pmc = data_fd2_battle_party_member_count;
+    save_w = data_fd2_battle_map_width_tiles;
+    save_h = data_fd2_battle_map_height_tiles;
+    data_fd2_battle_party_member_count = 1;     /* only the (excluded) mover */
+    data_fd2_battle_map_width_tiles = 5;
+    data_fd2_battle_map_height_tiles = 5;
+    g_test_rc_array[0].pos_x = 0;
+    g_test_rc_array[0].pos_y = 0;
+    /* walkable cells visited by the scan: (1,1) then (2,0) */
+    t_ai_tile_map[(1 * 5 + 1) * 4 + 7] = 0;
+    t_ai_tile_map[(0 * 5 + 2) * 4 + 7] = 0;
+    g_pathfind_seq_enable = 1;
+    g_pathfind_seq[0] = 0xFF;                   /* Stage A unreachable */
+    g_pathfind_seq[1] = 5;                      /* Stage B: 5 steps */
+    g_pathfind_seq[2] = 0;                      /* final route: no walk */
+    g_pathfind_seq_steps = 5;
+    g_pathfind_step_bytes[0] = 3;               /* E -> (1,0) */
+    g_pathfind_step_bytes[1] = 0;               /* S -> (1,1) walkable */
+    g_pathfind_step_bytes[2] = 3;               /* E -> (2,1) */
+    g_pathfind_step_bytes[3] = 2;               /* N -> (2,0) walkable */
+    g_pathfind_step_bytes[4] = 1;               /* W -> (1,0) */
+    result = fd2_ai_walk_to_target_tile(9, 9, 0, 0);
+    ASSERT_EQ(result, 0);
+    ASSERT_EQ((long)g_pathfind_md0_dst_x, 2);   /* furthest walkable (2,0) */
+    ASSERT_EQ((long)g_pathfind_md0_dst_y, 0);
+    data_fd2_battle_party_member_count = save_pmc;
+    data_fd2_battle_map_width_tiles = save_w;
+    data_fd2_battle_map_height_tiles = save_h;
 }
 
 static void test_compute_aoe_no_targets(void)
@@ -2658,6 +2790,8 @@ void run_battle_tests(void)
     RUN_TEST(test_ai_pass_turn_clamps_at_max);
     RUN_TEST(test_attack_dispatch_all_low);
     RUN_TEST(test_ai_walk_no_path);
+    RUN_TEST(test_ai_walk_candidate_taxi_tiebreak);
+    RUN_TEST(test_ai_walk_stage_b_furthest_tile);
     RUN_TEST(test_compute_aoe_no_targets);
     RUN_TEST(test_compute_aoe_mode2_cross);
     RUN_TEST(test_compute_aoe_mode1_radius_bubble);
