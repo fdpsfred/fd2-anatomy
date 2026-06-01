@@ -574,7 +574,8 @@
     "target": "battle/btl_ai.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0001548e": {
     "name": "fd2_execute_ai_physical_attack",
