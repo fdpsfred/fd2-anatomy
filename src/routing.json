@@ -740,7 +740,8 @@
     "target": "util/misc.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00016f55": {
     "name": "fd2_field_command_menu_loop",
