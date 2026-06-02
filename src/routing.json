@@ -1960,7 +1960,8 @@
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00021b18": {
     "name": "fd2_dispatch_variant_b_cast",
