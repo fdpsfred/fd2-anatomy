@@ -2146,7 +2146,8 @@
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00022c04": {
     "name": "fd2_execute_status_clear_holy_word_spell_id_25",
