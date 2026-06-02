@@ -504,6 +504,91 @@ static void test_wait_chapter_blink_mode1_remap_53(void)
 }
 
 
+/* ---- Tests: wait_input_with_recruitment_repaint @ 0x32004 ---- */
+
+/* Scancode/ASCII-remap + return-value path. The buffer starts NONEMPTY (head
+ * 0x41A != tail 0x41C) so the throttled-repaint wait loop's top check
+ * (fd2_check_keyboard_buffer_nonempty()==0) is immediately false and execution
+ * falls straight through to INT 16h fn 10h + remap -- the render stub and the
+ * 64000-byte memmove are never reached, so no atlas/backbuffer setup is needed.
+ * The INT 16h fn 10h word at the buffer head 0x41E maps HIGH byte -> scancode
+ * (key_input_mode @ 0x53A8E, AH) and LOW byte -> ASCII (last_key_pressed @
+ * 0x53A8D, AL), exactly as the sibling wait_for_input_with_idle /
+ * wait_input_with_chapter_dialog_blink tests above. Remap table verified from
+ * asm 0x32089-0x320c2:
+ *   key_input_mode==0xE0      -> 0x1C
+ *   key_input_mode==0x52('R') -> 0x1C
+ *   last_key_pressed==0x20(' ')-> 0x1C   (UNIQUE to this function)
+ *   key_input_mode==0x53('S') -> 0x01
+ *   else passthrough.
+ * The 0x20->0x1C ASCII-space path is exercised by NOTHING else in the suite
+ * (the chapter_blink sibling explicitly omits it). */
+static void test_wait_recruitment_remap_e0(void)
+{
+    int r;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0xE000;
+    r = fd2_wait_input_with_recruitment_repaint(0, 0, 0, 0);
+    ASSERT_EQ(r, 0x1c);
+}
+
+
+static void test_wait_recruitment_remap_52(void)
+{
+    int r;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0x5200;
+    r = fd2_wait_input_with_recruitment_repaint(0, 0, 0, 0);
+    ASSERT_EQ(r, 0x1c);
+}
+
+
+/* UNIQUE path: real SPACE keypress = scancode 0x39 (AH, not in {0xE0,0x52,0x53})
+ * + ASCII 0x20 (AL). asm 0x3209c-0x320a8 reads last_key_pressed(AL)==0x20 and
+ * remaps key_input_mode to 0x1C; the subsequent 0x53 check (0x320b6) sees 0x1C
+ * and leaves it. No sibling wait-for-input function covers this ASCII-space
+ * remap. */
+static void test_wait_recruitment_space_remap(void)
+{
+    int r;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0x3920;
+    r = fd2_wait_input_with_recruitment_repaint(0, 0, 0, 0);
+    ASSERT_EQ(r, 0x1c);
+}
+
+
+/* key_input_mode==0x53('S') with AL==0x00 (so the space path is NOT taken first):
+ * first remap block all-false (0x53 != 0xE0/0x52, AL 0x00 != 0x20), then asm
+ * 0x320b6 CMP 0x53 / 0x320bb sets 0x01 (Esc). */
+static void test_wait_recruitment_remap_53(void)
+{
+    int r;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0x5300;
+    r = fd2_wait_input_with_recruitment_repaint(0, 0, 0, 0);
+    ASSERT_EQ(r, 0x01);
+}
+
+
+/* Passthrough: arrow-up scancode 0x48 (AH) with AL==0x00 is in neither remap
+ * set and must be returned verbatim (asm 0x32090/0x32097/0x320a3 all fall
+ * through to 0x320af, then 0x48 != 0x53 at 0x320b6). */
+static void test_wait_recruitment_passthrough(void)
+{
+    int r;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0x4800;
+    r = fd2_wait_input_with_recruitment_repaint(0, 0, 0, 0);
+    ASSERT_EQ(r, 0x48);
+}
+
+
 void run_input_input_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -537,5 +622,10 @@ void run_input_input_tests(void)
     RUN_TEST(test_wait_chapter_blink_remap_53);
     RUN_TEST(test_wait_chapter_blink_passthrough);
     RUN_TEST(test_wait_chapter_blink_mode1_remap_53);
+    RUN_TEST(test_wait_recruitment_remap_e0);
+    RUN_TEST(test_wait_recruitment_remap_52);
+    RUN_TEST(test_wait_recruitment_space_remap);
+    RUN_TEST(test_wait_recruitment_remap_53);
+    RUN_TEST(test_wait_recruitment_passthrough);
     printf("\n");
 }
