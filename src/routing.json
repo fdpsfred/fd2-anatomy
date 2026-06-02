@@ -4127,7 +4127,8 @@
     "target": "util/misc.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "000361cc": {
     "name": "fd2_dpmi_alloc_dos_memory",

@@ -274,5 +274,23 @@
       "跨函式相依（給 phase 7 emit fd2_chapter_event_handler_52__ch30_major_cinematic@0x35f92 的 emitter）：本函式（Pattern A SHARED EPILOGUE STUB，pipeline_spec.md:526）以 standalone `void(void)` setter 形式 emit。其 Layer-2 等價性「成立的前提」是唯一 main-entry consumer handler_52 必須 emit 為一般 cdecl C（呼叫前一個 3-param cdecl callee 後由 caller 自身清 args，再普通呼叫 fd2_set_battle_anim_phase_to_1()）。handler_52 decomp 已天然呈現此形（两條 path 結尾皆 `...(...); fd2_set_battle_anim_phase_to_1(); return;`），故照常 emit 即可；emitter 不可嘗試複刻原 binary 的 tail-JMP 或省略 caller 端 cdecl arg cleanup，否則會破壞 stack 平衡。",
       "alt-entry（0x35C18 / 0x35C22）由 fd2_chapter_event_handler_17 / _25 透過 JMP 消費，與本 main-entry（0x35C15）為不同位址；那兩個 handler 的 fall-through/tail-share emit 屬其各自回合處理，本函式 standalone setter 不負責 alt-entry 的 stack 語意。"
     ]
+  },
+  "0003616e": {
+    "name": "fd2_set_word_global_5275c",
+    "target": "util/misc.c",
+    "issues": [
+      {
+        "type": "equivalence_note",
+        "desc": "Equivalence note for emitter record: return-value-in-EAX is a direct memory load (MOV EAX,[0x5275c]) with no intervening CALL, so it is NOT subject to the Ghidra EAX-after-CALL tracking bug; decompiler captured it correctly and no assembly override was needed.",
+        "severity": "info",
+        "verify_method": "compile_and_disasm"
+      },
+      {
+        "type": "cc_justification",
+        "desc": "cc justification: __cdecl 1-stack-arg derived from disassembly only (param at [ESP+4], bare RET = caller cleanup), because the function has 0 static callers (cannot derive from caller ADD ESP,K). Preserved-as-original; matches identical sibling @ 0x3615e.",
+        "severity": "info",
+        "verify_method": "compile_and_disasm"
+      }
+    ]
   }
 }
