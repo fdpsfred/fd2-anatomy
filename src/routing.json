@@ -3381,7 +3381,8 @@
     "target": "battle/btl_init.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00033fc1": {
     "name": "fd2_fill_palette_blink_pattern_6byte",
