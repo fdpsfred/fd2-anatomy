@@ -2766,7 +2766,8 @@
     "target": "anim/anim.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0002cad7": {
     "name": "fd2_chapter_transition_menu",
