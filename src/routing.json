@@ -4229,7 +4229,8 @@
     "target": "anim/anidec.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00036bb2": {
     "name": "fd2_ani_decoder_chunk_row_copy_literal",
