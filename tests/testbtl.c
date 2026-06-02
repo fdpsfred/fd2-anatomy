@@ -3901,6 +3901,22 @@ static void test_bgm_disabled_zero_volume(void)
     data_fd2_audio_bgm_enabled_flag = 1;
 }
 
+/* Special-cue branch: tracks 0x10/0x11 set volume instantly (vol 0x7F,
+ * ramp 0) with a SINGLE AIL_set_sequence_volume call and NO 0-anchor,
+ * unlike the regular 2-call/2000ms-ramp path. Distinct numeric output. */
+static void test_bgm_special_cue_instant(void)
+{
+    data_fd2_audio_bgm_last_set_track_id = 0xFF;
+    data_fd2_audio_bgm_enabled_flag = 1;
+    data_fd2_audio_bgm_driver_available_flag = 1;
+    data_fd2_audio_bgm_sequence_data_buf_ptr = 0;
+    g_ail_vol_calls = 0;
+    fd2_set_bgm_track_with_fade(0x10, 1);
+    ASSERT_EQ((long)g_ail_vol_calls, 1);
+    ASSERT_EQ((long)g_ail_last_vol, 0x7F);
+    ASSERT_EQ((long)g_ail_last_ramp, 0);
+}
+
 /* ---- Test: fd2_init_battle_state_for_chapter ---- */
 
 static void test_init_battle_state_zeros_cursor(void)
@@ -4296,6 +4312,7 @@ void run_battle_tests(void)
     RUN_TEST(test_bgm_same_track_noop);
     RUN_TEST(test_bgm_change_regular_track);
     RUN_TEST(test_bgm_disabled_zero_volume);
+    RUN_TEST(test_bgm_special_cue_instant);
     RUN_TEST(test_init_battle_state_zeros_cursor);
     RUN_TEST(test_status_tick_poison_damage);
     RUN_TEST(test_status_tick_poison_clamp_zero);

@@ -2472,7 +2472,8 @@
     "target": "audio/audio.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00025a96": {
     "name": "fd2_play_sfx_with_handle",
