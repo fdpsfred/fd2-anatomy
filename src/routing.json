@@ -4151,7 +4151,8 @@
     "target": "util/dpmi.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "000362f1": {
     "name": "fd2_dpmi_unlock_region",
