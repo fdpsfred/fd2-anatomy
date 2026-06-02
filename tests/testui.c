@@ -731,6 +731,107 @@ static void test_wait_action_target_mode5_no_commit(void)
     ASSERT_EQ(r, -1);
 }
 
+/* ---- Tests: wait_input_with_chapter_dialog_blink @ 0x2D85F ---- */
+
+/* Scancode-remap + return-value path. The buffer starts NONEMPTY (head 0x41A
+ * != tail 0x41C) so the do-while runs its body once and exits at the bottom
+ * check WITHOUT the per-frame tick gate having to fire (the gate compares the
+ * freshly-latched saved_tick against the current BIOS tick: diff is 0/1 on the
+ * first pass, so the blink/render side effects are skipped and only the
+ * INT 16h + remap tail is exercised). The INT 16h fn 10h scancode is the HIGH
+ * byte of the word at the buffer head 0x41E (AH from INT 16h), exactly as the
+ * sibling wait_for_input_with_idle / wait_input_with_dialog_repaint tests.
+ * asm 0x2d9c2-0x2d9ef: 0xE0->0x1C, 0x52->0x1C, 0x53->0x01, else passthrough.
+ * NOTE this remap set DIFFERS from fd2_wait_input_with_recruitment_repaint
+ * (which additionally maps ASCII space 0x20 -> 0x1C); the four cases below pin
+ * this function's set independently. rng_seed is reset for determinism since
+ * setup unconditionally advances it once (asm 0x2d88f).
+ *
+ * mode==0 takes the corner-sprite blit loop (asm 0x2d8ce-0x2d8ff), which
+ * dereferences the atlas pointer: MOV EAX,[0x54147]; ADD EAX,[EAX+EDX*4+6]
+ * (sprite_idx 3..9 for the 4 corners). A 256-byte zeroed atlas buffer keeps
+ * that read in-bounds and deterministic; the looked-up offset (0) is added to
+ * the base and handed to the no-op blit stub. */
+static void test_wait_chapter_blink_remap_e0(void)
+{
+    static uint8 fake_atlas[256];
+    int r;
+    memset(fake_atlas, 0, sizeof(fake_atlas));
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = (uint32)fake_atlas;
+    data_fd2_ui_menu_cursor_idx = 0;
+    data_fd2_shared_rng_seed = 0;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0xE000;
+    r = fd2_wait_input_with_chapter_dialog_blink(0);
+    ASSERT_EQ(r, 0x1c);
+}
+
+static void test_wait_chapter_blink_remap_52(void)
+{
+    static uint8 fake_atlas[256];
+    int r;
+    memset(fake_atlas, 0, sizeof(fake_atlas));
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = (uint32)fake_atlas;
+    data_fd2_ui_menu_cursor_idx = 0;
+    data_fd2_shared_rng_seed = 0;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0x5200;
+    r = fd2_wait_input_with_chapter_dialog_blink(0);
+    ASSERT_EQ(r, 0x1c);
+}
+
+static void test_wait_chapter_blink_remap_53(void)
+{
+    static uint8 fake_atlas[256];
+    int r;
+    memset(fake_atlas, 0, sizeof(fake_atlas));
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = (uint32)fake_atlas;
+    data_fd2_ui_menu_cursor_idx = 0;
+    data_fd2_shared_rng_seed = 0;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0x5300;
+    r = fd2_wait_input_with_chapter_dialog_blink(0);
+    ASSERT_EQ(r, 0x01);
+}
+
+/* Passthrough: a real menu-nav scancode (0x39 = SPACE) is NOT in the remap set
+ * and must be returned verbatim. Pins that the function does NOT add the
+ * recruitment-sibling's 0x20->0x1C remap nor any other rewrite. */
+static void test_wait_chapter_blink_passthrough(void)
+{
+    static uint8 fake_atlas[256];
+    int r;
+    memset(fake_atlas, 0, sizeof(fake_atlas));
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = (uint32)fake_atlas;
+    data_fd2_ui_menu_cursor_idx = 0;
+    data_fd2_shared_rng_seed = 0;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0x3920;
+    r = fd2_wait_input_with_chapter_dialog_blink(0);
+    ASSERT_EQ(r, 0x39);
+}
+
+/* mode != 0 split: asm 0x2d8c3 CMP [ESP+0x2c],0x0 / JNZ 0x2d901 skips the
+ * corner-sprite blit loop entirely, so the atlas pointer is NEVER dereferenced.
+ * Deliberately leave data_fd2_ui_menu_screen_sprite_atlas_buf_ptr at 0 to prove
+ * the loop is skipped (a non-zero mode that still entered the loop would read
+ * *(uint32*)(0+6+idx*4)); the remap tail must still produce the same result. */
+static void test_wait_chapter_blink_mode1_remap_53(void)
+{
+    int r;
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
+    data_fd2_shared_rng_seed = 0;
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    *(volatile uint16 *)0x41EuL = 0x5300;
+    r = fd2_wait_input_with_chapter_dialog_blink(1);
+    ASSERT_EQ(r, 0x01);
+}
+
 void run_ui_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -787,5 +888,10 @@ void run_ui_tests(void)
     RUN_TEST(test_wait_action_target_esc);
     RUN_TEST(test_wait_action_target_mode4_commit);
     RUN_TEST(test_wait_action_target_mode5_no_commit);
+    RUN_TEST(test_wait_chapter_blink_remap_e0);
+    RUN_TEST(test_wait_chapter_blink_remap_52);
+    RUN_TEST(test_wait_chapter_blink_remap_53);
+    RUN_TEST(test_wait_chapter_blink_passthrough);
+    RUN_TEST(test_wait_chapter_blink_mode1_remap_53);
     printf("\n");
 }
