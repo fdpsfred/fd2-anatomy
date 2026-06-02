@@ -1,16 +1,16 @@
 """
 where.py - resolve a routing target to the exact test leaf a new test goes in.
 
-Self-contained (stdlib only): the emit workflow runs it to turn "which test
-file?" into a lookup. Given a function's src target (routing.json `target`, e.g.
-"battle/btl_aisc.c"), tests mirror that path, but a src sub-file whose tests
-passed 1000 lines was split into <stem>1.c/<stem>2.c, so the mirror path may not
-exist as one file. This reports the exact file + runner to use:
+The emit workflow runs it to turn "which test file?" into a lookup. Given a
+function's src target (routing.json `target`, e.g. "battle/btl_aisc.c"), tests
+mirror that path, but a src sub-file whose tests passed 1000 lines was split into
+<stem>1.c/<stem>2.c, so the mirror path may not exist as one file. This reports
+the exact file + runner to use:
 
   - un-split leaf with room      -> append to it
   - split leaf                   -> append to the latest part that has room
   - all parts full / no leaf yet -> create the next part / the mirror file,
-                                     then run tools/test_split/genbuild.py --apply
+                                     then run tests/genbuild.py --apply
 
 Usage:  python tests/where.py <domain>/<stem>.c
 """
@@ -18,24 +18,13 @@ import re
 import sys
 from pathlib import Path
 
+import naming
+
 TESTS = Path(__file__).resolve().parent
 ROOT = TESTS.parent
 ROOM = 920          # a leaf at/under this has room for another test and stays <1000
 
 RUN_RE = re.compile(r'^void (run_\w+_tests)\s*\(', re.M)
-
-
-def domain_stem(target):
-    d, s = target.replace('\\', '/').split('/', 1)
-    return d, s[:-2] if s.endswith('.c') else s
-
-
-def part_fstem(stem, n):
-    return stem[:7] + str(n)            # 8.3-safe split-part filename stem
-
-
-def runner_name(domain, stem, suffix=''):
-    return 'run_%s_%s%s_tests' % (domain, stem, suffix)
 
 
 def runner_of(path):
@@ -55,21 +44,21 @@ def existing(domain, stem):
     if exact.is_file():
         out.append((exact, None))
     n = 1
-    while (d / (part_fstem(stem, n) + '.c')).is_file():
-        out.append((d / (part_fstem(stem, n) + '.c'), n))
+    while (d / (naming.part_fstem(stem, n, 2) + '.c')).is_file():
+        out.append((d / (naming.part_fstem(stem, n, 2) + '.c'), n))
         n += 1
     return out
 
 
 def resolve(target):
-    domain, stem = domain_stem(target)
+    domain, stem = naming.domain_stem(target)
     files = existing(domain, stem)
 
     if not files:                                   # leaf doesn't exist yet
         return dict(leaf=TESTS / domain / (stem + '.c'),
-                    runner=runner_name(domain, stem), action='create',
+                    runner=naming.runner_name(domain, stem, 1, 1), action='create',
                     note='new mirror file; after writing it run '
-                         'python tools/test_split/genbuild.py --apply')
+                         'python tests/genbuild.py --apply')
 
     if len(files) == 1 and files[0][1] is None:     # single un-split leaf
         leaf = files[0][0]
@@ -91,10 +80,10 @@ def resolve(target):
                          % (n, ln, 1000 - ln, summary))
 
     maxn = max(n for (_, n, _) in parts)            # all parts full -> new part
-    return dict(leaf=TESTS / domain / (part_fstem(stem, maxn + 1) + '.c'),
-                runner=runner_name(domain, stem, str(maxn + 1)), action='create',
+    return dict(leaf=TESTS / domain / (naming.part_fstem(stem, maxn + 1, 2) + '.c'),
+                runner=naming.runner_name(domain, stem, maxn + 1, 2), action='create',
                 note='all parts full (%s); add new part, then run '
-                     'python tools/test_split/genbuild.py --apply' % summary)
+                     'python tests/genbuild.py --apply' % summary)
 
 
 def main():

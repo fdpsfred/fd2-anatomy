@@ -28,7 +28,7 @@ source、寫 unit test、經 build gate + 獨立 reviewer 三源復驗、per-fun
 ## 1. 待解 / 注意（處理到才碰，不必預先動）
 
 - **完整可執行 fd2.exe ≠ 本 workflow 產物**。本 workflow 只做 **function**（653 個）。完整 exe 還需 §4 的 B/C/D。
-- **src .c 已依子功能切分為 ≤~1000 行的子檔**；routing target 即子檔（切分規則在 `tools/emit/mkroute.py` 的 `_subsplit()`，檔案↔function 對照見 `src/routing.md`，分析/搬移工具見 `tools/file_split/`）。emit 新 function 照 routing target 落到對應子檔。測試鏡像 src 子檔（`tests/<domain>/<stem>.c`，工具在 `tools/test_split/`）；新測試子檔跑 `python tools/test_split/genbuild.py --apply` 自動接上 build（per §7）。
+- **src .c 已依子功能切分為 ≤~1000 行的子檔**；routing target 即子檔（切分規則在 `tools/emit/mkroute.py` 的 `_subsplit()`，檔案↔function 對照見 `src/routing.md`，分析/搬移工具見 `tools/file_split/`）。emit 新 function 照 routing target 落到對應子檔。測試鏡像 src 子檔（`tests/<domain>/<stem>.c`；落點查 `tests/where.py`）；新測試子檔跑 `python tests/genbuild.py --apply` 自動接上 build（per §7）。
 - `src/emit_issues.json`：累積「需實際編譯才能確認的等價性疑慮」（FPU rounding / word width / table-copy / fragment 等價轉移到 parent…）。**留待 Phase 8（全 function 完成後）統一用 Watcom 9.5a 編譯 + disasm 比對解決**，不在 function review 階段處理。key 一律用 routing.json 同款 8-hex（如 `00010b43`），utf-8。
 ---
 
@@ -123,4 +123,4 @@ reviewer approved + build gate green + per-function commit。
 - **唯一完成訊號 = `DONE.TXT` 出現；無 stale-cache / DPMI-OOM 問題。** 不要加 copy→rename / sleep / 兩段式 session 等 workaround。
 - C89：變數宣告在 block 開頭。8.3：檔名/目錄 ≤ 8.3。
 - `testglob.c`：fake global / stub 集中；function pointer table 必須初始化指向 noop（否則 NULL call → DOS4GW crash）；emit 真實 function 後移除對應 stub（避免 linker redefinition）。
-- 測試鏡像 src 子檔（`tests/<domain>/<stem>.c`，每檔 ≤1000 行）。新 src `.c` → 加進 `tests/build.bat` 的 compile src 區 + `tests/test.lnk`；新測試檔 → 跑 `python tools/test_split/genbuild.py --apply` 自動接上 `build.bat` / `test.lnk` / `testmain.c`。編譯指令在 `build.bat`（由 `dosbox.conf` autoexec 呼叫，避開 autoexec 行數上限）。
+- 測試鏡像 src 子檔（`tests/<domain>/<stem>.c`，每檔 ≤1000 行）。新 src `.c` → 加進 `tests/build.bat` 的 compile src 區 + `tests/test.lnk`；新測試檔 → 跑 `python tests/genbuild.py --apply` 自動接上 `build.bat` / `test.lnk` / `testmain.c`。編譯指令在 `build.bat`（由 `dosbox.conf` autoexec 呼叫，避開 autoexec 行數上限）。

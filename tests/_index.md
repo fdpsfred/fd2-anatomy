@@ -22,9 +22,11 @@ python tools/emit/build_test.py
 | `dosbox.conf` | DOSBox-X 設定：autoexec 只做 mount 與環境變數，再呼叫 `build.bat` |
 | `build.bat` | 實際的編譯／連結／執行指令清單（放在磁碟檔，沒有 autoexec 的行數上限） |
 | `test.lnk` | wlink 設定，列出所有 .obj（src 與 test） |
-| `where.py` | 自包含小工具：給一個 src target，回報新測試該寫進哪個測試檔與 runner（自動處理已切分的檔）。emit workflow 用它決定落點 |
+| `where.py` | 給一個 src target，回報新測試該寫進哪個測試檔與 runner（自動處理已切分的檔）。emit workflow 用它決定落點 |
+| `genbuild.py` | 掃描現有測試檔，重新產生 `build.bat` 測試編譯區、`test.lnk` 測試 obj、`testmain.c` runner 清單。新建測試檔後跑它接上 build |
+| `naming.py` | `where.py` / `genbuild.py` 共用的名稱推導（8.3 檔名、唯一 obj 名、runner 名、共用標頭名） |
 
-`build.bat` 的測試編譯區、`test.lnk` 的測試 obj 清單、`testmain.c` 的 runner 清單，都由 `python tools/test_split/genbuild.py --apply` 從現有測試檔自動產生，不必手動維護。
+`build.bat` 的測試編譯區、`test.lnk` 的測試 obj 清單、`testmain.c` 的 runner 清單，都由 `python tests/genbuild.py --apply` 從現有測試檔自動產生，不必手動維護。
 
 ## 新增一個 function 的測試
 
@@ -32,7 +34,7 @@ python tools/emit/build_test.py
 2. 跑 `python tests/where.py <domain>/<stem>.c`，它會直接回報該寫進哪個測試檔與哪個 `run_*_tests()`（自動處理已切分的檔，並在需要新建檔時提示）。在該檔加入 `static void test_xxx(void)`，並用 `RUN_TEST(test_xxx)` 在回報的 runner 註冊。
 3. 新的 stub 或假全域加到 `testglob.c`（名稱必須與 Ghidra 一致；function pointer table 初始化指向 noop）。
 4. 要被多個測試檔共用的輔助函式或緩衝區，放到 `tests/include/<domain>fix.h`。
-5. 若新建了測試檔，跑一次 `python tools/test_split/genbuild.py --apply`，`build.bat`、`test.lnk`、`testmain.c` 都會自動更新。
+5. 若新建了測試檔，跑一次 `python tests/genbuild.py --apply`，`build.bat`、`test.lnk`、`testmain.c` 都會自動更新。
 6. 跑 `python tools/emit/build_test.py` 過 build gate。
 
 ## 規範
@@ -40,4 +42,4 @@ python tools/emit/build_test.py
 - 檔名與標頭都要符合 DOS 8.3（Watcom 9.5a 無 LFN）。子檔切分用 `<stem>` 前 7 字元加序號；共用標頭用 domain 前 5 字元加 `fix`（如 `battlfix.h`）。
 - 每個測試檔只含 `static` 的 `test_*` 函式、它們用到的輔助碼、以及一個匯出的 `run_*_tests()`。
 - 受測函式的外部依賴（假全域、stub）集中在 `testglob.c`；只在單一測試檔用到的輔助碼就放該檔，跨檔共用的才進 `tests/include/<domain>fix.h`。
-- 切分大檔與搬移測試用 `tools/test_split/`（`inventory.py` 判定落點、`move.py` 搬移與切分、`genbuild.py` 產生 build 設定）。
+- 日常的落點查詢與 build 接線用 `tests/where.py`、`tests/genbuild.py`。一次性的大規模切分／搬移用 `tools/test_split/`（`inventory.py` 判定落點、`move.py` 搬移與切分）。
