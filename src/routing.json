@@ -2609,7 +2609,8 @@
     "target": "gfx/palette.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00028784": {
     "name": "fd2_play_figani_char_intro_animation",
