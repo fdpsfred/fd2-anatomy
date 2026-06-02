@@ -2183,7 +2183,8 @@
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00022e5c": {
     "name": "fd2_play_chapter_clear_fanfare",
