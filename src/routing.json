@@ -2681,7 +2681,8 @@
     "target": "battle/battle.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0002a2e8": {
     "name": "fd2_play_spell_cast_cinematic",

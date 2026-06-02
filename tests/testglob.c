@@ -197,7 +197,16 @@ void fd2_cast_status_inflict_spell(uint32 a, uint32 b, uint32 c, uint32 d, uint3
 int g_cast_status_via_d1b_calls = 0;
 void fd2_cast_status_spell_via_d1b(int a, int b, int c, int d, int e) { g_cast_status_via_d1b_calls++; (void)a; (void)b; (void)c; (void)d; (void)e; }
 void fd2_paint_portrait_to_dialog_area(uint32 f) { }
-void fd2_render_mini_char_status_panel(uint32 b, uint32 s, uint32 c) { }
+int    g_mini_panel_calls = 0;
+uint32 g_mini_panel_last_buf = 0;
+uint32 g_mini_panel_last_stride = 0;
+uint32 g_mini_panel_last_char = 0;
+void fd2_render_mini_char_status_panel(uint32 b, uint32 s, uint32 c) {
+    g_mini_panel_calls++;
+    g_mini_panel_last_buf = b;
+    g_mini_panel_last_stride = s;
+    g_mini_panel_last_char = c;
+}
 uint8 data_fd2_audio_footstep_sfx_per_job_cadence_class_table[29] = {0};
 uint8 data_fd2_audio_walk_step_sfx_cadence_counter = 0;
 uint8 data_fd2_battle_summon_minor_anim_state5_frame_counter = 0;

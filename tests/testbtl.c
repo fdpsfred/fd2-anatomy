@@ -28,6 +28,10 @@ extern int g_blit_indexed_sprite_calls;
 extern uint32 g_blit_indexed_sprite_last_frame;
 extern int g_blit_indexed_sprite_last_x;
 extern int g_blit_indexed_sprite_last_y;
+extern int    g_mini_panel_calls;
+extern uint32 g_mini_panel_last_buf;
+extern uint32 g_mini_panel_last_stride;
+extern uint32 g_mini_panel_last_char;
 
 /* ---- Test: RNG ---- */
 
@@ -1257,13 +1261,81 @@ static void test_combat_hit_outcome_xp_survive(void)
     ASSERT_EQ(data_fd2_battle_pending_xp_credit, 6);  /* survive-scaled */
 }
 
+/* fd2_flash_char_hit_sprite routes the got-hit flash to a screen offset by
+ * team + a chapter-24/Sumeti override, then calls the mini-panel painter with
+ * buf = workspace_buf + screen_off. The painter stub (testglob.c) is a spy that
+ * records its buf/stride/char args, so the computed offset is observable.
+ *   team==0 (enemy)      -> 0xC080
+ *   team!=0 (ally/player)-> 0x05AB
+ *   chapter==0x18 && char_unit_id==0x11 -> 0xC080 (overrides ally) */
+
 static void test_flash_char_hit_enemy(void)
 {
+    /* Branch 1: enemy (team==0), chapter != 0x18 -> screen_off 0xC080. */
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
-    g_test_rc_array[0].team = TEAM_ENEMY;
+    g_test_rc_array[0].team = TEAM_ENEMY;       /* == 0 */
     data_fd2_chapter_current_chapter_id = 1;
+    g_mini_panel_calls = 0;
     fd2_flash_char_hit_sprite(0, 0);
-    ASSERT_TRUE(1);
+    ASSERT_EQ(g_mini_panel_calls, 1);
+    ASSERT_EQ(g_mini_panel_last_buf, 0xC080);   /* workspace_buf(0) + 0xC080 */
+    ASSERT_EQ(g_mini_panel_last_stride, 0x140);
+    ASSERT_EQ(g_mini_panel_last_char, 0);
+}
+
+static void test_flash_char_hit_ally(void)
+{
+    /* Branch 2: ally/player (team!=0), chapter != 0x18 -> screen_off 0x05AB.
+     * Non-zero workspace_buf confirms the "+ workspace_buf" add. */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[2].team = TEAM_PLAYER;      /* != 0 */
+    data_fd2_chapter_current_chapter_id = 1;
+    g_mini_panel_calls = 0;
+    fd2_flash_char_hit_sprite(0x1000, 2);
+    ASSERT_EQ(g_mini_panel_calls, 1);
+    ASSERT_EQ(g_mini_panel_last_buf, 0x1000 + 0x05AB);
+    ASSERT_EQ(g_mini_panel_last_stride, 0x140);
+    ASSERT_EQ(g_mini_panel_last_char, 2);
+}
+
+static void test_flash_char_hit_chapter24_override(void)
+{
+    /* Branch 3: chapter==0x18 && char_unit_id==0x11 forces 0xC080 even though
+     * the unit is non-enemy (which would otherwise select the 0x05AB ally
+     * slot). Char index 0x11 (17) exceeds the shared 8-entry test array, so
+     * point the runtime-char pointer at a local 18-entry buffer for this case;
+     * the function reads the array through that pointer. */
+    runtime_char local_rc[18];
+    runtime_char *saved_ptr;
+
+    memset(local_rc, 0, sizeof(local_rc));
+    local_rc[0x11].team = TEAM_PLAYER;          /* non-enemy -> ally branch */
+    saved_ptr = data_fd2_battle_runtime_char_array_ptr;
+    data_fd2_battle_runtime_char_array_ptr = local_rc;
+    data_fd2_chapter_current_chapter_id = 0x18;
+    g_mini_panel_calls = 0;
+    fd2_flash_char_hit_sprite(0, 0x11);
+    data_fd2_battle_runtime_char_array_ptr = saved_ptr;
+
+    ASSERT_EQ(g_mini_panel_calls, 1);
+    ASSERT_EQ(g_mini_panel_last_buf, 0xC080);   /* override beats 0x05AB */
+    ASSERT_EQ(g_mini_panel_last_stride, 0x140);
+    ASSERT_EQ(g_mini_panel_last_char, 0x11);
+}
+
+static void test_flash_char_hit_chapter24_nonsumeti_no_override(void)
+{
+    /* Guard: chapter==0x18 but char_unit_id != 0x11 must NOT override; a
+     * non-enemy unit keeps the 0x05AB ally slot. Confirms the override is
+     * gated on BOTH conditions (the AND in the disasm), not chapter alone. */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[3].team = TEAM_PLAYER;      /* != 0 */
+    data_fd2_chapter_current_chapter_id = 0x18;
+    g_mini_panel_calls = 0;
+    fd2_flash_char_hit_sprite(0, 3);
+    ASSERT_EQ(g_mini_panel_calls, 1);
+    ASSERT_EQ(g_mini_panel_last_buf, 0x05AB);
+    ASSERT_EQ(g_mini_panel_last_char, 3);
 }
 
 /* ---- Test: check_char_status_immunity ---- */
@@ -4424,6 +4496,9 @@ void run_battle_tests(void)
     RUN_TEST(test_combat_bubble_pos_facing_down);
     RUN_TEST(test_stat_preview_basic);
     RUN_TEST(test_flash_char_hit_enemy);
+    RUN_TEST(test_flash_char_hit_ally);
+    RUN_TEST(test_flash_char_hit_chapter24_override);
+    RUN_TEST(test_flash_char_hit_chapter24_nonsumeti_no_override);
     RUN_TEST(test_combat_hit_outcome_zero_stats);
     RUN_TEST(test_combat_hit_outcome_crit_jitter);
     RUN_TEST(test_combat_hit_outcome_terrain_ap);
