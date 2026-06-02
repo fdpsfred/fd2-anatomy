@@ -1930,7 +1930,8 @@
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0002189a": {
     "name": "fd2_play_rising_pre_cast_effect",
