@@ -1975,7 +1975,8 @@
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00021bd0": {
     "name": "fd2_execute_aoe_spell_with_caster_portrait_radial_scatter",
