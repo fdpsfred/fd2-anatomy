@@ -1,5 +1,25 @@
 /*
  * dpmi.c — DPMI (INT 31h) memory management wrappers
+ *
+ * Unit-test coverage deferred to Phase 9 integration (documented per the
+ * risk-based coverage policy). The numeric/branch paths here
+ * (fd2_dpmi_alloc_dos_memory's CF success/failure branch, its three output
+ * bit computations, and the page-lock range arithmetic) would normally be
+ * mandatory-test, but they are reachable only through int386() and have no
+ * deterministic unit-test seam in the DOS/4GW test harness:
+ *   - A test-local override of the CRT int386 (to inject the DPMI host result)
+ *     was implemented and proven to deterministically crash/hang the DOS/4GW
+ *     runtime: replacing int386 breaks the extender's protected-mode interrupt
+ *     reflection that the CRT itself relies on, so the test run faults before
+ *     reaching this suite (verified by bisection: the same change with the
+ *     override disabled completes cleanly). int386 is also used by
+ *     src/input/input.c, whose suite depends on the real INT 16h.
+ *   - Letting the real int386 service INT 31h fn 0x100 allocates real DOS
+ *     conventional memory (non-deterministic segment/selector) and locks real
+ *     pages, with no paired free here -- non-deterministic and leak-prone, so
+ *     exact-value assertions are impossible.
+ * These functions are therefore exercised at Phase 9 integration in the real
+ * game flow (AIL driver setup), where the live DPMI host is present.
  */
 
 #include "types.h"

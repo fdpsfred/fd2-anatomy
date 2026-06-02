@@ -4135,7 +4135,8 @@
     "target": "util/dpmi.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00036255": {
     "name": "fd2_dpmi_free_dos_memory",

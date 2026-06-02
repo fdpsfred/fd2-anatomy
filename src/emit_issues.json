@@ -292,5 +292,18 @@
         "verify_method": "compile_and_disasm"
       }
     ]
+  },
+  "000361cc": {
+    "name": "fd2_dpmi_alloc_dos_memory",
+    "target": "util/dpmi.c",
+    "issues": [
+      {
+        "type": "test_deferral_note",
+        "desc": "Unit test for the high-risk numeric/branch paths of fd2_dpmi_alloc_dos_memory (CF success/failure branch; the three output computations out_segment=eax<<16 / out_linear=(eax&0xFFFF)<<4 / out_selector=edx&0xFFFF; the off-by-one page-lock arithmetic lock(seg>>12, paragraphs*16+(seg>>12)-1)) is DEFERRED to Phase 9 integration. Reason (proven, not convenience): these paths are reachable only via int386(), which has no deterministic unit-test seam in the DOS/4GW harness. (1) A test-local int386 override to inject the DPMI host result was implemented and proven by bisection to deterministically crash/hang the DOS/4GW runtime -- overriding the CRT int386 breaks the extender's protected-mode interrupt reflection that the CRT itself depends on, so the test executable faults before reaching the dpmi suite; with the override disabled the same build completes (369 pass + the 3 dpmi tests fail on real DPMI non-determinism). int386 is also used by src/input/input.c, whose suite depends on the real INT 16h. (2) Letting the real int386 service INT 31h fn 0x100 allocates real, non-deterministic DOS conventional memory and locks real pages with no paired free here -- leak-prone and unassertable on exact values. Deferral is documented in the src/util/dpmi.c file header. Equivalence of the bit-math was verified statically line-by-line against the assembly (0x36206 SHL EAX,0x10; 0x3620f AND/0x36214 SHL; 0x36221 AND; 0x36237 SHR EAX,0xc; 0x3623e SHL EDX,0x4; 0x36241 ADD; 0x36243 DEC).",
+        "severity": "low",
+        "verify_method": "phase9_integration",
+        "source_review": "fd2_dpmi_alloc_dos_memory @000361cc (emitter fix-round; int386 override proven to crash DOS/4GW)"
+      }
+    ]
   }
 }
