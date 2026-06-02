@@ -1915,7 +1915,8 @@
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00021548": {
     "name": "fd2_cast_earthquake_spell_with_screen_shake",
