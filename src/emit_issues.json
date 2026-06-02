@@ -318,5 +318,18 @@
         "source_review": "fd2_dpmi_unlock_region @000362f1 (reviewer-approved)"
       }
     ]
+  },
+  "00036b0f": {
+    "name": "fd2_ani_decoder_chunk_palette_load_rle",
+    "target": "anim/anidec.c",
+    "issues": [
+      {
+        "type": "layer2_equivalence_assumption",
+        "desc": "Equivalence note not recorded by emitter: 16-bit BX exact-equality loop exit (JZ on CMP BX,DX) vs C 32-bit `pos < 0x300` differs on malformed overshooting input. Benign under the well-formed-stream vendor invariant and consistent with sibling row RLE handler @0x36BCE; should be captured as a known Layer-2 equivalence assumption for the decoder family.",
+        "severity": "info",
+        "verify_method": "well_formed_stream_invariant",
+        "reviewer_verdict": "approved (benign under well-formed-stream invariant, no code change needed)"
+      }
+    ]
   }
 }
