@@ -1,6 +1,6 @@
 # pool routing
 
-FD2.LE 全 1361 個 function 依 **四 pool + 兩維度** 分類（命名規範強制由
+FD2.LE 全 1375 個 function 依 **四 pool + 兩維度** 分類（命名規範強制由
 `tools/program_analysis/build_call_graph.py` 的 `categorise()` /
 `emit_action_for()` 推導）：
 
@@ -9,8 +9,8 @@ FD2.LE 全 1361 個 function 依 **四 pool + 兩維度** 分類（命名規範�
 | `ail` | `AIL_*` | (即時 dump) | `link_vendor_lib` |
 | `crt` | `crt_equivalent_*` / `crt_*` / `L$*` / Watcom natural name (`cos`/`fopen`/...) / lookup-resolved / `PUBLIC_CRT_SYMBOLS` | 214 | `link_vendor_lib`（lookup-resolved + PUBLIC_CRT_SYMBOLS）或 `emit_fd2_source`（`crt_equivalent_*`） |
 | `fd2` | `fd2_*` | 640 | `emit_fd2_source` |
-| `binary_artifact` | `binary_artifact_*` | 79 | `skip_artifact` |
-| **小計** |  | **1361** |  |
+| `binary_artifact` | `binary_artifact_*` | 93 | `skip_artifact` |
+| **小計** |  | **1375** |  |
 
 emit_action 對應 wlink / Watcom 9.5a recompile pipeline 的處理：
 
@@ -19,7 +19,7 @@ emit_action 對應 wlink / Watcom 9.5a recompile pipeline 的處理：
   FD2 source 端只保留 `extern` declaration
 - `emit_fd2_source` — FD2 source 端 emit C function。涵蓋全部
   `fd2_*` + 13 個 `crt_equivalent_*`
-- `skip_artifact` (79) — Watcom 9.5a 重 compile 自動生成 alignment padding，
+- `skip_artifact` (93) — Watcom 9.5a 重 compile 自動生成 alignment padding，
   FD2 source 不需要寫
 
 四 pool 的具體分布：
@@ -62,7 +62,7 @@ emit_action 對應 wlink / Watcom 9.5a recompile pipeline 的處理：
    FDFIELD / FDSHAP / FDOTHER / FDTXT 資源解碼、cursor / menu、chapter
    event handler、SHARED EPILOGUE / TAIL JMP THUNK stub (`fd2_noop_stub_*`)、
    6 個 DPMI region/size primitive (`fd2_dpmi_*`)、2 個 FD2 global accessor、`fd2_main`。
-4. **binary_artifact pool** (`binary_artifact_*`, 79 個) — Watcom 9.5a compiler
+4. **binary_artifact pool** (`binary_artifact_*`, 93 個) — Watcom 9.5a compiler
    在 function 之間插入的多位元組 NOP padding (`LEA EAX,[EAX]` / `MOV EDX,EDX`
    等)，建為 Function entity 但 0 caller、永不執行。詳見下文「binary_artifact
    pool」段落。
@@ -80,7 +80,7 @@ emit pipeline 只需知道前三個屬 crt pool，後者屬 fd2 pool。
 `skip_artifact`（Watcom 9.5a 重 compile + wlink 重 link 自動產生，FD2 source
 不需要寫）：
 
-### Watcom compiler alignment NOP (79 個 `binary_artifact_align_nop_<addr>`，屬 binary_artifact pool)
+### Watcom compiler alignment NOP (93 個 `binary_artifact_align_nop_<addr>`，屬 binary_artifact pool)
 
 Watcom 9.5a compiler 為了讓 hot function 的 entry 對齊到 16-byte 邊界，在
 function 之間插入多位元組 NOP 指令當 padding。常見 encoding：
@@ -110,12 +110,13 @@ NOP 來源不同：
 | 來源 | Watcom 編譯器在 obj 內 function 之間插入 | wlink 把 obj 拼起來時補 segment 邊界 |
 | 內容 | 有效的 NOP 指令 (`90` / `89 c0` / `8d 40 00` ...) | 純 `0x00` byte |
 | 可 disassemble | 是 (decoded as NOP) | 否 (`00` 與下個 instruction 互相 overlap) |
-| Ghidra 表示 | Function entity（在 1342 set 內）| Data byte + label（不在 1342 set 內）|
+| Ghidra 表示 | Function entity | Data byte + label（非 Function entity）|
 | 四 pool 歸屬 | `binary_artifact` | 不在 four-pool 範圍 |
 
-16 個 wlink fill bytes 集中在 `0x36ccf..0x4db62` 範圍內，size 1..11 byte，
-全位於連續 `_TEXT` segment 邊界。可用 Ghidra
-`list_globals(filter="data_align_")` 列出全部 16 個 label。
+`data_align_*` label 共 34 個（透過 `list_globals(filter="data_align_")` 列出），
+分布於 `.object1`（0x36ccf..0x4db62）和 `.object2`（0x523b6..0x54157）兩段。
+其中原始 16 個為 wlink segment 邊界 `0x00` fill，其餘為後續 audit 新增的
+inter-function zero pad、__int7 內部 NOP pad、.object2 data alignment 等。
 
 ### DPMI INT vector dispatch table（非獨立 function）
 

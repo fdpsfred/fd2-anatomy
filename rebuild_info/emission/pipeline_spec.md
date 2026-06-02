@@ -1,9 +1,10 @@
 # Emit pipeline 規格
 
-emit pipeline 的目標：從 Ghidra 1361 個 function 的 decompiled state 產出 C
+emit pipeline 的目標：從 Ghidra 1375 個 function 的 decompiled state 產出 C
 source code，經 Watcom C/C++ 9.5a（原 binary 同版編譯器，見
-`../crt/fid_match.md`）重新 compile / link 出 byte-for-byte 等價的
-DOS executable（FD2.LE）。
+`../crt/fid_match.md`）重新 compile / link 出 functionally equivalent 的
+DOS executable（FD2.LE）。目標等價層級為 **Layer 2（functionally-exact）**，
+不追求 Layer 3（byte-exact）。
 
 本檔規範 emit pipeline 在處理 function boundary 與 fall-through 模式時必須
 遵守的規則，避免把 Ghidra 的 Function entity 直接當 C function 輸出而破壞
@@ -19,8 +20,8 @@ binary 行為。
 | `crt`             | `link_vendor_lib` | 201            | **不 emit**。Watcom 9.5a CLIB3S 直接 link（193 個 lookup-resolved Watcom 真符號 + 8 個 fast-path `PUBLIC_CRT_SYMBOLS` 不在 lookup）          |
 | `crt`             | `emit_fd2_source` | 13             | **emit 為 C source**。涵蓋 13 個 `crt_equivalent_*`（Watcom CRT 行為等價但 byte 不 match 任一 lib obj） |
 | `fd2`             | `emit_fd2_source` | 640            | **emit 為 C source**。game logic / glue / dispatch / wrapper / dead code / 8 個 CRT-style primitive       |
-| `binary_artifact` | `skip_artifact`   | 79             | **不 emit**。Watcom 9.5a 重 compile 自動生成 alignment NOP padding                                          |
-| **合計**      |                     | **1361** |                                                                                                                 |
+| `binary_artifact` | `skip_artifact`   | 93             | **不 emit**。Watcom 9.5a 重 compile 自動生成 alignment NOP padding                                          |
+| **合計**      |                     | **1375** |                                                                                                                 |
 
 路由規則由 `tools/program_analysis/build_call_graph.py` 內 `categorise()` /
 `emit_action_for()` 機械決定（純看 name 前綴 + lookup 表）。emit pipeline
@@ -289,7 +290,6 @@ emit pipeline 規則：
 - 對整個 (data + accessor) 鏈走 `skip_unreachable_data` + `skip_unreachable_code`
   （即不 emit accessor 也不 emit data）
 - 對應 verdict `indirection_chase_method` 標 `B_C_resolved_codead_chain`
-- 若 emit 用「保 byte-identical .obj」流程則須完整保留兩者
 
 ### 規則 E-7f: 大型 "blob orphan" 必須先做 internal LE FIXUP target probe
 
@@ -559,12 +559,17 @@ setup + JMP 進共用 body。
 `fd2_play_palette_fade_to_black`（直接 JMP fade loop）共用 0x1f51e 起的 fade
 主迴圈。
 
-**完整清單**: 2 個 case — `fd2_play_palette_fade_to_black`（與 `fd2_load_and_fade_in_cinematic_image` 共用 0x1f51e 起 fade 主迴圈）/
-`fd2_check_battle_end_condition`（與 `fd2_init_battle_state_for_chapter @ 0x205da` 共用 0x2067d..0x206c4 shared loop+test body，fall-through 進入）
+**完整清單**: 1 個 case — `fd2_play_palette_fade_to_black`（與 `fd2_load_and_fade_in_cinematic_image` 共用 0x1f51e 起 fade 主迴圈）。
 
-（先前列入的第 3 個 case `crt_softfp_uint32_to_ld` 已透過 byte_match audit 證實為單一
+（先前列入的 `crt_softfp_uint32_to_ld` 已透過 byte_match audit 證實為單一
 PUBDEF `__Bin2String @ 0x4d9e1`（CLIB3S `i64tos.obj`，297B），其內部 CALL/POP EDI
 idiom 屬 position-independent code 控制流，非 SHARED BODY 多 entry。已從清單移除。）
+
+（`fd2_check_battle_end_condition @ 0x205be` 不屬模式 B：其 tail `0x2067d..0x206c4` 僅由本函式
+entry JMP（0x205d5）與自身迴圈 back-edge 進入，xref 無其他來源；`fd2_init_battle_state_for_chapter @ 0x205da`
+結尾為 unconditional JMP 0x17ee8（clear_keyboard_buffer wrapper，見 calling_convention.md 0x17ee8 列），
+不 fall-through 進該 tail。這是 function-body interleave / out-of-line tail —— entry JMP 跳過 interleaved
+的 init 函式、接續本函式自身 tail，re-emit 為單一 self-contained 函式，非多 entry shared body。）
 
 **emit 規則 B-1**: 抽出共用 body 為 internal helper function，兩個 entry 各別
 emit 為 wrapper：
@@ -726,33 +731,29 @@ selection / scheduling 細節由 source code 結構 + 編譯器旗標決定，em
 hash / checksum）跑 emulator 雙邊 trace（原 FD2.LE vs 重建版），對相同 input
 比對 final state。
 
-### Layer 3: byte-exact（高達成性，無強制範圍）
+### Layer 3: byte-exact（不追求）
 
-`.object1` section 在某段 address range 內 byte 完全相同。**因 rebuild 用原版
-Watcom 9.5a（FD2.LE 同版編譯器），emit pipeline 有合理機會達成此 layer**，但
-仍非強制：單一 function 編不出 byte-exact 不算 emit pipeline 失敗；但若大量
-function 編不出 byte-exact，表示 source 還原品質有問題，應回頭審視 decomp。
+**本專案不追求 byte-exact。** Layer 2 (functionally-exact) 為 emit pipeline
+的最高目標。即使 rebuild 用原版 Watcom 9.5a 同版編譯器，以下因素使 byte-exact
+不切實際且無必要：
 
-byte-exact 不能保證 100% 的原因（即使同版編譯器）：
+- emit pipeline 產出的 C source 結構與原 1998 年 FD2 source 不同（local
+  variable 順序 / temp 拆分 / loop unroll 寫法），影響 register allocation
+  與 instruction selection
+- jump-into-middle / fall-through / shared-epilogue 等 pattern 的 C 表達方式
+  改變 call/jump 結構，instruction sequence 必然不同
+- function 排列順序由 linker 決定，alignment padding 由 wlink 策略決定
 
-- emit pipeline 產出的 C source 結構可能與原 1998 年 FD2 source 不同
-  （local variable 順序 / temp 拆分 / loop unroll 寫法），影響 register
-  allocation 與 instruction selection
-- function 排列順序由 linker 決定（`.obj` 順序、CRT `.obj` 插入點影響相對
-  jump offset）
-- alignment padding byte 內容由 wlink `.obj` boundary 對齊策略決定，可能與
-  原 binary 不同位置出現
-- jump table vs branch tree 等 switch 實作策略差異（source 寫法不同會
-  trigger 不同的 compiler 路徑）
+對於 `link_vendor_lib` pool（ail + crt lookup-resolved），byte-exact 是同版
+vendor lib 直接 link 的自然結果，不需額外努力。
 
 範圍說明（依 emit_action 分組）：
 
-- **`link_vendor_lib` (ail + crt 內 lookup-resolved + PUBLIC_CRT_SYMBOLS；count 即時 dump)**：
-  Layer 3 自然滿足（同版 lib byte-identical resolve）；Layer 2 由 vendor lib 保證
-- **`skip_artifact` (79 個 binary_artifact)**: 不適用 byte-exact；Watcom 9.5a
-  重 compile 自動產生對應 alignment padding；只需要 Layer 1
-- **`emit_fd2_source` (653 個 = fd2 640 + crt_equivalent_* 13)**: 強制 Layer 2，
-  期望 Layer 3（用 9.5a 同版編譯器後達成率高，但不強求每個 function 都達成）
+- **`link_vendor_lib`**：Layer 2 由 vendor lib 保證；byte-exact 為自然副產物
+- **`skip_artifact` (93 個 binary_artifact)**：Watcom 9.5a 重 compile 自動
+  產生 alignment padding；只需 Layer 1
+- **`emit_fd2_source` (653 個 = fd2 640 + crt_equivalent_* 13)**：**Layer 2
+  為目標**，不追求 Layer 3
 
 ### 結構性不變式（與 binary 等價無關）
 

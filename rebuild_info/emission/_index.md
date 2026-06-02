@@ -1,7 +1,8 @@
 # rebuild_info/emission/
 
 把 Ghidra 內全 function 的 decompiled state 產出 C source 並重新 compile
-為 byte-equivalent FD2.LE 的 emit pipeline 規格與 metadata。
+為 functionally-equivalent FD2.LE 的 emit pipeline 規格與 metadata。
+目標等價層級為 Layer 2（functionally-exact），不追求 Layer 3（byte-exact）。
 
 ## 規格
 
@@ -10,8 +11,8 @@
   cinematic、binary_artifact pool 的 compiler-emit NOP 與 wlink alignment fill、
   CRT 程式碼地理位置
 - `pipeline_spec.md` — emit 路由規則 E-1..E-9、fall-through pattern 的 6 種
-  模式 (A..F)、三層 binary 等價不變式（specification-exact / functionally-exact
-  / byte-exact）、Watcom 9.5a string-pool dedup 規則
+  模式 (A..F)、binary 等價不變式（目標 = Layer 2 functionally-exact，
+  不追求 Layer 3 byte-exact）、Watcom 9.5a string-pool dedup 規則
 - `calling_convention.md` — Watcom 32-bit cc ABI 規則（`__watcall` /
   `__cdecl` / `__stdcall`）、disasm signal-based 判斷規則
 
