@@ -80,7 +80,7 @@ function emitterPrompt(fn, mode, verdict) {
       '   判 cc（末指令 RET 0 / RET N、caller 是否 ADD ESP K、entry 是否未 PUSH EBX 就讀 EBX…）；標記每個 CALL 後 EAX 用法。',
       'B. 需要時 get_function_callers / get_xrefs_to 推 param 數與 cc。若 plate 標 DECOMPILER FRAGMENT → 不獨立 emit，回報 skip。',
       'C. 寫 C 進 src/' + fn.target + '（檔頭註解標 name @ addr (N callers)）；同步 src/include/protos.h（原型）、globals.h（新 global，用 Ghidra 真名）。',
-      'D. 寫 unit test（風險導向覆蓋）：test 放到鏡像 fn.target 的測試檔 tests/' + fn.target + '（若該檔已依大小切成 <stem>1/<stem>2，加到對應那半；不存在就新建並跑 python tools/test_split/genbuild.py --apply 自動接上 build.bat/test.lnk/testmain），在該檔的 run_*_tests() 註冊。新 stub/fake global/未初始化 fnptr table → tests/testglob.c（fnptr table 必須初始化 noop）。跨多個測試檔共用的 fixture → tests/include/<domain>fix.h（如 battlfix.h）。',
+      'D. 寫 unit test（風險導向覆蓋）：跑 python tools/test_split/where.py ' + fn.target + ' 取得確切落點檔與 runner（自動處理已切分的檔，回報 append 或 create）；action=create 就新建該檔、寫完跑 python tools/test_split/genbuild.py --apply 接上 build.bat/test.lnk/testmain。加 static test + 在回報的 run_*_tests() 用 RUN_TEST 註冊。新 stub/fake global/未初始化 fnptr table → tests/testglob.c（fnptr table 必須初始化 noop）。跨多個測試檔共用的 fixture → tests/include/<domain>fix.h（如 battlfix.h）。',
     ].join('\n')
   }
 
