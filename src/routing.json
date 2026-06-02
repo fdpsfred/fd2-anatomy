@@ -4119,7 +4119,8 @@
     "target": "util/misc.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0003616e": {
     "name": "fd2_set_word_global_5275c",
