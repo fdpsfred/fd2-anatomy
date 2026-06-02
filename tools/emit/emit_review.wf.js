@@ -35,6 +35,7 @@ const SOP = [
   '- cc / param 從 caller 推導，少報比多報危險（少報→callee 讀 stack 垃圾→crash）。',
   '- 絕不半成品（改名 / static / 空殼 / _impl）；絕不為遷就 test 而扭曲 emit code。',
   '- 禁 workaround，只修 root cause。',
+  '- Ghidra 連線失敗：若任何 Ghidra MCP 呼叫失敗、或回任何形式的「instance 不可用 / 無法連線 / 連線中斷 / 逾時」錯誤（不限特定字串），立刻停止本 function、不臆測不硬湊；務必設 ghidra_unreachable=true（bool），並把你實際看到的錯誤訊息/原因寫進 ghidra_error_detail（string）。這是給外層 watchdog 的唯一停批訊號。',
   '- Test 覆蓋政策＝風險導向：對「數值計算 / 複雜控制流分支 / RNG / EAX-bug 風險 / 狀態轉移」的 state/path 強制測；純 blit/display 副作用的 state 可延到 Phase 9 integration（但須在輸出註明延後與理由）。',
   '- build gate：前景執行  python tools/emit/build_test.py --changed "<改動檔,逗號分隔>"  ，它內部自己輪詢 DONE.TXT（約 20-30 秒）並回傳 JSON。',
   '  嚴禁用背景 / run_in_background 跑它——subagent 一旦交出最終訊息就結束，收不到背景通知、不會閉環。必須前景阻塞等它回 JSON。',
@@ -93,7 +94,7 @@ function emitterPrompt(fn, mode, verdict) {
     '4. 用 git --no-pager diff 看自己這次的所有改動，確認無越界（沒動到別的 function）。',
     '',
     '# 輸出（最後一則訊息＝下列 JSON）：addr,name,three_source_done{plate,disasm,decomp},c_changed,files_touched[],test_cases_added[],',
-    'build{gate_pass,error_count,warning_count,tests_passed,tests_failed},emit_issues[],ghidra_changes[],status(done|skip|blocked),notes。',
+    'build{gate_pass,error_count,warning_count,tests_passed,tests_failed},emit_issues[],ghidra_changes[],status(done|skip|blocked),ghidra_unreachable(bool),ghidra_error_detail(string；Ghidra 連線出問題時寫你看到的錯誤/原因),notes。',
   ].join('\n')
 
   return head + '\n' + body + '\n' + tail
@@ -126,7 +127,7 @@ function reviewerPrompt(fn, emitterOut) {
     '# 共識原則：只 block「破壞 Layer 2 等價/編譯/執行」或「違反鐵則（半成品/批次/跳步/符號名不符/未覆蓋高風險 path）」；等價但寫法不同、純風格 → non_blocking_notes。不確定 → discussion_for_emitter 要求 evidence，而非直接 block。',
     '',
     '# 輸出（最後一則訊息＝下列 JSON）：',
-    'approved(bool), three_source_done{plate,disasm,decomp}, diff_reviewed(bool),',
+    'approved(bool), ghidra_unreachable(bool；Ghidra 連線出問題設 true), ghidra_error_detail(string；寫你看到的錯誤/原因), three_source_done{plate,disasm,decomp}, diff_reviewed(bool),',
     'blocking_issues[{severity,checklist_item,location,claim,evidence,fix_suggestion}], non_blocking_notes[], kb_plate_findings[], emit_issues_to_log[], discussion_for_emitter。',
   ].join('\n')
 }
@@ -160,6 +161,8 @@ const EMITTER_SCHEMA = {
     emit_issues: { type: 'array', items: { type: 'string' } },
     ghidra_changes: { type: 'array', items: { type: 'string' } },
     status: { type: 'string', enum: ['done', 'skip', 'blocked'] },
+    ghidra_unreachable: { type: 'boolean' },
+    ghidra_error_detail: { type: 'string' },
     notes: { type: 'string' },
   },
 }
@@ -169,6 +172,8 @@ const REVIEWER_SCHEMA = {
   required: ['approved', 'three_source_done', 'blocking_issues'],
   properties: {
     approved: { type: 'boolean' },
+    ghidra_unreachable: { type: 'boolean' },
+    ghidra_error_detail: { type: 'string' },
     three_source_done: { type: 'object', properties: { plate: { type: 'boolean' }, disasm: { type: 'boolean' }, decomp: { type: 'boolean' } } },
     diff_reviewed: { type: 'boolean' },
     blocking_issues: { type: 'array', items: { type: 'object', properties: { severity: { type: 'string' }, checklist_item: {}, location: { type: 'string' }, claim: { type: 'string' }, evidence: { type: 'string' }, fix_suggestion: { type: 'string' } } } },
@@ -177,6 +182,33 @@ const REVIEWER_SCHEMA = {
     emit_issues_to_log: { type: 'array', items: { type: 'string' } },
     discussion_for_emitter: { type: 'string' },
   },
+}
+
+// --- Ghidra MCP disconnect detection (schema-only) -----------------------
+// The single Ghidra instance can drop mid-batch. The agent is the only party
+// that sees the actual MCP error (in whatever form — there is no single fixed
+// error string, so NO prose/grep matching anywhere). Detection is purely the
+// structured ghidra_unreachable bool the agent sets (SOP-instructed) plus a
+// free-text ghidra_error_detail cause. On that bool we fast-stop the batch
+// (stopped:'ghidra_disconnect') instead of churning MAX_ROUNDS of doomed
+// reviews; the main-loop watchdog keys only on that signal in the result.
+function agentReportsGhidraDown(out) {
+  // SOLE signal = the structured schema bool `ghidra_unreachable`, set by the agent
+  // — the only party that actually sees the Ghidra MCP error, in whatever form it
+  // takes (there is NO single fixed error string, so no prose/grep matching anywhere).
+  // The agent also returns `ghidra_error_detail` (free-text cause) for the human/log.
+  return !!out && out.ghidra_unreachable === true
+}
+async function runAgent(promptStr, opts) {
+  const out = await agent(promptStr, opts)
+  if (agentReportsGhidraDown(out)) {
+    const detail = (out && out.ghidra_error_detail) ? String(out.ghidra_error_detail) : '(no detail given)'
+    const e = new Error('GHIDRA_DISCONNECT: agent set ghidra_unreachable=true. Reported cause: ' + detail)
+    e.ghidra = true
+    e.ghidraDetail = detail
+    throw e
+  }
+  return out
 }
 
 const results = []
@@ -207,16 +239,16 @@ for (let i = 0; i < fns.length; i++) {
   try {
     let emitterOut = null
     if (fn.mode === 'emit') {
-      emitterOut = await agent(emitterPrompt(fn, 'emit', null), { schema: EMITTER_SCHEMA, label: 'emit:' + fn.name, phase: 'Process' })
+      emitterOut = await runAgent(emitterPrompt(fn, 'emit', null), { schema: EMITTER_SCHEMA, label: 'emit:' + fn.name, phase: 'Process' })
     }
 
-    let verdict = await agent(reviewerPrompt(fn, emitterOut), { schema: REVIEWER_SCHEMA, label: 'review:' + fn.name, phase: 'Process' })
+    let verdict = await runAgent(reviewerPrompt(fn, emitterOut), { schema: REVIEWER_SCHEMA, label: 'review:' + fn.name, phase: 'Process' })
     let round = 0
     while (verdict && !verdict.approved && round < MAX_ROUNDS) {
       const nIssues = (verdict.blocking_issues || []).length
       log(tag + ' — fix round ' + (round + 1) + ' (' + nIssues + ' blocking) [fn out-tok ' + kStr(fnK()) + ']')
-      emitterOut = await agent(emitterPrompt(fn, 'fix', verdict), { schema: EMITTER_SCHEMA, label: 'fix:' + fn.name + ':' + (round + 1), phase: 'Process' })
-      verdict = await agent(reviewerPrompt(fn, emitterOut), { schema: REVIEWER_SCHEMA, label: 'rereview:' + fn.name + ':' + (round + 1), phase: 'Process' })
+      emitterOut = await runAgent(emitterPrompt(fn, 'fix', verdict), { schema: EMITTER_SCHEMA, label: 'fix:' + fn.name + ':' + (round + 1), phase: 'Process' })
+      verdict = await runAgent(reviewerPrompt(fn, emitterOut), { schema: REVIEWER_SCHEMA, label: 'rereview:' + fn.name + ':' + (round + 1), phase: 'Process' })
       round++
     }
 
@@ -229,14 +261,16 @@ for (let i = 0; i < fns.length; i++) {
       results.push({ addr: fn.addr, name: fn.name, status: 'needs_user', rounds: round, out_tok_k: fnK(), blocking_issues: (verdict && verdict.blocking_issues) || [] })
     }
   } catch (e) {
-    // agent() throws when the token/usage limit (or workflow budget) is reached.
-    // Stop the batch to preserve already-committed progress; the in-flight fn was
-    // NOT committed, so routing.json still has it as !reviewed and a re-run redoes it.
+    // agent()/runAgent() throws on token/usage limit, workflow budget, agent error,
+    // OR a detected Ghidra MCP disconnect (runAgent tags e.ghidra). Stop the batch to
+    // preserve already-committed progress; the in-flight fn was NOT committed, so
+    // routing.json still has it !reviewed and a re-run redoes it.
     const msg = String((e && e.message) || e)
-    log(tag + ' — INTERRUPTED (likely token/usage limit or agent error): ' + msg + ' | batch out-tok ' + kStr(batchK()))
-    results.push({ addr: fn.addr, name: fn.name, status: 'interrupted', error: msg, out_tok_k: fnK() })
+    const isGhidra = !!(e && e.ghidra)
+    log(tag + (isGhidra ? ' — GHIDRA DISCONNECT (agent set ghidra_unreachable): ' : ' — INTERRUPTED (likely token/usage limit or agent error): ') + msg + ' | batch out-tok ' + kStr(batchK()))
+    results.push({ addr: fn.addr, name: fn.name, status: isGhidra ? 'ghidra_disconnect' : 'interrupted', error: msg, ghidra_error_detail: (e && e.ghidraDetail) || null, out_tok_k: fnK() })
     for (let j = i + 1; j < fns.length; j++) results.push({ addr: fns[j].addr, name: fns[j].name, status: 'deferred_after_interrupt' })
-    stopped = 'interrupt'
+    stopped = isGhidra ? 'ghidra_disconnect' : 'interrupt'
     break
   }
 }
