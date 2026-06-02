@@ -4159,7 +4159,8 @@
     "target": "util/dpmi.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00036316": {
     "name": "fd2_dpmi_lock_size",

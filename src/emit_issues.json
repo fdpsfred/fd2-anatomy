@@ -305,5 +305,18 @@
         "source_review": "fd2_dpmi_alloc_dos_memory @000361cc (emitter fix-round; int386 override proven to crash DOS/4GW)"
       }
     ]
+  },
+  "000362f1": {
+    "name": "fd2_dpmi_unlock_region",
+    "target": "util/dpmi.c",
+    "issues": [
+      {
+        "type": "fragment_equivalence_handoff",
+        "desc": "Class-3 shared-tail equivalence-by-regeneration. fd2_dpmi_unlock_region's INT 31h dispatch tail (asm @0x362a7) is shared via JMP from inside fd2_dpmi_lock_region (@0x36284) and is NOT byte-identical-preserved. The baseline emits both fd2_dpmi_lock_region and fd2_dpmi_unlock_region as independent full functions and relies on Watcom 9.5a regenerating an equivalent int386 dispatch + cflag-return in each. Layer-2 equivalence rests on that regeneration, not on preserving the original JMP-into-sibling tail. Logged per project convention for Class-3 shared-tail / shared-epilogue equivalence-by-regeneration concerns (cf. the 00010b43 and 00015983 fragment_equivalence_handoff entries). verify_method: post-build -d disasm to confirm each function emits a SUB ESP,0x38 frame + correct DWORDREGS packing + int386 + cflag SETZ.",
+        "severity": "info",
+        "verify_method": "compile_and_disasm",
+        "source_review": "fd2_dpmi_unlock_region @000362f1 (reviewer-approved)"
+      }
+    ]
   }
 }
