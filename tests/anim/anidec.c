@@ -286,6 +286,69 @@ static void test_ani_palette_load_run_pairs(void)
 }
 
 
+/*
+ * test_ani_row_decode_rle
+ *
+ * Drives fd2_ani_decoder_chunk_row_decode_rle via decode_frame_bytes
+ * (chunk-type byte 6 = real Ghidra dispatch slot @ 0x52782, base 0x5276A
+ * + index 6*4 = 0x18 per plate).  This is the row-buffer twin of
+ * palette_load_rle: identical RLE byte format and the same
+ * AND AL,0x3F / SHR ECX,1 + REP STOSW / RCL ECX,1 + REP STOSB
+ * byte-broadcast write, but bounded by target_width output bytes into
+ * dst_buf instead of 768 bytes into src_buf.
+ *
+ * Exercises every decode path of the handler against target_width = 30:
+ *   - literal bytes (top two bits != 11)               -> 0x01, 0x02
+ *   - even RLE run (REP STOSW only, no trailing STOSB)  -> 0xC8 -> 8x 0x33
+ *   - odd  RLE run (REP STOSW + trailing REP STOSB)     -> 0xC7 -> 7x 0x44
+ *   - terminating odd run hitting pos == width exactly  -> 0xCD -> 13x 0x55
+ *
+ * 0xC0|N is a run of length N; the following byte is the value V to
+ * broadcast.  Token stream consumed (g_ani_cursor starts at stream+1):
+ *   01 02 C8 33 C7 44 CD 55
+ * Output layout (sums to 2+8+7+13 = 30 = target_width):
+ *   [0..1]=01,02  [2..9]=33  [10..16]=44  [17..29]=55
+ *
+ * Expected values are hand-derived from the RLE format, identical to the
+ * already-validated palette_load_rle derivation (every byte of a run is the
+ * broadcast value V; SHR/REP STOSW pairs cover the even half and RCL/REP
+ * STOSB writes the trailing odd byte).  The decode logic executes through
+ * the compiled C against a real 320-byte row buffer here.
+ */
+static void test_ani_row_decode_rle(void)
+{
+    uint8 stream[9];
+
+    stream[0] = 6;          /* dispatch index -> row_decode_rle */
+    stream[1] = 0x01;       /* literal */
+    stream[2] = 0x02;       /* literal */
+    stream[3] = 0xC0 | 8;   /* 0xC8: even run, length 8 */
+    stream[4] = 0x33;
+    stream[5] = 0xC0 | 7;   /* 0xC7: odd run, length 7 (trailing STOSB) */
+    stream[6] = 0x44;
+    stream[7] = 0xC0 | 13;  /* 0xCD: terminating odd run, length 13 */
+    stream[8] = 0x55;
+
+    data_fd2_animation_ani_decoder_dst_buf = (uint32)g_test_row_buf;
+    data_fd2_animation_ani_decoder_target_width = 30;
+    data_fd2_animation_ani_decoder_frame_dispatch_table[6] =
+        (void *)fd2_ani_decoder_chunk_row_decode_rle;
+    memset(g_test_row_buf, 0, 320);
+    fd2_ani_decoder_decode_frame_bytes(1, (uint32)stream);
+
+    ASSERT_EQ((long)g_test_row_buf[0],  0x01);  /* first literal */
+    ASSERT_EQ((long)g_test_row_buf[1],  0x02);  /* second literal */
+    ASSERT_EQ((long)g_test_row_buf[2],  0x33);  /* even run start */
+    ASSERT_EQ((long)g_test_row_buf[9],  0x33);  /* even run end (boundary) */
+    ASSERT_EQ((long)g_test_row_buf[10], 0x44);  /* odd run start */
+    ASSERT_EQ((long)g_test_row_buf[16], 0x44);  /* odd run last byte (trailing STOSB) */
+    ASSERT_EQ((long)g_test_row_buf[17], 0x55);  /* final run start */
+    ASSERT_EQ((long)g_test_row_buf[29], 0x55);  /* exact termination at width */
+    /* one byte past the decoded row stays untouched (no overshoot) */
+    ASSERT_EQ((long)g_test_row_buf[30], 0x00);
+}
+
+
 void run_anim_anidec_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -293,6 +356,7 @@ void run_anim_anidec_tests(void)
     RUN_TEST(test_ani_decoder_set_target_buffer);
     RUN_TEST(test_ani_palette_fill_byte);
     RUN_TEST(test_ani_palette_load_rle);
+    RUN_TEST(test_ani_row_decode_rle);
     RUN_TEST(test_ani_palette_load_run_pairs);
     RUN_TEST(test_ani_row_copy_literal);
     RUN_TEST(test_ani_sparse_set_byte);
