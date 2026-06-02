@@ -11,6 +11,8 @@ JSON schema: { "<address>": { "name", "target", "phase", "done", "asm" } }
 Commands:
   generate   — Create routing.json from emit_functions.json + routing rules
                (preserves done/asm/target from existing routing.json if present)
+  resplit    — Re-apply the sub-file split to existing routing.json targets
+               (idempotent; only `target` changes)
   status     — Print per-phase and per-target progress summary
   mark <addr> done|asm  — Set done=true or asm=true for a function
   pending [--phase N]   — List pending (not done) functions, optionally filtered by phase
@@ -163,14 +165,18 @@ EXPLICIT_TARGETS = {
     "fd2_delay_400ms_via_idle_thunk": "util/misc.c",
     "fd2_obfuscate_battle_tile_map": "save/save.c",
     "fd2_resolve_terrain_for_aoe_targets": "battle/btl_ai.c",
+    # AoE tile-marker primitive: name "set_tile_overlay" wrongly matched the
+    # btl_turn rule, but its only caller is fd2_mark_aoe_plus_pattern_at (AI
+    # targeting). Belongs with the AI targeting group (-> btl_aitg via subsplit).
+    "fd2_set_tile_overlay_bit_80": "battle/btl_ai.c",
     "fd2_cutscene_event_trigger": "field/chtrans.c",
     "fd2_setup_chars_and_camera_for_intro": "field/chtrans.c",
     "fd2_chapter_transition_menu": "field/chtrans.c",
     "fd2_chapter_transition_with_intro": "field/chtrans.c",
 }
 
-def assign_target(name, phase):
-    """Assign routing target for a function."""
+def _base_target(name, phase):
+    """Assign base routing target (pre subsplit) for a function."""
     if name in EXPLICIT_TARGETS:
         return EXPLICIT_TARGETS[name]
 
@@ -239,7 +245,7 @@ def assign_target(name, phase):
 
     # Battle turn lifecycle
     if any(name.startswith(f"fd2_{p}") for p in [
-        "clear_all_chars", "convert_battle", "set_tile_overlay",
+        "clear_all_chars", "convert_battle",
         "run_full_turn", "fire_chapter_turn", "process_battle_drop",
         "process_xp", "roll_stat_gain", "restore_all_chars",
         "kill_runtime", "count_active_chars", "find_template",
@@ -273,6 +279,100 @@ def assign_target(name, phase):
     ]): return "gfx/blit.c"
 
     return "UNROUTED"
+
+
+# ── Sub-file split (keep each .c <= ~1000 emitted lines) ──
+# Oversized base targets are split by cohesive sub-feature into 8.3 sub-files.
+# chevt/chend split by handler-index / chapter-number; the rest by name pattern.
+# Mirrors workspace/file_split/split_design.md (the reviewed design).
+
+def _any(name, subs):
+    return any(s in name for s in subs)
+
+def _subsplit(name, target):
+    if target == "anim/anim.c":
+        if _any(name, ["walk_", "slide_panel", "play_status_screen_outro", "tick_tile_event"]): return "anim/aniwalk.c"
+        if "tick_summon" in name or "tick_sprite_animation_step" in name: return "anim/anisummn.c"
+        if _any(name, ["full_combat_cinematic", "execute_combat_hit_cinematic", "char_intro_zoom",
+                       "figani_char_intro", "figani_animation_loop", "step_figani_pose",
+                       "animate_spell_hit_cinematic", "display_cinematic_image"]): return "anim/anicine.c"
+        if _any(name, ["spell_cast_cinematic", "spell_cast_sequence", "cycle_sprite_anim_with_bg",
+                       "bg_zoom_transition", "play_ani_file_animation_sequence"]): return "anim/anispell.c"
+        if _any(name, ["ending", "final_chapter_30", "chapter_clear_fanfare",
+                       "chapter_intro_sprite_slideshow"]): return "anim/aniend.c"
+        if _any(name, ["money", "tutorial", "scroll_up_in_shop", "scroll_down_in_shop",
+                       "shop_transaction", "party_addition", "warp_char_to_tile",
+                       "palette_flash_pulse", "screen_shake"]): return "anim/aniui.c"
+        return "anim/anicombt.c"
+    if target == "gfx/render.c":
+        if _any(name, ["status_screen_static", "full_char_stat_panel", "status_panel_layer",
+                       "inventory_item_grid", "number_red_when_full", "hp_or_mp_bar_proportional",
+                       "decimal_number_to_buffer", "mini_char_status_panel", "terrain_info_hud",
+                       "signed_modifier_with_icon", "party_status_overview", "chapter_status_panel",
+                       "horizontal_bar_segments", "paint_portrait_to_dialog"]): return "gfx/rndstat.c"
+        if _any(name, ["chapter_intro_overlay", "chapter_intro_dialog_panels", "shop_item_grid",
+                       "party_roster_grid", "party_roster_with_item_stat", "save_slot_grid",
+                       "promote_members_grid", "promote_candidates_grid",
+                       "recruitment_select_screen", "battle_scene_with_portrait_grid"]): return "gfx/rndmenu.c"
+        return "gfx/rndscene.c"
+    if target == "spell/spellwk.c":
+        if _any(name, ["build_usable_spell_list", "draw_spell_selection_list",
+                       "spell_selection_menu_main", "spell_select_input_loop",
+                       "play_spell_palette_flash", "grant_spell_to_char"]): return "spell/spellsel.c"
+        if _any(name, ["earthquake", "rising_pre_cast", "dispatch_variant_b_cast",
+                       "execute_aoe_spell_with_caster_portrait", "scatter_sprite", "variant_b_slide",
+                       "animate_warp_", "screen_wide_spell_with_fade", "execute_special_attack_skill",
+                       "execute_summon_spell_cast"]): return "spell/spellcin.c"
+        return "spell/spelleff.c"
+    if target == "battle/btl_ai.c":
+        if _any(name, ["advance_to_nearest", "pass_turn_with_heal", "seek_optimal_position",
+                       "walk_to_target_tile", "mark_aoe_plus_pattern", "mark_char_occupant",
+                       "scan_chars_within_manhattan", "compute_aoe_targets", "scan_chars_along_line",
+                       "collect_unmarked_tile", "tally_chars_with_zero", "find_tile_with_attribute",
+                       "resolve_terrain_for_aoe", "set_tile_overlay"]): return "battle/btl_aitg.c"
+        if "score" in name: return "battle/btl_aisc.c"
+        return "battle/btl_ai.c"
+    if target == "ui_menu/shop.c":
+        if _any(name, ["chapter_intro_menu_input_loop", "run_chapter_intro_menu",
+                       "party_roster_single_select", "party_roster_class_select"]): return "ui_menu/chintro.c"
+        if _any(name, ["build_dead_chars", "promote_member", "run_revive", "run_class_promotion",
+                       "execute_class_promotion", "build_promotion_candidates",
+                       "run_recruitment_or_branch"]): return "ui_menu/promote.c"
+        return "ui_menu/shop.c"
+    if target == "gfx/blit.c":
+        if _any(name, ["tile_blit_24x24", "blit_24x24_at_window", "blit_animated_tile",
+                       "blit_24x24_tile_to_battle_grid", "blit_scaled_chapter_pose",
+                       "blit_scaled_tile_map_view"]): return "gfx/blittile.c"
+        return "gfx/blitspr.c"
+    if target == "ui_menu/menu.c":
+        if _any(name, ["options_menu_loop", "count_active_menu_items", "settings_dialog",
+                       "settings_menu_input", "settings_dialog_borders", "speed_mode_overlay"]): return "ui_menu/menucfg.c"
+        if _any(name, ["handle_tile_event_interaction", "field_menu_status_save_load_quit",
+                       "open_tactical_overview"]): return "ui_menu/menufld.c"
+        return "ui_menu/menu.c"
+    if target == "battle/btl_turn.c":
+        if _any(name, ["init_runtime_char", "init_battle_state", "convert_battle_tiles",
+                       "restore_all_chars", "clear_all_chars", "set_chapter_init_done",
+                       "set_battle_anim_phase"]): return "battle/btl_init.c"
+        return "battle/btl_turn.c"
+    if target == "field/chevt.c":
+        m = re.search(r"event_handler_([0-9a-fA-F]{2})", name)
+        if m:
+            return "field/chevt2.c" if int(m.group(1), 16) >= 0x2f else "field/chevt1.c"
+        # named helpers (no handler index): place with their consumer half
+        if _any(name, ["cinematic_chapter_portrait_dump", "wrap_cinematic"]): return "field/chevt2.c"
+        return "field/chevt1.c"
+    if target == "field/chend.c":
+        m = re.search(r"chapter_(\d\d)_end", name)
+        if m:
+            return "field/chend2.c" if int(m.group(1)) >= 20 else "field/chend1.c"
+        return "field/chend1.c"
+    return target
+
+
+def assign_target(name, phase):
+    """Routing target = base target refined by sub-file split."""
+    return _subsplit(name, _base_target(name, phase))
 
 
 # ── Commands ──
@@ -326,6 +426,28 @@ def cmd_generate():
         encoding="utf-8",
     )
     print(f"Wrote {len(routing)} entries to {ROUTING_JSON}")
+    _print_target_counts(routing)
+
+
+def cmd_resplit():
+    """Re-apply the sub-file split to existing routing.json targets (idempotent).
+    Only the `target` field changes; key order and all other fields preserved."""
+    raw = ROUTING_JSON.read_text(encoding="utf-8")
+    routing = json.loads(raw)
+    changed = []
+    for addr, v in routing.items():
+        new_t = _subsplit(v["name"], v["target"])
+        if new_t != v["target"]:
+            changed.append((addr, v["name"], v["target"], new_t))
+            v["target"] = new_t
+    out = json.dumps(routing, ensure_ascii=False, indent=2)
+    if raw.endswith("\n"):
+        out += "\n"
+    ROUTING_JSON.write_text(out, encoding="utf-8")
+    print(f"resplit: {len(changed)} entries re-targeted, {len(routing)} total")
+    for addr, nm, old, new in changed:
+        print(f"  {addr} {old:24s} -> {new:24s} {nm}")
+    print()
     _print_target_counts(routing)
 
 
@@ -427,6 +549,8 @@ def main():
     cmd = sys.argv[1]
     if cmd == "generate":
         cmd_generate()
+    elif cmd == "resplit":
+        cmd_resplit()
     elif cmd == "status":
         cmd_status()
     elif cmd == "mark":

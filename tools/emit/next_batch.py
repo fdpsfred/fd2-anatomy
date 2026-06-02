@@ -10,7 +10,7 @@ returns the NEXT not-yet-done work, so it is safe to re-run after ANY interrupti
 
 Usage:
   python tools/emit/next_batch.py --stats
-  python tools/emit/next_batch.py --mode review --limit 12 [--name summon] [--target anim/anim.c]
+  python tools/emit/next_batch.py --mode review --limit 12 [--name summon] [--target anim/aniwalk.c]
   python tools/emit/next_batch.py --mode emit   --limit 12
 Output: JSON on stdout. For a batch: {batchLabel, count, remaining_in_filter, functions:[...]}.
 

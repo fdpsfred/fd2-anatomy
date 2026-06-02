@@ -1,5 +1,5 @@
 /*
- * spellwk.c — Complex spell workers (non-thunk spell handlers)
+ * spelleff.c — Spell/item effect appliers: use-effect dispatch, stat/status, targeted casts
  */
 
 #include "types.h"

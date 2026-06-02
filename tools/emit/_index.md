@@ -10,7 +10,7 @@
 | `emit_review.wf.js` | **Workflow 雙模式編排**。序列(一次一個 function):`review`(已 emit 復驗)/ `emit`(從零產出)→ reviewer → 迭代(≤ MAX_ROUNDS)→ bookkeeper per-function commit。內含 budget guard、try/catch(token/usage limit 優雅停)、reviewer 主動查 Ghidra 事實、output-token 統計。 |
 | `build_test.py` | **build gate**(single source of truth)。clean → 啟動 DOSBox-X 跑 `tests/dosbox.conf`(compile src+tests / link / run)→ **前景輪詢 `tests/OUT/DONE.TXT`** → 解析 `BUILD.OUT`/`TEST.OUT` → 回傳 JSON。`{gate_pass, build_ok, errors, warnings, tests_passed, tests_failed}`。 |
 | `next_batch.py` | **scout 下一批 work-list**。從 `src/routing.json` 取 `done & !reviewed`(review 模式)或 `!done`(emit 模式),輸出 Workflow `args.functions`。`--stats` 看覆蓋率。 |
-| `mkroute.py` | routing.json 生成/管理(從 emit_functions.json + 規則)。 |
+| `mkroute.py` | routing.json 生成/管理(從 emit_functions.json + 規則)。`generate`/`status`/`mark`/`pending`/`validate`/`resplit`。大 subsystem 依子功能切成多個 ≤~1000 行 .c 的規則在 `_subsplit()`（見 `tools/file_split/`），`resplit` 把切分套到既有 routing.json。 |
 | `count_cats.py` / `dump_emit_functions.java` | 既有分類計數 / Ghidra dump 工具。 |
 
 ## 狀態 source of truth

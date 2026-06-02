@@ -1,6 +1,5 @@
 /*
- * btl_turn.c — Battle turn management: char lookup, status ticks,
- *              death handling, battle init/end conditions.
+ * btl_turn.c — Battle turn cycle: turn loop, XP/level-up, drops, status tick, queries
  */
 
 #include "types.h"
@@ -85,32 +84,6 @@ void fd2_tick_status_effects_and_show_messages(uint32 team)
             }
         }
     }
-}
-
-/* ----------------------------------------------------------------
- * fd2_init_battle_state_for_chapter @ 0x205DA
- *
- * Initialize battle state for the current chapter: clear flags,
- * load battle data, zero viewport/cursor, first paint, fade in.
- * ---------------------------------------------------------------- */
-void fd2_init_battle_state_for_chapter(void)
-{
-    data_fd2_battle_anim_phase = 0;
-    data_fd2_chapter_event_or_battle_end_code = 0;
-    fd2_load_chapter_battle_data(data_fd2_chapter_current_chapter_id);
-    memset((void *)data_fd2_field_map_tile_event_consumed_flags_ptr,
-           0, 0x20);
-    data_fd2_battle_view_window_origin_x = 0;
-    data_fd2_battle_view_window_origin_y = 0;
-    data_fd2_battle_cursor_world_x = 0;
-    data_fd2_battle_cursor_world_y = 0;
-    data_fd2_battle_cursor_screen_x = 0;
-    data_fd2_battle_cursor_screen_y = 0;
-    fd2_composite_battle_frame(1);
-    data_fd2_battle_anim_phase = 1;
-    fd2_play_palette_fade_in();
-    data_fd2_battle_turn_counter = 1;
-    fd2_clear_keyboard_buffer();
 }
 
 /* ----------------------------------------------------------------
@@ -277,16 +250,6 @@ void fd2_mark_char_as_dead(uint32 char_idx)
 }
 
 /* ----------------------------------------------------------------
- * fd2_set_chapter_init_done_flag @ 0x33FAF
- *
- * Set chapter_init_done_flag byte to 1.
- * ---------------------------------------------------------------- */
-void fd2_set_chapter_init_done_flag(void)
-{
-    data_fd2_chapter_chapter_init_done_flag = 1;
-}
-
-/* ----------------------------------------------------------------
  * fd2_set_combat_aux_block_byte_d_low4_for_char_range @ 0x3419C
  *
  * Write low 4 bits of new_val into combat_aux_block[0xD] for
@@ -303,18 +266,6 @@ void fd2_set_combat_aux_block_byte_d_low4_for_char_range(
               + i * RUNTIME_CHAR_SIZE;
         pChar[0x34] = (pChar[0x34] & 0xF0) | (uint8)new_val;
     }
-}
-
-/* ----------------------------------------------------------------
- * fd2_set_battle_anim_phase_to_1 @ 0x35C15
- *
- * Shared tail chunk: set battle_anim_phase = 1.
- * Originally a JMP target with stack cleanup; emitted as
- * standalone setter.
- * ---------------------------------------------------------------- */
-void fd2_set_battle_anim_phase_to_1(void)
-{
-    data_fd2_battle_anim_phase = 1;
 }
 
 /* ----------------------------------------------------------------
