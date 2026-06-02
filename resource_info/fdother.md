@@ -21,7 +21,7 @@ sub-entries 各自獨立索引。
 | **0x04** | `chinese_font_sheet @ 0x53A75` | **1bpp 中文字模 (1824 glyphs × 32 bytes)** | 58,368 |
 | 0x05 | `ui_and_anim_sprite_sheet @ 0x53A81` | UI / 動畫 sprite sheet (LMI1 magic) | 44,181 |
 | **0x06** | `portrait_sheet @ 0x53AD1` | portrait sheet (LMI1 magic) | 33,415 |
-| **0x1F** | `fdother_resource_buffer @ 0x53EEC` | nested archive (13 sub-entries) UI sprite + sfx | 31,771 |
+| **0x1F** | `data_fd2_audio_fdother_sfx_bank_buf_ptr @ 0x53EEC` | nested archive (13 sub-entries) UI sprite + sfx | 31,771 |
 
 `chinese_font_sheet` 是 **1bpp** (58368 ÷ 1824 ÷ 32 = 1.0)。
 `fd2_blit_glyph_2bpp_with_outline @ 0x4EA2A` 命名指 **output buffer** 是 2bpp

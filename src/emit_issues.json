@@ -266,18 +266,5 @@
         "source_review": "fd2_spell_handler_id_7_via_full_screen_flash @0002147b (reviewer-approved)"
       }
     ]
-  },
-  "00025977": {
-    "name": "fd2_set_bgm_track_with_fade",
-    "target": "audio/audio.c",
-    "issues": [
-      {
-        "type": "cross_function_plate_drift",
-        "desc": "Cross-function plate drift carried over: fd2_main @ 0x25bf4 plate still labels 0x53EF0 as 'current_bgm_track_id' (init step 2). Correct meaning is bgm_driver_available_flag (boolean MDI-installed gate), same as the now-corrected 0x25977 plate. Correctly left untouched here by strict per-function boundary; should be fixed in a dedicated fd2_main plate-correction pass so the stale label does not linger.",
-        "severity": "info",
-        "verify_method": "fix_at_function_review",
-        "source_review": "fd2_set_bgm_track_with_fade @00025977 (reviewer-approved)"
-      }
-    ]
   }
 }
