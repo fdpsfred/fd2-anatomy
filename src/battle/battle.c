@@ -265,7 +265,7 @@ void fd2_calculate_combat_hit_outcome(uint32 attacker_idx,
     uint32 damage;
     uint32 jitter_range;
     uint32 rng_val;
-    uint32 tile_attr_buf;
+    uint8 tile_attr_buf[8];
     uint8 tile_id;
     uint8 *enemy_entry;
 
@@ -301,7 +301,8 @@ void fd2_calculate_combat_hit_outcome(uint32 attacker_idx,
     if (fd2_check_char_status_immunity(attacker_idx) == 0) {
         fd2_read_tile_attribute_at_pos(
             (uint32)pAttacker[0], (uint32)pAttacker[1],
-            (uint32)&tile_attr_buf);
+            (uint32)tile_attr_buf);
+        tile_id = tile_attr_buf[5];
         atk_ap = atk_ap +
             (int)(data_fd2_battle_tile_attr_mv_modifier_table[tile_id]
                   * atk_ap) / 100;
@@ -309,7 +310,8 @@ void fd2_calculate_combat_hit_outcome(uint32 attacker_idx,
     if (fd2_check_char_status_immunity(defender_idx) == 0) {
         fd2_read_tile_attribute_at_pos(
             (uint32)pDefender[0], (uint32)pDefender[1],
-            (uint32)&tile_attr_buf);
+            (uint32)tile_attr_buf);
+        tile_id = tile_attr_buf[5];
         def_dp = def_dp +
             (int)(data_fd2_battle_tile_attr_def_modifier_table[tile_id]
                   * def_dp) / 100;

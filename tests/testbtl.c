@@ -1074,6 +1074,189 @@ static void test_combat_hit_outcome_zero_stats(void)
     ASSERT_EQ(outcome[5], 0);
 }
 
+/* HIT + CRIT + jitter — the core numeric/RNG/EAX-risk path. seed 0 draws:
+ * draw1=0x80A4 (%100=32), draw2=0x85C0 (%100=40), draw3=0xAEA0 (%10=4).
+ * Both combatants immune via archetype_flag 4 (portrait != 0x1C) so the
+ * terrain blocks are skipped without disturbing job_id; attacker job_id 1 ->
+ * job_crit[0]=50. Hit roll draw1%100=32 < atk_hit(100)-def_evade(0)=100 -> HIT
+ * (outcome[0]=0). Crit roll draw2%100=40 < 50 -> CRIT (outcome[1]=1): def_dp
+ * 20 -> 10 (halved). damage=(110-10)*9/10=90; jitter_range=90/9=10; jitter=
+ * draw3%10=4 -> damage 94 (outcome[5]). The no-crit counterfactual (DP stays
+ * 20) would give (110-20)*9/10=81, jr=9, jitter=44704%9=1 -> 82, so asserting
+ * 94 (not 82) proves the crit DP-halving executed under the correct RNG draw.
+ * team 1 -> XP block skipped. Defender HP is NOT written back (pure pre-compute). */
+static void test_combat_hit_outcome_crit_jitter(void)
+{
+    uint32 outcome[6];
+    eatk_reset();
+    g_test_rc_array[0].team = 1;            /* skip XP */
+    g_test_rc_array[0].job_id = 1;          /* job_crit[0] */
+    g_test_rc_array[0].archetype_flag = 4;  /* immune -> no terrain */
+    g_test_rc_array[0].portrait_id = 0x10;  /* != 0x1C */
+    g_test_rc_array[0].ap = 110;
+    g_test_rc_array[0].dx_current = 100;    /* atk_hit */
+    data_fd2_battle_job_crit_rate_table[0] = 50;
+    g_test_rc_array[1].archetype_flag = 4;  /* immune -> no terrain */
+    g_test_rc_array[1].portrait_id = 0x10;
+    g_test_rc_array[1].dp = 20;
+    g_test_rc_array[1].stat4_current = 0;   /* def_evade */
+    g_test_rc_array[1].hp_current = 200;
+    g_test_rc_array[1].hp_max = 200;
+    data_fd2_shared_rng_seed = 0;
+    fd2_calculate_combat_hit_outcome(0, 1, outcome);
+    ASSERT_EQ(outcome[0], 0);               /* HIT */
+    ASSERT_EQ(outcome[1], 1);               /* CRIT */
+    ASSERT_EQ(outcome[5], 94);              /* crit dmg+jitter */
+    ASSERT_EQ(g_test_rc_array[1].hp_current, 200);  /* NOT written back */
+}
+
+/* TERRAIN AP bonus — directly locks the fixed tile_id = tile_attr_buf[5] index
+ * and the 8-byte buffer. Attacker NON-immune (job 1, archetype 0) so the
+ * attacker terrain block runs: fd2_read_tile_attribute_at_pos reads cell (1,1)
+ * of g_eatk_map (width 3); sprite_idx word = 0 -> attr_ptr = g_eatk_attr+0 and
+ * tile_attr_buf[5] = g_eatk_attr[1] = 9 (the tile_id). mv_modifier[9]=50 ->
+ * atk_ap = 20 + (20*50)/100 = 30. Defender immune (archetype 4) so its DP is
+ * unmodified. No crit (job_crit[0]=0). Hit roll draw1%100=32 < atk_hit(100) ->
+ * HIT. damage=(30-10)*9/10=18; jitter_range=18/9=2; jitter=draw3%2=0 -> 18.
+ * If tile_id were the old uninitialized/garbage value, mv_modifier[garbage]
+ * would (almost surely) differ from 50; with modifier 0 -> AP 20 -> damage
+ * (20-10)*9/10=9, jr=1, jitter 0 -> 9. Asserting 18 (not 9) locks both the
+ * tile_attr_buf[5] read AND the 8-byte buffer. team 1 -> skip XP. */
+static void test_combat_hit_outcome_terrain_ap(void)
+{
+    uint32 outcome[6];
+    uint32 save_map;
+    uint32 save_attr;
+    uint32 save_w;
+    eatk_reset();
+    save_map = data_fd2_battle_tile_map_ptr;
+    save_attr = data_fd2_tile_attribute_flags_buffer_ptr;
+    save_w = data_fd2_battle_map_width_tiles;
+    memset(g_eatk_map, 0, sizeof(g_eatk_map));
+    memset(g_eatk_attr, 0, sizeof(g_eatk_attr));
+    g_eatk_attr[1] = 9;                     /* tile_id = attr_ptr[1] */
+    data_fd2_battle_tile_map_ptr = (uint32)g_eatk_map;
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)g_eatk_attr;
+    data_fd2_battle_map_width_tiles = 3;
+    data_fd2_battle_tile_attr_mv_modifier_table[9] = 50;  /* +50% AP */
+    g_test_rc_array[0].team = 1;            /* skip XP */
+    g_test_rc_array[0].job_id = 1;          /* NON-immune -> terrain runs */
+    g_test_rc_array[0].archetype_flag = 0;
+    g_test_rc_array[0].pos_x = 1;
+    g_test_rc_array[0].pos_y = 1;           /* cell (1,1) -> sprite_idx 0 */
+    g_test_rc_array[0].ap = 20;
+    g_test_rc_array[0].dx_current = 100;    /* hit */
+    g_test_rc_array[1].job_id = 0x13;       /* immune -> defender no terrain */
+    g_test_rc_array[1].dp = 10;
+    g_test_rc_array[1].stat4_current = 0;
+    g_test_rc_array[1].hp_current = 200;
+    g_test_rc_array[1].hp_max = 200;
+    data_fd2_shared_rng_seed = 0;
+    fd2_calculate_combat_hit_outcome(0, 1, outcome);
+    ASSERT_EQ(outcome[0], 0);               /* HIT */
+    ASSERT_EQ(outcome[5], 18);              /* terrain-boosted AP damage */
+    data_fd2_battle_tile_map_ptr = save_map;
+    data_fd2_tile_attribute_flags_buffer_ptr = save_attr;
+    data_fd2_battle_map_width_tiles = save_w;
+    data_fd2_battle_tile_attr_mv_modifier_table[9] = 0;
+}
+
+/* POISON weapon (weapon_class == 2) writes defender status_flags_block[4] and
+ * sets outcome[2]. Item 0 special_type(+10)=2, chance(+11)=50. Unlike the
+ * sibling damage routine, this pre-compute path fires NO VGA/delay calls on
+ * poison. RNG order: poison-roll first (draw1%100=32 < 50 -> lands), duration
+ * draw2%4=0 -> status = 0+2 = 2; THEN hit-roll uses draw3%100=4. atk_hit=0,
+ * def_evade=0 -> 4 < 0 FALSE -> MISS, so damage stays 0 and the poison write is
+ * isolated. fd2_get_item_effect_entry returns &item_effect_table[id].type
+ * (struct+1) so weapon_entry[9]=struct+10, weapon_entry[10]=struct+11. Both
+ * immune (job 0x13) -> no terrain; team 1 -> no XP. */
+static void test_combat_hit_outcome_poison(void)
+{
+    uint32 outcome[6];
+    uint8 *wp;
+    eatk_reset();
+    wp = (uint8 *)&data_fd2_battle_item_effect_table[0];
+    wp[10] = 2;                            /* special_type -> weapon_class 2 */
+    wp[11] = 50;                           /* poison chance % */
+    g_test_rc_array[0].team = 1;
+    g_test_rc_array[0].job_id = 0x13;      /* immune -> no terrain */
+    g_test_rc_array[0].dx_current = 0;     /* atk_hit 0 -> miss after poison */
+    g_test_rc_array[1].job_id = 0x13;
+    g_test_rc_array[1].stat4_current = 0;
+    g_test_rc_array[1].hp_current = 100;
+    g_test_rc_array[1].hp_max = 100;
+    data_fd2_shared_rng_seed = 0;
+    fd2_calculate_combat_hit_outcome(0, 1, outcome);
+    ASSERT_EQ(g_test_rc_array[1].status_flags_block[4], 2);  /* poison kind 2 */
+    ASSERT_EQ(outcome[2], 1);              /* poison_applied */
+    ASSERT_EQ(outcome[0], 1);             /* MISS */
+    ASSERT_EQ(outcome[5], 0);             /* no damage */
+}
+
+/* DOUBLE-HIT weapon (weapon_class == 3) sets outcome[4] (caller plays two
+ * strikes) and consumes no extra RNG before the hit-roll. Item 0 special_type
+ * (+10)=3. With atk_hit=0/def_evade=0 the hit-roll (draw1%100=32 < 0) MISSes,
+ * isolating the double-hit flag. Both immune (job 0x13); team 1 -> no XP. */
+static void test_combat_hit_outcome_double_hit(void)
+{
+    uint32 outcome[6];
+    uint8 *wp;
+    eatk_reset();
+    wp = (uint8 *)&data_fd2_battle_item_effect_table[0];
+    wp[10] = 3;                            /* special_type -> weapon_class 3 */
+    g_test_rc_array[0].team = 1;
+    g_test_rc_array[0].job_id = 0x13;      /* immune -> no terrain */
+    g_test_rc_array[0].dx_current = 0;     /* miss */
+    g_test_rc_array[1].job_id = 0x13;
+    g_test_rc_array[1].stat4_current = 0;
+    g_test_rc_array[1].hp_current = 100;
+    g_test_rc_array[1].hp_max = 100;
+    data_fd2_shared_rng_seed = 0;
+    fd2_calculate_combat_hit_outcome(0, 1, outcome);
+    ASSERT_EQ(outcome[4], 1);              /* double_hit_flag */
+    ASSERT_EQ(outcome[0], 1);             /* MISS */
+    ASSERT_EQ(outcome[5], 0);             /* no damage */
+}
+
+/* XP credit (player attacker vs enemy, SURVIVE path) — exercises the
+ * pending_xp_credit accumulator including the proportional-on-survive IDIV and
+ * the EAX-as-pointer return of fd2_get_enemy_data_entry. attacker team 2 +
+ * defender portrait 0x44 (>=0x44) enters the XP block; enemy index 0x44-0x44=0.
+ * Attacker immune via archetype_flag 4 (portrait 0x10 != 0x1C) -> no terrain;
+ * job_id 1 (not in 9..0x18) and char_id(+8) 0 (!=0x1C) -> NO +0x1E level mod.
+ * AP 200, DP 10, job_crit[0]=0 (no crit). Hit roll draw1%100=32 < atk_hit 100
+ * -> HIT. damage=(200-10)*9/10=171; jitter_range=171/9=19; jitter=44704%19=16
+ * -> 187 (outcome[5]). def_hp_after=200-187=13 != 0 -> SURVIVE. full XP =
+ * def_level(3)*exp_reward(10)/atk_level(4)=30/4=7; proportional = 7*187/200=6.
+ * Asserting 6 (not the full 7) pins the survive-scaling branch; defender HP is
+ * NOT written back. */
+static void test_combat_hit_outcome_xp_survive(void)
+{
+    uint32 outcome[6];
+    eatk_reset();
+    g_test_rc_array[0].team = 2;            /* player attacker */
+    g_test_rc_array[0].job_id = 1;          /* job_crit[0]; not 9..0x18 */
+    g_test_rc_array[0].archetype_flag = 4;  /* immune -> no terrain */
+    g_test_rc_array[0].portrait_id = 0x10;  /* != 0x1C */
+    g_test_rc_array[0].char_id = 0;         /* (+8) != 0x1C -> no +0x1E */
+    g_test_rc_array[0].status_flags_block[0] = 4;  /* attacker level */
+    g_test_rc_array[0].ap = 200;
+    g_test_rc_array[0].dx_current = 100;    /* hit */
+    g_test_rc_array[1].archetype_flag = 4;  /* immune -> no terrain */
+    g_test_rc_array[1].portrait_id = 0x44;  /* enemy idx 0 */
+    g_test_rc_array[1].status_flags_block[0] = 3;  /* defender level */
+    g_test_rc_array[1].dp = 10;
+    g_test_rc_array[1].stat4_current = 0;
+    g_test_rc_array[1].hp_current = 200;
+    g_test_rc_array[1].hp_max = 200;
+    data_fd2_battle_enemy_data_table[0].exp_reward = 10;
+    data_fd2_shared_rng_seed = 0;
+    fd2_calculate_combat_hit_outcome(0, 1, outcome);
+    ASSERT_EQ(outcome[0], 0);               /* HIT */
+    ASSERT_EQ(outcome[5], 187);             /* damage */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 6);  /* survive-scaled */
+}
+
 static void test_flash_char_hit_enemy(void)
 {
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
@@ -4242,6 +4425,11 @@ void run_battle_tests(void)
     RUN_TEST(test_stat_preview_basic);
     RUN_TEST(test_flash_char_hit_enemy);
     RUN_TEST(test_combat_hit_outcome_zero_stats);
+    RUN_TEST(test_combat_hit_outcome_crit_jitter);
+    RUN_TEST(test_combat_hit_outcome_terrain_ap);
+    RUN_TEST(test_combat_hit_outcome_poison);
+    RUN_TEST(test_combat_hit_outcome_double_hit);
+    RUN_TEST(test_combat_hit_outcome_xp_survive);
     RUN_TEST(test_face_toward_target_down);
     RUN_TEST(test_face_toward_target_left);
     RUN_TEST(test_face_toward_target_up);
