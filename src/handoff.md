@@ -28,6 +28,8 @@ source、寫 unit test、經 build gate + 獨立 reviewer 三源復驗、per-fun
 ## 1. 待解 / 注意（處理到才碰，不必預先動）
 
 - **完整可執行 fd2.exe ≠ 本 workflow 產物**。本 workflow 只做 **function**（653 個）。完整 exe 還需 §4 的 B/C/D。
+- **src .c 已依子功能切分為 ≤~1000 行的子檔**；routing target 即子檔（切分規則在 `tools/emit/mkroute.py` 的 `_subsplit()`，檔案↔function 對照見 `src/routing.md`，分析/搬移工具見 `tools/file_split/`）。emit 新 function 照 routing target 落到對應子檔；產生新子檔要同步加進 `tests/dosbox.conf` + `tests/test.lnk`（per §7）。
+- **tests/ 檔案切分（deferred，尚未做）**：`tests/testbtl.c`（4769 行）、`testanim.c`（2128 行）仍 >1000。規劃為「每個 src 子檔對一個 test 檔」——逐一 test→受測 function（section 註解 + 斷言主呼叫）→ routing 子檔對映，且 static helper/fixture cluster 不可拆散（`eatk_reset`/`reset_ai_stubs`/`ti_setup_*` 等）。
 - `src/emit_issues.json`：累積「需實際編譯才能確認的等價性疑慮」（FPU rounding / word width / table-copy / fragment 等價轉移到 parent…）。**留待 Phase 8（全 function 完成後）統一用 Watcom 9.5a 編譯 + disasm 比對解決**，不在 function review 階段處理。key 一律用 routing.json 同款 8-hex（如 `00010b43`），utf-8。
 ---
 
