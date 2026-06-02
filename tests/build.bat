@@ -21,6 +21,7 @@ D:\BIN\WCC386.EXE battle\btl_aitg.c %CF% -fo=E:\out\btlaitg.obj >> E:\out\build.
 D:\BIN\WCC386.EXE battle\btl_aisc.c %CF% -fo=E:\out\btlaisc.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE audio\audio.c %CF% -fo=E:\out\audio.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE life\main.c %CF% -fo=E:\out\lifemain.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE save\save.c %CF% -fo=E:\out\save.obj >> E:\out\build.out
 
 echo === compile tests === >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\testmain.c %CF% -fo=E:\out\testmain.obj >> E:\out\build.out
@@ -43,6 +44,7 @@ D:\BIN\WCC386.EXE E:\battle\btl_turn.c %CF% -fo=E:\out\tbtlturn.obj >> E:\out\bu
 D:\BIN\WCC386.EXE E:\gfx\palette.c %CF% -fo=E:\out\tpalette.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\input\input.c %CF% -fo=E:\out\tinput.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\life\main.c %CF% -fo=E:\out\tmain.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE E:\save\save.c %CF% -fo=E:\out\tsave.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\spell\spell.c %CF% -fo=E:\out\tspell.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\spell\spelleff.c %CF% -fo=E:\out\tspellef.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\table\table.c %CF% -fo=E:\out\ttable.obj >> E:\out\build.out

@@ -123,8 +123,9 @@
     "name": "fd2_save_runtime_char_to_template",
     "target": "save/save.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000115b6": {
     "name": "fd2_wait_for_action_target_input",

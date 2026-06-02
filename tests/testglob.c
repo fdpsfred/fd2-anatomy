@@ -99,7 +99,12 @@ void fd2_animate_warp_teleport_char(uint32 a, uint32 b, uint32 c, uint32 d, uint
 uint16 data_fd2_animation_palette_cycle_last_tick = 0;
 uint8  data_fd2_animation_palette_cycle_frame_idx = 0;
 uint8  data_fd2_animation_palette_cycle_rgb_table[93] = {0};
-int fd2_check_char_is_dead(uint32 c) { return 0; }
+/* fd2_check_char_is_dead stub. Default 0 (alive) keeps historical behavior for
+ * every existing test. fd2_save_runtime_char_to_template uses this to decide the
+ * char-0 (索爾) dead-skip special case, so its test pins the return via
+ * g_check_char_is_dead_return. */
+int g_check_char_is_dead_return = 0;
+int fd2_check_char_is_dead(uint32 c) { (void)c; return g_check_char_is_dead_return; }
 /* fd2_scan_chars_within_manhattan_range: now in btl_ai.c */
 uint32 data_fd2_ui_anim_sprite_sheet_ptr = 0;
 uint32 data_fd2_dialog_last_action_value_param = 0;

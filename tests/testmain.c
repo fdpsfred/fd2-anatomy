@@ -33,6 +33,7 @@ extern void run_battle_btl_turn_tests(void);
 extern void run_gfx_palette_tests(void);
 extern void run_input_input_tests(void);
 extern void run_life_main_tests(void);
+extern void run_save_save_tests(void);
 extern void run_spell_spell_tests(void);
 extern void run_spell_spelleff_tests(void);
 extern void run_table_table_tests(void);
@@ -65,6 +66,7 @@ int main(void)
     run_gfx_palette_tests();
     run_input_input_tests();
     run_life_main_tests();
+    run_save_save_tests();
     run_spell_spell_tests();
     run_spell_spelleff_tests();
     run_table_table_tests();
