@@ -2019,7 +2019,8 @@
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0002218a": {
     "name": "fd2_cast_spell_17_complex",
