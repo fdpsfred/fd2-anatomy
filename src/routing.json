@@ -4221,7 +4221,8 @@
     "target": "anim/anidec.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00036b8a": {
     "name": "fd2_ani_decoder_chunk_row_fill_byte",

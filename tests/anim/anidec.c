@@ -217,6 +217,75 @@ static void test_ani_palette_load_rle(void)
 }
 
 
+/*
+ * test_ani_palette_load_run_pairs
+ *
+ * Drives fd2_ani_decoder_chunk_palette_load_run_pairs via decode_frame_bytes
+ * (chunk-type byte 3 = real Ghidra dispatch slot @ 0x52776, base 0x5276A +
+ * index 3*4 = 0xC).  Exercises the numeric / control-flow risk paths of the
+ * handler:
+ *   - non-zero start: dst = base + start*3 offset (AX 16-bit start*3)
+ *   - even byte_count: REP MOVSW only path  (n_colors=2 -> 6 bytes)
+ *   - odd  byte_count: REP MOVSW + trailing REP MOVSB (n_colors=1 -> 3 bytes)
+ *   - multi-segment (count=2): base reset + cursor advance between segments
+ *
+ * Stream format (handler reads from g_ani_cursor = stream+1):
+ *   byte: count = number of segments
+ *   per segment: start, n_colors, then n_colors*3 raw RGB bytes
+ * Layout (count=2):
+ *   seg0: start=2, n_colors=2 -> 6 bytes at base + 2*3 = base[6..11]
+ *   seg1: start=10,n_colors=1 -> 3 bytes at base + 10*3 = base[30..32]
+ * Expected values are hand-derived from the format (pure memcpy semantics,
+ * no emulate needed) and asserted against a real 768-byte palette buffer.
+ */
+static void test_ani_palette_load_run_pairs(void)
+{
+    uint8 stream[15];
+
+    stream[0]  = 3;     /* dispatch index -> palette_load_run_pairs */
+    stream[1]  = 2;     /* count: 2 segments */
+    /* segment 0: start=2, n_colors=2 (even, 6 bytes -> REP MOVSW only) */
+    stream[2]  = 2;
+    stream[3]  = 2;
+    stream[4]  = 0x11;
+    stream[5]  = 0x22;
+    stream[6]  = 0x33;
+    stream[7]  = 0x44;
+    stream[8]  = 0x55;
+    stream[9]  = 0x66;
+    /* segment 1: start=10, n_colors=1 (odd, 3 bytes -> MOVSW + trailing MOVSB) */
+    stream[10] = 10;
+    stream[11] = 1;
+    stream[12] = 0x77;
+    stream[13] = 0x88;
+    stream[14] = 0x99;
+
+    data_fd2_animation_ani_decoder_src_buf = (uint32)g_test_palette_buf;
+    data_fd2_animation_ani_decoder_frame_dispatch_table[3] =
+        (void *)fd2_ani_decoder_chunk_palette_load_run_pairs;
+    memset(g_test_palette_buf, 0, 768);
+    fd2_ani_decoder_decode_frame_bytes(1, (uint32)stream);
+
+    /* seg0: 6 RGB bytes copied to base + 2*3 = offset 6 */
+    ASSERT_EQ((long)g_test_palette_buf[6],  0x11);
+    ASSERT_EQ((long)g_test_palette_buf[7],  0x22);
+    ASSERT_EQ((long)g_test_palette_buf[8],  0x33);
+    ASSERT_EQ((long)g_test_palette_buf[9],  0x44);
+    ASSERT_EQ((long)g_test_palette_buf[10], 0x55);
+    ASSERT_EQ((long)g_test_palette_buf[11], 0x66);
+    /* seg1: 3 RGB bytes copied to base + 10*3 = offset 30 (odd trailing MOVSB) */
+    ASSERT_EQ((long)g_test_palette_buf[30], 0x77);
+    ASSERT_EQ((long)g_test_palette_buf[31], 0x88);
+    ASSERT_EQ((long)g_test_palette_buf[32], 0x99);
+    /* untouched regions stay zero (no overshoot past segment lengths) */
+    ASSERT_EQ((long)g_test_palette_buf[0],  0x00);
+    ASSERT_EQ((long)g_test_palette_buf[5],  0x00);
+    ASSERT_EQ((long)g_test_palette_buf[12], 0x00);
+    ASSERT_EQ((long)g_test_palette_buf[29], 0x00);
+    ASSERT_EQ((long)g_test_palette_buf[33], 0x00);
+}
+
+
 void run_anim_anidec_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -224,6 +293,7 @@ void run_anim_anidec_tests(void)
     RUN_TEST(test_ani_decoder_set_target_buffer);
     RUN_TEST(test_ani_palette_fill_byte);
     RUN_TEST(test_ani_palette_load_rle);
+    RUN_TEST(test_ani_palette_load_run_pairs);
     RUN_TEST(test_ani_row_copy_literal);
     RUN_TEST(test_ani_sparse_set_byte);
     RUN_TEST(test_ani_decode_frame_dispatch);
