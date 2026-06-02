@@ -2108,7 +2108,8 @@
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00022aa8": {
     "name": "fd2_apply_status_effect_with_anim",
