@@ -3410,7 +3410,8 @@
     "target": "battle/btl_turn.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "000341db": {
     "name": "fd2_chapter_event_handler_00__ch1_dialog_with_state",
