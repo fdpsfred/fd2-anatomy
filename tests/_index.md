@@ -22,13 +22,14 @@ python tools/emit/build_test.py
 | `dosbox.conf` | DOSBox-X 設定：autoexec 只做 mount 與環境變數，再呼叫 `build.bat` |
 | `build.bat` | 實際的編譯／連結／執行指令清單（放在磁碟檔，沒有 autoexec 的行數上限） |
 | `test.lnk` | wlink 設定，列出所有 .obj（src 與 test） |
+| `where.py` | 自包含小工具：給一個 src target，回報新測試該寫進哪個測試檔與 runner（自動處理已切分的檔）。emit workflow 用它決定落點 |
 
 `build.bat` 的測試編譯區、`test.lnk` 的測試 obj 清單、`testmain.c` 的 runner 清單，都由 `python tools/test_split/genbuild.py --apply` 從現有測試檔自動產生，不必手動維護。
 
 ## 新增一個 function 的測試
 
 1. 看 function 在哪個 `src/<domain>/<stem>.c`。
-2. 打開（或新建）對應的 `tests/<domain>/<stem>.c`，加入 `static void test_xxx(void)`，並在該檔的 `run_<domain>_<stem>_tests()` 用 `RUN_TEST(test_xxx)` 註冊。若該子檔已依大小切成 `<stem>1.c` / `<stem>2.c`，加到對應那一半。
+2. 跑 `python tests/where.py <domain>/<stem>.c`，它會直接回報該寫進哪個測試檔與哪個 `run_*_tests()`（自動處理已切分的檔，並在需要新建檔時提示）。在該檔加入 `static void test_xxx(void)`，並用 `RUN_TEST(test_xxx)` 在回報的 runner 註冊。
 3. 新的 stub 或假全域加到 `testglob.c`（名稱必須與 Ghidra 一致；function pointer table 初始化指向 noop）。
 4. 要被多個測試檔共用的輔助函式或緩衝區，放到 `tests/include/<domain>fix.h`。
 5. 若新建了測試檔，跑一次 `python tools/test_split/genbuild.py --apply`，`build.bat`、`test.lnk`、`testmain.c` 都會自動更新。
