@@ -312,7 +312,7 @@ uint32 fd2_set_word_global_5275c(uint32 new_val);
 
 /* ---- util / dpmi ---- */
 int fd2_dpmi_alloc_dos_memory(uint32 paragraphs, uint32 *out_linear, uint32 *out_segment, uint32 *out_selector);
-void fd2_dpmi_free_dos_memory(uint32 selector);
+void fd2_dpmi_free_dos_memory(uint32 linear_unused, uint32 segment_unused, uint32 selector);
 int fd2_dpmi_lock_region(uint32 page_start, uint32 page_end);
 int fd2_dpmi_unlock_region(uint32 page_start, uint32 page_end);
 int fd2_dpmi_lock_size(uint32 base, uint32 size);

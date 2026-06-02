@@ -58,8 +58,13 @@ int fd2_dpmi_alloc_dos_memory(uint32 paragraphs,
  * fd2_dpmi_free_dos_memory @ 0x36255
  *
  * DPMI fn 0x101: free DOS conventional memory by selector.
+ * __cdecl with 3 params for symmetry with fd2_dpmi_alloc_dos_memory's
+ * 3-output API surface; linear_unused and segment_unused are placeholder
+ * remnants and are not read. Only selector (the 3rd arg) is used; the
+ * disassembly reads [ESP+0x44] (arg3) into the DX register slot.
  * ---------------------------------------------------------------- */
-void fd2_dpmi_free_dos_memory(uint32 selector)
+void fd2_dpmi_free_dos_memory(uint32 linear_unused, uint32 segment_unused,
+    uint32 selector)
 {
     union REGS in_r, out_r;
     memset(&in_r, 0, sizeof(in_r));
