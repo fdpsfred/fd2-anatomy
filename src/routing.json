@@ -2027,7 +2027,8 @@
     "target": "spell/spellwk.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00022253": {
     "name": "fd2_animate_warp_teleport_char",
