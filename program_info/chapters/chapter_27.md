@@ -71,7 +71,7 @@ GOOD/BAD ENDING 分歧點：end handler 用 `fd2_any_char_has_item(100)` (天空
 - `fd2_display_dialog_scene(page=9)` + `fd2_cutscene_event_trigger(0x53)`
 - `fd2_display_dialog_scene(page=10)` + `pan` + `fd2_cutscene_event_trigger(0x54)`
 - `fd2_display_dialog_scene(page=0xB)`
-- **6× `fd2_palette_fade_to_black_step_loop`**：(0x50,5) / (0x50,4) / (0x50,3) / (0x50,2) / (0x50,2) / (0x50,2) + 不同等待時間
+- **6× `fd2_palette_overbright_settle_step_loop`**：(0x50,5) / (0x50,4) / (0x50,3) / (0x50,2) / (0x50,2) / (0x50,2) + 不同等待時間（additive over-bright 白閃後 settle 回 base palette，非黑屏；真正黑屏在下一行的 memset 0）
 - `fd2_display_dialog_scene(page=0xC)`
 - `fd2_cast_screen_wide_spell_with_fade` (大範圍)
 - 500ms wait + `memset(0xA0000, 0xFF, 64000)` (白屏) + `fd2_play_palette_fade_to_black` + `memset(0xA0000, 0, 64000)` (黑屏)

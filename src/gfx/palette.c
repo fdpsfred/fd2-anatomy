@@ -218,14 +218,23 @@ void fd2_interpolate_palette_range_toward_color(
 }
 
 /* ----------------------------------------------------------------
- * fd2_palette_fade_to_black_step_loop @ 0x25052  (1 caller)
+ * fd2_palette_overbright_settle_step_loop @ 0x25052  (1 caller)
  *
- * Walk intensity from start_intensity down to 0 (inclusive), each
- * step calling fd2_set_vga_palette_range_with_add(0,0xFF,intensity)
- * then sleeping step_delay_ms via CRT delay().
+ * Palette over-bright pulse-down. Walk intensity from start_intensity
+ * down to 0 (inclusive), each step calling
+ * fd2_set_vga_palette_range_with_add(0,0xFF,intensity) — which writes
+ * min(base[i]+intensity,0x3F) to the full DAC range — then sleeping
+ * step_delay_ms via CRT delay().
+ *
+ * This is an ADDITIVE over-bright effect, NOT a fade to black:
+ * intensity>=0x3F saturates every channel to full white; intensity=0
+ * writes the BASE (normal scene) palette back, so the screen settles
+ * to base, never to black. A single call is a white-flash decaying to
+ * base. (The chapter-27 blackout is done separately afterward by
+ * memset(0xA0000,0,64000) + fd2_play_palette_fade_to_black.)
  * ---------------------------------------------------------------- */
-void fd2_palette_fade_to_black_step_loop(uint32 start_intensity,
-                                          uint32 step_delay_ms)
+void fd2_palette_overbright_settle_step_loop(uint32 start_intensity,
+                                              uint32 step_delay_ms)
 {
     int intensity;
 

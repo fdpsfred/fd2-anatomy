@@ -496,12 +496,20 @@ static void test_interpolate_palette(void)
     ASSERT_TRUE(1);
 }
 
-static void test_palette_fade_to_black(void)
+/* Over-bright settle step loop (additive, NOT a fade to black). Smoke-level:
+ * pure palette-port-write side effect, so terminating cleanly is the contract.
+ * The additive saturation math itself is asserted in
+ * test_set_vga_palette_range_with_add below. start_intensity=0 -> the loop
+ * body runs once and drives the callee over the full 256-entry DAC range
+ * (idx 0..0xFF, reading base[0..767]); allocate a full 768-byte palette so the
+ * callee's reads stay in-bounds. */
+static void test_palette_overbright_settle(void)
 {
-    uint8 fake_pal[3];
-    fake_pal[0] = 0x3F; fake_pal[1] = 0x3F; fake_pal[2] = 0x3F;
+    static uint8 fake_pal[256 * 3];
+    int i;
+    for (i = 0; i < 256 * 3; i++) fake_pal[i] = 0x20;
     data_fd2_vga_palette_data_ptr = (uint32)fake_pal;
-    fd2_palette_fade_to_black_step_loop(0, 0);
+    fd2_palette_overbright_settle_step_loop(0, 0);
     ASSERT_TRUE(1);
 }
 
@@ -761,7 +769,7 @@ void run_ui_tests(void)
     RUN_TEST(test_read_tile_attribute_sprite_mask);
     RUN_TEST(test_set_vga_palette_range_basic);
     RUN_TEST(test_set_vga_palette_range_with_add);
-    RUN_TEST(test_palette_fade_to_black);
+    RUN_TEST(test_palette_overbright_settle);
     RUN_TEST(test_palette_remap_run);
     RUN_TEST(test_interpolate_palette);
     RUN_TEST(test_wait_dialog_blink_esc);

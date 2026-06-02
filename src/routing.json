@@ -2425,11 +2425,12 @@
     "asm": false
   },
   "00025052": {
-    "name": "fd2_palette_fade_to_black_step_loop",
+    "name": "fd2_palette_overbright_settle_step_loop",
     "target": "gfx/palette.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00025089": {
     "name": "fd2_restore_all_chars_full_hp_mp",
