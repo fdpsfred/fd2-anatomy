@@ -2078,7 +2078,8 @@
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00022866": {
     "name": "fd2_cast_dp_boost_spell",
