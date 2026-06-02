@@ -23,10 +23,10 @@ python tools/emit/build_test.py
 | `build.bat` | 實際的編譯／連結／執行指令清單（放在磁碟檔，沒有 autoexec 的行數上限） |
 | `test.lnk` | wlink 設定，列出所有 .obj（src 與 test） |
 | `where.py` | 給一個 src target，回報新測試該寫進哪個測試檔與 runner（自動處理已切分的檔）。emit workflow 用它決定落點 |
-| `genbuild.py` | 掃描現有測試檔，重新產生 `build.bat` 測試編譯區、`test.lnk` 測試 obj、`testmain.c` runner 清單。新建測試檔後跑它接上 build |
+| `genbuild.py` | 掃描 `src/` 與 `tests/`，重新產生 `build.bat` 的 src 與 test 兩個編譯區、`test.lnk`、`testmain.c` 的 runner 清單。新建任何 src 或測試 .c 檔後跑它接上 build |
 | `naming.py` | `where.py` / `genbuild.py` 共用的名稱推導（8.3 檔名、唯一 obj 名、runner 名、共用標頭名） |
 
-`build.bat` 的測試編譯區、`test.lnk` 的測試 obj 清單、`testmain.c` 的 runner 清單，都由 `python tests/genbuild.py --apply` 從現有測試檔自動產生，不必手動維護。
+`build.bat` 的 src/test 編譯區、`test.lnk` 的所有 obj、`testmain.c` 的 runner 清單，都由 `python tests/genbuild.py --apply` 從 `src/` 與 `tests/` 自動產生，不必手動維護（嚴禁手改這三個檔）。現有 src obj 名與順序會被保留，新檔以 stem 去底線（≤8、唯一）命名 append。
 
 ## 新增一個 function 的測試
 

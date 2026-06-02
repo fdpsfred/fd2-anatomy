@@ -79,8 +79,8 @@ function emitterPrompt(fn, mode, verdict) {
       'A. 三源：get_plate_comment / disassemble_function / decompile_function(' + fn.addr + ')。',
       '   判 cc（末指令 RET 0 / RET N、caller 是否 ADD ESP K、entry 是否未 PUSH EBX 就讀 EBX…）；標記每個 CALL 後 EAX 用法。',
       'B. 需要時 get_function_callers / get_xrefs_to 推 param 數與 cc。若 plate 標 DECOMPILER FRAGMENT → 不獨立 emit，回報 skip。',
-      'C. 寫 C 進 src/' + fn.target + '（檔頭註解標 name @ addr (N callers)）；同步 src/include/protos.h（原型）、globals.h（新 global，用 Ghidra 真名）。',
-      'D. 寫 unit test（風險導向覆蓋）：跑 python tests/where.py ' + fn.target + ' 取得確切落點檔與 runner（自動處理已切分的檔，回報 append 或 create）；action=create 就新建該檔、寫完跑 python tests/genbuild.py --apply 接上 build.bat/test.lnk/testmain。加 static test + 在回報的 run_*_tests() 用 RUN_TEST 註冊。新 stub/fake global/未初始化 fnptr table → tests/testglob.c（fnptr table 必須初始化 noop）。跨多個測試檔共用的 fixture → tests/include/<domain>fix.h（如 battlfix.h）。',
+      'C. 寫 C 進 src/' + fn.target + '（檔頭註解標 name @ addr (N callers)）；同步 src/include/protos.h（原型）、globals.h（新 global，用 Ghidra 真名）。若這是該 src 子檔的第一個 function（src/' + fn.target + ' 還不存在），照常建新檔即可，build 接線由步驟 D 的 genbuild 自動處理，不要自己去改 build.bat / test.lnk。',
+      'D. 寫 unit test（風險導向覆蓋）：跑 python tests/where.py ' + fn.target + ' 取得確切落點測試檔與 runner（自動處理已切分的檔，回報 append 或 create）；在該檔加 static test + 在回報的 run_*_tests() 用 RUN_TEST 註冊（create 就新建該測試檔）。新 stub/fake global/未初始化 fnptr table → tests/testglob.c（fnptr table 必須初始化 noop）。跨多個測試檔共用的 fixture → tests/include/<domain>fix.h（如 battlfix.h）。【build 接線】只要新建了任何 src 或 test 的 .c 檔，跑一次 python tests/genbuild.py --apply——它掃 src/ 與 tests/ 重新產生 build.bat 的 src/test 兩個 compile 區 + test.lnk + testmain.c。嚴禁手改 build.bat / test.lnk / testmain.c，一律用 genbuild。',
     ].join('\n')
   }
 

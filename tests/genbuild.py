@@ -1,21 +1,22 @@
 """
-genbuild.py - regenerate the test build config from the current tests/ tree.
+genbuild.py - regenerate the whole test build config from the source trees.
 
-State-driven: scans every test source file under tests/ (monoliths and/or
-domain leaves), assigns each a unique <=8-char object stem, and rewrites three
-generated regions while leaving everything else (mounts, env, CF, the src
-compile block, link/run lines) untouched:
+State-driven: scans src/ and tests/ and rewrites the generated regions, leaving
+the static parts (mounts, env, CF, link/run lines) untouched:
 
-  tests/build.bat   : the `=== compile tests ===` .. `=== link ===` block
-  tests/test.lnk    : the test-side `file E:\\out\\*.obj` lines (src objs kept)
+  tests/build.bat   : both the `=== compile src ===` and `=== compile tests ===`
+                      blocks (one WCC386 line per src/ and per tests/ .c file)
+  tests/test.lnk    : every `file E:\\out\\*.obj` line (src objs + test objs)
   tests/testmain.c  : the extern decls + run_*_tests() calls (between markers)
 
-Object stems are validated unique across {src objs} U {test objs}; src obj
-stems are read live from build.bat so there is no hard-coded list.
+So adding a new function's src .c and/or test .c just needs `genbuild.py --apply`
+-- no hand-editing of build.bat / test.lnk / testmain. Existing src obj names and
+their order are preserved (parsed from build.bat); new src files are appended
+with obj = stem-without-underscores (<=8, unique). Object stems are validated
+unique across {src objs} U {test objs}.
 
 Usage:  python tests/genbuild.py [--apply]
 """
-import io
 import re
 import sys
 from pathlib import Path
@@ -24,10 +25,12 @@ import naming
 
 TESTS = Path(__file__).resolve().parent
 ROOT = TESTS.parent
+SRC = ROOT / 'src'
 # The long compile/link/run command list lives in build.bat (a real file with no
 # line limit); dosbox.conf's [autoexec] just mounts + sets env + calls it. This
-# keeps the autoexec under DOSBox-X's buffer cap as the test-file count grows.
+# keeps the autoexec under DOSBox-X's buffer cap as the file count grows.
 RUN_RE = re.compile(r'^void (run_\w+_tests)\s*\(', re.M)
+SRC_LINE_RE = re.compile(r'WCC386\.EXE\s+(\S+\.c)\s+%CF%.*-fo=E:\\out\\(\w+)\.obj')
 BAT = TESTS / 'build.bat'
 LNK = TESTS / 'test.lnk'
 TESTMAIN = TESTS / 'testmain.c'
@@ -46,13 +49,25 @@ def suite_files():
         m = RUN_RE.search(p.read_text(encoding='utf-8'))
         if not m:                          # not a suite file (no dispatcher)
             continue
-        out.append({'rel': p.relative_to(TESTS).as_posix(),
-                    'run': m.group(1)})
+        out.append({'rel': p.relative_to(TESTS).as_posix(), 'run': m.group(1)})
     return out
 
 
-def src_obj_stems():
-    stems, inside = set(), False
+def _src_obj(stem, reserved):
+    base = stem.replace('_', '')[:8]
+    cand, i = base, 0
+    while cand in reserved or not cand:
+        i += 1
+        cand = base[:8 - len(str(i))] + str(i)
+    reserved.add(cand)
+    return cand
+
+
+def src_compile_list():
+    """Ordered [(rel, obj)] for every src/ .c file. Existing entries keep their
+    build.bat order + (possibly curated) obj name; new files are appended."""
+    parsed, seen = [], set()
+    inside = False
     for ln in BAT.read_text(encoding='utf-8').split('\n'):
         if '=== compile src ===' in ln:
             inside = True
@@ -60,10 +75,19 @@ def src_obj_stems():
         if '=== compile tests ===' in ln:
             break
         if inside:
-            m = re.search(r'-fo=E:\\out\\(\w+)\.obj', ln)
+            m = SRC_LINE_RE.search(ln)
             if m:
-                stems.add(m.group(1))
-    return stems
+                rel = m.group(1).replace('\\', '/')
+                parsed.append((rel, m.group(2)))
+                seen.add(rel)
+    disk = {p.relative_to(SRC).as_posix() for p in SRC.rglob('*.c')}
+    kept = [(rel, obj) for (rel, obj) in parsed if rel in disk]
+    reserved = {obj for _, obj in kept}
+    new = []
+    for rel in sorted(disk - seen):
+        _, stem = naming.domain_stem(rel)
+        new.append((rel, _src_obj(stem, reserved)))
+    return kept + new
 
 
 def assign_objs(files, reserved):
@@ -79,24 +103,29 @@ def assign_objs(files, reserved):
     return objmap
 
 
-def _compile_path(rel):
-    return 'E:\\' + rel.replace('/', '\\')
-
-
-def gen_bat(files, objmap):
+def gen_bat(test_files, test_objmap, src_list):
     lines = BAT.read_text(encoding='utf-8').split('\n')
     out, i, n = [], 0, len(lines)
     while i < n:
         out.append(lines[i])
+        if '=== compile src ===' in lines[i]:
+            for rel, obj in src_list:
+                out.append(r'D:\BIN\WCC386.EXE %s %%CF%% -fo=E:\out\%s.obj '
+                           r'>> E:\out\build.out' % (rel.replace('/', '\\'), obj))
+            out.append('')
+            i += 1
+            while i < n and '=== compile tests ===' not in lines[i]:
+                i += 1
+            continue
         if '=== compile tests ===' in lines[i]:
             out.append(r'D:\BIN\WCC386.EXE E:\testmain.c %CF% '
                        r'-fo=E:\out\testmain.obj >> E:\out\build.out')
             out.append(r'D:\BIN\WCC386.EXE E:\testglob.c %CF% '
                        r'-fo=E:\out\testglob.obj >> E:\out\build.out')
-            for f in sorted(files, key=lambda x: x['rel']):
-                out.append(r'D:\BIN\WCC386.EXE %s %%CF%% -fo=E:\out\%s.obj '
+            for f in sorted(test_files, key=lambda x: x['rel']):
+                out.append(r'D:\BIN\WCC386.EXE E:\%s %%CF%% -fo=E:\out\%s.obj '
                            r'>> E:\out\build.out'
-                           % (_compile_path(f['rel']), objmap[f['rel']]))
+                           % (f['rel'].replace('/', '\\'), test_objmap[f['rel']]))
             out.append('')
             i += 1
             while i < n and '=== link ===' not in lines[i]:
@@ -106,21 +135,18 @@ def gen_bat(files, objmap):
     return '\n'.join(out)
 
 
-def gen_lnk(files, objmap, reserved_src):
-    header, src_files = [], []
+def gen_lnk(test_files, test_objmap, src_list):
+    header = []
     for ln in LNK.read_text(encoding='utf-8').split('\n'):
-        s = ln.strip()
-        if s.startswith('file '):
-            m = re.search(r'\\out\\(\w+)\.obj', ln)
-            if m and m.group(1) in reserved_src:
-                src_files.append(ln)
-        elif s.startswith(('system', 'name', 'option')):
+        if ln.strip().startswith(('system', 'name', 'option')):
             header.append(ln)
-    out = header + src_files
+    out = list(header)
+    for _, obj in src_list:
+        out.append(r'file E:\out\%s.obj' % obj)
     out.append(r'file E:\out\testmain.obj')
     out.append(r'file E:\out\testglob.obj')
-    for f in sorted(files, key=lambda x: x['rel']):
-        out.append(r'file E:\out\%s.obj' % objmap[f['rel']])
+    for f in sorted(test_files, key=lambda x: x['rel']):
+        out.append(r'file E:\out\%s.obj' % test_objmap[f['rel']])
     return '\n'.join(out) + '\n'
 
 
@@ -133,9 +159,9 @@ def _replace_between(text, start, end, body):
     return text[:a] + '\n' + body + '\n' + text[b:]
 
 
-def gen_testmain(files):
+def gen_testmain(test_files):
     text = TESTMAIN.read_text(encoding='utf-8')
-    runs = [f['run'] for f in sorted(files, key=lambda x: x['rel'])]
+    runs = [f['run'] for f in sorted(test_files, key=lambda x: x['rel'])]
     ext = '\n'.join('extern void %s(void);' % r for r in runs)
     calls = '\n'.join('    %s();' % r for r in runs)
     text = _replace_between(text, EXT_START, EXT_END, ext)
@@ -144,23 +170,22 @@ def gen_testmain(files):
 
 
 def gen_all():
-    files = suite_files()
-    reserved_src = src_obj_stems()
-    reserved = set(reserved_src) | {'testmain', 'testglob'}
-    # validate one run-name per file + path exists
-    for f in files:
+    src_list = src_compile_list()
+    src_objs = [obj for _, obj in src_list]
+    test_files = suite_files()
+    for f in test_files:
         if not (TESTS / f['rel']).is_file():
             raise SystemExit('missing source: %s' % f['rel'])
-    objmap = assign_objs(files, reserved)
-    # uniqueness already guaranteed by allocator; assert anyway
-    objs = list(objmap.values())
-    assert len(objs) == len(set(objs)), 'duplicate test obj stems: %s' % objs
-    assert all(len(o) <= 8 for o in objs), 'obj stem >8 chars'
+    reserved = set(src_objs) | {'testmain', 'testglob'}
+    test_objmap = assign_objs(test_files, reserved)
+    all_objs = src_objs + list(test_objmap.values()) + ['testmain', 'testglob']
+    assert len(all_objs) == len(set(all_objs)), 'duplicate obj stems: %s' % all_objs
+    assert all(len(o) <= 8 for o in all_objs), 'obj stem >8 chars'
     return {
-        'files': files, 'objmap': objmap,
-        str(BAT): gen_bat(files, objmap),
-        str(LNK): gen_lnk(files, objmap, reserved_src),
-        str(TESTMAIN): gen_testmain(files),
+        'test_files': test_files, 'test_objmap': test_objmap, 'src_list': src_list,
+        str(BAT): gen_bat(test_files, test_objmap, src_list),
+        str(LNK): gen_lnk(test_files, test_objmap, src_list),
+        str(TESTMAIN): gen_testmain(test_files),
     }
 
 
@@ -169,21 +194,19 @@ def apply(verbose=True):
     for path in (BAT, LNK, TESTMAIN):
         Path(path).write_text(g[str(path)], encoding='utf-8')
     if verbose:
-        print('genbuild: %d test source files' % len(g['files']))
-        for f in sorted(g['files'], key=lambda x: x['rel']):
-            print('   %-24s obj=%-8s run=%s'
-                  % (f['rel'], g['objmap'][f['rel']], f['run']))
+        print('genbuild: %d src + %d test source files'
+              % (len(g['src_list']), len(g['test_files'])))
     return g
 
 
 def main():
     do_apply = '--apply' in sys.argv
     g = gen_all()
-    print('genbuild: %d test source files (obj stems unique <=8: OK)'
-          % len(g['files']))
-    for f in sorted(g['files'], key=lambda x: x['rel']):
+    print('genbuild: %d src files, %d test source files (objs unique <=8: OK)'
+          % (len(g['src_list']), len(g['test_files'])))
+    for f in sorted(g['test_files'], key=lambda x: x['rel']):
         print('   %-24s obj=%-8s run=%s'
-              % (f['rel'], g['objmap'][f['rel']], f['run']))
+              % (f['rel'], g['test_objmap'][f['rel']], f['run']))
     if not do_apply:
         print('\n[dry-run] no writes. Re-run with --apply.')
         return 0
