@@ -29,8 +29,6 @@ source、寫 unit test、經 build gate + 獨立 reviewer 三源復驗、per-fun
 
 - **完整可執行 fd2.exe ≠ 本 workflow 產物**。本 workflow 只做 **function**（653 個）。完整 exe 還需 §4 的 B/C/D。
 - `src/emit_issues.json`：累積「需實際編譯才能確認的等價性疑慮」（FPU rounding / word width / table-copy / fragment 等價轉移到 parent…）。**留待 Phase 8（全 function 完成後）統一用 Watcom 9.5a 編譯 + disasm 比對解決**，不在 function review 階段處理。key 一律用 routing.json 同款 8-hex（如 `00010b43`），utf-8。
-- build gate 目前有 3 個既存 warning（`spellwk.c:152` W103 param / `main.c:53,101` W102/W113 type）。它們對應的 function 尚未 review；各自被 review 到時 reviewer 會抓、emitter 修，屆時 gate 轉真綠。**不需預先處理。**
-
 ---
 
 ## 2. 工作方式：emit-review workflow
@@ -51,13 +49,13 @@ reviewer approved + build gate green + per-function commit。
 
 ---
 
-## 3. Checkpoint 規則（每 50 個 function，model 自我檢查）
+## 3. Checkpoint 規則（每 5 個 batch，model 自我檢查）
 
-每處理完約 **50 個 function**（以 `next_batch --stats` 的 `reviewed` 跨過 50 的倍數為觸發點）做一次
-checkpoint，model **自我檢查**下列五項：
+每完成 **5 個 batch**（以 `workspace/emit/active_wf.json` 的 `batches_completed` 跨過 5 的倍數為觸發點；
+1 batch = 一次 `Workflow` 跑完並通過驗證）做一次 checkpoint，model **自我檢查**下列五項：
 
 1. build gate 綠（0 error；warning 僅既存且未增加）
-2. `reviewed` / `emitted` 數增量與本段處理量一致
+2. `reviewed` / `emitted` 數增量與本段處理量一致（本段 = 5 batch ≈ 60 function）
 3. `git log` 的 per-function commit 連續乾淨（一 function 一 commit，scope 只含該 function 的檔）
 4. 無累積的 needs_user / interrupted
 5. routing ↔ Ghidra 無 drift
@@ -76,10 +74,8 @@ checkpoint，model **自我檢查**下列五項：
 
 ### 3.2 不算「停」、自行處理續跑的情況
 
-- **token / usage limit interrupt** → `ScheduleWakeup` 排程，等 reset 後自動續（§5）；workflow return `stopped:"interrupt"`，重跑零成本
+- **token / usage limit interrupt** → workflow return `stopped:"interrupt"`，已 commit 進度保留、重跑零成本；恢復走 §5 event-driven（完成通知或手動 /loop），目前無心跳自動恢復
 - 單一 function reviewer block → emitter fix（正常迭代，不是異常）
-- 既存 3 個 warning（spellwk/main）未清 → 它們各自被 review 時才清
-
 ---
 
 ## 4. 完整 fd2.exe 路線
@@ -90,26 +86,20 @@ checkpoint，model **自我檢查**下列五項：
 
 ---
 
-## 5. /loop 全自動接續指令（貼給新 session）
+## 5. /loop 全自動接續（event-driven 驅動模型）
 
-```
-/loop 全自動接續 FD2 emit-review workflow 直到 src/routing.json 全部 reviewed + emitted。
+**驅動**：loop 由 workflow 完成通知（`<task-notification>`）驅動 —— 一批完成→通知喚醒→驗證+下一批，鏈自我延續。**預設純 event-driven、不設 ScheduleWakeup 心跳**；僅在需要 usage-limit 自動恢復時才加 1h 心跳（上限 3600s）。in-flight 批次的 task_id 記於 `workspace/emit/active_wf.json`（scratch，loop 執行時才存在；內含自我描述的恢復說明）。唯一事實來源仍是 `routing.json` 的 reviewed 欄 + per-function commit，漏接通知零成本重來。
 
-開始前先讀 src/handoff.md 與 tools/emit/_index.md 了解現況與規則，確認工具可用
-（Ghidra MCP 已開 FD2.LE、DOSBox-X 在 PATH、Watcom 9.5a），不可用就停下問我。
+**任何喚醒（完成通知 / 手動 /loop）一律照下列判定**：
 
-每輪：
-1. python tools/emit/next_batch.py --mode review --limit 12（review 全做完改 --mode emit）取下一批
-2. search_functions 對齊 routing↔Ghidra，drift 拋警告
-3. git checkout -- src tests 清上次中斷的半成品
-4. Workflow({scriptPath:"tools/emit/emit_review.wf.js", args:<上一步 JSON>}) 跑一批
-5. 驗證：build gate 綠（除既存 warning）、reviewed 數增、per-function commit 乾淨、無 dosbox 孤兒
+1. `active_wf.json` 有 task_id → `TaskOutput(task_id, block=false)`：`running` → 報告狀態後結束（不啟動新批、不 arm 心跳）；`completed`/查無 → 往下。
+2. `next_batch.py --stats`：`await_review==0 && await_emit==0` → 全完成 → 刪 `active_wf.json` + PushNotification 通知使用者 + 結束 loop。
+3. 否則跑下一批（= §2 每批流程）：先驗證上批（build gate 綠除既存 warning、reviewed 增、commit 乾淨、無 dosbox 孤兒）→ scout（review 做完改 `--mode emit`）→ `search_functions` 對齊 routing↔Ghidra（drift 拋警告）→ `git checkout -- src tests` → `Workflow(emit_review.wf.js, args)` → 新 task_id 覆寫 `active_wf.json`。
+4. 每完成 5 個 batch（`batches_completed` 跨 5 倍數）做 §3 checkpoint；符合預期印一行摘要後自動續，只有 §3.1 才停。
 
-每處理完 50 個 function（reviewed 跨 50 倍數）做一次 checkpoint，自我檢查 handoff §3 五項；
-符合預期就印一行摘要後「自動繼續、不要等我」；只有遇到 handoff §3.1 的「無法處理的未預期狀況」
-才停下等我確認。撞 token/usage limit 用 ScheduleWakeup 排程、等 reset 後自動續，不要等我介入。
-全程 Opus，嚴守 handoff §6 鐵則。
-```
+**貼給新 session（zero-context 亦可接續）**：
+
+> /loop 全自動接續 FD2 emit-review workflow 直到 routing.json 全部 reviewed + emitted。依 handoff §5 的 event-driven 驅動模型與喚醒判定執行；先讀 src/handoff.md + tools/emit/_index.md、確認工具（Ghidra MCP 已開 FD2.LE、DOSBox-X 在 PATH、Watcom 9.5a）可用，不可用就停下問我。全程 Opus、嚴守 §6 鐵則。
 
 ---
 
