@@ -1952,7 +1952,8 @@
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00021ad9": {
     "name": "fd2_cast_spell_0d_variant_b",
