@@ -13,6 +13,8 @@
 | `mkroute.py` | routing.json 生成/管理(從 emit_functions.json + 規則)。`generate`/`status`/`mark`/`pending`/`validate`/`resplit`。大 subsystem 依子功能切成多個 ≤~1000 行 .c 的規則在 `_subsplit()`（見 `tools/file_split/`），`resplit` 把切分套到既有 routing.json。 |
 | `count_cats.py` / `dump_emit_functions.java` | 既有分類計數 / Ghidra dump 工具。 |
 
+測試架構：`tests/` 下每個測試檔對應一個 src 子檔（`tests/<domain>/<stem>.c`），切分與搬移工具在 `tools/test_split/`。`build.bat` 的測試編譯區、`test.lnk` 的測試 obj、`testmain.c` 的 runner 清單由 `tools/test_split/genbuild.py` 自動產生；新增測試檔後跑一次即可接上 build（細節見 `tests/_index.md`）。
+
 ## 狀態 source of truth
 
 `src/routing.json`:`address → {name, target, phase, done, asm, reviewed}`。

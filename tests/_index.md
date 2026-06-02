@@ -1,45 +1,42 @@
-# tests/ — FD2 Unit Test 架構
+# tests/ — FD2 單元測試架構
+
+每個測試檔對應一個 src 子檔：`tests/<domain>/<stem>.c` 測試 `src/<domain>/<stem>.c` 裡的 function。要找某個 function 的測試，照它的 src 路徑去同名測試檔即可。每個測試檔都維持在 1000 行以內；某個 src 子檔的測試太多時，會再切成 `<stem>1.c`、`<stem>2.c`。
 
 ## 執行方式
 
 ```
-dosbox-x -silent -conf tests/dosbox.conf
+python tools/emit/build_test.py
 ```
 
-DOSBox-X 會自動：
-1. 編譯 `src/` 下所有 .c → `tests/OUT/*.obj`
-2. 編譯 `tests/` 下所有 test*.c → `tests/OUT/*.obj`
-3. Link 成 `tests/OUT/TEST.EXE`（依 `tests/test.lnk`）
-4. 執行 TEST.EXE，結果寫到 `tests/OUT/test.out`
-
-確認結果：讀取 `tests/OUT/test.out`，末行應為 `Results: N passed, 0 failed`。
+這會啟動 DOSBox-X 跑 `tests/dosbox.conf`，編譯 `src/` 與 `tests/` 下所有檔案、連結成 `tests/OUT/TEST.EXE`、執行並把結果寫到 `tests/OUT/test.out`，最後回傳 JSON（`gate_pass` / 通過數 / 失敗數 / 警告）。也可以直接 `dosbox-x -silent -conf tests/dosbox.conf` 後讀 `tests/OUT/test.out`，末行應為 `Results: N passed, 0 failed`。
 
 ## 檔案結構
 
-| 檔案 | 用途 |
+| 路徑 | 用途 |
 |---|---|
-| `dosbox.conf` | DOSBox-X 自動化 conf：compile + link + run |
-| `test.lnk` | wlink directive，列出所有 .obj（src + test） |
-| `include/testharn.h` | Test harness macro：ASSERT_EQ / ASSERT_TRUE / RUN_TEST 等 |
-| `testmain.c` | 唯一 `main()`，定義 harness globals，依序呼叫各 `run_*_tests()` |
-| `testglob.c` | 所有 fake globals 和 stub functions 集中定義 |
-| `testtbl.c` | table accessor test cases |
-| `testbtl.c` | battle core test cases (RNG / damage / heal / counter) |
-| `testui.c` | cursor + pan + input test cases |
-| `testspel.c` | spell handler test cases |
+| `tests/<domain>/<stem>.c` | 對應 `src/<domain>/<stem>.c` 的測試，匯出 `run_<domain>_<stem>_tests()` |
+| `testmain.c` | 唯一的 `main()` 與計分用全域變數，依序呼叫各測試檔的 runner（呼叫清單由工具自動維護） |
+| `testglob.c` | 所有受測函式依賴的假全域變數與 stub；function pointer table 必須初始化指向 noop |
+| `include/testharn.h` | 測試框架巨集（`ASSERT_EQ` / `RUN_TEST` / `SUITE_BEGIN` 等） |
+| `include/<domain>fix.h` | 跨多個測試檔共用的輔助函式與緩衝區（例如 `battlfix.h`） |
+| `dosbox.conf` | DOSBox-X 設定：autoexec 只做 mount 與環境變數，再呼叫 `build.bat` |
+| `build.bat` | 實際的編譯／連結／執行指令清單（放在磁碟檔，沒有 autoexec 的行數上限） |
+| `test.lnk` | wlink 設定，列出所有 .obj（src 與 test） |
 
-## 新增 function 時的 test 修改步驟
+`build.bat` 的測試編譯區、`test.lnk` 的測試 obj 清單、`testmain.c` 的 runner 清單，都由 `python tools/test_split/genbuild.py --apply` 從現有測試檔自動產生，不必手動維護。
 
-1. **src/ 新增 .c 檔時**：在 `dosbox.conf` 的 `compile src` 區塊加 WCC386 行，在 `test.lnk` 加 `file C:\OUT\xxx.obj`
-2. **新 function 需要外部 stub**：在 `testglob.c` 加 stub function 定義
-3. **新 function 使用新 global**：在 `testglob.c` 加 fake global 定義（名稱必須與 Ghidra 一致）
-4. **寫 test case**：在對應的 `test*.c` 內加 `static void test_xxx(void)` + 在 `run_*_tests()` 內加 `RUN_TEST(test_xxx);`
-5. **新增 test suite**：新建 `testXXX.c`（≤ 8.3），export `run_XXX_tests()`，在 `testmain.c` 加 `extern + 呼叫`，在 `dosbox.conf` 加 compile 行，在 `test.lnk` 加 obj
+## 新增一個 function 的測試
+
+1. 看 function 在哪個 `src/<domain>/<stem>.c`。
+2. 打開（或新建）對應的 `tests/<domain>/<stem>.c`，加入 `static void test_xxx(void)`，並在該檔的 `run_<domain>_<stem>_tests()` 用 `RUN_TEST(test_xxx)` 註冊。若該子檔已依大小切成 `<stem>1.c` / `<stem>2.c`，加到對應那一半。
+3. 新的 stub 或假全域加到 `testglob.c`（名稱必須與 Ghidra 一致；function pointer table 初始化指向 noop）。
+4. 要被多個測試檔共用的輔助函式或緩衝區，放到 `tests/include/<domain>fix.h`。
+5. 若新建了測試檔，跑一次 `python tools/test_split/genbuild.py --apply`，`build.bat`、`test.lnk`、`testmain.c` 都會自動更新。
+6. 跑 `python tools/emit/build_test.py` 過 build gate。
 
 ## 規範
 
-- test 檔名 ≤ 8.3 DOS 格式（Watcom 9.5a 限制）
-- 各 test*.c 只含 `static` test functions + 一個 `run_*_tests()` export
-- 不在 test*.c 定義任何 global 或 stub — 全部放 `testglob.c`
-- fake global 名稱必須與 Ghidra / globals.h 完全一致
-- `extern runtime_char g_test_rc_array[8]` 用於測試需要操作 runtime_char 的場景
+- 檔名與標頭都要符合 DOS 8.3（Watcom 9.5a 無 LFN）。子檔切分用 `<stem>` 前 7 字元加序號；共用標頭用 domain 前 5 字元加 `fix`（如 `battlfix.h`）。
+- 每個測試檔只含 `static` 的 `test_*` 函式、它們用到的輔助碼、以及一個匯出的 `run_*_tests()`。
+- 受測函式的外部依賴（假全域、stub）集中在 `testglob.c`；只在單一測試檔用到的輔助碼就放該檔，跨檔共用的才進 `tests/include/<domain>fix.h`。
+- 切分大檔與搬移測試用 `tools/test_split/`（`inventory.py` 判定落點、`move.py` 搬移與切分、`genbuild.py` 產生 build 設定）。

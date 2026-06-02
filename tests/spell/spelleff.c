@@ -1,47 +1,69 @@
 /*
- * testspel.c — Unit tests for spell handler dispatch functions
+ * unit tests for src/spell/spelleff.c
  */
 
-#include <stdio.h>
 #include <string.h>
 #include "testharn.h"
 #include "types.h"
 #include "consts.h"
 #include "globals.h"
 #include "protos.h"
-
-/* globals + stubs in testglob.c */
-extern runtime_char g_test_rc_array[8];
-extern int g_remove_inventory_calls;
-extern int g_composite_call_count;
-extern int g_cast_status_cure_calls;
-extern int g_cast_status_via_d1b_calls;
-
-/* ----------------------------------------------------------------
- * fd2_apply_use_effect_dispatch coverage.
- *
- * Drives the dispatcher deterministically through the REAL table
- * accessors: fd2_get_inventory_slot_item_id(c,slot) reads
- * inventory_slots[slot*2+1]; fd2_get_item_effect_entry(id) returns
- * &item_effect_table[id].type (struct base +1), so the dispatcher's
- * item_entry[0xD]=effect_code maps to item_effect.use_effect (+0xE)
- * and item_entry[0xE]=effect_param to the u16 at struct +0xF
- * (use_param_lo|use_param_hi<<8).
- *
- * The high-risk state transition under test is the per-effect-code
- * inventory-consume decision (codes 5/6/7/0x0B consume; others do
- * not) plus code 0x13's movement_order save/restore and the finale
- * XP-credit reset. Consume is observed via the g_remove_inventory_calls
- * counter on the fd2_remove_inventory_slot_at stub. The drop-collection
- * finale runs the REAL fd2_collect_pending_death_drops over
- * data_fd2_battle_party_member_count chars into drops_buf; member_count
- * is pinned to 0 so that loop is a no-op and the buffer-arg fix (passing
- * drops_buf, not garbage) is exercised without depending on char data.
- * Pure blit/animation side effects (impact/blink/composite) and the
- * RNG-driven mp_heal/magic-damage VALUES are covered by their own direct
- * unit tests in testbtl.c and are intentionally not re-asserted here. */
+#include <stdio.h>
 
 #define USE_ITEM_ID 10
+
+extern runtime_char g_test_rc_array[8];
+extern int g_build_spell_list_return;
+extern int g_ail_vol_calls;
+extern int g_ail_last_vol;
+extern int g_ail_last_ramp;
+extern uint8 data_fd2_audio_bgm_last_set_track_id;
+extern uint8 data_fd2_battle_summon_minor_anim_state5_frame_counter;
+extern uint8 data_fd2_battle_summon_minor_anim_alternating_blit_toggle;
+extern int g_ending_menu_return;
+extern int g_slot_selector_return;
+extern int g_chapter_transition_return;
+extern int g_play_sfx_with_handle_calls;
+extern int g_play_sfx_sample_from_bank_calls;
+extern int g_blit_indexed_sprite_calls;
+extern uint32 g_blit_indexed_sprite_last_frame;
+extern int g_blit_indexed_sprite_last_x;
+extern int g_blit_indexed_sprite_last_y;
+extern int    g_mini_panel_calls;
+extern uint32 g_mini_panel_last_buf;
+extern uint32 g_mini_panel_last_stride;
+extern uint32 g_mini_panel_last_char;
+extern int g_find_equipped_return;
+extern int g_composite_call_count;
+extern int g_attack_dispatch_return;
+extern int g_attack_dispatch_calls;
+extern int g_seek_optimal_return;
+extern int g_advance_nearest_return;
+extern int g_walk_return;
+extern int g_score_physical_return;
+extern int g_pass_turn_calls;
+extern int g_execute_spell_calls;
+extern int g_execute_physical_calls;
+extern int g_pathfind_return;
+extern int g_pathfind_walk_return;
+extern int g_pathfind_write_dst;
+extern int g_pathfind_dst_x;
+extern int g_pathfind_dst_y;
+extern int g_pathfind_seq_enable;
+extern int g_pathfind_seq[4];
+extern int g_pathfind_seq_idx;
+extern int g_pathfind_seq_steps;
+extern uint8 g_pathfind_step_bytes[8];
+extern int g_pathfind_md0_dst_x;
+extern int g_pathfind_md0_dst_y;
+extern int g_count_usable_slots_return;
+extern uint8 g_spell_list_buf[12];
+extern int g_remove_inventory_calls;
+extern int g_cast_status_cure_calls;
+extern int g_cast_status_via_d1b_calls;
+extern int g_repaint_settings_calls;
+extern int g_repaint_flip_buffer_after;
+
 
 static void setup_use_effect(uint8 effect_code, uint16 effect_param)
 {
@@ -57,6 +79,7 @@ static void setup_use_effect(uint8 effect_code, uint16 effect_param)
     g_remove_inventory_calls = 0;
 }
 
+
 /* Codes 5/6/7/0x0B must spend the inventory slot exactly once. */
 
 static void test_use_effect_code5_consumes(void)
@@ -67,6 +90,7 @@ static void test_use_effect_code5_consumes(void)
     ASSERT_EQ(g_remove_inventory_calls, 1);
 }
 
+
 static void test_use_effect_code6_consumes(void)
 {
     uint8 target_id = 1;
@@ -75,6 +99,7 @@ static void test_use_effect_code6_consumes(void)
     ASSERT_EQ(g_remove_inventory_calls, 1);
 }
 
+
 static void test_use_effect_code7_consumes(void)
 {
     uint8 target_id = 1;
@@ -82,6 +107,7 @@ static void test_use_effect_code7_consumes(void)
     fd2_apply_use_effect_dispatch(0, 0, 1, (uint32)&target_id);
     ASSERT_EQ(g_remove_inventory_calls, 1);
 }
+
 
 /* Bug-catcher: code 0x0B (回MP consumable) must also consume the slot.
  * target.mp_max = 0 takes the show_miss branch (pure stubs), isolating
@@ -95,6 +121,7 @@ static void test_use_effect_code0B_consumes(void)
     ASSERT_EQ(g_remove_inventory_calls, 1);
 }
 
+
 /* Code 0x14 (attack spell) is NON-consuming: slot must be left intact.
  * target.job_id = 1 keeps the REAL fd2_calc_magic_damage in-bounds. */
 static void test_use_effect_code14_no_consume(void)
@@ -105,6 +132,7 @@ static void test_use_effect_code14_no_consume(void)
     fd2_apply_use_effect_dispatch(0, 0, 1, (uint32)&target_id);
     ASSERT_EQ(g_remove_inventory_calls, 0);
 }
+
 
 /* Code 0x13 (永久+移動力) bumps a stat via the scroll helper but must
  * RESTORE movement_order afterward. The helper does a 16-bit write at
@@ -122,6 +150,7 @@ static void test_use_effect_code13_restores_movement_order(void)
     ASSERT_EQ(g_test_rc_array[1].movement_order, 0xAB);
 }
 
+
 /* Finale unconditionally clears pending_xp_credit before returning. */
 static void test_use_effect_resets_xp_credit(void)
 {
@@ -132,6 +161,7 @@ static void test_use_effect_resets_xp_credit(void)
     fd2_apply_use_effect_dispatch(0, 0, 1, (uint32)&target_id);
     ASSERT_EQ(data_fd2_battle_pending_xp_credit, 0);
 }
+
 
 
 static void test_spell_17_deducts_mp(void)
@@ -153,6 +183,7 @@ static void test_spell_17_deducts_mp(void)
     ASSERT_EQ(g_test_rc_array[0].mp_current, 85);
 }
 
+
 static void test_spell_17_xp_with_job_bonus(void)
 {
     uint8 target_id;
@@ -172,6 +203,7 @@ static void test_spell_17_xp_with_job_bonus(void)
     fd2_cast_spell_17_complex(0, 0, (uint32)&target_id);
     ASSERT_EQ(data_fd2_battle_pending_xp_credit, (5 + 0x1e) * 10);
 }
+
 
 static void test_spell_17_xp_no_job_bonus(void)
 {
@@ -193,6 +225,7 @@ static void test_spell_17_xp_no_job_bonus(void)
     ASSERT_EQ(data_fd2_battle_pending_xp_credit, 8 * 10);
 }
 
+
 static void test_apply_status_effect_deducts_mp(void)
 {
     uint8 target_id;
@@ -205,6 +238,7 @@ static void test_apply_status_effect_deducts_mp(void)
         (int)&target_id, 0x25);
     ASSERT_EQ(g_test_rc_array[0].mp_current, 42);
 }
+
 
 /* Correct-callee regression: the @0x22AA8 wrapper's CALL @0x22AE0 targets
  * fd2_cast_status_cure_spell @0x22AF6 (the heal-status worker), NOT the
@@ -229,6 +263,7 @@ static void test_apply_status_effect_calls_cure_worker(void)
     ASSERT_EQ(g_cast_status_via_d1b_calls, 0);
 }
 
+
 static void test_apply_item_stat_modifier(void)
 {
     uint8 target_id;
@@ -238,6 +273,7 @@ static void test_apply_item_stat_modifier(void)
         0, 10, 0x48, 0, 1, (uint32)&target_id, 0x11);
     ASSERT_EQ(g_test_rc_array[1].ap, 10);
 }
+
 
 /* fd2_apply_attack_spell_damage @ 0x2111A runs the per-target damage loop,
  * then a Pattern-A SHARED EPILOGUE (loop-exit JGE 0x21190 falls into
@@ -274,6 +310,7 @@ static void test_attack_spell_damage_composites_once(void)
     ASSERT_EQ(g_composite_call_count, 1);
 }
 
+
 /* Empty target list (count 0): loop body never runs, but the shared
  * epilogue still composites exactly once. Guards against the tail being
  * mistakenly placed inside the loop. */
@@ -285,25 +322,11 @@ static void test_attack_spell_damage_zero_targets_still_composites(void)
     ASSERT_EQ(g_composite_call_count, 1);
 }
 
-static void test_set_full_palette_smoke(void)
-{
-    fd2_set_full_vga_palette_to_color(0x3F, 0x3F, 0x3F);
-    ASSERT_TRUE(1);
-}
 
-static void test_spell_handler_0_smoke(void)
-{
-    uint8 target_id;
-    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
-    target_id = 1;
-    fd2_spell_handler_id_0_via_targeted_blink(0, 1, &target_id);
-    ASSERT_TRUE(1);
-}
-
-void run_spell_tests(void)
+void run_spell_spelleff_tests(void)
 {
     int _prev_fails = g_test_fail_count;
-    printf("Suite: spell_handlers\n");
+    printf("Suite: spell/spelleff\n");
     RUN_TEST(test_spell_17_deducts_mp);
     RUN_TEST(test_spell_17_xp_with_job_bonus);
     RUN_TEST(test_spell_17_xp_no_job_bonus);
@@ -312,8 +335,6 @@ void run_spell_tests(void)
     RUN_TEST(test_apply_item_stat_modifier);
     RUN_TEST(test_attack_spell_damage_composites_once);
     RUN_TEST(test_attack_spell_damage_zero_targets_still_composites);
-    RUN_TEST(test_set_full_palette_smoke);
-    RUN_TEST(test_spell_handler_0_smoke);
     RUN_TEST(test_use_effect_code5_consumes);
     RUN_TEST(test_use_effect_code6_consumes);
     RUN_TEST(test_use_effect_code7_consumes);

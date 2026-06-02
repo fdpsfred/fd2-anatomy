@@ -80,7 +80,7 @@ function emitterPrompt(fn, mode, verdict) {
       '   判 cc（末指令 RET 0 / RET N、caller 是否 ADD ESP K、entry 是否未 PUSH EBX 就讀 EBX…）；標記每個 CALL 後 EAX 用法。',
       'B. 需要時 get_function_callers / get_xrefs_to 推 param 數與 cc。若 plate 標 DECOMPILER FRAGMENT → 不獨立 emit，回報 skip。',
       'C. 寫 C 進 src/' + fn.target + '（檔頭註解標 name @ addr (N callers)）；同步 src/include/protos.h（原型）、globals.h（新 global，用 Ghidra 真名）。',
-      'D. 寫 unit test（風險導向覆蓋）：加 static test + 在對應 run_*_tests() 註冊；新 stub/fake global/未初始化 fnptr table → 加到 tests/testglob.c（fnptr table 必須初始化 noop）。新 .c/新 test 檔 → 同步加進 tests/dosbox.conf 與 tests/test.lnk。',
+      'D. 寫 unit test（風險導向覆蓋）：test 放到鏡像 fn.target 的測試檔 tests/' + fn.target + '（若該檔已依大小切成 <stem>1/<stem>2，加到對應那半；不存在就新建並跑 python tools/test_split/genbuild.py --apply 自動接上 build.bat/test.lnk/testmain），在該檔的 run_*_tests() 註冊。新 stub/fake global/未初始化 fnptr table → tests/testglob.c（fnptr table 必須初始化 noop）。跨多個測試檔共用的 fixture → tests/include/<domain>fix.h（如 battlfix.h）。',
     ].join('\n')
   }
 
@@ -110,7 +110,7 @@ function reviewerPrompt(fn, emitterOut) {
     'A. 先看 emitter 的精確改動：執行  git --no-pager diff HEAD -- src/' + fn.target + ' tests/  （序列+per-function commit 下，HEAD 之後的未 commit 改動即本 function 的）。',
     '   這份 diff 涵蓋 code 與任何 KB/doc(.md) 改動——都要一併檢查。若 diff 為空（review 模式初次），review 既有 baseline C。',
     'B. 自己抓三源：get_plate_comment / disassemble_function / decompile_function(' + fn.addr + ')。',
-    'C. 讀 src/' + fn.target + ' 內該 function 的 C、對應 tests/test*.c 的 test、testglob.c 相關 stub。',
+    'C. 讀 src/' + fn.target + ' 內該 function 的 C、對應 tests/' + fn.target + ' 的 test（鏡像 src 子檔，可能依大小切成 <stem>1/<stem>2）、testglob.c 相關 stub。',
     'D. 逐項 checklist（每項給 通過/不通過 + evidence 引 assembly 指令或行）：',
     '   1. 控制流：assembly 分支/迴圈/呼叫順序 ↔ emitted C 一致。',
     '   2. EAX-tracking bug：每個 CALL 後用 EAX 處，C 是否取正確 return（對 assembly，不對 decompiled C）。',
