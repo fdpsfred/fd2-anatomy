@@ -44,7 +44,7 @@ reviewer approved + build gate green + per-function commit。
 3. **清半成品**：`git checkout -- src tests`（清上次中斷殘留）。
 4. **跑**：`Workflow({scriptPath:"tools/emit/emit_review.wf.js", args:<next_batch JSON>})`。
    - 序列一次一個 function；`review` 模式直接 reviewer，`emit` 模式先 emitter；reviewer 獨立三源復驗 → 迭代（≤10 round）→ approved → bookkeeper per-function commit（code+test+KB + `routing.reviewed=true` + emit_issues）。
-5. **驗證**：build gate 綠（除既存 warning）、`reviewed` 數增加、commit 乾淨、無 dosbox 孤兒。
+5. **驗證**：build gate 綠（0 error、0 warning）、`reviewed` 數增加、commit 乾淨、無 dosbox 孤兒。
 
 中斷（token/usage limit）後重跑零成本續：`reviewed` 欄 + per-function commit = 斷點；workflow 內 try/catch 在 function 邊界優雅停。**禁忌與細節見 `tools/emit/_index.md`。**
 
@@ -55,7 +55,7 @@ reviewer approved + build gate green + per-function commit。
 每完成 **5 個 batch**（以 `workspace/emit/active_wf.json` 的 `batches_completed` 跨過 5 的倍數為觸發點；
 1 batch = 一次 `Workflow` 跑完並通過驗證）做一次 checkpoint，model **自我檢查**下列五項：
 
-1. build gate 綠（0 error；warning 僅既存且未增加）
+1. build gate 綠（0 error、0 warning）
 2. `reviewed` / `emitted` 數增量與本段處理量一致（本段 = 5 batch ≈ 60 function）
 3. `git log` 的 per-function commit 連續乾淨（一 function 一 commit，scope 只含該 function 的檔）
 4. 無累積的 needs_user / interrupted
@@ -95,7 +95,7 @@ reviewer approved + build gate green + per-function commit。
 
 1. `active_wf.json` 有 task_id → `TaskOutput(task_id, block=false)`：`running` → 報告狀態後結束（不啟動新批、不 arm 心跳）；`completed`/查無 → 往下。
 2. `next_batch.py --stats`：`await_review==0 && await_emit==0` → 全完成 → 刪 `active_wf.json` + PushNotification 通知使用者 + 結束 loop。
-3. 否則跑下一批（= §2 每批流程）：先驗證上批（build gate 綠除既存 warning、reviewed 增、commit 乾淨、無 dosbox 孤兒）→ scout（review 做完改 `--mode emit`）→ `search_functions` 對齊 routing↔Ghidra（drift 拋警告）→ `git checkout -- src tests` → `Workflow(emit_review.wf.js, args)` → 新 task_id 覆寫 `active_wf.json`。
+3. 否則跑下一批（= §2 每批流程）：先驗證上批（build gate 綠（0 error、0 warning）、reviewed 增、commit 乾淨、無 dosbox 孤兒）→ scout（review 做完改 `--mode emit`）→ `search_functions` 對齊 routing↔Ghidra（drift 拋警告）→ `git checkout -- src tests` → `Workflow(emit_review.wf.js, args)` → 新 task_id 覆寫 `active_wf.json`。
 4. 每完成 5 個 batch（`batches_completed` 跨 5 倍數）做 §3 checkpoint；符合預期印一行摘要後自動續，只有 §3.1 才停。
 
 **貼給新 session（zero-context 亦可接續）**：
@@ -112,7 +112,7 @@ reviewer approved + build gate green + per-function commit。
 - 符號名與 Ghidra byte-identical；C89（變數宣告在 block 開頭）；檔名 8.3（Watcom 9.5a 無 LFN）
 - 絕不半成品（改名 / static / 空殼 / `_impl`）；絕不為遷就 test 而扭曲 emit code
 - emitter / reviewer **前景**跑 `build_test.py`，嚴禁 `run_in_background`（subagent 背景跑不閉環 + 留 dosbox 孤兒）
-- 風險導向 test 覆蓋：數值 / 複雜分支 / RNG / EAX-bug 風險 / 狀態轉移強制測；純 blit/display 副作用延 Phase 8 integration
+- 風險導向 test 覆蓋：數值 / 複雜分支 / RNG / EAX-bug 風險 / 狀態轉移強制測；純 blit/display 副作用延 Phase 9 integration
 - Ghidra plate / name / data symbol 與 assembly 事實不符 → 當場 `set_plate_comment` / `rename` + 同步 KB / globals.h / testglob.c
 
 ---

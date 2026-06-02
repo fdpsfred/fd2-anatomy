@@ -38,7 +38,7 @@ const SOP = [
   '- Test 覆蓋政策＝風險導向：對「數值計算 / 複雜控制流分支 / RNG / EAX-bug 風險 / 狀態轉移」的 state/path 強制測；純 blit/display 副作用的 state 可延到 Phase 9 integration（但須在輸出註明延後與理由）。',
   '- build gate：前景執行  python tools/emit/build_test.py --changed "<改動檔,逗號分隔>"  ，它內部自己輪詢 DONE.TXT（約 20-30 秒）並回傳 JSON。',
   '  嚴禁用背景 / run_in_background 跑它——subagent 一旦交出最終訊息就結束，收不到背景通知、不會閉環。必須前景阻塞等它回 JSON。',
-  '- 目前 3 個既存 warning 在 spell/spellwk.c 與 life/main.c，與本批 summon 無關：你不需修、但絕不可新增任何 warning。',
+  '- build 目前 0 warning；gate（gate_pass）要求 0 warning，絕不可新增任何 warning。',
 ].join('\n')
 
 const NEED_KB = [
