@@ -47,7 +47,7 @@ int fd2_main_menu_continue_dispatcher(void)
 
     if (menu_choice == 1) {
         data_fd2_ui_menu_screen_sprite_atlas_buf_ptr =
-            (void *)fd2_load_dat_resource(
+            fd2_load_dat_resource(
                 (uint32)data_fd2_string_resource_filename_fdother_dat,
                 (uint32)data_fd2_ui_menu_screen_sprite_atlas_buf_ptr,
                 0xD);
@@ -98,7 +98,7 @@ int fd2_main_menu_continue_dispatcher(void)
         } while (slot_result == 0);
 
         free(pBuf);
-        free(data_fd2_ui_menu_screen_sprite_atlas_buf_ptr);
+        free((void *)data_fd2_ui_menu_screen_sprite_atlas_buf_ptr);
         data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
 
         if (slot_result == 1) {

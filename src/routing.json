@@ -2501,7 +2501,8 @@
     "target": "life/main.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00026152": {
     "name": "fd2_tick_summon_spell_setup_pre_animation_8slot",
