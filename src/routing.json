@@ -2532,7 +2532,8 @@
     "target": "anim/anim.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00026795": {
     "name": "fd2_tick_summon_spell_main_animation_state",

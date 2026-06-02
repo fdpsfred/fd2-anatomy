@@ -3512,6 +3512,65 @@ static void test_summon_generic_state5_wrap(void)
     ASSERT_EQ((long)g_play_sfx_with_handle_calls, 0);
 }
 
+/* fd2_tick_sprite_animation_step @ 0x2673f — the per-frame pacing primitive
+ * used by the summon state machine (call sites 0x2660e/0x2667b are gated on
+ * state codes 1/2/7/8, which no summon-state test exercises, so this needs a
+ * direct test). asm-verified (0002677e-00026790):
+ *   blit(atlas, *p_frame_idx, x, y, -1)              // pre-advance frame index
+ *   frame_off = *(uint32*)(atlas + *p_frame_idx*4 + 8)
+ *   hold_time = *(uint8*)(atlas + frame_off + 6)      // MOVZX -> unsigned byte
+ *   INC byte[p_tick]                                  // (*p_tick)++
+ *   if (*p_tick == hold_time) { *p_tick = 0; INC byte[p_frame_idx]; }
+ * Atlas built in a local buffer: table uint32 at +8 (idx 0) -> frame_off=16,
+ * so hold_time lives at +22 (no overlap with the +8..+11 table bytes). */
+static void test_tick_sprite_animation_step_hold_not_reached(void)
+{
+    uint8 atlas[64];
+    uint8 frame_idx;
+    uint8 tick;
+
+    memset(atlas, 0, sizeof(atlas));
+    *(uint32 *)(atlas + 8) = 16;     /* frame_off for idx 0 */
+    atlas[16 + 6] = 3;               /* hold_time = 3 */
+    frame_idx = 0;
+    tick = 0;
+    g_blit_indexed_sprite_calls = 0;
+    g_blit_indexed_sprite_last_frame = 0;
+    g_blit_indexed_sprite_last_x = 0;
+    g_blit_indexed_sprite_last_y = 0;
+    fd2_tick_sprite_animation_step(&frame_idx, &tick, 50, 70, (uint32)atlas);
+    /* tick 0 -> 1, != hold 3: no advance; blit used pre-advance idx 0 */
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 1);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_frame, 0);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_x, 50);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_y, 70);
+    ASSERT_EQ((long)tick, 1);
+    ASSERT_EQ((long)frame_idx, 0);
+}
+
+/* Hold reached: tick 2 -> 3 == hold_time 3 -> tick resets to 0 and frame_idx
+ * advances 0 -> 1. The blit still renders the PRE-advance index (0), proving
+ * the render precedes the frame-advance. */
+static void test_tick_sprite_animation_step_hold_reached(void)
+{
+    uint8 atlas[64];
+    uint8 frame_idx;
+    uint8 tick;
+
+    memset(atlas, 0, sizeof(atlas));
+    *(uint32 *)(atlas + 8) = 16;     /* frame_off for idx 0 */
+    atlas[16 + 6] = 3;               /* hold_time = 3 */
+    frame_idx = 0;
+    tick = 2;
+    g_blit_indexed_sprite_calls = 0;
+    g_blit_indexed_sprite_last_frame = 0xFF;
+    fd2_tick_sprite_animation_step(&frame_idx, &tick, 50, 70, (uint32)atlas);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 1);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_frame, 0);
+    ASSERT_EQ((long)tick, 0);
+    ASSERT_EQ((long)frame_idx, 1);
+}
+
 static void test_summon_b_init(void)
 {
     int r;
@@ -4280,6 +4339,8 @@ void run_battle_tests(void)
     RUN_TEST(test_summon_generic_state5_advance);
     RUN_TEST(test_summon_generic_state6);
     RUN_TEST(test_summon_generic_state5_wrap);
+    RUN_TEST(test_tick_sprite_animation_step_hold_not_reached);
+    RUN_TEST(test_tick_sprite_animation_step_hold_reached);
     RUN_TEST(test_summon_a_init);
     RUN_TEST(test_summon_a_state6_terminate);
     RUN_TEST(test_summon_a_state3);
