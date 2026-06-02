@@ -2138,7 +2138,8 @@
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00022be1": {
     "name": "fd2_cast_spell_16_dispatch_cda",
