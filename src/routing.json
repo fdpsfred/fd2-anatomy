@@ -2936,7 +2936,8 @@
     "target": "ui_menu/status.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0002f0b0": {
     "name": "fd2_run_buy_item_menu",
