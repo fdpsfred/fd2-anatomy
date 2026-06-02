@@ -3978,7 +3978,8 @@
     "target": "battle/btl_init.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00035c23": {
     "name": "fd2_chapter_event_handler_49__unref_sentinel",
