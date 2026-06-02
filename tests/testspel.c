@@ -14,6 +14,8 @@
 extern runtime_char g_test_rc_array[8];
 extern int g_remove_inventory_calls;
 extern int g_composite_call_count;
+extern int g_cast_status_cure_calls;
+extern int g_cast_status_via_d1b_calls;
 
 /* ----------------------------------------------------------------
  * fd2_apply_use_effect_dispatch coverage.
@@ -204,6 +206,29 @@ static void test_apply_status_effect_deducts_mp(void)
     ASSERT_EQ(g_test_rc_array[0].mp_current, 42);
 }
 
+/* Correct-callee regression: the @0x22AA8 wrapper's CALL @0x22AE0 targets
+ * fd2_cast_status_cure_spell @0x22AF6 (the heal-status worker), NOT the
+ * sister wrapper fd2_cast_status_spell_via_d1b @0x22CDA (which routes to the
+ * inflict worker @0x22D1B). Both names are linker-distinct functions, so a
+ * dispatch to the wrong one would apply the wrong status-spell logic in the
+ * real binary. Pin it by counting: the cure worker fires exactly once, the
+ * d1b sister fires zero times. (Swap the callee back and cure=0/d1b=1 fails.) */
+static void test_apply_status_effect_calls_cure_worker(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    g_test_rc_array[0].mp_current = 50;
+    data_fd2_battle_spell_effect_table[0x14].mp_cost = 8;
+    target_id = 1;
+    data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
+    g_cast_status_cure_calls = 0;
+    g_cast_status_via_d1b_calls = 0;
+    fd2_apply_status_effect_with_anim(0, 0x14, 1,
+        (int)&target_id, 0x25);
+    ASSERT_EQ(g_cast_status_cure_calls, 1);
+    ASSERT_EQ(g_cast_status_via_d1b_calls, 0);
+}
+
 static void test_apply_item_stat_modifier(void)
 {
     uint8 target_id;
@@ -283,6 +308,7 @@ void run_spell_tests(void)
     RUN_TEST(test_spell_17_xp_with_job_bonus);
     RUN_TEST(test_spell_17_xp_no_job_bonus);
     RUN_TEST(test_apply_status_effect_deducts_mp);
+    RUN_TEST(test_apply_status_effect_calls_cure_worker);
     RUN_TEST(test_apply_item_stat_modifier);
     RUN_TEST(test_attack_spell_damage_composites_once);
     RUN_TEST(test_attack_spell_damage_zero_targets_still_composites);

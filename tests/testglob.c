@@ -191,9 +191,11 @@ void fd2_play_palette_fade_in(void) { }
 void fd2_play_death_animation_and_mark_dead(void) { }
 void fd2_process_battle_drop_entries(uint32 a, uint32 b, uint32 c) { }
 void fd2_cast_group_hp_heal_spell(uint32 a, uint32 b, uint32 c, uint32 d) { }
-void fd2_cast_status_cure_spell(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e) { }
+int g_cast_status_cure_calls = 0;
+void fd2_cast_status_cure_spell(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e) { g_cast_status_cure_calls++; (void)a; (void)b; (void)c; (void)d; (void)e; }
 void fd2_cast_status_inflict_spell(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e) { }
-void fd2_cast_status_spell_via_d1b(int a, int b, int c, int d, int e) { }
+int g_cast_status_via_d1b_calls = 0;
+void fd2_cast_status_spell_via_d1b(int a, int b, int c, int d, int e) { g_cast_status_via_d1b_calls++; (void)a; (void)b; (void)c; (void)d; (void)e; }
 void fd2_paint_portrait_to_dialog_area(uint32 f) { }
 void fd2_render_mini_char_status_panel(uint32 b, uint32 s, uint32 c) { }
 uint8 data_fd2_audio_footstep_sfx_per_job_cadence_class_table[29] = {0};

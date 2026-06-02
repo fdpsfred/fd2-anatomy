@@ -2116,7 +2116,8 @@
     "target": "spell/spellwk.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00022af6": {
     "name": "fd2_cast_status_cure_spell",

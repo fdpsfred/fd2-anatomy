@@ -227,7 +227,7 @@ void fd2_apply_attack_spell_damage(uint32 caster_idx,
  * fd2_apply_status_effect_with_anim @ 0x22AA8
  *
  * Wrapper: reset aoe count, deduct MP, then delegate to
- * fd2_cast_status_spell_via_d1b. If any targets affected,
+ * fd2_cast_status_cure_spell @ 0x22AF6. If any targets affected,
  * tail-calls fd2_animate_spell_projectile_paths.
  * ---------------------------------------------------------------- */
 void fd2_apply_status_effect_with_anim(int caster_idx,
@@ -236,7 +236,7 @@ void fd2_apply_status_effect_with_anim(int caster_idx,
 {
     data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
     fd2_deduct_caster_mp(caster_idx, status_spell_id);
-    fd2_cast_status_spell_via_d1b(caster_idx, status_spell_id,
+    fd2_cast_status_cure_spell(caster_idx, status_spell_id,
         target_count, p_target_array, status_byte_offset);
     if (data_fd2_battle_spell_aoe_count_and_fx_queue_idx != 0) {
         fd2_animate_spell_projectile_paths();
