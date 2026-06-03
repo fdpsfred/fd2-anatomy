@@ -220,7 +220,8 @@
     "target": "gfx/blitspr.c",
     "phase": 3,
     "done": false,
-    "asm": false
+    "asm": false,
+    "reviewed": true
   },
   "00011eee": {
     "name": "fd2_composite_battle_tile_map",

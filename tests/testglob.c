@@ -156,14 +156,14 @@ int    g_terrain_hud_calls = 0;
 uint32 g_terrain_hud_last_buf = 0;
 uint32 g_terrain_hud_last_stride = 0;
 int    g_composite_call_count = 0;
-int    g_blit_rect_calls = 0;
-uint32 g_blit_rect_last_dst = 0;
-uint32 g_blit_rect_last_dstride = 0;
-uint32 g_blit_rect_last_src = 0;
-uint32 g_blit_rect_last_sstride = 0;
-uint32 g_blit_rect_last_w = 0;
-uint32 g_blit_rect_last_h = 0;
 void fd2_composite_battle_tile_map(uint32 d, uint32 s, uint32 w, uint32 h, uint32 ox, uint32 oy) {
+    /* The tile-map blit is the first stage of every fd2_composite_battle_frame
+     * pass and runs exactly once per composite (unconditional, both skip-cycle
+     * paths). It is the host-observable proxy that counts composite frames for
+     * caller tests (cursor.c, spelleff.c, btl_ai.c, ...) that only care "a frame
+     * composited". fd2_blit_rectangle is now a real emitted function
+     * (src/gfx/blitspr.c) and no longer available as that proxy. */
+    g_composite_call_count++;
     g_tile_map_calls++;
     g_tile_map_last_dst = d; g_tile_map_last_stride = s;
     g_tile_map_last_w = w; g_tile_map_last_h = h;
@@ -174,13 +174,6 @@ void fd2_composite_all_chars_overlay(void) { g_chars_overlay_calls++; }
 void fd2_render_terrain_info_hud_panel(uint32 b, uint32 s) {
     g_terrain_hud_calls++;
     g_terrain_hud_last_buf = b; g_terrain_hud_last_stride = s;
-}
-void fd2_blit_rectangle(uint32 d, uint32 ds, uint32 s, uint32 ss, uint32 w, uint32 h) {
-    g_blit_rect_calls++;
-    g_composite_call_count++;
-    g_blit_rect_last_dst = d; g_blit_rect_last_dstride = ds;
-    g_blit_rect_last_src = s; g_blit_rect_last_sstride = ss;
-    g_blit_rect_last_w = w; g_blit_rect_last_h = h;
 }
 /* fd2_repaint_settings_dialog_borders stub with test-controllable loop break.
  * The real routine repaints the settings/options dialog borders (pure display).
@@ -489,7 +482,8 @@ uint32 data_fd2_animation_ani_decoder_src_buf = 0;
  * g_composite_call_count (defined above with the pipeline stubs) remains the
  * observable that existing caller tests (cursor.c, spelleff.c, btl_ai.c, ...)
  * use to count "a composite frame ran"; the real compositor calls
- * fd2_blit_rectangle exactly once per frame, so the blit stub bumps it. */
+ * fd2_composite_battle_tile_map exactly once per frame, so the tile-map stub
+ * bumps it. */
 
 /* --- AI dispatcher stubs + tracking --- */
 int g_attack_dispatch_return = 0;
