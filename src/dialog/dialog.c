@@ -456,6 +456,76 @@ uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 flip)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_close_dialog_panels_then_slide_in_at @ 0x16B43 (1 caller)
+ *
+ * Tear down the open dialog's 5 layered frame buffers, optionally
+ * followed by a slide-out animation toward (slide_to_y_pixel, 5).
+ *
+ * Phase 1: reverse-order cleanup of layers 4..1 (10ms pause between
+ * each), then a final cleanup of layer 0.
+ *
+ * Phase 2 (only when slide_to_y_pixel != 0): interpolate a sprite
+ * blit from the battle-cursor pixel back toward (slide_to_y_pixel, 5)
+ * over (cursor_x + cursor_y) frames, reusing layer slot 0 as a
+ * transient save buffer for each frame.
+ *
+ * Symmetric inverse of fd2_play_dialog_open_animation: closes in
+ * reverse-Z order with the slide following the same step count.
+ *
+ * Note: matching the binary, the per-frame blit passes the
+ * '5 - ...' interpolant as sheet_base (arg4) and the
+ * 'slide_to_y_pixel - ...' interpolant as sprite_idx (arg5) — the
+ * mirror image of the open animation's argument pairing.
+ * ---------------------------------------------------------------- */
+void fd2_close_dialog_panels_then_slide_in_at(uint32 anim_handle,
+                                              uint32 slot_offset)
+{
+    uint32 *layer_ptr_array;
+    int     slot;
+    int     src_x_px;
+    int     src_y_px;
+    int     total_frames;
+    int     frame;
+    int     interp_y;
+    int     interp_x;
+    uint32  sprite_addr;
+    uint8  *sheet;
+
+    layer_ptr_array = (uint32 *)anim_handle;
+
+    for (slot = 4; slot > 0; slot--) {
+        fd2_cleanup_dialog_sprite_buffer(layer_ptr_array[slot], 0xa0000, 0x140);
+        __delay_thunk_375b2(10);
+    }
+    fd2_cleanup_dialog_sprite_buffer(layer_ptr_array[0], 0xa0000, 0x140);
+
+    if (slot_offset != 0) {
+        src_x_px     = (int)(data_fd2_battle_cursor_screen_x * 0x18);
+        src_y_px     = (int)(data_fd2_battle_cursor_screen_y * 0x18);
+        total_frames = (int)(data_fd2_battle_cursor_screen_x +
+                             data_fd2_battle_cursor_screen_y);
+        if (total_frames != 0) {
+            for (frame = 0; frame <= total_frames; frame++) {
+                interp_y = 5 - ((5 - (src_x_px + 4)) * frame) / total_frames;
+                interp_x = (int)slot_offset -
+                           (((int)slot_offset - (src_y_px + 4)) * frame)
+                               / total_frames;
+                sheet = (uint8 *)data_fd2_ui_anim_sprite_sheet_ptr;
+                sprite_addr = data_fd2_ui_anim_sprite_sheet_ptr +
+                              (uint32)(*(int16 *)(sheet + 6));
+                layer_ptr_array[0] =
+                    (uint32)fd2_blit_indexed_sprite_with_alloc(
+                                sprite_addr, 0xa0000, 0x140,
+                                (uint32)interp_y, (uint32)interp_x);
+                __delay_thunk_375b2(10);
+                fd2_cleanup_dialog_sprite_buffer(layer_ptr_array[0],
+                                                 0xa0000, 0x140);
+            }
+        }
+    }
+}
+
+/* ----------------------------------------------------------------
  * fd2_assemble_dialog_frame_layered @ 0x168B6 (4 callers)
  *
  * Compose a resizable dialog box from 17 sprite tiles in

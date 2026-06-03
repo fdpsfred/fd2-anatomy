@@ -813,7 +813,7 @@ void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite, uint32 stride) {
     g_dlg_blit_last_sprite = sprite;
     g_dlg_blit_last_stride = stride;
 }
-void fd2_close_dialog_panels_then_slide_in_at(uint32 anim_handle,
-                                              uint32 slot_offset) {
-    (void)anim_handle; (void)slot_offset;
-}
+/* fd2_close_dialog_panels_then_slide_in_at: now emitted in
+ * src/dialog/dialog.c and linked for real; its teardown + slide-out
+ * interpolation is driven by the test_close_* cases in
+ * tests/dialog/dialog.c (observed via the restore/save/blit-setup stubs). */

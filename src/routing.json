@@ -758,8 +758,9 @@
     "name": "fd2_close_dialog_panels_then_slide_in_at",
     "target": "dialog/dialog.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00016c57": {
     "name": "fd2_wait_for_input_dialog_with_blink",

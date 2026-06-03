@@ -588,6 +588,125 @@ static void test_frame_left_right_edges(void)
     ASSERT_EQ((long)b_seen, 2);
 }
 
+/* ---- fd2_close_dialog_panels_then_slide_in_at (dialog teardown) ----
+ * Phase 1 (always): reverse-order cleanup of the 5 layer buffers (slots
+ * 4..1 then 0). Each cleanup forwards to the recording restore stub
+ * (g_restore_block_*) and free()s the slot, so g_restore_block_calls
+ * counts the cleanups and the malloc'd slots are released safely.
+ *
+ * Phase 2 (slot_offset != 0): an interpolation loop runs frames 0..N
+ * where N = cursor_x + cursor_y (testglob defaults 5 + 5 = 10, i.e. 11
+ * frames). Each frame calls the REAL fd2_blit_indexed_sprite_with_alloc
+ * (→ real fd2_save_screen_block_to_buffer = g_saveblk_calls++, real
+ * fd2_blit_sprite_with_stride_setup = g_blitsetup_dst capture) then one
+ * cleanup. The blit resolves dst = sprite_idx*0x140 + sheet_base + dst,
+ * with sheet_base = interp_y (arg4) and sprite_idx = interp_x (arg5) —
+ * the close path's mirror of the open path's arg pairing — so the final
+ * frame's g_blitsetup_dst pins the interpolation endpoint arithmetic. */
+extern int    g_saveblk_calls;
+extern uint32 g_blitsetup_dst;
+
+/* Allocate the 5 frame-layer slots so cleanup's free() is valid, and
+ * arm the recorders. Returns the array base passed as anim_handle. */
+static uint32 close_anim_setup(void)
+{
+    int i;
+    install_fake_sheet();
+    for (i = 0; i < 5; i++) {
+        data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[i] = malloc(32);
+    }
+    g_restore_block_calls = 0;
+    g_saveblk_calls = 0;
+    g_blitsetup_dst = 0;
+    return (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs;
+}
+
+/*
+ * slot_offset == 0: Phase 2 is skipped entirely. Exactly the 5 layer
+ * buffers are torn down (one restore each), and no blit / save occurs.
+ */
+static void test_close_no_slide(void)
+{
+    uint32 base;
+
+    base = close_anim_setup();
+    fd2_close_dialog_panels_then_slide_in_at(base, 0);
+
+    ASSERT_EQ((long)g_restore_block_calls, 5);
+    ASSERT_EQ((long)g_saveblk_calls, 0);
+}
+
+/*
+ * slot_offset != 0 with cursor (5,5): Phase 1 does 5 cleanups, then the
+ * slide loop runs 11 frames (0..10), each doing one real blit (+1 save)
+ * and one cleanup → 5 + 11 = 16 restores, 11 saves. The final frame
+ * (f=10) interpolates to the endpoint:
+ *   src_x_px = src_y_px = 5*0x18 = 120
+ *   interp_y = 5 - ((5 - 124)*10)/10 = 5 - (-119) = 124
+ *   interp_x = 5 - ((5 - 124)*10)/10 = 124          (slot_offset = 5)
+ * and the real blit lands at
+ *   dst = interp_x*0x140 + interp_y + 0xA0000 = 124*0x140 + 124 + 0xA0000
+ */
+static void test_close_slide_symmetric(void)
+{
+    uint32 base;
+    uint32 saved_x;
+    uint32 saved_y;
+
+    saved_x = data_fd2_battle_cursor_screen_x;
+    saved_y = data_fd2_battle_cursor_screen_y;
+    data_fd2_battle_cursor_screen_x = 5;
+    data_fd2_battle_cursor_screen_y = 5;
+
+    base = close_anim_setup();
+    fd2_close_dialog_panels_then_slide_in_at(base, 5);
+
+    ASSERT_EQ((long)g_restore_block_calls, 16);
+    ASSERT_EQ((long)g_saveblk_calls, 11);
+    ASSERT_EQ((long)g_blitsetup_dst,
+              (long)(124u * 0x140u + 124u + 0xA0000u));
+
+    data_fd2_battle_cursor_screen_x = saved_x;
+    data_fd2_battle_cursor_screen_y = saved_y;
+}
+
+/*
+ * Asymmetric cursor isolates interp_y (from cursor_x) from interp_x
+ * (from cursor_y), confirming the close path's mirrored arg pairing:
+ * the blit's sheet_base (arg4) carries interp_y and sprite_idx (arg5)
+ * carries interp_x. With cursor (x=5, y=3) and slot_offset != 0:
+ *   src_x_px = 5*0x18 = 120,  src_y_px = 3*0x18 = 72
+ *   total_frames = 5 + 3 = 8  → 9 frames (0..8); final frame f=8:
+ *   interp_y = 5      - ((5      - (120+4))*8)/8 = 120+4 = 124
+ *   interp_x = offset - ((offset - (72 +4))*8)/8 = 72 +4 = 76
+ * (frame N always lands exactly on the source pixel, so both endpoints
+ * are slot_offset-independent and differ only by the per-axis source.)
+ * Real blit dst = interp_x*0x140 + interp_y + 0xA0000
+ *               = 76*0x140 + 124 + 0xA0000.
+ */
+static void test_close_slide_asymmetric_axes(void)
+{
+    uint32 base;
+    uint32 saved_x;
+    uint32 saved_y;
+
+    saved_x = data_fd2_battle_cursor_screen_x;
+    saved_y = data_fd2_battle_cursor_screen_y;
+    data_fd2_battle_cursor_screen_x = 5;
+    data_fd2_battle_cursor_screen_y = 3;
+
+    base = close_anim_setup();
+    fd2_close_dialog_panels_then_slide_in_at(base, 0x200);
+
+    ASSERT_EQ((long)g_restore_block_calls, 5 + 9);   /* 5 + 9 frames */
+    ASSERT_EQ((long)g_saveblk_calls, 9);
+    ASSERT_EQ((long)g_blitsetup_dst,
+              (long)(76u * 0x140u + 124u + 0xA0000u));
+
+    data_fd2_battle_cursor_screen_x = saved_x;
+    data_fd2_battle_cursor_screen_y = saved_y;
+}
+
 void run_dialog_dialog_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -606,5 +725,8 @@ void run_dialog_dialog_tests(void)
     RUN_TEST(test_open_anim_default_origin_none);
     RUN_TEST(test_frame_layout_exact);
     RUN_TEST(test_frame_left_right_edges);
+    RUN_TEST(test_close_no_slide);
+    RUN_TEST(test_close_slide_symmetric);
+    RUN_TEST(test_close_slide_asymmetric_axes);
     printf("\n");
 }
