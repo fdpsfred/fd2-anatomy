@@ -398,5 +398,17 @@
         "verify_method": "compile_and_disasm"
       }
     ]
+  },
+  "00015f84": {
+    "name": "fd2_display_dialog_scene",
+    "target": "dialog/dialog.c",
+    "issues": [
+      {
+        "type": "register_liveness_edge",
+        "desc": "Register-liveness edge (-0x11 ENEMY slot1 with target==0x27): the binary animates at the position held in EDI, which can have been set by a *previous* -0x12/-0x14 op (EDI <- current_speaker @0x1628c / runtime_char @0x1642b). The emitted C var pSpeaker is updated only in the -0x11(!=0x27) and -0x13 branches, NOT in -0x12/-0x14, so after a -0x12-then-(-0x11 with id 0x27) sequence the C would use a stale pSpeaker while the binary uses the -0x12 speaker. This is the documented liveness caveat in the function header. It does not affect compile/exec for the common single-portrait scripts and the first-use/garbage case is equally undefined in both; logged so a future pass can decide whether to mirror EDI exactly across all four portrait branches if such a script sequence is ever observed.",
+        "severity": "low",
+        "verify_method": "static-only; no observed script triggers -0x12-then-(-0x11 id 0x27); revisit if such sequence found"
+      }
+    ]
   }
 }

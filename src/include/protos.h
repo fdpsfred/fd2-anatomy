@@ -288,7 +288,14 @@ int fd2_chapter_transition_menu(void);
 void fd2_load_save_and_init_engine(void);
 
 /* ---- dialog / UI screens ---- */
-void fd2_display_dialog_scene(uint32 txt, uint32 id, uint32 pb, uint32 w, uint32 p5, uint32 p6, uint32 p7, uint32 p8, uint32 p9);
+uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx, uint32 render_pos, uint32 render_pitch, uint32 glyph_p5, uint32 glyph_p6, uint32 glyph_p7, uint32 glyph_height, uint32 blink_flag);
+void fd2_blit_glyph_2bpp_with_outline(uint32 font_sheet, uint32 glyph_idx, uint32 render_pos, uint32 render_pitch, uint32 p5, uint32 p6, uint16 p7);
+uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 flip);
+void fd2_cinematic_scroll_text_up_for_special_scenes(void);
+void fd2_dialog_sprite_blit_normal(uint32 dst, uint32 sprite, uint32 stride);
+void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite, uint32 stride);
+void fd2_close_dialog_panels_then_slide_in_at(uint32 anim_handle, uint32 slot_offset);
+void fd2_portrait_blink_animation_step(void);
 void fd2_load_chapter_portrait(uint32 portrait_id);
 void fd2_close_status_screen_with_slide_out(void);
 

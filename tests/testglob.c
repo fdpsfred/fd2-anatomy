@@ -331,7 +331,7 @@ void fd2_remove_inventory_slot_at(uint32 c, uint32 s) { g_remove_inventory_calls
 void fd2_load_status_effect_sfx(void) { }
 void fd2_play_and_free_status_effect_sfx(void) { }
 /* fd2_collect_pending_death_drops: now in btl_turn.c */
-void fd2_display_dialog_scene(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e, uint32 f, uint32 g, uint32 h, uint32 ii) { }
+/* fd2_display_dialog_scene: now emitted in src/dialog/dialog.c */
 void fd2_load_chapter_portrait(uint32 p) { }
 void fd2_close_status_screen_with_slide_out(void) { }
 /* fd2_load_chapter_battle_data: now in rsrc/rsrc.c */
@@ -737,4 +737,47 @@ void fd2_restore_screen_block_from_buffer(uint32 saved_block, uint32 dst, uint32
     g_restore_block_last_buf = saved_block;
     g_restore_block_last_dst = dst;
     g_restore_block_last_stride = stride;
+}
+
+/* ---- fd2_display_dialog_scene (dialog VM) support ----
+ * Globals it reads/writes (not yet defined elsewhere) and display-side-effect
+ * callees stubbed to noop, with a recording stub for the glyph blitter and a
+ * call counter for the blink-animation step so the VM's render-position
+ * arithmetic and opcode dispatch can be asserted without touching VGA / sfx.
+ * fd2_check_keyboard_buffer_nonempty and fd2_wait_for_input_dialog_with_blink
+ * are the REAL linked functions; the dialog-VM tests use only TEXT / -3 / -6 /
+ * -1 opcodes so the busy-wait (page-break) and portrait/file-load paths are
+ * never reached. With the BIOS keyboard buffer left empty (head==tail), the
+ * real keyboard poll returns 0 so blink_flag stays set and the blink stub runs. */
+uint32 data_fd2_dialog_last_action_sprite_id_param = 0;
+uint32 data_fd2_dialog_drop_swap_text_id_param = 0;
+uint8 *data_fd2_portrait_sprite_buffer = (uint8 *)0;
+
+int    g_dlg_glyph_calls = 0;
+uint32 g_dlg_glyph_last_idx = 0;
+uint32 g_dlg_glyph_last_pos = 0;
+int    g_dlg_blink_calls = 0;
+
+void fd2_blit_glyph_2bpp_with_outline(uint32 font_sheet, uint32 glyph_idx,
+                                      uint32 render_pos, uint32 render_pitch,
+                                      uint32 p5, uint32 p6, uint16 p7) {
+    (void)font_sheet; (void)render_pitch; (void)p5; (void)p6; (void)p7;
+    g_dlg_glyph_calls++;
+    g_dlg_glyph_last_idx = glyph_idx;
+    g_dlg_glyph_last_pos = render_pos;
+}
+void fd2_portrait_blink_animation_step(void) { g_dlg_blink_calls++; }
+uint32 fd2_play_dialog_open_animation(uint32 px, uint32 py, uint32 flip) {
+    (void)px; (void)py; (void)flip; return 0;
+}
+void fd2_cinematic_scroll_text_up_for_special_scenes(void) { }
+void fd2_dialog_sprite_blit_normal(uint32 dst, uint32 sprite, uint32 stride) {
+    (void)dst; (void)sprite; (void)stride;
+}
+void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite, uint32 stride) {
+    (void)dst; (void)sprite; (void)stride;
+}
+void fd2_close_dialog_panels_then_slide_in_at(uint32 anim_handle,
+                                              uint32 slot_offset) {
+    (void)anim_handle; (void)slot_offset;
 }

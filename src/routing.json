@@ -702,8 +702,9 @@
     "name": "fd2_display_dialog_scene",
     "target": "dialog/dialog.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000164e8": {
     "name": "fd2_portrait_blink_animation_step",
