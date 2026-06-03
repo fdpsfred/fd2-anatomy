@@ -4371,7 +4371,8 @@
     "target": "gfx/palette.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0004dbb9": {
     "name": "fd2_save_compute_checksum",
