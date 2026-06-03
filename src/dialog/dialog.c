@@ -346,3 +346,111 @@ void fd2_portrait_blink_animation_step(void)
     fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr, 2, 1);
     fd2_wait_n_bios_ticks(1);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_play_dialog_open_animation @ 0x165AC (1 caller)
+ *
+ * Animate a dialog box opening, then assemble its 5-layer frame.
+ *
+ * If dst_origin (flip) == 0, default it from the active portrait
+ * mode (0x728 enemy -> 2 / 0x9017 ally -> 0x70). Otherwise pan the
+ * battle cursor to (pos_x, pos_y) and linear-interpolate a sprite
+ * blit from the cursor pixel toward dst_origin over (cursor_x +
+ * cursor_y) frames.
+ *
+ * Always: allocate 5 ~27KB screen-save buffers (0x53A18..0x53A28)
+ * and run the 5-stage frame assembly (top edge / top inner / middle
+ * / lower inner / bottom edge), saving the underlying screen band
+ * before each stage so the dialog can later be closed cleanly.
+ *
+ * Returns the head of the 5-buffer save array (= 0x53A18), used by
+ * the caller / fd2_close_dialog_panels_then_slide_in_at to restore
+ * the screen when the dialog closes.
+ * ---------------------------------------------------------------- */
+uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 flip)
+{
+    uint32 cursor_x_pixel;
+    uint32 cursor_y_pixel;
+    int    total_steps;
+    int    step;
+    int    i;
+    int    interp_x;
+    int    interp_y;
+    uint32 sprite_addr;
+    uint8 *sheet;
+    uint32 width;
+
+    if (flip == 0) {
+        if (data_fd2_dialog_active_portrait_blit_offset == 0x728) {
+            flip = 2;
+        } else if (data_fd2_dialog_active_portrait_blit_offset == 0x9017) {
+            flip = 0x70;
+        }
+    } else {
+        data_fd2_battle_anim_phase = 0;
+        fd2_pan_cursor_to_tile_animated((int)pos_x, (int)pos_y);
+        data_fd2_battle_anim_phase = 1;
+        cursor_x_pixel = data_fd2_battle_cursor_screen_x * 0x18 + 4;
+        cursor_y_pixel = data_fd2_battle_cursor_screen_y * 0x18 + 4;
+        total_steps = (int)(data_fd2_battle_cursor_screen_x +
+                            data_fd2_battle_cursor_screen_y);
+        if (total_steps != 0) {
+            for (step = 0; step <= total_steps; step++) {
+                interp_y = (int)cursor_y_pixel -
+                           ((int)(cursor_y_pixel - flip) * step) / total_steps;
+                interp_x = (int)cursor_x_pixel -
+                           ((int)(cursor_x_pixel - 5) * step) / total_steps;
+                sheet = (uint8 *)data_fd2_ui_anim_sprite_sheet_ptr;
+                sprite_addr = data_fd2_ui_anim_sprite_sheet_ptr +
+                              (uint32)(*(int16 *)(sheet + 6));
+                data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[0] =
+                    fd2_blit_indexed_sprite_with_alloc(sprite_addr, 0xa0000,
+                                                       0x140, (uint32)interp_x,
+                                                       (uint32)interp_y);
+                __delay_thunk_375b2(10);
+                fd2_clear_keyboard_buffer();
+                fd2_cleanup_dialog_sprite_buffer(
+                    (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[0],
+                    0xa0000, 0x140);
+            }
+        }
+    }
+
+    for (i = 0; i < 5; i++) {
+        data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[i] = malloc(0x682c);
+    }
+
+    width = flip * 0x140 + 5;
+
+    fd2_save_screen_block_to_buffer(
+        (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[0],
+        0x136, 0x56, 0xa0000, width, 0x140);
+    fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, flip, 4, 2);
+    __delay_thunk_375b2(10);
+
+    fd2_save_screen_block_to_buffer(
+        (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[1],
+        0x136, 0x56, 0xa0000, width, 0x140);
+    fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, flip, 8, 3);
+    __delay_thunk_375b2(10);
+
+    fd2_save_screen_block_to_buffer(
+        (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[2],
+        0x136, 0x56, 0xa0000, width, 0x140);
+    fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, flip, 0xc, 4);
+    __delay_thunk_375b2(10);
+
+    fd2_save_screen_block_to_buffer(
+        (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[3],
+        0x136, 0x56, 0xa0000, width, 0x140);
+    fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, flip, 0x10, 5);
+    __delay_thunk_375b2(10);
+
+    fd2_save_screen_block_to_buffer(
+        (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[4],
+        0x136, 0x56, 0xa0000, width, 0x140);
+    fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, flip, 0x13, 5);
+
+    fd2_clear_keyboard_buffer();
+    return (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs;
+}

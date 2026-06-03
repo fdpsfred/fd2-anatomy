@@ -726,8 +726,9 @@
     "name": "fd2_play_dialog_open_animation",
     "target": "dialog/dialog.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001685c": {
     "name": "fd2_blit_sheet_sprite_at_offset",

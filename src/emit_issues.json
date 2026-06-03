@@ -410,5 +410,30 @@
         "verify_method": "static-only; no observed script triggers -0x12-then-(-0x11 id 0x27); revisit if such sequence found"
       }
     ]
+  },
+  "000165ac": {
+    "name": "fd2_play_dialog_open_animation",
+    "target": "dialog/dialog.c",
+    "issues": [
+      {
+        "type": "deferred_test_coverage",
+        "desc": "flip!=0 的 cursor-pan + 線性內插 blit 迴圈未做 unit test：它呼叫真 emit 的 fd2_pan_cursor_to_tile_animated (cursor.obj) 與 fd2_blit_indexed_sprite_with_alloc (blitspr.obj)，兩者寫 VRAM 0xA0000 並依賴 cursor 硬體狀態，屬純 display 副作用，依 test 政策延到 Phase 9 integration。已測 flip==0 deterministic 路徑 (default-origin 對映 0x728->2 / 0x9017->0x70 / else 0、5 次 malloc、width=flip*0x140+5、5-stage assemble 常數表 (4,2)(8,3)(0xC,4)(0x10,5)(0x13,5) 與 dst_origin 轉發)。",
+        "severity": "info",
+        "verify_method": "phase9_integration"
+      },
+      {
+        "type": "signed_arithmetic_equivalence",
+        "desc": "內插式 interp_y = cursor_y_pixel - ((int)(cursor_y_pixel-flip)*step)/total_steps 與 interp_x = cursor_x_pixel - ((int)(cursor_x_pixel-5)*step)/total_steps 對應 binary 的 IMUL+IDIV (SAR EDX,0x1f 號擴展) 帶號乘除。C 用帶號 int 乘除等價，但 step/total_steps 邊界 (step==total_steps 時商=被除數) 之 round-toward-zero 行為須在實機/emulator 確認與 Watcom 9.5a IDIV codegen 完全一致。inputs(cursor 像素) 需真 pan 才會填，故與上面延後覆蓋點同批驗。",
+        "severity": "info",
+        "verify_method": "phase9_integration"
+      },
+      {
+        "type": "deferred_test_coverage",
+        "desc": "Phase-9 follow-up: add a test for the flip!=0 cursor-pan + interp_x/interp_y interpolation path of fd2_play_dialog_open_animation once a recording-stub or integration harness can capture the blitter's x/y args without colliding with the real linked fd2_blit_indexed_sprite_with_alloc used by gfx/blitspr.c. Expected values per step: interp_x=cursor_x_pixel-((cursor_x_pixel-5)*step)/total_steps, interp_y=cursor_y_pixel-((cursor_y_pixel-flip)*step)/total_steps, cursor_*_pixel=cursor_screen_*×0x18+4, total_steps=sx+sy.",
+        "severity": "info",
+        "verify_method": "phase9_integration",
+        "source_review": "fd2_play_dialog_open_animation @000165ac (reviewer-approved)"
+      }
+    ]
   }
 }

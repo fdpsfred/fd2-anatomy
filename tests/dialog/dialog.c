@@ -323,6 +323,131 @@ static void test_blink_frame_cycle(void)
     ASSERT_EQ((long)g_dlg_blink_calls, 8);
 }
 
+/* ---- fd2_play_dialog_open_animation (dialog-open / 5-stage frame) ----
+ * These drive the flip==0 path, which skips the cursor pan + the
+ * sprite-interpolation loop and exercises the deterministic body:
+ * default-origin selection from the portrait mode, the 5 frame-layer
+ * malloc()s, the width = flip*0x140+5 arithmetic, and the fixed
+ * 5-stage assemble table (sprite_group, frame). Recorders live in
+ * testglob.c (g_saveblk_*, g_assemble_*); the real save/assemble are
+ * stubbed there, the array global is defined there too. */
+extern void  *data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[5];
+extern int    g_saveblk_calls;
+extern uint32 g_saveblk_out, g_saveblk_w, g_saveblk_h, g_saveblk_dst,
+              g_saveblk_src, g_saveblk_stride;
+extern int    g_assemble_calls;
+extern uint32 g_assemble_group[8];
+extern uint32 g_assemble_frame[8];
+extern uint32 g_assemble_origin[8];
+
+/* Reset the open-animation recorders and clear the save-buffer array so
+ * leaked addresses from a prior run can't masquerade as fresh mallocs. */
+static void open_anim_reset(uint32 portrait_mode)
+{
+    int i;
+    g_saveblk_calls = 0;
+    g_assemble_calls = 0;
+    for (i = 0; i < 5; i++) {
+        data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[i] = NULL;
+    }
+    data_fd2_dialog_active_portrait_blit_offset = portrait_mode;
+}
+
+/* The 5-stage assemble table is constant regardless of dst_origin; shared
+ * by all three flip-default cases. Verifies count, the (group,frame) pairs
+ * in order, that dst_origin is forwarded unchanged to every stage, and that
+ * each stage saved one screen band first (5 save calls, last band uses the
+ * computed width as src_ptr at the fixed 0x136x0x56 / 0xA0000 / 0x140 geom). */
+static void assert_five_stage_frame(uint32 expect_origin, uint32 expect_width)
+{
+    int i;
+
+    ASSERT_EQ((long)g_assemble_calls, 5);
+    ASSERT_EQ((long)g_saveblk_calls, 5);
+
+    ASSERT_EQ((long)g_assemble_group[0], (long)0x04);
+    ASSERT_EQ((long)g_assemble_frame[0], (long)0x02);
+    ASSERT_EQ((long)g_assemble_group[1], (long)0x08);
+    ASSERT_EQ((long)g_assemble_frame[1], (long)0x03);
+    ASSERT_EQ((long)g_assemble_group[2], (long)0x0c);
+    ASSERT_EQ((long)g_assemble_frame[2], (long)0x04);
+    ASSERT_EQ((long)g_assemble_group[3], (long)0x10);
+    ASSERT_EQ((long)g_assemble_frame[3], (long)0x05);
+    ASSERT_EQ((long)g_assemble_group[4], (long)0x13);
+    ASSERT_EQ((long)g_assemble_frame[4], (long)0x05);
+
+    for (i = 0; i < 5; i++) {
+        ASSERT_EQ((long)g_assemble_origin[i], (long)expect_origin);
+    }
+
+    /* last save call's captured geometry (all 5 use the same constants) */
+    ASSERT_EQ((long)g_saveblk_w, (long)0x136);
+    ASSERT_EQ((long)g_saveblk_h, (long)0x56);
+    ASSERT_EQ((long)g_saveblk_dst, (long)0xA0000u);
+    ASSERT_EQ((long)g_saveblk_stride, (long)0x140);
+    ASSERT_EQ((long)g_saveblk_src, (long)expect_width);
+}
+
+/* The 5 frame-layer buffers are freshly malloc'd into the global array and
+ * the return value is the array head (= &array[0]). */
+static void assert_buffers_allocated(uint32 ret)
+{
+    int i;
+    ASSERT_EQ((long)ret,
+              (long)(uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs);
+    for (i = 0; i < 5; i++) {
+        ASSERT_TRUE(data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[i] != NULL);
+    }
+    for (i = 0; i < 5; i++) {
+        free(data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[i]);
+        data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[i] = NULL;
+    }
+}
+
+/*
+ * flip==0 with enemy portrait mode (0x728): dst_origin defaults to 2, so
+ * width = 2*0x140 + 5 = 0x285. The 5-stage table runs with origin 2.
+ */
+static void test_open_anim_default_origin_enemy(void)
+{
+    uint32 ret;
+
+    open_anim_reset(0x728);
+    ret = fd2_play_dialog_open_animation(0, 0, 0);
+    assert_five_stage_frame(2u, 2u * 0x140u + 5u);
+    assert_buffers_allocated(ret);
+}
+
+/*
+ * flip==0 with ally portrait mode (0x9017): dst_origin defaults to 0x70, so
+ * width = 0x70*0x140 + 5 = 0xCC05. Confirms the second (else-if) mapping and
+ * that the large origin propagates through every stage + the width math.
+ */
+static void test_open_anim_default_origin_ally(void)
+{
+    uint32 ret;
+
+    open_anim_reset(0x9017);
+    ret = fd2_play_dialog_open_animation(0, 0, 0);
+    assert_five_stage_frame(0x70u, 0x70u * 0x140u + 5u);
+    assert_buffers_allocated(ret);
+}
+
+/*
+ * flip==0 with neither portrait mode: dst_origin stays 0 (the else-if must
+ * not fall through to a default), so width = 0*0x140 + 5 = 5 and every stage
+ * runs with origin 0.
+ */
+static void test_open_anim_default_origin_none(void)
+{
+    uint32 ret;
+
+    open_anim_reset(0x1234);   /* matches neither 0x728 nor 0x9017 */
+    ret = fd2_play_dialog_open_animation(0, 0, 0);
+    assert_five_stage_frame(0u, 5u);
+    assert_buffers_allocated(ret);
+}
+
 void run_dialog_dialog_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -336,5 +461,8 @@ void run_dialog_dialog_tests(void)
     RUN_TEST(test_literal_number_digits);
     RUN_TEST(test_page_idx_selects_start);
     RUN_TEST(test_blink_frame_cycle);
+    RUN_TEST(test_open_anim_default_origin_enemy);
+    RUN_TEST(test_open_anim_default_origin_ally);
+    RUN_TEST(test_open_anim_default_origin_none);
     printf("\n");
 }

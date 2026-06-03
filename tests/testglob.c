@@ -152,6 +152,7 @@ int g_check_char_is_dead_return = 0;
 int fd2_check_char_is_dead(uint32 c) { (void)c; return g_check_char_is_dead_return; }
 /* fd2_scan_chars_within_manhattan_range: now in btl_ai.c */
 uint32 data_fd2_ui_anim_sprite_sheet_ptr = 0;
+void  *data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[5] = {0};
 uint32 data_fd2_dialog_portrait_blink_frame_idx = 0;
 uint32 data_fd2_dialog_portrait_blink_subtick_counter = 0;
 uint32 data_fd2_dialog_last_action_value_param = 0;
@@ -313,6 +314,26 @@ void fd2_save_screen_block_to_buffer(uint32 out_buf, uint32 width, uint32 height
     g_saveblk_src = src_ptr;
     g_saveblk_stride = stride;
     g_saveblk_calls++;
+}
+/* recording stub for fd2_assemble_dialog_frame_layered (5 stages per
+ * fd2_play_dialog_open_animation call); captures the per-stage
+ * (sprite_group, frame, dst_origin) triples so the test can assert the
+ * 5-stage constant table and that dst_origin is forwarded unchanged. */
+int    g_assemble_calls = 0;
+uint32 g_assemble_group[8];
+uint32 g_assemble_frame[8];
+uint32 g_assemble_origin[8];
+void fd2_assemble_dialog_frame_layered(uint32 dst, uint32 stride,
+                                       uint32 thickness, uint32 dst_origin,
+                                       uint32 sprite_group, uint32 frame)
+{
+    if (g_assemble_calls < 8) {
+        g_assemble_group[g_assemble_calls]  = sprite_group;
+        g_assemble_frame[g_assemble_calls]  = frame;
+        g_assemble_origin[g_assemble_calls] = dst_origin;
+    }
+    g_assemble_calls++;
+    (void)dst; (void)stride; (void)thickness;
 }
 /* capture wiring for fd2_alloc_and_blit_indexed_sprite_chunk tests */
 uint32 g_blitdec_dst, g_blitdec_sprite, g_blitdec_stride;
@@ -769,9 +790,9 @@ void fd2_blit_glyph_2bpp_with_outline(uint32 font_sheet, uint32 glyph_idx,
     g_dlg_glyph_last_idx = glyph_idx;
     g_dlg_glyph_last_pos = render_pos;
 }
-uint32 fd2_play_dialog_open_animation(uint32 px, uint32 py, uint32 flip) {
-    (void)px; (void)py; (void)flip; return 0;
-}
+/* fd2_play_dialog_open_animation: now emitted in src/dialog/dialog.c and
+ * linked for real; its 5-stage frame assembly is driven by the
+ * test_open_anim_* cases in tests/dialog/dialog.c. */
 void fd2_cinematic_scroll_text_up_for_special_scenes(void) { }
 int    g_dlg_blit_normal_calls = 0;
 int    g_dlg_blit_mirrored_calls = 0;
