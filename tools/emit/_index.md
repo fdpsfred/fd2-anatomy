@@ -41,6 +41,7 @@
 - **emitter/reviewer 必須前景跑 `build_test.py`，嚴禁 `run_in_background`** — subagent 一交出最終訊息就結束、收不到背景通知、不閉環(且會留 dosbox 孤兒)。
 - build gate 唯一正確完成訊號 = `DONE.TXT` 出現;不存在 stale-cache / DPMI-OOM 問題(舊文件誤判,見 `src/handoff.md` §8)。
 - 每批 ≤ 12(checkpoint 粒度);全程 Opus。
+- **Ghidra 斷線＝純 event-driven schema 偵測,無心跳**:emitter/reviewer 任一 Ghidra MCP 失敗/逾時先快速重試一次,仍失敗才設結構化 `ghidra_unreachable=true`+`ghidra_error_detail` → `runAgent` fast-stop(`result.stopped=='ghidra_disconnect'`)→ 完成通知喚醒 → `connect_instance('FD2')` 探測:恢復則 relaunch、wedged 則 PushNotification 請使用者重啟。**多來源並發操作同一 Ghidra instance 無妨**(不靠 grep/字串/reviewed 停滯/liveness 判斷)。詳見 `src/handoff.md` §5。
 
 ## 完整 fd2.exe 的位置
 

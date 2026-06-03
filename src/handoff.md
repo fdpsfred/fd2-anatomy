@@ -91,9 +91,11 @@ reviewer approved + build gate green + per-function commit。
 
 **驅動**：loop 由 workflow 完成通知（`<task-notification>`）驅動 —— 一批完成→通知喚醒→驗證+下一批，鏈自我延續。**預設純 event-driven、不設 ScheduleWakeup 心跳**；僅在需要 usage-limit 自動恢復時才加 1h 心跳（上限 3600s）。in-flight 批次的 task_id 記於 `workspace/emit/active_wf.json`（scratch，loop 執行時才存在；內含自我描述的恢復說明）。唯一事實來源仍是 `routing.json` 的 reviewed 欄 + per-function commit，漏接通知零成本重來。
 
+**Ghidra 斷線處理（純 schema、event-driven、無偵測心跳）**：emitter/reviewer 任一 Ghidra MCP 呼叫失敗/逾時，先快速重試該呼叫一次（僅一次，避免 hammer/wedge）；仍失敗才設結構化欄位 `ghidra_unreachable=true` + `ghidra_error_detail`，`emit_review.wf.js` 的 `runAgent` 偵測到即 fast-stop 並回傳（`result.stopped=='ghidra_disconnect'`）→ task 完成 → 完成通知喚醒。喚醒後若見此訊號就 `connect_instance('FD2')`+`get_current_program_info` 探測：恢復則 re-scout+relaunch、wedged 則 PushNotification 請使用者手動重啟（`connect_instance` 救不回卡死 instance）。**多來源並發操作同一 Ghidra instance 無妨**；不靠 grep/字串/reviewed 停滯/liveness/心跳判斷（MCP 失敗是回 error 而非永久 hang，agent 必拿得到錯誤而設旗標）。
+
 **任何喚醒（完成通知 / 手動 /loop）一律照下列判定**：
 
-1. `active_wf.json` 有 task_id → `TaskOutput(task_id, block=false)`：`running` → 報告狀態後結束（不啟動新批、不 arm 心跳）；`completed`/查無 → 往下。
+1. `active_wf.json` 有 task_id → `TaskOutput(task_id, block=false)`：`running` → 報告狀態後結束（不啟動新批）；`completed`/查無 → 先看 `result.stopped`：`'ghidra_disconnect'` → 走上述 Ghidra 斷線處理（探測恢復則 relaunch、wedged 則 PushNotification 通知使用者，**不**照常跑下一批）；`'interrupt'`/`'budget'` → 能續時再續；否則（正常完成）→ 往下。
 2. `next_batch.py --stats`：`await_review==0 && await_emit==0` → 全完成 → 刪 `active_wf.json` + PushNotification 通知使用者 + 結束 loop。
 3. 否則跑下一批（= §2 每批流程）：先驗證上批（build gate 綠（0 error、0 warning）、reviewed 增、commit 乾淨、無 dosbox 孤兒）→ scout（review 做完改 `--mode emit`）→ `search_functions` 對齊 routing↔Ghidra（drift 拋警告）→ `git checkout -- src tests` → `Workflow(emit_review.wf.js, args)` → 新 task_id 覆寫 `active_wf.json`。
 4. 每完成 5 個 batch（`batches_completed` 跨 5 倍數）做 §3 checkpoint；符合預期印一行摘要後自動續，只有 §3.1 才停。
