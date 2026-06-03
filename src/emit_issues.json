@@ -398,30 +398,5 @@
         "verify_method": "compile_and_disasm"
       }
     ]
-  },
-  "0004dbb9": {
-    "name": "fd2_save_compute_checksum",
-    "target": "save/save.c",
-    "issues": [
-      {
-        "type": "plate_caller_list_drift",
-        "desc": "Plate caller-list drift at 0x4dbb9 not noticed/corrected by emitter: plate says 'fd2_menu_confirm_save_load_newgame' but actual caller is 'fd2_field_menu_status_save_load_quit_dispatch'. Should be fixed via set_plate_comment per project sync rule even though it does not affect the emitted function body.",
-        "severity": "info",
-        "verify_method": "set_plate_comment"
-      }
-    ]
-  },
-  "0004dbd8": {
-    "name": "fd2_save_crypt_buffer",
-    "target": "save/save.c",
-    "issues": [
-      {
-        "type": "plate_caller_list_drift",
-        "desc": "Pre-existing Ghidra plate drift at 0x4dbd8: stale caller name 'fd2_menu_confirm_save_load_newgame' (now fd2_field_menu_status_save_load_quit_dispatch @ 0x19df7). Should be patched via set_plate_comment to keep KB/plate in sync with live xrefs; emitter's report claim 'Plate was accurate' was overstated only on this caller-list footnote.",
-        "severity": "info",
-        "verify_method": "set_plate_comment",
-        "source_review": "fd2_save_crypt_buffer @0004dbd8 (reviewer-approved)"
-      }
-    ]
   }
 }
