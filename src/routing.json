@@ -686,8 +686,9 @@
     "name": "fd2_blit_indexed_sprite_with_alloc",
     "target": "gfx/blitspr.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00015f0e": {
     "name": "fd2_alloc_and_blit_indexed_sprite_chunk",

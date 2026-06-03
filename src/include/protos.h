@@ -330,6 +330,11 @@ void fd2_render_recruitment_party_screen(void);
 void fd2_render_chapter_dialog_borders(void);
 void fd2_render_chapter_intro_dialog_panels(uint32 corner_offs_ptr, uint32 mode);
 void fd2_blit_sprite_with_stride_setup(uint32 dst, uint32 sprite, uint32 stride);
+void fd2_save_screen_block_to_buffer(uint32 out_buf, uint32 width, uint32 height,
+                                     uint32 dst, uint32 src_ptr, uint32 stride);
+void *fd2_blit_indexed_sprite_with_alloc(uint32 sprite_hdr, uint32 dst,
+                                         uint32 dst_pitch, uint32 sheet_base,
+                                         uint32 sprite_idx);
 int fd2_wait_input_with_chapter_dialog_blink(uint32 mode);
 int fd2_wait_input_with_recruitment_repaint(uint32 p1, uint32 p2, uint32 p3, uint32 p4);
 void fd2_render_recruitment_select_screen(uint32 a, uint32 b, uint32 c, uint32 d);

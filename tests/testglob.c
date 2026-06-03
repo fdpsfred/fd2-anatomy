@@ -287,7 +287,26 @@ uint32 data_fd2_chapter_intro_dialog_anim_frame_idx = 0;
 uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
 void fd2_render_chapter_dialog_borders(void) { }
 void fd2_render_chapter_intro_dialog_panels(uint32 c, uint32 m) { }
-void fd2_blit_sprite_with_stride_setup(uint32 d, uint32 s, uint32 st) { }
+/* capture wiring for fd2_blit_indexed_sprite_with_alloc tests */
+uint32 g_blitsetup_dst, g_blitsetup_sprite, g_blitsetup_stride;
+void fd2_blit_sprite_with_stride_setup(uint32 d, uint32 s, uint32 st)
+{
+    g_blitsetup_dst = d;
+    g_blitsetup_sprite = s;
+    g_blitsetup_stride = st;
+}
+uint32 g_saveblk_out, g_saveblk_w, g_saveblk_h, g_saveblk_dst,
+       g_saveblk_src, g_saveblk_stride;
+void fd2_save_screen_block_to_buffer(uint32 out_buf, uint32 width, uint32 height,
+                                     uint32 dst, uint32 src_ptr, uint32 stride)
+{
+    g_saveblk_out = out_buf;
+    g_saveblk_w = width;
+    g_saveblk_h = height;
+    g_saveblk_dst = dst;
+    g_saveblk_src = src_ptr;
+    g_saveblk_stride = stride;
+}
 void fd2_render_recruitment_select_screen(uint32 a, uint32 b, uint32 c, uint32 d) { }
 void fd2_animate_spell_impact_per_target(uint32 a, uint32 b, uint32 c, uint32 d) { }
 void fd2_animate_status_effect_overlay_flicker(uint32 a, uint32 b, uint32 c, uint32 d) { }
