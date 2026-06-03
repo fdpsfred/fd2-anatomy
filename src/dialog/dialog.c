@@ -655,3 +655,47 @@ void fd2_assemble_dialog_frame_layered(uint32 dst, uint32 pitch,
         }
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_cinematic_scroll_text_up_for_special_scenes @ 0x16E24 (2 callers)
+ *
+ * Scroll the dialog text area upward by 19 pixel rows (5*3 + 4) when
+ * an active portrait is on screen
+ * (data_fd2_dialog_active_portrait_blit_offset in {0x728, 0x9017}).
+ * No portrait -> no scroll.
+ *
+ * fb_offset selects the left (0xA0B4F) or right (0xA951F) portrait
+ * text area. Five outer passes each shift up by 3 rows (memmove 0xD0
+ * bytes per row, 0x48 rows, src 3 rows below dst at stride 0x140) and
+ * fill the bottom row with text-bg pixel 0x4A; a final pass shifts up
+ * by 4 rows and clears the bottom row again.
+ * ---------------------------------------------------------------- */
+void fd2_cinematic_scroll_text_up_for_special_scenes(void)
+{
+    uint32 row_iter;
+    int32  iVar1;
+    uint32 fb_offset;
+    uint32 outer_iter;
+
+    if ((data_fd2_dialog_active_portrait_blit_offset == 0x728) ||
+        (data_fd2_dialog_active_portrait_blit_offset == 0x9017)) {
+        if (data_fd2_dialog_active_portrait_blit_offset == 0x728) {
+            fb_offset = 0xa0b4f;
+        }
+        else {
+            fb_offset = 0xa951f;
+        }
+        for (outer_iter = 0; (int32)outer_iter < 5; outer_iter = outer_iter + 1) {
+            for (row_iter = 0; (int32)row_iter < 0x48; row_iter = row_iter + 1) {
+                memmove((void *)(row_iter * 0x140 + fb_offset - 1),
+                        (void *)((row_iter + 3) * 0x140 + fb_offset - 1), 0xd0);
+            }
+            memset((void *)(fb_offset + 0x5a00), 0x4a, 0xd0);
+        }
+        for (iVar1 = 0; iVar1 < 0x48; iVar1 = iVar1 + 1) {
+            memmove((void *)((uint32)iVar1 * 0x140 + fb_offset - 1),
+                    (void *)((uint32)(iVar1 + 4) * 0x140 + fb_offset - 1), 0xd0);
+        }
+        memset((void *)(fb_offset + 0x5a00), 0x4a, 0xd0);
+    }
+}

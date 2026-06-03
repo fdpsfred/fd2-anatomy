@@ -774,8 +774,9 @@
     "name": "fd2_cinematic_scroll_text_up_for_special_scenes",
     "target": "dialog/dialog.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00016f0b": {
     "name": "fd2_debug_print_ans_and_length",

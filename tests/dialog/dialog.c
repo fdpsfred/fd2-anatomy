@@ -707,6 +707,34 @@ static void test_close_slide_asymmetric_axes(void)
     data_fd2_battle_cursor_screen_y = saved_y;
 }
 
+/*
+ * fd2_cinematic_scroll_text_up_for_special_scenes early-returns (no scroll,
+ * no framebuffer touch) when data_fd2_dialog_active_portrait_blit_offset is
+ * neither 0x728 nor 0x9017. This is the only path safe to drive in a unit
+ * test: the active-portrait paths write to fixed absolute VGA framebuffer
+ * addresses (0xA0B4F / 0xA951F) that are unmapped in the host process, so
+ * the actual scroll behavior is deferred to Phase 9 integration. Calling
+ * with a non-portrait global value must complete without dereferencing the
+ * framebuffer (a crash here would mean the guard branch was emitted wrong).
+ */
+static void test_scroll_no_portrait_is_noop(void)
+{
+    uint32 saved;
+
+    saved = data_fd2_dialog_active_portrait_blit_offset;
+
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    fd2_cinematic_scroll_text_up_for_special_scenes();
+
+    data_fd2_dialog_active_portrait_blit_offset = 0x1234;
+    fd2_cinematic_scroll_text_up_for_special_scenes();
+
+    /* survived both calls without touching the framebuffer */
+    ASSERT_TRUE(1);
+
+    data_fd2_dialog_active_portrait_blit_offset = saved;
+}
+
 void run_dialog_dialog_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -728,5 +756,6 @@ void run_dialog_dialog_tests(void)
     RUN_TEST(test_close_no_slide);
     RUN_TEST(test_close_slide_symmetric);
     RUN_TEST(test_close_slide_asymmetric_axes);
+    RUN_TEST(test_scroll_no_portrait_is_noop);
     printf("\n");
 }

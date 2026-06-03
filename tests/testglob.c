@@ -794,8 +794,9 @@ void fd2_blit_glyph_2bpp_with_outline(uint32 font_sheet, uint32 glyph_idx,
 }
 /* fd2_play_dialog_open_animation: now emitted in src/dialog/dialog.c and
  * linked for real; its 5-stage frame assembly is driven by the
- * test_open_anim_* cases in tests/dialog/dialog.c. */
-void fd2_cinematic_scroll_text_up_for_special_scenes(void) { }
+ * test_open_anim_* cases in tests/dialog/dialog.c.
+ * fd2_cinematic_scroll_text_up_for_special_scenes: now emitted in
+ * src/dialog/dialog.c and linked for real (was a no-op stub here). */
 int    g_dlg_blit_normal_calls = 0;
 int    g_dlg_blit_mirrored_calls = 0;
 uint32 g_dlg_blit_last_dst = 0;
