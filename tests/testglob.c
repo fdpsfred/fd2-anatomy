@@ -192,11 +192,16 @@ void fd2_display_dialog_scene(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e, 
 void fd2_load_chapter_portrait(uint32 p) { }
 void fd2_close_status_screen_with_slide_out(void) { }
 /* fd2_load_chapter_battle_data: now in rsrc/rsrc.c */
-int g_portraits_dump_calls = 0;
-uint32 g_portraits_dump_last_mode = 0;
-void fd2_load_chapter_portraits_and_dump_tmp(uint32 mode) {
-    g_portraits_dump_calls++;
-    g_portraits_dump_last_mode = mode;
+/* fd2_load_chapter_portraits_and_dump_tmp: now in rsrc/rsrc.c */
+/* fd2_init_runtime_char_for_battle: leaf callee of the real
+ * fd2_load_chapter_portraits_and_dump_tmp; faked here (not yet emitted). */
+int g_init_rtchar_calls = 0;
+uint32 g_init_rtchar_last_idx = 0;
+uint32 g_init_rtchar_last_fp = 0;
+void fd2_init_runtime_char_for_battle(uint32 char_field_idx, uint32 fdicon_fp) {
+    g_init_rtchar_calls++;
+    g_init_rtchar_last_idx = char_field_idx;
+    g_init_rtchar_last_fp = fdicon_fp;
 }
 void fd2_play_palette_fade_to_black(void) { }
 int g_ending_menu_return = 0;

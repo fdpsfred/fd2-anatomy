@@ -46,7 +46,8 @@
     "target": "rsrc/rsrc.c",
     "phase": 5,
     "done": false,
-    "asm": false
+    "asm": false,
+    "reviewed": true
   },
   "00010c49": {
     "name": "fd2_noop_stub_c49",

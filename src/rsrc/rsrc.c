@@ -264,3 +264,67 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
     chapter_portrait_load_buffer = 0;
     fd2_load_chapter_portraits_and_dump_tmp(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_load_chapter_portraits_and_dump_tmp @ 0x10b4e  (~52 callers)
+ *
+ * Portrait loader + FD2.TMP swap-file writer. Used by chapter init/end
+ * paths and many chapter event handlers.
+ *
+ * Flow:
+ *   1. fopen("FDICON.B24", "rb"); if NULL -> INT 10h text-mode reset +
+ *      printf("File 'FDICON.B24' error !!\n") + exit.
+ *   2. Re-read FDFIELD.DAT[current_chapter_id*3 + 2] into
+ *      chapter_portrait_load_buffer (the buffer was freed by
+ *      fd2_load_chapter_battle_data after its own load).
+ *   3. For each entry in the tile-event table (count =
+ *      portrait_cache_alloc_offset, stride 0x1A, race byte at +0x98):
+ *      if race == target_race_id, call fd2_init_runtime_char_for_battle
+ *      to populate a runtime_char + load its portrait from FDICON.B24.
+ *   4. fclose(FDICON); free + null chapter_portrait_load_buffer.
+ *   5. fopen("FD2.TMP", "wb"); fwrite(portrait_sprite_cache, 1, 0x32A00);
+ *      fclose. FD2.TMP is the cross-chapter sprite swap file, refreshed
+ *      (truncated + rewritten) after each portrait load.
+ *
+ * The disassembled error path tail-jumps into _main's shared
+ * printf("%s") + exit(1) stub at 0x10056; emitted inline here to match
+ * the fd2_load_chapter_battle_data idiom.
+ * ---------------------------------------------------------------- */
+void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id)
+{
+    void  *fp;
+    uint32 iter;
+    uint32 char_race;
+
+    fp = fopen("FDICON.B24", "rb");
+    if (fp == NULL) {
+        *(uint16 *)&data_fd2_input_last_key_pressed = 3;
+        int386(0x10, (union REGS *)&data_fd2_input_last_key_pressed,
+                     (union REGS *)&data_fd2_input_last_key_pressed);
+        printf("File 'FDICON.B24' error !!\n");
+        exit(1);
+    }
+
+    chapter_portrait_load_buffer = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdfield_dat_51a59,
+        chapter_portrait_load_buffer,
+        data_fd2_chapter_current_chapter_id * 3 + 2);
+
+    for (iter = 0;
+         (int)iter < (int)data_fd2_resource_portrait_cache_alloc_offset;
+         iter++) {
+        char_race = (uint32)*(uint8 *)(data_fd2_tile_event_data_table_ptr
+                                       + iter * 0x1a + 0x98);
+        if (char_race == target_race_id) {
+            fd2_init_runtime_char_for_battle(iter, (uint32)fp);
+        }
+    }
+
+    fclose(fp);
+    free((void *)chapter_portrait_load_buffer);
+    chapter_portrait_load_buffer = 0;
+
+    fp = fopen("FD2.TMP", "wb");
+    fwrite((void *)portrait_sprite_cache, 1, 0x32a00, fp);
+    fclose(fp);
+}

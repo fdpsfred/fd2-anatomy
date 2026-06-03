@@ -32,8 +32,9 @@ extern uint32 g_scroll_text_last_arg;
 
 /* fd2_load_chapter_battle_data captures (testglob.c) */
 extern int    g_load_portrait_calls;
-extern int    g_portraits_dump_calls;
-extern uint32 g_portraits_dump_last_mode;
+extern int    g_init_rtchar_calls;
+extern uint32 g_init_rtchar_last_idx;
+extern uint32 g_init_rtchar_last_fp;
 extern runtime_char g_test_rc_array[8];
 
 /* FDOTHER.DAT string address used by the function under test */
@@ -245,9 +246,14 @@ static void setup_cb_fixture(int chapter, int total_size,
 
     data_fd2_chapter_current_chapter_id = (uint32)chapter;
 
-    /* tile_event: [0]=scene_id, [1]=cache_total_size, [2]=cache_alloc_offset */
-    g_cb_tileevent = (uint8 *)malloc(16);
-    memset(g_cb_tileevent, 0, 16);
+    /* tile_event: [0]=scene_id, [1]=cache_total_size, [2]=cache_alloc_offset.
+     * Sized to cover the per-char records read by the real
+     * fd2_load_chapter_portraits_and_dump_tmp (stride 0x1A, race byte at
+     * +0x98) for up to CB_ALLOC_OFFSET entries. Race bytes left 0 so they do
+     * not match dump_tmp's target_race_id==0... actually 0==0 would match, so
+     * seed them to a non-zero sentinel to keep init_rtchar count deterministic. */
+    g_cb_tileevent = (uint8 *)malloc(0x98 + CB_ALLOC_OFFSET * 0x1a + 0x20);
+    memset(g_cb_tileevent, 0xEE, 0x98 + CB_ALLOC_OFFSET * 0x1a + 0x20);
     g_cb_tileevent[0] = 0x00;                    /* FDSHAP scene id */
     g_cb_tileevent[1] = (uint8)total_size;       /* cache_total_size */
     g_cb_tileevent[2] = (uint8)CB_ALLOC_OFFSET;  /* cache_alloc_offset */
@@ -292,8 +298,9 @@ static void setup_cb_fixture(int chapter, int total_size,
     fclose(fp);
 
     g_load_portrait_calls = 0;
-    g_portraits_dump_calls = 0;
-    g_portraits_dump_last_mode = 0xFF;
+    g_init_rtchar_calls = 0;
+    g_init_rtchar_last_idx = 0;
+    g_init_rtchar_last_fp = 0;
 }
 
 static void teardown_cb_fixture(void)
@@ -324,6 +331,7 @@ static void teardown_cb_fixture(void)
     data_fd2_chapter_current_chapter_id = 1;
 
     remove("FDICON.B24");
+    remove("FD2.TMP");
 }
 
 /* All slots active: chapter>=0xd (no slot-6 special), party count covers all. */
@@ -342,10 +350,11 @@ static void test_cb_all_active(void)
     ASSERT_EQ((long)data_fd2_resource_portrait_cache_alloc_offset, CB_ALLOC_OFFSET);
     ASSERT_EQ((long)data_fd2_battle_party_member_count, 3);
 
-    /* every slot active: one portrait load each, dump finalised once */
+    /* every slot active: one portrait load each. The tail dump_tmp(0) runs
+     * for real; its tile-event race bytes are the 0xEE sentinel so it matches
+     * no entry (target_race_id 0) and adds no extra init_rtchar / portrait. */
     ASSERT_EQ((long)g_load_portrait_calls, 3);
-    ASSERT_EQ((long)g_portraits_dump_calls, 1);
-    ASSERT_EQ((long)g_portraits_dump_last_mode, 0);
+    ASSERT_EQ((long)g_init_rtchar_calls, 0);
 
     /* slot 0 active fields */
     ASSERT_EQ((long)arr[0].flags, 0);          /* not dead */
@@ -419,6 +428,143 @@ static void test_cb_slot6_special_active(void)
     teardown_cb_fixture();
 }
 
+/* ================================================================
+ * fd2_load_chapter_portraits_and_dump_tmp @ 0x10b4e
+ * ================================================================ */
+
+static uint8 *g_pt_tileevent;   /* tile-event table for the race scan */
+
+/* Build a tile-event table of `count` records (stride 0x1A); record k has its
+ * race byte (+0x98) set to race_of[k]. Sets alloc_offset = count. Also primes
+ * portrait_sprite_cache so the tail fwrite has a valid buffer, and creates an
+ * empty FDICON.B24 so the rb fopen succeeds. */
+static void setup_pt_fixture(int count, const uint8 *race_of)
+{
+    int i;
+    FILE *fp;
+    size_t sz;
+
+    sz = (size_t)0x98 + (size_t)count * 0x1a + 0x20;
+    g_pt_tileevent = (uint8 *)malloc(sz);
+    memset(g_pt_tileevent, 0, sz);
+    for (i = 0; i < count; i++) {
+        g_pt_tileevent[i * 0x1a + 0x98] = race_of[i];
+    }
+    data_fd2_tile_event_data_table_ptr = (uint32)g_pt_tileevent;
+    data_fd2_resource_portrait_cache_alloc_offset = (uint32)count;
+
+    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_current_chapter_id = 4;   /* re-read idx = 4*3+2 = 0xE */
+
+    if (portrait_sprite_cache == 0)
+        portrait_sprite_cache = (uint32)malloc(0x32A00);
+
+    g_load_dat_calls = 0;
+    g_load_dat_last_fname = 0;
+    g_load_dat_last_idx = 0;
+    g_init_rtchar_calls = 0;
+    g_init_rtchar_last_idx = 0;
+    g_init_rtchar_last_fp = 0;
+
+    fp = fopen("FDICON.B24", "wb");
+    fclose(fp);
+}
+
+static void teardown_pt_fixture(void)
+{
+    free(g_pt_tileevent);
+    g_pt_tileevent = 0;
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_current_chapter_id = 1;
+    remove("FDICON.B24");
+    remove("FD2.TMP");
+}
+
+static long fd2_tmp_size(void)
+{
+    FILE *fp;
+    long n;
+
+    fp = fopen("FD2.TMP", "rb");
+    if (fp == NULL) return -1;
+    fseek(fp, 0, SEEK_END);
+    n = ftell(fp);
+    fclose(fp);
+    return n;
+}
+
+/* Single matching record: init_rtchar called once for the matching index,
+ * with the fopen handle as fp. FDFIELD re-read happens (idx = chapter*3+2).
+ * chapter_portrait_load_buffer freed+nulled; FD2.TMP written (0x32A00). */
+static void test_pt_single_match(void)
+{
+    static const uint8 races[2] = { 0x07, 0x09 };
+
+    setup_pt_fixture(2, races);
+    fd2_load_chapter_portraits_and_dump_tmp(0x07);
+
+    ASSERT_EQ((long)g_init_rtchar_calls, 1);
+    ASSERT_EQ((long)g_init_rtchar_last_idx, 0);   /* record 0 matched */
+    ASSERT_NE(g_init_rtchar_last_fp, 0);          /* passed the FDICON handle */
+
+    ASSERT_EQ((long)g_load_dat_calls, 1);
+    ASSERT_EQ((long)g_load_dat_last_idx, 0xE);    /* 4*3+2 */
+
+    ASSERT_EQ((long)chapter_portrait_load_buffer, 0);
+    ASSERT_EQ(fd2_tmp_size(), 0x32A00);
+
+    teardown_pt_fixture();
+}
+
+/* No record matches the target race: no init_rtchar, but the swap file is
+ * still rewritten. */
+static void test_pt_no_match(void)
+{
+    static const uint8 races[3] = { 0x01, 0x02, 0x03 };
+
+    setup_pt_fixture(3, races);
+    fd2_load_chapter_portraits_and_dump_tmp(0x7F);
+
+    ASSERT_EQ((long)g_init_rtchar_calls, 0);
+    ASSERT_EQ((long)chapter_portrait_load_buffer, 0);
+    ASSERT_EQ(fd2_tmp_size(), 0x32A00);
+
+    teardown_pt_fixture();
+}
+
+/* Multiple matches across the loop: every matching index is visited in order. */
+static void test_pt_multiple_match(void)
+{
+    static const uint8 races[4] = { 0x05, 0x05, 0x09, 0x05 };
+
+    setup_pt_fixture(4, races);
+    fd2_load_chapter_portraits_and_dump_tmp(0x05);
+
+    ASSERT_EQ((long)g_init_rtchar_calls, 3);      /* indices 0,1,3 */
+    ASSERT_EQ((long)g_init_rtchar_last_idx, 3);   /* last match */
+
+    teardown_pt_fixture();
+}
+
+/* alloc_offset == 0: loop body never runs, no re-read scan match, swap file
+ * still produced. */
+static void test_pt_empty_table(void)
+{
+    setup_pt_fixture(0, (const uint8 *)0);
+    fd2_load_chapter_portraits_and_dump_tmp(0x00);
+
+    ASSERT_EQ((long)g_init_rtchar_calls, 0);
+    ASSERT_EQ(fd2_tmp_size(), 0x32A00);
+
+    teardown_pt_fixture();
+}
+
 void run_rsrc_rsrc_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -436,5 +582,9 @@ void run_rsrc_rsrc_tests(void)
     RUN_TEST(test_cb_party_count_gate);
     RUN_TEST(test_cb_slot6_special_dead);
     RUN_TEST(test_cb_slot6_special_active);
+    RUN_TEST(test_pt_single_match);
+    RUN_TEST(test_pt_no_match);
+    RUN_TEST(test_pt_multiple_match);
+    RUN_TEST(test_pt_empty_table);
     printf("\n");
 }
