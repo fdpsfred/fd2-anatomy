@@ -3,7 +3,7 @@
     "name": "fd2_load_save_and_init_engine",
     "target": "life/main.c",
     "phase": 5,
-    "done": false,
+    "done": true,
     "asm": false,
     "reviewed": true
   },
@@ -19,7 +19,7 @@
     "name": "fd2_load_chapter_background_layers",
     "target": "rsrc/rsrc.c",
     "phase": 5,
-    "done": false,
+    "done": true,
     "asm": false,
     "reviewed": true
   },
@@ -27,7 +27,7 @@
     "name": "fd2_load_chapter_battle_data",
     "target": "rsrc/rsrc.c",
     "phase": 5,
-    "done": false,
+    "done": true,
     "asm": false,
     "reviewed": true
   },
@@ -45,7 +45,7 @@
     "name": "fd2_load_chapter_portraits_and_dump_tmp",
     "target": "rsrc/rsrc.c",
     "phase": 5,
-    "done": false,
+    "done": true,
     "asm": false,
     "reviewed": true
   },
@@ -63,7 +63,7 @@
     "name": "fd2_init_runtime_char_for_battle",
     "target": "battle/btl_init.c",
     "phase": 5,
-    "done": false,
+    "done": true,
     "asm": false,
     "reviewed": true
   },
@@ -81,7 +81,7 @@
     "name": "fd2_load_portrait_to_cache",
     "target": "rsrc/rsrc.c",
     "phase": 5,
-    "done": false,
+    "done": true,
     "asm": false,
     "reviewed": true
   },
@@ -89,7 +89,7 @@
     "name": "fd2_load_dat_resource",
     "target": "rsrc/rsrc.c",
     "phase": 5,
-    "done": false,
+    "done": true,
     "asm": false,
     "reviewed": true
   },
@@ -97,7 +97,7 @@
     "name": "fd2_init_runtime_char_from_base_growth",
     "target": "battle/btl_init.c",
     "phase": 5,
-    "done": false,
+    "done": true,
     "asm": false,
     "reviewed": true
   },
@@ -147,7 +147,7 @@
     "name": "fd2_game_main_loop",
     "target": "ui_menu/menu.c",
     "phase": 5,
-    "done": false,
+    "done": true,
     "asm": false,
     "reviewed": true
   },
@@ -195,7 +195,7 @@
     "name": "fd2_composite_battle_frame",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
+    "done": true,
     "asm": false,
     "reviewed": true
   },
@@ -219,7 +219,7 @@
     "name": "fd2_blit_rectangle",
     "target": "gfx/blitspr.c",
     "phase": 3,
-    "done": false,
+    "done": true,
     "asm": false,
     "reviewed": true
   },
@@ -227,7 +227,7 @@
     "name": "fd2_composite_battle_tile_map",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
+    "done": true,
     "asm": false,
     "reviewed": true
   },
