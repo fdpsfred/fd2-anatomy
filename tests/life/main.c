@@ -45,7 +45,10 @@ extern int g_slot_selector_return;
 /* fd2_load_save_and_init_engine cinematic-loop recorders (testglob.c) */
 extern int g_alloc_blit_calls;
 extern uint32 g_alloc_blit_last_idx;
-extern int g_cleanup_sprite_calls;
+/* fd2_cleanup_dialog_sprite_buffer is now the real emitted function; it calls
+ * fd2_restore_screen_block_from_buffer exactly once per invocation, so the
+ * restore-stub counter is an exact proxy for the cleanup-call count. */
+extern int g_restore_block_calls;
 
 /* buffers staged by the fixture, freed by teardown */
 static void *g_ls_roster_buf;
@@ -88,7 +91,7 @@ static void setup_load_save_fixture(void)
     data_fd2_audio_bgm_sequence_data_buf_ptr = 0;  /* trailing bgm load target */
 
     g_alloc_blit_calls = 0;
-    g_cleanup_sprite_calls = 0;
+    g_restore_block_calls = 0;
     g_alloc_blit_last_idx = 0;
 }
 
@@ -284,7 +287,7 @@ static void test_load_save_cinematic_loop_counts(void)
      * i==5 -> i=9 skip in the zoom loop). These loop bounds are fixed and
      * independent of the save's chapter/party content. */
     ASSERT_EQ((long)g_alloc_blit_calls, 13);
-    ASSERT_EQ((long)g_cleanup_sprite_calls, 13);
+    ASSERT_EQ((long)g_restore_block_calls, 13);
     teardown_load_save_fixture();
 }
 

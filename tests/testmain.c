@@ -30,6 +30,7 @@ extern void run_battle_btl_aisc2_tests(void);
 extern void run_battle_btl_aitg_tests(void);
 extern void run_battle_btl_init_tests(void);
 extern void run_battle_btl_turn_tests(void);
+extern void run_dialog_dialog_tests(void);
 extern void run_field_chtrans_tests(void);
 extern void run_gfx_blitspr_tests(void);
 extern void run_gfx_blittile_tests(void);
@@ -69,6 +70,7 @@ int main(void)
     run_battle_btl_aitg_tests();
     run_battle_btl_init_tests();
     run_battle_btl_turn_tests();
+    run_dialog_dialog_tests();
     run_field_chtrans_tests();
     run_gfx_blitspr_tests();
     run_gfx_blittile_tests();

@@ -322,6 +322,7 @@ void fd2_blit_rectangle(uint32 dst, uint32 dstride, uint32 src, uint32 sstride, 
 uint32 fd2_alloc_and_blit_indexed_sprite_chunk(uint32 sheet_ptr, uint32 dst, uint32 stride, uint32 h, uint32 row, uint32 idx);
 void fd2_render_decimal_number_to_buffer(uint32 dst, uint32 stride, uint32 value, uint32 x, uint32 digits);
 void fd2_cleanup_dialog_sprite_buffer(uint32 saved_block, uint32 dst, uint32 stride);
+void fd2_restore_screen_block_from_buffer(uint32 saved_block, uint32 dst, uint32 stride);
 void fd2_repaint_settings_dialog_borders(uint32 state, uint32 arr);
 int fd2_wait_input_with_dialog_repaint(uint32 menu_state, uint32 pSlot_disable_arr);
 void fd2_wait_input_with_status_panel_repaint(uint32 char_idx);

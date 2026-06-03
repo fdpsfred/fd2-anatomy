@@ -336,9 +336,6 @@ uint32 fd2_alloc_and_blit_indexed_sprite_chunk(uint32 sheet, uint32 dst,
 void fd2_render_decimal_number_to_buffer(uint32 dst, uint32 stride,
     uint32 v, uint32 x, uint32 digits)
 { (void)dst; (void)stride; (void)v; (void)x; (void)digits; }
-int g_cleanup_sprite_calls = 0;
-void fd2_cleanup_dialog_sprite_buffer(uint32 saved, uint32 dst, uint32 stride)
-{ (void)saved; (void)dst; (void)stride; g_cleanup_sprite_calls++; }
 void __delay_thunk_375b2(uint32 ticks) { (void)ticks; }
 int g_ail_vol_calls = 0;
 int g_ail_last_vol = 0;
@@ -698,4 +695,19 @@ void fd2_open_char_status_screen(uint32 char_idx) {
 int g_open_tactical_overview_zoom_calls = 0;
 void fd2_open_tactical_overview_zoom(void) {
     g_open_tactical_overview_zoom_calls++;
+}
+/* Recording stub for fd2_restore_screen_block_from_buffer (the screen-block
+ * restore blitter, not yet emitted). fd2_cleanup_dialog_sprite_buffer must
+ * forward its (saved_block, dst, stride) args to this in order, then free
+ * saved_block. The stub captures the args so the cleanup test can assert the
+ * forwarding without touching real VGA memory. */
+int    g_restore_block_calls = 0;
+uint32 g_restore_block_last_buf = 0;
+uint32 g_restore_block_last_dst = 0;
+uint32 g_restore_block_last_stride = 0;
+void fd2_restore_screen_block_from_buffer(uint32 saved_block, uint32 dst, uint32 stride) {
+    g_restore_block_calls++;
+    g_restore_block_last_buf = saved_block;
+    g_restore_block_last_dst = dst;
+    g_restore_block_last_stride = stride;
 }

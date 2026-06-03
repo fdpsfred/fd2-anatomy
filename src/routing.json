@@ -678,8 +678,9 @@
     "name": "fd2_cleanup_dialog_sprite_buffer",
     "target": "dialog/dialog.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00015e9e": {
     "name": "fd2_blit_indexed_sprite_with_alloc",
