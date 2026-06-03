@@ -93,8 +93,8 @@ LLLLLL archive (詳 `overview.md`):
 | u16 value | 名稱 | args | 語意 |
 |---|---|---|---|
 | `0xFFFF` | `END` | 0 | 終止 page (return from `fd2_display_dialog_scene`) |
-| `0xFFFE` | `PAGE_BREAK` | 0 | 推進到下一行 + 等待按鍵 |
-| `0xFFFD` | `PARAGRAPH` | 0 | 段落分隔 (含 cinematic scroll if portrait active) |
+| `0xFFFE` | `LINE_ADVANCE` | 0 | 推進到下一行 (line_count++ 後重算 render 位置)，不等待按鍵；portrait active 且 line_count==3 時觸發 cinematic scroll |
+| `0xFFFD` | `PAGE_BREAK` | 0 | 推進到下一行後 paint portrait (若 active) 並等待玩家按鍵 (`fd2_wait_for_input_dialog_with_blink(1)`)；同樣有 line_count==3 的 cinematic scroll |
 | `0xFFFC` | `SUB_DIALOG_A` | 0 | 遞迴呼叫 `fd2_display_dialog_scene` 載入 `all_game_text[last_action_sprite_id]` 的 page |
 | `0xFFFB` | `SUB_DIALOG_B` | 0 | 遞迴載入 `all_game_text[drop_dialog_swap_text_id]` 的 page |
 | `0xFFFA` | `NUMBER` | 0 | runtime 數字代入 (sprintf via `0x5014C`，digit-by-digit blit) |
@@ -111,10 +111,10 @@ LLLLLL archive (詳 `overview.md`):
 
 | 名稱 | count |
 |---|---|
-| `PAGE_BREAK`              | 3620 |
+| `LINE_ADVANCE` (0xFFFE)   | 3620 |
 | `END`                     | 1016 |
 | `PORTRAIT_RIGHT_BY_ID`    | 813  |
-| `PARAGRAPH`               | 435  |
+| `PAGE_BREAK` (0xFFFD)     | 435  |
 | `PORTRAIT_LEFT_BY_ID`     | 364  |
 | `PORTRAIT_LEFT_BY_CHAR`   | 231  |
 | `PORTRAIT_RIGHT_BY_CHAR`  | 42   |
@@ -147,7 +147,7 @@ glyph_id 渲染英文/數字/符號。`NUMBER` opcode 內部從 `0x5014C` 讀 sp
 - `fd2_paint_portrait_to_dialog_area` — speaker 切換 (mirrored vs normal blit)
 - `fd2_wait_for_input_dialog_with_blink` — ▼ 按鍵提示動畫
 - `fd2_blit_glyph_2bpp_with_outline` — 16×16 字模渲染 (含 outline)
-- `fd2_cinematic_scroll_text_up_for_special_scenes` — `PARAGRAPH` 觸發的 scroll-up
+- `fd2_cinematic_scroll_text_up_for_special_scenes` — `LINE_ADVANCE` / `PAGE_BREAK` 在 portrait active 且 line_count==3 時觸發的 scroll-up
 - `fd2_close_dialog_panels_then_slide_in_at` — `END` 後 slide-out
 
 ## 內容 dump

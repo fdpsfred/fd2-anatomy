@@ -34,8 +34,9 @@ fd2_display_dialog_scene(text_resource, page_id, font_sheet, ...)
 並依 opcode 走分支：
 
 - `0xFFFF` END：page 終止 (parser 用此偵測 page boundary)
-- `0xFFFE` PAGE_BREAK：等使用者按鍵後繼續
-- `0xFFFD..0xFFFC` 系列 / `0xFFEC..0xFFEF` 系列：portrait swap、sub-dialog 遞迴等
+- `0xFFFE` LINE_ADVANCE：推進到下一行，不等待按鍵
+- `0xFFFD` PAGE_BREAK：推進到下一行後 paint portrait 並等使用者按鍵後繼續
+- `0xFFFC..0xFFFA` 系列 / `0xFFEC..0xFFEF` 系列：sub-dialog 遞迴、數字代入、portrait swap 等
 - 任何 < 0xFFEC 的 u16 = 直接的 glyph_id，索引 `chinese_font_sheet`
   (FDOTHER.DAT[4]) 中對應字模，呼 `fd2_blit_glyph_2bpp_with_outline` 渲染
 
