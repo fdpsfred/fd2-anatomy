@@ -157,6 +157,7 @@ uint32 data_fd2_dialog_portrait_blink_frame_idx = 0;
 uint32 data_fd2_dialog_portrait_blink_subtick_counter = 0;
 uint32 data_fd2_dialog_last_action_value_param = 0;
 uint32 data_fd2_dialog_active_portrait_blit_offset = 0;
+void  *data_fd2_dialog_area_backup_buffer = 0;
 uint32 data_fd2_dialog_current_speaker_char_ptr = 0;
 uint32 data_fd2_large_game_state_buffer_ptr = 0;
 uint32 data_fd2_dialog_blink_phase_oscillator = 0;
@@ -311,13 +312,12 @@ void fd2_blit_sprite_with_stride_setup(uint32 d, uint32 s, uint32 st)
     g_blitsetup_stride = st;
     g_blitsetup_calls++;
 }
-/* fd2_backup_dialog_area_to_buffer / fd2_restore_dialog_area_from_buffer
- * (real bodies not yet emitted): the settings-dialog open/close animations
- * snapshot and restore the dialog region. No host-observable seam needed for
- * the open-dialog tests, so these are recording no-ops. */
-int g_backup_dialog_area_calls = 0;
+/* fd2_restore_dialog_area_from_buffer (real body not yet emitted): the
+ * settings-dialog close path restores the snapshotted dialog region. No
+ * host-observable seam needed for the open-dialog tests, so this is a
+ * recording no-op. (fd2_backup_dialog_area_to_buffer now has a real body in
+ * src/dialog/dialog.c.) */
 int g_restore_dialog_area_calls = 0;
-void fd2_backup_dialog_area_to_buffer(void) { g_backup_dialog_area_calls++; }
 void fd2_restore_dialog_area_from_buffer(void) { g_restore_dialog_area_calls++; }
 uint32 g_saveblk_out, g_saveblk_w, g_saveblk_h, g_saveblk_dst,
        g_saveblk_src, g_saveblk_stride;

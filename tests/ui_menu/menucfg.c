@@ -17,6 +17,7 @@
  * (stubbed) dialog renderer, so it has no observable seam here.
  */
 
+#include <stdlib.h>
 #include "testharn.h"
 #include "types.h"
 #include "consts.h"
@@ -38,7 +39,6 @@ extern int g_ail_last_ramp;
 /* real-render seams hit by the now-real fd2_open_settings_dialog_with_slide */
 extern uint32 g_blitsetup_dst, g_blitsetup_sprite, g_blitsetup_stride;
 extern int    g_blitsetup_calls;
-extern int    g_backup_dialog_area_calls;
 extern int    g_restore_dialog_area_calls;
 
 /* Workspace span the real final fd2_blit_rectangle(ptr+0x8088, ..., h=0xC0)
@@ -63,13 +63,19 @@ static void cfg_setup_render_env(void)
         cfg_dialog_handle[i] = 0;
     }
     data_fd2_battle_party_member_count = 0;
-    data_fd2_battle_cursor_screen_x = 0;
-    data_fd2_battle_cursor_screen_y = 0;
+    /* cursor (1,1): the now-real fd2_backup_dialog_area_to_buffer anchors its
+     * snapshot at (cx-1)*0x18 + (cy-1)*0x2AC0 + 0x8088, so cursor 0 would
+     * underflow. (1,1) -> anchor == 0x8088, region stays inside cfg_ws_buffer. */
+    data_fd2_battle_cursor_screen_x = 1;
+    data_fd2_battle_cursor_screen_y = 1;
     data_fd2_large_game_state_buffer_ptr = (uint32)cfg_ws_buffer;
     data_fd2_menu_dialog_state_handle = (uint32)cfg_dialog_handle;
     data_fd2_audio_fdother_sfx_bank_buf_ptr = 0;
+    if (data_fd2_dialog_area_backup_buffer != (void *)0) {
+        free(data_fd2_dialog_area_backup_buffer);
+        data_fd2_dialog_area_backup_buffer = (void *)0;
+    }
     g_blitsetup_calls = 0;
-    g_backup_dialog_area_calls = 0;
     g_restore_dialog_area_calls = 0;
 }
 
@@ -221,11 +227,13 @@ static void test_open_dialog_last_blit(void)
 
     fd2_open_settings_dialog_with_slide(menu_options, menu_state);
 
-    expect_dst = (uint32)cfg_ws_buffer + 0x8088u + 0x2730u;
+    /* panel_anchor = base + 0x8088 + cx*0x18 + cy*0x2AC0; cursor (1,1) here. */
+    expect_dst = (uint32)cfg_ws_buffer + 0x8088u + 0x18u + 0x2AC0u + 0x2730u;
     expect_sprite = (uint32)cfg_dialog_handle + 0x100u;
 
     ASSERT_EQ(g_blitsetup_calls, 16);
-    ASSERT_EQ(g_backup_dialog_area_calls, 1);
+    /* the real fd2_backup_dialog_area_to_buffer ran once -> backup buffer set */
+    ASSERT_TRUE(data_fd2_dialog_area_backup_buffer != NULL);
     ASSERT_EQ(g_restore_dialog_area_calls, 4);
     ASSERT_EQ((long)g_blitsetup_dst, (long)expect_dst);
     ASSERT_EQ((long)g_blitsetup_sprite, (long)expect_sprite);

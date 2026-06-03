@@ -822,8 +822,9 @@
     "name": "fd2_backup_dialog_area_to_buffer",
     "target": "dialog/dialog.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00017643": {
     "name": "fd2_restore_dialog_area_from_buffer",

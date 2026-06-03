@@ -657,6 +657,45 @@ void fd2_assemble_dialog_frame_layered(uint32 dst, uint32 pitch,
 }
 
 /* ----------------------------------------------------------------
+ * fd2_backup_dialog_area_to_buffer @ 0x175A9 (1 caller)
+ *
+ * Snapshot a 0x48 x 0x48 pixel region of the working framebuffer to
+ * data_fd2_dialog_area_backup_buffer for the "save under" restore-on-
+ * close mechanism. Frees any previous backup, allocs a fresh
+ * 0x1440 (= 0x48*0x48 = 5184) byte buffer, then copies 0x48 rows of
+ * 0x48 bytes each.
+ *
+ * Source anchor: large_game_state_buffer + 0x8088, offset by
+ * (cursor_screen_x - 1) tile-columns (0x18 px each) and
+ * (cursor_screen_y - 1) tile-rows (0x2AC0 bytes each) — i.e. top-left
+ * corner one tile up/left of the cursor (1-tile margin around it).
+ * Working-buffer row stride is 0x1C8.
+ *
+ * Used by fd2_open_settings_dialog_with_slide before drawing a dialog;
+ * fd2_restore_dialog_area_from_buffer puts the saved pixels back.
+ * ---------------------------------------------------------------- */
+void fd2_backup_dialog_area_to_buffer(void)
+{
+    uint32 src_row_ptr;
+    uint32 row;
+
+    if (data_fd2_dialog_area_backup_buffer != (void *)0) {
+        free(data_fd2_dialog_area_backup_buffer);
+    }
+    data_fd2_dialog_area_backup_buffer = malloc(0x1440);
+
+    src_row_ptr = (data_fd2_battle_cursor_screen_x - 1) * 0x18 +
+                  data_fd2_large_game_state_buffer_ptr + 0x8088 +
+                  (data_fd2_battle_cursor_screen_y - 1) * 0x2AC0;
+
+    for (row = 0; (int32)row < 0x48; row++) {
+        memmove((void *)(row * 0x48 + (uint32)data_fd2_dialog_area_backup_buffer),
+                (void *)src_row_ptr, 0x48);
+        src_row_ptr += 0x1C8;
+    }
+}
+
+/* ----------------------------------------------------------------
  * fd2_cinematic_scroll_text_up_for_special_scenes @ 0x16E24 (2 callers)
  *
  * Scroll the dialog text area upward by 19 pixel rows (5*3 + 4) when

@@ -124,6 +124,7 @@ extern uint32 data_fd2_dialog_active_portrait_blit_offset;              /* 0x53C
 extern void  *data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[5];   /* 0x53A18 */
 extern uint32 data_fd2_dialog_portrait_blink_frame_idx;                 /* 0x53A10 */
 extern uint32 data_fd2_dialog_portrait_blink_subtick_counter;           /* 0x53A14 */
+extern void  *data_fd2_dialog_area_backup_buffer;                       /* 0x53A71 */
 
 /* ---- VGA palette ---- */
 extern uint32 data_fd2_vga_palette_data_ptr;                            /* 0x53A65 */

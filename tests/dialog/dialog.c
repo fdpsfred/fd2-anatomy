@@ -735,6 +735,112 @@ static void test_scroll_no_portrait_is_noop(void)
     data_fd2_dialog_active_portrait_blit_offset = saved;
 }
 
+/*
+ * fd2_backup_dialog_area_to_buffer snapshots a 0x48 x 0x48 pixel block out of
+ * the working framebuffer (data_fd2_large_game_state_buffer_ptr + 0x8088),
+ * anchored one tile up/left of the cursor, into a freshly malloc'd
+ * data_fd2_dialog_area_backup_buffer.  Verifies (a) the source anchor formula
+ * (cx-1)*0x18 + (cy-1)*0x2AC0 + 0x8088, (b) the working-buffer row stride
+ * 0x1C8, (c) the dest row stride 0x48, and (d) that all 0x48 rows x 0x48 cols
+ * are copied.  Source is filled so cell value == (offset_from_buffer_base) low
+ * byte, letting us recompute every expected byte independently of the code.
+ */
+static void test_backup_snapshots_region(void)
+{
+    uint8 *work;
+    uint8 *backup;
+    uint32 work_size;
+    uint32 anchor;     /* offset of row 0 col 0 within work buffer */
+    uint32 i;
+    int    row;
+    int    col;
+    int    ok;
+    uint32 cx;
+    uint32 cy;
+
+    /* big enough that anchor + (0x47*0x1C8) + 0x48 stays in bounds */
+    work_size = 0x20000;
+    work = (uint8 *)malloc(work_size);
+    ASSERT_TRUE(work != NULL);
+    for (i = 0; i < work_size; i++) {
+        work[i] = (uint8)(i & 0xFF);
+    }
+
+    cx = 2;
+    cy = 3;
+    data_fd2_large_game_state_buffer_ptr = (uint32)work;
+    data_fd2_battle_cursor_screen_x = cx;
+    data_fd2_battle_cursor_screen_y = cy;
+    data_fd2_dialog_area_backup_buffer = (void *)0;  /* no prior buffer */
+
+    anchor = 0x8088 + (cx - 1) * 0x18 + (cy - 1) * 0x2AC0;
+    ASSERT_TRUE(anchor + 0x47 * 0x1C8 + 0x48 <= work_size);
+
+    fd2_backup_dialog_area_to_buffer();
+
+    backup = (uint8 *)data_fd2_dialog_area_backup_buffer;
+    ASSERT_TRUE(backup != NULL);
+
+    /* every cell: backup[row*0x48 + col] == work[anchor + row*0x1C8 + col] */
+    ok = 1;
+    for (row = 0; row < 0x48; row++) {
+        for (col = 0; col < 0x48; col++) {
+            uint8 got = backup[row * 0x48 + col];
+            uint8 exp = work[anchor + (uint32)row * 0x1C8 + (uint32)col];
+            if (got != exp) {
+                ok = 0;
+            }
+        }
+    }
+    ASSERT_TRUE(ok);
+
+    /* spot-check the two extreme corners against the raw formula */
+    ASSERT_EQ((long)backup[0], (long)(uint8)(anchor & 0xFF));
+    ASSERT_EQ((long)backup[0x47 * 0x48 + 0x47],
+              (long)(uint8)((anchor + 0x47 * 0x1C8 + 0x47) & 0xFF));
+
+    free(backup);
+    data_fd2_dialog_area_backup_buffer = (void *)0;
+    free(work);
+    data_fd2_large_game_state_buffer_ptr = 0;
+}
+
+/*
+ * When a previous backup buffer exists it must be freed before the new alloc
+ * (the function owns and replaces the buffer each call).  We give it a real
+ * malloc'd buffer so the internal free() is valid, then confirm the pointer
+ * was replaced with a fresh allocation.
+ */
+static void test_backup_frees_prior_buffer(void)
+{
+    uint8 *work;
+    void  *prior;
+
+    work = (uint8 *)malloc(0x20000);
+    ASSERT_TRUE(work != NULL);
+    memset(work, 0x55, 0x20000);
+
+    prior = malloc(0x1440);
+    ASSERT_TRUE(prior != NULL);
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)work;
+    data_fd2_battle_cursor_screen_x = 1;   /* cx-1 == 0 */
+    data_fd2_battle_cursor_screen_y = 1;   /* cy-1 == 0 */
+    data_fd2_dialog_area_backup_buffer = prior;
+
+    fd2_backup_dialog_area_to_buffer();
+
+    /* a new buffer was allocated (replacing prior, which was freed) */
+    ASSERT_TRUE(data_fd2_dialog_area_backup_buffer != NULL);
+    /* with cx=cy=1 the anchor is exactly base+0x8088, row 0 col 0 byte = 0x55 */
+    ASSERT_EQ((long)((uint8 *)data_fd2_dialog_area_backup_buffer)[0], 0x55);
+
+    free(data_fd2_dialog_area_backup_buffer);
+    data_fd2_dialog_area_backup_buffer = (void *)0;
+    free(work);
+    data_fd2_large_game_state_buffer_ptr = 0;
+}
+
 void run_dialog_dialog_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -757,5 +863,7 @@ void run_dialog_dialog_tests(void)
     RUN_TEST(test_close_slide_symmetric);
     RUN_TEST(test_close_slide_asymmetric_axes);
     RUN_TEST(test_scroll_no_portrait_is_noop);
+    RUN_TEST(test_backup_snapshots_region);
+    RUN_TEST(test_backup_frees_prior_buffer);
     printf("\n");
 }
