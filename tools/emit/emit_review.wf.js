@@ -161,7 +161,7 @@ function bookkeepPrompt(fn, verdict, emitterOut) {
     '步驟：',
     '1. 更新 src/routing.json：寫一段 python（json.load 讀檔 → 把 key "' + fn.addr + '" 的物件**同時**設 done=True 與 reviewed=True（emit 模式起始 done=False，務必補上；review 模式 done 本就 True，重設無害）→ 用 json.dumps(indent=2, ensure_ascii=False) 加結尾換行寫回）。只改這一個 entry，保持原格式不動其他 entry。',
     '2. 若 reviewer 的 emit_issues_to_log 非空，append 到 src/emit_issues.json（key 用與 routing.json 同款的 8-hex address，例如 00010b43，不要寫成 0x10b43；以 utf-8 讀寫、寫後讀回確認無亂碼）。reviewer issues：' + JSON.stringify((verdict && verdict.emit_issues_to_log) || []),
-    '3. git add 本 function 相關改動：src/' + fn.target + ' tests/ src/routing.json src/emit_issues.json src/include/（只 add 真正變動的；用 git --no-pager diff --staged --stat 確認範圍只含本 function）。',
+    '3. git add 本 function 相關改動：src/' + fn.target + ' tests/ src/routing.json src/emit_issues.json src/include/ program_info/ resource_info/ rebuild_info/ assets/（最後四個是 KB 資料夾，本 function emit 連帶的 KB 同步務必一起 add——絕不可留在 working tree。只 add 真正變動的；用 git --no-pager diff --staged --stat 確認範圍只含本 function，再用 git status --porcelain 確認「已追蹤檔」無殘留未 staged 的改動）。',
     '4. git commit，message：',
     '   emit-review: ' + fn.name + ' @ ' + fn.addr + ' (' + fn.mode + ', reviewed-approved)',
     '   空行後簡述 reviewer 結論一行，再空行後：Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>',
