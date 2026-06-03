@@ -165,8 +165,10 @@ static void test_field_command_menu_options(void)
     ASSERT_EQ(g_save_load_quit_dispatch_calls, 0);
     /* one open/close for the field-command dialog, one open/close for the
      * options dialog; each real open and each real close = 16 corner blits
-     * -> 4 * 16 = 64 total */
-    ASSERT_EQ(g_blitsetup_calls, 64);
+     * -> 4 * 16 = 64. Plus the options submenu idles exactly once (the armed
+     * buffer-flip exposes the staged Esc), and that single idle-loop body runs
+     * the real fd2_repaint_settings_dialog_borders = 4 more corner blits. 68. */
+    ASSERT_EQ(g_blitsetup_calls, 68);
 }
 
 void run_ui_menu_menu_tests(void)

@@ -249,17 +249,45 @@ static void test_wait_dialog_repaint_passthrough(void)
 }
 
 
+/* Render env for the real fd2_repaint_settings_dialog_borders, which now runs
+ * inside the idle loop body. Empty party (find_char -> -1, no char restamp),
+ * a zeroed dialog-state handle (offset table all-zero -> sprite_addr == handle),
+ * a real workspace buffer, cursor at (1,1), and valid 4-slot menu arrays for the
+ * per-corner *(int32*)(menu_options/menu_state + c*4) reads. The corner blits go
+ * through the capture stub (no real pixel writes). */
+static uint8  inp_dlg_ws[0x10000];
+static int32  inp_dlg_handle[256];
+static int32  inp_dlg_options[4];
+static int32  inp_dlg_state[4];
+static void inp_setup_dialog_render_env(void)
+{
+    int i;
+    for (i = 0; i < 256; i++) {
+        inp_dlg_handle[i] = 0;
+    }
+    for (i = 0; i < 4; i++) {
+        inp_dlg_options[i] = 0;
+        inp_dlg_state[i] = 0;
+    }
+    data_fd2_battle_party_member_count = 0;
+    data_fd2_battle_cursor_screen_x = 1;
+    data_fd2_battle_cursor_screen_y = 1;
+    data_fd2_large_game_state_buffer_ptr = (uint32)inp_dlg_ws;
+    data_fd2_menu_dialog_state_handle = (uint32)inp_dlg_handle;
+}
+
 /* Blink oscillator state-transition (asm 0x178bf-0x178f8): runs the idle loop
- * BODY exactly once via the repaint-stub buffer flip, then the seeded passthrough
- * scancode exits. Buffer starts EMPTY (head==tail==0x1E) so the loop is entered;
- * the stub flips tail->head+2 on its first call so the next top-of-loop check
- * exits. Oscillator trigger is forced deterministically: tick_latch=0 and BIOS
- * tick low word 0x4000 give diff=0x4000 (>3, high bit clear) regardless of the
- * free-running timer ISR (wrap into 0..3 is impossible in one tick from 0x4000),
- * so the 0/1 oscillator advances (+1, wrap at 2). 0->1 here (no wrap). */
+ * BODY exactly once via the buffer flip, then the seeded passthrough scancode
+ * exits. Buffer starts EMPTY (head==tail==0x1E) so the loop is entered; the
+ * terrain-HUD seam flips tail->head+2 on its first call so the next top-of-loop
+ * check exits. Oscillator trigger is forced deterministically: tick_latch=0 and
+ * BIOS tick low word 0x4000 give diff=0x4000 (>3, high bit clear) regardless of
+ * the free-running timer ISR (wrap into 0..3 is impossible in one tick from
+ * 0x4000), so the 0/1 oscillator advances (+1, wrap at 2). 0->1 here (no wrap). */
 static void test_wait_dialog_repaint_oscillator_0_to_1(void)
 {
     int r;
+    inp_setup_dialog_render_env();
     g_repaint_settings_calls = 0;
     g_repaint_flip_buffer_after = 1;
     data_fd2_dialog_blink_phase_oscillator = 0;
@@ -268,7 +296,8 @@ static void test_wait_dialog_repaint_oscillator_0_to_1(void)
     *(volatile uint16 *)0x41AuL = 0x1E;
     *(volatile uint16 *)0x41CuL = 0x1E;
     *(volatile uint16 *)0x41EuL = 0x3920;
-    r = fd2_wait_input_with_dialog_repaint(0, 0);
+    r = fd2_wait_input_with_dialog_repaint((uint32)inp_dlg_options,
+                                           (uint32)inp_dlg_state);
     g_repaint_flip_buffer_after = 0;
     ASSERT_EQ(g_repaint_settings_calls, 1);
     ASSERT_EQ(data_fd2_dialog_blink_phase_oscillator, 1);
@@ -282,6 +311,7 @@ static void test_wait_dialog_repaint_oscillator_0_to_1(void)
 static void test_wait_dialog_repaint_oscillator_1_to_0(void)
 {
     int r;
+    inp_setup_dialog_render_env();
     g_repaint_settings_calls = 0;
     g_repaint_flip_buffer_after = 1;
     data_fd2_dialog_blink_phase_oscillator = 1;
@@ -290,7 +320,8 @@ static void test_wait_dialog_repaint_oscillator_1_to_0(void)
     *(volatile uint16 *)0x41AuL = 0x1E;
     *(volatile uint16 *)0x41CuL = 0x1E;
     *(volatile uint16 *)0x41EuL = 0x3920;
-    r = fd2_wait_input_with_dialog_repaint(0, 0);
+    r = fd2_wait_input_with_dialog_repaint((uint32)inp_dlg_options,
+                                           (uint32)inp_dlg_state);
     g_repaint_flip_buffer_after = 0;
     ASSERT_EQ(g_repaint_settings_calls, 1);
     ASSERT_EQ(data_fd2_dialog_blink_phase_oscillator, 0);

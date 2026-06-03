@@ -257,25 +257,21 @@ void fd2_tile_blit_24x24_with_remap_table(uint32 src, uint32 dst, uint32 stride,
     g_blitpass_calls++;
     g_blitremap_calls++;
 }
-void fd2_render_terrain_info_hud_panel(uint32 b, uint32 s) {
-    g_terrain_hud_calls++;
-    g_terrain_hud_last_buf = b; g_terrain_hud_last_stride = s;
-}
-/* fd2_repaint_settings_dialog_borders stub with test-controllable loop break.
- * The real routine repaints the settings/options dialog borders (pure display).
- * For fd2_wait_input_with_dialog_repaint the only harness-driveable way to run
- * the idle loop BODY (and thus its blink oscillator) exactly once is to flip the
- * BIOS keyboard buffer from empty->nonempty from inside the loop, since every
- * other loop callee is a no-op stub and nothing else mutates the buffer. When
- * g_repaint_flip_buffer_after != 0, the call counter reaching that threshold
- * makes the buffer nonempty (tail 0x41C := head 0x41A + 2) so the next loop-top
+/* Test-controllable loop-break seam for fd2_wait_input_with_dialog_repaint.
+ * This no-op render stub runs once per idle-loop body, immediately before the
+ * (now real) fd2_repaint_settings_dialog_borders. For the menu-loop tests the
+ * only harness-driveable way to run the idle loop BODY exactly once is to flip
+ * the BIOS keyboard buffer from empty->nonempty from inside the loop, since the
+ * other idle callees do not mutate the buffer. When g_repaint_flip_buffer_after
+ * != 0, the call counter reaching that threshold makes the buffer nonempty
+ * (tail 0x41C := head 0x41A + 2) so the next loop-top
  * fd2_check_keyboard_buffer_nonempty() returns nonzero and the loop exits.
  * Default 0 keeps the historical no-op behavior for all other tests. */
 int g_repaint_settings_calls = 0;
 int g_repaint_flip_buffer_after = 0;
-void fd2_repaint_settings_dialog_borders(uint32 s, uint32 a)
-{
-    (void)s; (void)a;
+void fd2_render_terrain_info_hud_panel(uint32 b, uint32 s) {
+    g_terrain_hud_calls++;
+    g_terrain_hud_last_buf = b; g_terrain_hud_last_stride = s;
     g_repaint_settings_calls++;
     if (g_repaint_flip_buffer_after != 0 &&
         g_repaint_settings_calls >= g_repaint_flip_buffer_after) {

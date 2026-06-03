@@ -484,6 +484,102 @@ static void test_input_unmapped_noop(void)
     ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 99u);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_repaint_settings_dialog_borders @ 0x179D5 direct tests.
+ *
+ * Drive the real per-frame border repaint once with a controlled cursor cell,
+ * menu arrays, selected-corner index and blink phase; the capture stub records
+ * the LAST corner blit (corner 3). Verifies the fixed 4-corner offsets, the
+ * panel anchor, the per-corner sprite atlas index (menu_options[c]*3 +
+ * menu_state[c]*2) and the handle offset-table lookup. find_char returns -1
+ * (empty party) so no char restamp runs. ---------------------------------- */
+
+/* Non-selected corner 3: sprite_id = 4*3 + 5*2 = 22, no blink add (cursor_idx 1).
+ * corner_offsets[3] = 0x2AC0; cursor (1,1) -> anchor + 0x18 + 0x2AC0. */
+static void test_repaint_borders_last_corner(void)
+{
+    int32 menu_options[4];
+    int32 menu_state[4];
+    uint32 expect_dst;
+    uint32 expect_sprite;
+
+    cfg_setup_render_env();
+    menu_options[0] = 1; menu_options[1] = 2;
+    menu_options[2] = 3; menu_options[3] = 4;
+    menu_state[0] = 0;   menu_state[1] = 0;
+    menu_state[2] = 0;   menu_state[3] = 5;
+    data_fd2_ui_menu_cursor_idx = 1;          /* selected corner != 3 */
+    data_fd2_dialog_blink_phase_oscillator = 1; /* must NOT affect corner 3 */
+    cfg_dialog_handle[22] = 0x100;
+
+    fd2_repaint_settings_dialog_borders((uint32)menu_options,
+                                        (uint32)menu_state);
+
+    expect_dst = (uint32)cfg_ws_buffer + 0x8088u + 0x18u + 0x2AC0u + 0x2AC0u;
+    expect_sprite = (uint32)cfg_dialog_handle + 0x100u;
+
+    ASSERT_EQ(g_blitsetup_calls, 4);
+    ASSERT_EQ((long)g_blitsetup_dst, (long)expect_dst);
+    ASSERT_EQ((long)g_blitsetup_sprite, (long)expect_sprite);
+    ASSERT_EQ(g_blitsetup_stride, 0x1C8u);
+}
+
+/* Selected corner 3 with blink phase 1: sprite_id = 4*3 + 5*2 + 1 = 23.
+ * Pins the c == data_fd2_ui_menu_cursor_idx blink add (the highlight-frame
+ * alternation): the selected corner's atlas index gains the 0/1 oscillator. */
+static void test_repaint_borders_blink_selected(void)
+{
+    int32 menu_options[4];
+    int32 menu_state[4];
+    uint32 expect_sprite;
+
+    cfg_setup_render_env();
+    menu_options[0] = 1; menu_options[1] = 2;
+    menu_options[2] = 3; menu_options[3] = 4;
+    menu_state[0] = 0;   menu_state[1] = 0;
+    menu_state[2] = 0;   menu_state[3] = 5;
+    data_fd2_ui_menu_cursor_idx = 3;          /* corner 3 IS selected */
+    data_fd2_dialog_blink_phase_oscillator = 1;
+    cfg_dialog_handle[22] = 0x100;            /* without blink */
+    cfg_dialog_handle[23] = 0x200;            /* with blink (+1) */
+
+    fd2_repaint_settings_dialog_borders((uint32)menu_options,
+                                        (uint32)menu_state);
+
+    expect_sprite = (uint32)cfg_dialog_handle + 0x200u;
+
+    ASSERT_EQ(g_blitsetup_calls, 4);
+    ASSERT_EQ((long)g_blitsetup_sprite, (long)expect_sprite);
+}
+
+/* Selected corner 3, blink phase 0: the +0 add leaves sprite_id at 22 (the same
+ * as the non-selected case), confirming the oscillator value (not just presence
+ * of the branch) is what shifts the atlas frame. */
+static void test_repaint_borders_blink_phase0(void)
+{
+    int32 menu_options[4];
+    int32 menu_state[4];
+    uint32 expect_sprite;
+
+    cfg_setup_render_env();
+    menu_options[0] = 1; menu_options[1] = 2;
+    menu_options[2] = 3; menu_options[3] = 4;
+    menu_state[0] = 0;   menu_state[1] = 0;
+    menu_state[2] = 0;   menu_state[3] = 5;
+    data_fd2_ui_menu_cursor_idx = 3;
+    data_fd2_dialog_blink_phase_oscillator = 0;
+    cfg_dialog_handle[22] = 0x100;
+    cfg_dialog_handle[23] = 0x200;
+
+    fd2_repaint_settings_dialog_borders((uint32)menu_options,
+                                        (uint32)menu_state);
+
+    expect_sprite = (uint32)cfg_dialog_handle + 0x100u;
+
+    ASSERT_EQ(g_blitsetup_calls, 4);
+    ASSERT_EQ((long)g_blitsetup_sprite, (long)expect_sprite);
+}
+
 void run_ui_menu_menucfg_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -510,5 +606,8 @@ void run_ui_menu_menucfg_tests(void)
     RUN_TEST(test_input_down_disabled_noop);
     RUN_TEST(test_input_right_disabled_noop);
     RUN_TEST(test_input_unmapped_noop);
+    RUN_TEST(test_repaint_borders_last_corner);
+    RUN_TEST(test_repaint_borders_blink_selected);
+    RUN_TEST(test_repaint_borders_blink_phase0);
     printf("\n");
 }

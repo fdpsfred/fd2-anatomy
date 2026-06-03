@@ -332,3 +332,62 @@ int fd2_settings_menu_input_step(int32 *menu_options, int32 *menu_state)
     }
     return 0;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_repaint_settings_dialog_borders @ 0x179D5  (1 caller:
+ *   fd2_wait_input_with_dialog_repaint)
+ *
+ * Repaint the 4 corner border sprites of a settings dialog. Called every
+ * frame from the dialog idle/repaint loop.
+ *
+ * Remembers the character under the cursor (for restamp), computes the panel
+ * anchor inside the work buffer from the on-screen cursor cell, then for each
+ * of the 4 corners blits the corner sprite at its fixed offset (the same
+ * offsets as the close-slide initial state). Per-corner sprite atlas index =
+ * menu_options[c]*3 + menu_state[c]*2; the index selects a dword offset from
+ * the dialog-state handle's offset table, and the sprite address is handle +
+ * that offset. The currently-selected corner (c == data_fd2_ui_menu_cursor_idx)
+ * adds the 0/1 blink-phase oscillator to its sprite index, alternating that
+ * corner between two sprite frames to produce the cursor highlight animation.
+ * Finally the saved char (if any) is restamped over the dialog.
+ *
+ * menu_options is the *3 array (param_1); menu_state is the *2 array (param_2).
+ *
+ * void __cdecl with the __CHK(0x38) stack-probe prologue.
+ * ---------------------------------------------------------------- */
+void fd2_repaint_settings_dialog_borders(uint32 menu_options, uint32 menu_state)
+{
+    int32 corner_offsets[4];
+    int saved_char_idx;
+    uint32 panel_anchor;
+    int corner_iter;
+    int sprite_id;
+    uint32 sprite_addr;
+
+    saved_char_idx = fd2_find_char_at_cursor_pos();
+
+    panel_anchor = data_fd2_large_game_state_buffer_ptr + 0x8088 +
+                   data_fd2_battle_cursor_screen_x * 0x18 +
+                   data_fd2_battle_cursor_screen_y * 0x2AC0;
+
+    corner_offsets[0] = -0x23A0;
+    corner_offsets[1] = 0x378;
+    corner_offsets[2] = 0x3A8;
+    corner_offsets[3] = 0x2AC0;
+
+    for (corner_iter = 0; corner_iter < 4; corner_iter++) {
+        sprite_id = *(int32 *)(menu_options + corner_iter * 4) * 3 +
+                    *(int32 *)(menu_state + corner_iter * 4) * 2;
+        if ((uint32)corner_iter == data_fd2_ui_menu_cursor_idx) {
+            sprite_id += data_fd2_dialog_blink_phase_oscillator;
+        }
+        sprite_addr = data_fd2_menu_dialog_state_handle +
+            *(int32 *)(data_fd2_menu_dialog_state_handle + sprite_id * 4);
+        fd2_blit_sprite_with_stride_setup(
+            panel_anchor + corner_offsets[corner_iter], sprite_addr, 0x1C8);
+    }
+
+    if (saved_char_idx != -1) {
+        fd2_paint_char_sprite_at_world_pos(saved_char_idx);
+    }
+}

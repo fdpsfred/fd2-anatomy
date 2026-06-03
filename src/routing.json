@@ -862,8 +862,9 @@
     "name": "fd2_repaint_settings_dialog_borders",
     "target": "ui_menu/menucfg.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00017aa9": {
     "name": "fd2_wait_n_bios_ticks",
