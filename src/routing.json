@@ -31,7 +31,7 @@
     "phase": 5,
     "done": true,
     "asm": false,
-    "reviewed": false,
+    "reviewed": true,
     "review_note": "reverted: test used fabricated file (write_fake_dat/fdicon or synthetic FD2.SAV) instead of real fd2_game_files; must re-review with staged real game files per feedback_real_file_tests_mandatory"
   },
   "00010b43": {
