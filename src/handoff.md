@@ -18,10 +18,34 @@ source、寫 unit test、經 build gate + 獨立 reviewer 三源復驗、per-fun
 
 ### 開工步驟
 
-1. 確認工具：Ghidra MCP 已開 FD2.LE、DOSBox-X 在 PATH、Watcom 9.5a（per `CLAUDE.md`）。不可用就停下問使用者。
+1. 確認工具：Ghidra MCP 已開 FD2.LE（1375 functions）、DOSBox-X 在 PATH、Watcom 9.5a（per `CLAUDE.md`）。
+   - **Ghidra wedge 可自助重啟**（不必每次問使用者）：MCP 呼叫 timeout 時，kill 那個 ghidra javaw → `ghidraRun.bat` → 等 port 8089 → `open_program('/FD2.LE')`。完整程序＋指令見 memory `feedback_ghidra_disconnect_handling`。
+   - **`emulate_function` 要用對格式**（`memory` 需 `{"regions":[{"address","hex"}]}` wrapper、stack 自動在 0x7FFF0000、cdecl 引數放 0x7FFF0004/8）；格式錯會讀垃圾引數→暴衝→wedge Ghidra。用任何不熟的 Ghidra function 前先讀 `.claude/skills/ghidra-usage/`。詳見 memory。
 2. 看現況（單一事實來源，不靠任何對話記憶）：`python tools/emit/next_batch.py --stats`
    → `{total, emitted, reviewed, await_review, await_emit}`。`reviewed` 欄就是進度。
-3. 全自動接續：使用者貼 §5 的 /loop 指令 → 自動推進直到 `await_review` 與 `await_emit` 皆為 0。
+3. **目前不是常態 /loop**：正卡在 §1.5 的 Task 3（讀檔測試真檔化），**必須先完成 Task 3 才可繼續 emit batch 16**。Task 3 完成後才回到 §5 的 /loop 全自動接續。
+
+---
+
+## 1.5 進行中：Task 3 — 讀檔測試真檔化（batch 16 前必須先完成）
+
+**背景**：10 個會 fopen 真實遊戲檔的 function，其 unit test 原本用「捏造檔案內容」過關（rsrcfix.h 的 `write_fake_dat`/`write_fake_fdicon`、life 逐位元組捏造 FD2.SAV）。這不可接受（見 memory `feedback_real_file_tests_mandatory`）。這 10 個已標 `reviewed=False`（done 仍 True），列在 `await_review`。
+
+**已就緒的基礎建設**（本段已完成）：
+- **真檔 staging**：`build_test.py` 啟動前把 7 個遊戲檔（FDICON.B24 / FDFIELD/FDSHAP/FDOTHER/FDTXT/FDMUS.DAT / FD2.SAV）從 `fd2_game_files/` 複製到 `tests/OUT`（= TEST.EXE 的 cwd，缺/size 不符才複製）。詳見 §7。
+- **真值查詢工具**：`python tools/realfix/dump_real.py [chapter]` dump 真 DAT 的 offset/size/首 bytes、FDICON header、FD2.SAV 欄位（注意 SAV 是**加密**的，見下）。
+- **真 decrypt 已 linked**：`fd2_save_crypt_buffer` + `fd2_save_compute_checksum` 已 emit（src/save/save.c），所以真 FD2.SAV 解得開。
+- **gate**：reviewer checklist 7b + emitter step D 都已禁假檔（見 emit_review.wf.js）。
+
+**要做的事**：把下列 4 個測試檔一次改成讀 staged 真檔 + 對**真實解析值**斷言，並**完整刪除** `tests/include/rsrcfix.h`、所有 `write_fake_*` 呼叫、所有 game-file `remove()` teardown（不留空殼、不降級為無斷言 smoke test）：
+- `tests/audio/audio.c` — fd2_set_bgm_track_with_fade @ 00025977。斷言純行為（AIL 呼叫次數/音量），移除假檔即可，最單純。
+- `tests/rsrc/rsrc.c` — fd2_load_dat_resource @ 000111ba、fd2_load_chapter_background_layers @ 00010652、fd2_load_chapter_battle_data @ 0001088d、fd2_load_chapter_portraits_and_dump_tmp @ 00010b4e、fd2_load_portrait_to_cache @ 00011019。真 DAT/FDICON 值用 dump_real.py 求。
+- `tests/battle/btl_init.c` — fd2_init_runtime_char_for_battle @ 00010c50、fd2_init_battle_state_for_chapter @ 000205da（驅動真 loader）。
+- `tests/life/main.c` — fd2_load_save_and_init_engine @ 00010010、fd2_main_menu_continue_dispatcher @ 00025ebb。**FD2.SAV 在磁碟上加密**：loader 先 `fd2_save_crypt_buffer` 解密再讀欄位。期望值要對**真 FD2.SAV 解密後**求（用真 crypt：state=0xA5、每 byte `state=ROL16(state+0x9014,3)`、`buf[i]^=低位元組 state`，演算法見 src/save/save.c 與 0x4dbd8 plate）；**不可用磁碟原始 bytes**（那是加密亂碼）。
+
+**為何 4 檔要一起改（關鍵）**：build gate 是全域的（全部 test 一起跑）。這 4 檔都寫+remove 同一批遊戲檔名；單檔轉換會被其他未轉換檔的 `remove()` 清掉 staged 真檔、或被捏造值斷言拖垮 → 全域紅燈 → 純 per-function workflow 會 deadlock。所以**主 loop 協調一次改完 4 檔拿綠燈**，再跑 workflow review 模式複驗那 10 個（使用者已定此分工）。
+
+**收尾**：4 檔轉換 + 刪 rsrcfix.h → `python tools/emit/build_test.py` 綠（420→可能略增）→ `git checkout` 不需要 → scout `--mode review` 會吐這 10 個 → 跑 `Workflow(emit_review.wf.js)` review 模式複驗 → 全 approved 後 `await_review==0` → 才 `--mode emit` 接 batch 16。**Task 3 完成後刪掉本 §1.5**（完工不留遺留）。
 
 ---
 
