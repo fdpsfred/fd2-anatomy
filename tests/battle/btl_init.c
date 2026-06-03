@@ -634,6 +634,57 @@ static void test_ircbg_level1_boundary(void)
 }
 
 
+/* ---- Test: fd2_clear_all_chars_facing ----
+ *
+ * Loop zeros sprite_state[1] (byte +3) for exactly party_member_count
+ * slots (stride RUNTIME_CHAR_SIZE), then calls the (stubbed) delay.
+ * Verifies: cleared slots get +3 == 0 while their other bytes survive;
+ * slots at/after the count are untouched; count==0 clears nothing.
+ */
+static void test_clear_all_chars_facing_partial(void)
+{
+    int i;
+
+    memset(g_test_rc_array, 0xAA, sizeof(g_test_rc_array));
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_party_member_count = 3;
+
+    fd2_clear_all_chars_facing();
+
+    /* slots 0..2: facing byte (+3) cleared, neighbours preserved */
+    for (i = 0; i < 3; i = i + 1) {
+        ASSERT_EQ((long)g_test_rc_array[i].sprite_state[1], 0);
+        ASSERT_EQ((long)g_test_rc_array[i].sprite_state[0], 0xAA);
+        ASSERT_EQ((long)g_test_rc_array[i].sprite_state[2], 0xAA);
+        ASSERT_EQ((long)((uint8 *)&g_test_rc_array[i])[2], 0xAA);
+        ASSERT_EQ((long)((uint8 *)&g_test_rc_array[i])[4], 0xAA);
+    }
+    /* slots 3..7: completely untouched, including facing byte */
+    for (i = 3; i < 8; i = i + 1) {
+        ASSERT_EQ((long)g_test_rc_array[i].sprite_state[1], 0xAA);
+    }
+
+    data_fd2_battle_party_member_count = 0;
+}
+
+static void test_clear_all_chars_facing_zero_count(void)
+{
+    int i;
+
+    memset(g_test_rc_array, 0xAA, sizeof(g_test_rc_array));
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_party_member_count = 0;
+
+    fd2_clear_all_chars_facing();
+
+    for (i = 0; i < 8; i = i + 1) {
+        ASSERT_EQ((long)g_test_rc_array[i].sprite_state[1], 0xAA);
+    }
+
+    data_fd2_battle_party_member_count = 0;
+}
+
+
 void run_battle_btl_init_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -646,5 +697,7 @@ void run_battle_btl_init_tests(void)
     RUN_TEST(test_irc_tile_search_nearest);
     RUN_TEST(test_ircbg_player_stats);
     RUN_TEST(test_ircbg_level1_boundary);
+    RUN_TEST(test_clear_all_chars_facing_partial);
+    RUN_TEST(test_clear_all_chars_facing_zero_count);
     printf("\n");
 }

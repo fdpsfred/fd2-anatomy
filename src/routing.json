@@ -402,8 +402,9 @@
     "name": "fd2_clear_all_chars_facing",
     "target": "battle/btl_init.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00013512": {
     "name": "fd2_mark_char_acted_this_turn",

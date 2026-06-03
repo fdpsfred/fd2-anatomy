@@ -599,7 +599,6 @@ uint8  data_fd2_graphics_tile_anim_palette_phase_lookup[20] = {0};
 void fd2_add_item_to_inventory(uint32 c, uint32 i) { }
 int g_play_sfx_sample_from_bank_calls = 0;
 void fd2_play_sfx_sample_from_bank(uint32 b, uint32 s, uint32 p) { g_play_sfx_sample_from_bank_calls++; (void)b; (void)s; (void)p; }
-void fd2_clear_all_chars_facing(void) { }
 void fd2_paint_char_sprite_at_world_with_mode(uint32 w, uint32 s, uint32 c, uint32 m, uint32 co) { }
 void fd2_paint_threat_overlay_for_team(uint32 ctx) { }
 /* Pathfind stub. Behavior is selected by the `md` (mode) arg:

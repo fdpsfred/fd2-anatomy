@@ -309,6 +309,32 @@ void fd2_init_runtime_char_from_base_growth(uint32 char_id)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_clear_all_chars_facing @ 0x134E4  (23 callers)
+ *
+ * Reset facing direction (= 0 / south) for every party member, then
+ * pause 20 ms for the visual transition. Called at the end of walk
+ * sequences and chapter intros to restore default facing.
+ *
+ * Walks the battle runtime_char array (stride RUNTIME_CHAR_SIZE) for
+ * party_member_count entries, zeroing sprite_state[1] (= facing,
+ * byte +3) in each slot.
+ * ---------------------------------------------------------------- */
+void fd2_clear_all_chars_facing(void)
+{
+    uint8 *pSlot;
+    int    char_idx;
+
+    pSlot = (uint8 *)data_fd2_battle_runtime_char_array_ptr;
+    for (char_idx = 0;
+         char_idx < (int)data_fd2_battle_party_member_count;
+         char_idx = char_idx + 1) {
+        pSlot[3] = 0;
+        pSlot = pSlot + RUNTIME_CHAR_SIZE;
+    }
+    __delay_thunk_375b2(0x14);
+}
+
+/* ----------------------------------------------------------------
  * fd2_set_chapter_init_done_flag @ 0x33FAF
  *
  * Set chapter_init_done_flag byte to 1.
