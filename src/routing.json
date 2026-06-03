@@ -228,7 +228,8 @@
     "target": "gfx/rndscene.c",
     "phase": 3,
     "done": false,
-    "asm": false
+    "asm": false,
+    "reviewed": true
   },
   "00012263": {
     "name": "fd2_tick_tile_event_animations",
