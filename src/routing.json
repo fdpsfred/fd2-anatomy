@@ -4522,7 +4522,8 @@
     "target": "util/pathfnd.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0004e401": {
     "name": "fd2_pathfind_check_destination_save_path",

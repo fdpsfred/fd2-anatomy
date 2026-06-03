@@ -338,5 +338,17 @@
     "issues": [
       "Update-path of fd2_update_palette_cycle_anim is not unit-tested (frame advance + wrap-at-0x10 state transition + VGA DAC port writes). Reason: gated behind a throttle reading the live BIOS tick at 0x46C twice; harness does not fake the tick and fd2_read_bios_midnight_tick is itself a function-under-test, so delta>=2 cannot be forced deterministically. Display side effect deferred to Phase 9 integration. The frame-advance/wrap state transition remains uncovered at unit level due to this hardware gate — record this rationale in the test file comment (currently the no-update test has no note explaining why the update path is omitted)."
     ]
+  },
+  "0004e3cf": {
+    "name": "fd2_pathfind_count_unique_directions",
+    "target": "util/pathfnd.c",
+    "issues": [
+      {
+        "type": "emulator_unmapped_region",
+        "desc": "emulate_function 對 0x60079 區段的 memory 覆寫無效（回傳恆為 EAX=0x94，與 input memory 內容無關），疑為該 data region 在 program image 未 mapped/initialized，emulator 讀寫 fall-through。故本 function 的期望值 (8) 改以 disasm+decomp 不可分歧邏輯做手算驗證：depth=4, dir bytes[0,0,1,1], prev=0xFF → transitions=2 → 2<<2=8，與 ASSERT_EQ(result,8) 相符。後續若需 emulate 驗 pathfind globals 類 function 需注意此限制。",
+        "severity": "info",
+        "verify_method": "manual_disasm_decomp"
+      }
+    ]
   }
 }
