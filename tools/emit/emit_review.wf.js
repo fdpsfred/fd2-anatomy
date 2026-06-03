@@ -23,7 +23,8 @@ const MIN_BUDGET_PER_FN = (A && A.minBudgetPerFn) || 400000
 const ENV = [
   'environment: Ghidra 已開啟 FD2.LE（單一 program）。呼叫 Ghidra MCP 時 program 參數留空。',
   '先用 ToolSearch 一次載入所需 Ghidra 工具：',
-  'ToolSearch query="select:mcp__ghidra__get_plate_comment,mcp__ghidra__disassemble_function,mcp__ghidra__decompile_function,mcp__ghidra__get_function_callers,mcp__ghidra__get_xrefs_to,mcp__ghidra__get_function_signature,mcp__ghidra__emulate_function"',
+  'ToolSearch query="select:mcp__ghidra__get_plate_comment,mcp__ghidra__disassemble_function,mcp__ghidra__decompile_function,mcp__ghidra__get_function_callers,mcp__ghidra__get_xrefs_to,mcp__ghidra__get_function_signature,mcp__ghidra__emulate_function,mcp__ghidra__open_program,mcp__ghidra__get_current_program_info"',
+  '用到不熟/沒把握的 Ghidra MCP function（emulate_function、analyze_dataflow、apply_data_type、create_struct…）前，先讀 `.claude/skills/ghidra-usage/` 的說明確認正確參數格式與 best practice，不要猜格式硬試（猜錯會讀到垃圾引數、甚至卡死 Ghidra）。',
 ].join('\n')
 
 const SOP = [
@@ -36,10 +37,29 @@ const SOP = [
   '- 絕不半成品（改名 / static / 空殼 / _impl）；絕不為遷就 test 而扭曲 emit code。',
   '- 禁 workaround，只修 root cause。',
   '- Ghidra 連線失敗：某個 Ghidra MCP 呼叫失敗、或回任何形式的「instance 不可用 / 無法連線 / 連線中斷 / 逾時」錯誤（不限特定字串）時，先「快速重試該呼叫一次」（僅一次，不可反覆重試以免 hammer/wedge Ghidra）排除瞬間 blip；重試成功就照常繼續、不要設旗標。若重試仍失敗（持續無法連線）→ 立刻停止本 function、不臆測不硬湊，務必設 ghidra_unreachable=true（bool），並把你實際看到的錯誤訊息/原因寫進 ghidra_error_detail（string）。這是給外層 watchdog 的唯一停批訊號。',
+  '  例外：若 timeout 緊接在你呼叫 `emulate_function` 之後（emulate 格式錯造成 runaway 會連帶卡死 Ghidra、後續所有呼叫也 timeout）→ 這不是真連線中斷，**不要設 ghidra_unreachable**，改走下方「emulate_function 使用規範」的自助重啟+重試流程（最多 5 次）。',
   '- Test 覆蓋政策＝風險導向：對「數值計算 / 複雜控制流分支 / RNG / EAX-bug 風險 / 狀態轉移」的 state/path 強制測；純 blit/display 副作用的 state 可延到 Phase 9 integration（但須在輸出註明延後與理由）。',
   '- build gate：前景執行  python tools/emit/build_test.py --changed "<改動檔,逗號分隔>"  ，它內部自己輪詢 DONE.TXT（約 20-30 秒）並回傳 JSON。',
   '  嚴禁用背景 / run_in_background 跑它——subagent 一旦交出最終訊息就結束，收不到背景通知、不會閉環。必須前景阻塞等它回 JSON。',
   '- build 目前 0 warning；gate（gate_pass）要求 0 warning，絕不可新增任何 warning。',
+].join('\n')
+
+const EMULATE_GUIDE = [
+  '# emulate_function 使用規範（取純計算 ground-truth 時；checksum / CRC / hash / bit-packing 等「輸入已知、純計算」leaf）',
+  '呼叫前先讀 `.claude/skills/ghidra-usage/` 確認最新用法。下面是已驗證的正確格式 —— 格式錯會讀到垃圾引數→暴衝迴圈→卡死 Ghidra，務必照做：',
+  '- 先從 disasm 判 calling convention：引數是從 register 取（MOV ...,EAX/EDX/EBX/ECX）還是從 STACK 取（MOV ...,[EBP+0x8] / [EBP+0xc]，cdecl）。',
+  '- `registers`：JSON string，如 {"ECX":"0x10"}。register-cc 的引數設這裡。',
+  '- `memory`：必須用 regions wrapper → {"regions":[{"address":"0x7FFE0000","hex":"01020304"}]}（每 region 可用 hex / data(base64) / string）。',
+  '- stack 由工具自動初始化在 0x7FFF0000、return sentinel 0xDEADBEEF —— **不要自己設 ESP/鋪 stack**。cdecl(stack-cc) 引數放成 memory region：arg1 在 0x7FFF0004、arg2 在 0x7FFF0008（小端 4 bytes）；引數若是指標，把它指向的 buffer 放資料區（如 0x7FFE0000）、該引數值＝該位址。',
+  '- 回傳含 `hit_return:true` 代表正常跑到 RET；return_registers 指定的 register（如 EAX）即結果。先用「已知輸入、可手算的小案例」驗證回值正確，再用它取真正的 ground-truth。',
+  '## emulate_function timeout → 自助重啟 + 修正參數重試，最多 5 次（超過才放棄）：',
+  '1. 重啟 Ghidra（用 PowerShell 工具，或 Bash 呼叫 powershell.exe；需要時加 dangerouslyDisableSandbox）。只鎖定 Ghidra 那個 javaw，勿殺其他 java：',
+  '   kill： Get-CimInstance Win32_Process -Filter "Name=\'javaw.exe\'" | Where-Object { $_.CommandLine -like \'*ghidra_12.1_PUBLIC*\' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }',
+  '   relaunch： Start-Process -FilePath "C:\\Users\\fdpsf\\Documents\\ghidra_12.1_PUBLIC\\ghidraRun.bat"',
+  '2. 等 MCP port 就緒（單一 Bash 指令，勿用前景長 sleep）： for i in $(seq 1 80); do (exec 3<>/dev/tcp/127.0.0.1/8089) 2>/dev/null && { exec 3>&-; echo UP; break; }; sleep 3; done',
+  '3. ghidraRun **不會自動載入程式**（get_current_program_info 會回 "No program loaded"）→ 用 MCP open_program(path="/FD2.LE") 載回，再 get_current_program_info 確認 1375 functions。',
+  '4. 依上面的正確格式 + 正確 cc/引數位置修正參數後重試 emulate_function。',
+  '5. 累計 5 次仍失敗才放棄 emulate_function：改「手動對 disasm/decomp 推導期望值」並在輸出 notes 註明改用手算；不可因 emulate 失敗就 abort 整個 function，也不要設 ghidra_unreachable。',
 ].join('\n')
 
 const NEED_KB = [
@@ -50,7 +70,7 @@ const NEED_KB = [
 
 function emitterPrompt(fn, mode, verdict) {
   const head = [
-    ENV, '', SOP, '', NEED_KB, '',
+    ENV, '', SOP, '', EMULATE_GUIDE, '', NEED_KB, '',
     '# 角色：Emitter（' + (mode === 'fix' ? 'fix 回合' : 'emit 回合') + '）。以最高嚴謹度執行。',
     '目標 function：',
     '- address: ' + fn.addr,
@@ -102,7 +122,7 @@ function emitterPrompt(fn, mode, verdict) {
 
 function reviewerPrompt(fn, emitterOut) {
   return [
-    ENV, '', SOP, '', NEED_KB, '',
+    ENV, '', SOP, '', EMULATE_GUIDE, '', NEED_KB, '',
     '# 角色：Reviewer（獨立驗證）。你不信任既有 emitted C，也不信任 Ghidra decompiled C——所有結論自己從 assembly + plate + 原始碼重新確認。surface verify（只查名稱存在）無效。',
     '目標 function：address ' + fn.addr + '  name ' + fn.name + '  target src/' + fn.target + '  模式 ' + fn.mode + '。',
     emitterOut ? ('Emitter 本回合回報（僅供定位，不可當證據）：\n' + JSON.stringify(emitterOut, null, 2)) : '（review 模式初次：尚無 emitter 回合，直接驗證既有 baseline C。）',
