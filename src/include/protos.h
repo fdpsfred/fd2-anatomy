@@ -260,6 +260,7 @@ int  fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp);
 
 /* ---- chapter / battle init ---- */
 void fd2_load_chapter_battle_data(uint32 chapter_id);
+void fd2_load_chapter_portraits_and_dump_tmp(uint32 mode);
 void fd2_load_chapter_background_layers(void);
 void fd2_play_palette_fade_in(void);
 void fd2_play_palette_fade_to_black(void);

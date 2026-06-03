@@ -28,7 +28,8 @@
     "target": "rsrc/rsrc.c",
     "phase": 5,
     "done": false,
-    "asm": false
+    "asm": false,
+    "reviewed": true
   },
   "00010b43": {
     "name": "fd2_noop_stub_b43",

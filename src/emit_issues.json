@@ -368,5 +368,23 @@
         "verify_method": "unit_tested"
       }
     ]
+  },
+  "0001088d": {
+    "name": "fd2_load_chapter_battle_data",
+    "target": "rsrc/rsrc.c",
+    "issues": [
+      {
+        "type": "shared_epilogue_regeneration",
+        "desc": "此函式正常路徑結尾 CALL fd2_load_chapter_portraits_and_dump_tmp(0) 後 fall-through 進共用 epilogue fragment fd2_noop_stub_b43 @ 0x10b43 (ADD ESP,0xc / POP EBP/EDI/ESI/EBX / RET)。emit 為 plain return；等價靠 Watcom 9.5a 重新生成等量 stack cleanup + saved-reg restore，非 byte-identical。對應 00010b43 handoff 的 +0x00 parent 覆蓋點。verify_method: post-build -d disasm 確認本函式 epilogue 的 ADD ESP 量與 POP 順序對應其 4 個 saved reg (EBX/ESI/EDI/EBP) + locals。",
+        "severity": "info",
+        "verify_method": "compile_and_disasm"
+      },
+      {
+        "type": "error_path_exit_code",
+        "desc": "兩條失敗路徑 (malloc fail / fopen fail) 原 binary 為 PUSH <msg>; JMP 0x10056，共用 sibling fd2_load_save_and_init_engine 的 tail：CALL printf; ADD ESP,4; PUSH 1; JMP exit。即實際 exit code 固定為 1。Ghidra decomp 將 PUSH 1 誤渲染為 exit(pRuntime_char_alloc)（fopen 結果變數）——為 decomp artifact。emit 採真實行為 exit(1)，與 sibling main.c 既有慣例一致。OOM 字串用 pooled global data_fd2_string_field_map_oom_msg_chapter_runtime_50064 @0x50064，file-not-found 用 data_fd2_string_field_map_fdicon_not_found_err_50086 @0x50086。",
+        "severity": "info",
+        "verify_method": "compile_and_disasm"
+      }
+    ]
   }
 }

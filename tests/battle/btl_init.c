@@ -9,6 +9,7 @@
 #include "globals.h"
 #include "protos.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 #define USE_ITEM_ID 10
 
@@ -67,8 +68,75 @@ extern int g_repaint_flip_buffer_after;
 
 /* ---- Test: fd2_init_battle_state_for_chapter ---- */
 
+/* fd2_init_battle_state_for_chapter calls the real (linked) chapter-battle-data
+ * loader, which fopens FDICON.B24 and reads packed FDFIELD/FDSHAP buffers via
+ * pointer globals (and exit()s if FDICON.B24 is missing). Stage a minimal
+ * end-to-end fixture: zero-length party (total_size 0) so the per-slot build
+ * loop is a no-op, plus valid tile-map / tile-event / consumed-flags buffers
+ * and an on-disk FDICON.B24 so the loader runs to completion without faulting. */
+static uint8 *g_bi_tileevent;
+static uint8 *g_bi_tilemap;
+static uint8 *g_bi_field;
+static uint8 *g_bi_consumed;
+
+static void setup_init_fixture(void)
+{
+    FILE *fp;
+
+    data_fd2_chapter_current_chapter_id = 0x10;
+
+    g_bi_tileevent = (uint8 *)malloc(16);
+    memset(g_bi_tileevent, 0, 16);   /* [1]=total_size=0 -> empty loop */
+    data_fd2_tile_event_data_table_ptr = (uint32)g_bi_tileevent;
+
+    g_bi_tilemap = (uint8 *)malloc(16);
+    memset(g_bi_tilemap, 0, 16);
+    data_fd2_battle_tile_map_ptr = (uint32)g_bi_tilemap;
+
+    g_bi_field = (uint8 *)malloc(64);
+    memset(g_bi_field, 0, 64);
+    chapter_portrait_load_buffer = (uint32)g_bi_field;
+
+    g_bi_consumed = (uint8 *)malloc(0x20);
+    memset(g_bi_consumed, 0, 0x20);
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_bi_consumed;
+
+    data_fd2_battle_runtime_char_array_ptr = NULL;
+    portrait_sprite_cache = 0;
+
+    fp = fopen("FDICON.B24", "wb");
+    fclose(fp);
+}
+
+static void teardown_init_fixture(void)
+{
+    if (data_fd2_battle_runtime_char_array_ptr != NULL)
+        free(data_fd2_battle_runtime_char_array_ptr);
+    if (portrait_sprite_cache != 0)
+        free((void *)portrait_sprite_cache);
+    free(g_bi_tileevent);
+    free(g_bi_tilemap);
+    /* g_bi_field already free()d by the loader (it frees + nulls
+     * chapter_portrait_load_buffer, whose value is g_bi_field) */
+    free(g_bi_consumed);
+
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_battle_tile_map_ptr = 0;
+    chapter_portrait_load_buffer = 0;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
+    portrait_sprite_cache = 0;
+    current_chapter_text = 0;
+    battle_scene_snapshot = 0;
+    data_fd2_tile_attribute_flags_buffer_ptr = 0;
+    data_fd2_chapter_current_chapter_id = 1;
+
+    remove("FDICON.B24");
+}
+
 static void test_init_battle_state_zeros_cursor(void)
 {
+    setup_init_fixture();
     data_fd2_battle_cursor_world_x = 5;
     data_fd2_battle_cursor_world_y = 5;
     data_fd2_battle_cursor_screen_x = 5;
@@ -86,6 +154,7 @@ static void test_init_battle_state_zeros_cursor(void)
     ASSERT_EQ((long)data_fd2_chapter_event_or_battle_end_code, 0);
     ASSERT_EQ((long)data_fd2_battle_anim_phase, 1);
     ASSERT_EQ((long)data_fd2_battle_turn_counter, 1);
+    teardown_init_fixture();
 }
 
 

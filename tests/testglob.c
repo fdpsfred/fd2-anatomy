@@ -40,6 +40,8 @@ char   data_fd2_string_resource_filename_fdshap_dat_51a65[] = "FDSHAP.DAT";
 char   data_fd2_string_save_load_oom_msg_load_pbuf_50004[] = " Out of Memory !!!\n";
 char   data_fd2_string_save_load_oom_msg_tile_event_50023[] = " Out of Memory !!!\n";
 char   data_fd2_string_save_load_oom_msg_runtime_char_50037[] = " Out of Memory !!!\n";
+char   data_fd2_string_field_map_oom_msg_chapter_runtime_50064[] = " Out of Memory !!!\n";
+char   data_fd2_string_field_map_fdicon_not_found_err_50086[] = "\n\n File not found 'FDICON.B24!! \n\n";
 uint32 data_fd2_shared_party_total_gold = 0;
 uint32 data_fd2_shared_menu_party_roster_buffer_ptr = 0;
 uint32 data_fd2_shared_menu_party_member_count = 0;
@@ -189,7 +191,13 @@ void fd2_play_and_free_status_effect_sfx(void) { }
 void fd2_display_dialog_scene(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e, uint32 f, uint32 g, uint32 h, uint32 ii) { }
 void fd2_load_chapter_portrait(uint32 p) { }
 void fd2_close_status_screen_with_slide_out(void) { }
-void fd2_load_chapter_battle_data(uint32 c) { (void)c; }
+/* fd2_load_chapter_battle_data: now in rsrc/rsrc.c */
+int g_portraits_dump_calls = 0;
+uint32 g_portraits_dump_last_mode = 0;
+void fd2_load_chapter_portraits_and_dump_tmp(uint32 mode) {
+    g_portraits_dump_calls++;
+    g_portraits_dump_last_mode = mode;
+}
 void fd2_play_palette_fade_to_black(void) { }
 int g_ending_menu_return = 0;
 int fd2_play_ending_and_record_clear(void) { return g_ending_menu_return; }
