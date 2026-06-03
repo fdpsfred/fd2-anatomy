@@ -283,6 +283,7 @@ void fd2_render_recruitment_party_screen(void) { }
 uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch = 0;
 uint32 data_fd2_ui_slide_composed_target_buf_ptr = 0;
 uint32 data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+uint32 data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
 uint32 data_fd2_ui_menu_cursor_idx = 0;
 /* field command menu templates — real FD2.LE values @ 0x51E9F / 0x53EF2 */
 int32  data_fd2_ui_field_command_menu_options_template[4] = { 7, 5, 6, 4 };
@@ -774,12 +775,10 @@ int fd2_player_action_menu_loop(uint32 char_idx) {
     g_player_action_menu_loop_last_char = char_idx;
     return g_player_action_menu_loop_return;
 }
-int g_open_char_status_screen_calls = 0;
-uint32 g_open_char_status_screen_last_char = 0xffffffff;
-void fd2_open_char_status_screen(uint32 char_idx) {
-    g_open_char_status_screen_calls++;
-    g_open_char_status_screen_last_char = char_idx;
-}
+/* fd2_open_char_status_screen: now emitted in src/ui_menu/status.c and linked
+ * for real (was a recording stub here). It is pure VGA/sfx orchestration and is
+ * never reached by a host test — fd2_game_main_loop (its sole in-tree caller)
+ * is not exercised — so its behavioral coverage is deferred to Phase 9. */
 int g_open_tactical_overview_zoom_calls = 0;
 void fd2_open_tactical_overview_zoom(void) {
     g_open_tactical_overview_zoom_calls++;
@@ -852,3 +851,28 @@ void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite, uint32 stride) {
  * src/dialog/dialog.c and linked for real; its teardown + slide-out
  * interpolation is driven by the test_close_* cases in
  * tests/dialog/dialog.c (observed via the restore/save/blit-setup stubs). */
+
+/* ---- fd2_open_char_status_screen (status.c) support ----
+ * The status-screen modal is pure VGA/sfx orchestration: every callee below
+ * only blits/animates, and the function itself memmoves to physical VRAM
+ * (0xA0000). It is therefore deferred to Phase 9 integration and is not driven
+ * by a host unit test; these noop stubs only satisfy the linker for the
+ * not-yet-emitted display callees it references. */
+void fd2_open_status_screen_with_slide_in(uint32 char_idx) { (void)char_idx; }
+void fd2_paint_status_panel_layer_left(uint32 layer, uint32 dst_workspace,
+                                       uint32 overlay_buffer) {
+    (void)layer; (void)dst_workspace; (void)overlay_buffer;
+}
+void fd2_paint_status_panel_layer_right(uint32 layer, uint32 dst_workspace,
+                                        uint32 overlay_buffer) {
+    (void)layer; (void)dst_workspace; (void)overlay_buffer;
+}
+void fd2_play_status_screen_outro_step(uint32 frame, uint32 dst_workspace,
+                                       uint32 overlay_buffer,
+                                       int snapshot_buffer) {
+    (void)frame; (void)dst_workspace; (void)overlay_buffer; (void)snapshot_buffer;
+}
+void fd2_draw_spell_selection_list(uint32 char_idx, uint32 spell_idx,
+                                   uint32 overlay_buffer) {
+    (void)char_idx; (void)spell_idx; (void)overlay_buffer;
+}
