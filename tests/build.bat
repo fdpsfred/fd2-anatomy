@@ -30,6 +30,7 @@ D:\BIN\WCC386.EXE gfx\blitspr.c %CF% -fo=E:\out\obj\blitspr.obj >> E:\out\build.
 D:\BIN\WCC386.EXE gfx\blittile.c %CF% -fo=E:\out\obj\blittile.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE field\chtrans.c %CF% -fo=E:\out\obj\chtrans.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE dialog\dialog.c %CF% -fo=E:\out\obj\dialog.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE gfx\rndstat.c %CF% -fo=E:\out\obj\rndstat.obj >> E:\out\build.out
 
 echo === compile tests === >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\testmain.c %CF% -fo=E:\out\obj\testmain.obj >> E:\out\build.out
@@ -55,6 +56,7 @@ D:\BIN\WCC386.EXE E:\gfx\blitspr.c %CF% -fo=E:\out\obj\tblitspr.obj >> E:\out\bu
 D:\BIN\WCC386.EXE E:\gfx\blittile.c %CF% -fo=E:\out\obj\tblittil.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\gfx\palette.c %CF% -fo=E:\out\obj\tpalette.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\gfx\rndscene.c %CF% -fo=E:\out\obj\trndscen.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE E:\gfx\rndstat.c %CF% -fo=E:\out\obj\trndstat.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\input\input.c %CF% -fo=E:\out\obj\tinput.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\life\main.c %CF% -fo=E:\out\obj\tmain.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\rsrc\rsrc.c %CF% -fo=E:\out\obj\trsrc.obj >> E:\out\build.out

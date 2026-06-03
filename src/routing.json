@@ -718,8 +718,9 @@
     "name": "fd2_paint_portrait_to_dialog_area",
     "target": "gfx/rndstat.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000165ac": {
     "name": "fd2_play_dialog_open_animation",

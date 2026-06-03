@@ -423,9 +423,6 @@ void fd2_cast_status_cure_spell(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e
 void fd2_cast_status_inflict_spell(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e) { }
 int g_cast_status_via_d1b_calls = 0;
 void fd2_cast_status_spell_via_d1b(int a, int b, int c, int d, int e) { g_cast_status_via_d1b_calls++; (void)a; (void)b; (void)c; (void)d; (void)e; }
-int    g_paint_portrait_calls = 0;
-uint32 g_paint_portrait_last_frame = 0xffffffffu;
-void fd2_paint_portrait_to_dialog_area(uint32 f) { g_paint_portrait_calls++; g_paint_portrait_last_frame = f; }
 int    g_mini_panel_calls = 0;
 uint32 g_mini_panel_last_buf = 0;
 uint32 g_mini_panel_last_stride = 0;
@@ -776,11 +773,22 @@ uint32 fd2_play_dialog_open_animation(uint32 px, uint32 py, uint32 flip) {
     (void)px; (void)py; (void)flip; return 0;
 }
 void fd2_cinematic_scroll_text_up_for_special_scenes(void) { }
+int    g_dlg_blit_normal_calls = 0;
+int    g_dlg_blit_mirrored_calls = 0;
+uint32 g_dlg_blit_last_dst = 0;
+uint32 g_dlg_blit_last_sprite = 0;
+uint32 g_dlg_blit_last_stride = 0;
 void fd2_dialog_sprite_blit_normal(uint32 dst, uint32 sprite, uint32 stride) {
-    (void)dst; (void)sprite; (void)stride;
+    g_dlg_blit_normal_calls++;
+    g_dlg_blit_last_dst = dst;
+    g_dlg_blit_last_sprite = sprite;
+    g_dlg_blit_last_stride = stride;
 }
 void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite, uint32 stride) {
-    (void)dst; (void)sprite; (void)stride;
+    g_dlg_blit_mirrored_calls++;
+    g_dlg_blit_last_dst = dst;
+    g_dlg_blit_last_sprite = sprite;
+    g_dlg_blit_last_stride = stride;
 }
 void fd2_close_dialog_panels_then_slide_in_at(uint32 anim_handle,
                                               uint32 slot_offset) {

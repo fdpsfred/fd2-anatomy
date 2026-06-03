@@ -260,50 +260,66 @@ static void test_page_idx_selects_start(void)
  */
 extern uint32 data_fd2_dialog_portrait_blink_frame_idx;
 extern uint32 data_fd2_dialog_portrait_blink_subtick_counter;
-extern int    g_paint_portrait_calls;
-extern uint32 g_paint_portrait_last_frame;
+/* spies for the real fd2_paint_portrait_to_dialog_area's blit primitive:
+ * with active offset 0 (!= 0x9017) it takes the normal-blit path, and the
+ * sprite payload address it forwards is buffer + offset_table[frame]. We
+ * set offset_table[i] = i so the captured sprite offset == the frame index. */
+extern int    g_dlg_blit_normal_calls;
+extern uint32 g_dlg_blit_last_sprite;
+
+static int32 g_blink_portrait_buf[16];
+
+static uint32 blink_painted_frame(void)
+{
+    return g_dlg_blit_last_sprite - (uint32)(uint8 *)g_blink_portrait_buf;
+}
 
 static void test_blink_frame_cycle(void)
 {
+    int i;
+
     dlg_reset();
+    for (i = 0; i < 16; i++) {
+        g_blink_portrait_buf[i] = i;   /* offset_table[frame] == frame */
+    }
+    data_fd2_portrait_sprite_buffer = (uint8 *)g_blink_portrait_buf;
     data_fd2_dialog_portrait_blink_frame_idx = 0;
     data_fd2_dialog_portrait_blink_subtick_counter = 0;
-    g_paint_portrait_calls = 0;
-    g_paint_portrait_last_frame = 0xffffffffu;
+    g_dlg_blit_normal_calls = 0;
     g_dlg_blink_calls = 0;
 
     /* Call 1: subtick 0->1, no paint */
     fd2_portrait_blink_animation_step();
     ASSERT_EQ((long)data_fd2_dialog_portrait_blink_subtick_counter, 1);
-    ASSERT_EQ((long)g_paint_portrait_calls, 0);
+    ASSERT_EQ((long)g_dlg_blit_normal_calls, 0);
 
     /* Call 2: subtick hits 2 -> frame 0->1, paint(1), subtick reset */
     fd2_portrait_blink_animation_step();
     ASSERT_EQ((long)data_fd2_dialog_portrait_blink_subtick_counter, 0);
     ASSERT_EQ((long)data_fd2_dialog_portrait_blink_frame_idx, 1);
-    ASSERT_EQ((long)g_paint_portrait_calls, 1);
-    ASSERT_EQ((long)g_paint_portrait_last_frame, 1);
+    ASSERT_EQ((long)g_dlg_blit_normal_calls, 1);
+    ASSERT_EQ((long)blink_painted_frame(), 1);
 
     /* Calls 3-4: frame 1->2, paint(2) */
     fd2_portrait_blink_animation_step();
     fd2_portrait_blink_animation_step();
     ASSERT_EQ((long)data_fd2_dialog_portrait_blink_frame_idx, 2);
-    ASSERT_EQ((long)g_paint_portrait_last_frame, 2);
+    ASSERT_EQ((long)blink_painted_frame(), 2);
 
     /* Calls 5-6: frame 2->3, painted value collapses 3 -> 1 */
     fd2_portrait_blink_animation_step();
     fd2_portrait_blink_animation_step();
     ASSERT_EQ((long)data_fd2_dialog_portrait_blink_frame_idx, 3);
-    ASSERT_EQ((long)g_paint_portrait_last_frame, 1);
+    ASSERT_EQ((long)blink_painted_frame(), 1);
 
     /* Calls 7-8: frame 3->4 wraps to 0, paint(0) */
     fd2_portrait_blink_animation_step();
     fd2_portrait_blink_animation_step();
     ASSERT_EQ((long)data_fd2_dialog_portrait_blink_frame_idx, 0);
-    ASSERT_EQ((long)g_paint_portrait_last_frame, 0);
+    ASSERT_EQ((long)blink_painted_frame(), 0);
 
     /* 8 calls -> 4 paints, and SFX fires once per call */
-    ASSERT_EQ((long)g_paint_portrait_calls, 4);
+    ASSERT_EQ((long)g_dlg_blit_normal_calls, 4);
     ASSERT_EQ((long)g_dlg_blink_calls, 8);
 }
 
