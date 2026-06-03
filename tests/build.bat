@@ -25,6 +25,7 @@ D:\BIN\WCC386.EXE save\save.c %CF% -fo=E:\out\save.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE util\noop.c %CF% -fo=E:\out\noop.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE rsrc\rsrc.c %CF% -fo=E:\out\rsrc.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE ui_menu\menu.c %CF% -fo=E:\out\menu.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE gfx\rndscene.c %CF% -fo=E:\out\rndscene.obj >> E:\out\build.out
 
 echo === compile tests === >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\testmain.c %CF% -fo=E:\out\testmain.obj >> E:\out\build.out
@@ -45,6 +46,7 @@ D:\BIN\WCC386.EXE E:\battle\btl_aitg.c %CF% -fo=E:\out\tbtlaitg.obj >> E:\out\bu
 D:\BIN\WCC386.EXE E:\battle\btl_init.c %CF% -fo=E:\out\tbtlinit.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\battle\btl_turn.c %CF% -fo=E:\out\tbtlturn.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\gfx\palette.c %CF% -fo=E:\out\tpalette.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE E:\gfx\rndscene.c %CF% -fo=E:\out\trndscen.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\input\input.c %CF% -fo=E:\out\tinput.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\life\main.c %CF% -fo=E:\out\tmain.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\rsrc\rsrc.c %CF% -fo=E:\out\trsrc.obj >> E:\out\build.out

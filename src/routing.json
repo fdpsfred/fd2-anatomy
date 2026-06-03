@@ -196,7 +196,8 @@
     "target": "gfx/rndscene.c",
     "phase": 3,
     "done": false,
-    "asm": false
+    "asm": false,
+    "reviewed": true
   },
   "00011d40": {
     "name": "fd2_set_vga_palette_range",
