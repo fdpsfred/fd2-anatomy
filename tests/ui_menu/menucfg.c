@@ -28,7 +28,6 @@
 extern int g_settings_input_step_return;
 extern int g_settings_cursor_idx;
 extern int g_settings_select_once;
-extern int g_close_settings_dialog_calls;
 extern int g_settings_input_step_calls;
 
 /* AIL_set_sequence_volume tracking (defined in testglob.c) */
@@ -83,7 +82,6 @@ static void cfg_reset_select(int cursor)
     cfg_setup_render_env();
     g_settings_cursor_idx = cursor;
     g_settings_select_once = 1;
-    g_close_settings_dialog_calls = 0;
     g_settings_input_step_calls = 0;
     g_ail_vol_calls = 0;
     g_ail_last_vol = 0;
@@ -99,7 +97,6 @@ static void test_options_cancel(void)
     cfg_setup_render_env();
     g_settings_select_once = 0;
     g_settings_input_step_return = -1;
-    g_close_settings_dialog_calls = 0;
     g_ail_vol_calls = 0;
 
     bgm0 = data_fd2_audio_bgm_enabled_flag;
@@ -109,9 +106,9 @@ static void test_options_cancel(void)
 
     fd2_game_options_menu_loop();
 
-    /* one real open-dialog = 4 frames x 4 corners = 16 corner blits */
-    ASSERT_EQ(g_blitsetup_calls, 16);
-    ASSERT_EQ(g_close_settings_dialog_calls, 1);
+    /* one real open-dialog + one real close-dialog, each 4 frames x 4 corners
+       = 16 corner blits, so 32 total for the single cancel iteration. */
+    ASSERT_EQ(g_blitsetup_calls, 32);
     ASSERT_EQ(g_ail_vol_calls, 0);
     ASSERT_EQ(data_fd2_audio_bgm_enabled_flag, bgm0);
     ASSERT_EQ(data_fd2_audio_sfx_enabled_flag, sfx0);
@@ -239,6 +236,56 @@ static void test_open_dialog_last_blit(void)
     ASSERT_EQ(g_blitsetup_stride, 0x1C8u);
 }
 
+/* fd2_close_settings_dialog_with_slide: drive the real close render once and
+ * verify the deterministic core — same per-corner sprite atlas index and
+ * handle offset-table lookup as open, but the 4 corner offsets start at their
+ * outer extents and converge INWARD each frame (opposite sense to open). The
+ * capture stub records the LAST blit = corner 3 on frame 3:
+ *   corner_offsets[3] = 0x2AC0 - 4*0x8E8 = 0x720
+ *   dst              = (ptr + 0x8088) + cx*0x18 + cy*0x2AC0 + 0x720
+ *   sprite_id        = menu_options[3]*3 + menu_state[3]*2
+ *   sprite_addr      = handle + table[sprite_id]
+ * Invariants: 16 corner blits, stride always 0x1C8. The close also restores
+ * the dialog area from backup (5x: once per frame + one final) and clears the
+ * keyboard buffer, both real callees, exercised here without faulting. Since
+ * the real fd2_restore_dialog_area_from_buffer copies FROM the backup buffer
+ * unconditionally, we first run the real fd2_backup_dialog_area_to_buffer to
+ * stand up a valid "save under" snapshot, exactly as the live open->close flow
+ * would. */
+static void test_close_dialog_last_blit(void)
+{
+    int32 menu_options[4];
+    int32 menu_state[4];
+    int sprite_id;
+    uint32 expect_dst;
+    uint32 expect_sprite;
+
+    cfg_setup_render_env();
+    fd2_backup_dialog_area_to_buffer();
+
+    menu_options[0] = 1; menu_options[1] = 2;
+    menu_options[2] = 3; menu_options[3] = 4;
+    menu_state[0] = 0;   menu_state[1] = 0;
+    menu_state[2] = 0;   menu_state[3] = 5;
+
+    /* corner 3: sprite_id = 4*3 + 5*2 = 22; seed table[22] with a known offset */
+    sprite_id = menu_options[3] * 3 + menu_state[3] * 2;
+    ASSERT_EQ(sprite_id, 22);
+    cfg_dialog_handle[sprite_id] = 0x100;
+
+    fd2_close_settings_dialog_with_slide(menu_options, menu_state);
+
+    /* panel_anchor = base + 0x8088 + cx*0x18 + cy*0x2AC0; cursor (1,1) here.
+       corner_offsets[3] converges inward: 0x2AC0 - 4*0x8E8 = 0x720. */
+    expect_dst = (uint32)cfg_ws_buffer + 0x8088u + 0x18u + 0x2AC0u + 0x720u;
+    expect_sprite = (uint32)cfg_dialog_handle + 0x100u;
+
+    ASSERT_EQ(g_blitsetup_calls, 16);
+    ASSERT_EQ((long)g_blitsetup_dst, (long)expect_dst);
+    ASSERT_EQ((long)g_blitsetup_sprite, (long)expect_sprite);
+    ASSERT_EQ(g_blitsetup_stride, 0x1C8u);
+}
+
 /* fd2_count_active_menu_items_until_zero: count leading non-zero entries (max 4)
  * of a 4-slot int menu definition into data_fd2_ui_menu_cursor_idx. */
 
@@ -306,6 +353,7 @@ void run_ui_menu_menucfg_tests(void)
     RUN_TEST(test_options_speed_toggle);
     RUN_TEST(test_options_terrain_hud_toggle);
     RUN_TEST(test_open_dialog_last_blit);
+    RUN_TEST(test_close_dialog_last_blit);
     RUN_TEST(test_count_first_zero);
     RUN_TEST(test_count_partial);
     RUN_TEST(test_count_all_four);

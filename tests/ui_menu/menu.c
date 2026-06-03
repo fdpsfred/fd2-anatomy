@@ -36,7 +36,6 @@ extern int g_player_action_menu_loop_return;
 /* fd2_field_command_menu_loop dispatch seams (defined in testglob.c) */
 extern int g_settings_input_step_return;
 extern int g_settings_cursor_idx;
-extern int g_close_settings_dialog_calls;
 extern int g_settings_input_step_calls;
 extern int g_save_load_quit_dispatch_return;
 extern int g_save_load_quit_dispatch_calls;
@@ -88,7 +87,6 @@ static void fcm_reset(int cursor, int input_return)
     mnu_setup_render_env();
     g_settings_cursor_idx = cursor;
     g_settings_input_step_return = input_return;
-    g_close_settings_dialog_calls = 0;
     g_settings_input_step_calls = 0;
     g_save_load_quit_dispatch_calls = 0;
     g_settings_select_once = 0;
@@ -104,9 +102,8 @@ static void test_field_command_menu_cancel(void)
     fcm_reset(0, -1);
     r = fd2_field_command_menu_loop();
     ASSERT_EQ(r, 1);
-    /* one real open-dialog = 16 corner blits */
-    ASSERT_EQ(g_blitsetup_calls, 16);
-    ASSERT_EQ(g_close_settings_dialog_calls, 1);
+    /* one real open-dialog + one real close-dialog = 16 + 16 = 32 corner blits */
+    ASSERT_EQ(g_blitsetup_calls, 32);
     ASSERT_EQ(g_save_load_quit_dispatch_calls, 0);
 }
 
@@ -122,7 +119,8 @@ static void test_field_command_menu_save_load_passthrough(void)
     r = fd2_field_command_menu_loop();
     ASSERT_EQ(r, 42);
     ASSERT_EQ(g_save_load_quit_dispatch_calls, 1);
-    ASSERT_EQ(g_close_settings_dialog_calls, 1);
+    /* one real open + one real close before the cursor-0 dispatch = 32 blits */
+    ASSERT_EQ(g_blitsetup_calls, 32);
 }
 
 /* cursor == 2 (Options): runs the real fd2_game_options_menu_loop submenu then
@@ -138,10 +136,10 @@ static void test_field_command_menu_options(void)
     r = fd2_field_command_menu_loop();
     ASSERT_EQ(r, 0);
     ASSERT_EQ(g_save_load_quit_dispatch_calls, 0);
-    /* one open/close for the field-command dialog, one for the options dialog;
-     * each real open = 16 corner blits -> 32 total */
-    ASSERT_EQ(g_blitsetup_calls, 32);
-    ASSERT_EQ(g_close_settings_dialog_calls, 2);
+    /* one open/close for the field-command dialog, one open/close for the
+     * options dialog; each real open and each real close = 16 corner blits
+     * -> 4 * 16 = 64 total */
+    ASSERT_EQ(g_blitsetup_calls, 64);
 }
 
 void run_ui_menu_menu_tests(void)

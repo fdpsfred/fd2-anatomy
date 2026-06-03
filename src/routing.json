@@ -838,8 +838,9 @@
     "name": "fd2_close_settings_dialog_with_slide",
     "target": "ui_menu/menucfg.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000177fc": {
     "name": "fd2_settings_menu_input_step",

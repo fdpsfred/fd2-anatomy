@@ -750,7 +750,10 @@ void fd2_init_movement_range_floodfill(uint32 ct, uint32 x, uint32 y,
 int g_settings_input_step_return = -1;       /* default: cancel */
 int g_settings_cursor_idx = 0;
 int g_open_settings_dialog_calls = 0;
-int g_close_settings_dialog_calls = 0;
+/* fd2_close_settings_dialog_with_slide is now a real emitted function
+ * (src/ui_menu/menucfg.c); its former call-counting stub and counter were
+ * removed. Tests confirm the dialog closed by observing g_blitsetup_calls
+ * (the close also does 16 corner blits per invocation). */
 int g_settings_input_step_calls = 0;
 /* When g_settings_select_once != 0 the input-step stub returns 1 (selection)
  * on its first call (selecting g_settings_cursor_idx) and -1 (cancel) on the
@@ -774,10 +777,6 @@ int fd2_settings_menu_input_step(int32 *opt, int32 *st) {
         return -1;
     }
     return g_settings_input_step_return;
-}
-void fd2_close_settings_dialog_with_slide(int32 *opt, int32 *st) {
-    (void)opt; (void)st;
-    g_close_settings_dialog_calls++;
 }
 int g_save_load_quit_dispatch_return = 7;
 int g_save_load_quit_dispatch_calls = 0;
