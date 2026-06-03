@@ -170,7 +170,6 @@ uint32 g_tile_map_last_w = 0;
 uint32 g_tile_map_last_h = 0;
 uint32 g_tile_map_last_ox = 0;
 uint32 g_tile_map_last_oy = 0;
-int    g_chars_overlay_calls = 0;
 int    g_terrain_hud_calls = 0;
 uint32 g_terrain_hud_last_buf = 0;
 uint32 g_terrain_hud_last_stride = 0;
@@ -188,21 +187,31 @@ void fd2_composite_battle_tile_map(uint32 d, uint32 s, uint32 w, uint32 h, uint3
     g_tile_map_last_w = w; g_tile_map_last_h = h;
     g_tile_map_last_ox = ox; g_tile_map_last_oy = oy;
 }
-/* fd2_paint_cursor_overlay_pattern, fd2_composite_all_chars_overlay and
- * fd2_paint_char_sprite_at_world_pos are now real emitted functions
- * (src/gfx/rndscene.c); their former no-op/recording stubs here were removed.
- * The real fd2_composite_all_chars_overlay loops over alive party slots calling
- * the real fd2_paint_char_sprite_at_world_pos and finishes with one unconditional
- * fd2_paint_chars_shadow_overlay (stub below). The shadow stub bumps
- * g_chars_overlay_calls so the compositor pipeline test can still assert "the
- * per-char overlay stage ran exactly once per frame". The real per-char paint's
- * own blit reaches the recording fd2_tile_blit_24x24_passthrough /
- * fd2_tile_blit_24x24_dimmed_grayscale stubs below. */
-int    g_shadow_overlay_calls = 0;
-void fd2_paint_chars_shadow_overlay(void)
-{
-    g_shadow_overlay_calls++;
-    g_chars_overlay_calls++;
+/* fd2_paint_cursor_overlay_pattern, fd2_composite_all_chars_overlay,
+ * fd2_paint_char_sprite_at_world_pos and fd2_paint_chars_shadow_overlay are now
+ * real emitted functions (src/gfx/rndscene.c); their former no-op/recording
+ * stubs here were removed. The real fd2_composite_all_chars_overlay loops over
+ * alive party slots calling the real fd2_paint_char_sprite_at_world_pos and
+ * finishes with one unconditional real fd2_paint_chars_shadow_overlay. The
+ * per-char paint's own blit reaches the recording fd2_tile_blit_24x24_passthrough
+ * / fd2_tile_blit_24x24_dimmed_grayscale stubs below; the shadow overlay's
+ * tile-redraw blit reaches the fd2_blit_animated_tile_at_pos recording stub. */
+
+/* Recording stub for fd2_blit_animated_tile_at_pos (real body not yet emitted).
+ * The real fd2_paint_chars_shadow_overlay is its only emitted caller; recording
+ * (buf, x, y) per call lets the shadow-overlay tests verify the per-char base
+ * footprint + per-facing walk-trail tile coordinates without touching pixels. */
+int    g_anim_tile_calls = 0;
+uint32 g_anim_tile_buf[64];
+int32  g_anim_tile_x[64];
+int32  g_anim_tile_y[64];
+void fd2_blit_animated_tile_at_pos(uint32 buf, int32 tile_x, int32 tile_y) {
+    if (g_anim_tile_calls < 64) {
+        g_anim_tile_buf[g_anim_tile_calls] = buf;
+        g_anim_tile_x[g_anim_tile_calls] = tile_x;
+        g_anim_tile_y[g_anim_tile_calls] = tile_y;
+    }
+    g_anim_tile_calls++;
 }
 
 /* Recording stub for fd2_tile_blit_24x24_passthrough (the RLE row blitter, real

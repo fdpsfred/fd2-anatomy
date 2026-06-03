@@ -280,3 +280,78 @@ void fd2_paint_char_sprite_at_world_pos(uint32 char_idx)
         }
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_paint_chars_shadow_overlay @ 0x129EC (4 callers)
+ *
+ * Redraw the animated terrain tiles around each char position to
+ * clean up the walk-animation tile-trail left under moving chars
+ * (the 24x24 char sprite over the 24x24 tile grid leaves smears).
+ *
+ * For each party slot, skip immune and dead chars. Otherwise read the
+ * char's tile position and facing, then:
+ *   - Base footprint (char sprite is 1x2 tiles): redraw the animated
+ *     tile at (pos_x, pos_y) and (pos_x, pos_y-1).
+ *   - Walk-anim trail: when sprite_state[2] (walk phase) != 0, redraw
+ *     one extra trailing tile in the facing direction
+ *     (sprite_state[1]):
+ *       facing 0 (down):  (pos_x,   pos_y+1)
+ *       facing 1 (left):  (pos_x-1, pos_y) + (pos_x-1, pos_y-1)
+ *       facing 2 (up):    (pos_x,   pos_y-2)
+ *       facing 3 (right): (pos_x+1, pos_y) + (pos_x+1, pos_y-1)
+ *
+ * Called by fd2_composite_all_chars_overlay after the per-char sprite
+ * paint pass.
+ * ---------------------------------------------------------------- */
+void fd2_paint_chars_shadow_overlay(void)
+{
+    uint32 i;
+    runtime_char *pchar;
+    int32 pos_x;
+    int32 pos_y;
+    uint8 facing;
+    uint8 walk_phase;
+    int32 blit_y;
+
+    for (i = 0; (int32)i < (int32)data_fd2_battle_party_member_count; i++) {
+        if (fd2_check_char_status_immunity(i) != 0) {
+            continue;
+        }
+        if (fd2_check_char_is_dead(i) != 0) {
+            continue;
+        }
+
+        pchar = &data_fd2_battle_runtime_char_array_ptr[i];
+        pos_x = (int32)pchar->pos_x;
+        pos_y = (int32)pchar->pos_y;
+        facing = pchar->sprite_state[1];
+        walk_phase = pchar->sprite_state[2];
+
+        fd2_blit_animated_tile_at_pos(data_fd2_large_game_state_buffer_ptr,
+                                      pos_x, pos_y);
+        blit_y = pos_y - 1;
+        fd2_blit_animated_tile_at_pos(data_fd2_large_game_state_buffer_ptr,
+                                      pos_x, blit_y);
+
+        if (walk_phase != 0) {
+            if (facing == 0) {
+                blit_y = pos_y + 1;
+            } else {
+                if (facing == 1) {
+                    pos_x = pos_x - 1;
+                } else if (facing == 2) {
+                    blit_y = pos_y - 2;
+                    fd2_blit_animated_tile_at_pos(
+                        data_fd2_large_game_state_buffer_ptr, pos_x, blit_y);
+                    continue;
+                } else {
+                    pos_x = pos_x + 1;
+                }
+                fd2_blit_animated_tile_at_pos(
+                    data_fd2_large_game_state_buffer_ptr, pos_x, pos_y);
+            }
+            fd2_blit_animated_tile_at_pos(
+                data_fd2_large_game_state_buffer_ptr, pos_x, blit_y);
+        }
+    }
+}

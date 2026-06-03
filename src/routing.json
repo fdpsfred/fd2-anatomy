@@ -290,8 +290,9 @@
     "name": "fd2_paint_chars_shadow_overlay",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00012ac6": {
     "name": "fd2_blit_animated_tile_at_pos",
