@@ -189,6 +189,85 @@ static void test_ani_sparse_set_run_byte(void)
 }
 
 
+/*
+ * test_ani_sparse_copy_literal
+ *
+ * Drives fd2_ani_decoder_chunk_sparse_copy_literal via decode_frame_bytes
+ * (chunk-type byte 9 = real Ghidra dispatch slot @ 0x5278E, base 0x5276A +
+ * index 9*4 = 0x24 per plate).  This is the row-buffer twin of
+ * sparse_set_run_byte / palette_load_run_pairs: a multi-record loop with
+ * per-record offset positioning and a counted literal copy implemented in
+ * asm (00036c56..00036c7c) as
+ *   LODSW N ; loop { LODSW offset -> EDI = dst_buf + offset ;
+ *     LODSB count -> CL ; SHR ECX,1 + REP MOVSW ; RCL ECX,1 + REP MOVSB ;
+ *     EDI = dst_buf ; DEC EDX JNZ }
+ * i.e. memcpy(base + offset, cursor, count) per record, cursor advancing
+ * across records.  Emitted C uses memcpy, byte-identical to the
+ * SHR/REP MOVSW + RCL/REP MOVSB sequence (even half as words, trailing odd
+ * byte as a single MOVSB).
+ *
+ * Stream format (handler reads from g_ani_cursor = stream+1):
+ *   ushort N : count of copy records
+ *   N * { ushort offset, byte count, byte[count] literal_data }
+ * Layout (N=2):
+ *   rec0: offset=3,  count=4 (even, REP MOVSW only)        -> base[3..6]
+ *   rec1: offset=20, count=5 (odd, REP MOVSW + trail MOVSB)-> base[20..24]
+ *
+ * Expected values are hand-derived from the pure-memcpy format (same
+ * justification as sibling sparse/run-pair tests; emulate_function memory
+ * injection is non-functional for this routine in this Ghidra build).
+ * Both even (count=4) and odd (count=5) lengths are exercised, the bytes
+ * immediately before/after each copied region are checked for no overshoot,
+ * and rec1 reading from the correct cursor position confirms the inter-record
+ * cursor advance (2 + sum_i(3 + count_i)).
+ */
+static void test_ani_sparse_copy_literal(void)
+{
+    /* stream size = 1 (dispatch) + 2 (N) + rec0(3+4) + rec1(3+5) = 18 */
+    uint8 stream[18];
+
+    stream[0] = 9;                 /* dispatch index -> sparse_copy_literal */
+    *(uint16 *)(stream + 1) = 2;   /* N: 2 copy records */
+    /* rec0: offset=3, count=4 (even, REP MOVSW only) -> 0x11 0x22 0x33 0x44 */
+    *(uint16 *)(stream + 3) = 3;
+    stream[5] = 4;
+    stream[6] = 0x11;
+    stream[7] = 0x22;
+    stream[8] = 0x33;
+    stream[9] = 0x44;
+    /* rec1: offset=20, count=5 (odd, REP MOVSW + trailing MOVSB) -> 0xAA..0xEE */
+    *(uint16 *)(stream + 10) = 20;
+    stream[12] = 5;
+    stream[13] = 0xAA;
+    stream[14] = 0xBB;
+    stream[15] = 0xCC;
+    stream[16] = 0xDD;
+    stream[17] = 0xEE;
+
+    data_fd2_animation_ani_decoder_dst_buf = (uint32)g_test_row_buf;
+    data_fd2_animation_ani_decoder_frame_dispatch_table[9] =
+        (void *)fd2_ani_decoder_chunk_sparse_copy_literal;
+    memset(g_test_row_buf, 0, 320);
+    fd2_ani_decoder_decode_frame_bytes(1, (uint32)stream);
+
+    /* rec0: 4 literal bytes at offset 3 (even count, REP MOVSW) */
+    ASSERT_EQ((long)g_test_row_buf[2],  0x00);  /* before: untouched */
+    ASSERT_EQ((long)g_test_row_buf[3],  0x11);
+    ASSERT_EQ((long)g_test_row_buf[4],  0x22);
+    ASSERT_EQ((long)g_test_row_buf[5],  0x33);
+    ASSERT_EQ((long)g_test_row_buf[6],  0x44);  /* run end (even) */
+    ASSERT_EQ((long)g_test_row_buf[7],  0x00);  /* after: no overshoot */
+    /* rec1: 5 literal bytes at offset 20 (odd count, trailing MOVSB) */
+    ASSERT_EQ((long)g_test_row_buf[19], 0x00);  /* before: untouched */
+    ASSERT_EQ((long)g_test_row_buf[20], 0xAA);
+    ASSERT_EQ((long)g_test_row_buf[21], 0xBB);
+    ASSERT_EQ((long)g_test_row_buf[22], 0xCC);
+    ASSERT_EQ((long)g_test_row_buf[23], 0xDD);
+    ASSERT_EQ((long)g_test_row_buf[24], 0xEE);  /* run end (trailing MOVSB) */
+    ASSERT_EQ((long)g_test_row_buf[25], 0x00);  /* after: no overshoot */
+}
+
+
 static void test_ani_decode_frame_dispatch(void)
 {
     uint8 stream[4];
@@ -424,6 +503,7 @@ void run_anim_anidec_tests(void)
     RUN_TEST(test_ani_row_copy_literal);
     RUN_TEST(test_ani_sparse_set_byte);
     RUN_TEST(test_ani_sparse_set_run_byte);
+    RUN_TEST(test_ani_sparse_copy_literal);
     RUN_TEST(test_ani_decode_frame_dispatch);
     printf("\n");
 }
