@@ -10,7 +10,7 @@
 #include "protos.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "rsrcfix.h"   /* write_fake_fdicon() */
+#include "rsrcfix.h"   /* write_fake_fdicon(), write_fake_dat() */
 
 #define USE_ITEM_ID 10
 
@@ -70,11 +70,17 @@ extern int g_repaint_flip_buffer_after;
 /* ---- Test: fd2_init_battle_state_for_chapter ---- */
 
 /* fd2_init_battle_state_for_chapter calls the real (linked) chapter-battle-data
- * loader, which fopens FDICON.B24 and reads packed FDFIELD/FDSHAP buffers via
- * pointer globals (and exit()s if FDICON.B24 is missing). Stage a minimal
- * end-to-end fixture: zero-length party (total_size 0) so the per-slot build
- * loop is a no-op, plus valid tile-map / tile-event / consumed-flags buffers
- * and an on-disk FDICON.B24 so the loader runs to completion without faulting. */
+ * loader, which now fopen+freads the named DAT archives via the real
+ * fd2_load_dat_resource (and exit()s if a DAT is missing). Stage a minimal
+ * end-to-end fixture: zero-length party (tile_event total_size 0) so the
+ * per-slot build loop is a no-op, real FDFIELD/FDTXT/FDSHAP/FDOTHER archives
+ * delivering the header bytes the function reads, and an FDICON.B24 so the
+ * portrait loader runs without faulting. */
+extern char data_fd2_string_resource_filename_fdtxt_dat[];
+extern char data_fd2_string_resource_filename_fdother_dat[];
+extern char data_fd2_string_resource_filename_fdfield_dat_51a59[];
+extern char data_fd2_string_resource_filename_fdshap_dat_51a65[];
+
 static uint8 *g_bi_tileevent;
 static uint8 *g_bi_tilemap;
 static uint8 *g_bi_field;
@@ -82,31 +88,85 @@ static uint8 *g_bi_consumed;
 
 static void setup_init_fixture(void)
 {
-    FILE *fp;
+    int    chapter = 0x10;
+    int    base = chapter * 3;     /* 0x30 */
+    int    fld_n;
+    int    txt_n;
+    int    other_n;
+    int   *sizes;
+    const uint8 **ptrs;
+    int    i;
+    int    shap_sizes[2];
+    const uint8 *shap_ptrs[2];
 
-    data_fd2_chapter_current_chapter_id = 0x10;
+    data_fd2_chapter_current_chapter_id = (uint32)chapter;
 
-    g_bi_tileevent = (uint8 *)malloc(16);
-    memset(g_bi_tileevent, 0, 16);   /* [1]=total_size=0 -> empty loop */
-    data_fd2_tile_event_data_table_ptr = (uint32)g_bi_tileevent;
-
+    /* tile_event payload: total_size (+1) = 0 -> empty per-slot loop */
+    g_bi_tileevent = (uint8 *)malloc(0x98 + 0x20);
+    memset(g_bi_tileevent, 0, 0x98 + 0x20);
     g_bi_tilemap = (uint8 *)malloc(16);
     memset(g_bi_tilemap, 0, 16);
-    data_fd2_battle_tile_map_ptr = (uint32)g_bi_tilemap;
-
     g_bi_field = (uint8 *)malloc(64);
     memset(g_bi_field, 0, 64);
-    chapter_portrait_load_buffer = (uint32)g_bi_field;
+
+    /* FDFIELD: indices 0..base+2; base=tile_map, base+1=tile_event,
+     * base+2=field-pos. Lower indices get tiny stub payloads. */
+    fld_n = base + 3;
+    sizes = (int *)malloc((size_t)fld_n * sizeof(int));
+    ptrs  = (const uint8 **)malloc((size_t)fld_n * sizeof(uint8 *));
+    for (i = 0; i < fld_n; i++) { sizes[i] = 4; ptrs[i] = 0; }
+    sizes[base]     = 16;        ptrs[base]     = g_bi_tilemap;
+    sizes[base + 1] = 0x98 + 0x20; ptrs[base + 1] = g_bi_tileevent;
+    sizes[base + 2] = 64;        ptrs[base + 2] = g_bi_field;
+    write_fake_dat(
+        (const char *)data_fd2_string_resource_filename_fdfield_dat_51a59,
+        fld_n, sizes, ptrs);
+    free(sizes);
+    free(ptrs);
+
+    /* FDTXT: index chapter+1 */
+    txt_n = chapter + 2;
+    sizes = (int *)malloc((size_t)txt_n * sizeof(int));
+    ptrs  = (const uint8 **)malloc((size_t)txt_n * sizeof(uint8 *));
+    for (i = 0; i < txt_n; i++) { sizes[i] = 4; ptrs[i] = 0; }
+    write_fake_dat((const char *)data_fd2_string_resource_filename_fdtxt_dat,
+                   txt_n, sizes, ptrs);
+    free(sizes);
+    free(ptrs);
+
+    /* FDOTHER: background_layers default single sprite (idx 0x10) */
+    other_n = 0x11;
+    sizes = (int *)malloc((size_t)other_n * sizeof(int));
+    ptrs  = (const uint8 **)malloc((size_t)other_n * sizeof(uint8 *));
+    for (i = 0; i < other_n; i++) { sizes[i] = 16; ptrs[i] = 0; }
+    write_fake_dat((const char *)data_fd2_string_resource_filename_fdother_dat,
+                   other_n, sizes, ptrs);
+    free(sizes);
+    free(ptrs);
+
+    /* FDSHAP: scene_id 0 -> indices 0,1 */
+    shap_sizes[0] = 4; shap_sizes[1] = 4;
+    shap_ptrs[0] = 0;  shap_ptrs[1] = 0;
+    write_fake_dat((const char *)data_fd2_string_resource_filename_fdshap_dat_51a65,
+                   2, shap_sizes, shap_ptrs);
 
     g_bi_consumed = (uint8 *)malloc(0x20);
     memset(g_bi_consumed, 0, 0x20);
     data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_bi_consumed;
 
+    /* loader-returned pointer globals start NULL (loader's free(old_buf) no-op) */
     data_fd2_battle_runtime_char_array_ptr = NULL;
     portrait_sprite_cache = 0;
+    current_chapter_text = 0;
+    chapter_portrait_load_buffer = 0;
+    data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_battle_tile_map_ptr = 0;
+    battle_scene_snapshot = 0;
+    data_fd2_tile_attribute_flags_buffer_ptr = 0;
+    data_fd2_graphics_static_bg_buffer_ptr = 0;
+    data_fd2_graphics_animated_bg_buffer_ptr = 0;
 
-    fp = fopen("FDICON.B24", "wb");
-    fclose(fp);
+    write_fake_fdicon();
 }
 
 static void teardown_init_fixture(void)
@@ -115,10 +175,27 @@ static void teardown_init_fixture(void)
         free(data_fd2_battle_runtime_char_array_ptr);
     if (portrait_sprite_cache != 0)
         free((void *)portrait_sprite_cache);
+    /* loader-returned buffers left live by the function */
+    if (current_chapter_text != 0)
+        free((void *)current_chapter_text);
+    if (data_fd2_tile_event_data_table_ptr != 0)
+        free((void *)data_fd2_tile_event_data_table_ptr);
+    if (data_fd2_battle_tile_map_ptr != 0)
+        free((void *)data_fd2_battle_tile_map_ptr);
+    if (battle_scene_snapshot != 0)
+        free((void *)battle_scene_snapshot);
+    if (data_fd2_tile_attribute_flags_buffer_ptr != 0)
+        free((void *)data_fd2_tile_attribute_flags_buffer_ptr);
+    if (data_fd2_graphics_static_bg_buffer_ptr != 0)
+        free((void *)data_fd2_graphics_static_bg_buffer_ptr);
+    if (data_fd2_graphics_animated_bg_buffer_ptr != 0)
+        free((void *)data_fd2_graphics_animated_bg_buffer_ptr);
+    /* chapter_portrait_load_buffer freed+nulled by the function */
+
+    /* payload source buffers (separate from the loaded copies) */
     free(g_bi_tileevent);
     free(g_bi_tilemap);
-    /* g_bi_field already free()d by the loader (it frees + nulls
-     * chapter_portrait_load_buffer, whose value is g_bi_field) */
+    free(g_bi_field);
     free(g_bi_consumed);
 
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
@@ -130,9 +207,16 @@ static void teardown_init_fixture(void)
     current_chapter_text = 0;
     battle_scene_snapshot = 0;
     data_fd2_tile_attribute_flags_buffer_ptr = 0;
+    data_fd2_graphics_static_bg_buffer_ptr = 0;
+    data_fd2_graphics_animated_bg_buffer_ptr = 0;
     data_fd2_chapter_current_chapter_id = 1;
 
     remove("FDICON.B24");
+    remove("FD2.TMP");
+    remove((const char *)data_fd2_string_resource_filename_fdtxt_dat);
+    remove((const char *)data_fd2_string_resource_filename_fdother_dat);
+    remove((const char *)data_fd2_string_resource_filename_fdfield_dat_51a59);
+    remove((const char *)data_fd2_string_resource_filename_fdshap_dat_51a65);
 }
 
 static void test_init_battle_state_zeros_cursor(void)

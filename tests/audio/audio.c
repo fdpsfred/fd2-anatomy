@@ -10,7 +10,35 @@
 #include "protos.h"
 #include <stdio.h>
 
+#include <stdlib.h>
+#include "rsrcfix.h"   /* write_fake_dat() */
+
 #define USE_ITEM_ID 10
+
+/* FDMUS.DAT filename string (matches Ghidra/globals symbol) */
+extern char data_fd2_string_fdmus_dat[];
+
+/* fd2_set_bgm_track_with_fade's track-change path calls the REAL
+ * fd2_load_dat_resource against FDMUS.DAT[track_id]. Write a packed archive
+ * covering indices 0..0x10 so any tested track resolves; the loaded buffer is
+ * fed to the linked fd2_dpmi_lock_size + AIL_* stubs. */
+static void write_fdmus_dat(void)
+{
+    int          sizes[0x11];
+    const uint8 *ptrs[0x11];
+    int          i;
+    for (i = 0; i < 0x11; i++) { sizes[i] = 16; ptrs[i] = 0; }
+    write_fake_dat((const char *)data_fd2_string_fdmus_dat, 0x11, sizes, ptrs);
+}
+
+static void free_bgm_buf(void)
+{
+    if (data_fd2_audio_bgm_sequence_data_buf_ptr != 0) {
+        free((void *)data_fd2_audio_bgm_sequence_data_buf_ptr);
+        data_fd2_audio_bgm_sequence_data_buf_ptr = 0;
+    }
+    remove((const char *)data_fd2_string_fdmus_dat);
+}
 
 extern runtime_char g_test_rc_array[8];
 extern int g_build_spell_list_return;
@@ -94,11 +122,13 @@ static void test_bgm_change_regular_track(void)
     data_fd2_audio_bgm_driver_available_flag = 1;
     data_fd2_audio_bgm_sequence_data_buf_ptr = 0;
     g_ail_vol_calls = 0;
+    write_fdmus_dat();
     fd2_set_bgm_track_with_fade(5, 1);
     ASSERT_EQ((long)data_fd2_audio_bgm_last_set_track_id, 5);
     ASSERT_EQ((long)g_ail_vol_calls, 2);
     ASSERT_EQ((long)g_ail_last_vol, 0x7F);
     ASSERT_EQ((long)g_ail_last_ramp, 2000);
+    free_bgm_buf();
 }
 
 
@@ -109,10 +139,12 @@ static void test_bgm_disabled_zero_volume(void)
     data_fd2_audio_bgm_driver_available_flag = 1;
     data_fd2_audio_bgm_sequence_data_buf_ptr = 0;
     g_ail_vol_calls = 0;
+    write_fdmus_dat();
     fd2_set_bgm_track_with_fade(5, 1);
     ASSERT_EQ((long)g_ail_last_vol, 0);
     ASSERT_EQ((long)g_ail_last_ramp, 0);
     data_fd2_audio_bgm_enabled_flag = 1;
+    free_bgm_buf();
 }
 
 
@@ -126,10 +158,12 @@ static void test_bgm_special_cue_instant(void)
     data_fd2_audio_bgm_driver_available_flag = 1;
     data_fd2_audio_bgm_sequence_data_buf_ptr = 0;
     g_ail_vol_calls = 0;
+    write_fdmus_dat();
     fd2_set_bgm_track_with_fade(0x10, 1);
     ASSERT_EQ((long)g_ail_vol_calls, 1);
     ASSERT_EQ((long)g_ail_last_vol, 0x7F);
     ASSERT_EQ((long)g_ail_last_ramp, 0);
+    free_bgm_buf();
 }
 
 

@@ -90,7 +90,8 @@
     "target": "rsrc/rsrc.c",
     "phase": 5,
     "done": false,
-    "asm": false
+    "asm": false,
+    "reviewed": true
   },
   "000112a5": {
     "name": "fd2_init_runtime_char_from_base_growth",

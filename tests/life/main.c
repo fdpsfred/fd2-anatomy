@@ -10,9 +10,63 @@
 #include "protos.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "rsrcfix.h"   /* write_fake_fdicon() */
+#include "rsrcfix.h"   /* write_fake_fdicon(), write_fake_dat() */
 
 #define USE_ITEM_ID 10
+
+/* DAT filename strings (match the Ghidra/globals symbols) */
+extern char data_fd2_string_resource_filename_fdtxt_dat[];
+extern char data_fd2_string_resource_filename_fdother_dat[];
+extern char data_fd2_string_resource_filename_fdfield_dat_51a59[];
+extern char data_fd2_string_resource_filename_fdshap_dat_51a65[];
+extern char data_fd2_string_fdmus_dat[];
+
+/* Write a uniform packed DAT covering indices 0..n-1 with tiny zeroed
+ * payloads (content irrelevant; only the index/offset table must resolve). */
+static void write_stub_dat(const char *name, int n, int payload_sz)
+{
+    int   *sizes;
+    const uint8 **ptrs;
+    int    i;
+    sizes = (int *)malloc((size_t)n * sizeof(int));
+    ptrs  = (const uint8 **)malloc((size_t)n * sizeof(uint8 *));
+    for (i = 0; i < n; i++) { sizes[i] = payload_sz; ptrs[i] = 0; }
+    write_fake_dat(name, n, sizes, ptrs);
+    free(sizes);
+    free(ptrs);
+}
+
+/* Build the packed DAT files the real fd2_load_dat_resource (reached from
+ * fd2_load_save_and_init_engine and fd2_load_chapter_background_layers) reads:
+ *   FDOTHER.DAT idx 0 (vga palette) + bg single-sprite idx (<=0x10)
+ *   FDFIELD.DAT idx chapter*3 (tile_map, 0-width/height) + chapter*3+2 (scratch)
+ *   FDTXT.DAT   idx chapter+1
+ *   FDSHAP.DAT  idx 0,1 (scene_id 0 from save buffer)
+ * Payload content is irrelevant except FDFIELD[chapter*3] needs 0 width/height
+ * (zeroed) so the linked fd2_tick_tile_event_animations stays a no-op. */
+static void write_load_save_dats(int chapter_id)
+{
+    int base = chapter_id * 3;
+
+    /* FDFIELD: indices 0..base+2, 16 B each so the tile_map header read at
+     * +0/+2 yields width=height=0 (keeps fd2_tick_tile_event_animations a
+     * no-op). */
+    write_stub_dat(
+        (const char *)data_fd2_string_resource_filename_fdfield_dat_51a59,
+        base + 3, 16);
+    /* FDTXT: indices 0..chapter+1 */
+    write_stub_dat((const char *)data_fd2_string_resource_filename_fdtxt_dat,
+                   chapter_id + 2, 4);
+    /* FDOTHER: idx 0 (palette) + background_layers single-sprite (idx 0x10) */
+    write_stub_dat((const char *)data_fd2_string_resource_filename_fdother_dat,
+                   0x11, 16);
+    /* FDSHAP: scene_id 0 -> indices 0,1 */
+    write_stub_dat((const char *)data_fd2_string_resource_filename_fdshap_dat_51a65,
+                   2, 4);
+    /* FDMUS: the trailing bgm load uses track[chapter] (0 in tests); cover
+     * a generous index range. */
+    write_stub_dat((const char *)data_fd2_string_fdmus_dat, 0x21, 16);
+}
 
 extern runtime_char g_test_rc_array[8];
 extern int g_build_spell_list_return;
@@ -91,29 +145,37 @@ static void setup_load_save_fixture(int chapter_id, int party_count,
                                     int checksum_match)
 {
     uint8 *sav;
-    uint8 *tilemap;
     FILE *fp;
 
     /* destination buffers the function memmoves into / reads from */
     g_ls_roster_buf = malloc(0xA00);
     g_ls_consumed_buf = malloc(0x20);
+    g_ls_tilemap_buf = 0;          /* tile_map now comes from FDFIELD load */
     data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_ls_roster_buf;
     data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ls_consumed_buf;
-    tilemap = (uint8 *)malloc(8);
-    g_ls_tilemap_buf = tilemap;
-    /* width=height=0: the real fd2_tick_tile_event_animations (linked, not
-     * faked) iterates width*height tiles over real tile data we do not
-     * stage here, so keep the map empty to make that loop a safe no-op. */
-    tilemap[0] = 0x00; tilemap[1] = 0x00;   /* map width  = 0 */
-    tilemap[2] = 0x00; tilemap[3] = 0x00;   /* map height = 0 */
-    data_fd2_battle_tile_map_ptr = (uint32)tilemap;
 
-    /* these are freed-if-nonzero then re-malloc'd by the function;
-     * NULL/0 them so it does not free a static/stale pointer */
+    /* these are freed-if-nonzero then re-malloc'd / reloaded by the function;
+     * NULL/0 them so it does not free a static/stale pointer. tile_map is now
+     * loaded from FDFIELD.DAT[chapter*3] (0-width/height) so the linked
+     * fd2_tick_tile_event_animations stays a safe no-op. */
     data_fd2_battle_runtime_char_array_ptr = NULL;
     data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_battle_tile_map_ptr = 0;
     portrait_sprite_cache = 0;
     chapter_portrait_load_buffer = 0;
+
+    /* loader-returned pointer globals start NULL so the loader's free(old_buf)
+     * is a no-op on the first load of each */
+    data_fd2_vga_palette_data_ptr = 0;
+    current_chapter_text = 0;
+    battle_scene_snapshot = 0;
+    data_fd2_tile_attribute_flags_buffer_ptr = 0;
+    data_fd2_graphics_static_bg_buffer_ptr = 0;
+    data_fd2_graphics_animated_bg_buffer_ptr = 0;
+    data_fd2_audio_bgm_sequence_data_buf_ptr = 0;  /* trailing bgm load target */
+
+    /* real DAT archives for the resource reloads */
+    write_load_save_dats(chapter_id);
 
     /* build the on-disk FD2.SAV (0x59CB bytes) */
     sav = (uint8 *)malloc(0x59CB);
@@ -178,6 +240,23 @@ static void teardown_load_save_fixture(void)
         free((void *)portrait_sprite_cache);
     if (chapter_portrait_load_buffer != 0)
         free((void *)chapter_portrait_load_buffer);
+    /* loader-returned buffers left live by the function */
+    if (data_fd2_vga_palette_data_ptr != 0)
+        free((void *)data_fd2_vga_palette_data_ptr);
+    if (current_chapter_text != 0)
+        free((void *)current_chapter_text);
+    if (data_fd2_battle_tile_map_ptr != 0)
+        free((void *)data_fd2_battle_tile_map_ptr);
+    if (battle_scene_snapshot != 0)
+        free((void *)battle_scene_snapshot);
+    if (data_fd2_tile_attribute_flags_buffer_ptr != 0)
+        free((void *)data_fd2_tile_attribute_flags_buffer_ptr);
+    if (data_fd2_graphics_static_bg_buffer_ptr != 0)
+        free((void *)data_fd2_graphics_static_bg_buffer_ptr);
+    if (data_fd2_graphics_animated_bg_buffer_ptr != 0)
+        free((void *)data_fd2_graphics_animated_bg_buffer_ptr);
+    if (data_fd2_audio_bgm_sequence_data_buf_ptr != 0)
+        free((void *)data_fd2_audio_bgm_sequence_data_buf_ptr);
     free(g_ls_roster_buf);
     free(g_ls_consumed_buf);
     free(g_ls_tilemap_buf);
@@ -196,9 +275,20 @@ static void teardown_load_save_fixture(void)
     data_fd2_battle_map_width_tiles = 20;
     data_fd2_battle_map_height_tiles = 15;
 
+    data_fd2_vga_palette_data_ptr = 0;
+    data_fd2_graphics_static_bg_buffer_ptr = 0;
+    data_fd2_graphics_animated_bg_buffer_ptr = 0;
+    data_fd2_tile_attribute_flags_buffer_ptr = 0;
+    data_fd2_audio_bgm_sequence_data_buf_ptr = 0;
+
     remove("FD2.SAV");
     remove("FDICON.B24");
     remove("FD2.TMP");
+    remove((const char *)data_fd2_string_resource_filename_fdtxt_dat);
+    remove((const char *)data_fd2_string_resource_filename_fdother_dat);
+    remove((const char *)data_fd2_string_resource_filename_fdfield_dat_51a59);
+    remove((const char *)data_fd2_string_resource_filename_fdshap_dat_51a65);
+    remove((const char *)data_fd2_string_fdmus_dat);
 }
 
 
@@ -206,9 +296,40 @@ static void teardown_load_save_fixture(void)
 
 /* ---- Test: fd2_main_menu_continue_dispatcher ---- */
 
+/* The new-game / continue paths call the REAL fd2_load_dat_resource for
+ * FDOTHER (palette/menu atlas) and fd2_set_bgm_track_with_fade for FDMUS.
+ * Stage both archives + null the loader-target globals so the loader's
+ * free(old_buf) is a no-op, then free the loaded buffers afterwards. */
+static void setup_menu_dats(void)
+{
+    data_fd2_vga_palette_data_ptr = 0;
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
+    data_fd2_audio_bgm_sequence_data_buf_ptr = 0;
+    data_fd2_audio_bgm_last_set_track_id = 0xFF;
+    write_stub_dat((const char *)data_fd2_string_resource_filename_fdother_dat,
+                   0x11, 16);
+    write_stub_dat((const char *)data_fd2_string_fdmus_dat, 0x21, 16);
+}
+
+static void teardown_menu_dats(void)
+{
+    if (data_fd2_vga_palette_data_ptr != 0)
+        free((void *)data_fd2_vga_palette_data_ptr);
+    if (data_fd2_ui_menu_screen_sprite_atlas_buf_ptr != 0)
+        free((void *)data_fd2_ui_menu_screen_sprite_atlas_buf_ptr);
+    if (data_fd2_audio_bgm_sequence_data_buf_ptr != 0)
+        free((void *)data_fd2_audio_bgm_sequence_data_buf_ptr);
+    data_fd2_vga_palette_data_ptr = 0;
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
+    data_fd2_audio_bgm_sequence_data_buf_ptr = 0;
+    remove((const char *)data_fd2_string_resource_filename_fdother_dat);
+    remove((const char *)data_fd2_string_fdmus_dat);
+}
+
 static void test_main_menu_new_game(void)
 {
     int r;
+    setup_menu_dats();
     g_ending_menu_return = 0;
     data_fd2_chapter_current_chapter_id = 5;
     r = fd2_main_menu_continue_dispatcher();
@@ -216,6 +337,7 @@ static void test_main_menu_new_game(void)
     ASSERT_EQ((long)data_fd2_chapter_current_chapter_id, 0);
     ASSERT_EQ((long)data_fd2_shared_menu_party_member_count, 0);
     ASSERT_EQ((long)data_fd2_ui_play_active_flag, 1);
+    teardown_menu_dats();
 }
 
 
@@ -301,10 +423,14 @@ static void test_load_save_cinematic_loop_counts(void)
 static void test_main_menu_continue_quit(void)
 {
     int r;
+    setup_menu_dats();
     g_ending_menu_return = 1;
     g_slot_selector_return = -1;
     r = fd2_main_menu_continue_dispatcher();
     ASSERT_EQ((long)r, -1);
+    /* the menu-atlas FDOTHER[0xD] buffer is freed + nulled by the function;
+     * teardown frees the palette + any bgm buffer + removes the archives. */
+    teardown_menu_dats();
 }
 
 

@@ -237,24 +237,9 @@ void AIL_stop_sequence(uint32 s) { (void)s; }
 int  AIL_init_sequence(uint32 s, uint32 d, int i) { (void)s; (void)d; (void)i; return 0; }
 void AIL_start_sequence(uint32 s) { (void)s; }
 void AIL_set_sequence_loop_count(uint32 s, uint32 c) { (void)s; (void)c; }
-int    g_load_dat_calls = 0;
-uint32 g_load_dat_last_fname = 0;
-uint32 g_load_dat_last_old_buf = 0;
-uint32 g_load_dat_last_idx = 0;
-uint32 g_load_dat_idx_log[8];
-uint32 fd2_load_dat_resource(uint32 f, uint32 b, uint32 i) {
-    /* Preserve the original fake contract: when an old buffer is supplied,
-       return it unchanged (callers read zeroed fixture buffers through it).
-       When old_buf is NULL, hand back a real allocation so callers that
-       later free() the loaded buffer (e.g. the background loader) stay valid. */
-    g_load_dat_last_fname = f;
-    g_load_dat_last_old_buf = b;
-    g_load_dat_last_idx = i;
-    if (g_load_dat_calls < 8) g_load_dat_idx_log[g_load_dat_calls] = i;
-    g_load_dat_calls++;
-    if (b != 0) return b;
-    return (uint32)malloc(16);
-}
+/* fd2_load_dat_resource: now emitted in src/rsrc/rsrc.c. Its caller tests
+ * stage real on-disk DAT files (write_fake_dat() in tests/include/rsrcfix.h)
+ * so the real loader fopen+freads them. */
 int    g_rle_blit_calls = 0;
 uint32 g_rle_blit_last_sprite = 0;
 int32  g_rle_blit_last_x = 0;
@@ -263,6 +248,7 @@ uint32 g_rle_blit_last_buf = 0;
 int32  g_rle_blit_last_stride = 0;
 uint32 g_rle_blit_last_palette = 0;
 int32  g_rle_blit_y_log[4];
+uint8  g_rle_blit_sprite_first_byte_log[4];
 void fd2_rle_blit_sprite(uint32 rle_stream, int32 dst_x, int32 dst_y,
                          uint32 dst_buf, int32 stride, uint32 palette_op) {
     g_rle_blit_last_sprite = rle_stream;
@@ -271,7 +257,14 @@ void fd2_rle_blit_sprite(uint32 rle_stream, int32 dst_x, int32 dst_y,
     g_rle_blit_last_buf = dst_buf;
     g_rle_blit_last_stride = stride;
     g_rle_blit_last_palette = palette_op;
-    if (g_rle_blit_calls < 4) g_rle_blit_y_log[g_rle_blit_calls] = dst_y;
+    if (g_rle_blit_calls < 4) {
+        g_rle_blit_y_log[g_rle_blit_calls] = dst_y;
+        /* first payload byte of the loaded sprite, used by the rsrc tests to
+         * verify which DAT index the real loader fetched (each fixture seeds
+         * payload[idx][0] = idx). */
+        g_rle_blit_sprite_first_byte_log[g_rle_blit_calls] =
+            (rle_stream != 0) ? *(uint8 *)rle_stream : 0;
+    }
     g_rle_blit_calls++;
 }
 int    g_scroll_text_calls = 0;

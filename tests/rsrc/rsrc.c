@@ -12,12 +12,6 @@
 #include <stdlib.h>
 
 /* capture globals from testglob.c */
-extern int    g_load_dat_calls;
-extern uint32 g_load_dat_last_fname;
-extern uint32 g_load_dat_last_old_buf;
-extern uint32 g_load_dat_last_idx;
-extern uint32 g_load_dat_idx_log[8];
-
 extern int    g_rle_blit_calls;
 extern uint32 g_rle_blit_last_sprite;
 extern int32  g_rle_blit_last_x;
@@ -26,6 +20,7 @@ extern uint32 g_rle_blit_last_buf;
 extern int32  g_rle_blit_last_stride;
 extern uint32 g_rle_blit_last_palette;
 extern int32  g_rle_blit_y_log[4];
+extern uint8  g_rle_blit_sprite_first_byte_log[4];
 
 extern int    g_scroll_text_calls;
 extern uint32 g_scroll_text_last_arg;
@@ -33,19 +28,37 @@ extern uint32 g_scroll_text_last_arg;
 /* fd2_load_chapter_battle_data captures (testglob.c) */
 extern runtime_char g_test_rc_array[8];
 
-#include "rsrcfix.h"   /* write_fake_fdicon() */
+#include "rsrcfix.h"   /* write_fake_fdicon(), write_fake_dat() */
 
-/* FDOTHER.DAT string address used by the function under test */
-#define FDOTHER_DAT_ADDR 0x51a4d
+/* FDOTHER.DAT named filename string (matches Ghidra/globals symbol) */
+extern char data_fd2_string_resource_filename_fdother_dat[];
+
+/* Build an FDOTHER.DAT covering indices 0..N-1; payload[idx][0] = idx so a
+ * test can confirm which index the real loader fetched (single-sprite path
+ * derefs static_bg directly; multi-sprite paths read the blit first-byte log).
+ * Each payload is BG_PAYLOAD_SZ bytes (blit is a stub, so content beyond the
+ * marker byte is irrelevant). */
+#define BG_DAT_INDICES   0x38
+#define BG_PAYLOAD_SZ    16
+static uint8 g_bg_payloads[BG_DAT_INDICES][BG_PAYLOAD_SZ];
+static const uint8 *g_bg_payload_ptrs[BG_DAT_INDICES];
+static int          g_bg_sizes[BG_DAT_INDICES];
+
+static void write_fdother_bg_dat(void)
+{
+    int i;
+    for (i = 0; i < BG_DAT_INDICES; i++) {
+        memset(g_bg_payloads[i], 0, BG_PAYLOAD_SZ);
+        g_bg_payloads[i][0] = (uint8)i;          /* index marker */
+        g_bg_payload_ptrs[i] = g_bg_payloads[i];
+        g_bg_sizes[i] = BG_PAYLOAD_SZ;
+    }
+    write_fake_dat((const char *)data_fd2_string_resource_filename_fdother_dat,
+                   BG_DAT_INDICES, g_bg_sizes, g_bg_payload_ptrs);
+}
 
 static void reset_capture(void)
 {
-    g_load_dat_calls = 0;
-    g_load_dat_last_fname = 0;
-    g_load_dat_last_old_buf = 0;
-    g_load_dat_last_idx = 0;
-    memset(g_load_dat_idx_log, 0, sizeof(g_load_dat_idx_log));
-
     g_rle_blit_calls = 0;
     g_rle_blit_last_sprite = 0;
     g_rle_blit_last_x = 0;
@@ -54,12 +67,29 @@ static void reset_capture(void)
     g_rle_blit_last_stride = 0;
     g_rle_blit_last_palette = 0;
     memset(g_rle_blit_y_log, 0, sizeof(g_rle_blit_y_log));
+    memset(g_rle_blit_sprite_first_byte_log, 0,
+           sizeof(g_rle_blit_sprite_first_byte_log));
 
     g_scroll_text_calls = 0;
     g_scroll_text_last_arg = 0;
 
     data_fd2_graphics_static_bg_buffer_ptr = 0;
     data_fd2_graphics_animated_bg_buffer_ptr = 0;
+
+    write_fdother_bg_dat();
+}
+
+static void reset_capture_teardown(void)
+{
+    if (data_fd2_graphics_static_bg_buffer_ptr != 0) {
+        free((void *)data_fd2_graphics_static_bg_buffer_ptr);
+        data_fd2_graphics_static_bg_buffer_ptr = 0;
+    }
+    if (data_fd2_graphics_animated_bg_buffer_ptr != 0) {
+        free((void *)data_fd2_graphics_animated_bg_buffer_ptr);
+        data_fd2_graphics_animated_bg_buffer_ptr = 0;
+    }
+    remove((const char *)data_fd2_string_resource_filename_fdother_dat);
 }
 
 /* Default single-sprite path: ordinary chapter (e.g. 9) -> idx 0xF,
@@ -71,13 +101,13 @@ static void test_default_path_chapter9_idx_f(void)
 
     fd2_load_chapter_background_layers();
 
-    ASSERT_EQ(g_load_dat_calls, 1);
-    ASSERT_EQ(g_load_dat_last_fname, FDOTHER_DAT_ADDR);
-    ASSERT_EQ(g_load_dat_last_idx, 0xf);
     ASSERT_EQ(g_rle_blit_calls, 0);
     ASSERT_EQ(g_scroll_text_calls, 0);
     ASSERT_NE(data_fd2_graphics_static_bg_buffer_ptr, 0);   /* loaded sprite */
     ASSERT_NE(data_fd2_graphics_animated_bg_buffer_ptr, 0); /* malloc(64000) */
+    /* static_bg holds the loaded FDOTHER index 0xF (payload marker byte) */
+    ASSERT_EQ((long)*(uint8 *)data_fd2_graphics_static_bg_buffer_ptr, 0xf);
+    reset_capture_teardown();
 }
 
 /* Chapter 0x1C / 0x1D default path -> idx 0x37. */
@@ -88,10 +118,10 @@ static void test_default_path_chapter1c_idx_37(void)
 
     fd2_load_chapter_background_layers();
 
-    ASSERT_EQ(g_load_dat_calls, 1);
-    ASSERT_EQ(g_load_dat_last_idx, 0x37);
     ASSERT_NE(data_fd2_graphics_static_bg_buffer_ptr, 0);
     ASSERT_NE(data_fd2_graphics_animated_bg_buffer_ptr, 0);
+    ASSERT_EQ((long)*(uint8 *)data_fd2_graphics_static_bg_buffer_ptr, 0x37);
+    reset_capture_teardown();
 }
 
 static void test_default_path_chapter1d_idx_37(void)
@@ -101,8 +131,9 @@ static void test_default_path_chapter1d_idx_37(void)
 
     fd2_load_chapter_background_layers();
 
-    ASSERT_EQ(g_load_dat_calls, 1);
-    ASSERT_EQ(g_load_dat_last_idx, 0x37);
+    ASSERT_NE(data_fd2_graphics_static_bg_buffer_ptr, 0);
+    ASSERT_EQ((long)*(uint8 *)data_fd2_graphics_static_bg_buffer_ptr, 0x37);
+    reset_capture_teardown();
 }
 
 /* No-load chapter (not in any dispatch list): both buffers nulled,
@@ -117,11 +148,12 @@ static void test_unmatched_chapter_no_load(void)
 
     fd2_load_chapter_background_layers();
 
-    ASSERT_EQ(g_load_dat_calls, 0);
+    /* unmatched chapter: nothing loaded/blitted, both buffers freed+nulled */
     ASSERT_EQ(g_rle_blit_calls, 0);
     ASSERT_EQ(g_scroll_text_calls, 0);
     ASSERT_EQ(data_fd2_graphics_static_bg_buffer_ptr, 0);
     ASSERT_EQ(data_fd2_graphics_animated_bg_buffer_ptr, 0);
+    reset_capture_teardown();
 }
 
 /* 2-sprite widescreen path, chapter 0x11: defaults 0x1CE x 0xE2,
@@ -134,9 +166,8 @@ static void test_two_sprite_chapter11(void)
 
     fd2_load_chapter_background_layers();
 
-    ASSERT_EQ(g_load_dat_calls, 2);
-    ASSERT_EQ(g_load_dat_idx_log[0], 0x10);
-    ASSERT_EQ(g_load_dat_idx_log[1], 0x11);
+    ASSERT_EQ((long)g_rle_blit_sprite_first_byte_log[0], 0x10);
+    ASSERT_EQ((long)g_rle_blit_sprite_first_byte_log[1], 0x11);
     ASSERT_EQ(g_rle_blit_calls, 2);
     ASSERT_EQ(g_rle_blit_y_log[0], 0);
     ASSERT_EQ(g_rle_blit_y_log[1], 0xe2 / 2);     /* 0x71 */
@@ -144,6 +175,7 @@ static void test_two_sprite_chapter11(void)
     ASSERT_EQ(g_rle_blit_last_palette, 0xffffffff);
     ASSERT_NE(data_fd2_graphics_static_bg_buffer_ptr, 0);
     ASSERT_EQ(data_fd2_graphics_animated_bg_buffer_ptr, 0);
+    reset_capture_teardown();
 }
 
 /* 2-sprite widescreen, chapter 0x15: bg 0x198 x 0x114, idx_base 0x23. */
@@ -154,11 +186,12 @@ static void test_two_sprite_chapter15(void)
 
     fd2_load_chapter_background_layers();
 
-    ASSERT_EQ(g_load_dat_calls, 2);
-    ASSERT_EQ(g_load_dat_idx_log[0], 0x23);
-    ASSERT_EQ(g_load_dat_idx_log[1], 0x24);
+    ASSERT_EQ((long)g_rle_blit_sprite_first_byte_log[0], 0x23);
+    ASSERT_EQ((long)g_rle_blit_sprite_first_byte_log[1], 0x24);
+    ASSERT_EQ(g_rle_blit_calls, 2);
     ASSERT_EQ(g_rle_blit_y_log[1], 0x114 / 2);    /* 0x8a */
     ASSERT_EQ(g_rle_blit_last_stride, 0x198);
+    reset_capture_teardown();
 }
 
 /* 2-sprite widescreen, chapter 0x16: bg 0x198 x 0x100, idx_base 0x28. */
@@ -169,10 +202,11 @@ static void test_two_sprite_chapter16(void)
 
     fd2_load_chapter_background_layers();
 
-    ASSERT_EQ(g_load_dat_idx_log[0], 0x28);
-    ASSERT_EQ(g_load_dat_idx_log[1], 0x29);
+    ASSERT_EQ((long)g_rle_blit_sprite_first_byte_log[0], 0x28);
+    ASSERT_EQ((long)g_rle_blit_sprite_first_byte_log[1], 0x29);
     ASSERT_EQ(g_rle_blit_y_log[1], 0x100 / 2);    /* 0x80 */
     ASSERT_EQ(g_rle_blit_last_stride, 0x198);
+    reset_capture_teardown();
 }
 
 /* 2-sprite widescreen, chapter 0x1B: width default 0x1CE, height 0xF4,
@@ -184,10 +218,11 @@ static void test_two_sprite_chapter1b(void)
 
     fd2_load_chapter_background_layers();
 
-    ASSERT_EQ(g_load_dat_idx_log[0], 0x2e);
-    ASSERT_EQ(g_load_dat_idx_log[1], 0x2f);
+    ASSERT_EQ((long)g_rle_blit_sprite_first_byte_log[0], 0x2e);
+    ASSERT_EQ((long)g_rle_blit_sprite_first_byte_log[1], 0x2f);
     ASSERT_EQ(g_rle_blit_y_log[1], 0xf4 / 2);     /* 0x7a */
     ASSERT_EQ(g_rle_blit_last_stride, 0x1ce);
+    reset_capture_teardown();
 }
 
 /* Text-scroll cinematic, chapter 0x17: idx 0x2A, stride 0x138, one blit,
@@ -199,9 +234,8 @@ static void test_text_scroll_chapter17(void)
 
     fd2_load_chapter_background_layers();
 
-    ASSERT_EQ(g_load_dat_calls, 1);
-    ASSERT_EQ(g_load_dat_last_idx, 0x2a);
     ASSERT_EQ(g_rle_blit_calls, 1);
+    ASSERT_EQ((long)g_rle_blit_sprite_first_byte_log[0], 0x2a);
     ASSERT_EQ(g_rle_blit_last_x, 0);
     ASSERT_EQ(g_rle_blit_last_y, 0);
     ASSERT_EQ(g_rle_blit_last_stride, 0x138);
@@ -210,26 +244,68 @@ static void test_text_scroll_chapter17(void)
     ASSERT_EQ(g_scroll_text_last_arg, 0);
     ASSERT_NE(data_fd2_graphics_static_bg_buffer_ptr, 0);
     ASSERT_EQ(data_fd2_graphics_animated_bg_buffer_ptr, 0);
+    reset_capture_teardown();
 }
 
 /* ================================================================
  * fd2_load_chapter_battle_data fixture + tests
  *
- * The real function fopens FDICON.B24 and reads packed FDFIELD/FDSHAP
- * data through pointer globals. The testglob fakes of fd2_load_dat_resource
- * return any pre-seeded (non-NULL) pointer unchanged, so the fixture stages
- * every buffer the function reads and writes a real FDICON.B24 so fopen
- * succeeds (its content is unused — only the FILE* validity matters).
- * fd2_recalculate_combat_stats is the REAL linked routine; the zeroed roster
- * templates leave every inventory slot unequipped and every status buff off,
- * so it runs as a safe no-op stat copy.
+ * The real fd2_load_dat_resource (now linked) fopen+freads the named DAT
+ * files, so the fixture writes real on-disk archives whose indices deliver
+ * the exact bytes the function consumes:
+ *   FDFIELD.DAT[ch*3]   -> tile_map  (16-bit width@+0, height@+2)
+ *   FDFIELD.DAT[ch*3+1] -> tile_event ([0]=scene_id,[1]=total_size,
+ *                                       [2]=alloc_offset, race bytes @+0x98)
+ *   FDFIELD.DAT[ch*3+2] -> field-pos table (pos_x@+0, pos_y@+2, stride 6)
+ *   FDTXT.DAT[ch+1]     -> current_chapter_text (loaded, not read here)
+ *   FDSHAP.DAT[scene*2], [scene*2+1] -> battle_scene_snapshot / tile attr
+ *   FDOTHER.DAT[...]    -> background_layers default-path single sprite
+ * The shared menu roster stays a direct in-process global (not DAT-loaded).
+ * fd2_recalculate_combat_stats / fd2_load_portrait_to_cache are the REAL
+ * linked routines; FDICON.B24 is staged for the portrait loader.
  * ================================================================ */
-static uint8 *g_cb_field;      /* chapter_portrait_load_buffer (pos table) */
-static uint8 *g_cb_tileevent;  /* tile_event_data_table                    */
-static uint8 *g_cb_tilemap;    /* battle_tile_map (width/height header)     */
+static uint8 *g_cb_field;      /* FDFIELD[ch*3+2] payload (pos table)      */
+static uint8 *g_cb_tileevent;  /* FDFIELD[ch*3+1] payload (tile_event)     */
+static uint8 *g_cb_tilemap;    /* FDFIELD[ch*3]   payload (width/height)    */
 static uint8 *g_cb_roster;     /* shared menu party roster templates       */
 
+extern char data_fd2_string_resource_filename_fdtxt_dat[];
+extern char data_fd2_string_resource_filename_fdfield_dat_51a59[];
+extern char data_fd2_string_resource_filename_fdshap_dat_51a65[];
+
 #define CB_ALLOC_OFFSET 1u
+
+/* Build the three FDFIELD resources (tile_map / tile_event / field-pos) for
+ * the given chapter so indices ch*3, ch*3+1, ch*3+2 all resolve. The DAT
+ * also needs to cover index 0..ch*3+2; lower indices get tiny stub payloads. */
+static int          g_cb_fld_sizes[0x60 * 3 + 4];
+static const uint8 *g_cb_fld_ptrs[0x60 * 3 + 4];
+static uint8        g_cb_fld_stub[4];
+
+static void write_cb_fdfield(int chapter)
+{
+    int    n;
+    int    base;
+    int    i;
+
+    base = chapter * 3;
+    n = base + 3;                 /* indices 0..base+2 inclusive */
+    memset(g_cb_fld_stub, 0, sizeof(g_cb_fld_stub));
+    for (i = 0; i < n; i++) {
+        g_cb_fld_sizes[i] = (int)sizeof(g_cb_fld_stub);
+        g_cb_fld_ptrs[i]  = g_cb_fld_stub;
+    }
+    /* tile_map @ base, tile_event @ base+1, field-pos @ base+2 */
+    g_cb_fld_sizes[base]     = 16;
+    g_cb_fld_ptrs[base]      = g_cb_tilemap;
+    g_cb_fld_sizes[base + 1] = (int)(0x98 + CB_ALLOC_OFFSET * 0x1a + 0x20);
+    g_cb_fld_ptrs[base + 1]  = g_cb_tileevent;
+    g_cb_fld_sizes[base + 2] = (int)(CB_ALLOC_OFFSET * 6 + 2 +
+                                     ((g_cb_tileevent[1]) + 1) * 6);
+    g_cb_fld_ptrs[base + 2]  = g_cb_field;
+    write_fake_dat((const char *)data_fd2_string_resource_filename_fdfield_dat_51a59,
+                   n, g_cb_fld_sizes, g_cb_fld_ptrs);
+}
 
 /* total_size = number of loop slots; alloc_offset feeds the field-pos table
  * base = alloc_offset*6 + 2; party_member_count gates active vs dead.
@@ -240,32 +316,31 @@ static void setup_cb_fixture(int chapter, int total_size,
                              uint8 slot6_char_id)
 {
     int i;
-    FILE *fp;
+    int scene_stub_sizes[2];
+    const uint8 *scene_stub_ptrs[2];
+    int txt_n;
+    int *txt_sizes;
+    const uint8 **txt_ptrs;
 
     data_fd2_chapter_current_chapter_id = (uint32)chapter;
 
-    /* tile_event: [0]=scene_id, [1]=cache_total_size, [2]=cache_alloc_offset.
-     * Sized to cover the per-char records read by the real
-     * fd2_load_chapter_portraits_and_dump_tmp (stride 0x1A, race byte at
-     * +0x98) for up to CB_ALLOC_OFFSET entries. Race bytes left 0 so they do
-     * not match dump_tmp's target_race_id==0... actually 0==0 would match, so
-     * seed them to a non-zero sentinel to keep init_rtchar count deterministic. */
+    /* tile_event payload: [0]=scene_id, [1]=cache_total_size,
+     * [2]=cache_alloc_offset. Race bytes (+0x98 stride 0x1A) left at 0xEE
+     * sentinel so the tail dump_tmp(target_race_id 0) matches none. */
     g_cb_tileevent = (uint8 *)malloc(0x98 + CB_ALLOC_OFFSET * 0x1a + 0x20);
     memset(g_cb_tileevent, 0xEE, 0x98 + CB_ALLOC_OFFSET * 0x1a + 0x20);
     g_cb_tileevent[0] = 0x00;                    /* FDSHAP scene id */
     g_cb_tileevent[1] = (uint8)total_size;       /* cache_total_size */
     g_cb_tileevent[2] = (uint8)CB_ALLOC_OFFSET;  /* cache_alloc_offset */
-    data_fd2_tile_event_data_table_ptr = (uint32)g_cb_tileevent;
 
-    /* tile_map: 16-bit width @ +0, 16-bit height @ +2 */
+    /* tile_map payload: 16-bit width @ +0, 16-bit height @ +2 */
     g_cb_tilemap = (uint8 *)malloc(16);
     memset(g_cb_tilemap, 0, 16);
     *(int16 *)(g_cb_tilemap + 0) = (int16)sclar_w;
     *(int16 *)(g_cb_tilemap + 2) = (int16)scalar_h;
-    data_fd2_battle_tile_map_ptr = (uint32)g_cb_tilemap;
 
-    /* field position table: base = alloc_offset*6 + 2, 6-byte stride,
-     * pos_x at +0 and pos_y at +2 of each entry. Seed entry k = (0x10+k, 0x20+k). */
+    /* field-pos payload: base = alloc_offset*6 + 2, 6-byte stride,
+     * pos_x @ +0 / pos_y @ +2. Seed entry k = (0x10+k, 0x20+k). */
     g_cb_field = (uint8 *)malloc(CB_ALLOC_OFFSET * 6 + 2 + (total_size + 1) * 6);
     memset(g_cb_field, 0, CB_ALLOC_OFFSET * 6 + 2 + (total_size + 1) * 6);
     for (i = 0; i < total_size; i++) {
@@ -273,7 +348,29 @@ static void setup_cb_fixture(int chapter, int total_size,
         e[0] = (uint8)(0x10 + i);   /* pos_x */
         e[2] = (uint8)(0x20 + i);   /* pos_y */
     }
-    chapter_portrait_load_buffer = (uint32)g_cb_field;
+
+    /* write the three FDFIELD resources as one archive */
+    write_cb_fdfield(chapter);
+
+    /* FDTXT.DAT: index ch+1 loaded (not read), tiny payloads for 0..ch+1 */
+    txt_n = chapter + 2;
+    txt_sizes = (int *)malloc((size_t)txt_n * sizeof(int));
+    txt_ptrs  = (const uint8 **)malloc((size_t)txt_n * sizeof(uint8 *));
+    for (i = 0; i < txt_n; i++) { txt_sizes[i] = 4; txt_ptrs[i] = 0; }
+    write_fake_dat((const char *)data_fd2_string_resource_filename_fdtxt_dat,
+                   txt_n, txt_sizes, txt_ptrs);
+    free(txt_sizes);
+    free(txt_ptrs);
+
+    /* FDSHAP.DAT: scene_id 0 -> indices 0 (snapshot) and 1 (attr flags) */
+    scene_stub_sizes[0] = 4; scene_stub_sizes[1] = 4;
+    scene_stub_ptrs[0] = 0;  scene_stub_ptrs[1] = 0;
+    write_fake_dat((const char *)data_fd2_string_resource_filename_fdshap_dat_51a65,
+                   2, scene_stub_sizes, scene_stub_ptrs);
+
+    /* FDOTHER.DAT: background_layers default path loads one sprite (idx<=0x10
+     * for chapters not in the special lists); reuse the full bg archive. */
+    write_fdother_bg_dat();
 
     /* roster templates: 0x50-byte stride, zeroed (no equipped items / buffs).
      * portrait_id (+0x07) seeded so fd2_load_portrait_to_cache sees distinct ids. */
@@ -288,13 +385,22 @@ static void setup_cb_fixture(int chapter, int total_size,
 
     data_fd2_shared_menu_party_member_count = (uint32)menu_party_count;
 
-    /* freed-if-nonzero then re-malloc'd; NULL/zero so no stale free */
+    /* freed-if-nonzero then re-malloc'd; NULL/zero so no stale free. The
+     * loader-returned buffers for these pointer globals start NULL so the
+     * loader's free(old_buf) is a no-op on the first load. */
     data_fd2_battle_runtime_char_array_ptr = NULL;
     portrait_sprite_cache = 0;
+    current_chapter_text = 0;
+    chapter_portrait_load_buffer = 0;
+    data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_battle_tile_map_ptr = 0;
+    battle_scene_snapshot = 0;
+    data_fd2_tile_attribute_flags_buffer_ptr = 0;
+    data_fd2_graphics_static_bg_buffer_ptr = 0;
+    data_fd2_graphics_animated_bg_buffer_ptr = 0;
 
     /* the real fd2_load_portrait_to_cache (now linked) parses FDICON.B24 */
     write_fake_fdicon();
-    (void)fp;
 }
 
 static void teardown_cb_fixture(void)
@@ -303,10 +409,29 @@ static void teardown_cb_fixture(void)
         free(data_fd2_battle_runtime_char_array_ptr);
     if (portrait_sprite_cache != 0)
         free((void *)portrait_sprite_cache);
-    /* g_cb_field was already free()d + nulled by the function
-     * (it frees chapter_portrait_load_buffer, whose value is g_cb_field) */
+    /* loader-returned buffers the function leaves live (it does NOT free
+     * these): current_chapter_text, tile_event, tile_map, scene snapshot,
+     * tile-attr flags, and the background buffers. */
+    if (current_chapter_text != 0)
+        free((void *)current_chapter_text);
+    if (data_fd2_tile_event_data_table_ptr != 0)
+        free((void *)data_fd2_tile_event_data_table_ptr);
+    if (data_fd2_battle_tile_map_ptr != 0)
+        free((void *)data_fd2_battle_tile_map_ptr);
+    if (battle_scene_snapshot != 0)
+        free((void *)battle_scene_snapshot);
+    if (data_fd2_tile_attribute_flags_buffer_ptr != 0)
+        free((void *)data_fd2_tile_attribute_flags_buffer_ptr);
+    if (data_fd2_graphics_static_bg_buffer_ptr != 0)
+        free((void *)data_fd2_graphics_static_bg_buffer_ptr);
+    if (data_fd2_graphics_animated_bg_buffer_ptr != 0)
+        free((void *)data_fd2_graphics_animated_bg_buffer_ptr);
+    /* chapter_portrait_load_buffer was freed+nulled by the function */
+
+    /* the payload source buffers (separate from the loaded copies) */
     free(g_cb_tileevent);
     free(g_cb_tilemap);
+    free(g_cb_field);
     free(g_cb_roster);
 
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
@@ -319,11 +444,17 @@ static void teardown_cb_fixture(void)
     battle_scene_snapshot = 0;
     current_chapter_text = 0;
     data_fd2_tile_attribute_flags_buffer_ptr = 0;
+    data_fd2_graphics_static_bg_buffer_ptr = 0;
+    data_fd2_graphics_animated_bg_buffer_ptr = 0;
     portrait_sprite_cache = 0;
     data_fd2_battle_map_width_tiles = 20;
     data_fd2_battle_map_height_tiles = 15;
     data_fd2_chapter_current_chapter_id = 1;
 
+    remove((const char *)data_fd2_string_resource_filename_fdtxt_dat);
+    remove((const char *)data_fd2_string_resource_filename_fdfield_dat_51a59);
+    remove((const char *)data_fd2_string_resource_filename_fdshap_dat_51a65);
+    remove((const char *)data_fd2_string_resource_filename_fdother_dat);
     remove("FDICON.B24");
     remove("FD2.TMP");
 }
@@ -448,16 +579,32 @@ static void setup_pt_fixture(int count, const uint8 *race_of)
     data_fd2_tile_event_data_table_ptr = (uint32)g_pt_tileevent;
     data_fd2_resource_portrait_cache_alloc_offset = (uint32)count;
 
-    /* The real fd2_init_runtime_char_for_battle (now linked) reads the spawn
-     * field buffer at chapter_portrait_load_buffer + idx*6 and the per-char
-     * record at tile_event + idx*0x1A + 0x83 (default zeros -> player class 0).
-     * Pre-allocate a sized field buffer so the loop's FDFIELD re-read mock
-     * returns it unchanged (the caller frees+nulls it on exit). Run the slot
-     * build in phase 1 so spawn = desired position (no tile-map search). */
-    chapter_portrait_load_buffer =
-        (uint32)malloc((size_t)count * 6 + 16);
-    memset((void *)chapter_portrait_load_buffer, 0,
-           (size_t)count * 6 + 16);
+    /* fd2_load_chapter_portraits_and_dump_tmp re-loads FDFIELD[ch*3+2] (ch=4
+     * -> idx 0xE) into chapter_portrait_load_buffer via the REAL loader. The
+     * real fd2_init_runtime_char_for_battle then reads the spawn field buffer
+     * at that buffer + idx*6 and the per-char record at tile_event +
+     * idx*0x1A + 0x83 (default zeros -> player class 0). Build an FDFIELD.DAT
+     * whose index 0xE delivers a zeroed field buffer big enough for `count`
+     * 6-byte spawn entries. Run the slot build in phase 1 so spawn = desired
+     * position (no tile-map search). */
+    {
+        int    fld_n;
+        int   *fld_sizes;
+        const uint8 **fld_ptrs;
+        int    j;
+        int    field_idx = 4 * 3 + 2;     /* 0xE */
+        fld_n = field_idx + 1;
+        fld_sizes = (int *)malloc((size_t)fld_n * sizeof(int));
+        fld_ptrs  = (const uint8 **)malloc((size_t)fld_n * sizeof(uint8 *));
+        for (j = 0; j < fld_n; j++) { fld_sizes[j] = 4; fld_ptrs[j] = 0; }
+        fld_sizes[field_idx] = count * 6 + 16;   /* zeroed (ptr NULL) */
+        write_fake_dat(
+            (const char *)data_fd2_string_resource_filename_fdfield_dat_51a59,
+            fld_n, fld_sizes, fld_ptrs);
+        free(fld_sizes);
+        free(fld_ptrs);
+    }
+    chapter_portrait_load_buffer = 0;          /* loaded fresh by the function */
     data_fd2_chapter_init_phase_flag = 1;
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
@@ -474,10 +621,6 @@ static void setup_pt_fixture(int count, const uint8 *race_of)
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
-
-    g_load_dat_calls = 0;
-    g_load_dat_last_fname = 0;
-    g_load_dat_last_idx = 0;
 
     write_fake_fdicon();
     (void)fp;
@@ -500,6 +643,7 @@ static void teardown_pt_fixture(void)
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     data_fd2_battle_party_member_count = 4;
     data_fd2_chapter_current_chapter_id = 1;
+    remove((const char *)data_fd2_string_resource_filename_fdfield_dat_51a59);
     remove("FDICON.B24");
     remove("FD2.TMP");
 }
@@ -527,11 +671,10 @@ static void test_pt_single_match(void)
     setup_pt_fixture(2, races);
     fd2_load_chapter_portraits_and_dump_tmp(0x07);
 
-    /* one matching record -> real init runs once (party count 0 -> 1) */
+    /* one matching record -> real init runs once (party count 0 -> 1). The
+     * FDFIELD[4*3+2 = 0xE] re-read happened (the function loaded a fresh field
+     * buffer and freed+nulled it on exit). */
     ASSERT_EQ((long)data_fd2_battle_party_member_count, 1);
-
-    ASSERT_EQ((long)g_load_dat_calls, 1);
-    ASSERT_EQ((long)g_load_dat_last_idx, 0xE);    /* 4*3+2 */
 
     ASSERT_EQ((long)chapter_portrait_load_buffer, 0);
     ASSERT_EQ(fd2_tmp_size(), 0x32A00);
@@ -696,10 +839,86 @@ static void test_lpc_append_miss(void)
     lpc_teardown();
 }
 
+/* ================================================================
+ * fd2_load_dat_resource @ 0x111ba  (direct tests)
+ *
+ * Builds a known DAT via write_fake_dat() (each index k has a distinct
+ * payload) and verifies: the returned buffer holds the index's payload,
+ * last_loaded_resource_size = end-start for that index, distinct indices
+ * resolve to distinct payloads, and a non-NULL old_buf is freed (a fresh
+ * buffer is returned, not the old pointer).
+ * ================================================================ */
+#define LDR_DAT_NAME "TLOADDAT.DAT"
+
+static void test_ldr_normal_load_and_size(void)
+{
+    /* index 0 -> 5 bytes {0xA0..0xA4}, index 1 -> 3 bytes {0xB0..0xB2},
+     * index 2 -> 7 bytes {0xC0..0xC6} */
+    static const uint8 p0[5] = { 0xA0, 0xA1, 0xA2, 0xA3, 0xA4 };
+    static const uint8 p1[3] = { 0xB0, 0xB1, 0xB2 };
+    static const uint8 p2[7] = { 0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6 };
+    int sizes[3];
+    const uint8 *ptrs[3];
+    uint8 *buf;
+    int i;
+
+    sizes[0] = 5; sizes[1] = 3; sizes[2] = 7;
+    ptrs[0] = p0; ptrs[1] = p1; ptrs[2] = p2;
+    write_fake_dat(LDR_DAT_NAME, 3, sizes, ptrs);
+
+    /* index 1: size = end-start = 3; content == p1 */
+    buf = (uint8 *)fd2_load_dat_resource((uint32)LDR_DAT_NAME, 0, 1);
+    ASSERT_TRUE(buf != 0);
+    ASSERT_EQ((long)data_fd2_resource_last_loaded_resource_size, 3);
+    for (i = 0; i < 3; i++) {
+        ASSERT_EQ((long)buf[i], (long)p1[i]);
+    }
+    free(buf);
+
+    /* index 2: size 7, content == p2 */
+    buf = (uint8 *)fd2_load_dat_resource((uint32)LDR_DAT_NAME, 0, 2);
+    ASSERT_TRUE(buf != 0);
+    ASSERT_EQ((long)data_fd2_resource_last_loaded_resource_size, 7);
+    for (i = 0; i < 7; i++) {
+        ASSERT_EQ((long)buf[i], (long)p2[i]);
+    }
+    free(buf);
+
+    remove(LDR_DAT_NAME);
+}
+
+/* old_buf != 0 is freed; a fresh buffer (not the old pointer) is returned. */
+static void test_ldr_old_buf_freed(void)
+{
+    static const uint8 p0[4] = { 0x11, 0x22, 0x33, 0x44 };
+    int sizes[1];
+    const uint8 *ptrs[1];
+    uint32 old_buf;
+    uint8 *buf;
+    int i;
+
+    sizes[0] = 4;
+    ptrs[0] = p0;
+    write_fake_dat(LDR_DAT_NAME, 1, sizes, ptrs);
+
+    old_buf = (uint32)malloc(4);    /* loader will free() this */
+    buf = (uint8 *)fd2_load_dat_resource((uint32)LDR_DAT_NAME, old_buf, 0);
+
+    ASSERT_TRUE(buf != 0);
+    ASSERT_EQ((long)data_fd2_resource_last_loaded_resource_size, 4);
+    for (i = 0; i < 4; i++) {
+        ASSERT_EQ((long)buf[i], (long)p0[i]);
+    }
+    free(buf);
+    remove(LDR_DAT_NAME);
+}
+
 void run_rsrc_rsrc_tests(void)
 {
     int _prev_fails = g_test_fail_count;
     printf("Suite: rsrc/rsrc\n");
+    RUN_TEST(test_ldr_normal_load_and_size);
+    RUN_TEST(test_ldr_old_buf_freed);
     RUN_TEST(test_lpc_first_init);
     RUN_TEST(test_lpc_cache_hit);
     RUN_TEST(test_lpc_append_miss);

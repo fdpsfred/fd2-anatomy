@@ -12,6 +12,67 @@
 #include <dos.h>
 
 /* ----------------------------------------------------------------
+ * fd2_load_dat_resource @ 0x111ba  (~38 callers)
+ *
+ * Core resource loader for FD2's packed DAT files (FDTXT / FDOTHER /
+ * FDFIELD / FDSHAP / DATO / FDMUS). Each DAT is a simple archive:
+ *   [0..5]      6-byte header prefix
+ *   [6..]       array of 32-bit absolute offsets (one per resource +1)
+ *   [...]       packed resource payloads
+ *
+ * Algorithm:
+ *   1. If old_buf != 0: free(old_buf).
+ *   2. fp = fopen(fname, "rb"); if NULL ->
+ *      printf("\n\n File not found %s!!! \n\n", fname) + exit(1).
+ *   3. Read 8 bytes at file offset (index*4 + 6): [u32 start, u32 end].
+ *   4. last_loaded_resource_size @ 0x53BFF = end - start.
+ *   5. buf = malloc(size); if NULL ->
+ *      printf("Out of Memory at Load %s Number:%d!!\n", fname, index) +
+ *      exit(1).
+ *   6. fseek(fp, start, SEEK_SET); fread(buf, 1, size, fp); fclose(fp).
+ *   7. Return buf.
+ *
+ * The two error paths tail-JMP into _main's shared printf("%s")+exit(1)
+ * stub at 0x1005e; emitted inline here to match the rsrc.c idiom.
+ * ---------------------------------------------------------------- */
+uint32 fd2_load_dat_resource(uint32 fname, uint32 old_buf, uint32 index)
+{
+    void  *fp;
+    uint32 *header;
+    int32  start;
+    void  *buf;
+
+    if (old_buf != 0) {
+        free((void *)old_buf);
+    }
+
+    fp = fopen((char *)fname, "rb");
+    if (fp == NULL) {
+        printf("\n\n File not found %s!!! \n\n", (char *)fname);
+        exit(1);
+    }
+
+    header = (uint32 *)malloc(8);
+    fseek(fp, (long)(index * 4 + 6), SEEK_SET);
+    fread(header, 1, 8, fp);
+    start = (int32)header[0];
+    data_fd2_resource_last_loaded_resource_size =
+        (uint32)((int32)header[1] - start);
+    free(header);
+
+    buf = malloc(data_fd2_resource_last_loaded_resource_size);
+    if (buf == NULL) {
+        printf("Out of Memory at Load %s Number:%d!!\n", (char *)fname, index);
+        exit(1);
+    }
+
+    fseek(fp, (long)start, SEEK_SET);
+    fread(buf, 1, data_fd2_resource_last_loaded_resource_size, fp);
+    fclose(fp);
+    return (uint32)buf;
+}
+
+/* ----------------------------------------------------------------
  * fd2_load_chapter_background_layers @ 0x10652  (1 caller)
  *
  * Chapter-specific background layer load from FDOTHER.DAT.
@@ -75,13 +136,15 @@ void fd2_load_chapter_background_layers(void)
         data_fd2_graphics_static_bg_buffer_ptr =
             (uint32)malloc(bg_width * bg_height);
 
-        top_sprite = fd2_load_dat_resource(0x51a4d,
+        top_sprite = fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_fdother_dat,
             data_fd2_graphics_animated_bg_buffer_ptr, idx_base);
         data_fd2_graphics_animated_bg_buffer_ptr = top_sprite;
         fd2_rle_blit_sprite(top_sprite, 0, 0,
             data_fd2_graphics_static_bg_buffer_ptr, bg_width, 0xffffffff);
 
-        bot_sprite = fd2_load_dat_resource(0x51a4d,
+        bot_sprite = fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_fdother_dat,
             data_fd2_graphics_animated_bg_buffer_ptr, idx_base + 1);
         data_fd2_graphics_animated_bg_buffer_ptr = bot_sprite;
         fd2_rle_blit_sprite(bot_sprite, 0, (int32)bg_height / 2,
@@ -94,7 +157,8 @@ void fd2_load_chapter_background_layers(void)
         data_fd2_graphics_static_bg_buffer_ptr = (uint32)malloc(0xea00);
 
         data_fd2_graphics_animated_bg_buffer_ptr = fd2_load_dat_resource(
-            0x51a4d, data_fd2_graphics_animated_bg_buffer_ptr, 0x2a);
+            (uint32)data_fd2_string_resource_filename_fdother_dat,
+            data_fd2_graphics_animated_bg_buffer_ptr, 0x2a);
         fd2_rle_blit_sprite(data_fd2_graphics_animated_bg_buffer_ptr, 0, 0,
             data_fd2_graphics_static_bg_buffer_ptr, 0x138, 0xffffffff);
 
@@ -111,7 +175,8 @@ void fd2_load_chapter_background_layers(void)
     }
 
     data_fd2_graphics_static_bg_buffer_ptr = fd2_load_dat_resource(
-        0x51a4d, data_fd2_graphics_static_bg_buffer_ptr, fdother_idx);
+        (uint32)data_fd2_string_resource_filename_fdother_dat,
+        data_fd2_graphics_static_bg_buffer_ptr, fdother_idx);
     data_fd2_graphics_animated_bg_buffer_ptr = (uint32)malloc(64000);
 }
 

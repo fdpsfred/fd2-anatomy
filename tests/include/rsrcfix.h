@@ -38,4 +38,53 @@ static void write_fake_fdicon(void)
     fclose(fp);
 }
 
+/* Write a packed DAT archive the real fd2_load_dat_resource can parse. The
+ * loader reads 8 bytes at file offset index*4+6 ([start,end] = two adjacent
+ * offset-table entries), sets last_loaded_resource_size = end-start, then
+ * freads `size` bytes from `start`. Layout produced here:
+ *   [0..5]                 6-byte header prefix (skipped by index*4+6 base)
+ *   [6 .. 6+(n+1)*4-1]     (n+1) u32 absolute offsets
+ *   [data_base ..]         payloads laid sequentially
+ * so resource `k` has size sizes[k] and bytes payloads[k][0..sizes[k]-1].
+ * `payloads[k]` may be NULL to emit a zero-filled payload of sizes[k] bytes. */
+static void write_fake_dat(const char *name, int n,
+                           const int *sizes, const uint8 **payloads)
+{
+    FILE   *fp;
+    int32   data_base;
+    int32   off;
+    int     k;
+    int     j;
+    uint8   zero;
+    uint8   prefix[6];
+
+    fp = fopen(name, "wb");
+    data_base = (int32)(6 + (n + 1) * 4);
+
+    memset(prefix, 0, sizeof(prefix));
+    fwrite(prefix, 1, 6, fp);
+
+    /* offset table: offsets[0]=data_base, offsets[k+1]=offsets[k]+sizes[k] */
+    off = data_base;
+    for (k = 0; k <= n; k++) {
+        fwrite(&off, 4, 1, fp);
+        if (k < n) {
+            off = (int32)(off + sizes[k]);
+        }
+    }
+
+    /* payloads, sequential */
+    zero = 0;
+    for (k = 0; k < n; k++) {
+        if (payloads != 0 && payloads[k] != 0) {
+            fwrite(payloads[k], 1, (size_t)sizes[k], fp);
+        } else {
+            for (j = 0; j < sizes[k]; j++) {
+                fwrite(&zero, 1, 1, fp);
+            }
+        }
+    }
+    fclose(fp);
+}
+
 #endif /* RSRCFIX_H */
