@@ -120,6 +120,7 @@ function reviewerPrompt(fn, emitterOut) {
     '   5. fall-through/特殊 pattern：是否依 pipeline_spec §A–F 正確處理。',
     '   6. 符號名 byte-identical；C89 宣告位置；8.3。',
     '   7. test 品質（風險導向政策）：高風險 state/path（數值/分支/RNG/EAX/狀態轉移）是否都有真實斷言（非永真/trivially-pass）；純計算期望值是否來自 emulate_function 而非臆測；純 blit/display 延後是否合理註明。未覆蓋高風險 path → block。',
+    '   7b. 真實檔案測試（鐵則，讀檔 function 必驗）：若本 function（或其 test 所驅動的 callee）會 fopen/fread 真實遊戲檔（FDICON.B24 / FDFIELD/FDSHAP/FDOTHER/FDTXT/FDMUS.DAT / FD2.SAV 等），test 必須讀「從 fd2_game_files/ staged 到 tests/OUT（TEST.EXE 的 cwd）的真檔」並對真實解析值斷言。build_test.py 會 stage 這些真檔；test 不可自己寫假檔（write_fake_dat / write_fake_fdicon 之類捏造結構的 stand-in），也不可 remove() 這些 staged 真檔（會被同 run 其他 suite 影響）。發現假檔過關 → 一律 block（fix_suggestion：改讀 staged 真檔、斷言用真檔實際 byte/size/解析值，期望值可用 fd2-knowledge 或直接讀真檔求得）。',
     '   8. 半成品/遷就 test：有無改名/static/空殼/_impl；有無為 test 扭曲 C。',
     '   9. Ghidra 事實正確性（主動驗證，不只查 emitter 改的）：plate 描述的行為/caller/callee、function name 的語意、以及本 function 引用到的 global data symbol 之名稱與 plate，是否與 assembly 事實相符。發現過時命名 / placeholder / 描述錯 / 分類錯 → 列為 blocking_issue（fix_suggestion 寫明應 set_plate_comment 或 rename 成什麼）。專案硬規範：Ghidra 與事實不符必當場追根修正並同步 KB / globals.h / testglob.c，不留待後續。emitter 本回合若已改 plate/KB(.md)/rename，也一併確認改得正確。',
     'E. emit_issues：emitter 該記而未記的等價性疑慮，列出。',

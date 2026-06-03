@@ -40,6 +40,8 @@
 - **Workflow `args` 經 tool-call 會被當 string** → script 已 `JSON.parse` 容錯;傳 work-list 照常傳即可。
 - **emitter/reviewer 必須前景跑 `build_test.py`，嚴禁 `run_in_background`** — subagent 一交出最終訊息就結束、收不到背景通知、不閉環(且會留 dosbox 孤兒)。
 - build gate 結束偵測無固定等待:`DONE.TXT` 出現 / DOSBox process 退出 / heartbeat(`HB.TXT`)停滯三訊號擇一(見上表);不存在 stale-cache / DPMI-OOM 問題(舊文件誤判,見 `src/handoff.md` §8)。**測試的 heartbeat 機制**:`testharn.h` 的 `TEST_BEGIN` 呼叫 `test_heartbeat()`(定義在 `testglob.c`),每個 test 用 fopen/fprintf/**fclose** 重寫 `E:\OUT\HB.TXT`;close 才會讓 DOSBox 把寫入 commit 到 host 檔(光 `fflush` 不會,DOSBox local-drive 會快取重導向 stdout 到 file close),所以 host 端輪詢看得到即時進度、卡住時 `HB.TXT` 凍在 hang 的 test 名。DOSBox crash/hang 行為實證見 `tools/hangprobe/`。
+- **路徑佈局**:compile cwd=`C:\`(=src),`.obj`→`tests/OUT/obj\`,`TEST.EXE`→`tests/OUT`,run 段 `cd \out` 使 TEST.EXE cwd=`tests/OUT`,**src/ 乾淨**。`build.bat`/`test.lnk` 由 `genbuild.py` 全產生,勿手改。
+- **真實檔案測試 gate**:build_test.py 啟動前把 7 個遊戲檔從 `fd2_game_files/` stage 到 `tests/OUT`(=cwd,缺/size 不符才複製,不掛載)。讀檔 function 的 test 必須讀 staged 真檔、斷言真實解析值;禁捏造假檔(`write_fake_*`)、禁 remove() staged 真檔。reviewer checklist 7b 強制。見 memory `feedback_real_file_tests_mandatory`。
 - 每批 ≤ 12(checkpoint 粒度);全程 Opus。
 - **Ghidra 斷線＝純 event-driven schema 偵測,無心跳**:emitter/reviewer 任一 Ghidra MCP 失敗/逾時先快速重試一次,仍失敗才設結構化 `ghidra_unreachable=true`+`ghidra_error_detail` → `runAgent` fast-stop(`result.stopped=='ghidra_disconnect'`)→ 完成通知喚醒 → `connect_instance('FD2')` 探測:恢復則 relaunch、wedged 則 PushNotification 請使用者重啟。**多來源並發操作同一 Ghidra instance 無妨**(不靠 grep/字串/reviewed 停滯/liveness 判斷)。詳見 `src/handoff.md` §5。
 

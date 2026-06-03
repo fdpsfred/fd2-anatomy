@@ -5,7 +5,8 @@
     "phase": 5,
     "done": true,
     "asm": false,
-    "reviewed": true
+    "reviewed": false,
+    "review_note": "reverted: test used fabricated file (write_fake_dat/fdicon or synthetic FD2.SAV) instead of real fd2_game_files; must re-review with staged real game files per feedback_real_file_tests_mandatory"
   },
   "00010620": {
     "name": "fd2_check_keyboard_buffer_nonempty",
@@ -21,7 +22,8 @@
     "phase": 5,
     "done": true,
     "asm": false,
-    "reviewed": true
+    "reviewed": false,
+    "review_note": "reverted: test used fabricated file (write_fake_dat/fdicon or synthetic FD2.SAV) instead of real fd2_game_files; must re-review with staged real game files per feedback_real_file_tests_mandatory"
   },
   "0001088d": {
     "name": "fd2_load_chapter_battle_data",
@@ -29,7 +31,8 @@
     "phase": 5,
     "done": true,
     "asm": false,
-    "reviewed": true
+    "reviewed": false,
+    "review_note": "reverted: test used fabricated file (write_fake_dat/fdicon or synthetic FD2.SAV) instead of real fd2_game_files; must re-review with staged real game files per feedback_real_file_tests_mandatory"
   },
   "00010b43": {
     "name": "fd2_noop_stub_b43",
@@ -47,7 +50,8 @@
     "phase": 5,
     "done": true,
     "asm": false,
-    "reviewed": true
+    "reviewed": false,
+    "review_note": "reverted: test used fabricated file (write_fake_dat/fdicon or synthetic FD2.SAV) instead of real fd2_game_files; must re-review with staged real game files per feedback_real_file_tests_mandatory"
   },
   "00010c49": {
     "name": "fd2_noop_stub_c49",
@@ -65,7 +69,8 @@
     "phase": 5,
     "done": true,
     "asm": false,
-    "reviewed": true
+    "reviewed": false,
+    "review_note": "reverted: test used fabricated file (write_fake_dat/fdicon or synthetic FD2.SAV) instead of real fd2_game_files; must re-review with staged real game files per feedback_real_file_tests_mandatory"
   },
   "00011011": {
     "name": "fd2_noop_stub_1011",
@@ -83,7 +88,8 @@
     "phase": 5,
     "done": true,
     "asm": false,
-    "reviewed": true
+    "reviewed": false,
+    "review_note": "reverted: test used fabricated file (write_fake_dat/fdicon or synthetic FD2.SAV) instead of real fd2_game_files; must re-review with staged real game files per feedback_real_file_tests_mandatory"
   },
   "000111ba": {
     "name": "fd2_load_dat_resource",
@@ -91,7 +97,8 @@
     "phase": 5,
     "done": true,
     "asm": false,
-    "reviewed": true
+    "reviewed": false,
+    "review_note": "reverted: test used fabricated file (write_fake_dat/fdicon or synthetic FD2.SAV) instead of real fd2_game_files; must re-review with staged real game files per feedback_real_file_tests_mandatory"
   },
   "000112a5": {
     "name": "fd2_init_runtime_char_from_base_growth",
@@ -1664,7 +1671,8 @@
     "phase": 2,
     "done": true,
     "asm": true,
-    "reviewed": true
+    "reviewed": false,
+    "review_note": "reverted: test used fabricated file (write_fake_dat/fdicon or synthetic FD2.SAV) instead of real fd2_game_files; must re-review with staged real game files per feedback_real_file_tests_mandatory"
   },
   "000206c5": {
     "name": "fd2_chapter_02_post_action",
@@ -2486,7 +2494,8 @@
     "phase": 2,
     "done": true,
     "asm": true,
-    "reviewed": true
+    "reviewed": false,
+    "review_note": "reverted: test used fabricated file (write_fake_dat/fdicon or synthetic FD2.SAV) instead of real fd2_game_files; must re-review with staged real game files per feedback_real_file_tests_mandatory"
   },
   "00025a96": {
     "name": "fd2_play_sfx_with_handle",
@@ -2515,7 +2524,8 @@
     "phase": 2,
     "done": true,
     "asm": true,
-    "reviewed": true
+    "reviewed": false,
+    "review_note": "reverted: test used fabricated file (write_fake_dat/fdicon or synthetic FD2.SAV) instead of real fd2_game_files; must re-review with staged real game files per feedback_real_file_tests_mandatory"
   },
   "00026152": {
     "name": "fd2_tick_summon_spell_setup_pre_animation_8slot",
