@@ -312,7 +312,8 @@ void fd2_wait_ticks_or_keypress_with_palette(uint32 max_ticks);
 int fd2_wait_for_input_v2(void);
 int fd2_wait_for_action_target_input(int mode, uint32 n_options, uint8 *pTarget_array);
 /* forward decl — gfx stubs */
-void fd2_blit_sheet_sprite_at_offset(uint32 dst, uint32 stride, uint32 sheet_ptr, uint32 idx);
+uint32 fd2_blit_sprite_raw_with_header(uint32 dst, uint32 sprite_hdr, uint32 stride);
+void fd2_blit_sheet_sprite_at_offset(uint32 dst, uint32 dst_pitch, uint32 sheet, uint32 sprite_idx);
 void fd2_paint_portrait_to_dialog_area(uint32 frame);
 void fd2_composite_battle_tile_map(uint32 dst, uint32 stride, uint32 w, uint32 h, uint32 ox, uint32 oy);
 void fd2_paint_cursor_overlay_pattern(void);

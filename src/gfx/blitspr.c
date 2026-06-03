@@ -153,3 +153,36 @@ uint32 fd2_alloc_and_blit_indexed_sprite_chunk(uint32 sheet_base, uint32 dst,
     fd2_blit_sprite_with_decoded_pixels(dst_off + dst, sprite_hdr, surface_pitch);
     return (uint32)save_buf;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_blit_sheet_sprite_at_offset @ 0x1685C (9 callers)
+ *
+ * Look up sprite #sprite_idx in a sprite-atlas sheet's offset table and
+ * perform a raw header+pixel blit at dst.
+ *
+ * The atlas's 4-byte-per-entry offset table starts at sheet + 6. Entry
+ * sprite_idx gives the byte offset (from sheet) of that sprite's
+ * header, so:
+ *
+ *   sprite_addr = sheet + *(int32 *)(sheet + 6 + sprite_idx * 4);
+ *
+ * The resolved sprite (width word 0, height word 2, then raw pixels) is
+ * then painted opaquely via fd2_blit_sprite_raw_with_header.
+ *
+ * Used 17x by fd2_assemble_dialog_frame_layered to compose a dialog box
+ * from 17 tile sprites; also called by other panel/grid renderers.
+ *
+ * Args (cdecl, 4x uint32 on stack):
+ *   dst        — destination base linear address
+ *   dst_pitch  — destination row stride
+ *   sheet      — sprite atlas base linear address
+ *   sprite_idx — index into the sheet's offset table
+ * ---------------------------------------------------------------- */
+void fd2_blit_sheet_sprite_at_offset(uint32 dst, uint32 dst_pitch,
+                                     uint32 sheet, uint32 sprite_idx)
+{
+    uint32 sprite_addr;
+
+    sprite_addr = sheet + *(int32 *)(sheet + 6 + sprite_idx * 4);
+    fd2_blit_sprite_raw_with_header(dst, sprite_addr, dst_pitch);
+}

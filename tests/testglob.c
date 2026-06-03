@@ -161,7 +161,6 @@ uint32 data_fd2_dialog_current_speaker_char_ptr = 0;
 uint32 data_fd2_large_game_state_buffer_ptr = 0;
 uint32 data_fd2_dialog_blink_phase_oscillator = 0;
 uint32 data_fd2_dialog_blink_phase_oscillator_tick_latch = 0;
-void fd2_blit_sheet_sprite_at_offset(uint32 d, uint32 s, uint32 p, uint32 i) { }
 uint32 data_fd2_graphics_chapter_walk_anim_alt_palette_idx = 0;
 uint32 data_fd2_graphics_chapter_ambient_palette_anim_idx = 0;
 uint32 data_fd2_graphics_chapter_ambient_palette_anim_tick_latch = 0;
@@ -342,6 +341,15 @@ void fd2_blit_sprite_with_decoded_pixels(uint32 d, uint32 s, uint32 st)
     g_blitdec_dst = d;
     g_blitdec_sprite = s;
     g_blitdec_stride = st;
+}
+/* capture wiring for fd2_blit_sheet_sprite_at_offset tests */
+uint32 g_blitraw_dst, g_blitraw_sprite, g_blitraw_stride;
+uint32 fd2_blit_sprite_raw_with_header(uint32 d, uint32 s, uint32 st)
+{
+    g_blitraw_dst = d;
+    g_blitraw_sprite = s;
+    g_blitraw_stride = st;
+    return 0;
 }
 void fd2_render_recruitment_select_screen(uint32 a, uint32 b, uint32 c, uint32 d) { }
 void fd2_animate_spell_impact_per_target(uint32 a, uint32 b, uint32 c, uint32 d) { }

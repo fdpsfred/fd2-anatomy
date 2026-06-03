@@ -266,6 +266,73 @@ static void test_alloc_blit_chunk_signed_dims(void)
     free((void *)ret);
 }
 
+/* capture vars for fd2_blit_sprite_raw_with_header stub (testglob.c) */
+extern uint32 g_blitraw_dst, g_blitraw_sprite, g_blitraw_stride;
+
+/*
+ * fd2_blit_sheet_sprite_at_offset resolves a sprite through the atlas
+ * offset table and forwards a raw blit. Verify:
+ *   - sprite_addr = sheet + *(int32*)(sheet + 6 + sprite_idx*4)
+ *     (4-byte-per-entry table; picking the right entry by sprite_idx)
+ *   - fd2_blit_sprite_raw_with_header(dst, sprite_addr, dst_pitch)
+ *     forwards dst and dst_pitch unchanged and the resolved sprite addr.
+ * Drive with a multi-entry table and assert the captured args.
+ */
+static void test_sheet_sprite_offset_wiring(void)
+{
+    static uint8 sheet[256];
+    uint32 sheet_base;
+    uint32 hdr0_off, hdr1_off, hdr2_off;
+    uint32 dst, dst_pitch;
+    uint32 expect_sprite_addr;
+
+    sheet_base = (uint32)sheet;
+
+    /* three offset-table entries (4 bytes each) starting at sheet+6 */
+    hdr0_off = 0x40;
+    hdr1_off = 0x60;
+    hdr2_off = 0x80;
+    *(int32 *)(sheet + 6 + 0 * 4) = (int32)hdr0_off;
+    *(int32 *)(sheet + 6 + 1 * 4) = (int32)hdr1_off;
+    *(int32 *)(sheet + 6 + 2 * 4) = (int32)hdr2_off;
+
+    dst = 0xA0000;
+    dst_pitch = 0x140;
+
+    /* pick entry 2: sprite_addr must resolve to sheet_base + hdr2_off */
+    expect_sprite_addr = sheet_base + hdr2_off;
+
+    fd2_blit_sheet_sprite_at_offset(dst, dst_pitch, sheet_base, 2);
+
+    ASSERT_EQ((long)g_blitraw_dst, (long)dst);
+    ASSERT_EQ((long)g_blitraw_sprite, (long)expect_sprite_addr);
+    ASSERT_EQ((long)g_blitraw_stride, (long)dst_pitch);
+
+    /* pick entry 0: distinct entry selects a distinct sprite_addr */
+    fd2_blit_sheet_sprite_at_offset(dst, dst_pitch, sheet_base, 0);
+    ASSERT_EQ((long)g_blitraw_sprite, (long)(sheet_base + hdr0_off));
+}
+
+/*
+ * The offset-table entry is read as a signed 32-bit value and added to
+ * sheet: a negative table entry yields sprite_addr below sheet_base.
+ * Confirms the signed *(int32*) read (not unsigned).
+ */
+static void test_sheet_sprite_negative_offset(void)
+{
+    static uint8 sheet[256];
+    uint32 sheet_base;
+
+    sheet_base = (uint32)sheet;
+    *(int32 *)(sheet + 6 + 0 * 4) = (int32)-0x10;
+
+    fd2_blit_sheet_sprite_at_offset(0xB0000, 0x100, sheet_base, 0);
+
+    ASSERT_EQ((long)g_blitraw_sprite, (long)(sheet_base - 0x10));
+    ASSERT_EQ((long)g_blitraw_dst, (long)0xB0000);
+    ASSERT_EQ((long)g_blitraw_stride, (long)0x100);
+}
+
 void run_gfx_blitspr_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -277,5 +344,7 @@ void run_gfx_blitspr_tests(void)
     RUN_TEST(test_indexed_sprite_signed_dims);
     RUN_TEST(test_alloc_blit_chunk_wiring);
     RUN_TEST(test_alloc_blit_chunk_signed_dims);
+    RUN_TEST(test_sheet_sprite_offset_wiring);
+    RUN_TEST(test_sheet_sprite_negative_offset);
     printf("\n");
 }

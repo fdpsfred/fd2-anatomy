@@ -734,8 +734,9 @@
     "name": "fd2_blit_sheet_sprite_at_offset",
     "target": "gfx/blitspr.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00016886": {
     "name": "fd2_blit_indexed_sprite_at_xy",
