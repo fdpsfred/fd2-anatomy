@@ -90,3 +90,37 @@ uint32 fd2_save_compute_checksum(uint32 buf, uint32 size)
     } while (remaining != 0);
     return checksum;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_save_crypt_buffer @ 0x4dbd8 (6 callers)
+ *
+ * In-place XOR cipher for FD2.SAV: applied identically on write
+ * (encrypt) and read (decrypt) — an involution. __cdecl:
+ * buf = byte buffer, size = length (must be > 0). void return.
+ *
+ * scramble_state starts at 0xA5; each iteration advances it via
+ * ROL16(state + 0x9014, 3) (16-bit add then rotate-left by 3 — the
+ * Watcom shift+OR idiom on a 16-bit word) and XORs the low byte of
+ * the new state into the current buffer byte. Because XOR is
+ * self-inverse and the keystream is deterministic from the constant
+ * seed, the same routine encrypts (write path) and decrypts (read
+ * path).
+ *
+ * NOTE: do-while means size == 0 underflows; callers must pass
+ * size >= 1.
+ * ---------------------------------------------------------------- */
+void fd2_save_crypt_buffer(uint32 buf, uint32 size)
+{
+    uint16 scramble_state;
+    uint8 *pBuf;
+
+    scramble_state = 0xa5;
+    pBuf = (uint8 *)buf;
+    do {
+        scramble_state = (uint16)(((scramble_state + 0x9014) << 3) |
+                                  ((uint16)(scramble_state + 0x9014) >> 0xd));
+        *pBuf = (uint8)(*pBuf ^ (uint8)scramble_state);
+        size = size - 1;
+        pBuf = pBuf + 1;
+    } while (size != 0);
+}

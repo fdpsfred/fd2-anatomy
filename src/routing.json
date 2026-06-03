@@ -4408,8 +4408,9 @@
     "name": "fd2_save_crypt_buffer",
     "target": "save/save.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004dbfc": {
     "name": "fd2_obfuscate_battle_tile_map",

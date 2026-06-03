@@ -208,10 +208,12 @@ static void setup_load_save_fixture(int chapter_id, int party_count,
     sav[0x30D2] = 1;               /* terrain_hud_user_enabled            */
     sav[0x30D3] = 1;               /* bgm_enabled_flag                    */
     sav[0x30D4] = 0;               /* sfx_enabled_flag                    */
-    /* Stored checksum at the tail. fd2_save_crypt_buffer is a no-op fake,
-     * so the loader's real fd2_save_compute_checksum sums the raw on-disk
-     * bytes [0..0x59C6]. For the match case store that real sum; for the
-     * mismatch case store a value the real sum can never equal. */
+    /* Build the PLAINTEXT image first. The loader fread()s the on-disk
+     * bytes then runs the real fd2_save_crypt_buffer to DECRYPT in place,
+     * and only then sums [0..0x59C6] for the checksum. So the checksum is
+     * over the decrypted (plaintext) image: for the match case store that
+     * plaintext sum; for the mismatch case store a value the sum can never
+     * equal. */
     if (checksum_match) {
         *(uint32 *)(sav + 0x59C7) =
             fd2_save_compute_checksum((uint32)sav, 0x59CB);
@@ -220,6 +222,12 @@ static void setup_load_save_fixture(int chapter_id, int party_count,
          * larger constant so it can never coincide with the true sum. */
         *(uint32 *)(sav + 0x59C7) = 0xFFFFFFFFu;
     }
+
+    /* Encrypt the whole image before writing it to disk so the loader's
+     * real decrypt (fd2_save_crypt_buffer is an involution) recovers this
+     * exact plaintext. Without this the loader would XOR the keystream into
+     * raw bytes and parse garbage (e.g. a huge party_count -> hang). */
+    fd2_save_crypt_buffer((uint32)sav, 0x59CB);
 
     fp = fopen("FD2.SAV", "wb");
     fwrite(sav, 1, 0x59CB, fp);

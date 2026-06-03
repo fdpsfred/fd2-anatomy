@@ -312,6 +312,74 @@ static void test_checksum_len5_single_byte(void)
     ASSERT_EQ(fd2_save_compute_checksum((uint32)buf, 5), 0x7B);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_save_crypt_buffer tests
+ *
+ * Ground-truth keystream (state seed 0xA5, advance via
+ * ROL16(state + 0x9014, 3), XOR low byte). The first four keystream
+ * bytes were verified against the FD2.LE function under Ghidra's
+ * emulator: final 16-bit state after 4 iterations = 0x45AC.
+ *   iter1: ROL16(0x90B9,3) = 0x85CC -> key 0xCC
+ *   iter2: ROL16(0x15E0,3) = 0xAF00 -> key 0x00
+ *   iter3: ROL16(0x3F14,3) = 0xF8A1 -> key 0xA1
+ *   iter4: ROL16(0x88B5,3) = 0x45AC -> key 0xAC
+ * ---------------------------------------------------------------- */
+
+/* The deterministic keystream the cipher XORs in, byte by byte. */
+static const uint8 g_crypt_keystream[4] = { 0xCC, 0x00, 0xA1, 0xAC };
+
+/* ---- Test: zero buffer -> output equals the raw keystream ---- */
+static void test_crypt_keystream_on_zero_buffer(void)
+{
+    uint8 buf[4];
+
+    buf[0] = 0x00; buf[1] = 0x00; buf[2] = 0x00; buf[3] = 0x00;
+    fd2_save_crypt_buffer((uint32)buf, 4);
+    /* 0x00 ^ key == key, so the buffer now holds the keystream. */
+    ASSERT_MEM_EQ(buf, g_crypt_keystream, 4);
+}
+
+/* ---- Test: non-zero buffer XORed with the known keystream ---- */
+static void test_crypt_xor_known_data(void)
+{
+    uint8 buf[4];
+
+    buf[0] = 0x12; buf[1] = 0x34; buf[2] = 0x56; buf[3] = 0x78;
+    fd2_save_crypt_buffer((uint32)buf, 4);
+    ASSERT_EQ(buf[0], (uint8)(0x12 ^ 0xCC));   /* 0xDE */
+    ASSERT_EQ(buf[1], (uint8)(0x34 ^ 0x00));   /* 0x34 */
+    ASSERT_EQ(buf[2], (uint8)(0x56 ^ 0xA1));   /* 0xF7 */
+    ASSERT_EQ(buf[3], (uint8)(0x78 ^ 0xAC));   /* 0xD4 */
+}
+
+/* ---- Test: involution — crypt twice restores the original ---- */
+static void test_crypt_is_involution(void)
+{
+    uint8 buf[64];
+    uint8 orig[64];
+    uint32 i;
+
+    for (i = 0; i < 64; i++) {
+        buf[i] = (uint8)(i * 7 + 3);
+        orig[i] = buf[i];
+    }
+    fd2_save_crypt_buffer((uint32)buf, 64);   /* encrypt */
+    /* After one pass the data must differ somewhere (keystream != 0). */
+    ASSERT_NE(buf[0], orig[0]);
+    fd2_save_crypt_buffer((uint32)buf, 64);   /* decrypt */
+    ASSERT_MEM_EQ(buf, orig, 64);
+}
+
+/* ---- Test: size = 1 applies exactly one keystream byte ---- */
+static void test_crypt_size_one(void)
+{
+    uint8 buf[1];
+
+    buf[0] = 0xFF;
+    fd2_save_crypt_buffer((uint32)buf, 1);
+    ASSERT_EQ(buf[0], (uint8)(0xFF ^ 0xCC));   /* 0x33 */
+}
+
 void run_save_save_tests(void)
 {
     SUITE_BEGIN(save_save);
@@ -327,5 +395,9 @@ void run_save_save_tests(void)
     RUN_TEST(test_checksum_u32_accumulator);
     RUN_TEST(test_checksum_u32_wrap);
     RUN_TEST(test_checksum_len5_single_byte);
+    RUN_TEST(test_crypt_keystream_on_zero_buffer);
+    RUN_TEST(test_crypt_xor_known_data);
+    RUN_TEST(test_crypt_is_involution);
+    RUN_TEST(test_crypt_size_one);
     SUITE_END();
 }

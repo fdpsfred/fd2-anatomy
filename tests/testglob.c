@@ -251,7 +251,6 @@ void fd2_close_status_screen_with_slide_out(void) { }
 void fd2_play_palette_fade_to_black(void) { }
 int g_ending_menu_return = 0;
 int fd2_play_ending_and_record_clear(void) { return g_ending_menu_return; }
-void fd2_save_crypt_buffer(uint32 b, uint32 s) { (void)b; (void)s; }
 int g_slot_selector_return = -1;
 int fd2_save_slot_selector_ui(uint32 b, uint32 m) { (void)b; (void)m; return g_slot_selector_return; }
 void fd2_close_intro_dialog_with_slide_out(void) { }
@@ -262,6 +261,8 @@ int fd2_chapter_transition_menu(void) { return g_chapter_transition_return; }
  * (the real fd2_load_save_and_init_engine now lives in src/life/main.c) */
 /* fd2_save_compute_checksum: now emitted in src/save/save.c (the loader
  * checksum test now stores a real computed checksum in the FD2.SAV tail). */
+/* fd2_save_crypt_buffer: now emitted in src/save/save.c (the FD2.SAV fixture
+ * encrypts its image so the loader's real decrypt recovers the plaintext). */
 /* fd2_load_chapter_background_layers: now in rsrc/rsrc.c */
 /* fd2_load_portrait_to_cache: now emitted in src/rsrc/rsrc.c */
 int g_alloc_blit_calls = 0;
