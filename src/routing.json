@@ -4600,7 +4600,8 @@
     "target": "table/table.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0004e53e": {
     "name": "fd2_get_job_allowed_items_table_entry",
