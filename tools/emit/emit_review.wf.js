@@ -35,7 +35,7 @@ const SOP = [
   '- cc / param 從 caller 推導，少報比多報危險（少報→callee 讀 stack 垃圾→crash）。',
   '- 絕不半成品（改名 / static / 空殼 / _impl）；絕不為遷就 test 而扭曲 emit code。',
   '- 禁 workaround，只修 root cause。',
-  '- Ghidra 連線失敗：若任何 Ghidra MCP 呼叫失敗、或回任何形式的「instance 不可用 / 無法連線 / 連線中斷 / 逾時」錯誤（不限特定字串），立刻停止本 function、不臆測不硬湊；務必設 ghidra_unreachable=true（bool），並把你實際看到的錯誤訊息/原因寫進 ghidra_error_detail（string）。這是給外層 watchdog 的唯一停批訊號。',
+  '- Ghidra 連線失敗：某個 Ghidra MCP 呼叫失敗、或回任何形式的「instance 不可用 / 無法連線 / 連線中斷 / 逾時」錯誤（不限特定字串）時，先「快速重試該呼叫一次」（僅一次，不可反覆重試以免 hammer/wedge Ghidra）排除瞬間 blip；重試成功就照常繼續、不要設旗標。若重試仍失敗（持續無法連線）→ 立刻停止本 function、不臆測不硬湊，務必設 ghidra_unreachable=true（bool），並把你實際看到的錯誤訊息/原因寫進 ghidra_error_detail（string）。這是給外層 watchdog 的唯一停批訊號。',
   '- Test 覆蓋政策＝風險導向：對「數值計算 / 複雜控制流分支 / RNG / EAX-bug 風險 / 狀態轉移」的 state/path 強制測；純 blit/display 副作用的 state 可延到 Phase 9 integration（但須在輸出註明延後與理由）。',
   '- build gate：前景執行  python tools/emit/build_test.py --changed "<改動檔,逗號分隔>"  ，它內部自己輪詢 DONE.TXT（約 20-30 秒）並回傳 JSON。',
   '  嚴禁用背景 / run_in_background 跑它——subagent 一旦交出最終訊息就結束，收不到背景通知、不會閉環。必須前景阻塞等它回 JSON。',
