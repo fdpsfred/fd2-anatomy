@@ -205,6 +205,22 @@ static void test_cutscene_script_deref(void)
 }
 
 
+static void test_orphan_table_60181_0(void)
+{
+    uint8 *result = fd2_get_orphan_table_60181_entry(0);
+    uint8 *expected = data_fd2_orphan_table_60181;
+    ASSERT_EQ((long)result, (long)expected);
+}
+
+
+static void test_orphan_table_60181_offset(void)
+{
+    uint8 *result = fd2_get_orphan_table_60181_entry(7);
+    uint8 *expected = data_fd2_orphan_table_60181 + 7 * 3;
+    ASSERT_EQ((long)result, (long)expected);
+}
+
+
 void run_table_table_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -225,5 +241,7 @@ void run_table_table_tests(void)
     RUN_TEST(test_job_allowed_items);
     RUN_TEST(test_movement_cost);
     RUN_TEST(test_cutscene_script_deref);
+    RUN_TEST(test_orphan_table_60181_0);
+    RUN_TEST(test_orphan_table_60181_offset);
     printf("\n");
 }

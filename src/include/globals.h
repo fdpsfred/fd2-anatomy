@@ -292,5 +292,6 @@ extern void  *data_fd2_chapter_cutscene_event_script_ptr_table_106[106];   /* 0x
 /* ---- .object3 additional tables ---- */
 extern uint8  data_fd2_chapter_intro_metadata_table[];                  /* 0x6238D  31B per ch */
 extern uint8  data_fd2_spell_learning_table[];                          /* 0x626B3  12B per entry */
+extern uint8  data_fd2_orphan_table_60181[];                           /* 0x60181  3B per entry (orphan) */
 
 #endif /* GLOBALS_H */

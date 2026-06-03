@@ -15,6 +15,7 @@ uint8  data_fd2_chapter_intro_metadata_table[26 * 31];
 uint8  data_fd2_spell_learning_table[20 * 12];
 uint8  data_fd2_class_promotion_data_table[20 * 2];
 uint8  data_fd2_movement_cost_table[27 * 20];
+uint8  data_fd2_orphan_table_60181[99 * 3];
 uint8  data_fd2_job_allowed_items_table[27 * 7];
 void  *data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21[21];
 void  *data_fd2_chapter_cutscene_event_script_ptr_table_106[106];

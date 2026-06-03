@@ -1,7 +1,7 @@
 /*
  * table.c — .object3 data table accessor functions
  *
- * 12 leaf functions that return pointers into the game's read-only
+ * 13 leaf functions that return pointers into the game's read-only
  * data tables in .object3. All are __cdecl, 1 stack arg, no side effects.
  *
  * Addresses: 0x4E48D..0x4E7F8 (.object1 tail cluster)
@@ -144,4 +144,16 @@ uint8 *fd2_get_movement_cost_table_for_job(int job_id)
 uint8 *fd2_get_cutscene_event_script(int event_id)
 {
     return (uint8 *)data_fd2_chapter_cutscene_event_script_ptr_table_106[event_id];
+}
+
+/* ----------------------------------------------------------------
+ * fd2_get_orphan_table_60181_entry @ 0x4DB84  (0 callers — orphan)
+ *
+ * Returns pointer to idx-th 3-byte entry of the table at 0x60181.
+ * Assembly: EAX = idx * 3 + 0x60181
+ * Orphan accessor in .object3; reachable only via indirect call.
+ * ---------------------------------------------------------------- */
+uint8 *fd2_get_orphan_table_60181_entry(int idx)
+{
+    return data_fd2_orphan_table_60181 + idx * 3;
 }
