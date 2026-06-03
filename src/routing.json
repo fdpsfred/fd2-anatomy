@@ -64,7 +64,8 @@
     "target": "battle/btl_init.c",
     "phase": 5,
     "done": false,
-    "asm": false
+    "asm": false,
+    "reviewed": true
   },
   "00011011": {
     "name": "fd2_noop_stub_1011",

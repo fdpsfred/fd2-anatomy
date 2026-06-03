@@ -32,9 +32,6 @@ extern uint32 g_scroll_text_last_arg;
 
 /* fd2_load_chapter_battle_data captures (testglob.c) */
 extern int    g_load_portrait_calls;
-extern int    g_init_rtchar_calls;
-extern uint32 g_init_rtchar_last_idx;
-extern uint32 g_init_rtchar_last_fp;
 extern runtime_char g_test_rc_array[8];
 
 /* FDOTHER.DAT string address used by the function under test */
@@ -298,9 +295,6 @@ static void setup_cb_fixture(int chapter, int total_size,
     fclose(fp);
 
     g_load_portrait_calls = 0;
-    g_init_rtchar_calls = 0;
-    g_init_rtchar_last_idx = 0;
-    g_init_rtchar_last_fp = 0;
 }
 
 static void teardown_cb_fixture(void)
@@ -352,9 +346,9 @@ static void test_cb_all_active(void)
 
     /* every slot active: one portrait load each. The tail dump_tmp(0) runs
      * for real; its tile-event race bytes are the 0xEE sentinel so it matches
-     * no entry (target_race_id 0) and adds no extra init_rtchar / portrait. */
+     * no entry (target_race_id 0) and adds no extra init_rtchar / portrait
+     * (party count stays at the loader's 3, asserted above). */
     ASSERT_EQ((long)g_load_portrait_calls, 3);
-    ASSERT_EQ((long)g_init_rtchar_calls, 0);
 
     /* slot 0 active fields */
     ASSERT_EQ((long)arr[0].flags, 0);          /* not dead */
@@ -453,7 +447,20 @@ static void setup_pt_fixture(int count, const uint8 *race_of)
     data_fd2_tile_event_data_table_ptr = (uint32)g_pt_tileevent;
     data_fd2_resource_portrait_cache_alloc_offset = (uint32)count;
 
-    chapter_portrait_load_buffer = 0;
+    /* The real fd2_init_runtime_char_for_battle (now linked) reads the spawn
+     * field buffer at chapter_portrait_load_buffer + idx*6 and the per-char
+     * record at tile_event + idx*0x1A + 0x83 (default zeros -> player class 0).
+     * Pre-allocate a sized field buffer so the loop's FDFIELD re-read mock
+     * returns it unchanged (the caller frees+nulls it on exit). Run the slot
+     * build in phase 1 so spawn = desired position (no tile-map search). */
+    chapter_portrait_load_buffer =
+        (uint32)malloc((size_t)count * 6 + 16);
+    memset((void *)chapter_portrait_load_buffer, 0,
+           (size_t)count * 6 + 16);
+    data_fd2_chapter_init_phase_flag = 1;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    data_fd2_battle_party_member_count = 0;
     data_fd2_chapter_current_chapter_id = 4;   /* re-read idx = 4*3+2 = 0xE */
 
     if (portrait_sprite_cache == 0)
@@ -462,9 +469,6 @@ static void setup_pt_fixture(int count, const uint8 *race_of)
     g_load_dat_calls = 0;
     g_load_dat_last_fname = 0;
     g_load_dat_last_idx = 0;
-    g_init_rtchar_calls = 0;
-    g_init_rtchar_last_idx = 0;
-    g_init_rtchar_last_fp = 0;
 
     fp = fopen("FDICON.B24", "wb");
     fclose(fp);
@@ -480,7 +484,12 @@ static void teardown_pt_fixture(void)
     }
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_resource_portrait_cache_alloc_offset = 0;
+    /* chapter_portrait_load_buffer was freed+nulled by the function under
+     * test; leave it at 0. */
     chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_init_phase_flag = 0;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_party_member_count = 4;
     data_fd2_chapter_current_chapter_id = 1;
     remove("FDICON.B24");
     remove("FD2.TMP");
@@ -509,9 +518,8 @@ static void test_pt_single_match(void)
     setup_pt_fixture(2, races);
     fd2_load_chapter_portraits_and_dump_tmp(0x07);
 
-    ASSERT_EQ((long)g_init_rtchar_calls, 1);
-    ASSERT_EQ((long)g_init_rtchar_last_idx, 0);   /* record 0 matched */
-    ASSERT_NE(g_init_rtchar_last_fp, 0);          /* passed the FDICON handle */
+    /* one matching record -> real init runs once (party count 0 -> 1) */
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 1);
 
     ASSERT_EQ((long)g_load_dat_calls, 1);
     ASSERT_EQ((long)g_load_dat_last_idx, 0xE);    /* 4*3+2 */
@@ -531,7 +539,8 @@ static void test_pt_no_match(void)
     setup_pt_fixture(3, races);
     fd2_load_chapter_portraits_and_dump_tmp(0x7F);
 
-    ASSERT_EQ((long)g_init_rtchar_calls, 0);
+    /* no matching record -> real init never runs (party count stays 0) */
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 0);
     ASSERT_EQ((long)chapter_portrait_load_buffer, 0);
     ASSERT_EQ(fd2_tmp_size(), 0x32A00);
 
@@ -546,8 +555,8 @@ static void test_pt_multiple_match(void)
     setup_pt_fixture(4, races);
     fd2_load_chapter_portraits_and_dump_tmp(0x05);
 
-    ASSERT_EQ((long)g_init_rtchar_calls, 3);      /* indices 0,1,3 */
-    ASSERT_EQ((long)g_init_rtchar_last_idx, 3);   /* last match */
+    /* three matching records (indices 0,1,3) -> init runs 3x */
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 3);
 
     teardown_pt_fixture();
 }
@@ -559,7 +568,8 @@ static void test_pt_empty_table(void)
     setup_pt_fixture(0, (const uint8 *)0);
     fd2_load_chapter_portraits_and_dump_tmp(0x00);
 
-    ASSERT_EQ((long)g_init_rtchar_calls, 0);
+    /* empty table -> loop body never runs, real init never called */
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 0);
     ASSERT_EQ(fd2_tmp_size(), 0x32A00);
 
     teardown_pt_fixture();

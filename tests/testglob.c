@@ -90,6 +90,7 @@ uint32 data_fd2_battle_cursor_screen_x = 5;
 uint32 data_fd2_battle_cursor_screen_y = 5;
 uint32 data_fd2_battle_map_width_tiles = 20;
 uint32 data_fd2_battle_map_height_tiles = 15;
+uint8  data_fd2_chapter_init_phase_flag = 0;
 uint16 data_fd2_input_idle_current_bios_tick_word = 0;
 uint16 data_fd2_input_idle_last_rendered_tick_word = 0;
 uint8  data_fd2_input_last_key_pressed = 0;
@@ -193,16 +194,9 @@ void fd2_load_chapter_portrait(uint32 p) { }
 void fd2_close_status_screen_with_slide_out(void) { }
 /* fd2_load_chapter_battle_data: now in rsrc/rsrc.c */
 /* fd2_load_chapter_portraits_and_dump_tmp: now in rsrc/rsrc.c */
-/* fd2_init_runtime_char_for_battle: leaf callee of the real
- * fd2_load_chapter_portraits_and_dump_tmp; faked here (not yet emitted). */
-int g_init_rtchar_calls = 0;
-uint32 g_init_rtchar_last_idx = 0;
-uint32 g_init_rtchar_last_fp = 0;
-void fd2_init_runtime_char_for_battle(uint32 char_field_idx, uint32 fdicon_fp) {
-    g_init_rtchar_calls++;
-    g_init_rtchar_last_idx = char_field_idx;
-    g_init_rtchar_last_fp = fdicon_fp;
-}
+/* fd2_init_runtime_char_for_battle is now emitted in src/battle/btl_init.c
+ * and linked for real; its caller test in tests/rsrc/rsrc.c drives the real
+ * function and observes data_fd2_battle_party_member_count. */
 void fd2_play_palette_fade_to_black(void) { }
 int g_ending_menu_return = 0;
 int fd2_play_ending_and_record_clear(void) { return g_ending_menu_return; }

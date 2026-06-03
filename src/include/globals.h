@@ -68,6 +68,7 @@ extern uint32 data_fd2_battle_cursor_screen_x;                          /* 0x53A
 extern uint32 data_fd2_battle_cursor_screen_y;                          /* 0x53ABD */
 extern uint32 data_fd2_battle_map_width_tiles;                          /* 0x53AC1 */
 extern uint32 data_fd2_battle_map_height_tiles;                         /* 0x53AC5 */
+extern uint8  data_fd2_chapter_init_phase_flag;                         /* 0x53AFA */
 
 /* ---- UI ---- */
 extern uint8  data_fd2_ui_terrain_hud_user_enabled;                     /* 0x51AAB */
