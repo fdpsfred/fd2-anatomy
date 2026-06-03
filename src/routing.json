@@ -4277,7 +4277,8 @@
     "target": "anim/anidec.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00036c9e": {
     "name": "fd2_ani_decoder_decode_frame_bytes",
