@@ -4449,7 +4449,8 @@
     "target": "input/input.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0004dfcc": {
     "name": "fd2_update_palette_cycle_anim",
