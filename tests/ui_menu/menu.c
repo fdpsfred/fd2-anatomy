@@ -36,12 +36,38 @@ extern int g_player_action_menu_loop_return;
 /* fd2_field_command_menu_loop dispatch seams (defined in testglob.c) */
 extern int g_settings_input_step_return;
 extern int g_settings_cursor_idx;
-extern int g_open_settings_dialog_calls;
 extern int g_close_settings_dialog_calls;
 extern int g_settings_input_step_calls;
 extern int g_save_load_quit_dispatch_return;
 extern int g_save_load_quit_dispatch_calls;
 extern int g_settings_select_once;
+
+/* real-render seam: the now-real fd2_open_settings_dialog_with_slide blits 16
+ * corner sprites per open (4 frames x 4 corners). */
+extern int g_blitsetup_calls;
+
+/* Host-safe render environment for the real open-dialog reached on every
+ * field-command iteration: empty party (no real char paint), a real workspace
+ * the final blit reads from, and a real dialog-state handle for the sprite
+ * offset-table lookup. */
+#define MNU_WS_SPAN (191u * 0x1C8u + 0x138u + 0x8088u)
+static uint8 mnu_ws_buffer[MNU_WS_SPAN];
+static int32 mnu_dialog_handle[512];
+
+static void mnu_setup_render_env(void)
+{
+    int i;
+    for (i = 0; i < 512; i++) {
+        mnu_dialog_handle[i] = 0;
+    }
+    data_fd2_battle_party_member_count = 0;
+    data_fd2_battle_cursor_screen_x = 0;
+    data_fd2_battle_cursor_screen_y = 0;
+    data_fd2_large_game_state_buffer_ptr = (uint32)mnu_ws_buffer;
+    data_fd2_menu_dialog_state_handle = (uint32)mnu_dialog_handle;
+    data_fd2_audio_fdother_sfx_bank_buf_ptr = 0;
+    g_blitsetup_calls = 0;
+}
 
 /* Compile/link smoke: take the address of the emitted function and verify the
  * int-returning prototype is honored. Does not invoke it (real blocking input
@@ -59,9 +85,9 @@ static void test_game_main_loop_symbol_linkable(void)
 /* Reset the dispatch seams to a known baseline before each branch test. */
 static void fcm_reset(int cursor, int input_return)
 {
+    mnu_setup_render_env();
     g_settings_cursor_idx = cursor;
     g_settings_input_step_return = input_return;
-    g_open_settings_dialog_calls = 0;
     g_close_settings_dialog_calls = 0;
     g_settings_input_step_calls = 0;
     g_save_load_quit_dispatch_calls = 0;
@@ -78,7 +104,8 @@ static void test_field_command_menu_cancel(void)
     fcm_reset(0, -1);
     r = fd2_field_command_menu_loop();
     ASSERT_EQ(r, 1);
-    ASSERT_EQ(g_open_settings_dialog_calls, 1);
+    /* one real open-dialog = 16 corner blits */
+    ASSERT_EQ(g_blitsetup_calls, 16);
     ASSERT_EQ(g_close_settings_dialog_calls, 1);
     ASSERT_EQ(g_save_load_quit_dispatch_calls, 0);
 }
@@ -111,8 +138,9 @@ static void test_field_command_menu_options(void)
     r = fd2_field_command_menu_loop();
     ASSERT_EQ(r, 0);
     ASSERT_EQ(g_save_load_quit_dispatch_calls, 0);
-    /* one open/close for the field-command dialog, one for the options dialog */
-    ASSERT_EQ(g_open_settings_dialog_calls, 2);
+    /* one open/close for the field-command dialog, one for the options dialog;
+     * each real open = 16 corner blits -> 32 total */
+    ASSERT_EQ(g_blitsetup_calls, 32);
     ASSERT_EQ(g_close_settings_dialog_calls, 2);
 }
 

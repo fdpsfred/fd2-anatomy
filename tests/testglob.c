@@ -298,14 +298,27 @@ uint32 data_fd2_chapter_intro_dialog_anim_frame_idx = 0;
 uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
 void fd2_render_chapter_dialog_borders(void) { }
 void fd2_render_chapter_intro_dialog_panels(uint32 c, uint32 m) { }
-/* capture wiring for fd2_blit_indexed_sprite_with_alloc tests */
+/* capture wiring for fd2_blit_indexed_sprite_with_alloc tests; also drives the
+ * real fd2_open_settings_dialog_with_slide corner-sprite blit. Records the last
+ * (dst, sprite, stride) and counts total calls so the dialog-open / settings
+ * loop tests can observe that the render ran. */
 uint32 g_blitsetup_dst, g_blitsetup_sprite, g_blitsetup_stride;
+int    g_blitsetup_calls = 0;
 void fd2_blit_sprite_with_stride_setup(uint32 d, uint32 s, uint32 st)
 {
     g_blitsetup_dst = d;
     g_blitsetup_sprite = s;
     g_blitsetup_stride = st;
+    g_blitsetup_calls++;
 }
+/* fd2_backup_dialog_area_to_buffer / fd2_restore_dialog_area_from_buffer
+ * (real bodies not yet emitted): the settings-dialog open/close animations
+ * snapshot and restore the dialog region. No host-observable seam needed for
+ * the open-dialog tests, so these are recording no-ops. */
+int g_backup_dialog_area_calls = 0;
+int g_restore_dialog_area_calls = 0;
+void fd2_backup_dialog_area_to_buffer(void) { g_backup_dialog_area_calls++; }
+void fd2_restore_dialog_area_from_buffer(void) { g_restore_dialog_area_calls++; }
 uint32 g_saveblk_out, g_saveblk_w, g_saveblk_h, g_saveblk_dst,
        g_saveblk_src, g_saveblk_stride;
 int    g_saveblk_calls = 0;
@@ -750,10 +763,11 @@ int g_settings_input_step_calls = 0;
  * one toggle iteration and then exit. When 0 the legacy single-value path
  * (g_settings_input_step_return) is used. */
 int g_settings_select_once = 0;
-void fd2_open_settings_dialog_with_slide(int32 *opt, int32 *st) {
-    (void)opt; (void)st;
-    g_open_settings_dialog_calls++;
-}
+/* fd2_open_settings_dialog_with_slide is now a real emitted function
+ * (src/ui_menu/menucfg.c); its former call-counting stub was removed. Tests
+ * that need to confirm the dialog opened observe g_blitsetup_calls (16 corner
+ * blits per open) instead of g_open_settings_dialog_calls. The counter symbol
+ * is retained below only for source compatibility with existing tests. */
 int fd2_settings_menu_input_step(int32 *opt, int32 *st) {
     (void)opt; (void)st;
     g_settings_input_step_calls++;

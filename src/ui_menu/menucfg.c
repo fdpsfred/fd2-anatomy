@@ -90,6 +90,91 @@ void fd2_game_options_menu_loop(void)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_open_settings_dialog_with_slide @ 0x1741C  (5 callers:
+ *   fd2_field_command_menu_loop, fd2_field_menu_status_save_load_quit_dispatch,
+ *   fd2_game_options_menu_loop, fd2_item_command_menu_dispatch,
+ *   fd2_player_inline_action_menu_dispatch)
+ *
+ * Open a 2-panel settings dialog at the cursor position with a 4-frame
+ * outward-corner slide animation.
+ *
+ * Remembers the character under the cursor (for restamp), computes the panel
+ * anchor inside the work buffer from the on-screen cursor cell, plays the open
+ * chime, pre-renders the battle base scene + terrain HUD, then backs up the
+ * dialog area. Over 4 frames the 4 corner offsets spread outward (TL/BR by
+ * 0x8E8, TR/BL by 6 each), and on every frame the 4 corner sprites are blitted
+ * at their current offsets, the saved char (if any) is restamped, and the
+ * dialog region is flushed to screen.
+ *
+ * Per-corner sprite atlas index = menu_options[c]*3 + menu_state[c]*2; the
+ * index selects a dword offset from the dialog-state handle's offset table,
+ * and the sprite address is handle + that offset.
+ *
+ * Counterpart: fd2_close_settings_dialog_with_slide @ 0x176B4 (4-frame
+ * inward-converge close animation).
+ *
+ * void __cdecl with the __CHK(0x44) stack-probe prologue.
+ * ---------------------------------------------------------------- */
+void fd2_open_settings_dialog_with_slide(int32 *menu_options, int32 *menu_state)
+{
+    int32 corner_offsets[4];
+    int saved_char_idx;
+    uint32 panel_anchor;
+    int frame_iter;
+    int corner_iter;
+    int sprite_id;
+    uint32 sprite_addr;
+
+    saved_char_idx = fd2_find_char_at_cursor_pos();
+
+    panel_anchor = data_fd2_large_game_state_buffer_ptr + 0x8088 +
+                   data_fd2_battle_cursor_screen_x * 0x18 +
+                   data_fd2_battle_cursor_screen_y * 0x2AC0;
+
+    corner_offsets[0] = 0x390;
+    corner_offsets[1] = 0x390;
+    corner_offsets[2] = 0x390;
+    corner_offsets[3] = 0x390;
+
+    fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr, 8, 1);
+    fd2_tick_chapter_palette_animation();
+
+    fd2_composite_battle_tile_map(
+        data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1C8, 0xD, 8,
+        data_fd2_battle_view_window_origin_x,
+        data_fd2_battle_view_window_origin_y);
+    fd2_composite_all_chars_overlay();
+    fd2_render_terrain_info_hud_panel(
+        data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1C8);
+    fd2_backup_dialog_area_to_buffer();
+
+    for (frame_iter = 0; frame_iter < 4; frame_iter++) {
+        corner_offsets[0] -= 0x8E8;
+        corner_offsets[1] -= 6;
+        corner_offsets[2] += 6;
+        corner_offsets[3] += 0x8E8;
+
+        fd2_restore_dialog_area_from_buffer();
+
+        for (corner_iter = 0; corner_iter < 4; corner_iter++) {
+            sprite_id = menu_options[corner_iter] * 3 +
+                        menu_state[corner_iter] * 2;
+            sprite_addr = data_fd2_menu_dialog_state_handle +
+                *(int32 *)(data_fd2_menu_dialog_state_handle + sprite_id * 4);
+            fd2_blit_sprite_with_stride_setup(
+                panel_anchor + corner_offsets[corner_iter], sprite_addr, 0x1C8);
+        }
+
+        if (saved_char_idx != -1) {
+            fd2_paint_char_sprite_at_world_pos(saved_char_idx);
+        }
+
+        fd2_blit_rectangle(0xA0504, 0x140,
+            data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1C8, 0x138, 0xC0);
+    }
+}
+
+/* ----------------------------------------------------------------
  * fd2_count_active_menu_items_until_zero @ 0x173E7  (2 callers:
  *   fd2_item_command_menu_dispatch, fd2_player_inline_action_menu_dispatch)
  *

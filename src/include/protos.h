@@ -348,6 +348,8 @@ void fd2_render_recruitment_party_screen(void);
 void fd2_render_chapter_dialog_borders(void);
 void fd2_render_chapter_intro_dialog_panels(uint32 corner_offs_ptr, uint32 mode);
 void fd2_blit_sprite_with_stride_setup(uint32 dst, uint32 sprite, uint32 stride);
+void fd2_backup_dialog_area_to_buffer(void);
+void fd2_restore_dialog_area_from_buffer(void);
 void fd2_blit_sprite_with_decoded_pixels(uint32 dst, uint32 sprite_hdr, uint32 stride);
 void fd2_save_screen_block_to_buffer(uint32 out_buf, uint32 width, uint32 height,
                                      uint32 dst, uint32 src_ptr, uint32 stride);

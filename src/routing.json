@@ -814,8 +814,9 @@
     "name": "fd2_open_settings_dialog_with_slide",
     "target": "ui_menu/menucfg.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000175a9": {
     "name": "fd2_backup_dialog_area_to_buffer",
