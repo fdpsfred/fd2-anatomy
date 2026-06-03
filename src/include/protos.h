@@ -58,6 +58,7 @@ int fd2_field_menu_status_save_load_quit_dispatch(void);
 int fd2_text_dialog_typewriter_loop(void);
 void fd2_animate_dialog_page_advance_collapse(void);
 void fd2_game_options_menu_loop(void);
+void fd2_count_active_menu_items_until_zero(int32 *menu_def);
 int fd2_player_action_menu_loop(uint32 char_idx);
 void fd2_open_char_status_screen(uint32 char_idx);
 void fd2_open_tactical_overview_zoom(void);

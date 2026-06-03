@@ -806,8 +806,9 @@
     "name": "fd2_count_active_menu_items_until_zero",
     "target": "ui_menu/menucfg.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001741c": {
     "name": "fd2_open_settings_dialog_with_slide",

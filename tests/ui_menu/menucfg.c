@@ -149,6 +149,62 @@ static void test_options_terrain_hud_toggle(void)
     ASSERT_EQ(data_fd2_ui_terrain_hud_user_enabled, 0);
 }
 
+/* fd2_count_active_menu_items_until_zero: count leading non-zero entries (max 4)
+ * of a 4-slot int menu definition into data_fd2_ui_menu_cursor_idx. */
+
+/* First slot zero -> count 0. */
+static void test_count_first_zero(void)
+{
+    int32 def[4];
+    def[0] = 0;
+    def[1] = 7;
+    def[2] = 7;
+    def[3] = 7;
+    data_fd2_ui_menu_cursor_idx = 99;
+    fd2_count_active_menu_items_until_zero(def);
+    ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 0);
+}
+
+/* Stops at the first zero in the middle. */
+static void test_count_partial(void)
+{
+    int32 def[4];
+    def[0] = 5;
+    def[1] = 6;
+    def[2] = 0;
+    def[3] = 9;
+    data_fd2_ui_menu_cursor_idx = 99;
+    fd2_count_active_menu_items_until_zero(def);
+    ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 2);
+}
+
+/* All four non-zero -> count caps at 4 (loop bound), never reads def[4]. */
+static void test_count_all_four(void)
+{
+    int32 def[5];
+    def[0] = 1;
+    def[1] = 2;
+    def[2] = 3;
+    def[3] = 4;
+    def[4] = 0xDEAD; /* must be ignored by the < 4 bound */
+    data_fd2_ui_menu_cursor_idx = 0;
+    fd2_count_active_menu_items_until_zero(def);
+    ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 4);
+}
+
+/* Exactly one active entry. */
+static void test_count_one(void)
+{
+    int32 def[4];
+    def[0] = -1; /* non-zero negative still counts */
+    def[1] = 0;
+    def[2] = 0;
+    def[3] = 0;
+    data_fd2_ui_menu_cursor_idx = 99;
+    fd2_count_active_menu_items_until_zero(def);
+    ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 1);
+}
+
 void run_ui_menu_menucfg_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -159,5 +215,9 @@ void run_ui_menu_menucfg_tests(void)
     RUN_TEST(test_options_sfx_toggle);
     RUN_TEST(test_options_speed_toggle);
     RUN_TEST(test_options_terrain_hud_toggle);
+    RUN_TEST(test_count_first_zero);
+    RUN_TEST(test_count_partial);
+    RUN_TEST(test_count_all_four);
+    RUN_TEST(test_count_one);
     printf("\n");
 }

@@ -88,3 +88,26 @@ void fd2_game_options_menu_loop(void)
         }
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_count_active_menu_items_until_zero @ 0x173E7  (2 callers:
+ *   fd2_item_command_menu_dispatch, fd2_player_inline_action_menu_dispatch)
+ *
+ * Count the leading non-zero entries (up to 4) of a 4-slot int menu
+ * definition and store the count in data_fd2_ui_menu_cursor_idx. Used by
+ * the settings / item-command UI to position the cursor at the first
+ * empty (zeroed) slot, i.e. just past the last active entry.
+ *
+ * After return: data_fd2_ui_menu_cursor_idx is in [0, 4].
+ *
+ * void __cdecl with the __CHK(4) stack-probe prologue.
+ * ---------------------------------------------------------------- */
+void fd2_count_active_menu_items_until_zero(int32 *menu_def)
+{
+    for (data_fd2_ui_menu_cursor_idx = 0;
+         data_fd2_ui_menu_cursor_idx < 4 &&
+             menu_def[data_fd2_ui_menu_cursor_idx] != 0;
+         data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx + 1) {
+        /* empty body — search-and-store */
+    }
+}
