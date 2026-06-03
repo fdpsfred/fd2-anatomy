@@ -4285,7 +4285,8 @@
     "target": "anim/anidec.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00036de3": {
     "name": "crt_equivalent_exit_chain_stub_36de3",
