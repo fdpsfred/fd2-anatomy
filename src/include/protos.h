@@ -154,6 +154,9 @@ void fd2_update_palette_cycle_anim(void);
 /* ---- ui_menu / status ---- */
 void fd2_compute_equipped_stats_with_item_preview(uint32 char_idx, uint32 item_id, uint32 stats_out_ptr);
 
+/* ---- field cutscene ---- */
+void fd2_cutscene_event_trigger(uint32 event_id);
+
 /* ---- animation ---- */
 void fd2_tick_tile_event_animations(void);
 void fd2_walk_step_down(uint32 char_idx);

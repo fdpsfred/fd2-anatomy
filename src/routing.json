@@ -442,8 +442,9 @@
     "name": "fd2_cutscene_event_trigger",
     "target": "field/chtrans.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00013994": {
     "name": "fd2_noop_stub_13994",
