@@ -4261,7 +4261,8 @@
     "target": "anim/anidec.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "00036c56": {
     "name": "fd2_ani_decoder_chunk_sparse_copy_literal",

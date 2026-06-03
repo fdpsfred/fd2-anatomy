@@ -126,6 +126,69 @@ static void test_ani_sparse_set_byte(void)
 }
 
 
+/*
+ * test_ani_sparse_set_run_byte
+ *
+ * Drives fd2_ani_decoder_chunk_sparse_set_run_byte via decode_frame_bytes
+ * (chunk-type byte 8 = real Ghidra dispatch slot @ 0x5278A, base 0x5276A +
+ * index 8*4 = 0x20 per plate).  This is the high-risk run-fill handler:
+ * multi-record loop, per-record offset positioning, and a counted run-fill
+ * implemented in asm (00036c3d..00036c53) as
+ *   LODSW offset -> EDI = dst_buf + offset
+ *   LODSB run_count ; LODSB value (broadcast AL->AH)
+ *   SHR ECX,1 + REP STOSW ; RCL ECX,1 + REP STOSB
+ * i.e. memset(base + offset, value, run_count).  Emitted C uses memset,
+ * which is byte-identical to the SHR/STOSW + RCL/STOSB sequence.
+ *
+ * Stream (handler reads from g_ani_cursor = stream+1):
+ *   ushort N : count of run records
+ *   N * { ushort offset, byte run_count, byte value }
+ * Layout (N=2):
+ *   rec0: offset=3,  run_count=4, value=0xAB -> base[3..6]   = 0xAB
+ *   rec1: offset=20, run_count=5, value=0xCD -> base[20..24] = 0xCD
+ *
+ * Expected values are hand-derived from the stream format (pure memset
+ * semantics, no emulate needed -- plate notes emulate memory injection is
+ * non-functional for this routine in this Ghidra build) and asserted
+ * against a real 320-byte row buffer.  Both even (run_count=4 -> STOSW
+ * only) and odd (run_count=5 -> STOSW + trailing STOSB) run lengths are
+ * exercised, and the bytes immediately before/after each run are checked
+ * for no overshoot.
+ */
+static void test_ani_sparse_set_run_byte(void)
+{
+    uint8 stream[11];
+
+    stream[0] = 8;              /* dispatch index -> sparse_set_run_byte */
+    *(uint16 *)(stream + 1) = 2;  /* N: 2 run records */
+    /* rec0: offset=3, run_count=4 (even), value=0xAB */
+    *(uint16 *)(stream + 3) = 3;
+    stream[5] = 4;
+    stream[6] = 0xAB;
+    /* rec1: offset=20, run_count=5 (odd, trailing STOSB), value=0xCD */
+    *(uint16 *)(stream + 7) = 20;
+    stream[9] = 5;
+    stream[10] = 0xCD;
+
+    data_fd2_animation_ani_decoder_dst_buf = (uint32)g_test_row_buf;
+    data_fd2_animation_ani_decoder_frame_dispatch_table[8] =
+        (void *)fd2_ani_decoder_chunk_sparse_set_run_byte;
+    memset(g_test_row_buf, 0, 320);
+    fd2_ani_decoder_decode_frame_bytes(1, (uint32)stream);
+
+    /* rec0: 4 bytes of 0xAB at offset 3 */
+    ASSERT_EQ((long)g_test_row_buf[2],  0x00);  /* before run: untouched */
+    ASSERT_EQ((long)g_test_row_buf[3],  0xAB);  /* run start */
+    ASSERT_EQ((long)g_test_row_buf[6],  0xAB);  /* run end (even, STOSW) */
+    ASSERT_EQ((long)g_test_row_buf[7],  0x00);  /* after run: no overshoot */
+    /* rec1: 5 bytes of 0xCD at offset 20 */
+    ASSERT_EQ((long)g_test_row_buf[19], 0x00);  /* before run: untouched */
+    ASSERT_EQ((long)g_test_row_buf[20], 0xCD);  /* run start */
+    ASSERT_EQ((long)g_test_row_buf[24], 0xCD);  /* run end (odd, trailing STOSB) */
+    ASSERT_EQ((long)g_test_row_buf[25], 0x00);  /* after run: no overshoot */
+}
+
+
 static void test_ani_decode_frame_dispatch(void)
 {
     uint8 stream[4];
@@ -360,6 +423,7 @@ void run_anim_anidec_tests(void)
     RUN_TEST(test_ani_palette_load_run_pairs);
     RUN_TEST(test_ani_row_copy_literal);
     RUN_TEST(test_ani_sparse_set_byte);
+    RUN_TEST(test_ani_sparse_set_run_byte);
     RUN_TEST(test_ani_decode_frame_dispatch);
     printf("\n");
 }
