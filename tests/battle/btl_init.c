@@ -517,6 +517,186 @@ static void test_irc_tile_search_nearest(void)
 }
 
 
+/* ---- Tests: fd2_init_runtime_char_from_base_growth ---- */
+
+extern item_effect data_fd2_battle_item_effect_table[215];
+
+static uint8 g_ircbg_roster[2 * RUNTIME_CHAR_SIZE + 4];
+
+/* Populate slot 0 of the menu roster from base/growth tables; verify the
+ * stat formulas (HP/MP use level-1, AP/DP/DX use level), the fixed slot
+ * bytes, the inventory-mask encoding, the spell-bitmap memmove, and that
+ * the equip-adjusted aggregates (+0x48..) land after the recompute pass
+ * (with zero item boosts so they equal the base AP/DP/DX values). */
+static void test_ircbg_player_stats(void)
+{
+    uint8 *base;
+    uint8 *grow;
+    uint8 *slot;
+    uint8  prev_x;
+
+    memset(g_ircbg_roster, 0xcd, sizeof(g_ircbg_roster));
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_ircbg_roster;
+    data_fd2_shared_menu_party_member_count = 0;
+
+    /* seed slot +0..+4 with a sentinel; the function must leave them as-is */
+    slot = g_ircbg_roster;
+    slot[0] = 0xcd; slot[1] = 0xcd; slot[2] = 0xcd; slot[3] = 0xcd;
+    slot[4] = 0xcd;
+    prev_x = slot[0];
+
+    base = (uint8 *)&data_fd2_battle_character_base_table[7];
+    memset(base, 0, sizeof(character_base));
+    base[0]  = 0xaa;                 /* +0x1F archetype */
+    base[1]  = 0xbb;                 /* +0x20 job */
+    base[2]  = 4;                    /* level */
+    *(uint16 *)(base + 3)    = 40;   /* HP base */
+    *(uint16 *)(base + 5)    = 12;   /* MP base */
+    base[7]  = 0x55;                 /* magic resist */
+    base[8]  = 0x11; base[9] = 0x22; /* spell bitmap source (+8..+0xB) */
+    base[0xa] = 0x33; base[0xb] = 0x44;
+    base[0xc] = 30;                  /* primary equip item id */
+    base[0xd] = 31;                  /* secondary equip item id */
+    base[0xe] = 0x70;                /* inv item 0 (present) */
+    base[0xf] = 0xff;                /* inv item 1 (empty) */
+    base[0x10] = 0x71;               /* inv item 2 (present) */
+    base[0x11] = 0xff;               /* inv item 3 (empty) */
+    *(uint16 *)(base + 0x12) = 6;    /* AP base */
+    *(uint16 *)(base + 0x14) = 4;    /* DP base */
+    *(uint16 *)(base + 0x16) = 8;    /* DX base */
+
+    grow = (uint8 *)&data_fd2_battle_character_growth_table[7];
+    memset(grow, 0, sizeof(character_growth));
+    grow[0] = 2;   /* AP growth/level */
+    grow[2] = 1;   /* DP growth/level */
+    grow[4] = 3;   /* DX growth/level */
+    grow[6] = 5;   /* HP growth/(level-1) */
+    grow[8] = 2;   /* MP growth/(level-1) */
+
+    /* zero-boost effect entries for the two equipped item ids */
+    memset(&data_fd2_battle_item_effect_table[30], 0, sizeof(item_effect));
+    memset(&data_fd2_battle_item_effect_table[31], 0, sizeof(item_effect));
+
+    fd2_init_runtime_char_from_base_growth(7);
+
+    /* +0..+4 untouched */
+    ASSERT_EQ((long)slot[0], (long)prev_x);
+    ASSERT_EQ((long)slot[4], 0xcd);
+    /* fixed header bytes */
+    ASSERT_EQ((long)slot[5], 0);
+    ASSERT_EQ((long)slot[6], 2);
+    ASSERT_EQ((long)slot[7], 7);
+    ASSERT_EQ((long)slot[8], 7);
+    ASSERT_EQ((long)slot[9], 0);
+    /* equip slots */
+    ASSERT_EQ((long)slot[0xa], 0x40);
+    ASSERT_EQ((long)slot[0xb], 30);
+    ASSERT_EQ((long)slot[0xc], 0x40);
+    ASSERT_EQ((long)slot[0xd], 31);
+    /* inventory loop: present -> mask 0, empty(0xff) -> mask 0x80 */
+    ASSERT_EQ((long)slot[0xe], 0);    ASSERT_EQ((long)slot[0xf], 0x70);
+    ASSERT_EQ((long)slot[0x10], 0x80); ASSERT_EQ((long)slot[0x11], 0xff);
+    ASSERT_EQ((long)slot[0x12], 0);    ASSERT_EQ((long)slot[0x13], 0x71);
+    ASSERT_EQ((long)slot[0x14], 0x80); ASSERT_EQ((long)slot[0x15], 0xff);
+    /* extra empty slots */
+    ASSERT_EQ((long)slot[0x16], 0x80);
+    ASSERT_EQ((long)slot[0x18], 0x80);
+    /* spell bitmap memmove from base+8 (4 bytes) */
+    ASSERT_EQ((long)slot[0x1a], 0x11);
+    ASSERT_EQ((long)slot[0x1b], 0x22);
+    ASSERT_EQ((long)slot[0x1c], 0x33);
+    ASSERT_EQ((long)slot[0x1d], 0x44);
+    ASSERT_EQ((long)slot[0x1e], 0);
+    /* identity bytes */
+    ASSERT_EQ((long)slot[0x1f], 0xaa);
+    ASSERT_EQ((long)slot[0x20], 0xbb);
+    ASSERT_EQ((long)slot[0x21], 4);     /* level */
+    /* status block zeroed */
+    ASSERT_EQ((long)slot[0x22], 0);
+    ASSERT_EQ((long)slot[0x27], 0);
+    ASSERT_EQ((long)slot[0x31], 0xff);  /* pickup kind none */
+    /* AP = base 6 + growth 2 * level 4 = 14 */
+    ASSERT_EQ((long)*(uint16 *)(slot + 0x37), 14);
+    /* DP = base 4 + growth 1 * 4 = 8 */
+    ASSERT_EQ((long)*(uint16 *)(slot + 0x39), 8);
+    ASSERT_EQ((long)slot[0x3b], 0x55);  /* magic resist */
+    ASSERT_EQ((long)slot[0x3c], 0);     /* movement order */
+    /* DX = base 8 + growth 3 * 4 = 20 */
+    ASSERT_EQ((long)*(uint16 *)(slot + 0x3e), 20);
+    /* HP = base 40 + growth 5 * (level-1=3) = 55 */
+    ASSERT_EQ((long)*(uint16 *)(slot + 0x40), 55);
+    ASSERT_EQ((long)*(uint16 *)(slot + 0x42), 55);
+    /* MP = base 12 + growth 2 * 3 = 18 */
+    ASSERT_EQ((long)*(uint16 *)(slot + 0x44), 18);
+    ASSERT_EQ((long)*(uint16 *)(slot + 0x46), 18);
+    /* equip-adjusted aggregates (zero boosts) = base AP/DP/DX */
+    ASSERT_EQ((long)*(uint16 *)(slot + 0x48), 14);
+    ASSERT_EQ((long)*(uint16 *)(slot + 0x4a), 8);
+    ASSERT_EQ((long)*(uint16 *)(slot + 0x4c), 20);
+    ASSERT_EQ((long)*(uint16 *)(slot + 0x4e), 20);
+    /* member count incremented */
+    ASSERT_EQ((long)data_fd2_shared_menu_party_member_count, 1);
+
+    data_fd2_shared_menu_party_member_count = 0;
+}
+
+/* Level-1 boundary: HP/MP get NO growth (level-1 == 0), but AP/DP/DX
+ * still get one growth tick (level factor == 1). Also exercises slot
+ * index 1 (member_count == 1 -> second 0x50 stride). */
+static void test_ircbg_level1_boundary(void)
+{
+    uint8 *base;
+    uint8 *grow;
+    uint8 *slot;
+
+    memset(g_ircbg_roster, 0, sizeof(g_ircbg_roster));
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_ircbg_roster;
+    data_fd2_shared_menu_party_member_count = 1;
+
+    base = (uint8 *)&data_fd2_battle_character_base_table[8];
+    memset(base, 0, sizeof(character_base));
+    base[2] = 1;                     /* level 1 */
+    *(uint16 *)(base + 3)    = 25;   /* HP base */
+    *(uint16 *)(base + 5)    = 7;    /* MP base */
+    base[0xc] = 0xff;                /* primary equip empty id (mask still 0x40) */
+    base[0xd] = 0xff;
+    base[0xe] = 0xff; base[0xf] = 0xff;
+    base[0x10] = 0xff; base[0x11] = 0xff;
+    *(uint16 *)(base + 0x12) = 3;    /* AP base */
+    *(uint16 *)(base + 0x14) = 2;    /* DP base */
+    *(uint16 *)(base + 0x16) = 5;    /* DX base */
+
+    grow = (uint8 *)&data_fd2_battle_character_growth_table[8];
+    memset(grow, 0, sizeof(character_growth));
+    grow[0] = 9;   /* AP growth */
+    grow[2] = 4;   /* DP growth */
+    grow[4] = 6;   /* DX growth */
+    grow[6] = 100; /* HP growth (must NOT apply at level 1) */
+    grow[8] = 50;  /* MP growth (must NOT apply at level 1) */
+
+    /* equip ids 0xFF -> item_effect[255] is out of the 215 array, but the
+     * mask bytes are 0x40 so recompute WILL look them up; give id 0xFF a
+     * benign zero entry by clamping: use a real low id instead. */
+    base[0xc] = 5; base[0xd] = 5;
+    memset(&data_fd2_battle_item_effect_table[5], 0, sizeof(item_effect));
+
+    fd2_init_runtime_char_from_base_growth(8);
+
+    slot = g_ircbg_roster + 1 * RUNTIME_CHAR_SIZE;
+    /* HP/MP: level-1 == 0, no growth */
+    ASSERT_EQ((long)*(uint16 *)(slot + 0x40), 25);
+    ASSERT_EQ((long)*(uint16 *)(slot + 0x44), 7);
+    /* AP/DP/DX: level factor 1 -> base + 1 growth tick */
+    ASSERT_EQ((long)*(uint16 *)(slot + 0x37), 12); /* 3 + 9 */
+    ASSERT_EQ((long)*(uint16 *)(slot + 0x39), 6);  /* 2 + 4 */
+    ASSERT_EQ((long)*(uint16 *)(slot + 0x3e), 11); /* 5 + 6 */
+    ASSERT_EQ((long)slot[0x21], 1);   /* level */
+    ASSERT_EQ((long)data_fd2_shared_menu_party_member_count, 2);
+
+    data_fd2_shared_menu_party_member_count = 0;
+}
+
+
 void run_battle_btl_init_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -527,5 +707,7 @@ void run_battle_btl_init_tests(void)
     RUN_TEST(test_irc_player_class_stats);
     RUN_TEST(test_irc_enemy_class_stats);
     RUN_TEST(test_irc_tile_search_nearest);
+    RUN_TEST(test_ircbg_player_stats);
+    RUN_TEST(test_ircbg_level1_boundary);
     printf("\n");
 }
