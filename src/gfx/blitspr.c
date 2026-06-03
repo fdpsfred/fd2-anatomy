@@ -186,3 +186,41 @@ void fd2_blit_sheet_sprite_at_offset(uint32 dst, uint32 dst_pitch,
     sprite_addr = sheet + *(int32 *)(sheet + 6 + sprite_idx * 4);
     fd2_blit_sprite_raw_with_header(dst, sprite_addr, dst_pitch);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_blit_indexed_sprite_at_xy @ 0x16886 (11 callers)
+ *
+ * Thin wrapper around fd2_rle_blit_sprite that picks sub-sprite
+ * `sprite_idx` from a sprite-atlas sheet and RLE-blits it with
+ * transparent passthrough at (0, 0) within dst.
+ *
+ * The atlas's 4-byte-per-entry offset table starts at sheet + 6. Entry
+ * sprite_idx gives the byte offset (from sheet) of that sprite's RLE
+ * stream:
+ *
+ *   sprite_addr = sheet + *(int32 *)(sheet + 6 + sprite_idx * 4);
+ *
+ * The resolved stream is RLE-decoded and painted into dst at (0, 0)
+ * with palette_op = 0xFFFFFFFF (-1), the transparent-passthrough mode.
+ *
+ * (The Ghidra-era name is misleading: this takes no xy coords; the RLE
+ * blit always writes from (0, 0). The 4th param is sprite_idx, not an
+ * x coordinate.)
+ *
+ * Used for compositing UI / battle-overlay icons that need RLE-decoded
+ * transparency.
+ *
+ * Args (cdecl, 4x uint32 on stack):
+ *   dst        — destination base linear address
+ *   dst_pitch  — destination row stride
+ *   sheet      — sprite atlas base linear address
+ *   sprite_idx — index into the sheet's offset table
+ * ---------------------------------------------------------------- */
+void fd2_blit_indexed_sprite_at_xy(uint32 dst, uint32 dst_pitch,
+                                   uint32 sheet, uint32 sprite_idx)
+{
+    uint32 sprite_addr;
+
+    sprite_addr = sheet + *(int32 *)(sheet + 6 + sprite_idx * 4);
+    fd2_rle_blit_sprite(sprite_addr, 0, 0, dst, dst_pitch, 0xFFFFFFFF);
+}

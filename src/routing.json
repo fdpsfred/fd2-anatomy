@@ -742,8 +742,9 @@
     "name": "fd2_blit_indexed_sprite_at_xy",
     "target": "gfx/blitspr.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000168b6": {
     "name": "fd2_assemble_dialog_frame_layered",

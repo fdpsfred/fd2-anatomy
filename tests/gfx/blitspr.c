@@ -333,6 +333,70 @@ static void test_sheet_sprite_negative_offset(void)
     ASSERT_EQ((long)g_blitraw_stride, (long)0x100);
 }
 
+/* capture vars for fd2_rle_blit_sprite stub (testglob.c) */
+extern uint32 g_rle_blit_last_sprite, g_rle_blit_last_buf, g_rle_blit_last_palette;
+extern int32 g_rle_blit_last_x, g_rle_blit_last_y, g_rle_blit_last_stride;
+
+/*
+ * fd2_blit_indexed_sprite_at_xy resolves a sub-sprite through the atlas
+ * offset table (same sheet+6+idx*4 table as fd2_blit_sheet_sprite_at_offset)
+ * and forwards an RLE blit at (0, 0) with transparent passthrough. Verify:
+ *   - sprite_addr = sheet + *(int32*)(sheet + 6 + sprite_idx*4)
+ *   - fd2_rle_blit_sprite(sprite_addr, 0, 0, dst, dst_pitch, 0xFFFFFFFF):
+ *     rle_stream=sprite_addr, dst_x=dst_y=0, dst_buf=dst,
+ *     stride=dst_pitch, palette_op=-1 (transparent passthrough).
+ */
+static void test_indexed_xy_offset_and_arg_routing(void)
+{
+    static uint8 sheet[256];
+    uint32 sheet_base;
+    uint32 dst, dst_pitch;
+
+    sheet_base = (uint32)sheet;
+
+    /* three offset-table entries (4 bytes each) starting at sheet+6 */
+    *(int32 *)(sheet + 6 + 0 * 4) = (int32)0x40;
+    *(int32 *)(sheet + 6 + 1 * 4) = (int32)0x60;
+    *(int32 *)(sheet + 6 + 2 * 4) = (int32)0x80;
+
+    dst = 0xA0000;
+    dst_pitch = 0x140;
+
+    /* pick entry 2: sprite_addr must resolve to sheet_base + 0x80 */
+    fd2_blit_indexed_sprite_at_xy(dst, dst_pitch, sheet_base, 2);
+    ASSERT_EQ((long)g_rle_blit_last_sprite, (long)(sheet_base + 0x80));
+    ASSERT_EQ((long)g_rle_blit_last_x, (long)0);
+    ASSERT_EQ((long)g_rle_blit_last_y, (long)0);
+    ASSERT_EQ((long)g_rle_blit_last_buf, (long)dst);
+    ASSERT_EQ((long)g_rle_blit_last_stride, (long)dst_pitch);
+    ASSERT_EQ((long)g_rle_blit_last_palette, (long)0xFFFFFFFF);
+
+    /* pick entry 0: distinct entry selects a distinct sprite_addr */
+    fd2_blit_indexed_sprite_at_xy(dst, dst_pitch, sheet_base, 0);
+    ASSERT_EQ((long)g_rle_blit_last_sprite, (long)(sheet_base + 0x40));
+}
+
+/*
+ * The offset-table entry is read as a signed 32-bit value and added to
+ * sheet: a negative table entry yields sprite_addr below sheet_base.
+ * Confirms the signed *(int32*) read (not unsigned).
+ */
+static void test_indexed_xy_negative_offset(void)
+{
+    static uint8 sheet[256];
+    uint32 sheet_base;
+
+    sheet_base = (uint32)sheet;
+    *(int32 *)(sheet + 6 + 0 * 4) = (int32)-0x10;
+
+    fd2_blit_indexed_sprite_at_xy(0xB0000, 0x100, sheet_base, 0);
+
+    ASSERT_EQ((long)g_rle_blit_last_sprite, (long)(sheet_base - 0x10));
+    ASSERT_EQ((long)g_rle_blit_last_buf, (long)0xB0000);
+    ASSERT_EQ((long)g_rle_blit_last_stride, (long)0x100);
+    ASSERT_EQ((long)g_rle_blit_last_palette, (long)0xFFFFFFFF);
+}
+
 void run_gfx_blitspr_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -346,5 +410,7 @@ void run_gfx_blitspr_tests(void)
     RUN_TEST(test_alloc_blit_chunk_signed_dims);
     RUN_TEST(test_sheet_sprite_offset_wiring);
     RUN_TEST(test_sheet_sprite_negative_offset);
+    RUN_TEST(test_indexed_xy_offset_and_arg_routing);
+    RUN_TEST(test_indexed_xy_negative_offset);
     printf("\n");
 }
