@@ -211,6 +211,7 @@ void fd2_execute_ai_item_use(uint32 char_idx, uint32 ctx);
 void fd2_play_figani_char_intro_animation(uint32 char_idx);
 void fd2_apply_use_effect_dispatch(uint32 ci, uint32 sl, uint32 n, uint32 buf);
 void fd2_clear_all_chars_facing(void);
+void fd2_clear_all_chars_acted_flag(void);
 void fd2_add_item_to_inventory(uint32 char_idx, uint32 item_id);
 void fd2_play_sfx_sample_from_bank(uint32 bank_ptr, uint32 sfx_id, uint32 p);
 void fd2_paint_char_sprite_at_world_with_mode(uint32 ws, uint32 stride, uint32 ci, uint32 mode, uint32 color);

@@ -685,6 +685,57 @@ static void test_clear_all_chars_facing_zero_count(void)
 }
 
 
+/* ---- Test: fd2_clear_all_chars_acted_flag ----
+ *
+ * Loop masks flags (byte +5) with 0x7F for exactly party_member_count
+ * slots (stride RUNTIME_CHAR_SIZE).
+ * Verifies: cleared slots keep all bits except 0x80 (so 0xAA -> 0x2A);
+ * neighbouring bytes survive; slots at/after the count are untouched;
+ * count==0 clears nothing.
+ */
+static void test_clear_all_chars_acted_partial(void)
+{
+    int i;
+
+    memset(g_test_rc_array, 0xAA, sizeof(g_test_rc_array));
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_party_member_count = 3;
+
+    fd2_clear_all_chars_acted_flag();
+
+    /* slots 0..2: flags (+5) acted bit cleared (0xAA -> 0x2A),
+       neighbours preserved */
+    for (i = 0; i < 3; i = i + 1) {
+        ASSERT_EQ((long)g_test_rc_array[i].flags, 0x2A);
+        ASSERT_EQ((long)((uint8 *)&g_test_rc_array[i])[4], 0xAA);
+        ASSERT_EQ((long)g_test_rc_array[i].team, 0xAA);
+    }
+    /* slots 3..7: completely untouched, including flags byte */
+    for (i = 3; i < 8; i = i + 1) {
+        ASSERT_EQ((long)g_test_rc_array[i].flags, 0xAA);
+    }
+
+    data_fd2_battle_party_member_count = 0;
+}
+
+static void test_clear_all_chars_acted_zero_count(void)
+{
+    int i;
+
+    memset(g_test_rc_array, 0xAA, sizeof(g_test_rc_array));
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_party_member_count = 0;
+
+    fd2_clear_all_chars_acted_flag();
+
+    for (i = 0; i < 8; i = i + 1) {
+        ASSERT_EQ((long)g_test_rc_array[i].flags, 0xAA);
+    }
+
+    data_fd2_battle_party_member_count = 0;
+}
+
+
 void run_battle_btl_init_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -699,5 +750,7 @@ void run_battle_btl_init_tests(void)
     RUN_TEST(test_ircbg_level1_boundary);
     RUN_TEST(test_clear_all_chars_facing_partial);
     RUN_TEST(test_clear_all_chars_facing_zero_count);
+    RUN_TEST(test_clear_all_chars_acted_partial);
+    RUN_TEST(test_clear_all_chars_acted_zero_count);
     printf("\n");
 }

@@ -335,6 +335,30 @@ void fd2_clear_all_chars_facing(void)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_clear_all_chars_acted_flag @ 0x13536  (4 callers)
+ *
+ * Clear the acted-this-turn flag (bit 0x80) on flags (+0x05) for
+ * every battle party member, leaving the other flag bits intact.
+ * Called at the start of each new turn cycle to give all chars
+ * another action.
+ *
+ * Walks the battle runtime_char array (stride RUNTIME_CHAR_SIZE) for
+ * party_member_count entries, masking flags with 0x7F.
+ * ---------------------------------------------------------------- */
+void fd2_clear_all_chars_acted_flag(void)
+{
+    int char_iter;
+
+    for (char_iter = 0;
+         char_iter < (int)data_fd2_battle_party_member_count;
+         char_iter = char_iter + 1) {
+        data_fd2_battle_runtime_char_array_ptr[char_iter].flags =
+            (uint8)(data_fd2_battle_runtime_char_array_ptr[char_iter].flags
+                    & 0x7f);
+    }
+}
+
+/* ----------------------------------------------------------------
  * fd2_set_chapter_init_done_flag @ 0x33FAF
  *
  * Set chapter_init_done_flag byte to 1.

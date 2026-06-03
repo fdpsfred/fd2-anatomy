@@ -418,8 +418,9 @@
     "name": "fd2_clear_all_chars_acted_flag",
     "target": "battle/btl_init.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00013565": {
     "name": "fd2_check_all_player_acted_or_asleep",
