@@ -314,26 +314,10 @@ void fd2_save_screen_block_to_buffer(uint32 out_buf, uint32 width, uint32 height
     g_saveblk_stride = stride;
     g_saveblk_calls++;
 }
-/* recording stub for fd2_assemble_dialog_frame_layered (5 stages per
- * fd2_play_dialog_open_animation call); captures the per-stage
- * (sprite_group, frame, dst_origin) triples so the test can assert the
- * 5-stage constant table and that dst_origin is forwarded unchanged. */
-int    g_assemble_calls = 0;
-uint32 g_assemble_group[8];
-uint32 g_assemble_frame[8];
-uint32 g_assemble_origin[8];
-void fd2_assemble_dialog_frame_layered(uint32 dst, uint32 stride,
-                                       uint32 thickness, uint32 dst_origin,
-                                       uint32 sprite_group, uint32 frame)
-{
-    if (g_assemble_calls < 8) {
-        g_assemble_group[g_assemble_calls]  = sprite_group;
-        g_assemble_frame[g_assemble_calls]  = frame;
-        g_assemble_origin[g_assemble_calls] = dst_origin;
-    }
-    g_assemble_calls++;
-    (void)dst; (void)stride; (void)thickness;
-}
+/* fd2_assemble_dialog_frame_layered is now emitted for real in
+ * src/dialog/dialog.c. Its callers' tests (fd2_play_dialog_open_animation,
+ * and the dedicated frame-layout test) drive the real function and observe
+ * its blit calls through the fd2_blit_sprite_raw_with_header log below. */
 /* capture wiring for fd2_alloc_and_blit_indexed_sprite_chunk tests */
 uint32 g_blitdec_dst, g_blitdec_sprite, g_blitdec_stride;
 void fd2_blit_sprite_with_decoded_pixels(uint32 d, uint32 s, uint32 st)
@@ -344,11 +328,21 @@ void fd2_blit_sprite_with_decoded_pixels(uint32 d, uint32 s, uint32 st)
 }
 /* capture wiring for fd2_blit_sheet_sprite_at_offset tests */
 uint32 g_blitraw_dst, g_blitraw_sprite, g_blitraw_stride;
+/* full call log (used by dialog frame-layout tests): records every raw blit */
+int    g_blitraw_log_on = 0;
+int    g_blitraw_count = 0;
+uint32 g_blitraw_log_dst[512];
+uint32 g_blitraw_log_sprite[512];
 uint32 fd2_blit_sprite_raw_with_header(uint32 d, uint32 s, uint32 st)
 {
     g_blitraw_dst = d;
     g_blitraw_sprite = s;
     g_blitraw_stride = st;
+    if (g_blitraw_log_on && g_blitraw_count < 512) {
+        g_blitraw_log_dst[g_blitraw_count] = d;
+        g_blitraw_log_sprite[g_blitraw_count] = s;
+        g_blitraw_count++;
+    }
     return 0;
 }
 void fd2_render_recruitment_select_screen(uint32 a, uint32 b, uint32 c, uint32 d) { }

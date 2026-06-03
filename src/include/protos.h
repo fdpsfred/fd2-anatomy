@@ -291,7 +291,7 @@ void fd2_load_save_and_init_engine(void);
 uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx, uint32 render_pos, uint32 render_pitch, uint32 glyph_p5, uint32 glyph_p6, uint32 glyph_p7, uint32 glyph_height, uint32 blink_flag);
 void fd2_blit_glyph_2bpp_with_outline(uint32 font_sheet, uint32 glyph_idx, uint32 render_pos, uint32 render_pitch, uint32 p5, uint32 p6, uint16 p7);
 uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 flip);
-void fd2_assemble_dialog_frame_layered(uint32 dst, uint32 stride, uint32 thickness, uint32 dst_origin, uint32 sprite_group, uint32 frame);
+void fd2_assemble_dialog_frame_layered(uint32 dst, uint32 pitch, uint32 col_offset, int row_offset, int n_cols, int n_rows);
 void fd2_cinematic_scroll_text_up_for_special_scenes(void);
 void fd2_dialog_sprite_blit_normal(uint32 dst, uint32 sprite, uint32 stride);
 void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite, uint32 stride);

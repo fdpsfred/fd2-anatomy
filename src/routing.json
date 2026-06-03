@@ -750,8 +750,9 @@
     "name": "fd2_assemble_dialog_frame_layered",
     "target": "dialog/dialog.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00016b43": {
     "name": "fd2_close_dialog_panels_then_slide_in_at",

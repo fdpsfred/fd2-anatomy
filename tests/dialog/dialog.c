@@ -328,17 +328,44 @@ static void test_blink_frame_cycle(void)
  * sprite-interpolation loop and exercises the deterministic body:
  * default-origin selection from the portrait mode, the 5 frame-layer
  * malloc()s, the width = flip*0x140+5 arithmetic, and the fixed
- * 5-stage assemble table (sprite_group, frame). Recorders live in
- * testglob.c (g_saveblk_*, g_assemble_*); the real save/assemble are
- * stubbed there, the array global is defined there too. */
+ * 5-stage assemble table. fd2_assemble_dialog_frame_layered is now real
+ * (src/dialog/dialog.c); each stage is observed through the raw-blit log
+ * (g_blitraw_*) below. fd2_save_screen_block_to_buffer is stubbed in
+ * testglob.c (g_saveblk_*); the save-buffer array global lives there too. */
 extern void  *data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[5];
 extern int    g_saveblk_calls;
 extern uint32 g_saveblk_out, g_saveblk_w, g_saveblk_h, g_saveblk_dst,
               g_saveblk_src, g_saveblk_stride;
-extern int    g_assemble_calls;
-extern uint32 g_assemble_group[8];
-extern uint32 g_assemble_frame[8];
-extern uint32 g_assemble_origin[8];
+
+/* raw-blit recording log (testglob.c): every fd2_blit_sprite_raw_with_header
+ * call appends (dst, sprite_addr) when g_blitraw_log_on is set. */
+extern int    g_blitraw_log_on;
+extern int    g_blitraw_count;
+extern uint32 g_blitraw_log_dst[512];
+extern uint32 g_blitraw_log_sprite[512];
+
+/* A fake sprite atlas so the real fd2_blit_sheet_sprite_at_offset can resolve
+ * a sprite without touching real game data. Its 4-byte offset-table entry for
+ * index i stores the value i, so the resolved sprite address minus the sheet
+ * base equals the sprite index, letting tests read the index back from the
+ * blit log. Layout: header (6 bytes) then int32 table[idx]. */
+static uint8 g_fake_sheet[256];
+
+static void install_fake_sheet(void)
+{
+    int i;
+    memset(g_fake_sheet, 0, sizeof(g_fake_sheet));
+    for (i = 0; i <= 0x11; i++) {
+        *(int32 *)(g_fake_sheet + 6 + i * 4) = i;
+    }
+    data_fd2_ui_anim_sprite_sheet_ptr = (uint32)g_fake_sheet;
+}
+
+/* sprite index of the k-th logged blit = sprite_addr - sheet_base */
+static uint32 logged_sprite_idx(int k)
+{
+    return g_blitraw_log_sprite[k] - data_fd2_ui_anim_sprite_sheet_ptr;
+}
 
 /* Reset the open-animation recorders and clear the save-buffer array so
  * leaked addresses from a prior run can't masquerade as fresh mallocs. */
@@ -346,39 +373,60 @@ static void open_anim_reset(uint32 portrait_mode)
 {
     int i;
     g_saveblk_calls = 0;
-    g_assemble_calls = 0;
+    install_fake_sheet();
+    g_blitraw_count = 0;
+    g_blitraw_log_on = 1;
     for (i = 0; i < 5; i++) {
         data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[i] = NULL;
     }
     data_fd2_dialog_active_portrait_blit_offset = portrait_mode;
 }
 
-/* The 5-stage assemble table is constant regardless of dst_origin; shared
- * by all three flip-default cases. Verifies count, the (group,frame) pairs
- * in order, that dst_origin is forwarded unchanged to every stage, and that
- * each stage saved one screen band first (5 save calls, last band uses the
- * computed width as src_ptr at the fixed 0x136x0x56 / 0xA0000 / 0x140 geom). */
+/* blits emitted by one fd2_assemble_dialog_frame_layered(n_cols,n_rows) call:
+ *   12 fixed corners/mid-edges
+ *   + 2*(n_cols-2)  top/bottom inner edges
+ *   + 2*(n_rows-2)  left/right edges
+ *   + n_cols*n_rows interior fill                                            */
+static int assemble_blit_count(int n_cols, int n_rows)
+{
+    return 12 + 2 * (n_cols - 2) + 2 * (n_rows - 2) + n_cols * n_rows;
+}
+
+/* The 5-stage table fd2_play_dialog_open_animation feeds to the (now real)
+ * frame assembler. Each stage k uses (n_cols,n_rows) from the table below and
+ * the same (dst=0xA0000, pitch=0x140, col_offset=5, row_offset=flip), so its
+ * first blit (sprite 1) lands at topleft = 0xA0000 + 5 + flip*0x140 and it
+ * emits assemble_blit_count(n_cols,n_rows) blits. Verifies: exactly 5 stage
+ * starts (sprite index 1) at the expected topleft (flip/row_offset
+ * propagation), the exact total blit count (a strict fingerprint of the
+ * (n_cols,n_rows) table), and the 5 save bands with their fixed geometry. */
 static void assert_five_stage_frame(uint32 expect_origin, uint32 expect_width)
 {
-    int i;
+    static const int tbl_cols[5] = { 4, 8, 0xc, 0x10, 0x13 };
+    static const int tbl_rows[5] = { 2, 3, 4,   5,    5    };
+    uint32 expect_topleft;
+    int    expect_total;
+    int    starts;
+    int    k;
 
-    ASSERT_EQ((long)g_assemble_calls, 5);
     ASSERT_EQ((long)g_saveblk_calls, 5);
 
-    ASSERT_EQ((long)g_assemble_group[0], (long)0x04);
-    ASSERT_EQ((long)g_assemble_frame[0], (long)0x02);
-    ASSERT_EQ((long)g_assemble_group[1], (long)0x08);
-    ASSERT_EQ((long)g_assemble_frame[1], (long)0x03);
-    ASSERT_EQ((long)g_assemble_group[2], (long)0x0c);
-    ASSERT_EQ((long)g_assemble_frame[2], (long)0x04);
-    ASSERT_EQ((long)g_assemble_group[3], (long)0x10);
-    ASSERT_EQ((long)g_assemble_frame[3], (long)0x05);
-    ASSERT_EQ((long)g_assemble_group[4], (long)0x13);
-    ASSERT_EQ((long)g_assemble_frame[4], (long)0x05);
-
-    for (i = 0; i < 5; i++) {
-        ASSERT_EQ((long)g_assemble_origin[i], (long)expect_origin);
+    expect_topleft = 0xA0000u + 5u + expect_origin * 0x140u;
+    expect_total = 0;
+    for (k = 0; k < 5; k++) {
+        expect_total += assemble_blit_count(tbl_cols[k], tbl_rows[k]);
     }
+    ASSERT_EQ((long)g_blitraw_count, (long)expect_total);
+
+    /* count stage starts (sprite index 1) and confirm each lands at topleft */
+    starts = 0;
+    for (k = 0; k < g_blitraw_count; k++) {
+        if (logged_sprite_idx(k) == 1) {
+            ASSERT_EQ((long)g_blitraw_log_dst[k], (long)expect_topleft);
+            starts++;
+        }
+    }
+    ASSERT_EQ((long)starts, 5);
 
     /* last save call's captured geometry (all 5 use the same constants) */
     ASSERT_EQ((long)g_saveblk_w, (long)0x136);
@@ -393,6 +441,7 @@ static void assert_five_stage_frame(uint32 expect_origin, uint32 expect_width)
 static void assert_buffers_allocated(uint32 ret)
 {
     int i;
+    g_blitraw_log_on = 0;
     ASSERT_EQ((long)ret,
               (long)(uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs);
     for (i = 0; i < 5; i++) {
@@ -448,6 +497,97 @@ static void test_open_anim_default_origin_none(void)
     assert_buffers_allocated(ret);
 }
 
+/*
+ * fd2_assemble_dialog_frame_layered direct layout test.
+ *
+ * Drives the real function with a small, hand-computable geometry
+ * (dst=0, pitch=0x10, col_offset=5, row_offset=0, n_cols=4, n_rows=2) and
+ * asserts the exact ordered sequence of (sprite_index, dst) blits. This pins
+ * down every address-computation term: topleft, the 4 outer + 4 inner +
+ * 2 mid + 2 secondary-bottom corners, the top/bottom stretch edge loop, the
+ * (here empty) left/right edge loop, and the interior fill double loop.
+ *
+ *   topleft       = 0 + 5 + 0*0x10            = 0x05
+ *   pitch3        = 0x10*3                     = 0x30
+ *   row_pixels16  = 0x10*0x10                  = 0x100
+ *   bottom_full   = 0x100 * n_rows(2)          = 0x200
+ *   bottom_row    = 0x100 * (n_rows-1)         = 0x100
+ *   inner_top     = 0x30 + 0x05               = 0x35
+ */
+static void test_frame_layout_exact(void)
+{
+    static const uint32 exp_idx[24] = {
+        1, 2, 3, 4, 5, 6, 7, 8, 0xe, 0xf, 0x10, 0x11,
+        9, 0xc, 9, 0xc,
+        0xd, 0xd, 0xd, 0xd, 0xd, 0xd, 0xd, 0xd
+    };
+    static const uint32 exp_dst[24] = {
+        0x05, 0x48, 0x235, 0x278, 0x08, 0x38, 0x238, 0x268,
+        0x35, 0x78, 0x135, 0x178,
+        0x18, 0x248, 0x28, 0x258,
+        0x38, 0x48, 0x58, 0x68, 0x138, 0x148, 0x158, 0x168
+    };
+    int k;
+
+    install_fake_sheet();
+    g_blitraw_count = 0;
+    g_blitraw_log_on = 1;
+
+    fd2_assemble_dialog_frame_layered(0u, 0x10u, 5u, 0, 4, 2);
+
+    g_blitraw_log_on = 0;
+
+    ASSERT_EQ((long)g_blitraw_count, 24);
+    for (k = 0; k < 24; k++) {
+        ASSERT_EQ((long)logged_sprite_idx(k), (long)exp_idx[k]);
+        ASSERT_EQ((long)g_blitraw_log_dst[k], (long)exp_dst[k]);
+    }
+}
+
+/*
+ * Left/right edge loop coverage: with n_rows>=4 the row loop (1..n_rows-2)
+ * runs, emitting sprite A (left) + sprite B (right) per interior row. Uses
+ * dst=0, pitch=0x10, col_offset=0, row_offset=0, n_cols=3, n_rows=4 so the
+ * loop runs for row=1,2. For row r: row_full = 0x100*r + 0x30 + topleft(0);
+ *   A @ row_full ; B @ row_full + n_cols*0x10 + 3 = row_full + 0x33.
+ */
+static void test_frame_left_right_edges(void)
+{
+    int    k;
+    int    a_seen;
+    int    b_seen;
+    uint32 row1;
+    uint32 row2;
+
+    install_fake_sheet();
+    g_blitraw_count = 0;
+    g_blitraw_log_on = 1;
+
+    fd2_assemble_dialog_frame_layered(0u, 0x10u, 0u, 0, 3, 4);
+
+    g_blitraw_log_on = 0;
+
+    row1 = 0x100u * 1u + 0x30u;     /* 0x130 */
+    row2 = 0x100u * 2u + 0x30u;     /* 0x230 */
+
+    a_seen = 0;
+    b_seen = 0;
+    for (k = 0; k < g_blitraw_count; k++) {
+        if (logged_sprite_idx(k) == 0xa) {
+            ASSERT_TRUE(g_blitraw_log_dst[k] == row1 ||
+                        g_blitraw_log_dst[k] == row2);
+            a_seen++;
+        }
+        if (logged_sprite_idx(k) == 0xb) {
+            ASSERT_TRUE(g_blitraw_log_dst[k] == row1 + 0x33u ||
+                        g_blitraw_log_dst[k] == row2 + 0x33u);
+            b_seen++;
+        }
+    }
+    ASSERT_EQ((long)a_seen, 2);
+    ASSERT_EQ((long)b_seen, 2);
+}
+
 void run_dialog_dialog_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -464,5 +604,7 @@ void run_dialog_dialog_tests(void)
     RUN_TEST(test_open_anim_default_origin_enemy);
     RUN_TEST(test_open_anim_default_origin_ally);
     RUN_TEST(test_open_anim_default_origin_none);
+    RUN_TEST(test_frame_layout_exact);
+    RUN_TEST(test_frame_left_right_edges);
     printf("\n");
 }

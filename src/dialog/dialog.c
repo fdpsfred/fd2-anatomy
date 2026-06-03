@@ -454,3 +454,134 @@ uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 flip)
     fd2_clear_keyboard_buffer();
     return (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_assemble_dialog_frame_layered @ 0x168B6 (4 callers)
+ *
+ * Compose a resizable dialog box from 17 sprite tiles in
+ * _ui_and_anim_sprite_sheet, using a 4-corner / 4-secondary-corner /
+ * 5-edge-stretcher / 1-inner-fill pattern.
+ *
+ *   topleft = dst + col_offset + row_offset * pitch
+ *   row stride = pitch * 0x10 pixels per tile row
+ *   col stride = 0x10 pixels per tile col
+ *
+ * Sprite-idx -> role:
+ *   1 / 2   outer top corners (left / right)
+ *   3 / 4   outer bottom corners (left / right)
+ *   5       inner top-left corner
+ *   6       inner top-right corner
+ *   7 / 8   inner bottom corners (left / right)
+ *   9       top inner edge (stretchable, repeated)
+ *   A       left edge (stretchable, repeated)
+ *   B       right edge (stretchable)
+ *   C       bottom inner edge (stretchable)
+ *   D       center background fill (repeated over entire interior)
+ *   E / F   mid-row edges (left / right)
+ *   10 / 11 bottom-row left/right secondary corners
+ *
+ * Used by fd2_play_dialog_open_animation (5-stage frame assembly),
+ * fd2_load_chapter_portrait, fd2_play_final_chapter_30_ending and
+ * fd2_render_status_screen_static_layout to produce dialog boxes of
+ * arbitrary (n_cols, n_rows) tile dimensions.
+ * ---------------------------------------------------------------- */
+void fd2_assemble_dialog_frame_layered(uint32 dst, uint32 pitch,
+                                       uint32 col_offset, int row_offset,
+                                       int n_cols, int n_rows)
+{
+    uint32 n_cols_minus_2;
+    uint32 row_pixels_16;
+    uint32 pitch3;
+    uint32 topleft;
+    uint32 inner_top;
+    uint32 inner_top_right;
+    uint32 bottom_row_ofs;
+    uint32 row_full;
+    uint32 p;
+    uint32 inner_origin;
+    uint32 bottom_full;
+    int    col;
+    int    row;
+    int    c;
+    int    r;
+
+    n_cols_minus_2 = (uint32)(n_cols - 2);
+    row_pixels_16  = pitch * 0x10;
+    pitch3         = pitch * 3;
+    topleft        = col_offset + ((uint32)row_offset * pitch + dst);
+
+    fd2_blit_sheet_sprite_at_offset(topleft, pitch,
+                                    data_fd2_ui_anim_sprite_sheet_ptr, 1);
+
+    p = topleft + 3;
+    fd2_blit_sheet_sprite_at_offset(p + (uint32)n_cols * 0x10, pitch,
+                                    data_fd2_ui_anim_sprite_sheet_ptr, 2);
+
+    inner_top   = pitch3 + topleft;
+    bottom_full = row_pixels_16 * (uint32)n_rows;
+    fd2_blit_sheet_sprite_at_offset(inner_top + bottom_full, pitch,
+                                    data_fd2_ui_anim_sprite_sheet_ptr, 3);
+    fd2_blit_sheet_sprite_at_offset((topleft + 3) + (uint32)n_cols * 0x10
+                                        + pitch3 + bottom_full,
+                                    pitch, data_fd2_ui_anim_sprite_sheet_ptr, 4);
+
+    fd2_blit_sheet_sprite_at_offset(p, pitch,
+                                    data_fd2_ui_anim_sprite_sheet_ptr, 5);
+
+    inner_top_right = n_cols_minus_2 * 0x10 + topleft + 0x13;
+    fd2_blit_sheet_sprite_at_offset(inner_top_right, pitch,
+                                    data_fd2_ui_anim_sprite_sheet_ptr, 6);
+
+    fd2_blit_sheet_sprite_at_offset(p + pitch3 + bottom_full, pitch,
+                                    data_fd2_ui_anim_sprite_sheet_ptr, 7);
+    fd2_blit_sheet_sprite_at_offset(inner_top_right + pitch3 + bottom_full,
+                                    pitch, data_fd2_ui_anim_sprite_sheet_ptr, 8);
+
+    fd2_blit_sheet_sprite_at_offset(inner_top, pitch,
+                                    data_fd2_ui_anim_sprite_sheet_ptr, 0xe);
+
+    inner_top_right = inner_top + 0x23 + n_cols_minus_2 * 0x10;
+    fd2_blit_sheet_sprite_at_offset(inner_top_right, pitch,
+                                    data_fd2_ui_anim_sprite_sheet_ptr, 0xf);
+
+    bottom_row_ofs = row_pixels_16 * (uint32)(n_rows - 1);
+    fd2_blit_sheet_sprite_at_offset(inner_top + bottom_row_ofs, pitch,
+                                    data_fd2_ui_anim_sprite_sheet_ptr, 0x10);
+    fd2_blit_sheet_sprite_at_offset(inner_top_right + bottom_row_ofs, pitch,
+                                    data_fd2_ui_anim_sprite_sheet_ptr, 0x11);
+
+    if (0 < (int)n_cols_minus_2) {
+        for (col = 0; col < (int)n_cols_minus_2; col++) {
+            p = topleft + 0x13 + (uint32)col * 0x10;
+            fd2_blit_sheet_sprite_at_offset(p, pitch,
+                                    data_fd2_ui_anim_sprite_sheet_ptr, 9);
+            fd2_blit_sheet_sprite_at_offset(p + row_pixels_16 * (uint32)n_rows
+                                                + pitch3,
+                                    pitch, data_fd2_ui_anim_sprite_sheet_ptr,
+                                    0xc);
+        }
+    }
+
+    if (0 < n_rows - 2) {
+        row = 0;
+        while (row < n_rows - 2) {
+            row++;
+            row_full = row_pixels_16 * (uint32)row + pitch3 + topleft;
+            fd2_blit_sheet_sprite_at_offset(row_full, pitch,
+                                    data_fd2_ui_anim_sprite_sheet_ptr, 0xa);
+            fd2_blit_sheet_sprite_at_offset((uint32)n_cols * 0x10 + row_full + 3,
+                                    pitch, data_fd2_ui_anim_sprite_sheet_ptr,
+                                    0xb);
+        }
+    }
+
+    for (r = 0; r < n_rows; r++) {
+        for (c = 0; c < n_cols; c++) {
+            inner_origin = pitch3 + topleft + (uint32)c * 0x10 + 3;
+            fd2_blit_sheet_sprite_at_offset(row_pixels_16 * (uint32)r
+                                                + inner_origin,
+                                    pitch, data_fd2_ui_anim_sprite_sheet_ptr,
+                                    0xd);
+        }
+    }
+}
