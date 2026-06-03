@@ -4457,7 +4457,8 @@
     "target": "gfx/palette.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0004e031": {
     "name": "fd2_clear_keyboard_buffer",

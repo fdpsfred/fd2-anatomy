@@ -331,5 +331,12 @@
         "reviewer_verdict": "approved (benign under well-formed-stream invariant, no code change needed)"
       }
     ]
+  },
+  "0004dfcc": {
+    "name": "fd2_update_palette_cycle_anim",
+    "target": "gfx/palette.c",
+    "issues": [
+      "Update-path of fd2_update_palette_cycle_anim is not unit-tested (frame advance + wrap-at-0x10 state transition + VGA DAC port writes). Reason: gated behind a throttle reading the live BIOS tick at 0x46C twice; harness does not fake the tick and fd2_read_bios_midnight_tick is itself a function-under-test, so delta>=2 cannot be forced deterministically. Display side effect deferred to Phase 9 integration. The frame-advance/wrap state transition remains uncovered at unit level due to this hardware gate — record this rationale in the test file comment (currently the no-update test has no note explaining why the update path is omitted)."
+    ]
   }
 }
