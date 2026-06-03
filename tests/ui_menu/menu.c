@@ -14,6 +14,14 @@
  * The link-smoke test below confirms the new translation unit compiles, links
  * against its dispatch-target stubs, and that the function symbol is callable
  * with the int return type recovered from the disassembly.
+ *
+ * fd2_field_command_menu_loop IS covered here for the dispatch branches that do
+ * not pull in heavy real graphics callees: the cancel early-out (input -1 ->
+ * return 1), the cursor-0 Save/Load path (returns the dispatch result verbatim
+ * — the EAX-passthrough return), and the cursor-2 Options path (return 0). The
+ * cursor-1 End-Turn and cursor-3 Suspend branches drive the real
+ * fd2_display_dialog_scene / turn-cycle graphics path; their behavioral
+ * coverage is deferred to Phase 9 integration under the emulator.
  */
 
 #include <string.h>
@@ -23,8 +31,17 @@
 #include "globals.h"
 #include "protos.h"
 
-extern int g_field_command_menu_loop_return;
 extern int g_player_action_menu_loop_return;
+
+/* fd2_field_command_menu_loop dispatch seams (defined in testglob.c) */
+extern int g_settings_input_step_return;
+extern int g_settings_cursor_idx;
+extern int g_open_settings_dialog_calls;
+extern int g_close_settings_dialog_calls;
+extern int g_settings_input_step_calls;
+extern int g_save_load_quit_dispatch_return;
+extern int g_save_load_quit_dispatch_calls;
+extern int g_game_options_menu_loop_calls;
 
 /* Compile/link smoke: take the address of the emitted function and verify the
  * int-returning prototype is honored. Does not invoke it (real blocking input
@@ -35,9 +52,64 @@ static void test_game_main_loop_symbol_linkable(void)
 
     fp = fd2_game_main_loop;
     ASSERT_TRUE(fp != 0);
-    /* Stub defaults keep the would-be loops one-shot if ever driven. */
-    ASSERT_EQ(g_field_command_menu_loop_return, 1);
+    /* Stub default keeps the would-be player-action loop one-shot if driven. */
     ASSERT_EQ(g_player_action_menu_loop_return, 1);
+}
+
+/* Reset the dispatch seams to a known baseline before each branch test. */
+static void fcm_reset(int cursor, int input_return)
+{
+    g_settings_cursor_idx = cursor;
+    g_settings_input_step_return = input_return;
+    g_open_settings_dialog_calls = 0;
+    g_close_settings_dialog_calls = 0;
+    g_settings_input_step_calls = 0;
+    g_save_load_quit_dispatch_calls = 0;
+    g_game_options_menu_loop_calls = 0;
+    data_fd2_ui_menu_cursor_idx = 0;
+}
+
+/* Cancel: settings input returns -1 -> close, composite, return 1 with no
+ * dispatch at all. Verifies the open/close lifecycle and the -1 early-out. */
+static void test_field_command_menu_cancel(void)
+{
+    int r;
+
+    fcm_reset(0, -1);
+    r = fd2_field_command_menu_loop();
+    ASSERT_EQ(r, 1);
+    ASSERT_EQ(g_open_settings_dialog_calls, 1);
+    ASSERT_EQ(g_close_settings_dialog_calls, 1);
+    ASSERT_EQ(g_save_load_quit_dispatch_calls, 0);
+    ASSERT_EQ(g_game_options_menu_loop_calls, 0);
+}
+
+/* cursor == 0 (Save/Load/New Game): the function returns the dispatch result
+ * verbatim. This is the EAX-passthrough return path (TAIL of the cursor-0
+ * branch). Confirm the dispatch is called once and its result is propagated. */
+static void test_field_command_menu_save_load_passthrough(void)
+{
+    int r;
+
+    fcm_reset(0, 1);                 /* input non-zero (chose), cursor 0 */
+    g_save_load_quit_dispatch_return = 42;
+    r = fd2_field_command_menu_loop();
+    ASSERT_EQ(r, 42);
+    ASSERT_EQ(g_save_load_quit_dispatch_calls, 1);
+    ASSERT_EQ(g_close_settings_dialog_calls, 1);
+    ASSERT_EQ(g_game_options_menu_loop_calls, 0);
+}
+
+/* cursor == 2 (Options): runs the options submenu then returns 0. */
+static void test_field_command_menu_options(void)
+{
+    int r;
+
+    fcm_reset(2, 1);                 /* input non-zero, cursor 2 */
+    r = fd2_field_command_menu_loop();
+    ASSERT_EQ(r, 0);
+    ASSERT_EQ(g_game_options_menu_loop_calls, 1);
+    ASSERT_EQ(g_save_load_quit_dispatch_calls, 0);
 }
 
 void run_ui_menu_menu_tests(void)
@@ -45,5 +117,8 @@ void run_ui_menu_menu_tests(void)
     int _prev_fails = g_test_fail_count;
     printf("Suite: ui_menu/menu\n");
     RUN_TEST(test_game_main_loop_symbol_linkable);
+    RUN_TEST(test_field_command_menu_cancel);
+    RUN_TEST(test_field_command_menu_save_load_passthrough);
+    RUN_TEST(test_field_command_menu_options);
     printf("\n");
 }

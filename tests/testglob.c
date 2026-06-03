@@ -287,6 +287,9 @@ uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch = 0;
 uint32 data_fd2_ui_slide_composed_target_buf_ptr = 0;
 uint32 data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
 uint32 data_fd2_ui_menu_cursor_idx = 0;
+/* field command menu templates — real FD2.LE values @ 0x51E9F / 0x53EF2 */
+int32  data_fd2_ui_field_command_menu_options_template[4] = { 7, 5, 6, 4 };
+int32  data_fd2_ui_field_command_menu_state_template[4] = { 0, 0, 0, 0 };
 uint32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4] = {0};
 uint32 data_fd2_chapter_intro_dialog_anim_frame_idx = 0;
 uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
@@ -725,12 +728,52 @@ void fd2_init_movement_range_floodfill(uint32 ct, uint32 x, uint32 y,
 /* fd2_compute_aoe_targets: now in btl_ai.c */
 /* fd2_pan_cursor_to_char: already in cursor.c */
 
-/* --- menu.c (fd2_game_main_loop) dispatch-target stubs + tracking --- */
-int g_field_command_menu_loop_return = 1;
-int g_field_command_menu_loop_calls = 0;
-int fd2_field_command_menu_loop(void) {
-    g_field_command_menu_loop_calls++;
-    return g_field_command_menu_loop_return;
+/* --- menu.c dispatch-target stubs + tracking --- */
+/* fd2_field_command_menu_loop is now emitted for real in ui_menu/menu.c.
+ * Its menu-subsystem callees are stubbed below so its tests can drive each
+ * dispatch branch by setting the input/cursor/dialog-result seams. */
+
+/* fd2_settings_menu_input_step: returns g_settings_input_step_return; on the
+ * first call also installs g_settings_cursor_idx into the menu cursor so the
+ * dispatch branch under test is selected. */
+int g_settings_input_step_return = -1;       /* default: cancel */
+int g_settings_cursor_idx = 0;
+int g_open_settings_dialog_calls = 0;
+int g_close_settings_dialog_calls = 0;
+int g_settings_input_step_calls = 0;
+void fd2_open_settings_dialog_with_slide(int32 *opt, int32 *st) {
+    (void)opt; (void)st;
+    g_open_settings_dialog_calls++;
+}
+int fd2_settings_menu_input_step(int32 *opt, int32 *st) {
+    (void)opt; (void)st;
+    g_settings_input_step_calls++;
+    data_fd2_ui_menu_cursor_idx = (uint32)g_settings_cursor_idx;
+    return g_settings_input_step_return;
+}
+void fd2_close_settings_dialog_with_slide(int32 *opt, int32 *st) {
+    (void)opt; (void)st;
+    g_close_settings_dialog_calls++;
+}
+int g_save_load_quit_dispatch_return = 7;
+int g_save_load_quit_dispatch_calls = 0;
+int fd2_field_menu_status_save_load_quit_dispatch(void) {
+    g_save_load_quit_dispatch_calls++;
+    return g_save_load_quit_dispatch_return;
+}
+int g_typewriter_loop_return = 0;            /* default: "No" */
+int g_typewriter_loop_calls = 0;
+int fd2_text_dialog_typewriter_loop(void) {
+    g_typewriter_loop_calls++;
+    return g_typewriter_loop_return;
+}
+int g_anim_dialog_page_advance_calls = 0;
+void fd2_animate_dialog_page_advance_collapse(void) {
+    g_anim_dialog_page_advance_calls++;
+}
+int g_game_options_menu_loop_calls = 0;
+void fd2_game_options_menu_loop(void) {
+    g_game_options_menu_loop_calls++;
 }
 int g_player_action_menu_loop_return = 1;
 int g_player_action_menu_loop_calls = 0;

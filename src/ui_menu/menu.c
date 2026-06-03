@@ -20,6 +20,144 @@
  * EAX return values; the disassembly shows MOV EAX,EBX / XOR EAX,EAX
  * return paths and fd2_main consuming EAX via MOV ESI,EAX.)
  * ---------------------------------------------------------------- */
+/* ----------------------------------------------------------------
+ * fd2_field_command_menu_loop @ 0x16F55  (1 caller: fd2_game_main_loop)
+ *
+ * Field command menu — modal popup when the player presses Space/Enter
+ * on an empty tile. Items: Save/Load, End Turn, Options, Suspend.
+ *
+ * Copies the 16-byte options template @ 0x51E9F and the 16-byte state
+ * template @ 0x53EF2 into locals, zeroes the menu cursor, renders the
+ * menu and loops settings-menu input until it returns non-zero.
+ * Cancel (-1) returns 1. Dispatch on cursor idx:
+ *   0 SAVE/LOAD/NEW GAME -> fd2_field_menu_status_save_load_quit_dispatch().
+ *   1 END MY TURN  -> "End your turn?" prompt; if confirmed, finalize each
+ *     player char's move (walk-to-tile + post-action consequence dispatch),
+ *     run the turn cycle, return 1.
+ *   2 OPTIONS -> fd2_game_options_menu_loop(); return 0.
+ *   3 SUSPEND -> "Suspend the game?" prompt; if confirmed, run turn cycle,
+ *     return 1.
+ * Sub-prompt cancellation shows the "Aborted" dialog (0x19C) and returns 1.
+ *
+ * EAX-bug note: the dialog_result of fd2_text_dialog_typewriter_loop is
+ * MOV EBX,EAX immediately after the CALL (0x1704c / 0x17213) — captured
+ * faithfully here.
+ * ---------------------------------------------------------------- */
+int fd2_field_command_menu_loop(void)
+{
+    int32 menu_options[4];
+    int32 menu_state[4];
+    int input_result;
+    int dialog_result;
+    runtime_char *pchar;
+    uint32 char_idx;
+    int cursor_world_x;
+    int cursor_world_y;
+
+    menu_options[0] = data_fd2_ui_field_command_menu_options_template[0];
+    menu_options[1] = data_fd2_ui_field_command_menu_options_template[1];
+    menu_options[2] = data_fd2_ui_field_command_menu_options_template[2];
+    menu_options[3] = data_fd2_ui_field_command_menu_options_template[3];
+
+    menu_state[0] = data_fd2_ui_field_command_menu_state_template[0];
+    menu_state[1] = data_fd2_ui_field_command_menu_state_template[1];
+    menu_state[2] = data_fd2_ui_field_command_menu_state_template[2];
+    menu_state[3] = data_fd2_ui_field_command_menu_state_template[3];
+
+    data_fd2_ui_menu_cursor_idx = 0;
+    fd2_open_settings_dialog_with_slide(menu_options, menu_state);
+    do {
+        input_result = fd2_settings_menu_input_step(menu_options, menu_state);
+    } while (input_result == 0);
+    fd2_close_settings_dialog_with_slide(menu_options, menu_state);
+    fd2_composite_battle_frame(0);
+
+    if (input_result == -1) {
+        return 1;
+    }
+
+    if (data_fd2_ui_menu_cursor_idx == 0) {
+        return fd2_field_menu_status_save_load_quit_dispatch();
+    }
+
+    if (data_fd2_ui_menu_cursor_idx == 1) {
+        fd2_load_chapter_portrait(
+            data_fd2_battle_runtime_char_array_ptr->portrait_id);
+        fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1a1, 0xa9f23,
+            0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+        fd2_paint_portrait_to_dialog_area(0);
+        dialog_result = fd2_text_dialog_typewriter_loop();
+        fd2_animate_dialog_page_advance_collapse();
+
+        if ((dialog_result == 1) && (data_fd2_ui_menu_cursor_idx == 0)) {
+            fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1a2, 0xab6e3,
+                0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+            __delay_thunk_375b2(200);
+            fd2_close_status_screen_with_slide_out();
+            cursor_world_x = data_fd2_battle_cursor_world_x;
+            cursor_world_y = data_fd2_battle_cursor_world_y;
+            data_fd2_battle_anim_phase = 0;
+            data_fd2_ui_play_active_flag = 0;
+            for (char_idx = 0;
+                 (int)char_idx < (int)data_fd2_battle_party_member_count;
+                 char_idx = char_idx + 1) {
+                pchar = data_fd2_battle_runtime_char_array_ptr + char_idx;
+                if (((pchar->flags & 0x85) == 0) && (pchar->team == 2)) {
+                    fd2_pan_cursor_to_tile_animated(pchar->pos_x, pchar->pos_y);
+                    data_fd2_battle_ai_post_action_consequence_idx = 0xff;
+                    fd2_ai_walk_to_target_tile(cursor_world_x, cursor_world_y,
+                        char_idx, 1);
+                    if (data_fd2_battle_ai_post_action_consequence_idx
+                            != 0xff) {
+                        data_fd2_battle_ai_post_action_consequence_table
+                            [data_fd2_battle_ai_post_action_consequence_idx](
+                            char_idx);
+                    }
+                    fd2_clear_all_chars_facing();
+                    fd2_mark_char_acted_this_turn(char_idx);
+                }
+            }
+            fd2_composite_battle_frame(0);
+            fd2_run_full_turn_cycle();
+            data_fd2_battle_anim_phase = 1;
+            data_fd2_ui_play_active_flag = 1;
+            return 1;
+        }
+    }
+    else {
+        if (data_fd2_ui_menu_cursor_idx == 2) {
+            fd2_game_options_menu_loop();
+            return 0;
+        }
+        if (data_fd2_ui_menu_cursor_idx != 3) {
+            return 0;
+        }
+        fd2_load_chapter_portrait(0x4b);
+        fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1a3, 0xa9f23,
+            0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+        fd2_paint_portrait_to_dialog_area(0);
+        dialog_result = fd2_text_dialog_typewriter_loop();
+        fd2_animate_dialog_page_advance_collapse();
+
+        if ((dialog_result == 1) && (data_fd2_ui_menu_cursor_idx == 0)) {
+            fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1a4, 0xab6e3,
+                0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+            __delay_thunk_375b2(200);
+            fd2_close_status_screen_with_slide_out();
+            data_fd2_ui_play_active_flag = 0;
+            fd2_run_full_turn_cycle();
+            data_fd2_ui_play_active_flag = 1;
+            return 1;
+        }
+    }
+
+    fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x19c, 0xab6e3, 0x140,
+        0xcd, 0x4c, 0x4a, 0x13, 1);
+    __delay_thunk_375b2(200);
+    fd2_close_status_screen_with_slide_out();
+    return 1;
+}
+
 int fd2_game_main_loop(void)
 {
     int scancode;

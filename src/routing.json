@@ -790,8 +790,9 @@
     "name": "fd2_field_command_menu_loop",
     "target": "ui_menu/menu.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001728c": {
     "name": "fd2_game_options_menu_loop",
