@@ -398,5 +398,17 @@
         "verify_method": "compile_and_disasm"
       }
     ]
+  },
+  "0004dbb9": {
+    "name": "fd2_save_compute_checksum",
+    "target": "save/save.c",
+    "issues": [
+      {
+        "type": "plate_caller_list_drift",
+        "desc": "Plate caller-list drift at 0x4dbb9 not noticed/corrected by emitter: plate says 'fd2_menu_confirm_save_load_newgame' but actual caller is 'fd2_field_menu_status_save_load_quit_dispatch'. Should be fixed via set_plate_comment per project sync rule even though it does not affect the emitted function body.",
+        "severity": "info",
+        "verify_method": "set_plate_comment"
+      }
+    ]
   }
 }

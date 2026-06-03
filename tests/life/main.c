@@ -121,7 +121,6 @@ extern int g_repaint_settings_calls;
 extern int g_repaint_flip_buffer_after;
 
 /* fd2_load_save_and_init_engine leaf-helper recorders (testglob.c) */
-extern uint32 g_load_save_checksum_return;
 extern int g_alloc_blit_calls;
 extern uint32 g_alloc_blit_last_idx;
 extern int g_cleanup_sprite_calls;
@@ -139,7 +138,8 @@ static void *g_ls_tilemap_buf;
  * engine globals. Write a deterministic FD2.SAV on disk and point all
  * engine pointer-globals at valid buffers so the real function runs
  * end-to-end without faulting. checksum_match selects whether the
- * faked checksum equals the value stored at save tail +0x59C7.
+ * real fd2_save_compute_checksum sum equals the value stored at
+ * save tail +0x59C7.
  * ---------------------------------------------------------------- */
 static void setup_load_save_fixture(int chapter_id, int party_count,
                                     int checksum_match)
@@ -208,8 +208,18 @@ static void setup_load_save_fixture(int chapter_id, int party_count,
     sav[0x30D2] = 1;               /* terrain_hud_user_enabled            */
     sav[0x30D3] = 1;               /* bgm_enabled_flag                    */
     sav[0x30D4] = 0;               /* sfx_enabled_flag                    */
-    *(uint32 *)(sav + 0x59C7) = 0xDEADBEEF;   /* stored checksum         */
-    g_load_save_checksum_return = checksum_match ? 0xDEADBEEF : 0x0;
+    /* Stored checksum at the tail. fd2_save_crypt_buffer is a no-op fake,
+     * so the loader's real fd2_save_compute_checksum sums the raw on-disk
+     * bytes [0..0x59C6]. For the match case store that real sum; for the
+     * mismatch case store a value the real sum can never equal. */
+    if (checksum_match) {
+        *(uint32 *)(sav + 0x59C7) =
+            fd2_save_compute_checksum((uint32)sav, 0x59CB);
+    } else {
+        /* real sum of 0x59C7 bytes <= 0x59C7 * 0xFF = 0x58C729; pick a
+         * larger constant so it can never coincide with the true sum. */
+        *(uint32 *)(sav + 0x59C7) = 0xFFFFFFFFu;
+    }
 
     fp = fopen("FD2.SAV", "wb");
     fwrite(sav, 1, 0x59CB, fp);

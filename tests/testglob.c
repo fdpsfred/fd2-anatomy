@@ -260,9 +260,8 @@ int fd2_chapter_transition_menu(void) { return g_chapter_transition_return; }
 
 /* ---- fd2_load_save_and_init_engine leaf helper fakes ----
  * (the real fd2_load_save_and_init_engine now lives in src/life/main.c) */
-uint32 g_load_save_checksum_return = 0;
-uint32 fd2_save_compute_checksum(uint32 b, uint32 s)
-{ (void)b; (void)s; return g_load_save_checksum_return; }
+/* fd2_save_compute_checksum: now emitted in src/save/save.c (the loader
+ * checksum test now stores a real computed checksum in the FD2.SAV tail). */
 /* fd2_load_chapter_background_layers: now in rsrc/rsrc.c */
 /* fd2_load_portrait_to_cache: now emitted in src/rsrc/rsrc.c */
 int g_alloc_blit_calls = 0;

@@ -236,6 +236,82 @@ static void test_save_multi_member_routing(void)
     ASSERT_EQ(TMPL_W(0, 0x44), 22);
 }
 
+/* ================================================================
+ * fd2_save_compute_checksum — byte-sum integrity checksum.
+ *
+ * Sums buf[0 .. len-5] as a u32 (the last 4 bytes hold the checksum
+ * itself and are excluded). Pure in-memory computation, no fopen.
+ * Expected values cross-checked against the FD2.LE emulator:
+ *   bytes 01..08, len 8 -> sum of first 4 = 0x0A
+ *   bytes FF*8,   len 8 -> 4*0xFF        = 0x3FC
+ * ================================================================ */
+
+/* ---- Test: hand-computed sum, last 4 bytes excluded ---- */
+static void test_checksum_basic_excludes_last4(void)
+{
+    uint8 buf[8];
+
+    buf[0] = 1; buf[1] = 2; buf[2] = 3; buf[3] = 4;
+    buf[4] = 5; buf[5] = 6; buf[6] = 7; buf[7] = 8;
+    /* len 8 -> remaining = 4 -> sums buf[0..3] = 1+2+3+4 = 10. */
+    ASSERT_EQ(fd2_save_compute_checksum((uint32)buf, 8), 10);
+}
+
+/* ---- Test: trailing 4 bytes never contribute (vary them) ---- */
+static void test_checksum_trailing_bytes_ignored(void)
+{
+    uint8 buf[8];
+
+    buf[0] = 0x10; buf[1] = 0x20; buf[2] = 0x30; buf[3] = 0x40;
+    /* last 4 bytes set to max; they must NOT be summed. */
+    buf[4] = 0xFF; buf[5] = 0xFF; buf[6] = 0xFF; buf[7] = 0xFF;
+    /* sums buf[0..3] = 0x10+0x20+0x30+0x40 = 0xA0. */
+    ASSERT_EQ(fd2_save_compute_checksum((uint32)buf, 8), 0xA0);
+}
+
+/* ---- Test: accumulator is full u32 (no byte/word truncation) ---- */
+static void test_checksum_u32_accumulator(void)
+{
+    uint8 buf[12];
+    int i;
+
+    for (i = 0; i < 12; i++) {
+        buf[i] = 0xFF;
+    }
+    /* len 12 -> remaining = 8 -> 8 * 0xFF = 0x7F8 (exceeds a byte,
+     * proving the running sum is not truncated to 8 bits). */
+    ASSERT_EQ(fd2_save_compute_checksum((uint32)buf, 12), 0x7F8);
+}
+
+/* ---- Test: natural u32 wrap on overflow (matches LODSB/ADD EBX) ---- */
+static void test_checksum_u32_wrap(void)
+{
+    static uint8 buf[0x10008];
+    uint32 i;
+    uint32 result;
+
+    /* 0x10008-byte buffer of 0xFF: len 0x10008 -> remaining 0x10004
+     * summed bytes -> total 0x10004 * 0xFF = 0xFF03FC, which far
+     * exceeds 16 bits, exercising the full 32-bit running sum. */
+    for (i = 0; i < 0x10008; i++) {
+        buf[i] = 0xFF;
+    }
+    /* len 0x10008 -> remaining = 0x10004 -> 0x10004 * 0xFF. */
+    result = (uint32)0x10004 * (uint32)0xFF;   /* = 0xFF03FC */
+    ASSERT_EQ(fd2_save_compute_checksum((uint32)buf, 0x10008), result);
+}
+
+/* ---- Test: minimal valid length (len = 5 -> sums exactly 1 byte) ---- */
+static void test_checksum_len5_single_byte(void)
+{
+    uint8 buf[5];
+
+    buf[0] = 0x7B;   /* the only summed byte */
+    buf[1] = 0xFF; buf[2] = 0xFF; buf[3] = 0xFF; buf[4] = 0xFF;
+    /* len 5 -> remaining = 1 -> sums buf[0] only = 0x7B. */
+    ASSERT_EQ(fd2_save_compute_checksum((uint32)buf, 5), 0x7B);
+}
+
 void run_save_save_tests(void)
 {
     SUITE_BEGIN(save_save);
@@ -246,5 +322,10 @@ void run_save_save_tests(void)
     RUN_TEST(test_save_no_match_no_write);
     RUN_TEST(test_save_recompute_runs);
     RUN_TEST(test_save_multi_member_routing);
+    RUN_TEST(test_checksum_basic_excludes_last4);
+    RUN_TEST(test_checksum_trailing_bytes_ignored);
+    RUN_TEST(test_checksum_u32_accumulator);
+    RUN_TEST(test_checksum_u32_wrap);
+    RUN_TEST(test_checksum_len5_single_byte);
     SUITE_END();
 }

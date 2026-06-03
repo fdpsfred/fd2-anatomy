@@ -60,3 +60,33 @@ void fd2_save_runtime_char_to_template(void)
         }
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_save_compute_checksum @ 0x4dbb9 (4 callers)
+ *
+ * Sums all bytes in buf[0..len-5] as a u32 (excludes last 4 bytes
+ * which hold the checksum itself). __cdecl: buf = byte buffer,
+ * len = total length including the 4 trailing checksum bytes.
+ * Returns the natural u32-wrap byte sum (no overflow handling).
+ *
+ * Body mirrors the LODSB/LOOP form: remaining = len - 4, then a
+ * do-while that adds *pBuf and decrements remaining. do-while means
+ * len <= 4 underflows; callers must pass len > 4 (FD2.SAV uses
+ * len = 0x59CB, checksum field at +0x59C7).
+ * ---------------------------------------------------------------- */
+uint32 fd2_save_compute_checksum(uint32 buf, uint32 size)
+{
+    uint8 *pBuf;
+    uint32 remaining;
+    uint32 checksum;
+
+    pBuf = (uint8 *)buf;
+    remaining = size - 4;
+    checksum = 0;
+    do {
+        checksum = checksum + *pBuf;
+        remaining = remaining - 1;
+        pBuf = pBuf + 1;
+    } while (remaining != 0);
+    return checksum;
+}
