@@ -694,8 +694,9 @@
     "name": "fd2_alloc_and_blit_indexed_sprite_chunk",
     "target": "gfx/blitspr.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": true,
+    "reviewed": true
   },
   "00015f84": {
     "name": "fd2_display_dialog_scene",

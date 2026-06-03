@@ -172,6 +172,100 @@ static void test_indexed_sprite_signed_dims(void)
     free(ret);
 }
 
+/* capture vars for fd2_blit_sprite_with_decoded_pixels stub (testglob.c) */
+extern uint32 g_blitdec_dst, g_blitdec_sprite, g_blitdec_stride;
+
+/*
+ * fd2_alloc_and_blit_indexed_sprite_chunk resolves a sprite header through
+ * the atlas offset table, computes the paint offset, snapshots the
+ * destination block, and paints the sprite. Verify all of:
+ *   - sprite_hdr = sheet_base + *(int32*)(sheet_base + 6 + sprite_idx*4)
+ *     (the 4-byte-per-entry offset table indirection, picking the right
+ *      entry by sprite_idx)
+ *   - width/height read as signed 16-bit words from sprite_hdr[0]/[2]
+ *   - dst_off = row_idx * surface_pitch + col_offset
+ *   - fd2_save_screen_block_to_buffer(save_buf, w, h, dst, dst_off, pitch)
+ *   - fd2_blit_sprite_with_decoded_pixels(dst + dst_off, sprite_hdr, pitch)
+ *   - malloc'd save_buf (>= w*h+8) returned in EAX
+ */
+static void test_alloc_blit_chunk_wiring(void)
+{
+    static uint8 sheet[256];
+    uint32 sheet_base;
+    uint32 hdr0_off, hdr1_off;
+    uint32 dst, surface_pitch, col_offset, row_idx;
+    uint32 expect_dst_off, expect_sprite_hdr;
+    uint32 ret;
+
+    sheet_base = (uint32)sheet;
+
+    /* two sprite headers placed in the sheet; offset table at +6 holds
+       their byte offsets relative to sheet_base (4 bytes per entry). */
+    hdr0_off = 0x40;
+    hdr1_off = 0x60;
+    *(int32 *)(sheet + 6 + 0 * 4) = (int32)hdr0_off;
+    *(int32 *)(sheet + 6 + 1 * 4) = (int32)hdr1_off;
+
+    /* header for entry 1: width=6, height=5 */
+    *(int16 *)(sheet + hdr1_off + 0) = 6;
+    *(int16 *)(sheet + hdr1_off + 2) = 5;
+
+    dst = 0xA0000;
+    surface_pitch = 0x140;
+    col_offset = 0x78;
+    row_idx = 0x54;
+
+    expect_sprite_hdr = sheet_base + hdr1_off;
+    expect_dst_off = row_idx * surface_pitch + col_offset;
+
+    ret = fd2_alloc_and_blit_indexed_sprite_chunk(sheet_base, dst,
+                                                  surface_pitch, col_offset,
+                                                  row_idx, 1);
+
+    ASSERT_TRUE(ret != 0);
+
+    /* save-under snapshot wiring */
+    ASSERT_EQ((long)g_saveblk_out, (long)ret);
+    ASSERT_EQ((long)g_saveblk_w, 6);
+    ASSERT_EQ((long)g_saveblk_h, 5);
+    ASSERT_EQ((long)g_saveblk_dst, (long)dst);
+    ASSERT_EQ((long)g_saveblk_src, (long)expect_dst_off);
+    ASSERT_EQ((long)g_saveblk_stride, (long)surface_pitch);
+
+    /* sprite paint wiring: dst arg = dst + dst_off, sprite = resolved hdr */
+    ASSERT_EQ((long)g_blitdec_dst, (long)(dst + expect_dst_off));
+    ASSERT_EQ((long)g_blitdec_sprite, (long)expect_sprite_hdr);
+    ASSERT_EQ((long)g_blitdec_stride, (long)surface_pitch);
+
+    free((void *)ret);
+}
+
+/*
+ * width/height are MOVSX'd from 16-bit words: a header of (-1,-1) makes
+ * width*height = 1, so malloc(1+8)=9 succeeds (an unsigned read would
+ * request ~4GB and fail). Confirms the signed product used for the
+ * scratch buffer size.
+ */
+static void test_alloc_blit_chunk_signed_dims(void)
+{
+    static uint8 sheet[128];
+    uint32 sheet_base;
+    uint32 ret;
+
+    sheet_base = (uint32)sheet;
+    *(int32 *)(sheet + 6 + 0 * 4) = 0x30;
+    *(int16 *)(sheet + 0x30 + 0) = -1;
+    *(int16 *)(sheet + 0x30 + 2) = -1;
+
+    ret = fd2_alloc_and_blit_indexed_sprite_chunk(sheet_base, 0, 0x10, 0, 0, 0);
+
+    ASSERT_TRUE(ret != 0);
+    ASSERT_EQ((long)g_saveblk_w, -1);
+    ASSERT_EQ((long)g_saveblk_h, -1);
+
+    free((void *)ret);
+}
+
 void run_gfx_blitspr_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -181,5 +275,7 @@ void run_gfx_blitspr_tests(void)
     RUN_TEST(test_blit_nonpositive_height);
     RUN_TEST(test_indexed_sprite_alloc_wiring);
     RUN_TEST(test_indexed_sprite_signed_dims);
+    RUN_TEST(test_alloc_blit_chunk_wiring);
+    RUN_TEST(test_alloc_blit_chunk_signed_dims);
     printf("\n");
 }

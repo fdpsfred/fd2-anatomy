@@ -42,17 +42,20 @@ extern uint8 data_fd2_audio_bgm_last_set_track_id;
 extern int g_ending_menu_return;
 extern int g_slot_selector_return;
 
-/* fd2_load_save_and_init_engine cinematic-loop recorders (testglob.c) */
-extern int g_alloc_blit_calls;
-extern uint32 g_alloc_blit_last_idx;
-/* fd2_cleanup_dialog_sprite_buffer is now the real emitted function; it calls
+/* fd2_load_save_and_init_engine cinematic-loop recorders (testglob.c).
+ * fd2_alloc_and_blit_indexed_sprite_chunk is now the real emitted function; it
+ * calls fd2_save_screen_block_to_buffer exactly once per invocation, so the
+ * save-block stub counter is an exact proxy for the alloc/blit-chunk count.
+ * fd2_cleanup_dialog_sprite_buffer is likewise real and calls
  * fd2_restore_screen_block_from_buffer exactly once per invocation, so the
  * restore-stub counter is an exact proxy for the cleanup-call count. */
+extern int g_saveblk_calls;
 extern int g_restore_block_calls;
 
 /* buffers staged by the fixture, freed by teardown */
 static void *g_ls_roster_buf;
 static void *g_ls_consumed_buf;
+static void *g_ls_sprite_sheet;
 
 /* ----------------------------------------------------------------
  * fd2_load_save_and_init_engine fixture
@@ -66,11 +69,33 @@ static void *g_ls_consumed_buf;
  * ---------------------------------------------------------------- */
 static void setup_load_save_fixture(void)
 {
+    uint8 *sheet;
+    uint32 hdr_off;
+    int idx;
+
     /* destination buffers the function memmoves into / reads from */
     g_ls_roster_buf = malloc(0xA00);
     g_ls_consumed_buf = malloc(0x20);
     data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_ls_roster_buf;
     data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ls_consumed_buf;
+
+    /* The cinematic intro loop calls the REAL
+     * fd2_alloc_and_blit_indexed_sprite_chunk, which resolves a sprite header
+     * through the atlas offset table at sheet+6 (4 bytes/entry) for sprite
+     * indices up to 0x5B, then reads width/height from that header. Stage a
+     * minimal valid sheet: offset table entries 0..0x5B all point at one 4x4
+     * header so each call resolves deterministically (the save-under and
+     * pixel-decode callees are capture-only stubs, so no real surface is
+     * touched). */
+    g_ls_sprite_sheet = malloc(0x200);
+    sheet = (uint8 *)g_ls_sprite_sheet;
+    hdr_off = 0x180;                       /* header past the 0x5C-entry table */
+    for (idx = 0; idx <= 0x5B; idx++) {
+        *(int32 *)(sheet + 6 + idx * 4) = (int32)hdr_off;
+    }
+    *(int16 *)(sheet + hdr_off + 0) = 4;   /* width  */
+    *(int16 *)(sheet + hdr_off + 2) = 4;   /* height */
+    data_fd2_ui_anim_sprite_sheet_ptr = (uint32)sheet;
 
     /* freed-if-nonzero then re-malloc'd / reloaded by the function; NULL/0
      * them so it does not free a static/stale pointer. */
@@ -90,9 +115,8 @@ static void setup_load_save_fixture(void)
     data_fd2_graphics_animated_bg_buffer_ptr = 0;
     data_fd2_audio_bgm_sequence_data_buf_ptr = 0;  /* trailing bgm load target */
 
-    g_alloc_blit_calls = 0;
+    g_saveblk_calls = 0;
     g_restore_block_calls = 0;
-    g_alloc_blit_last_idx = 0;
 }
 
 /* Free fixture buffers and restore every global the load touched back to its
@@ -127,6 +151,8 @@ static void teardown_load_save_fixture(void)
         free((void *)data_fd2_audio_bgm_sequence_data_buf_ptr);
     free(g_ls_roster_buf);
     free(g_ls_consumed_buf);
+    free(g_ls_sprite_sheet);
+    data_fd2_ui_anim_sprite_sheet_ptr = 0;
 
     /* restore testglob.c defaults */
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
@@ -285,8 +311,9 @@ static void test_load_save_cinematic_loop_counts(void)
     /* intro loop = 9 frames; zoom loop = i 2,3,4 then 5->9 = 4 frames;
      * total 13 alloc/blit + matching cleanup calls (validates the
      * i==5 -> i=9 skip in the zoom loop). These loop bounds are fixed and
-     * independent of the save's chapter/party content. */
-    ASSERT_EQ((long)g_alloc_blit_calls, 13);
+     * independent of the save's chapter/party content. g_saveblk_calls is the
+     * exact proxy for the alloc/blit-chunk count (one save-block call each). */
+    ASSERT_EQ((long)g_saveblk_calls, 13);
     ASSERT_EQ((long)g_restore_block_calls, 13);
     teardown_load_save_fixture();
 }

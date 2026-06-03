@@ -319,7 +319,7 @@ void fd2_paint_chars_shadow_overlay(void);
 void fd2_blit_animated_tile_at_pos(uint32 buf, int32 tile_x, int32 tile_y);
 void fd2_render_terrain_info_hud_panel(uint32 buf, uint32 stride);
 void fd2_blit_rectangle(uint32 dst, uint32 dstride, uint32 src, uint32 sstride, uint32 w, uint32 h);
-uint32 fd2_alloc_and_blit_indexed_sprite_chunk(uint32 sheet_ptr, uint32 dst, uint32 stride, uint32 h, uint32 row, uint32 idx);
+uint32 fd2_alloc_and_blit_indexed_sprite_chunk(uint32 sheet_base, uint32 dst, uint32 surface_pitch, uint32 col_offset, uint32 row_idx, uint32 sprite_idx);
 void fd2_render_decimal_number_to_buffer(uint32 dst, uint32 stride, uint32 value, uint32 x, uint32 digits);
 void fd2_cleanup_dialog_sprite_buffer(uint32 saved_block, uint32 dst, uint32 stride);
 void fd2_restore_screen_block_from_buffer(uint32 saved_block, uint32 dst, uint32 stride);
@@ -330,6 +330,7 @@ void fd2_render_recruitment_party_screen(void);
 void fd2_render_chapter_dialog_borders(void);
 void fd2_render_chapter_intro_dialog_panels(uint32 corner_offs_ptr, uint32 mode);
 void fd2_blit_sprite_with_stride_setup(uint32 dst, uint32 sprite, uint32 stride);
+void fd2_blit_sprite_with_decoded_pixels(uint32 dst, uint32 sprite_hdr, uint32 stride);
 void fd2_save_screen_block_to_buffer(uint32 out_buf, uint32 width, uint32 height,
                                      uint32 dst, uint32 src_ptr, uint32 stride);
 void *fd2_blit_indexed_sprite_with_alloc(uint32 sprite_hdr, uint32 dst,

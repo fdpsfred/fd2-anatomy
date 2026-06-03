@@ -95,3 +95,61 @@ void *fd2_blit_indexed_sprite_with_alloc(uint32 sprite_hdr, uint32 dst,
     fd2_blit_sprite_with_stride_setup(sprite_data + dst, sprite_hdr, dst_pitch);
     return save_buf;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_alloc_and_blit_indexed_sprite_chunk @ 0x15F0E (8 callers)
+ *
+ * One-shot decode + paint of an indexed sprite from a sprite-atlas
+ * sheet into a destination surface, allocating a scratch "save under"
+ * buffer on the fly.
+ *
+ * Sprite atlas layout: a 4-byte-per-entry offset table starts at
+ * sheet_base + 6. Entry sprite_idx gives the byte offset (from
+ * sheet_base) of that sprite's header:
+ *
+ *   sprite_hdr = sheet_base + *(int32 *)(sheet_base + 6 + sprite_idx * 4);
+ *   width  = *(int16 *)(sprite_hdr + 0);   (signed)
+ *   height = *(int16 *)(sprite_hdr + 2);   (signed)
+ *
+ * The paint position is dst_off = row_idx * surface_pitch + col_offset.
+ * A scratch buffer of width*height + 8 bytes is malloc'd (the +8 is the
+ * snapshot header written by fd2_save_screen_block_to_buffer), the
+ * destination block under the sprite is snapshotted into it, then the
+ * sprite pixels are decoded and painted at dst + dst_off.
+ *
+ * The malloc'd buffer pointer is left in EAX (asm tail: MOV EAX,EDI into
+ * the shared epilogue at 0x22BBE) and thus returned, but the sole live
+ * caller (fd2_load_save_and_init_engine's chapter-intro slideshow)
+ * discards it and frees the snapshot separately via
+ * fd2_cleanup_dialog_sprite_buffer.
+ *
+ * Args (cdecl, 6x uint32 on stack):
+ *   sheet_base    — sprite atlas base linear address
+ *   dst           — destination surface base linear address
+ *   surface_pitch — destination row stride
+ *   col_offset    — column byte offset within the destination row
+ *   row_idx       — destination row index
+ *   sprite_idx    — index into the sheet's offset table
+ * ---------------------------------------------------------------- */
+uint32 fd2_alloc_and_blit_indexed_sprite_chunk(uint32 sheet_base, uint32 dst,
+                                               uint32 surface_pitch,
+                                               uint32 col_offset, uint32 row_idx,
+                                               uint32 sprite_idx)
+{
+    int32 width;
+    int32 height;
+    uint32 sprite_hdr;
+    uint32 dst_off;
+    void *save_buf;
+
+    sprite_hdr = sheet_base + *(int32 *)(sheet_base + 6 + sprite_idx * 4);
+    width = *(int16 *)sprite_hdr;
+    height = *(int16 *)(sprite_hdr + 2);
+    dst_off = row_idx * surface_pitch + col_offset;
+
+    save_buf = malloc(width * height + 8);
+    fd2_save_screen_block_to_buffer((uint32)save_buf, (uint32)width,
+                                    (uint32)height, dst, dst_off, surface_pitch);
+    fd2_blit_sprite_with_decoded_pixels(dst_off + dst, sprite_hdr, surface_pitch);
+    return (uint32)save_buf;
+}

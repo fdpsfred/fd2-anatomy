@@ -297,6 +297,7 @@ void fd2_blit_sprite_with_stride_setup(uint32 d, uint32 s, uint32 st)
 }
 uint32 g_saveblk_out, g_saveblk_w, g_saveblk_h, g_saveblk_dst,
        g_saveblk_src, g_saveblk_stride;
+int    g_saveblk_calls = 0;
 void fd2_save_screen_block_to_buffer(uint32 out_buf, uint32 width, uint32 height,
                                      uint32 dst, uint32 src_ptr, uint32 stride)
 {
@@ -306,6 +307,15 @@ void fd2_save_screen_block_to_buffer(uint32 out_buf, uint32 width, uint32 height
     g_saveblk_dst = dst;
     g_saveblk_src = src_ptr;
     g_saveblk_stride = stride;
+    g_saveblk_calls++;
+}
+/* capture wiring for fd2_alloc_and_blit_indexed_sprite_chunk tests */
+uint32 g_blitdec_dst, g_blitdec_sprite, g_blitdec_stride;
+void fd2_blit_sprite_with_decoded_pixels(uint32 d, uint32 s, uint32 st)
+{
+    g_blitdec_dst = d;
+    g_blitdec_sprite = s;
+    g_blitdec_stride = st;
 }
 void fd2_render_recruitment_select_screen(uint32 a, uint32 b, uint32 c, uint32 d) { }
 void fd2_animate_spell_impact_per_target(uint32 a, uint32 b, uint32 c, uint32 d) { }
@@ -346,12 +356,10 @@ int fd2_chapter_transition_menu(void) { return g_chapter_transition_return; }
  * encrypts its image so the loader's real decrypt recovers the plaintext). */
 /* fd2_load_chapter_background_layers: now in rsrc/rsrc.c */
 /* fd2_load_portrait_to_cache: now emitted in src/rsrc/rsrc.c */
-int g_alloc_blit_calls = 0;
-uint32 g_alloc_blit_last_idx = 0;
-uint32 fd2_alloc_and_blit_indexed_sprite_chunk(uint32 sheet, uint32 dst,
-    uint32 stride, uint32 h, uint32 row, uint32 idx)
-{ (void)sheet; (void)dst; (void)stride; (void)h; (void)row;
-  g_alloc_blit_calls++; g_alloc_blit_last_idx = idx; return 0; }
+/* fd2_alloc_and_blit_indexed_sprite_chunk: now emitted in src/gfx/blitspr.c.
+ * It calls fd2_save_screen_block_to_buffer exactly once per invocation, so the
+ * save-block call counter (g_saveblk_calls) is an exact proxy for the
+ * alloc/blit-chunk call count in any test that drives it in isolation. */
 void fd2_render_decimal_number_to_buffer(uint32 dst, uint32 stride,
     uint32 v, uint32 x, uint32 digits)
 { (void)dst; (void)stride; (void)v; (void)x; (void)digits; }
