@@ -22,6 +22,7 @@ D:\BIN\WCC386.EXE battle\btl_aisc.c %CF% -fo=E:\out\btlaisc.obj >> E:\out\build.
 D:\BIN\WCC386.EXE audio\audio.c %CF% -fo=E:\out\audio.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE life\main.c %CF% -fo=E:\out\lifemain.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE save\save.c %CF% -fo=E:\out\save.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE util\noop.c %CF% -fo=E:\out\noop.obj >> E:\out\build.out
 
 echo === compile tests === >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\testmain.c %CF% -fo=E:\out\testmain.obj >> E:\out\build.out

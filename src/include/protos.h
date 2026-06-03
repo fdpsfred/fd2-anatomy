@@ -310,6 +310,7 @@ int fd2_scan_chars_within_manhattan_range(uint32 x, uint32 y, uint32 range, uint
 void fd2_debug_print_ans_and_length(int value);
 uint32 fd2_set_word_global_52758(uint32 new_val);
 uint32 fd2_set_word_global_5275c(uint32 new_val);
+void fd2_noop_stub_4e915(void);
 
 /* ---- util / dpmi ---- */
 int fd2_dpmi_alloc_dos_memory(uint32 paragraphs, uint32 *out_linear, uint32 *out_segment, uint32 *out_selector);

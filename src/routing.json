@@ -4690,7 +4690,8 @@
     "target": "util/noop.c",
     "phase": 2,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0004e916": {
     "name": "fd2_decode_dialog_pixel_byte",
