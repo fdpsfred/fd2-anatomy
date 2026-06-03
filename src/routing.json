@@ -4560,7 +4560,8 @@
     "target": "table/table.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0004e4d1": {
     "name": "fd2_get_char_growth_entry",
