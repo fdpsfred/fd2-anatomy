@@ -70,6 +70,8 @@ uint32 portrait_sprite_cache = 0;
 uint32 data_fd2_resource_portrait_cache_count = 0;
 uint32 data_fd2_resource_portrait_cache_total_size = 0;
 uint32 data_fd2_resource_portrait_cache_alloc_offset = 0;
+uint32 data_fd2_resource_portrait_cache_buffer_used = 0;
+uint8  data_fd2_resource_portrait_cache_id_list_base[40] = {0};
 uint32 data_fd2_battle_current_active_char_idx = 0;
 uint8  data_fd2_audio_bgm_last_set_track_id = 0xFF;
 uint8  data_fd2_audio_bgm_enabled_flag = 1;
@@ -213,17 +215,7 @@ uint32 g_load_save_checksum_return = 0;
 uint32 fd2_save_compute_checksum(uint32 b, uint32 s)
 { (void)b; (void)s; return g_load_save_checksum_return; }
 /* fd2_load_chapter_background_layers: now in rsrc/rsrc.c */
-int g_load_portrait_calls = 0;
-int fd2_load_portrait_to_cache(uint32 pid, uint32 fp)
-{
-    (void)pid; (void)fp;
-    g_load_portrait_calls++;
-    /* mirror real behaviour: ensure the portrait sprite cache exists so the
-     * subsequent fwrite(portrait_sprite_cache, 0x32A00) has a valid buffer */
-    if (portrait_sprite_cache == 0)
-        portrait_sprite_cache = (uint32)malloc(0x32A00);
-    return 0;
-}
+/* fd2_load_portrait_to_cache: now emitted in src/rsrc/rsrc.c */
 int g_alloc_blit_calls = 0;
 uint32 g_alloc_blit_last_idx = 0;
 uint32 fd2_alloc_and_blit_indexed_sprite_chunk(uint32 sheet, uint32 dst,

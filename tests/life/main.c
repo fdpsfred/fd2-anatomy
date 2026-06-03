@@ -10,6 +10,7 @@
 #include "protos.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "rsrcfix.h"   /* write_fake_fdicon() */
 
 #define USE_ITEM_ID 10
 
@@ -67,7 +68,6 @@ extern int g_repaint_flip_buffer_after;
 
 /* fd2_load_save_and_init_engine leaf-helper recorders (testglob.c) */
 extern uint32 g_load_save_checksum_return;
-extern int g_load_portrait_calls;
 extern int g_alloc_blit_calls;
 extern uint32 g_alloc_blit_last_idx;
 extern int g_cleanup_sprite_calls;
@@ -121,6 +121,16 @@ static void setup_load_save_fixture(int chapter_id, int party_count,
     sav[0] = 0x00;                 /* tile_event[0] -> scene_id            */
     sav[1] = 0x11;                 /* tile_event[1] -> cache_total_size    */
     sav[2] = 0x22;                 /* tile_event[2] -> cache_alloc_offset  */
+    /* saved runtime_char records start at 0x12A3 (0x50 stride). Seed a
+     * distinct portrait_id (+0x07) per party member so the now-real
+     * fd2_load_portrait_to_cache (called once per member in load_save)
+     * registers each as a distinct cache entry: cache_count == party_count. */
+    {
+        int k;
+        for (k = 0; k < party_count; k++) {
+            sav[0x12A3 + k * 0x50 + 0x07] = (uint8)(0x40 + k);
+        }
+    }
     sav[0x30C3] = 7;               /* turn_counter                        */
     sav[0x30C4] = (uint8)party_count;
     sav[0x30C5] = (uint8)chapter_id;
@@ -144,11 +154,12 @@ static void setup_load_save_fixture(int chapter_id, int party_count,
     fclose(fp);
     free(sav);
 
-    /* FDICON.B24 only needs to exist so fopen()/fclose() succeed */
-    fp = fopen("FDICON.B24", "wb");
-    fclose(fp);
+    /* the real fd2_load_portrait_to_cache (reached through battle_data ->
+     * the real fd2_init_runtime_char_for_battle) parses FDICON.B24 */
+    data_fd2_resource_portrait_cache_count = 0;
+    data_fd2_resource_portrait_cache_buffer_used = 0;
+    write_fake_fdicon();
 
-    g_load_portrait_calls = 0;
     g_alloc_blit_calls = 0;
     g_cleanup_sprite_calls = 0;
     g_alloc_blit_last_idx = 0;
@@ -258,8 +269,8 @@ static void test_load_save_restores_scalar_state(void)
     ASSERT_EQ((long)data_fd2_battle_anim_phase, 1);
     ASSERT_EQ((long)data_fd2_battle_current_active_char_idx, 0);
 
-    /* portrait cache rebuilt once per party member */
-    ASSERT_EQ((long)g_load_portrait_calls, 2);
+    /* portrait cache rebuilt once per (distinct) party member */
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_count, 2);
     teardown_load_save_fixture();
 }
 

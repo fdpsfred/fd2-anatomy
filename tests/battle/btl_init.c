@@ -10,6 +10,7 @@
 #include "protos.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "rsrcfix.h"   /* write_fake_fdicon() */
 
 #define USE_ITEM_ID 10
 
@@ -184,6 +185,10 @@ static runtime_char g_irc_slots[8];
 static uint8 g_irc_field[64];
 static uint8 g_irc_tilemap[64];
 static uint8 g_irc_tileevent[256];
+/* the real fd2_init_runtime_char_for_battle calls the now-real
+ * fd2_load_portrait_to_cache(char_id, fdicon_fp), which fseek/freads the
+ * passed FILE*. Stage a valid FDICON.B24 and pass this handle. */
+static FILE *g_irc_fp;
 
 /* Stage field buffer (desired_x/y) and the per-char tile-event record at
  * char_field_idx, plus point all backing globals at local buffers. Uses
@@ -205,10 +210,32 @@ static void irc_setup(uint32 field_idx, uint8 desired_x, uint8 desired_y)
     data_fd2_battle_tile_map_ptr = (uint32)g_irc_tilemap;
     data_fd2_tile_event_data_table_ptr = (uint32)g_irc_tileevent;
     data_fd2_chapter_init_phase_flag = 1;
+
+    /* fresh portrait cache + valid FDICON for the real portrait loader */
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_resource_portrait_cache_count = 0;
+    data_fd2_resource_portrait_cache_buffer_used = 0;
+    write_fake_fdicon();
+    g_irc_fp = fopen("FDICON.B24", "rb");
 }
 
 static void irc_teardown(void)
 {
+    if (g_irc_fp != NULL) {
+        fclose(g_irc_fp);
+        g_irc_fp = NULL;
+    }
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_resource_portrait_cache_count = 0;
+    data_fd2_resource_portrait_cache_buffer_used = 0;
+    remove("FDICON.B24");
+    remove("FD2.TMP");
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     data_fd2_battle_party_member_count = 4;
     chapter_portrait_load_buffer = 0;
@@ -258,7 +285,7 @@ static void test_irc_player_class_stats(void)
     grow[6] = 5;   /* HP growth/(level-1) */
     grow[8] = 2;   /* MP growth/(level-1) */
 
-    fd2_init_runtime_char_for_battle(0, 0);
+    fd2_init_runtime_char_for_battle(0, (uint32)g_irc_fp);
 
     rc = &g_irc_slots[0];
     /* spawn taken verbatim (phase flag = 1) */
@@ -332,7 +359,7 @@ static void test_irc_enemy_class_stats(void)
     en[7] = 6;                    /* DX byte */
     en[8] = 0x99;                 /* magic resist */
 
-    fd2_init_runtime_char_for_battle(0, 0);
+    fd2_init_runtime_char_for_battle(0, (uint32)g_irc_fp);
 
     rc = &g_irc_slots[0];
     ASSERT_EQ((long)rc->pos_x, 4);
@@ -394,7 +421,7 @@ static void test_irc_tile_search_nearest(void)
     rec[5] = 0xff;
     rec[7] = 0xff;
 
-    fd2_init_runtime_char_for_battle(0, 0);
+    fd2_init_runtime_char_for_battle(0, (uint32)g_irc_fp);
 
     rc = &g_irc_slots[0];
     ASSERT_EQ((long)rc->pos_x, 1);

@@ -31,8 +31,9 @@ extern int    g_scroll_text_calls;
 extern uint32 g_scroll_text_last_arg;
 
 /* fd2_load_chapter_battle_data captures (testglob.c) */
-extern int    g_load_portrait_calls;
 extern runtime_char g_test_rc_array[8];
+
+#include "rsrcfix.h"   /* write_fake_fdicon() */
 
 /* FDOTHER.DAT string address used by the function under test */
 #define FDOTHER_DAT_ADDR 0x51a4d
@@ -291,10 +292,9 @@ static void setup_cb_fixture(int chapter, int total_size,
     data_fd2_battle_runtime_char_array_ptr = NULL;
     portrait_sprite_cache = 0;
 
-    fp = fopen("FDICON.B24", "wb");
-    fclose(fp);
-
-    g_load_portrait_calls = 0;
+    /* the real fd2_load_portrait_to_cache (now linked) parses FDICON.B24 */
+    write_fake_fdicon();
+    (void)fp;
 }
 
 static void teardown_cb_fixture(void)
@@ -344,11 +344,12 @@ static void test_cb_all_active(void)
     ASSERT_EQ((long)data_fd2_resource_portrait_cache_alloc_offset, CB_ALLOC_OFFSET);
     ASSERT_EQ((long)data_fd2_battle_party_member_count, 3);
 
-    /* every slot active: one portrait load each. The tail dump_tmp(0) runs
-     * for real; its tile-event race bytes are the 0xEE sentinel so it matches
-     * no entry (target_race_id 0) and adds no extra init_rtchar / portrait
-     * (party count stays at the loader's 3, asserted above). */
-    ASSERT_EQ((long)g_load_portrait_calls, 3);
+    /* every slot active: one distinct portrait cached each. The tail
+     * dump_tmp(0) runs for real; its tile-event race bytes are the 0xEE
+     * sentinel so it matches no entry (target_race_id 0) and adds no extra
+     * init_rtchar / portrait. Each active slot's portrait_id is distinct
+     * (0x40+i) so the real loader's cache_count ends == active slot count. */
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_count, 3);
 
     /* slot 0 active fields */
     ASSERT_EQ((long)arr[0].flags, 0);          /* not dead */
@@ -378,7 +379,7 @@ static void test_cb_party_count_gate(void)
     fd2_load_chapter_battle_data(0x10);
     arr = data_fd2_battle_runtime_char_array_ptr;
 
-    ASSERT_EQ((long)g_load_portrait_calls, 2);   /* only 2 active */
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_count, 2); /* 2 active */
     ASSERT_EQ((long)arr[0].flags, 0);
     ASSERT_EQ((long)arr[1].flags, 0);
     ASSERT_EQ((long)arr[2].flags, 1);            /* dead (gated) */
@@ -401,7 +402,7 @@ static void test_cb_slot6_special_dead(void)
     ASSERT_EQ((long)arr[6].flags, 1);
     ASSERT_EQ((long)arr[5].flags, 0);
     ASSERT_EQ((long)arr[7].flags, 0);
-    ASSERT_EQ((long)g_load_portrait_calls, 7);
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_count, 7);
 
     teardown_cb_fixture();
 }
@@ -417,7 +418,7 @@ static void test_cb_slot6_special_active(void)
 
     ASSERT_EQ((long)arr[6].flags, 0);            /* active */
     ASSERT_EQ((long)arr[6].team, 2);
-    ASSERT_EQ((long)g_load_portrait_calls, 8);   /* all 8 active */
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_count, 8); /* 8 active */
 
     teardown_cb_fixture();
 }
@@ -463,15 +464,23 @@ static void setup_pt_fixture(int count, const uint8 *race_of)
     data_fd2_battle_party_member_count = 0;
     data_fd2_chapter_current_chapter_id = 4;   /* re-read idx = 4*3+2 = 0xE */
 
-    if (portrait_sprite_cache == 0)
-        portrait_sprite_cache = (uint32)malloc(0x32A00);
+    /* the real fd2_load_portrait_to_cache (now linked, reached via the real
+     * fd2_init_runtime_char_for_battle for matching races) allocates the cache
+     * on its first call (cache_count==0) and parses FDICON.B24. Reset the cache
+     * state so it first-inits cleanly; teardown frees the buffer it mallocs. */
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_resource_portrait_cache_count = 0;
+    data_fd2_resource_portrait_cache_buffer_used = 0;
 
     g_load_dat_calls = 0;
     g_load_dat_last_fname = 0;
     g_load_dat_last_idx = 0;
 
-    fp = fopen("FDICON.B24", "wb");
-    fclose(fp);
+    write_fake_fdicon();
+    (void)fp;
 }
 
 static void teardown_pt_fixture(void)
@@ -575,10 +584,125 @@ static void test_pt_empty_table(void)
     teardown_pt_fixture();
 }
 
+/* ================================================================
+ * fd2_load_portrait_to_cache @ 0x11019  (direct tests)
+ *
+ * write_fake_fdicon() lays each header entry e at offset
+ * FDICON_DATA_BASE + e*4 (e = portrait*12 + frame), so every portrait's
+ * data_size = offsets[12]-offsets[0] = 12*4 = 48 bytes, and the first-init
+ * frame table resolves to ((int*)cache)[i] = i*4 + 0x780. These exact
+ * numbers let the tests verify the offset arithmetic, the three control-flow
+ * paths (first-init / cache-hit / append-miss), and the running buffer/count
+ * bookkeeping. ================================================================ */
+static FILE *g_lpc_fp;
+
+static void lpc_setup(void)
+{
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_resource_portrait_cache_count = 0;
+    data_fd2_resource_portrait_cache_buffer_used = 0;
+    write_fake_fdicon();
+    g_lpc_fp = fopen("FDICON.B24", "rb");
+}
+
+static void lpc_teardown(void)
+{
+    if (g_lpc_fp != NULL) {
+        fclose(g_lpc_fp);
+        g_lpc_fp = NULL;
+    }
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_resource_portrait_cache_count = 0;
+    data_fd2_resource_portrait_cache_buffer_used = 0;
+    remove("FDICON.B24");
+}
+
+/* First-time init: count 0 -> allocate cache, build frame table, return 0. */
+static void test_lpc_first_init(void)
+{
+    int   idx;
+    int32 *tbl;
+    int    i;
+
+    lpc_setup();
+    idx = fd2_load_portrait_to_cache(2, (uint32)g_lpc_fp);
+
+    ASSERT_EQ((long)idx, 0);
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_count, 1);
+    ASSERT_EQ((long)*(uint32 *)data_fd2_resource_portrait_cache_id_list_base, 2);
+    ASSERT_TRUE(portrait_sprite_cache != 0);
+    /* data_size = 48, buffer_used = 48 + 0x780 */
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_buffer_used, 48 + 0x780);
+    /* frame table: ((int*)cache)[i] = i*4 + 0x780 */
+    tbl = (int32 *)portrait_sprite_cache;
+    for (i = 0; i < 12; i++) {
+        ASSERT_EQ((long)tbl[i], i * 4 + 0x780);
+    }
+    lpc_teardown();
+}
+
+/* Cache hit: same portrait_id on a populated cache returns its slot, no growth. */
+static void test_lpc_cache_hit(void)
+{
+    int idx0;
+    int idx1;
+    uint32 used_after_first;
+
+    lpc_setup();
+    idx0 = fd2_load_portrait_to_cache(2, (uint32)g_lpc_fp);
+    used_after_first = data_fd2_resource_portrait_cache_buffer_used;
+    idx1 = fd2_load_portrait_to_cache(2, (uint32)g_lpc_fp);
+
+    ASSERT_EQ((long)idx0, 0);
+    ASSERT_EQ((long)idx1, 0);                       /* hit returns slot 0     */
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_count, 1); /* no growth  */
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_buffer_used,
+              (long)used_after_first);
+    lpc_teardown();
+}
+
+/* Append miss: a new portrait_id appends at the tail with the running offset. */
+static void test_lpc_append_miss(void)
+{
+    int    idx0;
+    int    idx1;
+    int32 *tbl;
+    int    i;
+
+    lpc_setup();
+    idx0 = fd2_load_portrait_to_cache(2, (uint32)g_lpc_fp);  /* slot 0 */
+    idx1 = fd2_load_portrait_to_cache(5, (uint32)g_lpc_fp);  /* slot 1 */
+
+    ASSERT_EQ((long)idx0, 0);
+    ASSERT_EQ((long)idx1, 1);
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_count, 2);
+    /* id_list[1] == 5 */
+    ASSERT_EQ((long)*(uint32 *)(data_fd2_resource_portrait_cache_id_list_base
+                                + 1 * 4), 5);
+    /* buffer_used after two 48-byte portraits = 2*48 + 0x780 */
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_buffer_used,
+              2 * 48 + 0x780);
+    /* slot 1 frame table at ((int*)cache)[12..23] = (48 + 0x780) + i*4 */
+    tbl = (int32 *)portrait_sprite_cache;
+    for (i = 0; i < 12; i++) {
+        ASSERT_EQ((long)tbl[12 + i], (48 + 0x780) + i * 4);
+    }
+    lpc_teardown();
+}
+
 void run_rsrc_rsrc_tests(void)
 {
     int _prev_fails = g_test_fail_count;
     printf("Suite: rsrc/rsrc\n");
+    RUN_TEST(test_lpc_first_init);
+    RUN_TEST(test_lpc_cache_hit);
+    RUN_TEST(test_lpc_append_miss);
     RUN_TEST(test_default_path_chapter9_idx_f);
     RUN_TEST(test_default_path_chapter1c_idx_37);
     RUN_TEST(test_default_path_chapter1d_idx_37);

@@ -116,6 +116,85 @@ void fd2_load_chapter_background_layers(void)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_load_portrait_to_cache @ 0x11019  (8 callers)
+ *
+ * Load a portrait's 12-sprite frames from FDICON.B24 into the global
+ * 200KB cache. Idempotent on repeat calls (returns existing idx).
+ *
+ * Cache structure (200KB buffer at portrait_sprite_cache):
+ *   [0 .. 0x77F]  sprite-offset lookup table: 40-portrait capacity
+ *                 (40 x 12 sprites x 4-byte abs-offset)
+ *   [0x780 ..]    packed sprite data, sequential per portrait
+ *   portrait_cache_buffer_used (@0x539EC) = current data end-of-buffer
+ *   portrait_cache_count       (@0x53BDF) = number of cached portraits
+ *   portrait_cache_id_list[N]  (@0x53B17) = portrait_id of N-th cached
+ *                                           entry (parallel to slots)
+ *
+ * Reads the 6720-byte FDICON.B24 sprite-header table (skipping the
+ * 6-byte magic), extracts the 13 ints for this portrait (12 frame
+ * offsets + 1 trailing end-mark), then either first-time-inits the
+ * cache or appends at the tail. A cache hit (portrait_id already
+ * present) short-circuits with no I/O.
+ * ---------------------------------------------------------------- */
+int fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp)
+{
+    int32  sprite_offsets[13];
+    uint32 data_size;
+    void  *hdr_buf;
+    int    i;
+    int    cache_idx;
+
+    fseek((void *)fp, 6, SEEK_SET);
+    hdr_buf = malloc(0x1a40);
+    fread(hdr_buf, 1, 0x1a40, (void *)fp);
+    for (i = 0; i < 0xd; i++) {
+        sprite_offsets[i] =
+            *(int32 *)((uint8 *)hdr_buf + (portrait_id * 0xc + i) * 4);
+    }
+    data_size = (uint32)(sprite_offsets[12] - sprite_offsets[0]);
+    free(hdr_buf);
+
+    if (data_fd2_resource_portrait_cache_count == 0) {
+        *(uint32 *)data_fd2_resource_portrait_cache_id_list_base = portrait_id;
+        portrait_sprite_cache = (uint32)malloc(0x32a00);
+        fseek((void *)fp, sprite_offsets[0], SEEK_SET);
+        fread((void *)(portrait_sprite_cache + 0x780), 1, data_size,
+              (void *)fp);
+        for (i = 0; i < 0xc; i++) {
+            *(int32 *)(portrait_sprite_cache + i * 4) =
+                (sprite_offsets[i] - sprite_offsets[0]) + 0x780;
+        }
+        data_fd2_resource_portrait_cache_buffer_used = data_size + 0x780;
+        cache_idx = 0;
+    } else {
+        for (i = 0; i < (int)data_fd2_resource_portrait_cache_count; i++) {
+            if (portrait_id ==
+                *(uint32 *)(data_fd2_resource_portrait_cache_id_list_base
+                            + i * 4)) {
+                return i;
+            }
+        }
+        *(uint32 *)(data_fd2_resource_portrait_cache_id_list_base + i * 4) =
+            portrait_id;
+        fseek((void *)fp, sprite_offsets[0], SEEK_SET);
+        fread((void *)(portrait_sprite_cache
+                       + data_fd2_resource_portrait_cache_buffer_used),
+              1, data_size, (void *)fp);
+        for (i = 0; i < 0xc; i++) {
+            *(int32 *)(portrait_sprite_cache
+                       + (data_fd2_resource_portrait_cache_count * 0xc + i) * 4)
+                = (int32)(data_fd2_resource_portrait_cache_buffer_used
+                          + (sprite_offsets[i] - sprite_offsets[0]));
+        }
+        data_fd2_resource_portrait_cache_buffer_used += data_size;
+        cache_idx = (int)data_fd2_resource_portrait_cache_count;
+    }
+
+    data_fd2_resource_portrait_cache_count++;
+    return cache_idx;
+}
+
+/* ----------------------------------------------------------------
  * fd2_load_chapter_battle_data @ 0x1088d  (3 callers)
  *
  * CRITICAL chapter init: loads all per-chapter battle data and builds

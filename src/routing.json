@@ -82,7 +82,8 @@
     "target": "rsrc/rsrc.c",
     "phase": 5,
     "done": false,
-    "asm": false
+    "asm": false,
+    "reviewed": true
   },
   "000111ba": {
     "name": "fd2_load_dat_resource",
