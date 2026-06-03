@@ -11,7 +11,10 @@ DAT archive (src/rsrc/rsrc.c fd2_load_dat_resource):
   at `start`.
 FDICON.B24: 6-byte magic; flat u32 sprite-header table from offset 6
   (entry e = u32@(6+e*4)); a portrait p's 13 ints are entries [p*12 .. p*12+12].
-FD2.SAV: 0x59CB bytes; documented field offsets below; checksum u32 @ +0x59C7.
+FD2.SAV: 0x59CB bytes, XOR-encrypted on disk; this tool decrypts it in place
+  (the keystream below mirrors src/save/save.c fd2_save_crypt_buffer) before
+  reading the documented field offsets; checksum u32 @ +0x59C7 sums the
+  decrypted [0..0x59C6] bytes.
 """
 import json
 import struct
@@ -23,6 +26,16 @@ GAME = Path(__file__).resolve().parents[2] / "fd2_game_files"
 
 def u32(b, off):
     return struct.unpack_from("<I", b, off)[0]
+
+
+def sav_decrypt(data):
+    """In-place XOR cipher (involution) matching fd2_save_crypt_buffer @ 0x4dbd8:
+    state=0xA5; each byte state = ROL16((state+0x9014)&0xFFFF, 3); buf ^= low8."""
+    state = 0xA5
+    for i in range(len(data)):
+        b = (state + 0x9014) & 0xFFFF
+        state = ((b << 3) | (b >> 13)) & 0xFFFF
+        data[i] ^= state & 0xFF
 
 
 def dat_resource(data, index):
@@ -52,9 +65,12 @@ def dump_fdicon(portrait_ids):
 
 
 def dump_sav():
-    data = (GAME / "FD2.SAV").read_bytes()
+    data = bytearray((GAME / "FD2.SAV").read_bytes())
+    sav_decrypt(data)
+    checksum_ok = (sum(data[0:len(data) - 4]) & 0xFFFFFFFF) == u32(data, len(data) - 4)
     f = {
         "filesize": len(data),
+        "checksum_ok": checksum_ok,
         "tile_event_0_scene_id": data[0],
         "tile_event_1": data[1],
         "tile_event_2": data[2],
