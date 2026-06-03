@@ -8,7 +8,7 @@
 | 檔案 | 用途 |
 |---|---|
 | `emit_review.wf.js` | **Workflow 雙模式編排**。序列(一次一個 function):`review`(已 emit 復驗)/ `emit`(從零產出)→ reviewer → 迭代(≤ MAX_ROUNDS)→ bookkeeper per-function commit。內含 budget guard、try/catch(token/usage limit 優雅停)、reviewer 主動查 Ghidra 事實、output-token 統計。 |
-| `build_test.py` | **build gate**(single source of truth)。clean → 啟動 DOSBox-X 跑 `tests/dosbox.conf`(compile src+tests / link / run)→ **前景輪詢 `tests/OUT/DONE.TXT`** → 解析 `BUILD.OUT`/`TEST.OUT` → 回傳 JSON。`{gate_pass, build_ok, errors, warnings, tests_passed, tests_failed}`。 |
+| `build_test.py` | **build gate**(single source of truth)。clean → 啟動 DOSBox-X 跑 `tests/dosbox.conf`(compile src+tests / link / run)→ 前景輪詢結束訊號 → 解析 `BUILD.OUT`/`TEST.OUT` → 回傳 JSON。三種結束訊號(無固定等待):①`DONE.TXT` 出現(正常完成);②**DOSBox process 退出**(`proc.poll()`,涵蓋正常完成與「會交回 batch 的 crash」如 DOS/4GW GP fault,~2s 即偵測);③**heartbeat 停滯**(`tests/OUT/HB.TXT` 每個 test open/write/close 一次;run 階段若停滯 `--hang-stall` 秒〔預設 20s〕且 proc 仍存活 → 判定 hang,真無窮迴圈的唯一偵測)。回傳 `{gate_pass, build_ok, done, failure_mode(completed/crash/hang/aborted/timeout), hung_test, crash_dump, errors, warnings, tests_passed, tests_failed}`。 |
 | `next_batch.py` | **scout 下一批 work-list**。從 `src/routing.json` 取 `done & !reviewed`(review 模式)或 `!done`(emit 模式),輸出 Workflow `args.functions`。`--stats` 看覆蓋率。 |
 | `mkroute.py` | routing.json 生成/管理(從 emit_functions.json + 規則)。`generate`/`status`/`mark`/`pending`/`validate`/`resplit`。大 subsystem 依子功能切成多個 ≤~1000 行 .c 的規則在 `_subsplit()`（見 `tools/file_split/`），`resplit` 把切分套到既有 routing.json。 |
 | `count_cats.py` / `dump_emit_functions.java` | 既有分類計數 / Ghidra dump 工具。 |
@@ -39,7 +39,7 @@
 
 - **Workflow `args` 經 tool-call 會被當 string** → script 已 `JSON.parse` 容錯;傳 work-list 照常傳即可。
 - **emitter/reviewer 必須前景跑 `build_test.py`，嚴禁 `run_in_background`** — subagent 一交出最終訊息就結束、收不到背景通知、不閉環(且會留 dosbox 孤兒)。
-- build gate 唯一正確完成訊號 = `DONE.TXT` 出現;不存在 stale-cache / DPMI-OOM 問題(舊文件誤判,見 `src/handoff.md` §8)。
+- build gate 結束偵測無固定等待:`DONE.TXT` 出現 / DOSBox process 退出 / heartbeat(`HB.TXT`)停滯三訊號擇一(見上表);不存在 stale-cache / DPMI-OOM 問題(舊文件誤判,見 `src/handoff.md` §8)。**測試的 heartbeat 機制**:`testharn.h` 的 `TEST_BEGIN` 呼叫 `test_heartbeat()`(定義在 `testglob.c`),每個 test 用 fopen/fprintf/**fclose** 重寫 `E:\OUT\HB.TXT`;close 才會讓 DOSBox 把寫入 commit 到 host 檔(光 `fflush` 不會,DOSBox local-drive 會快取重導向 stdout 到 file close),所以 host 端輪詢看得到即時進度、卡住時 `HB.TXT` 凍在 hang 的 test 名。DOSBox crash/hang 行為實證見 `tools/hangprobe/`。
 - 每批 ≤ 12(checkpoint 粒度);全程 Opus。
 - **Ghidra 斷線＝純 event-driven schema 偵測,無心跳**:emitter/reviewer 任一 Ghidra MCP 失敗/逾時先快速重試一次,仍失敗才設結構化 `ghidra_unreachable=true`+`ghidra_error_detail` → `runAgent` fast-stop(`result.stopped=='ghidra_disconnect'`)→ 完成通知喚醒 → `connect_instance('FD2')` 探測:恢復則 relaunch、wedged 則 PushNotification 請使用者重啟。**多來源並發操作同一 Ghidra instance 無妨**(不靠 grep/字串/reviewed 停滯/liveness 判斷)。詳見 `src/handoff.md` §5。
 

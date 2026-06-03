@@ -121,8 +121,9 @@ reviewer approved + build gate green + per-function commit。
 
 ## 7. build / test 知識
 
-- build gate：`python tools/emit/build_test.py`（前景跑，內部輪詢 `tests/OUT/DONE.TXT`，回 JSON `{gate_pass, build_ok, errors, warnings, tests_passed, tests_failed}`）。
-- **唯一完成訊號 = `DONE.TXT` 出現；無 stale-cache / DPMI-OOM 問題。** 不要加 copy→rename / sleep / 兩段式 session 等 workaround。
+- build gate：`python tools/emit/build_test.py`（前景跑，回 JSON `{gate_pass, build_ok, done, failure_mode, hung_test, crash_dump, errors, warnings, tests_passed, tests_failed}`）。
+- **結束偵測無固定等待**：三訊號擇一 —— `DONE.TXT` 出現（正常完成）／ DOSBox process 退出（`proc.poll()`，涵蓋正常完成與會交回 batch 的 crash 如 DOS/4GW GP fault，~2s 偵測）／ heartbeat 停滯（`tests/OUT/HB.TXT` 每個 test 重寫；run 階段停滯 `--hang-stall` 秒〔預設 20s〕且 proc 存活 → hang，`hung_test` 指出卡住的 test）。`failure_mode` ∈ completed/crash/hang/aborted/timeout。**無 stale-cache / DPMI-OOM 問題**；不要加 copy→rename / sleep / 兩段式 session 等 workaround。
+- heartbeat 機制：`testharn.h::TEST_BEGIN` → `test_heartbeat()`（`testglob.c`）每 test 用 fopen/fprintf/**fclose** 寫 `E:\OUT\HB.TXT`；close 才讓 DOSBox commit 到 host（`fflush` 不夠，DOSBox 快取重導向 stdout 到 file close）。DOSBox crash/hang 行為實證：`tools/hangprobe/`。
 - C89：變數宣告在 block 開頭。8.3：檔名/目錄 ≤ 8.3。
 - `testglob.c`：fake global / stub 集中；function pointer table 必須初始化指向 noop（否則 NULL call → DOS4GW crash）；emit 真實 function 後移除對應 stub（避免 linker redefinition）。
 - 測試鏡像 src 子檔（`tests/<domain>/<stem>.c`，每檔 ≤1000 行）。新建任何 src 或測試 `.c` 檔後，跑一次 `python tests/genbuild.py --apply`，它掃 `src/` 與 `tests/` 自動產生 `build.bat`（src+test 編譯區）/ `test.lnk` / `testmain.c`，**嚴禁手改這三個檔**。編譯指令在 `build.bat`（由 `dosbox.conf` autoexec 呼叫，避開 autoexec 行數上限）。

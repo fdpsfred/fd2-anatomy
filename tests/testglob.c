@@ -4,6 +4,24 @@
 #include "types.h"
 #include "globals.h"
 #include <stdlib.h>
+#include <stdio.h>
+
+/* Per-test heartbeat for build_test.py's hang detector. Each test writes its
+ * name (with a monotonically increasing seq so the content always changes) to
+ * E:\OUT\HB.TXT via fopen/fprintf/FCLOSE — the close is what forces DOSBox to
+ * commit the write to the host file, so the host-side poller sees it live
+ * (an in-program fflush alone does NOT propagate under DOSBox local-drive
+ * caching). If a test hangs, HB.TXT freezes on its name -> the poller can both
+ * detect the stall and report exactly which test hung. */
+void test_heartbeat(const char *name)
+{
+    static unsigned long hb_seq = 0;
+    FILE *f = fopen("E:\\OUT\\HB.TXT", "w");
+    if (f) {
+        fprintf(f, "%lu %s\n", ++hb_seq, name);
+        fclose(f);
+    }
+}
 
 runtime_char  g_test_rc_array[8];
 runtime_char *data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;

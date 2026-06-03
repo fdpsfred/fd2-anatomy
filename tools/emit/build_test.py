@@ -67,8 +67,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--changed", default="",
                     help="comma-separated changed paths (recorded; v1 ignores for compile)")
-    ap.add_argument("--timeout", type=int, default=300, help="max seconds to wait for DONE.TXT")
-    ap.add_argument("--poll", type=int, default=5, help="poll interval seconds")
+    ap.add_argument("--timeout", type=int, default=300, help="backstop max seconds (compile-phase hang only; run-phase hang fires far sooner)")
+    ap.add_argument("--poll", type=int, default=2, help="poll interval seconds")
+    ap.add_argument("--hang-stall", type=int, default=20,
+                    help="seconds with no test heartbeat change (run phase) before declaring a hang")
     args = ap.parse_args()
 
     if not CONF.is_file():
@@ -87,24 +89,59 @@ def main():
             except OSError:
                 pass
 
-    # launch DOSBox-X (non-blocking); dosbox.conf ends with `exit` so it self-closes.
+    # launch DOSBox-X (non-blocking); build.bat ends with `exit` so DOSBox closes
+    # ONLY when the batch completes. Empirically (tools/hangprobe): a normal run
+    # AND a hard DOS/4GW crash (e.g. NULL call -> GP fault) both return to the
+    # batch and DOSBox exits within ~2s; only a TRUE hang (infinite loop in the
+    # test) leaves DOSBox alive forever. So:
+    #   * proc exit         -> run is over (normal or crash-returned); zero wait.
+    #   * heartbeat stalled  -> true hang (HB.TXT frozen on the hung test's name).
+    # A host-side test.out-growth heartbeat is NOT usable: DOSBox caches the
+    # redirected stdout until file close, so test.out stays empty mid-run.
     start = time.time()
     try:
         proc = subprocess.Popen([dosbox, "-silent", "-conf", str(CONF)])
     except OSError as e:
         raise SystemExit("failed to launch dosbox-x: %s" % e)
 
-    # poll for DONE.TXT: the ONLY correct completion signal.
     done = False
+    hang = False
+    hung_test = None
+    last_hb = None
+    last_hb_change = None
     deadline = start + args.timeout
     while time.time() < deadline:
-        time.sleep(args.poll)
         if find_out("done.txt"):
             done = True
             break
+        if proc.poll() is not None:   # DOSBox closed -> batch finished (normal/crash)
+            break
+        # run-phase hang detection: HB.TXT appears once TEST.EXE starts and is
+        # rewritten (open/write/close) at every test; if it stops changing while
+        # DOSBox is still alive, a test is hung.
+        hb = find_out("hb.txt")
+        if hb is not None:
+            try:
+                cur = hb.read_text(encoding="latin-1", errors="replace")
+            except OSError:
+                cur = last_hb
+            now = time.time()
+            if cur != last_hb:
+                last_hb, last_hb_change = cur, now
+            elif last_hb_change is not None and now - last_hb_change > args.hang_stall:
+                hang = True
+                hung_test = (last_hb or "").strip()
+                break
+        time.sleep(args.poll)
+    # DOSBox may have written DONE.TXT just before exiting.
+    if find_out("done.txt"):
+        done = True
     elapsed = int(time.time() - start)
 
-    if not done and proc.poll() is None:
+    # capture exit state BEFORE killing (the kill below would make poll() != None
+    # unconditionally and hide a real timeout).
+    exited = proc.poll() is not None
+    if not exited:
         try:
             proc.kill()
         except OSError:
@@ -122,9 +159,11 @@ def main():
                 warnings.append(ln.strip())
         build_tail = "\n".join(lines[-20:])
 
-    # parse test.out ("Results: N passed, M failed")
+    # parse test.out ("Results: N passed, M failed"); also detect a DOS/4GW crash
+    # dump (captured because TEST.EXE's stdout is redirected to test.out).
     tests_passed = tests_failed = None
     test_tail = ""
+    crash_dump = None
     to = find_out("test.out")
     if to:
         lines = to.read_text(encoding="latin-1", errors="replace").splitlines()
@@ -134,14 +173,38 @@ def main():
             m = rx.search(ln)
             if m:
                 tests_passed, tests_failed = int(m.group(1)), int(m.group(2))
+        for i, ln in enumerate(lines):
+            if "DOS/4G" in ln or "exception" in ln:
+                crash_dump = "\n".join(lines[i:i + 6])
+                break
 
     build_ok = bool(done and not errors and tests_passed is not None and tests_failed == 0)
     gate_pass = bool(build_ok and not warnings)
+
+    # failure_mode classifies WHY a non-passing run ended, so the caller need not
+    # re-derive it: completed (done; may still have errors/test failures) | hang
+    # (heartbeat stalled) | crash (DOS/4GW fault dump) | aborted (DOSBox exited
+    # without DONE.TXT) | timeout (backstop hit, likely a compile-phase hang).
+    clean_pass = done and not errors and tests_passed is not None and tests_failed == 0
+    if clean_pass:
+        failure_mode = "completed"
+    elif crash_dump:
+        failure_mode = "crash"     # DOS/4GW fault dump; crash returns to batch so done.txt may exist
+    elif hang:
+        failure_mode = "hang"
+    elif done:
+        failure_mode = "completed"  # ran to summary but with build errors / test failures
+    elif exited:
+        failure_mode = "aborted"    # DOSBox closed without DONE.TXT and no crash dump
+    else:
+        failure_mode = "timeout"    # backstop deadline hit, proc still alive (compile hang)
 
     result = {
         "gate_pass": gate_pass,
         "build_ok": build_ok,
         "done": done,
+        "failure_mode": failure_mode,
+        "hung_test": hung_test,
         "elapsed_sec": elapsed,
         "changed": args.changed,
         "error_count": len(errors),
@@ -150,6 +213,7 @@ def main():
         "warnings": warnings,
         "tests_passed": tests_passed,
         "tests_failed": tests_failed,
+        "crash_dump": crash_dump,
         "test_out_tail": test_tail,
         "build_out_tail": build_tail,
     }

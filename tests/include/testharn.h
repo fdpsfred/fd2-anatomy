@@ -8,8 +8,11 @@ extern int g_test_pass_count;
 extern int g_test_fail_count;
 extern const char *g_current_test_name;
 
+void test_heartbeat(const char *name);
+
 #define TEST_BEGIN(name) \
     g_current_test_name = #name; \
+    test_heartbeat(#name); \
     printf("  TEST %s ... ", #name);
 
 #define TEST_PASS() \
