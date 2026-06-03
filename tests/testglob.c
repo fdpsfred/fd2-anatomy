@@ -168,7 +168,6 @@ uint32 g_tile_map_last_w = 0;
 uint32 g_tile_map_last_h = 0;
 uint32 g_tile_map_last_ox = 0;
 uint32 g_tile_map_last_oy = 0;
-int    g_cursor_overlay_calls = 0;
 int    g_chars_overlay_calls = 0;
 int    g_terrain_hud_calls = 0;
 uint32 g_terrain_hud_last_buf = 0;
@@ -187,8 +186,25 @@ void fd2_composite_battle_tile_map(uint32 d, uint32 s, uint32 w, uint32 h, uint3
     g_tile_map_last_w = w; g_tile_map_last_h = h;
     g_tile_map_last_ox = ox; g_tile_map_last_oy = oy;
 }
-void fd2_paint_cursor_overlay_pattern(void) { g_cursor_overlay_calls++; }
+/* fd2_paint_cursor_overlay_pattern is now a real emitted function
+ * (src/gfx/rndscene.c); its former no-op stub here was removed. */
 void fd2_composite_all_chars_overlay(void) { g_chars_overlay_calls++; }
+
+/* Recording stub for fd2_blit_24x24_at_window_relative_pos (real body not yet
+ * emitted). fd2_paint_cursor_overlay_pattern drives it; cursor-overlay tests
+ * assert the exact (world_x, world_y, sprite_idx) tuples and the call count. */
+int    g_blit24_calls = 0;
+uint32 g_blit24_x[64];
+uint32 g_blit24_y[64];
+uint32 g_blit24_sprite[64];
+void fd2_blit_24x24_at_window_relative_pos(uint32 world_x, uint32 world_y, uint32 sprite_idx) {
+    if (g_blit24_calls < 64) {
+        g_blit24_x[g_blit24_calls] = world_x;
+        g_blit24_y[g_blit24_calls] = world_y;
+        g_blit24_sprite[g_blit24_calls] = sprite_idx;
+    }
+    g_blit24_calls++;
+}
 void fd2_render_terrain_info_hud_panel(uint32 b, uint32 s) {
     g_terrain_hud_calls++;
     g_terrain_hud_last_buf = b; g_terrain_hud_last_stride = s;

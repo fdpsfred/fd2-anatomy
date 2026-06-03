@@ -250,8 +250,9 @@
     "name": "fd2_paint_cursor_overlay_pattern",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000126f7": {
     "name": "fd2_blit_24x24_at_window_relative_pos",
