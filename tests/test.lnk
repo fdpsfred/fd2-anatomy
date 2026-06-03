@@ -29,6 +29,7 @@ file E:\out\obj\rsrc.obj
 file E:\out\obj\menu.obj
 file E:\out\obj\rndscene.obj
 file E:\out\obj\blitspr.obj
+file E:\out\obj\blittile.obj
 file E:\out\obj\testmain.obj
 file E:\out\obj\testglob.obj
 file E:\out\obj\tanidec.obj
@@ -47,6 +48,7 @@ file E:\out\obj\tbtlaitg.obj
 file E:\out\obj\tbtlinit.obj
 file E:\out\obj\tbtlturn.obj
 file E:\out\obj\tblitspr.obj
+file E:\out\obj\tblittil.obj
 file E:\out\obj\tpalette.obj
 file E:\out\obj\trndscen.obj
 file E:\out\obj\tinput.obj

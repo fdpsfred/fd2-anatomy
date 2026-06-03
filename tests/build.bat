@@ -27,6 +27,7 @@ D:\BIN\WCC386.EXE rsrc\rsrc.c %CF% -fo=E:\out\obj\rsrc.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE ui_menu\menu.c %CF% -fo=E:\out\obj\menu.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE gfx\rndscene.c %CF% -fo=E:\out\obj\rndscene.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE gfx\blitspr.c %CF% -fo=E:\out\obj\blitspr.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE gfx\blittile.c %CF% -fo=E:\out\obj\blittile.obj >> E:\out\build.out
 
 echo === compile tests === >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\testmain.c %CF% -fo=E:\out\obj\testmain.obj >> E:\out\build.out
@@ -47,6 +48,7 @@ D:\BIN\WCC386.EXE E:\battle\btl_aitg.c %CF% -fo=E:\out\obj\tbtlaitg.obj >> E:\ou
 D:\BIN\WCC386.EXE E:\battle\btl_init.c %CF% -fo=E:\out\obj\tbtlinit.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\battle\btl_turn.c %CF% -fo=E:\out\obj\tbtlturn.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\gfx\blitspr.c %CF% -fo=E:\out\obj\tblitspr.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE E:\gfx\blittile.c %CF% -fo=E:\out\obj\tblittil.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\gfx\palette.c %CF% -fo=E:\out\obj\tpalette.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\gfx\rndscene.c %CF% -fo=E:\out\obj\trndscen.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\input\input.c %CF% -fo=E:\out\obj\tinput.obj >> E:\out\build.out

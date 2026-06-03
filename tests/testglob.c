@@ -190,20 +190,22 @@ void fd2_composite_battle_tile_map(uint32 d, uint32 s, uint32 w, uint32 h, uint3
  * (src/gfx/rndscene.c); its former no-op stub here was removed. */
 void fd2_composite_all_chars_overlay(void) { g_chars_overlay_calls++; }
 
-/* Recording stub for fd2_blit_24x24_at_window_relative_pos (real body not yet
- * emitted). fd2_paint_cursor_overlay_pattern drives it; cursor-overlay tests
- * assert the exact (world_x, world_y, sprite_idx) tuples and the call count. */
-int    g_blit24_calls = 0;
-uint32 g_blit24_x[64];
-uint32 g_blit24_y[64];
-uint32 g_blit24_sprite[64];
-void fd2_blit_24x24_at_window_relative_pos(uint32 world_x, uint32 world_y, uint32 sprite_idx) {
-    if (g_blit24_calls < 64) {
-        g_blit24_x[g_blit24_calls] = world_x;
-        g_blit24_y[g_blit24_calls] = world_y;
-        g_blit24_sprite[g_blit24_calls] = sprite_idx;
+/* Recording stub for fd2_tile_blit_24x24_passthrough (the RLE row blitter, real
+ * body not yet emitted). fd2_blit_24x24_at_window_relative_pos (real, emitted in
+ * src/gfx/blittile.c) is the only caller; recording (src, dst, stride) at this
+ * level lets the blittile.c + cursor-overlay tests verify the real window-clip /
+ * dst-offset / sprite-source arithmetic without touching pixels. */
+int    g_blitpass_calls = 0;
+uint32 g_blitpass_src[64];
+uint32 g_blitpass_dst[64];
+uint32 g_blitpass_stride[64];
+void fd2_tile_blit_24x24_passthrough(uint32 src, uint32 dst, uint32 stride) {
+    if (g_blitpass_calls < 64) {
+        g_blitpass_src[g_blitpass_calls] = src;
+        g_blitpass_dst[g_blitpass_calls] = dst;
+        g_blitpass_stride[g_blitpass_calls] = stride;
     }
-    g_blit24_calls++;
+    g_blitpass_calls++;
 }
 void fd2_render_terrain_info_hud_panel(uint32 b, uint32 s) {
     g_terrain_hud_calls++;

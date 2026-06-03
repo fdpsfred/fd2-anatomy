@@ -258,8 +258,9 @@
     "name": "fd2_blit_24x24_at_window_relative_pos",
     "target": "gfx/blittile.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000127a9": {
     "name": "fd2_composite_all_chars_overlay",

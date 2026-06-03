@@ -23,11 +23,14 @@ extern int    g_terrain_hud_calls;
 extern uint32 g_terrain_hud_last_buf;
 extern uint32 g_terrain_hud_last_stride;
 extern int    g_composite_call_count;
-/* recording stub for fd2_blit_24x24_at_window_relative_pos (testglob.c) */
-extern int    g_blit24_calls;
-extern uint32 g_blit24_x[64];
-extern uint32 g_blit24_y[64];
-extern uint32 g_blit24_sprite[64];
+/* recording stub for fd2_tile_blit_24x24_passthrough (testglob.c). The real
+ * fd2_blit_24x24_at_window_relative_pos (src/gfx/blittile.c) forwards every
+ * in-window blit to it; recording (src, dst) lets these tests reconstruct the
+ * (world_x, world_y, sprite_idx) the caller computed. */
+extern int    g_blitpass_calls;
+extern uint32 g_blitpass_src[64];
+extern uint32 g_blitpass_dst[64];
+extern uint32 g_blitpass_stride[64];
 /* The compositor's final stage is the real fd2_blit_rectangle (src/gfx/blitspr.c).
  * It memmoves the visible 312x192 region from the workspace (src == ws) to the
  * mode13h primary at 0xA0504 (VGA RAM, writable under DOS/4GW). To keep the
@@ -40,7 +43,7 @@ static uint8 g_ws_buffer[WS_SPAN];
 static void reset_pipeline_record(void)
 {
     g_tile_map_calls = 0;
-    g_blit24_calls = 0;
+    g_blitpass_calls = 0;
     g_chars_overlay_calls = 0;
     g_terrain_hud_calls = 0;
     g_composite_call_count = 0;
@@ -56,12 +59,62 @@ static void reset_pipeline_record(void)
     data_fd2_animation_palette_cycle_last_tick = (uint16)BIOS_TICK_WORD;
 }
 
+/* Sprite atlas backing data_fd2_runtime_battle_state_ptr. The real blit reads a
+ * 4-byte absolute offset from the table at +6 (index*4), so an identity-ish
+ * table where table[i] == i lets the tests recover sprite_idx from the recorded
+ * src pointer: sprite_idx == src - atlas_base. 64 entries cover all cursor
+ * sprite indices (0x00..0x12). */
+static uint8 g_sprite_atlas[6 + 64 * 4 + 4];
+
+static void install_sprite_atlas(void)
+{
+    int i;
+    uint32 *table;
+
+    table = (uint32 *)(g_sprite_atlas + 6);
+    for (i = 0; i < 64; i++) {
+        table[i] = (uint32)i;
+    }
+    data_fd2_runtime_battle_state_ptr = (uint32)g_sprite_atlas;
+}
+
+/* Make the battle window large enough that every cursor-pattern coord is
+ * in-window, so each caller blit reaches the recording passthrough stub. */
+static void install_full_window(void)
+{
+    data_fd2_battle_view_window_origin_x = 0;
+    data_fd2_battle_view_window_origin_y = 0;
+    data_fd2_battle_view_window_max_x = 0x100;
+    data_fd2_battle_view_window_max_y = 0x100;
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_ws_buffer - 0x8088;
+}
+
+/* Reconstruct (world_x, world_y, sprite_idx) of recorded blit #i from the
+ * (src, dst) the real fd2_blit_24x24_at_window_relative_pos forwarded.
+ *   dst = base + (y-oy)*0x2AC0 + (x-ox)*0x18 + 0x8088
+ *   src = atlas + table[sprite_idx]  (table[idx] == idx here) */
+static void recover_blit(int i, uint32 *x, uint32 *y, uint32 *s)
+{
+    uint32 base;
+    uint32 oy;
+    uint32 ox;
+    uint32 rel;
+
+    base = data_fd2_large_game_state_buffer_ptr;
+    oy = data_fd2_battle_view_window_origin_y;
+    ox = data_fd2_battle_view_window_origin_x;
+    rel = g_blitpass_dst[i] - base - 0x8088u;
+    *y = rel / 0x2AC0u + oy;
+    *x = (rel % 0x2AC0u) / 0x18u + ox;
+    *s = g_blitpass_src[i] - (uint32)g_sprite_atlas;
+}
+
 
 /*
  * Full pipeline with skip_palette_cycle == 0: every stage runs exactly once
  * and receives the correct workspace address + pixel constants. ws is the
- * render back-buffer at large_game_state_buffer_ptr + 0x8088; the blit reads
- * directly from ws (src == ws), not from an offset sub-region.
+ * render back-buffer at large_game_state_buffer_ptr + 0x8088; the overlay blit
+ * forwards to the passthrough stub exactly once (anim phase 1).
  */
 static void test_composite_pipeline_args(void)
 {
@@ -73,6 +126,11 @@ static void test_composite_pipeline_args(void)
     data_fd2_large_game_state_buffer_ptr = ws - 0x8088;
     data_fd2_battle_view_window_origin_x = 0x11;
     data_fd2_battle_view_window_origin_y = 0x22;
+    data_fd2_battle_view_window_max_x = 0x100;
+    data_fd2_battle_view_window_max_y = 0x100;
+    install_sprite_atlas();
+    data_fd2_battle_cursor_world_x = 0x14;
+    data_fd2_battle_cursor_world_y = 0x25;
     reset_pipeline_record();
 
     fd2_composite_battle_frame(0);
@@ -86,7 +144,7 @@ static void test_composite_pipeline_args(void)
     ASSERT_EQ(g_tile_map_last_ox, 0x11u);
     ASSERT_EQ(g_tile_map_last_oy, 0x22u);
 
-    ASSERT_EQ(g_blit24_calls, 1);
+    ASSERT_EQ(g_blitpass_calls, 1);
     ASSERT_EQ(g_chars_overlay_calls, 1);
 
     /* terrain HUD: (ws, 456) */
@@ -116,13 +174,18 @@ static void test_composite_skip_palette_cycle(void)
     data_fd2_large_game_state_buffer_ptr = ws - 0x8088;
     data_fd2_battle_view_window_origin_x = 0;
     data_fd2_battle_view_window_origin_y = 0;
+    data_fd2_battle_view_window_max_x = 0x100;
+    data_fd2_battle_view_window_max_y = 0x100;
+    install_sprite_atlas();
+    data_fd2_battle_cursor_world_x = 0x03;
+    data_fd2_battle_cursor_world_y = 0x03;
     reset_pipeline_record();
 
     fd2_composite_battle_frame(1);
 
     ASSERT_EQ(g_tile_map_calls, 1);
     ASSERT_EQ(g_tile_map_last_dst, ws);
-    ASSERT_EQ(g_blit24_calls, 1);
+    ASSERT_EQ(g_blitpass_calls, 1);
     ASSERT_EQ(g_chars_overlay_calls, 1);
     ASSERT_EQ(g_terrain_hud_calls, 1);
     ASSERT_EQ(g_composite_call_count, 1);
@@ -133,15 +196,19 @@ static void test_composite_skip_palette_cycle(void)
  * fd2_paint_cursor_overlay_pattern — per-phase pattern verification.
  *
  * Drives the real routine for each anim phase and asserts the exact
- * sequence of (world_x, world_y, sprite_idx) blit calls, matching the
- * 0x122DC disassembly. Cursor at a fixed (x, y); the blit stub records
- * every call. ---------------------------------------------------------------- */
+ * sequence of (world_x, world_y, sprite_idx) blits, matching the
+ * 0x122DC disassembly. The window is set wide enough that every coord is
+ * in-window, so each caller blit forwards to the recording passthrough
+ * stub; the (x, y, sprite) tuple is reconstructed from (dst, src).
+ * ---------------------------------------------------------------- */
 #define CX 0x14u
 #define CY 0x0Au
 
 static void set_cursor_phase(uint32 phase)
 {
-    g_blit24_calls = 0;
+    g_blitpass_calls = 0;
+    install_full_window();
+    install_sprite_atlas();
     data_fd2_battle_cursor_world_x = CX;
     data_fd2_battle_cursor_world_y = CY;
     data_fd2_battle_anim_phase = phase;
@@ -149,16 +216,21 @@ static void set_cursor_phase(uint32 phase)
 
 static void check_blit(int i, uint32 ex, uint32 ey, uint32 es)
 {
-    ASSERT_EQ(g_blit24_x[i], ex);
-    ASSERT_EQ(g_blit24_y[i], ey);
-    ASSERT_EQ(g_blit24_sprite[i], es);
+    uint32 x;
+    uint32 y;
+    uint32 s;
+
+    recover_blit(i, &x, &y, &s);
+    ASSERT_EQ(x, ex);
+    ASSERT_EQ(y, ey);
+    ASSERT_EQ(s, es);
 }
 
 static void test_cursor_phase1(void)
 {
     set_cursor_phase(1);
     fd2_paint_cursor_overlay_pattern();
-    ASSERT_EQ(g_blit24_calls, 1);
+    ASSERT_EQ(g_blitpass_calls, 1);
     check_blit(0, CX, CY, 0);
 }
 
@@ -166,7 +238,7 @@ static void test_cursor_phase2(void)
 {
     set_cursor_phase(2);
     fd2_paint_cursor_overlay_pattern();
-    ASSERT_EQ(g_blit24_calls, 1);
+    ASSERT_EQ(g_blitpass_calls, 1);
     check_blit(0, CX, CY, 1);
 }
 
@@ -174,7 +246,7 @@ static void test_cursor_phase3(void)
 {
     set_cursor_phase(3);
     fd2_paint_cursor_overlay_pattern();
-    ASSERT_EQ(g_blit24_calls, 5);
+    ASSERT_EQ(g_blitpass_calls, 5);
     check_blit(0, CX,     CY,     0xe);
     check_blit(1, CX,     CY - 1, 2);
     check_blit(2, CX - 1, CY,     3);
@@ -186,7 +258,7 @@ static void test_cursor_phase4(void)
 {
     set_cursor_phase(4);
     fd2_paint_cursor_overlay_pattern();
-    ASSERT_EQ(g_blit24_calls, 13);
+    ASSERT_EQ(g_blitpass_calls, 13);
     check_blit(0,  CX,     CY,     1);
     check_blit(1,  CX,     CY - 2, 2);
     check_blit(2,  CX - 2, CY,     3);
@@ -206,7 +278,7 @@ static void test_cursor_phase5(void)
 {
     set_cursor_phase(5);
     fd2_paint_cursor_overlay_pattern();
-    ASSERT_EQ(g_blit24_calls, 21);
+    ASSERT_EQ(g_blitpass_calls, 21);
     check_blit(0,  CX,     CY,     1);
     check_blit(1,  CX,     CY - 3, 2);
     check_blit(2,  CX - 3, CY,     3);
@@ -245,7 +317,7 @@ static void test_cursor_phase6_clear_flag(void)
 
     fd2_paint_cursor_overlay_pattern();
 
-    ASSERT_EQ(g_blit24_calls, 0);
+    ASSERT_EQ(g_blitpass_calls, 0);
     ASSERT_EQ((uint32)g_cursor_tile_map[idx], 0u);
 }
 
@@ -254,7 +326,7 @@ static void test_cursor_phase_default(void)
 {
     set_cursor_phase(99);
     fd2_paint_cursor_overlay_pattern();
-    ASSERT_EQ(g_blit24_calls, 0);
+    ASSERT_EQ(g_blitpass_calls, 0);
 }
 
 void run_gfx_rndscene_tests(void)
