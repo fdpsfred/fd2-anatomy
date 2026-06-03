@@ -251,6 +251,62 @@ static void test_page_idx_selects_start(void)
     ASSERT_EQ((long)ret, (long)(0x1000u + 0x10u));
 }
 
+/*
+ * fd2_portrait_blink_animation_step state machine. A 2-call subtick divider
+ * gates the visible frame update; the internal frame counter advances
+ * 0->1->2->3->0 on every 2nd call, with 3 collapsed to 1 when painted, so the
+ * painted frames cycle 1,2,1,0 over 8 calls (one paint per 2 calls). Each call
+ * fires the typewriter SFX exactly once (tracked by g_dlg_blink_calls).
+ */
+extern uint32 data_fd2_dialog_portrait_blink_frame_idx;
+extern uint32 data_fd2_dialog_portrait_blink_subtick_counter;
+extern int    g_paint_portrait_calls;
+extern uint32 g_paint_portrait_last_frame;
+
+static void test_blink_frame_cycle(void)
+{
+    dlg_reset();
+    data_fd2_dialog_portrait_blink_frame_idx = 0;
+    data_fd2_dialog_portrait_blink_subtick_counter = 0;
+    g_paint_portrait_calls = 0;
+    g_paint_portrait_last_frame = 0xffffffffu;
+    g_dlg_blink_calls = 0;
+
+    /* Call 1: subtick 0->1, no paint */
+    fd2_portrait_blink_animation_step();
+    ASSERT_EQ((long)data_fd2_dialog_portrait_blink_subtick_counter, 1);
+    ASSERT_EQ((long)g_paint_portrait_calls, 0);
+
+    /* Call 2: subtick hits 2 -> frame 0->1, paint(1), subtick reset */
+    fd2_portrait_blink_animation_step();
+    ASSERT_EQ((long)data_fd2_dialog_portrait_blink_subtick_counter, 0);
+    ASSERT_EQ((long)data_fd2_dialog_portrait_blink_frame_idx, 1);
+    ASSERT_EQ((long)g_paint_portrait_calls, 1);
+    ASSERT_EQ((long)g_paint_portrait_last_frame, 1);
+
+    /* Calls 3-4: frame 1->2, paint(2) */
+    fd2_portrait_blink_animation_step();
+    fd2_portrait_blink_animation_step();
+    ASSERT_EQ((long)data_fd2_dialog_portrait_blink_frame_idx, 2);
+    ASSERT_EQ((long)g_paint_portrait_last_frame, 2);
+
+    /* Calls 5-6: frame 2->3, painted value collapses 3 -> 1 */
+    fd2_portrait_blink_animation_step();
+    fd2_portrait_blink_animation_step();
+    ASSERT_EQ((long)data_fd2_dialog_portrait_blink_frame_idx, 3);
+    ASSERT_EQ((long)g_paint_portrait_last_frame, 1);
+
+    /* Calls 7-8: frame 3->4 wraps to 0, paint(0) */
+    fd2_portrait_blink_animation_step();
+    fd2_portrait_blink_animation_step();
+    ASSERT_EQ((long)data_fd2_dialog_portrait_blink_frame_idx, 0);
+    ASSERT_EQ((long)g_paint_portrait_last_frame, 0);
+
+    /* 8 calls -> 4 paints, and SFX fires once per call */
+    ASSERT_EQ((long)g_paint_portrait_calls, 4);
+    ASSERT_EQ((long)g_dlg_blink_calls, 8);
+}
+
 void run_dialog_dialog_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -263,5 +319,6 @@ void run_dialog_dialog_tests(void)
     RUN_TEST(test_line_advance_count_accumulates);
     RUN_TEST(test_literal_number_digits);
     RUN_TEST(test_page_idx_selects_start);
+    RUN_TEST(test_blink_frame_cycle);
     printf("\n");
 }

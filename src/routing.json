@@ -710,8 +710,9 @@
     "name": "fd2_portrait_blink_animation_step",
     "target": "dialog/dialog.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00016559": {
     "name": "fd2_paint_portrait_to_dialog_area",

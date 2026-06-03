@@ -134,7 +134,10 @@ void fd2_cast_ap_boost_spell(int a, int b, uint8 *c) { }
 void fd2_cast_dp_boost_spell(int a, int b, uint32 c) { }
 void fd2_cast_speed_boost_spell(uint32 a, uint32 b, uint32 c) { }
 int g_play_sfx_with_handle_calls = 0;
-void fd2_play_sfx_with_handle(uint32 a, int b, int c) { g_play_sfx_with_handle_calls++; (void)a; (void)b; (void)c; }
+int g_dlg_blink_calls = 0;
+/* The real fd2_portrait_blink_animation_step (src/dialog/dialog.c) calls this
+ * exactly once per blink step, so g_dlg_blink_calls tracks blink invocations. */
+void fd2_play_sfx_with_handle(uint32 a, int b, int c) { g_play_sfx_with_handle_calls++; g_dlg_blink_calls++; (void)a; (void)b; (void)c; }
 void fd2_play_rising_pre_cast_effect(int a, int b, int c) { }
 void fd2_play_variant_b_slide_pre_effect(int a, int b) { }
 void fd2_animate_warp_teleport_char(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e) { }
@@ -149,6 +152,8 @@ int g_check_char_is_dead_return = 0;
 int fd2_check_char_is_dead(uint32 c) { (void)c; return g_check_char_is_dead_return; }
 /* fd2_scan_chars_within_manhattan_range: now in btl_ai.c */
 uint32 data_fd2_ui_anim_sprite_sheet_ptr = 0;
+uint32 data_fd2_dialog_portrait_blink_frame_idx = 0;
+uint32 data_fd2_dialog_portrait_blink_subtick_counter = 0;
 uint32 data_fd2_dialog_last_action_value_param = 0;
 uint32 data_fd2_dialog_active_portrait_blit_offset = 0;
 uint32 data_fd2_dialog_current_speaker_char_ptr = 0;
@@ -418,7 +423,9 @@ void fd2_cast_status_cure_spell(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e
 void fd2_cast_status_inflict_spell(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e) { }
 int g_cast_status_via_d1b_calls = 0;
 void fd2_cast_status_spell_via_d1b(int a, int b, int c, int d, int e) { g_cast_status_via_d1b_calls++; (void)a; (void)b; (void)c; (void)d; (void)e; }
-void fd2_paint_portrait_to_dialog_area(uint32 f) { }
+int    g_paint_portrait_calls = 0;
+uint32 g_paint_portrait_last_frame = 0xffffffffu;
+void fd2_paint_portrait_to_dialog_area(uint32 f) { g_paint_portrait_calls++; g_paint_portrait_last_frame = f; }
 int    g_mini_panel_calls = 0;
 uint32 g_mini_panel_last_buf = 0;
 uint32 g_mini_panel_last_stride = 0;
@@ -756,7 +763,6 @@ uint8 *data_fd2_portrait_sprite_buffer = (uint8 *)0;
 int    g_dlg_glyph_calls = 0;
 uint32 g_dlg_glyph_last_idx = 0;
 uint32 g_dlg_glyph_last_pos = 0;
-int    g_dlg_blink_calls = 0;
 
 void fd2_blit_glyph_2bpp_with_outline(uint32 font_sheet, uint32 glyph_idx,
                                       uint32 render_pos, uint32 render_pitch,
@@ -766,7 +772,6 @@ void fd2_blit_glyph_2bpp_with_outline(uint32 font_sheet, uint32 glyph_idx,
     g_dlg_glyph_last_idx = glyph_idx;
     g_dlg_glyph_last_pos = render_pos;
 }
-void fd2_portrait_blink_animation_step(void) { g_dlg_blink_calls++; }
 uint32 fd2_play_dialog_open_animation(uint32 px, uint32 py, uint32 flip) {
     (void)px; (void)py; (void)flip; return 0;
 }

@@ -310,3 +310,39 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
         }
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_portrait_blink_animation_step @ 0x164E8 (1 caller)
+ *
+ * One step of the talking-portrait mouth animation, called once per
+ * rendered glyph from fd2_display_dialog_scene's per-glyph loop while
+ * blink_flag is set.
+ *
+ * A 2-call subtick divider gates the visible-frame update: on every
+ * 2nd call the internal frame counter advances 0->1->2->3->0, and the
+ * value 3 is collapsed to 1 so the painted frames cycle 0,1,2,1.
+ * Each call also fires the typewriter "click" SFX and paces one BIOS
+ * tick to set the text-type speed.
+ * ---------------------------------------------------------------- */
+void fd2_portrait_blink_animation_step(void)
+{
+    uint32 paint_idx;
+
+    data_fd2_dialog_portrait_blink_subtick_counter =
+        data_fd2_dialog_portrait_blink_subtick_counter + 1;
+    if (data_fd2_dialog_portrait_blink_subtick_counter == 2) {
+        data_fd2_dialog_portrait_blink_frame_idx =
+            data_fd2_dialog_portrait_blink_frame_idx + 1;
+        if (data_fd2_dialog_portrait_blink_frame_idx == 4) {
+            data_fd2_dialog_portrait_blink_frame_idx = 0;
+        }
+        paint_idx = data_fd2_dialog_portrait_blink_frame_idx;
+        if (data_fd2_dialog_portrait_blink_frame_idx == 3) {
+            paint_idx = 1;
+        }
+        fd2_paint_portrait_to_dialog_area(paint_idx);
+        data_fd2_dialog_portrait_blink_subtick_counter = 0;
+    }
+    fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr, 2, 1);
+    fd2_wait_n_bios_ticks(1);
+}

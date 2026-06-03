@@ -118,6 +118,8 @@ extern uint32 data_fd2_dialog_drop_swap_text_id_param;                  /* 0x53A
 extern uint32 data_fd2_dialog_last_action_value_param;                  /* 0x53AE1 */
 extern uint32 data_fd2_dialog_active_portrait_blit_offset;              /* 0x53C67 */
 extern void  *data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[5];   /* 0x53A18 */
+extern uint32 data_fd2_dialog_portrait_blink_frame_idx;                 /* 0x53A10 */
+extern uint32 data_fd2_dialog_portrait_blink_subtick_counter;           /* 0x53A14 */
 
 /* ---- VGA palette ---- */
 extern uint32 data_fd2_vga_palette_data_ptr;                            /* 0x53A65 */

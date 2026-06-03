@@ -68,11 +68,36 @@ extern int g_repaint_flip_buffer_after;
 static uint8 t_tmpl_roster[4 * 0x50];
 
 
+/* Minimal dialog-text fixture for the status-tick display path.
+ *
+ * fd2_tick_status_effects_and_show_messages drives the real dialog VM
+ * (fd2_display_dialog_scene) with page indices 0x1E1..0x1E7 whenever a status
+ * message is shown. The VM does cur_op = base + (int16)base[page_idx], then
+ * reads opcodes until it hits -1 (END). We give every referenced page slot an
+ * offset pointing at a single END word, so the scene returns immediately with
+ * no glyphs rendered (and thus no per-glyph blink/BIOS-tick pacing). Without a
+ * real text pointer the VM would otherwise walk arbitrary low memory. */
+#define T_DLG_PAGES   0x1E8                 /* covers indices 0..0x1E7 */
+#define T_DLG_ENDWORD T_DLG_PAGES           /* word index of the END (-1) */
+static int16 t_dlg_text[T_DLG_PAGES + 1];
+
+static void t_install_dialog_text(void)
+{
+    int p;
+    for (p = 0; p < T_DLG_PAGES; p++) {
+        t_dlg_text[p] = (int16)(T_DLG_ENDWORD * 2);   /* byte offset to END */
+    }
+    t_dlg_text[T_DLG_ENDWORD] = -1;                   /* END opcode */
+    data_fd2_all_game_text_ptr = (uint32)t_dlg_text;
+}
+
+
 /* ---- Test: fd2_tick_status_effects_and_show_messages ---- */
 
 static void test_status_tick_poison_damage(void)
 {
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    t_install_dialog_text();
     g_test_rc_array[0].team = 0;
     g_test_rc_array[0].flags = 0;
     ((uint8 *)&g_test_rc_array[0])[0x25] = 1;
@@ -88,6 +113,7 @@ static void test_status_tick_poison_damage(void)
 static void test_status_tick_poison_clamp_zero(void)
 {
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    t_install_dialog_text();
     g_test_rc_array[0].team = 0;
     g_test_rc_array[0].flags = 0;
     ((uint8 *)&g_test_rc_array[0])[0x25] = 1;
@@ -103,6 +129,7 @@ static void test_status_tick_poison_clamp_zero(void)
 static void test_status_tick_poison_skip_dead(void)
 {
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    t_install_dialog_text();
     g_test_rc_array[0].team = 0;
     g_test_rc_array[0].flags = 1;
     ((uint8 *)&g_test_rc_array[0])[0x25] = 1;
@@ -118,6 +145,7 @@ static void test_status_tick_poison_skip_dead(void)
 static void test_status_tick_timer_decrement(void)
 {
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    t_install_dialog_text();
     g_test_rc_array[0].team = 0;
     g_test_rc_array[0].flags = 0;
     ((uint8 *)&g_test_rc_array[0])[0x22] = 3;
@@ -131,6 +159,7 @@ static void test_status_tick_timer_decrement(void)
 static void test_status_tick_timer_expires_recalc(void)
 {
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    t_install_dialog_text();
     g_test_rc_array[0].team = 0;
     g_test_rc_array[0].flags = 0;
     ((uint8 *)&g_test_rc_array[0])[0x22] = 1;
