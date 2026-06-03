@@ -846,8 +846,9 @@
     "name": "fd2_settings_menu_input_step",
     "target": "ui_menu/menucfg.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00017898": {
     "name": "fd2_wait_input_with_dialog_repaint",

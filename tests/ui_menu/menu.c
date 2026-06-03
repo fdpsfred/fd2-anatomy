@@ -30,16 +30,22 @@
 #include "consts.h"
 #include "globals.h"
 #include "protos.h"
+#include "menufix.h"
 
 extern int g_player_action_menu_loop_return;
 
-/* fd2_field_command_menu_loop dispatch seams (defined in testglob.c) */
-extern int g_settings_input_step_return;
-extern int g_settings_cursor_idx;
-extern int g_settings_input_step_calls;
+/* fd2_field_command_menu_loop dispatch seams (defined in testglob.c). The
+ * settings input-step is now the real emitted function driven by staging real
+ * scancodes into the BIOS keyboard ring (menufix.h); only the save/load/quit
+ * dispatch is still stubbed. */
 extern int g_save_load_quit_dispatch_return;
 extern int g_save_load_quit_dispatch_calls;
-extern int g_settings_select_once;
+
+/* idle-loop buffer-flip seam (testglob.c repaint stub): exposes a pre-staged
+ * Esc to the options submenu's idle wait after the field-command loop's close
+ * cleared the buffer. */
+extern int g_repaint_flip_buffer_after;
+extern int g_repaint_settings_calls;
 
 /* real-render seam: the now-real fd2_open_settings_dialog_with_slide blits 16
  * corner sprites per open (4 frames x 4 corners). */
@@ -81,25 +87,28 @@ static void test_game_main_loop_symbol_linkable(void)
     ASSERT_EQ(g_player_action_menu_loop_return, 1);
 }
 
-/* Reset the dispatch seams to a known baseline before each branch test. */
-static void fcm_reset(int cursor, int input_return)
+/* Reset render env + dispatch counters to a known baseline before each branch
+ * test. The field-command loop's field-command menu_state template is all-zero
+ * (every direction slot enabled), so an arrow always lands on its slot. */
+static void fcm_reset(void)
 {
     mnu_setup_render_env();
-    g_settings_cursor_idx = cursor;
-    g_settings_input_step_return = input_return;
-    g_settings_input_step_calls = 0;
     g_save_load_quit_dispatch_calls = 0;
-    g_settings_select_once = 0;
+    g_repaint_settings_calls = 0;
+    g_repaint_flip_buffer_after = 0;
     data_fd2_ui_menu_cursor_idx = 0;
 }
 
-/* Cancel: settings input returns -1 -> close, composite, return 1 with no
- * dispatch at all. Verifies the open/close lifecycle and the -1 early-out. */
+/* Cancel: a single Esc -> input-step returns -1 -> close, composite, return 1
+ * with no dispatch at all. Verifies the open/close lifecycle and the -1
+ * early-out. (Field-command loop is single-pass; Esc on the first input-step
+ * exits the do/while immediately.) */
 static void test_field_command_menu_cancel(void)
 {
     int r;
 
-    fcm_reset(0, -1);
+    fcm_reset();
+    mfix_load_cancel();
     r = fd2_field_command_menu_loop();
     ASSERT_EQ(r, 1);
     /* one real open-dialog + one real close-dialog = 16 + 16 = 32 corner blits */
@@ -109,12 +118,14 @@ static void test_field_command_menu_cancel(void)
 
 /* cursor == 0 (Save/Load/New Game): the function returns the dispatch result
  * verbatim. This is the EAX-passthrough return path (TAIL of the cursor-0
- * branch). Confirm the dispatch is called once and its result is propagated. */
+ * branch). Navigate Up (-> cursor 0) then Space (commit); confirm the dispatch
+ * is called once and its result is propagated. */
 static void test_field_command_menu_save_load_passthrough(void)
 {
     int r;
 
-    fcm_reset(0, 1);                 /* input non-zero (chose), cursor 0 */
+    fcm_reset();
+    mfix_load_select(0);            /* Up -> cursor 0, then Space commits */
     g_save_load_quit_dispatch_return = 42;
     r = fd2_field_command_menu_loop();
     ASSERT_EQ(r, 42);
@@ -123,16 +134,32 @@ static void test_field_command_menu_save_load_passthrough(void)
     ASSERT_EQ(g_blitsetup_calls, 32);
 }
 
-/* cursor == 2 (Options): runs the real fd2_game_options_menu_loop submenu then
- * returns 0. Drive the input-step seam in select-once mode: the field-command
- * loop's first input-step returns 1 (selecting cursor 2 -> Options), then the
- * nested options loop's next input-step returns -1 (cancel) so it exits. */
+/* cursor == 2 (Options): navigate Right (-> cursor 2) then Space (commit) in the
+ * field-command loop, which then runs the real fd2_game_options_menu_loop
+ * submenu. The field loop's close clears the keyboard buffer (tail:=head at the
+ * ring slot holding the pre-staged Esc); the options submenu then idles and the
+ * armed buffer-flip exposes that Esc so it cancels and returns. Field returns 0.
+ *
+ * Ring staged as [Right, Space, Esc]: field loop consumes Right+Space (no idle),
+ * options submenu's first idle flip delivers Esc. */
 static void test_field_command_menu_options(void)
 {
     int r;
 
-    fcm_reset(2, 1);                 /* cursor 2 */
-    g_settings_select_once = 1;      /* select once, then cancel the submenu */
+    fcm_reset();
+    g_repaint_flip_buffer_after = 1;
+    /* [Right, Space] present; Esc waits at the post-clear head for the submenu. */
+    {
+        uint8 keys[3];
+        keys[0] = MFIX_SC_RIGHT;   /* -> cursor 2 in field loop */
+        keys[1] = MFIX_SC_SPACE;   /* commit field selection */
+        keys[2] = MFIX_SC_ESC;     /* cancels the options submenu after idle flip */
+        *(volatile uint16 *)0x41AuL = 0x1E;
+        *(volatile uint16 *)0x41EuL = (uint16)((uint16)keys[0] << 8);
+        *(volatile uint16 *)0x420uL = (uint16)((uint16)keys[1] << 8);
+        *(volatile uint16 *)0x422uL = (uint16)((uint16)keys[2] << 8);
+        *(volatile uint16 *)0x41CuL = 0x22; /* tail: Right+Space present */
+    }
     r = fd2_field_command_menu_loop();
     ASSERT_EQ(r, 0);
     ASSERT_EQ(g_save_load_quit_dispatch_calls, 0);

@@ -2,19 +2,21 @@
  * unit tests for src/ui_menu/menucfg.c
  *
  * fd2_game_options_menu_loop is an infinite settings loop that exits only when
- * fd2_settings_menu_input_step returns -1 (cancel). The test harness drives it
- * through the input-step / cursor seams in testglob.c:
- *   - g_settings_select_once = 1 makes the first input-step call return 1
- *     (selection of g_settings_cursor_idx) and the next call return -1 (cancel),
- *     so the loop runs exactly one toggle iteration and then exits.
- *   - g_settings_input_step_return = -1 (select_once = 0) exercises the plain
- *     cancel early-out with no toggle.
+ * fd2_settings_menu_input_step returns -1 (cancel). The real input-step path is
+ * driven through the real fd2_wait_input_with_dialog_repaint by staging real
+ * BIOS-keyboard scancodes (tests/include/menufix.h):
+ *   - mfix_load_select(cursor) stages [arrow(cursor), Space] so the loop runs
+ *     one navigation step (cursor moves, input-step returns 0) then a commit
+ *     (Space, input-step returns 1) -> exactly one toggle iteration, then the
+ *     dispatch toggles the slot. The loop's next iteration would read more keys;
+ *     to terminate, the dispatch-then-cancel tests stage a trailing Esc.
+ *   - mfix_load_cancel() stages [Esc] for the plain cancel early-out (no toggle).
  *
  * Covered branches: cancel early-out, BGM toggle (cursor 0, including the
  * AIL_set_sequence_volume fade value / ramp), SFX toggle (else / cursor 1),
  * game-speed toggle (cursor 2), terrain-HUD toggle (cursor 3). The label
  * rebuild at the top of each iteration is purely text-token state feeding the
- * (stubbed) dialog renderer, so it has no observable seam here.
+ * (real) dialog renderer, so it has no observable seam here.
  */
 
 #include <stdlib.h>
@@ -23,12 +25,7 @@
 #include "consts.h"
 #include "globals.h"
 #include "protos.h"
-
-/* settings-loop seams (defined in testglob.c) */
-extern int g_settings_input_step_return;
-extern int g_settings_cursor_idx;
-extern int g_settings_select_once;
-extern int g_settings_input_step_calls;
+#include "menufix.h"
 
 /* AIL_set_sequence_volume tracking (defined in testglob.c) */
 extern int g_ail_vol_calls;
@@ -38,6 +35,12 @@ extern int g_ail_last_ramp;
 /* real-render seams hit by the now-real fd2_open_settings_dialog_with_slide */
 extern uint32 g_blitsetup_dst, g_blitsetup_sprite, g_blitsetup_stride;
 extern int    g_blitsetup_calls;
+
+/* idle-loop buffer-flip seam (testglob.c repaint stub): when set, the second
+ * menu-loop iteration's idle wait gets a key delivered so the staged Esc is
+ * read and the loop exits. */
+extern int g_repaint_flip_buffer_after;
+extern int g_repaint_settings_calls;
 
 /* Workspace span the real final fd2_blit_rectangle(ptr+0x8088, ..., h=0xC0)
  * reads, plus the 0x8088 header: (0xC0-1)*0x1C8 + 0x138 + 0x8088. */
@@ -76,17 +79,19 @@ static void cfg_setup_render_env(void)
     g_blitsetup_calls = 0;
 }
 
-/* Drive exactly one selection of `cursor`, then cancel. */
+/* Drive exactly one selection of `cursor`, then cancel: stage [arrow, Space,
+ * Esc] in the BIOS keyboard ring and arm the idle buffer-flip so iteration 2's
+ * idle delivers the staged Esc (see mfix_load_select_then_cancel). */
 static void cfg_reset_select(int cursor)
 {
     cfg_setup_render_env();
-    g_settings_cursor_idx = cursor;
-    g_settings_select_once = 1;
-    g_settings_input_step_calls = 0;
     g_ail_vol_calls = 0;
     g_ail_last_vol = 0;
     g_ail_last_ramp = 0;
     data_fd2_ui_menu_cursor_idx = 0;
+    g_repaint_settings_calls = 0;
+    g_repaint_flip_buffer_after = 1;
+    mfix_load_select_then_cancel(cursor);
 }
 
 /* Cancel immediately: no toggles, dialog opened (real render) and closed once. */
@@ -95,8 +100,8 @@ static void test_options_cancel(void)
     uint8 bgm0, sfx0, spd0, hud0;
 
     cfg_setup_render_env();
-    g_settings_select_once = 0;
-    g_settings_input_step_return = -1;
+    g_repaint_flip_buffer_after = 0;     /* Esc present immediately; no idle */
+    mfix_load_cancel();
     g_ail_vol_calls = 0;
 
     bgm0 = data_fd2_audio_bgm_enabled_flag;
@@ -342,6 +347,143 @@ static void test_count_one(void)
     ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 1);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_settings_menu_input_step @ 0x177FC direct tests.
+ *
+ * One input-step reads a single scancode through the real
+ * fd2_wait_input_with_dialog_repaint. Stage one scancode in the BIOS keyboard
+ * ring (buffer nonempty so no idle/render is hit) and verify the return value
+ * and cursor side effect. all_enabled is the int[4] slot-disable array with
+ * every slot enabled (0). ---------------------------------------------------- */
+
+/* All slots enabled; cursor pre-poisoned so a write is observable. */
+static void cfg_input_setup(int32 *menu_state, uint8 scancode)
+{
+    menu_state[0] = 0;
+    menu_state[1] = 0;
+    menu_state[2] = 0;
+    menu_state[3] = 0;
+    data_fd2_ui_menu_cursor_idx = 99;
+    {
+        uint8 k[1];
+        k[0] = scancode;
+        mfix_load_keys(k, 1);
+    }
+}
+
+/* Esc -> cancel (-1), cursor untouched. */
+static void test_input_esc_cancel(void)
+{
+    int32 st[4];
+    int r;
+    cfg_input_setup(st, MFIX_SC_ESC);
+    r = fd2_settings_menu_input_step(st, st);
+    ASSERT_EQ(r, -1);
+    ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 99u);
+}
+
+/* Space -> commit (1), cursor untouched. */
+static void test_input_space_commit(void)
+{
+    int32 st[4];
+    int r;
+    cfg_input_setup(st, MFIX_SC_SPACE);
+    r = fd2_settings_menu_input_step(st, st);
+    ASSERT_EQ(r, 1);
+    ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 99u);
+}
+
+/* Enter (0x1C) -> commit (1) as well. */
+static void test_input_enter_commit(void)
+{
+    int32 st[4];
+    int r;
+    cfg_input_setup(st, MFIX_SC_ENTER);
+    r = fd2_settings_menu_input_step(st, st);
+    ASSERT_EQ(r, 1);
+}
+
+/* Up -> cursor 0, return 0 (slot enabled). */
+static void test_input_up_sets_cursor0(void)
+{
+    int32 st[4];
+    int r;
+    cfg_input_setup(st, MFIX_SC_UP);
+    r = fd2_settings_menu_input_step(st, st);
+    ASSERT_EQ(r, 0);
+    ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 0u);
+}
+
+/* Left -> cursor 1. */
+static void test_input_left_sets_cursor1(void)
+{
+    int32 st[4];
+    int r;
+    cfg_input_setup(st, MFIX_SC_LEFT);
+    r = fd2_settings_menu_input_step(st, st);
+    ASSERT_EQ(r, 0);
+    ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 1u);
+}
+
+/* Right -> cursor 2. */
+static void test_input_right_sets_cursor2(void)
+{
+    int32 st[4];
+    int r;
+    cfg_input_setup(st, MFIX_SC_RIGHT);
+    r = fd2_settings_menu_input_step(st, st);
+    ASSERT_EQ(r, 0);
+    ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 2u);
+}
+
+/* Down -> cursor 3. */
+static void test_input_down_sets_cursor3(void)
+{
+    int32 st[4];
+    int r;
+    cfg_input_setup(st, MFIX_SC_DOWN);
+    r = fd2_settings_menu_input_step(st, st);
+    ASSERT_EQ(r, 0);
+    ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 3u);
+}
+
+/* Down with slot 3 DISABLED (menu_state[3] != 0): cursor NOT changed, return 0.
+ * Confirms each arrow consults its own direction-indexed disable entry
+ * (Down -> [3]) and that a disabled slot is a no-op. */
+static void test_input_down_disabled_noop(void)
+{
+    int32 st[4];
+    int r;
+    cfg_input_setup(st, MFIX_SC_DOWN);
+    st[3] = 1;                       /* Down slot disabled */
+    r = fd2_settings_menu_input_step(st, st);
+    ASSERT_EQ(r, 0);
+    ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 99u); /* unchanged */
+}
+
+/* Right with slot 2 disabled: no-op. Pins the [2] index for Right. */
+static void test_input_right_disabled_noop(void)
+{
+    int32 st[4];
+    int r;
+    cfg_input_setup(st, MFIX_SC_RIGHT);
+    st[2] = 7;
+    r = fd2_settings_menu_input_step(st, st);
+    ASSERT_EQ(r, 0);
+    ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 99u);
+}
+
+/* Unmapped scancode (e.g. 0x10 'Q') -> return 0, cursor untouched. */
+static void test_input_unmapped_noop(void)
+{
+    int32 st[4];
+    int r;
+    cfg_input_setup(st, 0x10);
+    r = fd2_settings_menu_input_step(st, st);
+    ASSERT_EQ(r, 0);
+    ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 99u);
+}
+
 void run_ui_menu_menucfg_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -358,5 +500,15 @@ void run_ui_menu_menucfg_tests(void)
     RUN_TEST(test_count_partial);
     RUN_TEST(test_count_all_four);
     RUN_TEST(test_count_one);
+    RUN_TEST(test_input_esc_cancel);
+    RUN_TEST(test_input_space_commit);
+    RUN_TEST(test_input_enter_commit);
+    RUN_TEST(test_input_up_sets_cursor0);
+    RUN_TEST(test_input_left_sets_cursor1);
+    RUN_TEST(test_input_right_sets_cursor2);
+    RUN_TEST(test_input_down_sets_cursor3);
+    RUN_TEST(test_input_down_disabled_noop);
+    RUN_TEST(test_input_right_disabled_noop);
+    RUN_TEST(test_input_unmapped_noop);
     printf("\n");
 }

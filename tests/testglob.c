@@ -744,40 +744,15 @@ void fd2_init_movement_range_floodfill(uint32 ct, uint32 x, uint32 y,
  * Its menu-subsystem callees are stubbed below so its tests can drive each
  * dispatch branch by setting the input/cursor/dialog-result seams. */
 
-/* fd2_settings_menu_input_step: returns g_settings_input_step_return; on the
- * first call also installs g_settings_cursor_idx into the menu cursor so the
- * dispatch branch under test is selected. */
-int g_settings_input_step_return = -1;       /* default: cancel */
-int g_settings_cursor_idx = 0;
-int g_open_settings_dialog_calls = 0;
-/* fd2_close_settings_dialog_with_slide is now a real emitted function
- * (src/ui_menu/menucfg.c); its former call-counting stub and counter were
- * removed. Tests confirm the dialog closed by observing g_blitsetup_calls
- * (the close also does 16 corner blits per invocation). */
-int g_settings_input_step_calls = 0;
-/* When g_settings_select_once != 0 the input-step stub returns 1 (selection)
- * on its first call (selecting g_settings_cursor_idx) and -1 (cancel) on the
- * next call. This lets fd2_game_options_menu_loop's infinite loop run exactly
- * one toggle iteration and then exit. When 0 the legacy single-value path
- * (g_settings_input_step_return) is used. */
-int g_settings_select_once = 0;
-/* fd2_open_settings_dialog_with_slide is now a real emitted function
- * (src/ui_menu/menucfg.c); its former call-counting stub was removed. Tests
- * that need to confirm the dialog opened observe g_blitsetup_calls (16 corner
- * blits per open) instead of g_open_settings_dialog_calls. The counter symbol
- * is retained below only for source compatibility with existing tests. */
-int fd2_settings_menu_input_step(int32 *opt, int32 *st) {
-    (void)opt; (void)st;
-    g_settings_input_step_calls++;
-    data_fd2_ui_menu_cursor_idx = (uint32)g_settings_cursor_idx;
-    if (g_settings_select_once) {
-        if (g_settings_input_step_calls == 1) {
-            return 1;
-        }
-        return -1;
-    }
-    return g_settings_input_step_return;
-}
+/* fd2_settings_menu_input_step is now a real emitted function
+ * (src/ui_menu/menucfg.c); its former stub and the g_settings_* seam variables
+ * were removed. Tests that drive a menu loop (fd2_game_options_menu_loop,
+ * fd2_field_command_menu_loop) now stage real scancodes into the BIOS keyboard
+ * ring via tests/include/menufix.h, so the real input-step path (which reads
+ * the key through the real fd2_wait_input_with_dialog_repaint) runs end to end.
+ * fd2_open_settings_dialog_with_slide / fd2_close_settings_dialog_with_slide
+ * are likewise real; tests observe g_blitsetup_calls (16 corner blits each) to
+ * confirm the dialog opened/closed. */
 int g_save_load_quit_dispatch_return = 7;
 int g_save_load_quit_dispatch_calls = 0;
 int fd2_field_menu_status_save_load_quit_dispatch(void) {

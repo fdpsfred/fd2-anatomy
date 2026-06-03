@@ -272,3 +272,63 @@ void fd2_count_active_menu_items_until_zero(int32 *menu_def)
         /* empty body — search-and-store */
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_settings_menu_input_step @ 0x177FC  (5 callers:
+ *   fd2_field_command_menu_loop, fd2_field_menu_status_save_load_quit_dispatch,
+ *   fd2_game_options_menu_loop, fd2_item_command_menu_dispatch,
+ *   fd2_player_inline_action_menu_dispatch)
+ *
+ * Single input-step for a 4-direction (cross-shape) settings menu.
+ *
+ * Waits for one keystroke via fd2_wait_input_with_dialog_repaint (which keeps
+ * the slide-in dialog repainting / palette cycling while idle), then maps the
+ * scancode:
+ *   0x01 Esc                -> return -1 (cancelled)
+ *   0x39 Space / 0x1C Enter -> return  1 (committed)
+ *   0x48 Up    -> if menu_state[0] == 0: cursor = 0;  return 0
+ *   0x50 Down  -> if menu_state[3] == 0: cursor = 3;  return 0
+ *   0x4B Left  -> if menu_state[1] == 0: cursor = 1;  return 0
+ *   0x4D Right -> if menu_state[2] == 0: cursor = 2;  return 0
+ *   anything else / disabled slot -> return 0 (no-op)
+ *
+ * menu_state is the int[4] slot-disable array indexed by direction
+ * (Up/Left/Right/Down = slot 0/1/2/3); 0 = enabled, non-zero = disabled.
+ * The committed cursor index is stored in data_fd2_ui_menu_cursor_idx.
+ * menu_options is forwarded unmodified to fd2_wait_input_with_dialog_repaint.
+ *
+ * int __cdecl with the __CHK(0x10) stack-probe prologue.
+ * ---------------------------------------------------------------- */
+int fd2_settings_menu_input_step(int32 *menu_options, int32 *menu_state)
+{
+    int scancode;
+
+    scancode = fd2_wait_input_with_dialog_repaint((uint32)menu_options,
+        (uint32)menu_state);
+
+    if (scancode == 0x01) {
+        return -1;
+    }
+    if (scancode == 0x39 || scancode == 0x1c) {
+        return 1;
+    }
+
+    if (scancode == 0x48) {
+        if (menu_state[0] == 0) {
+            data_fd2_ui_menu_cursor_idx = 0;
+        }
+    } else if (scancode == 0x50) {
+        if (menu_state[3] == 0) {
+            data_fd2_ui_menu_cursor_idx = 3;
+        }
+    } else if (scancode == 0x4b) {
+        if (menu_state[1] == 0) {
+            data_fd2_ui_menu_cursor_idx = 1;
+        }
+    } else if (scancode == 0x4d) {
+        if (menu_state[2] == 0) {
+            data_fd2_ui_menu_cursor_idx = 2;
+        }
+    }
+    return 0;
+}
