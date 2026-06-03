@@ -516,8 +516,9 @@
     "name": "fd2_paint_threat_overlay_for_team",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00014625": {
     "name": "fd2_mark_aoe_plus_pattern_at",

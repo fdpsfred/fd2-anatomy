@@ -355,3 +355,34 @@ void fd2_paint_chars_shadow_overlay(void)
         }
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_paint_threat_overlay_for_team @ 0x145CD (5 callers)
+ *
+ * Mark all alive chars of the selected team with an AoE "+" pattern
+ * on the threat / AoE-coverage overlay layer (tile_map +6 bytes).
+ * Used during action target selection to preview which tiles the
+ * enemy (or ally) units threaten.
+ *
+ * Asymmetric team filter (matches the AI targeting convention):
+ *   ctx == 0 -> mark chars with team != 0  (ally overlay)
+ *   ctx != 0 -> mark chars with team == 0  (enemy overlay)
+ *
+ * Per party slot: skip dead (flags bit0), then apply the team filter;
+ * pass the char's (pos_x, pos_y) to fd2_mark_aoe_plus_pattern_at.
+ * ---------------------------------------------------------------- */
+void fd2_paint_threat_overlay_for_team(uint32 ctx)
+{
+    uint32 i;
+    runtime_char *pchar;
+
+    for (i = 0; (int32)i < (int32)data_fd2_battle_party_member_count; i++) {
+        pchar = &data_fd2_battle_runtime_char_array_ptr[i];
+        if ((pchar->flags & 1) == 0) {
+            if (((ctx == 0) && (pchar->team != 0)) ||
+                ((ctx != 0) && (pchar->team == 0))) {
+                fd2_mark_aoe_plus_pattern_at(pchar->pos_x, pchar->pos_y);
+            }
+        }
+    }
+}

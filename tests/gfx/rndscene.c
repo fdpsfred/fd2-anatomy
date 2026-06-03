@@ -862,6 +862,118 @@ static void test_shadow_multi_char(void)
     assert_anim_tile(4, 0x08, 0x07);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_paint_threat_overlay_for_team — mark alive chars of the selected
+ * team with a "+" AoE pattern on the tile-map threat overlay (+6 byte).
+ *
+ * Drives the real routine (and the real fd2_mark_aoe_plus_pattern_at /
+ * fd2_set_tile_overlay_bit_80 callees). A char at (x,y) marks center
+ * tile_map[(y*W+x)*4+6] |= 0x40 and the 4 plus-neighbors |= 0x80.
+ * Asserts the asymmetric team filter and the dead-skip directly on the
+ * resulting tile-map bytes.
+ * ---------------------------------------------------------------- */
+#define THREAT_W 16
+#define THREAT_H 16
+static uint8 g_threat_tile_map[THREAT_W * THREAT_H * 4];
+
+static void reset_threat_map(void)
+{
+    memset(g_threat_tile_map, 0, sizeof(g_threat_tile_map));
+    data_fd2_battle_tile_map_ptr = (uint32)g_threat_tile_map;
+    data_fd2_battle_map_width_tiles = THREAT_W;
+    data_fd2_battle_map_height_tiles = THREAT_H;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+}
+
+/* overlay byte at tile (x,y) */
+static uint8 threat_byte(int x, int y)
+{
+    return g_threat_tile_map[(y * THREAT_W + x) * 4 + 6];
+}
+
+static void setup_threat_char(int slot, uint8 px, uint8 py, uint8 flags,
+                              uint8 team)
+{
+    runtime_char *c = &g_test_rc_array[slot];
+    memset(c, 0, sizeof(*c));
+    c->pos_x = px;
+    c->pos_y = py;
+    c->flags = flags;
+    c->team = team;
+}
+
+/* assert the full "+" pattern landed for a char at interior (x,y) */
+static void assert_plus_marked(int x, int y)
+{
+    ASSERT_EQ((uint32)threat_byte(x, y),     0x40u);   /* center */
+    ASSERT_EQ((uint32)threat_byte(x - 1, y), 0x80u);   /* left   */
+    ASSERT_EQ((uint32)threat_byte(x + 1, y), 0x80u);   /* right  */
+    ASSERT_EQ((uint32)threat_byte(x, y - 1), 0x80u);   /* upper  */
+    ASSERT_EQ((uint32)threat_byte(x, y + 1), 0x80u);   /* lower  */
+}
+
+/* assert no overlay bits set anywhere around (x,y) */
+static void assert_unmarked(int x, int y)
+{
+    ASSERT_EQ((uint32)threat_byte(x, y),     0u);
+    ASSERT_EQ((uint32)threat_byte(x - 1, y), 0u);
+    ASSERT_EQ((uint32)threat_byte(x + 1, y), 0u);
+    ASSERT_EQ((uint32)threat_byte(x, y - 1), 0u);
+    ASSERT_EQ((uint32)threat_byte(x, y + 1), 0u);
+}
+
+/* ctx == 0 marks team != 0 (ally overlay); leaves team == 0 untouched. */
+static void test_threat_ctx0_marks_nonzero_team(void)
+{
+    reset_threat_map();
+    data_fd2_battle_party_member_count = 2;
+    setup_threat_char(0, 5, 5, 0x00, 2);   /* team 2 -> marked */
+    setup_threat_char(1, 9, 9, 0x00, 0);   /* team 0 -> skipped */
+
+    fd2_paint_threat_overlay_for_team(0);
+
+    assert_plus_marked(5, 5);
+    assert_unmarked(9, 9);
+}
+
+/* ctx != 0 marks team == 0 (enemy overlay); leaves team != 0 untouched. */
+static void test_threat_ctx1_marks_zero_team(void)
+{
+    reset_threat_map();
+    data_fd2_battle_party_member_count = 2;
+    setup_threat_char(0, 5, 5, 0x00, 0);   /* team 0 -> marked */
+    setup_threat_char(1, 9, 9, 0x00, 3);   /* team 3 -> skipped */
+
+    fd2_paint_threat_overlay_for_team(1);
+
+    assert_plus_marked(5, 5);
+    assert_unmarked(9, 9);
+}
+
+/* dead chars (flags bit0) are skipped even when the team filter matches. */
+static void test_threat_dead_skipped(void)
+{
+    reset_threat_map();
+    data_fd2_battle_party_member_count = 1;
+    setup_threat_char(0, 5, 5, 0x01, 2);   /* dead, team 2, ctx 0 would match */
+
+    fd2_paint_threat_overlay_for_team(0);
+
+    assert_unmarked(5, 5);
+}
+
+/* empty party -> no overlay writes at all. */
+static void test_threat_empty_party(void)
+{
+    reset_threat_map();
+    data_fd2_battle_party_member_count = 0;
+    setup_threat_char(0, 5, 5, 0x00, 2);
+
+    fd2_paint_threat_overlay_for_team(0);
+
+    assert_unmarked(5, 5);
+}
+
 void run_gfx_rndscene_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -894,5 +1006,9 @@ void run_gfx_rndscene_tests(void)
     RUN_TEST(test_shadow_immune_skipped);
     RUN_TEST(test_shadow_dead_skipped);
     RUN_TEST(test_shadow_multi_char);
+    RUN_TEST(test_threat_ctx0_marks_nonzero_team);
+    RUN_TEST(test_threat_ctx1_marks_zero_team);
+    RUN_TEST(test_threat_dead_skipped);
+    RUN_TEST(test_threat_empty_party);
     printf("\n");
 }
