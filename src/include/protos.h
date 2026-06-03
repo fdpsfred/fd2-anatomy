@@ -252,6 +252,9 @@ int  AIL_init_sequence(uint32 seq, uint32 xmi_data, int seq_idx);
 void AIL_start_sequence(uint32 seq);
 void AIL_set_sequence_loop_count(uint32 seq, uint32 count);
 uint32 fd2_load_dat_resource(uint32 fname, uint32 buf, uint32 idx);
+void fd2_rle_blit_sprite(uint32 rle_stream, int32 dst_x, int32 dst_y,
+                         uint32 dst_buf, int32 stride, uint32 palette_op);
+void fd2_scroll_text_screen_up_by_lines(uint32 lines);
 uint32 fd2_save_compute_checksum(uint32 buf, uint32 size);
 int  fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp);
 

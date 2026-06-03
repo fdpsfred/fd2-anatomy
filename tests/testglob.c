@@ -46,6 +46,8 @@ uint32 data_fd2_shared_menu_party_member_count = 0;
 uint32 data_fd2_battle_anim_phase = 0;
 uint32 data_fd2_battle_ai_post_action_consequence_idx = 0;
 uint32 data_fd2_chapter_current_chapter_id = 1;
+uint32 data_fd2_graphics_static_bg_buffer_ptr = 0;
+uint32 data_fd2_graphics_animated_bg_buffer_ptr = 0;
 uint32 data_fd2_chapter_event_or_battle_end_code = 0;
 uint32 data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
 uint32 data_fd2_battle_teleport_dest_world_x = 0;
@@ -203,7 +205,7 @@ int fd2_chapter_transition_menu(void) { return g_chapter_transition_return; }
 uint32 g_load_save_checksum_return = 0;
 uint32 fd2_save_compute_checksum(uint32 b, uint32 s)
 { (void)b; (void)s; return g_load_save_checksum_return; }
-void fd2_load_chapter_background_layers(void) { }
+/* fd2_load_chapter_background_layers: now in rsrc/rsrc.c */
 int g_load_portrait_calls = 0;
 int fd2_load_portrait_to_cache(uint32 pid, uint32 fp)
 {
@@ -236,7 +238,49 @@ void AIL_stop_sequence(uint32 s) { (void)s; }
 int  AIL_init_sequence(uint32 s, uint32 d, int i) { (void)s; (void)d; (void)i; return 0; }
 void AIL_start_sequence(uint32 s) { (void)s; }
 void AIL_set_sequence_loop_count(uint32 s, uint32 c) { (void)s; (void)c; }
-uint32 fd2_load_dat_resource(uint32 f, uint32 b, uint32 i) { (void)f; (void)i; return b; }
+int    g_load_dat_calls = 0;
+uint32 g_load_dat_last_fname = 0;
+uint32 g_load_dat_last_old_buf = 0;
+uint32 g_load_dat_last_idx = 0;
+uint32 g_load_dat_idx_log[8];
+uint32 fd2_load_dat_resource(uint32 f, uint32 b, uint32 i) {
+    /* Preserve the original fake contract: when an old buffer is supplied,
+       return it unchanged (callers read zeroed fixture buffers through it).
+       When old_buf is NULL, hand back a real allocation so callers that
+       later free() the loaded buffer (e.g. the background loader) stay valid. */
+    g_load_dat_last_fname = f;
+    g_load_dat_last_old_buf = b;
+    g_load_dat_last_idx = i;
+    if (g_load_dat_calls < 8) g_load_dat_idx_log[g_load_dat_calls] = i;
+    g_load_dat_calls++;
+    if (b != 0) return b;
+    return (uint32)malloc(16);
+}
+int    g_rle_blit_calls = 0;
+uint32 g_rle_blit_last_sprite = 0;
+int32  g_rle_blit_last_x = 0;
+int32  g_rle_blit_last_y = 0;
+uint32 g_rle_blit_last_buf = 0;
+int32  g_rle_blit_last_stride = 0;
+uint32 g_rle_blit_last_palette = 0;
+int32  g_rle_blit_y_log[4];
+void fd2_rle_blit_sprite(uint32 rle_stream, int32 dst_x, int32 dst_y,
+                         uint32 dst_buf, int32 stride, uint32 palette_op) {
+    g_rle_blit_last_sprite = rle_stream;
+    g_rle_blit_last_x = dst_x;
+    g_rle_blit_last_y = dst_y;
+    g_rle_blit_last_buf = dst_buf;
+    g_rle_blit_last_stride = stride;
+    g_rle_blit_last_palette = palette_op;
+    if (g_rle_blit_calls < 4) g_rle_blit_y_log[g_rle_blit_calls] = dst_y;
+    g_rle_blit_calls++;
+}
+int    g_scroll_text_calls = 0;
+uint32 g_scroll_text_last_arg = 0;
+void fd2_scroll_text_screen_up_by_lines(uint32 lines) {
+    g_scroll_text_last_arg = lines;
+    g_scroll_text_calls++;
+}
 void fd2_play_palette_fade_in(void) { }
 void fd2_play_death_animation_and_mark_dead(void) { }
 void fd2_process_battle_drop_entries(uint32 a, uint32 b, uint32 c) { }

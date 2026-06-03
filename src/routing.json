@@ -20,7 +20,8 @@
     "target": "rsrc/rsrc.c",
     "phase": 5,
     "done": false,
-    "asm": false
+    "asm": false,
+    "reviewed": true
   },
   "0001088d": {
     "name": "fd2_load_chapter_battle_data",
