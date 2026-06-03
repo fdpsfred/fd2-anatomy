@@ -287,8 +287,9 @@ int  AIL_init_sequence(uint32 s, uint32 d, int i) { (void)s; (void)d; (void)i; r
 void AIL_start_sequence(uint32 s) { (void)s; }
 void AIL_set_sequence_loop_count(uint32 s, uint32 c) { (void)s; (void)c; }
 /* fd2_load_dat_resource: now emitted in src/rsrc/rsrc.c. Its caller tests
- * stage real on-disk DAT files (write_fake_dat() in tests/include/rsrcfix.h)
- * so the real loader fopen+freads them. */
+ * drive the real loader against the staged real DAT files (copied into the
+ * test cwd by build_test.py) and cross-check its output against an independent
+ * parse via tests/include/realfile.h. */
 int    g_rle_blit_calls = 0;
 uint32 g_rle_blit_last_sprite = 0;
 int32  g_rle_blit_last_x = 0;
