@@ -19,6 +19,11 @@ extern uint32 g_tile_map_last_h;
 extern uint32 g_tile_map_last_ox;
 extern uint32 g_tile_map_last_oy;
 extern int    g_chars_overlay_calls;
+/* fd2_composite_all_chars_overlay per-char callee record (testglob.c) */
+extern int    g_paint_char_calls;
+extern uint32 g_paint_char_idx[64];
+extern int    g_shadow_overlay_calls;
+extern int    g_check_char_is_dead_return;
 extern int    g_terrain_hud_calls;
 extern uint32 g_terrain_hud_last_buf;
 extern uint32 g_terrain_hud_last_stride;
@@ -45,6 +50,9 @@ static void reset_pipeline_record(void)
     g_tile_map_calls = 0;
     g_blitpass_calls = 0;
     g_chars_overlay_calls = 0;
+    g_paint_char_calls = 0;
+    g_shadow_overlay_calls = 0;
+    g_check_char_is_dead_return = 0;   /* all party slots alive */
     g_terrain_hud_calls = 0;
     g_composite_call_count = 0;
 
@@ -329,6 +337,66 @@ static void test_cursor_phase_default(void)
     ASSERT_EQ(g_blitpass_calls, 0);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_composite_all_chars_overlay — loop / dead-skip / ordering.
+ *
+ * Real routine: for i in [0, party_member_count): if !is_dead(i)
+ * paint_char_sprite(i); then one unconditional shadow overlay.
+ * Callees are testglob stubs that record (index list, shadow count).
+ * ---------------------------------------------------------------- */
+static void reset_overlay_record(void)
+{
+    g_paint_char_calls = 0;
+    g_shadow_overlay_calls = 0;
+    g_chars_overlay_calls = 0;
+    g_check_char_is_dead_return = 0;
+}
+
+/* All party slots alive: paint every slot 0..count-1 in order, one shadow. */
+static void test_overlay_all_alive(void)
+{
+    int i;
+
+    reset_overlay_record();
+    data_fd2_battle_party_member_count = 5;
+    g_check_char_is_dead_return = 0;
+
+    fd2_composite_all_chars_overlay();
+
+    ASSERT_EQ(g_paint_char_calls, 5);
+    for (i = 0; i < 5; i++) {
+        ASSERT_EQ(g_paint_char_idx[i], (uint32)i);
+    }
+    /* shadow overlay runs exactly once, after the loop */
+    ASSERT_EQ(g_shadow_overlay_calls, 1);
+}
+
+/* All party slots dead: every slot skipped, still exactly one shadow pass. */
+static void test_overlay_all_dead(void)
+{
+    reset_overlay_record();
+    data_fd2_battle_party_member_count = 4;
+    g_check_char_is_dead_return = 1;
+
+    fd2_composite_all_chars_overlay();
+
+    ASSERT_EQ(g_paint_char_calls, 0);
+    ASSERT_EQ(g_shadow_overlay_calls, 1);
+}
+
+/* Empty party (count == 0): loop body never runs; shadow pass still runs.
+ * Guards the (int) signed compare so count 0 does not underflow. */
+static void test_overlay_empty_party(void)
+{
+    reset_overlay_record();
+    data_fd2_battle_party_member_count = 0;
+
+    fd2_composite_all_chars_overlay();
+
+    ASSERT_EQ(g_paint_char_calls, 0);
+    ASSERT_EQ(g_shadow_overlay_calls, 1);
+}
+
 void run_gfx_rndscene_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -342,5 +410,8 @@ void run_gfx_rndscene_tests(void)
     RUN_TEST(test_cursor_phase5);
     RUN_TEST(test_cursor_phase6_clear_flag);
     RUN_TEST(test_cursor_phase_default);
+    RUN_TEST(test_overlay_all_alive);
+    RUN_TEST(test_overlay_all_dead);
+    RUN_TEST(test_overlay_empty_party);
     printf("\n");
 }

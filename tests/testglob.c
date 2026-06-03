@@ -186,9 +186,28 @@ void fd2_composite_battle_tile_map(uint32 d, uint32 s, uint32 w, uint32 h, uint3
     g_tile_map_last_w = w; g_tile_map_last_h = h;
     g_tile_map_last_ox = ox; g_tile_map_last_oy = oy;
 }
-/* fd2_paint_cursor_overlay_pattern is now a real emitted function
- * (src/gfx/rndscene.c); its former no-op stub here was removed. */
-void fd2_composite_all_chars_overlay(void) { g_chars_overlay_calls++; }
+/* fd2_paint_cursor_overlay_pattern and fd2_composite_all_chars_overlay are now
+ * real emitted functions (src/gfx/rndscene.c); their former no-op stubs here were
+ * removed. The real fd2_composite_all_chars_overlay loops over alive party slots
+ * calling fd2_paint_char_sprite_at_world_pos (stub below, with arg capture) and
+ * finishes with one unconditional fd2_paint_chars_shadow_overlay (stub below).
+ * The shadow stub bumps g_chars_overlay_calls so the compositor pipeline test can
+ * still assert "the per-char overlay stage ran exactly once per frame". */
+int    g_paint_char_calls = 0;
+uint32 g_paint_char_idx[64];
+int    g_shadow_overlay_calls = 0;
+void fd2_paint_char_sprite_at_world_pos(uint32 char_idx)
+{
+    if (g_paint_char_calls < 64) {
+        g_paint_char_idx[g_paint_char_calls] = char_idx;
+    }
+    g_paint_char_calls++;
+}
+void fd2_paint_chars_shadow_overlay(void)
+{
+    g_shadow_overlay_calls++;
+    g_chars_overlay_calls++;
+}
 
 /* Recording stub for fd2_tile_blit_24x24_passthrough (the RLE row blitter, real
  * body not yet emitted). fd2_blit_24x24_at_window_relative_pos (real, emitted in

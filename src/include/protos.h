@@ -307,6 +307,8 @@ void fd2_paint_cursor_overlay_pattern(void);
 void fd2_blit_24x24_at_window_relative_pos(uint32 world_x, uint32 world_y, uint32 sprite_idx);
 void fd2_tile_blit_24x24_passthrough(uint32 src, uint32 dst, uint32 stride);
 void fd2_composite_all_chars_overlay(void);
+void fd2_paint_char_sprite_at_world_pos(uint32 char_idx);
+void fd2_paint_chars_shadow_overlay(void);
 void fd2_render_terrain_info_hud_panel(uint32 buf, uint32 stride);
 void fd2_blit_rectangle(uint32 dst, uint32 dstride, uint32 src, uint32 sstride, uint32 w, uint32 h);
 uint32 fd2_alloc_and_blit_indexed_sprite_chunk(uint32 sheet_ptr, uint32 dst, uint32 stride, uint32 h, uint32 row, uint32 idx);

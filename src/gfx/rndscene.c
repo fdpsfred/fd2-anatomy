@@ -141,3 +141,26 @@ void fd2_paint_cursor_overlay_pattern(void)
         return;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_composite_all_chars_overlay @ 0x127A9 (18 callers)
+ *
+ * Paint all alive party-member sprites onto the battle render
+ * workspace. For each party slot, skip dead members; otherwise blit
+ * the character sprite (with facing + status icons). A final pass
+ * draws the drop-shadow under each char.
+ *
+ * Called by fd2_composite_battle_frame as the per-char layer (after
+ * the tile map, before the UI text).
+ * ---------------------------------------------------------------- */
+void fd2_composite_all_chars_overlay(void)
+{
+    int32 i;
+
+    for (i = 0; i < (int32)data_fd2_battle_party_member_count; i++) {
+        if (!fd2_check_char_is_dead((uint32)i)) {
+            fd2_paint_char_sprite_at_world_pos((uint32)i);
+        }
+    }
+    fd2_paint_chars_shadow_overlay();
+}

@@ -266,8 +266,9 @@
     "name": "fd2_composite_all_chars_overlay",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000127e0": {
     "name": "fd2_paint_char_sprite_at_world_pos",
