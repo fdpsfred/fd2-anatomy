@@ -158,6 +158,8 @@ void fd2_blit_sheet_sprite_at_offset(uint32 d, uint32 s, uint32 p, uint32 i) { }
 uint32 data_fd2_graphics_chapter_walk_anim_alt_palette_idx = 0;
 uint32 data_fd2_graphics_chapter_ambient_palette_anim_idx = 0;
 uint32 data_fd2_graphics_chapter_ambient_palette_anim_tick_latch = 0;
+uint8  data_fd2_graphics_char_sprite_shake_jitter_bit = 0;
+int32  data_fd2_graphics_char_sprite_paint_jitter_tick_latch = 0;
 /* fd2_composite_battle_frame (rndscene.c) pipeline-callee stubs with arg
  * capture, so the compositor test can assert workspace address, pixel
  * constants, and call ordering forwarded to each stage. */
@@ -186,23 +188,17 @@ void fd2_composite_battle_tile_map(uint32 d, uint32 s, uint32 w, uint32 h, uint3
     g_tile_map_last_w = w; g_tile_map_last_h = h;
     g_tile_map_last_ox = ox; g_tile_map_last_oy = oy;
 }
-/* fd2_paint_cursor_overlay_pattern and fd2_composite_all_chars_overlay are now
- * real emitted functions (src/gfx/rndscene.c); their former no-op stubs here were
- * removed. The real fd2_composite_all_chars_overlay loops over alive party slots
- * calling fd2_paint_char_sprite_at_world_pos (stub below, with arg capture) and
- * finishes with one unconditional fd2_paint_chars_shadow_overlay (stub below).
- * The shadow stub bumps g_chars_overlay_calls so the compositor pipeline test can
- * still assert "the per-char overlay stage ran exactly once per frame". */
-int    g_paint_char_calls = 0;
-uint32 g_paint_char_idx[64];
+/* fd2_paint_cursor_overlay_pattern, fd2_composite_all_chars_overlay and
+ * fd2_paint_char_sprite_at_world_pos are now real emitted functions
+ * (src/gfx/rndscene.c); their former no-op/recording stubs here were removed.
+ * The real fd2_composite_all_chars_overlay loops over alive party slots calling
+ * the real fd2_paint_char_sprite_at_world_pos and finishes with one unconditional
+ * fd2_paint_chars_shadow_overlay (stub below). The shadow stub bumps
+ * g_chars_overlay_calls so the compositor pipeline test can still assert "the
+ * per-char overlay stage ran exactly once per frame". The real per-char paint's
+ * own blit reaches the recording fd2_tile_blit_24x24_passthrough /
+ * fd2_tile_blit_24x24_dimmed_grayscale stubs below. */
 int    g_shadow_overlay_calls = 0;
-void fd2_paint_char_sprite_at_world_pos(uint32 char_idx)
-{
-    if (g_paint_char_calls < 64) {
-        g_paint_char_idx[g_paint_char_calls] = char_idx;
-    }
-    g_paint_char_calls++;
-}
 void fd2_paint_chars_shadow_overlay(void)
 {
     g_shadow_overlay_calls++;
@@ -225,6 +221,22 @@ void fd2_tile_blit_24x24_passthrough(uint32 src, uint32 dst, uint32 stride) {
         g_blitpass_stride[g_blitpass_calls] = stride;
     }
     g_blitpass_calls++;
+}
+/* Recording stub for fd2_tile_blit_24x24_dimmed_grayscale (the greyed/dimmed
+ * 24x24 blitter, real body not yet emitted). The real
+ * fd2_paint_char_sprite_at_world_pos calls this instead of the passthrough
+ * blitter when the unit's flags bit7 (already-acted) is set. Records into the
+ * shared g_blitpass_* arrays (so dst/src arithmetic checks are uniform) and
+ * bumps a separate dimmed counter so tests can distinguish which blitter ran. */
+int    g_blitdim_calls = 0;
+void fd2_tile_blit_24x24_dimmed_grayscale(uint32 src, uint32 dst, uint32 stride) {
+    if (g_blitpass_calls < 64) {
+        g_blitpass_src[g_blitpass_calls] = src;
+        g_blitpass_dst[g_blitpass_calls] = dst;
+        g_blitpass_stride[g_blitpass_calls] = stride;
+    }
+    g_blitpass_calls++;
+    g_blitdim_calls++;
 }
 void fd2_render_terrain_info_hud_panel(uint32 b, uint32 s) {
     g_terrain_hud_calls++;

@@ -274,8 +274,9 @@
     "name": "fd2_paint_char_sprite_at_world_pos",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001297d": {
     "name": "fd2_tick_chapter_palette_animation",

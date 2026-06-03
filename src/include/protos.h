@@ -306,6 +306,7 @@ void fd2_composite_battle_tile_map(uint32 dst, uint32 stride, uint32 w, uint32 h
 void fd2_paint_cursor_overlay_pattern(void);
 void fd2_blit_24x24_at_window_relative_pos(uint32 world_x, uint32 world_y, uint32 sprite_idx);
 void fd2_tile_blit_24x24_passthrough(uint32 src, uint32 dst, uint32 stride);
+void fd2_tile_blit_24x24_dimmed_grayscale(uint32 src, uint32 dst, uint32 stride);
 void fd2_composite_all_chars_overlay(void);
 void fd2_paint_char_sprite_at_world_pos(uint32 char_idx);
 void fd2_paint_chars_shadow_overlay(void);

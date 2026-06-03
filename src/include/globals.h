@@ -94,6 +94,8 @@ extern uint32 data_fd2_graphics_static_bg_buffer_ptr;                   /* 0x53A
 extern uint32 data_fd2_graphics_animated_bg_buffer_ptr;                 /* 0x53B03 */
 extern uint32 data_fd2_battle_walk_anim_x_scroll_offset;                /* 0x53B07 */
 extern uint32 data_fd2_battle_walk_anim_y_scroll_rows;                  /* 0x53B0B */
+extern uint8  data_fd2_graphics_char_sprite_shake_jitter_bit;          /* 0x53A04 */
+extern int32  data_fd2_graphics_char_sprite_paint_jitter_tick_latch;    /* 0x53A08 */
 extern uint32 data_fd2_graphics_chapter_walk_anim_alt_palette_idx;      /* 0x53C07 */
 extern uint32 data_fd2_graphics_chapter_ambient_palette_anim_idx;       /* 0x53C0B */
 extern uint32 data_fd2_graphics_chapter_ambient_palette_anim_tick_latch; /* 0x53C0F */
