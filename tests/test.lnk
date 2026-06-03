@@ -33,6 +33,7 @@ file E:\out\obj\blittile.obj
 file E:\out\obj\chtrans.obj
 file E:\out\obj\dialog.obj
 file E:\out\obj\rndstat.obj
+file E:\out\obj\menucfg.obj
 file E:\out\obj\testmain.obj
 file E:\out\obj\testglob.obj
 file E:\out\obj\tanidec.obj
@@ -66,5 +67,6 @@ file E:\out\obj\tspellef.obj
 file E:\out\obj\ttable.obj
 file E:\out\obj\tcursor.obj
 file E:\out\obj\tmenu.obj
+file E:\out\obj\tmenucfg.obj
 file E:\out\obj\tstatus.obj
 file E:\out\obj\tpathfnd.obj

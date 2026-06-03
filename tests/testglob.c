@@ -290,6 +290,9 @@ uint32 data_fd2_ui_menu_cursor_idx = 0;
 /* field command menu templates — real FD2.LE values @ 0x51E9F / 0x53EF2 */
 int32  data_fd2_ui_field_command_menu_options_template[4] = { 7, 5, 6, 4 };
 int32  data_fd2_ui_field_command_menu_state_template[4] = { 0, 0, 0, 0 };
+/* game options menu templates — real FD2.LE values @ 0x51EAF / 0x53F02 */
+int32  data_fd2_ui_game_options_menu_slots_template[4] = { 0x12, 0x14, 0x16, 0x18 };
+int32  data_fd2_ui_game_options_menu_state_template[4] = { 0, 0, 0, 0 };
 uint32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4] = {0};
 uint32 data_fd2_chapter_intro_dialog_anim_frame_idx = 0;
 uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
@@ -741,6 +744,12 @@ int g_settings_cursor_idx = 0;
 int g_open_settings_dialog_calls = 0;
 int g_close_settings_dialog_calls = 0;
 int g_settings_input_step_calls = 0;
+/* When g_settings_select_once != 0 the input-step stub returns 1 (selection)
+ * on its first call (selecting g_settings_cursor_idx) and -1 (cancel) on the
+ * next call. This lets fd2_game_options_menu_loop's infinite loop run exactly
+ * one toggle iteration and then exit. When 0 the legacy single-value path
+ * (g_settings_input_step_return) is used. */
+int g_settings_select_once = 0;
 void fd2_open_settings_dialog_with_slide(int32 *opt, int32 *st) {
     (void)opt; (void)st;
     g_open_settings_dialog_calls++;
@@ -749,6 +758,12 @@ int fd2_settings_menu_input_step(int32 *opt, int32 *st) {
     (void)opt; (void)st;
     g_settings_input_step_calls++;
     data_fd2_ui_menu_cursor_idx = (uint32)g_settings_cursor_idx;
+    if (g_settings_select_once) {
+        if (g_settings_input_step_calls == 1) {
+            return 1;
+        }
+        return -1;
+    }
     return g_settings_input_step_return;
 }
 void fd2_close_settings_dialog_with_slide(int32 *opt, int32 *st) {
@@ -771,10 +786,7 @@ int g_anim_dialog_page_advance_calls = 0;
 void fd2_animate_dialog_page_advance_collapse(void) {
     g_anim_dialog_page_advance_calls++;
 }
-int g_game_options_menu_loop_calls = 0;
-void fd2_game_options_menu_loop(void) {
-    g_game_options_menu_loop_calls++;
-}
+/* fd2_game_options_menu_loop is now emitted for real in ui_menu/menucfg.c. */
 int g_player_action_menu_loop_return = 1;
 int g_player_action_menu_loop_calls = 0;
 uint32 g_player_action_menu_loop_last_char = 0xffffffff;

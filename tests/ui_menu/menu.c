@@ -41,7 +41,7 @@ extern int g_close_settings_dialog_calls;
 extern int g_settings_input_step_calls;
 extern int g_save_load_quit_dispatch_return;
 extern int g_save_load_quit_dispatch_calls;
-extern int g_game_options_menu_loop_calls;
+extern int g_settings_select_once;
 
 /* Compile/link smoke: take the address of the emitted function and verify the
  * int-returning prototype is honored. Does not invoke it (real blocking input
@@ -65,7 +65,7 @@ static void fcm_reset(int cursor, int input_return)
     g_close_settings_dialog_calls = 0;
     g_settings_input_step_calls = 0;
     g_save_load_quit_dispatch_calls = 0;
-    g_game_options_menu_loop_calls = 0;
+    g_settings_select_once = 0;
     data_fd2_ui_menu_cursor_idx = 0;
 }
 
@@ -81,7 +81,6 @@ static void test_field_command_menu_cancel(void)
     ASSERT_EQ(g_open_settings_dialog_calls, 1);
     ASSERT_EQ(g_close_settings_dialog_calls, 1);
     ASSERT_EQ(g_save_load_quit_dispatch_calls, 0);
-    ASSERT_EQ(g_game_options_menu_loop_calls, 0);
 }
 
 /* cursor == 0 (Save/Load/New Game): the function returns the dispatch result
@@ -97,19 +96,24 @@ static void test_field_command_menu_save_load_passthrough(void)
     ASSERT_EQ(r, 42);
     ASSERT_EQ(g_save_load_quit_dispatch_calls, 1);
     ASSERT_EQ(g_close_settings_dialog_calls, 1);
-    ASSERT_EQ(g_game_options_menu_loop_calls, 0);
 }
 
-/* cursor == 2 (Options): runs the options submenu then returns 0. */
+/* cursor == 2 (Options): runs the real fd2_game_options_menu_loop submenu then
+ * returns 0. Drive the input-step seam in select-once mode: the field-command
+ * loop's first input-step returns 1 (selecting cursor 2 -> Options), then the
+ * nested options loop's next input-step returns -1 (cancel) so it exits. */
 static void test_field_command_menu_options(void)
 {
     int r;
 
-    fcm_reset(2, 1);                 /* input non-zero, cursor 2 */
+    fcm_reset(2, 1);                 /* cursor 2 */
+    g_settings_select_once = 1;      /* select once, then cancel the submenu */
     r = fd2_field_command_menu_loop();
     ASSERT_EQ(r, 0);
-    ASSERT_EQ(g_game_options_menu_loop_calls, 1);
     ASSERT_EQ(g_save_load_quit_dispatch_calls, 0);
+    /* one open/close for the field-command dialog, one for the options dialog */
+    ASSERT_EQ(g_open_settings_dialog_calls, 2);
+    ASSERT_EQ(g_close_settings_dialog_calls, 2);
 }
 
 void run_ui_menu_menu_tests(void)

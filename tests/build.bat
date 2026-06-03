@@ -31,6 +31,7 @@ D:\BIN\WCC386.EXE gfx\blittile.c %CF% -fo=E:\out\obj\blittile.obj >> E:\out\buil
 D:\BIN\WCC386.EXE field\chtrans.c %CF% -fo=E:\out\obj\chtrans.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE dialog\dialog.c %CF% -fo=E:\out\obj\dialog.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE gfx\rndstat.c %CF% -fo=E:\out\obj\rndstat.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE ui_menu\menucfg.c %CF% -fo=E:\out\obj\menucfg.obj >> E:\out\build.out
 
 echo === compile tests === >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\testmain.c %CF% -fo=E:\out\obj\testmain.obj >> E:\out\build.out
@@ -66,6 +67,7 @@ D:\BIN\WCC386.EXE E:\spell\spelleff.c %CF% -fo=E:\out\obj\tspellef.obj >> E:\out
 D:\BIN\WCC386.EXE E:\table\table.c %CF% -fo=E:\out\obj\ttable.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\ui_menu\cursor.c %CF% -fo=E:\out\obj\tcursor.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\ui_menu\menu.c %CF% -fo=E:\out\obj\tmenu.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE E:\ui_menu\menucfg.c %CF% -fo=E:\out\obj\tmenucfg.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\ui_menu\status.c %CF% -fo=E:\out\obj\tstatus.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\util\pathfnd.c %CF% -fo=E:\out\obj\tpathfnd.obj >> E:\out\build.out
 

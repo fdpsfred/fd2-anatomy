@@ -798,8 +798,9 @@
     "name": "fd2_game_options_menu_loop",
     "target": "ui_menu/menucfg.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000173e7": {
     "name": "fd2_count_active_menu_items_until_zero",
