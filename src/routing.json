@@ -830,8 +830,9 @@
     "name": "fd2_restore_dialog_area_from_buffer",
     "target": "dialog/dialog.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000176b4": {
     "name": "fd2_close_settings_dialog_with_slide",

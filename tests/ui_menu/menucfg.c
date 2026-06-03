@@ -39,7 +39,6 @@ extern int g_ail_last_ramp;
 /* real-render seams hit by the now-real fd2_open_settings_dialog_with_slide */
 extern uint32 g_blitsetup_dst, g_blitsetup_sprite, g_blitsetup_stride;
 extern int    g_blitsetup_calls;
-extern int    g_restore_dialog_area_calls;
 
 /* Workspace span the real final fd2_blit_rectangle(ptr+0x8088, ..., h=0xC0)
  * reads, plus the 0x8088 header: (0xC0-1)*0x1C8 + 0x138 + 0x8088. */
@@ -76,7 +75,6 @@ static void cfg_setup_render_env(void)
         data_fd2_dialog_area_backup_buffer = (void *)0;
     }
     g_blitsetup_calls = 0;
-    g_restore_dialog_area_calls = 0;
 }
 
 /* Drive exactly one selection of `cursor`, then cancel. */
@@ -232,9 +230,10 @@ static void test_open_dialog_last_blit(void)
     expect_sprite = (uint32)cfg_dialog_handle + 0x100u;
 
     ASSERT_EQ(g_blitsetup_calls, 16);
-    /* the real fd2_backup_dialog_area_to_buffer ran once -> backup buffer set */
+    /* the real fd2_backup_dialog_area_to_buffer ran once -> backup buffer set,
+       and the now-real fd2_restore_dialog_area_from_buffer ran (4x during the
+       slide) reading from that same buffer without faulting */
     ASSERT_TRUE(data_fd2_dialog_area_backup_buffer != NULL);
-    ASSERT_EQ(g_restore_dialog_area_calls, 4);
     ASSERT_EQ((long)g_blitsetup_dst, (long)expect_dst);
     ASSERT_EQ((long)g_blitsetup_sprite, (long)expect_sprite);
     ASSERT_EQ(g_blitsetup_stride, 0x1C8u);

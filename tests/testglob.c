@@ -312,13 +312,8 @@ void fd2_blit_sprite_with_stride_setup(uint32 d, uint32 s, uint32 st)
     g_blitsetup_stride = st;
     g_blitsetup_calls++;
 }
-/* fd2_restore_dialog_area_from_buffer (real body not yet emitted): the
- * settings-dialog close path restores the snapshotted dialog region. No
- * host-observable seam needed for the open-dialog tests, so this is a
- * recording no-op. (fd2_backup_dialog_area_to_buffer now has a real body in
- * src/dialog/dialog.c.) */
-int g_restore_dialog_area_calls = 0;
-void fd2_restore_dialog_area_from_buffer(void) { g_restore_dialog_area_calls++; }
+/* fd2_restore_dialog_area_from_buffer now has a real body in
+ * src/dialog/dialog.c (inverse of fd2_backup_dialog_area_to_buffer). */
 uint32 g_saveblk_out, g_saveblk_w, g_saveblk_h, g_saveblk_dst,
        g_saveblk_src, g_saveblk_stride;
 int    g_saveblk_calls = 0;

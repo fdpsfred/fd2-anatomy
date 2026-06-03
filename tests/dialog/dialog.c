@@ -841,6 +841,87 @@ static void test_backup_frees_prior_buffer(void)
     data_fd2_large_game_state_buffer_ptr = 0;
 }
 
+/*
+ * fd2_restore_dialog_area_from_buffer is the inverse of the backup: it copies
+ * the 0x48 x 0x48 backup buffer (data_fd2_dialog_area_backup_buffer, dest-row
+ * stride 0x48) back into the working framebuffer at anchor
+ * 0x8088 + (cx-1)*0x18 + (cy-1)*0x2AC0 with working-buffer row stride 0x1C8.
+ * The backup buffer is filled so cell[row*0x48+col] == low byte of its own
+ * index, letting us recompute every expected framebuffer byte independently.
+ * The working buffer is pre-cleared to a sentinel so we can also confirm the
+ * function touches ONLY the 0x48x0x48 destination cells and nothing else.
+ */
+static void test_restore_writes_region(void)
+{
+    uint8 *work;
+    uint8 *backup;
+    uint32 work_size;
+    uint32 anchor;
+    uint32 i;
+    int    row;
+    int    col;
+    int    ok;
+    int    untouched_ok;
+    uint32 cx;
+    uint32 cy;
+
+    work_size = 0x20000;
+    work = (uint8 *)malloc(work_size);
+    ASSERT_TRUE(work != NULL);
+    memset(work, 0xEE, work_size);   /* sentinel for "untouched" */
+
+    backup = (uint8 *)malloc(0x1440);  /* 0x48 * 0x48 */
+    ASSERT_TRUE(backup != NULL);
+    for (i = 0; i < 0x1440; i++) {
+        backup[i] = (uint8)(i & 0xFF);
+    }
+
+    cx = 2;
+    cy = 3;
+    data_fd2_large_game_state_buffer_ptr = (uint32)work;
+    data_fd2_battle_cursor_screen_x = cx;
+    data_fd2_battle_cursor_screen_y = cy;
+    data_fd2_dialog_area_backup_buffer = backup;
+
+    anchor = 0x8088 + (cx - 1) * 0x18 + (cy - 1) * 0x2AC0;
+    ASSERT_TRUE(anchor + 0x47 * 0x1C8 + 0x48 <= work_size);
+
+    fd2_restore_dialog_area_from_buffer();
+
+    /* every dest cell: work[anchor+row*0x1C8+col] == backup[row*0x48+col] */
+    ok = 1;
+    for (row = 0; row < 0x48; row++) {
+        for (col = 0; col < 0x48; col++) {
+            uint8 got = work[anchor + (uint32)row * 0x1C8 + (uint32)col];
+            uint8 exp = backup[row * 0x48 + col];
+            if (got != exp) {
+                ok = 0;
+            }
+        }
+    }
+    ASSERT_TRUE(ok);
+
+    /* the gap byte just past each copied row must remain the sentinel,
+       proving the per-row copy length is exactly 0x48 (not the 0x1C8 stride) */
+    untouched_ok = 1;
+    for (row = 0; row < 0x47; row++) {
+        if (work[anchor + (uint32)row * 0x1C8 + 0x48] != 0xEE) {
+            untouched_ok = 0;
+        }
+    }
+    ASSERT_TRUE(untouched_ok);
+
+    /* spot-check extreme corners against the raw formula */
+    ASSERT_EQ((long)work[anchor], (long)(uint8)0);
+    ASSERT_EQ((long)work[anchor + 0x47 * 0x1C8 + 0x47],
+              (long)(uint8)((0x47 * 0x48 + 0x47) & 0xFF));
+
+    free(backup);
+    data_fd2_dialog_area_backup_buffer = (void *)0;
+    free(work);
+    data_fd2_large_game_state_buffer_ptr = 0;
+}
+
 void run_dialog_dialog_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -865,5 +946,6 @@ void run_dialog_dialog_tests(void)
     RUN_TEST(test_scroll_no_portrait_is_noop);
     RUN_TEST(test_backup_snapshots_region);
     RUN_TEST(test_backup_frees_prior_buffer);
+    RUN_TEST(test_restore_writes_region);
     printf("\n");
 }

@@ -738,3 +738,37 @@ void fd2_cinematic_scroll_text_up_for_special_scenes(void)
         memset((void *)(fb_offset + 0x5a00), 0x4a, 0xd0);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_restore_dialog_area_from_buffer @ 0x17643 (2 callers)
+ *
+ * Inverse of fd2_backup_dialog_area_to_buffer. Copies the saved
+ * 0x48 x 0x48 pixel patch from data_fd2_dialog_area_backup_buffer
+ * back into the working framebuffer at the cursor corner, restoring
+ * the background that was hidden by an overlaid settings / status
+ * dialog.
+ *
+ * Destination anchor: large_game_state_buffer + 0x8088, offset by
+ * (cursor_screen_x - 1) tile-columns (0x18 px each) and
+ * (cursor_screen_y - 1) tile-rows (0x2AC0 bytes each).
+ * Working-buffer row stride is 0x1C8.
+ *
+ * Callers: fd2_open_settings_dialog_with_slide,
+ *          fd2_close_settings_dialog_with_slide.
+ * ---------------------------------------------------------------- */
+void fd2_restore_dialog_area_from_buffer(void)
+{
+    uint32 dst_row_ptr;
+    uint32 row;
+
+    dst_row_ptr = (data_fd2_battle_cursor_screen_x - 1) * 0x18 +
+                  data_fd2_large_game_state_buffer_ptr + 0x8088 +
+                  (data_fd2_battle_cursor_screen_y - 1) * 0x2AC0;
+
+    for (row = 0; (int32)row < 0x48; row++) {
+        memmove((void *)dst_row_ptr,
+                (void *)(row * 0x48 + (uint32)data_fd2_dialog_area_backup_buffer),
+                0x48);
+        dst_row_ptr += 0x1C8;
+    }
+}
