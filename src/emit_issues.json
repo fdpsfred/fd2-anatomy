@@ -350,5 +350,23 @@
         "verify_method": "manual_disasm_decomp"
       }
     ]
+  },
+  "00010010": {
+    "name": "fd2_load_save_and_init_engine",
+    "target": "src/life/main.c",
+    "issues": [
+      {
+        "type": "test_deferral_note",
+        "desc": "checksum-mismatch arm 的單元測試延後到 Phase 9 integration。該 arm 在 fd2_save_compute_checksum(pBuf,0x59CB) != *(uint*)(pBuf+0x59C7) 時呼叫 fd2_load_chapter_portrait / fd2_display_dialog_scene / fd2_paint_portrait_to_dialog_area / fd2_wait_for_input_dialog_with_blink / fd2_close_status_screen_with_slide_out。其中 fd2_wait_for_input_dialog_with_blink 是 real linked function（src/input/input.c），內含 while(fd2_check_keyboard_buffer_nonempty()==0){...} busy-wait 等待鍵盤輸入，在 silent 自動化 harness 無輸入時會無限 hang（已用 bisection 證實）。該 arm 只多一個 error dialog（display + blocking input）後 fall-through 回到與 match 路徑相同的 restore，已由 test_load_save_restores_scalar_state / test_load_save_cinematic_loop_counts 涵蓋。",
+        "severity": "info",
+        "verify_method": "phase9_integration_with_scripted_input"
+      },
+      {
+        "type": "test_coverage_note",
+        "desc": "已單元測試（風險導向）：scalar restore（chapter/party/turn/gold/cursor/view-origin/audio flags 全部從 save header tail 還原）、tile-map width/height 與 portrait-cache header（tile_event[1]/[2]）的 derived state、portrait-rebuild loop call count、兩段 cinematic loop 的 frame 計數（含 zoom loop 的 i==5->i=9 skip = 9+4=13 alloc/cleanup）、結尾 anim_phase=1 / current_active_char_idx=0。純 blit/display 副作用（實際像素輸出）依風險導向政策延後 Phase 9。fixture 在 C:\\(=src mount) 寫 FD2.SAV/FDICON.B24/FD2.TMP 後 teardown remove，並還原所有被 load 改動的 globals。",
+        "severity": "info",
+        "verify_method": "unit_tested"
+      }
+    ]
   }
 }

@@ -9,6 +9,7 @@
 #include "globals.h"
 #include "protos.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 #define USE_ITEM_ID 10
 
@@ -64,6 +65,131 @@ extern int g_cast_status_via_d1b_calls;
 extern int g_repaint_settings_calls;
 extern int g_repaint_flip_buffer_after;
 
+/* fd2_load_save_and_init_engine leaf-helper recorders (testglob.c) */
+extern uint32 g_load_save_checksum_return;
+extern int g_load_portrait_calls;
+extern int g_alloc_blit_calls;
+extern uint32 g_alloc_blit_last_idx;
+extern int g_cleanup_sprite_calls;
+
+/* buffers staged by the fixture, freed by teardown */
+static void *g_ls_roster_buf;
+static void *g_ls_consumed_buf;
+static void *g_ls_tilemap_buf;
+
+/* ----------------------------------------------------------------
+ * fd2_load_save_and_init_engine fixture
+ *
+ * The real function fopens/freads FD2.SAV + FDICON.B24 and fwrites
+ * FD2.TMP, then memmoves restored state out of the save buffer into
+ * engine globals. Write a deterministic FD2.SAV on disk and point all
+ * engine pointer-globals at valid buffers so the real function runs
+ * end-to-end without faulting. checksum_match selects whether the
+ * faked checksum equals the value stored at save tail +0x59C7.
+ * ---------------------------------------------------------------- */
+static void setup_load_save_fixture(int chapter_id, int party_count,
+                                    int checksum_match)
+{
+    uint8 *sav;
+    uint8 *tilemap;
+    FILE *fp;
+
+    /* destination buffers the function memmoves into / reads from */
+    g_ls_roster_buf = malloc(0xA00);
+    g_ls_consumed_buf = malloc(0x20);
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_ls_roster_buf;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ls_consumed_buf;
+    tilemap = (uint8 *)malloc(8);
+    g_ls_tilemap_buf = tilemap;
+    /* width=height=0: the real fd2_tick_tile_event_animations (linked, not
+     * faked) iterates width*height tiles over real tile data we do not
+     * stage here, so keep the map empty to make that loop a safe no-op. */
+    tilemap[0] = 0x00; tilemap[1] = 0x00;   /* map width  = 0 */
+    tilemap[2] = 0x00; tilemap[3] = 0x00;   /* map height = 0 */
+    data_fd2_battle_tile_map_ptr = (uint32)tilemap;
+
+    /* these are freed-if-nonzero then re-malloc'd by the function;
+     * NULL/0 them so it does not free a static/stale pointer */
+    data_fd2_battle_runtime_char_array_ptr = NULL;
+    data_fd2_tile_event_data_table_ptr = 0;
+    portrait_sprite_cache = 0;
+    chapter_portrait_load_buffer = 0;
+
+    /* build the on-disk FD2.SAV (0x59CB bytes) */
+    sav = (uint8 *)malloc(0x59CB);
+    memset(sav, 0, 0x59CB);
+    sav[0] = 0x00;                 /* tile_event[0] -> scene_id            */
+    sav[1] = 0x11;                 /* tile_event[1] -> cache_total_size    */
+    sav[2] = 0x22;                 /* tile_event[2] -> cache_alloc_offset  */
+    sav[0x30C3] = 7;               /* turn_counter                        */
+    sav[0x30C4] = (uint8)party_count;
+    sav[0x30C5] = (uint8)chapter_id;
+    sav[0x30C6] = 0x12;            /* view_window_origin_x                */
+    sav[0x30C7] = 0x34;            /* view_window_origin_y                */
+    sav[0x30C8] = 0x56;            /* cursor_world_x                      */
+    sav[0x30C9] = 0x78;            /* cursor_world_y                      */
+    sav[0x30CA] = 0x9A;            /* cursor_screen_x                     */
+    sav[0x30CB] = 0xBC;            /* cursor_screen_y                     */
+    sav[0x30CC] = 3;               /* menu_party_member_count             */
+    *(uint32 *)(sav + 0x30CD) = 0x4321;   /* party_total_gold            */
+    sav[0x30D1] = 1;               /* game_speed_flag                     */
+    sav[0x30D2] = 1;               /* terrain_hud_user_enabled            */
+    sav[0x30D3] = 1;               /* bgm_enabled_flag                    */
+    sav[0x30D4] = 0;               /* sfx_enabled_flag                    */
+    *(uint32 *)(sav + 0x59C7) = 0xDEADBEEF;   /* stored checksum         */
+    g_load_save_checksum_return = checksum_match ? 0xDEADBEEF : 0x0;
+
+    fp = fopen("FD2.SAV", "wb");
+    fwrite(sav, 1, 0x59CB, fp);
+    fclose(fp);
+    free(sav);
+
+    /* FDICON.B24 only needs to exist so fopen()/fclose() succeed */
+    fp = fopen("FDICON.B24", "wb");
+    fclose(fp);
+
+    g_load_portrait_calls = 0;
+    g_alloc_blit_calls = 0;
+    g_cleanup_sprite_calls = 0;
+    g_alloc_blit_last_idx = 0;
+}
+
+/* Free fixture buffers and restore every global the load touched back to its
+ * testglob.c default so later suites are not contaminated. */
+static void teardown_load_save_fixture(void)
+{
+    /* the function re-malloc'd these two; free its buffers */
+    if (data_fd2_battle_runtime_char_array_ptr != NULL)
+        free(data_fd2_battle_runtime_char_array_ptr);
+    if (data_fd2_tile_event_data_table_ptr != 0)
+        free((void *)data_fd2_tile_event_data_table_ptr);
+    if (portrait_sprite_cache != 0)
+        free((void *)portrait_sprite_cache);
+    if (chapter_portrait_load_buffer != 0)
+        free((void *)chapter_portrait_load_buffer);
+    free(g_ls_roster_buf);
+    free(g_ls_consumed_buf);
+    free(g_ls_tilemap_buf);
+
+    /* restore testglob.c defaults */
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_shared_menu_party_roster_buffer_ptr = 0;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
+    data_fd2_battle_tile_map_ptr = 0;
+    data_fd2_tile_event_data_table_ptr = 0;
+    portrait_sprite_cache = 0;
+    chapter_portrait_load_buffer = 0;
+    battle_scene_snapshot = 0;
+    current_chapter_text = 0;
+    data_fd2_battle_map_width_tiles = 20;
+    data_fd2_battle_map_height_tiles = 15;
+
+    remove("FD2.SAV");
+    remove("FDICON.B24");
+    remove("FD2.TMP");
+}
+
 
 /* ---- Test: fd2_score_spell_candidate ---- */
 
@@ -85,10 +211,80 @@ static void test_main_menu_new_game(void)
 static void test_main_menu_fallback(void)
 {
     int r;
+    /* menu_choice==2 routes to the real fd2_load_save_and_init_engine();
+     * stage its file + buffer fixtures so it runs without faulting. */
+    setup_load_save_fixture(3, 2, 1);
     g_ending_menu_return = 2;
     r = fd2_main_menu_continue_dispatcher();
     ASSERT_EQ((long)r, 0);
+    teardown_load_save_fixture();
 }
+
+
+/* ---- Test: fd2_load_save_and_init_engine ---- */
+
+static void test_load_save_restores_scalar_state(void)
+{
+    setup_load_save_fixture(3, 2, 1);
+    data_fd2_battle_anim_phase = 0xFF;
+    data_fd2_battle_current_active_char_idx = 0xFF;
+
+    fd2_load_save_and_init_engine();
+
+    /* scalar engine state restored from the save header tail */
+    ASSERT_EQ((long)data_fd2_chapter_current_chapter_id, 3);
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 2);
+    ASSERT_EQ((long)data_fd2_battle_turn_counter, 7);
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_x, 0x12);
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_y, 0x34);
+    ASSERT_EQ((long)data_fd2_battle_cursor_world_x, 0x56);
+    ASSERT_EQ((long)data_fd2_battle_cursor_world_y, 0x78);
+    ASSERT_EQ((long)data_fd2_battle_cursor_screen_x, 0x9A);
+    ASSERT_EQ((long)data_fd2_battle_cursor_screen_y, 0xBC);
+    ASSERT_EQ((long)data_fd2_shared_menu_party_member_count, 3);
+    ASSERT_EQ((long)data_fd2_shared_party_total_gold, 0x4321);
+    ASSERT_EQ((long)data_fd2_ui_game_speed_flag, 1);
+    ASSERT_EQ((long)data_fd2_ui_terrain_hud_user_enabled, 1);
+    ASSERT_EQ((long)data_fd2_audio_bgm_enabled_flag, 1);
+    ASSERT_EQ((long)data_fd2_audio_sfx_enabled_flag, 0);
+
+    /* derived state from tile-map + tile-event header */
+    ASSERT_EQ((long)data_fd2_battle_map_width_tiles, 0);
+    ASSERT_EQ((long)data_fd2_battle_map_height_tiles, 0);
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_total_size, 0x11);
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_alloc_offset, 0x22);
+
+    /* end-of-routine engine flags */
+    ASSERT_EQ((long)data_fd2_battle_anim_phase, 1);
+    ASSERT_EQ((long)data_fd2_battle_current_active_char_idx, 0);
+
+    /* portrait cache rebuilt once per party member */
+    ASSERT_EQ((long)g_load_portrait_calls, 2);
+    teardown_load_save_fixture();
+}
+
+
+static void test_load_save_cinematic_loop_counts(void)
+{
+    setup_load_save_fixture(1, 1, 1);
+
+    fd2_load_save_and_init_engine();
+
+    /* intro loop = 9 frames; zoom loop = i 2,3,4 then 5->9 = 4 frames;
+     * total 13 alloc/blit + matching cleanup calls (validates the
+     * i==5 -> i=9 skip in the zoom loop) */
+    ASSERT_EQ((long)g_alloc_blit_calls, 13);
+    ASSERT_EQ((long)g_cleanup_sprite_calls, 13);
+    teardown_load_save_fixture();
+}
+
+/* NOTE: the checksum-mismatch arm (fd2_save_compute_checksum result !=
+ * stored tail) is intentionally NOT unit-tested. It calls the real,
+ * linked fd2_wait_for_input_dialog_with_blink(), which busy-waits for a
+ * keypress and therefore hangs forever in the silent automated harness.
+ * That arm only differs by an error-dialog (display + blocking input)
+ * and then falls through to the same restore path covered above; its
+ * coverage is deferred to Phase 9 integration. See src/emit_issues.json. */
 
 
 static void test_main_menu_continue_quit(void)
@@ -108,5 +304,7 @@ void run_life_main_tests(void)
     RUN_TEST(test_main_menu_new_game);
     RUN_TEST(test_main_menu_fallback);
     RUN_TEST(test_main_menu_continue_quit);
+    RUN_TEST(test_load_save_restores_scalar_state);
+    RUN_TEST(test_load_save_cinematic_loop_counts);
     printf("\n");
 }

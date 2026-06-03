@@ -252,9 +252,12 @@ int  AIL_init_sequence(uint32 seq, uint32 xmi_data, int seq_idx);
 void AIL_start_sequence(uint32 seq);
 void AIL_set_sequence_loop_count(uint32 seq, uint32 count);
 uint32 fd2_load_dat_resource(uint32 fname, uint32 buf, uint32 idx);
+uint32 fd2_save_compute_checksum(uint32 buf, uint32 size);
+int  fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp);
 
 /* ---- chapter / battle init ---- */
 void fd2_load_chapter_battle_data(uint32 chapter_id);
+void fd2_load_chapter_background_layers(void);
 void fd2_play_palette_fade_in(void);
 void fd2_play_palette_fade_to_black(void);
 void fd2_init_battle_state_for_chapter(void);
@@ -293,6 +296,9 @@ void fd2_paint_cursor_overlay_pattern(void);
 void fd2_composite_all_chars_overlay(void);
 void fd2_render_terrain_info_hud_panel(uint32 buf, uint32 stride);
 void fd2_blit_rectangle(uint32 dst, uint32 dstride, uint32 src, uint32 sstride, uint32 w, uint32 h);
+uint32 fd2_alloc_and_blit_indexed_sprite_chunk(uint32 sheet_ptr, uint32 dst, uint32 stride, uint32 h, uint32 row, uint32 idx);
+void fd2_render_decimal_number_to_buffer(uint32 dst, uint32 stride, uint32 value, uint32 x, uint32 digits);
+void fd2_cleanup_dialog_sprite_buffer(uint32 saved_block, uint32 dst, uint32 stride);
 void fd2_repaint_settings_dialog_borders(uint32 state, uint32 arr);
 int fd2_wait_input_with_dialog_repaint(uint32 menu_state, uint32 pSlot_disable_arr);
 void fd2_wait_input_with_status_panel_repaint(uint32 char_idx);
@@ -311,6 +317,9 @@ void fd2_debug_print_ans_and_length(int value);
 uint32 fd2_set_word_global_52758(uint32 new_val);
 uint32 fd2_set_word_global_5275c(uint32 new_val);
 void fd2_noop_stub_4e915(void);
+
+/* ---- crt thunks ---- */
+void __delay_thunk_375b2(uint32 ticks);
 
 /* ---- util / dpmi ---- */
 int fd2_dpmi_alloc_dos_memory(uint32 paragraphs, uint32 *out_linear, uint32 *out_segment, uint32 *out_selector);

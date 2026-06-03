@@ -54,7 +54,10 @@ extern uint32 data_fd2_battle_ai_best_physical_score;                   /* 0x53C
 /* ---- battle tile map ---- */
 extern uint32 data_fd2_battle_tile_map_ptr;                             /* 0x53A51 */
 extern uint32 data_fd2_tile_event_data_table_ptr;                       /* 0x53A55 */
+extern uint32 chapter_portrait_load_buffer;                             /* 0x53A59 */
+extern uint32 battle_scene_snapshot;                                    /* 0x53A5D */
 extern uint32 data_fd2_tile_attribute_flags_buffer_ptr;                 /* 0x53A69 */
+extern uint32 current_chapter_text;                                     /* 0x53A79 */
 
 /* ---- cursor & map viewport ---- */
 extern uint32 data_fd2_battle_view_window_origin_x;                     /* 0x53AA9 */
@@ -138,11 +141,21 @@ extern uint32 data_fd2_chinese_font_sheet;                              /* 0x53A
 /* ---- resource filename strings (.object2 const) ---- */
 extern char   data_fd2_string_resource_filename_fdtxt_dat[];            /* 0x51A43  "FDTXT.DAT" */
 extern char   data_fd2_string_resource_filename_fdother_dat[];          /* 0x51A4D  "FDOTHER.DAT" */
+extern char   data_fd2_string_resource_filename_fdfield_dat_51a59[];    /* 0x51A59  "FDFIELD.DAT" */
+extern char   data_fd2_string_resource_filename_fdshap_dat_51a65[];     /* 0x51A65  "FDSHAP.DAT" */
+
+/* ---- save/load OOM message strings (.object2 const, 3 cross-.obj copies) ---- */
+extern char   data_fd2_string_save_load_oom_msg_load_pbuf_50004[];      /* 0x50004  " Out of Memory !!!\n" */
+extern char   data_fd2_string_save_load_oom_msg_tile_event_50023[];     /* 0x50023  " Out of Memory !!!\n" */
+extern char   data_fd2_string_save_load_oom_msg_runtime_char_50037[];   /* 0x50037  " Out of Memory !!!\n" */
 
 /* ---- resource / portrait cache ---- */
 extern uint32 data_fd2_resource_portrait_cache_buffer_used;             /* 0x539EC */
 extern uint32 data_fd2_resource_portrait_sheet_ptr;                     /* 0x53AD1 */
 extern uint32 data_fd2_resource_portrait_cache_count;                   /* 0x53BDF */
+extern uint32 data_fd2_resource_portrait_cache_alloc_offset;            /* 0x53BE3 */
+extern uint32 data_fd2_resource_portrait_cache_total_size;              /* 0x53BE7 */
+extern uint32 portrait_sprite_cache;                                    /* 0x53A61 */
 extern uint8  data_fd2_resource_portrait_cache_id_list_base[40];        /* 0x53B17 */
 extern uint32 data_fd2_resource_last_loaded_resource_size;              /* 0x53BFF */
 extern uint32 data_fd2_field_map_tile_event_consumed_flags_ptr;         /* 0x53AD5 */

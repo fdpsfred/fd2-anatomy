@@ -3,6 +3,7 @@
  */
 #include "types.h"
 #include "globals.h"
+#include <stdlib.h>
 
 runtime_char  g_test_rc_array[8];
 runtime_char *data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
@@ -34,6 +35,11 @@ uint8  data_fd2_audio_sfx_driver_available_flag = 0;
 uint8  data_fd2_audio_sfx_enabled_flag = 0;
 char   data_fd2_string_resource_filename_fdtxt_dat[] = "FDTXT.DAT";
 char   data_fd2_string_resource_filename_fdother_dat[] = "FDOTHER.DAT";
+char   data_fd2_string_resource_filename_fdfield_dat_51a59[] = "FDFIELD.DAT";
+char   data_fd2_string_resource_filename_fdshap_dat_51a65[] = "FDSHAP.DAT";
+char   data_fd2_string_save_load_oom_msg_load_pbuf_50004[] = " Out of Memory !!!\n";
+char   data_fd2_string_save_load_oom_msg_tile_event_50023[] = " Out of Memory !!!\n";
+char   data_fd2_string_save_load_oom_msg_runtime_char_50037[] = " Out of Memory !!!\n";
 uint32 data_fd2_shared_party_total_gold = 0;
 uint32 data_fd2_shared_menu_party_roster_buffer_ptr = 0;
 uint32 data_fd2_shared_menu_party_member_count = 0;
@@ -53,6 +59,14 @@ uint32 data_fd2_battle_tile_map_ptr = 0;
 uint32 data_fd2_battle_party_member_count = 4;
 uint32 data_fd2_tile_attribute_flags_buffer_ptr = 0;
 uint32 data_fd2_tile_event_data_table_ptr = 0;
+uint32 chapter_portrait_load_buffer = 0;
+uint32 battle_scene_snapshot = 0;
+uint32 current_chapter_text = 0;
+uint32 portrait_sprite_cache = 0;
+uint32 data_fd2_resource_portrait_cache_count = 0;
+uint32 data_fd2_resource_portrait_cache_total_size = 0;
+uint32 data_fd2_resource_portrait_cache_alloc_offset = 0;
+uint32 data_fd2_battle_current_active_char_idx = 0;
 uint8  data_fd2_audio_bgm_last_set_track_id = 0xFF;
 uint8  data_fd2_audio_bgm_enabled_flag = 1;
 uint8  data_fd2_audio_per_chapter_player_turn_bgm_track[30] = {0};
@@ -183,7 +197,37 @@ int fd2_save_slot_selector_ui(uint32 b, uint32 m) { (void)b; (void)m; return g_s
 void fd2_close_intro_dialog_with_slide_out(void) { }
 int g_chapter_transition_return = 0;
 int fd2_chapter_transition_menu(void) { return g_chapter_transition_return; }
-void fd2_load_save_and_init_engine(void) { }
+
+/* ---- fd2_load_save_and_init_engine leaf helper fakes ----
+ * (the real fd2_load_save_and_init_engine now lives in src/life/main.c) */
+uint32 g_load_save_checksum_return = 0;
+uint32 fd2_save_compute_checksum(uint32 b, uint32 s)
+{ (void)b; (void)s; return g_load_save_checksum_return; }
+void fd2_load_chapter_background_layers(void) { }
+int g_load_portrait_calls = 0;
+int fd2_load_portrait_to_cache(uint32 pid, uint32 fp)
+{
+    (void)pid; (void)fp;
+    g_load_portrait_calls++;
+    /* mirror real behaviour: ensure the portrait sprite cache exists so the
+     * subsequent fwrite(portrait_sprite_cache, 0x32A00) has a valid buffer */
+    if (portrait_sprite_cache == 0)
+        portrait_sprite_cache = (uint32)malloc(0x32A00);
+    return 0;
+}
+int g_alloc_blit_calls = 0;
+uint32 g_alloc_blit_last_idx = 0;
+uint32 fd2_alloc_and_blit_indexed_sprite_chunk(uint32 sheet, uint32 dst,
+    uint32 stride, uint32 h, uint32 row, uint32 idx)
+{ (void)sheet; (void)dst; (void)stride; (void)h; (void)row;
+  g_alloc_blit_calls++; g_alloc_blit_last_idx = idx; return 0; }
+void fd2_render_decimal_number_to_buffer(uint32 dst, uint32 stride,
+    uint32 v, uint32 x, uint32 digits)
+{ (void)dst; (void)stride; (void)v; (void)x; (void)digits; }
+int g_cleanup_sprite_calls = 0;
+void fd2_cleanup_dialog_sprite_buffer(uint32 saved, uint32 dst, uint32 stride)
+{ (void)saved; (void)dst; (void)stride; g_cleanup_sprite_calls++; }
+void __delay_thunk_375b2(uint32 ticks) { (void)ticks; }
 int g_ail_vol_calls = 0;
 int g_ail_last_vol = 0;
 int g_ail_last_ramp = 0;

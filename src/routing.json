@@ -4,7 +4,8 @@
     "target": "life/main.c",
     "phase": 5,
     "done": false,
-    "asm": false
+    "asm": false,
+    "reviewed": true
   },
   "00010620": {
     "name": "fd2_check_keyboard_buffer_nonempty",
