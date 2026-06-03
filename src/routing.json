@@ -4616,7 +4616,8 @@
     "target": "table/table.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0004e56c": {
     "name": "fd2_get_item_effect_entry",
