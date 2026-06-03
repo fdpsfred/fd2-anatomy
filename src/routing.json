@@ -4624,7 +4624,8 @@
     "target": "table/table.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0004e583": {
     "name": "fd2_rle_blit_with_palette_remap",
