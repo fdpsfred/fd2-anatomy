@@ -460,8 +460,9 @@
     "name": "fd2_convert_battle_tiles_to_24px",
     "target": "battle/btl_init.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00013a44": {
     "name": "fd2_check_tile_event_post_action",

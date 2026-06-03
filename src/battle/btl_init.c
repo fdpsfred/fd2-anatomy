@@ -7,6 +7,8 @@
 #include "globals.h"
 #include "protos.h"
 #include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 /* ----------------------------------------------------------------
  * fd2_init_battle_state_for_chapter @ 0x205DA
@@ -378,4 +380,58 @@ void fd2_set_chapter_init_done_flag(void)
 void fd2_set_battle_anim_phase_to_1(void)
 {
     data_fd2_battle_anim_phase = 1;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_convert_battle_tiles_to_24px @ 0x1399C  (2 callers)
+ *
+ * Convert battle_scene_snapshot's encoded tile data into a packed
+ * 24x24 8bpp tile bank, returning the freshly allocated buffer.
+ *
+ * Layout of battle_scene_snapshot consumed here:
+ *   +4  : uint16 tile_count
+ *   +6  : int32[tile_count] offset table (each entry is a byte offset
+ *         from snapshot base to that tile's RLE stream)
+ *
+ * Output bank layout (6-byte header + tile_count * 0x240 tile bytes):
+ *   +0  : uint16 sprite width  = 24
+ *   +2  : uint16 sprite height = 24
+ *   +4  : uint16 tile_count
+ *   +6  : tile_count packed tiles, 0x240 (= 24*24) bytes each
+ *
+ * Each tile is decoded by fd2_tile_blit_24x24_passthrough from its
+ * RLE source into its 24x24 cell. On malloc failure the original
+ * tail-JMPs into _main's shared printf("%s")+exit(1) error path.
+ *
+ * Callers (need the unpacked tile bank for cinematic effects):
+ *   fd2_cast_earthquake_spell_with_screen_shake @ 0x21548
+ *   fd2_open_tactical_overview_zoom @ 0x2000A
+ * ---------------------------------------------------------------- */
+void *fd2_convert_battle_tiles_to_24px(void)
+{
+    uint16  tile_count;
+    uint8  *bank;
+    int     i;
+
+    tile_count = *(uint16 *)(battle_scene_snapshot + 4);
+    bank = (uint8 *)malloc(tile_count * 0x240 + 6);
+    if (bank == (uint8 *)0) {
+        printf("Out of memory at rease shape !!!\n");
+        exit(1);
+    }
+
+    *(uint16 *)(bank + 0) = 0x18;
+    *(uint16 *)(bank + 2) = 0x18;
+    *(uint16 *)(bank + 4) = tile_count;
+    memset(bank + 6, 0, tile_count * 0x240);
+
+    for (i = 0; i < (int)tile_count; i = i + 1) {
+        fd2_tile_blit_24x24_passthrough(
+            (uint32)(*(int32 *)(battle_scene_snapshot + 6 + i * 4)
+                     + battle_scene_snapshot),
+            (uint32)(bank + i * 0x240 + 6),
+            0x18);
+    }
+
+    return bank;
 }
