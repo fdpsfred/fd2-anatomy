@@ -4592,7 +4592,8 @@
     "target": "table/table.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0004e52d": {
     "name": "fd2_get_attack_anim_pattern_for_weapon",
