@@ -37,8 +37,34 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TESTS_DIR = REPO_ROOT / "tests"
 OUT_DIR = TESTS_DIR / "OUT"
+OBJ_DIR = OUT_DIR / "obj"          # compile intermediates (.obj)
 CONF = TESTS_DIR / "dosbox.conf"
 DRIVE_DIR = REPO_ROOT / "workspace" / "emit_drive"
+GAME_DIR = REPO_ROOT / "fd2_game_files"
+
+# Real game files staged into tests/OUT (= TEST.EXE's cwd) so the resource
+# loaders' bare-name fopen() reads the genuine bytes. Per project owner: check
+# presence and copy from fd2_game_files/ only when missing/stale — no DOSBox
+# mount. tests/OUT is gitignored, so src/ stays clean.
+GAME_FILES = ["FDICON.B24", "FDFIELD.DAT", "FDSHAP.DAT", "FDOTHER.DAT",
+              "FDTXT.DAT", "FDMUS.DAT", "FD2.SAV"]
+
+
+def stage_game_files():
+    """Copy each real game file into tests/OUT iff absent or wrong size (a wrong
+    size means a test left a fabricated stand-in behind — replace it)."""
+    staged, missing_src = [], []
+    for n in GAME_FILES:
+        src = GAME_DIR / n
+        dst = OUT_DIR / n
+        if not src.is_file():
+            missing_src.append(n)
+            continue
+        if dst.is_file() and dst.stat().st_size == src.stat().st_size:
+            continue
+        shutil.copyfile(src, dst)
+        staged.append(n)
+    return staged, missing_src
 
 
 def find_out(name):
@@ -77,17 +103,29 @@ def main():
         raise SystemExit("dosbox.conf not found: %s" % CONF)
     DRIVE_DIR.mkdir(parents=True, exist_ok=True)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
+    OBJ_DIR.mkdir(parents=True, exist_ok=True)
 
     dosbox = resolve_dosbox()
 
-    # clean OUT/ so the polled DONE.TXT is unambiguously from THIS run and the
-    # full rebuild has no stale .obj/.exe influence.
-    for p in OUT_DIR.iterdir():
+    # clean so the polled DONE.TXT is unambiguously from THIS run and the full
+    # rebuild has no stale influence: wipe OUT/obj entirely, and remove OUT root
+    # files EXCEPT the staged game files (large, kept across runs per stage policy).
+    for p in OBJ_DIR.iterdir():
         if p.is_file():
             try:
                 p.unlink()
             except OSError:
                 pass
+    keep = set(GAME_FILES)
+    for p in OUT_DIR.iterdir():
+        if p.is_file() and p.name not in keep:
+            try:
+                p.unlink()
+            except OSError:
+                pass
+
+    # stage real game files into tests/OUT (TEST.EXE's cwd) before launch.
+    staged_game, missing_game = stage_game_files()
 
     # launch DOSBox-X (non-blocking); build.bat ends with `exit` so DOSBox closes
     # ONLY when the batch completes. Empirically (tools/hangprobe): a normal run
@@ -205,6 +243,8 @@ def main():
         "done": done,
         "failure_mode": failure_mode,
         "hung_test": hung_test,
+        "staged_game_files": staged_game,
+        "missing_game_files": missing_game,
         "elapsed_sec": elapsed,
         "changed": args.changed,
         "error_count": len(errors),

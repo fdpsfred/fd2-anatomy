@@ -30,7 +30,9 @@ SRC = ROOT / 'src'
 # line limit); dosbox.conf's [autoexec] just mounts + sets env + calls it. This
 # keeps the autoexec under DOSBox-X's buffer cap as the file count grows.
 RUN_RE = re.compile(r'^void (run_\w+_tests)\s*\(', re.M)
-SRC_LINE_RE = re.compile(r'WCC386\.EXE\s+(\S+\.c)\s+%CF%.*-fo=E:\\out\\(\w+)\.obj')
+# obj output lives in E:\out\obj\ (the `obj\` group is optional so a pre-reorg
+# build.bat still parses for existing obj-name/order preservation).
+SRC_LINE_RE = re.compile(r'WCC386\.EXE\s+(\S+\.c)\s+%CF%.*-fo=E:\\out\\(?:obj\\)?(\w+)\.obj')
 BAT = TESTS / 'build.bat'
 LNK = TESTS / 'test.lnk'
 TESTMAIN = TESTS / 'testmain.c'
@@ -104,35 +106,35 @@ def assign_objs(files, reserved):
 
 
 def gen_bat(test_files, test_objmap, src_list):
-    lines = BAT.read_text(encoding='utf-8').split('\n')
-    out, i, n = [], 0, len(lines)
-    while i < n:
-        out.append(lines[i])
-        if '=== compile src ===' in lines[i]:
-            for rel, obj in src_list:
-                out.append(r'D:\BIN\WCC386.EXE %s %%CF%% -fo=E:\out\%s.obj '
-                           r'>> E:\out\build.out' % (rel.replace('/', '\\'), obj))
-            out.append('')
-            i += 1
-            while i < n and '=== compile tests ===' not in lines[i]:
-                i += 1
-            continue
-        if '=== compile tests ===' in lines[i]:
-            out.append(r'D:\BIN\WCC386.EXE E:\testmain.c %CF% '
-                       r'-fo=E:\out\testmain.obj >> E:\out\build.out')
-            out.append(r'D:\BIN\WCC386.EXE E:\testglob.c %CF% '
-                       r'-fo=E:\out\testglob.obj >> E:\out\build.out')
-            for f in sorted(test_files, key=lambda x: x['rel']):
-                out.append(r'D:\BIN\WCC386.EXE E:\%s %%CF%% -fo=E:\out\%s.obj '
-                           r'>> E:\out\build.out'
-                           % (f['rel'].replace('/', '\\'), test_objmap[f['rel']]))
-            out.append('')
-            i += 1
-            while i < n and '=== link ===' not in lines[i]:
-                i += 1
-            continue
-        i += 1
-    return '\n'.join(out)
+    """Fully generated. Compile (cwd = C:\\ = src) writes every .obj to
+    E:\\out\\obj\\; link emits E:\\out\\TEST.EXE; the run then `cd \\out` on E:
+    so TEST.EXE's cwd is tests/OUT — the resource loaders' bare-name fopen()
+    (FDICON.B24 / *.DAT / FD2.SAV, staged into tests/OUT by build_test.py) and
+    the FD2.TMP output resolve there, keeping src/ clean."""
+    L = [r'echo === compile src === > E:\out\build.out']
+    for rel, obj in src_list:
+        L.append(r'D:\BIN\WCC386.EXE %s %%CF%% -fo=E:\out\obj\%s.obj '
+                 r'>> E:\out\build.out' % (rel.replace('/', '\\'), obj))
+    L.append('')
+    L.append(r'echo === compile tests === >> E:\out\build.out')
+    L.append(r'D:\BIN\WCC386.EXE E:\testmain.c %CF% '
+             r'-fo=E:\out\obj\testmain.obj >> E:\out\build.out')
+    L.append(r'D:\BIN\WCC386.EXE E:\testglob.c %CF% '
+             r'-fo=E:\out\obj\testglob.obj >> E:\out\build.out')
+    for f in sorted(test_files, key=lambda x: x['rel']):
+        L.append(r'D:\BIN\WCC386.EXE E:\%s %%CF%% -fo=E:\out\obj\%s.obj '
+                 r'>> E:\out\build.out'
+                 % (f['rel'].replace('/', '\\'), test_objmap[f['rel']]))
+    L.append('')
+    L.append(r'echo === link === >> E:\out\build.out')
+    L.append(r'D:\BIN\WLINK.EXE @E:\test.lnk >> E:\out\build.out')
+    L.append(r'echo === run === >> E:\out\build.out')
+    L.append('E:')
+    L.append(r'cd \out')
+    L.append('TEST.EXE > test.out')
+    L.append('echo done > done.txt')
+    L.append('exit')
+    return '\n'.join(L) + '\n'
 
 
 def gen_lnk(test_files, test_objmap, src_list):
@@ -142,11 +144,11 @@ def gen_lnk(test_files, test_objmap, src_list):
             header.append(ln)
     out = list(header)
     for _, obj in src_list:
-        out.append(r'file E:\out\%s.obj' % obj)
-    out.append(r'file E:\out\testmain.obj')
-    out.append(r'file E:\out\testglob.obj')
+        out.append(r'file E:\out\obj\%s.obj' % obj)
+    out.append(r'file E:\out\obj\testmain.obj')
+    out.append(r'file E:\out\obj\testglob.obj')
     for f in sorted(test_files, key=lambda x: x['rel']):
-        out.append(r'file E:\out\%s.obj' % test_objmap[f['rel']])
+        out.append(r'file E:\out\obj\%s.obj' % test_objmap[f['rel']])
     return '\n'.join(out) + '\n'
 
 
