@@ -4465,7 +4465,8 @@
     "target": "input/input.c",
     "phase": 1,
     "done": true,
-    "asm": true
+    "asm": true,
+    "reviewed": true
   },
   "0004e040": {
     "name": "fd2_init_movement_range_floodfill",
