@@ -19,12 +19,6 @@ extern uint32 g_tile_map_last_h;
 extern uint32 g_tile_map_last_ox;
 extern uint32 g_tile_map_last_oy;
 extern int    g_check_char_is_dead_return;
-/* fd2_blit_animated_tile_at_pos recording stub (testglob.c): the real shadow
- * overlay's per-tile redraw target. Records (buf, x, y) per call. */
-extern int    g_anim_tile_calls;
-extern uint32 g_anim_tile_buf[64];
-extern int32  g_anim_tile_x[64];
-extern int32  g_anim_tile_y[64];
 extern int    g_terrain_hud_calls;
 extern uint32 g_terrain_hud_last_buf;
 extern uint32 g_terrain_hud_last_stride;
@@ -53,7 +47,6 @@ static void reset_pipeline_record(void)
 {
     g_tile_map_calls = 0;
     g_blitpass_calls = 0;
-    g_anim_tile_calls = 0;
     g_check_char_is_dead_return = 0;   /* all party slots alive */
     g_terrain_hud_calls = 0;
     g_composite_call_count = 0;
@@ -65,8 +58,8 @@ static void reset_pipeline_record(void)
 
     /* fd2_composite_all_chars_overlay now calls the real per-char paint and the
      * real fd2_paint_chars_shadow_overlay; empty the party so both loops iterate
-     * zero times and the only recorded blit stays the single cursor-overlay one
-     * (and g_anim_tile_calls stays 0). */
+     * zero times and the only recorded passthrough blit stays the single
+     * cursor-overlay one. */
     data_fd2_battle_party_member_count = 0;
 
     /* throttle the real palette-cycle routine to its early-return path
@@ -125,6 +118,60 @@ static void recover_blit(int i, uint32 *x, uint32 *y, uint32 *s)
     *s = g_blitpass_src[i] - (uint32)g_sprite_atlas;
 }
 
+/* ----------------------------------------------------------------
+ * Tile-map fixture for the real fd2_blit_animated_tile_at_pos.
+ *
+ * The routine reads the tile id from the word at tile_meta_addr+4 and
+ * the cursor-overlay flag from the byte at tile_meta_addr+7, where
+ * tile_meta_addr = map_ptr + (y*W + x)*4. The +4/+7 read therefore
+ * lands in the FOLLOWING 4-byte slot, so filling every slot with
+ * {0x01, 0x00, 0x00, 0xFF} makes any cell resolve to tile id 1 with
+ * overlay flag 0xFF (no overlay -> plain passthrough branch).
+ *
+ * The tile-attribute buffer entry for tile id 1 (stride 4) carries the
+ * renderable bit 0x80 when `renderable` is set; bit 0x08 stays clear so
+ * no anim-flip occurs. With renderable set, every in-window (x, y) the
+ * shadow overlay asks to paint reaches the recording passthrough stub,
+ * and dst encodes (x, y) (recovered by recover_anim_tile). With
+ * renderable clear the routine reads attr then returns without blitting
+ * (used where only the *caller's* loop is under test). map width is
+ * fixed at 0x20 so (y*0x20 + x) covers every shadow-test coord. */
+#define ANIM_MAP_W      0x20
+#define ANIM_MAP_ROWS   0x20
+static uint8 g_anim_tile_map[ANIM_MAP_W * ANIM_MAP_ROWS * 4];
+static uint8 g_anim_attr_buf[64];
+static uint8 g_anim_scene_snapshot[64];
+
+static void install_anim_tile_map(int renderable)
+{
+    int i;
+
+    for (i = 0; i < ANIM_MAP_W * ANIM_MAP_ROWS; i++) {
+        g_anim_tile_map[i * 4 + 0] = 0x01;  /* slot k+1 low byte -> tile id 1 */
+        g_anim_tile_map[i * 4 + 1] = 0x00;
+        g_anim_tile_map[i * 4 + 2] = 0x00;
+        g_anim_tile_map[i * 4 + 3] = 0xFF;  /* slot k+1 byte 3 -> no overlay */
+    }
+    memset(g_anim_attr_buf, 0, sizeof(g_anim_attr_buf));
+    g_anim_attr_buf[1 * 4] = renderable ? 0x80 : 0x00;
+    memset(g_anim_scene_snapshot, 0, sizeof(g_anim_scene_snapshot));
+
+    data_fd2_battle_tile_map_ptr = (uint32)g_anim_tile_map;
+    data_fd2_battle_map_width_tiles = ANIM_MAP_W;
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)g_anim_attr_buf;
+    battle_scene_snapshot = (uint32)g_anim_scene_snapshot;
+    data_fd2_graphics_bg_anim_flip_flag = 0;
+}
+
+/* recover (x, y) of recorded anim-tile blit #i from its dst offset:
+ *   dst = buf + 0x8088 + (y-oy)*0x2AC0 + (x-ox)*0x18    (oy=ox=0 here) */
+static void recover_anim_tile(int i, uint32 buf, int32 *x, int32 *y)
+{
+    uint32 rel = g_blitpass_dst[i] - buf - 0x8088u;
+    *y = (int32)(rel / 0x2AC0u);
+    *x = (int32)((rel % 0x2AC0u) / 0x18u);
+}
+
 
 /*
  * Full pipeline with skip_palette_cycle == 0: every stage runs exactly once
@@ -160,9 +207,9 @@ static void test_composite_pipeline_args(void)
     ASSERT_EQ(g_tile_map_last_ox, 0x11u);
     ASSERT_EQ(g_tile_map_last_oy, 0x22u);
 
+    /* empty party -> real chars overlay + shadow overlay both paint nothing,
+     * so the single passthrough blit is the cursor overlay's */
     ASSERT_EQ(g_blitpass_calls, 1);
-    /* empty party -> real chars overlay + shadow overlay both paint nothing */
-    ASSERT_EQ(g_anim_tile_calls, 0);
 
     /* terrain HUD: (ws, 456) */
     ASSERT_EQ(g_terrain_hud_calls, 1);
@@ -203,7 +250,6 @@ static void test_composite_skip_palette_cycle(void)
     ASSERT_EQ(g_tile_map_calls, 1);
     ASSERT_EQ(g_tile_map_last_dst, ws);
     ASSERT_EQ(g_blitpass_calls, 1);
-    ASSERT_EQ(g_anim_tile_calls, 0);
     ASSERT_EQ(g_terrain_hud_calls, 1);
     ASSERT_EQ(g_composite_call_count, 1);
 }
@@ -583,9 +629,15 @@ static void reset_overlay_record(void)
 {
     int i;
 
-    g_anim_tile_calls = 0;
     g_check_char_is_dead_return = 0;
     reset_paint_window();
+    /* shadow overlay runs the real fd2_blit_animated_tile_at_pos for every
+     * char footprint tile; install a transparent tile-map (renderable bit
+     * clear) so those redraws read attr then return without a blit. This
+     * isolates g_blitpass_calls to the per-char paint loop, whose dst/order
+     * this test verifies; the shadow tile fan-out itself is covered by the
+     * dedicated fd2_paint_chars_shadow_overlay tests below. */
+    install_anim_tile_map(0);
     /* every slot in-window, not acted, awake, facing down, walk_phase 0.
      * slot i gets pos_x = 0x04 + i so the recovered x identifies the index. */
     for (i = 0; i < 8; i++) {
@@ -618,9 +670,9 @@ static void test_overlay_all_alive(void)
     for (i = 0; i < 5; i++) {
         ASSERT_EQ(recover_paint_index(i), (uint32)i);
     }
-    /* shadow overlay runs after the loop: each of the 5 alive chars (facing
-     * down, walk_phase 0) redraws its 2-tile base footprint = 10 anim blits */
-    ASSERT_EQ(g_anim_tile_calls, 10);
+    /* the shadow overlay also runs after the loop, but with the transparent
+     * tile-map its per-char tile redraws produce no blit; the shadow tile
+     * fan-out itself is verified in the dedicated shadow tests below. */
 }
 
 /* All party slots dead: every slot skipped, still exactly one shadow pass. */
@@ -632,9 +684,8 @@ static void test_overlay_all_dead(void)
 
     fd2_composite_all_chars_overlay();
 
+    /* shadow ran but every char is dead -> skipped, no per-char paint either */
     ASSERT_EQ(g_blitpass_calls, 0);
-    /* shadow ran but every char is dead -> skipped, no anim-tile redraw */
-    ASSERT_EQ(g_anim_tile_calls, 0);
 }
 
 /* Empty party (count == 0): loop body never runs; shadow pass still runs.
@@ -647,16 +698,17 @@ static void test_overlay_empty_party(void)
     fd2_composite_all_chars_overlay();
 
     ASSERT_EQ(g_blitpass_calls, 0);
-    ASSERT_EQ(g_anim_tile_calls, 0);
 }
 
 /* ----------------------------------------------------------------
  * fd2_paint_chars_shadow_overlay — per-char tile-trail redraw.
  *
- * Drives the real routine and asserts the exact (buf, x, y) sequence
- * the fd2_blit_animated_tile_at_pos recording stub receives, matching
- * the 0x129EC disassembly: base footprint at (x,y)+(x,y-1), then a
- * per-facing walk-trail tile only when sprite_state[2] (walk_phase)!=0.
+ * Drives the real routine and asserts the exact (x, y) sequence the real
+ * fd2_blit_animated_tile_at_pos paints, matching the 0x129EC disassembly:
+ * base footprint at (x,y)+(x,y-1), then a per-facing walk-trail tile only
+ * when sprite_state[2] (walk_phase) != 0. A renderable tile-map (all tiles
+ * id 1, attr 0x80, no cursor overlay) makes every requested tile resolve
+ * to a passthrough blit; (x, y) is recovered from the recorded dst offset.
  * ---------------------------------------------------------------- */
 #define SHADOW_BUF 0xCAFE1234u
 
@@ -674,18 +726,26 @@ static void setup_shadow_char(int slot, uint8 px, uint8 py, uint8 facing,
 
 static void reset_shadow_record(void)
 {
-    g_anim_tile_calls = 0;
+    g_blitpass_calls = 0;
     g_check_char_is_dead_return = 0;
     data_fd2_battle_party_member_count = 1;
     data_fd2_large_game_state_buffer_ptr = SHADOW_BUF;
+    data_fd2_battle_view_window_origin_x = 0;
+    data_fd2_battle_view_window_origin_y = 0;
+    data_fd2_battle_view_window_max_x = 0x40;
+    data_fd2_battle_view_window_max_y = 0x40;
+    install_anim_tile_map(1);   /* renderable: every requested tile blits */
 }
 
-/* assert recorded anim-tile blit #i was (SHADOW_BUF, ex, ey) */
+/* assert recorded anim-tile blit #i resolved to world (ex, ey) */
 static void assert_anim_tile(int i, int32 ex, int32 ey)
 {
-    ASSERT_EQ(g_anim_tile_buf[i], SHADOW_BUF);
-    ASSERT_EQ(g_anim_tile_x[i], ex);
-    ASSERT_EQ(g_anim_tile_y[i], ey);
+    int32 gx;
+    int32 gy;
+
+    recover_anim_tile(i, SHADOW_BUF, &gx, &gy);
+    ASSERT_EQ(gx, ex);
+    ASSERT_EQ(gy, ey);
 }
 
 /* walk_phase == 0: only the 2-tile base footprint, no trail. */
@@ -696,7 +756,7 @@ static void test_shadow_stationary_base_only(void)
 
     fd2_paint_chars_shadow_overlay();
 
-    ASSERT_EQ(g_anim_tile_calls, 2);
+    ASSERT_EQ(g_blitpass_calls, 2);
     assert_anim_tile(0, 0x0a, 0x07);
     assert_anim_tile(1, 0x0a, 0x06);
 }
@@ -709,7 +769,7 @@ static void test_shadow_facing_down_trail(void)
 
     fd2_paint_chars_shadow_overlay();
 
-    ASSERT_EQ(g_anim_tile_calls, 3);
+    ASSERT_EQ(g_blitpass_calls, 3);
     assert_anim_tile(0, 0x0a, 0x07);
     assert_anim_tile(1, 0x0a, 0x06);
     assert_anim_tile(2, 0x0a, 0x08);
@@ -723,7 +783,7 @@ static void test_shadow_facing_left_trail(void)
 
     fd2_paint_chars_shadow_overlay();
 
-    ASSERT_EQ(g_anim_tile_calls, 4);
+    ASSERT_EQ(g_blitpass_calls, 4);
     assert_anim_tile(0, 0x0a, 0x07);
     assert_anim_tile(1, 0x0a, 0x06);
     assert_anim_tile(2, 0x09, 0x07);
@@ -738,7 +798,7 @@ static void test_shadow_facing_up_trail(void)
 
     fd2_paint_chars_shadow_overlay();
 
-    ASSERT_EQ(g_anim_tile_calls, 3);
+    ASSERT_EQ(g_blitpass_calls, 3);
     assert_anim_tile(0, 0x0a, 0x07);
     assert_anim_tile(1, 0x0a, 0x06);
     assert_anim_tile(2, 0x0a, 0x05);
@@ -752,7 +812,7 @@ static void test_shadow_facing_right_trail(void)
 
     fd2_paint_chars_shadow_overlay();
 
-    ASSERT_EQ(g_anim_tile_calls, 4);
+    ASSERT_EQ(g_blitpass_calls, 4);
     assert_anim_tile(0, 0x0a, 0x07);
     assert_anim_tile(1, 0x0a, 0x06);
     assert_anim_tile(2, 0x0b, 0x07);
@@ -768,7 +828,7 @@ static void test_shadow_immune_skipped(void)
 
     fd2_paint_chars_shadow_overlay();
 
-    ASSERT_EQ(g_anim_tile_calls, 0);
+    ASSERT_EQ(g_blitpass_calls, 0);
 }
 
 /* dead char is skipped entirely -> no anim-tile redraw. */
@@ -780,7 +840,7 @@ static void test_shadow_dead_skipped(void)
 
     fd2_paint_chars_shadow_overlay();
 
-    ASSERT_EQ(g_anim_tile_calls, 0);
+    ASSERT_EQ(g_blitpass_calls, 0);
 }
 
 /* multi-char: each alive non-immune slot contributes its own footprint+trail,
@@ -794,7 +854,7 @@ static void test_shadow_multi_char(void)
 
     fd2_paint_chars_shadow_overlay();
 
-    ASSERT_EQ(g_anim_tile_calls, 5);
+    ASSERT_EQ(g_blitpass_calls, 5);
     assert_anim_tile(0, 0x04, 0x05);
     assert_anim_tile(1, 0x04, 0x04);
     assert_anim_tile(2, 0x08, 0x09);

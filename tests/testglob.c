@@ -188,31 +188,18 @@ void fd2_composite_battle_tile_map(uint32 d, uint32 s, uint32 w, uint32 h, uint3
     g_tile_map_last_ox = ox; g_tile_map_last_oy = oy;
 }
 /* fd2_paint_cursor_overlay_pattern, fd2_composite_all_chars_overlay,
- * fd2_paint_char_sprite_at_world_pos and fd2_paint_chars_shadow_overlay are now
- * real emitted functions (src/gfx/rndscene.c); their former no-op/recording
+ * fd2_paint_char_sprite_at_world_pos, fd2_paint_chars_shadow_overlay and
+ * fd2_blit_animated_tile_at_pos are now real emitted functions
+ * (src/gfx/rndscene.c / src/gfx/blittile.c); their former no-op/recording
  * stubs here were removed. The real fd2_composite_all_chars_overlay loops over
  * alive party slots calling the real fd2_paint_char_sprite_at_world_pos and
  * finishes with one unconditional real fd2_paint_chars_shadow_overlay. The
  * per-char paint's own blit reaches the recording fd2_tile_blit_24x24_passthrough
  * / fd2_tile_blit_24x24_dimmed_grayscale stubs below; the shadow overlay's
- * tile-redraw blit reaches the fd2_blit_animated_tile_at_pos recording stub. */
-
-/* Recording stub for fd2_blit_animated_tile_at_pos (real body not yet emitted).
- * The real fd2_paint_chars_shadow_overlay is its only emitted caller; recording
- * (buf, x, y) per call lets the shadow-overlay tests verify the per-char base
- * footprint + per-facing walk-trail tile coordinates without touching pixels. */
-int    g_anim_tile_calls = 0;
-uint32 g_anim_tile_buf[64];
-int32  g_anim_tile_x[64];
-int32  g_anim_tile_y[64];
-void fd2_blit_animated_tile_at_pos(uint32 buf, int32 tile_x, int32 tile_y) {
-    if (g_anim_tile_calls < 64) {
-        g_anim_tile_buf[g_anim_tile_calls] = buf;
-        g_anim_tile_x[g_anim_tile_calls] = tile_x;
-        g_anim_tile_y[g_anim_tile_calls] = tile_y;
-    }
-    g_anim_tile_calls++;
-}
+ * tile-redraw goes through the real fd2_blit_animated_tile_at_pos, whose own
+ * blit reaches that same passthrough recording stub (rndscene shadow tests set
+ * up a renderable tile-map so every requested tile resolves to a blit, then
+ * recover (x, y) from the recorded dst offset). */
 
 /* Recording stub for fd2_tile_blit_24x24_passthrough (the RLE row blitter, real
  * body not yet emitted). fd2_blit_24x24_at_window_relative_pos (real, emitted in
@@ -246,6 +233,22 @@ void fd2_tile_blit_24x24_dimmed_grayscale(uint32 src, uint32 dst, uint32 stride)
     }
     g_blitpass_calls++;
     g_blitdim_calls++;
+}
+/* fd2_tile_blit_24x24_with_remap_table (real body not yet emitted): records into
+ * the shared g_blitpass_* arrays plus a separate remap counter so tests can tell
+ * the remap branch from the plain passthrough branch. */
+int    g_blitremap_calls = 0;
+uint32 g_blitremap_table[64];
+void fd2_tile_blit_24x24_with_remap_table(uint32 src, uint32 dst, uint32 stride,
+                                          uint32 remap_table) {
+    if (g_blitpass_calls < 64) {
+        g_blitpass_src[g_blitpass_calls] = src;
+        g_blitpass_dst[g_blitpass_calls] = dst;
+        g_blitpass_stride[g_blitpass_calls] = stride;
+        g_blitremap_table[g_blitpass_calls] = remap_table;
+    }
+    g_blitpass_calls++;
+    g_blitremap_calls++;
 }
 void fd2_render_terrain_info_hud_panel(uint32 b, uint32 s) {
     g_terrain_hud_calls++;
@@ -591,6 +594,8 @@ void fd2_process_xp_and_level_up_for_char(uint32 ci) { }
 void fd2_play_figani_char_intro_animation(uint32 c) { }
 /* fd2_apply_use_effect_dispatch: already in spellwk.c */
 uint32 data_fd2_battle_tile_map_anim_frame_counter = 0;
+uint32 data_fd2_graphics_bg_anim_flip_flag = 0;
+uint8  data_fd2_graphics_tile_anim_palette_phase_lookup[20] = {0};
 void fd2_add_item_to_inventory(uint32 c, uint32 i) { }
 int g_play_sfx_sample_from_bank_calls = 0;
 void fd2_play_sfx_sample_from_bank(uint32 b, uint32 s, uint32 p) { g_play_sfx_sample_from_bank_calls++; (void)b; (void)s; (void)p; }

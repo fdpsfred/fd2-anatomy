@@ -298,8 +298,9 @@
     "name": "fd2_blit_animated_tile_at_pos",
     "target": "gfx/blittile.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00012c0d": {
     "name": "fd2_find_char_at_cursor_pos",
