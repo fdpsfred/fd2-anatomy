@@ -1,5 +1,17 @@
 {
   "_doc": "三源交叉驗證時發現的待後續確認問題。Key = function address, value = {name, issues: [...]}。所有 emit phase 完成後統一解決。",
+  "000117e7": {
+    "name": "fd2_game_main_loop",
+    "target": "ui_menu/menu.c",
+    "issues": [
+      {
+        "type": "eax_return_recovery",
+        "desc": "Ghidra decompiled this as __cdecl void with bare 'return;' everywhere, dropping the EAX return values (systematic EAX-tracking bug). The disassembly shows real int returns: most paths XOR EAX,EAX;RET (return 0), but the field-command path @0x118C1-0x118D9 does 'do{r=fd2_field_command_menu_loop();}while(r==0); if(r==1) r^=1; return r;' (MOV EAX,EBX;RET). The single caller fd2_main @0x25DCE consumes EAX (MOV ESI,EAX then TEST ESI;JZ re-invoke), so the return value is load-bearing: a 0 return makes fd2_main loop back into fd2_game_main_loop, non-zero exits. Emitted as int accordingly. Also: the two dispatch-table calls (per_chapter_post_action_handler @0x51B19 and ai_post_action_consequence @0x51B91) push ESI (=selected char idx uVar2) before CALL (PUSH ESI;CALL;ADD ESP,4), so they are invoked with (uVar2); Ghidra rendered them as '()' with no arg — emitted with (sel) per disasm + the (uint32) table prototype in globals.h. Recommend post-build -d disasm to confirm byte-identical return-value computation and the table-call argument.",
+        "severity": "low",
+        "verify_method": "compile_and_disasm"
+      }
+    ]
+  },
   "0001b750": {
     "name": "fd2_recalculate_combat_stats",
     "target": "battle/battle.c",

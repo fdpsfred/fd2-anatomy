@@ -148,7 +148,8 @@
     "target": "ui_menu/menu.c",
     "phase": 5,
     "done": false,
-    "asm": false
+    "asm": false,
+    "reviewed": true
   },
   "00011aa8": {
     "name": "fd2_wait_for_input_with_idle",

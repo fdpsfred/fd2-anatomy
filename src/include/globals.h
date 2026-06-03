@@ -71,6 +71,7 @@ extern uint32 data_fd2_battle_map_height_tiles;                         /* 0x53A
 extern uint8  data_fd2_chapter_init_phase_flag;                         /* 0x53AFA */
 
 /* ---- UI ---- */
+extern uint8  data_fd2_ui_click_debounce_skip_count;                    /* 0x51A42 */
 extern uint8  data_fd2_ui_terrain_hud_user_enabled;                     /* 0x51AAB */
 extern uint8  data_fd2_ui_play_active_flag;                             /* 0x51AAC */
 extern uint8  data_fd2_ui_game_speed_flag;                              /* 0x53AF9 */

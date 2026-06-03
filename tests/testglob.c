@@ -73,6 +73,7 @@ uint32 data_fd2_resource_portrait_cache_alloc_offset = 0;
 uint32 data_fd2_resource_portrait_cache_buffer_used = 0;
 uint8  data_fd2_resource_portrait_cache_id_list_base[40] = {0};
 uint32 data_fd2_battle_current_active_char_idx = 0;
+uint8  data_fd2_ui_click_debounce_skip_count = 0;
 uint8  data_fd2_audio_bgm_last_set_track_id = 0xFF;
 uint8  data_fd2_audio_bgm_enabled_flag = 1;
 uint8  data_fd2_audio_per_chapter_player_turn_bgm_track[30] = {0};
@@ -557,3 +558,29 @@ void fd2_init_movement_range_floodfill(uint32 ct, uint32 x, uint32 y,
     uint32 rng, uint32 tm, uint32 af) { }
 /* fd2_compute_aoe_targets: now in btl_ai.c */
 /* fd2_pan_cursor_to_char: already in cursor.c */
+
+/* --- menu.c (fd2_game_main_loop) dispatch-target stubs + tracking --- */
+int g_field_command_menu_loop_return = 1;
+int g_field_command_menu_loop_calls = 0;
+int fd2_field_command_menu_loop(void) {
+    g_field_command_menu_loop_calls++;
+    return g_field_command_menu_loop_return;
+}
+int g_player_action_menu_loop_return = 1;
+int g_player_action_menu_loop_calls = 0;
+uint32 g_player_action_menu_loop_last_char = 0xffffffff;
+int fd2_player_action_menu_loop(uint32 char_idx) {
+    g_player_action_menu_loop_calls++;
+    g_player_action_menu_loop_last_char = char_idx;
+    return g_player_action_menu_loop_return;
+}
+int g_open_char_status_screen_calls = 0;
+uint32 g_open_char_status_screen_last_char = 0xffffffff;
+void fd2_open_char_status_screen(uint32 char_idx) {
+    g_open_char_status_screen_calls++;
+    g_open_char_status_screen_last_char = char_idx;
+}
+int g_open_tactical_overview_zoom_calls = 0;
+void fd2_open_tactical_overview_zoom(void) {
+    g_open_tactical_overview_zoom_calls++;
+}

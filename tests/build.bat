@@ -24,6 +24,7 @@ D:\BIN\WCC386.EXE life\main.c %CF% -fo=E:\out\lifemain.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE save\save.c %CF% -fo=E:\out\save.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE util\noop.c %CF% -fo=E:\out\noop.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE rsrc\rsrc.c %CF% -fo=E:\out\rsrc.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE ui_menu\menu.c %CF% -fo=E:\out\menu.obj >> E:\out\build.out
 
 echo === compile tests === >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\testmain.c %CF% -fo=E:\out\testmain.obj >> E:\out\build.out
@@ -52,6 +53,7 @@ D:\BIN\WCC386.EXE E:\spell\spell.c %CF% -fo=E:\out\tspell.obj >> E:\out\build.ou
 D:\BIN\WCC386.EXE E:\spell\spelleff.c %CF% -fo=E:\out\tspellef.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\table\table.c %CF% -fo=E:\out\ttable.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\ui_menu\cursor.c %CF% -fo=E:\out\tcursor.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE E:\ui_menu\menu.c %CF% -fo=E:\out\tmenu.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\ui_menu\status.c %CF% -fo=E:\out\tstatus.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\util\pathfnd.c %CF% -fo=E:\out\tpathfnd.obj >> E:\out\build.out
 
