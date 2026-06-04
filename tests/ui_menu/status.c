@@ -61,8 +61,10 @@ extern int g_cast_status_via_d1b_calls;
 extern int g_repaint_settings_calls;
 extern int g_repaint_flip_buffer_after;
 extern int g_composite_call_count;
-extern int g_render_party_overview_calls;
-extern uint32 g_render_party_overview_last_stride;
+/* fakes for the two not-yet-emitted party-query callees of the real
+ * fd2_render_party_status_overview_content (testglob.c) */
+extern int    g_team_count_fake[4];
+extern uint32 g_has_char_fake;
 /* data_fd2_ui_slide_* workspace ptr globals are declared in globals.h */
 
 
@@ -279,20 +281,46 @@ static void test_close_status_screen_slide_out_runs_full_teardown(void)
  * member count to 0 so fd2_composite_all_chars_overlay / shadow overlay
  * become no-ops (no per-char sprite fixture needed). The two 64000-byte
  * workspaces are malloc'd internally and freed internally; their blits stay
- * in bounds. fd2_render_party_status_overview_content is the recording stub
- * in testglob.c (its real body lives in src/gfx/rndstat.c, not yet emitted).
- * Writes to 0xA0000 hit the VGA aperture (harmless under DOS/4GW, same
- * convention as the sibling status-screen and gfx tests).
+ * in bounds.
+ *
+ * fd2_render_party_status_overview_content is now the REAL body (src/gfx/
+ * rndstat.c), so it is exercised end-to-end here. To keep that safe we stand
+ * up the minimal fixtures it dereferences: a zeroed sprite-sheet whose offset
+ * table resolves every sprite to (sheet + 0) so the real
+ * fd2_blit_indexed_sprite_at_xy -> fd2_rle_blit_sprite spy reads a valid byte,
+ * and an immediate-END text program (every page word -> a -1 opcode) so the
+ * two real fd2_display_dialog_scene calls return at once (no DAT fopen, no
+ * input wait). Its two unemitted party-query callees are faked in testglob.c
+ * (team counts 0, has-char 0); chapter id is parked off the Mitti special
+ * case. The content renderer's largest write at stride 456 lands within the
+ * 128 KB backing (gold field ~+0x1B3xx of the +0x7964 base). Writes to
+ * 0xA0000 hit the VGA aperture (harmless under DOS/4GW, same convention as the
+ * sibling status-screen and gfx tests).
  */
+static uint8  g_overview_sheet[1024];
+static uint16 g_overview_text[0x400];
+
 static void test_open_party_overview_runs_and_returns(void)
 {
     uint32 saved_lgsb;
     uint32 saved_count;
     int    saved_flip;
+    uint32 saved_sheet;
+    uint32 saved_text;
+    uint32 saved_chapter;
+    uint32 saved_turn;
+    uint32 saved_gold;
+    int    reached;
+    int    i;
 
     saved_lgsb = data_fd2_large_game_state_buffer_ptr;
     saved_count = data_fd2_battle_party_member_count;
     saved_flip = g_repaint_flip_buffer_after;
+    saved_sheet = data_fd2_ui_anim_sprite_sheet_ptr;
+    saved_text = data_fd2_all_game_text_ptr;
+    saved_chapter = data_fd2_chapter_current_chapter_id;
+    saved_turn = data_fd2_battle_turn_counter;
+    saved_gold = data_fd2_shared_party_total_gold;
 
     /* 128 KB backing so the real setup blit's +0x8088 stride-456 reads stay
      * in bounds; party count 0 makes the real overlay compositors no-ops. */
@@ -301,24 +329,47 @@ static void test_open_party_overview_runs_and_returns(void)
     data_fd2_battle_party_member_count = 0;
     g_repaint_flip_buffer_after = 0;     /* not using the seam; kbd starts set */
 
+    /* sprite sheet: zeroed offset table -> every sprite resolves to sheet+0. */
+    memset(g_overview_sheet, 0, sizeof(g_overview_sheet));
+    data_fd2_ui_anim_sprite_sheet_ptr = (uint32)g_overview_sheet;
+    /* immediate-END text program: park a -1 opcode high, point every page word
+     * at it so both real dialog calls return without touching DATO.DAT. */
+    for (i = 0; i < 0x400; i++) {
+        g_overview_text[i] = 0x600;
+    }
+    *(int16 *)((uint8 *)g_overview_text + 0x600) = -1;
+    data_fd2_all_game_text_ptr = (uint32)g_overview_text;
+    /* small numbers (normal decimal path) and chapter off the Mitti branch. */
+    data_fd2_chapter_current_chapter_id = 3;
+    data_fd2_battle_turn_counter = 12;
+    data_fd2_shared_party_total_gold = 5000;
+    g_team_count_fake[0] = 0;
+    g_team_count_fake[1] = 0;
+    g_team_count_fake[2] = 0;
+    g_has_char_fake = 0;
+
     /* Pre-arm the BIOS keyboard buffer as NONEMPTY so the wait loop exits on
      * its first poll (tail != head). Deterministic single-iteration exit. */
     *(volatile uint16 *)0x41AuL = 0x1E;          /* head */
     *(volatile uint16 *)0x41CuL = 0x20;          /* tail = head + 2 -> nonempty */
 
-    g_render_party_overview_calls = 0;
-    g_render_party_overview_last_stride = 0;
-
+    reached = 0;
     fd2_open_party_status_overview_screen();
+    reached = 1;
 
-    /* Reaching here at all proves the wait loop terminated (no hang). The
-     * setup pass renders the overview content once at stride 320. */
-    ASSERT_TRUE(g_render_party_overview_calls >= 1);
+    /* Reaching here proves the wait loop terminated (no hang) and the real
+     * setup-pass overview render completed without faulting. */
+    ASSERT_EQ((long)reached, 1);
 
     free((void *)data_fd2_large_game_state_buffer_ptr);
     data_fd2_large_game_state_buffer_ptr = saved_lgsb;
     data_fd2_battle_party_member_count = saved_count;
     g_repaint_flip_buffer_after = saved_flip;
+    data_fd2_ui_anim_sprite_sheet_ptr = saved_sheet;
+    data_fd2_all_game_text_ptr = saved_text;
+    data_fd2_chapter_current_chapter_id = saved_chapter;
+    data_fd2_battle_turn_counter = saved_turn;
+    data_fd2_shared_party_total_gold = saved_gold;
 }
 
 

@@ -2516,6 +2516,226 @@ static void test_signmod_negative_magnitude_overflow(void)
     dec_assert_overflow(1, dst + 8, 0x5d);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_render_party_status_overview_content @ 0x1b41d
+ *
+ * Renders the whole static "Army Status" overview onto dst_surface at the
+ * given stride. Driven end-to-end here over in-memory fixtures:
+ *   - 4 icon labels via the REAL fd2_blit_indexed_sprite_at_xy ->
+ *     fd2_rle_blit_sprite spy (sprite idx 0x85..0x88)
+ *   - 6 decimal fields (chapter+1, turn, gold, 3 team alive counts) via the
+ *     REAL fd2_render_decimal_number_to_buffer -> rle spy
+ *   - 2 chapter title/subtitle dialogs via the REAL fd2_display_dialog_scene
+ *     against an immediate-END / single-glyph text program
+ * The two unemitted party-query callees (fd2_count_active_chars_for_team_filter,
+ * fd2_check_party_has_char_id) are faked in testglob.c; the team-count fake's
+ * return value flows into the per-team decimal renders, exercising the
+ * "CALL then PUSH EAX" return-value plumbing.
+ * ---------------------------------------------------------------- */
+extern uint32 g_dlg_glyph_last_idx;
+extern int    g_team_count_fake[4];
+extern int    g_team_count_calls;
+extern uint32 g_team_count_last_arg;
+extern uint32 g_has_char_fake;
+extern uint32 g_has_char_last_arg;
+extern int    g_has_char_calls;
+
+/* shared text buffer for the overview dialog-plumbing tests */
+static uint16 g_ov_text[0x400];
+
+/* point every page word at an immediate END marker parked high in the buffer */
+static void ov_text_all_end(void)
+{
+    int i;
+
+    for (i = 0; i < 0x400; i++) {
+        g_ov_text[i] = 0;
+    }
+    *(int16 *)((uint8 *)g_ov_text + 0x780) = -1;      /* END marker */
+    for (i = 0; i < 0x3c0; i++) {
+        g_ov_text[i] = (uint16)0x780;                 /* byte offset of END */
+    }
+    data_fd2_all_game_text_ptr = (uint32)g_ov_text;
+}
+
+/* all 23 sprite/decimal blits land at the right surface offsets with the right
+ * sprite indices and field values; the 3 team alive counts carry the fake
+ * fd2_count_active_chars_for_team_filter return for teams 0, 2, 1 (that call
+ * order, mirroring the binary). */
+static void test_overview_static_blits(void)
+{
+    uint32 sheet;
+    uint32 buf    = 0x100000;
+    uint32 stride = 0x140;
+    uint32 row;
+
+    sheet = bar_setup_sheet();
+    ov_text_all_end();              /* both dialogs return at once, no glyphs */
+    panel_reset_logs();
+    g_dlg_glyph_calls = 0;
+
+    data_fd2_chapter_current_chapter_id = 5;      /* number = 6, off Mitti case */
+    data_fd2_battle_turn_counter        = 123;
+    data_fd2_shared_party_total_gold    = 1234;
+    g_team_count_fake[0] = 3;       /* ENEMY    */
+    g_team_count_fake[1] = 2;       /* NPC ALLY */
+    g_team_count_fake[2] = 7;       /* PLAYER   */
+    g_team_count_calls = 0;
+    g_has_char_fake = 0;
+
+    fd2_render_party_status_overview_content(buf, stride);
+
+    /* 4 icon labels (sprite idx == logged sprite - sheet under table[i]=i) */
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[0] - sheet), 0x85);
+    ASSERT_EQ((long)g_rle_blit_log_dst[0], (long)(buf + 0x6d + stride * 0x13));
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[1] - sheet), 0x86);
+    ASSERT_EQ((long)g_rle_blit_log_dst[1], (long)(buf + 0x4b + stride * 0x25));
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[2] - sheet), 0x87);
+    ASSERT_EQ((long)g_rle_blit_log_dst[2], (long)(buf + 0x4b + stride * 0x9b));
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[3] - sheet), 0x88);
+    ASSERT_EQ((long)g_rle_blit_log_dst[3], (long)(buf + 0x81 + stride * 0xac));
+
+    /* chapter number = chapter_id + 1 = 6, white 0x2a, 2 digits */
+    dec_assert_number(4, buf + 0x8f + stride * 0x18, 6, 0x2a, 2);
+    /* turn counter = 123, white 0x2a, 3 digits */
+    dec_assert_number(6, buf + 0xbc + stride * 0x18, 123, 0x2a, 3);
+    /* gold = 1234, yellow 0x1f, 8 digits */
+    dec_assert_number(9, buf + 0x8c + stride * 0xb0, 1234, 0x1f, 8);
+
+    /* per-team alive counts: team 0 then team 2 then team 1 (binary order),
+     * each white 0x2a / 2 digits, sharing row offset stride*0x9f */
+    row = stride * 0x9f;
+    dec_assert_number(17, buf + 0x78 + row, 3, 0x2a, 2);   /* team 0 -> 3 */
+    dec_assert_number(19, buf + 0xb6 + row, 7, 0x2a, 2);   /* team 2 -> 7 */
+    dec_assert_number(21, buf + 0xe4 + row, 2, 0x2a, 2);   /* team 1 -> 2 */
+
+    ASSERT_EQ((long)g_rle_blit_calls, 23);
+    ASSERT_EQ((long)g_team_count_calls, 3);
+    /* the dialogs rendered nothing (immediate END) */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 0);
+}
+
+/* chapter id 0x10 (Mitti chapter) with NO Mitti in party (has-char fake 0):
+ * the subtitle base text_id is shifted by -2, so the subtitle dialog uses page
+ * (chapter*2 + 0x253) + 1 = 0x274. We point that page at a 1-glyph body and the
+ * normal subtitle page (0x276) at a different glyph; observing the 0x274 glyph
+ * proves the branch was taken. Also verifies the has-char query used arg 0x12. */
+static void test_overview_subtitle_mitti_absent(void)
+{
+    uint32 buf    = 0x100000;
+    uint32 stride = 0x140;
+
+    bar_setup_sheet();
+    ov_text_all_end();
+    g_ov_text[0x275] = (uint16)0x780;             /* title -> END (no glyph) */
+    g_ov_text[0x274] = (uint16)0x782;             /* Mitti-absent subtitle */
+    g_ov_text[0x276] = (uint16)0x786;             /* normal subtitle */
+    *(int16 *)((uint8 *)g_ov_text + 0x782) = (int16)0xAA;  /* glyph */
+    *(int16 *)((uint8 *)g_ov_text + 0x784) = -1;
+    *(int16 *)((uint8 *)g_ov_text + 0x786) = (int16)0xBB;  /* glyph */
+    *(int16 *)((uint8 *)g_ov_text + 0x788) = -1;
+    panel_reset_logs();
+
+    data_fd2_chapter_current_chapter_id = 0x10;
+    data_fd2_battle_turn_counter        = 1;
+    data_fd2_shared_party_total_gold    = 0;
+    g_team_count_fake[0] = 0;
+    g_team_count_fake[1] = 0;
+    g_team_count_fake[2] = 0;
+    g_has_char_fake = 0;                           /* Mitti NOT in party */
+    g_has_char_calls = 0;
+    g_has_char_last_arg = 0;
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+
+    fd2_render_party_status_overview_content(buf, stride);
+
+    ASSERT_EQ((long)g_has_char_calls, 1);
+    ASSERT_EQ((long)g_has_char_last_arg, (long)0x12);
+    /* exactly one glyph, from the Mitti-absent subtitle page (0x274 -> 0xAA) */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0xAA);
+    ASSERT_EQ((long)g_dlg_glyph_last_pos, (long)(buf + 0x50 + stride * 0x74));
+}
+
+/* chapter id 0x10 but Mitti IS in party (has-char fake 1): the -2 shift is NOT
+ * applied, so the subtitle uses the normal page (chapter*2 + 0x255) + 1 = 0x276
+ * (glyph 0xBB). Confirms the branch is gated by the has-char return. */
+static void test_overview_subtitle_mitti_present(void)
+{
+    uint32 buf    = 0x100000;
+    uint32 stride = 0x140;
+
+    bar_setup_sheet();
+    ov_text_all_end();
+    g_ov_text[0x275] = (uint16)0x780;             /* title -> END */
+    g_ov_text[0x274] = (uint16)0x782;
+    g_ov_text[0x276] = (uint16)0x786;
+    *(int16 *)((uint8 *)g_ov_text + 0x782) = (int16)0xAA;
+    *(int16 *)((uint8 *)g_ov_text + 0x784) = -1;
+    *(int16 *)((uint8 *)g_ov_text + 0x786) = (int16)0xBB;
+    *(int16 *)((uint8 *)g_ov_text + 0x788) = -1;
+    panel_reset_logs();
+
+    data_fd2_chapter_current_chapter_id = 0x10;
+    data_fd2_battle_turn_counter        = 1;
+    data_fd2_shared_party_total_gold    = 0;
+    g_team_count_fake[0] = 0;
+    g_team_count_fake[1] = 0;
+    g_team_count_fake[2] = 0;
+    g_has_char_fake = 1;                           /* Mitti IN party */
+    g_has_char_calls = 0;
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+
+    fd2_render_party_status_overview_content(buf, stride);
+
+    ASSERT_EQ((long)g_has_char_calls, 1);
+    /* normal subtitle page (0x276 -> 0xBB) used; no shift */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0xBB);
+}
+
+/* off the Mitti chapter (id != 0x10) the has-char query is never made and the
+ * subtitle uses the normal page (chapter*2 + 0x255) + 1. chapter 5 -> title
+ * page 0x25f, subtitle page 0x260; the title renders glyph 0xC1 and the
+ * subtitle glyph 0xC2, proving both page indices and the two render positions. */
+static void test_overview_title_subtitle_pages_normal(void)
+{
+    uint32 buf    = 0x100000;
+    uint32 stride = 0x140;
+
+    bar_setup_sheet();
+    ov_text_all_end();
+    g_ov_text[0x25f] = (uint16)0x782;             /* title page */
+    g_ov_text[0x260] = (uint16)0x786;             /* subtitle page */
+    *(int16 *)((uint8 *)g_ov_text + 0x782) = (int16)0xC1;
+    *(int16 *)((uint8 *)g_ov_text + 0x784) = -1;
+    *(int16 *)((uint8 *)g_ov_text + 0x786) = (int16)0xC2;
+    *(int16 *)((uint8 *)g_ov_text + 0x788) = -1;
+    panel_reset_logs();
+
+    data_fd2_chapter_current_chapter_id = 5;
+    data_fd2_battle_turn_counter        = 1;
+    data_fd2_shared_party_total_gold    = 0;
+    g_team_count_fake[0] = 0;
+    g_team_count_fake[1] = 0;
+    g_team_count_fake[2] = 0;
+    g_has_char_fake = 0;
+    g_has_char_calls = 0;
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+
+    fd2_render_party_status_overview_content(buf, stride);
+
+    /* not the Mitti chapter: no has-char query */
+    ASSERT_EQ((long)g_has_char_calls, 0);
+    /* title then subtitle: 2 glyphs, last is the subtitle (0xC2) */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 2);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0xC2);
+    ASSERT_EQ((long)g_dlg_glyph_last_pos, (long)(buf + 0x50 + stride * 0x74));
+}
+
 void run_gfx_rndstat_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -2601,6 +2821,10 @@ void run_gfx_rndstat_tests(void)
     RUN_TEST(test_signmod_zero_is_positive);
     RUN_TEST(test_signmod_sprite_table_indexing_and_stride);
     RUN_TEST(test_signmod_negative_magnitude_overflow);
+    RUN_TEST(test_overview_static_blits);
+    RUN_TEST(test_overview_subtitle_mitti_absent);
+    RUN_TEST(test_overview_subtitle_mitti_present);
+    RUN_TEST(test_overview_title_subtitle_pages_normal);
     g_blitraw_log_on = 0;
     g_rle_blit_log_on = 0;
     printf("\n");

@@ -1016,20 +1016,31 @@ void fd2_draw_spell_selection_list(uint32 char_idx, uint32 spell_idx,
     (void)char_idx; (void)spell_idx; (void)overlay_buffer;
 }
 
-/* Recording stub for fd2_render_party_status_overview_content (@0x1B41D,
- * routed to src/gfx/rndstat.c, real body not yet emitted). The army-status
- * overview orchestrator fd2_open_party_status_overview_screen (src/ui_menu/
- * status.c) calls it once during setup (stride 320) and once per wait-loop
- * redraw (stride 456); the real body drives the sprite-sheet/dialog/decimal
- * renderers, which the overview orchestrator test does not need. Recording
- * (dst, stride) + a call count lets the orchestrator test assert the setup
- * call happened without standing up the full text/sprite fixture. */
-int    g_render_party_overview_calls = 0;
-uint32 g_render_party_overview_last_dst = 0;
-uint32 g_render_party_overview_last_stride = 0;
-void fd2_render_party_status_overview_content(uint32 dst_surface,
-                                              uint32 stride) {
-    g_render_party_overview_calls++;
-    g_render_party_overview_last_dst = dst_surface;
-    g_render_party_overview_last_stride = stride;
+/* fd2_render_party_status_overview_content: now emitted for real in
+ * src/gfx/rndstat.c (with host unit tests in tests/gfx/rndstat.c driving the
+ * real sprite-sheet / decimal / dialog renderers over in-memory fixtures);
+ * recording stub removed. The army-overview orchestrator test in
+ * tests/ui_menu/status.c now stands up a minimal sprite-sheet + immediate-END
+ * text fixture so the real content renderer runs safely. */
+
+/* Fakes for the two party-query callees of the content renderer, not yet
+ * emitted (fd2_count_active_chars_for_team_filter -> src/battle/btl_turn.c,
+ * fd2_check_party_has_char_id -> src/util/misc.c). Tests set the return values
+ * directly. g_team_count_fake is indexed by the team argument (0=ENEMY,
+ * 1=NPC ALLY, 2=PLAYER). */
+int    g_team_count_fake[4] = { 0, 0, 0, 0 };
+int    g_team_count_calls = 0;
+uint32 g_team_count_last_arg = 0;
+int fd2_count_active_chars_for_team_filter(uint32 team) {
+    g_team_count_calls++;
+    g_team_count_last_arg = team;
+    return (team < 4) ? g_team_count_fake[team] : 0;
+}
+uint32 g_has_char_fake = 0;
+uint32 g_has_char_last_arg = 0;
+int    g_has_char_calls = 0;
+uint32 fd2_check_party_has_char_id(uint32 char_id) {
+    g_has_char_calls++;
+    g_has_char_last_arg = char_id;
+    return g_has_char_fake;
 }

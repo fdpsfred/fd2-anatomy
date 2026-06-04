@@ -909,3 +909,96 @@ void fd2_render_signed_modifier_with_icon(uint32 dst, uint32 stride,
     fd2_render_decimal_number_to_buffer(dst + 8, stride, (uint32)modifier,
                                         0x1f, 2);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_party_status_overview_content @ 0x1b41d (1 caller)
+ *
+ * Draw the entire static content of the "Army Status" overview panel
+ * onto dst_surface. Called with stride 0x140 (320) when rendering into
+ * the off-screen panel_buf, and stride 0x1c8 (456) when repainting the
+ * in-battle composite (data_fd2_large_game_state_buffer_ptr + 0x7964).
+ *
+ * Layout (offsets relative to dst_surface; row term = stride * row):
+ *   +0x6D + stride*0x13   icon sprite 0x85  (chapter label "第 X 章")
+ *   +0x4B + stride*0x25   icon sprite 0x86  (turn label "回合")
+ *   +0x4B + stride*0x9B   icon sprite 0x87  (money label "$")
+ *   +0x81 + stride*0xAC   icon sprite 0x88  (roster label)
+ *   +0x8F + stride*0x18   chapter number = current_chapter_id + 1, 2 digits, red (0x2A)
+ *   +0xBC + stride*0x18   turn number    = turn counter,          3 digits, red (0x2A)
+ *   +0x8C + stride*0xB0   party gold      = party_total_gold,      8 digits, yellow (0x1F)
+ *   +0x78 + stride*0x9F   team 0 alive count (ENEMY),     2 digits
+ *   +0xB6 + stride*0x9F   team 2 alive count (PLAYER),    2 digits
+ *   +0xE4 + stride*0x9F   team 1 alive count (NPC ALLY),  2 digits
+ *   +0x50 + stride*0x3D   chapter title sprite via fd2_display_dialog_scene
+ *                         text_id = current_chapter_id * 2 + 0x255
+ *   +0x50 + stride*0x74   chapter subtitle, text_id = title_text_id + 1
+ *
+ * Mitti exception: if current_chapter_id == 0x10 (chapter 17) and the
+ * party does NOT contain char_id 0x12 (Mitti not recruited), the base
+ * text_id is shifted by -2 (so the subtitle becomes 0x253 + chapter*2 + 1
+ * = 0x254). The binary reuses one register (EDI) for the title text_id,
+ * the optional -2, and the +1 for the subtitle; this is mirrored here by
+ * mutating text_id in place.
+ *
+ * Both dialog calls pass glyph args (0xCD, 0x4C, 0, 0x13, 0) — glyph
+ * height 0x13, blink_flag 0.
+ *
+ * void __cdecl, 2 stack params (dst_surface, stride). EBX/ESI/EDI are
+ * callee-saved; the __CHK(0x34) stack-probe prologue is compiler-injected
+ * and omitted here.
+ * ---------------------------------------------------------------- */
+void fd2_render_party_status_overview_content(uint32 dst_surface, uint32 stride)
+{
+    uint32 row_off;
+    uint32 text_id;
+    int alive_count;
+
+    /* static icon labels */
+    fd2_blit_indexed_sprite_at_xy(dst_surface + 0x6d + stride * 0x13, stride,
+                                  data_fd2_ui_anim_sprite_sheet_ptr, 0x85);
+    fd2_blit_indexed_sprite_at_xy(dst_surface + 0x4b + stride * 0x25, stride,
+                                  data_fd2_ui_anim_sprite_sheet_ptr, 0x86);
+    fd2_blit_indexed_sprite_at_xy(dst_surface + 0x4b + stride * 0x9b, stride,
+                                  data_fd2_ui_anim_sprite_sheet_ptr, 0x87);
+    fd2_blit_indexed_sprite_at_xy(dst_surface + 0x81 + stride * 0xac, stride,
+                                  data_fd2_ui_anim_sprite_sheet_ptr, 0x88);
+
+    /* chapter / turn / gold numbers */
+    fd2_render_decimal_number_to_buffer(
+        dst_surface + 0x8f + stride * 0x18, stride,
+        data_fd2_chapter_current_chapter_id + 1, 0x2a, 2);
+    fd2_render_decimal_number_to_buffer(
+        dst_surface + 0xbc + stride * 0x18, stride,
+        data_fd2_battle_turn_counter, 0x2a, 3);
+    fd2_render_decimal_number_to_buffer(
+        dst_surface + 0x8c + stride * 0xb0, stride,
+        data_fd2_shared_party_total_gold, 0x1f, 8);
+
+    /* per-team alive counts */
+    row_off = stride * 0x9f;
+    alive_count = fd2_count_active_chars_for_team_filter(0);
+    fd2_render_decimal_number_to_buffer(dst_surface + 0x78 + row_off, stride,
+                                        (uint32)alive_count, 0x2a, 2);
+    alive_count = fd2_count_active_chars_for_team_filter(2);
+    fd2_render_decimal_number_to_buffer(dst_surface + 0xb6 + row_off, stride,
+                                        (uint32)alive_count, 0x2a, 2);
+    alive_count = fd2_count_active_chars_for_team_filter(1);
+    fd2_render_decimal_number_to_buffer(dst_surface + 0xe4 + row_off, stride,
+                                        (uint32)alive_count, 0x2a, 2);
+
+    /* chapter title + subtitle dialog sprites */
+    text_id = data_fd2_chapter_current_chapter_id * 2 + 0x255;
+    fd2_display_dialog_scene(data_fd2_all_game_text_ptr, text_id,
+                             dst_surface + 0x50 + stride * 0x3d, stride,
+                             0xcd, 0x4c, 0, 0x13, 0);
+
+    if (data_fd2_chapter_current_chapter_id == 0x10) {
+        if (fd2_check_party_has_char_id(0x12) == 0) {
+            text_id -= 2;
+        }
+    }
+
+    fd2_display_dialog_scene(data_fd2_all_game_text_ptr, text_id + 1,
+                             dst_surface + 0x50 + stride * 0x74, stride,
+                             0xcd, 0x4c, 0, 0x13, 0);
+}

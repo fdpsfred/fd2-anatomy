@@ -170,6 +170,8 @@ void fd2_update_palette_cycle_anim(void);
 void fd2_compute_equipped_stats_with_item_preview(uint32 char_idx, uint32 item_id, uint32 stats_out_ptr);
 void fd2_open_party_status_overview_screen(void);
 void fd2_render_party_status_overview_content(uint32 dst_surface, uint32 stride);
+int fd2_count_active_chars_for_team_filter(uint32 team);
+uint32 fd2_check_party_has_char_id(uint32 char_id);
 
 /* ---- field cutscene ---- */
 void fd2_cutscene_event_trigger(uint32 event_id);

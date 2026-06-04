@@ -1190,8 +1190,9 @@
     "name": "fd2_render_party_status_overview_content",
     "target": "gfx/rndstat.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001b5f1": {
     "name": "fd2_count_active_chars_for_team_filter",
