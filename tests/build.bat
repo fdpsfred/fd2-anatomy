@@ -39,7 +39,8 @@ D:\BIN\WCC386.EXE anim\anicombt.c %CF% -fo=E:\out\obj\anicombt.obj >> E:\out\bui
 echo === compile tests === >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\testmain.c %CF% -fo=E:\out\obj\testmain.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\testglob.c %CF% -fo=E:\out\obj\testglob.obj >> E:\out\build.out
-D:\BIN\WCC386.EXE E:\anim\anicombt.c %CF% -fo=E:\out\obj\tanicomb.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE E:\anim\anicomb1.c %CF% -fo=E:\out\obj\tanicom1.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE E:\anim\anicomb2.c %CF% -fo=E:\out\obj\tanicom2.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\anim\anidec.c %CF% -fo=E:\out\obj\tanidec.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\anim\anisumm1.c %CF% -fo=E:\out\obj\tanisum1.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\anim\anisumm2.c %CF% -fo=E:\out\obj\tanisum2.obj >> E:\out\build.out

@@ -507,7 +507,8 @@ void fd2_render_recruitment_select_screen(uint32 a, uint32 b, uint32 c, uint32 d
  * (src/anim/anicombt.c); its former no-op stub here was removed. */
 /* fd2_animate_spell_overlay_blink is now a real emitted function
  * (src/anim/anicombt.c); its former no-op stub here was removed. */
-void fd2_show_damage_number(uint32 v, uint32 t, uint32 tg) { }
+/* fd2_show_damage_number is now a real emitted function
+ * (src/anim/anicombt.c); its former no-op stub here was removed. */
 void fd2_show_miss_indicator(uint32 t) { }
 void fd2_show_status_effect_overlay(uint32 t, uint32 s) { }
 /* fd2_animate_spell_projectile_paths is now a real emitted function
@@ -518,6 +519,12 @@ void fd2_show_status_effect_overlay(uint32 t, uint32 s) { }
 uint8 data_fd2_battle_floating_damage_sprite_id_queue[200] = {0};
 uint8 data_fd2_battle_floating_damage_x_offset_queue[200] = {0};
 uint8 data_fd2_battle_floating_damage_target_char_idx_queue[200] = {0};
+/* damage-number work-buffer template — real FD2.LE bytes @ 0x52045, byte[8].
+ * fd2_show_damage_number copies the first 5 bytes ("    \0") into an 8-byte
+ * stack buffer before sprintf overwrites it; bytes 5..7 are never read. */
+uint8 data_fd2_battle_damage_number_format_buffer[8] = {
+    0x20,0x20,0x20,0x20,0x00,0x74,0x75,0x76
+};
 /* projectile y-offset table — real FD2.LE values @ 0x0202C (runtime 0x5202C),
  * 28 bytes (4-frame x 6-row rise pattern). The real
  * fd2_animate_spell_projectile_paths copies the first 25 bytes into a stack

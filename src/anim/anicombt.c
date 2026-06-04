@@ -665,3 +665,98 @@ void fd2_animate_spell_projectile_paths(void)
     free(snapshot_buf);
     __delay_thunk_375b2(500);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_show_damage_number @ 0x1E0DB (15 callers)
+ *
+ * Enqueue a 4-digit floating-damage number over a target's tile. Producer for
+ * the FX queue consumed by fd2_animate_spell_projectile_paths: appends four
+ * queue slots (one per decimal place: thousands/hundreds/tens/units), so a hit
+ * shows the damage rising over the target's head. Called by every
+ * apply_*_spell / apply_use_effect / apply_attack_spell_damage / cast_*_spell
+ * path after damage/heal resolution.
+ *
+ * Parameters (__cdecl, 3 args):
+ *   amount         the number to display (a damage or heal value)
+ *   marker_char    sprite-id base for the digits: '^' (0x5E, red attack/magic
+ *                  damage), 'i' (0x69, green heal/positive), '_' suppress
+ *   target_idx     runtime-char index whose tile the number floats over
+ *
+ * Viewport cull: if the target is outside the battle view window, nothing is
+ * enqueued and the queue count is left unchanged. Note the cull predicate is
+ * NOT identical to the sibling spell overlays: the x test uses origin_x-1 as an
+ * exclusive lower / origin_x+max_x as an exclusive upper bound; the y test uses
+ * origin_y-1 as an inclusive lower / origin_y+max_y as an inclusive upper bound
+ * (no +1 on the y upper edge).
+ *
+ * For each of the four digit positions (digit_iter 0..3, magnitude_threshold
+ * stepping 3..0):
+ *   - x_offset_queue[base+digit_iter]      = digit_iter*5 + 2  (5px/digit row)
+ *   - target_char_idx_queue[base+digit_iter] = target_idx
+ *   - re-format the whole number with "%d" and take its length; a digit slot is
+ *     shown only once the number is long enough to reach that place
+ *     (strlen > magnitude_threshold). When shown:
+ *         sprite_id_queue[base+digit_iter] = marker_char + numstr[digit_pos]-'0'
+ *     and digit_pos advances to the next formatted character; otherwise the
+ *     slot is blanked (sprite_id 0) so the consumer skips it.
+ * Finally the queue count (spell_aoe_count_and_fx_queue_idx) advances by 4.
+ *
+ * The 8-byte work buffer is primed from the "    \0" template @ 0x52045 (only 5
+ * bytes are copied; the trailing bytes are never read). The original tail-jumps
+ * into the shared epilogue (fd2_noop_stub_b43); reproduced here as the return.
+ * ---------------------------------------------------------------- */
+void fd2_show_damage_number(uint32 amount, uint32 marker_char, uint32 target_idx)
+{
+    runtime_char *target;
+    char num_string[8];
+    uint32 digit_iter;
+    uint32 digit_pos;
+    uint32 magnitude_threshold;
+    uint32 len;
+    int target_x;
+    int target_y;
+
+    /* prime the 8-byte work buffer with the "    \0" template (5 bytes) */
+    memcpy(num_string, data_fd2_battle_damage_number_format_buffer, 5);
+    magnitude_threshold = 3;
+    digit_pos = 0;
+
+    target = &data_fd2_battle_runtime_char_array_ptr[target_idx];
+    target_x = target->pos_x;
+    target_y = target->pos_y;
+
+    /* viewport cull (see header: asymmetric x<= / y< lower-edge tests) */
+    if ((target_x <= (int)data_fd2_battle_view_window_origin_x - 1) ||
+        (target_x >= (int)(data_fd2_battle_view_window_origin_x +
+                           data_fd2_battle_view_window_max_x)) ||
+        (target_y < (int)data_fd2_battle_view_window_origin_y - 1) ||
+        (target_y > (int)(data_fd2_battle_view_window_origin_y +
+                          data_fd2_battle_view_window_max_y))) {
+        return;
+    }
+
+    for (digit_iter = 0; (int)digit_iter < 4; digit_iter++) {
+        sprintf(num_string, "%d", amount);
+
+        data_fd2_battle_floating_damage_x_offset_queue
+            [data_fd2_battle_spell_aoe_count_and_fx_queue_idx + digit_iter] =
+                (uint8)(digit_iter * 5 + 2);
+        data_fd2_battle_floating_damage_target_char_idx_queue
+            [data_fd2_battle_spell_aoe_count_and_fx_queue_idx + digit_iter] =
+                (uint8)target_idx;
+
+        len = strlen(num_string);
+        if (magnitude_threshold < len) {
+            data_fd2_battle_floating_damage_sprite_id_queue
+                [data_fd2_battle_spell_aoe_count_and_fx_queue_idx + digit_iter] =
+                    (uint8)(marker_char + num_string[digit_pos] - '0');
+            digit_pos++;
+        } else {
+            data_fd2_battle_floating_damage_sprite_id_queue
+                [data_fd2_battle_spell_aoe_count_and_fx_queue_idx + digit_iter] = 0;
+        }
+        magnitude_threshold--;
+    }
+
+    data_fd2_battle_spell_aoe_count_and_fx_queue_idx += 4;
+}
