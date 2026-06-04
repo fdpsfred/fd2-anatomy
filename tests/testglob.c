@@ -129,7 +129,8 @@ uint32 data_fd2_engine_wait_n_bios_ticks_last_seen = 0;
 void fd2_delay_ticks(uint32 t) { }
 void fd2_execute_offensive_targeted_spell(int a, int b, int c, int d) { }
 void fd2_execute_offensive_full_screen_flash_spell(int a, int b, int c, int d) { }
-void fd2_dispatch_variant_b_cast(int a, int b, int c, int d) { }
+/* fd2_dispatch_variant_b_cast: now emitted for real in src/spell/spellcin.c;
+ * its former no-op stub here was removed. */
 void fd2_cast_ap_boost_spell(int a, int b, uint8 *c) { }
 void fd2_cast_dp_boost_spell(int a, int b, uint32 c) { }
 void fd2_cast_speed_boost_spell(uint32 a, uint32 b, uint32 c) { }
@@ -500,6 +501,10 @@ void fd2_show_damage_number(uint32 v, uint32 t, uint32 tg) { }
 void fd2_show_miss_indicator(uint32 t) { }
 void fd2_show_status_effect_overlay(uint32 t, uint32 s) { }
 void fd2_animate_spell_projectile_paths(void) { }
+/* fd2_composite_then_animate_projectiles: shared spell-finale + epilogue helper
+ * @ 0x21190, routed to gfx/rndscene.c (not yet emitted). Stub here so callers
+ * link; remove when rndscene.c lands the real definition. */
+void fd2_composite_then_animate_projectiles(void) { }
 /* fd2_remove_inventory_slot_at: now emitted for real in src/ui_menu/status.c.
  * Its old spy global g_remove_inventory_calls is gone; spell/spelleff.c now
  * observes the real slot-consume by checking slot[7].flag == 0x80. */

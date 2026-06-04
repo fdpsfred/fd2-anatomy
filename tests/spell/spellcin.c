@@ -29,6 +29,20 @@
  * 0xA0504 (not redirectable via globals). There is no branch-free numeric path
  * that avoids the VRAM blit, so its behavioral verification is likewise
  * deferred to Phase 9 integration.
+ *
+ * fd2_dispatch_variant_b_cast @ 0x21b18 (variant-B heal worker) is also
+ * deferred for the same reason. Its only computed logic is the per-target heal
+ * loop (target_id = p_targets[i]; heal = fd2_apply_heal_spell_to_target(...);
+ * fd2_show_damage_number(heal, 'i', target_id)) plus the AOE-count reset and
+ * MP deduct. But that loop is gated behind two real animation passes that run
+ * first: fd2_animate_spell_impact_per_target and
+ * fd2_animate_status_effect_overlay_flicker (both emitted in anim/anicombt.c),
+ * each of which mallocs a 0x25680 snapshot, runs FPU/SFX/BIOS-tick work, and
+ * unconditionally blits to the hardcoded VRAM literal 0xA0504. Those two are
+ * real linked functions, not stubs, so the heal loop cannot be reached in the
+ * hosted TEST.EXE without writing to real VRAM. Behavioral verification of the
+ * heal loop (and the return-value forwarding from apply_heal to
+ * show_damage_number) is therefore deferred to Phase 9 integration.
  */
 
 #include "testharn.h"

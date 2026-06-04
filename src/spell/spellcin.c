@@ -4,6 +4,7 @@
  * Functions:
  *   fd2_cast_earthquake_spell_with_screen_shake @ 0x21548 (1 caller)
  *   fd2_play_rising_pre_cast_effect @ 0x2189a (6 callers)
+ *   fd2_dispatch_variant_b_cast @ 0x21b18 (1 caller)
  */
 
 #include "types.h"
@@ -209,5 +210,60 @@ void fd2_play_rising_pre_cast_effect(int caster_unit_id, int initial_height,
 
     free((void *)snapshot);
     fd2_composite_battle_frame(0);
+    return;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_dispatch_variant_b_cast @ 0x21b18  (1 caller)
+ *
+ * Variant-B spell executor (heal-style worker). Reached from spell ids
+ * 0xD / 0xE / 0xF / 0x10 via fd2_cast_spell_0d_variant_b @ 0x21AD9's
+ * shared tail. Distinct from the offensive A-variant @ 0x21227 in that it
+ * applies fd2_apply_heal_spell_to_target (returns a heal amount) rather
+ * than fd2_calc_magic_damage.
+ *
+ * Sequence:
+ *   reset the AoE fx-queue counter, run the per-target impact animation,
+ *   run the 2nd-pass status-effect overlay flicker, deduct the caster's MP,
+ *   then for each target apply the heal and show the healed amount with the
+ *   'i' (0x69, heal/info) indicator. Finishes via the shared spell-finale
+ *   helper (composite frame + projectile-path animation).
+ *
+ * Params (cdecl, 4 stack args, the proto types the 4th as int):
+ *   caster      — caster unit id            (EDI binds spell_id, EBP n_targets)
+ *   spell_id    — spell id (0xD..0x10)
+ *   n_targets   — target count
+ *   p_targets   — pointer to the uint8 target-id array (reloaded into EBX in
+ *                 the per-target loop; Ghidra's auto-name "caster_idx" is
+ *                 misleading — it is the target-array base).
+ *
+ * The binary's __CHK(0x24) stack-probe prologue is compiler-injected and not
+ * part of the source. There is no explicit RET: the normal path tail-JMPs to
+ * fd2_composite_then_animate_projectiles @ 0x21190 (which shares both the
+ * finale code and the parent's register restore); emitted here as a plain
+ * call to that helper followed by the compiler-generated return.
+ * ---------------------------------------------------------------- */
+void fd2_dispatch_variant_b_cast(int caster, int spell_id, int n_targets,
+                                 int p_targets)
+{
+    int target_idx;
+    uint8 target_id;
+    int heal_amount;
+
+    data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
+    fd2_animate_spell_impact_per_target((uint32)caster, (uint32)spell_id,
+        (uint32)n_targets, (uint32)p_targets);
+    fd2_animate_status_effect_overlay_flicker((uint32)caster, (uint32)spell_id,
+        (uint32)n_targets, (uint32)p_targets);
+    fd2_deduct_caster_mp((uint32)caster, (uint32)spell_id);
+
+    for (target_idx = 0; target_idx < n_targets; target_idx++) {
+        target_id = ((uint8 *)p_targets)[target_idx];
+        heal_amount = fd2_apply_heal_spell_to_target((uint32)target_id,
+            (uint32)spell_id);
+        fd2_show_damage_number((uint32)heal_amount, 0x69, (uint32)target_id);
+    }
+
+    fd2_composite_then_animate_projectiles();
     return;
 }

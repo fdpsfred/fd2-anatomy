@@ -132,6 +132,7 @@ void fd2_show_damage_number(uint32 val, uint32 type, uint32 target);
 void fd2_show_miss_indicator(uint32 target);
 void fd2_show_status_effect_overlay(uint32 target, uint32 spell_id);
 void fd2_animate_spell_projectile_paths(void);
+void fd2_composite_then_animate_projectiles(void);
 void fd2_remove_inventory_slot_at(uint32 char_idx, uint32 slot);
 void fd2_apply_item_stat_modifier_with_anim(uint32, uint32, uint32, uint32, uint32, uint32, uint32);
 void fd2_apply_attack_spell_damage(uint32, uint32, uint32, uint32);
