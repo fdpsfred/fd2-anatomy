@@ -2578,8 +2578,9 @@
     "name": "fd2_chapter_30_end",
     "target": "field/chend2.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00025977": {
     "name": "fd2_set_bgm_track_with_fade",

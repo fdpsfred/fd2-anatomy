@@ -1039,6 +1039,61 @@ static void test_ch29_end_transmutes_slot14_and_advances(void)
     ce_restore_rc_ptr();
 }
 
+/* ----------------------------------------------------------------
+ * Chapter 30 end handler — fd2_chapter_30_end @ 0x25757. The FD2 GOOD
+ * ENDING. The handler is a straight-line cutscene that terminates in an
+ * intentional infinite loop (CALL fd2_play_game_ending_cinematic; JMP self),
+ * so it can never return and cannot be driven end-to-end on the host.
+ *
+ * Its only genuinely new, deterministic, non-display artifact is the trio of
+ * 20-byte end-scene tables it materializes and copies onto the stack. The
+ * FD2.LE prologue copies each as five dwords (MOVSD x5) and hands their
+ * addresses to fd2_setup_chars_and_camera_for_intro, which indexes them
+ * BYTE-wise by char slot (0..0x13). The 60 transcribed bytes are the testable
+ * risk core, so this test asserts each const table byte-for-byte against the
+ * FD2.LE ground truth (pos_x @ 0x52327, pos_y @ 0x5233B, facing @ 0x5234F),
+ * including the facing table's single anomaly (slot 1 = 0x00, the rest 0x02).
+ *
+ * The placement itself is performed by fd2_setup_chars_and_camera_for_intro
+ * (0x233C6, not yet emitted — a no-op double in tests/testglob.c), so the
+ * char-slot writes are not observable on-host yet; that function's own emit +
+ * test owns its placement behavior. Likewise everything after it in the real
+ * handler (dialog pages 9/10/0/1, cutscene events 0x58/0x59, cursor pans, the
+ * screen-wide death spell, the HP/MP restores, the chapter_id advance to 31,
+ * the chapter-31 map load, the palette fade-in + composite-hold loops, and the
+ * staff-roll cinematic) is display/orchestration side-effect tail the handler
+ * runs straight into its infinite loop; its behavioral coverage is deferred to
+ * Phase 9 integration. This test touches no shared global, so it needs no
+ * safe-env fixture or teardown.
+ * ---------------------------------------------------------------- */
+static void test_ch30_end_scene_tables_match_ground_truth(void)
+{
+    /* FD2.LE ground truth: pos_x @ 0x52327, pos_y @ 0x5233B, facing @ 0x5234F
+     * (slots 0..0x13, one byte each). */
+    static const uint8 want_x[20] = {
+        0x16, 0x16, 0x14, 0x15, 0x17, 0x18, 0x14, 0x15, 0x17, 0x18,
+        0x14, 0x15, 0x16, 0x17, 0x18, 0x14, 0x15, 0x16, 0x17, 0x18
+    };
+    static const uint8 want_y[20] = {
+        0x17, 0x13, 0x16, 0x16, 0x16, 0x16, 0x17, 0x17, 0x17, 0x17,
+        0x18, 0x18, 0x18, 0x18, 0x18, 0x19, 0x19, 0x19, 0x19, 0x19
+    };
+    static const uint8 want_f[20] = {
+        0x02, 0x00, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
+        0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02
+    };
+    int i;
+
+    for (i = 0; i < 20; i++) {
+        ASSERT_EQ(data_fd2_chapter_ch30_end_scene_char_pos_x_table[i], want_x[i]);
+        ASSERT_EQ(data_fd2_chapter_ch30_end_scene_char_pos_y_table[i], want_y[i]);
+        ASSERT_EQ(data_fd2_chapter_ch30_end_scene_char_facing_table[i], want_f[i]);
+    }
+
+    /* the facing table's lone non-0x02 entry is slot 1 (= 0x00). */
+    ASSERT_EQ(data_fd2_chapter_ch30_end_scene_char_facing_table[1], 0x00);
+}
+
 void run_field_chend2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1057,5 +1112,6 @@ void run_field_chend2_tests(void)
     RUN_TEST(test_ch27_end_good_path_resets_flags_and_advances);
     RUN_TEST(test_ch28_end_runs_and_advances);
     RUN_TEST(test_ch29_end_transmutes_slot14_and_advances);
+    RUN_TEST(test_ch30_end_scene_tables_match_ground_truth);
     printf("\n");
 }

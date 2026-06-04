@@ -21,6 +21,8 @@
  *                               data_fd2_chapter_end_handler_table[28])
  * fd2_chapter_29_end @ 0x2548C (0 direct callers; dispatched via
  *                               data_fd2_chapter_end_handler_table[29])
+ * fd2_chapter_30_end @ 0x25757 (0 direct callers; dispatched via
+ *                               data_fd2_chapter_end_handler_table[30])
  */
 
 #include <string.h>
@@ -913,4 +915,114 @@ void fd2_chapter_29_end(void)
 
     fd2_save_runtime_char_to_template();
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}
+
+/* ----------------------------------------------------------------
+ * Chapter-30 end-scene character tables (FD2.LE data @ 0x52327 /
+ * 0x5233B / 0x5234F). Private read-only data referenced only by
+ * fd2_chapter_30_end; three 20-byte tables (one byte per char slot,
+ * slots 0..0x13) that the Watcom prologue copies onto stack scratch as
+ * five dwords each (MOVSD x5) before fd2_setup_chars_and_camera_for_intro
+ * indexes them by char slot. The facing table's slot-1 byte is 0x00
+ * (the remaining 19 are 0x02).
+ * ---------------------------------------------------------------- */
+const uint8 data_fd2_chapter_ch30_end_scene_char_pos_x_table[20] = {
+    0x16, 0x16, 0x14, 0x15, 0x17, 0x18, 0x14, 0x15, 0x17, 0x18,
+    0x14, 0x15, 0x16, 0x17, 0x18, 0x14, 0x15, 0x16, 0x17, 0x18
+};
+const uint8 data_fd2_chapter_ch30_end_scene_char_pos_y_table[20] = {
+    0x17, 0x13, 0x16, 0x16, 0x16, 0x16, 0x17, 0x17, 0x17, 0x17,
+    0x18, 0x18, 0x18, 0x18, 0x18, 0x19, 0x19, 0x19, 0x19, 0x19
+};
+const uint8 data_fd2_chapter_ch30_end_scene_char_facing_table[20] = {
+    0x02, 0x00, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
+    0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02
+};
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_30_end @ 0x25757  — Chapter 30「傳說的終章－結局」end handler
+ * (0 direct callers, dispatched via data_fd2_chapter_end_handler_table[30]).
+ * The FD2 GOOD ENDING.
+ *
+ * Copies the three 20-byte end-scene tables onto the stack, places the cast
+ * (slots 0..0x13) / re-aims the camera via fd2_setup_chars_and_camera_for_intro,
+ * and runs dialog page 9, cutscene event 0x58, and dialog page 10. It pans the
+ * cursor/window to (0x10,0x12) and animates the cursor to tile (0x16,0x17), then
+ * plays the final-boss death visual: a screen-wide spell centred on the cursor
+ * (cursor_screen_y + 1) and a full HP/MP restore. It advances current_chapter_id
+ * to 31 (the out-of-range epilogue index), restores HP/MP again, and loads the
+ * chapter 31 epilogue map (fd2_load_chapter_battle_data).
+ *
+ * It re-centres the battle window / cursor at world (0xB,5) with cursor_screen at
+ * (0,0), composites one frame, then runs a 64-step palette fade-in
+ * (brightness 0x3E->0, 4ms/step) and a 40-frame composite hold (1 BIOS tick each).
+ * It shows epilogue dialog page 0, pans the cursor/window to (0xB,0xC), runs
+ * cutscene event 0x59, and shows epilogue dialog page 1. Finally it plays the
+ * staff-roll cinematic (fd2_play_game_ending_cinematic) and hard-locks in an
+ * infinite loop — the game terminates here.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_30.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_30_end(void)
+{
+    uint8 pos_x[20];
+    uint8 pos_y[20];
+    uint8 facing[20];
+    int i;
+    uint32 v;
+
+    for (i = 0; i < 20; i++) {
+        pos_x[i] = data_fd2_chapter_ch30_end_scene_char_pos_x_table[i];
+        pos_y[i] = data_fd2_chapter_ch30_end_scene_char_pos_y_table[i];
+        facing[i] = data_fd2_chapter_ch30_end_scene_char_facing_table[i];
+    }
+
+    fd2_setup_chars_and_camera_for_intro((uint32)pos_x, (uint32)pos_y,
+                                         (uint32)facing, 0, 0x13, 0, 0, 0, 0,
+                                         0x10, 0x12);
+    fd2_display_dialog_scene(current_chapter_text, 9, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x58);
+    fd2_display_dialog_scene(current_chapter_text, 10, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_pan_cursor_and_window(0x10, 0x12);
+    fd2_pan_cursor_to_tile_animated(0x16, 0x17);
+
+    fd2_cast_screen_wide_spell_with_fade(data_fd2_battle_cursor_screen_x,
+                                         data_fd2_battle_cursor_screen_y + 1,
+                                         10, 8);
+    fd2_restore_all_chars_full_hp_mp();
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+    fd2_restore_all_chars_full_hp_mp();
+    data_fd2_battle_anim_phase = 0;
+    fd2_load_chapter_battle_data(data_fd2_chapter_current_chapter_id);
+
+    data_fd2_battle_view_window_origin_x = 0xB;
+    data_fd2_battle_view_window_origin_y = 5;
+    data_fd2_battle_cursor_world_x = 0xB;
+    data_fd2_battle_cursor_world_y = 5;
+    data_fd2_battle_cursor_screen_x = 0;
+    data_fd2_battle_cursor_screen_y = 0;
+    fd2_composite_battle_frame(1);
+
+    for (v = 0x3E; -1 < (int32)v; v--) {
+        fd2_set_vga_palette_range_with_add(0, 0xFF, v);
+        __delay_thunk_375b2(4);
+    }
+    for (i = 0; i < 0x28; i++) {
+        fd2_composite_battle_frame(0);
+        fd2_wait_n_bios_ticks(1);
+    }
+
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_pan_cursor_and_window(0xB, 0xC);
+    fd2_cutscene_event_trigger(0x59);
+    fd2_display_dialog_scene(current_chapter_text, 1, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_play_game_ending_cinematic();
+    for (;;) {
+    }
 }

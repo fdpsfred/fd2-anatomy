@@ -63,6 +63,13 @@ extern const uint8 data_fd2_chapter_ch27_end_scene_char_pos_x_table[16];   /* 0x
 extern const uint8 data_fd2_chapter_ch27_end_scene_char_pos_y_table[16];   /* 0x52316 */
 extern const uint8 data_fd2_chapter_ch27_end_scene_vestigial_byte;         /* 0x52326 */
 
+/* ch30 end-scene char tables (private to fd2_chapter_30_end); three 20-byte
+ * tables (one byte per char slot, slots 0..0x13), copied onto stack as 5 dwords
+ * each before fd2_setup_chars_and_camera_for_intro indexes them by char slot */
+extern const uint8 data_fd2_chapter_ch30_end_scene_char_pos_x_table[20];   /* 0x52327 */
+extern const uint8 data_fd2_chapter_ch30_end_scene_char_pos_y_table[20];   /* 0x5233B */
+extern const uint8 data_fd2_chapter_ch30_end_scene_char_facing_table[20];  /* 0x5234F */
+
 /* ---- battle state ---- */
 extern uint32 data_fd2_battle_anim_phase;                               /* 0x51A83 */
 extern uint32 data_fd2_battle_ai_post_action_consequence_idx;           /* 0x51A8F */
