@@ -605,6 +605,100 @@ static void test_chpost13_both_conditions_game_over(void)
     chpost13_teardown();
 }
 
+/* ============================================================
+ * fd2_chapter_15_post_action @ 0x20822
+ *
+ * Same default win/lose check (fd2_check_battle_end_condition, linked
+ * real), then a single-slot lose-condition override: if key NPC
+ * runtime_char[0x40] is dead, set game_event_flag = 1. Deadness is queried
+ * through fd2_check_char_is_dead, the real engine computing it as
+ * runtime_char[idx].flags bit0.
+ *
+ * Structurally identical to chapter 12 but for slot 0x40 (64) instead of
+ * 0xE; that slot is reached, so a 72-slot local buffer is used (t_rc13 is
+ * only 64 slots, indices 0..0x3F, one short of 0x40). Reuses the testglob
+ * array-reading mode (g_check_char_is_dead_use_array = 1) so per-slot
+ * .flags drive the result, and the same all-team-2 / alive arrangement that
+ * pins the default check to flag=2; the override is then observable as a
+ * clean 2 -> 1.
+ *
+ * Coverage is risk-driven for the inverted-looking branch (the disassembly
+ * is "JZ skip-set / fall through to set", i.e. set-the-flag-when-DEAD; it is
+ * exactly the kind of test that is easy to read backwards) and the single
+ * checked slot index:
+ *   - slot 0x40 alive            -> no override (flag stays 2)
+ *   - slot 0x40 dead             -> override fires (flag -> 1)
+ *   - neighbors 0x3F/0x41 dead, 0x40 alive -> NO override, pinning the
+ *     checked slot as exactly 0x40 (no off-by-one in either direction).
+ * ============================================================ */
+
+#define CH15_RC_SLOTS 72
+static runtime_char t_rc15[CH15_RC_SLOTS];
+
+static void chpost15_setup(void)
+{
+    int i;
+
+    memset(t_rc15, 0, sizeof(t_rc15));
+    for (i = 0; i < CH15_RC_SLOTS; i++) {
+        t_rc15[i].team = 2;     /* player team: never an alive enemy */
+        t_rc15[i].flags = 0;    /* alive */
+    }
+    data_fd2_battle_runtime_char_array_ptr = t_rc15;
+    data_fd2_battle_party_member_count = CH15_RC_SLOTS;
+    data_fd2_chapter_event_or_battle_end_code = 0;
+    g_check_char_is_dead_use_array = 1;   /* per-slot .flags drive deadness */
+}
+
+static void chpost15_teardown(void)
+{
+    g_check_char_is_dead_use_array = 0;   /* restore index-agnostic default */
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_party_member_count = 4;
+}
+
+/* Key NPC slot 0x40 alive -> the dead-check returns 0, the override does not
+ * fire, and the default flag (2) survives. Pins the branch direction: an
+ * ALIVE slot must NOT trigger game over. */
+static void test_chpost15_npc_alive_keeps_default(void)
+{
+    chpost15_setup();
+    /* slot 0x40 already alive from setup */
+
+    fd2_chapter_15_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost15_teardown();
+}
+
+/* Key NPC slot 0x40 dead -> fd2_check_char_is_dead returns nonzero and the
+ * override fires (flag 2 -> 1). */
+static void test_chpost15_npc_dead_game_over(void)
+{
+    chpost15_setup();
+    t_rc15[0x40].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_15_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost15_teardown();
+}
+
+/* Neighbors 0x3F and 0x41 dead while the key NPC (0x40) is alive -> the
+ * override must NOT fire. Proves the checked slot is exactly 0x40 (no
+ * off-by-one in either direction). */
+static void test_chpost15_neighbor_slots_ignored(void)
+{
+    chpost15_setup();
+    t_rc15[0x3F].flags = CHARFLAG_DEAD;
+    t_rc15[0x41].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_15_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost15_teardown();
+}
+
 void run_field_chpost_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -632,5 +726,8 @@ void run_field_chpost_tests(void)
     RUN_TEST(test_chpost13_cond2_boss_dead_game_over);
     RUN_TEST(test_chpost13_cond2_neighbor_slots_ignored);
     RUN_TEST(test_chpost13_both_conditions_game_over);
+    RUN_TEST(test_chpost15_npc_alive_keeps_default);
+    RUN_TEST(test_chpost15_npc_dead_game_over);
+    RUN_TEST(test_chpost15_neighbor_slots_ignored);
     printf("\n");
 }
