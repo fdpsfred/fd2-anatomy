@@ -3,6 +3,7 @@
  *
  * Functions:
  *   fd2_build_usable_spell_list @ 0x1c269 (8 call sites in 7 functions)
+ *   fd2_grant_spell_to_char @ 0x1d79c (1 caller)
  *   fd2_draw_spell_selection_list @ 0x1ceed (3 callers)
  *   fd2_spell_select_input_loop @ 0x1d51d (1 caller)
  *   fd2_spell_selection_menu_main @ 0x1cff0 (1 caller)
@@ -57,6 +58,58 @@ int fd2_build_usable_spell_list(uint32 ci, uint32 buf)
     }
 
     return spell_count;
+}
+
+/* Single-bit mask per bit index: data_fd2_battle_spell_bit_mask_lookup_table
+ * @ 0x52024, eight bytes {1,2,4,8,0x10,0x20,0x40,0x80} = 1 << n. Only
+ * fd2_grant_spell_to_char reads it (it copies the table to a local before the
+ * indexed read, mirroring the machine code's MOVSD-to-stack). */
+static const uint8 data_fd2_battle_spell_bit_mask_lookup_table[8] = {
+    1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80
+};
+
+/* ----------------------------------------------------------------
+ * fd2_grant_spell_to_char(char_idx, spell_id) @ 0x1d79c  (1 caller)
+ *
+ * Mark spell_id as learned for the runtime char at char_idx by setting its
+ * bit in the 5-byte spells_known_bitmap (+0x1A, the same bitmap enumerated by
+ * fd2_build_usable_spell_list):
+ *
+ *   spells_known_bitmap[spell_id / 8] |= 1 << (spell_id % 8)
+ *
+ * spell_id is 0x00..0x23 (36 spells; bits 36..39 unused). Called from
+ * fd2_process_xp_and_level_up_for_char when a level-up grants a spell.
+ *
+ * The binary builds the OR mask by indexing a local copy of the 8-byte
+ * bit-mask table with spell_id % 8; since the table is {1<<0 .. 1<<7} that is
+ * exactly 1 << (spell_id % 8). The byte offset and bit index come from a signed
+ * div/mod by 8 in the machine code, but spell_id is always a small non-negative
+ * id, so plain /8 and %8 reproduce it.
+ *
+ * Cdecl, 2 stack params; void return. The binary's __CHK(0x20) stack-probe
+ * prologue is compiler-injected and not part of the source; the body's tail
+ * `JMP 0x114ff` is Watcom's shared epilogue.
+ * ---------------------------------------------------------------- */
+void fd2_grant_spell_to_char(uint32 char_idx, uint32 spell_id)
+{
+    uint8 bit_mask_table[8];
+    runtime_char *pChar;
+    uint32 byte_off;
+
+    bit_mask_table[0] = data_fd2_battle_spell_bit_mask_lookup_table[0];
+    bit_mask_table[1] = data_fd2_battle_spell_bit_mask_lookup_table[1];
+    bit_mask_table[2] = data_fd2_battle_spell_bit_mask_lookup_table[2];
+    bit_mask_table[3] = data_fd2_battle_spell_bit_mask_lookup_table[3];
+    bit_mask_table[4] = data_fd2_battle_spell_bit_mask_lookup_table[4];
+    bit_mask_table[5] = data_fd2_battle_spell_bit_mask_lookup_table[5];
+    bit_mask_table[6] = data_fd2_battle_spell_bit_mask_lookup_table[6];
+    bit_mask_table[7] = data_fd2_battle_spell_bit_mask_lookup_table[7];
+
+    pChar = data_fd2_battle_runtime_char_array_ptr + char_idx;
+    byte_off = (int)spell_id / 8;
+    pChar->spells_known_bitmap[byte_off] =
+        pChar->spells_known_bitmap[byte_off] |
+        bit_mask_table[(int)spell_id % 8];
 }
 
 /* ----------------------------------------------------------------

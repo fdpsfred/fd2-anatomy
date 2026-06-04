@@ -1467,8 +1467,9 @@
     "name": "fd2_grant_spell_to_char",
     "target": "spell/spellsel.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001d80b": {
     "name": "fd2_npc_turn_phase_team1",

@@ -782,6 +782,109 @@ static void test_psf_id_domain_endpoints(void)
     ASSERT_EQ(g_play_sfx_with_handle_calls, 1);
 }
 
+/* ================================================================
+ * fd2_grant_spell_to_char @ 0x1d79c
+ * ================================================================
+ *
+ * Set spell_id's bit in char[char_idx].spells_known_bitmap (+0x1A):
+ *   spells_known_bitmap[spell_id / 8] |= 1 << (spell_id % 8)
+ * Pure in-memory bit manipulation -- pinned directly. Reuses the bsl_* runtime-
+ * char fixture (local bsl_chars repointed for the test). Cross-validates layout
+ * against the sibling enumerator fd2_build_usable_spell_list. */
+
+/* grant one spell into byte 0 -> only that bit set, count is 1. id 5 lands in
+ * byte 0 bit 5 (mask 0x20). */
+static void test_grant_byte0_bit(void)
+{
+    bsl_setup();
+    fd2_grant_spell_to_char(0, 5);
+    ASSERT_EQ((int)bsl_chars[0].spells_known_bitmap[0], 0x20);  /* 1 << 5 */
+    ASSERT_EQ((int)bsl_chars[0].spells_known_bitmap[1], 0);
+    bsl_teardown();
+}
+
+/* byte-offset / bit math across the 5 bytes: id = byte*8 + bit, so
+ * 11 -> byte 1 bit 3, 24 -> byte 3 bit 0, 0x23 (35, max spell id) -> byte 4
+ * bit 3. Each lands in its own byte with the right single-bit mask. */
+static void test_grant_byte_offset_math(void)
+{
+    bsl_setup();
+    fd2_grant_spell_to_char(0, 11);     /* 11/8=1, 11%8=3 -> byte 1, 1<<3 */
+    fd2_grant_spell_to_char(0, 24);     /* 24/8=3, 24%8=0 -> byte 3, 1<<0 */
+    fd2_grant_spell_to_char(0, 0x23);   /* 35/8=4, 35%8=3 -> byte 4, 1<<3 */
+    ASSERT_EQ((int)bsl_chars[0].spells_known_bitmap[0], 0);
+    ASSERT_EQ((int)bsl_chars[0].spells_known_bitmap[1], 1 << 3);
+    ASSERT_EQ((int)bsl_chars[0].spells_known_bitmap[2], 0);
+    ASSERT_EQ((int)bsl_chars[0].spells_known_bitmap[3], 1 << 0);
+    ASSERT_EQ((int)bsl_chars[0].spells_known_bitmap[4], 1 << 3);
+    bsl_teardown();
+}
+
+/* OR semantics: a second grant into the same byte preserves existing bits. ids
+ * 1 and 6 share byte 0 -> the byte holds both bits (0x02 | 0x40 = 0x42), not
+ * just the last. */
+static void test_grant_or_preserves_existing(void)
+{
+    bsl_setup();
+    fd2_grant_spell_to_char(0, 1);
+    fd2_grant_spell_to_char(0, 6);
+    ASSERT_EQ((int)bsl_chars[0].spells_known_bitmap[0], 0x42);  /* (1<<1)|(1<<6) */
+    bsl_teardown();
+}
+
+/* a pre-existing unrelated bit is not disturbed by a grant into the same byte:
+ * seed bit 0, grant id 4 -> byte holds 0x01 | 0x10 = 0x11. */
+static void test_grant_keeps_seeded_bit(void)
+{
+    bsl_setup();
+    bsl_chars[0].spells_known_bitmap[0] = 0x01;   /* bit 0 already learned */
+    fd2_grant_spell_to_char(0, 4);
+    ASSERT_EQ((int)bsl_chars[0].spells_known_bitmap[0], 0x11);  /* 0x01|0x10 */
+    bsl_teardown();
+}
+
+/* idempotent: granting the same spell twice leaves exactly one bit set. */
+static void test_grant_idempotent(void)
+{
+    bsl_setup();
+    fd2_grant_spell_to_char(0, 9);
+    fd2_grant_spell_to_char(0, 9);     /* 9/8=1, 9%8=1 -> byte 1 bit 1 */
+    ASSERT_EQ((int)bsl_chars[0].spells_known_bitmap[1], 1 << 1);
+    bsl_teardown();
+}
+
+/* char_idx selects the struct (stride 0x50): grant on char 3 only sets char 3's
+ * bitmap; char 0 stays empty. */
+static void test_grant_char_index_stride(void)
+{
+    bsl_setup();
+    fd2_grant_spell_to_char(3, 7);     /* byte 0 bit 7 on char 3 */
+    ASSERT_EQ((int)bsl_chars[3].spells_known_bitmap[0], 0x80);  /* 1 << 7 */
+    ASSERT_EQ((int)bsl_chars[0].spells_known_bitmap[0], 0);     /* char 0 empty */
+    bsl_teardown();
+}
+
+/* cross-validate the bit layout against the enumerator: grant a set of ids,
+ * then fd2_build_usable_spell_list must report exactly those ids in ascending
+ * order. Proves grant's byte/bit packing matches the reader's. */
+static void test_grant_roundtrips_through_enumerator(void)
+{
+    uint8 out[40];
+    int   n;
+
+    bsl_setup();
+    fd2_grant_spell_to_char(0, 0);
+    fd2_grant_spell_to_char(0, 13);
+    fd2_grant_spell_to_char(0, 0x23);
+    memset(out, 0xCC, sizeof(out));
+    n = fd2_build_usable_spell_list(0, (uint32)out);
+    ASSERT_EQ(n, 3);
+    ASSERT_EQ((int)out[0], 0);
+    ASSERT_EQ((int)out[1], 13);
+    ASSERT_EQ((int)out[2], 0x23);
+    bsl_teardown();
+}
+
 void run_spell_spellsel_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -817,5 +920,12 @@ void run_spell_spellsel_tests(void)
     RUN_TEST(test_sil_caster_idx_mp_from_right_char);
     RUN_TEST(test_psf_sfx_fires_once);
     RUN_TEST(test_psf_id_domain_endpoints);
+    RUN_TEST(test_grant_byte0_bit);
+    RUN_TEST(test_grant_byte_offset_math);
+    RUN_TEST(test_grant_or_preserves_existing);
+    RUN_TEST(test_grant_keeps_seeded_bit);
+    RUN_TEST(test_grant_idempotent);
+    RUN_TEST(test_grant_char_index_stride);
+    RUN_TEST(test_grant_roundtrips_through_enumerator);
     printf("\n");
 }
