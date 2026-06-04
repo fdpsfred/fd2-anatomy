@@ -2134,6 +2134,239 @@ static void test_chpost26_upper_neighbor_ignored(void)
     chpost10_teardown();
 }
 
+/* ============================================================
+ * fd2_chapter_29_post_action @ 0x20B72
+ *
+ * Like chapters 18/23, chapter 29 does NOT call the default
+ * fd2_check_battle_end_condition: it is map-event driven and writes
+ * game_event_flag itself with three sequential, independent stages, in this
+ * exact order (later writes OVERRIDE earlier ones):
+ *   1. WIN: tile-event-consumed-flags[0x12] && [0x13] && [0x14] all nonzero
+ *      (three altars activated) -> flag = 2. The && short-circuits.
+ *   2. LOSE: runtime_char[0] (hero) dead -> flag = 1.
+ *   3. LOSE + dialog: runtime_char[1] (ally) dead -> show current_chapter_text
+ *      page 9 (REAL fd2_display_dialog_scene) then flag = 1.
+ * The tile bytes are read through the pointer global
+ * data_fd2_field_map_tile_event_consumed_flags_ptr; deadness through
+ * fd2_check_char_is_dead (array mode -> per-slot .flags bit0).
+ *
+ * Because no default check runs, the flag has no baseline: setup pre-clears it
+ * to 0, so "no stage" leaves 0, a pure WIN leaves 2, and any LOSE leaves 1.
+ *
+ * Order is the inverse of chapters 18/23 (which write WIN last so WIN wins):
+ * here the LOSE stages run AFTER the WIN stage, so a hero/ally death OVERRIDES
+ * a three-altar WIN. That ordering is the headline risk and is pinned by the
+ * win_then_hero_dead / win_then_ally_dead cases below.
+ *
+ * fd2_display_dialog_scene is linked real; current_chapter_text is pointed at
+ * the shared immediate-END program (ch13_text_all_end, covering page 9) so the
+ * VM returns at once without touching the framebuffer or loading DATO.DAT, and
+ * a clean pass also confirms the real VM survives the chapter-29 call shape.
+ *
+ * Coverage is risk-driven for: the three-term tile && and its EXACT indices
+ * 0x12/0x13/0x14 (no off-by-one to 0x11 or 0x15), the two distinct dead slots
+ * 0 vs 1, the dialog-bearing ally branch, and the lose-overrides-win ordering:
+ *   - nothing set                                 -> flag stays 0
+ *   - all three altar tiles set                   -> WIN (2)
+ *   - each single altar tile cleared (rest set)   -> WIN does NOT fire (0)
+ *   - neighbor tiles 0x11 / 0x15 set (altars off) -> WIN does NOT fire (0)
+ *   - hero (slot 0) dead, tiles off               -> LOSE (1)
+ *   - ally (slot 1) dead, tiles off               -> LOSE (1) + page 9 dialog
+ *   - altars set AND hero dead                    -> LOSE (1) overrides WIN
+ *   - altars set AND ally dead                    -> LOSE (1) overrides WIN
+ * ============================================================ */
+
+/* Tile-event-consumed-flags backing buffer for chapter 29. Real engine reads
+ * bytes [0x12..0x14] (and we probe neighbors 0x11/0x15), so 0x20 bytes is
+ * ample headroom. */
+static uint8 t_ch29_tile_flags[0x20];
+
+/* All runtime_char slots alive, all tile flags clear, flag pre-cleared to 0
+ * (no default check sets a baseline). Reuses the 64-slot t_rc13 buffer and the
+ * shared immediate-END dialog program. Only slots 0 and 1 are read. */
+static void chpost29_setup(void)
+{
+    int i;
+
+    memset(t_rc13, 0, sizeof(t_rc13));
+    for (i = 0; i < CH13_RC_SLOTS; i++) {
+        t_rc13[i].team = 2;     /* irrelevant: no default check runs */
+        t_rc13[i].flags = 0;    /* alive */
+    }
+    data_fd2_battle_runtime_char_array_ptr = t_rc13;
+    data_fd2_battle_party_member_count = CH13_RC_SLOTS;
+    data_fd2_chapter_event_or_battle_end_code = 0;
+    g_check_char_is_dead_use_array = 1;   /* per-slot .flags drive deadness */
+
+    memset(t_ch29_tile_flags, 0, sizeof(t_ch29_tile_flags));
+    data_fd2_field_map_tile_event_consumed_flags_ptr =
+        (uint32)t_ch29_tile_flags;
+
+    ch13_text_all_end();   /* current_chapter_text -> immediate-END, covers page 9 */
+}
+
+static void chpost29_teardown(void)
+{
+    g_check_char_is_dead_use_array = 0;   /* restore index-agnostic default */
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
+}
+
+/* mark the three altar tiles (0x12, 0x13, 0x14) as consumed */
+static void ch29_set_all_altars(void)
+{
+    t_ch29_tile_flags[0x12] = 1;
+    t_ch29_tile_flags[0x13] = 1;
+    t_ch29_tile_flags[0x14] = 1;
+}
+
+/* No stage fires: tiles all clear (WIN false), both checked chars alive (no
+ * LOSE). The pre-cleared flag (0) survives -> confirms chapter 29 writes
+ * nothing on the idle path (it really skips the default win/lose check). */
+static void test_chpost29_nothing_set_no_write(void)
+{
+    chpost29_setup();
+
+    fd2_chapter_29_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 0);
+    chpost29_teardown();
+}
+
+/* All three altar tiles consumed, nobody dead -> WIN (2). Pins the three-term
+ * && true-path and the set-to-2 direction. */
+static void test_chpost29_all_altars_win(void)
+{
+    chpost29_setup();
+    ch29_set_all_altars();
+
+    fd2_chapter_29_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost29_teardown();
+}
+
+/* First altar tile (0x12) clear, other two set -> the && first term is false,
+ * WIN does NOT fire and the flag stays 0. Pins tile index 0x12 as a required
+ * term. */
+static void test_chpost29_tile12_clear_blocks_win(void)
+{
+    chpost29_setup();
+    ch29_set_all_altars();
+    t_ch29_tile_flags[0x12] = 0;
+
+    fd2_chapter_29_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 0);
+    chpost29_teardown();
+}
+
+/* Second altar tile (0x13) clear, others set -> the && short-circuits at the
+ * second term, WIN does NOT fire. Pins tile index 0x13 (reached only when 0x12
+ * is set). */
+static void test_chpost29_tile13_clear_blocks_win(void)
+{
+    chpost29_setup();
+    ch29_set_all_altars();
+    t_ch29_tile_flags[0x13] = 0;
+
+    fd2_chapter_29_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 0);
+    chpost29_teardown();
+}
+
+/* Third altar tile (0x14) clear, others set -> the && short-circuits at the
+ * third term, WIN does NOT fire. Pins tile index 0x14 (reached only when 0x12
+ * and 0x13 are set). */
+static void test_chpost29_tile14_clear_blocks_win(void)
+{
+    chpost29_setup();
+    ch29_set_all_altars();
+    t_ch29_tile_flags[0x14] = 0;
+
+    fd2_chapter_29_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 0);
+    chpost29_teardown();
+}
+
+/* Neighbor tiles below (0x11) and above (0x15) the altar triple set, but the
+ * three altars (0x12..0x14) clear -> WIN must NOT fire. Pins the checked tiles
+ * as EXACTLY 0x12/0x13/0x14 with no off-by-one to 0x11 or 0x15. */
+static void test_chpost29_neighbor_tiles_ignored(void)
+{
+    chpost29_setup();
+    t_ch29_tile_flags[0x11] = 1;   /* below the altar triple */
+    t_ch29_tile_flags[0x15] = 1;   /* above the altar triple */
+
+    fd2_chapter_29_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 0);
+    chpost29_teardown();
+}
+
+/* Hero runtime_char[0] dead, tiles all clear -> stage 2 fires, LOSE (1). Pins
+ * the hero-dead slot = 0. */
+static void test_chpost29_hero_dead_lose(void)
+{
+    chpost29_setup();
+    t_rc13[0].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_29_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost29_teardown();
+}
+
+/* Ally runtime_char[1] dead (hero alive), tiles all clear -> stage 3 fires,
+ * LOSE (1) plus the REAL page-9 dialog. The flag write and the dialog call sit
+ * in the same basic block, so the 0 -> 1 transition pins that the ally branch
+ * ran and the dialog followed; a clean pass also confirms the real VM survives
+ * the call. Pins the ally-dead slot = 1 (distinct from the hero slot 0). */
+static void test_chpost29_ally_dead_lose_with_dialog(void)
+{
+    chpost29_setup();
+    t_rc13[1].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_29_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost29_teardown();
+}
+
+/* All three altars set (stage 1 -> WIN 2) AND hero[0] dead -> stage 2 runs
+ * AFTER stage 1 and rewrites the flag to 1. Final flag must be 1 (LOSE), the
+ * headline lose-overrides-win ordering that distinguishes chapter 29 from the
+ * win-last chapters 18/23. */
+static void test_chpost29_win_then_hero_dead_lose_overrides(void)
+{
+    chpost29_setup();
+    ch29_set_all_altars();
+    t_rc13[0].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_29_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost29_teardown();
+}
+
+/* All three altars set (stage 1 -> WIN 2) AND ally[1] dead (hero alive) ->
+ * stage 3 runs last and rewrites the flag to 1 (plus page-9 dialog). Final
+ * flag must be 1 (LOSE), pinning that the ally stage also overrides a WIN. */
+static void test_chpost29_win_then_ally_dead_lose_overrides(void)
+{
+    chpost29_setup();
+    ch29_set_all_altars();
+    t_rc13[1].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_29_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost29_teardown();
+}
+
 void run_field_chpost_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -2221,5 +2454,15 @@ void run_field_chpost_tests(void)
     RUN_TEST(test_chpost26_second_npc_dead_game_over);
     RUN_TEST(test_chpost26_both_npc_dead_game_over);
     RUN_TEST(test_chpost26_upper_neighbor_ignored);
+    RUN_TEST(test_chpost29_nothing_set_no_write);
+    RUN_TEST(test_chpost29_all_altars_win);
+    RUN_TEST(test_chpost29_tile12_clear_blocks_win);
+    RUN_TEST(test_chpost29_tile13_clear_blocks_win);
+    RUN_TEST(test_chpost29_tile14_clear_blocks_win);
+    RUN_TEST(test_chpost29_neighbor_tiles_ignored);
+    RUN_TEST(test_chpost29_hero_dead_lose);
+    RUN_TEST(test_chpost29_ally_dead_lose_with_dialog);
+    RUN_TEST(test_chpost29_win_then_hero_dead_lose_overrides);
+    RUN_TEST(test_chpost29_win_then_ally_dead_lose_overrides);
     printf("\n");
 }

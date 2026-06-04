@@ -541,3 +541,58 @@ void fd2_chapter_26_post_action(uint32 event_arg)
         data_fd2_chapter_event_or_battle_end_code = 1;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_29_post_action @ 0x20B72  (dispatched, 0 direct callers)
+ *
+ * Chapter 29 turn-cycle post-action handler. Reached via
+ * data_fd2_chapter_post_action_handler_table[28] (table @ 0x51B19,
+ * indexed by current_chapter_id). The dispatch site invokes the handler
+ * with no real arguments; event_arg is the Watcom __CHK-prologue artifact
+ * and is unused by the body.
+ *
+ * Unlike most handlers in this file, chapter 29 does NOT call the default
+ * fd2_check_battle_end_condition. It is map-event driven and implements its
+ * own three sequential, independent flag writes to game_event_flag
+ * (0x53ECC), in this exact order (later writes override earlier):
+ *
+ *   1. WIN: if the three altar/event tiles at indices 0x12, 0x13 and 0x14
+ *      of the tile-event-consumed-flags array (pointer @ 0x53AD5) are ALL
+ *      set (all three locations visited / altars activated), set the flag
+ *      to 2 (WIN). The && short-circuits: the first un-triggered tile skips
+ *      the remaining checks.
+ *   2. LOSE: if the hero runtime_char[0] is dead, set the flag to 1 (LOSE).
+ *      This runs after step 1, so a hero death overrides a WIN from step 1.
+ *   3. LOSE + dialog: if the protected ally runtime_char[1] is dead, show
+ *      current_chapter_text page 9 and set the flag to 1 (LOSE). Runs after
+ *      steps 1-2.
+ *
+ * Deadness is queried through fd2_check_char_is_dead (runtime_char[idx].flags
+ * bit0). The tile flags are read as bytes through the pointer global
+ * data_fd2_field_map_tile_event_consumed_flags_ptr. The dialog call uses the
+ * chapter's standard glyph geometry (render base 0xA0000, pitch 0x140, glyph
+ * params 0xCD/0x4C/0x4A, height 0x13) with blink_flag = 1.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_29_post_action(uint32 event_arg)
+{
+    uint8 *pTileFlags;
+
+    (void)event_arg;
+
+    pTileFlags = (uint8 *)data_fd2_field_map_tile_event_consumed_flags_ptr;
+    if (pTileFlags[0x12] != 0 &&
+        pTileFlags[0x13] != 0 &&
+        pTileFlags[0x14] != 0) {
+        data_fd2_chapter_event_or_battle_end_code = 2;
+    }
+
+    if (fd2_check_char_is_dead(0) != 0) {
+        data_fd2_chapter_event_or_battle_end_code = 1;
+    }
+
+    if (fd2_check_char_is_dead(1) != 0) {
+        fd2_display_dialog_scene(current_chapter_text, 9, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        data_fd2_chapter_event_or_battle_end_code = 1;
+    }
+}
