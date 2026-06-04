@@ -486,3 +486,29 @@ void fd2_chapter_23_post_action(uint32 event_arg)
         data_fd2_chapter_event_or_battle_end_code = 2;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_25_post_action @ 0x20B14  (dispatched, 0 direct callers)
+ *
+ * Chapter 25 turn-cycle post-action handler. Reached via
+ * data_fd2_chapter_post_action_handler_table[24] (table @ 0x51B19,
+ * indexed by current_chapter_id). The dispatch site invokes the handler
+ * with no real arguments; event_arg is the Watcom __CHK-prologue artifact
+ * and is unused by the body.
+ *
+ * Runs the default win/lose check (fd2_check_battle_end_condition), then
+ * adds a single lose-condition override: if the protected char
+ * runtime_char[0x10] is dead, set game_event_flag (0x53ECC) to 1 (LOSE).
+ * Deadness is queried through fd2_check_char_is_dead (runtime_char[idx].flags
+ * bit0); the body reads no bFlags inline.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_25_post_action(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_check_battle_end_condition();
+
+    if (fd2_check_char_is_dead(0x10) != 0) {
+        data_fd2_chapter_event_or_battle_end_code = 1;
+    }
+}

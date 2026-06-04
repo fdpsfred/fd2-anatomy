@@ -1914,6 +1914,117 @@ static void test_chpost23_neighbor_slots_ignored(void)
     chpost18_teardown();
 }
 
+/* ============================================================
+ * fd2_chapter_25_post_action @ 0x20B14
+ *
+ * Unlike chapters 18/23, chapter 25 DOES run the default win/lose check
+ * (fd2_check_battle_end_condition, linked real) and then adds a single
+ * lose-condition override: if the protected char runtime_char[0x10] is dead
+ * -> game_event_flag = 1 (LOSE). Deadness for slot 0x10 is queried through
+ * fd2_check_char_is_dead (runtime_char[0x10].flags bit0); the body reads no
+ * bFlags inline.
+ *
+ * Because the default check runs first, the flag has a baseline: with the
+ * shared chapter-18 fixture (every slot team=2 / alive, party_count=64) the
+ * default check yields 2 (no alive team==0 enemy resets it, protagonist slot
+ * 0 alive), so the override is observable as a clean 2 -> 1 transition. The
+ * chapter-18 setup is reused verbatim since slot 0x10 is well within its
+ * 64-slot t_rc13 buffer and it enables fd2_check_char_is_dead's array mode.
+ *
+ * Coverage is risk-driven for: the single override slot index, the
+ * set-to-1-on-dead direction (the disassembly's JZ-skips-the-set shape is
+ * easy to read backwards), the off-by-one neighbors of slot 0x10, and the
+ * fact that chapter 25 (unlike 18/23) genuinely calls the default check:
+ *   - slot 0x10 dead, protagonist alive  -> override fires, 2 -> 1
+ *   - everyone alive                      -> no override; default baseline 2
+ *                                            survives (proves the default
+ *                                            check ran: 18/23 would leave 0)
+ *   - neighbors 0xF and 0x11 dead, 0x10
+ *     alive                               -> no override, flag stays 2 (pins
+ *                                            the checked slot as exactly 0x10)
+ *   - an enemy (team==0) left alive, 0x10
+ *     alive                               -> default check sets 0, override
+ *                                            does not fire, flag stays 0
+ *                                            (proves the default check's
+ *                                            enemy-scan path runs unaltered)
+ *   - protagonist slot 0 dead AND 0x10
+ *     dead                                -> default sets 1, override also
+ *                                            sets 1 (write value agrees)
+ * ============================================================ */
+
+/* Protected char[0x10] dead, protagonist alive -> the default check leaves
+ * baseline 2, then the override fires and sets 1. Pins the override slot =
+ * 0x10 and the LOSE value, observable as the 2 -> 1 transition. */
+static void test_chpost25_char10_dead_lose(void)
+{
+    chpost18_setup();
+    t_rc13[0x10].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_25_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost18_teardown();
+}
+
+/* Everyone alive -> the override does not fire, so the default check's
+ * baseline (2 = victory) survives. Confirms chapter 25 actually runs the
+ * default win/lose check (chapters 18/23 would leave the pre-cleared 0). */
+static void test_chpost25_all_alive_keeps_default_win(void)
+{
+    chpost18_setup();
+
+    fd2_chapter_25_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost18_teardown();
+}
+
+/* Off-by-one guard: the immediate neighbors of slot 0x10 are dead while slot
+ * 0x10 itself is alive -> the override does not fire and the default baseline
+ * 2 survives. Pins the checked slot as exactly 0x10 (not 0xF, not 0x11). */
+static void test_chpost25_neighbor_slots_ignored(void)
+{
+    chpost18_setup();
+    t_rc13[0xF].flags = CHARFLAG_DEAD;   /* lower neighbor of slot 0x10 */
+    t_rc13[0x11].flags = CHARFLAG_DEAD;  /* upper neighbor of slot 0x10 */
+
+    fd2_chapter_25_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost18_teardown();
+}
+
+/* An enemy (team==0) is left alive and slot 0x10 is alive -> the default
+ * check's enemy scan resets the flag to 0 (battle continues) and the override
+ * does not fire, so the flag stays 0. Proves chapter 25 runs the default
+ * check's enemy-alive path unaltered before the override. */
+static void test_chpost25_enemy_alive_keeps_battle_continue(void)
+{
+    chpost18_setup();
+    t_rc13[3].team = 0;                  /* slot 3 is an alive enemy */
+
+    fd2_chapter_25_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 0);
+    chpost18_teardown();
+}
+
+/* Protagonist slot 0 dead (default check sets 1) AND slot 0x10 dead (override
+ * also sets 1) -> flag is 1 either way; pins that the override's write value
+ * agrees with the default lose value and does not clobber it to something
+ * else. */
+static void test_chpost25_protagonist_and_char10_dead_lose(void)
+{
+    chpost18_setup();
+    t_rc13[0].flags = CHARFLAG_DEAD;
+    t_rc13[0x10].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_25_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost18_teardown();
+}
+
 void run_field_chpost_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1991,5 +2102,10 @@ void run_field_chpost_tests(void)
     RUN_TEST(test_chpost23_boss_dead_win);
     RUN_TEST(test_chpost23_boss_and_ally_dead_win_overrides);
     RUN_TEST(test_chpost23_neighbor_slots_ignored);
+    RUN_TEST(test_chpost25_char10_dead_lose);
+    RUN_TEST(test_chpost25_all_alive_keeps_default_win);
+    RUN_TEST(test_chpost25_neighbor_slots_ignored);
+    RUN_TEST(test_chpost25_enemy_alive_keeps_battle_continue);
+    RUN_TEST(test_chpost25_protagonist_and_char10_dead_lose);
     printf("\n");
 }
