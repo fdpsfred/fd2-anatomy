@@ -852,13 +852,21 @@ void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite, uint32 stride) {
  * interpolation is driven by the test_close_* cases in
  * tests/dialog/dialog.c (observed via the restore/save/blit-setup stubs). */
 
-/* ---- fd2_open_char_status_screen (status.c) support ----
- * The status-screen modal is pure VGA/sfx orchestration: every callee below
- * only blits/animates, and the function itself memmoves to physical VRAM
- * (0xA0000). It is therefore deferred to Phase 9 integration and is not driven
- * by a host unit test; these noop stubs only satisfy the linker for the
- * not-yet-emitted display callees it references. */
-void fd2_open_status_screen_with_slide_in(uint32 char_idx) { (void)char_idx; }
+/* ---- fd2_open_char_status_screen / fd2_open_status_screen_with_slide_in
+ * (status.c) support ----
+ * The status-screen modals are pure VGA/sfx orchestration: every callee below
+ * only blits/animates, and the functions themselves memmove to/from physical
+ * VRAM (0xA0000). They are therefore deferred to Phase 9 integration and are
+ * not driven by a host unit test; these noop stubs only satisfy the linker for
+ * the not-yet-emitted display callees they reference. */
+void fd2_render_status_screen_static_layout(uint32 char_idx,
+                                            uint32 overlay_buffer) {
+    (void)char_idx; (void)overlay_buffer;
+}
+void fd2_render_inventory_item_grid(uint32 char_idx, int item_id,
+                                    uint32 overlay_buffer) {
+    (void)char_idx; (void)item_id; (void)overlay_buffer;
+}
 void fd2_paint_status_panel_layer_left(uint32 layer, uint32 dst_workspace,
                                        uint32 overlay_buffer) {
     (void)layer; (void)dst_workspace; (void)overlay_buffer;

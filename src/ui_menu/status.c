@@ -66,6 +66,60 @@ void fd2_compute_equipped_stats_with_item_preview(uint32 char_idx,
 }
 
 /* ----------------------------------------------------------------
+ * fd2_open_status_screen_with_slide_in @ 0x17E0B  (3 callers)
+ *
+ * Open the character status panel with a 12-frame slide-in animation.
+ *
+ * Allocates three 64000-byte (320x200 mode 13h) workspaces:
+ *   render_workspace_a — per-frame interpolated animation accumulator
+ *   render_workspace_b — pristine snapshot of the current screen (backdrop)
+ *   render_workspace_c — fully-rendered status-panel target image
+ *
+ * Backs up VRAM (0xA0000) into workspace_b, copies that into workspace_c,
+ * then renders the static status layout + inventory grid (item_id -1 = no
+ * highlight) into workspace_c. Drives a 12-frame slide-in (frame 0xB down
+ * to 0); a chime SFX fires at frame 0xB (open) and frame 5 (mid). Finally
+ * drains the keyboard buffer.
+ *
+ * Counterpart: fd2_close_status_screen_with_slide_out.
+ *
+ * void __cdecl with the __CHK(0x18) stack-probe prologue (EBX is the loop
+ * counter). The trailing fd2_clear_keyboard_buffer() + POP EBX + RET form
+ * the shared epilogue.
+ * ---------------------------------------------------------------- */
+void fd2_open_status_screen_with_slide_in(uint32 char_idx)
+{
+    int frame_iter;
+
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_composed_target_buf_ptr = (uint32)malloc(64000);
+
+    memmove((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr,
+            (void *)0xa0000, 64000);
+    memmove((void *)data_fd2_ui_slide_composed_target_buf_ptr,
+            (void *)data_fd2_ui_slide_bg_snapshot_buf_ptr, 64000);
+
+    fd2_render_status_screen_static_layout(char_idx,
+        data_fd2_ui_slide_composed_target_buf_ptr);
+    fd2_render_inventory_item_grid(char_idx, -1,
+        data_fd2_ui_slide_composed_target_buf_ptr);
+
+    for (frame_iter = 0xb; frame_iter >= 0; frame_iter--) {
+        if (frame_iter == 0xb || frame_iter == 5) {
+            fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
+                5, 1);
+        }
+        fd2_play_status_screen_outro_step((uint32)frame_iter,
+            data_fd2_ui_slide_anim_accumulator_buf_ptr,
+            data_fd2_ui_slide_composed_target_buf_ptr,
+            (int)data_fd2_ui_slide_bg_snapshot_buf_ptr);
+    }
+
+    fd2_clear_keyboard_buffer();
+}
+
+/* ----------------------------------------------------------------
  * fd2_open_char_status_screen @ 0x17AED  (2 callers)
  *
  * Display character status screen modal. Reached on Space/Enter for the

@@ -894,8 +894,9 @@
     "name": "fd2_open_status_screen_with_slide_in",
     "target": "ui_menu/status.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00017ee8": {
     "name": "fd2_wrapper_clear_keyboard_buffer",
