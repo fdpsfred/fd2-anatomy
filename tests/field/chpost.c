@@ -1085,6 +1085,134 @@ static void test_chpost18_neighbor_slots_ignored(void)
     chpost18_teardown();
 }
 
+/* ============================================================
+ * fd2_chapter_19_post_action @ 0x20926
+ *
+ * Same default win/lose check (fd2_check_battle_end_condition, linked
+ * real), then a turn-GATED single-slot lose-condition override: only when
+ * the turn counter (0x53BEF) is strictly greater than 6 (turn 7+) AND key
+ * NPC runtime_char[0x40] is dead does game_event_flag become 1. This is
+ * chapter 15's single-slot 0x40 check wrapped in a strict `turn > 6` gate
+ * (same comparator shape as chapter 13 condition 2). Deadness is queried
+ * through fd2_check_char_is_dead (runtime_char[idx].flags bit0).
+ *
+ * Reuses the 72-slot t_rc15 buffer (slot 0x40 = 64 is in range) and the
+ * testglob array-reading mode so per-slot .flags drive the dead-check, with
+ * the all-team-2 / alive arrangement pinning the default check to flag=2;
+ * the override is then observable as a clean 2 -> 1.
+ *
+ * Coverage is risk-driven for the two stacked, easy-to-read-backwards
+ * branches — the strict `JLE`-skip turn gate and the inner `JZ`-skip
+ * dead-check — and their conjunction:
+ *   - turn 6 (== 6, not > 6), slot 0x40 dead -> gate blocks (flag stays 2),
+ *     pinning the strict comparator (boundary value 6 must not trigger).
+ *   - turn 7 (> 6), slot 0x40 alive          -> dead-check fails (flag 2).
+ *   - turn 7 (> 6), slot 0x40 dead           -> override fires (flag -> 1).
+ *   - turn 0, slot 0x40 dead                  -> gate blocks (flag 2), the
+ *     pre-turn-7 unprotected window.
+ *   - turn 7, neighbors 0x3F/0x41 dead, 0x40 alive -> NO override, pinning
+ *     the checked slot as exactly 0x40 (no off-by-one in either direction).
+ * ============================================================ */
+
+static void chpost19_setup(void)
+{
+    int i;
+
+    memset(t_rc15, 0, sizeof(t_rc15));
+    for (i = 0; i < CH15_RC_SLOTS; i++) {
+        t_rc15[i].team = 2;     /* player team: never an alive enemy */
+        t_rc15[i].flags = 0;    /* alive */
+    }
+    data_fd2_battle_runtime_char_array_ptr = t_rc15;
+    data_fd2_battle_party_member_count = CH15_RC_SLOTS;
+    data_fd2_chapter_event_or_battle_end_code = 0;
+    data_fd2_battle_turn_counter = 0;
+    g_check_char_is_dead_use_array = 1;   /* per-slot .flags drive deadness */
+}
+
+static void chpost19_teardown(void)
+{
+    g_check_char_is_dead_use_array = 0;   /* restore index-agnostic default */
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_battle_turn_counter = 0;
+}
+
+/* Turn == 6 (NOT > 6) with slot 0x40 dead -> the turn gate blocks the
+ * override and the default flag (2) survives. Pins the strict `turn > 6`
+ * comparator: the boundary value 6 must not trigger. */
+static void test_chpost19_turn_eq_6_keeps_default(void)
+{
+    chpost19_setup();
+    data_fd2_battle_turn_counter = 6;
+    t_rc15[0x40].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_19_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost19_teardown();
+}
+
+/* Turn == 7 (> 6) but slot 0x40 alive -> the gate opens yet the dead-check
+ * fails, so no override. Pins that deadness of 0x40 is required, not just
+ * the turn gate, and the dead-check branch direction (ALIVE must NOT set). */
+static void test_chpost19_turn_gt_6_npc_alive_keeps_default(void)
+{
+    chpost19_setup();
+    data_fd2_battle_turn_counter = 7;
+    /* slot 0x40 already alive from setup */
+
+    fd2_chapter_19_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost19_teardown();
+}
+
+/* Turn == 7 (> 6) AND slot 0x40 dead -> both conditions hold, the override
+ * fires (flag 2 -> 1). The canonical game-over path. */
+static void test_chpost19_turn_gt_6_npc_dead_game_over(void)
+{
+    chpost19_setup();
+    data_fd2_battle_turn_counter = 7;
+    t_rc15[0x40].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_19_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost19_teardown();
+}
+
+/* Turn == 0 (the pre-turn-7 unprotected window) with slot 0x40 dead -> the
+ * gate blocks the override, flag stays 2. Confirms char[0x40] is deliberately
+ * unprotected before turn 7. */
+static void test_chpost19_turn_zero_npc_dead_keeps_default(void)
+{
+    chpost19_setup();
+    /* turn counter already 0 from setup */
+    t_rc15[0x40].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_19_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost19_teardown();
+}
+
+/* Turn == 7 (> 6) with neighbors 0x3F and 0x41 dead while the key NPC (0x40)
+ * is alive -> the override must NOT fire. Proves the checked slot is exactly
+ * 0x40 (no off-by-one in either direction). */
+static void test_chpost19_neighbor_slots_ignored(void)
+{
+    chpost19_setup();
+    data_fd2_battle_turn_counter = 7;
+    t_rc15[0x3F].flags = CHARFLAG_DEAD;
+    t_rc15[0x41].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_19_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost19_teardown();
+}
+
 void run_field_chpost_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1129,5 +1257,10 @@ void run_field_chpost_tests(void)
     RUN_TEST(test_chpost18_boss_dead_win);
     RUN_TEST(test_chpost18_boss_and_ally_dead_win_overrides);
     RUN_TEST(test_chpost18_neighbor_slots_ignored);
+    RUN_TEST(test_chpost19_turn_eq_6_keeps_default);
+    RUN_TEST(test_chpost19_turn_gt_6_npc_alive_keeps_default);
+    RUN_TEST(test_chpost19_turn_gt_6_npc_dead_game_over);
+    RUN_TEST(test_chpost19_turn_zero_npc_dead_keeps_default);
+    RUN_TEST(test_chpost19_neighbor_slots_ignored);
     printf("\n");
 }

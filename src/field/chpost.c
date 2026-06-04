@@ -272,3 +272,35 @@ void fd2_chapter_18_post_action(uint32 event_arg)
         data_fd2_chapter_event_or_battle_end_code = 2;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_19_post_action @ 0x20926  (dispatched, 0 direct callers)
+ *
+ * Chapter 19 turn-cycle post-action handler. Reached via
+ * data_fd2_chapter_post_action_handler_table[18] (table @ 0x51B19,
+ * indexed by current_chapter_id). The dispatch site invokes the handler
+ * with no arguments; event_arg is the Watcom __CHK-prologue artifact and
+ * is unused by the body.
+ *
+ * Runs the default win/lose check, then adds a turn-GATED single-slot
+ * lose-condition override: only from turn 7 onwards (turn counter at
+ * 0x53BEF strictly greater than 6) AND key NPC runtime_char[0x40] dead is
+ * game_event_flag (0x53ECC) set to 1 (game over). Before turn 7 the slot
+ * is unprotected (off-map or in an invulnerable scripted state), so the
+ * dead-check is gated behind the turn comparison. Structurally this is
+ * chapter 15's single-slot 0x40 lose check wrapped in chapter 13's strict
+ * `turn > 6` gate. Deadness is queried through fd2_check_char_is_dead
+ * (runtime_char[idx].flags bit0); the turn comparison is signed.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_19_post_action(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_check_battle_end_condition();
+
+    if ((int32)data_fd2_battle_turn_counter > 6) {
+        if (fd2_check_char_is_dead(0x40) != 0) {
+            data_fd2_chapter_event_or_battle_end_code = 1;
+        }
+    }
+}
