@@ -1062,8 +1062,9 @@
     "name": "fd2_text_dialog_typewriter_loop",
     "target": "dialog/dialog.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00019df7": {
     "name": "fd2_field_menu_status_save_load_quit_dispatch",

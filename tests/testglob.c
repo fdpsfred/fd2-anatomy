@@ -840,12 +840,14 @@ int fd2_field_menu_status_save_load_quit_dispatch(void) {
     g_save_load_quit_dispatch_calls++;
     return g_save_load_quit_dispatch_return;
 }
-int g_typewriter_loop_return = 0;            /* default: "No" */
-int g_typewriter_loop_calls = 0;
-int fd2_text_dialog_typewriter_loop(void) {
-    g_typewriter_loop_calls++;
-    return g_typewriter_loop_return;
-}
+/* fd2_text_dialog_typewriter_loop is now emitted for real in src/dialog/dialog.c
+ * (driven by the test_typewriter_* cases in tests/dialog/dialog.c, which preload
+ * the BIOS keyboard buffer so its INT 16h dispatch returns at once). Its former
+ * recording stub (g_typewriter_loop_return / _calls) was removed. Caller paths
+ * that reach it through the real blocking busy-wait (menufld.c's non-gate paths)
+ * are deferred to Phase 9 integration, where real keyboard input releases the
+ * loop — the same deferral the file already applies to its
+ * fd2_wait_for_input_dialog_with_blink gold/item paths. */
 /* fd2_animate_dialog_page_advance_collapse is now emitted for real in
  * src/dialog/dialog.c; its former recording stub here was removed. Caller
  * tests (menufld.c) drive the real function with the battle-tile-map gate ON

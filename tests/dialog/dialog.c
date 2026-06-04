@@ -1112,6 +1112,218 @@ static void test_page_advance_collapse_composite_gate(void)
     pac_teardown(gss, rwc, handle);
 }
 
+/* ---- fd2_text_dialog_typewriter_loop (Yes/No typewriter + input loop) ----
+ *
+ * The function runs a 4-frame intro (memmove copybacks + corner blits +
+ * fd2_blit_rectangle, all against work buffers / the harmless VGA aperture)
+ * and then a key-driven main loop. With the BIOS keyboard buffer pre-loaded
+ * non-empty at entry, the inner throttle loop is skipped on every pass and
+ * execution falls straight through to the real INT 16h (int386 AH=10h) read +
+ * scancode dispatch — the same drive the input.c wait_* tests use. We can thus
+ * exercise the return contract (1 = advance/Yes, -1 = cancel), the cursor
+ * left/right side-effects, and the oscillator reset, all deterministically.
+ *
+ * The per-glyph typewriter body and the full-page copyback are pure display
+ * side effects gated behind the throttle (a BIOS-tick-paced frame that only
+ * fires after >=2 ticks of real wall time); driving them needs the buffer to
+ * start empty and flip mid-loop, and they only write pixels / work buffers.
+ * Those are deferred to Phase 9 integration. The EAX-bug-sensitive RNG seeding
+ * at setup IS pinned here: with the loop skipped exactly one
+ * fd2_advance_rng_state() runs, so the post-run seed proves the pace counter is
+ * seeded from a fresh RNG return (not the clobbered __CHK / blit-return EAX
+ * that Ghidra renders).
+ *
+ * Large work buffers (the setup copies the whole 200x320 page into the
+ * game-state buffer at (row-4)*0x1C8 + 0x8084, reaching ~0x3D3DC, and reads the
+ * 64000-byte VGA snapshot back out of the slide buffer), sized past those spans.
+ */
+extern uint16 data_fd2_shared_rng_seed;
+
+static uint8 *g_tw_gss;
+static uint8 *g_tw_rwc;
+static uint8 *g_tw_handle;
+static uint32 g_tw_saved_party;
+
+/* rol16((seed + 0x9014) & 0xFFFF, 3) — one fd2_advance_rng_state() step. */
+static uint16 tw_rng_next(uint16 seed)
+{
+    uint32 v;
+    v = (uint32)((seed + 0x9014u) & 0xFFFFu);
+    v = ((v << 3) | (v >> 13)) & 0xFFFFu;
+    return (uint16)v;
+}
+
+static void tw_setup(uint32 tile_map)
+{
+    g_tw_gss    = (uint8 *)malloc(0x42000);   /* covers (199-4)*0x1C8+0x8084 */
+    g_tw_rwc    = (uint8 *)malloc(0x20000);   /* covers 199*0x140 + intro src */
+    g_tw_handle = (uint8 *)malloc(0x400);
+    ASSERT_TRUE(g_tw_gss != NULL && g_tw_rwc != NULL && g_tw_handle != NULL);
+    memset(g_tw_gss, 0, 0x42000);
+    memset(g_tw_rwc, 0, 0x20000);
+    memset(g_tw_handle, 0, 0x400);
+
+    data_fd2_large_game_state_buffer_ptr      = (uint32)g_tw_gss;
+    data_fd2_ui_slide_composed_target_buf_ptr = (uint32)g_tw_rwc;
+    data_fd2_menu_dialog_state_handle         = (uint32)g_tw_handle;
+    g_tw_saved_party                          = data_fd2_battle_party_member_count;
+    data_fd2_battle_party_member_count        = 0;   /* overlay no-op */
+    data_fd2_battle_tile_map_ptr              = tile_map;
+
+    g_blitsetup_calls      = 0;
+    g_composite_call_count = 0;
+    data_fd2_ui_menu_cursor_idx = 0x55;   /* poison: setup must clear to 0 */
+}
+
+static void tw_teardown(void)
+{
+    free(g_tw_gss);
+    free(g_tw_rwc);
+    free(g_tw_handle);
+    data_fd2_large_game_state_buffer_ptr      = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+    data_fd2_menu_dialog_state_handle         = 0;
+    data_fd2_battle_tile_map_ptr              = 0;
+    data_fd2_battle_party_member_count        = g_tw_saved_party;
+}
+
+/* Load one INT 16h scancode (high byte) into the BIOS keyboard ring and mark
+ * the buffer non-empty so fd2_check_keyboard_buffer_nonempty() reads pending. */
+static void tw_queue_key(uint16 scancode_high)
+{
+    *(volatile uint16 *)0x41AuL = 0x1E;            /* head */
+    *(volatile uint16 *)0x41CuL = 0x20;            /* tail = head + 2 (1 key) */
+    *(volatile uint16 *)0x41EuL = scancode_high << 8;
+}
+
+/* Each confirm scancode (Enter 0x1C, Space 0x39, extended 0xE0, numpad-0 0x52)
+ * returns 1 and resets the blink oscillator to 0 on the way out. The loop is
+ * skipped (buffer non-empty), so exactly one RNG step ran at setup: the post
+ * seed pins the EAX-bug-corrected pace seeding. */
+static void test_typewriter_confirm_returns_one(void)
+{
+    static const uint16 yes_scancodes[4] = { 0x1C, 0x39, 0xE0, 0x52 };
+    int    k;
+    int    r;
+    uint16 seed0;
+
+    for (k = 0; k < 4; k++) {
+        tw_setup(0);                  /* full-screen dialog path */
+        data_fd2_dialog_blink_phase_oscillator = 3;   /* nonzero -> must clear */
+        seed0 = 0x1234;
+        data_fd2_shared_rng_seed = seed0;
+        tw_queue_key(yes_scancodes[k]);
+
+        r = fd2_text_dialog_typewriter_loop();
+
+        ASSERT_EQ((long)r, 1);
+        ASSERT_EQ((long)data_fd2_dialog_blink_phase_oscillator, 0);
+        ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);   /* setup cleared poison */
+        ASSERT_EQ((long)data_fd2_shared_rng_seed, (long)tw_rng_next(seed0));
+        tw_teardown();
+    }
+}
+
+/* Esc (0x01) and numpad-. (0x53) cancel: return -1 and reset the oscillator. */
+static void test_typewriter_cancel_returns_minus_one(void)
+{
+    static const uint16 no_scancodes[2] = { 0x01, 0x53 };
+    int k;
+    int r;
+
+    for (k = 0; k < 2; k++) {
+        tw_setup(2);                  /* in-battle small-dialog path */
+        data_fd2_dialog_blink_phase_oscillator = 2;
+        tw_queue_key(no_scancodes[k]);
+
+        r = fd2_text_dialog_typewriter_loop();
+
+        ASSERT_EQ((long)r, -1);
+        ASSERT_EQ((long)data_fd2_dialog_blink_phase_oscillator, 0);
+        tw_teardown();
+    }
+}
+
+/* Left (0x4B) sets cursor=0 then loops; Right (0x4D) sets cursor=1 then loops.
+ * We queue the navigation key followed by a confirm (Enter) so the loop reads
+ * the nav key (sets the cursor, loops back), then the confirm consumes the
+ * second buffered key and returns 1 — pinning both the cursor assignment and
+ * the loop-back (non-return) behavior of the nav scancodes. */
+static void test_typewriter_cursor_left_then_confirm(void)
+{
+    int r;
+
+    tw_setup(0);
+    /* two keys: 0x4B (Left) at head, 0x1C (Enter) next; tail = head + 4 */
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x22;
+    *(volatile uint16 *)0x41EuL = 0x4B00;
+    *(volatile uint16 *)0x420uL = 0x1C00;
+    data_fd2_ui_menu_cursor_idx = 1;     /* preset 1 so Left -> 0 is observable */
+
+    r = fd2_text_dialog_typewriter_loop();
+
+    ASSERT_EQ((long)r, 1);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);   /* Left committed cursor=0 */
+    tw_teardown();
+}
+
+static void test_typewriter_cursor_right_then_confirm(void)
+{
+    int r;
+
+    tw_setup(0);
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x22;
+    *(volatile uint16 *)0x41EuL = 0x4D00;   /* Right */
+    *(volatile uint16 *)0x420uL = 0x1C00;   /* Enter */
+    data_fd2_ui_menu_cursor_idx = 0;     /* preset 0 so Right -> 1 is observable */
+
+    r = fd2_text_dialog_typewriter_loop();
+
+    ASSERT_EQ((long)r, 1);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 1);   /* Right committed cursor=1 */
+    tw_teardown();
+}
+
+/* The 4-frame intro runs unconditionally before the main loop: it folds the two
+ * Yes/No corner sprites outward, emitting exactly 2 corner blits per frame = 8.
+ * With battle_tile_map==0 (gate off) the scene-prime composite must not run. */
+static void test_typewriter_intro_emits_eight_corner_blits(void)
+{
+    tw_setup(0);
+    tw_queue_key(0x1C);                /* Enter -> exit right after intro */
+
+    fd2_text_dialog_typewriter_loop();
+
+    ASSERT_EQ((long)g_blitsetup_calls, 8);     /* 2 corners x 4 intro frames */
+    ASSERT_EQ((long)g_composite_call_count, 0);/* gate off: no scene prime */
+    tw_teardown();
+}
+
+/* battle_tile_map>1 primes the battle base scene once during setup (palette tick
+ * + fd2_composite_battle_tile_map + char overlay) before the intro frames. The
+ * tile-map composite proxy counts that single prime; the intro itself adds no
+ * composite. Confirms the in-battle gate and the fixed tile-map params. */
+static void test_typewriter_battle_gate_primes_scene(void)
+{
+    tw_setup(2);
+    data_fd2_battle_view_window_origin_x = 0x21;
+    data_fd2_battle_view_window_origin_y = 0x33;
+    tw_queue_key(0x1C);
+
+    fd2_text_dialog_typewriter_loop();
+
+    ASSERT_EQ((long)g_composite_call_count, 1);   /* exactly one scene prime */
+    ASSERT_EQ((long)g_tile_map_last_dst, (long)((uint32)g_tw_gss + 0x8088));
+    ASSERT_EQ((long)g_tile_map_last_stride, (long)0x1C8);
+    ASSERT_EQ((long)g_tile_map_last_w, (long)0xD);
+    ASSERT_EQ((long)g_tile_map_last_h, (long)8);
+    ASSERT_EQ((long)g_tile_map_last_ox, (long)0x21);
+    ASSERT_EQ((long)g_tile_map_last_oy, (long)0x33);
+    tw_teardown();
+}
+
 void run_dialog_dialog_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1139,5 +1351,11 @@ void run_dialog_dialog_tests(void)
     RUN_TEST(test_restore_writes_region);
     RUN_TEST(test_page_advance_collapse_corners_and_copy);
     RUN_TEST(test_page_advance_collapse_composite_gate);
+    RUN_TEST(test_typewriter_confirm_returns_one);
+    RUN_TEST(test_typewriter_cancel_returns_minus_one);
+    RUN_TEST(test_typewriter_cursor_left_then_confirm);
+    RUN_TEST(test_typewriter_cursor_right_then_confirm);
+    RUN_TEST(test_typewriter_intro_emits_eight_corner_blits);
+    RUN_TEST(test_typewriter_battle_gate_primes_scene);
     printf("\n");
 }

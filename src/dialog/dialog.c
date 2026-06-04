@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <dos.h>
 
 /* ----------------------------------------------------------------
  * fd2_cleanup_dialog_sprite_buffer @ 0x15E71 (7 callers)
@@ -860,4 +861,235 @@ void fd2_animate_dialog_page_advance_collapse(void)
                          + (row + 0x70) * 0x140),
                 0x136);
     }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_text_dialog_typewriter_loop @ 0x19953 (17 callers)
+ *
+ * Yes/No prompt: typewriter character animation + input loop, the
+ * confirm-time companion of fd2_animate_dialog_page_advance_collapse.
+ *
+ * Setup: snapshot VRAM (0xA0000) into the slide-composed work buffer,
+ * copy the full 200x320 page back into the game-state work buffer
+ * (row -4..199, stride 0x1C8), prime the battle base scene when
+ * battle_tile_map > 1, then play a 4-frame intro that folds the two
+ * Yes/No corner sprites OUTWARD (left corner -4/frame, right +4/frame).
+ *
+ * Main loop (runs until a key event):
+ *   - throttle on the BIOS tick word @ 0x46C: a frame only advances
+ *     when (cur - latch) >= 2 ticks (or the tick wrapped negative).
+ *   - oscillator (0x53C13) cycles 0..3 each accepted frame.
+ *   - re-composite the battle base scene when battle_tile_map > 1.
+ *   - typewriter: char_phase==1 paints the current glyph
+ *     (blit_normal when battle_tile_map==0, else blit_mirrored) and
+ *     reseeds the inter-glyph pace = rng()%0x1E + 10; otherwise the
+ *     pace counter counts down and, on reaching 0, starts the next
+ *     glyph (offset *(buf+0xC)) and re-arms char_phase.
+ *   - copy the work buffer back to the framebuffer (full page when
+ *     battle_tile_map<2, else the small in-battle dialog band).
+ *   - draw the two Yes/No boxes (selector = corner_state[i]*3, plus
+ *     oscillator/2 on the currently selected box), then flush via
+ *     fd2_blit_rectangle.
+ *
+ * Input dispatch (INT 16h via int386, scancode read from
+ * key_input_mode @ 0x53A8E):
+ *   0xE0 / 0x52 / 0x1C / 0x39  -> return 1  (Enter/Space/extended -> Yes/advance)
+ *   0x01 / 0x53                -> return -1 (Esc/Numpad-. -> cancel)
+ *   0x4B (Left)  -> cursor = 0 (Yes)
+ *   0x4D (Right) -> cursor = 1 (No)
+ *   else         -> keep looping
+ * The oscillator is reset to 0 on every exit path.
+ *
+ * EAX-bug note: Ghidra renders both pace seeds off a clobbered
+ * register (__CHK's result for the init seed, the blit return for the
+ * per-glyph seed). The assembly seeds each from a *fresh*
+ * fd2_advance_rng_state() return (CALL 0x4E893 then IDIV 0x1E),
+ * reproduced faithfully here. corner_state[] mirrors the vendor's
+ * adjacent-locals layout: [0..1] = template[2..3] sprite selectors,
+ * [2..3] = the two animated corner offsets.
+ * ---------------------------------------------------------------- */
+int fd2_text_dialog_typewriter_loop(void)
+{
+    int32  corner_state[4];
+    uint32 yes_no_box_addr;
+    int    frame;
+    int    i;
+    int    row;
+    int    pace_counter;
+    int    selector;
+    uint8  char_phase;
+    int    tick_diff;
+    uint8 *glyph_src;
+    uint32 dst;
+
+    corner_state[0] = data_fd2_dialog_advance_collapse_template[2];
+    corner_state[1] = data_fd2_dialog_advance_collapse_template[3];
+    char_phase      = 0;
+    data_fd2_ui_menu_cursor_idx = 0;
+    pace_counter    = (int)fd2_advance_rng_state() % 0x1E + 2;
+    yes_no_box_addr = data_fd2_large_game_state_buffer_ptr + 0x1A59C;
+    memmove((void *)data_fd2_ui_slide_composed_target_buf_ptr,
+            (void *)0xA0000, 64000);
+    corner_state[2] = 0;
+    corner_state[3] = 0;
+
+    for (row = 0; row < 200; row++) {
+        memmove((void *)((uint32)(row - 4) * 0x1C8
+                         + data_fd2_large_game_state_buffer_ptr + 0x8084),
+                (void *)((uint32)row * 0x140
+                         + (uint32)data_fd2_ui_slide_composed_target_buf_ptr),
+                0x140);
+    }
+
+    if (1 < data_fd2_battle_tile_map_ptr) {
+        fd2_tick_chapter_palette_animation();
+        fd2_composite_battle_tile_map(
+            data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1C8, 0xD, 8,
+            data_fd2_battle_view_window_origin_x,
+            data_fd2_battle_view_window_origin_y);
+        fd2_composite_all_chars_overlay();
+    }
+
+    for (frame = 0; frame < 4; frame++) {
+        corner_state[2] -= 4;
+        corner_state[3] += 4;
+
+        for (i = 0; i < 0x56; i++) {
+            memmove((void *)(data_fd2_large_game_state_buffer_ptr + 0x8089
+                             + (uint32)(i + 0x6C) * 0x1C8),
+                    (void *)((uint32)data_fd2_ui_slide_composed_target_buf_ptr
+                             + (uint32)i * 0x140 + 0x8C05),
+                    0x136);
+        }
+
+        for (i = 0; i < 2; i++) {
+            fd2_blit_sprite_with_stride_setup(
+                (uint32)corner_state[i + 2] + yes_no_box_addr,
+                *(uint32 *)(data_fd2_menu_dialog_state_handle
+                            + (uint32)corner_state[i] * 0xC)
+                    + data_fd2_menu_dialog_state_handle,
+                0x1C8);
+        }
+
+        fd2_blit_rectangle(0xA0504, 0x140,
+                           data_fd2_large_game_state_buffer_ptr + 0x8088,
+                           0x1C8, 0x138, 0xC0);
+    }
+
+    for (;;) {
+        while (fd2_check_keyboard_buffer_nonempty() == 0) {
+            fd2_update_palette_cycle_anim();
+
+            tick_diff = (int)(int16)BIOS_TICK_WORD
+                      - (int)data_fd2_dialog_blink_phase_oscillator_tick_latch;
+            if (tick_diff < 2 && tick_diff >= 0) {
+                continue;
+            }
+
+            data_fd2_dialog_blink_phase_oscillator++;
+            if (data_fd2_dialog_blink_phase_oscillator == 4) {
+                data_fd2_dialog_blink_phase_oscillator = 0;
+            }
+            data_fd2_dialog_blink_phase_oscillator_tick_latch =
+                (uint32)(int16)BIOS_TICK_WORD;
+
+            if (1 < data_fd2_battle_tile_map_ptr) {
+                fd2_tick_chapter_palette_animation();
+                fd2_composite_battle_tile_map(
+                    data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1C8,
+                    0xD, 8, data_fd2_battle_view_window_origin_x,
+                    data_fd2_battle_view_window_origin_y);
+                fd2_composite_all_chars_overlay();
+            }
+
+            if (char_phase != 0) {
+                glyph_src = data_fd2_portrait_sprite_buffer
+                          + *data_fd2_portrait_sprite_buffer;
+                dst = (uint32)data_fd2_ui_slide_composed_target_buf_ptr
+                    + data_fd2_dialog_active_portrait_blit_offset;
+                if (data_fd2_battle_tile_map_ptr == 0) {
+                    fd2_dialog_sprite_blit_normal(dst, (uint32)glyph_src, 0x140);
+                } else {
+                    fd2_dialog_sprite_blit_mirrored(dst, (uint32)glyph_src,
+                                                    0x140);
+                }
+                pace_counter = (int)fd2_advance_rng_state() % 0x1E + 10;
+                char_phase = 0;
+            } else {
+                if (pace_counter == 0) {
+                    glyph_src = data_fd2_portrait_sprite_buffer
+                              + *(int *)(data_fd2_portrait_sprite_buffer + 0xC);
+                    dst = (uint32)data_fd2_ui_slide_composed_target_buf_ptr
+                        + data_fd2_dialog_active_portrait_blit_offset;
+                    if (data_fd2_battle_tile_map_ptr == 0) {
+                        fd2_dialog_sprite_blit_normal(dst, (uint32)glyph_src,
+                                                      0x140);
+                    } else {
+                        fd2_dialog_sprite_blit_mirrored(dst, (uint32)glyph_src,
+                                                        0x140);
+                    }
+                    char_phase = 1;
+                }
+                pace_counter--;
+            }
+
+            if (data_fd2_battle_tile_map_ptr < 2) {
+                for (i = 0; i < 200; i++) {
+                    memmove((void *)(data_fd2_large_game_state_buffer_ptr
+                                     + 0x8084 + (uint32)(i - 4) * 0x1C8),
+                            (void *)((uint32)data_fd2_ui_slide_composed_target_buf_ptr
+                                     + (uint32)i * 0x140),
+                            0x140);
+                }
+            } else {
+                for (i = 0; i < 0x56; i++) {
+                    memmove((void *)(data_fd2_large_game_state_buffer_ptr
+                                     + 0x8089 + (uint32)(i + 0x6C) * 0x1C8),
+                            (void *)((uint32)data_fd2_ui_slide_composed_target_buf_ptr
+                                     + (uint32)i * 0x140 + 0x8C05),
+                            0x136);
+                }
+            }
+
+            for (i = 0; i < 2; i++) {
+                selector = corner_state[i] * 3;
+                if ((uint32)i == data_fd2_ui_menu_cursor_idx) {
+                    selector += (int)(data_fd2_dialog_blink_phase_oscillator / 2);
+                }
+                fd2_blit_sprite_with_stride_setup(
+                    (uint32)corner_state[i + 2] + yes_no_box_addr,
+                    *(uint32 *)(data_fd2_menu_dialog_state_handle
+                                + (uint32)selector * 4)
+                        + data_fd2_menu_dialog_state_handle,
+                    0x1C8);
+            }
+
+            fd2_blit_rectangle(0xA0504, 0x140,
+                               data_fd2_large_game_state_buffer_ptr + 0x8088,
+                               0x1C8, 0x138, 0xC0);
+        }
+
+        data_fd2_input_key_input_mode = 0x10;
+        int386(0x16, (union REGS *)&data_fd2_input_last_key_pressed,
+                     (union REGS *)&data_fd2_input_last_key_pressed);
+        if (data_fd2_input_key_input_mode == 0xE0
+            || data_fd2_input_key_input_mode == 0x52
+            || data_fd2_input_key_input_mode == 0x1C
+            || data_fd2_input_key_input_mode == 0x39) {
+            break;
+        }
+        if (data_fd2_input_key_input_mode == 0x01
+            || data_fd2_input_key_input_mode == 0x53) {
+            data_fd2_dialog_blink_phase_oscillator = 0;
+            return -1;
+        }
+        if (data_fd2_input_key_input_mode == 0x4B) {
+            data_fd2_ui_menu_cursor_idx = 0;
+        } else if (data_fd2_input_key_input_mode == 0x4D) {
+            data_fd2_ui_menu_cursor_idx = 1;
+        }
+    }
+
+    data_fd2_dialog_blink_phase_oscillator = 0;
+    return 1;
 }
