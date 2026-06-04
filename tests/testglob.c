@@ -463,6 +463,12 @@ void fd2_run_buy_item_menu(uint32 n, uint8 *a) { (void)n; (void)a; }
 void fd2_run_sell_item_menu(void) { }
 void fd2_run_equip_member_menu(void) { }
 void fd2_run_give_item_menu(void) { }
+/* heavy-callee stubs for fd2_run_chapter_intro_menu_typeB (the non-shop
+ * between-chapters orchestrator, also Phase 9 deferred). status/save/load each
+ * open their own real-file UI; stubbed to satisfy the link, never invoked. */
+void fd2_run_status_screen_member_menu(void) { }
+void fd2_save_current_state_to_slot(uint32 prompt_flag) { (void)prompt_flag; }
+void fd2_load_state_from_selected_slot(void) { }
 void fd2_blit_scaled_chapter_pose(uint32 cx, uint32 cy, uint32 bmp, int32 s)
 { (void)cx; (void)cy; (void)bmp; (void)s; }
 void fd2_render_chapter_dialog_borders(void) { }

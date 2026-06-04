@@ -3111,8 +3111,9 @@
     "name": "fd2_run_chapter_intro_menu_typeB",
     "target": "ui_menu/chintro.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002ffa5": {
     "name": "fd2_run_status_screen_member_menu",

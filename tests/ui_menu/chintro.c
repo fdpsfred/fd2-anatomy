@@ -33,6 +33,26 @@
  * disassembly / decompiler), including verification of every CALL-then-EAX use
  * against the assembly and every branch constant (FDOTHER idx, greeting ids
  * 0x1F5/0x1F7/0x1B8, decimal x=0x1F, dispatch order, return flag).
+ *
+ * fd2_run_chapter_intro_menu_typeB @ 0x2FC85 is likewise NOT unit-tested here:
+ * behavioral coverage is DEFERRED to Phase 9 integration for the same reasons
+ * as fd2_run_chapter_intro_menu_main. It is the non-shop (battle-only)
+ * between-chapters orchestrator with the same display/input shape; its only
+ * computation is the begin-battle return flag and the inline pose-out scale
+ * arithmetic (identical to _main's, and reachable only by running the whole
+ * function). A meaningful assertion would require (a) fopening real game files
+ * FDOTHER.DAT / DATO.DAT / FD2.SAV / FDICON.B24 through the load/dialog/save/
+ * load-state callees, (b) driving the shared 4-way input loop and the
+ * begin-battle typewriter sub-prompt, and (c) VGA DAC port I/O plus physical
+ * writes at 0xA0000 in the 11-frame exit animation — all only exercisable at
+ * the scripted gameplay level. The shared decision logic it relies on
+ * (cursor wrap + commit/cancel) IS covered above via
+ * fd2_chapter_intro_menu_input_loop. Correctness was established by three-source
+ * review (plate / disassembly / decompiler): every CALL-then-EAX use checked
+ * against the assembly (the chapter-meta byte read), every branch constant
+ * (FDOTHER idx 0x0D, greeting ids 0x249/0x24A, begin-battle dialog ids
+ * 0x19F/0x1A0, render_pos 0xA94CC vs 0xAAC8C, dispatch order, save arg, return
+ * flag), and the pose-out arithmetic confirmed byte-for-byte against _main.
  */
 
 #include <string.h>

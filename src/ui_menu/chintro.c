@@ -228,6 +228,150 @@ uint32 fd2_run_chapter_intro_menu_main(uint32 pose_bitmap)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_run_chapter_intro_menu_typeB @ 0x2FC85  (1 caller:
+ *   fd2_chapter_transition_with_intro @ 0x2D093)
+ *
+ * Chapter-intro menu TYPE B — the between-chapters menu used for non-shop
+ * (battle-only) chapters, i.e. when chapter_transition_state == 0. Same
+ * orchestrator shape as fd2_run_chapter_intro_menu_main but with a fixed
+ * BG-image idx and a different 4-way dispatch (Status / Save / Load /
+ * Begin-battle). Returns 1 when the player confirms starting the battle
+ * (cursor 3 -> "begin battle?" -> yes), else 0.
+ *
+ * The caller passes snapshot_buf = the previously-allocated 64000-byte
+ * backdrop snapshot used by the fade-to-black / scaled-pose outro animation
+ * (owned/freed by the caller).
+ *
+ * Setup: read the chapter-meta byte (chapter category) at entry — captured
+ * before the menu loop because the pose tables are indexed by
+ * chapter_category*6 + cursor_state in the exit animation; load the fixed
+ * FDOTHER BG image (idx 0x0D), fade it in, paint the speaker portrait
+ * (portrait_id_table[0]), then show the greeting dialog (idx 0x249).
+ *
+ * Main loop: restore the saved cursor, play the open animation, run the 4-way
+ * input loop, save the cursor, play the outro animation, then unconditionally
+ * close the dialog with the slide-out (fd2_close_intro_dialog_with_slide_out,
+ * every iteration); on commit dispatch by cursor:
+ *   0  fd2_run_status_screen_member_menu()      // member status screen
+ *   1  fd2_save_current_state_to_slot(1)         // save slot UI
+ *   2  fd2_load_state_from_selected_slot()       // load slot UI (may not return)
+ *   3  "begin battle?" confirmation: show portrait[0] + dialog 0x19F, run the
+ *      typewriter loop + page-advance collapse; if the typewriter returned a
+ *      non-cancel (!= -1) AND the confirm cursor landed on 0 (yes), show the
+ *      "battle starting" dialog 0x1A0, delay, slide-out and return 1.
+ * After a non-battle action it re-shows the greeting (idx 0x24A). Loops while
+ * the input returned commit (1); cancel (-1) exits.
+ *
+ * Exit: blit the BG image, fade to black, then an 11-frame pose-out animation
+ * (iVar5 = 10..0) that nearest-neighbour-scales snapshot_buf via
+ * fd2_blit_scaled_chapter_pose, commits each frame from the large game-state
+ * buffer, and ramps brightness; finally free the BG atlas and return 0.
+ *
+ * uint32 __cdecl, 1 stack arg (snapshot_buf), with the __CHK(0x3C) stack-probe
+ * prologue (compiler-injected, not part of the source). The chapter-meta byte
+ * is read once via EAX-after-CALL (verified against the assembly:
+ * CALL fd2_get_chapter_intro_metadata_entry; MOV AL,[EAX]). The pose-out
+ * arithmetic is identical to fd2_run_chapter_intro_menu_main: src_cx from the
+ * y-row table (-0x96, +0x5000), src_cy from the x-column table (-100, +0x3200),
+ * both scaled by iVar5/10*0x80; the pose-table index is cursor_state +
+ * chapter_meta_byte*6. The dispatch / cursor-wrap bound tests live in the
+ * shared fd2_chapter_intro_menu_input_loop (signed). The "begin battle"
+ * sub-prompt reuses data_fd2_ui_menu_cursor_idx as its yes/no cursor (0 = yes).
+ * ---------------------------------------------------------------- */
+uint32 fd2_run_chapter_intro_menu_typeB(uint32 snapshot_buf)
+{
+    uint8 *chapter_meta;
+    uint8 chapter_meta_byte;
+    uint32 atlas;
+    uint32 stored_cursor;
+    int sel;
+    int typewriter_ret;
+    int iVar5;
+    int table_off;
+
+    chapter_meta = fd2_get_chapter_intro_metadata_entry(
+                       data_fd2_chapter_current_chapter_id);
+    chapter_meta_byte = *chapter_meta;
+
+    atlas = fd2_load_dat_resource(
+                (uint32)data_fd2_string_resource_filename_fdother_dat,
+                data_fd2_ui_menu_screen_sprite_atlas_buf_ptr, 0x0d);
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = atlas;
+    fd2_blit_indexed_sprite_at_xy(0xa0000, 0x140, atlas, 0);
+    fd2_play_palette_fade_in();
+    __delay_thunk_375b2(200);
+    fd2_load_chapter_portrait(
+        data_fd2_chapter_intro_menu_speaker_portrait_id_table[0]);
+    fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x249, 0xa94cc, 0x140,
+        0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_paint_portrait_to_dialog_area(0);
+
+    stored_cursor = 0;
+    do {
+        data_fd2_ui_menu_cursor_idx = stored_cursor;
+        fd2_animate_tutorial_dialog_intro_or_outro(0);
+        sel = fd2_chapter_intro_menu_input_loop();
+        if ((sel & 0xff) == 1) {
+            stored_cursor = data_fd2_ui_menu_cursor_idx;
+        }
+        fd2_animate_tutorial_dialog_intro_or_outro(1);
+        fd2_close_intro_dialog_with_slide_out();
+        if ((sel & 0xff) == 1) {
+            if (data_fd2_ui_menu_cursor_idx == 0) {
+                fd2_run_status_screen_member_menu();
+            } else if (data_fd2_ui_menu_cursor_idx == 1) {
+                fd2_save_current_state_to_slot(1);
+            } else if (data_fd2_ui_menu_cursor_idx == 2) {
+                fd2_load_state_from_selected_slot();
+            } else {
+                fd2_load_chapter_portrait(
+                    data_fd2_chapter_intro_menu_speaker_portrait_id_table[0]);
+                fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x19f,
+                    0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+                fd2_paint_portrait_to_dialog_area(0);
+                typewriter_ret = fd2_text_dialog_typewriter_loop();
+                fd2_animate_dialog_page_advance_collapse();
+                if (typewriter_ret != -1 && data_fd2_ui_menu_cursor_idx == 0) {
+                    fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1a0,
+                        0xaac8c, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+                    __delay_thunk_375b2(200);
+                    fd2_close_intro_dialog_with_slide_out();
+                    return 1;
+                }
+                fd2_close_intro_dialog_with_slide_out();
+            }
+            fd2_load_chapter_portrait(
+                data_fd2_chapter_intro_menu_speaker_portrait_id_table[0]);
+            fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x24a, 0xa94cc,
+                0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+            fd2_paint_portrait_to_dialog_area(0);
+        }
+    } while ((sel & 0xff) == 1);
+
+    fd2_blit_indexed_sprite_at_xy(0xa0000, 0x140,
+        data_fd2_ui_menu_screen_sprite_atlas_buf_ptr, 0);
+    __delay_thunk_375b2(200);
+    fd2_play_palette_fade_to_black();
+    for (iVar5 = 10; iVar5 >= 0; iVar5--) {
+        table_off = (int)data_fd2_chapter_intro_menu_cursor_state +
+                    (int)chapter_meta_byte * 6;
+        fd2_blit_scaled_chapter_pose(
+            (uint32)((((int)data_fd2_chapter_intro_portrait_pose_y_row_table[
+                          table_off] - 0x96) * iVar5 / 10) * 0x80 + 0x5000),
+            (uint32)((((int)data_fd2_chapter_intro_portrait_pose_x_column_table[
+                          table_off] - 100) * iVar5 / 10) * 0x80 + 0x3200),
+            snapshot_buf, iVar5 * -9 + 0x80);
+        memmove((void *)0xa0000,
+                (void *)data_fd2_large_game_state_buffer_ptr, 64000);
+        fd2_set_vga_palette_range(0, 0xff, (uint32)(iVar5 << 2));
+    }
+
+    free((void *)data_fd2_ui_menu_screen_sprite_atlas_buf_ptr);
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
+    return 0;
+}
+
+/* ----------------------------------------------------------------
  * fd2_party_roster_single_select_loop @ 0x2E6B8  (5 callers:
  *   fd2_run_buy_item_menu, fd2_run_sell_item_menu, fd2_run_equip_member_menu,
  *   fd2_run_give_item_menu, fd2_run_status_screen_member_menu)

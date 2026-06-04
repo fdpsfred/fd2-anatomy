@@ -431,6 +431,10 @@ int fd2_party_roster_class_select_loop(uint32 candidate_count, uint32 candidate_
 void fd2_animate_scroll_up_in_shop_dialog(void);
 void fd2_animate_scroll_down_in_shop_dialog(void);
 uint32 fd2_run_chapter_intro_menu_main(uint32 pose_bitmap);
+uint32 fd2_run_chapter_intro_menu_typeB(uint32 snapshot_buf);
+void fd2_run_status_screen_member_menu(void);
+void fd2_save_current_state_to_slot(uint32 prompt_flag);
+void fd2_load_state_from_selected_slot(void);
 void fd2_animate_tutorial_dialog_intro_or_outro(uint32 closing);
 int fd2_load_chapter_party_roster(uint8 *out_buf);
 void fd2_run_buy_item_menu(uint32 shop_item_count, uint8 *shop_item_id_array);
