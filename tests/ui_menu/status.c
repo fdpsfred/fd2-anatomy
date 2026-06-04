@@ -53,7 +53,6 @@ extern uint8 g_pathfind_step_bytes[8];
 extern int g_pathfind_md0_dst_x;
 extern int g_pathfind_md0_dst_y;
 extern uint8 g_spell_list_buf[12];
-extern int g_remove_inventory_calls;
 extern int g_cast_status_cure_calls;
 extern int g_cast_status_via_d1b_calls;
 extern int g_repaint_settings_calls;
@@ -435,6 +434,118 @@ static void test_count_usable_ci_indexing(void)
     ASSERT_EQ(fd2_count_usable_inventory_slots(0), 0);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_remove_inventory_slot_at @ 0x1B8E7
+ *
+ * Removes inventory slot `slot` of runtime_char[char_idx] by shifting
+ * slots[slot+1 .. 7] down over slots[slot .. 6] ((7-slot)*2 bytes via
+ * memmove), then stamping slot[7].flag (inventory_slots[14]) = 0x80 vacant.
+ * Each slot is 2 bytes: [i*2]=flag, [i*2+1]=item_id. These tests pin the
+ * shift direction, the (7-slot)*2 byte count (incl. the slot==7 zero-copy
+ * boundary), the flag/item_id 2-byte pairing, the always-vacate of slot 7,
+ * and char_idx indexing into the 0x50-stride array.
+ * ---------------------------------------------------------------- */
+
+/* Fill char `ci`'s 8 slots with a recognizable pattern:
+ * slot i -> flag=0x10+i, item_id=0x20+i. */
+static void seed_inventory(int ci)
+{
+    int i;
+    for (i = 0; i < 8; i++) {
+        g_test_rc_array[ci].inventory_slots[i * 2]     = (uint8)(0x10 + i);
+        g_test_rc_array[ci].inventory_slots[i * 2 + 1] = (uint8)(0x20 + i);
+    }
+}
+
+/* Remove a MIDDLE slot (3): slots 0..2 stay, slots 4..7 shift into 3..6,
+ * slot 7 becomes vacant. Verifies both flag and item_id bytes shift as a
+ * pair, and that the removed slot's old contents are overwritten. */
+static void test_remove_slot_middle_shifts_and_vacates(void)
+{
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    seed_inventory(0);
+
+    fd2_remove_inventory_slot_at(0, 3);
+
+    /* slots 0..2 untouched */
+    for (i = 0; i < 3; i++) {
+        ASSERT_EQ(g_test_rc_array[0].inventory_slots[i * 2],     0x10 + i);
+        ASSERT_EQ(g_test_rc_array[0].inventory_slots[i * 2 + 1], 0x20 + i);
+    }
+    /* slots 3..6 now hold what was in 4..7 (shifted down by one) */
+    for (i = 3; i < 7; i++) {
+        ASSERT_EQ(g_test_rc_array[0].inventory_slots[i * 2],     0x10 + (i + 1));
+        ASSERT_EQ(g_test_rc_array[0].inventory_slots[i * 2 + 1], 0x20 + (i + 1));
+    }
+    /* slot 7 vacated: flag=0x80; item_id left as old slot 7's id (only the
+     * flag byte at +0x18 is written by the binary). */
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[14], 0x80);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[15], 0x27);
+}
+
+/* Remove slot 0: full-length shift (count=(7-0)*2=14). Every slot 1..7
+ * moves down into 0..6; slot 7 vacated. Catches an off-by-one in the count. */
+static void test_remove_slot_zero_full_shift(void)
+{
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    seed_inventory(0);
+
+    fd2_remove_inventory_slot_at(0, 0);
+
+    for (i = 0; i < 7; i++) {
+        ASSERT_EQ(g_test_rc_array[0].inventory_slots[i * 2],     0x10 + (i + 1));
+        ASSERT_EQ(g_test_rc_array[0].inventory_slots[i * 2 + 1], 0x20 + (i + 1));
+    }
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[14], 0x80);   /* slot 7 vacant */
+}
+
+/* Remove slot 7 (boundary): count=(7-7)*2=0, memmove copies nothing, so
+ * slots 0..6 are byte-for-byte unchanged; only slot 7's flag is stamped
+ * 0x80. A wrong count formula (e.g. (8-slot)*2 or signed underflow) would
+ * corrupt slot 6 or read past the array; this pins it. */
+static void test_remove_slot_seven_only_vacates(void)
+{
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    seed_inventory(0);
+
+    fd2_remove_inventory_slot_at(0, 7);
+
+    for (i = 0; i < 7; i++) {
+        ASSERT_EQ(g_test_rc_array[0].inventory_slots[i * 2],     0x10 + i);
+        ASSERT_EQ(g_test_rc_array[0].inventory_slots[i * 2 + 1], 0x20 + i);
+    }
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[14], 0x80);   /* flag stamped */
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[15], 0x27);   /* item_id kept */
+}
+
+/* char_idx indexing: operating on char 2 must not disturb its neighbours
+ * (chars 1 and 3), proving the 0x50-stride base offset. */
+static void test_remove_slot_char_index_isolation(void)
+{
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    seed_inventory(1);
+    seed_inventory(2);
+    seed_inventory(3);
+
+    fd2_remove_inventory_slot_at(2, 0);
+
+    /* char 2 shifted (slot 0 removed) */
+    ASSERT_EQ(g_test_rc_array[2].inventory_slots[0],  0x11);   /* was slot1 flag */
+    ASSERT_EQ(g_test_rc_array[2].inventory_slots[1],  0x21);   /* was slot1 id   */
+    ASSERT_EQ(g_test_rc_array[2].inventory_slots[14], 0x80);   /* slot7 vacant   */
+    /* neighbours char 1 and char 3 fully intact */
+    for (i = 0; i < 8; i++) {
+        ASSERT_EQ(g_test_rc_array[1].inventory_slots[i * 2],     0x10 + i);
+        ASSERT_EQ(g_test_rc_array[1].inventory_slots[i * 2 + 1], 0x20 + i);
+        ASSERT_EQ(g_test_rc_array[3].inventory_slots[i * 2],     0x10 + i);
+        ASSERT_EQ(g_test_rc_array[3].inventory_slots[i * 2 + 1], 0x20 + i);
+    }
+}
+
 void run_ui_menu_status_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -449,5 +560,9 @@ void run_ui_menu_status_tests(void)
     RUN_TEST(test_count_usable_all_set);
     RUN_TEST(test_count_usable_mixed_and_stride);
     RUN_TEST(test_count_usable_ci_indexing);
+    RUN_TEST(test_remove_slot_middle_shifts_and_vacates);
+    RUN_TEST(test_remove_slot_zero_full_shift);
+    RUN_TEST(test_remove_slot_seven_only_vacates);
+    RUN_TEST(test_remove_slot_char_index_isolation);
     printf("\n");
 }

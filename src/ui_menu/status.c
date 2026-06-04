@@ -431,3 +431,35 @@ void fd2_open_party_status_overview_screen(void)
     /* binary tail-JMP 0x10C49 == this function's own shared epilogue
      * (ADD ESP,4 / POP EDI/ESI/EBX / RET); a plain return regenerates it. */
 }
+
+/* ----------------------------------------------------------------
+ * fd2_remove_inventory_slot_at @ 0x1B8E7  (10 callers)
+ *
+ * Remove the item in inventory slot `slot` of runtime_char[char_idx] and
+ * close the gap by shifting every following slot down by one. Each slot is
+ * 2 bytes (inventory_slots[i*2]=flag, [i*2+1]=item_id); flag bit 0x80 marks
+ * a vacant slot, bit 0x40 marks equipped. There are 8 slots (indices 0..7).
+ *
+ * The shift is a single memmove of (7 - slot) slots = (7 - slot) * 2 bytes,
+ * copying slots[slot+1 .. 7] over slots[slot .. 6]. Slot 7 is then always
+ * stamped vacant (flag = 0x80), so it becomes the freed "new empty" slot
+ * regardless of which slot was removed. (slot == 7 copies 0 bytes and only
+ * re-stamps slot 7 vacant.)
+ *
+ * Callers: item drop / give / sell, the "backpack full" pickup swap, and
+ * chapter-script events.
+ *
+ * void __cdecl with the __CHK(0x14) stack-probe prologue (compiler-injected,
+ * not part of the source). EBX is the saved base pointer (callee-saved); the
+ * trailing POP EBX + RET is the shared epilogue.
+ * ---------------------------------------------------------------- */
+void fd2_remove_inventory_slot_at(uint32 char_idx, uint32 slot)
+{
+    runtime_char *rc;
+
+    rc = data_fd2_battle_runtime_char_array_ptr;
+    memmove(rc[char_idx].inventory_slots + slot * 2,
+            rc[char_idx].inventory_slots + slot * 2 + 2,
+            (7 - slot) * 2);
+    rc[char_idx].inventory_slots[14] = 0x80;
+}

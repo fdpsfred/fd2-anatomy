@@ -1254,8 +1254,9 @@
     "name": "fd2_remove_inventory_slot_at",
     "target": "ui_menu/status.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001b932": {
     "name": "fd2_inventory_selection_modal_dispatch",

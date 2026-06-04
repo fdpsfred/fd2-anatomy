@@ -52,7 +52,6 @@ extern uint8 g_pathfind_step_bytes[8];
 extern int g_pathfind_md0_dst_x;
 extern int g_pathfind_md0_dst_y;
 extern uint8 g_spell_list_buf[12];
-extern int g_remove_inventory_calls;
 extern int g_cast_status_cure_calls;
 extern int g_cast_status_via_d1b_calls;
 extern int g_repaint_settings_calls;
@@ -70,7 +69,9 @@ static void setup_use_effect(uint8 effect_code, uint16 effect_param)
         (uint8)((effect_param >> 8) & 0xFF);
     data_fd2_battle_party_member_count = 0;   /* finale drop loop = no-op */
     data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
-    g_remove_inventory_calls = 0;
+    /* g_test_rc_array was just zeroed, so slot[7].flag (inventory_slots[14])
+     * starts 0x00; the real fd2_remove_inventory_slot_at(caster,inv_slot=0)
+     * stamps it 0x80 when it consumes the slot. */
 }
 
 
@@ -81,7 +82,7 @@ static void test_use_effect_code5_consumes(void)
     uint8 target_id = 1;
     setup_use_effect(0x05, 50);
     fd2_apply_use_effect_dispatch(0, 0, 1, (uint32)&target_id);
-    ASSERT_EQ(g_remove_inventory_calls, 1);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[14], 0x80);  /* slot consumed */
 }
 
 
@@ -90,7 +91,7 @@ static void test_use_effect_code6_consumes(void)
     uint8 target_id = 1;
     setup_use_effect(0x06, 0);
     fd2_apply_use_effect_dispatch(0, 0, 1, (uint32)&target_id);
-    ASSERT_EQ(g_remove_inventory_calls, 1);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[14], 0x80);  /* slot consumed */
 }
 
 
@@ -99,7 +100,7 @@ static void test_use_effect_code7_consumes(void)
     uint8 target_id = 1;
     setup_use_effect(0x07, 0);
     fd2_apply_use_effect_dispatch(0, 0, 1, (uint32)&target_id);
-    ASSERT_EQ(g_remove_inventory_calls, 1);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[14], 0x80);  /* slot consumed */
 }
 
 
@@ -112,11 +113,13 @@ static void test_use_effect_code0B_consumes(void)
     setup_use_effect(0x0B, 30);
     g_test_rc_array[1].mp_max = 0;
     fd2_apply_use_effect_dispatch(0, 0, 1, (uint32)&target_id);
-    ASSERT_EQ(g_remove_inventory_calls, 1);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[14], 0x80);  /* slot consumed */
 }
 
 
-/* Code 0x14 (attack spell) is NON-consuming: slot must be left intact.
+/* Code 0x14 (attack spell) is NON-consuming: slot must be left intact, so the
+ * real fd2_remove_inventory_slot_at is never called and slot[7].flag
+ * (inventory_slots[14]) stays 0x00 (the setup zeroed it).
  * target.job_id = 1 keeps the REAL fd2_calc_magic_damage in-bounds. */
 static void test_use_effect_code14_no_consume(void)
 {
@@ -124,7 +127,7 @@ static void test_use_effect_code14_no_consume(void)
     setup_use_effect(0x14, 0);
     g_test_rc_array[1].job_id = 1;
     fd2_apply_use_effect_dispatch(0, 0, 1, (uint32)&target_id);
-    ASSERT_EQ(g_remove_inventory_calls, 0);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[14], 0x00);  /* not consumed */
 }
 
 
