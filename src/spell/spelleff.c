@@ -965,3 +965,32 @@ void fd2_execute_status_clear_holy_word_spell_id_25(int caster_unit_id,
         fd2_animate_spell_projectile_paths();
     }
 }
+
+
+/* ----------------------------------------------------------------
+ * fd2_cast_status_spell_via_d1b @ 0x22CDA  (1 caller)
+ *
+ * Thin wrapper for status-effect (inflict) spells. Resets the AoE/fx
+ * queue index, deducts the caster's MP for the spell, then delegates to
+ * the worker fd2_cast_status_inflict_spell @ 0x22D1B and returns. Unlike
+ * the sister wrapper fd2_apply_status_effect_with_anim @ 0x22AA8 there is
+ * no post-delegate animate tail here -- the worker itself handles the
+ * projectile pass (its body tail at 0x22A7B re-enters the shared pass).
+ *
+ * The 4th param is the target-id byte-array pointer and the 5th is the
+ * status sprite/byte offset; both are forwarded verbatim to the worker.
+ * Ghidra mislabels the 4th formal as caster_idx; it is the target array
+ * pointer per the sole caller (asm 0x22CDA..0x22D1A, RET).
+ *
+ * Sole caller: fd2_cast_spell_16_dispatch_cda @ 0x22BE1 (spell id 0x16);
+ * the sibling thunks for ids 0x1A/0x1B also reach it through that caller.
+ * ---------------------------------------------------------------- */
+void fd2_cast_status_spell_via_d1b(int caster_idx,
+    int status_spell_id, int target_count,
+    int p_target_array, int status_byte_offset)
+{
+    data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
+    fd2_deduct_caster_mp(caster_idx, status_spell_id);
+    fd2_cast_status_inflict_spell(caster_idx, status_spell_id,
+        target_count, p_target_array, status_byte_offset);
+}

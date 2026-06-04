@@ -2300,8 +2300,9 @@
     "name": "fd2_cast_status_spell_via_d1b",
     "target": "spell/spelleff.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00022d1b": {
     "name": "fd2_cast_status_inflict_spell",

@@ -73,6 +73,12 @@ extern int g_pathfind_md0_dst_x;
 extern int g_pathfind_md0_dst_y;
 extern int g_cast_status_cure_calls;
 extern int g_cast_status_via_d1b_calls;
+extern int g_cast_status_inflict_calls;
+extern uint32 g_cast_status_inflict_last_caster;
+extern uint32 g_cast_status_inflict_last_spell;
+extern uint32 g_cast_status_inflict_last_n_targets;
+extern uint32 g_cast_status_inflict_last_p_targets;
+extern uint32 g_cast_status_inflict_last_sprite;
 extern int g_repaint_settings_calls;
 extern int g_repaint_flip_buffer_after;
 
@@ -301,6 +307,38 @@ static void test_apply_status_effect_calls_cure_worker(void)
         (int)&target_id, 0x25);
     ASSERT_EQ(g_test_rc_array[1].status_flags_block[4], 0);  /* cure cleared it */
     ASSERT_EQ(g_cast_status_via_d1b_calls, 0);               /* inflict not hit */
+}
+
+
+/* fd2_cast_status_spell_via_d1b @ 0x22CDA is the inflict-side wrapper (spell id
+ * 0x16 and the 0x1A/0x1B sibling thunks). Its three observable acts: (1) zero
+ * the AoE/fx queue index (asm 0x22CE4 MOV [0x53EC4],0); (2) deduct the caster's
+ * MP for the spell via the REAL fd2_deduct_caster_mp (asm 0x22CF6); (3) forward
+ * ALL FIVE args verbatim into the inflict worker @0x22D1B (asm 0x22CFE..0x22D12
+ * push caster/spell/n_tgt/p_tgt/sprite then CALL). There is no post-delegate
+ * animate tail (the worker owns the projectile pass), so the wrapper just
+ * returns. Set the AoE index nonzero beforehand to prove it is reset; give the
+ * caster mp_current = mp_cost + slack to prove the real deduction ran; capture
+ * the worker args through the recording stub to prove verbatim forwarding (a
+ * dropped/reordered arg, or a forgotten reset/deduct, fails an assert). */
+static void test_status_via_d1b_resets_deducts_and_forwards(void)
+{
+    uint8 target_arr[1];
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    g_test_rc_array[0].mp_current = 50;
+    data_fd2_battle_spell_effect_table[0x16].mp_cost = 6;
+    target_arr[0] = 3;
+    data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0x99;
+    g_cast_status_inflict_calls = 0;
+    fd2_cast_status_spell_via_d1b(0, 0x16, 1, (int)target_arr, 0x27);
+    ASSERT_EQ(data_fd2_battle_spell_aoe_count_and_fx_queue_idx, 0); /* reset */
+    ASSERT_EQ(g_test_rc_array[0].mp_current, 44);                   /* 50 - 6 */
+    ASSERT_EQ(g_cast_status_inflict_calls, 1);                      /* delegated */
+    ASSERT_EQ(g_cast_status_inflict_last_caster, 0);
+    ASSERT_EQ(g_cast_status_inflict_last_spell, 0x16);
+    ASSERT_EQ(g_cast_status_inflict_last_n_targets, 1);
+    ASSERT_EQ(g_cast_status_inflict_last_p_targets, (uint32)target_arr);
+    ASSERT_EQ(g_cast_status_inflict_last_sprite, 0x27);
 }
 
 
@@ -751,6 +789,7 @@ void run_spell_spelleff1_tests(void)
     RUN_TEST(test_spell_17_xp_no_job_bonus);
     RUN_TEST(test_apply_status_effect_deducts_mp);
     RUN_TEST(test_apply_status_effect_calls_cure_worker);
+    RUN_TEST(test_status_via_d1b_resets_deducts_and_forwards);
     RUN_TEST(test_apply_item_stat_modifier);
     RUN_TEST(test_attack_spell_damage_composites_once);
     RUN_TEST(test_attack_spell_damage_zero_targets_still_composites);
