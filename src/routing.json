@@ -1953,8 +1953,9 @@
     "name": "fd2_execute_offensive_targeted_spell_variant_b",
     "target": "spell/spelleff.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002134b": {
     "name": "fd2_spell_handler_id_1_via_targeted_blink",

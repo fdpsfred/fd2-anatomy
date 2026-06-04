@@ -384,3 +384,61 @@ void fd2_execute_offensive_targeted_spell(int caster, int spell_id,
     fd2_composite_battle_frame(0);
     fd2_animate_spell_projectile_paths();
 }
+
+/* ----------------------------------------------------------------
+ * fd2_execute_offensive_targeted_spell_variant_b @ 0x212B9 (0 callers)
+ *
+ * DEAD CODE / orphan clone of fd2_execute_offensive_targeted_spell @
+ * 0x21227. The two function bodies are byte-identical (all 6 basic-block
+ * hashes match); 0x212B9 has no callers and no xrefs, and is NOT in the
+ * 24-entry spell dispatch table @ 0x51D01 (only 0x21227 is the live
+ * blink-overlay worker). Open Watcom emitted this second physical copy
+ * (duplicate translation unit / dead source kept by the linker), so a
+ * faithful rebuild must keep both copies present at distinct addresses.
+ * The "_variant_b" suffix denotes a second placement, not a semantic
+ * variant: identical algorithm, identical operands.
+ *
+ * Body is identical to fd2_execute_offensive_targeted_spell: reset the
+ * AoE/fx-queue counter, play per-target impact + overlay-blink anims,
+ * deduct caster MP, then apply magic damage per target (miss indicator
+ * when damage 0, else damage number with glyph 0x5E). The loop-exit
+ * JGE 0x21320 falls into the Pattern-A SHARED EPILOGUE @ 0x21190
+ * (fd2_composite_battle_frame(0) then fd2_animate_spell_projectile_
+ * paths(), inlined here) — no explicit RET of its own.
+ *
+ * damage is the per-target return of fd2_calc_magic_damage: asm
+ * 0x21331 CALL leaves it in EAX, 0x21336 ADD ESP,8 / 0x21314 PUSH EAX
+ * forward it straight into fd2_show_damage_number (no EAX clobber
+ * between TEST and PUSH), so the inner return IS the displayed number.
+ * ---------------------------------------------------------------- */
+void fd2_execute_offensive_targeted_spell_variant_b(
+    int caster, int spell_id, int n_targets, int p_targets)
+{
+    int iter;
+    uint8 target_id;
+    uint32 damage;
+
+    data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
+
+    fd2_animate_spell_impact_per_target(
+        (uint32)caster, (uint32)spell_id,
+        (uint32)n_targets, (uint32)p_targets);
+    fd2_animate_spell_overlay_blink(
+        (uint32)caster, (uint32)spell_id,
+        (uint32)n_targets, (uint32)p_targets);
+    fd2_deduct_caster_mp((uint32)caster, (uint32)spell_id);
+
+    for (iter = 0; iter < n_targets; iter++) {
+        target_id = *((uint8 *)p_targets + iter);
+        damage = (uint32)fd2_calc_magic_damage(
+                     (uint32)target_id, (uint32)spell_id);
+        if (damage != 0) {
+            fd2_show_damage_number(damage, 0x5E, (uint32)target_id);
+        } else {
+            fd2_show_miss_indicator((uint32)target_id);
+        }
+    }
+
+    fd2_composite_battle_frame(0);
+    fd2_animate_spell_projectile_paths();
+}
