@@ -399,24 +399,21 @@ int fd2_chapter_transition_menu(void) { return g_chapter_transition_return; }
  * It calls fd2_save_screen_block_to_buffer exactly once per invocation, so the
  * save-block call counter (g_saveblk_calls) is an exact proxy for the
  * alloc/blit-chunk call count in any test that drives it in isolation. */
-/* Recording spies for the three numeric/bar render primitives that
- * fd2_render_full_char_stat_panel dispatches to. They are display no-ops
- * (the real renderers blit glyph sprites) but the panel's risk-bearing logic
- * is the per-field value extraction + boost-color selection it feeds them, so
+/* Recording spy for the decimal-number render primitive that
+ * fd2_render_full_char_stat_panel dispatches to. It is a display no-op
+ * (the real renderer blits glyph sprites) but the panel's risk-bearing logic
+ * is the per-field value extraction + boost-color selection it feeds it, so
  * the panel test (tests/gfx/rndstat.c) gates g_render_log_on and asserts the
- * captured argument streams. All other callers keep the original no-op
- * behavior (logging is bounded and only active while the gate is on). */
+ * captured argument stream. The HP/MP bar primitive is no longer spied: the
+ * panel test drives the real bar renderer through to the g_blitraw_* sprite
+ * log. All other callers keep the original no-op behavior (logging is bounded
+ * and only active while the gate is on). */
 int    g_render_log_on = 0;
 int    g_render_dec_count = 0;
 uint32 g_render_dec_dst[32];
 uint32 g_render_dec_val[32];
 uint32 g_render_dec_color[32];
 uint32 g_render_dec_digits[32];
-int    g_render_bar_count = 0;
-uint32 g_render_bar_dst[8];
-uint32 g_render_bar_base[8];
-uint32 g_render_bar_cur[8];
-uint32 g_render_bar_max[8];
 
 void fd2_render_decimal_number_to_buffer(uint32 dst, uint32 stride,
     uint32 v, uint32 x, uint32 digits)
@@ -430,18 +427,11 @@ void fd2_render_decimal_number_to_buffer(uint32 dst, uint32 stride,
     }
     (void)stride;
 }
-void fd2_render_hp_or_mp_bar_proportional(uint32 dst_off, uint32 pitch,
-    uint32 sprite_base, uint32 current, uint32 max)
-{
-    if (g_render_log_on && g_render_bar_count < 8) {
-        g_render_bar_dst[g_render_bar_count] = dst_off;
-        g_render_bar_base[g_render_bar_count] = sprite_base;
-        g_render_bar_cur[g_render_bar_count] = current;
-        g_render_bar_max[g_render_bar_count] = max;
-        g_render_bar_count++;
-    }
-    (void)pitch;
-}
+/* fd2_render_hp_or_mp_bar_proportional: now emitted in src/gfx/rndstat.c. The
+ * panel tests drive the real function, which computes the proportional segment
+ * count and forwards to the real fd2_render_horizontal_bar_segments ->
+ * fd2_blit_sheet_sprite_at_offset pipeline, so the bars are observed end-to-end
+ * through the g_blitraw_* sprite log (no bar-specific spy needed). */
 /* fd2_render_number_red_when_full: now emitted in src/gfx/rndstat.c. It is a
  * thin wrapper that forwards into fd2_render_decimal_number_to_buffer with a
  * red/white color chosen by current==max, so the panel tests observe its 4

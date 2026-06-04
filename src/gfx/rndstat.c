@@ -562,3 +562,43 @@ void fd2_render_number_red_when_full(uint32 dst_off, uint32 pitch,
     color = (current == max) ? 0x1f : 0x2a;
     fd2_render_decimal_number_to_buffer(dst_off, pitch, current, color, digits);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_hp_or_mp_bar_proportional @ 0x18795 (2 callers)
+ *
+ * Compute a proportional fill-segment count from (current / max) and
+ * dispatch to fd2_render_horizontal_bar_segments to paint the bar.
+ *
+ *   max == 0      -> return without drawing (div-by-zero guard; an absent
+ *                    stat draws no bar at all).
+ *   current == 0  -> segments = 0 (fully empty bar).
+ *   else          -> segments = (current * 0x65) / max + 1.
+ *
+ * 0x65 (= 101) is the maximum fillable segment count (reached when
+ * current == max). The +1 guarantees a minimum 1-segment sliver for any
+ * non-zero current, so "1 HP left" still shows a visible bar. The binary
+ * does a SIGNED multiply+divide (IMUL / SAR EDX,0x1F / IDIV), so the
+ * arithmetic is performed with signed 32-bit operands here to match.
+ *
+ * Callers: fd2_render_full_char_stat_panel (HP sprite_base 0x17, MP 0x1A)
+ * and fd2_render_mini_char_status_panel.
+ *
+ * Cdecl, 5 stack params; void return. The binary's __CHK(0x14) stack-probe
+ * prologue is compiler-generated and omitted here.
+ * ---------------------------------------------------------------- */
+void fd2_render_hp_or_mp_bar_proportional(uint32 dst_off, uint32 pitch,
+                                          uint32 sprite_base, uint32 current,
+                                          uint32 max)
+{
+    uint32 segments;
+
+    if (max == 0) {
+        return;
+    }
+    if (current == 0) {
+        segments = 0;
+    } else {
+        segments = (uint32)(((int32)current * 0x65) / (int32)max) + 1;
+    }
+    fd2_render_horizontal_bar_segments(dst_off, pitch, segments, sprite_base);
+}

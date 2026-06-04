@@ -974,8 +974,9 @@
     "name": "fd2_render_hp_or_mp_bar_proportional",
     "target": "gfx/rndstat.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000187d6": {
     "name": "fd2_render_decimal_number_to_buffer",

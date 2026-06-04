@@ -270,13 +270,41 @@ extern uint32 g_render_dec_dst[32];
 extern uint32 g_render_dec_val[32];
 extern uint32 g_render_dec_color[32];
 extern uint32 g_render_dec_digits[32];
-extern int    g_render_bar_count;
-extern uint32 g_render_bar_dst[8];
-extern uint32 g_render_bar_base[8];
-extern uint32 g_render_bar_cur[8];
-extern uint32 g_render_bar_max[8];
 
 extern runtime_char g_test_rc_array[8];
+
+/* Locate the g_blitraw log entry whose destination equals `dst` and return its
+ * sprite-stream pointer (sheet + sprite_index); fail if no entry matches. Used
+ * by the panel tests to pick the team-flag / status-icon blits out of the log,
+ * which (now that fd2_render_hp_or_mp_bar_proportional is the real function)
+ * also contains the HP/MP bar segment blits ahead of them. */
+static uint32 panel_find_blit_sprite(uint32 dst)
+{
+    int i;
+
+    for (i = 0; i < g_blitraw_count; i++) {
+        if (g_blitraw_log_dst[i] == dst) {
+            return g_blitraw_log_sprite[i];
+        }
+    }
+    /* not found: return 0 so the caller's (result - sheet) underflows far from
+     * any valid sprite index and its ASSERT_EQ fails visibly. */
+    return 0;
+}
+
+/* count how many g_blitraw entries target destination `dst` (0 if none). */
+static int panel_count_blit_at(uint32 dst)
+{
+    int i;
+    int n = 0;
+
+    for (i = 0; i < g_blitraw_count; i++) {
+        if (g_blitraw_log_dst[i] == dst) {
+            n++;
+        }
+    }
+    return n;
+}
 
 /* immediate-END text program for the 3 text-label dialog calls. The dialog VM
  * computes cur_op = base + *(int16*)(base + page*2); if that points at int16
@@ -332,36 +360,41 @@ static runtime_char *panel_setup_char(void)
 static void panel_reset_logs(void)
 {
     g_render_dec_count = 0;
-    g_render_bar_count = 0;
     g_blitraw_count = 0;
     g_render_log_on = 1;
     g_blitraw_log_on = 1;
 }
 
 /* HP/MP bars + the 4 red-when-full numbers carry the exact (sign-extended)
- * stat values to the proper surface offsets and digit widths. */
+ * stat values to the proper surface offsets and digit widths.
+ *
+ * Now that fd2_render_hp_or_mp_bar_proportional is the real function, the panel
+ * drives it end-to-end: cur/max flow through the proportional segment formula
+ * into fd2_render_horizontal_bar_segments, whose left/right cap sprites land in
+ * the g_blitraw log. We pin the bar at its left cap (base sprite at the bar
+ * origin) and at its right cap, whose offset = origin + segment_count encodes
+ * the exact (cur,max) the panel forwarded:
+ *   HP: segments = (0x50*0x65)/0x64 + 1 = 81 -> right cap 0x19 @ +0x2a06+81
+ *   MP: segments = (0x10*0x65)/0x20 + 1 = 51 -> right cap 0x1C @ +0x41c6+51 */
 static void test_panel_bars_and_full_numbers(void)
 {
     runtime_char *rc;
+    uint32 sheet;
     uint32 buf = 0x100000;
 
-    bar_setup_sheet();
+    sheet = bar_setup_sheet();
     panel_setup_text();
     rc = panel_setup_char();
     panel_reset_logs();
 
     fd2_render_full_char_stat_panel(0, buf);
 
-    /* two bars: HP (base 0x17) then MP (base 0x1A) */
-    ASSERT_EQ((long)g_render_bar_count, 2);
-    ASSERT_EQ((long)g_render_bar_dst[0],  (long)(buf + 0x2a06));
-    ASSERT_EQ((long)g_render_bar_base[0], 0x17);
-    ASSERT_EQ((long)g_render_bar_cur[0],  0x50);
-    ASSERT_EQ((long)g_render_bar_max[0],  0x64);
-    ASSERT_EQ((long)g_render_bar_dst[1],  (long)(buf + 0x41c6));
-    ASSERT_EQ((long)g_render_bar_base[1], 0x1a);
-    ASSERT_EQ((long)g_render_bar_cur[1],  0x10);
-    ASSERT_EQ((long)g_render_bar_max[1],  0x20);
+    /* HP bar (base 0x17): left cap @origin, right cap @origin+81 */
+    ASSERT_EQ((long)(panel_find_blit_sprite(buf + 0x2a06) - sheet), 0x17);
+    ASSERT_EQ((long)(panel_find_blit_sprite(buf + 0x2a06 + 81) - sheet), 0x19);
+    /* MP bar (base 0x1A): left cap @origin, right cap @origin+51 */
+    ASSERT_EQ((long)(panel_find_blit_sprite(buf + 0x41c6) - sheet), 0x1a);
+    ASSERT_EQ((long)(panel_find_blit_sprite(buf + 0x41c6 + 51) - sheet), 0x1c);
 
     /* The real fd2_render_number_red_when_full forwards into the decimal spy,
      * so the 4 HP/MP cur/max numbers are g_render_dec_* entries [0..3] (the 8
@@ -500,9 +533,10 @@ static void test_panel_evade_shares_dx_color(void)
 static void test_panel_stat_sign_extension(void)
 {
     runtime_char *rc;
+    uint32 sheet;
     uint32 buf = 0x380000;
 
-    bar_setup_sheet();
+    sheet = bar_setup_sheet();
     panel_setup_text();
     rc = panel_setup_char();
     rc->hp_current = 0x8001;         /* (int16)0x8001 = -32767 */
@@ -511,9 +545,12 @@ static void test_panel_stat_sign_extension(void)
 
     fd2_render_full_char_stat_panel(0, buf);
 
-    /* HP bar current arg = sign-extended hp_current */
-    ASSERT_EQ((long)g_render_bar_cur[0], (long)0xFFFF8001u);
-    /* HP-current red number (dec spy [0], via the real wrapper) likewise
+    /* HP bar still paints its left cap at the origin: the sign-extended
+     * (negative, non-zero) hp_current took the proportional branch of the real
+     * fd2_render_hp_or_mp_bar_proportional (current != 0), not the empty
+     * branch, so the base sprite 0x17 lands at the bar origin. */
+    ASSERT_EQ((long)(panel_find_blit_sprite(buf + 0x2a06) - sheet), 0x17);
+    /* HP-current red number (dec spy [0], via the real wrapper) is likewise
      * sign-extended; its color is white because cur 0xFFFF8001 != max 0x64 */
     ASSERT_EQ((long)g_render_dec_val[0], (long)0xFFFF8001u);
     ASSERT_EQ((long)g_render_dec_color[0], 0x2a);
@@ -522,8 +559,9 @@ static void test_panel_stat_sign_extension(void)
 }
 
 /* team flag: enemy (team 0) blits sprite 0x36, player/npc blits 0x35, at
- * surface offset +0x25E5. With no status flags set, the team flag is the
- * only blit. */
+ * surface offset +0x25E5. The bar blits now precede it in g_blitraw, so the
+ * flag is located by its destination (exactly one blit targets +0x25E5, and
+ * no status-icon blits exist because all status bytes are zero). */
 static void test_panel_team_flag_sprite(void)
 {
     runtime_char *rc;
@@ -538,16 +576,17 @@ static void test_panel_team_flag_sprite(void)
 
     fd2_render_full_char_stat_panel(0, buf);
 
-    ASSERT_EQ((long)g_blitraw_count, 1);
-    ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x36);
-    ASSERT_EQ((long)g_blitraw_log_dst[0], (long)(buf + 0x25e5));
+    ASSERT_EQ((long)panel_count_blit_at(buf + 0x25e5), 1);
+    ASSERT_EQ((long)(panel_find_blit_sprite(buf + 0x25e5) - sheet), 0x36);
+    /* no status-icon blits when all status bytes are zero */
+    ASSERT_EQ((long)panel_count_blit_at(buf + 0x55c2), 0);
 
     /* player team -> 0x35 */
     rc->team = 2;
     panel_reset_logs();
     fd2_render_full_char_stat_panel(0, buf);
-    ASSERT_EQ((long)g_blitraw_count, 1);
-    ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x35);
+    ASSERT_EQ((long)panel_count_blit_at(buf + 0x25e5), 1);
+    ASSERT_EQ((long)(panel_find_blit_sprite(buf + 0x25e5) - sheet), 0x35);
 }
 
 /* status-icon loop: for i=0..2, when the byte at struct offset 0x25+i
@@ -571,17 +610,15 @@ static void test_panel_status_icons_overflow_walk(void)
 
     fd2_render_full_char_stat_panel(0, buf);
 
-    /* team flag + 2 icons = 3 blits */
-    ASSERT_EQ((long)g_blitraw_count, 3);
-    /* [0] team flag 0x35 @ +0x25E5 */
-    ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x35);
-    ASSERT_EQ((long)g_blitraw_log_dst[0], (long)(buf + 0x25e5));
-    /* [1] icon slot 0: sprite 0x37 @ +0x55C2 */
-    ASSERT_EQ((long)(g_blitraw_log_sprite[1] - sheet), 0x37);
-    ASSERT_EQ((long)g_blitraw_log_dst[1], (long)(buf + 0x55c2));
-    /* [2] icon slot 2: sprite 0x39 @ +0x55C2 + 2*0x23 */
-    ASSERT_EQ((long)(g_blitraw_log_sprite[2] - sheet), 0x39);
-    ASSERT_EQ((long)g_blitraw_log_dst[2], (long)(buf + 0x55c2 + 2 * 0x23));
+    /* team flag 0x35 @ +0x25E5 */
+    ASSERT_EQ((long)(panel_find_blit_sprite(buf + 0x25e5) - sheet), 0x35);
+    /* icon slot 0 (byte 0x25 set): sprite 0x37 @ +0x55C2 */
+    ASSERT_EQ((long)(panel_find_blit_sprite(buf + 0x55c2) - sheet), 0x37);
+    /* icon slot 1 (byte 0x26 clear): no blit at +0x55C2 + 0x23 */
+    ASSERT_EQ((long)panel_count_blit_at(buf + 0x55c2 + 0x23), 0);
+    /* icon slot 2 (byte 0x27 set): sprite 0x39 @ +0x55C2 + 2*0x23 */
+    ASSERT_EQ((long)(panel_find_blit_sprite(buf + 0x55c2 + 2 * 0x23) - sheet),
+              0x39);
 }
 
 /* all three status-icon bytes non-zero -> all three icons paint, in order. */
@@ -602,13 +639,11 @@ static void test_panel_status_icons_all_three(void)
 
     fd2_render_full_char_stat_panel(0, buf);
 
-    ASSERT_EQ((long)g_blitraw_count, 4);   /* team flag + 3 icons */
-    ASSERT_EQ((long)(g_blitraw_log_sprite[1] - sheet), 0x37);
-    ASSERT_EQ((long)g_blitraw_log_dst[1], (long)(buf + 0x55c2));
-    ASSERT_EQ((long)(g_blitraw_log_sprite[2] - sheet), 0x38);
-    ASSERT_EQ((long)g_blitraw_log_dst[2], (long)(buf + 0x55c2 + 0x23));
-    ASSERT_EQ((long)(g_blitraw_log_sprite[3] - sheet), 0x39);
-    ASSERT_EQ((long)g_blitraw_log_dst[3], (long)(buf + 0x55c2 + 2 * 0x23));
+    /* all three icon slots paint, each at its own +0x55C2 + i*0x23 offset */
+    ASSERT_EQ((long)(panel_find_blit_sprite(buf + 0x55c2) - sheet), 0x37);
+    ASSERT_EQ((long)(panel_find_blit_sprite(buf + 0x55c2 + 0x23) - sheet), 0x38);
+    ASSERT_EQ((long)(panel_find_blit_sprite(buf + 0x55c2 + 2 * 0x23) - sheet),
+              0x39);
 }
 
 /* ----------------------------------------------------------------
@@ -1316,6 +1351,154 @@ static void test_redfull_zero_equal_is_red(void)
     ASSERT_EQ((long)g_render_dec_color[0], 0x1f);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_render_hp_or_mp_bar_proportional @ 0x18795
+ *
+ * Compute segments from (current/max) and dispatch to the REAL
+ * fd2_render_horizontal_bar_segments -> fd2_blit_sheet_sprite_at_offset
+ * pipeline, observed through the g_blitraw_* sprite log (fake sheet via
+ * bar_setup_sheet so resolved sprite = sheet + sprite_index, and the per-blit
+ * dst is the segment destination offset).
+ *
+ *   segments = 0                       -> empty bar: 101 middle 0x1D @ off+1.. +
+ *                                          empty cap 0x1E @ off+0x66 (102 blits)
+ *   segments = N (>=1, filled)         -> left cap(base) @ off, N-1 middles,
+ *                                          right cap(base+2) @ off+N
+ * The right-cap offset (off + N) pins the exact segment count, which encodes
+ * the (current,max) the function computed.
+ *
+ *   max == 0      -> div-by-zero guard: nothing drawn (0 blits)
+ *   current == 0  -> segments = 0 (empty bar)
+ *   else          -> segments = (current * 0x65) / max + 1  (SIGNED)
+ * ---------------------------------------------------------------- */
+
+/* max == 0: the guard returns before any dispatch -> zero blits. */
+static void test_prop_zero_max_draws_nothing(void)
+{
+    bar_setup_sheet();
+    bar_reset();
+
+    fd2_render_hp_or_mp_bar_proportional(0x1000, 0x140, 0x17, 0x40, 0);
+
+    ASSERT_EQ((long)g_blitraw_count, 0);
+}
+
+/* current == 0 (max != 0): segments = 0 -> the empty-bar pattern (102 blits,
+ * 101 middle 0x1D then empty cap 0x1E at off+0x66). */
+static void test_prop_zero_current_empty_bar(void)
+{
+    uint32 sheet;
+    uint32 off = 0x1000;
+
+    sheet = bar_setup_sheet();
+    bar_reset();
+
+    fd2_render_hp_or_mp_bar_proportional(off, 0x140, 0x17, 0, 0x64);
+
+    ASSERT_EQ((long)g_blitraw_count, 102);
+    ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x1D);   /* first middle */
+    ASSERT_EQ((long)(g_blitraw_log_sprite[101] - sheet), 0x1E); /* empty cap   */
+    ASSERT_EQ((long)g_blitraw_log_dst[101], (long)(off + 0x66));
+}
+
+/* current == max: segments = (max*0x65)/max + 1 = 0x65 + 1 = 0x66 (102).
+ * Fully-filled bar: left cap(0x17) @ off, 101 middles, right cap(0x19) @
+ * off+0x66 (103 blits total). The right cap at off+0x66 confirms 102 segments,
+ * i.e. the maximum fill plus the +1. */
+static void test_prop_full_bar_max_segments(void)
+{
+    uint32 sheet;
+    uint32 off = 0x2000;
+
+    sheet = bar_setup_sheet();
+    bar_reset();
+
+    fd2_render_hp_or_mp_bar_proportional(off, 0x140, 0x17, 0x64, 0x64);
+
+    ASSERT_EQ((long)g_blitraw_count, 103);
+    ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x17);   /* left cap  */
+    ASSERT_EQ((long)g_blitraw_log_dst[0], (long)off);
+    ASSERT_EQ((long)(g_blitraw_log_sprite[102] - sheet), 0x19); /* right cap */
+    ASSERT_EQ((long)g_blitraw_log_dst[102], (long)(off + 0x66));
+}
+
+/* proportional mid value: cur 0x32 (50), max 0x64 (100) ->
+ * segments = (50*101)/100 + 1 = 5050/100 + 1 = 50 + 1 = 51. Right cap @ off+51.
+ * (104 blits: left cap + 50 middles + right cap = 52.) */
+static void test_prop_half_value_segment_count(void)
+{
+    uint32 sheet;
+    uint32 off = 0x3000;
+
+    sheet = bar_setup_sheet();
+    bar_reset();
+
+    fd2_render_hp_or_mp_bar_proportional(off, 0x140, 0x17, 0x32, 0x64);
+
+    ASSERT_EQ((long)g_blitraw_count, 52);
+    ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x17);    /* left cap  */
+    ASSERT_EQ((long)(g_blitraw_log_sprite[51] - sheet), 0x19);   /* right cap */
+    ASSERT_EQ((long)g_blitraw_log_dst[51], (long)(off + 51));
+}
+
+/* +1 minimum sliver: any non-zero current yields at least 1 segment. With
+ * cur 1, max 10000: (1*0x65)/10000 = 0, +1 = 1 -> single-segment bar
+ * (left cap + right cap @ off+1, 2 blits). Proves the +1 floor. */
+static void test_prop_min_one_segment_floor(void)
+{
+    uint32 sheet;
+    uint32 off = 0x4000;
+
+    sheet = bar_setup_sheet();
+    bar_reset();
+
+    fd2_render_hp_or_mp_bar_proportional(off, 0x140, 0x17, 1, 10000);
+
+    ASSERT_EQ((long)g_blitraw_count, 2);
+    ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x17);    /* left cap  */
+    ASSERT_EQ((long)g_blitraw_log_dst[0], (long)off);
+    ASSERT_EQ((long)(g_blitraw_log_sprite[1] - sheet), 0x19);    /* right cap */
+    ASSERT_EQ((long)g_blitraw_log_dst[1], (long)(off + 1));
+}
+
+/* sprite_base routing: base 0x1A (MP theme) -> caps 0x1A / 0x1C. cur 0x10,
+ * max 0x20 -> segments = (16*101)/32 + 1 = 1616/32 + 1 = 50 + 1 = 51. */
+static void test_prop_sprite_base_routing(void)
+{
+    uint32 sheet;
+    uint32 off = 0x5000;
+
+    sheet = bar_setup_sheet();
+    bar_reset();
+
+    fd2_render_hp_or_mp_bar_proportional(off, 0x140, 0x1A, 0x10, 0x20);
+
+    ASSERT_EQ((long)g_blitraw_count, 52);
+    ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x1A);    /* left cap  */
+    ASSERT_EQ((long)(g_blitraw_log_sprite[51] - sheet), 0x1C);   /* right cap */
+    ASSERT_EQ((long)g_blitraw_log_dst[51], (long)(off + 51));
+}
+
+/* SIGNED division (binary uses IMUL/SAR EDX,0x1F/IDIV): a current of
+ * 0xFFFFFFFF (= -1 as int32, but != 0 so it skips the empty branch) computes
+ * (-1*0x65)/0x64 + 1 = -101/100 + 1 = -1 + 1 = 0 -> segments 0 -> empty bar.
+ * Unsigned division would instead produce a huge positive count, so the
+ * empty-bar pattern proves the arithmetic is signed. */
+static void test_prop_signed_division(void)
+{
+    uint32 sheet;
+    uint32 off = 0x6000;
+
+    sheet = bar_setup_sheet();
+    bar_reset();
+
+    fd2_render_hp_or_mp_bar_proportional(off, 0x140, 0x17, 0xFFFFFFFFu, 0x64);
+
+    ASSERT_EQ((long)g_blitraw_count, 102);                        /* empty bar */
+    ASSERT_EQ((long)(g_blitraw_log_sprite[101] - sheet), 0x1E);   /* empty cap */
+    ASSERT_EQ((long)g_blitraw_log_dst[101], (long)(off + 0x66));
+}
+
 void run_gfx_rndstat_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1363,6 +1546,13 @@ void run_gfx_rndstat_tests(void)
     RUN_TEST(test_redfull_above_is_white);
     RUN_TEST(test_redfull_full_width_compare);
     RUN_TEST(test_redfull_zero_equal_is_red);
+    RUN_TEST(test_prop_zero_max_draws_nothing);
+    RUN_TEST(test_prop_zero_current_empty_bar);
+    RUN_TEST(test_prop_full_bar_max_segments);
+    RUN_TEST(test_prop_half_value_segment_count);
+    RUN_TEST(test_prop_min_one_segment_floor);
+    RUN_TEST(test_prop_sprite_base_routing);
+    RUN_TEST(test_prop_signed_division);
     g_render_log_on = 0;
     g_blitraw_log_on = 0;
     printf("\n");
