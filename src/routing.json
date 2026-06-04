@@ -1086,8 +1086,9 @@
     "name": "fd2_maybe_load_speed_mode_overlay",
     "target": "ui_menu/menucfg.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001a7f1": {
     "name": "fd2_maybe_free_speed_mode_overlay",

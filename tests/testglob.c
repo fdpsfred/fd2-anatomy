@@ -45,6 +45,7 @@ uint32 data_fd2_battle_job_magic_resist_table[27];
 uint8  data_fd2_battle_job_crit_rate_table[27];
 uint32 data_fd2_battle_turn_counter = 0;
 uint32 data_fd2_runtime_battle_state_ptr = 0;
+uint32 data_fd2_battle_fast_mode_walk_overlay_ptr = 0;
 uint32 data_fd2_menu_dialog_state_handle = 0;
 uint32 data_fd2_tile_anim_table_base = 0;
 uint32 data_fd2_chinese_font_sheet = 0;
@@ -511,7 +512,7 @@ void fd2_fire_chapter_turn_events_for_phase(uint32 phase) {
     g_fire_chapter_turn_events_calls++;
     g_fire_chapter_turn_events_last_phase = phase;
 }
-void fd2_maybe_load_speed_mode_overlay(void) { }
+/* fd2_maybe_load_speed_mode_overlay: now emitted in src/ui_menu/menucfg.c. */
 void fd2_maybe_free_speed_mode_overlay(void) { }
 int g_phase_banner_slide_in_calls = 0;
 int g_phase_banner_slide_out_calls = 0;

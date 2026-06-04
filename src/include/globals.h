@@ -35,6 +35,7 @@ extern uint32 data_fd2_battle_scripted_cinematic_mode_or_terrain_idx;   /* 0x540
 extern uint32 data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr;    /* 0x54107 */
 extern uint32 data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr;     /* 0x5410B */
 extern uint32 data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr;     /* 0x5410F */
+extern uint32 data_fd2_battle_fast_mode_walk_overlay_ptr;               /* 0x53B0F */
 
 /* ---- battle AI scoring ---- */
 extern double data_fd2_battle_ai_enemy_spell_score_multiplier_15;       /* 0x50144  const 1.5 */

@@ -391,3 +391,30 @@ void fd2_repaint_settings_dialog_borders(uint32 menu_options, uint32 menu_state)
         fd2_paint_char_sprite_at_world_pos(saved_char_idx);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_maybe_load_speed_mode_overlay @ 0x1A7BD  (1 caller:
+ *   fd2_run_full_turn_cycle)
+ *
+ * Fast-mode gate: load the fast-walk animation overlay.
+ *
+ * When the player has set data_fd2_ui_game_speed_flag to 1 (fast mode) in the
+ * settings menu, the AI / enemy turns swap to the trimmed walk-animation
+ * resource at FDOTHER.DAT index 0x40. The overlay pointer is first cleared to
+ * NULL, then assigned the freshly loaded resource. When fast mode is off the
+ * pointer stays NULL and the AI / enemy turns use the standard walk animation.
+ *
+ * Called at the entry of the NPC turn (Phase C) and the ENEMY turn (Phase E)
+ * in fd2_run_full_turn_cycle; released on exit by
+ * fd2_maybe_free_speed_mode_overlay.
+ *
+ * void __cdecl with the __CHK(0x10) stack-probe prologue.
+ * ---------------------------------------------------------------- */
+void fd2_maybe_load_speed_mode_overlay(void)
+{
+    if (data_fd2_ui_game_speed_flag != 0) {
+        data_fd2_battle_fast_mode_walk_overlay_ptr = 0;
+        data_fd2_battle_fast_mode_walk_overlay_ptr = fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 0x40);
+    }
+}
