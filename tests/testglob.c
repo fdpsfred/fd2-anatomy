@@ -56,6 +56,7 @@ char   data_fd2_string_resource_filename_fdtxt_dat[] = "FDTXT.DAT";
 char   data_fd2_string_resource_filename_fdother_dat[] = "FDOTHER.DAT";
 char   data_fd2_string_resource_filename_fdfield_dat_51a59[] = "FDFIELD.DAT";
 char   data_fd2_string_resource_filename_fdshap_dat_51a65[] = "FDSHAP.DAT";
+char   data_fd2_string_resource_filename_dato_dat_51a70[] = "DATO.DAT";
 char   data_fd2_string_save_load_oom_msg_load_pbuf_50004[] = " Out of Memory !!!\n";
 char   data_fd2_string_save_load_oom_msg_tile_event_50023[] = " Out of Memory !!!\n";
 char   data_fd2_string_save_load_oom_msg_runtime_char_50037[] = " Out of Memory !!!\n";
@@ -377,7 +378,10 @@ void fd2_load_status_effect_sfx(void) { }
 void fd2_play_and_free_status_effect_sfx(void) { }
 /* fd2_collect_pending_death_drops: now in btl_turn.c */
 /* fd2_display_dialog_scene: now emitted in src/dialog/dialog.c */
-void fd2_load_chapter_portrait(uint32 p) { }
+/* fd2_load_chapter_portrait: now emitted for real in src/rsrc/rsrc.c and
+ * linked for real; its blit-offset branch + DATO.DAT load are driven by the
+ * test_lcp_* cases in tests/rsrc/rsrc.c (observed via the g_dlg_blit_mirrored
+ * capture spy + an independent DATO.DAT parse). */
 void fd2_close_status_screen_with_slide_out(void) { }
 /* fd2_load_chapter_battle_data: now in rsrc/rsrc.c */
 /* fd2_load_chapter_portraits_and_dump_tmp: now in rsrc/rsrc.c */

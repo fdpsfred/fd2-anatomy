@@ -472,3 +472,87 @@ void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id)
     fwrite((void *)portrait_sprite_cache, 1, 0x32a00, fp);
     fclose(fp);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_load_chapter_portrait @ 0x1956b  (~52 callers)
+ *
+ * Open a "speaker portrait + dialog box" and play its slide-down entry.
+ *
+ * Pipeline:
+ *   1. Allocate three 64000-byte (320x200) render workspaces:
+ *        slide_anim_accumulator  (0x53C5B) — slide scratch buffer
+ *        slide_bg_snapshot       (0x53C5F) — primary VGA snapshot
+ *        slide_composed_target   (0x53C63) — composite overlay
+ *   2. memmove 0xA0000 -> snapshot (capture the current screen).
+ *   3. memmove snapshot -> composed_target (overlay starts as the snapshot).
+ *   4. fd2_assemble_dialog_frame_layered(composed_target, 320, 5, 0x70,
+ *      0x13, 5) — draw a 0x13-wide x 5-tall dialog box at (5, 0x70).
+ *   5. portrait_kind -> dialog_active_portrait_blit_offset (0x53C67,
+ *      mode-13h pixel offset):
+ *        0x80 -> 0x10BB   0x81 -> 0x06AB   0x82 -> 0x0F63
+ *        0x83 -> 0x0576   0x84 -> 0x0E3C   other -> 0x9017 (default)
+ *   6. portrait_sprite_buffer (0x53A85) =
+ *        fd2_load_dat_resource("DATO.DAT" @ 0x51A70, prev_buf, portrait_kind)
+ *   7. fd2_dialog_sprite_blit_mirrored(composed_target + blit_offset,
+ *      portrait_sprite_buffer + *portrait_sprite_buffer, 320)
+ *      — the buffer's first byte is the header size; skip past the header.
+ *   8. 6-frame slide-down loop (frame_iter 5->0):
+ *        fd2_slide_panel_down_step(frame_iter*0xD + 0x70,
+ *                                  slide_anim_accumulator, composed_target)
+ *
+ * On return the screen carries the dialog box + portrait; the caller then
+ * runs the text typewriter.
+ *
+ * portrait_kind:
+ *   0x80..0x84 = the 5 special story-character placements (fixed coords)
+ *   other      = standard character portrait id; falls to the 0x9017 slot
+ * ---------------------------------------------------------------- */
+void fd2_load_chapter_portrait(uint32 portrait_kind)
+{
+    uint32 frame_iter;
+    uint32 y_offset;
+
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_composed_target_buf_ptr = (uint32)malloc(64000);
+
+    memmove((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr,
+            (void *)0xa0000, 64000);
+    memmove((void *)data_fd2_ui_slide_composed_target_buf_ptr,
+            (void *)data_fd2_ui_slide_bg_snapshot_buf_ptr, 64000);
+
+    fd2_assemble_dialog_frame_layered(
+        data_fd2_ui_slide_composed_target_buf_ptr, 0x140, 5, 0x70, 0x13, 5);
+
+    if (portrait_kind == 0x80) {
+        data_fd2_dialog_active_portrait_blit_offset = 0x10bb;
+    } else if (portrait_kind == 0x81) {
+        data_fd2_dialog_active_portrait_blit_offset = 0x6ab;
+    } else if (portrait_kind == 0x82) {
+        data_fd2_dialog_active_portrait_blit_offset = 0xf63;
+    } else if (portrait_kind == 0x83) {
+        data_fd2_dialog_active_portrait_blit_offset = 0x576;
+    } else if (portrait_kind == 0x84) {
+        data_fd2_dialog_active_portrait_blit_offset = 0xe3c;
+    } else {
+        data_fd2_dialog_active_portrait_blit_offset = 0x9017;
+    }
+
+    data_fd2_portrait_sprite_buffer = (uint8 *)fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_dato_dat_51a70,
+        (uint32)data_fd2_portrait_sprite_buffer, portrait_kind);
+
+    fd2_dialog_sprite_blit_mirrored(
+        data_fd2_ui_slide_composed_target_buf_ptr
+            + data_fd2_dialog_active_portrait_blit_offset,
+        (uint32)(data_fd2_portrait_sprite_buffer
+                 + *data_fd2_portrait_sprite_buffer),
+        0x140);
+
+    for (frame_iter = 5; -1 < (int)frame_iter; frame_iter--) {
+        y_offset = frame_iter * 0xd + 0x70;
+        fd2_slide_panel_down_step(y_offset,
+            data_fd2_ui_slide_anim_accumulator_buf_ptr,
+            data_fd2_ui_slide_composed_target_buf_ptr);
+    }
+}

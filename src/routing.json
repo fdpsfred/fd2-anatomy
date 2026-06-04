@@ -1030,8 +1030,9 @@
     "name": "fd2_load_chapter_portrait",
     "target": "rsrc/rsrc.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000196cb": {
     "name": "fd2_close_status_screen_with_slide_out",

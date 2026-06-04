@@ -47,7 +47,7 @@ GAME_DIR = REPO_ROOT / "fd2_game_files"
 # presence and copy from fd2_game_files/ only when missing/stale — no DOSBox
 # mount. tests/OUT is gitignored, so src/ stays clean.
 GAME_FILES = ["FDICON.B24", "FDFIELD.DAT", "FDSHAP.DAT", "FDOTHER.DAT",
-              "FDTXT.DAT", "FDMUS.DAT", "FD2.SAV"]
+              "FDTXT.DAT", "FDMUS.DAT", "DATO.DAT", "FD2.SAV"]
 
 
 def stage_game_files():

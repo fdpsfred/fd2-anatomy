@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "realfile.h"   /* realdat_read_resource() */
+#include "minipfix.h"   /* minip_setup_env(): sprite sheet + dialog-blit spies */
 
 /* capture globals from testglob.c */
 extern int    g_rle_blit_calls;
@@ -811,6 +812,108 @@ static void test_pt_empty_table(void)
     teardown_pt_fixture();
 }
 
+/* ================================================================
+ * fd2_load_chapter_portrait @ 0x1956b
+ *
+ * Drives the real dialog-portrait open against the staged real DATO.DAT.
+ * The risk-bearing logic is (a) the 6-way portrait_kind -> blit_offset branch
+ * and (b) the real DATO.DAT resource load (portrait_sprite_buffer). The dialog
+ * frame draw runs for real through fd2_assemble_dialog_frame_layered into the
+ * sheet-offset table (minipfix.h sprite sheet, raw blit captured by the
+ * testglob spy); the portrait blit is the recording fd2_dialog_sprite_blit_
+ * mirrored spy; the 6-frame slide loop runs the real fd2_slide_panel_down_step
+ * (memmove to/from 0xA0000, harmless scratch in the host harness).
+ *
+ * Cross-check: portrait_sprite_buffer must hold the SAME bytes an independent
+ * realdat_read_resource("DATO.DAT", kind) parse yields, and the mirrored blit
+ * must fire once with dst = composed_target + blit_offset, sprite =
+ * portrait_buf + *portrait_buf, stride 0x140.
+ *
+ * (g_dlg_blit_mirrored_calls / g_dlg_blit_last_{dst,sprite,stride} are declared
+ * by minipfix.h, included above.)
+ * ================================================================ */
+
+/* Free the three 64000-byte workspaces the real function leaks each call plus
+ * the loaded portrait buffer, and reset the blit-capture counter. */
+static void lcp_cleanup(void)
+{
+    if (data_fd2_ui_slide_anim_accumulator_buf_ptr != 0) {
+        free((void *)data_fd2_ui_slide_anim_accumulator_buf_ptr);
+        data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    }
+    if (data_fd2_ui_slide_bg_snapshot_buf_ptr != 0) {
+        free((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr);
+        data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    }
+    if (data_fd2_ui_slide_composed_target_buf_ptr != 0) {
+        free((void *)data_fd2_ui_slide_composed_target_buf_ptr);
+        data_fd2_ui_slide_composed_target_buf_ptr = 0;
+    }
+    if (data_fd2_portrait_sprite_buffer != 0) {
+        free((void *)data_fd2_portrait_sprite_buffer);
+        data_fd2_portrait_sprite_buffer = 0;
+    }
+    g_dlg_blit_mirrored_calls = 0;
+}
+
+/* Run the open for one portrait_kind and assert the blit offset, the real
+ * DATO.DAT payload, and the mirrored portrait blit. */
+static void lcp_check_kind(uint32 kind, uint32 expect_offset)
+{
+    uint8 *ref;
+    long   ref_size;
+    uint32 composed;
+
+    minip_setup_env();                 /* sprite sheet + blit spies */
+    data_fd2_portrait_sprite_buffer = 0;   /* loader frees prev iff nonzero */
+    g_dlg_blit_mirrored_calls = 0;
+
+    ref_size = realdat_read_resource("DATO.DAT", (int)kind, &ref);
+    ASSERT_TRUE(ref_size > 0);
+
+    fd2_load_chapter_portrait(kind);
+
+    /* (a) 6-way branch picked the right mode-13h offset */
+    ASSERT_EQ((long)data_fd2_dialog_active_portrait_blit_offset,
+              (long)expect_offset);
+
+    /* (b) the real DATO.DAT resource was loaded into portrait_sprite_buffer */
+    ASSERT_TRUE(data_fd2_portrait_sprite_buffer != 0);
+    ASSERT_EQ((long)data_fd2_resource_last_loaded_resource_size, ref_size);
+    ASSERT_EQ((long)memcmp(data_fd2_portrait_sprite_buffer, ref,
+                           (size_t)ref_size), 0);
+
+    /* (c) the mirrored portrait blit fired once at composed_target+offset with
+     *     sprite = buf + buf[0] (header skip), stride 0x140 */
+    composed = data_fd2_ui_slide_composed_target_buf_ptr;
+    ASSERT_TRUE(composed != 0);
+    ASSERT_EQ((long)g_dlg_blit_mirrored_calls, 1);
+    ASSERT_EQ((long)g_dlg_blit_last_dst, (long)(composed + expect_offset));
+    ASSERT_EQ((long)g_dlg_blit_last_sprite,
+              (long)((uint32)data_fd2_portrait_sprite_buffer
+                     + *data_fd2_portrait_sprite_buffer));
+    ASSERT_EQ((long)g_dlg_blit_last_stride, 0x140);
+
+    free(ref);
+    lcp_cleanup();
+}
+
+/* Each special kind 0x80..0x84 maps to its fixed story-portrait slot. */
+static void test_lcp_special_kinds(void)
+{
+    lcp_check_kind(0x80, 0x10bb);
+    lcp_check_kind(0x81, 0x06ab);
+    lcp_check_kind(0x82, 0x0f63);
+    lcp_check_kind(0x83, 0x0576);
+    lcp_check_kind(0x84, 0x0e3c);
+}
+
+/* A standard portrait id (not 0x80..0x84) falls to the default 0x9017 slot. */
+static void test_lcp_default_kind(void)
+{
+    lcp_check_kind(0x40, 0x9017);
+}
+
 void run_rsrc_rsrc_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -837,5 +940,7 @@ void run_rsrc_rsrc_tests(void)
     RUN_TEST(test_pt_no_match);
     RUN_TEST(test_pt_multiple_match);
     RUN_TEST(test_pt_empty_table);
+    RUN_TEST(test_lcp_special_kinds);
+    RUN_TEST(test_lcp_default_kind);
     printf("\n");
 }
