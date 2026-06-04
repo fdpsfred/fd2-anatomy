@@ -1488,7 +1488,14 @@ static void test_spell_duplicate_target_single_hit(void)
  *                                              -> g_blitraw log (its first blit,
  *                                              the 0x17 left cap, pins the
  *                                              segment-bar dst arithmetic)
- *   fd2_render_combatant_hp_bar_proportional-> recording stub (g_hpbar_prop_*)
+ *   fd2_render_combatant_hp_bar_proportional-> real; reads the combatant's HP
+ *                                              from the runtime_char array and
+ *                                              forwards the scaled fill count to
+ *                                              the real segment renderer, whose
+ *                                              0x17 left cap (at the computed
+ *                                              proportional bar_addr) appears in
+ *                                              the same g_blitraw log after the
+ *                                              fixed-width segment bar's blits
  *   fd2_blit_rectangle                      -> real; memmoves the workspace to
  *                                              0xA0504 (VGA RAM, writable under
  *                                              DOS/4GW) so ws must be backed.
@@ -1497,11 +1504,6 @@ static void test_spell_duplicate_target_single_hit(void)
 extern int    g_saveblk_calls;
 extern uint32 g_saveblk_src, g_saveblk_dst, g_saveblk_w, g_saveblk_h,
               g_saveblk_stride;
-extern int    g_hpbar_prop_calls;
-extern uint32 g_hpbar_prop_d[4];
-extern uint32 g_hpbar_prop_s[4];
-extern uint32 g_hpbar_prop_ci[4];
-extern uint32 g_hpbar_prop_st[4];
 /* raw-blit recording log (testglob.c): the real fd2_render_combat_hp_bar_segments
  * resolves each segment through the real fd2_blit_sheet_sprite_at_offset, which
  * forwards (dst, sprite_addr) here when g_blitraw_log_on is set. */
@@ -1555,7 +1557,10 @@ static void install_panel_sheet(void)
 }
 
 /* ws back-buffer at large_game_state_buffer_ptr + 0x8088; window wide so the
- * panel arithmetic is unclamped. All combatant-panel recorders cleared. */
+ * panel arithmetic is unclamped. The proportional HP bar is now the real
+ * routine, so back the runtime_char array and give the attacker (idx 3) and
+ * defender (idx 7) full HP -> each emits a deterministic over-width segment
+ * sequence whose 0x17 left cap pins its proportional bar_addr. */
 static void reset_panel_record(void)
 {
     data_fd2_large_game_state_buffer_ptr = (uint32)g_ws_buffer - 0x8088u;
@@ -1567,13 +1572,36 @@ static void reset_panel_record(void)
     install_panel_sheet();
     install_ui_sheet();                        /* HP-bar segment sprite source */
 
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].hp_current = 0x40;      /* combatant slots used as the */
+    g_test_rc_array[0].hp_max     = 0x40;      /* attacker / defender indices */
+    g_test_rc_array[3].hp_current = 0x40;      /* across the panel tests, each */
+    g_test_rc_array[3].hp_max     = 0x40;      /* at full HP so the real prop. */
+    g_test_rc_array[7].hp_current = 0x40;      /* bar always emits its left cap */
+    g_test_rc_array[7].hp_max     = 0x40;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+
     g_tile_map_calls = 0;
     g_composite_call_count = 0;
     g_saveblk_calls = 0;
     g_blitdec_calls = 0;
-    g_hpbar_prop_calls = 0;
     g_blitraw_count = 0;                        /* HP-bar segment blit log */
     g_blitraw_log_on = 1;
+}
+
+/* Count logged raw blits that drew sprite `idx` at dst `dst` (used to locate
+ * the proportional HP bar's 0x17 left cap inside the combined panel log). */
+static int panel_count_blit_at(uint32 dst, uint32 idx)
+{
+    int k;
+    int n = 0;
+    for (k = 0; k < g_blitraw_count; k++) {
+        if (g_blitraw_log_dst[k] == dst &&
+            (g_blitraw_log_sprite[k] - data_fd2_ui_anim_sprite_sheet_ptr) == idx) {
+            n++;
+        }
+    }
+    return n;
 }
 
 /* Attacker-only path (xy[2] == -1): backdrop rebuild, exactly one panel
@@ -1584,6 +1612,7 @@ static void test_panels_attacker_only(void)
     int xy[4];
     uint32 ws;
     uint32 expect_seg;
+    uint32 expect_prop;
 
     reset_panel_record();
     xy[0] = 0x20;          /* attacker_x */
@@ -1621,12 +1650,16 @@ static void test_panels_attacker_only(void)
     ASSERT_EQ(ui_logged_idx(0), 0x17u);
     ASSERT_EQ(g_blitraw_stride, 0x1c8u);
 
-    /* 4. one proportional HP bar: (ws-0x724, 456, attacker_idx, &xy[0]) */
-    ASSERT_EQ(g_hpbar_prop_calls, 1);
-    ASSERT_EQ(g_hpbar_prop_d[0], ws - 0x724u);   /* 0x7964 - 0x8088 = -0x724 */
-    ASSERT_EQ(g_hpbar_prop_s[0], 0x1c8u);
-    ASSERT_EQ(g_hpbar_prop_ci[0], 3u);
-    ASSERT_EQ(g_hpbar_prop_st[0], (uint32)xy);
+    /* 4. one proportional HP bar for the attacker (idx 3, full HP). It runs
+     *    with dst_buf = ws-0x724 (0x7964-0x8088) and anchor &xy[0]; its real
+     *    segment renderer emits the bar at
+     *      bar_addr = ws - 0x724 + xy[0] + 7 + (xy[1]+6)*456.
+     *    Full HP -> S = 0x46 (over-width), so the distinctive 0x19 fill cap
+     *    lands at bar_addr + 0x46. (The 0x17 left cap coincides with the fixed
+     *    segment bar's left cap here -- 4 - 0x724 + 4*456 == 0 -- so the fill
+     *    cap is the unambiguous proportional-bar witness.) */
+    expect_prop = ws - 0x724u + 0x20u + 7u + (uint32)((0x10 + 6) * 0x1c8);
+    ASSERT_EQ(panel_count_blit_at(expect_prop + 0x46u, 0x19u), 1);
 }
 
 /* Defender present (xy[2] != -1): a second panel sprite chunk and a second
@@ -1635,6 +1668,8 @@ static void test_panels_with_defender(void)
 {
     int xy[4];
     uint32 ws;
+    uint32 expect_atk;
+    uint32 expect_def;
 
     reset_panel_record();
     xy[0] = 0x18;          /* attacker_x */
@@ -1650,13 +1685,15 @@ static void test_panels_with_defender(void)
     ASSERT_EQ(g_saveblk_calls, 2);
     ASSERT_EQ(g_saveblk_src, (uint32)((0x14 - 4) * 0x1c8 + (0x30 - 4)));
 
-    /* two proportional HP bars, in attacker-then-defender order */
-    ASSERT_EQ(g_hpbar_prop_calls, 2);
-    ASSERT_EQ(g_hpbar_prop_ci[0], 3u);                 /* attacker_idx */
-    ASSERT_EQ(g_hpbar_prop_st[0], (uint32)xy);         /* &xy[0]       */
-    ASSERT_EQ(g_hpbar_prop_ci[1], 7u);                 /* defender_idx */
-    ASSERT_EQ(g_hpbar_prop_st[1], (uint32)xy + 8u);    /* &xy[2]       */
-    ASSERT_EQ(g_hpbar_prop_d[1], ws - 0x724u);
+    /* two proportional HP bars: attacker (idx 3, anchor &xy[0]) and defender
+     * (idx 7, anchor &xy[2]). Each combatant has full HP at its own slot, so
+     * S = 0x46 and a distinctive 0x19 fill cap lands at bar_addr + 0x46 for
+     * each. Both being present confirms attacker_idx/&xy[0] and defender_idx/
+     * &xy[2] routing (a wrong slot would read HP 0 and emit no bar at all). */
+    expect_atk = ws - 0x724u + 0x18u + 7u + (uint32)((0x0c + 6) * 0x1c8);
+    expect_def = ws - 0x724u + 0x30u + 7u + (uint32)((0x14 + 6) * 0x1c8);
+    ASSERT_EQ(panel_count_blit_at(expect_atk + 0x46u, 0x19u), 1);
+    ASSERT_EQ(panel_count_blit_at(expect_def + 0x46u, 0x19u), 1);
 }
 
 /* Independent witness for the HP-segment address formula with a different
@@ -1666,6 +1703,7 @@ static void test_panels_hp_seg_addr_arithmetic(void)
     int xy[4];
     uint32 ws;
     uint32 expect_seg;
+    uint32 expect_prop;
 
     reset_panel_record();
     xy[0] = 0x29;          /* attacker_x */
@@ -1681,9 +1719,119 @@ static void test_panels_hp_seg_addr_arithmetic(void)
     ASSERT_TRUE(g_blitraw_count > 0);
     ASSERT_EQ(g_blitraw_log_dst[0], expect_seg);
     ASSERT_EQ(ui_logged_idx(0), 0x17u);
-    /* attacker-only: no defender panel, single proportional bar */
+    /* attacker-only: no defender panel, single proportional bar (idx 0, full
+     * HP). Its distinctive 0x19 fill cap lands at the anchor &xy[0] -derived
+     * bar_addr + 0x46. */
     ASSERT_EQ(g_saveblk_calls, 1);
-    ASSERT_EQ(g_hpbar_prop_calls, 1);
+    expect_prop = ws - 0x724u + 0x29u + 7u + (uint32)((0x1f + 6) * 0x1c8);
+    ASSERT_EQ(panel_count_blit_at(expect_prop + 0x46u, 0x19u), 1);
+}
+
+/* ====================================================================
+ * fd2_render_combatant_hp_bar_proportional @ 0x1E7F6
+ *
+ * Drives the real proportional bar -> real segment renderer end-to-end through
+ * the g_blitraw log. The combatant's HP fraction scales the filled-segment
+ * count S = hp_current*0x45/hp_max + 1 (signed IMUL/IDIV in the asm; both
+ * operands positive here). The destination is
+ *   bar_addr = dst_buf + anchor.x + 7 + (anchor.y + 6) * stride
+ * and the segment renderer's 0x17 left cap lands at bar_addr, its 0x19 fill cap
+ * at bar_addr + S. These tests pin both the scaling math (via the 0x19 cap
+ * index) and the bar_addr arithmetic, plus the hp_current==0 dead-skip guard.
+ * ==================================================================== */
+
+/* Proportional-bar tests use a stride other than the 456 of the panel path so
+ * the (anchor.y+6)*stride term is not coincidental, and back the runtime_char
+ * array with the shared g_test_rc_array (the canonical fixture the rest of this
+ * suite — and gfx/rndstat — index through data_fd2_battle_runtime_char_array_ptr). */
+#define HPPROP_BASE  0x40000u
+#define HPPROP_STRIDE 0x80u
+
+/* Set slot `idx` to (hp_cur, hp_max), run the proportional bar with a clean log
+ * at dst_buf HPPROP_BASE and anchor (ax, ay); returns the computed bar_addr. */
+static uint32 hpprop_run(uint32 idx, uint16 hp_cur, uint16 hp_max,
+                         int ax, int ay)
+{
+    int anchor[2];
+
+    install_ui_sheet();
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[idx].hp_current = hp_cur;
+    g_test_rc_array[idx].hp_max     = hp_max;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+
+    anchor[0] = ax;
+    anchor[1] = ay;
+
+    g_blitraw_count = 0;
+    g_blitraw_log_on = 1;
+    fd2_render_combatant_hp_bar_proportional(HPPROP_BASE, HPPROP_STRIDE, idx,
+                                             (uint32)anchor);
+
+    return HPPROP_BASE + (uint32)ax + 7u + (uint32)((ay + 6) * (int)HPPROP_STRIDE);
+}
+
+/* hp_current == 0 -> dead-skip guard (signed TEST/JLE collapses to ==0 for the
+ * zero-extended word): the renderer is never called, zero blits logged. */
+static void test_hpprop_dead_no_draw(void)
+{
+    hpprop_run(2, 0, 0x40, 0x10, 0x08);
+    ASSERT_EQ(g_blitraw_count, 0);
+}
+
+/* Full HP (hp_current == hp_max): S = 0x45 + 1 = 0x46 (over max width). The
+ * segment renderer takes the >0x45 early-return path: left cap @0, filled
+ * middles @1..0x45, fill cap (0x19) @0x46, NO final 0x1E cap. 0x47 blits. */
+static void test_hpprop_full_hp_overwidth(void)
+{
+    uint32 base = hpprop_run(2, 0x40, 0x40, 0x10, 0x08);
+
+    ASSERT_EQ(g_blitraw_count, 0x47);
+    ASSERT_EQ(g_blitraw_log_dst[0], base);
+    ASSERT_EQ(ui_logged_idx(0), 0x17u);
+    ASSERT_EQ(g_blitraw_log_dst[0x46], base + 0x46u);
+    ASSERT_EQ(ui_logged_idx(0x46), 0x19u);   /* fill cap at S=0x46, no 0x1E */
+}
+
+/* Mid HP: hp_current=0x33 (51), hp_max=0x66 (102) -> S = 51*0x45/102 + 1
+ * = 3519/102 + 1 = 34 + 1 = 0x23. Normal filled path: left cap @0, fill cap
+ * (0x19) @0x23, empty middles after, final cap (0x1E) @0x46. 0x47 blits. */
+static void test_hpprop_mid_hp_scaling(void)
+{
+    uint32 base = hpprop_run(5, 0x33, 0x66, 0x04, 0x02);
+
+    ASSERT_EQ(g_blitraw_count, 0x47);
+    ASSERT_EQ(g_blitraw_log_dst[0], base);
+    ASSERT_EQ(ui_logged_idx(0), 0x17u);
+    ASSERT_EQ(g_blitraw_log_dst[0x23], base + 0x23u);
+    ASSERT_EQ(ui_logged_idx(0x23), 0x19u);          /* fill cap pins S=0x23 */
+    ASSERT_EQ(ui_logged_idx(0x46), 0x1eu);          /* final cap present */
+}
+
+/* Low HP: hp_current=1, hp_max=0x40 (64) -> S = 1*0x45/64 + 1 = 1 + 1 = 2.
+ * Even at 1 HP the +1 keeps a >=1 filled head: fill cap (0x19) @ base+2. */
+static void test_hpprop_low_hp_min_fill(void)
+{
+    uint32 base = hpprop_run(0, 1, 0x40, 0x00, 0x00);
+
+    ASSERT_EQ(g_blitraw_count, 0x47);
+    ASSERT_EQ(ui_logged_idx(0), 0x17u);
+    ASSERT_EQ(g_blitraw_log_dst[2], base + 2u);
+    ASSERT_EQ(ui_logged_idx(2), 0x19u);             /* fill cap pins S=2 */
+}
+
+/* bar_addr arithmetic with a non-trivial (anchor.x, anchor.y) and a stride
+ * other than 456: the left cap dst must equal
+ *   dst_buf + anchor.x + 7 + (anchor.y + 6) * stride. */
+static void test_hpprop_bar_addr_arithmetic(void)
+{
+    uint32 base = hpprop_run(4, 0x20, 0x40, 0x1b, 0x07);
+    uint32 expect = HPPROP_BASE + 0x1bu + 7u + (uint32)((0x07 + 6) * (int)HPPROP_STRIDE);
+
+    ASSERT_EQ(base, expect);
+    ASSERT_EQ(g_blitraw_log_dst[0], expect);
+    ASSERT_EQ(ui_logged_idx(0), 0x17u);
+    ASSERT_EQ(g_blitraw_stride, HPPROP_STRIDE);     /* stride forwarded verbatim */
 }
 
 /* ====================================================================
@@ -1867,5 +2015,10 @@ void run_gfx_rndscene_tests(void)
     RUN_TEST(test_hpseg_mid_filled);
     RUN_TEST(test_hpseg_full_width);
     RUN_TEST(test_hpseg_over_width_no_cap);
+    RUN_TEST(test_hpprop_dead_no_draw);
+    RUN_TEST(test_hpprop_full_hp_overwidth);
+    RUN_TEST(test_hpprop_mid_hp_scaling);
+    RUN_TEST(test_hpprop_low_hp_min_fill);
+    RUN_TEST(test_hpprop_bar_addr_arithmetic);
     printf("\n");
 }

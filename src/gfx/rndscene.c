@@ -788,3 +788,55 @@ void fd2_render_combat_hp_bar_segments(uint32 dst_addr, uint32 stride,
                                     data_fd2_ui_anim_sprite_sheet_ptr,
                                     0x1e);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_combatant_hp_bar_proportional @ 0x1E7F6 (4 callers)
+ *
+ * Draw a proportional HP bar inside a combatant panel. Reads the
+ * combatant's current/max HP, scales the bar fill to its HP fraction,
+ * and forwards the filled-segment count to the shared segmented-bar
+ * renderer (fd2_render_combat_hp_bar_segments).
+ *
+ *   char = runtime_char_array[char_idx]
+ *   if (char.hp_current == 0) return;            // dead -> draw nothing
+ *                                                // (panel is normally hidden)
+ *   segments = char.hp_current * 0x45 / char.hp_max + 1
+ *              // 0x45 = 69 = max bar width; +1 keeps a >=1 head while alive
+ *   bar_addr = dst_buf + anchor.x + 7            // x + 7 left inset
+ *            + (anchor.y + 6) * stride           // y + 6 row offset
+ *   fd2_render_combat_hp_bar_segments(bar_addr, stride, segments);
+ *
+ * The HP scale/divide is the signed asm sequence (IMUL .,0x45 then
+ * SAR/IDIV); hp_current is a zero-extended word, so the guard's signed
+ * "<= 0" reduces to "== 0". anchor_xy_ptr points at a 2-int {x, y} pair
+ * supplied by fd2_render_combat_combatant_panels (the panel position).
+ *
+ * 0x45 = 69 (max bar width), 6 = HP-bar row within the panel, 7 = left
+ * inset within the panel.
+ *
+ * 4 callers: fd2_execute_ai_physical_attack (x2),
+ * fd2_render_combat_combatant_panels (x2 attacker + defender).
+ * ---------------------------------------------------------------- */
+void fd2_render_combatant_hp_bar_proportional(uint32 dst_buf, uint32 stride,
+                                              uint32 char_idx, uint32 anchor_xy_ptr)
+{
+    runtime_char *pchar;
+    int *anchor;
+    int32 hp_scaled;
+    int32 segments;
+    uint32 bar_addr;
+
+    pchar = &data_fd2_battle_runtime_char_array_ptr[char_idx];
+    if (pchar->hp_current == 0) {
+        return;
+    }
+
+    anchor = (int *)anchor_xy_ptr;
+    hp_scaled = (int32)pchar->hp_current * 0x45;
+    segments = hp_scaled / (int32)pchar->hp_max + 1;
+
+    bar_addr = (uint32)((anchor[1] + 6) * (int32)stride) + dst_buf +
+               (uint32)anchor[0] + 7;
+
+    fd2_render_combat_hp_bar_segments(bar_addr, stride, (uint32)segments);
+}

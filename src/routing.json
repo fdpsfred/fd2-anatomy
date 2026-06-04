@@ -1575,8 +1575,9 @@
     "name": "fd2_render_combatant_hp_bar_proportional",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001e856": {
     "name": "fd2_animate_combat_hit_with_hp_drain",
