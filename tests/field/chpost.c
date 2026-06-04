@@ -699,6 +699,75 @@ static void test_chpost15_neighbor_slots_ignored(void)
     chpost15_teardown();
 }
 
+/* ============================================================
+ * fd2_chapter_16_post_action @ 0x2084A
+ *
+ * Same default win/lose check (fd2_check_battle_end_condition, linked
+ * real), then a single-slot lose-condition override: if key NPC
+ * runtime_char[0x41] is dead, set game_event_flag = 1. Deadness is queried
+ * through fd2_check_char_is_dead, the real engine computing it as
+ * runtime_char[idx].flags bit0.
+ *
+ * Structurally identical to chapter 15 but for slot 0x41 (65) instead of
+ * 0x40; the disassembly is byte-for-byte the same modulo that one PUSH
+ * immediate. Slot 0x41 lies within the 72-slot t_rc15 buffer (indices
+ * 0..0x47), so these tests reuse t_rc15 / chpost15_setup directly. As in
+ * the chapter-15 suite every slot is team=2 / alive so the default check
+ * deterministically yields flag=2, making the override observable as a
+ * clean 2 -> 1.
+ *
+ * Coverage is risk-driven for the inverted-looking branch (the disassembly
+ * is "JZ skip-set / fall through to set", i.e. set-the-flag-when-DEAD; it is
+ * exactly the kind of test that is easy to read backwards) and the single
+ * checked slot index:
+ *   - slot 0x41 alive            -> no override (flag stays 2)
+ *   - slot 0x41 dead             -> override fires (flag -> 1)
+ *   - neighbors 0x40/0x42 dead, 0x41 alive -> NO override, pinning the
+ *     checked slot as exactly 0x41 (no off-by-one in either direction).
+ * ============================================================ */
+
+/* Key NPC slot 0x41 alive -> the dead-check returns 0, the override does not
+ * fire, and the default flag (2) survives. Pins the branch direction: an
+ * ALIVE slot must NOT trigger game over. */
+static void test_chpost16_npc_alive_keeps_default(void)
+{
+    chpost15_setup();
+    /* slot 0x41 already alive from setup */
+
+    fd2_chapter_16_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost15_teardown();
+}
+
+/* Key NPC slot 0x41 dead -> fd2_check_char_is_dead returns nonzero and the
+ * override fires (flag 2 -> 1). */
+static void test_chpost16_npc_dead_game_over(void)
+{
+    chpost15_setup();
+    t_rc15[0x41].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_16_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost15_teardown();
+}
+
+/* Neighbors 0x40 and 0x42 dead while the key NPC (0x41) is alive -> the
+ * override must NOT fire. Proves the checked slot is exactly 0x41 (no
+ * off-by-one in either direction). */
+static void test_chpost16_neighbor_slots_ignored(void)
+{
+    chpost15_setup();
+    t_rc15[0x40].flags = CHARFLAG_DEAD;
+    t_rc15[0x42].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_16_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost15_teardown();
+}
+
 void run_field_chpost_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -729,5 +798,8 @@ void run_field_chpost_tests(void)
     RUN_TEST(test_chpost15_npc_alive_keeps_default);
     RUN_TEST(test_chpost15_npc_dead_game_over);
     RUN_TEST(test_chpost15_neighbor_slots_ignored);
+    RUN_TEST(test_chpost16_npc_alive_keeps_default);
+    RUN_TEST(test_chpost16_npc_dead_game_over);
+    RUN_TEST(test_chpost16_neighbor_slots_ignored);
     printf("\n");
 }
