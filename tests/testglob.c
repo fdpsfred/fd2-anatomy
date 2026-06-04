@@ -1210,3 +1210,37 @@ void fd2_cast_screen_wide_spell_with_fade(uint32 epicenter_tile_x,
     (void)epicenter_tile_x; (void)epicenter_tile_y;
     (void)starting_radius; (void)radius_increment;
 }
+
+/* ---- fd2_chapter_23_end (field/chend2.c) not-yet-emitted callees ----
+ * fd2_chapter_23_end's three Phase-1 story-branch predicates / the screen
+ * shake are not emitted yet, so they are doubled here:
+ *
+ *   fd2_any_char_has_item (0x24B14 -> battle/lifecycle, pending) — the "天空
+ *     之鑰 (item 100) is held by some party char" predicate (returns 1=held /
+ *     -1=not held). Programmable via g_ce23_has_item so a test can drive both
+ *     the recruit-卡里斯 (held) and the cutscene-0x47 (not held) arms.
+ *
+ *   fd2_find_template_char_by_id (0x24BDE -> battle/lifecycle, pending) — the
+ *     "蜜蒂 (char_id 0x12) is in the template roster" predicate (returns
+ *     1=present / 0=absent). Programmable via g_ce23_miti_present so a test
+ *     can drive the present arm (mark 蜜蒂 dead) and the absent arm (turn-
+ *     counter sub-decision: recruit 羅德曼 within 15 turns, else mark dead).
+ *
+ *   fd2_animate_screen_shake (0x24B4D -> graphics, pending) — a 1-row vertical
+ *     blit-jitter loop over the snapshot buffer; pure display, no-op here.
+ *     Deferred to Phase 9 integration.
+ *
+ * Remove these doubles when the real functions are emitted. */
+int g_ce23_has_item = -1;
+int g_ce23_miti_present = 0;
+int fd2_any_char_has_item(int item_id) {
+    (void)item_id;
+    return g_ce23_has_item;
+}
+int fd2_find_template_char_by_id(uint32 char_id) {
+    (void)char_id;
+    return g_ce23_miti_present;
+}
+void fd2_animate_screen_shake(uint32 frame_count) {
+    (void)frame_count;
+}

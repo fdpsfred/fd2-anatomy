@@ -244,6 +244,26 @@ static uint8 g_ce21_script_40[1] = { 0 };
 static uint8 g_ce22_script_41[1] = { 0 };
 static uint8 g_ce22_script_42[1] = { 0 };
 
+/* zero-group cutscene scripts for ch23's events 0x47 / 0x48 / 0x49: n_groups
+ * byte = 0, so the real fd2_cutscene_event_trigger just composites once and
+ * returns. */
+static uint8 g_ce23_script_47[1] = { 0 };
+static uint8 g_ce23_script_48[1] = { 0 };
+static uint8 g_ce23_script_49[1] = { 0 };
+
+/* immediate-END dialog text program for ch23. The shared ce_install_safe_env
+ * program only covers page offsets 0..0x10, but fd2_chapter_23_end's final
+ * dialog uses page 0x11 (17); so a ch23-local program is installed whose
+ * page-offset table (indices 0..0x11) all point at a single -1 END opcode at
+ * the tail. Every fd2_display_dialog_scene call then returns at once with no
+ * glyph blits and never reaches the page-break busy-wait. */
+static int16 g_ce23_dlg[0x13];
+
+/* programmable Phase-1 predicates for fd2_chapter_23_end (doubles defined in
+ * tests/testglob.c). */
+extern int g_ce23_has_item;        /* fd2_any_char_has_item -> 1 held / -1 not */
+extern int g_ce23_miti_present;    /* fd2_find_template_char_by_id -> 1 / 0 */
+
 /* ----------------------------------------------------------------
  * Partial collection (5 holders): collected == 5 != 6, so the page-6 path
  * is taken — it must NOT award the hidden key (item 100). The full count
@@ -387,6 +407,124 @@ static void test_ch22_end_runs_and_advances(void)
     ce_restore_rc_ptr();
 }
 
+/* ----------------------------------------------------------------
+ * Chapter 23 end handler — fd2_chapter_23_end @ 0x24754.
+ *
+ * The risk core is the Phase-1 three-way story-branch logic; the three branch
+ * predicates are programmable doubles (g_ce23_has_item / g_ce23_miti_present)
+ * and the turn counter, and each branch's observable mutation is a recruit
+ * (data_fd2_shared_menu_party_member_count via the real
+ * fd2_init_runtime_char_from_base_growth) and/or a death-mark (the real
+ * fd2_mark_char_as_dead writes runtime_char[0x11].flags = CHARFLAG_DEAD).
+ *
+ * Each case drives the whole handler end-to-end on-host with the proven chend2
+ * safe env. Phase 2 then runs FOR REAL: the staged FDFIELD.DAT[0x45] /
+ * FDSHAP.DAT[0x2E,0x2F] resource loads and the real
+ * fd2_load_chapter_background_layers (FDOTHER.DAT[0xF] at chapter id 0x18) all
+ * execute against the real game files build_test.py stages into the test cwd,
+ * so the resource indices are validated as in-bounds. current_chapter_id is
+ * seeded to 0x17 (the real chapter-23 value) so the background-layer reload
+ * follows the exact in-game path; the only stubbed Phase-2 callees are the
+ * display-only fd2_animate_screen_shake / fd2_play_rising_pre_cast_effect /
+ * fd2_obfuscate_battle_tile_map. The pure blit/display side effects of Phase 2
+ * (the actual frame rendered) are deferred to Phase 9 integration.
+ * ---------------------------------------------------------------- */
+static void ce23_setup(void)
+{
+    int i;
+
+    ce_install_safe_env();
+
+    /* immediate-END dialog program covering page 0x11 (the shared env stops at
+     * page 0x10): offsets 0..0x11 all point at a single -1 END opcode. */
+    for (i = 0; i <= 0x11; i++) {
+        g_ce23_dlg[i] = (int16)(0x12 * 2);   /* byte offset of the END opcode */
+    }
+    g_ce23_dlg[0x12] = -1;                    /* END */
+    current_chapter_text = (uint32)g_ce23_dlg;
+
+    /* zero-group cutscene scripts for the events the handler can fire. */
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x47] = g_ce23_script_47;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x48] = g_ce23_script_48;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x49] = g_ce23_script_49;
+
+    /* real chapter-23 value: the handler's +1 lands on 0x18, the in-game
+     * single-sprite background-layer path (FDOTHER.DAT[0xF]). */
+    data_fd2_chapter_current_chapter_id = 0x17;
+
+    /* 蜜蒂 (slot 0x11) starts alive so a death-mark is observable as a change. */
+    g_ce_rc[0x11].flags = 0;
+}
+
+/* ----------------------------------------------------------------
+ * Branch combo 1 — 天空之鑰 held + 蜜蒂 present:
+ *   join arm  -> recruit 卡里斯 (char 0x16);
+ *   蜜蒂 arm  -> mark 蜜蒂 (slot 0x11) dead (no recruit).
+ * Exactly one recruit; slot 0x11 dead; chapter id advances 0x17 -> 0x18.
+ * ---------------------------------------------------------------- */
+static void test_ch23_end_key_held_miti_present(void)
+{
+    ce23_setup();
+    g_ce23_has_item = 1;        /* 天空之鑰 held -> recruit 卡里斯 (0x16) */
+    g_ce23_miti_present = 1;    /* 蜜蒂 present  -> mark 蜜蒂 dead */
+
+    fd2_chapter_23_end();
+
+    /* one recruit (卡里斯), 蜜蒂 marked dead, chapter advanced by one. */
+    ASSERT_EQ(data_fd2_shared_menu_party_member_count, 1);
+    ASSERT_EQ(g_ce_rc[0x11].flags, CHARFLAG_DEAD);
+    ASSERT_EQ(data_fd2_chapter_current_chapter_id, 0x18);
+
+    ce_restore_rc_ptr();
+}
+
+/* ----------------------------------------------------------------
+ * Branch combo 2 — 天空之鑰 NOT held + 蜜蒂 absent + within 15 turns:
+ *   join arm  -> cutscene 0x47, NO recruit;
+ *   蜜蒂 arm  -> turn_counter < 15 -> recruit 羅德曼 (char 0x13).
+ * Exactly one recruit (from the turn arm only); slot 0x11 stays alive;
+ * chapter id advances 0x17 -> 0x18.
+ * ---------------------------------------------------------------- */
+static void test_ch23_end_no_key_miti_absent_within_15_turns(void)
+{
+    ce23_setup();
+    g_ce23_has_item = -1;       /* 天空之鑰 not held -> cutscene 0x47 only */
+    g_ce23_miti_present = 0;    /* 蜜蒂 absent */
+    data_fd2_battle_turn_counter = 14;   /* < 15 -> recruit 羅德曼 (0x13) */
+
+    fd2_chapter_23_end();
+
+    /* exactly one recruit (羅德曼); 蜜蒂 slot left alive; chapter advanced. */
+    ASSERT_EQ(data_fd2_shared_menu_party_member_count, 1);
+    ASSERT_EQ(g_ce_rc[0x11].flags, 0);
+    ASSERT_EQ(data_fd2_chapter_current_chapter_id, 0x18);
+
+    ce_restore_rc_ptr();
+}
+
+/* ----------------------------------------------------------------
+ * Branch combo 3 — 天空之鑰 held + 蜜蒂 absent + NOT within 15 turns:
+ *   join arm  -> recruit 卡里斯 (char 0x16);
+ *   蜜蒂 arm  -> turn_counter >= 15 -> cutscene 0x48 + mark 蜜蒂 dead.
+ * Exactly one recruit (卡里斯); slot 0x11 dead; chapter id advances.
+ * ---------------------------------------------------------------- */
+static void test_ch23_end_key_held_miti_absent_after_15_turns(void)
+{
+    ce23_setup();
+    g_ce23_has_item = 1;        /* 天空之鑰 held -> recruit 卡里斯 (0x16) */
+    g_ce23_miti_present = 0;    /* 蜜蒂 absent */
+    data_fd2_battle_turn_counter = 15;   /* >= 15 -> mark 蜜蒂 dead, no recruit */
+
+    fd2_chapter_23_end();
+
+    /* one recruit (卡里斯), 蜜蒂 marked dead, chapter advanced by one. */
+    ASSERT_EQ(data_fd2_shared_menu_party_member_count, 1);
+    ASSERT_EQ(g_ce_rc[0x11].flags, CHARFLAG_DEAD);
+    ASSERT_EQ(data_fd2_chapter_current_chapter_id, 0x18);
+
+    ce_restore_rc_ptr();
+}
+
 void run_field_chend2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -396,5 +534,8 @@ void run_field_chend2_tests(void)
     RUN_TEST(test_ch21_end_partial_collection_page6_path);
     RUN_TEST(test_ch21_end_full_collection_awards_key);
     RUN_TEST(test_ch22_end_runs_and_advances);
+    RUN_TEST(test_ch23_end_key_held_miti_present);
+    RUN_TEST(test_ch23_end_no_key_miti_absent_within_15_turns);
+    RUN_TEST(test_ch23_end_key_held_miti_absent_after_15_turns);
     printf("\n");
 }

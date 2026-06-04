@@ -7,6 +7,8 @@
  *                               data_fd2_chapter_end_handler_table[21])
  * fd2_chapter_22_end @ 0x244B6 (0 direct callers; dispatched via
  *                               data_fd2_chapter_end_handler_table[22])
+ * fd2_chapter_23_end @ 0x24754 (0 direct callers; dispatched via
+ *                               data_fd2_chapter_end_handler_table[23])
  */
 
 #include <string.h>
@@ -315,4 +317,150 @@ void fd2_chapter_22_end(void)
 
     fd2_save_runtime_char_to_template();
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}
+
+/* ----------------------------------------------------------------
+ * Chapter-23 end-scene character tables (FD2.LE data @ 0x522A3 /
+ * 0x522B4 / 0x522C5). Private read-only tables referenced only by
+ * fd2_chapter_23_end; the Watcom prologue copies each as four dwords plus a
+ * trailing byte (17-byte extent) onto stack scratch before
+ * fd2_setup_chars_and_camera_for_intro indexes them by char slot. Five chars
+ * are placed (slots 0, 0x10, 0x11). The facing table is uniform 0x00 except
+ * the trailing byte (0x02).
+ * ---------------------------------------------------------------- */
+const uint8 data_fd2_chapter_ch23_end_scene_char_pos_x_table[17] = {
+    0x14, 0x14, 0x12, 0x13, 0x14, 0x15, 0x16, 0x12,
+    0x16, 0x12, 0x13, 0x15, 0x16, 0x13, 0x14, 0x15,
+    0x13
+};
+const uint8 data_fd2_chapter_ch23_end_scene_char_pos_y_table[17] = {
+    0x13, 0x11, 0x12, 0x12, 0x12, 0x12, 0x12, 0x11,
+    0x11, 0x10, 0x10, 0x10, 0x10, 0x0F, 0x0F, 0x0F,
+    0x15
+};
+const uint8 data_fd2_chapter_ch23_end_scene_char_facing_table[17] = {
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x02
+};
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_23_end @ 0x24754  — Chapter 23「向天空之旅」end handler
+ * (largest end handler at 960 bytes; 0 direct callers, dispatched via
+ * data_fd2_chapter_end_handler_table[23]).
+ *
+ * Phase 1 (conditional joins + cutscenes): copies the three 17-byte
+ * end-scene tables onto the stack and places the cast / re-aims the camera
+ * via fd2_setup_chars_and_camera_for_intro, then runs three story-branch
+ * decisions, saves the runtime char templates, and advances
+ * current_chapter_id:
+ *   - 天空之鑰 (item 100) NOT held -> dialog page 9, cutscene 0x47;
+ *     otherwise dialog page 8 and recruit 卡里斯 (char 0x16).
+ *   - 蜜蒂 (char_id 0x12) present in the template roster -> dialog page 10,
+ *     cutscene 0x48, mark 蜜蒂 (char 0x11) dead, dialog page 11.
+ *   - 蜜蒂 absent and the battle ended within 15 turns (turn_counter < 15)
+ *     -> dialog page 13 and recruit 羅德曼 (char 0x13); otherwise dialog
+ *     page 12, cutscene 0x48, mark 蜜蒂 (char 0x11) dead.
+ *
+ * Phase 2 (mid-end transition to the second battlefield): three dialog
+ * pages (14/15/16) interleaved with rising pre-cast effects, two screen
+ * shakes, and 400-tick holds, a palette fade-in loop, then it reloads the
+ * battlefield resources (FDFIELD.DAT[0x45] tile map, FDSHAP.DAT[0x2E] scene
+ * snapshot, FDSHAP.DAT[0x2F] tile-attribute flags), obfuscates the tile map,
+ * reloads the chapter background layers, performs two cursor/window pans
+ * around cutscene event 0x49 (fired three times), and shows final page 17.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_23.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_23_end(void)
+{
+    uint8 pos_x[17];
+    uint8 pos_y[17];
+    uint8 facing[17];
+    uint32 v;
+    int i;
+
+    for (i = 0; i < 17; i++) {
+        pos_x[i] = data_fd2_chapter_ch23_end_scene_char_pos_x_table[i];
+        pos_y[i] = data_fd2_chapter_ch23_end_scene_char_pos_y_table[i];
+        facing[i] = data_fd2_chapter_ch23_end_scene_char_facing_table[i];
+    }
+
+    fd2_setup_chars_and_camera_for_intro((uint32)pos_x, (uint32)pos_y,
+                                         (uint32)facing, 0, 0x10, 0x11, 0x15,
+                                         0x15, 2, 0xE, 0xE);
+
+    if (fd2_any_char_has_item(100) == -1) {
+        fd2_display_dialog_scene(current_chapter_text, 9, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        data_fd2_battle_anim_phase = 0;
+        fd2_cutscene_event_trigger(0x47);
+    } else {
+        fd2_display_dialog_scene(current_chapter_text, 8, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        fd2_init_runtime_char_from_base_growth(0x16);
+    }
+
+    if (fd2_find_template_char_by_id(0x12) != 0) {
+        fd2_display_dialog_scene(current_chapter_text, 10, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        data_fd2_battle_anim_phase = 0;
+        fd2_cutscene_event_trigger(0x48);
+        fd2_mark_char_as_dead(0x11);
+        fd2_display_dialog_scene(current_chapter_text, 0xB, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+    } else if ((int32)data_fd2_battle_turn_counter < 0xF) {
+        fd2_display_dialog_scene(current_chapter_text, 0xD, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        fd2_init_runtime_char_from_base_growth(0x13);
+    } else {
+        fd2_display_dialog_scene(current_chapter_text, 0xC, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        data_fd2_battle_anim_phase = 0;
+        fd2_cutscene_event_trigger(0x48);
+        fd2_mark_char_as_dead(0x11);
+    }
+
+    fd2_save_runtime_char_to_template();
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+
+    fd2_display_dialog_scene(current_chapter_text, 0xE, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    __delay_thunk_375b2(400);
+    fd2_play_rising_pre_cast_effect(1, 0xF, 10);
+    fd2_animate_screen_shake(0x1E);
+    fd2_display_dialog_scene(current_chapter_text, 0xF, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    __delay_thunk_375b2(400);
+    fd2_play_rising_pre_cast_effect(1, 0xF, 10);
+    fd2_animate_screen_shake(0x1E);
+    fd2_display_dialog_scene(current_chapter_text, 0x10, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    __delay_thunk_375b2(400);
+    fd2_play_rising_pre_cast_effect(1, 0x1E, 0x10);
+
+    for (v = 0; (int32)v < 0x40; v += 2) {
+        fd2_set_vga_palette_range_with_add(0, 0xFF, v);
+        __delay_thunk_375b2(4);
+    }
+
+    data_fd2_battle_tile_map_ptr = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdfield_dat_51a59,
+        data_fd2_battle_tile_map_ptr, 0x45);
+    battle_scene_snapshot = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdshap_dat_51a65,
+        battle_scene_snapshot, 0x2E);
+    data_fd2_tile_attribute_flags_buffer_ptr = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdshap_dat_51a65,
+        data_fd2_tile_attribute_flags_buffer_ptr, 0x2F);
+    fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+    fd2_load_chapter_background_layers();
+    fd2_pan_cursor_and_window(0xE, 0x1D);
+    fd2_set_vga_palette_range_with_add(0, 0xFF, 0);
+    fd2_cutscene_event_trigger(0x49);
+    fd2_pan_cursor_and_window(0xE, 0xE);
+    fd2_cutscene_event_trigger(0x49);
+    fd2_cutscene_event_trigger(0x49);
+    fd2_display_dialog_scene(current_chapter_text, 0x11, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
 }
