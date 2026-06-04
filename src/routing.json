@@ -1270,8 +1270,9 @@
     "name": "fd2_inventory_grid_input_step",
     "target": "ui_menu/status.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001bb8c": {
     "name": "fd2_add_item_to_inventory",

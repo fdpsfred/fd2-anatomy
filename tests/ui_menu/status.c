@@ -63,13 +63,20 @@ extern int g_composite_call_count;
  * counter (fd2_count_active_chars_for_team_filter) is now real and reads
  * data_fd2_battle_party_member_count / g_test_rc_array. */
 extern uint32 g_has_char_fake;
-/* controllable fake for the not-yet-emitted fd2_inventory_grid_input_step
- * (testglob.c): drives the modal dispatcher's input loop with a programmed
- * return sequence. */
-extern int g_grid_input_seq[8];
-extern int g_grid_input_seq_len;
-extern int g_grid_input_calls;
 /* data_fd2_ui_slide_* workspace ptr globals are declared in globals.h */
+
+/* Inject one keystroke into the BIOS keyboard buffer (BDA @ 0x400) so the real
+ * fd2_wait_for_input_dialog_with_blink() exits its busy-wait on the first poll
+ * and INT 16h fn 10h returns `scancode` in AH. head != tail makes the buffer
+ * non-empty; the buffer-head word @ 0x41E carries scancode (high) / ASCII (low).
+ * Mirrors tests/input/input.c (test_wait_dialog_blink_esc). */
+static void kbd_inject_scancode(int scancode)
+{
+    *(volatile uint16 *)0x41AuL = 0x1E;                       /* head        */
+    *(volatile uint16 *)0x41CuL = 0x20;                       /* tail=head+2 */
+    *(volatile uint16 *)0x41EuL = (uint16)((scancode << 8) & 0xFF00); /* AH=scancode */
+}
+
 
 
 /* ---- Test: combat bubble pos ---- */
@@ -553,152 +560,269 @@ static void test_remove_slot_char_index_isolation(void)
 }
 
 /* ----------------------------------------------------------------
- * fd2_inventory_selection_modal_dispatch @ 0x1B932
+ * fd2_inventory_selection_modal_dispatch @ 0x1B932 — input-loop tests deferred.
  *
- * The modal is a thin orchestrator around three pieces:
- *   1. fd2_open_status_screen_with_slide_in(char_idx)  — REAL display setup
- *      (allocates the three 64000-byte workspaces, loads the real DATO.DAT
- *      portrait, renders the static panel + inventory grid, runs a 12-frame
- *      slide-in). This is the Phase-9 display path and is exercised here only
- *      to the extent of "it runs end-to-end without faulting".
- *   2. a do { r = fd2_inventory_grid_input_step(...); } while (r == 0) loop.
- *   3. a 12-frame outro + VGA restore + three free()s, then
- *      return (r != -1) as a 0/1 boolean.
+ * The modal is do { r = fd2_inventory_grid_input_step(...); } while (r == 0),
+ * preceded by fd2_open_status_screen_with_slide_in(char_idx) and followed by a
+ * 12-frame outro; it returns (r != -1) as a 0/1 boolean. Now that the real
+ * fd2_inventory_grid_input_step is emitted (below) the loop is end-to-end real:
+ * the grid-input step calls the real fd2_wait_for_input_dialog_with_blink, which
+ * busy-waits on the BIOS keyboard buffer. fd2_open_status_screen_with_slide_in
+ * ends by calling fd2_clear_keyboard_buffer() (BIOS_KBD_TAIL = BIOS_KBD_HEAD),
+ * so any scancode pre-armed before the call is wiped before the first poll — and
+ * the host harness has no async key source to refill the buffer mid-loop.
  *
- * The unique, testable logic is the loop termination and the boolean return
- * (an EAX-tracking-bug-prone "use the CALL's EAX result" point: the binary
- * does MOV ESI,EAX / ... / CMP ESI,-1 / SETNZ). We drive that deterministically
- * by faking only the not-yet-emitted fd2_inventory_grid_input_step (testglob.c)
- * with a programmed return sequence, and assert: (a) the dispatcher returns at
- * all (proving the loop's exit condition is wired to the input result — an
- * EAX regression would spin forever and trip the harness hang detector);
- * (b) the loop iterated exactly len(sequence) times; (c) the boolean return is
- * 1 for a confirmed slot (terminal != -1) and 0 for Esc cancel (terminal -1).
- *
- * Fixture (mirrors test_open_party_overview_runs_and_returns): a zeroed sprite
- * sheet whose offset table resolves every sprite to sheet+0, an immediate-END
- * text program so the panel's three real fd2_display_dialog_scene labels return
- * at once (no DATO text fopen, no input wait), and char_idx's portrait_id = 0
- * so the REAL fd2_load_dat_resource reads resource 0 of the staged real
- * DATO.DAT (always a valid index). The three workspaces are malloc'd inside
- * open and free()d inside the dispatcher, so the test must not pre-allocate or
- * re-free them; the globals are reset to 0 afterward to drop the dangling ptrs.
- * Writes to 0xA0000 hit the VGA aperture (harmless under DOS/4GW, same
- * convention as the sibling status/gfx tests).
+ * The modal's loop-termination / boolean-return logic therefore needs real
+ * keyboard input to release the wait and is deferred to Phase 9 integration
+ * (the same deferral the codebase applies to every input-loop-released path).
+ * The previous tests here drove a fake fd2_inventory_grid_input_step (now
+ * removed); the real grid-input step's full dispatch — including the return
+ * values 0 / 1 / -1 that the modal's loop and SETNZ tail consume — is covered
+ * directly and deterministically by the test_grid_input_* cases below (which
+ * call it directly and inject the scancode the wait reads, with no intervening
+ * buffer clear).
  * ---------------------------------------------------------------- */
-static uint8  g_modal_sheet[4096];
-static uint16 g_modal_text[0x400];
 
-static void modal_setup_render_fixture(uint32 char_idx)
+/* ----------------------------------------------------------------
+ * fd2_inventory_grid_input_step @ 0x1B9DE
+ *
+ * One frame of inventory-grid selection input: redraw the grid, count active
+ * slots, wait for a key (real fd2_wait_for_input_dialog_with_blink, driven by
+ * BIOS-buffer scancode injection — the grid-input step does NOT clear the
+ * buffer, so a pre-armed scancode survives to the wait's INT 16h read), and
+ * dispatch. These tests pin the cursor navigation arithmetic (the high-value,
+ * EAX-tracking-prone logic) for every branch: Up/Down with wrap, Left/Right with
+ * their row/active_count bounds, the Enter/Space commit with the gate_flag
+ * item-usability deref, Esc cancel, and the unhandled-key loop-again.
+ * data_fd2_ui_menu_cursor_idx @ 0x53C57 holds the cursor; the SFX callee is a
+ * no-op recording fake (testglob.c).
+ *
+ * Fixture: g_grid_sheet (zeroed offset table -> every sprite resolves to
+ * sheet+0) and g_grid_text (immediate-END page program) keep the REAL grid
+ * renderer in-bounds for active slots; the item-effect table is zeroed and read
+ * by the real fd2_get_item_effect_entry. Writes to 0xA0000 hit the VGA aperture
+ * (harmless under DOS/4GW, same convention as the sibling status/gfx tests).
+ * ---------------------------------------------------------------- */
+static uint8  g_grid_sheet[4096];
+static uint16 g_grid_text[0x400];
+
+/* Stand up the render fixture and make exactly n_active of char 0's 8 inventory
+ * slots active (flag bit 0x80 clear, item_id 0); the rest are empty (0x80 set).
+ * Leaves data_fd2_ui_menu_cursor_idx untouched (each test sets it). */
+static void grid_setup_active(int n_active)
 {
     int i;
 
-    /* runtime char: zero, valid portrait, all inventory slots empty (flag
-     * bit 0x80) so the grid renderer draws nothing and never touches text. */
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
-    g_test_rc_array[char_idx].portrait_id = 0;     /* DATO resource 0 */
     for (i = 0; i < 8; i++) {
-        g_test_rc_array[char_idx].inventory_slots[i * 2] = 0x80;
+        g_test_rc_array[0].inventory_slots[i * 2]     = (i < n_active)
+                                                            ? 0x00 : 0x80;
+        g_test_rc_array[0].inventory_slots[i * 2 + 1] = 0;   /* item id 0 */
     }
     memset(data_fd2_battle_item_effect_table, 0,
            sizeof(item_effect) * 215);
 
-    /* sprite sheet: zeroed offset table -> every sprite resolves to sheet+0. */
-    memset(g_modal_sheet, 0, sizeof(g_modal_sheet));
-    data_fd2_ui_anim_sprite_sheet_ptr = (uint32)g_modal_sheet;
+    memset(g_grid_sheet, 0, sizeof(g_grid_sheet));
+    data_fd2_ui_anim_sprite_sheet_ptr = (uint32)g_grid_sheet;
 
-    /* immediate-END text program: a -1 opcode parked high, every page word
-     * pointing at it so the panel's three real dialog labels return at once. */
     for (i = 0; i < 0x400; i++) {
-        g_modal_text[i] = 0x600;
+        g_grid_text[i] = 0x600;
     }
-    *(int16 *)((uint8 *)g_modal_text + 0x600) = -1;
-    data_fd2_all_game_text_ptr = (uint32)g_modal_text;
+    *(int16 *)((uint8 *)g_grid_text + 0x600) = -1;
+    data_fd2_all_game_text_ptr = (uint32)g_grid_text;
 
-    /* loader free()s old_buf first; NULL it so that free is a no-op. */
-    data_fd2_portrait_sprite_buffer = 0;
-    /* sfx callee is a no-op recording fake; any non-zero handle is fine. */
-    data_fd2_audio_fdother_sfx_bank_buf_ptr = (uint32)g_modal_sheet;
-
-    /* open() malloc's all three workspaces; the dispatcher free()s them. */
-    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
-    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
-    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+    data_fd2_audio_fdother_sfx_bank_buf_ptr = (uint32)g_grid_sheet;
 }
 
-static void modal_teardown_render_fixture(void)
+/* Up, no wrap: cursor 3 -> 2 (decrement), returns 0. */
+static void test_grid_input_up_decrement(void)
 {
-    /* the dispatcher already free()d all three workspaces; drop the dangling
-     * globals so later suites never reuse a freed pointer. */
-    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
-    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
-    data_fd2_ui_slide_composed_target_buf_ptr = 0;
-    /* the portrait buffer the real loader returned is leaked by the function
-     * itself (no caller frees it); free it here to keep the test tidy. */
-    if (data_fd2_portrait_sprite_buffer != 0) {
-        free((void *)data_fd2_portrait_sprite_buffer);
-        data_fd2_portrait_sprite_buffer = 0;
-    }
+    int r;
+    grid_setup_active(8);
+    data_fd2_ui_menu_cursor_idx = 3;
+    kbd_inject_scancode(0x48);
+    r = fd2_inventory_grid_input_step(0, 0);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 2);
+    ASSERT_EQ((long)r, 0);
 }
 
-/* Confirm path: input step returns 0,0 (still in grid) then 3 (slot chosen);
- * the loop runs 3 times and the dispatcher returns 1 (3 != -1). */
-static void test_inventory_modal_confirm_returns_true(void)
+/* Up, wrap: cursor 0 with active_count 5 -> active_count-1 = 4, returns 0.
+ * Pins the wrap target = active_count - 1. */
+static void test_grid_input_up_wrap_to_last(void)
 {
-    int ret;
-
-    modal_setup_render_fixture(0);
-    g_grid_input_seq[0] = 0;
-    g_grid_input_seq[1] = 0;
-    g_grid_input_seq[2] = 3;        /* terminal: a confirmed slot index */
-    g_grid_input_seq_len = 3;
-    g_grid_input_calls = 0;
-
-    ret = fd2_inventory_selection_modal_dispatch(0, 1);
-
-    ASSERT_EQ((long)g_grid_input_calls, 3);   /* loop iterated 0,0,3 */
-    ASSERT_EQ((long)ret, 1);                   /* 3 != -1 -> true */
-    modal_teardown_render_fixture();
+    int r;
+    grid_setup_active(5);
+    data_fd2_ui_menu_cursor_idx = 0;
+    kbd_inject_scancode(0x48);
+    r = fd2_inventory_grid_input_step(0, 0);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 4);   /* 5 - 1 */
+    ASSERT_EQ((long)r, 0);
 }
 
-/* Cancel path: input step returns 0 (still in grid) then -1 (Esc); the loop
- * runs 2 times and the dispatcher returns 0 (-1 == -1). Also proves gate_flag
- * is forwarded unchanged (the fake ignores it, but the call must compile/run
- * with mode 0). */
-static void test_inventory_modal_cancel_returns_false(void)
+/* Down, no wrap: cursor 2 (active_count 8, last=7) -> 3, returns 0. */
+static void test_grid_input_down_increment(void)
 {
-    int ret;
-
-    modal_setup_render_fixture(0);
-    g_grid_input_seq[0] = 0;
-    g_grid_input_seq[1] = -1;       /* terminal: Esc cancel */
-    g_grid_input_seq_len = 2;
-    g_grid_input_calls = 0;
-
-    ret = fd2_inventory_selection_modal_dispatch(0, 0);
-
-    ASSERT_EQ((long)g_grid_input_calls, 2);   /* loop iterated 0,-1 */
-    ASSERT_EQ((long)ret, 0);                   /* -1 == -1 -> false */
-    modal_teardown_render_fixture();
+    int r;
+    grid_setup_active(8);
+    data_fd2_ui_menu_cursor_idx = 2;
+    kbd_inject_scancode(0x50);
+    r = fd2_inventory_grid_input_step(0, 0);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 3);
+    ASSERT_EQ((long)r, 0);
 }
 
-/* Immediate confirm: the very first input poll returns a terminal slot (5),
- * so the loop body runs exactly once (do/while, not while) and returns true.
- * Pins the do-while semantics: the input step is always called at least once. */
-static void test_inventory_modal_immediate_confirm_runs_once(void)
+/* Down, wrap: cursor at last (active_count-1 = 4 with active_count 5) -> 0,
+ * returns 0. Pins the wrap condition (cursor == active_count - 1). */
+static void test_grid_input_down_wrap_to_zero(void)
 {
-    int ret;
+    int r;
+    grid_setup_active(5);
+    data_fd2_ui_menu_cursor_idx = 4;       /* == active_count - 1 */
+    kbd_inject_scancode(0x50);
+    r = fd2_inventory_grid_input_step(0, 0);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);
+    ASSERT_EQ((long)r, 0);
+}
 
-    modal_setup_render_fixture(1);
-    g_grid_input_seq[0] = 5;        /* terminal on the first poll */
-    g_grid_input_seq_len = 1;
-    g_grid_input_calls = 0;
+/* Left, valid: cursor 5 (>= 4) -> 1 (cursor - 4), returns 0. Jump up a row. */
+static void test_grid_input_left_valid(void)
+{
+    int r;
+    grid_setup_active(8);
+    data_fd2_ui_menu_cursor_idx = 5;
+    kbd_inject_scancode(0x4b);
+    r = fd2_inventory_grid_input_step(0, 0);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 1);   /* 5 - 4 */
+    ASSERT_EQ((long)r, 0);
+}
 
-    ret = fd2_inventory_selection_modal_dispatch(1, 1);
+/* Left, invalid: cursor 2 (< 4) -> unchanged, returns 0 (top row, no move). */
+static void test_grid_input_left_invalid_top_row(void)
+{
+    int r;
+    grid_setup_active(8);
+    data_fd2_ui_menu_cursor_idx = 2;
+    kbd_inject_scancode(0x4b);
+    r = fd2_inventory_grid_input_step(0, 0);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 2);   /* no change */
+    ASSERT_EQ((long)r, 0);
+}
 
-    ASSERT_EQ((long)g_grid_input_calls, 1);   /* do-while: exactly one poll */
-    ASSERT_EQ((long)ret, 1);                   /* 5 != -1 -> true */
-    modal_teardown_render_fixture();
+/* Right, valid: cursor 1 (< 4 and < active_count-4 = 4) -> 5, returns 0. */
+static void test_grid_input_right_valid(void)
+{
+    int r;
+    grid_setup_active(8);
+    data_fd2_ui_menu_cursor_idx = 1;
+    kbd_inject_scancode(0x4d);
+    r = fd2_inventory_grid_input_step(0, 0);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 5);   /* 1 + 4 */
+    ASSERT_EQ((long)r, 0);
+}
+
+/* Right, invalid (bottom row): cursor 4 (not < 4) -> unchanged, returns 0. */
+static void test_grid_input_right_invalid_bottom_row(void)
+{
+    int r;
+    grid_setup_active(8);
+    data_fd2_ui_menu_cursor_idx = 4;
+    kbd_inject_scancode(0x4d);
+    r = fd2_inventory_grid_input_step(0, 0);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 4);   /* no change */
+    ASSERT_EQ((long)r, 0);
+}
+
+/* Right, invalid (no slot below): cursor 1 but active_count 5 (active_count-4=1,
+ * cursor not < 1) -> unchanged, returns 0. Pins the active_count-4 bound that
+ * stops the cursor moving onto an empty cell below. */
+static void test_grid_input_right_invalid_no_slot_below(void)
+{
+    int r;
+    grid_setup_active(5);
+    data_fd2_ui_menu_cursor_idx = 1;       /* not < (5 - 4) = 1 */
+    kbd_inject_scancode(0x4d);
+    r = fd2_inventory_grid_input_step(0, 0);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 1);   /* no change */
+    ASSERT_EQ((long)r, 0);
+}
+
+/* Enter, gate_flag 0: commit immediately (no item-usability check), returns 1.
+ * Cursor unchanged. */
+static void test_grid_input_enter_gate0_commits(void)
+{
+    int r;
+    grid_setup_active(8);
+    data_fd2_ui_menu_cursor_idx = 3;
+    kbd_inject_scancode(0x1c);
+    r = fd2_inventory_grid_input_step(0, 0);
+    ASSERT_EQ((long)r, 1);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 3);   /* unchanged */
+}
+
+/* Space (0x39), gate_flag 0: same commit path as Enter, returns 1. */
+static void test_grid_input_space_gate0_commits(void)
+{
+    int r;
+    grid_setup_active(8);
+    data_fd2_ui_menu_cursor_idx = 0;
+    kbd_inject_scancode(0x39);
+    r = fd2_inventory_grid_input_step(0, 0);
+    ASSERT_EQ((long)r, 1);
+}
+
+/* Enter, gate_flag 1, item IS usable: the selected slot's item has use_effect
+ * != 0, so the gate passes and the step commits (returns 1).
+ * fd2_get_item_effect_entry returns &entry.type (table+1), so the byte read at
+ * +0xD is the .use_effect field (item_effect offset +0xE). item_id at slot 0 is
+ * 7; set entry 7's use_effect nonzero. */
+static void test_grid_input_enter_gate1_usable_commits(void)
+{
+    int r;
+    grid_setup_active(8);
+    g_test_rc_array[0].inventory_slots[1] = 7;          /* slot 0 item id = 7 */
+    data_fd2_battle_item_effect_table[7].use_effect = 0x05;   /* usable */
+    data_fd2_ui_menu_cursor_idx = 0;
+    kbd_inject_scancode(0x1c);
+    r = fd2_inventory_grid_input_step(0, 1);
+    ASSERT_EQ((long)r, 1);
+}
+
+/* Enter, gate_flag 1, item NOT usable: use_effect == 0, so the gate fails and
+ * the step returns 0 (re-prompt). Pins the gate's CALL -> [EAX+0xD] deref. */
+static void test_grid_input_enter_gate1_unusable_reprompts(void)
+{
+    int r;
+    grid_setup_active(8);
+    g_test_rc_array[0].inventory_slots[1] = 9;          /* slot 0 item id = 9 */
+    data_fd2_battle_item_effect_table[9].use_effect = 0;     /* NOT usable */
+    data_fd2_ui_menu_cursor_idx = 0;
+    kbd_inject_scancode(0x1c);
+    r = fd2_inventory_grid_input_step(0, 1);
+    ASSERT_EQ((long)r, 0);
+}
+
+/* Esc (0x01): cancel, returns -1. */
+static void test_grid_input_esc_cancels(void)
+{
+    int r;
+    grid_setup_active(8);
+    data_fd2_ui_menu_cursor_idx = 2;
+    kbd_inject_scancode(0x01);
+    r = fd2_inventory_grid_input_step(0, 0);
+    ASSERT_EQ((long)r, -1);
+}
+
+/* Unhandled key (0x10): no branch matches, returns 0 (loop again), cursor
+ * unchanged. */
+static void test_grid_input_other_key_loops(void)
+{
+    int r;
+    grid_setup_active(8);
+    data_fd2_ui_menu_cursor_idx = 6;
+    kbd_inject_scancode(0x10);
+    r = fd2_inventory_grid_input_step(0, 0);
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 6);   /* unchanged */
 }
 
 void run_ui_menu_status_tests(void)
@@ -719,8 +843,20 @@ void run_ui_menu_status_tests(void)
     RUN_TEST(test_remove_slot_zero_full_shift);
     RUN_TEST(test_remove_slot_seven_only_vacates);
     RUN_TEST(test_remove_slot_char_index_isolation);
-    RUN_TEST(test_inventory_modal_confirm_returns_true);
-    RUN_TEST(test_inventory_modal_cancel_returns_false);
-    RUN_TEST(test_inventory_modal_immediate_confirm_runs_once);
+    RUN_TEST(test_grid_input_up_decrement);
+    RUN_TEST(test_grid_input_up_wrap_to_last);
+    RUN_TEST(test_grid_input_down_increment);
+    RUN_TEST(test_grid_input_down_wrap_to_zero);
+    RUN_TEST(test_grid_input_left_valid);
+    RUN_TEST(test_grid_input_left_invalid_top_row);
+    RUN_TEST(test_grid_input_right_valid);
+    RUN_TEST(test_grid_input_right_invalid_bottom_row);
+    RUN_TEST(test_grid_input_right_invalid_no_slot_below);
+    RUN_TEST(test_grid_input_enter_gate0_commits);
+    RUN_TEST(test_grid_input_space_gate0_commits);
+    RUN_TEST(test_grid_input_enter_gate1_usable_commits);
+    RUN_TEST(test_grid_input_enter_gate1_unusable_reprompts);
+    RUN_TEST(test_grid_input_esc_cancels);
+    RUN_TEST(test_grid_input_other_key_loops);
     printf("\n");
 }

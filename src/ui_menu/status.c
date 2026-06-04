@@ -514,3 +514,106 @@ int fd2_inventory_selection_modal_dispatch(uint32 char_idx, uint32 gate_flag)
 
     return input_result != 0xffffffff;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_inventory_grid_input_step @ 0x1B9DE  (2 callers)
+ *
+ * One frame of inventory-grid selection input. Redraws char_idx's 8-slot
+ * inventory grid to VRAM (highlighting data_fd2_ui_menu_cursor_idx), counts
+ * the active (non-vacant) slots, waits for a keystroke, and dispatches it:
+ *
+ *   Up    (0x48): cursor != 0 -> cursor--, return 0
+ *                 cursor == 0 -> cursor = active_count-1 (wrap), return 0
+ *   Down  (0x50): cursor != active_count-1 -> cursor++, return 0
+ *                 cursor == last           -> cursor = 0 (wrap), return 0
+ *   Left  (0x4B): cursor >= 4 -> cursor -= 4, return 0; else no-op return 0
+ *   Right (0x4D): cursor < 4 && cursor < active_count-4 -> cursor += 4,
+ *                 return 0; else no-op return 0
+ *   Enter/Space (0x1C / 0x39):
+ *                 gate_flag == 0 -> return 1 (commit)
+ *                 gate_flag != 0 -> commit only if the selected item has a
+ *                 use-effect (fd2_get_item_effect_entry(item_id)[0xD] != 0),
+ *                 otherwise return 0 (re-prompt)
+ *   Esc   (0x01): return -1 (cancel)
+ *   other:        return 0 (loop again)
+ *
+ * Each accepted directional move plays SFX 0. gate_flag selects whether any
+ * slot is choosable (0: swap/give/sort) or only usable items (1: use/equip).
+ * The chosen slot index is left in data_fd2_ui_menu_cursor_idx; the caller
+ * (fd2_inventory_selection_modal_dispatch) loops while this returns 0.
+ *
+ * int __cdecl with the __CHK(0x1C) stack-probe prologue (compiler-injected,
+ * not part of the source). EBX/ESI/EDI are callee-saved.
+ * ---------------------------------------------------------------- */
+int fd2_inventory_grid_input_step(uint32 char_idx, uint32 gate_flag)
+{
+    runtime_char *rc;
+    uint32 active_count;
+    uint32 slot_iter;
+    int scancode;
+    uint8 *item_entry;
+
+    active_count = 0;
+    fd2_render_inventory_item_grid(char_idx, (int)data_fd2_ui_menu_cursor_idx,
+                                   0xa0000);
+
+    rc = data_fd2_battle_runtime_char_array_ptr;
+    for (slot_iter = 0; (int)slot_iter < 8; slot_iter++) {
+        if ((rc[char_idx].inventory_slots[slot_iter * 2] & 0x80) == 0) {
+            active_count++;
+        }
+    }
+
+    scancode = fd2_wait_for_input_dialog_with_blink(0);
+
+    if (scancode == 0x48) {
+        if (data_fd2_ui_menu_cursor_idx != 0) {
+            fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
+                                     0, 1);
+            data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx - 1;
+            return 0;
+        }
+        fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr, 0, 1);
+        data_fd2_ui_menu_cursor_idx = active_count - 1;
+    } else if (scancode == 0x50) {
+        if (active_count - 1 != data_fd2_ui_menu_cursor_idx) {
+            fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
+                                     0, 1);
+            data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx + 1;
+            return 0;
+        }
+        fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr, 0, 1);
+        data_fd2_ui_menu_cursor_idx = 0;
+    } else if (scancode == 0x4b) {
+        if (3 < data_fd2_ui_menu_cursor_idx) {
+            fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
+                                     0, 1);
+            data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx - 4;
+            return 0;
+        }
+    } else if (scancode == 0x4d) {
+        if (data_fd2_ui_menu_cursor_idx < 4
+            && (int)data_fd2_ui_menu_cursor_idx < (int)(active_count - 4)) {
+            fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
+                                     0, 1);
+            data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx + 4;
+            return 0;
+        }
+    } else {
+        if (scancode == 0x1c || scancode == 0x39) {
+            if (gate_flag != 0) {
+                item_entry = fd2_get_item_effect_entry(
+                    (int)rc[char_idx].inventory_slots[
+                        data_fd2_ui_menu_cursor_idx * 2 + 1]);
+                if (item_entry[0xd] == 0) {
+                    return 0;
+                }
+            }
+            return 1;
+        }
+        if (scancode == 1) {
+            return -1;
+        }
+    }
+    return 0;
+}
