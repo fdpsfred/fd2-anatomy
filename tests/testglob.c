@@ -1207,44 +1207,14 @@ uint32 fd2_check_party_has_char_id(uint32 char_id) {
     return g_has_char_fake;
 }
 
-/* Recording fakes for the two not-yet-emitted callees of
+/* Recording fake for a not-yet-emitted callee of
  * fd2_process_xp_and_level_up_for_char (src/battle/btl_turn.c).
- *
- * fd2_roll_stat_gain_and_show_message (-> btl_turn.c, own turn) really rolls one
- * stat and returns the next message row. The level-up handler only feeds that
- * return into the spell-learn dialog's render position (a display-only effect),
- * so the fake just logs each call's args and returns row_idx+1. Tests assert the
- * 5-slot call sequence (stat_ptr / growth_pair offsets, text ids, chained row).
+ * (fd2_roll_stat_gain_and_show_message is now emitted in btl_turn.c and runs
+ * for real in the level-up tests.)
  *
  * fd2_grant_spell_to_char (-> spell/spellsel.c, own turn) really writes the
  * spells-known bitmap; the fake logs (char_idx, spell_id) so the spell-learn
  * branch can be pinned without the real bitmap write. */
-int    g_roll_stat_calls = 0;
-uint8 *g_roll_stat_last_stat_ptr = 0;
-uint8 *g_roll_stat_last_growth = 0;
-uint32 g_roll_stat_last_text = 0;
-int    g_roll_stat_last_row_in = 0;
-uint8 *g_roll_stat_stat_log[16];
-uint8 *g_roll_stat_growth_log[16];
-uint32 g_roll_stat_text_log[16];
-int    g_roll_stat_row_in_log[16];
-int fd2_roll_stat_gain_and_show_message(uint8 *stat_ptr, uint8 *growth_pair,
-                                        uint32 dialog_text_id, int row_idx)
-{
-    if (g_roll_stat_calls < 16) {
-        g_roll_stat_stat_log[g_roll_stat_calls] = stat_ptr;
-        g_roll_stat_growth_log[g_roll_stat_calls] = growth_pair;
-        g_roll_stat_text_log[g_roll_stat_calls] = dialog_text_id;
-        g_roll_stat_row_in_log[g_roll_stat_calls] = row_idx;
-    }
-    g_roll_stat_calls++;
-    g_roll_stat_last_stat_ptr = stat_ptr;
-    g_roll_stat_last_growth = growth_pair;
-    g_roll_stat_last_text = dialog_text_id;
-    g_roll_stat_last_row_in = row_idx;
-    return row_idx + 1;
-}
-
 int    g_grant_spell_calls = 0;
 uint32 g_grant_spell_last_char = 0;
 uint32 g_grant_spell_last_spell = 0;

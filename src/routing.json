@@ -1543,8 +1543,9 @@
     "name": "fd2_roll_stat_gain_and_show_message",
     "target": "battle/btl_turn.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001e5c0": {
     "name": "fd2_wait_ticks_or_keypress_with_palette",

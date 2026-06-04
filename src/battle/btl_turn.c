@@ -771,6 +771,64 @@ int fd2_count_active_chars_for_team_filter(uint32 team)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_roll_stat_gain_and_show_message @ 0x1E529 (2 callers)
+ *
+ * Level-up / promotion single-stat gain roll + on-screen message.
+ * Callers: fd2_process_xp_and_level_up_for_char (x5 stat slots),
+ * fd2_execute_class_promotion_with_dialog (x5 promotion bonuses).
+ *
+ *   min_gain   = growth_pair[0]
+ *   range      = growth_pair[1] - growth_pair[0]   (growth_pair = min,max)
+ *   rand_extra = (range != 0) ? fd2_advance_rng_state() % range : 0
+ *   gain (data_fd2_dialog_last_action_value_param) = min_gain + rand_extra
+ *
+ * Only when gain != 0 is the message shown and the gain applied:
+ *   - row_idx 3 is the 4th (bottom) row; scroll up one and use row 2.
+ *   - render the FDTXT page dialog_text_id at row_idx * 0x17C0 + 0xA951F.
+ *   - *(int16 *)stat_ptr += gain (low 16 bits).
+ *   - row_idx++ (advance to the next message row).
+ * Returns the next row index (unchanged when gain == 0).
+ *
+ * NOTE (Ghidra EAX-tracking bug): the decompiler dropped the
+ * fd2_advance_rng_state() return value and rendered the modulo dividend
+ * as growth_pair. The assembly (CALL 0x4E893 then MOV EDX,EAX; SAR;
+ * IDIV ESI) shows the dividend is the RNG result. Encoded as such.
+ * ---------------------------------------------------------------- */
+int fd2_roll_stat_gain_and_show_message(uint8 *stat_ptr, uint8 *growth_pair,
+                                        uint32 dialog_text_id, int row_idx)
+{
+    int min_gain;
+    int range;
+    int rand_extra;
+    int gain;
+
+    min_gain = (int)growth_pair[0];
+    range = (int)growth_pair[1] - min_gain;
+    rand_extra = 0;
+    if (range != 0) {
+        rand_extra = (int)fd2_advance_rng_state() % range;
+    }
+    gain = min_gain + rand_extra;
+    data_fd2_dialog_last_action_value_param = (uint32)gain;
+
+    if (gain != 0) {
+        if (row_idx == 3) {
+            row_idx = 2;
+            fd2_cinematic_scroll_text_up_for_special_scenes();
+        }
+        fd2_clear_keyboard_buffer();
+        fd2_display_dialog_scene(
+            data_fd2_all_game_text_ptr, dialog_text_id,
+            (uint32)row_idx * 0x17C0 + 0xA951F, 0x140, 0xCD,
+            0x4C, 0x4A, 0x13, 1);
+        *(int16 *)stat_ptr = (int16)(*(int16 *)stat_ptr +
+            (int16)data_fd2_dialog_last_action_value_param);
+        row_idx++;
+    }
+    return row_idx;
+}
+
+/* ----------------------------------------------------------------
  * fd2_process_xp_and_level_up_for_char @ 0x1E292 (2 callers)
  *
  * Apply accumulated XP, run level-up animation and spell learning for
