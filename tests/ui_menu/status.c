@@ -1283,6 +1283,168 @@ static void test_job_equip_uses_indexed_char_job(void)
     ASSERT_EQ(fd2_check_job_can_equip_item(0, 12), 0);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_give_item_to_first_player_char @ 0x1C220
+ *
+ * Scan runtime_char[0 .. party_member_count-1]; give item_id to the
+ * FIRST character with team==2 (player) whose backpack has a free slot
+ * (fd2_add_item_to_inventory != -1), then stop. A slot is free when its
+ * flag byte has bit 0x80 SET; the real callee stamps the first free slot
+ * flag=0 / id=(uint8)item_id. If every player char is full, silent no-op.
+ * These tests drive the real function + real callee against g_test_rc_array
+ * (wired to data_fd2_battle_runtime_char_array_ptr) and exercise: team
+ * filtering, full-backpack fall-through to the next player, the all-full
+ * silent return, an empty roster, and the party_member_count bound (the
+ * CMP EAX,-1 return test after the add CALL is verified vs disasm).
+ * party_member_count is saved/restored so the suite default (4) is intact.
+ * ---------------------------------------------------------------- */
+
+/* First player (team==2) with a free slot receives the item; the add lands
+ * in its slot 0 (flag 0x80 -> 0x00, id stored). char 0 is team==2 here. */
+static void test_give_item_to_first_player_basic(void)
+{
+    uint32 saved_count;
+    saved_count = data_fd2_battle_party_member_count;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    data_fd2_battle_party_member_count = 4;
+    g_test_rc_array[0].team = 2;
+    g_test_rc_array[0].inventory_slots[0] = 0x80;   /* slot0 free */
+
+    fd2_give_item_to_first_player_char(0x42);
+
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[0], 0x00);  /* occupied */
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[1], 0x42);  /* item id  */
+    data_fd2_battle_party_member_count = saved_count;
+}
+
+/* Non-player chars are skipped: chars 0,1 are team 0 (enemy) and 1 (NPC)
+ * with free slots but MUST be ignored; char 2 (team==2) is the first
+ * player and receives the item. Pins the team==2 gate. */
+static void test_give_item_skips_non_player_chars(void)
+{
+    uint32 saved_count;
+    saved_count = data_fd2_battle_party_member_count;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    data_fd2_battle_party_member_count = 4;
+    g_test_rc_array[0].team = 0;                    /* enemy  */
+    g_test_rc_array[0].inventory_slots[0] = 0x80;
+    g_test_rc_array[1].team = 1;                    /* NPC    */
+    g_test_rc_array[1].inventory_slots[0] = 0x80;
+    g_test_rc_array[2].team = 2;                    /* player */
+    g_test_rc_array[2].inventory_slots[0] = 0x80;
+
+    fd2_give_item_to_first_player_char(0x55);
+
+    /* enemy / NPC untouched (still free, id still 0) */
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[0], 0x80);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[1], 0x00);
+    ASSERT_EQ(g_test_rc_array[1].inventory_slots[0], 0x80);
+    ASSERT_EQ(g_test_rc_array[1].inventory_slots[1], 0x00);
+    /* first player (char 2) got it */
+    ASSERT_EQ(g_test_rc_array[2].inventory_slots[0], 0x00);
+    ASSERT_EQ(g_test_rc_array[2].inventory_slots[1], 0x55);
+    data_fd2_battle_party_member_count = saved_count;
+}
+
+/* Full player is skipped (add returns -1): char 0 is team==2 but all 8
+ * slots full -> the function continues; char 1 is team==2 with a free slot
+ * and receives the item. Pins the !=-1 fall-through to the next player. */
+static void test_give_item_skips_full_player_to_next(void)
+{
+    int s;
+    uint32 saved_count;
+    uint8 before0[16];
+    saved_count = data_fd2_battle_party_member_count;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    data_fd2_battle_party_member_count = 4;
+    g_test_rc_array[0].team = 2;                    /* player, FULL */
+    for (s = 0; s < 8; s++) {
+        g_test_rc_array[0].inventory_slots[s * 2]     = 0x00;  /* occupied */
+        g_test_rc_array[0].inventory_slots[s * 2 + 1] = (uint8)(0x60 + s);
+    }
+    memcpy(before0, g_test_rc_array[0].inventory_slots, 16);
+    g_test_rc_array[1].team = 2;                    /* player, has room */
+    g_test_rc_array[1].inventory_slots[0] = 0x80;
+
+    fd2_give_item_to_first_player_char(0x77);
+
+    /* full player's backpack byte-for-byte unchanged */
+    ASSERT_EQ(memcmp(before0, g_test_rc_array[0].inventory_slots, 16), 0);
+    /* next player received it */
+    ASSERT_EQ(g_test_rc_array[1].inventory_slots[0], 0x00);
+    ASSERT_EQ(g_test_rc_array[1].inventory_slots[1], 0x77);
+    data_fd2_battle_party_member_count = saved_count;
+}
+
+/* Every player char is full -> silent no-op, nothing mutated anywhere.
+ * Two team==2 chars, both with all 8 slots occupied. */
+static void test_give_item_all_players_full_is_noop(void)
+{
+    int s;
+    uint32 saved_count;
+    uint8 before[2][16];
+    saved_count = data_fd2_battle_party_member_count;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    data_fd2_battle_party_member_count = 2;
+    for (s = 0; s < 8; s++) {
+        g_test_rc_array[0].inventory_slots[s * 2]     = 0x00;
+        g_test_rc_array[0].inventory_slots[s * 2 + 1] = (uint8)(0x10 + s);
+        g_test_rc_array[1].inventory_slots[s * 2]     = (s & 1) ? 0x40 : 0x00;
+        g_test_rc_array[1].inventory_slots[s * 2 + 1] = (uint8)(0x20 + s);
+    }
+    g_test_rc_array[0].team = 2;
+    g_test_rc_array[1].team = 2;
+    memcpy(before[0], g_test_rc_array[0].inventory_slots, 16);
+    memcpy(before[1], g_test_rc_array[1].inventory_slots, 16);
+
+    fd2_give_item_to_first_player_char(0x42);
+
+    ASSERT_EQ(memcmp(before[0], g_test_rc_array[0].inventory_slots, 16), 0);
+    ASSERT_EQ(memcmp(before[1], g_test_rc_array[1].inventory_slots, 16), 0);
+    data_fd2_battle_party_member_count = saved_count;
+}
+
+/* Empty roster (party_member_count == 0) -> loop body never runs, nothing
+ * touched even though char 0 is a player with a free slot. Pins the
+ * count<=char_idx exit on the very first iteration. */
+static void test_give_item_empty_party_is_noop(void)
+{
+    uint32 saved_count;
+    saved_count = data_fd2_battle_party_member_count;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[0].team = 2;
+    g_test_rc_array[0].inventory_slots[0] = 0x80;   /* free, but never reached */
+
+    fd2_give_item_to_first_player_char(0x99);
+
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[0], 0x80);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[1], 0x00);
+    data_fd2_battle_party_member_count = saved_count;
+}
+
+/* party_member_count bound is honoured: char 1 is a player with room but the
+ * count is 1, so only char 0 is scanned. char 0 is team 0 (enemy), so no one
+ * eligible is found within bounds -> no-op, char 1 untouched. */
+static void test_give_item_respects_party_count_bound(void)
+{
+    uint32 saved_count;
+    saved_count = data_fd2_battle_party_member_count;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    data_fd2_battle_party_member_count = 1;          /* only char 0 scanned */
+    g_test_rc_array[0].team = 0;                      /* enemy, ineligible  */
+    g_test_rc_array[0].inventory_slots[0] = 0x80;
+    g_test_rc_array[1].team = 2;                      /* player w/ room, OOB */
+    g_test_rc_array[1].inventory_slots[0] = 0x80;
+
+    fd2_give_item_to_first_player_char(0x33);
+
+    /* out-of-bounds player NOT given the item */
+    ASSERT_EQ(g_test_rc_array[1].inventory_slots[0], 0x80);
+    ASSERT_EQ(g_test_rc_array[1].inventory_slots[1], 0x00);
+    data_fd2_battle_party_member_count = saved_count;
+}
+
 void run_ui_menu_status_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1334,5 +1496,11 @@ void run_ui_menu_status_tests(void)
     RUN_TEST(test_job_equip_no_match_returns_zero);
     RUN_TEST(test_job_equip_seventh_byte_not_scanned);
     RUN_TEST(test_job_equip_uses_indexed_char_job);
+    RUN_TEST(test_give_item_to_first_player_basic);
+    RUN_TEST(test_give_item_skips_non_player_chars);
+    RUN_TEST(test_give_item_skips_full_player_to_next);
+    RUN_TEST(test_give_item_all_players_full_is_noop);
+    RUN_TEST(test_give_item_empty_party_is_noop);
+    RUN_TEST(test_give_item_respects_party_count_bound);
     printf("\n");
 }

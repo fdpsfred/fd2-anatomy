@@ -1318,8 +1318,9 @@
     "name": "fd2_give_item_to_first_player_char",
     "target": "ui_menu/status.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001c269": {
     "name": "fd2_build_usable_spell_list",

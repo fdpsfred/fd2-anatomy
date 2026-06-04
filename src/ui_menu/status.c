@@ -1066,3 +1066,41 @@ void fd2_equip_item_in_slot(uint32 char_idx, uint32 slot_idx)
 
     rc[char_idx].inventory_slots[slot_idx * 2] = 0x40;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_give_item_to_first_player_char @ 0x1C220  (2 callers)
+ *
+ * Give item_id to the first player-side character (team == 2) whose
+ * inventory still has a free slot. Scans runtime_char[0 ..
+ * party_member_count-1] in order; for each player character it tries
+ * fd2_add_item_to_inventory(char_idx, item_id), and stops as soon as
+ * one succeeds (return value != -1). If every player character's
+ * backpack is full, the function returns silently (item lost).
+ *
+ * team encoding: 0 = enemy, 1 = neutral NPC, 2 = player.
+ * fd2_add_item_to_inventory returns -1 = backpack full, 1 = added.
+ *
+ * Callers: fd2_chapter_02_end (story gift), fd2_chapter_21_end
+ * (Sky Key hidden-stage key).
+ *
+ * void __cdecl with the __CHK(0x14) stack-probe prologue (compiler-
+ * injected, not part of the source). EBX is the loop counter / char
+ * index (callee-saved), ESI holds item_id; the trailing POP ESI /
+ * POP EBX / RET is the shared epilogue. The CMP EAX,-1 after the
+ * fd2_add_item_to_inventory CALL is a genuine return-value test.
+ * ---------------------------------------------------------------- */
+void fd2_give_item_to_first_player_char(uint32 item_id)
+{
+    runtime_char *rc;
+    uint32 char_idx;
+
+    rc = data_fd2_battle_runtime_char_array_ptr;
+    for (char_idx = 0;
+         (int)char_idx < (int)data_fd2_battle_party_member_count;
+         char_idx++) {
+        if (rc[char_idx].team == 2
+            && fd2_add_item_to_inventory(char_idx, item_id) != -1) {
+            return;
+        }
+    }
+}
