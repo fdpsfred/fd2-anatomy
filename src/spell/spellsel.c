@@ -4,6 +4,7 @@
  * Functions:
  *   fd2_build_usable_spell_list @ 0x1c269 (8 call sites in 7 functions)
  *   fd2_draw_spell_selection_list @ 0x1ceed (3 callers)
+ *   fd2_spell_select_input_loop @ 0x1d51d (1 caller)
  *   fd2_spell_selection_menu_main @ 0x1cff0 (1 caller)
  */
 
@@ -121,6 +122,106 @@ void fd2_draw_spell_selection_list(uint32 caster_idx, uint32 highlighted_idx,
         fd2_render_decimal_number_to_buffer(col_addr_offset + 0x49 + row_y,
                                             0x140, (uint32)pSpell[5], 0x2a, 2);
     }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_spell_select_input_loop(caster_idx) @ 0x1d51d  (1 caller)
+ *
+ * One frame of battle spell-picker selection input, called repeatedly by
+ * fd2_spell_selection_menu_main until it returns non-zero. Redraw the list
+ * with the cursor highlighted, get the learned-spell count, wait for a key,
+ * then dispatch on the scancode:
+ *
+ *   0x48 Up:    cursor != 0 -> cursor--; else cursor = spell_count - 1 (wrap).
+ *               SFX, return 0.
+ *   0x50 Down:  cursor != spell_count-1 -> cursor++; else cursor = 0 (wrap).
+ *               SFX, return 0.
+ *   0x4B Left:  cursor >= 4 -> cursor -= 4, SFX, return 0; else no move.
+ *   0x4D Right: cursor < spell_count-4 -> cursor += 4, SFX, return 0; else
+ *               no move.
+ *   0x1C/0x39 Enter/Space: rebuild the full id list; if the picked spell's
+ *               MP cost (spell record +5) <= caster.mp_current return 1
+ *               (commit at current_menu_cursor_idx), else stay (return 0).
+ *   0x01 Esc:   return -1.
+ *   other:      return 0.
+ *
+ * The cursor lives in the shared data_fd2_ui_menu_cursor_idx (0x53C57); the
+ * caster's runtime_char is data_fd2_battle_runtime_char_array_ptr[caster_idx]
+ * (stride 0x50, mp_current @ +0x44). The Left/Right "no move" branches and
+ * Up/Down wrap both fall to the shared return 0. The post-CALL MP-cost read
+ * (*(byte*)(pSpell+5)) and the SHL-by-3-then-mul layout follow the machine
+ * code; spell_count-1 / spell_count-4 are precomputed (EBX/EDI/EBX-4 in the
+ * binary) and re-expressed here as plain expressions.
+ *
+ * Cdecl, 1 stack param; returns int (1 commit / 0 stay / -1 cancel). The
+ * binary's __CHK(0x28) stack-probe prologue is compiler-injected and not part
+ * of the source; the body's tail `JMP 0x16f04` is Watcom's shared epilogue.
+ * ---------------------------------------------------------------- */
+int fd2_spell_select_input_loop(uint32 caster_idx)
+{
+    runtime_char *pCharArray;
+    uint8  spell_id_list[12];
+    uint32 spell_count;
+    uint32 scancode;
+    uint16 caster_MP;
+    uint8 *pSpell;
+
+    fd2_draw_spell_selection_list(caster_idx, data_fd2_ui_menu_cursor_idx,
+                                  0xa0000);
+    pCharArray = data_fd2_battle_runtime_char_array_ptr;
+    spell_count = (uint32)fd2_build_usable_spell_list(caster_idx, 0);
+    scancode = (uint32)(uint8)fd2_wait_for_input_dialog_with_blink(0);
+
+    if (scancode == 0x48) {
+        if (data_fd2_ui_menu_cursor_idx != 0) {
+            fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
+                                     0, 1);
+            data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx - 1;
+            return 0;
+        }
+        fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr, 0, 1);
+        data_fd2_ui_menu_cursor_idx = spell_count - 1;
+    }
+    else if (scancode == 0x50) {
+        if (spell_count - 1 != data_fd2_ui_menu_cursor_idx) {
+            fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
+                                     0, 1);
+            data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx + 1;
+            return 0;
+        }
+        fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr, 0, 1);
+        data_fd2_ui_menu_cursor_idx = 0;
+    }
+    else if (scancode == 0x4b) {
+        if (3 < (int)data_fd2_ui_menu_cursor_idx) {
+            fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
+                                     0, 1);
+            data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx - 4;
+            return 0;
+        }
+    }
+    else if (scancode == 0x4d) {
+        if ((int)data_fd2_ui_menu_cursor_idx < (int)(spell_count - 4)) {
+            fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
+                                     0, 1);
+            data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx + 4;
+            return 0;
+        }
+    }
+    else if (scancode == 0x1c || scancode == 0x39) {
+        fd2_build_usable_spell_list(caster_idx, (uint32)spell_id_list);
+        caster_MP = pCharArray[caster_idx].mp_current;
+        pSpell = fd2_get_spell_effect_entry(
+            (int)spell_id_list[data_fd2_ui_menu_cursor_idx]);
+        if (pSpell[5] <= caster_MP) {
+            return 1;
+        }
+    }
+    else if (scancode == 1) {
+        return -1;
+    }
+
+    return 0;
 }
 
 /* ----------------------------------------------------------------

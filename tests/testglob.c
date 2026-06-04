@@ -708,18 +708,13 @@ double data_fd2_battle_ai_enemy_spell_score_multiplier_15 = 1.5;
  * its own input loop (fd2_spell_select_input_loop) and target-pick prompts on a
  * keyboard read with no async key source in the host harness -- so it is
  * deferred to Phase 9 integration, the same deferral applied to the Item branch.
+ * fd2_spell_select_input_loop (0x1D51D), the modal's per-frame input handler, is
+ * now emitted for real in src/spell/spellsel.c and linked; its former noop stub
+ * (which returned -1 to terminate the do/while) was removed.
  *
- * Its two not-yet-emitted callees get noop stubs so the link resolves:
- *   fd2_spell_select_input_loop (0x1D51D) -- the modal's per-frame input
- *     handler (routed to its own emit task); a host call must terminate the
- *     do/while, so the stub returns -1 (Esc) by default.
+ * Its remaining not-yet-emitted callee gets a noop stub so the link resolves:
  *   fd2_play_spell_palette_flash_with_sfx (0x1D6C8) -- VGA DAC flash + SFX for
  *     status-class spells (routed to its own emit task); noop here. */
-int fd2_spell_select_input_loop(uint32 caster_idx)
-{
-    (void)caster_idx;
-    return -1;
-}
 void fd2_play_spell_palette_flash_with_sfx(int pattern_id)
 {
     (void)pattern_id;

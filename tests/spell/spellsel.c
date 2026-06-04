@@ -46,6 +46,8 @@ extern uint32 g_rle_blit_log_dst[64];
 /* fd2_blit_glyph_2bpp_with_outline spy: captures the color (page_idx) arg */
 extern int    g_dlg_glyph_calls;
 extern uint32 g_dlg_glyph_last_p5;
+/* fd2_play_sfx_with_handle recording fake: bumped once per SFX (UI move sound) */
+extern int    g_play_sfx_with_handle_calls;
 /* host runtime_char fixture backing data_fd2_battle_runtime_char_array_ptr */
 extern runtime_char g_test_rc_array[8];
 
@@ -512,6 +514,234 @@ static void test_dssl_caster_idx_selects_char(void)
  * / decomp) review recorded in src/spell/spellsel.c.
  */
 
+/* ================================================================
+ * fd2_spell_select_input_loop @ 0x1d51d
+ * ================================================================
+ *
+ * One frame of spell-picker input. Drives the REAL renderer
+ * (fd2_draw_spell_selection_list, set up via dssl_setup) and the REAL key wait
+ * (fd2_wait_for_input_dialog_with_blink), fed a single scancode pre-armed in
+ * the BIOS keyboard buffer (sil_inject_scancode) which the wait reads on its
+ * first poll -- this function never clears the buffer, so the pre-armed key
+ * survives. The SFX callee fd2_play_sfx_with_handle is the recording fake
+ * (g_play_sfx_with_handle_calls). Each case pins the cursor-navigation
+ * arithmetic (the EAX-tracking-prone, high-value logic) and the return value
+ * for one dispatch branch: Up/Down with wrap, Left/Right with their
+ * row/spell_count bounds, the Enter/Space commit with the MP-cost gate
+ * (*(byte*)(pSpell+5) <= caster.mp_current, a post-CALL EAX read), Esc cancel,
+ * and the unhandled-key fall-to-0.
+ *
+ * spell_count = number of learned bits (dssl_learn ids 0..N-1 -> count N).
+ * The cursor lives in data_fd2_ui_menu_cursor_idx; the spell records (mp_cost
+ * @ +5) are data_fd2_battle_spell_effect_table, resolved by the REAL
+ * fd2_get_spell_effect_entry. */
+
+/* Pre-arm one scancode in the BIOS keyboard buffer (BDA @ 0x400) so the real
+ * wait exits on its first poll with AH=scancode. Mirrors status.c's helper. */
+static void sil_inject_scancode(int scancode)
+{
+    *(volatile uint16 *)0x41AuL = 0x1E;                          /* head        */
+    *(volatile uint16 *)0x41CuL = 0x20;                          /* tail=head+2 */
+    *(volatile uint16 *)0x41EuL = (uint16)((scancode << 8) & 0xFF00);
+}
+
+/* Stand up the renderer fixture, learn ids 0..n_spells-1 on char 0 (so
+ * spell_count == n_spells), set the cursor and arm the scancode. */
+static void sil_setup(int n_spells, int cursor, int scancode)
+{
+    int i;
+
+    dssl_setup();
+    for (i = 0; i < n_spells; i++) {
+        dssl_learn(i);
+        data_fd2_battle_spell_effect_table[i].mp_cost = (uint8)(1 + i);
+    }
+    data_fd2_ui_menu_cursor_idx = (uint32)cursor;
+    g_play_sfx_with_handle_calls = 0;
+    sil_inject_scancode(scancode);
+}
+
+/* Up, no wrap: cursor 3 -> 2, SFX fires, returns 0. */
+static void test_sil_up_decrement(void)
+{
+    int r;
+    sil_setup(8, 3, 0x48);
+    r = fd2_spell_select_input_loop(0);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 2);
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 1);
+}
+
+/* Up, wrap: cursor 0, spell_count 5 -> spell_count-1 = 4, SFX, returns 0. */
+static void test_sil_up_wrap_to_last(void)
+{
+    int r;
+    sil_setup(5, 0, 0x48);
+    r = fd2_spell_select_input_loop(0);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 4);   /* 5 - 1 */
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 1);
+}
+
+/* Down, no wrap: cursor 2, spell_count 8 (last=7) -> 3, SFX, returns 0. */
+static void test_sil_down_increment(void)
+{
+    int r;
+    sil_setup(8, 2, 0x50);
+    r = fd2_spell_select_input_loop(0);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 3);
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 1);
+}
+
+/* Down, wrap: cursor at last (spell_count-1 = 4 with spell_count 5) -> 0, SFX,
+ * returns 0. Pins the wrap condition (cursor == spell_count - 1). */
+static void test_sil_down_wrap_to_zero(void)
+{
+    int r;
+    sil_setup(5, 4, 0x50);                /* cursor == spell_count - 1 */
+    r = fd2_spell_select_input_loop(0);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 1);
+}
+
+/* Left, valid: cursor 5 (>= 4) -> 1 (cursor - 4), SFX, returns 0. */
+static void test_sil_left_valid(void)
+{
+    int r;
+    sil_setup(8, 5, 0x4b);
+    r = fd2_spell_select_input_loop(0);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 1);   /* 5 - 4 */
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 1);
+}
+
+/* Left, invalid: cursor 2 (< 4) -> unchanged, NO SFX, returns 0 (top row). */
+static void test_sil_left_invalid_top_row(void)
+{
+    int r;
+    sil_setup(8, 2, 0x4b);
+    r = fd2_spell_select_input_loop(0);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 2);   /* no change */
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 0);  /* no move -> no SFX */
+}
+
+/* Right, valid: cursor 1, spell_count 8 (1 < 8-4 = 4) -> 5, SFX, returns 0. */
+static void test_sil_right_valid(void)
+{
+    int r;
+    sil_setup(8, 1, 0x4d);
+    r = fd2_spell_select_input_loop(0);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 5);   /* 1 + 4 */
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 1);
+}
+
+/* Right, invalid: cursor 5, spell_count 8 (5 >= 8-4 = 4) -> unchanged, NO SFX,
+ * returns 0. Pins the bound cursor < spell_count - 4. */
+static void test_sil_right_invalid_bottom(void)
+{
+    int r;
+    sil_setup(8, 5, 0x4d);
+    r = fd2_spell_select_input_loop(0);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 5);   /* no change */
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 0);
+}
+
+/* Enter (0x1C), MP sufficient: caster mp_current 20 >= picked spell mp_cost.
+ * Returns 1 (commit) and leaves the cursor where it is. Exercises the
+ * post-CALL EAX MP-cost read (*(byte*)(pSpell+5)). spell ids 0..3 learned,
+ * cursor 2 -> spell_id_list[2] == id 2, mp_cost set to 5. */
+static void test_sil_enter_commit_mp_ok(void)
+{
+    int r;
+    sil_setup(4, 2, 0x1c);
+    data_fd2_battle_spell_effect_table[2].mp_cost = 5;
+    g_test_rc_array[0].mp_current = 20;
+    r = fd2_spell_select_input_loop(0);
+    ASSERT_EQ((long)r, 1);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 2);   /* cursor unchanged */
+}
+
+/* Enter, MP boundary equal: mp_current == mp_cost -> still commits (the gate is
+ * mp_cost <= caster_MP). cost 9, MP 9 -> return 1. */
+static void test_sil_enter_commit_mp_equal(void)
+{
+    int r;
+    sil_setup(4, 1, 0x1c);
+    data_fd2_battle_spell_effect_table[1].mp_cost = 9;
+    g_test_rc_array[0].mp_current = 9;
+    r = fd2_spell_select_input_loop(0);
+    ASSERT_EQ((long)r, 1);
+}
+
+/* Enter, MP insufficient: mp_current 3 < mp_cost 8 -> NOT selectable, return 0
+ * (stay in loop), cursor unchanged. */
+static void test_sil_enter_blocked_mp_low(void)
+{
+    int r;
+    sil_setup(4, 2, 0x1c);
+    data_fd2_battle_spell_effect_table[2].mp_cost = 8;
+    g_test_rc_array[0].mp_current = 3;
+    r = fd2_spell_select_input_loop(0);
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 2);
+}
+
+/* Space (0x39) behaves exactly like Enter: MP-ok commit returns 1. */
+static void test_sil_space_commits_like_enter(void)
+{
+    int r;
+    sil_setup(4, 0, 0x39);
+    data_fd2_battle_spell_effect_table[0].mp_cost = 2;
+    g_test_rc_array[0].mp_current = 50;
+    r = fd2_spell_select_input_loop(0);
+    ASSERT_EQ((long)r, 1);
+}
+
+/* Esc (0x01): returns -1, cursor untouched, no SFX. */
+static void test_sil_esc_cancels(void)
+{
+    int r;
+    sil_setup(4, 2, 0x01);
+    r = fd2_spell_select_input_loop(0);
+    ASSERT_EQ((long)r, -1);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 2);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 0);
+}
+
+/* Unhandled key (e.g. 0x10 'Q'): no move, no SFX, returns 0. */
+static void test_sil_unhandled_key_returns_zero(void)
+{
+    int r;
+    sil_setup(4, 2, 0x10);
+    r = fd2_spell_select_input_loop(0);
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 2);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 0);
+}
+
+/* caster_idx selects the runtime_char (stride 0x50) for the MP check: put a
+ * cheap spell on char 3 and a high MP on char 3, query caster_idx 3 -> commit.
+ * Validates pCharArray[caster_idx].mp_current and the per-char spell list. */
+static void test_sil_caster_idx_mp_from_right_char(void)
+{
+    int r;
+    dssl_setup();                                /* char 0 empty */
+    memset(&g_test_rc_array[3], 0, sizeof(g_test_rc_array[3]));
+    g_test_rc_array[3].spells_known_bitmap[0] = 0x01;  /* id 0 on char 3 */
+    data_fd2_battle_spell_effect_table[0].mp_cost = 4;
+    g_test_rc_array[3].mp_current = 30;
+    data_fd2_ui_menu_cursor_idx = 0;
+    g_play_sfx_with_handle_calls = 0;
+    sil_inject_scancode(0x1c);
+    r = fd2_spell_select_input_loop(3);
+    ASSERT_EQ((long)r, 1);                        /* char 3 MP covers cost */
+}
+
 void run_spell_spellsel_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -530,5 +760,20 @@ void run_spell_spellsel_tests(void)
     RUN_TEST(test_dssl_grid_4col_wrap);
     RUN_TEST(test_dssl_mp_cost_per_spell);
     RUN_TEST(test_dssl_caster_idx_selects_char);
+    RUN_TEST(test_sil_up_decrement);
+    RUN_TEST(test_sil_up_wrap_to_last);
+    RUN_TEST(test_sil_down_increment);
+    RUN_TEST(test_sil_down_wrap_to_zero);
+    RUN_TEST(test_sil_left_valid);
+    RUN_TEST(test_sil_left_invalid_top_row);
+    RUN_TEST(test_sil_right_valid);
+    RUN_TEST(test_sil_right_invalid_bottom);
+    RUN_TEST(test_sil_enter_commit_mp_ok);
+    RUN_TEST(test_sil_enter_commit_mp_equal);
+    RUN_TEST(test_sil_enter_blocked_mp_low);
+    RUN_TEST(test_sil_space_commits_like_enter);
+    RUN_TEST(test_sil_esc_cancels);
+    RUN_TEST(test_sil_unhandled_key_returns_zero);
+    RUN_TEST(test_sil_caster_idx_mp_from_right_char);
     printf("\n");
 }
