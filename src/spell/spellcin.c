@@ -13,6 +13,7 @@
  *   fd2_animate_warp_out_collapse @ 0x22547 (1 caller)
  *   fd2_animate_warp_in_expand @ 0x22656 (1 caller)
  *   fd2_cast_screen_wide_spell_with_fade @ 0x24618 (6 callers)
+ *   fd2_execute_special_attack_skill @ 0x276ec (1 caller)
  */
 
 #include "types.h"
@@ -1000,5 +1001,287 @@ void fd2_cast_screen_wide_spell_with_fade(uint32 epicenter_tile_x,
     }
 
     fd2_load_status_effect_sfx();
+    return;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_execute_special_attack_skill @ 0x276ec  (1 caller)
+ *
+ * Character-specific special attack technique (必殺技). Used for the
+ * high-id combat-skill spell IDs: 0x18 (淒煌斬), 0x1C (熾炎刀, multi-hit
+ * variant), 0x1D (音速刃), 0x1E (default fallback). Weapon-tied cinematic
+ * attacks with bigger-than-normal damage and a full character-vs-character
+ * FIGANI animation overlay. Sole caller: fd2_play_spell_cast_sequence
+ * @ 0x2A6BD (the special-spell branch of the cast-sequence dispatch).
+ *
+ * Damage: multiplier = {0x18:15, 0x1C:20, 0x1D:12, default:18}[spell_id];
+ *   raw_damage = (int16)caster.ap * multiplier / 10 (signed div). Per target
+ *   applied_dmg = clamp(target.hp_current,
+ *                       fd2_apply_damage_and_award_xp(tid, raw_damage - dp)).
+ *   HP is restored to its pre-call value, then re-applied progressively over
+ *   the animation: hp = original_HP - (hit_count * applied_dmg / max_hits),
+ *   with max_hits = 8 for 0x1C, 1 otherwise.
+ *
+ * Resources: BG.DAT[tile_attr_byte], TAI.DAT[tile_attr_byte] (caster base
+ *   sprite), BG.DAT[terrain], where tile_attr_byte is the 3rd of the 4 tile
+ *   attribute-flag bytes that fd2_read_tile_attribute_at_pos writes at offset
+ *   +6 of its 8-byte out-buffer (= attr_ptr[+2]; verified MOVZX EDI,[ESP+0x7e]
+ *   @0x27861, buffer base LEA [ESP+0x78] @0x2783d). The out-buffer is sized 8
+ *   to hold the full +0..+7 write the callee performs.
+ *   BG.DAT[0..2] (3 parallax cinematic sub-layers @ 0x5410B/0F/13),
+ *   FIGANI.DAT[caster.portrait*3 / *3+2] (intro + per-hit anim data),
+ *   FIGANI.DAT[target.portrait*3] per target. The caster_figani_b SFX-bank
+ *   byte feeds fd2_load_figani_sfx_bank → special_attack_sfx_bank @ 0x54117.
+ *
+ * The 6-byte X-offset shake table @ 0x52549 is copied onto the stack by the
+ * binary; here it is indexed directly (const data, Layer-2 equivalent, same
+ * convention as the earthquake worker above). fade_steps (0..5) selects the
+ * per-sub-frame horizontal shake displacement during a hit.
+ *
+ * Cdecl, 4 stack params; void return. The binary's __CHK(0x100) stack-probe
+ * prologue is compiler-injected and not part of the source. Self-contained
+ * epilogue with explicit RET at 0x27FC8 (POP EBP/EDI/ESI/EBX). The plate at
+ * 0x52393 previously mis-labelled the string as FDSHAP/FIGANI; it is TAI.DAT
+ * (corrected during emit).
+ *
+ * KNOWN DECOMPILER NOTE: every CALL-then-EAX-use site here is a genuine
+ * return-value capture (resource ptrs, terrain byte, applied damage, SFX
+ * bank); verified against the assembly — no spurious EAX-tracking artifact.
+ * ---------------------------------------------------------------- */
+void fd2_execute_special_attack_skill(uint32 caster_idx, uint32 spell_id,
+                                      int n_targets, uint8 *target_idx_buf)
+{
+    uint32 target_figani_arr[30];
+    runtime_char *caster_char;
+    runtime_char *target_char;
+    uint32 multiplier;
+    int32 raw_damage_div_10;
+    uint8 tile_attr_buf[8];
+    uint8 tile_attr_byte;
+    uint8 resolved_terrain;
+    uint32 pBg_layer;
+    uint32 pBg_layer_saved;
+    uint32 pTai_resource;
+    uint32 pTai_layer;
+    uint32 pBg_resource;
+    uint32 pCaster_figani_a;
+    uint32 pCaster_figani_b;
+    uint32 pAnimWorkBuf1;
+    uint32 pAnimWorkBuf2;
+    uint32 portrait_x3;
+    uint32 wrkbuf;
+    uint32 frame_entry;
+    uint32 frame_iter;
+    uint32 original_HP;
+    uint32 applied_dmg;
+    uint8  max_hits;
+    uint8  hit_count;
+    uint8  fade_steps;
+    uint32 palette_color_or_neg1;
+    int i;
+    int sub_iter;
+
+    pTai_resource = 0;
+    pBg_resource = 0;
+    pCaster_figani_b = 0;
+    pCaster_figani_a = 0;
+    fade_steps = 0;
+    palette_color_or_neg1 = 0xffffffff;
+
+    free((void *)portrait_sprite_cache);
+    free((void *)data_fd2_large_game_state_buffer_ptr);
+    free((void *)battle_scene_snapshot);
+    battle_scene_snapshot = 0;
+
+    for (i = 0; i < 0x1e; i++) {
+        target_figani_arr[i] = 0;
+    }
+
+    if (spell_id == 0x18) {
+        multiplier = 0xf;
+    } else if (spell_id == 0x1c) {
+        multiplier = 0x14;
+    } else if (spell_id == 0x1d) {
+        multiplier = 0xc;
+    } else {
+        multiplier = 0x12;
+    }
+
+    caster_char = &data_fd2_battle_runtime_char_array_ptr[caster_idx];
+    portrait_x3 = (int32)(int16)caster_char->ap * multiplier;
+    raw_damage_div_10 = (int32)portrait_x3 / 10;
+
+    fd2_read_tile_attribute_at_pos((uint32)caster_char->pos_x,
+        (uint32)caster_char->pos_y, (uint32)tile_attr_buf);
+    tile_attr_byte = tile_attr_buf[6];
+    resolved_terrain =
+        fd2_resolve_terrain_for_aoe_targets(n_targets, (uint32)target_idx_buf);
+
+    pBg_layer = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_bg_dat_52381,
+        pBg_resource, (uint32)tile_attr_byte);
+    pBg_layer_saved = pBg_layer;
+    pTai_resource = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_tai_dat,
+        pTai_resource, (uint32)tile_attr_byte);
+    pTai_layer = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_bg_dat_52381,
+        pBg_resource, (uint32)resolved_terrain);
+
+    data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = 0;
+    data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = 0;
+    data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = 0;
+    pBg_resource = pTai_layer;
+    data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_bg_dat_52381, 0, 0);
+    data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_bg_dat_52381,
+        data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr, 1);
+    data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_bg_dat_52381,
+        data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr, 2);
+
+    pAnimWorkBuf1 = (uint32)malloc(64000);
+    pAnimWorkBuf2 = (uint32)malloc(0x1f400);
+    memset((void *)pAnimWorkBuf1, 0, 64000);
+    fd2_flash_char_hit_sprite(pAnimWorkBuf1, caster_idx);
+    if (spell_id == 0x1c) {
+        fd2_rle_blit_sprite(pTai_layer, 0, 0x32, pAnimWorkBuf1, 0x140, 0xffffffff);
+        fd2_flash_char_hit_sprite(pAnimWorkBuf1, (uint32)target_idx_buf[0]);
+    } else {
+        fd2_rle_blit_sprite(pBg_layer, 0, 0x32, pAnimWorkBuf1, 0x140, 0xffffffff);
+    }
+
+    portrait_x3 = (uint32)caster_char->portrait_id * 3;
+    pCaster_figani_a = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_figani_dat_52388,
+        pCaster_figani_a, portrait_x3);
+    pCaster_figani_b = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_figani_dat_52388,
+        pCaster_figani_b, portrait_x3 + 2);
+    data_fd2_audio_figani_sfx_bank_buf_ptr =
+        fd2_load_figani_sfx_bank(pCaster_figani_b);
+
+    fd2_play_palette_fade_to_black();
+
+    for (i = 0; i < n_targets; i++) {
+        target_figani_arr[i] = fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_figani_dat_52388,
+            target_figani_arr[i],
+            (uint32)data_fd2_battle_runtime_char_array_ptr[target_idx_buf[i]]
+                .portrait_id * 3);
+    }
+
+    fd2_play_char_intro_zoom_anim(caster_idx, (uint32)(spell_id != 0x1c),
+        pCaster_figani_a, target_figani_arr[0], pAnimWorkBuf2, pAnimWorkBuf1,
+        pTai_resource);
+    fd2_play_figani_animation_loop(caster_idx, spell_id, pCaster_figani_b,
+        target_figani_arr[0], pAnimWorkBuf2, pAnimWorkBuf1, pBg_layer_saved,
+        pTai_resource);
+
+    for (i = 0; i < n_targets; i++) {
+        memset((void *)pAnimWorkBuf2, 0, 0x1f400);
+        fd2_blit_rectangle(pAnimWorkBuf2 + 0x140, 0x280, 0xa0000, 0x140,
+            0x140, 0xc8);
+        if (spell_id != 0x1c) {
+            fd2_animate_bg_zoom_transition_in((uint32)target_idx_buf[i],
+                target_figani_arr[i], pAnimWorkBuf1, pAnimWorkBuf2,
+                pBg_resource);
+        }
+        fd2_step_figani_pose_animation(target_figani_arr[i], 0,
+            pAnimWorkBuf2, 0x140);
+
+        target_char =
+            &data_fd2_battle_runtime_char_array_ptr[target_idx_buf[i]];
+        original_HP = (uint32)(int16)target_char->hp_current;
+        applied_dmg = (uint32)fd2_apply_damage_and_award_xp(
+            (uint32)target_idx_buf[i],
+            (uint32)(raw_damage_div_10 - (int32)(int16)target_char->dp));
+        if ((int32)original_HP < (int32)applied_dmg) {
+            applied_dmg = original_HP;
+        }
+        target_char->hp_current = (uint16)original_HP;
+
+        if (spell_id == 0x1c) {
+            max_hits = 8;
+        } else {
+            max_hits = 1;
+        }
+        hit_count = 0;
+
+        for (frame_iter = (uint32)*(uint8 *)(pCaster_figani_b + 2);
+             (int32)frame_iter < (int32)(uint32)*(uint8 *)pCaster_figani_b;
+             frame_iter++) {
+            frame_entry = pCaster_figani_b +
+                *(int32 *)(pCaster_figani_b + 8 + frame_iter * 4);
+            if (*(int8 *)(frame_entry + 5) != 0) {
+                fd2_play_sfx_with_handle(data_fd2_audio_figani_sfx_bank_buf_ptr,
+                    (uint32)*(uint8 *)(frame_entry + 5), 1);
+            }
+            if (*(int8 *)(frame_entry + 4) == 1) {
+                fade_steps = 5;
+                palette_color_or_neg1 = 0x21;
+                hit_count = (uint8)(hit_count + 1);
+                target_char->hp_current = (uint16)((int16)original_HP -
+                    (int16)((int32)(hit_count * applied_dmg) /
+                            (int32)(uint32)max_hits));
+                fd2_flash_char_hit_sprite(pAnimWorkBuf1,
+                    (uint32)target_idx_buf[i]);
+            }
+            for (sub_iter = 0;
+                 sub_iter < (int32)(uint32)*(uint8 *)(frame_entry + 6);
+                 sub_iter++) {
+                wrkbuf = pAnimWorkBuf2 + 0x140;
+                fd2_blit_rectangle(wrkbuf, 0x280, pAnimWorkBuf1, 0x140,
+                    0x140, 0xc8);
+                fd2_step_figani_pose_animation(target_figani_arr[i],
+                    palette_color_or_neg1,
+                    wrkbuf - data_fd2_battle_special_attack_shake_x_offset_table
+                                 [fade_steps],
+                    0x280);
+                fd2_blit_indexed_sprite(pCaster_figani_b, frame_iter, wrkbuf,
+                    0x280, -1);
+                fd2_blit_rectangle(0xa0000, 0x140, wrkbuf, 0x280, 0x140, 0xc8);
+                fd2_wait_n_bios_ticks(1);
+                if (fade_steps != 0) {
+                    fade_steps = (uint8)(fade_steps - 1);
+                }
+                palette_color_or_neg1 = 0xffffffff;
+            }
+        }
+    }
+
+    for (i = 0; i < n_targets; i++) {
+        free((void *)target_figani_arr[i]);
+    }
+    free((void *)pBg_layer_saved);
+    free((void *)pBg_resource);
+    free((void *)pTai_resource);
+    free((void *)pBg_layer_saved);
+    free((void *)pAnimWorkBuf1);
+    free((void *)pAnimWorkBuf2);
+    free((void *)data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr);
+    free((void *)data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr);
+    free((void *)data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr);
+    free((void *)pCaster_figani_a);
+    free((void *)pCaster_figani_b);
+
+    fd2_play_sfx_with_handle(data_fd2_audio_figani_sfx_bank_buf_ptr,
+        0xffffffff, 1);
+    if (data_fd2_audio_figani_sfx_bank_buf_ptr != 0) {
+        free((void *)data_fd2_audio_figani_sfx_bank_buf_ptr);
+    }
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)malloc(0x25680);
+    battle_scene_snapshot = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdshap_dat_51a65,
+        battle_scene_snapshot,
+        (uint32)*(uint8 *)data_fd2_tile_event_data_table_ptr * 2);
+    fd2_restore_portrait_cache_from_tmp();
+    fd2_wait_n_bios_ticks(6);
+    fd2_play_palette_fade_to_black();
+    memset((void *)0xa0000, 0, 64000);
+    fd2_composite_battle_frame(1);
+    fd2_play_palette_fade_in();
     return;
 }

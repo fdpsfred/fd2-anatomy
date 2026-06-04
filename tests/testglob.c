@@ -67,6 +67,9 @@ char   data_fd2_string_resource_filename_fdother_dat[] = "FDOTHER.DAT";
 char   data_fd2_string_resource_filename_fdfield_dat_51a59[] = "FDFIELD.DAT";
 char   data_fd2_string_resource_filename_fdshap_dat_51a65[] = "FDSHAP.DAT";
 char   data_fd2_string_resource_filename_dato_dat_51a70[] = "DATO.DAT";
+char   data_fd2_string_resource_filename_bg_dat_52381[] = "BG.DAT";
+char   data_fd2_string_resource_filename_figani_dat_52388[] = "FIGANI.DAT";
+char   data_fd2_string_resource_filename_tai_dat[] = "TAI.DAT";
 char   data_fd2_string_save_load_oom_msg_load_pbuf_50004[] = " Out of Memory !!!\n";
 char   data_fd2_string_save_load_oom_msg_tile_event_50023[] = " Out of Memory !!!\n";
 char   data_fd2_string_save_load_oom_msg_runtime_char_50037[] = " Out of Memory !!!\n";
@@ -88,6 +91,13 @@ uint32 data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
 uint32 data_fd2_battle_teleport_dest_world_x = 0;
 uint32 data_fd2_battle_teleport_dest_world_y = 0;
 uint32 data_fd2_audio_status_effect_sfx_handle_ptr = 0;
+uint32 data_fd2_audio_figani_sfx_bank_buf_ptr = 0;
+uint32 data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = 0;
+uint32 data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = 0;
+uint32 data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = 0;
+/* real values from FD2.LE @ 0x52549 (per-sub-frame hit-shake X-offset cache) */
+uint8  data_fd2_battle_special_attack_shake_x_offset_table[6] =
+    { 0, 4, 9, 14, 18, 14 };
 uint32 data_fd2_battle_tile_attr_mv_modifier_table[32];
 uint32 data_fd2_battle_tile_attr_def_modifier_table[32];
 uint32 data_fd2_vga_palette_data_ptr = 0;
@@ -1265,3 +1275,23 @@ uint32 fd2_check_party_has_char_id(uint32 char_id) {
     g_has_char_last_arg = char_id;
     return g_has_char_fake;
 }
+
+/* ---- fd2_execute_special_attack_skill (src/spell/spellcin.c @ 0x276EC) callee
+ * stubs. That worker is a monolithic VGA/VRAM cinematic deferred to Phase 9
+ * integration (no unit test drives it), so these are plain no-op linker stubs.
+ * Each is replaced when its real definition is emitted. Signatures match
+ * src/include/protos.h. */
+uint8 fd2_resolve_terrain_for_aoe_targets(int n_chars, uint32 target_byte_array)
+    { return 0; }
+uint32 fd2_load_figani_sfx_bank(uint32 figani_data) { return 0; }
+void fd2_step_figani_pose_animation(uint32 figani_data, uint32 palette_op,
+    uint32 dst_buf, uint32 dst_stride) { }
+void fd2_animate_bg_zoom_transition_in(uint32 char_unit_id, uint32 target_figani,
+    uint32 workbuf1, uint32 workbuf2, uint32 bg_resource) { }
+void fd2_play_char_intro_zoom_anim(uint32 caster_idx, uint32 mode_flag,
+    uint32 caster_figani_a, uint32 target_figani0, uint32 workbuf2,
+    uint32 workbuf1, uint32 tai_resource) { }
+void fd2_play_figani_animation_loop(uint32 caster_idx, uint32 spell_id,
+    uint32 caster_figani_b, uint32 target_figani0, uint32 workbuf2,
+    uint32 workbuf1, uint32 bg_layer_saved, uint32 tai_resource) { }
+void fd2_restore_portrait_cache_from_tmp(void) { }

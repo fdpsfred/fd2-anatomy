@@ -1,9 +1,9 @@
 /*
  * unit tests for src/spell/spellcin.c
  *
- * Ten of the eleven workers in this file are pure VGA/VRAM cinematic
+ * Eleven of the twelve workers in this file are pure VGA/VRAM cinematic
  * orchestration and have no isolated numeric path that avoids a write to the
- * hardcoded mode-13h framebuffer literal 0xA0504 (not redirectable via
+ * hardcoded mode-13h framebuffer literal 0xA0504 / 0xA0000 (not redirectable via
  * globals). Their behavioral verification is deferred to Phase 9 integration on
  * DOSBox-X, matching the project convention for VGA/VRAM-touching workers:
  *
@@ -96,6 +96,24 @@
  *   bank loader (fd2_load_status_effect_sfx / fd2_play_sfx_with_handle), so it
  *   is deferred to Phase 9 integration. No RNG / damage / state-transition
  *   branch exists to assert at unit level.
+ *
+ *   fd2_execute_special_attack_skill @ 0x276ec — character special-attack
+ *   technique (必殺技, spell ids 0x18/0x1C/0x1D/0x1E). Monolithic cinematic with
+ *   no early numeric path: the damage formula ((int16)caster.ap * multiplier /
+ *   10, signed div; multiplier {0x18:15,0x1C:20,0x1D:12,default:18}) is a local
+ *   with no side effect until passed to fd2_apply_damage_and_award_xp, which is
+ *   reached only AFTER fd2_play_char_intro_zoom_anim + fd2_play_figani_animation_loop
+ *   have already blitted to VRAM. The damage write to target.hp_current and its
+ *   progressive re-application (hp = original_HP - hit_count*applied_dmg/max_hits,
+ *   max_hits = 8 for 0x1C else 1) is interleaved with the per-sub-frame
+ *   fd2_blit_rectangle(0xA0000,...) commits and the shake-offset table lookup
+ *   (data_fd2_battle_special_attack_shake_x_offset_table[fade_steps], fade_steps
+ *   5->0). Setup also fopens the real FD2.TMP (fd2_restore_portrait_cache_from_tmp)
+ *   and FDSHAP.DAT, and mallocs 64000 + 128KB scratch. All computed state was
+ *   verified statically against the disassembly @0x276EC..0x27FC8 (damage @0x2781E,
+ *   clamp @0x27C44, progressive HP @0x27D15..0x27D4D); none is observable without
+ *   driving the full FIGANI cinematic + resource loaders + VRAM, so it is deferred
+ *   to Phase 9 integration.
  *
  * The remaining worker, fd2_scatter_sprite_around_origin_with_random_offset
  * @ 0x21db2, is the scatter *leaf* called by the orphan executor. Unlike its
@@ -206,7 +224,7 @@ static void test_scatter_type_range(void)
 void run_spell_spellcin_tests(void)
 {
     int _prev_fails = g_test_fail_count;
-    printf("Suite: spell/spellcin (scatter leaf tested; 10 VGA/VRAM cinematic "
+    printf("Suite: spell/spellcin (scatter leaf tested; 11 VGA/VRAM cinematic "
            "workers deferred to Phase 9, see file header)\n");
     RUN_TEST(test_scatter_seed_1234_index0);
     RUN_TEST(test_scatter_seed_5555_index1);
