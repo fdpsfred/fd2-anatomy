@@ -982,8 +982,9 @@
     "name": "fd2_render_decimal_number_to_buffer",
     "target": "gfx/rndstat.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00018890": {
     "name": "fd2_player_action_menu_loop",

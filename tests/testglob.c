@@ -51,6 +51,7 @@ uint32 data_fd2_chinese_font_sheet = 0;
 uint8  data_fd2_ui_terrain_hud_user_enabled = 0;
 uint8  data_fd2_audio_sfx_driver_available_flag = 0;
 uint8  data_fd2_audio_sfx_enabled_flag = 0;
+char   data_fd2_string_ui_render_decimal_format_template[6] = "%0.5d";
 char   data_fd2_string_resource_filename_fdtxt_dat[] = "FDTXT.DAT";
 char   data_fd2_string_resource_filename_fdother_dat[] = "FDOTHER.DAT";
 char   data_fd2_string_resource_filename_fdfield_dat_51a59[] = "FDFIELD.DAT";
@@ -399,43 +400,21 @@ int fd2_chapter_transition_menu(void) { return g_chapter_transition_return; }
  * It calls fd2_save_screen_block_to_buffer exactly once per invocation, so the
  * save-block call counter (g_saveblk_calls) is an exact proxy for the
  * alloc/blit-chunk call count in any test that drives it in isolation. */
-/* Recording spy for the decimal-number render primitive that
- * fd2_render_full_char_stat_panel dispatches to. It is a display no-op
- * (the real renderer blits glyph sprites) but the panel's risk-bearing logic
- * is the per-field value extraction + boost-color selection it feeds it, so
- * the panel test (tests/gfx/rndstat.c) gates g_render_log_on and asserts the
- * captured argument stream. The HP/MP bar primitive is no longer spied: the
- * panel test drives the real bar renderer through to the g_blitraw_* sprite
- * log. All other callers keep the original no-op behavior (logging is bounded
- * and only active while the gate is on). */
-int    g_render_log_on = 0;
-int    g_render_dec_count = 0;
-uint32 g_render_dec_dst[32];
-uint32 g_render_dec_val[32];
-uint32 g_render_dec_color[32];
-uint32 g_render_dec_digits[32];
-
-void fd2_render_decimal_number_to_buffer(uint32 dst, uint32 stride,
-    uint32 v, uint32 x, uint32 digits)
-{
-    if (g_render_log_on && g_render_dec_count < 32) {
-        g_render_dec_dst[g_render_dec_count] = dst;
-        g_render_dec_val[g_render_dec_count] = v;
-        g_render_dec_color[g_render_dec_count] = x;
-        g_render_dec_digits[g_render_dec_count] = digits;
-        g_render_dec_count++;
-    }
-    (void)stride;
-}
+/* fd2_render_decimal_number_to_buffer: now emitted in src/gfx/rndstat.c and
+ * linked for real. Its caller tests (panel / inventory / redfull in
+ * tests/gfx/rndstat.c) drive the real renderer end-to-end through the real
+ * fd2_blit_indexed_sprite_at_xy -> fd2_rle_blit_sprite spy, recovering each
+ * rendered digit/overflow glyph from the g_rle_blit_log_* per-call log against
+ * a fake sheet (table[i]=i). No argument-recording spy remains. */
 /* fd2_render_hp_or_mp_bar_proportional: now emitted in src/gfx/rndstat.c. The
  * panel tests drive the real function, which computes the proportional segment
  * count and forwards to the real fd2_render_horizontal_bar_segments ->
  * fd2_blit_sheet_sprite_at_offset pipeline, so the bars are observed end-to-end
  * through the g_blitraw_* sprite log (no bar-specific spy needed). */
 /* fd2_render_number_red_when_full: now emitted in src/gfx/rndstat.c. It is a
- * thin wrapper that forwards into fd2_render_decimal_number_to_buffer with a
- * red/white color chosen by current==max, so the panel tests observe its 4
- * calls through the g_render_dec_* recording spy. */
+ * thin wrapper that forwards into the real fd2_render_decimal_number_to_buffer
+ * with a red/white color chosen by current==max; the panel/redfull tests
+ * observe its rendered digit glyphs through the g_rle_blit_log_* log. */
 void __delay_thunk_375b2(uint32 ticks) { (void)ticks; }
 int g_ail_vol_calls = 0;
 int g_ail_last_vol = 0;
@@ -458,6 +437,11 @@ int32  g_rle_blit_last_stride = 0;
 uint32 g_rle_blit_last_palette = 0;
 int32  g_rle_blit_y_log[4];
 uint8  g_rle_blit_sprite_first_byte_log[4];
+/* opt-in full per-call log (default off; used by the decimal-number digit
+ * renderer test to recover each digit's resolved sprite addr + dst). */
+int    g_rle_blit_log_on = 0;
+uint32 g_rle_blit_log_sprite[64];
+uint32 g_rle_blit_log_dst[64];
 void fd2_rle_blit_sprite(uint32 rle_stream, int32 dst_x, int32 dst_y,
                          uint32 dst_buf, int32 stride, uint32 palette_op) {
     g_rle_blit_last_sprite = rle_stream;
@@ -473,6 +457,10 @@ void fd2_rle_blit_sprite(uint32 rle_stream, int32 dst_x, int32 dst_y,
          * payload[idx][0] = idx). */
         g_rle_blit_sprite_first_byte_log[g_rle_blit_calls] =
             (rle_stream != 0) ? *(uint8 *)rle_stream : 0;
+    }
+    if (g_rle_blit_log_on && g_rle_blit_calls < 64) {
+        g_rle_blit_log_sprite[g_rle_blit_calls] = rle_stream;
+        g_rle_blit_log_dst[g_rle_blit_calls] = dst_buf;
     }
     g_rle_blit_calls++;
 }

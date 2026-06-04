@@ -2,6 +2,7 @@
  * rndstat.c — dialog portrait / status-area rendering helpers
  */
 
+#include <stdio.h>
 #include <string.h>
 #include "types.h"
 #include "consts.h"
@@ -601,4 +602,72 @@ void fd2_render_hp_or_mp_bar_proportional(uint32 dst_off, uint32 pitch,
         segments = (uint32)(((int32)current * 0x65) / (int32)max) + 1;
     }
     fd2_render_horizontal_bar_segments(dst_off, pitch, segments, sprite_base);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_render_decimal_number_to_buffer @ 0x187d6 (16 callers)
+ *
+ * Render the integer `value` as `digit_count` decimal digits into the
+ * pixel buffer at `dst`, blitting one digit glyph sprite per column
+ * (6 pixels apart) from the UI/anim sprite sheet, with overflow
+ * placeholder glyphs.
+ *
+ *   value < 0                       -> clamp to 0 (signed test on value).
+ *   digit_count == 3 && value > 999 -> blit single "MAX" glyph
+ *                                      (sprite_base_idx + 10), return.
+ *   digit_count == 2 && value >= 100-> blit single fixed "99+" glyph
+ *                                      (sprite 0x5D, color-agnostic), return.
+ *   otherwise                       -> zero-padded decimal, one glyph/column.
+ *
+ * Normal path: the binary copies the 6-byte format template
+ * data_fd2_string_ui_render_decimal_format_template ("%0.5d") to a local
+ * buffer and overwrites byte[3] ('5') with ('0' + digit_count), yielding
+ * "%0.Nd"; sprintf renders N zero-padded digits, then each ASCII digit
+ * digit_buf[i] selects sprite sprite_base_idx + (digit_buf[i] - '0').
+ *
+ * sprite_base_idx convention:
+ *   0x2A = white digits, 0x77 = red (boosted), 0x1F = red (HP/MP full).
+ * Sheet layout: sheet[base..base+9] = '0'..'9'; sheet[base+10] = "MAX".
+ *
+ * Cdecl, 5 stack params; void return. The binary's __CHK(0x40)
+ * stack-probe prologue is compiler-generated and omitted here.
+ * ---------------------------------------------------------------- */
+void fd2_render_decimal_number_to_buffer(uint32 dst, uint32 stride,
+                                         uint32 value, uint32 sprite_base_idx,
+                                         uint32 digit_count)
+{
+    char fmt[8];
+    char digit_buf[20];
+    int32 i;
+
+    if ((int32)value < 0) {
+        value = 0;
+    }
+
+    if (digit_count == 3 && (int32)value > 999) {
+        fd2_blit_indexed_sprite_at_xy(dst, stride,
+                                      data_fd2_ui_anim_sprite_sheet_ptr,
+                                      sprite_base_idx + 10);
+        return;
+    }
+    if (digit_count == 2 && (int32)value >= 100) {
+        fd2_blit_indexed_sprite_at_xy(dst, stride,
+                                      data_fd2_ui_anim_sprite_sheet_ptr, 0x5d);
+        return;
+    }
+
+    fmt[0] = data_fd2_string_ui_render_decimal_format_template[0];
+    fmt[1] = data_fd2_string_ui_render_decimal_format_template[1];
+    fmt[2] = data_fd2_string_ui_render_decimal_format_template[2];
+    fmt[3] = (char)('0' + digit_count);
+    fmt[4] = data_fd2_string_ui_render_decimal_format_template[4];
+    fmt[5] = data_fd2_string_ui_render_decimal_format_template[5];
+    sprintf(digit_buf, fmt, value);
+
+    for (i = 0; i < (int32)digit_count; i++) {
+        fd2_blit_indexed_sprite_at_xy(dst + (uint32)(i * 6), stride,
+                                      data_fd2_ui_anim_sprite_sheet_ptr,
+                                      sprite_base_idx +
+                                          (uint32)(uint8)digit_buf[i] - 0x30);
+    }
 }

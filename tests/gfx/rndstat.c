@@ -161,6 +161,60 @@ static void bar_reset(void)
     g_blitraw_log_on = 1;
 }
 
+/* ---- shared decimal-number (fd2_render_decimal_number_to_buffer) observation.
+ * The real digit renderer blits each glyph through the real
+ * fd2_blit_indexed_sprite_at_xy -> fd2_rle_blit_sprite spy. With the fake
+ * sheet (bar_setup_sheet, table[i]=i) each call records resolved
+ * sprite = sheet + sprite_index in g_rle_blit_log_* (gated by g_rle_blit_log_on)
+ * so a glyph's sprite index is (logged_sprite - sheet) and its dst the logged
+ * dst. These helpers are shared by the dedicated decimal tests and the panel /
+ * inventory / redfull caller tests. */
+extern int    g_rle_blit_calls;
+extern int    g_rle_blit_log_on;
+extern uint32 g_rle_blit_log_sprite[64];
+extern uint32 g_rle_blit_log_dst[64];
+
+static uint32 g_dec_sheet;
+
+static void dec_setup(void)
+{
+    g_dec_sheet = bar_setup_sheet();   /* table[i] = i; sets sprite-sheet ptr */
+    g_rle_blit_calls = 0;
+    g_rle_blit_log_on = 1;
+}
+
+/* assert the `digits`-glyph run for a normal (non-overflow) number that the
+ * binary renders as "%0.<digits>d" of `value`, drawn at `dst` with sprite
+ * base `color`, starting at rle-log index `from`. The caller advances its
+ * cursor by `digits` (void return because ASSERT_EQ early-returns void). */
+static void dec_assert_number(int from, uint32 dst, uint32 value,
+                              uint32 color, uint32 digits)
+{
+    char fmt[8];
+    char s[20];
+    int  i;
+
+    fmt[0] = '%'; fmt[1] = '0'; fmt[2] = '.';
+    fmt[3] = (char)('0' + digits);
+    fmt[4] = 'd'; fmt[5] = '\0';
+    sprintf(s, fmt, value);
+
+    for (i = 0; i < (int)digits; i++) {
+        ASSERT_EQ((long)(g_rle_blit_log_sprite[from + i] - g_dec_sheet),
+                  (long)(color + (uint32)(uint8)s[i] - 0x30));
+        ASSERT_EQ((long)g_rle_blit_log_dst[from + i],
+                  (long)(dst + (uint32)(i * 6)));
+    }
+}
+
+/* assert a single overflow/placeholder glyph (sprite index `sprite`) drawn at
+ * `dst` at rle-log index `from` (caller advances its cursor by 1). */
+static void dec_assert_overflow(int from, uint32 dst, uint32 sprite)
+{
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[from] - g_dec_sheet), (long)sprite);
+    ASSERT_EQ((long)g_rle_blit_log_dst[from], (long)dst);
+}
+
 /* fully-empty bar: filled_count == 0 emits 0x65 (101) middle 0x1D segments
  * at offset+1..offset+0x65, then an empty right cap 0x1E at offset+0x66
  * (the carried EAX = dst_offset + 0x66 from the final loop LEA). 102 blits. */
@@ -250,28 +304,70 @@ static void test_mp_bar_theme_base(void)
  * fd2_render_full_char_stat_panel @ 0x17fc0
  *
  * Drive the REAL panel painter and capture its dispatch to:
- *   - fd2_render_hp_or_mp_bar_proportional  (recording spy, testglob)
+ *   - fd2_render_hp_or_mp_bar_proportional  (REAL) -> g_blitraw bar caps
  *   - fd2_render_number_red_when_full (REAL, src/gfx/rndstat.c) -> forwards
- *     into the fd2_render_decimal_number_to_buffer spy with a red/white color
- *     chosen by current==max, so its 4 numbers appear in g_render_dec_* too
- *   - fd2_render_decimal_number_to_buffer   (recording spy, testglob)
+ *     into the REAL fd2_render_decimal_number_to_buffer with a red/white color
+ *     chosen by current==max; its 4 numbers' glyphs lead the rle log
+ *   - fd2_render_decimal_number_to_buffer (REAL) -> digit glyphs via the
+ *     fd2_blit_indexed_sprite_at_xy -> fd2_rle_blit_sprite pipeline, logged in
+ *     g_rle_blit_log_* (the 12 panel numbers' glyph runs, in call order)
  *   - fd2_blit_sheet_sprite_at_offset (REAL) -> g_blitraw log (team flag +
- *     status icons)
+ *     status icons + bar caps)
  *   - fd2_display_dialog_scene (REAL) for the 3 text labels, against a
  *     minimal text program whose every page entry points at an immediate
  *     END (-1) opcode so the dialog VM returns at once (no fopen / no wait).
  *
  * The panel indexes data_fd2_battle_runtime_char_array_ptr (= g_test_rc_array,
- * 8 slots) so all tests use slot 0.
+ * 8 slots) so all tests use slot 0. Decimal numbers do NOT touch g_blitraw;
+ * bar caps / team flag / status icons do NOT touch the rle log, so the two
+ * logs stay cleanly separated.
  * ---------------------------------------------------------------- */
-extern int    g_render_log_on;
-extern int    g_render_dec_count;
-extern uint32 g_render_dec_dst[32];
-extern uint32 g_render_dec_val[32];
-extern uint32 g_render_dec_color[32];
-extern uint32 g_render_dec_digits[32];
-
 extern runtime_char g_test_rc_array[8];
+
+/* expected one decimal number: glyph run at `dst`, "%0.<digits>d" of `val`
+ * with sprite base `color`. The 12 panel numbers render in this fixed order. */
+typedef struct {
+    uint32 dst;
+    uint32 val;
+    uint32 color;
+    uint32 digits;
+} dec_exp;
+
+/* fill the 12-number expected table the panel renders for panel_setup_char()'s
+ * profile at surface base `buf`. Callers override individual entries (boost
+ * color / sign-extended value) before panel_assert_numbers(). */
+static void panel_fill_expected(dec_exp *e, uint32 buf)
+{
+    /* 4 red-when-full HP/MP numbers (cur white unless cur==max, max always red
+     * since it passes current==max): */
+    e[0].dst = buf + 0x344b; e[0].val = 0x50; e[0].color = 0x2a; e[0].digits = 3;
+    e[1].dst = buf + 0x3465; e[1].val = 0x64; e[1].color = 0x1f; e[1].digits = 3;
+    e[2].dst = buf + 0x4acb; e[2].val = 0x10; e[2].color = 0x2a; e[2].digits = 3;
+    e[3].dst = buf + 0x4ae5; e[3].val = 0x20; e[3].color = 0x1f; e[3].digits = 3;
+    /* 8 direct stat numbers (white when their boost flag is clear): */
+    e[4].dst = buf + 0x29dd; e[4].val = 0x0a; e[4].color = 0x2a; e[4].digits = 2;
+    e[5].dst = buf + 0x379d; e[5].val = 0x05; e[5].color = 0x2a; e[5].digits = 2;
+    e[6].dst = buf + 0x455d; e[6].val = 0x07; e[6].color = 0x2a; e[6].digits = 2;
+    e[7].dst = buf + 0x545d; e[7].val = 0x11; e[7].color = 0x2a; e[7].digits = 3;
+    e[8].dst = buf + 0x635d; e[8].val = 0x22; e[8].color = 0x2a; e[8].digits = 3;
+    e[9].dst = buf + 0x4535; e[9].val = 0x55; e[9].color = 0x2a; e[9].digits = 3;
+    e[10].dst = buf + 0x5435; e[10].val = 0x33; e[10].color = 0x2a; e[10].digits = 3;
+    e[11].dst = buf + 0x6335; e[11].val = 0x44; e[11].color = 0x2a; e[11].digits = 3;
+}
+
+/* walk the rle digit log asserting the `n` expected numbers in order; each
+ * normal number consumes `digits` glyphs. void (ASSERT_EQ early-returns); the
+ * total glyph count is verified separately via g_rle_blit_calls. */
+static void panel_assert_numbers(const dec_exp *e, int n)
+{
+    int cur = 0;
+    int k;
+
+    for (k = 0; k < n; k++) {
+        dec_assert_number(cur, e[k].dst, e[k].val, e[k].color, e[k].digits);
+        cur += (int)e[k].digits;
+    }
+}
 
 /* Locate the g_blitraw log entry whose destination equals `dst` and return its
  * sprite-stream pointer (sheet + sprite_index); fail if no entry matches. Used
@@ -359,10 +455,11 @@ static runtime_char *panel_setup_char(void)
 
 static void panel_reset_logs(void)
 {
-    g_render_dec_count = 0;
     g_blitraw_count = 0;
-    g_render_log_on = 1;
     g_blitraw_log_on = 1;
+    g_dec_sheet = data_fd2_ui_anim_sprite_sheet_ptr;  /* set by bar_setup_sheet */
+    g_rle_blit_calls = 0;       /* rle digit-log cursor */
+    g_rle_blit_log_on = 1;
 }
 
 /* HP/MP bars + the 4 red-when-full numbers carry the exact (sign-extended)
@@ -396,31 +493,18 @@ static void test_panel_bars_and_full_numbers(void)
     ASSERT_EQ((long)(panel_find_blit_sprite(buf + 0x41c6) - sheet), 0x1a);
     ASSERT_EQ((long)(panel_find_blit_sprite(buf + 0x41c6 + 51) - sheet), 0x1c);
 
-    /* The real fd2_render_number_red_when_full forwards into the decimal spy,
-     * so the 4 HP/MP cur/max numbers are g_render_dec_* entries [0..3] (the 8
-     * direct stat numbers follow at [4..11], total 12). Each carries the
-     * sign-extended value to the right surface offset, 3-digit, with the
-     * "full" color: cur==max -> red 0x1F, else white 0x2A. The two "max"
-     * variants pass current==max so they are red. */
-    ASSERT_EQ((long)g_render_dec_count, 12);
-    /* HP current: 0x50 != max 0x64 -> white */
-    ASSERT_EQ((long)g_render_dec_dst[0],    (long)(buf + 0x344b));
-    ASSERT_EQ((long)g_render_dec_val[0],    0x50);
-    ASSERT_EQ((long)g_render_dec_color[0],  0x2a);
-    ASSERT_EQ((long)g_render_dec_digits[0], 3);
-    /* HP max: 0x64 == max 0x64 -> red */
-    ASSERT_EQ((long)g_render_dec_dst[1],    (long)(buf + 0x3465));
-    ASSERT_EQ((long)g_render_dec_val[1],    0x64);
-    ASSERT_EQ((long)g_render_dec_color[1],  0x1f);
-    ASSERT_EQ((long)g_render_dec_digits[1], 3);
-    /* MP current: 0x10 != max 0x20 -> white */
-    ASSERT_EQ((long)g_render_dec_dst[2],    (long)(buf + 0x4acb));
-    ASSERT_EQ((long)g_render_dec_val[2],    0x10);
-    ASSERT_EQ((long)g_render_dec_color[2],  0x2a);
-    /* MP max: 0x20 == max 0x20 -> red */
-    ASSERT_EQ((long)g_render_dec_dst[3],    (long)(buf + 0x4ae5));
-    ASSERT_EQ((long)g_render_dec_val[3],    0x20);
-    ASSERT_EQ((long)g_render_dec_color[3],  0x1f);
+    /* The real fd2_render_number_red_when_full forwards into the real decimal
+     * renderer, so the 4 HP/MP cur/max numbers' glyph runs lead the rle log,
+     * followed by the 8 direct stat numbers (33 glyphs total). Each renders the
+     * value at its surface offset with the "full" color: cur==max -> red 0x1F,
+     * else white 0x2A. The two "max" variants pass current==max so they are red.
+     * dec_exp[0..3]: HP cur(white), HP max(red), MP cur(white), MP max(red). */
+    {
+        dec_exp e[12];
+        panel_fill_expected(e, buf);
+        panel_assert_numbers(e, 12);
+        ASSERT_EQ((long)g_rle_blit_calls, 33);   /* 9x3 + 3x2 digit glyphs */
+    }
 }
 
 /* the 8 fd2_render_decimal_number_to_buffer calls carry the right field
@@ -438,44 +522,17 @@ static void test_panel_decimal_numbers_unboosted(void)
 
     fd2_render_full_char_stat_panel(0, buf);
 
-    /* 4 red-when-full numbers ([0..3]) precede the 8 direct stat numbers
-     * ([4..11]) in the decimal spy now that the wrapper is real. */
-    ASSERT_EQ((long)g_render_dec_count, 12);
-
-    /* [4] level (2-digit, white) */
-    ASSERT_EQ((long)g_render_dec_dst[4], (long)(buf + 0x29dd));
-    ASSERT_EQ((long)g_render_dec_val[4], 0x0A);
-    ASSERT_EQ((long)g_render_dec_color[4], 0x2a);
-    ASSERT_EQ((long)g_render_dec_digits[4], 2);
-    /* [5] movement (2-digit, white) */
-    ASSERT_EQ((long)g_render_dec_dst[5], (long)(buf + 0x379d));
-    ASSERT_EQ((long)g_render_dec_val[5], 0x05);
-    ASSERT_EQ((long)g_render_dec_digits[5], 2);
-    /* [6] magic resist (2-digit, white) */
-    ASSERT_EQ((long)g_render_dec_dst[6], (long)(buf + 0x455d));
-    ASSERT_EQ((long)g_render_dec_val[6], 0x07);
-    ASSERT_EQ((long)g_render_dec_digits[6], 2);
-    /* [7] AP (3-digit, white because boost flag clear) */
-    ASSERT_EQ((long)g_render_dec_dst[7], (long)(buf + 0x545d));
-    ASSERT_EQ((long)g_render_dec_val[7], 0x11);
-    ASSERT_EQ((long)g_render_dec_color[7], 0x2a);
-    ASSERT_EQ((long)g_render_dec_digits[7], 3);
-    /* [8] DP (3-digit, white) */
-    ASSERT_EQ((long)g_render_dec_dst[8], (long)(buf + 0x635d));
-    ASSERT_EQ((long)g_render_dec_val[8], 0x22);
-    ASSERT_EQ((long)g_render_dec_color[8], 0x2a);
-    /* [9] DX base (3-digit, ALWAYS white) — word at dx_block[1] = 0x0055 */
-    ASSERT_EQ((long)g_render_dec_dst[9], (long)(buf + 0x4535));
-    ASSERT_EQ((long)g_render_dec_val[9], 0x55);
-    ASSERT_EQ((long)g_render_dec_color[9], 0x2a);
-    /* [10] DX current (3-digit, white) */
-    ASSERT_EQ((long)g_render_dec_dst[10], (long)(buf + 0x5435));
-    ASSERT_EQ((long)g_render_dec_val[10], 0x33);
-    ASSERT_EQ((long)g_render_dec_color[10], 0x2a);
-    /* [11] Evade (3-digit, white) */
-    ASSERT_EQ((long)g_render_dec_dst[11], (long)(buf + 0x6335));
-    ASSERT_EQ((long)g_render_dec_val[11], 0x44);
-    ASSERT_EQ((long)g_render_dec_color[11], 0x2a);
+    /* The 4 red-when-full numbers ([0..3]) precede the 8 direct stat numbers
+     * ([4..11]). With every boost flag clear, each direct stat renders white
+     * (0x2A): level/MV/mag-res are 2-digit, AP/DP/DX-base/DX-cur/Evade 3-digit.
+     * panel_fill_expected encodes the exact value + dst + digits + white color
+     * for all 12, and panel_assert_numbers verifies each glyph run in order. */
+    {
+        dec_exp e[12];
+        panel_fill_expected(e, buf);
+        panel_assert_numbers(e, 12);
+        ASSERT_EQ((long)g_rle_blit_calls, 33);   /* 9x3 + 3x2 digit glyphs */
+    }
 }
 
 /* each combat-stat boost flag independently flips its number to red 0x77;
@@ -495,13 +552,17 @@ static void test_panel_boost_colors_independent(void)
 
     fd2_render_full_char_stat_panel(0, buf);
 
-    /* direct stat numbers are dec indices [4..11] (4 red-when-full precede) */
-    ASSERT_EQ((long)g_render_dec_count, 12);
-    ASSERT_EQ((long)g_render_dec_color[7],  0x77);  /* AP red   */
-    ASSERT_EQ((long)g_render_dec_color[8],  0x77);  /* DP red   */
-    ASSERT_EQ((long)g_render_dec_color[9],  0x2a);  /* DX base white */
-    ASSERT_EQ((long)g_render_dec_color[10], 0x2a);  /* DX cur white */
-    ASSERT_EQ((long)g_render_dec_color[11], 0x2a);  /* Evade white */
+    /* AP (idx 7) and DP (idx 8) flip to red 0x77; DX-base (9), DX-cur (10) and
+     * Evade (11) stay white because their flag is clear. The boosted color is
+     * the sprite base of those numbers' digit glyphs. */
+    {
+        dec_exp e[12];
+        panel_fill_expected(e, buf);
+        e[7].color = 0x77;   /* AP red */
+        e[8].color = 0x77;   /* DP red */
+        panel_assert_numbers(e, 12);
+        ASSERT_EQ((long)g_rle_blit_calls, 33);   /* 9x3 + 3x2 digit glyphs */
+    }
 }
 
 /* the binary reuses one color (ESI) for BOTH DX current and Evade: setting
@@ -522,10 +583,17 @@ static void test_panel_evade_shares_dx_color(void)
 
     fd2_render_full_char_stat_panel(0, buf);
 
-    ASSERT_EQ((long)g_render_dec_color[7],  0x2a);  /* AP white */
-    ASSERT_EQ((long)g_render_dec_color[8],  0x2a);  /* DP white */
-    ASSERT_EQ((long)g_render_dec_color[10], 0x77);  /* DX cur red */
-    ASSERT_EQ((long)g_render_dec_color[11], 0x77);  /* Evade red (shared) */
+    /* one flag (status_flags_block[3]) reddens BOTH DX-current (idx 10) and
+     * Evade (idx 11) while AP (7) and DP (8) stay white, locking the shared
+     * ESI color. The red base shows in those two numbers' digit glyphs. */
+    {
+        dec_exp e[12];
+        panel_fill_expected(e, buf);
+        e[10].color = 0x77;  /* DX cur red */
+        e[11].color = 0x77;  /* Evade red (shared flag) */
+        panel_assert_numbers(e, 12);
+        ASSERT_EQ((long)g_rle_blit_calls, 33);   /* 9x3 + 3x2 digit glyphs */
+    }
 }
 
 /* 16-bit stat reads are sign-extended (MOVSX in the binary): a value with
@@ -550,12 +618,22 @@ static void test_panel_stat_sign_extension(void)
      * fd2_render_hp_or_mp_bar_proportional (current != 0), not the empty
      * branch, so the base sprite 0x17 lands at the bar origin. */
     ASSERT_EQ((long)(panel_find_blit_sprite(buf + 0x2a06) - sheet), 0x17);
-    /* HP-current red number (dec spy [0], via the real wrapper) is likewise
-     * sign-extended; its color is white because cur 0xFFFF8001 != max 0x64 */
-    ASSERT_EQ((long)g_render_dec_val[0], (long)0xFFFF8001u);
-    ASSERT_EQ((long)g_render_dec_color[0], 0x2a);
-    /* AP decimal value (dec spy [7]) sign-extended */
-    ASSERT_EQ((long)g_render_dec_val[7], (long)0xFFFF8002u);
+
+    /* HP-current (idx 0) and AP (idx 7) are read MOVSX: hp_current 0x8001 and
+     * ap 0x8002 arrive as negative 0xFFFF80xx, which the renderer clamps to 0,
+     * so each draws its 3-digit value as "000". Had the read been zero-extended
+     * (0x8001 = 32769 > 999) those 3-digit slots would instead emit a single
+     * "MAX" glyph and the glyph total would drop below 33, so the all-zero runs
+     * + 33-glyph total prove the value was sign-extended negative. HP-current
+     * stays white (cur 0xFFFF8001 != max 0x64). */
+    {
+        dec_exp e[12];
+        panel_fill_expected(e, buf);
+        e[0].val = 0;   /* 0xFFFF8001 clamped -> "000", white */
+        e[7].val = 0;   /* 0xFFFF8002 clamped -> "000" */
+        panel_assert_numbers(e, 12);
+        ASSERT_EQ((long)g_rle_blit_calls, 33);   /* 9x3 + 3x2 digit glyphs */
+    }
 }
 
 /* team flag: enemy (team 0) blits sprite 0x36, player/npc blits 0x35, at
@@ -897,11 +975,13 @@ static void test_panel_right_row_count_bound(void)
  *     background icon sprite per drawn slot, plus a value-label sprite for
  *     weapon/armor/HP/MP items. The fake sheet (bar_setup_sheet, table[i]=i)
  *     lets us recover sprite index = logged_sprite - sheet and the dst.
- *   - fd2_render_decimal_number_to_buffer (recording spy, g_render_dec_*):
- *     the numeric value + surface dst + digits for valued items.
+ *   - fd2_render_decimal_number_to_buffer (REAL) -> digit glyphs via the
+ *     fd2_blit_indexed_sprite_at_xy -> fd2_rle_blit_sprite pipeline, logged in
+ *     g_rle_blit_log_*: the numeric value (as "%0.<digits>d" glyphs) for
+ *     valued items, asserted with dec_assert_number against the value dst.
  *   - fd2_blit_indexed_sprite_at_xy (REAL) -> fd2_rle_blit_sprite spy
- *     (g_rle_blit_last_sprite): the placeholder dot 0x29 for unrecognized
- *     items. resolved sprite = sheet + table[0x29] = sheet + 0x29.
+ *     (g_rle_blit_last_sprite / g_rle_blit_log_*): the placeholder dot 0x29 for
+ *     unrecognized items. resolved sprite = sheet + table[0x29] = sheet + 0x29.
  *   - fd2_display_dialog_scene (REAL) for the per-slot name label, against
  *     panel_setup_text()'s immediate-END program (returns without fopen and
  *     without blitting, so it produces no g_blitraw entries).
@@ -934,7 +1014,10 @@ static void inv_set_slot(int slot, uint8 flag, uint8 item_id)
 }
 
 /* reset the whole inventory grid test fixture: zero char, empty all slots,
- * clear the item table, install fake sheet + immediate-END text, arm logs. */
+ * clear the item table, install fake sheet + immediate-END text, arm logs.
+ * The digit glyphs of valued items go through the real decimal renderer ->
+ * fd2_rle_blit_sprite spy (g_rle_blit_log_*), as does the placeholder dot
+ * 0x29; the two are told apart by sprite index. */
 static uint32 inv_setup(void)
 {
     uint32 sheet;
@@ -952,9 +1035,9 @@ static uint32 inv_setup(void)
 
     g_blitraw_count = 0;
     g_blitraw_log_on = 1;
-    g_render_dec_count = 0;
-    g_render_log_on = 1;
-    g_rle_blit_calls = 0;
+    g_dec_sheet = sheet;        /* fake sheet for dec_assert_number */
+    g_rle_blit_calls = 0;       /* rle log cursor: digit glyphs + placeholder */
+    g_rle_blit_log_on = 1;
     return sheet;
 }
 
@@ -968,8 +1051,7 @@ static void test_inv_all_empty_draws_nothing(void)
     fd2_render_inventory_item_grid(0, -1, buf);
 
     ASSERT_EQ((long)g_blitraw_count, 0);
-    ASSERT_EQ((long)g_render_dec_count, 0);
-    ASSERT_EQ((long)g_rle_blit_calls, 0);
+    ASSERT_EQ((long)g_rle_blit_calls, 0);   /* no digit glyphs, no placeholder */
 }
 
 /* a single weapon item (type < 0x15) in slot 0:
@@ -1001,16 +1083,11 @@ static void test_inv_weapon_slot0(void)
     ASSERT_EQ((long)g_blitraw_log_dst[1],
               (long)(buf + col_x + 0x44 + (row_y + 0x6b) * 0x140));
 
-    /* the number */
-    ASSERT_EQ((long)g_render_dec_count, 1);
-    ASSERT_EQ((long)g_render_dec_val[0], 0x0123);
-    ASSERT_EQ((long)g_render_dec_digits[0], 3);
-    ASSERT_EQ((long)g_render_dec_color[0], 0x2a);
-    ASSERT_EQ((long)g_render_dec_dst[0],
-              (long)(buf + col_x + 0x5d + (row_y + 0x6b) * 0x140));
-
-    /* no placeholder rle blit on the weapon path */
-    ASSERT_EQ((long)g_rle_blit_calls, 0);
+    /* the number: value 0x123 (291), 3-digit white, in-range -> "291" glyphs at
+     * the value dst (3 rle blits, no 0x29 placeholder on the weapon path). */
+    ASSERT_EQ((long)g_rle_blit_calls, 3);
+    dec_assert_number(0, buf + col_x + 0x5d + (row_y + 0x6b) * 0x140,
+                      0x0123, 0x2a, 3);
 }
 
 /* equipped flag (bit6) bumps the background icon sprite by +3:
@@ -1047,9 +1124,10 @@ static void test_inv_armor_slot0(void)
     ASSERT_EQ((long)g_blitraw_count, 2);
     ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x3C);   /* bg armor */
     ASSERT_EQ((long)(g_blitraw_log_sprite[1] - sheet), 0x41);   /* label    */
-    ASSERT_EQ((long)g_render_dec_count, 1);
-    ASSERT_EQ((long)g_render_dec_val[0], 0x0044);
-    ASSERT_EQ((long)g_render_dec_digits[0], 3);
+    /* value = item->dp 0x0044 (68), 3-digit white -> "068" glyphs at the value
+     * dst (cell 0 -> col_x 0x2A, row_y 0). */
+    ASSERT_EQ((long)g_rle_blit_calls, 3);
+    dec_assert_number(0, buf + 0x2a + 0x5d + 0x6b * 0x140, 0x0044, 0x2a, 3);
 }
 
 /* HP-restore consumable (type==0x20, item[0xD]==5): bg icon 0x3D, value
@@ -1071,8 +1149,9 @@ static void test_inv_hp_consumable(void)
     ASSERT_EQ((long)g_blitraw_count, 2);
     ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x3D);   /* bg other */
     ASSERT_EQ((long)(g_blitraw_log_sprite[1] - sheet), 0x42);   /* HP label */
-    ASSERT_EQ((long)g_render_dec_count, 1);
-    ASSERT_EQ((long)g_render_dec_val[0], 0x0032);
+    /* value = *(int16*)(item+0xE) = 0x0032 (50), 3-digit white -> "050" */
+    ASSERT_EQ((long)g_rle_blit_calls, 3);
+    dec_assert_number(0, buf + 0x2a + 0x5d + 0x6b * 0x140, 0x0032, 0x2a, 3);
 }
 
 /* MP-restore consumable (type==0x20, item[0xD]==0xB): bg icon 0x3D, value
@@ -1100,10 +1179,11 @@ static void test_inv_mp_consumable(void)
     /* the recomputed value/label addresses match the common formula */
     ASSERT_EQ((long)g_blitraw_log_dst[1],
               (long)(buf + col_x + 0x44 + (row_y + 0x6b) * 0x140));
-    ASSERT_EQ((long)g_render_dec_count, 1);
-    ASSERT_EQ((long)g_render_dec_val[0], 0x0014);
-    ASSERT_EQ((long)g_render_dec_dst[0],
-              (long)(buf + col_x + 0x5d + (row_y + 0x6b) * 0x140));
+    /* value = *(int16*)(item+0xE) = 0x0014 (20), 3-digit white -> "020" at the
+     * recomputed value dst. */
+    ASSERT_EQ((long)g_rle_blit_calls, 3);
+    dec_assert_number(0, buf + col_x + 0x5d + (row_y + 0x6b) * 0x140,
+                      0x0014, 0x2a, 3);
 }
 
 /* unrecognized item (type==0x20 but item[0xD] neither 5 nor 0xB): background
@@ -1124,11 +1204,10 @@ static void test_inv_placeholder_other(void)
     /* only the background icon goes through the sheet blit */
     ASSERT_EQ((long)g_blitraw_count, 1);
     ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x3D);
-    /* placeholder dot via rle path, resolved sprite = sheet + table[0x29] */
+    /* exactly one rle blit: the placeholder dot 0x29 (no decimal digits, since
+     * an unrecognized item draws no value number). resolved = sheet+table[0x29]. */
     ASSERT_EQ((long)g_rle_blit_calls, 1);
     ASSERT_EQ((long)(g_rle_blit_last_sprite - sheet), 0x29);
-    /* no number */
-    ASSERT_EQ((long)g_render_dec_count, 0);
 }
 
 /* type boundary: type 0x14 is still a weapon (< 0x15 -> 0x3B/0x40), type 0x15
@@ -1165,8 +1244,12 @@ static void test_inv_type_boundaries(void)
     ASSERT_EQ((long)(g_blitraw_log_sprite[1] - sheet), 0x41);
 }
 
-/* value sign-extension: the value is read with MOVSX (signed 16-bit). A
- * weapon ap of 0x8001 must arrive at the decimal renderer as 0xFFFF8001. */
+/* value sign-extension: the value is read with MOVSX (signed 16-bit). A weapon
+ * ap of 0x8001 arrives at the decimal renderer as 0xFFFF8001 (negative), which
+ * the renderer's signed (int32)<0 guard clamps to 0 -> the 3-digit value draws
+ * "000". Had the read been zero-extended (0x8001 = 32769 > 999) the 3-digit
+ * path would instead emit the single overflow "MAX" glyph, so the all-zero
+ * digit run proves the value was sign-extended negative. */
 static void test_inv_value_sign_extension(void)
 {
     uint32 buf = 0x2c0000;
@@ -1178,8 +1261,9 @@ static void test_inv_value_sign_extension(void)
 
     fd2_render_inventory_item_grid(0, -1, buf);
 
-    ASSERT_EQ((long)g_render_dec_count, 1);
-    ASSERT_EQ((long)g_render_dec_val[0], (long)0xFFFF8001u);
+    /* 3 digit glyphs "000" at the weapon value dst (cell 0); not a MAX glyph */
+    ASSERT_EQ((long)g_rle_blit_calls, 3);
+    dec_assert_number(0, buf + 0x2a + 0x5d + 0x6b * 0x140, 0, 0x2a, 3);
 }
 
 /* empty slots are skipped without consuming a grid cell: with slot 0 empty
@@ -1260,7 +1344,7 @@ static void test_inv_placeholder_still_counts(void)
     fd2_render_inventory_item_grid(0, -1, buf);
 
     /* blit order: slot0 bg(0x3D), slot1 bg(0x3B), slot1 value(0x40) = 3 sheet
-     * blits; slot0 also did one rle placeholder. */
+     * blits. */
     ASSERT_EQ((long)g_blitraw_count, 3);
     ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x3D);   /* slot0 ph bg */
     ASSERT_EQ((long)(g_blitraw_log_sprite[1] - sheet), 0x3B);   /* slot1 wp bg */
@@ -1268,87 +1352,90 @@ static void test_inv_placeholder_still_counts(void)
      * advanced active_slot_count from 0 to 1. */
     ASSERT_EQ((long)g_blitraw_log_dst[1],
               (long)(buf + 0x2a - 0x1d + (1 * 0x16 + 0x65) * 0x140));
-    ASSERT_EQ((long)g_rle_blit_calls, 1);
+    /* rle log: slot0 placeholder dot 0x29 (index 0) then slot1 weapon value
+     * ap 9 -> "009" 3 digit glyphs (indices 1..3) at the cell-1 value dst. */
+    ASSERT_EQ((long)g_rle_blit_calls, 4);
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[0] - sheet), 0x29);  /* placeholder */
+    dec_assert_number(1, buf + 0x2a + 0x5d + (1 * 0x16 + 0x6b) * 0x140,
+                      9, 0x2a, 3);
 }
 
 /* ----------------------------------------------------------------
  * fd2_render_number_red_when_full @ 0x1875d
  *
  * Thin wrapper: color = (current == max) ? 0x1F : 0x2A, then forward
- * (dst, pitch, current, color, digits) to fd2_render_decimal_number_to_buffer.
- * Driven directly here and observed through the decimal recording spy
- * (g_render_dec_*). Risk-based coverage: both color branches plus exact
- * pass-through of dst / value / digits (and that the forwarded value is
- * `current`, never `max`).
+ * (dst, pitch, current, color, digits) to the real
+ * fd2_render_decimal_number_to_buffer. Driven directly here and observed
+ * through the real digit pipeline (g_rle_blit_log_*, fake sheet table[i]=i):
+ * the chosen color is the sprite base of every rendered glyph, and the
+ * rendered value is `current` (never `max`). Risk-based coverage: both color
+ * branches, value = current, and the full-width 32-bit equality compare.
+ * Values are kept in-range (3-digit < 1000, 2-digit < 100) so the color shows
+ * in the digit glyphs rather than a color-agnostic overflow placeholder.
  * ---------------------------------------------------------------- */
-static void redfull_reset(void)
-{
-    g_render_dec_count = 0;
-    g_render_log_on = 1;
-}
 
-/* current == max -> red glow 0x1F; current is the value drawn, dst/digits
- * are forwarded verbatim. */
+/* current == max -> red glow 0x1F; current is the value drawn at dst with the
+ * red base. value 0x64 (100), 3 digits -> "100" glyphs based at 0x1F. */
 static void test_redfull_equal_is_red(void)
 {
-    redfull_reset();
+    dec_setup();
     fd2_render_number_red_when_full(0x1234, 0x140, 0x64, 0x64, 3);
 
-    ASSERT_EQ((long)g_render_dec_count, 1);
-    ASSERT_EQ((long)g_render_dec_dst[0],    0x1234);
-    ASSERT_EQ((long)g_render_dec_val[0],    0x64);   /* value = current */
-    ASSERT_EQ((long)g_render_dec_color[0],  0x1f);   /* red */
-    ASSERT_EQ((long)g_render_dec_digits[0], 3);
+    ASSERT_EQ((long)g_rle_blit_calls, 3);
+    dec_assert_number(0, 0x1234, 0x64, 0x1f, 3);   /* value=current, red base */
 }
 
-/* current < max -> white 0x2A, and value is current (not max). */
+/* current < max -> white 0x2A, and value is current (not max). value 0x50
+ * (80) -> "080" glyphs based at 0x2A; had it forwarded max (0x64) the glyphs
+ * would be "100" instead. */
 static void test_redfull_below_is_white(void)
 {
-    redfull_reset();
+    dec_setup();
     fd2_render_number_red_when_full(0x5678, 0x140, 0x50, 0x64, 3);
 
-    ASSERT_EQ((long)g_render_dec_count, 1);
-    ASSERT_EQ((long)g_render_dec_dst[0],    0x5678);
-    ASSERT_EQ((long)g_render_dec_val[0],    0x50);   /* current, NOT max */
-    ASSERT_EQ((long)g_render_dec_color[0],  0x2a);   /* white */
-    ASSERT_EQ((long)g_render_dec_digits[0], 3);
+    ASSERT_EQ((long)g_rle_blit_calls, 3);
+    dec_assert_number(0, 0x5678, 0x50, 0x2a, 3);   /* current 0x50, white base */
 }
 
-/* current > max (current need not be capped) -> still not equal -> white. */
+/* current > max -> still not equal -> white. current 0x40 (64), max 0x32 (50),
+ * 2 digits, 64 < 100 so no overflow -> "64" glyphs based at 0x2A. */
 static void test_redfull_above_is_white(void)
 {
-    redfull_reset();
-    fd2_render_number_red_when_full(0x9abc, 0x140, 0x70, 0x64, 2);
+    dec_setup();
+    fd2_render_number_red_when_full(0x9abc, 0x140, 0x40, 0x32, 2);
 
-    ASSERT_EQ((long)g_render_dec_count, 1);
-    ASSERT_EQ((long)g_render_dec_val[0],    0x70);
-    ASSERT_EQ((long)g_render_dec_color[0],  0x2a);   /* white */
-    ASSERT_EQ((long)g_render_dec_digits[0], 2);      /* digits forwarded */
+    ASSERT_EQ((long)g_rle_blit_calls, 2);
+    dec_assert_number(0, 0x9abc, 0x40, 0x2a, 2);   /* white, value=current */
 }
 
-/* equality is a full 32-bit compare (CMP of two dwords): two large values
- * that match only in their low 16 bits must NOT be treated as equal. */
+/* equality is a full 32-bit compare (CMP of two dwords): two values matching
+ * only in their low 16 bits must NOT be treated as equal. The forwarded value
+ * is large and >999 at 3 digits, so the white/red base is read off the single
+ * overflow "MAX" glyph (sprite_base + 10): white -> 0x2A+10, red -> 0x1F+10. */
 static void test_redfull_full_width_compare(void)
 {
-    redfull_reset();
     /* low 16 bits both 0x0000 but high halves differ -> not equal -> white */
+    dec_setup();
     fd2_render_number_red_when_full(0x10, 0x140, 0x00010000u, 0x00020000u, 3);
-    ASSERT_EQ((long)g_render_dec_color[0], 0x2a);
+    ASSERT_EQ((long)g_rle_blit_calls, 1);
+    dec_assert_overflow(0, 0x10, 0x2a + 10);        /* white base -> MAX glyph */
 
     /* exact 32-bit match -> red */
-    redfull_reset();
+    dec_setup();
     fd2_render_number_red_when_full(0x10, 0x140, 0x00020000u, 0x00020000u, 3);
-    ASSERT_EQ((long)g_render_dec_color[0], 0x1f);
+    ASSERT_EQ((long)g_rle_blit_calls, 1);
+    dec_assert_overflow(0, 0x10, 0x1f + 10);        /* red base -> MAX glyph */
 }
 
-/* zero == zero counts as "full" (red) — boundary where both are 0. */
+/* zero == zero counts as "full" (red) — boundary where both are 0. value 0,
+ * 3 digits -> "000" glyphs based at the red 0x1F. */
 static void test_redfull_zero_equal_is_red(void)
 {
-    redfull_reset();
+    dec_setup();
     fd2_render_number_red_when_full(0x20, 0x140, 0, 0, 3);
-    ASSERT_EQ((long)g_render_dec_count, 1);
-    ASSERT_EQ((long)g_render_dec_val[0],   0);
-    ASSERT_EQ((long)g_render_dec_color[0], 0x1f);
+
+    ASSERT_EQ((long)g_rle_blit_calls, 3);
+    dec_assert_number(0, 0x20, 0, 0x1f, 3);   /* "000", red base */
 }
 
 /* ----------------------------------------------------------------
@@ -1499,6 +1586,135 @@ static void test_prop_signed_division(void)
     ASSERT_EQ((long)g_blitraw_log_dst[101], (long)(off + 0x66));
 }
 
+/* ----------------------------------------------------------------
+ * fd2_render_decimal_number_to_buffer @ 0x187d6
+ *
+ * The REAL digit renderer, driven directly here (the dec_setup / dec_assert_*
+ * shared helpers defined near the top of this file replay the binary's own
+ * "%0.Nd" sprintf and assert the resulting glyph run through the g_rle_blit_log_*
+ * pipeline). The panel / inventory / redfull caller tests reuse the same
+ * helpers to observe the numbers their callers forward here.
+ * ---------------------------------------------------------------- */
+/* value 0x50 (80), 3 digits, white 0x2A -> "080": glyphs '0','8','0' map to
+ * sprites 0x2A,0x32,0x2A at dst, dst+6, dst+12. */
+static void test_dec_three_digit_basic(void)
+{
+    uint32 dst = 0x100000;
+
+    dec_setup();
+    fd2_render_decimal_number_to_buffer(dst, 0x140, 0x50, 0x2a, 3);
+
+    ASSERT_EQ((long)g_rle_blit_calls, 3);   /* "080" -> 3 glyphs */
+    dec_assert_number(0, dst, 0x50, 0x2a, 3);
+}
+
+/* a 2-digit white number uses the same zero-padded path: value 5 -> "05". */
+static void test_dec_two_digit_basic(void)
+{
+    uint32 dst = 0x120000;
+
+    dec_setup();
+    fd2_render_decimal_number_to_buffer(dst, 0x140, 5, 0x2a, 2);
+
+    ASSERT_EQ((long)g_rle_blit_calls, 2);
+    dec_assert_number(0, dst, 5, 0x2a, 2);
+}
+
+/* negative value clamps to 0 before rendering: (int32)0xFFFF8001 < 0 -> 0,
+ * so a 3-digit render produces "000", NOT an overflow placeholder. This is
+ * the signed TEST EAX,EAX / JGE branch. */
+static void test_dec_negative_clamps_to_zero(void)
+{
+    uint32 dst = 0x140000;
+
+    dec_setup();
+    fd2_render_decimal_number_to_buffer(dst, 0x140, 0xFFFF8001u, 0x2a, 3);
+
+    ASSERT_EQ((long)g_rle_blit_calls, 3);
+    dec_assert_number(0, dst, 0, 0x2a, 3);   /* "000" */
+}
+
+/* digit_count == 3 AND value > 999: a single overflow "MAX" glyph at
+ * sprite_base + 10, drawn at dst; no digit glyphs. */
+static void test_dec_three_digit_overflow_max(void)
+{
+    uint32 dst = 0x160000;
+
+    dec_setup();
+    fd2_render_decimal_number_to_buffer(dst, 0x140, 1000, 0x2a, 3);
+
+    ASSERT_EQ((long)g_rle_blit_calls, 1);
+    dec_assert_overflow(0, dst, 0x2a + 10);
+}
+
+/* boundary: value == 999 with 3 digits is NOT overflow (strict >999) -> "999"
+ * digit glyphs; value 1000 (above) is overflow (covered above). */
+static void test_dec_three_digit_overflow_boundary(void)
+{
+    uint32 dst = 0x180000;
+
+    dec_setup();
+    fd2_render_decimal_number_to_buffer(dst, 0x140, 999, 0x2a, 3);
+
+    ASSERT_EQ((long)g_rle_blit_calls, 3);
+    dec_assert_number(0, dst, 999, 0x2a, 3);   /* "999", no overflow */
+}
+
+/* digit_count == 2 AND value >= 100: single fixed "99+" glyph 0x5D
+ * (color-agnostic), drawn at dst; no digit glyphs. The 0x5D sprite is NOT
+ * offset by sprite_base. */
+static void test_dec_two_digit_overflow_99plus(void)
+{
+    uint32 dst = 0x1a0000;
+
+    dec_setup();
+    fd2_render_decimal_number_to_buffer(dst, 0x140, 100, 0x77, 2);
+
+    ASSERT_EQ((long)g_rle_blit_calls, 1);
+    dec_assert_overflow(0, dst, 0x5d);   /* fixed, ignores sprite_base 0x77 */
+}
+
+/* boundary: value == 99 with 2 digits is NOT overflow (>=100) -> "99"; the
+ * 2-digit overflow is value >= 100 (covered above). */
+static void test_dec_two_digit_overflow_boundary(void)
+{
+    uint32 dst = 0x1c0000;
+
+    dec_setup();
+    fd2_render_decimal_number_to_buffer(dst, 0x140, 99, 0x2a, 2);
+
+    ASSERT_EQ((long)g_rle_blit_calls, 2);
+    dec_assert_number(0, dst, 99, 0x2a, 2);   /* "99" */
+}
+
+/* a 3-digit value in [100..999] with no overflow still renders all 3 digits;
+ * confirms the digit glyphs index off the supplied sprite_base (red 0x77). */
+static void test_dec_color_base_applied(void)
+{
+    uint32 dst = 0x1e0000;
+
+    dec_setup();
+    fd2_render_decimal_number_to_buffer(dst, 0x140, 0x123, 0x77, 3);
+
+    ASSERT_EQ((long)g_rle_blit_calls, 3);   /* "291" */
+    dec_assert_number(0, dst, 0x123, 0x77, 3);
+}
+
+/* a large value with a high digit_count (4) does NOT hit either overflow
+ * guard (those are digit_count-specific to 3 and 2): value 0x1000 (4096) with
+ * 4 digits renders "4096" via the zero-padded path -> 4 digit glyphs. This
+ * pins that the overflow branches are gated on digit_count exactly. */
+static void test_dec_four_digits_no_overflow_guard(void)
+{
+    uint32 dst = 0x220000;
+
+    dec_setup();
+    fd2_render_decimal_number_to_buffer(dst, 0x140, 0x1000, 0x2a, 4);
+
+    ASSERT_EQ((long)g_rle_blit_calls, 4);
+    dec_assert_number(0, dst, 0x1000, 0x2a, 4);
+}
+
 void run_gfx_rndstat_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1553,7 +1769,16 @@ void run_gfx_rndstat_tests(void)
     RUN_TEST(test_prop_min_one_segment_floor);
     RUN_TEST(test_prop_sprite_base_routing);
     RUN_TEST(test_prop_signed_division);
-    g_render_log_on = 0;
+    RUN_TEST(test_dec_three_digit_basic);
+    RUN_TEST(test_dec_two_digit_basic);
+    RUN_TEST(test_dec_negative_clamps_to_zero);
+    RUN_TEST(test_dec_three_digit_overflow_max);
+    RUN_TEST(test_dec_three_digit_overflow_boundary);
+    RUN_TEST(test_dec_two_digit_overflow_99plus);
+    RUN_TEST(test_dec_two_digit_overflow_boundary);
+    RUN_TEST(test_dec_color_base_applied);
+    RUN_TEST(test_dec_four_digits_no_overflow_guard);
     g_blitraw_log_on = 0;
+    g_rle_blit_log_on = 0;
     printf("\n");
 }
