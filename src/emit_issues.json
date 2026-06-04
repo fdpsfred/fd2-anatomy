@@ -473,5 +473,17 @@
         "verify_method": "compile_and_disasm"
       }
     ]
+  },
+  "0001f6ef": {
+    "name": "fd2_fill_screen_rect_with_byte",
+    "target": "gfx/blitspr.c",
+    "issues": [
+      {
+        "type": "display_side_effect_unobservable",
+        "desc": "Paints a (size-1)x(size-1) marker square with memset DIRECTLY into the hard-coded mode13h VGA framebuffer at linear 0xA0000 (row_ptr = y*0x140 + 0xA0000 + x; (size-1) rows, (size-1) bytes/row, stride 0x140; signed loop bound (int)row < (int)(size-1) so size<=1 paints nothing). The destination is the literal 0xA0000 in the binary (not a redirectable param) and memset is libc (not stubbable), so the fill has NO harness-observable sink: under the text-mode unit-test harness 0xA0000 maps to inactive VGA planar hardware (active text buffer is 0xB8000) and reads back 0xFF regardless of what was written. A read-back test was attempted (write 0x2A / sentinel 0xEE,0xCC then verify) and confirmed reads return 0xFF, so behavioral verification is correctly DEFERRED to Phase 9 integration (real mode13h). Static three-source equivalence is solid: the address arithmetic (y*0x140 via SHL2/ADD/SHL6 = y*320) and the size-1 geometry mirror the read-back-verified fd2_blit_rectangle family in the same file (only difference: memset width vs memmove width). __CHK(0x20) stack-probe prologue is compiler-injected and omitted. cdecl/4-param confirmed by caller fd2_open_tactical_overview_zoom (PUSH x,y,color,size then ADD ESP,0x10).",
+        "severity": "low",
+        "verify_method": "phase9_integration_mode13h"
+      }
+    ]
   }
 }

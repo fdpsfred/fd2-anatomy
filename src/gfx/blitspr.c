@@ -224,3 +224,38 @@ void fd2_blit_indexed_sprite_at_xy(uint32 dst, uint32 dst_pitch,
     sprite_addr = sheet + *(int32 *)(sheet + 6 + sprite_idx * 4);
     fd2_rle_blit_sprite(sprite_addr, 0, 0, dst, dst_pitch, 0xFFFFFFFF);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_fill_screen_rect_with_byte @ 0x1F6EF (2 callers)
+ *
+ * Fill a solid (size-1) x (size-1) byte square directly into the
+ * mode13h VGA framebuffer (0xA0000), no backbuffer:
+ *
+ *   row_ptr = 0xA0000 + y * 320 + x
+ *   for row in 0..(size - 1):
+ *       memset(row_ptr, color, size - 1)      // (size-1) bytes wide
+ *       row_ptr += 320
+ *
+ * Both the row count and the per-row byte count are (size - 1); the
+ * loop bound is a signed compare ((int)row < (int)(size - 1)), so
+ * size 1 (and size 0) paint nothing.
+ *
+ * Used by fd2_open_tactical_overview_zoom to draw the per-unit colored
+ * marker squares in the tactical overview (player=green / enemy=red /
+ * NPC=blue), at two render points.
+ *
+ * Cdecl, 4 stack params; void return. The binary's __CHK(0x20)
+ * stack-probe prologue is compiler-generated and omitted here.
+ * ---------------------------------------------------------------- */
+void fd2_fill_screen_rect_with_byte(uint32 x, uint32 y, uint32 color,
+                                    uint32 size)
+{
+    uint32 row_ptr;
+    uint32 row;
+
+    row_ptr = y * 0x140 + 0xA0000 + x;
+    for (row = 0; (int32)row < (int32)(size - 1); row = row + 1) {
+        memset((void *)row_ptr, color, size - 1);
+        row_ptr = row_ptr + 0x140;
+    }
+}

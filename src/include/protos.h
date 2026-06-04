@@ -357,6 +357,7 @@ int fd2_wait_for_action_target_input(int mode, uint32 n_options, uint8 *pTarget_
 uint32 fd2_blit_sprite_raw_with_header(uint32 dst, uint32 sprite_hdr, uint32 stride);
 void fd2_blit_sheet_sprite_at_offset(uint32 dst, uint32 dst_pitch, uint32 sheet, uint32 sprite_idx);
 void fd2_blit_indexed_sprite_at_xy(uint32 dst, uint32 dst_pitch, uint32 sheet, uint32 sprite_idx);
+void fd2_fill_screen_rect_with_byte(uint32 x, uint32 y, uint32 color, uint32 size);
 void fd2_paint_portrait_to_dialog_area(uint32 frame);
 void fd2_render_horizontal_bar_segments(uint32 dst_offset, uint32 dst_pitch, uint32 filled_count, uint32 sprite_base);
 void fd2_composite_battle_tile_map(uint32 dst, uint32 stride, uint32 w, uint32 h, uint32 ox, uint32 oy);

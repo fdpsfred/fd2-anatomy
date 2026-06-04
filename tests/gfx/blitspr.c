@@ -397,6 +397,24 @@ static void test_indexed_xy_negative_offset(void)
     ASSERT_EQ((long)g_rle_blit_last_palette, (long)0xFFFFFFFF);
 }
 
+/*
+ * fd2_fill_screen_rect_with_byte paints its (size-1)x(size-1) marker square
+ * with memset DIRECTLY into the hard-coded mode13h VGA framebuffer at linear
+ * 0xA0000 (row_ptr = 0xA0000 + y*320 + x; (size-1) rows x (size-1) bytes,
+ * stride 320; signed loop bound so size<=1 paints nothing).
+ *
+ * Behavioral read-back verification is DEFERRED to Phase 9 integration: the
+ * destination is the literal 0xA0000 hard-coded in the binary (not a redirect-
+ * able parameter), so the fill cannot be aimed at observable RAM without
+ * altering the emitted code. Under the text-mode test harness, 0xA0000 maps to
+ * inactive VGA planar hardware (the active text buffer is 0xB8000), so reads
+ * back 0xFF regardless of what was written and cannot witness the fill — this
+ * is the pure display side-effect category the test policy defers to Phase 9.
+ * Equivalence rests on the three-source match: the arithmetic and the size-1
+ * geometry are identical in form to the read-back-verified fd2_blit_rectangle
+ * family above (only the count is memset width vs memmove width).
+ */
+
 void run_gfx_blitspr_tests(void)
 {
     int _prev_fails = g_test_fail_count;

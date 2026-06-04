@@ -1685,8 +1685,9 @@
     "name": "fd2_fill_screen_rect_with_byte",
     "target": "gfx/blitspr.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001f73f": {
     "name": "fd2_display_cinematic_image_with_fade",
