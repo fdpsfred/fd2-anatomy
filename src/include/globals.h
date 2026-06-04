@@ -83,6 +83,8 @@ extern int32  data_fd2_ui_inline_action_menu_template[4];               /* 0x51E
 extern int32  data_fd2_ui_game_options_menu_slots_template[4];          /* 0x51EAF */
 extern int32  data_fd2_ui_game_options_menu_state_template[4];          /* 0x53F02 */
 extern int32  data_fd2_dialog_advance_collapse_template[4];             /* 0x51EE5 */
+extern int32  data_fd2_ui_save_load_newgame_menu_template[4];           /* 0x51EF5 */
+extern int32  data_fd2_ui_save_load_menu_state_template[4];             /* 0x53F22 */
 extern uint32 data_fd2_ui_slide_anim_accumulator_buf_ptr;               /* 0x53C5B */
 extern uint32 data_fd2_ui_slide_bg_snapshot_buf_ptr;                    /* 0x53C5F */
 extern uint32 data_fd2_ui_slide_composed_target_buf_ptr;                /* 0x53C63 */

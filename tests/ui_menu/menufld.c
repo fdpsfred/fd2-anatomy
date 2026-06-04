@@ -31,6 +31,7 @@
 #include "consts.h"
 #include "globals.h"
 #include "protos.h"
+#include "menufix.h"
 
 /* SFX seam (testglob.c); asserted zero on the early-return gate paths. */
 extern int g_play_sfx_sample_from_bank_calls;
@@ -175,10 +176,185 @@ static void test_gate_already_consumed(void)
  * keyboard buffer in tests/dialog/dialog.c (test_typewriter_*).
  */
 
+/* ================================================================
+ * fd2_field_menu_status_save_load_quit_dispatch @ 0x19DF7 coverage
+ *
+ * The setup phase is host-safe and deterministic and is driven end to end here:
+ *   - the two 4-int template copies (options {12,13,14,15} / state {0,0,0,0}),
+ *   - the real fopen("FD2.SAV","rb") probe (FD2.SAV is staged into the test cwd
+ *     by build_test.py, so the file IS present -> the Load option is NOT grayed,
+ *     menu_state[2] stays 0; the probe malloc/fread/free path runs),
+ *   - the party scan that grays the Save option (menu_state[1] = 1) when a unit
+ *     has acted (flags & 0x80) but is still alive (flags & 1 == 0),
+ *   - the real fd2_open_settings_dialog_with_slide, the real input-step loop
+ *     fed a single Esc through the BIOS keyboard ring (so it returns -1 at once),
+ *     the real close, and the input_result == -1 -> return 0 early-out.
+ *
+ * The per-corner sprite index the open-dialog computes is
+ *   sprite_id[c] = menu_options[c] * 3 + menu_state[c] * 2,
+ * and the recording blit stub (g_blitsetup_sprite_log) captures
+ *   sprite_addr = handle + handle[sprite_id].
+ * With the dialog-state handle's offset table set to the identity (handle[i]=i),
+ * sprite_addr - handle == sprite_id, so each corner's gating decision is read
+ * back directly from the recorded blits. Frame 0's four corner blits are the
+ * first four recorded.
+ *
+ * The Status (cursor 0), Save (1), Load (2) and Quit (3) dispatch arms all run
+ * past the real fd2_text_dialog_typewriter_loop YES/NO prompt (a BIOS-keyboard
+ * busy-wait) or the heavy save-file / engine-reload UI; their behavioral
+ * coverage is deferred to Phase 9 integration under the emulator. (The actual
+ * FD2.SAV snapshot assembly is never written by these unit tests — only the
+ * read-only Esc-cancel path runs — so the staged real save file is preserved.)
+ * ================================================================ */
+
+/* corner-blit recorder (testglob.c). */
+extern uint32 g_blitsetup_sprite_log[32];
+extern int    g_blitsetup_calls;
+
+/* idle-loop buffer-flip seam (testglob.c): disarmed here so the staged Esc is
+ * read on the first input-step without the buffer being flipped underneath us. */
+extern int g_repaint_flip_buffer_after;
+extern int g_repaint_settings_calls;
+
+/* Host-safe render env shared by the dispatch's real open/close dialog. */
+#define SLQ_WS_SPAN (191u * 0x1C8u + 0x138u + 0x8088u)
+static uint8  slq_ws_buffer[SLQ_WS_SPAN];
+static int32  slq_dialog_handle[64];      /* identity offset table; max id 47 */
+static runtime_char slq_chars[4];
+
+/* Saved shared-global snapshot so each test restores cross-suite state on exit
+ * (the runtime-char-array pointer in particular defaults to g_test_rc_array,
+ * which the following ui_menu/status suite relies on). */
+static runtime_char *slq_saved_char_ptr;
+static uint32 slq_saved_party_count;
+
+/* Build the host-safe environment: identity dialog-offset table (so a recorded
+ * corner blit's sprite address minus the handle equals the sprite id), an empty
+ * party by default, the workspace + cursor cell the open-dialog reads, and a
+ * single Esc staged so the settings input loop cancels immediately. Snapshots
+ * the shared globals it overwrites so slq_teardown() can restore them. */
+static void slq_setup(void)
+{
+    int i;
+
+    slq_saved_char_ptr = data_fd2_battle_runtime_char_array_ptr;
+    slq_saved_party_count = data_fd2_battle_party_member_count;
+
+    for (i = 0; i < 64; i++) {
+        slq_dialog_handle[i] = i;          /* identity: handle[id] = id */
+    }
+    for (i = 0; i < (int)sizeof(slq_chars); i++) {
+        ((uint8 *)slq_chars)[i] = 0;
+    }
+
+    data_fd2_battle_runtime_char_array_ptr = slq_chars;
+    data_fd2_battle_party_member_count = 0;
+    data_fd2_battle_cursor_screen_x = 0;
+    data_fd2_battle_cursor_screen_y = 0;
+    data_fd2_battle_cursor_world_x = 0;
+    data_fd2_battle_cursor_world_y = 0;
+    data_fd2_battle_view_window_origin_x = 0;
+    data_fd2_battle_view_window_origin_y = 0;
+    data_fd2_large_game_state_buffer_ptr = (uint32)slq_ws_buffer;
+    data_fd2_menu_dialog_state_handle = (uint32)slq_dialog_handle;
+    data_fd2_audio_fdother_sfx_bank_buf_ptr = 0;
+    data_fd2_ui_menu_cursor_idx = 0;
+
+    g_blitsetup_calls = 0;
+    g_repaint_flip_buffer_after = 0;       /* do not flip the ring underneath us */
+    g_repaint_settings_calls = 0;
+    mfix_load_cancel();                    /* single Esc -> input-step returns -1 */
+}
+
+/* Restore the shared globals slq_setup() captured, so the following suite sees
+ * the pre-test environment (no cross-suite pollution of the char-array ptr). */
+static void slq_teardown(void)
+{
+    data_fd2_battle_runtime_char_array_ptr = slq_saved_char_ptr;
+    data_fd2_battle_party_member_count = slq_saved_party_count;
+}
+
+/* Cancel with an empty party + FD2.SAV present: the dispatch copies both
+ * templates, probes the (existing) save file so Load stays enabled, opens the
+ * settings dialog, reads Esc, closes, and returns 0. Frame-0 corner sprite ids
+ * read back as the ungated defaults {36,39,42,45} (= options{12,13,14,15}*3),
+ * proving the FD2.SAV-present probe left menu_state[2] at 0 and the empty-party
+ * scan left menu_state[1] at 0. */
+static void test_save_load_quit_cancel_no_gating(void)
+{
+    int r;
+
+    slq_setup();
+    r = fd2_field_menu_status_save_load_quit_dispatch();
+
+    ASSERT_EQ(r, 0);
+    /* one real open (16 corner blits) + one real close (16) = 32. */
+    ASSERT_EQ(g_blitsetup_calls, 32);
+    /* frame-0 corners 0..3 = first four recorded blits; identity handle. */
+    ASSERT_EQ((int)(g_blitsetup_sprite_log[0] - data_fd2_menu_dialog_state_handle), 36); /* 12*3 */
+    ASSERT_EQ((int)(g_blitsetup_sprite_log[1] - data_fd2_menu_dialog_state_handle), 39); /* 13*3 */
+    ASSERT_EQ((int)(g_blitsetup_sprite_log[2] - data_fd2_menu_dialog_state_handle), 42); /* 14*3 */
+    ASSERT_EQ((int)(g_blitsetup_sprite_log[3] - data_fd2_menu_dialog_state_handle), 45); /* 15*3 */
+    slq_teardown();
+}
+
+/* Save-gating scan: one party member that has acted (flags & 0x80) yet is alive
+ * (flags & 1 == 0) makes the scan set menu_state[1] = 1, so corner 1's sprite id
+ * becomes 13*3 + 1*2 = 41 (vs the ungated 39). The member is placed away from the
+ * cursor so fd2_find_char_at_cursor_pos returns -1 (no char restamp). A single
+ * Esc cancels; the dispatch returns 0. Corners 0/2/3 stay ungated. */
+static void test_save_load_quit_save_gated_scan(void)
+{
+    int r;
+
+    slq_setup();
+    data_fd2_battle_party_member_count = 1;
+    slq_chars[0].pos_x = 5;                 /* not at cursor (0,0) */
+    slq_chars[0].pos_y = 5;
+    slq_chars[0].flags = 0x80;              /* acted, alive -> Save grayed */
+
+    r = fd2_field_menu_status_save_load_quit_dispatch();
+
+    ASSERT_EQ(r, 0);
+    ASSERT_EQ(g_blitsetup_calls, 32);
+    ASSERT_EQ((int)(g_blitsetup_sprite_log[0] - data_fd2_menu_dialog_state_handle), 36); /* Status ungated */
+    ASSERT_EQ((int)(g_blitsetup_sprite_log[1] - data_fd2_menu_dialog_state_handle), 41); /* Save grayed: 13*3+2 */
+    ASSERT_EQ((int)(g_blitsetup_sprite_log[2] - data_fd2_menu_dialog_state_handle), 42); /* Load ungated */
+    ASSERT_EQ((int)(g_blitsetup_sprite_log[3] - data_fd2_menu_dialog_state_handle), 45); /* Quit ungated */
+
+    slq_teardown();
+}
+
+/* A dead member (flags & 1 set) or a not-yet-acted member (flags & 0x80 clear)
+ * must NOT gray the Save option: the scan's compound condition requires acted AND
+ * alive. Two members, neither qualifying, leave menu_state[1] at 0 -> corner 1
+ * stays the ungated 39. */
+static void test_save_load_quit_save_not_gated_when_dead_or_unacted(void)
+{
+    int r;
+
+    slq_setup();
+    data_fd2_battle_party_member_count = 2;
+    slq_chars[0].pos_x = 5; slq_chars[0].pos_y = 5;
+    slq_chars[0].flags = 0x81;              /* acted but DEAD (bit0 set) -> not gated */
+    slq_chars[1].pos_x = 6; slq_chars[1].pos_y = 6;
+    slq_chars[1].flags = 0x00;              /* alive but has NOT acted -> not gated */
+
+    r = fd2_field_menu_status_save_load_quit_dispatch();
+
+    ASSERT_EQ(r, 0);
+    ASSERT_EQ((int)(g_blitsetup_sprite_log[1] - data_fd2_menu_dialog_state_handle), 39); /* Save ungated */
+
+    slq_teardown();
+}
+
 void run_ui_menu_menufld_tests(void)
 {
     int _prev_fails = g_test_fail_count;
     printf("Suite: ui_menu/menufld\n");
     RUN_TEST(test_gate_no_event_bit);
     RUN_TEST(test_gate_already_consumed);
+    RUN_TEST(test_save_load_quit_cancel_no_gating);
+    RUN_TEST(test_save_load_quit_save_gated_scan);
+    RUN_TEST(test_save_load_quit_save_not_gated_when_dead_or_unacted);
 }

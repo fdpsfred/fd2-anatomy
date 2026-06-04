@@ -17,11 +17,14 @@
  *
  * fd2_field_command_menu_loop IS covered here for the dispatch branches that do
  * not pull in heavy real graphics callees: the cancel early-out (input -1 ->
- * return 1), the cursor-0 Save/Load path (returns the dispatch result verbatim
- * — the EAX-passthrough return), and the cursor-2 Options path (return 0). The
- * cursor-1 End-Turn and cursor-3 Suspend branches drive the real
- * fd2_display_dialog_scene / turn-cycle graphics path; their behavioral
- * coverage is deferred to Phase 9 integration under the emulator.
+ * return 1) and the cursor-2 Options path (return 0). The cursor-0 Save/Load,
+ * cursor-1 End-Turn and cursor-3 Suspend branches each drive a real heavy-UI
+ * submenu (the now-real fd2_field_menu_status_save_load_quit_dispatch with its
+ * own settings menu + save/load file UI, the End-Turn turn-cycle graphics, the
+ * Suspend prompt) with no clean in-process isolation seam; their behavioral
+ * coverage is deferred to Phase 9 integration under the emulator. The
+ * save/load/quit dispatch itself is unit-tested directly in
+ * tests/ui_menu/menufld.c.
  */
 
 #include <string.h>
@@ -33,11 +36,9 @@
 #include "menufix.h"
 
 /* fd2_field_command_menu_loop dispatch seams (defined in testglob.c). The
- * settings input-step is now the real emitted function driven by staging real
- * scancodes into the BIOS keyboard ring (menufix.h); only the save/load/quit
- * dispatch is still stubbed. */
-extern int g_save_load_quit_dispatch_return;
-extern int g_save_load_quit_dispatch_calls;
+ * settings input-step, the open/close dialog and the save/load/quit dispatch are
+ * now real emitted functions; the cursor-0 dispatch branch is therefore deferred
+ * to Phase 9 (see file header) and no longer driven through a stub here. */
 
 /* idle-loop buffer-flip seam (testglob.c repaint stub): exposes a pre-staged
  * Esc to the options submenu's idle wait after the field-command loop's close
@@ -109,7 +110,6 @@ static void test_game_main_loop_symbol_linkable(void)
 static void fcm_reset(void)
 {
     mnu_setup_render_env();
-    g_save_load_quit_dispatch_calls = 0;
     g_repaint_settings_calls = 0;
     g_repaint_flip_buffer_after = 0;
     data_fd2_ui_menu_cursor_idx = 0;
@@ -128,25 +128,6 @@ static void test_field_command_menu_cancel(void)
     r = fd2_field_command_menu_loop();
     ASSERT_EQ(r, 1);
     /* one real open-dialog + one real close-dialog = 16 + 16 = 32 corner blits */
-    ASSERT_EQ(g_blitsetup_calls, 32);
-    ASSERT_EQ(g_save_load_quit_dispatch_calls, 0);
-}
-
-/* cursor == 0 (Save/Load/New Game): the function returns the dispatch result
- * verbatim. This is the EAX-passthrough return path (TAIL of the cursor-0
- * branch). Navigate Up (-> cursor 0) then Space (commit); confirm the dispatch
- * is called once and its result is propagated. */
-static void test_field_command_menu_save_load_passthrough(void)
-{
-    int r;
-
-    fcm_reset();
-    mfix_load_select(0);            /* Up -> cursor 0, then Space commits */
-    g_save_load_quit_dispatch_return = 42;
-    r = fd2_field_command_menu_loop();
-    ASSERT_EQ(r, 42);
-    ASSERT_EQ(g_save_load_quit_dispatch_calls, 1);
-    /* one real open + one real close before the cursor-0 dispatch = 32 blits */
     ASSERT_EQ(g_blitsetup_calls, 32);
 }
 
@@ -178,7 +159,6 @@ static void test_field_command_menu_options(void)
     }
     r = fd2_field_command_menu_loop();
     ASSERT_EQ(r, 0);
-    ASSERT_EQ(g_save_load_quit_dispatch_calls, 0);
     /* one open/close for the field-command dialog, one open/close for the
      * options dialog; each real open and each real close = 16 corner blits
      * -> 4 * 16 = 64. Plus the options submenu idles exactly once (the armed
@@ -692,7 +672,6 @@ void run_ui_menu_menu_tests(void)
     printf("Suite: ui_menu/menu\n");
     RUN_TEST(test_game_main_loop_symbol_linkable);
     RUN_TEST(test_field_command_menu_cancel);
-    RUN_TEST(test_field_command_menu_save_load_passthrough);
     RUN_TEST(test_field_command_menu_options);
     RUN_TEST(test_player_action_menu_cancel);
     RUN_TEST(test_player_action_menu_unreachable);

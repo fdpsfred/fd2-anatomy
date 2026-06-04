@@ -291,6 +291,9 @@ uint32 data_fd2_ui_menu_cursor_idx = 0;
 /* field command menu templates — real FD2.LE values @ 0x51E9F / 0x53EF2 */
 int32  data_fd2_ui_field_command_menu_options_template[4] = { 7, 5, 6, 4 };
 int32  data_fd2_ui_field_command_menu_state_template[4] = { 0, 0, 0, 0 };
+/* save/load/quit sub-menu templates — real FD2.LE values @ 0x51EF5 / 0x53F22 */
+int32  data_fd2_ui_save_load_newgame_menu_template[4] = { 12, 13, 14, 15 };
+int32  data_fd2_ui_save_load_menu_state_template[4] = { 0, 0, 0, 0 };
 /* player action menu state template — real FD2.LE value @ 0x53F12 (all zero) */
 int32  data_fd2_ui_player_action_menu_state_template[4] = { 0, 0, 0, 0 };
 /* inline action menu template — real FD2.LE value @ 0x51ED5 (Attack/Spell/Item/Wait slot ids) */
@@ -834,11 +837,23 @@ void fd2_init_movement_range_floodfill(uint32 ct, uint32 x, uint32 y,
  * fd2_open_settings_dialog_with_slide / fd2_close_settings_dialog_with_slide
  * are likewise real; tests observe g_blitsetup_calls (16 corner blits each) to
  * confirm the dialog opened/closed. */
-int g_save_load_quit_dispatch_return = 7;
-int g_save_load_quit_dispatch_calls = 0;
-int fd2_field_menu_status_save_load_quit_dispatch(void) {
-    g_save_load_quit_dispatch_calls++;
-    return g_save_load_quit_dispatch_return;
+/* fd2_field_menu_status_save_load_quit_dispatch is now emitted for real in
+ * src/ui_menu/menufld.c; its former one-shot stub and the
+ * g_save_load_quit_dispatch_* seam variables were removed. The
+ * fd2_field_command_menu_loop cursor-0 path now drives the real dispatch end to
+ * end: a staged BIOS-keyboard Esc cancels its settings sub-menu (the real
+ * input-step path), so it returns 0 and the loop propagates that verbatim
+ * (the EAX-passthrough). FD2.SAV is staged into the test cwd by build_test.py,
+ * so the dispatch's real fopen("FD2.SAV","rb") probe reads it. */
+/* Recording stub for fd2_open_party_status_overview_screen (the cursor-0 Status
+ * arm of the save/load/quit dispatch). It is pure VGA/sfx orchestration (target
+ * src/ui_menu/status.c, not yet emitted) and is only reached on the dispatch's
+ * Status path, which the menufld.c unit tests do not drive (they cover the
+ * read-only Esc-cancel and the menu-state gating in the setup phase). Deferred
+ * to Phase 9 integration. */
+int g_open_party_status_overview_calls = 0;
+void fd2_open_party_status_overview_screen(void) {
+    g_open_party_status_overview_calls++;
 }
 /* fd2_text_dialog_typewriter_loop is now emitted for real in src/dialog/dialog.c
  * (driven by the test_typewriter_* cases in tests/dialog/dialog.c, which preload

@@ -1070,8 +1070,9 @@
     "name": "fd2_field_menu_status_save_load_quit_dispatch",
     "target": "ui_menu/menufld.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001a30b": {
     "name": "fd2_run_full_turn_cycle",
