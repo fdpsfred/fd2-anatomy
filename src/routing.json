@@ -1527,8 +1527,9 @@
     "name": "fd2_show_miss_indicator",
     "target": "anim/anicombt.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001e292": {
     "name": "fd2_process_xp_and_level_up_for_char",

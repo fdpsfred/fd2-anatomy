@@ -509,7 +509,8 @@ void fd2_render_recruitment_select_screen(uint32 a, uint32 b, uint32 c, uint32 d
  * (src/anim/anicombt.c); its former no-op stub here was removed. */
 /* fd2_show_damage_number is now a real emitted function
  * (src/anim/anicombt.c); its former no-op stub here was removed. */
-void fd2_show_miss_indicator(uint32 t) { }
+/* fd2_show_miss_indicator is now a real emitted function
+ * (src/anim/anicombt.c); its former no-op stub here was removed. */
 void fd2_show_status_effect_overlay(uint32 t, uint32 s) { }
 /* fd2_animate_spell_projectile_paths is now a real emitted function
  * (src/anim/anicombt.c); its former no-op stub here was removed. The floating-
@@ -524,6 +525,12 @@ uint8 data_fd2_battle_floating_damage_target_char_idx_queue[200] = {0};
  * stack buffer before sprintf overwrites it; bytes 5..7 are never read. */
 uint8 data_fd2_battle_damage_number_format_buffer[8] = {
     0x20,0x20,0x20,0x20,0x00,0x74,0x75,0x76
+};
+/* miss-indicator sprite ids — real FD2.LE bytes @ 0x5204A (= format buffer + 5;
+ * the two are physically adjacent in the binary). fd2_show_miss_indicator loads
+ * all 4 as one dword into a stack buffer, then enqueues one per indicator slot. */
+uint8 data_fd2_battle_miss_indicator_sprite_ids[4] = {
+    0x74,0x75,0x76,0x76
 };
 /* projectile y-offset table — real FD2.LE values @ 0x0202C (runtime 0x5202C),
  * 28 bytes (4-frame x 6-row rise pattern). The real

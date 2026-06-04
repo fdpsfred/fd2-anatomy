@@ -760,3 +760,80 @@ void fd2_show_damage_number(uint32 amount, uint32 marker_char, uint32 target_idx
 
     data_fd2_battle_spell_aoe_count_and_fx_queue_idx += 4;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_show_miss_indicator @ 0x1E1DC (13 callers)
+ *
+ * Enqueue a 4-slot "MISS" floating indicator over a target's tile. Sibling
+ * producer to fd2_show_damage_number for the FX queue consumed by
+ * fd2_animate_spell_projectile_paths: when an attack misses or a target
+ * dodges/resists, four queue slots are appended so a fixed 4-sprite "MISS"
+ * sequence rises over the target's head. Called by every
+ * apply_use_effect / apply_attack_spell / cast_*_spell / execute_offensive_*
+ * path after a hit roll fails.
+ *
+ * Parameters (__cdecl, 1 arg):
+ *   target_idx   runtime-char index whose tile the indicator floats over
+ *
+ * Viewport cull (identical predicate to fd2_show_damage_number): the x test
+ * uses origin_x-1 as an exclusive lower / origin_x+max_x as an exclusive
+ * upper bound; the y test uses origin_y-1 as an inclusive lower /
+ * origin_y+max_y as an inclusive upper bound. If the target is outside the
+ * battle view window, nothing is enqueued and the queue count is unchanged.
+ *
+ * For each of the four sprite slots (char_iter 0..3):
+ *   - x_offset_queue[base+char_iter]       = (char_iter==1) ? 8 : char_iter*5+2
+ *     (5px-per-row layout, with the second sprite nudged to row 8 instead of 7)
+ *   - target_char_idx_queue[base+char_iter] = target_idx
+ *   - sprite_id_queue[base+char_iter]       = miss_indicator_sprite_ids[char_iter]
+ * Finally the queue count (spell_aoe_count_and_fx_queue_idx) advances by 4.
+ *
+ * The 4 sprite ids are primed from the live table @ 0x5204A (loaded as one
+ * dword into a 4-byte work buffer, then read back per slot). The original
+ * tail-jumps into the shared epilogue; reproduced here as the return.
+ * ---------------------------------------------------------------- */
+void fd2_show_miss_indicator(uint32 target_idx)
+{
+    runtime_char *target;
+    uint8 sprite_ids[4];
+    uint32 char_iter;
+    int target_x;
+    int target_y;
+
+    /* prime the 4-byte work buffer with the miss-indicator sprite ids */
+    memcpy(sprite_ids, data_fd2_battle_miss_indicator_sprite_ids, 4);
+
+    target = &data_fd2_battle_runtime_char_array_ptr[target_idx];
+    target_x = target->pos_x;
+    target_y = target->pos_y;
+
+    /* viewport cull (see header: asymmetric x<= / y< lower-edge tests) */
+    if ((target_x <= (int)data_fd2_battle_view_window_origin_x - 1) ||
+        (target_x >= (int)(data_fd2_battle_view_window_origin_x +
+                           data_fd2_battle_view_window_max_x)) ||
+        (target_y < (int)data_fd2_battle_view_window_origin_y - 1) ||
+        (target_y > (int)(data_fd2_battle_view_window_origin_y +
+                          data_fd2_battle_view_window_max_y))) {
+        return;
+    }
+
+    for (char_iter = 0; (int)char_iter < 4; char_iter++) {
+        if (char_iter == 1) {
+            data_fd2_battle_floating_damage_x_offset_queue
+                [data_fd2_battle_spell_aoe_count_and_fx_queue_idx + char_iter] = 8;
+        } else {
+            data_fd2_battle_floating_damage_x_offset_queue
+                [data_fd2_battle_spell_aoe_count_and_fx_queue_idx + char_iter] =
+                    (uint8)(char_iter * 5 + 2);
+        }
+
+        data_fd2_battle_floating_damage_target_char_idx_queue
+            [data_fd2_battle_spell_aoe_count_and_fx_queue_idx + char_iter] =
+                (uint8)target_idx;
+        data_fd2_battle_floating_damage_sprite_id_queue
+            [data_fd2_battle_spell_aoe_count_and_fx_queue_idx + char_iter] =
+                sprite_ids[char_iter];
+    }
+
+    data_fd2_battle_spell_aoe_count_and_fx_queue_idx += 4;
+}

@@ -32,6 +32,7 @@ extern uint32 data_fd2_battle_pending_xp_credit;                       /* 0x53EC
 extern uint32 data_fd2_battle_tile_map_anim_frame_counter;              /* 0x53C1F */
 extern uint32 data_fd2_battle_spell_aoe_count_and_fx_queue_idx;         /* 0x53EC4 */
 extern uint8  data_fd2_battle_damage_number_format_buffer[8];           /* 0x52045  "    \0" template */
+extern uint8  data_fd2_battle_miss_indicator_sprite_ids[4];             /* 0x5204A  adjacent to format buffer; 4 sprite ids for the MISS indicator */
 extern uint8  data_fd2_battle_floating_damage_sprite_id_queue[200];     /* 0x53C6C */
 extern uint8  data_fd2_battle_floating_damage_x_offset_queue[200];      /* 0x53D34 */
 extern uint8  data_fd2_battle_floating_damage_target_char_idx_queue[200]; /* 0x53DFC */

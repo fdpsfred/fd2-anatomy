@@ -407,6 +407,141 @@ static void test_damagenum_cull_all_edges(void)
     ASSERT_EQ(data_fd2_battle_floating_damage_sprite_id_queue[0], 0xEEu);
 }
 
+/* ================================================================
+ * fd2_show_miss_indicator tests (sibling producer for the projectile-paths
+ * consumer; enqueues the 4-sprite "MISS" indicator)
+ * ================================================================ */
+
+/* the 4 miss-indicator sprite ids (testglob.c, real binary bytes @ 0x5204A) */
+extern uint8 data_fd2_battle_miss_indicator_sprite_ids[4];
+
+/*
+ * An in-window target: the producer appends exactly four queue slots, one per
+ * indicator sprite. Verifies the distinctive irregular x-offset row
+ * ((char_iter==1) ? 8 : char_iter*5+2 -> 2, 8, 12, 17 -- note slot 1 lands on 8
+ * instead of the 7 a plain *5+2 would give), the target-index fan-out across
+ * all four slots, the sprite-id fan-out straight from the indicator table
+ * (no thresholding, unlike the damage-number sibling), and the queue-count
+ * advance by 4.
+ */
+static void test_miss_indicator_enqueue(void)
+{
+    uint32 base;
+
+    setup_damagenum();
+    base = data_fd2_battle_spell_aoe_count_and_fx_queue_idx;   /* 0 */
+
+    g_test_rc_array[2].pos_x = 0x15;     /* inside the window */
+    g_test_rc_array[2].pos_y = 0x24;
+
+    fd2_show_miss_indicator(2);
+
+    /* queue count advanced by 4 */
+    ASSERT_EQ(data_fd2_battle_spell_aoe_count_and_fx_queue_idx, base + 4);
+
+    /* irregular x-offset row: 0*5+2=2, slot1 forced to 8, 2*5+2=12, 3*5+2=17 */
+    ASSERT_EQ(data_fd2_battle_floating_damage_x_offset_queue[base + 0], 2u);
+    ASSERT_EQ(data_fd2_battle_floating_damage_x_offset_queue[base + 1], 8u);
+    ASSERT_EQ(data_fd2_battle_floating_damage_x_offset_queue[base + 2], 12u);
+    ASSERT_EQ(data_fd2_battle_floating_damage_x_offset_queue[base + 3], 17u);
+
+    /* every slot carries the target index */
+    ASSERT_EQ(data_fd2_battle_floating_damage_target_char_idx_queue[base + 0], 2u);
+    ASSERT_EQ(data_fd2_battle_floating_damage_target_char_idx_queue[base + 1], 2u);
+    ASSERT_EQ(data_fd2_battle_floating_damage_target_char_idx_queue[base + 2], 2u);
+    ASSERT_EQ(data_fd2_battle_floating_damage_target_char_idx_queue[base + 3], 2u);
+
+    /* sprite ids copied straight from the indicator table, one per slot */
+    ASSERT_EQ(data_fd2_battle_floating_damage_sprite_id_queue[base + 0],
+              data_fd2_battle_miss_indicator_sprite_ids[0]);
+    ASSERT_EQ(data_fd2_battle_floating_damage_sprite_id_queue[base + 1],
+              data_fd2_battle_miss_indicator_sprite_ids[1]);
+    ASSERT_EQ(data_fd2_battle_floating_damage_sprite_id_queue[base + 2],
+              data_fd2_battle_miss_indicator_sprite_ids[2]);
+    ASSERT_EQ(data_fd2_battle_floating_damage_sprite_id_queue[base + 3],
+              data_fd2_battle_miss_indicator_sprite_ids[3]);
+}
+
+/*
+ * A non-zero starting queue index: every write must land at base+slot, not at
+ * slot 0, and the count advances from the non-zero base. Confirms the base
+ * offset threading for all three queue tables.
+ */
+static void test_miss_indicator_offset_base(void)
+{
+    uint32 base;
+
+    setup_damagenum();
+    data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 8;      /* non-zero base */
+    base = 8;
+
+    g_test_rc_array[0].pos_x = WIN_OX;   /* on the left window edge (in window) */
+    g_test_rc_array[0].pos_y = WIN_OY;
+    fd2_show_miss_indicator(0);
+
+    ASSERT_EQ(data_fd2_battle_spell_aoe_count_and_fx_queue_idx, base + 4);
+
+    /* writes land at base..base+3 */
+    ASSERT_EQ(data_fd2_battle_floating_damage_x_offset_queue[base + 0], 2u);
+    ASSERT_EQ(data_fd2_battle_floating_damage_x_offset_queue[base + 1], 8u);
+    ASSERT_EQ(data_fd2_battle_floating_damage_x_offset_queue[base + 3], 17u);
+    ASSERT_EQ(data_fd2_battle_floating_damage_sprite_id_queue[base + 0],
+              data_fd2_battle_miss_indicator_sprite_ids[0]);
+    ASSERT_EQ(data_fd2_battle_floating_damage_sprite_id_queue[base + 3],
+              data_fd2_battle_miss_indicator_sprite_ids[3]);
+    ASSERT_EQ(data_fd2_battle_floating_damage_target_char_idx_queue[base + 0], 0u);
+
+    /* slot just before the base was untouched (still the 0xEE sentinel) */
+    ASSERT_EQ(data_fd2_battle_floating_damage_sprite_id_queue[base - 1], 0xEEu);
+}
+
+/*
+ * Out-of-window target: nothing is enqueued and the queue count is untouched.
+ * Drives all four cull edges (one per call). The predicate is identical to the
+ * fd2_show_damage_number sibling: x uses an inclusive reject at OX-1 and at
+ * OX+MX (OX+MX itself is OUT); y uses an inclusive reject below OY-1 and above
+ * OY+MY (no +1 on the y upper edge).
+ */
+static void test_miss_indicator_cull_all_edges(void)
+{
+    setup_damagenum();
+
+    /* left: pos_x == OX-1 -> rejected (x <= OX-1) */
+    g_test_rc_array[0].pos_x = (uint8)(WIN_OX - 1);
+    g_test_rc_array[0].pos_y = WIN_OY;
+    fd2_show_miss_indicator(0);
+    ASSERT_EQ(data_fd2_battle_spell_aoe_count_and_fx_queue_idx, 0u);
+
+    /* right: pos_x == OX+MX -> rejected (x >= OX+MX) */
+    g_test_rc_array[0].pos_x = (uint8)(WIN_OX + WIN_MX);
+    g_test_rc_array[0].pos_y = WIN_OY;
+    fd2_show_miss_indicator(0);
+    ASSERT_EQ(data_fd2_battle_spell_aoe_count_and_fx_queue_idx, 0u);
+
+    /* top: pos_y == OY-2 -> rejected (y < OY-1) */
+    g_test_rc_array[0].pos_x = WIN_OX;
+    g_test_rc_array[0].pos_y = (uint8)(WIN_OY - 2);
+    fd2_show_miss_indicator(0);
+    ASSERT_EQ(data_fd2_battle_spell_aoe_count_and_fx_queue_idx, 0u);
+
+    /* bottom: pos_y == OY+MY+1 -> rejected (y > OY+MY) */
+    g_test_rc_array[0].pos_x = WIN_OX;
+    g_test_rc_array[0].pos_y = (uint8)(WIN_OY + WIN_MY + 1);
+    fd2_show_miss_indicator(0);
+    ASSERT_EQ(data_fd2_battle_spell_aoe_count_and_fx_queue_idx, 0u);
+
+    /* the queue slots were never written (still the 0xEE sentinel) */
+    ASSERT_EQ(data_fd2_battle_floating_damage_sprite_id_queue[0], 0xEEu);
+
+    /* an in-window target on the inclusive accept extremes IS enqueued:
+     * pos_x = OX+MX-1 (last in-window column) and pos_y = OY+MY (last in-window
+     * row, since there is no +1 on the y upper edge) */
+    g_test_rc_array[0].pos_x = (uint8)(WIN_OX + WIN_MX - 1);  /* 0x1C, in window */
+    g_test_rc_array[0].pos_y = (uint8)(WIN_OY + WIN_MY);      /* 0x28, accepted */
+    fd2_show_miss_indicator(0);
+    ASSERT_EQ(data_fd2_battle_spell_aoe_count_and_fx_queue_idx, 4u);
+}
+
 void run_anim_anicombt2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -418,5 +553,8 @@ void run_anim_anicombt2_tests(void)
     RUN_TEST(test_damagenum_four_digit_heal_offset_base);
     RUN_TEST(test_damagenum_single_digit_blanks_leading);
     RUN_TEST(test_damagenum_cull_all_edges);
+    RUN_TEST(test_miss_indicator_enqueue);
+    RUN_TEST(test_miss_indicator_offset_base);
+    RUN_TEST(test_miss_indicator_cull_all_edges);
     printf("\n");
 }
