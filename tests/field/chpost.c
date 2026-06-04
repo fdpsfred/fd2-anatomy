@@ -1748,6 +1748,172 @@ static void test_chpost222728_upper_neighbor_ignored(void)
     chpost10_teardown();
 }
 
+/* ============================================================
+ * fd2_chapter_23_post_action @ 0x20AAF
+ *
+ * Like chapter 18, chapter 23 does NOT call the default
+ * fd2_check_battle_end_condition: it implements the full win/lose decision
+ * itself with two sequential, independent flag writes:
+ *   1. If any of the FOUR protected chars runtime_char[0], [1], [0x10] or
+ *      [0x11] is dead -> game_event_flag = 1 (LOSE). The OR short-circuits.
+ *   2. If the boss runtime_char[0x12] is dead -> game_event_flag = 2 (WIN).
+ *      This runs unconditionally after step 1, so a dead boss OVERRIDES a
+ *      LOSE from step 1 (fall-through "win-overrides-loss").
+ *
+ * Structurally this is chapter 18's pattern with a four-term protected-core
+ * OR (adds slot 1) and the boss at slot 0x12 instead of 0x34. Because no
+ * default check runs, the flag has no baseline: setup pre-clears it to 0, so
+ * "no condition" leaves 0, a pure LOSE leaves 1, and any WIN leaves 2.
+ * Deadness for all five slots is queried through fd2_check_char_is_dead;
+ * these tests reuse chapter 18's array-reading arrangement
+ * (chpost18_setup: g_check_char_is_dead_use_array = 1, the 64-slot t_rc13
+ * buffer, flag pre-cleared to 0) since every slot 0..0x12 is in range.
+ *
+ * Coverage is risk-driven for: the FOUR-term short-circuit OR and its exact
+ * slot indices (the added slot 1 is the chapter-23-specific term, reached
+ * only when slot 0 is alive), the independent boss write at the new slot
+ * 0x12, and the win-overrides-loss fall-through:
+ *   - nobody dead                          -> flag stays 0 (neither write)
+ *   - char[0] dead, boss alive             -> LOSE (1); pins first OR term
+ *   - char[1] dead, boss alive             -> LOSE (1); pins second OR term
+ *                                             (the term chapter 18 lacks;
+ *                                             reached only if char[0] alive)
+ *   - char[0x10] dead, boss alive          -> LOSE (1); pins third OR term
+ *   - char[0x11] dead, boss alive          -> LOSE (1); pins fourth OR term
+ *                                             (its branch shape is inverted in
+ *                                             the disassembly: JZ-skips-the-set)
+ *   - boss[0x12] dead, all protected alive -> WIN (2)
+ *   - boss dead AND char[0] dead           -> WIN (2) overrides the LOSE
+ *   - neighbors 2 / 0xF / 0x13 / 0x34 dead while the four checked slots and
+ *     the boss are alive -> flag stays 0, pinning the checked slots as exactly
+ *     0, 1, 0x10, 0x11 and the boss as exactly 0x12 (no off-by-one: slot 2 is
+ *     NOT the second protected slot, 0x13 is NOT the boss, and 0x34 — chapter
+ *     18's boss slot — is NOT chapter 23's boss).
+ * ============================================================ */
+
+/* Nobody dead -> the four-term OR is false (no LOSE) and the boss is alive
+ * (no WIN), so neither flag write executes and the pre-cleared flag (0)
+ * survives. Confirms chapter 23 writes nothing on the all-alive path (i.e. it
+ * really skips the default win/lose check that most siblings run). */
+static void test_chpost23_nobody_dead_no_write(void)
+{
+    chpost18_setup();
+
+    fd2_chapter_23_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 0);
+    chpost18_teardown();
+}
+
+/* Protected char[0] dead, boss alive -> the first OR term fires, LOSE (flag
+ * = 1). Pins the first checked slot = 0 and the OR's set-on-dead direction. */
+static void test_chpost23_char0_dead_lose(void)
+{
+    chpost18_setup();
+    t_rc13[0].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_23_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost18_teardown();
+}
+
+/* Protected char[1] dead while char[0] alive, boss alive -> the OR's first
+ * term is false so the second term must be evaluated; it fires, LOSE (1).
+ * Pins the second checked slot = 1 (the term chapter 18 lacks) and that it is
+ * genuinely reached. */
+static void test_chpost23_char1_dead_lose(void)
+{
+    chpost18_setup();
+    t_rc13[1].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_23_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost18_teardown();
+}
+
+/* Protected char[0x10] dead while char[0] and char[1] alive, boss alive ->
+ * the first two OR terms are false so the third must be evaluated; it fires,
+ * LOSE (1). Pins the third checked slot = 0x10 and that it is genuinely
+ * reached. */
+static void test_chpost23_char10_dead_lose(void)
+{
+    chpost18_setup();
+    t_rc13[0x10].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_23_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost18_teardown();
+}
+
+/* Protected char[0x11] dead while char[0], char[1] and char[0x10] alive, boss
+ * alive -> the first three OR terms are false so the fourth must be evaluated;
+ * it fires, LOSE (1). Pins the fourth checked slot = 0x11 and that it is
+ * genuinely reached (it is the term whose branch shape is inverted in the
+ * disassembly: JZ-skips-the-set when alive). */
+static void test_chpost23_char11_dead_lose(void)
+{
+    chpost18_setup();
+    t_rc13[0x11].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_23_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost18_teardown();
+}
+
+/* Boss (slot 0x12) dead, all four protected chars alive -> the LOSE OR is
+ * false (flag stays 0 through step 1) and the boss write fires, WIN (2). Pins
+ * the boss slot = 0x12 and the WIN value. */
+static void test_chpost23_boss_dead_win(void)
+{
+    chpost18_setup();
+    t_rc13[0x12].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_23_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost18_teardown();
+}
+
+/* Boss (slot 0x12) dead AND protected char[0] dead -> step 1 sets LOSE (1)
+ * but step 2 runs unconditionally and overwrites it with WIN (2). Pins the
+ * fall-through "win-overrides-loss" ordering: the boss write is last and wins
+ * even when an ally has fallen. */
+static void test_chpost23_boss_and_ally_dead_win_overrides(void)
+{
+    chpost18_setup();
+    t_rc13[0].flags = CHARFLAG_DEAD;
+    t_rc13[0x12].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_23_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost18_teardown();
+}
+
+/* Off-by-one guard: the immediate neighbors of every checked slot are dead
+ * while the five checked slots (0, 1, 0x10, 0x11 protected + 0x12 boss) are
+ * all alive -> neither write fires, flag stays 0. Slot 2 pins the second
+ * protected slot as exactly 1 (not 2); slot 0xF/0x13 bracket the boss as
+ * exactly 0x12 (0x13 is not the boss); slot 0x34 — chapter 18's boss slot —
+ * confirms chapter 23 does NOT reuse 0x34. */
+static void test_chpost23_neighbor_slots_ignored(void)
+{
+    chpost18_setup();
+    t_rc13[2].flags = CHARFLAG_DEAD;     /* upper neighbor of protected slot 1 */
+    t_rc13[0xF].flags = CHARFLAG_DEAD;   /* lower neighbor of boss slot 0x12 */
+    t_rc13[0x13].flags = CHARFLAG_DEAD;  /* upper neighbor of boss slot 0x12 */
+    t_rc13[0x34].flags = CHARFLAG_DEAD;  /* chapter 18's boss slot, unused here */
+
+    fd2_chapter_23_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 0);
+    chpost18_teardown();
+}
+
 void run_field_chpost_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1817,5 +1983,13 @@ void run_field_chpost_tests(void)
     RUN_TEST(test_chpost222728_npc_alive_keeps_default);
     RUN_TEST(test_chpost222728_npc_dead_game_over);
     RUN_TEST(test_chpost222728_upper_neighbor_ignored);
+    RUN_TEST(test_chpost23_nobody_dead_no_write);
+    RUN_TEST(test_chpost23_char0_dead_lose);
+    RUN_TEST(test_chpost23_char1_dead_lose);
+    RUN_TEST(test_chpost23_char10_dead_lose);
+    RUN_TEST(test_chpost23_char11_dead_lose);
+    RUN_TEST(test_chpost23_boss_dead_win);
+    RUN_TEST(test_chpost23_boss_and_ally_dead_win_overrides);
+    RUN_TEST(test_chpost23_neighbor_slots_ignored);
     printf("\n");
 }

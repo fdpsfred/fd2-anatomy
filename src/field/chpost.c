@@ -443,3 +443,46 @@ void fd2_chapter_22_27_28_post_action_shared(uint32 event_arg)
         data_fd2_chapter_event_or_battle_end_code = 1;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_23_post_action @ 0x20AAF  (dispatched, 0 direct callers)
+ *
+ * Chapter 23 turn-cycle post-action handler. Reached via
+ * data_fd2_chapter_post_action_handler_table[22] (table @ 0x51B19,
+ * indexed by current_chapter_id). The dispatch site invokes the handler
+ * with no real arguments; event_arg is the Watcom __CHK-prologue artifact
+ * and is unused by the body.
+ *
+ * Like chapter 18, chapter 23 does NOT call the default
+ * fd2_check_battle_end_condition — it implements the full win/lose decision
+ * itself with two sequential, independent flag writes:
+ *
+ *   1. If any of the four protected chars runtime_char[0], [1], [0x10] or
+ *      [0x11] is dead, set game_event_flag (0x53ECC) to 1 (LOSE). The OR
+ *      short-circuits: the first dead char sets the flag and the remaining
+ *      checks are skipped.
+ *   2. If the boss NPC runtime_char[0x12] is dead, set game_event_flag to 2
+ *      (WIN). This runs unconditionally after step 1, so a dead boss
+ *      overrides a LOSE produced by step 1 (fall-through "win-overrides-loss":
+ *      kill the boss before allies fall and the chapter is still won).
+ *
+ * Deadness is queried through fd2_check_char_is_dead (runtime_char[idx].flags
+ * bit0) for all five slots; the body reads no bFlags inline. Structurally this
+ * is chapter 18's pattern with a four-term protected-core OR (adds slot 1) and
+ * the boss at slot 0x12 instead of 0x34.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_23_post_action(uint32 event_arg)
+{
+    (void)event_arg;
+
+    if (fd2_check_char_is_dead(0) != 0 ||
+        fd2_check_char_is_dead(1) != 0 ||
+        fd2_check_char_is_dead(0x10) != 0 ||
+        fd2_check_char_is_dead(0x11) != 0) {
+        data_fd2_chapter_event_or_battle_end_code = 1;
+    }
+
+    if (fd2_check_char_is_dead(0x12) != 0) {
+        data_fd2_chapter_event_or_battle_end_code = 2;
+    }
+}
