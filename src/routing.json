@@ -1302,8 +1302,9 @@
     "name": "fd2_equip_item_in_slot",
     "target": "ui_menu/status.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001c1c3": {
     "name": "fd2_check_job_can_equip_item",

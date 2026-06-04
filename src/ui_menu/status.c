@@ -978,3 +978,54 @@ void fd2_equip_unequip_inventory_menu(uint32 char_idx)
     /* binary tail-JMP 0x10C49 == this function's own shared epilogue
      * (ADD ESP,4 / POP EDI/ESI/EBX / RET); a plain return regenerates it. */
 }
+
+/* ----------------------------------------------------------------
+ * fd2_equip_item_in_slot @ 0x1C142  (2 callers)
+ *
+ * Mark inventory slot `slot_idx` of runtime_char[char_idx] as equipped,
+ * first auto-unequipping any same-category item already equipped. This
+ * enforces the "one weapon + one spellbook" rule (at most one equipped
+ * item per category).
+ *
+ * Each slot is 2 bytes (inventory_slots[i*2]=flag, [i*2+1]=item_id);
+ * there are 8 slots (indices 0..7). Flag bit 0x40 = equipped.
+ *
+ * The category split point is item_id 0x80 (see assets/items.md):
+ *   0x00..0x7F = weapons/armor/items (physical),
+ *   0x80..0xD6 = spellbooks/spells (magical).
+ * Two items are "same category" iff both < 0x80 or both >= 0x80.
+ *
+ * Algorithm:
+ *   item_id = fd2_get_inventory_slot_item_id(char_idx, slot_idx)
+ *   for each of the 8 slots: if it is equipped (flag & 0x40) and holds a
+ *     same-category item, clear its flag (unequip).
+ *   then mark slot_idx as equipped (flag = 0x40).
+ *
+ * Callers: fd2_equip_unequip_inventory_menu, fd2_run_buy_item_menu.
+ *
+ * void __cdecl with the __CHK(0x14) stack-probe prologue (compiler-
+ * injected, omitted under -s). EBX holds the chosen item_id (callee-
+ * saved); ESI is the runtime_char base pointer; the trailing POP ESI /
+ * POP EBX / RET is the shared epilogue.
+ * ---------------------------------------------------------------- */
+void fd2_equip_item_in_slot(uint32 char_idx, uint32 slot_idx)
+{
+    runtime_char *rc;
+    uint8 item_id;
+    uint32 scan_iter;
+
+    rc = data_fd2_battle_runtime_char_array_ptr;
+    item_id = fd2_get_inventory_slot_item_id(char_idx, slot_idx);
+
+    for (scan_iter = 0; (int)scan_iter < 8; scan_iter++) {
+        if ((rc[char_idx].inventory_slots[scan_iter * 2] & 0x40) != 0
+            && ((item_id < 0x80
+                 && rc[char_idx].inventory_slots[scan_iter * 2 + 1] < 0x80)
+                || (item_id >= 0x80
+                    && rc[char_idx].inventory_slots[scan_iter * 2 + 1] >= 0x80))) {
+            rc[char_idx].inventory_slots[scan_iter * 2] = 0;
+        }
+    }
+
+    rc[char_idx].inventory_slots[slot_idx * 2] = 0x40;
+}

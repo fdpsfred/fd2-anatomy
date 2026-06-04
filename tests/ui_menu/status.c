@@ -1036,6 +1036,143 @@ static void test_item_command_no_items_returns_minus1(void)
  * for Phase 9 integration under the emulator.
  * ---------------------------------------------------------------- */
 
+/* ----------------------------------------------------------------
+ * fd2_equip_item_in_slot @ 0x1C142
+ *
+ * Equips slot `slot_idx`, auto-unequipping any same-category item already
+ * equipped (flag bit 0x40). Category split is item_id 0x80 (both < 0x80 =
+ * physical, both >= 0x80 = magical). The target item_id is fetched via the
+ * real fd2_get_inventory_slot_item_id, which reads
+ * g_test_rc_array[ci].inventory_slots[slot*2 + 1]. These tests pin: the
+ * same-category unequip (physical & magical), cross-category preservation,
+ * the 0x7F/0x80 boundary, the equipped-flag (0x40) gate, and char_idx
+ * (0x50-stride) isolation.
+ * ---------------------------------------------------------------- */
+
+/* Equip a physical item while another physical item is already equipped:
+ * the old physical slot must be unequipped and the target marked equipped. */
+static void test_equip_physical_unequips_other_physical(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    /* slot 0: equipped physical weapon (id 0x05) */
+    g_test_rc_array[0].inventory_slots[0] = 0x40;
+    g_test_rc_array[0].inventory_slots[1] = 0x05;
+    /* slot 2: the target slot, holds another physical item (id 0x10) */
+    g_test_rc_array[0].inventory_slots[4] = 0x00;
+    g_test_rc_array[0].inventory_slots[5] = 0x10;
+
+    fd2_equip_item_in_slot(0, 2);
+
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[0], 0x00);  /* old unequipped */
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[4], 0x40);  /* target equipped */
+}
+
+/* Equip a physical item while a magical item (id >= 0x80) is equipped:
+ * the cross-category magical slot must stay equipped. */
+static void test_equip_physical_keeps_equipped_magical(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    /* slot 0: equipped magical spellbook (id 0x90) */
+    g_test_rc_array[0].inventory_slots[0] = 0x40;
+    g_test_rc_array[0].inventory_slots[1] = 0x90;
+    /* slot 1: target physical item (id 0x20) */
+    g_test_rc_array[0].inventory_slots[2] = 0x00;
+    g_test_rc_array[0].inventory_slots[3] = 0x20;
+
+    fd2_equip_item_in_slot(0, 1);
+
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[0], 0x40);  /* magical kept */
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[2], 0x40);  /* target equipped */
+}
+
+/* Equip a magical item while another magical is equipped AND a physical is
+ * equipped: only the same-category magical is unequipped; physical kept. */
+static void test_equip_magical_unequips_magical_keeps_physical(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    /* slot 0: equipped magical (id 0x85) -> must be unequipped */
+    g_test_rc_array[0].inventory_slots[0] = 0x40;
+    g_test_rc_array[0].inventory_slots[1] = 0x85;
+    /* slot 1: equipped physical (id 0x03) -> must be kept */
+    g_test_rc_array[0].inventory_slots[2] = 0x40;
+    g_test_rc_array[0].inventory_slots[3] = 0x03;
+    /* slot 3: target magical item (id 0xC0) */
+    g_test_rc_array[0].inventory_slots[6] = 0x00;
+    g_test_rc_array[0].inventory_slots[7] = 0xC0;
+
+    fd2_equip_item_in_slot(0, 3);
+
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[0], 0x00);  /* magical removed */
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[2], 0x40);  /* physical kept   */
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[6], 0x40);  /* target equipped */
+}
+
+/* Category boundary: id 0x7F is physical, id 0x80 is magical. Equipping a
+ * 0x7F item must NOT unequip an equipped 0x80 item (different categories). */
+static void test_equip_category_boundary_7f_vs_80(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    /* slot 0: equipped item id exactly 0x80 (magical) */
+    g_test_rc_array[0].inventory_slots[0] = 0x40;
+    g_test_rc_array[0].inventory_slots[1] = 0x80;
+    /* slot 1: target item id exactly 0x7F (physical) */
+    g_test_rc_array[0].inventory_slots[2] = 0x00;
+    g_test_rc_array[0].inventory_slots[3] = 0x7F;
+
+    fd2_equip_item_in_slot(0, 1);
+
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[0], 0x40);  /* 0x80 kept */
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[2], 0x40);  /* target equipped */
+}
+
+/* The unequip scan only touches slots with the 0x40 flag set. An occupied-
+ * but-unequipped same-category slot (flag 0x00) must be left untouched. */
+static void test_equip_ignores_unequipped_same_category(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    /* slot 0: same-category physical but NOT equipped (flag 0x00) */
+    g_test_rc_array[0].inventory_slots[0] = 0x00;
+    g_test_rc_array[0].inventory_slots[1] = 0x05;
+    /* slot 2: target physical item */
+    g_test_rc_array[0].inventory_slots[4] = 0x00;
+    g_test_rc_array[0].inventory_slots[5] = 0x10;
+
+    fd2_equip_item_in_slot(0, 2);
+
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[0], 0x00);  /* unchanged */
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[4], 0x40);  /* target equipped */
+}
+
+/* char_idx indexing: operating on char 4 must hit runtime_char[4] (offset
+ * 4*0x50) and leave other characters' slots completely untouched. */
+static void test_equip_char_index_isolation(void)
+{
+    int s;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    /* char 3: an equipped physical that must NOT be disturbed */
+    g_test_rc_array[3].inventory_slots[0] = 0x40;
+    g_test_rc_array[3].inventory_slots[1] = 0x05;
+    /* char 4: an equipped physical (slot 0) + target physical (slot 1) */
+    g_test_rc_array[4].inventory_slots[0] = 0x40;
+    g_test_rc_array[4].inventory_slots[1] = 0x07;
+    g_test_rc_array[4].inventory_slots[2] = 0x00;
+    g_test_rc_array[4].inventory_slots[3] = 0x11;
+
+    fd2_equip_item_in_slot(4, 1);
+
+    /* char 4: old physical unequipped, target equipped */
+    ASSERT_EQ(g_test_rc_array[4].inventory_slots[0], 0x00);
+    ASSERT_EQ(g_test_rc_array[4].inventory_slots[2], 0x40);
+    /* char 3 untouched */
+    ASSERT_EQ(g_test_rc_array[3].inventory_slots[0], 0x40);
+    ASSERT_EQ(g_test_rc_array[3].inventory_slots[1], 0x05);
+    /* every other char still all-zero */
+    for (s = 0; s < 16; s++) {
+        ASSERT_EQ(g_test_rc_array[0].inventory_slots[s], 0x00);
+        ASSERT_EQ(g_test_rc_array[5].inventory_slots[s], 0x00);
+    }
+}
+
 void run_ui_menu_status_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1076,5 +1213,11 @@ void run_ui_menu_status_tests(void)
     RUN_TEST(test_grid_input_esc_cancels);
     RUN_TEST(test_grid_input_other_key_loops);
     RUN_TEST(test_item_command_no_items_returns_minus1);
+    RUN_TEST(test_equip_physical_unequips_other_physical);
+    RUN_TEST(test_equip_physical_keeps_equipped_magical);
+    RUN_TEST(test_equip_magical_unequips_magical_keeps_physical);
+    RUN_TEST(test_equip_category_boundary_7f_vs_80);
+    RUN_TEST(test_equip_ignores_unequipped_same_category);
+    RUN_TEST(test_equip_char_index_isolation);
     printf("\n");
 }
