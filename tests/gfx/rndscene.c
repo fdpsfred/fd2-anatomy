@@ -1482,7 +1482,12 @@ static void test_spell_duplicate_target_single_hit(void)
  *                                              g_saveblk_calls an exact panel
  *                                              counter, and g_saveblk_src pins
  *                                              the panel dst_off arithmetic
- *   fd2_render_combat_hp_bar_segments       -> recording stub (g_hpseg_*)
+ *   fd2_render_combat_hp_bar_segments       -> real; its HP-bar segment blits
+ *                                              reach the real
+ *                                              fd2_blit_sheet_sprite_at_offset
+ *                                              -> g_blitraw log (its first blit,
+ *                                              the 0x17 left cap, pins the
+ *                                              segment-bar dst arithmetic)
  *   fd2_render_combatant_hp_bar_proportional-> recording stub (g_hpbar_prop_*)
  *   fd2_blit_rectangle                      -> real; memmoves the workspace to
  *                                              0xA0504 (VGA RAM, writable under
@@ -1497,8 +1502,35 @@ extern uint32 g_hpbar_prop_d[4];
 extern uint32 g_hpbar_prop_s[4];
 extern uint32 g_hpbar_prop_ci[4];
 extern uint32 g_hpbar_prop_st[4];
-extern int    g_hpseg_calls;
-extern uint32 g_hpseg_dst, g_hpseg_stride, g_hpseg_count;
+/* raw-blit recording log (testglob.c): the real fd2_render_combat_hp_bar_segments
+ * resolves each segment through the real fd2_blit_sheet_sprite_at_offset, which
+ * forwards (dst, sprite_addr) here when g_blitraw_log_on is set. */
+extern uint32 g_blitraw_dst, g_blitraw_sprite, g_blitraw_stride;
+extern int    g_blitraw_log_on;
+extern int    g_blitraw_count;
+extern uint32 g_blitraw_log_dst[512];
+extern uint32 g_blitraw_log_sprite[512];
+
+/* UI/anim sheet fixture for data_fd2_ui_anim_sprite_sheet_ptr. Offset-table
+ * entry i stores the value i, so a resolved sprite address minus the sheet base
+ * equals the sprite index drawn (covers the HP-bar indices 0x17..0x1e). */
+static uint8 g_ui_sheet[6 + 0x20 * 4];
+
+static void install_ui_sheet(void)
+{
+    int i;
+    memset(g_ui_sheet, 0, sizeof(g_ui_sheet));
+    for (i = 0; i <= 0x1e; i++) {
+        *(int32 *)(g_ui_sheet + 6 + i * 4) = i;
+    }
+    data_fd2_ui_anim_sprite_sheet_ptr = (uint32)g_ui_sheet;
+}
+
+/* sprite index of the k-th logged raw blit = sprite_addr - ui sheet base */
+static uint32 ui_logged_idx(int k)
+{
+    return g_blitraw_log_sprite[k] - data_fd2_ui_anim_sprite_sheet_ptr;
+}
 
 /* Panel sheet fixture for data_fd2_resource_portrait_sheet_ptr. The real
  * fd2_alloc_and_blit_indexed_sprite_chunk resolves sprite 0x30 as
@@ -1533,13 +1565,15 @@ static void reset_panel_record(void)
     data_fd2_battle_view_window_max_y = 0x100;
     data_fd2_battle_party_member_count = 0;   /* real chars overlay -> no-op */
     install_panel_sheet();
+    install_ui_sheet();                        /* HP-bar segment sprite source */
 
     g_tile_map_calls = 0;
     g_composite_call_count = 0;
     g_saveblk_calls = 0;
     g_blitdec_calls = 0;
     g_hpbar_prop_calls = 0;
-    g_hpseg_calls = 0;
+    g_blitraw_count = 0;                        /* HP-bar segment blit log */
+    g_blitraw_log_on = 1;
 }
 
 /* Attacker-only path (xy[2] == -1): backdrop rebuild, exactly one panel
@@ -1577,12 +1611,15 @@ static void test_panels_attacker_only(void)
     ASSERT_EQ(g_saveblk_src, (uint32)((0x10 - 4) * 0x1c8 + (0x20 - 4)));
     ASSERT_EQ(g_saveblk_stride, 0x1c8u);
 
-    /* 3. HP-segment bar dst = ws + 3 + (ay+2)*456 + ax, width 0x37 */
+    /* 3. HP-segment bar dst = ws + 3 + (ay+2)*456 + ax, width 0x37. The real
+     *    renderer's first segment blit is the 0x17 left cap at that dst; with
+     *    proportional-bar stubbed and panel chunks going through the decoded-
+     *    pixel path, every raw blit logged here belongs to this segment bar. */
     expect_seg = ws + 3u + (uint32)((0x10 + 2) * 0x1c8) + 0x20u;
-    ASSERT_EQ(g_hpseg_calls, 1);
-    ASSERT_EQ(g_hpseg_dst, expect_seg);
-    ASSERT_EQ(g_hpseg_stride, 0x1c8u);
-    ASSERT_EQ(g_hpseg_count, 0x37u);
+    ASSERT_TRUE(g_blitraw_count > 0);
+    ASSERT_EQ(g_blitraw_log_dst[0], expect_seg);
+    ASSERT_EQ(ui_logged_idx(0), 0x17u);
+    ASSERT_EQ(g_blitraw_stride, 0x1c8u);
 
     /* 4. one proportional HP bar: (ws-0x724, 456, attacker_idx, &xy[0]) */
     ASSERT_EQ(g_hpbar_prop_calls, 1);
@@ -1640,12 +1677,134 @@ static void test_panels_hp_seg_addr_arithmetic(void)
 
     ws = (uint32)g_ws_buffer;
     expect_seg = ws + 3u + (uint32)((0x1f + 2) * 0x1c8) + 0x29u;
-    ASSERT_EQ(g_hpseg_calls, 1);
-    ASSERT_EQ(g_hpseg_dst, expect_seg);
-    ASSERT_EQ(g_hpseg_count, 0x37u);
+    /* first segment blit (0x17 left cap) pins the bar dst with new (ax, ay) */
+    ASSERT_TRUE(g_blitraw_count > 0);
+    ASSERT_EQ(g_blitraw_log_dst[0], expect_seg);
+    ASSERT_EQ(ui_logged_idx(0), 0x17u);
     /* attacker-only: no defender panel, single proportional bar */
     ASSERT_EQ(g_saveblk_calls, 1);
     ASSERT_EQ(g_hpbar_prop_calls, 1);
+}
+
+/* ====================================================================
+ * fd2_render_combat_hp_bar_segments @ 0x1E739
+ *
+ * Drives the real renderer through the real fd2_blit_sheet_sprite_at_offset
+ * into the g_blitraw log, then fingerprints the exact (dst_offset, sprite_idx)
+ * sequence for each control-flow class: empty bar (filled<=0), the off-by-one
+ * fall-through final cap, the filled-middle run, the exact-max-width boundary
+ * (0x45), and the over-max early return (>0x45) which omits the final cap.
+ *
+ * Segment dst advances one byte per blit; sprite indices: 0x17 left cap,
+ * 0x18 filled middle, 0x19 fill right cap, 0x1D empty middle, 0x1E final cap.
+ * ==================================================================== */
+#define HPSEG_BASE 0x30000u
+
+/* Run the renderer with a clean log; sheet entry i -> index i so the logged
+ * sprite addr minus the sheet base is the index drawn. */
+static void hpseg_run(uint32 filled_count)
+{
+    install_ui_sheet();
+    g_blitraw_count = 0;
+    g_blitraw_log_on = 1;
+    fd2_render_combat_hp_bar_segments(HPSEG_BASE, 0x1c8, filled_count);
+}
+
+/* assert the k-th logged blit drew sprite `idx` at HPSEG_BASE + `off` */
+static void hpseg_expect(int k, uint32 off, uint32 idx)
+{
+    ASSERT_EQ(g_blitraw_log_dst[k], HPSEG_BASE + off);
+    ASSERT_EQ(ui_logged_idx(k), idx);
+}
+
+/* filled_count == 0: 0x45 empty middles (0x1D) at offsets 0..0x44, then one
+ * final cap (0x1E) at offset 0x45 (the shared fall-through). 0x46 blits. */
+static void test_hpseg_empty_bar(void)
+{
+    int i;
+
+    hpseg_run(0);
+    ASSERT_EQ(g_blitraw_count, 0x46);
+    for (i = 0; i < 0x45; i++) {
+        hpseg_expect(i, (uint32)i, 0x1d);
+    }
+    hpseg_expect(0x45, 0x45, 0x1e);   /* final right cap one past last middle */
+}
+
+/* negative filled_count takes the same JLE (signed <= 0) empty path as 0. */
+static void test_hpseg_negative_is_empty(void)
+{
+    hpseg_run((uint32)-1);
+    ASSERT_EQ(g_blitraw_count, 0x46);
+    hpseg_expect(0, 0, 0x1d);
+    hpseg_expect(0x45, 0x45, 0x1e);
+}
+
+/* filled_count == 1: left cap (0x17) at 0, no filled middle, fill cap (0x19)
+ * at 1, empty middles (0x1D) at 2..0x45, final cap (0x1E) at 0x46. */
+static void test_hpseg_one_filled(void)
+{
+    int i;
+
+    hpseg_run(1);
+    ASSERT_EQ(g_blitraw_count, 0x47);
+    hpseg_expect(0, 0, 0x17);
+    hpseg_expect(1, 1, 0x19);
+    for (i = 2; i <= 0x45; i++) {
+        hpseg_expect(i, (uint32)i, 0x1d);
+    }
+    hpseg_expect(0x46, 0x46, 0x1e);
+}
+
+/* filled_count == 3: left cap @0, filled middles (0x18) @1,@2, fill cap (0x19)
+ * @3, empty middles @4..0x45, final cap @0x46. Exercises the 0x18 run. */
+static void test_hpseg_mid_filled(void)
+{
+    int i;
+
+    hpseg_run(3);
+    ASSERT_EQ(g_blitraw_count, 0x47);
+    hpseg_expect(0, 0, 0x17);
+    hpseg_expect(1, 1, 0x18);
+    hpseg_expect(2, 2, 0x18);
+    hpseg_expect(3, 3, 0x19);
+    for (i = 4; i <= 0x45; i++) {
+        hpseg_expect(i, (uint32)i, 0x1d);
+    }
+    hpseg_expect(0x46, 0x46, 0x1e);
+}
+
+/* filled_count == 0x45 (exact max width): left cap @0, filled middles @1..0x44,
+ * fill cap (0x19) @0x45, NO empty middles (loop breaks immediately), final cap
+ * (0x1E) @0x46. 0x47 blits, zero 0x1D. */
+static void test_hpseg_full_width(void)
+{
+    int i;
+
+    hpseg_run(0x45);
+    ASSERT_EQ(g_blitraw_count, 0x47);
+    hpseg_expect(0, 0, 0x17);
+    for (i = 1; i <= 0x44; i++) {
+        hpseg_expect(i, (uint32)i, 0x18);
+    }
+    hpseg_expect(0x45, 0x45, 0x19);
+    hpseg_expect(0x46, 0x46, 0x1e);
+}
+
+/* filled_count == 0x46 (> max width): left cap @0, filled middles @1..0x45,
+ * fill cap (0x19) @0x46, then the >0x45 early return -> NO final 0x1E cap.
+ * 0x47 blits ending in 0x19, never 0x1E. */
+static void test_hpseg_over_width_no_cap(void)
+{
+    int i;
+
+    hpseg_run(0x46);
+    ASSERT_EQ(g_blitraw_count, 0x47);
+    hpseg_expect(0, 0, 0x17);
+    for (i = 1; i <= 0x45; i++) {
+        hpseg_expect(i, (uint32)i, 0x18);
+    }
+    hpseg_expect(0x46, 0x46, 0x19);   /* last blit is the fill cap, no 0x1E */
 }
 
 void run_gfx_rndscene_tests(void)
@@ -1702,5 +1861,11 @@ void run_gfx_rndscene_tests(void)
     RUN_TEST(test_panels_attacker_only);
     RUN_TEST(test_panels_with_defender);
     RUN_TEST(test_panels_hp_seg_addr_arithmetic);
+    RUN_TEST(test_hpseg_empty_bar);
+    RUN_TEST(test_hpseg_negative_is_empty);
+    RUN_TEST(test_hpseg_one_filled);
+    RUN_TEST(test_hpseg_mid_filled);
+    RUN_TEST(test_hpseg_full_width);
+    RUN_TEST(test_hpseg_over_width_no_cap);
     printf("\n");
 }

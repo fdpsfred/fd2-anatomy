@@ -946,15 +946,11 @@ void fd2_render_combatant_hp_bar_proportional(uint32 d, uint32 s, uint32 ci, uin
     }
     g_hpbar_prop_calls++;
 }
-int    g_hpseg_calls = 0;
-uint32 g_hpseg_dst, g_hpseg_stride, g_hpseg_count;
-void fd2_render_combat_hp_bar_segments(uint32 dst_addr, uint32 stride, uint32 filled_count)
-{
-    g_hpseg_dst = dst_addr;
-    g_hpseg_stride = stride;
-    g_hpseg_count = filled_count;
-    g_hpseg_calls++;
-}
+/* fd2_render_combat_hp_bar_segments is now emitted for real in
+ * src/gfx/rndscene.c. Its former recording stub (g_hpseg_*) was removed; the
+ * combatant-panel tests now drive the real renderer and observe its HP-bar
+ * blits through the fd2_blit_sprite_raw_with_header log (g_blitraw_log_*),
+ * and tests/gfx/rndscene.c fingerprints the full segment sequence directly. */
 int fd2_animate_combat_hit_with_hp_drain(uint32 a, uint32 d, uint32 st) { return 0; }
 void fd2_play_full_combat_cinematic(uint32 a, uint32 d) { }
 /* fd2_process_xp_and_level_up_for_char: now emitted in src/battle/btl_turn.c

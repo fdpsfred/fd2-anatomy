@@ -709,3 +709,82 @@ void fd2_render_combat_combatant_panels(uint32 xy_array_ptr, uint32 defender_idx
                        data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1c8,
                        0x138, 0xc0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_combat_hp_bar_segments @ 0x1E739 (3 callers)
+ *
+ * Draw the segmented HP bar inside a combat VS panel by blitting a
+ * horizontal run of 1-pixel-wide sprite segments from the UI/anim
+ * sprite sheet, advancing dst_addr by one byte per segment.
+ *
+ * filled_count is the number of "filled" head segments to draw:
+ *
+ *   filled_count <= 0 (empty bar):
+ *     for seg in 0..0x44:  blit sprite 0x1D (empty middle) at dst+seg
+ *     then one sprite 0x1E (final right cap) at dst+0x45
+ *
+ *   filled_count > 0:
+ *     blit sprite 0x17 (left cap) at dst
+ *     for seg in 1..filled_count-1:  blit sprite 0x18 (filled middle) at dst+seg
+ *     blit sprite 0x19 (fill right cap) at dst+filled_count
+ *     if filled_count > 0x45: return     (exceeds max width, no final cap)
+ *     for the remaining middles up to seg 0x45: blit sprite 0x1D (empty middle)
+ *     then one sprite 0x1E (final right cap)
+ *
+ * Both the empty-bar loop exit and the filled-bar empty-middle loop
+ * break fall through to a single trailing sprite-0x1E blit whose dst
+ * is the last computed dst_addr + segment index (asm: shared EAX held
+ * across the merge at 0x1E7DF).
+ *
+ * Sprite encoding (UI/anim sheet, sprite_idx):
+ *   0x17 left cap | 0x18 filled middle | 0x19 fill right cap
+ *   0x1D empty middle | 0x1E final right cap
+ * Bar max width = 0x45 (69) segments.
+ *
+ * Callers: fd2_render_combat_combatant_panels,
+ *          fd2_render_combatant_hp_bar_proportional,
+ *          fd2_animate_combat_hit_with_hp_drain.
+ * ---------------------------------------------------------------- */
+void fd2_render_combat_hp_bar_segments(uint32 dst_addr, uint32 stride,
+                                       uint32 filled_count)
+{
+    uint32 seg_addr;
+    uint32 seg;
+
+    seg = 0;
+    if ((int32)filled_count < 1) {
+        for (; seg_addr = dst_addr + seg, (int32)seg < 0x45; seg = seg + 1) {
+            fd2_blit_sheet_sprite_at_offset(seg_addr, stride,
+                                            data_fd2_ui_anim_sprite_sheet_ptr,
+                                            0x1d);
+        }
+    } else {
+        fd2_blit_sheet_sprite_at_offset(dst_addr, stride,
+                                        data_fd2_ui_anim_sprite_sheet_ptr,
+                                        0x17);
+        for (seg = 1; (int32)seg < (int32)filled_count; seg = seg + 1) {
+            fd2_blit_sheet_sprite_at_offset(dst_addr + seg, stride,
+                                            data_fd2_ui_anim_sprite_sheet_ptr,
+                                            0x18);
+        }
+        fd2_blit_sheet_sprite_at_offset(dst_addr + seg, stride,
+                                        data_fd2_ui_anim_sprite_sheet_ptr,
+                                        0x19);
+        if (0x45 < (int32)filled_count) {
+            return;
+        }
+        for (;;) {
+            seg_addr = dst_addr + seg + 1;
+            if (0x44 < (int32)seg) {
+                break;
+            }
+            fd2_blit_sheet_sprite_at_offset(seg_addr, stride,
+                                            data_fd2_ui_anim_sprite_sheet_ptr,
+                                            0x1d);
+            seg = seg + 1;
+        }
+    }
+    fd2_blit_sheet_sprite_at_offset(seg_addr, stride,
+                                    data_fd2_ui_anim_sprite_sheet_ptr,
+                                    0x1e);
+}

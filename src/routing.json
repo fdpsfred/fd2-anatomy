@@ -1567,8 +1567,9 @@
     "name": "fd2_render_combat_hp_bar_segments",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001e7f6": {
     "name": "fd2_render_combatant_hp_bar_proportional",
