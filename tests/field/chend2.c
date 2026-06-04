@@ -805,6 +805,92 @@ static void test_ch26_end_positions_robot_and_advances(void)
     ce_restore_rc_ptr();
 }
 
+/* ----------------------------------------------------------------
+ * Chapter 27 end handler — fd2_chapter_27_end @ 0x250CC. The FD2 GOOD/BAD
+ * ending fork.
+ *
+ * The risk core is the GOOD/BAD fork on whether any party char holds 天空之鑰
+ * (item 100), plus the common prologue's blanket reset of every active
+ * runtime_char's flags byte (slots 0..15). The fork predicate is the REAL
+ * fd2_any_char_has_item(100), driven through the find double's
+ * g_ce_find_have_item100 (char 0 holds item 100), exactly as the ch23 suite
+ * drives it.
+ *
+ * Only the GOOD path is driven end-to-end on-host: it advances
+ * current_chapter_id, restores the (empty) template roster to full HP/MP, and
+ * RETURNS (its tail shares fd2_render_party_status_overview_content's epilogue
+ * @ 0x1B5EA) so play continues into chapter 28. The BAD path is intentionally
+ * NOT a returnable code path — after the game-over cinematic it hard-locks in
+ * an infinite loop (the "沒天空之鑰悠妮獨自回黃金城無法玩" game-over), so it
+ * cannot be invoked from a host unit test; its warp/teleport + game-over
+ * cinematic side effects are deferred to Phase 9 integration.
+ *
+ * The GOOD path is driven with the proven chend2 safe env. All its callees are
+ * host-safe there: fd2_setup_chars_and_camera_for_intro is the no-op double;
+ * the five fd2_display_dialog_scene calls (pages 8..12, all <= 0x10) take the
+ * immediate-END program; the three fd2_cutscene_event_trigger calls
+ * (events 0x52/0x53/0x54) take zero-group scripts; fd2_pan_cursor_and_window,
+ * the five fd2_palette_overbright_settle_step_loop pulses, and the real
+ * fd2_play_palette_fade_to_black all run against the staged camera/768-byte
+ * palette; fd2_cast_screen_wide_spell_with_fade is the no-op double; the two
+ * direct memset(0xA0000,…) clears hit the harmless VGA framebuffer; the empty
+ * active party makes fd2_save_runtime_char_to_template iterate zero chars; and
+ * the empty template roster makes fd2_restore_all_chars_full_hp_mp iterate
+ * zero chars. The pure blit/display side effects of the GOOD-path cinematic
+ * are deferred to Phase 9 integration.
+ * ---------------------------------------------------------------- */
+
+/* zero-group cutscene scripts for ch27's events 0x52 / 0x53 / 0x54: n_groups
+ * byte = 0, so the real fd2_cutscene_event_trigger just composites once and
+ * returns. */
+static uint8 g_ce27_script_52[1] = { 0 };
+static uint8 g_ce27_script_53[1] = { 0 };
+static uint8 g_ce27_script_54[1] = { 0 };
+
+static void test_ch27_end_good_path_resets_flags_and_advances(void)
+{
+    int i;
+    uint32 chap0;
+
+    ce_install_safe_env();
+
+    /* zero-group cutscene scripts for the three events the GOOD path fires. */
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x52] = g_ce27_script_52;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x53] = g_ce27_script_53;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x54] = g_ce27_script_54;
+
+    /* GOOD path: 天空之鑰 (item 100) held -> fd2_any_char_has_item != -1. */
+    g_ce_find_have_item100 = 1;
+
+    /* dirty every active runtime_char's flags byte so the prologue's blanket
+     * reset of slots 0..15 is observable; slot 0x10 (just past the reset
+     * range) is dirtied too and must survive untouched. */
+    for (i = 0; i < 16; i++) {
+        g_ce_rc[i].flags = 0xFF;
+    }
+    g_ce_rc[0x10].flags = 0xAA;
+
+    chap0 = data_fd2_chapter_current_chapter_id;
+
+    fd2_chapter_27_end();
+
+    /* prologue reset every active slot's flags byte to 0. */
+    for (i = 0; i < 16; i++) {
+        ASSERT_EQ(g_ce_rc[i].flags, 0);
+    }
+    /* slot 0x10 is outside the 16-slot reset range -> left untouched. */
+    ASSERT_EQ(g_ce_rc[0x10].flags, 0xAA);
+
+    /* GOOD path ran to its return: chapter id advanced by exactly one. */
+    ASSERT_EQ(data_fd2_chapter_current_chapter_id, chap0 + 1);
+
+    /* GOOD path adds no char (it persists the existing roster, not a recruit). */
+    ASSERT_EQ(data_fd2_shared_menu_party_member_count, 0);
+
+    g_ce_find_have_item100 = 0;
+    ce_restore_rc_ptr();
+}
+
 void run_field_chend2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -820,5 +906,6 @@ void run_field_chend2_tests(void)
     RUN_TEST(test_ch24_end_runs_and_advances);
     RUN_TEST(test_ch25_end_real_portrait_reload_two_recruits_and_advance);
     RUN_TEST(test_ch26_end_positions_robot_and_advances);
+    RUN_TEST(test_ch27_end_good_path_resets_flags_and_advances);
     printf("\n");
 }

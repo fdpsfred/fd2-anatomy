@@ -1232,3 +1232,16 @@ void fd2_cast_screen_wide_spell_with_fade(uint32 epicenter_tile_x,
 void fd2_animate_screen_shake(uint32 frame_count) {
     (void)frame_count;
 }
+
+/* ---- fd2_chapter_27_end (field/chend2.c) not-yet-emitted callee ----
+ * fd2_play_game_ending_cinematic (0x2BCE5 -> anim/aniend.c, pending) — the
+ * full game-over cinematic played on chapter 27's BAD ending (no 天空之鑰):
+ * it loads FDOTHER.DAT assets, runs combat/ANI cinematics, portrait dialogs,
+ * 64000-byte VGA framebuffer blits and palette fades, and ends by calling the
+ * final chapter-30 ending. It is reached only on the bad path, immediately
+ * before fd2_chapter_27_end's intentional infinite-loop hard-lock, so it is
+ * never invoked by the on-host GOOD-path test; a no-op double here resolves
+ * the link. Deferred to Phase 9 integration. Remove when the real function is
+ * emitted. */
+void fd2_play_game_ending_cinematic(void) {
+}

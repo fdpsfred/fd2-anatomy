@@ -190,6 +190,7 @@ void fd2_chapter_23_end(void);
 void fd2_chapter_24_end(void);
 void fd2_chapter_25_end(void);
 void fd2_chapter_26_end(void);
+void fd2_chapter_27_end(void);
 void fd2_setup_chars_and_camera_for_intro(uint32 pos_x_table, uint32 pos_y_table,
                                           uint32 facing_table, uint32 place_start,
                                           uint32 place_end, uint32 scene2_char_idx,
@@ -197,6 +198,7 @@ void fd2_setup_chars_and_camera_for_intro(uint32 pos_x_table, uint32 pos_y_table
                                           uint32 scene2_facing, uint32 camera_world_x,
                                           uint32 camera_world_y);
 void fd2_play_chapter_intro_sprite_slideshow(void);
+void fd2_play_game_ending_cinematic(void);
 int fd2_any_char_has_item(int item_id);
 int fd2_find_template_char_by_id(uint32 char_id);
 void fd2_animate_screen_shake(uint32 frame_count);

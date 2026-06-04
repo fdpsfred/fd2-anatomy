@@ -15,6 +15,8 @@
  *                               data_fd2_chapter_end_handler_table[25])
  * fd2_chapter_26_end @ 0x24E80 (0 direct callers; dispatched via
  *                               data_fd2_chapter_end_handler_table[26])
+ * fd2_chapter_27_end @ 0x250CC (0 direct callers; dispatched via
+ *                               data_fd2_chapter_end_handler_table[27])
  */
 
 #include <string.h>
@@ -649,4 +651,145 @@ void fd2_chapter_26_end(void)
 
     fd2_save_runtime_char_to_template();
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}
+
+/* ----------------------------------------------------------------
+ * Chapter-27 end-scene character tables (FD2.LE data @ 0x52306 /
+ * 0x52316 / 0x52326). Private read-only data referenced only by
+ * fd2_chapter_27_end; the Watcom prologue copies each 16-byte table onto
+ * stack scratch as four dwords (the placement of slots 0..15) before
+ * fd2_setup_chars_and_camera_for_intro indexes them by char slot. The
+ * trailing byte @ 0x52326 (value 0x01) is copied as a one-byte scratch
+ * (var_10) whose address is later handed to
+ * fd2_animate_status_effect_overlay_flicker on the bad-ending path; the
+ * routine ignores the pointee, so the byte is vestigial.
+ * ---------------------------------------------------------------- */
+const uint8 data_fd2_chapter_ch27_end_scene_char_pos_x_table[16] = {
+    0x0F, 0x0F, 0x0C, 0x0D, 0x11, 0x12, 0x0D, 0x0E,
+    0x10, 0x11, 0x0E, 0x0F, 0x10, 0x0E, 0x0F, 0x10
+};
+const uint8 data_fd2_chapter_ch27_end_scene_char_pos_y_table[16] = {
+    0x0D, 0x0B, 0x0C, 0x0C, 0x0C, 0x0C, 0x0D, 0x0D,
+    0x0D, 0x0D, 0x0E, 0x0E, 0x0E, 0x0F, 0x0F, 0x0F
+};
+const uint8 data_fd2_chapter_ch27_end_scene_vestigial_byte = 0x01;
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_27_end @ 0x250CC  — Chapter 27「命運的交會點」end handler
+ * (0 direct callers, dispatched via data_fd2_chapter_end_handler_table[27]).
+ * This is the FD2 GOOD/BAD ending fork.
+ *
+ * Copies the two 16-byte end-scene tables onto the stack, snapshots the
+ * vestigial byte, resets every active runtime_char's flags byte (slots
+ * 0..15), then places the cast / re-aims the camera via
+ * fd2_setup_chars_and_camera_for_intro and runs the opening dialog (page 8)
+ * and cutscene event 0x52. The ending then forks on whether any party char
+ * holds 天空之鑰 (item 100):
+ *
+ *   GOOD PATH (key held): dialog pages 9/10/11/12 interleaved with cutscene
+ *     events 0x53/0x54 and a cursor/window pan, a sequence of additive
+ *     over-bright palette pulses (fd2_palette_overbright_settle_step_loop)
+ *     with shrinking 500/250/100/50-tick holds, a screen-wide spell cast
+ *     centred on the cursor, a 500-tick hold, a white-screen flash
+ *     (memset 0xA0000 to 0xFF), a palette fade to black, then a black-screen
+ *     clear (memset 0xA0000 to 0). It finishes by saving the runtime char
+ *     templates, advancing current_chapter_id, restoring all chars to full
+ *     HP/MP, and returning (the tail shares the epilogue of
+ *     fd2_render_party_status_overview_content @ 0x1B5EA) so play continues
+ *     into chapter 28.
+ *
+ *   BAD PATH (key NOT held): dialog pages 13/14/15 interleaved with cutscene
+ *     events 0x54/0x52, a status-effect overlay flicker, then 悠妮
+ *     (runtime_char[1]) is warped off the field
+ *     (fd2_animate_warp_teleport_char from her current tile), final dialog
+ *     page 16, all chars restored to full HP/MP, and the game-over cinematic
+ *     (fd2_play_game_ending_cinematic). It then hard-locks in an infinite
+ *     loop — the binary's "沒天空之鑰悠妮獨自回黃金城無法玩" game-over.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_27.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_27_end(void)
+{
+    uint8 pos_x[16];
+    uint8 pos_y[16];
+    uint8 vestigial;
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        pos_x[i] = data_fd2_chapter_ch27_end_scene_char_pos_x_table[i];
+        pos_y[i] = data_fd2_chapter_ch27_end_scene_char_pos_y_table[i];
+    }
+    vestigial = data_fd2_chapter_ch27_end_scene_vestigial_byte;
+
+    for (i = 0; i < 16; i++) {
+        data_fd2_battle_runtime_char_array_ptr[i].flags = 0;
+    }
+
+    fd2_setup_chars_and_camera_for_intro((uint32)pos_x, (uint32)pos_y, 2, 0,
+                                         0xF, 0, 0, 0, 0, 9, 8);
+    fd2_display_dialog_scene(current_chapter_text, 8, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x52);
+
+    if (fd2_any_char_has_item(100) != -1) {
+        fd2_display_dialog_scene(current_chapter_text, 9, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        data_fd2_battle_anim_phase = 0;
+        fd2_cutscene_event_trigger(0x53);
+        fd2_display_dialog_scene(current_chapter_text, 10, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        data_fd2_battle_anim_phase = 0;
+        fd2_pan_cursor_and_window(9, 8);
+        fd2_cutscene_event_trigger(0x54);
+        fd2_display_dialog_scene(current_chapter_text, 0xB, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        fd2_palette_overbright_settle_step_loop(0x50, 5);
+        fd2_display_dialog_scene(current_chapter_text, 0xC, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        fd2_palette_overbright_settle_step_loop(0x50, 4);
+        __delay_thunk_375b2(500);
+        fd2_palette_overbright_settle_step_loop(0x50, 3);
+        __delay_thunk_375b2(250);
+        fd2_palette_overbright_settle_step_loop(0x50, 2);
+        __delay_thunk_375b2(100);
+        fd2_palette_overbright_settle_step_loop(0x50, 2);
+        __delay_thunk_375b2(50);
+        fd2_palette_overbright_settle_step_loop(0x50, 2);
+        fd2_cast_screen_wide_spell_with_fade(data_fd2_battle_cursor_screen_x,
+                                             data_fd2_battle_cursor_screen_y - 1,
+                                             10, 10);
+        __delay_thunk_375b2(500);
+        memset((void *)0xA0000, 0xFF, 64000);
+        fd2_play_palette_fade_to_black();
+        memset((void *)0xA0000, 0, 64000);
+        fd2_save_runtime_char_to_template();
+        data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+        fd2_restore_all_chars_full_hp_mp();
+        return;
+    }
+
+    fd2_display_dialog_scene(current_chapter_text, 0xD, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x54);
+    fd2_display_dialog_scene(current_chapter_text, 0xE, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x52);
+    fd2_display_dialog_scene(current_chapter_text, 0xF, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_animate_status_effect_overlay_flicker(0, 0x13, 1, (uint32)&vestigial);
+    fd2_animate_warp_teleport_char(
+        1, 0xFF, 0xFF,
+        (uint32)data_fd2_battle_runtime_char_array_ptr[1].pos_x,
+        (uint32)data_fd2_battle_runtime_char_array_ptr[1].pos_y);
+    fd2_display_dialog_scene(current_chapter_text, 0x10, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_restore_all_chars_full_hp_mp();
+    fd2_play_game_ending_cinematic();
+    for (;;) {
+    }
 }

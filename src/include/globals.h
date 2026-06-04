@@ -54,6 +54,15 @@ extern const uint8 data_fd2_chapter_ch26_end_scene_char_pos_x_table[16];   /* 0x
 extern const uint8 data_fd2_chapter_ch26_end_scene_char_pos_y_table[16];   /* 0x522E6 */
 extern const uint8 data_fd2_chapter_ch26_end_scene_char_facing_table[16];  /* 0x522F6 */
 
+/* ch27 end-scene char tables (private to fd2_chapter_27_end); two 16-byte
+ * tables (one byte per char slot, slots 0..15), copied onto stack as 4 dwords
+ * before fd2_setup_chars_and_camera_for_intro indexes them by char slot. The
+ * trailing byte is a vestigial 1-byte scratch handed by-address to
+ * fd2_animate_status_effect_overlay_flicker (pointee ignored). */
+extern const uint8 data_fd2_chapter_ch27_end_scene_char_pos_x_table[16];   /* 0x52306 */
+extern const uint8 data_fd2_chapter_ch27_end_scene_char_pos_y_table[16];   /* 0x52316 */
+extern const uint8 data_fd2_chapter_ch27_end_scene_vestigial_byte;         /* 0x52326 */
+
 /* ---- battle state ---- */
 extern uint32 data_fd2_battle_anim_phase;                               /* 0x51A83 */
 extern uint32 data_fd2_battle_ai_post_action_consequence_idx;           /* 0x51A8F */
