@@ -1245,3 +1245,27 @@ void fd2_animate_screen_shake(uint32 frame_count) {
  * emitted. */
 void fd2_play_game_ending_cinematic(void) {
 }
+
+/* ---- fd2_chapter_29_end (field/chend2.c) not-yet-emitted callees ----
+ * fd2_kill_runtime_chars_from_index_to_end (0x35BBA -> field, pending) — the
+ * real function wipes hp_current=0 for every runtime_char from start_char_idx
+ * to party_member_count-1, then plays a death animation. Its own HP-wipe
+ * behavior is owned by that function's future emit + test; here a recorder
+ * double captures the start index so chapter 29's "kill from slot 0x14" call
+ * is observable without faking the wipe (which would risk diverging from the
+ * real emit). g_ce_kill_from_calls / g_ce_kill_from_last_idx record it.
+ *
+ * fd2_animate_palette_flash_pulse_white (0x35E5A -> graphics, pending) — a
+ * 64-step additive over-bright white palette pulse with 4ms steps and a 400ms
+ * hold; pure display, no-op here. Deferred to Phase 9 integration.
+ *
+ * Remove these doubles when the real functions are emitted. */
+int    g_ce_kill_from_calls = 0;
+uint32 g_ce_kill_from_last_idx = 0;
+void fd2_kill_runtime_chars_from_index_to_end(uint32 start_char_idx) {
+    g_ce_kill_from_calls++;
+    g_ce_kill_from_last_idx = start_char_idx;
+}
+
+void fd2_animate_palette_flash_pulse_white(void) {
+}

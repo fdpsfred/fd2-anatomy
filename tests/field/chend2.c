@@ -49,6 +49,16 @@
 extern runtime_char g_test_rc_array[8];
 extern void *data_fd2_chapter_cutscene_event_script_ptr_table_106[106];
 
+/* __delay_thunk_375b2 call recorder (tests/testglob.c) — used by the ch29
+ * suite to confirm both palette fade loops ran to completion. */
+extern int    g_delay375b2_calls;
+extern uint32 g_delay375b2_last_ticks;
+
+/* fd2_kill_runtime_chars_from_index_to_end recorder double (tests/testglob.c)
+ * — used by the ch29 suite to confirm the kill call passes start index 0x14. */
+extern int    g_ce_kill_from_calls;
+extern uint32 g_ce_kill_from_last_idx;
+
 /* 64-slot runtime-char fixture (handler writes slots 0..0x3C). */
 static runtime_char g_ce_rc[64];
 
@@ -926,6 +936,109 @@ static void test_ch28_end_runs_and_advances(void)
     ce_restore_rc_ptr();
 }
 
+/* ----------------------------------------------------------------
+ * Chapter 29 end handler — fd2_chapter_29_end @ 0x2548C. A straight-line
+ * dramatic ending cutscene (no branch, no char added).
+ *
+ * The testable risk core is the handler's own deterministic state mutations,
+ * which do not depend on the display-only callees:
+ *   - it wipes the trailing party slots via
+ *     fd2_kill_runtime_chars_from_index_to_end(0x14) — verified through the
+ *     recorder double (start index 0x14, called exactly once);
+ *   - it transmutes runtime_char[0x14] into its 變身 form by overwriting BOTH
+ *     portrait_id (+0x07) and char_id (+0x08) with 0x7E;
+ *   - it resets battle_anim_phase to 0 (last set before dialog page 15, with
+ *     the palette loops not touching it, so it ends at 0);
+ *   - it advances current_chapter_id by exactly one;
+ *   - the two palette fade loops run to completion: a 64-step fade-out
+ *     (v=0..0x3F) and a 63-step fade-in (v=0x3E..0), each step doing one
+ *     __delay_thunk_375b2(4). The total __delay_thunk_375b2 call count
+ *     (2+2+6 earthquake/flash holds + 64 fade-out + 1 black hold + 63 fade-in
+ *     = 138) and a final ticks value of 4 confirm both signed-comparison
+ *     loops iterated the right number of times in the right direction.
+ *
+ * It is driven end-to-end on-host with the proven chend2 safe env plus the
+ * ch25-style real portrait reload: the six fd2_display_dialog_scene calls
+ * (pages 10..15, all <= 0x10) take the immediate-END program; the real
+ * fd2_load_chapter_portraits_and_dump_tmp(9) reads the staged FDICON.B24 +
+ * FDFIELD.DAT with alloc_offset 0 (so the per-record race scan iterates zero
+ * entries) and rewrites the 0x32A00-byte FD2.TMP swap file;
+ * fd2_pan_cursor_and_window / fd2_pan_cursor_to_tile_animated run against the
+ * staged camera; the warp/screen-shake/palette-flash callees are host-safe
+ * doubles; the real fd2_set_vga_palette_range_with_add fade steps run against
+ * the staged 768-byte palette; the direct memset(0xA0000,…) clear hits the
+ * harmless VGA framebuffer; and the empty active party makes
+ * fd2_save_runtime_char_to_template iterate zero chars. The pure blit/display
+ * side effects (dialog glyphs, screen shake, palette pulses, warp animation)
+ * are deferred to Phase 9 integration.
+ * ---------------------------------------------------------------- */
+static void test_ch29_end_transmutes_slot14_and_advances(void)
+{
+    uint32 chap0;
+
+    ce_install_safe_env();
+
+    /* ch25-style real portrait reload: empty tile-event scan (alloc_offset 0
+     * -> no per-record fd2_init_runtime_char_for_battle), fresh field buffer,
+     * and a valid FDFIELD re-read index (chapter 4 -> 4*3+2 = 0xE, the same
+     * index the rsrc loader suite exercises). */
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    data_fd2_tile_event_data_table_ptr = 0;
+    chapter_portrait_load_buffer = 0;
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_chapter_current_chapter_id = 4;
+    chap0 = data_fd2_chapter_current_chapter_id;
+
+    /* seed slot 0x14 with non-target ids so the 0x7E transmute is observable. */
+    g_ce_rc[0x14].portrait_id = 0x11;
+    g_ce_rc[0x14].char_id = 0x22;
+
+    g_ce_kill_from_calls = 0;
+    g_ce_kill_from_last_idx = 0;
+    g_delay375b2_calls = 0;
+    g_delay375b2_last_ticks = 0;
+
+    remove("FD2.TMP");
+
+    fd2_chapter_29_end();
+
+    /* trailing-slot kill issued exactly once with start index 0x14. */
+    ASSERT_EQ(g_ce_kill_from_calls, 1);
+    ASSERT_EQ(g_ce_kill_from_last_idx, 0x14);
+
+    /* slot 0x14 transmuted: BOTH portrait_id and char_id overwritten to 0x7E. */
+    ASSERT_EQ(g_ce_rc[0x14].portrait_id, 0x7E);
+    ASSERT_EQ(g_ce_rc[0x14].char_id, 0x7E);
+
+    /* anim_phase left at 0 (last reset before page 15). */
+    ASSERT_EQ(data_fd2_battle_anim_phase, 0);
+
+    /* both palette fade loops ran to completion: 2+2+6 hold delays + 64
+     * fade-out steps + 1 black hold + 63 fade-in steps = 138 delay calls, and
+     * the final delay was a fade-in 4ms step. */
+    ASSERT_EQ(g_delay375b2_calls, 138);
+    ASSERT_EQ(g_delay375b2_last_ticks, 4);
+
+    /* chapter id advanced by exactly one. */
+    ASSERT_EQ(data_fd2_chapter_current_chapter_id, chap0 + 1);
+
+    /* no char added by the handler. */
+    ASSERT_EQ(data_fd2_shared_menu_party_member_count, 0);
+
+    /* the real portrait reload ran: field buffer freed+nulled, and the FD2.TMP
+     * swap file was rewritten to its full 0x32A00-byte size. */
+    ASSERT_EQ(chapter_portrait_load_buffer, 0);
+    ASSERT_EQ(ce25_fd2_tmp_size(), 0x32A00);
+
+    /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
+    remove("FD2.TMP");
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    ce_restore_rc_ptr();
+}
+
 void run_field_chend2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -943,5 +1056,6 @@ void run_field_chend2_tests(void)
     RUN_TEST(test_ch26_end_positions_robot_and_advances);
     RUN_TEST(test_ch27_end_good_path_resets_flags_and_advances);
     RUN_TEST(test_ch28_end_runs_and_advances);
+    RUN_TEST(test_ch29_end_transmutes_slot14_and_advances);
     printf("\n");
 }

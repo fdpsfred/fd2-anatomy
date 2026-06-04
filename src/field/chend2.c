@@ -19,6 +19,8 @@
  *                               data_fd2_chapter_end_handler_table[27])
  * fd2_chapter_28_end @ 0x25464 (0 direct callers; dispatched via
  *                               data_fd2_chapter_end_handler_table[28])
+ * fd2_chapter_29_end @ 0x2548C (0 direct callers; dispatched via
+ *                               data_fd2_chapter_end_handler_table[29])
  */
 
 #include <string.h>
@@ -813,6 +815,102 @@ void fd2_chapter_28_end(void)
 {
     fd2_display_dialog_scene(current_chapter_text, 7, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_save_runtime_char_to_template();
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_29_end @ 0x2548C  — Chapter 29「無邊的黑暗之中」end handler
+ * (0 direct callers, dispatched via data_fd2_chapter_end_handler_table[29]).
+ *
+ * Straight-line dramatic cutscene (no branch, no char added). It shows dialog
+ * page 10, wipes the HP of every runtime_char from slot 0x14 to the party tail
+ * (fd2_kill_runtime_chars_from_index_to_end), then transmutes slot 0x14 into
+ * its 變身 form by overwriting both its portrait_id and char_id with 0x7E. It
+ * shows page 11, reloads the chapter portrait set into the FD2.TMP swap file
+ * (race 9), pans the cursor/window to (9,8) and animates the cursor to tile
+ * (0xF,10), warps the last party member (party_member_count - 1) onto tile
+ * (0xF,10), and shows page 12.
+ *
+ * It then plays three rounds of earthquake screen-shake interleaved with
+ * dialog pages 13/14/15, each round resetting battle_anim_phase to 0 first:
+ *   round 1 (12->13): shake 0x14, 600ms, shake 0x14, 600ms, shake 0x14;
+ *   round 2 (13->14): shake 0x14, 200ms, shake 0x14, 200ms, shake 0x14;
+ *   round 3 (14->15): shake 0x14, 200ms, shake 0x14, 100ms, triple-strength
+ *     shake 0x28, 200ms, then three white palette-flash pulses with 300ms
+ *     holds, then page 15.
+ *
+ * Finishes with a 64-step palette fade-out (brightness 0->0x3F, 4ms/step), a
+ * black-screen clear (memset 0xA0000 to 0) held 800ms, a 63-step palette
+ * fade-in (brightness 0x3E->0, 4ms/step), then saves the runtime char
+ * templates and advances current_chapter_id by one.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_29.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_29_end(void)
+{
+    uint32 v;
+
+    fd2_display_dialog_scene(current_chapter_text, 10, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_kill_runtime_chars_from_index_to_end(0x14);
+    data_fd2_battle_runtime_char_array_ptr[0x14].portrait_id = 0x7E;
+    data_fd2_battle_runtime_char_array_ptr[0x14].char_id = 0x7E;
+    fd2_display_dialog_scene(current_chapter_text, 0xB, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_load_chapter_portraits_and_dump_tmp(9);
+    fd2_pan_cursor_and_window(9, 8);
+    fd2_pan_cursor_to_tile_animated(0xF, 10);
+    fd2_animate_warp_teleport_char(data_fd2_battle_party_member_count - 1,
+                                   0xF, 10, 0xF, 10);
+    fd2_display_dialog_scene(current_chapter_text, 0xC, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+
+    fd2_animate_screen_shake(0x14);
+    __delay_thunk_375b2(600);
+    fd2_animate_screen_shake(0x14);
+    __delay_thunk_375b2(600);
+    fd2_animate_screen_shake(0x14);
+    fd2_display_dialog_scene(current_chapter_text, 0xD, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+
+    fd2_animate_screen_shake(0x14);
+    __delay_thunk_375b2(200);
+    fd2_animate_screen_shake(0x14);
+    __delay_thunk_375b2(200);
+    fd2_animate_screen_shake(0x14);
+    fd2_display_dialog_scene(current_chapter_text, 0xE, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+
+    fd2_animate_screen_shake(0x14);
+    __delay_thunk_375b2(200);
+    fd2_animate_screen_shake(0x14);
+    __delay_thunk_375b2(100);
+    fd2_animate_screen_shake(0x28);
+    __delay_thunk_375b2(200);
+    fd2_animate_palette_flash_pulse_white();
+    __delay_thunk_375b2(300);
+    fd2_animate_palette_flash_pulse_white();
+    __delay_thunk_375b2(300);
+    fd2_animate_palette_flash_pulse_white();
+    __delay_thunk_375b2(300);
+    fd2_display_dialog_scene(current_chapter_text, 0xF, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+
+    for (v = 0; (int32)v < 0x40; v++) {
+        fd2_set_vga_palette_range_with_add(0, 0xFF, v);
+        __delay_thunk_375b2(4);
+    }
+    memset((void *)0xA0000, 0, 64000);
+    __delay_thunk_375b2(800);
+    for (v = 0x3E; -1 < (int32)v; v--) {
+        fd2_set_vga_palette_range_with_add(0, 0xFF, v);
+        __delay_thunk_375b2(4);
+    }
+
     fd2_save_runtime_char_to_template();
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }
