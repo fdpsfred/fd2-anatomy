@@ -238,6 +238,8 @@ int fd2_animate_combat_hit_with_hp_drain(uint32 a, uint32 d, uint32 st);
 void fd2_render_combat_combatant_panels(uint32 st, uint32 a, uint32 d);
 void fd2_play_full_combat_cinematic(uint32 a, uint32 d);
 void fd2_process_xp_and_level_up_for_char(uint32 ci);
+int fd2_roll_stat_gain_and_show_message(uint8 *stat_ptr, uint8 *growth_pair, uint32 dialog_text_id, int row_idx);
+void fd2_grant_spell_to_char(uint32 char_idx, uint32 spell_id);
 int fd2_count_usable_inventory_slots(uint32 ci);
 int fd2_build_usable_spell_list(uint32 ci, uint32 buf);
 int fd2_score_spell_candidate(uint32 si, uint32 nt, uint32 tb);

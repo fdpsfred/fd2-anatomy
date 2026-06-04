@@ -1535,8 +1535,9 @@
     "name": "fd2_process_xp_and_level_up_for_char",
     "target": "battle/btl_turn.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001e529": {
     "name": "fd2_roll_stat_gain_and_show_message",

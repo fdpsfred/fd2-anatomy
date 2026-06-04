@@ -769,3 +769,111 @@ int fd2_count_active_chars_for_team_filter(uint32 team)
     }
     return count;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_process_xp_and_level_up_for_char @ 0x1E292 (2 callers)
+ *
+ * Apply accumulated XP, run level-up animation and spell learning for
+ * one unit. Callers: fd2_game_main_loop, fd2_execute_ai_physical_attack.
+ *
+ * Gate (any one skips): pending_xp_credit == 0, flags bit0 (dead), or
+ * already at level cap (portrait 0x1E/0x1F hero -> 99; others -> 0x28).
+ *
+ * remaining_xp = pending_xp_credit + carry-over movement_order.
+ * Per level-up: level++, roll 5 stat slots, learn spells whose required
+ * level matches, recalc stats, subtract 100. A per-call cap forces an
+ * early exit at level 30 (normal) or 99 (hero), discarding leftover XP.
+ * On exit movement_order keeps the (possibly zeroed) remainder and
+ * pending_xp_credit is cleared.
+ * ---------------------------------------------------------------- */
+void fd2_process_xp_and_level_up_for_char(uint32 ci)
+{
+    runtime_char *pCharArray;
+    uint8 *pGrowth;
+    uint8 *pSpellLearn;
+    uint8 portrait_id;
+    int remaining_xp;
+    int row;
+    uint32 spell_pair_iter;
+    uint32 spell_id;
+    uint8 at_level_cap;
+
+    pCharArray = data_fd2_battle_runtime_char_array_ptr;
+    row = 2;
+    portrait_id = pCharArray[ci].portrait_id;
+
+    if (data_fd2_battle_pending_xp_credit == 0 ||
+        (pCharArray[ci].flags & 1) != 0) {
+        return;
+    }
+
+    if (portrait_id == 0x1E || portrait_id == 0x1F) {
+        at_level_cap = (pCharArray[ci].status_flags_block[0] == 99);
+    } else {
+        at_level_cap = (pCharArray[ci].status_flags_block[0] == 0x28);
+    }
+    if (at_level_cap) {
+        return;
+    }
+
+    pGrowth = fd2_get_char_growth_entry((int)pCharArray[ci].portrait_id);
+    remaining_xp = (int)(data_fd2_battle_pending_xp_credit
+                       + (uint32)pCharArray[ci].movement_order);
+    data_fd2_dialog_last_action_value_param = data_fd2_battle_pending_xp_credit;
+    fd2_clear_keyboard_buffer();
+    fd2_load_chapter_portrait((uint32)pCharArray[ci].portrait_id);
+    fd2_display_dialog_scene(
+        data_fd2_all_game_text_ptr, 0x1E8, 0xA951F,
+        0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_paint_portrait_to_dialog_area(0);
+
+    while (remaining_xp > 99) {
+        fd2_clear_keyboard_buffer();
+        pCharArray[ci].status_flags_block[0] =
+            (uint8)(pCharArray[ci].status_flags_block[0] + 1);
+        fd2_display_dialog_scene(
+            data_fd2_all_game_text_ptr, 0x1E9, 0xAACDF,
+            0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
+        row = fd2_roll_stat_gain_and_show_message(
+            pCharArray[ci].combat_aux_block + 0x10, pGrowth, 0x1EA, row);
+        row = fd2_roll_stat_gain_and_show_message(
+            pCharArray[ci].combat_aux_block + 0x12, pGrowth + 2, 0x1EB, row);
+        row = fd2_roll_stat_gain_and_show_message(
+            pCharArray[ci].ai_target_and_dx_block + 1, pGrowth + 4, 0x1EC, row);
+        row = fd2_roll_stat_gain_and_show_message(
+            (uint8 *)&pCharArray[ci].hp_max, pGrowth + 6, 0x1ED, row);
+        row = fd2_roll_stat_gain_and_show_message(
+            (uint8 *)&pCharArray[ci].mp_max, pGrowth + 8, 0x1EE, row);
+
+        if (pGrowth[10] != 0xFF) {
+            pSpellLearn = fd2_get_spell_learning_entry((int)pGrowth[10]);
+            for (spell_pair_iter = 0; (int)spell_pair_iter < 6;
+                 spell_pair_iter++) {
+                if ((uint32)pCharArray[ci].status_flags_block[0] ==
+                    pSpellLearn[spell_pair_iter * 2]) {
+                    spell_id = pSpellLearn[spell_pair_iter * 2 + 1];
+                    data_fd2_dialog_last_action_sprite_id_param =
+                        spell_id + 0x1B9;
+                    fd2_grant_spell_to_char(ci, spell_id);
+                    fd2_display_dialog_scene(
+                        data_fd2_all_game_text_ptr, 0x24B,
+                        (uint32)row * 0x17C0 + 0xA951F,
+                        0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
+                }
+            }
+        }
+
+        fd2_recalculate_combat_stats(ci);
+        remaining_xp = remaining_xp - 100;
+        if (((portrait_id == 0x1E || portrait_id == 0x1F) &&
+             pCharArray[ci].status_flags_block[0] == 99) ||
+            pCharArray[ci].status_flags_block[0] == 0x1E) {
+            remaining_xp = 0;
+        }
+    }
+
+    fd2_wait_ticks_or_keypress_with_palette(0xB);
+    fd2_close_status_screen_with_slide_out();
+    pCharArray[ci].movement_order = (uint8)remaining_xp;
+    data_fd2_battle_pending_xp_credit = 0;
+}

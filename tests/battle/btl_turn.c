@@ -1262,6 +1262,247 @@ static void test_count_active_empty_roster(void)
 }
 
 
+/* ---- Tests: fd2_process_xp_and_level_up_for_char ----
+ *
+ * The handler drives the real dialog VM / portrait loader / status-screen
+ * teardown for its on-screen feedback, and the real char_growth / spell_learning
+ * table accessors and fd2_recalculate_combat_stats for its math. Its two
+ * not-yet-emitted callees (fd2_roll_stat_gain_and_show_message,
+ * fd2_grant_spell_to_char) are recording fakes in testglob.c. The dialog VM is
+ * neutralised with an END-only page table (extended to cover page 0x24B used by
+ * the spell-learn message). What is pinned here is the handler's own logic:
+ * the three skip gates, the XP carry-in/carry-out arithmetic, the level-up
+ * count, the 5-slot roll sequence + row chaining, the per-call level cap
+ * (30 normal / 99 hero), and the spell-learn trigger. */
+
+extern int    g_roll_stat_calls;
+extern uint8 *g_roll_stat_stat_log[16];
+extern uint8 *g_roll_stat_growth_log[16];
+extern uint32 g_roll_stat_text_log[16];
+extern int    g_roll_stat_row_in_log[16];
+extern int    g_grant_spell_calls;
+extern uint32 g_grant_spell_last_char;
+extern uint32 g_grant_spell_last_spell;
+extern uint32 data_fd2_dialog_last_action_sprite_id_param;
+extern character_growth data_fd2_battle_character_growth_table[68];
+extern uint8 data_fd2_spell_learning_table[20 * 12];
+
+/* END-only dialog page table covering every page index the handler emits
+ * (0x1E8/0x1E9/0x1EA-0x1EE and 0x24B). */
+#define T_XP_PAGES   0x24C
+static int16 t_xp_dlg_text[T_XP_PAGES + 1];
+
+static void xp_setup(uint8 portrait_id, uint8 spell_learn_idx)
+{
+    int p;
+    character_growth *g;
+
+    for (p = 0; p < T_XP_PAGES; p++) {
+        t_xp_dlg_text[p] = (int16)(T_XP_PAGES * 2);
+    }
+    t_xp_dlg_text[T_XP_PAGES] = -1;
+    data_fd2_all_game_text_ptr = (uint32)t_xp_dlg_text;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].portrait_id = portrait_id;
+    g_test_rc_array[0].flags = 0;
+
+    /* Known growth row for this portrait. All ranges left at min==max (0,0) so
+     * the real recalc has nothing to add; spell-learning index per the test. */
+    g = &data_fd2_battle_character_growth_table[portrait_id];
+    memset(g, 0, sizeof(*g));
+    g->spell_learning_idx = spell_learn_idx;
+
+    g_roll_stat_calls = 0;
+    g_grant_spell_calls = 0;
+    g_grant_spell_last_char = 0xFFFFFFFFu;
+    g_grant_spell_last_spell = 0xFFFFFFFFu;
+    data_fd2_dialog_last_action_sprite_id_param = 0;
+    data_fd2_battle_party_member_count = 4;
+}
+
+static void test_xp_gate_no_pending(void)
+{
+    xp_setup(5, 0xFF);
+    g_test_rc_array[0].status_flags_block[0] = 1;
+    g_test_rc_array[0].movement_order = 7;
+    data_fd2_battle_pending_xp_credit = 0;
+    fd2_process_xp_and_level_up_for_char(0);
+    ASSERT_EQ((long)g_roll_stat_calls, 0);
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 1);
+    ASSERT_EQ((long)g_test_rc_array[0].movement_order, 7);
+}
+
+static void test_xp_gate_dead(void)
+{
+    xp_setup(5, 0xFF);
+    g_test_rc_array[0].flags = 1;
+    g_test_rc_array[0].status_flags_block[0] = 1;
+    data_fd2_battle_pending_xp_credit = 200;
+    fd2_process_xp_and_level_up_for_char(0);
+    ASSERT_EQ((long)g_roll_stat_calls, 0);
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 1);
+    /* pending is NOT cleared when the gate skips */
+    ASSERT_EQ((long)data_fd2_battle_pending_xp_credit, 200);
+}
+
+static void test_xp_gate_normal_level_cap(void)
+{
+    xp_setup(5, 0xFF);
+    g_test_rc_array[0].status_flags_block[0] = 0x28;  /* normal cap */
+    data_fd2_battle_pending_xp_credit = 200;
+    fd2_process_xp_and_level_up_for_char(0);
+    ASSERT_EQ((long)g_roll_stat_calls, 0);
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 0x28);
+    ASSERT_EQ((long)data_fd2_battle_pending_xp_credit, 200);
+}
+
+static void test_xp_gate_hero_level_cap(void)
+{
+    xp_setup(0x1E, 0xFF);                              /* hero portrait */
+    g_test_rc_array[0].status_flags_block[0] = 99;     /* hero cap */
+    data_fd2_battle_pending_xp_credit = 200;
+    fd2_process_xp_and_level_up_for_char(0);
+    ASSERT_EQ((long)g_roll_stat_calls, 0);
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 99);
+}
+
+static void test_xp_single_levelup_and_roll_sequence(void)
+{
+    uint8 *base;
+
+    xp_setup(5, 0xFF);
+    g_test_rc_array[0].status_flags_block[0] = 1;
+    g_test_rc_array[0].movement_order = 0;
+    data_fd2_battle_pending_xp_credit = 150;
+    fd2_process_xp_and_level_up_for_char(0);
+
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 2);   /* +1 level */
+    ASSERT_EQ((long)g_roll_stat_calls, 5);                          /* 5 stat slots */
+    ASSERT_EQ((long)g_test_rc_array[0].movement_order, 50);         /* 150-100 carry */
+    ASSERT_EQ((long)data_fd2_battle_pending_xp_credit, 0);          /* cleared */
+
+    /* stat_ptr / growth_pair / text id / row chaining for the 5 slots */
+    base = (uint8 *)&g_test_rc_array[0];
+    ASSERT_EQ((long)g_roll_stat_stat_log[0], (long)(base + 0x37));
+    ASSERT_EQ((long)g_roll_stat_stat_log[1], (long)(base + 0x39));
+    ASSERT_EQ((long)g_roll_stat_stat_log[2], (long)(base + 0x3E));
+    ASSERT_EQ((long)g_roll_stat_stat_log[3], (long)(base + 0x42));
+    ASSERT_EQ((long)g_roll_stat_stat_log[4], (long)(base + 0x46));
+    base = (uint8 *)&data_fd2_battle_character_growth_table[5];
+    ASSERT_EQ((long)g_roll_stat_growth_log[0], (long)(base + 0));
+    ASSERT_EQ((long)g_roll_stat_growth_log[1], (long)(base + 2));
+    ASSERT_EQ((long)g_roll_stat_growth_log[2], (long)(base + 4));
+    ASSERT_EQ((long)g_roll_stat_growth_log[3], (long)(base + 6));
+    ASSERT_EQ((long)g_roll_stat_growth_log[4], (long)(base + 8));
+    ASSERT_EQ((long)g_roll_stat_text_log[0], 0x1EA);
+    ASSERT_EQ((long)g_roll_stat_text_log[1], 0x1EB);
+    ASSERT_EQ((long)g_roll_stat_text_log[2], 0x1EC);
+    ASSERT_EQ((long)g_roll_stat_text_log[3], 0x1ED);
+    ASSERT_EQ((long)g_roll_stat_text_log[4], 0x1EE);
+    /* row seed 2, fake returns row+1 -> chained 2,3,4,5,6 */
+    ASSERT_EQ((long)g_roll_stat_row_in_log[0], 2);
+    ASSERT_EQ((long)g_roll_stat_row_in_log[1], 3);
+    ASSERT_EQ((long)g_roll_stat_row_in_log[2], 4);
+    ASSERT_EQ((long)g_roll_stat_row_in_log[3], 5);
+    ASSERT_EQ((long)g_roll_stat_row_in_log[4], 6);
+}
+
+static void test_xp_multi_levelup(void)
+{
+    xp_setup(5, 0xFF);
+    g_test_rc_array[0].status_flags_block[0] = 1;
+    g_test_rc_array[0].movement_order = 0;
+    data_fd2_battle_pending_xp_credit = 250;
+    fd2_process_xp_and_level_up_for_char(0);
+
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 3);   /* +2 levels */
+    ASSERT_EQ((long)g_roll_stat_calls, 10);                        /* 5 per level */
+    ASSERT_EQ((long)g_test_rc_array[0].movement_order, 50);        /* 250-200 */
+    ASSERT_EQ((long)data_fd2_battle_pending_xp_credit, 0);
+}
+
+static void test_xp_carryover_movement_order(void)
+{
+    xp_setup(5, 0xFF);
+    g_test_rc_array[0].status_flags_block[0] = 1;
+    g_test_rc_array[0].movement_order = 60;            /* prior carry-over */
+    data_fd2_battle_pending_xp_credit = 50;            /* 50 + 60 = 110 */
+    fd2_process_xp_and_level_up_for_char(0);
+
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 2);   /* one level */
+    ASSERT_EQ((long)g_roll_stat_calls, 5);
+    ASSERT_EQ((long)g_test_rc_array[0].movement_order, 10);        /* 110-100 */
+    ASSERT_EQ((long)data_fd2_battle_pending_xp_credit, 0);
+}
+
+static void test_xp_percall_cap_level30(void)
+{
+    xp_setup(5, 0xFF);
+    g_test_rc_array[0].status_flags_block[0] = 29;
+    g_test_rc_array[0].movement_order = 0;
+    data_fd2_battle_pending_xp_credit = 500;           /* enough for many levels */
+    fd2_process_xp_and_level_up_for_char(0);
+
+    /* per-call cap: reaching level 30 forces remaining_xp to 0 -> single level */
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 0x1E);
+    ASSERT_EQ((long)g_roll_stat_calls, 5);
+    ASSERT_EQ((long)g_test_rc_array[0].movement_order, 0);        /* leftover discarded */
+    ASSERT_EQ((long)data_fd2_battle_pending_xp_credit, 0);
+}
+
+static void test_xp_hero_cap_level99(void)
+{
+    xp_setup(0x1E, 0xFF);
+    g_test_rc_array[0].status_flags_block[0] = 98;
+    g_test_rc_array[0].movement_order = 0;
+    data_fd2_battle_pending_xp_credit = 500;
+    fd2_process_xp_and_level_up_for_char(0);
+
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 99);
+    ASSERT_EQ((long)g_roll_stat_calls, 5);
+    ASSERT_EQ((long)g_test_rc_array[0].movement_order, 0);
+    ASSERT_EQ((long)data_fd2_battle_pending_xp_credit, 0);
+}
+
+static void test_xp_spell_learn_on_match(void)
+{
+    uint8 *learn;
+
+    xp_setup(5, 3);                                    /* growth[5].spell_learning_idx = 3 */
+    learn = &data_fd2_spell_learning_table[3 * 12];
+    memset(learn, 0xEE, 12);                           /* no pair matches by default */
+    learn[0] = 2;                                      /* pair0 req_level = 2 (the new level) */
+    learn[1] = 7;                                      /* pair0 spell_id = 7 */
+    g_test_rc_array[0].status_flags_block[0] = 1;
+    data_fd2_battle_pending_xp_credit = 150;           /* one level: 1 -> 2 */
+    fd2_process_xp_and_level_up_for_char(0);
+
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 2);
+    ASSERT_EQ((long)g_grant_spell_calls, 1);
+    ASSERT_EQ((long)g_grant_spell_last_char, 0);
+    ASSERT_EQ((long)g_grant_spell_last_spell, 7);
+    /* spell name text id = spell_id + 0x1B9 */
+    ASSERT_EQ((long)data_fd2_dialog_last_action_sprite_id_param, (long)(7 + 0x1B9));
+}
+
+static void test_xp_spell_learn_no_match(void)
+{
+    uint8 *learn;
+
+    xp_setup(5, 3);
+    learn = &data_fd2_spell_learning_table[3 * 12];
+    memset(learn, 0xEE, 12);                           /* no req_level equals level 2 */
+    g_test_rc_array[0].status_flags_block[0] = 1;
+    data_fd2_battle_pending_xp_credit = 150;
+    fd2_process_xp_and_level_up_for_char(0);
+
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 2);
+    ASSERT_EQ((long)g_grant_spell_calls, 0);           /* nothing learned */
+}
+
+
 void run_battle_btl_turn_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1307,5 +1548,16 @@ void run_battle_btl_turn_tests(void)
     RUN_TEST(test_count_active_per_team);
     RUN_TEST(test_count_active_dead_excluded);
     RUN_TEST(test_count_active_empty_roster);
+    RUN_TEST(test_xp_gate_no_pending);
+    RUN_TEST(test_xp_gate_dead);
+    RUN_TEST(test_xp_gate_normal_level_cap);
+    RUN_TEST(test_xp_gate_hero_level_cap);
+    RUN_TEST(test_xp_single_levelup_and_roll_sequence);
+    RUN_TEST(test_xp_multi_levelup);
+    RUN_TEST(test_xp_carryover_movement_order);
+    RUN_TEST(test_xp_percall_cap_level30);
+    RUN_TEST(test_xp_hero_cap_level99);
+    RUN_TEST(test_xp_spell_learn_on_match);
+    RUN_TEST(test_xp_spell_learn_no_match);
     printf("\n");
 }
