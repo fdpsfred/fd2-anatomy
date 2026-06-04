@@ -374,6 +374,8 @@ void fd2_paint_cursor_overlay_pattern(void);
 void fd2_blit_24x24_at_window_relative_pos(uint32 world_x, uint32 world_y, uint32 sprite_idx);
 void fd2_tile_blit_24x24_passthrough(uint32 src, uint32 dst, uint32 stride);
 void *fd2_convert_battle_tiles_to_24px(void);
+void fd2_blit_scaled_tile_map_view(uint32 src_cx, uint32 src_cy, uint32 scale, uint32 tile_data_table);
+void fd2_open_tactical_overview_zoom(void);
 void fd2_tile_blit_24x24_dimmed_grayscale(uint32 src, uint32 dst, uint32 stride);
 void fd2_tile_blit_24x24_with_remap_table(uint32 src, uint32 dst, uint32 stride, uint32 remap_table);
 void fd2_tile_blit_24x24_solid_color(uint32 src, uint32 dst, uint32 color_or_stride, uint32 unused);

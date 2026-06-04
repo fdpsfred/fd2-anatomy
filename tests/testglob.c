@@ -299,6 +299,37 @@ void fd2_tile_blit_24x24_passthrough(uint32 src, uint32 dst, uint32 stride) {
     }
     g_blitpass_calls++;
 }
+/* Recording stub for fd2_blit_scaled_tile_map_view (the smooth-scaling tactical-
+ * overview map renderer, real body not yet emitted). The only caller is
+ * fd2_open_tactical_overview_zoom, which invokes it once per intro/outro zoom
+ * frame with (src_cx, src_cy, scale, tile_data_table). Records the four args per
+ * call so the zoom test can verify the fixed-point camera interpolation and the
+ * scale math; on the first call it also snapshots a handful of tile_data_table
+ * entries (the table is freed before the function returns, so it can only be
+ * inspected here) so the table-fill indexing/stride can be checked. */
+int    g_scaledmap_calls = 0;
+uint32 g_scaledmap_cx[16];
+uint32 g_scaledmap_cy[16];
+uint32 g_scaledmap_scale[16];
+uint32 g_scaledmap_table0, g_scaledmap_table1, g_scaledmap_table2;
+uint32 g_scaledmap_table40, g_scaledmap_table41;
+void fd2_blit_scaled_tile_map_view(uint32 src_cx, uint32 src_cy, uint32 scale,
+                                   uint32 tile_data_table) {
+    if (g_scaledmap_calls < 16) {
+        g_scaledmap_cx[g_scaledmap_calls] = src_cx;
+        g_scaledmap_cy[g_scaledmap_calls] = src_cy;
+        g_scaledmap_scale[g_scaledmap_calls] = scale;
+    }
+    if (g_scaledmap_calls == 0) {
+        uint32 *t = (uint32 *)tile_data_table;
+        g_scaledmap_table0 = t[0];
+        g_scaledmap_table1 = t[1];
+        g_scaledmap_table2 = t[2];
+        g_scaledmap_table40 = t[0x40];
+        g_scaledmap_table41 = t[0x41];
+    }
+    g_scaledmap_calls++;
+}
 /* Recording stub for fd2_tile_blit_24x24_dimmed_grayscale (the greyed/dimmed
  * 24x24 blitter, real body not yet emitted). The real
  * fd2_paint_char_sprite_at_world_pos calls this instead of the passthrough
@@ -396,6 +427,9 @@ int32  data_fd2_ui_inline_action_menu_template[4] = { 0, 1, 2, 3 };
  * (Use/Give/Sort/Drop slot ids; state all zero) */
 int32  data_fd2_ui_item_command_menu_template[4] = { 8, 9, 10, 11 };
 int32  data_fd2_ui_item_command_menu_state_template[4] = { 0, 0, 0, 0 };
+/* tactical-overview per-team color base table — real FD2.LE values @ 0x5208a
+ * (player 0x20, enemy 0x50, neutral 0x48) */
+int32  data_fd2_ui_tactical_overview_team_colors_table[3] = { 0x20, 0x50, 0x48 };
 /* status-effect overlay flicker colour template — real FD2.LE values @ 0x51F15
  * (32 bytes; mostly 0xC0 with a few status-specific colours). The real
  * fd2_animate_status_effect_overlay_flicker copies the first 30 bytes into a
@@ -1150,10 +1184,11 @@ void fd2_init_movement_range_floodfill(uint32 ct, uint32 x, uint32 y,
  * for real (was a recording stub here). It is pure VGA/sfx orchestration and is
  * never reached by a host test — fd2_game_main_loop (its sole in-tree caller)
  * is not exercised — so its behavioral coverage is deferred to Phase 9. */
-int g_open_tactical_overview_zoom_calls = 0;
-void fd2_open_tactical_overview_zoom(void) {
-    g_open_tactical_overview_zoom_calls++;
-}
+/* fd2_open_tactical_overview_zoom: now emitted in src/ui_menu/menufld.c and
+ * linked for real (was a recording stub here). The display-loop poll has no
+ * harness-releasable exit, so its behavioral coverage is deferred to Phase 9
+ * (see the test file header); its not-yet-emitted callee
+ * fd2_blit_scaled_tile_map_view is the recording stub above. */
 /* Recording stub for fd2_restore_screen_block_from_buffer (the screen-block
  * restore blitter, not yet emitted). fd2_cleanup_dialog_sprite_buffer must
  * forward its (saved_block, dst, stride) args to this in order, then free

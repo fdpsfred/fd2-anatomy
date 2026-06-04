@@ -1730,8 +1730,9 @@
     "name": "fd2_open_tactical_overview_zoom",
     "target": "ui_menu/menufld.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000203bd": {
     "name": "fd2_set_full_vga_palette_to_color",

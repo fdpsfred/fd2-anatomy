@@ -348,6 +348,43 @@ static void test_save_load_quit_save_not_gated_when_dead_or_unacted(void)
     slq_teardown();
 }
 
+/* ================================================================
+ * fd2_open_tactical_overview_zoom @ 0x2000A — DEFERRED to Phase 9
+ *
+ * The whole callable surface sits behind a clear-then-poll-until-keypress
+ * display loop with no harness-releasable exit, so the function cannot be
+ * driven to completion in-process:
+ *   fd2_clear_keyboard_buffer();                  // TAIL := HEAD (ring empty)
+ *   while (fd2_check_keyboard_buffer_nonempty() == 0) { ...fill squares... }
+ * Because the buffer is force-cleared immediately before the loop, a key
+ * pre-staged into the BIOS ring (the seam the sibling
+ * fd2_wait_input_with_recruitment_repaint tests use — those have no leading
+ * clear) is wiped before the first check, so the loop is entered and spins
+ * forever waiting on a keypress the text-mode harness cannot deliver. The
+ * loop body's only callees are the REAL fd2_check_keyboard_buffer_nonempty
+ * and fd2_fill_screen_rect_with_byte (gfx/blitspr.c) — neither is a stub, so
+ * the sanctioned in-loop "flip the ring nonempty" seam
+ * (g_repaint_flip_buffer_after, hosted in the fd2_composite_battle_tile_map
+ * stub) is not reachable from this loop, and adding a seam to a real emitted
+ * routine is disallowed. The intro 7-frame zoom runs before the loop but the
+ * function never returns, so even it cannot be observed via a normal call.
+ *
+ * Static three-source verification stands in: the fixed-point camera
+ * interpolation (delta*ratio/8 + base) was confirmed equal to the binary's
+ * SHL/SBB/SAR round-toward-zero idiom, and because every fixed-point input is
+ * pre-scaled by 0x600 (a multiple of 8) the division is always exact (the
+ * rounding direction is never exercised by valid inputs); the scale series
+ * (scroll_origin*frame/7 + 0x80), the zoom_level/scroll_origin height branch
+ * (map_height <= 0x28), the tile_data_table fill (table[iy*0x40+ix] =
+ * snapshot + cache_idx*0x240 + 6), and the anim_phase 0..7 bounce were all
+ * checked line-by-line against the disassembly. Behavioral coverage (the
+ * map/square blits, the bounce, the framebuffer memmove to 0xA0000) is
+ * deferred to Phase 9 integration, where a real keypress releases the loop —
+ * the same blocking-input deferral the field-tile handler above uses. The
+ * (not-yet-emitted) fd2_blit_scaled_tile_map_view callee is satisfied for the
+ * link by the recording stub in testglob.c.
+ * ================================================================ */
+
 void run_ui_menu_menufld_tests(void)
 {
     int _prev_fails = g_test_fail_count;

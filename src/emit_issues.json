@@ -1,5 +1,21 @@
 {
   "_doc": "三源交叉驗證時發現的待後續確認問題。Key = function address, value = {name, issues: [...]}。所有 emit phase 完成後統一解決。",
+  "0002000a": {
+    "name": "fd2_open_tactical_overview_zoom",
+    "target": "ui_menu/menufld.c",
+    "issues": [
+      {
+        "type": "signed_div_codegen",
+        "desc": "The fixed-point camera interpolation (intro 0x2014a-0x201a1 and outro 0x20309-0x20362) computes each axis as ((delta * ratio) round-toward-zero / 8) + base, where the binary materializes the round-toward-zero divide-by-8 with the SHL EDX,3 / SBB EAX,EDX / SAR EAX,3 idiom (sign in EDX, CF correction). Emitted as plain signed C 'delta * ratio / 8' which IS exactly round-toward-zero in C89, so it is behaviorally equivalent for ALL inputs; moreover every fixed-point input is pre-scaled by 0x600 (= 1536, a multiple of 8) and base = origin*0xC00 + max*0x600 is likewise a multiple of 8, so (delta*ratio) is always a multiple of 8 and the division is EXACT (the rounding correction is never actually exercised by valid game data). Watcom 9.5a may re-emit this as a bare SAR-by-3 (valid because the value is non-negative-or-exact) rather than the original SHL/SBB/SAR sequence; the difference is byte-level only and cannot diverge in result. verify_method: post-build -d disasm of the two zoom loops to confirm the camera args match the binary for the reachable (multiple-of-8) inputs; no behavioral risk.",
+        "severity": "low"
+      },
+      {
+        "type": "volatile_double_read",
+        "desc": "the display-loop repaint predicate reads BIOS_TICK_WORD (volatile uint16 @0x46C) TWICE (once per || operand at src/ui_menu/menufld.c:524-525), whereas the binary reads the tick once (MOVSX EAX,[0x46c] @0x201de) and reuses EAX for both the >=2 and <0 comparisons. Same equivalence class already logged for input.c (emit_issues.json key 000117xx note line 166). Sub-tick race only: at worst causes a one-tick-early repaint on a wrap boundary; purely a display-cadence cosmetic, never affects returned state or control flow. Severity low, non-blocking; recorded for completeness. Suggest emitter add this entry to the 0002000a emit_issues object alongside the existing signed_div_codegen note.",
+        "severity": "low"
+      }
+    ]
+  },
   "000117e7": {
     "name": "fd2_game_main_loop",
     "target": "ui_menu/menu.c",
