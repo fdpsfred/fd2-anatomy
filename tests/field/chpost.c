@@ -2367,6 +2367,180 @@ static void test_chpost29_win_then_ally_dead_lose_overrides(void)
     chpost29_teardown();
 }
 
+/* ============================================================
+ * fd2_chapter_30_post_action @ 0x20BF5
+ *
+ * Like chapters 18/23/29, chapter 30 (the final battle) does NOT call the
+ * default fd2_check_battle_end_condition: it writes game_event_flag itself
+ * with three sequential, independent stages, in this exact order (later
+ * writes OVERRIDE earlier ones):
+ *   1. WIN: final boss runtime_char[0x14] dead -> flag = 2.
+ *   2. LOSE: protagonist (蘭) runtime_char[0] dead -> flag = 1.
+ *   3. LOSE + dialog: second main runtime_char[1] dead -> show
+ *      current_chapter_text page 7 (REAL fd2_display_dialog_scene) then
+ *      flag = 1.
+ * Deadness is queried through fd2_check_char_is_dead (per-slot .flags bit0 in
+ * array-reading mode g_check_char_is_dead_use_array = 1).
+ *
+ * Because no default check runs, the flag has no baseline: setup pre-clears it
+ * to 0, so "no stage" leaves 0, a pure boss-kill leaves 2, and any LOSE leaves
+ * 1.
+ *
+ * The headline risk is ordering: the WIN stage is written FIRST and the two
+ * LOSE stages run AFTER, so a protagonist/ally death OVERRIDES a boss-kill WIN
+ * (lose-overrides-win, the inverse of chapters 18/23 which write WIN last).
+ * That ordering is pinned by the boss_then_hero_dead / boss_then_ally_dead
+ * cases below.
+ *
+ * fd2_display_dialog_scene is linked real; current_chapter_text is pointed at
+ * the shared immediate-END program (ch13_text_all_end, covering page 7) so the
+ * VM returns at once without touching the framebuffer or loading DATO.DAT, and
+ * a clean pass also confirms the real VM survives the chapter-30 call shape.
+ *
+ * Coverage is risk-driven for: the three distinct dead slots 0x14 / 0 / 1, the
+ * dialog-bearing ally branch, the lose-overrides-win ordering, and the exact
+ * slots (no off-by-one to 0x13/0x15 around the boss, or to slot 2 above the
+ * ally):
+ *   - nothing dead                                -> flag stays 0
+ *   - boss (slot 0x14) dead                       -> WIN (2)
+ *   - protagonist (slot 0) dead                   -> LOSE (1)
+ *   - ally (slot 1) dead                          -> LOSE (1) + page-7 dialog
+ *   - boss dead AND protagonist dead              -> LOSE (1) overrides WIN
+ *   - boss dead AND ally dead                     -> LOSE (1) overrides WIN
+ *   - neighbor slots 0x13 / 0x15 / 2 dead (only)  -> no write (exact slots)
+ * ============================================================ */
+
+/* All runtime_char slots alive, flag pre-cleared to 0 (no default check sets a
+ * baseline). Reuses the 64-slot t_rc13 buffer (handler reaches index 0x14) and
+ * the shared immediate-END dialog program. Only slots 0, 1 and 0x14 are read. */
+static void chpost30_setup(void)
+{
+    int i;
+
+    memset(t_rc13, 0, sizeof(t_rc13));
+    for (i = 0; i < CH13_RC_SLOTS; i++) {
+        t_rc13[i].team = 2;     /* irrelevant: no default check runs */
+        t_rc13[i].flags = 0;    /* alive */
+    }
+    data_fd2_battle_runtime_char_array_ptr = t_rc13;
+    data_fd2_battle_party_member_count = CH13_RC_SLOTS;
+    data_fd2_chapter_event_or_battle_end_code = 0;
+    g_check_char_is_dead_use_array = 1;   /* per-slot .flags drive deadness */
+
+    ch13_text_all_end();   /* current_chapter_text -> immediate-END, covers page 7 */
+}
+
+static void chpost30_teardown(void)
+{
+    g_check_char_is_dead_use_array = 0;   /* restore index-agnostic default */
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_party_member_count = 4;
+}
+
+/* Nobody dead -> no stage fires; the pre-cleared flag (0) survives. Confirms
+ * chapter 30 writes nothing on the idle path (it really skips the default
+ * win/lose check). */
+static void test_chpost30_nobody_dead_no_write(void)
+{
+    chpost30_setup();
+
+    fd2_chapter_30_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 0);
+    chpost30_teardown();
+}
+
+/* Final boss runtime_char[0x14] dead (allies alive) -> stage 1 fires, WIN (2).
+ * Pins the boss-dead slot = 0x14 and the set-to-2 direction. */
+static void test_chpost30_boss_dead_win(void)
+{
+    chpost30_setup();
+    t_rc13[0x14].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_30_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost30_teardown();
+}
+
+/* Protagonist runtime_char[0] dead (boss/ally alive) -> stage 2 fires, LOSE
+ * (1). Pins the protagonist-dead slot = 0. */
+static void test_chpost30_protagonist_dead_lose(void)
+{
+    chpost30_setup();
+    t_rc13[0].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_30_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost30_teardown();
+}
+
+/* Second main runtime_char[1] dead (boss/protagonist alive) -> stage 3 fires,
+ * LOSE (1) plus the REAL page-7 dialog. The flag write and the dialog call sit
+ * in the same basic block, so the 0 -> 1 transition pins that the ally branch
+ * ran and the dialog followed; a clean pass also confirms the real VM survives
+ * the call. Pins the ally-dead slot = 1 (distinct from protagonist slot 0). */
+static void test_chpost30_ally_dead_lose_with_dialog(void)
+{
+    chpost30_setup();
+    t_rc13[1].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_30_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost30_teardown();
+}
+
+/* Boss[0x14] dead (stage 1 -> WIN 2) AND protagonist[0] dead -> stage 2 runs
+ * AFTER stage 1 and rewrites the flag to 1. Final flag must be 1 (LOSE), the
+ * headline lose-overrides-win ordering that distinguishes chapter 30 from the
+ * win-last chapters 18/23. */
+static void test_chpost30_boss_then_protagonist_dead_lose_overrides(void)
+{
+    chpost30_setup();
+    t_rc13[0x14].flags = CHARFLAG_DEAD;
+    t_rc13[0].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_30_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost30_teardown();
+}
+
+/* Boss[0x14] dead (stage 1 -> WIN 2) AND ally[1] dead (protagonist alive) ->
+ * stage 3 runs last and rewrites the flag to 1 (plus page-7 dialog). Final flag
+ * must be 1 (LOSE), pinning that the ally stage also overrides a WIN. */
+static void test_chpost30_boss_then_ally_dead_lose_overrides(void)
+{
+    chpost30_setup();
+    t_rc13[0x14].flags = CHARFLAG_DEAD;
+    t_rc13[1].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_30_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost30_teardown();
+}
+
+/* Only the neighbor slots around the checked ones are dead: 0x13 and 0x15
+ * bracket the boss slot 0x14, and slot 2 sits just above the ally slot 1 (slot
+ * 0 protagonist stays alive). No checked slot is dead -> no stage fires and the
+ * flag stays 0. Pins the checked slots as EXACTLY 0x14 / 0 / 1 with no
+ * off-by-one. */
+static void test_chpost30_neighbor_slots_ignored(void)
+{
+    chpost30_setup();
+    t_rc13[0x13].flags = CHARFLAG_DEAD;   /* below boss 0x14 */
+    t_rc13[0x15].flags = CHARFLAG_DEAD;   /* above boss 0x14 */
+    t_rc13[2].flags = CHARFLAG_DEAD;      /* above ally 1 */
+
+    fd2_chapter_30_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 0);
+    chpost30_teardown();
+}
+
 void run_field_chpost_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -2464,5 +2638,12 @@ void run_field_chpost_tests(void)
     RUN_TEST(test_chpost29_ally_dead_lose_with_dialog);
     RUN_TEST(test_chpost29_win_then_hero_dead_lose_overrides);
     RUN_TEST(test_chpost29_win_then_ally_dead_lose_overrides);
+    RUN_TEST(test_chpost30_nobody_dead_no_write);
+    RUN_TEST(test_chpost30_boss_dead_win);
+    RUN_TEST(test_chpost30_protagonist_dead_lose);
+    RUN_TEST(test_chpost30_ally_dead_lose_with_dialog);
+    RUN_TEST(test_chpost30_boss_then_protagonist_dead_lose_overrides);
+    RUN_TEST(test_chpost30_boss_then_ally_dead_lose_overrides);
+    RUN_TEST(test_chpost30_neighbor_slots_ignored);
     printf("\n");
 }

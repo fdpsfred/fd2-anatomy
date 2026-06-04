@@ -1890,8 +1890,9 @@
     "name": "fd2_chapter_30_post_action",
     "target": "field/chpost.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00020c6f": {
     "name": "fd2_apply_use_effect_dispatch",

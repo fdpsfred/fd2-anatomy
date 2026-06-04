@@ -596,3 +596,51 @@ void fd2_chapter_29_post_action(uint32 event_arg)
         data_fd2_chapter_event_or_battle_end_code = 1;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_30_post_action @ 0x20BF5  (dispatched, 0 direct callers)
+ *
+ * Chapter 30 (final battle) turn-cycle post-action handler. Reached via
+ * data_fd2_chapter_post_action_handler_table[29] (table @ 0x51B19,
+ * indexed by current_chapter_id). The dispatch site invokes the handler
+ * with no real arguments; event_arg is the Watcom __CHK-prologue artifact
+ * and is unused by the body.
+ *
+ * Like chapters 18/23/29, chapter 30 does NOT call the default
+ * fd2_check_battle_end_condition — it implements the full win/lose decision
+ * itself with three sequential, independent flag writes to game_event_flag
+ * (0x53ECC), in this exact order (later writes override earlier):
+ *
+ *   1. WIN: if the final boss runtime_char[0x14] is dead, set the flag to 2.
+ *   2. LOSE: if the protagonist (蘭) runtime_char[0] is dead, set the flag
+ *      to 1. This runs after step 1, so a protagonist death overrides a WIN.
+ *   3. LOSE + dialog: if the second main runtime_char[1] is dead, show
+ *      current_chapter_text page 7 (the special "lost ally" ending text) and
+ *      set the flag to 1. Runs after steps 1-2.
+ *
+ * Because the WIN stage is written FIRST and the two LOSE stages run after,
+ * a protagonist/ally death OVERRIDES a boss-kill WIN (lose-overrides-win,
+ * the inverse of chapters 18/23 which write WIN last). Deadness is queried
+ * through fd2_check_char_is_dead (runtime_char[idx].flags bit0) for all three
+ * slots; the body reads no bFlags inline. The dialog call uses the chapter's
+ * standard glyph geometry (render base 0xA0000, pitch 0x140, glyph params
+ * 0xCD/0x4C/0x4A, height 0x13) with blink_flag = 1.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_30_post_action(uint32 event_arg)
+{
+    (void)event_arg;
+
+    if (fd2_check_char_is_dead(0x14) != 0) {
+        data_fd2_chapter_event_or_battle_end_code = 2;
+    }
+
+    if (fd2_check_char_is_dead(0) != 0) {
+        data_fd2_chapter_event_or_battle_end_code = 1;
+    }
+
+    if (fd2_check_char_is_dead(1) != 0) {
+        fd2_display_dialog_scene(current_chapter_text, 7, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        data_fd2_chapter_event_or_battle_end_code = 1;
+    }
+}
