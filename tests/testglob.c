@@ -926,9 +926,36 @@ int g_execute_physical_calls = 0;
 void fd2_play_spell_cast_sequence(uint32 ci, uint32 si, uint32 nt, uint32 tb) { }
 /* fd2_execute_ai_physical_attack: now in btl_ai.c */
 uint32 fd2_animate_combat_speech_bubbles(uint32 ci, uint32 ti) { return 0; }
-void fd2_render_combatant_hp_bar_proportional(uint32 d, uint32 s, uint32 ci, uint32 st) { }
+/* Recording stubs for the two combatant-panel HP-bar callees (driven by the
+ * fd2_render_combat_combatant_panels tests in tests/gfx/rndscene.c, which is
+ * now emitted for real). Both keep last-call args plus a small per-call log so
+ * a test can assert the attacker call precedes the optional defender call and
+ * that the right combatant index + xy-array slot pointer is forwarded. */
+int    g_hpbar_prop_calls = 0;
+uint32 g_hpbar_prop_d[4];
+uint32 g_hpbar_prop_s[4];
+uint32 g_hpbar_prop_ci[4];
+uint32 g_hpbar_prop_st[4];
+void fd2_render_combatant_hp_bar_proportional(uint32 d, uint32 s, uint32 ci, uint32 st)
+{
+    if (g_hpbar_prop_calls < 4) {
+        g_hpbar_prop_d[g_hpbar_prop_calls] = d;
+        g_hpbar_prop_s[g_hpbar_prop_calls] = s;
+        g_hpbar_prop_ci[g_hpbar_prop_calls] = ci;
+        g_hpbar_prop_st[g_hpbar_prop_calls] = st;
+    }
+    g_hpbar_prop_calls++;
+}
+int    g_hpseg_calls = 0;
+uint32 g_hpseg_dst, g_hpseg_stride, g_hpseg_count;
+void fd2_render_combat_hp_bar_segments(uint32 dst_addr, uint32 stride, uint32 filled_count)
+{
+    g_hpseg_dst = dst_addr;
+    g_hpseg_stride = stride;
+    g_hpseg_count = filled_count;
+    g_hpseg_calls++;
+}
 int fd2_animate_combat_hit_with_hp_drain(uint32 a, uint32 d, uint32 st) { return 0; }
-void fd2_render_combat_combatant_panels(uint32 st, uint32 a, uint32 d) { }
 void fd2_play_full_combat_cinematic(uint32 a, uint32 d) { }
 /* fd2_process_xp_and_level_up_for_char: now emitted in src/battle/btl_turn.c
  * and linked for real; driven by the test_xp_* cases below. */

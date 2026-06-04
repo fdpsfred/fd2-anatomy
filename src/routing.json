@@ -1559,8 +1559,9 @@
     "name": "fd2_render_combat_combatant_panels",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001e739": {
     "name": "fd2_render_combat_hp_bar_segments",

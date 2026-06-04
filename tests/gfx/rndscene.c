@@ -1469,6 +1469,185 @@ static void test_spell_duplicate_target_single_hit(void)
     ASSERT_EQ(g_blitpass_calls, 0);
 }
 
+/* ====================================================================
+ * fd2_render_combat_combatant_panels @ 0x1E611
+ *
+ * Drives the real function. Its callees here are a mix of real emitted
+ * routines and recording stubs:
+ *   fd2_composite_battle_tile_map           -> recording stub (g_tile_map_*)
+ *   fd2_composite_all_chars_overlay         -> real (party=0 -> no-op),
+ *                                              counted via g_composite_call_count
+ *   fd2_alloc_and_blit_indexed_sprite_chunk -> real; its one save-screen-block
+ *                                              call per invocation makes
+ *                                              g_saveblk_calls an exact panel
+ *                                              counter, and g_saveblk_src pins
+ *                                              the panel dst_off arithmetic
+ *   fd2_render_combat_hp_bar_segments       -> recording stub (g_hpseg_*)
+ *   fd2_render_combatant_hp_bar_proportional-> recording stub (g_hpbar_prop_*)
+ *   fd2_blit_rectangle                      -> real; memmoves the workspace to
+ *                                              0xA0504 (VGA RAM, writable under
+ *                                              DOS/4GW) so ws must be backed.
+ * ==================================================================== */
+
+extern int    g_saveblk_calls;
+extern uint32 g_saveblk_src, g_saveblk_dst, g_saveblk_w, g_saveblk_h,
+              g_saveblk_stride;
+extern int    g_hpbar_prop_calls;
+extern uint32 g_hpbar_prop_d[4];
+extern uint32 g_hpbar_prop_s[4];
+extern uint32 g_hpbar_prop_ci[4];
+extern uint32 g_hpbar_prop_st[4];
+extern int    g_hpseg_calls;
+extern uint32 g_hpseg_dst, g_hpseg_stride, g_hpseg_count;
+
+/* Panel sheet fixture for data_fd2_resource_portrait_sheet_ptr. The real
+ * fd2_alloc_and_blit_indexed_sprite_chunk resolves sprite 0x30 as
+ *   hdr = sheet + *(int32 *)(sheet + 6 + 0x30*4)
+ * then reads (width, height) = int16 words at hdr+0 / hdr+2. We give entry
+ * 0x30 an explicit offset to an 8x8 header so malloc(8*8+8) is small and the
+ * decode/save calls run deterministically. */
+static uint8 g_panel_sheet[6 + 0x40 * 4 + 64];
+
+static void install_panel_sheet(void)
+{
+    int32 *table;
+    uint32 hdr_off;
+
+    memset(g_panel_sheet, 0, sizeof(g_panel_sheet));
+    table = (int32 *)(g_panel_sheet + 6);
+    hdr_off = 6 + 0x40 * 4;                  /* header sits past the table */
+    table[0x30] = (int32)hdr_off;
+    *(int16 *)(g_panel_sheet + hdr_off)     = 8;   /* width  */
+    *(int16 *)(g_panel_sheet + hdr_off + 2) = 8;   /* height */
+    data_fd2_resource_portrait_sheet_ptr = (uint32)g_panel_sheet;
+}
+
+/* ws back-buffer at large_game_state_buffer_ptr + 0x8088; window wide so the
+ * panel arithmetic is unclamped. All combatant-panel recorders cleared. */
+static void reset_panel_record(void)
+{
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_ws_buffer - 0x8088u;
+    data_fd2_battle_view_window_origin_x = 0x11;
+    data_fd2_battle_view_window_origin_y = 0x22;
+    data_fd2_battle_view_window_max_x = 0x100;
+    data_fd2_battle_view_window_max_y = 0x100;
+    data_fd2_battle_party_member_count = 0;   /* real chars overlay -> no-op */
+    install_panel_sheet();
+
+    g_tile_map_calls = 0;
+    g_composite_call_count = 0;
+    g_saveblk_calls = 0;
+    g_blitdec_calls = 0;
+    g_hpbar_prop_calls = 0;
+    g_hpseg_calls = 0;
+}
+
+/* Attacker-only path (xy[2] == -1): backdrop rebuild, exactly one panel
+ * sprite chunk, the HP-segment bar, and one proportional HP bar — no defender
+ * panel. Pins every computed address. */
+static void test_panels_attacker_only(void)
+{
+    int xy[4];
+    uint32 ws;
+    uint32 expect_seg;
+
+    reset_panel_record();
+    xy[0] = 0x20;          /* attacker_x */
+    xy[1] = 0x10;          /* attacker_y */
+    xy[2] = -1;            /* no defender */
+    xy[3] = 0x55;
+
+    fd2_render_combat_combatant_panels((uint32)xy, 7, 3);  /* def=7, atk=3 */
+
+    ws = (uint32)g_ws_buffer;   /* == large_game_state_buffer_ptr + 0x8088 */
+
+    /* 1. backdrop: tile map into ws with the documented constants */
+    ASSERT_EQ(g_tile_map_calls, 1);
+    ASSERT_EQ(g_tile_map_last_dst, ws);
+    ASSERT_EQ(g_tile_map_last_stride, 0x1c8u);
+    ASSERT_EQ(g_tile_map_last_w, 0xdu);
+    ASSERT_EQ(g_tile_map_last_h, 8u);
+    ASSERT_EQ(g_tile_map_last_ox, 0x11u);
+    ASSERT_EQ(g_tile_map_last_oy, 0x22u);
+    ASSERT_EQ(g_composite_call_count, 1);   /* all-chars overlay ran */
+
+    /* 2. exactly one panel sprite chunk; its dst_off = (ay-4)*456 + (ax-4) */
+    ASSERT_EQ(g_saveblk_calls, 1);
+    ASSERT_EQ(g_saveblk_dst, ws);
+    ASSERT_EQ(g_saveblk_src, (uint32)((0x10 - 4) * 0x1c8 + (0x20 - 4)));
+    ASSERT_EQ(g_saveblk_stride, 0x1c8u);
+
+    /* 3. HP-segment bar dst = ws + 3 + (ay+2)*456 + ax, width 0x37 */
+    expect_seg = ws + 3u + (uint32)((0x10 + 2) * 0x1c8) + 0x20u;
+    ASSERT_EQ(g_hpseg_calls, 1);
+    ASSERT_EQ(g_hpseg_dst, expect_seg);
+    ASSERT_EQ(g_hpseg_stride, 0x1c8u);
+    ASSERT_EQ(g_hpseg_count, 0x37u);
+
+    /* 4. one proportional HP bar: (ws-0x724, 456, attacker_idx, &xy[0]) */
+    ASSERT_EQ(g_hpbar_prop_calls, 1);
+    ASSERT_EQ(g_hpbar_prop_d[0], ws - 0x724u);   /* 0x7964 - 0x8088 = -0x724 */
+    ASSERT_EQ(g_hpbar_prop_s[0], 0x1c8u);
+    ASSERT_EQ(g_hpbar_prop_ci[0], 3u);
+    ASSERT_EQ(g_hpbar_prop_st[0], (uint32)xy);
+}
+
+/* Defender present (xy[2] != -1): a second panel sprite chunk and a second
+ * proportional HP bar, the defender one keyed to defender_idx and &xy[2]. */
+static void test_panels_with_defender(void)
+{
+    int xy[4];
+    uint32 ws;
+
+    reset_panel_record();
+    xy[0] = 0x18;          /* attacker_x */
+    xy[1] = 0x0c;          /* attacker_y */
+    xy[2] = 0x30;          /* defender_x */
+    xy[3] = 0x14;          /* defender_y */
+
+    fd2_render_combat_combatant_panels((uint32)xy, 7, 3);  /* def=7, atk=3 */
+
+    ws = (uint32)g_ws_buffer;
+
+    /* two panel sprite chunks; last save-block src = (dy-4)*456 + (dx-4) */
+    ASSERT_EQ(g_saveblk_calls, 2);
+    ASSERT_EQ(g_saveblk_src, (uint32)((0x14 - 4) * 0x1c8 + (0x30 - 4)));
+
+    /* two proportional HP bars, in attacker-then-defender order */
+    ASSERT_EQ(g_hpbar_prop_calls, 2);
+    ASSERT_EQ(g_hpbar_prop_ci[0], 3u);                 /* attacker_idx */
+    ASSERT_EQ(g_hpbar_prop_st[0], (uint32)xy);         /* &xy[0]       */
+    ASSERT_EQ(g_hpbar_prop_ci[1], 7u);                 /* defender_idx */
+    ASSERT_EQ(g_hpbar_prop_st[1], (uint32)xy + 8u);    /* &xy[2]       */
+    ASSERT_EQ(g_hpbar_prop_d[1], ws - 0x724u);
+}
+
+/* Independent witness for the HP-segment address formula with a different
+ * (ax, ay) so the (ay+2)*456 + ax + 3 arithmetic is not coincidental. */
+static void test_panels_hp_seg_addr_arithmetic(void)
+{
+    int xy[4];
+    uint32 ws;
+    uint32 expect_seg;
+
+    reset_panel_record();
+    xy[0] = 0x29;          /* attacker_x */
+    xy[1] = 0x1f;          /* attacker_y */
+    xy[2] = -1;
+    xy[3] = 0;
+
+    fd2_render_combat_combatant_panels((uint32)xy, 0, 0);
+
+    ws = (uint32)g_ws_buffer;
+    expect_seg = ws + 3u + (uint32)((0x1f + 2) * 0x1c8) + 0x29u;
+    ASSERT_EQ(g_hpseg_calls, 1);
+    ASSERT_EQ(g_hpseg_dst, expect_seg);
+    ASSERT_EQ(g_hpseg_count, 0x37u);
+    /* attacker-only: no defender panel, single proportional bar */
+    ASSERT_EQ(g_saveblk_calls, 1);
+    ASSERT_EQ(g_hpbar_prop_calls, 1);
+}
+
 void run_gfx_rndscene_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1520,5 +1699,8 @@ void run_gfx_rndscene_tests(void)
     RUN_TEST(test_spell_window_cull);
     RUN_TEST(test_spell_palette3_frame);
     RUN_TEST(test_spell_duplicate_target_single_hit);
+    RUN_TEST(test_panels_attacker_only);
+    RUN_TEST(test_panels_with_defender);
+    RUN_TEST(test_panels_hp_seg_addr_arithmetic);
     printf("\n");
 }

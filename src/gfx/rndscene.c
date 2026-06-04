@@ -623,3 +623,89 @@ void fd2_paint_char_sprite_at_world_with_mode(uint32 dst_buf, uint32 dst_stride,
         fd2_tile_blit_24x24_solid_color(rle_stream, dst, dst_stride, color);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_combat_combatant_panels @ 0x1E611 (1 caller)
+ *
+ * Battle VS-panel renderer: rebuilds the battle backdrop, then draws
+ * the attacker's portrait panel + HP bar, and (optionally) the
+ * defender's panel + HP bar, finally blitting the composed 312x192
+ * region to the mode13h primary surface.
+ *
+ * xy is a 4-int array:
+ *   [0] = attacker_x;  [1] = attacker_y
+ *   [2] = defender_x (-1 = no defender panel);  [3] = defender_y
+ *
+ * Pipeline (asm order):
+ *   // 1. rebuild backdrop
+ *   fd2_composite_battle_tile_map(ws + 0x8088, 456, 13, 8, origin_x, origin_y);
+ *   fd2_composite_all_chars_overlay();
+ *   // 2. attacker panel (sprite 0x30) + HP segments + proportional bar
+ *   fd2_alloc_and_blit_indexed_sprite_chunk(portrait_sheet, ws + 0x8088, 456,
+ *                                           attacker_x - 4, attacker_y - 4, 0x30);
+ *   fd2_render_combat_hp_bar_segments(
+ *       ws + 0x808B + (attacker_y+2)*456 + attacker_x, 456, 0x37);
+ *   fd2_render_combatant_hp_bar_proportional(ws + 0x7964, 456, attacker_idx, &xy[0]);
+ *   // 3. defender panel (only if xy[2] != -1)
+ *   if (xy[2] != -1) {
+ *       fd2_alloc_and_blit_indexed_sprite_chunk(portrait_sheet, ws + 0x8088, 456,
+ *                                               defender_x - 4, defender_y - 4, 0x30);
+ *       fd2_render_combatant_hp_bar_proportional(ws + 0x7964, 456, defender_idx, &xy[2]);
+ *   }
+ *   // 4. blit composed frame
+ *   fd2_blit_rectangle(0xA0504, 320, ws + 0x8088, 456, 312, 192);
+ *
+ * The original tail-calls the shared blit epilogue inside
+ * fd2_composite_battle_frame (JMP 0x11D2C, which pushes the 0xA0504/320
+ * destination args and calls fd2_blit_rectangle); the C equivalent is
+ * the explicit fd2_blit_rectangle call below.
+ *
+ * Constants: 0x8088 = backdrop base, 0x808B = +3 into that, 0x7964 =
+ * HP-bar-state base, 0x37 = 55 (HP-segment bar width), 0x30 = combatant
+ * panel sprite, 0x1C8 = 456 (workspace pitch), 0x140 = 320 (primary
+ * stride), 0x138 = 312 / 0xC0 = 192 (visible region).
+ *
+ * ws = data_fd2_large_game_state_buffer_ptr. Sole caller:
+ * fd2_execute_ai_physical_attack (AI attack VS-panel display).
+ * ---------------------------------------------------------------- */
+void fd2_render_combat_combatant_panels(uint32 xy_array_ptr, uint32 defender_idx,
+                                        uint32 attacker_idx)
+{
+    int *xy;
+    uint32 hp_seg_dst;
+
+    xy = (int *)xy_array_ptr;
+
+    fd2_composite_battle_tile_map(data_fd2_large_game_state_buffer_ptr + 0x8088,
+                                  0x1c8, 0xd, 8,
+                                  data_fd2_battle_view_window_origin_x,
+                                  data_fd2_battle_view_window_origin_y);
+    fd2_composite_all_chars_overlay();
+
+    fd2_alloc_and_blit_indexed_sprite_chunk(
+        data_fd2_resource_portrait_sheet_ptr,
+        data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1c8,
+        (uint32)(xy[0] - 4), (uint32)(xy[1] - 4), 0x30);
+
+    hp_seg_dst = data_fd2_large_game_state_buffer_ptr + 0x808b +
+                 (uint32)((xy[1] + 2) * 0x1c8) + (uint32)xy[0];
+    fd2_render_combat_hp_bar_segments(hp_seg_dst, 0x1c8, 0x37);
+
+    fd2_render_combatant_hp_bar_proportional(
+        data_fd2_large_game_state_buffer_ptr + 0x7964, 0x1c8,
+        attacker_idx, xy_array_ptr);
+
+    if (xy[2] != -1) {
+        fd2_alloc_and_blit_indexed_sprite_chunk(
+            data_fd2_resource_portrait_sheet_ptr,
+            data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1c8,
+            (uint32)(xy[2] - 4), (uint32)(xy[3] - 4), 0x30);
+        fd2_render_combatant_hp_bar_proportional(
+            data_fd2_large_game_state_buffer_ptr + 0x7964, 0x1c8,
+            defender_idx, xy_array_ptr + 8);
+    }
+
+    fd2_blit_rectangle(0xa0504, 0x140,
+                       data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1c8,
+                       0x138, 0xc0);
+}
