@@ -3,6 +3,7 @@
  *
  * Functions:
  *   fd2_build_usable_spell_list @ 0x1c269 (8 call sites in 7 functions)
+ *   fd2_draw_spell_selection_list @ 0x1ceed (3 callers)
  */
 
 #include "types.h"
@@ -50,4 +51,71 @@ int fd2_build_usable_spell_list(uint32 ci, uint32 buf)
     }
 
     return spell_count;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_draw_spell_selection_list(caster_idx, highlighted_idx, render_buf)
+ *   @ 0x1ceed
+ *
+ * Draw the battle spell-picker as a 4-column list into render_buf.
+ * fd2_build_usable_spell_list enumerates the caster's learned spell ids
+ * into a local array, and each one is laid out into a grid cell:
+ *
+ *   row_pixel       = (spell_iter % 4) * 0x16          (4 spells per row)
+ *   col_addr_offset = render_buf + (spell_iter / 4) * 100 + 0x12
+ *   color           = (spell_iter == highlighted_idx) ? 0xC9 : 0xCD
+ *                     (highlighted: yellow / normal: red)
+ *
+ * Per cell three things are drawn:
+ *   - spell name text: page id = spell_id + 0x1B9 into _all_game_text,
+ *     at (row_pixel + 0x67) * 320 + col_addr_offset, glyph border = color.
+ *   - MP icon sprite 0x5C from the ui/anim sheet, at
+ *     col_addr_offset + 0x32 + (row_pixel + 0x6C) * 320.
+ *   - MP cost as a 2-digit number, read from the spell effect record
+ *     (*(byte*)(pSpell + 5)), at col_addr_offset + 0x49 + (row_pixel +
+ *     0x6C) * 320.
+ *
+ * "usable" is a conventional name: build_usable_spell_list lists only
+ * learned spells; whether MP is sufficient (selectable vs greyed) is
+ * checked live by fd2_spell_select_input_loop.
+ *
+ * The spell_iter / 4 and % 4 are signed divisions in the binary; spell_iter
+ * is a non-negative loop counter so the (int) casts only pin the codegen.
+ *
+ * Cdecl, 3 stack params; void return. The binary's __CHK(0x5C) stack-probe
+ * prologue is compiler-generated and omitted here.
+ * ---------------------------------------------------------------- */
+void fd2_draw_spell_selection_list(uint32 caster_idx, uint32 highlighted_idx,
+                                   uint32 render_buf)
+{
+    uint8  spell_id_list[32];
+    int    spell_count;
+    int    spell_iter;
+    uint32 row_pixel;
+    uint32 color;
+    uint32 col_addr_offset;
+    uint32 row_y;
+    uint8 *pSpell;
+
+    spell_count = fd2_build_usable_spell_list(caster_idx, (uint32)spell_id_list);
+
+    for (spell_iter = 0; spell_iter < spell_count; spell_iter = spell_iter + 1) {
+        row_pixel = (spell_iter % 4) * 0x16;
+        color = ((uint32)spell_iter == highlighted_idx) ? 0xc9 : 0xcd;
+        col_addr_offset = render_buf + (spell_iter / 4) * 100 + 0x12;
+
+        fd2_display_dialog_scene(
+            data_fd2_all_game_text_ptr, spell_id_list[spell_iter] + 0x1b9,
+            (row_pixel + 0x67) * 0x140 + col_addr_offset, 0x140, color,
+            0x4c, 0, 0, 0);
+
+        row_y = (row_pixel + 0x6c) * 0x140;
+        fd2_blit_sheet_sprite_at_offset(col_addr_offset + 0x32 + row_y, 0x140,
+                                        data_fd2_ui_anim_sprite_sheet_ptr,
+                                        0x5c);
+
+        pSpell = fd2_get_spell_effect_entry((int)spell_id_list[spell_iter]);
+        fd2_render_decimal_number_to_buffer(col_addr_offset + 0x49 + row_y,
+                                            0x140, (uint32)pSpell[5], 0x2a, 2);
+    }
 }

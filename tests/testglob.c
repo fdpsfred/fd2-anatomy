@@ -1049,14 +1049,16 @@ uint8 *data_fd2_portrait_sprite_buffer = (uint8 *)0;
 int    g_dlg_glyph_calls = 0;
 uint32 g_dlg_glyph_last_idx = 0;
 uint32 g_dlg_glyph_last_pos = 0;
+uint32 g_dlg_glyph_last_p5  = 0;   /* glyph border/color (display_dialog_scene page_idx arg) */
 
 void fd2_blit_glyph_2bpp_with_outline(uint32 font_sheet, uint32 glyph_idx,
                                       uint32 render_pos, uint32 render_pitch,
                                       uint32 p5, uint32 p6, uint16 p7) {
-    (void)font_sheet; (void)render_pitch; (void)p5; (void)p6; (void)p7;
+    (void)font_sheet; (void)render_pitch; (void)p6; (void)p7;
     g_dlg_glyph_calls++;
     g_dlg_glyph_last_idx = glyph_idx;
     g_dlg_glyph_last_pos = render_pos;
+    g_dlg_glyph_last_p5  = p5;
 }
 /* fd2_play_dialog_open_animation: now emitted in src/dialog/dialog.c and
  * linked for real; its 5-stage frame assembly is driven by the
@@ -1108,10 +1110,9 @@ void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite, uint32 stride) {
 /* fd2_play_status_screen_outro_step: now emitted for real in src/anim/aniwalk.c
  * (with host unit tests in tests/anim/aniwalk2.c driving the real panel
  * painters over in-memory buffers); stub removed. */
-void fd2_draw_spell_selection_list(uint32 char_idx, uint32 spell_idx,
-                                   uint32 overlay_buffer) {
-    (void)char_idx; (void)spell_idx; (void)overlay_buffer;
-}
+/* fd2_draw_spell_selection_list: now emitted for real in src/spell/spellsel.c
+ * (with host unit tests in tests/spell/spellsel.c driving the real MP-icon /
+ * decimal / name-label renderers over in-memory fixtures); stub removed. */
 
 /* fd2_render_party_status_overview_content: now emitted for real in
  * src/gfx/rndstat.c (with host unit tests in tests/gfx/rndstat.c driving the
