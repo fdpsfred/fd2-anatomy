@@ -64,7 +64,6 @@ extern int g_inline_spell_menu_calls;
 extern int g_inline_spell_menu_pending;   /* XP the spell stub credits on commit */
 extern int g_inline_item_menu_return;
 extern int g_inline_item_menu_calls;
-extern int g_inline_tile_event_calls;
 
 /* Host-safe render environment for the real open-dialog reached on every
  * field-command iteration: empty party (no real char paint), a real workspace
@@ -370,6 +369,18 @@ static void test_player_action_menu_unreachable(void)
 
 static runtime_char iam_chars[4];
 
+/* Deterministic, host-safe tile environment for the real
+ * fd2_handle_tile_event_interaction reached on the dispatcher's Wait branch.
+ * A zeroed tile-map meta + zeroed attribute buffer makes the cursor tile's
+ * attribute byte 0, so (tile_attr & 0x60) == 0 and the handler gate-returns
+ * immediately (no dialog / blocking input). */
+static uint8 iam_tile_map[64];
+static uint8 iam_tile_attr[64];
+static uint8 iam_tile_consumed[64];
+
+static uint32 iam_saved_tile_map_ptr;
+static uint32 iam_saved_tile_attr_ptr;
+static uint32 iam_saved_consumed_ptr;
 static runtime_char *iam_saved_char_ptr;
 static uint32 iam_saved_party_count;
 static uint32 iam_saved_cursor_x;
@@ -399,11 +410,22 @@ static void iam_setup(uint8 job_id, uint8 level, uint8 silence_flag)
     iam_saved_spell_return = g_inline_spell_menu_return;
     iam_saved_spell_pending = g_inline_spell_menu_pending;
     iam_saved_item_return = g_inline_item_menu_return;
+    iam_saved_tile_map_ptr = data_fd2_battle_tile_map_ptr;
+    iam_saved_tile_attr_ptr = data_fd2_tile_attribute_flags_buffer_ptr;
+    iam_saved_consumed_ptr = data_fd2_field_map_tile_event_consumed_flags_ptr;
 
     mnu_setup_render_env();              /* empty party + workspace + dialog */
     for (i = 0; i < (int)sizeof(iam_chars); i++) {
         ((uint8 *)iam_chars)[i] = 0;
     }
+    for (i = 0; i < 64; i++) {
+        iam_tile_map[i] = 0;
+        iam_tile_attr[i] = 0;
+        iam_tile_consumed[i] = 0;
+    }
+    data_fd2_battle_tile_map_ptr = (uint32)iam_tile_map;
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)iam_tile_attr;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)iam_tile_consumed;
     iam_chars[0].pos_x = 0;
     iam_chars[0].pos_y = 0;
     iam_chars[0].team = 2;              /* player */
@@ -420,7 +442,6 @@ static void iam_setup(uint8 job_id, uint8 level, uint8 silence_flag)
     g_inline_spell_menu_pending = 0;    /* default: cast credits no XP */
     g_inline_spell_menu_calls = 0;
     g_inline_item_menu_calls = 0;
-    g_inline_tile_event_calls = 0;
 }
 
 static void iam_teardown(void)
@@ -436,6 +457,9 @@ static void iam_teardown(void)
     g_inline_spell_menu_return = iam_saved_spell_return;
     g_inline_spell_menu_pending = iam_saved_spell_pending;
     g_inline_item_menu_return = iam_saved_item_return;
+    data_fd2_battle_tile_map_ptr = iam_saved_tile_map_ptr;
+    data_fd2_tile_attribute_flags_buffer_ptr = iam_saved_tile_attr_ptr;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = iam_saved_consumed_ptr;
 }
 
 /* Cancel (single Esc): exercises the full setup block — template copy, the
@@ -611,11 +635,13 @@ static void test_inline_action_item_cancel(void)
 }
 
 /* Wait (cursor 3, default branch), have_moved = 1: the heal is skipped (gated
- * on have_moved == 0); the tile-event handler runs and the function returns 1.
- * The acted-this-turn flag (runtime_char.flags bit 0x80) is set. (The
- * have_moved == 0 heal is a self-contained display animation -- its branch
- * decision is covered by the have_moved == 0 variant below, with HP at max so
- * the real heal is a guaranteed no-op.) */
+ * on have_moved == 0); the real fd2_handle_tile_event_interaction runs (it
+ * gate-returns on the zeroed cursor tile set up by iam_setup) and the function
+ * returns 1. The acted-this-turn flag (runtime_char.flags bit 0x80) is set —
+ * only the Wait branch produces this r==1 + acted-flag pair. (The have_moved==0
+ * heal is a self-contained display animation -- its branch decision is covered
+ * by the have_moved == 0 variant below, with HP at max so the real heal is a
+ * guaranteed no-op.) */
 static void test_inline_action_wait_moved(void)
 {
     int32 slot[4];
@@ -633,7 +659,6 @@ static void test_inline_action_wait_moved(void)
     r = fd2_player_inline_action_menu_dispatch(0, slot, 1);   /* have_moved=1 */
 
     ASSERT_EQ(r, 1);
-    ASSERT_EQ(g_inline_tile_event_calls, 1);
     ASSERT_EQ((int)(iam_chars[0].flags & 0x80), 0x80);   /* acted flag set */
     iam_teardown();
 }
@@ -657,7 +682,6 @@ static void test_inline_action_wait_not_moved(void)
     r = fd2_player_inline_action_menu_dispatch(0, slot, 0);   /* have_moved=0 */
 
     ASSERT_EQ(r, 1);
-    ASSERT_EQ(g_inline_tile_event_calls, 1);
     ASSERT_EQ((int)iam_chars[0].hp_current, 10);   /* unchanged (no-op heal) */
     iam_teardown();
 }

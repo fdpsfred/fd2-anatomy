@@ -556,9 +556,10 @@ double data_fd2_battle_ai_enemy_spell_score_multiplier_15 = 1.5;
 int g_count_usable_slots_return = 0;
 int fd2_count_usable_inventory_slots(uint32 ci) { (void)ci; return g_count_usable_slots_return; }
 /* inline action submenu dispatch seams (fd2_player_inline_action_menu_dispatch).
- * The real spell/item submenus and the field tile-event handler are heavy
- * UI/graphics orchestrators not yet emitted; these stubs let the inline action
- * dispatcher be driven to each selection branch deterministically. */
+ * The real spell/item submenus are heavy UI/graphics orchestrators not yet
+ * emitted; these stubs let the inline action dispatcher be driven to each
+ * selection branch deterministically. (The field tile-event handler is now the
+ * real fd2_handle_tile_event_interaction in src/ui_menu/menufld.c.) */
 int g_inline_spell_menu_return = 1;
 int g_inline_spell_menu_calls = 0;
 /* On a committed cast the real submenu accrues spell XP into pending_xp_credit;
@@ -582,12 +583,12 @@ int fd2_item_command_menu_dispatch(uint32 char_idx)
     g_inline_item_menu_calls++;
     return g_inline_item_menu_return;
 }
-int g_inline_tile_event_calls = 0;
-void fd2_handle_tile_event_interaction(uint32 char_idx)
-{
-    (void)char_idx;
-    g_inline_tile_event_calls++;
-}
+/* fd2_handle_tile_event_interaction is now emitted for real in
+ * src/ui_menu/menufld.c and linked; its former counting stub was removed. The
+ * inline-action dispatcher's Wait-branch tests now drive the real handler, which
+ * gate-returns on a non-event cursor tile (see tests/ui_menu/menu.c iam_setup's
+ * zeroed tile-map / attr buffers). Its own behavioral coverage lives in
+ * tests/ui_menu/menufld.c. */
 void (*data_fd2_battle_ai_post_action_consequence_table[90])(uint32);
 void (*data_fd2_battle_spell_handler_table[28])(uint32, uint32, uint8 *);
 static void g_noop_post_action_handler(uint32 x) { (void)x; }
@@ -714,7 +715,18 @@ void fd2_play_figani_char_intro_animation(uint32 c) { }
 uint32 data_fd2_battle_tile_map_anim_frame_counter = 0;
 uint32 data_fd2_graphics_bg_anim_flip_flag = 0;
 uint8  data_fd2_graphics_tile_anim_palette_phase_lookup[20] = {0};
-void fd2_add_item_to_inventory(uint32 c, uint32 i) { }
+/* fd2_add_item_to_inventory real body not yet emitted. The disassembly proves
+ * it returns int (EAX): -1 when the bag is full, otherwise the slot index. The
+ * tile-event handler branches on that -1, so the stub return is test-controllable
+ * (default 0 = success). */
+int  g_add_item_return = 0;
+int  g_add_item_calls = 0;
+int fd2_add_item_to_inventory(uint32 c, uint32 i) { g_add_item_calls++; (void)c; (void)i; return g_add_item_return; }
+/* fd2_inventory_selection_modal_dispatch real body not yet emitted; returns a
+ * 0/1 confirm flag (SETNZ of selection != -1). Test-controllable. */
+int  g_inventory_modal_return = 0;
+int  g_inventory_modal_calls = 0;
+int fd2_inventory_selection_modal_dispatch(uint32 c, uint32 m) { g_inventory_modal_calls++; (void)c; (void)m; return g_inventory_modal_return; }
 int g_play_sfx_sample_from_bank_calls = 0;
 void fd2_play_sfx_sample_from_bank(uint32 b, uint32 s, uint32 p) { g_play_sfx_sample_from_bank_calls++; (void)b; (void)s; (void)p; }
 void fd2_paint_char_sprite_at_world_with_mode(uint32 w, uint32 s, uint32 c, uint32 m, uint32 co) { }
@@ -828,9 +840,9 @@ void fd2_animate_dialog_page_advance_collapse(void) {
  * function (behavioral coverage deferred to Phase 9 integration). */
 /* fd2_player_inline_action_menu_dispatch is now emitted for real in
  * ui_menu/menu.c; its former one-shot stub and the g_inline_dispatch_* seam
- * variables were removed. Its spell/item submenu and tile-event callees are
- * stubbed above (g_inline_spell_menu_* / g_inline_item_menu_* /
- * g_inline_tile_event_calls). */
+ * variables were removed. Its spell/item submenu callees are stubbed above
+ * (g_inline_spell_menu_* / g_inline_item_menu_*); its tile-event callee is now
+ * the real fd2_handle_tile_event_interaction (src/ui_menu/menufld.c). */
 /* fd2_open_char_status_screen: now emitted in src/ui_menu/status.c and linked
  * for real (was a recording stub here). It is pure VGA/sfx orchestration and is
  * never reached by a host test — fd2_game_main_loop (its sole in-tree caller)

@@ -1022,8 +1022,9 @@
     "name": "fd2_handle_tile_event_interaction",
     "target": "ui_menu/menufld.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001956b": {
     "name": "fd2_load_chapter_portrait",

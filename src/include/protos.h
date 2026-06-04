@@ -80,6 +80,8 @@ int fd2_collect_dead_char_drops(uint32 out_buffer);
 /* forward decl — defined in later phases */
 uint32 fd2_find_equipped_item_by_kind(uint32 char_idx, uint32 kind);
 uint8 fd2_get_inventory_slot_item_id(uint32 char_idx, uint32 slot);
+int fd2_inventory_selection_modal_dispatch(uint32 char_idx, uint32 mode);
+void fd2_handle_tile_event_interaction(uint32 char_idx);
 void fd2_delay_ticks(uint32 ticks);
 void fd2_run_full_turn_cycle(void);
 
@@ -236,7 +238,7 @@ void fd2_play_figani_char_intro_animation(uint32 char_idx);
 void fd2_apply_use_effect_dispatch(uint32 ci, uint32 sl, uint32 n, uint32 buf);
 void fd2_clear_all_chars_facing(void);
 void fd2_clear_all_chars_acted_flag(void);
-void fd2_add_item_to_inventory(uint32 char_idx, uint32 item_id);
+int fd2_add_item_to_inventory(uint32 char_idx, uint32 item_id);
 void fd2_play_sfx_sample_from_bank(uint32 bank_ptr, uint32 sfx_id, uint32 p);
 void fd2_paint_char_sprite_at_world_with_mode(uint32 ws, uint32 stride, uint32 ci, uint32 mode, uint32 color);
 void fd2_paint_threat_overlay_for_team(uint32 ctx);
