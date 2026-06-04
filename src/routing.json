@@ -2978,8 +2978,9 @@
     "name": "fd2_render_shop_item_grid",
     "target": "gfx/rndmenu.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002df6b": {
     "name": "fd2_shop_menu_input_loop",

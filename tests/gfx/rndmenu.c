@@ -582,6 +582,368 @@ static void test_mode2_icon_count_caps_at_3(void)
     ASSERT_EQ((long)g_blitbgfill_calls, 3);
 }
 
+/* ================================================================
+ * fd2_render_shop_item_grid @ 0x2DC55
+ *
+ * Renders up to 6 items (2-col x 3-row) with category icon, item name,
+ * a primary stat (AP/DP/HP/MP) and a price. All blits are reached
+ * through the real pipeline against fakes:
+ *   fd2_blit_sheet_sprite_at_offset -> real -> fd2_blit_sprite_raw_with_header
+ *     spy (g_blitraw_log_*): records every sheet-icon blit. With a fake
+ *     offset table (table[i]=i) the sprite index is (logged_sprite - sheet).
+ *   fd2_blit_indexed_sprite_at_xy / fd2_render_decimal_number_to_buffer ->
+ *     real -> fd2_rle_blit_sprite spy (g_rle_blit_log_*): records the "—"
+ *     placeholder sprite and every decimal digit glyph.
+ *   fd2_display_dialog_scene: REAL against the immediate-END text program
+ *     (intro_text_all_end) -> returns at once, no fopen / no glyph blits.
+ *   fd2_get_item_effect_entry: REAL -> &item_effect_table[id].type, so the
+ *     entry offsets the grid reads (type@+0, ap@+1, dp@+5, use_effect@+0xD,
+ *     use_param@+0xE, price@+0x13) are seeded straight into the struct.
+ *
+ * Risk-bearing logic under test: the visible-count cap (6 / tail-clamp 5),
+ * the kind-based stat dispatch (weapon/armor/HP/MP/placeholder), the
+ * category-icon selection, the per-item column/row dst arithmetic, and the
+ * (price*3)/4 sell-mode discount.
+ * ================================================================ */
+
+extern int    g_blitraw_log_on;
+extern int    g_blitraw_count;
+extern uint32 g_blitraw_log_dst[512];
+extern uint32 g_blitraw_log_sprite[512];
+extern int    g_rle_blit_calls;
+extern int    g_rle_blit_log_on;
+extern uint32 g_rle_blit_log_sprite[64];
+extern uint32 g_rle_blit_log_dst[64];
+
+/* anim sprite sheet (icons + digit glyphs): header(6) + 256 int32 entries,
+ * table[i]=i so resolved sprite = sheet + sprite_idx. */
+static int32 g_shop_anim_sheet[2 + 256];
+/* menu-screen atlas (price coin icon) — distinct sheet from the anim sheet. */
+static int32 g_shop_menu_atlas[2 + 256];
+/* item id array passed to the grid (absolute ids; grid indexes via
+ * scroll_offset + iter). */
+static uint8 g_shop_ids[64];
+
+static uint32 g_shop_anim_base;
+static uint32 g_shop_menu_base;
+
+static void shop_setup(void)
+{
+    uint8 *anim = (uint8 *)g_shop_anim_sheet;
+    uint8 *menu = (uint8 *)g_shop_menu_atlas;
+    int    i;
+
+    for (i = 0; i < 256; i++) {
+        *(int32 *)(anim + 6 + i * 4) = i;
+        *(int32 *)(menu + 6 + i * 4) = i;
+    }
+    g_shop_anim_base = (uint32)anim;
+    g_shop_menu_base = (uint32)menu;
+    data_fd2_ui_anim_sprite_sheet_ptr = g_shop_anim_base;
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = g_shop_menu_base;
+
+    /* item names go through the real dialog VM; immediate-END = no output */
+    intro_text_all_end();
+
+    memset(data_fd2_battle_item_effect_table, 0,
+           sizeof(data_fd2_battle_item_effect_table));
+    for (i = 0; i < 64; i++) {
+        g_shop_ids[i] = 0;
+    }
+
+    data_fd2_ui_menu_scroll_offset = 0;
+
+    g_blitraw_count = 0;
+    g_blitraw_log_on = 1;
+    g_rle_blit_calls = 0;
+    g_rle_blit_log_on = 1;
+}
+
+/* seed item_effect_table[id]: type, ap, dp, use_effect, use_param, price.
+ * fd2_get_item_effect_entry returns &table[id].type, so the grid reads
+ * type@p+0, ap@p+1, dp@p+5, use_effect@p+0xD, use_param@p+0xE, price@p+0x13. */
+static void shop_seed_item(uint8 id, uint8 type, int16 ap, int16 dp,
+                           uint8 use_effect, int16 use_param, uint16 price)
+{
+    item_effect *e = &data_fd2_battle_item_effect_table[id];
+    e->type = type;
+    e->ap = (uint16)ap;
+    e->dp = (uint16)dp;
+    e->use_effect = use_effect;
+    e->use_param_lo = (uint8)((uint16)use_param & 0xff);
+    e->use_param_hi = (uint8)(((uint16)use_param >> 8) & 0xff);
+    e->price = price;
+}
+
+/* recover the sheet-icon sprite index of the g_blitraw_log entry at `idx`. */
+static uint32 shop_sheet_sprite(int idx)
+{
+    return g_blitraw_log_sprite[idx] - g_shop_anim_base;
+}
+
+/* assert a `digits`-wide "%0.<digits>d" decimal of `value` rendered at `dst`
+ * with sprite base `color`, starting at rle-log index `from`. */
+static void shop_assert_decimal(int from, uint32 dst, uint32 value,
+                                uint32 color, uint32 digits)
+{
+    char fmt[8];
+    char s[20];
+    int  i;
+
+    fmt[0] = '%'; fmt[1] = '0'; fmt[2] = '.';
+    fmt[3] = (char)('0' + digits);
+    fmt[4] = 'd'; fmt[5] = '\0';
+    sprintf(s, fmt, value);
+
+    for (i = 0; i < (int)digits; i++) {
+        ASSERT_EQ((long)(g_rle_blit_log_sprite[from + i] - g_shop_anim_base),
+                  (long)(color + (uint32)(uint8)s[i] - 0x30));
+        ASSERT_EQ((long)g_rle_blit_log_dst[from + i],
+                  (long)(dst + (uint32)(i * 6)));
+    }
+}
+
+/* ----------------------------------------------------------------
+ * Visible-count cap: item_count <= 6 -> draw every item. Use 4
+ * placeholder items (kind 0x20, use_effect not 5/0xB) so each item makes
+ * exactly two sheet blits (category icon + coin icon); 4 items -> 8.
+ * ---------------------------------------------------------------- */
+static void test_cap_small_count_draws_all(void)
+{
+    int i;
+
+    shop_setup();
+    for (i = 0; i < 4; i++) {
+        g_shop_ids[i] = (uint8)i;
+        shop_seed_item((uint8)i, 0x20, 0, 0, 0x00, 0, 100);
+    }
+
+    fd2_render_shop_item_grid(4, g_shop_ids, 99, 0x1000, 0);
+
+    ASSERT_EQ((long)g_blitraw_count, 8);            /* 4 items x 2 sheet blits */
+}
+
+/* item_count > 6 but the scroll window has >= 6 items below it
+ * (item_count >= scroll_offset + 6) -> draw_count clamps to exactly 6. */
+static void test_cap_large_count_draws_six(void)
+{
+    int i;
+
+    shop_setup();
+    data_fd2_ui_menu_scroll_offset = 0;             /* 10 >= 0+6 -> 6 */
+    for (i = 0; i < 16; i++) {
+        g_shop_ids[i] = (uint8)i;
+        shop_seed_item((uint8)i, 0x20, 0, 0, 0x00, 0, 100);
+    }
+
+    fd2_render_shop_item_grid(10, g_shop_ids, 99, 0x1000, 0);
+
+    ASSERT_EQ((long)g_blitraw_count, 12);           /* 6 items x 2 */
+}
+
+/* item_count > 6 AND item_count < scroll_offset + 6 -> tail-clamp to 5.
+ * scroll_offset = 4, item_count = 8 -> 8 < 4+6=10 -> draw_count = 5. */
+static void test_cap_tail_clamps_to_five(void)
+{
+    int i;
+
+    shop_setup();
+    data_fd2_ui_menu_scroll_offset = 4;
+    for (i = 0; i < 32; i++) {
+        g_shop_ids[i] = (uint8)i;
+        shop_seed_item((uint8)i, 0x20, 0, 0, 0x00, 0, 100);
+    }
+
+    fd2_render_shop_item_grid(8, g_shop_ids, 99, 0x1000, 0);
+
+    ASSERT_EQ((long)g_blitraw_count, 10);           /* 5 items x 2 */
+}
+
+/* ----------------------------------------------------------------
+ * Weapon (kind < 0x15): category icon 0x3B, AP icon 0x40, stat = entry.ap
+ * (3 digits). One item -> sheet blits: [0]=category 0x3B, [1]=AP icon 0x40,
+ * [2]=coin 0x0F. rle: [0..2]=AP value 3 digits, [3..7]=price 5 digits.
+ * Also verifies the iter=0 dst arithmetic for the category icon.
+ * ---------------------------------------------------------------- */
+static void test_weapon_stat_and_icons(void)
+{
+    uint32 surf = 0x1000;
+    uint32 cat_dst;
+    uint32 ap_dst;
+
+    shop_setup();
+    g_shop_ids[0] = 7;
+    shop_seed_item(7, 0x05, 123, 999, 0x00, 0, 250);    /* weapon, ap=123 */
+
+    fd2_render_shop_item_grid(1, g_shop_ids, 99, (int32)surf, 0);
+
+    /* sheet icons: category 0x3B, AP 0x40, coin 0x0F (coin from menu atlas) */
+    ASSERT_EQ((long)g_blitraw_count, 3);
+    ASSERT_EQ((long)shop_sheet_sprite(0), 0x3B);        /* weapon category */
+    ASSERT_EQ((long)shop_sheet_sprite(1), 0x40);        /* AP icon */
+    /* coin uses the menu atlas, so recover against that base */
+    ASSERT_EQ((long)(g_blitraw_log_sprite[2] - g_shop_menu_base), 0x0F);
+
+    /* iter=0: col_x=10, row_off=0. category dst = (0+0x77)*0x140+surf+10 */
+    cat_dst = (0x77u) * 0x140u + surf + 10u;
+    ASSERT_EQ((long)g_blitraw_log_dst[0], (long)cat_dst);
+    /* AP icon dst = (0+0x79)*0x140 + surf + 10 + 0x5F */
+    ap_dst = (0x79u) * 0x140u + surf + 10u + 0x5Fu;
+    ASSERT_EQ((long)g_blitraw_log_dst[1], (long)ap_dst);
+
+    /* rle: AP value 123 (3 digits, base 0x2A) then price 250 (5 digits, 0x77) */
+    shop_assert_decimal(0, (0x79u) * 0x140u + surf + 10u + 0x76u, 123, 0x2a, 3);
+    shop_assert_decimal(3, surf + 10u + 0x68u + (0x83u) * 0x140u, 250, 0x77, 5);
+    ASSERT_EQ((long)g_rle_blit_calls, 8);               /* 3 + 5 */
+}
+
+/* Armor (0x15 <= kind < 0x20): category icon 0x3C, DP icon 0x41,
+ * stat = entry.dp. */
+static void test_armor_stat_and_icons(void)
+{
+    shop_setup();
+    g_shop_ids[0] = 3;
+    shop_seed_item(3, 0x18, 111, 87, 0x00, 0, 400);     /* armor, dp=87 */
+
+    fd2_render_shop_item_grid(1, g_shop_ids, 99, 0x2000, 0);
+
+    ASSERT_EQ((long)g_blitraw_count, 3);
+    ASSERT_EQ((long)shop_sheet_sprite(0), 0x3C);        /* armor category */
+    ASSERT_EQ((long)shop_sheet_sprite(1), 0x41);        /* DP icon */
+    /* DP value 87, 3 digits */
+    shop_assert_decimal(0, (0x79u) * 0x140u + 0x2000u + 10u + 0x76u, 87, 0x2a, 3);
+}
+
+/* HP-boost consumable (kind==0x20, use_effect==5): category 0x3D, HP icon
+ * 0x42, stat = use_param. */
+static void test_hp_consumable_stat_and_icons(void)
+{
+    shop_setup();
+    g_shop_ids[0] = 0x80;
+    shop_seed_item(0x80, 0x20, 0, 0, 0x05, 50, 30);     /* HP boost, param=50 */
+
+    fd2_render_shop_item_grid(1, g_shop_ids, 99, 0x3000, 0);
+
+    ASSERT_EQ((long)g_blitraw_count, 3);
+    ASSERT_EQ((long)shop_sheet_sprite(0), 0x3D);        /* other category */
+    ASSERT_EQ((long)shop_sheet_sprite(1), 0x42);        /* HP icon */
+    shop_assert_decimal(0, (0x79u) * 0x140u + 0x3000u + 10u + 0x76u, 50, 0x2a, 3);
+}
+
+/* MP-boost consumable (kind==0x20, use_effect==0xB): category 0x3D, MP icon
+ * 0x43, stat = use_param. */
+static void test_mp_consumable_stat_and_icons(void)
+{
+    shop_setup();
+    g_shop_ids[0] = 0x90;
+    shop_seed_item(0x90, 0x20, 0, 0, 0x0B, 25, 60);     /* MP boost, param=25 */
+
+    fd2_render_shop_item_grid(1, g_shop_ids, 99, 0x4000, 0);
+
+    ASSERT_EQ((long)g_blitraw_count, 3);
+    ASSERT_EQ((long)shop_sheet_sprite(0), 0x3D);        /* other category */
+    ASSERT_EQ((long)shop_sheet_sprite(1), 0x43);        /* MP icon */
+    shop_assert_decimal(0, (0x79u) * 0x140u + 0x4000u + 10u + 0x76u, 25, 0x2a, 3);
+}
+
+/* Stat-less item (kind==0x20, use_effect neither 5 nor 0xB): category 0x3D,
+ * no stat icon/decimal; a "—" placeholder sprite 0x29 is RLE-blit instead.
+ * Sheet blits = category + coin = 2 (no stat icon). rle = placeholder(1) +
+ * price(5) = 6, placeholder first. ---------------------------------------- */
+static void test_placeholder_when_no_stat(void)
+{
+    uint32 surf = 0x5000;
+    uint32 ph_dst;
+
+    shop_setup();
+    g_shop_ids[0] = 0x40;
+    shop_seed_item(0x40, 0x20, 0, 0, 0x07, 0, 80);      /* use_effect 7 -> placeholder */
+
+    fd2_render_shop_item_grid(1, g_shop_ids, 99, (int32)surf, 0);
+
+    ASSERT_EQ((long)g_blitraw_count, 2);                /* category + coin only */
+    ASSERT_EQ((long)shop_sheet_sprite(0), 0x3D);        /* other category */
+
+    /* placeholder sprite 0x29 via the rle path, dst =
+     * (0+0x7B)*0x140 + surf + 10 + 0x5F */
+    ph_dst = (0x7Bu) * 0x140u + surf + 10u + 0x5Fu;
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[0] - g_shop_anim_base), 0x29);
+    ASSERT_EQ((long)g_rle_blit_log_dst[0], (long)ph_dst);
+
+    /* only the 5 price digits follow the placeholder (no 3-digit stat) */
+    shop_assert_decimal(1, surf + 10u + 0x68u + (0x83u) * 0x140u, 80, 0x77, 5);
+    ASSERT_EQ((long)g_rle_blit_calls, 6);               /* 1 placeholder + 5 price */
+}
+
+/* ----------------------------------------------------------------
+ * Sell-mode discount: price -> price * 3 / 4. Full price when flag==0,
+ * discounted when flag!=0. The 5 price digits encode the rendered value.
+ * price=100 -> 75 (300/4); a non-multiple price=99 -> 74 (297/4 = 74.25).
+ * ---------------------------------------------------------------- */
+static void test_price_full_when_not_sell(void)
+{
+    shop_setup();
+    g_shop_ids[0] = 1;
+    shop_seed_item(1, 0x20, 0, 0, 0x07, 0, 12345);
+
+    fd2_render_shop_item_grid(1, g_shop_ids, 99, 0x100, 0);
+
+    /* placeholder at rle[0]; price digits at rle[1..5] = full 12345 */
+    shop_assert_decimal(1, 0x100u + 10u + 0x68u + (0x83u) * 0x140u, 12345, 0x77, 5);
+}
+
+static void test_price_discounted_when_sell(void)
+{
+    shop_setup();
+    g_shop_ids[0] = 1;
+    shop_seed_item(1, 0x20, 0, 0, 0x07, 0, 100);
+
+    fd2_render_shop_item_grid(1, g_shop_ids, 99, 0x100, 1);
+
+    /* 100 * 3 / 4 = 75 */
+    shop_assert_decimal(1, 0x100u + 10u + 0x68u + (0x83u) * 0x140u, 75, 0x77, 5);
+}
+
+static void test_price_discount_rounds_toward_zero(void)
+{
+    shop_setup();
+    g_shop_ids[0] = 1;
+    shop_seed_item(1, 0x20, 0, 0, 0x07, 0, 99);
+
+    fd2_render_shop_item_grid(1, g_shop_ids, 99, 0x100, 1);
+
+    /* 99 * 3 = 297; 297 >> 2 = 74 (toward zero) */
+    shop_assert_decimal(1, 0x100u + 10u + 0x68u + (0x83u) * 0x140u, 74, 0x77, 5);
+}
+
+/* ----------------------------------------------------------------
+ * Second column / second row dst arithmetic. iter=1 -> col_x =
+ * (1%2)*0x94+10 = 0x9E, row_off = (1/2)*0x1A = 0 (still row 0). iter=2 ->
+ * col_x = 10, row_off = 0x1A. Drive 3 placeholder items and check the
+ * coin-icon dst for iter 1 and 2 to prove the column/row formulas.
+ * ---------------------------------------------------------------- */
+static void test_column_row_offsets(void)
+{
+    uint32 surf = 0x8000;
+    uint32 coin_dst_i1;
+    uint32 coin_dst_i2;
+
+    shop_setup();
+    g_shop_ids[0] = 0; g_shop_ids[1] = 0; g_shop_ids[2] = 0;
+    shop_seed_item(0, 0x20, 0, 0, 0x07, 0, 1);          /* placeholder */
+
+    fd2_render_shop_item_grid(3, g_shop_ids, 99, (int32)surf, 0);
+
+    /* each placeholder item makes 2 sheet blits: [cat, coin]. coin index for
+     * item n is 2*n + 1. */
+    /* iter=1: col_x = 0x9E, row_off = 0 -> coin dst = (0+0x83)*0x140+surf+0x9E+0x5F */
+    coin_dst_i1 = (0x83u) * 0x140u + surf + 0x9Eu + 0x5Fu;
+    ASSERT_EQ((long)g_blitraw_log_dst[2 * 1 + 1], (long)coin_dst_i1);
+    /* iter=2: col_x = 10, row_off = 0x1A -> coin dst = (0x1A+0x83)*0x140+surf+10+0x5F */
+    coin_dst_i2 = (0x1Au + 0x83u) * 0x140u + surf + 10u + 0x5Fu;
+    ASSERT_EQ((long)g_blitraw_log_dst[2 * 2 + 1], (long)coin_dst_i2);
+}
+
 void run_gfx_rndmenu_tests(void)
 {
     SUITE_BEGIN(gfx_rndmenu);
@@ -601,5 +963,17 @@ void run_gfx_rndmenu_tests(void)
     RUN_TEST(test_mode2_icon_loop_arithmetic);
     RUN_TEST(test_mode2_anim_phase_3_maps_to_1);
     RUN_TEST(test_mode2_icon_count_caps_at_3);
+    RUN_TEST(test_cap_small_count_draws_all);
+    RUN_TEST(test_cap_large_count_draws_six);
+    RUN_TEST(test_cap_tail_clamps_to_five);
+    RUN_TEST(test_weapon_stat_and_icons);
+    RUN_TEST(test_armor_stat_and_icons);
+    RUN_TEST(test_hp_consumable_stat_and_icons);
+    RUN_TEST(test_mp_consumable_stat_and_icons);
+    RUN_TEST(test_placeholder_when_no_stat);
+    RUN_TEST(test_price_full_when_not_sell);
+    RUN_TEST(test_price_discounted_when_sell);
+    RUN_TEST(test_price_discount_rounds_toward_zero);
+    RUN_TEST(test_column_row_offsets);
     SUITE_END();
 }

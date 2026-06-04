@@ -411,6 +411,7 @@ void fd2_wait_input_with_status_panel_repaint(uint32 char_idx);
 void fd2_render_recruitment_party_screen(void);
 void fd2_render_chapter_dialog_borders(void);
 void fd2_render_chapter_intro_dialog_panels(uint32 corner_offs_ptr, uint32 mode);
+void fd2_render_shop_item_grid(uint32 item_count, uint8 *item_id_array, uint32 highlight_slot, int32 surface_offset, int32 sell_mode_flag);
 void fd2_render_party_roster_grid(uint32 highlight_idx, uint32 surface_offset);
 void fd2_blit_sprite_with_stride_setup(uint32 dst, uint32 sprite, uint32 stride);
 void fd2_backup_dialog_area_to_buffer(void);

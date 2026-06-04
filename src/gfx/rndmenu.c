@@ -209,3 +209,143 @@ void fd2_render_chapter_intro_overlay(void)
                        data_fd2_large_game_state_buffer_ptr + 0x8088,
                        0x1c8, 0x138, 0xc0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_shop_item_grid @ 0x2DC55  (2 callers)
+ *
+ * Render the SHOP item grid — up to 6 visible items in a 2-column ×
+ * 3-row layout, with item name, category icon, primary stat
+ * (AP/DP/HP/MP) and price (full, or 3/4-discounted in sell mode).
+ *
+ * Callers: fd2_open_shop_dialog_panel @ 0x2E0BD and
+ * fd2_shop_menu_input_loop @ 0x2DF6B (the buy / sell / give / equip
+ * shop-style flows).
+ *
+ * Visible-count cap:
+ *   draw_count = item_count
+ *   if (item_count > 6) { draw_count = 6;
+ *       if (item_count < scroll_offset + 6) draw_count = 5; }   // tail-clamp
+ *
+ * Per item (iter = 0..draw_count-1):
+ *   item_id    = item_id_array[scroll_offset + iter]
+ *   item_entry = fd2_get_item_effect_entry(item_id)
+ *   col_x      = (iter % 2) * 0x94 + 10                          // L/R column
+ *   row_off    = (iter / 2) * 0x1A                               // row spacing
+ *   kind       = item_entry[+0]
+ *   category icon = kind<0x15 ? 0x3B (weapon) : kind<0x20 ? 0x3C (armor)
+ *                                                          : 0x3D (other)
+ *   border glyph  = (scroll_offset + iter == highlight_slot) ? 0xC9 : 0xCD
+ *   name = FDTXT dialog scene, page = item_id + 0xB5
+ *   primary stat icon + 3-digit value:
+ *     kind<0x15            -> AP icon 0x40, value = entry[+1] (int16)
+ *     kind<0x20            -> DP icon 0x41, value = entry[+5] (int16)
+ *     kind==0x20,[+0xD]==5 -> HP icon 0x42, value = entry[+0xE] (int16)
+ *     kind==0x20,[+0xD]==B -> MP icon 0x43, value = entry[+0xE] (int16)
+ *     else                 -> "—" placeholder sprite 0x29, no number
+ *   price (5-digit): coin icon 0x0F (from menu atlas), price = entry[+0x13]
+ *     if sell_mode_flag: price = price * 3 / 4                    // 75%
+ *
+ * void __cdecl. EBX/ESI/EDI/EBP callee-saved; the __CHK(0x54)
+ * stack-probe prologue is compiler-injected and omitted here.
+ * The (price*3)/4 sell discount is a signed divide-by-4; price is a
+ * zero-extended uint16 (always positive) so >>2 == /4.
+ * ---------------------------------------------------------------- */
+void fd2_render_shop_item_grid(uint32 item_count, uint8 *item_id_array,
+                               uint32 highlight_slot, int32 surface_offset,
+                               int32 sell_mode_flag)
+{
+    uint32 draw_count;
+    uint32 iter;
+    uint32 item_id;
+    uint8 *item_entry;
+    uint8  kind;
+    int32  col_x;
+    uint32 row_off;
+    uint32 category_icon;
+    uint8  border_glyph;
+    int32  name_x;
+    uint32 primary_x;
+    uint8 *primary_y_dst;
+    int32  stat_value;
+    uint32 price;
+
+    draw_count = item_count;
+    if (((int32)item_count > 6)
+        && (draw_count = 6,
+            (int32)item_count < (int32)data_fd2_ui_menu_scroll_offset + 6)) {
+        draw_count = 5;
+    }
+
+    for (iter = 0; (int32)iter < (int32)draw_count; iter++) {
+        item_id = (uint32)item_id_array[data_fd2_ui_menu_scroll_offset + iter];
+        item_entry = fd2_get_item_effect_entry(item_id);
+        col_x = ((int32)iter % 2) * 0x94 + 10;
+        row_off = ((int32)iter / 2) * 0x1a;
+
+        kind = *item_entry;
+        if (kind < 0x15) {
+            category_icon = 0x3b;
+        } else if (kind < 0x20) {
+            category_icon = 0x3c;
+        } else {
+            category_icon = 0x3d;
+        }
+        fd2_blit_sheet_sprite_at_offset(
+            (row_off + 0x77) * 0x140 + surface_offset + col_x,
+            0x140, data_fd2_ui_anim_sprite_sheet_ptr, category_icon);
+
+        border_glyph = 0xcd;
+        if (data_fd2_ui_menu_scroll_offset + iter == highlight_slot) {
+            border_glyph = 0xc9;
+        }
+        name_x = surface_offset + col_x;
+        fd2_display_dialog_scene(
+            data_fd2_all_game_text_ptr, item_id + 0xb5,
+            name_x + 0x1c + (row_off + 0x7a) * 0x140,
+            0x140, border_glyph, 0x4c, 0, 0, 0);
+
+        kind = *item_entry;
+        primary_y_dst = (uint8 *)(name_x + 0x76 + (row_off + 0x79) * 0x140);
+        primary_x = (row_off + 0x79) * 0x140 + name_x + 0x5f;
+        if (kind < 0x15) {
+            fd2_blit_sheet_sprite_at_offset(
+                primary_x, 0x140, data_fd2_ui_anim_sprite_sheet_ptr, 0x40);
+            stat_value = *(int16 *)(item_entry + 1);
+            fd2_render_decimal_number_to_buffer(
+                (uint32)primary_y_dst, 0x140, stat_value, 0x2a, 3);
+        } else if (kind < 0x20) {
+            fd2_blit_sheet_sprite_at_offset(
+                primary_x, 0x140, data_fd2_ui_anim_sprite_sheet_ptr, 0x41);
+            stat_value = *(int16 *)(item_entry + 5);
+            fd2_render_decimal_number_to_buffer(
+                (uint32)primary_y_dst, 0x140, stat_value, 0x2a, 3);
+        } else if (kind == 0x20 && item_entry[0xd] == 0x05) {
+            fd2_blit_sheet_sprite_at_offset(
+                primary_x, 0x140, data_fd2_ui_anim_sprite_sheet_ptr, 0x42);
+            stat_value = *(int16 *)(item_entry + 0xe);
+            fd2_render_decimal_number_to_buffer(
+                (uint32)primary_y_dst, 0x140, stat_value, 0x2a, 3);
+        } else if (*item_entry == 0x20 && item_entry[0xd] == 0x0b) {
+            fd2_blit_sheet_sprite_at_offset(
+                primary_x, 0x140, data_fd2_ui_anim_sprite_sheet_ptr, 0x43);
+            stat_value = *(int16 *)(item_entry + 0xe);
+            fd2_render_decimal_number_to_buffer(
+                (uint32)primary_y_dst, 0x140, stat_value, 0x2a, 3);
+        } else {
+            fd2_blit_indexed_sprite_at_xy(
+                (row_off + 0x7b) * 0x140 + surface_offset + col_x + 0x5f,
+                0x140, data_fd2_ui_anim_sprite_sheet_ptr, 0x29);
+        }
+
+        fd2_blit_sheet_sprite_at_offset(
+            (row_off + 0x83) * 0x140 + surface_offset + col_x + 0x5f,
+            0x140, data_fd2_ui_menu_screen_sprite_atlas_buf_ptr, 0xf);
+        price = (uint32)*(uint16 *)(item_entry + 0x13);
+        if ((sell_mode_flag & 0xff) != 0) {
+            price = (int32)(price * 3) >> 2;
+        }
+        fd2_render_decimal_number_to_buffer(
+            col_x + surface_offset + 0x68 + (row_off + 0x83) * 0x140,
+            0x140, price, 0x77, 5);
+    }
+}
