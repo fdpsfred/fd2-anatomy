@@ -50,6 +50,7 @@ uint32 data_fd2_menu_dialog_state_handle = 0;
 uint32 data_fd2_tile_anim_table_base = 0;
 uint32 data_fd2_chinese_font_sheet = 0;
 uint8  data_fd2_ui_terrain_hud_user_enabled = 0;
+uint32 data_fd2_ui_terrain_hud_panel_offset_51a0c = 0;
 uint8  data_fd2_audio_sfx_driver_available_flag = 0;
 uint8  data_fd2_audio_sfx_enabled_flag = 0;
 char   data_fd2_string_ui_render_decimal_format_template[6] = "%0.5d";
@@ -181,10 +182,21 @@ uint32 g_tile_map_last_w = 0;
 uint32 g_tile_map_last_h = 0;
 uint32 g_tile_map_last_ox = 0;
 uint32 g_tile_map_last_oy = 0;
-int    g_terrain_hud_calls = 0;
-uint32 g_terrain_hud_last_buf = 0;
-uint32 g_terrain_hud_last_stride = 0;
 int    g_composite_call_count = 0;
+/* Test-controllable loop-break seam for the idle loops (the real
+ * fd2_wait_input_with_dialog_repaint and the menu loops that idle through it).
+ * The tile-map composite runs exactly once at the top of every idle-loop body
+ * (and once per fd2_composite_battle_frame pass), and is the only such callee
+ * still backed by a recording stub, so it is the single harness-driveable seam
+ * for running an idle loop BODY exactly once: when g_repaint_flip_buffer_after
+ * != 0, the g_repaint_settings_calls counter reaching that threshold flips the
+ * BIOS keyboard buffer from empty->nonempty (tail 0x41C := head 0x41A + 2) so
+ * the next loop-top fd2_check_keyboard_buffer_nonempty() returns nonzero and
+ * the loop exits. Default 0 keeps the historical no-op behavior for all other
+ * tests. (The former seam lived in the fd2_render_terrain_info_hud_panel stub;
+ * that function is now a real emitted routine in src/gfx/rndstat.c.) */
+int g_repaint_settings_calls = 0;
+int g_repaint_flip_buffer_after = 0;
 void fd2_composite_battle_tile_map(uint32 d, uint32 s, uint32 w, uint32 h, uint32 ox, uint32 oy) {
     /* The tile-map blit is the first stage of every fd2_composite_battle_frame
      * pass and runs exactly once per composite (unconditional, both skip-cycle
@@ -197,6 +209,13 @@ void fd2_composite_battle_tile_map(uint32 d, uint32 s, uint32 w, uint32 h, uint3
     g_tile_map_last_dst = d; g_tile_map_last_stride = s;
     g_tile_map_last_w = w; g_tile_map_last_h = h;
     g_tile_map_last_ox = ox; g_tile_map_last_oy = oy;
+
+    g_repaint_settings_calls++;
+    if (g_repaint_flip_buffer_after != 0 &&
+        g_repaint_settings_calls >= g_repaint_flip_buffer_after) {
+        *(volatile uint16 *)0x41CuL =
+            (uint16)(*(volatile uint16 *)0x41AuL + 2);
+    }
 }
 /* fd2_paint_cursor_overlay_pattern, fd2_composite_all_chars_overlay,
  * fd2_paint_char_sprite_at_world_pos, fd2_paint_chars_shadow_overlay and
@@ -261,28 +280,11 @@ void fd2_tile_blit_24x24_with_remap_table(uint32 src, uint32 dst, uint32 stride,
     g_blitpass_calls++;
     g_blitremap_calls++;
 }
-/* Test-controllable loop-break seam for fd2_wait_input_with_dialog_repaint.
- * This no-op render stub runs once per idle-loop body, immediately before the
- * (now real) fd2_repaint_settings_dialog_borders. For the menu-loop tests the
- * only harness-driveable way to run the idle loop BODY exactly once is to flip
- * the BIOS keyboard buffer from empty->nonempty from inside the loop, since the
- * other idle callees do not mutate the buffer. When g_repaint_flip_buffer_after
- * != 0, the call counter reaching that threshold makes the buffer nonempty
- * (tail 0x41C := head 0x41A + 2) so the next loop-top
- * fd2_check_keyboard_buffer_nonempty() returns nonzero and the loop exits.
- * Default 0 keeps the historical no-op behavior for all other tests. */
-int g_repaint_settings_calls = 0;
-int g_repaint_flip_buffer_after = 0;
-void fd2_render_terrain_info_hud_panel(uint32 b, uint32 s) {
-    g_terrain_hud_calls++;
-    g_terrain_hud_last_buf = b; g_terrain_hud_last_stride = s;
-    g_repaint_settings_calls++;
-    if (g_repaint_flip_buffer_after != 0 &&
-        g_repaint_settings_calls >= g_repaint_flip_buffer_after) {
-        *(volatile uint16 *)0x41CuL =
-            (uint16)(*(volatile uint16 *)0x41AuL + 2);
-    }
-}
+/* fd2_render_terrain_info_hud_panel is now a real emitted function
+ * (src/gfx/rndstat.c). Its former recording/loop-break stub here was removed;
+ * the idle-loop break seam (g_repaint_settings_calls / g_repaint_flip_buffer_after)
+ * moved up into the fd2_composite_battle_tile_map stub, which also runs once per
+ * idle-loop body. */
 void fd2_render_recruitment_party_screen(void) { }
 uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch = 0;
 uint32 data_fd2_ui_slide_composed_target_buf_ptr = 0;
@@ -489,6 +491,25 @@ void fd2_rle_blit_sprite(uint32 rle_stream, int32 dst_x, int32 dst_y,
         g_rle_blit_log_dst[g_rle_blit_calls] = dst_buf;
     }
     g_rle_blit_calls++;
+}
+/* Recording stub for fd2_render_signed_modifier_with_icon (real body @ 0x1AEB1
+ * not yet emitted). fd2_render_terrain_info_hud_panel (src/gfx/rndstat.c) is the
+ * only caller; it calls it twice per panel (MV then DEF). Recording the (dst,
+ * stride, modifier) of each lets the rndstat HUD test verify the per-tile
+ * MV / DEF modifier-table lookup and the destination address arithmetic without
+ * the (unemitted) glyph rendering. */
+int    g_signmod_calls = 0;
+uint32 g_signmod_dst[8];
+uint32 g_signmod_stride[8];
+int32  g_signmod_value[8];
+void fd2_render_signed_modifier_with_icon(uint32 dst, uint32 stride,
+                                          int32 modifier) {
+    if (g_signmod_calls < 8) {
+        g_signmod_dst[g_signmod_calls] = dst;
+        g_signmod_stride[g_signmod_calls] = stride;
+        g_signmod_value[g_signmod_calls] = modifier;
+    }
+    g_signmod_calls++;
 }
 int    g_scroll_text_calls = 0;
 uint32 g_scroll_text_last_arg = 0;

@@ -19,9 +19,6 @@ extern uint32 g_tile_map_last_h;
 extern uint32 g_tile_map_last_ox;
 extern uint32 g_tile_map_last_oy;
 extern int    g_check_char_is_dead_return;
-extern int    g_terrain_hud_calls;
-extern uint32 g_terrain_hud_last_buf;
-extern uint32 g_terrain_hud_last_stride;
 extern int    g_composite_call_count;
 /* recording stub for fd2_tile_blit_24x24_passthrough (testglob.c). The real
  * fd2_blit_24x24_at_window_relative_pos (src/gfx/blittile.c) forwards every
@@ -48,8 +45,14 @@ static void reset_pipeline_record(void)
     g_tile_map_calls = 0;
     g_blitpass_calls = 0;
     g_check_char_is_dead_return = 0;   /* all party slots alive */
-    g_terrain_hud_calls = 0;
     g_composite_call_count = 0;
+
+    /* fd2_render_terrain_info_hud_panel is now the real emitted routine; keep
+     * its HUD-enable gate OFF so the compositor's HUD call early-returns and
+     * contributes no extra passthrough blit (its full behavior is covered by
+     * tests/gfx/rndstat.c). */
+    data_fd2_ui_terrain_hud_user_enabled = 0;
+    data_fd2_ui_play_active_flag = 0;
 
     /* fd2_paint_cursor_overlay_pattern is now the real emitted routine; force a
      * single-blit phase so the compositor pipeline sees exactly one overlay blit
@@ -207,14 +210,12 @@ static void test_composite_pipeline_args(void)
     ASSERT_EQ(g_tile_map_last_ox, 0x11u);
     ASSERT_EQ(g_tile_map_last_oy, 0x22u);
 
-    /* empty party -> real chars overlay + shadow overlay both paint nothing,
-     * so the single passthrough blit is the cursor overlay's */
+    /* empty party -> real chars overlay + shadow overlay both paint nothing;
+     * the real terrain HUD is gated OFF (early-return, no blit), so the single
+     * passthrough blit is the cursor overlay's. The compositor->terrain-HUD
+     * call itself (ws, 456) and the HUD's own rendering are covered in
+     * tests/gfx/rndstat.c. */
     ASSERT_EQ(g_blitpass_calls, 1);
-
-    /* terrain HUD: (ws, 456) */
-    ASSERT_EQ(g_terrain_hud_calls, 1);
-    ASSERT_EQ(g_terrain_hud_last_buf, ws);
-    ASSERT_EQ(g_terrain_hud_last_stride, 0x1c8u);
 
     /* final stage = real fd2_blit_rectangle(0xA0504, 320, ws, 456, 312, 192);
      * composite ran to completion (tile-map proxy counts it once). The blit's
@@ -250,7 +251,6 @@ static void test_composite_skip_palette_cycle(void)
     ASSERT_EQ(g_tile_map_calls, 1);
     ASSERT_EQ(g_tile_map_last_dst, ws);
     ASSERT_EQ(g_blitpass_calls, 1);
-    ASSERT_EQ(g_terrain_hud_calls, 1);
     ASSERT_EQ(g_composite_call_count, 1);
 }
 

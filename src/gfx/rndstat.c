@@ -739,3 +739,126 @@ void fd2_render_mini_char_status_panel(uint32 buf, uint32 stride, uint32 char_id
                              (uint32)rc->char_id + 1, buf + 5 + stride * 4,
                              stride, 0xcd, 0x4c, 0, 0, 0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_terrain_info_hud_panel @ 0x1ACF3 (4 callers)
+ *
+ * Corner "terrain info" HUD panel. Drawn on every battle-UI repaint by
+ * fd2_composite_battle_frame and the settings-dialog / wait-input repaint
+ * paths; shows the tile under the cursor (terrain icon, MV / DEF modifiers)
+ * and, if a unit stands there, that unit's portrait + HP.
+ *
+ * Gate: both HUD-enable flags must be set, else the panel is not drawn:
+ *   data_fd2_ui_terrain_hud_user_enabled (0x51AAB)
+ *   data_fd2_ui_play_active_flag         (0x51AAC)
+ *
+ * Auto-positioning (keeps the panel from covering the cursor); the chosen
+ * column is latched in data_fd2_ui_terrain_hud_panel_offset_51a0c:
+ *   cursor_screen_y > 5  && cursor_screen_x < 3  -> right column (0xF2)
+ *   cursor_screen_y > 5  && cursor_screen_x > 9  -> left  column (1)
+ *   otherwise -> keep the previous latched column.
+ *
+ * panel_base = buf + stride * 0x9D + latched_offset.
+ *
+ * Layout @ panel_base:
+ *   +0                  panel backdrop  (fd2_rle_blit_sprite)
+ *                       src = anim sprite sheet + *(sheet + 0x20E)
+ *   +stride*5 +6        24x24 terrain icon for the cursor tile
+ *   +stride*8 +0x2B     MV  modifier glyph (signed)
+ *   +stride*0x13 +0x2B  DEF modifier glyph (signed)
+ *
+ * The cursor tile's attribute word and its second attribute byte are read
+ * into an 8-byte local via fd2_read_tile_attribute_at_pos:
+ *   word[0] -> battle_scene_snapshot row index (terrain icon source)
+ *   byte[5] -> index into the MV / DEF per-tile modifier tables
+ *
+ * If a non-hidden unit stands under the cursor
+ *   (portrait_id != 0x79, and not an archetype-10 enemy):
+ *     frame_mod = chapter ambient palette idx; if == 3 -> 1
+ *     portrait src = portrait cache + *(cache + (frame_mod + cache_idx*0xC)*4)
+ *     overwrite the terrain icon at +stride*5 +6 with the portrait
+ *     HP / HP_max as 3 digits at +stride*0x15 +9 (red glow when full)
+ *
+ * Cdecl, 2 stack params; void return. The binary's __CHK(0x38) stack-probe
+ * prologue is compiler-generated and omitted here; its RET is reached via a
+ * JMP into a shared register-restore epilogue (behaviourally a plain return).
+ * ---------------------------------------------------------------- */
+void fd2_render_terrain_info_hud_panel(uint32 buf, uint32 stride)
+{
+    uint8         tile_attr[8];
+    uint16        tile_attr_word;
+    uint8         tile_attr2;
+    uint32        panel_base;
+    uint32        sprite_src;
+    uint32        icon_src;
+    int           char_idx;
+    runtime_char *rc;
+    uint32        frame_mod;
+    uint32        portrait_src;
+
+    if (data_fd2_ui_terrain_hud_user_enabled == 0
+        || data_fd2_ui_play_active_flag == 0) {
+        return;
+    }
+
+    if (data_fd2_battle_cursor_screen_y > 5
+        && data_fd2_battle_cursor_screen_x < 3) {
+        data_fd2_ui_terrain_hud_panel_offset_51a0c = 0xf2;
+    } else if (data_fd2_battle_cursor_screen_y > 5
+               && data_fd2_battle_cursor_screen_x > 9) {
+        data_fd2_ui_terrain_hud_panel_offset_51a0c = 1;
+    }
+
+    panel_base = buf + stride * 0x9d
+               + data_fd2_ui_terrain_hud_panel_offset_51a0c;
+
+    sprite_src = data_fd2_ui_anim_sprite_sheet_ptr
+               + *(int32 *)(data_fd2_ui_anim_sprite_sheet_ptr + 0x20e);
+    fd2_rle_blit_sprite(sprite_src, 0, 0, panel_base, (int32)stride,
+                        0xffffffff);
+
+    fd2_read_tile_attribute_at_pos(data_fd2_battle_cursor_world_x,
+                                   data_fd2_battle_cursor_world_y,
+                                   (uint32)tile_attr);
+    tile_attr_word = *(uint16 *)tile_attr;
+    tile_attr2 = tile_attr[5];
+
+    icon_src = battle_scene_snapshot
+             + *(int32 *)(battle_scene_snapshot
+                          + (uint32)tile_attr_word * 4 + 6);
+    fd2_tile_blit_24x24_passthrough(icon_src, panel_base + stride * 5 + 6,
+                                    stride);
+
+    fd2_render_signed_modifier_with_icon(
+        panel_base + stride * 8 + 0x2b, stride,
+        (int32)data_fd2_battle_tile_attr_mv_modifier_table[tile_attr2]);
+    fd2_render_signed_modifier_with_icon(
+        panel_base + stride * 0x13 + 0x2b, stride,
+        (int32)data_fd2_battle_tile_attr_def_modifier_table[tile_attr2]);
+
+    char_idx = fd2_find_char_at_cursor_pos();
+    if (char_idx == -1) {
+        return;
+    }
+    rc = &data_fd2_battle_runtime_char_array_ptr[char_idx];
+    if (rc->portrait_id == 0x79) {
+        return;
+    }
+    if (rc->archetype_flag == 10 && rc->team == 1) {
+        return;
+    }
+
+    frame_mod = data_fd2_graphics_chapter_ambient_palette_anim_idx;
+    if (frame_mod == 3) {
+        frame_mod = 1;
+    }
+    portrait_src = portrait_sprite_cache
+                 + *(int32 *)(portrait_sprite_cache
+                              + (frame_mod + (uint32)rc->sprite_state[0] * 0xc)
+                                * 4);
+    fd2_tile_blit_24x24_passthrough(portrait_src, panel_base + stride * 5 + 6,
+                                    stride);
+    fd2_render_number_red_when_full(panel_base + stride * 0x15 + 9, stride,
+                                    (uint32)rc->hp_current,
+                                    (uint32)rc->hp_max, 3);
+}

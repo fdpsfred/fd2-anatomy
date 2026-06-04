@@ -75,6 +75,7 @@ extern uint8  data_fd2_chapter_init_phase_flag;                         /* 0x53A
 extern uint8  data_fd2_ui_click_debounce_skip_count;                    /* 0x51A42 */
 extern uint8  data_fd2_ui_terrain_hud_user_enabled;                     /* 0x51AAB */
 extern uint8  data_fd2_ui_play_active_flag;                             /* 0x51AAC */
+extern uint32 data_fd2_ui_terrain_hud_panel_offset_51a0c;               /* 0x51A0C */
 extern uint8  data_fd2_ui_game_speed_flag;                              /* 0x53AF9 */
 extern uint32 data_fd2_ui_menu_cursor_idx;                              /* 0x53C57 */
 extern int32  data_fd2_ui_field_command_menu_options_template[4];       /* 0x51E9F */
