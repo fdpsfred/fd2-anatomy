@@ -29,7 +29,6 @@ extern int g_blit_indexed_sprite_calls;
 extern uint32 g_blit_indexed_sprite_last_frame;
 extern int g_blit_indexed_sprite_last_x;
 extern int g_blit_indexed_sprite_last_y;
-extern int g_find_equipped_return;
 extern int g_composite_call_count;
 extern int g_attack_dispatch_return;
 extern int g_attack_dispatch_calls;
@@ -69,8 +68,9 @@ extern int g_repaint_flip_buffer_after;
  * (table.c), fd2_get_inventory_slot_item_id / fd2_check_char_status_immunity
  * / fd2_read_tile_attribute_at_pos (battle.c), fd2_advance_rng_state (misc),
  * and the REAL VGA palette routines (palette.c) on the crit/poison branches.
- * Stubs: fd2_find_equipped_item_by_kind -> g_find_equipped_return (slot 0),
- * fd2_delay_ticks -> no-op.
+ * The attacker (char 0) is equipped at slot 0 (eatk_reset) so the REAL
+ * fd2_find_equipped_item_by_kind(attacker,0) returns slot 0 -> weapon =
+ * item_effect_table[0]. fd2_delay_ticks -> no-op.
  *
  * RNG is the real ROL16(seed+0x9014,3) LFSR. seed 0 draws (each call returns
  * the NEW seed; values confirmed via emulate_function on fd2_advance_rng_state,
@@ -103,7 +103,12 @@ static void eatk_reset(void)
            sizeof(data_fd2_battle_enemy_data_table));
     memset(data_fd2_battle_job_crit_rate_table, 0,
            sizeof(data_fd2_battle_job_crit_rate_table));
-    g_find_equipped_return = 0;
+    /* Attacker (char 0) holds an equipped weapon in slot 0 so the REAL
+     * fd2_find_equipped_item_by_kind(attacker,0) returns slot 0; item id 0
+     * (the memset default) -> weapon_entry = item_effect_table[0], which the
+     * poison/double-hit cases configure directly. */
+    g_test_rc_array[0].inventory_slots[0] = 0x40;   /* equipped flag */
+    g_test_rc_array[0].inventory_slots[1] = 0;      /* weapon item id 0 */
     data_fd2_shared_rng_seed = 0;
     data_fd2_battle_last_hit_or_miss_flag = 1;
     data_fd2_battle_pending_xp_credit = 0;
@@ -759,9 +764,11 @@ static void test_counter_attack_sleep(void)
  * idx 1 (the call is always counter(attacker=0, defender=1)). The weapon-range
  * gate reads weapon_entry[0xB]; fd2_get_item_effect_entry returns &item.type
  * (struct base +1), so weapon_entry[0xB] == item_effect.range_min (struct +0xC).
- * fd2_find_equipped_item_by_kind is the g_find_equipped_return stub; the slot it
- * returns indexes inventory_slots[slot*2+1] (the REAL fd2_get_inventory_slot_item_id),
- * which holds the equipped item id fed to the REAL fd2_get_item_effect_entry.
+ * fd2_find_equipped_item_by_kind is the REAL function scanning the defender's
+ * inventory; the slot it returns indexes inventory_slots[slot*2+1] (the REAL
+ * fd2_get_inventory_slot_item_id), which holds the equipped item id fed to the
+ * REAL fd2_get_item_effect_entry. Each success case equips defender slot 0
+ * (flag 0x40 + item id).
  *
  * The success path is the load-bearing one: in the binary the returned 1 is NOT
  * an explicit MOV EAX,1 -- it is the fall-through of the MOVZX'd range_min byte
@@ -786,33 +793,28 @@ static void test_counter_attack_not_adjacent(void)
 }
 
 
-/* (b) no weapon: adjacent, awake, equip lookup returns -1.
+/* (b) no weapon: adjacent, awake, defender has no equipped slot so the REAL
+ * fd2_find_equipped_item_by_kind(1,0) returns 0xFFFFFFFF.
  * 0x1F15B CMP EAX,-1 / 0x1F15E JZ 0x1F17F reaches the epilogue with EAX=-1. */
 static void test_counter_attack_no_weapon(void)
 {
     int result;
-    int save_eq;
-    save_eq = g_find_equipped_return;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     g_test_rc_array[0].pos_x = 1;
     g_test_rc_array[0].pos_y = 0;
     g_test_rc_array[1].pos_x = 0;        /* dx=1, dy=0 -> adjacent */
-    g_test_rc_array[1].pos_y = 0;
-    g_find_equipped_return = -1;
+    g_test_rc_array[1].pos_y = 0;        /* char 1 inventory empty -> no equip */
     result = fd2_check_can_counter_attack(0, 1);
     ASSERT_EQ(result, -1);
-    g_find_equipped_return = save_eq;
 }
 
 
-/* (c) weapon range != 1 (bow/spear): adjacent, awake, slot 0 holds item 5,
- * item 5 range_min = 2. 0x1F176 MOVZX [EAX+0xB] / 0x1F17A CMP 1 /
- * 0x1F17D JNZ 0x1F117 -> EAX=-1. */
+/* (c) weapon range != 1 (bow/spear): adjacent, awake, defender slot 0 equipped
+ * with item 5 (range_min = 2). The REAL find_equipped returns slot 0.
+ * 0x1F176 MOVZX [EAX+0xB] / 0x1F17A CMP 1 / 0x1F17D JNZ 0x1F117 -> EAX=-1. */
 static void test_counter_attack_weapon_range_not_one(void)
 {
     int result;
-    int save_eq;
-    save_eq = g_find_equipped_return;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     memset(data_fd2_battle_item_effect_table, 0,
            sizeof(data_fd2_battle_item_effect_table));
@@ -820,23 +822,20 @@ static void test_counter_attack_weapon_range_not_one(void)
     g_test_rc_array[0].pos_y = 0;
     g_test_rc_array[1].pos_x = 0;
     g_test_rc_array[1].pos_y = 0;
-    g_test_rc_array[1].inventory_slots[1] = 5;   /* slot 0 item id = 5 */
-    g_find_equipped_return = 0;
+    g_test_rc_array[1].inventory_slots[0] = 0x40; /* slot 0 equipped */
+    g_test_rc_array[1].inventory_slots[1] = 5;    /* slot 0 item id = 5 */
     data_fd2_battle_item_effect_table[5].range_min = 2;  /* range != 1 */
     result = fd2_check_can_counter_attack(0, 1);
     ASSERT_EQ(result, -1);
-    g_find_equipped_return = save_eq;
 }
 
 
-/* (d) SUCCESS, positive delta: adjacent, awake, slot 0 holds item 5 with
- * range_min == 1 (melee). Fall-through to 0x1F17F with EAX=1 -> returns 1.
+/* (d) SUCCESS, positive delta: adjacent, awake, defender slot 0 equipped with
+ * item 5 (range_min == 1, melee). Fall-through to 0x1F17F with EAX=1 -> 1.
  * This is the EAX-fall-through equivalence the emit's explicit return 1 claims. */
 static void test_counter_attack_success_melee(void)
 {
     int result;
-    int save_eq;
-    save_eq = g_find_equipped_return;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     memset(data_fd2_battle_item_effect_table, 0,
            sizeof(data_fd2_battle_item_effect_table));
@@ -844,12 +843,11 @@ static void test_counter_attack_success_melee(void)
     g_test_rc_array[0].pos_y = 0;
     g_test_rc_array[1].pos_x = 0;        /* dx=1, dy=0 -> adjacent */
     g_test_rc_array[1].pos_y = 0;
+    g_test_rc_array[1].inventory_slots[0] = 0x40; /* slot 0 equipped */
     g_test_rc_array[1].inventory_slots[1] = 5;
-    g_find_equipped_return = 0;
     data_fd2_battle_item_effect_table[5].range_min = 1;  /* melee */
     result = fd2_check_can_counter_attack(0, 1);
     ASSERT_EQ(result, 1);
-    g_find_equipped_return = save_eq;
 }
 
 
@@ -860,8 +858,6 @@ static void test_counter_attack_success_melee(void)
 static void test_counter_attack_success_negative_delta(void)
 {
     int result;
-    int save_eq;
-    save_eq = g_find_equipped_return;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     memset(data_fd2_battle_item_effect_table, 0,
            sizeof(data_fd2_battle_item_effect_table));
@@ -869,12 +865,11 @@ static void test_counter_attack_success_negative_delta(void)
     g_test_rc_array[0].pos_y = 4;        /* attacker.y < defender.y */
     g_test_rc_array[1].pos_x = 5;
     g_test_rc_array[1].pos_y = 5;        /* SUB y: 4-5 = -1 -> abs -> 1 */
+    g_test_rc_array[1].inventory_slots[0] = 0x40; /* slot 0 equipped */
     g_test_rc_array[1].inventory_slots[1] = 5;
-    g_find_equipped_return = 0;
     data_fd2_battle_item_effect_table[5].range_min = 1;
     result = fd2_check_can_counter_attack(0, 1);
     ASSERT_EQ(result, 1);
-    g_find_equipped_return = save_eq;
 }
 
 

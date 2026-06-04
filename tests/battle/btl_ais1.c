@@ -29,7 +29,6 @@ extern int g_blit_indexed_sprite_calls;
 extern uint32 g_blit_indexed_sprite_last_frame;
 extern int g_blit_indexed_sprite_last_x;
 extern int g_blit_indexed_sprite_last_y;
-extern int g_find_equipped_return;
 extern int g_composite_call_count;
 extern int g_attack_dispatch_return;
 extern int g_attack_dispatch_calls;
@@ -73,10 +72,11 @@ static uint8 t_ai_attr_buf[8];
  * fd2_check_char_status_immunity / fd2_read_tile_attribute_at_pos /
  * fd2_check_can_default_attack_target (battle.c), and
  * fd2_mark_char_occupant_tiles_for_team / fd2_collect_unmarked_tile_positions /
- * fd2_compute_aoe_targets (btl_ai.c). Only fd2_find_equipped_item_by_kind,
- * fd2_init_movement_range_floodfill, fd2_paint_threat_overlay_for_team and
- * fd2_obfuscate_battle_tile_map are stubs (the equip stub via
- * g_find_equipped_return; the rest are no-ops that leave the tile map intact).
+ * fd2_compute_aoe_targets (btl_ai.c), and the REAL
+ * fd2_find_equipped_item_by_kind (the caster is equipped at slot 0 in
+ * ti_setup_phys). Only fd2_init_movement_range_floodfill,
+ * fd2_paint_threat_overlay_for_team and fd2_obfuscate_battle_tile_map are
+ * stubs (no-ops that leave the tile map intact).
  *
  * Geometry (shared by ti_setup): 3x3 map, party_member_count=2.
  *   char 0 = caster, team 0 (TEAM_ENEMY), pos (0,0), non-immune.
@@ -100,12 +100,11 @@ static uint8 t_ai_attr_buf[8];
  * Best-slot update fires when score_class > best OR (== best && raw > tiebreak);
  * both start at 0. */
 static void ti_setup_phys(uint32 *save_pmc, uint32 *save_w,
-                          uint32 *save_h, int *save_eq)
+                          uint32 *save_h)
 {
     *save_pmc = data_fd2_battle_party_member_count;
     *save_w = data_fd2_battle_map_width_tiles;
     *save_h = data_fd2_battle_map_height_tiles;
-    *save_eq = g_find_equipped_return;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     memset(data_fd2_battle_item_effect_table, 0,
            sizeof(data_fd2_battle_item_effect_table));
@@ -113,11 +112,12 @@ static void ti_setup_phys(uint32 *save_pmc, uint32 *save_w,
     data_fd2_battle_party_member_count = 2;
     data_fd2_battle_map_width_tiles = 3;
     data_fd2_battle_map_height_tiles = 3;
-    g_find_equipped_return = 0;        /* slot 0 valid for all chars */
 
     g_test_rc_array[0].pos_x = 0;      /* caster */
     g_test_rc_array[0].pos_y = 0;
     g_test_rc_array[0].team = 0;
+    g_test_rc_array[0].inventory_slots[0] = 0x40;/* slot 0 equipped (REAL
+                                                    find_equipped -> slot 0) */
     g_test_rc_array[0].inventory_slots[1] = 5;   /* equipped item id 5 */
 
     g_test_rc_array[1].pos_x = 1;      /* target on the single candidate */
@@ -134,12 +134,11 @@ static void ti_setup_phys(uint32 *save_pmc, uint32 *save_w,
 
 
 static void ti_restore_phys(uint32 save_pmc, uint32 save_w,
-                            uint32 save_h, int save_eq)
+                            uint32 save_h)
 {
     data_fd2_battle_party_member_count = save_pmc;
     data_fd2_battle_map_width_tiles = save_w;
     data_fd2_battle_map_height_tiles = save_h;
-    g_find_equipped_return = save_eq;
 }
 
 
@@ -219,15 +218,13 @@ static void ts_restore_spell(uint32 save_pmc, uint32 save_w, uint32 save_h,
 static void test_ai_score_phys_no_weapon(void)
 {
     int result;
-    int save_eq;
-    save_eq = g_find_equipped_return;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
-    g_find_equipped_return = -1;
+    /* caster (char 0) has no equipped slot -> REAL find_equipped returns
+     * 0xFFFFFFFF -> early return 0, best score reset to 0. */
     data_fd2_battle_ai_best_physical_score = 99;
     result = fd2_ai_score_physical_attack(0, 0);
     ASSERT_EQ(result, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_score, 0);
-    g_find_equipped_return = save_eq;
 }
 
 
@@ -239,8 +236,7 @@ static void test_ai_score_phys_normal_hit_score8(void)
     uint32 save_pmc;
     uint32 save_w;
     uint32 save_h;
-    int save_eq;
-    ti_setup_phys(&save_pmc, &save_w, &save_h, &save_eq);
+    ti_setup_phys(&save_pmc, &save_w, &save_h);
     g_test_rc_array[0].ap = 20;
     g_test_rc_array[1].dp = 10;
     g_test_rc_array[1].hp_current = 100;
@@ -251,7 +247,7 @@ static void test_ai_score_phys_normal_hit_score8(void)
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_idx, 1);
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_x, 1);
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_y, 1);
-    ti_restore_phys(save_pmc, save_w, save_h, save_eq);
+    ti_restore_phys(save_pmc, save_w, save_h);
 }
 
 
@@ -261,8 +257,7 @@ static void test_ai_score_phys_kill_shot_score12(void)
     uint32 save_pmc;
     uint32 save_w;
     uint32 save_h;
-    int save_eq;
-    ti_setup_phys(&save_pmc, &save_w, &save_h, &save_eq);
+    ti_setup_phys(&save_pmc, &save_w, &save_h);
     g_test_rc_array[0].ap = 20;
     g_test_rc_array[1].dp = 10;
     g_test_rc_array[1].hp_current = 5;
@@ -273,7 +268,7 @@ static void test_ai_score_phys_kill_shot_score12(void)
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_idx, 1);
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_x, 1);
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_y, 1);
-    ti_restore_phys(save_pmc, save_w, save_h, save_eq);
+    ti_restore_phys(save_pmc, save_w, save_h);
 }
 
 
@@ -286,8 +281,7 @@ static void test_ai_score_phys_negligible_score0(void)
     uint32 save_pmc;
     uint32 save_w;
     uint32 save_h;
-    int save_eq;
-    ti_setup_phys(&save_pmc, &save_w, &save_h, &save_eq);
+    ti_setup_phys(&save_pmc, &save_w, &save_h);
     g_test_rc_array[0].ap = 11;
     g_test_rc_array[1].dp = 10;
     g_test_rc_array[1].hp_current = 100;
@@ -298,7 +292,7 @@ static void test_ai_score_phys_negligible_score0(void)
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_idx, 1);
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_x, 1);
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_y, 1);
-    ti_restore_phys(save_pmc, save_w, save_h, save_eq);
+    ti_restore_phys(save_pmc, save_w, save_h);
 }
 
 
@@ -318,8 +312,7 @@ static void test_ai_score_phys_counter_and_flank(void)
     uint32 save_pmc;
     uint32 save_w;
     uint32 save_h;
-    int save_eq;
-    ti_setup_phys(&save_pmc, &save_w, &save_h, &save_eq);
+    ti_setup_phys(&save_pmc, &save_w, &save_h);
     /* second candidate tile (1,0) */
     t_ai_tile_map[(0 * 3 + 1) * 4 + 7] = 0;
     g_test_rc_array[0].ap = 30;
@@ -335,7 +328,7 @@ static void test_ai_score_phys_counter_and_flank(void)
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_idx, 1);
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_x, 1);
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_y, 0);
-    ti_restore_phys(save_pmc, save_w, save_h, save_eq);
+    ti_restore_phys(save_pmc, save_w, save_h);
 }
 
 
@@ -356,9 +349,8 @@ static void test_ai_score_phys_terrain_bonus_lifts_class(void)
     uint32 save_pmc;
     uint32 save_w;
     uint32 save_h;
-    int save_eq;
     uint32 save_attr_ptr;
-    ti_setup_phys(&save_pmc, &save_w, &save_h, &save_eq);
+    ti_setup_phys(&save_pmc, &save_w, &save_h);
     save_attr_ptr = data_fd2_tile_attribute_flags_buffer_ptr;
     memset(t_ai_attr_buf, 0, sizeof(t_ai_attr_buf));
     t_ai_attr_buf[1] = 9;                 /* tile_id T = 9 */
@@ -381,7 +373,7 @@ static void test_ai_score_phys_terrain_bonus_lifts_class(void)
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_y, 1);
     data_fd2_tile_attribute_flags_buffer_ptr = save_attr_ptr;
     data_fd2_battle_tile_attr_mv_modifier_table[9] = 0;
-    ti_restore_phys(save_pmc, save_w, save_h, save_eq);
+    ti_restore_phys(save_pmc, save_w, save_h);
 }
 
 

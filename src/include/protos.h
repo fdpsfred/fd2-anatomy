@@ -77,7 +77,6 @@ void fd2_set_combat_aux_block_byte_d_low4_for_char_range(uint32 start_idx, uint3
 void fd2_check_battle_end_condition(void);
 void fd2_check_battle_end_default_handler(uint32 event_arg);
 int fd2_collect_dead_char_drops(uint32 out_buffer);
-/* forward decl — defined in later phases */
 uint32 fd2_find_equipped_item_by_kind(uint32 char_idx, uint32 kind);
 uint8 fd2_get_inventory_slot_item_id(uint32 char_idx, uint32 slot);
 int fd2_inventory_selection_modal_dispatch(uint32 char_idx, uint32 mode);

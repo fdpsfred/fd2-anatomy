@@ -30,7 +30,6 @@ extern int g_blit_indexed_sprite_calls;
 extern uint32 g_blit_indexed_sprite_last_frame;
 extern int g_blit_indexed_sprite_last_x;
 extern int g_blit_indexed_sprite_last_y;
-extern int g_find_equipped_return;
 extern int g_composite_call_count;
 extern int g_attack_dispatch_return;
 extern int g_attack_dispatch_calls;
@@ -75,7 +74,12 @@ static void eatk_reset(void)
            sizeof(data_fd2_battle_enemy_data_table));
     memset(data_fd2_battle_job_crit_rate_table, 0,
            sizeof(data_fd2_battle_job_crit_rate_table));
-    g_find_equipped_return = 0;
+    /* Attacker (char 0) holds an equipped weapon in slot 0 so the REAL
+     * fd2_find_equipped_item_by_kind(attacker,0) returns slot 0; item id 0
+     * (memset default) -> weapon_entry = item_effect_table[0], which the
+     * poison/double-hit cases configure directly. */
+    g_test_rc_array[0].inventory_slots[0] = 0x40;   /* equipped flag */
+    g_test_rc_array[0].inventory_slots[1] = 0;      /* weapon item id 0 */
     data_fd2_shared_rng_seed = 0;
     data_fd2_battle_last_hit_or_miss_flag = 1;
     data_fd2_battle_pending_xp_credit = 0;
@@ -360,6 +364,8 @@ static void test_combat_hit_outcome_zero_stats(void)
     memset(fake_map, 0, sizeof(fake_map));
     data_fd2_battle_tile_map_ptr = (uint32)fake_map;
     data_fd2_battle_map_width_tiles = 1;
+    g_test_rc_array[0].inventory_slots[0] = 0x40;  /* equipped weapon slot 0 */
+    g_test_rc_array[0].inventory_slots[1] = 0;     /* item id 0 */
     g_test_rc_array[0].job_id = 1;
     g_test_rc_array[1].hp_current = 100;
     g_test_rc_array[1].hp_max = 100;
@@ -747,6 +753,87 @@ static void test_no_immunity_normal(void)
 }
 
 
+/* ---- Test: find_equipped_item_by_kind ----
+ * Each inventory slot is 2 bytes: [slot*2]=bSlot_flag (bit6/0x40=equipped),
+ * [slot*2+1]=bItem_id. kind==0 matches a physical item (id < 0x80); kind!=0
+ * matches a magical item (id >= 0x80). Returns the first matching equipped
+ * slot index, else 0xFFFFFFFF. */
+
+/* kind=0 returns the first EQUIPPED PHYSICAL slot, skipping a leading slot
+ * that is equipped-but-magical (id>=0x80, must be rejected by the kind==0
+ * arm) and an unequipped physical slot (flag lacks 0x40). Slot 2 is the
+ * first equipped item with id<0x80. */
+static void test_find_equipped_kind0_weapon(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].inventory_slots[0] = 0x40;  /* slot0 equipped */
+    g_test_rc_array[0].inventory_slots[1] = 0x90;  /* ...but magical -> skip */
+    g_test_rc_array[0].inventory_slots[2] = 0x00;  /* slot1 NOT equipped */
+    g_test_rc_array[0].inventory_slots[3] = 0x05;  /* physical, but no 0x40 */
+    g_test_rc_array[0].inventory_slots[4] = 0x40;  /* slot2 equipped */
+    g_test_rc_array[0].inventory_slots[5] = 0x05;  /* physical id<0x80 -> hit */
+    ASSERT_EQ((long)fd2_find_equipped_item_by_kind(0, 0), 2L);
+}
+
+
+/* kind!=0 returns the first EQUIPPED MAGICAL slot, skipping an equipped
+ * physical slot (id<0x80, must be rejected by the kind!=0 arm). Slot 1 is
+ * the first equipped item with id>=0x80. */
+static void test_find_equipped_kind1_spellbook(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].inventory_slots[0] = 0x40;  /* slot0 equipped */
+    g_test_rc_array[0].inventory_slots[1] = 0x05;  /* ...physical -> skip */
+    g_test_rc_array[0].inventory_slots[2] = 0x40;  /* slot1 equipped */
+    g_test_rc_array[0].inventory_slots[3] = 0x90;  /* magical id>=0x80 -> hit */
+    ASSERT_EQ((long)fd2_find_equipped_item_by_kind(0, 1), 1L);
+}
+
+
+/* No equipped slot of the requested kind -> 0xFFFFFFFF. Here every slot with
+ * a matching id lacks the 0x40 flag, and the one equipped slot (slot0) holds a
+ * magical id which kind==0 rejects. Exercises the loop-exhausted return path
+ * AND the 0x40 flag gate (an unequipped physical id must not match kind==0). */
+static void test_find_equipped_not_found(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].inventory_slots[0] = 0x40;  /* equipped */
+    g_test_rc_array[0].inventory_slots[1] = 0x90;  /* magical -> rejects kind0 */
+    g_test_rc_array[0].inventory_slots[6] = 0x00;  /* slot3 NOT equipped */
+    g_test_rc_array[0].inventory_slots[7] = 0x05;  /* physical, no 0x40 -> skip */
+    ASSERT_EQ((unsigned long)fd2_find_equipped_item_by_kind(0, 0),
+              (unsigned long)0xFFFFFFFFu);
+}
+
+
+/* Item id boundary 0x80 (the physical/magical split). The SAME equipped slot
+ * holds id 0x80: kind==0 requires id<0x80 so 0x80 does NOT match (-> not
+ * found); kind!=0 requires id>=0x80 so 0x80 DOES match (-> slot 0). Pins the
+ * exact comparison (< 0x80 vs >= 0x80) at the boundary value. */
+static void test_find_equipped_boundary_0x80(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].inventory_slots[0] = 0x40;  /* slot0 equipped */
+    g_test_rc_array[0].inventory_slots[1] = 0x80;  /* exactly the split */
+    ASSERT_EQ((unsigned long)fd2_find_equipped_item_by_kind(0, 0),
+              (unsigned long)0xFFFFFFFFu);          /* 0x80 NOT < 0x80 */
+    ASSERT_EQ((long)fd2_find_equipped_item_by_kind(0, 1), 0L); /* 0x80 >= 0x80 */
+}
+
+
+/* char_idx selects the correct runtime_char row (stride 0x50). Put the match
+ * only in row 3; row 0 is empty. Confirms the *0x50 base offset. */
+static void test_find_equipped_char_idx_offset(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[3].inventory_slots[8] = 0x40;  /* slot4 equipped */
+    g_test_rc_array[3].inventory_slots[9] = 0x10;  /* physical -> hit kind0 */
+    ASSERT_EQ((unsigned long)fd2_find_equipped_item_by_kind(0, 0),
+              (unsigned long)0xFFFFFFFFu);          /* row 0 has nothing */
+    ASSERT_EQ((long)fd2_find_equipped_item_by_kind(3, 0), 4L);
+}
+
+
 void run_battle_battle2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -782,5 +869,10 @@ void run_battle_battle2_tests(void)
     RUN_TEST(test_immunity_portrait_0x1c_overrides);
     RUN_TEST(test_immunity_archetype_4);
     RUN_TEST(test_no_immunity_normal);
+    RUN_TEST(test_find_equipped_kind0_weapon);
+    RUN_TEST(test_find_equipped_kind1_spellbook);
+    RUN_TEST(test_find_equipped_not_found);
+    RUN_TEST(test_find_equipped_boundary_0x80);
+    RUN_TEST(test_find_equipped_char_idx_offset);
     printf("\n");
 }

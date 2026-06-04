@@ -57,7 +57,6 @@ extern int g_pathfind_walk_return;
 /* inline-action-menu dispatch seams (testglob.c): control the not-yet-emitted
  * spell/item submenus and the field tile-event handler so the inline action
  * dispatcher can be driven to each selection branch. */
-extern int g_find_equipped_return;          /* -1 => no weapon (Attack gated) */
 extern int g_count_usable_slots_return;     /* 0 => Item slot gated */
 extern int g_build_spell_list_return;       /* 0 => Spell slot gated */
 extern int g_inline_spell_menu_return;
@@ -343,7 +342,8 @@ static void test_player_action_menu_unreachable(void)
  * (-1); Spell-commit XP divisor (job<=8 and job>8); Spell/Item cancel (->0);
  * Item-commit XP reset (->0); Wait branch (tile-event call + return 1).
  *
- * The no-weapon seam (g_find_equipped_return = -1) keeps the Attack-gating
+ * The no-weapon condition (iam_chars[0] has no equipped slot, so the REAL
+ * fd2_find_equipped_item_by_kind returns 0xFFFFFFFF) keeps the Attack-gating
  * weapon branch — and its real AoE/tile-map machinery — out of every test.
  * ---------------------------------------------------------------- */
 
@@ -366,7 +366,6 @@ static uint32 iam_saved_party_count;
 static uint32 iam_saved_cursor_x;
 static uint32 iam_saved_cursor_y;
 static uint32 iam_saved_pending_xp;
-static int iam_saved_find_equipped;
 static int iam_saved_count_slots;
 static int iam_saved_build_spells;
 static int iam_saved_spell_return;
@@ -384,7 +383,6 @@ static void iam_setup(uint8 job_id, uint8 level, uint8 silence_flag)
     iam_saved_cursor_x = data_fd2_battle_cursor_world_x;
     iam_saved_cursor_y = data_fd2_battle_cursor_world_y;
     iam_saved_pending_xp = data_fd2_battle_pending_xp_credit;
-    iam_saved_find_equipped = g_find_equipped_return;
     iam_saved_count_slots = g_count_usable_slots_return;
     iam_saved_build_spells = g_build_spell_list_return;
     iam_saved_spell_return = g_inline_spell_menu_return;
@@ -418,7 +416,8 @@ static void iam_setup(uint8 job_id, uint8 level, uint8 silence_flag)
     data_fd2_battle_cursor_world_x = 0;
     data_fd2_battle_cursor_world_y = 0;
 
-    g_find_equipped_return = -1;        /* no weapon => Attack slot gated */
+    /* iam_chars[0] has no equipped inventory slot, so the REAL
+     * fd2_find_equipped_item_by_kind(0,0) returns 0xFFFFFFFF => Attack gated. */
     g_inline_spell_menu_pending = 0;    /* default: cast credits no XP */
     g_inline_spell_menu_calls = 0;
     g_inline_item_menu_calls = 0;
@@ -431,7 +430,6 @@ static void iam_teardown(void)
     data_fd2_battle_cursor_world_x = iam_saved_cursor_x;
     data_fd2_battle_cursor_world_y = iam_saved_cursor_y;
     data_fd2_battle_pending_xp_credit = iam_saved_pending_xp;
-    g_find_equipped_return = iam_saved_find_equipped;
     g_count_usable_slots_return = iam_saved_count_slots;
     g_build_spell_list_return = iam_saved_build_spells;
     g_inline_spell_menu_return = iam_saved_spell_return;

@@ -852,3 +852,32 @@ int fd2_execute_attack_damage_calculation(int attacker_idx, int defender_idx)
 
     return (int)defender_HP_cur;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_find_equipped_item_by_kind @ 0x1B83D  (8 callers)
+ *
+ * Scan the 8 inventory slots of runtime_char[char_idx]. Each slot is
+ * 2 bytes: [0]=bSlot_flag (bit6/0x40 = equipped), [1]=bItem_id.
+ * Returns the index of the first equipped slot whose item_id matches
+ * the requested kind, else 0xFFFFFFFF (-1):
+ *   kind == 0 (physical / weapon / armor): item_id <  0x80
+ *   kind != 0 (magical / spellbook):       item_id >= 0x80
+ * Item id 0x80 is the physical/magical split (assets/items.md).
+ * ---------------------------------------------------------------- */
+uint32 fd2_find_equipped_item_by_kind(uint32 char_idx, uint32 kind)
+{
+    runtime_char *rc;
+    uint32 slot_iter;
+
+    rc = data_fd2_battle_runtime_char_array_ptr;
+    for (slot_iter = 0; (int)slot_iter < 8; slot_iter = slot_iter + 1) {
+        if ((rc[char_idx].inventory_slots[slot_iter * 2] & 0x40) != 0
+            && ((kind == 0
+                 && rc[char_idx].inventory_slots[slot_iter * 2 + 1] < 0x80)
+                || (kind != 0
+                 && 0x7f < rc[char_idx].inventory_slots[slot_iter * 2 + 1]))) {
+            return slot_iter;
+        }
+    }
+    return 0xffffffff;
+}

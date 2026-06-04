@@ -126,10 +126,6 @@ uint32 data_ail_alloc_fnptr = 0;
 uint32 data_ail_free_fnptr = 0;
 uint32 data_fd2_engine_wait_one_bios_tick_last_seen = 0;
 uint32 data_fd2_engine_wait_n_bios_ticks_last_seen = 0;
-int g_find_equipped_return = 0;
-uint32 fd2_find_equipped_item_by_kind(uint32 c, uint32 k) {
-    return (uint32)g_find_equipped_return;
-}
 void fd2_delay_ticks(uint32 t) { }
 void fd2_execute_offensive_targeted_spell(int a, int b, int c, int d) { }
 void fd2_execute_offensive_full_screen_flash_spell(int a, int b, int c, int d) { }

@@ -1238,8 +1238,9 @@
     "name": "fd2_find_equipped_item_by_kind",
     "target": "battle/battle.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001b8a6": {
     "name": "fd2_count_usable_inventory_slots",
