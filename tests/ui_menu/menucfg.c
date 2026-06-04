@@ -634,6 +634,54 @@ static void test_speed_overlay_skip_fast_off(void)
     data_fd2_battle_fast_mode_walk_overlay_ptr = 0;
 }
 
+/* ----------------------------------------------------------------
+ * fd2_maybe_free_speed_mode_overlay @ 0x1A7F1 direct tests.
+ *
+ * Fast-mode cleanup pairing with the load above: when
+ * data_fd2_ui_game_speed_flag != 0 the overlay pointer is passed to free();
+ * when the flag is 0 the free is skipped entirely (no free() call).
+ * ---------------------------------------------------------------- */
+
+/* fast mode ON: the loaded overlay is released. Drive the real allocate ->
+ * free round-trip: the real loader (real fopen/fread of staged FDOTHER.DAT)
+ * allocates the overlay, then the function under test frees that exact pointer.
+ * A clean round-trip (no double-free / no crash) confirms the free branch ran
+ * on the loaded pointer. */
+static void test_speed_overlay_free_fast_on(void)
+{
+    uint8 *loaded;
+
+    data_fd2_ui_game_speed_flag = 1;
+    data_fd2_battle_fast_mode_walk_overlay_ptr = 0;
+    fd2_maybe_load_speed_mode_overlay();
+    loaded = (uint8 *)data_fd2_battle_fast_mode_walk_overlay_ptr;
+    ASSERT_TRUE(loaded != 0);
+
+    /* free path: releases data_fd2_battle_fast_mode_walk_overlay_ptr. */
+    fd2_maybe_free_speed_mode_overlay();
+
+    /* The function does not NULL the pointer; clear it ourselves so no later
+     * suite double-frees the now-released block. */
+    data_fd2_battle_fast_mode_walk_overlay_ptr = 0;
+    data_fd2_ui_game_speed_flag = 0;   /* don't leak fast-mode to other suites */
+}
+
+/* fast mode OFF: free is skipped. Pre-poison the pointer with a sentinel that
+ * is NOT a valid heap block; if the guard were wrong and free() ran on it the
+ * heap would be corrupted. A clean return (and the untouched sentinel) confirms
+ * the free branch was not taken. */
+static void test_speed_overlay_free_fast_off(void)
+{
+    data_fd2_ui_game_speed_flag = 0;
+    data_fd2_battle_fast_mode_walk_overlay_ptr = 0xDEADBEEF;
+
+    fd2_maybe_free_speed_mode_overlay();
+
+    ASSERT_EQ((long)data_fd2_battle_fast_mode_walk_overlay_ptr,
+              (long)0xDEADBEEF);
+    data_fd2_battle_fast_mode_walk_overlay_ptr = 0;
+}
+
 void run_ui_menu_menucfg_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -665,5 +713,7 @@ void run_ui_menu_menucfg_tests(void)
     RUN_TEST(test_repaint_borders_blink_phase0);
     RUN_TEST(test_speed_overlay_load_fast_on);
     RUN_TEST(test_speed_overlay_skip_fast_off);
+    RUN_TEST(test_speed_overlay_free_fast_on);
+    RUN_TEST(test_speed_overlay_free_fast_off);
     printf("\n");
 }

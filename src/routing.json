@@ -1094,8 +1094,9 @@
     "name": "fd2_maybe_free_speed_mode_overlay",
     "target": "ui_menu/menucfg.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001a813": {
     "name": "fd2_fire_chapter_turn_events_for_phase",

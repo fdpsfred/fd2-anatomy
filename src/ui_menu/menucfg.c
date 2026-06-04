@@ -418,3 +418,26 @@ void fd2_maybe_load_speed_mode_overlay(void)
             (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 0x40);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_maybe_free_speed_mode_overlay @ 0x1A7F1  (1 caller:
+ *   fd2_run_full_turn_cycle)
+ *
+ * Fast-mode cleanup: release the fast-walk animation overlay allocated by
+ * fd2_maybe_load_speed_mode_overlay.
+ *
+ * When data_fd2_ui_game_speed_flag is set (fast mode), the overlay resource at
+ * data_fd2_battle_fast_mode_walk_overlay_ptr is freed. When fast mode is off
+ * the pointer was never loaded and nothing is freed.
+ *
+ * Called at the exit of the NPC turn (Phase C) and the ENEMY turn (Phase E)
+ * in fd2_run_full_turn_cycle, pairing with fd2_maybe_load_speed_mode_overlay.
+ *
+ * void __cdecl with the __CHK(8) stack-probe prologue.
+ * ---------------------------------------------------------------- */
+void fd2_maybe_free_speed_mode_overlay(void)
+{
+    if (data_fd2_ui_game_speed_flag != 0) {
+        free((void *)data_fd2_battle_fast_mode_walk_overlay_ptr);
+    }
+}
