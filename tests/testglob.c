@@ -675,8 +675,14 @@ void fd2_animate_phase_banner_slide_out(uint32 banner_sprite_id) {
  * spell/spelleff.c group-heal tests drive the real function (per-target
  * heal loop over the real fd2_apply_hp_heal_and_award_xp + real impact/
  * flicker/composite callees). */
+/* fd2_cast_status_cure_spell: now emitted for real in src/spell/spelleff.c
+ * and linked; its former call-counting stub here was removed. The
+ * spell/spelleff.c status-cure tests drive the real function (per-target
+ * status-byte check + clear, real fd2_apply_hp_heal_and_award_xp heal, real
+ * impact/flicker/composite callees). g_cast_status_cure_calls is retained as
+ * a defined global because many test files still carry its extern in their
+ * boilerplate decl block (none increment it now). */
 int g_cast_status_cure_calls = 0;
-void fd2_cast_status_cure_spell(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e) { g_cast_status_cure_calls++; (void)a; (void)b; (void)c; (void)d; (void)e; }
 void fd2_cast_status_inflict_spell(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e) { }
 int g_cast_status_via_d1b_calls = 0;
 void fd2_cast_status_spell_via_d1b(int a, int b, int c, int d, int e) { g_cast_status_via_d1b_calls++; (void)a; (void)b; (void)c; (void)d; (void)e; }

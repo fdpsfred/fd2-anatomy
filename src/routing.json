@@ -2253,8 +2253,9 @@
     "name": "fd2_cast_status_cure_spell",
     "target": "spell/spelleff.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00022bb7": {
     "name": "fd2_composite_battle_frame_zero",

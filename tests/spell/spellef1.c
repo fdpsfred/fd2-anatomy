@@ -269,27 +269,38 @@ static void test_apply_status_effect_deducts_mp(void)
 }
 
 
-/* Correct-callee regression: the @0x22AA8 wrapper's CALL @0x22AE0 targets
- * fd2_cast_status_cure_spell @0x22AF6 (the heal-status worker), NOT the
+/* Correct-callee regression: the @0x22AA8 wrapper's CALL @0x22AE0 targets the
+ * REAL fd2_cast_status_cure_spell @0x22AF6 (the heal-status worker), NOT the
  * sister wrapper fd2_cast_status_spell_via_d1b @0x22CDA (which routes to the
  * inflict worker @0x22D1B). Both names are linker-distinct functions, so a
- * dispatch to the wrong one would apply the wrong status-spell logic in the
- * real binary. Pin it by counting: the cure worker fires exactly once, the
- * d1b sister fires zero times. (Swap the callee back and cure=0/d1b=1 fails.) */
+ * dispatch to the wrong one would apply the wrong status-spell logic. Now that
+ * the cure worker is emitted for real, observe its side effect instead of a
+ * stub counter: a target whose status byte at offset 0x25 (poison) is set must
+ * have that byte CLEARED by the cure worker. The inflict-side stub
+ * fd2_cast_status_spell_via_d1b would not touch it, so g_cast_status_via_d1b_
+ * calls must also stay 0. Target sits at (0,0) (outside the impact/flicker view
+ * window -> blit-culled); portrait 0x50 (>= 0x4b) makes the real heal helper
+ * skip its own XP block so only the cure path's effect is exercised. */
 static void test_apply_status_effect_calls_cure_worker(void)
 {
     uint8 target_id;
     memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
     g_test_rc_array[0].mp_current = 50;
     data_fd2_battle_spell_effect_table[0x14].mp_cost = 8;
+    g_test_rc_array[1].hp_current = 50;
+    g_test_rc_array[1].hp_max = 200;
+    g_test_rc_array[1].portrait_id = 0x50;
+    g_test_rc_array[1].status_flags_block[4] = 1;   /* poison set (offset 0x25) */
+    data_fd2_shared_rng_seed = 0;
     target_id = 1;
     data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
-    g_cast_status_cure_calls = 0;
     g_cast_status_via_d1b_calls = 0;
     fd2_apply_status_effect_with_anim(0, 0x14, 1,
         (int)&target_id, 0x25);
-    ASSERT_EQ(g_cast_status_cure_calls, 1);
-    ASSERT_EQ(g_cast_status_via_d1b_calls, 0);
+    ASSERT_EQ(g_test_rc_array[1].status_flags_block[4], 0);  /* cure cleared it */
+    ASSERT_EQ(g_cast_status_via_d1b_calls, 0);               /* inflict not hit */
 }
 
 
@@ -489,6 +500,141 @@ static void test_speed_boost_visits_all_targets(void)
     ASSERT_EQ(g_test_rc_array[5].status_flags_block[3], 2);
 }
 
+/* ---- fd2_cast_status_cure_spell @ 0x22AF6 ---- */
+
+/* Cure path: a target whose status byte at offset sprite_id (0x25 = poison,
+ * = status_flags_block[4]) is non-zero gets it CLEARED, is HP-healed via the
+ * real fd2_apply_hp_heal_and_award_xp, and credits level_mod*4 pending XP
+ * (the cure worker's distinctive 4x, vs the AP/DP/speed buffs' 2x). base_heal
+ * is the literal 10 (asm 0x22B8C PUSH 0xa); the heal helper returns
+ * (base_heal*9)/10 + ((that %100)*base_heal)/1000 = 9 + 0 = 9 deterministically
+ * (the helper's rng call result is discarded for the extra term), so
+ * hp_current 50 -> 59. portrait 0x50 (>= 0x4b) makes the heal helper skip its
+ * OWN XP block, isolating the cure worker's credit: level 5, non-intermediate
+ * job 1 -> level_mod 5 -> XP 5*4 = 20. Target at (0,0) is window-culled by the
+ * real impact/flicker animations (no blit). */
+static void test_cure_clears_status_heals_and_credits_xp(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[1].hp_current = 50;
+    g_test_rc_array[1].hp_max = 200;
+    g_test_rc_array[1].portrait_id = 0x50;          /* >= 0x4b: heal skips its XP */
+    g_test_rc_array[1].job_id = 1;                  /* not 9..0x18 -> no +30 */
+    g_test_rc_array[1].status_flags_block[0] = 5;   /* level */
+    g_test_rc_array[1].status_flags_block[4] = 1;   /* poison set (offset 0x25) */
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+    target_id = 1;
+    fd2_cast_status_cure_spell(0, 0x14, 1, (uint32)&target_id, 0x25);
+    ASSERT_EQ(g_test_rc_array[1].status_flags_block[4], 0);   /* cleared */
+    ASSERT_EQ(g_test_rc_array[1].hp_current, 59);             /* +9 heal */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 20);         /* level_mod*4 */
+}
+
+/* Miss path: a target whose status byte at sprite_id is already 0 has no status
+ * to cure -> the worker draws the miss indicator and changes NOTHING. HP stays
+ * put and no XP is credited. (Drop the `else` guard and this would heal/credit
+ * a unit that has no status, failing both asserts.) */
+static void test_cure_no_status_shows_miss_no_change(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[1].hp_current = 50;
+    g_test_rc_array[1].hp_max = 200;
+    g_test_rc_array[1].portrait_id = 0x50;
+    g_test_rc_array[1].status_flags_block[0] = 5;
+    g_test_rc_array[1].status_flags_block[4] = 0;   /* no poison */
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+    target_id = 1;
+    fd2_cast_status_cure_spell(0, 0x14, 1, (uint32)&target_id, 0x25);
+    ASSERT_EQ(g_test_rc_array[1].hp_current, 50);            /* unchanged */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 0);         /* no credit */
+}
+
+/* Intermediate-class job (9..0x18) adds 30 to the cure worker's level_mod (asm
+ * 0x22B76 ADD EBP,0x1e), so the XP credit on the cure path becomes
+ * (level + 30)*4. job 9, level 5 -> level_mod 35 -> XP 35*4 = 140. portrait
+ * 0x50 again isolates the cure credit from the heal helper's own XP. */
+static void test_cure_intermediate_class_xp_bonus(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[1].hp_current = 50;
+    g_test_rc_array[1].hp_max = 200;
+    g_test_rc_array[1].portrait_id = 0x50;
+    g_test_rc_array[1].job_id = 9;                  /* intermediate -> +30 */
+    g_test_rc_array[1].status_flags_block[0] = 5;
+    g_test_rc_array[1].status_flags_block[4] = 1;   /* poison set */
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+    target_id = 1;
+    fd2_cast_status_cure_spell(0, 0x14, 1, (uint32)&target_id, 0x25);
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 140);       /* (5+30)*4 */
+}
+
+/* sprite_id selects WHICH status byte is checked/cleared, addressed as a raw
+ * offset from the runtime_char base (asm 0x22B7D ADD ESI,&rc[tid]; sprite_id
+ * 0x26 = status_sleep_flag at +0x26). With sprite_id 0x26, only +0x26 is
+ * cleared; a different status byte (+0x25 poison) set on the same unit must be
+ * left untouched, proving the offset is parameterized and not hardcoded. */
+static void test_cure_sprite_id_selects_correct_byte(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[1].hp_current = 50;
+    g_test_rc_array[1].hp_max = 200;
+    g_test_rc_array[1].portrait_id = 0x50;
+    g_test_rc_array[1].job_id = 1;
+    g_test_rc_array[1].status_flags_block[0] = 5;
+    g_test_rc_array[1].status_flags_block[4] = 7;   /* poison (+0x25): must stay */
+    g_test_rc_array[1].status_sleep_flag = 3;       /* sleep  (+0x26): cure target */
+    data_fd2_shared_rng_seed = 0;
+    target_id = 1;
+    fd2_cast_status_cure_spell(0, 0x15, 1, (uint32)&target_id, 0x26);
+    ASSERT_EQ(g_test_rc_array[1].status_sleep_flag, 0);          /* +0x26 cleared */
+    ASSERT_EQ(g_test_rc_array[1].status_flags_block[4], 7);      /* +0x25 untouched */
+}
+
+/* Multi-target: the per-target loop reads ((uint8 *)p_targets)[iter] as a BYTE
+ * (asm 0x22B4F MOVZX ESI,[EDI+EBX]), so the char id comes from the array, not
+ * the loop counter. Non-adjacent targets 2 and 5 (both poisoned) must both be
+ * cured while a poisoned bystander at index 0 (not in the list) stays set. A
+ * loop that used iter as the char id, or stopped after one target, would leave
+ * index 5 (or 0) wrong. */
+static void test_cure_visits_all_targets_by_array_index(void)
+{
+    uint8 target_ids[2];
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[0].status_flags_block[4] = 9;   /* bystander, must NOT clear */
+    g_test_rc_array[2].hp_current = 50;
+    g_test_rc_array[2].hp_max = 200;
+    g_test_rc_array[2].portrait_id = 0x50;
+    g_test_rc_array[2].status_flags_block[4] = 1;
+    g_test_rc_array[5].hp_current = 50;
+    g_test_rc_array[5].hp_max = 200;
+    g_test_rc_array[5].portrait_id = 0x50;
+    g_test_rc_array[5].status_flags_block[4] = 1;
+    data_fd2_shared_rng_seed = 0;
+    target_ids[0] = 2;
+    target_ids[1] = 5;
+    fd2_cast_status_cure_spell(0, 0x14, 2, (uint32)target_ids, 0x25);
+    ASSERT_EQ(g_test_rc_array[0].status_flags_block[4], 9);   /* untouched */
+    ASSERT_EQ(g_test_rc_array[2].status_flags_block[4], 0);   /* cured */
+    ASSERT_EQ(g_test_rc_array[5].status_flags_block[4], 0);   /* cured */
+}
+
 void run_spell_spelleff1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -512,5 +658,10 @@ void run_spell_spelleff1_tests(void)
     RUN_TEST(test_speed_boost_skips_already_boosted);
     RUN_TEST(test_speed_boost_intermediate_class_xp_bonus);
     RUN_TEST(test_speed_boost_visits_all_targets);
+    RUN_TEST(test_cure_clears_status_heals_and_credits_xp);
+    RUN_TEST(test_cure_no_status_shows_miss_no_change);
+    RUN_TEST(test_cure_intermediate_class_xp_bonus);
+    RUN_TEST(test_cure_sprite_id_selects_correct_byte);
+    RUN_TEST(test_cure_visits_all_targets_by_array_index);
     printf("\n");
 }

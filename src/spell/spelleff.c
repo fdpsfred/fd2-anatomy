@@ -306,6 +306,79 @@ void fd2_apply_status_effect_with_anim(int caster_idx,
 }
 
 /* ----------------------------------------------------------------
+ * fd2_cast_status_cure_spell @ 0x22AF6  (2 callers)
+ *
+ * STATUS-CURE spell worker (Antidote / De-Sleep / De-Silence family).
+ * Plays the per-target impact + status-overlay-flicker animations, then
+ * for each target in the byte array checks the status byte at runtime_char
+ * offset `sprite_id` (e.g. 0x25=poison, 0x26=sleep, 0x27=silence): if the
+ * byte is 0 the unit has no such status -> draw the miss indicator;
+ * otherwise heal +10 HP via fd2_apply_hp_heal_and_award_xp, draw the heal
+ * number (glyph 0x69 = 'i'), clear the status byte, and credit level_mod*4
+ * pending XP (cure XP is 4x level_mod vs 2x for the AP/DP/speed buffs).
+ * Closes with fd2_composite_battle_frame(0) + its own POP/RET epilogue.
+ *
+ * level_mod = target.status_flags_block[0] (the unit's level byte), +30 if
+ * its job_id is an intermediate class (9..0x18). It is computed for every
+ * target (asm 0x22B64..0x22B76, before the status-byte test) but only used
+ * on the cure path; the pre-test computation is preserved here for fidelity.
+ *
+ * The status byte is addressed as a raw offset from the runtime_char base
+ * (asm 0x22B79 MOV ESI,[sprite_id] / 0x22B7D ADD ESI,&rc[tid] /
+ * 0x22B7F MOVZX [ESI]); the Ghidra decompiler renders it through its own
+ * struct as pSprite_state[sprite_id-2], which is the same byte. Emitted
+ * here as a byte pointer arithmetic from &runtime_char[target_id].
+ *
+ * heal is the per-target return of fd2_apply_hp_heal_and_award_xp: asm
+ * 0x22B92 CALL leaves it in EAX, and only 0x22B9A MOVZX EBX intervenes
+ * (writes EBX, not EAX) before 0x22BA0 PUSH EAX, so the inner return is
+ * forwarded straight into fd2_show_damage_number as the displayed number.
+ *
+ * Callers: fd2_apply_status_effect_with_anim @ 0x22AA8 (delegates after MP
+ * deduct, spells 0x14/0x15), and fd2_apply_use_effect_dispatch @ 0x20C6F
+ * (item effects 6 / antidote and 7 / de-paralyze).
+ * ---------------------------------------------------------------- */
+void fd2_cast_status_cure_spell(uint32 caster, uint32 spell_id,
+                                uint32 n_targets, uint32 p_targets,
+                                uint32 sprite_id)
+{
+    int iter;
+    uint8 target_id;
+    runtime_char *target_rc;
+    uint8 *status_byte;
+    uint32 level_mod;
+    uint32 heal;
+
+    fd2_animate_spell_impact_per_target(
+        caster, spell_id, n_targets, p_targets);
+    fd2_animate_status_effect_overlay_flicker(
+        caster, spell_id, n_targets, p_targets);
+
+    for (iter = 0; iter < (int)n_targets; iter++) {
+        target_id = ((uint8 *)p_targets)[iter];
+        target_rc = &data_fd2_battle_runtime_char_array_ptr[
+                        (uint32)target_id];
+        level_mod = (uint32)target_rc->status_flags_block[0];
+        if (target_rc->job_id > 8 && target_rc->job_id < 0x19) {
+            level_mod = level_mod + 0x1e;
+        }
+        status_byte = (uint8 *)target_rc + sprite_id;
+        if (*status_byte == 0) {
+            fd2_show_miss_indicator((uint32)target_id);
+        } else {
+            heal = (uint32)fd2_apply_hp_heal_and_award_xp(
+                       (uint32)target_id, 10);
+            fd2_show_damage_number(heal, 0x69, (uint32)target_id);
+            *status_byte = 0;
+            data_fd2_battle_pending_xp_credit =
+                data_fd2_battle_pending_xp_credit + level_mod * 4;
+        }
+    }
+
+    fd2_composite_battle_frame(0);
+}
+
+/* ----------------------------------------------------------------
  * fd2_cast_spell_17_complex @ 0x2218A  (2 callers)
  *
  * Teleport spell: job-based XP + dual-position warp animation.
