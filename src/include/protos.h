@@ -185,6 +185,7 @@ void fd2_paint_status_panel_layer_left(uint32 layer, uint32 dst_workspace, uint3
 void fd2_paint_status_panel_layer_right(uint32 layer, uint32 dst_workspace, uint32 overlay_buffer);
 void fd2_play_status_screen_outro_step(uint32 frame, uint32 dst_workspace, uint32 overlay_buffer, int snapshot_buffer);
 void fd2_render_status_screen_static_layout(uint32 char_idx, uint32 overlay_buffer);
+void fd2_render_full_char_stat_panel(uint32 char_idx, uint32 overlay_buffer);
 void fd2_render_inventory_item_grid(uint32 char_idx, int item_id, uint32 overlay_buffer);
 void fd2_draw_spell_selection_list(uint32 char_idx, uint32 spell_idx, uint32 overlay_buffer);
 void fd2_tick_sprite_animation_step(uint8 *p_frame_idx, uint8 *p_tick, int x, int y, uint32 atlas);

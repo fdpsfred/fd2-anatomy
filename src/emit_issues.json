@@ -435,5 +435,18 @@
         "source_review": "fd2_play_dialog_open_animation @000165ac (reviewer-approved)"
       }
     ]
+  },
+  "00017eef": {
+    "name": "fd2_render_status_screen_static_layout",
+    "target": "gfx/rndstat.c",
+    "issues": [
+      {
+        "type": "test_deferred_phase9",
+        "desc": "Pure blit/display orchestrator. No isolated unit test: it calls the real-linked fd2_load_dat_resource with the hardcoded in-binary filename pointer 0x51a70 (DATO.DAT string). In the test binary that address does not hold a valid path, and the real loader does exit(1) on fopen failure, aborting the whole test run; fd2_load_dat_resource is already linked real (rsrc.c) so it cannot be stubbed, and DATO.DAT is not in build_test.py staged GAME_FILES. Cannot test without distorting the emit code (replacing 0x51a70 with a string global) which is forbidden. Deterministic behavior to verify at Phase 9 integration: data_fd2_dialog_active_portrait_blit_offset set to 0xC88; portrait_pixels = buf + *buf; three fd2_dialog_sprite_blit_normal dst offsets overlay_buffer+0xC88 / +0x91C / +0x7585; UI sprite sources sheet_ptr + *(int*)(sheet_ptr+0x56) and +0x5A; portrait_id selected as runtime_char[char_idx].portrait_id; trailing fd2_render_full_char_stat_panel(char_idx, overlay_buffer).",
+        "severity": "info",
+        "verify_method": "phase9_integration",
+        "source_review": "fd2_render_status_screen_static_layout @00017eef (emitter)"
+      }
+    ]
   }
 }

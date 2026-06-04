@@ -847,6 +847,13 @@ void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite, uint32 stride) {
     g_dlg_blit_last_sprite = sprite;
     g_dlg_blit_last_stride = stride;
 }
+/* fd2_render_full_char_stat_panel @ 0x17fc0: HP/MP bars + numeric stats
+ * painter, not yet emitted. Stubbed so callers (e.g.
+ * fd2_render_status_screen_static_layout) link; its dedicated test will
+ * drive the real function once emitted. */
+void fd2_render_full_char_stat_panel(uint32 char_idx, uint32 overlay_buffer) {
+    (void)char_idx; (void)overlay_buffer;
+}
 /* fd2_close_dialog_panels_then_slide_in_at: now emitted in
  * src/dialog/dialog.c and linked for real; its teardown + slide-out
  * interpolation is driven by the test_close_* cases in
@@ -859,10 +866,9 @@ void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite, uint32 stride) {
  * VRAM (0xA0000). They are therefore deferred to Phase 9 integration and are
  * not driven by a host unit test; these noop stubs only satisfy the linker for
  * the not-yet-emitted display callees they reference. */
-void fd2_render_status_screen_static_layout(uint32 char_idx,
-                                            uint32 overlay_buffer) {
-    (void)char_idx; (void)overlay_buffer;
-}
+/* fd2_render_status_screen_static_layout: now emitted for real in
+ * src/gfx/rndstat.c; deferred to Phase 9 integration for its dedicated test
+ * (see src/emit_issues.json @00017eef). */
 void fd2_render_inventory_item_grid(uint32 char_idx, int item_id,
                                     uint32 overlay_buffer) {
     (void)char_idx; (void)item_id; (void)overlay_buffer;

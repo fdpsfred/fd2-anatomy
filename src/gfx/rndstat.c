@@ -105,3 +105,54 @@ void fd2_render_horizontal_bar_segments(uint32 dst_offset, uint32 dst_pitch,
                                     data_fd2_ui_anim_sprite_sheet_ptr,
                                     final_sprite);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_status_screen_static_layout @ 0x17eef (3 callers)
+ *
+ * Render the static border + portrait + UI sprites of the character
+ * status panel into overlay_buffer, then call the stat-detail painter.
+ *
+ * Sets the active portrait blit offset to the status-screen mode
+ * (0xC88), loads the character's portrait sprite from DATO.DAT, draws
+ * the layered dialog frame, blits the portrait and two UI sprites, then
+ * fills HP/MP bars and numeric stats via fd2_render_full_char_stat_panel.
+ *
+ * data_fd2_dialog_active_portrait_blit_offset values:
+ *   0x0000  inactive
+ *   0x0728  left-side dialog portrait
+ *   0x9017  right-side ally dialog portrait
+ *   0x0C88  status screen portrait
+ *
+ * Cdecl, 2 stack params; void return.
+ * ---------------------------------------------------------------- */
+void fd2_render_status_screen_static_layout(uint32 char_idx, uint32 overlay_buffer)
+{
+    uint32 portrait_pixels;
+
+    data_fd2_dialog_active_portrait_blit_offset = 0xc88;
+    data_fd2_portrait_sprite_buffer =
+        (uint8 *)fd2_load_dat_resource(
+            0x51a70, (uint32)data_fd2_portrait_sprite_buffer,
+            (uint32)data_fd2_battle_runtime_char_array_ptr[char_idx].portrait_id);
+
+    portrait_pixels = (uint32)*data_fd2_portrait_sprite_buffer
+                      + (uint32)data_fd2_portrait_sprite_buffer;
+
+    fd2_assemble_dialog_frame_layered(overlay_buffer, 0x140, 5, 7, 5, 5);
+
+    fd2_dialog_sprite_blit_normal(
+        overlay_buffer + data_fd2_dialog_active_portrait_blit_offset,
+        portrait_pixels, 0x140);
+    fd2_dialog_sprite_blit_normal(
+        overlay_buffer + 0x91c,
+        data_fd2_ui_anim_sprite_sheet_ptr
+            + *(int32 *)(data_fd2_ui_anim_sprite_sheet_ptr + 0x56),
+        0x140);
+    fd2_dialog_sprite_blit_normal(
+        overlay_buffer + 0x7585,
+        data_fd2_ui_anim_sprite_sheet_ptr
+            + *(int32 *)(data_fd2_ui_anim_sprite_sheet_ptr + 0x5a),
+        0x140);
+
+    fd2_render_full_char_stat_panel(char_idx, overlay_buffer);
+}
