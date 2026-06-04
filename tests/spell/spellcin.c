@@ -18,6 +18,17 @@
  * matching the project convention for VGA/VRAM-touching workers (see the
  * status-screen modal deferral note in tests/testglob.c). No isolated path
  * reaches the damage loop without first executing the VRAM blits.
+ *
+ * fd2_play_rising_pre_cast_effect @ 0x2189a is the same category: its only
+ * computed state is caster_screen_x/y (a fixed tile->pixel transform) and the
+ * per-frame radius accumulator initial_height += rise_step. Both are observable
+ * only through the radius argument of fd2_render_circle_anim_row, which runs
+ * FPU sqrt and writes into the large game-state buffer; every one of its 10
+ * frames also memmove()s the backdrop, repaints chars, and unconditionally
+ * blits the composed scene to the hardcoded mode-13h framebuffer literal
+ * 0xA0504 (not redirectable via globals). There is no branch-free numeric path
+ * that avoids the VRAM blit, so its behavioral verification is likewise
+ * deferred to Phase 9 integration.
  */
 
 #include "testharn.h"

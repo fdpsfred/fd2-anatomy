@@ -185,7 +185,17 @@ int32 data_fd2_animation_earthquake_screen_shake_params_table[9] = {
 /* Resource portrait sheet base pointer (data segment @ 0x53AD1). Tests point it
  * at a zeroed scratch buffer. */
 uint32 data_fd2_resource_portrait_sheet_ptr = 0;
-void fd2_play_rising_pre_cast_effect(int a, int b, int c) { }
+/* fd2_play_rising_pre_cast_effect is now a real emitted function
+ * (src/spell/spellcin.c); its former stub was removed. It is a pure
+ * VGA/VRAM cinematic worker whose behavior is deferred to Phase 9 (see
+ * tests/spell/spellcin.c header). fd2_render_circle_anim_row (graphics.c,
+ * not yet emitted) is one of its callees; stub it so spellcin.obj links. */
+void fd2_render_circle_anim_row(int cx, int cy, int r, int scale_num,
+                                int start_row, int end_row,
+                                uint8 *palette_remap_src) {
+    (void)cx; (void)cy; (void)r; (void)scale_num;
+    (void)start_row; (void)end_row; (void)palette_remap_src;
+}
 void fd2_play_variant_b_slide_pre_effect(int a, int b) { }
 void fd2_animate_warp_teleport_char(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e) { }
 uint16 data_fd2_animation_palette_cycle_last_tick = 0;

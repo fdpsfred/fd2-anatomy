@@ -2042,8 +2042,9 @@
     "name": "fd2_play_rising_pre_cast_effect",
     "target": "spell/spellcin.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000219ad": {
     "name": "fd2_render_circle_anim_row",
