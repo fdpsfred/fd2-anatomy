@@ -10,6 +10,7 @@
 #include "globals.h"
 #include "protos.h"
 #include <stdio.h>
+#include "audiofix.h"   /* audiofix_make_bank / audiofix_enable_sfx */
 
 /* recording stub for fd2_restore_screen_block_from_buffer (testglob.c) */
 extern int    g_restore_block_calls;
@@ -84,6 +85,13 @@ static void dlg_reset(void)
     g_dlg_glyph_last_pos = 0;
     g_dlg_blink_calls = 0;
     data_fd2_dialog_active_portrait_blit_offset = 0;
+
+    /* The typewriter step fires fd2_play_sfx_with_handle(fdother bank, 2, 1)
+     * once per rendered glyph; g_dlg_blink_calls counts those via the relocated
+     * AIL stop spy. Open the audio gates and stage a valid bank so the now-real
+     * player reaches that spy. */
+    audiofix_enable_sfx();
+    data_fd2_audio_fdother_sfx_bank_buf_ptr = audiofix_make_bank(0x1F);
 }
 
 /*
@@ -1498,5 +1506,6 @@ void run_dialog_dialog_tests(void)
     RUN_TEST(test_scroll_mode_a_stores_low_byte);
     RUN_TEST(test_scroll_mode_b_cylinder_n1);
     RUN_TEST(test_scroll_mode_b_cylinder_n3);
+    audiofix_disable_sfx();   /* restore safe gate state for later suites */
     printf("\n");
 }

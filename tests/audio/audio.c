@@ -12,6 +12,7 @@
 
 #include <stdlib.h>
 #include "realfile.h"   /* realdat_read_resource() */
+#include "audiofix.h"   /* audiofix_make_bank / audiofix_enable_sfx */
 
 #define USE_ITEM_ID 10
 
@@ -44,6 +45,12 @@ extern int g_play_sfx_with_handle_calls;
 extern uint32 g_sfx_last_arg_a;
 extern int g_sfx_last_id;
 extern int g_sfx_last_arg_c;
+extern int g_sfx_id_count;
+extern int g_sfx_id_log[64];
+extern int g_ail_stop_sample_calls;
+extern int g_ail_init_sample_calls;
+extern int g_ail_set_sample_addr_calls;
+extern int g_ail_start_sample_calls;
 extern int g_play_sfx_sample_from_bank_calls;
 extern int g_blit_indexed_sprite_calls;
 extern uint32 g_blit_indexed_sprite_last_frame;
@@ -187,15 +194,121 @@ static void test_load_status_effect_sfx_real(void)
 }
 
 
+/* ---- Test: fd2_play_sfx_with_handle (direct) ---- */
+
+/* Gate behaviour: with any of the three audio gates closed the real player must
+ * return without touching the AIL layer (no stop, no init, no start). Exercise
+ * each closed-gate combination and confirm zero AIL activity. */
+static void test_play_sfx_gates_block(void)
+{
+    uint32 base;
+
+    base = audiofix_make_bank(8);
+    data_fd2_audio_sfx_sample_handle_0 = 0x1234;
+
+    /* driver flag off */
+    data_fd2_audio_sfx_driver_available_flag = 0;
+    data_fd2_audio_sfx_enabled_flag = 1;
+    data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = 0;
+    g_ail_stop_sample_calls = 0;
+    g_ail_start_sample_calls = 0;
+    fd2_play_sfx_with_handle(base, 3, 1);
+    ASSERT_EQ((long)g_ail_stop_sample_calls, 0);
+    ASSERT_EQ((long)g_ail_start_sample_calls, 0);
+
+    /* sample-system flag off */
+    data_fd2_audio_sfx_driver_available_flag = 1;
+    data_fd2_audio_sfx_enabled_flag = 0;
+    g_ail_stop_sample_calls = 0;
+    fd2_play_sfx_with_handle(base, 3, 1);
+    ASSERT_EQ((long)g_ail_stop_sample_calls, 0);
+
+    /* cinematic/terrain override on */
+    data_fd2_audio_sfx_enabled_flag = 1;
+    data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = 7;
+    g_ail_stop_sample_calls = 0;
+    fd2_play_sfx_with_handle(base, 3, 1);
+    ASSERT_EQ((long)g_ail_stop_sample_calls, 0);
+}
+
+/* Stop-only path: gates open, sfx_id == -1 stops the active sample and returns
+ * before any address/init/start programming (init/set_addr/start stay at 0). */
+static void test_play_sfx_stop_only(void)
+{
+    uint32 base;
+
+    base = audiofix_make_bank(8);
+    audiofix_enable_sfx();
+    data_fd2_audio_sfx_sample_handle_0 = 0x55;
+
+    g_ail_stop_sample_calls = 0;
+    g_ail_init_sample_calls = 0;
+    g_ail_set_sample_addr_calls = 0;
+    g_ail_start_sample_calls = 0;
+
+    fd2_play_sfx_with_handle(base, -1, 1);
+
+    ASSERT_EQ((long)g_ail_stop_sample_calls, 1);
+    ASSERT_EQ((long)g_ail_init_sample_calls, 0);
+    ASSERT_EQ((long)g_ail_set_sample_addr_calls, 0);
+    ASSERT_EQ((long)g_ail_start_sample_calls, 0);
+}
+
+/* Normal play path: gates open, sfx_id != -1 -> stop, then init + program the
+ * sample slot + set loop count + start, exactly once each. The fixture bank
+ * encodes length(id)==id, so the captured length (g_sfx_last_id) recovers the
+ * fired id, and the captured start equals bank_base + offset(id). Drive ids 0
+ * and 5 and verify the full AIL call sequence, the recovered id, the address
+ * arithmetic, and that loop_count is forwarded verbatim. */
+static void test_play_sfx_normal_play(void)
+{
+    uint32 base;
+
+    base = audiofix_make_bank(8);
+    audiofix_enable_sfx();
+    data_fd2_audio_sfx_sample_handle_0 = 0x77;
+
+    /* id 5, loop 1 */
+    g_ail_stop_sample_calls = 0;
+    g_ail_init_sample_calls = 0;
+    g_ail_set_sample_addr_calls = 0;
+    g_ail_start_sample_calls = 0;
+    g_sfx_last_id = 0;
+    g_sfx_last_arg_a = 0;
+    g_sfx_last_arg_c = 0;
+
+    fd2_play_sfx_with_handle(base, 5, 1);
+
+    ASSERT_EQ((long)g_ail_stop_sample_calls, 1);
+    ASSERT_EQ((long)g_ail_init_sample_calls, 1);
+    ASSERT_EQ((long)g_ail_set_sample_addr_calls, 1);
+    ASSERT_EQ((long)g_ail_start_sample_calls, 1);
+    ASSERT_EQ((long)g_sfx_last_id, 5);                 /* length(5) == 5    */
+    /* start = base + offset(5); offset(5) = 5*4/2 = 10 (triangular tri(5)) */
+    ASSERT_EQ((long)g_sfx_last_arg_a, (long)(base + 10u));
+    ASSERT_EQ((long)g_sfx_last_arg_c, 1);             /* loop_count forwarded */
+
+    /* id 0, loop 3: offset(0)==0 -> start==base, length 0 */
+    g_sfx_last_id = 0xAB;
+    g_sfx_last_arg_a = 0;
+    g_sfx_last_arg_c = 0;
+    fd2_play_sfx_with_handle(base, 0, 3);
+    ASSERT_EQ((long)g_sfx_last_id, 0);
+    ASSERT_EQ((long)g_sfx_last_arg_a, (long)base);
+    ASSERT_EQ((long)g_sfx_last_arg_c, 3);
+}
+
+
 /* ---- Test: fd2_play_and_free_status_effect_sfx ---- */
 
 /* The function's whole semantic is: play the loaded SFX bank in kill-all mode
- * (fd2_play_sfx_with_handle(handle, -1, 1)) then free the bank buffer. Drive it
- * with a real malloc'd buffer in the handle slot and confirm, via the g_sfx_*
- * capture spy, that arg1 == that buffer, arg2 == -1 (the kill-all sentinel, the
- * defining behaviour), and arg3 == 1. The real free(handle) inside the function
- * releases the buffer, so the test must NOT free it again (would double-free);
- * it only nulls the global afterward. */
+ * (fd2_play_sfx_with_handle(handle, -1, 1)) then free the bank buffer. With the
+ * gates open, the -1 (kill-all) call reaches the real player's stop-only path,
+ * which stops the active sample exactly once and issues no init/start. Drive it
+ * with a real malloc'd buffer in the handle slot and confirm via the AIL stop
+ * spy that one stop fired and no sample was programmed. The real free(handle)
+ * inside the function releases the buffer, so the test must NOT free it again
+ * (would double-free); it only nulls the global afterward. */
 static void test_play_and_free_status_effect_sfx(void)
 {
     uint8 *buf;
@@ -203,18 +316,18 @@ static void test_play_and_free_status_effect_sfx(void)
     buf = (uint8 *)malloc(64);
     ASSERT_TRUE(buf != 0);
 
+    audiofix_enable_sfx();
+    data_fd2_audio_sfx_sample_handle_0 = 0x99;
     data_fd2_audio_status_effect_sfx_handle_ptr = (uint32)buf;
-    g_play_sfx_with_handle_calls = 0;
-    g_sfx_last_arg_a = 0;
-    g_sfx_last_id = 0;
-    g_sfx_last_arg_c = 0;
+    g_ail_stop_sample_calls = 0;
+    g_ail_init_sample_calls = 0;
+    g_ail_start_sample_calls = 0;
 
     fd2_play_and_free_status_effect_sfx();
 
-    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 1);
-    ASSERT_EQ((long)g_sfx_last_arg_a, (long)(uint32)buf);
-    ASSERT_EQ((long)g_sfx_last_id, -1);
-    ASSERT_EQ((long)g_sfx_last_arg_c, 1);
+    ASSERT_EQ((long)g_ail_stop_sample_calls, 1);   /* kill-all stop fired */
+    ASSERT_EQ((long)g_ail_init_sample_calls, 0);   /* stop-only: no program */
+    ASSERT_EQ((long)g_ail_start_sample_calls, 0);
 
     /* buf was freed by the function under test; just clear the dangling global */
     data_fd2_audio_status_effect_sfx_handle_ptr = 0;
@@ -231,6 +344,10 @@ void run_audio_audio_tests(void)
     RUN_TEST(test_bgm_disabled_zero_volume);
     RUN_TEST(test_bgm_special_cue_instant);
     RUN_TEST(test_load_status_effect_sfx_real);
+    RUN_TEST(test_play_sfx_gates_block);
+    RUN_TEST(test_play_sfx_stop_only);
+    RUN_TEST(test_play_sfx_normal_play);
     RUN_TEST(test_play_and_free_status_effect_sfx);
+    audiofix_disable_sfx();   /* restore safe gate state for later suites */
     printf("\n");
 }

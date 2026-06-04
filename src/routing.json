@@ -2596,8 +2596,9 @@
     "name": "fd2_play_sfx_with_handle",
     "target": "audio/audio.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00025b45": {
     "name": "fd2_play_sfx_sample_from_bank",

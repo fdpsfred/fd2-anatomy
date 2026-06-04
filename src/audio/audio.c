@@ -110,3 +110,53 @@ void fd2_play_and_free_status_effect_sfx(void)
         data_fd2_audio_status_effect_sfx_handle_ptr, 0xFFFFFFFF, 1);
     free((void *)data_fd2_audio_status_effect_sfx_handle_ptr);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_play_sfx_with_handle @ 0x25a96 (55 callers)
+ *
+ * Generic AIL (Miles Sound System) one-shot SFX player. Used widely
+ * across the codebase for menu beeps, attack hits, damage thuds and
+ * UI confirmations.
+ *
+ * Cdecl, void(uint32 sfx_table_base, int sfx_id, int loop_count). The
+ * binary's __CHK(0x1c) stack-probe prologue and the unused PUSH/POP EBX
+ * register reservation are compiler-injected and not source.
+ *
+ * Three gates (silent return if any fails):
+ *   data_fd2_audio_sfx_driver_available_flag (0x53EF1) != 0
+ *   data_fd2_audio_sfx_enabled_flag          (0x51E62) != 0
+ *   data_fd2_battle_scripted_cinematic_mode_or_terrain_idx (0x540FF) == 0
+ *
+ * Then it always stops the shared sample slot. sfx_id == -1 is the
+ * stop-only path (return after the stop). Otherwise it resolves the
+ * sample bank entry (entry = base + sfx_id*4): the dword at entry+6 is
+ * the sample's byte offset from the bank base, the dword at entry+10 is
+ * the sample's end offset; length = end - offset. It then (re)programs
+ * the sample slot and starts playback.
+ * ---------------------------------------------------------------- */
+void fd2_play_sfx_with_handle(uint32 sfx_table_base, int sfx_id,
+                              int loop_count)
+{
+    uint32 entry;
+    uint32 sample_offset;
+    uint32 sample_end;
+
+    if (data_fd2_audio_sfx_driver_available_flag == 0) return;
+    if (data_fd2_audio_sfx_enabled_flag == 0) return;
+    if (data_fd2_battle_scripted_cinematic_mode_or_terrain_idx != 0) return;
+
+    AIL_stop_sample(data_fd2_audio_sfx_sample_handle_0);
+    if (sfx_id == -1) return;
+
+    entry = sfx_table_base + (uint32)sfx_id * 4;
+    sample_offset = *(uint32 *)(entry + 6);
+    sample_end = *(uint32 *)(entry + 10);
+
+    AIL_init_sample(data_fd2_audio_sfx_sample_handle_0);
+    AIL_set_sample_address(data_fd2_audio_sfx_sample_handle_0,
+                           sfx_table_base + sample_offset,
+                           sample_end - sample_offset);
+    AIL_set_sample_loop_count(data_fd2_audio_sfx_sample_handle_0,
+                              loop_count);
+    AIL_start_sample(data_fd2_audio_sfx_sample_handle_0);
+}

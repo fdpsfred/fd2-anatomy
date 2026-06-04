@@ -53,6 +53,8 @@ uint8  data_fd2_ui_terrain_hud_user_enabled = 0;
 uint32 data_fd2_ui_terrain_hud_panel_offset_51a0c = 0;
 uint8  data_fd2_audio_sfx_driver_available_flag = 0;
 uint8  data_fd2_audio_sfx_enabled_flag = 0;
+uint32 data_fd2_audio_sfx_sample_handle_0 = 0;
+uint32 data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = 0;
 char   data_fd2_string_ui_render_decimal_format_template[6] = "%0.5d";
 char   data_fd2_string_resource_filename_fdtxt_dat[] = "FDTXT.DAT";
 char   data_fd2_string_resource_filename_fdother_dat[] = "FDOTHER.DAT";
@@ -150,20 +152,54 @@ int    g_sfx_id_log[64];
  * non-breaking. */
 uint32 g_sfx_last_arg_a = 0;
 int    g_sfx_last_arg_c = 0;
-/* The real fd2_portrait_blink_animation_step (src/dialog/dialog.c) calls this
- * exactly once per blink step, so g_dlg_blink_calls tracks blink invocations. */
-void fd2_play_sfx_with_handle(uint32 a, int b, int c)
+/* fd2_play_sfx_with_handle is now a real emitted function (src/audio/audio.c);
+ * its former counting stub here was removed. The SFX spy seam relocates one
+ * level down into the AIL_* sample stubs the real player drives, mirroring the
+ * fd2_blit_rectangle -> fd2_composite_battle_tile_map relocation done earlier.
+ *
+ * The real player runs its three audio gates, then unconditionally calls
+ * AIL_stop_sample once per invocation (both the stop-only sfx_id==-1 path and
+ * the normal play path) -> that is the host-observable per-call counter
+ * (g_play_sfx_with_handle_calls / g_dlg_blink_calls). On the normal path it
+ * then calls AIL_set_sample_address(handle, base+off(id), end(id)-off(id)):
+ * caller tests stage a sfx bank (audiofix_make_bank) whose per-id offsets are
+ * laid out so that length == sfx_id and start == base + off(id). The spy
+ * therefore records the recovered sfx id in g_sfx_last_id / g_sfx_id_log (the
+ * captured length) and the resolved sample start in g_sfx_last_arg_a. The
+ * loop_count argument is recovered from AIL_set_sample_loop_count
+ * (g_sfx_last_arg_c). See audiofix.h for the exact (triangular) offset layout.
+ *
+ * Gate note: a caller test that wants the SFX to actually fire must enable the
+ * two driver flags + clear the cinematic flag; audiofix_enable_sfx() does this. */
+int g_ail_stop_sample_calls = 0;
+int g_ail_init_sample_calls = 0;
+int g_ail_set_sample_addr_calls = 0;
+int g_ail_start_sample_calls = 0;
+void AIL_stop_sample(uint32 sample)
 {
+    (void)sample;
+    g_ail_stop_sample_calls++;
     g_play_sfx_with_handle_calls++;
     g_dlg_blink_calls++;
-    g_sfx_last_id = b;
-    g_sfx_last_arg_a = a;
-    g_sfx_last_arg_c = c;
+}
+void AIL_init_sample(uint32 sample) { (void)sample; g_ail_init_sample_calls++; }
+void AIL_set_sample_address(uint32 sample, uint32 start, uint32 len)
+{
+    (void)sample;
+    g_ail_set_sample_addr_calls++;
+    g_sfx_last_arg_a = start;     /* bank base (entry off==0)  */
+    g_sfx_last_id = (int)len;     /* sfx id    (entry end==id) */
     if (g_sfx_id_count < 64) {
-        g_sfx_id_log[g_sfx_id_count] = b;
+        g_sfx_id_log[g_sfx_id_count] = (int)len;
     }
     g_sfx_id_count++;
 }
+void AIL_set_sample_loop_count(uint32 sample, int count)
+{
+    (void)sample;
+    g_sfx_last_arg_c = count;
+}
+void AIL_start_sample(uint32 sample) { (void)sample; g_ail_start_sample_calls++; }
 /* Per-spell animation parameter tables (data segment @ 0x51F33/0x51F54/0x51F75).
  * Defined here with the real binary bytes until the data segment is emitted, so
  * anim tests assert on true frame counts / sprite offsets / SFX ids. */

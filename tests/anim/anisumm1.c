@@ -9,6 +9,7 @@
 #include "globals.h"
 #include "protos.h"
 #include <stdio.h>
+#include "audiofix.h"   /* audiofix_make_bank / audiofix_enable_sfx */
 
 #define USE_ITEM_ID 10
 
@@ -894,6 +895,12 @@ void run_anim_anisummn1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
     printf("Suite: anim/anisummn (1/2)\n");
+    /* The summon tick variants fire fd2_play_sfx_with_handle(summon bank, id, 1)
+     * (id <= 3); the now-real player needs the audio gates open and a valid bank
+     * so the AIL stop spy bumps g_play_sfx_with_handle_calls per fired SFX. The
+     * gates and bank ptr are not reset by any test below, so set them once here. */
+    audiofix_enable_sfx();
+    data_fd2_audio_summon_spell_sfx_bank_buf_ptr = audiofix_make_bank(0x1F);
     RUN_TEST(test_summon_d_init);
     RUN_TEST(test_summon_d_state3_hold);
     RUN_TEST(test_summon_d_state6_terminate);
@@ -930,5 +937,6 @@ void run_anim_anisummn1_tests(void)
     RUN_TEST(test_summon_a_tick_blit_gate_sfx_done);
     RUN_TEST(test_summon_a_tick_color_rotation);
     RUN_TEST(test_summon_a_tick_rotation_mod10_wrap);
+    audiofix_disable_sfx();   /* restore safe gate state for later suites */
     printf("\n");
 }

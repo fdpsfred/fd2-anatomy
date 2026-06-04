@@ -10,6 +10,7 @@
 #include "globals.h"
 #include "protos.h"
 #include <stdio.h>
+#include "audiofix.h"   /* audiofix_make_bank / audiofix_enable_sfx */
 
 /* runtime-char array backing (testglob.c) */
 extern runtime_char g_test_rc_array[8];
@@ -62,6 +63,12 @@ static void setup_overlay(uint32 palette_idx)
     g_blitpass_calls = 0;
     g_blitsolid_calls = 0;
     g_play_sfx_with_handle_calls = 0;
+
+    /* The flicker body opens with fd2_play_sfx_with_handle(status bank, 1, 1);
+     * open the audio gates and stage a tri-offset sfx bank so the real player
+     * reaches the AIL spy (which bumps g_play_sfx_with_handle_calls). */
+    audiofix_enable_sfx();
+    data_fd2_audio_status_effect_sfx_handle_ptr = audiofix_make_bank(0x1F);
 
     table = (uint32 *)g_portrait_cache;
     for (i = 0; i < 256; i++) {
@@ -208,6 +215,13 @@ static void setup_impact(void)
     g_sfx_id_count = 0;
     g_sfx_last_id = 0;
     memset(g_sfx_id_log, 0, sizeof(g_sfx_id_log));
+
+    /* The impact loop fires fd2_play_sfx_with_handle(status bank, sfx_id, 1)
+     * per frame; open the gates and stage a tri-offset bank so the captured
+     * sample length recovers each fired sfx_id (g_sfx_id_log). */
+    audiofix_enable_sfx();
+    data_fd2_audio_status_effect_sfx_handle_ptr = audiofix_make_bank(0x1F);
+
     g_blitdec_calls = 0;
     g_blitdec_dst = 0;
     g_blitdec_sprite = 0;
@@ -554,5 +568,6 @@ void run_anim_anicombt_tests(void)
     RUN_TEST(test_impact_cull_and_arithmetic);
     RUN_TEST(test_impact_zero_frames);
     RUN_TEST(test_fullflash_two_composites_and_strobe);
+    audiofix_disable_sfx();   /* restore safe gate state for later suites */
     printf("\n");
 }
