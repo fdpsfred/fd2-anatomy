@@ -66,6 +66,7 @@ uint32 data_fd2_shared_menu_party_roster_buffer_ptr = 0;
 uint32 data_fd2_shared_menu_party_member_count = 0;
 uint32 data_fd2_battle_anim_phase = 0;
 uint32 data_fd2_battle_ai_post_action_consequence_idx = 0;
+uint32 data_fd2_battle_player_action_result_code = 0;
 uint32 data_fd2_chapter_current_chapter_id = 1;
 uint32 data_fd2_chapter_cutscene_event_state = 0;
 uint32 data_fd2_graphics_static_bg_buffer_ptr = 0;
@@ -289,6 +290,8 @@ uint32 data_fd2_ui_menu_cursor_idx = 0;
 /* field command menu templates — real FD2.LE values @ 0x51E9F / 0x53EF2 */
 int32  data_fd2_ui_field_command_menu_options_template[4] = { 7, 5, 6, 4 };
 int32  data_fd2_ui_field_command_menu_state_template[4] = { 0, 0, 0, 0 };
+/* player action menu state template — real FD2.LE value @ 0x53F12 (all zero) */
+int32  data_fd2_ui_player_action_menu_state_template[4] = { 0, 0, 0, 0 };
 /* game options menu templates — real FD2.LE values @ 0x51EAF / 0x53F02 */
 int32  data_fd2_ui_game_options_menu_slots_template[4] = { 0x12, 0x14, 0x16, 0x18 };
 int32  data_fd2_ui_game_options_menu_state_template[4] = { 0, 0, 0, 0 };
@@ -789,13 +792,25 @@ void fd2_animate_dialog_page_advance_collapse(void) {
     g_anim_dialog_page_advance_calls++;
 }
 /* fd2_game_options_menu_loop is now emitted for real in ui_menu/menucfg.c. */
-int g_player_action_menu_loop_return = 1;
-int g_player_action_menu_loop_calls = 0;
-uint32 g_player_action_menu_loop_last_char = 0xffffffff;
-int fd2_player_action_menu_loop(uint32 char_idx) {
-    g_player_action_menu_loop_calls++;
-    g_player_action_menu_loop_last_char = char_idx;
-    return g_player_action_menu_loop_return;
+/* fd2_player_action_menu_loop is now emitted for real in ui_menu/menu.c; its
+ * former one-shot stub and the g_player_action_menu_loop_* seam variables were
+ * removed. The fd2_game_main_loop player-action path now drives the real
+ * function (behavioral coverage deferred to Phase 9 integration). */
+/* fd2_player_inline_action_menu_dispatch (@ 0x18D8C) is a separate, not-yet-
+ * emitted heavy submenu driver (opens dialogs, runs real target input). Stubbed
+ * here so the real fd2_player_action_menu_loop links and its early-exit paths
+ * (cancel / unreachable-destination) can be driven without entering the submenu.
+ * Returns g_inline_dispatch_return (default 1 = action committed). */
+int g_inline_dispatch_return = 1;
+int g_inline_dispatch_calls = 0;
+int g_inline_dispatch_last_have_moved = -1;
+int fd2_player_inline_action_menu_dispatch(int char_idx,
+                                           int32 *pSlot_disable_arr,
+                                           int have_moved) {
+    (void)char_idx; (void)pSlot_disable_arr;
+    g_inline_dispatch_calls++;
+    g_inline_dispatch_last_have_moved = have_moved;
+    return g_inline_dispatch_return;
 }
 /* fd2_open_char_status_screen: now emitted in src/ui_menu/status.c and linked
  * for real (was a recording stub here). It is pure VGA/sfx orchestration and is

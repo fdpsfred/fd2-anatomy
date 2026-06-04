@@ -60,6 +60,8 @@ void fd2_animate_dialog_page_advance_collapse(void);
 void fd2_game_options_menu_loop(void);
 void fd2_count_active_menu_items_until_zero(int32 *menu_def);
 int fd2_player_action_menu_loop(uint32 char_idx);
+int fd2_player_inline_action_menu_dispatch(int char_idx,
+    int32 *pSlot_disable_arr, int have_moved);
 void fd2_open_char_status_screen(uint32 char_idx);
 void fd2_open_tactical_overview_zoom(void);
 void fd2_mark_char_acted_this_turn(uint32 char_idx);

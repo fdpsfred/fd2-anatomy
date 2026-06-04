@@ -32,8 +32,6 @@
 #include "protos.h"
 #include "menufix.h"
 
-extern int g_player_action_menu_loop_return;
-
 /* fd2_field_command_menu_loop dispatch seams (defined in testglob.c). The
  * settings input-step is now the real emitted function driven by staging real
  * scancodes into the BIOS keyboard ring (menufix.h); only the save/load/quit
@@ -50,6 +48,10 @@ extern int g_repaint_settings_calls;
 /* real-render seam: the now-real fd2_open_settings_dialog_with_slide blits 16
  * corner sprites per open (4 frames x 4 corners). */
 extern int g_blitsetup_calls;
+
+/* pathfind stub seam (testglob.c): the md==0 call path returns this value, used
+ * to drive fd2_player_action_menu_loop's unreachable-destination branch. */
+extern int g_pathfind_walk_return;
 
 /* Host-safe render environment for the real open-dialog reached on every
  * field-command iteration: empty party (no real char paint), a real workspace
@@ -80,11 +82,13 @@ static void mnu_setup_render_env(void)
 static void test_game_main_loop_symbol_linkable(void)
 {
     int (*fp)(void);
+    int (*pal)(uint32);
 
     fp = fd2_game_main_loop;
     ASSERT_TRUE(fp != 0);
-    /* Stub default keeps the would-be player-action loop one-shot if driven. */
-    ASSERT_EQ(g_player_action_menu_loop_return, 1);
+    /* Its player-action callee is now the real emitted function. */
+    pal = fd2_player_action_menu_loop;
+    ASSERT_TRUE(pal != 0);
 }
 
 /* Reset render env + dispatch counters to a known baseline before each branch
@@ -171,6 +175,164 @@ static void test_field_command_menu_options(void)
     ASSERT_EQ(g_blitsetup_calls, 68);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_player_action_menu_loop coverage
+ *
+ * This is a heavy UI orchestrator: most of its body runs the real
+ * movement-range paint, status-panel repaint, target-input loop, walk
+ * animation, and (after a destination is chosen) the inline action
+ * submenu — all display / blocking-input side effects with no clean
+ * isolation seam for the deep paths (full behavioral coverage of the
+ * action-commit and result-code tail is deferred to Phase 9).
+ *
+ * Two deterministic, host-safe early-exit paths ARE driven here:
+ *   1. Cancel at target-input (Esc): exercises the setup block (template
+ *      copy, result_code := 0, consequence_idx := 0xFF) and the
+ *      cancel early-out (pan back, return 1).
+ *   2. Destination chosen but pathfind reports it unreachable (0xFF):
+ *      exercises the commit, the EAX-tracking-sensitive pathfind-return
+ *      comparison (full-register == 0xFF), the anim_phase 0->1 toggle,
+ *      and the "return 1" exit — without entering the inline submenu.
+ *
+ * Both are made tractable by: an empty party (party_member_count == 0)
+ * so the overlay/occupant/target-input party loops are inert; a staged
+ * BIOS-ring scancode (the real fd2_wait_for_input_v2 reads it via INT
+ * 16h); the cursor left on the actor tile so the animated pan is a no-op
+ * composite; and the floodfill/obfuscate/pathfind stubs in testglob.c.
+ * ---------------------------------------------------------------- */
+
+#define PAML_NCHARS 4
+static runtime_char paml_chars[PAML_NCHARS];
+static uint8 paml_tile_map[64 * 4];
+
+/* Saved shared-global snapshot so each test restores cross-suite state on
+ * exit (the runtime-char-array pointer in particular defaults to
+ * g_test_rc_array, which later suites rely on). */
+static runtime_char *paml_saved_char_ptr;
+static uint32 paml_saved_party_count;
+static uint32 paml_saved_cursor_x;
+static uint32 paml_saved_cursor_y;
+static uint32 paml_saved_anim_phase;
+static uint32 paml_saved_result_code;
+static uint32 paml_saved_consequence_idx;
+static uint32 paml_saved_tile_map_ptr;
+static uint32 paml_saved_map_width;
+
+/* Build a single-actor runtime context at index 0 and point the global
+ * char-array pointer at it. range = combat_aux_block[0x14] feeds the
+ * malloc size; keep it small. Snapshots every shared global it mutates so
+ * paml_teardown() can restore them. Caller stages input. */
+static void paml_setup(uint8 job_id, uint8 portrait_id, uint8 archetype,
+                       uint8 range_remaining)
+{
+    int i;
+
+    paml_saved_char_ptr = data_fd2_battle_runtime_char_array_ptr;
+    paml_saved_party_count = data_fd2_battle_party_member_count;
+    paml_saved_cursor_x = data_fd2_battle_cursor_world_x;
+    paml_saved_cursor_y = data_fd2_battle_cursor_world_y;
+    paml_saved_anim_phase = data_fd2_battle_anim_phase;
+    paml_saved_result_code = data_fd2_battle_player_action_result_code;
+    paml_saved_consequence_idx = data_fd2_battle_ai_post_action_consequence_idx;
+    paml_saved_tile_map_ptr = data_fd2_battle_tile_map_ptr;
+    paml_saved_map_width = data_fd2_battle_map_width_tiles;
+
+    mnu_setup_render_env();             /* empty party + workspace + dialog */
+    for (i = 0; i < (int)sizeof(paml_chars); i++) {
+        ((uint8 *)paml_chars)[i] = 0;
+    }
+    paml_chars[0].pos_x = 3;
+    paml_chars[0].pos_y = 2;
+    paml_chars[0].team = 2;             /* player */
+    paml_chars[0].job_id = job_id;
+    paml_chars[0].portrait_id = portrait_id;
+    paml_chars[0].archetype_flag = archetype;
+    paml_chars[0].combat_aux_block[0x14] = range_remaining;
+
+    data_fd2_battle_runtime_char_array_ptr = paml_chars;
+    data_fd2_battle_party_member_count = 0;   /* party loops inert */
+    data_fd2_battle_cursor_world_x = paml_chars[0].pos_x;
+    data_fd2_battle_cursor_world_y = paml_chars[0].pos_y;
+    data_fd2_battle_anim_phase = 1;
+
+    /* Sentinels to prove the setup block overwrites them. */
+    data_fd2_battle_player_action_result_code = 0x1234;
+    data_fd2_battle_ai_post_action_consequence_idx = 0x1234;
+}
+
+/* Restore every shared global paml_setup() captured, so a following suite
+ * sees the pre-test environment (no cross-suite pollution). */
+static void paml_teardown(void)
+{
+    data_fd2_battle_runtime_char_array_ptr = paml_saved_char_ptr;
+    data_fd2_battle_party_member_count = paml_saved_party_count;
+    data_fd2_battle_cursor_world_x = paml_saved_cursor_x;
+    data_fd2_battle_cursor_world_y = paml_saved_cursor_y;
+    data_fd2_battle_anim_phase = paml_saved_anim_phase;
+    data_fd2_battle_player_action_result_code = paml_saved_result_code;
+    data_fd2_battle_ai_post_action_consequence_idx = paml_saved_consequence_idx;
+    data_fd2_battle_tile_map_ptr = paml_saved_tile_map_ptr;
+    data_fd2_battle_map_width_tiles = paml_saved_map_width;
+}
+
+/* Path 1: Esc at the target-input -> cancel early-out returns 1. Also
+ * asserts the setup block reset result_code (->0) and consequence_idx
+ * (->0xFF). job_id 5 / portrait 0 / archetype 0 -> no class override
+ * (status-immunity false, portrait != 0x1C). */
+static void test_player_action_menu_cancel(void)
+{
+    int r;
+
+    paml_setup(5, 0, 0, 5);
+    mfix_load_cancel();                  /* single Esc in the BIOS ring */
+    r = fd2_player_action_menu_loop(0);
+    ASSERT_EQ(r, 1);
+    ASSERT_EQ((int)data_fd2_battle_player_action_result_code, 0);
+    ASSERT_EQ((int)data_fd2_battle_ai_post_action_consequence_idx, 0xff);
+    paml_teardown();
+}
+
+/* Path 2: commit the destination (Space on a passable tile), then the
+ * pathfind stub reports the tile unreachable (0xFF) -> the function
+ * returns 1 without entering the inline submenu. Verifies the
+ * full-register 0xFF comparison and that anim_phase ends restored to 1
+ * (the 0 -> pan -> 1 toggle around the pan ran to completion). */
+static void test_player_action_menu_unreachable(void)
+{
+    int r;
+    int saved_walk_return;
+
+    paml_setup(5, 0, 0, 5);
+
+    /* Passable tile at the cursor: tile_map[(y*width + x)*4 + 7] != 0xFF.
+     * cursor (3,2), width 20 -> need a buffer covering that index; clear
+     * a local map and point the global at it with a small width. */
+    {
+        int i;
+        for (i = 0; i < (int)sizeof(paml_tile_map); i++) {
+            paml_tile_map[i] = 0;        /* all passable (+7 byte == 0) */
+        }
+    }
+    data_fd2_battle_tile_map_ptr = (uint32)paml_tile_map;
+    data_fd2_battle_map_width_tiles = 4;
+    paml_chars[0].pos_x = 0;
+    paml_chars[0].pos_y = 0;
+    data_fd2_battle_cursor_world_x = 0;
+    data_fd2_battle_cursor_world_y = 0;
+
+    saved_walk_return = g_pathfind_walk_return;
+    g_pathfind_walk_return = 0xff;       /* md==0 path returns this */
+
+    mfix_load_keys((const uint8 *)"\x39", 1);  /* Space -> commit (mode 4) */
+    r = fd2_player_action_menu_loop(0);
+
+    g_pathfind_walk_return = saved_walk_return;
+
+    ASSERT_EQ(r, 1);
+    ASSERT_EQ((int)data_fd2_battle_anim_phase, 1);
+    paml_teardown();
+}
+
 void run_ui_menu_menu_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -179,5 +341,7 @@ void run_ui_menu_menu_tests(void)
     RUN_TEST(test_field_command_menu_cancel);
     RUN_TEST(test_field_command_menu_save_load_passthrough);
     RUN_TEST(test_field_command_menu_options);
+    RUN_TEST(test_player_action_menu_cancel);
+    RUN_TEST(test_player_action_menu_unreachable);
     printf("\n");
 }

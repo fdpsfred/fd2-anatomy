@@ -448,5 +448,18 @@
         "source_review": "fd2_render_status_screen_static_layout @00017eef (emitter)"
       }
     ]
+  },
+  "00018890": {
+    "name": "fd2_player_action_menu_loop",
+    "target": "ui_menu/menu.c",
+    "issues": [
+      {
+        "type": "bookkeeping_flag_mismatch",
+        "desc": "c_changed flag was reported false but the diff is a real code emit of fd2_player_action_menu_loop plus 2 new tests and a new global — future rounds should set c_changed=true and list test_cases_added when the function body is emitted, even if a plate fact-correction also happened in the same round.",
+        "severity": "low",
+        "verify_method": "next_round_set_flags",
+        "source_review": "fd2_player_action_menu_loop @00018890 (reviewer-approved)"
+      }
+    ]
   }
 }

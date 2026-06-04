@@ -78,6 +78,7 @@ extern uint8  data_fd2_ui_game_speed_flag;                              /* 0x53A
 extern uint32 data_fd2_ui_menu_cursor_idx;                              /* 0x53C57 */
 extern int32  data_fd2_ui_field_command_menu_options_template[4];       /* 0x51E9F */
 extern int32  data_fd2_ui_field_command_menu_state_template[4];         /* 0x53EF2 */
+extern int32  data_fd2_ui_player_action_menu_state_template[4];         /* 0x53F12 */
 extern int32  data_fd2_ui_game_options_menu_slots_template[4];          /* 0x51EAF */
 extern int32  data_fd2_ui_game_options_menu_state_template[4];          /* 0x53F02 */
 extern uint32 data_fd2_ui_slide_anim_accumulator_buf_ptr;               /* 0x53C5B */

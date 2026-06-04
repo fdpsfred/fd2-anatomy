@@ -990,8 +990,9 @@
     "name": "fd2_player_action_menu_loop",
     "target": "ui_menu/menu.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": true,
+    "reviewed": true
   },
   "00018b84": {
     "name": "fd2_wait_input_with_status_panel_repaint",
