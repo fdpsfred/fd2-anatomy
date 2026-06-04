@@ -552,3 +552,91 @@ void fd2_execute_offensive_targeted_spell_variant_b(
     fd2_composite_battle_frame(0);
     fd2_animate_spell_projectile_paths();
 }
+
+/* ----------------------------------------------------------------
+ * fd2_cast_ap_boost_spell @ 0x22721  (3 callers)
+ *
+ * AP-boost (Attack-Up) spell/item effect. Plays the per-target impact
+ * + status-overlay-flicker animations (sprite/effect id 0x11), then for
+ * each target in the byte array applies a one-shot AP buff guarded by a
+ * stack-protection timer:
+ *   level_mod = target.status_flags_block[0] (the unit's level byte),
+ *               +30 if its job_id is an intermediate class (9..0x18);
+ *   if status_flags_block[1] (the AP-buff timer) is 0 (not yet boosted):
+ *     advance the shared RNG and set the timer to (rng % 4) + 2 turns,
+ *     compute delta = (int)(1.0 + ap * 0.15) (Watcom truncates toward
+ *     zero), draw it as a heal-style number (glyph 0x69 = 'i'), add it
+ *     to the unit's ap word, and credit level_mod*2 pending XP;
+ *   otherwise the unit is already boosted -> draw the miss indicator
+ *   (no stacking). Closes with the standard composite + projectile
+ *   animation pass.
+ *
+ * EAX-bug correction: at asm 0x227bc CALL fd2_advance_rng_state the EAX
+ * return feeds 0x227c1 MOV EDX,EAX / SAR EDX,0x1f / IDIV EBX(=4), so the
+ * timer is (rng_return % 4) + 2. The Ghidra decompiler instead printed
+ * (int)uVar3 % 4 using the old flag value (==0) — wrong source. The RNG
+ * return is the 16-bit seed zero-extended (always 0..0xFFFF, so signed
+ * % 4 stays 0..3), giving a 2..5 turn timer.
+ *
+ * AP-boost factor 0.15 lives at 0x50210
+ * (data_fd2_battle_spell_ap_boost_factor_015, IEEE754 0x3FC3333333333333);
+ * the FILD/FMUL/FLD1/FADDP/__CHP/FISTP idiom at 0x227d3..0x227ee is the
+ * Watcom (int) cast of (1.0 + ap*0.15) (__CHP @ 0x377a4 sets RC=truncate
+ * then FRNDINTs).
+ *
+ * Pattern-A SHARED EPILOGUE: the loop-exit JGE 0x2281B leads into
+ * PUSH 0 / fd2_composite_battle_frame / fd2_animate_spell_projectile_
+ * paths / JMP 0x1317d (a RET-only POP stub shared across many battle
+ * functions); emitted here as the two inlined calls + the implicit C
+ * return. Sibling fd2_cast_dp_boost_spell @ 0x22866 (DP variant, id 0x12,
+ * timer byte +0x23, dp word, factor 0x50218) tail-shares this same
+ * epilogue via its own JGE 0x2281B; it is emitted separately with its
+ * own equivalent epilogue (Layer-2 functional equivalence, the JMP
+ * sharing is a compiler size optimization not reproduced in source).
+ *
+ * Callers: fd2_apply_use_effect_dispatch @ 0x20C6F (item effect 0x10),
+ * fd2_cast_spell_11_stage_a @ 0x226EA (spell 0x11), and
+ * fd2_execute_summon_spell_cast @ 0x27FC9 (summon combo).
+ * ---------------------------------------------------------------- */
+void fd2_cast_ap_boost_spell(int caster_unit_id, int num_targets,
+                             uint8 *target_id_array)
+{
+    int iter;
+    uint8 target_id;
+    runtime_char *target_rc;
+    uint32 level_mod;
+
+    fd2_animate_spell_impact_per_target(
+        (uint32)caster_unit_id, 0x11,
+        (uint32)num_targets, (uint32)target_id_array);
+    fd2_animate_status_effect_overlay_flicker(
+        (uint32)caster_unit_id, 0x11,
+        (uint32)num_targets, (uint32)target_id_array);
+
+    for (iter = 0; iter < num_targets; iter++) {
+        target_id = target_id_array[iter];
+        target_rc = &data_fd2_battle_runtime_char_array_ptr[
+                        (uint32)target_id];
+        level_mod = (uint32)target_rc->status_flags_block[0];
+        if (target_rc->job_id > 8 && target_rc->job_id < 0x19) {
+            level_mod = level_mod + 0x1e;
+        }
+        if (target_rc->status_flags_block[1] == 0) {
+            int delta;
+            target_rc->status_flags_block[1] =
+                (uint8)((int)fd2_advance_rng_state() % 4 + 2);
+            delta = (int)(1.0 + (double)target_rc->ap *
+                          data_fd2_battle_spell_ap_boost_factor_015);
+            fd2_show_damage_number((uint32)delta, 0x69,
+                                    (uint32)target_id);
+            target_rc->ap = (uint16)(target_rc->ap + (int16)delta);
+            data_fd2_battle_pending_xp_credit =
+                data_fd2_battle_pending_xp_credit + level_mod * 2;
+        } else {
+            fd2_show_miss_indicator((uint32)target_id);
+        }
+    }
+
+    fd2_composite_battle_frame(0);
+    fd2_animate_spell_projectile_paths();
+}

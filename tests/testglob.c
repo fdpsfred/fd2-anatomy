@@ -132,7 +132,8 @@ void fd2_delay_ticks(uint32 t) { }
  * real in src/spell/spelleff.c; stubs removed. */
 void fd2_cast_earthquake_spell_with_screen_shake(int a, int b, int c, uint8 *d) { }
 void fd2_dispatch_variant_b_cast(int a, int b, int c, int d) { }
-void fd2_cast_ap_boost_spell(int a, int b, uint8 *c) { }
+/* fd2_cast_ap_boost_spell (@0x22721) now emitted for real in
+ * src/spell/spelleff.c; stub removed. */
 void fd2_cast_dp_boost_spell(int a, int b, uint32 c) { }
 void fd2_cast_speed_boost_spell(uint32 a, uint32 b, uint32 c) { }
 int g_play_sfx_with_handle_calls = 0;
@@ -734,6 +735,7 @@ int32  data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[16] = {0
  * produces the desired (count, ascending ids). */
 /* fd2_score_spell_candidate: now in btl_ai.c */
 double data_fd2_battle_ai_enemy_spell_score_multiplier_15 = 1.5;
+double data_fd2_battle_spell_ap_boost_factor_015 = 0.15;
 /* fd2_ai_score_item_use: now in btl_ai.c */
 /* fd2_count_usable_inventory_slots: now REAL in src/ui_menu/status.c */
 /* fd2_spell_selection_menu_main is now emitted for real in src/spell/spellsel.c
