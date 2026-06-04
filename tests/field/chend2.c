@@ -260,11 +260,22 @@ static uint8 g_ce23_script_49[1] = { 0 };
  * glyph blits and never reaches the page-break busy-wait. */
 static int16 g_ce23_dlg[0x13];
 
-/* programmable Phase-1 predicates for fd2_chapter_23_end. The 天空之鑰 arm is
- * now driven through the REAL fd2_any_char_has_item, which reaches the find
- * double in tests/testglob.c: g_ce_find_have_item100 makes char 0 hold item
- * 100 (held arm) or not (not-held arm). The 蜜蒂-roster double remains. */
-extern int g_ce23_miti_present;    /* fd2_find_template_char_by_id -> 1 / 0 */
+/* Phase-1 predicates for fd2_chapter_23_end are now both driven through REAL
+ * functions: the 天空之鑰 arm via fd2_any_char_has_item (g_ce_find_have_item100
+ * makes char 0 hold item 100), and the 蜜蒂 arm via fd2_find_template_char_by_id,
+ * which linear-scans the template roster (g_ce_roster, see ce_install_safe_env)
+ * for char_id 0x12 at +0x08. ce23_seed_miti_in_roster() pre-places a 蜜蒂 entry
+ * so the predicate's "present" arm is reached; leaving it out keeps the roster
+ * free of 0x12 so the "absent" arm runs (the recruits write 0x16/0x13, not 0x12,
+ * so they never spuriously satisfy the predicate). */
+static void ce23_seed_miti_in_roster(void)
+{
+    uint8 *roster = (uint8 *)data_fd2_shared_menu_party_roster_buffer_ptr;
+    /* place 蜜蒂 (char_id 0x12) at +0x08 of the first template slot and account
+     * for it in the member count; later recruits append after this entry. */
+    roster[data_fd2_shared_menu_party_member_count * 0x50 + 8] = 0x12;
+    data_fd2_shared_menu_party_member_count += 1;
+}
 
 /* ----------------------------------------------------------------
  * Partial collection (5 holders): collected == 5 != 6, so the page-6 path
@@ -414,8 +425,10 @@ static void test_ch22_end_runs_and_advances(void)
  *
  * The risk core is the Phase-1 three-way story-branch logic; the branch
  * predicates are the real fd2_any_char_has_item (driven via the find double's
- * g_ce_find_have_item100), the programmable g_ce23_miti_present double, and
- * the turn counter, and each branch's observable mutation is a recruit
+ * g_ce_find_have_item100), the real fd2_find_template_char_by_id (driven via
+ * the template roster: ce23_seed_miti_in_roster places 蜜蒂/0x12 for the
+ * present arm, otherwise the roster has no 0x12 for the absent arm), and the
+ * turn counter, and each branch's observable mutation is a recruit
  * (data_fd2_shared_menu_party_member_count via the real
  * fd2_init_runtime_char_from_base_growth) and/or a death-mark (the real
  * fd2_mark_char_as_dead writes runtime_char[0x11].flags = CHARFLAG_DEAD).
@@ -467,18 +480,20 @@ static void ce23_setup(void)
  * Branch combo 1 — 天空之鑰 held + 蜜蒂 present:
  *   join arm  -> recruit 卡里斯 (char 0x16);
  *   蜜蒂 arm  -> mark 蜜蒂 (slot 0x11) dead (no recruit).
- * Exactly one recruit; slot 0x11 dead; chapter id advances 0x17 -> 0x18.
+ * The roster is pre-seeded with 蜜蒂 (count 1) so the real predicate's present
+ * arm runs; the 卡里斯 recruit then appends, leaving count 2. Slot 0x11 dead;
+ * chapter id advances 0x17 -> 0x18.
  * ---------------------------------------------------------------- */
 static void test_ch23_end_key_held_miti_present(void)
 {
     ce23_setup();
     g_ce_find_have_item100 = 1;  /* 天空之鑰 held -> recruit 卡里斯 (0x16) */
-    g_ce23_miti_present = 1;    /* 蜜蒂 present  -> mark 蜜蒂 dead */
+    ce23_seed_miti_in_roster();  /* 蜜蒂 present -> mark 蜜蒂 dead */
 
     fd2_chapter_23_end();
 
-    /* one recruit (卡里斯), 蜜蒂 marked dead, chapter advanced by one. */
-    ASSERT_EQ(data_fd2_shared_menu_party_member_count, 1);
+    /* pre-seeded 蜜蒂 + one recruit (卡里斯) = 2; 蜜蒂 marked dead; chapter +1. */
+    ASSERT_EQ(data_fd2_shared_menu_party_member_count, 2);
     ASSERT_EQ(g_ce_rc[0x11].flags, CHARFLAG_DEAD);
     ASSERT_EQ(data_fd2_chapter_current_chapter_id, 0x18);
 
@@ -496,7 +511,7 @@ static void test_ch23_end_no_key_miti_absent_within_15_turns(void)
 {
     ce23_setup();
     g_ce_find_have_item100 = 0;  /* 天空之鑰 not held -> cutscene 0x47 only */
-    g_ce23_miti_present = 0;    /* 蜜蒂 absent */
+    /* 蜜蒂 absent: roster stays free of 0x12 (no recruit on the no-key arm). */
     data_fd2_battle_turn_counter = 14;   /* < 15 -> recruit 羅德曼 (0x13) */
 
     fd2_chapter_23_end();
@@ -519,7 +534,7 @@ static void test_ch23_end_key_held_miti_absent_after_15_turns(void)
 {
     ce23_setup();
     g_ce_find_have_item100 = 1;  /* 天空之鑰 held -> recruit 卡里斯 (0x16) */
-    g_ce23_miti_present = 0;    /* 蜜蒂 absent */
+    /* 蜜蒂 absent: the 卡里斯 recruit writes 0x16 (not 0x12) into the roster. */
     data_fd2_battle_turn_counter = 15;   /* >= 15 -> mark 蜜蒂 dead, no recruit */
 
     fd2_chapter_23_end();

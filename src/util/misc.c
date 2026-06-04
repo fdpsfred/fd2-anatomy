@@ -71,3 +71,35 @@ int fd2_any_char_has_item(int item_id)
     }
     return -1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_find_template_char_by_id @ 0x24BDE  (1 caller)
+ *
+ * Linear-scans the menu/template party roster (buffer ptr at
+ * data_fd2_shared_menu_party_roster_buffer_ptr, 0x50-byte stride,
+ * count at data_fd2_shared_menu_party_member_count) for an entry
+ * whose char_id byte at offset +0x08 equals char_id. Returns 1 on
+ * the first match, 0 if the scan exhausts.
+ *
+ * Byte-identical duplicate of fd2_check_party_has_char_id @ 0x33499
+ * (Watcom emitted the same body into two translation units). This
+ * copy resides in the battle/spell address range.
+ *
+ * Caller: fd2_chapter_23_end uses it as the "蜜蒂 (char_id 0x12) is
+ * in the party" predicate for the Phase-1 conditional joins.
+ *
+ * Cdecl, 1 stack param; int return. The binary's __CHK(8) stack-probe
+ * prologue is compiler-generated and omitted here. EBX is callee-saved.
+ * ---------------------------------------------------------------- */
+int fd2_find_template_char_by_id(uint32 char_id)
+{
+    int idx;
+
+    for (idx = 0; (int32)data_fd2_shared_menu_party_member_count > idx; idx++) {
+        if (*(uint8 *)(idx * 0x50 + 8 +
+                       data_fd2_shared_menu_party_roster_buffer_ptr) == char_id) {
+            return 1;
+        }
+    }
+    return 0;
+}

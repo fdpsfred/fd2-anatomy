@@ -2499,8 +2499,9 @@
     "name": "fd2_find_template_char_by_id",
     "target": "util/misc.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00024c1e": {
     "name": "fd2_chapter_24_end",

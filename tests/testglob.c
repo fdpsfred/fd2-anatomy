@@ -1217,29 +1217,18 @@ void fd2_cast_screen_wide_spell_with_fade(uint32 epicenter_tile_x,
     (void)starting_radius; (void)radius_increment;
 }
 
-/* ---- fd2_chapter_23_end (field/chend2.c) not-yet-emitted callees ----
- * fd2_chapter_23_end's 蜜蒂-roster predicate / the screen shake are not
- * emitted yet, so they are doubled here. (The 天空之鑰 predicate
- * fd2_any_char_has_item is now REAL in src/util/misc.c; the chend2 ch23
- * tests drive its held/not-held arms through the find double above via
- * g_ce_find_have_item100.)
- *
- *   fd2_find_template_char_by_id (0x24BDE -> battle/lifecycle, pending) — the
- *     "蜜蒂 (char_id 0x12) is in the template roster" predicate (returns
- *     1=present / 0=absent). Programmable via g_ce23_miti_present so a test
- *     can drive the present arm (mark 蜜蒂 dead) and the absent arm (turn-
- *     counter sub-decision: recruit 羅德曼 within 15 turns, else mark dead).
+/* ---- fd2_chapter_23_end (field/chend2.c) not-yet-emitted callee ----
+ * Both Phase-1 story predicates are now REAL: fd2_any_char_has_item (天空之鑰)
+ * in src/util/misc.c, driven through the find double above via
+ * g_ce_find_have_item100; and fd2_find_template_char_by_id (蜜蒂-roster) in
+ * src/util/misc.c, driven directly through the template roster by the chend2
+ * ch23 tests. Only the display-only screen shake remains doubled.
  *
  *   fd2_animate_screen_shake (0x24B4D -> graphics, pending) — a 1-row vertical
  *     blit-jitter loop over the snapshot buffer; pure display, no-op here.
  *     Deferred to Phase 9 integration.
  *
- * Remove these doubles when the real functions are emitted. */
-int g_ce23_miti_present = 0;
-int fd2_find_template_char_by_id(uint32 char_id) {
-    (void)char_id;
-    return g_ce23_miti_present;
-}
+ * Remove this double when the real function is emitted. */
 void fd2_animate_screen_shake(uint32 frame_count) {
     (void)frame_count;
 }
