@@ -417,11 +417,6 @@ uint32 g_render_bar_dst[8];
 uint32 g_render_bar_base[8];
 uint32 g_render_bar_cur[8];
 uint32 g_render_bar_max[8];
-int    g_render_red_count = 0;
-uint32 g_render_red_dst[8];
-uint32 g_render_red_cur[8];
-uint32 g_render_red_max[8];
-uint32 g_render_red_digits[8];
 
 void fd2_render_decimal_number_to_buffer(uint32 dst, uint32 stride,
     uint32 v, uint32 x, uint32 digits)
@@ -447,18 +442,10 @@ void fd2_render_hp_or_mp_bar_proportional(uint32 dst_off, uint32 pitch,
     }
     (void)pitch;
 }
-void fd2_render_number_red_when_full(uint32 dst_off, uint32 pitch,
-    uint32 current, uint32 max, uint32 digits)
-{
-    if (g_render_log_on && g_render_red_count < 8) {
-        g_render_red_dst[g_render_red_count] = dst_off;
-        g_render_red_cur[g_render_red_count] = current;
-        g_render_red_max[g_render_red_count] = max;
-        g_render_red_digits[g_render_red_count] = digits;
-        g_render_red_count++;
-    }
-    (void)pitch;
-}
+/* fd2_render_number_red_when_full: now emitted in src/gfx/rndstat.c. It is a
+ * thin wrapper that forwards into fd2_render_decimal_number_to_buffer with a
+ * red/white color chosen by current==max, so the panel tests observe its 4
+ * calls through the g_render_dec_* recording spy. */
 void __delay_thunk_375b2(uint32 ticks) { (void)ticks; }
 int g_ail_vol_calls = 0;
 int g_ail_last_vol = 0;

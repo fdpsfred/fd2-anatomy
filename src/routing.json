@@ -966,8 +966,9 @@
     "name": "fd2_render_number_red_when_full",
     "target": "gfx/rndstat.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00018795": {
     "name": "fd2_render_hp_or_mp_bar_proportional",

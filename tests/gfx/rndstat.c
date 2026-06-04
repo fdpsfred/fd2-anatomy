@@ -251,7 +251,9 @@ static void test_mp_bar_theme_base(void)
  *
  * Drive the REAL panel painter and capture its dispatch to:
  *   - fd2_render_hp_or_mp_bar_proportional  (recording spy, testglob)
- *   - fd2_render_number_red_when_full       (recording spy, testglob)
+ *   - fd2_render_number_red_when_full (REAL, src/gfx/rndstat.c) -> forwards
+ *     into the fd2_render_decimal_number_to_buffer spy with a red/white color
+ *     chosen by current==max, so its 4 numbers appear in g_render_dec_* too
  *   - fd2_render_decimal_number_to_buffer   (recording spy, testglob)
  *   - fd2_blit_sheet_sprite_at_offset (REAL) -> g_blitraw log (team flag +
  *     status icons)
@@ -273,11 +275,6 @@ extern uint32 g_render_bar_dst[8];
 extern uint32 g_render_bar_base[8];
 extern uint32 g_render_bar_cur[8];
 extern uint32 g_render_bar_max[8];
-extern int    g_render_red_count;
-extern uint32 g_render_red_dst[8];
-extern uint32 g_render_red_cur[8];
-extern uint32 g_render_red_max[8];
-extern uint32 g_render_red_digits[8];
 
 extern runtime_char g_test_rc_array[8];
 
@@ -336,7 +333,6 @@ static void panel_reset_logs(void)
 {
     g_render_dec_count = 0;
     g_render_bar_count = 0;
-    g_render_red_count = 0;
     g_blitraw_count = 0;
     g_render_log_on = 1;
     g_blitraw_log_on = 1;
@@ -367,22 +363,31 @@ static void test_panel_bars_and_full_numbers(void)
     ASSERT_EQ((long)g_render_bar_cur[1],  0x10);
     ASSERT_EQ((long)g_render_bar_max[1],  0x20);
 
-    /* four red-when-full numbers: HP cur/max then MP cur/max, all 3-digit.
-     * the "max" variants pass current==max so the wrapper paints them red. */
-    ASSERT_EQ((long)g_render_red_count, 4);
-    ASSERT_EQ((long)g_render_red_dst[0], (long)(buf + 0x344b));
-    ASSERT_EQ((long)g_render_red_cur[0], 0x50);
-    ASSERT_EQ((long)g_render_red_max[0], 0x64);
-    ASSERT_EQ((long)g_render_red_digits[0], 3);
-    ASSERT_EQ((long)g_render_red_dst[1], (long)(buf + 0x3465));
-    ASSERT_EQ((long)g_render_red_cur[1], 0x64);
-    ASSERT_EQ((long)g_render_red_max[1], 0x64);
-    ASSERT_EQ((long)g_render_red_dst[2], (long)(buf + 0x4acb));
-    ASSERT_EQ((long)g_render_red_cur[2], 0x10);
-    ASSERT_EQ((long)g_render_red_max[2], 0x20);
-    ASSERT_EQ((long)g_render_red_dst[3], (long)(buf + 0x4ae5));
-    ASSERT_EQ((long)g_render_red_cur[3], 0x20);
-    ASSERT_EQ((long)g_render_red_max[3], 0x20);
+    /* The real fd2_render_number_red_when_full forwards into the decimal spy,
+     * so the 4 HP/MP cur/max numbers are g_render_dec_* entries [0..3] (the 8
+     * direct stat numbers follow at [4..11], total 12). Each carries the
+     * sign-extended value to the right surface offset, 3-digit, with the
+     * "full" color: cur==max -> red 0x1F, else white 0x2A. The two "max"
+     * variants pass current==max so they are red. */
+    ASSERT_EQ((long)g_render_dec_count, 12);
+    /* HP current: 0x50 != max 0x64 -> white */
+    ASSERT_EQ((long)g_render_dec_dst[0],    (long)(buf + 0x344b));
+    ASSERT_EQ((long)g_render_dec_val[0],    0x50);
+    ASSERT_EQ((long)g_render_dec_color[0],  0x2a);
+    ASSERT_EQ((long)g_render_dec_digits[0], 3);
+    /* HP max: 0x64 == max 0x64 -> red */
+    ASSERT_EQ((long)g_render_dec_dst[1],    (long)(buf + 0x3465));
+    ASSERT_EQ((long)g_render_dec_val[1],    0x64);
+    ASSERT_EQ((long)g_render_dec_color[1],  0x1f);
+    ASSERT_EQ((long)g_render_dec_digits[1], 3);
+    /* MP current: 0x10 != max 0x20 -> white */
+    ASSERT_EQ((long)g_render_dec_dst[2],    (long)(buf + 0x4acb));
+    ASSERT_EQ((long)g_render_dec_val[2],    0x10);
+    ASSERT_EQ((long)g_render_dec_color[2],  0x2a);
+    /* MP max: 0x20 == max 0x20 -> red */
+    ASSERT_EQ((long)g_render_dec_dst[3],    (long)(buf + 0x4ae5));
+    ASSERT_EQ((long)g_render_dec_val[3],    0x20);
+    ASSERT_EQ((long)g_render_dec_color[3],  0x1f);
 }
 
 /* the 8 fd2_render_decimal_number_to_buffer calls carry the right field
@@ -400,42 +405,44 @@ static void test_panel_decimal_numbers_unboosted(void)
 
     fd2_render_full_char_stat_panel(0, buf);
 
-    ASSERT_EQ((long)g_render_dec_count, 8);
+    /* 4 red-when-full numbers ([0..3]) precede the 8 direct stat numbers
+     * ([4..11]) in the decimal spy now that the wrapper is real. */
+    ASSERT_EQ((long)g_render_dec_count, 12);
 
-    /* [0] level (2-digit, white) */
-    ASSERT_EQ((long)g_render_dec_dst[0], (long)(buf + 0x29dd));
-    ASSERT_EQ((long)g_render_dec_val[0], 0x0A);
-    ASSERT_EQ((long)g_render_dec_color[0], 0x2a);
-    ASSERT_EQ((long)g_render_dec_digits[0], 2);
-    /* [1] movement (2-digit, white) */
-    ASSERT_EQ((long)g_render_dec_dst[1], (long)(buf + 0x379d));
-    ASSERT_EQ((long)g_render_dec_val[1], 0x05);
-    ASSERT_EQ((long)g_render_dec_digits[1], 2);
-    /* [2] magic resist (2-digit, white) */
-    ASSERT_EQ((long)g_render_dec_dst[2], (long)(buf + 0x455d));
-    ASSERT_EQ((long)g_render_dec_val[2], 0x07);
-    ASSERT_EQ((long)g_render_dec_digits[2], 2);
-    /* [3] AP (3-digit, white because boost flag clear) */
-    ASSERT_EQ((long)g_render_dec_dst[3], (long)(buf + 0x545d));
-    ASSERT_EQ((long)g_render_dec_val[3], 0x11);
-    ASSERT_EQ((long)g_render_dec_color[3], 0x2a);
-    ASSERT_EQ((long)g_render_dec_digits[3], 3);
-    /* [4] DP (3-digit, white) */
-    ASSERT_EQ((long)g_render_dec_dst[4], (long)(buf + 0x635d));
-    ASSERT_EQ((long)g_render_dec_val[4], 0x22);
+    /* [4] level (2-digit, white) */
+    ASSERT_EQ((long)g_render_dec_dst[4], (long)(buf + 0x29dd));
+    ASSERT_EQ((long)g_render_dec_val[4], 0x0A);
     ASSERT_EQ((long)g_render_dec_color[4], 0x2a);
-    /* [5] DX base (3-digit, ALWAYS white) — word at dx_block[1] = 0x0055 */
-    ASSERT_EQ((long)g_render_dec_dst[5], (long)(buf + 0x4535));
-    ASSERT_EQ((long)g_render_dec_val[5], 0x55);
-    ASSERT_EQ((long)g_render_dec_color[5], 0x2a);
-    /* [6] DX current (3-digit, white) */
-    ASSERT_EQ((long)g_render_dec_dst[6], (long)(buf + 0x5435));
-    ASSERT_EQ((long)g_render_dec_val[6], 0x33);
-    ASSERT_EQ((long)g_render_dec_color[6], 0x2a);
-    /* [7] Evade (3-digit, white) */
-    ASSERT_EQ((long)g_render_dec_dst[7], (long)(buf + 0x6335));
-    ASSERT_EQ((long)g_render_dec_val[7], 0x44);
+    ASSERT_EQ((long)g_render_dec_digits[4], 2);
+    /* [5] movement (2-digit, white) */
+    ASSERT_EQ((long)g_render_dec_dst[5], (long)(buf + 0x379d));
+    ASSERT_EQ((long)g_render_dec_val[5], 0x05);
+    ASSERT_EQ((long)g_render_dec_digits[5], 2);
+    /* [6] magic resist (2-digit, white) */
+    ASSERT_EQ((long)g_render_dec_dst[6], (long)(buf + 0x455d));
+    ASSERT_EQ((long)g_render_dec_val[6], 0x07);
+    ASSERT_EQ((long)g_render_dec_digits[6], 2);
+    /* [7] AP (3-digit, white because boost flag clear) */
+    ASSERT_EQ((long)g_render_dec_dst[7], (long)(buf + 0x545d));
+    ASSERT_EQ((long)g_render_dec_val[7], 0x11);
     ASSERT_EQ((long)g_render_dec_color[7], 0x2a);
+    ASSERT_EQ((long)g_render_dec_digits[7], 3);
+    /* [8] DP (3-digit, white) */
+    ASSERT_EQ((long)g_render_dec_dst[8], (long)(buf + 0x635d));
+    ASSERT_EQ((long)g_render_dec_val[8], 0x22);
+    ASSERT_EQ((long)g_render_dec_color[8], 0x2a);
+    /* [9] DX base (3-digit, ALWAYS white) — word at dx_block[1] = 0x0055 */
+    ASSERT_EQ((long)g_render_dec_dst[9], (long)(buf + 0x4535));
+    ASSERT_EQ((long)g_render_dec_val[9], 0x55);
+    ASSERT_EQ((long)g_render_dec_color[9], 0x2a);
+    /* [10] DX current (3-digit, white) */
+    ASSERT_EQ((long)g_render_dec_dst[10], (long)(buf + 0x5435));
+    ASSERT_EQ((long)g_render_dec_val[10], 0x33);
+    ASSERT_EQ((long)g_render_dec_color[10], 0x2a);
+    /* [11] Evade (3-digit, white) */
+    ASSERT_EQ((long)g_render_dec_dst[11], (long)(buf + 0x6335));
+    ASSERT_EQ((long)g_render_dec_val[11], 0x44);
+    ASSERT_EQ((long)g_render_dec_color[11], 0x2a);
 }
 
 /* each combat-stat boost flag independently flips its number to red 0x77;
@@ -455,12 +462,13 @@ static void test_panel_boost_colors_independent(void)
 
     fd2_render_full_char_stat_panel(0, buf);
 
-    ASSERT_EQ((long)g_render_dec_count, 8);
-    ASSERT_EQ((long)g_render_dec_color[3], 0x77);  /* AP red   */
-    ASSERT_EQ((long)g_render_dec_color[4], 0x77);  /* DP red   */
-    ASSERT_EQ((long)g_render_dec_color[5], 0x2a);  /* DX base white */
-    ASSERT_EQ((long)g_render_dec_color[6], 0x2a);  /* DX cur white */
-    ASSERT_EQ((long)g_render_dec_color[7], 0x2a);  /* Evade white */
+    /* direct stat numbers are dec indices [4..11] (4 red-when-full precede) */
+    ASSERT_EQ((long)g_render_dec_count, 12);
+    ASSERT_EQ((long)g_render_dec_color[7],  0x77);  /* AP red   */
+    ASSERT_EQ((long)g_render_dec_color[8],  0x77);  /* DP red   */
+    ASSERT_EQ((long)g_render_dec_color[9],  0x2a);  /* DX base white */
+    ASSERT_EQ((long)g_render_dec_color[10], 0x2a);  /* DX cur white */
+    ASSERT_EQ((long)g_render_dec_color[11], 0x2a);  /* Evade white */
 }
 
 /* the binary reuses one color (ESI) for BOTH DX current and Evade: setting
@@ -481,10 +489,10 @@ static void test_panel_evade_shares_dx_color(void)
 
     fd2_render_full_char_stat_panel(0, buf);
 
-    ASSERT_EQ((long)g_render_dec_color[3], 0x2a);  /* AP white */
-    ASSERT_EQ((long)g_render_dec_color[4], 0x2a);  /* DP white */
-    ASSERT_EQ((long)g_render_dec_color[6], 0x77);  /* DX cur red */
-    ASSERT_EQ((long)g_render_dec_color[7], 0x77);  /* Evade red (shared) */
+    ASSERT_EQ((long)g_render_dec_color[7],  0x2a);  /* AP white */
+    ASSERT_EQ((long)g_render_dec_color[8],  0x2a);  /* DP white */
+    ASSERT_EQ((long)g_render_dec_color[10], 0x77);  /* DX cur red */
+    ASSERT_EQ((long)g_render_dec_color[11], 0x77);  /* Evade red (shared) */
 }
 
 /* 16-bit stat reads are sign-extended (MOVSX in the binary): a value with
@@ -505,10 +513,12 @@ static void test_panel_stat_sign_extension(void)
 
     /* HP bar current arg = sign-extended hp_current */
     ASSERT_EQ((long)g_render_bar_cur[0], (long)0xFFFF8001u);
-    /* HP-current red number likewise sign-extended */
-    ASSERT_EQ((long)g_render_red_cur[0], (long)0xFFFF8001u);
-    /* AP decimal value sign-extended */
-    ASSERT_EQ((long)g_render_dec_val[3], (long)0xFFFF8002u);
+    /* HP-current red number (dec spy [0], via the real wrapper) likewise
+     * sign-extended; its color is white because cur 0xFFFF8001 != max 0x64 */
+    ASSERT_EQ((long)g_render_dec_val[0], (long)0xFFFF8001u);
+    ASSERT_EQ((long)g_render_dec_color[0], 0x2a);
+    /* AP decimal value (dec spy [7]) sign-extended */
+    ASSERT_EQ((long)g_render_dec_val[7], (long)0xFFFF8002u);
 }
 
 /* team flag: enemy (team 0) blits sprite 0x36, player/npc blits 0x35, at
@@ -1226,6 +1236,86 @@ static void test_inv_placeholder_still_counts(void)
     ASSERT_EQ((long)g_rle_blit_calls, 1);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_render_number_red_when_full @ 0x1875d
+ *
+ * Thin wrapper: color = (current == max) ? 0x1F : 0x2A, then forward
+ * (dst, pitch, current, color, digits) to fd2_render_decimal_number_to_buffer.
+ * Driven directly here and observed through the decimal recording spy
+ * (g_render_dec_*). Risk-based coverage: both color branches plus exact
+ * pass-through of dst / value / digits (and that the forwarded value is
+ * `current`, never `max`).
+ * ---------------------------------------------------------------- */
+static void redfull_reset(void)
+{
+    g_render_dec_count = 0;
+    g_render_log_on = 1;
+}
+
+/* current == max -> red glow 0x1F; current is the value drawn, dst/digits
+ * are forwarded verbatim. */
+static void test_redfull_equal_is_red(void)
+{
+    redfull_reset();
+    fd2_render_number_red_when_full(0x1234, 0x140, 0x64, 0x64, 3);
+
+    ASSERT_EQ((long)g_render_dec_count, 1);
+    ASSERT_EQ((long)g_render_dec_dst[0],    0x1234);
+    ASSERT_EQ((long)g_render_dec_val[0],    0x64);   /* value = current */
+    ASSERT_EQ((long)g_render_dec_color[0],  0x1f);   /* red */
+    ASSERT_EQ((long)g_render_dec_digits[0], 3);
+}
+
+/* current < max -> white 0x2A, and value is current (not max). */
+static void test_redfull_below_is_white(void)
+{
+    redfull_reset();
+    fd2_render_number_red_when_full(0x5678, 0x140, 0x50, 0x64, 3);
+
+    ASSERT_EQ((long)g_render_dec_count, 1);
+    ASSERT_EQ((long)g_render_dec_dst[0],    0x5678);
+    ASSERT_EQ((long)g_render_dec_val[0],    0x50);   /* current, NOT max */
+    ASSERT_EQ((long)g_render_dec_color[0],  0x2a);   /* white */
+    ASSERT_EQ((long)g_render_dec_digits[0], 3);
+}
+
+/* current > max (current need not be capped) -> still not equal -> white. */
+static void test_redfull_above_is_white(void)
+{
+    redfull_reset();
+    fd2_render_number_red_when_full(0x9abc, 0x140, 0x70, 0x64, 2);
+
+    ASSERT_EQ((long)g_render_dec_count, 1);
+    ASSERT_EQ((long)g_render_dec_val[0],    0x70);
+    ASSERT_EQ((long)g_render_dec_color[0],  0x2a);   /* white */
+    ASSERT_EQ((long)g_render_dec_digits[0], 2);      /* digits forwarded */
+}
+
+/* equality is a full 32-bit compare (CMP of two dwords): two large values
+ * that match only in their low 16 bits must NOT be treated as equal. */
+static void test_redfull_full_width_compare(void)
+{
+    redfull_reset();
+    /* low 16 bits both 0x0000 but high halves differ -> not equal -> white */
+    fd2_render_number_red_when_full(0x10, 0x140, 0x00010000u, 0x00020000u, 3);
+    ASSERT_EQ((long)g_render_dec_color[0], 0x2a);
+
+    /* exact 32-bit match -> red */
+    redfull_reset();
+    fd2_render_number_red_when_full(0x10, 0x140, 0x00020000u, 0x00020000u, 3);
+    ASSERT_EQ((long)g_render_dec_color[0], 0x1f);
+}
+
+/* zero == zero counts as "full" (red) — boundary where both are 0. */
+static void test_redfull_zero_equal_is_red(void)
+{
+    redfull_reset();
+    fd2_render_number_red_when_full(0x20, 0x140, 0, 0, 3);
+    ASSERT_EQ((long)g_render_dec_count, 1);
+    ASSERT_EQ((long)g_render_dec_val[0],   0);
+    ASSERT_EQ((long)g_render_dec_color[0], 0x1f);
+}
+
 void run_gfx_rndstat_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1268,6 +1358,11 @@ void run_gfx_rndstat_tests(void)
     RUN_TEST(test_inv_empty_slots_skipped_packing);
     RUN_TEST(test_inv_grid_packing_cells);
     RUN_TEST(test_inv_placeholder_still_counts);
+    RUN_TEST(test_redfull_equal_is_red);
+    RUN_TEST(test_redfull_below_is_white);
+    RUN_TEST(test_redfull_above_is_white);
+    RUN_TEST(test_redfull_full_width_compare);
+    RUN_TEST(test_redfull_zero_equal_is_red);
     g_render_log_on = 0;
     g_blitraw_log_on = 0;
     printf("\n");

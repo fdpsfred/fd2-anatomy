@@ -538,3 +538,27 @@ void fd2_render_inventory_item_grid(uint32 char_idx, int highlight_slot,
         active_slot_count = active_slot_count + 1;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_number_red_when_full @ 0x1875d (3 callers)
+ *
+ * Thin wrapper around fd2_render_decimal_number_to_buffer that picks the
+ * digit color from the equality of current and max: when current == max
+ * the value is drawn with the red "full" glow (color 0x1F), otherwise it
+ * is drawn white (color 0x2A). The chosen color is forwarded as the color
+ * (sprite-base) argument; current is passed through as the value to draw.
+ *
+ * Used by the HP/MP digit renderers to flag a "full" stat (current value
+ * has reached its maximum) with the red glow.
+ *
+ * Cdecl, 5 stack params; void return. The binary's __CHK(0x18) stack-probe
+ * prologue is compiler-generated and omitted here.
+ * ---------------------------------------------------------------- */
+void fd2_render_number_red_when_full(uint32 dst_off, uint32 pitch,
+                                     uint32 current, uint32 max, uint32 digits)
+{
+    uint32 color;
+
+    color = (current == max) ? 0x1f : 0x2a;
+    fd2_render_decimal_number_to_buffer(dst_off, pitch, current, color, digits);
+}
