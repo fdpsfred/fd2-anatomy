@@ -199,11 +199,141 @@ static void test_ch20_end_reaims_camera(void)
     ce_restore_rc_ptr();
 }
 
+/* ----------------------------------------------------------------
+ * Chapter 21 end handler — fd2_chapter_21_end @ 0x240FA.
+ *
+ * Risk core: the deterministic 6-item collection decision and its branch.
+ * The handler scans chars 0..15 for each of the six collectible item ids
+ * 0xD1..0xD6 (黃金徽章 + 5 顆眼) via fd2_find_inventory_slot_with_item and
+ * counts the holders into `collected`; only an exact total of 6 unlocks the
+ * hidden-stage branch (consume the six items, award item 100 天空之鑰, fire
+ * cutscene events 0x3F/0x40, play the FDOTHER.DAT sprite slideshow, final
+ * page 10). Any other total takes the page-6 path. Both paths re-init
+ * 希爾法 (0x18) and 羅蘭 (0x17) from base+growth, save the runtime
+ * templates, and advance current_chapter_id.
+ *
+ * Three callees are not yet emitted and are stubbed in tests/testglob.c:
+ *   - fd2_find_inventory_slot_with_item — a programmable double; its
+ *     g_ce_find_have_d6 gate decides whether the 0xD6 holder exists, so the
+ *     count lands on exactly 6 (all collected) or 5 (one missing). It maps
+ *     item 0xD1->char 0 .. 0xD6->char 5, returning slot 0 for a hold.
+ *   - fd2_setup_chars_and_camera_for_intro — no-op (its real placement/
+ *     palette work is display-only; deferred to Phase 9).
+ *   - fd2_play_chapter_intro_sprite_slideshow — no-op (it memmoves 64000
+ *     bytes to/from the absolute VGA framebuffer 0xA0000 and loads
+ *     FDOTHER.DAT; deferred to Phase 9). Stubbing it lets the all-collected
+ *     branch run on-host so the item-100 award is observable.
+ *
+ * The all-collected branch is observed via the REAL
+ * fd2_give_item_to_first_player_char(100), which only runs on that branch:
+ * the first bTeam==2 char with an empty inventory slot receives item 100.
+ * The remaining branch callees (remove-slot, cutscene-trigger, dialog,
+ * recruit, save-template) are the already-emitted real functions.
+ * ---------------------------------------------------------------- */
+
+extern int g_ce_find_have_d6;
+extern int g_ce_find_calls;
+
+/* zero-group cutscene scripts for events 0x3F / 0x40 (all-collected branch):
+ * n_groups byte = 0, so the real fd2_cutscene_event_trigger just composites
+ * once and returns. */
+static uint8 g_ce21_script_3f[1] = { 0 };
+static uint8 g_ce21_script_40[1] = { 0 };
+
+/* ----------------------------------------------------------------
+ * Partial collection (5 holders): collected == 5 != 6, so the page-6 path
+ * is taken — it must NOT award the hidden key (item 100). The full count
+ * double-loop runs (6 items x 16 chars = 96 find calls), both recruits run
+ * (希爾法 + 羅蘭), and the chapter id advances by one.
+ * ---------------------------------------------------------------- */
+static void test_ch21_end_partial_collection_page6_path(void)
+{
+    uint32 chap0;
+
+    ce_install_safe_env();
+    chap0 = data_fd2_chapter_current_chapter_id;
+
+    /* a lone player char with an empty inventory: if the all-collected
+     * branch were wrongly taken it would receive item 100 here. */
+    data_fd2_battle_party_member_count = 1;
+    g_ce_rc[0].team = 2;
+    g_ce_rc[0].inventory_slots[0] = 0x80;   /* empty slot 0 */
+
+    g_ce_find_have_d6 = 0;                   /* 0xD6 absent -> collected = 5 */
+    g_ce_find_calls = 0;
+
+    fd2_chapter_21_end();
+
+    /* the full count double-loop ran: 6 item ids x 16 chars. */
+    ASSERT_EQ(g_ce_find_calls, 6 * 16);
+
+    /* page-6 path: the key was NOT awarded (slot 0 stayed empty). */
+    ASSERT_EQ(g_ce_rc[0].inventory_slots[0], 0x80);
+
+    /* both recruits ran (希爾法 + 羅蘭). */
+    ASSERT_EQ(data_fd2_shared_menu_party_member_count, 2);
+
+    /* chapter id advanced by exactly one. */
+    ASSERT_EQ(data_fd2_chapter_current_chapter_id, chap0 + 1);
+
+    ce_restore_rc_ptr();
+}
+
+/* ----------------------------------------------------------------
+ * Full collection (6 holders): collected == 6, so the hidden-stage branch
+ * is taken — it consumes the six items and awards item 100 (天空之鑰) to
+ * the first player char via the real fd2_give_item_to_first_player_char,
+ * fires cutscene events 0x3F/0x40, and (after the deferred slideshow) shows
+ * final page 10. Observed via the real key award; recruits + chapter
+ * advance still run.
+ * ---------------------------------------------------------------- */
+static void test_ch21_end_full_collection_awards_key(void)
+{
+    uint32 chap0;
+
+    ce_install_safe_env();
+    chap0 = data_fd2_chapter_current_chapter_id;
+
+    /* lone player char (索爾) with a fully-empty inventory so the real
+     * fd2_add_item_to_inventory finds slot 0 for the key. */
+    data_fd2_battle_party_member_count = 1;
+    g_ce_rc[0].team = 2;
+    g_ce_rc[0].inventory_slots[0]  = 0x80;
+    g_ce_rc[0].inventory_slots[2]  = 0x80;
+    g_ce_rc[0].inventory_slots[4]  = 0x80;
+    g_ce_rc[0].inventory_slots[6]  = 0x80;
+    g_ce_rc[0].inventory_slots[8]  = 0x80;
+    g_ce_rc[0].inventory_slots[10] = 0x80;
+    g_ce_rc[0].inventory_slots[12] = 0x80;
+    g_ce_rc[0].inventory_slots[14] = 0x80;
+
+    /* zero-group cutscene scripts for the two events fired on this branch. */
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x3F] = g_ce21_script_3f;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x40] = g_ce21_script_40;
+
+    g_ce_find_have_d6 = 1;                   /* all six present -> collected = 6 */
+
+    fd2_chapter_21_end();
+
+    /* hidden-stage branch ran: char 0 received item 100 in a now-occupied
+     * slot 0 (flag cleared, item id = 100). */
+    ASSERT_EQ(g_ce_rc[0].inventory_slots[0], 0);
+    ASSERT_EQ(g_ce_rc[0].inventory_slots[1], 100);
+
+    /* both recruits ran and chapter advanced on this branch too. */
+    ASSERT_EQ(data_fd2_shared_menu_party_member_count, 2);
+    ASSERT_EQ(data_fd2_chapter_current_chapter_id, chap0 + 1);
+
+    ce_restore_rc_ptr();
+}
+
 void run_field_chend2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
     printf("Suite: field/chend2\n");
     RUN_TEST(test_ch20_end_places_chars_and_advances);
     RUN_TEST(test_ch20_end_reaims_camera);
+    RUN_TEST(test_ch21_end_partial_collection_page6_path);
+    RUN_TEST(test_ch21_end_full_collection_awards_key);
     printf("\n");
 }

@@ -79,6 +79,7 @@ void fd2_check_battle_end_default_handler(uint32 event_arg);
 int fd2_collect_dead_char_drops(uint32 out_buffer);
 uint32 fd2_find_equipped_item_by_kind(uint32 char_idx, uint32 kind);
 uint8 fd2_get_inventory_slot_item_id(uint32 char_idx, uint32 slot);
+int fd2_find_inventory_slot_with_item(int char_idx, int item_id);
 int fd2_check_job_can_equip_item(uint32 char_idx, uint32 item_id);
 void fd2_equip_item_in_slot(uint32 char_idx, uint32 slot_idx);
 void fd2_give_item_to_first_player_char(uint32 item_id);
@@ -182,6 +183,14 @@ void fd2_cutscene_event_trigger(uint32 event_id);
 
 /* ---- chapter end handlers ---- */
 void fd2_chapter_20_end(void);
+void fd2_chapter_21_end(void);
+void fd2_setup_chars_and_camera_for_intro(uint32 pos_x_table, uint32 pos_y_table,
+                                          uint32 facing_table, uint32 place_start,
+                                          uint32 place_end, uint32 scene2_char_idx,
+                                          uint32 scene2_pos_x, uint32 scene2_pos_y,
+                                          uint32 scene2_facing, uint32 camera_world_x,
+                                          uint32 camera_world_y);
+void fd2_play_chapter_intro_sprite_slideshow(void);
 
 /* ---- animation ---- */
 void fd2_tick_tile_event_animations(void);

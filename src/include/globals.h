@@ -27,6 +27,12 @@ extern const uint8 data_fd2_chapter_ch20_end_scene1_char_pos_y_table[16];  /* 0x
 extern const uint8 data_fd2_chapter_ch20_end_scene2_char_pos_x_table[9];   /* 0x52216 */
 extern const uint8 data_fd2_chapter_ch20_end_scene2_char_pos_y_table[9];   /* 0x5221F */
 
+/* ch21 end-scene char tables (private to fd2_chapter_21_end); 7 chars x 4B
+ * minus 1B = 25-byte stride, copied onto stack before the camera/intro setup */
+extern const uint8 data_fd2_chapter_ch21_end_scene_char_pos_x_table[25];   /* 0x52228 */
+extern const uint8 data_fd2_chapter_ch21_end_scene_char_pos_y_table[25];   /* 0x52241 */
+extern const uint8 data_fd2_chapter_ch21_end_scene_char_facing_table[25];  /* 0x5225A */
+
 /* ---- battle state ---- */
 extern uint32 data_fd2_battle_anim_phase;                               /* 0x51A83 */
 extern uint32 data_fd2_battle_ai_post_action_consequence_idx;           /* 0x51A8F */

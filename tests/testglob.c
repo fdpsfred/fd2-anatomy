@@ -1142,3 +1142,53 @@ uint32 fd2_check_party_has_char_id(uint32 char_id) {
     g_has_char_last_arg = char_id;
     return g_has_char_fake;
 }
+
+/* ---- fd2_chapter_21_end (field/chend2.c) not-yet-emitted callees ----
+ * fd2_chapter_21_end calls three functions that have not been emitted yet:
+ *
+ *   fd2_find_inventory_slot_with_item (0x31860 -> ui_menu/status.c) — the
+ *     handler scans chars 0..15 for each collectible item id 0xD1..0xD6 and
+ *     counts the holders to decide the 6-item hidden-stage unlock. This is a
+ *     programmable double for the chend2 tests: it maps item 0xD1->char 0 ..
+ *     0xD6->char 5 (returning slot 0 for a hold), with g_ce_find_have_d6
+ *     gating whether the 0xD6 holder exists so a test can land the count on
+ *     exactly 6 or 5. g_ce_find_calls records the call total. (The real
+ *     function's class-promotion callers are likewise unemitted, so nothing
+ *     else depends on its true behavior yet; remove this double when the real
+ *     function is emitted.)
+ *
+ *   fd2_setup_chars_and_camera_for_intro (0x233C6 -> field/chtrans.c) — places
+ *     the cast and re-aims the camera then fades the screen; pure display, so
+ *     a no-op here. Deferred to Phase 9 integration.
+ *
+ *   fd2_play_chapter_intro_sprite_slideshow (0x24336 -> anim/aniend.c) — the
+ *     hidden-stage cinematic; it memmoves 64000 bytes to/from the absolute VGA
+ *     framebuffer 0xA0000 and loads FDOTHER.DAT, so a no-op here. Deferred to
+ *     Phase 9 integration; stubbing it lets the all-collected branch run
+ *     on-host so the real item-100 award is observable. */
+int g_ce_find_have_d6 = 0;
+int g_ce_find_calls = 0;
+int fd2_find_inventory_slot_with_item(int char_idx, int item_id) {
+    g_ce_find_calls++;
+    if (item_id >= 0xD1 && item_id <= 0xD6 && char_idx == (item_id - 0xD1)) {
+        if (item_id == 0xD6 && !g_ce_find_have_d6) {
+            return -1;
+        }
+        return 0;
+    }
+    return -1;
+}
+
+void fd2_setup_chars_and_camera_for_intro(uint32 pos_x_table, uint32 pos_y_table,
+                                          uint32 facing_table, uint32 place_start,
+                                          uint32 place_end, uint32 scene2_char_idx,
+                                          uint32 scene2_pos_x, uint32 scene2_pos_y,
+                                          uint32 scene2_facing, uint32 camera_world_x,
+                                          uint32 camera_world_y) {
+    (void)pos_x_table; (void)pos_y_table; (void)facing_table;
+    (void)place_start; (void)place_end; (void)scene2_char_idx;
+    (void)scene2_pos_x; (void)scene2_pos_y; (void)scene2_facing;
+    (void)camera_world_x; (void)camera_world_y;
+}
+
+void fd2_play_chapter_intro_sprite_slideshow(void) { }

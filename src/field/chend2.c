@@ -3,6 +3,8 @@
  *
  * fd2_chapter_20_end @ 0x23E74 (0 direct callers; dispatched via
  *                               data_fd2_chapter_end_handler_table[20])
+ * fd2_chapter_21_end @ 0x240FA (0 direct callers; dispatched via
+ *                               data_fd2_chapter_end_handler_table[21])
  */
 
 #include "types.h"
@@ -120,5 +122,117 @@ void fd2_chapter_20_end(void)
 
     fd2_display_dialog_scene(current_chapter_text, 0xD, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}
+
+/* ----------------------------------------------------------------
+ * Chapter-21 end-scene character tables (FD2.LE data @ 0x52228 /
+ * 0x52241 / 0x5225A). Private read-only tables referenced only by
+ * fd2_chapter_21_end. Each has a 25-byte extent (7 chars x 4-byte
+ * stride minus the trailing 1 byte); the Watcom prologue copies them
+ * onto stack scratch (6 dwords + 1 byte each) before passing pointers
+ * into fd2_setup_chars_and_camera_for_intro, which reads the bytes
+ * indexed by char slot.
+ * ---------------------------------------------------------------- */
+const uint8 data_fd2_chapter_ch21_end_scene_char_pos_x_table[25] = {
+    0x15, 0x14, 0x16, 0x16, 0x13, 0x13, 0x13, 0x13,
+    0x12, 0x14, 0x14, 0x14, 0x12, 0x15, 0x15, 0x15,
+    0x15, 0x13, 0x12, 0x16, 0x11, 0x11, 0x11, 0x17,
+    0x17
+};
+const uint8 data_fd2_chapter_ch21_end_scene_char_pos_y_table[25] = {
+    0x0E, 0x0E, 0x0D, 0x0E, 0x0E, 0x0F, 0x10, 0x11,
+    0x0E, 0x0F, 0x10, 0x11, 0x0D, 0x0F, 0x10, 0x11,
+    0x0B, 0x0B, 0x0B, 0x0B, 0x0C, 0x0D, 0x0E, 0x0C,
+    0x0D
+};
+const uint8 data_fd2_chapter_ch21_end_scene_char_facing_table[25] = {
+    0x02, 0x02, 0x01, 0x01, 0x02, 0x02, 0x02, 0x02,
+    0x03, 0x02, 0x02, 0x02, 0x03, 0x02, 0x02, 0x02,
+    0x00, 0x00, 0x00, 0x00, 0x03, 0x03, 0x03, 0x01,
+    0x01
+};
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_21_end @ 0x240FA  — Chapter 21「亞述森林」end handler.
+ *
+ * Copies the three 25-byte end-scene tables onto the stack, places the
+ * party / NPC cast and re-aims the camera via
+ * fd2_setup_chars_and_camera_for_intro, then runs the post-battle dialog
+ * (page 5). Counts how many of the six collectible items 0xD1..0xD6
+ * (黃金徽章 + 5 顆眼) the party currently holds across inventory slots
+ * 0..15. If all six are held it consumes them, awards item 100 (天空之鑰,
+ * the hidden-stage key), plays the extended cutscene (pages 7/8/9 with
+ * events 0x3F/0x40 and the intro sprite slideshow) and shows final page
+ * 10; otherwise it shows page 6. Finishes by re-initialising 希爾法 (0x18)
+ * and 羅蘭 (0x17) from base+growth, saving the runtime char templates, and
+ * advancing current_chapter_id.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_21.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_21_end(void)
+{
+    uint8 pos_x[25];
+    uint8 pos_y[25];
+    uint8 facing[25];
+    int collected;
+    int slot_idx;
+    uint8 item_id;
+    uint8 slot;
+    uint32 final_page;
+    int i;
+
+    for (i = 0; i < 25; i++) {
+        pos_x[i] = data_fd2_chapter_ch21_end_scene_char_pos_x_table[i];
+        pos_y[i] = data_fd2_chapter_ch21_end_scene_char_pos_y_table[i];
+        facing[i] = data_fd2_chapter_ch21_end_scene_char_facing_table[i];
+    }
+
+    collected = 0;
+    fd2_setup_chars_and_camera_for_intro((uint32)pos_x, (uint32)pos_y,
+                                         (uint32)facing, 0, 0x18, 0x19,
+                                         0x17, 0xE, 1, 0xE, 10);
+    fd2_display_dialog_scene(current_chapter_text, 5, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+
+    for (item_id = 0xD1; item_id < 0xD7; item_id++) {
+        for (slot = 0; slot < 0x10; slot++) {
+            if (fd2_find_inventory_slot_with_item(slot, item_id) != -1) {
+                collected++;
+            }
+        }
+    }
+
+    if (collected == 6) {
+        for (item_id = 0xD1; item_id < 0xD7; item_id++) {
+            for (slot = 0; slot < 0x10; slot++) {
+                slot_idx = fd2_find_inventory_slot_with_item(slot, item_id);
+                if (slot_idx != -1) {
+                    fd2_remove_inventory_slot_at(slot, slot_idx);
+                }
+            }
+        }
+        fd2_give_item_to_first_player_char(100);
+        fd2_display_dialog_scene(current_chapter_text, 7, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        data_fd2_battle_anim_phase = 0;
+        fd2_cutscene_event_trigger(0x3F);
+        fd2_display_dialog_scene(current_chapter_text, 8, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        data_fd2_battle_anim_phase = 0;
+        fd2_cutscene_event_trigger(0x40);
+        fd2_display_dialog_scene(current_chapter_text, 9, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        fd2_play_chapter_intro_sprite_slideshow();
+        final_page = 10;
+    } else {
+        final_page = 6;
+    }
+
+    fd2_display_dialog_scene(current_chapter_text, final_page, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_init_runtime_char_from_base_growth(0x18);
+    fd2_init_runtime_char_from_base_growth(0x17);
+    fd2_save_runtime_char_to_template();
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }
