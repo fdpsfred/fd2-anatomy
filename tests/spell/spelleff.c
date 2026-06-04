@@ -304,16 +304,16 @@ static void test_apply_item_stat_modifier(void)
  * state transition — pinned via g_composite_call_count.
  *
  * The real fd2_animate_spell_impact_per_target (spell_id 0 -> 8 frames)
- * composites twice (one at entry, one on finalize); the flash is still a stub
- * (0 composites); the caller's own epilogue composites once. Total = 3.
+ * composites twice (one at entry, one on finalize); the real
+ * fd2_animate_spell_full_screen_flash composites once (its closing
+ * fd2_composite_battle_frame finalize); the caller's own epilogue composites
+ * once. Total = 4.
  * Two live targets exercise the loop with the REAL fd2_calc_magic_damage
  * (hit_rate=100 -> damage-number branch each iter); job_id=1 + nonzero HP
  * keep the damage formula in-bounds (mirrors testbtl setup). The damage
  * VALUE and the per-iter hit/miss branch are owned by testbtl's magic-damage
  * tests. The targets sit at (0,0), outside the impact view window, so the
- * impact animation culls them (no per-target blit) and the count stays 3.
- * If the caller's epilogue composite were wrongly placed inside the loop the
- * count would be 2 (impact) + 2 (per target) = 4, so this still guards it. */
+ * impact animation culls them (no per-target blit) and the count stays 4. */
 static void test_attack_spell_damage_composites_once(void)
 {
     uint8 target_ids[2];
@@ -335,21 +335,22 @@ static void test_attack_spell_damage_composites_once(void)
     target_ids[1] = 1;
     g_composite_call_count = 0;
     fd2_apply_attack_spell_damage(0, 2, (uint32)target_ids, 0);
-    ASSERT_EQ(g_composite_call_count, 3);
+    ASSERT_EQ(g_composite_call_count, 4);
 }
 
 
 /* Empty target list (count 0): loop body never runs. The impact animation
- * still composites twice (entry + finalize) and the shared epilogue composites
- * once -> 3. Guards against the epilogue composite being mistakenly placed
- * inside the loop (which, with 0 targets, would drop the count to 2). */
+ * still composites twice (entry + finalize), the flash composites once, and the
+ * shared epilogue composites once -> 4. Guards against the epilogue composite
+ * being mistakenly placed inside the loop (which, with 0 targets, would drop
+ * the count to 3). */
 static void test_attack_spell_damage_zero_targets_still_composites(void)
 {
     memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
     setup_impact_buffers();
     g_composite_call_count = 0;
     fd2_apply_attack_spell_damage(0, 0, (uint32)0, 0);
-    ASSERT_EQ(g_composite_call_count, 3);
+    ASSERT_EQ(g_composite_call_count, 4);
 }
 
 

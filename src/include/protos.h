@@ -354,6 +354,7 @@ void fd2_blit_indexed_sprite_at_xy(uint32 dst, uint32 dst_pitch, uint32 sheet, u
 void fd2_paint_portrait_to_dialog_area(uint32 frame);
 void fd2_render_horizontal_bar_segments(uint32 dst_offset, uint32 dst_pitch, uint32 filled_count, uint32 sprite_base);
 void fd2_composite_battle_tile_map(uint32 dst, uint32 stride, uint32 w, uint32 h, uint32 ox, uint32 oy);
+void fd2_composite_chars_with_spell_effect_overlay(uint32 dst_buf, uint32 n_targets, uint32 target_array, int fx_sprite_idx);
 void fd2_paint_cursor_overlay_pattern(void);
 void fd2_blit_24x24_at_window_relative_pos(uint32 world_x, uint32 world_y, uint32 sprite_idx);
 void fd2_tile_blit_24x24_passthrough(uint32 src, uint32 dst, uint32 stride);

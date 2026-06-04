@@ -387,6 +387,89 @@ static void test_impact_zero_frames(void)
     ASSERT_EQ(g_sfx_id_count, 0);
 }
 
+/* ================================================================
+ * fd2_animate_spell_full_screen_flash tests
+ * ================================================================ */
+
+/* recording stub state for the (not-yet-emitted) spell-effect overlay
+ * compositor, plus the delay-thunk and composite-frame counters (testglob.c) */
+extern int    g_spellfx_overlay_calls;
+extern uint32 g_spellfx_overlay_dst[8];
+extern uint32 g_spellfx_overlay_ntgt[8];
+extern uint32 g_spellfx_overlay_arr[8];
+extern int    g_spellfx_overlay_fx[8];
+extern int    g_delay375b2_calls;
+extern uint32 g_delay375b2_last_ticks;
+extern int    g_composite_call_count;
+
+static void setup_fullflash(void)
+{
+    g_spellfx_overlay_calls = 0;
+    g_delay375b2_calls = 0;
+    g_delay375b2_last_ticks = 0;
+    g_composite_call_count = 0;
+
+    /* the real fd2_composite_battle_frame(0) finalizer + the real
+     * fd2_blit_rectangle strobe both read +0x8088 out of this buffer */
+    memset(g_lgs, 0, sizeof(g_lgs));
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_lgs;
+
+    data_fd2_battle_view_window_origin_x = WIN_OX;
+    data_fd2_battle_view_window_origin_y = WIN_OY;
+    data_fd2_battle_view_window_max_x = WIN_MX;
+    data_fd2_battle_view_window_max_y = WIN_MY;
+}
+
+/*
+ * Drives the whole flash pipeline and checks the two-composite + strobe
+ * structure. The two spell-effect composites are recorded by the harness
+ * stub; the strobe loop count is observed through the delay-thunk counter;
+ * the closing composite_battle_frame(0) is observed through the tile-map
+ * composite counter (the only stage in that finalizer still backed by a
+ * recording stub). Verifies variant ordering (0x4A then 0x4B), the dst
+ * buffer routing (live back-buffer then a distinct malloc'd buffer), the
+ * forwarded target args, and that the loop runs exactly four iterations
+ * (8 delays) — guarding the test-first counted loop against off-by-one.
+ */
+static void test_fullflash_two_composites_and_strobe(void)
+{
+    uint8 idx_array[3];
+
+    setup_fullflash();
+
+    idx_array[0] = 2;
+    idx_array[1] = 5;
+    idx_array[2] = 1;
+
+    /* param_1 and spell_id are body-unused; pass sentinels */
+    fd2_animate_spell_full_screen_flash(0xDEAD, 0xBEEF, 3, (uint32)idx_array);
+
+    /* exactly two spell-effect composites: variant A then variant B */
+    ASSERT_EQ(g_spellfx_overlay_calls, 2);
+    ASSERT_EQ(g_spellfx_overlay_fx[0], 0x4a);
+    ASSERT_EQ(g_spellfx_overlay_fx[1], 0x4b);
+
+    /* variant A renders into the live back-buffer */
+    ASSERT_EQ(g_spellfx_overlay_dst[0], (uint32)g_lgs);
+    /* variant B renders into a freshly malloc'd buffer (non-null, distinct) */
+    ASSERT_TRUE(g_spellfx_overlay_dst[1] != 0);
+    ASSERT_TRUE(g_spellfx_overlay_dst[1] != (uint32)g_lgs);
+
+    /* target_count and char_idx_array forwarded unchanged to both composites */
+    ASSERT_EQ(g_spellfx_overlay_ntgt[0], 3u);
+    ASSERT_EQ(g_spellfx_overlay_ntgt[1], 3u);
+    ASSERT_EQ(g_spellfx_overlay_arr[0], (uint32)idx_array);
+    ASSERT_EQ(g_spellfx_overlay_arr[1], (uint32)idx_array);
+
+    /* strobe = 4 iterations x 2 delays = 8 delays, each of 0x5A ticks */
+    ASSERT_EQ(g_delay375b2_calls, 8);
+    ASSERT_EQ(g_delay375b2_last_ticks, 0x5au);
+
+    /* closing fd2_composite_battle_frame(0) ran exactly once (its tile-map
+     * stage bumps g_composite_call_count; the overlay stubs do not) */
+    ASSERT_EQ(g_composite_call_count, 1);
+}
+
 void run_anim_anicombt_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -397,5 +480,6 @@ void run_anim_anicombt_tests(void)
     RUN_TEST(test_impact_sfx_dispatch_sequences);
     RUN_TEST(test_impact_cull_and_arithmetic);
     RUN_TEST(test_impact_zero_frames);
+    RUN_TEST(test_fullflash_two_composites_and_strobe);
     printf("\n");
 }

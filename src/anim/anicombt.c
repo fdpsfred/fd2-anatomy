@@ -237,3 +237,66 @@ void fd2_animate_spell_impact_per_target(uint32 param_1, uint32 spell_id,
     free(backup_buf);
     fd2_composite_battle_frame(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_animate_spell_full_screen_flash @ 0x1CAC7 (2 callers)
+ *
+ * Two-buffer full-screen strobe flash. The "global glow" lead-in effect
+ * for high-tier offensive spells, played before the per-target impact
+ * animation. Renders two full-screen composites (a white-flash variant
+ * and a colour-flash variant) into two separate buffers, then alternates
+ * blitting them to the primary surface four times to produce a strobe.
+ *
+ * Parameters (__cdecl, 4 args; param_1 and spell_id are only consumed by
+ * the stack check, not by the body):
+ *   param_1            unused by the body
+ *   spell_id           unused by the body (the flash variant is fixed)
+ *   target_count       number of entries in char_idx_array
+ *   char_idx_array     byte array of runtime-char indices forwarded to the
+ *                      spell-effect overlay compositor
+ *
+ * Pipeline:
+ *   1. composite variant 0x4A into the live back-buffer (white flash).
+ *   2. malloc a 0x25680 secondary buffer; composite variant 0x4B into it
+ *      (colour flash).
+ *   3. four times: blit A (+0x8088) -> primary, delay 0x5A; blit B
+ *      (+0x8088) -> primary, delay 0x5A. (8 blits total, ~720ms strobe.)
+ *   4. restore the battle frame; free the secondary buffer.
+ *
+ * The original tail-jumps into a shared epilogue (the secondary-buffer
+ * pointer pushed for free() is discarded by that epilogue's ADD ESP,4);
+ * this is reproduced here as a plain free() at function end.
+ * ---------------------------------------------------------------- */
+void fd2_animate_spell_full_screen_flash(uint32 param_1, uint32 spell_id,
+                                         uint32 target_count,
+                                         uint32 char_idx_array)
+{
+    uint8 *flash_buf;
+    int iter;
+
+    (void)param_1;
+    (void)spell_id;
+
+    /* variant-A (white flash) composite into the live back-buffer */
+    fd2_composite_chars_with_spell_effect_overlay(
+        data_fd2_large_game_state_buffer_ptr, target_count, char_idx_array, 0x4a);
+
+    /* variant-B (colour flash) composite into a fresh secondary buffer */
+    flash_buf = (uint8 *)malloc(0x25680);
+    fd2_composite_chars_with_spell_effect_overlay(
+        (uint32)flash_buf, target_count, char_idx_array, 0x4b);
+
+    /* strobe: alternate A/B four times (8 blits, 8 delays) */
+    for (iter = 0; iter < 4; iter++) {
+        fd2_blit_rectangle(0xa0504, 0x140,
+                           data_fd2_large_game_state_buffer_ptr + 0x8088,
+                           0x1c8, 0x138, 0xc0);
+        __delay_thunk_375b2(0x5a);
+        fd2_blit_rectangle(0xa0504, 0x140, (uint32)flash_buf + 0x8088,
+                           0x1c8, 0x138, 0xc0);
+        __delay_thunk_375b2(0x5a);
+    }
+
+    fd2_composite_battle_frame(0);
+    free(flash_buf);
+}

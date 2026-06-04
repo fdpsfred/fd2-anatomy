@@ -450,7 +450,8 @@ void fd2_render_recruitment_select_screen(uint32 a, uint32 b, uint32 c, uint32 d
  * (src/anim/anicombt.c); its former no-op stub here was removed. */
 /* fd2_animate_status_effect_overlay_flicker is now a real emitted function
  * (src/anim/anicombt.c); its former no-op stub here was removed. */
-void fd2_animate_spell_full_screen_flash(uint32 a, uint32 b, uint32 c, uint32 d) { }
+/* fd2_animate_spell_full_screen_flash is now a real emitted function
+ * (src/anim/anicombt.c); its former no-op stub here was removed. */
 void fd2_animate_spell_overlay_blink(uint32 a, uint32 b, uint32 c, uint32 d) { }
 void fd2_show_damage_number(uint32 v, uint32 t, uint32 tg) { }
 void fd2_show_miss_indicator(uint32 t) { }
@@ -512,7 +513,29 @@ int fd2_chapter_transition_menu(void) { return g_chapter_transition_return; }
  * thin wrapper that forwards into the real fd2_render_decimal_number_to_buffer
  * with a red/white color chosen by current==max; the panel/redfull tests
  * observe its rendered digit glyphs through the g_rle_blit_log_* log. */
-void __delay_thunk_375b2(uint32 ticks) { (void)ticks; }
+int    g_delay375b2_calls = 0;
+uint32 g_delay375b2_last_ticks = 0;
+void __delay_thunk_375b2(uint32 ticks) { g_delay375b2_calls++; g_delay375b2_last_ticks = ticks; }
+
+/* fd2_composite_chars_with_spell_effect_overlay (anim spell-effect compositor):
+ * not yet emitted, so a recording stub captures the dst buffer, target args,
+ * and the variant fx index forwarded by fd2_animate_spell_full_screen_flash. */
+int    g_spellfx_overlay_calls = 0;
+uint32 g_spellfx_overlay_dst[8];
+uint32 g_spellfx_overlay_ntgt[8];
+uint32 g_spellfx_overlay_arr[8];
+int    g_spellfx_overlay_fx[8];
+void fd2_composite_chars_with_spell_effect_overlay(uint32 dst_buf, uint32 n_targets,
+                                                   uint32 target_array, int fx_sprite_idx)
+{
+    if (g_spellfx_overlay_calls < 8) {
+        g_spellfx_overlay_dst[g_spellfx_overlay_calls]  = dst_buf;
+        g_spellfx_overlay_ntgt[g_spellfx_overlay_calls] = n_targets;
+        g_spellfx_overlay_arr[g_spellfx_overlay_calls]  = target_array;
+        g_spellfx_overlay_fx[g_spellfx_overlay_calls]   = fx_sprite_idx;
+    }
+    g_spellfx_overlay_calls++;
+}
 int g_ail_vol_calls = 0;
 int g_ail_last_vol = 0;
 int g_ail_last_ramp = 0;

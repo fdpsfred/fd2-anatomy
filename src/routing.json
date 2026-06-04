@@ -1398,8 +1398,9 @@
     "name": "fd2_animate_spell_full_screen_flash",
     "target": "anim/anicombt.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001cb94": {
     "name": "fd2_composite_chars_with_spell_effect_overlay",
