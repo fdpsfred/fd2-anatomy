@@ -63,6 +63,7 @@ int fd2_player_action_menu_loop(uint32 char_idx);
 int fd2_player_inline_action_menu_dispatch(int char_idx,
     int32 *pSlot_disable_arr, int have_moved);
 int fd2_spell_selection_menu_main(uint32 caster_idx);
+int fd2_spell_select_input_loop(uint32 caster_idx);
 int fd2_item_command_menu_dispatch(uint32 char_idx);
 void fd2_handle_tile_event_interaction(uint32 char_idx);
 void fd2_open_char_status_screen(uint32 char_idx);
@@ -231,6 +232,7 @@ int fd2_ai_walk_to_target_tile(uint32 tx, uint32 ty, uint32 ci, uint32 team);
 int fd2_ai_score_physical_attack(uint32 char_idx, uint32 team);
 int fd2_execute_ai_offensive_spell(uint32 char_idx, uint32 team);
 void fd2_play_spell_cast_sequence(uint32 ci, uint32 si, uint32 nt, uint32 tb);
+void fd2_play_spell_palette_flash_with_sfx(int pattern_id);
 int fd2_execute_ai_physical_attack(uint32 char_idx, uint32 team);
 uint32 fd2_animate_combat_speech_bubbles(uint32 ci, uint32 ti);
 void fd2_render_combatant_hp_bar_proportional(uint32 d, uint32 s, uint32 ci, uint32 st);

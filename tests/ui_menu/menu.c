@@ -54,15 +54,14 @@ extern int g_blitsetup_calls;
  * to drive fd2_player_action_menu_loop's unreachable-destination branch. */
 extern int g_pathfind_walk_return;
 
-/* inline-action-menu dispatch seams (testglob.c): control the not-yet-emitted
- * spell submenu and the field tile-event handler so the inline action
- * dispatcher can be driven to each selection branch. The Item-slot gate is now
- * the REAL fd2_count_usable_inventory_slots reading iam_chars inventory flags;
- * the Item branch itself (now-real fd2_item_command_menu_dispatch) is deferred
- * to Phase 9 (see the note above its former tests). */
-extern int g_inline_spell_menu_return;
-extern int g_inline_spell_menu_calls;
-extern int g_inline_spell_menu_pending;   /* XP the spell stub credits on commit */
+/* inline-action-menu dispatch coverage: the Attack-slot gate and the Wait
+ * branch drive real callees (see the tests below). The Spell branch (now-real
+ * fd2_spell_selection_menu_main, src/spell/spellsel.c) and the Item branch
+ * (now-real fd2_item_command_menu_dispatch) are heavy-UI input-loop submenus
+ * with no in-process input seam, so their commit/cancel post-conditions are
+ * deferred to Phase 9 (see the notes where their former tests lived). The
+ * Item-slot gate is the REAL fd2_count_usable_inventory_slots reading iam_chars
+ * inventory flags. */
 
 /* Host-safe render environment for the real open-dialog reached on every
  * field-command iteration: empty party (no real char paint), a real workspace
@@ -365,8 +364,6 @@ static uint32 iam_saved_party_count;
 static uint32 iam_saved_cursor_x;
 static uint32 iam_saved_cursor_y;
 static uint32 iam_saved_pending_xp;
-static int iam_saved_spell_return;
-static int iam_saved_spell_pending;
 
 /* Single player char at index 0, host-safe render env, no weapon equipped.
  * The caller sets the spell/inventory gating seams and stages scancodes. */
@@ -379,8 +376,6 @@ static void iam_setup(uint8 job_id, uint8 level, uint8 silence_flag)
     iam_saved_cursor_x = data_fd2_battle_cursor_world_x;
     iam_saved_cursor_y = data_fd2_battle_cursor_world_y;
     iam_saved_pending_xp = data_fd2_battle_pending_xp_credit;
-    iam_saved_spell_return = g_inline_spell_menu_return;
-    iam_saved_spell_pending = g_inline_spell_menu_pending;
     iam_saved_tile_map_ptr = data_fd2_battle_tile_map_ptr;
     iam_saved_tile_attr_ptr = data_fd2_tile_attribute_flags_buffer_ptr;
     iam_saved_consumed_ptr = data_fd2_field_map_tile_event_consumed_flags_ptr;
@@ -411,8 +406,6 @@ static void iam_setup(uint8 job_id, uint8 level, uint8 silence_flag)
 
     /* iam_chars[0] has no equipped inventory slot, so the REAL
      * fd2_find_equipped_item_by_kind(0,0) returns 0xFFFFFFFF => Attack gated. */
-    g_inline_spell_menu_pending = 0;    /* default: cast credits no XP */
-    g_inline_spell_menu_calls = 0;
 }
 
 static void iam_teardown(void)
@@ -422,8 +415,6 @@ static void iam_teardown(void)
     data_fd2_battle_cursor_world_x = iam_saved_cursor_x;
     data_fd2_battle_cursor_world_y = iam_saved_cursor_y;
     data_fd2_battle_pending_xp_credit = iam_saved_pending_xp;
-    g_inline_spell_menu_return = iam_saved_spell_return;
-    g_inline_spell_menu_pending = iam_saved_spell_pending;
     data_fd2_battle_tile_map_ptr = iam_saved_tile_map_ptr;
     data_fd2_tile_attribute_flags_buffer_ptr = iam_saved_tile_attr_ptr;
     data_fd2_field_map_tile_event_consumed_flags_ptr = iam_saved_consumed_ptr;
@@ -498,69 +489,16 @@ static void test_inline_action_silence_gates_spell(void)
     iam_teardown();
 }
 
-/* Spell commit, job_id <= 8: ap_divisor = status_flags_block[0] (level), and
- * pending_xp_credit is signed-divided by it. level 4, pending 100 -> 25. */
-static void test_inline_action_spell_xp_lowjob(void)
-{
-    int32 slot[4];
-    int r;
-
-    iam_setup(8, 4, 0);                  /* job 8 (not > 8) => no +0x1E */
-    iam_chars[0].spells_known_bitmap[0] = 0x07;  /* knows 3 spells => Spell slot enabled */
-    g_inline_spell_menu_return = 1;      /* spell committed */
-    g_inline_spell_menu_pending = 100;   /* cast credits 100 XP (then scaled) */
-
-    slot[0] = 0; slot[1] = 0; slot[2] = 0; slot[3] = 0;
-    mfix_load_select(1);                 /* Left -> cursor 1, Space commit */
-    r = fd2_player_inline_action_menu_dispatch(0, slot, 0);
-
-    ASSERT_EQ(r, 1);
-    ASSERT_EQ(g_inline_spell_menu_calls, 1);
-    ASSERT_EQ((int)data_fd2_battle_pending_xp_credit, 25);   /* 100 / 4 */
-    iam_teardown();
-}
-
-/* Spell commit, job_id > 8 (priest/cleric): ap_divisor = level + 0x1E.
- * job 9, level 4 -> divisor 34, pending 100 -> 100 / 34 = 2. */
-static void test_inline_action_spell_xp_highjob(void)
-{
-    int32 slot[4];
-    int r;
-
-    iam_setup(9, 4, 0);                  /* job 9 (> 8) => +0x1E */
-    iam_chars[0].spells_known_bitmap[0] = 0x07;  /* knows 3 spells => Spell slot enabled */
-    g_inline_spell_menu_return = 1;
-    g_inline_spell_menu_pending = 100;   /* cast credits 100 XP (then scaled) */
-
-    slot[0] = 0; slot[1] = 0; slot[2] = 0; slot[3] = 0;
-    mfix_load_select(1);
-    r = fd2_player_inline_action_menu_dispatch(0, slot, 0);
-
-    ASSERT_EQ(r, 1);
-    ASSERT_EQ((int)data_fd2_battle_pending_xp_credit, 2);    /* 100 / (4+30) */
-    iam_teardown();
-}
-
-/* Spell submenu cancel (-1): the dispatcher returns 0 (re-prompt) and does
- * not touch pending_xp_credit (left at the post-reset 0). */
-static void test_inline_action_spell_cancel(void)
-{
-    int32 slot[4];
-    int r;
-
-    iam_setup(5, 4, 0);
-    iam_chars[0].spells_known_bitmap[0] = 0x07;  /* knows 3 spells => Spell slot enabled */
-    g_inline_spell_menu_return = -1;     /* spell submenu cancelled */
-    data_fd2_battle_pending_xp_credit = 0;
-
-    slot[0] = 0; slot[1] = 0; slot[2] = 0; slot[3] = 0;
-    mfix_load_select(1);
-    r = fd2_player_inline_action_menu_dispatch(0, slot, 0);
-
-    ASSERT_EQ(r, 0);
-    ASSERT_EQ(g_inline_spell_menu_calls, 1);
-    iam_teardown();
-}
+/* The Spell branch (cursor 1) of the inline action dispatcher loops the now-real
+ * fd2_spell_selection_menu_main (src/spell/spellsel.c). That modal allocates the
+ * three slide buffers, snapshots/restores VGA at 0xA0000, and runs its own input
+ * loop (fd2_spell_select_input_loop) plus target-pick prompts that block on a
+ * keyboard read with no async key source in the host harness -- so its commit
+ * (r==1 -> pending_xp_credit scaled by the AP divisor: status_flags_block[0],
+ * +0x1E when job_id > 8) and cancel (r==-1 -> re-prompt return 0) post-conditions
+ * cannot be driven in-process and are deferred to Phase 9 integration (the same
+ * deferral applied below to the Item branch). The spell modal's own dispatch
+ * logic is covered by 3-source review in src/spell/spellsel.c. */
 
 /* The Item branch (cursor 2) of the inline action dispatcher loops the now-real
  * fd2_item_command_menu_dispatch (src/ui_menu/status.c). That callee opens its
@@ -635,9 +573,6 @@ void run_ui_menu_menu_tests(void)
     RUN_TEST(test_player_action_menu_unreachable);
     RUN_TEST(test_inline_action_cancel_and_gating);
     RUN_TEST(test_inline_action_silence_gates_spell);
-    RUN_TEST(test_inline_action_spell_xp_lowjob);
-    RUN_TEST(test_inline_action_spell_xp_highjob);
-    RUN_TEST(test_inline_action_spell_cancel);
     RUN_TEST(test_inline_action_wait_moved);
     RUN_TEST(test_inline_action_wait_not_moved);
     printf("\n");

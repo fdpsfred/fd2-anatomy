@@ -490,6 +490,28 @@ static void test_dssl_caster_idx_selects_char(void)
     dssl_assert_2digit(0, dssl_num_dst(buf, 0), 8);
 }
 
+/* ================================================================
+ * fd2_spell_selection_menu_main @ 0x1cff0
+ * ================================================================
+ *
+ * Behavioral coverage deferred to Phase 9 integration. The function is a
+ * heavy-UI battle modal: it allocates the three slide buffers, snapshots and
+ * restores the VGA frame at 0xA0000, renders the status layout + spell list,
+ * runs slide-in/out animations, and drives its own input loop
+ * (fd2_spell_select_input_loop) followed by target-pick prompts
+ * (fd2_compute_aoe_targets / fd2_wait_for_action_target_input). Every code path
+ * past the menu-cancel early-out blocks on a real keyboard read with no async
+ * key source in the host harness, so the spell-dispatch branch selection
+ * (single / AoE / teleport) and the cast-vs-status-handler dispatch -- including
+ * the per-spell status handler table call (caster_idx, n_targets, target_buf)
+ * and the cast-sequence target count, both reconstructed from the disassembly
+ * past the decompiler's dropped-argument CALLs -- cannot be exercised
+ * in-process. The same non-isolability defers this modal's inline-dispatcher
+ * Spell branch (tests/ui_menu/menu.c) and the sibling status-overview modal's
+ * full input flow. Correctness here rests on the strict 3-source (plate / disasm
+ * / decomp) review recorded in src/spell/spellsel.c.
+ */
+
 void run_spell_spellsel_tests(void)
 {
     int _prev_fails = g_test_fail_count;

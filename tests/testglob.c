@@ -700,25 +700,29 @@ int32  data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[16] = {0
 double data_fd2_battle_ai_enemy_spell_score_multiplier_15 = 1.5;
 /* fd2_ai_score_item_use: now in btl_ai.c */
 /* fd2_count_usable_inventory_slots: now REAL in src/ui_menu/status.c */
-/* inline action submenu dispatch seams (fd2_player_inline_action_menu_dispatch).
- * The real spell/item submenus are heavy UI/graphics orchestrators not yet
- * emitted; these stubs let the inline action dispatcher be driven to each
- * selection branch deterministically. (The field tile-event handler is now the
- * real fd2_handle_tile_event_interaction in src/ui_menu/menufld.c.) */
-int g_inline_spell_menu_return = 1;
-int g_inline_spell_menu_calls = 0;
-/* On a committed cast the real submenu accrues spell XP into pending_xp_credit;
- * the inline dispatcher then scales it by the AP divisor. Model that here so the
- * scaling can be observed: when committing (return != -1) write this amount. */
-int g_inline_spell_menu_pending = 0;
-int fd2_spell_selection_menu_main(uint32 caster_idx)
+/* fd2_spell_selection_menu_main is now emitted for real in src/spell/spellsel.c
+ * and linked; its former counting stub (and the g_inline_spell_menu_return /
+ * _calls / _pending seams that drove it) were removed. The inline-action
+ * dispatcher's Spell-branch behavioral coverage (case-1 commit XP scaling /
+ * cancel return 0) is a heavy-UI input-loop path -- the real spell modal runs
+ * its own input loop (fd2_spell_select_input_loop) and target-pick prompts on a
+ * keyboard read with no async key source in the host harness -- so it is
+ * deferred to Phase 9 integration, the same deferral applied to the Item branch.
+ *
+ * Its two not-yet-emitted callees get noop stubs so the link resolves:
+ *   fd2_spell_select_input_loop (0x1D51D) -- the modal's per-frame input
+ *     handler (routed to its own emit task); a host call must terminate the
+ *     do/while, so the stub returns -1 (Esc) by default.
+ *   fd2_play_spell_palette_flash_with_sfx (0x1D6C8) -- VGA DAC flash + SFX for
+ *     status-class spells (routed to its own emit task); noop here. */
+int fd2_spell_select_input_loop(uint32 caster_idx)
 {
     (void)caster_idx;
-    g_inline_spell_menu_calls++;
-    if (g_inline_spell_menu_return != -1) {
-        data_fd2_battle_pending_xp_credit = (uint32)g_inline_spell_menu_pending;
-    }
-    return g_inline_spell_menu_return;
+    return -1;
+}
+void fd2_play_spell_palette_flash_with_sfx(int pattern_id)
+{
+    (void)pattern_id;
 }
 /* fd2_equip_unequip_inventory_menu is now emitted for real in
  * src/ui_menu/status.c and linked; its former no-op stub was removed. The

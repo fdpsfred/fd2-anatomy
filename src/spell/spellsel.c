@@ -4,12 +4,15 @@
  * Functions:
  *   fd2_build_usable_spell_list @ 0x1c269 (8 call sites in 7 functions)
  *   fd2_draw_spell_selection_list @ 0x1ceed (3 callers)
+ *   fd2_spell_selection_menu_main @ 0x1cff0 (1 caller)
  */
 
 #include "types.h"
 #include "consts.h"
 #include "globals.h"
 #include "protos.h"
+#include <stdlib.h>
+#include <string.h>
 
 /* ----------------------------------------------------------------
  * fd2_build_usable_spell_list(char_idx, out_buf) @ 0x1c269
@@ -118,4 +121,220 @@ void fd2_draw_spell_selection_list(uint32 caster_idx, uint32 highlighted_idx,
         fd2_render_decimal_number_to_buffer(col_addr_offset + 0x49 + row_y,
                                             0x140, (uint32)pSpell[5], 0x2a, 2);
     }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_spell_selection_menu_main(caster_idx) @ 0x1cff0  (1 caller)
+ *
+ * Battle in-combat spell-selection modal (main entry). Opened by
+ * fd2_player_inline_action_menu_dispatch when the player picks "Spell".
+ *
+ * Setup (same three-buffer layout as the status overview screen):
+ *   alloc accumulator/snapshot/composed buffers (64000 each), snapshot
+ *   the VGA frame at 0xA0000 into snapshot, copy into composed, render
+ *   the static status layout + the spell list (highlight = -1) into it,
+ *   then a 12-frame slide-in (frame 11..0) via the outro-step driver.
+ *
+ * Input loop: repeat fd2_spell_select_input_loop(caster_idx) until it
+ * returns non-zero (1 = commit at current_menu_cursor_idx, -1 = Esc).
+ *
+ * Teardown: 12-frame slide-out (frame 0..0xB), restore the VGA snapshot
+ * to 0xA0000, free the three buffers. On Esc (loop == -1) return -1.
+ *
+ * Spell dispatch (loop != -1):
+ *   pSpell        = fd2_get_spell_effect_entry(spell_id_list[cursor])
+ *   battle phase  = pSpell[4] + 2  (animation freeze period)
+ *   aoe_kind      = pSpell[3]      (0 = single, !=0 = AoE)
+ *   spell_id      = spell_id_list[cursor]
+ *
+ * Target-selection branch:
+ *   - aoe_kind != 0 && spell_id == 0x17 (teleport-class): two-stage
+ *     target pick (source range, then a free destination via wait mode
+ *     6); on commit, record the teleport destination world coords and
+ *     pan the cursor.
+ *   - aoe_kind == 0 || spell_id == 0x17 (single target): pick within the
+ *     spell range (wait mode 5 when no targets in range, else 4).
+ *   - else (AoE, aoe_kind != 0 && spell_id != 0x17): pick the AoE anchor
+ *     (wait mode = pSpell[6]); spell 0x1E uses a line scan to resolve the
+ *     final hit list, all others a second AoE compute pass.
+ *
+ * On cancel (result == -1): restore the cursor, return 0.
+ * On hit: composite the frame, then either
+ *   - spell_id < 9 || == 0x18 || > 0x1B: fd2_play_spell_cast_sequence
+ *     (ordinary attack / heal / full-party spells), or
+ *   - 9 <= spell_id <= 0x1B && != 0x18 (status/special spells): load the
+ *     status SFX, play the palette flash, invoke the per-spell status
+ *     handler in data_fd2_battle_spell_handler_table[spell_id]
+ *     (called with caster_idx, hit count, target buffer), free the SFX.
+ * Then collect/animate/process death drops and return 1.
+ *
+ * Returns: 1 = cast performed, 0 = target cancelled, -1 = menu cancelled.
+ *
+ * Cdecl, 1 stack param. The binary's __CHK(0x108) stack-probe prologue is
+ * compiler-injected and not part of the source.
+ *
+ * NOTE: the three "dropped-argument" CALLs flagged by the decompiler are
+ * reconstructed from the disassembly here -- the per-spell status handler
+ * table call passes (caster_idx, n_targets, target_buf), and the cast /
+ * drops calls take the live target/drop counts -- matching the machine code.
+ * ---------------------------------------------------------------- */
+int fd2_spell_selection_menu_main(uint32 caster_idx)
+{
+    uint8 *pSpell;
+    uint32 aoe_kind;
+    uint32 spell_id;
+    uint32 aoe_target_count;
+    uint32 n_targets;
+    uint32 drops_count;
+    int    result_or_aoe;
+    int    loop_result;
+    int    wait_mode;
+    uint32 frame;
+    uint32 saved_cursor_x;
+    uint32 saved_cursor_y;
+    uint8  target_buf[100];
+    uint8  drops_buf[100];
+    uint8  spell_id_list[12];
+
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_composed_target_buf_ptr = (uint32)malloc(64000);
+
+    memmove((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr,
+            (void *)0xa0000, 64000);
+    memmove((void *)data_fd2_ui_slide_composed_target_buf_ptr,
+            (void *)data_fd2_ui_slide_bg_snapshot_buf_ptr, 64000);
+    fd2_render_status_screen_static_layout(
+        caster_idx, data_fd2_ui_slide_composed_target_buf_ptr);
+    fd2_draw_spell_selection_list(
+        caster_idx, 0xffffffff, data_fd2_ui_slide_composed_target_buf_ptr);
+
+    for (frame = 0xb; (int)frame >= 0; frame = frame - 1) {
+        fd2_play_status_screen_outro_step(
+            frame, data_fd2_ui_slide_anim_accumulator_buf_ptr,
+            data_fd2_ui_slide_composed_target_buf_ptr,
+            (int)data_fd2_ui_slide_bg_snapshot_buf_ptr);
+    }
+
+    data_fd2_ui_menu_cursor_idx = 0;
+    do {
+        loop_result = fd2_spell_select_input_loop(caster_idx);
+    } while (loop_result == 0);
+
+    for (frame = 0; (int)frame < 0xc; frame = frame + 1) {
+        fd2_play_status_screen_outro_step(
+            frame, data_fd2_ui_slide_anim_accumulator_buf_ptr,
+            data_fd2_ui_slide_composed_target_buf_ptr,
+            (int)data_fd2_ui_slide_bg_snapshot_buf_ptr);
+    }
+    memmove((void *)0xa0000,
+            (void *)data_fd2_ui_slide_bg_snapshot_buf_ptr, 64000);
+    free((void *)data_fd2_ui_slide_anim_accumulator_buf_ptr);
+    free((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr);
+    free((void *)data_fd2_ui_slide_composed_target_buf_ptr);
+
+    if (loop_result == -1) {
+        return -1;
+    }
+
+    fd2_build_usable_spell_list(caster_idx, (uint32)spell_id_list);
+    pSpell = fd2_get_spell_effect_entry(
+        (int)spell_id_list[data_fd2_ui_menu_cursor_idx]);
+    data_fd2_battle_anim_phase = (uint32)pSpell[4] + 2;
+    aoe_kind = (uint32)pSpell[3];
+    spell_id = (uint32)spell_id_list[data_fd2_ui_menu_cursor_idx];
+
+    if (aoe_kind != 0 && spell_id == 0x17) {
+        /* teleport-class: source range pick, then free destination pick */
+        aoe_target_count = fd2_compute_aoe_targets(
+            data_fd2_battle_cursor_world_x, data_fd2_battle_cursor_world_y,
+            (uint32)target_buf, aoe_kind, 1, (uint32)pSpell[6]);
+        result_or_aoe = fd2_wait_for_action_target_input(
+            (int)pSpell[6], aoe_target_count, target_buf);
+        fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+
+        n_targets = fd2_compute_aoe_targets(
+            data_fd2_battle_cursor_world_x, data_fd2_battle_cursor_world_y,
+            (uint32)target_buf, (uint32)pSpell[4], 0, (uint32)pSpell[6]);
+        fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+
+        if (result_or_aoe != -1) {
+            result_or_aoe = fd2_wait_for_action_target_input(
+                6, (uint32)target_buf[0], (uint8 *)0);
+        }
+        if (result_or_aoe != -1) {
+            data_fd2_battle_teleport_dest_world_x =
+                data_fd2_battle_cursor_world_x;
+            data_fd2_battle_teleport_dest_world_y =
+                data_fd2_battle_cursor_world_y;
+            data_fd2_battle_anim_phase = 0;
+            fd2_pan_cursor_to_char(caster_idx);
+            data_fd2_battle_anim_phase = 1;
+        }
+    }
+    else if (aoe_kind == 0 || spell_id == 0x17) {
+        /* single target */
+        data_fd2_battle_anim_phase = 1;
+        n_targets = fd2_compute_aoe_targets(
+            data_fd2_battle_cursor_world_x, data_fd2_battle_cursor_world_y,
+            (uint32)target_buf, (uint32)pSpell[4], 0, 0);
+        wait_mode = 4;
+        if (n_targets == 0) {
+            wait_mode = 5;
+        }
+        result_or_aoe = fd2_wait_for_action_target_input(
+            wait_mode, 0, target_buf);
+    }
+    else {
+        /* AoE (aoe_kind != 0 && spell_id != 0x17) */
+        aoe_target_count = fd2_compute_aoe_targets(
+            data_fd2_battle_cursor_world_x, data_fd2_battle_cursor_world_y,
+            (uint32)target_buf, aoe_kind, 0, (uint32)pSpell[6]);
+        saved_cursor_x = data_fd2_battle_cursor_world_x;
+        saved_cursor_y = data_fd2_battle_cursor_world_y;
+        result_or_aoe = fd2_wait_for_action_target_input(
+            (int)pSpell[6], aoe_target_count, target_buf);
+        fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+
+        if (spell_id == 0x1e) {
+            n_targets = fd2_scan_chars_along_line_with_team_filter(
+                data_fd2_battle_cursor_world_x, data_fd2_battle_cursor_world_y,
+                (uint32)target_buf, saved_cursor_x, saved_cursor_y,
+                (uint32)(pSpell[3] - 0x10), 1);
+        }
+        else {
+            n_targets = fd2_compute_aoe_targets(
+                data_fd2_battle_cursor_world_x, data_fd2_battle_cursor_world_y,
+                (uint32)target_buf, (uint32)pSpell[4], 0, (uint32)pSpell[6]);
+        }
+    }
+
+    fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+
+    if (result_or_aoe == -1) {
+        data_fd2_battle_anim_phase = 0;
+        fd2_pan_cursor_to_char(caster_idx);
+        data_fd2_battle_anim_phase = 1;
+        return 0;
+    }
+
+    data_fd2_battle_anim_phase = 0;
+    fd2_composite_battle_frame(0);
+    spell_id = (uint32)spell_id_list[data_fd2_ui_menu_cursor_idx];
+    if (spell_id < 9 || spell_id == 0x18 || spell_id > 0x1b) {
+        fd2_play_spell_cast_sequence(
+            caster_idx, spell_id, n_targets, (uint32)target_buf);
+    }
+    else {
+        fd2_load_status_effect_sfx();
+        fd2_play_spell_palette_flash_with_sfx((int)spell_id);
+        data_fd2_battle_spell_handler_table[spell_id](
+            caster_idx, n_targets, target_buf);
+        fd2_play_and_free_status_effect_sfx();
+    }
+    drops_count = fd2_collect_pending_death_drops((uint32)drops_buf);
+    fd2_play_death_animation_and_mark_dead();
+    fd2_process_battle_drop_entries(caster_idx, drops_count, (uint32)drops_buf);
+    data_fd2_battle_anim_phase = 1;
+    return 1;
 }

@@ -473,5 +473,23 @@
         "verify_method": "compile_and_disasm"
       }
     ]
+  },
+  "0001cff0": {
+    "name": "fd2_spell_selection_menu_main",
+    "target": "spell/spellsel.c",
+    "issues": [
+      {
+        "type": "dropped_arg_call_recovery",
+        "desc": "Ghidra dropped arguments on three CALLs (systematic EAX/arg-tracking bug); reconstructed from the disassembly. (1) The per-spell status handler table call @0x1D479 'CALL [EAX*4+0x51D01]' is preceded by PUSH [ESP+0xf4](=caster_idx), PUSH ESI(=n_targets), PUSH ESP(=target_buf) and ADD ESP,0xC after -> emitted as data_fd2_battle_spell_handler_table[spell_id](caster_idx, n_targets, target_buf), matching the (uint32,uint32,uint8*) table prototype in globals.h. (2) fd2_play_spell_cast_sequence @0x1D43C takes (caster_idx, spell_id, ESI=n_targets, target_buf). (3) collect/process death-drops take the live drop count (EBX). Verify byte-identical arg push order post-build.",
+        "severity": "low",
+        "verify_method": "compile_and_disasm"
+      },
+      {
+        "type": "global_read_vs_table_read",
+        "desc": "Single-target branch @0x1D366: the binary computes compute_aoe_targets arg4 as (battle_anim_phase - 2) by reading the global [0x51A83] (which was set to pSpell[4]+2 at 0x1D188 with no intervening write), then stores battle_anim_phase=1. Emitted as the value-equal, alias-free pSpell[4] (the decompiler's own simplification) and a separate 'battle_anim_phase = 1' store. Result is numerically identical; the emitted code reads pSpell+4 instead of the global, so the memory access differs. Confirm equivalence post-build.",
+        "severity": "low",
+        "verify_method": "compile_and_disasm"
+      }
+    ]
   }
 }
