@@ -269,6 +269,8 @@ void fd2_maybe_load_speed_mode_overlay(void);
 void fd2_maybe_free_speed_mode_overlay(void);
 void fd2_animate_phase_banner_slide_in(uint32 banner_sprite_id);
 void fd2_animate_phase_banner_slide_out(uint32 banner_sprite_id);
+void fd2_render_phase_banner_frame(uint32 x_offset, uint32 banner_sprite_id);
+void fd2_scroll_buffer_block_with_wrap(uint32 wrap_param, void *dst_buf, void *src_buf);
 
 /* ---- summon spell animation ---- */
 int fd2_tick_summon_spell_minor_animation_state(uint32 sh, uint32 sa, uint32 oy, uint32 rs, uint32 sc);

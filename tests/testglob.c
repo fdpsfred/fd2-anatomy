@@ -694,15 +694,38 @@ void fd2_play_palette_fade_in(void) { }
  * table + spy handlers (see tests/battle/btl_turn.c).
  * fd2_maybe_load_speed_mode_overlay / fd2_maybe_free_speed_mode_overlay:
  * now emitted in src/ui_menu/menucfg.c. */
-int g_phase_banner_slide_in_calls = 0;
+/* fd2_animate_phase_banner_slide_in: now emitted for real in
+ * src/anim/anicombt.c; its former counting stub here was removed. Its sole
+ * caller's test (battle/btl_turn.c full-cycle) now drives the real banner
+ * and counts invocations at the still-stub fd2_render_phase_banner_frame
+ * boundary (7 frame renders per banner) via g_render_phase_banner_frame_calls.
+ * fd2_animate_phase_banner_slide_out stays a counting stub (not yet emitted). */
 int g_phase_banner_slide_out_calls = 0;
-void fd2_animate_phase_banner_slide_in(uint32 banner_sprite_id) {
-    g_phase_banner_slide_in_calls++;
-    (void)banner_sprite_id;
-}
 void fd2_animate_phase_banner_slide_out(uint32 banner_sprite_id) {
     g_phase_banner_slide_out_calls++;
     (void)banner_sprite_id;
+}
+/* Per-frame renderer + vertical-scroll block copy: callees of the now-real
+ * fd2_animate_phase_banner_slide_in, not yet emitted. Both record call counts
+ * (and the scroll's last wrap_param) so the slide_in test can pin its two
+ * loops: the frame renderer fires 7x per banner (5-frame countdown + 2 settle)
+ * and the fade loop scrolls 16x with scroll_offset advancing 1..16. The
+ * turn-cycle test also reads g_render_phase_banner_frame_calls. */
+int g_render_phase_banner_frame_calls = 0;
+uint32 g_render_phase_banner_frame_last_x = 0xFFFFFFFFu;
+void fd2_render_phase_banner_frame(uint32 x_offset, uint32 banner_sprite_id) {
+    g_render_phase_banner_frame_calls++;
+    g_render_phase_banner_frame_last_x = x_offset;
+    (void)banner_sprite_id;
+}
+int g_scroll_buffer_calls = 0;
+uint32 g_scroll_buffer_last_wrap = 0;
+void fd2_scroll_buffer_block_with_wrap(uint32 wrap_param, void *dst_buf,
+                                       void *src_buf) {
+    g_scroll_buffer_calls++;
+    g_scroll_buffer_last_wrap = wrap_param;
+    (void)dst_buf;
+    (void)src_buf;
 }
 /* fd2_process_battle_drop_entries: now emitted for real in
  * src/battle/btl_turn.c; its former noop stub here was removed. The

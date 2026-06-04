@@ -638,7 +638,11 @@ static void test_mark_char_acted(void)
 
 /* ---- fd2_run_full_turn_cycle ---- */
 
-extern int g_phase_banner_slide_in_calls;
+/* fd2_animate_phase_banner_slide_in is now emitted for real (anicombt.c), so
+ * the full cycle runs the real banner; its invocations are counted at the
+ * still-stub fd2_render_phase_banner_frame boundary (7 frame renders per
+ * banner). slide_out is still a counting stub. */
+extern int g_render_phase_banner_frame_calls;
 extern int g_phase_banner_slide_out_calls;
 extern int g_restore_block_calls;
 extern uint8 data_fd2_audio_bgm_driver_available_flag;
@@ -759,7 +763,7 @@ static void test_run_turn_cycle_phase_a_heal(void)
     data_fd2_battle_party_member_count = 7;
 
     data_fd2_chapter_event_or_battle_end_code = 9;  /* gate -> early exit */
-    g_phase_banner_slide_in_calls = 0;
+    g_render_phase_banner_frame_calls = 0;
 
     fd2_run_full_turn_cycle();
 
@@ -780,7 +784,7 @@ static void test_run_turn_cycle_phase_a_heal(void)
      * the phase-0 (Phase D) entry never fired and no banner animated. */
     ASSERT_EQ(g_turncycle_spy_b_fired, 1);
     ASSERT_EQ(g_turncycle_spy_d_fired, 0);
-    ASSERT_EQ(g_phase_banner_slide_in_calls, 0);
+    ASSERT_EQ(g_render_phase_banner_frame_calls, 0);
 
     data_fd2_battle_ai_post_action_consequence_table[0x10] = 0;
     data_fd2_battle_ai_post_action_consequence_table[0x11] = 0;
@@ -853,7 +857,7 @@ static void test_run_turn_cycle_full_reveal(void)
     data_fd2_battle_turn_counter = 7;
     data_fd2_battle_current_active_char_idx = 99;
     data_fd2_battle_anim_phase = 5;
-    g_phase_banner_slide_in_calls = 0;
+    g_render_phase_banner_frame_calls = 0;
     g_phase_banner_slide_out_calls = 0;
     g_restore_block_calls = 0;
 
@@ -861,8 +865,10 @@ static void test_run_turn_cycle_full_reveal(void)
 
     /* turn counter bumped exactly once (Phase F). */
     ASSERT_EQ((long)data_fd2_battle_turn_counter, 8);
-    /* Phase D banner (0x52) + Phase F banner (0x50): 2 in, 2 out. */
-    ASSERT_EQ(g_phase_banner_slide_in_calls, 2);
+    /* Phase D banner (0x52) + Phase F banner (0x50): each real slide_in
+     * renders 7 frames (5-frame countdown + settle 1 + settle 0), so two
+     * banners => 14 frame renders. Plus 2 slide_out stub calls. */
+    ASSERT_EQ(g_render_phase_banner_frame_calls, 14);
     ASSERT_EQ(g_phase_banner_slide_out_calls, 2);
     /* Real dispatcher fired the matching chapter event at each phase:
      * phase 1 (B) + phase 0 (D) while turn==7, phase 2 (F) at turn==8. */

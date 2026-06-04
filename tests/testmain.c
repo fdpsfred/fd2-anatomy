@@ -17,6 +17,7 @@ void test_print_summary(void)
 /* >>> GENBUILD externs >>> */
 extern void run_anim_anicombt1_tests(void);
 extern void run_anim_anicombt2_tests(void);
+extern void run_anim_anicombt3_tests(void);
 extern void run_anim_anidec_tests(void);
 extern void run_anim_anisummn1_tests(void);
 extern void run_anim_anisummn2_tests(void);
@@ -63,6 +64,7 @@ int main(void)
     /* >>> GENBUILD calls >>> */
     run_anim_anicombt1_tests();
     run_anim_anicombt2_tests();
+    run_anim_anicombt3_tests();
     run_anim_anidec_tests();
     run_anim_anisummn1_tests();
     run_anim_anisummn2_tests();

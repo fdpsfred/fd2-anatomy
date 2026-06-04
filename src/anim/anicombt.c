@@ -1108,3 +1108,75 @@ uint32 fd2_animate_combat_speech_bubbles(uint32 attacker_idx, uint32 defender_id
 
     return (uint32)data_fd2_battle_combat_speech_bubble_pos_pairs;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_animate_phase_banner_slide_in @ 0x1F1CC (1 caller)
+ *
+ * "ENEMY TURN" / "PLAYER TURN" turn-phase banner slide-in animation.
+ * Called by fd2_run_full_turn_cycle at the start of Phase D (ENEMY,
+ * banner_sprite_id 0x52) and Phase F (PLAYER, banner_sprite_id 0x50).
+ * Paired with fd2_animate_phase_banner_slide_out.
+ *
+ *   snapshot = malloc(64000); memmove(snapshot, 0xA0000, 64000)  // backup VGA
+ *
+ * Phase 1 (slide-in, 7 frames): the two banner halves slide from the
+ *   screen edges toward centre. x_offset = 0x64,0x4B,0x32,0x19,0 (the
+ *   frame_iter*0x19 countdown), then a 1 and a 0 settle frame.
+ *
+ *   memmove(large_game_state_buffer, snapshot, 64000)  // restore working buf
+ *   memset(snapshot, 0, 64000)                          // reuse as black frame
+ *
+ * Phase 2 (palette fade-in, 16 frames): for brightness 0..15 the source
+ *   block is scrolled (scroll_offset 1..16) into the snapshot, the main
+ *   banner sprite (banner_sprite_id) and the corner frame sprite (0x51)
+ *   are blitted, the VGA palette is faded up, and the frame is pushed to
+ *   0xA0000 with a one-tick wait.
+ *
+ * NOTE (Ghidra EAX-tracking bug): the decompiler collapsed the two
+ * fd2_alloc_and_blit_indexed_sprite_chunk return values and the trailing
+ * memmove return into a single reused temporary. The assembly shows each
+ * blit returns its own freshly malloc'd save buffer, each freed
+ * immediately after its blit (PUSH EAX; CALL free); the memmove return is
+ * discarded. Encoded as two separate save-buffer frees per frame.
+ * ---------------------------------------------------------------- */
+void fd2_animate_phase_banner_slide_in(uint32 banner_sprite_id)
+{
+    uint8 *snapshot_buf;
+    uint32 blit_buf;
+    uint32 frame_iter;
+    uint32 scroll_offset;
+    uint32 fade_iter;
+
+    scroll_offset = 1;
+    snapshot_buf = (uint8 *)malloc(64000);
+    memmove(snapshot_buf, (void *)0xa0000, 64000);
+
+    for (frame_iter = 4; -1 < (int32)frame_iter; frame_iter--) {
+        fd2_render_phase_banner_frame(frame_iter * 0x19, banner_sprite_id);
+    }
+    fd2_render_phase_banner_frame(1, banner_sprite_id);
+    fd2_render_phase_banner_frame(0, banner_sprite_id);
+
+    memmove((void *)data_fd2_large_game_state_buffer_ptr, snapshot_buf, 64000);
+    memset(snapshot_buf, 0, 64000);
+
+    for (fade_iter = 0; (int32)fade_iter < 0x10; fade_iter++) {
+        fd2_scroll_buffer_block_with_wrap(scroll_offset, snapshot_buf,
+                                          (void *)data_fd2_large_game_state_buffer_ptr);
+        blit_buf = fd2_alloc_and_blit_indexed_sprite_chunk(
+            data_fd2_ui_anim_sprite_sheet_ptr, (uint32)snapshot_buf, 0x140,
+            0x59, 0x56, banner_sprite_id);
+        free((void *)blit_buf);
+        blit_buf = fd2_alloc_and_blit_indexed_sprite_chunk(
+            data_fd2_ui_anim_sprite_sheet_ptr, (uint32)snapshot_buf, 0x140,
+            0xa9, 0x56, 0x51);
+        free((void *)blit_buf);
+        fd2_set_vga_palette_range(0x10, 0xff, fade_iter);
+        memmove((void *)0xa0000, snapshot_buf, 64000);
+        fd2_wait_n_bios_ticks(1);
+        scroll_offset++;
+    }
+
+    free(snapshot_buf);
+    fd2_clear_keyboard_buffer();
+}
