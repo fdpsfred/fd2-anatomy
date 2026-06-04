@@ -286,3 +286,44 @@ void fd2_cast_spell_17_complex(uint32 caster, uint32 spell_arg,
 
     data_fd2_battle_anim_phase = 1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_cast_group_hp_heal_spell @ 0x211A4  (2 callers)
+ *
+ * Group HP-heal spell effect (Cure / Heal-line, multi-target).
+ * Plays the heal sparkles (sprite id 0x0D) impact + overlay flicker,
+ * then heals every target in the byte array (HP delta + XP credit via
+ * fd2_apply_hp_heal_and_award_xp) and shows the heal indicator number
+ * (0x69 = 'i') over each. Ends with a Pattern-A SHARED EPILOGUE: the
+ * loop-exit JMP 0x21190 falls into fd2_composite_then_animate_
+ * projectiles, whose body is fd2_composite_battle_frame(0) then
+ * fd2_animate_spell_projectile_paths() (inlined here; the wrapper is a
+ * shared-epilogue fragment, not a standalone C function).
+ *
+ * heal_amount is the per-target return of fd2_apply_hp_heal_and_award_
+ * xp: asm 0x211E7 CALL leaves it in EAX, 0x211EC ADD ESP,8 / 0x211F6
+ * PUSH EAX forward it straight into fd2_show_damage_number (no EAX
+ * clobber between), so the inner return IS the displayed number.
+ * ---------------------------------------------------------------- */
+void fd2_cast_group_hp_heal_spell(uint32 caster_idx, uint32 n_targets,
+                                   uint32 targets, uint32 heal_base)
+{
+    uint32 iter;
+    uint8 target_id;
+    uint32 heal_amount;
+
+    fd2_animate_spell_impact_per_target(
+        caster_idx, 0x0D, n_targets, targets);
+    fd2_animate_status_effect_overlay_flicker(
+        caster_idx, 0x0D, n_targets, targets);
+
+    for (iter = 0; (int)iter < (int)n_targets; iter++) {
+        target_id = *((uint8 *)targets + iter);
+        heal_amount = (uint32)fd2_apply_hp_heal_and_award_xp(
+                          (uint32)target_id, heal_base);
+        fd2_show_damage_number(heal_amount, 0x69, (uint32)target_id);
+    }
+
+    fd2_composite_battle_frame(0);
+    fd2_animate_spell_projectile_paths();
+}

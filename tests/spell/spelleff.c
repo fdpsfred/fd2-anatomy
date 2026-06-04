@@ -100,10 +100,19 @@ static void setup_use_effect(uint8 effect_code, uint16 effect_param)
 
 /* Codes 5/6/7/0x0B must spend the inventory slot exactly once. */
 
+/* Effect 0x05 routes into the REAL fd2_cast_group_hp_heal_spell, whose per-
+ * target fd2_apply_hp_heal_and_award_xp divides the XP credit by the target's
+ * hp_max (battle.c L82 / asm 0x1c9cc IDIV [ESP]=hp_max) whenever portrait_id <
+ * 0x4b. A real heal target always has hp_max > 0, so give target[1] valid HP
+ * (the zeroed fixture would otherwise feed hp_max=0 + portrait 0 -> the divide
+ * faults). portrait 0x50 (>= 0x4b) also skips the XP block outright. */
 static void test_use_effect_code5_consumes(void)
 {
     uint8 target_id = 1;
     setup_use_effect(0x05, 50);
+    g_test_rc_array[1].hp_current = 50;
+    g_test_rc_array[1].hp_max = 200;
+    g_test_rc_array[1].portrait_id = 0x50;
     fd2_apply_use_effect_dispatch(0, 0, 1, (uint32)&target_id);
     ASSERT_EQ(g_test_rc_array[0].inventory_slots[14], 0x80);  /* slot consumed */
 }
@@ -359,6 +368,106 @@ static void test_attack_spell_damage_zero_targets_still_composites(void)
 }
 
 
+/* ---- fd2_cast_group_hp_heal_spell @ 0x211A4 ---- */
+
+/* The group-heal loop must visit EVERY entry of the byte target array (asm
+ * 0x211DA XOR ESI,ESI .. 0x21200 CMP ESI,EDI / 0x21202 JL), not just the
+ * first. Two live targets (hp 50/max 200) both get healed through the real
+ * fd2_apply_hp_heal_and_award_xp: target[0] consumes RNG call 1 (seed 0 ->
+ * 0x80A4, %100=32 -> extra (32*100)/1000=3 -> heal 90+3=93 -> hp 50->143);
+ * target[1] consumes RNG call 2 (-> 0x85C0, %100=40 -> extra 4 -> heal 94 ->
+ * hp 50->144). Asserting BOTH hp values changed (and to the exact per-call
+ * amounts) proves the loop iterates both indices in order. If the loop ever
+ * stopped after one target, target[1] would stay at 50. */
+static void test_group_heal_visits_all_targets(void)
+{
+    uint8 target_ids[2];
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;   /* bound impact/flicker loops */
+    g_test_rc_array[0].hp_current = 50;
+    g_test_rc_array[0].hp_max = 200;
+    g_test_rc_array[0].portrait_id = 0x50;    /* >= 0x4b -> skip XP block */
+    g_test_rc_array[1].hp_current = 50;
+    g_test_rc_array[1].hp_max = 200;
+    g_test_rc_array[1].portrait_id = 0x50;
+    data_fd2_shared_rng_seed = 0;
+    target_ids[0] = 0;
+    target_ids[1] = 1;
+    fd2_cast_group_hp_heal_spell(0, 2, (uint32)target_ids, 100);
+    ASSERT_EQ(g_test_rc_array[0].hp_current, 143);   /* 50 + 90 + 3 */
+    ASSERT_EQ(g_test_rc_array[1].hp_current, 144);   /* 50 + 90 + 4 */
+}
+
+
+/* The heal target is read from targets[iter] as a BYTE (asm 0x211E2
+ * MOVZX EAX,byte ptr [ESI+EBP]), so the array entries select WHICH chars heal.
+ * Place the two live targets at non-adjacent indices 2 and 5 and leave a char
+ * at index 0 untouched: only chars 2 and 5 must change, char 0 must stay put.
+ * A bug that healed char index 0 (e.g. ignoring the array and using iter as the
+ * char id) would bump g_test_rc_array[0] and fail the unchanged assert. */
+static void test_group_heal_indexes_target_array(void)
+{
+    uint8 target_ids[2];
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[0].hp_current = 77;       /* bystander, must NOT change */
+    g_test_rc_array[0].hp_max = 200;
+    g_test_rc_array[2].hp_current = 50;
+    g_test_rc_array[2].hp_max = 200;
+    g_test_rc_array[2].portrait_id = 0x50;
+    g_test_rc_array[5].hp_current = 50;
+    g_test_rc_array[5].hp_max = 200;
+    g_test_rc_array[5].portrait_id = 0x50;
+    data_fd2_shared_rng_seed = 0;
+    target_ids[0] = 2;
+    target_ids[1] = 5;
+    fd2_cast_group_hp_heal_spell(0, 2, (uint32)target_ids, 100);
+    ASSERT_EQ(g_test_rc_array[0].hp_current, 77);    /* untouched */
+    ASSERT_EQ(g_test_rc_array[2].hp_current, 143);   /* 50 + 90 + 3 */
+    ASSERT_EQ(g_test_rc_array[5].hp_current, 144);   /* 50 + 90 + 4 */
+}
+
+
+/* Per-target heal goes through the real worker INCLUDING its HP-max cap branch
+ * (battle.c L70-71). target[0] sits at 195/200: 195 + 93 = 288 > 200, so it
+ * must clamp to exactly 200, not overflow. Confirms the loop body delegates to
+ * the real fd2_apply_hp_heal_and_award_xp rather than an unclamped add. */
+static void test_group_heal_caps_at_max(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[3].hp_current = 195;
+    g_test_rc_array[3].hp_max = 200;
+    g_test_rc_array[3].portrait_id = 0x50;
+    data_fd2_shared_rng_seed = 0;
+    target_id = 3;
+    fd2_cast_group_hp_heal_spell(0, 1, (uint32)&target_id, 100);
+    ASSERT_EQ(g_test_rc_array[3].hp_current, 200);   /* clamped */
+}
+
+
+/* Empty target list (count 0): the loop body never runs, so no char is healed,
+ * but the function must still complete (impact + flicker + shared-epilogue
+ * composite). Guards the loop guard (JL on count) against an off-by-one that
+ * would heal char targets[0] when count is 0. */
+static void test_group_heal_zero_targets_no_heal(void)
+{
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[0].hp_current = 60;
+    g_test_rc_array[0].hp_max = 200;
+    g_test_rc_array[0].portrait_id = 0x50;
+    data_fd2_shared_rng_seed = 0;
+    fd2_cast_group_hp_heal_spell(0, 0, (uint32)0, 100);
+    ASSERT_EQ(g_test_rc_array[0].hp_current, 60);    /* unchanged */
+}
+
+
 void run_spell_spelleff_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -378,5 +487,9 @@ void run_spell_spelleff_tests(void)
     RUN_TEST(test_use_effect_code14_no_consume);
     RUN_TEST(test_use_effect_code13_restores_movement_order);
     RUN_TEST(test_use_effect_resets_xp_credit);
+    RUN_TEST(test_group_heal_visits_all_targets);
+    RUN_TEST(test_group_heal_indexes_target_array);
+    RUN_TEST(test_group_heal_caps_at_max);
+    RUN_TEST(test_group_heal_zero_targets_no_heal);
     printf("\n");
 }

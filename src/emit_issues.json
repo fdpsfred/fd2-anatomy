@@ -504,5 +504,18 @@
         "source_review": "fd2_display_cinematic_image_with_fade @0001f73f (emitter)"
       }
     ]
+  },
+  "000211a4": {
+    "name": "fd2_cast_group_hp_heal_spell",
+    "target": "spell/spelleff.c",
+    "issues": [
+      {
+        "type": "callee_decompiler_artifact_handoff",
+        "desc": "NON-BLOCKING (callee, already emitted; not this function): Ghidra decompiler output for fd2_apply_hp_heal_and_award_xp @ 0x1c916 shows extra_heal computed as ((base_heal_90 % 100) * param_2)/1000, but the assembly (0x1c965 MOV EDX,EAX[=rng] / 0x1c96f IDIV 0x64 -> EDX=rng%100 / 0x1c971 IMUL EDX,heal_base) proves it is ((rng % 100) * heal_base)/1000. The decompiled C is wrong (register-aliasing artifact); the plate for that callee is already CORRECT (says 'rng_state % 100'). Recorded so any future re-emit/verify of that callee relies on the asm/plate, not the decompiled C. Does not affect the function under review, which calls the real worker.",
+        "severity": "info",
+        "verify_method": "asm_plate_authoritative",
+        "source_review": "fd2_cast_group_hp_heal_spell @000211a4 (reviewer)"
+      }
+    ]
   }
 }
