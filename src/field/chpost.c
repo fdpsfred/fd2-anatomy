@@ -414,3 +414,32 @@ void fd2_chapter_21_post_action(uint32 event_arg)
         data_fd2_chapter_event_or_battle_end_code = 1;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_22_27_28_post_action_shared @ 0x20A87  (dispatched, 0 direct callers)
+ *
+ * Shared turn-cycle post-action handler for chapters 22, 27 and 28.
+ * Reached via data_fd2_chapter_post_action_handler_table[21] / [26] /
+ * [27] (table @ 0x51B19, indexed by current_chapter_id) — all three
+ * entries point here. The dispatch site invokes the handler with no
+ * real arguments; event_arg is the Watcom __CHK-prologue artifact and
+ * is unused by the body.
+ *
+ * Runs the default win/lose check, then adds a single-slot lose-condition
+ * override: if the must-protect NPC at runtime_char[1] is dead, set
+ * game_event_flag (0x53ECC) to 1 (game over). Deadness is queried through
+ * fd2_check_char_is_dead (runtime_char[idx].flags bit0); the body reads no
+ * bFlags inline. char[1] is the same protected NPC across all three
+ * chapters (a continuous "protect ally" story arc), which is why one
+ * handler is shared.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_22_27_28_post_action_shared(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_check_battle_end_condition();
+
+    if (fd2_check_char_is_dead(1) != 0) {
+        data_fd2_chapter_event_or_battle_end_code = 1;
+    }
+}

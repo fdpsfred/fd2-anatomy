@@ -1850,8 +1850,9 @@
     "name": "fd2_chapter_22_27_28_post_action_shared",
     "target": "field/chpost.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00020aaf": {
     "name": "fd2_chapter_23_post_action",

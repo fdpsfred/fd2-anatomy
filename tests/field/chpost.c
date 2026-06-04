@@ -1673,6 +1673,81 @@ static void test_chpost21_neighbor_slots_ignored(void)
     chpost21_teardown();
 }
 
+/* ============================================================
+ * fd2_chapter_22_27_28_post_action_shared @ 0x20A87
+ *
+ * Shared handler for chapters 22, 27 and 28 (table slots [21]/[26]/[27]
+ * all point here). Same default win/lose check (fd2_check_battle_end_condition,
+ * linked real), then a single-slot lose-condition override: if the must-protect
+ * NPC runtime_char[1] is dead, set game_event_flag = 1. Deadness is queried
+ * through fd2_check_char_is_dead, the real engine computing it as
+ * runtime_char[idx].flags bit0.
+ *
+ * Structurally identical to chapters 12/15/16 but for slot 1. Reuses the
+ * chapter-10/12 array-reading mode (g_check_char_is_dead_use_array = 1) so
+ * per-slot .flags drive the result, and the same 56-slot t_rc10 buffer /
+ * chpost10_setup arrangement that pins the default check to flag=2; the
+ * override is then observable as a clean 2 -> 1.
+ *
+ * Coverage is risk-driven for the inverted-looking branch (the disassembly is
+ * "JZ skip-set / fall through to set", i.e. set-the-flag-when-DEAD; it is
+ * exactly the kind of test that is easy to read backwards) and the single
+ * checked slot index. Note slot 0 is the protagonist, whose death the real
+ * default check itself reports as game over, so it cannot be used as a clean
+ * lower-neighbor probe; instead the slot-1-dead case (with slot 0 left alive,
+ * yielding a clean 2 -> 1) already rules out "checks slot 0 instead of 1", and
+ * a dedicated upper-neighbor case rules out "checks slot 2":
+ *   - slot 1 alive            -> no override (flag stays 2)
+ *   - slot 1 dead, slot 0 alive-> override fires (flag -> 1); also pins that the
+ *     checked slot is 1, not 0 (slot 0 alive leaves the default at 2)
+ *   - neighbor 2 dead, slot 1 alive -> NO override, pinning the checked slot as
+ *     exactly 1 on the upper side (no off-by-one to slot 2).
+ * ============================================================ */
+
+/* Key NPC slot 1 alive -> the dead-check returns 0, the override does not fire,
+ * and the default flag (2) survives. Pins the branch direction: an ALIVE slot
+ * must NOT trigger game over. */
+static void test_chpost222728_npc_alive_keeps_default(void)
+{
+    chpost10_setup();
+    /* slot 1 already alive from setup */
+
+    fd2_chapter_22_27_28_post_action_shared(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost10_teardown();
+}
+
+/* Key NPC slot 1 dead (slot 0 / protagonist left alive so the default check
+ * still yields 2) -> fd2_check_char_is_dead returns nonzero and the override
+ * fires (flag 2 -> 1). The clean 2 -> 1 also proves the checked slot is 1, not
+ * the protagonist at slot 0. */
+static void test_chpost222728_npc_dead_game_over(void)
+{
+    chpost10_setup();
+    t_rc10[1].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_22_27_28_post_action_shared(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost10_teardown();
+}
+
+/* Upper neighbor (slot 2) dead while the key NPC (slot 1) is alive -> the
+ * override must NOT fire. Proves the checked slot is exactly 1 on the upper
+ * side (no off-by-one to slot 2). The lower side is pinned by the slot-1-dead
+ * case above (slot 0 alive there). */
+static void test_chpost222728_upper_neighbor_ignored(void)
+{
+    chpost10_setup();
+    t_rc10[2].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_22_27_28_post_action_shared(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost10_teardown();
+}
+
 void run_field_chpost_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1739,5 +1814,8 @@ void run_field_chpost_tests(void)
     RUN_TEST(test_chpost21_second_escort_dead_game_over);
     RUN_TEST(test_chpost21_both_escorts_dead_game_over);
     RUN_TEST(test_chpost21_neighbor_slots_ignored);
+    RUN_TEST(test_chpost222728_npc_alive_keeps_default);
+    RUN_TEST(test_chpost222728_npc_dead_game_over);
+    RUN_TEST(test_chpost222728_upper_neighbor_ignored);
     printf("\n");
 }
