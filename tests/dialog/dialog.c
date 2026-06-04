@@ -922,6 +922,196 @@ static void test_restore_writes_region(void)
     data_fd2_large_game_state_buffer_ptr = 0;
 }
 
+/* per-call corner-blit log + composite proxy (testglob.c) */
+extern int    g_blitsetup_calls;
+extern uint32 g_blitsetup_dst_log[32];
+extern uint32 g_blitsetup_sprite_log[32];
+extern int    g_composite_call_count;
+extern uint32 g_tile_map_last_dst;
+extern uint32 g_tile_map_last_stride;
+extern uint32 g_tile_map_last_w;
+extern uint32 g_tile_map_last_h;
+extern uint32 g_tile_map_last_ox;
+extern uint32 g_tile_map_last_oy;
+
+/* Shared fixture for fd2_animate_dialog_page_advance_collapse: allocate the
+ * game-state work buffer (gss), the composed-target work buffer (rwc) and the
+ * menu-dialog-state handle, point the globals at them, and seed rwc + handle
+ * with independently-recomputable data.  gss must cover the row-copy dst, the
+ * yes_no box anchor (gss+0x1A59C) and fd2_blit_rectangle's gss+0x8088 read
+ * span; rwc must cover both the per-frame and settle source spans; the handle
+ * needs valid dword sprite offsets at selector*0xC for selectors 0x10/0x11.
+ * Returns gss; out-params expose rwc/handle and the two seeded sprite offsets. */
+#define PAC_H_OFF_L 0x1111u   /* handle dword stored at selector 0x10 -> 0xC0 */
+#define PAC_H_OFF_R 0x2222u   /* handle dword stored at selector 0x11 -> 0xCC */
+static uint32 g_pac_saved_party_count;
+static void pac_setup(uint8 **out_gss, uint8 **out_rwc, uint8 **out_handle)
+{
+    uint8 *gss;
+    uint8 *rwc;
+    uint8 *handle;
+    uint32 k;
+
+    gss    = (uint8 *)malloc(0x24000);
+    rwc    = (uint8 *)malloc(0x12000);
+    handle = (uint8 *)malloc(0x200);
+    ASSERT_TRUE(gss != NULL && rwc != NULL && handle != NULL);
+
+    memset(gss, 0xAA, 0x24000);
+    for (k = 0; k < 0x12000; k++) {
+        rwc[k] = (uint8)((k * 7u + 3u) & 0xFF);   /* distinguishable source */
+    }
+    memset(handle, 0, 0x200);
+    *(uint32 *)(handle + 0x10 * 0xC) = PAC_H_OFF_L;   /* selector 0x10 -> 0xC0 */
+    *(uint32 *)(handle + 0x11 * 0xC) = PAC_H_OFF_R;   /* selector 0x11 -> 0xCC */
+
+    data_fd2_large_game_state_buffer_ptr    = (uint32)gss;
+    data_fd2_ui_slide_composed_target_buf_ptr = (uint32)rwc;
+    data_fd2_menu_dialog_state_handle       = (uint32)handle;
+    g_pac_saved_party_count                 = data_fd2_battle_party_member_count;
+    data_fd2_battle_party_member_count      = 0;   /* empty party -> overlay no-op */
+
+    g_blitsetup_calls    = 0;
+    g_composite_call_count = 0;
+
+    *out_gss = gss;
+    *out_rwc = rwc;
+    *out_handle = handle;
+}
+
+static void pac_teardown(uint8 *gss, uint8 *rwc, uint8 *handle)
+{
+    free(gss);
+    free(rwc);
+    free(handle);
+    data_fd2_large_game_state_buffer_ptr    = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+    data_fd2_menu_dialog_state_handle       = 0;
+    data_fd2_battle_tile_map_ptr            = 0;
+    data_fd2_battle_party_member_count      = g_pac_saved_party_count;
+}
+
+/*
+ * Core arithmetic of fd2_animate_dialog_page_advance_collapse with the
+ * battle-tile-map gate OFF (battle_tile_map <= 1 -> no scene prime).  Drives
+ * the real function (corner sprites blit to recording stub; row-copy + settle
+ * memmoves + fd2_blit_rectangle run for real, the latter two writing to the
+ * DOS/4GW VGA aperture which is harmless) and verifies:
+ *   (a) exactly 8 corner blits = 2 (left/right) x 4 frames;
+ *   (b) per-blit dst = corner_offset + (gss + 0x1A59C) where the left offset
+ *       steps -12,-8,-4,0 and the right offset steps +12,+8,+4,0 across frames
+ *       (the binary's corner_state[i+2] animation, init -16/+16, +4/-4 each
+ *       frame), and per-blit sprite = handle + handle[selector*0xC] with
+ *       selector = template[0]=0x10 for the left and template[1]=0x11 for the
+ *       right corner (the Watcom adjacent-locals pairing corner_state[i] vs
+ *       corner_state[i+2] — the subtle part this test pins);
+ *   (c) the per-frame row copy: gss[0x8089 + (r+0x6C)*0x1C8 + c] ==
+ *       rwc[0x8C05 + r*0x140 + c] for sampled (r,c).
+ */
+static void test_page_advance_collapse_corners_and_copy(void)
+{
+    uint8 *gss;
+    uint8 *rwc;
+    uint8 *handle;
+    uint32 box;
+    int    f;
+    int    rs[4];
+    int    ls[4];
+    int    ok;
+    int    r;
+    int    c;
+
+    pac_setup(&gss, &rwc, &handle);
+    box = (uint32)gss + 0x1A59C;
+
+    data_fd2_battle_tile_map_ptr = 1;   /* gate OFF */
+
+    fd2_animate_dialog_page_advance_collapse();
+
+    /* gate OFF: scene-prime composite must not have run */
+    ASSERT_EQ((long)g_composite_call_count, 0);
+
+    /* (a) 2 corner blits per frame x 4 frames */
+    ASSERT_EQ((long)g_blitsetup_calls, 8);
+
+    /* (b) corner offsets per frame: left -12,-8,-4,0 ; right +12,+8,+4,0 */
+    ls[0] = -12; ls[1] = -8; ls[2] = -4; ls[3] = 0;
+    rs[0] =  12; rs[1] =  8; rs[2] =  4; rs[3] = 0;
+    ok = 1;
+    for (f = 0; f < 4; f++) {
+        /* left corner = log[2f]: selector 0x10 */
+        if (g_blitsetup_dst_log[2 * f] != (uint32)(box + (uint32)ls[f])) {
+            ok = 0;
+        }
+        if (g_blitsetup_sprite_log[2 * f] != (uint32)handle + PAC_H_OFF_L) {
+            ok = 0;
+        }
+        /* right corner = log[2f+1]: selector 0x11 */
+        if (g_blitsetup_dst_log[2 * f + 1] != (uint32)(box + (uint32)rs[f])) {
+            ok = 0;
+        }
+        if (g_blitsetup_sprite_log[2 * f + 1] != (uint32)handle + PAC_H_OFF_R) {
+            ok = 0;
+        }
+    }
+    ASSERT_TRUE(ok);
+
+    /* (c) per-frame row copy landed rwc rows into the gss work buffer */
+    ok = 1;
+    for (r = 0; r <= 0x55; r += 0x55) {          /* first + last row */
+        for (c = 0; c <= 0x135; c += 0x135) {    /* first + last col */
+            uint8 got = gss[0x8089 + (uint32)(r + 0x6C) * 0x1C8 + (uint32)c];
+            uint8 exp = rwc[0x8C05 + (uint32)r * 0x140 + (uint32)c];
+            if (got != exp) {
+                ok = 0;
+            }
+        }
+    }
+    ASSERT_TRUE(ok);
+
+    pac_teardown(gss, rwc, handle);
+}
+
+/*
+ * The battle-tile-map gate: when battle_tile_map > 1 the function primes the
+ * underlying scene (palette tick + fd2_composite_battle_tile_map + char
+ * overlay) before the fold-in frames; when <= 1 it skips straight to the
+ * frames.  fd2_composite_battle_tile_map is the recording proxy (counts as the
+ * scene prime), and the party count is 0 so the real char-overlay/shadow are
+ * no-ops and the real palette tick only bumps its counters.  Verifies the gate
+ * decision both ways and that the prime composites the gss work buffer at
+ * gss+0x8088 with the binary's fixed tile-map params (stride 0x1C8, 0xD x 8,
+ * origin from the battle-view window globals).
+ */
+static void test_page_advance_collapse_composite_gate(void)
+{
+    uint8 *gss;
+    uint8 *rwc;
+    uint8 *handle;
+
+    /* gate OFF (== 1): no prime */
+    pac_setup(&gss, &rwc, &handle);
+    data_fd2_battle_tile_map_ptr = 1;
+    fd2_animate_dialog_page_advance_collapse();
+    ASSERT_EQ((long)g_composite_call_count, 0);
+    pac_teardown(gss, rwc, handle);
+
+    /* gate ON (> 1): exactly one scene prime with the fixed tile-map params */
+    pac_setup(&gss, &rwc, &handle);
+    data_fd2_battle_tile_map_ptr = 2;
+    data_fd2_battle_view_window_origin_x = 0x37;
+    data_fd2_battle_view_window_origin_y = 0x29;
+    fd2_animate_dialog_page_advance_collapse();
+    ASSERT_EQ((long)g_composite_call_count, 1);
+    ASSERT_EQ((long)g_tile_map_last_dst, (long)((uint32)gss + 0x8088));
+    ASSERT_EQ((long)g_tile_map_last_stride, (long)0x1C8);
+    ASSERT_EQ((long)g_tile_map_last_w, (long)0xD);
+    ASSERT_EQ((long)g_tile_map_last_h, (long)8);
+    ASSERT_EQ((long)g_tile_map_last_ox, (long)0x37);
+    ASSERT_EQ((long)g_tile_map_last_oy, (long)0x29);
+    pac_teardown(gss, rwc, handle);
+}
+
 void run_dialog_dialog_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -947,5 +1137,7 @@ void run_dialog_dialog_tests(void)
     RUN_TEST(test_backup_snapshots_region);
     RUN_TEST(test_backup_frees_prior_buffer);
     RUN_TEST(test_restore_writes_region);
+    RUN_TEST(test_page_advance_collapse_corners_and_copy);
+    RUN_TEST(test_page_advance_collapse_composite_gate);
     printf("\n");
 }

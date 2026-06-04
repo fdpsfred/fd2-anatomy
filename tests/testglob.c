@@ -298,6 +298,9 @@ int32  data_fd2_ui_inline_action_menu_template[4] = { 0, 1, 2, 3 };
 /* game options menu templates — real FD2.LE values @ 0x51EAF / 0x53F02 */
 int32  data_fd2_ui_game_options_menu_slots_template[4] = { 0x12, 0x14, 0x16, 0x18 };
 int32  data_fd2_ui_game_options_menu_state_template[4] = { 0, 0, 0, 0 };
+/* dialog page-advance collapse template — real FD2.LE value @ 0x51EE5
+ * (two corner sprite-index selectors, replicated to 16 bytes) */
+int32  data_fd2_dialog_advance_collapse_template[4] = { 0x10, 0x11, 0x10, 0x11 };
 uint32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4] = {0};
 uint32 data_fd2_chapter_intro_dialog_anim_frame_idx = 0;
 uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
@@ -309,8 +312,15 @@ void fd2_render_chapter_intro_dialog_panels(uint32 c, uint32 m) { }
  * loop tests can observe that the render ran. */
 uint32 g_blitsetup_dst, g_blitsetup_sprite, g_blitsetup_stride;
 int    g_blitsetup_calls = 0;
+/* per-call log (page-advance collapse test verifies all 8 corner blits) */
+uint32 g_blitsetup_dst_log[32];
+uint32 g_blitsetup_sprite_log[32];
 void fd2_blit_sprite_with_stride_setup(uint32 d, uint32 s, uint32 st)
 {
+    if (g_blitsetup_calls < 32) {
+        g_blitsetup_dst_log[g_blitsetup_calls] = d;
+        g_blitsetup_sprite_log[g_blitsetup_calls] = s;
+    }
     g_blitsetup_dst = d;
     g_blitsetup_sprite = s;
     g_blitsetup_stride = st;
@@ -836,10 +846,11 @@ int fd2_text_dialog_typewriter_loop(void) {
     g_typewriter_loop_calls++;
     return g_typewriter_loop_return;
 }
-int g_anim_dialog_page_advance_calls = 0;
-void fd2_animate_dialog_page_advance_collapse(void) {
-    g_anim_dialog_page_advance_calls++;
-}
+/* fd2_animate_dialog_page_advance_collapse is now emitted for real in
+ * src/dialog/dialog.c; its former recording stub here was removed. Caller
+ * tests (menufld.c) drive the real function with the battle-tile-map gate ON
+ * (so its scene-prime runs one fd2_composite_battle_tile_map) and observe its
+ * effect through the recording g_composite_call_count proxy. */
 /* fd2_game_options_menu_loop is now emitted for real in ui_menu/menucfg.c. */
 /* fd2_player_action_menu_loop is now emitted for real in ui_menu/menu.c; its
  * former one-shot stub and the g_player_action_menu_loop_* seam variables were

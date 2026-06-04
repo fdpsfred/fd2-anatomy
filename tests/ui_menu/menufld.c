@@ -39,10 +39,13 @@
 /* typewriter / SFX / inventory seams (testglob.c). */
 extern int g_typewriter_loop_return;
 extern int g_typewriter_loop_calls;
-extern int g_anim_dialog_page_advance_calls;
 extern int g_play_sfx_sample_from_bank_calls;
 extern int g_add_item_calls;
 extern int g_inventory_modal_calls;
+/* The real fd2_animate_dialog_page_advance_collapse (called by the handler)
+ * runs its scene-prime composite once with the tile-map gate ON; the recording
+ * fd2_composite_battle_tile_map proxy counts it. */
+extern int g_composite_call_count;
 
 /* portrait buffer the real fd2_paint_portrait_to_dialog_area dereferences. */
 extern uint8 *data_fd2_portrait_sprite_buffer;
@@ -66,6 +69,18 @@ static uint8 mfld_event_data[0x53 + 32 * 3 + 8];
 /* a 16-byte portrait buffer: [0..3] frame-0 offset = 0 so the real paint reads
  * sprite_addr = buf + 0 (then blits to the recording stub). */
 static uint8 mfld_portrait[16];
+
+/* Buffers the real fd2_animate_dialog_page_advance_collapse (called by the
+ * handler after the opening typewriter) needs to run host-safely: the game-
+ * state work buffer (covers its row-copy dst, the yes_no box anchor +0x1A59C
+ * and fd2_blit_rectangle's +0x8088 read span), the composed-target work buffer
+ * (its row-copy + settle source spans) and the menu-dialog-state handle (a
+ * zeroed table; sprite offset at selector*0xC resolves to handle+0, a valid
+ * pointer passed to the recording blit stub). The collapse's row/settle/rect
+ * writes that target the absolute VGA aperture are harmless under DOS/4GW. */
+static uint8 mfld_collapse_gss[0x24000];
+static uint8 mfld_collapse_rwc[0x12000];
+static uint8 mfld_collapse_handle[0x200];
 
 /* recording post-action consequence handler. */
 static int    mfld_post_calls;
@@ -143,9 +158,21 @@ static void mfld_setup(uint8 tile_idx, uint8 attr, uint8 ev_type,
     data_fd2_ui_menu_cursor_idx = 0;
     data_fd2_audio_fdother_sfx_bank_buf_ptr = 0;
 
+    /* buffers + state so the real page-advance collapse runs host-safely:
+     * empty party -> its char-overlay pass is a no-op; the tile-map gate is ON
+     * (battle_tile_map_ptr points at the real map), so the collapse primes the
+     * scene exactly once via the recording fd2_composite_battle_tile_map. */
+    memset(mfld_collapse_gss, 0, sizeof(mfld_collapse_gss));
+    memset(mfld_collapse_rwc, 0, sizeof(mfld_collapse_rwc));
+    memset(mfld_collapse_handle, 0, sizeof(mfld_collapse_handle));
+    data_fd2_large_game_state_buffer_ptr = (uint32)mfld_collapse_gss;
+    data_fd2_ui_slide_composed_target_buf_ptr = (uint32)mfld_collapse_rwc;
+    data_fd2_menu_dialog_state_handle = (uint32)mfld_collapse_handle;
+    data_fd2_battle_party_member_count = 0;
+
     /* reset observable counters. */
     g_typewriter_loop_calls = 0;
-    g_anim_dialog_page_advance_calls = 0;
+    g_composite_call_count = 0;
     g_play_sfx_sample_from_bank_calls = 0;
     g_add_item_calls = 0;
     g_inventory_modal_calls = 0;
@@ -203,7 +230,12 @@ static void test_no_branch_cancel(void)
     fd2_handle_tile_event_interaction(0);
 
     ASSERT_EQ(g_typewriter_loop_calls, 1);
-    ASSERT_EQ(g_anim_dialog_page_advance_calls, 1);
+    /* NO path composites the scene exactly twice (both real, via the recording
+     * fd2_composite_battle_tile_map proxy): once in the unconditional opening
+     * fd2_animate_dialog_page_advance_collapse (tile-map gate ON), once in the
+     * NO-branch fd2_close_status_screen_with_slide_out's recomposite. A skipped
+     * collapse or a YES-path detour would not yield 2. */
+    ASSERT_EQ((long)g_composite_call_count, 2);
     ASSERT_EQ(g_play_sfx_sample_from_bank_calls, 0);   /* SFX only in YES */
     ASSERT_EQ((long)data_fd2_shared_party_total_gold, 1000);  /* no add */
     ASSERT_EQ((int)mfld_consumed[7], 0);               /* not consumed */

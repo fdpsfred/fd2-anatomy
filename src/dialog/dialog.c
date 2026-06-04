@@ -772,3 +772,92 @@ void fd2_restore_dialog_area_from_buffer(void)
         dst_row_ptr += 0x1C8;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_animate_dialog_page_advance_collapse @ 0x197E5 (17 callers)
+ *
+ * Dialog "page-advance / fold-in" transition animation. Played after a
+ * Yes/No prompt confirm: the current dialog box's two corner sprites
+ * fold inward toward the center while the underlying scene (battle map
+ * or next page) is repainted.
+ *
+ * corner_state[] is the binary's 16-byte (4-dword) on-stack scratch:
+ *   corner_state[0] = template[0] (0x10)  sprite-index selector, corner 0
+ *   corner_state[1] = template[1] (0x11)  sprite-index selector, corner 1
+ *   corner_state[2] = left-corner offset  init -16 (0xFFFFFFF0), +16 over 4 frames
+ *   corner_state[3] = right-corner offset init +16 (0x10),       -16 over 4 frames
+ * The per-corner blit loop reads selector = corner_state[i] and
+ * offset = corner_state[i+2]; this mirrors the vendor's adjacent-locals
+ * layout (template dwords sit directly before the two animated offsets).
+ *
+ * If battle_tile_map > 1 the battle base scene is primed first (palette
+ * tick + tile-map composite + char overlay). Each of 4 frames advances
+ * both corner offsets by 4 toward center, copies 0x56 rows of the
+ * composed work buffer into the game-state work buffer, blits the two
+ * corner sprites at their current offsets, then flushes the dialog band
+ * to the framebuffer. A final settle pass copies the bottom 0x56 rows of
+ * the composed work buffer straight to the framebuffer.
+ *
+ * void __cdecl with the __CHK(0x3c) stack-probe prologue; the body's
+ * trailing JMP 0x17E03 is the shared Watcom epilogue of
+ * fd2_render_horizontal_bar_segments (== return).
+ * ---------------------------------------------------------------- */
+void fd2_animate_dialog_page_advance_collapse(void)
+{
+    uint32 corner_state[4];
+    uint32 yes_no_box_addr;
+    int    frame;
+    int    i;
+    uint32 row;
+    uint32 selector;
+    uint32 sprite_addr;
+
+    corner_state[0] = (uint32)data_fd2_dialog_advance_collapse_template[0];
+    corner_state[1] = (uint32)data_fd2_dialog_advance_collapse_template[1];
+    yes_no_box_addr = data_fd2_large_game_state_buffer_ptr + 0x1A59C;
+    corner_state[2] = 0xFFFFFFF0;
+    corner_state[3] = 0x10;
+
+    if (1 < data_fd2_battle_tile_map_ptr) {
+        fd2_tick_chapter_palette_animation();
+        fd2_composite_battle_tile_map(
+            data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1C8, 0xD, 8,
+            data_fd2_battle_view_window_origin_x,
+            data_fd2_battle_view_window_origin_y);
+        fd2_composite_all_chars_overlay();
+    }
+
+    for (frame = 0; frame < 4; frame++) {
+        corner_state[2] += 4;
+        corner_state[3] -= 4;
+
+        for (row = 0; (int32)row < 0x56; row++) {
+            memmove((void *)((row + 0x6C) * 0x1C8
+                             + data_fd2_large_game_state_buffer_ptr + 0x8089),
+                    (void *)(row * 0x140
+                             + data_fd2_ui_slide_composed_target_buf_ptr
+                             + 0x8C05),
+                    0x136);
+        }
+
+        for (i = 0; i < 2; i++) {
+            selector    = corner_state[i];
+            sprite_addr = *(uint32 *)(data_fd2_menu_dialog_state_handle
+                                      + selector * 0xC)
+                          + data_fd2_menu_dialog_state_handle;
+            fd2_blit_sprite_with_stride_setup(
+                corner_state[i + 2] + yes_no_box_addr, sprite_addr, 0x1C8);
+        }
+
+        fd2_blit_rectangle(0xA0504, 0x140,
+                           data_fd2_large_game_state_buffer_ptr + 0x8088,
+                           0x1C8, 0x138, 0xC0);
+    }
+
+    for (row = 0; (int32)row < 0x56; row++) {
+        memmove((void *)(row * 0x140 + 0xA8C05),
+                (void *)(data_fd2_ui_slide_composed_target_buf_ptr + 5
+                         + (row + 0x70) * 0x140),
+                0x136);
+    }
+}

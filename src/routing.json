@@ -1054,8 +1054,9 @@
     "name": "fd2_animate_dialog_page_advance_collapse",
     "target": "dialog/dialog.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00019953": {
     "name": "fd2_text_dialog_typewriter_loop",
