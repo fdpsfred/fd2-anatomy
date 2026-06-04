@@ -632,12 +632,22 @@ int fd2_spell_selection_menu_main(uint32 caster_idx)
     }
     return g_inline_spell_menu_return;
 }
-/* fd2_equip_unequip_inventory_menu (0x1BFFE, ui_menu/status.c, not yet emitted)
- * is the Sort/Equip branch callee of the now-real fd2_item_command_menu_dispatch.
- * That branch is a heavy inventory-equip UI loop with no in-process input seam,
- * deferred to Phase 9, so no test drives it; this no-op stub satisfies the link
- * until the real body is emitted. */
-void fd2_equip_unequip_inventory_menu(uint32 char_idx) { (void)char_idx; }
+/* fd2_equip_unequip_inventory_menu is now emitted for real in
+ * src/ui_menu/status.c and linked; its former no-op stub was removed. The
+ * Sort/Equip modal is a heavy inventory-equip UI loop with no in-process input
+ * seam (its end-to-end behavior is deferred to Phase 9 — see the deferral note
+ * in tests/ui_menu/status.c), so no test drives it directly; the real body now
+ * satisfies the link. Its two not-yet-emitted equip-decision callees are stubbed
+ * below until their own emit turns. */
+/* fd2_check_job_can_equip_item (0x1C1C3) / fd2_equip_item_in_slot (0x1C142),
+ * both inventory/status.c-domain primitives, are not yet emitted; the real
+ * fd2_equip_unequip_inventory_menu references them. They are reached only on the
+ * Phase-9-deferred equip-commit path (no test drives them through the modal), so
+ * these no-op stubs satisfy the link until their real bodies are emitted. */
+int  fd2_check_job_can_equip_item(uint32 char_idx, uint32 item_id)
+{ (void)char_idx; (void)item_id; return 0; }
+void fd2_equip_item_in_slot(uint32 char_idx, uint32 slot_idx)
+{ (void)char_idx; (void)slot_idx; }
 /* fd2_item_command_menu_dispatch is now emitted for real in
  * src/ui_menu/status.c and linked; its former counting stub (and the
  * g_inline_item_menu_return / g_inline_item_menu_calls seams that drove it)

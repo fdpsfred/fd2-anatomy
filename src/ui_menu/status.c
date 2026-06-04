@@ -883,3 +883,98 @@ int fd2_inventory_grid_input_step(uint32 char_idx, uint32 gate_flag)
     }
     return 0;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_equip_unequip_inventory_menu @ 0x1BFFE  (2 callers:
+ *   fd2_item_command_menu_dispatch option 2 SORT/EQUIP,
+ *   fd2_run_equip_member_menu)
+ *
+ * EQUIP / UNEQUIP interactive modal for char_idx's inventory.
+ *
+ * Slide the status screen + inventory grid in, reset the grid cursor,
+ * then loop:
+ *   - Spin fd2_inventory_grid_input_step (gate=0, any slot selectable)
+ *     until it returns non-zero (a slot was confirmed, or Esc).
+ *   - Fetch the item id at the current cursor slot (always, even when
+ *     about to exit — faithful to the binary ordering).
+ *   - Esc (input == -1)  -> exit the modal.
+ *   - No usable slots left -> exit the modal.
+ *   - If the character's job can equip the item: equip it in that slot
+ *     (the primitive auto-unequips the conflicting same-category slot),
+ *     recalc combat stats, then refresh the static status layout +
+ *     inventory grid (cursor -1 = no highlight) via the
+ *     large_game_state_buffer VGA double-buffer. Otherwise re-prompt
+ *     without doing anything.
+ *
+ * On exit: play the 12-frame status-screen outro (frames 0..0xB),
+ * restore the saved VGA snapshot to 0xA0000, and free the three slide
+ * workspace buffers. The cleanup tail is identical to
+ * fd2_inventory_selection_modal_dispatch's.
+ *
+ * void __cdecl with the __CHK(0x20) stack-probe prologue (compiler-
+ * injected, omitted under -s). EBX/ESI/EDI are callee-saved; EBX holds
+ * char_idx, ESI the loop input result, EDI the fetched item id. The
+ * binary's final JMP 0x10C49 is this function's own shared epilogue
+ * (ADD ESP,4 / POP EDI/ESI/EBX / RET), tail-merged with two siblings
+ * (fd2_convert_battle_tiles_to_24px, fd2_open_party_status_overview_screen);
+ * it is NOT a callee — a plain return regenerates the identical epilogue.
+ *
+ * EAX-bug notes: every CALL whose EAX is reused is a genuine return —
+ * the input result (MOV ESI,EAX), the item id (MOV EDI,EAX, fully
+ * MOVZX-zero-extended by the callee), the usable-slot count (TEST EAX),
+ * and the can-equip flag (TEST EAX).
+ * ---------------------------------------------------------------- */
+void fd2_equip_unequip_inventory_menu(uint32 char_idx)
+{
+    uint32 input_result;
+    uint32 item_id;
+    uint32 outro_iter;
+
+    fd2_open_status_screen_with_slide_in(char_idx);
+    data_fd2_ui_menu_cursor_idx = 0;
+
+    while (1) {
+        do {
+            input_result =
+                (uint32)fd2_inventory_grid_input_step(char_idx, 0);
+        } while (input_result == 0);
+
+        item_id = fd2_get_inventory_slot_item_id(char_idx,
+            data_fd2_ui_menu_cursor_idx);
+
+        if (input_result == 0xffffffff) {
+            break;
+        }
+        if (fd2_count_usable_inventory_slots(char_idx) == 0) {
+            break;
+        }
+        if (fd2_check_job_can_equip_item(char_idx, item_id) != 0) {
+            fd2_equip_item_in_slot(char_idx, data_fd2_ui_menu_cursor_idx);
+            fd2_recalculate_combat_stats(char_idx);
+            memmove((void *)data_fd2_large_game_state_buffer_ptr,
+                    (void *)0xa0000, 64000);
+            fd2_render_status_screen_static_layout(char_idx,
+                data_fd2_large_game_state_buffer_ptr);
+            fd2_render_inventory_item_grid(char_idx, -1,
+                data_fd2_large_game_state_buffer_ptr);
+            memmove((void *)0xa0000,
+                    (void *)data_fd2_large_game_state_buffer_ptr, 64000);
+        }
+    }
+
+    for (outro_iter = 0; (int)outro_iter < 0xc; outro_iter++) {
+        fd2_play_status_screen_outro_step(
+            outro_iter,
+            data_fd2_ui_slide_anim_accumulator_buf_ptr,
+            data_fd2_ui_slide_composed_target_buf_ptr,
+            (int)data_fd2_ui_slide_bg_snapshot_buf_ptr);
+    }
+
+    memmove((void *)0xa0000,
+            (void *)data_fd2_ui_slide_bg_snapshot_buf_ptr, 64000);
+    free((void *)data_fd2_ui_slide_anim_accumulator_buf_ptr);
+    free((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr);
+    free((void *)data_fd2_ui_slide_composed_target_buf_ptr);
+    /* binary tail-JMP 0x10C49 == this function's own shared epilogue
+     * (ADD ESP,4 / POP EDI/ESI/EBX / RET); a plain return regenerates it. */
+}

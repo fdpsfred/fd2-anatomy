@@ -1007,6 +1007,35 @@ static void test_item_command_no_items_returns_minus1(void)
     ASSERT_EQ((long)r, -1);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_equip_unequip_inventory_menu @ 0x1BFFE — input-loop deferred to Phase 9.
+ *
+ * The EQUIP/UNEQUIP modal is structurally identical to the sibling
+ * fd2_inventory_selection_modal_dispatch above: it opens the status screen
+ * (fd2_open_status_screen_with_slide_in, whose tail calls
+ * fd2_clear_keyboard_buffer) and then runs
+ * do { r = fd2_inventory_grid_input_step(char_idx, 0); } while (r == 0)
+ * inside an outer while(1). The ONLY exits from the outer loop are
+ * break-on-Esc (r == -1) and break-on-no-usable-slots; reaching either
+ * first requires the inner do-while to release, which requires the real
+ * fd2_inventory_grid_input_step -> fd2_wait_for_input_dialog_with_blink to
+ * read a scancode AFTER the open-screen buffer clear. The host harness has
+ * no async key source to refill the BIOS keyboard buffer mid-loop, so no
+ * path through this function terminates in-process — it cannot be driven to
+ * completion as a unit test, the same hard blocker (and same deferral)
+ * documented for fd2_inventory_selection_modal_dispatch.
+ *
+ * Coverage of its constituent decisions IS deterministic and already in
+ * place: the grid-input return values 0 / 1 / -1 that the loop and the
+ * input == -1 break consume are pinned by the test_grid_input_* cases; the
+ * no-usable-slots break gate (fd2_count_usable_inventory_slots == 0) is
+ * pinned by the test_count_usable_* cases; and the equip-decision callees
+ * it invokes on commit (fd2_check_job_can_equip_item, fd2_equip_item_in_slot)
+ * are pure inventory primitives verified directly on their own emit turns.
+ * Only the end-to-end modal loop + the equip-branch display refresh remain
+ * for Phase 9 integration under the emulator.
+ * ---------------------------------------------------------------- */
+
 void run_ui_menu_status_tests(void)
 {
     int _prev_fails = g_test_fail_count;

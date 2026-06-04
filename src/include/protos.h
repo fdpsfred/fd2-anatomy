@@ -79,6 +79,8 @@ void fd2_check_battle_end_default_handler(uint32 event_arg);
 int fd2_collect_dead_char_drops(uint32 out_buffer);
 uint32 fd2_find_equipped_item_by_kind(uint32 char_idx, uint32 kind);
 uint8 fd2_get_inventory_slot_item_id(uint32 char_idx, uint32 slot);
+int fd2_check_job_can_equip_item(uint32 char_idx, uint32 item_id);
+void fd2_equip_item_in_slot(uint32 char_idx, uint32 slot_idx);
 int fd2_inventory_selection_modal_dispatch(uint32 char_idx, uint32 mode);
 int fd2_inventory_grid_input_step(uint32 char_idx, uint32 gate_flag);
 void fd2_handle_tile_event_interaction(uint32 char_idx);
