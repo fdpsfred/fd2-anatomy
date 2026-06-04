@@ -729,6 +729,121 @@ static void test_panel_left_row_count_bound(void)
     ASSERT_EQ((long)g_panel_dst[past_d0 + 0x55], 0xAA);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_paint_status_panel_layer_right @ 0x18312
+ *
+ * Sister of _left, but the panel shifts VERTICALLY: it copies 0x56 rows
+ * x 0xDF bytes of the right panel into the workspace, with the y_offset
+ * applied as a per-row vertical destination shift (not a horizontal byte
+ * offset). Per row r:
+ *   dst + 0x5C  + (y_off' + r)*0x140  <-  src + 0x91C + (skip + r)*0x140
+ * where (y_off', skip, row_count) = (y_offset, 0, 0x56) when y_offset >= 0,
+ * else (0, -y_offset, y_offset + 0x56).
+ *
+ * Reuses g_panel_src/g_panel_dst (64000 bytes each, src[k] = k & 0xFF).
+ * Each destination byte is checked against the source index it was copied
+ * from, and the byte flanking each copied window on the left is checked
+ * untouched. Geometry is recomputed here independently of the function.
+ * ---------------------------------------------------------------- */
+#define PANELR_WIDTH    0xDF
+#define PANELR_DST_BASE 0x5c
+#define PANELR_SRC_BASE 0x91c
+
+/* Verify every copied byte (and the left flank) for one y_offset config. */
+static void panel_right_check(int32 y_off_in)
+{
+    uint32 src_base = (uint32)g_panel_src;
+    uint32 dst_base = (uint32)g_panel_dst;
+    int    row;
+    int    col;
+    int    row_count;
+    int    src_skip;
+    int    y_off;
+
+    row_count = 0x56;
+    src_skip  = 0;
+    y_off     = y_off_in;
+    if (y_off_in < 0) {
+        row_count = y_off_in + 0x56;
+        src_skip  = -y_off_in;
+        y_off     = 0;
+    }
+
+    fd2_paint_status_panel_layer_right((uint32)y_off_in, dst_base, src_base);
+
+    for (row = 0; row < row_count; row++) {
+        /* vertical shift: the row index carries both the per-row stride AND
+         * the (clamped) y_off / src_skip — distinct from _left's byte shift */
+        uint32 d0 = PANELR_DST_BASE + (y_off + row) * PANEL_STRIDE;
+        uint32 s0 = PANELR_SRC_BASE + (src_skip + row) * PANEL_STRIDE;
+
+        /* byte just before the copied window stays at the sentinel */
+        ASSERT_EQ((long)g_panel_dst[d0 - 1], 0xAA);
+        for (col = 0; col < PANELR_WIDTH; col++) {
+            ASSERT_EQ((long)g_panel_dst[d0 + col],
+                      (long)(uint8)((s0 + col) & 0xFF));
+        }
+        /* byte just after the copied window stays at the sentinel */
+        ASSERT_EQ((long)g_panel_dst[d0 + PANELR_WIDTH], 0xAA);
+    }
+}
+
+/* y_offset >= 0 (in-place, y = 7 as the outro step uses for frames <= 2):
+ * full 0x56 rows, no source-row skip, dst rows start at +7*0x140. */
+static void test_panel_right_inplace_positive(void)
+{
+    panel_left_setup();          /* shared fill: src[k]=k&0xFF, dst=0xAA */
+    panel_right_check(7);
+}
+
+/* y_offset == 0 edge of the non-clip branch: full rows, dst rows start at 0. */
+static void test_panel_right_zero_offset(void)
+{
+    panel_left_setup();
+    panel_right_check(0);
+}
+
+/* moderate negative shift (y = -0x10): row_count shrinks to 0x46, the source
+ * advances by 0x10 WHOLE ROWS (src_skip*0x140), dst row base clamps to 0. */
+static void test_panel_right_clip_moderate(void)
+{
+    panel_left_setup();
+    panel_right_check(-0x10);
+}
+
+/* extreme negative shift (y = -0x49, the real frame-8 value emitted by
+ * fd2_play_status_screen_outro_step: 7 - (8*16 - 0x30) = -73): row_count
+ * narrows to 0x0D, source advances by 0x49 rows, dst row base = 0. Frame 8
+ * is the last frame that draws the right panel, so this is the largest
+ * |shift| the caller ever produces. */
+static void test_panel_right_clip_extreme(void)
+{
+    panel_left_setup();
+    panel_right_check(-0x49);
+}
+
+/* Loop bound: exactly 0x56 rows copied. Row 0x55 (last) is written; the
+ * region where a hypothetical row 0x56 would land must remain untouched. */
+static void test_panel_right_row_count_bound(void)
+{
+    uint32 last_d0;
+    uint32 past_d0;
+
+    panel_left_setup();
+    fd2_paint_status_panel_layer_right(7, (uint32)g_panel_dst,
+                                       (uint32)g_panel_src);
+
+    /* last copied row (0x55) wrote its first byte from src row 0x55 */
+    last_d0 = PANELR_DST_BASE + (7 + 0x55) * PANEL_STRIDE;
+    ASSERT_EQ((long)g_panel_dst[last_d0],
+              (long)(uint8)((PANELR_SRC_BASE + 0x55 * PANEL_STRIDE) & 0xFF));
+
+    /* one row past the end (0x56) must be entirely sentinel */
+    past_d0 = PANELR_DST_BASE + (7 + 0x56) * PANEL_STRIDE;
+    ASSERT_EQ((long)g_panel_dst[past_d0], 0xAA);
+    ASSERT_EQ((long)g_panel_dst[past_d0 + (PANELR_WIDTH - 1)], 0xAA);
+}
+
 void run_gfx_rndstat_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -754,6 +869,11 @@ void run_gfx_rndstat_tests(void)
     RUN_TEST(test_panel_left_clip_moderate);
     RUN_TEST(test_panel_left_clip_extreme);
     RUN_TEST(test_panel_left_row_count_bound);
+    RUN_TEST(test_panel_right_inplace_positive);
+    RUN_TEST(test_panel_right_zero_offset);
+    RUN_TEST(test_panel_right_clip_moderate);
+    RUN_TEST(test_panel_right_clip_extreme);
+    RUN_TEST(test_panel_right_row_count_bound);
     g_render_log_on = 0;
     g_blitraw_log_on = 0;
     printf("\n");

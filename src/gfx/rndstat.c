@@ -345,3 +345,51 @@ void fd2_paint_status_panel_layer_left(uint32 x_offset, uint32 dst_workspace,
                 row_bytes);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_paint_status_panel_layer_right @ 0x18312 (2 callers)
+ *
+ * Copy the RIGHT status panel (86 rows x 223 bytes) from src_buffer
+ * into dst_workspace, applying VERTICAL-shift clipping so the panel
+ * can be drawn part-way off the top screen edge during the slide
+ * animation. (Sister of fd2_paint_status_panel_layer_left, which
+ * shifts HORIZONTALLY.)
+ *
+ * y_offset is the signed vertical destination shift (in rows). When
+ * y_offset < 0 the panel is being pushed off the top edge: the copy
+ * is shortened (row_count shrinks by |y_offset|), the source row index
+ * is advanced by |y_offset| (src_y_skip) so the visible part stays
+ * aligned, and the destination row base is clamped to 0.
+ *
+ * Per-row layout (stride 0x140 = 320 px/row):
+ *   dst = dst_workspace + 0x5C  + (y_offset   + row) * 0x140
+ *   src = src_buffer    + 0x91C + (src_y_skip + row) * 0x140
+ * Each row copies 0xDF (223) bytes. Src offset 0x91C = row 7 * 0x140 +
+ * 0x5C: the right panel lives 7 rows below the source buffer head.
+ *
+ * Callers: fd2_open_char_status_screen, fd2_play_status_screen_outro_step
+ * (the latter redraws the right panel each frame at the frame's y_offset).
+ *
+ * Cdecl, 3 stack params; void return. The binary's __CHK(0x20) stack-probe
+ * prologue is compiler-generated and omitted here.
+ * ---------------------------------------------------------------- */
+void fd2_paint_status_panel_layer_right(uint32 y_offset, uint32 dst_workspace,
+                                        uint32 src_buffer)
+{
+    uint32 row;
+    uint32 src_y_skip;
+    uint32 row_count;
+
+    row_count = 0x56;
+    src_y_skip = 0;
+    if ((int32)y_offset < 0) {
+        row_count = y_offset + 0x56;
+        src_y_skip = -y_offset;
+        y_offset = 0;
+    }
+    for (row = 0; (int32)row < (int32)row_count; row = row + 1) {
+        memmove((void *)(y_offset * 0x140 + dst_workspace + 0x5c + row * 0x140),
+                (void *)(src_y_skip * 0x140 + src_buffer + 0x91c + row * 0x140),
+                0xdf);
+    }
+}

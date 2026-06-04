@@ -934,8 +934,9 @@
     "name": "fd2_paint_status_panel_layer_right",
     "target": "gfx/rndstat.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001839b": {
     "name": "fd2_slide_panel_up_partial_step",
