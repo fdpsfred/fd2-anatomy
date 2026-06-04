@@ -1102,8 +1102,9 @@
     "name": "fd2_fire_chapter_turn_events_for_phase",
     "target": "battle/btl_turn.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001a866": {
     "name": "fd2_tick_status_effects_and_show_messages",

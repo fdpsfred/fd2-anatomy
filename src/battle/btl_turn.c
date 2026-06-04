@@ -566,3 +566,39 @@ void fd2_run_full_turn_cycle(void)
     fd2_pan_cursor_to_char(0);
     fd2_clear_keyboard_buffer();
 }
+
+/* ----------------------------------------------------------------
+ * fd2_fire_chapter_turn_events_for_phase @ 0x1A813 (1 caller)
+ *
+ * Fire the chapter turn-event scripts that match the current turn
+ * counter and the requested phase.
+ *
+ * Scans the 16 chapter turn-event entries inside the table pointed to
+ * by data_fd2_tile_event_data_table_ptr (0x53A55). Entries begin at
+ * byte offset +3 with a 3-byte stride:
+ *   entry[i].turn     @ base + 3 + i*3   (trigger turn)
+ *   entry[i].event_id @ base + 4 + i*3   (handler-table index)
+ *   entry[i].phase    @ base + 5 + i*3   (0/1/2)
+ *
+ * For each entry whose turn == data_fd2_battle_turn_counter and whose
+ * phase == the phase argument, calls the chapter-event handler
+ * data_fd2_battle_ai_post_action_consequence_table[event_id] with arg 0
+ * (the same handler table shared with the tile "event" cells in
+ * fd2_handle_tile_event_interaction).
+ *
+ * phase semantics: 0 = enemy-turn start, 1 = end-of-player-turn,
+ * 2 = start-of-new-player-turn.
+ * ---------------------------------------------------------------- */
+void fd2_fire_chapter_turn_events_for_phase(uint32 phase)
+{
+    int i;
+    uint8 *entry;
+
+    for (i = 0; i < 0x10; i++) {
+        entry = (uint8 *)data_fd2_tile_event_data_table_ptr + i * 3;
+        if ((uint32)entry[3] == data_fd2_battle_turn_counter &&
+            (uint32)entry[5] == phase) {
+            data_fd2_battle_ai_post_action_consequence_table[entry[4]](0);
+        }
+    }
+}

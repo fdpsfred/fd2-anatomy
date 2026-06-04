@@ -499,20 +499,12 @@ void fd2_scroll_text_screen_up_by_lines(uint32 lines) {
 void fd2_play_palette_fade_in(void) { }
 void fd2_play_death_animation_and_mark_dead(void) { }
 
-/* Turn-cycle display/dispatch callees not yet emitted (driven by
- * fd2_run_full_turn_cycle). Noop fakes with call counters so the turn
- * cycle can be exercised without their real bodies. Remove each fake
- * when the corresponding function is emitted:
- *   fd2_fire_chapter_turn_events_for_phase -> src/battle/btl_turn.c
- *   fd2_maybe_load/free_speed_mode_overlay -> src/ui_menu/menucfg.c
- *   fd2_animate_phase_banner_slide_in/out  -> src/anim/anicombt.c     */
-int g_fire_chapter_turn_events_calls = 0;
-uint32 g_fire_chapter_turn_events_last_phase = 0xFFFFFFFF;
-void fd2_fire_chapter_turn_events_for_phase(uint32 phase) {
-    g_fire_chapter_turn_events_calls++;
-    g_fire_chapter_turn_events_last_phase = phase;
-}
-/* fd2_maybe_load_speed_mode_overlay / fd2_maybe_free_speed_mode_overlay:
+/* Turn-cycle display/dispatch callees driven by fd2_run_full_turn_cycle.
+ * fd2_fire_chapter_turn_events_for_phase is now emitted for real in
+ * src/battle/btl_turn.c; its former counting stub was removed and the
+ * caller tests drive the real dispatcher via an in-memory tile-event
+ * table + spy handlers (see tests/battle/btl_turn.c).
+ * fd2_maybe_load_speed_mode_overlay / fd2_maybe_free_speed_mode_overlay:
  * now emitted in src/ui_menu/menucfg.c. */
 int g_phase_banner_slide_in_calls = 0;
 int g_phase_banner_slide_out_calls = 0;

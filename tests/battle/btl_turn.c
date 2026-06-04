@@ -635,12 +635,27 @@ static void test_mark_char_acted(void)
 
 /* ---- fd2_run_full_turn_cycle ---- */
 
-extern int g_fire_chapter_turn_events_calls;
-extern uint32 g_fire_chapter_turn_events_last_phase;
 extern int g_phase_banner_slide_in_calls;
 extern int g_phase_banner_slide_out_calls;
 extern int g_restore_block_calls;
 extern uint8 data_fd2_audio_bgm_driver_available_flag;
+
+/* Spy handlers + matching tile-event table for driving the REAL
+ * fd2_fire_chapter_turn_events_for_phase through fd2_run_full_turn_cycle.
+ * Each spy is installed into data_fd2_battle_ai_post_action_consequence_table
+ * at a distinct event_id and records that it fired (the dispatcher always
+ * passes arg 0, so phase distinction is encoded by which table entry's
+ * phase byte matched). */
+static int g_turncycle_spy_b_fired;   /* phase 1 (end-of-player-turn)   */
+static int g_turncycle_spy_d_fired;   /* phase 0 (enemy-turn start)     */
+static int g_turncycle_spy_f_fired;   /* phase 2 (new-player-turn)      */
+static void turncycle_spy_b(uint32 a) { (void)a; g_turncycle_spy_b_fired++; }
+static void turncycle_spy_d(uint32 a) { (void)a; g_turncycle_spy_d_fired++; }
+static void turncycle_spy_f(uint32 a) { (void)a; g_turncycle_spy_f_fired++; }
+
+/* 16-entry chapter turn-event table backing store (entries start at
+ * byte +3, 3-byte stride: turn @+0, event_id @+1, phase @+2 within entry). */
+static uint8 t_turn_event_table[64];
 
 /* large_game_state_buffer surface read by the real fd2_blit_rectangle
  * (src = base + 0x8088, 0xC0 rows of 0x138 bytes at stride 0x1C8). Sized
@@ -679,11 +694,33 @@ static void t_install_sprite_sheet(void)
 static void test_run_turn_cycle_phase_a_heal(void)
 {
     uint32 save_lgs;
+    uint32 save_te;
 
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     t_install_dialog_text();
     save_lgs = data_fd2_large_game_state_buffer_ptr;
     data_fd2_large_game_state_buffer_ptr = (uint32)t_state_buf;
+
+    /* Drive the REAL fire_chapter dispatcher: one entry matches the
+     * current turn at phase 1 (Phase B) and one at phase 0 (Phase D).
+     * The gate (game_event_flag=9) returns after Phase B, so only the
+     * phase-1 spy must fire; the phase-0 spy proves Phase D never ran. */
+    save_te = data_fd2_tile_event_data_table_ptr;
+    memset(t_turn_event_table, 0, sizeof(t_turn_event_table));
+    data_fd2_tile_event_data_table_ptr = (uint32)t_turn_event_table;
+    data_fd2_battle_turn_counter = 3;
+    /* entry[0] @ +3: turn=3, event_id=0x10, phase=1 */
+    t_turn_event_table[3 + 0 * 3] = 3;
+    t_turn_event_table[4 + 0 * 3] = 0x10;
+    t_turn_event_table[5 + 0 * 3] = 1;
+    /* entry[1] @ +6: turn=3, event_id=0x11, phase=0 */
+    t_turn_event_table[3 + 1 * 3] = 3;
+    t_turn_event_table[4 + 1 * 3] = 0x11;
+    t_turn_event_table[5 + 1 * 3] = 0;
+    data_fd2_battle_ai_post_action_consequence_table[0x10] = turncycle_spy_b;
+    data_fd2_battle_ai_post_action_consequence_table[0x11] = turncycle_spy_d;
+    g_turncycle_spy_b_fired = 0;
+    g_turncycle_spy_d_fired = 0;
 
     /* [0] normal heal: 100/200 -> +40 = 140. */
     g_test_rc_array[0].team = 2;
@@ -719,8 +756,6 @@ static void test_run_turn_cycle_phase_a_heal(void)
     data_fd2_battle_party_member_count = 7;
 
     data_fd2_chapter_event_or_battle_end_code = 9;  /* gate -> early exit */
-    g_fire_chapter_turn_events_calls = 0;
-    g_fire_chapter_turn_events_last_phase = 0xFFFFFFFF;
     g_phase_banner_slide_in_calls = 0;
 
     fd2_run_full_turn_cycle();
@@ -737,11 +772,16 @@ static void test_run_turn_cycle_phase_a_heal(void)
     ASSERT_EQ(g_test_rc_array[0].flags, 0x80);
     ASSERT_EQ(g_test_rc_array[1].flags, 0x80);
     ASSERT_EQ(g_test_rc_array[2].flags, 0x00);
-    /* Phase B fired with phase 1, then the gate returned (Phase D banner
-     * never reached). */
-    ASSERT_EQ((long)g_fire_chapter_turn_events_last_phase, 1);
+    /* Phase B dispatched the phase-1 chapter event (real dispatcher routed
+     * the turn=3/phase=1 entry to its handler); then the gate returned, so
+     * the phase-0 (Phase D) entry never fired and no banner animated. */
+    ASSERT_EQ(g_turncycle_spy_b_fired, 1);
+    ASSERT_EQ(g_turncycle_spy_d_fired, 0);
     ASSERT_EQ(g_phase_banner_slide_in_calls, 0);
 
+    data_fd2_battle_ai_post_action_consequence_table[0x10] = 0;
+    data_fd2_battle_ai_post_action_consequence_table[0x11] = 0;
+    data_fd2_tile_event_data_table_ptr = save_te;
     data_fd2_large_game_state_buffer_ptr = save_lgs;
     data_fd2_battle_party_member_count = 4;
 }
@@ -756,12 +796,38 @@ static void test_run_turn_cycle_phase_a_heal(void)
 static void test_run_turn_cycle_full_reveal(void)
 {
     uint32 save_lgs;
+    uint32 save_te;
 
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     t_install_dialog_text();
     t_install_sprite_sheet();
     save_lgs = data_fd2_large_game_state_buffer_ptr;
     data_fd2_large_game_state_buffer_ptr = (uint32)t_state_buf;
+
+    /* Drive the REAL fire_chapter dispatcher at all three phases. Phase B
+     * (phase 1) and Phase D (phase 0) fire while turn_counter == 7; Phase F
+     * bumps it to 8 before firing phase 2, so that entry uses turn=8. */
+    save_te = data_fd2_tile_event_data_table_ptr;
+    memset(t_turn_event_table, 0, sizeof(t_turn_event_table));
+    data_fd2_tile_event_data_table_ptr = (uint32)t_turn_event_table;
+    /* entry[0]: turn=7, event_id=0x10, phase=1 (Phase B) */
+    t_turn_event_table[3 + 0 * 3] = 7;
+    t_turn_event_table[4 + 0 * 3] = 0x10;
+    t_turn_event_table[5 + 0 * 3] = 1;
+    /* entry[1]: turn=7, event_id=0x11, phase=0 (Phase D) */
+    t_turn_event_table[3 + 1 * 3] = 7;
+    t_turn_event_table[4 + 1 * 3] = 0x11;
+    t_turn_event_table[5 + 1 * 3] = 0;
+    /* entry[2]: turn=8, event_id=0x12, phase=2 (Phase F, post-bump) */
+    t_turn_event_table[3 + 2 * 3] = 8;
+    t_turn_event_table[4 + 2 * 3] = 0x12;
+    t_turn_event_table[5 + 2 * 3] = 2;
+    data_fd2_battle_ai_post_action_consequence_table[0x10] = turncycle_spy_b;
+    data_fd2_battle_ai_post_action_consequence_table[0x11] = turncycle_spy_d;
+    data_fd2_battle_ai_post_action_consequence_table[0x12] = turncycle_spy_f;
+    g_turncycle_spy_b_fired = 0;
+    g_turncycle_spy_d_fired = 0;
+    g_turncycle_spy_f_fired = 0;
 
     /* one alive player char, already at full HP so Phase A heals nobody
      * (keeps the focus on Phases B-F). */
@@ -786,7 +852,6 @@ static void test_run_turn_cycle_full_reveal(void)
     data_fd2_battle_anim_phase = 5;
     g_phase_banner_slide_in_calls = 0;
     g_phase_banner_slide_out_calls = 0;
-    g_fire_chapter_turn_events_calls = 0;
     g_restore_block_calls = 0;
 
     fd2_run_full_turn_cycle();
@@ -796,9 +861,11 @@ static void test_run_turn_cycle_full_reveal(void)
     /* Phase D banner (0x52) + Phase F banner (0x50): 2 in, 2 out. */
     ASSERT_EQ(g_phase_banner_slide_in_calls, 2);
     ASSERT_EQ(g_phase_banner_slide_out_calls, 2);
-    /* fire_chapter fired for phase 1 (B), 0 (D), 2 (F). */
-    ASSERT_EQ(g_fire_chapter_turn_events_calls, 3);
-    ASSERT_EQ((long)g_fire_chapter_turn_events_last_phase, 2);
+    /* Real dispatcher fired the matching chapter event at each phase:
+     * phase 1 (B) + phase 0 (D) while turn==7, phase 2 (F) at turn==8. */
+    ASSERT_EQ(g_turncycle_spy_b_fired, 1);
+    ASSERT_EQ(g_turncycle_spy_d_fired, 1);
+    ASSERT_EQ(g_turncycle_spy_f_fired, 1);
     /* Phase F tail re-arms the active-char index and anim phase. */
     ASSERT_EQ((long)data_fd2_battle_current_active_char_idx, 0);
     ASSERT_EQ((long)data_fd2_battle_anim_phase, 1);
@@ -808,8 +875,147 @@ static void test_run_turn_cycle_full_reveal(void)
      * before we get here.) */
     ASSERT_EQ(g_restore_block_calls, 13);
 
+    data_fd2_battle_ai_post_action_consequence_table[0x10] = 0;
+    data_fd2_battle_ai_post_action_consequence_table[0x11] = 0;
+    data_fd2_battle_ai_post_action_consequence_table[0x12] = 0;
+    data_fd2_tile_event_data_table_ptr = save_te;
     data_fd2_large_game_state_buffer_ptr = save_lgs;
     data_fd2_battle_party_member_count = 4;
+}
+
+
+/* ---- fd2_fire_chapter_turn_events_for_phase (standalone) ----
+ *
+ * Dispatcher scans 16 entries (offset +3, 3-byte stride) of the table at
+ * data_fd2_tile_event_data_table_ptr; for each entry whose turn byte (+3)
+ * == data_fd2_battle_turn_counter and phase byte (+5) == the phase arg, it
+ * calls data_fd2_battle_ai_post_action_consequence_table[event_id (+4)](0). */
+
+static int g_fc_a_fired, g_fc_b_fired, g_fc_c_fired;
+static uint32 g_fc_a_arg;
+static void fc_spy_a(uint32 a) { g_fc_a_fired++; g_fc_a_arg = a; }
+static void fc_spy_b(uint32 a) { (void)a; g_fc_b_fired++; }
+static void fc_spy_c(uint32 a) { (void)a; g_fc_c_fired++; }
+
+/* Reset spies + a zeroed 16-entry table pointed at by the global, and
+ * install the three spies at fixed event_ids. Caller seeds entries and
+ * the turn counter, then invokes the dispatcher. */
+static uint32 g_fc_save_te;
+static void fc_setup(void)
+{
+    g_fc_a_fired = g_fc_b_fired = g_fc_c_fired = 0;
+    g_fc_a_arg = 0xFFFFFFFF;
+    g_fc_save_te = data_fd2_tile_event_data_table_ptr;
+    memset(t_turn_event_table, 0, sizeof(t_turn_event_table));
+    data_fd2_tile_event_data_table_ptr = (uint32)t_turn_event_table;
+    data_fd2_battle_ai_post_action_consequence_table[0x20] = fc_spy_a;
+    data_fd2_battle_ai_post_action_consequence_table[0x21] = fc_spy_b;
+    data_fd2_battle_ai_post_action_consequence_table[0x22] = fc_spy_c;
+}
+
+static void fc_teardown(void)
+{
+    data_fd2_battle_ai_post_action_consequence_table[0x20] = 0;
+    data_fd2_battle_ai_post_action_consequence_table[0x21] = 0;
+    data_fd2_battle_ai_post_action_consequence_table[0x22] = 0;
+    data_fd2_tile_event_data_table_ptr = g_fc_save_te;
+}
+
+/* Write entry[idx]: turn @ +3, event_id @ +4, phase @ +5 (3-byte stride). */
+static void fc_set_entry(int idx, uint8 turn, uint8 event_id, uint8 phase)
+{
+    t_turn_event_table[3 + idx * 3] = turn;
+    t_turn_event_table[4 + idx * 3] = event_id;
+    t_turn_event_table[5 + idx * 3] = phase;
+}
+
+/* A matching entry fires its handler exactly once, with arg 0. */
+static void test_fire_chapter_match_fires(void)
+{
+    fc_setup();
+    data_fd2_battle_turn_counter = 5;
+    fc_set_entry(0, 5, 0x20, 2);    /* turn=5, handler 0x20, phase=2 */
+
+    fd2_fire_chapter_turn_events_for_phase(2);
+
+    ASSERT_EQ(g_fc_a_fired, 1);
+    ASSERT_EQ((long)g_fc_a_arg, 0);   /* dispatcher passes 0 */
+    fc_teardown();
+}
+
+/* Matching turn but wrong phase -> no fire. */
+static void test_fire_chapter_phase_mismatch_skips(void)
+{
+    fc_setup();
+    data_fd2_battle_turn_counter = 5;
+    fc_set_entry(0, 5, 0x20, 1);    /* phase=1 */
+
+    fd2_fire_chapter_turn_events_for_phase(2);   /* arg phase=2 */
+
+    ASSERT_EQ(g_fc_a_fired, 0);
+    fc_teardown();
+}
+
+/* Matching phase but wrong turn -> no fire. */
+static void test_fire_chapter_turn_mismatch_skips(void)
+{
+    fc_setup();
+    data_fd2_battle_turn_counter = 5;
+    fc_set_entry(0, 6, 0x20, 2);    /* turn=6 != counter 5 */
+
+    fd2_fire_chapter_turn_events_for_phase(2);
+
+    ASSERT_EQ(g_fc_a_fired, 0);
+    fc_teardown();
+}
+
+/* event_id (+4) selects which handler slot is called; only the matching
+ * entry's handler runs. Verifies the +4 byte routes the call and that a
+ * non-matching entry (different phase) is left alone. */
+static void test_fire_chapter_event_id_routing(void)
+{
+    fc_setup();
+    data_fd2_battle_turn_counter = 9;
+    fc_set_entry(0, 9, 0x21, 0);    /* matches phase 0 -> handler 0x21 */
+    fc_set_entry(1, 9, 0x20, 1);    /* phase 1, must NOT fire on arg 0 */
+
+    fd2_fire_chapter_turn_events_for_phase(0);
+
+    ASSERT_EQ(g_fc_b_fired, 1);     /* 0x21 fired */
+    ASSERT_EQ(g_fc_a_fired, 0);     /* 0x20 skipped (phase mismatch) */
+    fc_teardown();
+}
+
+/* The scan covers all 16 entries: a match in the last slot (index 15)
+ * fires, while an entry in slot 16 (just past the scanned range) with the
+ * same match criteria must NOT fire -> proves the bound is exactly 16. */
+static void test_fire_chapter_scans_exactly_16(void)
+{
+    fc_setup();
+    data_fd2_battle_turn_counter = 4;
+    fc_set_entry(15, 4, 0x20, 2);   /* last scanned slot -> fires */
+    fc_set_entry(16, 4, 0x21, 2);   /* out of range -> must not fire */
+
+    fd2_fire_chapter_turn_events_for_phase(2);
+
+    ASSERT_EQ(g_fc_a_fired, 1);     /* slot 15 fired */
+    ASSERT_EQ(g_fc_b_fired, 0);     /* slot 16 not scanned */
+    fc_teardown();
+}
+
+/* Multiple entries match the same turn+phase: every match fires. */
+static void test_fire_chapter_multiple_matches(void)
+{
+    fc_setup();
+    data_fd2_battle_turn_counter = 3;
+    fc_set_entry(0, 3, 0x20, 1);
+    fc_set_entry(5, 3, 0x22, 1);    /* same turn+phase, different handler */
+
+    fd2_fire_chapter_turn_events_for_phase(1);
+
+    ASSERT_EQ(g_fc_a_fired, 1);
+    ASSERT_EQ(g_fc_c_fired, 1);
+    fc_teardown();
 }
 
 
@@ -842,5 +1048,11 @@ void run_battle_btl_turn_tests(void)
     RUN_TEST(test_collect_pending_drops);
     RUN_TEST(test_run_turn_cycle_phase_a_heal);
     RUN_TEST(test_run_turn_cycle_full_reveal);
+    RUN_TEST(test_fire_chapter_match_fires);
+    RUN_TEST(test_fire_chapter_phase_mismatch_skips);
+    RUN_TEST(test_fire_chapter_turn_mismatch_skips);
+    RUN_TEST(test_fire_chapter_event_id_routing);
+    RUN_TEST(test_fire_chapter_scans_exactly_16);
+    RUN_TEST(test_fire_chapter_multiple_matches);
     printf("\n");
 }
