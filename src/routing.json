@@ -2168,8 +2168,9 @@
     "name": "fd2_animate_warp_in_expand",
     "target": "spell/spellcin.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000226ea": {
     "name": "fd2_cast_spell_11_stage_a",

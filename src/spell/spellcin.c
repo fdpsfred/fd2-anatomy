@@ -11,6 +11,7 @@
  *   fd2_animate_warp_teleport_char @ 0x22253 (4 callers)
  *   fd2_animate_warp_portal_open_at @ 0x22470 (1 caller)
  *   fd2_animate_warp_out_collapse @ 0x22547 (1 caller)
+ *   fd2_animate_warp_in_expand @ 0x22656 (1 caller)
  */
 
 #include "types.h"
@@ -794,9 +795,10 @@ void fd2_animate_warp_portal_open_at(uint32 tile_x, uint32 tile_y,
  * Cdecl, 6 stack params; int return. The binary's __CHK(0x2C) stack-probe
  * prologue is compiler-injected and not part of the source. There is no
  * explicit RET: the tail JMPs into the shared epilogue at 0x1E5B9 (the
- * MOV EAX,EDI / POP EBP/EDI/ESI/EBX / RET tail of fd2_animate_warp_in_expand
- * @ 0x1E529 — an identical Watcom epilogue shared between adjacent
- * same-frame functions). Emitted here as a plain return of sprite_addr;
+ * MOV EAX,EDI / POP EBP/EDI/ESI/EBX / RET tail of
+ * fd2_roll_stat_gain_and_show_message @ 0x1E529 — an identical Watcom
+ * epilogue shared between adjacent same-frame functions). Emitted here as a
+ * plain return of sprite_addr;
  * the compiler regenerates the matching epilogue.
  * ---------------------------------------------------------------- */
 int fd2_animate_warp_out_collapse(int tile_x, int tile_y, void *snapshot,
@@ -830,4 +832,60 @@ int fd2_animate_warp_out_collapse(int tile_x, int tile_y, void *snapshot,
     fd2_wait_n_bios_ticks(1);
     fd2_wait_n_bios_ticks(1);
     return (int)sprite_addr;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_animate_warp_in_expand @ 0x22656  (1 caller)
+ *
+ * 10-frame warp-IN expand animation: the character materializes at the
+ * destination tile inside an expanding filled-circle band. Third visual
+ * stage of the character-warp sequence (sole caller
+ * fd2_animate_warp_teleport_char @ 0x22253, destination-side expand,
+ * played right after the "pop-in" row copy).
+ *
+ * For frame_iter = 0..9 the backdrop is restored from the snapshot, one
+ * band sprite from the tile-anim table is rendered as a filled circle, and
+ * the viewport is blitted to the mode-13h framebuffer. Counterpart to
+ * fd2_animate_warp_out_collapse @ 0x22547, which counts down with a
+ * shrinking band; this one runs the band at a *constant* radius 0xB with a
+ * constant band-top of 0, so the visible circle grows only as the sprite
+ * table index advances.
+ *
+ * Sprite table at offset +6 of data_fd2_tile_anim_table_base (same idiom
+ * as the collapse half):
+ *   sprite_addr = *(int *)(table_base + 6 + frame_iter*4) + table_base;
+ *
+ * Of the seven cdecl params the caller passes
+ * (dst_tile_x, dst_tile_y, snapshot, src_x, src_y, warp_in_sprite, radius)
+ * only snapshot (backdrop source), src_x and src_y (band center) are read
+ * by the body; the other four are vestigial (the binary never references
+ * them), preserved in the signature to match the call site.
+ *
+ * Cdecl, 7 stack params; void return. The binary's __CHK(0x2C) stack-probe
+ * prologue is compiler-injected and not part of the source. Explicit
+ * self-contained RET at 0x226E9 (POP EBP/EDI/ESI/EBX; RET, no MOV EAX,EDI
+ * since void). Unlike the collapse half (which tail-JMPs at 0x22651 into the
+ * shared epilogue of fd2_roll_stat_gain_and_show_message @ 0x1E5B9), this
+ * function owns its full epilogue and shares nothing with it.
+ * ---------------------------------------------------------------- */
+void fd2_animate_warp_in_expand(uint32 dst_tile_x, uint32 dst_tile_y,
+    uint32 snapshot, uint32 src_x, uint32 src_y,
+    uint32 *warp_in_sprite, int radius)
+{
+    uint32 frame_iter;
+    uint32 sprite_addr;
+
+    for (frame_iter = 0; (int)frame_iter < 10; frame_iter++) {
+        sprite_addr =
+            *(uint32 *)(data_fd2_tile_anim_table_base + 6 + frame_iter * 4) +
+            data_fd2_tile_anim_table_base;
+        memmove((void *)data_fd2_large_game_state_buffer_ptr,
+            (void *)snapshot, 0x25680);
+        fd2_render_filled_circle_band_anim(src_x, src_y, 0xb, 0, 0xc0,
+            sprite_addr);
+        fd2_blit_rectangle(0xa0504, 0x140,
+            data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1c8, 0x138, 0xc0);
+        fd2_wait_n_bios_ticks(1);
+    }
+    return;
 }

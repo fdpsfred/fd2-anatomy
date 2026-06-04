@@ -1,7 +1,7 @@
 /*
  * unit tests for src/spell/spellcin.c
  *
- * Eight of the nine workers in this file are pure VGA/VRAM cinematic
+ * Nine of the ten workers in this file are pure VGA/VRAM cinematic
  * orchestration and have no isolated numeric path that avoids a write to the
  * hardcoded mode-13h framebuffer literal 0xA0504 (not redirectable via
  * globals). Their behavioral verification is deferred to Phase 9 integration on
@@ -68,6 +68,16 @@
  *   it is observable only through the VRAM-touching blit callees (and the return
  *   only after the full loop drives 0xA0504), so it is deferred to Phase 9
  *   integration.
+ *
+ *   fd2_animate_warp_in_expand @ 0x22656 — the destination-tile expand half
+ *   of the warp sequence (sole caller fd2_animate_warp_teleport_char). Its
+ *   10-frame loop restores the backdrop, renders one filled-circle band at a
+ *   constant radius 0xB / band-top 0, and unconditionally blits the viewport to
+ *   0xA0504 every frame. The only computed state — the sprite-table lookup
+ *   (table_base[6 + frame*4]+table_base, same idiom as the collapse half) — was
+ *   verified statically against the disassembly @0x22670..0x2267C; it is
+ *   observable only through the VRAM-touching blit callees, so it is deferred to
+ *   Phase 9 integration.
  *
  * The remaining worker, fd2_scatter_sprite_around_origin_with_random_offset
  * @ 0x21db2, is the scatter *leaf* called by the orphan executor. Unlike its
