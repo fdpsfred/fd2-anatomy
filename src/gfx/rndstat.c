@@ -2,6 +2,7 @@
  * rndstat.c — dialog portrait / status-area rendering helpers
  */
 
+#include <string.h>
 #include "types.h"
 #include "consts.h"
 #include "globals.h"
@@ -297,5 +298,50 @@ void fd2_render_full_char_stat_panel(uint32 char_idx, uint32 overlay_buffer)
                 overlay_buffer + 0x55c2 + i * 0x23, 0x140,
                 data_fd2_ui_anim_sprite_sheet_ptr, (uint32)(i + 0x37));
         }
+    }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_paint_status_panel_layer_left @ 0x182ad (2 callers)
+ *
+ * Copy the LEFT status panel (86 rows x 86 bytes) from src_buffer into
+ * dst_workspace, applying horizontal-shift clipping so the panel can be
+ * drawn part-way off the left screen edge during the slide animation.
+ *
+ * x_offset is the signed horizontal destination shift (in pixels).
+ * When x_offset < 0 the panel is being pushed off the left edge: the
+ * copy is narrowed (row_bytes shrinks by |x_offset|), the source is
+ * advanced by |x_offset| (src_x_skip) so the visible part stays aligned,
+ * and the destination x is clamped to 0.
+ *
+ * Per-row layout (stride 0x140 = 320 px/row):
+ *   dst = dst_workspace + 0x8C0 (row 8 * 0x140 + 0xC0) + x_offset + row*0x140
+ *   src = src_buffer    + 0x8C5 (+5 px vs dst x; sister _right uses its
+ *                                own x) + src_x_skip + row*0x140
+ *
+ * Callers: fd2_open_char_status_screen, fd2_play_status_screen_outro_step
+ * (the latter redraws the left panel each frame at the frame's x_offset).
+ *
+ * Cdecl, 3 stack params; void return. The binary's __CHK(0x20) stack-probe
+ * prologue is compiler-generated and omitted here.
+ * ---------------------------------------------------------------- */
+void fd2_paint_status_panel_layer_left(uint32 x_offset, uint32 dst_workspace,
+                                       uint32 src_buffer)
+{
+    uint32 row;
+    uint32 src_x_skip;
+    uint32 row_bytes;
+
+    row_bytes = 0x56;
+    src_x_skip = 0;
+    if ((int32)x_offset < 0) {
+        row_bytes = x_offset + 0x56;
+        src_x_skip = -x_offset;
+        x_offset = 0;
+    }
+    for (row = 0; (int32)row < 0x56; row = row + 1) {
+        memmove((void *)(row * 0x140 + dst_workspace + 0x8c0 + x_offset),
+                (void *)(src_buffer + 0x8c5 + src_x_skip + row * 0x140),
+                row_bytes);
     }
 }

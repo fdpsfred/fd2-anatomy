@@ -929,10 +929,8 @@ void fd2_render_inventory_item_grid(uint32 char_idx, int item_id,
                                     uint32 overlay_buffer) {
     (void)char_idx; (void)item_id; (void)overlay_buffer;
 }
-void fd2_paint_status_panel_layer_left(uint32 layer, uint32 dst_workspace,
-                                       uint32 overlay_buffer) {
-    (void)layer; (void)dst_workspace; (void)overlay_buffer;
-}
+/* fd2_paint_status_panel_layer_left: now emitted for real in
+ * src/gfx/rndstat.c (with a host unit test); stub removed. */
 void fd2_paint_status_panel_layer_right(uint32 layer, uint32 dst_workspace,
                                         uint32 overlay_buffer) {
     (void)layer; (void)dst_workspace; (void)overlay_buffer;
