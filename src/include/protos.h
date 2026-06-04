@@ -80,6 +80,7 @@ int fd2_collect_dead_char_drops(uint32 out_buffer);
 uint32 fd2_find_equipped_item_by_kind(uint32 char_idx, uint32 kind);
 uint8 fd2_get_inventory_slot_item_id(uint32 char_idx, uint32 slot);
 int fd2_inventory_selection_modal_dispatch(uint32 char_idx, uint32 mode);
+int fd2_inventory_grid_input_step(uint32 char_idx, uint32 gate_flag);
 void fd2_handle_tile_event_interaction(uint32 char_idx);
 void fd2_delay_ticks(uint32 ticks);
 void fd2_run_full_turn_cycle(void);

@@ -463,3 +463,54 @@ void fd2_remove_inventory_slot_at(uint32 char_idx, uint32 slot)
             (7 - slot) * 2);
     rc[char_idx].inventory_slots[14] = 0x80;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_inventory_selection_modal_dispatch @ 0x1B932  (3 callers)
+ *
+ * Open the character inventory-selection modal: show char_idx's status
+ * screen + inventory grid (slide-in), then loop processing directional /
+ * confirm input until a slot is chosen or Esc is pressed, then play the
+ * 12-frame close-screen outro, restore the saved VGA snapshot to 0xA0000,
+ * free the three slide workspace buffers, and return whether the user
+ * confirmed (chosen slot index left in data_fd2_ui_menu_cursor_idx).
+ *
+ * gate_flag is forwarded to the grid input step:
+ *   1 = only usable items selectable (item command "use"/"equip")
+ *   0 = any slot selectable (swap / give / sort)
+ *
+ * fd2_inventory_grid_input_step returns 0 while still in the grid, a non-
+ * -1 value once a slot is confirmed, and -1 on Esc cancel; the modal
+ * returns (result != -1) as a 0/1 boolean.
+ *
+ * Callers: tile-event swap, battle drop swap, item command menu.
+ *
+ * int __cdecl with the __CHK(0x20) stack-probe prologue (compiler-injected,
+ * not part of the source). EBX/ESI/EDI are callee-saved.
+ * ---------------------------------------------------------------- */
+int fd2_inventory_selection_modal_dispatch(uint32 char_idx, uint32 gate_flag)
+{
+    uint32 input_result;
+    uint32 outro_iter;
+
+    fd2_open_status_screen_with_slide_in(char_idx);
+    data_fd2_ui_menu_cursor_idx = 0;
+    do {
+        input_result = (uint32)fd2_inventory_grid_input_step(char_idx, gate_flag);
+    } while (input_result == 0);
+
+    for (outro_iter = 0; (int)outro_iter < 0xc; outro_iter++) {
+        fd2_play_status_screen_outro_step(
+            outro_iter,
+            data_fd2_ui_slide_anim_accumulator_buf_ptr,
+            data_fd2_ui_slide_composed_target_buf_ptr,
+            (int)data_fd2_ui_slide_bg_snapshot_buf_ptr);
+    }
+
+    memmove((void *)0xa0000,
+            (void *)data_fd2_ui_slide_bg_snapshot_buf_ptr, 64000);
+    free((void *)data_fd2_ui_slide_anim_accumulator_buf_ptr);
+    free((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr);
+    free((void *)data_fd2_ui_slide_composed_target_buf_ptr);
+
+    return input_result != 0xffffffff;
+}

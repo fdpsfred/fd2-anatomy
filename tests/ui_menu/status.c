@@ -63,6 +63,12 @@ extern int g_composite_call_count;
  * counter (fd2_count_active_chars_for_team_filter) is now real and reads
  * data_fd2_battle_party_member_count / g_test_rc_array. */
 extern uint32 g_has_char_fake;
+/* controllable fake for the not-yet-emitted fd2_inventory_grid_input_step
+ * (testglob.c): drives the modal dispatcher's input loop with a programmed
+ * return sequence. */
+extern int g_grid_input_seq[8];
+extern int g_grid_input_seq_len;
+extern int g_grid_input_calls;
 /* data_fd2_ui_slide_* workspace ptr globals are declared in globals.h */
 
 
@@ -546,6 +552,155 @@ static void test_remove_slot_char_index_isolation(void)
     }
 }
 
+/* ----------------------------------------------------------------
+ * fd2_inventory_selection_modal_dispatch @ 0x1B932
+ *
+ * The modal is a thin orchestrator around three pieces:
+ *   1. fd2_open_status_screen_with_slide_in(char_idx)  — REAL display setup
+ *      (allocates the three 64000-byte workspaces, loads the real DATO.DAT
+ *      portrait, renders the static panel + inventory grid, runs a 12-frame
+ *      slide-in). This is the Phase-9 display path and is exercised here only
+ *      to the extent of "it runs end-to-end without faulting".
+ *   2. a do { r = fd2_inventory_grid_input_step(...); } while (r == 0) loop.
+ *   3. a 12-frame outro + VGA restore + three free()s, then
+ *      return (r != -1) as a 0/1 boolean.
+ *
+ * The unique, testable logic is the loop termination and the boolean return
+ * (an EAX-tracking-bug-prone "use the CALL's EAX result" point: the binary
+ * does MOV ESI,EAX / ... / CMP ESI,-1 / SETNZ). We drive that deterministically
+ * by faking only the not-yet-emitted fd2_inventory_grid_input_step (testglob.c)
+ * with a programmed return sequence, and assert: (a) the dispatcher returns at
+ * all (proving the loop's exit condition is wired to the input result — an
+ * EAX regression would spin forever and trip the harness hang detector);
+ * (b) the loop iterated exactly len(sequence) times; (c) the boolean return is
+ * 1 for a confirmed slot (terminal != -1) and 0 for Esc cancel (terminal -1).
+ *
+ * Fixture (mirrors test_open_party_overview_runs_and_returns): a zeroed sprite
+ * sheet whose offset table resolves every sprite to sheet+0, an immediate-END
+ * text program so the panel's three real fd2_display_dialog_scene labels return
+ * at once (no DATO text fopen, no input wait), and char_idx's portrait_id = 0
+ * so the REAL fd2_load_dat_resource reads resource 0 of the staged real
+ * DATO.DAT (always a valid index). The three workspaces are malloc'd inside
+ * open and free()d inside the dispatcher, so the test must not pre-allocate or
+ * re-free them; the globals are reset to 0 afterward to drop the dangling ptrs.
+ * Writes to 0xA0000 hit the VGA aperture (harmless under DOS/4GW, same
+ * convention as the sibling status/gfx tests).
+ * ---------------------------------------------------------------- */
+static uint8  g_modal_sheet[4096];
+static uint16 g_modal_text[0x400];
+
+static void modal_setup_render_fixture(uint32 char_idx)
+{
+    int i;
+
+    /* runtime char: zero, valid portrait, all inventory slots empty (flag
+     * bit 0x80) so the grid renderer draws nothing and never touches text. */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[char_idx].portrait_id = 0;     /* DATO resource 0 */
+    for (i = 0; i < 8; i++) {
+        g_test_rc_array[char_idx].inventory_slots[i * 2] = 0x80;
+    }
+    memset(data_fd2_battle_item_effect_table, 0,
+           sizeof(item_effect) * 215);
+
+    /* sprite sheet: zeroed offset table -> every sprite resolves to sheet+0. */
+    memset(g_modal_sheet, 0, sizeof(g_modal_sheet));
+    data_fd2_ui_anim_sprite_sheet_ptr = (uint32)g_modal_sheet;
+
+    /* immediate-END text program: a -1 opcode parked high, every page word
+     * pointing at it so the panel's three real dialog labels return at once. */
+    for (i = 0; i < 0x400; i++) {
+        g_modal_text[i] = 0x600;
+    }
+    *(int16 *)((uint8 *)g_modal_text + 0x600) = -1;
+    data_fd2_all_game_text_ptr = (uint32)g_modal_text;
+
+    /* loader free()s old_buf first; NULL it so that free is a no-op. */
+    data_fd2_portrait_sprite_buffer = 0;
+    /* sfx callee is a no-op recording fake; any non-zero handle is fine. */
+    data_fd2_audio_fdother_sfx_bank_buf_ptr = (uint32)g_modal_sheet;
+
+    /* open() malloc's all three workspaces; the dispatcher free()s them. */
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+}
+
+static void modal_teardown_render_fixture(void)
+{
+    /* the dispatcher already free()d all three workspaces; drop the dangling
+     * globals so later suites never reuse a freed pointer. */
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+    /* the portrait buffer the real loader returned is leaked by the function
+     * itself (no caller frees it); free it here to keep the test tidy. */
+    if (data_fd2_portrait_sprite_buffer != 0) {
+        free((void *)data_fd2_portrait_sprite_buffer);
+        data_fd2_portrait_sprite_buffer = 0;
+    }
+}
+
+/* Confirm path: input step returns 0,0 (still in grid) then 3 (slot chosen);
+ * the loop runs 3 times and the dispatcher returns 1 (3 != -1). */
+static void test_inventory_modal_confirm_returns_true(void)
+{
+    int ret;
+
+    modal_setup_render_fixture(0);
+    g_grid_input_seq[0] = 0;
+    g_grid_input_seq[1] = 0;
+    g_grid_input_seq[2] = 3;        /* terminal: a confirmed slot index */
+    g_grid_input_seq_len = 3;
+    g_grid_input_calls = 0;
+
+    ret = fd2_inventory_selection_modal_dispatch(0, 1);
+
+    ASSERT_EQ((long)g_grid_input_calls, 3);   /* loop iterated 0,0,3 */
+    ASSERT_EQ((long)ret, 1);                   /* 3 != -1 -> true */
+    modal_teardown_render_fixture();
+}
+
+/* Cancel path: input step returns 0 (still in grid) then -1 (Esc); the loop
+ * runs 2 times and the dispatcher returns 0 (-1 == -1). Also proves gate_flag
+ * is forwarded unchanged (the fake ignores it, but the call must compile/run
+ * with mode 0). */
+static void test_inventory_modal_cancel_returns_false(void)
+{
+    int ret;
+
+    modal_setup_render_fixture(0);
+    g_grid_input_seq[0] = 0;
+    g_grid_input_seq[1] = -1;       /* terminal: Esc cancel */
+    g_grid_input_seq_len = 2;
+    g_grid_input_calls = 0;
+
+    ret = fd2_inventory_selection_modal_dispatch(0, 0);
+
+    ASSERT_EQ((long)g_grid_input_calls, 2);   /* loop iterated 0,-1 */
+    ASSERT_EQ((long)ret, 0);                   /* -1 == -1 -> false */
+    modal_teardown_render_fixture();
+}
+
+/* Immediate confirm: the very first input poll returns a terminal slot (5),
+ * so the loop body runs exactly once (do/while, not while) and returns true.
+ * Pins the do-while semantics: the input step is always called at least once. */
+static void test_inventory_modal_immediate_confirm_runs_once(void)
+{
+    int ret;
+
+    modal_setup_render_fixture(1);
+    g_grid_input_seq[0] = 5;        /* terminal on the first poll */
+    g_grid_input_seq_len = 1;
+    g_grid_input_calls = 0;
+
+    ret = fd2_inventory_selection_modal_dispatch(1, 1);
+
+    ASSERT_EQ((long)g_grid_input_calls, 1);   /* do-while: exactly one poll */
+    ASSERT_EQ((long)ret, 1);                   /* 5 != -1 -> true */
+    modal_teardown_render_fixture();
+}
+
 void run_ui_menu_status_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -564,5 +719,8 @@ void run_ui_menu_status_tests(void)
     RUN_TEST(test_remove_slot_zero_full_shift);
     RUN_TEST(test_remove_slot_seven_only_vacates);
     RUN_TEST(test_remove_slot_char_index_isolation);
+    RUN_TEST(test_inventory_modal_confirm_returns_true);
+    RUN_TEST(test_inventory_modal_cancel_returns_false);
+    RUN_TEST(test_inventory_modal_immediate_confirm_runs_once);
     printf("\n");
 }

@@ -775,11 +775,34 @@ uint8  data_fd2_graphics_tile_anim_palette_phase_lookup[20] = {0};
 int  g_add_item_return = 0;
 int  g_add_item_calls = 0;
 int fd2_add_item_to_inventory(uint32 c, uint32 i) { g_add_item_calls++; (void)c; (void)i; return g_add_item_return; }
-/* fd2_inventory_selection_modal_dispatch real body not yet emitted; returns a
- * 0/1 confirm flag (SETNZ of selection != -1). Test-controllable. */
-int  g_inventory_modal_return = 0;
-int  g_inventory_modal_calls = 0;
-int fd2_inventory_selection_modal_dispatch(uint32 c, uint32 m) { g_inventory_modal_calls++; (void)c; (void)m; return g_inventory_modal_return; }
+/* fd2_inventory_selection_modal_dispatch is now emitted for real in
+ * src/ui_menu/status.c (driven by the test_inventory_modal_* cases in
+ * tests/ui_menu/status.c). Its previous recording fake was removed.
+ *
+ * fd2_inventory_grid_input_step (0x1b9de) is the per-iteration input handler
+ * the real modal dispatcher loops on; its body is not yet emitted. This
+ * controllable fake returns a programmed sequence: it yields
+ * g_grid_input_seq[i] for the first g_grid_input_seq_len calls (0 = "still in
+ * grid", any non-zero terminal value ends the loop), then keeps returning the
+ * last terminal value. g_grid_input_calls counts invocations so a test can
+ * assert the dispatcher's loop iterated exactly as many times as expected. */
+int g_grid_input_seq[8] = {0};
+int g_grid_input_seq_len = 0;
+int g_grid_input_calls = 0;
+int fd2_inventory_grid_input_step(uint32 c, uint32 g)
+{
+    int r;
+    (void)c; (void)g;
+    if (g_grid_input_calls < g_grid_input_seq_len) {
+        r = g_grid_input_seq[g_grid_input_calls];
+    } else if (g_grid_input_seq_len > 0) {
+        r = g_grid_input_seq[g_grid_input_seq_len - 1];
+    } else {
+        r = -1;
+    }
+    g_grid_input_calls++;
+    return r;
+}
 int g_play_sfx_sample_from_bank_calls = 0;
 void fd2_play_sfx_sample_from_bank(uint32 b, uint32 s, uint32 p) { g_play_sfx_sample_from_bank_calls++; (void)b; (void)s; (void)p; }
 void fd2_paint_char_sprite_at_world_with_mode(uint32 w, uint32 s, uint32 c, uint32 m, uint32 co) { }

@@ -1262,8 +1262,9 @@
     "name": "fd2_inventory_selection_modal_dispatch",
     "target": "ui_menu/status.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001b9de": {
     "name": "fd2_inventory_grid_input_step",

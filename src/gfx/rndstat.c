@@ -135,7 +135,8 @@ void fd2_render_status_screen_static_layout(uint32 char_idx, uint32 overlay_buff
     data_fd2_dialog_active_portrait_blit_offset = 0xc88;
     data_fd2_portrait_sprite_buffer =
         (uint8 *)fd2_load_dat_resource(
-            0x51a70, (uint32)data_fd2_portrait_sprite_buffer,
+            (uint32)data_fd2_string_resource_filename_dato_dat_51a70,
+            (uint32)data_fd2_portrait_sprite_buffer,
             (uint32)data_fd2_battle_runtime_char_array_ptr[char_idx].portrait_id);
 
     portrait_pixels = (uint32)*data_fd2_portrait_sprite_buffer
