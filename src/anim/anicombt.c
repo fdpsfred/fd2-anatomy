@@ -1180,3 +1180,76 @@ void fd2_animate_phase_banner_slide_in(uint32 banner_sprite_id)
     free(snapshot_buf);
     fd2_clear_keyboard_buffer();
 }
+
+/* ----------------------------------------------------------------
+ * fd2_animate_phase_banner_slide_out @ 0x1F30A (1 caller)
+ *
+ * "ENEMY TURN" / "PLAYER TURN" turn-phase banner slide-out animation.
+ * Called by fd2_run_full_turn_cycle once a phase banner has finished
+ * displaying (Phase D / Phase F). Paired with
+ * fd2_animate_phase_banner_slide_in.
+ *
+ *   scratch = malloc(64000); memset(scratch, 0, 64000)   // black frame
+ *
+ * Phase 1 (palette fade-out, 17 frames, fade_iter 0x10..0 counting down):
+ *   the source block is scrolled (scroll_offset 0x11 counting down) into
+ *   the black scratch frame, the main banner sprite (banner_sprite_id) and
+ *   the corner frame sprite (0x51) are blitted, the VGA palette is faded
+ *   down (brightness 16..0), and the frame is pushed to 0xA0000 with a
+ *   one-tick wait.
+ *
+ * Phase 2 (restore the battle scene): recomposite the battle tile map and
+ *   overlay all chars back onto the working buffer.
+ *
+ * Phase 3 (5-frame slide-out): the two banner halves slide from centre out
+ *   to the screen edges. x_offset = iVar1*0x19 = 0,0x19,0x32,0x4B,0x64.
+ *
+ * NOTE (Ghidra EAX-tracking bug): the decompiler collapsed the two
+ * fd2_alloc_and_blit_indexed_sprite_chunk return values and the trailing
+ * memmove return into a single reused temporary, and even hoisted the frees
+ * into the wrong place. The assembly shows each blit returns its own freshly
+ * malloc'd save buffer, each freed immediately after its blit (PUSH EAX;
+ * CALL free); the memmove return is discarded; the scratch frame buffer is
+ * freed once, after the fade loop. Encoded here to match the assembly.
+ * ---------------------------------------------------------------- */
+void fd2_animate_phase_banner_slide_out(uint32 banner_sprite_id)
+{
+    uint8 *scratch_buf;
+    uint32 blit_buf;
+    int32 frame_iter;
+    uint32 scroll_offset;
+    uint32 fade_iter;
+
+    scroll_offset = 0x11;
+    scratch_buf = (uint8 *)malloc(64000);
+    memset(scratch_buf, 0, 64000);
+
+    for (fade_iter = 0x10; -1 < (int32)fade_iter; fade_iter--) {
+        fd2_scroll_buffer_block_with_wrap(scroll_offset, scratch_buf,
+                                          (void *)data_fd2_large_game_state_buffer_ptr);
+        blit_buf = fd2_alloc_and_blit_indexed_sprite_chunk(
+            data_fd2_ui_anim_sprite_sheet_ptr, (uint32)scratch_buf, 0x140,
+            0x59, 0x56, banner_sprite_id);
+        free((void *)blit_buf);
+        blit_buf = fd2_alloc_and_blit_indexed_sprite_chunk(
+            data_fd2_ui_anim_sprite_sheet_ptr, (uint32)scratch_buf, 0x140,
+            0xa9, 0x56, 0x51);
+        free((void *)blit_buf);
+        fd2_set_vga_palette_range(0x10, 0xff, fade_iter);
+        memmove((void *)0xa0000, scratch_buf, 64000);
+        fd2_wait_n_bios_ticks(1);
+        scroll_offset--;
+    }
+
+    free(scratch_buf);
+
+    fd2_composite_battle_tile_map(
+        data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1c8, 0xd, 8,
+        data_fd2_battle_view_window_origin_x,
+        data_fd2_battle_view_window_origin_y);
+    fd2_composite_all_chars_overlay();
+
+    for (frame_iter = 0; frame_iter < 5; frame_iter++) {
+        fd2_render_phase_banner_frame(frame_iter * 0x19, banner_sprite_id);
+    }
+}

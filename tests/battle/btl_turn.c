@@ -638,12 +638,12 @@ static void test_mark_char_acted(void)
 
 /* ---- fd2_run_full_turn_cycle ---- */
 
-/* fd2_animate_phase_banner_slide_in is now emitted for real (anicombt.c), so
- * the full cycle runs the real banner; its invocations are counted at the
- * still-stub fd2_render_phase_banner_frame boundary (7 frame renders per
- * banner). slide_out is still a counting stub. */
+/* fd2_animate_phase_banner_slide_in and fd2_animate_phase_banner_slide_out are
+ * now both emitted for real (anicombt.c), so the full cycle runs the real
+ * banners; their invocations are counted at the still-stub
+ * fd2_render_phase_banner_frame boundary (7 frame renders per slide_in, 5 per
+ * slide_out). */
 extern int g_render_phase_banner_frame_calls;
-extern int g_phase_banner_slide_out_calls;
 extern int g_restore_block_calls;
 extern uint8 data_fd2_audio_bgm_driver_available_flag;
 
@@ -858,18 +858,19 @@ static void test_run_turn_cycle_full_reveal(void)
     data_fd2_battle_current_active_char_idx = 99;
     data_fd2_battle_anim_phase = 5;
     g_render_phase_banner_frame_calls = 0;
-    g_phase_banner_slide_out_calls = 0;
     g_restore_block_calls = 0;
 
     fd2_run_full_turn_cycle();
 
     /* turn counter bumped exactly once (Phase F). */
     ASSERT_EQ((long)data_fd2_battle_turn_counter, 8);
-    /* Phase D banner (0x52) + Phase F banner (0x50): each real slide_in
-     * renders 7 frames (5-frame countdown + settle 1 + settle 0), so two
-     * banners => 14 frame renders. Plus 2 slide_out stub calls. */
-    ASSERT_EQ(g_render_phase_banner_frame_calls, 14);
-    ASSERT_EQ(g_phase_banner_slide_out_calls, 2);
+    /* Phase D banner (0x52) + Phase F banner (0x50). Each phase shows a
+     * banner then slides it out, so per phase: one real slide_in (7 frame
+     * renders = 5-frame countdown + settle 1 + settle 0) + one real slide_out
+     * (5 frame renders). Two phases => 2*(7+5) = 24 frame renders. (This also
+     * implicitly confirms slide_out fired exactly twice: 0 or 1 invocations
+     * would not reach 24.) */
+    ASSERT_EQ(g_render_phase_banner_frame_calls, 24);
     /* Real dispatcher fired the matching chapter event at each phase:
      * phase 1 (B) + phase 0 (D) while turn==7, phase 2 (F) at turn==8. */
     ASSERT_EQ(g_turncycle_spy_b_fired, 1);

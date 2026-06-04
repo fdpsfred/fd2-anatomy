@@ -1655,8 +1655,9 @@
     "name": "fd2_animate_phase_banner_slide_out",
     "target": "anim/anicombt.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001f42d": {
     "name": "fd2_render_phase_banner_frame",
