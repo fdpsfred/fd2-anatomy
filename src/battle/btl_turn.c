@@ -740,3 +740,32 @@ void fd2_process_battle_drop_entries(uint32 recipient_idx,
         }
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_count_active_chars_for_team_filter @ 0x1B5F1 (1 caller)
+ *
+ * Count "actively usable" chars on the given team: matching team,
+ * portrait_id != 0x79 (exclude hidden/quest portrait),
+ * archetype_flag != 10 (exclude boss / special unit), and alive.
+ * Used by fd2_render_party_status_overview_content to show each
+ * team's surviving headcount (team 0/1/2).
+ * ---------------------------------------------------------------- */
+int fd2_count_active_chars_for_team_filter(uint32 team)
+{
+    int count;
+    int i;
+    runtime_char *pc;
+
+    count = 0;
+    for (i = 0; i < (int)data_fd2_battle_party_member_count; i++) {
+        pc = &data_fd2_battle_runtime_char_array_ptr[i];
+        if (pc->team == team &&
+            pc->portrait_id != 0x79 &&
+            pc->archetype_flag != 10) {
+            if (!fd2_check_char_is_dead((uint32)i)) {
+                count++;
+            }
+        }
+    }
+    return count;
+}

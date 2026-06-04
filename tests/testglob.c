@@ -1023,19 +1023,16 @@ void fd2_draw_spell_selection_list(uint32 char_idx, uint32 spell_idx,
  * tests/ui_menu/status.c now stands up a minimal sprite-sheet + immediate-END
  * text fixture so the real content renderer runs safely. */
 
-/* Fakes for the two party-query callees of the content renderer, not yet
- * emitted (fd2_count_active_chars_for_team_filter -> src/battle/btl_turn.c,
- * fd2_check_party_has_char_id -> src/util/misc.c). Tests set the return values
- * directly. g_team_count_fake is indexed by the team argument (0=ENEMY,
- * 1=NPC ALLY, 2=PLAYER). */
-int    g_team_count_fake[4] = { 0, 0, 0, 0 };
-int    g_team_count_calls = 0;
-uint32 g_team_count_last_arg = 0;
-int fd2_count_active_chars_for_team_filter(uint32 team) {
-    g_team_count_calls++;
-    g_team_count_last_arg = team;
-    return (team < 4) ? g_team_count_fake[team] : 0;
-}
+/* fd2_count_active_chars_for_team_filter: now emitted for real in
+ * src/battle/btl_turn.c (it scans g_test_rc_array via
+ * data_fd2_battle_runtime_char_array_ptr and the fd2_check_char_is_dead stub);
+ * recording fake removed. The content-renderer tests in tests/gfx/rndstat.c
+ * now seed g_test_rc_array with a known per-team alive distribution so the
+ * real counter feeds the per-team decimal renders. */
+
+/* Fake for the remaining unemitted party-query callee of the content renderer
+ * (fd2_check_party_has_char_id -> src/util/misc.c). Tests set the return value
+ * directly. */
 uint32 g_has_char_fake = 0;
 uint32 g_has_char_last_arg = 0;
 int    g_has_char_calls = 0;

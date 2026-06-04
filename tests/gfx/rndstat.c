@@ -2527,15 +2527,13 @@ static void test_signmod_negative_magnitude_overflow(void)
  *     REAL fd2_render_decimal_number_to_buffer -> rle spy
  *   - 2 chapter title/subtitle dialogs via the REAL fd2_display_dialog_scene
  *     against an immediate-END / single-glyph text program
- * The two unemitted party-query callees (fd2_count_active_chars_for_team_filter,
- * fd2_check_party_has_char_id) are faked in testglob.c; the team-count fake's
- * return value flows into the per-team decimal renders, exercising the
- * "CALL then PUSH EAX" return-value plumbing.
+ * fd2_count_active_chars_for_team_filter is emitted for real; the overview
+ * tests seed g_test_rc_array with a known per-team alive distribution so its
+ * counts flow into the per-team decimal renders, exercising the
+ * "CALL then PUSH EAX" return-value plumbing. fd2_check_party_has_char_id is
+ * still faked in testglob.c.
  * ---------------------------------------------------------------- */
 extern uint32 g_dlg_glyph_last_idx;
-extern int    g_team_count_fake[4];
-extern int    g_team_count_calls;
-extern uint32 g_team_count_last_arg;
 extern uint32 g_has_char_fake;
 extern uint32 g_has_char_last_arg;
 extern int    g_has_char_calls;
@@ -2577,10 +2575,21 @@ static void test_overview_static_blits(void)
     data_fd2_chapter_current_chapter_id = 5;      /* number = 6, off Mitti case */
     data_fd2_battle_turn_counter        = 123;
     data_fd2_shared_party_total_gold    = 1234;
-    g_team_count_fake[0] = 3;       /* ENEMY    */
-    g_team_count_fake[1] = 2;       /* NPC ALLY */
-    g_team_count_fake[2] = 7;       /* PLAYER   */
-    g_team_count_calls = 0;
+    /* Seed a known per-team alive distribution for the REAL counter:
+     * team 0 (ENEMY) = 3, team 2 (PLAYER) = 4, team 1 (NPC ALLY) = 1.
+     * memset leaves portrait_id/archetype_flag = 0 (both pass the filter)
+     * and g_check_char_is_dead_return = 0 keeps every char alive. */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_check_char_is_dead_return = 0;
+    g_test_rc_array[0].team = 0;
+    g_test_rc_array[1].team = 0;
+    g_test_rc_array[2].team = 0;
+    g_test_rc_array[3].team = 2;
+    g_test_rc_array[4].team = 2;
+    g_test_rc_array[5].team = 2;
+    g_test_rc_array[6].team = 2;
+    g_test_rc_array[7].team = 1;
+    data_fd2_battle_party_member_count = 8;
     g_has_char_fake = 0;
 
     fd2_render_party_status_overview_content(buf, stride);
@@ -2603,16 +2612,20 @@ static void test_overview_static_blits(void)
     dec_assert_number(9, buf + 0x8c + stride * 0xb0, 1234, 0x1f, 8);
 
     /* per-team alive counts: team 0 then team 2 then team 1 (binary order),
-     * each white 0x2a / 2 digits, sharing row offset stride*0x9f */
+     * each white 0x2a / 2 digits, sharing row offset stride*0x9f. Values are
+     * what the REAL counter returns for the seeded distribution; the three
+     * renders landing at the distinct team rows prove the renderer invoked the
+     * counter once per team. */
     row = stride * 0x9f;
     dec_assert_number(17, buf + 0x78 + row, 3, 0x2a, 2);   /* team 0 -> 3 */
-    dec_assert_number(19, buf + 0xb6 + row, 7, 0x2a, 2);   /* team 2 -> 7 */
-    dec_assert_number(21, buf + 0xe4 + row, 2, 0x2a, 2);   /* team 1 -> 2 */
+    dec_assert_number(19, buf + 0xb6 + row, 4, 0x2a, 2);   /* team 2 -> 4 */
+    dec_assert_number(21, buf + 0xe4 + row, 1, 0x2a, 2);   /* team 1 -> 1 */
 
     ASSERT_EQ((long)g_rle_blit_calls, 23);
-    ASSERT_EQ((long)g_team_count_calls, 3);
     /* the dialogs rendered nothing (immediate END) */
     ASSERT_EQ((long)g_dlg_glyph_calls, 0);
+
+    data_fd2_battle_party_member_count = 4;
 }
 
 /* chapter id 0x10 (Mitti chapter) with NO Mitti in party (has-char fake 0):
@@ -2639,9 +2652,7 @@ static void test_overview_subtitle_mitti_absent(void)
     data_fd2_chapter_current_chapter_id = 0x10;
     data_fd2_battle_turn_counter        = 1;
     data_fd2_shared_party_total_gold    = 0;
-    g_team_count_fake[0] = 0;
-    g_team_count_fake[1] = 0;
-    g_team_count_fake[2] = 0;
+    data_fd2_battle_party_member_count = 0;        /* real counter -> 0 */
     g_has_char_fake = 0;                           /* Mitti NOT in party */
     g_has_char_calls = 0;
     g_has_char_last_arg = 0;
@@ -2680,9 +2691,7 @@ static void test_overview_subtitle_mitti_present(void)
     data_fd2_chapter_current_chapter_id = 0x10;
     data_fd2_battle_turn_counter        = 1;
     data_fd2_shared_party_total_gold    = 0;
-    g_team_count_fake[0] = 0;
-    g_team_count_fake[1] = 0;
-    g_team_count_fake[2] = 0;
+    data_fd2_battle_party_member_count = 0;        /* real counter -> 0 */
     g_has_char_fake = 1;                           /* Mitti IN party */
     g_has_char_calls = 0;
     g_dlg_glyph_calls = 0;
@@ -2718,9 +2727,7 @@ static void test_overview_title_subtitle_pages_normal(void)
     data_fd2_chapter_current_chapter_id = 5;
     data_fd2_battle_turn_counter        = 1;
     data_fd2_shared_party_total_gold    = 0;
-    g_team_count_fake[0] = 0;
-    g_team_count_fake[1] = 0;
-    g_team_count_fake[2] = 0;
+    data_fd2_battle_party_member_count = 0;        /* real counter -> 0 */
     g_has_char_fake = 0;
     g_has_char_calls = 0;
     g_dlg_glyph_calls = 0;

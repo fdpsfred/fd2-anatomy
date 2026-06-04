@@ -61,9 +61,10 @@ extern int g_cast_status_via_d1b_calls;
 extern int g_repaint_settings_calls;
 extern int g_repaint_flip_buffer_after;
 extern int g_composite_call_count;
-/* fakes for the two not-yet-emitted party-query callees of the real
- * fd2_render_party_status_overview_content (testglob.c) */
-extern int    g_team_count_fake[4];
+/* fake for the remaining unemitted party-query callee of the real
+ * fd2_render_party_status_overview_content (testglob.c). The team-alive
+ * counter (fd2_count_active_chars_for_team_filter) is now real and reads
+ * data_fd2_battle_party_member_count / g_test_rc_array. */
 extern uint32 g_has_char_fake;
 /* data_fd2_ui_slide_* workspace ptr globals are declared in globals.h */
 
@@ -343,9 +344,8 @@ static void test_open_party_overview_runs_and_returns(void)
     data_fd2_chapter_current_chapter_id = 3;
     data_fd2_battle_turn_counter = 12;
     data_fd2_shared_party_total_gold = 5000;
-    g_team_count_fake[0] = 0;
-    g_team_count_fake[1] = 0;
-    g_team_count_fake[2] = 0;
+    /* party_member_count is 0 (set above), so the real
+     * fd2_count_active_chars_for_team_filter returns 0 for every team. */
     g_has_char_fake = 0;
 
     /* Pre-arm the BIOS keyboard buffer as NONEMPTY so the wait loop exits on

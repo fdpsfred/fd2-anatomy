@@ -61,6 +61,7 @@ extern int g_cast_status_cure_calls;
 extern int g_cast_status_via_d1b_calls;
 extern int g_repaint_settings_calls;
 extern int g_repaint_flip_buffer_after;
+extern int g_check_char_is_dead_return;
 
 
 static uint8 t_tmpl_roster[4 * 0x50];
@@ -1141,6 +1142,121 @@ static void test_drop_type2_loop_dispatches_all(void)
 }
 
 
+/* ---- fd2_count_active_chars_for_team_filter @ 0x1B5F1 ----
+ *
+ * Counts chars on `team` that pass a 4-condition AND filter: team match,
+ * portrait_id != 0x79 (hidden/quest portrait), archetype_flag != 10
+ * (boss/special), and !fd2_check_char_is_dead(i) (alive). In the test
+ * build fd2_check_char_is_dead is a global-controlled stub returning
+ * g_check_char_is_dead_return for every index, so the alive condition is
+ * pinned with that global rather than per-char .flags. */
+
+/* All four AND conditions, with one disqualifier per filter present so each
+ * exclusion is individually proven. g_check_char_is_dead_return=0 (alive).
+ *   [0] team=1, portrait=1, arch=0   -> COUNTS
+ *   [1] team=0 (wrong team)          -> excluded
+ *   [2] team=1, portrait=0x79        -> excluded (hidden portrait)
+ *   [3] team=1, arch=10              -> excluded (boss)
+ *   [4] team=1, portrait=5, arch=2   -> COUNTS
+ * Expected count for team 1 = 2. */
+static void test_count_active_basic_filters(void)
+{
+    int result;
+
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_check_char_is_dead_return = 0;
+
+    g_test_rc_array[0].team = 1;
+    g_test_rc_array[0].portrait_id = 1;
+    g_test_rc_array[0].archetype_flag = 0;
+
+    g_test_rc_array[1].team = 0;            /* wrong team -> excluded */
+    g_test_rc_array[1].portrait_id = 1;
+    g_test_rc_array[1].archetype_flag = 0;
+
+    g_test_rc_array[2].team = 1;
+    g_test_rc_array[2].portrait_id = 0x79;  /* hidden portrait -> excluded */
+    g_test_rc_array[2].archetype_flag = 0;
+
+    g_test_rc_array[3].team = 1;
+    g_test_rc_array[3].portrait_id = 1;
+    g_test_rc_array[3].archetype_flag = 10; /* boss -> excluded */
+
+    g_test_rc_array[4].team = 1;
+    g_test_rc_array[4].portrait_id = 5;
+    g_test_rc_array[4].archetype_flag = 2;
+
+    data_fd2_battle_party_member_count = 5;
+
+    result = fd2_count_active_chars_for_team_filter(1);
+    ASSERT_EQ(result, 2);
+
+    data_fd2_battle_party_member_count = 4;
+}
+
+/* Same roster scanned per-team: the function is called with team 0/1/2 by
+ * fd2_render_party_status_overview_content, so confirm the team filter
+ * partitions the count independently.
+ *   team 0: [1],[3] -> 2     team 1: [0],[4] -> 2     team 2: [2] -> 1 */
+static void test_count_active_per_team(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_check_char_is_dead_return = 0;
+
+    g_test_rc_array[0].team = 1;            /* counts for team 1 */
+    g_test_rc_array[1].team = 0;            /* counts for team 0 */
+    g_test_rc_array[2].team = 2;            /* counts for team 2 */
+    g_test_rc_array[3].team = 0;            /* counts for team 0 */
+    g_test_rc_array[4].team = 1;            /* counts for team 1 */
+    data_fd2_battle_party_member_count = 5;
+
+    ASSERT_EQ(fd2_count_active_chars_for_team_filter(0), 2);
+    ASSERT_EQ(fd2_count_active_chars_for_team_filter(1), 2);
+    ASSERT_EQ(fd2_count_active_chars_for_team_filter(2), 1);
+
+    data_fd2_battle_party_member_count = 4;
+}
+
+/* Dead-check AND-condition: chars that pass team/portrait/archetype are
+ * still excluded when fd2_check_char_is_dead returns nonzero. With the stub
+ * forced to 1 (all dead) the count drops to 0 even though every char would
+ * otherwise qualify -- proving the alive condition gates the increment. */
+static void test_count_active_dead_excluded(void)
+{
+    int result;
+
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 1;
+    g_test_rc_array[1].team = 1;
+    g_test_rc_array[2].team = 1;
+    data_fd2_battle_party_member_count = 3;
+
+    g_check_char_is_dead_return = 0;        /* all alive -> all 3 count */
+    result = fd2_count_active_chars_for_team_filter(1);
+    ASSERT_EQ(result, 3);
+
+    g_check_char_is_dead_return = 1;        /* all dead -> none count */
+    result = fd2_count_active_chars_for_team_filter(1);
+    ASSERT_EQ(result, 0);
+
+    g_check_char_is_dead_return = 0;
+    data_fd2_battle_party_member_count = 4;
+}
+
+/* Empty roster (party_member_count == 0): the loop body never runs and the
+ * count is 0, pinning the JGE loop-exit at entry. */
+static void test_count_active_empty_roster(void)
+{
+    int result;
+
+    g_check_char_is_dead_return = 0;
+    data_fd2_battle_party_member_count = 0;
+    result = fd2_count_active_chars_for_team_filter(1);
+    ASSERT_EQ(result, 0);
+    data_fd2_battle_party_member_count = 4;
+}
+
+
 void run_battle_btl_turn_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1182,5 +1298,9 @@ void run_battle_btl_turn_tests(void)
     RUN_TEST(test_drop_type1_nonplayer_team_returns);
     RUN_TEST(test_drop_unknown_type_skipped_loop_continues);
     RUN_TEST(test_drop_type2_loop_dispatches_all);
+    RUN_TEST(test_count_active_basic_filters);
+    RUN_TEST(test_count_active_per_team);
+    RUN_TEST(test_count_active_dead_excluded);
+    RUN_TEST(test_count_active_empty_roster);
     printf("\n");
 }

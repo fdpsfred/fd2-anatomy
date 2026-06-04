@@ -1198,8 +1198,9 @@
     "name": "fd2_count_active_chars_for_team_filter",
     "target": "battle/btl_turn.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001b653": {
     "name": "fd2_collect_dead_char_drops",
