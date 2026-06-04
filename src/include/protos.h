@@ -413,6 +413,7 @@ void fd2_render_chapter_dialog_borders(void);
 void fd2_render_chapter_intro_dialog_panels(uint32 corner_offs_ptr, uint32 mode);
 void fd2_render_shop_item_grid(uint32 item_count, uint8 *item_id_array, uint32 highlight_slot, int32 surface_offset, int32 sell_mode_flag);
 void fd2_render_party_roster_grid(uint32 highlight_idx, uint32 surface_offset);
+void fd2_render_party_roster_with_item_stat_preview(uint32 candidate_count, uint32 candidate_array_ptr, uint32 item_id, int32 highlight_idx, int32 surface_offset);
 void fd2_blit_sprite_with_stride_setup(uint32 dst, uint32 sprite, uint32 stride);
 void fd2_backup_dialog_area_to_buffer(void);
 void fd2_restore_dialog_area_from_buffer(void);
@@ -425,6 +426,7 @@ void *fd2_blit_indexed_sprite_with_alloc(uint32 sprite_hdr, uint32 dst,
 int fd2_wait_input_with_chapter_dialog_blink(uint32 mode);
 int fd2_chapter_intro_menu_input_loop(void);
 int fd2_party_roster_single_select_loop(void);
+int fd2_party_roster_class_select_loop(uint32 candidate_count, uint32 candidate_array_ptr, uint32 item_id);
 void fd2_animate_scroll_up_in_shop_dialog(void);
 void fd2_animate_scroll_down_in_shop_dialog(void);
 uint32 fd2_run_chapter_intro_menu_main(uint32 pose_bitmap);

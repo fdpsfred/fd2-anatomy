@@ -618,6 +618,295 @@ static void test_ps_unmapped_loops_then_commit(void)
 }
 
 
+/* ================================================================
+ * fd2_party_roster_class_select_loop @ 0x2E8CF — class-filtered party-roster
+ * select loop with a stat preview. Returns 1 on commit (Enter 0x1C / Space
+ * 0x39), -1 on cancel (Esc 0x01). Single-column 1-step navigation: only Up
+ * (0x48) / Down (0x50) move data_fd2_ui_menu_cursor_idx within 0..count-1
+ * (count = the candidate_count stack arg). Down guards at count-1, Up guards at
+ * 0; each move plays the cursor chime (SFX id 0) and pages the 3-item viewport
+ * in steps of ONE (scroll up when cursor - scroll_offset > 2; scroll down when
+ * cursor < scroll_offset) — the finer scroll that distinguishes this loop from
+ * the step-of-2 grid of fd2_party_roster_single_select_loop. Every draw forwards
+ * the three stack args (candidate_count / candidate_array_ptr / item_id) to the
+ * renderer fd2_render_party_roster_with_item_stat_preview.
+ *
+ * Driven exactly like the ps_* tests: the BIOS keyboard ring is pre-filled and
+ * the tick @ 0x46C held stable so the real fd2_wait_input_with_chapter_dialog_blink(2)
+ * per-frame blink body is skipped. The setup phase runs for real — 3 x
+ * malloc(64000), a 0xA0000 snapshot memmove, and the 6-frame real
+ * fd2_slide_panel_down_step — all harmless in the DOS test target.
+ * fd2_dialog_sprite_blit_normal and the renderer are the testglob recording
+ * stubs; the header blit only needs atlas[+0x46] to be a readable dword, so
+ * cs_prep points the atlas at a zeroed buffer. The renderer stub captures the
+ * forwarded args + highlight + a call count (g_roster_preview_*); the scroll
+ * animations are g_scroll_up_in_shop_calls / g_scroll_down_in_shop_calls.
+ *
+ * Each test pins: the return code, the final cursor index, the final
+ * scroll_offset, the chime count, the renderer's forwarded args + last
+ * highlight, and the per-direction scroll-animation counts. These cover both
+ * navigation branches, both bound guards, and the step-of-1 viewport paging —
+ * the risk-bearing arithmetic. (The setup blit/slide pixel effects are pure
+ * display side-effects, verified by three-source review and deferred to Phase 9
+ * integration.)
+ * ================================================================ */
+
+/* Recording stubs for the not-yet-emitted stat-preview renderer (testglob.c). */
+extern int    g_roster_preview_calls;
+extern uint32 g_roster_preview_last_count;
+extern uint32 g_roster_preview_last_candidate_array;
+extern uint32 g_roster_preview_last_item_id;
+extern int32  g_roster_preview_last_highlight;
+extern int32  g_roster_preview_last_surface;
+
+/* Prime the class-select prerequisites: a zeroed sprite atlas (so the header
+ * blit's atlas[+0x46] dword read is in-bounds), a stable BIOS tick (so the
+ * wait-input per-frame blink body is skipped), seeded cursor/scroll (the loop
+ * resets both to 0 at setup), and every observed counter reset. */
+static void cs_prep(uint32 start_cursor, uint32 start_scroll)
+{
+    memset(g_ci_atlas, 0, sizeof(g_ci_atlas));
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = (uint32)g_ci_atlas;
+    data_fd2_shared_rng_seed = 0;
+    *(volatile uint32 *)0x46CuL = 0x00000100uL;   /* stable tick */
+    g_play_sfx_with_handle_calls = 0;
+    g_sfx_last_id = -1;
+    g_roster_preview_calls = 0;
+    g_roster_preview_last_count = 0xFFFFFFFFuL;
+    g_roster_preview_last_candidate_array = 0xFFFFFFFFuL;
+    g_roster_preview_last_item_id = 0xFFFFFFFFuL;
+    g_roster_preview_last_highlight = -1;
+    g_roster_preview_last_surface = 0;
+    g_scroll_up_in_shop_calls = 0;
+    g_scroll_down_in_shop_calls = 0;
+    data_fd2_ui_menu_cursor_idx = start_cursor;
+    data_fd2_ui_menu_scroll_offset = start_scroll;
+}
+
+
+/* ---- setup resets cursor/scroll, forwards args, then commit/cancel ---- */
+
+/* Enter (0x1C) commits immediately. The setup must have reset cursor and scroll
+ * to 0 (cs_prep seeded them non-zero), rendered the initial roster with
+ * highlight 0, and forwarded the three call args into the renderer. No
+ * navigation, so no chime and no scroll. */
+static void test_cs_enter_commits_after_setup(void)
+{
+    uint16 keys[1];
+    int r;
+    cs_prep(5, 2);
+    keys[0] = 0x1C;
+    ps_queue(keys, 1);
+    r = fd2_party_roster_class_select_loop(6, 0x42, 0xCAFE);
+    ASSERT_EQ(r, 1);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);     /* setup reset */
+    ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 0);  /* setup reset */
+    ASSERT_EQ(g_play_sfx_with_handle_calls, 0);          /* commit: no chime */
+    ASSERT_TRUE(g_roster_preview_calls >= 1);            /* initial render */
+    ASSERT_EQ((long)g_roster_preview_last_highlight, 0); /* initial @ cursor 0 */
+    /* the three stack args are forwarded positionally each draw:
+     * arg1 candidate_count, arg2 candidate_array_ptr, arg3 item_id */
+    ASSERT_EQ((long)g_roster_preview_last_count, 6);
+    ASSERT_EQ((long)g_roster_preview_last_candidate_array, 0x42);
+    ASSERT_EQ((long)g_roster_preview_last_item_id, 0xCAFE);
+}
+
+/* Space (0x39) is the second commit scancode. */
+static void test_cs_space_commits(void)
+{
+    uint16 keys[1];
+    int r;
+    cs_prep(0, 0);
+    keys[0] = 0x39;
+    ps_queue(keys, 1);
+    r = fd2_party_roster_class_select_loop(6, 0, 0);
+    ASSERT_EQ(r, 1);
+}
+
+/* Esc (0x01) cancels: returns -1. */
+static void test_cs_esc_cancels(void)
+{
+    uint16 keys[1];
+    int r;
+    cs_prep(0, 0);
+    keys[0] = 0x01;
+    ps_queue(keys, 1);
+    r = fd2_party_roster_class_select_loop(6, 0, 0);
+    ASSERT_EQ(r, -1);
+}
+
+
+/* ---- Down (0x50): cursor += 1, guard at count-1 ---- */
+
+/* Down moves by ONE: count 6, cursor 0 -> 1, chime, re-render @ 1, no scroll
+ * (1 - 0 = 1, not > 2). Confirms the step-of-1 (vs the grid's step-of-2). */
+static void test_cs_down_adds_one(void)
+{
+    uint16 keys[2];
+    int r;
+    cs_prep(0, 0);
+    keys[0] = 0x50; keys[1] = 0x1C;
+    ps_queue(keys, 2);
+    r = fd2_party_roster_class_select_loop(6, 0, 0);
+    ASSERT_EQ(r, 1);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 1);
+    ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 0);
+    ASSERT_EQ(g_play_sfx_with_handle_calls, 1);
+    ASSERT_EQ(g_sfx_last_id, 0);
+    ASSERT_EQ((long)g_roster_preview_last_highlight, 1);  /* re-render @ 1 */
+    ASSERT_EQ(g_scroll_up_in_shop_calls, 0);
+}
+
+/* Down at the last index is a no-op. count 6: drive to the last index (5) with
+ * 5 Downs, then a 6th Down is guarded out (count-1 == cursor). Final cursor 5;
+ * exactly 5 chimes. The step-of-1 viewport pages once per crossing of
+ * cursor-scroll>2: at cursor 3 (3-0>2 -> scroll 1), 4 (4-1>2 -> scroll 2),
+ * 5 (5-2>2 -> scroll 3) — three scroll-up pages, scroll ends at 3. Then Esc. */
+static void test_cs_down_blocked_at_last(void)
+{
+    uint16 keys[7];
+    int r;
+    int i;
+    cs_prep(0, 0);
+    for (i = 0; i < 5; i++) {
+        keys[i] = 0x50;            /* 0->1->2->3->4->5 */
+    }
+    keys[5] = 0x50;                /* 5: guarded (count-1 == cursor) */
+    keys[6] = 0x01;
+    ps_queue(keys, 7);
+    r = fd2_party_roster_class_select_loop(6, 0, 0);
+    ASSERT_EQ(r, -1);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 5);  /* stuck at last */
+    ASSERT_EQ(g_play_sfx_with_handle_calls, 5);       /* 6th fired none */
+    ASSERT_EQ(g_scroll_up_in_shop_calls, 3);          /* paged at 3,4,5 */
+    ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 3);
+}
+
+/* count == 1: cursor starts 0 (= count-1), so Down is always guarded out
+ * (no move, no chime). Verifies the count-1 == cursor edge directly. */
+static void test_cs_down_guard_single_candidate(void)
+{
+    uint16 keys[2];
+    int r;
+    cs_prep(0, 0);
+    keys[0] = 0x50; keys[1] = 0x01;
+    ps_queue(keys, 2);
+    r = fd2_party_roster_class_select_loop(1, 0, 0);
+    ASSERT_EQ(r, -1);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);  /* never moved */
+    ASSERT_EQ(g_play_sfx_with_handle_calls, 0);       /* guarded: no chime */
+    ASSERT_EQ(g_scroll_up_in_shop_calls, 0);
+}
+
+
+/* ---- Up (0x48): cursor -= 1, guard at 0 ---- */
+
+/* Up at cursor 0 (setup-reset) is guarded out: no move, no chime. */
+static void test_cs_up_guard_at_zero(void)
+{
+    uint16 keys[2];
+    int r;
+    cs_prep(0, 0);
+    keys[0] = 0x48; keys[1] = 0x01;
+    ps_queue(keys, 2);
+    r = fd2_party_roster_class_select_loop(6, 0, 0);
+    ASSERT_EQ(r, -1);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);  /* guarded */
+    ASSERT_EQ(g_play_sfx_with_handle_calls, 0);
+    ASSERT_EQ(g_scroll_down_in_shop_calls, 0);
+}
+
+/* Down then Up returns to 0: 0->1 (chime), 1->0 (chime); two chimes, final
+ * cursor 0, no scroll (scroll stays 0; 0 < 0 false). */
+static void test_cs_down_then_up(void)
+{
+    uint16 keys[3];
+    int r;
+    cs_prep(0, 0);
+    keys[0] = 0x50; keys[1] = 0x48; keys[2] = 0x1C;
+    ps_queue(keys, 3);
+    r = fd2_party_roster_class_select_loop(6, 0, 0);
+    ASSERT_EQ(r, 1);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);
+    ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 0);
+    ASSERT_EQ(g_play_sfx_with_handle_calls, 2);
+    ASSERT_EQ((long)g_roster_preview_last_highlight, 0);
+    ASSERT_EQ(g_scroll_down_in_shop_calls, 0);
+}
+
+
+/* ---- viewport paging (the step-of-1 scroll arithmetic) ---- */
+
+/* Scroll-UP page on Down: count 6, cursor 0. Down 0->1 (1-0=1, no page),
+ * 1->2 (2-0=2, no page), 2->3 (3-0=3 > 2 -> scroll 0->1, animate up). Final
+ * cursor 3, scroll 1, exactly one scroll-up, zero scroll-down. */
+static void test_cs_scroll_up_page_on_down(void)
+{
+    uint16 keys[4];
+    int r;
+    cs_prep(0, 0);
+    keys[0] = 0x50; keys[1] = 0x50;   /* 0->1->2 (no page) */
+    keys[2] = 0x50;                    /* 2->3: 3-0>2 -> page up, scroll 0->1 */
+    keys[3] = 0x1C;
+    ps_queue(keys, 4);
+    r = fd2_party_roster_class_select_loop(6, 0, 0);
+    ASSERT_EQ(r, 1);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 3);
+    ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 1);
+    ASSERT_EQ(g_scroll_up_in_shop_calls, 1);
+    ASSERT_EQ(g_scroll_down_in_shop_calls, 0);
+    ASSERT_EQ((long)g_roster_preview_last_highlight, 3);
+}
+
+/* Scroll-DOWN page on Up: count 6. Build cursor 5 / scroll 3 (five Downs, see
+ * test_cs_down_blocked_at_last for the page accounting), then Up 5->4
+ * (4 < 3 false), Up 4->3 (3 < 3 false), Up 3->2 (2 < 3 -> scroll 3->2, animate
+ * down). Final cursor 2, scroll 2, one scroll-down here (plus the three
+ * scroll-ups from the build-up). */
+static void test_cs_scroll_down_page_on_up(void)
+{
+    uint16 keys[9];
+    int r;
+    int i;
+    cs_prep(0, 0);
+    for (i = 0; i < 5; i++) {
+        keys[i] = 0x50;            /* 0->1->2->3->4->5, scroll -> 3 */
+    }
+    keys[5] = 0x48;                /* 5->4: 4 < 3 false */
+    keys[6] = 0x48;                /* 4->3: 3 < 3 false */
+    keys[7] = 0x48;                /* 3->2: 2 < 3 -> page down, scroll 3->2 */
+    keys[8] = 0x1C;
+    ps_queue(keys, 9);
+    r = fd2_party_roster_class_select_loop(6, 0, 0);
+    ASSERT_EQ(r, 1);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 2);
+    ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 2);
+    ASSERT_EQ(g_scroll_up_in_shop_calls, 3);    /* from the 5 Downs */
+    ASSERT_EQ(g_scroll_down_in_shop_calls, 1);  /* the boundary-crossing Up */
+    ASSERT_EQ((long)g_roster_preview_last_highlight, 2);
+}
+
+/* Unmapped scancode falls through every branch (result stays 0) and the loop
+ * continues; the queued Enter then commits. Cursor untouched, no chime. (Left
+ * 0x4B and Right 0x4D are unmapped here — this is single-column nav.) */
+static void test_cs_unmapped_loops_then_commit(void)
+{
+    uint16 keys[3];
+    int r;
+    cs_prep(0, 0);
+    keys[0] = 0x4D;   /* Right: unmapped in this loop */
+    keys[1] = 0x4B;   /* Left: unmapped in this loop */
+    keys[2] = 0x1C;
+    ps_queue(keys, 3);
+    r = fd2_party_roster_class_select_loop(6, 0, 0);
+    ASSERT_EQ(r, 1);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);  /* unmapped: no change */
+    ASSERT_EQ(g_play_sfx_with_handle_calls, 0);
+    ASSERT_EQ(g_scroll_up_in_shop_calls, 0);
+    ASSERT_EQ(g_scroll_down_in_shop_calls, 0);
+}
+
+
 void run_ui_menu_chintro_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -648,5 +937,16 @@ void run_ui_menu_chintro_tests(void)
     RUN_TEST(test_ps_scroll_down_page_on_left);
     RUN_TEST(test_ps_scroll_down_on_up);
     RUN_TEST(test_ps_unmapped_loops_then_commit);
+    RUN_TEST(test_cs_enter_commits_after_setup);
+    RUN_TEST(test_cs_space_commits);
+    RUN_TEST(test_cs_esc_cancels);
+    RUN_TEST(test_cs_down_adds_one);
+    RUN_TEST(test_cs_down_blocked_at_last);
+    RUN_TEST(test_cs_down_guard_single_candidate);
+    RUN_TEST(test_cs_up_guard_at_zero);
+    RUN_TEST(test_cs_down_then_up);
+    RUN_TEST(test_cs_scroll_up_page_on_down);
+    RUN_TEST(test_cs_scroll_down_page_on_up);
+    RUN_TEST(test_cs_unmapped_loops_then_commit);
     printf("\n");
 }

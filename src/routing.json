@@ -3030,8 +3030,9 @@
     "name": "fd2_party_roster_class_select_loop",
     "target": "ui_menu/chintro.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002ea90": {
     "name": "fd2_render_party_roster_grid",

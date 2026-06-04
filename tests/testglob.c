@@ -368,6 +368,30 @@ void fd2_render_party_roster_grid(uint32 highlight_idx, uint32 surface_offset) {
     g_roster_grid_last_surface = surface_offset;
     g_roster_grid_calls++;
 }
+/* fd2_render_party_roster_with_item_stat_preview (the single-column class-filtered
+ * roster renderer with side-by-side current-vs-preview stat columns; real body not
+ * yet emitted). It reads the runtime-char array + portrait cache, so the
+ * fd2_party_roster_class_select_loop tests use this recording stub: it captures the
+ * three forwarded args (candidate_count / candidate_array_ptr / item_id), the
+ * highlight index and surface offset of the latest draw, and a call count. */
+int    g_roster_preview_calls = 0;
+uint32 g_roster_preview_last_count = 0;
+uint32 g_roster_preview_last_candidate_array = 0;
+uint32 g_roster_preview_last_item_id = 0;
+int32  g_roster_preview_last_highlight = 0;
+int32  g_roster_preview_last_surface = 0;
+void fd2_render_party_roster_with_item_stat_preview(uint32 candidate_count,
+                                                    uint32 candidate_array_ptr,
+                                                    uint32 item_id,
+                                                    int32 highlight_idx,
+                                                    int32 surface_offset) {
+    g_roster_preview_last_count = candidate_count;
+    g_roster_preview_last_candidate_array = candidate_array_ptr;
+    g_roster_preview_last_item_id = item_id;
+    g_roster_preview_last_highlight = highlight_idx;
+    g_roster_preview_last_surface = surface_offset;
+    g_roster_preview_calls++;
+}
 /* fd2_render_terrain_info_hud_panel is now a real emitted function
  * (src/gfx/rndstat.c). Its former recording/loop-break stub here was removed;
  * the idle-loop break seam (g_repaint_settings_calls / g_repaint_flip_buffer_after)
