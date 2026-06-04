@@ -424,6 +424,9 @@ void *fd2_blit_indexed_sprite_with_alloc(uint32 sprite_hdr, uint32 dst,
                                          uint32 sprite_idx);
 int fd2_wait_input_with_chapter_dialog_blink(uint32 mode);
 int fd2_chapter_intro_menu_input_loop(void);
+int fd2_party_roster_single_select_loop(void);
+void fd2_animate_scroll_up_in_shop_dialog(void);
+void fd2_animate_scroll_down_in_shop_dialog(void);
 uint32 fd2_run_chapter_intro_menu_main(uint32 pose_bitmap);
 void fd2_animate_tutorial_dialog_intro_or_outro(uint32 closing);
 int fd2_load_chapter_party_roster(uint8 *out_buf);

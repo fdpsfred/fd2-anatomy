@@ -566,6 +566,17 @@ int fd2_save_slot_selector_ui(uint32 b, uint32 m) { (void)b; (void)m; return g_s
 void fd2_close_intro_dialog_with_slide_out(void) { }
 int g_chapter_transition_return = 0;
 int fd2_chapter_transition_menu(void) { return g_chapter_transition_return; }
+/* fd2_animate_scroll_up_in_shop_dialog / _down_in_shop_dialog (the shop/roster
+ * dialog scroll-page animations @ 0x2E19B / 0x2E26C; real bodies not yet
+ * emitted). Both are pure VGA-framebuffer memmove/memset paced loops over the
+ * absolute shop-grid region (0xA8FCA..), so a recording stub suffices: the
+ * roster-select loop (src/ui_menu/chintro.c) calls one of them on each
+ * viewport-page transition, and tests assert the per-direction call count.
+ * Remove these doubles when the real functions are emitted. */
+int g_scroll_up_in_shop_calls = 0;
+int g_scroll_down_in_shop_calls = 0;
+void fd2_animate_scroll_up_in_shop_dialog(void) { g_scroll_up_in_shop_calls++; }
+void fd2_animate_scroll_down_in_shop_dialog(void) { g_scroll_down_in_shop_calls++; }
 
 /* ---- fd2_load_save_and_init_engine leaf helper fakes ----
  * (the real fd2_load_save_and_init_engine now lives in src/life/main.c) */

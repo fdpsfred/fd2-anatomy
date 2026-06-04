@@ -226,3 +226,128 @@ uint32 fd2_run_chapter_intro_menu_main(uint32 pose_bitmap)
     return_code = (uint32)(data_fd2_chapter_intro_menu_cursor_state == 0);
     return return_code;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_party_roster_single_select_loop @ 0x2E6B8  (5 callers:
+ *   fd2_run_buy_item_menu, fd2_run_sell_item_menu, fd2_run_equip_member_menu,
+ *   fd2_run_give_item_menu, fd2_run_status_screen_member_menu)
+ *
+ * Party-roster member selection menu loop. Opens a 2-column x 3-row party
+ * grid panel (allocates the 3 shared workspace buffers, slides the panel in,
+ * runs the input loop) and returns the selection:
+ *   returns  1 = user committed (Enter 0x1C / Space 0x39)
+ *   returns -1 = user cancelled (Esc 0x01)
+ * Used to pick a character for the buy / sell / equip / give / status screens.
+ *
+ * Setup: allocate render_workspace_a/b/c (3 x 64000); snapshot the live VGA
+ * framebuffer (0xA0000) into render_workspace_b, clone it into render_workspace_c;
+ * reset scroll-offset and cursor to 0; blit the panel header sprite (atlas entry
+ * at atlas[+0x46]) into render_workspace_c + 0x8C05; render the initial grid; then
+ * a 6-frame slide-down (frame 5..0, panel y = 0x70 + frame*0xD).
+ *
+ * Input loop: poll fd2_wait_input_with_chapter_dialog_blink(3) (mode 3 = roster
+ * grid + cursor) and dispatch on the scancode. The four arrows move the cursor
+ * within 0..count-1 (count = menu_party_member_count), play the cursor chime
+ * (SFX id 0 from the FDOTHER bank), page the 6-item viewport in steps of 2
+ * (scroll up when cursor - scroll_offset > 5, scroll down when cursor <
+ * scroll_offset, each with the matching scroll animation), and re-render the
+ * grid live to 0xA0000. Right/Down share the cursor+/page-up tail (LAB at the
+ * "cursor - scroll > 5" test); Left/Up share the cursor-/page-down tail (LAB at
+ * the "cursor < scroll" test). Enter/Space commit (1); Esc cancels (-1). Loops
+ * while result == 0.
+ *
+ * int __cdecl, void params, ESI = result (callee-saved). The __CHK(0x18)
+ * stack-probe prologue is compiler-injected and not part of the source. The
+ * wait-input function returns a zero-extended byte scancode in EAX, so the
+ * full-width scancode compares match the disassembly. The bound tests are
+ * signed (JGE/JLE/JL), so the unsigned cursor/count/scroll globals are cast to
+ * int. Buffer cleanup is performed by the caller via
+ * fd2_close_intro_dialog_with_slide_out @ 0x2D31B (this fn opens; the companion
+ * closes — same 3-buffer state shared).
+ * ---------------------------------------------------------------- */
+int fd2_party_roster_single_select_loop(void)
+{
+    int result;
+    int scancode;
+    uint32 frame_iter;
+
+    result = 0;
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_composed_target_buf_ptr = (uint32)malloc(64000);
+    memmove((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr, (void *)0xa0000,
+            64000);
+    memmove((void *)data_fd2_ui_slide_composed_target_buf_ptr,
+            (void *)data_fd2_ui_slide_bg_snapshot_buf_ptr, 64000);
+    data_fd2_ui_menu_scroll_offset = 0;
+    data_fd2_ui_menu_cursor_idx = 0;
+    fd2_dialog_sprite_blit_normal(
+        data_fd2_ui_slide_composed_target_buf_ptr + 0x8c05,
+        data_fd2_ui_menu_screen_sprite_atlas_buf_ptr +
+            *(int32 *)(data_fd2_ui_menu_screen_sprite_atlas_buf_ptr + 0x46),
+        0x140);
+    fd2_render_party_roster_grid(data_fd2_ui_menu_cursor_idx,
+                                 data_fd2_ui_slide_composed_target_buf_ptr);
+    for (frame_iter = 5; (int)frame_iter >= 0; frame_iter--) {
+        fd2_slide_panel_down_step(frame_iter * 0xd + 0x70,
+                                  data_fd2_ui_slide_anim_accumulator_buf_ptr,
+                                  data_fd2_ui_slide_composed_target_buf_ptr);
+    }
+
+    do {
+        scancode = fd2_wait_input_with_chapter_dialog_blink(3);
+        if (scancode == 0x4d) {
+            if (data_fd2_shared_menu_party_member_count - 1 !=
+                data_fd2_ui_menu_cursor_idx) {
+                fd2_play_sfx_with_handle(
+                    data_fd2_audio_fdother_sfx_bank_buf_ptr, 0, 1);
+                data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx + 1;
+LAB_page_up_check:
+                if ((int)(data_fd2_ui_menu_cursor_idx -
+                          data_fd2_ui_menu_scroll_offset) > 5) {
+                    data_fd2_ui_menu_scroll_offset =
+                        data_fd2_ui_menu_scroll_offset + 2;
+                    fd2_animate_scroll_up_in_shop_dialog();
+                }
+LAB_rerender:
+                fd2_render_party_roster_grid(data_fd2_ui_menu_cursor_idx,
+                                             0xa0000);
+            }
+        } else if (scancode == 0x4b) {
+            if (data_fd2_ui_menu_cursor_idx != 0) {
+                fd2_play_sfx_with_handle(
+                    data_fd2_audio_fdother_sfx_bank_buf_ptr, 0, 1);
+                data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx - 1;
+LAB_page_down_check:
+                if ((int)data_fd2_ui_menu_cursor_idx <
+                    (int)data_fd2_ui_menu_scroll_offset) {
+                    data_fd2_ui_menu_scroll_offset =
+                        data_fd2_ui_menu_scroll_offset - 2;
+                    fd2_animate_scroll_down_in_shop_dialog();
+                }
+                goto LAB_rerender;
+            }
+        } else if (scancode == 0x48) {
+            if ((int)data_fd2_ui_menu_cursor_idx > 1) {
+                fd2_play_sfx_with_handle(
+                    data_fd2_audio_fdother_sfx_bank_buf_ptr, 0, 1);
+                data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx - 2;
+                goto LAB_page_down_check;
+            }
+        } else if (scancode == 0x50) {
+            if ((int)data_fd2_ui_menu_cursor_idx <
+                (int)data_fd2_shared_menu_party_member_count - 2) {
+                fd2_play_sfx_with_handle(
+                    data_fd2_audio_fdother_sfx_bank_buf_ptr, 0, 1);
+                data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx + 2;
+                goto LAB_page_up_check;
+            }
+        } else if (scancode == 0x1c || scancode == 0x39) {
+            result = 1;
+        } else if (scancode == 0x01) {
+            result = -1;
+        }
+    } while (result == 0);
+
+    return result;
+}
