@@ -232,6 +232,7 @@ static void test_ch20_end_reaims_camera(void)
  * ---------------------------------------------------------------- */
 
 extern int g_ce_find_have_d6;
+extern int g_ce_find_have_item100;
 extern int g_ce_find_calls;
 
 /* zero-group cutscene scripts for events 0x3F / 0x40 (all-collected branch):
@@ -259,9 +260,10 @@ static uint8 g_ce23_script_49[1] = { 0 };
  * glyph blits and never reaches the page-break busy-wait. */
 static int16 g_ce23_dlg[0x13];
 
-/* programmable Phase-1 predicates for fd2_chapter_23_end (doubles defined in
- * tests/testglob.c). */
-extern int g_ce23_has_item;        /* fd2_any_char_has_item -> 1 held / -1 not */
+/* programmable Phase-1 predicates for fd2_chapter_23_end. The 天空之鑰 arm is
+ * now driven through the REAL fd2_any_char_has_item, which reaches the find
+ * double in tests/testglob.c: g_ce_find_have_item100 makes char 0 hold item
+ * 100 (held arm) or not (not-held arm). The 蜜蒂-roster double remains. */
 extern int g_ce23_miti_present;    /* fd2_find_template_char_by_id -> 1 / 0 */
 
 /* ----------------------------------------------------------------
@@ -410,9 +412,10 @@ static void test_ch22_end_runs_and_advances(void)
 /* ----------------------------------------------------------------
  * Chapter 23 end handler — fd2_chapter_23_end @ 0x24754.
  *
- * The risk core is the Phase-1 three-way story-branch logic; the three branch
- * predicates are programmable doubles (g_ce23_has_item / g_ce23_miti_present)
- * and the turn counter, and each branch's observable mutation is a recruit
+ * The risk core is the Phase-1 three-way story-branch logic; the branch
+ * predicates are the real fd2_any_char_has_item (driven via the find double's
+ * g_ce_find_have_item100), the programmable g_ce23_miti_present double, and
+ * the turn counter, and each branch's observable mutation is a recruit
  * (data_fd2_shared_menu_party_member_count via the real
  * fd2_init_runtime_char_from_base_growth) and/or a death-mark (the real
  * fd2_mark_char_as_dead writes runtime_char[0x11].flags = CHARFLAG_DEAD).
@@ -454,6 +457,10 @@ static void ce23_setup(void)
 
     /* 蜜蒂 (slot 0x11) starts alive so a death-mark is observable as a change. */
     g_ce_rc[0x11].flags = 0;
+
+    /* default: 天空之鑰 (item 100) not held; each test sets this explicitly to
+     * drive the real fd2_any_char_has_item via the find double. */
+    g_ce_find_have_item100 = 0;
 }
 
 /* ----------------------------------------------------------------
@@ -465,7 +472,7 @@ static void ce23_setup(void)
 static void test_ch23_end_key_held_miti_present(void)
 {
     ce23_setup();
-    g_ce23_has_item = 1;        /* 天空之鑰 held -> recruit 卡里斯 (0x16) */
+    g_ce_find_have_item100 = 1;  /* 天空之鑰 held -> recruit 卡里斯 (0x16) */
     g_ce23_miti_present = 1;    /* 蜜蒂 present  -> mark 蜜蒂 dead */
 
     fd2_chapter_23_end();
@@ -488,7 +495,7 @@ static void test_ch23_end_key_held_miti_present(void)
 static void test_ch23_end_no_key_miti_absent_within_15_turns(void)
 {
     ce23_setup();
-    g_ce23_has_item = -1;       /* 天空之鑰 not held -> cutscene 0x47 only */
+    g_ce_find_have_item100 = 0;  /* 天空之鑰 not held -> cutscene 0x47 only */
     g_ce23_miti_present = 0;    /* 蜜蒂 absent */
     data_fd2_battle_turn_counter = 14;   /* < 15 -> recruit 羅德曼 (0x13) */
 
@@ -511,7 +518,7 @@ static void test_ch23_end_no_key_miti_absent_within_15_turns(void)
 static void test_ch23_end_key_held_miti_absent_after_15_turns(void)
 {
     ce23_setup();
-    g_ce23_has_item = 1;        /* 天空之鑰 held -> recruit 卡里斯 (0x16) */
+    g_ce_find_have_item100 = 1;  /* 天空之鑰 held -> recruit 卡里斯 (0x16) */
     g_ce23_miti_present = 0;    /* 蜜蒂 absent */
     data_fd2_battle_turn_counter = 15;   /* >= 15 -> mark 蜜蒂 dead, no recruit */
 

@@ -48,3 +48,26 @@ uint32 fd2_set_word_global_5275c(uint32 new_val)
     data_ail_free_fnptr = new_val;
     return old;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_any_char_has_item @ 0x24B14  (3 callers)
+ *
+ * Returns 1 if any character in runtime_char_array[0..15] holds the
+ * given item_id, else -1. Scans chars 0..15, calling
+ * fd2_find_inventory_slot_with_item(char_idx, item_id) on each; on the
+ * first char whose search returns a slot (!= -1) it returns 1 at once,
+ * otherwise -1 after all 16 chars miss. Used to detect plot-critical
+ * items in party inventory (e.g. 天空之鑰 / item 100) for story branches:
+ * fd2_chapter_23_end, fd2_chapter_27_end, fd2_chapter_27_init.
+ * ---------------------------------------------------------------- */
+int fd2_any_char_has_item(int item_id)
+{
+    int char_idx;
+
+    for (char_idx = 0; char_idx < 0x10; char_idx++) {
+        if (fd2_find_inventory_slot_with_item(char_idx, item_id) != -1) {
+            return 1;
+        }
+    }
+    return -1;
+}

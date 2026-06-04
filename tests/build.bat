@@ -77,6 +77,7 @@ D:\BIN\WCC386.EXE E:\ui_menu\menu.c %CF% -fo=E:\out\obj\tmenu.obj >> E:\out\buil
 D:\BIN\WCC386.EXE E:\ui_menu\menucfg.c %CF% -fo=E:\out\obj\tmenucfg.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\ui_menu\menufld.c %CF% -fo=E:\out\obj\tmenufld.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\ui_menu\status.c %CF% -fo=E:\out\obj\tstatus.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE E:\util\misc.c %CF% -fo=E:\out\obj\tmisc.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\util\pathfnd.c %CF% -fo=E:\out\obj\tpathfnd.obj >> E:\out\build.out
 
 echo === link === >> E:\out\build.out

@@ -1152,10 +1152,12 @@ uint32 fd2_check_party_has_char_id(uint32 char_id) {
  *     programmable double for the chend2 tests: it maps item 0xD1->char 0 ..
  *     0xD6->char 5 (returning slot 0 for a hold), with g_ce_find_have_d6
  *     gating whether the 0xD6 holder exists so a test can land the count on
- *     exactly 6 or 5. g_ce_find_calls records the call total. (The real
- *     function's class-promotion callers are likewise unemitted, so nothing
- *     else depends on its true behavior yet; remove this double when the real
- *     function is emitted.)
+ *     exactly 6 or 5. g_ce_find_calls records the call total. It also gates
+ *     item 100 (天空之鑰) via g_ce_find_have_item100 (char 0 holds it) so the
+ *     now-real fd2_any_char_has_item's held/not-held arms can be driven from
+ *     the chend2 ch23 tests. (The real function's class-promotion callers are
+ *     likewise unemitted, so nothing else depends on its true behavior yet;
+ *     remove this double when the real function is emitted.)
  *
  *   fd2_setup_chars_and_camera_for_intro (0x233C6 -> field/chtrans.c) — places
  *     the cast and re-aims the camera then fades the screen; pure display, so
@@ -1167,6 +1169,7 @@ uint32 fd2_check_party_has_char_id(uint32 char_id) {
  *     Phase 9 integration; stubbing it lets the all-collected branch run
  *     on-host so the real item-100 award is observable. */
 int g_ce_find_have_d6 = 0;
+int g_ce_find_have_item100 = 0;
 int g_ce_find_calls = 0;
 int fd2_find_inventory_slot_with_item(int char_idx, int item_id) {
     g_ce_find_calls++;
@@ -1174,6 +1177,9 @@ int fd2_find_inventory_slot_with_item(int char_idx, int item_id) {
         if (item_id == 0xD6 && !g_ce_find_have_d6) {
             return -1;
         }
+        return 0;
+    }
+    if (item_id == 100 && char_idx == 0 && g_ce_find_have_item100) {
         return 0;
     }
     return -1;
@@ -1212,13 +1218,11 @@ void fd2_cast_screen_wide_spell_with_fade(uint32 epicenter_tile_x,
 }
 
 /* ---- fd2_chapter_23_end (field/chend2.c) not-yet-emitted callees ----
- * fd2_chapter_23_end's three Phase-1 story-branch predicates / the screen
- * shake are not emitted yet, so they are doubled here:
- *
- *   fd2_any_char_has_item (0x24B14 -> battle/lifecycle, pending) — the "天空
- *     之鑰 (item 100) is held by some party char" predicate (returns 1=held /
- *     -1=not held). Programmable via g_ce23_has_item so a test can drive both
- *     the recruit-卡里斯 (held) and the cutscene-0x47 (not held) arms.
+ * fd2_chapter_23_end's 蜜蒂-roster predicate / the screen shake are not
+ * emitted yet, so they are doubled here. (The 天空之鑰 predicate
+ * fd2_any_char_has_item is now REAL in src/util/misc.c; the chend2 ch23
+ * tests drive its held/not-held arms through the find double above via
+ * g_ce_find_have_item100.)
  *
  *   fd2_find_template_char_by_id (0x24BDE -> battle/lifecycle, pending) — the
  *     "蜜蒂 (char_id 0x12) is in the template roster" predicate (returns
@@ -1231,12 +1235,7 @@ void fd2_cast_screen_wide_spell_with_fade(uint32 epicenter_tile_x,
  *     Deferred to Phase 9 integration.
  *
  * Remove these doubles when the real functions are emitted. */
-int g_ce23_has_item = -1;
 int g_ce23_miti_present = 0;
-int fd2_any_char_has_item(int item_id) {
-    (void)item_id;
-    return g_ce23_has_item;
-}
 int fd2_find_template_char_by_id(uint32 char_id) {
     (void)char_id;
     return g_ce23_miti_present;

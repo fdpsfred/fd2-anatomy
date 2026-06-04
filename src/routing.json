@@ -2484,8 +2484,9 @@
     "name": "fd2_any_char_has_item",
     "target": "util/misc.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00024b4d": {
     "name": "fd2_animate_screen_shake",

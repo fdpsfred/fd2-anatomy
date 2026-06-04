@@ -52,6 +52,7 @@ extern void run_ui_menu_menu_tests(void);
 extern void run_ui_menu_menucfg_tests(void);
 extern void run_ui_menu_menufld_tests(void);
 extern void run_ui_menu_status_tests(void);
+extern void run_util_misc_tests(void);
 extern void run_util_pathfnd_tests(void);
 /* <<< GENBUILD externs <<< */
 
@@ -98,6 +99,7 @@ int main(void)
     run_ui_menu_menucfg_tests();
     run_ui_menu_menufld_tests();
     run_ui_menu_status_tests();
+    run_util_misc_tests();
     run_util_pathfnd_tests();
 /* <<< GENBUILD calls <<< */
 
