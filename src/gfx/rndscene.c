@@ -1016,3 +1016,95 @@ void fd2_render_circle_anim_row(int cx, int cy, int r, int scale_num,
         }
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_filled_circle_band_anim @ 0x22046 (5 callers, 6 sites)
+ *
+ * Render one frame of a filled circular band animation: a top arc, a
+ * bottom arc, and a solid middle band, with the live party characters
+ * composited on top (the AoE-with-chars overlay look). Built from two
+ * fd2_render_circle_anim_row passes plus a straight rectangular fill.
+ *
+ * Param overloading note (Ghidra names kept verbatim):
+ *   param_1 = column center cx (workspace pixels)
+ *   param_2 = bottom row index (band-fill end, and the bottom arc's
+ *             vertical center / row start)
+ *   param_3 = radius factor for the band half-width
+ *   cx      = top band-fill start row (also the top arc's row start)
+ *   cy      = arc row-loop exclusive end (5th arg)
+ *   radius  = the palette-remap SOURCE pointer forwarded straight
+ *             through to every fd2_apply_palette_remap_run / row call
+ *             (the name "radius" is the Ghidra label, not a length)
+ *
+ * Sequence (asm order):
+ *   fd2_render_circle_anim_row(param_1, param_2, param_3, 0x10, cx, cy, radius);
+ *     // top arc rows
+ *   fd2_composite_all_chars_overlay();        // paint party chars on top
+ *   fd2_render_circle_anim_row(param_1, param_2, param_3, 0x10, param_2, cy, radius);
+ *     // bottom arc rows (5th arg = param_2 = bottom_y, not cx)
+ *
+ *   // solid middle band:
+ *   half_width = trunc( (double)param_3 * 1.6 );
+ *     // x87: FILD param_3 / FMUL m64[0x50208]=1.6 then __CHP forces
+ *     // RC=round-toward-zero before FRNDINT, so this is a TRUNCATION
+ *     // toward zero, not a round-to-nearest (Ghidra ROUND() misleads).
+ *   left_clip = param_1 - half_width, right_off = half_width;
+ *   if (left_clip < 0)  { left_clip = 0; right_off = param_1; }   // clamp left to 0
+ *   if (param_1 + half_width > 0x137) half_width = 0x138 - param_1; // clamp right to 0x138
+ *   run_width = half_width + right_off;
+ *   row_ptr = large_game_state_buffer + 0x8088 + cx*0x1C8 + left_clip;
+ *   for (; cx < param_2; cx++) {
+ *       fd2_apply_palette_remap_run(radius, run_width, row_ptr);
+ *       row_ptr += 0x1C8;
+ *   }
+ *
+ * 0x8088 = char-layer base in the render workspace, 0x1C8 = 456
+ * (workspace pitch), 0x138 = 312 (visible clipped width).
+ * 1.6 = data_fd2_graphics_circle_band_radius_scale_16 (0x50208).
+ *
+ * The original has no explicit RET: on loop exit (JGE 0x21DAD) it tail-
+ * jumps into the shared POP EBP/EDI/ESI/EBX + RET that the orphan fn
+ * @ 0x21BD0 ends with (same PUSH EBX/ESI/EDI/EBP frame shape, so Watcom
+ * merges the register-restore epilogue); the C equivalent is the loop
+ * simply running to completion.
+ *
+ * 5 callers (6 sites): fd2_play_variant_b_slide_pre_effect (x2),
+ * fd2_animate_warp_teleport_char, fd2_animate_warp_out_collapse,
+ * fd2_animate_warp_in_expand, fd2_cast_screen_wide_spell_with_fade.
+ * ---------------------------------------------------------------- */
+void fd2_render_filled_circle_band_anim(uint32 param_1, uint32 param_2,
+                                        uint32 param_3, int cx, int cy,
+                                        int radius)
+{
+    uint32 half_width;
+    uint32 left_clip;
+    uint32 right_off;
+    uint32 row_ptr;
+
+    fd2_render_circle_anim_row(param_1, param_2, param_3, 0x10, cx, cy,
+                               (uint8 *)radius);
+    fd2_composite_all_chars_overlay();
+    fd2_render_circle_anim_row(param_1, param_2, param_3, 0x10, param_2, cy,
+                               (uint8 *)radius);
+
+    half_width = (uint32)(int32)((double)(int32)param_3 *
+                                 data_fd2_graphics_circle_band_radius_scale_16);
+
+    left_clip = param_1 - half_width;
+    right_off = half_width;
+    if ((int32)left_clip < 0) {
+        left_clip = 0;
+        right_off = param_1;
+    }
+    if (0x137 < (int32)(half_width + param_1)) {
+        half_width = 0x138 - param_1;
+    }
+
+    row_ptr = left_clip + data_fd2_large_game_state_buffer_ptr + 0x8088 +
+              (uint32)cx * 0x1c8;
+    for (; cx < (int32)param_2; cx++) {
+        fd2_apply_palette_remap_run(radius, half_width + right_off,
+                                    (uint8 *)row_ptr);
+        row_ptr += 0x1c8;
+    }
+}

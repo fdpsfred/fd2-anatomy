@@ -2329,6 +2329,117 @@ static void test_circ_vertical_extent_gate(void)
     }
 }
 
+/* ================================================================
+ * fd2_render_filled_circle_band_anim @ 0x22046
+ *
+ * Reuses the circ_* fixtures: g_circ_remap (all 0xAA) is forwarded as
+ * the band's `radius`/remap-source pointer, so each painted run becomes
+ * 0xAA over the 0x00 background and circ_row_run() reads back the run
+ * extent. To isolate the middle solid-band fill from the two arc passes,
+ * the 5th arg (cy = arc row-loop exclusive end) is set to 0 and the arc
+ * starts (4th arg cx, and param_2) are >= 0, so both
+ * fd2_render_circle_anim_row calls have start_row >= end_row and paint
+ * nothing. The party count is zeroed so the in-between
+ * fd2_composite_all_chars_overlay is a no-op (its char + shadow loops
+ * iterate zero times), leaving only the band fill on the workspace.
+ *
+ * Band geometry verified here: half_width = trunc(param_3 * 1.6) (the
+ * x87 __CHP truncation toward zero, exercised with param_3 chosen so the
+ * product is an exact integer), the left clamp to 0, the right clamp to
+ * 0x138, the run_width = clamped_half_width + right_off composition, and
+ * the row span [cx, param_2).
+ * ================================================================ */
+
+/* Drive the band fill with empty arcs (cy_end=0) and an empty party. */
+static void band_setup(void)
+{
+    circ_setup();   /* g_circ_remap=0xAA, ws=0x00, buffer ptr pinned */
+    data_fd2_battle_party_member_count = 0;   /* overlay = no-op */
+}
+
+/* Case 1: solid band, no clamps. param_1(cx col)=100, param_3=10 ->
+ * half_width=trunc(16.0)=16; left_clip=84, right_off=16, no right clamp
+ * (116<0x137); run_width=16+16=32. Fill rows [cx=2, param_2=5) -> rows
+ * 2,3,4 each get [84,116), 32 bytes; the arcs (cy_end=0) paint nothing. */
+static void test_band_basic_fill(void)
+{
+    uint32 first;
+    uint32 last;
+    uint32 cnt;
+    int row;
+
+    band_setup();
+    fd2_render_filled_circle_band_anim(100, 5, 10, 2, 0, (int)g_circ_remap);
+
+    for (row = 2; row <= 4; row++) {
+        circ_row_run(row, &first, &last, &cnt);
+        ASSERT_EQ(first, 84);
+        ASSERT_EQ(cnt, 32);
+        ASSERT_EQ(last, 115);   /* 84 + 32 - 1 */
+    }
+    /* rows outside [2,5) untouched (band end-exclusive, arcs empty) */
+    circ_row_run(1, &first, &last, &cnt);
+    ASSERT_EQ(cnt, 0);
+    circ_row_run(5, &first, &last, &cnt);
+    ASSERT_EQ(cnt, 0);
+}
+
+/* Case 2: left clamp (param_1 - half_width < 0). param_1=10, param_3=10
+ * -> half_width=16; left_clip=10-16=-6 -> 0, right_off=param_1=10; no
+ * right clamp (10+16=26); run_width=16+10=26, starting at offset 0. */
+static void test_band_left_clamp(void)
+{
+    uint32 first;
+    uint32 last;
+    uint32 cnt;
+
+    band_setup();
+    fd2_render_filled_circle_band_anim(10, 4, 10, 3, 0, (int)g_circ_remap);
+
+    circ_row_run(3, &first, &last, &cnt);   /* single row [3,4) */
+    ASSERT_EQ(first, 0);
+    ASSERT_EQ(cnt, 26);
+    ASSERT_EQ(last, 25);
+}
+
+/* Case 3: right clamp (param_1 + half_width > 0x137). param_1=300,
+ * param_3=100 -> half_width=trunc(160.0)=160; left_clip=140 (no left
+ * clamp), right_off=160; 300+160=460 > 0x137 -> half_width=0x138-300=12;
+ * run_width=12+160=172, [140,312) ending exactly at the visible edge. */
+static void test_band_right_clamp(void)
+{
+    uint32 first;
+    uint32 last;
+    uint32 cnt;
+
+    band_setup();
+    fd2_render_filled_circle_band_anim(300, 8, 100, 7, 0, (int)g_circ_remap);
+
+    circ_row_run(7, &first, &last, &cnt);   /* single row [7,8) */
+    ASSERT_EQ(first, 140);
+    ASSERT_EQ(cnt, 172);
+    ASSERT_EQ(last, 311);   /* 140 + 172 - 1 == 0x138 - 1 */
+}
+
+/* Case 4: empty band when start row cx >= param_2 -> the for loop runs
+ * zero times, no fill. With cy_end=0 the arcs are empty too, so the whole
+ * workspace stays untouched. */
+static void test_band_empty_when_start_ge_end(void)
+{
+    uint32 first;
+    uint32 last;
+    uint32 cnt;
+    int row;
+
+    band_setup();
+    fd2_render_filled_circle_band_anim(100, 3, 10, 5, 0, (int)g_circ_remap);
+
+    for (row = 0; row < 10; row++) {
+        circ_row_run(row, &first, &last, &cnt);
+        ASSERT_EQ(cnt, 0);
+    }
+}
+
 void run_gfx_rndscene_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -2401,5 +2512,9 @@ void run_gfx_rndscene_tests(void)
     RUN_TEST(test_circ_left_clamp);
     RUN_TEST(test_circ_right_clamp);
     RUN_TEST(test_circ_vertical_extent_gate);
+    RUN_TEST(test_band_basic_fill);
+    RUN_TEST(test_band_left_clamp);
+    RUN_TEST(test_band_right_clamp);
+    RUN_TEST(test_band_empty_when_start_ge_end);
     printf("\n");
 }

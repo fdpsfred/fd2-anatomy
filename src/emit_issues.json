@@ -555,5 +555,17 @@
         "reviewer_verdict": ""
       }
     ]
+  },
+  "00022046": {
+    "name": "fd2_render_filled_circle_band_anim",
+    "issues": [
+      {
+        "type": "fpu_rounding",
+        "desc": "Middle-band half-width = trunc((int)param_3 * 1.6). Assembly @0x2209F-0x220AE = FILD param_3 / FMUL m64[0x50208]=1.6 / CALL __CHP(0x377A4) / FISTP. __CHP loads CW high byte 0x1F (RC=11 round-toward-zero) then FRNDINT, so the product is TRUNCATED toward zero before FISTP (the Ghidra ROUND() macro is misleading; this is NOT round-to-nearest). Emitted C (uint32)(int32)((double)(int32)param_3 * 1.6) likewise truncates toward zero in C89, so the rounding DIRECTION matches exactly. Residual concern is only Watcom 9.5a x87 codegen precision: the original FMUL runs on the 80-bit x87 stack while the C multiply uses a 64-bit double load of 1.6 (which is byte-identical 0x3FF999999999999A to the m64 the asm loads, and the FMUL/FRNDINT still run on the 80-bit stack in both). For the unit-test ground-truth this is bypassed by choosing param_3 where param_3*1.6 is an exact integer (10*1.6=16, 5*1.6=8, 100*1.6=160), so 64-bit vs 80-bit truncation cannot diverge. Same mitigation pattern as the sibling 0x219AD / __CHP truncation entry.",
+        "severity": "low",
+        "verify_method": "post-build -d disasm of 0x22046 to confirm byte-identical FILD/FMUL[0x50208]/__CHP/FISTP emission; behaviorally the truncation direction is guaranteed equivalent and the tested inputs (exact-integer products) avoid all FP boundary cases.",
+        "reviewer_verdict": "KEEP (reviewer-confirmed valid; truncation direction guaranteed equivalent, tested via exact-integer products 10/5/100*1.6, no code change needed; residual 80-bit-x87 vs 64-bit-double-load deferred to post-build -d disasm of FILD/FMUL[0x50208=0x3FF999999999999A]/__CHP/FISTP)"
+      }
+    ]
   }
 }

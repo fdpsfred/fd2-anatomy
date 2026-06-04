@@ -168,6 +168,7 @@ void fd2_palette_overbright_settle_step_loop(uint32 start_intensity, uint32 step
 void fd2_interpolate_palette_range_toward_color(uint32 start_idx, uint32 end_idx, uint32 blend, uint32 target_r, uint32 target_g, uint32 target_b);
 void fd2_apply_palette_remap_run(uint32 remap_table, uint32 byte_count, uint8 *buf);
 void fd2_render_circle_anim_row(int cx, int cy, int r, int scale_num, int start_row, int end_row, uint8 *palette_remap_src);
+void fd2_render_filled_circle_band_anim(uint32 param_1, uint32 param_2, uint32 param_3, int cx, int cy, int radius);
 void fd2_tick_chapter_palette_animation(void);
 void fd2_update_palette_cycle_anim(void);
 

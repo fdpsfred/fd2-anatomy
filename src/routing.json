@@ -2125,8 +2125,9 @@
     "name": "fd2_render_filled_circle_band_anim",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002211c": {
     "name": "fd2_cast_spell_0f_variant_b",
