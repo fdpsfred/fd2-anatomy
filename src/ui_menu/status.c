@@ -66,6 +66,43 @@ void fd2_compute_equipped_stats_with_item_preview(uint32 char_idx,
 }
 
 /* ----------------------------------------------------------------
+ * fd2_check_job_can_equip_item @ 0x1C1C3  (2 callers)
+ *
+ * Job/equipment compatibility check. Returns 1 if char_idx's job
+ * permits equipping item_id, else 0.
+ *
+ *   allowed_types = fd2_get_job_allowed_items_table_entry(
+ *                       runtime_char[char_idx].job_id)   // 7-byte list
+ *   item_category = fd2_get_item_effect_entry(item_id)[0]  // entry +0
+ *   for i in 0..6: if item_category == allowed_types[i] return 1
+ *   return 0
+ *
+ * Only the first 6 of the 7-byte allowed-items list are scanned
+ * (loop bound is 6, matching asm CMP EAX,6 / JGE).
+ *
+ * Callers: fd2_equip_unequip_inventory_menu (modal confirm),
+ * fd2_run_buy_item_menu (pre-purchase check).
+ * int __cdecl with the __CHK(0x10) stack-probe prologue.
+ * ---------------------------------------------------------------- */
+int fd2_check_job_can_equip_item(uint32 char_idx, uint32 item_id)
+{
+    uint8 *allowed_types;
+    uint8 item_category;
+    uint32 type_iter;
+
+    allowed_types = fd2_get_job_allowed_items_table_entry(
+        (int)data_fd2_battle_runtime_char_array_ptr[char_idx].job_id);
+    item_category = fd2_get_item_effect_entry(item_id)[0];
+
+    for (type_iter = 0; (int)type_iter < 6; type_iter++) {
+        if (item_category == allowed_types[type_iter]) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* ----------------------------------------------------------------
  * fd2_count_usable_inventory_slots @ 0x1B8A6  (9 callers)
  *
  * Count how many of the 8 inventory slots in runtime_char[ci] are

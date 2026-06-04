@@ -325,7 +325,7 @@ extern uint8  data_fd2_battle_pathfind_best_path_length;                 /* 0x60
 extern uint8  data_fd2_battle_pathfind_step_stack[];                     /* 0x60079  8B per frame */
 extern uint8  data_fd2_class_promotion_data_table[];                    /* 0x615FE  2B per entry */
 extern uint8  data_fd2_movement_cost_table[];                           /* 0x61646  20B per job */
-extern uint8  data_fd2_job_allowed_items_table[];                       /* 0x6188A  7B per job */
+extern uint8  data_fd2_job_allowed_items_table[27 * 7];                 /* 0x6188A  7B per job, 27 jobs */
 
 /* ---- .object3 pointer tables ---- */
 extern void  *data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21[21]; /* 0x61955 */

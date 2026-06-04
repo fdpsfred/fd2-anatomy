@@ -1310,8 +1310,9 @@
     "name": "fd2_check_job_can_equip_item",
     "target": "ui_menu/status.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001c220": {
     "name": "fd2_give_item_to_first_player_char",
