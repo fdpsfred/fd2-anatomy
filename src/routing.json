@@ -1326,8 +1326,9 @@
     "name": "fd2_build_usable_spell_list",
     "target": "spell/spellsel.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": true,
+    "reviewed": true
   },
   "0001c2da": {
     "name": "fd2_animate_status_effect_overlay_flicker",

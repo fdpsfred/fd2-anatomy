@@ -60,7 +60,6 @@ extern int g_pathfind_walk_return;
  * the REAL fd2_count_usable_inventory_slots reading iam_chars inventory flags;
  * the Item branch itself (now-real fd2_item_command_menu_dispatch) is deferred
  * to Phase 9 (see the note above its former tests). */
-extern int g_build_spell_list_return;       /* 0 => Spell slot gated */
 extern int g_inline_spell_menu_return;
 extern int g_inline_spell_menu_calls;
 extern int g_inline_spell_menu_pending;   /* XP the spell stub credits on commit */
@@ -366,7 +365,6 @@ static uint32 iam_saved_party_count;
 static uint32 iam_saved_cursor_x;
 static uint32 iam_saved_cursor_y;
 static uint32 iam_saved_pending_xp;
-static int iam_saved_build_spells;
 static int iam_saved_spell_return;
 static int iam_saved_spell_pending;
 
@@ -381,7 +379,6 @@ static void iam_setup(uint8 job_id, uint8 level, uint8 silence_flag)
     iam_saved_cursor_x = data_fd2_battle_cursor_world_x;
     iam_saved_cursor_y = data_fd2_battle_cursor_world_y;
     iam_saved_pending_xp = data_fd2_battle_pending_xp_credit;
-    iam_saved_build_spells = g_build_spell_list_return;
     iam_saved_spell_return = g_inline_spell_menu_return;
     iam_saved_spell_pending = g_inline_spell_menu_pending;
     iam_saved_tile_map_ptr = data_fd2_battle_tile_map_ptr;
@@ -425,7 +422,6 @@ static void iam_teardown(void)
     data_fd2_battle_cursor_world_x = iam_saved_cursor_x;
     data_fd2_battle_cursor_world_y = iam_saved_cursor_y;
     data_fd2_battle_pending_xp_credit = iam_saved_pending_xp;
-    g_build_spell_list_return = iam_saved_build_spells;
     g_inline_spell_menu_return = iam_saved_spell_return;
     g_inline_spell_menu_pending = iam_saved_spell_pending;
     data_fd2_battle_tile_map_ptr = iam_saved_tile_map_ptr;
@@ -452,7 +448,7 @@ static void test_inline_action_cancel_and_gating(void)
             iam_chars[0].inventory_slots[s * 2] = 0x80;
         }
     }
-    g_build_spell_list_return = 0;       /* Spell gated */
+    /* iam_chars[0] knows no spell (bitmap cleared by iam_setup) => Spell gated */
     data_fd2_battle_pending_xp_credit = 0x9999;   /* sentinel, must be reset */
 
     /* Make the template global non-{0,1,2,3} would be wrong; instead snapshot
@@ -490,7 +486,7 @@ static void test_inline_action_silence_gates_spell(void)
 
     iam_setup(5, 4, 1);                  /* silenced (combat_aux_block[0]=1) */
     /* iam_chars slots all clear => REAL count_usable returns 8 => Item enabled */
-    g_build_spell_list_return = 3;       /* spells exist, but silence overrides */
+    iam_chars[0].spells_known_bitmap[0] = 0x07;  /* knows 3 spells (silence still gates) */
 
     slot[0] = 0; slot[1] = 0; slot[2] = 0; slot[3] = 0;
     mfix_load_cancel();
@@ -510,7 +506,7 @@ static void test_inline_action_spell_xp_lowjob(void)
     int r;
 
     iam_setup(8, 4, 0);                  /* job 8 (not > 8) => no +0x1E */
-    g_build_spell_list_return = 3;       /* Spell slot enabled */
+    iam_chars[0].spells_known_bitmap[0] = 0x07;  /* knows 3 spells => Spell slot enabled */
     g_inline_spell_menu_return = 1;      /* spell committed */
     g_inline_spell_menu_pending = 100;   /* cast credits 100 XP (then scaled) */
 
@@ -532,7 +528,7 @@ static void test_inline_action_spell_xp_highjob(void)
     int r;
 
     iam_setup(9, 4, 0);                  /* job 9 (> 8) => +0x1E */
-    g_build_spell_list_return = 3;
+    iam_chars[0].spells_known_bitmap[0] = 0x07;  /* knows 3 spells => Spell slot enabled */
     g_inline_spell_menu_return = 1;
     g_inline_spell_menu_pending = 100;   /* cast credits 100 XP (then scaled) */
 
@@ -553,7 +549,7 @@ static void test_inline_action_spell_cancel(void)
     int r;
 
     iam_setup(5, 4, 0);
-    g_build_spell_list_return = 3;
+    iam_chars[0].spells_known_bitmap[0] = 0x07;  /* knows 3 spells => Spell slot enabled */
     g_inline_spell_menu_return = -1;     /* spell submenu cancelled */
     data_fd2_battle_pending_xp_credit = 0;
 
@@ -590,9 +586,9 @@ static void test_inline_action_wait_moved(void)
     int r;
 
     iam_setup(5, 4, 0);
-    g_build_spell_list_return = 0;
-    /* Item slot gating is irrelevant here (cursor lands on Wait/slot 3, which
-     * is never gated); leave iam_chars slots clear (real count_usable => 8). */
+    /* Spell/Item slot gating is irrelevant here (cursor lands on Wait/slot 3,
+     * never gated); iam_chars slots + spell bitmap stay clear (count_usable => 8,
+     * spell count => 0). */
     /* HP == max so fd2_ai_pass_turn_with_heal would be an immediate no-op. */
     iam_chars[0].hp_current = 10;
     iam_chars[0].hp_max = 10;
@@ -615,8 +611,7 @@ static void test_inline_action_wait_not_moved(void)
     int r;
 
     iam_setup(5, 4, 0);
-    g_build_spell_list_return = 0;
-    /* Wait/slot 3 is never gated; iam_chars slots stay clear (count_usable => 8). */
+    /* Wait/slot 3 is never gated; iam_chars slots + spell bitmap stay clear. */
     iam_chars[0].hp_current = 10;
     iam_chars[0].hp_max = 10;            /* heal no-op (hp_current == hp_max) */
 

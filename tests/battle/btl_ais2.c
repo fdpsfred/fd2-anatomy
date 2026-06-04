@@ -13,7 +13,6 @@
 #define USE_ITEM_ID 10
 
 extern runtime_char g_test_rc_array[8];
-extern int g_build_spell_list_return;
 extern int g_ail_vol_calls;
 extern int g_ail_last_vol;
 extern int g_ail_last_ramp;
@@ -51,7 +50,6 @@ extern int g_pathfind_seq_steps;
 extern uint8 g_pathfind_step_bytes[8];
 extern int g_pathfind_md0_dst_x;
 extern int g_pathfind_md0_dst_y;
-extern uint8 g_spell_list_buf[12];
 extern int g_cast_status_cure_calls;
 extern int g_cast_status_via_d1b_calls;
 extern int g_repaint_settings_calls;
@@ -78,11 +76,12 @@ static void test_spell_score_silence(void)
     int score;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     ((uint8 *)&g_test_rc_array[0])[0x27] = 0;
-    g_build_spell_list_return = 3;
+    /* target char 0 must "have spells": set one bit in spells_known_bitmap
+     * (+0x1A) so the real fd2_build_usable_spell_list(0, NULL) returns > 0. */
+    g_test_rc_array[0].spells_known_bitmap[0] = 0x01;
     tgt_buf[0] = 0;
     score = fd2_score_spell_candidate(0x16, 1, (uint32)tgt_buf);
     ASSERT_EQ((long)score, 6);
-    g_build_spell_list_return = 0;
 }
 
 

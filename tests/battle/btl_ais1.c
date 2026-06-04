@@ -13,7 +13,6 @@
 #define USE_ITEM_ID 10
 
 extern runtime_char g_test_rc_array[8];
-extern int g_build_spell_list_return;
 extern int g_ail_vol_calls;
 extern int g_ail_last_vol;
 extern int g_ail_last_ramp;
@@ -51,7 +50,6 @@ extern int g_pathfind_seq_steps;
 extern uint8 g_pathfind_step_bytes[8];
 extern int g_pathfind_md0_dst_x;
 extern int g_pathfind_md0_dst_y;
-extern uint8 g_spell_list_buf[12];
 extern int g_cast_status_cure_calls;
 extern int g_cast_status_via_d1b_calls;
 extern int g_repaint_settings_calls;
@@ -175,17 +173,14 @@ static void ti_restore_item(uint32 save_pmc, uint32 save_w, uint32 save_h)
 }
 
 
-static void ts_setup_spell(uint32 *save_pmc, uint32 *save_w, uint32 *save_h,
-                           int *save_ret)
+static void ts_setup_spell(uint32 *save_pmc, uint32 *save_w, uint32 *save_h)
 {
     *save_pmc = data_fd2_battle_party_member_count;
     *save_w = data_fd2_battle_map_width_tiles;
     *save_h = data_fd2_battle_map_height_tiles;
-    *save_ret = g_build_spell_list_return;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     memset(data_fd2_battle_spell_effect_table, 0,
            sizeof(data_fd2_battle_spell_effect_table));
-    memset(g_spell_list_buf, 0, sizeof(g_spell_list_buf));
     reset_ai_stubs();                 /* tile map -> 0xFF, ptr wired */
     data_fd2_battle_map_width_tiles = 3;
     data_fd2_battle_map_height_tiles = 3;
@@ -202,13 +197,11 @@ static void ts_setup_spell(uint32 *save_pmc, uint32 *save_w, uint32 *save_h,
 }
 
 
-static void ts_restore_spell(uint32 save_pmc, uint32 save_w, uint32 save_h,
-                             int save_ret)
+static void ts_restore_spell(uint32 save_pmc, uint32 save_w, uint32 save_h)
 {
     data_fd2_battle_party_member_count = save_pmc;
     data_fd2_battle_map_width_tiles = save_w;
     data_fd2_battle_map_height_tiles = save_h;
-    g_build_spell_list_return = save_ret;
 }
 
 
@@ -582,13 +575,11 @@ static void test_ai_score_item_best_candidate_gating(void)
 static void test_ai_spell_gate_no_castable(void)
 {
     uint32 save_pmc, save_w, save_h;
-    int save_ret;
-    ts_setup_spell(&save_pmc, &save_w, &save_h, &save_ret);
+    ts_setup_spell(&save_pmc, &save_w, &save_h);
     data_fd2_battle_party_member_count = 2;
-    g_build_spell_list_return = 0;                 /* gate fail */
+    /* caster (char 0) knows no spell -> bitmap clear -> count 0 -> gate fail */
     data_fd2_battle_spell_effect_table[0].damage = 50;
     data_fd2_battle_spell_effect_table[0].area = 2;
-    g_spell_list_buf[0] = 0;
     g_test_rc_array[1].team = 2;
     g_test_rc_array[1].char_id = 9;
     g_test_rc_array[1].pos_x = 1; g_test_rc_array[1].pos_y = 1;
@@ -599,7 +590,7 @@ static void test_ai_spell_gate_no_castable(void)
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_x, 0xEE);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_id, 0xEE);
-    ts_restore_spell(save_pmc, save_w, save_h, save_ret);
+    ts_restore_spell(save_pmc, save_w, save_h);
 }
 
 
@@ -608,11 +599,9 @@ static void test_ai_spell_gate_no_castable(void)
 static void test_ai_spell_gate_silenced(void)
 {
     uint32 save_pmc, save_w, save_h;
-    int save_ret;
-    ts_setup_spell(&save_pmc, &save_w, &save_h, &save_ret);
+    ts_setup_spell(&save_pmc, &save_w, &save_h);
     data_fd2_battle_party_member_count = 2;
-    g_build_spell_list_return = 1;
-    g_spell_list_buf[0] = 0;
+    g_test_rc_array[0].spells_known_bitmap[0] = 0x01;  /* knows spell 0 -> count 1 */
     data_fd2_battle_spell_effect_table[0].damage = 50;
     data_fd2_battle_spell_effect_table[0].mp_cost = 5;
     data_fd2_battle_spell_effect_table[0].area = 2;
@@ -628,7 +617,7 @@ static void test_ai_spell_gate_silenced(void)
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_x, 0xEE);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_id, 0xEE);
-    ts_restore_spell(save_pmc, save_w, save_h, save_ret);
+    ts_restore_spell(save_pmc, save_w, save_h);
 }
 
 
@@ -638,11 +627,9 @@ static void test_ai_spell_gate_silenced(void)
 static void test_ai_spell_mp_gate_skips(void)
 {
     uint32 save_pmc, save_w, save_h;
-    int save_ret;
-    ts_setup_spell(&save_pmc, &save_w, &save_h, &save_ret);
+    ts_setup_spell(&save_pmc, &save_w, &save_h);
     data_fd2_battle_party_member_count = 2;
-    g_build_spell_list_return = 1;
-    g_spell_list_buf[0] = 0;
+    g_test_rc_array[0].spells_known_bitmap[0] = 0x01;  /* knows spell 0 -> count 1 */
     data_fd2_battle_spell_effect_table[0].damage = 50;
     data_fd2_battle_spell_effect_table[0].mp_cost = 99;   /* > caster mp 50 */
     data_fd2_battle_spell_effect_table[0].area = 2;
@@ -658,7 +645,7 @@ static void test_ai_spell_mp_gate_skips(void)
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_x, 0xEE);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_id, 0xEE);
-    ts_restore_spell(save_pmc, save_w, save_h, save_ret);
+    ts_restore_spell(save_pmc, save_w, save_h);
 }
 
 
@@ -671,13 +658,11 @@ static void test_ai_spell_mp_gate_skips(void)
 static void test_ai_spell_happy_path_capture(void)
 {
     uint32 save_pmc, save_w, save_h;
-    int save_ret;
     uint8 xcheck_buf[1];
     int expected;
-    ts_setup_spell(&save_pmc, &save_w, &save_h, &save_ret);
+    ts_setup_spell(&save_pmc, &save_w, &save_h);
     data_fd2_battle_party_member_count = 2;
-    g_build_spell_list_return = 1;
-    g_spell_list_buf[0] = 0;                        /* spell id 0 */
+    g_test_rc_array[0].spells_known_bitmap[0] = 0x01;  /* knows spell 0 -> list [0] */
     data_fd2_battle_spell_effect_table[0].damage = 50;
     data_fd2_battle_spell_effect_table[0].mp_cost = 5;
     data_fd2_battle_spell_effect_table[0].area = 2;
@@ -700,7 +685,7 @@ static void test_ai_spell_happy_path_capture(void)
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_x, 1);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_y, 1);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_id, 0);
-    ts_restore_spell(save_pmc, save_w, save_h, save_ret);
+    ts_restore_spell(save_pmc, save_w, save_h);
 }
 
 
@@ -714,12 +699,10 @@ static void test_ai_spell_happy_path_capture(void)
 static void test_ai_spell_ctx_flag_aoe_arg(void)
 {
     uint32 save_pmc, save_w, save_h;
-    int save_ret;
     /* ctx_flag 0: team_filter 0 collects the team-0 char -> score 0x18 */
-    ts_setup_spell(&save_pmc, &save_w, &save_h, &save_ret);
+    ts_setup_spell(&save_pmc, &save_w, &save_h);
     data_fd2_battle_party_member_count = 2;
-    g_build_spell_list_return = 1;
-    g_spell_list_buf[0] = 0;
+    g_test_rc_array[0].spells_known_bitmap[0] = 0x01;  /* knows spell 0 -> count 1 */
     data_fd2_battle_spell_effect_table[0].damage = 50;
     data_fd2_battle_spell_effect_table[0].mp_cost = 5;
     data_fd2_battle_spell_effect_table[0].area = 2;
@@ -734,13 +717,12 @@ static void test_ai_spell_ctx_flag_aoe_arg(void)
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0x18);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_x, 1);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_y, 1);
-    ts_restore_spell(save_pmc, save_w, save_h, save_ret);
+    ts_restore_spell(save_pmc, save_w, save_h);
 
     /* ctx_flag 1: team_filter 2 finds no team-1 char -> no update */
-    ts_setup_spell(&save_pmc, &save_w, &save_h, &save_ret);
+    ts_setup_spell(&save_pmc, &save_w, &save_h);
     data_fd2_battle_party_member_count = 2;
-    g_build_spell_list_return = 1;
-    g_spell_list_buf[0] = 0;
+    g_test_rc_array[0].spells_known_bitmap[0] = 0x01;  /* knows spell 0 -> count 1 */
     data_fd2_battle_spell_effect_table[0].damage = 50;
     data_fd2_battle_spell_effect_table[0].mp_cost = 5;
     data_fd2_battle_spell_effect_table[0].area = 2;
@@ -755,7 +737,7 @@ static void test_ai_spell_ctx_flag_aoe_arg(void)
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_x, 0xEE);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_id, 0xEE);
-    ts_restore_spell(save_pmc, save_w, save_h, save_ret);
+    ts_restore_spell(save_pmc, save_w, save_h);
 }
 
 
@@ -772,13 +754,11 @@ static void test_ai_spell_ctx_flag_aoe_arg(void)
 static void test_ai_spell_base_dmg_tiebreak(void)
 {
     uint32 save_pmc, save_w, save_h;
-    int save_ret;
     /* Scenario A: later higher base_dmg wins the equal-score tiebreak */
-    ts_setup_spell(&save_pmc, &save_w, &save_h, &save_ret);
+    ts_setup_spell(&save_pmc, &save_w, &save_h);
     data_fd2_battle_party_member_count = 2;
-    g_build_spell_list_return = 2;
-    g_spell_list_buf[0] = 2;                        /* evaluated first */
-    g_spell_list_buf[1] = 3;                        /* evaluated second */
+    /* knows spells 2 and 3 (bits 2,3) -> real enumerator yields list [2,3] */
+    g_test_rc_array[0].spells_known_bitmap[0] = 0x0C;
     data_fd2_battle_spell_effect_table[2].damage = 50;
     data_fd2_battle_spell_effect_table[2].mp_cost = 5;
     data_fd2_battle_spell_effect_table[2].area = 2;
@@ -796,14 +776,13 @@ static void test_ai_spell_base_dmg_tiebreak(void)
     fd2_ai_score_offensive_spell(0, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0x18);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_id, 3);   /* higher base_dmg */
-    ts_restore_spell(save_pmc, save_w, save_h, save_ret);
+    ts_restore_spell(save_pmc, save_w, save_h);
 
     /* Scenario B: later lower base_dmg does NOT overwrite (JLE skip) */
-    ts_setup_spell(&save_pmc, &save_w, &save_h, &save_ret);
+    ts_setup_spell(&save_pmc, &save_w, &save_h);
     data_fd2_battle_party_member_count = 2;
-    g_build_spell_list_return = 2;
-    g_spell_list_buf[0] = 2;
-    g_spell_list_buf[1] = 3;
+    /* knows spells 2 and 3 (bits 2,3) -> real enumerator yields list [2,3] */
+    g_test_rc_array[0].spells_known_bitmap[0] = 0x0C;
     data_fd2_battle_spell_effect_table[2].damage = 60;
     data_fd2_battle_spell_effect_table[2].mp_cost = 5;
     data_fd2_battle_spell_effect_table[2].area = 2;
@@ -821,7 +800,7 @@ static void test_ai_spell_base_dmg_tiebreak(void)
     fd2_ai_score_offensive_spell(0, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0x18);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_id, 2);   /* first kept */
-    ts_restore_spell(save_pmc, save_w, save_h, save_ret);
+    ts_restore_spell(save_pmc, save_w, save_h);
 }
 
 

@@ -13,7 +13,6 @@
 #define USE_ITEM_ID 10
 
 extern runtime_char g_test_rc_array[8];
-extern int g_build_spell_list_return;
 extern int g_ail_vol_calls;
 extern int g_ail_last_vol;
 extern int g_ail_last_ramp;
@@ -51,7 +50,6 @@ extern int g_pathfind_seq_steps;
 extern uint8 g_pathfind_step_bytes[8];
 extern int g_pathfind_md0_dst_x;
 extern int g_pathfind_md0_dst_y;
-extern uint8 g_spell_list_buf[12];
 extern int g_cast_status_cure_calls;
 extern int g_cast_status_via_d1b_calls;
 extern int g_repaint_settings_calls;

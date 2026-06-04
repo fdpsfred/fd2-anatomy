@@ -43,6 +43,7 @@ extern void run_rsrc_rsrc_tests(void);
 extern void run_save_save_tests(void);
 extern void run_spell_spell_tests(void);
 extern void run_spell_spelleff_tests(void);
+extern void run_spell_spellsel_tests(void);
 extern void run_table_table_tests(void);
 extern void run_ui_menu_cursor_tests(void);
 extern void run_ui_menu_menu_tests(void);
@@ -86,6 +87,7 @@ int main(void)
     run_save_save_tests();
     run_spell_spell_tests();
     run_spell_spelleff_tests();
+    run_spell_spellsel_tests();
     run_table_table_tests();
     run_ui_menu_cursor_tests();
     run_ui_menu_menu_tests();
