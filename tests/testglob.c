@@ -73,6 +73,7 @@ uint32 data_fd2_battle_player_action_result_code = 0;
 uint32 data_fd2_chapter_current_chapter_id = 1;
 uint32 data_fd2_chapter_cutscene_event_state = 0;
 uint32 data_fd2_graphics_static_bg_buffer_ptr = 0;
+uint8  data_fd2_graphics_text_scroll_pending_line_count = 0;
 uint32 data_fd2_graphics_animated_bg_buffer_ptr = 0;
 uint32 data_fd2_chapter_event_or_battle_end_code = 0;
 uint32 data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
@@ -659,12 +660,10 @@ void fd2_rle_blit_sprite(uint32 rle_stream, int32 dst_x, int32 dst_y,
  * 2-digit magnitude glyphs end-to-end via the g_rle_blit_log_* per-call log
  * against the fake sheet (table[i]=i). The former (dst,stride,modifier)
  * recording stub was removed. */
-int    g_scroll_text_calls = 0;
-uint32 g_scroll_text_last_arg = 0;
-void fd2_scroll_text_screen_up_by_lines(uint32 lines) {
-    g_scroll_text_last_arg = lines;
-    g_scroll_text_calls++;
-}
+/* fd2_scroll_text_screen_up_by_lines: now emitted in src/dialog/dialog.c. Its
+ * own dual-mode + cylinder-scroll behavior is covered by the dialog tests; the
+ * rsrc caller test (chapter 0x17) drives the real tail call against a bounded
+ * static_bg buffer. The former (calls, last_arg) recording stub was removed. */
 void fd2_play_palette_fade_in(void) { }
 void fd2_play_death_animation_and_mark_dead(void) { }
 

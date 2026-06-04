@@ -2522,8 +2522,9 @@
     "name": "fd2_scroll_text_screen_up_by_lines",
     "target": "dialog/dialog.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00024df2": {
     "name": "fd2_chapter_25_end",

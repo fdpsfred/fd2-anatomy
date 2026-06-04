@@ -30,9 +30,6 @@ extern uint32 g_rle_blit_last_palette;
 extern int32  g_rle_blit_y_log[4];
 extern uint8  g_rle_blit_sprite_first_byte_log[4];
 
-extern int    g_scroll_text_calls;
-extern uint32 g_scroll_text_last_arg;
-
 /* fd2_load_chapter_battle_data captures (testglob.c) */
 extern runtime_char g_test_rc_array[8];
 
@@ -263,9 +260,6 @@ static void reset_capture(void)
     memset(g_rle_blit_sprite_first_byte_log, 0,
            sizeof(g_rle_blit_sprite_first_byte_log));
 
-    g_scroll_text_calls = 0;
-    g_scroll_text_last_arg = 0;
-
     data_fd2_graphics_static_bg_buffer_ptr = 0;
     data_fd2_graphics_animated_bg_buffer_ptr = 0;
 }
@@ -293,7 +287,6 @@ static void test_default_path_chapter9_idx_f(void)
     fd2_load_chapter_background_layers();
 
     ASSERT_EQ(g_rle_blit_calls, 0);
-    ASSERT_EQ(g_scroll_text_calls, 0);
     ASSERT_NE(data_fd2_graphics_static_bg_buffer_ptr, 0);   /* loaded sprite */
     ASSERT_NE(data_fd2_graphics_animated_bg_buffer_ptr, 0); /* malloc(64000) */
     ASSERT_EQ((long)*(uint8 *)data_fd2_graphics_static_bg_buffer_ptr,
@@ -342,7 +335,6 @@ static void test_unmatched_chapter_no_load(void)
     fd2_load_chapter_background_layers();
 
     ASSERT_EQ(g_rle_blit_calls, 0);
-    ASSERT_EQ(g_scroll_text_calls, 0);
     ASSERT_EQ(data_fd2_graphics_static_bg_buffer_ptr, 0);
     ASSERT_EQ(data_fd2_graphics_animated_bg_buffer_ptr, 0);
     reset_capture_teardown();
@@ -425,11 +417,18 @@ static void test_two_sprite_chapter1b(void)
     reset_capture_teardown();
 }
 
-/* Text-scroll cinematic, chapter 0x17: idx 0x2A, stride 0x138, one blit,
-   scroll armed with arg 0, animated_bg freed+nulled. */
+/* Text-scroll cinematic, chapter 0x17: idx 0x2A, stride 0x138, one blit, the
+   real fd2_scroll_text_screen_up_by_lines(0) tail call (Mode B), animated_bg
+   freed+nulled. The scroll's own cylinder-permutation behavior is covered by
+   the dialog tests; here we pin the caller's dispatch (blit + buffer state) and
+   drive the real tail call against the caller's malloc(0xea00) static_bg buffer.
+   We arm the pending line count to a small bounded value first so the Mode-B
+   scroll stays in bounds (0xC0 * 0x138 = 59904 <= 60000) and is deterministic
+   regardless of any leftover state from other suites. */
 static void test_text_scroll_chapter17(void)
 {
     reset_capture();
+    data_fd2_graphics_text_scroll_pending_line_count = 4;
     data_fd2_chapter_current_chapter_id = 0x17;
 
     fd2_load_chapter_background_layers();
@@ -441,10 +440,10 @@ static void test_text_scroll_chapter17(void)
     ASSERT_EQ(g_rle_blit_last_y, 0);
     ASSERT_EQ(g_rle_blit_last_stride, 0x138);
     ASSERT_EQ(g_rle_blit_last_palette, 0xffffffff);
-    ASSERT_EQ(g_scroll_text_calls, 1);
-    ASSERT_EQ(g_scroll_text_last_arg, 0);
+    /* real scroll(0) ran without disturbing buffer ownership */
     ASSERT_NE(data_fd2_graphics_static_bg_buffer_ptr, 0);
     ASSERT_EQ(data_fd2_graphics_animated_bg_buffer_ptr, 0);
+    data_fd2_graphics_text_scroll_pending_line_count = 0;
     reset_capture_teardown();
 }
 

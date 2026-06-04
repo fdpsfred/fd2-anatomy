@@ -94,6 +94,7 @@ extern uint32 data_fd2_ui_slide_bg_snapshot_buf_ptr;                    /* 0x53C
 extern uint32 data_fd2_ui_slide_composed_target_buf_ptr;                /* 0x53C63 */
 
 /* ---- graphics ---- */
+extern uint8  data_fd2_graphics_text_scroll_pending_line_count;         /* 0x51A10 */
 extern uint32 data_fd2_battle_view_window_max_x;                        /* 0x51A87 */
 extern uint32 data_fd2_battle_view_window_max_y;                        /* 0x51A8B */
 extern uint32 data_fd2_graphics_forced_tile_anim_frame;                 /* 0x51A93 */

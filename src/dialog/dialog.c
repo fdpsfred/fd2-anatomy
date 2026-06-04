@@ -1093,3 +1093,55 @@ int fd2_text_dialog_typewriter_loop(void)
     data_fd2_dialog_blink_phase_oscillator = 0;
     return 1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_scroll_text_screen_up_by_lines @ 0x24D22 (3 callers)
+ *
+ * Dual-mode scroll-up helper over the static background buffer
+ * (data_fd2_graphics_static_bg_buffer_ptr, 0xC0 lines x 0x138
+ * bytes/line).
+ *
+ * Mode A (lines != 0): store low byte of lines into the pending
+ * line-count state and return; this pre-sets how many rows the next
+ * Mode-B call will scroll.
+ *
+ * Mode B (lines == 0): read N = pending line count and scroll the
+ * whole 0xC0-line buffer up by N lines, with the bottom N lines
+ * wrapping to the top (cylinder scroll):
+ *   1. malloc(N * 0x138) scratch buffer.
+ *   2. copy the bottom N rows (rows [0xC0-N .. 0xBF]) into scratch.
+ *   3. for i = 0xBF-N down to 0: move row[i] down to row[i+N]
+ *      (content visually moves up).
+ *   4. paste the saved bottom N rows at the top.
+ *   5. free scratch.
+ *
+ * Cdecl, 1 stack param; void return. The binary's __CHK(0x18)
+ * stack-probe prologue is compiler-injected, not emitted here.
+ * ---------------------------------------------------------------- */
+void fd2_scroll_text_screen_up_by_lines(uint32 lines)
+{
+    void *scratch;
+    int32 i;
+
+    if (lines != 0) {
+        data_fd2_graphics_text_scroll_pending_line_count = (uint8)lines;
+        return;
+    }
+
+    scratch = malloc((uint32)data_fd2_graphics_text_scroll_pending_line_count * 0x138);
+    memmove(scratch,
+            (void *)((0xC0 - (uint32)data_fd2_graphics_text_scroll_pending_line_count) * 0x138 +
+                     data_fd2_graphics_static_bg_buffer_ptr),
+            (uint32)data_fd2_graphics_text_scroll_pending_line_count * 0x138);
+
+    for (i = 0xBF - (int32)(uint32)data_fd2_graphics_text_scroll_pending_line_count; i >= 0; i--) {
+        void *src = (void *)(i * 0x138 + data_fd2_graphics_static_bg_buffer_ptr);
+        memmove((void *)((uint32)src +
+                         (uint32)data_fd2_graphics_text_scroll_pending_line_count * 0x138),
+                src, 0x138);
+    }
+
+    memmove((void *)data_fd2_graphics_static_bg_buffer_ptr, scratch,
+            (uint32)data_fd2_graphics_text_scroll_pending_line_count * 0x138);
+    free(scratch);
+}
