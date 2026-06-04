@@ -2105,8 +2105,9 @@
     "name": "fd2_play_variant_b_slide_pre_effect",
     "target": "spell/spellcin.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00022046": {
     "name": "fd2_render_filled_circle_band_anim",

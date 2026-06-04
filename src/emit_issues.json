@@ -498,6 +498,19 @@
       }
     ]
   },
+  "00021eb1": {
+    "name": "fd2_play_variant_b_slide_pre_effect",
+    "target": "spell/spellcin.c",
+    "issues": [
+      {
+        "type": "test_deferral_note",
+        "desc": "Unit test deferred to Phase 9 integration (risk-based policy). This is a pure VGA/VRAM cinematic pre-cast slide animation: both loops unconditionally blit each frame to the hardcoded mode-13h framebuffer 0xA0504 via fd2_blit_rectangle, and the only computed state (cursor_screen_x = cursor_x*0x18+0xc / cursor_screen_y = cursor_y*0x18+0x10 tile->pixel transform; the radius accumulator offset0 += step over 9 frames; the slide-up fixed radius offset0-step; the 16 tile-anim sprite-table lookups) is observable only through fd2_render_filled_circle_band_anim, which writes the large game-state buffer and the palette-remap blitter, behind those unconditional blits. There is no RNG / damage / state-transition branch to assert at unit level (unlike the scatter leaf @0x21db2 in the same file). Deferral documented in tests/spell/spellcin.c header (worker #6 of 6). Equivalence verified statically: cdecl 2-arg (offset0, step) confirmed via all 4 caller thunks pushing (1,2)/(2,4)/(8,4)/(6,6) + ADD ESP,0x8; phase-1 loop EBX 9..1 with ESI radius accumulator (ADD ESI,step each frame); phase-2 loop EBX 3..9 with radius held at the SUB ESI,step value (= offset0-step) reused unchanged. The shared-epilogue tail-JMP to fd2_noop_stub_b43 @0x10b43 is emitted as a plain return per the existing 00010b43 fragment_equivalence_handoff (this function is one of its listed +0x00 parents).",
+        "severity": "low",
+        "verify_method": "phase9_integration",
+        "source_review": "fd2_play_variant_b_slide_pre_effect @00021eb1 (emitter)"
+      }
+    ]
+  },
   "00021db2": {
     "name": "fd2_scatter_sprite_around_origin_with_random_offset",
     "target": "spell/spellcin.c",

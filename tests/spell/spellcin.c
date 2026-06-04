@@ -1,7 +1,7 @@
 /*
  * unit tests for src/spell/spellcin.c
  *
- * Four of the five workers in this file are pure VGA/VRAM cinematic
+ * Five of the six workers in this file are pure VGA/VRAM cinematic
  * orchestration and have no isolated numeric path that avoids a write to the
  * hardcoded mode-13h framebuffer literal 0xA0504 (not redirectable via
  * globals). Their behavioral verification is deferred to Phase 9 integration on
@@ -24,7 +24,14 @@
  *   ORPHAN / UNREACHABLE AoE cinematic; every frame memmove()s the backdrop and
  *   unconditionally blits the composed buffer to 0xA0504.
  *
- * The fifth worker, fd2_scatter_sprite_around_origin_with_random_offset
+ *   fd2_play_variant_b_slide_pre_effect @ 0x21eb1 — variant-B spell pre-cast
+ *   slide animation; its only computed state is the cursor tile->pixel
+ *   transform and the radius accumulator, both observable only through
+ *   fd2_render_filled_circle_band_anim (which writes the large game-state
+ *   buffer), behind an unconditional per-frame blit to 0xA0504. No RNG / damage
+ *   / state-transition branch exists to assert at unit level.
+ *
+ * The remaining worker, fd2_scatter_sprite_around_origin_with_random_offset
  * @ 0x21db2, is the scatter *leaf* called by the orphan executor. Unlike its
  * parent it touches NO VRAM: it only advances the shared RNG three times and
  * writes one (x, y, type) entry into three caller-supplied arrays. It is pure
@@ -133,7 +140,7 @@ static void test_scatter_type_range(void)
 void run_spell_spellcin_tests(void)
 {
     int _prev_fails = g_test_fail_count;
-    printf("Suite: spell/spellcin (scatter leaf tested; 4 VGA/VRAM cinematic "
+    printf("Suite: spell/spellcin (scatter leaf tested; 5 VGA/VRAM cinematic "
            "workers deferred to Phase 9, see file header)\n");
     RUN_TEST(test_scatter_seed_1234_index0);
     RUN_TEST(test_scatter_seed_5555_index1);
