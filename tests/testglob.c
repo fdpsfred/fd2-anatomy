@@ -54,6 +54,12 @@ uint32 data_fd2_ui_terrain_hud_panel_offset_51a0c = 0;
 uint8  data_fd2_audio_sfx_driver_available_flag = 0;
 uint8  data_fd2_audio_sfx_enabled_flag = 0;
 uint32 data_fd2_audio_sfx_sample_handle_0 = 0;
+/* Distinct non-zero default so the AIL_stop_sample spy can tell which real SFX
+ * player called it: fd2_play_sfx_sample_from_bank drives this slot-1 handle,
+ * fd2_play_sfx_with_handle drives slot-0 (handle_0). Callers that fire both
+ * players (summon ticks, etc.) don't set the handles, so this sentinel keeps the
+ * two routable. Tests that care set both handles explicitly. */
+uint32 data_fd2_audio_sfx_sample_handle_1 = 0x5EE80000;
 uint32 data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = 0;
 char   data_fd2_string_ui_render_decimal_format_template[6] = "%0.5d";
 char   data_fd2_string_resource_filename_fdtxt_dat[] = "FDTXT.DAT";
@@ -139,6 +145,11 @@ void fd2_cast_dp_boost_spell(int a, int b, uint32 c) { }
 void fd2_cast_speed_boost_spell(uint32 a, uint32 b, uint32 c) { }
 int g_play_sfx_with_handle_calls = 0;
 int g_dlg_blink_calls = 0;
+/* Per-invocation counter for the real fd2_play_sfx_sample_from_bank
+ * (src/audio/audio.c). Defined here ahead of the AIL_stop_sample spy that
+ * increments it; see the relocation note near the removed stub below for the
+ * handle-based routing rationale. */
+int g_play_sfx_sample_from_bank_calls = 0;
 /* SFX-id capture log: fd2_animate_spell_impact_per_target's per-spell SFX
  * dispatch chain is the highest-risk control flow in that function, so its
  * test pins the exact sequence of fired SFX ids (arg b) per frame. Additive:
@@ -152,6 +163,11 @@ int    g_sfx_id_log[64];
  * non-breaking. */
 uint32 g_sfx_last_arg_a = 0;
 int    g_sfx_last_arg_c = 0;
+/* Additive: captures the AIL sample handle (slot) the real player programmed, so
+ * fd2_play_sfx_sample_from_bank's direct test can assert it drives slot 1
+ * (data_fd2_audio_sfx_sample_handle_1) rather than slot 0. Non-breaking: existing
+ * tests don't read it. */
+uint32 g_sfx_last_handle = 0;
 /* fd2_play_sfx_with_handle is now a real emitted function (src/audio/audio.c);
  * its former counting stub here was removed. The SFX spy seam relocates one
  * level down into the AIL_* sample stubs the real player drives, mirroring the
@@ -177,16 +193,23 @@ int g_ail_set_sample_addr_calls = 0;
 int g_ail_start_sample_calls = 0;
 void AIL_stop_sample(uint32 sample)
 {
-    (void)sample;
     g_ail_stop_sample_calls++;
-    g_play_sfx_with_handle_calls++;
-    g_dlg_blink_calls++;
+    /* Route the per-invocation counter to the right player by the handle the
+     * real function passed: slot 1 (handle_1) is fd2_play_sfx_sample_from_bank;
+     * everything else (slot 0 / handle_0) is fd2_play_sfx_with_handle, which the
+     * dialog typewriter and most callers drive. */
+    if (sample == data_fd2_audio_sfx_sample_handle_1) {
+        g_play_sfx_sample_from_bank_calls++;
+    } else {
+        g_play_sfx_with_handle_calls++;
+        g_dlg_blink_calls++;
+    }
 }
 void AIL_init_sample(uint32 sample) { (void)sample; g_ail_init_sample_calls++; }
 void AIL_set_sample_address(uint32 sample, uint32 start, uint32 len)
 {
-    (void)sample;
     g_ail_set_sample_addr_calls++;
+    g_sfx_last_handle = sample;   /* slot/handle programmed     */
     g_sfx_last_arg_a = start;     /* bank base (entry off==0)  */
     g_sfx_last_id = (int)len;     /* sfx id    (entry end==id) */
     if (g_sfx_id_count < 64) {
@@ -974,8 +997,19 @@ uint8  data_fd2_graphics_tile_anim_palette_phase_lookup[20] = {0};
  * clears the keyboard buffer before the loop, so the real wait can only be
  * released by async keyboard input (see tests/ui_menu/status.c). Both functions'
  * previous recording / sequence fakes were removed. */
-int g_play_sfx_sample_from_bank_calls = 0;
-void fd2_play_sfx_sample_from_bank(uint32 b, uint32 s, uint32 p) { g_play_sfx_sample_from_bank_calls++; (void)b; (void)s; (void)p; }
+/* fd2_play_sfx_sample_from_bank is now a real emitted function
+ * (src/audio/audio.c); its former counting stub here was removed (mirrors the
+ * fd2_play_sfx_with_handle relocation above). It is structurally identical to
+ * fd2_play_sfx_with_handle except it drives sample slot 1
+ * (data_fd2_audio_sfx_sample_handle_1) instead of slot 0. Both real players run
+ * their gates then unconditionally call AIL_stop_sample(<their handle>) once per
+ * invocation, so the AIL_stop_sample spy discriminates the two by the handle
+ * value it receives: handle_1 -> g_play_sfx_sample_from_bank_calls, otherwise
+ * (handle_0) -> g_play_sfx_with_handle_calls / g_dlg_blink_calls. Callers that
+ * count both (e.g. summon variant b/d/e ticks) leave the handle globals at their
+ * distinct testglob defaults, so the seam routes each caller's calls to the
+ * right counter. (Counter defined near the top of this file, ahead of the AIL
+ * spy that increments it.) */
 void fd2_paint_char_sprite_at_world_with_mode(uint32 w, uint32 s, uint32 c, uint32 m, uint32 co) { }
 /* Pathfind stub. Behavior is selected by the `md` (mode) arg:
  *   md==2  -> "find optimal reachable cell" call (fd2_ai_seek_optimal_position).

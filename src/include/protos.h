@@ -257,7 +257,7 @@ void fd2_apply_use_effect_dispatch(uint32 ci, uint32 sl, uint32 n, uint32 buf);
 void fd2_clear_all_chars_facing(void);
 void fd2_clear_all_chars_acted_flag(void);
 int fd2_add_item_to_inventory(uint32 char_idx, uint32 item_id);
-void fd2_play_sfx_sample_from_bank(uint32 bank_ptr, uint32 sfx_id, uint32 p);
+void fd2_play_sfx_sample_from_bank(uint32 bank_ptr, uint32 sfx_id, uint32 loop_count);
 void fd2_paint_char_sprite_at_world_with_mode(uint32 ws, uint32 stride, uint32 ci, uint32 mode, uint32 color);
 void fd2_paint_threat_overlay_for_team(uint32 ctx);
 int fd2_pathfind_to_destination(uint32 ct, uint32 sx, uint32 sy, uint32 ms,

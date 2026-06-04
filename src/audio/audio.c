@@ -160,3 +160,59 @@ void fd2_play_sfx_with_handle(uint32 sfx_table_base, int sfx_id,
                               loop_count);
     AIL_start_sample(data_fd2_audio_sfx_sample_handle_0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_play_sfx_sample_from_bank @ 0x25b45 (11 callers)
+ *
+ * One-shot AIL (Miles Sound System) SFX player on the second sample
+ * slot (data_fd2_audio_sfx_sample_handle_1, 0x53EE8). Used by battle
+ * SFX (enemy_turn_dispatcher, summon variants b/c/d/e/main/minor,
+ * execute_summon_spell_cast), field SFX (tile_event_interaction,
+ * recruitment_or_branch) and the ending cinematic.
+ *
+ * Structurally identical to fd2_play_sfx_with_handle except it drives
+ * sample slot 1 rather than slot 0; the two slots let an SFX on this
+ * channel play without cutting off one on the other.
+ *
+ * Cdecl, void(uint32 bank_ptr, uint32 sfx_id, uint32 loop_count). The
+ * binary's __CHK(0x1c) stack-probe prologue and the unused PUSH/POP EBX
+ * register reservation are compiler-injected and not source.
+ *
+ * Three gates (silent return if any fails):
+ *   data_fd2_audio_sfx_driver_available_flag (0x53EF1) != 0
+ *   data_fd2_audio_sfx_enabled_flag          (0x51E62) != 0
+ *   data_fd2_battle_scripted_cinematic_mode_or_terrain_idx (0x540FF) == 0
+ *
+ * Then it always stops sample slot 1. sfx_id == -1 is the stop-only
+ * path (return after the stop). Otherwise it resolves the sample bank
+ * entry (entry = bank_ptr + sfx_id*4): the dword at entry+6 is the
+ * sample's byte offset from the bank base, the dword at entry+10 is the
+ * sample's end offset; length = end - offset. It then (re)programs the
+ * sample slot and starts playback.
+ * ---------------------------------------------------------------- */
+void fd2_play_sfx_sample_from_bank(uint32 bank_ptr, uint32 sfx_id,
+                                   uint32 loop_count)
+{
+    uint32 entry;
+    uint32 sample_offset;
+    uint32 sample_end;
+
+    if (data_fd2_audio_sfx_driver_available_flag == 0) return;
+    if (data_fd2_audio_sfx_enabled_flag == 0) return;
+    if (data_fd2_battle_scripted_cinematic_mode_or_terrain_idx != 0) return;
+
+    AIL_stop_sample(data_fd2_audio_sfx_sample_handle_1);
+    if (sfx_id == 0xFFFFFFFF) return;
+
+    entry = bank_ptr + sfx_id * 4;
+    sample_offset = *(uint32 *)(entry + 6);
+    sample_end = *(uint32 *)(entry + 10);
+
+    AIL_init_sample(data_fd2_audio_sfx_sample_handle_1);
+    AIL_set_sample_address(data_fd2_audio_sfx_sample_handle_1,
+                           bank_ptr + sample_offset,
+                           sample_end - sample_offset);
+    AIL_set_sample_loop_count(data_fd2_audio_sfx_sample_handle_1,
+                              loop_count);
+    AIL_start_sample(data_fd2_audio_sfx_sample_handle_1);
+}
