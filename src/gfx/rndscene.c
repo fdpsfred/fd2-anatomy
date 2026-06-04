@@ -1108,3 +1108,30 @@ void fd2_render_filled_circle_band_anim(uint32 param_1, uint32 param_2,
         row_ptr += 0x1c8;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_composite_battle_frame_zero @ 0x22BB7 (2 reaching entry sites)
+ *
+ * Zero-arg dispatch helper: recomposite the battle frame with the
+ * palette-cycle-advancing variant (skip_palette_cycle == 0). The whole
+ * body is just `PUSH 0x0; CALL fd2_composite_battle_frame`.
+ *
+ * In the binary the body is immediately followed by a shared epilogue
+ * (0x22BBE..0x22BC5: ADD ESP,4 / POP EBP / POP EDI / POP ESI / POP EBX /
+ * RET) that restores the *parent's* saved registers — entry 0x22BB7 pops
+ * those registers without ever pushing them at entry, relying on the
+ * reaching frame to have saved them. The two reaching sites are
+ * fd2_cast_status_cure_spell (conditional tail-JMP @ 0x22B49) and
+ * fd2_play_chapter_intro_sprite_slideshow (unconditional CALL @ 0x244B1);
+ * the +0x22BBE label is additionally reused as a folded epilogue by many
+ * other functions (pure Watcom epilogue-fold, no source-level meaning).
+ *
+ * Layer-2 equivalent: emit only the body as a plain no-arg helper; the
+ * compiler regenerates each reaching parent's own register-restore
+ * epilogue, which is exactly what the shared POP sequence performed.
+ * Takes no arguments (__cdecl, param_count=0).
+ * ---------------------------------------------------------------- */
+void fd2_composite_battle_frame_zero(void)
+{
+    fd2_composite_battle_frame(0);
+}

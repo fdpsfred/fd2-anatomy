@@ -2168,6 +2168,45 @@ static void test_composite_then_animate_projectiles(void)
     ASSERT_EQ(g_delay375b2_calls, 0);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_composite_battle_frame_zero — the zero-arg dispatch wrapper.
+ *
+ * Body is just fd2_composite_battle_frame(0), so the test proves the
+ * wrapper forwards to the composite pass exactly once with the arg-0
+ * (palette-cycle-advancing) variant, observed through the same proxies
+ * as test_composite_pipeline_args: the tile-map proxy bumps once with
+ * the back-buffer workspace as dst, and g_composite_call_count reaches 1
+ * (the real fd2_blit_rectangle final stage ran to completion). Empty
+ * party so the chars/shadow overlays paint nothing.
+ *
+ * The arg-0 vs arg-1 distinction (whether fd2_update_palette_cycle_anim
+ * runs) is VGA-DAC port output deferred to Phase 9; reset_pipeline_record
+ * throttles the palette-cycle routine to its early-return path so no port
+ * write happens here regardless. */
+static void test_composite_battle_frame_zero(void)
+{
+    uint32 ws;
+
+    ws = (uint32)g_ws_buffer;
+    data_fd2_large_game_state_buffer_ptr = ws - 0x8088;
+    data_fd2_battle_view_window_origin_x = 0x07;
+    data_fd2_battle_view_window_origin_y = 0x09;
+    data_fd2_battle_view_window_max_x = 0x100;
+    data_fd2_battle_view_window_max_y = 0x100;
+    install_sprite_atlas();
+    data_fd2_battle_cursor_world_x = 0x08;
+    data_fd2_battle_cursor_world_y = 0x0a;
+    reset_pipeline_record();
+
+    fd2_composite_battle_frame_zero();
+
+    /* composite ran exactly once, on the back-buffer, via the arg-0 path */
+    ASSERT_EQ(g_tile_map_calls, 1);
+    ASSERT_EQ(g_tile_map_last_dst, ws);
+    ASSERT_EQ(g_blitpass_calls, 1);
+    ASSERT_EQ(g_composite_call_count, 1);
+}
+
 /* ================================================================
  * fd2_render_circle_anim_row @ 0x219AD
  *
@@ -2508,6 +2547,7 @@ void run_gfx_rndscene_tests(void)
     RUN_TEST(test_banner_frame_settled);
     RUN_TEST(test_banner_frame_mid_slide);
     RUN_TEST(test_composite_then_animate_projectiles);
+    RUN_TEST(test_composite_battle_frame_zero);
     RUN_TEST(test_circ_basic_geometry);
     RUN_TEST(test_circ_left_clamp);
     RUN_TEST(test_circ_right_clamp);
