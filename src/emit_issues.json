@@ -491,5 +491,18 @@
         "verify_method": "compile_and_disasm"
       }
     ]
+  },
+  "0001f73f": {
+    "name": "fd2_display_cinematic_image_with_fade",
+    "target": "anim/anicine.c",
+    "issues": [
+      {
+        "type": "test_deferred_phase9",
+        "desc": "Pure blit/display orchestrator, void return, no isolatable pure-computation slice. Its very first action after the no-op palette-fade stub is memset((void*)0xA0000,0,64000), a 64000-byte write to linear 0xA0000 (the VGA framebuffer), which is not a mapped surface in the flat-model TEST.EXE and faults; it then calls the real fd2_blit_rectangle (src/gfx/blitspr.c) which memmoves into 0xA0000 (same fault), and the real fd2_wait_n_bios_ticks (src/input/input.c) which busy-waits on the BIOS tick counter at linear 0x46C (uninitialized in the test -> indeterminate spin). The only arithmetic, stage2_src = row_idx*0x140 + src_x_off, is consumed inline as fd2_blit_rectangle src arg with no observable output (fd2_blit_rectangle is linked real, not a spy, and faults on 0xA0000 before any capture). Testing in isolation would require rewriting 0xA0000 to a test buffer and dropping the BIOS waits = distorting the emit code, which is forbidden. (Note: FDOTHER.DAT IS staged so the three real fd2_load_dat_resource loads at 0x51a4d themselves would succeed; the blocker is purely the 0xA0000 framebuffer writes + BIOS-timer waits, not the file loading.) Same class as fd2_render_status_screen_static_layout @00017eef. Deterministic behavior to verify at Phase 9 integration: Stage 1 fades to black, clears 0xA0000, loads FDOTHER.DAT[palette_idx] then FDOTHER.DAT[image1_idx] into data_fd2_vga_palette_data_ptr / image_data, rle-blits image_data full-screen (0,0,0xA0000,stride 0x140,palette_op 0xFFFFFFFF), fades in, holds 1+6 BIOS ticks, fades to black; Stage 2 loads FDOTHER.DAT[0x65] palette, blit_rectangle copies a 0x140x0xC8 region from (row_idx*0x140 + src_x_off) to 0xA0000 (both strides 0x140), fades in.",
+        "severity": "info",
+        "verify_method": "phase9_integration",
+        "source_review": "fd2_display_cinematic_image_with_fade @0001f73f (emitter)"
+      }
+    ]
   }
 }

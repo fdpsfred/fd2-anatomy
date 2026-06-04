@@ -204,6 +204,8 @@ void fd2_render_status_screen_static_layout(uint32 char_idx, uint32 overlay_buff
 void fd2_render_full_char_stat_panel(uint32 char_idx, uint32 overlay_buffer);
 void fd2_render_inventory_item_grid(uint32 char_idx, int highlight_slot, uint32 dst_buf);
 void fd2_draw_spell_selection_list(uint32 char_idx, uint32 spell_idx, uint32 overlay_buffer);
+void fd2_display_cinematic_image_with_fade(uint32 image1_idx, uint32 palette_idx,
+                                           uint32 src_x_off, int32 row_idx);
 void fd2_tick_sprite_animation_step(uint8 *p_frame_idx, uint8 *p_tick, int x, int y, uint32 atlas);
 void fd2_blit_indexed_sprite(uint32 atlas, uint32 frame_idx, int x, int y, int mode);
 void fd2_ani_decoder_set_target_buffer(uint16 width, uint32 dst_buf, uint32 src_buf);

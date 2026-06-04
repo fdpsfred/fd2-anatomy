@@ -1680,8 +1680,9 @@
     "name": "fd2_display_cinematic_image_with_fade",
     "target": "anim/anicine.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001f81e": {
     "name": "fd2_load_and_fade_in_cinematic_image",
