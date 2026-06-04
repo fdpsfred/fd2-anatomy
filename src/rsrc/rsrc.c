@@ -556,3 +556,45 @@ void fd2_load_chapter_portrait(uint32 portrait_kind)
             data_fd2_ui_slide_composed_target_buf_ptr);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_load_and_fade_in_cinematic_image @ 0x1f81e  (1 caller)
+ *
+ * Loads a cinematic image palette, plays its ANI.DAT animation
+ * sequence, then fades the screen to black. Used during the chapter
+ * ending cinematic (fd2_play_ending_and_record_clear, 3 sites).
+ *
+ * Steps:
+ *   1. If palette_idx != -1: clear the mode-13h framebuffer
+ *      (memset 0xA0000 = 0, 64000 bytes), then load FDOTHER.DAT
+ *      entry palette_idx into data_fd2_vga_palette_data_ptr.
+ *      (palette_idx == -1 keeps the current palette.)
+ *   2. fd2_set_vga_palette_range(0, 0xff, 0) — apply the palette at
+ *      FULL brightness (3rd arg = darken-amount, 0 = no darkening).
+ *   3. fd2_play_ani_file_animation_sequence(anim_idx, per_frame_delay, 0)
+ *      — render the cinematic (its ANI frames carry their own fade-in).
+ *   4. Fall through into fd2_play_palette_fade_to_black @ 0x1f882,
+ *      which ramps darken 0..0x3F (fade-OUT to black) and RETs. The
+ *      fall-through's RET also returns from this function, so this is
+ *      emitted as a direct tail-call to that function (emit pipeline
+ *      §模式 B — shared fade-loop body; fade_to_black is a real,
+ *      separately-emitted function with 22 callers).
+ *
+ * Params: anim_idx, per_frame_delay = passed through to
+ * fd2_play_ani_file_animation_sequence; palette_idx = FDOTHER.DAT
+ * palette resource index, or -1 to keep the current palette.
+ * ---------------------------------------------------------------- */
+void fd2_load_and_fade_in_cinematic_image(uint32 anim_idx, uint32 per_frame_delay,
+                                          uint32 palette_idx)
+{
+    if (palette_idx != 0xffffffff) {
+        memset((void *)0xa0000, 0, 64000);
+        data_fd2_vga_palette_data_ptr = fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_fdother_dat,
+            data_fd2_vga_palette_data_ptr, palette_idx);
+    }
+
+    fd2_set_vga_palette_range(0, 0xff, 0);
+    fd2_play_ani_file_animation_sequence(anim_idx, per_frame_delay, 0);
+    fd2_play_palette_fade_to_black();
+}

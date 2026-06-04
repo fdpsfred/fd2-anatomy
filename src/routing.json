@@ -1700,8 +1700,9 @@
     "name": "fd2_load_and_fade_in_cinematic_image",
     "target": "rsrc/rsrc.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001f882": {
     "name": "fd2_play_palette_fade_to_black",

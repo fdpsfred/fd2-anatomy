@@ -317,6 +317,10 @@ void fd2_init_runtime_char_from_base_growth(uint32 char_id);
 void fd2_load_chapter_background_layers(void);
 void fd2_play_palette_fade_in(void);
 void fd2_play_palette_fade_to_black(void);
+void fd2_play_ani_file_animation_sequence(uint32 anim_idx, uint32 per_frame_delay,
+                                          uint32 skip_on_key_flag);
+void fd2_load_and_fade_in_cinematic_image(uint32 anim_idx, uint32 per_frame_delay,
+                                          uint32 palette_idx);
 void fd2_init_battle_state_for_chapter(void);
 void fd2_save_runtime_char_to_template(void);
 

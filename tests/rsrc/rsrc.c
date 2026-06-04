@@ -33,6 +33,16 @@ extern uint8  g_rle_blit_sprite_first_byte_log[4];
 extern int    g_scroll_text_calls;
 extern uint32 g_scroll_text_last_arg;
 
+/* fd2_load_and_fade_in_cinematic_image captures (testglob.c spies). Note:
+ * fd2_set_vga_palette_range is NOT a spy — it is the real emitted primitive
+ * (src/gfx/palette.c) and runs end-to-end, reading the 768-byte palette at
+ * data_fd2_vga_palette_data_ptr and outp-ing to the (no-op) VGA DAC. */
+extern int    g_play_ani_calls;
+extern uint32 g_play_ani_last_idx;
+extern uint32 g_play_ani_last_delay;
+extern uint32 g_play_ani_last_skip;
+extern int    g_fade_to_black_calls;
+
 /* fd2_load_chapter_battle_data captures (testglob.c) */
 extern runtime_char g_test_rc_array[8];
 
@@ -914,6 +924,103 @@ static void test_lcp_default_kind(void)
     lcp_check_kind(0x40, 0x9017);
 }
 
+/* ================================================================
+ * fd2_load_and_fade_in_cinematic_image @ 0x1f81e
+ *
+ * Loads FDOTHER.DAT[palette_idx] into data_fd2_vga_palette_data_ptr (the real
+ * loader, driven against the staged real FDOTHER.DAT), applies it at full
+ * brightness via the real fd2_set_vga_palette_range, renders the ANI cinematic,
+ * then falls through into fd2_play_palette_fade_to_black (emit pipeline §模式 B).
+ * The anim arg pass-through and the fade-out tail are observed via testglob
+ * spies; the loaded palette bytes are cross-checked against an independent
+ * realdat parse. The framebuffer memset + ANI playback are display
+ * side-effects deferred to Phase 9. fd2_set_vga_palette_range runs for real and
+ * reads the full 768-byte palette, so the global must point at a valid palette
+ * buffer across the call (the real FDOTHER.DAT[0] palette is exactly that).
+ * ================================================================ */
+
+/* Reset the spies + the loaded palette buffer between cases. */
+static void cinematic_reset(void)
+{
+    if (data_fd2_vga_palette_data_ptr != 0) {
+        free((void *)data_fd2_vga_palette_data_ptr);
+        data_fd2_vga_palette_data_ptr = 0;
+    }
+    g_play_ani_calls = 0;
+    g_fade_to_black_calls = 0;
+}
+
+/* palette_idx != -1: clears + loads the real FDOTHER.DAT palette into the
+ * global, passes (anim_idx,delay,0) straight to the ANI renderer, and fades to
+ * black exactly once. */
+static void test_cinematic_loads_palette_and_renders(void)
+{
+    uint8 *ref;
+    long   ref_size;
+
+    cinematic_reset();
+    ref_size = realdat_read_resource("FDOTHER.DAT", 0, &ref);   /* vga palette */
+    ASSERT_TRUE(ref_size > 0);
+
+    fd2_load_and_fade_in_cinematic_image(7, 3, 0);
+
+    /* palette actually loaded from the real archive into the global (and is the
+     * buffer the real fd2_set_vga_palette_range just consumed) */
+    ASSERT_TRUE(data_fd2_vga_palette_data_ptr != 0);
+    ASSERT_EQ((long)data_fd2_resource_last_loaded_resource_size, ref_size);
+    ASSERT_EQ((long)memcmp((void *)data_fd2_vga_palette_data_ptr, ref,
+                           (size_t)ref_size), 0);
+
+    /* anim_idx / per_frame_delay passed through; skip-on-key hardwired to 0 */
+    ASSERT_EQ((long)g_play_ani_calls, 1);
+    ASSERT_EQ((long)g_play_ani_last_idx, 7);
+    ASSERT_EQ((long)g_play_ani_last_delay, 3);
+    ASSERT_EQ((long)g_play_ani_last_skip, 0);
+
+    /* fall-through tail fades to black once */
+    ASSERT_EQ((long)g_fade_to_black_calls, 1);
+
+    free(ref);
+    cinematic_reset();
+}
+
+/* palette_idx == -1: keeps the current palette (no framebuffer clear, no
+ * FDOTHER load); the global keeps pointing at the pre-existing buffer and the
+ * loader never runs, but the palette is still applied, the cinematic still
+ * renders, and the screen still fades out with the same arg pass-through.
+ * Pre-seed the global with a REAL FDOTHER.DAT palette so the real
+ * fd2_set_vga_palette_range has a full 768-byte buffer to read. */
+static void test_cinematic_keeps_palette_when_idx_neg1(void)
+{
+    uint32 pal_buf;
+
+    cinematic_reset();
+    /* a genuine 768-byte palette already resident from a prior load */
+    pal_buf = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 0);
+    ASSERT_TRUE(pal_buf != 0);
+    data_fd2_vga_palette_data_ptr = pal_buf;
+
+    /* poison the loader's size output so a stray reload would be detectable */
+    data_fd2_resource_last_loaded_resource_size = 0xdeadbeef;
+
+    fd2_load_and_fade_in_cinematic_image(2, 5, 0xffffffff);
+
+    /* no reload: same pointer, and the loader's size output is still the poison
+     * value (the FDOTHER load block was skipped entirely) */
+    ASSERT_EQ((long)data_fd2_vga_palette_data_ptr, (long)pal_buf);
+    ASSERT_EQ((long)data_fd2_resource_last_loaded_resource_size, (long)0xdeadbeef);
+
+    ASSERT_EQ((long)g_play_ani_calls, 1);
+    ASSERT_EQ((long)g_play_ani_last_idx, 2);
+    ASSERT_EQ((long)g_play_ani_last_delay, 5);
+    ASSERT_EQ((long)g_play_ani_last_skip, 0);
+
+    ASSERT_EQ((long)g_fade_to_black_calls, 1);
+
+    cinematic_reset();                       /* frees the global (= pal_buf) */
+}
+
 void run_rsrc_rsrc_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -942,5 +1049,7 @@ void run_rsrc_rsrc_tests(void)
     RUN_TEST(test_pt_empty_table);
     RUN_TEST(test_lcp_special_kinds);
     RUN_TEST(test_lcp_default_kind);
+    RUN_TEST(test_cinematic_loads_palette_and_renders);
+    RUN_TEST(test_cinematic_keeps_palette_when_idx_neg1);
     printf("\n");
 }

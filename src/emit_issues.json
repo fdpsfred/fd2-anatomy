@@ -485,5 +485,23 @@
         "verify_method": "phase9_integration_mode13h"
       }
     ]
+  },
+  "0001f81e": {
+    "name": "fd2_load_and_fade_in_cinematic_image",
+    "target": "rsrc/rsrc.c",
+    "issues": [
+      {
+        "type": "fallthrough_tailcall_regeneration",
+        "desc": "模式 B (MULTIPLE ENTRY POINTS / SHARED BODY, pipeline_spec.md §模式 B — this function is the canonical example). The binary body @0x1f81e..0x1f87f ends after CALL fd2_play_ani_file_animation_sequence + ADD ESP,0xc with NO RET, then physically FALLS THROUGH into fd2_play_palette_fade_to_black @0x1f882 (PUSH 0x14/CALL __CHK/PUSH EBX/XOR EBX,EBX/JMP 0x1f51e), whose 0x40-step darken loop (@0x1f503-0x1f524) and RET also terminate this function. Emitted as a direct tail call `fd2_play_palette_fade_to_black();` followed by the implicit return, instead of replicating the fall-through. This is Layer-2 behaviorally EXACT (the full fade-to-black body runs, then its RET returns to this function's caller) but NOT byte-identical (call+ret vs fall-through-into-shared-body). fd2_play_palette_fade_to_black is a real, separately-emitted function (gfx/palette.c, 22 callers) so calling it is the cleanest equivalent and avoids duplicating the fade loop; spec rule B-1's shared-helper extraction is the alternative when the second entry is NOT independently emitted. Also: __CHK(0x10) stack-probe prologue is compiler-injected from this function's own frame size (no locals here, so the regenerated framesize differs from the original 0x10) — functionally a no-op. verify_method: post-build -d disasm to confirm Watcom 9.5a emits CALL fd2_play_palette_fade_to_black at the tail (or an inlined equivalent fade loop) and the caller-side stack stays balanced (cdecl 3-arg, caller ADD ESP,0xc).",
+        "severity": "info",
+        "verify_method": "compile_and_disasm"
+      },
+      {
+        "type": "test_deferral_note",
+        "desc": "Risk-based test coverage: the two test_cinematic_* cases (tests/rsrc/rsrc.c) cover the only non-display logic — (1) the palette_idx != -1 vs == -1 branch gate (the load block runs or is skipped; verified by pointer identity + a poisoned last_loaded_resource_size that a stray reload would overwrite), (2) the real FDOTHER.DAT[idx] palette load into data_fd2_vga_palette_data_ptr cross-checked against an independent realdat parse, (3) the (anim_idx, per_frame_delay, 0) arg pass-through to the ANI renderer (recording spy), and (4) the fall-through fade-to-black firing once (counting spy). DEFERRED to Phase 9 integration (pure display side-effects with no harness-observable sink): the framebuffer clear memset(0xA0000,0,64000), the real fd2_set_vga_palette_range outp-stream to the VGA DAC (runs end-to-end against the loaded 768-byte palette but writes to no-op ports), and the real ANI.DAT cinematic playback. fd2_set_vga_palette_range and fd2_load_dat_resource are real-linked (gfx/palette.c, rsrc.c) and run for real; only fd2_play_ani_file_animation_sequence and fd2_play_palette_fade_to_black are testglob spies (not yet emitted).",
+        "severity": "info",
+        "verify_method": "phase9_integration"
+      }
+    ]
   }
 }

@@ -565,7 +565,12 @@ void fd2_play_and_free_status_effect_sfx(void) { }
 /* fd2_init_runtime_char_for_battle is now emitted in src/battle/btl_init.c
  * and linked for real; its caller test in tests/rsrc/rsrc.c drives the real
  * function and observes data_fd2_battle_party_member_count. */
-void fd2_play_palette_fade_to_black(void) { }
+/* fd2_play_palette_fade_to_black: counting spy. The fall-through tail of
+ * fd2_load_and_fade_in_cinematic_image (src/rsrc/rsrc.c) is emitted as a direct
+ * call to this function (emit pipeline §模式 B); the test_cinematic_* cases in
+ * tests/rsrc/rsrc.c assert it fires once per cinematic load. */
+int g_fade_to_black_calls = 0;
+void fd2_play_palette_fade_to_black(void) { g_fade_to_black_calls++; }
 int g_ending_menu_return = 0;
 int fd2_play_ending_and_record_clear(void) { return g_ending_menu_return; }
 int g_slot_selector_return = -1;
@@ -678,6 +683,24 @@ uint32 g_scroll_text_last_arg = 0;
 void fd2_scroll_text_screen_up_by_lines(uint32 lines) {
     g_scroll_text_last_arg = lines;
     g_scroll_text_calls++;
+}
+/* fd2_play_ani_file_animation_sequence: recording spy.
+ * fd2_load_and_fade_in_cinematic_image (src/rsrc/rsrc.c) renders the ANI
+ * cinematic via this primitive; the test_cinematic_* cases in
+ * tests/rsrc/rsrc.c assert the anim arg pass-through (the real ANI.DAT playback
+ * is a display side-effect deferred to Phase 9). fd2_set_vga_palette_range is
+ * NOT stubbed here — it is emitted for real in src/gfx/palette.c and runs
+ * end-to-end (outp to VGA DAC is a harmless no-op in the host harness). */
+int    g_play_ani_calls = 0;
+uint32 g_play_ani_last_idx = 0;
+uint32 g_play_ani_last_delay = 0;
+uint32 g_play_ani_last_skip = 0;
+void fd2_play_ani_file_animation_sequence(uint32 anim_idx, uint32 per_frame_delay,
+                                          uint32 skip_on_key_flag) {
+    g_play_ani_last_idx = anim_idx;
+    g_play_ani_last_delay = per_frame_delay;
+    g_play_ani_last_skip = skip_on_key_flag;
+    g_play_ani_calls++;
 }
 void fd2_play_palette_fade_in(void) { }
 /* fd2_play_death_animation_and_mark_dead is now a real emitted function
