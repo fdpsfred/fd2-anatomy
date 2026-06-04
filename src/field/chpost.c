@@ -199,3 +199,37 @@ void fd2_chapter_16_post_action(uint32 event_arg)
         data_fd2_chapter_event_or_battle_end_code = 1;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_17_post_action @ 0x20872  (dispatched, 0 direct callers)
+ *
+ * Chapter 17 turn-cycle post-action handler. Reached via
+ * data_fd2_chapter_post_action_handler_table[16] (table @ 0x51B19,
+ * indexed by current_chapter_id). The dispatch site pushes one cdecl
+ * arg (active char_idx) and cleans it; event_arg is unused by the body.
+ *
+ * Runs the default win/lose check, then adds a compound lose condition:
+ * if the party no longer contains the char with char_id 0x12 (蜜蒂,
+ * tested against the template/snapshot roster via
+ * fd2_check_party_has_char_id) AND the NPC at runtime_char[0x34] is dead,
+ * set game_event_flag (0x53ECC) to 1 (game over) and show
+ * current_chapter_text page 2. Both conditions must hold: the char-id
+ * check short-circuits (when 蜜蒂 is still present the dead-check and
+ * dialog are skipped entirely). The dialog call uses the chapter's
+ * standard glyph geometry (render base 0xA0000, pitch 0x140, glyph params
+ * 0xCD/0x4C/0x4A, height 0x13) with blink_flag = 1.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_17_post_action(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_check_battle_end_condition();
+
+    if (fd2_check_party_has_char_id(0x12) == 0) {
+        if (fd2_check_char_is_dead(0x34) != 0) {
+            fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, 0x140,
+                                     0xCD, 0x4C, 0x4A, 0x13, 1);
+            data_fd2_chapter_event_or_battle_end_code = 1;
+        }
+    }
+}

@@ -191,6 +191,12 @@ static void test_chpost02_neighbors_outside_range_ignored(void)
 
 extern int g_check_char_is_dead_use_array;
 
+/* testglob fake for the still-unemitted fd2_check_party_has_char_id: the
+ * chapter-17 suite drives its return value and reads back the queried arg. */
+extern uint32 g_has_char_fake;
+extern uint32 g_has_char_last_arg;
+extern int    g_has_char_calls;
+
 #define CH10_RC_SLOTS 56
 static runtime_char t_rc10[CH10_RC_SLOTS];
 
@@ -768,6 +774,155 @@ static void test_chpost16_neighbor_slots_ignored(void)
     chpost15_teardown();
 }
 
+/* ============================================================
+ * fd2_chapter_17_post_action @ 0x20872
+ *
+ * Same default win/lose check (fd2_check_battle_end_condition, linked
+ * real), then a COMPOUND lose condition gated by two different callees:
+ *   gate 1: the party no longer contains the char with char_id 0x12 (蜜蒂),
+ *           tested via fd2_check_party_has_char_id(0x12) == 0;
+ *   gate 2: the NPC at runtime_char[0x34] is dead, via
+ *           fd2_check_char_is_dead(0x34) != 0.
+ * Both must hold; gate 1 short-circuits (when 蜜蒂 is still present the
+ * dead-check and dialog are skipped). When both hold the handler sets
+ * game_event_flag = 1 AND plays current_chapter_text page 2 through the
+ * REAL fd2_display_dialog_scene.
+ *
+ * Unlike the other handlers in this file, the first gate is NOT a
+ * runtime_char read: fd2_check_party_has_char_id is still unemitted and
+ * resolves to the testglob fake whose return value is g_has_char_fake and
+ * which records its argument in g_has_char_last_arg. These tests drive that
+ * fake directly to pick each branch. The second gate uses the testglob
+ * array-reading mode (g_check_char_is_dead_use_array = 1) so per-slot
+ * .flags drive deadness; slot 0x34 (52) lies within the 64-slot t_rc13
+ * buffer, which is reused here. As elsewhere every slot is team=2 / alive
+ * so the default check yields flag=2 and the override is a clean 2 -> 1.
+ *
+ * The dialog write and the CALL sit in the same basic block (disassembly
+ * has no branch between MOV [0x53ECC],1 and CALL 0x15F84), so the flag's
+ * 2 -> 1 transition fully pins that the override block ran and the dialog
+ * call follows. current_chapter_text is pointed at an immediate-END program
+ * (the same fixture shape used by the chapter-13 suite) so the real VM
+ * returns at once without touching the framebuffer or loading DATO.DAT; a
+ * clean pass also confirms the real VM survives the chapter-17 call shape.
+ *
+ * Coverage is risk-driven for the two-callee AND, its short-circuit, the
+ * exact char-id argument, and the exact dead-checked slot:
+ *   - party HAS 0x12                         -> gate 1 false, no override
+ *                                               (dead-check short-circuited)
+ *   - party lacks 0x12, slot 0x34 alive      -> gate 2 false, no override
+ *   - party lacks 0x12, slot 0x34 dead       -> both gates true, override
+ *                                               fires (flag 2 -> 1, page 2)
+ *                                               and arg to the party query
+ *                                               is exactly 0x12
+ *   - party lacks 0x12, neighbors 0x33/0x35 dead but 0x34 alive -> NO
+ *     override, pinning the dead-checked slot as exactly 0x34.
+ * ============================================================ */
+
+/* Immediate-END dialog program for current_chapter_text (covers page 2). */
+static uint16 t_ch17_text[0x400];
+
+static void ch17_text_all_end(void)
+{
+    int i;
+
+    for (i = 0; i < 0x400; i++) {
+        t_ch17_text[i] = 0;
+    }
+    *(int16 *)((uint8 *)t_ch17_text + 0x780) = -1;     /* END marker */
+    for (i = 0; i < 0x3c0; i++) {
+        t_ch17_text[i] = (uint16)0x780;                /* byte offset of END */
+    }
+    current_chapter_text = (uint32)t_ch17_text;
+}
+
+static void chpost17_setup(void)
+{
+    int i;
+
+    memset(t_rc13, 0, sizeof(t_rc13));
+    for (i = 0; i < CH13_RC_SLOTS; i++) {
+        t_rc13[i].team = 2;     /* player team: never an alive enemy */
+        t_rc13[i].flags = 0;    /* alive */
+    }
+    data_fd2_battle_runtime_char_array_ptr = t_rc13;
+    data_fd2_battle_party_member_count = CH13_RC_SLOTS;
+    data_fd2_chapter_event_or_battle_end_code = 0;
+    g_check_char_is_dead_use_array = 1;   /* per-slot .flags drive deadness */
+    g_has_char_fake = 0;                  /* default: party lacks the char */
+    g_has_char_last_arg = 0;
+    g_has_char_calls = 0;
+    ch17_text_all_end();
+}
+
+static void chpost17_teardown(void)
+{
+    g_check_char_is_dead_use_array = 0;   /* restore index-agnostic default */
+    g_has_char_fake = 0;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_party_member_count = 4;
+}
+
+/* Party still contains char 0x12 (蜜蒂 present) -> gate 1
+ * (party_has_char_id == 0) is false, so the override is skipped and the
+ * dead-check is short-circuited even though slot 0x34 is dead. The default
+ * flag (2) survives. Pins gate-1 direction and the short-circuit. */
+static void test_chpost17_party_has_char_keeps_default(void)
+{
+    chpost17_setup();
+    g_has_char_fake = 1;                  /* party HAS char 0x12 */
+    t_rc13[0x34].flags = CHARFLAG_DEAD;   /* would fire gate 2 if reached */
+
+    fd2_chapter_17_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost17_teardown();
+}
+
+/* Party lacks char 0x12 but the key NPC at slot 0x34 is alive -> gate 1 is
+ * true, gate 2 false, so the override does not fire. Pins gate-2 direction:
+ * an ALIVE slot must NOT trigger game over. */
+static void test_chpost17_char_absent_npc_alive_keeps_default(void)
+{
+    chpost17_setup();
+    /* g_has_char_fake = 0 (absent) and slot 0x34 alive from setup */
+
+    fd2_chapter_17_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost17_teardown();
+}
+
+/* Both gates true: party lacks char 0x12 AND slot 0x34 dead -> the override
+ * fires (flag 2 -> 1) and page 2 plays via the real (immediate-END) dialog
+ * VM. Also pins that the party query was made with char-id exactly 0x12. */
+static void test_chpost17_char_absent_npc_dead_game_over(void)
+{
+    chpost17_setup();
+    t_rc13[0x34].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_17_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    ASSERT_EQ(g_has_char_last_arg, 0x12);
+    chpost17_teardown();
+}
+
+/* Neighbors 0x33 and 0x35 dead while the key NPC (0x34) is alive, party
+ * lacks char 0x12 -> the override must NOT fire. Proves the dead-checked
+ * slot is exactly 0x34 (no off-by-one in either direction). */
+static void test_chpost17_neighbor_slots_ignored(void)
+{
+    chpost17_setup();
+    t_rc13[0x33].flags = CHARFLAG_DEAD;
+    t_rc13[0x35].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_17_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost17_teardown();
+}
+
 void run_field_chpost_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -801,5 +956,9 @@ void run_field_chpost_tests(void)
     RUN_TEST(test_chpost16_npc_alive_keeps_default);
     RUN_TEST(test_chpost16_npc_dead_game_over);
     RUN_TEST(test_chpost16_neighbor_slots_ignored);
+    RUN_TEST(test_chpost17_party_has_char_keeps_default);
+    RUN_TEST(test_chpost17_char_absent_npc_alive_keeps_default);
+    RUN_TEST(test_chpost17_char_absent_npc_dead_game_over);
+    RUN_TEST(test_chpost17_neighbor_slots_ignored);
     printf("\n");
 }
