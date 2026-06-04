@@ -1715,6 +1715,272 @@ static void test_dec_four_digits_no_overflow_guard(void)
     dec_assert_number(0, dst, 0x1000, 0x2a, 4);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_render_mini_char_status_panel @ 0x18c6d
+ *
+ * Drive the REAL mini-panel painter and capture its dispatch to the same
+ * five REAL render primitives the full panel uses:
+ *   - fd2_dialog_sprite_blit_normal (spy) -> g_dlg_blit_* : background
+ *     sprite at dst=buf, sprite = sheet + *(int*)(sheet+0x5E), stride.
+ *     With bar_setup_sheet's table[i]=i, *(int*)(sheet+0x5E) = table[22]
+ *     = 0x16, so the resolved bg sprite is sheet + 0x16.
+ *   - fd2_render_hp_or_mp_bar_proportional (REAL) -> REAL segment painter
+ *     -> g_blitraw caps; the right-cap offset = origin + segment_count
+ *     encodes the exact (cur,max) forwarded.
+ *   - fd2_render_decimal_number_to_buffer (REAL, sleep indicator) and
+ *     fd2_render_number_red_when_full (REAL -> REAL decimal) -> glyph runs
+ *     in the g_rle_blit_log_* digit log (call order: sleep[2] then HP[3]
+ *     then MP[3]).
+ *   - fd2_display_dialog_scene (REAL) for the name label against an
+ *     immediate-END text program (returns at once, no glyph blits).
+ *
+ * The panel indexes data_fd2_battle_runtime_char_array_ptr (= g_test_rc_array,
+ * 8 slots). Decimal numbers do NOT touch g_blitraw; bar caps do NOT touch the
+ * rle log; the background blit is the only fd2_dialog_sprite_blit_normal call,
+ * so the three logs stay cleanly separated.
+ *
+ * Stride 0x1C8 (456) is the production value the in-battle caller passes; a
+ * couple of cases use 0x140 to vary it. The render-position offsets are
+ * stride*K + buf + off, so the bar / number / name destinations move with
+ * the chosen stride.
+ * ---------------------------------------------------------------- */
+
+/* dialog-VM glyph recorder (testglob.c), used to prove the name-label page +
+ * render position. */
+extern int    g_dlg_glyph_calls;
+extern uint32 g_dlg_glyph_last_pos;
+
+/* zero rc slot 0 and load a known HP/MP/sleep/char_id profile for the mini
+ * panel. Values chosen so HP cur < max (white HP number) and the bar segment
+ * counts are exact: HP (0x50,0x64) -> 81, MP (0x10,0x20) -> 51. */
+static runtime_char *mini_setup_char(void)
+{
+    runtime_char *rc = &g_test_rc_array[0];
+    memset(rc, 0, sizeof(*rc));
+
+    rc->hp_current = 0x0050;
+    rc->hp_max     = 0x0064;
+    rc->mp_current = 0x0010;
+    rc->mp_max     = 0x0020;
+    rc->status_flags_block[0] = 0x07;   /* sleep/status indicator */
+    rc->char_id    = 0x03;
+    return rc;
+}
+
+/* background sprite blit: dst = buf, sprite = sheet + *(int*)(sheet+0x5E)
+ * (= sheet + 0x16 under bar_setup_sheet's table), stride passed through. It is
+ * the sole fd2_dialog_sprite_blit_normal call. */
+static void test_mini_background_blit(void)
+{
+    uint32 sheet;
+    uint32 buf    = 0x100000;
+    uint32 stride = 0x1c8;
+
+    sheet = bar_setup_sheet();
+    panel_setup_text();
+    mini_setup_char();
+    panel_reset_logs();
+    g_dlg_blit_normal_calls = 0;
+    g_dlg_blit_mirrored_calls = 0;
+
+    fd2_render_mini_char_status_panel(buf, stride, 0);
+
+    ASSERT_EQ((long)g_dlg_blit_normal_calls, 1);
+    ASSERT_EQ((long)g_dlg_blit_mirrored_calls, 0);
+    ASSERT_EQ((long)g_dlg_blit_last_dst, (long)buf);
+    ASSERT_EQ((long)g_dlg_blit_last_sprite, (long)(sheet + 0x16u));
+    ASSERT_EQ((long)g_dlg_blit_last_stride, (long)stride);
+}
+
+/* HP/MP bars: origin at stride*0x16+buf+0x15 / stride*0x1F+buf+0x15, base
+ * sprite 0x17 / 0x1A, and the right cap at origin + segment_count proves the
+ * (cur,max) forwarded through the proportional formula:
+ *   HP segments = (0x50*0x65)/0x64 + 1 = 81 -> right cap 0x19
+ *   MP segments = (0x10*0x65)/0x20 + 1 = 51 -> right cap 0x1C */
+static void test_mini_bars_origins_and_segments(void)
+{
+    uint32 sheet;
+    uint32 buf    = 0x100000;
+    uint32 stride = 0x1c8;
+    uint32 hp_org = stride * 0x16 + buf + 0x15;
+    uint32 mp_org = stride * 0x1f + buf + 0x15;
+
+    sheet = bar_setup_sheet();
+    panel_setup_text();
+    mini_setup_char();
+    panel_reset_logs();
+
+    fd2_render_mini_char_status_panel(buf, stride, 0);
+
+    ASSERT_EQ((long)(panel_find_blit_sprite(hp_org) - sheet), 0x17);
+    ASSERT_EQ((long)(panel_find_blit_sprite(hp_org + 81) - sheet), 0x19);
+    ASSERT_EQ((long)(panel_find_blit_sprite(mp_org) - sheet), 0x1a);
+    ASSERT_EQ((long)(panel_find_blit_sprite(mp_org + 51) - sheet), 0x1c);
+}
+
+/* the three decimal numbers, in call order, with the right dst / value /
+ * color base / digit width:
+ *   [0] sleep indicator  buf+0x84+stride*4   value 0x07  color 0x1F  2 digits
+ *   [1] HP current       stride*0x15+buf+0x7E value 0x50 white 0x2A  3 digits
+ *       (cur 0x50 != max 0x64 -> white)
+ *   [2] MP current       stride*0x1E+buf+0x7E value 0x10 white 0x2A  3 digits
+ *       (cur 0x10 != max 0x20 -> white)
+ * 2 + 3 + 3 = 8 digit glyphs total. */
+static void test_mini_numbers_order_and_colors(void)
+{
+    uint32 buf    = 0x100000;
+    uint32 stride = 0x1c8;
+
+    bar_setup_sheet();
+    panel_setup_text();
+    mini_setup_char();
+    panel_reset_logs();
+
+    fd2_render_mini_char_status_panel(buf, stride, 0);
+
+    ASSERT_EQ((long)g_rle_blit_calls, 8);
+    dec_assert_number(0, buf + 0x84 + stride * 4, 0x07, 0x1f, 2);
+    dec_assert_number(2, stride * 0x15 + buf + 0x7e, 0x50, 0x2a, 3);
+    dec_assert_number(5, stride * 0x1e + buf + 0x7e, 0x10, 0x2a, 3);
+}
+
+/* when current == max the HP/MP numbers switch to the red "full" color 0x1F
+ * (fd2_render_number_red_when_full picks 0x1F on equality, else 0x2A). Sleep
+ * indicator stays 0x1F regardless. Profile: HP and MP both at full. */
+static void test_mini_numbers_red_when_full(void)
+{
+    runtime_char *rc;
+    uint32 buf    = 0x100000;
+    uint32 stride = 0x1c8;
+
+    bar_setup_sheet();
+    panel_setup_text();
+    rc = mini_setup_char();
+    rc->hp_current = 0x0064;   /* == hp_max */
+    rc->mp_current = 0x0020;   /* == mp_max */
+    panel_reset_logs();
+
+    fd2_render_mini_char_status_panel(buf, stride, 0);
+
+    ASSERT_EQ((long)g_rle_blit_calls, 8);
+    dec_assert_number(0, buf + 0x84 + stride * 4, 0x07, 0x1f, 2);
+    dec_assert_number(2, stride * 0x15 + buf + 0x7e, 0x64, 0x1f, 3);
+    dec_assert_number(5, stride * 0x1e + buf + 0x7e, 0x20, 0x1f, 3);
+}
+
+/* negative HP/MP words (int16 0xFFFF = -1) are sign-extended to int32 -1: the
+ * decimal renderer clamps value<0 to 0 so the HP/MP numbers render "000", and
+ * the bar's max==0 guard (mp_max=0) draws no MP bar. Here hp_max stays positive
+ * so the HP bar still draws (cur clamped negative -> current==0 path? no: the
+ * proportional fn tests current==0 by equality, -1 != 0, so it runs the signed
+ * (-1*0x65)/0x64 + 1 = 0 + 1 = 1 segment path). We pin the clamp via the "000"
+ * HP number and the absent MP bar via max==0. */
+static void test_mini_sign_extension_and_guards(void)
+{
+    runtime_char *rc;
+    uint32 buf    = 0x100000;
+    uint32 stride = 0x140;
+    uint32 mp_org = stride * 0x1f + buf + 0x15;
+
+    bar_setup_sheet();
+    panel_setup_text();
+    rc = mini_setup_char();
+    rc->hp_current = 0xFFFF;   /* int16 -1 -> int32 -1 */
+    rc->hp_max     = 0x0064;
+    rc->mp_current = 0x0000;
+    rc->mp_max     = 0x0000;   /* div-by-zero guard: no MP bar */
+    panel_reset_logs();
+
+    fd2_render_mini_char_status_panel(buf, stride, 0);
+
+    /* HP number: cur is the sign-extended -1 (!= max 0x64) -> white 0x2A, and
+     * the decimal renderer clamps the negative value to 0 -> "000". */
+    dec_assert_number(2, stride * 0x15 + buf + 0x7e, 0, 0x2a, 3);
+    /* MP number: cur == max (both 0) -> red-when-full picks red 0x1F; value 0
+     * -> "000". */
+    dec_assert_number(5, stride * 0x1e + buf + 0x7e, 0, 0x1f, 3);
+    /* mp_max == 0 -> proportional bar returns before any blit: no MP cap */
+    ASSERT_EQ((long)panel_count_blit_at(mp_org), 0);
+}
+
+/* the name label calls fd2_display_dialog_scene with page = char_id + 1 at
+ * render_pos buf + 5 + stride*4. We build a text table where ONLY the entry at
+ * page (char_id+1) redirects to a single-glyph body and every other entry is an
+ * immediate END; observing exactly one glyph at buf+5+stride*4 proves both the
+ * page-index arithmetic (char_id+1 selected) and the name-label dst. char_id=3
+ * -> page 4. */
+static uint16 g_mini_name_text[0x200];
+
+static void test_mini_name_label_page_and_pos(void)
+{
+    runtime_char *rc;
+    uint32 buf      = 0x100000;
+    uint32 stride   = 0x1c8;
+    uint32 name_pos = buf + 5 + stride * 4;
+    int    page;
+    int    i;
+    int    body_word;
+
+    bar_setup_sheet();
+    rc = mini_setup_char();        /* char_id = 3 -> page 4 */
+    page = (int)rc->char_id + 1;
+
+    /* immediate-END marker high in the buffer; every page entry points there */
+    for (i = 0; i < 0x200; i++) {
+        g_mini_name_text[i] = 0;
+    }
+    g_mini_name_text[0x180] = (uint16)-1;          /* END at word 0x180 */
+    for (i = 0; i < 0x180; i++) {
+        g_mini_name_text[i] = (uint16)(0x180 * 2); /* byte offset of END */
+    }
+    /* page (char_id+1) instead redirects to a 1-glyph body + END */
+    body_word = 0x100;                              /* a free region */
+    g_mini_name_text[page] = (uint16)(body_word * 2);
+    g_mini_name_text[body_word]     = 0x41;         /* one glyph */
+    g_mini_name_text[body_word + 1] = (uint16)-1;   /* END */
+    data_fd2_all_game_text_ptr = (uint32)(uint8 *)g_mini_name_text;
+
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_pos = 0;
+    panel_reset_logs();
+
+    fd2_render_mini_char_status_panel(buf, stride, 0);
+
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_pos, (long)name_pos);
+}
+
+/* char_idx selects the runtime_char slot: driving slot 2 with a distinct HP
+ * profile renders that slot's values. Confirms the rc = base[char_idx] index
+ * (stride 0x50 per entry) by reading slot 2's HP cur into the HP number. */
+static void test_mini_char_idx_selects_slot(void)
+{
+    runtime_char *rc2;
+    uint32 buf    = 0x100000;
+    uint32 stride = 0x140;
+
+    bar_setup_sheet();
+    panel_setup_text();
+    /* slot 0 left as some other profile; slot 2 is the one we render */
+    memset(&g_test_rc_array[0], 0, sizeof(g_test_rc_array[0]));
+    rc2 = &g_test_rc_array[2];
+    memset(rc2, 0, sizeof(*rc2));
+    rc2->hp_current = 0x0021;
+    rc2->hp_max     = 0x0099;
+    rc2->mp_current = 0x0000;
+    rc2->mp_max     = 0x0000;
+    rc2->status_flags_block[0] = 0x09;
+    rc2->char_id    = 0x01;
+    panel_reset_logs();
+
+    fd2_render_mini_char_status_panel(buf, stride, 2);
+
+    /* HP number renders slot 2's hp_current 0x21 (white, < max) */
+    dec_assert_number(2, stride * 0x15 + buf + 0x7e, 0x21, 0x2a, 3);
+    /* sleep indicator renders slot 2's status_flags_block[0] 0x09 */
+    dec_assert_number(0, buf + 0x84 + stride * 4, 0x09, 0x1f, 2);
+}
+
 void run_gfx_rndstat_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1778,6 +2044,13 @@ void run_gfx_rndstat_tests(void)
     RUN_TEST(test_dec_two_digit_overflow_boundary);
     RUN_TEST(test_dec_color_base_applied);
     RUN_TEST(test_dec_four_digits_no_overflow_guard);
+    RUN_TEST(test_mini_background_blit);
+    RUN_TEST(test_mini_bars_origins_and_segments);
+    RUN_TEST(test_mini_numbers_order_and_colors);
+    RUN_TEST(test_mini_numbers_red_when_full);
+    RUN_TEST(test_mini_sign_extension_and_guards);
+    RUN_TEST(test_mini_name_label_page_and_pos);
+    RUN_TEST(test_mini_char_idx_selects_slot);
     g_blitraw_log_on = 0;
     g_rle_blit_log_on = 0;
     printf("\n");

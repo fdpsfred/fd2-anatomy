@@ -671,3 +671,71 @@ void fd2_render_decimal_number_to_buffer(uint32 dst, uint32 stride,
                                           (uint32)(uint8)digit_buf[i] - 0x30);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_mini_char_status_panel @ 0x18c6d (2 callers)
+ *
+ * Render the small "info" overlay panel for runtime_char[char_idx] into
+ * buf (a `stride`-pitch surface): a background sprite, the HP and MP
+ * proportional bars, the HP/MP current numbers (red glow when at max),
+ * a 2-digit sleep/status indicator, and the character name label.
+ *
+ * Layout (offsets from buf, using stride = pitch):
+ *
+ *   +0                     background sprite (sheet + *(int*)(sheet+0x5E))
+ *   +stride*0x16 + 0x15    HP bar (sprite base 0x17)
+ *   +stride*0x1F + 0x15    MP bar (sprite base 0x1A)
+ *   +stride*4    + 0x84    status_flags_block[0] (sleep indicator)
+ *                          2-digit, red 0x1F font
+ *   +stride*0x15 + 0x7E    HP current 3-digit (red when at max)
+ *   +stride*0x1E + 0x7E    MP current 3-digit (red when at max)
+ *   +stride*4    + 5       char name label (char_id + 1 into all_game_text)
+ *
+ * HP/MP word fields are read once up front and sign-extended (int16 ->
+ * int32) before any dispatch, matching the binary's MOVSX reads. The
+ * sleep indicator byte and char_id byte are zero-extended.
+ *
+ * Callers: fd2_wait_input_with_status_panel_repaint (target-select HP/MP
+ * readout) and fd2_flash_char_hit_sprite.
+ *
+ * Cdecl, 3 stack params; void return. The binary's __CHK(0x44) stack-probe
+ * prologue is compiler-generated and omitted here; its RET is reached via a
+ * JMP into a shared register-restore epilogue, behaviourally a plain return.
+ * ---------------------------------------------------------------- */
+void fd2_render_mini_char_status_panel(uint32 buf, uint32 stride, uint32 char_idx)
+{
+    runtime_char *rc;
+    int32         hp_cur;
+    int32         hp_max;
+    int32         mp_cur;
+    int32         mp_max;
+    uint32        bg_sprite;
+
+    rc = &data_fd2_battle_runtime_char_array_ptr[char_idx];
+
+    hp_cur = (int32)(int16)rc->hp_current;
+    hp_max = (int32)(int16)rc->hp_max;
+    mp_cur = (int32)(int16)rc->mp_current;
+    mp_max = (int32)(int16)rc->mp_max;
+
+    bg_sprite = data_fd2_ui_anim_sprite_sheet_ptr
+                + *(int32 *)(data_fd2_ui_anim_sprite_sheet_ptr + 0x5e);
+    fd2_dialog_sprite_blit_normal(buf, bg_sprite, stride);
+
+    fd2_render_hp_or_mp_bar_proportional(stride * 0x16 + buf + 0x15, stride, 0x17,
+                                         (uint32)hp_cur, (uint32)hp_max);
+    fd2_render_hp_or_mp_bar_proportional(stride * 0x1f + buf + 0x15, stride, 0x1a,
+                                         (uint32)mp_cur, (uint32)mp_max);
+
+    fd2_render_decimal_number_to_buffer(buf + 0x84 + stride * 4, stride,
+                                        rc->status_flags_block[0], 0x1f, 2);
+
+    fd2_render_number_red_when_full(stride * 0x15 + buf + 0x7e, stride,
+                                    (uint32)hp_cur, (uint32)hp_max, 3);
+    fd2_render_number_red_when_full(stride * 0x1e + buf + 0x7e, stride,
+                                    (uint32)mp_cur, (uint32)mp_max, 3);
+
+    fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
+                             (uint32)rc->char_id + 1, buf + 5 + stride * 4,
+                             stride, 0xcd, 0x4c, 0, 0, 0);
+}

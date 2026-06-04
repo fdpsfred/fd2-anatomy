@@ -1006,8 +1006,9 @@
     "name": "fd2_render_mini_char_status_panel",
     "target": "gfx/rndstat.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00018d8c": {
     "name": "fd2_player_inline_action_menu_dispatch",

@@ -482,16 +482,11 @@ void fd2_cast_status_cure_spell(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e
 void fd2_cast_status_inflict_spell(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e) { }
 int g_cast_status_via_d1b_calls = 0;
 void fd2_cast_status_spell_via_d1b(int a, int b, int c, int d, int e) { g_cast_status_via_d1b_calls++; (void)a; (void)b; (void)c; (void)d; (void)e; }
-int    g_mini_panel_calls = 0;
-uint32 g_mini_panel_last_buf = 0;
-uint32 g_mini_panel_last_stride = 0;
-uint32 g_mini_panel_last_char = 0;
-void fd2_render_mini_char_status_panel(uint32 b, uint32 s, uint32 c) {
-    g_mini_panel_calls++;
-    g_mini_panel_last_buf = b;
-    g_mini_panel_last_stride = s;
-    g_mini_panel_last_char = c;
-}
+/* fd2_render_mini_char_status_panel @ 0x18c6d: now emitted for real in
+ * src/gfx/rndstat.c and linked. Its callers' tests (fd2_flash_char_hit_sprite
+ * in tests/battle/battle2.c) drive the real painter via the shared mini-panel
+ * fixture (tests/include/minipfix.h) and observe the forwarded buf/char through
+ * the real background blit + sleep-indicator digit, so no stub/spy is kept. */
 uint8 data_fd2_audio_footstep_sfx_per_job_cadence_class_table[29] = {0};
 uint8 data_fd2_audio_walk_step_sfx_cadence_counter = 0;
 uint8 data_fd2_battle_summon_minor_anim_state5_frame_counter = 0;

@@ -8,6 +8,7 @@
 #include "consts.h"
 #include "globals.h"
 #include "protos.h"
+#include "minipfix.h"
 #include <stdio.h>
 
 #define USE_ITEM_ID 10
@@ -29,10 +30,6 @@ extern int g_blit_indexed_sprite_calls;
 extern uint32 g_blit_indexed_sprite_last_frame;
 extern int g_blit_indexed_sprite_last_x;
 extern int g_blit_indexed_sprite_last_y;
-extern int    g_mini_panel_calls;
-extern uint32 g_mini_panel_last_buf;
-extern uint32 g_mini_panel_last_stride;
-extern uint32 g_mini_panel_last_char;
 extern int g_find_equipped_return;
 extern int g_composite_call_count;
 extern int g_attack_dispatch_return;
@@ -561,25 +558,43 @@ static void test_combat_hit_outcome_xp_survive(void)
 
 
 /* fd2_flash_char_hit_sprite routes the got-hit flash to a screen offset by
- * team + a chapter-24/Sumeti override, then calls the mini-panel painter with
- * buf = workspace_buf + screen_off. The painter stub (testglob.c) is a spy that
- * records its buf/stride/char args, so the computed offset is observable.
+ * team + a chapter-24/Sumeti override, then calls the REAL mini-panel painter
+ * (src/gfx/rndstat.c) with buf = workspace_buf + screen_off, stride 0x140,
+ * char_unit_id. The real painter's background blit dst equals that buf
+ * (recovered via g_dlg_blit_last_dst), and the first decimal it renders is the
+ * selected char's status_flags_block[0] (sleep indicator) — so the forwarded
+ * char index is recovered by tagging the target slot with a known value.
  *   team==0 (enemy)      -> 0xC080
  *   team!=0 (ally/player)-> 0x05AB
- *   chapter==0x18 && char_unit_id==0x11 -> 0xC080 (overrides ally) */
+ *   chapter==0x18 && char_unit_id==0x11 -> 0xC080 (overrides ally)
+ *
+ * The painter runs end-to-end against the minipfix.h sprite sheet + immediate-
+ * END text table (background sprite, HP/MP bars, decimal numbers and an
+ * immediate-return name-label dialog scene), touching no VGA / fopen. */
+
+/* assert the sleep-indicator (first decimal: 2-digit, base 0x1F at rle index
+ * 0/1) rendered value v, proving the panel indexed the intended char slot. */
+static void flash_assert_sleep_value(uint32 v)
+{
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[0] - data_fd2_ui_anim_sprite_sheet_ptr),
+              (long)(0x1fu + (v / 10u)));
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[1] - data_fd2_ui_anim_sprite_sheet_ptr),
+              (long)(0x1fu + (v % 10u)));
+}
 
 static void test_flash_char_hit_enemy(void)
 {
     /* Branch 1: enemy (team==0), chapter != 0x18 -> screen_off 0xC080. */
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     g_test_rc_array[0].team = TEAM_ENEMY;       /* == 0 */
+    g_test_rc_array[0].status_flags_block[0] = 11;  /* char-index tag */
     data_fd2_chapter_current_chapter_id = 1;
-    g_mini_panel_calls = 0;
+    minip_setup_env();
     fd2_flash_char_hit_sprite(0, 0);
-    ASSERT_EQ(g_mini_panel_calls, 1);
-    ASSERT_EQ(g_mini_panel_last_buf, 0xC080);   /* workspace_buf(0) + 0xC080 */
-    ASSERT_EQ(g_mini_panel_last_stride, 0x140);
-    ASSERT_EQ(g_mini_panel_last_char, 0);
+    ASSERT_EQ((long)g_dlg_blit_normal_calls, 1);
+    ASSERT_EQ((long)g_dlg_blit_last_dst, (long)0xC080u);   /* workspace(0)+0xC080 */
+    ASSERT_EQ((long)g_dlg_blit_last_stride, (long)0x140u);
+    flash_assert_sleep_value(11);               /* indexed slot 0 */
 }
 
 
@@ -589,13 +604,14 @@ static void test_flash_char_hit_ally(void)
      * Non-zero workspace_buf confirms the "+ workspace_buf" add. */
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     g_test_rc_array[2].team = TEAM_PLAYER;      /* != 0 */
+    g_test_rc_array[2].status_flags_block[0] = 22;  /* char-index tag */
     data_fd2_chapter_current_chapter_id = 1;
-    g_mini_panel_calls = 0;
+    minip_setup_env();
     fd2_flash_char_hit_sprite(0x1000, 2);
-    ASSERT_EQ(g_mini_panel_calls, 1);
-    ASSERT_EQ(g_mini_panel_last_buf, 0x1000 + 0x05AB);
-    ASSERT_EQ(g_mini_panel_last_stride, 0x140);
-    ASSERT_EQ(g_mini_panel_last_char, 2);
+    ASSERT_EQ((long)g_dlg_blit_normal_calls, 1);
+    ASSERT_EQ((long)g_dlg_blit_last_dst, (long)(0x1000u + 0x05ABu));
+    ASSERT_EQ((long)g_dlg_blit_last_stride, (long)0x140u);
+    flash_assert_sleep_value(22);               /* indexed slot 2 */
 }
 
 
@@ -611,17 +627,18 @@ static void test_flash_char_hit_chapter24_override(void)
 
     memset(local_rc, 0, sizeof(local_rc));
     local_rc[0x11].team = TEAM_PLAYER;          /* non-enemy -> ally branch */
+    local_rc[0x11].status_flags_block[0] = 17;  /* char-index tag */
     saved_ptr = data_fd2_battle_runtime_char_array_ptr;
     data_fd2_battle_runtime_char_array_ptr = local_rc;
     data_fd2_chapter_current_chapter_id = 0x18;
-    g_mini_panel_calls = 0;
+    minip_setup_env();
     fd2_flash_char_hit_sprite(0, 0x11);
     data_fd2_battle_runtime_char_array_ptr = saved_ptr;
 
-    ASSERT_EQ(g_mini_panel_calls, 1);
-    ASSERT_EQ(g_mini_panel_last_buf, 0xC080);   /* override beats 0x05AB */
-    ASSERT_EQ(g_mini_panel_last_stride, 0x140);
-    ASSERT_EQ(g_mini_panel_last_char, 0x11);
+    ASSERT_EQ((long)g_dlg_blit_normal_calls, 1);
+    ASSERT_EQ((long)g_dlg_blit_last_dst, (long)0xC080u);   /* override beats 0x05AB */
+    ASSERT_EQ((long)g_dlg_blit_last_stride, (long)0x140u);
+    flash_assert_sleep_value(17);               /* indexed slot 0x11 */
 }
 
 
@@ -632,12 +649,13 @@ static void test_flash_char_hit_chapter24_nonsumeti_no_override(void)
      * gated on BOTH conditions (the AND in the disasm), not chapter alone. */
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     g_test_rc_array[3].team = TEAM_PLAYER;      /* != 0 */
+    g_test_rc_array[3].status_flags_block[0] = 33;  /* char-index tag */
     data_fd2_chapter_current_chapter_id = 0x18;
-    g_mini_panel_calls = 0;
+    minip_setup_env();
     fd2_flash_char_hit_sprite(0, 3);
-    ASSERT_EQ(g_mini_panel_calls, 1);
-    ASSERT_EQ(g_mini_panel_last_buf, 0x05AB);
-    ASSERT_EQ(g_mini_panel_last_char, 3);
+    ASSERT_EQ((long)g_dlg_blit_normal_calls, 1);
+    ASSERT_EQ((long)g_dlg_blit_last_dst, (long)0x05ABu);
+    flash_assert_sleep_value(33);               /* indexed slot 3 */
 }
 
 
