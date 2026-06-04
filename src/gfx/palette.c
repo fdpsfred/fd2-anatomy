@@ -271,3 +271,33 @@ void fd2_play_palette_fade_in(void)
         __delay_thunk_375b2(2);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_play_palette_fade_to_black @ 0x1F882  (22 call-sites)
+ *
+ * VGA palette fade-OUT from full brightness to black. Walks the
+ * brightness_subtract amount from 0 up to 0x3F (i.e. subtract < 0x40,
+ * 0x40 iterations), each step writing the full DAC range via
+ * fd2_set_vga_palette_range(0,0xFF,subtract) — which writes
+ * max(0, base[i]-subtract) — then waiting 2 BIOS ticks.
+ *
+ *   subtract=0    → base palette written unchanged → FULL brightness
+ *   subtract=0x3F → every channel clamped to 0 → screen BLACK
+ *
+ * So the loop proceeds FULL -> BLACK = fade-OUT. Pairs with
+ * fd2_play_palette_fade_in @ 0x1F525 (fade-IN counterpart). In the
+ * binary this entry is a shared-body wrapper: it XORs the counter to 0
+ * then JMPs into the darken loop body (0x1F503-0x1F524) physically
+ * living inside fd2_load_and_fade_in_cinematic_image @ 0x1F81E. Watcom
+ * regenerates an equivalent standalone loop here.
+ * Called from every "fade-out to black" chapter / cinematic hook.
+ * ---------------------------------------------------------------- */
+void fd2_play_palette_fade_to_black(void)
+{
+    int subtract;
+
+    for (subtract = 0; subtract < 0x40; subtract++) {
+        fd2_set_vga_palette_range(0, 0xFF, (uint32)subtract);
+        __delay_thunk_375b2(2);
+    }
+}

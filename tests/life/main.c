@@ -105,9 +105,14 @@ static void setup_load_save_fixture(void)
     portrait_sprite_cache = 0;
     chapter_portrait_load_buffer = 0;
 
-    /* loader-returned pointer globals start NULL so the loader's free(old_buf)
-     * is a no-op on the first load of each */
-    data_fd2_vga_palette_data_ptr = 0;
+    /* The real fd2_play_palette_fade_to_black() runs (src/life/main.c:178)
+     * BEFORE the FDOTHER palette is (re)loaded, reading max(0,base[i]-sub) over
+     * the full 256-entry DAC range. In the live game a palette is always loaded
+     * by this point; stage a valid 768-byte base so the fade's reads stay
+     * in-bounds. fd2_load_dat_resource then free()s this buffer and reallocs a
+     * fresh one (so it must be malloc'd, not static; teardown frees the
+     * loader's replacement). */
+    data_fd2_vga_palette_data_ptr = (uint32)malloc(256 * 3);
     current_chapter_text = 0;
     battle_scene_snapshot = 0;
     data_fd2_tile_attribute_flags_buffer_ptr = 0;
@@ -187,7 +192,12 @@ static void teardown_load_save_fixture(void)
  * loader's free(old_buf) is a no-op, then free the loaded buffers afterwards. */
 static void setup_menu_dats(void)
 {
-    data_fd2_vga_palette_data_ptr = 0;
+    /* fd2_main_menu_continue_dispatcher runs the real
+     * fd2_play_palette_fade_to_black() (src/life/main.c:31 and :55) BEFORE the
+     * FDOTHER palette is (re)loaded into data_fd2_vga_palette_data_ptr. Stage a
+     * valid 768-byte base so the fade's full-DAC reads stay in-bounds (the
+     * loader free()s + reallocs it; teardown frees the replacement). */
+    data_fd2_vga_palette_data_ptr = (uint32)malloc(256 * 3);
     data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
     data_fd2_audio_bgm_sequence_data_buf_ptr = 0;
     data_fd2_audio_bgm_last_set_track_id = 0xFF;

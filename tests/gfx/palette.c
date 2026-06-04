@@ -242,6 +242,30 @@ static void test_play_palette_fade_in(void)
 }
 
 
+/* fade-OUT: walks brightness_subtract 0 up to 0x3F (the signed `< 0x40`
+ * exclusive bound) = exactly 0x40 iterations, each calling
+ * __delay_thunk_375b2(2). The 0x40 loop count is the load-bearing direction
+ * marker that distinguishes this fade-OUT entry from the fade-IN counterpart
+ * (which runs 0x41 times via a `>= 0` inclusive bound); the inner palette
+ * write is a pure port-write side effect. The stubbed delay thunk records the
+ * call count + last arg for a deterministic check. A full 768-byte base
+ * palette keeps the inner fd2_set_vga_palette_range (idx 0..0xFF,
+ * base[0..767]) in-bounds. */
+static void test_play_palette_fade_to_black(void)
+{
+    static uint8 fake_pal[256 * 3];
+    int i;
+    for (i = 0; i < 256 * 3; i++) fake_pal[i] = 0x20;
+    data_fd2_vga_palette_data_ptr = (uint32)fake_pal;
+
+    g_delay375b2_calls = 0;
+    g_delay375b2_last_ticks = 0;
+    fd2_play_palette_fade_to_black();
+    ASSERT_EQ(g_delay375b2_calls, 0x40);
+    ASSERT_EQ(g_delay375b2_last_ticks, 2u);
+}
+
+
 void run_gfx_palette_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -258,5 +282,6 @@ void run_gfx_palette_tests(void)
     RUN_TEST(test_tick_chapter_palette_slow_triggers);
     RUN_TEST(test_tick_chapter_palette_slow_triggers_negative_delta);
     RUN_TEST(test_play_palette_fade_in);
+    RUN_TEST(test_play_palette_fade_to_black);
     printf("\n");
 }

@@ -499,7 +499,11 @@ void fd2_play_and_free_status_effect_sfx(void) { }
 /* fd2_init_runtime_char_for_battle is now emitted in src/battle/btl_init.c
  * and linked for real; its caller test in tests/rsrc/rsrc.c drives the real
  * function and observes data_fd2_battle_party_member_count. */
-void fd2_play_palette_fade_to_black(void) { }
+/* fd2_play_palette_fade_to_black: now emitted in src/gfx/palette.c and linked
+ * for real; its life-suite callers (fd2_load_save_and_init_engine,
+ * fd2_main_menu_continue_dispatcher) drive the real fade, so their fixtures
+ * stage a valid 768-byte palette buffer before the call. The former empty
+ * neutralizing stub was removed. */
 int g_ending_menu_return = 0;
 int fd2_play_ending_and_record_clear(void) { return g_ending_menu_return; }
 int g_slot_selector_return = -1;
