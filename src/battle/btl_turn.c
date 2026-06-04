@@ -602,3 +602,141 @@ void fd2_fire_chapter_turn_events_for_phase(uint32 phase)
         }
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_process_battle_drop_entries @ 0x1AA1D (9 callers)
+ *
+ * Battle kill-drop processing. Called after every kill by the
+ * attack/spell/use paths to apply the 3-byte drop entries that
+ * fd2_collect_dead_char_drops / fd2_collect_pending_death_drops
+ * accumulated, to the recipient (typically the killer).
+ *
+ * Each entry: byte type + ushort value.
+ *   type 0 ITEM:  gate team==2; last_action_sprite_id = value+0xB5,
+ *                 dialog 0x1B0 "got X", add_item_to_inventory; on
+ *                 -1 (bag full) run the discard/swap flow.
+ *   type 1 GOLD:  gate team==2; dialog 0x1B3; party_total_gold += value.
+ *   type 2 EVENT: delay 200 then call chapter event handler
+ *                 table[value](recipient_idx). (no team gate)
+ *   type 3 DIALOG: display scripted FDTXT dialog page `value`.
+ *   other:        skip entry.
+ *
+ * The team!=2 gate on type 0/1 returns immediately (no remaining
+ * entries processed); each handled entry falls through to the loop
+ * increment. count==0 / non-player-team / loop-done all reach the
+ * shared epilogue at 0x22BBE (== plain return here).
+ *
+ * NOTE (Ghidra EAX/arg-tracking bug): the decompiler rendered the
+ * type-2 handler-table call as 0-arg. The assembly (PUSH EDI before
+ * CALL [EAX*4+0x51B91], ADD ESP,4) shows it passes recipient_idx.
+ * Encoded as such.
+ * ---------------------------------------------------------------- */
+void fd2_process_battle_drop_entries(uint32 recipient_idx,
+                                     uint32 entry_count,
+                                     uint32 entry_array_ptr)
+{
+    runtime_char *pCharArray;
+    uint32 entry_iter;
+    uint8 *pEntry;
+    uint8 entry_type;
+    uint32 entry_value;
+    int add_result;
+    int typewriter_result;
+    uint32 swap_dialog_text;
+
+    pCharArray = data_fd2_battle_runtime_char_array_ptr;
+    if (entry_count == 0) {
+        return;
+    }
+
+    for (entry_iter = 0; (int)entry_iter < (int)entry_count;
+         entry_iter++) {
+        fd2_clear_keyboard_buffer();
+        pEntry = (uint8 *)entry_array_ptr + entry_iter * 3;
+        entry_value = (uint32)*(uint16 *)(pEntry + 1);
+        entry_type = pEntry[0];
+
+        if (entry_type == 0) {
+            if (pCharArray[recipient_idx].team != 2) {
+                return;
+            }
+            data_fd2_dialog_last_action_sprite_id_param =
+                entry_value + 0xB5;
+            fd2_load_chapter_portrait(
+                (uint32)pCharArray[recipient_idx].portrait_id);
+            fd2_display_dialog_scene(
+                data_fd2_all_game_text_ptr, 0x1B0, 0xA9F23,
+                0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
+            add_result = fd2_add_item_to_inventory(
+                recipient_idx, entry_value);
+            if (add_result == -1) {
+                fd2_paint_portrait_to_dialog_area(0);
+                fd2_wait_for_input_dialog_with_blink(0);
+                fd2_close_status_screen_with_slide_out();
+                __delay_thunk_375b2(100);
+                fd2_load_chapter_portrait(
+                    (uint32)pCharArray[recipient_idx].portrait_id);
+                fd2_display_dialog_scene(
+                    data_fd2_all_game_text_ptr, 0x1B1, 0xA9F23,
+                    0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
+                fd2_paint_portrait_to_dialog_area(0);
+                typewriter_result = fd2_text_dialog_typewriter_loop();
+                fd2_animate_dialog_page_advance_collapse();
+                if (typewriter_result == 1 &&
+                    data_fd2_ui_menu_cursor_idx == 0) {
+                    fd2_close_status_screen_with_slide_out();
+                    if (fd2_inventory_selection_modal_dispatch(
+                            recipient_idx, 0) != 0) {
+                        fd2_get_inventory_slot_item_id(
+                            recipient_idx,
+                            data_fd2_ui_menu_cursor_idx);
+                        fd2_remove_inventory_slot_at(
+                            recipient_idx,
+                            data_fd2_ui_menu_cursor_idx);
+                        fd2_add_item_to_inventory(
+                            recipient_idx, entry_value);
+                        continue;
+                    }
+                    __delay_thunk_375b2(100);
+                    fd2_load_chapter_portrait(
+                        (uint32)pCharArray[recipient_idx].portrait_id);
+                    swap_dialog_text = 0xA9F23;
+                } else {
+                    swap_dialog_text = 0xAB6E3;
+                }
+                fd2_display_dialog_scene(
+                    data_fd2_all_game_text_ptr, 0x1B2,
+                    swap_dialog_text, 0x140, 0xCD, 0x4C,
+                    0x4A, 0x13, 1);
+                __delay_thunk_375b2(200);
+            } else {
+                fd2_paint_portrait_to_dialog_area(0);
+                fd2_wait_for_input_dialog_with_blink(0);
+            }
+            fd2_close_status_screen_with_slide_out();
+        } else if (entry_type == 1) {
+            if (pCharArray[recipient_idx].team != 2) {
+                return;
+            }
+            fd2_load_chapter_portrait(
+                (uint32)pCharArray[recipient_idx].portrait_id);
+            data_fd2_dialog_last_action_value_param = entry_value;
+            fd2_display_dialog_scene(
+                data_fd2_all_game_text_ptr, 0x1B3, 0xA9F23,
+                0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
+            fd2_paint_portrait_to_dialog_area(0);
+            fd2_wait_for_input_dialog_with_blink(0);
+            fd2_close_status_screen_with_slide_out();
+            data_fd2_shared_party_total_gold +=
+                data_fd2_dialog_last_action_value_param;
+        } else if (entry_type == 2) {
+            __delay_thunk_375b2(200);
+            data_fd2_battle_ai_post_action_consequence_table
+                [entry_value](recipient_idx);
+        } else if (entry_type == 3) {
+            fd2_display_dialog_scene(
+                current_chapter_text, entry_value, 0xA0000,
+                0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
+        }
+    }
+}

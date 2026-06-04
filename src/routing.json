@@ -1118,8 +1118,9 @@
     "name": "fd2_process_battle_drop_entries",
     "target": "battle/btl_turn.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001acf3": {
     "name": "fd2_render_terrain_info_hud_panel",

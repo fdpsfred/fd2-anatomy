@@ -516,7 +516,11 @@ void fd2_animate_phase_banner_slide_out(uint32 banner_sprite_id) {
     g_phase_banner_slide_out_calls++;
     (void)banner_sprite_id;
 }
-void fd2_process_battle_drop_entries(uint32 a, uint32 b, uint32 c) { }
+/* fd2_process_battle_drop_entries: now emitted for real in
+ * src/battle/btl_turn.c; its former noop stub here was removed. The
+ * battle/btl_turn.c drop tests drive the real function (control-flow gates +
+ * type-2 chapter-event dispatch); the type-0/1 display sequences are deferred
+ * to Phase 9 integration. */
 void fd2_cast_group_hp_heal_spell(uint32 a, uint32 b, uint32 c, uint32 d) { }
 int g_cast_status_cure_calls = 0;
 void fd2_cast_status_cure_spell(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e) { g_cast_status_cure_calls++; (void)a; (void)b; (void)c; (void)d; (void)e; }

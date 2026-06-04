@@ -55,6 +55,8 @@ extern int g_pathfind_md0_dst_y;
 extern int g_count_usable_slots_return;
 extern uint8 g_spell_list_buf[12];
 extern int g_remove_inventory_calls;
+extern int g_add_item_calls;
+extern int g_add_item_return;
 extern int g_cast_status_cure_calls;
 extern int g_cast_status_via_d1b_calls;
 extern int g_repaint_settings_calls;
@@ -1019,6 +1021,126 @@ static void test_fire_chapter_multiple_matches(void)
 }
 
 
+/* ---- fd2_process_battle_drop_entries @ 0x1AA1D ----
+ *
+ * The item (type 0) and gold (type 1) reward paths drive the real dialog
+ * VM + the real blocking fd2_wait_for_input_dialog_with_blink + portrait
+ * blits; their pure display orchestration is deferred to Phase 9
+ * integration (the same deferral testglob.c already applies to the
+ * gold/item wait paths). These cases cover the deterministic, display-free
+ * logic: the entry_count gate, the type 0/1 team!=2 early return, the
+ * type-2 chapter-event dispatch (including the EAX/arg-tracking-bug fix
+ * where the handler is invoked with recipient_idx, not 0), the unknown-type
+ * skip, and loop iteration across multiple entries.
+ *
+ * Reuses the fc_* chapter-event spy table (installed at slots 0x20/0x21/
+ * 0x22) since type-2 entries dispatch through the same
+ * data_fd2_battle_ai_post_action_consequence_table. A type-2 entry's
+ * value field selects the handler slot. */
+
+/* Write drop entry[idx]: type @ +0, value (ushort) @ +1. */
+static void drop_set_entry(uint8 *buf, int idx, uint8 type, uint16 value)
+{
+    buf[idx * 3 + 0] = type;
+    *(uint16 *)(buf + idx * 3 + 1) = value;
+}
+
+/* entry_count == 0 -> immediate return, nothing dispatched even though the
+ * buffer holds a would-fire type-2 entry. */
+static void test_drop_count_zero_returns(void)
+{
+    uint8 drops[6];
+
+    fc_setup();
+    drop_set_entry(drops, 0, 2, 0x20);
+    fd2_process_battle_drop_entries(0, 0, (uint32)drops);
+    ASSERT_EQ(g_fc_a_fired, 0);
+    fc_teardown();
+}
+
+/* type 2 (BATTLE EVENT): after delay, calls the handler-table slot named by
+ * the entry value, passing recipient_idx. Verifies the arg is recipient_idx
+ * (3 here), NOT 0 -- the Ghidra decompiler dropped the PUSH EDI argument. */
+static void test_drop_type2_event_passes_recipient(void)
+{
+    uint8 drops[6];
+
+    fc_setup();
+    drop_set_entry(drops, 0, 2, 0x20);   /* value 0x20 -> fc_spy_a */
+    fd2_process_battle_drop_entries(3, 1, (uint32)drops);
+    ASSERT_EQ(g_fc_a_fired, 1);
+    ASSERT_EQ((long)g_fc_a_arg, 3);      /* recipient_idx, not 0 */
+    fc_teardown();
+}
+
+/* type 0 (ITEM) with recipient team != 2 -> immediate return before
+ * fd2_add_item_to_inventory is ever reached. */
+static void test_drop_type0_nonplayer_team_returns(void)
+{
+    uint8 drops[6];
+    int calls_before;
+
+    fc_setup();
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[1].team = 0;          /* enemy team -> gate fails */
+    data_fd2_battle_party_member_count = 4;
+    calls_before = g_add_item_calls;
+    drop_set_entry(drops, 0, 0, 5);
+    fd2_process_battle_drop_entries(1, 1, (uint32)drops);
+    ASSERT_EQ(g_add_item_calls, calls_before);   /* never added */
+    fc_teardown();
+}
+
+/* type 1 (GOLD) with recipient team != 2 -> immediate return; party gold
+ * is left untouched. */
+static void test_drop_type1_nonplayer_team_returns(void)
+{
+    uint8 drops[6];
+    uint32 gold_before;
+
+    fc_setup();
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[2].team = 1;          /* npc team -> gate fails */
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_shared_party_total_gold = 777;
+    gold_before = data_fd2_shared_party_total_gold;
+    drop_set_entry(drops, 0, 1, 250);
+    fd2_process_battle_drop_entries(2, 1, (uint32)drops);
+    ASSERT_EQ(data_fd2_shared_party_total_gold, gold_before);
+    fc_teardown();
+}
+
+/* An unknown type (5) is skipped and the loop continues to the next entry
+ * (a type-2 event), which fires -- proving the default branch falls through
+ * to the loop increment rather than returning. */
+static void test_drop_unknown_type_skipped_loop_continues(void)
+{
+    uint8 drops[9];
+
+    fc_setup();
+    drop_set_entry(drops, 0, 5, 0x1234);  /* unknown -> skip */
+    drop_set_entry(drops, 1, 2, 0x22);    /* value 0x22 -> fc_spy_c */
+    fd2_process_battle_drop_entries(0, 2, (uint32)drops);
+    ASSERT_EQ(g_fc_c_fired, 1);
+    fc_teardown();
+}
+
+/* Two type-2 entries both dispatch: the loop iterates every entry, each
+ * selecting its own handler slot by value. */
+static void test_drop_type2_loop_dispatches_all(void)
+{
+    uint8 drops[9];
+
+    fc_setup();
+    drop_set_entry(drops, 0, 2, 0x20);    /* fc_spy_a */
+    drop_set_entry(drops, 1, 2, 0x22);    /* fc_spy_c */
+    fd2_process_battle_drop_entries(0, 2, (uint32)drops);
+    ASSERT_EQ(g_fc_a_fired, 1);
+    ASSERT_EQ(g_fc_c_fired, 1);
+    fc_teardown();
+}
+
+
 void run_battle_btl_turn_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1054,5 +1176,11 @@ void run_battle_btl_turn_tests(void)
     RUN_TEST(test_fire_chapter_event_id_routing);
     RUN_TEST(test_fire_chapter_scans_exactly_16);
     RUN_TEST(test_fire_chapter_multiple_matches);
+    RUN_TEST(test_drop_count_zero_returns);
+    RUN_TEST(test_drop_type2_event_passes_recipient);
+    RUN_TEST(test_drop_type0_nonplayer_team_returns);
+    RUN_TEST(test_drop_type1_nonplayer_team_returns);
+    RUN_TEST(test_drop_unknown_type_skipped_loop_continues);
+    RUN_TEST(test_drop_type2_loop_dispatches_all);
     printf("\n");
 }
