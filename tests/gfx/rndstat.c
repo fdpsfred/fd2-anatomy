@@ -2743,6 +2743,134 @@ static void test_overview_title_subtitle_pages_normal(void)
     ASSERT_EQ((long)g_dlg_glyph_last_pos, (long)(buf + 0x50 + stride * 0x74));
 }
 
+/* ================================================================
+ * fd2_render_chapter_status_panel_segments @ 0x1ff79
+ *
+ * Renders up to 3 chapter-overview status "tabs", one indexed sprite per
+ * segment, through the REAL fd2_blit_indexed_sprite_at_xy ->
+ * fd2_rle_blit_sprite spy (g_rle_blit_log_*). With the fake sheet
+ * (bar_setup_sheet, table[i]=i) each blit records resolved sprite =
+ * sheet + sprite_idx, so a segment's sprite index is recovered as
+ * (logged_sprite - sheet) and its destination as the logged dst.
+ *
+ * Sprite idx scheme (i = segment index): 2*i+1 = inactive, 2*i+2 = active;
+ * a segment is active iff active_idx == its index. The count gates are
+ * signed (> 1 draws segment 1, > 2 draws segment 2); the active test is an
+ * unsigned equality.
+ *   segment 0 @ 0xACD81  segment 1 @ 0xAD8C1  segment 2 @ 0xAE401  pitch 0x140
+ * ================================================================ */
+
+/* dst row offsets per segment + the shared blit pitch (mode13h surface). */
+#define SEG0_DST  0xacd81u
+#define SEG1_DST  0xad8c1u
+#define SEG2_DST  0xae401u
+#define SEG_PITCH 0x140
+
+/* arm the identity fake sheet + per-call rle log for a segments test. */
+static uint32 seg_setup(void)
+{
+    uint32 sheet = bar_setup_sheet();   /* table[i]=i; sets sprite-sheet ptr */
+    g_rle_blit_calls = 0;
+    g_rle_blit_log_on = 1;
+    return sheet;
+}
+
+/* count==1: only segment 0 is drawn (the > 1 and > 2 gates both fail). With
+ * active_idx 0 that segment is ACTIVE -> sprite 2 at SEG0_DST, pitch 0x140. */
+static void test_seg_count1_only_segment0_active(void)
+{
+    uint32 sheet;
+
+    sheet = seg_setup();
+    fd2_render_chapter_status_panel_segments(sheet, 0, 1);
+
+    ASSERT_EQ((long)g_rle_blit_calls, 1);
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[0] - sheet), (long)2);
+    ASSERT_EQ((long)g_rle_blit_log_dst[0], (long)SEG0_DST);
+    ASSERT_EQ((long)g_rle_blit_log_stride[0], (long)SEG_PITCH);
+}
+
+/* count==1 with active_idx 0 vs out-of-range pins the active/inactive choice
+ * for segment 0 in isolation: active_idx 1 (!=0) -> INACTIVE sprite 1. */
+static void test_seg_count1_segment0_inactive(void)
+{
+    uint32 sheet;
+
+    sheet = seg_setup();
+    fd2_render_chapter_status_panel_segments(sheet, 1, 1);
+
+    ASSERT_EQ((long)g_rle_blit_calls, 1);
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[0] - sheet), (long)1);   /* inactive */
+    ASSERT_EQ((long)g_rle_blit_log_dst[0], (long)SEG0_DST);
+}
+
+/* count==2, active_idx 1: segment 0 INACTIVE (1), segment 1 ACTIVE (4);
+ * segment 2 NOT drawn (the > 2 gate fails). Order is seg0 then seg1. */
+static void test_seg_count2_active_segment1(void)
+{
+    uint32 sheet;
+
+    sheet = seg_setup();
+    fd2_render_chapter_status_panel_segments(sheet, 1, 2);
+
+    ASSERT_EQ((long)g_rle_blit_calls, 2);
+    /* [0] segment 0 inactive sprite 1 @ SEG0_DST */
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[0] - sheet), (long)1);
+    ASSERT_EQ((long)g_rle_blit_log_dst[0], (long)SEG0_DST);
+    /* [1] segment 1 active sprite 4 @ SEG1_DST */
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[1] - sheet), (long)4);
+    ASSERT_EQ((long)g_rle_blit_log_dst[1], (long)SEG1_DST);
+    ASSERT_EQ((long)g_rle_blit_log_stride[1], (long)SEG_PITCH);
+}
+
+/* count==3, active_idx 2: all three segments drawn; segment 2 ACTIVE (6),
+ * segments 0 and 1 INACTIVE (1, 3). Pins all three dst offsets in order. */
+static void test_seg_count3_active_segment2(void)
+{
+    uint32 sheet;
+
+    sheet = seg_setup();
+    fd2_render_chapter_status_panel_segments(sheet, 2, 3);
+
+    ASSERT_EQ((long)g_rle_blit_calls, 3);
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[0] - sheet), (long)1);   /* seg0 off */
+    ASSERT_EQ((long)g_rle_blit_log_dst[0], (long)SEG0_DST);
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[1] - sheet), (long)3);   /* seg1 off */
+    ASSERT_EQ((long)g_rle_blit_log_dst[1], (long)SEG1_DST);
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[2] - sheet), (long)6);   /* seg2 ON */
+    ASSERT_EQ((long)g_rle_blit_log_dst[2], (long)SEG2_DST);
+}
+
+/* count==3, active_idx 0: segment 0 ACTIVE (2), segments 1 and 2 INACTIVE
+ * (3, 5). Mirror of the active_segment2 case at the other end. */
+static void test_seg_count3_active_segment0(void)
+{
+    uint32 sheet;
+
+    sheet = seg_setup();
+    fd2_render_chapter_status_panel_segments(sheet, 0, 3);
+
+    ASSERT_EQ((long)g_rle_blit_calls, 3);
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[0] - sheet), (long)2);   /* seg0 ON  */
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[1] - sheet), (long)3);   /* seg1 off */
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[2] - sheet), (long)5);   /* seg2 off */
+}
+
+/* active_idx out of 0..2 (here -1, as the blink animation passes): EVERY
+ * segment renders INACTIVE -> sprites 1, 3, 5 across all three slots. */
+static void test_seg_active_out_of_range_all_inactive(void)
+{
+    uint32 sheet;
+
+    sheet = seg_setup();
+    fd2_render_chapter_status_panel_segments(sheet, (uint32)-1, 3);
+
+    ASSERT_EQ((long)g_rle_blit_calls, 3);
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[0] - sheet), (long)1);
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[1] - sheet), (long)3);
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[2] - sheet), (long)5);
+}
+
 void run_gfx_rndstat_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -2832,6 +2960,12 @@ void run_gfx_rndstat_tests(void)
     RUN_TEST(test_overview_subtitle_mitti_absent);
     RUN_TEST(test_overview_subtitle_mitti_present);
     RUN_TEST(test_overview_title_subtitle_pages_normal);
+    RUN_TEST(test_seg_count1_only_segment0_active);
+    RUN_TEST(test_seg_count1_segment0_inactive);
+    RUN_TEST(test_seg_count2_active_segment1);
+    RUN_TEST(test_seg_count3_active_segment2);
+    RUN_TEST(test_seg_count3_active_segment0);
+    RUN_TEST(test_seg_active_out_of_range_all_inactive);
     g_blitraw_log_on = 0;
     g_rle_blit_log_on = 0;
     printf("\n");

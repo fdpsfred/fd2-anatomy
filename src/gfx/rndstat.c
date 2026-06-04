@@ -1003,3 +1003,62 @@ void fd2_render_party_status_overview_content(uint32 dst_surface, uint32 stride)
                              dst_surface + 0x50 + stride * 0x74, stride,
                              0xcd, 0x4c, 0, 0x13, 0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_chapter_status_panel_segments @ 0x1ff79 (1 caller)
+ *
+ * Render the chapter-overview status "tabs" (up to 3 segments). Each
+ * segment is one indexed sprite blitted at a fixed framebuffer row offset
+ * on the mode13h surface 0xA0000, via fd2_blit_indexed_sprite_at_xy (pitch
+ * 0x140).
+ *
+ * Params:
+ *   sheet         = source sprite sheet (caller's FDOTHER.DAT[7] clear-status
+ *                   panel sprites)
+ *   active_idx    = active segment index (0/1/2); pass any value outside
+ *                   0..2 (e.g. -1) to render every segment INACTIVE — used by
+ *                   the highlight-blink animation
+ *   segment_count = total segment count (1, 2 or 3; matches the caller's
+ *                   menu_options 1/2/3)
+ *
+ * Sprite index scheme (i = segment index): 2*i+1 = inactive, 2*i+2 = active.
+ * The active segment is the one whose index equals active_idx.
+ *   segment 0 @ 0xACD81  -> idx (active_idx==0 ? 2 : 1)
+ *   segment 1 @ 0xAD8C1  -> idx (active_idx==1 ? 4 : 3)   [if count > 1]
+ *   segment 2 @ 0xAE401  -> idx (active_idx==2 ? 6 : 5)   [if count > 2]
+ * Row offsets are spaced 0xB40 apart (= 9 * 320 stride, ~9 scanlines/segment).
+ *
+ * Sole caller: fd2_play_ending_and_record_clear @ 0x1f894 (end-of-game menu).
+ *
+ * Cdecl, 3 stack params; void return. The active-segment test on active_idx
+ * is an unsigned equality (== 0/1/2); the segment_count gates are signed
+ * (> 1 / > 2), matching the binary's JNZ / JLE. The binary's __CHK(0x14)
+ * stack-probe prologue is compiler-generated and omitted here.
+ * ---------------------------------------------------------------- */
+void fd2_render_chapter_status_panel_segments(uint32 sheet, uint32 active_idx,
+                                              uint32 segment_count)
+{
+    uint32 sprite_idx;
+
+    sprite_idx = 1;
+    if (active_idx == 0) {
+        sprite_idx = 2;
+    }
+    fd2_blit_indexed_sprite_at_xy(0xacd81, 0x140, sheet, sprite_idx);
+
+    if (1 < (int32)segment_count) {
+        sprite_idx = 3;
+        if (active_idx == 1) {
+            sprite_idx = 4;
+        }
+        fd2_blit_indexed_sprite_at_xy(0xad8c1, 0x140, sheet, sprite_idx);
+    }
+
+    if (2 < (int32)segment_count) {
+        sprite_idx = 5;
+        if (active_idx == 2) {
+            sprite_idx = 6;
+        }
+        fd2_blit_indexed_sprite_at_xy(0xae401, 0x140, sheet, sprite_idx);
+    }
+}
