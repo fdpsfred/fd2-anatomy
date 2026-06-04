@@ -971,6 +971,42 @@ static void test_grid_input_other_key_loops(void)
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 6);   /* unchanged */
 }
 
+/* ----------------------------------------------------------------
+ * fd2_item_command_menu_dispatch @ 0x1BBDC — no-items early-out.
+ *
+ * The 4-way item command popup (Use/Give/Sort/Drop) begins by copying its two
+ * 4-int templates into locals and then gates on
+ * fd2_count_usable_inventory_slots(char_idx): when the character has zero
+ * usable inventory slots it returns -1 immediately, BEFORE opening the
+ * settings dialog or entering any keyboard input loop. That makes this path
+ * the only deterministic, host-isolable branch of the function: it exercises
+ * the template-copy prologue and the real count-usable gate with no async
+ * keyboard dependency.
+ *
+ * The four dispatch branches (Use / Give / Sort / Drop) and the menu-cancel
+ * early-out all run through fd2_open_settings_dialog_with_slide + the real
+ * settings-menu input loop (and, beyond it, modal item-selection and
+ * action-target input loops) which busy-wait on the BIOS keyboard buffer with
+ * no in-process key source; their behavioral coverage is deferred to Phase 9
+ * integration under the emulator (the same deferral applied to the sibling
+ * fd2_inventory_selection_modal_dispatch input loop above).
+ *
+ * Wiring: g_test_rc_array[0]'s eight inventory slots all carry flag bit 0x80
+ * (vacant), so the real fd2_count_usable_inventory_slots returns 0 and the
+ * dispatcher returns -1 without any display/input side effect.
+ * ---------------------------------------------------------------- */
+static void test_item_command_no_items_returns_minus1(void)
+{
+    int s;
+    int r;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    for (s = 0; s < 8; s++) {
+        g_test_rc_array[0].inventory_slots[s * 2] = 0x80;   /* all vacant */
+    }
+    r = fd2_item_command_menu_dispatch(0);
+    ASSERT_EQ((long)r, -1);
+}
+
 void run_ui_menu_status_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1010,5 +1046,6 @@ void run_ui_menu_status_tests(void)
     RUN_TEST(test_grid_input_enter_gate1_unusable_reprompts);
     RUN_TEST(test_grid_input_esc_cancels);
     RUN_TEST(test_grid_input_other_key_loops);
+    RUN_TEST(test_item_command_no_items_returns_minus1);
     printf("\n");
 }

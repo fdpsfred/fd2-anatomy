@@ -297,6 +297,10 @@ int32  data_fd2_ui_save_load_menu_state_template[4] = { 0, 0, 0, 0 };
 int32  data_fd2_ui_player_action_menu_state_template[4] = { 0, 0, 0, 0 };
 /* inline action menu template — real FD2.LE value @ 0x51ED5 (Attack/Spell/Item/Wait slot ids) */
 int32  data_fd2_ui_inline_action_menu_template[4] = { 0, 1, 2, 3 };
+/* item command menu templates — real FD2.LE values @ 0x51F05 / 0x53F32
+ * (Use/Give/Sort/Drop slot ids; state all zero) */
+int32  data_fd2_ui_item_command_menu_template[4] = { 8, 9, 10, 11 };
+int32  data_fd2_ui_item_command_menu_state_template[4] = { 0, 0, 0, 0 };
 /* game options menu templates — real FD2.LE values @ 0x51EAF / 0x53F02 */
 int32  data_fd2_ui_game_options_menu_slots_template[4] = { 0x12, 0x14, 0x16, 0x18 };
 int32  data_fd2_ui_game_options_menu_state_template[4] = { 0, 0, 0, 0 };
@@ -628,14 +632,21 @@ int fd2_spell_selection_menu_main(uint32 caster_idx)
     }
     return g_inline_spell_menu_return;
 }
-int g_inline_item_menu_return = 1;
-int g_inline_item_menu_calls = 0;
-int fd2_item_command_menu_dispatch(uint32 char_idx)
-{
-    (void)char_idx;
-    g_inline_item_menu_calls++;
-    return g_inline_item_menu_return;
-}
+/* fd2_equip_unequip_inventory_menu (0x1BFFE, ui_menu/status.c, not yet emitted)
+ * is the Sort/Equip branch callee of the now-real fd2_item_command_menu_dispatch.
+ * That branch is a heavy inventory-equip UI loop with no in-process input seam,
+ * deferred to Phase 9, so no test drives it; this no-op stub satisfies the link
+ * until the real body is emitted. */
+void fd2_equip_unequip_inventory_menu(uint32 char_idx) { (void)char_idx; }
+/* fd2_item_command_menu_dispatch is now emitted for real in
+ * src/ui_menu/status.c and linked; its former counting stub (and the
+ * g_inline_item_menu_return / g_inline_item_menu_calls seams that drove it)
+ * were removed. The inline-action dispatcher's Item-branch behavioral coverage
+ * (case-2 commit / cancel) is a heavy-UI input-loop path — the real item
+ * command menu opens its own settings dialog and blocks on a keyboard read
+ * whose buffer the caller's close already cleared — so it is deferred to
+ * Phase 9 integration, the same deferral the file applies to the other
+ * non-isolable heavy-UI submenus. */
 /* fd2_handle_tile_event_interaction is now emitted for real in
  * src/ui_menu/menufld.c and linked; its former counting stub was removed. The
  * inline-action dispatcher's Wait-branch tests now drive the real handler, which

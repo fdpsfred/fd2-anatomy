@@ -1286,8 +1286,9 @@
     "name": "fd2_item_command_menu_dispatch",
     "target": "ui_menu/status.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001bffe": {
     "name": "fd2_equip_unequip_inventory_menu",

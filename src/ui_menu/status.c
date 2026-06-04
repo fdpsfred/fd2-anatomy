@@ -553,6 +553,235 @@ int fd2_inventory_selection_modal_dispatch(uint32 char_idx, uint32 gate_flag)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_item_command_menu_dispatch @ 0x1BBDC  (1 caller:
+ *                                  fd2_player_inline_action_menu_dispatch)
+ *
+ * 4-way item command popup (Use / Give / Sort-Equip / Drop) opened when
+ * the player picks "Item" in the inline action submenu during their turn.
+ *
+ * Setup: copy the 4-int options template @ 0x51F05 ({8,9,10,11}) into
+ * menu_options and the 4-int state template @ 0x53F32 ({0,0,0,0}) into
+ * menu_state. If the character has no usable inventory slots, return -1
+ * (do not open the menu). Pre-disable "Give" (menu_state[1]=1) when there
+ * is no adjacent ally tile (fd2_compute_aoe_targets cursor, range 1, kind 3
+ * == 0). Render the menu and loop settings-menu input until non-zero; close
+ * it, recomposite, and snapshot the cursor world position (target_x/y).
+ *
+ * On menu cancel (input_result == -1): return -1.
+ *
+ * Dispatch on data_fd2_ui_menu_cursor_idx:
+ *   0 = USE (loops until commit or modal cancel):
+ *       Pick a usable inventory slot (modal gate=1). On commit, look up the
+ *       item entry; battle_anim_phase = item[0x12]+2; compute the AoE target
+ *       set (range=item[0x10], is_spell = item[0xD]==0x17, kind=item[0x15])
+ *       and wait for a target (mode=item[0x15]). battle_anim_phase=1; compute
+ *       the apply AoE (range=item[0x12], kind=item[0x15]) into final_aoe.
+ *       If the item is a spellbook (item[0xD]==0x17): require the caster to
+ *       be job_id 0x18 (Magician) with mp_max >= 0x14, else target=-1; on
+ *       success wait again (mode 6), then stash the cursor as the teleport
+ *       destination and pan to the caster (anim_phase 0->1). If target!=-1:
+ *       apply the use effect, mark the caster acted, return 1. Otherwise pan
+ *       back (anim_phase 0->1) and re-prompt. Modal cancel returns 0.
+ *   1 = GIVE: pick a slot (gate=0). Compute adjacent-ally AoE into a 100-byte
+ *       malloc buffer, wait (mode 3) for the recipient, find the char under
+ *       the cursor, pan back to the origin tile, free the buffer. If a target
+ *       was chosen, add this slot's item to the recipient; if the recipient
+ *       is full (-1) open their inventory modal to pick a slot to swap (remove
+ *       recipient slot + add my item + remove my slot + add the swapped item),
+ *       else just remove my slot. Set player_action_result_code = 1.
+ *       Always recalc combat stats, return 0.
+ *   2 = SORT/EQUIP: fd2_equip_unequip_inventory_menu, return 0.
+ *   3 = DROP: pick a slot (gate=0); if confirmed remove it. Recalc, return 0.
+ *
+ * Returns: 1 = action committed (turn used), 0 = re-prompt the outer inline
+ * menu, -1 = no items (menu not opened) or outer menu cancelled.
+ *
+ * int __cdecl (Ghidra types the return undefined4; the sole caller consumes
+ * it as int -1/0/1) with the __CHK(0x94) stack-probe prologue (compiler-
+ * injected, omitted under -s). EBX/ESI/EDI/EBP are callee-saved; EBP holds
+ * char_idx, ESI/EDI are scratch. EAX-bug notes: every CALL whose EAX is
+ * reused below is a genuine return value verified against the disassembly —
+ * the modal commit flag (MOV EDI,EAX), the item entry pointer (MOV ESI,EAX),
+ * fd2_compute_aoe_targets' count passed straight into the target-input call,
+ * the target result (MOV EDI,EAX), the give recipient index (MOV ESI,EAX),
+ * the add-item result (CMP EAX,-1), and the swapped item id (MOV EBX,EAX).
+ * ---------------------------------------------------------------- */
+int fd2_item_command_menu_dispatch(uint32 char_idx)
+{
+    int32 menu_options[4];
+    int32 menu_state[4];
+    uint8 target_buf[52];
+    runtime_char *rc;
+    uint8 *item_entry;
+    uint8 item_id;
+    uint8 swapped_item_id;
+    uint32 saved_my_slot;
+    int32 target_x;
+    int32 target_y;
+    uint32 final_aoe;
+    uint32 give_buf;
+    int target_char_idx;
+    int input_result;
+    int modal_committed;
+    int target_result;
+    int give_target_result;
+    int add_result;
+
+    menu_options[0] = data_fd2_ui_item_command_menu_template[0];
+    menu_options[1] = data_fd2_ui_item_command_menu_template[1];
+    menu_options[2] = data_fd2_ui_item_command_menu_template[2];
+    menu_options[3] = data_fd2_ui_item_command_menu_template[3];
+
+    menu_state[0] = data_fd2_ui_item_command_menu_state_template[0];
+    menu_state[1] = data_fd2_ui_item_command_menu_state_template[1];
+    menu_state[2] = data_fd2_ui_item_command_menu_state_template[2];
+    menu_state[3] = data_fd2_ui_item_command_menu_state_template[3];
+
+    if (fd2_count_usable_inventory_slots(char_idx) == 0) {
+        return -1;
+    }
+
+    if (fd2_compute_aoe_targets(data_fd2_battle_cursor_world_x,
+            data_fd2_battle_cursor_world_y, 0, 1, 1, 3) == 0) {
+        menu_state[1] = 1;
+    }
+    fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+
+    fd2_count_active_menu_items_until_zero(menu_state);
+    fd2_open_settings_dialog_with_slide(menu_options, menu_state);
+    do {
+        input_result = fd2_settings_menu_input_step(menu_options, menu_state);
+    } while (input_result == 0);
+    fd2_close_settings_dialog_with_slide(menu_options, menu_state);
+    fd2_composite_battle_frame(0);
+
+    target_y = (int32)data_fd2_battle_cursor_world_y;
+    target_x = (int32)data_fd2_battle_cursor_world_x;
+    if (input_result == -1) {
+        return -1;
+    }
+
+    if (data_fd2_ui_menu_cursor_idx == 0) {
+        do {
+            modal_committed =
+                fd2_inventory_selection_modal_dispatch(char_idx, 1);
+            if (modal_committed == 0) {
+                return 0;
+            }
+
+            item_id = fd2_get_inventory_slot_item_id(char_idx,
+                data_fd2_ui_menu_cursor_idx);
+            item_entry = fd2_get_item_effect_entry((int)item_id);
+            data_fd2_battle_anim_phase = (uint32)item_entry[0x12] + 2;
+            target_result = fd2_wait_for_action_target_input(
+                (int)item_entry[0x15],
+                (uint32)fd2_compute_aoe_targets(
+                    data_fd2_battle_cursor_world_x,
+                    data_fd2_battle_cursor_world_y, (uint32)target_buf,
+                    (uint32)item_entry[0x10],
+                    (uint32)(item_entry[0xd] == 0x17),
+                    (uint32)item_entry[0x15]),
+                target_buf);
+            fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+
+            data_fd2_battle_anim_phase = 1;
+            final_aoe = (uint32)fd2_compute_aoe_targets(
+                data_fd2_battle_cursor_world_x,
+                data_fd2_battle_cursor_world_y, (uint32)target_buf,
+                (uint32)item_entry[0x12], 0, (uint32)item_entry[0x15]);
+            fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+
+            if (item_entry[0xd] == 0x17) {
+                rc = data_fd2_battle_runtime_char_array_ptr;
+                if (rc[char_idx].char_id != 0x18
+                    || rc[char_idx].mp_max < 0x14) {
+                    target_result = -1;
+                }
+                if (target_result != -1) {
+                    target_result = fd2_wait_for_action_target_input(
+                        6, (uint32)target_buf[0], (uint8 *)0);
+                }
+                if (target_result != -1) {
+                    data_fd2_battle_teleport_dest_world_x =
+                        data_fd2_battle_cursor_world_x;
+                    data_fd2_battle_teleport_dest_world_y =
+                        data_fd2_battle_cursor_world_y;
+                    data_fd2_battle_anim_phase = 0;
+                    fd2_pan_cursor_to_char(char_idx);
+                    data_fd2_battle_anim_phase = 1;
+                }
+            }
+
+            if (target_result != -1) {
+                fd2_apply_use_effect_dispatch(char_idx,
+                    data_fd2_ui_menu_cursor_idx, final_aoe,
+                    (uint32)target_buf);
+                fd2_mark_char_acted_this_turn(char_idx);
+                return 1;
+            }
+
+            data_fd2_battle_anim_phase = 0;
+            fd2_pan_cursor_to_char(char_idx);
+            data_fd2_battle_anim_phase = 1;
+        } while (1);
+    }
+
+    if (data_fd2_ui_menu_cursor_idx != 1) {
+        if (data_fd2_ui_menu_cursor_idx == 2) {
+            fd2_equip_unequip_inventory_menu(char_idx);
+            return 0;
+        }
+        if (fd2_inventory_selection_modal_dispatch(char_idx, 0) != 0) {
+            fd2_remove_inventory_slot_at(char_idx,
+                data_fd2_ui_menu_cursor_idx);
+        }
+        fd2_recalculate_combat_stats(char_idx);
+        return 0;
+    }
+
+    if (fd2_inventory_selection_modal_dispatch(char_idx, 0) != 0) {
+        give_buf = (uint32)malloc(100);
+        give_target_result = fd2_wait_for_action_target_input(3,
+            (uint32)fd2_compute_aoe_targets(data_fd2_battle_cursor_world_x,
+                data_fd2_battle_cursor_world_y, give_buf, 1, 1, 3),
+            (uint8 *)give_buf);
+        target_char_idx = fd2_find_char_at_cursor_pos();
+        fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+        fd2_pan_cursor_to_tile_animated(target_x, target_y);
+        free((void *)give_buf);
+
+        if (give_target_result != -1) {
+            item_id = fd2_get_inventory_slot_item_id(char_idx,
+                data_fd2_ui_menu_cursor_idx);
+            add_result = fd2_add_item_to_inventory(target_char_idx,
+                (uint32)item_id);
+            if (add_result == -1) {
+                saved_my_slot = data_fd2_ui_menu_cursor_idx;
+                if (fd2_inventory_selection_modal_dispatch(target_char_idx, 0)
+                        == 0) {
+                    goto recalc_and_exit;
+                }
+                swapped_item_id = fd2_get_inventory_slot_item_id(
+                    target_char_idx, data_fd2_ui_menu_cursor_idx);
+                fd2_remove_inventory_slot_at(target_char_idx,
+                    data_fd2_ui_menu_cursor_idx);
+                fd2_add_item_to_inventory(target_char_idx, (uint32)item_id);
+                fd2_remove_inventory_slot_at(char_idx, saved_my_slot);
+                fd2_add_item_to_inventory(char_idx, (uint32)swapped_item_id);
+            }
+            else {
+                fd2_remove_inventory_slot_at(char_idx,
+                    data_fd2_ui_menu_cursor_idx);
+            }
+            data_fd2_battle_player_action_result_code = 1;
+        }
+    }
+recalc_and_exit:
+    fd2_recalculate_combat_stats(char_idx);
+    return 0;
+}
+
+/* ----------------------------------------------------------------
  * fd2_inventory_grid_input_step @ 0x1B9DE  (2 callers)
  *
  * One frame of inventory-grid selection input. Redraws char_idx's 8-slot

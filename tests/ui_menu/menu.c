@@ -55,15 +55,15 @@ extern int g_blitsetup_calls;
 extern int g_pathfind_walk_return;
 
 /* inline-action-menu dispatch seams (testglob.c): control the not-yet-emitted
- * spell/item submenus and the field tile-event handler so the inline action
+ * spell submenu and the field tile-event handler so the inline action
  * dispatcher can be driven to each selection branch. The Item-slot gate is now
- * the REAL fd2_count_usable_inventory_slots reading iam_chars inventory flags. */
+ * the REAL fd2_count_usable_inventory_slots reading iam_chars inventory flags;
+ * the Item branch itself (now-real fd2_item_command_menu_dispatch) is deferred
+ * to Phase 9 (see the note above its former tests). */
 extern int g_build_spell_list_return;       /* 0 => Spell slot gated */
 extern int g_inline_spell_menu_return;
 extern int g_inline_spell_menu_calls;
 extern int g_inline_spell_menu_pending;   /* XP the spell stub credits on commit */
-extern int g_inline_item_menu_return;
-extern int g_inline_item_menu_calls;
 
 /* Host-safe render environment for the real open-dialog reached on every
  * field-command iteration: empty party (no real char paint), a real workspace
@@ -369,7 +369,6 @@ static uint32 iam_saved_pending_xp;
 static int iam_saved_build_spells;
 static int iam_saved_spell_return;
 static int iam_saved_spell_pending;
-static int iam_saved_item_return;
 
 /* Single player char at index 0, host-safe render env, no weapon equipped.
  * The caller sets the spell/inventory gating seams and stages scancodes. */
@@ -385,7 +384,6 @@ static void iam_setup(uint8 job_id, uint8 level, uint8 silence_flag)
     iam_saved_build_spells = g_build_spell_list_return;
     iam_saved_spell_return = g_inline_spell_menu_return;
     iam_saved_spell_pending = g_inline_spell_menu_pending;
-    iam_saved_item_return = g_inline_item_menu_return;
     iam_saved_tile_map_ptr = data_fd2_battle_tile_map_ptr;
     iam_saved_tile_attr_ptr = data_fd2_tile_attribute_flags_buffer_ptr;
     iam_saved_consumed_ptr = data_fd2_field_map_tile_event_consumed_flags_ptr;
@@ -418,7 +416,6 @@ static void iam_setup(uint8 job_id, uint8 level, uint8 silence_flag)
      * fd2_find_equipped_item_by_kind(0,0) returns 0xFFFFFFFF => Attack gated. */
     g_inline_spell_menu_pending = 0;    /* default: cast credits no XP */
     g_inline_spell_menu_calls = 0;
-    g_inline_item_menu_calls = 0;
 }
 
 static void iam_teardown(void)
@@ -431,7 +428,6 @@ static void iam_teardown(void)
     g_build_spell_list_return = iam_saved_build_spells;
     g_inline_spell_menu_return = iam_saved_spell_return;
     g_inline_spell_menu_pending = iam_saved_spell_pending;
-    g_inline_item_menu_return = iam_saved_item_return;
     data_fd2_battle_tile_map_ptr = iam_saved_tile_map_ptr;
     data_fd2_tile_attribute_flags_buffer_ptr = iam_saved_tile_attr_ptr;
     data_fd2_field_map_tile_event_consumed_flags_ptr = iam_saved_consumed_ptr;
@@ -570,48 +566,15 @@ static void test_inline_action_spell_cancel(void)
     iam_teardown();
 }
 
-/* Item commit: item use grants no XP -> pending_xp_credit forced to 0. */
-static void test_inline_action_item_no_xp(void)
-{
-    int32 slot[4];
-    int r;
-
-    iam_setup(5, 4, 0);
-    /* iam_chars slots all clear => REAL count_usable returns 8 => Item enabled */
-    g_build_spell_list_return = 0;
-    g_inline_item_menu_return = 1;       /* item committed */
-    data_fd2_battle_pending_xp_credit = 0x777;   /* must be reset to 0 */
-
-    slot[0] = 0; slot[1] = 0; slot[2] = 0; slot[3] = 0;
-    mfix_load_select(2);                 /* Right -> cursor 2, Space commit */
-    r = fd2_player_inline_action_menu_dispatch(0, slot, 0);
-
-    ASSERT_EQ(r, 1);
-    ASSERT_EQ(g_inline_item_menu_calls, 1);
-    ASSERT_EQ((int)data_fd2_battle_pending_xp_credit, 0);
-    iam_teardown();
-}
-
-/* Item submenu cancel (-1): returns 0 (re-prompt). */
-static void test_inline_action_item_cancel(void)
-{
-    int32 slot[4];
-    int r;
-
-    iam_setup(5, 4, 0);
-    /* iam_chars slots all clear => REAL count_usable returns 8 => Item enabled */
-    g_build_spell_list_return = 0;
-    g_inline_item_menu_return = -1;
-    data_fd2_battle_pending_xp_credit = 0;
-
-    slot[0] = 0; slot[1] = 0; slot[2] = 0; slot[3] = 0;
-    mfix_load_select(2);
-    r = fd2_player_inline_action_menu_dispatch(0, slot, 0);
-
-    ASSERT_EQ(r, 0);
-    ASSERT_EQ(g_inline_item_menu_calls, 1);
-    iam_teardown();
-}
+/* The Item branch (cursor 2) of the inline action dispatcher loops the now-real
+ * fd2_item_command_menu_dispatch (src/ui_menu/status.c). That callee opens its
+ * own settings dialog and blocks on a keyboard read whose BIOS buffer the
+ * caller's preceding close-dialog already cleared, with no async key source in
+ * the host harness — so its commit (r==1 -> pending_xp reset to 0) and cancel
+ * (r==-1 -> re-prompt return 0) post-conditions cannot be driven in-process and
+ * are deferred to Phase 9 integration (the same deferral applied above to the
+ * field-command heavy-UI submenus). The item command menu's own early-out path
+ * is unit-tested directly in tests/ui_menu/status.c. */
 
 /* Wait (cursor 3, default branch), have_moved = 1: the heal is skipped (gated
  * on have_moved == 0); the real fd2_handle_tile_event_interaction runs (it
@@ -680,8 +643,6 @@ void run_ui_menu_menu_tests(void)
     RUN_TEST(test_inline_action_spell_xp_lowjob);
     RUN_TEST(test_inline_action_spell_xp_highjob);
     RUN_TEST(test_inline_action_spell_cancel);
-    RUN_TEST(test_inline_action_item_no_xp);
-    RUN_TEST(test_inline_action_item_cancel);
     RUN_TEST(test_inline_action_wait_moved);
     RUN_TEST(test_inline_action_wait_not_moved);
     printf("\n");
