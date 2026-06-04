@@ -1591,8 +1591,9 @@
     "name": "fd2_animate_attack_hit_sequence",
     "target": "anim/anicombt.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001eb05": {
     "name": "fd2_animate_combat_speech_bubbles",

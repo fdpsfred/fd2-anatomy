@@ -935,17 +935,13 @@ uint32 fd2_animate_combat_speech_bubbles(uint32 ci, uint32 ti) { return 0; }
 /* fd2_animate_combat_hit_with_hp_drain is now a real emitted function
  * (src/anim/anicombt.c); its former no-op stub here was removed. It drives the
  * real damage calc + the real fd2_render_combat_hp_bar_segments bar drain, and
- * calls the (still-stubbed) fd2_animate_attack_hit_sequence once per hit -- the
- * tests in tests/anim/anicombt observe the hit count through that stub's
- * g_attack_hit_seq_calls counter and the bar drain through g_delay375b2_calls /
- * the g_blitraw raw-blit log. */
-int g_attack_hit_seq_calls = 0;
-void fd2_animate_attack_hit_sequence(uint32 attacker_idx, uint32 defender_idx)
-{
-    g_attack_hit_seq_calls++;
-    (void)attacker_idx;
-    (void)defender_idx;
-}
+ * the real fd2_animate_attack_hit_sequence once per hit. The caller's tests in
+ * tests/anim/anicombt point the weapon attack-pattern slot at a zero-step
+ * script so the hit sequence is a no-op there, and observe the hit count
+ * through the per-miss bar-drain frame count (g_delay375b2_calls). */
+/* fd2_animate_attack_hit_sequence is now a real emitted function
+ * (src/anim/anicombt.c); its former call-counting stub (g_attack_hit_seq_calls)
+ * here was removed. */
 void fd2_play_full_combat_cinematic(uint32 a, uint32 d) { }
 /* fd2_process_xp_and_level_up_for_char: now emitted in src/battle/btl_turn.c
  * and linked for real; driven by the test_xp_* cases below. */

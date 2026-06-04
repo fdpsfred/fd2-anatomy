@@ -935,3 +935,95 @@ int fd2_animate_combat_hit_with_hp_drain(uint32 attacker_idx, uint32 defender_id
     } while (surviving_HP != 0);
     return 0;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_animate_attack_hit_sequence @ 0x1E98C (1 caller)
+ *
+ * Weapon-attack hit animation: per-step sprite + SFX sequence played at
+ * the defender's on-screen position.
+ *
+ *   weapon_slot = fd2_find_equipped_item_by_kind(attacker_idx, 0)
+ *   weapon_id   = fd2_get_inventory_slot_item_id(attacker_idx, weapon_slot)
+ *   pWeapon     = fd2_get_item_effect_entry(weapon_id)
+ *   pattern     = fd2_get_attack_anim_pattern_for_weapon(pWeapon[0])
+ *   step_count  = pattern[0]
+ *
+ * Each weapon has its own attack pattern (sword swing / bow shot / spell
+ * book cast, ...); the pattern table is supplied by
+ * fd2_get_attack_anim_pattern_for_weapon. For each step:
+ *   sprite_id = pattern[step*2 + 1]
+ *   sfx_id    = pattern[step*2 + 2]   (0xFF = silent)
+ *   if sfx_id != 0xFF:
+ *       if last-hit/miss flag != 0 (a miss): sfx_id := 4 (forced whoosh)
+ *       fd2_play_sfx_with_handle(walk_overlay_ptr, sfx_id, 1)
+ *   pose switch (only on a hit; a miss leaves the attacker still):
+ *       step 0 && !miss: paint(0xA0504, 0x140, defender_idx, mode=2, 0xFD) (attack pose)
+ *       step 1 && !miss: paint(0xA0504, 0x140, defender_idx, mode=0, 0)    (back to idle)
+ *   draw the hit sprite at the defender's tile:
+ *       saved = fd2_alloc_and_blit_indexed_sprite_chunk(
+ *                   portrait_sheet, 0xA0000, 0x140,
+ *                   (pos_x - origin_x)*0x18 + 4, (pos_y - origin_y)*0x18, sprite_id)
+ *       __delay_thunk_375b2(0x50)   (~80 ms)
+ *       fd2_cleanup_dialog_sprite_buffer(saved, 0xA0000, 0x140)
+ *
+ * The paint target index is the defender (EBP = arg2 = defender_idx at
+ * 0x1E99D / 0x1EA4E / 0x1EA4E), per both the disassembly and the decompiler.
+ *
+ * EAX-bug note: the cleanup call receives the SAVE-BLOCK HANDLE returned by
+ * fd2_alloc_and_blit_indexed_sprite_chunk (asm 0x1EA86 MOV ESI,EAX captures
+ * the return value, passed to cleanup at 0x1EA9F PUSH ESI), NOT the sprite
+ * id. Ghidra's decompiler lost the EAX value across the CALL and incorrectly
+ * reused the sprite id (sprite_buf_arg) as the cleanup argument; the faithful
+ * argument is the malloc'd save buffer that cleanup restores then frees.
+ *
+ * 1 caller: fd2_animate_combat_hit_with_hp_drain.
+ * ---------------------------------------------------------------- */
+void fd2_animate_attack_hit_sequence(uint32 attacker_idx, uint32 defender_idx)
+{
+    runtime_char *defender;
+    uint8 *weapon_entry;
+    uint8 *pattern;
+    uint32 weapon_slot;
+    uint8 weapon_id;
+    uint8 step_count;
+    uint32 step_iter;
+    uint32 sfx_byte;
+    uint32 sprite_id;
+    uint32 dst_x;
+    uint32 dst_y;
+    uint32 saved_block;
+
+    weapon_slot = fd2_find_equipped_item_by_kind(attacker_idx, 0);
+    weapon_id = fd2_get_inventory_slot_item_id(attacker_idx, weapon_slot);
+    weapon_entry = fd2_get_item_effect_entry(weapon_id);
+    pattern = fd2_get_attack_anim_pattern_for_weapon(weapon_entry[0]);
+    step_count = pattern[0];
+
+    defender = &data_fd2_battle_runtime_char_array_ptr[defender_idx];
+    dst_x = ((uint32)defender->pos_x - data_fd2_battle_view_window_origin_x) * 0x18 + 4;
+    dst_y = ((uint32)defender->pos_y - data_fd2_battle_view_window_origin_y) * 0x18;
+
+    for (step_iter = 0; (int)step_iter < (int)(uint32)step_count; step_iter++) {
+        sfx_byte = pattern[step_iter * 2 + 2];
+        if (sfx_byte != 0xff) {
+            if (data_fd2_battle_last_hit_or_miss_flag != 0) {
+                sfx_byte = 4;
+            }
+            fd2_play_sfx_with_handle(data_fd2_battle_fast_mode_walk_overlay_ptr,
+                                     (int)sfx_byte, 1);
+        }
+
+        if (step_iter == 0 && data_fd2_battle_last_hit_or_miss_flag == 0) {
+            fd2_paint_char_sprite_at_world_with_mode(0xa0504, 0x140, defender_idx, 2, 0xfd);
+        } else if (step_iter == 1 && data_fd2_battle_last_hit_or_miss_flag == 0) {
+            fd2_paint_char_sprite_at_world_with_mode(0xa0504, 0x140, defender_idx, 0, 0);
+        }
+
+        sprite_id = pattern[step_iter * 2 + 1];
+        saved_block = fd2_alloc_and_blit_indexed_sprite_chunk(
+            data_fd2_resource_portrait_sheet_ptr, 0xa0000, 0x140,
+            dst_x, dst_y, sprite_id);
+        __delay_thunk_375b2(0x50);
+        fd2_cleanup_dialog_sprite_buffer(saved_block, 0xa0000, 0x140);
+    }
+}
