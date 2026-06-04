@@ -350,6 +350,261 @@ static void test_chpost12_neighbor_slots_ignored(void)
     chpost10_teardown();
 }
 
+/* ============================================================
+ * fd2_chapter_13_post_action @ 0x20765
+ *
+ * The most complex non-default handler. Same default win/lose check
+ * (fd2_check_battle_end_condition, linked real), then TWO independent
+ * lose conditions, each of which sets game_event_flag = 1 AND plays a
+ * chapter dialog page through the REAL fd2_display_dialog_scene:
+ *   1. all of runtime_char[0xF..0x1A] (12 slots) dead -> page 10.
+ *      The loop does NOT early-exit: it sets a "some slot alive" flag the
+ *      instant any slot reports alive and scans the full range, so the
+ *      condition fires only when no slot in [0xF,0x1A] is alive.
+ *   2. turn counter (0x53BEF) > 5 AND runtime_char[0x3B] dead -> page 2.
+ *
+ * Deadness for both conditions is queried through fd2_check_char_is_dead,
+ * the real engine computing it as runtime_char[idx].flags bit0; these tests
+ * opt into the testglob array-reading mode (g_check_char_is_dead_use_array
+ * = 1) so per-slot .flags drive each result. Slot 0x3B (59) is reached, so
+ * a 64-slot local buffer is used (t_rc10 is only 56 slots).
+ *
+ * fd2_display_dialog_scene is linked real (a dialog-bytecode VM). Each
+ * override sets the flag and calls it within the SAME basic block (the
+ * disassembly has no branch between MOV [0x53ECC],1 and CALL 0x15F84), so
+ * asserting the flag's 2 -> 1 transition fully pins that the override block
+ * ran, and the dialog call is guaranteed to follow. To keep the real VM
+ * side-effect-free here, current_chapter_text is pointed at an immediate-END
+ * program (every page word references a -1 END marker): the VM dereferences
+ * current_chapter_text + page*2, reads END, and returns at once without
+ * touching the framebuffer or loading DATO.DAT. A clean (non-crashing) pass
+ * therefore also confirms the real VM survives the chapter-13 call shape.
+ *
+ * Coverage is risk-driven for: the two independent conditions and their
+ * interaction, the full-scan-no-early-exit loop over [0xF,0x1A] and its
+ * exact bounds, and the strict turn `> 5` comparator (easy to read as >=):
+ *   - nothing triggered (all NPC alive, turn<=5)     -> flag stays 2
+ *   - all 12 NPC dead, turn<=5                        -> cond1 fires (page 10)
+ *   - first slot 0xF alive (rest dead)               -> cond1 does NOT fire
+ *   - last slot 0x1A alive (rest dead)               -> cond1 does NOT fire
+ *   - neighbors 0xE/0x1B alive, [0xF,0x1A] dead      -> cond1 fires
+ *   - turn==5, slot 0x3B dead                        -> cond2 does NOT fire
+ *   - turn==6, slot 0x3B alive                       -> cond2 does NOT fire
+ *   - turn==6, slot 0x3B dead, NPCs alive            -> cond2 fires (page 2)
+ *   - turn==6, neighbors 0x3A/0x3C dead, 0x3B alive  -> cond2 does NOT fire
+ *   - all 12 NPC dead AND turn==6 AND 0x3B dead       -> both fire
+ * ============================================================ */
+
+#define CH13_RC_SLOTS 64
+static runtime_char t_rc13[CH13_RC_SLOTS];
+
+/* Immediate-END dialog program for current_chapter_text: every page word
+ * (pages 0..0x3F, covering pages 2 and 10) points at a -1 END marker parked
+ * high in the buffer, so the real fd2_display_dialog_scene returns at once. */
+static uint16 t_ch13_text[0x400];
+
+static void ch13_text_all_end(void)
+{
+    int i;
+
+    for (i = 0; i < 0x400; i++) {
+        t_ch13_text[i] = 0;
+    }
+    *(int16 *)((uint8 *)t_ch13_text + 0x780) = -1;     /* END marker */
+    for (i = 0; i < 0x3c0; i++) {
+        t_ch13_text[i] = (uint16)0x780;                /* byte offset of END */
+    }
+    current_chapter_text = (uint32)t_ch13_text;
+}
+
+/* All slots team=2 / alive so fd2_check_battle_end_condition yields flag=2,
+ * making each override observable as a clean 2 -> 1. Default turn counter is
+ * 0 (<= 5) so condition 2 is inert unless a test raises it. */
+static void chpost13_setup(void)
+{
+    int i;
+
+    memset(t_rc13, 0, sizeof(t_rc13));
+    for (i = 0; i < CH13_RC_SLOTS; i++) {
+        t_rc13[i].team = 2;     /* player team: never an alive enemy */
+        t_rc13[i].flags = 0;    /* alive */
+    }
+    data_fd2_battle_runtime_char_array_ptr = t_rc13;
+    data_fd2_battle_party_member_count = CH13_RC_SLOTS;
+    data_fd2_chapter_event_or_battle_end_code = 0;
+    data_fd2_battle_turn_counter = 0;
+    g_check_char_is_dead_use_array = 1;   /* per-slot .flags drive deadness */
+    ch13_text_all_end();
+}
+
+static void chpost13_teardown(void)
+{
+    g_check_char_is_dead_use_array = 0;   /* restore index-agnostic default */
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_battle_turn_counter = 0;
+}
+
+/* mark slots [0xF, 0x1A] (the 12 condition-1 NPCs) dead */
+static void ch13_kill_npc_range(void)
+{
+    int i;
+
+    for (i = 0xF; i <= 0x1A; i++) {
+        t_rc13[i].flags = CHARFLAG_DEAD;
+    }
+}
+
+/* No condition triggered: every NPC alive (cond1 false) and turn 0 <= 5
+ * (cond2 inert). The default flag (2) survives -> neither override ran. */
+static void test_chpost13_nothing_triggered_keeps_default(void)
+{
+    chpost13_setup();
+
+    fd2_chapter_13_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost13_teardown();
+}
+
+/* All 12 NPCs (slots 0xF..0x1A) dead, turn <= 5 -> condition 1 fires: the
+ * loop scans the whole range finding none alive, sets game_event_flag = 1
+ * and plays page 10 via the real (immediate-END) dialog VM. */
+static void test_chpost13_all_npc_dead_cond1_game_over(void)
+{
+    chpost13_setup();
+    ch13_kill_npc_range();
+
+    fd2_chapter_13_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost13_teardown();
+}
+
+/* First condition-1 slot (0xF) alive, 0x10..0x1A dead -> the loop sets the
+ * "some alive" flag on iteration 0 and (without early-exit) still completes,
+ * leaving cond1 false. Pins the loop start index = 0xF. */
+static void test_chpost13_cond1_first_slot_alive_keeps_default(void)
+{
+    chpost13_setup();
+    ch13_kill_npc_range();
+    t_rc13[0xF].flags = 0;          /* slot 0xF alive */
+
+    fd2_chapter_13_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost13_teardown();
+}
+
+/* Last condition-1 slot (0x1A) alive, 0xF..0x19 dead -> the loop survives 11
+ * dead slots and only sees the survivor at its final iteration, so cond1 does
+ * NOT fire. Pins the inclusive upper bound = 0x1A (i < 0xC). */
+static void test_chpost13_cond1_last_slot_alive_keeps_default(void)
+{
+    chpost13_setup();
+    ch13_kill_npc_range();
+    t_rc13[0x1A].flags = 0;         /* slot 0x1A alive */
+
+    fd2_chapter_13_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost13_teardown();
+}
+
+/* Neighbors 0xE and 0x1B alive while [0xF,0x1A] are all dead -> cond1 still
+ * fires. Proves the scanned range is exactly [0xF,0x1A] (a survivor just
+ * below or just above the range does not prevent game over). turn stays <= 5
+ * so cond2 cannot interfere. */
+static void test_chpost13_cond1_neighbors_outside_range_ignored(void)
+{
+    chpost13_setup();
+    ch13_kill_npc_range();
+    t_rc13[0xE].flags = 0;          /* below range, alive */
+    t_rc13[0x1B].flags = 0;         /* above range, alive */
+
+    fd2_chapter_13_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost13_teardown();
+}
+
+/* Condition 2 with turn == 5 (NOT > 5) and slot 0x3B dead -> cond2 does NOT
+ * fire. NPCs left alive so cond1 is also false. Pins the strict `turn > 5`
+ * comparator (the boundary value 5 must not trigger). */
+static void test_chpost13_cond2_turn_eq_5_keeps_default(void)
+{
+    chpost13_setup();
+    data_fd2_battle_turn_counter = 5;
+    t_rc13[0x3B].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_13_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost13_teardown();
+}
+
+/* Condition 2 with turn == 6 (> 5) but slot 0x3B alive -> cond2 does NOT
+ * fire. Pins that the deadness of 0x3B is required, not just the turn gate. */
+static void test_chpost13_cond2_boss_alive_keeps_default(void)
+{
+    chpost13_setup();
+    data_fd2_battle_turn_counter = 6;
+    /* slot 0x3B already alive from setup */
+
+    fd2_chapter_13_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost13_teardown();
+}
+
+/* Condition 2 fires: turn == 6 (> 5) AND slot 0x3B dead, NPCs left alive so
+ * cond1 stays false. game_event_flag goes 2 -> 1 and page 2 plays via the
+ * real (immediate-END) dialog VM. Isolates cond2 from cond1. */
+static void test_chpost13_cond2_boss_dead_game_over(void)
+{
+    chpost13_setup();
+    data_fd2_battle_turn_counter = 6;
+    t_rc13[0x3B].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_13_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost13_teardown();
+}
+
+/* Condition 2 with turn > 5 but neighbors 0x3A and 0x3C dead while 0x3B is
+ * alive -> cond2 does NOT fire. Proves the checked slot is exactly 0x3B (no
+ * off-by-one in either direction). */
+static void test_chpost13_cond2_neighbor_slots_ignored(void)
+{
+    chpost13_setup();
+    data_fd2_battle_turn_counter = 6;
+    t_rc13[0x3A].flags = CHARFLAG_DEAD;
+    t_rc13[0x3C].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_13_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost13_teardown();
+}
+
+/* Both conditions satisfied at once: all 12 NPCs dead AND turn == 6 AND slot
+ * 0x3B dead. Both override blocks run (each sets the flag and plays its page
+ * through the real dialog VM); the resulting flag is 1. Exercises the
+ * sequential, independent structure of the two conditions in one call. */
+static void test_chpost13_both_conditions_game_over(void)
+{
+    chpost13_setup();
+    ch13_kill_npc_range();
+    data_fd2_battle_turn_counter = 6;
+    t_rc13[0x3B].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_13_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost13_teardown();
+}
+
 void run_field_chpost_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -367,5 +622,15 @@ void run_field_chpost_tests(void)
     RUN_TEST(test_chpost12_npc_alive_keeps_default);
     RUN_TEST(test_chpost12_npc_dead_game_over);
     RUN_TEST(test_chpost12_neighbor_slots_ignored);
+    RUN_TEST(test_chpost13_nothing_triggered_keeps_default);
+    RUN_TEST(test_chpost13_all_npc_dead_cond1_game_over);
+    RUN_TEST(test_chpost13_cond1_first_slot_alive_keeps_default);
+    RUN_TEST(test_chpost13_cond1_last_slot_alive_keeps_default);
+    RUN_TEST(test_chpost13_cond1_neighbors_outside_range_ignored);
+    RUN_TEST(test_chpost13_cond2_turn_eq_5_keeps_default);
+    RUN_TEST(test_chpost13_cond2_boss_alive_keeps_default);
+    RUN_TEST(test_chpost13_cond2_boss_dead_game_over);
+    RUN_TEST(test_chpost13_cond2_neighbor_slots_ignored);
+    RUN_TEST(test_chpost13_both_conditions_game_over);
     printf("\n");
 }

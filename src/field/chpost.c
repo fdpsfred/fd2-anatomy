@@ -94,3 +94,59 @@ void fd2_chapter_12_post_action(uint32 event_arg)
         data_fd2_chapter_event_or_battle_end_code = 1;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_13_post_action @ 0x20765  (dispatched, 0 direct callers)
+ *
+ * Chapter 13 turn-cycle post-action handler. Reached via
+ * data_fd2_chapter_post_action_handler_table[12] (table @ 0x51B19,
+ * indexed by current_chapter_id). The dispatch site pushes one cdecl
+ * arg (active char_idx) and cleans it; event_arg is unused by the body.
+ *
+ * The most complex non-default handler: it runs the default win/lose
+ * check, then adds two independent lose conditions, each of which sets
+ * game_event_flag (0x53ECC) to 1 AND plays a chapter dialog page:
+ *
+ *   1. If every one of the 12 NPC/enemy slots runtime_char[0xF..0x1A] is
+ *      dead, show current_chapter_text page 10. The loop does NOT early
+ *      exit; it sets a "some slot still alive" flag the instant any slot
+ *      reports alive (fd2_check_char_is_dead == 0) and runs to completion,
+ *      so the condition fires only when no slot in the range is alive.
+ *   2. If the turn counter (0x53BEF) is greater than 5 AND the boss-ish
+ *      NPC at runtime_char[0x3B] is dead, show current_chapter_text page 2.
+ *
+ * The dialog calls use the chapter's standard glyph geometry (render base
+ * 0xA0000, pitch 0x140, glyph params 0xCD/0x4C/0x4A, height 0x13) with
+ * blink_flag = 1.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_13_post_action(uint32 event_arg)
+{
+    int i;
+    int some_npc_alive;
+
+    (void)event_arg;
+
+    some_npc_alive = 0;
+
+    fd2_check_battle_end_condition();
+
+    for (i = 0; i < 0xC; i++) {
+        if (fd2_check_char_is_dead(i + 0xF) == 0) {
+            some_npc_alive = 1;
+        }
+    }
+
+    if (some_npc_alive == 0) {
+        data_fd2_chapter_event_or_battle_end_code = 1;
+        fd2_display_dialog_scene(current_chapter_text, 10, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+    }
+
+    if ((int32)data_fd2_battle_turn_counter > 5) {
+        if (fd2_check_char_is_dead(0x3B) != 0) {
+            data_fd2_chapter_event_or_battle_end_code = 1;
+            fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, 0x140,
+                                     0xCD, 0x4C, 0x4A, 0x13, 1);
+        }
+    }
+}
