@@ -2,7 +2,7 @@ export const meta = {
   name: 'fd2-emit-review',
   description: 'FD2 per-function emit/review: 3-source verify, build gate, git diff, per-function commit. One function at a time (serial).',
   phases: [
-    { title: 'Process', detail: 'serial; one progress box per function (item), headed "k/total items done · name"; that box\'s body = the function\'s emit/review/fix/commit agents ("n/total agents done")' },
+    { title: 'Process', detail: 'per function: (emit ->) review -> iterate <=4 -> commit' },
   ],
 }
 
@@ -243,11 +243,6 @@ const kStr = (k) => (k < 0 ? 'n/a' : '~' + k + 'k')
 for (let i = 0; i < fns.length; i++) {
   const fn = fns[i]
   const tag = '[' + (i + 1) + '/' + fns.length + '] ' + fn.name
-  // Per-function progress box: header carries "k/total items done" (k = functions
-  // approved+committed so far) so the live /workflows summary shows item progress
-  // ABOVE this function's own "n/total agents done" agent count. items == functions.
-  const doneCount = results.filter(r => r.status === 'approved').length
-  const ptitle = doneCount + '/' + fns.length + ' items done · ' + fn.name
   let fnStart = 0
   try { fnStart = budget.spent() } catch (e) { fnStart = 0 }
   const fnK = () => { try { return Math.round((budget.spent() - fnStart) / 1000) } catch (e) { return -1 } }
@@ -261,26 +256,25 @@ for (let i = 0; i < fns.length; i++) {
     break
   }
 
-  phase(ptitle)   // open this function's item box only once we commit to running it
   log(tag + ' — start (' + fn.mode + ') [batch out-tok ' + kStr(batchK()) + ']')
   try {
     let emitterOut = null
     if (fn.mode === 'emit') {
-      emitterOut = await runAgent(emitterPrompt(fn, 'emit', null), { schema: EMITTER_SCHEMA, label: 'emit:' + fn.name, phase: ptitle })
+      emitterOut = await runAgent(emitterPrompt(fn, 'emit', null), { schema: EMITTER_SCHEMA, label: 'emit:' + fn.name, phase: 'Process' })
     }
 
-    let verdict = await runAgent(reviewerPrompt(fn, emitterOut), { schema: REVIEWER_SCHEMA, label: 'review:' + fn.name, phase: ptitle })
+    let verdict = await runAgent(reviewerPrompt(fn, emitterOut), { schema: REVIEWER_SCHEMA, label: 'review:' + fn.name, phase: 'Process' })
     let round = 0
     while (verdict && !verdict.approved && round < MAX_ROUNDS) {
       const nIssues = (verdict.blocking_issues || []).length
       log(tag + ' — fix round ' + (round + 1) + ' (' + nIssues + ' blocking) [fn out-tok ' + kStr(fnK()) + ']')
-      emitterOut = await runAgent(emitterPrompt(fn, 'fix', verdict), { schema: EMITTER_SCHEMA, label: 'fix:' + fn.name + ':' + (round + 1), phase: ptitle })
-      verdict = await runAgent(reviewerPrompt(fn, emitterOut), { schema: REVIEWER_SCHEMA, label: 'rereview:' + fn.name + ':' + (round + 1), phase: ptitle })
+      emitterOut = await runAgent(emitterPrompt(fn, 'fix', verdict), { schema: EMITTER_SCHEMA, label: 'fix:' + fn.name + ':' + (round + 1), phase: 'Process' })
+      verdict = await runAgent(reviewerPrompt(fn, emitterOut), { schema: REVIEWER_SCHEMA, label: 'rereview:' + fn.name + ':' + (round + 1), phase: 'Process' })
       round++
     }
 
     if (verdict && verdict.approved) {
-      const commitInfo = await agent(bookkeepPrompt(fn, verdict, emitterOut), { label: 'commit:' + fn.name, phase: ptitle })
+      const commitInfo = await agent(bookkeepPrompt(fn, verdict, emitterOut), { label: 'commit:' + fn.name, phase: 'Process' })
       log(tag + ' — APPROVED & committed after ' + round + ' fix round(s) | fn ' + kStr(fnK()) + ' out-tok, batch ' + kStr(batchK()))
       results.push({ addr: fn.addr, name: fn.name, status: 'approved', rounds: round, commit: commitInfo, out_tok_k: fnK(), emit_issues: verdict.emit_issues_to_log || [] })
     } else {
