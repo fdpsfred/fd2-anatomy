@@ -384,6 +384,11 @@ int32  data_fd2_dialog_advance_collapse_template[4] = { 0x10, 0x11, 0x10, 0x11 }
 uint32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4] = {0};
 uint32 data_fd2_chapter_intro_dialog_anim_frame_idx = 0;
 uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
+/* chapter-intro overlay (rndmenu.c) globals */
+uint32 data_fd2_chapter_intro_menu_cursor_state = 0;
+uint32 data_fd2_chapter_intro_menu_overlay_buf_ptr = 0;
+uint8  data_fd2_chapter_intro_portrait_pose_y_row_table[18] = {0};
+uint8  data_fd2_chapter_intro_portrait_pose_x_column_table[18] = {0};
 void fd2_render_chapter_dialog_borders(void) { }
 void fd2_render_chapter_intro_dialog_panels(uint32 c, uint32 m) { }
 /* capture wiring for fd2_blit_indexed_sprite_with_alloc tests; also drives the

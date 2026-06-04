@@ -169,8 +169,15 @@ extern uint32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4]; /* 0x52
 extern uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch;         /* 0x54127 */
 
 /* ---- chapter intro dialog anim ---- */
+extern uint32 data_fd2_chapter_intro_menu_cursor_state;                 /* 0x5412B */
+extern uint32 data_fd2_chapter_intro_menu_overlay_buf_ptr;              /* 0x5413B */
 extern uint32 data_fd2_chapter_intro_dialog_anim_frame_idx;             /* 0x54133 */
 extern uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr;             /* 0x54147 */
+/* per-chapter portrait pose tables (byte[18]), indexed by
+ * chapter_category*6 + cursor_state. dst = lgsb + 0x8088
+ * + pose_x_column[off]*stride + pose_y_row[off] (matches Ghidra symbols). */
+extern uint8  data_fd2_chapter_intro_portrait_pose_y_row_table[18];     /* 0x52635 */
+extern uint8  data_fd2_chapter_intro_portrait_pose_x_column_table[18];  /* 0x52647 */
 
 /* ---- text / dialog ---- */
 extern uint32 data_fd2_all_game_text_ptr;                               /* 0x53A7D */
