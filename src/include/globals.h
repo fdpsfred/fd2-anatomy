@@ -21,6 +21,12 @@ extern uint32 data_fd2_chapter_current_chapter_id;                      /* 0x53C
 extern uint32 data_fd2_chapter_event_or_battle_end_code;                /* 0x53ECC */
 extern uint32 data_fd2_chapter_cutscene_event_state;                    /* 0x53AFB */
 
+/* ch20 end-scene char position tables (private to fd2_chapter_20_end) */
+extern const uint8 data_fd2_chapter_ch20_end_scene1_char_pos_x_table[16];  /* 0x521F6 */
+extern const uint8 data_fd2_chapter_ch20_end_scene1_char_pos_y_table[16];  /* 0x52206 */
+extern const uint8 data_fd2_chapter_ch20_end_scene2_char_pos_x_table[9];   /* 0x52216 */
+extern const uint8 data_fd2_chapter_ch20_end_scene2_char_pos_y_table[9];   /* 0x5221F */
+
 /* ---- battle state ---- */
 extern uint32 data_fd2_battle_anim_phase;                               /* 0x51A83 */
 extern uint32 data_fd2_battle_ai_post_action_consequence_idx;           /* 0x51A8F */

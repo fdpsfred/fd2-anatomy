@@ -35,6 +35,7 @@ D:\BIN\WCC386.EXE ui_menu\menucfg.c %CF% -fo=E:\out\obj\menucfg.obj >> E:\out\bu
 D:\BIN\WCC386.EXE ui_menu\menufld.c %CF% -fo=E:\out\obj\menufld.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE spell\spellsel.c %CF% -fo=E:\out\obj\spellsel.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE anim\anicombt.c %CF% -fo=E:\out\obj\anicombt.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE field\chend2.c %CF% -fo=E:\out\obj\chend2.obj >> E:\out\build.out
 
 echo === compile tests === >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\testmain.c %CF% -fo=E:\out\obj\testmain.obj >> E:\out\build.out
@@ -56,6 +57,7 @@ D:\BIN\WCC386.EXE E:\battle\btl_aitg.c %CF% -fo=E:\out\obj\tbtlaitg.obj >> E:\ou
 D:\BIN\WCC386.EXE E:\battle\btl_init.c %CF% -fo=E:\out\obj\tbtlinit.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\battle\btl_turn.c %CF% -fo=E:\out\obj\tbtlturn.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\dialog\dialog.c %CF% -fo=E:\out\obj\tdialog.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE E:\field\chend2.c %CF% -fo=E:\out\obj\tchend2.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\field\chtrans.c %CF% -fo=E:\out\obj\tchtrans.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\gfx\blitspr.c %CF% -fo=E:\out\obj\tblitspr.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\gfx\blittile.c %CF% -fo=E:\out\obj\tblittil.obj >> E:\out\build.out
