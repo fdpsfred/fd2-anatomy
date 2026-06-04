@@ -1192,3 +1192,21 @@ void fd2_setup_chars_and_camera_for_intro(uint32 pos_x_table, uint32 pos_y_table
 }
 
 void fd2_play_chapter_intro_sprite_slideshow(void) { }
+
+/* ---- fd2_chapter_22_end (field/chend2.c) not-yet-emitted callee ----
+ * fd2_cast_screen_wide_spell_with_fade (0x24618 -> anim, pending) — the
+ * FD2-unique white-fade ending's screen-wide radial spell visual. It
+ * malloc's a 150KB backdrop snapshot, runs a 9-frame growing-shockwave
+ * blit loop and a 0x40-step palette flash, and blocks for ~95 ticks of
+ * BIOS-tick delay; it also needs the sprite atlas (tile_anim_table_base)
+ * and the status-effect SFX bank staged. Pure display, so a no-op here;
+ * deferred to Phase 9 integration. Stubbing it lets fd2_chapter_22_end run
+ * end-to-end on-host so the tail-jump save-template + chapter-advance is
+ * observable. Remove this double when the real function is emitted. */
+void fd2_cast_screen_wide_spell_with_fade(uint32 epicenter_tile_x,
+                                          uint32 epicenter_tile_y,
+                                          uint32 starting_radius,
+                                          int radius_increment) {
+    (void)epicenter_tile_x; (void)epicenter_tile_y;
+    (void)starting_radius; (void)radius_increment;
+}

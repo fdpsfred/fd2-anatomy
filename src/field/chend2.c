@@ -5,8 +5,11 @@
  *                               data_fd2_chapter_end_handler_table[20])
  * fd2_chapter_21_end @ 0x240FA (0 direct callers; dispatched via
  *                               data_fd2_chapter_end_handler_table[21])
+ * fd2_chapter_22_end @ 0x244B6 (0 direct callers; dispatched via
+ *                               data_fd2_chapter_end_handler_table[22])
  */
 
+#include <string.h>
 #include "types.h"
 #include "consts.h"
 #include "globals.h"
@@ -233,6 +236,83 @@ void fd2_chapter_21_end(void)
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_init_runtime_char_from_base_growth(0x18);
     fd2_init_runtime_char_from_base_growth(0x17);
+    fd2_save_runtime_char_to_template();
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}
+
+/* ----------------------------------------------------------------
+ * Chapter-22 end-scene character tables (FD2.LE data @ 0x52273 /
+ * 0x52283 / 0x52293). Private read-only tables referenced only by
+ * fd2_chapter_22_end; the Watcom prologue copies each 16-byte table onto
+ * stack scratch as four dwords before fd2_setup_chars_and_camera_for_intro
+ * indexes them by char slot. The facing table is uniform 0x02 except slot 1
+ * (希爾法) which faces 0x00.
+ * ---------------------------------------------------------------- */
+const uint8 data_fd2_chapter_ch22_end_scene_char_pos_x_table[16] = {
+    0x16, 0x16, 0x15, 0x17, 0x14, 0x15, 0x16, 0x17,
+    0x18, 0x14, 0x15, 0x16, 0x17, 0x18, 0x15, 0x17
+};
+const uint8 data_fd2_chapter_ch22_end_scene_char_pos_y_table[16] = {
+    0x16, 0x14, 0x16, 0x16, 0x17, 0x17, 0x17, 0x17,
+    0x17, 0x18, 0x18, 0x18, 0x18, 0x18, 0x19, 0x19
+};
+const uint8 data_fd2_chapter_ch22_end_scene_char_facing_table[16] = {
+    0x02, 0x00, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
+    0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02
+};
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_22_end @ 0x244B6  — Chapter 22「遠古呼喚」end handler.
+ *
+ * Copies the three 16-byte end-scene tables onto the stack, places chars
+ * 0..15 plus the additional NPC slot 0x48 and re-aims the camera via
+ * fd2_setup_chars_and_camera_for_intro, then runs the post-battle dialog
+ * (pages 4/5/6) interleaved with cutscene events 0x41/0x42 and two
+ * cursor/window pans. The FD2-unique white→black fade ending follows:
+ * fd2_cast_screen_wide_spell_with_fade centred on the cursor, a 500-tick
+ * hold, a white-screen flash (memset 0xA0000 to 0xFF), a palette fade to
+ * black, then a black-screen clear (memset 0xA0000 to 0). Finishes by
+ * saving the runtime char templates and advancing current_chapter_id (the
+ * tail shares fd2_chapter_14_end's epilogue snippet @ 0x239AC). No char is
+ * added in the handler — 龍騎士莎拉 joins via an FDFIELD event.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_22.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_22_end(void)
+{
+    uint8 pos_x[16];
+    uint8 pos_y[16];
+    uint8 facing[16];
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        pos_x[i] = data_fd2_chapter_ch22_end_scene_char_pos_x_table[i];
+        pos_y[i] = data_fd2_chapter_ch22_end_scene_char_pos_y_table[i];
+        facing[i] = data_fd2_chapter_ch22_end_scene_char_facing_table[i];
+    }
+
+    fd2_setup_chars_and_camera_for_intro((uint32)pos_x, (uint32)pos_y,
+                                         (uint32)facing, 0, 0xF, 0x48, 0x16,
+                                         0x19, 2, 0x10, 0x12);
+    fd2_display_dialog_scene(current_chapter_text, 4, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_cutscene_event_trigger(0x41);
+    fd2_display_dialog_scene(current_chapter_text, 5, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_pan_cursor_and_window(0x10, 0x10);
+    fd2_cutscene_event_trigger(0x42);
+    fd2_display_dialog_scene(current_chapter_text, 6, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_pan_cursor_and_window(0x10, 0xE);
+
+    fd2_cast_screen_wide_spell_with_fade(data_fd2_battle_cursor_screen_x,
+                                         data_fd2_battle_cursor_screen_y + 3,
+                                         10, 8);
+    __delay_thunk_375b2(500);
+    memset((void *)0xA0000, 0xFF, 64000);
+    fd2_play_palette_fade_to_black();
+    memset((void *)0xA0000, 0, 64000);
+
     fd2_save_runtime_char_to_template();
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }

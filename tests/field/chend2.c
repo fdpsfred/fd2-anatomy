@@ -240,6 +240,10 @@ extern int g_ce_find_calls;
 static uint8 g_ce21_script_3f[1] = { 0 };
 static uint8 g_ce21_script_40[1] = { 0 };
 
+/* zero-group cutscene scripts for ch22's events 0x41 / 0x42. */
+static uint8 g_ce22_script_41[1] = { 0 };
+static uint8 g_ce22_script_42[1] = { 0 };
+
 /* ----------------------------------------------------------------
  * Partial collection (5 holders): collected == 5 != 6, so the page-6 path
  * is taken — it must NOT award the hidden key (item 100). The full count
@@ -327,6 +331,62 @@ static void test_ch21_end_full_collection_awards_key(void)
     ce_restore_rc_ptr();
 }
 
+/* ----------------------------------------------------------------
+ * Chapter 22 end handler — fd2_chapter_22_end @ 0x244B6.
+ *
+ * fd2_chapter_22_end is a straight-line, no-branch display handler (no RNG,
+ * no numeric computation). Its testable risk core is the call sequence
+ * running to completion and the tail-jump fall-through into the shared
+ * fd2_chapter_14_end epilogue snippet @ 0x239AC — i.e. that the table-copy
+ * loops do not fault and that the handler ends by saving the runtime char
+ * templates and advancing current_chapter_id by exactly one.
+ *
+ * The handler is driven end-to-end on-host with the proven chend2 safe env:
+ *   - fd2_setup_chars_and_camera_for_intro is a no-op double (its real char
+ *     placement/camera/fade is display-only; deferred to Phase 9), so the
+ *     two fd2_pan_cursor_and_window calls see the window origin we pre-seed
+ *     here (0x10,0x10 then target 0x10,0xE) and the X-pan + first Y-pan are
+ *     no-ops, leaving the second pan a deterministic 2-step scroll;
+ *   - fd2_cast_screen_wide_spell_with_fade is a no-op double (150KB malloc +
+ *     ~95-tick shockwave/palette-flash blocking display; deferred to Phase 9);
+ *   - the three fd2_display_dialog_scene calls take the immediate-END program,
+ *     the two fd2_cutscene_event_trigger calls take zero-group scripts, and
+ *     the real fd2_play_palette_fade_to_black + the two direct
+ *     memset(0xA0000,…) screen clears run against the staged palette/VGA.
+ *
+ * The full display path (real radial spell + camera placement + screen
+ * fades) is pure blit/display orchestration deferred to Phase 9 integration.
+ * ---------------------------------------------------------------- */
+static void test_ch22_end_runs_and_advances(void)
+{
+    uint32 chap0;
+
+    ce_install_safe_env();
+
+    /* setup is stubbed (does not set the window origin), so pre-seed it to
+     * the first pan target; the second pan then scrolls y 0x10 -> 0xE. */
+    data_fd2_battle_view_window_origin_x = 0x10;
+    data_fd2_battle_view_window_origin_y = 0x10;
+    data_fd2_battle_cursor_world_x = 0x10;
+    data_fd2_battle_cursor_world_y = 0x10;
+
+    /* zero-group cutscene scripts for the two events the handler fires. */
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x41] = g_ce22_script_41;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x42] = g_ce22_script_42;
+
+    chap0 = data_fd2_chapter_current_chapter_id;
+
+    fd2_chapter_22_end();
+
+    /* tail-jump fall-through ran: chapter id advanced by exactly one. */
+    ASSERT_EQ(data_fd2_chapter_current_chapter_id, chap0 + 1);
+
+    /* the camera pan reached its scripted Y target (0xE). */
+    ASSERT_EQ(data_fd2_battle_view_window_origin_y, 0xE);
+
+    ce_restore_rc_ptr();
+}
+
 void run_field_chend2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -335,5 +395,6 @@ void run_field_chend2_tests(void)
     RUN_TEST(test_ch20_end_reaims_camera);
     RUN_TEST(test_ch21_end_partial_collection_page6_path);
     RUN_TEST(test_ch21_end_full_collection_awards_key);
+    RUN_TEST(test_ch22_end_runs_and_advances);
     printf("\n");
 }

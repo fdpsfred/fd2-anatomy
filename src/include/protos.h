@@ -128,6 +128,7 @@ void fd2_cast_speed_boost_spell(uint32, uint32, uint32);
 void fd2_animate_spell_impact_per_target(uint32, uint32, uint32, uint32);
 void fd2_animate_status_effect_overlay_flicker(uint32, uint32, uint32, uint32);
 void fd2_animate_spell_full_screen_flash(uint32, uint32, uint32, uint32);
+void fd2_cast_screen_wide_spell_with_fade(uint32 epicenter_tile_x, uint32 epicenter_tile_y, uint32 starting_radius, int radius_increment);
 void fd2_animate_spell_overlay_blink(uint32, uint32, uint32, uint32);
 void fd2_show_damage_number(uint32 val, uint32 type, uint32 target);
 void fd2_show_miss_indicator(uint32 target);
@@ -184,6 +185,7 @@ void fd2_cutscene_event_trigger(uint32 event_id);
 /* ---- chapter end handlers ---- */
 void fd2_chapter_20_end(void);
 void fd2_chapter_21_end(void);
+void fd2_chapter_22_end(void);
 void fd2_setup_chars_and_camera_for_intro(uint32 pos_x_table, uint32 pos_y_table,
                                           uint32 facing_table, uint32 place_start,
                                           uint32 place_end, uint32 scene2_char_idx,
