@@ -204,13 +204,11 @@ void fd2_render_filled_circle_band_anim(uint32 param_1, uint32 param_2,
     (void)param_1; (void)param_2; (void)param_3;
     (void)cx; (void)cy; (void)radius;
 }
-/* fd2_animate_warp_teleport_char now lives in src/spell/spellcin.c.
- * Its three warp sub-animation siblings are not emitted yet; noop stubs keep
- * the test link resolving. fd2_animate_warp_out_collapse returns the warp-in
- * sprite address (an int) — stub returns 0. */
-void fd2_animate_warp_portal_open_at(uint32 a, uint32 b, uint32 c) {
-    (void)a; (void)b; (void)c;
-}
+/* fd2_animate_warp_teleport_char and fd2_animate_warp_portal_open_at now live
+ * in src/spell/spellcin.c. The remaining two warp sub-animation siblings are
+ * not emitted yet; noop stubs keep the test link resolving.
+ * fd2_animate_warp_out_collapse returns the warp-in sprite address (an int) —
+ * stub returns 0. */
 int fd2_animate_warp_out_collapse(int a, int b, void *c, uint32 d, uint32 e,
                                   int f) {
     (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;

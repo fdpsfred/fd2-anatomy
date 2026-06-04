@@ -1,7 +1,7 @@
 /*
  * unit tests for src/spell/spellcin.c
  *
- * Six of the seven workers in this file are pure VGA/VRAM cinematic
+ * Seven of the eight workers in this file are pure VGA/VRAM cinematic
  * orchestration and have no isolated numeric path that avoids a write to the
  * hardcoded mode-13h framebuffer literal 0xA0504 (not redirectable via
  * globals). Their behavioral verification is deferred to Phase 9 integration on
@@ -43,6 +43,17 @@
  *   statically against the disassembly @0x22306 and @0x22390..0x22406; none of
  *   it is observable without driving the full warp animation + real warp sibling
  *   functions + VRAM, so it is deferred to Phase 9 integration.
+ *
+ *   fd2_animate_warp_portal_open_at @ 0x22470 — the source-tile portal-open
+ *   half of the warp sequence (sole caller fd2_animate_warp_teleport_char). Its
+ *   11-frame loop restores the backdrop, blits one portal sprite to the working
+ *   surface, repaints chars, and unconditionally blits the viewport to 0xA0504
+ *   every frame. The only computed state — the sprite-table index
+ *   (portrait_sheet[6 + (frame+0x72)*4]) and the tile->working-surface address
+ *   math ((tile_y-origin_y)*0x2AC0 + (tile_x-origin_x)*0x18 + 0x8250) — was
+ *   verified statically against the disassembly @0x22489..0x224E9; it is
+ *   observable only through the VRAM-touching blit callees, so it is deferred to
+ *   Phase 9 integration.
  *
  * The remaining worker, fd2_scatter_sprite_around_origin_with_random_offset
  * @ 0x21db2, is the scatter *leaf* called by the orphan executor. Unlike its
@@ -153,7 +164,7 @@ static void test_scatter_type_range(void)
 void run_spell_spellcin_tests(void)
 {
     int _prev_fails = g_test_fail_count;
-    printf("Suite: spell/spellcin (scatter leaf tested; 6 VGA/VRAM cinematic "
+    printf("Suite: spell/spellcin (scatter leaf tested; 7 VGA/VRAM cinematic "
            "workers deferred to Phase 9, see file header)\n");
     RUN_TEST(test_scatter_seed_1234_index0);
     RUN_TEST(test_scatter_seed_5555_index1);

@@ -9,6 +9,7 @@
  *   fd2_execute_aoe_spell_with_caster_portrait_radial_scatter @ 0x21bd0 (0 callers)
  *   fd2_play_variant_b_slide_pre_effect @ 0x21eb1 (4 callers)
  *   fd2_animate_warp_teleport_char @ 0x22253 (4 callers)
+ *   fd2_animate_warp_portal_open_at @ 0x22470 (1 caller)
  */
 
 #include "types.h"
@@ -704,5 +705,60 @@ void fd2_animate_warp_teleport_char(uint32 char_slot, uint32 new_pos_x,
         src_x, src_y, (uint32 *)warp_in_sprite, radius);
     free((void *)snapshot);
     free((void *)warp_sfx_buf);
+    return;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_animate_warp_portal_open_at @ 0x22470  (1 caller)
+ *
+ * 11-frame warp-portal OPEN animation drawn at battle tile
+ * (tile_x, tile_y). First half of the character-warp sequence: the
+ * portal materialises at the source tile before the character
+ * collapses into it.
+ *
+ * Frames come from the 11-entry sprite table at offset +0x1B8 of the
+ * portrait sheet (entry index = frame + 0x72, picked up as
+ * portrait_sheet[6 + (frame+0x72)*4] + portrait_sheet).
+ *
+ * Each frame: restore the backdrop from the caller's snapshot
+ * (backup_buffer), blit one portal sprite at the tile's working-surface
+ * address, repaint characters on top, push the viewport to mode13h, then
+ * wait one BIOS tick.
+ *
+ * Tile -> working-surface address:
+ *   large_game_state_buffer
+ *     + (tile_y - battle_window_origin_y) * 0x2AC0   (row pitch)
+ *     + (tile_x - battle_window_origin_x) * 0x18     (column width)
+ *     + 0x8250                                        (0x8088 + 0x1C8 origin)
+ *
+ * Sole caller: fd2_animate_warp_teleport_char @ 0x22253, which passes
+ * (dst_tile_x, dst_tile_y, snapshot).
+ *
+ * Cdecl, 3 stack params. The binary's __CHK(0x2c) stack-probe prologue is
+ * compiler-injected and not part of the source. Explicit RET at 0x22546.
+ * ---------------------------------------------------------------- */
+void fd2_animate_warp_portal_open_at(uint32 tile_x, uint32 tile_y,
+    uint32 backup_buffer)
+{
+    uint32 frame_iter;
+    uint32 sprite_addr;
+    uint32 target_addr;
+
+    for (frame_iter = 0; (int)frame_iter < 0xb; frame_iter++) {
+        sprite_addr =
+            *(uint32 *)(data_fd2_resource_portrait_sheet_ptr + 6 +
+                        (frame_iter + 0x72) * 4) +
+            data_fd2_resource_portrait_sheet_ptr;
+        memmove((void *)data_fd2_large_game_state_buffer_ptr,
+            (void *)backup_buffer, 0x25680);
+        target_addr = data_fd2_large_game_state_buffer_ptr +
+            (tile_y - data_fd2_battle_view_window_origin_y) * 0x2ac0 +
+            (tile_x - data_fd2_battle_view_window_origin_x) * 0x18 + 0x8250;
+        fd2_blit_sprite_with_decoded_pixels(target_addr, sprite_addr, 0x1c8);
+        fd2_composite_all_chars_overlay();
+        fd2_blit_rectangle(0xa0504, 0x140,
+            data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1c8, 0x138, 0xc0);
+        fd2_wait_n_bios_ticks(1);
+    }
     return;
 }
