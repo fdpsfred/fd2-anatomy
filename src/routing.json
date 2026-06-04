@@ -1654,8 +1654,9 @@
     "name": "fd2_play_palette_fade_in",
     "target": "gfx/palette.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001f558": {
     "name": "fd2_blit_scaled_tile_map_view",

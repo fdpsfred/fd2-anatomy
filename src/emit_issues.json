@@ -473,5 +473,8 @@
         "verify_method": "compile_and_disasm"
       }
     ]
-  }
+  },
+  "0001f525": [
+    "DUPLICATE SYMBOL / LINK-ORDER DEPENDENCY (verified harmless, worth logging): testglob.c:616 keeps an empty stub `void fd2_play_palette_fade_in(void){}` alongside the now-real src/gfx/palette.c definition, producing wlink Warning(1027) 'redefinition of fd2_play_palette_fade_in ignored (testglob.obj)'. I independently confirmed the REAL palette.obj symbol wins (the test asserts g_delay375b2_calls==0x41 and PASSED; the empty stub would make 0). build_test.py warning_count parser ignores wlink Warning(NNNN) lines so warning_count=0 / gate_pass=true. Keeping the stub is the CORRECT/SAFE choice: I verified tests/battle/btl_init.c (setup_init_fixture) never sets data_fd2_vga_palette_data_ptr yet drives the real fd2_init_battle_state_for_chapter() (src/battle/btl_init.c:34 calls fade_in) -> removing the stub would make that suite run the real fade against a stale/NULL palette ptr (0x100*3 OOB reads -> crash risk). src/life/main.c:296 is the other real caller. Correctness relies on object link order placing palette.obj before testglob.obj; stable in this build but undocumented -- consider a comment at testglob.c:616 noting the real def lives in src/gfx/palette.c and the stub intentionally neutralizes the fade for btl_init/life suites."
+  ]
 }

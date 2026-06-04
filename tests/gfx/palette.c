@@ -54,6 +54,8 @@ extern int g_cast_status_cure_calls;
 extern int g_cast_status_via_d1b_calls;
 extern int g_repaint_settings_calls;
 extern int g_repaint_flip_buffer_after;
+extern int    g_delay375b2_calls;
+extern uint32 g_delay375b2_last_ticks;
 
 
 static void test_set_full_palette_smoke(void)
@@ -217,6 +219,29 @@ static void test_tick_chapter_palette_slow_triggers_negative_delta(void)
 }
 
 
+/* fade-IN: walks brightness_subtract 0x40 down to 0 INCLUSIVE = 0x41
+ * iterations, each calling __delay_thunk_375b2(2). The loop count and the
+ * delay argument are the load-bearing correctness properties (the inner
+ * palette write is a pure port-write side effect). The stubbed delay thunk
+ * records call count + last arg, giving a deterministic check that the loop
+ * runs exactly 65 times (i.e. the signed `>= 0` bound includes subtract=0,
+ * not 64 times) with the right tick arg. A full 768-byte base palette keeps
+ * the inner fd2_set_vga_palette_range (idx 0..0xFF, base[0..767]) in-bounds. */
+static void test_play_palette_fade_in(void)
+{
+    static uint8 fake_pal[256 * 3];
+    int i;
+    for (i = 0; i < 256 * 3; i++) fake_pal[i] = 0x20;
+    data_fd2_vga_palette_data_ptr = (uint32)fake_pal;
+
+    g_delay375b2_calls = 0;
+    g_delay375b2_last_ticks = 0;
+    fd2_play_palette_fade_in();
+    ASSERT_EQ(g_delay375b2_calls, 0x41);
+    ASSERT_EQ(g_delay375b2_last_ticks, 2u);
+}
+
+
 void run_gfx_palette_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -232,5 +257,6 @@ void run_gfx_palette_tests(void)
     RUN_TEST(test_tick_chapter_palette_fast_wrap);
     RUN_TEST(test_tick_chapter_palette_slow_triggers);
     RUN_TEST(test_tick_chapter_palette_slow_triggers_negative_delta);
+    RUN_TEST(test_play_palette_fade_in);
     printf("\n");
 }

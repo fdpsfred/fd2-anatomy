@@ -245,3 +245,29 @@ void fd2_palette_overbright_settle_step_loop(uint32 start_intensity,
         delay(step_delay_ms);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_play_palette_fade_in @ 0x1F525  (24 call-sites)
+ *
+ * VGA palette fade-IN from black to full brightness. Walks the
+ * brightness_subtract amount from 0x40 down to 0 (inclusive),
+ * each step writing the full DAC range via
+ * fd2_set_vga_palette_range(0,0xFF,subtract) — which writes
+ * max(0, base[i]-subtract) — then waiting 2 BIOS ticks.
+ *
+ *   subtract=0x40 → every channel clamped to 0 → screen BLACK
+ *   subtract=0    → base palette written unchanged → FULL brightness
+ *
+ * So the loop proceeds BLACK -> FULL = fade-IN. Pairs with
+ * fd2_play_palette_fade_to_black @ 0x1F882 (fade-OUT counterpart).
+ * Called from every chapter-intro / cinematic / ending reveal hook.
+ * ---------------------------------------------------------------- */
+void fd2_play_palette_fade_in(void)
+{
+    int subtract;
+
+    for (subtract = 0x40; subtract >= 0; subtract--) {
+        fd2_set_vga_palette_range(0, 0xFF, (uint32)subtract);
+        __delay_thunk_375b2(2);
+    }
+}
