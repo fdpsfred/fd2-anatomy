@@ -9,6 +9,7 @@
 #include "globals.h"
 #include "protos.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 #define USE_ITEM_ID 10
 
@@ -59,6 +60,8 @@ extern int g_cast_status_cure_calls;
 extern int g_cast_status_via_d1b_calls;
 extern int g_repaint_settings_calls;
 extern int g_repaint_flip_buffer_after;
+extern int g_composite_call_count;
+/* data_fd2_ui_slide_* workspace ptr globals are declared in globals.h */
 
 
 /* ---- Test: combat bubble pos ---- */
@@ -197,6 +200,56 @@ static void test_stat_preview_signed_negative_bonus(void)
 }
 
 
+/*
+ * fd2_close_status_screen_with_slide_out @ 0x196CB — end-to-end smoke.
+ *
+ * The function is a blit/free/recomposite teardown (no return value, no
+ * branching logic beyond the fixed 1..5 slide loop), so the host-observable
+ * proxy is g_composite_call_count: it must run the 5-frame slide loop, the
+ * VRAM-restore memmove, the three free()s, and then composite exactly one
+ * battle frame. We pre-allocate the three workspace buffers (the open
+ * counterpart's job) so the real fd2_slide_panel_down_step memmoves stay in
+ * bounds; the function itself free()s all three, so the test must NOT free
+ * them again and resets the globals to 0 afterward to avoid dangling ptrs.
+ *
+ * Buffer math (proves the allocation size is sufficient): the largest
+ * fd2_slide_panel_down_step write in this loop is at y_offset=0x7D
+ * (frame 1: 1*0xD+0x70=0x7D) — row_count = 200-125 = 75, top write
+ * 5 + 199*320 + 0x136 = 63995 < 64000; the largest read from src is
+ * 0x8C05 + 0x55*0x140 + 0x136 = 63355 < 64000. All five frames stay
+ * within the 64000-byte mode-13h workspaces.
+ *
+ * memmove((void*)0xA0000, ...) and the in-loop blit to 0xA0000 target the
+ * VGA aperture; under DOS/4GW 0xA0000 is real VGA RAM so the writes are
+ * harmless (same convention as tests/anim/aniwalk2.c and tests/gfx).
+ */
+static void test_close_status_screen_slide_out_runs_full_teardown(void)
+{
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_composed_target_buf_ptr = (uint32)malloc(64000);
+    ASSERT_TRUE(data_fd2_ui_slide_anim_accumulator_buf_ptr != 0);
+    ASSERT_TRUE(data_fd2_ui_slide_bg_snapshot_buf_ptr != 0);
+    ASSERT_TRUE(data_fd2_ui_slide_composed_target_buf_ptr != 0);
+
+    /* fd2_composite_battle_frame's pipeline stages are stubbed; phase 0
+     * makes the real fd2_paint_cursor_overlay_pattern a no-op. */
+    data_fd2_battle_anim_phase = 0;
+    g_composite_call_count = 0;
+
+    fd2_close_status_screen_with_slide_out();
+
+    /* Step 4 recomposites exactly one frame after the teardown. */
+    ASSERT_EQ(g_composite_call_count, 1);
+
+    /* The function already free()d all three; drop the dangling globals so
+     * later tests in the suite never reuse a freed pointer. */
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+}
+
+
 void run_ui_menu_status_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -205,5 +258,6 @@ void run_ui_menu_status_tests(void)
     RUN_TEST(test_stat_preview_weapon_opposite_and_same_category);
     RUN_TEST(test_stat_preview_armor_branch_and_flag_gate);
     RUN_TEST(test_stat_preview_signed_negative_bonus);
+    RUN_TEST(test_close_status_screen_slide_out_runs_full_teardown);
     printf("\n");
 }

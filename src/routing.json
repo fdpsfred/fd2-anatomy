@@ -1038,8 +1038,9 @@
     "name": "fd2_close_status_screen_with_slide_out",
     "target": "ui_menu/status.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001974c": {
     "name": "fd2_slide_panel_down_step",

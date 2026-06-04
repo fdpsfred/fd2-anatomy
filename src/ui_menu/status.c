@@ -237,3 +237,46 @@ void fd2_open_char_status_screen(uint32 char_idx)
     free((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr);
     free((void *)data_fd2_ui_slide_composed_target_buf_ptr);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_close_status_screen_with_slide_out @ 0x196CB  (10 callers)
+ *
+ * Close the dialog/status panel opened by the status/portrait routines;
+ * counterpart of fd2_open_status_screen_with_slide_in.
+ *
+ * Pipeline:
+ *   1. 5-frame slide-down (frame_iter 1..5): each frame drives
+ *      fd2_slide_panel_down_step(frame_iter*0xD + 0x70, accumulator, target)
+ *      which slides the panel rows out and blits to mode-13h VRAM.
+ *   2. memmove(0xA0000, bg_snapshot, 64000) — restore the underlying
+ *      screen snapshot to VRAM.
+ *   3. free the three 64000-byte workspaces (a / b / c).
+ *   4. fd2_composite_battle_frame(0) — recomposite the battle/field scene.
+ *
+ * Globals (allocated by the open counterpart, freed here):
+ *   render_workspace_a @ 0x53C5B — per-frame animation accumulator
+ *   render_workspace_b @ 0x53C5F — underlying screen snapshot
+ *   render_workspace_c @ 0x53C63 — composed status-panel target image
+ *
+ * void __cdecl with the __CHK(0x14) stack-probe prologue (compiler-injected,
+ * not part of the source). EBX is the loop counter (callee-saved); the
+ * trailing POP EBX + RET is the shared epilogue.
+ * ---------------------------------------------------------------- */
+void fd2_close_status_screen_with_slide_out(void)
+{
+    uint32 frame_iter;
+
+    for (frame_iter = 1; (int)frame_iter < 6; frame_iter++) {
+        fd2_slide_panel_down_step(frame_iter * 0xd + 0x70,
+            data_fd2_ui_slide_anim_accumulator_buf_ptr,
+            data_fd2_ui_slide_composed_target_buf_ptr);
+    }
+
+    memmove((void *)0xa0000,
+            (void *)data_fd2_ui_slide_bg_snapshot_buf_ptr, 64000);
+    free((void *)data_fd2_ui_slide_anim_accumulator_buf_ptr);
+    free((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr);
+    free((void *)data_fd2_ui_slide_composed_target_buf_ptr);
+
+    fd2_composite_battle_frame(0);
+}

@@ -382,7 +382,10 @@ void fd2_play_and_free_status_effect_sfx(void) { }
  * linked for real; its blit-offset branch + DATO.DAT load are driven by the
  * test_lcp_* cases in tests/rsrc/rsrc.c (observed via the g_dlg_blit_mirrored
  * capture spy + an independent DATO.DAT parse). */
-void fd2_close_status_screen_with_slide_out(void) { }
+/* fd2_close_status_screen_with_slide_out: now emitted in src/ui_menu/status.c
+ * and linked for real; the test_close_status_screen_slide_out_runs_full_
+ * teardown case in tests/ui_menu/status.c drives the real function (observed
+ * via g_composite_call_count for the trailing recomposite). */
 /* fd2_load_chapter_battle_data: now in rsrc/rsrc.c */
 /* fd2_load_chapter_portraits_and_dump_tmp: now in rsrc/rsrc.c */
 /* fd2_init_runtime_char_for_battle is now emitted in src/battle/btl_init.c
