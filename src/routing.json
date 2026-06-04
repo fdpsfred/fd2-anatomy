@@ -2507,8 +2507,9 @@
     "name": "fd2_chapter_24_end",
     "target": "field/chend2.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00024d22": {
     "name": "fd2_scroll_text_screen_up_by_lines",

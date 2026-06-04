@@ -9,6 +9,8 @@
  *                               data_fd2_chapter_end_handler_table[22])
  * fd2_chapter_23_end @ 0x24754 (0 direct callers; dispatched via
  *                               data_fd2_chapter_end_handler_table[23])
+ * fd2_chapter_24_end @ 0x24C1E (0 direct callers; dispatched via
+ *                               data_fd2_chapter_end_handler_table[24])
  */
 
 #include <string.h>
@@ -463,4 +465,55 @@ void fd2_chapter_23_end(void)
     fd2_cutscene_event_trigger(0x49);
     fd2_display_dialog_scene(current_chapter_text, 0x11, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_24_end @ 0x24C1E  — Chapter 24「在天空的彼方」end handler
+ * (0 direct callers, dispatched via data_fd2_chapter_end_handler_table[24]).
+ *
+ * Text-scroll cinematic (no char added). Shows dialog page 2, then scrolls
+ * text lines 2..9 with a 30-frame composite hold per line; shows dialog
+ * page 3, then scrolls text lines 10..14 with a 12-frame palette fade-out
+ * per line (brightness_sub continues across all five lines for 60 total
+ * increments -> full fade-out). Finishes by blacking the framebuffer,
+ * saving the runtime char templates, and advancing current_chapter_id.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_24.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_24_end(void)
+{
+    uint32 brightness_sub;
+    uint32 line;
+    int f;
+
+    brightness_sub = 0;
+    fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+
+    for (line = 2; (int32)line < 10; line++) {
+        fd2_scroll_text_screen_up_by_lines(line);
+        for (f = 0; f < 30; f++) {
+            fd2_composite_battle_frame(1);
+            fd2_wait_n_bios_ticks(1);
+        }
+    }
+
+    fd2_display_dialog_scene(current_chapter_text, 3, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+
+    for (; (int32)line < 15; line++) {
+        fd2_scroll_text_screen_up_by_lines(line);
+        for (f = 0; f < 12; f++) {
+            fd2_set_vga_palette_range(0, 0xFF, brightness_sub);
+            fd2_composite_battle_frame(0);
+            fd2_wait_n_bios_ticks(1);
+            brightness_sub++;
+        }
+    }
+
+    memset((void *)0xA0000, 0, 64000);
+    fd2_save_runtime_char_to_template();
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }

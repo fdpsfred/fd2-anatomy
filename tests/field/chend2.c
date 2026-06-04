@@ -547,6 +547,59 @@ static void test_ch23_end_key_held_miti_absent_after_15_turns(void)
     ce_restore_rc_ptr();
 }
 
+/* ----------------------------------------------------------------
+ * Chapter 24 end handler — fd2_chapter_24_end @ 0x24C1E.
+ *
+ * fd2_chapter_24_end is a straight-line, no-branch text-scroll cinematic (no
+ * RNG, no numeric computation, no CALL-return value used). Its only meaningful
+ * non-display game-state mutation is the epilogue, and the one control-flow
+ * property worth pinning is that the two text-scroll phases run to completion
+ * with the line counter carried from Phase 1 (lines 2..9) straight into Phase 2
+ * (lines 10..14) and the brightness counter advancing 0..59 across all five
+ * Phase-2 lines. The handler is driven end-to-end on-host with the proven
+ * chend2 safe env:
+ *   - the two fd2_display_dialog_scene calls take the immediate-END program so
+ *     each returns at once with no glyph blits;
+ *   - fd2_scroll_text_screen_up_by_lines is called with line in 2..14 (all
+ *     non-zero), so it takes its Mode-A path (store the pending line count and
+ *     return) — no malloc/memmove, no static_bg_buffer needed;
+ *   - the real fd2_composite_battle_frame runs against the staged compositor
+ *     workspace (HUD gated off, anim_phase=0 -> cursor overlay no-op, palette
+ *     cycle throttled), and the real fd2_set_vga_palette_range reads the staged
+ *     768-byte palette in-bounds (idx 0..255 -> palette[0..767]);
+ *   - the empty party makes the tail fd2_save_runtime_char_to_template iterate
+ *     zero chars, and the final memset blacks the (harmless) VGA framebuffer.
+ *
+ * fd2_wait_n_bios_ticks(1) is driven for real (it busy-waits on the live BIOS
+ * tick at 0x46C, which advances ~18.2/s under DOSBox-X), so the full run spins
+ * for the 300 frame waits; one end-to-end invocation covers the whole handler.
+ * The pixel output of the composite/scroll/palette-fade stages is pure display
+ * and is deferred to Phase 9 integration.
+ * ---------------------------------------------------------------- */
+static void test_ch24_end_runs_and_advances(void)
+{
+    uint32 chap0;
+
+    ce_install_safe_env();
+    chap0 = data_fd2_chapter_current_chapter_id;
+
+    fd2_chapter_24_end();
+
+    /* both text-scroll phases ran to completion and the epilogue advanced the
+     * chapter id by exactly one. */
+    ASSERT_EQ(data_fd2_chapter_current_chapter_id, chap0 + 1);
+
+    /* anim_phase was reset to 0 at the start of each phase (and never set
+     * back) — it ends at 0. */
+    ASSERT_EQ(data_fd2_battle_anim_phase, 0);
+
+    /* the handler adds no char: the save-template tail ran against the empty
+     * party, leaving the menu roster count untouched. */
+    ASSERT_EQ(data_fd2_shared_menu_party_member_count, 0);
+
+    ce_restore_rc_ptr();
+}
+
 void run_field_chend2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -559,5 +612,6 @@ void run_field_chend2_tests(void)
     RUN_TEST(test_ch23_end_key_held_miti_present);
     RUN_TEST(test_ch23_end_no_key_miti_absent_within_15_turns);
     RUN_TEST(test_ch23_end_key_held_miti_absent_after_15_turns);
+    RUN_TEST(test_ch24_end_runs_and_advances);
     printf("\n");
 }
