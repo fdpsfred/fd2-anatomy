@@ -29,6 +29,12 @@ extern uint32 g_blitpass_src[64];
 extern uint32 g_blitpass_dst[64];
 extern uint32 g_blitpass_stride[64];
 extern int    g_blitdim_calls;
+/* recording stub for fd2_tile_blit_24x24_solid_color (testglob.c). It records
+ * (src,dst,stride) into the shared g_blitpass_* arrays plus the 4th (color)
+ * arg into g_blitsolid_color[], and bumps g_blitsolid_calls; lets the
+ * mode-aware paint test verify the solid-color overlay dispatch + dst/src. */
+extern int    g_blitsolid_calls;
+extern uint32 g_blitsolid_color[64];
 /* recording stub for fd2_blit_sprite_with_decoded_pixels (testglob.c); the
  * spell-effect overlay hit branch forwards (dst, sprite, stride) here. */
 extern uint32 g_blitdec_dst;
@@ -619,6 +625,225 @@ static void test_paint_jitter_bit_toggles_on_tick_change(void)
     ASSERT_EQ((uint32)data_fd2_graphics_char_sprite_shake_jitter_bit, 1u);
     ASSERT_EQ(data_fd2_graphics_char_sprite_paint_jitter_tick_latch,
               (int32)(int16)BIOS_TICK_WORD);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_paint_char_sprite_at_world_with_mode — mode-aware per-char paint
+ * onto a caller-supplied surface.
+ *
+ * Reuses g_paint_atlas (portrait_sprite_cache, table[i]==i) so the
+ * recorded src recovers sprite_idx. dst_buf is the test-chosen base
+ * (a large constant so the negative -stride*6 term never underflows
+ * a check), and the recorded dst is matched against the closed-form
+ * expression below. The shared passthrough / solid-color recording
+ * stubs (g_blitpass_*, g_blitsolid_*) capture every blit.
+ * ---------------------------------------------------------------- */
+
+/* Window wide-open at origin 0 so every test coord is in-window, and the
+ * mode-paint atlas installed. dst_buf/stride are supplied per call. */
+static void reset_mode_paint(void)
+{
+    data_fd2_battle_view_window_origin_x = 0;
+    data_fd2_battle_view_window_origin_y = 0;
+    data_fd2_battle_view_window_max_x = 0x40;
+    data_fd2_battle_view_window_max_y = 0x40;
+    data_fd2_graphics_chapter_ambient_palette_anim_idx = 0;
+    data_fd2_graphics_chapter_walk_anim_alt_palette_idx = 0;
+    g_blitpass_calls = 0;
+    g_blitdim_calls = 0;
+    g_blitsolid_calls = 0;
+    install_paint_atlas();
+}
+
+/* Closed-form dst for the mode-aware paint at origin 0:
+ *   dst = dst_buf - stride*6 + py*stride*0x18 + px*0x18 + walk_phase*x_offset */
+static uint32 expect_mode_dst(uint32 dst_buf, uint32 stride, int32 px, int32 py,
+                              uint32 walk_phase, uint32 x_offset)
+{
+    return dst_buf - stride * 6 +
+           (uint32)py * stride * 0x18 +
+           (uint32)px * 0x18 +
+           walk_phase * x_offset;
+}
+
+/* mode 0 (passthrough): full dst arithmetic + sprite_idx lookup with a
+ * non-trivial stride. facing 0 (down) -> x_offset = stride<<2, walk_phase 1
+ * so the jitter term contributes. */
+static void test_mode_passthrough_dst_and_src(void)
+{
+    uint32 stride = 0x140;
+    uint32 base = 0x00100000;
+    uint32 xoff;
+    int32 idx;
+
+    reset_mode_paint();
+    /* facing 0, cache_idx 2, walk_phase 1, ambient palette 0 */
+    setup_paint_char(0, 0x05, 0x03, 2, 0, 1, 0x00, 0);
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    fd2_paint_char_sprite_at_world_with_mode(base, stride, 0, 0, 0);
+
+    ASSERT_EQ(g_blitpass_calls, 1);
+    ASSERT_EQ(g_blitsolid_calls, 0);
+    ASSERT_EQ(g_blitpass_stride[0], stride);
+    xoff = stride << 2;                  /* facing 0 -> stride*4 */
+    ASSERT_EQ(g_blitpass_dst[0], expect_mode_dst(base, stride, 5, 3, 1, xoff));
+    /* idx = facing*3 + cache_idx*0xC + palette(0) = 0 + 24 + 0 = 24 */
+    idx = 0 * 3 + 2 * 0xc + 0;
+    ASSERT_EQ(g_blitpass_src[0] - (uint32)g_paint_atlas, (uint32)idx);
+}
+
+/* All four facings drive distinct x_offsets; walk_phase 1 so each appears in
+ * the dst directly. facing 0: stride<<2, 1: -4, 2: -(stride<<2), 3: +4. */
+static void test_mode_facing_x_offsets(void)
+{
+    uint32 stride = 0x140;
+    uint32 base = 0x00100000;
+
+    reset_mode_paint();
+
+    setup_paint_char(0, 0x06, 0x04, 0, 0, 1, 0x00, 0);   /* facing 0 (down) */
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    fd2_paint_char_sprite_at_world_with_mode(base, stride, 0, 0, 0);
+    ASSERT_EQ(g_blitpass_dst[0],
+              expect_mode_dst(base, stride, 6, 4, 1, stride << 2));
+
+    setup_paint_char(0, 0x06, 0x04, 0, 1, 1, 0x00, 0);   /* facing 1 (left) -> -4 */
+    fd2_paint_char_sprite_at_world_with_mode(base, stride, 0, 0, 0);
+    ASSERT_EQ(g_blitpass_dst[1],
+              expect_mode_dst(base, stride, 6, 4, 1, 0xfffffffc));
+
+    setup_paint_char(0, 0x06, 0x04, 0, 2, 1, 0x00, 0);   /* facing 2 (up) -> -(stride<<2) */
+    fd2_paint_char_sprite_at_world_with_mode(base, stride, 0, 0, 0);
+    ASSERT_EQ(g_blitpass_dst[2],
+              expect_mode_dst(base, stride, 6, 4, 1, (0 - stride) << 2));
+
+    setup_paint_char(0, 0x06, 0x04, 0, 3, 1, 0x00, 0);   /* facing 3 (right) -> +4 */
+    fd2_paint_char_sprite_at_world_with_mode(base, stride, 0, 0, 0);
+    ASSERT_EQ(g_blitpass_dst[3],
+              expect_mode_dst(base, stride, 6, 4, 1, 4));
+
+    ASSERT_EQ(g_blitpass_calls, 4);
+}
+
+/* walk_phase 0 zeroes the jitter term entirely (x_offset * 0). Even facing 2
+ * (whose x_offset is large/negative) must not move the dst. */
+static void test_mode_walkphase0_no_jitter(void)
+{
+    uint32 stride = 0x140;
+    uint32 base = 0x00100000;
+
+    reset_mode_paint();
+    setup_paint_char(0, 0x06, 0x04, 0, 2, 0, 0x00, 0);   /* facing 2, walk_phase 0 */
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    fd2_paint_char_sprite_at_world_with_mode(base, stride, 0, 0, 0);
+
+    ASSERT_EQ(g_blitpass_calls, 1);
+    ASSERT_EQ(g_blitpass_dst[0], expect_mode_dst(base, stride, 6, 4, 0, 0));
+}
+
+/* mode 2 (solid color): routes to the solid-color blitter, which receives the
+ * stride as arg3 and the caller color as arg4. The passthrough blitter must
+ * NOT run. */
+static void test_mode_solid_color_dispatch(void)
+{
+    uint32 stride = 0x140;
+    uint32 base = 0x00100000;
+    int32 idx;
+
+    reset_mode_paint();
+    setup_paint_char(0, 0x05, 0x03, 2, 1, 1, 0x00, 0);   /* facing 1 -> x_offset -4 */
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    fd2_paint_char_sprite_at_world_with_mode(base, stride, 0, 2, 0x37);
+
+    ASSERT_EQ(g_blitsolid_calls, 1);
+    /* exactly one blit total, and it was solid-color (not passthrough) */
+    ASSERT_EQ(g_blitpass_calls, 1);
+    ASSERT_EQ(g_blitpass_stride[0], stride);     /* arg3 = dst_stride */
+    ASSERT_EQ(g_blitsolid_color[0], 0x37u);      /* arg4 = color, passed verbatim */
+    ASSERT_EQ(g_blitpass_dst[0],
+              expect_mode_dst(base, stride, 5, 3, 1, 0xfffffffc));
+    /* sprite still resolved through the cache:
+     * idx = facing(1)*3 + cache_idx(2)*0xC + palette(0) = 3 + 24 = 27 */
+    idx = 1 * 3 + 2 * 0xc + 0;
+    ASSERT_EQ(g_blitpass_src[0] - (uint32)g_paint_atlas, (uint32)idx);
+}
+
+/* Any mode other than 0 / 2 draws nothing (silent no-op). */
+static void test_mode_unknown_draws_nothing(void)
+{
+    reset_mode_paint();
+    setup_paint_char(0, 0x05, 0x03, 0, 0, 1, 0x00, 0);
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+
+    fd2_paint_char_sprite_at_world_with_mode(0x00100000, 0x140, 0, 1, 0);
+    fd2_paint_char_sprite_at_world_with_mode(0x00100000, 0x140, 0, 3, 0);
+    fd2_paint_char_sprite_at_world_with_mode(0x00100000, 0x140, 0, 99, 0);
+
+    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(g_blitsolid_calls, 0);
+}
+
+/* Window cull: out-of-window on each of the four edges -> early return, no
+ * blit. Margins: origin_x-1 .. origin_x+max_x and origin_y-1 .. origin_y+max_y+1. */
+static void test_mode_window_cull(void)
+{
+    reset_mode_paint();
+    data_fd2_battle_view_window_origin_x = 0x10;
+    data_fd2_battle_view_window_origin_y = 0x10;
+    data_fd2_battle_view_window_max_x = 0x08;
+    data_fd2_battle_view_window_max_y = 0x08;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+
+    setup_paint_char(0, 0x0e, 0x12, 0, 0, 0, 0x00, 0);   /* x < origin_x-1 (0x0F) */
+    fd2_paint_char_sprite_at_world_with_mode(0x00100000, 0x140, 0, 0, 0);
+    ASSERT_EQ(g_blitpass_calls, 0);
+
+    setup_paint_char(0, 0x19, 0x12, 0, 0, 0, 0x00, 0);   /* x > origin_x+max_x (0x18) */
+    fd2_paint_char_sprite_at_world_with_mode(0x00100000, 0x140, 0, 0, 0);
+    ASSERT_EQ(g_blitpass_calls, 0);
+
+    setup_paint_char(0, 0x12, 0x0e, 0, 0, 0, 0x00, 0);   /* y < origin_y-1 (0x0F) */
+    fd2_paint_char_sprite_at_world_with_mode(0x00100000, 0x140, 0, 0, 0);
+    ASSERT_EQ(g_blitpass_calls, 0);
+
+    setup_paint_char(0, 0x12, 0x1a, 0, 0, 0, 0x00, 0);   /* y > origin_y+max_y+1 (0x19) */
+    fd2_paint_char_sprite_at_world_with_mode(0x00100000, 0x140, 0, 0, 0);
+    ASSERT_EQ(g_blitpass_calls, 0);
+
+    /* lower-x edge and upper-y edge are inclusive -> paints */
+    setup_paint_char(0, 0x0f, 0x19, 0, 0, 0, 0x00, 0);
+    fd2_paint_char_sprite_at_world_with_mode(0x00100000, 0x140, 0, 0, 0);
+    ASSERT_EQ(g_blitpass_calls, 1);
+}
+
+/* Frame selection: walk_phase 0 reads the ambient palette idx, walk_phase != 0
+ * reads the alt palette idx; a palette value of 3 folds to 1. Recover the
+ * frame component from the sprite_idx (facing 0, cache_idx 0 -> idx == frame). */
+static void test_mode_frame_palette_selection(void)
+{
+    uint32 stride = 0x140;
+    uint32 base = 0x00100000;
+
+    reset_mode_paint();
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+
+    /* walk_phase 0 -> ambient idx (set to 2) */
+    data_fd2_graphics_chapter_ambient_palette_anim_idx = 2;
+    data_fd2_graphics_chapter_walk_anim_alt_palette_idx = 1;
+    setup_paint_char(0, 0x05, 0x03, 0, 0, 0, 0x00, 0);
+    fd2_paint_char_sprite_at_world_with_mode(base, stride, 0, 0, 0);
+    ASSERT_EQ(g_blitpass_src[0] - (uint32)g_paint_atlas, 2u);   /* frame = ambient(2) */
+
+    /* walk_phase != 0 -> alt idx (set to 1) */
+    setup_paint_char(0, 0x05, 0x03, 0, 0, 1, 0x00, 0);
+    fd2_paint_char_sprite_at_world_with_mode(base, stride, 0, 0, 0);
+    ASSERT_EQ(g_blitpass_src[1] - (uint32)g_paint_atlas, 1u);   /* frame = alt(1) */
+
+    /* palette 3 folds to 1 (drive via walk -> alt = 3) */
+    data_fd2_graphics_chapter_walk_anim_alt_palette_idx = 3;
+    setup_paint_char(0, 0x05, 0x03, 0, 0, 1, 0x00, 0);
+    fd2_paint_char_sprite_at_world_with_mode(base, stride, 0, 0, 0);
+    ASSERT_EQ(g_blitpass_src[2] - (uint32)g_paint_atlas, 1u);   /* 3 -> 1 */
 }
 
 /* ----------------------------------------------------------------
@@ -1265,6 +1490,13 @@ void run_gfx_rndscene_tests(void)
     RUN_TEST(test_paint_sleep_jitter_and_palette);
     RUN_TEST(test_paint_palette3_fallback);
     RUN_TEST(test_paint_jitter_bit_toggles_on_tick_change);
+    RUN_TEST(test_mode_passthrough_dst_and_src);
+    RUN_TEST(test_mode_facing_x_offsets);
+    RUN_TEST(test_mode_walkphase0_no_jitter);
+    RUN_TEST(test_mode_solid_color_dispatch);
+    RUN_TEST(test_mode_unknown_draws_nothing);
+    RUN_TEST(test_mode_window_cull);
+    RUN_TEST(test_mode_frame_palette_selection);
     RUN_TEST(test_overlay_all_alive);
     RUN_TEST(test_overlay_all_dead);
     RUN_TEST(test_overlay_empty_party);

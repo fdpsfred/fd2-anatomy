@@ -494,3 +494,132 @@ void fd2_composite_chars_with_spell_effect_overlay(uint32 dst_buf, uint32 n_targ
         }
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_paint_char_sprite_at_world_with_mode @ 0x1DA16 (3 callers)
+ *
+ * Paint one runtime_char's facing sprite onto an arbitrary surface at
+ * its battle-world position, with a selectable render mode. This is the
+ * mode-aware sibling of fd2_paint_char_sprite_at_world_pos @ 0x127E0
+ * (which always blits passthrough into the fixed render workspace);
+ * here the caller supplies the destination buffer, the destination
+ * stride, and a mode that picks between a normal blit and a solid-color
+ * silhouette overlay (used for the heal / status-effect highlight).
+ *
+ * Unlike the workspace version, this routine has NO BIOS-tick shake
+ * jitter and NO sleep-status handling — it is the plain world->surface
+ * compositor.
+ *
+ * Window cull (battle view window, inclusive +/-1 margins; off-window
+ * is a silent no-op):
+ *   pos_x <  origin_x - 1            -> return
+ *   pos_x >  origin_x + max_x        -> return
+ *   pos_y <  origin_y - 1            -> return
+ *   pos_y >  origin_y + max_y + 1    -> return
+ *
+ * Per-facing sub-pixel x_offset (facing = sprite_state[1]), multiplied
+ * by the walk_phase (sprite_state[2]) for the moving-frame jitter:
+ *   facing 0 (down):  x_offset =  dst_stride << 2   (= stride*4)
+ *   facing 1 (left):  x_offset = -4
+ *   facing 2 (up):    x_offset = (-dst_stride) << 2 (= -(stride*4))
+ *   facing 3 (right): x_offset =  4
+ *
+ * Animation frame:
+ *   walk_phase == 0 -> frame = chapter_ambient_palette_anim_idx
+ *   walk_phase != 0 -> frame = chapter_walk_anim_alt_palette_idx
+ *   frame == 3      -> frame = 1   (fold)
+ *   sprite_idx = facing*3 + sprite_state[0]*0xC + frame
+ *   rle_stream = portrait_sprite_cache
+ *              + *(int32 *)(portrait_sprite_cache + sprite_idx*4)
+ *
+ * Destination address (note: uses dst_stride, not the workspace pitch):
+ *   dst = dst_buf - dst_stride*6
+ *       + (pos_y - origin_y) * dst_stride * 0x18
+ *       + (pos_x - origin_x) * 0x18
+ *       + walk_phase * x_offset
+ *
+ * Mode dispatch:
+ *   mode 0 -> fd2_tile_blit_24x24_passthrough(rle_stream, dst, dst_stride)
+ *   mode 2 -> fd2_tile_blit_24x24_solid_color(rle_stream, dst, dst_stride, color)
+ *   other  -> draw nothing (not expected to be passed)
+ *
+ * The mode-2 blitter derives the silhouette color from its stride arg
+ * (color = stride & 0xFF) and ignores the 4th arg; the original still
+ * pushes `color` as that 4th slot, so it is passed here verbatim.
+ *
+ * 0x18 = 24 (tile column / one sprite row pitch in tiles).
+ *
+ * 3 callers: fd2_ai_pass_turn_with_heal, fd2_run_full_turn_cycle,
+ * fd2_animate_attack_hit_sequence.
+ * ---------------------------------------------------------------- */
+void fd2_paint_char_sprite_at_world_with_mode(uint32 dst_buf, uint32 dst_stride,
+                                              uint32 char_idx, uint32 mode,
+                                              uint32 color)
+{
+    runtime_char *pchar;
+    int32 pos_x;
+    int32 pos_y;
+    uint32 facing;
+    uint32 walk_phase;
+    uint32 x_offset;
+    uint32 frame;
+    uint32 sprite_idx;
+    uint32 rle_stream;
+    uint32 dst;
+
+    pchar = &data_fd2_battle_runtime_char_array_ptr[char_idx];
+    pos_x = (int32)pchar->pos_x;
+    pos_y = (int32)pchar->pos_y;
+    facing = (uint32)pchar->sprite_state[1];
+
+    if (pos_x < (int32)(data_fd2_battle_view_window_origin_x - 1)) {
+        return;
+    }
+    if ((int32)(data_fd2_battle_view_window_origin_x +
+                data_fd2_battle_view_window_max_x) < pos_x) {
+        return;
+    }
+    if (pos_y < (int32)(data_fd2_battle_view_window_origin_y - 1)) {
+        return;
+    }
+    if ((int32)(data_fd2_battle_view_window_origin_y +
+                data_fd2_battle_view_window_max_y + 1) < pos_y) {
+        return;
+    }
+
+    if (facing == 0) {
+        x_offset = dst_stride << 2;
+    } else if (facing == 1) {
+        x_offset = 0xfffffffc;          /* -4 */
+    } else if (facing == 2) {
+        x_offset = (0 - dst_stride) << 2;
+    } else {
+        x_offset = 4;
+    }
+
+    walk_phase = (uint32)pchar->sprite_state[2];
+    if (walk_phase == 0) {
+        frame = data_fd2_graphics_chapter_ambient_palette_anim_idx;
+    } else {
+        frame = data_fd2_graphics_chapter_walk_anim_alt_palette_idx;
+    }
+    if (frame == 3) {
+        frame = 1;
+    }
+
+    sprite_idx = facing * 3 + (uint32)pchar->sprite_state[0] * 0xc + frame;
+    rle_stream = portrait_sprite_cache +
+                 (uint32)*(int32 *)(portrait_sprite_cache + sprite_idx * 4);
+
+    dst = dst_buf - dst_stride * 6 +
+          (uint32)(pos_y - (int32)data_fd2_battle_view_window_origin_y) *
+              dst_stride * 0x18 +
+          (uint32)(pos_x - (int32)data_fd2_battle_view_window_origin_x) * 0x18 +
+          walk_phase * x_offset;
+
+    if (mode == 0) {
+        fd2_tile_blit_24x24_passthrough(rle_stream, dst, dst_stride);
+    } else if (mode == 2) {
+        fd2_tile_blit_24x24_solid_color(rle_stream, dst, dst_stride, color);
+    }
+}

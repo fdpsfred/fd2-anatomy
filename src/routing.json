@@ -1487,8 +1487,9 @@
     "name": "fd2_paint_char_sprite_at_world_with_mode",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001db65": {
     "name": "fd2_play_death_animation_and_mark_dead",
