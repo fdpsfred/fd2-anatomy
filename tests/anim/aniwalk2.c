@@ -475,6 +475,179 @@ static void test_walk_step_down_basic(void)
 }
 
 
+/* ----------------------------------------------------------------
+ * fd2_play_status_screen_outro_step @ 0x18409
+ *
+ * One frame of the 12-frame status-screen slide. These tests drive the
+ * REAL function over three in-memory mode13h-sized buffers (workspace,
+ * src, snapshot) and the REAL panel painters (fd2_paint_status_panel_
+ * layer_left/right in src/gfx/rndstat.c and fd2_slide_panel_up_partial_
+ * step above). They pin the per-frame OFFSET ARITHMETIC and BRANCH
+ * SELECTION (which panel draws, and at what x/y) — the risk-bearing
+ * logic of this function. The painters' own internal copy geometry is
+ * covered by tests/gfx/rndstat.c.
+ *
+ * The function's trailing memmove(0xA0000, workspace, 64000) writes the
+ * VGA aperture; under DOS/4GW 0xA0000 is real VGA RAM and the write is
+ * harmless (same convention as tests/gfx/rndscene.c's real blit to
+ * 0xA0504). We only read back the workspace buffer.
+ *
+ * Buffer fill: src[k] = k & 0xFF (so a copied dst byte reveals which
+ * source index it came from); snapshot = sentinel 0xC7; workspace is
+ * pre-dirtied 0x33 so a missing "reset to snapshot" memmove is visible.
+ *
+ * Panel footprints in workspace (recomputed independently below):
+ *   left  : row 8.. (dst base 0x8C0), col x_left.. , src base 0x8C5
+ *   right : row y_right.. (dst base +0x5C), col 0x5C.. , src base 0x91C
+ *   middle: row y_mid.. (dst base +5), col 5.., src base 0x7585
+ * x_left  = 5 (frame<6) else 5-(frame*0x10-0x60)   [<0 clamps dst-x to 0]
+ * y_right = 7 (frame<=2), 7-(frame*0x10-0x30) (3..8) [<0 clamps], skip (>=9)
+ * y_mid   = frame*0x10+0x5E, drawn only when frame<6
+ * ---------------------------------------------------------------- */
+#define OUTRO_BUF_BYTES 64000
+
+static uint8 g_outro_ws[OUTRO_BUF_BYTES];
+static uint8 g_outro_src[OUTRO_BUF_BYTES];
+static uint8 g_outro_snap[OUTRO_BUF_BYTES];
+
+/* Probe offsets that each belong to exactly ONE panel (or to none). */
+#define LEFT_DST0     0x8C0u                    /* left row 8, col 0   */
+#define RIGHT_ROW0    0x5Cu                     /* right col 0x5C, row 0 (only written when clamped) */
+#define RIGHT_ROW7    (0x5Cu + 7u * 0x140u)     /* right col 0x5C, row 7 (in-place top row) */
+#define MID_ROW5E     (5u + 0x5Eu * 0x140u)     /* middle frame-0 row 0x5E, col 5 (== 0x7585) */
+#define UNTOUCHED_OFF (199u * 0x140u + 0x130u)  /* row 199: no panel ever writes here */
+
+static void outro_setup(void)
+{
+    int i;
+
+    for (i = 0; i < OUTRO_BUF_BYTES; i++) {
+        g_outro_src[i] = (uint8)(i & 0xFF);
+        g_outro_snap[i] = 0xC7;
+        g_outro_ws[i] = 0x33;      /* dirty: proves the snapshot reset ran */
+    }
+}
+
+static void outro_call(uint32 frame_idx)
+{
+    fd2_play_status_screen_outro_step(frame_idx, (uint32)g_outro_ws,
+        (uint32)g_outro_src, (int)(uint32)g_outro_snap);
+}
+
+/* frame 0: left in-place (x=5), right in-place (y=7), middle drawn (y=0x5E). */
+static void test_outro_frame0_all_inplace(void)
+{
+    outro_setup();
+    outro_call(0);
+
+    /* snapshot reset ran: a pixel no panel touches is the snapshot sentinel,
+     * not the 0x33 we pre-dirtied. */
+    ASSERT_EQ((long)g_outro_ws[UNTOUCHED_OFF], 0xC7);
+
+    /* left edge pinned at x=5: first copied byte == src[0x8C5]; the byte just
+     * left of it stays sentinel (so the panel starts exactly at col 5). */
+    ASSERT_EQ((long)g_outro_ws[LEFT_DST0 + 5], (long)(uint8)(0x8C5u & 0xFF));
+    ASSERT_EQ((long)g_outro_ws[LEFT_DST0 + 5 - 1], 0xC7);
+
+    /* right drawn in-place at y=7: its TOP row is row 7, so row-7 col-0x5C is
+     * written (== src[0x91C]) while row 0 at col 0x5C stays the sentinel (the
+     * in-place panel never reaches up to row 0). */
+    ASSERT_EQ((long)g_outro_ws[RIGHT_ROW7], (long)(uint8)(0x91Cu & 0xFF));
+    ASSERT_EQ((long)g_outro_ws[RIGHT_ROW0], 0xC7);
+
+    /* middle drawn at y=0x5E: row-0x5E col-5 byte == src[0x7585]. */
+    ASSERT_EQ((long)g_outro_ws[MID_ROW5E], (long)(uint8)(0x7585u & 0xFF));
+}
+
+/* frame 5: left still in-place (x=5, frame<6); right slides up to a NEGATIVE
+ * y (-0x19) so the painter clamps its dst base to row 0 (top row pushed off
+ * the top edge); middle drawn at y=0xAE. The discriminators vs frame 0:
+ * (a) the right panel's TOP row is now row 0, not row 7; (b) the middle row
+ * moved to 0xAE. */
+static void test_outro_frame5_right_clipped_middle_low(void)
+{
+    uint32 mid_off;
+
+    outro_setup();
+    outro_call(5);
+
+    /* left unchanged: still x=5. */
+    ASSERT_EQ((long)g_outro_ws[LEFT_DST0 + 5], (long)(uint8)(0x8C5u & 0xFF));
+
+    /* right y = 7-(5*0x10-0x30) = -0x19 < 0 -> dst clamped to row 0 with
+     * src_y_skip = 0x19. Row 0 at col 0x5C is now WRITTEN (== src[0x91C +
+     * 0x19*0x140]); the in-place frame leaves this same cell at the sentinel,
+     * so a non-clamped emit would fail here. */
+    ASSERT_EQ((long)g_outro_ws[RIGHT_ROW0],
+              (long)(uint8)((0x91Cu + 0x19u * 0x140u) & 0xFF));
+
+    /* middle drawn at y = 5*0x10+0x5E = 0xAE: first row at col 5. */
+    mid_off = 5u + 0xAEu * 0x140u;
+    ASSERT_EQ((long)g_outro_ws[mid_off], (long)(uint8)(0x7585u & 0xFF));
+    /* and the frame-0 middle row (0x5E) is NOT where this frame draws it. */
+    ASSERT_EQ((long)g_outro_ws[MID_ROW5E], 0xC7);
+}
+
+/* frame 6: left ENTERS the else branch but arithmetic yields x=5 again
+ * (5-(6*0x10-0x60) = 5); right still drawn (3..8) clamped; middle NOT drawn
+ * (frame not < 6). Pins the frame<6 boundary on the middle panel. */
+static void test_outro_frame6_middle_off(void)
+{
+    outro_setup();
+    outro_call(6);
+
+    /* else-branch left still resolves to x=5. */
+    ASSERT_EQ((long)g_outro_ws[LEFT_DST0 + 5], (long)(uint8)(0x8C5u & 0xFF));
+    ASSERT_EQ((long)g_outro_ws[LEFT_DST0 + 5 - 1], 0xC7);
+
+    /* middle skipped: the row it would occupy at frame 0 stays sentinel, and
+     * the row it would occupy at frame 6 (y=6*0x10+0x5E=0xFE) is off-screen /
+     * not drawn -> sentinel. */
+    ASSERT_EQ((long)g_outro_ws[MID_ROW5E], 0xC7);
+}
+
+/* frame 9: left slides far left (x=-0x2B -> clamped dst-x 0); right SKIPPED
+ * entirely (frame>=9); middle NOT drawn. Pins the right-panel skip branch. */
+static void test_outro_frame9_right_skipped(void)
+{
+    outro_setup();
+    outro_call(9);
+
+    /* right skipped: row 7 col 0x5C (uniquely the right panel's in-place first
+     * row; left starts at row 8, middle not drawn) stays the snapshot sentinel. */
+    ASSERT_EQ((long)g_outro_ws[RIGHT_ROW7], 0xC7);
+
+    /* left clamped to dst-x 0 with src advanced by 0x2B: first byte at col 0
+     * == src[0x8C5 + 0x2B]. */
+    ASSERT_EQ((long)g_outro_ws[LEFT_DST0],
+              (long)(uint8)((0x8C5u + 0x2Bu) & 0xFF));
+
+    /* middle not drawn. */
+    ASSERT_EQ((long)g_outro_ws[MID_ROW5E], 0xC7);
+}
+
+/* frame 0xB (11, last outro frame): left fully clipped (x=-0x4B -> dst-x 0,
+ * src advanced 0x4B, only 0xB bytes wide); right skipped; middle not drawn.
+ * This is the extreme x the function ever produces. */
+static void test_outro_frame11_left_extreme_clip(void)
+{
+    outro_setup();
+    outro_call(0xB);
+
+    /* left first byte at col 0 == src[0x8C5 + 0x4B]; the clipped row is only
+     * 0xB bytes wide so col 0xB onward stays the snapshot sentinel. */
+    ASSERT_EQ((long)g_outro_ws[LEFT_DST0],
+              (long)(uint8)((0x8C5u + 0x4Bu) & 0xFF));
+    ASSERT_EQ((long)g_outro_ws[LEFT_DST0 + 0xB - 1],
+              (long)(uint8)((0x8C5u + 0x4Bu + 0xB - 1) & 0xFF));
+    ASSERT_EQ((long)g_outro_ws[LEFT_DST0 + 0xB], 0xC7);
+
+    /* right skipped, middle not drawn. */
+    ASSERT_EQ((long)g_outro_ws[RIGHT_ROW7], 0xC7);
+    ASSERT_EQ((long)g_outro_ws[MID_ROW5E], 0xC7);
+}
+
+
 void run_anim_aniwalk2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -488,5 +661,10 @@ void run_anim_aniwalk2_tests(void)
     RUN_TEST(test_slide_panel_bottom_small_clip_zero_rows);
     RUN_TEST(test_slide_panel_bottom_small_no_clip);
     RUN_TEST(test_slide_panel_bottom_small_stationary);
+    RUN_TEST(test_outro_frame0_all_inplace);
+    RUN_TEST(test_outro_frame5_right_clipped_middle_low);
+    RUN_TEST(test_outro_frame6_middle_off);
+    RUN_TEST(test_outro_frame9_right_skipped);
+    RUN_TEST(test_outro_frame11_left_extreme_clip);
     printf("\n");
 }

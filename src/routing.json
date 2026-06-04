@@ -950,8 +950,9 @@
     "name": "fd2_play_status_screen_outro_step",
     "target": "anim/aniwalk.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000184c0": {
     "name": "fd2_render_inventory_item_grid",

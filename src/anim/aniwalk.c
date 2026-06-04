@@ -614,3 +614,60 @@ void fd2_slide_panel_down_step(uint32 y_offset,
 
     memmove((void *)0xA0000, (void *)dst_workspace, 0xFA00);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_play_status_screen_outro_step @ 0x18409  (6 callers)
+ *
+ * Render one frame of the 12-frame status/menu-panel slide animation.
+ * frame_idx runs 0..0xB; callers drive it 0xB->0 (intro) or 0->0xB (outro).
+ *
+ * Steps:
+ *   1. Reset workspace to the clean background snapshot.
+ *   2. Left panel  — slides horizontally: x = 5 while frame < 6, else
+ *      slides left as frame increases.
+ *   3. Right panel — slides vertically; drawn only while frame <= 8
+ *      (frame >= 9 is fully off-screen and skipped). y = 7 while
+ *      frame <= 2, else slides up over frames 3..8.
+ *   4. Middle panel — slides down (drawn only while frame < 6).
+ *   5. Composite the workspace to mode-13h VRAM (0xA0000).
+ *
+ * Cdecl, 4 stack params; void return. The binary's __CHK(0x18)
+ * stack-probe prologue is compiler-injected and not part of the source.
+ * Callers (8 sites in 6 functions; each open-screen routine drives this
+ * both intro 0xB->0 and outro 0->0xB): fd2_open_char_status_screen,
+ * fd2_open_status_screen_with_slide_in, fd2_inventory_selection_modal_
+ * dispatch, fd2_equip_unequip_inventory_menu, fd2_spell_selection_menu_
+ * main, fd2_run_recruitment_or_branch_screen.
+ * ---------------------------------------------------------------- */
+void fd2_play_status_screen_outro_step(uint32 frame_idx,
+                                        uint32 workspace,
+                                        uint32 src_buffer,
+                                        int snapshot_b)
+{
+    uint32 x_left;
+    uint32 y_right;
+
+    memmove((void *)workspace, (void *)snapshot_b, 0xFA00);
+
+    if ((int)frame_idx < 6) {
+        x_left = 5;
+    } else {
+        x_left = 5 - (frame_idx * 0x10 - 0x60);
+    }
+    fd2_paint_status_panel_layer_left(x_left, workspace, src_buffer);
+
+    if ((int)frame_idx < 9 && (int)frame_idx > 2) {
+        y_right = 7 - (frame_idx * 0x10 - 0x30);
+        fd2_paint_status_panel_layer_right(y_right, workspace, src_buffer);
+    } else if ((int)frame_idx <= 2) {
+        y_right = 7;
+        fd2_paint_status_panel_layer_right(y_right, workspace, src_buffer);
+    }
+
+    if ((int)frame_idx < 6) {
+        fd2_slide_panel_up_partial_step(frame_idx * 0x10 + 0x5E,
+            workspace, src_buffer);
+    }
+
+    memmove((void *)0xA0000, (void *)workspace, 0xFA00);
+}

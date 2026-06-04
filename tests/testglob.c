@@ -931,11 +931,9 @@ void fd2_render_inventory_item_grid(uint32 char_idx, int item_id,
 }
 /* fd2_paint_status_panel_layer_left / _right: both now emitted for real in
  * src/gfx/rndstat.c (with host unit tests); stubs removed. */
-void fd2_play_status_screen_outro_step(uint32 frame, uint32 dst_workspace,
-                                       uint32 overlay_buffer,
-                                       int snapshot_buffer) {
-    (void)frame; (void)dst_workspace; (void)overlay_buffer; (void)snapshot_buffer;
-}
+/* fd2_play_status_screen_outro_step: now emitted for real in src/anim/aniwalk.c
+ * (with host unit tests in tests/anim/aniwalk2.c driving the real panel
+ * painters over in-memory buffers); stub removed. */
 void fd2_draw_spell_selection_list(uint32 char_idx, uint32 spell_idx,
                                    uint32 overlay_buffer) {
     (void)char_idx; (void)spell_idx; (void)overlay_buffer;
