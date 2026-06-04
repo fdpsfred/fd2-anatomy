@@ -181,6 +181,9 @@ uint32 fd2_check_party_has_char_id(uint32 char_id);
 /* ---- field cutscene ---- */
 void fd2_cutscene_event_trigger(uint32 event_id);
 
+/* ---- chapter post-action handlers ---- */
+void fd2_chapter_02_post_action(uint32 event_arg);
+
 /* ---- animation ---- */
 void fd2_tick_tile_event_animations(void);
 void fd2_walk_step_down(uint32 char_idx);

@@ -1762,8 +1762,9 @@
     "name": "fd2_chapter_02_post_action",
     "target": "field/chpost.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00020707": {
     "name": "fd2_chapter_10_post_action",
