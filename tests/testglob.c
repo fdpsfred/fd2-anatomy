@@ -127,7 +127,8 @@ uint32 data_ail_free_fnptr = 0;
 uint32 data_fd2_engine_wait_one_bios_tick_last_seen = 0;
 uint32 data_fd2_engine_wait_n_bios_ticks_last_seen = 0;
 void fd2_delay_ticks(uint32 t) { }
-void fd2_execute_offensive_targeted_spell(int a, int b, int c, int d) { }
+/* fd2_execute_offensive_targeted_spell now emitted for real in
+ * src/spell/spelleff.c (@0x21227); stub removed. */
 void fd2_execute_offensive_full_screen_flash_spell(int a, int b, int c, int d) { }
 void fd2_cast_earthquake_spell_with_screen_shake(int a, int b, int c, uint8 *d) { }
 void fd2_dispatch_variant_b_cast(int a, int b, int c, int d) { }
