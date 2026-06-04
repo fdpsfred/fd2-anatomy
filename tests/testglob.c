@@ -340,6 +340,34 @@ void fd2_tile_blit_24x24_solid_color(uint32 src, uint32 dst, uint32 color_or_str
     g_blitpass_calls++;
     g_blitsolid_calls++;
 }
+/* fd2_tile_blit_24x24_with_dialog_bg_fill (the RLE blitter that fills
+ * transparent runs with the dialog-bg colour 0x49; real body not yet emitted).
+ * fd2_render_chapter_intro_dialog_panels (mode 2) drives it for the 3-icon
+ * roster row; recording (src, dst, stride) into the shared g_blitpass_* arrays
+ * lets the panel test verify the per-icon dst-offset / portrait-source /
+ * blink-phase arithmetic without touching pixels. */
+int    g_blitbgfill_calls = 0;
+void fd2_tile_blit_24x24_with_dialog_bg_fill(uint32 src, uint32 dst, uint32 stride) {
+    if (g_blitpass_calls < 64) {
+        g_blitpass_src[g_blitpass_calls] = src;
+        g_blitpass_dst[g_blitpass_calls] = dst;
+        g_blitpass_stride[g_blitpass_calls] = stride;
+    }
+    g_blitpass_calls++;
+    g_blitbgfill_calls++;
+}
+/* fd2_render_party_roster_grid (the 2x3 party-roster grid renderer; real body
+ * not yet emitted). fd2_render_chapter_intro_dialog_panels (mode 3) overlays it;
+ * the recording stub captures (highlight_idx, surface_offset) and a call count so
+ * the panel test can confirm the overlay is invoked with the right args. */
+int    g_roster_grid_calls = 0;
+uint32 g_roster_grid_last_highlight = 0;
+uint32 g_roster_grid_last_surface = 0;
+void fd2_render_party_roster_grid(uint32 highlight_idx, uint32 surface_offset) {
+    g_roster_grid_last_highlight = highlight_idx;
+    g_roster_grid_last_surface = surface_offset;
+    g_roster_grid_calls++;
+}
 /* fd2_render_terrain_info_hud_panel is now a real emitted function
  * (src/gfx/rndstat.c). Its former recording/loop-break stub here was removed;
  * the idle-loop break seam (g_repaint_settings_calls / g_repaint_flip_buffer_after)
@@ -383,14 +411,20 @@ int32  data_fd2_ui_game_options_menu_state_template[4] = { 0, 0, 0, 0 };
 int32  data_fd2_dialog_advance_collapse_template[4] = { 0x10, 0x11, 0x10, 0x11 };
 uint32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4] = {0};
 uint32 data_fd2_chapter_intro_dialog_anim_frame_idx = 0;
+uint32 data_fd2_chapter_intro_dialog_subframe_anim_counter = 0;
 uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
+uint32 data_fd2_ui_menu_scroll_offset = 0;
+uint32 data_fd2_ui_menu_visible_item_count = 0;
+uint8 *data_fd2_ui_menu_candidate_array_ptr = 0;
 /* chapter-intro overlay (rndmenu.c) globals */
 uint32 data_fd2_chapter_intro_menu_cursor_state = 0;
 uint32 data_fd2_chapter_intro_menu_overlay_buf_ptr = 0;
 uint8  data_fd2_chapter_intro_portrait_pose_y_row_table[18] = {0};
 uint8  data_fd2_chapter_intro_portrait_pose_x_column_table[18] = {0};
 void fd2_render_chapter_dialog_borders(void) { }
-void fd2_render_chapter_intro_dialog_panels(uint32 c, uint32 m) { }
+/* fd2_render_chapter_intro_dialog_panels now has a real body in
+ * src/gfx/rndmenu.c (driven by the mode-0/1/2/3 tests in tests/gfx/rndmenu.c);
+ * its former no-op stub was removed. */
 /* capture wiring for fd2_blit_indexed_sprite_with_alloc tests; also drives the
  * real fd2_open_settings_dialog_with_slide corner-sprite blit. Records the last
  * (dst, sprite, stride) and counts total calls so the dialog-open / settings
@@ -1077,7 +1111,15 @@ int    g_dlg_blit_mirrored_calls = 0;
 uint32 g_dlg_blit_last_dst = 0;
 uint32 g_dlg_blit_last_sprite = 0;
 uint32 g_dlg_blit_last_stride = 0;
+/* per-call log (chapter-intro panel tests verify both the left and right
+ * panel blits within a single render call) */
+uint32 g_dlg_blit_dst_log[16];
+uint32 g_dlg_blit_sprite_log[16];
 void fd2_dialog_sprite_blit_normal(uint32 dst, uint32 sprite, uint32 stride) {
+    if (g_dlg_blit_normal_calls < 16) {
+        g_dlg_blit_dst_log[g_dlg_blit_normal_calls] = dst;
+        g_dlg_blit_sprite_log[g_dlg_blit_normal_calls] = sprite;
+    }
     g_dlg_blit_normal_calls++;
     g_dlg_blit_last_dst = dst;
     g_dlg_blit_last_sprite = sprite;

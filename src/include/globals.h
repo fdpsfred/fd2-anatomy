@@ -172,7 +172,11 @@ extern uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch;         /* 0x54
 extern uint32 data_fd2_chapter_intro_menu_cursor_state;                 /* 0x5412B */
 extern uint32 data_fd2_chapter_intro_menu_overlay_buf_ptr;              /* 0x5413B */
 extern uint32 data_fd2_chapter_intro_dialog_anim_frame_idx;             /* 0x54133 */
+extern uint32 data_fd2_chapter_intro_dialog_subframe_anim_counter;      /* 0x54153 */
 extern uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr;             /* 0x54147 */
+extern uint32 data_fd2_ui_menu_scroll_offset;                           /* 0x5412F */
+extern uint32 data_fd2_ui_menu_visible_item_count;                      /* 0x5413F */
+extern uint8 *data_fd2_ui_menu_candidate_array_ptr;                     /* 0x54143 */
 /* per-chapter portrait pose tables (byte[18]), indexed by
  * chapter_category*6 + cursor_state. dst = lgsb + 0x8088
  * + pose_x_column[off]*stride + pose_y_row[off] (matches Ghidra symbols). */
