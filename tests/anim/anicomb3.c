@@ -37,16 +37,24 @@
 #include "protos.h"
 #include <stdio.h>
 
-/* phase-banner callee recording (testglob.c): the not-yet-emitted
- * fd2_render_phase_banner_frame / fd2_scroll_buffer_block_with_wrap stubs. */
-extern int    g_render_phase_banner_frame_calls;
-extern uint32 g_render_phase_banner_frame_last_x;
+/* phase-banner callee recording (testglob.c). fd2_render_phase_banner_frame is
+ * now a real emitted routine (src/gfx/rndscene.c); the slide tests count frame
+ * renders through its real cleanup chain instead: each frame render makes
+ * exactly two fd2_cleanup_dialog_sprite_buffer calls, and the cleanup forwards
+ * to the recording fd2_restore_screen_block_from_buffer stub, so
+ * g_restore_block_calls == 2 * (frames rendered). The fade loops free their own
+ * save buffers directly (not via cleanup), so they contribute nothing to this
+ * counter — it isolates exactly the frame-render count. fd2_scroll_buffer_block_with_wrap
+ * is still a recording stub used to pin the fade-loop iteration count. */
+extern int    g_restore_block_calls;
 extern int    g_scroll_buffer_calls;
 extern uint32 g_scroll_buffer_last_wrap;
 
-/* large_game_state_buffer destination for the slide-in's
- * memmove(lgs, snapshot, 64000) working-buffer restore (needs >= 64000 B). */
-static uint8 g_banner_lgs[0x10000];
+/* large_game_state_buffer backing. The slide-in memmoves 64000 B out of it and
+ * the real per-frame fd2_render_phase_banner_frame's real fd2_blit_rectangle
+ * reads the 312x192 visible region from lgs + 0x8088 (max read offset
+ * 0x8088 + 191*456 + 312), so the backing must span well past that. */
+static uint8 g_banner_lgs[0x26000];
 
 /* Synthetic sprite atlas read by the real fd2_alloc_and_blit_indexed_sprite_chunk
  * in the fade loop. Offset table at +6 (4 B/entry); every entry -> a {0,0}
@@ -79,17 +87,15 @@ static void test_banner_slide_in_frame_and_fade_counts(void)
     data_fd2_large_game_state_buffer_ptr = (uint32)g_banner_lgs;
     t_install_banner_sheet();
 
-    g_render_phase_banner_frame_calls = 0;
-    g_render_phase_banner_frame_last_x = 0xFFFFFFFFu;
+    g_restore_block_calls = 0;
     g_scroll_buffer_calls = 0;
     g_scroll_buffer_last_wrap = 0;
 
     fd2_animate_phase_banner_slide_in(0x52);
 
-    /* slide-in: frame_iter 4,3,2,1,0 (5) + settle x=1 + settle x=0 = 7. */
-    ASSERT_EQ(g_render_phase_banner_frame_calls, 7);
-    /* final frame renders at x_offset 0 (the settle position). */
-    ASSERT_EQ((long)g_render_phase_banner_frame_last_x, 0);
+    /* slide-in: frame_iter 4,3,2,1,0 (5) + settle x=1 + settle x=0 = 7 frame
+     * renders; each does 2 cleanups -> 14 restore-block calls. */
+    ASSERT_EQ(g_restore_block_calls, 14);
     /* fade loop runs 16 times, scroll_offset 1..16 (last == 16). */
     ASSERT_EQ(g_scroll_buffer_calls, 16);
     ASSERT_EQ((long)g_scroll_buffer_last_wrap, 16);
@@ -113,12 +119,12 @@ static void test_banner_slide_in_player_id(void)
     data_fd2_large_game_state_buffer_ptr = (uint32)g_banner_lgs;
     t_install_banner_sheet();
 
-    g_render_phase_banner_frame_calls = 0;
+    g_restore_block_calls = 0;
     g_scroll_buffer_calls = 0;
 
     fd2_animate_phase_banner_slide_in(0x50);
 
-    ASSERT_EQ(g_render_phase_banner_frame_calls, 7);
+    ASSERT_EQ(g_restore_block_calls, 14);   /* 7 frame renders x 2 cleanups */
     ASSERT_EQ(g_scroll_buffer_calls, 16);
 
     data_fd2_large_game_state_buffer_ptr = save_lgs;
@@ -166,8 +172,7 @@ static void test_banner_slide_out_frame_and_fade_counts(void)
     t_install_banner_sheet();
     data_fd2_battle_party_member_count = 0;
 
-    g_render_phase_banner_frame_calls = 0;
-    g_render_phase_banner_frame_last_x = 0xFFFFFFFFu;
+    g_restore_block_calls = 0;
     g_scroll_buffer_calls = 0;
     g_scroll_buffer_last_wrap = 0;
     g_composite_call_count = 0;
@@ -180,9 +185,9 @@ static void test_banner_slide_out_frame_and_fade_counts(void)
     ASSERT_EQ((long)g_scroll_buffer_last_wrap, 1);
     /* Phase 2 recomposites the battle scene exactly once. */
     ASSERT_EQ(g_composite_call_count, 1);
-    /* Phase 3 slide-out renders 5 frames, x_offset 0,0x19,0x32,0x4B,0x64. */
-    ASSERT_EQ(g_render_phase_banner_frame_calls, 5);
-    ASSERT_EQ((long)g_render_phase_banner_frame_last_x, 0x64);
+    /* Phase 3 slide-out renders 5 frames (x_offset 0,0x19,0x32,0x4B,0x64);
+     * each does 2 cleanups -> 10 restore-block calls. */
+    ASSERT_EQ(g_restore_block_calls, 10);
 
     data_fd2_large_game_state_buffer_ptr = save_lgs;
     data_fd2_ui_anim_sprite_sheet_ptr = save_sheet;
@@ -207,13 +212,13 @@ static void test_banner_slide_out_player_id(void)
     t_install_banner_sheet();
     data_fd2_battle_party_member_count = 0;
 
-    g_render_phase_banner_frame_calls = 0;
+    g_restore_block_calls = 0;
     g_scroll_buffer_calls = 0;
 
     fd2_animate_phase_banner_slide_out(0x50);
 
     ASSERT_EQ(g_scroll_buffer_calls, 17);
-    ASSERT_EQ(g_render_phase_banner_frame_calls, 5);
+    ASSERT_EQ(g_restore_block_calls, 10);   /* 5 frame renders x 2 cleanups */
 
     data_fd2_large_game_state_buffer_ptr = save_lgs;
     data_fd2_ui_anim_sprite_sheet_ptr = save_sheet;

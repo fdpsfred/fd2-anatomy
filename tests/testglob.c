@@ -696,26 +696,23 @@ void fd2_play_palette_fade_in(void) { }
  * now emitted in src/ui_menu/menucfg.c. */
 /* fd2_animate_phase_banner_slide_in / fd2_animate_phase_banner_slide_out:
  * both now emitted for real in src/anim/anicombt.c; their former counting
- * stubs here were removed. Their sole caller's test (battle/btl_turn.c
- * full-cycle) drives the real banners and counts invocations at the still-stub
- * fd2_render_phase_banner_frame boundary via g_render_phase_banner_frame_calls
- * (7 frame renders per slide_in + 5 per slide_out). The slide_out's own
- * internal loops/EAX-bug free pairing are pinned by a dedicated test in the
- * anim leaf. */
-/* Per-frame renderer + vertical-scroll block copy: callees of the now-real
- * banner slide_in / slide_out, not yet emitted. Both record call counts
- * (and the scroll's last wrap_param) so the banner tests can pin their loops:
- * slide_in fires the frame renderer 7x (5-frame countdown + 2 settle) and
- * scrolls 16x with scroll_offset advancing 1..16; slide_out fires the frame
- * renderer 5x and scrolls 17x with scroll_offset counting 0x11..1. The
- * turn-cycle test also reads g_render_phase_banner_frame_calls. */
-int g_render_phase_banner_frame_calls = 0;
-uint32 g_render_phase_banner_frame_last_x = 0xFFFFFFFFu;
-void fd2_render_phase_banner_frame(uint32 x_offset, uint32 banner_sprite_id) {
-    g_render_phase_banner_frame_calls++;
-    g_render_phase_banner_frame_last_x = x_offset;
-    (void)banner_sprite_id;
-}
+ * stubs here were removed. fd2_render_phase_banner_frame is now also emitted
+ * for real (src/gfx/rndscene.c), so its former counting stub
+ * (g_render_phase_banner_frame_calls / _last_x) was removed. The real per-frame
+ * renderer drives two real fd2_alloc_and_blit_indexed_sprite_chunk +
+ * fd2_blit_rectangle + fd2_wait_n_bios_ticks + two real
+ * fd2_cleanup_dialog_sprite_buffer calls; each frame render therefore makes
+ * exactly two fd2_restore_screen_block_from_buffer calls (g_restore_block_calls
+ * counts only frame-render cleanups — the fade loops free their save buffers
+ * directly, not via cleanup), which the banner slide tests use as the exact
+ * per-frame counter. The frame renderer's own x_offset->col_offset arithmetic
+ * and full call sequence are pinned by a dedicated test in tests/gfx/rndscene.c.
+ * The turn-cycle test (battle/btl_turn.c) counts frame renders the same way. */
+/* Vertical-scroll block copy: callee of the now-real banner slide_in /
+ * slide_out, not yet emitted. Records call count (and the last wrap_param) so
+ * the banner tests can pin their fade loops: slide_in scrolls 16x with
+ * scroll_offset advancing 1..16; slide_out scrolls 17x with scroll_offset
+ * counting 0x11..1. */
 int g_scroll_buffer_calls = 0;
 uint32 g_scroll_buffer_last_wrap = 0;
 void fd2_scroll_buffer_block_with_wrap(uint32 wrap_param, void *dst_buf,

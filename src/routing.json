@@ -1663,8 +1663,9 @@
     "name": "fd2_render_phase_banner_frame",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001f525": {
     "name": "fd2_play_palette_fade_in",

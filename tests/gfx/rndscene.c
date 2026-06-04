@@ -36,11 +36,24 @@ extern int    g_blitdim_calls;
 extern int    g_blitsolid_calls;
 extern uint32 g_blitsolid_color[64];
 /* recording stub for fd2_blit_sprite_with_decoded_pixels (testglob.c); the
- * spell-effect overlay hit branch forwards (dst, sprite, stride) here. */
+ * spell-effect overlay hit branch forwards (dst, sprite, stride) here. The
+ * opt-in per-call log (g_blitdec_log_*) is reused by the phase-banner-frame
+ * test to capture both of its alloc/blit halves' resolved (dst, sprite). */
 extern uint32 g_blitdec_dst;
 extern uint32 g_blitdec_sprite;
 extern uint32 g_blitdec_stride;
 extern int    g_blitdec_calls;
+extern int    g_blitdec_log_on;
+extern int    g_blitdec_log_count;
+extern uint32 g_blitdec_log_dst[16];
+extern uint32 g_blitdec_log_sprite[16];
+/* recording stub for fd2_restore_screen_block_from_buffer (testglob.c); the
+ * real fd2_cleanup_dialog_sprite_buffer forwards (saved_block, dst, stride)
+ * here once per call, so g_restore_block_calls counts cleanups. */
+extern int    g_restore_block_calls;
+extern uint32 g_restore_block_last_buf;
+extern uint32 g_restore_block_last_dst;
+extern uint32 g_restore_block_last_stride;
 /* the real per-char paint reads the runtime_char array through this ptr */
 extern runtime_char g_test_rc_array[8];
 /* The compositor's final stage is the real fd2_blit_rectangle (src/gfx/blitspr.c).
@@ -1955,6 +1968,147 @@ static void test_hpseg_over_width_no_cap(void)
     hpseg_expect(0x46, 0x46, 0x19);   /* last blit is the fill cap, no 0x1E */
 }
 
+/* ====================================================================
+ * fd2_render_phase_banner_frame @ 0x1F42D
+ *
+ * Renders one frame of the PLAYER/ENEMY-TURN phase banner: two real
+ * fd2_alloc_and_blit_indexed_sprite_chunk calls (main banner + corner),
+ * then a real fd2_blit_rectangle (workspace -> 0xA0504), a real
+ * fd2_wait_n_bios_ticks(1), then two real fd2_cleanup_dialog_sprite_buffer
+ * calls — each freeing the save buffer returned by its matching alloc/blit.
+ *
+ * The two alloc/blit calls resolve their sprite via the sheet at
+ * data_fd2_ui_anim_sprite_sheet_ptr (identity offset table, entry i -> i,
+ * pointing at a {0,0} header so the blits are zero-size and host-safe), and
+ * forward (dst, sprite, stride) to the recording fd2_blit_sprite_with_decoded_pixels
+ * stub (g_blitdec opt-in log). From each logged blit:
+ *   dst    = ws + row_idx*pitch + col_offset
+ *          = (lgs+0x8088) + 0x52*0x140 + col_offset
+ *   sprite = sheet + table[sprite_idx] = sheet + sprite_idx (identity)
+ * so the test recovers col_offset (=> the x_offset arithmetic 0x55-x and
+ * x+0xA5) and sprite_idx (=> banner_sprite_id then 0x51) for each half.
+ *
+ * The two cleanups forward to the recording fd2_restore_screen_block_from_buffer
+ * stub (g_restore_block_*); g_restore_block_calls == 2 confirms both halves
+ * are cleaned up, and that each free() succeeded (the function returning at all
+ * proves the two saved_block args were the two real malloc'd buffers — the
+ * Ghidra EAX-bug would instead route the workspace pointer or a duplicated
+ * buffer into free() and fault). The last cleanup is the right (corner) half,
+ * so g_restore_block_last_dst / _stride pin the cleanup's ws / pitch args.
+ * ==================================================================== */
+
+/* Sheet for data_fd2_ui_anim_sprite_sheet_ptr. The real alloc/blit chunk reads
+ * sprite_hdr = sheet + table[sprite_idx] (table at +6, 4 B/entry) and forwards
+ * sprite_hdr to the g_blitdec stub. To make sprite_idx recoverable from the
+ * logged sprite_hdr, each entry points at a DISTINCT per-index header slot at
+ * BANNER_HDR_BASE + sprite_idx*4, so sprite_idx = (sprite_hdr - sheet -
+ * BANNER_HDR_BASE)/4. Every header sits in the zero-filled region past the
+ * table, so width=height=0 -> malloc(8), zero-size (host-safe) blit. Covers
+ * indices 0..0x52. */
+#define BANNER_HDR_BASE 0x200
+static uint8 g_banner_frame_sheet[0x600];
+
+static void install_banner_frame_sheet(void)
+{
+    int i;
+
+    memset(g_banner_frame_sheet, 0, sizeof(g_banner_frame_sheet));
+    for (i = 0; i < 0x53; i++) {
+        *(int32 *)(g_banner_frame_sheet + 6 + i * 4) =
+            (int32)(BANNER_HDR_BASE + i * 4);   /* distinct {0,0} header per idx */
+    }
+    data_fd2_ui_anim_sprite_sheet_ptr = (uint32)g_banner_frame_sheet;
+}
+
+/* recover sprite_idx from a logged g_blitdec sprite_hdr (== sheet + table[idx]
+ * == sheet + BANNER_HDR_BASE + idx*4). */
+static uint32 banner_recover_sprite_idx(uint32 sprite_hdr)
+{
+    return (sprite_hdr - (uint32)g_banner_frame_sheet - BANNER_HDR_BASE) / 4u;
+}
+
+/* Run one frame render at x_offset with the sheet + workspace installed and a
+ * clean blitdec / saveblk / restore-block log. Returns ws (= lgs + 0x8088). */
+static uint32 banner_frame_run(uint32 x_offset, uint32 banner_sprite_id)
+{
+    uint32 ws;
+
+    /* ws back-buffer at lgs+0x8088; the real fd2_blit_rectangle reads the
+     * 312x192 visible region from it (WS_SPAN covers the span), then writes to
+     * 0xA0504 (VGA RAM, harmless under DOS/4GW). */
+    ws = (uint32)g_ws_buffer;
+    data_fd2_large_game_state_buffer_ptr = ws - 0x8088u;
+    install_banner_frame_sheet();
+
+    g_blitdec_calls = 0;
+    g_blitdec_log_on = 1;
+    g_blitdec_log_count = 0;
+    g_saveblk_calls = 0;
+    g_restore_block_calls = 0;
+
+    fd2_render_phase_banner_frame(x_offset, banner_sprite_id);
+
+    g_blitdec_log_on = 0;
+    return ws;
+}
+
+/* dst the alloc/blit chunk paints for (col_offset) at row 0x52 into ws. The
+ * chunk's surface_pitch is 0x1C8 (456) — the workspace pitch — so
+ * dst = ws + row_idx*pitch + col_offset = ws + 0x52*0x1C8 + col_offset.
+ * (0x140/320 is the separate primary stride used only by the final
+ * fd2_blit_rectangle, not by these sprite-chunk paints.) */
+static uint32 banner_expect_dst(uint32 ws, uint32 col_offset)
+{
+    return ws + 0x52u * 0x1c8u + col_offset;
+}
+
+/* Settled frame (x_offset 0): main half col = 0x55, corner half col = 0xA5;
+ * sprite ids banner_sprite_id (0x52 ENEMY) then 0x51. Pins both halves'
+ * dst arithmetic + sprite indices, the 2 alloc/blits + 2 cleanups, and that
+ * the real pipeline (incl. blit_rectangle + wait) completed without faulting. */
+static void test_banner_frame_settled(void)
+{
+    uint32 ws;
+
+    ws = banner_frame_run(0, 0x52);
+
+    /* exactly two alloc/blit chunks (2 saveblk, 2 blitdec) and two cleanups. */
+    ASSERT_EQ(g_saveblk_calls, 2);
+    ASSERT_EQ(g_blitdec_calls, 2);
+    ASSERT_EQ(g_blitdec_log_count, 2);
+    ASSERT_EQ(g_restore_block_calls, 2);
+
+    /* half 0 (main banner): col = 0x55 - 0 = 0x55, sprite = banner_sprite_id. */
+    ASSERT_EQ(g_blitdec_log_dst[0], banner_expect_dst(ws, 0x55));
+    ASSERT_EQ(banner_recover_sprite_idx(g_blitdec_log_sprite[0]), 0x52u);
+    /* half 1 (corner): col = 0 + 0xA5 = 0xA5, sprite = 0x51 (fixed). */
+    ASSERT_EQ(g_blitdec_log_dst[1], banner_expect_dst(ws, 0xa5));
+    ASSERT_EQ(banner_recover_sprite_idx(g_blitdec_log_sprite[1]), 0x51u);
+
+    /* last cleanup (right/corner half) carries ws + pitch as dst/stride. */
+    ASSERT_EQ(g_restore_block_last_dst, ws);
+    ASSERT_EQ(g_restore_block_last_stride, 0x1c8u);
+}
+
+/* Mid-slide frame (x_offset 0x32, PLAYER banner 0x50): the two halves move
+ * symmetrically off-centre — main col = 0x55 - 0x32 = 0x23, corner col =
+ * 0x32 + 0xA5 = 0xD7 — proving x_offset feeds both col offsets (one minus, one
+ * plus) and that banner_sprite_id flows only to the main half (corner stays
+ * 0x51). An independent x_offset rules out the settled-case coincidences. */
+static void test_banner_frame_mid_slide(void)
+{
+    uint32 ws;
+
+    ws = banner_frame_run(0x32, 0x50);
+
+    ASSERT_EQ(g_blitdec_calls, 2);
+    ASSERT_EQ(g_blitdec_log_dst[0], banner_expect_dst(ws, 0x55u - 0x32u));
+    ASSERT_EQ(banner_recover_sprite_idx(g_blitdec_log_sprite[0]), 0x50u);
+    ASSERT_EQ(g_blitdec_log_dst[1], banner_expect_dst(ws, 0x32u + 0xa5u));
+    ASSERT_EQ(banner_recover_sprite_idx(g_blitdec_log_sprite[1]), 0x51u);
+    ASSERT_EQ(g_restore_block_calls, 2);
+}
+
 void run_gfx_rndscene_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -2020,5 +2174,7 @@ void run_gfx_rndscene_tests(void)
     RUN_TEST(test_hpprop_mid_hp_scaling);
     RUN_TEST(test_hpprop_low_hp_min_fill);
     RUN_TEST(test_hpprop_bar_addr_arithmetic);
+    RUN_TEST(test_banner_frame_settled);
+    RUN_TEST(test_banner_frame_mid_slide);
     printf("\n");
 }

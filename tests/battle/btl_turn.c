@@ -638,12 +638,13 @@ static void test_mark_char_acted(void)
 
 /* ---- fd2_run_full_turn_cycle ---- */
 
-/* fd2_animate_phase_banner_slide_in and fd2_animate_phase_banner_slide_out are
- * now both emitted for real (anicombt.c), so the full cycle runs the real
- * banners; their invocations are counted at the still-stub
- * fd2_render_phase_banner_frame boundary (7 frame renders per slide_in, 5 per
- * slide_out). */
-extern int g_render_phase_banner_frame_calls;
+/* fd2_animate_phase_banner_slide_in / _out and fd2_render_phase_banner_frame are
+ * now all emitted for real (anicombt.c / rndscene.c), so the full cycle runs the
+ * real banners. Both banner animators are the ONLY callers of the recording
+ * fd2_scroll_buffer_block_with_wrap stub (slide_in scrolls 16x, slide_out 17x),
+ * so g_scroll_buffer_calls cleanly counts banner-animator activity end-to-end,
+ * isolated from the Phase-F reveal loops (which never scroll). */
+extern int g_scroll_buffer_calls;
 extern int g_restore_block_calls;
 extern uint8 data_fd2_audio_bgm_driver_available_flag;
 
@@ -763,7 +764,7 @@ static void test_run_turn_cycle_phase_a_heal(void)
     data_fd2_battle_party_member_count = 7;
 
     data_fd2_chapter_event_or_battle_end_code = 9;  /* gate -> early exit */
-    g_render_phase_banner_frame_calls = 0;
+    g_scroll_buffer_calls = 0;
 
     fd2_run_full_turn_cycle();
 
@@ -784,7 +785,7 @@ static void test_run_turn_cycle_phase_a_heal(void)
      * the phase-0 (Phase D) entry never fired and no banner animated. */
     ASSERT_EQ(g_turncycle_spy_b_fired, 1);
     ASSERT_EQ(g_turncycle_spy_d_fired, 0);
-    ASSERT_EQ(g_render_phase_banner_frame_calls, 0);
+    ASSERT_EQ(g_scroll_buffer_calls, 0);   /* no banner -> no scroll */
 
     data_fd2_battle_ai_post_action_consequence_table[0x10] = 0;
     data_fd2_battle_ai_post_action_consequence_table[0x11] = 0;
@@ -857,7 +858,7 @@ static void test_run_turn_cycle_full_reveal(void)
     data_fd2_battle_turn_counter = 7;
     data_fd2_battle_current_active_char_idx = 99;
     data_fd2_battle_anim_phase = 5;
-    g_render_phase_banner_frame_calls = 0;
+    g_scroll_buffer_calls = 0;
     g_restore_block_calls = 0;
 
     fd2_run_full_turn_cycle();
@@ -865,12 +866,14 @@ static void test_run_turn_cycle_full_reveal(void)
     /* turn counter bumped exactly once (Phase F). */
     ASSERT_EQ((long)data_fd2_battle_turn_counter, 8);
     /* Phase D banner (0x52) + Phase F banner (0x50). Each phase shows a
-     * banner then slides it out, so per phase: one real slide_in (7 frame
-     * renders = 5-frame countdown + settle 1 + settle 0) + one real slide_out
-     * (5 frame renders). Two phases => 2*(7+5) = 24 frame renders. (This also
-     * implicitly confirms slide_out fired exactly twice: 0 or 1 invocations
-     * would not reach 24.) */
-    ASSERT_EQ(g_render_phase_banner_frame_calls, 24);
+     * banner then slides it out: one real slide_in (scrolls 16x) + one real
+     * slide_out (scrolls 17x) = 33 scrolls per phase. Two phases => 66 scroll
+     * calls. fd2_scroll_buffer_block_with_wrap is called ONLY by the two banner
+     * animators, so this confirms both banners ran for both phases (slide_in
+     * AND slide_out fired exactly twice each; a missing slide_out would land at
+     * 32, a missing whole banner far lower). The per-frame banner renderer's own
+     * call sequence is pinned directly in tests/gfx/rndscene.c. */
+    ASSERT_EQ(g_scroll_buffer_calls, 66);
     /* Real dispatcher fired the matching chapter event at each phase:
      * phase 1 (B) + phase 0 (D) while turn==7, phase 2 (F) at turn==8. */
     ASSERT_EQ(g_turncycle_spy_b_fired, 1);
@@ -879,11 +882,14 @@ static void test_run_turn_cycle_full_reveal(void)
     /* Phase F tail re-arms the active-char index and anim phase. */
     ASSERT_EQ((long)data_fd2_battle_current_active_char_idx, 0);
     ASSERT_EQ((long)data_fd2_battle_anim_phase, 1);
-    /* reveal loops freed every save buffer they allocated: the real
-     * cleanup forwarded to the restore stub 9 (loop1) + 4 (loop2) times.
-     * (If the EAX-fix were wrong, free() of a bad pointer would crash
-     * before we get here.) */
-    ASSERT_EQ(g_restore_block_calls, 13);
+    /* Every save buffer allocated by the real cleanup-driving callees was
+     * freed (the real fd2_cleanup_dialog_sprite_buffer forwards to the restore
+     * stub once per call, so this counts total cleanups). Sources, all
+     * deterministic: the two banners' per-frame renderer now cleans up 2x per
+     * frame -> 24 frame renders (Phase D 7+5, Phase F 7+5) x 2 = 48; plus the
+     * Phase-F reveal loops 9 (loop1) + 4 (loop2) = 13. Total 61. (If the EAX-fix
+     * were wrong anywhere, free() of a bad pointer would crash before here.) */
+    ASSERT_EQ(g_restore_block_calls, 61);
 
     data_fd2_battle_ai_post_action_consequence_table[0x10] = 0;
     data_fd2_battle_ai_post_action_consequence_table[0x11] = 0;
