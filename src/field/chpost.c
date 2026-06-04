@@ -385,3 +385,32 @@ void fd2_chapter_20_post_action(uint32 event_arg)
         data_fd2_chapter_event_or_battle_end_code = 2;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_21_post_action @ 0x20A51  (dispatched, 0 direct callers)
+ *
+ * Chapter 21 turn-cycle post-action handler. Reached via
+ * data_fd2_chapter_post_action_handler_table[20] (table @ 0x51B19,
+ * indexed by current_chapter_id). The dispatch site invokes the handler
+ * with no real arguments; event_arg is the Watcom __CHK-prologue artifact
+ * and is unused by the body.
+ *
+ * Runs the default win/lose check, then adds a two-slot lose-condition
+ * override: if either escort NPC at runtime_char[0x10] OR [0x11] is dead,
+ * set game_event_flag (0x53ECC) to 1 (game over). The OR short-circuits:
+ * [0x11] is only tested when [0x10] is alive. Deadness is queried through
+ * fd2_check_char_is_dead (runtime_char[idx].flags bit0); the body reads no
+ * bFlags inline. (Chapter 21 has two escort NPCs at slots 0x10, 0x11 that
+ * must survive.)
+ * ---------------------------------------------------------------- */
+void fd2_chapter_21_post_action(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_check_battle_end_condition();
+
+    if (fd2_check_char_is_dead(0x10) != 0 ||
+        fd2_check_char_is_dead(0x11) != 0) {
+        data_fd2_chapter_event_or_battle_end_code = 1;
+    }
+}

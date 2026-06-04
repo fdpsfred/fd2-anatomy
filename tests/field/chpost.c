@@ -1552,6 +1552,127 @@ static void test_chpost20_stage3_outside_neighbors_ignored(void)
     chpost20_teardown();
 }
 
+/* ============================================================
+ * fd2_chapter_21_post_action @ 0x20A51
+ *
+ * Same default win/lose check (fd2_check_battle_end_condition, linked real),
+ * then a two-slot lose-condition override: if either escort NPC
+ * runtime_char[0x10] OR [0x11] is dead -> game_event_flag = 1 (game over).
+ * The OR short-circuits ([0x11] is only tested when [0x10] is alive).
+ *
+ * Because the default check runs first, the flag's baseline is 2 here, not 0:
+ * setup arranges every slot team=2 (player) and slot 0 (protagonist) alive so
+ * the default deterministically yields flag=2, making the override observable
+ * as a clean 2 -> 1 transition. Deadness for slots 0x10/0x11 is queried through
+ * fd2_check_char_is_dead in the testglob array-reading mode
+ * (g_check_char_is_dead_use_array = 1) so per-slot .flags drive each result;
+ * the 64-slot t_rc13 buffer is reused (slot 0x11 is well within range).
+ *
+ * Coverage is risk-driven for: the two-term short-circuit OR, its exact slot
+ * indices, the override's set-on-dead branch direction, and that the default
+ * baseline is preserved when the override does not fire:
+ *   - both escorts alive                  -> default flag (2) survives
+ *   - escort[0x10] dead, [0x11] alive     -> LOSE (1); pins first OR term and
+ *                                            set-on-dead direction
+ *   - escort[0x11] dead while [0x10] alive-> LOSE (1); pins second OR term is
+ *                                            genuinely reached (short-circuit)
+ *   - both escorts dead                   -> LOSE (1)
+ *   - neighbors 0xF/0x12 dead while 0x10/0x11 alive -> flag stays 2, pinning
+ *     the checked slots as EXACTLY 0x10 and 0x11 (no off-by-one either way)
+ * ============================================================ */
+
+static void chpost21_setup(void)
+{
+    int i;
+
+    memset(t_rc13, 0, sizeof(t_rc13));
+    for (i = 0; i < CH13_RC_SLOTS; i++) {
+        t_rc13[i].team = 2;     /* player team: never an alive enemy */
+        t_rc13[i].flags = 0;    /* alive */
+    }
+    data_fd2_battle_runtime_char_array_ptr = t_rc13;
+    data_fd2_battle_party_member_count = CH13_RC_SLOTS;
+    data_fd2_chapter_event_or_battle_end_code = 0;
+    g_check_char_is_dead_use_array = 1;   /* per-slot .flags drive deadness */
+}
+
+static void chpost21_teardown(void)
+{
+    g_check_char_is_dead_use_array = 0;   /* restore index-agnostic default */
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_party_member_count = 4;
+}
+
+/* Both escort NPCs alive -> the override OR is false, so the default check's
+ * flag (2) survives. Confirms the handler writes nothing on the all-alive
+ * path and that the default win/lose check really runs (flag is 2, not 0). */
+static void test_chpost21_both_escorts_alive_keeps_default(void)
+{
+    chpost21_setup();
+
+    fd2_chapter_21_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost21_teardown();
+}
+
+/* Escort[0x10] dead, [0x11] alive -> the first OR term fires, LOSE (flag = 1).
+ * Pins the first checked slot = 0x10 and the override's set-on-dead direction
+ * (the disassembly's JNZ-to-set on the first dead-check). */
+static void test_chpost21_first_escort_dead_game_over(void)
+{
+    chpost21_setup();
+    t_rc13[0x10].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_21_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost21_teardown();
+}
+
+/* Escort[0x11] dead while [0x10] alive -> the first OR term is false so the
+ * second must be evaluated; it fires, LOSE (1). Pins the second checked slot
+ * = 0x11 and that it is genuinely reached (the JZ-skips-set-when-alive term). */
+static void test_chpost21_second_escort_dead_game_over(void)
+{
+    chpost21_setup();
+    t_rc13[0x11].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_21_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost21_teardown();
+}
+
+/* Both escorts dead -> override fires, LOSE (1). */
+static void test_chpost21_both_escorts_dead_game_over(void)
+{
+    chpost21_setup();
+    t_rc13[0x10].flags = CHARFLAG_DEAD;
+    t_rc13[0x11].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_21_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost21_teardown();
+}
+
+/* Neighbors just below (0xF) and just above (0x12) the checked pair dead while
+ * escorts 0x10/0x11 are alive -> the override does NOT fire and the default
+ * flag (2) survives. Proves the checked slots are EXACTLY 0x10 and 0x11 with no
+ * off-by-one in either direction. */
+static void test_chpost21_neighbor_slots_ignored(void)
+{
+    chpost21_setup();
+    t_rc13[0xF].flags = CHARFLAG_DEAD;   /* neighbor below 0x10 */
+    t_rc13[0x12].flags = CHARFLAG_DEAD;  /* neighbor above 0x11 */
+
+    fd2_chapter_21_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost21_teardown();
+}
+
 void run_field_chpost_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1613,5 +1734,10 @@ void run_field_chpost_tests(void)
     RUN_TEST(test_chpost20_stage3_rangeA_first_slot_alive_blocks_win);
     RUN_TEST(test_chpost20_stage3_rangeB_last_slot_alive_blocks_win);
     RUN_TEST(test_chpost20_stage3_outside_neighbors_ignored);
+    RUN_TEST(test_chpost21_both_escorts_alive_keeps_default);
+    RUN_TEST(test_chpost21_first_escort_dead_game_over);
+    RUN_TEST(test_chpost21_second_escort_dead_game_over);
+    RUN_TEST(test_chpost21_both_escorts_dead_game_over);
+    RUN_TEST(test_chpost21_neighbor_slots_ignored);
     printf("\n");
 }
