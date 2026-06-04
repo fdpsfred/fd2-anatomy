@@ -17,7 +17,9 @@ determinism. --changed is recorded for a future incremental mode but ignored
 for compilation in v1.
 
 Cross-platform via shutil.which + pathlib; the actual build still needs the
-Windows DOSBox-X + Watcom toolchain and the mount paths inside tests/dosbox.conf.
+Windows DOSBox-X + Watcom toolchain. tests/dosbox.conf is a TEMPLATE: each run
+regenerates workspace/emit_drive/run.conf from it, rewriting the C:/E: mounts to
+THIS checkout's REPO_ROOT so a git worktree builds its own src/tests tree.
 
 Usage:
     python tools/emit/build_test.py [--changed "src/gfx/blit.c,tests/testgfx.c"]
@@ -27,6 +29,7 @@ verdict is in the JSON (gate_pass / build_ok), not the exit code.
 """
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -40,7 +43,23 @@ OUT_DIR = TESTS_DIR / "OUT"
 OBJ_DIR = OUT_DIR / "obj"          # compile intermediates (.obj)
 CONF = TESTS_DIR / "dosbox.conf"
 DRIVE_DIR = REPO_ROOT / "workspace" / "emit_drive"
-GAME_DIR = REPO_ROOT / "fd2_game_files"
+RUN_CONF = DRIVE_DIR / "run.conf"  # per-worktree dosbox conf, regenerated each run
+
+
+def _resolve_game_dir():
+    """fd2_game_files is gitignored, so a fresh git worktree won't contain it.
+    Resolve order: $FD2_GAME_DIR -> this checkout's fd2_game_files -> the main
+    checkout (absolute; the one place the gitignored game files actually live)."""
+    env = os.environ.get("FD2_GAME_DIR")
+    if env and Path(env).is_dir():
+        return Path(env)
+    local = REPO_ROOT / "fd2_game_files"
+    if local.is_dir():
+        return local
+    return Path(r"C:\Users\fdpsf\Documents\fd2-anatomy\fd2_game_files")
+
+
+GAME_DIR = _resolve_game_dir()
 
 # Real game files staged into tests/OUT (= TEST.EXE's cwd) so the resource
 # loaders' bare-name fopen() reads the genuine bytes. Per project owner: check
@@ -89,6 +108,26 @@ def resolve_dosbox():
     raise SystemExit("dosbox-x not found on PATH or C:\\DOSBox-X\\")
 
 
+def gen_run_conf():
+    """Generate a per-worktree dosbox conf from the committed template, rewriting
+    ONLY the repo-relative mounts (C:=src, E:=tests) to THIS checkout's REPO_ROOT
+    so a git worktree builds its own tree, not the main checkout. The Watcom mount
+    (D:) and the entire [autoexec] tail are copied verbatim from the template."""
+    src_mount = str(REPO_ROOT / "src")
+    tests_mount = str(REPO_ROOT / "tests")
+    out = []
+    for ln in CONF.read_text(encoding="latin-1").splitlines():
+        s = ln.strip().lower()
+        if s.startswith("mount c "):
+            out.append('mount C "%s"' % src_mount)
+        elif s.startswith("mount e "):
+            out.append('mount E "%s"' % tests_mount)
+        else:
+            out.append(ln)
+    RUN_CONF.write_text("\n".join(out) + "\n", encoding="latin-1")
+    return RUN_CONF
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--changed", default="",
@@ -100,12 +139,13 @@ def main():
     args = ap.parse_args()
 
     if not CONF.is_file():
-        raise SystemExit("dosbox.conf not found: %s" % CONF)
+        raise SystemExit("dosbox.conf (template) not found: %s" % CONF)
     DRIVE_DIR.mkdir(parents=True, exist_ok=True)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     OBJ_DIR.mkdir(parents=True, exist_ok=True)
 
     dosbox = resolve_dosbox()
+    run_conf = gen_run_conf()   # mounts point at THIS checkout (worktree-safe)
 
     # clean so the polled DONE.TXT is unambiguously from THIS run and the full
     # rebuild has no stale influence: wipe OUT/obj entirely, and remove OUT root
@@ -138,7 +178,7 @@ def main():
     # redirected stdout until file close, so test.out stays empty mid-run.
     start = time.time()
     try:
-        proc = subprocess.Popen([dosbox, "-silent", "-conf", str(CONF)])
+        proc = subprocess.Popen([dosbox, "-silent", "-conf", str(run_conf)])
     except OSError as e:
         raise SystemExit("failed to launch dosbox-x: %s" % e)
 
