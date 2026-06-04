@@ -1342,8 +1342,9 @@
     "name": "fd2_animate_spell_impact_per_target",
     "target": "anim/anicombt.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001c75e": {
     "name": "fd2_calc_magic_damage",

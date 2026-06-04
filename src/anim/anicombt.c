@@ -13,6 +13,7 @@
 #include "protos.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 /* ----------------------------------------------------------------
  * fd2_animate_status_effect_overlay_flicker @ 0x1C2DA (11 callers)
@@ -105,4 +106,134 @@ void fd2_animate_status_effect_overlay_flicker(uint32 param_1, uint32 status_kin
     fd2_blit_rectangle(0xa0504, 0x140, (uint32)backup_buf + 0x8088,
                        0x1c8, 0x138, 0xc0);
     free(backup_buf);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_animate_spell_impact_per_target @ 0x1C4CC (15 callers)
+ *
+ * Per-spell impact animation drawn over each target tile, with per-spell
+ * SFX hook frames. The most-used spell visual effect. One of three
+ * spell-impact play paths (paired with full-screen flash for high-tier
+ * spells).
+ *
+ * Parameters (__cdecl, 4 args; param_1 only forwarded to the stack check):
+ *   param_1            unused by the body
+ *   spell_id           index 0..35 into the three per-spell byte tables
+ *   target_count       number of entries in char_idx_array
+ *   char_idx_array     byte array of runtime-char indices to overlay
+ *
+ * Three parallel per-spell byte tables (each copied into a 33-byte stack
+ * scratch via 8-dword REP MOVSD + tail MOVSB, matched byte-for-byte):
+ *   sprite_off_tbl   @ 0x51F33 — sprite-index offset (animation frame base)
+ *   frame_count_tbl  @ 0x51F54 — total animation frame count
+ *   sfx_frame_tbl    @ 0x51F75 — primary SFX id (0 = no SFX hook on frame 0)
+ *
+ * Pipeline:
+ *   1. malloc a 0x25680 preserve buffer, snapshot the live back-buffer into
+ *      it (aborts via printf + exit(1) if malloc fails).
+ *   2. For each frame in 0..frame_count-1:
+ *        a. restore the clean baseline back-buffer from the preserve buffer.
+ *        b. sprite = portrait_sheet + portrait_sheet[6 + (sprite_off+frame)*4]
+ *        c. for each target in window: blit the frame sprite at its tile.
+ *        d. flush composite to mode13h primary.
+ *        e. SFX hook: frame 0 fires sfx_frame_tbl[spell_id] (if non-zero);
+ *           a per-spell dispatch chain fires extra SFX on specific frames.
+ *        f. one BIOS-tick frame-timing pulse.
+ *   3. free the preserve buffer; finalize with a composite.
+ * ---------------------------------------------------------------- */
+void fd2_animate_spell_impact_per_target(uint32 param_1, uint32 spell_id,
+                                         uint32 target_count,
+                                         uint32 char_idx_array)
+{
+    uint8 *backup_buf;
+    runtime_char *rt_char;
+    int frame_idx;
+    int tgt_iter;
+    uint32 frame_sprite_addr;
+    uint32 pos_x;
+    uint32 pos_y;
+    uint8 sprite_off_tbl[33];
+    uint8 sfx_frame_tbl[33];
+    uint8 frame_count_tbl[33];
+
+    (void)param_1;
+
+    /* snapshot the three per-spell tables (8 dwords + 1 byte = 33B each) */
+    memcpy(sprite_off_tbl, data_fd2_animation_spell_sprite_offset_table, 33);
+    memcpy(frame_count_tbl, data_fd2_animation_spell_frame_count_table, 33);
+    memcpy(sfx_frame_tbl, data_fd2_animation_spell_sfx_frame_table, 33);
+
+    fd2_composite_battle_frame(0);
+
+    backup_buf = (uint8 *)malloc(0x25680);
+    if (backup_buf == 0) {
+        printf("Out of memory at Get_EasyMagic \n");
+        exit(1);
+    }
+    memmove(backup_buf, (void *)data_fd2_large_game_state_buffer_ptr, 0x25680);
+
+    for (frame_idx = 0; frame_idx < (int)frame_count_tbl[spell_id]; frame_idx++) {
+        frame_sprite_addr =
+            data_fd2_resource_portrait_sheet_ptr +
+            *(uint32 *)(data_fd2_resource_portrait_sheet_ptr + 6 +
+                        ((uint32)sprite_off_tbl[spell_id] + frame_idx) * 4);
+
+        /* restore the clean baseline back-buffer for this frame */
+        memmove((void *)data_fd2_large_game_state_buffer_ptr, backup_buf, 0x25680);
+
+        for (tgt_iter = 0; tgt_iter < (int)target_count; tgt_iter++) {
+            rt_char = (runtime_char *)((uint32)data_fd2_battle_runtime_char_array_ptr +
+                                       ((uint8 *)char_idx_array)[tgt_iter] * 0x50);
+            pos_x = rt_char->pos_x;
+            pos_y = rt_char->pos_y;
+
+            if (((int)pos_x >= (int)(data_fd2_battle_view_window_origin_x - 1)) &&
+                ((int)pos_x <= (int)(data_fd2_battle_view_window_origin_x +
+                                     data_fd2_battle_view_window_max_x)) &&
+                ((int)pos_y >= (int)(data_fd2_battle_view_window_origin_y - 1)) &&
+                ((int)pos_y <= (int)(data_fd2_battle_view_window_origin_y +
+                                     data_fd2_battle_view_window_max_y + 1))) {
+                fd2_blit_sprite_with_decoded_pixels(
+                    data_fd2_large_game_state_buffer_ptr +
+                        (pos_y - data_fd2_battle_view_window_origin_y) * 0x2ac0 +
+                        (pos_x - data_fd2_battle_view_window_origin_x) * 0x18 + 0x75d8,
+                    frame_sprite_addr, 0x1c8);
+            }
+        }
+
+        fd2_blit_rectangle(0xa0504, 0x140,
+                           data_fd2_large_game_state_buffer_ptr + 0x8088,
+                           0x1c8, 0x138, 0xc0);
+
+        /* SFX hook: frame-0 table fire, plus per-spell special-case frames */
+        if (frame_idx == 0 && sfx_frame_tbl[spell_id] != 0) {
+            fd2_play_sfx_with_handle(data_fd2_audio_status_effect_sfx_handle_ptr,
+                                     (int)sfx_frame_tbl[spell_id], 1);
+        } else if (spell_id == 0x16 && frame_idx == 7) {
+            fd2_play_sfx_with_handle(data_fd2_audio_status_effect_sfx_handle_ptr, 3, 1);
+        } else if (spell_id == 0x19) {
+            if (frame_idx == 3 || frame_idx == 6) {
+                fd2_play_sfx_with_handle(data_fd2_audio_status_effect_sfx_handle_ptr, 5, 1);
+            }
+        } else if (spell_id == 0x12 && frame_idx == 4) {
+            fd2_play_sfx_with_handle(data_fd2_audio_status_effect_sfx_handle_ptr, 7, 1);
+        } else if (spell_id == 0x13) {
+            if (frame_idx == 3 || frame_idx == 6) {
+                fd2_play_sfx_with_handle(data_fd2_audio_status_effect_sfx_handle_ptr, 8, 1);
+            }
+        } else if (spell_id == 8) {
+            if (frame_idx == 3 || frame_idx == 6) {
+                fd2_play_sfx_with_handle(data_fd2_audio_status_effect_sfx_handle_ptr, 10, 1);
+            }
+        } else if (spell_id == 9) {
+            if (frame_idx == 0xf || frame_idx == 0x13) {
+                fd2_play_sfx_with_handle(data_fd2_audio_status_effect_sfx_handle_ptr, 0xf, 1);
+            }
+        }
+
+        fd2_wait_n_bios_ticks(1);
+    }
+
+    free(backup_buf);
+    fd2_composite_battle_frame(0);
 }

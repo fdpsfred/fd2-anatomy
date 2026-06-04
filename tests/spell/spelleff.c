@@ -12,6 +12,27 @@
 
 #define USE_ITEM_ID 10
 
+/* Back-buffer + portrait-sheet backing for the real fd2_animate_spell_impact_
+ * per_target, which fd2_apply_attack_spell_damage invokes before its damage
+ * loop. The impact body memmoves 0x25680 bytes through
+ * data_fd2_large_game_state_buffer_ptr and reads a dword table out of
+ * data_fd2_resource_portrait_sheet_ptr, so both must reference real memory. */
+#define SPELLEFF_LGS_SPAN 0x26000u
+static uint8 g_spelleff_lgs[SPELLEFF_LGS_SPAN];
+static uint8 g_spelleff_sheet[2048];
+
+static void setup_impact_buffers(void)
+{
+    memset(g_spelleff_lgs, 0, sizeof(g_spelleff_lgs));
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_spelleff_lgs;
+    memset(g_spelleff_sheet, 0, sizeof(g_spelleff_sheet));
+    data_fd2_resource_portrait_sheet_ptr = (uint32)g_spelleff_sheet;
+    data_fd2_battle_view_window_origin_x = 0x10;
+    data_fd2_battle_view_window_origin_y = 0x20;
+    data_fd2_battle_view_window_max_x = 0x0D;
+    data_fd2_battle_view_window_max_y = 0x08;
+}
+
 extern runtime_char g_test_rc_array[8];
 extern int g_ail_vol_calls;
 extern int g_ail_last_vol;
@@ -70,6 +91,10 @@ static void setup_use_effect(uint8 effect_code, uint16 effect_param)
     /* g_test_rc_array was just zeroed, so slot[7].flag (inventory_slots[14])
      * starts 0x00; the real fd2_remove_inventory_slot_at(caster,inv_slot=0)
      * stamps it 0x80 when it consumes the slot. */
+    /* Several effect codes (0x08-0x13, 0x14/0x18, 0x15) dispatch into the real
+     * fd2_animate_spell_impact_per_target, which memmoves the back-buffer and
+     * reads the portrait sheet, so wire valid memory for those paths. */
+    setup_impact_buffers();
 }
 
 
@@ -263,6 +288,7 @@ static void test_apply_item_stat_modifier(void)
 {
     uint8 target_id;
     memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();   /* anim_idx 0x11 drives the real impact path */
     target_id = 1;
     fd2_apply_item_stat_modifier_with_anim(
         0, 10, 0x48, 0, 1, (uint32)&target_id, 0x11);
@@ -270,22 +296,29 @@ static void test_apply_item_stat_modifier(void)
 }
 
 
-/* fd2_apply_attack_spell_damage @ 0x2111A runs the per-target damage loop,
- * then a Pattern-A SHARED EPILOGUE (loop-exit JGE 0x21190 falls into
- * fd2_composite_then_animate_projectiles): fd2_composite_battle_frame(0)
- * then fd2_animate_spell_projectile_paths(). The composite call is the
- * observable state transition — pinned via g_composite_call_count. Dropping
- * either tail call (the bug this guards) leaves the count at 0 -> fail.
+/* fd2_apply_attack_spell_damage @ 0x2111A first plays the impact + flash
+ * animations, then runs the per-target damage loop, then a Pattern-A SHARED
+ * EPILOGUE (loop-exit JGE 0x21190 falls into fd2_composite_then_animate_
+ * projectiles): fd2_composite_battle_frame(0) then
+ * fd2_animate_spell_projectile_paths(). The composite calls are the observable
+ * state transition — pinned via g_composite_call_count.
+ *
+ * The real fd2_animate_spell_impact_per_target (spell_id 0 -> 8 frames)
+ * composites twice (one at entry, one on finalize); the flash is still a stub
+ * (0 composites); the caller's own epilogue composites once. Total = 3.
  * Two live targets exercise the loop with the REAL fd2_calc_magic_damage
  * (hit_rate=100 -> damage-number branch each iter); job_id=1 + nonzero HP
  * keep the damage formula in-bounds (mirrors testbtl setup). The damage
  * VALUE and the per-iter hit/miss branch are owned by testbtl's magic-damage
- * tests; here we assert only that the composite fires exactly ONCE (post-loop,
- * not per iteration) over a 2-target run. */
+ * tests. The targets sit at (0,0), outside the impact view window, so the
+ * impact animation culls them (no per-target blit) and the count stays 3.
+ * If the caller's epilogue composite were wrongly placed inside the loop the
+ * count would be 2 (impact) + 2 (per target) = 4, so this still guards it. */
 static void test_attack_spell_damage_composites_once(void)
 {
     uint8 target_ids[2];
     memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
     g_test_rc_array[0].hp_current = 200;
     g_test_rc_array[0].hp_max = 200;
     g_test_rc_array[0].job_id = 1;
@@ -302,19 +335,21 @@ static void test_attack_spell_damage_composites_once(void)
     target_ids[1] = 1;
     g_composite_call_count = 0;
     fd2_apply_attack_spell_damage(0, 2, (uint32)target_ids, 0);
-    ASSERT_EQ(g_composite_call_count, 1);
+    ASSERT_EQ(g_composite_call_count, 3);
 }
 
 
-/* Empty target list (count 0): loop body never runs, but the shared
- * epilogue still composites exactly once. Guards against the tail being
- * mistakenly placed inside the loop. */
+/* Empty target list (count 0): loop body never runs. The impact animation
+ * still composites twice (entry + finalize) and the shared epilogue composites
+ * once -> 3. Guards against the epilogue composite being mistakenly placed
+ * inside the loop (which, with 0 targets, would drop the count to 2). */
 static void test_attack_spell_damage_zero_targets_still_composites(void)
 {
     memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
     g_composite_call_count = 0;
     fd2_apply_attack_spell_damage(0, 0, (uint32)0, 0);
-    ASSERT_EQ(g_composite_call_count, 1);
+    ASSERT_EQ(g_composite_call_count, 3);
 }
 
 

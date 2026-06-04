@@ -25,6 +25,18 @@ extern uint32 g_blitsolid_color[64];
 
 /* SFX-play recording (testglob.c) */
 extern int    g_play_sfx_with_handle_calls;
+extern int    g_sfx_last_id;
+extern int    g_sfx_id_count;
+extern int    g_sfx_id_log[64];
+
+/* decoded-pixel sprite blit recording (testglob.c) */
+extern uint32 g_blitdec_dst, g_blitdec_sprite, g_blitdec_stride;
+extern int    g_blitdec_calls;
+
+/* per-spell animation parameter tables (testglob.c, real binary bytes) */
+extern uint8  data_fd2_animation_spell_sprite_offset_table[33];
+extern uint8  data_fd2_animation_spell_frame_count_table[33];
+extern uint8  data_fd2_animation_spell_sfx_frame_table[33];
 
 /* Battle back-buffer backing. The real flicker body memmoves 0x25680 bytes
  * out of data_fd2_large_game_state_buffer_ptr and the real fd2_blit_rectangle
@@ -180,6 +192,201 @@ static void test_overlay_cull_top_edge(void)
     ASSERT_EQ(g_play_sfx_with_handle_calls, 1);
 }
 
+/* ================================================================
+ * fd2_animate_spell_impact_per_target tests
+ * ================================================================ */
+
+/* Scratch sheet for data_fd2_resource_portrait_sheet_ptr. The function reads a
+ * dword at [6 + (sprite_off+frame)*4] and adds the sheet base to it to form the
+ * frame sprite pointer. Sized for the worst case (spell 9: sprite_off 0x57 + 26
+ * frames -> byte index 6 + (0x57+26)*4 = 458). */
+static uint8 g_impact_sheet[2048];
+
+static void setup_impact(void)
+{
+    g_play_sfx_with_handle_calls = 0;
+    g_sfx_id_count = 0;
+    g_sfx_last_id = 0;
+    memset(g_sfx_id_log, 0, sizeof(g_sfx_id_log));
+    g_blitdec_calls = 0;
+    g_blitdec_dst = 0;
+    g_blitdec_sprite = 0;
+    g_blitdec_stride = 0;
+
+    memset(g_lgs, 0, sizeof(g_lgs));
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_lgs;
+
+    memset(g_impact_sheet, 0, sizeof(g_impact_sheet));
+    data_fd2_resource_portrait_sheet_ptr = (uint32)g_impact_sheet;
+
+    data_fd2_battle_view_window_origin_x = WIN_OX;
+    data_fd2_battle_view_window_origin_y = WIN_OY;
+    data_fd2_battle_view_window_max_x = WIN_MX;
+    data_fd2_battle_view_window_max_y = WIN_MY;
+
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+}
+
+/*
+ * Drives the per-spell SFX dispatch chain with target_count = 0 (no blits),
+ * so only the per-frame SFX logic runs. Asserts the exact fired-id sequence
+ * against the real tables for every special-cased spell plus a table-only and
+ * a silent spell. This is the highest-risk control flow in the function.
+ */
+static void test_impact_sfx_dispatch_sequences(void)
+{
+    /* spell 0x16: frame_count 13; sfx_tbl[0x16]=3; special frame 7 -> 3.
+       expected fires: frame0=3, frame7=3 */
+    setup_impact();
+    fd2_animate_spell_impact_per_target(0xDEAD, 0x16, 0, 0);
+    ASSERT_EQ(g_sfx_id_count, 2);
+    ASSERT_EQ(g_sfx_id_log[0], 3);
+    ASSERT_EQ(g_sfx_id_log[1], 3);
+
+    /* spell 0x19: frame_count 13; sfx_tbl[0x19]=5; special frames 3,6 -> 5.
+       expected: frame0=5, frame3=5, frame6=5 */
+    setup_impact();
+    fd2_animate_spell_impact_per_target(0, 0x19, 0, 0);
+    ASSERT_EQ(g_sfx_id_count, 3);
+    ASSERT_EQ(g_sfx_id_log[0], 5);
+    ASSERT_EQ(g_sfx_id_log[1], 5);
+    ASSERT_EQ(g_sfx_id_log[2], 5);
+
+    /* spell 0x12: frame_count 12; sfx_tbl[0x12]=7; special frame 4 -> 7.
+       expected: frame0=7, frame4=7 */
+    setup_impact();
+    fd2_animate_spell_impact_per_target(0, 0x12, 0, 0);
+    ASSERT_EQ(g_sfx_id_count, 2);
+    ASSERT_EQ(g_sfx_id_log[0], 7);
+    ASSERT_EQ(g_sfx_id_log[1], 7);
+
+    /* spell 0x13: frame_count 13; sfx_tbl[0x13]=8; special frames 3,6 -> 8.
+       expected: frame0=8, frame3=8, frame6=8 */
+    setup_impact();
+    fd2_animate_spell_impact_per_target(0, 0x13, 0, 0);
+    ASSERT_EQ(g_sfx_id_count, 3);
+    ASSERT_EQ(g_sfx_id_log[0], 8);
+    ASSERT_EQ(g_sfx_id_log[1], 8);
+    ASSERT_EQ(g_sfx_id_log[2], 8);
+
+    /* spell 0x08: frame_count 11; sfx_tbl[8]=0x0A; special frames 3,6 -> 0x0A.
+       expected: frame0=10, frame3=10, frame6=10 */
+    setup_impact();
+    fd2_animate_spell_impact_per_target(0, 0x08, 0, 0);
+    ASSERT_EQ(g_sfx_id_count, 3);
+    ASSERT_EQ(g_sfx_id_log[0], 10);
+    ASSERT_EQ(g_sfx_id_log[1], 10);
+    ASSERT_EQ(g_sfx_id_log[2], 10);
+
+    /* spell 0x09: frame_count 27; sfx_tbl[9]=0x0E; special frames 0xF,0x13 -> 0xF.
+       expected: frame0=14, frame15=15, frame19=15 */
+    setup_impact();
+    fd2_animate_spell_impact_per_target(0, 0x09, 0, 0);
+    ASSERT_EQ(g_sfx_id_count, 3);
+    ASSERT_EQ(g_sfx_id_log[0], 14);
+    ASSERT_EQ(g_sfx_id_log[1], 15);
+    ASSERT_EQ(g_sfx_id_log[2], 15);
+
+    /* spell 0x00: table-only sfx (sfx_tbl[0]=6), not special; one fire on frame0 */
+    setup_impact();
+    fd2_animate_spell_impact_per_target(0, 0x00, 0, 0);
+    ASSERT_EQ(g_sfx_id_count, 1);
+    ASSERT_EQ(g_sfx_id_log[0], 6);
+
+    /* spell 0x0A: sfx_tbl[0x0A]=0 and not special -> zero fires over 8 frames */
+    setup_impact();
+    fd2_animate_spell_impact_per_target(0, 0x0A, 0, 0);
+    ASSERT_EQ(g_sfx_id_count, 0);
+}
+
+/*
+ * Window-cull predicate, per-frame blit count, dst/frame-sprite arithmetic.
+ * Uses spell 0x0A (8 frames, no SFX) with one in-window and one out-of-window
+ * target so each frame blits exactly once (the in-window char).
+ */
+static void test_impact_cull_and_arithmetic(void)
+{
+    uint8 idx_array[2];
+    uint32 *sheet;
+    uint32 sprite_off;
+    uint32 last_frame;
+    uint32 exp_src;
+    uint32 exp_dst;
+
+    setup_impact();
+
+    /* seed the sheet dword table: entry[i] = i*0x10 so the resolved frame
+       pointer (sheet + table[6+(off+frame)*4]) is frame-distinguishable */
+    sheet = (uint32 *)(g_impact_sheet + 6);
+    {
+        int i;
+        for (i = 0; i < 500; i++) {
+            sheet[i] = (uint32)i * 0x10u;
+        }
+    }
+
+    /* char 0 inside the window */
+    g_test_rc_array[0].pos_x = 0x15;
+    g_test_rc_array[0].pos_y = 0x24;
+    /* char 1 past the right edge (OX+MX = 0x1D) -> culled */
+    g_test_rc_array[1].pos_x = 0x1E;
+    g_test_rc_array[1].pos_y = 0x24;
+
+    idx_array[0] = 0;
+    idx_array[1] = 1;
+
+    /* spell 0x0A: 8 frames, no SFX, sprite_off table[0x0A] = 0x31 */
+    sprite_off = data_fd2_animation_spell_sprite_offset_table[0x0A];
+    fd2_animate_spell_impact_per_target(0, 0x0A, 2, (uint32)idx_array);
+
+    /* one blit per frame (in-window char only); 8 frames */
+    ASSERT_EQ(g_blitdec_calls, 8);
+    ASSERT_EQ(data_fd2_animation_spell_frame_count_table[0x0A], 8);
+
+    /* last recorded blit is the final frame (frame 7) of the in-window char.
+       frame_sprite_addr = sheet_base + table[6 + (sprite_off+frame)*4],
+       and table[k] == k*0x10 where k = sprite_off + frame */
+    last_frame = 7u;
+    exp_src = (uint32)g_impact_sheet
+            + (sprite_off + last_frame) * 0x10u;
+    ASSERT_EQ(g_blitdec_sprite, exp_src);
+
+    /* dst = lgs + (pos_y-OY)*0x2AC0 + (pos_x-OX)*0x18 + 0x75D8 */
+    exp_dst = (uint32)g_lgs
+            + (0x24u - WIN_OY) * 0x2ac0u
+            + (0x15u - WIN_OX) * 0x18u
+            + 0x75d8u;
+    ASSERT_EQ(g_blitdec_dst, exp_dst);
+
+    /* stride is the fixed 0x1C8 */
+    ASSERT_EQ(g_blitdec_stride, 0x1c8u);
+
+    /* spell 0x0A fires no SFX */
+    ASSERT_EQ(g_sfx_id_count, 0);
+}
+
+/*
+ * Zero-frame guard: a spell whose frame_count table entry is 0 (index 30/31)
+ * runs no frames at all -> no blits, no SFX, no waits.
+ */
+static void test_impact_zero_frames(void)
+{
+    uint8 idx_array[1];
+
+    setup_impact();
+
+    g_test_rc_array[0].pos_x = 0x15;
+    g_test_rc_array[0].pos_y = 0x24;
+    idx_array[0] = 0;
+
+    /* spell 30 (0x1E): frame_count table[30] = 0 */
+    ASSERT_EQ(data_fd2_animation_spell_frame_count_table[30], 0);
+    fd2_animate_spell_impact_per_target(0, 30, 1, (uint32)idx_array);
+
+    ASSERT_EQ(g_blitdec_calls, 0);
+    ASSERT_EQ(g_sfx_id_count, 0);
+}
+
 void run_anim_anicombt_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -187,5 +394,8 @@ void run_anim_anicombt_tests(void)
     RUN_TEST(test_overlay_cull_and_arithmetic);
     RUN_TEST(test_overlay_palette3_offset);
     RUN_TEST(test_overlay_cull_top_edge);
+    RUN_TEST(test_impact_sfx_dispatch_sequences);
+    RUN_TEST(test_impact_cull_and_arithmetic);
+    RUN_TEST(test_impact_zero_frames);
     printf("\n");
 }

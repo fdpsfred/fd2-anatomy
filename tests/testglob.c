@@ -136,9 +136,44 @@ void fd2_cast_dp_boost_spell(int a, int b, uint32 c) { }
 void fd2_cast_speed_boost_spell(uint32 a, uint32 b, uint32 c) { }
 int g_play_sfx_with_handle_calls = 0;
 int g_dlg_blink_calls = 0;
+/* SFX-id capture log: fd2_animate_spell_impact_per_target's per-spell SFX
+ * dispatch chain is the highest-risk control flow in that function, so its
+ * test pins the exact sequence of fired SFX ids (arg b) per frame. Additive:
+ * existing tests only read g_play_sfx_with_handle_calls. */
+int    g_sfx_last_id = 0;
+int    g_sfx_id_count = 0;
+int    g_sfx_id_log[64];
 /* The real fd2_portrait_blink_animation_step (src/dialog/dialog.c) calls this
  * exactly once per blink step, so g_dlg_blink_calls tracks blink invocations. */
-void fd2_play_sfx_with_handle(uint32 a, int b, int c) { g_play_sfx_with_handle_calls++; g_dlg_blink_calls++; (void)a; (void)b; (void)c; }
+void fd2_play_sfx_with_handle(uint32 a, int b, int c)
+{
+    g_play_sfx_with_handle_calls++;
+    g_dlg_blink_calls++;
+    g_sfx_last_id = b;
+    if (g_sfx_id_count < 64) {
+        g_sfx_id_log[g_sfx_id_count] = b;
+    }
+    g_sfx_id_count++;
+    (void)a; (void)c;
+}
+/* Per-spell animation parameter tables (data segment @ 0x51F33/0x51F54/0x51F75).
+ * Defined here with the real binary bytes until the data segment is emitted, so
+ * anim tests assert on true frame counts / sprite offsets / SFX ids. */
+uint8 data_fd2_animation_spell_sprite_offset_table[33] = {
+    0x31,0x31,0x31,0x31,0x40,0x40,0x40,0x40,0x4c,0x57,0x31,0x31,0x31,0x39,0x39,
+    0x39,0x39,0xb7,0x7e,0x93,0xcc,0xd9,0xaa,0x31,0x31,0xbf,0x8a,0x9e,0x31,0x31,
+    0x00,0x00,0x40
+};
+uint8 data_fd2_animation_spell_frame_count_table[33] = {
+    8,8,8,8,10,10,10,10,11,27,8,8,8,7,7,7,7,8,12,11,13,13,13,8,8,13,9,12,8,8,
+    0,0,10
+};
+uint8 data_fd2_animation_spell_sfx_frame_table[33] = {
+    6,6,6,6,9,9,9,9,10,14,0,0,0,12,12,12,12,6,7,8,4,4,3,0,0,5,3,2,0,0,0,0,9
+};
+/* Resource portrait sheet base pointer (data segment @ 0x53AD1). Tests point it
+ * at a zeroed scratch buffer. */
+uint32 data_fd2_resource_portrait_sheet_ptr = 0;
 void fd2_play_rising_pre_cast_effect(int a, int b, int c) { }
 void fd2_play_variant_b_slide_pre_effect(int a, int b) { }
 void fd2_animate_warp_teleport_char(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e) { }
@@ -383,11 +418,13 @@ void fd2_save_screen_block_to_buffer(uint32 out_buf, uint32 width, uint32 height
  * its blit calls through the fd2_blit_sprite_raw_with_header log below. */
 /* capture wiring for fd2_alloc_and_blit_indexed_sprite_chunk tests */
 uint32 g_blitdec_dst, g_blitdec_sprite, g_blitdec_stride;
+int    g_blitdec_calls = 0;
 void fd2_blit_sprite_with_decoded_pixels(uint32 d, uint32 s, uint32 st)
 {
     g_blitdec_dst = d;
     g_blitdec_sprite = s;
     g_blitdec_stride = st;
+    g_blitdec_calls++;
 }
 /* capture wiring for fd2_blit_sheet_sprite_at_offset tests */
 uint32 g_blitraw_dst, g_blitraw_sprite, g_blitraw_stride;
@@ -409,7 +446,8 @@ uint32 fd2_blit_sprite_raw_with_header(uint32 d, uint32 s, uint32 st)
     return 0;
 }
 void fd2_render_recruitment_select_screen(uint32 a, uint32 b, uint32 c, uint32 d) { }
-void fd2_animate_spell_impact_per_target(uint32 a, uint32 b, uint32 c, uint32 d) { }
+/* fd2_animate_spell_impact_per_target is now a real emitted function
+ * (src/anim/anicombt.c); its former no-op stub here was removed. */
 /* fd2_animate_status_effect_overlay_flicker is now a real emitted function
  * (src/anim/anicombt.c); its former no-op stub here was removed. */
 void fd2_animate_spell_full_screen_flash(uint32 a, uint32 b, uint32 c, uint32 d) { }
