@@ -512,3 +512,32 @@ void fd2_chapter_25_post_action(uint32 event_arg)
         data_fd2_chapter_event_or_battle_end_code = 1;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_26_post_action @ 0x20B3C  (dispatched, 0 direct callers)
+ *
+ * Chapter 26 turn-cycle post-action handler. Reached via
+ * data_fd2_chapter_post_action_handler_table[25] (table @ 0x51B19,
+ * indexed by current_chapter_id). The dispatch site pushes one cdecl
+ * arg (active char_idx) and cleans it with ADD ESP,4; event_arg is
+ * unused by the body.
+ *
+ * Runs the default win/lose check (fd2_check_battle_end_condition), then
+ * adds a two-slot lose-condition override: if either protected char at
+ * runtime_char[1] OR [2] is dead, set game_event_flag (0x53ECC) to 1
+ * (LOSE). The OR short-circuits: [2] is only tested when [1] is alive.
+ * Deadness is queried through fd2_check_char_is_dead (runtime_char[idx].flags
+ * bit0); the body reads no bFlags inline. (Chapter 26 has two must-protect
+ * NPCs at slots 1, 2.)
+ * ---------------------------------------------------------------- */
+void fd2_chapter_26_post_action(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_check_battle_end_condition();
+
+    if (fd2_check_char_is_dead(1) != 0 ||
+        fd2_check_char_is_dead(2) != 0) {
+        data_fd2_chapter_event_or_battle_end_code = 1;
+    }
+}

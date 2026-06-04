@@ -2025,6 +2025,115 @@ static void test_chpost25_protagonist_and_char10_dead_lose(void)
     chpost18_teardown();
 }
 
+/* ============================================================
+ * fd2_chapter_26_post_action @ 0x20B3C
+ *
+ * Same default win/lose check (fd2_check_battle_end_condition, linked real),
+ * then a two-slot lose-condition override: if either protected NPC
+ * runtime_char[1] OR [2] is dead -> game_event_flag = 1 (LOSE). The OR
+ * short-circuits ([2] is only tested when [1] is alive). Deadness for slots
+ * 1/2 is queried through fd2_check_char_is_dead in the testglob array-reading
+ * mode (g_check_char_is_dead_use_array = 1, via chpost10_setup) so per-slot
+ * .flags drive each result; the body reads no bFlags inline.
+ *
+ * Because the default check runs first, the flag's baseline is 2 here, not 0:
+ * the chapter-10 fixture (every slot team=2 / alive, protagonist slot 0 alive)
+ * deterministically yields flag=2, making the override observable as a clean
+ * 2 -> 1 transition. Slots 1/2/3 are well within the 56-slot t_rc10 buffer.
+ *
+ * Coverage is risk-driven for: the two-term short-circuit OR, its exact slot
+ * indices, the override's set-on-dead branch direction (the disassembly is
+ * JNZ-to-set on the first dead-check / JZ-to-return on the second alive, easy
+ * to read backwards), and that the default baseline is preserved when the
+ * override does not fire. Slot 0 is the protagonist, whose death the default
+ * check itself reports as LOSE, so it cannot serve as a clean lower-neighbor
+ * probe; instead the slot-1-dead case (slot 0 left alive, clean 2 -> 1) rules
+ * out "checks slot 0 instead of 1", and an upper-neighbor case rules out
+ * "checks slot 3":
+ *   - both NPCs alive                 -> default flag (2) survives
+ *   - slot 1 dead, slots 0/2 alive    -> LOSE (1); pins first OR term, the
+ *                                        set-on-dead direction, and slot 1
+ *                                        (not 0: slot 0 alive leaves default 2)
+ *   - slot 2 dead while slot 1 alive  -> LOSE (1); pins second OR term is
+ *                                        genuinely reached (short-circuit)
+ *   - both NPCs dead                  -> LOSE (1)
+ *   - neighbor slot 3 dead while 1/2 alive -> flag stays 2, pinning the checked
+ *     slots as EXACTLY 1 and 2 on the upper side (no off-by-one to slot 3)
+ * ============================================================ */
+
+/* Both protected NPCs alive -> the override OR is false, so the default
+ * check's flag (2) survives. Confirms the handler writes nothing on the
+ * all-alive path and that the default win/lose check really runs (flag is 2,
+ * not 0). */
+static void test_chpost26_both_npc_alive_keeps_default(void)
+{
+    chpost10_setup();
+    /* slots 1, 2 already alive from setup */
+
+    fd2_chapter_26_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost10_teardown();
+}
+
+/* Slot 1 dead, slots 0 and 2 alive -> the first OR term fires, LOSE (flag = 1).
+ * Pins the first checked slot = 1 and the override's set-on-dead direction (the
+ * disassembly's JNZ-to-set on the first dead-check). The clean 2 -> 1 (slot 0
+ * left alive so the default still yields 2) also proves the checked slot is 1,
+ * not the protagonist at slot 0. */
+static void test_chpost26_first_npc_dead_game_over(void)
+{
+    chpost10_setup();
+    t_rc10[1].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_26_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost10_teardown();
+}
+
+/* Slot 2 dead while slot 1 alive -> the first OR term is false so the second
+ * must be evaluated; it fires, LOSE (1). Pins the second checked slot = 2 and
+ * that it is genuinely reached (the JZ-skips-set-when-alive term). */
+static void test_chpost26_second_npc_dead_game_over(void)
+{
+    chpost10_setup();
+    t_rc10[2].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_26_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost10_teardown();
+}
+
+/* Both protected NPCs dead -> override fires, LOSE (1). */
+static void test_chpost26_both_npc_dead_game_over(void)
+{
+    chpost10_setup();
+    t_rc10[1].flags = CHARFLAG_DEAD;
+    t_rc10[2].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_26_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost10_teardown();
+}
+
+/* Upper neighbor (slot 3) dead while the protected pair (slots 1, 2) is alive
+ * -> the override must NOT fire and the default flag (2) survives. Proves the
+ * checked slots are EXACTLY 1 and 2 with no off-by-one to slot 3. The lower
+ * side is pinned by the slot-1-dead case above (slot 0 alive there). */
+static void test_chpost26_upper_neighbor_ignored(void)
+{
+    chpost10_setup();
+    t_rc10[3].flags = CHARFLAG_DEAD;   /* neighbor above slot 2 */
+
+    fd2_chapter_26_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost10_teardown();
+}
+
 void run_field_chpost_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -2107,5 +2216,10 @@ void run_field_chpost_tests(void)
     RUN_TEST(test_chpost25_neighbor_slots_ignored);
     RUN_TEST(test_chpost25_enemy_alive_keeps_battle_continue);
     RUN_TEST(test_chpost25_protagonist_and_char10_dead_lose);
+    RUN_TEST(test_chpost26_both_npc_alive_keeps_default);
+    RUN_TEST(test_chpost26_first_npc_dead_game_over);
+    RUN_TEST(test_chpost26_second_npc_dead_game_over);
+    RUN_TEST(test_chpost26_both_npc_dead_game_over);
+    RUN_TEST(test_chpost26_upper_neighbor_ignored);
     printf("\n");
 }
