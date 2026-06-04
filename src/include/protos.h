@@ -191,6 +191,7 @@ void fd2_chapter_24_end(void);
 void fd2_chapter_25_end(void);
 void fd2_chapter_26_end(void);
 void fd2_chapter_27_end(void);
+void fd2_chapter_28_end(void);
 void fd2_setup_chars_and_camera_for_intro(uint32 pos_x_table, uint32 pos_y_table,
                                           uint32 facing_table, uint32 place_start,
                                           uint32 place_end, uint32 scene2_char_idx,

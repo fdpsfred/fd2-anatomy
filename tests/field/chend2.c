@@ -891,6 +891,41 @@ static void test_ch27_end_good_path_resets_flags_and_advances(void)
     ce_restore_rc_ptr();
 }
 
+/* ----------------------------------------------------------------
+ * Chapter 28 end handler — fd2_chapter_28_end @ 0x25464. The simplest end
+ * handler: a single dialog scene (page 7) then the shared fd2_chapter_04_end
+ * epilogue tail (save runtime char templates + advance current_chapter_id).
+ *
+ * No RNG, no numeric computation, no CALL-return value used, no char added.
+ * The testable risk core is that the tail-jump fall-through into
+ * fd2_chapter_04_end's epilogue runs to completion — the handler ends by
+ * saving the templates and advancing current_chapter_id by exactly one. It is
+ * driven end-to-end on-host with the proven chend2 safe env: the single
+ * fd2_display_dialog_scene call (page 7, <= 0x10) takes the immediate-END
+ * program so it returns at once with no glyph blits, and the empty active
+ * party makes fd2_save_runtime_char_to_template iterate zero chars. The pure
+ * blit/display side effects of the dialog scene are deferred to Phase 9
+ * integration.
+ * ---------------------------------------------------------------- */
+static void test_ch28_end_runs_and_advances(void)
+{
+    uint32 chap0;
+
+    ce_install_safe_env();
+    chap0 = data_fd2_chapter_current_chapter_id;
+
+    fd2_chapter_28_end();
+
+    /* epilogue tail-jump ran: chapter id advanced by exactly one. */
+    ASSERT_EQ(data_fd2_chapter_current_chapter_id, chap0 + 1);
+
+    /* the handler adds no char: the save-template tail ran against the empty
+     * party, leaving the menu roster count untouched. */
+    ASSERT_EQ(data_fd2_shared_menu_party_member_count, 0);
+
+    ce_restore_rc_ptr();
+}
+
 void run_field_chend2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -907,5 +942,6 @@ void run_field_chend2_tests(void)
     RUN_TEST(test_ch25_end_real_portrait_reload_two_recruits_and_advance);
     RUN_TEST(test_ch26_end_positions_robot_and_advances);
     RUN_TEST(test_ch27_end_good_path_resets_flags_and_advances);
+    RUN_TEST(test_ch28_end_runs_and_advances);
     printf("\n");
 }

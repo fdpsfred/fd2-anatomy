@@ -17,6 +17,8 @@
  *                               data_fd2_chapter_end_handler_table[26])
  * fd2_chapter_27_end @ 0x250CC (0 direct callers; dispatched via
  *                               data_fd2_chapter_end_handler_table[27])
+ * fd2_chapter_28_end @ 0x25464 (0 direct callers; dispatched via
+ *                               data_fd2_chapter_end_handler_table[28])
  */
 
 #include <string.h>
@@ -792,4 +794,25 @@ void fd2_chapter_27_end(void)
     fd2_play_game_ending_cinematic();
     for (;;) {
     }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_28_end @ 0x25464  — Chapter 28「探索者」end handler
+ * (0 direct callers, dispatched via data_fd2_chapter_end_handler_table[28]).
+ * The simplest end handler (40 bytes).
+ *
+ * Pushes the eight standard fd2_display_dialog_scene args (page 7) then
+ * tail-jumps (JMP 0x231DF) into fd2_chapter_04_end's shared epilogue tail,
+ * which pushes current_chapter_text, runs the dialog scene, saves the runtime
+ * char templates, and advances current_chapter_id by one. No char added, no
+ * cutscene — pure dialog (page 7) + save + chapter advance.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_28.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_28_end(void)
+{
+    fd2_display_dialog_scene(current_chapter_text, 7, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_save_runtime_char_to_template();
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }
