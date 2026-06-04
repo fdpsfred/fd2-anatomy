@@ -393,3 +393,148 @@ void fd2_paint_status_panel_layer_right(uint32 y_offset, uint32 dst_workspace,
                 0xdf);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_inventory_item_grid @ 0x184c0 (3 callers)
+ *
+ * Render the 8-slot inventory grid for runtime_char[char_idx] into
+ * dst_buf, packing non-empty slots left-to-right / top-to-bottom into a
+ * 4-column x 2-row grid (cell 0x96 wide x 0x16 tall). The slot whose raw
+ * slot index equals highlight_slot gets a highlighted name border
+ * (highlight_slot == -1 -> none highlighted).
+ *
+ * Each runtime_char inventory slot is 2 bytes: [0]=bSlot_flag [1]=bItem_id
+ * (inventory_slots[2*slot] / [2*slot+1]). bSlot_flag bit7 = empty slot
+ * (skipped), bit6 = item equipped (background sprite +3 variant).
+ *
+ * Per drawn slot (active_slot_count counts only drawn slots):
+ *   col   = active_slot_count / 4   row = active_slot_count % 4
+ *   col_x = col * 0x96 + 0x2A       row_y = row * 0x16
+ *   item  = fd2_get_item_effect_entry(bItem_id)   (23-byte effect record)
+ *
+ * Background icon sprite by item[0] (type):
+ *   < 0x15 -> 0x3B (weapon)   < 0x20 -> 0x3C (armor/shield)
+ *   else   -> 0x3D (other);   + 3 if equipped (slot_flag & 0x40)
+ *   blit at dst_buf + col_x - 0x1D + (row_y + 0x65) * 0x140
+ *
+ * Name label: page = bItem_id + 0xB5 into _all_game_text, at
+ *   dst_buf + col_x + (row_y + 0x67) * 0x140, border 0xC9 if highlighted
+ *   else 0xCD, glyph params (0x4C,0,0,0).
+ *
+ * Value label sprite + number (number at dst_buf + col_x + 0x5D +
+ * (row_y + 0x6B)*0x140, label sprite at +0x44 of the same row):
+ *   item[0] < 0x15            -> sprite 0x40, value = *(int16*)(item+1)
+ *   item[0] < 0x20            -> sprite 0x41, value = *(int16*)(item+5)
+ *   item[0]==0x20 & item[0xD]==5  -> sprite 0x42, value = *(int16*)(item+0xE)
+ *   item[0]==0x20 & item[0xD]==0xB-> sprite 0x43, value = *(int16*)(item+0xE)
+ *   else -> placeholder dot sprite 0x29 at the value-label position, no
+ *           number, and this slot is NOT counted (active_slot_count
+ *           unchanged) so the next item reuses the same grid cell.
+ *
+ * The function reads item record bytes by raw offset (item[0], item[0xD],
+ * item+1/+5/+0xE), matching the binary exactly.
+ *
+ * Cdecl, 3 stack params; void return. The binary's __CHK(0x58) stack-probe
+ * prologue is compiler-generated and omitted here.
+ * ---------------------------------------------------------------- */
+void fd2_render_inventory_item_grid(uint32 char_idx, int highlight_slot,
+                                    uint32 dst_buf)
+{
+    runtime_char *rc;
+    uint8        *slot;
+    uint8         slot_flag;
+    uint8        *item;
+    uint8         item_type;
+    uint32        item_id;
+    uint32        active_slot_count;
+    uint32        slot_iter;
+    uint32        col_x;
+    uint32        row_y;
+    uint32        bg_sprite;
+    uint32        border_sprite;
+    uint32        value_blit_addr;
+    uint32        label_blit_addr;
+    int32         value;
+
+    rc = &data_fd2_battle_runtime_char_array_ptr[char_idx];
+    active_slot_count = 0;
+
+    for (slot_iter = 0; (int32)slot_iter < 8; slot_iter = slot_iter + 1) {
+        slot = &rc->inventory_slots[slot_iter * 2];
+        slot_flag = slot[0];
+        if ((slot_flag & 0x80) != 0) {
+            continue;
+        }
+
+        col_x = (active_slot_count / 4) * 0x96 + 0x2a;
+        row_y = (active_slot_count & 3) * 0x16;
+
+        item_id = slot[1];
+        item = fd2_get_item_effect_entry((int)item_id);
+        item_type = item[0];
+
+        /* background icon sprite by item type, +3 if equipped */
+        if (item_type < 0x15) {
+            bg_sprite = 0x3b;
+        } else if (item_type < 0x20) {
+            bg_sprite = 0x3c;
+        } else {
+            bg_sprite = 0x3d;
+        }
+        if ((slot_flag & 0x40) != 0) {
+            bg_sprite = bg_sprite + 3;
+        }
+        fd2_blit_sheet_sprite_at_offset(
+            dst_buf + col_x - 0x1d + (row_y + 0x65) * 0x140, 0x140,
+            data_fd2_ui_anim_sprite_sheet_ptr, bg_sprite);
+
+        /* item name label, highlighted border if this is the selected slot */
+        border_sprite = ((int)slot_iter == highlight_slot) ? 0xc9 : 0xcd;
+        fd2_display_dialog_scene(
+            data_fd2_all_game_text_ptr, item_id + 0xb5,
+            dst_buf + col_x + (row_y + 0x67) * 0x140, 0x140, border_sprite,
+            0x4c, 0, 0, 0);
+
+        value_blit_addr = dst_buf + col_x + 0x5d + (row_y + 0x6b) * 0x140;
+        label_blit_addr = dst_buf + col_x + 0x44 + (row_y + 0x6b) * 0x140;
+
+        if (item_type < 0x15) {
+            fd2_blit_sheet_sprite_at_offset(label_blit_addr, 0x140,
+                                            data_fd2_ui_anim_sprite_sheet_ptr,
+                                            0x40);
+            value = *(int16 *)(item + 1);
+            fd2_render_decimal_number_to_buffer(value_blit_addr, 0x140,
+                                                (uint32)value, 0x2a, 3);
+        } else if (item_type < 0x20) {
+            fd2_blit_sheet_sprite_at_offset(label_blit_addr, 0x140,
+                                            data_fd2_ui_anim_sprite_sheet_ptr,
+                                            0x41);
+            value = *(int16 *)(item + 5);
+            fd2_render_decimal_number_to_buffer(value_blit_addr, 0x140,
+                                                (uint32)value, 0x2a, 3);
+        } else if (item_type == 0x20 && item[0xd] == 0x05) {
+            fd2_blit_sheet_sprite_at_offset(label_blit_addr, 0x140,
+                                            data_fd2_ui_anim_sprite_sheet_ptr,
+                                            0x42);
+            value = *(int16 *)(item + 0xe);
+            fd2_render_decimal_number_to_buffer(value_blit_addr, 0x140,
+                                                (uint32)value, 0x2a, 3);
+        } else if (item_type == 0x20 && item[0xd] == 0x0b) {
+            fd2_blit_sheet_sprite_at_offset(label_blit_addr, 0x140,
+                                            data_fd2_ui_anim_sprite_sheet_ptr,
+                                            0x43);
+            value = *(int16 *)(item + 0xe);
+            fd2_render_decimal_number_to_buffer(value_blit_addr, 0x140,
+                                                (uint32)value, 0x2a, 3);
+        } else {
+            /* unrecognized type: placeholder dot sprite, no number; this
+             * slot still counts toward active_slot_count (the binary's
+             * INC active_slot_count is reached on this path too). */
+            fd2_blit_indexed_sprite_at_xy(label_blit_addr, 0x140,
+                                          data_fd2_ui_anim_sprite_sheet_ptr,
+                                          0x29);
+        }
+
+        active_slot_count = active_slot_count + 1;
+    }
+}

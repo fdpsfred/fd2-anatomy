@@ -844,6 +844,388 @@ static void test_panel_right_row_count_bound(void)
     ASSERT_EQ((long)g_panel_dst[past_d0 + (PANELR_WIDTH - 1)], 0xAA);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_render_inventory_item_grid @ 0x184c0
+ *
+ * Drive the REAL grid renderer and observe its dispatch to:
+ *   - fd2_blit_sheet_sprite_at_offset (REAL) -> g_blitraw log: emits the
+ *     background icon sprite per drawn slot, plus a value-label sprite for
+ *     weapon/armor/HP/MP items. The fake sheet (bar_setup_sheet, table[i]=i)
+ *     lets us recover sprite index = logged_sprite - sheet and the dst.
+ *   - fd2_render_decimal_number_to_buffer (recording spy, g_render_dec_*):
+ *     the numeric value + surface dst + digits for valued items.
+ *   - fd2_blit_indexed_sprite_at_xy (REAL) -> fd2_rle_blit_sprite spy
+ *     (g_rle_blit_last_sprite): the placeholder dot 0x29 for unrecognized
+ *     items. resolved sprite = sheet + table[0x29] = sheet + 0x29.
+ *   - fd2_display_dialog_scene (REAL) for the per-slot name label, against
+ *     panel_setup_text()'s immediate-END program (returns without fopen and
+ *     without blitting, so it produces no g_blitraw entries).
+ *
+ * Items live in data_fd2_battle_item_effect_table (in-memory .object3 table
+ * in testglob.c); the character's inventory lives in g_test_rc_array[0].
+ *
+ * IMPORTANT: fd2_get_item_effect_entry returns &entry[id].type (struct base
+ * + 1), so the renderer's raw item-pointer is offset +1 from the struct. The
+ * raw offsets the renderer reads therefore map to struct fields as:
+ *   item[0]    = struct.type           (type discriminator)
+ *   item[0xD]  = struct +0xE = use_effect    (HP=5 / MP=0xB discriminator)
+ *   item+1     = struct +2  = ap        (weapon value, int16)
+ *   item+5     = struct +6  = dp        (armor value, int16)
+ *   item+0xE   = struct +0xF.. = use_param_lo|use_param_hi  (HP/MP value)
+ * Tests fill those struct fields accordingly.
+ * ---------------------------------------------------------------- */
+
+/* rle-blit spy (testglob.c): fd2_blit_indexed_sprite_at_xy -> fd2_rle_blit_sprite
+ * records the resolved sprite stream + call count for the placeholder path. */
+extern int    g_rle_blit_calls;
+extern uint32 g_rle_blit_last_sprite;
+
+/* set inventory slot `slot` (0..7) of g_test_rc_array[0]: flag + item id.
+ * each slot is 2 bytes [flag,item_id] at inventory_slots[2*slot]. */
+static void inv_set_slot(int slot, uint8 flag, uint8 item_id)
+{
+    g_test_rc_array[0].inventory_slots[slot * 2]     = flag;
+    g_test_rc_array[0].inventory_slots[slot * 2 + 1] = item_id;
+}
+
+/* reset the whole inventory grid test fixture: zero char, empty all slots,
+ * clear the item table, install fake sheet + immediate-END text, arm logs. */
+static uint32 inv_setup(void)
+{
+    uint32 sheet;
+    int    i;
+
+    memset(&g_test_rc_array[0], 0, sizeof(g_test_rc_array[0]));
+    for (i = 0; i < 8; i++) {
+        inv_set_slot(i, 0x80, 0);          /* 0x80 = empty slot */
+    }
+    memset(data_fd2_battle_item_effect_table, 0,
+           sizeof(item_effect) * 215);
+
+    sheet = bar_setup_sheet();
+    panel_setup_text();
+
+    g_blitraw_count = 0;
+    g_blitraw_log_on = 1;
+    g_render_dec_count = 0;
+    g_render_log_on = 1;
+    g_rle_blit_calls = 0;
+    return sheet;
+}
+
+/* all 8 slots empty (flag bit7 set) -> nothing is drawn at all. */
+static void test_inv_all_empty_draws_nothing(void)
+{
+    uint32 buf = 0x100000;
+
+    inv_setup();
+
+    fd2_render_inventory_item_grid(0, -1, buf);
+
+    ASSERT_EQ((long)g_blitraw_count, 0);
+    ASSERT_EQ((long)g_render_dec_count, 0);
+    ASSERT_EQ((long)g_rle_blit_calls, 0);
+}
+
+/* a single weapon item (type < 0x15) in slot 0:
+ *   background icon 0x3B (not equipped) at col_x-0x1D + (row_y+0x65)*0x140
+ *   value-label sprite 0x40 at col_x+0x44 + (row_y+0x6B)*0x140
+ *   decimal value = item->ap (item+1), 3-digit, color 0x2A, at
+ *     col_x+0x5D + (row_y+0x6B)*0x140
+ * with active_slot_count 0 => col 0 row 0 => col_x 0x2A, row_y 0. */
+static void test_inv_weapon_slot0(void)
+{
+    uint32 buf = 0x100000;
+    uint32 sheet;
+    uint32 col_x = 0x2a;
+    uint32 row_y = 0;
+
+    sheet = inv_setup();
+    data_fd2_battle_item_effect_table[7].type = 0x10;   /* weapon */
+    data_fd2_battle_item_effect_table[7].ap   = 0x0123; /* value at item+1 */
+    inv_set_slot(0, 0x00, 7);
+
+    fd2_render_inventory_item_grid(0, -1, buf);
+
+    /* two sheet blits: [0] bg icon, [1] value label */
+    ASSERT_EQ((long)g_blitraw_count, 2);
+    ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x3B);
+    ASSERT_EQ((long)g_blitraw_log_dst[0],
+              (long)(buf + col_x - 0x1d + (row_y + 0x65) * 0x140));
+    ASSERT_EQ((long)(g_blitraw_log_sprite[1] - sheet), 0x40);
+    ASSERT_EQ((long)g_blitraw_log_dst[1],
+              (long)(buf + col_x + 0x44 + (row_y + 0x6b) * 0x140));
+
+    /* the number */
+    ASSERT_EQ((long)g_render_dec_count, 1);
+    ASSERT_EQ((long)g_render_dec_val[0], 0x0123);
+    ASSERT_EQ((long)g_render_dec_digits[0], 3);
+    ASSERT_EQ((long)g_render_dec_color[0], 0x2a);
+    ASSERT_EQ((long)g_render_dec_dst[0],
+              (long)(buf + col_x + 0x5d + (row_y + 0x6b) * 0x140));
+
+    /* no placeholder rle blit on the weapon path */
+    ASSERT_EQ((long)g_rle_blit_calls, 0);
+}
+
+/* equipped flag (bit6) bumps the background icon sprite by +3:
+ * weapon 0x3B -> 0x3E. */
+static void test_inv_equipped_bg_plus3(void)
+{
+    uint32 buf = 0x140000;
+    uint32 sheet;
+
+    sheet = inv_setup();
+    data_fd2_battle_item_effect_table[3].type = 0x05;   /* weapon */
+    data_fd2_battle_item_effect_table[3].ap   = 7;
+    inv_set_slot(0, 0x40, 3);                            /* equipped */
+
+    fd2_render_inventory_item_grid(0, -1, buf);
+
+    ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x3E);   /* 0x3B + 3 */
+}
+
+/* armor (0x15 <= type < 0x20): background icon 0x3C, value sprite 0x41,
+ * value = item->dp (item+5). */
+static void test_inv_armor_slot0(void)
+{
+    uint32 buf = 0x180000;
+    uint32 sheet;
+
+    sheet = inv_setup();
+    data_fd2_battle_item_effect_table[9].type = 0x18;   /* armor band */
+    data_fd2_battle_item_effect_table[9].dp   = 0x0044; /* value at item+5 */
+    inv_set_slot(0, 0x00, 9);
+
+    fd2_render_inventory_item_grid(0, -1, buf);
+
+    ASSERT_EQ((long)g_blitraw_count, 2);
+    ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x3C);   /* bg armor */
+    ASSERT_EQ((long)(g_blitraw_log_sprite[1] - sheet), 0x41);   /* label    */
+    ASSERT_EQ((long)g_render_dec_count, 1);
+    ASSERT_EQ((long)g_render_dec_val[0], 0x0044);
+    ASSERT_EQ((long)g_render_dec_digits[0], 3);
+}
+
+/* HP-restore consumable (type==0x20, item[0xD]==5): bg icon 0x3D, value
+ * sprite 0x42, value = *(int16*)(item+0xE) = use_effect | use_param_lo<<8. */
+static void test_inv_hp_consumable(void)
+{
+    uint32 buf = 0x1c0000;
+    uint32 sheet;
+
+    sheet = inv_setup();
+    data_fd2_battle_item_effect_table[20].type        = 0x20;
+    data_fd2_battle_item_effect_table[20].use_effect   = 0x05; /* item[0xD] disc */
+    data_fd2_battle_item_effect_table[20].use_param_lo = 0x32; /* item[0xE] lo  */
+    data_fd2_battle_item_effect_table[20].use_param_hi = 0x00; /* item[0xF] hi  */
+    inv_set_slot(0, 0x00, 20);
+
+    fd2_render_inventory_item_grid(0, -1, buf);
+
+    ASSERT_EQ((long)g_blitraw_count, 2);
+    ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x3D);   /* bg other */
+    ASSERT_EQ((long)(g_blitraw_log_sprite[1] - sheet), 0x42);   /* HP label */
+    ASSERT_EQ((long)g_render_dec_count, 1);
+    ASSERT_EQ((long)g_render_dec_val[0], 0x0032);
+}
+
+/* MP-restore consumable (type==0x20, item[0xD]==0xB): bg icon 0x3D, value
+ * sprite 0x43, value = *(int16*)(item+0xE). This exercises the dense
+ * EDI-recomputed value/label-address block in the binary. */
+static void test_inv_mp_consumable(void)
+{
+    uint32 buf = 0x200000;
+    uint32 sheet;
+    uint32 col_x = 0x2a;
+    uint32 row_y = 0;
+
+    sheet = inv_setup();
+    data_fd2_battle_item_effect_table[30].type        = 0x20;
+    data_fd2_battle_item_effect_table[30].use_effect   = 0x0b; /* item[0xD] disc */
+    data_fd2_battle_item_effect_table[30].use_param_lo = 0x14; /* item[0xE] lo  */
+    data_fd2_battle_item_effect_table[30].use_param_hi = 0x00; /* item[0xF] hi  */
+    inv_set_slot(0, 0x00, 30);
+
+    fd2_render_inventory_item_grid(0, -1, buf);
+
+    ASSERT_EQ((long)g_blitraw_count, 2);
+    ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x3D);   /* bg other */
+    ASSERT_EQ((long)(g_blitraw_log_sprite[1] - sheet), 0x43);   /* MP label */
+    /* the recomputed value/label addresses match the common formula */
+    ASSERT_EQ((long)g_blitraw_log_dst[1],
+              (long)(buf + col_x + 0x44 + (row_y + 0x6b) * 0x140));
+    ASSERT_EQ((long)g_render_dec_count, 1);
+    ASSERT_EQ((long)g_render_dec_val[0], 0x0014);
+    ASSERT_EQ((long)g_render_dec_dst[0],
+              (long)(buf + col_x + 0x5d + (row_y + 0x6b) * 0x140));
+}
+
+/* unrecognized item (type==0x20 but item[0xD] neither 5 nor 0xB): background
+ * icon 0x3D, NO value sprite via the sheet, placeholder dot 0x29 via the rle
+ * path, and NO decimal number. The slot still counts (verified separately). */
+static void test_inv_placeholder_other(void)
+{
+    uint32 buf = 0x240000;
+    uint32 sheet;
+
+    sheet = inv_setup();
+    data_fd2_battle_item_effect_table[40].type       = 0x20;
+    data_fd2_battle_item_effect_table[40].use_effect = 0x01;  /* item[0xD] != 5/0xB */
+    inv_set_slot(0, 0x00, 40);
+
+    fd2_render_inventory_item_grid(0, -1, buf);
+
+    /* only the background icon goes through the sheet blit */
+    ASSERT_EQ((long)g_blitraw_count, 1);
+    ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x3D);
+    /* placeholder dot via rle path, resolved sprite = sheet + table[0x29] */
+    ASSERT_EQ((long)g_rle_blit_calls, 1);
+    ASSERT_EQ((long)(g_rle_blit_last_sprite - sheet), 0x29);
+    /* no number */
+    ASSERT_EQ((long)g_render_dec_count, 0);
+}
+
+/* type boundary: type 0x14 is still a weapon (< 0x15 -> 0x3B/0x40), type 0x15
+ * is armor (< 0x20 -> 0x3C/0x41), type 0x1F is armor, type 0x20 with bad sub
+ * is placeholder. Two separate single-item renders pin the < 0x15 / < 0x20
+ * edges. */
+static void test_inv_type_boundaries(void)
+{
+    uint32 buf = 0x280000;
+    uint32 sheet;
+
+    /* type 0x14 -> weapon */
+    sheet = inv_setup();
+    data_fd2_battle_item_effect_table[5].type = 0x14;
+    inv_set_slot(0, 0x00, 5);
+    fd2_render_inventory_item_grid(0, -1, buf);
+    ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x3B);
+    ASSERT_EQ((long)(g_blitraw_log_sprite[1] - sheet), 0x40);
+
+    /* type 0x15 -> armor */
+    sheet = inv_setup();
+    data_fd2_battle_item_effect_table[5].type = 0x15;
+    inv_set_slot(0, 0x00, 5);
+    fd2_render_inventory_item_grid(0, -1, buf);
+    ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x3C);
+    ASSERT_EQ((long)(g_blitraw_log_sprite[1] - sheet), 0x41);
+
+    /* type 0x1F -> still armor */
+    sheet = inv_setup();
+    data_fd2_battle_item_effect_table[5].type = 0x1F;
+    inv_set_slot(0, 0x00, 5);
+    fd2_render_inventory_item_grid(0, -1, buf);
+    ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x3C);
+    ASSERT_EQ((long)(g_blitraw_log_sprite[1] - sheet), 0x41);
+}
+
+/* value sign-extension: the value is read with MOVSX (signed 16-bit). A
+ * weapon ap of 0x8001 must arrive at the decimal renderer as 0xFFFF8001. */
+static void test_inv_value_sign_extension(void)
+{
+    uint32 buf = 0x2c0000;
+
+    inv_setup();
+    data_fd2_battle_item_effect_table[5].type = 0x01;
+    data_fd2_battle_item_effect_table[5].ap   = 0x8001;
+    inv_set_slot(0, 0x00, 5);
+
+    fd2_render_inventory_item_grid(0, -1, buf);
+
+    ASSERT_EQ((long)g_render_dec_count, 1);
+    ASSERT_EQ((long)g_render_dec_val[0], (long)0xFFFF8001u);
+}
+
+/* empty slots are skipped without consuming a grid cell: with slot 0 empty
+ * and slot 3 holding a weapon, the (only) drawn item still lands in grid cell
+ * 0 (active_slot_count 0 -> col_x 0x2A, row_y 0), NOT cell 3. */
+static void test_inv_empty_slots_skipped_packing(void)
+{
+    uint32 buf = 0x300000;
+    uint32 sheet;
+    uint32 col_x = 0x2a;
+    uint32 row_y = 0;
+
+    sheet = inv_setup();
+    /* slots 0,1,2 empty (already 0x80 from inv_setup); slot 3 holds a weapon */
+    data_fd2_battle_item_effect_table[5].type = 0x01;
+    data_fd2_battle_item_effect_table[5].ap   = 11;
+    inv_set_slot(3, 0x00, 5);
+
+    fd2_render_inventory_item_grid(0, -1, buf);
+
+    ASSERT_EQ((long)g_blitraw_count, 2);
+    /* drawn at packed cell 0, proving empties did not advance the counter */
+    ASSERT_EQ((long)g_blitraw_log_dst[0],
+              (long)(buf + col_x - 0x1d + (row_y + 0x65) * 0x140));
+}
+
+/* grid packing across cells: five weapons in slots 0..4 pack into cells
+ * 0,1,2,3,4 -> (col,row) (0,0)(0,1)(0,2)(0,3)(1,0). Verify the background-icon
+ * dst of the 5th drawn item lands at col 1 row 0:
+ *   col_x = 1*0x96 + 0x2A = 0xC0, row_y = 0. Each drawn slot emits 2 sheet
+ * blits (bg + value), so the 5th item's bg icon is g_blitraw entry index 8. */
+static void test_inv_grid_packing_cells(void)
+{
+    uint32 buf = 0x340000;
+    uint32 sheet;
+    int    i;
+    uint32 c4_col_x = 1 * 0x96 + 0x2a;
+    uint32 c4_row_y = 0;
+
+    sheet = inv_setup();
+    data_fd2_battle_item_effect_table[5].type = 0x01;   /* weapon */
+    data_fd2_battle_item_effect_table[5].ap   = 1;
+    for (i = 0; i < 5; i++) {
+        inv_set_slot(i, 0x00, 5);
+    }
+
+    fd2_render_inventory_item_grid(0, -1, buf);
+
+    /* 5 drawn slots x 2 sheet blits = 10 */
+    ASSERT_EQ((long)g_blitraw_count, 10);
+
+    /* cell 1 (active_slot_count 1) bg dst: col 0 row 1 */
+    ASSERT_EQ((long)g_blitraw_log_dst[2],
+              (long)(buf + 0x2a - 0x1d + (1 * 0x16 + 0x65) * 0x140));
+    /* cell 4 (active_slot_count 4) bg dst: col 1 row 0 */
+    ASSERT_EQ((long)g_blitraw_log_dst[8],
+              (long)(buf + c4_col_x - 0x1d + (c4_row_y + 0x65) * 0x140));
+}
+
+/* placeholder items STILL consume a grid cell: an unrecognized item in slot 0
+ * followed by a weapon in slot 1 must place the weapon in cell 1 (not cell 0),
+ * proving active_slot_count was incremented on the placeholder path. */
+static void test_inv_placeholder_still_counts(void)
+{
+    uint32 buf = 0x380000;
+    uint32 sheet;
+
+    sheet = inv_setup();
+    /* slot 0: unrecognized (type 0x20, bad sub) -> placeholder */
+    data_fd2_battle_item_effect_table[40].type       = 0x20;
+    data_fd2_battle_item_effect_table[40].use_effect = 0x01;
+    inv_set_slot(0, 0x00, 40);
+    /* slot 1: weapon */
+    data_fd2_battle_item_effect_table[5].type = 0x01;
+    data_fd2_battle_item_effect_table[5].ap   = 9;
+    inv_set_slot(1, 0x00, 5);
+
+    fd2_render_inventory_item_grid(0, -1, buf);
+
+    /* blit order: slot0 bg(0x3D), slot1 bg(0x3B), slot1 value(0x40) = 3 sheet
+     * blits; slot0 also did one rle placeholder. */
+    ASSERT_EQ((long)g_blitraw_count, 3);
+    ASSERT_EQ((long)(g_blitraw_log_sprite[0] - sheet), 0x3D);   /* slot0 ph bg */
+    ASSERT_EQ((long)(g_blitraw_log_sprite[1] - sheet), 0x3B);   /* slot1 wp bg */
+    /* slot1 weapon bg landed in cell 1 (col 0 row 1), proving the placeholder
+     * advanced active_slot_count from 0 to 1. */
+    ASSERT_EQ((long)g_blitraw_log_dst[1],
+              (long)(buf + 0x2a - 0x1d + (1 * 0x16 + 0x65) * 0x140));
+    ASSERT_EQ((long)g_rle_blit_calls, 1);
+}
+
 void run_gfx_rndstat_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -874,6 +1256,18 @@ void run_gfx_rndstat_tests(void)
     RUN_TEST(test_panel_right_clip_moderate);
     RUN_TEST(test_panel_right_clip_extreme);
     RUN_TEST(test_panel_right_row_count_bound);
+    RUN_TEST(test_inv_all_empty_draws_nothing);
+    RUN_TEST(test_inv_weapon_slot0);
+    RUN_TEST(test_inv_equipped_bg_plus3);
+    RUN_TEST(test_inv_armor_slot0);
+    RUN_TEST(test_inv_hp_consumable);
+    RUN_TEST(test_inv_mp_consumable);
+    RUN_TEST(test_inv_placeholder_other);
+    RUN_TEST(test_inv_type_boundaries);
+    RUN_TEST(test_inv_value_sign_extension);
+    RUN_TEST(test_inv_empty_slots_skipped_packing);
+    RUN_TEST(test_inv_grid_packing_cells);
+    RUN_TEST(test_inv_placeholder_still_counts);
     g_render_log_on = 0;
     g_blitraw_log_on = 0;
     printf("\n");

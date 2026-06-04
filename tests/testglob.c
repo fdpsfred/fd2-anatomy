@@ -925,10 +925,8 @@ void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite, uint32 stride) {
 /* fd2_render_status_screen_static_layout: now emitted for real in
  * src/gfx/rndstat.c; deferred to Phase 9 integration for its dedicated test
  * (see src/emit_issues.json @00017eef). */
-void fd2_render_inventory_item_grid(uint32 char_idx, int item_id,
-                                    uint32 overlay_buffer) {
-    (void)char_idx; (void)item_id; (void)overlay_buffer;
-}
+/* fd2_render_inventory_item_grid: now emitted for real in src/gfx/rndstat.c
+ * (with host unit tests in tests/gfx/rndstat.c); stub removed. */
 /* fd2_paint_status_panel_layer_left / _right: both now emitted for real in
  * src/gfx/rndstat.c (with host unit tests); stubs removed. */
 /* fd2_play_status_screen_outro_step: now emitted for real in src/anim/aniwalk.c

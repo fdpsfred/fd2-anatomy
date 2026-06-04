@@ -958,8 +958,9 @@
     "name": "fd2_render_inventory_item_grid",
     "target": "gfx/rndstat.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001875d": {
     "name": "fd2_render_number_red_when_full",
