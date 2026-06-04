@@ -356,18 +356,10 @@ void fd2_tile_blit_24x24_with_dialog_bg_fill(uint32 src, uint32 dst, uint32 stri
     g_blitpass_calls++;
     g_blitbgfill_calls++;
 }
-/* fd2_render_party_roster_grid (the 2x3 party-roster grid renderer; real body
- * not yet emitted). fd2_render_chapter_intro_dialog_panels (mode 3) overlays it;
- * the recording stub captures (highlight_idx, surface_offset) and a call count so
- * the panel test can confirm the overlay is invoked with the right args. */
-int    g_roster_grid_calls = 0;
-uint32 g_roster_grid_last_highlight = 0;
-uint32 g_roster_grid_last_surface = 0;
-void fd2_render_party_roster_grid(uint32 highlight_idx, uint32 surface_offset) {
-    g_roster_grid_last_highlight = highlight_idx;
-    g_roster_grid_last_surface = surface_offset;
-    g_roster_grid_calls++;
-}
+/* fd2_render_party_roster_grid: now emitted for real in src/gfx/rndmenu.c and
+ * linked. fd2_render_chapter_intro_dialog_panels (mode 3) overlays it; the panel
+ * test now drives the real grid (its bg-fill portrait blits land in g_blitpass_*
+ * and the per-char name dialog runs against the immediate-END text program). */
 /* fd2_render_party_roster_with_item_stat_preview (the single-column class-filtered
  * roster renderer with side-by-side current-vs-preview stat columns; real body not
  * yet emitted). It reads the runtime-char array + portrait cache, so the
@@ -1143,14 +1135,16 @@ uint8 *data_fd2_portrait_sprite_buffer = (uint8 *)0;
 int    g_dlg_glyph_calls = 0;
 uint32 g_dlg_glyph_last_idx = 0;
 uint32 g_dlg_glyph_last_pos = 0;
+uint32 g_dlg_glyph_last_p5 = 0;   /* glyph colour/border param (p5) */
 
 void fd2_blit_glyph_2bpp_with_outline(uint32 font_sheet, uint32 glyph_idx,
                                       uint32 render_pos, uint32 render_pitch,
                                       uint32 p5, uint32 p6, uint16 p7) {
-    (void)font_sheet; (void)render_pitch; (void)p5; (void)p6; (void)p7;
+    (void)font_sheet; (void)render_pitch; (void)p6; (void)p7;
     g_dlg_glyph_calls++;
     g_dlg_glyph_last_idx = glyph_idx;
     g_dlg_glyph_last_pos = render_pos;
+    g_dlg_glyph_last_p5 = p5;
 }
 /* fd2_play_dialog_open_animation: now emitted in src/dialog/dialog.c and
  * linked for real; its 5-stage frame assembly is driven by the

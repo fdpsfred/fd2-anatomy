@@ -52,6 +52,10 @@ static uint8 g_snapshot_buf[LGSB_SPAN];
  * frame's payload is at cache_base + offset_table[frame]. */
 static uint8 g_portrait_cache[256];
 
+/* runtime-char array the roster grid indexes via scroll_offset + iter. Shared
+ * by the mode-3 panel test and the fd2_render_party_roster_grid tests below. */
+static runtime_char g_roster_chars[16];
+
 /* immediate-END text program: every page word points at an END (-1) opcode so
  * the real fd2_display_dialog_scene returns without fopen / glyph output. */
 static uint16 g_intro_text[0x400];
@@ -234,7 +238,8 @@ static void test_pose_table_index_formula(void)
  *   mode 0     -> fd2_blit_sprite_with_stride_setup (g_blitsetup_* log)
  *   mode 1/2/3 -> fd2_dialog_sprite_blit_normal     (g_dlg_blit_*  log)
  *   mode 2     -> fd2_tile_blit_24x24_with_dialog_bg_fill (g_blitpass_*)
- *   mode 3     -> fd2_render_party_roster_grid      (g_roster_grid_*)
+ *   mode 3     -> the REAL fd2_render_party_roster_grid, whose portrait
+ *                 bg-fill blits also land in g_blitpass_* / g_blitbgfill_calls
  * The risk-bearing logic is the sprite-index/address arithmetic, the
  * scroll/count branch selection, the icon-count cap, and the
  * anim-phase remap (0,1,2,3 -> 0,1,2,1).
@@ -246,12 +251,11 @@ extern int    g_blitsetup_calls;
 /* fd2_dialog_sprite_blit_normal per-call log (testglob.c) */
 extern uint32 g_dlg_blit_dst_log[16];
 extern uint32 g_dlg_blit_sprite_log[16];
-/* fd2_tile_blit_24x24_with_dialog_bg_fill spy (testglob.c, shared g_blitpass_*) */
+/* fd2_tile_blit_24x24_with_dialog_bg_fill spy (testglob.c, shared g_blitpass_*).
+ * In mode 3 the REAL fd2_render_party_roster_grid (src/gfx/rndmenu.c) overlays
+ * the roster, so its per-char portrait blits also land here; mode 1/2 never
+ * invoke the grid, so g_blitbgfill_calls stays 0 there. */
 extern int    g_blitbgfill_calls;
-/* fd2_render_party_roster_grid spy (testglob.c) */
-extern int    g_roster_grid_calls;
-extern uint32 g_roster_grid_last_highlight;
-extern uint32 g_roster_grid_last_surface;
 
 /* sprite atlas: int32 offset table. Slot at +6 + i*4 gives an animated
  * sprite's payload offset; slot at +0x4A is the static "no scroll" sprite. */
@@ -265,7 +269,6 @@ static void panels_reset_spies(void)
     g_dlg_blit_normal_calls = 0;
     g_blitpass_calls = 0;
     g_blitbgfill_calls = 0;
-    g_roster_grid_calls = 0;
 }
 
 /* common atlas/global fixture */
@@ -409,7 +412,7 @@ static void test_mode1_panels_scroll_zero(void)
 
     fd2_render_chapter_intro_dialog_panels((uint32)g_panel_atlas, 1);
 
-    ASSERT_EQ((long)g_roster_grid_calls, 0);
+    ASSERT_EQ((long)g_blitbgfill_calls, 0);             /* mode 1 -> no roster grid */
     ASSERT_EQ((long)g_dlg_blit_normal_calls, 2);
     /* left panel: dst 0xA972A, sprite = atlas + static slot */
     ASSERT_EQ((long)g_dlg_blit_dst_log[0], 0xA972A);
@@ -446,23 +449,41 @@ static void test_mode1_panels_scrolled_and_tail(void)
 }
 
 /* ----------------------------------------------------------------
- * mode 3: identical panels to mode 1, but first overlays the party
- * roster grid with (cursor_idx, 0xA0000).
+ * mode 3: identical panels to mode 1, but first overlays the REAL party
+ * roster grid with (cursor_idx, 0xA0000). With one party member the real
+ * grid makes exactly one portrait bg-fill blit, and its per-char dst is
+ * keyed off surface_offset 0xA0000 — proving the overlay ran with the
+ * right surface. The two scroll panels still draw afterward.
  * ---------------------------------------------------------------- */
 static void test_mode3_calls_roster_grid_then_panels(void)
 {
+    runtime_char *saved_char_ptr = data_fd2_battle_runtime_char_array_ptr;
+
     panels_setup();
     data_fd2_ui_menu_cursor_idx = 4;
     data_fd2_ui_menu_scroll_offset = 0;
     data_fd2_ui_menu_visible_item_count = 0;            /* 0+6 >= 0 -> right static */
 
+    /* real roster-grid fixture: 1 visible char, names via immediate-END VM.
+     * Uses the file-scope g_roster_chars (not a dangling stack array) and the
+     * panels_setup portrait cache; the pointer is restored below. */
+    memset(g_roster_chars, 0, sizeof(g_roster_chars));
+    data_fd2_battle_runtime_char_array_ptr = g_roster_chars;
+    data_fd2_shared_menu_party_member_count = 1;
+    data_fd2_chapter_intro_dialog_subframe_anim_counter = 0;
+    intro_text_all_end();
+
     fd2_render_chapter_intro_dialog_panels((uint32)g_panel_atlas, 3);
 
-    ASSERT_EQ((long)g_roster_grid_calls, 1);
-    ASSERT_EQ((long)g_roster_grid_last_highlight, 4);
-    ASSERT_EQ((long)g_roster_grid_last_surface, 0xA0000);
+    /* roster grid ran for the single member: one portrait bg-fill blit whose
+     * dst is the iter-0 slot computed off surface_offset 0xA0000. */
+    ASSERT_EQ((long)g_blitbgfill_calls, 1);
+    ASSERT_EQ((long)g_blitpass_dst[0],
+              (long)((0x75u) * 0x140u + 0xA0000u + 0xeu));
     /* both panels still drawn */
     ASSERT_EQ((long)g_dlg_blit_normal_calls, 2);
+
+    data_fd2_battle_runtime_char_array_ptr = saved_char_ptr;
 }
 
 /* ----------------------------------------------------------------
@@ -944,6 +965,270 @@ static void test_column_row_offsets(void)
     ASSERT_EQ((long)g_blitraw_log_dst[2 * 2 + 1], (long)coin_dst_i2);
 }
 
+/* ================================================================
+ * fd2_render_party_roster_grid @ 0x2EA90
+ *
+ * 2-col x 3-row party-roster viewport (up to 6 chars). Per char:
+ *   - a 24x24 portrait bg-fill blit reached through the real
+ *     fd2_tile_blit_24x24_with_dialog_bg_fill spy (g_blitpass_* /
+ *     g_blitbgfill_calls): verifies the portrait src (blink-frame
+ *     atlas indexing) and the dst column/row arithmetic.
+ *   - a class/job name via the REAL fd2_display_dialog_scene. The text
+ *     program points exactly ONE page (= char_id + 1) at a single-glyph
+ *     program and every other page at END, so a rendered glyph proves the
+ *     page index, and g_dlg_glyph_last_pos / g_dlg_glyph_last_p5 capture
+ *     the name dst arithmetic and the selection border glyph.
+ *
+ * Risk-bearing logic under test: the blink-frame remap (3->1), the
+ * visible-count cap (6 / tail-clamp 5), the per-char char_idx/col/row
+ * arithmetic, the portrait blink-atlas source index, the name page
+ * (char_id+1) + dst, and the highlight border glyph (0xC9 vs 0xCD).
+ * ================================================================ */
+
+extern uint32 g_dlg_glyph_last_idx;  /* last rendered glyph index   (testglob.c) */
+extern uint32 g_dlg_glyph_last_pos;  /* last glyph render position  (testglob.c) */
+extern uint32 g_dlg_glyph_last_p5;   /* glyph colour/border param   (testglob.c) */
+
+/* (g_roster_chars defined near the top; shared with the mode-3 panel test) */
+/* dialog text program. Layout mirrors intro_text_all_end: the page-pointer
+ * table occupies words 0..0x3BF; the opcode data lives ABOVE it so the
+ * table-init loop never clobbers it. byte 0x780 (word 0x3C0) = shared END;
+ * byte 0x782 (word 0x3C1) = a 1-glyph blob, byte 0x784 = its trailing END. */
+static uint16 g_roster_text[0x400];
+
+#define ROSTER_END_OFF     0x780           /* byte offset of the shared END  */
+#define ROSTER_GLYPH_OFF   0x782           /* byte offset of the 1-glyph blob */
+
+/* All pages -> END (no glyph). */
+static void roster_text_all_end(void)
+{
+    int i;
+
+    for (i = 0; i < 0x400; i++) {
+        g_roster_text[i] = 0;
+    }
+    *(int16 *)((uint8 *)g_roster_text + ROSTER_END_OFF) = -1;       /* shared END */
+    for (i = 0; i < 0x3c0; i++) {
+        g_roster_text[i] = (uint16)ROSTER_END_OFF;                 /* default END */
+    }
+    data_fd2_all_game_text_ptr = (uint32)g_roster_text;
+}
+
+/* Like roster_text_all_end but aim page `glyph_page` at a [glyph_val][END]
+ * blob so exactly that page renders one glyph (proving the page index reached
+ * the VM); render_pos and p5 of that glyph then capture the name arithmetic. */
+static void roster_text_glyph_at(uint32 glyph_page, uint16 glyph_val)
+{
+    roster_text_all_end();
+    *(uint16 *)((uint8 *)g_roster_text + ROSTER_GLYPH_OFF)     = glyph_val;
+    *(int16  *)((uint8 *)g_roster_text + ROSTER_GLYPH_OFF + 2) = -1;
+    g_roster_text[glyph_page] = (uint16)ROSTER_GLYPH_OFF;
+}
+
+/* runtime-char array pointer saved by roster_setup so roster_teardown can
+ * restore the testglob default (g_test_rc_array) other suites depend on. */
+static runtime_char *roster_saved_char_ptr;
+
+/* common roster fixture: N members, scroll offset, blink counter, portrait
+ * cache cleared; names default to all-END (override with roster_text_glyph_at). */
+static void roster_setup(uint32 member_count, uint32 scroll, uint32 subframe)
+{
+    roster_saved_char_ptr = data_fd2_battle_runtime_char_array_ptr;
+
+    memset(g_roster_chars, 0, sizeof(g_roster_chars));
+    memset(g_portrait_cache, 0, sizeof(g_portrait_cache));
+
+    data_fd2_battle_runtime_char_array_ptr = g_roster_chars;
+    portrait_sprite_cache = (uint32)g_portrait_cache;
+    data_fd2_shared_menu_party_member_count = member_count;
+    data_fd2_ui_menu_scroll_offset = scroll;
+    data_fd2_chapter_intro_dialog_subframe_anim_counter = subframe;
+
+    roster_text_all_end();
+
+    g_blitpass_calls = 0;
+    g_blitbgfill_calls = 0;
+    g_dlg_glyph_calls = 0;
+}
+
+/* Restore the runtime-char array pointer roster_setup repointed, so a following
+ * suite (e.g. ui_menu/status.c, which relies on the g_test_rc_array wiring) is
+ * not polluted by the local roster array. */
+static void roster_teardown(void)
+{
+    data_fd2_battle_runtime_char_array_ptr = roster_saved_char_ptr;
+}
+
+/* ----------------------------------------------------------------
+ * Visible-count cap: member_count <= 6 -> draw every member (one
+ * portrait bg-fill blit each).
+ * ---------------------------------------------------------------- */
+static void test_roster_cap_small_draws_all(void)
+{
+    roster_setup(4, 0, 0);
+
+    fd2_render_party_roster_grid(99, 0x1000);
+
+    ASSERT_EQ((long)g_blitbgfill_calls, 4);
+    roster_teardown();
+}
+
+/* member_count > 6 with a full window below the scroll
+ * (member_count >= scroll + 6) -> draw exactly 6. */
+static void test_roster_cap_large_draws_six(void)
+{
+    roster_setup(10, 0, 0);                 /* 10 >= 0+6 -> 6 */
+
+    fd2_render_party_roster_grid(99, 0x1000);
+
+    ASSERT_EQ((long)g_blitbgfill_calls, 6);
+    roster_teardown();
+}
+
+/* member_count > 6 AND member_count < scroll + 6 -> tail-clamp to 5.
+ * scroll = 4, count = 8 -> 8 < 4+6=10 -> draw 5. */
+static void test_roster_cap_tail_clamps_to_five(void)
+{
+    roster_setup(8, 4, 0);
+
+    fd2_render_party_roster_grid(99, 0x1000);
+
+    ASSERT_EQ((long)g_blitbgfill_calls, 5);
+    roster_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Portrait column/row dst arithmetic across both columns and a row
+ * advance: iter 0..3 -> col_off = (iter%2)*0x84, row_off=(iter/2)*0x1A,
+ * dst = (row_off+0x75)*0x140 + surf + 0xE + col_off.
+ * ---------------------------------------------------------------- */
+static void test_roster_portrait_col_row_offsets(void)
+{
+    uint32 surf = 0x2000;
+
+    roster_setup(4, 0, 0);
+
+    fd2_render_party_roster_grid(99, surf);
+
+    ASSERT_EQ((long)g_blitpass_calls, 4);
+    /* iter0: col 0, row 0 */
+    ASSERT_EQ((long)g_blitpass_dst[0],
+              (long)((0x00u + 0x75u) * 0x140u + surf + 0xeu + 0x00u));
+    /* iter1: col 0x84, row 0 */
+    ASSERT_EQ((long)g_blitpass_dst[1],
+              (long)((0x00u + 0x75u) * 0x140u + surf + 0xeu + 0x84u));
+    /* iter2: col 0, row 0x1A */
+    ASSERT_EQ((long)g_blitpass_dst[2],
+              (long)((0x1au + 0x75u) * 0x140u + surf + 0xeu + 0x00u));
+    /* iter3: col 0x84, row 0x1A */
+    ASSERT_EQ((long)g_blitpass_dst[3],
+              (long)((0x1au + 0x75u) * 0x140u + surf + 0xeu + 0x84u));
+    ASSERT_EQ((long)g_blitpass_stride[0], 0x140);
+    roster_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Portrait source uses char_idx = scroll + iter to index the per-char
+ * blink-atlas: src = cache + cache[char_idx*0x30 + blink*4]. With
+ * scroll=2 the first drawn char_idx is 2. blink (subframe) = 1.
+ * ---------------------------------------------------------------- */
+static void test_roster_portrait_src_uses_scroll_and_blink(void)
+{
+    int32 *cache;
+
+    roster_setup(2, 2, 1);                  /* scroll 2 -> char_idx 2,3; blink 1 */
+    cache = (int32 *)g_portrait_cache;
+    /* char_idx 2, blink 1 -> cache[2*0x30 + 1*4] */
+    cache[(2 * 0x30 + 1 * 4) / 4] = 0x123;
+
+    fd2_render_party_roster_grid(99, 0x1000);
+
+    ASSERT_EQ((long)g_blitpass_calls, 2);
+    ASSERT_EQ((long)g_blitpass_src[0],
+              (long)((uint32)g_portrait_cache + 0x123u));
+    roster_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Blink-frame remap: subframe_counter 3 -> blink_frame 1 (source uses
+ * cache[id*0x30 + 1*4], NOT id*0x30 + 3*4).
+ * ---------------------------------------------------------------- */
+static void test_roster_blink_frame_3_maps_to_1(void)
+{
+    int32 *cache;
+
+    roster_setup(1, 0, 3);                  /* subframe 3 -> blink 1 */
+    cache = (int32 *)g_portrait_cache;
+    cache[(0 * 0x30 + 1 * 4) / 4] = 0xAA;   /* blink 1 (expected) */
+    cache[(0 * 0x30 + 3 * 4) / 4] = 0xBB;   /* blink 3 (must NOT be used) */
+
+    fd2_render_party_roster_grid(99, 0x1000);
+
+    ASSERT_EQ((long)g_blitpass_calls, 1);
+    ASSERT_EQ((long)g_blitpass_src[0],
+              (long)((uint32)g_portrait_cache + 0xAAu));
+    roster_teardown();
+}
+
+/* blink-frame passthrough: subframe 2 (not 3) used as-is. */
+static void test_roster_blink_frame_passthrough(void)
+{
+    int32 *cache;
+
+    roster_setup(1, 0, 2);                  /* subframe 2 -> blink 2 */
+    cache = (int32 *)g_portrait_cache;
+    cache[(0 * 0x30 + 2 * 4) / 4] = 0x5C;
+
+    fd2_render_party_roster_grid(99, 0x1000);
+
+    ASSERT_EQ((long)g_blitpass_src[0],
+              (long)((uint32)g_portrait_cache + 0x5Cu));
+    roster_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Name dialog: page index = char.char_id + 1, dst =
+ * (row_off+0x79)*0x140 + surf + 0x28 + col_off, and the highlighted
+ * char's border glyph = 0xC9. Single member (iter0: col0,row0) with
+ * char_id 0x0A so page = 0x0B carries the one-glyph blob.
+ * ---------------------------------------------------------------- */
+static void test_roster_name_page_dst_and_highlight_border(void)
+{
+    uint32 surf = 0x4000;
+
+    roster_setup(1, 0, 0);
+    g_roster_chars[0].char_id = 0x0A;       /* page = 0x0B */
+    roster_text_glyph_at(0x0B, 0x37);       /* one glyph (idx 0x37) on page 0x0B */
+
+    fd2_render_party_roster_grid(0, surf);  /* highlight_idx 0 == char_idx 0 */
+
+    /* exactly one glyph rendered -> page index 0x0B (= char_id+1) reached VM */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, 0x37);
+    /* name dst arithmetic (iter0: col0,row0) */
+    ASSERT_EQ((long)g_dlg_glyph_last_pos,
+              (long)((0x00u + 0x79u) * 0x140u + surf + 0x28u + 0x00u));
+    /* highlighted -> border 0xC9 */
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xC9);
+    roster_teardown();
+}
+
+/* non-highlighted char -> border glyph 0xCD. Two members, highlight a
+ * different slot; verify the iter-0 char's name carries 0xCD. */
+static void test_roster_border_not_highlighted(void)
+{
+    roster_setup(2, 0, 0);
+    g_roster_chars[0].char_id = 0x03;       /* page = 0x04 */
+    g_roster_chars[1].char_id = 0x07;
+    roster_text_glyph_at(0x04, 0x22);       /* only char_idx 0's page emits a glyph */
+
+    fd2_render_party_roster_grid(1, 0x4000);/* highlight slot 1, not 0 */
+
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);  /* only char_idx 0 page has a glyph */
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xCD);
+    roster_teardown();
+}
+
 void run_gfx_rndmenu_tests(void)
 {
     SUITE_BEGIN(gfx_rndmenu);
@@ -975,5 +1260,14 @@ void run_gfx_rndmenu_tests(void)
     RUN_TEST(test_price_discounted_when_sell);
     RUN_TEST(test_price_discount_rounds_toward_zero);
     RUN_TEST(test_column_row_offsets);
+    RUN_TEST(test_roster_cap_small_draws_all);
+    RUN_TEST(test_roster_cap_large_draws_six);
+    RUN_TEST(test_roster_cap_tail_clamps_to_five);
+    RUN_TEST(test_roster_portrait_col_row_offsets);
+    RUN_TEST(test_roster_portrait_src_uses_scroll_and_blink);
+    RUN_TEST(test_roster_blink_frame_3_maps_to_1);
+    RUN_TEST(test_roster_blink_frame_passthrough);
+    RUN_TEST(test_roster_name_page_dst_and_highlight_border);
+    RUN_TEST(test_roster_border_not_highlighted);
     SUITE_END();
 }

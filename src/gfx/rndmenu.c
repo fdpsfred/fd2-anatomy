@@ -349,3 +349,89 @@ void fd2_render_shop_item_grid(uint32 item_count, uint8 *item_id_array,
             0x140, price, 0x77, 5);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_party_roster_grid @ 0x2EA90  (2 callers)
+ *
+ * Render the party-roster grid (used by all 5 party-roster select
+ * menus) — up to 6 visible chars in a 2-column x 3-row layout, each
+ * showing portrait + class/job name + selection highlight.
+ *
+ * Callers: fd2_party_roster_single_select_loop @ 0x2E6B8 and
+ * fd2_render_chapter_intro_dialog_panels @ 0x2D9FE (mode 3).
+ *
+ * Blink-frame mapping:
+ *   blink_frame = (subframe_counter == 3) ? 1 : counter   // 0,1,2,3->0,1,2,1
+ *
+ * Visible-count cap:
+ *   draw_count = menu_party_member_count
+ *   if (member_count > 6) { draw_count = 6;
+ *       if (member_count < scroll_offset + 6) draw_count = 5; }   // tail-clamp
+ *
+ * Per char (iter = 0..draw_count-1):
+ *   char_idx = scroll_offset + iter
+ *   col_off  = (iter % 2) * 0x84                          // 2 columns, 0x84 apart
+ *   row_off  = (iter / 2) * 0x1A                          // 3 rows, 0x1A apart
+ *   24x24 portrait blit with blink variant:
+ *     portrait_ptr = cache + cache[char_idx*0x30 + blink_frame*4]
+ *     fd2_tile_blit_24x24_with_dialog_bg_fill(portrait_ptr,
+ *         surface_offset + 0x0E + col_off + (row_off + 0x75)*0x140, 0x140)
+ *   border_glyph = (char_idx == highlight_idx) ? 0xC9 : 0xCD
+ *   class/job name via dialog scene (FDTXT idx = char.char_id + 1):
+ *     fd2_display_dialog_scene(all_game_text,
+ *         rt_chars[char_idx].char_id + 1,
+ *         surface_offset + 0x28 + col_off + (row_off + 0x79)*0x140,
+ *         0x140, border_glyph, 0x4C, 0, 0, 0)
+ *
+ * void __cdecl. EBX/ESI/EDI/EBP callee-saved; the __CHK(0x44)
+ * stack-probe prologue is compiler-injected and omitted here. iter/2
+ * is a signed divide (matches the SAR idiom in the disassembly).
+ * ---------------------------------------------------------------- */
+void fd2_render_party_roster_grid(uint32 highlight_idx, uint32 surface_offset)
+{
+    uint32 blink_frame;
+    uint32 draw_count;
+    uint32 iter;
+    uint32 char_idx;
+    uint32 col_off;
+    uint32 row_off;
+    uint8  border_glyph;
+    runtime_char *rt_chars;
+
+    blink_frame = data_fd2_chapter_intro_dialog_subframe_anim_counter;
+    if (data_fd2_chapter_intro_dialog_subframe_anim_counter == 3) {
+        blink_frame = 1;
+    }
+
+    draw_count = data_fd2_shared_menu_party_member_count;
+    if (((int32)data_fd2_shared_menu_party_member_count > 6)
+        && (draw_count = 6,
+            (int32)data_fd2_shared_menu_party_member_count
+                < (int32)data_fd2_ui_menu_scroll_offset + 6)) {
+        draw_count = 5;
+    }
+
+    for (iter = 0; (rt_chars = data_fd2_battle_runtime_char_array_ptr,
+                    (int32)iter < (int32)draw_count); iter++) {
+        char_idx = data_fd2_ui_menu_scroll_offset + iter;
+        col_off = ((int32)iter % 2) * 0x84;
+        row_off = ((int32)iter / 2) * 0x1a;
+
+        fd2_tile_blit_24x24_with_dialog_bg_fill(
+            *(int32 *)(portrait_sprite_cache
+                       + char_idx * 0x30 + blink_frame * 4)
+                + portrait_sprite_cache,
+            (row_off + 0x75) * 0x140 + surface_offset + 0xe + col_off,
+            0x140);
+
+        border_glyph = 0xcd;
+        if (data_fd2_ui_menu_scroll_offset + iter == highlight_idx) {
+            border_glyph = 0xc9;
+        }
+        fd2_display_dialog_scene(
+            data_fd2_all_game_text_ptr,
+            rt_chars[char_idx].char_id + 1,
+            (row_off + 0x79) * 0x140 + surface_offset + 0x28 + col_off,
+            0x140, border_glyph, 0x4c, 0, 0, 0);
+    }
+}

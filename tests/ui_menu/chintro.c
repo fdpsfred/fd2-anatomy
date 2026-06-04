@@ -45,11 +45,13 @@
 extern int g_play_sfx_with_handle_calls;
 extern int g_sfx_last_id;
 
-/* fd2_render_party_roster_grid recording stub (testglob.c): captures the last
- * (highlight_idx, surface_offset) and a call count. */
-extern int    g_roster_grid_calls;
-extern uint32 g_roster_grid_last_highlight;
-extern uint32 g_roster_grid_last_surface;
+/* fd2_render_party_roster_grid runs for real (src/gfx/rndmenu.c). Its per-char
+ * portrait bg-fill blit lands in the testglob spy; its per-char name dialog runs
+ * real against the immediate-END program below and emits a glyph (border-glyph
+ * spy) only for the char ps_mark_highlight_char points at a one-glyph blob. */
+extern int    g_blitbgfill_calls;
+extern int    g_dlg_glyph_calls;
+extern uint32 g_dlg_glyph_last_p5;
 /* scroll-page animation recording stubs (testglob.c). */
 extern int g_scroll_up_in_shop_calls;
 extern int g_scroll_down_in_shop_calls;
@@ -239,44 +241,113 @@ static void test_chintro_two_lefts_then_cancel(void)
  * setup phase runs for real — 3 x malloc(64000), a 0xA0000 framebuffer
  * snapshot memmove, and the 6-frame real fd2_slide_panel_down_step
  * (src/anim/aniwalk.c) which composites into VGA (0xA0000) — all harmless in
- * the DOS test target. fd2_dialog_sprite_blit_normal and
- * fd2_render_party_roster_grid are the testglob recording stubs; the header
- * blit only requires atlas[+0x46] to be a readable dword, so ps_prep points
- * the atlas at a zeroed 256-byte buffer. The scroll-page animations are the
- * recording stubs g_scroll_up_in_shop_calls / g_scroll_down_in_shop_calls.
+ * the DOS test target. fd2_dialog_sprite_blit_normal is the testglob recording
+ * stub; the header blit only requires atlas[+0x46] to be a readable dword, so
+ * ps_prep points the atlas at a zeroed 256-byte buffer. The scroll-page
+ * animations are the recording stubs g_scroll_up_in_shop_calls /
+ * g_scroll_down_in_shop_calls.
+ *
+ * fd2_render_party_roster_grid runs FOR REAL here. ps_prep gives it the fixture
+ * it needs (a runtime-char array, a portrait cache, and an all-END dialog text
+ * table) so its per-char portrait bg-fill blit (the testglob g_blitpass_* /
+ * g_blitbgfill_calls spy) and per-char name dialog (real fd2_display_dialog_scene
+ * against the immediate-END program) run without touching VGA. The loop forwards
+ * data_fd2_ui_menu_cursor_idx to the grid as the highlight, so the highlighted
+ * char renders its name with border glyph 0xC9; ps_mark_highlight_char() points
+ * exactly that char's name page at a one-glyph blob so g_dlg_glyph_last_p5 == 0xC9
+ * confirms the final re-render highlighted the expected cursor.
  *
  * Each test pins: the return code, the final cursor index, the final
- * scroll_offset, the cursor-chime count, the last re-render highlight arg, and
- * the per-direction scroll-animation counts. These cover every navigation
- * branch, both signed bound guards, and both viewport-page transitions —
- * the risk-bearing arithmetic of the function. (The setup-phase blit/slide
- * pixel effects are pure display side-effects, verified by three-source
- * review and deferred to Phase 9 integration.)
+ * scroll_offset, the cursor-chime count, the highlighted char's border glyph
+ * (the real-grid proxy for the re-render highlight arg), and the per-direction
+ * scroll-animation counts. These cover every navigation branch, both signed
+ * bound guards, and both viewport-page transitions — the risk-bearing arithmetic
+ * of the function. (The setup-phase blit/slide pixel effects are pure display
+ * side-effects, verified by three-source review and deferred to Phase 9
+ * integration.)
  * ================================================================ */
+
+/* Real-grid fixture: a runtime-char array (the grid reads [char_idx].char_id),
+ * a portrait cache (read at char_idx*0x30 + blink*4), and a dialog text table
+ * whose pages all point at an END so each name dialog returns at once. The
+ * table layout mirrors the dialog VM's: pages 0..0x3BF, opcode data above. */
+static runtime_char g_ps_chars[16];
+static uint8        g_ps_cache[512];
+static uint16       g_ps_text[0x400];
+
+#define PS_END_OFF     0x780               /* byte offset of the shared END  */
+#define PS_GLYPH_OFF   0x782               /* byte offset of the 1-glyph blob */
+
+static void ps_text_all_end(void)
+{
+    int i;
+    for (i = 0; i < 0x400; i++) {
+        g_ps_text[i] = 0;
+    }
+    *(int16 *)((uint8 *)g_ps_text + PS_END_OFF) = -1;
+    for (i = 0; i < 0x3c0; i++) {
+        g_ps_text[i] = (uint16)PS_END_OFF;
+    }
+    data_fd2_all_game_text_ptr = (uint32)g_ps_text;
+}
+
+/* Give the char at runtime index `char_idx` a unique name page that carries a
+ * one-glyph blob, so when the grid highlights it (highlight == char_idx) the
+ * real dialog renders one glyph with the highlight border 0xC9. All other chars
+ * keep char_id 0 -> page 1 -> END, so this is the only glyph emitted and
+ * g_dlg_glyph_last_p5 reflects the highlighted char's border in the final pass. */
+static void ps_mark_highlight_char(uint32 char_idx)
+{
+    g_ps_chars[char_idx].char_id = 0x20;                /* page = 0x21 */
+    *(uint16 *)((uint8 *)g_ps_text + PS_GLYPH_OFF)     = 0x55;
+    *(int16  *)((uint8 *)g_ps_text + PS_GLYPH_OFF + 2) = -1;
+    g_ps_text[0x21] = (uint16)PS_GLYPH_OFF;
+}
+
+/* runtime-char array pointer saved by ps_prep so ps_teardown can restore the
+ * testglob default (g_test_rc_array) a following suite depends on. */
+static runtime_char *ps_saved_char_ptr;
 
 /* Prime the roster-select prerequisites: a zeroed sprite atlas (so the header
  * blit's atlas[+0x46] dword read is in-bounds), a stable BIOS tick (so the
- * wait-input per-frame blink body is skipped), reset cursor/scroll, and reset
- * every observed counter. */
+ * wait-input per-frame blink body is skipped), the real-grid fixture, reset
+ * cursor/scroll, and reset every observed counter. */
 static void ps_prep(uint32 member_count, uint32 start_cursor,
                     uint32 start_scroll)
 {
+    ps_saved_char_ptr = data_fd2_battle_runtime_char_array_ptr;
+
     memset(g_ci_atlas, 0, sizeof(g_ci_atlas));
     data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = (uint32)g_ci_atlas;
     data_fd2_shared_menu_party_member_count = member_count;
     data_fd2_shared_rng_seed = 0;
     *(volatile uint32 *)0x46CuL = 0x00000100uL;   /* stable tick */
+
+    /* real fd2_render_party_roster_grid fixture */
+    memset(g_ps_chars, 0, sizeof(g_ps_chars));
+    memset(g_ps_cache, 0, sizeof(g_ps_cache));
+    data_fd2_battle_runtime_char_array_ptr = g_ps_chars;
+    portrait_sprite_cache = (uint32)g_ps_cache;
+    data_fd2_chapter_intro_dialog_subframe_anim_counter = 0;
+    ps_text_all_end();
+
     g_play_sfx_with_handle_calls = 0;
     g_sfx_last_id = -1;
-    g_roster_grid_calls = 0;
-    g_roster_grid_last_highlight = 0xFFFFFFFFuL;
-    g_roster_grid_last_surface = 0;
+    g_blitbgfill_calls = 0;
+    g_dlg_glyph_calls = 0;
     g_scroll_up_in_shop_calls = 0;
     g_scroll_down_in_shop_calls = 0;
     /* the loop sets these two to 0 at setup, but seed them so a no-op setup
      * would be caught; the function overwrites both before the input loop. */
     data_fd2_ui_menu_cursor_idx = start_cursor;
     data_fd2_ui_menu_scroll_offset = start_scroll;
+}
+
+/* Restore the runtime-char array pointer ps_prep repointed, so a following suite
+ * (ui_menu/status.c relies on the g_test_rc_array wiring) is not polluted. */
+static void ps_teardown(void)
+{
+    data_fd2_battle_runtime_char_array_ptr = ps_saved_char_ptr;
 }
 
 /* Fill the BIOS keyboard ring with n scancodes (high byte = INT 16h AH). */
@@ -302,6 +373,7 @@ static void test_ps_enter_commits_after_setup(void)
     uint16 keys[1];
     int r;
     ps_prep(8, 5, 4);
+    ps_mark_highlight_char(0);                           /* final cursor 0 */
     keys[0] = 0x1C;
     ps_queue(keys, 1);
     r = fd2_party_roster_single_select_loop();
@@ -309,8 +381,9 @@ static void test_ps_enter_commits_after_setup(void)
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);     /* setup reset */
     ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 0);  /* setup reset */
     ASSERT_EQ(g_play_sfx_with_handle_calls, 0);          /* commit: no chime */
-    ASSERT_TRUE(g_roster_grid_calls >= 1);               /* initial render */
-    ASSERT_EQ((long)g_roster_grid_last_highlight, 0);    /* initial grid @ 0 */
+    ASSERT_TRUE(g_blitbgfill_calls >= 1);                /* initial grid render */
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xC9);          /* grid highlighted @ 0 */
+    ps_teardown();
 }
 
 /* Space (0x39) is the second commit scancode. */
@@ -323,6 +396,7 @@ static void test_ps_space_commits(void)
     ps_queue(keys, 1);
     r = fd2_party_roster_single_select_loop();
     ASSERT_EQ(r, 1);
+    ps_teardown();
 }
 
 /* Esc (0x01) cancels: returns -1. */
@@ -335,6 +409,7 @@ static void test_ps_esc_cancels(void)
     ps_queue(keys, 1);
     r = fd2_party_roster_single_select_loop();
     ASSERT_EQ(r, -1);
+    ps_teardown();
 }
 
 
@@ -347,6 +422,7 @@ static void test_ps_right_increments(void)
     uint16 keys[2];
     int r;
     ps_prep(8, 0, 0);
+    ps_mark_highlight_char(1);                           /* final cursor 1 */
     keys[0] = 0x4D; keys[1] = 0x1C;
     ps_queue(keys, 2);
     r = fd2_party_roster_single_select_loop();
@@ -355,8 +431,9 @@ static void test_ps_right_increments(void)
     ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 0);
     ASSERT_EQ(g_play_sfx_with_handle_calls, 1);
     ASSERT_EQ(g_sfx_last_id, 0);
-    ASSERT_EQ((long)g_roster_grid_last_highlight, 1);    /* re-render @ 1 */
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xC9);          /* re-render highlighted @ 1 */
     ASSERT_EQ(g_scroll_up_in_shop_calls, 0);
+    ps_teardown();
 }
 
 /* Right at the last index is a no-op. The setup resets cursor to 0, so we
@@ -383,6 +460,7 @@ static void test_ps_right_blocked_at_last(void)
      * then 7-2=5 (not >5). So exactly one scroll-up page. */
     ASSERT_EQ(g_scroll_up_in_shop_calls, 1);
     ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 2);
+    ps_teardown();
 }
 
 /* count == 1: cursor starts 0 (= count-1), so Right is always guarded out
@@ -399,6 +477,7 @@ static void test_ps_right_guard_single_member(void)
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);  /* never moved */
     ASSERT_EQ(g_play_sfx_with_handle_calls, 0);       /* guarded: no chime */
     ASSERT_EQ(g_scroll_up_in_shop_calls, 0);
+    ps_teardown();
 }
 
 
@@ -417,6 +496,7 @@ static void test_ps_left_guard_at_zero(void)
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);  /* guarded */
     ASSERT_EQ(g_play_sfx_with_handle_calls, 0);
     ASSERT_EQ(g_scroll_down_in_shop_calls, 0);
+    ps_teardown();
 }
 
 /* Right then Left returns to 0: 0->1 (chime), 1->0 (chime); two chimes, final
@@ -426,6 +506,7 @@ static void test_ps_right_then_left(void)
     uint16 keys[3];
     int r;
     ps_prep(8, 0, 0);
+    ps_mark_highlight_char(0);                           /* final cursor 0 */
     keys[0] = 0x4D; keys[1] = 0x4B; keys[2] = 0x1C;
     ps_queue(keys, 3);
     r = fd2_party_roster_single_select_loop();
@@ -433,8 +514,9 @@ static void test_ps_right_then_left(void)
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);
     ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 0);
     ASSERT_EQ(g_play_sfx_with_handle_calls, 2);
-    ASSERT_EQ((long)g_roster_grid_last_highlight, 0);
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xC9);          /* final re-render @ 0 */
     ASSERT_EQ(g_scroll_down_in_shop_calls, 0);
+    ps_teardown();
 }
 
 
@@ -447,6 +529,7 @@ static void test_ps_down_adds_two(void)
     uint16 keys[2];
     int r;
     ps_prep(8, 0, 0);
+    ps_mark_highlight_char(2);                           /* final cursor 2 */
     keys[0] = 0x50; keys[1] = 0x1C;
     ps_queue(keys, 2);
     r = fd2_party_roster_single_select_loop();
@@ -454,7 +537,8 @@ static void test_ps_down_adds_two(void)
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 2);
     ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 0);
     ASSERT_EQ(g_play_sfx_with_handle_calls, 1);
-    ASSERT_EQ((long)g_roster_grid_last_highlight, 2);
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xC9);          /* re-render highlighted @ 2 */
+    ps_teardown();
 }
 
 /* Down guard: count 8, cursor 6 (= count-2) -> Down blocked (6 < 8-2=6 is
@@ -473,6 +557,7 @@ static void test_ps_down_guard_at_count_minus_two(void)
     ASSERT_EQ(r, -1);
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 6);  /* stuck at count-2 */
     ASSERT_EQ(g_play_sfx_with_handle_calls, 3);       /* only 3 moves fired */
+    ps_teardown();
 }
 
 
@@ -485,6 +570,7 @@ static void test_ps_up_subtracts_two(void)
     uint16 keys[4];
     int r;
     ps_prep(8, 0, 0);
+    ps_mark_highlight_char(2);                           /* final cursor 2 */
     keys[0] = 0x50; keys[1] = 0x50;  /* 0->2->4 */
     keys[2] = 0x48;                   /* 4->2 */
     keys[3] = 0x1C;
@@ -493,7 +579,8 @@ static void test_ps_up_subtracts_two(void)
     ASSERT_EQ(r, 1);
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 2);
     ASSERT_EQ(g_play_sfx_with_handle_calls, 3);
-    ASSERT_EQ((long)g_roster_grid_last_highlight, 2);
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xC9);          /* re-render highlighted @ 2 */
+    ps_teardown();
 }
 
 /* Up guard: cursor 1 -> Up blocked (1 > 1 false). Drive to cursor 1 via one
@@ -511,6 +598,7 @@ static void test_ps_up_guard_at_one(void)
     ASSERT_EQ(r, -1);
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 1);  /* Up did not move */
     ASSERT_EQ(g_play_sfx_with_handle_calls, 1);       /* only the Right */
+    ps_teardown();
 }
 
 
@@ -525,6 +613,7 @@ static void test_ps_scroll_up_page_on_right(void)
     uint16 keys[5];
     int r;
     ps_prep(12, 0, 0);
+    ps_mark_highlight_char(6);                           /* final cursor 6 (slot 6-2=4) */
     keys[0] = 0x50; keys[1] = 0x50;   /* 0->2->4 */
     keys[2] = 0x4D; keys[3] = 0x4D;   /* 4->5->6 (page at 6) */
     keys[4] = 0x1C;
@@ -535,7 +624,8 @@ static void test_ps_scroll_up_page_on_right(void)
     ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 2);
     ASSERT_EQ(g_scroll_up_in_shop_calls, 1);
     ASSERT_EQ(g_scroll_down_in_shop_calls, 0);
-    ASSERT_EQ((long)g_roster_grid_last_highlight, 6);
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xC9);          /* final re-render highlighted @ 6 */
+    ps_teardown();
 }
 
 /* Scroll-UP via Down crossing the boundary: count 12. Downs 0->2->4->6: at 6,
@@ -557,6 +647,7 @@ static void test_ps_scroll_up_twice_on_down(void)
     ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 4);
     ASSERT_EQ(g_scroll_up_in_shop_calls, 2);
     ASSERT_EQ(g_scroll_down_in_shop_calls, 0);
+    ps_teardown();
 }
 
 /* Scroll-DOWN page: count 12. Build cursor 8 / scroll 4 (four Downs as above),
@@ -568,6 +659,7 @@ static void test_ps_scroll_down_page_on_left(void)
     uint16 keys[10];
     int r;
     ps_prep(12, 0, 0);
+    ps_mark_highlight_char(3);                           /* final cursor 3 (slot 3-2=1) */
     keys[0] = 0x50; keys[1] = 0x50; keys[2] = 0x50; keys[3] = 0x50; /* ->8, scroll 4 */
     keys[4] = 0x4B; keys[5] = 0x4B; keys[6] = 0x4B; keys[7] = 0x4B; /* 8->7->6->5->4 */
     keys[8] = 0x4B;   /* 4->3: 3 < 4 -> page down, scroll 4->2 */
@@ -579,7 +671,8 @@ static void test_ps_scroll_down_page_on_left(void)
     ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 2);
     ASSERT_EQ(g_scroll_up_in_shop_calls, 2);    /* from the 4 Downs */
     ASSERT_EQ(g_scroll_down_in_shop_calls, 1);  /* the boundary-crossing Left */
-    ASSERT_EQ((long)g_roster_grid_last_highlight, 3);
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xC9);          /* final re-render highlighted @ 3 */
+    ps_teardown();
 }
 
 /* Scroll-DOWN via Up crossing the boundary: count 12. Build cursor 8 / scroll
@@ -600,6 +693,7 @@ static void test_ps_scroll_down_on_up(void)
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 2);
     ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 2);
     ASSERT_EQ(g_scroll_down_in_shop_calls, 1);
+    ps_teardown();
 }
 
 /* Unmapped scancode falls through every branch (result stays 0) and the loop
@@ -615,6 +709,7 @@ static void test_ps_unmapped_loops_then_commit(void)
     ASSERT_EQ(r, 1);
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);  /* unmapped: no change */
     ASSERT_EQ(g_play_sfx_with_handle_calls, 0);
+    ps_teardown();
 }
 
 
