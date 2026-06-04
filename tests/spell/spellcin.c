@@ -1,7 +1,7 @@
 /*
  * unit tests for src/spell/spellcin.c
  *
- * Nine of the ten workers in this file are pure VGA/VRAM cinematic
+ * Ten of the eleven workers in this file are pure VGA/VRAM cinematic
  * orchestration and have no isolated numeric path that avoids a write to the
  * hardcoded mode-13h framebuffer literal 0xA0504 (not redirectable via
  * globals). Their behavioral verification is deferred to Phase 9 integration on
@@ -78,6 +78,24 @@
  *   verified statically against the disassembly @0x22670..0x2267C; it is
  *   observable only through the VRAM-touching blit callees, so it is deferred to
  *   Phase 9 integration.
+ *
+ *   fd2_cast_screen_wide_spell_with_fade @ 0x24618 — boss / end-chapter
+ *   screen-wide spell visual (callers in chapters 22/23/27/28/30). Its 9-frame
+ *   shockwave loop restores the backdrop and unconditionally blits the viewport
+ *   to 0xA0504 every frame; the trailing palette flash-fade loop writes the VGA
+ *   DAC hardware ports via fd2_set_vga_palette_range_with_add (outp). The only
+ *   computed state — the epicenter tile->pixel transform (tile*0x18 + 0xC/0x10),
+ *   the radius accumulator (radius += radius_increment over 9 frames), the
+ *   9-entry self-relative sprite-table lookup (table_base[6 + frame*4]+
+ *   table_base, same idiom as the slide/warp workers), and the 0x40-step / +2
+ *   brightness sweep — was verified statically against the disassembly
+ *   @0x24618..0x2474F; none of it is observable without driving the full
+ *   shockwave + palette-fade through the real VRAM/DAC-touching callees
+ *   (fd2_composite_battle_tile_map, fd2_render_filled_circle_band_anim,
+ *   fd2_blit_rectangle, fd2_set_vga_palette_range_with_add) and the real SFX
+ *   bank loader (fd2_load_status_effect_sfx / fd2_play_sfx_with_handle), so it
+ *   is deferred to Phase 9 integration. No RNG / damage / state-transition
+ *   branch exists to assert at unit level.
  *
  * The remaining worker, fd2_scatter_sprite_around_origin_with_random_offset
  * @ 0x21db2, is the scatter *leaf* called by the orphan executor. Unlike its
@@ -188,7 +206,7 @@ static void test_scatter_type_range(void)
 void run_spell_spellcin_tests(void)
 {
     int _prev_fails = g_test_fail_count;
-    printf("Suite: spell/spellcin (scatter leaf tested; 8 VGA/VRAM cinematic "
+    printf("Suite: spell/spellcin (scatter leaf tested; 10 VGA/VRAM cinematic "
            "workers deferred to Phase 9, see file header)\n");
     RUN_TEST(test_scatter_seed_1234_index0);
     RUN_TEST(test_scatter_seed_5555_index1);

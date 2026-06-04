@@ -155,6 +155,7 @@ void fd2_animate_warp_teleport_char(uint32, uint32, uint32, uint32, uint32);
 void fd2_animate_warp_portal_open_at(uint32, uint32, uint32);
 int  fd2_animate_warp_out_collapse(int, int, void *, uint32, uint32, int);
 void fd2_animate_warp_in_expand(uint32, uint32, uint32, uint32, uint32, uint32 *, int);
+void fd2_cast_screen_wide_spell_with_fade(uint32, uint32, uint32, int);
 
 /* ---- cursor + pan ---- */
 void fd2_cursor_move_up(void);

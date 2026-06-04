@@ -12,6 +12,7 @@
  *   fd2_animate_warp_portal_open_at @ 0x22470 (1 caller)
  *   fd2_animate_warp_out_collapse @ 0x22547 (1 caller)
  *   fd2_animate_warp_in_expand @ 0x22656 (1 caller)
+ *   fd2_cast_screen_wide_spell_with_fade @ 0x24618 (6 callers)
  */
 
 #include "types.h"
@@ -887,5 +888,117 @@ void fd2_animate_warp_in_expand(uint32 dst_tile_x, uint32 dst_tile_y,
             data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1c8, 0x138, 0xc0);
         fd2_wait_n_bios_ticks(1);
     }
+    return;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_cast_screen_wide_spell_with_fade @ 0x24618  (6 callers)
+ *
+ * BOSS / END-CHAPTER screen-wide spell visual: a full-screen radial
+ * shockwave that expands over 9 frames, a long hold, then a palette
+ * flash fade-in. Used by ULTIMATE / DRAGON-BREATH style spells and by
+ * chapter init/end cinematics (chapters 22/23/27/28/30).
+ *
+ * Params (cdecl, 4 stack args; void return):
+ *   epicenter_tile_x  — battle tile X of the shockwave epicenter
+ *                       (pixel = tile_x*0x18 + 0xC). (Ghidra param_1.)
+ *   epicenter_tile_y  — battle tile Y of the shockwave epicenter
+ *                       (pixel = tile_y*0x18 + 0x10). (Ghidra param_2.)
+ *   radius            — starting band radius; grows by radius_increment
+ *                       every frame. (Ghidra param_3.)
+ *   radius_increment  — per-frame radius growth. (Ghidra's 4th param name
+ *                       "epicenter_tile_x" is MISLEADING — the assembly
+ *                       @0x246FB does ESI += [ESP+0x28], i.e. radius +=
+ *                       this 4th arg each frame.)
+ *
+ * Sequence (assembly @0x24618..0x2474F):
+ *   fd2_load_status_effect_sfx();                       // preload status SFX bank
+ *   snapshot = malloc(0x25680);                         // 150KB backdrop backup
+ *   fd2_composite_battle_tile_map(snapshot+0x8088, ...);// snapshot battle tile map
+ *   fd2_play_sfx_with_handle(status_sfx_handle, 0xB, 1);// boss-spell SFX
+ *
+ *   // 9-frame growing shockwave (frame_iter 9 -> 1):
+ *   for frame_iter = 9..1:
+ *     sprite = *(int*)(tile_anim_base + 6 + frame_iter*4) + tile_anim_base;
+ *     memmove(large_game_state_buffer, snapshot, 0x25680);   // restore backdrop
+ *     fd2_render_filled_circle_band_anim(ex*0x18+0xC, ey*0x18+0x10,
+ *                                        radius, 0, 0xC0, sprite);
+ *     fd2_blit_rectangle(0xA0504, 0x140, large_game_state_buffer+0x8088,
+ *                        0x1C8, 0x138, 0xC0);
+ *     radius += radius_increment;
+ *     __delay_thunk_375b2(5);
+ *
+ *   free(snapshot);
+ *   __delay_thunk_375b2(500);                           // long hold for impact
+ *
+ *   // palette flash fade-in (brightness 0 -> 0x3E in steps of 2):
+ *   for brightness = 0; brightness < 0x40; brightness += 2:
+ *     fd2_set_vga_palette_range_with_add(0, 0xFF, brightness);
+ *     __delay_thunk_375b2(4);
+ *
+ *   fd2_load_status_effect_sfx();                       // re-arm SFX bank for next use
+ *
+ * The sprite atlas is the same self-relative tile-anim table used by the
+ * other shockwave workers in this file: each entry
+ * *(int*)(base + 6 + frame_iter*4) is an offset added back to the base and
+ * handed to fd2_render_filled_circle_band_anim as its 6th arg (the
+ * palette-remap / sprite source it passes straight through). The malloc'd
+ * snapshot is the backdrop the band helper renders over each frame.
+ *
+ * Cdecl, 4 stack params; void return. The binary's __CHK(0x34) stack-probe
+ * prologue is compiler-injected and not part of the source. There is no
+ * explicit RET: the normal path tail-JMPs (JMP 0x10B46 @0x2474F) into the
+ * shared inline-epilogue fragment fd2_noop_stub_b43 @ 0x10B43, entering at
+ * +0x03 (0x10B46 = ADD ESP,0x8 / POP EBP/EDI/ESI/EBX / RET, matching this
+ * function's SUB ESP,0x8 + 4-saved-reg frame). Emitted as a plain return;
+ * the compiler regenerates the matching epilogue (see emit_issues.json
+ * 00024618 + the 00010b43 fragment_equivalence_handoff family).
+ * ---------------------------------------------------------------- */
+void fd2_cast_screen_wide_spell_with_fade(uint32 epicenter_tile_x,
+                                          uint32 epicenter_tile_y,
+                                          uint32 radius, int radius_increment)
+{
+    uint32 epicenter_screen_x;
+    uint32 epicenter_screen_y;
+    uint32 snapshot;
+    uint32 sprite_addr;
+    int frame_iter;
+    uint32 brightness;
+
+    epicenter_screen_x = epicenter_tile_x * 0x18 + 0xc;
+    epicenter_screen_y = epicenter_tile_y * 0x18 + 0x10;
+
+    fd2_load_status_effect_sfx();
+
+    snapshot = (uint32)malloc(0x25680);
+    fd2_composite_battle_tile_map(snapshot + 0x8088, 0x1c8, 0xd, 8,
+        data_fd2_battle_view_window_origin_x,
+        data_fd2_battle_view_window_origin_y);
+    fd2_play_sfx_with_handle(data_fd2_audio_status_effect_sfx_handle_ptr,
+        0xb, 1);
+
+    for (frame_iter = 9; frame_iter > 0; frame_iter--) {
+        sprite_addr =
+            *(uint32 *)(data_fd2_tile_anim_table_base + 6 + frame_iter * 4) +
+            data_fd2_tile_anim_table_base;
+        memmove((void *)data_fd2_large_game_state_buffer_ptr,
+            (void *)snapshot, 0x25680);
+        fd2_render_filled_circle_band_anim(epicenter_screen_x,
+            epicenter_screen_y, radius, 0, 0xc0, (int)sprite_addr);
+        fd2_blit_rectangle(0xa0504, 0x140,
+            data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1c8, 0x138, 0xc0);
+        radius += radius_increment;
+        __delay_thunk_375b2(5);
+    }
+
+    free((void *)snapshot);
+    __delay_thunk_375b2(500);
+
+    for (brightness = 0; (int)brightness < 0x40; brightness += 2) {
+        fd2_set_vga_palette_range_with_add(0, 0xff, brightness);
+        __delay_thunk_375b2(4);
+    }
+
+    fd2_load_status_effect_sfx();
     return;
 }

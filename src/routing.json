@@ -2479,8 +2479,9 @@
     "name": "fd2_cast_screen_wide_spell_with_fade",
     "target": "spell/spellcin.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00024754": {
     "name": "fd2_chapter_23_end",

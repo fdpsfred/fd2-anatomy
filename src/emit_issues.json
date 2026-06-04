@@ -534,5 +534,23 @@
         "verify_method": "compile_and_disasm"
       }
     ]
+  },
+  "00024618": {
+    "name": "fd2_cast_screen_wide_spell_with_fade",
+    "target": "spell/spellcin.c",
+    "issues": [
+      {
+        "type": "shared_epilogue_tail_jmp",
+        "desc": "The normal path has no explicit RET: the function tail-JMPs (JMP 0x10B46 @0x2474F) into the shared inline-epilogue fragment fd2_noop_stub_b43 @0x10B43, entering at +0x03. 0x10B46 = ADD ESP,0x8 / POP EBP / POP EDI / POP ESI / POP EBX / RET, which exactly unwinds this function's prologue (PUSH EBX/ESI/EDI/EBP + SUB ESP,0x8). So this is one of the 26 +0x03 parents of the 0x10b43 shared-epilogue fragment (see the 00010b43 fragment_equivalence_handoff). Note: the entry chosen is +0x03 (0x10B46) NOT +0x00 (0x10B43) because the preceding instruction was CALL fd2_load_status_effect_sfx (0-arg, no stack cleanup), so the extra ADD ESP,0x4 at 0x10B43 is skipped; the +0x00 parents (e.g. fd2_load_chapter_battle_data, fd2_play_variant_b_slide_pre_effect) enter at 0x10B43 to also clean a 4-byte pushed arg. Emitted as a plain 'return;'; the compiler regenerates the matching SUB ESP,0x8 + 4-saved-reg (EBX/ESI/EDI/EBP) cleanup. Layer-2 equivalent, not byte-identical. Recommend a post-build -d disasm to confirm the regenerated epilogue restores EBX/ESI/EDI/EBP and adjusts ESP identically.",
+        "severity": "info",
+        "verify_method": "compile_and_disasm"
+      },
+      {
+        "type": "test_deferral_note",
+        "desc": "Unit test DEFERRED to Phase 9 integration (risk-based policy). This is a pure VGA/VRAM cinematic: the 9-frame shockwave loop unconditionally blits each frame to the hardcoded mode-13h framebuffer 0xA0504 via fd2_blit_rectangle, and the trailing palette flash-fade loop writes the VGA DAC hardware ports via fd2_set_vga_palette_range_with_add (its only callee besides __CHK is outp). The only computed state — the epicenter tile->pixel transform (tile*0x18 + 0xC / +0x10), the radius accumulator (radius += radius_increment over 9 frames, the EAX-bug-free [ESP+0x28] 4th-param add @0x246FB), the 9-entry self-relative sprite-table lookup (data_fd2_tile_anim_table_base[6 + frame*4]+base), and the 0x40-step/+2 brightness sweep — is observable only through the real-linked VRAM/DAC-touching callees (fd2_composite_battle_tile_map, fd2_render_filled_circle_band_anim, fd2_blit_rectangle, fd2_set_vga_palette_range_with_add) and the real SFX bank loader (fd2_load_status_effect_sfx fopens FDOTHER.DAT, fd2_play_sfx_with_handle drives AIL), none of which has a stubbable seam. There is no RNG / damage / state-transition branch to assert at unit level (unlike the scatter leaf @0x21db2 in the same file). This matches the deferral of the 9 sibling cinematic workers in this file. Deferral documented in tests/spell/spellcin.c header (worker #10). Equivalence verified statically: cdecl 4-arg (epicenter_tile_x, epicenter_tile_y, radius, radius_increment) confirmed via stack-offset tracking ([ESP+0x1c]=p1, [ESP+0x20]=p2, [ESP+0x24]=p3->ESI radius accumulator, [ESP+0x28]=p4 radius_increment); the 4th Ghidra param name 'epicenter_tile_x' is a duplicate-name artifact and is actually the per-frame radius increment.",
+        "severity": "low",
+        "verify_method": "phase9_integration"
+      }
+    ]
   }
 }
