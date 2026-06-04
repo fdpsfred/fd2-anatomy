@@ -1599,8 +1599,9 @@
     "name": "fd2_animate_combat_speech_bubbles",
     "target": "anim/anicombt.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001ec2a": {
     "name": "fd2_compute_combat_bubble_screen_pos",

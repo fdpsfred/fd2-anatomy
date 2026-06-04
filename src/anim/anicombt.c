@@ -1027,3 +1027,84 @@ void fd2_animate_attack_hit_sequence(uint32 attacker_idx, uint32 defender_idx)
         fd2_cleanup_dialog_sprite_buffer(saved_block, 0xa0000, 0x140);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_animate_combat_speech_bubbles @ 0x1EB05 (1 caller)
+ *
+ * Pre-attack "vs" speech-bubble fade-in, a 10-frame animation played at
+ * the start of an AI physical-attack sequence.
+ *
+ * Step 1: compute the attacker's bubble screen position into
+ *         combat_speech_bubble_pos_pairs[0..1] (x, y) from defender_idx.
+ * Step 2: if the defender can counter-attack, compute the counter bubble
+ *         position into [2..3] from attacker_idx; otherwise store -1 in [2]
+ *         as the "no counter" sentinel.
+ *
+ * Frames 0..9 use portrait sprite ids 0x27..0x30 (frame + 0x27). Each frame
+ * allocates+blits the attacker bubble (and the counter bubble when present),
+ * waits ~25ms, and for frames 0..8 restores the previous frame's snapshot
+ * before drawing the next. After the loop the bubble buffers are freed.
+ *
+ * Returns the address of combat_speech_bubble_pos_pairs (as a uint32); the
+ * caller reads [0..1] via this pointer and [2..3] via pointer + 8.
+ *
+ * combat_speech_bubble_pos_pairs (0x53A30, 4 dwords = 16 bytes):
+ *   [0] 0x53A30 attacker bubble x   [1] 0x53A34 attacker bubble y
+ *   [2] 0x53A38 counter  bubble x   [3] 0x53A3C counter  bubble y
+ *                        (-1 in [2] means no counter)
+ *
+ * Caller: fd2_execute_ai_physical_attack (sole caller).
+ * ---------------------------------------------------------------- */
+uint32 fd2_animate_combat_speech_bubbles(uint32 attacker_idx, uint32 defender_idx)
+{
+    uint32 can_counter;
+    uint32 attacker_buf;
+    uint32 counter_buf;
+    uint32 frame_iter;
+    uint32 sprite_id;
+
+    counter_buf = 0;
+
+    fd2_compute_combat_bubble_screen_pos(
+        (uint32)data_fd2_battle_combat_speech_bubble_pos_pairs, defender_idx);
+
+    can_counter = (uint32)fd2_check_can_counter_attack(attacker_idx, defender_idx);
+    if (can_counter == 1) {
+        fd2_compute_combat_bubble_screen_pos(
+            (uint32)&data_fd2_battle_combat_speech_bubble_pos_pairs[2], attacker_idx);
+    } else {
+        data_fd2_battle_combat_speech_bubble_pos_pairs[2] = 0xffffffff;
+    }
+
+    for (frame_iter = 0; (int)frame_iter < 10; frame_iter++) {
+        sprite_id = frame_iter + 0x27;
+
+        attacker_buf = fd2_alloc_and_blit_indexed_sprite_chunk(
+            data_fd2_resource_portrait_sheet_ptr, 0xa0000, 0x140,
+            data_fd2_battle_combat_speech_bubble_pos_pairs[0],
+            data_fd2_battle_combat_speech_bubble_pos_pairs[1], sprite_id);
+
+        if (data_fd2_battle_combat_speech_bubble_pos_pairs[2] != 0xffffffff) {
+            counter_buf = fd2_alloc_and_blit_indexed_sprite_chunk(
+                data_fd2_resource_portrait_sheet_ptr, 0xa0000, 0x140,
+                data_fd2_battle_combat_speech_bubble_pos_pairs[2],
+                data_fd2_battle_combat_speech_bubble_pos_pairs[3], sprite_id);
+        }
+
+        __delay_thunk_375b2(0x19);
+
+        if ((int)frame_iter < 9) {
+            fd2_cleanup_dialog_sprite_buffer(attacker_buf, 0xa0000, 0x140);
+            if (data_fd2_battle_combat_speech_bubble_pos_pairs[2] != 0xffffffff) {
+                fd2_cleanup_dialog_sprite_buffer(counter_buf, 0xa0000, 0x140);
+            }
+        }
+    }
+
+    free((void *)attacker_buf);
+    if (data_fd2_battle_combat_speech_bubble_pos_pairs[2] != 0xffffffff) {
+        free((void *)counter_buf);
+    }
+
+    return (uint32)data_fd2_battle_combat_speech_bubble_pos_pairs;
+}

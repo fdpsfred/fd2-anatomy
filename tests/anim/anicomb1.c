@@ -869,6 +869,129 @@ static void test_death_empty_party(void)
     ASSERT_EQ(g_test_rc_array[0].flags, 0);   /* outside party count -> untouched */
 }
 
+/* ================================================================
+ * fd2_animate_combat_speech_bubbles @ 0x1EB05
+ *
+ * The real fd2_alloc_and_blit_indexed_sprite_chunk (blitspr.c) resolves a
+ * sprite header from this fake portrait atlas (dword offset table at +6,
+ * indexed by sprite id 0x27..0x30) and forwards the malloc'd save buffer to
+ * the recording save-block stub (g_saveblk_calls / g_saveblk_out). The real
+ * fd2_cleanup_dialog_sprite_buffer forwards that same buffer to the restore-
+ * block stub (g_restore_block_*) and frees it. The real
+ * fd2_check_can_counter_attack / fd2_compute_combat_bubble_screen_pos /
+ * fd2_find_equipped_item_by_kind chain runs against g_test_rc_array.
+ * ================================================================ */
+extern uint32 g_saveblk_out;
+extern int    g_saveblk_calls;
+extern int    g_restore_block_calls;
+extern uint32 g_restore_block_last_buf;
+
+/* Fake portrait atlas covering sprite ids up to 0x30: every offset-table entry
+ * points at a single 4-byte header (width=0,height=0) placed just past the
+ * table, so fd2_alloc_and_blit_indexed_sprite_chunk mallocs 8 bytes and the
+ * (stubbed) blit/save never touch real VGA. */
+static uint8 g_bubble_atlas[6 + 0x31 * 4 + 4];
+
+static void bubble_reset(void)
+{
+    uint32 hdr_off;
+    int i;
+
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(data_fd2_battle_item_effect_table, 0,
+           sizeof(data_fd2_battle_item_effect_table));
+
+    memset(g_bubble_atlas, 0, sizeof(g_bubble_atlas));
+    hdr_off = 6 + 0x31 * 4;            /* 0-width/0-height header location */
+    for (i = 0; i <= 0x30; i++) {
+        *(int32 *)(g_bubble_atlas + 6 + i * 4) = (int32)hdr_off;
+    }
+    data_fd2_resource_portrait_sheet_ptr = (uint32)g_bubble_atlas;
+
+    data_fd2_battle_view_window_origin_x = 0;
+    data_fd2_battle_view_window_origin_y = 0;
+
+    data_fd2_battle_combat_speech_bubble_pos_pairs[0] = 0;
+    data_fd2_battle_combat_speech_bubble_pos_pairs[1] = 0;
+    data_fd2_battle_combat_speech_bubble_pos_pairs[2] = 0;
+    data_fd2_battle_combat_speech_bubble_pos_pairs[3] = 0;
+
+    g_saveblk_calls = 0;
+    g_saveblk_out = 0;
+    g_restore_block_calls = 0;
+    g_restore_block_last_buf = 0;
+    g_delay375b2_calls = 0;
+    g_delay375b2_last_ticks = 0;
+}
+
+/*
+ * No-counter path. Attacker and defender share a tile (dx+dy == 0 != 1), so
+ * fd2_check_can_counter_attack returns -1 before any item lookup, the function
+ * stores the -1 sentinel in pos_pairs[2], and only the attacker bubble is
+ * drawn. Verifies:
+ *   - the return value is the address of the pos_pairs array;
+ *   - pos_pairs[2] == -1 (no-counter sentinel);
+ *   - exactly 10 attacker alloc/blit frames, 10 delays of 0x19 ticks,
+ *     9 cleanups (frames 0..8; frame 9 skips cleanup);
+ *   - the cleanup receives the malloc'd save buffer (a real heap pointer),
+ *     proving the alloc return value -- not the sprite id -- flows through
+ *     (guards the Ghidra CALL-EAX bug).
+ */
+static void test_bubbles_no_counter_single_buffer(void)
+{
+    uint32 ret;
+
+    bubble_reset();
+    g_test_rc_array[0].pos_x = 5;   /* attacker */
+    g_test_rc_array[0].pos_y = 5;
+    g_test_rc_array[1].pos_x = 5;   /* defender on same tile -> not adjacent */
+    g_test_rc_array[1].pos_y = 5;
+
+    ret = fd2_animate_combat_speech_bubbles(0, 1);
+
+    ASSERT_EQ(ret, (uint32)data_fd2_battle_combat_speech_bubble_pos_pairs);
+    ASSERT_EQ(data_fd2_battle_combat_speech_bubble_pos_pairs[2], 0xffffffff);
+    ASSERT_EQ(g_saveblk_calls, 10);
+    ASSERT_EQ(g_delay375b2_calls, 10);
+    ASSERT_EQ(g_delay375b2_last_ticks, 0x19);
+    ASSERT_EQ(g_restore_block_calls, 9);
+    ASSERT_TRUE(g_restore_block_last_buf > 0x1000);   /* heap ptr, not sprite id */
+}
+
+/*
+ * Counter path. Defender is adjacent to the attacker, awake, and holds an
+ * equipped melee weapon (range_min == 1), so fd2_check_can_counter_attack
+ * returns 1: the counter bubble position is computed (pos_pairs[2] != -1) and
+ * a second bubble is drawn every frame. Verifies the dual-buffer fan-out:
+ *   - pos_pairs[2] is a real computed coordinate, not the -1 sentinel;
+ *   - 20 alloc/blit frames (attacker + counter) and 18 cleanups
+ *     (2 per frame x frames 0..8);
+ *   - still exactly 10 delays (one per frame).
+ */
+static void test_bubbles_counter_dual_buffer(void)
+{
+    bubble_reset();
+    /* attacker (0) at (5,5); defender (1) adjacent at (6,5) -> dx+dy == 1 */
+    g_test_rc_array[0].pos_x = 5;
+    g_test_rc_array[0].pos_y = 5;
+    g_test_rc_array[1].pos_x = 6;
+    g_test_rc_array[1].pos_y = 5;
+    g_test_rc_array[1].status_sleep_flag = 0;               /* awake */
+    g_test_rc_array[1].inventory_slots[0] = 0x40;           /* equipped flag */
+    g_test_rc_array[1].inventory_slots[1] = 5;              /* weapon id 5 (<0x80) */
+    /* fd2_get_item_effect_entry returns &table[5].type (= &table[5]+1); the
+     * counter check reads pWeapon[+0xB] = table[5] byte +0xC = range_min. */
+    data_fd2_battle_item_effect_table[5].range_min = 1;     /* melee -> can counter */
+
+    fd2_animate_combat_speech_bubbles(0, 1);
+
+    ASSERT_NE(data_fd2_battle_combat_speech_bubble_pos_pairs[2], 0xffffffff);
+    ASSERT_EQ(g_saveblk_calls, 20);
+    ASSERT_EQ(g_restore_block_calls, 18);
+    ASSERT_EQ(g_delay375b2_calls, 10);
+}
+
 void run_anim_anicombt1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -886,5 +1009,7 @@ void run_anim_anicombt1_tests(void)
     RUN_TEST(test_death_offscreen_marks_all_hp0_dead);
     RUN_TEST(test_death_cull_boundary_rejections);
     RUN_TEST(test_death_empty_party);
+    RUN_TEST(test_bubbles_no_counter_single_buffer);
+    RUN_TEST(test_bubbles_counter_dual_buffer);
     printf("\n");
 }

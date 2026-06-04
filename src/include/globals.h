@@ -41,6 +41,7 @@ extern uint32 data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr;    /* 0x541
 extern uint32 data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr;     /* 0x5410B */
 extern uint32 data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr;     /* 0x5410F */
 extern uint32 data_fd2_battle_fast_mode_walk_overlay_ptr;               /* 0x53B0F */
+extern uint32 data_fd2_battle_combat_speech_bubble_pos_pairs[4];        /* 0x53A30  attacker/counter bubble (x,y) pairs; [2]=-1 means no counter */
 
 /* ---- battle AI scoring ---- */
 extern double data_fd2_battle_ai_enemy_spell_score_multiplier_15;       /* 0x50144  const 1.5 */

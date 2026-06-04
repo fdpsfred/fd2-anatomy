@@ -174,6 +174,9 @@ uint8 data_fd2_animation_spell_sfx_frame_table[33] = {
 /* Resource portrait sheet base pointer (data segment @ 0x53AD1). Tests point it
  * at a zeroed scratch buffer. */
 uint32 data_fd2_resource_portrait_sheet_ptr = 0;
+/* Combat speech-bubble screen-position pairs (data segment @ 0x53A30):
+ * [0..1] attacker bubble (x,y), [2..3] counter bubble (x,y); [2]==-1 = none. */
+uint32 data_fd2_battle_combat_speech_bubble_pos_pairs[4] = { 0, 0, 0, 0 };
 void fd2_play_rising_pre_cast_effect(int a, int b, int c) { }
 void fd2_play_variant_b_slide_pre_effect(int a, int b) { }
 void fd2_animate_warp_teleport_char(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e) { }
@@ -925,7 +928,10 @@ int g_execute_physical_calls = 0;
 /* fd2_execute_ai_offensive_spell: now in btl_ai.c */
 void fd2_play_spell_cast_sequence(uint32 ci, uint32 si, uint32 nt, uint32 tb) { }
 /* fd2_execute_ai_physical_attack: now in btl_ai.c */
-uint32 fd2_animate_combat_speech_bubbles(uint32 ci, uint32 ti) { return 0; }
+/* fd2_animate_combat_speech_bubbles: now emitted for real in
+ * src/anim/anicombt.c and linked for real; the test_bubbles_* cases in
+ * tests/anim/anicomb1.c drive it end-to-end (real alloc/blit-chunk +
+ * cleanup + counter-attack chain), so the former no-op stub here was removed. */
 /* fd2_render_combatant_hp_bar_proportional and fd2_render_combat_hp_bar_segments
  * are both emitted for real in src/gfx/rndscene.c. Their former recording stubs
  * (g_hpbar_prop_* / g_hpseg_*) were removed; the combatant-panel tests now drive
