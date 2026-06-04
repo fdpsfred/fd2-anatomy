@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "types.h"
 #include "consts.h"
 #include "globals.h"
@@ -861,4 +862,50 @@ void fd2_render_terrain_info_hud_panel(uint32 buf, uint32 stride)
     fd2_render_number_red_when_full(panel_base + stride * 0x15 + 9, stride,
                                     (uint32)rc->hp_current,
                                     (uint32)rc->hp_max, 3);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_render_signed_modifier_with_icon @ 0x1AEB1 (1 caller)
+ *
+ * Render a small "+/-NN" signed-modifier display into the pixel buffer
+ * at dst: a sign icon glyph, then the magnitude as a 2-digit red number.
+ *
+ *   modifier >= 0 -> sign icon sprite 0x83 (cyan "+"), value drawn as-is
+ *   modifier <  0 -> sign icon sprite 0x84 (red  "-"); the value is abs()'d
+ *                    so only its magnitude is rendered
+ *
+ * The sign icon is blitted via fd2_rle_blit_sprite from the UI/anim sprite
+ * sheet: its sprite-stream pointer is sheet + *(int*)(sheet + 6 + idx*4)
+ * (the same per-index offset-table indexing the rest of the HUD uses), at
+ * dst (x=0, y=0 within the blit), pitch = stride, palette op 0xFFFFFFFF.
+ * The 2-digit magnitude is then drawn 8 bytes to the right (dst + 8) in red
+ * (color 0x1F) via fd2_render_decimal_number_to_buffer.
+ *
+ * Used by fd2_render_terrain_info_hud_panel for the terrain MV-cost /
+ * DEF-bonus indicators in the tile info HUD.
+ *
+ * Cdecl, 3 stack params; void return. The binary's __CHK(0x20) stack-probe
+ * prologue is compiler-generated and omitted here. The negative-branch
+ * `modifier = abs(modifier)` matches the binary's abs() CALL whose EAX
+ * result is stored back over the modifier argument.
+ * ---------------------------------------------------------------- */
+void fd2_render_signed_modifier_with_icon(uint32 dst, uint32 stride,
+                                          int32 modifier)
+{
+    uint32 sign_sprite_idx;
+    uint32 sprite_src;
+
+    sign_sprite_idx = 0x83;
+    if (modifier < 0) {
+        sign_sprite_idx = 0x84;
+        modifier = abs(modifier);
+    }
+
+    sprite_src = data_fd2_ui_anim_sprite_sheet_ptr
+               + *(int32 *)(data_fd2_ui_anim_sprite_sheet_ptr + 6
+                            + sign_sprite_idx * 4);
+    fd2_rle_blit_sprite(sprite_src, 0, 0, dst, (int32)stride, 0xffffffff);
+
+    fd2_render_decimal_number_to_buffer(dst + 8, stride, (uint32)modifier,
+                                        0x1f, 2);
 }

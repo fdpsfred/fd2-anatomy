@@ -173,6 +173,8 @@ extern int    g_rle_blit_calls;
 extern int    g_rle_blit_log_on;
 extern uint32 g_rle_blit_log_sprite[64];
 extern uint32 g_rle_blit_log_dst[64];
+extern int32  g_rle_blit_log_stride[64];
+extern uint32 g_rle_blit_log_palette[64];
 
 static uint32 g_dec_sheet;
 
@@ -1988,18 +1990,15 @@ static void test_mini_char_idx_selects_slot(void)
  * panel_offset auto-positioning branches, the panel_base address arithmetic,
  * the per-tile MV/DEF modifier-table lookup + destination offsets, and the
  * char-present portrait/HP sub-path with its exclusion conditions. Blits are
- * observed through the recording spies (g_rle_blit_* for the backdrop + HP
- * digits, g_blitpass_* for the 24x24 terrain icon / portrait, g_signmod_* for
- * the signed MV/DEF modifier glyphs).
+ * observed through the recording spies: g_rle_blit_* for the backdrop, the HP
+ * digits, and the real fd2_render_signed_modifier_with_icon sign-icon + 2-digit
+ * MV/DEF modifier glyphs (g_rle_blit_log_* per-call log); g_blitpass_* for the
+ * 24x24 terrain icon / portrait passthrough.
  * ================================================================ */
 extern int    g_blitpass_calls;
 extern uint32 g_blitpass_src[64];
 extern uint32 g_blitpass_dst[64];
 extern uint32 g_blitpass_stride[64];
-extern int    g_signmod_calls;
-extern uint32 g_signmod_dst[8];
-extern uint32 g_signmod_stride[8];
-extern int32  g_signmod_value[8];
 extern int    g_check_char_is_dead_return;
 extern uint32 g_rle_blit_last_sprite;
 extern uint32 g_rle_blit_last_buf;
@@ -2074,8 +2073,9 @@ static uint32 hud_setup(uint32 cx, uint32 cy)
     data_fd2_graphics_chapter_ambient_palette_anim_idx = 0;
 
     g_rle_blit_calls = 0;
+    g_rle_blit_log_on = 1;   /* log sign-icon + digit glyphs of the real
+                              * fd2_render_signed_modifier_with_icon */
     g_blitpass_calls = 0;
-    g_signmod_calls = 0;
     return sheet;
 }
 
@@ -2089,7 +2089,6 @@ static void test_hud_gate_user_disabled(void)
 
     ASSERT_EQ((long)g_rle_blit_calls, 0);
     ASSERT_EQ((long)g_blitpass_calls, 0);
-    ASSERT_EQ((long)g_signmod_calls, 0);
 }
 
 /* Gate: play-active flag clears -> nothing renders. */
@@ -2102,7 +2101,6 @@ static void test_hud_gate_play_inactive(void)
 
     ASSERT_EQ((long)g_rle_blit_calls, 0);
     ASSERT_EQ((long)g_blitpass_calls, 0);
-    ASSERT_EQ((long)g_signmod_calls, 0);
 }
 
 /* Auto-position RIGHT column: cursor_screen_y > 5 && cursor_screen_x < 3 latches
@@ -2126,12 +2124,14 @@ static void test_hud_position_right_and_backdrop(void)
     ASSERT_EQ((long)data_fd2_ui_terrain_hud_panel_offset_51a0c, 0xf2);
     panel_base = buf + stride * 0x9d + 0xf2;
 
-    /* backdrop: fd2_rle_blit_sprite(sheet + *(sheet+0x20E), 0,0, panel_base,
-     * stride, -1) */
-    ASSERT_EQ((long)g_rle_blit_last_sprite, (long)(sheet + 0x123));
-    ASSERT_EQ((long)g_rle_blit_last_buf, (long)panel_base);
-    ASSERT_EQ((long)g_rle_blit_last_stride, (long)stride);
-    ASSERT_EQ((long)g_rle_blit_last_palette, (long)0xffffffffu);
+    /* backdrop is the FIRST rle blit (log[0]); the real signed-modifier renderer
+     * appends sign-icon + digit blits after it, so g_rle_blit_last_* no longer
+     * holds the backdrop. fd2_rle_blit_sprite(sheet + *(sheet+0x20E), 0,0,
+     * panel_base, stride, -1). */
+    ASSERT_EQ((long)g_rle_blit_log_sprite[0], (long)(sheet + 0x123));
+    ASSERT_EQ((long)g_rle_blit_log_dst[0], (long)panel_base);
+    ASSERT_EQ((long)g_rle_blit_log_stride[0], (long)stride);
+    ASSERT_EQ((long)g_rle_blit_log_palette[0], (long)0xffffffffu);
 
     /* terrain icon: passthrough(snapshot + payload, panel_base+stride*5+6, stride) */
     ASSERT_EQ((long)g_blitpass_calls, 1);
@@ -2142,16 +2142,26 @@ static void test_hud_position_right_and_backdrop(void)
 }
 
 /* Auto-position LEFT column: cursor_screen_y > 5 && cursor_screen_x > 9 latches
- * panel_offset = 1. Also pins the MV/DEF signed-modifier calls: each forwards
- * MV/DEF_modifier_table[tile_attr2] to a dst of panel_base + stride*K + 0x2B
- * (K = 8 for MV, 0x13 for DEF). */
+ * panel_offset = 1. Also drives the two REAL fd2_render_signed_modifier_with_icon
+ * calls end-to-end: each forwards MV/DEF_modifier_table[tile_attr2] to a dst of
+ * panel_base + stride*K + 0x2B (K = 8 for MV, 0x13 for DEF). The real function
+ * blits a sign icon (0x83 for >=0, 0x84 for <0) at that dst then renders the
+ * abs() magnitude as a 2-digit red (0x1F) number 8 bytes to the right; all land
+ * in the g_rle_blit_log_*. With no unit under the cursor the full log is:
+ *   [0] backdrop, [1] MV sign, [2..3] MV "01" digits,
+ *   [4] DEF sign, [5..6] DEF "07" digits  (7 rle blits total).
+ * mv_table[5] = -1 (negative -> 0x84 icon, magnitude 1 -> "01");
+ * def_table[5] = +7 (positive -> 0x83 icon, magnitude 7 -> "07"). */
 static void test_hud_position_left_and_modifiers(void)
 {
+    uint32 sheet;
     uint32 buf    = 0x100000;
     uint32 stride = 0x1c8;
     uint32 panel_base;
+    uint32 mv_dst;
+    uint32 def_dst;
 
-    hud_setup(4, 4);
+    sheet = hud_setup(4, 4);
     data_fd2_battle_cursor_screen_x = 10;  /* > 9 */
     data_fd2_battle_cursor_screen_y = 7;   /* > 5 */
 
@@ -2159,15 +2169,31 @@ static void test_hud_position_left_and_modifiers(void)
 
     ASSERT_EQ((long)data_fd2_ui_terrain_hud_panel_offset_51a0c, 1);
     panel_base = buf + stride * 0x9d + 1;
+    mv_dst  = panel_base + stride * 8 + 0x2b;
+    def_dst = panel_base + stride * 0x13 + 0x2b;
 
-    ASSERT_EQ((long)g_signmod_calls, 2);
-    /* MV: value = mv_table[5] = -1, dst = panel_base + stride*8 + 0x2B */
-    ASSERT_EQ((long)g_signmod_value[0], (long)-1);
-    ASSERT_EQ((long)g_signmod_dst[0], (long)(panel_base + stride * 8 + 0x2b));
-    ASSERT_EQ((long)g_signmod_stride[0], (long)stride);
-    /* DEF: value = def_table[5] = +7, dst = panel_base + stride*0x13 + 0x2B */
-    ASSERT_EQ((long)g_signmod_value[1], (long)7);
-    ASSERT_EQ((long)g_signmod_dst[1], (long)(panel_base + stride * 0x13 + 0x2b));
+    /* backdrop + 2 modifier displays (sign + 2 digits each) = 7 rle blits */
+    ASSERT_EQ((long)g_rle_blit_calls, 7);
+
+    /* [0] backdrop sprite (sheet + *(sheet+0x20E) = sheet + 0x123) @ panel_base */
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[0] - sheet), (long)0x123);
+    ASSERT_EQ((long)g_rle_blit_log_dst[0], (long)panel_base);
+
+    /* MV modifier = mv_table[5] = -1: sign icon 0x84 @ mv_dst, then "01" red */
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[1] - sheet), (long)0x84);
+    ASSERT_EQ((long)g_rle_blit_log_dst[1], (long)mv_dst);
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[2] - sheet), (long)(0x1f + 0)); /* '0' */
+    ASSERT_EQ((long)g_rle_blit_log_dst[2], (long)(mv_dst + 8));
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[3] - sheet), (long)(0x1f + 1)); /* '1' */
+    ASSERT_EQ((long)g_rle_blit_log_dst[3], (long)(mv_dst + 8 + 6));
+
+    /* DEF modifier = def_table[5] = +7: sign icon 0x83 @ def_dst, then "07" red */
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[4] - sheet), (long)0x83);
+    ASSERT_EQ((long)g_rle_blit_log_dst[4], (long)def_dst);
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[5] - sheet), (long)(0x1f + 0)); /* '0' */
+    ASSERT_EQ((long)g_rle_blit_log_dst[5], (long)(def_dst + 8));
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[6] - sheet), (long)(0x1f + 7)); /* '7' */
+    ASSERT_EQ((long)g_rle_blit_log_dst[6], (long)(def_dst + 8 + 6));
 }
 
 /* Auto-position KEEP: neither branch taken (y in 6..., x mid) -> latch unchanged
@@ -2186,8 +2212,9 @@ static void test_hud_position_keep_previous(void)
     fd2_render_terrain_info_hud_panel(buf, stride);
 
     ASSERT_EQ((long)data_fd2_ui_terrain_hud_panel_offset_51a0c, 0x55);
-    /* panel_base used the kept offset */
-    ASSERT_EQ((long)g_rle_blit_last_buf, (long)(buf + stride * 0x9d + 0x55));
+    /* panel_base used the kept offset: the backdrop (first rle blit, log[0])
+     * targets panel_base = buf + stride*0x9d + kept_offset. */
+    ASSERT_EQ((long)g_rle_blit_log_dst[0], (long)(buf + stride * 0x9d + 0x55));
 }
 
 /* Auto-position y-axis guard: screen_x < 3 but screen_y <= 5 must NOT latch the
@@ -2206,7 +2233,8 @@ static void test_hud_position_low_y_keeps_previous(void)
     fd2_render_terrain_info_hud_panel(buf, stride);
 
     ASSERT_EQ((long)data_fd2_ui_terrain_hud_panel_offset_51a0c, 0x33);
-    ASSERT_EQ((long)g_rle_blit_last_buf, (long)(buf + stride * 0x9d + 0x33));
+    /* backdrop (first rle blit, log[0]) targets panel_base = the kept offset. */
+    ASSERT_EQ((long)g_rle_blit_log_dst[0], (long)(buf + stride * 0x9d + 0x33));
 }
 
 /* Unit present under cursor (visible portrait, player team): the portrait
@@ -2243,8 +2271,9 @@ static void test_hud_char_present_portrait_and_hp(void)
     rc->hp_current    = 123;
     rc->hp_max        = 200;
 
-    /* digit log: the only rle_blit before the HP digits is the backdrop (log[0]),
-     * so the 3 HP glyphs occupy log indices 1..3. */
+    /* rle_blit log order before the HP digits: backdrop (log[0]), then the two
+     * real signed-modifier displays — MV (sign + 2 digits, log[1..3]) and DEF
+     * (sign + 2 digits, log[4..6]) — so the 3 HP glyphs occupy log indices 7..9. */
     g_dec_sheet = data_fd2_ui_anim_sprite_sheet_ptr;
     g_rle_blit_log_on = 1;
     g_rle_blit_calls = 0;
@@ -2262,8 +2291,8 @@ static void test_hud_char_present_portrait_and_hp(void)
 
     /* HP digits: fd2_render_number_red_when_full(panel_base+stride*0x15+9,
      * stride, 123, 200, 3) -> white (123 != 200), 3 glyphs "123" from the digit
-     * log starting at index 1 (backdrop occupied index 0). */
-    dec_assert_number(1, panel_base + stride * 0x15 + 9, 123, 0x2a, 3);
+     * log starting at index 7 (backdrop[0] + MV[1..3] + DEF[4..6] precede them). */
+    dec_assert_number(7, panel_base + stride * 0x15 + 9, 123, 0x2a, 3);
 }
 
 /* Hidden portrait (portrait_id == 0x79) suppresses the portrait + HP sub-path:
@@ -2353,6 +2382,140 @@ static void test_hud_char_palette_idx3_remaps_to_1(void)
               (long)(portrait_sprite_cache + 0x90));
 }
 
+/* ================================================================
+ * fd2_render_signed_modifier_with_icon @ 0x1AEB1
+ *
+ * Drive the REAL signed-modifier renderer directly (its only in-binary caller
+ * is the HUD panel, exercised above; these pin the function in isolation).
+ * It blits a sign icon then the abs() magnitude as 2 red digits:
+ *   modifier >= 0 -> sign sprite 0x83, value as-is
+ *   modifier <  0 -> sign sprite 0x84, value abs()'d
+ * Both the sign icon (fd2_rle_blit_sprite) and the digit glyphs
+ * (fd2_render_decimal_number_to_buffer -> fd2_blit_indexed_sprite_at_xy ->
+ * fd2_rle_blit_sprite) land in g_rle_blit_log_* in order: [0] sign icon @ dst,
+ * [1..] digits "%0.2d" of the magnitude @ dst+8 (6px apart), color 0x1F.
+ * With the fake sheet (bar_setup_sheet, table[i]=i) the resolved sign stream is
+ * sheet + idx and each digit glyph sheet + 0x1F + (digit-'0').
+ * ================================================================ */
+
+/* arm the fake sheet (table[i]=i) + rle per-call log for a signmod test. */
+static uint32 signmod_setup(void)
+{
+    uint32 sheet = bar_setup_sheet();   /* table[i]=i; sets sprite-sheet ptr */
+    g_dec_sheet = sheet;                /* for dec_assert_number */
+    g_rle_blit_calls = 0;
+    g_rle_blit_log_on = 1;
+    return sheet;
+}
+
+/* positive modifier: sign icon 0x83, value drawn as-is ("05"), digits at dst+8. */
+static void test_signmod_positive_plus_icon(void)
+{
+    uint32 sheet;
+    uint32 dst = 0x100000;
+
+    sheet = signmod_setup();
+    fd2_render_signed_modifier_with_icon(dst, 0x140, 5);
+
+    /* 1 sign icon + 2 digits = 3 blits */
+    ASSERT_EQ((long)g_rle_blit_calls, 3);
+    /* [0] cyan "+" icon 0x83 at dst */
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[0] - sheet), (long)0x83);
+    ASSERT_EQ((long)g_rle_blit_log_dst[0], (long)dst);
+    /* [1..2] "05" red (0x1F) at dst+8 */
+    dec_assert_number(1, dst + 8, 5, 0x1f, 2);
+}
+
+/* negative modifier: sign icon 0x84, value abs()'d so the MAGNITUDE renders.
+ * -5 must produce the exact same "05" digits as +5 (proves abs ran and that the
+ * abs result — not the raw negative — flows into the digit renderer; this is the
+ * post-CALL EAX-result point in the binary). */
+static void test_signmod_negative_minus_icon_abs(void)
+{
+    uint32 sheet;
+    uint32 dst = 0x200000;
+
+    sheet = signmod_setup();
+    fd2_render_signed_modifier_with_icon(dst, 0x140, -5);
+
+    ASSERT_EQ((long)g_rle_blit_calls, 3);
+    /* [0] red "-" icon 0x84 at dst */
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[0] - sheet), (long)0x84);
+    ASSERT_EQ((long)g_rle_blit_log_dst[0], (long)dst);
+    /* [1..2] magnitude "05" (abs(-5)=5) red at dst+8 */
+    dec_assert_number(1, dst + 8, 5, 0x1f, 2);
+}
+
+/* zero is NON-negative (the binary's JGE takes the >=0 path at 0): sign icon
+ * 0x83, magnitude "00". Pins the comparison boundary (0 -> '+', not '-'). */
+static void test_signmod_zero_is_positive(void)
+{
+    uint32 sheet;
+    uint32 dst = 0x300000;
+
+    sheet = signmod_setup();
+    fd2_render_signed_modifier_with_icon(dst, 0x140, 0);
+
+    ASSERT_EQ((long)g_rle_blit_calls, 3);
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[0] - sheet), (long)0x83);   /* '+' */
+    dec_assert_number(1, dst + 8, 0, 0x1f, 2);                         /* "00" */
+}
+
+/* the sign-icon sprite stream is resolved via the sheet offset table
+ * (sheet + *(int*)(sheet + 6 + idx*4)), NOT sheet + idx directly. Install a
+ * sheet whose table[0x83]/[0x84] hold distinct non-identity offsets and confirm
+ * the resolved stream uses those table values; also confirm the stride argument
+ * is forwarded verbatim to the sign-icon blit. */
+static int32 g_signmod_sheet[2 + 256];
+static void test_signmod_sprite_table_indexing_and_stride(void)
+{
+    uint8 *base = (uint8 *)g_signmod_sheet;
+    uint32 dst = 0x340000;
+    uint32 stride = 0x1c8;
+    int i;
+
+    for (i = 0; i < 256; i++) {
+        *(int32 *)(base + 6 + i * 4) = i;       /* default identity */
+    }
+    *(int32 *)(base + 6 + 0x83 * 4) = 0x511;    /* non-identity for '+' icon */
+    *(int32 *)(base + 6 + 0x84 * 4) = 0x733;    /* non-identity for '-' icon */
+    data_fd2_ui_anim_sprite_sheet_ptr = (uint32)base;
+    g_rle_blit_calls = 0;
+    g_rle_blit_log_on = 1;
+
+    /* positive -> '+' icon via table[0x83] = 0x511 */
+    fd2_render_signed_modifier_with_icon(dst, stride, 7);
+    ASSERT_EQ((long)g_rle_blit_log_sprite[0], (long)((uint32)base + 0x511));
+    ASSERT_EQ((long)g_rle_blit_log_dst[0], (long)dst);
+    /* stride forwarded to the sign-icon blit */
+    ASSERT_EQ((long)g_rle_blit_last_stride, (long)stride);
+
+    /* negative -> '-' icon via table[0x84] = 0x733 */
+    g_rle_blit_calls = 0;
+    fd2_render_signed_modifier_with_icon(dst, stride, -7);
+    ASSERT_EQ((long)g_rle_blit_log_sprite[0], (long)((uint32)base + 0x733));
+}
+
+/* the abs() magnitude flows through the 2-digit overflow rule of the decimal
+ * renderer: abs(-150) = 150 >= 100 -> the renderer emits the single fixed "99+"
+ * glyph (sprite 0x5D) instead of two digits, so the icon (0x84) plus one
+ * overflow glyph = 2 blits total. Locks that the abs result (not the raw value)
+ * drives the magnitude path. */
+static void test_signmod_negative_magnitude_overflow(void)
+{
+    uint32 sheet;
+    uint32 dst = 0x380000;
+
+    sheet = signmod_setup();
+    fd2_render_signed_modifier_with_icon(dst, 0x140, -150);
+
+    /* icon + single "99+" overflow glyph */
+    ASSERT_EQ((long)g_rle_blit_calls, 2);
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[0] - sheet), (long)0x84);   /* '-' */
+    /* overflow placeholder 0x5D at dst+8 (abs=150 >= 100, 2-digit overflow) */
+    dec_assert_overflow(1, dst + 8, 0x5d);
+}
+
 void run_gfx_rndstat_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -2433,6 +2596,11 @@ void run_gfx_rndstat_tests(void)
     RUN_TEST(test_hud_char_hidden_portrait_excluded);
     RUN_TEST(test_hud_char_archetype10_enemy_excluded);
     RUN_TEST(test_hud_char_palette_idx3_remaps_to_1);
+    RUN_TEST(test_signmod_positive_plus_icon);
+    RUN_TEST(test_signmod_negative_minus_icon_abs);
+    RUN_TEST(test_signmod_zero_is_positive);
+    RUN_TEST(test_signmod_sprite_table_indexing_and_stride);
+    RUN_TEST(test_signmod_negative_magnitude_overflow);
     g_blitraw_log_on = 0;
     g_rle_blit_log_on = 0;
     printf("\n");

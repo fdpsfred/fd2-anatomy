@@ -466,10 +466,14 @@ uint32 g_rle_blit_last_palette = 0;
 int32  g_rle_blit_y_log[4];
 uint8  g_rle_blit_sprite_first_byte_log[4];
 /* opt-in full per-call log (default off; used by the decimal-number digit
- * renderer test to recover each digit's resolved sprite addr + dst). */
+ * renderer test to recover each digit's resolved sprite addr + dst, and by the
+ * HUD tests to pin the backdrop blit (now no longer the LAST rle blit, since the
+ * real signed-modifier renderer appends sign-icon + digit blits after it)). */
 int    g_rle_blit_log_on = 0;
 uint32 g_rle_blit_log_sprite[64];
 uint32 g_rle_blit_log_dst[64];
+int32  g_rle_blit_log_stride[64];
+uint32 g_rle_blit_log_palette[64];
 void fd2_rle_blit_sprite(uint32 rle_stream, int32 dst_x, int32 dst_y,
                          uint32 dst_buf, int32 stride, uint32 palette_op) {
     g_rle_blit_last_sprite = rle_stream;
@@ -489,28 +493,17 @@ void fd2_rle_blit_sprite(uint32 rle_stream, int32 dst_x, int32 dst_y,
     if (g_rle_blit_log_on && g_rle_blit_calls < 64) {
         g_rle_blit_log_sprite[g_rle_blit_calls] = rle_stream;
         g_rle_blit_log_dst[g_rle_blit_calls] = dst_buf;
+        g_rle_blit_log_stride[g_rle_blit_calls] = stride;
+        g_rle_blit_log_palette[g_rle_blit_calls] = palette_op;
     }
     g_rle_blit_calls++;
 }
-/* Recording stub for fd2_render_signed_modifier_with_icon (real body @ 0x1AEB1
- * not yet emitted). fd2_render_terrain_info_hud_panel (src/gfx/rndstat.c) is the
- * only caller; it calls it twice per panel (MV then DEF). Recording the (dst,
- * stride, modifier) of each lets the rndstat HUD test verify the per-tile
- * MV / DEF modifier-table lookup and the destination address arithmetic without
- * the (unemitted) glyph rendering. */
-int    g_signmod_calls = 0;
-uint32 g_signmod_dst[8];
-uint32 g_signmod_stride[8];
-int32  g_signmod_value[8];
-void fd2_render_signed_modifier_with_icon(uint32 dst, uint32 stride,
-                                          int32 modifier) {
-    if (g_signmod_calls < 8) {
-        g_signmod_dst[g_signmod_calls] = dst;
-        g_signmod_stride[g_signmod_calls] = stride;
-        g_signmod_value[g_signmod_calls] = modifier;
-    }
-    g_signmod_calls++;
-}
+/* fd2_render_signed_modifier_with_icon: now emitted in src/gfx/rndstat.c. The
+ * rndstat HUD tests drive the real function (through its only caller
+ * fd2_render_terrain_info_hud_panel), observing the sign-icon blit and the
+ * 2-digit magnitude glyphs end-to-end via the g_rle_blit_log_* per-call log
+ * against the fake sheet (table[i]=i). The former (dst,stride,modifier)
+ * recording stub was removed. */
 int    g_scroll_text_calls = 0;
 uint32 g_scroll_text_last_arg = 0;
 void fd2_scroll_text_screen_up_by_lines(uint32 lines) {

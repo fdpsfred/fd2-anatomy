@@ -1134,8 +1134,9 @@
     "name": "fd2_render_signed_modifier_with_icon",
     "target": "gfx/rndstat.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001af1e": {
     "name": "fd2_slide_panel_step_left_main",
