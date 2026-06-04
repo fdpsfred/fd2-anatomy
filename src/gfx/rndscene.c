@@ -386,3 +386,111 @@ void fd2_paint_threat_overlay_for_team(uint32 ctx)
         }
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_composite_chars_with_spell_effect_overlay @ 0x1CB94 (1 caller)
+ *
+ * Render the per-char layer of a spell-cast frame: chars that are in
+ * the target/hit list get the spell-effect sprite (spark/glow) drawn
+ * over them, every other alive char keeps its normal portrait. Used by
+ * the full-screen flash animator, which double-buffers two variants
+ * (fx_sprite_idx 0x4A vs 0x4B) to produce the strobe.
+ *
+ * Steps (asm order):
+ *   - Composite the battle tile map into dst_buf + 0x8088.
+ *   - Resolve the effect sprite address from the portrait sheet:
+ *       fx_sprite_addr = sheet + *(int32 *)(sheet + 6 + fx_sprite_idx*4)
+ *   - For each party slot (skip dead, flags bit0):
+ *       - Window-cull against the battle view window (origin +/- max,
+ *         with the same +/-1 margins as the normal char paint).
+ *       - char_screen_addr = dst_buf + 0x75D8
+ *                          + (pos_y - origin_y) * 0x2AC0
+ *                          + (pos_x - origin_x) * 0x18
+ *       - Scan the target list (n_targets bytes at target_array). If
+ *         char_idx appears (no early break -- the original scans the
+ *         whole list), it is a hit.
+ *       - Hit  -> fd2_blit_sprite_with_decoded_pixels(char_screen_addr,
+ *                 fx_sprite_addr, 456).
+ *       - Miss -> normal portrait via the sprite cache:
+ *           frame = sprite_state[0]*0xC
+ *                 + (chapter_palette==3 ? 2 : chapter_palette)
+ *           src   = cache + *(int32 *)(cache + frame*4)
+ *           fd2_tile_blit_24x24_passthrough(src, char_screen_addr, 456).
+ *
+ * 0x8088/0x75D8 = char-layer bases in the render workspace,
+ * 0x2AC0 = 10944 (one tile row), 0x18 = 24 (one tile col),
+ * 0x1C8 = 456 (workspace pitch).
+ *
+ * The original tail-calls a shared epilogue (JMP 0x1317D); the C
+ * equivalent is the loop simply running to completion.
+ * ---------------------------------------------------------------- */
+void fd2_composite_chars_with_spell_effect_overlay(uint32 dst_buf, uint32 n_targets,
+                                                   uint32 target_array, int fx_sprite_idx)
+{
+    uint32 fx_sprite_addr;
+    uint32 char_idx;
+    runtime_char *pchar;
+    int32 pos_x;
+    int32 pos_y;
+    uint32 cache_idx;
+    uint32 char_screen_addr;
+    int hit;
+    uint32 scan_idx;
+    int32 frame_idx;
+    uint32 src_ptr;
+
+    fd2_composite_battle_tile_map(dst_buf + 0x8088, 0x1c8, 0xd, 8,
+                                  data_fd2_battle_view_window_origin_x,
+                                  data_fd2_battle_view_window_origin_y);
+
+    fx_sprite_addr =
+        (uint32)*(int32 *)(data_fd2_resource_portrait_sheet_ptr + 6 + fx_sprite_idx * 4) +
+        data_fd2_resource_portrait_sheet_ptr;
+
+    for (char_idx = 0; (int32)char_idx < (int32)data_fd2_battle_party_member_count;
+         char_idx++) {
+        pchar = &data_fd2_battle_runtime_char_array_ptr[char_idx];
+        if ((pchar->flags & 1) != 0) {
+            continue;
+        }
+
+        pos_x = (int32)pchar->pos_x;
+        pos_y = (int32)pchar->pos_y;
+        cache_idx = (uint32)pchar->sprite_state[0];
+
+        if (pos_x < (int32)(data_fd2_battle_view_window_origin_x - 1) ||
+            pos_x > (int32)(data_fd2_battle_view_window_origin_x +
+                            data_fd2_battle_view_window_max_x) ||
+            pos_y < (int32)(data_fd2_battle_view_window_origin_y - 1) ||
+            pos_y > (int32)(data_fd2_battle_view_window_origin_y +
+                            data_fd2_battle_view_window_max_y + 1)) {
+            continue;
+        }
+
+        char_screen_addr =
+            (uint32)(pos_y - (int32)data_fd2_battle_view_window_origin_y) * 0x2ac0 +
+            dst_buf + (uint32)(pos_x - (int32)data_fd2_battle_view_window_origin_x) * 0x18 +
+            0x75d8;
+
+        hit = 0;
+        for (scan_idx = 0; (int32)scan_idx < (int32)n_targets; scan_idx++) {
+            if (*(uint8 *)(target_array + scan_idx) == char_idx) {
+                hit = 1;
+            }
+        }
+
+        if (hit) {
+            fd2_blit_sprite_with_decoded_pixels(char_screen_addr, fx_sprite_addr, 0x1c8);
+        } else {
+            frame_idx = (int32)cache_idx * 0xc;
+            if (data_fd2_graphics_chapter_ambient_palette_anim_idx == 3) {
+                frame_idx += 2;
+            } else {
+                frame_idx += (int32)data_fd2_graphics_chapter_ambient_palette_anim_idx;
+            }
+            src_ptr = portrait_sprite_cache +
+                      (uint32)*(int32 *)(portrait_sprite_cache + (uint32)frame_idx * 4);
+            fd2_tile_blit_24x24_passthrough(src_ptr, char_screen_addr, 0x1c8);
+        }
+    }
+}

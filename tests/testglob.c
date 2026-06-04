@@ -214,6 +214,12 @@ uint32 g_tile_map_last_h = 0;
 uint32 g_tile_map_last_ox = 0;
 uint32 g_tile_map_last_oy = 0;
 int    g_composite_call_count = 0;
+/* opt-in ordered dst log (default off; used by the full-screen-flash test to
+ * confirm the two real spell-effect composites route into the back-buffer then
+ * a distinct malloc'd buffer, followed by the finalizer composite). */
+int    g_tile_map_log_on = 0;
+int    g_tile_map_log_count = 0;
+uint32 g_tile_map_log_dst[16];
 /* Test-controllable loop-break seam for the idle loops (the real
  * fd2_wait_input_with_dialog_repaint and the menu loops that idle through it).
  * The tile-map composite runs exactly once at the top of every idle-loop body
@@ -240,6 +246,10 @@ void fd2_composite_battle_tile_map(uint32 d, uint32 s, uint32 w, uint32 h, uint3
     g_tile_map_last_dst = d; g_tile_map_last_stride = s;
     g_tile_map_last_w = w; g_tile_map_last_h = h;
     g_tile_map_last_ox = ox; g_tile_map_last_oy = oy;
+    if (g_tile_map_log_on && g_tile_map_log_count < 16) {
+        g_tile_map_log_dst[g_tile_map_log_count] = d;
+        g_tile_map_log_count++;
+    }
 
     g_repaint_settings_calls++;
     if (g_repaint_flip_buffer_after != 0 &&
@@ -419,11 +429,23 @@ void fd2_save_screen_block_to_buffer(uint32 out_buf, uint32 width, uint32 height
 /* capture wiring for fd2_alloc_and_blit_indexed_sprite_chunk tests */
 uint32 g_blitdec_dst, g_blitdec_sprite, g_blitdec_stride;
 int    g_blitdec_calls = 0;
+/* opt-in full per-call log (default off; used by the full-screen-flash test to
+ * capture both real spell-effect overlay invocations' resolved fx-sprite addr
+ * and dst, since the last-call vars above keep only the final call). */
+int    g_blitdec_log_on = 0;
+int    g_blitdec_log_count = 0;
+uint32 g_blitdec_log_dst[16];
+uint32 g_blitdec_log_sprite[16];
 void fd2_blit_sprite_with_decoded_pixels(uint32 d, uint32 s, uint32 st)
 {
     g_blitdec_dst = d;
     g_blitdec_sprite = s;
     g_blitdec_stride = st;
+    if (g_blitdec_log_on && g_blitdec_log_count < 16) {
+        g_blitdec_log_dst[g_blitdec_log_count] = d;
+        g_blitdec_log_sprite[g_blitdec_log_count] = s;
+        g_blitdec_log_count++;
+    }
     g_blitdec_calls++;
 }
 /* capture wiring for fd2_blit_sheet_sprite_at_offset tests */
@@ -517,25 +539,14 @@ int    g_delay375b2_calls = 0;
 uint32 g_delay375b2_last_ticks = 0;
 void __delay_thunk_375b2(uint32 ticks) { g_delay375b2_calls++; g_delay375b2_last_ticks = ticks; }
 
-/* fd2_composite_chars_with_spell_effect_overlay (anim spell-effect compositor):
- * not yet emitted, so a recording stub captures the dst buffer, target args,
- * and the variant fx index forwarded by fd2_animate_spell_full_screen_flash. */
-int    g_spellfx_overlay_calls = 0;
-uint32 g_spellfx_overlay_dst[8];
-uint32 g_spellfx_overlay_ntgt[8];
-uint32 g_spellfx_overlay_arr[8];
-int    g_spellfx_overlay_fx[8];
-void fd2_composite_chars_with_spell_effect_overlay(uint32 dst_buf, uint32 n_targets,
-                                                   uint32 target_array, int fx_sprite_idx)
-{
-    if (g_spellfx_overlay_calls < 8) {
-        g_spellfx_overlay_dst[g_spellfx_overlay_calls]  = dst_buf;
-        g_spellfx_overlay_ntgt[g_spellfx_overlay_calls] = n_targets;
-        g_spellfx_overlay_arr[g_spellfx_overlay_calls]  = target_array;
-        g_spellfx_overlay_fx[g_spellfx_overlay_calls]   = fx_sprite_idx;
-    }
-    g_spellfx_overlay_calls++;
-}
+/* fd2_composite_chars_with_spell_effect_overlay is now a real emitted function
+ * (src/gfx/rndscene.c); its former recording stub here was removed. The real
+ * overlay first composites a tile map (observable via the
+ * fd2_composite_battle_tile_map dst log) and then, per targeted char, draws the
+ * effect sprite through the recording fd2_blit_sprite_with_decoded_pixels stub
+ * (whose opt-in log captures the resolved fx-sprite addr per call). Its own
+ * behavior is covered by tests/gfx/rndscene.c; the caller
+ * fd2_animate_spell_full_screen_flash observes those two seams. */
 int g_ail_vol_calls = 0;
 int g_ail_last_vol = 0;
 int g_ail_last_ramp = 0;

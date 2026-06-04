@@ -29,6 +29,12 @@ extern uint32 g_blitpass_src[64];
 extern uint32 g_blitpass_dst[64];
 extern uint32 g_blitpass_stride[64];
 extern int    g_blitdim_calls;
+/* recording stub for fd2_blit_sprite_with_decoded_pixels (testglob.c); the
+ * spell-effect overlay hit branch forwards (dst, sprite, stride) here. */
+extern uint32 g_blitdec_dst;
+extern uint32 g_blitdec_sprite;
+extern uint32 g_blitdec_stride;
+extern int    g_blitdec_calls;
 /* the real per-char paint reads the runtime_char array through this ptr */
 extern runtime_char g_test_rc_array[8];
 /* The compositor's final stage is the real fd2_blit_rectangle (src/gfx/blitspr.c).
@@ -974,6 +980,270 @@ static void test_threat_empty_party(void)
     assert_unmarked(5, 5);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_composite_chars_with_spell_effect_overlay @ 0x1CB94 — per-char
+ * spell-cast layer: hit-list chars get the spell-effect sprite (via the
+ * fd2_blit_sprite_with_decoded_pixels stub, recorded in g_blitdec_*),
+ * every other alive in-window char keeps its normal portrait (via the
+ * fd2_tile_blit_24x24_passthrough stub, recorded in g_blitpass_*).
+ *
+ * dst_buf is a sentinel: none of the three callee stubs dereference it,
+ * so the address arithmetic can be checked directly from the recorded
+ * dst. char_screen_addr = dst_buf + 0x75D8 + (py-oy)*0x2AC0 + (px-ox)*0x18.
+ *
+ * Effect-sprite source: the sheet at data_fd2_resource_portrait_sheet_ptr
+ * holds a dword table at +6 (index*4) of absolute offsets; an identity
+ * table (table[i]==i) makes fx_sprite_addr == sheet + fx_sprite_idx, so
+ * the recorded g_blitdec_sprite reveals which fx index was loaded.
+ *
+ * Portrait source: portrait_sprite_cache is install_paint_atlas()'s
+ * identity table, so g_blitpass_src - g_paint_atlas == frame_idx, where
+ * frame_idx = cache_idx*0xC + (ambient_palette==3 ? 2 : ambient_palette).
+ * ---------------------------------------------------------------- */
+#define SPELL_BUF 0xB0000000u
+
+/* Sheet fixture for data_fd2_resource_portrait_sheet_ptr: identity dword
+ * table at +6 so fx_sprite_addr == sheet + fx_sprite_idx. 0x80 entries
+ * cover the 0x4A/0x4B fx indices the caller uses. */
+static uint8 g_spell_sheet[6 + 0x80 * 4];
+
+static void install_spell_sheet(void)
+{
+    int i;
+    int32 *table;
+
+    table = (int32 *)(g_spell_sheet + 6);
+    for (i = 0; i < 0x80; i++) {
+        table[i] = i;
+    }
+    data_fd2_resource_portrait_sheet_ptr = (uint32)g_spell_sheet;
+}
+
+/* Open the window wide, pin the sentinel buffer + both atlases, clear all
+ * recorders. Party count is left for the test to set. */
+static void reset_spell_overlay(void)
+{
+    data_fd2_battle_view_window_origin_x = 0;
+    data_fd2_battle_view_window_origin_y = 0;
+    data_fd2_battle_view_window_max_x = 0x40;
+    data_fd2_battle_view_window_max_y = 0x40;
+    data_fd2_large_game_state_buffer_ptr = SPELL_BUF;   /* unused by this fn */
+    data_fd2_graphics_chapter_ambient_palette_anim_idx = 0;
+    install_paint_atlas();      /* portrait_sprite_cache identity table */
+    install_spell_sheet();      /* effect-sprite sheet identity table */
+    g_blitpass_calls = 0;
+    g_blitdim_calls = 0;
+    g_blitdec_calls = 0;
+    g_tile_map_calls = 0;
+    g_composite_call_count = 0;
+}
+
+/* expected char_screen_addr for (px,py) at given origin and dst_buf */
+static uint32 expect_screen_addr(uint32 dst_buf, int32 px, int32 py,
+                                 int32 ox, int32 oy)
+{
+    return dst_buf + 0x75d8u + (uint32)(py - oy) * 0x2ac0u +
+           (uint32)(px - ox) * 0x18u;
+}
+
+/* The unconditional tile-map composite runs once into dst_buf + 0x8088 with
+ * the documented constants (456, 13, 8, origin_x, origin_y), regardless of
+ * party contents. */
+static void test_spell_tilemap_composite(void)
+{
+    reset_spell_overlay();
+    data_fd2_battle_party_member_count = 0;
+    data_fd2_battle_view_window_origin_x = 0x11;
+    data_fd2_battle_view_window_origin_y = 0x22;
+
+    fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 0, (uint32)0, 0x4a);
+
+    ASSERT_EQ(g_tile_map_calls, 1);
+    ASSERT_EQ(g_tile_map_last_dst, SPELL_BUF + 0x8088u);
+    ASSERT_EQ(g_tile_map_last_stride, 0x1c8u);
+    ASSERT_EQ(g_tile_map_last_w, 0xdu);
+    ASSERT_EQ(g_tile_map_last_h, 8u);
+    ASSERT_EQ(g_tile_map_last_ox, 0x11u);
+    ASSERT_EQ(g_tile_map_last_oy, 0x22u);
+    /* empty party -> no per-char blits of either kind */
+    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(g_blitdec_calls, 0);
+}
+
+/* A char NOT in the target list draws its normal portrait through the
+ * passthrough blitter: verify dst arithmetic, stride, frame_idx lookup,
+ * and that the effect blitter did NOT run. */
+static void test_spell_miss_draws_portrait(void)
+{
+    int32 frame_idx;
+
+    reset_spell_overlay();
+    data_fd2_battle_party_member_count = 1;
+    data_fd2_graphics_chapter_ambient_palette_anim_idx = 1;
+    /* slot 0: pos (5,3), cache_idx 2, alive (flags 0) */
+    setup_paint_char(0, 0x05, 0x03, 2, 0, 0, 0x00, 0);
+
+    /* empty target list (n_targets 0) -> char 0 is a miss */
+    fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 0, (uint32)0, 0x4a);
+
+    ASSERT_EQ(g_blitdec_calls, 0);          /* no effect sprite */
+    ASSERT_EQ(g_blitpass_calls, 1);         /* one portrait */
+    ASSERT_EQ(g_blitdim_calls, 0);          /* passthrough, not dimmed */
+    ASSERT_EQ(g_blitpass_stride[0], 0x1c8u);
+    ASSERT_EQ(g_blitpass_dst[0], expect_screen_addr(SPELL_BUF, 5, 3, 0, 0));
+    /* frame_idx = cache_idx(2)*0xC + ambient_palette(1) = 25; identity cache
+     * table -> src - atlas == frame_idx */
+    frame_idx = 2 * 0xc + 1;
+    ASSERT_EQ(g_blitpass_src[0] - (uint32)g_paint_atlas, (uint32)frame_idx);
+}
+
+/* A char IN the target list draws the spell effect sprite through the
+ * decoded-pixels blitter: verify dst, stride, the resolved fx sprite addr,
+ * and that the portrait blitter did NOT run. */
+static void test_spell_hit_draws_effect(void)
+{
+    uint8 targets[1];
+
+    reset_spell_overlay();
+    data_fd2_battle_party_member_count = 1;
+    setup_paint_char(0, 0x07, 0x05, 3, 0, 0, 0x00, 0);
+    targets[0] = 0;     /* char_idx 0 is targeted */
+
+    fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 1,
+                                                  (uint32)targets, 0x4b);
+
+    ASSERT_EQ(g_blitpass_calls, 0);         /* no portrait */
+    ASSERT_EQ(g_blitdec_calls, 1);          /* one effect sprite */
+    ASSERT_EQ(g_blitdec_stride, 0x1c8u);
+    ASSERT_EQ(g_blitdec_dst, expect_screen_addr(SPELL_BUF, 7, 5, 0, 0));
+    /* identity sheet table -> fx_sprite_addr == sheet + fx_sprite_idx(0x4B) */
+    ASSERT_EQ(g_blitdec_sprite, (uint32)g_spell_sheet + 0x4bu);
+}
+
+/* Mixed party: only the listed indices get the effect; the rest get
+ * portraits. Targets = {1, 2} out of 4 alive chars. */
+static void test_spell_mixed_hit_and_miss(void)
+{
+    uint8 targets[2];
+
+    reset_spell_overlay();
+    data_fd2_battle_party_member_count = 4;
+    /* distinct pos_x so each recorded dst is unique; all alive */
+    setup_paint_char(0, 0x04, 0x02, 0, 0, 0, 0x00, 0);
+    setup_paint_char(1, 0x05, 0x02, 0, 0, 0, 0x00, 0);
+    setup_paint_char(2, 0x06, 0x02, 0, 0, 0, 0x00, 0);
+    setup_paint_char(3, 0x07, 0x02, 0, 0, 0, 0x00, 0);
+    targets[0] = 1;
+    targets[1] = 2;
+
+    fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 2,
+                                                  (uint32)targets, 0x4a);
+
+    /* chars 1 and 2 -> effect; chars 0 and 3 -> portrait */
+    ASSERT_EQ(g_blitdec_calls, 2);
+    ASSERT_EQ(g_blitpass_calls, 2);
+    /* the last effect blit recorded is char 2 at pos_x 6 (decoded stub keeps
+     * only the most recent dst) */
+    ASSERT_EQ(g_blitdec_dst, expect_screen_addr(SPELL_BUF, 6, 2, 0, 0));
+    /* portrait blits recorded in loop order: char 0 (px 4) then char 3 (px 7) */
+    ASSERT_EQ(g_blitpass_dst[0], expect_screen_addr(SPELL_BUF, 4, 2, 0, 0));
+    ASSERT_EQ(g_blitpass_dst[1], expect_screen_addr(SPELL_BUF, 7, 2, 0, 0));
+}
+
+/* Dead chars (flags bit0) are skipped entirely: no blit of either kind even
+ * if the dead char's index is in the target list. */
+static void test_spell_dead_skipped(void)
+{
+    uint8 targets[1];
+
+    reset_spell_overlay();
+    data_fd2_battle_party_member_count = 1;
+    setup_paint_char(0, 0x05, 0x03, 0, 0, 0, 0x01, 0);   /* flags bit0 = dead */
+    targets[0] = 0;
+
+    fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 1,
+                                                  (uint32)targets, 0x4a);
+
+    ASSERT_EQ(g_blitdec_calls, 0);
+    ASSERT_EQ(g_blitpass_calls, 0);
+}
+
+/* Out-of-window chars are culled (no blit) on each of the four edges; the
+ * margins match the per-char paint: x in [ox-1, ox+max_x], y in
+ * [oy-1, oy+max_y+1]. */
+static void test_spell_window_cull(void)
+{
+    reset_spell_overlay();
+    data_fd2_battle_party_member_count = 1;
+    data_fd2_battle_view_window_origin_x = 0x10;
+    data_fd2_battle_view_window_origin_y = 0x10;
+    data_fd2_battle_view_window_max_x = 0x08;
+    data_fd2_battle_view_window_max_y = 0x08;
+
+    /* x below ox-1 (0x0F) */
+    setup_paint_char(0, 0x0e, 0x12, 0, 0, 0, 0x00, 0);
+    fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 0, (uint32)0, 0x4a);
+    ASSERT_EQ(g_blitpass_calls, 0);
+
+    /* x above ox+max_x (0x18) */
+    setup_paint_char(0, 0x19, 0x12, 0, 0, 0, 0x00, 0);
+    fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 0, (uint32)0, 0x4a);
+    ASSERT_EQ(g_blitpass_calls, 0);
+
+    /* y below oy-1 (0x0F) */
+    setup_paint_char(0, 0x12, 0x0e, 0, 0, 0, 0x00, 0);
+    fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 0, (uint32)0, 0x4a);
+    ASSERT_EQ(g_blitpass_calls, 0);
+
+    /* y above oy+max_y+1 (0x19) */
+    setup_paint_char(0, 0x12, 0x1a, 0, 0, 0, 0x00, 0);
+    fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 0, (uint32)0, 0x4a);
+    ASSERT_EQ(g_blitpass_calls, 0);
+
+    /* inclusive lower-x / upper-y edge still paints */
+    setup_paint_char(0, 0x0f, 0x19, 0, 0, 0, 0x00, 0);
+    fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 0, (uint32)0, 0x4a);
+    ASSERT_EQ(g_blitpass_calls, 1);
+}
+
+/* Palette-3 special case: when ambient_palette == 3 the portrait frame_idx
+ * uses +2 (not +3). cache_idx 1 -> frame = 1*0xC + 2 = 14. */
+static void test_spell_palette3_frame(void)
+{
+    int32 frame_idx;
+
+    reset_spell_overlay();
+    data_fd2_battle_party_member_count = 1;
+    data_fd2_graphics_chapter_ambient_palette_anim_idx = 3;
+    setup_paint_char(0, 0x05, 0x03, 1, 0, 0, 0x00, 0);
+
+    fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 0, (uint32)0, 0x4a);
+
+    ASSERT_EQ(g_blitpass_calls, 1);
+    frame_idx = 1 * 0xc + 2;
+    ASSERT_EQ(g_blitpass_src[0] - (uint32)g_paint_atlas, (uint32)frame_idx);
+}
+
+/* The target scan has no early break: a char_idx appearing multiple times in
+ * the list still resolves to a single hit (one effect blit, no portrait). */
+static void test_spell_duplicate_target_single_hit(void)
+{
+    uint8 targets[3];
+
+    reset_spell_overlay();
+    data_fd2_battle_party_member_count = 1;
+    setup_paint_char(0, 0x06, 0x04, 0, 0, 0, 0x00, 0);
+    targets[0] = 0;
+    targets[1] = 0;
+    targets[2] = 0;
+
+    fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 3,
+                                                  (uint32)targets, 0x4a);
+
+    ASSERT_EQ(g_blitdec_calls, 1);
+    ASSERT_EQ(g_blitpass_calls, 0);
+}
+
 void run_gfx_rndscene_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1010,5 +1280,13 @@ void run_gfx_rndscene_tests(void)
     RUN_TEST(test_threat_ctx1_marks_zero_team);
     RUN_TEST(test_threat_dead_skipped);
     RUN_TEST(test_threat_empty_party);
+    RUN_TEST(test_spell_tilemap_composite);
+    RUN_TEST(test_spell_miss_draws_portrait);
+    RUN_TEST(test_spell_hit_draws_effect);
+    RUN_TEST(test_spell_mixed_hit_and_miss);
+    RUN_TEST(test_spell_dead_skipped);
+    RUN_TEST(test_spell_window_cull);
+    RUN_TEST(test_spell_palette3_frame);
+    RUN_TEST(test_spell_duplicate_target_single_hit);
     printf("\n");
 }

@@ -391,23 +391,48 @@ static void test_impact_zero_frames(void)
  * fd2_animate_spell_full_screen_flash tests
  * ================================================================ */
 
-/* recording stub state for the (not-yet-emitted) spell-effect overlay
- * compositor, plus the delay-thunk and composite-frame counters (testglob.c) */
-extern int    g_spellfx_overlay_calls;
-extern uint32 g_spellfx_overlay_dst[8];
-extern uint32 g_spellfx_overlay_ntgt[8];
-extern uint32 g_spellfx_overlay_arr[8];
-extern int    g_spellfx_overlay_fx[8];
+/* fd2_composite_chars_with_spell_effect_overlay is now a real emitted function
+ * (src/gfx/rndscene.c). The full-screen-flash caller drives it twice; the two
+ * invocations are observed through (a) the fd2_composite_battle_tile_map dst log
+ * (the overlay's first action -> reveals each call's dst buffer) and (b) the
+ * fd2_blit_sprite_with_decoded_pixels log (the overlay's hit-branch blit ->
+ * reveals the resolved fx-sprite addr, hence the variant index). */
 extern int    g_delay375b2_calls;
 extern uint32 g_delay375b2_last_ticks;
 extern int    g_composite_call_count;
+extern int    g_tile_map_log_on;
+extern int    g_tile_map_log_count;
+extern uint32 g_tile_map_log_dst[16];
+extern int    g_blitdec_log_on;
+extern int    g_blitdec_log_count;
+extern uint32 g_blitdec_log_dst[16];
+extern uint32 g_blitdec_log_sprite[16];
+
+/* Effect-sprite sheet for the real overlay (data_fd2_resource_portrait_sheet_ptr):
+ * dword table at +6, identity (table[i]==i) so fx_sprite_addr == sheet+fx_idx and
+ * the recorded blit sprite reveals the variant index. */
+static uint8 g_flash_sheet[6 + 0x80 * 4];
+/* Transparent tile map so the finalizer's real shadow-overlay tile redraws read
+ * the meta + attr and return without a blit (attr 0x80 clear), keeping the
+ * closing fd2_composite_battle_frame(0) host-safe and side-effect-free. */
+#define FLASH_MAP_W 0x20
+static uint8 g_flash_tile_map[FLASH_MAP_W * FLASH_MAP_W * 4];
+static uint8 g_flash_attr_buf[64];
 
 static void setup_fullflash(void)
 {
-    g_spellfx_overlay_calls = 0;
+    int i;
+    uint32 *sheet_tbl;
+
     g_delay375b2_calls = 0;
     g_delay375b2_last_ticks = 0;
     g_composite_call_count = 0;
+    g_tile_map_log_on = 0;
+    g_tile_map_log_count = 0;
+    g_blitdec_log_on = 0;
+    g_blitdec_log_count = 0;
+    g_blitdec_calls = 0;
+    g_blitpass_calls = 0;
 
     /* the real fd2_composite_battle_frame(0) finalizer + the real
      * fd2_blit_rectangle strobe both read +0x8088 out of this buffer */
@@ -418,56 +443,104 @@ static void setup_fullflash(void)
     data_fd2_battle_view_window_origin_y = WIN_OY;
     data_fd2_battle_view_window_max_x = WIN_MX;
     data_fd2_battle_view_window_max_y = WIN_MY;
+
+    /* portrait cache (miss branch / finalizer per-char paint) */
+    setup_overlay(0);   /* installs g_portrait_cache, clears g_test_rc_array */
+
+    /* effect-sprite sheet (hit branch) */
+    sheet_tbl = (uint32 *)(g_flash_sheet + 6);
+    for (i = 0; i < 0x80; i++) {
+        sheet_tbl[i] = (uint32)i;
+    }
+    data_fd2_resource_portrait_sheet_ptr = (uint32)g_flash_sheet;
+
+    /* transparent tile map for the finalizer shadow overlay */
+    memset(g_flash_tile_map, 0, sizeof(g_flash_tile_map));
+    memset(g_flash_attr_buf, 0, sizeof(g_flash_attr_buf));   /* attr 0x80 clear */
+    data_fd2_battle_tile_map_ptr = (uint32)g_flash_tile_map;
+    data_fd2_battle_map_width_tiles = FLASH_MAP_W;
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)g_flash_attr_buf;
+    data_fd2_graphics_bg_anim_flip_flag = 0;
+
+    /* finalizer sub-stage gating: HUD off (early return), cursor phase off
+     * (default branch, no overlay blit), palette throttled to no-op */
+    data_fd2_ui_terrain_hud_user_enabled = 0;
+    data_fd2_ui_play_active_flag = 0;
+    data_fd2_battle_anim_phase = 0;
+    data_fd2_animation_palette_cycle_last_tick = (uint16)BIOS_TICK_WORD;
+}
+
+/* expected char_screen_addr for the targeted char at (px,py) into dst_buf */
+static uint32 flash_screen_rel(int32 px, int32 py)
+{
+    return 0x75d8u + (uint32)(py - (int32)WIN_OY) * 0x2ac0u +
+           (uint32)(px - (int32)WIN_OX) * 0x18u;
 }
 
 /*
  * Drives the whole flash pipeline and checks the two-composite + strobe
- * structure. The two spell-effect composites are recorded by the harness
- * stub; the strobe loop count is observed through the delay-thunk counter;
- * the closing composite_battle_frame(0) is observed through the tile-map
- * composite counter (the only stage in that finalizer still backed by a
- * recording stub). Verifies variant ordering (0x4A then 0x4B), the dst
- * buffer routing (live back-buffer then a distinct malloc'd buffer), the
- * forwarded target args, and that the loop runs exactly four iterations
- * (8 delays) — guarding the test-first counted loop against off-by-one.
+ * structure, now against the REAL spell-effect overlay. One alive, in-window,
+ * targeted char (idx 0) makes each overlay call land exactly one hit-branch
+ * effect blit, so the decoded-pixels log captures both variants in order; the
+ * tile-map dst log captures each overlay's compose target plus the finalizer's.
+ * Verifies variant ordering (0x4A then 0x4B), dst routing (live back-buffer then
+ * a distinct malloc'd buffer), that the forwarded target args reach the overlay
+ * (the char is hit, not portrait-painted), the 8-delay strobe, and the single
+ * closing composite_battle_frame(0).
  */
 static void test_fullflash_two_composites_and_strobe(void)
 {
     uint8 idx_array[3];
+    uint32 rel;
+    uint32 bufB;
 
     setup_fullflash();
 
-    idx_array[0] = 2;
+    /* one alive, in-window char at idx 0; idx 0 is in the target list */
+    data_fd2_battle_party_member_count = 1;
+    g_test_rc_array[0].pos_x = 0x15;
+    g_test_rc_array[0].pos_y = 0x24;
+    g_test_rc_array[0].sprite_state[0] = 0;
+    g_test_rc_array[0].flags = 0;        /* alive */
+    idx_array[0] = 0;
     idx_array[1] = 5;
     idx_array[2] = 1;
+
+    g_tile_map_log_on = 1;
+    g_blitdec_log_on = 1;
 
     /* param_1 and spell_id are body-unused; pass sentinels */
     fd2_animate_spell_full_screen_flash(0xDEAD, 0xBEEF, 3, (uint32)idx_array);
 
-    /* exactly two spell-effect composites: variant A then variant B */
-    ASSERT_EQ(g_spellfx_overlay_calls, 2);
-    ASSERT_EQ(g_spellfx_overlay_fx[0], 0x4a);
-    ASSERT_EQ(g_spellfx_overlay_fx[1], 0x4b);
+    /* three tile-map composites: overlay A, overlay B, then the finalizer */
+    ASSERT_EQ(g_tile_map_log_count, 3);
+    /* overlay A composes into the live back-buffer (+0x8088) */
+    ASSERT_EQ(g_tile_map_log_dst[0], (uint32)g_lgs + 0x8088u);
+    /* overlay B composes into a freshly malloc'd buffer (distinct, non-null) */
+    bufB = g_tile_map_log_dst[1] - 0x8088u;
+    ASSERT_TRUE(bufB != 0);
+    ASSERT_TRUE(bufB != (uint32)g_lgs);
+    /* the closing finalizer composes back into the live back-buffer */
+    ASSERT_EQ(g_tile_map_log_dst[2], (uint32)g_lgs + 0x8088u);
 
-    /* variant A renders into the live back-buffer */
-    ASSERT_EQ(g_spellfx_overlay_dst[0], (uint32)g_lgs);
-    /* variant B renders into a freshly malloc'd buffer (non-null, distinct) */
-    ASSERT_TRUE(g_spellfx_overlay_dst[1] != 0);
-    ASSERT_TRUE(g_spellfx_overlay_dst[1] != (uint32)g_lgs);
-
-    /* target_count and char_idx_array forwarded unchanged to both composites */
-    ASSERT_EQ(g_spellfx_overlay_ntgt[0], 3u);
-    ASSERT_EQ(g_spellfx_overlay_ntgt[1], 3u);
-    ASSERT_EQ(g_spellfx_overlay_arr[0], (uint32)idx_array);
-    ASSERT_EQ(g_spellfx_overlay_arr[1], (uint32)idx_array);
+    /* exactly two hit-branch effect blits: variant A (0x4A) then B (0x4B).
+     * identity sheet table -> sprite == sheet + fx_idx */
+    ASSERT_EQ(g_blitdec_log_count, 2);
+    ASSERT_EQ(g_blitdec_log_sprite[0], (uint32)g_flash_sheet + 0x4au);
+    ASSERT_EQ(g_blitdec_log_sprite[1], (uint32)g_flash_sheet + 0x4bu);
+    /* the forwarded targets reached the overlay: the targeted char was hit in
+     * both buffers (dst == buffer base + screen-relative offset) */
+    rel = flash_screen_rel(0x15, 0x24);
+    ASSERT_EQ(g_blitdec_log_dst[0], (uint32)g_lgs + rel);
+    ASSERT_EQ(g_blitdec_log_dst[1], bufB + rel);
 
     /* strobe = 4 iterations x 2 delays = 8 delays, each of 0x5A ticks */
     ASSERT_EQ(g_delay375b2_calls, 8);
     ASSERT_EQ(g_delay375b2_last_ticks, 0x5au);
 
-    /* closing fd2_composite_battle_frame(0) ran exactly once (its tile-map
-     * stage bumps g_composite_call_count; the overlay stubs do not) */
-    ASSERT_EQ(g_composite_call_count, 1);
+    /* the closing fd2_composite_battle_frame(0) ran exactly once: total
+     * composites = 2 overlay tile-maps + 1 finalizer tile-map = 3 */
+    ASSERT_EQ(g_composite_call_count, 3);
 }
 
 void run_anim_anicombt_tests(void)
