@@ -2229,8 +2229,9 @@
     "name": "fd2_cast_speed_boost_spell",
     "target": "spell/spelleff.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00022a85": {
     "name": "fd2_cast_spell_14_dispatch_aa8",

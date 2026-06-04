@@ -132,9 +132,9 @@ void fd2_delay_ticks(uint32 t) { }
  * real in src/spell/spelleff.c; stubs removed. */
 void fd2_cast_earthquake_spell_with_screen_shake(int a, int b, int c, uint8 *d) { }
 void fd2_dispatch_variant_b_cast(int a, int b, int c, int d) { }
-/* fd2_cast_ap_boost_spell (@0x22721) and fd2_cast_dp_boost_spell (@0x22866)
- * now emitted for real in src/spell/spelleff.c; stubs removed. */
-void fd2_cast_speed_boost_spell(uint32 a, uint32 b, uint32 c) { }
+/* fd2_cast_ap_boost_spell (@0x22721), fd2_cast_dp_boost_spell (@0x22866), and
+ * fd2_cast_speed_boost_spell (@0x22997) now emitted for real in
+ * src/spell/spelleff.c; stubs removed. */
 int g_play_sfx_with_handle_calls = 0;
 int g_dlg_blink_calls = 0;
 /* SFX-id capture log: fd2_animate_spell_impact_per_target's per-spell SFX

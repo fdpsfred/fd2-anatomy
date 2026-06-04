@@ -367,6 +367,128 @@ static void test_attack_spell_damage_zero_targets_still_composites(void)
     ASSERT_EQ(g_composite_call_count, 6);
 }
 
+/* ---- fd2_cast_speed_boost_spell @ 0x22997 ---- */
+
+/* Single target, not yet speed-buffed: the buff must land. Unlike the AP/DP
+ * variants the boost is a FLAT +15 (no FPU scaling) applied to BOTH the speed
+ * word dx_current (asm field +0x4c) and the evade word stat4_current (asm
+ * field +0x4e): dx 100 -> 115, evade 50 -> 65. The buff timer is the dx slot
+ * status_flags_block[3] (asm field +0x24, distinct from the AP slot [1] and DP
+ * slot [2]); it must be set from the RNG: seed 0 -> fd2_advance_rng_state
+ * returns 0x80A4 (32932), (int)32932 % 4 = 0, +2 -> 2. level byte
+ * status_flags_block[0] = 5 with a non-intermediate job (1) gives XP credit
+ * 5*2 = 10. The AP [1] and DP [2] timer slots must stay untouched, proving the
+ * speed variant writes [3] only. Guards the EAX-bug fix: the timer comes from
+ * the RNG return, not the old (==0) __CHK probe value. */
+static void test_speed_boost_applies_buff_and_timer(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;   /* bound impact/flicker loops */
+    g_test_rc_array[0].dx_current = 100;
+    g_test_rc_array[0].stat4_current = 50;
+    g_test_rc_array[0].job_id = 1;            /* not 9..0x18 -> no +30 */
+    g_test_rc_array[0].status_flags_block[0] = 5;   /* level */
+    g_test_rc_array[0].status_flags_block[3] = 0;   /* dx slot: not yet boosted */
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+    target_id = 0;
+    fd2_cast_speed_boost_spell(0, 1, (uint32)&target_id);
+    ASSERT_EQ(g_test_rc_array[0].dx_current, 115);            /* +15 speed */
+    ASSERT_EQ(g_test_rc_array[0].stat4_current, 65);          /* +15 evade */
+    ASSERT_EQ(g_test_rc_array[0].status_flags_block[3], 2);   /* dx slot set */
+    ASSERT_EQ(g_test_rc_array[0].status_flags_block[1], 0);   /* AP slot untouched */
+    ASSERT_EQ(g_test_rc_array[0].status_flags_block[2], 0);   /* DP slot untouched */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 10);
+}
+
+/* Already-speed-buffed target (dx timer [3] != 0): the else branch shows the
+ * miss indicator and must NOT stack the buff -- dx_current, stat4_current, the
+ * timer, and XP credit all stay put. */
+static void test_speed_boost_skips_already_boosted(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[0].dx_current = 100;
+    g_test_rc_array[0].stat4_current = 50;
+    g_test_rc_array[0].job_id = 1;
+    g_test_rc_array[0].status_flags_block[0] = 5;
+    g_test_rc_array[0].status_flags_block[3] = 3;   /* dx slot: already boosted */
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+    target_id = 0;
+    fd2_cast_speed_boost_spell(0, 1, (uint32)&target_id);
+    ASSERT_EQ(g_test_rc_array[0].dx_current, 100);            /* unchanged */
+    ASSERT_EQ(g_test_rc_array[0].stat4_current, 50);          /* unchanged */
+    ASSERT_EQ(g_test_rc_array[0].status_flags_block[3], 3);   /* unchanged */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 0);          /* no credit */
+}
+
+/* Intermediate-class job (9..0x18) adds 30 to the level_mod used for XP credit
+ * (asm 0x22a1e ADD [ESP],0x1e), and the flat +15/+15 boost still applies.
+ * job_id 9 (first intermediate value) + level 5 -> level_mod 35 -> XP 35*2 =
+ * 70. dx 80 -> 95, evade 20 -> 35. timer from seed 0 -> 2. */
+static void test_speed_boost_intermediate_class_xp_bonus(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[0].dx_current = 80;
+    g_test_rc_array[0].stat4_current = 20;
+    g_test_rc_array[0].job_id = 9;            /* intermediate class -> +30 */
+    g_test_rc_array[0].status_flags_block[0] = 5;
+    g_test_rc_array[0].status_flags_block[3] = 0;
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+    target_id = 0;
+    fd2_cast_speed_boost_spell(0, 1, (uint32)&target_id);
+    ASSERT_EQ(g_test_rc_array[0].dx_current, 95);
+    ASSERT_EQ(g_test_rc_array[0].stat4_current, 35);
+    ASSERT_EQ(g_test_rc_array[0].status_flags_block[3], 2);
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 70);
+}
+
+/* The per-target loop reads ((uint8 *)target_id_array)[iter] as a BYTE (asm
+ * 0x229f3 -> the target index comes from the array, not the loop counter), so
+ * non-adjacent indices 2 and 5 must both be boosted while a bystander at index
+ * 0 stays put. Both targets start un-boosted (dx timer 0) with dx 100/evade
+ * 40; target[2] consumes RNG call 1 (seed 0 -> 0x80A4, %4=0 -> timer 2) and
+ * target[5] consumes RNG call 2 (-> 0x85C0, %4=0 -> timer 2). Each gets a flat
+ * +15 -> dx 115, evade 55. A loop that stopped after one target, or used iter
+ * as the char id, would leave index 5 (or index 0) wrong. */
+static void test_speed_boost_visits_all_targets(void)
+{
+    uint8 target_ids[2];
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[0].dx_current = 200;      /* bystander, must NOT change */
+    g_test_rc_array[2].dx_current = 100;
+    g_test_rc_array[2].stat4_current = 40;
+    g_test_rc_array[2].job_id = 1;
+    g_test_rc_array[2].status_flags_block[3] = 0;
+    g_test_rc_array[5].dx_current = 100;
+    g_test_rc_array[5].stat4_current = 40;
+    g_test_rc_array[5].job_id = 1;
+    g_test_rc_array[5].status_flags_block[3] = 0;
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+    target_ids[0] = 2;
+    target_ids[1] = 5;
+    fd2_cast_speed_boost_spell(0, 2, (uint32)target_ids);
+    ASSERT_EQ(g_test_rc_array[0].dx_current, 200);   /* untouched */
+    ASSERT_EQ(g_test_rc_array[2].dx_current, 115);
+    ASSERT_EQ(g_test_rc_array[2].stat4_current, 55);
+    ASSERT_EQ(g_test_rc_array[5].dx_current, 115);
+    ASSERT_EQ(g_test_rc_array[5].stat4_current, 55);
+    ASSERT_EQ(g_test_rc_array[2].status_flags_block[3], 2);
+    ASSERT_EQ(g_test_rc_array[5].status_flags_block[3], 2);
+}
+
 void run_spell_spelleff1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -386,5 +508,9 @@ void run_spell_spelleff1_tests(void)
     RUN_TEST(test_use_effect_code14_no_consume);
     RUN_TEST(test_use_effect_code13_restores_movement_order);
     RUN_TEST(test_use_effect_resets_xp_credit);
+    RUN_TEST(test_speed_boost_applies_buff_and_timer);
+    RUN_TEST(test_speed_boost_skips_already_boosted);
+    RUN_TEST(test_speed_boost_intermediate_class_xp_bonus);
+    RUN_TEST(test_speed_boost_visits_all_targets);
     printf("\n");
 }
