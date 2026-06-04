@@ -399,9 +399,66 @@ int fd2_chapter_transition_menu(void) { return g_chapter_transition_return; }
  * It calls fd2_save_screen_block_to_buffer exactly once per invocation, so the
  * save-block call counter (g_saveblk_calls) is an exact proxy for the
  * alloc/blit-chunk call count in any test that drives it in isolation. */
+/* Recording spies for the three numeric/bar render primitives that
+ * fd2_render_full_char_stat_panel dispatches to. They are display no-ops
+ * (the real renderers blit glyph sprites) but the panel's risk-bearing logic
+ * is the per-field value extraction + boost-color selection it feeds them, so
+ * the panel test (tests/gfx/rndstat.c) gates g_render_log_on and asserts the
+ * captured argument streams. All other callers keep the original no-op
+ * behavior (logging is bounded and only active while the gate is on). */
+int    g_render_log_on = 0;
+int    g_render_dec_count = 0;
+uint32 g_render_dec_dst[32];
+uint32 g_render_dec_val[32];
+uint32 g_render_dec_color[32];
+uint32 g_render_dec_digits[32];
+int    g_render_bar_count = 0;
+uint32 g_render_bar_dst[8];
+uint32 g_render_bar_base[8];
+uint32 g_render_bar_cur[8];
+uint32 g_render_bar_max[8];
+int    g_render_red_count = 0;
+uint32 g_render_red_dst[8];
+uint32 g_render_red_cur[8];
+uint32 g_render_red_max[8];
+uint32 g_render_red_digits[8];
+
 void fd2_render_decimal_number_to_buffer(uint32 dst, uint32 stride,
     uint32 v, uint32 x, uint32 digits)
-{ (void)dst; (void)stride; (void)v; (void)x; (void)digits; }
+{
+    if (g_render_log_on && g_render_dec_count < 32) {
+        g_render_dec_dst[g_render_dec_count] = dst;
+        g_render_dec_val[g_render_dec_count] = v;
+        g_render_dec_color[g_render_dec_count] = x;
+        g_render_dec_digits[g_render_dec_count] = digits;
+        g_render_dec_count++;
+    }
+    (void)stride;
+}
+void fd2_render_hp_or_mp_bar_proportional(uint32 dst_off, uint32 pitch,
+    uint32 sprite_base, uint32 current, uint32 max)
+{
+    if (g_render_log_on && g_render_bar_count < 8) {
+        g_render_bar_dst[g_render_bar_count] = dst_off;
+        g_render_bar_base[g_render_bar_count] = sprite_base;
+        g_render_bar_cur[g_render_bar_count] = current;
+        g_render_bar_max[g_render_bar_count] = max;
+        g_render_bar_count++;
+    }
+    (void)pitch;
+}
+void fd2_render_number_red_when_full(uint32 dst_off, uint32 pitch,
+    uint32 current, uint32 max, uint32 digits)
+{
+    if (g_render_log_on && g_render_red_count < 8) {
+        g_render_red_dst[g_render_red_count] = dst_off;
+        g_render_red_cur[g_render_red_count] = current;
+        g_render_red_max[g_render_red_count] = max;
+        g_render_red_digits[g_render_red_count] = digits;
+        g_render_red_count++;
+    }
+    (void)pitch;
+}
 void __delay_thunk_375b2(uint32 ticks) { (void)ticks; }
 int g_ail_vol_calls = 0;
 int g_ail_last_vol = 0;
@@ -847,13 +904,12 @@ void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite, uint32 stride) {
     g_dlg_blit_last_sprite = sprite;
     g_dlg_blit_last_stride = stride;
 }
-/* fd2_render_full_char_stat_panel @ 0x17fc0: HP/MP bars + numeric stats
- * painter, not yet emitted. Stubbed so callers (e.g.
- * fd2_render_status_screen_static_layout) link; its dedicated test will
- * drive the real function once emitted. */
-void fd2_render_full_char_stat_panel(uint32 char_idx, uint32 overlay_buffer) {
-    (void)char_idx; (void)overlay_buffer;
-}
+/* fd2_render_full_char_stat_panel @ 0x17fc0: now emitted for real in
+ * src/gfx/rndstat.c and driven by tests/gfx/rndstat.c (the numeric/bar
+ * render primitives it dispatches to are the recording spies defined
+ * above; the icon/team blits reach the real fd2_blit_sheet_sprite_at_offset
+ * -> g_blitraw log; the three text-label fd2_display_dialog_scene calls run
+ * for real against a minimal immediate-END text program). */
 /* fd2_close_dialog_panels_then_slide_in_at: now emitted in
  * src/dialog/dialog.c and linked for real; its teardown + slide-out
  * interpolation is driven by the test_close_* cases in

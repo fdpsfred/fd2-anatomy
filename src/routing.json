@@ -918,8 +918,9 @@
     "name": "fd2_render_full_char_stat_panel",
     "target": "gfx/rndstat.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000182ad": {
     "name": "fd2_paint_status_panel_layer_left",

@@ -156,3 +156,146 @@ void fd2_render_status_screen_static_layout(uint32 char_idx, uint32 overlay_buff
 
     fd2_render_full_char_stat_panel(char_idx, overlay_buffer);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_full_char_stat_panel @ 0x17fc0 (1 caller)
+ *
+ * Paint the full character stat detail (HP/MP bars + numeric stats +
+ * name/archetype/job text labels + team/status icons) for
+ * runtime_char[char_idx] into overlay_buffer (a 0x140-stride surface).
+ *
+ * Layout (offsets within the 0x140-stride surface):
+ *
+ *   Bars + HP/MP numbers:
+ *     +0x2A06  HP bar (sprite base 0x17, proportional)
+ *     +0x41C6  MP bar (sprite base 0x1A)
+ *     +0x344B  HP current 3-digit (red glow if equal to HP max)
+ *     +0x3465  HP max     3-digit (always red: current==max)
+ *     +0x4ACB  MP current 3-digit (red glow if equal to MP max)
+ *     +0x4AE5  MP max     3-digit (always red)
+ *
+ *   Status / movement numbers (white 0x2A, 2-digit):
+ *     +0x29DD  status_flags_block[0]   (level)
+ *     +0x379D  movement_order          (MV)
+ *     +0x455D  combat_aux_block[0x14]  (magic resist)
+ *
+ *   Combat stat numbers (color = 0x77 red if the matching boost flag is
+ *   set, else 0x2A white; 3-digit):
+ *     +0x545D  ap           (red if status_flags_block[1])
+ *     +0x635D  dp           (red if status_flags_block[2])
+ *     +0x4535  ai_target_and_dx_block[1] as word (DX base) — always 0x2A
+ *     +0x5435  dx_current   (red if status_flags_block[3])
+ *     +0x6335  stat4_current (evade) — SAME color flag as dx_current
+ *                            (the binary reuses the dx color in ESI)
+ *
+ *   Text labels (fd2_display_dialog_scene against data_fd2_all_game_text_ptr,
+ *   render pitch 0x140, glyph_p5 0xCD, glyph_p6 0x4C, rest 0):
+ *     +0x10A3  page = char_id + 1
+ *     +0x1113  page = archetype_flag + 0x8C
+ *     +0x113B  page = job_id + 0x96
+ *
+ *   Team / status icons (sheet = data_fd2_ui_anim_sprite_sheet_ptr):
+ *     +0x25E5  team flag: sprite 0x36 when team == 0 (enemy), else 0x35
+ *     +0x55C2 + i*0x23 (i=0..2): status-icon slot — sprite 0x37+i when the
+ *              byte at struct offset 0x25+i is non-zero. Offsets 0x25/0x26/0x27
+ *              are status_flags_block[4], status_sleep_flag and
+ *              combat_aux_block[0]; the binary reads them as a flat
+ *              status_flags_block[4..6] overrun (intentional vendor layout),
+ *              so this code walks the raw bytes via a cursor to stay exact.
+ *
+ * Cdecl, 2 stack params; void return.
+ * ---------------------------------------------------------------- */
+void fd2_render_full_char_stat_panel(uint32 char_idx, uint32 overlay_buffer)
+{
+    runtime_char *rc;
+    int32         hp_cur;
+    int32         hp_max;
+    int32         mp_cur;
+    int32         mp_max;
+    uint32        color;
+    uint32        dx_color;
+    uint8        *flag_cursor;
+    int           i;
+
+    rc = &data_fd2_battle_runtime_char_array_ptr[char_idx];
+
+    hp_cur = (int32)(int16)rc->hp_current;
+    hp_max = (int32)(int16)rc->hp_max;
+    mp_cur = (int32)(int16)rc->mp_current;
+    mp_max = (int32)(int16)rc->mp_max;
+
+    /* HP / MP proportional bars */
+    fd2_render_hp_or_mp_bar_proportional(overlay_buffer + 0x2a06, 0x140, 0x17,
+                                         (uint32)hp_cur, (uint32)hp_max);
+    fd2_render_hp_or_mp_bar_proportional(overlay_buffer + 0x41c6, 0x140, 0x1a,
+                                         (uint32)mp_cur, (uint32)mp_max);
+
+    /* HP / MP current+max numbers (red glow when current == max) */
+    fd2_render_number_red_when_full(overlay_buffer + 0x344b, 0x140,
+                                    (uint32)hp_cur, (uint32)hp_max, 3);
+    fd2_render_number_red_when_full(overlay_buffer + 0x3465, 0x140,
+                                    (uint32)hp_max, (uint32)hp_max, 3);
+    fd2_render_number_red_when_full(overlay_buffer + 0x4acb, 0x140,
+                                    (uint32)mp_cur, (uint32)mp_max, 3);
+    fd2_render_number_red_when_full(overlay_buffer + 0x4ae5, 0x140,
+                                    (uint32)mp_max, (uint32)mp_max, 3);
+
+    /* level / movement / magic-resist (white, 2-digit) */
+    fd2_render_decimal_number_to_buffer(overlay_buffer + 0x29dd, 0x140,
+                                        rc->status_flags_block[0], 0x2a, 2);
+    fd2_render_decimal_number_to_buffer(overlay_buffer + 0x379d, 0x140,
+                                        rc->movement_order, 0x2a, 2);
+    fd2_render_decimal_number_to_buffer(overlay_buffer + 0x455d, 0x140,
+                                        rc->combat_aux_block[0x14], 0x2a, 2);
+
+    /* AP (red if boosted) */
+    color = (rc->status_flags_block[1] != 0) ? 0x77 : 0x2a;
+    fd2_render_decimal_number_to_buffer(overlay_buffer + 0x545d, 0x140,
+                                        (uint32)(int32)(int16)rc->ap, color, 3);
+
+    /* DP (red if boosted) */
+    color = (rc->status_flags_block[2] != 0) ? 0x77 : 0x2a;
+    fd2_render_decimal_number_to_buffer(overlay_buffer + 0x635d, 0x140,
+                                        (uint32)(int32)(int16)rc->dp, color, 3);
+
+    /* DX base (always white) — word at ai_target_and_dx_block[1] */
+    fd2_render_decimal_number_to_buffer(
+        overlay_buffer + 0x4535, 0x140,
+        (uint32)(int32)*(int16 *)(rc->ai_target_and_dx_block + 1), 0x2a, 3);
+
+    /* DX current and evade share one color flag (status_flags_block[3]) */
+    dx_color = (rc->status_flags_block[3] != 0) ? 0x77 : 0x2a;
+    fd2_render_decimal_number_to_buffer(overlay_buffer + 0x5435, 0x140,
+                                        (uint32)(int32)(int16)rc->dx_current,
+                                        dx_color, 3);
+    fd2_render_decimal_number_to_buffer(overlay_buffer + 0x6335, 0x140,
+                                        (uint32)(int32)(int16)rc->stat4_current,
+                                        dx_color, 3);
+
+    /* text labels: name / archetype / job */
+    fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
+                             (uint32)rc->char_id + 1, overlay_buffer + 0x10a3,
+                             0x140, 0xcd, 0x4c, 0, 0, 0);
+    fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
+                             (uint32)rc->archetype_flag + 0x8c,
+                             overlay_buffer + 0x1113, 0x140, 0xcd, 0x4c,
+                             0, 0, 0);
+    fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
+                             (uint32)rc->job_id + 0x96, overlay_buffer + 0x113b,
+                             0x140, 0xcd, 0x4c, 0, 0, 0);
+
+    /* team flag icon: enemy (team 0) -> 0x36, player/npc -> 0x35 */
+    fd2_blit_sheet_sprite_at_offset(overlay_buffer + 0x25e5, 0x140,
+                                    data_fd2_ui_anim_sprite_sheet_ptr,
+                                    (rc->team == 0) ? 0x36 : 0x35);
+
+    /* up to three status-effect icons; raw-byte walk from struct offset 0x25 */
+    flag_cursor = (uint8 *)rc + 0x25;
+    for (i = 0; i < 3; i++) {
+        if (flag_cursor[i] != 0) {
+            fd2_blit_sheet_sprite_at_offset(
+                overlay_buffer + 0x55c2 + i * 0x23, 0x140,
+                data_fd2_ui_anim_sprite_sheet_ptr, (uint32)(i + 0x37));
+        }
+    }
+}
