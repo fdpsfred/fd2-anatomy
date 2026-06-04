@@ -171,6 +171,13 @@ uint8 data_fd2_animation_spell_frame_count_table[33] = {
 uint8 data_fd2_animation_spell_sfx_frame_table[33] = {
     6,6,6,6,9,9,9,9,10,14,0,0,0,12,12,12,12,6,7,8,4,4,3,0,0,5,3,2,0,0,0,0,9
 };
+/* Ending cinematic scripted-frame thresholds (data segment @ 0x5204E). Real
+ * binary int values until the data segment is emitted; aniend tests assert on
+ * them and fd2_play_ending_and_record_clear copies the table to its stack. */
+int32 data_fd2_chapter_ending_music_trigger_frames[15] = {
+    0x208, 0x1AE, 0x19A, 0x154, 0x136, 0x12C, 0xF0, 0xB4,
+    0x96,  0x82,  0x6E,  0x57,  0x40,  0x16,  0x3E8
+};
 /* Resource portrait sheet base pointer (data segment @ 0x53AD1). Tests point it
  * at a zeroed scratch buffer. */
 uint32 data_fd2_resource_portrait_sheet_ptr = 0;
@@ -571,8 +578,11 @@ void fd2_play_and_free_status_effect_sfx(void) { }
  * tests/rsrc/rsrc.c assert it fires once per cinematic load. */
 int g_fade_to_black_calls = 0;
 void fd2_play_palette_fade_to_black(void) { g_fade_to_black_calls++; }
-int g_ending_menu_return = 0;
-int fd2_play_ending_and_record_clear(void) { return g_ending_menu_return; }
+/* fd2_play_ending_and_record_clear is now emitted for real in src/anim/aniend.c;
+ * its former return-value stub (g_ending_menu_return) is removed to avoid a
+ * linker redefinition. The dispatcher routing tests that relied on stubbing it
+ * are now Phase-9 integration only (the real ending driver writes VGA + blocks
+ * on INT 16h, so it cannot run headless). */
 int g_slot_selector_return = -1;
 int fd2_save_slot_selector_ui(uint32 b, uint32 m) { (void)b; (void)m; return g_slot_selector_return; }
 void fd2_close_intro_dialog_with_slide_out(void) { }
@@ -1283,4 +1293,27 @@ void fd2_grant_spell_to_char(uint32 char_idx, uint32 spell_id)
     g_grant_spell_calls++;
     g_grant_spell_last_char = char_idx;
     g_grant_spell_last_spell = spell_id;
+}
+
+/* Recording fakes for the two not-yet-emitted callees of
+ * fd2_play_ending_and_record_clear (src/anim/aniend.c):
+ *   fd2_display_cinematic_image_with_fade  -> anim/anicine.c (future)
+ *   fd2_render_chapter_status_panel_segments -> gfx/rndstat.c (future)
+ * The ending driver itself is a Phase-9 integration target (writes VGA at
+ * 0xA0000, blocks on INT 16h), so these fakes only satisfy the linker; the
+ * aniend unit tests exercise the isolable Phase-8 save decision directly. */
+int    g_display_cinematic_calls = 0;
+void fd2_display_cinematic_image_with_fade(uint32 stage1_img_idx, uint32 stage1_palette_idx,
+                                           uint32 stage2_src_x, int stage2_src_row)
+{
+    g_display_cinematic_calls++;
+    (void)stage1_img_idx; (void)stage1_palette_idx;
+    (void)stage2_src_x; (void)stage2_src_row;
+}
+int    g_render_status_panel_calls = 0;
+void fd2_render_chapter_status_panel_segments(uint32 panel_sheet, uint32 active_idx,
+                                              uint32 menu_options)
+{
+    g_render_status_panel_calls++;
+    (void)panel_sheet; (void)active_idx; (void)menu_options;
 }

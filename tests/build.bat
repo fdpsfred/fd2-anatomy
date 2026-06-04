@@ -35,6 +35,7 @@ D:\BIN\WCC386.EXE ui_menu\menucfg.c %CF% -fo=E:\out\obj\menucfg.obj >> E:\out\bu
 D:\BIN\WCC386.EXE ui_menu\menufld.c %CF% -fo=E:\out\obj\menufld.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE spell\spellsel.c %CF% -fo=E:\out\obj\spellsel.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE anim\anicombt.c %CF% -fo=E:\out\obj\anicombt.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE anim\aniend.c %CF% -fo=E:\out\obj\aniend.obj >> E:\out\build.out
 
 echo === compile tests === >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\testmain.c %CF% -fo=E:\out\obj\testmain.obj >> E:\out\build.out
@@ -43,6 +44,7 @@ D:\BIN\WCC386.EXE E:\anim\anicomb1.c %CF% -fo=E:\out\obj\tanicom1.obj >> E:\out\
 D:\BIN\WCC386.EXE E:\anim\anicomb2.c %CF% -fo=E:\out\obj\tanicom2.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\anim\anicomb3.c %CF% -fo=E:\out\obj\tanicom3.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\anim\anidec.c %CF% -fo=E:\out\obj\tanidec.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE E:\anim\aniend.c %CF% -fo=E:\out\obj\taniend.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\anim\anisumm1.c %CF% -fo=E:\out\obj\tanisum1.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\anim\anisumm2.c %CF% -fo=E:\out\obj\tanisum2.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\anim\aniui.c %CF% -fo=E:\out\obj\taniui.obj >> E:\out\build.out

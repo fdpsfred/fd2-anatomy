@@ -21,6 +21,9 @@ extern uint32 data_fd2_chapter_current_chapter_id;                      /* 0x53C
 extern uint32 data_fd2_chapter_event_or_battle_end_code;                /* 0x53ECC */
 extern uint32 data_fd2_chapter_cutscene_event_state;                    /* 0x53AFB */
 
+/* ---- ending cinematic scripted-frame table (.object2 const) ---- */
+extern int32  data_fd2_chapter_ending_music_trigger_frames[15];         /* 0x5204E  scroll-row thresholds for SFX/palette swaps */
+
 /* ---- battle state ---- */
 extern uint32 data_fd2_battle_anim_phase;                               /* 0x51A83 */
 extern uint32 data_fd2_battle_ai_post_action_consequence_idx;           /* 0x51A8F */

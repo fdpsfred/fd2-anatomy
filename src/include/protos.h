@@ -321,6 +321,10 @@ void fd2_play_ani_file_animation_sequence(uint32 anim_idx, uint32 per_frame_dela
                                           uint32 skip_on_key_flag);
 void fd2_load_and_fade_in_cinematic_image(uint32 anim_idx, uint32 per_frame_delay,
                                           uint32 palette_idx);
+void fd2_display_cinematic_image_with_fade(uint32 stage1_img_idx, uint32 stage1_palette_idx,
+                                           uint32 stage2_src_x, int stage2_src_row);
+void fd2_render_chapter_status_panel_segments(uint32 panel_sheet, uint32 active_idx,
+                                              uint32 menu_options);
 void fd2_init_battle_state_for_chapter(void);
 void fd2_save_runtime_char_to_template(void);
 
