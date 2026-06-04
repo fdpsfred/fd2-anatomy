@@ -358,3 +358,211 @@ int fd2_collect_pending_death_drops(uint32 out_buffer)
     }
     return drop_count;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_run_full_turn_cycle @ 0x1A30B (2 callers)
+ *
+ * END-OF-PLAYER-TURN -> NPC turn -> ENEMY turn -> NEW-PLAYER-TURN full
+ * cycle. Triggered by fd2_check_all_player_acted_or_asleep and
+ * fd2_field_command_menu_loop.
+ *
+ *   Phase A  party auto-heal (player team only): mark pass paints a
+ *            heal indicator (mode 2, color 0xFD) for every qualifying
+ *            char, plays a heal chime if any; the apply pass raises
+ *            hp_current by hp_max/5 (clamped to hp_max) and marks each
+ *            healed char acted.
+ *   Phase B  fire_chapter_turn_events_for_phase(1) + status tick(1).
+ *   Phase C  NPC turn (gate: game_event_flag == 0).
+ *   Phase D  ENEMY intro banner (gate).
+ *   Phase E  ENEMY turn (gate).
+ *   Phase F  NEW PLAYER TURN: bump turn counter, banner, 9-step + 4-step
+ *            "TURN N" reveal, fire phase-2 events, re-arm cursor (gate).
+ *
+ * Any inter-phase gate failing (game_event_flag != 0) tail-jumps to the
+ * shared epilogue 0x10B46 (== plain return here).
+ *
+ * Heal qualifier (both passes): team==2, (flags & 0x81)==0,
+ * status_flags_block[4]==0, status_sleep_flag==0, hp_current != hp_max.
+ *
+ * NOTE (Ghidra EAX-tracking bug): in both reveal loops the decompiler
+ * rendered fd2_cleanup_dialog_sprite_buffer's first arg as the sprite
+ * index / destination buffer. The assembly (MOV EBX,EAX after each
+ * fd2_alloc_and_blit_indexed_sprite_chunk, then PUSH EBX into the
+ * cleanup call) shows the real first arg is the malloc'd save buffer
+ * returned by fd2_alloc_and_blit_indexed_sprite_chunk. Encoded as such.
+ * ---------------------------------------------------------------- */
+void fd2_run_full_turn_cycle(void)
+{
+    int i;
+    runtime_char *pc;
+    uint32 hp_max;
+    uint32 hp_after;
+    int any_to_heal;
+    int step;
+    uint32 sprite_idx;
+    uint32 save_buf;
+    uint32 reveal_buf;
+
+    any_to_heal = 0;
+    fd2_wait_n_bios_ticks(1);
+
+    /* Phase A pass 1: paint heal indicator for qualifying chars. */
+    for (i = 0; i < (int)data_fd2_battle_party_member_count; i++) {
+        pc = &data_fd2_battle_runtime_char_array_ptr[i];
+        hp_max = (uint32)pc->hp_max;
+        if (pc->team == 2 &&
+            (pc->flags & 0x81) == 0 &&
+            pc->status_flags_block[4] == 0 &&
+            pc->status_sleep_flag == 0 &&
+            (uint32)pc->hp_current != hp_max) {
+            fd2_paint_char_sprite_at_world_with_mode(
+                data_fd2_large_game_state_buffer_ptr + 0x8088,
+                0x1C8, (uint32)i, 2, 0xFD);
+            any_to_heal = 1;
+        }
+    }
+    fd2_blit_rectangle(0xA0504, 0x140,
+                       data_fd2_large_game_state_buffer_ptr + 0x8088,
+                       0x1C8, 0x138, 0xC0);
+    if (any_to_heal) {
+        fd2_play_sfx_with_handle(
+            data_fd2_audio_fdother_sfx_bank_buf_ptr, 4, 1);
+    }
+    fd2_wait_n_bios_ticks(0);
+
+    /* Phase A pass 2: apply hp_max/5 heal (clamped), mark acted. */
+    for (i = 0; i < (int)data_fd2_battle_party_member_count; i++) {
+        pc = &data_fd2_battle_runtime_char_array_ptr[i];
+        hp_max = (uint32)pc->hp_max;
+        if (pc->team == 2 &&
+            (pc->flags & 0x81) == 0 &&
+            pc->status_flags_block[4] == 0 &&
+            pc->status_sleep_flag == 0 &&
+            (uint32)pc->hp_current != hp_max) {
+            hp_after = (uint32)pc->hp_current + hp_max / 5;
+            if (hp_max < hp_after) {
+                hp_after = hp_max;
+            }
+            pc->hp_current = (uint16)hp_after;
+            fd2_paint_char_sprite_at_world_with_mode(
+                data_fd2_large_game_state_buffer_ptr + 0x8088,
+                0x1C8, (uint32)i, 0, 0);
+            fd2_mark_char_acted_this_turn((uint32)i);
+        }
+    }
+    fd2_blit_rectangle(0xA0504, 0x140,
+                       data_fd2_large_game_state_buffer_ptr + 0x8088,
+                       0x1C8, 0x138, 0xC0);
+    fd2_wait_n_bios_ticks(0);
+    fd2_composite_battle_frame(0);
+
+    /* Phase B: end-of-player-turn chapter events + status tick. */
+    fd2_fire_chapter_turn_events_for_phase(1);
+    fd2_tick_status_effects_and_show_messages(1);
+    if (data_fd2_chapter_event_or_battle_end_code != 0) {
+        return;
+    }
+
+    /* Phase C: NPC (team 1) turn. */
+    fd2_maybe_load_speed_mode_overlay();
+    fd2_npc_turn_phase_team1();
+    fd2_maybe_free_speed_mode_overlay();
+    if (data_fd2_chapter_event_or_battle_end_code != 0) {
+        return;
+    }
+
+    /* Phase D: ENEMY intro banner. */
+    if (data_fd2_audio_per_chapter_player_turn_bgm_track
+            [data_fd2_chapter_current_chapter_id] !=
+        data_fd2_audio_per_chapter_enemy_turn_bgm_track
+            [data_fd2_chapter_current_chapter_id]) {
+        fd2_set_bgm_track_with_fade(0xFFFFFFFF, 0);
+    }
+    fd2_animate_phase_banner_slide_in(0x52);
+    __delay_thunk_375b2(0x14);
+    fd2_animate_phase_banner_slide_out(0x52);
+    fd2_clear_all_chars_acted_flag();
+    fd2_composite_battle_frame(0);
+    fd2_fire_chapter_turn_events_for_phase(0);
+    fd2_tick_status_effects_and_show_messages(0);
+    if (data_fd2_chapter_event_or_battle_end_code != 0) {
+        return;
+    }
+
+    /* Phase E: ENEMY (team 0) turn. */
+    fd2_set_bgm_track_with_fade(
+        (uint32)data_fd2_audio_per_chapter_enemy_turn_bgm_track
+            [data_fd2_chapter_current_chapter_id], 0);
+    fd2_maybe_load_speed_mode_overlay();
+    fd2_enemy_turn_phase_team0();
+    fd2_maybe_free_speed_mode_overlay();
+    if (data_fd2_chapter_event_or_battle_end_code != 0) {
+        return;
+    }
+
+    /* Phase F: NEW PLAYER TURN. */
+    data_fd2_battle_turn_counter = data_fd2_battle_turn_counter + 1;
+    if (data_fd2_audio_per_chapter_player_turn_bgm_track
+            [data_fd2_chapter_current_chapter_id] !=
+        data_fd2_audio_per_chapter_enemy_turn_bgm_track
+            [data_fd2_chapter_current_chapter_id]) {
+        fd2_set_bgm_track_with_fade(0xFFFFFFFF, 0);
+    }
+    fd2_animate_phase_banner_slide_in(0x50);
+    __delay_thunk_375b2(0x96);
+    fd2_animate_phase_banner_slide_out(0x50);
+    data_fd2_battle_anim_phase = 0;
+    fd2_clear_all_chars_acted_flag();
+    fd2_composite_battle_frame(0);
+    fd2_set_bgm_track_with_fade(
+        (uint32)data_fd2_audio_per_chapter_player_turn_bgm_track
+            [data_fd2_chapter_current_chapter_id], 0);
+
+    /* 9-step "TURN N" reveal into the 0xA0000 VGA aperture. The
+     * cleanup at the head of each iteration releases the save buffer
+     * allocated in the same pass (held in save_buf across the body). */
+    for (step = 0; step < 9; step++) {
+        sprite_idx = (uint32)(step + 0x53);
+        save_buf = fd2_alloc_and_blit_indexed_sprite_chunk(
+            data_fd2_ui_anim_sprite_sheet_ptr, 0xA0000, 0x140,
+            0x78, 0x54, sprite_idx);
+        if (step > 6) {
+            fd2_render_decimal_number_to_buffer(
+                0xA726B, 0x140, data_fd2_battle_turn_counter, 0x2A, 3);
+        }
+        __delay_thunk_375b2(0x46);
+        if (step == 8) {
+            __delay_thunk_375b2(500);
+        }
+        fd2_cleanup_dialog_sprite_buffer(save_buf, 0xA0000, 0x140);
+    }
+
+    /* 4-step zoom reveal (step = 2,3,4 then jumps to 9) into the
+     * large_game_state_buffer + 0x8088 surface (stride 0x1C8). */
+    for (step = 2; step < 6; step++) {
+        if (step == 5) {
+            step = 9;
+        }
+        reveal_buf = data_fd2_large_game_state_buffer_ptr + 0x8088;
+        save_buf = fd2_alloc_and_blit_indexed_sprite_chunk(
+            data_fd2_ui_anim_sprite_sheet_ptr, reveal_buf, 0x1C8,
+            0x74, (uint32)(step * step + 0x54), 0x5B);
+        fd2_render_decimal_number_to_buffer(
+            data_fd2_large_game_state_buffer_ptr + 0x812F +
+                (uint32)(step * step + 0x5A) * 0x1C8,
+            0x1C8, data_fd2_battle_turn_counter, 0x2A, 3);
+        fd2_blit_rectangle(0xA0504, 0x140, reveal_buf,
+                           0x1C8, 0x138, 0xC0);
+        fd2_wait_n_bios_ticks(1);
+        fd2_cleanup_dialog_sprite_buffer(save_buf, reveal_buf, 0x1C8);
+    }
+
+    fd2_composite_battle_frame(0);
+    __delay_thunk_375b2(200);
+    data_fd2_battle_current_active_char_idx = 0;
+    fd2_fire_chapter_turn_events_for_phase(2);
+    fd2_tick_status_effects_and_show_messages(2);
+    data_fd2_battle_anim_phase = 1;
+    fd2_pan_cursor_to_char(0);
+    fd2_clear_keyboard_buffer();
+}

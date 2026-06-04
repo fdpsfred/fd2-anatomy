@@ -1078,8 +1078,9 @@
     "name": "fd2_run_full_turn_cycle",
     "target": "battle/btl_turn.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001a7bd": {
     "name": "fd2_maybe_load_speed_mode_overlay",

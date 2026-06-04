@@ -253,6 +253,11 @@ int fd2_compute_aoe_targets(uint32 cx, uint32 cy, uint32 buf,
 
 /* ---- battle turn / status ---- */
 void fd2_tick_status_effects_and_show_messages(uint32 team);
+void fd2_fire_chapter_turn_events_for_phase(uint32 phase);
+void fd2_maybe_load_speed_mode_overlay(void);
+void fd2_maybe_free_speed_mode_overlay(void);
+void fd2_animate_phase_banner_slide_in(uint32 banner_sprite_id);
+void fd2_animate_phase_banner_slide_out(uint32 banner_sprite_id);
 
 /* ---- summon spell animation ---- */
 int fd2_tick_summon_spell_minor_animation_state(uint32 sh, uint32 sa, uint32 oy, uint32 rs, uint32 sc);

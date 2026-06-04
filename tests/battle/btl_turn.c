@@ -633,6 +633,186 @@ static void test_mark_char_acted(void)
 }
 
 
+/* ---- fd2_run_full_turn_cycle ---- */
+
+extern int g_fire_chapter_turn_events_calls;
+extern uint32 g_fire_chapter_turn_events_last_phase;
+extern int g_phase_banner_slide_in_calls;
+extern int g_phase_banner_slide_out_calls;
+extern int g_restore_block_calls;
+extern uint8 data_fd2_audio_bgm_driver_available_flag;
+
+/* large_game_state_buffer surface read by the real fd2_blit_rectangle
+ * (src = base + 0x8088, 0xC0 rows of 0x138 bytes at stride 0x1C8). Sized
+ * to cover the highest read offset (0x8088 + 0xBF*0x1C8 + 0x138). */
+static uint8 t_state_buf[0x20000];
+
+/* Synthetic sprite atlas for the Phase-F reveal loops. The real
+ * fd2_alloc_and_blit_indexed_sprite_chunk and fd2_render_decimal_number
+ * resolve sprite_addr = sheet + *(int32 *)(sheet + 6 + idx*4); every
+ * offset-table entry points at a {int16 0, int16 0} header so width and
+ * height are 0 (malloc(8), zero-size blits via the faked leaf blitters).
+ * Covers every index the reveal loops touch (0x2A..0x5D). */
+#define T_SHEET_HDR_OFF 0x400
+static uint8 t_sprite_sheet[0x600];
+
+static void t_install_sprite_sheet(void)
+{
+    int idx;
+
+    memset(t_sprite_sheet, 0, sizeof(t_sprite_sheet));
+    /* offset table at +6, 4 bytes per entry; all -> the zero header. */
+    for (idx = 0; idx < 0x60; idx++) {
+        *(int32 *)(t_sprite_sheet + 6 + idx * 4) =
+            (int32)T_SHEET_HDR_OFF;
+    }
+    /* header at +0x400 is already {0,0} from the memset. */
+    data_fd2_ui_anim_sprite_sheet_ptr = (uint32)t_sprite_sheet;
+}
+
+
+/* Phase A heal arithmetic + early-exit. game_event_flag is pre-set
+ * nonzero so the cycle runs Phase A (heal) + Phase B (status tick),
+ * then the first inter-phase gate returns before any NPC/enemy/new-turn
+ * display. Pins the hp_max/5 heal, the clamp, the 5-condition qualifier,
+ * the acted-flag mark, and the Phase-B-then-gate ordering. */
+static void test_run_turn_cycle_phase_a_heal(void)
+{
+    uint32 save_lgs;
+
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    t_install_dialog_text();
+    save_lgs = data_fd2_large_game_state_buffer_ptr;
+    data_fd2_large_game_state_buffer_ptr = (uint32)t_state_buf;
+
+    /* [0] normal heal: 100/200 -> +40 = 140. */
+    g_test_rc_array[0].team = 2;
+    g_test_rc_array[0].hp_current = 100;
+    g_test_rc_array[0].hp_max = 200;
+    /* [1] clamp: 199/200 -> +40 = 239 -> clamped to 200. */
+    g_test_rc_array[1].team = 2;
+    g_test_rc_array[1].hp_current = 199;
+    g_test_rc_array[1].hp_max = 200;
+    /* [2] full HP (hp_current == hp_max) -> skipped. */
+    g_test_rc_array[2].team = 2;
+    g_test_rc_array[2].hp_current = 50;
+    g_test_rc_array[2].hp_max = 50;
+    /* [3] non-player team -> skipped. */
+    g_test_rc_array[3].team = 0;
+    g_test_rc_array[3].hp_current = 10;
+    g_test_rc_array[3].hp_max = 100;
+    /* [4] sleeping (status_sleep_flag) -> skipped. */
+    g_test_rc_array[4].team = 2;
+    g_test_rc_array[4].hp_current = 10;
+    g_test_rc_array[4].hp_max = 100;
+    g_test_rc_array[4].status_sleep_flag = 1;
+    /* [5] poisoned (status_flags_block[4]) -> skipped. */
+    g_test_rc_array[5].team = 2;
+    g_test_rc_array[5].hp_current = 10;
+    g_test_rc_array[5].hp_max = 100;
+    g_test_rc_array[5].status_flags_block[4] = 1;
+    /* [6] dead/acted (flags & 0x81) -> skipped. */
+    g_test_rc_array[6].team = 2;
+    g_test_rc_array[6].hp_current = 10;
+    g_test_rc_array[6].hp_max = 100;
+    g_test_rc_array[6].flags = 0x80;
+    data_fd2_battle_party_member_count = 7;
+
+    data_fd2_chapter_event_or_battle_end_code = 9;  /* gate -> early exit */
+    g_fire_chapter_turn_events_calls = 0;
+    g_fire_chapter_turn_events_last_phase = 0xFFFFFFFF;
+    g_phase_banner_slide_in_calls = 0;
+
+    fd2_run_full_turn_cycle();
+
+    /* heal arithmetic */
+    ASSERT_EQ((long)g_test_rc_array[0].hp_current, 140);
+    ASSERT_EQ((long)g_test_rc_array[1].hp_current, 200);   /* clamped */
+    ASSERT_EQ((long)g_test_rc_array[2].hp_current, 50);    /* skipped */
+    ASSERT_EQ((long)g_test_rc_array[3].hp_current, 10);    /* skipped */
+    ASSERT_EQ((long)g_test_rc_array[4].hp_current, 10);    /* skipped */
+    ASSERT_EQ((long)g_test_rc_array[5].hp_current, 10);    /* skipped */
+    ASSERT_EQ((long)g_test_rc_array[6].hp_current, 10);    /* skipped */
+    /* healed chars get the acted flag (0x80); skipped chars do not. */
+    ASSERT_EQ(g_test_rc_array[0].flags, 0x80);
+    ASSERT_EQ(g_test_rc_array[1].flags, 0x80);
+    ASSERT_EQ(g_test_rc_array[2].flags, 0x00);
+    /* Phase B fired with phase 1, then the gate returned (Phase D banner
+     * never reached). */
+    ASSERT_EQ((long)g_fire_chapter_turn_events_last_phase, 1);
+    ASSERT_EQ(g_phase_banner_slide_in_calls, 0);
+
+    data_fd2_large_game_state_buffer_ptr = save_lgs;
+    data_fd2_battle_party_member_count = 4;
+}
+
+
+/* Full cycle (game_event_flag stays 0): exercises Phases B-F including
+ * both Phase-F reveal loops. Drives the REAL malloc/free pairing of
+ * fd2_alloc_and_blit_indexed_sprite_chunk -> fd2_cleanup_dialog_sprite_buffer
+ * (a wrong cleanup arg would free a non-heap pointer and crash), and the
+ * 4-step loop's step=2,3,4,then-9 control flow. Confirms the turn counter
+ * bumps once, both banners animate (in/out x2), and phase-0/2 events fire. */
+static void test_run_turn_cycle_full_reveal(void)
+{
+    uint32 save_lgs;
+
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    t_install_dialog_text();
+    t_install_sprite_sheet();
+    save_lgs = data_fd2_large_game_state_buffer_ptr;
+    data_fd2_large_game_state_buffer_ptr = (uint32)t_state_buf;
+
+    /* one alive player char, already at full HP so Phase A heals nobody
+     * (keeps the focus on Phases B-F). */
+    g_test_rc_array[0].team = 2;
+    g_test_rc_array[0].hp_current = 50;
+    g_test_rc_array[0].hp_max = 50;
+    data_fd2_battle_party_member_count = 1;
+
+    /* Both per-chapter BGM tables are 0 at chapter 1 (default), so the
+     * player!=enemy fade-out branches are skipped. Pre-set the real
+     * fd2_set_bgm_track_with_fade's "last track" cache to 0 so its Phase
+     * E / F calls with track_id=0 early-return (0==0) instead of loading
+     * the real FDMUS.DAT. This keeps the cycle deterministic without
+     * faking the real BGM setter. */
+    data_fd2_audio_per_chapter_player_turn_bgm_track[1] = 0;
+    data_fd2_audio_per_chapter_enemy_turn_bgm_track[1] = 0;
+    data_fd2_audio_bgm_last_set_track_id = 0;
+    data_fd2_chapter_current_chapter_id = 1;
+    data_fd2_chapter_event_or_battle_end_code = 0;   /* no early exit */
+    data_fd2_battle_turn_counter = 7;
+    data_fd2_battle_current_active_char_idx = 99;
+    data_fd2_battle_anim_phase = 5;
+    g_phase_banner_slide_in_calls = 0;
+    g_phase_banner_slide_out_calls = 0;
+    g_fire_chapter_turn_events_calls = 0;
+    g_restore_block_calls = 0;
+
+    fd2_run_full_turn_cycle();
+
+    /* turn counter bumped exactly once (Phase F). */
+    ASSERT_EQ((long)data_fd2_battle_turn_counter, 8);
+    /* Phase D banner (0x52) + Phase F banner (0x50): 2 in, 2 out. */
+    ASSERT_EQ(g_phase_banner_slide_in_calls, 2);
+    ASSERT_EQ(g_phase_banner_slide_out_calls, 2);
+    /* fire_chapter fired for phase 1 (B), 0 (D), 2 (F). */
+    ASSERT_EQ(g_fire_chapter_turn_events_calls, 3);
+    ASSERT_EQ((long)g_fire_chapter_turn_events_last_phase, 2);
+    /* Phase F tail re-arms the active-char index and anim phase. */
+    ASSERT_EQ((long)data_fd2_battle_current_active_char_idx, 0);
+    ASSERT_EQ((long)data_fd2_battle_anim_phase, 1);
+    /* reveal loops freed every save buffer they allocated: the real
+     * cleanup forwarded to the restore stub 9 (loop1) + 4 (loop2) times.
+     * (If the EAX-fix were wrong, free() of a bad pointer would crash
+     * before we get here.) */
+    ASSERT_EQ(g_restore_block_calls, 13);
+
+    data_fd2_large_game_state_buffer_ptr = save_lgs;
+    data_fd2_battle_party_member_count = 4;
+}
+
+
 void run_battle_btl_turn_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -660,5 +840,7 @@ void run_battle_btl_turn_tests(void)
     RUN_TEST(test_check_battle_end_gameover_overrides_continue);
     RUN_TEST(test_collect_dead_char_drops);
     RUN_TEST(test_collect_pending_drops);
+    RUN_TEST(test_run_turn_cycle_phase_a_heal);
+    RUN_TEST(test_run_turn_cycle_full_reveal);
     printf("\n");
 }

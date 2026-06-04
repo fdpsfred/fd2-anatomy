@@ -497,6 +497,32 @@ void fd2_scroll_text_screen_up_by_lines(uint32 lines) {
 }
 void fd2_play_palette_fade_in(void) { }
 void fd2_play_death_animation_and_mark_dead(void) { }
+
+/* Turn-cycle display/dispatch callees not yet emitted (driven by
+ * fd2_run_full_turn_cycle). Noop fakes with call counters so the turn
+ * cycle can be exercised without their real bodies. Remove each fake
+ * when the corresponding function is emitted:
+ *   fd2_fire_chapter_turn_events_for_phase -> src/battle/btl_turn.c
+ *   fd2_maybe_load/free_speed_mode_overlay -> src/ui_menu/menucfg.c
+ *   fd2_animate_phase_banner_slide_in/out  -> src/anim/anicombt.c     */
+int g_fire_chapter_turn_events_calls = 0;
+uint32 g_fire_chapter_turn_events_last_phase = 0xFFFFFFFF;
+void fd2_fire_chapter_turn_events_for_phase(uint32 phase) {
+    g_fire_chapter_turn_events_calls++;
+    g_fire_chapter_turn_events_last_phase = phase;
+}
+void fd2_maybe_load_speed_mode_overlay(void) { }
+void fd2_maybe_free_speed_mode_overlay(void) { }
+int g_phase_banner_slide_in_calls = 0;
+int g_phase_banner_slide_out_calls = 0;
+void fd2_animate_phase_banner_slide_in(uint32 banner_sprite_id) {
+    g_phase_banner_slide_in_calls++;
+    (void)banner_sprite_id;
+}
+void fd2_animate_phase_banner_slide_out(uint32 banner_sprite_id) {
+    g_phase_banner_slide_out_calls++;
+    (void)banner_sprite_id;
+}
 void fd2_process_battle_drop_entries(uint32 a, uint32 b, uint32 c) { }
 void fd2_cast_group_hp_heal_spell(uint32 a, uint32 b, uint32 c, uint32 d) { }
 int g_cast_status_cure_calls = 0;
@@ -550,7 +576,7 @@ int32  data_fd2_animation_summon_variant_d_3slot_color_row_offsets[10] = {0};
 uint8  data_fd2_animation_summon_variant_e_16slot_sprite_base_table[16] = {0};
 int32  data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[16] = {0};
 /* fd2_tick_tutorial_progress_with_sfx: now in anim.c */
-void fd2_run_full_turn_cycle(void) { }
+/* fd2_run_full_turn_cycle: now emitted in src/battle/btl_turn.c */
 /* fd2_enemy_turn_action_dispatcher: now in btl_ai.c */
 /* fd2_ai_score_offensive_spell: now in btl_ai.c */
 int g_build_spell_list_return = 0;
