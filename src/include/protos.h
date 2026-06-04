@@ -148,6 +148,9 @@ void fd2_cast_status_inflict_spell(uint32, uint32, uint32, uint32, uint32);
 void fd2_play_sfx_with_handle(uint32, int, int);
 void fd2_play_rising_pre_cast_effect(int, int, int);
 void fd2_play_variant_b_slide_pre_effect(int, int);
+void fd2_execute_aoe_spell_with_caster_portrait_radial_scatter(int, int, int, int, int, int, uint32 *);
+void fd2_scatter_sprite_around_origin_with_random_offset(int scatter_range_max, int sprite_array_index, uint32 sprite_x_array_addr, uint32 sprite_y_array_addr, uint32 sprite_type_array_addr, int origin_x, int origin_y);
+void fd2_blit_palette_remap_with_sprite_mask(uint8 *dst, uint16 *sprite_mask, uint32 stride, uint32 remap_table);
 void fd2_animate_warp_teleport_char(uint32, uint32, uint32, uint32, uint32);
 
 /* ---- cursor + pan ---- */

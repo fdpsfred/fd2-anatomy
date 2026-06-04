@@ -43,6 +43,23 @@
  * hosted TEST.EXE without writing to real VRAM. Behavioral verification of the
  * heal loop (and the return-value forwarding from apply_heal to
  * show_damage_number) is therefore deferred to Phase 9 integration.
+ *
+ * fd2_execute_aoe_spell_with_caster_portrait_radial_scatter @ 0x21bd0 is an
+ * ORPHAN / UNREACHABLE AoE radial-scatter cinematic: it has no caller, is not
+ * in the spell dispatch table, and its address never appears as a function
+ * pointer. It is emitted verbatim for completeness but is unreachable from any
+ * live code path, so there is no in-game entry to drive. Its per-frame work is
+ * also pure VGA/VRAM cinematic: the sprite scatter geometry lives entirely in
+ * fd2_scatter_sprite_around_origin_with_random_offset (FPU cos/sin, not yet
+ * emitted), every frame memmove()s the backdrop into the large game-state
+ * buffer and unconditionally blits the composed buffer to the hardcoded mode-13h
+ * framebuffer literal 0xA0504 (not redirectable via globals), and the in-bounds
+ * sprite blit goes through fd2_blit_palette_remap_with_sprite_mask (also not yet
+ * emitted). The only branch-free arithmetic (the per-sprite y -= shrink_rate
+ * rise + off-screen re-scatter test) operates on arrays populated by the FPU
+ * scatter callee and is gated behind the unconditional VRAM blit. Its
+ * verification is therefore deferred to Phase 9 integration along with the rest
+ * of this file's cinematic workers.
  */
 
 #include "testharn.h"

@@ -567,6 +567,28 @@ int    g_delay375b2_calls = 0;
 uint32 g_delay375b2_last_ticks = 0;
 void __delay_thunk_375b2(uint32 ticks) { g_delay375b2_calls++; g_delay375b2_last_ticks = ticks; }
 
+/* Link-time stubs for the two not-yet-emitted callees of the orphan/unreachable
+ * fd2_execute_aoe_spell_with_caster_portrait_radial_scatter (src/spell/spellcin.c).
+ * That AoE cinematic has no caller and no test drives it (its per-frame work is
+ * pure FPU scatter geometry + unconditional VRAM blits to the hardcoded mode-13h
+ * literal 0xA0504, deferred to Phase 9 like the rest of spellcin.c). These stubs
+ * only need to resolve the symbols; their real bodies are owned by their own
+ * routing targets (fd2_scatter_sprite_around_origin_with_random_offset ->
+ * spell/spellcin.c, fd2_blit_palette_remap_with_sprite_mask -> gfx/blitspr.c)
+ * and will replace these when emitted. */
+void fd2_scatter_sprite_around_origin_with_random_offset(
+    int scatter_range_max, int sprite_array_index, uint32 sprite_x_array_addr,
+    uint32 sprite_y_array_addr, uint32 sprite_type_array_addr,
+    int origin_x, int origin_y) {
+    (void)scatter_range_max; (void)sprite_array_index;
+    (void)sprite_x_array_addr; (void)sprite_y_array_addr;
+    (void)sprite_type_array_addr; (void)origin_x; (void)origin_y;
+}
+void fd2_blit_palette_remap_with_sprite_mask(
+    uint8 *dst, uint16 *sprite_mask, uint32 stride, uint32 remap_table) {
+    (void)dst; (void)sprite_mask; (void)stride; (void)remap_table;
+}
+
 /* fd2_composite_chars_with_spell_effect_overlay is now a real emitted function
  * (src/gfx/rndscene.c); its former recording stub here was removed. The real
  * overlay first composites a tile map (observable via the

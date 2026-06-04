@@ -2089,8 +2089,9 @@
     "name": "fd2_execute_aoe_spell_with_caster_portrait_radial_scatter",
     "target": "spell/spellcin.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00021db2": {
     "name": "fd2_scatter_sprite_around_origin_with_random_offset",

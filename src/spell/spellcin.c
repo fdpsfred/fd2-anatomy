@@ -5,6 +5,7 @@
  *   fd2_cast_earthquake_spell_with_screen_shake @ 0x21548 (1 caller)
  *   fd2_play_rising_pre_cast_effect @ 0x2189a (6 callers)
  *   fd2_dispatch_variant_b_cast @ 0x21b18 (1 caller)
+ *   fd2_execute_aoe_spell_with_caster_portrait_radial_scatter @ 0x21bd0 (0 callers)
  */
 
 #include "types.h"
@@ -265,5 +266,127 @@ void fd2_dispatch_variant_b_cast(int caster, int spell_id, int n_targets,
     }
 
     fd2_composite_then_animate_projectiles();
+    return;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_execute_aoe_spell_with_caster_portrait_radial_scatter @ 0x21bd0
+ *   (0 callers — ORPHAN / UNREACHABLE)
+ *
+ * AoE radial sprite-scatter cinematic with a caster portrait. Implemented in
+ * the binary but never invoked by any caller, not present in the spell dispatch
+ * table @ 0x51D01, and its address bytes never appear as a function pointer.
+ * Emitted verbatim for completeness; it is a vestige of a cut/planned spell.
+ *
+ * The body shares its frame-cleanup epilogue (0x21DAD: ADD ESP,0x10C + POP
+ * regs + RET) with fd2_render_filled_circle_band_anim @ 0x22046, which has a
+ * conditional JMP at 0x220FF into 0x21DAD (Watcom shared-epilogue between two
+ * adjacent functions of identical frame shape). That is a binary layout detail;
+ * each function is emitted as its own self-contained C routine.
+ *
+ * Params (cdecl, 7 stack args):
+ *   origin_x, origin_y       — AoE center pixel coordinates
+ *   portrait_idx             — caster portrait_sheet entry index
+ *   scatter_range_max        — sprite radial scatter max radius
+ *   animation_frame_count    — total animation frames
+ *   max_active_sprites       — simultaneous active-sprite cap (<= 50)
+ *   ptr_game_state_snapshot  — backdrop source, memmove'd in each frame
+ *
+ * sprite_mask is the caster portrait's pixel data, located via the portrait
+ * sheet's self-relative offset table: *(int*)(sheet + 6 + portrait_idx*4) is
+ * a sheet-relative offset, added back to the sheet base.
+ *
+ * Per animation frame:
+ *   - if active_sprite_count < max_active_sprites: scatter one new sprite
+ *     around the origin (random polar offset) and bump the count.
+ *   - restore the backdrop into the large game-state buffer (memmove 0x25680).
+ *   - draw every active sprite that lands inside [1,0x135]x[1,0xbd] into the
+ *     buffer at +0x8088 via the palette-remap sprite blitter (remap table from
+ *     the tile-anim table base + *(base+0x12)).
+ *   - blit the composed buffer (+0x8088) to the mode-13h framebuffer 0xA0504.
+ *   - move every sprite up by its per-sprite shrink rate (sprite_type); any
+ *     sprite that rises past y < -10 is re-scattered.
+ *   - delay 10 ticks.
+ *
+ * The binary's __CHK(0x13C) stack-probe prologue is compiler-injected and not
+ * part of the source. Explicit RET at 0x21DB1 (cdecl, caller cleans the 7
+ * args). The 50-entry sprite arrays live on the stack (sprite_type_array is 52
+ * bytes in the binary's frame layout).
+ * ---------------------------------------------------------------- */
+void fd2_execute_aoe_spell_with_caster_portrait_radial_scatter(
+    int origin_x, int origin_y, int portrait_idx, int scatter_range_max,
+    int animation_frame_count, int max_active_sprites,
+    uint32 *ptr_game_state_snapshot)
+{
+    short sprite_y_array[50];
+    short sprite_x_array[50];
+    uint8 sprite_type_array[52];
+    uint16 *sprite_mask;
+    uint8 active_sprite_count;
+    uint8 inner_sprite_idx;
+    uint8 outer_frame_idx;
+    uint32 idx;
+    int sprite_x;
+    int sprite_y;
+    uint8 shrink_rate;
+    short new_y;
+
+    active_sprite_count = 0;
+    sprite_mask = (uint16 *)(*(int *)(data_fd2_resource_portrait_sheet_ptr +
+                                      6 + portrait_idx * 4) +
+                             data_fd2_resource_portrait_sheet_ptr);
+
+    for (outer_frame_idx = 0;
+         (int)(uint32)outer_frame_idx < animation_frame_count;
+         outer_frame_idx++) {
+        if ((int)(uint32)active_sprite_count < max_active_sprites) {
+            fd2_scatter_sprite_around_origin_with_random_offset(
+                scatter_range_max, (int)(uint32)active_sprite_count,
+                (uint32)sprite_x_array, (uint32)sprite_y_array,
+                (uint32)sprite_type_array, origin_x, origin_y);
+            active_sprite_count++;
+        }
+
+        memmove((void *)data_fd2_large_game_state_buffer_ptr,
+                (void *)ptr_game_state_snapshot, 0x25680);
+
+        for (inner_sprite_idx = 0;
+             (idx = (uint32)inner_sprite_idx,
+              idx < (uint32)active_sprite_count);
+             inner_sprite_idx++) {
+            sprite_x = (int)sprite_x_array[idx];
+            if (0 < sprite_x && sprite_x < 0x136 &&
+                (sprite_y = (int)sprite_y_array[idx], 0 < sprite_y) &&
+                sprite_y < 0xbe) {
+                fd2_blit_palette_remap_with_sprite_mask(
+                    (uint8 *)(data_fd2_large_game_state_buffer_ptr +
+                              sprite_x + sprite_y * 0x1c8 + 0x8088),
+                    sprite_mask, 0x1c8,
+                    data_fd2_tile_anim_table_base +
+                        *(int *)(data_fd2_tile_anim_table_base + 0x12));
+            }
+        }
+
+        fd2_blit_rectangle(0xa0504, 0x140,
+            data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1c8, 0x138, 0xc0);
+
+        for (inner_sprite_idx = 0;
+             (idx = (uint32)inner_sprite_idx,
+              idx < (uint32)active_sprite_count);
+             inner_sprite_idx++) {
+            shrink_rate = sprite_type_array[idx];
+            new_y = (short)(sprite_y_array[idx] - (uint16)shrink_rate);
+            sprite_y_array[idx] = new_y;
+            if (new_y < -10) {
+                fd2_scatter_sprite_around_origin_with_random_offset(
+                    scatter_range_max, (int)idx,
+                    (uint32)sprite_x_array, (uint32)sprite_y_array,
+                    (uint32)sprite_type_array, origin_x, origin_y);
+            }
+        }
+
+        __delay_thunk_375b2(10);
+    }
+
     return;
 }
