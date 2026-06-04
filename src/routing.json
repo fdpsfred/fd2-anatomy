@@ -3014,8 +3014,9 @@
     "name": "fd2_run_chapter_intro_menu_main",
     "target": "ui_menu/chintro.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002e6b8": {
     "name": "fd2_party_roster_single_select_loop",

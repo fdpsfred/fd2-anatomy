@@ -421,6 +421,22 @@ uint32 data_fd2_chapter_intro_menu_cursor_state = 0;
 uint32 data_fd2_chapter_intro_menu_overlay_buf_ptr = 0;
 uint8  data_fd2_chapter_intro_portrait_pose_y_row_table[18] = {0};
 uint8  data_fd2_chapter_intro_portrait_pose_x_column_table[18] = {0};
+/* chapter-intro menu globals + heavy-callee stubs for fd2_run_chapter_intro_menu_main
+ * (src/ui_menu/chintro.c). That orchestrator is itself deferred to Phase 9 (no
+ * in-process seam: real-file loaders + VGA port I/O + four nested interactive
+ * sub-menus — see the deferral note in tests/ui_menu/chintro.c), so these only
+ * satisfy the link and are never invoked by a test. */
+uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6] = {0};
+uint32 data_fd2_ui_menu_saved_cursor_idx = 0;
+uint32 data_fd2_ui_menu_saved_scroll_offset = 0;
+void fd2_animate_tutorial_dialog_intro_or_outro(uint32 closing) { (void)closing; }
+int  fd2_load_chapter_party_roster(uint8 *out_buf) { (void)out_buf; return 0; }
+void fd2_run_buy_item_menu(uint32 n, uint8 *a) { (void)n; (void)a; }
+void fd2_run_sell_item_menu(void) { }
+void fd2_run_equip_member_menu(void) { }
+void fd2_run_give_item_menu(void) { }
+void fd2_blit_scaled_chapter_pose(uint32 cx, uint32 cy, uint32 bmp, int32 s)
+{ (void)cx; (void)cy; (void)bmp; (void)s; }
 void fd2_render_chapter_dialog_borders(void) { }
 /* fd2_render_chapter_intro_dialog_panels now has a real body in
  * src/gfx/rndmenu.c (driven by the mode-0/1/2/3 tests in tests/gfx/rndmenu.c);

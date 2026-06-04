@@ -175,6 +175,8 @@ extern uint32 data_fd2_chapter_intro_dialog_anim_frame_idx;             /* 0x541
 extern uint32 data_fd2_chapter_intro_dialog_subframe_anim_counter;      /* 0x54153 */
 extern uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr;             /* 0x54147 */
 extern uint32 data_fd2_ui_menu_scroll_offset;                           /* 0x5412F */
+extern uint32 data_fd2_ui_menu_saved_cursor_idx;                        /* 0x5414B */
+extern uint32 data_fd2_ui_menu_saved_scroll_offset;                     /* 0x5414F */
 extern uint32 data_fd2_ui_menu_visible_item_count;                      /* 0x5413F */
 extern uint8 *data_fd2_ui_menu_candidate_array_ptr;                     /* 0x54143 */
 /* per-chapter portrait pose tables (byte[18]), indexed by
@@ -182,6 +184,9 @@ extern uint8 *data_fd2_ui_menu_candidate_array_ptr;                     /* 0x541
  * + pose_x_column[off]*stride + pose_y_row[off] (matches Ghidra symbols). */
 extern uint8  data_fd2_chapter_intro_portrait_pose_y_row_table[18];     /* 0x52635 */
 extern uint8  data_fd2_chapter_intro_portrait_pose_x_column_table[18];  /* 0x52647 */
+/* speaker portrait id per chapter-intro menu variant, indexed by
+ * chapter_intro_menu_cursor_state (0..5). */
+extern uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6]; /* 0x52659 */
 
 /* ---- text / dialog ---- */
 extern uint32 data_fd2_all_game_text_ptr;                               /* 0x53A7D */

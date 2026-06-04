@@ -424,6 +424,15 @@ void *fd2_blit_indexed_sprite_with_alloc(uint32 sprite_hdr, uint32 dst,
                                          uint32 sprite_idx);
 int fd2_wait_input_with_chapter_dialog_blink(uint32 mode);
 int fd2_chapter_intro_menu_input_loop(void);
+uint32 fd2_run_chapter_intro_menu_main(uint32 pose_bitmap);
+void fd2_animate_tutorial_dialog_intro_or_outro(uint32 closing);
+int fd2_load_chapter_party_roster(uint8 *out_buf);
+void fd2_run_buy_item_menu(uint32 shop_item_count, uint8 *shop_item_id_array);
+void fd2_run_sell_item_menu(void);
+void fd2_run_equip_member_menu(void);
+void fd2_run_give_item_menu(void);
+void fd2_blit_scaled_chapter_pose(uint32 src_cx, uint32 src_cy,
+                                  uint32 src_bitmap, int32 scale_fp_step);
 int fd2_wait_input_with_recruitment_repaint(uint32 p1, uint32 p2, uint32 p3, uint32 p4);
 void fd2_render_recruitment_select_screen(uint32 a, uint32 b, uint32 c, uint32 d);
 int fd2_check_char_is_dead(uint32 char_idx);

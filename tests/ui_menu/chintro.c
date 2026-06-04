@@ -17,6 +17,22 @@
  * only the corner-sprite blit (mode==0) runs against a zeroed fake atlas.
  * fd2_play_sfx_with_handle is the testglob stub: g_play_sfx_with_handle_calls
  * counts the cursor-chime, g_sfx_last_id captures its id (always 0 here).
+ *
+ * fd2_run_chapter_intro_menu_main @ 0x2E341 is intentionally NOT unit-tested
+ * here: behavioral coverage is DEFERRED to Phase 9 integration. It is a pure
+ * display/input orchestrator whose only computation (the start-game return
+ * flag and the inline pose-out scale arithmetic) is reachable only by running
+ * the whole function, which (a) fopens real game files FDOTHER.DAT / DATO.DAT
+ * via fd2_load_dat_resource + fd2_load_chapter_portrait + fd2_display_dialog_scene,
+ * (b) drives the 4-way input loop and dispatches into the four heavy
+ * interactive sub-menus (buy/sell/equip/give), and (c) performs VGA DAC port
+ * I/O (fd2_set_vga_palette_range -> outp) plus writes to physical VGA memory
+ * at 0xA0000 in the 11-frame exit animation. Those hardware/file/input
+ * dependencies make a meaningful assertion only possible at the scripted
+ * gameplay level. Correctness was established by three-source review (plate /
+ * disassembly / decompiler), including verification of every CALL-then-EAX use
+ * against the assembly and every branch constant (FDOTHER idx, greeting ids
+ * 0x1F5/0x1F7/0x1B8, decimal x=0x1F, dispatch order, return flag).
  */
 
 #include <string.h>
