@@ -222,6 +222,7 @@ extern char   data_fd2_string_fdmus_dat[];                              /* 0x51A
 
 /* ---- animation tables (.object2 const) ---- */
 extern uint8  data_fd2_audio_footstep_sfx_per_job_cadence_class_table[]; /* 0x52618  29B */
+extern int32  data_fd2_animation_earthquake_screen_shake_params_table[9]; /* 0x52096  3 X-off + 3 Y-off + 3 scale */
 extern uint8  data_fd2_animation_status_overlay_flicker_color_template[32]; /* 0x51F15 */
 extern uint8  data_fd2_animation_spell_sprite_offset_table[33];         /* 0x51F33 */
 extern uint8  data_fd2_animation_spell_frame_count_table[33];           /* 0x51F54 */

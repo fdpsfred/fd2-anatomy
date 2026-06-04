@@ -117,7 +117,7 @@ void fd2_cast_spell_17_complex(uint32, uint32, uint32);
 /* spell worker forward decls */
 void fd2_execute_offensive_targeted_spell(int, int, int, int);
 void fd2_execute_offensive_full_screen_flash_spell(int, int, int, int);
-void fd2_cast_earthquake_spell_with_screen_shake(int, int, int, uint8 *);
+void fd2_cast_earthquake_spell_with_screen_shake(uint32, uint32, uint32, uint8 *);
 void fd2_dispatch_variant_b_cast(int, int, int, int);
 void fd2_apply_status_effect_with_anim(int, int, int, int, int);
 void fd2_cast_status_spell_via_d1b(int, int, int, int, int);

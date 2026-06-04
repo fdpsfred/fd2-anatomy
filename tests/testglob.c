@@ -129,7 +129,6 @@ uint32 data_fd2_engine_wait_n_bios_ticks_last_seen = 0;
 void fd2_delay_ticks(uint32 t) { }
 void fd2_execute_offensive_targeted_spell(int a, int b, int c, int d) { }
 void fd2_execute_offensive_full_screen_flash_spell(int a, int b, int c, int d) { }
-void fd2_cast_earthquake_spell_with_screen_shake(int a, int b, int c, uint8 *d) { }
 void fd2_dispatch_variant_b_cast(int a, int b, int c, int d) { }
 void fd2_cast_ap_boost_spell(int a, int b, uint8 *c) { }
 void fd2_cast_dp_boost_spell(int a, int b, uint32 c) { }
@@ -177,6 +176,11 @@ uint8 data_fd2_animation_spell_frame_count_table[33] = {
 };
 uint8 data_fd2_animation_spell_sfx_frame_table[33] = {
     6,6,6,6,9,9,9,9,10,14,0,0,0,12,12,12,12,6,7,8,4,4,3,0,0,5,3,2,0,0,0,0,9
+};
+/* Earthquake screen-shake params (data segment @ 0x52096). int[9] laid out as
+ * 3 X-offsets, 3 Y-offsets, 3 scales. Real binary values until data emitted. */
+int32 data_fd2_animation_earthquake_screen_shake_params_table[9] = {
+    128, 0, -128, 128, 0, 128, 131, 128, 125
 };
 /* Resource portrait sheet base pointer (data segment @ 0x53AD1). Tests point it
  * at a zeroed scratch buffer. */
