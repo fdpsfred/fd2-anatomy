@@ -497,5 +497,17 @@
         "verify_method": "phase9_integration"
       }
     ]
+  },
+  "00021db2": {
+    "name": "fd2_scatter_sprite_around_origin_with_random_offset",
+    "target": "spell/spellcin.c",
+    "issues": [
+      {
+        "type": "fpu_rounding",
+        "desc": "AoE scatter X/Y. Assembly @0x21E1A-0x21E38 (X) and 0x21E64-0x21E80 (Y) do FLD cos/sin + FILD radius + FMUL + FILD origin + FADDP (+FADD m64[0x50200] for Y) + CALL __CHP + FISTP. __CHP @0x377A4 sets RC=11 (round-toward-zero) via OR-high-byte-0x1F then FRNDINT, so the value is TRUNCATED toward zero before FISTP. Emitted C uses plain (int)(double) casts which also truncate toward zero, so the rounding DIRECTION matches. Residual concern is only Watcom 9.5a codegen precision: the x87 FMUL/FADD run at the entry control-word precision (80-bit internal) whereas the emitted C uses 64-bit double intermediates, so a result whose true value sits within ~1 ULP of an integer could truncate to a different integer. The two unit tests bypass this by choosing RNG seeds (0x1234 radius1 ang133, 0x5555 radius6 ang293) whose X/Y fractional parts are ~0.32-0.73 of a pixel from any integer boundary, where 64-bit and 80-bit truncation agree; the RNG seed sequence itself was confirmed exact via Ghidra emulate_function on 0x4E893. The deg->rad factor is the binary literal 0.0174532 (af99d76c40df913f @0x501F8), emitted verbatim. Recommend a post-build -d disasm to confirm byte-identical FILD/FMUL/FADDP/__CHP/FISTP emission and the 0.0174532 / -8.0 constant fixups.",
+        "severity": "low",
+        "verify_method": "compile_and_disasm"
+      }
+    ]
   }
 }

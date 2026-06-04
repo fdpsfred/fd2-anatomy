@@ -5,6 +5,7 @@
  *   fd2_cast_earthquake_spell_with_screen_shake @ 0x21548 (1 caller)
  *   fd2_play_rising_pre_cast_effect @ 0x2189a (6 callers)
  *   fd2_dispatch_variant_b_cast @ 0x21b18 (1 caller)
+ *   fd2_scatter_sprite_around_origin_with_random_offset @ 0x21db2 (1 caller)
  *   fd2_execute_aoe_spell_with_caster_portrait_radial_scatter @ 0x21bd0 (0 callers)
  */
 
@@ -15,6 +16,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 /* ----------------------------------------------------------------
  * fd2_cast_earthquake_spell_with_screen_shake @ 0x21548  (1 caller)
@@ -267,6 +269,77 @@ void fd2_dispatch_variant_b_cast(int caster, int spell_id, int n_targets,
 
     fd2_composite_then_animate_projectiles();
     return;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_scatter_sprite_around_origin_with_random_offset @ 0x21db2  (1 caller)
+ *
+ * Write one random polar-offset entry into the parallel (x, y, type) sprite
+ * arrays for an AoE radial-scatter animation. Pure in-memory computation: it
+ * touches no VRAM, only the three caller-supplied arrays and the shared RNG.
+ *
+ * Per call (three RNG advances, in this exact order):
+ *   rng1   = fd2_advance_rng_state();
+ *   radius = (rng1 % 0x40) * scatter_range_max / 0x40 - 1;  // 0..(range-1)-ish
+ *   rng2   = fd2_advance_rng_state();
+ *   angle  = rng2 % 360;                                    // whole degrees
+ *   x = origin_x + cos(angle deg) * radius;                 // polar -> Cartesian
+ *   y = origin_y + sin(angle deg) * radius + (-8.0);        // -8 = isometric skew
+ *   rng3   = fd2_advance_rng_state();
+ *   type[index] = (rng3 % 8) + 1;                           // 1..8 shrink rate
+ *
+ * The angle is converted to radians by the binary's stored literal
+ * data_fd2_graphics_radian_per_degree_const = 0.0174532 (a 7-digit pi/180
+ * approximation, NOT full-precision pi/180), then fed to the Watcom math-lib
+ * cos/sin. Both x and y are converted back to int by the FPU helper __CHP
+ * (@0x377A4), which sets RC=round-toward-zero and FRNDINT before FISTP — i.e.
+ * the binary TRUNCATES toward zero, so plain C (int) casts are exact here.
+ *
+ * Only the low byte of sprite_array_index selects the slot; the x/y arrays are
+ * short[] (index*2) and the type array is byte[] (index).
+ *
+ * KNOWN DECOMPILER BUG: Ghidra's EAX-tracking loss made the decompile attribute
+ * the first RNG result to the __CHK stack-probe return (iVar2). The assembly
+ * (MOV EDX,EAX right after each CALL 0x4E893) proves all three values come from
+ * the RNG; emitted accordingly.
+ *
+ * Cdecl, 7 stack params; void return (explicit RET @0x21DB1, caller cleans the
+ * 0x1c=28 arg bytes). The binary's __CHK(0x38) stack-probe prologue is
+ * compiler-injected and omitted here. Sole caller: the orphan AoE executor
+ * fd2_execute_aoe_spell_with_caster_portrait_radial_scatter @0x21BD0 (initial
+ * scatter when a slot opens + re-scatter when a sprite rises off-screen).
+ * ---------------------------------------------------------------- */
+void fd2_scatter_sprite_around_origin_with_random_offset(
+    int scatter_range_max, int sprite_array_index,
+    uint32 sprite_x_array_addr, uint32 sprite_y_array_addr,
+    uint32 sprite_type_array_addr, int origin_x, int origin_y)
+{
+    uint32 rng1;
+    uint32 rng2;
+    uint32 rng3;
+    int    radius;
+    int    angle_deg;
+    double angle_rad;
+    uint32 index;
+
+    rng1 = fd2_advance_rng_state();
+    radius = ((int)(rng1 % 0x40) * scatter_range_max) / 0x40 - 1;
+
+    rng2 = fd2_advance_rng_state();
+    angle_deg = (int)(rng2 % 0x168);
+    angle_rad = (double)angle_deg * data_fd2_graphics_radian_per_degree_const;
+
+    index = (uint32)sprite_array_index & 0xff;
+
+    *(int16 *)(sprite_x_array_addr + index * 2) =
+        (int16)(int)((double)origin_x + cos(angle_rad) * (double)radius);
+
+    *(int16 *)(sprite_y_array_addr + index * 2) =
+        (int16)(int)((double)origin_y + sin(angle_rad) * (double)radius +
+                     data_fd2_graphics_scatter_y_offset_neg8);
+
+    rng3 = fd2_advance_rng_state();
+    *(uint8 *)(sprite_type_array_addr + index) = (uint8)((rng3 % 8) + 1);
 }
 
 /* ----------------------------------------------------------------

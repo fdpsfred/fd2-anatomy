@@ -567,23 +567,16 @@ int    g_delay375b2_calls = 0;
 uint32 g_delay375b2_last_ticks = 0;
 void __delay_thunk_375b2(uint32 ticks) { g_delay375b2_calls++; g_delay375b2_last_ticks = ticks; }
 
-/* Link-time stubs for the two not-yet-emitted callees of the orphan/unreachable
+/* Link-time stub for the still-unemitted callee of the orphan/unreachable
  * fd2_execute_aoe_spell_with_caster_portrait_radial_scatter (src/spell/spellcin.c).
  * That AoE cinematic has no caller and no test drives it (its per-frame work is
- * pure FPU scatter geometry + unconditional VRAM blits to the hardcoded mode-13h
- * literal 0xA0504, deferred to Phase 9 like the rest of spellcin.c). These stubs
- * only need to resolve the symbols; their real bodies are owned by their own
- * routing targets (fd2_scatter_sprite_around_origin_with_random_offset ->
- * spell/spellcin.c, fd2_blit_palette_remap_with_sprite_mask -> gfx/blitspr.c)
- * and will replace these when emitted. */
-void fd2_scatter_sprite_around_origin_with_random_offset(
-    int scatter_range_max, int sprite_array_index, uint32 sprite_x_array_addr,
-    uint32 sprite_y_array_addr, uint32 sprite_type_array_addr,
-    int origin_x, int origin_y) {
-    (void)scatter_range_max; (void)sprite_array_index;
-    (void)sprite_x_array_addr; (void)sprite_y_array_addr;
-    (void)sprite_type_array_addr; (void)origin_x; (void)origin_y;
-}
+ * unconditional VRAM blits to the hardcoded mode-13h literal 0xA0504, deferred to
+ * Phase 9 like the rest of spellcin.c). This stub only needs to resolve the
+ * symbol; its real body is owned by its routing target
+ * (fd2_blit_palette_remap_with_sprite_mask -> gfx/blitspr.c) and will replace
+ * this when emitted. (The sibling scatter callee
+ * fd2_scatter_sprite_around_origin_with_random_offset is now the real emitted
+ * function in src/spell/spellcin.c; its former stub here was removed.) */
 void fd2_blit_palette_remap_with_sprite_mask(
     uint8 *dst, uint16 *sprite_mask, uint32 stride, uint32 remap_table) {
     (void)dst; (void)sprite_mask; (void)stride; (void)remap_table;
@@ -748,6 +741,12 @@ int32  data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[16] = {0
  * produces the desired (count, ascending ids). */
 /* fd2_score_spell_candidate: now in btl_ai.c */
 double data_fd2_battle_ai_enemy_spell_score_multiplier_15 = 1.5;
+/* AoE radial-scatter geometry constants (fd2_scatter_sprite_around_origin_with_random_offset).
+ * The deg->rad factor is the binary's exact stored literal 0.0174532 (a 7-digit
+ * approximation of pi/180, byte pattern af99d76c40df913f @ 0x501F8), NOT full-precision
+ * pi/180. The Y skew is -8.0 @ 0x50200. */
+double data_fd2_graphics_radian_per_degree_const = 0.0174532;
+double data_fd2_graphics_scatter_y_offset_neg8 = -8.0;
 /* fd2_ai_score_item_use: now in btl_ai.c */
 /* fd2_count_usable_inventory_slots: now REAL in src/ui_menu/status.c */
 /* inline action submenu dispatch seams (fd2_player_inline_action_menu_dispatch).

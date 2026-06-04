@@ -2097,8 +2097,9 @@
     "name": "fd2_scatter_sprite_around_origin_with_random_offset",
     "target": "spell/spellcin.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00021eb1": {
     "name": "fd2_play_variant_b_slide_pre_effect",
