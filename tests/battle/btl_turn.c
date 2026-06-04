@@ -52,8 +52,6 @@ extern uint8 g_pathfind_step_bytes[8];
 extern int g_pathfind_md0_dst_x;
 extern int g_pathfind_md0_dst_y;
 extern uint8 g_spell_list_buf[12];
-extern int g_add_item_calls;
-extern int g_add_item_return;
 extern int g_cast_status_cure_calls;
 extern int g_cast_status_via_d1b_calls;
 extern int g_repaint_settings_calls;
@@ -1072,20 +1070,25 @@ static void test_drop_type2_event_passes_recipient(void)
 }
 
 /* type 0 (ITEM) with recipient team != 2 -> immediate return before
- * fd2_add_item_to_inventory is ever reached. */
+ * fd2_add_item_to_inventory is ever reached. With the real add-item now linked,
+ * the proxy is the recipient's inventory: slot 0 is pre-marked empty (flag
+ * 0x80, sentinel id); a reached add-item would stamp flag=0 + item id=5, so the
+ * slot staying empty proves the early return fired. */
 static void test_drop_type0_nonplayer_team_returns(void)
 {
     uint8 drops[6];
-    int calls_before;
 
     fc_setup();
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     g_test_rc_array[1].team = 0;          /* enemy team -> gate fails */
+    g_test_rc_array[1].inventory_slots[0] = 0x80;   /* slot 0 empty       */
+    g_test_rc_array[1].inventory_slots[1] = 0xEE;   /* sentinel item id   */
     data_fd2_battle_party_member_count = 4;
-    calls_before = g_add_item_calls;
     drop_set_entry(drops, 0, 0, 5);
     fd2_process_battle_drop_entries(1, 1, (uint32)drops);
-    ASSERT_EQ(g_add_item_calls, calls_before);   /* never added */
+    /* never added: slot 0 still empty, sentinel id intact */
+    ASSERT_EQ(g_test_rc_array[1].inventory_slots[0], 0x80);
+    ASSERT_EQ(g_test_rc_array[1].inventory_slots[1], 0xEE);
     fc_teardown();
 }
 

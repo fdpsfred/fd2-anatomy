@@ -1278,8 +1278,9 @@
     "name": "fd2_add_item_to_inventory",
     "target": "ui_menu/status.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001bbdc": {
     "name": "fd2_item_command_menu_dispatch",

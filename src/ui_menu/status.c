@@ -97,6 +97,43 @@ int fd2_count_usable_inventory_slots(uint32 ci)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_add_item_to_inventory @ 0x1BB8C  (9 callers)
+ *
+ * Add item_id to the first empty inventory slot of runtime_char[char_idx].
+ * Each slot is 2 bytes (inventory_slots[i*2]=flag, [i*2+1]=item_id); there
+ * are 8 slots (indices 0..7). A slot is empty when its flag byte has bit
+ * 0x80 set. The first empty slot found is marked occupied-but-unequipped
+ * (flag = 0), its item_id byte is set to (uint8)item_id, and 1 is returned.
+ * If all 8 slots are full, -1 is returned.
+ *
+ * Slot flag bits: 0x80 = empty, 0x40 = equipped (mutually exclusive with
+ * 0x80), 0 = occupied but not equipped.
+ *
+ * Callers: tile-event pickup, battle drop, item-command consume/replace,
+ * AI enemy-turn pickup, shop buy, give item, chapter event handlers.
+ *
+ * int __cdecl with the __CHK(8) stack-probe prologue (compiler-injected,
+ * not part of the source). EBX is the runtime_char base pointer (callee-
+ * saved); the trailing POP EBX + RET is the shared epilogue. Only the low
+ * byte of item_id is stored.
+ * ---------------------------------------------------------------- */
+int fd2_add_item_to_inventory(uint32 char_idx, uint32 item_id)
+{
+    runtime_char *rc;
+    uint32 slot_iter;
+
+    rc = data_fd2_battle_runtime_char_array_ptr;
+    for (slot_iter = 0; (int)slot_iter < 8; slot_iter++) {
+        if ((rc[char_idx].inventory_slots[slot_iter * 2] & 0x80) != 0) {
+            rc[char_idx].inventory_slots[slot_iter * 2] = 0;
+            rc[char_idx].inventory_slots[slot_iter * 2 + 1] = (uint8)item_id;
+            return 1;
+        }
+    }
+    return -1;
+}
+
+/* ----------------------------------------------------------------
  * fd2_open_status_screen_with_slide_in @ 0x17E0B  (3 callers)
  *
  * Open the character status panel with a 12-frame slide-in animation.

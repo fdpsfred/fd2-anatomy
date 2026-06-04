@@ -768,13 +768,9 @@ void fd2_play_figani_char_intro_animation(uint32 c) { }
 uint32 data_fd2_battle_tile_map_anim_frame_counter = 0;
 uint32 data_fd2_graphics_bg_anim_flip_flag = 0;
 uint8  data_fd2_graphics_tile_anim_palette_phase_lookup[20] = {0};
-/* fd2_add_item_to_inventory real body not yet emitted. The disassembly proves
- * it returns int (EAX): -1 when the bag is full, otherwise the slot index. The
- * tile-event handler branches on that -1, so the stub return is test-controllable
- * (default 0 = success). */
-int  g_add_item_return = 0;
-int  g_add_item_calls = 0;
-int fd2_add_item_to_inventory(uint32 c, uint32 i) { g_add_item_calls++; (void)c; (void)i; return g_add_item_return; }
+/* fd2_add_item_to_inventory is now emitted for real in src/ui_menu/status.c
+ * (and covered there by the test_add_item_* cases). The battle-drop suite that
+ * once used the g_add_item_* spy now asserts on the real inventory state. */
 /* fd2_inventory_selection_modal_dispatch and fd2_inventory_grid_input_step are
  * both now emitted for real in src/ui_menu/status.c. The grid-input step is
  * covered directly by the test_grid_input_* cases in tests/ui_menu/status.c,

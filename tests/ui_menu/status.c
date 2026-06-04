@@ -560,6 +560,152 @@ static void test_remove_slot_char_index_isolation(void)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_add_item_to_inventory @ 0x1BB8C
+ *
+ * Adds item_id into the FIRST empty inventory slot of runtime_char[char_idx]
+ * (8 slots, 2 bytes each: [i*2]=flag, [i*2+1]=item_id). A slot is empty when
+ * its flag byte has bit 0x80 SET. The slot found is stamped flag=0 (occupied,
+ * not equipped) and item_id byte = (uint8)item_id; returns 1. If all 8 slots
+ * are full, returns -1 and writes nothing. These tests pin: the first-empty
+ * selection (lowest index wins), the 0x80-SET empty polarity (opposite of the
+ * count-usable 0x80-clear), flag stamped to 0 (not 0x40), item_id stored as
+ * the LOW byte only, the all-full -1 with no mutation, and char_idx indexing
+ * into the 0x50-stride array (g_test_rc_array, wired to the runtime-char ptr).
+ * ---------------------------------------------------------------- */
+
+/* All 8 slots empty (flag 0x80) -> item lands in slot 0; flag 0, id stored. */
+static void test_add_item_first_empty_is_slot0(void)
+{
+    int s;
+    int r;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    for (s = 0; s < 8; s++) {
+        g_test_rc_array[0].inventory_slots[s * 2]     = 0x80;   /* empty */
+        g_test_rc_array[0].inventory_slots[s * 2 + 1] = 0xAA;   /* sentinel id */
+    }
+    r = fd2_add_item_to_inventory(0, 0x42);
+    ASSERT_EQ((long)r, 1);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[0], 0x00);     /* occupied  */
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[1], 0x42);     /* item id   */
+    /* slots 1..7 untouched (still empty, sentinel id intact) */
+    for (s = 1; s < 8; s++) {
+        ASSERT_EQ(g_test_rc_array[0].inventory_slots[s * 2],     0x80);
+        ASSERT_EQ(g_test_rc_array[0].inventory_slots[s * 2 + 1], 0xAA);
+    }
+}
+
+/* Slots 0..2 occupied (flag 0, not 0x80), slot 3 first empty -> item lands in
+ * slot 3; the occupied slots ahead of it are NOT overwritten. Pins the
+ * first-empty scan starting from index 0 and skipping occupied slots. Also
+ * confirms an equipped slot (flag 0x40, bit 0x80 clear) counts as occupied
+ * and is skipped, not treated as empty. */
+static void test_add_item_skips_occupied_to_first_empty(void)
+{
+    int r;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].inventory_slots[0] = 0x00;   /* slot0 occupied        */
+    g_test_rc_array[0].inventory_slots[1] = 0x11;
+    g_test_rc_array[0].inventory_slots[2] = 0x40;   /* slot1 equipped (occ.) */
+    g_test_rc_array[0].inventory_slots[3] = 0x12;
+    g_test_rc_array[0].inventory_slots[4] = 0x00;   /* slot2 occupied        */
+    g_test_rc_array[0].inventory_slots[5] = 0x13;
+    g_test_rc_array[0].inventory_slots[6] = 0x80;   /* slot3 EMPTY (target)  */
+    g_test_rc_array[0].inventory_slots[7] = 0x99;
+    g_test_rc_array[0].inventory_slots[8] = 0x80;   /* slot4 also empty      */
+    g_test_rc_array[0].inventory_slots[9] = 0x99;
+    r = fd2_add_item_to_inventory(0, 0x55);
+    ASSERT_EQ((long)r, 1);
+    /* slot3 filled */
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[6], 0x00);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[7], 0x55);
+    /* slots 0..2 untouched */
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[0], 0x00);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[1], 0x11);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[2], 0x40);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[3], 0x12);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[4], 0x00);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[5], 0x13);
+    /* slot4 (later empty) left alone */
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[8], 0x80);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[9], 0x99);
+}
+
+/* Only slot 7 empty -> item lands in slot 7 (last-slot boundary), returns 1. */
+static void test_add_item_only_last_slot_empty(void)
+{
+    int s;
+    int r;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    for (s = 0; s < 7; s++) {
+        g_test_rc_array[0].inventory_slots[s * 2] = 0x00;   /* occupied */
+    }
+    g_test_rc_array[0].inventory_slots[7 * 2] = 0x80;       /* slot7 empty */
+    r = fd2_add_item_to_inventory(0, 0x77);
+    ASSERT_EQ((long)r, 1);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[14], 0x00);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[15], 0x77);
+}
+
+/* All 8 slots full (no 0x80 anywhere) -> returns -1 and mutates nothing.
+ * Mix of occupied (0) and equipped (0x40) flags, none empty. */
+static void test_add_item_all_full_returns_minus1(void)
+{
+    int s;
+    int r;
+    uint8 before[16];
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    for (s = 0; s < 8; s++) {
+        g_test_rc_array[0].inventory_slots[s * 2]     = (s & 1) ? 0x40 : 0x00;
+        g_test_rc_array[0].inventory_slots[s * 2 + 1] = (uint8)(0x30 + s);
+    }
+    memcpy(before, g_test_rc_array[0].inventory_slots, 16);
+    r = fd2_add_item_to_inventory(0, 0x42);
+    ASSERT_EQ((long)r, -1);
+    /* inventory byte-for-byte unchanged */
+    ASSERT_EQ(memcmp(before, g_test_rc_array[0].inventory_slots, 16), 0);
+}
+
+/* item_id stored as LOW byte only: pass 0x1234, the slot id byte must be 0x34
+ * (MOV DL,[ESP+0xc]; MOV [EAX+1],DL — only DL is written). */
+static void test_add_item_stores_low_byte_only(void)
+{
+    int r;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].inventory_slots[0] = 0x80;          /* slot0 empty */
+    r = fd2_add_item_to_inventory(0, 0x1234);
+    ASSERT_EQ((long)r, 1);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[1], 0x34);
+}
+
+/* char_idx indexing: adding to char 4 must hit runtime_char[4] (offset 4*0x50)
+ * and leave its neighbours (chars 3 and 5) untouched. Char 4 slot 0 empty. */
+static void test_add_item_char_index_isolation(void)
+{
+    int s;
+    int r;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    /* chars 3 and 5: all slots empty with a sentinel id, must stay intact */
+    for (s = 0; s < 8; s++) {
+        g_test_rc_array[3].inventory_slots[s * 2]     = 0x80;
+        g_test_rc_array[3].inventory_slots[s * 2 + 1] = 0xC3;
+        g_test_rc_array[5].inventory_slots[s * 2]     = 0x80;
+        g_test_rc_array[5].inventory_slots[s * 2 + 1] = 0xC5;
+        g_test_rc_array[4].inventory_slots[s * 2]     = 0x80;
+    }
+    r = fd2_add_item_to_inventory(4, 0x66);
+    ASSERT_EQ((long)r, 1);
+    ASSERT_EQ(g_test_rc_array[4].inventory_slots[0], 0x00);
+    ASSERT_EQ(g_test_rc_array[4].inventory_slots[1], 0x66);
+    /* neighbours untouched */
+    for (s = 0; s < 8; s++) {
+        ASSERT_EQ(g_test_rc_array[3].inventory_slots[s * 2],     0x80);
+        ASSERT_EQ(g_test_rc_array[3].inventory_slots[s * 2 + 1], 0xC3);
+        ASSERT_EQ(g_test_rc_array[5].inventory_slots[s * 2],     0x80);
+        ASSERT_EQ(g_test_rc_array[5].inventory_slots[s * 2 + 1], 0xC5);
+    }
+}
+
+/* ----------------------------------------------------------------
  * fd2_inventory_selection_modal_dispatch @ 0x1B932 — input-loop tests deferred.
  *
  * The modal is do { r = fd2_inventory_grid_input_step(...); } while (r == 0),
@@ -843,6 +989,12 @@ void run_ui_menu_status_tests(void)
     RUN_TEST(test_remove_slot_zero_full_shift);
     RUN_TEST(test_remove_slot_seven_only_vacates);
     RUN_TEST(test_remove_slot_char_index_isolation);
+    RUN_TEST(test_add_item_first_empty_is_slot0);
+    RUN_TEST(test_add_item_skips_occupied_to_first_empty);
+    RUN_TEST(test_add_item_only_last_slot_empty);
+    RUN_TEST(test_add_item_all_full_returns_minus1);
+    RUN_TEST(test_add_item_stores_low_byte_only);
+    RUN_TEST(test_add_item_char_index_isolation);
     RUN_TEST(test_grid_input_up_decrement);
     RUN_TEST(test_grid_input_up_wrap_to_last);
     RUN_TEST(test_grid_input_down_increment);
