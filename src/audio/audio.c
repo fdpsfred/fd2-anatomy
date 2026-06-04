@@ -65,3 +65,25 @@ void fd2_set_bgm_track_with_fade(uint32 track_id,
     AIL_set_sequence_loop_count(
         data_fd2_audio_bgm_sequence_handle, loop_count);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_load_status_effect_sfx @ 0x1d4cb (6 callers)
+ *
+ * Load the status-effect / spell SFX sample bank (FDOTHER.DAT
+ * entry 0x50) into data_fd2_audio_status_effect_sfx_handle_ptr.
+ * fd2_play_sfx_with_handle plays from this base; the matching
+ * fd2_play_and_free_status_effect_sfx releases it after the
+ * animation finishes.
+ *
+ * Cdecl, void(void). The handle is cleared to 0 first, then set
+ * to the loader's return value. The binary's __CHK(0x10)
+ * stack-probe prologue is compiler-injected and not source.
+ * ---------------------------------------------------------------- */
+void fd2_load_status_effect_sfx(void)
+{
+    data_fd2_audio_status_effect_sfx_handle_ptr = 0;
+    data_fd2_audio_status_effect_sfx_handle_ptr =
+        (uint32)fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_fdother_dat,
+            0, 0x50);
+}

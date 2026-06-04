@@ -11,6 +11,7 @@
 #include <stdio.h>
 
 #include <stdlib.h>
+#include "realfile.h"   /* realdat_read_resource() */
 
 #define USE_ITEM_ID 10
 
@@ -144,6 +145,45 @@ static void test_bgm_special_cue_instant(void)
 }
 
 
+/* ---- Test: fd2_load_status_effect_sfx ---- */
+
+/* Drives the REAL loader against the staged real FDOTHER.DAT entry 0x50: the
+ * function clears the handle, then captures fd2_load_dat_resource's return
+ * (the EAX value) into data_fd2_audio_status_effect_sfx_handle_ptr and the
+ * loader sets last_loaded_resource_size as a side effect. Cross-check the
+ * captured handle's payload + the size global against an independent parse of
+ * the SAME real bytes (realfile.h) — proves the right filename, the right
+ * entry index 0x50, and the return-value capture. No hardcoded values. */
+static void test_load_status_effect_sfx_real(void)
+{
+    uint8 *ref;
+    long   ref_size;
+
+    ref_size = realdat_read_resource("FDOTHER.DAT", 0x50, &ref);
+    ASSERT_TRUE(ref_size > 0);
+
+    /* pre-poison so a no-op or a stale value can't pass */
+    data_fd2_audio_status_effect_sfx_handle_ptr = 0xDEADBEEF;
+    data_fd2_resource_last_loaded_resource_size = 0;
+
+    fd2_load_status_effect_sfx();
+
+    /* handle = loader's returned buffer (non-NULL, not the poison) */
+    ASSERT_TRUE(data_fd2_audio_status_effect_sfx_handle_ptr != 0);
+    ASSERT_TRUE(data_fd2_audio_status_effect_sfx_handle_ptr != 0xDEADBEEF);
+    /* size side effect == independent parse of entry 0x50 */
+    ASSERT_EQ((long)data_fd2_resource_last_loaded_resource_size, ref_size);
+    /* loaded payload byte-matches the real entry-0x50 bytes */
+    ASSERT_EQ((long)memcmp(
+        (void *)data_fd2_audio_status_effect_sfx_handle_ptr,
+        ref, (size_t)ref_size), 0);
+
+    free((void *)data_fd2_audio_status_effect_sfx_handle_ptr);
+    data_fd2_audio_status_effect_sfx_handle_ptr = 0;
+    free(ref);
+}
+
+
 void run_audio_audio_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -153,5 +193,6 @@ void run_audio_audio_tests(void)
     RUN_TEST(test_bgm_change_regular_track);
     RUN_TEST(test_bgm_disabled_zero_volume);
     RUN_TEST(test_bgm_special_cue_instant);
+    RUN_TEST(test_load_status_effect_sfx_real);
     printf("\n");
 }

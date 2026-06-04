@@ -482,7 +482,8 @@ void fd2_animate_spell_projectile_paths(void) { }
 /* fd2_remove_inventory_slot_at: now emitted for real in src/ui_menu/status.c.
  * Its old spy global g_remove_inventory_calls is gone; spell/spelleff.c now
  * observes the real slot-consume by checking slot[7].flag == 0x80. */
-void fd2_load_status_effect_sfx(void) { }
+/* fd2_load_status_effect_sfx: now emitted for real in src/audio/audio.c;
+ * test_load_status_effect_sfx_real drives it against staged real FDOTHER.DAT. */
 void fd2_play_and_free_status_effect_sfx(void) { }
 /* fd2_collect_pending_death_drops: now in btl_turn.c */
 /* fd2_display_dialog_scene: now emitted in src/dialog/dialog.c */

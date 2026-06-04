@@ -1435,8 +1435,9 @@
     "name": "fd2_load_status_effect_sfx",
     "target": "audio/audio.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001d4f6": {
     "name": "fd2_play_and_free_status_effect_sfx",
