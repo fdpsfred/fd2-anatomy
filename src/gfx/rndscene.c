@@ -6,6 +6,8 @@
 #include "consts.h"
 #include "globals.h"
 #include "protos.h"
+#include <stdlib.h>
+#include <math.h>
 
 /* ----------------------------------------------------------------
  * fd2_composite_battle_frame @ 0x11CAC (61 callers)
@@ -937,4 +939,80 @@ void fd2_composite_then_animate_projectiles(void)
 {
     fd2_composite_battle_frame(0);
     fd2_animate_spell_projectile_paths();
+}
+
+/* ----------------------------------------------------------------
+ * fd2_render_circle_anim_row @ 0x219AD (2 callers, 3 sites)
+ *
+ * Render the horizontal slices of a filled-circle (band) animation
+ * across a row range, palette-remapping a sprite-sourced run into the
+ * battle render workspace one scanline at a time. For each row in
+ * [start_row, end_row) that lies strictly inside the circle's vertical
+ * extent (cy-r, cy+r), it computes the scanline's half-width from the
+ * circle equation, clamps the run to the visible 0..0x138 span, and
+ * forwards the clamped run to fd2_apply_palette_remap_run.
+ *
+ * Geometry per row:
+ *   dy         = abs(cy - row)
+ *   half_width = trunc( sqrt(r*r - dy*dy) * scale_num / 10.0 )
+ *     // x87: FILD/FMULP/FDIV[10.0] then __CHP forces RC=round-toward-
+ *     // zero before FRNDINT, so this is a TRUNCATION toward zero, not a
+ *     // round-to-nearest (the Ghidra ROUND() macro is misleading here).
+ *   left_clip  = cx - half_width, right_off = half_width;
+ *   if (left_clip < 0)  { left_clip = 0; right_off = cx; }      // clamp left to 0
+ *   if (cx + half_width > 0x137) half_width = 0x138 - cx;       // clamp right to 0x138
+ *   run_width = right_off + half_width;
+ *   dst = large_game_state_buffer + 0x8088 + row*0x1C8 + left_clip;
+ *   fd2_apply_palette_remap_run(palette_remap_src, run_width, dst);
+ *
+ * scale_num shapes the band thickness/curvature (callers pass 0xC for
+ * the rising-sparkle effect, 0x10 for the filled-circle band). The
+ * 7th arg is the per-frame sprite/palette-remap source row passed
+ * straight through as the remap's 1st arg.
+ *
+ * 0x8088 = char-layer base in the render workspace, 0x1C8 = 456
+ * (workspace pitch), 0x138 = 312 (visible clipped width).
+ *
+ * The original has no explicit RET: it tail-jumps (JGE 0x1951B) to a
+ * shared Watcom epilogue (ADD ESP,0x14 + POP EBP/EDI/ESI/EBX + RET) that
+ * another same-frame-shape function ends with; the C equivalent is the
+ * loop simply running to completion.
+ *
+ * 2 callers (3 sites): fd2_play_rising_pre_cast_effect,
+ * fd2_render_filled_circle_band_anim (x2).
+ * ---------------------------------------------------------------- */
+void fd2_render_circle_anim_row(int cx, int cy, int r, int scale_num,
+                                int start_row, int end_row,
+                                uint8 *palette_remap_src)
+{
+    int32 dy;
+    int32 rsq_minus_dy2;
+    uint32 half_width;
+    uint32 left_clip;
+    uint32 right_off;
+
+    for (; start_row < end_row; start_row++) {
+        if ((cy - r < start_row) && (start_row < cy + r)) {
+            dy = abs(cy - start_row);
+            rsq_minus_dy2 = r * r - dy * dy;
+            half_width = (uint32)(int32)
+                (sqrt((double)rsq_minus_dy2) * scale_num /
+                 data_fd2_graphics_circle_anim_div_10);
+
+            left_clip = (uint32)cx - half_width;
+            right_off = half_width;
+            if ((int32)left_clip < 0) {
+                left_clip = 0;
+                right_off = (uint32)cx;
+            }
+            if (0x137 < (int32)(half_width + (uint32)cx)) {
+                half_width = 0x138 - (uint32)cx;
+            }
+
+            fd2_apply_palette_remap_run(
+                (uint32)palette_remap_src, right_off + half_width,
+                (uint8 *)(left_clip + data_fd2_large_game_state_buffer_ptr +
+                          0x8088 + (uint32)start_row * 0x1c8));
+        }
+    }
 }

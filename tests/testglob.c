@@ -854,6 +854,7 @@ int32  data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[16] = {0
  * produces the desired (count, ascending ids). */
 /* fd2_score_spell_candidate: now in btl_ai.c */
 double data_fd2_battle_ai_enemy_spell_score_multiplier_15 = 1.5;
+double data_fd2_graphics_circle_anim_div_10 = 10.0;
 /* fd2_ai_score_item_use: now in btl_ai.c */
 /* fd2_count_usable_inventory_slots: now REAL in src/ui_menu/status.c */
 /* inline action submenu dispatch seams (fd2_player_inline_action_menu_dispatch).

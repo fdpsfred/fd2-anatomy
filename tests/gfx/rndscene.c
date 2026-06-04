@@ -2168,6 +2168,167 @@ static void test_composite_then_animate_projectiles(void)
     ASSERT_EQ(g_delay375b2_calls, 0);
 }
 
+/* ================================================================
+ * fd2_render_circle_anim_row @ 0x219AD
+ *
+ * The real fd2_apply_palette_remap_run (src/gfx/palette.c) does an
+ * in-place buf[i] = remap[buf[i]] over `run_width` bytes. By pointing
+ * the remap table at a constant 0xAA for every input byte, the exact
+ * span [left_clip, left_clip+run_width) of each painted row becomes
+ * 0xAA over a 0x00 background — letting these tests read back both the
+ * per-row run extent (the sqrt+truncate geometry and the left/right
+ * clamps) and the set of rows the vertical-extent gate selected.
+ * ================================================================ */
+
+/* remap[x] = 0xAA for all x: every touched byte becomes the marker. */
+static uint8 g_circ_remap[256];
+
+static void circ_setup(void)
+{
+    int i;
+    for (i = 0; i < 256; i++) {
+        g_circ_remap[i] = 0xAA;
+    }
+    memset(g_ws_buffer, 0x00, WS_SPAN);
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_ws_buffer - 0x8088u;
+}
+
+/* First / last 0xAA index within row, and the count of 0xAA bytes.
+ * Returns 0xFFFF in *first when the row is entirely untouched. */
+static void circ_row_run(int row, uint32 *first, uint32 *last, uint32 *count)
+{
+    uint8 *r;
+    uint32 i;
+
+    r = g_ws_buffer + (uint32)row * 0x1c8u;
+    *first = 0xffff;
+    *last = 0xffff;
+    *count = 0;
+    for (i = 0; i < 0x1c8u; i++) {
+        if (r[i] == 0xAA) {
+            if (*first == 0xffff) {
+                *first = i;
+            }
+            *last = i;
+            (*count)++;
+        }
+    }
+}
+
+/* Case 1: basic circle geometry, no clipping. cx=100, cy=10, r=8,
+ * scale_num=10 (so half_width == trunc(sqrt(64 - dy*dy))). Rows 5..14
+ * all lie inside (cy-r, cy+r)=(2,18) and inside [5,15). For the center
+ * row 10 (dy=0): half_width=8, run starts at cx-8=92, run_width=16. */
+static void test_circ_basic_geometry(void)
+{
+    uint32 first;
+    uint32 last;
+    uint32 cnt;
+
+    circ_setup();
+    fd2_render_circle_anim_row(100, 10, 8, 10, 5, 15, g_circ_remap);
+
+    /* center row 10: hw=8 -> [92,108), 16 bytes */
+    circ_row_run(10, &first, &last, &cnt);
+    ASSERT_EQ(first, 92);
+    ASSERT_EQ(cnt, 16);
+    ASSERT_EQ(last, 107);
+
+    /* row 7 (dy=3): sqrt(64-9)=sqrt(55)=7.41 -> hw=7 -> [93,107), 14 */
+    circ_row_run(7, &first, &last, &cnt);
+    ASSERT_EQ(first, 93);
+    ASSERT_EQ(cnt, 14);
+
+    /* row 5 (dy=5): sqrt(64-25)=sqrt(39)=6.24 -> hw=6 -> [94,106), 12 */
+    circ_row_run(5, &first, &last, &cnt);
+    ASSERT_EQ(first, 94);
+    ASSERT_EQ(cnt, 12);
+
+    /* row 14 (dy=4): sqrt(64-16)=sqrt(48)=6.92 -> hw=6 -> [94,106), 12 */
+    circ_row_run(14, &first, &last, &cnt);
+    ASSERT_EQ(first, 94);
+    ASSERT_EQ(cnt, 12);
+
+    /* rows just outside [start,end): 4 and 15 never visited */
+    circ_row_run(4, &first, &last, &cnt);
+    ASSERT_EQ(cnt, 0);
+    circ_row_run(15, &first, &last, &cnt);
+    ASSERT_EQ(cnt, 0);
+}
+
+/* Case 2: left clamp (cx - half_width < 0). cx=5, cy=10, r=8,
+ * scale_num=10, single row 10: hw=8 -> left_clip=5-8=-3 -> clamp to 0,
+ * right_off=cx=5; cx+hw=13 (<0x138) no right clamp; run_width =
+ * right_off + half_width = 5 + 8 = 13, starting at offset 0. */
+static void test_circ_left_clamp(void)
+{
+    uint32 first;
+    uint32 last;
+    uint32 cnt;
+
+    circ_setup();
+    fd2_render_circle_anim_row(5, 10, 8, 10, 10, 11, g_circ_remap);
+
+    circ_row_run(10, &first, &last, &cnt);
+    ASSERT_EQ(first, 0);
+    ASSERT_EQ(cnt, 13);
+    ASSERT_EQ(last, 12);
+}
+
+/* Case 3: right clamp (cx + half_width > 0x137). cx=308, cy=10, r=8,
+ * scale_num=10, single row 10: hw=8 -> left_clip=300 (no left clamp),
+ * right_off=8; cx+hw=316 > 0x137 -> half_width = 0x138-cx = 4;
+ * run_width = right_off + half_width = 8 + 4 = 12, starting at 300 and
+ * ending exactly at the visible edge 0x138 (312). */
+static void test_circ_right_clamp(void)
+{
+    uint32 first;
+    uint32 last;
+    uint32 cnt;
+
+    circ_setup();
+    fd2_render_circle_anim_row(308, 10, 8, 10, 10, 11, g_circ_remap);
+
+    circ_row_run(10, &first, &last, &cnt);
+    ASSERT_EQ(first, 300);
+    ASSERT_EQ(cnt, 12);
+    ASSERT_EQ(last, 311);   /* 300 + 12 - 1 == 311 (== 0x138 - 1) */
+}
+
+/* Case 4: vertical-extent gate uses strict inequalities cy-r < row <
+ * cy+r. cx=100, cy=10, r=3 -> inside == (7,13) strict, so only rows
+ * 8,9,10,11,12 are painted; the boundary rows 7 and 13 (and anything
+ * outside) stay untouched even though they are within [5,15). */
+static void test_circ_vertical_extent_gate(void)
+{
+    uint32 first;
+    uint32 last;
+    uint32 cnt;
+    int row;
+    int painted;
+
+    circ_setup();
+    fd2_render_circle_anim_row(100, 10, 3, 10, 5, 15, g_circ_remap);
+
+    /* boundary rows excluded (strict <) */
+    circ_row_run(7, &first, &last, &cnt);
+    ASSERT_EQ(cnt, 0);
+    circ_row_run(13, &first, &last, &cnt);
+    ASSERT_EQ(cnt, 0);
+
+    /* center row 10 (dy=0): hw=trunc(sqrt(9))=3 -> [97,103), 6 bytes */
+    circ_row_run(10, &first, &last, &cnt);
+    ASSERT_EQ(first, 97);
+    ASSERT_EQ(cnt, 6);
+
+    /* exactly rows 8..12 painted, all others in [5,15) empty */
+    for (row = 5; row < 15; row++) {
+        circ_row_run(row, &first, &last, &cnt);
+        painted = (row >= 8 && row <= 12);
+        ASSERT_TRUE(painted ? (cnt > 0) : (cnt == 0));
+    }
+}
+
 void run_gfx_rndscene_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -2236,5 +2397,9 @@ void run_gfx_rndscene_tests(void)
     RUN_TEST(test_banner_frame_settled);
     RUN_TEST(test_banner_frame_mid_slide);
     RUN_TEST(test_composite_then_animate_projectiles);
+    RUN_TEST(test_circ_basic_geometry);
+    RUN_TEST(test_circ_left_clamp);
+    RUN_TEST(test_circ_right_clamp);
+    RUN_TEST(test_circ_vertical_extent_gate);
     printf("\n");
 }

@@ -543,5 +543,17 @@
         "verify_method": "phase9_integration"
       }
     ]
+  },
+  "000219ad": {
+    "name": "fd2_render_circle_anim_row",
+    "issues": [
+      {
+        "type": "fpu_rounding",
+        "desc": "Per-row scanline half-width = trunc(sqrt(r*r - dy*dy) * scale_num / 10.0). Assembly @0x21A54-0x21A83 = FILD r2_minus_dy2 / CALL sqrt(0x3C6FC) / FILD scale_num / FMULP / FDIV m64[0x501F0]=10.0 / CALL __CHP(0x377A4) / FISTP. __CHP loads CW high byte 0x1F (RC=11 round-toward-zero, PC=11 64-bit) then FRNDINT, so the value is TRUNCATED toward zero before FISTP stores it (the Ghidra ROUND() macro is misleading; this is NOT round-to-nearest). Emitted C (uint32)(int32)(sqrt((double)x)*scale_num/10.0) likewise truncates toward zero in C89, so the rounding DIRECTION matches exactly. Residual concern is only Watcom 9.5a x87 codegen precision: the original keeps sqrt/FMULP/FDIV intermediates in 80-bit registers while the C sqrt() return is a 64-bit double (the FMULP/FDIV themselves still run on the 80-bit x87 stack). For the unit-test ground-truth this is bypassed by choosing radii/dy where sqrt(r*r-dy*dy)*scale_num/10 is either an exact integer (sqrt(64)=8, sqrt(9)=3) or lies >0.2 away from any integer boundary (sqrt(39)=6.24, sqrt(48)=6.92, sqrt(55)=7.41), so 64-bit vs 80-bit truncation cannot diverge. Same mitigation pattern as the 0x1B750 / __CHP truncation entry.",
+        "severity": "low",
+        "verify_method": "post-build -d disasm of 0x219AD to confirm byte-identical FILD/sqrt/FILD/FMULP/FDIV[0x501F0]/__CHP/FISTP emission; behaviorally the truncation direction is guaranteed equivalent and the tested inputs avoid all FP boundary cases.",
+        "reviewer_verdict": ""
+      }
+    ]
   }
 }

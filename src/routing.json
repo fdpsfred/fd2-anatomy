@@ -2065,8 +2065,9 @@
     "name": "fd2_render_circle_anim_row",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00021a9e": {
     "name": "fd2_cast_spell_0c_with_prefx",

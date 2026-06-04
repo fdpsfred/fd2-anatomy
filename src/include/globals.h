@@ -122,6 +122,7 @@ extern int32  data_fd2_graphics_char_sprite_paint_jitter_tick_latch;    /* 0x53A
 extern uint32 data_fd2_graphics_chapter_walk_anim_alt_palette_idx;      /* 0x53C07 */
 extern uint32 data_fd2_graphics_chapter_ambient_palette_anim_idx;       /* 0x53C0B */
 extern uint32 data_fd2_graphics_chapter_ambient_palette_anim_tick_latch; /* 0x53C0F */
+extern double data_fd2_graphics_circle_anim_div_10;                     /* 0x501F0  const 10.0 */
 
 /* ---- chapter intro dialog corner offsets (.object2 const) ---- */
 extern uint32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4]; /* 0x526EA */
