@@ -233,3 +233,42 @@ void fd2_chapter_17_post_action(uint32 event_arg)
         }
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_18_post_action @ 0x208CF  (dispatched, 0 direct callers)
+ *
+ * Chapter 18 turn-cycle post-action handler. Reached via
+ * data_fd2_chapter_post_action_handler_table[17] (table @ 0x51B19,
+ * indexed by current_chapter_id). The dispatch site pushes one cdecl arg
+ * (active char_idx) and cleans it; event_arg is unused by the body.
+ *
+ * Unlike every other handler in this file, chapter 18 does NOT call the
+ * default fd2_check_battle_end_condition — it implements the full win/lose
+ * decision itself with two sequential, independent flag writes:
+ *
+ *   1. If any of the three protected chars runtime_char[0], [0x10] or [0x11]
+ *      is dead, set game_event_flag (0x53ECC) to 1 (LOSE). The OR short-
+ *      circuits: the first dead char sets the flag and the remaining checks
+ *      are skipped.
+ *   2. If the boss NPC runtime_char[0x34] is dead, set game_event_flag to 2
+ *      (WIN). This runs unconditionally after step 1, so a dead boss
+ *      overrides a LOSE produced by step 1 (fall-through "win-overrides-loss":
+ *      kill the boss before allies fall and the chapter is still won).
+ *
+ * Deadness is queried through fd2_check_char_is_dead (runtime_char[idx].flags
+ * bit0) for all four slots; the body reads no bFlags inline.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_18_post_action(uint32 event_arg)
+{
+    (void)event_arg;
+
+    if (fd2_check_char_is_dead(0) != 0 ||
+        fd2_check_char_is_dead(0x10) != 0 ||
+        fd2_check_char_is_dead(0x11) != 0) {
+        data_fd2_chapter_event_or_battle_end_code = 1;
+    }
+
+    if (fd2_check_char_is_dead(0x34) != 0) {
+        data_fd2_chapter_event_or_battle_end_code = 2;
+    }
+}

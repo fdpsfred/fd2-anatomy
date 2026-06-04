@@ -923,6 +923,168 @@ static void test_chpost17_neighbor_slots_ignored(void)
     chpost17_teardown();
 }
 
+/* ============================================================
+ * fd2_chapter_18_post_action @ 0x208CF
+ *
+ * UNLIKE every other handler in this file, chapter 18 does NOT call the
+ * default fd2_check_battle_end_condition: it implements the full win/lose
+ * decision itself with two sequential, independent flag writes:
+ *   1. If any of the three protected chars runtime_char[0], [0x10] or [0x11]
+ *      is dead -> game_event_flag = 1 (LOSE). The OR short-circuits.
+ *   2. If the boss runtime_char[0x34] is dead -> game_event_flag = 2 (WIN).
+ *      This runs unconditionally after step 1, so a dead boss OVERRIDES a
+ *      LOSE from step 1 (fall-through "win-overrides-loss").
+ *
+ * Because no default check runs, the flag has no baseline value here: setup
+ * pre-clears it to 0, so "no condition" leaves 0, a pure LOSE leaves 1, and
+ * any WIN leaves 2. Deadness for all four slots is queried through
+ * fd2_check_char_is_dead; these tests use the testglob array-reading mode
+ * (g_check_char_is_dead_use_array = 1) so per-slot .flags drive each result.
+ * Slot 0x34 (52) is reached, so the 64-slot t_rc13 buffer is reused.
+ *
+ * Coverage is risk-driven for: the three-term short-circuit OR and its exact
+ * slot indices, the independent boss write, and the win-overrides-loss
+ * fall-through:
+ *   - nobody dead                         -> flag stays 0 (neither write)
+ *   - char[0] dead, boss alive            -> LOSE (1); pins first OR term
+ *   - char[0x10] dead, boss alive         -> LOSE (1); pins second OR term
+ *                                            (reached only if char[0] alive)
+ *   - char[0x11] dead, boss alive         -> LOSE (1); pins third OR term
+ *   - boss dead, all protected alive      -> WIN (2)
+ *   - boss dead AND char[0] dead          -> WIN (2) overrides the LOSE
+ *   - neighbors 1/0xF/0x12/0x33/0x35 dead while the four checked slots are
+ *     alive -> flag stays 0, pinning the checked slots as exactly 0, 0x10,
+ *     0x11 and 0x34 (no off-by-one on any of the four).
+ * ============================================================ */
+
+static void chpost18_setup(void)
+{
+    int i;
+
+    memset(t_rc13, 0, sizeof(t_rc13));
+    for (i = 0; i < CH13_RC_SLOTS; i++) {
+        t_rc13[i].team = 2;     /* player team (irrelevant: no default check) */
+        t_rc13[i].flags = 0;    /* alive */
+    }
+    data_fd2_battle_runtime_char_array_ptr = t_rc13;
+    data_fd2_battle_party_member_count = CH13_RC_SLOTS;
+    data_fd2_chapter_event_or_battle_end_code = 0;  /* no default check sets a baseline */
+    g_check_char_is_dead_use_array = 1;   /* per-slot .flags drive deadness */
+}
+
+static void chpost18_teardown(void)
+{
+    g_check_char_is_dead_use_array = 0;   /* restore index-agnostic default */
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_party_member_count = 4;
+}
+
+/* Nobody dead -> the OR is false (no LOSE) and the boss is alive (no WIN), so
+ * neither flag write executes and the pre-cleared flag (0) survives. Confirms
+ * chapter 18 writes nothing on the all-alive path (i.e. it really skips the
+ * default win/lose check that every sibling runs). */
+static void test_chpost18_nobody_dead_no_write(void)
+{
+    chpost18_setup();
+
+    fd2_chapter_18_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 0);
+    chpost18_teardown();
+}
+
+/* Protected char[0] dead, boss alive -> the first OR term fires, LOSE (flag
+ * = 1). Pins the first checked slot = 0 and the OR's set-on-dead direction. */
+static void test_chpost18_char0_dead_lose(void)
+{
+    chpost18_setup();
+    t_rc13[0].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_18_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost18_teardown();
+}
+
+/* Protected char[0x10] dead while char[0] alive, boss alive -> the OR's first
+ * term is false so the second term must be evaluated; it fires, LOSE (1).
+ * Pins the second checked slot = 0x10 and that it is genuinely reached. */
+static void test_chpost18_char10_dead_lose(void)
+{
+    chpost18_setup();
+    t_rc13[0x10].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_18_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost18_teardown();
+}
+
+/* Protected char[0x11] dead while char[0] and char[0x10] alive, boss alive ->
+ * the first two OR terms are false so the third must be evaluated; it fires,
+ * LOSE (1). Pins the third checked slot = 0x11 and that it is genuinely
+ * reached (it is the term whose branch shape is inverted in the disassembly:
+ * JZ-skips-the-set when alive). */
+static void test_chpost18_char11_dead_lose(void)
+{
+    chpost18_setup();
+    t_rc13[0x11].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_18_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost18_teardown();
+}
+
+/* Boss (slot 0x34) dead, all three protected chars alive -> the LOSE OR is
+ * false but the independent boss write fires, WIN (flag = 2). Pins the boss
+ * slot = 0x34 and the WIN write. */
+static void test_chpost18_boss_dead_win(void)
+{
+    chpost18_setup();
+    t_rc13[0x34].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_18_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost18_teardown();
+}
+
+/* Boss dead AND protected char[0] dead -> step 1 sets LOSE (1) but step 2 runs
+ * unconditionally afterward and overwrites it with WIN (2). Pins the
+ * win-overrides-loss fall-through: the boss write is sequenced AFTER the LOSE
+ * write and is not gated by it. */
+static void test_chpost18_boss_and_ally_dead_win_overrides(void)
+{
+    chpost18_setup();
+    t_rc13[0].flags = CHARFLAG_DEAD;
+    t_rc13[0x34].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_18_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost18_teardown();
+}
+
+/* Neighbors of every checked slot dead (1, 0xF, 0x12, 0x33, 0x35) while the
+ * four checked slots (0, 0x10, 0x11, 0x34) are alive -> neither write fires
+ * and the flag stays 0. Proves the checked slots are EXACTLY 0, 0x10, 0x11 and
+ * 0x34 with no off-by-one in either direction on any of them. */
+static void test_chpost18_neighbor_slots_ignored(void)
+{
+    chpost18_setup();
+    t_rc13[1].flags = CHARFLAG_DEAD;     /* neighbor of 0 */
+    t_rc13[0xF].flags = CHARFLAG_DEAD;   /* neighbor below 0x10 */
+    t_rc13[0x12].flags = CHARFLAG_DEAD;  /* neighbor above 0x11 */
+    t_rc13[0x33].flags = CHARFLAG_DEAD;  /* neighbor below 0x34 */
+    t_rc13[0x35].flags = CHARFLAG_DEAD;  /* neighbor above 0x34 */
+
+    fd2_chapter_18_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 0);
+    chpost18_teardown();
+}
+
 void run_field_chpost_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -960,5 +1122,12 @@ void run_field_chpost_tests(void)
     RUN_TEST(test_chpost17_char_absent_npc_alive_keeps_default);
     RUN_TEST(test_chpost17_char_absent_npc_dead_game_over);
     RUN_TEST(test_chpost17_neighbor_slots_ignored);
+    RUN_TEST(test_chpost18_nobody_dead_no_write);
+    RUN_TEST(test_chpost18_char0_dead_lose);
+    RUN_TEST(test_chpost18_char10_dead_lose);
+    RUN_TEST(test_chpost18_char11_dead_lose);
+    RUN_TEST(test_chpost18_boss_dead_win);
+    RUN_TEST(test_chpost18_boss_and_ally_dead_win_overrides);
+    RUN_TEST(test_chpost18_neighbor_slots_ignored);
     printf("\n");
 }
