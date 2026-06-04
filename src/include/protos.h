@@ -152,6 +152,9 @@ void fd2_execute_aoe_spell_with_caster_portrait_radial_scatter(int, int, int, in
 void fd2_scatter_sprite_around_origin_with_random_offset(int scatter_range_max, int sprite_array_index, uint32 sprite_x_array_addr, uint32 sprite_y_array_addr, uint32 sprite_type_array_addr, int origin_x, int origin_y);
 void fd2_blit_palette_remap_with_sprite_mask(uint8 *dst, uint16 *sprite_mask, uint32 stride, uint32 remap_table);
 void fd2_animate_warp_teleport_char(uint32, uint32, uint32, uint32, uint32);
+void fd2_animate_warp_portal_open_at(uint32, uint32, uint32);
+int  fd2_animate_warp_out_collapse(int, int, void *, uint32, uint32, int);
+void fd2_animate_warp_in_expand(uint32, uint32, uint32, uint32, uint32, uint32 *, int);
 
 /* ---- cursor + pan ---- */
 void fd2_cursor_move_up(void);

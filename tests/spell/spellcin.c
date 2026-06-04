@@ -1,7 +1,7 @@
 /*
  * unit tests for src/spell/spellcin.c
  *
- * Five of the six workers in this file are pure VGA/VRAM cinematic
+ * Six of the seven workers in this file are pure VGA/VRAM cinematic
  * orchestration and have no isolated numeric path that avoids a write to the
  * hardcoded mode-13h framebuffer literal 0xA0504 (not redirectable via
  * globals). Their behavioral verification is deferred to Phase 9 integration on
@@ -30,6 +30,19 @@
  *   fd2_render_filled_circle_band_anim (which writes the large game-state
  *   buffer), behind an unconditional per-frame blit to 0xA0504. No RNG / damage
  *   / state-transition branch exists to assert at unit level.
+ *
+ *   fd2_animate_warp_teleport_char @ 0x22253 — character warp/teleport
+ *   cinematic. It fopens the real FDOTHER.DAT (warp SFX bank) via
+ *   fd2_load_dat_resource, runs three warp sub-animations (portal-open,
+ *   collapse, expand) that each blit to 0xA0504, and its "pop-in" row-copy loop
+ *   memmove()s 24-byte rows into the hardcoded VRAM literal 0x9FD84.. (not
+ *   redirectable via globals). The only computed state — the same-tile detection
+ *   (same_pos), the destination teleport write (rt_char->pos_x/pos_y), and the
+ *   framebuffer pop-in address math (row_off / src_base / fb_dst_row / src_row /
+ *   row_count, including the top-edge row_count=0x12 branch) — was verified
+ *   statically against the disassembly @0x22306 and @0x22390..0x22406; none of
+ *   it is observable without driving the full warp animation + real warp sibling
+ *   functions + VRAM, so it is deferred to Phase 9 integration.
  *
  * The remaining worker, fd2_scatter_sprite_around_origin_with_random_offset
  * @ 0x21db2, is the scatter *leaf* called by the orphan executor. Unlike its
@@ -140,7 +153,7 @@ static void test_scatter_type_range(void)
 void run_spell_spellcin_tests(void)
 {
     int _prev_fails = g_test_fail_count;
-    printf("Suite: spell/spellcin (scatter leaf tested; 5 VGA/VRAM cinematic "
+    printf("Suite: spell/spellcin (scatter leaf tested; 6 VGA/VRAM cinematic "
            "workers deferred to Phase 9, see file header)\n");
     RUN_TEST(test_scatter_seed_1234_index0);
     RUN_TEST(test_scatter_seed_5555_index1);

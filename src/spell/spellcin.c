@@ -8,6 +8,7 @@
  *   fd2_scatter_sprite_around_origin_with_random_offset @ 0x21db2 (1 caller)
  *   fd2_execute_aoe_spell_with_caster_portrait_radial_scatter @ 0x21bd0 (0 callers)
  *   fd2_play_variant_b_slide_pre_effect @ 0x21eb1 (4 callers)
+ *   fd2_animate_warp_teleport_char @ 0x22253 (4 callers)
  */
 
 #include "types.h"
@@ -558,5 +559,150 @@ void fd2_play_variant_b_slide_pre_effect(int offset0, int step)
     free((void *)snapshot);
     fd2_composite_battle_frame(0);
     __delay_thunk_375b2(200);
+    return;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_animate_warp_teleport_char @ 0x22253  (4 callers)
+ *
+ * CHARACTER WARP / TELEPORT animation. Moves a unit from its current cursor
+ * position to a destination tile, with the full three-stage warp visual:
+ * source-side portal-open + collapse, a row-by-row "pop in" at the
+ * destination, and a destination-side expand. Used by spell 0x17 (dual warp)
+ * and by story-chapter cinematics.
+ *
+ * Params (cdecl, 5 stack args; void return):
+ *   char_slot    — runtime_char_array index of the unit being warped (its
+ *                  pos_x/pos_y are overwritten with the new tile after the
+ *                  source-side collapse).
+ *   new_pos_x    — destination tile X written into runtime_char[char_slot].pos_x
+ *   new_pos_y    — destination tile Y written into runtime_char[char_slot].pos_y
+ *   dst_tile_x   — destination tile X for the framebuffer math (subtracted from
+ *                  the battle view-window origin X). (Ghidra auto-name
+ *                  "char_idx" is misleading.)
+ *   dst_tile_y   — destination tile Y for the framebuffer math (subtracted from
+ *                  the battle view-window origin Y). (Ghidra auto-name "dst_x"
+ *                  is misleading.)
+ *
+ * Sequence:
+ *   warp_sfx_buf = fd2_load_dat_resource("FDOTHER.DAT", 0x51);   // warp SFX bank
+ *   snapshot     = malloc(0x25680);                              // 150KB backdrop backup
+ *   fd2_composite_battle_tile_map(snapshot + 0x8088, ...);       // snapshot the scene
+ *   fd2_animate_warp_portal_open_at(dst_tile_x, dst_tile_y, snapshot);
+ *   warp_in_sprite = portrait_sheet + *(int*)(portrait_sheet + 0x1F6);
+ *   src_x = cursor_screen_x*0x18 + 0xC;  src_y = cursor_screen_y*0x18 + 0xF;
+ *   same_pos = (new_pos_x == dst_tile_x && new_pos_y == dst_tile_y);
+ *   fd2_play_sfx_with_handle(warp_sfx_buf, same_pos, 1);
+ *   radius = fd2_animate_warp_out_collapse(dst_tile_x, dst_tile_y, snapshot,
+ *                                          src_x, src_y, warp_in_sprite);
+ *   rt_char->pos_x = new_pos_x;  rt_char->pos_y = new_pos_y;     // ACTUAL TELEPORT
+ *   memmove(large_game_state_buffer, snapshot, 0x25680);         // restore backdrop
+ *   fd2_render_filled_circle_band_anim(src_x, src_y, 0xB, 0, 0xC0, radius);
+ *
+ *   // "Pop in" copy: 24-byte rows from the working surface to the mode-13h
+ *   // framebuffer at the destination tile. row_count is 0x18, or 0x12 (and the
+ *   // src/dst start rows shift) when the destination sits on the view-window
+ *   // top edge (dst_tile_y == origin_y).
+ *   for i in 0..row_count-1:
+ *     memmove(fb_dst_row, src_row, 0x18);
+ *     fb_dst_row += 0x140;  src_row += 0x1C8;  __delay_thunk_375b2(10);
+ *
+ *   fd2_animate_warp_in_expand(dst_tile_x, dst_tile_y, snapshot, src_x, src_y,
+ *                              warp_in_sprite, radius);
+ *   free(snapshot);  free(warp_sfx_buf);
+ *
+ * Framebuffer math (verified against the assembly @0x22390..0x22406):
+ *   row_off  = (dst_tile_x - origin_x) * 0x18;
+ *   src_base = large_game_state_buffer + (dst_tile_y - origin_y)*0x2AC0 + row_off + 0x8088;
+ *   fb_dst   = 0x9FD84 + row_off + (dst_tile_y - origin_y)*0x1E00;
+ *   default (not top edge): row_count=0x18, src_row = src_base - 0xAB0;
+ *   top edge:               row_count=0x12, src_row = src_base, fb_dst += 0x780.
+ *
+ * Resources: FDOTHER.DAT[0x51] (warp SFX bank).
+ *
+ * Cdecl, 5 stack params; void return. The binary's __CHK(0x4C) stack-probe
+ * prologue is compiler-injected and not part of the source. There is no
+ * explicit RET: the normal path tail-JMPs into the shared epilogue at 0x18888
+ * (the ADD ESP,0x1C / POP EBP/EDI/ESI/EBX / RET tail of
+ * fd2_render_decimal_number_to_buffer @ 0x187D6 — an identical Watcom epilogue
+ * shared between two adjacent same-frame functions). Emitted here as a plain
+ * return; the compiler regenerates the matching epilogue.
+ * ---------------------------------------------------------------- */
+void fd2_animate_warp_teleport_char(uint32 char_slot, uint32 new_pos_x,
+                                    uint32 new_pos_y, uint32 dst_tile_x,
+                                    uint32 dst_tile_y)
+{
+    uint32 warp_sfx_buf;
+    uint32 snapshot;
+    uint32 src_x;
+    uint32 src_y;
+    uint32 same_pos;
+    uint32 warp_in_sprite;
+    int radius;
+    runtime_char *rt_char;
+    uint32 row_off;
+    uint32 src_base;
+    uint32 fb_dst_row;
+    uint32 src_row;
+    int row_count;
+    int i;
+
+    warp_sfx_buf = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 0x51);
+    snapshot = (uint32)malloc(0x25680);
+    fd2_composite_battle_tile_map(snapshot + 0x8088, 0x1c8, 0xd, 8,
+        data_fd2_battle_view_window_origin_x,
+        data_fd2_battle_view_window_origin_y);
+
+    rt_char = &data_fd2_battle_runtime_char_array_ptr[char_slot];
+    fd2_animate_warp_portal_open_at(dst_tile_x, dst_tile_y, snapshot);
+
+    warp_in_sprite =
+        *(uint32 *)(data_fd2_resource_portrait_sheet_ptr + 0x1f6) +
+        data_fd2_resource_portrait_sheet_ptr;
+    src_x = data_fd2_battle_cursor_screen_x * 0x18 + 0xc;
+    src_y = data_fd2_battle_cursor_screen_y * 0x18 + 0xf;
+
+    same_pos = 0;
+    if (new_pos_x == dst_tile_x && new_pos_y == dst_tile_y) {
+        same_pos = 1;
+    }
+    fd2_play_sfx_with_handle(warp_sfx_buf, (int)same_pos, 1);
+
+    radius = fd2_animate_warp_out_collapse((int)dst_tile_x, (int)dst_tile_y,
+        (void *)snapshot, src_x, src_y, (int)warp_in_sprite);
+
+    rt_char->pos_x = (uint8)new_pos_x;
+    rt_char->pos_y = (uint8)new_pos_y;
+
+    memmove((void *)data_fd2_large_game_state_buffer_ptr,
+        (void *)snapshot, 0x25680);
+    fd2_render_filled_circle_band_anim(src_x, src_y, 0xb, 0, 0xc0, radius);
+
+    row_off = (dst_tile_x - data_fd2_battle_view_window_origin_x) * 0x18;
+    src_base = data_fd2_large_game_state_buffer_ptr +
+        (dst_tile_y - data_fd2_battle_view_window_origin_y) * 0x2ac0 +
+        row_off + 0x8088;
+    fb_dst_row = row_off + 0x9fd84 +
+        (dst_tile_y - data_fd2_battle_view_window_origin_y) * 0x1e00;
+    row_count = 0x18;
+    src_row = src_base - 0xab0;
+    if (dst_tile_y == data_fd2_battle_view_window_origin_y) {
+        row_count = 0x12;
+        fb_dst_row = fb_dst_row + 0x780;
+        src_row = src_base;
+    }
+
+    for (i = 0; i < row_count; i++) {
+        memmove((void *)fb_dst_row, (void *)src_row, 0x18);
+        fb_dst_row = fb_dst_row + 0x140;
+        src_row = src_row + 0x1c8;
+        __delay_thunk_375b2(10);
+    }
+
+    fd2_animate_warp_in_expand(dst_tile_x, dst_tile_y, snapshot,
+        src_x, src_y, (uint32 *)warp_in_sprite, radius);
+    free((void *)snapshot);
+    free((void *)warp_sfx_buf);
     return;
 }

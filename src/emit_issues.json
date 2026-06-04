@@ -522,5 +522,17 @@
         "verify_method": "compile_and_disasm"
       }
     ]
+  },
+  "00022253": {
+    "name": "fd2_animate_warp_teleport_char",
+    "target": "spell/spellcin.c",
+    "issues": [
+      {
+        "type": "shared_epilogue_tail_jmp",
+        "desc": "The normal path has no explicit RET: the function tail-JMPs (JMP 0x18888 @0x2246b) into the MIDDLE of an adjacent function, fd2_render_decimal_number_to_buffer @0x187d6. 0x18888 is that function's standard Watcom epilogue tail (ADD ESP,0x1C / POP EBP / POP EDI / POP ESI / POP EBX / RET), which is byte-identical to the epilogue this function's own prologue (PUSH EBX/ESI/EDI/EBP + SUB ESP,0x1C) would require, so the Watcom 9.5a compiler shared it (the same 0x18888 tail is also reached from fd2_blit_scaled_tile_map_view @0x1f6a5). Emitted as a plain 'return;'; the compiler regenerates the matching epilogue. This is a binary code-layout detail (Pattern A SHARED EPILOGUE per pipeline_spec.md), Layer-2 equivalent, not byte-identical. Recommend a post-build -d disasm to confirm the regenerated epilogue restores EBX/ESI/EDI/EBP and adjusts ESP identically.",
+        "severity": "info",
+        "verify_method": "compile_and_disasm"
+      }
+    ]
   }
 }
