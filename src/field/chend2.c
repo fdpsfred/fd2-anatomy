@@ -11,6 +11,8 @@
  *                               data_fd2_chapter_end_handler_table[23])
  * fd2_chapter_24_end @ 0x24C1E (0 direct callers; dispatched via
  *                               data_fd2_chapter_end_handler_table[24])
+ * fd2_chapter_25_end @ 0x24DF2 (0 direct callers; dispatched via
+ *                               data_fd2_chapter_end_handler_table[25])
  */
 
 #include <string.h>
@@ -515,5 +517,41 @@ void fd2_chapter_24_end(void)
 
     memset((void *)0xA0000, 0, 64000);
     fd2_save_runtime_char_to_template();
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_25_end @ 0x24DF2  — Chapter 25「火焰的審判」end handler
+ * (0 direct callers, dispatched via data_fd2_chapter_end_handler_table[25]).
+ *
+ * Straight-line, no-branch dialog/cutscene handler (no RNG, no numeric
+ * computation, no CALL-return value used). It shows dialog page 6, pans the
+ * cursor/window to (4,0x10), reloads the chapter portrait set into the
+ * FD2.TMP swap file (fd2_load_chapter_portraits_and_dump_tmp with race 2),
+ * fires cutscene event 0x4B, shows dialog page 7, then re-initialises 聖寇拉斯
+ * (char 0x1A) from base+growth and saves the runtime char templates — so
+ * 聖寇拉斯 is persisted. It finishes through fd2_chapter_11_end's shared tail
+ * snippet @ 0x237C8 (entered via a PUSH 0x1D ; JMP): re-initialise 亞奇梅吉
+ * (char 0x1D) from base+growth and advance current_chapter_id. Because 亞奇梅吉
+ * is initialised AFTER the save, it joins the runtime roster but is NOT
+ * persisted into the template chars (binary design; the walkthrough omits it).
+ *
+ * Walkthrough SOT: assets/chapters/chapter_25.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_25_end(void)
+{
+    fd2_display_dialog_scene(current_chapter_text, 6, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_pan_cursor_and_window(4, 0x10);
+    fd2_load_chapter_portraits_and_dump_tmp(2);
+    fd2_cutscene_event_trigger(0x4B);
+    fd2_display_dialog_scene(current_chapter_text, 7, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_init_runtime_char_from_base_growth(0x1A);
+    fd2_save_runtime_char_to_template();
+
+    /* shared tail @ 0x237C8 (fd2_chapter_11_end's epilogue snippet), entered
+     * via PUSH 0x1D ; JMP: recruit 亞奇梅吉 then advance the chapter id. */
+    fd2_init_runtime_char_from_base_growth(0x1D);
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }

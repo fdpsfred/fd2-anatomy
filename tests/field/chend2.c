@@ -39,6 +39,7 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
 #include "testharn.h"
 #include "types.h"
 #include "consts.h"
@@ -600,6 +601,100 @@ static void test_ch24_end_runs_and_advances(void)
     ce_restore_rc_ptr();
 }
 
+/* ----------------------------------------------------------------
+ * Chapter 25 end handler — fd2_chapter_25_end @ 0x24DF2.
+ *
+ * fd2_chapter_25_end is a straight-line, no-branch dialog/cutscene handler (no
+ * RNG, no numeric computation, no CALL-return value used). Its testable risk
+ * core is (a) the unconditional real portrait reload + FD2.TMP swap-file
+ * rewrite via fd2_load_chapter_portraits_and_dump_tmp(2); (b) the two-recruit
+ * sequence with a save in between — 聖寇拉斯 (char 0x1A) is recruited and
+ * saved, then 亞奇梅吉 (char 0x1D) is recruited AFTER the save through the
+ * shared fd2_chapter_11_end tail snippet @ 0x237C8 (entered via PUSH 0x1D ;
+ * JMP); and (c) that the shared tail's fall-through advances current_chapter_id
+ * by exactly one.
+ *
+ * The handler is driven end-to-end on-host with the proven chend2 safe env
+ * plus the rsrc portrait fixture:
+ *   - fd2_load_chapter_portraits_and_dump_tmp runs FOR REAL against the staged
+ *     real FDICON.B24 + FDFIELD.DAT (copied into the test cwd by build_test.py);
+ *     alloc_offset is set to 0 so the per-record race scan iterates zero
+ *     entries (no fd2_init_runtime_char_for_battle calls), and the real
+ *     function re-reads FDFIELD[chapter*3+2], frees+nulls the field buffer, and
+ *     rewrites the 0x32A00-byte FD2.TMP swap file;
+ *   - current_chapter_id is seeded to 4 so the FDFIELD re-read index (4*3+2 =
+ *     0xE) is the same valid index the rsrc loader suite exercises;
+ *   - the two fd2_display_dialog_scene calls take the immediate-END program,
+ *     the fd2_cutscene_event_trigger(0x4B) call takes a zero-group script, and
+ *     fd2_pan_cursor_and_window runs against the staged camera state;
+ *   - both fd2_init_runtime_char_from_base_growth recruits run FOR REAL,
+ *     appending into the staged 64-slot menu roster, and the empty active party
+ *     makes fd2_save_runtime_char_to_template iterate zero chars.
+ *
+ * The pure blit/display side effects (dialog glyphs, cutscene compositing,
+ * camera pan pixels) are deferred to Phase 9 integration.
+ * ---------------------------------------------------------------- */
+
+/* zero-group cutscene script for ch25's event 0x4B: n_groups byte = 0, so the
+ * real fd2_cutscene_event_trigger just composites once and returns. */
+static uint8 g_ce25_script_4b[1] = { 0 };
+
+static long ce25_fd2_tmp_size(void)
+{
+    FILE *fp;
+    long n;
+
+    fp = fopen("FD2.TMP", "rb");
+    if (fp == NULL) return -1;
+    fseek(fp, 0, SEEK_END);
+    n = ftell(fp);
+    fclose(fp);
+    return n;
+}
+
+static void test_ch25_end_real_portrait_reload_two_recruits_and_advance(void)
+{
+    uint32 chap0;
+
+    ce_install_safe_env();
+
+    /* zero-group cutscene script for the single event the handler fires. */
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x4B] = g_ce25_script_4b;
+
+    /* portrait reload runs for real: empty tile-event scan (alloc_offset 0 ->
+     * no per-record fd2_init_runtime_char_for_battle), fresh field buffer, and
+     * a valid FDFIELD re-read index (chapter 4 -> 4*3+2 = 0xE). */
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    data_fd2_tile_event_data_table_ptr = 0;
+    chapter_portrait_load_buffer = 0;
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_chapter_current_chapter_id = 4;
+    chap0 = data_fd2_chapter_current_chapter_id;
+
+    remove("FD2.TMP");
+
+    fd2_chapter_25_end();
+
+    /* shared-tail fall-through ran: chapter id advanced by exactly one. */
+    ASSERT_EQ(data_fd2_chapter_current_chapter_id, chap0 + 1);
+
+    /* both recruits ran (聖寇拉斯 0x1A before the save, 亞奇梅吉 0x1D after it). */
+    ASSERT_EQ(data_fd2_shared_menu_party_member_count, 2);
+
+    /* the real portrait reload ran: field buffer freed+nulled, and the FD2.TMP
+     * swap file was rewritten to its full 0x32A00-byte size. */
+    ASSERT_EQ(chapter_portrait_load_buffer, 0);
+    ASSERT_EQ(ce25_fd2_tmp_size(), 0x32A00);
+
+    /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
+    remove("FD2.TMP");
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    ce_restore_rc_ptr();
+}
+
 void run_field_chend2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -613,5 +708,6 @@ void run_field_chend2_tests(void)
     RUN_TEST(test_ch23_end_no_key_miti_absent_within_15_turns);
     RUN_TEST(test_ch23_end_key_held_miti_absent_after_15_turns);
     RUN_TEST(test_ch24_end_runs_and_advances);
+    RUN_TEST(test_ch25_end_real_portrait_reload_two_recruits_and_advance);
     printf("\n");
 }
