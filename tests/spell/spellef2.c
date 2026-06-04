@@ -775,6 +775,118 @@ static void test_ap_boost_visits_all_targets(void)
     ASSERT_EQ(g_test_rc_array[5].status_flags_block[1], 2);
 }
 
+/* ---- fd2_cast_dp_boost_spell @ 0x22866 ---- */
+
+/* Single target, not yet boosted: the DP buff must land. dp 100 -> delta =
+ * (int)(1.0 + 100*0.15) = (int)16.0 = 16 (Watcom __CHP truncates toward zero),
+ * so dp 100 -> 116. The buff timer is the DP slot status_flags_block[2] (asm
+ * field +0x23, distinct from the AP slot [1]); it must be set from the RNG:
+ * seed 0 -> fd2_advance_rng_state returns 0x80A4 (32932), (int)32932 % 4 = 0,
+ * +2 -> 2. level byte status_flags_block[0] = 5 with a non-intermediate job (1)
+ * gives XP credit 5*2 = 10. The AP timer slot [1] must stay untouched, proving
+ * the DP variant writes [2] not [1]. Guards the EAX-bug fix: the timer comes
+ * from the RNG return, not the old (==0) flag value. */
+static void test_dp_boost_applies_buff_and_timer(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;   /* bound impact/flicker loops */
+    g_test_rc_array[0].dp = 100;
+    g_test_rc_array[0].job_id = 1;            /* not 9..0x18 -> no +30 */
+    g_test_rc_array[0].status_flags_block[0] = 5;   /* level */
+    g_test_rc_array[0].status_flags_block[2] = 0;   /* DP slot: not yet boosted */
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+    target_id = 0;
+    fd2_cast_dp_boost_spell(0, 1, (uint32)&target_id);
+    ASSERT_EQ(g_test_rc_array[0].dp, 116);
+    ASSERT_EQ(g_test_rc_array[0].status_flags_block[2], 2);   /* DP slot set */
+    ASSERT_EQ(g_test_rc_array[0].status_flags_block[1], 0);   /* AP slot untouched */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 10);
+}
+
+
+/* Already-boosted target (DP timer [2] != 0): the else branch shows the miss
+ * indicator and must NOT stack the buff -- dp, timer, and XP credit all stay
+ * put. */
+static void test_dp_boost_skips_already_boosted(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[0].dp = 100;
+    g_test_rc_array[0].job_id = 1;
+    g_test_rc_array[0].status_flags_block[0] = 5;
+    g_test_rc_array[0].status_flags_block[2] = 3;   /* DP slot: already boosted */
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+    target_id = 0;
+    fd2_cast_dp_boost_spell(0, 1, (uint32)&target_id);
+    ASSERT_EQ(g_test_rc_array[0].dp, 100);                 /* unchanged */
+    ASSERT_EQ(g_test_rc_array[0].status_flags_block[2], 3);/* unchanged */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 0);       /* no credit */
+}
+
+
+/* Intermediate-class job (9..0x18) adds 30 to the level_mod used for XP credit
+ * (asm 0x228ee ADD [ESP+8],0x1e), and the boost still applies. job_id 9 (first
+ * intermediate value) + level 5 -> level_mod 35 -> XP 35*2 = 70. dp 50 -> delta
+ * = (int)(1.0 + 50*0.15) = (int)8.5 = 8 -> dp 58. timer from seed 0 -> 2. */
+static void test_dp_boost_intermediate_class_xp_bonus(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[0].dp = 50;
+    g_test_rc_array[0].job_id = 9;            /* intermediate class -> +30 */
+    g_test_rc_array[0].status_flags_block[0] = 5;
+    g_test_rc_array[0].status_flags_block[2] = 0;
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+    target_id = 0;
+    fd2_cast_dp_boost_spell(0, 1, (uint32)&target_id);
+    ASSERT_EQ(g_test_rc_array[0].dp, 58);
+    ASSERT_EQ(g_test_rc_array[0].status_flags_block[2], 2);
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 70);
+}
+
+
+/* The per-target loop reads ((uint8 *)target_id_array)[iter] as a BYTE (asm
+ * 0x228c2 -> the target index comes from the array, not the loop counter), so
+ * non-adjacent indices 2 and 5 must both be boosted while a bystander at index
+ * 0 stays put. Both targets start un-boosted (DP timer 0) with dp 100;
+ * target[2] consumes RNG call 1 (seed 0 -> 0x80A4, %4=0 -> timer 2) and
+ * target[5] consumes RNG call 2 (-> 0x85C0, %4=0 -> timer 2). Each gets delta
+ * 16 -> dp 116. A loop that stopped after one target, or used iter as the char
+ * id, would leave index 5 (or index 0) wrong. */
+static void test_dp_boost_visits_all_targets(void)
+{
+    uint8 target_ids[2];
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[0].dp = 200;             /* bystander, must NOT change */
+    g_test_rc_array[2].dp = 100;
+    g_test_rc_array[2].job_id = 1;
+    g_test_rc_array[2].status_flags_block[2] = 0;
+    g_test_rc_array[5].dp = 100;
+    g_test_rc_array[5].job_id = 1;
+    g_test_rc_array[5].status_flags_block[2] = 0;
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+    target_ids[0] = 2;
+    target_ids[1] = 5;
+    fd2_cast_dp_boost_spell(0, 2, (uint32)target_ids);
+    ASSERT_EQ(g_test_rc_array[0].dp, 200);   /* untouched */
+    ASSERT_EQ(g_test_rc_array[2].dp, 116);
+    ASSERT_EQ(g_test_rc_array[5].dp, 116);
+    ASSERT_EQ(g_test_rc_array[2].status_flags_block[2], 2);
+    ASSERT_EQ(g_test_rc_array[5].status_flags_block[2], 2);
+}
+
 void run_spell_spelleff2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -803,5 +915,9 @@ void run_spell_spelleff2_tests(void)
     RUN_TEST(test_ap_boost_skips_already_boosted);
     RUN_TEST(test_ap_boost_intermediate_class_xp_bonus);
     RUN_TEST(test_ap_boost_visits_all_targets);
+    RUN_TEST(test_dp_boost_applies_buff_and_timer);
+    RUN_TEST(test_dp_boost_skips_already_boosted);
+    RUN_TEST(test_dp_boost_intermediate_class_xp_bonus);
+    RUN_TEST(test_dp_boost_visits_all_targets);
     printf("\n");
 }

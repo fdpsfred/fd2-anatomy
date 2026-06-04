@@ -2213,8 +2213,9 @@
     "name": "fd2_cast_dp_boost_spell",
     "target": "spell/spelleff.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00022960": {
     "name": "fd2_cast_spell_13_stage_c",

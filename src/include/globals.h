@@ -39,6 +39,7 @@ extern uint32 data_fd2_battle_fast_mode_walk_overlay_ptr;               /* 0x53B
 
 /* ---- battle spell-effect constants ---- */
 extern double data_fd2_battle_spell_ap_boost_factor_015;                /* 0x50210  const 0.15 */
+extern double data_fd2_battle_spell_dp_boost_factor_015;                /* 0x50218  const 0.15 */
 
 /* ---- battle AI scoring ---- */
 extern double data_fd2_battle_ai_enemy_spell_score_multiplier_15;       /* 0x50144  const 1.5 */
