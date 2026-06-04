@@ -156,6 +156,134 @@ static void test_chpost02_neighbors_outside_range_ignored(void)
     chpost_teardown();
 }
 
+/* ============================================================
+ * fd2_chapter_10_post_action @ 0x20707
+ *
+ * Same default win/lose check (fd2_check_battle_end_condition, linked
+ * real), then a lose-condition override: if escort NPC runtime_char[0x32]
+ * OR [0x33] is dead, set game_event_flag = 1. Deadness is queried through
+ * fd2_check_char_is_dead, which the real engine computes as
+ * runtime_char[idx].flags bit0.
+ *
+ * fd2_check_char_is_dead is a testglob stub. Its default index-agnostic
+ * mode cannot distinguish slot 0x32 from 0x33, so these tests opt into its
+ * array-reading mode (g_check_char_is_dead_use_array = 1), which mirrors
+ * the real function by returning runtime_char[idx].flags bit0 — exactly the
+ * per-slot behavior chapter 10 depends on.
+ *
+ * Slot 0x33 (51) is reached, so these tests redirect the array at a
+ * 56-slot local buffer (the shared 8-slot g_test_rc_array and the
+ * chapter-2 16-slot t_rc are both too small). As in the chapter-2 suite
+ * every slot is team=2 / alive so the default check deterministically
+ * yields flag=2, making the override observable as a clean 2 -> 1.
+ *
+ * Coverage is risk-driven for the OR short-circuit and the inverted-
+ * looking branch shape in the disassembly (JNZ-to-set on the first dead,
+ * JZ-to-return on the second alive):
+ *   - both escorts alive          -> no override (flag stays 2)
+ *   - [0x32] dead, [0x33] alive    -> override fires via the first test
+ *   - [0x32] alive, [0x33] dead    -> override fires via the second test
+ *                                     (proves [0x33] is still evaluated)
+ *   - both dead                    -> override fires
+ *   - neighbors 0x31/0x34 dead, escorts alive -> NO override, pinning the
+ *     checked slots as exactly 0x32 and 0x33 (not off-by-one).
+ * ============================================================ */
+
+extern int g_check_char_is_dead_use_array;
+
+#define CH10_RC_SLOTS 56
+static runtime_char t_rc10[CH10_RC_SLOTS];
+
+static void chpost10_setup(void)
+{
+    int i;
+
+    memset(t_rc10, 0, sizeof(t_rc10));
+    for (i = 0; i < CH10_RC_SLOTS; i++) {
+        t_rc10[i].team = 2;     /* player team: never an alive enemy */
+        t_rc10[i].flags = 0;    /* alive */
+    }
+    data_fd2_battle_runtime_char_array_ptr = t_rc10;
+    data_fd2_battle_party_member_count = CH10_RC_SLOTS;
+    data_fd2_chapter_event_or_battle_end_code = 0;
+    g_check_char_is_dead_use_array = 1;   /* per-slot .flags drive deadness */
+}
+
+static void chpost10_teardown(void)
+{
+    g_check_char_is_dead_use_array = 0;   /* restore index-agnostic default */
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_party_member_count = 4;
+}
+
+/* Both escorts alive -> the OR is false, override does not fire, the
+ * default flag (2) survives. */
+static void test_chpost10_both_escorts_alive_keeps_default(void)
+{
+    chpost10_setup();
+    /* slots 0x32, 0x33 already alive from setup */
+
+    fd2_chapter_10_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost10_teardown();
+}
+
+/* Escort 0x32 dead -> the first fd2_check_char_is_dead returns nonzero and
+ * the override fires (short-circuits before testing 0x33). */
+static void test_chpost10_first_escort_dead_game_over(void)
+{
+    chpost10_setup();
+    t_rc10[0x32].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_10_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost10_teardown();
+}
+
+/* Escort 0x32 alive, 0x33 dead -> the first test passes (alive) so the
+ * second test must run; it returns nonzero and the override fires. Pins
+ * that 0x33 is genuinely evaluated, not dead code. */
+static void test_chpost10_second_escort_dead_game_over(void)
+{
+    chpost10_setup();
+    t_rc10[0x33].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_10_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost10_teardown();
+}
+
+/* Both escorts dead -> override fires. */
+static void test_chpost10_both_escorts_dead_game_over(void)
+{
+    chpost10_setup();
+    t_rc10[0x32].flags = CHARFLAG_DEAD;
+    t_rc10[0x33].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_10_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost10_teardown();
+}
+
+/* Neighbors 0x31 and 0x34 dead while the two escorts (0x32, 0x33) are
+ * alive -> the override must NOT fire. Proves the checked slots are
+ * exactly 0x32 and 0x33 (no off-by-one in either direction). */
+static void test_chpost10_neighbor_slots_ignored(void)
+{
+    chpost10_setup();
+    t_rc10[0x31].flags = CHARFLAG_DEAD;
+    t_rc10[0x34].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_10_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost10_teardown();
+}
+
 void run_field_chpost_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -165,5 +293,10 @@ void run_field_chpost_tests(void)
     RUN_TEST(test_chpost02_last_slot_alive_keeps_default);
     RUN_TEST(test_chpost02_middle_slot_alive_keeps_default);
     RUN_TEST(test_chpost02_neighbors_outside_range_ignored);
+    RUN_TEST(test_chpost10_both_escorts_alive_keeps_default);
+    RUN_TEST(test_chpost10_first_escort_dead_game_over);
+    RUN_TEST(test_chpost10_second_escort_dead_game_over);
+    RUN_TEST(test_chpost10_both_escorts_dead_game_over);
+    RUN_TEST(test_chpost10_neighbor_slots_ignored);
     printf("\n");
 }

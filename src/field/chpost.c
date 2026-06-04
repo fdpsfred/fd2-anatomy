@@ -41,3 +41,32 @@ void fd2_chapter_02_post_action(uint32 event_arg)
     }
     data_fd2_chapter_event_or_battle_end_code = 1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_10_post_action @ 0x20707  (dispatched, 0 direct callers)
+ *
+ * Chapter 10 turn-cycle post-action handler. Reached via
+ * data_fd2_chapter_post_action_handler_table[9] (table @ 0x51B19,
+ * indexed by current_chapter_id). The dispatch site pushes one cdecl
+ * arg (active char_idx) and cleans it; event_arg is unused by the body.
+ *
+ * Runs the default win/lose check, then adds a lose-condition override:
+ * if either escort NPC at runtime_char[0x32] or [0x33] is dead, set
+ * game_event_flag (0x53ECC) to 1 (game over). Unlike chapter 2 this
+ * handler calls fd2_check_char_is_dead for each slot rather than reading
+ * bFlags inline; OR short-circuits so [0x33] is only tested when [0x32]
+ * is alive. (Chapter 10 has 2 escort NPCs at slots 0x32, 0x33 that must
+ * survive.)
+ * ---------------------------------------------------------------- */
+void fd2_chapter_10_post_action(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_check_battle_end_condition();
+
+    if (fd2_check_char_is_dead(0x32) == 0 &&
+        fd2_check_char_is_dead(0x33) == 0) {
+        return;
+    }
+    data_fd2_chapter_event_or_battle_end_code = 1;
+}

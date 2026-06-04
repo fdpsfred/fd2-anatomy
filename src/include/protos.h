@@ -183,6 +183,7 @@ void fd2_cutscene_event_trigger(uint32 event_id);
 
 /* ---- chapter post-action handlers ---- */
 void fd2_chapter_02_post_action(uint32 event_arg);
+void fd2_chapter_10_post_action(uint32 event_arg);
 
 /* ---- animation ---- */
 void fd2_tick_tile_event_animations(void);

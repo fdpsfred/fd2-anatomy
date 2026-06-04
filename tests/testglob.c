@@ -180,12 +180,28 @@ void fd2_animate_warp_teleport_char(uint32 a, uint32 b, uint32 c, uint32 d, uint
 uint16 data_fd2_animation_palette_cycle_last_tick = 0;
 uint8  data_fd2_animation_palette_cycle_frame_idx = 0;
 uint8  data_fd2_animation_palette_cycle_rgb_table[93] = {0};
-/* fd2_check_char_is_dead stub. Default 0 (alive) keeps historical behavior for
- * every existing test. fd2_save_runtime_char_to_template uses this to decide the
- * char-0 (索爾) dead-skip special case, so its test pins the return via
- * g_check_char_is_dead_return. */
+/* fd2_check_char_is_dead stub.
+ *
+ * Default (g_check_char_is_dead_use_array == 0): index-agnostic, returns
+ * g_check_char_is_dead_return for every index. This keeps historical
+ * behavior for every existing test (e.g. fd2_save_runtime_char_to_template
+ * pins the char-0 索爾 dead-skip via g_check_char_is_dead_return, and the
+ * count_active filter tests force all-alive / all-dead).
+ *
+ * Opt-in (g_check_char_is_dead_use_array != 0): faithfully reproduces the
+ * real function @ 0x3453e — returns runtime_char[c].flags bit0 from the
+ * live data_fd2_battle_runtime_char_array_ptr. Tests that need to
+ * distinguish specific slots (e.g. fd2_chapter_10_post_action checking
+ * escorts 0x32 vs 0x33) set this flag so per-slot .flags drive the result. */
 int g_check_char_is_dead_return = 0;
-int fd2_check_char_is_dead(uint32 c) { (void)c; return g_check_char_is_dead_return; }
+int g_check_char_is_dead_use_array = 0;
+int fd2_check_char_is_dead(uint32 c)
+{
+    if (g_check_char_is_dead_use_array) {
+        return data_fd2_battle_runtime_char_array_ptr[c].flags & 1;
+    }
+    return g_check_char_is_dead_return;
+}
 /* fd2_scan_chars_within_manhattan_range: now in btl_ai.c */
 uint32 data_fd2_ui_anim_sprite_sheet_ptr = 0;
 void  *data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[5] = {0};
