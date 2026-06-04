@@ -553,6 +553,24 @@
       }
     ]
   },
+  "00029c90": {
+    "name": "fd2_animate_bg_zoom_transition_in",
+    "target": "anim/anispell.c",
+    "issues": [
+      {
+        "type": "contiguous_globals_array_index",
+        "desc": "The binary indexes the 3-layer BG cache as a uint32[3] at 0x5410B/0F/13 via PUSH dword ptr [EDX*4 + 0x5410B] (EDX = frame%3 in phase 1, (frame+2)%3 in phase 3). globals.h declares the three slots as separate extern uint32 (data_fd2_battle_special_cinematic_bg_layer_0/1/2_buf_ptr), so the emitted C reproduces the array access via 'uint32 *bg_layer = &data_..._layer_0_buf_ptr; bg_layer[idx]'. This is only well-defined if the linker places the three globals contiguously in declaration order (4 bytes apart). They ARE defined consecutively (testglob.c lines 95-97, declaration order layer_0,layer_1,layer_2) and Watcom 9.5a lays file-scope objects in definition order within the data segment, matching the original 0x5410B/0F/13 layout. A redefinition as a real uint32[3] array was rejected to avoid touching the existing scalar references in spell/spellcin.c (which read/write the three names individually). Recommend a post-build -d disasm / map check to confirm &layer_1 == &layer_0+4 and &layer_2 == &layer_0+8 in the linked image.",
+        "severity": "low",
+        "verify_method": "compile_and_disasm"
+      },
+      {
+        "type": "test_coverage_note",
+        "desc": "UNIT-TESTED (risk-based): the only non-display computation -- the 3-layer BG modulo cycling bg_layer[frame%3] (phase 1) / bg_layer[(frame+2)%3] (phase 3), the per-phase blit dst/stride, and the 9..0 loop counts -- is asserted by test_bg_zoom_transition_bg_cycling (tests/anim/anispell.c) driving the REAL function. fd2_rle_blit_sprite is a recording stub (testglob.c) that logs each resolved BG-layer pointer + dst into g_rle_blit_log_*; the three BG-layer globals are set to distinguishable sentinels and the test asserts phase-1 indices [0,2,1,0,2,1,0,2,1,0] (first 10 logged blits, dst=workspace) and phase-3 indices [2,1,0,2,1,0,2,1,0,2] (last 10 logged blits, dst=workspace+0x140), both at stride 0x280. This pins the signed-IDIV-by-3 == C %, the +2 phase-3 rotation, and the loop bounds. The intervening phase-2 fd2_flash_char_hit_sprite is REAL-linked and runs the real fd2_render_mini_char_status_panel + fd2_display_dialog_scene; those are stood up by the shared minipfix.h fixture (the SAME fixture that drives fd2_flash_char_hit_sprite end-to-end in tests/battle/battle2.c -- contrary to an earlier deferral note, the sprite-sheet/all-game-text/dialog seam DOES exist and is reused here). Buffer sizing from disasm: workspace>=0x1F400 (phase-2 memset); clear_buf>=0x19000 because the phase-2 blit_rectangle(workspace,0x280,clear_buf,0x140,0x140,0xC8) reads a contiguous 0xC8*0x140=0x19000 bytes of clear_buf. All callees are void; no EAX return value is consumed, so no EAX-tracking risk. DEFERRED to Phase 9 integration: only the pure VGA pixel output (the actual scrolled bytes written to 0xA0000 -- a harmless VGA-aperture write in the host harness, same convention as the blitspr/status/aniwalk2 suites) is left, consistent with the file-sibling fd2_play_ani_file_animation_sequence (00020421) and the spellcin.c cinematic workers.",
+        "severity": "info",
+        "verify_method": "unit_tested"
+      }
+    ]
+  },
   "00027fc9": {
     "name": "fd2_execute_summon_spell_cast",
     "target": "spell/spellcin.c",

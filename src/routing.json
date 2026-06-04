@@ -2780,8 +2780,9 @@
     "name": "fd2_animate_bg_zoom_transition_in",
     "target": "anim/anispell.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00029ded": {
     "name": "fd2_animate_bg_zoom_transition_out",

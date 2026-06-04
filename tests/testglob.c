@@ -1296,8 +1296,8 @@ uint8 fd2_resolve_terrain_for_aoe_targets(int n_chars, uint32 target_byte_array)
 uint32 fd2_load_figani_sfx_bank(uint32 figani_data) { return 0; }
 void fd2_step_figani_pose_animation(uint32 figani_data, uint32 palette_op,
     uint32 dst_buf, uint32 dst_stride) { }
-void fd2_animate_bg_zoom_transition_in(uint32 char_unit_id, uint32 target_figani,
-    uint32 workbuf1, uint32 workbuf2, uint32 bg_resource) { }
+/* fd2_animate_bg_zoom_transition_in: now emitted for real in
+ * src/anim/anispell.c (its former no-op linker stub was removed). */
 void fd2_play_char_intro_zoom_anim(uint32 caster_idx, uint32 mode_flag,
     uint32 caster_figani_a, uint32 target_figani0, uint32 workbuf2,
     uint32 workbuf1, uint32 tai_resource) { }
