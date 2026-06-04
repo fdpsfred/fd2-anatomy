@@ -181,6 +181,8 @@ uint32 fd2_check_party_has_char_id(uint32 char_id);
 void fd2_cutscene_event_trigger(uint32 event_id);
 
 /* ---- animation ---- */
+void fd2_play_ani_file_animation_sequence(uint32 anim_idx, uint32 per_frame_delay,
+                                          uint32 skip_on_key_flag);
 void fd2_tick_tile_event_animations(void);
 void fd2_walk_step_down(uint32 char_idx);
 void fd2_walk_step_left(uint32 char_idx);

@@ -1729,8 +1729,9 @@
     "name": "fd2_play_ani_file_animation_sequence",
     "target": "anim/anispell.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000205b4": {
     "name": "fd2_check_battle_end_default_handler",
