@@ -834,6 +834,130 @@ static void test_offensive_flash_composites_six(void)
 }
 
 
+/* ---- fd2_execute_offensive_single_target_spell_id_9 @ 0x214AD ----
+ * Dedicated SINGLE-TARGET offensive worker reached only via the spell
+ * dispatch table (entry index 9); spell_id literal 9 is baked into the
+ * body (asm 0x214CB/0x214D9/0x214E7 all PUSH 0x9). Unlike the looping
+ * siblings (0x21227 / 0x213B7) it hits only target_id_array[0], plays NO
+ * second blink/flash animation, and ends with its own explicit RET
+ * running fd2_composite_battle_frame(0) + fd2_animate_spell_projectile_
+ * paths() inline (not the 0x21190 shared epilogue). Risk-oriented
+ * coverage: the spell-9 MP deduct, the entry aoe-count reset, the
+ * single-target (no-loop) damage application, and the composite count of
+ * 3 (impact 2 + no second anim + inline epilogue 1). */
+
+/* MP deduction with the BAKED spell_id 9: asm 0x214D9 PUSH 0x9 /
+ * 0x214DB PUSH caster / CALL fd2_deduct_caster_mp subtracts
+ * spell_effect_table[9].mp_cost from runtime_char[caster].mp_current.
+ * Entry 9 has mp_cost 8 (50 -> 42) while entry 0 is poisoned with 99: if
+ * the literal were ever read as 0 the caster would drop to -49 (0xFFCF),
+ * so 42 simultaneously proves the deduct fires AND that it indexes spell
+ * entry 9, not 0. Lone target at (0,0) is window-culled and hit_rate 0
+ * forces calc_magic_damage 0, isolating the deduct. */
+static void test_offensive_single9_deducts_mp(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[1].mp_current = 50;
+    g_test_rc_array[1].job_id = 1;            /* keep calc in-bounds */
+    data_fd2_battle_spell_effect_table[0].mp_cost = 99;   /* poison entry 0 */
+    data_fd2_battle_spell_effect_table[9].mp_cost = 8;
+    data_fd2_battle_spell_effect_table[9].damage = 0;
+    data_fd2_battle_spell_effect_table[9].hit_rate = 0;   /* always miss */
+    data_fd2_shared_rng_seed = 0;
+    target_id = 1;
+    fd2_execute_offensive_single_target_spell_id_9(1, 1, &target_id);
+    ASSERT_EQ(g_test_rc_array[1].mp_current, 42);
+}
+
+/* Entry reset: asm 0x214BC MOV [0x53EC4],0 clears the AoE/fx-queue
+ * counter before anything else. The window-culled target adds no
+ * enqueue, so a pre-stain of 0x99 must be overwritten with 0. */
+static void test_offensive_single9_resets_aoe_count(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[1].job_id = 1;
+    data_fd2_battle_spell_effect_table[9].mp_cost = 0;
+    data_fd2_battle_spell_effect_table[9].damage = 0;
+    data_fd2_battle_spell_effect_table[9].hit_rate = 0;
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0x99;
+    target_id = 1;
+    fd2_execute_offensive_single_target_spell_id_9(1, 1, &target_id);
+    ASSERT_EQ(data_fd2_battle_spell_aoe_count_and_fx_queue_idx, 0);
+}
+
+/* SINGLE-TARGET discriminator (the defining trait vs the looping
+ * siblings). The body reads ONLY target_id_array[0] (asm 0x214E9 MOVZX
+ * EAX,byte ptr [EBX]; no XOR ESI/loop) and damages that one char through
+ * the real fd2_calc_magic_damage. The target array holds {2, 5} and the
+ * spell_arg (3rd asm arg = claimed n_targets) is deliberately 2, yet
+ * only char 2 (= array[0]) may lose HP; char 5 (= array[1]) must stay at
+ * 200. A regression that looped over the array (like 0x21227) would also
+ * damage char 5 and fail the unchanged assert. job_id 1 + resist 10 +
+ * hit_rate 100 keep the formula in-bounds and guarantee the hit. */
+static void test_offensive_single9_hits_only_first_target(void)
+{
+    uint8 target_ids[2];
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[2].hp_current = 200;
+    g_test_rc_array[2].hp_max = 200;
+    g_test_rc_array[2].job_id = 1;
+    g_test_rc_array[2].portrait_id = 0x01;
+    g_test_rc_array[5].hp_current = 200;      /* array[1]: must NOT change */
+    g_test_rc_array[5].hp_max = 200;
+    g_test_rc_array[5].job_id = 1;
+    g_test_rc_array[5].portrait_id = 0x01;
+    data_fd2_battle_job_magic_resist_table[0] = 10;
+    data_fd2_battle_spell_effect_table[9].damage = 50;
+    data_fd2_battle_spell_effect_table[9].hit_rate = 100;
+    data_fd2_battle_spell_effect_table[9].mp_cost = 0;
+    data_fd2_shared_rng_seed = 0;
+    target_ids[0] = 2;
+    target_ids[1] = 5;
+    fd2_execute_offensive_single_target_spell_id_9(0, 2, target_ids);
+    ASSERT_NE(g_test_rc_array[2].hp_current, 200);   /* array[0] took damage */
+    ASSERT_EQ(g_test_rc_array[5].hp_current, 200);   /* array[1] untouched */
+}
+
+/* Pipeline-structure pin + NO-SECOND-ANIMATION discriminator. This
+ * worker plays ONLY the per-target impact animation (no blink, no
+ * flash), then runs fd2_composite_battle_frame(0) + projectile paths
+ * inline via its own RET. Composite total = impact 2 (entry + finalize)
+ * + inline epilogue 1 = exactly 3 (fd2_animate_spell_projectile_paths
+ * composites 0). Matching 3 here while the function makes only ONE
+ * animation call proves no extra blink/flash animator (which would push
+ * the count to 6) sneaked in, and that the explicit-RET tail composites
+ * once. Lone target at (0,0) is window-culled so the show path adds no
+ * composite. */
+static void test_offensive_single9_composites_three(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[1].hp_current = 200;
+    g_test_rc_array[1].hp_max = 200;
+    g_test_rc_array[1].job_id = 1;
+    data_fd2_battle_job_magic_resist_table[0] = 10;
+    data_fd2_battle_spell_effect_table[9].damage = 50;
+    data_fd2_battle_spell_effect_table[9].hit_rate = 100;
+    data_fd2_battle_spell_effect_table[9].mp_cost = 0;
+    data_fd2_shared_rng_seed = 0;
+    target_id = 1;
+    g_composite_call_count = 0;
+    fd2_execute_offensive_single_target_spell_id_9(0, 1, &target_id);
+    ASSERT_EQ(g_composite_call_count, 3);
+}
+
+
 void run_spell_spelleff_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -869,5 +993,9 @@ void run_spell_spelleff_tests(void)
     RUN_TEST(test_offensive_flash_resets_aoe_count);
     RUN_TEST(test_offensive_flash_damages_all_targets);
     RUN_TEST(test_offensive_flash_composites_six);
+    RUN_TEST(test_offensive_single9_deducts_mp);
+    RUN_TEST(test_offensive_single9_resets_aoe_count);
+    RUN_TEST(test_offensive_single9_hits_only_first_target);
+    RUN_TEST(test_offensive_single9_composites_three);
     printf("\n");
 }

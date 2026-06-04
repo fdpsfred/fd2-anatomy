@@ -2033,8 +2033,9 @@
     "name": "fd2_execute_offensive_single_target_spell_id_9",
     "target": "spell/spelleff.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00021527": {
     "name": "fd2_cast_spell_0a_basic",
