@@ -6,6 +6,7 @@
  *   fd2_draw_spell_selection_list @ 0x1ceed (3 callers)
  *   fd2_spell_select_input_loop @ 0x1d51d (1 caller)
  *   fd2_spell_selection_menu_main @ 0x1cff0 (1 caller)
+ *   fd2_play_spell_palette_flash_with_sfx @ 0x1d6c8 (1 caller)
  */
 
 #include "types.h"
@@ -14,6 +15,7 @@
 #include "protos.h"
 #include <stdlib.h>
 #include <string.h>
+#include <conio.h>
 
 /* ----------------------------------------------------------------
  * fd2_build_usable_spell_list(char_idx, out_buf) @ 0x1c269
@@ -438,4 +440,46 @@ int fd2_spell_selection_menu_main(uint32 caster_idx)
     fd2_process_battle_drop_entries(caster_idx, drops_count, (uint32)drops_buf);
     data_fd2_battle_anim_phase = 1;
     return 1;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_play_spell_palette_flash_with_sfx(pattern_id) @ 0x1d6c8 (1 caller)
+ *
+ * Status-class spell cast effect: play the SFX that
+ * fd2_load_status_effect_sfx loaded, then flash VGA DAC palette
+ * index 0 four times in the spell's signature colour.
+ *
+ * Each of the 4 iterations: set DAC write index to 0 (port 0x3C8),
+ * write the spell's R/G/B from data_fd2_animation_spell_palette_flash_table
+ * (port 0x3C9 ×3), wait one BIOS tick, then reset DAC index 0 to
+ * RGB(0,0,0) and wait one more tick.
+ *
+ * The flash table is a 108-byte (36 entry × 3) RGB table laid out as
+ * three contiguous 36-byte planes: R at +0, G at +0x24, B at +0x48,
+ * indexed by pattern_id (= spell_id 0x00..0x23).
+ *
+ * Cdecl, 1 stack param; returns void. The binary's __CHK(0x18)
+ * stack-probe prologue is compiler-injected and not part of the source.
+ * ---------------------------------------------------------------- */
+void fd2_play_spell_palette_flash_with_sfx(int pattern_id)
+{
+    uint32 beep_iter;
+
+    fd2_play_sfx_with_handle(
+        data_fd2_audio_status_effect_sfx_handle_ptr, 0, 1);
+    for (beep_iter = 0; (int)beep_iter < 4; beep_iter++) {
+        outp(0x3C8, 0);
+        outp(0x3C9,
+             data_fd2_animation_spell_palette_flash_table[pattern_id]);
+        outp(0x3C9,
+             data_fd2_animation_spell_palette_flash_table[pattern_id + 0x24]);
+        outp(0x3C9,
+             data_fd2_animation_spell_palette_flash_table[pattern_id + 0x48]);
+        fd2_wait_n_bios_ticks(1);
+        outp(0x3C8, 0);
+        outp(0x3C9, 0);
+        outp(0x3C9, 0);
+        outp(0x3C9, 0);
+        fd2_wait_n_bios_ticks(1);
+    }
 }

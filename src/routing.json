@@ -1459,8 +1459,9 @@
     "name": "fd2_play_spell_palette_flash_with_sfx",
     "target": "spell/spellsel.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001d79c": {
     "name": "fd2_grant_spell_to_char",

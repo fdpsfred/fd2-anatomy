@@ -223,6 +223,7 @@ extern char   data_fd2_string_fdmus_dat[];                              /* 0x51A
 /* ---- animation tables (.object2 const) ---- */
 extern uint8  data_fd2_audio_footstep_sfx_per_job_cadence_class_table[]; /* 0x52618  29B */
 extern uint8  data_fd2_animation_status_overlay_flicker_color_template[32]; /* 0x51F15 */
+extern uint8  data_fd2_animation_spell_palette_flash_table[108];        /* 0x51AAD  36*3 RGB planes R/G/B */
 extern uint8  data_fd2_animation_spell_sprite_offset_table[33];         /* 0x51F33 */
 extern uint8  data_fd2_animation_spell_frame_count_table[33];           /* 0x51F54 */
 extern uint8  data_fd2_animation_spell_sfx_frame_table[33];             /* 0x51F75 */

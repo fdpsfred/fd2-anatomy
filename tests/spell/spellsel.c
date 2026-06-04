@@ -742,6 +742,46 @@ static void test_sil_caster_idx_mp_from_right_char(void)
     ASSERT_EQ((long)r, 1);                        /* char 3 MP covers cost */
 }
 
+/* ---- Tests: fd2_play_spell_palette_flash_with_sfx (0x1D6C8) ----
+ *
+ * The function's only host-observable seam is the single SFX trigger
+ * (fd2_play_sfx_with_handle, counted by g_play_sfx_with_handle_calls); the
+ * R/G/B writes go to the VGA DAC via outp(), which -- like every other
+ * outp-only palette routine in this harness (see tests/gfx/palette.c) -- is a
+ * hardware side effect that cannot be captured in-process, so those are
+ * smoke-level. The table-index math (+0, +0x24, +0x48 into the 108-byte
+ * data_fd2_animation_spell_palette_flash_table) is pinned by exercising the
+ * spell-id domain endpoints, which read the table's lowest and highest in-
+ * bounds bytes.
+ *
+ * fd2_wait_n_bios_ticks(1) is called 8x per invocation; it spins on the live
+ * BIOS tick at 0x46C (advances ~18.2/s under the harness), so each call
+ * returns after ~1 real tick -- deterministic termination, not frozen. */
+static void test_psf_sfx_fires_once(void)
+{
+    g_play_sfx_with_handle_calls = 0;
+    fd2_play_spell_palette_flash_with_sfx(9);
+    /* SFX is triggered once before the 4-iteration flash loop, NOT per
+     * iteration: exactly one call regardless of loop count. */
+    ASSERT_EQ(g_play_sfx_with_handle_calls, 1);
+}
+
+static void test_psf_id_domain_endpoints(void)
+{
+    /* pid=0 reads table[0]/[0x24]/[0x48]; pid=0x23 (max spell id) reads
+     * table[0x23]/[0x47]/[0x6B] -- index 0x6B == 107 is the last byte of the
+     * 108-byte table. Driving both endpoints proves the +0x24/+0x48 plane
+     * offsets stay in-bounds across the whole spell-id range. Each call must
+     * fire the SFX once and return cleanly. */
+    g_play_sfx_with_handle_calls = 0;
+    fd2_play_spell_palette_flash_with_sfx(0);
+    ASSERT_EQ(g_play_sfx_with_handle_calls, 1);
+
+    g_play_sfx_with_handle_calls = 0;
+    fd2_play_spell_palette_flash_with_sfx(0x23);
+    ASSERT_EQ(g_play_sfx_with_handle_calls, 1);
+}
+
 void run_spell_spellsel_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -775,5 +815,7 @@ void run_spell_spellsel_tests(void)
     RUN_TEST(test_sil_esc_cancels);
     RUN_TEST(test_sil_unhandled_key_returns_zero);
     RUN_TEST(test_sil_caster_idx_mp_from_right_char);
+    RUN_TEST(test_psf_sfx_fires_once);
+    RUN_TEST(test_psf_id_domain_endpoints);
     printf("\n");
 }
