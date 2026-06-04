@@ -236,6 +236,7 @@ uint32 fd2_animate_combat_speech_bubbles(uint32 ci, uint32 ti);
 void fd2_render_combatant_hp_bar_proportional(uint32 d, uint32 s, uint32 ci, uint32 st);
 void fd2_render_combat_hp_bar_segments(uint32 dst_addr, uint32 stride, uint32 filled_count);
 int fd2_animate_combat_hit_with_hp_drain(uint32 a, uint32 d, uint32 st);
+void fd2_animate_attack_hit_sequence(uint32 attacker_idx, uint32 defender_idx);
 void fd2_render_combat_combatant_panels(uint32 xy_array_ptr, uint32 defender_idx, uint32 attacker_idx);
 void fd2_play_full_combat_cinematic(uint32 a, uint32 d);
 void fd2_process_xp_and_level_up_for_char(uint32 ci);

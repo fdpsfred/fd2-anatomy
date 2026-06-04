@@ -47,6 +47,17 @@ extern uint32 g_blitdec_log_sprite[16];
 extern int    g_delay375b2_calls;
 extern uint32 g_delay375b2_last_ticks;
 
+/* fd2_animate_attack_hit_sequence call counter (testglob.c stub): driven once
+ * per landed hit by fd2_animate_combat_hit_with_hp_drain. */
+extern int    g_attack_hit_seq_calls;
+
+/* raw-blit recording log (testglob.c): the real fd2_render_combat_hp_bar_segments
+ * forwards each segment blit's (dst, sprite_addr) here when g_blitraw_log_on. */
+extern int    g_blitraw_log_on;
+extern int    g_blitraw_count;
+extern uint32 g_blitraw_log_dst[512];
+extern uint32 g_blitraw_log_sprite[512];
+
 /* floating-damage FX queue tables (testglob.c, BSS) */
 extern uint8  data_fd2_battle_floating_damage_sprite_id_queue[200];
 extern uint8  data_fd2_battle_floating_damage_x_offset_queue[200];
@@ -542,6 +553,234 @@ static void test_miss_indicator_cull_all_edges(void)
     ASSERT_EQ(data_fd2_battle_spell_aoe_count_and_fx_queue_idx, 4u);
 }
 
+/* ================================================================
+ * fd2_animate_combat_hit_with_hp_drain tests
+ *
+ * This is the melee-hit orchestrator: it resolves the attacker's weapon,
+ * decides the hit budget (1, or 2 for a double-strike / a 3% RNG proc),
+ * then per hit drives the REAL fd2_execute_attack_damage_calculation, the
+ * stubbed fd2_animate_attack_hit_sequence (call-counted), and the REAL
+ * fd2_render_combat_hp_bar_segments bar drain (observed through the raw-blit
+ * log + the delay-thunk counter). The damage calc, item table and RNG seed
+ * are wired exactly like the battle.c eatk_* tests.
+ * ================================================================ */
+
+/* UI/anim sheet so the real fd2_render_combat_hp_bar_segments ->
+ * fd2_blit_sheet_sprite_at_offset can resolve sprite 0x17..0x1e without
+ * faulting. Offset-table entry i == i (sprite index recoverable), but only
+ * the dst of the first segment blit is needed here. */
+static uint8 g_hpdrain_ui_sheet[6 + 0x20 * 4];
+
+static void hpdrain_install_ui_sheet(void)
+{
+    int i;
+    memset(g_hpdrain_ui_sheet, 0, sizeof(g_hpdrain_ui_sheet));
+    for (i = 0; i <= 0x1e; i++) {
+        *(int32 *)(g_hpdrain_ui_sheet + 6 + i * 4) = i;
+    }
+    data_fd2_ui_anim_sprite_sheet_ptr = (uint32)g_hpdrain_ui_sheet;
+}
+
+/* Common reset mirroring battle.c eatk_reset: attacker (char 0) holds an
+ * equipped weapon in slot 0 -> the real find_equipped/get_item chain returns
+ * item id 0 -> weapon_entry = item_effect_table[0], which each test tunes. */
+static void hpdrain_reset(void)
+{
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(data_fd2_battle_item_effect_table, 0,
+           sizeof(data_fd2_battle_item_effect_table));
+    memset(data_fd2_battle_enemy_data_table, 0,
+           sizeof(data_fd2_battle_enemy_data_table));
+    memset(data_fd2_battle_job_crit_rate_table, 0,
+           sizeof(data_fd2_battle_job_crit_rate_table));
+    g_test_rc_array[0].inventory_slots[0] = 0x40;   /* equipped flag */
+    g_test_rc_array[0].inventory_slots[1] = 0;      /* weapon item id 0 */
+    data_fd2_battle_pending_xp_credit = 0;
+    data_fd2_battle_last_hit_or_miss_flag = 1;
+    g_attack_hit_seq_calls = 0;
+    g_delay375b2_calls = 0;
+    g_delay375b2_last_ticks = 0;
+    g_blitraw_log_on = 0;
+    g_blitraw_count = 0;
+    hpdrain_install_ui_sheet();
+}
+
+/* Death-on-first-hit. Defender at FULL HP (100/100) takes a lethal hit
+ * (AP 200, DP 0 -> base damage (200*9)/10 = 180 >= 100), so surviving_HP == 0
+ * and the outer do/while exits after one pass regardless of the hit budget.
+ *
+ * Pins the bar-drain math + the destination formula deterministically:
+ *   - pre-hit bar length = hp_current(100) * 0x46 / hp_max(100) = 70 px
+ *   - post-hit floor     = surviving(0) * 0x45 / hp_max + 1     = 1 px
+ *   - the inner loop renders bar_pixels = 70,69,...,1  -> 70 frames, each
+ *     followed by __delay_thunk_375b2(8)
+ *   - dst = (panel_y(4)+6)*0x140 + panel_x(8) + 0xA0007 = 0xA0C8F, surfaced as
+ *     the dst of the first segment blit (the 0x17 left cap).
+ * Also confirms the defender HP was clamped to 0 and the return value is 0. */
+static void test_hpdrain_death_full_bar(void)
+{
+    int panel_xy[2];
+    int result;
+
+    hpdrain_reset();
+    /* attacker (0): hit, no crit, lethal */
+    g_test_rc_array[0].team = 1;          /* skip XP block */
+    g_test_rc_array[0].job_id = 0x13;     /* immune -> skip terrain */
+    g_test_rc_array[0].ap = 200;
+    g_test_rc_array[0].dx_current = 100;
+    /* defender (1): full HP, dx_diff = 100 -> always HIT */
+    g_test_rc_array[1].job_id = 0x13;
+    g_test_rc_array[1].stat4_current = 0;
+    g_test_rc_array[1].dp = 0;
+    g_test_rc_array[1].hp_current = 100;
+    g_test_rc_array[1].hp_max = 100;
+    /* item 0: special_type(+10 = entry[+9]) = 0 -> no double-strike weapon */
+    data_fd2_battle_item_effect_table[0].special_type = 0;
+    data_fd2_shared_rng_seed = 0;         /* draw0 %100 = 32 -> no RNG proc */
+
+    panel_xy[0] = 8;
+    panel_xy[1] = 4;
+    g_blitraw_log_on = 1;
+    result = fd2_animate_combat_hit_with_hp_drain(0, 1, (uint32)panel_xy);
+    g_blitraw_log_on = 0;
+
+    ASSERT_EQ(result, 0);                              /* defender died */
+    ASSERT_EQ(g_test_rc_array[1].hp_current, 0);       /* HP clamped */
+    ASSERT_EQ(g_attack_hit_seq_calls, 1);              /* one hit played */
+    ASSERT_EQ(g_delay375b2_calls, 70);                 /* drain 70 -> 1 */
+    ASSERT_EQ(g_delay375b2_last_ticks, 8u);
+    ASSERT_TRUE(g_blitraw_count > 0);
+    /* first segment blit (0x17 left cap) sits at the computed dst */
+    ASSERT_EQ(g_blitraw_log_dst[0], 0xA0C8Fu);
+}
+
+/* Death-on-first-hit, HALF bar -> pins that the pre-hit bar length uses the
+ * defender's hp_current/hp_max read BEFORE the damage calc (not the cleared
+ * post-hit value). hp 50/100 -> 50*0x46/100 = 35 px; surviving 0 -> floor 1;
+ * drain 35,34,...,1 -> 35 frames. A bug reading hp AFTER the hit (0/100)
+ * would give 0 frames. */
+static void test_hpdrain_death_half_bar(void)
+{
+    int panel_xy[2];
+    int result;
+
+    hpdrain_reset();
+    g_test_rc_array[0].team = 1;
+    g_test_rc_array[0].job_id = 0x13;
+    g_test_rc_array[0].ap = 200;
+    g_test_rc_array[0].dx_current = 100;
+    g_test_rc_array[1].job_id = 0x13;
+    g_test_rc_array[1].stat4_current = 0;
+    g_test_rc_array[1].dp = 0;
+    g_test_rc_array[1].hp_current = 50;    /* half */
+    g_test_rc_array[1].hp_max = 100;
+    data_fd2_battle_item_effect_table[0].special_type = 0;
+    data_fd2_shared_rng_seed = 0;
+
+    panel_xy[0] = 0;
+    panel_xy[1] = 0;
+    result = fd2_animate_combat_hit_with_hp_drain(0, 1, (uint32)panel_xy);
+
+    ASSERT_EQ(result, 0);
+    ASSERT_EQ(g_delay375b2_calls, 35);     /* 50*70/100 = 35 down to 1 */
+}
+
+/* RNG-proc double-strike (the EAX-bug fix). Every hit is a guaranteed MISS
+ * (dx_diff = 0 -> draw %100 < 0 is never true), so the defender survives and
+ * the do/while runs the FULL hit budget; fd2_animate_attack_hit_sequence is
+ * called once per budgeted hit, counted by g_attack_hit_seq_calls.
+ *
+ * special_type(entry[+9]) = 50, so the buggy decompiled form
+ * (weapon_class %100 < 3 -> 50 < 3 == false) would NEVER upgrade. The
+ * faithful form divides the fd2_advance_rng_state() RETURN value: seed 21 ->
+ * draw 0x814C (33100), %100 = 0 < 3 -> budget raised to 2. Observing exactly
+ * 2 hits proves the proc is driven by the RNG draw, not the weapon byte. */
+static void test_hpdrain_rng_double_strike(void)
+{
+    int panel_xy[2];
+    int result;
+
+    hpdrain_reset();
+    g_test_rc_array[0].team = 1;
+    g_test_rc_array[0].job_id = 0x13;
+    g_test_rc_array[0].ap = 0;
+    g_test_rc_array[0].dx_current = 0;     /* dx_diff = 0 -> always MISS */
+    g_test_rc_array[1].job_id = 0x13;
+    g_test_rc_array[1].stat4_current = 0;
+    g_test_rc_array[1].hp_current = 100;
+    g_test_rc_array[1].hp_max = 100;
+    /* special_type 50: buggy `weapon_class %100 < 3` would be false */
+    data_fd2_battle_item_effect_table[0].special_type = 50;
+    data_fd2_shared_rng_seed = 21;         /* draw0 = 33100, %100 = 0 < 3 */
+
+    panel_xy[0] = 0;
+    panel_xy[1] = 0;
+    result = fd2_animate_combat_hit_with_hp_drain(0, 1, (uint32)panel_xy);
+
+    ASSERT_EQ(g_attack_hit_seq_calls, 2);  /* RNG proc -> two hits */
+    ASSERT_EQ(result, 100);                /* all misses -> defender survives */
+    ASSERT_EQ(g_test_rc_array[1].hp_current, 100);
+}
+
+/* Control for the proc test: NO double-strike weapon and NO RNG proc.
+ * special_type = 50 (buggy form would upgrade), but seed 0 -> draw0 %100 = 32
+ * (>= 3) so the faithful form leaves the budget at 1. All misses -> defender
+ * survives -> the do/while stops after one budgeted hit. Exactly 1 hit proves
+ * the upgrade did NOT fire off the weapon byte (which is 50). */
+static void test_hpdrain_single_hit_no_proc(void)
+{
+    int panel_xy[2];
+    int result;
+
+    hpdrain_reset();
+    g_test_rc_array[0].team = 1;
+    g_test_rc_array[0].job_id = 0x13;
+    g_test_rc_array[0].ap = 0;
+    g_test_rc_array[0].dx_current = 0;     /* always MISS */
+    g_test_rc_array[1].job_id = 0x13;
+    g_test_rc_array[1].stat4_current = 0;
+    g_test_rc_array[1].hp_current = 100;
+    g_test_rc_array[1].hp_max = 100;
+    data_fd2_battle_item_effect_table[0].special_type = 50;
+    data_fd2_shared_rng_seed = 0;          /* draw0 %100 = 32 -> no proc */
+
+    panel_xy[0] = 0;
+    panel_xy[1] = 0;
+    result = fd2_animate_combat_hit_with_hp_drain(0, 1, (uint32)panel_xy);
+
+    ASSERT_EQ(g_attack_hit_seq_calls, 1);  /* single hit */
+    ASSERT_EQ(result, 100);                /* survived */
+}
+
+/* Double-strike WEAPON class (special_type == 3) takes the budget to 2 with
+ * NO RNG help: seed 0 -> draw0 %100 = 32 (no proc). All misses -> two hits.
+ * Pins the `weapon_entry[+9] == 3` branch. */
+static void test_hpdrain_weapon_double_strike(void)
+{
+    int panel_xy[2];
+    int result;
+
+    hpdrain_reset();
+    g_test_rc_array[0].team = 1;
+    g_test_rc_array[0].job_id = 0x13;
+    g_test_rc_array[0].ap = 0;
+    g_test_rc_array[0].dx_current = 0;
+    g_test_rc_array[1].job_id = 0x13;
+    g_test_rc_array[1].stat4_current = 0;
+    g_test_rc_array[1].hp_current = 100;
+    g_test_rc_array[1].hp_max = 100;
+    data_fd2_battle_item_effect_table[0].special_type = 3;  /* double weapon */
+    data_fd2_shared_rng_seed = 0;          /* no RNG proc */
+
+    panel_xy[0] = 0;
+    panel_xy[1] = 0;
+    result = fd2_animate_combat_hit_with_hp_drain(0, 1, (uint32)panel_xy);
+
+    ASSERT_EQ(g_attack_hit_seq_calls, 2);  /* weapon class -> two hits */
+    ASSERT_EQ(result, 100);
+}
+
 void run_anim_anicombt2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -556,5 +795,10 @@ void run_anim_anicombt2_tests(void)
     RUN_TEST(test_miss_indicator_enqueue);
     RUN_TEST(test_miss_indicator_offset_base);
     RUN_TEST(test_miss_indicator_cull_all_edges);
+    RUN_TEST(test_hpdrain_death_full_bar);
+    RUN_TEST(test_hpdrain_death_half_bar);
+    RUN_TEST(test_hpdrain_rng_double_strike);
+    RUN_TEST(test_hpdrain_single_hit_no_proc);
+    RUN_TEST(test_hpdrain_weapon_double_strike);
     printf("\n");
 }

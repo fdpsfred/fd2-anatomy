@@ -837,3 +837,101 @@ void fd2_show_miss_indicator(uint32 target_idx)
 
     data_fd2_battle_spell_aoe_count_and_fx_queue_idx += 4;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_animate_combat_hit_with_hp_drain @ 0x1E856 (2 callers)
+ *
+ * Resolve and play one melee hit, then smoothly drain the defender's HP
+ * bar from its pre-hit length down to the post-hit length. The outer loop
+ * repeats while the defender is still alive and a hit budget remains, so a
+ * double-strike weapon (or the random extra-hit proc) lands twice.
+ *
+ * Hit budget (hits_remaining):
+ *   - the attacker's equipped weapon (slot 0) is looked up and its effect
+ *     entry fetched; weapon_entry[+9] is the special-type byte.
+ *   - special-type == 3 (the "double" weapon class) -> budget 2.
+ *   - one RNG draw is then taken UNCONDITIONALLY (it always advances the
+ *     shared seed); if (draw % 100 < 3) the budget is raised to 2 as a flat
+ *     3% extra-hit proc.
+ *
+ * EAX-bug note: Ghidra's decompiler re-uses weapon_entry[+9] as the value
+ * fed into `% 100 < 3`, because it loses track that the CALL to
+ * fd2_advance_rng_state clobbers EAX. The assembly (0x1E8C3 MOV EDX,EAX
+ * right after the CALL at 0x1E8BE) divides the RNG RETURN value, not the
+ * weapon class. The faithful condition is therefore
+ *   fd2_advance_rng_state() % 100 < 3
+ * and the threshold is the literal 3 (0x1E8CF CMP EDX,0x3), not the weapon
+ * byte.
+ *
+ * Per hit:
+ *   - bar_numerator = defender.hp_current(pre-hit) * 0x46  (0x46 = 70, the
+ *     full bar width 0x45 plus one so integer truncation still yields a full
+ *     bar at full HP).
+ *   - fd2_execute_attack_damage_calculation applies the damage and returns
+ *     the surviving HP.
+ *   - fd2_animate_attack_hit_sequence plays the weapon sprite/SFX.
+ *   - the bar shrinks one pixel at a time from the pre-hit length
+ *     (bar_numerator / hp_max) down to the post-hit floor
+ *     ((surviving_HP * 0x45) / hp_max + 1), ~8 BIOS ticks per frame.
+ *
+ * Destination = (panel_xy[1] + 6) * 320 + panel_xy[0] + 0xA0007, i.e. inside
+ * the 0xA0000 combat overlay surface. panel_xy is a 2-int (x, y) from the
+ * caller.
+ *
+ * Returns 0 when the defender dies, otherwise the surviving HP.
+ *
+ * 2 callers: fd2_execute_ai_physical_attack (hit + counter-attack).
+ * ---------------------------------------------------------------- */
+int fd2_animate_combat_hit_with_hp_drain(uint32 attacker_idx, uint32 defender_idx,
+                                         uint32 panel_xy_ptr)
+{
+    runtime_char *defender;
+    uint8 *weapon_entry;
+    uint32 weapon_slot;
+    uint8 weapon_id;
+    uint32 weapon_class;
+    uint32 hp_max;
+    uint32 bar_numerator;
+    uint32 bar_pixels;
+    int hits_remaining;
+    int surviving_HP;
+
+    defender = &data_fd2_battle_runtime_char_array_ptr[defender_idx];
+    hits_remaining = 1;
+
+    weapon_slot = fd2_find_equipped_item_by_kind(attacker_idx, 0);
+    weapon_id = fd2_get_inventory_slot_item_id(attacker_idx, weapon_slot);
+    weapon_entry = fd2_get_item_effect_entry(weapon_id);
+    weapon_class = weapon_entry[9];
+    if (weapon_class == 3) {
+        hits_remaining = 2;
+    }
+    /* unconditional RNG advance; the proc threshold is the literal 3, fed by
+     * the RNG return value (see EAX-bug note above) */
+    if ((int)fd2_advance_rng_state() % 100 < 3) {
+        hits_remaining = 2;
+    }
+
+    surviving_HP = 0;
+    do {
+        if (hits_remaining == 0) {
+            return surviving_HP;
+        }
+        hp_max = defender->hp_max;
+        bar_numerator = (uint32)defender->hp_current * 0x46;
+        surviving_HP = fd2_execute_attack_damage_calculation((int)attacker_idx,
+                                                             (int)defender_idx);
+        fd2_animate_attack_hit_sequence(attacker_idx, defender_idx);
+        for (bar_pixels = (uint32)((int)bar_numerator / (int)hp_max);
+             (int)(surviving_HP * 0x45) / (int)hp_max + 1 <= (int)bar_pixels;
+             bar_pixels--) {
+            fd2_render_combat_hp_bar_segments(
+                (*(int32 *)(panel_xy_ptr + 4) + 6) * 0x140 +
+                    *(int32 *)panel_xy_ptr + 0xa0007,
+                0x140, bar_pixels);
+            __delay_thunk_375b2(8);
+        }
+        hits_remaining--;
+    } while (surviving_HP != 0);
+    return 0;
+}
