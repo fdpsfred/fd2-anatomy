@@ -31,6 +31,9 @@ extern uint8  data_fd2_battle_last_hit_or_miss_flag;                    /* 0x53C
 extern uint32 data_fd2_battle_pending_xp_credit;                       /* 0x53EC8 */
 extern uint32 data_fd2_battle_tile_map_anim_frame_counter;              /* 0x53C1F */
 extern uint32 data_fd2_battle_spell_aoe_count_and_fx_queue_idx;         /* 0x53EC4 */
+extern uint8  data_fd2_battle_floating_damage_sprite_id_queue[200];     /* 0x53C6C */
+extern uint8  data_fd2_battle_floating_damage_x_offset_queue[200];      /* 0x53D34 */
+extern uint8  data_fd2_battle_floating_damage_target_char_idx_queue[200]; /* 0x53DFC */
 extern uint32 data_fd2_battle_scripted_cinematic_mode_or_terrain_idx;   /* 0x540FF */
 extern uint32 data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr;    /* 0x54107 */
 extern uint32 data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr;     /* 0x5410B */
@@ -227,6 +230,7 @@ extern uint8  data_fd2_animation_spell_sprite_offset_table[33];         /* 0x51F
 extern uint8  data_fd2_animation_spell_frame_count_table[33];           /* 0x51F54 */
 extern uint8  data_fd2_animation_spell_sfx_frame_table[33];             /* 0x51F75 */
 extern uint8  data_fd2_animation_spell_overlay_blink_mask_table[30];    /* 0x52006 */
+extern uint8  data_fd2_animation_spell_projectile_y_offset_table[28];   /* 0x0202C */
 extern uint8  data_fd2_battle_summon_minor_anim_state5_frame_counter;    /* 0x540FA */
 extern uint8  data_fd2_battle_summon_minor_anim_alternating_blit_toggle; /* 0x540FB */
 extern uint32 data_fd2_audio_summon_spell_sfx_bank_buf_ptr;             /* 0x5411F */

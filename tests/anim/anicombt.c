@@ -869,6 +869,200 @@ static void test_death_empty_party(void)
     ASSERT_EQ(g_test_rc_array[0].flags, 0);   /* outside party count -> untouched */
 }
 
+/* ================================================================
+ * fd2_animate_spell_projectile_paths tests
+ * ================================================================ */
+
+/* decoded-pixel sprite blit opt-in per-call log (testglob.c) */
+extern int    g_blitdec_log_on;
+extern int    g_blitdec_log_count;
+extern uint32 g_blitdec_log_dst[16];
+extern uint32 g_blitdec_log_sprite[16];
+
+/* delay thunk recording (testglob.c) */
+extern int    g_delay375b2_calls;
+extern uint32 g_delay375b2_last_ticks;
+
+/* floating-damage FX queue tables (testglob.c, BSS) */
+extern uint8  data_fd2_battle_floating_damage_sprite_id_queue[200];
+extern uint8  data_fd2_battle_floating_damage_x_offset_queue[200];
+extern uint8  data_fd2_battle_floating_damage_target_char_idx_queue[200];
+/* projectile y-offset table (testglob.c, real binary bytes) */
+extern uint8  data_fd2_animation_spell_projectile_y_offset_table[28];
+
+/* Effect sprite sheet for the projectile blit: a dword table at +6 indexed by
+ * sprite_id; entry[i] == i*0x10 so the resolved sprite addr (sheet + table[6 +
+ * sprite_id*4]) uniquely identifies the sprite_id. */
+static uint8 g_proj_sheet[6 + 256 * 4];
+
+static void setup_projectile(void)
+{
+    int i;
+    uint32 *tbl;
+
+    g_blitdec_calls = 0;
+    g_blitdec_dst = 0;
+    g_blitdec_sprite = 0;
+    g_blitdec_stride = 0;
+    g_blitdec_log_on = 0;
+    g_blitdec_log_count = 0;
+    g_delay375b2_calls = 0;
+    g_delay375b2_last_ticks = 0;
+
+    /* the real per-frame restore memmoves 0x25680 out of the snapshot back into
+     * this buffer, and the real fd2_blit_rectangle reads from +0x8088 */
+    memset(g_lgs, 0, sizeof(g_lgs));
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_lgs;
+
+    tbl = (uint32 *)(g_proj_sheet + 6);
+    for (i = 0; i < 256; i++) {
+        tbl[i] = (uint32)i * 0x10u;
+    }
+    data_fd2_ui_anim_sprite_sheet_ptr = (uint32)g_proj_sheet;
+
+    data_fd2_battle_view_window_origin_x = WIN_OX;
+    data_fd2_battle_view_window_origin_y = WIN_OY;
+    data_fd2_battle_view_window_max_x = WIN_MX;
+    data_fd2_battle_view_window_max_y = WIN_MY;
+
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(data_fd2_battle_floating_damage_sprite_id_queue, 0, 200);
+    memset(data_fd2_battle_floating_damage_x_offset_queue, 0, 200);
+    memset(data_fd2_battle_floating_damage_target_char_idx_queue, 0, 200);
+}
+
+/*
+ * Gate: a zero FX queue count takes the immediate-return path before any
+ * malloc / snapshot / frame loop runs, so no blit and no delay happen.
+ */
+static void test_projectile_zero_queue_gate(void)
+{
+    setup_projectile();
+    data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
+
+    /* seed a stale slot that must NOT be drawn (count gates it out) */
+    data_fd2_battle_floating_damage_sprite_id_queue[0] = 5;
+    g_test_rc_array[0].pos_x = 0x15;
+    g_test_rc_array[0].pos_y = 0x24;
+
+    fd2_animate_spell_projectile_paths();
+
+    ASSERT_EQ(g_blitdec_calls, 0);
+    ASSERT_EQ(g_delay375b2_calls, 0);
+}
+
+/*
+ * Full 22-frame flight with one active FX slot. Verifies:
+ *  - one blit per frame -> 22 blits total (sprite_id != 0 every frame);
+ *  - the sprite-source arithmetic sheet + sheet[6 + sprite_id*4] (frame-
+ *    invariant);
+ *  - the per-frame dst arithmetic, including the distinctive y-offset table
+ *    progression y_offset_table[fx%4 + frame] across the first 16 frames
+ *    (the descending-then-rising rise pattern), the -3 bias, and the
+ *    0x2AC0 / 0x18 / 0x1C8 strides plus the +x_offset and +0x8088 base;
+ *  - the per-frame delay(2) cadence plus the closing delay(500).
+ */
+static void test_projectile_full_flight_arithmetic(void)
+{
+    uint32 sprite_id;
+    uint32 x_off;
+    uint32 px;
+    uint32 py;
+    uint32 base;
+    uint32 exp_sprite;
+    int f;
+
+    setup_projectile();
+    data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 1;
+
+    sprite_id = 0x5e;          /* '^' damage-number marker base */
+    x_off = 7;
+    px = 0x15;
+    py = 0x24;
+
+    data_fd2_battle_floating_damage_sprite_id_queue[0] = (uint8)sprite_id;
+    data_fd2_battle_floating_damage_x_offset_queue[0] = (uint8)x_off;
+    data_fd2_battle_floating_damage_target_char_idx_queue[0] = 0;
+    g_test_rc_array[0].pos_x = (uint8)px;
+    g_test_rc_array[0].pos_y = (uint8)py;
+
+    g_blitdec_log_on = 1;
+    fd2_animate_spell_projectile_paths();
+
+    /* one blit per frame, all 22 frames (slot active every frame) */
+    ASSERT_EQ(g_blitdec_calls, 22);
+    /* the opt-in log caps at 16 -> first 16 frames captured */
+    ASSERT_EQ(g_blitdec_log_count, 16);
+
+    /* frame-invariant sprite source: sheet + table[6 + sprite_id*4],
+     * table[k] == k*0x10 with k = sprite_id */
+    exp_sprite = (uint32)g_proj_sheet + sprite_id * 0x10u;
+
+    /* dst base shared by every frame (everything except the y-offset term) */
+    base = (uint32)g_lgs + 0x8088u
+         + (py - WIN_OY) * 0x2ac0u
+         + (px - WIN_OX) * 0x18u
+         + x_off;
+
+    for (f = 0; f < 16; f++) {
+        /* fx_iter == 0 so the table index is just the frame number */
+        int yval = (int)data_fd2_animation_spell_projectile_y_offset_table[f];
+        uint32 exp_dst = base + (uint32)((yval - 3) * 0x1c8);
+        ASSERT_EQ(g_blitdec_log_dst[f], exp_dst);
+        ASSERT_EQ(g_blitdec_log_sprite[f], exp_sprite);
+    }
+
+    /* the last recorded (frame 21) blit confirms the loop ran to completion:
+     * index = 0%4 + 21 = 21 -> y_offset_table[21] = 0x0F */
+    {
+        int yval21 = (int)data_fd2_animation_spell_projectile_y_offset_table[21];
+        uint32 exp_dst21 = base + (uint32)((yval21 - 3) * 0x1c8);
+        ASSERT_EQ(g_blitdec_dst, exp_dst21);
+        ASSERT_EQ(g_blitdec_sprite, exp_sprite);
+        ASSERT_EQ(g_blitdec_stride, 0x1c8u);
+    }
+
+    /* 22 per-frame delays of 2 ticks + one closing 500-tick settle */
+    ASSERT_EQ(g_delay375b2_calls, 23);
+    ASSERT_EQ(g_delay375b2_last_ticks, 500u);
+}
+
+/*
+ * A queued slot whose sprite_id is 0 (a blank damage digit) is skipped every
+ * frame, so it contributes no blits, while an active slot beside it still
+ * draws. Confirms the per-slot sprite_id==0 continue and that the frame loop
+ * still runs its full 22 passes (and closing delay) around the skip.
+ */
+static void test_projectile_zero_sprite_id_skip(void)
+{
+    setup_projectile();
+    data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 3;
+
+    /* slot 0: blank (sprite_id 0) -> skipped */
+    data_fd2_battle_floating_damage_sprite_id_queue[0] = 0;
+    data_fd2_battle_floating_damage_target_char_idx_queue[0] = 0;
+    /* slot 1: active */
+    data_fd2_battle_floating_damage_sprite_id_queue[1] = 0x60;
+    data_fd2_battle_floating_damage_x_offset_queue[1] = 2;
+    data_fd2_battle_floating_damage_target_char_idx_queue[1] = 0;
+    /* slot 2: blank (sprite_id 0) -> skipped */
+    data_fd2_battle_floating_damage_sprite_id_queue[2] = 0;
+    data_fd2_battle_floating_damage_target_char_idx_queue[2] = 0;
+
+    g_test_rc_array[0].pos_x = 0x15;
+    g_test_rc_array[0].pos_y = 0x24;
+
+    fd2_animate_spell_projectile_paths();
+
+    /* only slot 1 draws: exactly one blit per frame -> 22 over 22 frames */
+    ASSERT_EQ(g_blitdec_calls, 22);
+    /* last blit resolved from slot 1's sprite_id (0x60): sheet + 0x60*0x10 */
+    ASSERT_EQ(g_blitdec_sprite, (uint32)g_proj_sheet + 0x60u * 0x10u);
+    /* the loop still completed: closing 500-tick delay fired */
+    ASSERT_EQ(g_delay375b2_last_ticks, 500u);
+    ASSERT_EQ(g_delay375b2_calls, 23);
+}
+
 void run_anim_anicombt_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -886,5 +1080,8 @@ void run_anim_anicombt_tests(void)
     RUN_TEST(test_death_offscreen_marks_all_hp0_dead);
     RUN_TEST(test_death_cull_boundary_rejections);
     RUN_TEST(test_death_empty_party);
+    RUN_TEST(test_projectile_zero_queue_gate);
+    RUN_TEST(test_projectile_full_flight_arithmetic);
+    RUN_TEST(test_projectile_zero_sprite_id_skip);
     printf("\n");
 }

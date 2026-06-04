@@ -1511,8 +1511,9 @@
     "name": "fd2_animate_spell_projectile_paths",
     "target": "anim/anicombt.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001e0db": {
     "name": "fd2_show_damage_number",

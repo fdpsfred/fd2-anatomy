@@ -510,7 +510,24 @@ void fd2_render_recruitment_select_screen(uint32 a, uint32 b, uint32 c, uint32 d
 void fd2_show_damage_number(uint32 v, uint32 t, uint32 tg) { }
 void fd2_show_miss_indicator(uint32 t) { }
 void fd2_show_status_effect_overlay(uint32 t, uint32 s) { }
-void fd2_animate_spell_projectile_paths(void) { }
+/* fd2_animate_spell_projectile_paths is now a real emitted function
+ * (src/anim/anicombt.c); its former no-op stub here was removed. The floating-
+ * damage FX queue tables it reads (sprite-id / x-offset / target-char-idx, each
+ * 200B @ 0x53C6C/0x53D34/0x53DFC) and the 28-byte projectile y-offset table
+ * (@ 0x0202C, real binary bytes) are defined below. */
+uint8 data_fd2_battle_floating_damage_sprite_id_queue[200] = {0};
+uint8 data_fd2_battle_floating_damage_x_offset_queue[200] = {0};
+uint8 data_fd2_battle_floating_damage_target_char_idx_queue[200] = {0};
+/* projectile y-offset table — real FD2.LE values @ 0x0202C (runtime 0x5202C),
+ * 28 bytes (4-frame x 6-row rise pattern). The real
+ * fd2_animate_spell_projectile_paths copies the first 25 bytes into a stack
+ * scratch and indexes it by (fx_iter % 4 + frame). */
+uint8 data_fd2_animation_spell_projectile_y_offset_table[28] = {
+    0x0f,0x0f,0x0f,0x0f,0x07,0x03,0x01,0x00,
+    0x00,0x01,0x03,0x07,0x0f,0x0f,0x0b,0x09,
+    0x08,0x08,0x09,0x0b,0x0f,0x0f,0x0f,0x0f,
+    0x0f,0x20,0x20,0x20
+};
 /* fd2_remove_inventory_slot_at: now emitted for real in src/ui_menu/status.c.
  * Its old spy global g_remove_inventory_calls is gone; spell/spelleff.c now
  * observes the real slot-consume by checking slot[7].flag == 0x80. */

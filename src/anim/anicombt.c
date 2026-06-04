@@ -567,3 +567,101 @@ void fd2_play_death_animation_and_mark_dead(void)
     free(scratch_buf);
     fd2_composite_battle_frame(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_animate_spell_projectile_paths @ 0x1DF58 (8 callers)
+ *
+ * Multi-target spell projectile / damage-number 22-frame flight-path
+ * animation. Runs the floating-damage FX queue (built up by
+ * fd2_show_damage_number / fd2_show_miss_indicator): each queued entry is a
+ * sprite that rises over its target tile along a fixed 4-frame x 6-row y
+ * offset pattern. Used by lightning / missile-rain style AoE spells and by
+ * the damage-number rise after every hit.
+ *
+ * No parameters (__cdecl, void); the 0x4C pushed before the stack-check is
+ * this routine's own frame size.
+ *
+ * Gate: runs only when the FX queue count (spell_aoe_count_and_fx_queue_idx)
+ * is non-zero; otherwise it tail-jumps straight to the shared epilogue
+ * (reproduced here as an immediate return).
+ *
+ * Setup:
+ *   y_offset_table = first 25 bytes of the 28-byte projectile y-offset table
+ *   (6 dwords + 1 byte REP MOVSD/MOVSB, matched byte-for-byte). Indexed by
+ *   (fx_iter % 4 + frame) so each queue slot's row pattern is phase-shifted.
+ *   snapshot_buf = malloc(0x25680); snapshot the live back-buffer into it.
+ *
+ * 22-frame loop (frame = 0..0x15):
+ *   restore the clean back-buffer from the snapshot, then for each queued FX:
+ *     sprite_id = floating_damage_sprite_id_queue[fx_iter]
+ *     if sprite_id == 0: skip (blank digit / stopped effect)
+ *     sprite_addr = sprite_sheet + sprite_sheet[6 + sprite_id*4]
+ *     target = runtime_char_array[floating_damage_target_char_idx_queue[fx_iter]]
+ *     dst = lgs + 0x8088
+ *         + (target.pos_y - origin_y) * 0x2AC0
+ *         + (target.pos_x - origin_x) * 0x18
+ *         + floating_damage_x_offset_queue[fx_iter]
+ *         + (y_offset_table[fx_iter % 4 + frame] - 3) * 0x1C8
+ *     fd2_blit_sprite_with_decoded_pixels(dst, sprite_addr, 0x1C8)
+ *   flush composite to the mode13h primary; delay 2 BIOS ticks.
+ *
+ * End: free the snapshot, a ~500ms settle delay, then tail-jump to the
+ * shared epilogue (reproduced as the function return).
+ * ---------------------------------------------------------------- */
+void fd2_animate_spell_projectile_paths(void)
+{
+    void *snapshot_buf;
+    runtime_char *target;
+    int frame;
+    int fx_iter;
+    uint32 sprite_addr;
+    uint32 dst_addr;
+    uint8 y_offset_table[28];
+
+    /* snapshot the projectile y-offset table (6 dwords + 1 byte = 25B) */
+    memcpy(y_offset_table, data_fd2_animation_spell_projectile_y_offset_table, 25);
+
+    if (data_fd2_battle_spell_aoe_count_and_fx_queue_idx == 0) {
+        return;
+    }
+
+    snapshot_buf = malloc(0x25680);
+    memmove(snapshot_buf, (void *)data_fd2_large_game_state_buffer_ptr, 0x25680);
+
+    for (frame = 0; frame < 0x16; frame++) {
+        /* restore the clean baseline back-buffer for this frame */
+        memmove((void *)data_fd2_large_game_state_buffer_ptr, snapshot_buf, 0x25680);
+
+        for (fx_iter = 0;
+             fx_iter < (int)data_fd2_battle_spell_aoe_count_and_fx_queue_idx;
+             fx_iter++) {
+            if (data_fd2_battle_floating_damage_sprite_id_queue[fx_iter] == 0) {
+                continue;
+            }
+
+            sprite_addr =
+                data_fd2_ui_anim_sprite_sheet_ptr +
+                *(uint32 *)(data_fd2_ui_anim_sprite_sheet_ptr + 6 +
+                            (uint32)data_fd2_battle_floating_damage_sprite_id_queue[fx_iter] * 4);
+
+            target = &data_fd2_battle_runtime_char_array_ptr
+                          [data_fd2_battle_floating_damage_target_char_idx_queue[fx_iter]];
+
+            dst_addr = data_fd2_large_game_state_buffer_ptr + 0x8088 +
+                       ((uint32)target->pos_y - data_fd2_battle_view_window_origin_y) * 0x2ac0 +
+                       ((uint32)target->pos_x - data_fd2_battle_view_window_origin_x) * 0x18 +
+                       (uint32)data_fd2_battle_floating_damage_x_offset_queue[fx_iter] +
+                       (y_offset_table[fx_iter % 4 + frame] - 3) * 0x1c8;
+
+            fd2_blit_sprite_with_decoded_pixels(dst_addr, sprite_addr, 0x1c8);
+        }
+
+        fd2_blit_rectangle(0xa0504, 0x140,
+                           data_fd2_large_game_state_buffer_ptr + 0x8088,
+                           0x1c8, 0x138, 0xc0);
+        __delay_thunk_375b2(2);
+    }
+
+    free(snapshot_buf);
+    __delay_thunk_375b2(500);
+}
