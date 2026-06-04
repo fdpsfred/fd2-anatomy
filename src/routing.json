@@ -1014,8 +1014,9 @@
     "name": "fd2_player_inline_action_menu_dispatch",
     "target": "ui_menu/menu.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": true,
+    "reviewed": true
   },
   "000190ac": {
     "name": "fd2_handle_tile_event_interaction",

@@ -292,6 +292,8 @@ int32  data_fd2_ui_field_command_menu_options_template[4] = { 7, 5, 6, 4 };
 int32  data_fd2_ui_field_command_menu_state_template[4] = { 0, 0, 0, 0 };
 /* player action menu state template — real FD2.LE value @ 0x53F12 (all zero) */
 int32  data_fd2_ui_player_action_menu_state_template[4] = { 0, 0, 0, 0 };
+/* inline action menu template — real FD2.LE value @ 0x51ED5 (Attack/Spell/Item/Wait slot ids) */
+int32  data_fd2_ui_inline_action_menu_template[4] = { 0, 1, 2, 3 };
 /* game options menu templates — real FD2.LE values @ 0x51EAF / 0x53F02 */
 int32  data_fd2_ui_game_options_menu_slots_template[4] = { 0x12, 0x14, 0x16, 0x18 };
 int32  data_fd2_ui_game_options_menu_state_template[4] = { 0, 0, 0, 0 };
@@ -553,6 +555,39 @@ double data_fd2_battle_ai_enemy_spell_score_multiplier_15 = 1.5;
 /* fd2_ai_score_item_use: now in btl_ai.c */
 int g_count_usable_slots_return = 0;
 int fd2_count_usable_inventory_slots(uint32 ci) { (void)ci; return g_count_usable_slots_return; }
+/* inline action submenu dispatch seams (fd2_player_inline_action_menu_dispatch).
+ * The real spell/item submenus and the field tile-event handler are heavy
+ * UI/graphics orchestrators not yet emitted; these stubs let the inline action
+ * dispatcher be driven to each selection branch deterministically. */
+int g_inline_spell_menu_return = 1;
+int g_inline_spell_menu_calls = 0;
+/* On a committed cast the real submenu accrues spell XP into pending_xp_credit;
+ * the inline dispatcher then scales it by the AP divisor. Model that here so the
+ * scaling can be observed: when committing (return != -1) write this amount. */
+int g_inline_spell_menu_pending = 0;
+int fd2_spell_selection_menu_main(uint32 caster_idx)
+{
+    (void)caster_idx;
+    g_inline_spell_menu_calls++;
+    if (g_inline_spell_menu_return != -1) {
+        data_fd2_battle_pending_xp_credit = (uint32)g_inline_spell_menu_pending;
+    }
+    return g_inline_spell_menu_return;
+}
+int g_inline_item_menu_return = 1;
+int g_inline_item_menu_calls = 0;
+int fd2_item_command_menu_dispatch(uint32 char_idx)
+{
+    (void)char_idx;
+    g_inline_item_menu_calls++;
+    return g_inline_item_menu_return;
+}
+int g_inline_tile_event_calls = 0;
+void fd2_handle_tile_event_interaction(uint32 char_idx)
+{
+    (void)char_idx;
+    g_inline_tile_event_calls++;
+}
 void (*data_fd2_battle_ai_post_action_consequence_table[90])(uint32);
 void (*data_fd2_battle_spell_handler_table[28])(uint32, uint32, uint8 *);
 static void g_noop_post_action_handler(uint32 x) { (void)x; }
@@ -791,22 +826,11 @@ void fd2_animate_dialog_page_advance_collapse(void) {
  * former one-shot stub and the g_player_action_menu_loop_* seam variables were
  * removed. The fd2_game_main_loop player-action path now drives the real
  * function (behavioral coverage deferred to Phase 9 integration). */
-/* fd2_player_inline_action_menu_dispatch (@ 0x18D8C) is a separate, not-yet-
- * emitted heavy submenu driver (opens dialogs, runs real target input). Stubbed
- * here so the real fd2_player_action_menu_loop links and its early-exit paths
- * (cancel / unreachable-destination) can be driven without entering the submenu.
- * Returns g_inline_dispatch_return (default 1 = action committed). */
-int g_inline_dispatch_return = 1;
-int g_inline_dispatch_calls = 0;
-int g_inline_dispatch_last_have_moved = -1;
-int fd2_player_inline_action_menu_dispatch(int char_idx,
-                                           int32 *pSlot_disable_arr,
-                                           int have_moved) {
-    (void)char_idx; (void)pSlot_disable_arr;
-    g_inline_dispatch_calls++;
-    g_inline_dispatch_last_have_moved = have_moved;
-    return g_inline_dispatch_return;
-}
+/* fd2_player_inline_action_menu_dispatch is now emitted for real in
+ * ui_menu/menu.c; its former one-shot stub and the g_inline_dispatch_* seam
+ * variables were removed. Its spell/item submenu and tile-event callees are
+ * stubbed above (g_inline_spell_menu_* / g_inline_item_menu_* /
+ * g_inline_tile_event_calls). */
 /* fd2_open_char_status_screen: now emitted in src/ui_menu/status.c and linked
  * for real (was a recording stub here). It is pure VGA/sfx orchestration and is
  * never reached by a host test — fd2_game_main_loop (its sole in-tree caller)

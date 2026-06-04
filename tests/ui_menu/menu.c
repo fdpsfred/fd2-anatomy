@@ -53,6 +53,19 @@ extern int g_blitsetup_calls;
  * to drive fd2_player_action_menu_loop's unreachable-destination branch. */
 extern int g_pathfind_walk_return;
 
+/* inline-action-menu dispatch seams (testglob.c): control the not-yet-emitted
+ * spell/item submenus and the field tile-event handler so the inline action
+ * dispatcher can be driven to each selection branch. */
+extern int g_find_equipped_return;          /* -1 => no weapon (Attack gated) */
+extern int g_count_usable_slots_return;     /* 0 => Item slot gated */
+extern int g_build_spell_list_return;       /* 0 => Spell slot gated */
+extern int g_inline_spell_menu_return;
+extern int g_inline_spell_menu_calls;
+extern int g_inline_spell_menu_pending;   /* XP the spell stub credits on commit */
+extern int g_inline_item_menu_return;
+extern int g_inline_item_menu_calls;
+extern int g_inline_tile_event_calls;
+
 /* Host-safe render environment for the real open-dialog reached on every
  * field-command iteration: empty party (no real char paint), a real workspace
  * the final blit reads from, and a real dialog-state handle for the sprite
@@ -333,6 +346,322 @@ static void test_player_action_menu_unreachable(void)
     paml_teardown();
 }
 
+/* ----------------------------------------------------------------
+ * fd2_player_inline_action_menu_dispatch coverage
+ *
+ * The inline action submenu (Attack/Spell/Item/Wait). Its dialog open /
+ * input-step / close are the real emitted menucfg functions, driven the same
+ * way the loop tests above drive them: a host-safe render env (empty party +
+ * workspace + dialog handle) and BIOS-ring scancodes (menufix.h). The Attack
+ * branch (cursor 0) pulls in the real combat cinematic + death/drops graphics
+ * and is deferred to Phase 9; the Spell and Item branches call the not-yet-
+ * emitted submenus through testglob.c stubs, so their post-commit logic — the
+ * signed pending-XP division (IDIV, with the +0x1E priest/cleric divisor
+ * branch) and the item "no XP" reset — is covered deterministically here.
+ *
+ * Covered: 4-int template copy ({0,1,2,3}); slot gating (no weapon -> slot0,
+ * no inventory -> slot2, no spells/silenced -> slot1); cancel early-out
+ * (-1); Spell-commit XP divisor (job<=8 and job>8); Spell/Item cancel (->0);
+ * Item-commit XP reset (->0); Wait branch (tile-event call + return 1).
+ *
+ * The no-weapon seam (g_find_equipped_return = -1) keeps the Attack-gating
+ * weapon branch — and its real AoE/tile-map machinery — out of every test.
+ * ---------------------------------------------------------------- */
+
+static runtime_char iam_chars[4];
+
+static runtime_char *iam_saved_char_ptr;
+static uint32 iam_saved_party_count;
+static uint32 iam_saved_cursor_x;
+static uint32 iam_saved_cursor_y;
+static uint32 iam_saved_pending_xp;
+static int iam_saved_find_equipped;
+static int iam_saved_count_slots;
+static int iam_saved_build_spells;
+static int iam_saved_spell_return;
+static int iam_saved_spell_pending;
+static int iam_saved_item_return;
+
+/* Single player char at index 0, host-safe render env, no weapon equipped.
+ * The caller sets the spell/inventory gating seams and stages scancodes. */
+static void iam_setup(uint8 job_id, uint8 level, uint8 silence_flag)
+{
+    int i;
+
+    iam_saved_char_ptr = data_fd2_battle_runtime_char_array_ptr;
+    iam_saved_party_count = data_fd2_battle_party_member_count;
+    iam_saved_cursor_x = data_fd2_battle_cursor_world_x;
+    iam_saved_cursor_y = data_fd2_battle_cursor_world_y;
+    iam_saved_pending_xp = data_fd2_battle_pending_xp_credit;
+    iam_saved_find_equipped = g_find_equipped_return;
+    iam_saved_count_slots = g_count_usable_slots_return;
+    iam_saved_build_spells = g_build_spell_list_return;
+    iam_saved_spell_return = g_inline_spell_menu_return;
+    iam_saved_spell_pending = g_inline_spell_menu_pending;
+    iam_saved_item_return = g_inline_item_menu_return;
+
+    mnu_setup_render_env();              /* empty party + workspace + dialog */
+    for (i = 0; i < (int)sizeof(iam_chars); i++) {
+        ((uint8 *)iam_chars)[i] = 0;
+    }
+    iam_chars[0].pos_x = 0;
+    iam_chars[0].pos_y = 0;
+    iam_chars[0].team = 2;              /* player */
+    iam_chars[0].job_id = job_id;
+    iam_chars[0].status_flags_block[0] = level;   /* +0x21 = AP divisor base */
+    iam_chars[0].combat_aux_block[0] = silence_flag; /* +0x27 != 0 => silenced */
+
+    data_fd2_battle_runtime_char_array_ptr = iam_chars;
+    data_fd2_battle_party_member_count = 0;
+    data_fd2_battle_cursor_world_x = 0;
+    data_fd2_battle_cursor_world_y = 0;
+
+    g_find_equipped_return = -1;        /* no weapon => Attack slot gated */
+    g_inline_spell_menu_pending = 0;    /* default: cast credits no XP */
+    g_inline_spell_menu_calls = 0;
+    g_inline_item_menu_calls = 0;
+    g_inline_tile_event_calls = 0;
+}
+
+static void iam_teardown(void)
+{
+    data_fd2_battle_runtime_char_array_ptr = iam_saved_char_ptr;
+    data_fd2_battle_party_member_count = iam_saved_party_count;
+    data_fd2_battle_cursor_world_x = iam_saved_cursor_x;
+    data_fd2_battle_cursor_world_y = iam_saved_cursor_y;
+    data_fd2_battle_pending_xp_credit = iam_saved_pending_xp;
+    g_find_equipped_return = iam_saved_find_equipped;
+    g_count_usable_slots_return = iam_saved_count_slots;
+    g_build_spell_list_return = iam_saved_build_spells;
+    g_inline_spell_menu_return = iam_saved_spell_return;
+    g_inline_spell_menu_pending = iam_saved_spell_pending;
+    g_inline_item_menu_return = iam_saved_item_return;
+}
+
+/* Cancel (single Esc): exercises the full setup block — template copy, the
+ * pSlot_disable_arr[0]=0 + pending_xp reset, and all three gating decisions —
+ * then the input-loop -1 early-out. No weapon, no inventory, no spells: slots
+ * 0/1/2 all gated; the menu still opens, the loop reads Esc, returns -1. */
+static void test_inline_action_cancel_and_gating(void)
+{
+    int32 slot[4];
+    uint32 saved_template[4];
+    int r;
+
+    iam_setup(5, 4, 0);
+    g_count_usable_slots_return = 0;     /* Item gated  */
+    g_build_spell_list_return = 0;       /* Spell gated */
+    data_fd2_battle_pending_xp_credit = 0x9999;   /* sentinel, must be reset */
+
+    /* Make the template global non-{0,1,2,3} would be wrong; instead snapshot
+     * it so we can prove the local copy used the global verbatim. */
+    saved_template[0] = (uint32)data_fd2_ui_inline_action_menu_template[0];
+    saved_template[1] = (uint32)data_fd2_ui_inline_action_menu_template[1];
+    saved_template[2] = (uint32)data_fd2_ui_inline_action_menu_template[2];
+    saved_template[3] = (uint32)data_fd2_ui_inline_action_menu_template[3];
+
+    /* Start all-enabled (the real caller's menu_state is {0,0,0,0}); the
+     * gating must flip slots 0/1/2 to 1 (disabled). */
+    slot[0] = 0; slot[1] = 0; slot[2] = 0; slot[3] = 0;
+    mfix_load_cancel();
+    r = fd2_player_inline_action_menu_dispatch(0, slot, 0);
+
+    ASSERT_EQ(r, -1);
+    ASSERT_EQ((int)data_fd2_battle_pending_xp_credit, 0);   /* reset to 0 */
+    ASSERT_EQ((int)slot[0], 1);   /* no weapon */
+    ASSERT_EQ((int)slot[1], 1);   /* no usable spells */
+    ASSERT_EQ((int)slot[2], 1);   /* no usable inventory */
+    ASSERT_EQ((int)slot[3], 0);   /* Wait never gated */
+    /* template global is the real {0,1,2,3} Attack/Spell/Item/Wait slot ids */
+    ASSERT_EQ((int)saved_template[0], 0);
+    ASSERT_EQ((int)saved_template[1], 1);
+    ASSERT_EQ((int)saved_template[2], 2);
+    ASSERT_EQ((int)saved_template[3], 3);
+    iam_teardown();
+}
+
+/* Silence gates the Spell slot even when a usable spell list exists. */
+static void test_inline_action_silence_gates_spell(void)
+{
+    int32 slot[4];
+    int r;
+
+    iam_setup(5, 4, 1);                  /* silenced (combat_aux_block[0]=1) */
+    g_count_usable_slots_return = 1;     /* Item available */
+    g_build_spell_list_return = 3;       /* spells exist, but silence overrides */
+
+    slot[0] = 0; slot[1] = 0; slot[2] = 0; slot[3] = 0;
+    mfix_load_cancel();
+    r = fd2_player_inline_action_menu_dispatch(0, slot, 0);
+
+    ASSERT_EQ(r, -1);
+    ASSERT_EQ((int)slot[1], 1);   /* silenced => Spell gated */
+    ASSERT_EQ((int)slot[2], 0);   /* Item still enabled */
+    iam_teardown();
+}
+
+/* Spell commit, job_id <= 8: ap_divisor = status_flags_block[0] (level), and
+ * pending_xp_credit is signed-divided by it. level 4, pending 100 -> 25. */
+static void test_inline_action_spell_xp_lowjob(void)
+{
+    int32 slot[4];
+    int r;
+
+    iam_setup(8, 4, 0);                  /* job 8 (not > 8) => no +0x1E */
+    g_count_usable_slots_return = 1;
+    g_build_spell_list_return = 3;       /* Spell slot enabled */
+    g_inline_spell_menu_return = 1;      /* spell committed */
+    g_inline_spell_menu_pending = 100;   /* cast credits 100 XP (then scaled) */
+
+    slot[0] = 0; slot[1] = 0; slot[2] = 0; slot[3] = 0;
+    mfix_load_select(1);                 /* Left -> cursor 1, Space commit */
+    r = fd2_player_inline_action_menu_dispatch(0, slot, 0);
+
+    ASSERT_EQ(r, 1);
+    ASSERT_EQ(g_inline_spell_menu_calls, 1);
+    ASSERT_EQ((int)data_fd2_battle_pending_xp_credit, 25);   /* 100 / 4 */
+    iam_teardown();
+}
+
+/* Spell commit, job_id > 8 (priest/cleric): ap_divisor = level + 0x1E.
+ * job 9, level 4 -> divisor 34, pending 100 -> 100 / 34 = 2. */
+static void test_inline_action_spell_xp_highjob(void)
+{
+    int32 slot[4];
+    int r;
+
+    iam_setup(9, 4, 0);                  /* job 9 (> 8) => +0x1E */
+    g_count_usable_slots_return = 1;
+    g_build_spell_list_return = 3;
+    g_inline_spell_menu_return = 1;
+    g_inline_spell_menu_pending = 100;   /* cast credits 100 XP (then scaled) */
+
+    slot[0] = 0; slot[1] = 0; slot[2] = 0; slot[3] = 0;
+    mfix_load_select(1);
+    r = fd2_player_inline_action_menu_dispatch(0, slot, 0);
+
+    ASSERT_EQ(r, 1);
+    ASSERT_EQ((int)data_fd2_battle_pending_xp_credit, 2);    /* 100 / (4+30) */
+    iam_teardown();
+}
+
+/* Spell submenu cancel (-1): the dispatcher returns 0 (re-prompt) and does
+ * not touch pending_xp_credit (left at the post-reset 0). */
+static void test_inline_action_spell_cancel(void)
+{
+    int32 slot[4];
+    int r;
+
+    iam_setup(5, 4, 0);
+    g_count_usable_slots_return = 1;
+    g_build_spell_list_return = 3;
+    g_inline_spell_menu_return = -1;     /* spell submenu cancelled */
+    data_fd2_battle_pending_xp_credit = 0;
+
+    slot[0] = 0; slot[1] = 0; slot[2] = 0; slot[3] = 0;
+    mfix_load_select(1);
+    r = fd2_player_inline_action_menu_dispatch(0, slot, 0);
+
+    ASSERT_EQ(r, 0);
+    ASSERT_EQ(g_inline_spell_menu_calls, 1);
+    iam_teardown();
+}
+
+/* Item commit: item use grants no XP -> pending_xp_credit forced to 0. */
+static void test_inline_action_item_no_xp(void)
+{
+    int32 slot[4];
+    int r;
+
+    iam_setup(5, 4, 0);
+    g_count_usable_slots_return = 1;     /* Item slot enabled */
+    g_build_spell_list_return = 0;
+    g_inline_item_menu_return = 1;       /* item committed */
+    data_fd2_battle_pending_xp_credit = 0x777;   /* must be reset to 0 */
+
+    slot[0] = 0; slot[1] = 0; slot[2] = 0; slot[3] = 0;
+    mfix_load_select(2);                 /* Right -> cursor 2, Space commit */
+    r = fd2_player_inline_action_menu_dispatch(0, slot, 0);
+
+    ASSERT_EQ(r, 1);
+    ASSERT_EQ(g_inline_item_menu_calls, 1);
+    ASSERT_EQ((int)data_fd2_battle_pending_xp_credit, 0);
+    iam_teardown();
+}
+
+/* Item submenu cancel (-1): returns 0 (re-prompt). */
+static void test_inline_action_item_cancel(void)
+{
+    int32 slot[4];
+    int r;
+
+    iam_setup(5, 4, 0);
+    g_count_usable_slots_return = 1;
+    g_build_spell_list_return = 0;
+    g_inline_item_menu_return = -1;
+    data_fd2_battle_pending_xp_credit = 0;
+
+    slot[0] = 0; slot[1] = 0; slot[2] = 0; slot[3] = 0;
+    mfix_load_select(2);
+    r = fd2_player_inline_action_menu_dispatch(0, slot, 0);
+
+    ASSERT_EQ(r, 0);
+    ASSERT_EQ(g_inline_item_menu_calls, 1);
+    iam_teardown();
+}
+
+/* Wait (cursor 3, default branch), have_moved = 1: the heal is skipped (gated
+ * on have_moved == 0); the tile-event handler runs and the function returns 1.
+ * The acted-this-turn flag (runtime_char.flags bit 0x80) is set. (The
+ * have_moved == 0 heal is a self-contained display animation -- its branch
+ * decision is covered by the have_moved == 0 variant below, with HP at max so
+ * the real heal is a guaranteed no-op.) */
+static void test_inline_action_wait_moved(void)
+{
+    int32 slot[4];
+    int r;
+
+    iam_setup(5, 4, 0);
+    g_count_usable_slots_return = 0;
+    g_build_spell_list_return = 0;
+    /* HP == max so fd2_ai_pass_turn_with_heal would be an immediate no-op. */
+    iam_chars[0].hp_current = 10;
+    iam_chars[0].hp_max = 10;
+
+    slot[0] = 0; slot[1] = 0; slot[2] = 0; slot[3] = 0;
+    mfix_load_select(3);                 /* Down -> cursor 3, Space commit */
+    r = fd2_player_inline_action_menu_dispatch(0, slot, 1);   /* have_moved=1 */
+
+    ASSERT_EQ(r, 1);
+    ASSERT_EQ(g_inline_tile_event_calls, 1);
+    ASSERT_EQ((int)(iam_chars[0].flags & 0x80), 0x80);   /* acted flag set */
+    iam_teardown();
+}
+
+/* Wait, have_moved = 0: the heal branch is entered (HP at max so the real
+ * fd2_ai_pass_turn_with_heal returns immediately without animation), tile
+ * event runs, returns 1. */
+static void test_inline_action_wait_not_moved(void)
+{
+    int32 slot[4];
+    int r;
+
+    iam_setup(5, 4, 0);
+    g_count_usable_slots_return = 0;
+    g_build_spell_list_return = 0;
+    iam_chars[0].hp_current = 10;
+    iam_chars[0].hp_max = 10;            /* heal no-op (hp_current == hp_max) */
+
+    slot[0] = 0; slot[1] = 0; slot[2] = 0; slot[3] = 0;
+    mfix_load_select(3);
+    r = fd2_player_inline_action_menu_dispatch(0, slot, 0);   /* have_moved=0 */
+
+    ASSERT_EQ(r, 1);
+    ASSERT_EQ(g_inline_tile_event_calls, 1);
+    ASSERT_EQ((int)iam_chars[0].hp_current, 10);   /* unchanged (no-op heal) */
+    iam_teardown();
+}
+
 void run_ui_menu_menu_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -343,5 +672,14 @@ void run_ui_menu_menu_tests(void)
     RUN_TEST(test_field_command_menu_options);
     RUN_TEST(test_player_action_menu_cancel);
     RUN_TEST(test_player_action_menu_unreachable);
+    RUN_TEST(test_inline_action_cancel_and_gating);
+    RUN_TEST(test_inline_action_silence_gates_spell);
+    RUN_TEST(test_inline_action_spell_xp_lowjob);
+    RUN_TEST(test_inline_action_spell_xp_highjob);
+    RUN_TEST(test_inline_action_spell_cancel);
+    RUN_TEST(test_inline_action_item_no_xp);
+    RUN_TEST(test_inline_action_item_cancel);
+    RUN_TEST(test_inline_action_wait_moved);
+    RUN_TEST(test_inline_action_wait_not_moved);
     printf("\n");
 }

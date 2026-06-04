@@ -62,6 +62,9 @@ void fd2_count_active_menu_items_until_zero(int32 *menu_def);
 int fd2_player_action_menu_loop(uint32 char_idx);
 int fd2_player_inline_action_menu_dispatch(int char_idx,
     int32 *pSlot_disable_arr, int have_moved);
+int fd2_spell_selection_menu_main(uint32 caster_idx);
+int fd2_item_command_menu_dispatch(uint32 char_idx);
+void fd2_handle_tile_event_interaction(uint32 char_idx);
 void fd2_open_char_status_screen(uint32 char_idx);
 void fd2_open_tactical_overview_zoom(void);
 void fd2_mark_char_acted_this_turn(uint32 char_idx);

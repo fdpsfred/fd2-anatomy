@@ -442,3 +442,173 @@ int fd2_player_action_menu_loop(uint32 char_idx)
     fd2_check_tile_event_post_action(pchar->pos_x, pchar->pos_y, 1);
     return data_fd2_battle_player_action_result_code;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_player_inline_action_menu_dispatch @ 0x18D8C  (1 caller:
+ *                                          fd2_player_action_menu_loop)
+ *
+ * Inline action submenu (Attack / Spell / Item / Wait) opened after the
+ * player picks a destination tile. pSlot_disable_arr is a 4-int gating
+ * array (non-zero = disabled); have_moved = 1 after actual movement, 0
+ * before.
+ *   Return: 1 = action committed, -1 = cancelled all the way out,
+ *           0 = re-prompt outer menu.
+ *
+ * Slot gating: Attack disabled if no weapon equipped or no targets in
+ * range of the weapon's AoE; Item disabled if no usable inventory slots;
+ * Spell disabled if no usable spells or the unit is silenced
+ * (combat_aux_block[0] != 0). The 4-int menu template @ 0x51ED5 is
+ * { 0, 1, 2, 3 } (the four slot ids).
+ *
+ * Selection dispatch:
+ *   0 Attack — AoE target pick, then combat cinematic + damage, death
+ *     animation, loot-drop processing.
+ *   1 Spell  — spell menu; on commit, divide pending_xp_credit by the AP
+ *     divisor (status_flags_block[0], +30 for job_id > 8 priest/cleric).
+ *   2 Item   — item menu; item use grants no XP (pending_xp_credit = 0).
+ *   3 Wait   — recover 20% HP if not yet moved, run tile-event interaction.
+ *
+ * int __cdecl with the __CHK(0xB0) stack-probe prologue. saved_cursor_x/y
+ * capture the destination tile before the Attack target-pick so cancel can
+ * pan back. EAX-bug notes: the settings-menu input result is captured
+ * MOV EBX,EAX after the CALL and reused at CMP EBX,-1; the malloc result
+ * (target id buffer) is MOV ESI,EAX; fd2_compute_aoe_targets's count is
+ * passed straight into fd2_wait_for_action_target_input; the attack target
+ * id (fd2_find_char_at_cursor_pos) is MOV EBX,EAX and reused. pCharArray is
+ * latched (MOV ESI,[0x53A45]+idx) before the input loop and read in the
+ * Spell case (ESI is only clobbered inside the Attack branch).
+ * ---------------------------------------------------------------- */
+int fd2_player_inline_action_menu_dispatch(int char_idx,
+    int32 *pSlot_disable_arr, int have_moved)
+{
+    int32 menu_template[4];
+    uint8 drops_buffer[100];
+    runtime_char *pCharArray;
+    uint8 *pWeapon;
+    uint8 weapon_id;
+    uint32 weapon_slot;
+    uint32 weapon_aoe_x;
+    uint32 weapon_aoe_y;
+    uint32 saved_cursor_x;
+    uint32 saved_cursor_y;
+    uint32 target_ids_buf;
+    int n_targets;
+    int sel;
+    int target_idx;
+    int input_result;
+    uint32 drops_ptr;
+    uint32 ap_divisor;
+
+    menu_template[0] = data_fd2_ui_inline_action_menu_template[0];
+    menu_template[1] = data_fd2_ui_inline_action_menu_template[1];
+    menu_template[2] = data_fd2_ui_inline_action_menu_template[2];
+    menu_template[3] = data_fd2_ui_inline_action_menu_template[3];
+
+    pSlot_disable_arr[0] = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+
+    weapon_slot = fd2_find_equipped_item_by_kind(char_idx, 0);
+    if (weapon_slot == 0xffffffff) {
+        pSlot_disable_arr[0] = 1;
+    }
+    else {
+        weapon_id = fd2_get_inventory_slot_item_id(char_idx, weapon_slot);
+        pWeapon = fd2_get_item_effect_entry(weapon_id);
+        weapon_aoe_x = pWeapon[0xb];
+        weapon_aoe_y = pWeapon[0xc];
+        if (fd2_compute_aoe_targets(data_fd2_battle_cursor_world_x,
+                data_fd2_battle_cursor_world_y, 0, weapon_aoe_y,
+                weapon_aoe_x, 0) == 0) {
+            pSlot_disable_arr[0] = 1;
+        }
+        fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+    }
+
+    fd2_count_active_menu_items_until_zero(pSlot_disable_arr);
+    fd2_open_settings_dialog_with_slide(menu_template, pSlot_disable_arr);
+
+    if (fd2_count_usable_inventory_slots(char_idx) == 0) {
+        pSlot_disable_arr[2] = 1;
+    }
+
+    if (fd2_build_usable_spell_list(char_idx, 0) == 0) {
+        pSlot_disable_arr[1] = 1;
+    }
+    pCharArray = data_fd2_battle_runtime_char_array_ptr;
+    if (pCharArray[char_idx].combat_aux_block[0] != 0) {
+        pSlot_disable_arr[1] = 1;
+    }
+
+    fd2_count_active_menu_items_until_zero(pSlot_disable_arr);
+
+    do {
+        input_result =
+            fd2_settings_menu_input_step(menu_template, pSlot_disable_arr);
+    } while (input_result == 0);
+    fd2_close_settings_dialog_with_slide(menu_template, pSlot_disable_arr);
+    fd2_composite_battle_frame(0);
+
+    saved_cursor_y = data_fd2_battle_cursor_world_y;
+    saved_cursor_x = data_fd2_battle_cursor_world_x;
+    if (input_result == -1) {
+        return -1;
+    }
+
+    if (data_fd2_ui_menu_cursor_idx == 0) {
+        target_ids_buf = (uint32)malloc(100);
+        n_targets = fd2_compute_aoe_targets(data_fd2_battle_cursor_world_x,
+            data_fd2_battle_cursor_world_y, target_ids_buf, weapon_aoe_y,
+            weapon_aoe_x, 0);
+        sel = fd2_wait_for_action_target_input(0, n_targets,
+            (uint8 *)target_ids_buf);
+        fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+        free((void *)target_ids_buf);
+        if (sel == -1) {
+            fd2_pan_cursor_to_tile_animated(saved_cursor_x, saved_cursor_y);
+            return 0;
+        }
+        target_idx = fd2_find_char_at_cursor_pos();
+        fd2_face_char_toward_target(char_idx, target_idx);
+        fd2_play_full_combat_cinematic(char_idx, target_idx);
+        fd2_clear_all_chars_facing();
+        drops_ptr = fd2_collect_pending_death_drops((uint32)drops_buffer);
+        fd2_play_death_animation_and_mark_dead();
+        fd2_process_battle_drop_entries(char_idx, drops_ptr,
+            (uint32)drops_buffer);
+        fd2_mark_char_acted_this_turn(char_idx);
+        fd2_clear_keyboard_buffer();
+    }
+    else if (data_fd2_ui_menu_cursor_idx == 1) {
+        do {
+            input_result = fd2_spell_selection_menu_main(char_idx);
+        } while (input_result == 0);
+        if (input_result == -1) {
+            return 0;
+        }
+        fd2_mark_char_acted_this_turn(char_idx);
+        ap_divisor = pCharArray[char_idx].status_flags_block[0];
+        if (pCharArray[char_idx].job_id > 8) {
+            ap_divisor = ap_divisor + 0x1e;
+        }
+        data_fd2_battle_pending_xp_credit =
+            (uint32)((int)data_fd2_battle_pending_xp_credit / (int)ap_divisor);
+    }
+    else if (data_fd2_ui_menu_cursor_idx == 2) {
+        do {
+            input_result = fd2_item_command_menu_dispatch(char_idx);
+        } while (input_result == 0);
+        if (input_result == -1) {
+            return 0;
+        }
+        data_fd2_battle_pending_xp_credit = 0;
+    }
+    else {
+        if (have_moved == 0) {
+            fd2_ai_pass_turn_with_heal(char_idx);
+        }
+        fd2_handle_tile_event_interaction(char_idx);
+        fd2_mark_char_acted_this_turn(char_idx);
+    }
+
+    return 1;
+}
