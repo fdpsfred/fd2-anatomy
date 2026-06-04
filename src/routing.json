@@ -2530,8 +2530,9 @@
     "name": "fd2_chapter_26_end",
     "target": "field/chend2.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00025052": {
     "name": "fd2_palette_overbright_settle_step_loop",

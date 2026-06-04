@@ -695,6 +695,116 @@ static void test_ch25_end_real_portrait_reload_two_recruits_and_advance(void)
     ce_restore_rc_ptr();
 }
 
+/* ----------------------------------------------------------------
+ * Chapter 26 end handler — fd2_chapter_26_end @ 0x24E80.
+ *
+ * Two deterministic, non-display risk cores:
+ *   (a) the 機器人渥德 force-positioning loop: every runtime_char in slots
+ *       0x10..party_member_count whose portrait_id is 0x1F is moved to world
+ *       tile (0x10, 6); slots below 0x10 and chars with a different portrait
+ *       id are left untouched. The loop's start index (0x10) and the
+ *       portrait-id guard are exercised by three planted chars below.
+ *   (b) the dynamic dialog-page reads of tile_event_consumed_flags[0xC]: the
+ *       first dialog uses page (flag + 5) and the third page (flag + 8). With
+ *       the flag byte at 4 those land on pages 9 and 12, the largest pages the
+ *       handler can request; pointing the flags buffer at a real 16-byte block
+ *       exercises the [ptr+0xC] read in-bounds, and the immediate-END dialog
+ *       program (page-offset table covering indices 0..0x10) resolves page 12
+ *       to an instant END.
+ *
+ * The handler is driven end-to-end on-host with the proven chend2 safe env:
+ *   - fd2_setup_chars_and_camera_for_intro is a no-op double (its real char
+ *     placement/camera/fade is display-only; deferred to Phase 9), so the
+ *     force-positioning loop above is the only thing that mutates the planted
+ *     runtime_char slots;
+ *   - the five fd2_display_dialog_scene calls take the immediate-END program,
+ *     and the four fd2_cutscene_event_trigger calls take zero-group scripts
+ *     (events 0x4D..0x50), so each returns at once with no glyph/cutscene
+ *     blits;
+ *   - the empty menu roster (member_count 0) makes the tail
+ *     fd2_save_runtime_char_to_template iterate zero template entries, so the
+ *     non-zero active party_member_count used to bound the placement loop is
+ *     harmless there.
+ *
+ * No char is added by the handler — 機器人渥德 joins via an FDFIELD event;
+ * this handler only positions it. The pure blit/display side effects (dialog
+ * glyphs, cutscene compositing, camera placement) are deferred to Phase 9
+ * integration.
+ * ---------------------------------------------------------------- */
+
+/* zero-group cutscene scripts for ch26's events 0x4D..0x50: n_groups byte = 0,
+ * so the real fd2_cutscene_event_trigger just composites once and returns. */
+static uint8 g_ce26_script_4d[1] = { 0 };
+static uint8 g_ce26_script_4e[1] = { 0 };
+static uint8 g_ce26_script_4f[1] = { 0 };
+static uint8 g_ce26_script_50[1] = { 0 };
+
+/* real 16-byte tile-event flags block so the handler's [ptr+0xC] page reads
+ * stay in-bounds; index 0xC carries the chosen-treasure-box value (0..4). */
+static uint8 g_ce26_tile_flags[16];
+
+static void test_ch26_end_positions_robot_and_advances(void)
+{
+    uint32 chap0;
+
+    ce_install_safe_env();
+
+    /* zero-group cutscene scripts for the four events the handler fires. */
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x4D] = g_ce26_script_4d;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x4E] = g_ce26_script_4e;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x4F] = g_ce26_script_4f;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x50] = g_ce26_script_50;
+
+    /* real tile-event flags buffer; [0xC] = 4 -> the dynamic dialogs request
+     * the largest pages (flag+5 = 9, flag+8 = 12), both covered by the
+     * immediate-END program (indices 0..0x10). */
+    memset(g_ce26_tile_flags, 0, sizeof(g_ce26_tile_flags));
+    g_ce26_tile_flags[0xC] = 4;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ce26_tile_flags;
+
+    /* scan slots 0x10..0x13 (party_member_count 0x14). */
+    data_fd2_battle_party_member_count = 0x14;
+
+    /* slot 0x12: 機器人渥德 (portrait 0x1F) at a non-target position -> moved. */
+    g_ce_rc[0x12].portrait_id = 0x1F;
+    g_ce_rc[0x12].pos_x = 0x55;
+    g_ce_rc[0x12].pos_y = 0x55;
+
+    /* slot 0x13: a different portrait in range -> left untouched. */
+    g_ce_rc[0x13].portrait_id = 0x20;
+    g_ce_rc[0x13].pos_x = 0x33;
+    g_ce_rc[0x13].pos_y = 0x33;
+
+    /* slot 0x05: portrait 0x1F but below the loop's 0x10 start -> untouched. */
+    g_ce_rc[0x05].portrait_id = 0x1F;
+    g_ce_rc[0x05].pos_x = 0x44;
+    g_ce_rc[0x05].pos_y = 0x44;
+
+    chap0 = data_fd2_chapter_current_chapter_id;
+
+    fd2_chapter_26_end();
+
+    /* the in-range 0x1F char was force-positioned to (0x10, 6). */
+    ASSERT_EQ(g_ce_rc[0x12].pos_x, 0x10);
+    ASSERT_EQ(g_ce_rc[0x12].pos_y, 6);
+
+    /* the in-range non-0x1F char kept its position. */
+    ASSERT_EQ(g_ce_rc[0x13].pos_x, 0x33);
+    ASSERT_EQ(g_ce_rc[0x13].pos_y, 0x33);
+
+    /* the out-of-range 0x1F char (slot 5 < 0x10) was not touched. */
+    ASSERT_EQ(g_ce_rc[0x05].pos_x, 0x44);
+    ASSERT_EQ(g_ce_rc[0x05].pos_y, 0x44);
+
+    /* epilogue ran: chapter id advanced by exactly one. */
+    ASSERT_EQ(data_fd2_chapter_current_chapter_id, chap0 + 1);
+
+    /* no char added by the handler. */
+    ASSERT_EQ(data_fd2_shared_menu_party_member_count, 0);
+
+    ce_restore_rc_ptr();
+}
+
 void run_field_chend2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -709,5 +819,6 @@ void run_field_chend2_tests(void)
     RUN_TEST(test_ch23_end_key_held_miti_absent_after_15_turns);
     RUN_TEST(test_ch24_end_runs_and_advances);
     RUN_TEST(test_ch25_end_real_portrait_reload_two_recruits_and_advance);
+    RUN_TEST(test_ch26_end_positions_robot_and_advances);
     printf("\n");
 }

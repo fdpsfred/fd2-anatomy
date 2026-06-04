@@ -13,6 +13,8 @@
  *                               data_fd2_chapter_end_handler_table[24])
  * fd2_chapter_25_end @ 0x24DF2 (0 direct callers; dispatched via
  *                               data_fd2_chapter_end_handler_table[25])
+ * fd2_chapter_26_end @ 0x24E80 (0 direct callers; dispatched via
+ *                               data_fd2_chapter_end_handler_table[26])
  */
 
 #include <string.h>
@@ -553,5 +555,98 @@ void fd2_chapter_25_end(void)
     /* shared tail @ 0x237C8 (fd2_chapter_11_end's epilogue snippet), entered
      * via PUSH 0x1D ; JMP: recruit 亞奇梅吉 then advance the chapter id. */
     fd2_init_runtime_char_from_base_growth(0x1D);
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}
+
+/* ----------------------------------------------------------------
+ * Chapter-26 end-scene character tables (FD2.LE data @ 0x522D6 /
+ * 0x522E6 / 0x522F6). Private read-only tables referenced only by
+ * fd2_chapter_26_end; the Watcom prologue copies each 16-byte table onto
+ * stack scratch as four dwords before fd2_setup_chars_and_camera_for_intro
+ * indexes them by char slot. The facing table is uniform 0x02 except slots 0
+ * and 2 which face 0x00.
+ * ---------------------------------------------------------------- */
+const uint8 data_fd2_chapter_ch26_end_scene_char_pos_x_table[16] = {
+    0x0E, 0x0F, 0x0F, 0x0E, 0x10, 0x0E, 0x0F, 0x10,
+    0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x0E, 0x0F, 0x10
+};
+const uint8 data_fd2_chapter_ch26_end_scene_char_pos_y_table[16] = {
+    0x06, 0x09, 0x06, 0x09, 0x09, 0x0A, 0x0A, 0x0A,
+    0x0B, 0x0B, 0x0B, 0x0B, 0x0B, 0x0C, 0x0C, 0x0C
+};
+const uint8 data_fd2_chapter_ch26_end_scene_char_facing_table[16] = {
+    0x00, 0x02, 0x00, 0x02, 0x02, 0x02, 0x02, 0x02,
+    0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02
+};
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_26_end @ 0x24E80  — Chapter 26「未知的迴廊」end handler
+ * (0 direct callers, dispatched via data_fd2_chapter_end_handler_table[26]).
+ *
+ * Copies the three 16-byte end-scene tables onto the stack, then force-
+ * positions any party char in slots 0x10..party_member_count whose portrait
+ * id is 0x1F (機器人渥德) at world tile (0x10, 6) before placing the cast and
+ * re-aiming the camera via fd2_setup_chars_and_camera_for_intro. It then runs
+ * five post-battle dialog pages interleaved with cutscene events 0x4D..0x50.
+ * Two of the pages are chosen dynamically from which of the five 寶箱 (treasure
+ * boxes) the party opened, recorded in tile_event_consumed_flags[0xC] (value
+ * 0..4): the first dialog uses page (flag + 5) and the third uses page
+ * (flag + 8); pages 7, 10 and 11 are fixed. Finishes by saving the runtime
+ * char templates and advancing current_chapter_id by one. No char is added in
+ * the handler — 機器人渥德 joins via an FDFIELD event; this handler only
+ * positions it.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_26.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_26_end(void)
+{
+    uint8 pos_x[16];
+    uint8 pos_y[16];
+    uint8 facing[16];
+    runtime_char *pChar;
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        pos_x[i] = data_fd2_chapter_ch26_end_scene_char_pos_x_table[i];
+        pos_y[i] = data_fd2_chapter_ch26_end_scene_char_pos_y_table[i];
+        facing[i] = data_fd2_chapter_ch26_end_scene_char_facing_table[i];
+    }
+
+    for (i = 0x10; (uint32)i < data_fd2_battle_party_member_count; i++) {
+        pChar = data_fd2_battle_runtime_char_array_ptr + i;
+        if (pChar->portrait_id == 0x1F) {
+            pChar->pos_x = 0x10;
+            pChar->pos_y = 6;
+        }
+    }
+
+    fd2_setup_chars_and_camera_for_intro((uint32)pos_x, (uint32)pos_y,
+                                         (uint32)facing, 0, 0xF, 0, 0, 0, 0,
+                                         9, 5);
+
+    fd2_display_dialog_scene(
+        current_chapter_text,
+        (uint32)*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0xC) + 5,
+        0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x4D);
+    fd2_display_dialog_scene(current_chapter_text, 7, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x4E);
+    fd2_display_dialog_scene(
+        current_chapter_text,
+        (uint32)*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0xC) + 8,
+        0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x4F);
+    fd2_display_dialog_scene(current_chapter_text, 10, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x50);
+    fd2_display_dialog_scene(current_chapter_text, 0xB, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+
+    fd2_save_runtime_char_to_template();
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }
