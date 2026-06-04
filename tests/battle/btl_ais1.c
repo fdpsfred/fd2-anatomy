@@ -51,7 +51,6 @@ extern int g_pathfind_seq_steps;
 extern uint8 g_pathfind_step_bytes[8];
 extern int g_pathfind_md0_dst_x;
 extern int g_pathfind_md0_dst_y;
-extern int g_count_usable_slots_return;
 extern uint8 g_spell_list_buf[12];
 extern int g_remove_inventory_calls;
 extern int g_cast_status_cure_calls;
@@ -142,24 +141,25 @@ static void ti_restore_phys(uint32 save_pmc, uint32 save_w,
 }
 
 
-static void ti_setup_item(uint32 *save_pmc, uint32 *save_w, uint32 *save_h,
-                          int *save_cnt)
+static void ti_setup_item(uint32 *save_pmc, uint32 *save_w, uint32 *save_h)
 {
     *save_pmc = data_fd2_battle_party_member_count;
     *save_w = data_fd2_battle_map_width_tiles;
     *save_h = data_fd2_battle_map_height_tiles;
-    *save_cnt = g_count_usable_slots_return;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     memset(data_fd2_battle_item_effect_table, 0,
            sizeof(data_fd2_battle_item_effect_table));
     reset_ai_stubs();                 /* tile map -> 0xFF, ptr wired */
     data_fd2_battle_map_width_tiles = 3;
     data_fd2_battle_map_height_tiles = 3;
-    g_count_usable_slots_return = 1;  /* one usable inventory slot */
 
     g_test_rc_array[0].pos_x = 0;     /* caster */
     g_test_rc_array[0].pos_y = 0;
     g_test_rc_array[0].team = 0;
+    /* All slot flag bytes are clear (memset above), so the REAL
+     * fd2_count_usable_inventory_slots returns 8. Slot 0 carries item id 7
+     * (scored below); slots 1..7 carry item id 0, whose zeroed effect entry
+     * has range_max(+0xD)==0 so the scorer skips them (continue) -> inert. */
     g_test_rc_array[0].inventory_slots[1] = 7;   /* slot 0 item id = 7 */
 
     data_fd2_battle_ai_best_item_target_x = 0xEE;
@@ -168,13 +168,11 @@ static void ti_setup_item(uint32 *save_pmc, uint32 *save_w, uint32 *save_h,
 }
 
 
-static void ti_restore_item(uint32 save_pmc, uint32 save_w, uint32 save_h,
-                            int save_cnt)
+static void ti_restore_item(uint32 save_pmc, uint32 save_w, uint32 save_h)
 {
     data_fd2_battle_party_member_count = save_pmc;
     data_fd2_battle_map_width_tiles = save_w;
     data_fd2_battle_map_height_tiles = save_h;
-    g_count_usable_slots_return = save_cnt;
 }
 
 
@@ -386,8 +384,7 @@ static void test_ai_score_item_short_range_score8(void)
     uint32 save_pmc;
     uint32 save_w;
     uint32 save_h;
-    int save_cnt;
-    ti_setup_item(&save_pmc, &save_w, &save_h, &save_cnt);
+    ti_setup_item(&save_pmc, &save_w, &save_h);
     data_fd2_battle_party_member_count = 2;
     data_fd2_battle_item_effect_table[7].use_effect = 5;       /* +14 effect/gate */
     data_fd2_battle_item_effect_table[7].cast_range_flags = 2; /* +17 short range  */
@@ -405,7 +402,7 @@ static void test_ai_score_item_short_range_score8(void)
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_slot, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_x, 1);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_y, 1);
-    ti_restore_item(save_pmc, save_w, save_h, save_cnt);
+    ti_restore_item(save_pmc, save_w, save_h);
 }
 
 
@@ -419,8 +416,7 @@ static void test_ai_score_item_long_range_line(void)
     uint32 save_pmc;
     uint32 save_w;
     uint32 save_h;
-    int save_cnt;
-    ti_setup_item(&save_pmc, &save_w, &save_h, &save_cnt);
+    ti_setup_item(&save_pmc, &save_w, &save_h);
     data_fd2_battle_party_member_count = 2;
     data_fd2_battle_item_effect_table[7].use_effect = 5;          /* +14 */
     data_fd2_battle_item_effect_table[7].cast_range_flags = 0x12; /* +17 line, step 2 */
@@ -436,7 +432,7 @@ static void test_ai_score_item_long_range_line(void)
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_slot, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_x, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_y, 2);
-    ti_restore_item(save_pmc, save_w, save_h, save_cnt);
+    ti_restore_item(save_pmc, save_w, save_h);
 }
 
 
@@ -451,9 +447,8 @@ static void test_ai_score_item_ctx_flag_aoe_arg(void)
     uint32 save_pmc;
     uint32 save_w;
     uint32 save_h;
-    int save_cnt;
     /* ctx_flag 0 path: team_filter 0 collects the team-0 char -> score 8 */
-    ti_setup_item(&save_pmc, &save_w, &save_h, &save_cnt);
+    ti_setup_item(&save_pmc, &save_w, &save_h);
     data_fd2_battle_party_member_count = 3;
     data_fd2_battle_item_effect_table[7].use_effect = 5;
     data_fd2_battle_item_effect_table[7].cast_range_flags = 1;  /* short */
@@ -470,10 +465,10 @@ static void test_ai_score_item_ctx_flag_aoe_arg(void)
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_score, 8);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_x, 1);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_y, 1);
-    ti_restore_item(save_pmc, save_w, save_h, save_cnt);
+    ti_restore_item(save_pmc, save_w, save_h);
 
     /* ctx_flag 1 path: team_filter 2 finds no team-1 char -> no update */
-    ti_setup_item(&save_pmc, &save_w, &save_h, &save_cnt);
+    ti_setup_item(&save_pmc, &save_w, &save_h);
     data_fd2_battle_party_member_count = 3;
     data_fd2_battle_item_effect_table[7].use_effect = 5;
     data_fd2_battle_item_effect_table[7].cast_range_flags = 1;
@@ -490,7 +485,7 @@ static void test_ai_score_item_ctx_flag_aoe_arg(void)
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_score, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_x, 0xEE);  /* untouched */
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_slot, 0xEE);
-    ti_restore_item(save_pmc, save_w, save_h, save_cnt);
+    ti_restore_item(save_pmc, save_w, save_h);
 }
 
 
@@ -503,8 +498,7 @@ static void test_ai_score_item_non_offensive_skip(void)
     uint32 save_pmc;
     uint32 save_w;
     uint32 save_h;
-    int save_cnt;
-    ti_setup_item(&save_pmc, &save_w, &save_h, &save_cnt);
+    ti_setup_item(&save_pmc, &save_w, &save_h);
     data_fd2_battle_party_member_count = 2;
     data_fd2_battle_item_effect_table[7].use_effect = 0;        /* +14 -> skip */
     data_fd2_battle_item_effect_table[7].cast_range_flags = 2;
@@ -522,7 +516,7 @@ static void test_ai_score_item_non_offensive_skip(void)
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_x, 0xEE);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_y, 0xEE);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_slot, 0xEE);
-    ti_restore_item(save_pmc, save_w, save_h, save_cnt);
+    ti_restore_item(save_pmc, save_w, save_h);
 }
 
 
@@ -540,9 +534,8 @@ static void test_ai_score_item_best_candidate_gating(void)
     uint32 save_pmc;
     uint32 save_w;
     uint32 save_h;
-    int save_cnt;
     /* Scenario A: higher (later) overwrites */
-    ti_setup_item(&save_pmc, &save_w, &save_h, &save_cnt);
+    ti_setup_item(&save_pmc, &save_w, &save_h);
     data_fd2_battle_party_member_count = 3;
     data_fd2_battle_item_effect_table[7].use_effect = 5;
     data_fd2_battle_item_effect_table[7].cast_range_flags = 0x12;  /* line, step 2 */
@@ -559,10 +552,10 @@ static void test_ai_score_item_best_candidate_gating(void)
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_score, 8);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_x, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_y, 2);
-    ti_restore_item(save_pmc, save_w, save_h, save_cnt);
+    ti_restore_item(save_pmc, save_w, save_h);
 
     /* Scenario B: lower (later) does NOT overwrite */
-    ti_setup_item(&save_pmc, &save_w, &save_h, &save_cnt);
+    ti_setup_item(&save_pmc, &save_w, &save_h);
     data_fd2_battle_party_member_count = 3;
     data_fd2_battle_item_effect_table[7].use_effect = 5;
     data_fd2_battle_item_effect_table[7].cast_range_flags = 0x12;
@@ -579,7 +572,7 @@ static void test_ai_score_item_best_candidate_gating(void)
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_score, 8);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_x, 2);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_y, 0);
-    ti_restore_item(save_pmc, save_w, save_h, save_cnt);
+    ti_restore_item(save_pmc, save_w, save_h);
 }
 
 

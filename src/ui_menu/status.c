@@ -66,6 +66,37 @@ void fd2_compute_equipped_stats_with_item_preview(uint32 char_idx,
 }
 
 /* ----------------------------------------------------------------
+ * fd2_count_usable_inventory_slots @ 0x1B8A6  (9 callers)
+ *
+ * Count how many of the 8 inventory slots in runtime_char[ci] are
+ * currently active: a slot is active when its flag byte
+ * (inventory_slots[slot*2]) has bit 0x80 clear. Returns the count.
+ *
+ * Used by AI (fd2_ai_score_item_use slot-iteration cap), the menu/UI
+ * item-slot gating (item/buy/give/equip dispatch), the chapter-08/3a
+ * pickup events, and fd2_find_inventory_slot_with_item.
+ *
+ * int __cdecl with the __CHK(8) stack-probe prologue (compiler-injected,
+ * not part of the source). EBX is the accumulator (callee-saved); the
+ * trailing POP EBX + RET is the shared epilogue.
+ * ---------------------------------------------------------------- */
+int fd2_count_usable_inventory_slots(uint32 ci)
+{
+    runtime_char *rc;
+    uint32 slot_iter;
+    int active_count;
+
+    rc = data_fd2_battle_runtime_char_array_ptr;
+    active_count = 0;
+    for (slot_iter = 0; (int)slot_iter < 8; slot_iter++) {
+        if ((rc[ci].inventory_slots[slot_iter * 2] & 0x80) == 0) {
+            active_count++;
+        }
+    }
+    return active_count;
+}
+
+/* ----------------------------------------------------------------
  * fd2_open_status_screen_with_slide_in @ 0x17E0B  (3 callers)
  *
  * Open the character status panel with a 12-frame slide-in animation.

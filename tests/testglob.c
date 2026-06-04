@@ -606,8 +606,7 @@ int fd2_build_usable_spell_list(uint32 ci, uint32 buf)
 /* fd2_score_spell_candidate: now in btl_ai.c */
 double data_fd2_battle_ai_enemy_spell_score_multiplier_15 = 1.5;
 /* fd2_ai_score_item_use: now in btl_ai.c */
-int g_count_usable_slots_return = 0;
-int fd2_count_usable_inventory_slots(uint32 ci) { (void)ci; return g_count_usable_slots_return; }
+/* fd2_count_usable_inventory_slots: now REAL in src/ui_menu/status.c */
 /* inline action submenu dispatch seams (fd2_player_inline_action_menu_dispatch).
  * The real spell/item submenus are heavy UI/graphics orchestrators not yet
  * emitted; these stubs let the inline action dispatcher be driven to each

@@ -1246,8 +1246,9 @@
     "name": "fd2_count_usable_inventory_slots",
     "target": "ui_menu/status.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001b8e7": {
     "name": "fd2_remove_inventory_slot_at",

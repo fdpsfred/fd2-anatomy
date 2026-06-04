@@ -56,8 +56,8 @@ extern int g_pathfind_walk_return;
 
 /* inline-action-menu dispatch seams (testglob.c): control the not-yet-emitted
  * spell/item submenus and the field tile-event handler so the inline action
- * dispatcher can be driven to each selection branch. */
-extern int g_count_usable_slots_return;     /* 0 => Item slot gated */
+ * dispatcher can be driven to each selection branch. The Item-slot gate is now
+ * the REAL fd2_count_usable_inventory_slots reading iam_chars inventory flags. */
 extern int g_build_spell_list_return;       /* 0 => Spell slot gated */
 extern int g_inline_spell_menu_return;
 extern int g_inline_spell_menu_calls;
@@ -366,7 +366,6 @@ static uint32 iam_saved_party_count;
 static uint32 iam_saved_cursor_x;
 static uint32 iam_saved_cursor_y;
 static uint32 iam_saved_pending_xp;
-static int iam_saved_count_slots;
 static int iam_saved_build_spells;
 static int iam_saved_spell_return;
 static int iam_saved_spell_pending;
@@ -383,7 +382,6 @@ static void iam_setup(uint8 job_id, uint8 level, uint8 silence_flag)
     iam_saved_cursor_x = data_fd2_battle_cursor_world_x;
     iam_saved_cursor_y = data_fd2_battle_cursor_world_y;
     iam_saved_pending_xp = data_fd2_battle_pending_xp_credit;
-    iam_saved_count_slots = g_count_usable_slots_return;
     iam_saved_build_spells = g_build_spell_list_return;
     iam_saved_spell_return = g_inline_spell_menu_return;
     iam_saved_spell_pending = g_inline_spell_menu_pending;
@@ -430,7 +428,6 @@ static void iam_teardown(void)
     data_fd2_battle_cursor_world_x = iam_saved_cursor_x;
     data_fd2_battle_cursor_world_y = iam_saved_cursor_y;
     data_fd2_battle_pending_xp_credit = iam_saved_pending_xp;
-    g_count_usable_slots_return = iam_saved_count_slots;
     g_build_spell_list_return = iam_saved_build_spells;
     g_inline_spell_menu_return = iam_saved_spell_return;
     g_inline_spell_menu_pending = iam_saved_spell_pending;
@@ -450,8 +447,15 @@ static void test_inline_action_cancel_and_gating(void)
     uint32 saved_template[4];
     int r;
 
-    iam_setup(5, 4, 0);
-    g_count_usable_slots_return = 0;     /* Item gated  */
+    {
+        int s;
+        iam_setup(5, 4, 0);
+        /* every inventory slot flag bit 0x80 set => REAL
+         * fd2_count_usable_inventory_slots returns 0 => Item gated. */
+        for (s = 0; s < 8; s++) {
+            iam_chars[0].inventory_slots[s * 2] = 0x80;
+        }
+    }
     g_build_spell_list_return = 0;       /* Spell gated */
     data_fd2_battle_pending_xp_credit = 0x9999;   /* sentinel, must be reset */
 
@@ -489,7 +493,7 @@ static void test_inline_action_silence_gates_spell(void)
     int r;
 
     iam_setup(5, 4, 1);                  /* silenced (combat_aux_block[0]=1) */
-    g_count_usable_slots_return = 1;     /* Item available */
+    /* iam_chars slots all clear => REAL count_usable returns 8 => Item enabled */
     g_build_spell_list_return = 3;       /* spells exist, but silence overrides */
 
     slot[0] = 0; slot[1] = 0; slot[2] = 0; slot[3] = 0;
@@ -510,7 +514,6 @@ static void test_inline_action_spell_xp_lowjob(void)
     int r;
 
     iam_setup(8, 4, 0);                  /* job 8 (not > 8) => no +0x1E */
-    g_count_usable_slots_return = 1;
     g_build_spell_list_return = 3;       /* Spell slot enabled */
     g_inline_spell_menu_return = 1;      /* spell committed */
     g_inline_spell_menu_pending = 100;   /* cast credits 100 XP (then scaled) */
@@ -533,7 +536,6 @@ static void test_inline_action_spell_xp_highjob(void)
     int r;
 
     iam_setup(9, 4, 0);                  /* job 9 (> 8) => +0x1E */
-    g_count_usable_slots_return = 1;
     g_build_spell_list_return = 3;
     g_inline_spell_menu_return = 1;
     g_inline_spell_menu_pending = 100;   /* cast credits 100 XP (then scaled) */
@@ -555,7 +557,6 @@ static void test_inline_action_spell_cancel(void)
     int r;
 
     iam_setup(5, 4, 0);
-    g_count_usable_slots_return = 1;
     g_build_spell_list_return = 3;
     g_inline_spell_menu_return = -1;     /* spell submenu cancelled */
     data_fd2_battle_pending_xp_credit = 0;
@@ -576,7 +577,7 @@ static void test_inline_action_item_no_xp(void)
     int r;
 
     iam_setup(5, 4, 0);
-    g_count_usable_slots_return = 1;     /* Item slot enabled */
+    /* iam_chars slots all clear => REAL count_usable returns 8 => Item enabled */
     g_build_spell_list_return = 0;
     g_inline_item_menu_return = 1;       /* item committed */
     data_fd2_battle_pending_xp_credit = 0x777;   /* must be reset to 0 */
@@ -598,7 +599,7 @@ static void test_inline_action_item_cancel(void)
     int r;
 
     iam_setup(5, 4, 0);
-    g_count_usable_slots_return = 1;
+    /* iam_chars slots all clear => REAL count_usable returns 8 => Item enabled */
     g_build_spell_list_return = 0;
     g_inline_item_menu_return = -1;
     data_fd2_battle_pending_xp_credit = 0;
@@ -626,8 +627,9 @@ static void test_inline_action_wait_moved(void)
     int r;
 
     iam_setup(5, 4, 0);
-    g_count_usable_slots_return = 0;
     g_build_spell_list_return = 0;
+    /* Item slot gating is irrelevant here (cursor lands on Wait/slot 3, which
+     * is never gated); leave iam_chars slots clear (real count_usable => 8). */
     /* HP == max so fd2_ai_pass_turn_with_heal would be an immediate no-op. */
     iam_chars[0].hp_current = 10;
     iam_chars[0].hp_max = 10;
@@ -650,8 +652,8 @@ static void test_inline_action_wait_not_moved(void)
     int r;
 
     iam_setup(5, 4, 0);
-    g_count_usable_slots_return = 0;
     g_build_spell_list_return = 0;
+    /* Wait/slot 3 is never gated; iam_chars slots stay clear (count_usable => 8). */
     iam_chars[0].hp_current = 10;
     iam_chars[0].hp_max = 10;            /* heal no-op (hp_current == hp_max) */
 

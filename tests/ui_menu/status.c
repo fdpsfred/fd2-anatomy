@@ -52,7 +52,6 @@ extern int g_pathfind_seq_steps;
 extern uint8 g_pathfind_step_bytes[8];
 extern int g_pathfind_md0_dst_x;
 extern int g_pathfind_md0_dst_y;
-extern int g_count_usable_slots_return;
 extern uint8 g_spell_list_buf[12];
 extern int g_remove_inventory_calls;
 extern int g_cast_status_cure_calls;
@@ -372,6 +371,70 @@ static void test_open_party_overview_runs_and_returns(void)
 }
 
 
+/* ----------------------------------------------------------------
+ * fd2_count_usable_inventory_slots @ 0x1B8A6
+ *
+ * Counts inventory slots whose flag byte (inventory_slots[slot*2]) has bit
+ * 0x80 CLEAR, over the 8 slots of runtime_char[ci]. These tests pin the
+ * load-bearing details: the 0x80-clear polarity, the 2-byte slot stride
+ * (flag at the even byte; the odd item-id byte must be ignored), the 8-slot
+ * bound, and correct indexing of ci into the 0x50-stride runtime_char array
+ * (g_test_rc_array, wired to data_fd2_battle_runtime_char_array_ptr).
+ * ---------------------------------------------------------------- */
+
+/* All flag bytes clear -> all 8 slots active. */
+static void test_count_usable_all_clear(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    ASSERT_EQ(fd2_count_usable_inventory_slots(0), 8);
+}
+
+/* All flag bytes bit-0x80 set -> 0 active (the Item-gate boundary). */
+static void test_count_usable_all_set(void)
+{
+    int s;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    for (s = 0; s < 8; s++) {
+        g_test_rc_array[0].inventory_slots[s * 2] = 0x80;
+    }
+    ASSERT_EQ(fd2_count_usable_inventory_slots(0), 0);
+}
+
+/* Mixed pattern: slots 1,3,5 inactive (0x80 set) -> 5 active. Also proves the
+ * test reads only the FLAG byte (even offset): the odd item-id bytes are all
+ * 0xFF (bit 0x80 set) yet must not be counted, and other flag-byte bits set
+ * alongside non-0x80 values must not flip the result. */
+static void test_count_usable_mixed_and_stride(void)
+{
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    for (i = 0; i < 8; i++) {
+        g_test_rc_array[0].inventory_slots[i * 2 + 1] = 0xFF;   /* item id byte */
+    }
+    g_test_rc_array[0].inventory_slots[0] = 0x40;   /* slot 0 active (bit7 clear) */
+    g_test_rc_array[0].inventory_slots[2] = 0x80;   /* slot 1 inactive */
+    g_test_rc_array[0].inventory_slots[6] = 0xC0;   /* slot 3 inactive (bit7 set) */
+    g_test_rc_array[0].inventory_slots[10] = 0x80;  /* slot 5 inactive */
+    /* slots 0,2,4,6,7 active -> 5 */
+    ASSERT_EQ(fd2_count_usable_inventory_slots(0), 5);
+}
+
+/* ci indexing: index 3 must read runtime_char[3] (offset 3*0x50), independent
+ * of the neighbours. char 0 all-set (would be 0), char 3 has 2 active slots. */
+static void test_count_usable_ci_indexing(void)
+{
+    int s;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    for (s = 0; s < 8; s++) {
+        g_test_rc_array[0].inventory_slots[s * 2] = 0x80;   /* char 0: none */
+        g_test_rc_array[3].inventory_slots[s * 2] = 0x80;   /* char 3: start none */
+    }
+    g_test_rc_array[3].inventory_slots[2 * 2] = 0x00;   /* char 3 slot 2 active */
+    g_test_rc_array[3].inventory_slots[6 * 2] = 0x00;   /* char 3 slot 6 active */
+    ASSERT_EQ(fd2_count_usable_inventory_slots(3), 2);
+    ASSERT_EQ(fd2_count_usable_inventory_slots(0), 0);
+}
+
 void run_ui_menu_status_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -382,5 +445,9 @@ void run_ui_menu_status_tests(void)
     RUN_TEST(test_stat_preview_signed_negative_bonus);
     RUN_TEST(test_close_status_screen_slide_out_runs_full_teardown);
     RUN_TEST(test_open_party_overview_runs_and_returns);
+    RUN_TEST(test_count_usable_all_clear);
+    RUN_TEST(test_count_usable_all_set);
+    RUN_TEST(test_count_usable_mixed_and_stride);
+    RUN_TEST(test_count_usable_ci_indexing);
     printf("\n");
 }
