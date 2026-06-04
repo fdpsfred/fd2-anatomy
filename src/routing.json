@@ -1993,8 +1993,9 @@
     "name": "fd2_execute_offensive_full_screen_flash_spell",
     "target": "spell/spelleff.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00021449": {
     "name": "fd2_spell_handler_id_5_via_full_screen_flash",

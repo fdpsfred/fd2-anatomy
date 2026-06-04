@@ -709,6 +709,131 @@ static void test_offensive_variantb_composites_three(void)
 }
 
 
+/* ---- fd2_execute_offensive_full_screen_flash_spell @ 0x213B7 ----
+ * Byte-for-byte the same algorithm as fd2_execute_offensive_targeted_spell
+ * @0x21227, the sole difference being the second animation call:
+ * fd2_animate_spell_full_screen_flash (asm 0x213F3) instead of overlay_blink.
+ * Risk-oriented coverage mirrors the sister worker: the MP-deduct CALL, the
+ * entry aoe-count reset, the per-target damage loop (EAX of
+ * fd2_calc_magic_damage forwarded into show_damage), and a composite count of
+ * 6 that discriminates the full-screen-flash animator from the blink sibling
+ * (which totals 3). */
+
+/* MP deduction: asm 0x213FB PUSH EDI(spell_id) / PUSH caster / CALL
+ * fd2_deduct_caster_mp subtracts spell_effect_table[0].mp_cost(8) from
+ * runtime_char[caster].mp_current(50) -> 42. Lone target at (0,0) is
+ * window-culled and hit_rate 0 forces calc_magic_damage 0, isolating the
+ * deduct. Drop the deduct CALL and mp stays 50. */
+static void test_offensive_flash_deducts_mp(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[1].mp_current = 50;
+    g_test_rc_array[1].job_id = 1;            /* keep calc in-bounds */
+    data_fd2_battle_spell_effect_table[0].mp_cost = 8;
+    data_fd2_battle_spell_effect_table[0].damage = 0;
+    data_fd2_battle_spell_effect_table[0].hit_rate = 0;   /* always miss */
+    data_fd2_shared_rng_seed = 0;
+    target_id = 1;
+    fd2_execute_offensive_full_screen_flash_spell(1, 0, 1, (int)&target_id);
+    ASSERT_EQ(g_test_rc_array[1].mp_current, 42);
+}
+
+/* Entry reset: asm 0x213CD MOV [0x53EC4],0 clears the AoE/fx-queue counter.
+ * Window-culled target adds no enqueue, so a pre-stain of 0x99 must be
+ * overwritten with 0. */
+static void test_offensive_flash_resets_aoe_count(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[1].job_id = 1;
+    data_fd2_battle_spell_effect_table[0].mp_cost = 0;
+    data_fd2_battle_spell_effect_table[0].damage = 0;
+    data_fd2_battle_spell_effect_table[0].hit_rate = 0;
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0x99;
+    target_id = 1;
+    fd2_execute_offensive_full_screen_flash_spell(1, 0, 1, (int)&target_id);
+    ASSERT_EQ(data_fd2_battle_spell_aoe_count_and_fx_queue_idx, 0);
+}
+
+/* Damage loop visits EVERY byte-array entry (asm 0x21408 XOR ESI,ESI ..
+ * 0x2141C CMP ESI,EBP / 0x2141E JGE) and feeds each target through the real
+ * fd2_calc_magic_damage, whose return (EAX) is forwarded straight into
+ * show_damage with no clobber. Two live targets at non-adjacent indices 2 and
+ * 5 (hit_rate 100; job_id 1 + resist 10 keep the formula in-bounds) must BOTH
+ * lose HP, a bystander at index 0 stays put. A loop that stopped after one
+ * target would leave index-5 HP unchanged. */
+static void test_offensive_flash_damages_all_targets(void)
+{
+    uint8 target_ids[2];
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[0].hp_current = 88;       /* bystander, must NOT change */
+    g_test_rc_array[0].hp_max = 200;
+    g_test_rc_array[2].hp_current = 200;
+    g_test_rc_array[2].hp_max = 200;
+    g_test_rc_array[2].job_id = 1;
+    g_test_rc_array[2].portrait_id = 0x01;
+    g_test_rc_array[5].hp_current = 200;
+    g_test_rc_array[5].hp_max = 200;
+    g_test_rc_array[5].job_id = 1;
+    g_test_rc_array[5].portrait_id = 0x01;
+    data_fd2_battle_job_magic_resist_table[0] = 10;
+    data_fd2_battle_spell_effect_table[0].damage = 50;
+    data_fd2_battle_spell_effect_table[0].hit_rate = 100;
+    data_fd2_battle_spell_effect_table[0].mp_cost = 0;
+    data_fd2_shared_rng_seed = 0;
+    target_ids[0] = 2;
+    target_ids[1] = 5;
+    fd2_execute_offensive_full_screen_flash_spell(0, 0, 2, (int)target_ids);
+    ASSERT_EQ(g_test_rc_array[0].hp_current, 88);          /* untouched */
+    ASSERT_NE(g_test_rc_array[2].hp_current, 200);         /* took damage */
+    ASSERT_NE(g_test_rc_array[5].hp_current, 200);         /* took damage */
+}
+
+/* Pipeline-structure pin + FLASH-vs-BLINK discriminator. This worker uses the
+ * full-screen-FLASH animator (asm 0x213F3 CALL fd2_animate_spell_full_screen_
+ * flash), which composites THREE times (two real
+ * fd2_composite_chars_with_spell_effect_overlay tile-map composites + its
+ * closing finalize). Total = impact animation 2 (entry + finalize) + flash 3 +
+ * Pattern-A shared epilogue fd2_composite_battle_frame(0) 1 = exactly 6. The
+ * sister blink worker would instead total 3. Two targets at (0,0) are window-
+ * culled so the per-target show paths add no composites. Asserting 6
+ * simultaneously pins the shared-epilogue tail and proves the flash (not blink)
+ * animator is wired. */
+static void test_offensive_flash_composites_six(void)
+{
+    uint8 target_ids[2];
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 2;   /* bound overlay/finalizer loops */
+    g_test_rc_array[0].hp_current = 200;
+    g_test_rc_array[0].hp_max = 200;
+    g_test_rc_array[0].job_id = 1;
+    g_test_rc_array[0].portrait_id = 0x01;
+    g_test_rc_array[1].hp_current = 200;
+    g_test_rc_array[1].hp_max = 200;
+    g_test_rc_array[1].job_id = 1;
+    g_test_rc_array[1].portrait_id = 0x01;
+    data_fd2_battle_job_magic_resist_table[0] = 10;
+    data_fd2_battle_spell_effect_table[0].damage = 50;
+    data_fd2_battle_spell_effect_table[0].hit_rate = 100;
+    data_fd2_battle_spell_effect_table[0].mp_cost = 0;
+    data_fd2_shared_rng_seed = 0;
+    target_ids[0] = 0;
+    target_ids[1] = 1;
+    g_composite_call_count = 0;
+    fd2_execute_offensive_full_screen_flash_spell(0, 0, 2, (int)target_ids);
+    ASSERT_EQ(g_composite_call_count, 6);
+}
+
+
 void run_spell_spelleff_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -740,5 +865,9 @@ void run_spell_spelleff_tests(void)
     RUN_TEST(test_offensive_variantb_resets_aoe_count);
     RUN_TEST(test_offensive_variantb_damages_all_targets);
     RUN_TEST(test_offensive_variantb_composites_three);
+    RUN_TEST(test_offensive_flash_deducts_mp);
+    RUN_TEST(test_offensive_flash_resets_aoe_count);
+    RUN_TEST(test_offensive_flash_damages_all_targets);
+    RUN_TEST(test_offensive_flash_composites_six);
     printf("\n");
 }

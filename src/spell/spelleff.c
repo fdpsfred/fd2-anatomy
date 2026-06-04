@@ -224,6 +224,68 @@ void fd2_apply_attack_spell_damage(uint32 caster_idx,
 }
 
 /* ----------------------------------------------------------------
+ * fd2_execute_offensive_full_screen_flash_spell @ 0x213B7 (1 caller)
+ *
+ * Generic offensive spell worker using the FULL-SCREEN-FLASH
+ * animation variant (spell ids 4-7). Byte-for-byte the same algorithm
+ * as fd2_execute_offensive_targeted_spell @ 0x21227, the only
+ * difference being the second animation call: overlay_blink there vs
+ * full_screen_flash here. Resets the AoE/fx-queue counter, plays the
+ * per-target impact + full-screen-flash animations, deducts the
+ * caster's MP for spell_id, then applies magic damage to every target
+ * in the byte array: a miss (damage 0) shows the miss indicator,
+ * otherwise the damage number is drawn with glyph 0x5E ('^').
+ *
+ * Pattern-A SHARED EPILOGUE: the loop-exit JGE 0x2141E falls into
+ * fd2_composite_then_animate_projectiles @ 0x21190, whose body is
+ * fd2_composite_battle_frame(0) then fd2_animate_spell_projectile_
+ * paths() (inlined here; the wrapper is a shared-epilogue fragment,
+ * not a standalone C function). The function has no explicit RET of
+ * its own — it borrows 0x21190's POP/RET epilogue.
+ *
+ * damage is the per-target return of fd2_calc_magic_damage: asm
+ * 0x2142F CALL leaves it in EAX, 0x21434 ADD ESP,8 / 0x21412 PUSH EAX
+ * forward it straight into fd2_show_damage_number (no EAX clobber
+ * between TEST and PUSH), so the inner return IS the displayed number.
+ *
+ * Sole caller: fd2_spell_handler_id_4_via_full_screen_flash @ 0x21396
+ * (spell_id literal 4); ids 5/6/7 reach it via that handler's
+ * shared-tail. Sibling worker: fd2_execute_offensive_targeted_spell @
+ * 0x21227 (identical algo with full_screen_flash -> overlay_blink).
+ * ---------------------------------------------------------------- */
+void fd2_execute_offensive_full_screen_flash_spell(
+    int caster, int spell_id, int n_targets, int p_targets)
+{
+    int iter;
+    uint8 target_id;
+    uint32 damage;
+
+    data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
+
+    fd2_animate_spell_impact_per_target(
+        (uint32)caster, (uint32)spell_id,
+        (uint32)n_targets, (uint32)p_targets);
+    fd2_animate_spell_full_screen_flash(
+        (uint32)caster, (uint32)spell_id,
+        (uint32)n_targets, (uint32)p_targets);
+    fd2_deduct_caster_mp((uint32)caster, (uint32)spell_id);
+
+    for (iter = 0; iter < n_targets; iter++) {
+        target_id = *((uint8 *)p_targets + iter);
+        damage = (uint32)fd2_calc_magic_damage(
+                     (uint32)target_id, (uint32)spell_id);
+        if (damage != 0) {
+            fd2_show_damage_number(damage, 0x5E, (uint32)target_id);
+        } else {
+            fd2_show_miss_indicator((uint32)target_id);
+        }
+    }
+
+    fd2_composite_battle_frame(0);
+    fd2_animate_spell_projectile_paths();
+}
+
+/* ----------------------------------------------------------------
  * fd2_apply_status_effect_with_anim @ 0x22AA8
  *
  * Wrapper: reset aoe count, deduct MP, then delegate to
