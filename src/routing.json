@@ -1663,8 +1663,9 @@
     "name": "fd2_blit_scaled_tile_map_view",
     "target": "gfx/blittile.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001f6ef": {
     "name": "fd2_fill_screen_rect_with_byte",

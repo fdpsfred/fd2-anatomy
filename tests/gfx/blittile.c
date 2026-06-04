@@ -375,6 +375,268 @@ static void test_anim_negative_y_noop(void)
     ASSERT_EQ(g_blitpass_calls, 0);
 }
 
+/* ================================================================
+ * fd2_blit_scaled_tile_map_view @ 0x1F558
+ *
+ * Software rasterizer: scale-render a tile map into the large game
+ * state buffer (+0x504). 12.12 fixed-point coords (0xC00 = 1 tile);
+ * each output pixel divides the sub-tile fixed coord by 0x80 to pick a
+ * 0..23 byte inside a 24x24 tile sprite. High-risk: fixed-point math,
+ * signed division, nested loops, per-axis bounds checks.
+ *
+ * Fixtures below build a real output surface + a caller tile_data_table
+ * of absolute sprite-data pointers, then compare the rendered output
+ * against an independent reference implementation (ref_scaled_view,
+ * structured differently from the emit) across several center/scale
+ * combos including negative-coord and out-of-map edges. One case
+ * (scale==0x80, center mapping the top-left to tile (0,0)) is also
+ * checked against hand-computed bytes.
+ * ================================================================ */
+
+#define SV_SURF_BYTES 0x10000u           /* >= 64000 memset extent */
+#define SV_TILES_X 6
+#define SV_TILES_Y 5
+#define SV_TILE_BYTES 0x240u             /* 24 rows * 0x18 bytes/row */
+#define SV_NCELLS (0x40 * SV_TILES_Y)    /* table stride is 0x40 per row */
+
+static uint8 g_sv_surf[SV_SURF_BYTES];
+static uint8 g_sv_ref[SV_SURF_BYTES];
+static uint8 g_sv_sprite[SV_NCELLS][SV_TILE_BYTES];
+static uint32 g_sv_table[SV_NCELLS];
+
+/* sprite byte encoding: identifies (tile_x, tile_y, inner_row, inner_col)
+ * with a nonzero value (0 is reserved for cleared background). */
+static uint8 sv_sprite_byte(int tx, int ty, int ir, int ic)
+{
+    return (uint8)(1u + ((((unsigned)tx * 5u + (unsigned)ty) * 7u
+                          + (unsigned)ir) * 3u + (unsigned)ic));
+}
+
+static void setup_scaled_view(void)
+{
+    int tx;
+    int ty;
+    int ir;
+    int ic;
+    int cell;
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_sv_surf;
+    data_fd2_battle_map_width_tiles = SV_TILES_X;
+    data_fd2_battle_map_height_tiles = SV_TILES_Y;
+
+    for (ty = 0; ty < SV_TILES_Y; ty++) {
+        for (tx = 0; tx < SV_TILES_X; tx++) {
+            cell = ty * 0x40 + tx;
+            for (ir = 0; ir < 24; ir++) {
+                for (ic = 0; ic < 24; ic++) {
+                    g_sv_sprite[cell][ir * 0x18 + ic] =
+                        sv_sprite_byte(tx, ty, ir, ic);
+                }
+            }
+        }
+    }
+    /* table holds absolute sprite-data pointers per cell; cells outside
+     * the populated grid get a harmless pointer (never read because the
+     * map bounds guard rejects them). */
+    for (cell = 0; cell < SV_NCELLS; cell++) {
+        g_sv_table[cell] = (uint32)g_sv_sprite[0];
+    }
+    for (ty = 0; ty < SV_TILES_Y; ty++) {
+        for (tx = 0; tx < SV_TILES_X; tx++) {
+            cell = ty * 0x40 + tx;
+            g_sv_table[cell] = (uint32)g_sv_sprite[cell];
+        }
+    }
+}
+
+/* Independent reference, derived from the rasterizer spec but written in
+ * a deliberately different shape (per-pixel float-free recompute of the
+ * fixed-point walk) to cross-check the emit rather than mirror it. */
+static void ref_scaled_view(uint32 cx, uint32 cy, uint32 scale)
+{
+    int row;
+    int col;
+    int tx0;
+    int ty0;
+    int subx0;
+    int suby0;
+    int sx;
+    int tx;
+    int sy;
+    int ty;
+    int rowbase;
+    long fx;
+    long fy;
+
+    memset(g_sv_ref, 0, 64000);
+
+    fx = (long)(int)cx - (long)(int)scale * 0x9C;
+    fy = (long)(int)cy - (long)(int)scale * 0x60;
+
+    /* floor-toward-(-inf) split into tile index + sub-tile remainder,
+     * matching the decompiled negative-remainder fixups. */
+    tx0 = (int)(fx / 0xC00);
+    subx0 = (int)(fx % 0xC00);
+    if (subx0 < 0) { subx0 += 0xC00; tx0 -= 1; }
+    ty0 = (int)(fy / 0xC00);
+    suby0 = (int)(fy % 0xC00);
+    if (suby0 < 0) { suby0 += 0xC00; ty0 -= 1; }
+
+    sy = suby0;
+    ty = ty0;
+    for (row = 0; row < 0xC0; row++) {
+        if (ty >= 0 && ty < (int)data_fd2_battle_map_height_tiles) {
+            rowbase = (sy / 0x80) * 0x18;
+            sx = subx0;
+            tx = tx0;
+            for (col = 0; col < 0x138; col++) {
+                if (tx >= 0 && tx < (int)data_fd2_battle_map_width_tiles) {
+                    uint32 sp = g_sv_table[ty * 0x40 + tx];
+                    g_sv_ref[0x504 + row * 0x140 + col] =
+                        *(uint8 *)(sp + rowbase + (sx / 0x80));
+                }
+                sx += (int)scale;
+                if (sx > 0xBFF) { tx += 1; sx -= 0xC00; }
+            }
+        }
+        sy += (int)scale;
+        if (sy > 0xBFF) { ty += 1; sy -= 0xC00; }
+    }
+}
+
+static int sv_compare_against_ref(void)
+{
+    /* compare the full memset extent so background-clear is also checked. */
+    return memcmp(g_sv_surf, g_sv_ref, 64000);
+}
+
+/* scale 0x80: each output pixel steps the source by exactly one sprite
+ * byte. Centering so the top-left source lands on tile (0,0) byte (0,0)
+ * gives a clean 1:1 tile blit; verify against hand-computed bytes and
+ * the reference. */
+static void test_scaled_identity_scale_0x80(void)
+{
+    uint32 scale = 0x80u;
+    uint32 cx;
+    uint32 cy;
+
+    setup_scaled_view();
+    /* src_x_fp = cx - scale*0x9C ; want = 0 -> cx = 0x80*0x9C = 0x4E00 */
+    cx = scale * 0x9Cu;
+    /* src_y_fp = cy - scale*0x60 ; want = 0 -> cy = 0x80*0x60 = 0x3000 */
+    cy = scale * 0x60u;
+
+    fd2_blit_scaled_tile_map_view(cx, cy, scale, (uint32)g_sv_table);
+
+    /* row 0, col 0 -> tile (0,0), inner (0,0) */
+    ASSERT_EQ(g_sv_surf[0x504 + 0],
+              sv_sprite_byte(0, 0, 0, 0));
+    /* row 0, col 23 -> tile (0,0), inner row 0 col 23 */
+    ASSERT_EQ(g_sv_surf[0x504 + 23],
+              sv_sprite_byte(0, 0, 0, 23));
+    /* row 0, col 24 -> next tile (1,0), inner (0,0) */
+    ASSERT_EQ(g_sv_surf[0x504 + 24],
+              sv_sprite_byte(1, 0, 0, 0));
+    /* row 23, col 0 -> tile (0,0), inner row 23 col 0 */
+    ASSERT_EQ(g_sv_surf[0x504 + 23 * 0x140 + 0],
+              sv_sprite_byte(0, 0, 23, 0));
+    /* row 24, col 0 -> tile (0,1), inner (0,0) */
+    ASSERT_EQ(g_sv_surf[0x504 + 24 * 0x140 + 0],
+              sv_sprite_byte(0, 1, 0, 0));
+
+    ref_scaled_view(cx, cy, scale);
+    ASSERT_EQ(sv_compare_against_ref(), 0);
+}
+
+/* the whole 64000-byte surface is memset to 0 first; with the camera far
+ * below the map every row's tile_y starts past map_height and only
+ * increases, so every row is rejected, leaving an all-zero surface. */
+static void test_scaled_memset_clears_offmap(void)
+{
+    uint32 scale = 0x80u;
+    uint32 cy;
+    int i;
+
+    setup_scaled_view();
+    memset(g_sv_surf, 0xAB, sizeof(g_sv_surf)); /* sentinel before render */
+
+    /* src_y_start = cy - scale*0x60 ; choose so tile_y0 = 100 (>> map_height,
+     * which is SV_TILES_Y) and only grows -> every row rejected. */
+    cy = (uint32)(100 * 0xC00) + scale * 0x60u;
+    fd2_blit_scaled_tile_map_view(0x4E00u, cy, scale, (uint32)g_sv_table);
+
+    for (i = 0; i < 64000; i++) {
+        if (g_sv_surf[i] != 0) {
+            ASSERT_EQ((int)g_sv_surf[i], 0); /* report first nonzero */
+            return;
+        }
+    }
+    /* bytes beyond the 64000 memset extent keep the sentinel */
+    ASSERT_EQ((int)g_sv_surf[64000], 0xAB);
+}
+
+/* fractional scale (zoom-in): scale 0x40 < 0x80 magnifies, so each source
+ * byte spans two output pixels. Pure cross-check against the reference. */
+static void test_scaled_zoom_in_half_step(void)
+{
+    uint32 scale = 0x40u;
+    uint32 cx = scale * 0x9Cu + 0x600u;  /* offset into tile (0,0) interior */
+    uint32 cy = scale * 0x60u + 0x300u;
+
+    setup_scaled_view();
+    fd2_blit_scaled_tile_map_view(cx, cy, scale, (uint32)g_sv_table);
+    ref_scaled_view(cx, cy, scale);
+    ASSERT_EQ(sv_compare_against_ref(), 0);
+}
+
+/* zoom-out (scale > 0x80) skips source bytes; also lands the camera so the
+ * top-left source is negative, exercising the tile_x--/tile_y-- and
+ * +0xC00 sub-tile fixups for negative coords. */
+static void test_scaled_zoom_out_negative_origin(void)
+{
+    uint32 scale = 0x140u;
+    /* small center so cx - scale*0x9C and cy - scale*0x60 go negative */
+    uint32 cx = 0x900u;
+    uint32 cy = 0x500u;
+
+    setup_scaled_view();
+    fd2_blit_scaled_tile_map_view(cx, cy, scale, (uint32)g_sv_table);
+    ref_scaled_view(cx, cy, scale);
+    ASSERT_EQ(sv_compare_against_ref(), 0);
+}
+
+/* camera placed so the visible span runs off the right/bottom map edge:
+ * out-of-map columns/rows stay background (0) while in-map ones render.
+ * Cross-checked against the reference, which encodes the same per-axis
+ * bounds guards. */
+static void test_scaled_partial_offmap_edges(void)
+{
+    uint32 scale = 0x100u;
+    /* center near the map's far corner so the right/bottom edge clips */
+    uint32 cx = (uint32)(SV_TILES_X * 0xC00) - 0x600u + scale * 0x9Cu;
+    uint32 cy = (uint32)(SV_TILES_Y * 0xC00) - 0x600u + scale * 0x60u;
+
+    setup_scaled_view();
+    fd2_blit_scaled_tile_map_view(cx, cy, scale, (uint32)g_sv_table);
+    ref_scaled_view(cx, cy, scale);
+    ASSERT_EQ(sv_compare_against_ref(), 0);
+
+    /* sanity: the reference must contain at least one cleared (off-map)
+     * pixel and at least one rendered pixel, so the edge-clip path is
+     * actually exercised by this fixture. */
+    {
+        int i;
+        int saw_zero = 0;
+        int saw_nonzero = 0;
+        for (i = 0x504; i < 64000; i++) {
+            if (g_sv_ref[i] == 0) { saw_zero = 1; }
+            else { saw_nonzero = 1; }
+        }
+        ASSERT_EQ(saw_zero, 1);
+        ASSERT_EQ(saw_nonzero, 1);
+    }
+}
+
 void run_gfx_blittile_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -397,5 +659,10 @@ void run_gfx_blittile_tests(void)
     RUN_TEST(test_anim_x_right_bound);
     RUN_TEST(test_anim_y_bottom_bound);
     RUN_TEST(test_anim_negative_y_noop);
+    RUN_TEST(test_scaled_identity_scale_0x80);
+    RUN_TEST(test_scaled_memset_clears_offmap);
+    RUN_TEST(test_scaled_zoom_in_half_step);
+    RUN_TEST(test_scaled_zoom_out_negative_origin);
+    RUN_TEST(test_scaled_partial_offmap_edges);
     printf("\n");
 }
