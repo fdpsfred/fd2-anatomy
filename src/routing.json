@@ -1495,8 +1495,9 @@
     "name": "fd2_play_death_animation_and_mark_dead",
     "target": "anim/anicombt.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001debe": {
     "name": "fd2_check_can_default_attack_target",

@@ -140,6 +140,10 @@ static void test_status_tick_timer_decrement(void)
     t_install_dialog_text();
     g_test_rc_array[0].team = 0;
     g_test_rc_array[0].flags = 0;
+    /* alive char: hp>0 keeps the now-real fd2_play_death_animation_and_mark_dead
+     * (run between the two passes) from marking this hp==0 char dead, which
+     * would otherwise gate Pass 2's timer countdown (it skips dead chars). */
+    g_test_rc_array[0].hp_current = 100;
     ((uint8 *)&g_test_rc_array[0])[0x22] = 3;
     data_fd2_battle_party_member_count = 1;
     fd2_tick_status_effects_and_show_messages(0);
@@ -154,6 +158,9 @@ static void test_status_tick_timer_expires_recalc(void)
     t_install_dialog_text();
     g_test_rc_array[0].team = 0;
     g_test_rc_array[0].flags = 0;
+    /* alive char (hp>0): see test_status_tick_timer_decrement — keeps the real
+     * inter-pass death pass from marking this char dead and gating Pass 2. */
+    g_test_rc_array[0].hp_current = 100;
     ((uint8 *)&g_test_rc_array[0])[0x22] = 1;
     data_fd2_battle_party_member_count = 1;
     fd2_tick_status_effects_and_show_messages(0);

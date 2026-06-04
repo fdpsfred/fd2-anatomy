@@ -680,6 +680,195 @@ static void test_blink_cull_top_edge(void)
     ASSERT_EQ(g_blittint_calls, 0);
 }
 
+/* ================================================================
+ * fd2_play_death_animation_and_mark_dead tests
+ * ================================================================
+ *
+ * Coverage is risk-oriented. The two high-value, host-cheap behaviours are
+ * exercised here through the n_dying_onscreen == 0 EARLY-EXIT branch:
+ *   (1) the Phase-1 window-cull predicate (the control flow that decides
+ *       whether a dying char is collected), driven across all four boundary
+ *       rejections plus the flags-bit0 and hp>0 gates; and
+ *   (2) the silent-off-screen mark-dead state transition (flags := 1 on every
+ *       hp_current==0 char, hp>0 chars untouched).
+ * Taking the early-exit branch is observable by the absence of any animation
+ * side effect (g_composite_call_count and the death SFX both stay 0).
+ *
+ * The full on-screen animation path (Phase 2 13-frame flicker + Phase 3
+ * 12-frame decay) is a pure blit/display side-effect sequence: it composites
+ * the battle frame, blits the back-buffer to the mode13h primary, strobes the
+ * death sprite, and calls fd2_wait_n_bios_ticks(1) ~25 times (each a real
+ * ~55ms BIOS-tick spin). Per the project's risk-oriented test policy, that
+ * display-only path (and its dst screen-position routing, which only feeds the
+ * blit destination) is deferred to Phase 9 integration; it carries no numeric
+ * result, RNG, or persisted state beyond the mark-dead flag already covered
+ * by the early-exit tests, and running it here would add no logic coverage at
+ * a multi-second wall-clock cost. */
+
+static void setup_death(void)
+{
+    g_composite_call_count = 0;
+    g_play_sfx_with_handle_calls = 0;
+    g_blitdec_calls = 0;
+    g_blitpass_calls = 0;
+
+    memset(g_lgs, 0, sizeof(g_lgs));
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_lgs;
+
+    data_fd2_battle_view_window_origin_x = WIN_OX;
+    data_fd2_battle_view_window_origin_y = WIN_OY;
+    data_fd2_battle_view_window_max_x = WIN_MX;
+    data_fd2_battle_view_window_max_y = WIN_MY;
+
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+}
+
+/*
+ * Off-screen silent death: several hp==0 chars all positioned outside the
+ * window are never collected (n_dying stays 0), so the early-exit branch runs.
+ * It must set flags := 1 on every hp==0 char and leave hp>0 chars untouched,
+ * with zero animation (no composite, no SFX).
+ */
+static void test_death_offscreen_marks_all_hp0_dead(void)
+{
+    setup_death();
+    data_fd2_battle_party_member_count = 5;
+
+    /* idx0: hp==0, far off-screen (left of OX-1) -> not collected, mark dead */
+    g_test_rc_array[0].pos_x = 0;
+    g_test_rc_array[0].pos_y = 0;
+    g_test_rc_array[0].hp_current = 0;
+    g_test_rc_array[0].flags = 0;
+
+    /* idx1: hp>0, inside window -> never a death candidate, must stay alive */
+    g_test_rc_array[1].pos_x = 0x15;
+    g_test_rc_array[1].pos_y = 0x24;
+    g_test_rc_array[1].hp_current = 30;
+    g_test_rc_array[1].flags = 0;
+
+    /* idx2: hp==0 but already-dead (flags bit0 set), off-screen; mark loop in
+       the early-exit path keys only on hp==0, so flags stays 1 (idempotent) */
+    g_test_rc_array[2].pos_x = 0;
+    g_test_rc_array[2].pos_y = 0;
+    g_test_rc_array[2].hp_current = 0;
+    g_test_rc_array[2].flags = 1;
+
+    /* idx3: hp==0, off-screen (below OY+MY+1) -> mark dead */
+    g_test_rc_array[3].pos_x = 0x15;
+    g_test_rc_array[3].pos_y = 0x7f;
+    g_test_rc_array[3].hp_current = 0;
+    g_test_rc_array[3].flags = 4;       /* unrelated bit preserved? see assert */
+
+    /* idx4: hp>0, off-screen -> untouched */
+    g_test_rc_array[4].pos_x = 0;
+    g_test_rc_array[4].pos_y = 0;
+    g_test_rc_array[4].hp_current = 10;
+    g_test_rc_array[4].flags = 0;
+
+    fd2_play_death_animation_and_mark_dead();
+
+    /* early-exit branch: no animation ran */
+    ASSERT_EQ(g_composite_call_count, 0);
+    ASSERT_EQ(g_play_sfx_with_handle_calls, 0);
+    ASSERT_EQ(g_blitdec_calls, 0);
+
+    /* every hp==0 char is now flags == 1 (the store is an assignment, so idx3's
+       prior bit2 is overwritten, matching MOV byte ptr [flags],1) */
+    ASSERT_EQ(g_test_rc_array[0].flags, 1);
+    ASSERT_EQ(g_test_rc_array[2].flags, 1);
+    ASSERT_EQ(g_test_rc_array[3].flags, 1);
+
+    /* hp>0 chars are left exactly as they were */
+    ASSERT_EQ(g_test_rc_array[1].flags, 0);
+    ASSERT_EQ(g_test_rc_array[1].hp_current, 30);
+    ASSERT_EQ(g_test_rc_array[4].flags, 0);
+    ASSERT_EQ(g_test_rc_array[4].hp_current, 10);
+}
+
+/*
+ * Window-cull boundary rejections. Each dying (hp==0, alive) char sits one tile
+ * outside one of the four window edges, so none is collected and the early-exit
+ * branch runs (no animation). Also covers the two non-position gates: an
+ * already-dead char (flags bit0) and an hp>0 char that happen to be inside the
+ * window are likewise never collected. The just-inside extreme corners are NOT
+ * placed here (they would enter the deferred animation path); their accept side
+ * is covered structurally by the identical predicate in the sibling overlays.
+ */
+static void test_death_cull_boundary_rejections(void)
+{
+    setup_death();
+    data_fd2_battle_party_member_count = 6;
+
+    /* idx0: pos_x = OX-2  (below the OX-1 left bound) */
+    g_test_rc_array[0].pos_x = (uint8)(WIN_OX - 2);
+    g_test_rc_array[0].pos_y = WIN_OY;
+    g_test_rc_array[0].hp_current = 0;
+
+    /* idx1: pos_x = OX+MX+1 (above the OX+MX right bound) */
+    g_test_rc_array[1].pos_x = (uint8)(WIN_OX + WIN_MX + 1);
+    g_test_rc_array[1].pos_y = WIN_OY;
+    g_test_rc_array[1].hp_current = 0;
+
+    /* idx2: pos_y = OY-2  (below the OY-1 top bound) */
+    g_test_rc_array[2].pos_x = WIN_OX;
+    g_test_rc_array[2].pos_y = (uint8)(WIN_OY - 2);
+    g_test_rc_array[2].hp_current = 0;
+
+    /* idx3: pos_y = OY+MY+2 (above the OY+MY+1 bottom bound) */
+    g_test_rc_array[3].pos_x = WIN_OX;
+    g_test_rc_array[3].pos_y = (uint8)(WIN_OY + WIN_MY + 2);
+    g_test_rc_array[3].hp_current = 0;
+
+    /* idx4: inside the window, hp==0, but already-dead (flags bit0) -> gated */
+    g_test_rc_array[4].pos_x = 0x15;
+    g_test_rc_array[4].pos_y = 0x24;
+    g_test_rc_array[4].hp_current = 0;
+    g_test_rc_array[4].flags = 1;
+
+    /* idx5: inside the window, alive, hp>0 -> not a death candidate */
+    g_test_rc_array[5].pos_x = 0x15;
+    g_test_rc_array[5].pos_y = 0x24;
+    g_test_rc_array[5].hp_current = 7;
+    g_test_rc_array[5].flags = 0;
+
+    fd2_play_death_animation_and_mark_dead();
+
+    /* nothing collected -> early-exit, no animation side effects */
+    ASSERT_EQ(g_composite_call_count, 0);
+    ASSERT_EQ(g_play_sfx_with_handle_calls, 0);
+
+    /* the four boundary-rejected hp==0 chars are still marked dead by the
+       early-exit mark loop (it ignores position) */
+    ASSERT_EQ(g_test_rc_array[0].flags, 1);
+    ASSERT_EQ(g_test_rc_array[1].flags, 1);
+    ASSERT_EQ(g_test_rc_array[2].flags, 1);
+    ASSERT_EQ(g_test_rc_array[3].flags, 1);
+    ASSERT_EQ(g_test_rc_array[4].flags, 1);   /* hp==0 -> set (was already 1) */
+    ASSERT_EQ(g_test_rc_array[5].flags, 0);   /* hp>0 -> untouched */
+}
+
+/*
+ * Empty party guard: party_member_count == 0 collects nothing, takes the
+ * early-exit branch, and marks nothing (both loops iterate zero times).
+ */
+static void test_death_empty_party(void)
+{
+    setup_death();
+    data_fd2_battle_party_member_count = 0;
+
+    /* seed a stale hp==0 slot that must NOT be touched (out of party range) */
+    g_test_rc_array[0].pos_x = 0x15;
+    g_test_rc_array[0].pos_y = 0x24;
+    g_test_rc_array[0].hp_current = 0;
+    g_test_rc_array[0].flags = 0;
+
+    fd2_play_death_animation_and_mark_dead();
+
+    ASSERT_EQ(g_composite_call_count, 0);
+    ASSERT_EQ(g_play_sfx_with_handle_calls, 0);
+    ASSERT_EQ(g_test_rc_array[0].flags, 0);   /* outside party count -> untouched */
+}
+
 void run_anim_anicombt_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -694,5 +883,8 @@ void run_anim_anicombt_tests(void)
     RUN_TEST(test_blink_cull_arith_and_fade);
     RUN_TEST(test_blink_palette3_offset);
     RUN_TEST(test_blink_cull_top_edge);
+    RUN_TEST(test_death_offscreen_marks_all_hp0_dead);
+    RUN_TEST(test_death_cull_boundary_rejections);
+    RUN_TEST(test_death_empty_party);
     printf("\n");
 }

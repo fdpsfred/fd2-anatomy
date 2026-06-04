@@ -646,7 +646,12 @@ void fd2_scroll_text_screen_up_by_lines(uint32 lines) {
     g_scroll_text_calls++;
 }
 void fd2_play_palette_fade_in(void) { }
-void fd2_play_death_animation_and_mark_dead(void) { }
+/* fd2_play_death_animation_and_mark_dead is now a real emitted function
+ * (src/anim/anicombt.c); its former no-op stub here was removed. Caller tests
+ * that drive it must keep the death call a no-op for their fixture (set
+ * data_fd2_battle_party_member_count so no on-screen hp_current==0 char is
+ * collected), or set up the full battle-render fixture if they want the real
+ * animation. */
 
 /* Turn-cycle display/dispatch callees driven by fd2_run_full_turn_cycle.
  * fd2_fire_chapter_turn_events_for_phase is now emitted for real in

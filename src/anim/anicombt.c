@@ -396,3 +396,174 @@ void fd2_animate_spell_overlay_blink(uint32 param_1, uint32 spell_id,
                        0x1c8, 0x138, 0xc0);
     free(backup_buf);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_play_death_animation_and_mark_dead @ 0x1DB65 (8 callers)
+ *
+ * Scan all party slots for dying chars (hp_current == 0, flags bit0 not yet
+ * set), play their death flicker + decay animation, then mark them
+ * permanently dead.
+ *
+ * No parameters (__cdecl, void); the 0xA8 pushed before the stack-check is
+ * this routine's own frame size.
+ *
+ * Phase 1 — collect on-screen dying chars:
+ *   For each char 0..party_member_count-1: if flags bit0 == 0 AND
+ *   hp_current == 0 AND (pos_x, pos_y) inside the battle view window, cache
+ *   its screen-pixel pointer into the stack array dying_screen_pos[]. The
+ *   per-char pointer is
+ *     lgs + ((pos_y-1)-origin_y)*0x2AC0 + ((pos_x-1)-origin_x)*0x18 + 0x75D8
+ *   (note the -1 on both axes, unlike the per-spell overlays).
+ *
+ *   If nothing was collected: set flags |= 1 on every hp_current==0 char and
+ *   return (silent off-screen death, no animation).
+ *
+ * Phase 2 — flicker animation (13 frames):
+ *   Per frame f in 0..12: composite the battle tile map into ws+0x8088, paint
+ *   every non-dead char (an hp_current==0 char gets sprite_state[1] = f % 4 as
+ *   a 4-frame blink key first), paint the shadow overlay, flush to the mode13h
+ *   primary, wait one BIOS tick. After the loop: set flags |= 1 on every
+ *   hp_current==0 char (PERMANENTLY DEAD).
+ *
+ * Phase 3 — decay/explosion (12 frames split 0..5 + 6..11):
+ *   malloc a 0x25680 scratch buffer, composite a clean tile map into it, then
+ *   composite_all_chars_overlay against it as the working buffer (swapping the
+ *   global back-buffer pointer and restoring it). Fire the death SFX. Frames
+ *   0..5 blit the per-frame death sprite (sheet[6 + (f+0x44)*4]) at each cached
+ *   screen pos with no per-frame restore; frames 6..11 first memmove the clean
+ *   scratch back into the live buffer so only the death sprite remains, then
+ *   blit. free(scratch); fd2_composite_battle_frame(0) for the final cleanup.
+ * ---------------------------------------------------------------- */
+void fd2_play_death_animation_and_mark_dead(void)
+{
+    void *scratch_buf;
+    void *saved_lgs;
+    runtime_char *rt_char;
+    int char_iter;
+    int frame_iter;
+    int tgt_iter;
+    uint32 n_dying;
+    uint32 frame_sprite_addr;
+    uint32 pos_x;
+    uint32 pos_y;
+    uint32 dying_screen_pos[30];
+
+    /* Phase 1 — collect on-screen dying chars */
+    n_dying = 0;
+    for (char_iter = 0; char_iter < (int)data_fd2_battle_party_member_count;
+         char_iter++) {
+        rt_char = &data_fd2_battle_runtime_char_array_ptr[char_iter];
+        pos_x = rt_char->pos_x;
+        pos_y = rt_char->pos_y;
+
+        if (((rt_char->flags & 1) == 0) && (rt_char->hp_current == 0) &&
+            ((int)(data_fd2_battle_view_window_origin_x - 1) <= (int)pos_x) &&
+            ((int)pos_x <= (int)(data_fd2_battle_view_window_origin_x +
+                                 data_fd2_battle_view_window_max_x)) &&
+            ((int)(data_fd2_battle_view_window_origin_y - 1) <= (int)pos_y) &&
+            ((int)pos_y <= (int)(data_fd2_battle_view_window_origin_y +
+                                 data_fd2_battle_view_window_max_y + 1))) {
+            dying_screen_pos[n_dying] =
+                data_fd2_large_game_state_buffer_ptr +
+                ((pos_y - 1) - data_fd2_battle_view_window_origin_y) * 0x2ac0 +
+                ((pos_x - 1) - data_fd2_battle_view_window_origin_x) * 0x18 +
+                0x75d8;
+            n_dying++;
+        }
+    }
+
+    if (n_dying == 0) {
+        /* silent off-screen death: permanently mark every dying char */
+        for (char_iter = 0; char_iter < (int)data_fd2_battle_party_member_count;
+             char_iter++) {
+            if (data_fd2_battle_runtime_char_array_ptr[char_iter].hp_current == 0) {
+                data_fd2_battle_runtime_char_array_ptr[char_iter].flags = 1;
+            }
+        }
+        return;
+    }
+
+    /* Phase 2 — 13-frame flicker */
+    for (frame_iter = 0; frame_iter < 0xd; frame_iter++) {
+        fd2_composite_battle_tile_map(
+            data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1c8, 0xd, 8,
+            data_fd2_battle_view_window_origin_x,
+            data_fd2_battle_view_window_origin_y);
+
+        for (char_iter = 0; char_iter < (int)data_fd2_battle_party_member_count;
+             char_iter++) {
+            if ((data_fd2_battle_runtime_char_array_ptr[char_iter].flags & 1) == 0) {
+                if (data_fd2_battle_runtime_char_array_ptr[char_iter].hp_current == 0) {
+                    data_fd2_battle_runtime_char_array_ptr[char_iter].sprite_state[1] =
+                        (uint8)(frame_iter % 4);
+                }
+                fd2_paint_char_sprite_at_world_pos((uint32)char_iter);
+            }
+        }
+
+        fd2_paint_chars_shadow_overlay();
+        fd2_blit_rectangle(0xa0504, 0x140,
+                           data_fd2_large_game_state_buffer_ptr + 0x8088,
+                           0x1c8, 0x138, 0xc0);
+        fd2_wait_n_bios_ticks(1);
+    }
+
+    /* permanently mark every dying char dead after the flicker */
+    for (char_iter = 0; char_iter < (int)data_fd2_battle_party_member_count;
+         char_iter++) {
+        if (data_fd2_battle_runtime_char_array_ptr[char_iter].hp_current == 0) {
+            data_fd2_battle_runtime_char_array_ptr[char_iter].flags = 1;
+        }
+    }
+
+    /* Phase 3 — decay/explosion. Build a clean scratch composite, overlay all
+     * chars onto it (via a temporary back-buffer swap), then strobe the death
+     * sprite over the cached positions. */
+    scratch_buf = malloc(0x25680);
+    fd2_composite_battle_tile_map(
+        (uint32)scratch_buf + 0x8088, 0x1c8, 0xd, 8,
+        data_fd2_battle_view_window_origin_x,
+        data_fd2_battle_view_window_origin_y);
+    saved_lgs = (void *)data_fd2_large_game_state_buffer_ptr;
+    data_fd2_large_game_state_buffer_ptr = (uint32)scratch_buf;
+    fd2_composite_all_chars_overlay();
+    data_fd2_large_game_state_buffer_ptr = (uint32)saved_lgs;
+
+    fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr, 3, 1);
+
+    /* frames 0..5: no per-frame restore */
+    for (frame_iter = 0; frame_iter < 6; frame_iter++) {
+        for (tgt_iter = 0; tgt_iter < (int)n_dying; tgt_iter++) {
+            frame_sprite_addr =
+                data_fd2_ui_anim_sprite_sheet_ptr +
+                *(int *)(data_fd2_ui_anim_sprite_sheet_ptr +
+                         (frame_iter + 0x44) * 4 + 6);
+            fd2_blit_sprite_with_decoded_pixels(dying_screen_pos[tgt_iter],
+                                                frame_sprite_addr, 0x1c8);
+        }
+        fd2_blit_rectangle(0xa0504, 0x140,
+                           data_fd2_large_game_state_buffer_ptr + 0x8088,
+                           0x1c8, 0x138, 0xc0);
+        fd2_wait_n_bios_ticks(1);
+    }
+
+    /* frames 6..11: restore the clean scratch each frame, then blit */
+    for (frame_iter = 6; frame_iter < 0xc; frame_iter++) {
+        memmove((void *)data_fd2_large_game_state_buffer_ptr, scratch_buf, 0x25680);
+        for (tgt_iter = 0; tgt_iter < (int)n_dying; tgt_iter++) {
+            fd2_blit_sprite_with_decoded_pixels(
+                dying_screen_pos[tgt_iter],
+                data_fd2_ui_anim_sprite_sheet_ptr +
+                    *(int *)(data_fd2_ui_anim_sprite_sheet_ptr +
+                             (frame_iter + 0x44) * 4 + 6),
+                0x1c8);
+        }
+        fd2_blit_rectangle(0xa0504, 0x140,
+                           data_fd2_large_game_state_buffer_ptr + 0x8088,
+                           0x1c8, 0x138, 0xc0);
+        fd2_wait_n_bios_ticks(1);
+    }
+
+    free(scratch_buf);
+    fd2_composite_battle_frame(0);
+}
