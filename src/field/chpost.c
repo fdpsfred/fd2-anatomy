@@ -304,3 +304,84 @@ void fd2_chapter_19_post_action(uint32 event_arg)
         }
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_20_post_action @ 0x20957  (dispatched, 0 direct callers)
+ *
+ * Chapter 20 turn-cycle post-action handler — the largest non-default
+ * handler in this file. Reached via
+ * data_fd2_chapter_post_action_handler_table[19] (table @ 0x51B19,
+ * indexed by current_chapter_id). The dispatch site invokes the handler
+ * with no real arguments; event_arg is the Watcom __CHK-prologue artifact
+ * and is unused by the body.
+ *
+ * A large multi-faction battle: three protected sides and three enemy
+ * groups. Runs the default win/lose check, then layers three independent
+ * stages on top, each writing game_event_flag (0x53ECC):
+ *
+ *   Stage 1 — NPC group extinction (LOSE + dialog). Scan the 8-slot NPC
+ *     group runtime_char[0x35..0x3C] (loop i in 0x26..0x2D, slot i + 0xF).
+ *     The loop does NOT early-exit; it sets a "some slot still alive" flag
+ *     the instant any slot reports alive (fd2_check_char_is_dead == 0) and
+ *     runs to completion. If every slot is dead, set the flag to 1 (game
+ *     over) and show current_chapter_text page 10. Flag is written before
+ *     the dialog call.
+ *
+ *   Stage 2 — key-char extinction (LOSE). If the hero runtime_char[0] OR
+ *     the boss-ally runtime_char[0x34] is dead, set the flag to 1. The OR
+ *     short-circuits: [0x34] is only tested when [0] is alive.
+ *
+ *   Stage 3 — enemy wipe (WIN). Reset the "alive" flag, then scan two
+ *     enemy ranges as a union: runtime_char[0x24..0x33] (loop i in
+ *     0x15..0x24) and runtime_char[0x3D..0x52] (loop i in 0x2E..0x43),
+ *     each slot i + 0xF. Neither loop early-exits. If no slot in either
+ *     range is alive (all three enemy groups wiped), set the flag to 2
+ *     (WIN). Because stage 3 runs after stages 1-2, a full enemy wipe
+ *     overrides a LOSE produced earlier (win-overrides-loss).
+ *
+ * Deadness is queried through fd2_check_char_is_dead (runtime_char[idx].flags
+ * bit0) for every slot; the body reads no bFlags inline. The dialog call uses
+ * the chapter's standard glyph geometry (render base 0xA0000, pitch 0x140,
+ * glyph params 0xCD/0x4C/0x4A, height 0x13) with blink_flag = 1.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_20_post_action(uint32 event_arg)
+{
+    int i;
+    int some_alive;
+
+    (void)event_arg;
+
+    fd2_check_battle_end_condition();
+
+    some_alive = 0;
+    for (i = 0x26; i < 0x2E; i++) {
+        if (fd2_check_char_is_dead(i + 0xF) == 0) {
+            some_alive = 1;
+        }
+    }
+    if (some_alive == 0) {
+        data_fd2_chapter_event_or_battle_end_code = 1;
+        fd2_display_dialog_scene(current_chapter_text, 10, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+    }
+
+    if (fd2_check_char_is_dead(0) != 0 ||
+        fd2_check_char_is_dead(0x34) != 0) {
+        data_fd2_chapter_event_or_battle_end_code = 1;
+    }
+
+    some_alive = 0;
+    for (i = 0x15; i < 0x25; i++) {
+        if (fd2_check_char_is_dead(i + 0xF) == 0) {
+            some_alive = 1;
+        }
+    }
+    for (i = 0x2E; i < 0x44; i++) {
+        if (fd2_check_char_is_dead(i + 0xF) == 0) {
+            some_alive = 1;
+        }
+    }
+    if (some_alive == 0) {
+        data_fd2_chapter_event_or_battle_end_code = 2;
+    }
+}

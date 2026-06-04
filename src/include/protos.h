@@ -191,6 +191,7 @@ void fd2_chapter_16_post_action(uint32 event_arg);
 void fd2_chapter_17_post_action(uint32 event_arg);
 void fd2_chapter_18_post_action(uint32 event_arg);
 void fd2_chapter_19_post_action(uint32 event_arg);
+void fd2_chapter_20_post_action(uint32 event_arg);
 
 /* ---- animation ---- */
 void fd2_tick_tile_event_animations(void);

@@ -1213,6 +1213,345 @@ static void test_chpost19_neighbor_slots_ignored(void)
     chpost19_teardown();
 }
 
+/* ============================================================
+ * fd2_chapter_20_post_action @ 0x20957
+ *
+ * The largest non-default handler. Same default win/lose check
+ * (fd2_check_battle_end_condition, linked real), then THREE independent
+ * stages layered on top, each writing game_event_flag (0x53ECC):
+ *
+ *   Stage 1 — NPC group extinction (LOSE + dialog). Full-scan (no early
+ *     exit) of the 8-slot NPC group runtime_char[0x35..0x3C] (loop i in
+ *     0x26..0x2D, slot i + 0xF): if every slot is dead, set flag = 1 and
+ *     play current_chapter_text page 10 through the REAL
+ *     fd2_display_dialog_scene. Flag is written before the dialog call,
+ *     both in the same basic block.
+ *   Stage 2 — key-char extinction (LOSE). If hero runtime_char[0] OR
+ *     boss-ally runtime_char[0x34] is dead, set flag = 1. Short-circuit OR
+ *     ([0x34] only tested when [0] alive).
+ *   Stage 3 — enemy wipe (WIN). Full-scan of two enemy ranges as a union,
+ *     runtime_char[0x24..0x33] (loop i in 0x15..0x24) and
+ *     runtime_char[0x3D..0x52] (loop i in 0x2E..0x43): if NO slot in either
+ *     range is alive, set flag = 2 (WIN). Stage 3 runs last, so a full
+ *     enemy wipe OVERRIDES a LOSE set by stage 1 or 2 (win-overrides-loss).
+ *
+ * The three protected/enemy regions are disjoint: stage-1 NPCs [0x35,0x3C]
+ * and the stage-2 boss-ally [0x34] sit in the gap BETWEEN the two stage-3
+ * enemy ranges ([0x24,0x33] and [0x3D,0x52]), so each region can be toggled
+ * independently. Deadness for every slot is queried through
+ * fd2_check_char_is_dead; these tests use the testglob array-reading mode
+ * (g_check_char_is_dead_use_array = 1) so per-slot .flags drive each result.
+ * The highest slot reached is 0x52 (82), so an 88-slot local buffer is used.
+ *
+ * As elsewhere every slot is team=2 / alive at setup so the default check
+ * yields flag=2; stage writes are then observable against that baseline.
+ * current_chapter_text points at an immediate-END program (same fixture
+ * shape as the chapter-13 suite) so the real dialog VM returns at once
+ * without touching the framebuffer or loading DATO.DAT; a clean pass also
+ * confirms the real VM survives the chapter-20 page-10 call shape.
+ *
+ * Coverage is risk-driven for the three full-scan loops and their exact
+ * bounds, the stage-2 short-circuit OR, and the stage-3 union + the
+ * win-overrides-loss ordering:
+ *   - nothing triggered (all alive)                 -> flag stays 2
+ *   Stage 1 (full-scan over [0x35,0x3C]):
+ *   - all 8 NPCs dead, keys/enemies alive           -> stage 1 fires (1, page 10)
+ *   - first NPC 0x35 alive (rest dead)              -> stage 1 does NOT fire
+ *   - last NPC 0x3C alive (rest dead)               -> stage 1 does NOT fire
+ *   - neighbors 0x34/0x3D dead, [0x35,0x3C] dead    -> stage 1 fires (proves
+ *       the scanned range excludes both the boss-ally and the enemy range,
+ *       i.e. exactly [0x35,0x3C]); slot 0x34's death here is stage 2's, not
+ *       stage 1's, so the flag is still 1 either way -> see dedicated stage-2
+ *       neighbor test below for the off-by-one proof
+ *   Stage 2 (short-circuit OR of slot 0, slot 0x34):
+ *   - hero 0 dead, 0x34 alive                       -> stage 2 fires (1)
+ *   - hero 0 alive, 0x34 dead                       -> stage 2 fires via the
+ *       second term (1), proving 0x34 is genuinely evaluated
+ *   - neighbors 0x33/0x35 dead, 0 and 0x34 alive    -> stage 2 does NOT fire
+ *       (also keeps stage 1 inert: 0x35 alive), pinning the OR's second slot
+ *       as exactly 0x34
+ *   Stage 3 (union [0x24,0x33] U [0x3D,0x52], WIN, runs last):
+ *   - all enemies in BOTH ranges dead, hero 0 dead  -> stage 3 fires and
+ *       overrides the stage-2 LOSE: final flag = 2 (win-overrides-loss)
+ *   - range A all dead but one range-B slot alive   -> stage 3 does NOT fire
+ *       (union requires BOTH ranges empty); with hero 0 dead the flag is 1
+ *   - first range-A slot 0x24 alive (rest of both dead) -> stage 3 does NOT
+ *       fire, pinning range-A lower bound
+ *   - last range-B slot 0x52 alive (rest of both dead)  -> stage 3 does NOT
+ *       fire, pinning range-B upper bound
+ *   - neighbors 0x23 (below A) and 0x53 (above B) alive while both ranges
+ *       dead -> stage 3 STILL fires, pinning the union as exactly
+ *       [0x24,0x33] U [0x3D,0x52]
+ * ============================================================ */
+
+#define CH20_RC_SLOTS 88
+static runtime_char t_rc20[CH20_RC_SLOTS];
+
+/* Immediate-END dialog program for current_chapter_text (covers page 10). */
+static uint16 t_ch20_text[0x400];
+
+static void ch20_text_all_end(void)
+{
+    int i;
+
+    for (i = 0; i < 0x400; i++) {
+        t_ch20_text[i] = 0;
+    }
+    *(int16 *)((uint8 *)t_ch20_text + 0x780) = -1;     /* END marker */
+    for (i = 0; i < 0x3c0; i++) {
+        t_ch20_text[i] = (uint16)0x780;                /* byte offset of END */
+    }
+    current_chapter_text = (uint32)t_ch20_text;
+}
+
+static void chpost20_setup(void)
+{
+    int i;
+
+    memset(t_rc20, 0, sizeof(t_rc20));
+    for (i = 0; i < CH20_RC_SLOTS; i++) {
+        t_rc20[i].team = 2;     /* player team: never an alive enemy */
+        t_rc20[i].flags = 0;    /* alive */
+    }
+    data_fd2_battle_runtime_char_array_ptr = t_rc20;
+    data_fd2_battle_party_member_count = CH20_RC_SLOTS;
+    data_fd2_chapter_event_or_battle_end_code = 0;
+    g_check_char_is_dead_use_array = 1;   /* per-slot .flags drive deadness */
+    ch20_text_all_end();
+}
+
+static void chpost20_teardown(void)
+{
+    g_check_char_is_dead_use_array = 0;   /* restore index-agnostic default */
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_party_member_count = 4;
+}
+
+/* mark the stage-1 NPC group [0x35,0x3C] (8 slots) dead */
+static void ch20_kill_npc_group(void)
+{
+    int i;
+
+    for (i = 0x35; i <= 0x3C; i++) {
+        t_rc20[i].flags = CHARFLAG_DEAD;
+    }
+}
+
+/* mark both stage-3 enemy ranges [0x24,0x33] and [0x3D,0x52] dead */
+static void ch20_kill_all_enemies(void)
+{
+    int i;
+
+    for (i = 0x24; i <= 0x33; i++) {
+        t_rc20[i].flags = CHARFLAG_DEAD;
+    }
+    for (i = 0x3D; i <= 0x52; i++) {
+        t_rc20[i].flags = CHARFLAG_DEAD;
+    }
+}
+
+/* Everyone alive -> no stage fires. The default check yields flag=2 and no
+ * override touches it. Confirms the all-alive path is a clean victory and
+ * none of the three stages writes spuriously. */
+static void test_chpost20_nothing_triggered_keeps_default(void)
+{
+    chpost20_setup();
+
+    fd2_chapter_20_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost20_teardown();
+}
+
+/* Stage 1: all 8 NPCs [0x35,0x3C] dead while hero/boss-ally and the enemy
+ * ranges stay alive -> the full-scan finds none alive, sets flag = 1 and
+ * plays page 10 via the real (immediate-END) dialog VM. Stage 2 is inert
+ * (slot 0 and 0x34 alive) and stage 3 is inert (enemies alive), so the
+ * observed 2 -> 1 is stage 1's alone. */
+static void test_chpost20_stage1_all_npc_dead_game_over(void)
+{
+    chpost20_setup();
+    ch20_kill_npc_group();
+
+    fd2_chapter_20_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost20_teardown();
+}
+
+/* Stage 1 first slot (0x35) alive, 0x36..0x3C dead -> the loop sets the
+ * "some alive" flag on iteration 0 and (no early exit) still completes,
+ * leaving stage 1 false. Pins the loop start index = 0x35 (i = 0x26). */
+static void test_chpost20_stage1_first_slot_alive_keeps_default(void)
+{
+    chpost20_setup();
+    ch20_kill_npc_group();
+    t_rc20[0x35].flags = 0;         /* slot 0x35 alive */
+
+    fd2_chapter_20_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost20_teardown();
+}
+
+/* Stage 1 last slot (0x3C) alive, 0x35..0x3B dead -> the loop survives 7 dead
+ * slots and only sees the survivor at its final iteration, so stage 1 does NOT
+ * fire. Pins the inclusive upper bound = 0x3C (i < 0x2E). */
+static void test_chpost20_stage1_last_slot_alive_keeps_default(void)
+{
+    chpost20_setup();
+    ch20_kill_npc_group();
+    t_rc20[0x3C].flags = 0;         /* slot 0x3C alive */
+
+    fd2_chapter_20_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost20_teardown();
+}
+
+/* Stage 2 hero path: slot 0 dead, boss-ally 0x34 alive, NPCs and enemies
+ * alive -> stage 1 inert, stage 2's first OR term fires (flag = 1), stage 3
+ * inert. (Slot 0 dead also makes the default check set 1, but stage 2 would
+ * set it regardless; the post-state is unambiguously 1.) Pins stage 2's first
+ * slot = 0 and the set-on-dead direction. */
+static void test_chpost20_stage2_hero_dead_game_over(void)
+{
+    chpost20_setup();
+    t_rc20[0].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_20_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost20_teardown();
+}
+
+/* Stage 2 boss-ally path: slot 0 alive, slot 0x34 dead, NPCs and enemies
+ * alive -> the OR's first term is false so the second must be evaluated; it
+ * fires (flag = 1). Default check stays 2 (slot 0 alive), so the clean 2 -> 1
+ * proves slot 0x34 is genuinely evaluated, not dead code. */
+static void test_chpost20_stage2_boss_ally_dead_game_over(void)
+{
+    chpost20_setup();
+    t_rc20[0x34].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_20_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost20_teardown();
+}
+
+/* Neighbors 0x33 and 0x35 dead while the stage-2 slots (0, 0x34) are alive
+ * -> stage 2 must NOT fire. 0x35 (alive's neighbor) being dead also leaves a
+ * survivor in the NPC group so stage 1 stays false, and a single dead slot in
+ * range A keeps stage 3 false. The flag stays 2, pinning stage 2's second
+ * slot as exactly 0x34 (no off-by-one in either direction). */
+static void test_chpost20_stage2_neighbor_slots_ignored(void)
+{
+    chpost20_setup();
+    t_rc20[0x33].flags = CHARFLAG_DEAD;   /* below 0x34 (also a stage-3 enemy) */
+    t_rc20[0x35].flags = CHARFLAG_DEAD;   /* above 0x34 (also a stage-1 NPC) */
+
+    fd2_chapter_20_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost20_teardown();
+}
+
+/* Stage 3 WIN, win-overrides-loss: every enemy in BOTH ranges dead AND hero 0
+ * dead. Stage 2 (and the default check) set flag = 1, then stage 3 runs last,
+ * finds no enemy alive, and overrides to flag = 2. Pins that stage 3 is
+ * sequenced after stages 1-2 and that a full enemy wipe wins even with the
+ * hero down. */
+static void test_chpost20_stage3_enemy_wipe_win_overrides_lose(void)
+{
+    chpost20_setup();
+    ch20_kill_all_enemies();
+    t_rc20[0].flags = CHARFLAG_DEAD;      /* force a stage-2/default LOSE first */
+
+    fd2_chapter_20_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost20_teardown();
+}
+
+/* Stage 3 union requires BOTH ranges empty: range A [0x24,0x33] fully dead but
+ * one range-B slot (0x4A) left alive, hero 0 dead -> stage 3 does NOT fire and
+ * the stage-2 LOSE survives (flag = 1). Proves the second loop's survivor
+ * still counts (the two ranges are OR-combined into one "any alive"). */
+static void test_chpost20_stage3_rangeB_survivor_blocks_win(void)
+{
+    chpost20_setup();
+    ch20_kill_all_enemies();
+    t_rc20[0x4A].flags = 0;               /* one range-B enemy alive */
+    t_rc20[0].flags = CHARFLAG_DEAD;      /* stage-2 LOSE baseline */
+
+    fd2_chapter_20_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost20_teardown();
+}
+
+/* Stage 3 range-A lower bound: first range-A slot (0x24) alive, the rest of
+ * both ranges dead, hero 0 dead -> stage 3 does NOT fire (a survivor at the
+ * very start of range A blocks the win), flag = 1. Pins range-A start = 0x24
+ * (i = 0x15). */
+static void test_chpost20_stage3_rangeA_first_slot_alive_blocks_win(void)
+{
+    chpost20_setup();
+    ch20_kill_all_enemies();
+    t_rc20[0x24].flags = 0;               /* first range-A enemy alive */
+    t_rc20[0].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_20_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost20_teardown();
+}
+
+/* Stage 3 range-B upper bound: last range-B slot (0x52) alive, the rest of
+ * both ranges dead, hero 0 dead -> stage 3 does NOT fire, flag = 1. Pins
+ * range-B end = 0x52 (i < 0x44, last i = 0x43, slot 0x43 + 0xF = 0x52). */
+static void test_chpost20_stage3_rangeB_last_slot_alive_blocks_win(void)
+{
+    chpost20_setup();
+    ch20_kill_all_enemies();
+    t_rc20[0x52].flags = 0;               /* last range-B enemy alive */
+    t_rc20[0].flags = CHARFLAG_DEAD;
+
+    fd2_chapter_20_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 1);
+    chpost20_teardown();
+}
+
+/* Stage 3 boundary proof from the outside: neighbors just below range A (0x23)
+ * and just above range B (0x53) left alive while BOTH ranges are fully dead,
+ * hero 0 dead -> stage 3 STILL fires and overrides to WIN (flag = 2). Proves
+ * the scanned union is exactly [0x24,0x33] U [0x3D,0x52]: survivors outside
+ * the union do not block the win. (0x34..0x3C, the gap between the ranges, are
+ * left dead here too but are never scanned by stage 3.) */
+static void test_chpost20_stage3_outside_neighbors_ignored(void)
+{
+    chpost20_setup();
+    ch20_kill_all_enemies();
+    /* also kill the gap [0x34,0x3C] so only 0x23 and 0x53 are alive near the
+     * union; none of these is in a stage-3 range. */
+    {
+        int i;
+        for (i = 0x34; i <= 0x3C; i++) {
+            t_rc20[i].flags = CHARFLAG_DEAD;
+        }
+    }
+    t_rc20[0x23].flags = 0;               /* below range A, alive */
+    t_rc20[0x53].flags = 0;               /* above range B, alive */
+    t_rc20[0].flags = CHARFLAG_DEAD;      /* stage-2 LOSE baseline */
+
+    fd2_chapter_20_post_action(0);
+
+    ASSERT_EQ(data_fd2_chapter_event_or_battle_end_code, 2);
+    chpost20_teardown();
+}
+
 void run_field_chpost_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1262,5 +1601,17 @@ void run_field_chpost_tests(void)
     RUN_TEST(test_chpost19_turn_gt_6_npc_dead_game_over);
     RUN_TEST(test_chpost19_turn_zero_npc_dead_keeps_default);
     RUN_TEST(test_chpost19_neighbor_slots_ignored);
+    RUN_TEST(test_chpost20_nothing_triggered_keeps_default);
+    RUN_TEST(test_chpost20_stage1_all_npc_dead_game_over);
+    RUN_TEST(test_chpost20_stage1_first_slot_alive_keeps_default);
+    RUN_TEST(test_chpost20_stage1_last_slot_alive_keeps_default);
+    RUN_TEST(test_chpost20_stage2_hero_dead_game_over);
+    RUN_TEST(test_chpost20_stage2_boss_ally_dead_game_over);
+    RUN_TEST(test_chpost20_stage2_neighbor_slots_ignored);
+    RUN_TEST(test_chpost20_stage3_enemy_wipe_win_overrides_lose);
+    RUN_TEST(test_chpost20_stage3_rangeB_survivor_blocks_win);
+    RUN_TEST(test_chpost20_stage3_rangeA_first_slot_alive_blocks_win);
+    RUN_TEST(test_chpost20_stage3_rangeB_last_slot_alive_blocks_win);
+    RUN_TEST(test_chpost20_stage3_outside_neighbors_ignored);
     printf("\n");
 }
