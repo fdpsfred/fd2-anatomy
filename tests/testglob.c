@@ -809,6 +809,16 @@ uint8  data_fd2_battle_summon_anim_variant_d_odd_even_frame_toggle = 0;
 int32  data_fd2_animation_summon_variant_d_3slot_color_row_offsets[10] = {0};
 uint8  data_fd2_animation_summon_variant_e_16slot_sprite_base_table[16] = {0};
 int32  data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[16] = {0};
+/* Summon-spell per-summon RGB + SFX-bank-index tables (4-byte read-only game
+ * data, indexed by spell_id-0x20). The binary declares each as a dword that it
+ * byte-indexes; defined here with the real .object3 values (little-endian
+ * packed) so ((uint8*)&x)[i] yields the table byte on x86.
+ *   R @0x5254F = {3F,33,35,35}  G @0x52553 = {3F,39,00,3A}
+ *   B @0x52557 = {3F,3F,00,09}  sfx_idx @0x5255B = {5B,5C,5D,5E} */
+uint32 data_fd2_battle_summon_spell_palette_r_table = 0x3535333fU;
+uint32 data_fd2_battle_summon_spell_palette_g_table = 0x3a00393fU;
+uint32 data_fd2_battle_summon_spell_palette_b_table = 0x09003f3fU;
+uint32 data_fd2_battle_summon_spell_sfx_bank_index_table = 0x5e5d5c5bU;
 /* fd2_tick_tutorial_progress_with_sfx: now in anim.c */
 /* fd2_run_full_turn_cycle: now emitted in src/battle/btl_turn.c */
 /* fd2_enemy_turn_action_dispatcher: now in btl_ai.c */

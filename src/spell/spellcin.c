@@ -14,6 +14,7 @@
  *   fd2_animate_warp_in_expand @ 0x22656 (1 caller)
  *   fd2_cast_screen_wide_spell_with_fade @ 0x24618 (6 callers)
  *   fd2_execute_special_attack_skill @ 0x276ec (1 caller)
+ *   fd2_execute_summon_spell_cast @ 0x27fc9 (1 caller)
  */
 
 #include "types.h"
@@ -1283,5 +1284,304 @@ void fd2_execute_special_attack_skill(uint32 caster_idx, uint32 spell_id,
     memset((void *)0xa0000, 0, 64000);
     fd2_composite_battle_frame(1);
     fd2_play_palette_fade_in();
+    return;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_execute_summon_spell_cast @ 0x27fc9  (1 caller)
+ *
+ * 召喚系 (summon) spell cinematic for spell ids 0x20 (熾天使), 0x21 (風妖精),
+ * 0x22 (破壞神), 0x23 (暗邪鬼). A long multi-phase cinematic: caster cast pose,
+ * a sprite slide-in / slide-out, a per-pose-frame summon animation with
+ * per-summon SFX hooks, an optional strobe with palette-cycle FX, a palette
+ * fade-in back to the battle scene, then a spell-id-specific gameplay effect.
+ *
+ * Params (cdecl, 4 stack args; void return):
+ *   caster_idx       — runtime_char_array index of the caster
+ *   spell_id         — 0x20..0x23 (the four summon spells)
+ *   n_targets        — target count
+ *   target_id_array  — pointer to the uint8 target-id array (Ghidra's auto-name
+ *                      "caster_idx" for this 4th param is MISLEADING: it is the
+ *                      target-id array base, reloaded in the per-target loops).
+ *
+ * Per-summon palette + SFX-bank-index tables (each is a 4-byte table indexed
+ * by spell_id - 0x20; the binary copies each onto the stack as a dword and
+ * byte-indexes it, reproduced verbatim here via local dword copies):
+ *   data_fd2_battle_summon_spell_palette_r_table   @ 0x5254F = {3F,33,35,35}
+ *   data_fd2_battle_summon_spell_palette_g_table   @ 0x52553 = {3F,39,00,3A}
+ *   data_fd2_battle_summon_spell_palette_b_table   @ 0x52557 = {3F,3F,00,09}
+ *   data_fd2_battle_summon_spell_sfx_bank_index_table @ 0x5255B = {5B,5C,5D,5E}
+ *     (FDOTHER.DAT entry index of the per-summon SFX bank — the binary
+ *      dword-loads it to [ESP+0x14] then byte-indexes it at 0x28141 by
+ *      spell_id-0x20; the Ghidra plate's "anim length factor" label is wrong,
+ *      the sfx_bank_index name is correct, verified MOVZX EAX,[ESP+EAX-0xc].)
+ *
+ * Resources (verified by address; the Ghidra plate's FDSHAP/FDOTHER labels are
+ * MISLABELLED — the actual filename strings at these addresses are):
+ *   TAI.DAT[0x52393]    → caster cast-pose figani (plate wrongly said FDSHAP)
+ *   BG.DAT[0x52381]     → battle background
+ *   FIGANI.DAT[0x52388] (idx caster.portrait_id*3 and +1) → caster pose A/B
+ *                         (plate wrongly said FDOTHER)
+ *   FDOTHER.DAT[0x51A4D] (idx spell_id+0x21) → summon sprite
+ *   FDOTHER.DAT[0x51A4D] (idx sfx_bank_index_table[spell_id-0x20]) → SFX bank
+ *   FDSHAP.DAT[0x51A65] (idx *tile_event_data*2) → battle_scene_snapshot
+ *                         (plate wrongly said FDOTHER)
+ *
+ * Phases (each blits to the mode-13h framebuffer at 0xA0000):
+ *   1. Caster cast pose: intro-zoom + figani loop, then a 6-tick pre-cast hold.
+ *   2. 8-frame slide-in of pose A (offset loop*0x14, 20px/frame).
+ *   3. 9-frame slide-out of the summon sprite (offset iVar2*0x1E, 30px/frame).
+ *   4. (0x21/0x22 only) one extra summon-sprite blit at base.
+ *   5. Per-pose-frame loop (uVar3 1..summon.frame_count-1): blit summon frame
+ *      uVar3, with per-summon SFX hooks at specific frames.
+ *   6. (0x20/0x23 only) 11-frame strobe between the last two summon frames with
+ *      a shrinking palette-interpolation toward the per-summon RGB.
+ *   7. Reset to game state: free temp buffers, re-alloc the large game-state
+ *      buffer + battle_scene_snapshot, then a 0x29-step palette fade-in.
+ *   8. Gameplay effect dispatch by spell_id:
+ *      0x20 — attack-spell damage (spell 0x20).
+ *      0x21 — clear per-target status bytes [+0x25..+0x27] then group HP heal 800.
+ *      0x22 — AP + DP + speed boost (queue idx reset between each).
+ *      0x23 — three status-inflict casts (spell 0x1A/0x16/0x1B, sprite 0x25/0x27/0x26).
+ *
+ * Cdecl, 4 stack params; void return. The binary's __CHK(0x6c) stack-probe
+ * prologue is compiler-injected and not part of the source. Self-contained
+ * epilogue with explicit RET at 0x286BC (ADD ESP,0x38 / POP EBP/EDI/ESI/EBX).
+ *
+ * KNOWN DECOMPILER NOTE: every CALL-then-EAX-use site here is a genuine return
+ * capture (fd2_load_dat_resource / malloc pointers); verified against the
+ * assembly — no spurious EAX-tracking artifact. Sole caller:
+ * fd2_play_spell_cast_sequence @ 0x2A6BD via the spell handler table @ 0x51D01.
+ * ---------------------------------------------------------------- */
+void fd2_execute_summon_spell_cast(uint32 caster_idx, uint32 spell_id,
+                                   uint32 n_targets, int target_id_array)
+{
+    uint32 palette_R;
+    uint32 palette_G;
+    uint32 palette_B;
+    uint32 sfx_bank_index;
+    runtime_char *caster_char;
+    uint8 tile_attr_buf[8];
+    uint8 tile_attr_byte;
+    uint32 pTai_resource;
+    uint32 pBg_layer;
+    uint32 pCaster_figani;
+    uint32 pWorkbuf_64k;
+    uint32 pCaster_figani_a;
+    uint32 pCaster_figani_b;
+    uint32 pSummon_sprite;
+    uint32 pSfx_bank;
+    uint32 figani_idx_x3;
+    uint8  summon_idx;
+    uint32 palette_offset;
+    int loop_iter;
+    int iVar2;
+    uint32 uVar3;
+    int strobe_iter;
+    int target_idx;
+
+    /* Per-summon palette + sfx-bank-index tables: copy each 4-byte table into
+     * a local dword (matching the binary's MOV [ESP+...],EAX), then byte-index
+     * by spell_id-0x20. */
+    palette_R      = data_fd2_battle_summon_spell_palette_r_table;
+    palette_G      = data_fd2_battle_summon_spell_palette_g_table;
+    palette_B      = data_fd2_battle_summon_spell_palette_b_table;
+    sfx_bank_index = data_fd2_battle_summon_spell_sfx_bank_index_table;
+
+    free((void *)data_fd2_large_game_state_buffer_ptr);
+    free((void *)battle_scene_snapshot);
+    battle_scene_snapshot = 0;
+
+    caster_char = &data_fd2_battle_runtime_char_array_ptr[caster_idx];
+    /* tile_attr_buf is sized 8 to hold the full +0..+7 write fd2_read_tile_-
+     * attribute_at_pos performs (verified @0x12e76..0x12ea2); the 3rd tile
+     * attribute-flag byte at offset +6 is the background variant (read here
+     * as [ESP+0x6] @0x2804e), same convention as the sibling above. */
+    fd2_read_tile_attribute_at_pos((uint32)caster_char->pos_x,
+        (uint32)caster_char->pos_y, (uint32)tile_attr_buf);
+    tile_attr_byte = tile_attr_buf[6];
+
+    pTai_resource = (uint32)fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_tai_dat, 0,
+        (uint32)tile_attr_byte);
+    pBg_layer = (uint32)fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_bg_dat_52381, 0,
+        (uint32)tile_attr_byte);
+
+    pCaster_figani = (uint32)malloc(64000);
+    pWorkbuf_64k = (uint32)malloc(0x1f400);
+    memset((void *)pCaster_figani, 0, 64000);
+    fd2_rle_blit_sprite(pBg_layer, 0, 0x32, pCaster_figani, 0x140, 0xffffffff);
+    fd2_flash_char_hit_sprite(pCaster_figani, caster_idx);
+    fd2_play_palette_fade_to_black();
+
+    figani_idx_x3 = (uint32)caster_char->portrait_id * 3;
+    pCaster_figani_a = (uint32)fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0,
+        figani_idx_x3);
+    pCaster_figani_b = (uint32)fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0,
+        figani_idx_x3 + 1);
+    pSummon_sprite = (uint32)fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdother_dat, 0,
+        spell_id + 0x21);
+    data_fd2_audio_summon_spell_sfx_bank_buf_ptr = 0;
+    pSfx_bank = (uint32)fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdother_dat, 0,
+        (uint32)((uint8 *)&sfx_bank_index)[spell_id - 0x20]);
+    data_fd2_audio_summon_spell_sfx_bank_buf_ptr = pSfx_bank;
+
+    /* Phase 1 — caster cast pose. */
+    fd2_play_char_intro_zoom_anim(caster_idx, 1, pCaster_figani_a, 0,
+        pWorkbuf_64k, (int)pCaster_figani, pTai_resource);
+    fd2_play_figani_animation_loop(caster_idx, spell_id, pCaster_figani_b,
+        pCaster_figani_b, pWorkbuf_64k, pCaster_figani, pBg_layer,
+        pTai_resource);
+    fd2_wait_n_bios_ticks(6);
+
+    /* Phase 2 — 8-frame slide-in of pose A. */
+    for (loop_iter = 0; loop_iter < 8; loop_iter++) {
+        fd2_blit_rectangle(pWorkbuf_64k, 0x280, pCaster_figani, 0x140,
+            0x140, 0xc8);
+        fd2_blit_indexed_sprite(pCaster_figani_a, 0,
+            loop_iter * 0x14 + pWorkbuf_64k, 0x280, -1);
+        fd2_blit_rectangle(0xa0000, 0x140, pWorkbuf_64k, 0x280, 0x140, 0xc8);
+        fd2_wait_n_bios_ticks(1);
+    }
+
+    /* Phase 3 — 9-frame slide-out of the summon sprite. */
+    for (iVar2 = 8; iVar2 >= 0; iVar2--) {
+        fd2_blit_rectangle(pWorkbuf_64k, 0x280, pCaster_figani, 0x140,
+            0x140, 0xc8);
+        fd2_blit_indexed_sprite(pSummon_sprite, 0,
+            iVar2 * 0x1e + pWorkbuf_64k, 0x280, -1);
+        fd2_blit_rectangle(0xa0000, 0x140, pWorkbuf_64k, 0x280, 0x140, 0xc8);
+        fd2_wait_n_bios_ticks(1);
+    }
+
+    /* Phase 4 — single extra summon-sprite blit (0x21 / 0x22 only). */
+    if (spell_id == 0x21 || spell_id == 0x22) {
+        fd2_blit_indexed_sprite(pSummon_sprite, 0, pCaster_figani, 0x140, -1);
+    }
+
+    /* Phase 5 — per-pose-frame summon animation with per-summon SFX hooks. */
+    for (uVar3 = 1; (int32)uVar3 < (int32)(uint32)*(uint8 *)pSummon_sprite;
+         uVar3++) {
+        memmove((void *)pWorkbuf_64k, (void *)pCaster_figani, 64000);
+        fd2_blit_indexed_sprite(pSummon_sprite, uVar3, pWorkbuf_64k, 0x140, -1);
+        fd2_blit_rectangle(0xa0000, 0x140, pWorkbuf_64k, 0x140, 0x140, 0xc8);
+        if (spell_id == 0x22 && uVar3 == 2) {
+            fd2_play_sfx_with_handle(
+                data_fd2_audio_summon_spell_sfx_bank_buf_ptr, 1, 1);
+        } else if (spell_id == 0x23 && uVar3 == 1) {
+            fd2_play_sfx_sample_from_bank(
+                data_fd2_audio_summon_spell_sfx_bank_buf_ptr, 2, uVar3);
+        } else if (spell_id == 0x21 && uVar3 == 6) {
+            fd2_play_sfx_with_handle(
+                data_fd2_audio_summon_spell_sfx_bank_buf_ptr, 1, 1);
+        } else if (spell_id == 0x20 && uVar3 == 1) {
+            fd2_play_sfx_sample_from_bank(
+                data_fd2_audio_summon_spell_sfx_bank_buf_ptr, 2, uVar3);
+        }
+        fd2_wait_n_bios_ticks(2);
+    }
+
+    summon_idx = (uint8)(spell_id - 0x20);
+
+    /* Phase 6 — 11-frame strobe with palette interpolation (0x20 / 0x23 only). */
+    if (spell_id == 0x20 || spell_id == 0x23) {
+        for (strobe_iter = 0; strobe_iter < 0xb; strobe_iter++) {
+            if (strobe_iter % 2 == 0) {
+                fd2_play_sfx_with_handle(
+                    data_fd2_audio_summon_spell_sfx_bank_buf_ptr, 1, 1);
+            }
+            memmove((void *)pWorkbuf_64k, (void *)pCaster_figani, 64000);
+            fd2_blit_indexed_sprite(pSummon_sprite,
+                (uint32)(*(uint8 *)pSummon_sprite - 2) + (strobe_iter & 1),
+                pWorkbuf_64k, 0x140, -1);
+            fd2_blit_rectangle(0xa0000, 0x140, pWorkbuf_64k, 0x140, 0x140,
+                0xc8);
+            fd2_wait_n_bios_ticks(2);
+            palette_offset = (uint32)summon_idx;
+            fd2_interpolate_palette_range_toward_color(0, 0xff,
+                strobe_iter * -4 + 0x28,
+                (uint32)((uint8 *)&palette_R)[palette_offset],
+                (uint32)((uint8 *)&palette_G)[palette_offset],
+                (uint32)((uint8 *)&palette_B)[palette_offset]);
+        }
+    }
+
+    /* Phase 7 — free temp buffers, re-alloc game state, palette fade-in. */
+    free((void *)pSummon_sprite);
+    free((void *)pBg_layer);
+    free((void *)pTai_resource);
+    free((void *)pCaster_figani);
+    free((void *)pWorkbuf_64k);
+    free((void *)pCaster_figani_a);
+    free((void *)pCaster_figani_b);
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)malloc(0x25680);
+    battle_scene_snapshot = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdshap_dat_51a65,
+        battle_scene_snapshot,
+        (uint32)*(uint8 *)data_fd2_tile_event_data_table_ptr * 2);
+
+    palette_offset = (uint32)summon_idx;
+    fd2_interpolate_palette_range_toward_color(0, 0xff, 0,
+        (uint32)((uint8 *)&palette_R)[palette_offset],
+        (uint32)((uint8 *)&palette_G)[palette_offset],
+        (uint32)((uint8 *)&palette_B)[palette_offset]);
+    memset((void *)0xa0000, 0, 64000);
+    fd2_composite_battle_frame(1);
+
+    for (uVar3 = 0; (int32)uVar3 < 0x29; uVar3++) {
+        palette_offset = (uint32)summon_idx;
+        fd2_interpolate_palette_range_toward_color(0, 0xff, uVar3,
+            (uint32)((uint8 *)&palette_R)[palette_offset],
+            (uint32)((uint8 *)&palette_G)[palette_offset],
+            (uint32)((uint8 *)&palette_B)[palette_offset]);
+        __delay_thunk_375b2(6);
+    }
+
+    fd2_play_sfx_with_handle(data_fd2_audio_summon_spell_sfx_bank_buf_ptr,
+        0xffffffff, 1);
+    free((void *)data_fd2_audio_summon_spell_sfx_bank_buf_ptr);
+
+    /* Phase 8 — gameplay effect dispatch by spell_id. */
+    data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
+    fd2_load_status_effect_sfx();
+
+    if (spell_id == 0x20) {
+        fd2_apply_attack_spell_damage(caster_idx, n_targets,
+            (uint32)target_id_array, 0x20);
+    } else if (spell_id == 0x21) {
+        for (target_idx = 0; target_idx < (int)n_targets; target_idx++) {
+            memset(&data_fd2_battle_runtime_char_array_ptr[
+                ((uint8 *)target_id_array)[target_idx]].status_flags_block[4],
+                0, 3);
+        }
+        fd2_cast_group_hp_heal_spell(caster_idx, n_targets,
+            (uint32)target_id_array, 800);
+    } else if (spell_id == 0x22) {
+        fd2_cast_ap_boost_spell((int)caster_idx, (int)n_targets,
+            (uint8 *)target_id_array);
+        data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
+        fd2_cast_dp_boost_spell((int)caster_idx, (int)n_targets,
+            (uint32)target_id_array);
+        data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
+        fd2_cast_speed_boost_spell(caster_idx, n_targets,
+            (uint32)target_id_array);
+    } else if (spell_id == 0x23) {
+        fd2_cast_status_inflict_spell(caster_idx, 0x1a, n_targets,
+            (uint32)target_id_array, 0x25);
+        data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
+        fd2_cast_status_inflict_spell(caster_idx, 0x16, n_targets,
+            (uint32)target_id_array, 0x27);
+        data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
+        fd2_cast_status_inflict_spell(caster_idx, 0x1b, n_targets,
+            (uint32)target_id_array, 0x26);
+    }
+
+    fd2_play_and_free_status_effect_sfx();
     return;
 }

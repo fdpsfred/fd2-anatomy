@@ -278,6 +278,7 @@ extern int32  data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[1
 extern uint32 data_fd2_battle_summon_spell_palette_r_table;             /* 0x5254F */
 extern uint32 data_fd2_battle_summon_spell_palette_g_table;             /* 0x52553 */
 extern uint32 data_fd2_battle_summon_spell_palette_b_table;             /* 0x52557 */
+extern uint32 data_fd2_battle_summon_spell_sfx_bank_index_table;        /* 0x5255B */
 
 /* ---- dispatch tables (.object2 const) ---- */
 extern void (*data_fd2_chapter_init_handler_table[30])(void);           /* 0x51D71 */

@@ -552,5 +552,23 @@
         "verify_method": "phase9_integration"
       }
     ]
+  },
+  "00027fc9": {
+    "name": "fd2_execute_summon_spell_cast",
+    "target": "spell/spellcin.c",
+    "issues": [
+      {
+        "type": "table_dword_copy_byte_index",
+        "desc": "Per-summon palette + SFX-bank-index lookup. The binary copies four 4-byte read-only tables (R@0x5254F / G@0x52553 / B@0x52557 / sfx_bank_index@0x5255B) each into a dword stack slot (MOV [ESP+0x10/0xc/0x8/0x14],EAX @0x27FDA..0x27FFA) and later byte-indexes each slot by (spell_id-0x20) — palette via MOVZX from ((uint8*)&palette_R)[idx] @0x283ED/0x284D4/0x28519, and the sfx_bank_index via MOVZX EAX,byte ptr [ESP+EAX-0xc] @0x28141 (table base = the [ESP+0x14] dword). Emitted C reproduces this exactly: 'palette_R = data_..._r_table;' then '((uint8*)&palette_R)[idx]'. This is endian-dependent: it relies on the uint32 global storing the 4 table bytes little-endian so the byte-index returns the correct table entry; this is EXACT on the x86/DOS target (and the test globals in testglob.c are defined with the real .object3 values LE-packed: R=0x3535333f G=0x3a00393f B=0x09003f3f sfx=0x5e5d5c5b). Behavior equivalent; machine code differs only in that the rebuild reads the 4-byte symbol vs the binary's .object3 dword. The byte-indexing idiom + table values are unit-tested via test_summon_table_indexing in tests/spell/spellcin.c (asserts all four summons' RGB + sfx index). Recommend a post-build -d disasm to confirm the dword-load + MOVZX-byte-index shape.",
+        "severity": "info",
+        "verify_method": "compile_and_disasm"
+      },
+      {
+        "type": "test_deferral_note",
+        "desc": "Phase orchestration + gameplay-effect dispatch DEFERRED to Phase 9 integration (risk-based policy). This is a monolithic VGA/VRAM summon cinematic (spell 0x20/0x21/0x22/0x23): it fopens the real TAI.DAT/BG.DAT/FIGANI.DAT/FDOTHER.DAT/FDSHAP.DAT via fd2_load_dat_resource, mallocs 64000+128KB scratch, and runs 8 animation phases each ending in an unconditional blit to the hardcoded mode-13h framebuffer 0xA0000 via fd2_blit_rectangle, driven by real-linked VRAM-touching callees (fd2_rle_blit_sprite, fd2_play_char_intro_zoom_anim, fd2_play_figani_animation_loop, fd2_blit_indexed_sprite, fd2_interpolate_palette_range_toward_color) with no stubbable seam. The Phase-8 gameplay effects (fd2_apply_attack_spell_damage / fd2_cast_group_hp_heal_spell / fd2_cast_ap|dp|speed_boost_spell / fd2_cast_status_inflict_spell) are themselves animation-bearing and reached only AFTER all 8 cinematic phases. The one isolatable pure computation — the per-summon table byte-indexing — IS unit-tested (see test_summon_table_indexing); the rest matches the deferral of the sibling cinematic workers in this file. Deferral documented in tests/spell/spellcin.c header. Equivalence verified statically against the disassembly @0x27FC9..0x286BC: cdecl 4-arg (caster_idx, spell_id, n_targets, target_id_array) confirmed via stack-offset tracking ([ESP+0x4c]=caster->*0x50 rt_char index, [ESP+0x50]=spell_id compared 0x20..0x23, [ESP+0x54]=n_targets, [ESP+0x58]=target-id array base); the 4th Ghidra param name 'caster_idx' is misleading — it is the target-id array. Self-contained epilogue, explicit RET @0x286BC (no shared-epilogue handoff, unlike siblings).",
+        "severity": "low",
+        "verify_method": "phase9_integration"
+      }
+    ]
   }
 }

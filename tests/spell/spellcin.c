@@ -97,6 +97,21 @@
  *   is deferred to Phase 9 integration. No RNG / damage / state-transition
  *   branch exists to assert at unit level.
  *
+ *   fd2_execute_summon_spell_cast @ 0x27fc9 — 召喚系 summon spell cinematic
+ *   (spell ids 0x20/0x21/0x22/0x23). Monolithic VGA/VRAM cinematic: it fopens the
+ *   real TAI.DAT / BG.DAT / FIGANI.DAT / FDOTHER.DAT / FDSHAP.DAT via
+ *   fd2_load_dat_resource, mallocs 64000+128KB scratch, and runs eight animation
+ *   phases each ending in an unconditional blit to the hardcoded mode-13h
+ *   framebuffer 0xA0000 (not redirectable via globals). The only isolatable pure
+ *   computation is the per-summon palette/sfx-bank-index TABLE BYTE-INDEXING by
+ *   spell_id-0x20 (the error-prone part the Ghidra plate mislabeled as an "anim
+ *   length factor"); that indexing idiom + the real .object3 table values are unit
+ *   tested directly below via test_summon_table_indexing (the function body itself
+ *   cannot be driven without the full resource/VRAM stack, so its phase
+ *   orchestration + gameplay-effect dispatch is deferred to Phase 9 integration).
+ *   All computed state was verified statically against the disassembly
+ *   @0x27FC9..0x286BC.
+ *
  *   fd2_execute_special_attack_skill @ 0x276ec — character special-attack
  *   technique (必殺技, spell ids 0x18/0x1C/0x1D/0x1E). Monolithic cinematic with
  *   no early numeric path: the damage formula ((int16)caster.ap * multiplier /
@@ -221,12 +236,54 @@ static void test_scatter_type_range(void)
     }
 }
 
+/* ---- Test: summon-spell per-summon table byte-indexing -------------
+ *
+ * fd2_execute_summon_spell_cast reads four 4-byte read-only tables by copying
+ * each into a dword local and byte-indexing it with (spell_id - 0x20). This
+ * reproduces that exact idiom against the real .object3 table values and asserts
+ * the RGB triple + SFX-bank-index FDOTHER.DAT entry for all four summons. (Real
+ * ground truth read from FD2.LE @0x5254F/53/57/5B; see testglob.c.)
+ *   spell 0x20: R=3F G=3F B=3F sfx=5B
+ *   spell 0x21: R=33 G=39 B=3F sfx=5C
+ *   spell 0x22: R=35 G=00 B=00 sfx=5D
+ *   spell 0x23: R=35 G=3A B=09 sfx=5E
+ */
+static void check_summon_entry(uint32 spell_id, uint8 r, uint8 g, uint8 b,
+                               uint8 sfx)
+{
+    uint32 palette_R;
+    uint32 palette_G;
+    uint32 palette_B;
+    uint32 sfx_bank_index;
+    uint32 idx;
+
+    palette_R      = data_fd2_battle_summon_spell_palette_r_table;
+    palette_G      = data_fd2_battle_summon_spell_palette_g_table;
+    palette_B      = data_fd2_battle_summon_spell_palette_b_table;
+    sfx_bank_index = data_fd2_battle_summon_spell_sfx_bank_index_table;
+    idx = spell_id - 0x20;
+
+    ASSERT_EQ(((uint8 *)&palette_R)[idx], r);
+    ASSERT_EQ(((uint8 *)&palette_G)[idx], g);
+    ASSERT_EQ(((uint8 *)&palette_B)[idx], b);
+    ASSERT_EQ(((uint8 *)&sfx_bank_index)[spell_id - 0x20], sfx);
+}
+
+static void test_summon_table_indexing(void)
+{
+    check_summon_entry(0x20, 0x3f, 0x3f, 0x3f, 0x5b);
+    check_summon_entry(0x21, 0x33, 0x39, 0x3f, 0x5c);
+    check_summon_entry(0x22, 0x35, 0x00, 0x00, 0x5d);
+    check_summon_entry(0x23, 0x35, 0x3a, 0x09, 0x5e);
+}
+
 void run_spell_spellcin_tests(void)
 {
     int _prev_fails = g_test_fail_count;
-    printf("Suite: spell/spellcin (scatter leaf tested; 11 VGA/VRAM cinematic "
-           "workers deferred to Phase 9, see file header)\n");
+    printf("Suite: spell/spellcin (scatter leaf + summon table indexing tested; "
+           "12 VGA/VRAM cinematic workers deferred to Phase 9, see file header)\n");
     RUN_TEST(test_scatter_seed_1234_index0);
     RUN_TEST(test_scatter_seed_5555_index1);
     RUN_TEST(test_scatter_type_range);
+    RUN_TEST(test_summon_table_indexing);
 }

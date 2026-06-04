@@ -157,6 +157,7 @@ int  fd2_animate_warp_out_collapse(int, int, void *, uint32, uint32, int);
 void fd2_animate_warp_in_expand(uint32, uint32, uint32, uint32, uint32, uint32 *, int);
 void fd2_cast_screen_wide_spell_with_fade(uint32, uint32, uint32, int);
 void fd2_execute_special_attack_skill(uint32 caster_idx, uint32 spell_id, int n_targets, uint8 *target_idx_buf);
+void fd2_execute_summon_spell_cast(uint32 caster_idx, uint32 spell_id, uint32 n_targets, int target_id_array);
 uint32 fd2_load_figani_sfx_bank(uint32 figani_data);
 uint8 fd2_resolve_terrain_for_aoe_targets(int n_chars, uint32 target_byte_array);
 void fd2_step_figani_pose_animation(uint32 figani_data, uint32 palette_op, uint32 dst_buf, uint32 dst_stride);
