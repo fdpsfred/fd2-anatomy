@@ -901,3 +901,67 @@ void fd2_cast_speed_boost_spell(uint32 caster_unit_id, uint32 num_targets,
     fd2_composite_battle_frame(0);
     fd2_animate_spell_projectile_paths();
 }
+
+
+/* ----------------------------------------------------------------
+ * fd2_execute_status_clear_holy_word_spell_id_25 @ 0x22C04  (0 callers;
+ * dispatched via the spell table @ 0x51D01, entry index 0x19 = 25,
+ * data xref at 0x51D65)
+ *
+ * STATUS-CLEAR "holy word" spell worker (spell id 0x19 = 25). Resets the
+ * AoE/fx queue index, deducts the caster's MP for spell 0x19, then plays
+ * the per-target impact + status-overlay-flicker animations (id 0x19).
+ * For each target in the byte array:
+ *   if the target's flags bit-7 (the "acted"/status bit, flags & 0x80) is
+ *   NOT set -> the unit has no such status, draw the miss indicator;
+ *   otherwise clear bit-7 (flags &= 0x7F), take status_value =
+ *   status_flags_block[0] (the unit's level byte), add +30 if its job_id
+ *   is an intermediate class (9..0x18), and credit status_value*8 pending
+ *   XP (the 8x multiplier is the highest, distinguishing status-clear from
+ *   the 4x cure / 2x buff workers). Closes with fd2_composite_battle_frame
+ *   (0) followed by a conditional fd2_animate_spell_projectile_paths() when
+ *   the AoE/fx queue index is non-zero.
+ *
+ * The third parameter is a byte array of target unit ids (Ghidra
+ * byte *target_id_array); each entry is read as target_id_array[iter],
+ * matching the asm MOVZX from *(byte *)(ESI + iter).
+ * ---------------------------------------------------------------- */
+void fd2_execute_status_clear_holy_word_spell_id_25(int caster_unit_id,
+    int num_targets, uint8 *target_id_array)
+{
+    int iter;
+    uint8 target_id;
+    runtime_char *target_rc;
+    uint32 status_value;
+
+    data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
+    fd2_deduct_caster_mp((uint32)caster_unit_id, 0x19);
+    fd2_animate_spell_impact_per_target(
+        (uint32)caster_unit_id, 0x19,
+        (uint32)num_targets, (uint32)target_id_array);
+    fd2_animate_status_effect_overlay_flicker(
+        (uint32)caster_unit_id, 0x19,
+        (uint32)num_targets, (uint32)target_id_array);
+
+    for (iter = 0; iter < num_targets; iter++) {
+        target_id = target_id_array[iter];
+        target_rc = &data_fd2_battle_runtime_char_array_ptr[
+                        (uint32)target_id];
+        if ((target_rc->flags & 0x80) == 0) {
+            fd2_show_miss_indicator((uint32)target_id);
+        } else {
+            target_rc->flags = (uint8)(target_rc->flags & 0x7f);
+            status_value = (uint32)target_rc->status_flags_block[0];
+            if (target_rc->job_id > 8 && target_rc->job_id < 0x19) {
+                status_value = status_value + 0x1e;
+            }
+            data_fd2_battle_pending_xp_credit =
+                data_fd2_battle_pending_xp_credit + status_value * 8;
+        }
+    }
+
+    fd2_composite_battle_frame(0);
+    if (data_fd2_battle_spell_aoe_count_and_fx_queue_idx != 0) {
+        fd2_animate_spell_projectile_paths();
+    }
+}

@@ -635,6 +635,113 @@ static void test_cure_visits_all_targets_by_array_index(void)
     ASSERT_EQ(g_test_rc_array[5].status_flags_block[4], 0);   /* cured */
 }
 
+/* ---- fd2_execute_status_clear_holy_word_spell_id_25 @ 0x22C04 ---- */
+
+/* Status-clear ("holy word", spell id 0x19) on a single target whose status
+ * bit-7 (flags & 0x80) IS set: the worker deducts the caster's MP for spell
+ * 0x19, clears ONLY bit-7 (flags &= 0x7f, asm 0x22c7f), and credits
+ * status_value*8 pending XP -- the 8x multiplier (asm 0x22c98 SHL EDX,3) that
+ * distinguishes status-clear from the 4x cure / 2x buff workers. The level
+ * byte status_flags_block[0] = 5 with a non-intermediate job (1, not 9..0x18)
+ * gives XP 5*8 = 40. flags starts 0x81 (bit0=dead + bit7) -> must become 0x01,
+ * proving the mask preserves the low bits and only bit-7 is cleared. The
+ * caster sits at idx 0 (mp_current 100, cost 7 -> 93); the target at (0,0) is
+ * window-culled by the real impact/flicker animations (no blit). */
+static void test_holy_word_clears_status_and_credits_xp(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;   /* bound impact/flicker loops */
+    g_test_rc_array[0].mp_current = 100;
+    data_fd2_battle_spell_effect_table[0x19].mp_cost = 7;
+    g_test_rc_array[1].flags = 0x81;                /* bit7 status + bit0 dead */
+    g_test_rc_array[1].job_id = 1;                  /* not 9..0x18 -> no +30 */
+    g_test_rc_array[1].status_flags_block[0] = 5;   /* level */
+    data_fd2_battle_pending_xp_credit = 0;
+    target_id = 1;
+    data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
+    fd2_execute_status_clear_holy_word_spell_id_25(0, 1, &target_id);
+    ASSERT_EQ(g_test_rc_array[1].flags, 0x01);               /* bit7 cleared, bit0 kept */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 40);        /* level*8 */
+    ASSERT_EQ(g_test_rc_array[0].mp_current, 93);            /* MP cost 7 deducted */
+}
+
+/* Miss path: a target whose status bit-7 is already 0 (flags & 0x80 == 0, asm
+ * 0x22c7d JZ) has no status to clear -> the worker draws the miss indicator and
+ * changes NOTHING. flags stays put and no XP is credited. (Drop the bit-7 test
+ * and this would clear/credit a unit with no status, failing both asserts.) */
+static void test_holy_word_no_status_shows_miss_no_change(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[0].mp_current = 100;
+    data_fd2_battle_spell_effect_table[0x19].mp_cost = 0;
+    g_test_rc_array[1].flags = 0x05;                /* bit7 NOT set */
+    g_test_rc_array[1].job_id = 1;
+    g_test_rc_array[1].status_flags_block[0] = 5;
+    data_fd2_battle_pending_xp_credit = 0;
+    target_id = 1;
+    fd2_execute_status_clear_holy_word_spell_id_25(0, 1, &target_id);
+    ASSERT_EQ(g_test_rc_array[1].flags, 0x05);               /* unchanged */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 0);         /* no credit */
+}
+
+/* Intermediate-class job (9..0x18) adds 30 to the status_value used for XP (asm
+ * 0x22c95 ADD EDX,0x1e), so the credit becomes (level + 30)*8. job 9 (first
+ * intermediate value), level 5 -> status_value 35 -> XP 35*8 = 280. bit-7 still
+ * gets cleared. */
+static void test_holy_word_intermediate_class_xp_bonus(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[0].mp_current = 100;
+    data_fd2_battle_spell_effect_table[0x19].mp_cost = 0;
+    g_test_rc_array[1].flags = 0x80;                /* bit7 set */
+    g_test_rc_array[1].job_id = 9;                  /* intermediate -> +30 */
+    g_test_rc_array[1].status_flags_block[0] = 5;
+    data_fd2_battle_pending_xp_credit = 0;
+    target_id = 1;
+    fd2_execute_status_clear_holy_word_spell_id_25(0, 1, &target_id);
+    ASSERT_EQ(g_test_rc_array[1].flags, 0x00);               /* bit7 cleared */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 280);       /* (5+30)*8 */
+}
+
+/* Multi-target: the per-target loop reads target_id_array[iter] as a BYTE (asm
+ * 0x22c63 MOVZX ECX,[ESI+EBX]), so the char id comes from the array, not the
+ * loop counter. Non-adjacent targets 2 and 5 (both bit-7 set) must both be
+ * cleared and credited while a bit-7-set bystander at index 0 (not in the list)
+ * stays set. Both targets: level 5, non-intermediate job -> XP 5*8 = 40 each,
+ * total 80. A loop that used iter as the char id, or stopped after one target,
+ * would leave index 5 (or 0) wrong. */
+static void test_holy_word_visits_all_targets_by_array_index(void)
+{
+    uint8 target_ids[2];
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    data_fd2_battle_spell_effect_table[0x19].mp_cost = 0;
+    g_test_rc_array[0].flags = 0x80;                /* bystander, must NOT clear */
+    g_test_rc_array[2].flags = 0x80;
+    g_test_rc_array[2].job_id = 1;
+    g_test_rc_array[2].status_flags_block[0] = 5;
+    g_test_rc_array[5].flags = 0x80;
+    g_test_rc_array[5].job_id = 1;
+    g_test_rc_array[5].status_flags_block[0] = 5;
+    data_fd2_battle_pending_xp_credit = 0;
+    target_ids[0] = 2;
+    target_ids[1] = 5;
+    fd2_execute_status_clear_holy_word_spell_id_25(0, 2, target_ids);
+    ASSERT_EQ(g_test_rc_array[0].flags, 0x80);               /* untouched */
+    ASSERT_EQ(g_test_rc_array[2].flags, 0x00);               /* cleared */
+    ASSERT_EQ(g_test_rc_array[5].flags, 0x00);               /* cleared */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 80);        /* 40 + 40 */
+}
+
 void run_spell_spelleff1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -663,5 +770,9 @@ void run_spell_spelleff1_tests(void)
     RUN_TEST(test_cure_intermediate_class_xp_bonus);
     RUN_TEST(test_cure_sprite_id_selects_correct_byte);
     RUN_TEST(test_cure_visits_all_targets_by_array_index);
+    RUN_TEST(test_holy_word_clears_status_and_credits_xp);
+    RUN_TEST(test_holy_word_no_status_shows_miss_no_change);
+    RUN_TEST(test_holy_word_intermediate_class_xp_bonus);
+    RUN_TEST(test_holy_word_visits_all_targets_by_array_index);
     printf("\n");
 }

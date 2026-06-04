@@ -2284,8 +2284,9 @@
     "name": "fd2_execute_status_clear_holy_word_spell_id_25",
     "target": "spell/spelleff.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00022cbf": {
     "name": "fd2_spell_handler_id_26_via_status_d1b_effect_25",
