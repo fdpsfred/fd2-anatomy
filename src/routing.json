@@ -886,8 +886,9 @@
     "name": "fd2_render_horizontal_bar_segments",
     "target": "gfx/rndstat.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00017e0b": {
     "name": "fd2_open_status_screen_with_slide_in",

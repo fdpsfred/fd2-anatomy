@@ -41,3 +41,67 @@ void fd2_paint_portrait_to_dialog_area(uint32 frame)
     }
     fd2_dialog_sprite_blit_mirrored(0xa9017, sprite_addr, 0x140);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_horizontal_bar_segments @ 0x17d6f (1 caller)
+ *
+ * Render a 1-pixel-segmented horizontal HP/MP bar at dst_offset.
+ * Each segment sprite is 1 pixel wide; the bar advances one pixel
+ * per segment.
+ *
+ * filled_count == 0 -> fully empty bar:
+ *   0x65 (101) empty-middle sprites (0x1D) at dst_offset+1 .. dst_offset+0x65,
+ *   then empty right cap (0x1E) at dst_offset+0x66 (the offset the loop counter
+ *   reaches; NOT dst_offset+filled_count, which would be +0 here).
+ *
+ * filled_count != 0 -> filled bar:
+ *   left cap (sprite_base) at dst_offset,
+ *   (filled_count-1) middle sprites (sprite_base+1) at dst_offset+1 ..,
+ *   then right cap (sprite_base+2) at dst_offset+filled_count.
+ *
+ * Sprite base indices: 0x17 = HP bar (red), 0x1A = MP bar (blue).
+ *
+ * Cdecl, 4 stack params; void return. Mirrors the binary's shared-final-blit
+ * control flow: the offset of the trailing cap (uVar1) is the value left in
+ * EAX by the last LEA inside whichever branch ran.
+ * ---------------------------------------------------------------- */
+void fd2_render_horizontal_bar_segments(uint32 dst_offset, uint32 dst_pitch,
+                                        uint32 filled_count, uint32 sprite_base)
+{
+    uint32 cap_offset;
+    uint32 empty_iter;
+    uint32 filled_iter;
+    uint32 final_sprite;
+
+    cap_offset = 0;
+    empty_iter = 0;
+    if (filled_count == 0) {
+        for (;;) {
+            empty_iter = empty_iter + 1;
+            cap_offset = dst_offset + empty_iter;
+            if ((int32)empty_iter > 0x65) {
+                break;
+            }
+            fd2_blit_sheet_sprite_at_offset(cap_offset, dst_pitch,
+                                            data_fd2_ui_anim_sprite_sheet_ptr,
+                                            0x1d);
+        }
+        final_sprite = 0x1e;
+    } else {
+        fd2_blit_sheet_sprite_at_offset(dst_offset, dst_pitch,
+                                        data_fd2_ui_anim_sprite_sheet_ptr,
+                                        sprite_base);
+        for (filled_iter = 1;
+             cap_offset = dst_offset + filled_iter,
+                 (int32)filled_iter < (int32)filled_count;
+             filled_iter = filled_iter + 1) {
+            fd2_blit_sheet_sprite_at_offset(cap_offset, dst_pitch,
+                                            data_fd2_ui_anim_sprite_sheet_ptr,
+                                            sprite_base + 1);
+        }
+        final_sprite = sprite_base + 2;
+    }
+    fd2_blit_sheet_sprite_at_offset(cap_offset, dst_pitch,
+                                    data_fd2_ui_anim_sprite_sheet_ptr,
+                                    final_sprite);
+}
