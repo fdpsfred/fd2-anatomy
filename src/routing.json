@@ -1182,8 +1182,9 @@
     "name": "fd2_open_party_status_overview_screen",
     "target": "ui_menu/status.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001b41d": {
     "name": "fd2_render_party_status_overview_content",

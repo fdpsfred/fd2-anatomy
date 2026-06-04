@@ -461,5 +461,17 @@
         "source_review": "fd2_player_action_menu_loop @00018890 (reviewer-approved)"
       }
     ]
+  },
+  "0001b1e7": {
+    "name": "fd2_open_party_status_overview_screen",
+    "target": "ui_menu/status.c",
+    "issues": [
+      {
+        "type": "uninitialized_read_indeterminate_value",
+        "desc": "Wait-loop redraw gate compares the live BIOS tick to last_tick, which the binary NEVER writes: it is the caller leftover EBP at entry (asm 0x1B2FE CMP EAX,EBP; EBP is not set anywhere in this function nor in the single caller fd2_field_menu_status_save_load_quit_dispatch @0x19DF7, which uses ESP-relative framing). Emitted faithfully as int32 last_tick declared-but-never-assigned (Watcom 9.5a default -w1 produces NO warning; build gate 0 warnings). Observable behavior is identical to the binary: the redraw (palette tick + scene recomposite + content re-render + blit to 0xA0504) fires whenever (int16)*0x46C != that fixed indeterminate value, i.e. essentially every iteration, until a key is pressed. The exact garbage value differs between binary (specific call-chain EBP) and rebuild (compiler storage choice), but it is consumed ONLY by this one redraw-gate comparison and gates a pure display side effect, so no downstream logic depends on the specific value -> functionally equivalent. Residual check: post-build -d disasm to confirm Watcom emits the same MOVSX word ptr[0x46C] / CMP-against-indeterminate / conditional-skip shape.",
+        "severity": "low",
+        "verify_method": "compile_and_disasm"
+      }
+    ]
   }
 }

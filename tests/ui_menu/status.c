@@ -61,6 +61,8 @@ extern int g_cast_status_via_d1b_calls;
 extern int g_repaint_settings_calls;
 extern int g_repaint_flip_buffer_after;
 extern int g_composite_call_count;
+extern int g_render_party_overview_calls;
+extern uint32 g_render_party_overview_last_stride;
 /* data_fd2_ui_slide_* workspace ptr globals are declared in globals.h */
 
 
@@ -250,6 +252,76 @@ static void test_close_status_screen_slide_out_runs_full_teardown(void)
 }
 
 
+/*
+ * fd2_open_party_status_overview_screen @ 0x1B1E7 — end-to-end smoke.
+ *
+ * The army-status overview is a pure blit/display orchestrator: it allocates
+ * two 64000-byte mode-13h workspaces, composites the battle scene + party
+ * roster, runs a 12-frame slide-in, spins in a wait loop until a key is
+ * pressed (redrawing on each BIOS-tick change), runs a 12-frame slide-out,
+ * restores the screen, and frees both buffers. It has no numeric/RNG/state
+ * logic of its own, so the host-observable proxies are: (1) the function
+ * RETURNS (never hangs) — proving the wait-loop exit condition is wired to
+ * the keyboard-poll return value (an EAX-tracking regression would loop
+ * forever and trip the harness hang detector); (2) the static overview
+ * content renderer ran at least once during setup.
+ *
+ * Deterministic termination: the wait loop is `do { kbd = poll(); ...redraw
+ * if tick changed... } while (kbd == 0);`. We pre-fill the BIOS keyboard
+ * buffer NONEMPTY (tail = head + 2) before the call, so the very first
+ * iteration's poll returns nonzero and the loop exits after exactly one
+ * pass — no dependence on the uninitialized last_tick gate, no hang risk.
+ *
+ * Fixture: the real slide-panel / composite / blit_rectangle / palette
+ * callees are linked for real, so we give large_game_state_buffer a 128 KB
+ * backing (the setup fd2_blit_rectangle reads large_game_state_buffer+0x8088
+ * for 192 rows of stride 456 -> top read ~120.7 KB) and set the party
+ * member count to 0 so fd2_composite_all_chars_overlay / shadow overlay
+ * become no-ops (no per-char sprite fixture needed). The two 64000-byte
+ * workspaces are malloc'd internally and freed internally; their blits stay
+ * in bounds. fd2_render_party_status_overview_content is the recording stub
+ * in testglob.c (its real body lives in src/gfx/rndstat.c, not yet emitted).
+ * Writes to 0xA0000 hit the VGA aperture (harmless under DOS/4GW, same
+ * convention as the sibling status-screen and gfx tests).
+ */
+static void test_open_party_overview_runs_and_returns(void)
+{
+    uint32 saved_lgsb;
+    uint32 saved_count;
+    int    saved_flip;
+
+    saved_lgsb = data_fd2_large_game_state_buffer_ptr;
+    saved_count = data_fd2_battle_party_member_count;
+    saved_flip = g_repaint_flip_buffer_after;
+
+    /* 128 KB backing so the real setup blit's +0x8088 stride-456 reads stay
+     * in bounds; party count 0 makes the real overlay compositors no-ops. */
+    data_fd2_large_game_state_buffer_ptr = (uint32)malloc(0x20000);
+    ASSERT_TRUE(data_fd2_large_game_state_buffer_ptr != 0);
+    data_fd2_battle_party_member_count = 0;
+    g_repaint_flip_buffer_after = 0;     /* not using the seam; kbd starts set */
+
+    /* Pre-arm the BIOS keyboard buffer as NONEMPTY so the wait loop exits on
+     * its first poll (tail != head). Deterministic single-iteration exit. */
+    *(volatile uint16 *)0x41AuL = 0x1E;          /* head */
+    *(volatile uint16 *)0x41CuL = 0x20;          /* tail = head + 2 -> nonempty */
+
+    g_render_party_overview_calls = 0;
+    g_render_party_overview_last_stride = 0;
+
+    fd2_open_party_status_overview_screen();
+
+    /* Reaching here at all proves the wait loop terminated (no hang). The
+     * setup pass renders the overview content once at stride 320. */
+    ASSERT_TRUE(g_render_party_overview_calls >= 1);
+
+    free((void *)data_fd2_large_game_state_buffer_ptr);
+    data_fd2_large_game_state_buffer_ptr = saved_lgsb;
+    data_fd2_battle_party_member_count = saved_count;
+    g_repaint_flip_buffer_after = saved_flip;
+}
+
+
 void run_ui_menu_status_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -259,5 +331,6 @@ void run_ui_menu_status_tests(void)
     RUN_TEST(test_stat_preview_armor_branch_and_flag_gate);
     RUN_TEST(test_stat_preview_signed_negative_bonus);
     RUN_TEST(test_close_status_screen_slide_out_runs_full_teardown);
+    RUN_TEST(test_open_party_overview_runs_and_returns);
     printf("\n");
 }

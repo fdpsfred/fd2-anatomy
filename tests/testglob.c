@@ -882,16 +882,12 @@ void fd2_init_movement_range_floodfill(uint32 ct, uint32 x, uint32 y,
  * input-step path), so it returns 0 and the loop propagates that verbatim
  * (the EAX-passthrough). FD2.SAV is staged into the test cwd by build_test.py,
  * so the dispatch's real fopen("FD2.SAV","rb") probe reads it. */
-/* Recording stub for fd2_open_party_status_overview_screen (the cursor-0 Status
- * arm of the save/load/quit dispatch). It is pure VGA/sfx orchestration (target
- * src/ui_menu/status.c, not yet emitted) and is only reached on the dispatch's
- * Status path, which the menufld.c unit tests do not drive (they cover the
- * read-only Esc-cancel and the menu-state gating in the setup phase). Deferred
- * to Phase 9 integration. */
-int g_open_party_status_overview_calls = 0;
-void fd2_open_party_status_overview_screen(void) {
-    g_open_party_status_overview_calls++;
-}
+/* fd2_open_party_status_overview_screen (the cursor-0 Status arm of the
+ * save/load/quit dispatch) is now emitted for real in src/ui_menu/status.c
+ * (with a host smoke test in tests/ui_menu/status.c); its former no-op
+ * recording stub here was removed. The menufld.c dispatch tests cover only
+ * the read-only Esc-cancel and menu-state gating in the setup phase and never
+ * reach the cursor-0 Status path, so the real link-in is inert for them. */
 /* fd2_text_dialog_typewriter_loop is now emitted for real in src/dialog/dialog.c
  * (driven by the test_typewriter_* cases in tests/dialog/dialog.c, which preload
  * the BIOS keyboard buffer so its INT 16h dispatch returns at once). Its former
@@ -1018,4 +1014,22 @@ void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite, uint32 stride) {
 void fd2_draw_spell_selection_list(uint32 char_idx, uint32 spell_idx,
                                    uint32 overlay_buffer) {
     (void)char_idx; (void)spell_idx; (void)overlay_buffer;
+}
+
+/* Recording stub for fd2_render_party_status_overview_content (@0x1B41D,
+ * routed to src/gfx/rndstat.c, real body not yet emitted). The army-status
+ * overview orchestrator fd2_open_party_status_overview_screen (src/ui_menu/
+ * status.c) calls it once during setup (stride 320) and once per wait-loop
+ * redraw (stride 456); the real body drives the sprite-sheet/dialog/decimal
+ * renderers, which the overview orchestrator test does not need. Recording
+ * (dst, stride) + a call count lets the orchestrator test assert the setup
+ * call happened without standing up the full text/sprite fixture. */
+int    g_render_party_overview_calls = 0;
+uint32 g_render_party_overview_last_dst = 0;
+uint32 g_render_party_overview_last_stride = 0;
+void fd2_render_party_status_overview_content(uint32 dst_surface,
+                                              uint32 stride) {
+    g_render_party_overview_calls++;
+    g_render_party_overview_last_dst = dst_surface;
+    g_render_party_overview_last_stride = stride;
 }

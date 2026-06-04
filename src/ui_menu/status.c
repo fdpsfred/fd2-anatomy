@@ -280,3 +280,123 @@ void fd2_close_status_screen_with_slide_out(void)
 
     fd2_composite_battle_frame(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_open_party_status_overview_screen @ 0x1B1E7  (1 caller)
+ *
+ * "Army status" full-screen overview (army menu). Invoked by
+ * fd2_field_menu_status_save_load_quit_dispatch when the player picks
+ * STATUS (cursor==0). Shows current chapter / turn / gold / per-team
+ * alive counts / character roster.
+ *
+ * Setup: allocate two 64000-byte (320x200 mode-13h) workspaces —
+ * snapshot_buf (zeroed) and panel_buf. Recomposite the battle tile map
+ * + character overlay into large_game_state_buffer+0x8088, blit that
+ * 312x192 region into snapshot_buf+0x504 (snapshot = the 0xA0000 mirror
+ * minus the mode-13h header), then render the static overview content
+ * (chapter/turn/gold/roster) into panel_buf at stride 320.
+ *
+ * Intro: 12-frame slide-in (frame 0..11). Each frame restores the
+ * backdrop (memmove snapshot_buf -> large_game_state_buffer), advances
+ * the right/top/bottom-main/bottom-small panel slide steps, then pushes
+ * the composite up to VGA (memmove -> 0xA0000).
+ *
+ * Wait loop: spin until the keyboard buffer becomes non-empty. While
+ * waiting, if the BIOS tick word @ 0x46C differs from last_tick, tick
+ * the chapter palette + palette cycle animation, recomposite the battle
+ * scene, re-render the overview content into large_game_state_buffer
+ * +0x7964 (stride 456), and blit it to 0xA0504.
+ *
+ * Outro: 12-frame slide-out (frame 11..0), mirror of the intro but
+ * using the LEFT main-panel slide step.
+ *
+ * Cleanup: restore the battle screen (memmove snapshot_buf -> 0xA0000),
+ * free both workspaces, drain the keyboard buffer, then return.
+ *
+ * Faithful detail (binary artifact): last_tick is read by the wait-loop
+ * gate but NEVER written — in the binary it is the caller's leftover EBP
+ * (uninitialized). The redraw therefore fires whenever the live tick
+ * differs from that fixed entry-time value, i.e. essentially every
+ * iteration. This is reproduced exactly: last_tick is left uninitialized
+ * and never assigned.
+ *
+ * void __cdecl, no params. EBX/ESI/EDI are callee-saved (the __CHK(0x2c)
+ * stack-probe prologue is compiler-injected and omitted under -s). The
+ * binary's final JMP 0x10C49 is this function's own epilogue (ADD ESP,4 /
+ * POP EDI/ESI/EBX / RET); the compiler tail-merged it with two siblings
+ * (fd2_convert_battle_tiles_to_24px, fd2_equip_unequip_inventory_menu) so
+ * it physically lives at 0x10C49, but it is NOT a callee — a plain return
+ * regenerates the identical epilogue.
+ * ---------------------------------------------------------------- */
+void fd2_open_party_status_overview_screen(void)
+{
+    uint32 snapshot_buf;
+    uint32 panel_buf;
+    int frame_iter;
+    int frame_idx;
+    int kbd_pending;
+    int32 last_tick;    /* read by the wait-loop gate, never written
+                         * (binary: uninitialized caller EBP) */
+
+    snapshot_buf = (uint32)malloc(64000);
+    panel_buf = (uint32)malloc(64000);
+    memset((void *)snapshot_buf, 0, 64000);
+
+    fd2_composite_battle_tile_map(
+        data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1c8, 0xd, 8,
+        data_fd2_battle_view_window_origin_x,
+        data_fd2_battle_view_window_origin_y);
+    fd2_composite_all_chars_overlay();
+    fd2_blit_rectangle(snapshot_buf + 0x504, 0x140,
+        data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1c8, 0x138, 0xc0);
+    fd2_render_party_status_overview_content(panel_buf, 0x140);
+
+    for (frame_iter = 0; frame_iter < 0xc; frame_iter++) {
+        memmove((void *)data_fd2_large_game_state_buffer_ptr,
+                (void *)snapshot_buf, 64000);
+        fd2_slide_panel_step_right_main(panel_buf, (uint32)frame_iter);
+        fd2_slide_panel_step_top_small(panel_buf, (uint32)frame_iter);
+        fd2_slide_panel_step_bottom_main(panel_buf, (uint32)frame_iter);
+        fd2_slide_panel_step_bottom_small(panel_buf, (uint32)frame_iter);
+        memmove((void *)0xa0000,
+                (void *)data_fd2_large_game_state_buffer_ptr, 64000);
+    }
+
+    do {
+        kbd_pending = fd2_check_keyboard_buffer_nonempty();
+        if ((int32)(int16)BIOS_TICK_WORD != last_tick) {
+            fd2_tick_chapter_palette_animation();
+            fd2_update_palette_cycle_anim();
+            fd2_composite_battle_tile_map(
+                data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1c8, 0xd, 8,
+                data_fd2_battle_view_window_origin_x,
+                data_fd2_battle_view_window_origin_y);
+            fd2_composite_all_chars_overlay();
+            fd2_render_party_status_overview_content(
+                data_fd2_large_game_state_buffer_ptr + 0x7964, 0x1c8);
+            fd2_blit_rectangle(0xa0504, 0x140,
+                data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1c8,
+                0x138, 0xc0);
+        }
+    } while (kbd_pending == 0);
+
+    fd2_clear_keyboard_buffer();
+
+    for (frame_idx = 0xb; frame_idx >= 0; frame_idx--) {
+        memmove((void *)data_fd2_large_game_state_buffer_ptr,
+                (void *)snapshot_buf, 64000);
+        fd2_slide_panel_step_left_main(panel_buf, (uint32)frame_idx);
+        fd2_slide_panel_step_top_small(panel_buf, (uint32)frame_idx);
+        fd2_slide_panel_step_bottom_main(panel_buf, (uint32)frame_idx);
+        fd2_slide_panel_step_bottom_small(panel_buf, (uint32)frame_idx);
+        memmove((void *)0xa0000,
+                (void *)data_fd2_large_game_state_buffer_ptr, 64000);
+    }
+
+    memmove((void *)0xa0000, (void *)snapshot_buf, 64000);
+    free((void *)snapshot_buf);
+    free((void *)panel_buf);
+    fd2_clear_keyboard_buffer();
+    /* binary tail-JMP 0x10C49 == this function's own shared epilogue
+     * (ADD ESP,4 / POP EDI/ESI/EBX / RET); a plain return regenerates it. */
+}

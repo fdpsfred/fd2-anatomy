@@ -169,6 +169,7 @@ void fd2_update_palette_cycle_anim(void);
 /* ---- ui_menu / status ---- */
 void fd2_compute_equipped_stats_with_item_preview(uint32 char_idx, uint32 item_id, uint32 stats_out_ptr);
 void fd2_open_party_status_overview_screen(void);
+void fd2_render_party_status_overview_content(uint32 dst_surface, uint32 stride);
 
 /* ---- field cutscene ---- */
 void fd2_cutscene_event_trigger(uint32 event_id);
