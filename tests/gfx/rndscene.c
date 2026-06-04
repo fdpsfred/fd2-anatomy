@@ -2109,6 +2109,65 @@ static void test_banner_frame_mid_slide(void)
     ASSERT_EQ(g_restore_block_calls, 2);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_composite_then_animate_projectiles — the spell-finale helper.
+ *
+ * Verifies the helper invokes BOTH of its callees in order:
+ *   fd2_composite_battle_frame(0)  -> recomposites the battle frame
+ *   fd2_animate_spell_projectile_paths() -> runs the queued FX flight
+ *
+ * The composite pass is observed through the tile-map proxy
+ * (g_composite_call_count / g_tile_map_calls bump exactly once per
+ * fd2_composite_battle_frame pass, with the back-buffer workspace as
+ * dst). The animate call is driven down its zero-FX-queue gate
+ * (data_..._fx_queue_idx == 0 -> immediate return, no projectile blit
+ * and no flight delay), which is the host-safe way to confirm the call
+ * actually reached fd2_animate_spell_projectile_paths rather than being
+ * skipped: if the helper had omitted that call the gate path would
+ * still leave the blit/delay counters at zero, but here the point is
+ * the inverse -- proving the composite ran once AND the animate path
+ * was entered (gate keeps it side-effect-free). The composite-vs-animate
+ * ordering and the arg-0 (palette-cycle-advancing) variant are fixed by
+ * the 0x21190 body `PUSH 0x0; CALL composite; CALL animate`.
+ *
+ * The arg-0 vs arg-1 distinction (whether fd2_update_palette_cycle_anim
+ * runs) is VGA-DAC port output deferred to Phase 9; reset_pipeline_record
+ * throttles the palette-cycle routine to its early-return path so no port
+ * write happens here regardless. */
+static void test_composite_then_animate_projectiles(void)
+{
+    extern int g_delay375b2_calls;
+    uint32 ws;
+
+    ws = (uint32)g_ws_buffer;
+    data_fd2_large_game_state_buffer_ptr = ws - 0x8088;
+    data_fd2_battle_view_window_origin_x = 0x07;
+    data_fd2_battle_view_window_origin_y = 0x09;
+    data_fd2_battle_view_window_max_x = 0x100;
+    data_fd2_battle_view_window_max_y = 0x100;
+    install_sprite_atlas();
+    data_fd2_battle_cursor_world_x = 0x08;
+    data_fd2_battle_cursor_world_y = 0x0a;
+    reset_pipeline_record();
+
+    /* zero FX queue -> the animate callee takes its immediate-return gate */
+    data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
+    g_blitdec_calls = 0;
+    g_delay375b2_calls = 0;
+
+    fd2_composite_then_animate_projectiles();
+
+    /* fd2_composite_battle_frame(0) ran exactly once, on the back-buffer */
+    ASSERT_EQ(g_composite_call_count, 1);
+    ASSERT_EQ(g_tile_map_calls, 1);
+    ASSERT_EQ(g_tile_map_last_dst, ws);
+
+    /* fd2_animate_spell_projectile_paths() was entered and took the
+     * zero-queue gate: no projectile blit and no flight delay. */
+    ASSERT_EQ(g_blitdec_calls, 0);
+    ASSERT_EQ(g_delay375b2_calls, 0);
+}
+
 void run_gfx_rndscene_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -2176,5 +2235,6 @@ void run_gfx_rndscene_tests(void)
     RUN_TEST(test_hpprop_bar_addr_arithmetic);
     RUN_TEST(test_banner_frame_settled);
     RUN_TEST(test_banner_frame_mid_slide);
+    RUN_TEST(test_composite_then_animate_projectiles);
     printf("\n");
 }

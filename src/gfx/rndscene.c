@@ -904,3 +904,37 @@ void fd2_render_phase_banner_frame(uint32 x_offset, uint32 banner_sprite_id)
     fd2_cleanup_dialog_sprite_buffer(left_buf, ws, 0x1c8);
     fd2_cleanup_dialog_sprite_buffer(right_buf, ws, 0x1c8);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_composite_then_animate_projectiles @ 0x21190 (6 tail-JMP entry sites)
+ *
+ * Spell-finale helper: recomposite the battle frame, then run the
+ * queued spell projectile-path animation. This is the common tail of
+ * every offensive/heal spell handler.
+ *
+ * Body (asm 0x21190..0x2119f):
+ *   fd2_composite_battle_frame(0);
+ *   fd2_animate_spell_projectile_paths();
+ *
+ * In the binary this body is immediately followed by a shared epilogue
+ * (0x211A0..0x211A3: POP EBP / POP EDI / POP ESI / POP EBX / RET) that
+ * restores the *parent's* saved registers and returns to the parent's
+ * caller. Every reaching edge is a tail-JMP (4 conditional JGE
+ * early-exits plus 2 unconditional terminal JMPs), never a CALL, so
+ * the body and the parent register-restore are physically shared. The
+ * six reaching parents are fd2_apply_attack_spell_damage,
+ * fd2_cast_group_hp_heal_spell, fd2_execute_offensive_targeted_spell,
+ * fd2_execute_offensive_targeted_spell_variant_b,
+ * fd2_execute_offensive_full_screen_flash_spell and
+ * fd2_dispatch_variant_b_cast.
+ *
+ * Layer-2 equivalent: emit only the body as a plain no-arg helper. Each
+ * parent calls it at its tail; the compiler regenerates that parent's
+ * own register-restore epilogue, which is exactly what the shared POP
+ * sequence performed. Takes no arguments (__cdecl, param_count=0).
+ * ---------------------------------------------------------------- */
+void fd2_composite_then_animate_projectiles(void)
+{
+    fd2_composite_battle_frame(0);
+    fd2_animate_spell_projectile_paths();
+}

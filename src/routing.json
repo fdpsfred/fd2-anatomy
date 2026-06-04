@@ -1920,8 +1920,9 @@
     "name": "fd2_composite_then_animate_projectiles",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000211a4": {
     "name": "fd2_cast_group_hp_heal_spell",
