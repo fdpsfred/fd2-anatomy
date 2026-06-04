@@ -276,6 +276,25 @@ void fd2_tile_blit_24x24_with_remap_table(uint32 src, uint32 dst, uint32 stride,
     g_blitpass_calls++;
     g_blitremap_calls++;
 }
+/* fd2_tile_blit_24x24_solid_color (the solid-colour silhouette blitter, real
+ * body not yet emitted). The real fd2_animate_status_effect_overlay_flicker is
+ * the caller; recording (src, dst, stride) into the shared g_blitpass_* arrays
+ * plus the colour arg into a separate log lets the status-overlay test verify
+ * the per-char dst-offset / sprite-source / colour-index arithmetic without
+ * touching pixels. */
+int    g_blitsolid_calls = 0;
+uint32 g_blitsolid_color[64];
+void fd2_tile_blit_24x24_solid_color(uint32 src, uint32 dst, uint32 color_or_stride,
+                                     uint32 unused) {
+    if (g_blitpass_calls < 64) {
+        g_blitpass_src[g_blitpass_calls] = src;
+        g_blitpass_dst[g_blitpass_calls] = dst;
+        g_blitpass_stride[g_blitpass_calls] = color_or_stride;
+        g_blitsolid_color[g_blitpass_calls] = unused;
+    }
+    g_blitpass_calls++;
+    g_blitsolid_calls++;
+}
 /* fd2_render_terrain_info_hud_panel is now a real emitted function
  * (src/gfx/rndstat.c). Its former recording/loop-break stub here was removed;
  * the idle-loop break seam (g_repaint_settings_calls / g_repaint_flip_buffer_after)
@@ -301,6 +320,16 @@ int32  data_fd2_ui_inline_action_menu_template[4] = { 0, 1, 2, 3 };
  * (Use/Give/Sort/Drop slot ids; state all zero) */
 int32  data_fd2_ui_item_command_menu_template[4] = { 8, 9, 10, 11 };
 int32  data_fd2_ui_item_command_menu_state_template[4] = { 0, 0, 0, 0 };
+/* status-effect overlay flicker colour template — real FD2.LE values @ 0x51F15
+ * (32 bytes; mostly 0xC0 with a few status-specific colours). The real
+ * fd2_animate_status_effect_overlay_flicker copies the first 30 bytes into a
+ * stack scratch and indexes it by status_kind. */
+uint8  data_fd2_animation_status_overlay_flicker_color_template[32] = {
+    0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,
+    0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,
+    0xc0,0x92,0x48,0xd8,0xc0,0xc0,0x23,0xc0,
+    0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0x31,0x31
+};
 /* game options menu templates — real FD2.LE values @ 0x51EAF / 0x53F02 */
 int32  data_fd2_ui_game_options_menu_slots_template[4] = { 0x12, 0x14, 0x16, 0x18 };
 int32  data_fd2_ui_game_options_menu_state_template[4] = { 0, 0, 0, 0 };
@@ -381,7 +410,8 @@ uint32 fd2_blit_sprite_raw_with_header(uint32 d, uint32 s, uint32 st)
 }
 void fd2_render_recruitment_select_screen(uint32 a, uint32 b, uint32 c, uint32 d) { }
 void fd2_animate_spell_impact_per_target(uint32 a, uint32 b, uint32 c, uint32 d) { }
-void fd2_animate_status_effect_overlay_flicker(uint32 a, uint32 b, uint32 c, uint32 d) { }
+/* fd2_animate_status_effect_overlay_flicker is now a real emitted function
+ * (src/anim/anicombt.c); its former no-op stub here was removed. */
 void fd2_animate_spell_full_screen_flash(uint32 a, uint32 b, uint32 c, uint32 d) { }
 void fd2_animate_spell_overlay_blink(uint32 a, uint32 b, uint32 c, uint32 d) { }
 void fd2_show_damage_number(uint32 v, uint32 t, uint32 tg) { }

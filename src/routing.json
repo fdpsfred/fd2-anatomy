@@ -1334,8 +1334,9 @@
     "name": "fd2_animate_status_effect_overlay_flicker",
     "target": "anim/anicombt.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001c4cc": {
     "name": "fd2_animate_spell_impact_per_target",
