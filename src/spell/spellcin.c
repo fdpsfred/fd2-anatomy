@@ -10,6 +10,7 @@
  *   fd2_play_variant_b_slide_pre_effect @ 0x21eb1 (4 callers)
  *   fd2_animate_warp_teleport_char @ 0x22253 (4 callers)
  *   fd2_animate_warp_portal_open_at @ 0x22470 (1 caller)
+ *   fd2_animate_warp_out_collapse @ 0x22547 (1 caller)
  */
 
 #include "types.h"
@@ -761,4 +762,72 @@ void fd2_animate_warp_portal_open_at(uint32 tile_x, uint32 tile_y,
         fd2_wait_n_bios_ticks(1);
     }
     return;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_animate_warp_out_collapse @ 0x22547  (1 caller)
+ *
+ * 6-frame warp-OUT collapse animation: the character vanishes into a
+ * shrinking filled circle. Second half of the character-warp sequence
+ * (sole caller fd2_animate_warp_teleport_char @ 0x22253, source-side
+ * collapse), played right after the portal opens at the source tile.
+ *
+ * First the snapshot-backed character sprite is blitted onto the working
+ * surface at the tile's position. Then for frame_iter = 5..0 (counting
+ * down) the backdrop is restored from the snapshot, one band sprite from
+ * the 6-entry tile-anim table is rendered as a filled circle whose
+ * vertical extent shrinks with frame_iter, and the viewport is blitted to
+ * the mode-13h framebuffer. A final 2-tick hold ends the animation.
+ *
+ * Sprite table (6 entries) at offset +6 of data_fd2_tile_anim_table_base:
+ *   sprite_addr = *(int *)(table_base + 6 + frame_iter*4) + table_base;
+ * Working-surface blit position (verified @0x2255d..0x22594, same idiom as
+ * fd2_animate_warp_portal_open_at):
+ *   pos = snapshot + (tile_y-origin_y)*0x2AC0 + (tile_x-origin_x)*0x18 + 0x8250;
+ * Shrinking radius band top:  top_y = (src_y / 5) * frame_iter   (signed
+ * IDIV, verified @0x225dd..0x225eb).
+ *
+ * Returns the frame_iter==0 sprite_addr (the last value computed by the
+ * loop, held in EDI through the shared epilogue). The caller uses it as
+ * the warp-IN initial sprite state (its "radius").
+ *
+ * Cdecl, 6 stack params; int return. The binary's __CHK(0x2C) stack-probe
+ * prologue is compiler-injected and not part of the source. There is no
+ * explicit RET: the tail JMPs into the shared epilogue at 0x1E5B9 (the
+ * MOV EAX,EDI / POP EBP/EDI/ESI/EBX / RET tail of fd2_animate_warp_in_expand
+ * @ 0x1E529 — an identical Watcom epilogue shared between adjacent
+ * same-frame functions). Emitted here as a plain return of sprite_addr;
+ * the compiler regenerates the matching epilogue.
+ * ---------------------------------------------------------------- */
+int fd2_animate_warp_out_collapse(int tile_x, int tile_y, void *snapshot,
+    uint32 src_x, uint32 src_y, int initial_sprite_addr)
+{
+    uint32 blit_pos;
+    int frame_iter;
+    uint32 sprite_addr;
+    uint32 top_y_param;
+
+    blit_pos = (uint32)snapshot +
+        (tile_y - data_fd2_battle_view_window_origin_y) * 0x2ac0 +
+        (tile_x - data_fd2_battle_view_window_origin_x) * 0x18 + 0x8250;
+    fd2_blit_sprite_with_decoded_pixels(blit_pos, initial_sprite_addr, 0x1c8);
+
+    sprite_addr = 0;
+    for (frame_iter = 5; frame_iter >= 0; frame_iter--) {
+        sprite_addr =
+            *(uint32 *)(data_fd2_tile_anim_table_base + 6 + frame_iter * 4) +
+            data_fd2_tile_anim_table_base;
+        memmove((void *)data_fd2_large_game_state_buffer_ptr,
+            snapshot, 0x25680);
+        top_y_param = ((int)src_y / 5) * frame_iter;
+        fd2_render_filled_circle_band_anim(src_x, src_y, 0xb, top_y_param,
+            0xc0, sprite_addr);
+        fd2_blit_rectangle(0xa0504, 0x140,
+            data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1c8, 0x138, 0xc0);
+        __delay_thunk_375b2(10);
+    }
+
+    fd2_wait_n_bios_ticks(1);
+    fd2_wait_n_bios_ticks(1);
+    return (int)sprite_addr;
 }

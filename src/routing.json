@@ -2160,8 +2160,9 @@
     "name": "fd2_animate_warp_out_collapse",
     "target": "spell/spellcin.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": true,
+    "reviewed": true
   },
   "00022656": {
     "name": "fd2_animate_warp_in_expand",

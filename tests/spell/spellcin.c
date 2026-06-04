@@ -1,7 +1,7 @@
 /*
  * unit tests for src/spell/spellcin.c
  *
- * Seven of the eight workers in this file are pure VGA/VRAM cinematic
+ * Eight of the nine workers in this file are pure VGA/VRAM cinematic
  * orchestration and have no isolated numeric path that avoids a write to the
  * hardcoded mode-13h framebuffer literal 0xA0504 (not redirectable via
  * globals). Their behavioral verification is deferred to Phase 9 integration on
@@ -54,6 +54,20 @@
  *   verified statically against the disassembly @0x22489..0x224E9; it is
  *   observable only through the VRAM-touching blit callees, so it is deferred to
  *   Phase 9 integration.
+ *
+ *   fd2_animate_warp_out_collapse @ 0x22547 — the source-tile collapse half
+ *   of the warp sequence (sole caller fd2_animate_warp_teleport_char). After an
+ *   initial sprite blit to the working surface, its 6-frame countdown loop
+ *   restores the backdrop, renders one shrinking filled-circle band, and
+ *   unconditionally blits the viewport to 0xA0504 every frame. The only computed
+ *   state — the working-surface blit position ((tile_y-origin_y)*0x2AC0 +
+ *   (tile_x-origin_x)*0x18 + 0x8250), the 6-entry sprite-table lookup
+ *   (table_base[6 + frame*4]+table_base), the shrinking band top
+ *   ((src_y/5)*frame, signed IDIV), and the returned frame-0 sprite_addr — was
+ *   verified statically against the disassembly @0x2255D..0x225EB and @0x225B5;
+ *   it is observable only through the VRAM-touching blit callees (and the return
+ *   only after the full loop drives 0xA0504), so it is deferred to Phase 9
+ *   integration.
  *
  * The remaining worker, fd2_scatter_sprite_around_origin_with_random_offset
  * @ 0x21db2, is the scatter *leaf* called by the orphan executor. Unlike its
@@ -164,7 +178,7 @@ static void test_scatter_type_range(void)
 void run_spell_spellcin_tests(void)
 {
     int _prev_fails = g_test_fail_count;
-    printf("Suite: spell/spellcin (scatter leaf tested; 7 VGA/VRAM cinematic "
+    printf("Suite: spell/spellcin (scatter leaf tested; 8 VGA/VRAM cinematic "
            "workers deferred to Phase 9, see file header)\n");
     RUN_TEST(test_scatter_seed_1234_index0);
     RUN_TEST(test_scatter_seed_5555_index1);
