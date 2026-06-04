@@ -2546,8 +2546,9 @@
     "name": "fd2_restore_all_chars_full_hp_mp",
     "target": "battle/btl_init.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000250cc": {
     "name": "fd2_chapter_27_end",

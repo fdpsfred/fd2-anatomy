@@ -334,6 +334,7 @@ void fd2_play_palette_fade_in(void);
 void fd2_play_palette_fade_to_black(void);
 void fd2_init_battle_state_for_chapter(void);
 void fd2_save_runtime_char_to_template(void);
+void fd2_restore_all_chars_full_hp_mp(void);
 
 /* ---- lifecycle / main menu ---- */
 int fd2_play_ending_and_record_clear(void);

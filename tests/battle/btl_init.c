@@ -793,6 +793,84 @@ static void test_convert_battle_tiles_to_24px(void)
 }
 
 
+/* ---- Tests: fd2_restore_all_chars_full_hp_mp @ 0x25089 ----
+ *
+ * Walks the menu/template roster (menu_party_roster_buffer_ptr, stride
+ * RUNTIME_CHAR_SIZE) for menu_party_member_count slots and resets each to
+ * "fully healed": flags(+0x05)=0, hp_current(+0x40):=hp_max(+0x42),
+ * mp_current(+0x44):=mp_max(+0x46).
+ * Verifies: restored slots get cleared flags and current:=max for HP/MP;
+ * the *max* fields and neighbouring bytes survive; slots at/after the count
+ * are completely untouched; count==0 changes nothing.
+ */
+static runtime_char g_rfh_roster[8];
+
+static void test_restore_full_hp_mp_partial(void)
+{
+    int i;
+
+    memset(g_rfh_roster, 0xAA, sizeof(g_rfh_roster));
+    /* give each slot a distinct, deliberately-not-full HP/MP and dirty flags */
+    for (i = 0; i < 8; i = i + 1) {
+        g_rfh_roster[i].flags      = 0xAA;
+        g_rfh_roster[i].hp_current = (uint16)(1 + i);
+        g_rfh_roster[i].hp_max     = (uint16)(100 + i);
+        g_rfh_roster[i].mp_current = (uint16)(2 + i);
+        g_rfh_roster[i].mp_max     = (uint16)(50 + i);
+    }
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_rfh_roster;
+    data_fd2_shared_menu_party_member_count = 3;
+
+    fd2_restore_all_chars_full_hp_mp();
+
+    /* slots 0..2: flags cleared, current := max for HP and MP */
+    for (i = 0; i < 3; i = i + 1) {
+        ASSERT_EQ((long)g_rfh_roster[i].flags, 0);
+        ASSERT_EQ((long)g_rfh_roster[i].hp_current, (long)(100 + i));
+        ASSERT_EQ((long)g_rfh_roster[i].hp_max,     (long)(100 + i));
+        ASSERT_EQ((long)g_rfh_roster[i].mp_current, (long)(50 + i));
+        ASSERT_EQ((long)g_rfh_roster[i].mp_max,     (long)(50 + i));
+        /* neighbouring bytes the loop must not touch */
+        ASSERT_EQ((long)g_rfh_roster[i].team, 0xAA);            /* +0x06 */
+        ASSERT_EQ((long)g_rfh_roster[i].sprite_state[2], 0xAA); /* +0x04 */
+        ASSERT_EQ((long)g_rfh_roster[i].ap, 0xAAAA);            /* +0x48 */
+    }
+    /* slots 3..7: completely untouched */
+    for (i = 3; i < 8; i = i + 1) {
+        ASSERT_EQ((long)g_rfh_roster[i].flags, 0xAA);
+        ASSERT_EQ((long)g_rfh_roster[i].hp_current, (long)(1 + i));
+        ASSERT_EQ((long)g_rfh_roster[i].mp_current, (long)(2 + i));
+    }
+
+    data_fd2_shared_menu_party_roster_buffer_ptr = 0;
+    data_fd2_shared_menu_party_member_count = 0;
+}
+
+static void test_restore_full_hp_mp_zero_count(void)
+{
+    int i;
+
+    memset(g_rfh_roster, 0xAA, sizeof(g_rfh_roster));
+    for (i = 0; i < 8; i = i + 1) {
+        g_rfh_roster[i].flags      = 0xAA;
+        g_rfh_roster[i].hp_current = (uint16)(1 + i);
+        g_rfh_roster[i].hp_max     = (uint16)(100 + i);
+    }
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_rfh_roster;
+    data_fd2_shared_menu_party_member_count = 0;
+
+    fd2_restore_all_chars_full_hp_mp();
+
+    for (i = 0; i < 8; i = i + 1) {
+        ASSERT_EQ((long)g_rfh_roster[i].flags, 0xAA);
+        ASSERT_EQ((long)g_rfh_roster[i].hp_current, (long)(1 + i));
+    }
+
+    data_fd2_shared_menu_party_roster_buffer_ptr = 0;
+    data_fd2_shared_menu_party_member_count = 0;
+}
+
+
 void run_battle_btl_init_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -809,6 +887,8 @@ void run_battle_btl_init_tests(void)
     RUN_TEST(test_clear_all_chars_facing_zero_count);
     RUN_TEST(test_clear_all_chars_acted_partial);
     RUN_TEST(test_clear_all_chars_acted_zero_count);
+    RUN_TEST(test_restore_full_hp_mp_partial);
+    RUN_TEST(test_restore_full_hp_mp_zero_count);
     RUN_TEST(test_convert_battle_tiles_to_24px);
     printf("\n");
 }

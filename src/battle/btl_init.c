@@ -311,6 +311,44 @@ void fd2_init_runtime_char_from_base_growth(uint32 char_id)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_restore_all_chars_full_hp_mp @ 0x25089  (2 callers)
+ *
+ * Walk the menu/template char roster (menu_party_roster_buffer_ptr,
+ * stride RUNTIME_CHAR_SIZE; count = menu_party_member_count) and reset
+ * every slot to a fully-healed state:
+ *   flags (+0x05) := 0          // clear status bits
+ *   hp_current (+0x40) := hp_max (+0x42)
+ *   mp_current (+0x44) := mp_max (+0x46)
+ *
+ * The loop counter is a byte (BL in the binary), so it implicitly caps
+ * at 0xFF entries — safe given menu_party_member_count is always a small
+ * party-roster value.
+ *
+ * Callers (chapter-end cinematic full-restore points):
+ *   fd2_chapter_27_end — BAD-path revive sequence.
+ *   fd2_chapter_30_end — final-boss-death "double restore" before the
+ *                        epilogue battle-data load.
+ *
+ * void __cdecl with the __CHK(8) stack-probe prologue (compiler-injected,
+ * not written here). EBX is the loop counter; POP EBX + RET is the
+ * shared epilogue.
+ * ---------------------------------------------------------------- */
+void fd2_restore_all_chars_full_hp_mp(void)
+{
+    runtime_char *roster;
+    uint8         char_iter;
+
+    roster = (runtime_char *)data_fd2_shared_menu_party_roster_buffer_ptr;
+    for (char_iter = 0;
+         (int)(uint32)char_iter < (int)data_fd2_shared_menu_party_member_count;
+         char_iter = char_iter + 1) {
+        roster[char_iter].flags = 0;
+        roster[char_iter].hp_current = roster[char_iter].hp_max;
+        roster[char_iter].mp_current = roster[char_iter].mp_max;
+    }
+}
+
+/* ----------------------------------------------------------------
  * fd2_clear_all_chars_facing @ 0x134E4  (23 callers)
  *
  * Reset facing direction (= 0 / south) for every party member, then
