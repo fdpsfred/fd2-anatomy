@@ -41,6 +41,9 @@ extern int g_ending_menu_return;
 extern int g_slot_selector_return;
 extern int g_chapter_transition_return;
 extern int g_play_sfx_with_handle_calls;
+extern uint32 g_sfx_last_arg_a;
+extern int g_sfx_last_id;
+extern int g_sfx_last_arg_c;
 extern int g_play_sfx_sample_from_bank_calls;
 extern int g_blit_indexed_sprite_calls;
 extern uint32 g_blit_indexed_sprite_last_frame;
@@ -184,6 +187,40 @@ static void test_load_status_effect_sfx_real(void)
 }
 
 
+/* ---- Test: fd2_play_and_free_status_effect_sfx ---- */
+
+/* The function's whole semantic is: play the loaded SFX bank in kill-all mode
+ * (fd2_play_sfx_with_handle(handle, -1, 1)) then free the bank buffer. Drive it
+ * with a real malloc'd buffer in the handle slot and confirm, via the g_sfx_*
+ * capture spy, that arg1 == that buffer, arg2 == -1 (the kill-all sentinel, the
+ * defining behaviour), and arg3 == 1. The real free(handle) inside the function
+ * releases the buffer, so the test must NOT free it again (would double-free);
+ * it only nulls the global afterward. */
+static void test_play_and_free_status_effect_sfx(void)
+{
+    uint8 *buf;
+
+    buf = (uint8 *)malloc(64);
+    ASSERT_TRUE(buf != 0);
+
+    data_fd2_audio_status_effect_sfx_handle_ptr = (uint32)buf;
+    g_play_sfx_with_handle_calls = 0;
+    g_sfx_last_arg_a = 0;
+    g_sfx_last_id = 0;
+    g_sfx_last_arg_c = 0;
+
+    fd2_play_and_free_status_effect_sfx();
+
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 1);
+    ASSERT_EQ((long)g_sfx_last_arg_a, (long)(uint32)buf);
+    ASSERT_EQ((long)g_sfx_last_id, -1);
+    ASSERT_EQ((long)g_sfx_last_arg_c, 1);
+
+    /* buf was freed by the function under test; just clear the dangling global */
+    data_fd2_audio_status_effect_sfx_handle_ptr = 0;
+}
+
+
 void run_audio_audio_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -194,5 +231,6 @@ void run_audio_audio_tests(void)
     RUN_TEST(test_bgm_disabled_zero_volume);
     RUN_TEST(test_bgm_special_cue_instant);
     RUN_TEST(test_load_status_effect_sfx_real);
+    RUN_TEST(test_play_and_free_status_effect_sfx);
     printf("\n");
 }

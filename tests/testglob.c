@@ -143,6 +143,12 @@ int g_dlg_blink_calls = 0;
 int    g_sfx_last_id = 0;
 int    g_sfx_id_count = 0;
 int    g_sfx_id_log[64];
+/* Additive arg-capture for fd2_play_and_free_status_effect_sfx's test: it must
+ * forward the bank handle (arg a) and the trailing flag (arg c). Existing tests
+ * only read g_sfx_last_id / g_play_sfx_with_handle_calls, so adding these is
+ * non-breaking. */
+uint32 g_sfx_last_arg_a = 0;
+int    g_sfx_last_arg_c = 0;
 /* The real fd2_portrait_blink_animation_step (src/dialog/dialog.c) calls this
  * exactly once per blink step, so g_dlg_blink_calls tracks blink invocations. */
 void fd2_play_sfx_with_handle(uint32 a, int b, int c)
@@ -150,11 +156,12 @@ void fd2_play_sfx_with_handle(uint32 a, int b, int c)
     g_play_sfx_with_handle_calls++;
     g_dlg_blink_calls++;
     g_sfx_last_id = b;
+    g_sfx_last_arg_a = a;
+    g_sfx_last_arg_c = c;
     if (g_sfx_id_count < 64) {
         g_sfx_id_log[g_sfx_id_count] = b;
     }
     g_sfx_id_count++;
-    (void)a; (void)c;
 }
 /* Per-spell animation parameter tables (data segment @ 0x51F33/0x51F54/0x51F75).
  * Defined here with the real binary bytes until the data segment is emitted, so
@@ -482,9 +489,10 @@ void fd2_animate_spell_projectile_paths(void) { }
 /* fd2_remove_inventory_slot_at: now emitted for real in src/ui_menu/status.c.
  * Its old spy global g_remove_inventory_calls is gone; spell/spelleff.c now
  * observes the real slot-consume by checking slot[7].flag == 0x80. */
-/* fd2_load_status_effect_sfx: now emitted for real in src/audio/audio.c;
- * test_load_status_effect_sfx_real drives it against staged real FDOTHER.DAT. */
-void fd2_play_and_free_status_effect_sfx(void) { }
+/* fd2_load_status_effect_sfx + fd2_play_and_free_status_effect_sfx: now emitted
+ * for real in src/audio/audio.c. test_load_status_effect_sfx_real drives the
+ * loader against staged real FDOTHER.DAT; test_play_and_free_status_effect_sfx
+ * drives the player+free (observed via the g_sfx_* capture spy). */
 /* fd2_collect_pending_death_drops: now in btl_turn.c */
 /* fd2_display_dialog_scene: now emitted in src/dialog/dialog.c */
 /* fd2_load_chapter_portrait: now emitted for real in src/rsrc/rsrc.c and

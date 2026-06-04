@@ -2,6 +2,8 @@
  * audio.c — BGM / SFX management.
  */
 
+#include <stdlib.h>
+
 #include "types.h"
 #include "consts.h"
 #include "globals.h"
@@ -86,4 +88,25 @@ void fd2_load_status_effect_sfx(void)
         (uint32)fd2_load_dat_resource(
             (uint32)data_fd2_string_resource_filename_fdother_dat,
             0, 0x50);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_play_and_free_status_effect_sfx @ 0x1d4f6 (5 callers)
+ *
+ * Companion to fd2_load_status_effect_sfx: play the loaded
+ * status-effect SFX bank in kill-all mode (handle == -1 tells
+ * fd2_play_sfx_with_handle to stop every currently-playing sample
+ * first), then release the bank buffer.
+ *
+ * Cdecl, void(void). The binary's __CHK(0x10) stack-probe prologue
+ * is compiler-injected and not source. The final free() is emitted
+ * by Watcom as a tail call (JMP into fd2_maybe_free_speed_mode_overlay's
+ * shared `CALL free; ADD ESP,4; RET` epilogue); it is reproduced here
+ * as a plain free() at function end.
+ * ---------------------------------------------------------------- */
+void fd2_play_and_free_status_effect_sfx(void)
+{
+    fd2_play_sfx_with_handle(
+        data_fd2_audio_status_effect_sfx_handle_ptr, 0xFFFFFFFF, 1);
+    free((void *)data_fd2_audio_status_effect_sfx_handle_ptr);
 }
