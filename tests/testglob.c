@@ -340,6 +340,27 @@ void fd2_tile_blit_24x24_solid_color(uint32 src, uint32 dst, uint32 color_or_str
     g_blitpass_calls++;
     g_blitsolid_calls++;
 }
+/* fd2_tile_blit_24x24_with_tint_offset (the palette-offset RLE tint blitter,
+ * real body not yet emitted). The real fd2_animate_spell_overlay_blink is the
+ * caller; recording (rle_stream, dst, stride) into the shared g_blitpass_*
+ * arrays plus the colour_base / team_offset args into separate logs lets the
+ * overlay-blink test verify the per-char dst-offset / sprite-source / colour
+ * / fade-step arithmetic without decoding any RLE pixels. */
+int    g_blittint_calls = 0;
+uint32 g_blittint_color_base[64];
+uint32 g_blittint_team_offset[64];
+void fd2_tile_blit_24x24_with_tint_offset(uint32 rle_stream, uint32 dst_buf, uint32 stride,
+                                          uint32 color_base, uint32 team_offset) {
+    if (g_blitpass_calls < 64) {
+        g_blitpass_src[g_blitpass_calls] = rle_stream;
+        g_blitpass_dst[g_blitpass_calls] = dst_buf;
+        g_blitpass_stride[g_blitpass_calls] = stride;
+        g_blittint_color_base[g_blitpass_calls] = color_base;
+        g_blittint_team_offset[g_blitpass_calls] = team_offset;
+    }
+    g_blitpass_calls++;
+    g_blittint_calls++;
+}
 /* fd2_render_terrain_info_hud_panel is now a real emitted function
  * (src/gfx/rndstat.c). Its former recording/loop-break stub here was removed;
  * the idle-loop break seam (g_repaint_settings_calls / g_repaint_flip_buffer_after)
@@ -374,6 +395,16 @@ uint8  data_fd2_animation_status_overlay_flicker_color_template[32] = {
     0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,
     0xc0,0x92,0x48,0xd8,0xc0,0xc0,0x23,0xc0,
     0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0x31,0x31
+};
+/* spell-overlay-blink per-spell tint-mask byte table — real FD2.LE values @
+ * 0x52006 (30 bytes). The real fd2_animate_spell_overlay_blink copies all 30
+ * bytes into a stack scratch and indexes it by spell_id to pick the per-spell
+ * colour_base anchor for the fading 24x24 tint blit. */
+uint8  data_fd2_animation_spell_overlay_blink_mask_table[30] = {
+    0x20,0x20,0x20,0x20,0x08,0x08,0x08,0x08,
+    0xc8,0x08,0x08,0x08,0x08,0x08,0x10,0x10,
+    0x10,0x10,0x08,0x08,0x10,0x10,0x10,0x08,
+    0x08,0x10,0x10,0x10,0x08,0x08
 };
 /* game options menu templates — real FD2.LE values @ 0x51EAF / 0x53F02 */
 int32  data_fd2_ui_game_options_menu_slots_template[4] = { 0x12, 0x14, 0x16, 0x18 };
@@ -474,7 +505,8 @@ void fd2_render_recruitment_select_screen(uint32 a, uint32 b, uint32 c, uint32 d
  * (src/anim/anicombt.c); its former no-op stub here was removed. */
 /* fd2_animate_spell_full_screen_flash is now a real emitted function
  * (src/anim/anicombt.c); its former no-op stub here was removed. */
-void fd2_animate_spell_overlay_blink(uint32 a, uint32 b, uint32 c, uint32 d) { }
+/* fd2_animate_spell_overlay_blink is now a real emitted function
+ * (src/anim/anicombt.c); its former no-op stub here was removed. */
 void fd2_show_damage_number(uint32 v, uint32 t, uint32 tg) { }
 void fd2_show_miss_indicator(uint32 t) { }
 void fd2_show_status_effect_overlay(uint32 t, uint32 s) { }

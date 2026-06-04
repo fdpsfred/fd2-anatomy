@@ -1414,8 +1414,9 @@
     "name": "fd2_animate_spell_overlay_blink",
     "target": "anim/anicombt.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001ceed": {
     "name": "fd2_draw_spell_selection_list",

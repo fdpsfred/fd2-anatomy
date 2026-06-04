@@ -300,3 +300,99 @@ void fd2_animate_spell_full_screen_flash(uint32 param_1, uint32 spell_id,
     fd2_composite_battle_frame(0);
     free(flash_buf);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_animate_spell_overlay_blink @ 0x1CD17 (3 callers)
+ *
+ * 10-frame "spell-hit mark fade-out" overlay animation. Triggered by the
+ * caster's spell-hit animation chain (fd2_apply_use_effect_dispatch,
+ * fd2_execute_offensive_targeted_spell[_variant_b]). Each frame restores a
+ * clean snapshot of the battle back-buffer, redraws a tinted 24x24 mark over
+ * every targeted char inside the battle view window, flushes the composite to
+ * the mode13h primary, and waits one BIOS tick; the per-frame tint team-offset
+ * steps 7..0 across the loop so the mark fades out.
+ *
+ * Parameters (__cdecl, 4 args; param_1 only forwarded to the stack check):
+ *   param_1            unused by the body
+ *   spell_id           index into the per-spell tint-mask byte table
+ *   target_count       number of entries in char_idx_array
+ *   char_idx_array     byte array of runtime-char indices to overlay
+ *
+ * The per-spell tint-mask byte table at 0x52006 is copied into a 32-byte stack
+ * scratch (7 dwords + 1 word = 30 bytes, matched byte-for-byte) before indexing
+ * by spell_id; the indexed byte becomes the blit colour_base anchor.
+ *
+ * The original tail-jumps into fd2_animate_status_effect_overlay_flicker's
+ * shared epilogue (snapshot pointer pushed for free() then ADD ESP,4);
+ * reproduced here as a plain free() at function end.
+ * ---------------------------------------------------------------- */
+void fd2_animate_spell_overlay_blink(uint32 param_1, uint32 spell_id,
+                                     uint32 target_count,
+                                     uint32 char_idx_array)
+{
+    uint8 *backup_buf;
+    runtime_char *rt_char;
+    int iVar3;
+    int tgt_iter;
+    uint32 pos_x;
+    uint32 pos_y;
+    uint32 frame_off;
+    uint32 frame_idx;
+    uint32 src_sprite;
+    uint32 dst_addr;
+    uint8 mask_tbl[32];
+
+    (void)param_1;
+
+    /* snapshot the per-spell tint-mask byte table (7 dwords + 1 word = 30B) */
+    memcpy(mask_tbl, data_fd2_animation_spell_overlay_blink_mask_table, 30);
+
+    backup_buf = (uint8 *)malloc(0x25680);
+    memmove(backup_buf, (void *)data_fd2_large_game_state_buffer_ptr, 0x25680);
+
+    for (iVar3 = 0; iVar3 < 10; iVar3++) {
+        /* restore the clean baseline back-buffer for this frame */
+        memmove((void *)data_fd2_large_game_state_buffer_ptr, backup_buf, 0x25680);
+
+        for (tgt_iter = 0; tgt_iter < (int)target_count; tgt_iter++) {
+            rt_char = (runtime_char *)((uint32)data_fd2_battle_runtime_char_array_ptr +
+                                       ((uint8 *)char_idx_array)[tgt_iter] * 0x50);
+            pos_x = rt_char->pos_x;
+            pos_y = rt_char->pos_y;
+
+            if (((int)pos_x >= (int)(data_fd2_battle_view_window_origin_x - 1)) &&
+                ((int)pos_x <= (int)(data_fd2_battle_view_window_origin_x +
+                                     data_fd2_battle_view_window_max_x)) &&
+                ((int)pos_y >= (int)(data_fd2_battle_view_window_origin_y - 1)) &&
+                ((int)pos_y <= (int)(data_fd2_battle_view_window_origin_y +
+                                     data_fd2_battle_view_window_max_y + 1))) {
+                frame_off = (uint32)rt_char->sprite_state[0] * 0xc;
+                if (data_fd2_graphics_chapter_ambient_palette_anim_idx == 3) {
+                    frame_idx = frame_off + 2;
+                } else {
+                    frame_idx = frame_off + data_fd2_graphics_chapter_ambient_palette_anim_idx;
+                }
+
+                src_sprite = portrait_sprite_cache +
+                             *(uint32 *)(portrait_sprite_cache + frame_idx * 4);
+                dst_addr = data_fd2_large_game_state_buffer_ptr +
+                           (pos_y - data_fd2_battle_view_window_origin_y) * 0x2ac0 +
+                           (pos_x - data_fd2_battle_view_window_origin_x) * 0x18 + 0x75d8;
+
+                fd2_tile_blit_24x24_with_tint_offset(src_sprite, dst_addr, 0x1c8,
+                                                     mask_tbl[spell_id],
+                                                     7 - (iVar3 % 8));
+            }
+        }
+
+        fd2_blit_rectangle(0xa0504, 0x140,
+                           data_fd2_large_game_state_buffer_ptr + 0x8088,
+                           0x1c8, 0x138, 0xc0);
+        fd2_wait_n_bios_ticks(1);
+    }
+
+    /* leave the clean snapshot composite on screen, then release it */
+    fd2_blit_rectangle(0xa0504, 0x140, (uint32)backup_buf + 0x8088,
+                       0x1c8, 0x138, 0xc0);
+    free(backup_buf);
+}

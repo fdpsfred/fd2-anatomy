@@ -226,7 +226,7 @@ extern uint8  data_fd2_animation_status_overlay_flicker_color_template[32]; /* 0
 extern uint8  data_fd2_animation_spell_sprite_offset_table[33];         /* 0x51F33 */
 extern uint8  data_fd2_animation_spell_frame_count_table[33];           /* 0x51F54 */
 extern uint8  data_fd2_animation_spell_sfx_frame_table[33];             /* 0x51F75 */
-extern uint8  data_fd2_animation_spell_overlay_blink_mask_table[28];    /* 0x52006 */
+extern uint8  data_fd2_animation_spell_overlay_blink_mask_table[30];    /* 0x52006 */
 extern uint8  data_fd2_battle_summon_minor_anim_state5_frame_counter;    /* 0x540FA */
 extern uint8  data_fd2_battle_summon_minor_anim_alternating_blit_toggle; /* 0x540FB */
 extern uint32 data_fd2_audio_summon_spell_sfx_bank_buf_ptr;             /* 0x5411F */

@@ -543,6 +543,143 @@ static void test_fullflash_two_composites_and_strobe(void)
     ASSERT_EQ(g_composite_call_count, 3);
 }
 
+/* ================================================================
+ * fd2_animate_spell_overlay_blink tests
+ * ================================================================ */
+
+/* tint-blit recording (testglob.c): shared g_blitpass_* (src/dst/stride) plus a
+ * dedicated colour_base / team_offset log and a call counter. */
+extern int    g_blittint_calls;
+extern uint32 g_blittint_color_base[64];
+extern uint32 g_blittint_team_offset[64];
+
+/* per-spell tint-mask byte table (testglob.c, real binary bytes) */
+extern uint8  data_fd2_animation_spell_overlay_blink_mask_table[30];
+
+/*
+ * Drives the full 10-frame blink over one in-window char and one out-of-window
+ * char. Verifies: the window-cull predicate (only the in-window char blits, so
+ * 10 tint blits over 10 frames), the dst screen-position arithmetic, the
+ * frame-source arithmetic on the palette!=3 branch, the constant colour_base
+ * (mask_tbl[spell_id]), the fixed 0x1C8 stride, and the distinctive per-frame
+ * fade-step team_offset sequence 7..0 then wrapping (7 - frame%8).
+ */
+static void test_blink_cull_arith_and_fade(void)
+{
+    uint8 idx_array[2];
+    uint32 exp_dst;
+    uint32 frame_idx;
+    uint32 exp_src;
+    uint32 exp_color;
+    int f;
+    static const int exp_team[10] = { 7, 6, 5, 4, 3, 2, 1, 0, 7, 6 };
+
+    setup_overlay(1);   /* palette 1 -> frame_idx = frame_off + palette branch */
+
+    /* char 0: inside the window */
+    g_test_rc_array[0].pos_x = 0x15;
+    g_test_rc_array[0].pos_y = 0x24;
+    g_test_rc_array[0].sprite_state[0] = 4;   /* frame_off = 4*0xC = 0x30 */
+
+    /* char 1: pos_x past the right edge (OX+MX = 0x1D) -> culled */
+    g_test_rc_array[1].pos_x = 0x1E;
+    g_test_rc_array[1].pos_y = 0x24;
+    g_test_rc_array[1].sprite_state[0] = 7;
+
+    idx_array[0] = 0;
+    idx_array[1] = 1;
+
+    g_blittint_calls = 0;
+
+    /* spell_id 8 -> mask_tbl[8] = 0xC8 (the one outlier byte in the table) */
+    fd2_animate_spell_overlay_blink(0xDEAD, 8, 2, (uint32)idx_array);
+
+    /* one tint blit per frame (in-window char only), 10 frames */
+    ASSERT_EQ(g_blittint_calls, 10);
+    ASSERT_EQ(g_blitpass_calls, 10);
+
+    /* dst = lgs + (pos_y-OY)*0x2AC0 + (pos_x-OX)*0x18 + 0x75D8 (frame-invariant) */
+    exp_dst = (uint32)g_lgs
+            + (0x24u - WIN_OY) * 0x2ac0u
+            + (0x15u - WIN_OX) * 0x18u
+            + 0x75d8u;
+
+    /* frame_idx = sprite_state[0]*0xC + palette(=1); src = cache + table[frame_idx] */
+    frame_idx = 4u * 0xcu + 1u;                 /* 0x31 */
+    exp_src = (uint32)g_portrait_cache + frame_idx * 0x100u;
+
+    /* colour_base = mask_tbl[spell_id]; spell 8 -> 0xC8 */
+    exp_color = data_fd2_animation_spell_overlay_blink_mask_table[8];
+    ASSERT_EQ(exp_color, 0xc8u);
+
+    for (f = 0; f < 10; f++) {
+        ASSERT_EQ(g_blitpass_dst[f], exp_dst);
+        ASSERT_EQ(g_blitpass_src[f], exp_src);
+        ASSERT_EQ(g_blitpass_stride[f], 0x1c8u);
+        ASSERT_EQ(g_blittint_color_base[f], exp_color);
+        ASSERT_EQ(g_blittint_team_offset[f], (uint32)exp_team[f]);
+    }
+}
+
+/*
+ * palette_idx == 3 forces frame_idx = frame_off + 2 (clash-avoidance branch),
+ * independent of the palette value. One char on the window origin, single frame
+ * source checked (frame-invariant), confirming the special-case offset and the
+ * origin dst collapse.
+ */
+static void test_blink_palette3_offset(void)
+{
+    uint8 idx_array[1];
+    uint32 frame_idx;
+    uint32 exp_src;
+
+    setup_overlay(3);
+
+    g_test_rc_array[0].pos_x = WIN_OX;          /* on the left window edge */
+    g_test_rc_array[0].pos_y = WIN_OY;          /* on the top window edge  */
+    g_test_rc_array[0].sprite_state[0] = 2;     /* frame_off = 2*0xC = 0x18 */
+    idx_array[0] = 0;
+
+    g_blittint_calls = 0;
+    fd2_animate_spell_overlay_blink(0, 0, 1, (uint32)idx_array);
+
+    /* 10 frames, one in-window char -> 10 blits */
+    ASSERT_EQ(g_blittint_calls, 10);
+
+    /* palette==3 -> frame_idx = frame_off + 2 = 0x18 + 2 = 0x1A */
+    frame_idx = 2u * 0xcu + 2u;
+    exp_src = (uint32)g_portrait_cache + frame_idx * 0x100u;
+    ASSERT_EQ(g_blitpass_src[0], exp_src);
+
+    /* dst at the window origin: offsets collapse to the +0x75D8 base */
+    ASSERT_EQ(g_blitpass_dst[0], (uint32)g_lgs + 0x75d8u);
+
+    /* spell 0 -> mask_tbl[0] = 0x20 */
+    ASSERT_EQ(g_blittint_color_base[0], 0x20u);
+}
+
+/*
+ * Lower-edge culling: a char one row above the top window edge (pos_y = OY-2,
+ * below the OY-1 lower bound) is rejected, so zero tint blits are drawn while
+ * the 10-frame snapshot/restore/composite plumbing still runs to completion.
+ */
+static void test_blink_cull_top_edge(void)
+{
+    uint8 idx_array[1];
+
+    setup_overlay(0);
+
+    g_test_rc_array[0].pos_x = WIN_OX;
+    g_test_rc_array[0].pos_y = (uint8)(WIN_OY - 2);   /* below OY-1 -> culled */
+    g_test_rc_array[0].sprite_state[0] = 1;
+    idx_array[0] = 0;
+
+    g_blittint_calls = 0;
+    fd2_animate_spell_overlay_blink(0, 0, 1, (uint32)idx_array);
+
+    ASSERT_EQ(g_blittint_calls, 0);
+}
+
 void run_anim_anicombt_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -554,5 +691,8 @@ void run_anim_anicombt_tests(void)
     RUN_TEST(test_impact_cull_and_arithmetic);
     RUN_TEST(test_impact_zero_frames);
     RUN_TEST(test_fullflash_two_composites_and_strobe);
+    RUN_TEST(test_blink_cull_arith_and_fade);
+    RUN_TEST(test_blink_palette3_offset);
+    RUN_TEST(test_blink_cull_top_edge);
     printf("\n");
 }
