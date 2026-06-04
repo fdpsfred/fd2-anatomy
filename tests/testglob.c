@@ -360,29 +360,41 @@ void fd2_tile_blit_24x24_with_dialog_bg_fill(uint32 src, uint32 dst, uint32 stri
  * linked. fd2_render_chapter_intro_dialog_panels (mode 3) overlays it; the panel
  * test now drives the real grid (its bg-fill portrait blits land in g_blitpass_*
  * and the per-char name dialog runs against the immediate-END text program). */
-/* fd2_render_party_roster_with_item_stat_preview (the single-column class-filtered
- * roster renderer with side-by-side current-vs-preview stat columns; real body not
- * yet emitted). It reads the runtime-char array + portrait cache, so the
- * fd2_party_roster_class_select_loop tests use this recording stub: it captures the
- * three forwarded args (candidate_count / candidate_array_ptr / item_id), the
- * highlight index and surface offset of the latest draw, and a call count. */
-int    g_roster_preview_calls = 0;
-uint32 g_roster_preview_last_count = 0;
-uint32 g_roster_preview_last_candidate_array = 0;
-uint32 g_roster_preview_last_item_id = 0;
-int32  g_roster_preview_last_highlight = 0;
-int32  g_roster_preview_last_surface = 0;
-void fd2_render_party_roster_with_item_stat_preview(uint32 candidate_count,
-                                                    uint32 candidate_array_ptr,
-                                                    uint32 item_id,
-                                                    int32 highlight_idx,
-                                                    int32 surface_offset) {
-    g_roster_preview_last_count = candidate_count;
-    g_roster_preview_last_candidate_array = candidate_array_ptr;
-    g_roster_preview_last_item_id = item_id;
-    g_roster_preview_last_highlight = highlight_idx;
-    g_roster_preview_last_surface = surface_offset;
-    g_roster_preview_calls++;
+/* fd2_render_party_roster_with_item_stat_preview: now emitted for real in
+ * src/gfx/rndmenu.c and linked. Its sole caller fd2_party_roster_class_select_loop
+ * (ui_menu/chintro.c, the cs_* tests) now drives the real renderer against a
+ * fixture (runtime-char array + portrait cache + zeroed atlas + all-END dialog
+ * text + zeroed item-effect table), exactly like the ps_* tests drive the real
+ * party-roster grid: each per-char name dialog runs against the immediate-END
+ * program, so marking the highlighted char's name page proves which cursor the
+ * final re-render highlighted (g_dlg_glyph_last_p5 == 0xC9). Its own behaviour is
+ * covered by tests/gfx/rndmenu.c. */
+/* fd2_pick_stat_compare_color (the 3-branch stat-compare colour picker; real body
+ * not yet emitted — routes to ui_menu/shop.c). The stub reproduces the exact
+ * comparator (==current -> 0x1F, current<preview -> 0x2A, current>preview -> 0x77)
+ * so callers see faithful digit colours, and logs the per-call (current, preview)
+ * pair + a count so the rndmenu stat-preview test can pin which value pair each of
+ * the four stat columns was coloured against. */
+int    g_pick_color_calls = 0;
+int32  g_pick_color_last_current = 0;
+int32  g_pick_color_last_preview = 0;
+int32  g_pick_color_cur_log[16];
+int32  g_pick_color_prev_log[16];
+uint32 fd2_pick_stat_compare_color(int32 current_stat, int32 preview_stat) {
+    if (g_pick_color_calls < 16) {
+        g_pick_color_cur_log[g_pick_color_calls] = current_stat;
+        g_pick_color_prev_log[g_pick_color_calls] = preview_stat;
+    }
+    g_pick_color_calls++;
+    g_pick_color_last_current = current_stat;
+    g_pick_color_last_preview = preview_stat;
+    if (current_stat == preview_stat) {
+        return 0x1f;
+    }
+    if (current_stat < preview_stat) {
+        return 0x2a;
+    }
+    return 0x77;
 }
 /* fd2_render_terrain_info_hud_panel is now a real emitted function
  * (src/gfx/rndstat.c). Its former recording/loop-break stub here was removed;

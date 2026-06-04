@@ -1229,6 +1229,439 @@ static void test_roster_border_not_highlighted(void)
     roster_teardown();
 }
 
+/* ================================================================
+ * fd2_render_party_roster_with_item_stat_preview @ 0x2EBE0
+ *
+ * Single-column class-filtered roster (up to 3 visible chars) with a
+ * side-by-side current-vs-preview stat block (AP/DP/DX/Stat4). Per char:
+ *   - a 24x24 portrait bg-fill blit (real fd2_tile_blit_24x24_with_dialog_bg_fill
+ *     spy g_blitpass_* / g_blitbgfill_calls): pins the blink-frame portrait
+ *     source and the row dst arithmetic.
+ *   - a char name via the REAL fd2_display_dialog_scene against a one-glyph /
+ *     all-END text program: pins the page index (char_id + 1) and the highlight
+ *     border glyph (g_dlg_glyph_last_p5).
+ *   - 8 stat-icon blits via the recording fd2_dialog_sprite_blit_normal stub
+ *     (g_dlg_blit_dst_log / g_dlg_blit_sprite_log): pins each icon's atlas sprite
+ *     offset (+0x4E/+0x52/+0x56/+0x5A current, +0x5E preview) and dst.
+ *   - 8 decimal renders via the REAL fd2_render_decimal_number_to_buffer ->
+ *     fd2_rle_blit_sprite spy (g_rle_blit_log_*) against a fake digit sheet
+ *     (sheet[i]=i): pins the value, the compare colour (sprite base) and the dst.
+ *   - the preview stats come from the REAL
+ *     fd2_compute_equipped_stats_with_item_preview (reads the item-effect table
+ *     via the real fd2_get_item_effect_entry); the compare colour per stat comes
+ *     from the fd2_pick_stat_compare_color stub (faithful 3-branch logic +
+ *     g_pick_color_* recording).
+ *
+ * Risk-bearing logic under test: the visible-count cap (min 3), the blink-frame
+ * remap (3->1), the candidate_array[scroll+iter] char index, the highlight border
+ * (0xC9 vs 0xCD), the four stat columns' current/preview field mapping and
+ * compare pairing, and the dense row/offset dst arithmetic of every icon + digit.
+ * ================================================================ */
+
+extern int    g_dlg_blit_normal_calls;          /* (declared above too) */
+extern int    g_pick_color_calls;
+extern int32  g_pick_color_cur_log[16];
+extern int32  g_pick_color_prev_log[16];
+
+/* preview-renderer fixture */
+static uint8        g_pv_cands[16];
+static runtime_char g_pv_chars[16];
+static uint8        g_pv_cache[512];
+static int32        g_pv_anim[2 + 256];
+static uint8        g_pv_atlas[256];
+static uint16       g_pv_text[0x400];
+static runtime_char *g_pv_saved_char_ptr;
+
+#define PV_END_OFF    0x780
+#define PV_GLYPH_OFF  0x782
+
+/* stat-icon atlas dwords: distinct per slot so resolved sprite = atlas+atlas[off]
+ * uniquely identifies which icon slot the renderer read. */
+#define PV_ATLAS_AP   0x100
+#define PV_ATLAS_DP   0x200
+#define PV_ATLAS_DX   0x300
+#define PV_ATLAS_ST4  0x400
+#define PV_ATLAS_PREV 0x500
+
+static void pv_text_all_end(void)
+{
+    int i;
+    for (i = 0; i < 0x400; i++) {
+        g_pv_text[i] = 0;
+    }
+    *(int16 *)((uint8 *)g_pv_text + PV_END_OFF) = -1;
+    for (i = 0; i < 0x3c0; i++) {
+        g_pv_text[i] = (uint16)PV_END_OFF;
+    }
+    data_fd2_all_game_text_ptr = (uint32)g_pv_text;
+}
+
+/* aim page `glyph_page` at a [glyph][END] blob (one rendered glyph). */
+static void pv_text_glyph_at(uint32 glyph_page, uint16 glyph_val)
+{
+    pv_text_all_end();
+    *(uint16 *)((uint8 *)g_pv_text + PV_GLYPH_OFF)     = glyph_val;
+    *(int16  *)((uint8 *)g_pv_text + PV_GLYPH_OFF + 2) = -1;
+    g_pv_text[glyph_page] = (uint16)PV_GLYPH_OFF;
+}
+
+/* member_count chars, scroll, blink (subframe). Candidate i -> char i. The anim
+ * digit sheet and the menu atlas use table[i]=i so a resolved sprite = base+idx.
+ * Stat-icon atlas dwords are seeded distinct. Item table zeroed. */
+static void pv_setup(uint32 scroll, uint32 subframe)
+{
+    int i;
+    uint8 *anim = (uint8 *)g_pv_anim;
+
+    g_pv_saved_char_ptr = data_fd2_battle_runtime_char_array_ptr;
+
+    memset(g_pv_chars, 0, sizeof(g_pv_chars));
+    memset(g_pv_cache, 0, sizeof(g_pv_cache));
+    memset(g_pv_anim, 0, sizeof(g_pv_anim));
+    memset(g_pv_atlas, 0, sizeof(g_pv_atlas));
+    for (i = 0; i < 256; i++) {
+        *(int32 *)(anim + 6 + i * 4) = i;
+    }
+    for (i = 0; i < 16; i++) {
+        g_pv_cands[i] = (uint8)i;
+    }
+    *(int32 *)(g_pv_atlas + 0x4e) = PV_ATLAS_AP;
+    *(int32 *)(g_pv_atlas + 0x52) = PV_ATLAS_DP;
+    *(int32 *)(g_pv_atlas + 0x56) = PV_ATLAS_DX;
+    *(int32 *)(g_pv_atlas + 0x5a) = PV_ATLAS_ST4;
+    *(int32 *)(g_pv_atlas + 0x5e) = PV_ATLAS_PREV;
+
+    data_fd2_battle_runtime_char_array_ptr = g_pv_chars;
+    portrait_sprite_cache = (uint32)g_pv_cache;
+    data_fd2_ui_anim_sprite_sheet_ptr = (uint32)g_pv_anim;
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = (uint32)g_pv_atlas;
+    data_fd2_ui_menu_scroll_offset = scroll;
+    data_fd2_chapter_intro_dialog_subframe_anim_counter = subframe;
+    memset(data_fd2_battle_item_effect_table, 0,
+           sizeof(data_fd2_battle_item_effect_table));
+    pv_text_all_end();
+
+    g_blitpass_calls = 0;
+    g_blitbgfill_calls = 0;
+    g_dlg_glyph_calls = 0;
+    g_dlg_blit_normal_calls = 0;
+    g_pick_color_calls = 0;
+    g_rle_blit_log_on = 1;
+    g_rle_blit_calls = 0;
+}
+
+static void pv_teardown(void)
+{
+    data_fd2_battle_runtime_char_array_ptr = g_pv_saved_char_ptr;
+    g_rle_blit_log_on = 0;
+}
+
+/* Seed item `item_id`'s effect entry: ap@+1, ht@+3, dp@+5, ev@+7 (the bonuses
+ * the preview-compute adds), and type@+0 (category; 0 = weapon, keeps the
+ * opposite-category equipped-item loop a no-op when slots are empty). */
+static void pv_seed_item(uint32 item_id, int16 ap, int16 ht, int16 dp, int16 ev)
+{
+    data_fd2_battle_item_effect_table[item_id].type = 0;
+    data_fd2_battle_item_effect_table[item_id].ap = (uint16)ap;
+    data_fd2_battle_item_effect_table[item_id].ht = (uint16)ht;
+    data_fd2_battle_item_effect_table[item_id].dp = (uint16)dp;
+    data_fd2_battle_item_effect_table[item_id].ev = (uint16)ev;
+}
+
+/* ----------------------------------------------------------------
+ * Visible-count cap: draw_count = min(candidate_count, 3). One portrait
+ * bg-fill blit per drawn row.
+ * ---------------------------------------------------------------- */
+static void test_preview_cap_min_of_count_and_3(void)
+{
+    pv_setup(0, 0);
+
+    g_blitbgfill_calls = 0;
+    fd2_render_party_roster_with_item_stat_preview(2, (uint32)g_pv_cands, 0, 99, 0x1000);
+    ASSERT_EQ((long)g_blitbgfill_calls, 2);
+
+    g_blitbgfill_calls = 0;
+    fd2_render_party_roster_with_item_stat_preview(5, (uint32)g_pv_cands, 0, 99, 0x1000);
+    ASSERT_EQ((long)g_blitbgfill_calls, 3);   /* capped at 3 */
+
+    g_blitbgfill_calls = 0;
+    fd2_render_party_roster_with_item_stat_preview(0, (uint32)g_pv_cands, 0, 99, 0x1000);
+    ASSERT_EQ((long)g_blitbgfill_calls, 0);   /* nothing to draw */
+    pv_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Portrait dst/src: char_idx = candidate_array[scroll + iter]; dst =
+ * row_y*0x140 + surf + 0xE with row_y = iter*0x1A + 0x75; src = cache +
+ * cache[char_idx*0x30 + blink*4]. scroll 0, blink 0, 2 rows.
+ * ---------------------------------------------------------------- */
+static void test_preview_portrait_dst_src(void)
+{
+    uint32 surf = 0x2000;
+    int32 *cache;
+
+    pv_setup(0, 0);
+    cache = (int32 *)g_pv_cache;
+    cache[(0 * 0x30 + 0 * 4) / 4] = 0x111;   /* char 0, blink 0 */
+    cache[(1 * 0x30 + 0 * 4) / 4] = 0x222;   /* char 1, blink 0 */
+
+    fd2_render_party_roster_with_item_stat_preview(2, (uint32)g_pv_cands, 0, 99, surf);
+
+    ASSERT_EQ((long)g_blitpass_calls, 2);
+    /* row 0: row_y = 0x75 */
+    ASSERT_EQ((long)g_blitpass_dst[0], (long)(0x75u * 0x140u + surf + 0xeu));
+    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_pv_cache + 0x111u));
+    /* row 1: row_y = 0x1A + 0x75 = 0x8F */
+    ASSERT_EQ((long)g_blitpass_dst[1], (long)(0x8fu * 0x140u + surf + 0xeu));
+    ASSERT_EQ((long)g_blitpass_src[1], (long)((uint32)g_pv_cache + 0x222u));
+    ASSERT_EQ((long)g_blitpass_stride[0], 0x140);
+    pv_teardown();
+}
+
+/* char_idx uses scroll + iter: scroll 2 -> first drawn char is cands[2]. */
+static void test_preview_char_idx_uses_scroll(void)
+{
+    int32 *cache;
+
+    pv_setup(2, 0);                          /* scroll 2 */
+    cache = (int32 *)g_pv_cache;
+    cache[(2 * 0x30 + 0 * 4) / 4] = 0x3C;    /* char 2, blink 0 */
+
+    fd2_render_party_roster_with_item_stat_preview(1, (uint32)g_pv_cands, 0, 99, 0x1000);
+
+    ASSERT_EQ((long)g_blitpass_calls, 1);
+    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_pv_cache + 0x3Cu));
+    pv_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Blink-frame remap: subframe 3 -> blink 1 (src uses cache[id*0x30 + 1*4]).
+ * ---------------------------------------------------------------- */
+static void test_preview_blink_frame_3_maps_to_1(void)
+{
+    int32 *cache;
+
+    pv_setup(0, 3);                          /* subframe 3 -> blink 1 */
+    cache = (int32 *)g_pv_cache;
+    cache[(0 * 0x30 + 1 * 4) / 4] = 0xAA;    /* blink 1 (expected) */
+    cache[(0 * 0x30 + 3 * 4) / 4] = 0xBB;    /* blink 3 (must NOT be used) */
+
+    fd2_render_party_roster_with_item_stat_preview(1, (uint32)g_pv_cands, 0, 99, 0x1000);
+
+    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_pv_cache + 0xAAu));
+    pv_teardown();
+}
+
+/* blink passthrough: subframe 2 (not 3) used as-is. */
+static void test_preview_blink_frame_passthrough(void)
+{
+    int32 *cache;
+
+    pv_setup(0, 2);
+    cache = (int32 *)g_pv_cache;
+    cache[(0 * 0x30 + 2 * 4) / 4] = 0x5C;
+
+    fd2_render_party_roster_with_item_stat_preview(1, (uint32)g_pv_cands, 0, 99, 0x1000);
+
+    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_pv_cache + 0x5Cu));
+    pv_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Name page = char.char_id + 1; name dst = (row_y+4)*0x140 + surf + 0x28;
+ * highlighted row (scroll+iter == highlight_idx) gets border 0xC9. One char.
+ * ---------------------------------------------------------------- */
+static void test_preview_name_page_dst_and_highlight(void)
+{
+    uint32 surf = 0x4000;
+    uint32 row_y = 0x75;                     /* iter 0 */
+
+    pv_setup(0, 0);
+    g_pv_chars[0].char_id = 0x0A;            /* page = 0x0B */
+    pv_text_glyph_at(0x0B, 0x37);
+
+    fd2_render_party_roster_with_item_stat_preview(1, (uint32)g_pv_cands, 0, 0, surf);
+
+    ASSERT_EQ(g_dlg_glyph_calls, 1);                       /* page 0x0B reached VM */
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, 0x37);
+    ASSERT_EQ((long)g_dlg_glyph_last_pos,
+              (long)((row_y + 4) * 0x140u + surf + 0x28u));
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xC9);            /* highlighted */
+    pv_teardown();
+}
+
+/* non-highlighted row -> border 0xCD. Two chars, highlight slot 1 (not 0);
+ * mark char 0's page so the emitted glyph carries row 0's border. */
+static void test_preview_border_not_highlighted(void)
+{
+    pv_setup(0, 0);
+    g_pv_chars[0].char_id = 0x03;            /* page = 0x04 */
+    g_pv_chars[1].char_id = 0x07;
+    pv_text_glyph_at(0x04, 0x22);            /* only row 0's page emits a glyph */
+
+    fd2_render_party_roster_with_item_stat_preview(2, (uint32)g_pv_cands, 0, 1, 0x4000);
+
+    ASSERT_EQ(g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xCD);            /* row 0 not highlighted */
+    pv_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Stat-icon blits: 8 per char via the recording fd2_dialog_sprite_blit_normal
+ * stub. Pins each icon's atlas sprite (current +0x4E/+0x52/+0x56/+0x5A, preview
+ * +0x5E) and its dst. One char, iter 0 (row_y = 0x75), surf 0x6000.
+ *
+ * dst row bases: b3=surf+(row_y+3)*0x140, b4=+(row_y+4), b12=+(row_y+0xC),
+ * b13=+(row_y+0xD).
+ * ---------------------------------------------------------------- */
+static void test_preview_stat_icon_sprites_and_dsts(void)
+{
+    uint32 surf = 0x6000;
+    uint32 row_y = 0x75;
+    uint32 atlas = (uint32)g_pv_atlas;
+    uint32 b3, b4, b12, b13;
+
+    pv_setup(0, 0);
+
+    fd2_render_party_roster_with_item_stat_preview(1, (uint32)g_pv_cands, 0, 99, surf);
+
+    b3  = surf + (row_y + 3) * 0x140u;
+    b4  = surf + (row_y + 4) * 0x140u;
+    b12 = surf + (row_y + 0xc) * 0x140u;
+    b13 = surf + (row_y + 0xd) * 0x140u;
+
+    ASSERT_EQ((long)g_dlg_blit_normal_calls, 8);
+
+    /* [0] AP current icon, [1] AP preview icon */
+    ASSERT_EQ((long)g_dlg_blit_dst_log[0], (long)(b3 + 0x7au));
+    ASSERT_EQ((long)g_dlg_blit_sprite_log[0], (long)(atlas + PV_ATLAS_AP));
+    ASSERT_EQ((long)g_dlg_blit_dst_log[1], (long)(b4 + 0x9du));
+    ASSERT_EQ((long)g_dlg_blit_sprite_log[1], (long)(atlas + PV_ATLAS_PREV));
+    /* [2] DP current icon, [3] DP preview icon */
+    ASSERT_EQ((long)g_dlg_blit_dst_log[2], (long)(b12 + 0x7au));
+    ASSERT_EQ((long)g_dlg_blit_sprite_log[2], (long)(atlas + PV_ATLAS_DP));
+    ASSERT_EQ((long)g_dlg_blit_dst_log[3], (long)(b13 + 0x9du));
+    ASSERT_EQ((long)g_dlg_blit_sprite_log[3], (long)(atlas + PV_ATLAS_PREV));
+    /* [4] DX current icon, [5] DX preview icon */
+    ASSERT_EQ((long)g_dlg_blit_dst_log[4], (long)(b3 + 0xc4u));
+    ASSERT_EQ((long)g_dlg_blit_sprite_log[4], (long)(atlas + PV_ATLAS_DX));
+    ASSERT_EQ((long)g_dlg_blit_dst_log[5], (long)(b4 + 0xeau));
+    ASSERT_EQ((long)g_dlg_blit_sprite_log[5], (long)(atlas + PV_ATLAS_PREV));
+    /* [6] Stat4 current icon, [7] Stat4 preview icon */
+    ASSERT_EQ((long)g_dlg_blit_dst_log[6], (long)(b12 + 0xc4u));
+    ASSERT_EQ((long)g_dlg_blit_sprite_log[6], (long)(atlas + PV_ATLAS_ST4));
+    ASSERT_EQ((long)g_dlg_blit_dst_log[7], (long)(b13 + 0xeau));
+    ASSERT_EQ((long)g_dlg_blit_sprite_log[7], (long)(atlas + PV_ATLAS_PREV));
+    pv_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Compare-colour pairing: per char, fd2_pick_stat_compare_color is called once
+ * per stat with (current, preview). current = the runtime-char AP/DP/DX/Stat4
+ * fields; preview = current-base(0 here) + the candidate item's bonus. Seed the
+ * item bonuses and the char's current fields so each stat's pair is distinct.
+ * ---------------------------------------------------------------- */
+static void test_preview_compare_color_pairs(void)
+{
+    pv_setup(0, 0);
+    g_pv_chars[0].ap = 10;
+    g_pv_chars[0].dp = 20;
+    g_pv_chars[0].dx_current = 30;
+    g_pv_chars[0].stat4_current = 40;
+    /* item id 3: ap+5, ht(->dx)+6, dp+7, ev(->stat4)+8; char base stats 0 ->
+     * preview = item bonus */
+    pv_seed_item(3, 5, 6, 7, 8);
+
+    fd2_render_party_roster_with_item_stat_preview(1, (uint32)g_pv_cands, 3, 99, 0x1000);
+
+    ASSERT_EQ((long)g_pick_color_calls, 4);    /* AP, DP, DX, Stat4 */
+    /* AP: current 10 vs preview 5 */
+    ASSERT_EQ((long)g_pick_color_cur_log[0], 10);
+    ASSERT_EQ((long)g_pick_color_prev_log[0], 5);
+    /* DP: current 20 vs preview 7 */
+    ASSERT_EQ((long)g_pick_color_cur_log[1], 20);
+    ASSERT_EQ((long)g_pick_color_prev_log[1], 7);
+    /* DX: current 30 vs preview 6 (item ht -> dx) */
+    ASSERT_EQ((long)g_pick_color_cur_log[2], 30);
+    ASSERT_EQ((long)g_pick_color_prev_log[2], 6);
+    /* Stat4: current 40 vs preview 8 (item ev -> stat4) */
+    ASSERT_EQ((long)g_pick_color_cur_log[3], 40);
+    ASSERT_EQ((long)g_pick_color_prev_log[3], 8);
+    pv_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Decimal values + colours + dsts: per stat the SAME colour is used for both
+ * the current and preview digits. With the fake sheet (sheet[i]=i) a digit
+ * glyph resolves to sheet + (colour + digit). One char; seed AP so current ==
+ * preview (colour 0x1F), DP so current < preview (0x2A), DX so current >
+ * preview (0x77). Verify the first stat-value blit dst of each value and the
+ * 3-digit glyph offsets of the AP pair (which pins value, colour, and path).
+ *
+ * Decimal-blit order (3 glyphs per value): AP cur, AP prev, DP cur, DP prev,
+ * DX cur, DX prev, Stat4 cur, Stat4 prev.
+ * ---------------------------------------------------------------- */
+static void test_preview_decimal_values_colors_dsts(void)
+{
+    uint32 surf = 0x8000;
+    uint32 row_y = 0x75;
+    uint32 b3, b12, sheet;
+
+    pv_setup(0, 0);
+    g_pv_chars[0].ap = 10;             /* AP current 10 */
+    g_pv_chars[0].dp = 20;             /* DP current 20 */
+    g_pv_chars[0].dx_current = 30;     /* DX current 30 */
+    g_pv_chars[0].stat4_current = 0;   /* Stat4 current 0 */
+    /* item id 1 (char base stats all 0 -> preview == item bonus):
+     *   ap +10  -> preview 10 == cur 10  -> 0x1F
+     *   dp +25  -> preview 25 >  cur 20  -> 0x2A
+     *   ht +5   -> dx preview 5 < cur 30 -> 0x77
+     *   ev +0   -> stat4 preview 0 == cur 0 -> 0x1F
+     * pv_seed_item args order: (item_id, ap, ht, dp, ev) */
+    pv_seed_item(1, 10, 5, 25, 0);
+
+    fd2_render_party_roster_with_item_stat_preview(1, (uint32)g_pv_cands, 1, 99, surf);
+
+    b3    = surf + (row_y + 3) * 0x140u;
+    b12   = surf + (row_y + 0xc) * 0x140u;
+    sheet = (uint32)g_pv_anim;
+
+    /* 8 values x 3 digits = 24 digit blits */
+    ASSERT_EQ((long)g_rle_blit_calls, 24);
+
+    /* AP current value 10 -> "010", colour 0x1F: idx 0x1F+0,0x1F+1,0x1F+0.
+     * dst = b3+0x89 (then +6, +12). */
+    ASSERT_EQ((long)g_rle_blit_log_dst[0], (long)(b3 + 0x89u));
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[0] - sheet), 0x1f + 0);
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[1] - sheet), 0x1f + 1);
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[2] - sheet), 0x1f + 0);
+    /* AP preview value 10 -> "010", same colour 0x1F; dst = b3+0xA5. */
+    ASSERT_EQ((long)g_rle_blit_log_dst[3], (long)(b3 + 0xa5u));
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[3] - sheet), 0x1f + 0);
+
+    /* DP current value 20 -> "020", colour 0x2A; dst = b12+0x89. */
+    ASSERT_EQ((long)g_rle_blit_log_dst[6], (long)(b12 + 0x89u));
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[6] - sheet), 0x2a + 0);
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[7] - sheet), 0x2a + 2);
+    /* DP preview value 25 -> "025", same colour 0x2A; dst = b12+0xA5. */
+    ASSERT_EQ((long)g_rle_blit_log_dst[9], (long)(b12 + 0xa5u));
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[11] - sheet), 0x2a + 5);
+
+    /* DX current value 30 -> "030", colour 0x77; dst = b3+0xD6. */
+    ASSERT_EQ((long)g_rle_blit_log_dst[12], (long)(b3 + 0xd6u));
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[13] - sheet), 0x77 + 3);
+    /* DX preview value 5 -> "005", same colour 0x77; dst = b3+0xF2. */
+    ASSERT_EQ((long)g_rle_blit_log_dst[15], (long)(b3 + 0xf2u));
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[17] - sheet), 0x77 + 5);
+
+    /* Stat4 current value 0 -> "000", colour 0x1F; dst = b12+0xD6. */
+    ASSERT_EQ((long)g_rle_blit_log_dst[18], (long)(b12 + 0xd6u));
+    ASSERT_EQ((long)(g_rle_blit_log_sprite[18] - sheet), 0x1f + 0);
+    /* Stat4 preview value 0 -> "000"; dst = b12+0xF2. */
+    ASSERT_EQ((long)g_rle_blit_log_dst[21], (long)(b12 + 0xf2u));
+    pv_teardown();
+}
+
 void run_gfx_rndmenu_tests(void)
 {
     SUITE_BEGIN(gfx_rndmenu);
@@ -1269,5 +1702,15 @@ void run_gfx_rndmenu_tests(void)
     RUN_TEST(test_roster_blink_frame_passthrough);
     RUN_TEST(test_roster_name_page_dst_and_highlight_border);
     RUN_TEST(test_roster_border_not_highlighted);
+    RUN_TEST(test_preview_cap_min_of_count_and_3);
+    RUN_TEST(test_preview_portrait_dst_src);
+    RUN_TEST(test_preview_char_idx_uses_scroll);
+    RUN_TEST(test_preview_blink_frame_3_maps_to_1);
+    RUN_TEST(test_preview_blink_frame_passthrough);
+    RUN_TEST(test_preview_name_page_dst_and_highlight);
+    RUN_TEST(test_preview_border_not_highlighted);
+    RUN_TEST(test_preview_stat_icon_sprites_and_dsts);
+    RUN_TEST(test_preview_compare_color_pairs);
+    RUN_TEST(test_preview_decimal_values_colors_dsts);
     SUITE_END();
 }

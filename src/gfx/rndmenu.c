@@ -435,3 +435,167 @@ void fd2_render_party_roster_grid(uint32 highlight_idx, uint32 surface_offset)
             0x140, border_glyph, 0x4c, 0, 0, 0);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_party_roster_with_item_stat_preview @ 0x2EBE0  (1 caller)
+ *
+ * Render the class-filtered party-roster grid with an item-stat
+ * PREVIEW — up to 3 visible chars in a single column, each showing the
+ * current AP/DP/DX/Stat4 stat block side-by-side with the stats they
+ * would have if they equipped the candidate item. Each preview value is
+ * colour-coded against the current value via fd2_pick_stat_compare_color.
+ *
+ * Sole caller: fd2_party_roster_class_select_loop @ 0x2E8CF (the buy-item
+ * "give the bought gear to someone" stat-preview flow).
+ *
+ * Blink-frame mapping (portrait blink cycler):
+ *   blink_frame = (subframe_counter == 3) ? 1 : counter
+ *
+ * Visible-count cap: draw_count = min(candidate_count, 3).
+ *
+ * Per char (iter = 0..draw_count-1):
+ *   char_idx = candidate_array[scroll_offset + iter]
+ *   preview  = fd2_compute_equipped_stats_with_item_preview(char_idx,
+ *                  item_id, &preview)            // [AP, DP, DX, Stat4]
+ *   row_y    = iter * 0x1A + 0x75                 // 3-row spacing
+ *   24x24 portrait bg-fill blit (blink variant):
+ *     src = cache + cache[char_idx*0x30 + blink_frame*4]
+ *     dst = row_y*0x140 + surface_offset + 0x0E
+ *   border_glyph = (scroll_offset + iter == highlight_idx) ? 0xC9 : 0xCD
+ *   char name via dialog scene (FDTXT page = char.char_id + 1):
+ *     dst = (row_y+4)*0x140 + surface_offset + 0x28
+ *   four stat pairs (current value + preview value, sharing one compare
+ *   colour each), with a unit-icon sprite blit per value:
+ *     AP    : current icon atlas[+0x4E], preview icon atlas[+0x5E]
+ *     DP    : current icon atlas[+0x52], preview icon atlas[+0x5E]
+ *     DX    : current icon atlas[+0x56], preview icon atlas[+0x5E]
+ *     Stat4 : current icon atlas[+0x5A], preview icon atlas[+0x5E]
+ *   AP/DX share row bases (row_y+3) for the value digits and (row_y+4)
+ *   for the preview-icon column; DP/Stat4 share (row_y+0xC) / (row_y+0xD).
+ *
+ * This renderer does NOT display the item name (that text id is computed
+ * and stashed by the caller chain, not here).
+ *
+ * void __cdecl. EBX/ESI/EDI/EBP callee-saved; the __CHK(0x70) stack-probe
+ * prologue is compiler-injected and omitted here. The current stats are
+ * zero-extended uint16 fields; the preview stats are the int32 outputs of
+ * the compute helper.
+ * ---------------------------------------------------------------- */
+void fd2_render_party_roster_with_item_stat_preview(uint32 candidate_count,
+                                                    uint32 candidate_array_ptr,
+                                                    uint32 item_id,
+                                                    int32 highlight_idx,
+                                                    int32 surface_offset)
+{
+    uint32 preview[4];          /* [0]=AP [1]=DP [2]=DX [3]=Stat4 */
+    uint32 blink_frame;
+    uint32 draw_count;
+    uint32 iter;
+    uint32 char_idx;
+    uint32 cur_ap;
+    uint32 cur_dp;
+    uint32 cur_dx;
+    uint32 cur_stat4;
+    uint32 row_y;
+    uint32 portrait_src;
+    uint8  border_glyph;
+    uint32 row_base3;           /* surface + (row_y+3)*0x140  */
+    uint32 row_base4;           /* surface + (row_y+4)*0x140  */
+    uint32 row_base12;          /* surface + (row_y+0xC)*0x140 */
+    uint32 row_base13;          /* surface + (row_y+0xD)*0x140 */
+    uint32 color;
+    uint32 atlas;
+    runtime_char *rt_chars;
+
+    blink_frame = data_fd2_chapter_intro_dialog_subframe_anim_counter;
+    if (data_fd2_chapter_intro_dialog_subframe_anim_counter == 3) {
+        blink_frame = 1;
+    }
+
+    draw_count = candidate_count;
+    if ((int32)candidate_count > 3) {
+        draw_count = 3;
+    }
+
+    for (iter = 0; (int32)iter < (int32)draw_count; iter++) {
+        char_idx = (uint32)*(uint8 *)(data_fd2_ui_menu_scroll_offset + iter
+                                      + candidate_array_ptr);
+
+        fd2_compute_equipped_stats_with_item_preview(
+            char_idx, item_id, (uint32)preview);
+
+        rt_chars = data_fd2_battle_runtime_char_array_ptr;
+        cur_ap    = (uint32)rt_chars[char_idx].ap;
+        cur_dp    = (uint32)rt_chars[char_idx].dp;
+        cur_dx    = (uint32)rt_chars[char_idx].dx_current;
+        cur_stat4 = (uint32)rt_chars[char_idx].stat4_current;
+        row_y = iter * 0x1a + 0x75;
+
+        portrait_src = *(int32 *)(portrait_sprite_cache
+                                  + char_idx * 0x30 + blink_frame * 4)
+                     + portrait_sprite_cache;
+        fd2_tile_blit_24x24_with_dialog_bg_fill(
+            portrait_src, row_y * 0x140 + surface_offset + 0xe, 0x140);
+
+        border_glyph = 0xcd;
+        if ((int32)(data_fd2_ui_menu_scroll_offset + iter) == highlight_idx) {
+            border_glyph = 0xc9;
+        }
+
+        row_base3  = surface_offset + (row_y + 3) * 0x140;
+        row_base4  = surface_offset + (row_y + 4) * 0x140;
+        row_base12 = surface_offset + (row_y + 0xc) * 0x140;
+        row_base13 = surface_offset + (row_y + 0xd) * 0x140;
+
+        atlas = data_fd2_ui_menu_screen_sprite_atlas_buf_ptr;
+        fd2_display_dialog_scene(
+            data_fd2_all_game_text_ptr,
+            rt_chars[char_idx].char_id + 1,
+            row_base4 + 0x28, 0x140, border_glyph, 0x4c, 0, 0, 0);
+
+        /* --- AP --- */
+        color = fd2_pick_stat_compare_color((int32)cur_ap, (int32)preview[0]);
+        fd2_dialog_sprite_blit_normal(
+            row_base3 + 0x7a, atlas + *(int32 *)(atlas + 0x4e), 0x140);
+        fd2_render_decimal_number_to_buffer(
+            row_base3 + 0x89, 0x140, cur_ap, color, 3);
+        fd2_dialog_sprite_blit_normal(
+            row_base4 + 0x9d, atlas + *(int32 *)(atlas + 0x5e), 0x140);
+        fd2_render_decimal_number_to_buffer(
+            row_base3 + 0xa5, 0x140, preview[0], color, 3);
+
+        /* --- DP --- */
+        color = fd2_pick_stat_compare_color((int32)cur_dp, (int32)preview[1]);
+        fd2_dialog_sprite_blit_normal(
+            row_base12 + 0x7a, atlas + *(int32 *)(atlas + 0x52), 0x140);
+        fd2_render_decimal_number_to_buffer(
+            row_base12 + 0x89, 0x140, cur_dp, color, 3);
+        fd2_dialog_sprite_blit_normal(
+            row_base13 + 0x9d, atlas + *(int32 *)(atlas + 0x5e), 0x140);
+        fd2_render_decimal_number_to_buffer(
+            row_base12 + 0xa5, 0x140, preview[1], color, 3);
+
+        /* --- DX --- */
+        color = fd2_pick_stat_compare_color((int32)cur_dx, (int32)preview[2]);
+        fd2_dialog_sprite_blit_normal(
+            row_base3 + 0xc4, atlas + *(int32 *)(atlas + 0x56), 0x140);
+        fd2_render_decimal_number_to_buffer(
+            row_base3 + 0xd6, 0x140, cur_dx, color, 3);
+        fd2_dialog_sprite_blit_normal(
+            row_base4 + 0xea, atlas + *(int32 *)(atlas + 0x5e), 0x140);
+        fd2_render_decimal_number_to_buffer(
+            row_base3 + 0xf2, 0x140, preview[2], color, 3);
+
+        /* --- Stat4 --- */
+        color = fd2_pick_stat_compare_color((int32)cur_stat4,
+                                            (int32)preview[3]);
+        fd2_dialog_sprite_blit_normal(
+            row_base12 + 0xc4, atlas + *(int32 *)(atlas + 0x5a), 0x140);
+        fd2_render_decimal_number_to_buffer(
+            row_base12 + 0xd6, 0x140, cur_stat4, color, 3);
+        fd2_dialog_sprite_blit_normal(
+            row_base13 + 0xea, atlas + *(int32 *)(atlas + 0x5e), 0x140);
+        fd2_render_decimal_number_to_buffer(
+            row_base12 + 0xf2, 0x140, preview[3], color, 3);
+    }
+}

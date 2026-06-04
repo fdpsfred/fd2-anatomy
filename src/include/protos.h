@@ -176,6 +176,7 @@ void fd2_update_palette_cycle_anim(void);
 /* ---- ui_menu / status ---- */
 void fd2_equip_unequip_inventory_menu(uint32 char_idx);
 void fd2_compute_equipped_stats_with_item_preview(uint32 char_idx, uint32 item_id, uint32 stats_out_ptr);
+uint32 fd2_pick_stat_compare_color(int32 current_stat, int32 preview_stat);
 void fd2_open_party_status_overview_screen(void);
 void fd2_render_party_status_overview_content(uint32 dst_surface, uint32 stride);
 int fd2_count_active_chars_for_team_filter(uint32 team);

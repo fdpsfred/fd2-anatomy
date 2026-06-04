@@ -723,87 +723,153 @@ static void test_ps_unmapped_loops_then_commit(void)
  * in steps of ONE (scroll up when cursor - scroll_offset > 2; scroll down when
  * cursor < scroll_offset) — the finer scroll that distinguishes this loop from
  * the step-of-2 grid of fd2_party_roster_single_select_loop. Every draw forwards
- * the three stack args (candidate_count / candidate_array_ptr / item_id) to the
- * renderer fd2_render_party_roster_with_item_stat_preview.
+ * the three stack args (candidate_count / candidate_array_ptr / item_id) plus the
+ * live cursor (as the highlight) to fd2_render_party_roster_with_item_stat_preview.
  *
- * Driven exactly like the ps_* tests: the BIOS keyboard ring is pre-filled and
- * the tick @ 0x46C held stable so the real fd2_wait_input_with_chapter_dialog_blink(2)
- * per-frame blink body is skipped. The setup phase runs for real — 3 x
- * malloc(64000), a 0xA0000 snapshot memmove, and the 6-frame real
- * fd2_slide_panel_down_step — all harmless in the DOS test target.
- * fd2_dialog_sprite_blit_normal and the renderer are the testglob recording
- * stubs; the header blit only needs atlas[+0x46] to be a readable dword, so
- * cs_prep points the atlas at a zeroed buffer. The renderer stub captures the
- * forwarded args + highlight + a call count (g_roster_preview_*); the scroll
- * animations are g_scroll_up_in_shop_calls / g_scroll_down_in_shop_calls.
+ * Driven exactly like the ps_* tests, and the renderer now runs FOR REAL
+ * (src/gfx/rndmenu.c): the BIOS keyboard ring is pre-filled and the tick @ 0x46C
+ * held stable so the real fd2_wait_input_with_chapter_dialog_blink(2) per-frame
+ * blink body is skipped. The setup phase runs for real — 3 x malloc(64000), a
+ * 0xA0000 snapshot memmove, and the 6-frame real fd2_slide_panel_down_step — all
+ * harmless in the DOS test target.
+ *
+ * cs_prep gives the real renderer the fixture it needs: a candidate char-id array
+ * (cs_cands), a runtime-char array, a portrait cache, a zeroed sprite atlas (its
+ * stat-icon dword reads at +0x4E..+0x5E land in-bounds; the resolved icons go to
+ * the fd2_dialog_sprite_blit_normal recording stub), a zeroed anim sprite sheet
+ * (the real fd2_render_decimal_number_to_buffer resolves digit sprites through the
+ * fd2_rle_blit_sprite spy without touching pixels), a zeroed item-effect table
+ * (the real preview-compute reads it via fd2_get_item_effect_entry), and an
+ * all-END dialog text table so every per-char name dialog returns at once. The
+ * loop forwards data_fd2_ui_menu_cursor_idx as the highlight, so the highlighted
+ * row's name renders with border glyph 0xC9; cs_mark_highlight_char() points that
+ * char's name page at a one-glyph blob, so g_dlg_glyph_last_p5 == 0xC9 confirms the
+ * final re-render highlighted the expected cursor.
  *
  * Each test pins: the return code, the final cursor index, the final
- * scroll_offset, the chime count, the renderer's forwarded args + last
- * highlight, and the per-direction scroll-animation counts. These cover both
- * navigation branches, both bound guards, and the step-of-1 viewport paging —
- * the risk-bearing arithmetic. (The setup blit/slide pixel effects are pure
- * display side-effects, verified by three-source review and deferred to Phase 9
- * integration.)
+ * scroll_offset, the chime count, the highlighted row's border glyph (the
+ * real-renderer proxy for the re-render highlight arg), and the per-direction
+ * scroll-animation counts. These cover both navigation branches, both bound
+ * guards, and the step-of-1 viewport paging — the risk-bearing arithmetic. (The
+ * setup blit/slide pixel effects are pure display side-effects, verified by
+ * three-source review and deferred to Phase 9 integration.)
  * ================================================================ */
 
-/* Recording stubs for the not-yet-emitted stat-preview renderer (testglob.c). */
-extern int    g_roster_preview_calls;
-extern uint32 g_roster_preview_last_count;
-extern uint32 g_roster_preview_last_candidate_array;
-extern uint32 g_roster_preview_last_item_id;
-extern int32  g_roster_preview_last_highlight;
-extern int32  g_roster_preview_last_surface;
+/* Real-renderer fixture for the class-select loop. cs_cands is the candidate
+ * char-id array the loop's stack arg points at; cs_chars / cs_cache / cs_anim
+ * back the renderer's runtime-char / portrait / digit-sheet reads; cs_text is the
+ * all-END dialog program (pages above the table point at END so each name dialog
+ * returns at once). */
+static uint8        cs_cands[16];
+static runtime_char cs_chars[16];
+static uint8        cs_cache[512];
+static int32        cs_anim[2 + 256];
+static uint16       cs_text[0x400];
 
-/* Prime the class-select prerequisites: a zeroed sprite atlas (so the header
- * blit's atlas[+0x46] dword read is in-bounds), a stable BIOS tick (so the
- * wait-input per-frame blink body is skipped), seeded cursor/scroll (the loop
- * resets both to 0 at setup), and every observed counter reset. */
+#define CS_END_OFF     0x780               /* byte offset of the shared END  */
+#define CS_GLYPH_OFF   0x782               /* byte offset of the 1-glyph blob */
+
+extern uint32 g_dlg_glyph_last_p5;         /* glyph colour/border param (testglob) */
+
+static runtime_char *cs_saved_char_ptr;
+
+static void cs_text_all_end(void)
+{
+    int i;
+    for (i = 0; i < 0x400; i++) {
+        cs_text[i] = 0;
+    }
+    *(int16 *)((uint8 *)cs_text + CS_END_OFF) = -1;
+    for (i = 0; i < 0x3c0; i++) {
+        cs_text[i] = (uint16)CS_END_OFF;
+    }
+    data_fd2_all_game_text_ptr = (uint32)cs_text;
+}
+
+/* Give the candidate at runtime index `char_idx` a unique name page carrying a
+ * one-glyph blob, so when the renderer highlights it (scroll+row == highlight)
+ * the real dialog renders one glyph with the highlight border 0xC9. Every other
+ * row keeps char_id 0 -> page 1 -> END, so this is the only glyph emitted and
+ * g_dlg_glyph_last_p5 reflects the highlighted row's border in the final pass. */
+static void cs_mark_highlight_char(uint32 char_idx)
+{
+    cs_chars[char_idx].char_id = 0x20;                  /* page = 0x21 */
+    *(uint16 *)((uint8 *)cs_text + CS_GLYPH_OFF)     = 0x55;
+    *(int16  *)((uint8 *)cs_text + CS_GLYPH_OFF + 2) = -1;
+    cs_text[0x21] = (uint16)CS_GLYPH_OFF;
+}
+
+/* Prime the class-select prerequisites: the zeroed sprite atlas (so the header
+ * blit's atlas[+0x46] dword read and the renderer's +0x4E..+0x5E reads are
+ * in-bounds), a stable BIOS tick (so the wait-input per-frame blink body is
+ * skipped), the real-renderer fixture, seeded cursor/scroll (the loop resets both
+ * to 0 at setup), and every observed counter reset. cs_cands maps each candidate
+ * slot to a distinct in-range char index. */
 static void cs_prep(uint32 start_cursor, uint32 start_scroll)
 {
+    int i;
+
+    cs_saved_char_ptr = data_fd2_battle_runtime_char_array_ptr;
+
     memset(g_ci_atlas, 0, sizeof(g_ci_atlas));
     data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = (uint32)g_ci_atlas;
     data_fd2_shared_rng_seed = 0;
     *(volatile uint32 *)0x46CuL = 0x00000100uL;   /* stable tick */
+
+    memset(cs_chars, 0, sizeof(cs_chars));
+    memset(cs_cache, 0, sizeof(cs_cache));
+    memset(cs_anim, 0, sizeof(cs_anim));
+    for (i = 0; i < 16; i++) {
+        cs_cands[i] = (uint8)i;                   /* candidate i -> char i */
+    }
+    data_fd2_battle_runtime_char_array_ptr = cs_chars;
+    portrait_sprite_cache = (uint32)cs_cache;
+    data_fd2_ui_anim_sprite_sheet_ptr = (uint32)cs_anim;
+    data_fd2_chapter_intro_dialog_subframe_anim_counter = 0;
+    memset(data_fd2_battle_item_effect_table, 0,
+           sizeof(data_fd2_battle_item_effect_table));
+    cs_text_all_end();
+
     g_play_sfx_with_handle_calls = 0;
     g_sfx_last_id = -1;
-    g_roster_preview_calls = 0;
-    g_roster_preview_last_count = 0xFFFFFFFFuL;
-    g_roster_preview_last_candidate_array = 0xFFFFFFFFuL;
-    g_roster_preview_last_item_id = 0xFFFFFFFFuL;
-    g_roster_preview_last_highlight = -1;
-    g_roster_preview_last_surface = 0;
+    g_dlg_glyph_calls = 0;
     g_scroll_up_in_shop_calls = 0;
     g_scroll_down_in_shop_calls = 0;
     data_fd2_ui_menu_cursor_idx = start_cursor;
     data_fd2_ui_menu_scroll_offset = start_scroll;
 }
 
+/* Restore the runtime-char array pointer cs_prep repointed (ui_menu/status.c
+ * relies on the testglob g_test_rc_array default). */
+static void cs_teardown(void)
+{
+    data_fd2_battle_runtime_char_array_ptr = cs_saved_char_ptr;
+}
+
 
 /* ---- setup resets cursor/scroll, forwards args, then commit/cancel ---- */
 
 /* Enter (0x1C) commits immediately. The setup must have reset cursor and scroll
- * to 0 (cs_prep seeded them non-zero), rendered the initial roster with
- * highlight 0, and forwarded the three call args into the renderer. No
- * navigation, so no chime and no scroll. */
+ * to 0 (cs_prep seeded them non-zero) and rendered the initial roster with
+ * highlight 0. No navigation, so no chime and no scroll. The initial render
+ * highlights cursor 0 (candidate slot 0 -> cs_cands[0] == char 0); marking that
+ * char's name page proves the highlighted row carried border 0xC9. */
 static void test_cs_enter_commits_after_setup(void)
 {
     uint16 keys[1];
     int r;
     cs_prep(5, 2);
+    cs_mark_highlight_char(0);                /* candidate 0 == cs_cands[0] */
     keys[0] = 0x1C;
     ps_queue(keys, 1);
-    r = fd2_party_roster_class_select_loop(6, 0x42, 0xCAFE);
+    r = fd2_party_roster_class_select_loop(6, (uint32)cs_cands, 0);
     ASSERT_EQ(r, 1);
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);     /* setup reset */
     ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 0);  /* setup reset */
     ASSERT_EQ(g_play_sfx_with_handle_calls, 0);          /* commit: no chime */
-    ASSERT_TRUE(g_roster_preview_calls >= 1);            /* initial render */
-    ASSERT_EQ((long)g_roster_preview_last_highlight, 0); /* initial @ cursor 0 */
-    /* the three stack args are forwarded positionally each draw:
-     * arg1 candidate_count, arg2 candidate_array_ptr, arg3 item_id */
-    ASSERT_EQ((long)g_roster_preview_last_count, 6);
-    ASSERT_EQ((long)g_roster_preview_last_candidate_array, 0x42);
-    ASSERT_EQ((long)g_roster_preview_last_item_id, 0xCAFE);
+    ASSERT_EQ(g_dlg_glyph_calls, 1);                     /* one glyph: the marked row */
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xC9);          /* initial @ cursor 0 highlighted */
+    cs_teardown();
 }
 
 /* Space (0x39) is the second commit scancode. */
@@ -814,8 +880,9 @@ static void test_cs_space_commits(void)
     cs_prep(0, 0);
     keys[0] = 0x39;
     ps_queue(keys, 1);
-    r = fd2_party_roster_class_select_loop(6, 0, 0);
+    r = fd2_party_roster_class_select_loop(6, (uint32)cs_cands, 0);
     ASSERT_EQ(r, 1);
+    cs_teardown();
 }
 
 /* Esc (0x01) cancels: returns -1. */
@@ -826,8 +893,9 @@ static void test_cs_esc_cancels(void)
     cs_prep(0, 0);
     keys[0] = 0x01;
     ps_queue(keys, 1);
-    r = fd2_party_roster_class_select_loop(6, 0, 0);
+    r = fd2_party_roster_class_select_loop(6, (uint32)cs_cands, 0);
     ASSERT_EQ(r, -1);
+    cs_teardown();
 }
 
 
@@ -840,16 +908,18 @@ static void test_cs_down_adds_one(void)
     uint16 keys[2];
     int r;
     cs_prep(0, 0);
+    cs_mark_highlight_char(1);             /* cursor 1 -> scroll0+row1 == cands[1] */
     keys[0] = 0x50; keys[1] = 0x1C;
     ps_queue(keys, 2);
-    r = fd2_party_roster_class_select_loop(6, 0, 0);
+    r = fd2_party_roster_class_select_loop(6, (uint32)cs_cands, 0);
     ASSERT_EQ(r, 1);
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 1);
     ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 0);
     ASSERT_EQ(g_play_sfx_with_handle_calls, 1);
     ASSERT_EQ(g_sfx_last_id, 0);
-    ASSERT_EQ((long)g_roster_preview_last_highlight, 1);  /* re-render @ 1 */
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xC9);  /* re-render highlighted row 1 */
     ASSERT_EQ(g_scroll_up_in_shop_calls, 0);
+    cs_teardown();
 }
 
 /* Down at the last index is a no-op. count 6: drive to the last index (5) with
@@ -869,12 +939,13 @@ static void test_cs_down_blocked_at_last(void)
     keys[5] = 0x50;                /* 5: guarded (count-1 == cursor) */
     keys[6] = 0x01;
     ps_queue(keys, 7);
-    r = fd2_party_roster_class_select_loop(6, 0, 0);
+    r = fd2_party_roster_class_select_loop(6, (uint32)cs_cands, 0);
     ASSERT_EQ(r, -1);
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 5);  /* stuck at last */
     ASSERT_EQ(g_play_sfx_with_handle_calls, 5);       /* 6th fired none */
     ASSERT_EQ(g_scroll_up_in_shop_calls, 3);          /* paged at 3,4,5 */
     ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 3);
+    cs_teardown();
 }
 
 /* count == 1: cursor starts 0 (= count-1), so Down is always guarded out
@@ -886,11 +957,12 @@ static void test_cs_down_guard_single_candidate(void)
     cs_prep(0, 0);
     keys[0] = 0x50; keys[1] = 0x01;
     ps_queue(keys, 2);
-    r = fd2_party_roster_class_select_loop(1, 0, 0);
+    r = fd2_party_roster_class_select_loop(1, (uint32)cs_cands, 0);
     ASSERT_EQ(r, -1);
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);  /* never moved */
     ASSERT_EQ(g_play_sfx_with_handle_calls, 0);       /* guarded: no chime */
     ASSERT_EQ(g_scroll_up_in_shop_calls, 0);
+    cs_teardown();
 }
 
 
@@ -904,11 +976,12 @@ static void test_cs_up_guard_at_zero(void)
     cs_prep(0, 0);
     keys[0] = 0x48; keys[1] = 0x01;
     ps_queue(keys, 2);
-    r = fd2_party_roster_class_select_loop(6, 0, 0);
+    r = fd2_party_roster_class_select_loop(6, (uint32)cs_cands, 0);
     ASSERT_EQ(r, -1);
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);  /* guarded */
     ASSERT_EQ(g_play_sfx_with_handle_calls, 0);
     ASSERT_EQ(g_scroll_down_in_shop_calls, 0);
+    cs_teardown();
 }
 
 /* Down then Up returns to 0: 0->1 (chime), 1->0 (chime); two chimes, final
@@ -918,15 +991,17 @@ static void test_cs_down_then_up(void)
     uint16 keys[3];
     int r;
     cs_prep(0, 0);
+    cs_mark_highlight_char(0);             /* final cursor back to 0 -> row 0 */
     keys[0] = 0x50; keys[1] = 0x48; keys[2] = 0x1C;
     ps_queue(keys, 3);
-    r = fd2_party_roster_class_select_loop(6, 0, 0);
+    r = fd2_party_roster_class_select_loop(6, (uint32)cs_cands, 0);
     ASSERT_EQ(r, 1);
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);
     ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 0);
     ASSERT_EQ(g_play_sfx_with_handle_calls, 2);
-    ASSERT_EQ((long)g_roster_preview_last_highlight, 0);
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xC9);  /* final re-render highlighted row 0 */
     ASSERT_EQ(g_scroll_down_in_shop_calls, 0);
+    cs_teardown();
 }
 
 
@@ -940,17 +1015,19 @@ static void test_cs_scroll_up_page_on_down(void)
     uint16 keys[4];
     int r;
     cs_prep(0, 0);
+    cs_mark_highlight_char(3);          /* final scroll1,cursor3 -> row2 == cands[3] */
     keys[0] = 0x50; keys[1] = 0x50;   /* 0->1->2 (no page) */
     keys[2] = 0x50;                    /* 2->3: 3-0>2 -> page up, scroll 0->1 */
     keys[3] = 0x1C;
     ps_queue(keys, 4);
-    r = fd2_party_roster_class_select_loop(6, 0, 0);
+    r = fd2_party_roster_class_select_loop(6, (uint32)cs_cands, 0);
     ASSERT_EQ(r, 1);
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 3);
     ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 1);
     ASSERT_EQ(g_scroll_up_in_shop_calls, 1);
     ASSERT_EQ(g_scroll_down_in_shop_calls, 0);
-    ASSERT_EQ((long)g_roster_preview_last_highlight, 3);
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xC9);  /* re-render highlighted cursor 3 */
+    cs_teardown();
 }
 
 /* Scroll-DOWN page on Up: count 6. Build cursor 5 / scroll 3 (five Downs, see
@@ -972,13 +1049,15 @@ static void test_cs_scroll_down_page_on_up(void)
     keys[7] = 0x48;                /* 3->2: 2 < 3 -> page down, scroll 3->2 */
     keys[8] = 0x1C;
     ps_queue(keys, 9);
-    r = fd2_party_roster_class_select_loop(6, 0, 0);
+    cs_mark_highlight_char(2);          /* final scroll2,cursor2 -> row0 == cands[2] */
+    r = fd2_party_roster_class_select_loop(6, (uint32)cs_cands, 0);
     ASSERT_EQ(r, 1);
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 2);
     ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 2);
     ASSERT_EQ(g_scroll_up_in_shop_calls, 3);    /* from the 5 Downs */
     ASSERT_EQ(g_scroll_down_in_shop_calls, 1);  /* the boundary-crossing Up */
-    ASSERT_EQ((long)g_roster_preview_last_highlight, 2);
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xC9);  /* re-render highlighted cursor 2 */
+    cs_teardown();
 }
 
 /* Unmapped scancode falls through every branch (result stays 0) and the loop
@@ -993,12 +1072,13 @@ static void test_cs_unmapped_loops_then_commit(void)
     keys[1] = 0x4B;   /* Left: unmapped in this loop */
     keys[2] = 0x1C;
     ps_queue(keys, 3);
-    r = fd2_party_roster_class_select_loop(6, 0, 0);
+    r = fd2_party_roster_class_select_loop(6, (uint32)cs_cands, 0);
     ASSERT_EQ(r, 1);
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);  /* unmapped: no change */
     ASSERT_EQ(g_play_sfx_with_handle_calls, 0);
     ASSERT_EQ(g_scroll_up_in_shop_calls, 0);
     ASSERT_EQ(g_scroll_down_in_shop_calls, 0);
+    cs_teardown();
 }
 
 
