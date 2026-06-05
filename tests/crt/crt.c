@@ -197,6 +197,183 @@ static void test_file_even_mode(void)
     ASSERT_EQ(r, 4 + 4);
 }
 
+/* ================================================================
+ * crt_equivalent_lx_header_reader_36344 @ 0x36344
+ *
+ * Builds a minimal in-memory LX image and drives the header reader.
+ * mode_byte bit0=1 makes every chunk read a memcpy from the supplied
+ * base, so the whole function runs in memory with no file I/O. The
+ * file-backed variant writes the same image to a SCRATCH temp file
+ * (a generated file, NOT a staged game resource) and drives the real
+ * open/lseek/read path with mode_byte bit0=0.
+ *
+ * Image layout (offsets into the buffer):
+ *   +0x3C : uint32 e_lfanew  -> we place the LX header at LXHDR.
+ *   LXHDR : "LX" magic (+0x00), then a 0xAC-byte header.
+ *   LXHDR +0x40 : uint32 object_table_offset (relative to e_lfanew).
+ *   LXHDR +0x44 : uint32 number_of_objects.
+ *   obj recs    : 0x18 bytes each at (e_lfanew + object_table_offset);
+ *                 +0x00 holds the object virtual size.
+ * Expected return = number_of_objects*15 + Sum(virtual_size).
+ * ================================================================ */
+
+#define CRT_LX_BUF_SIZE   512
+#define CRT_LX_HDR_OFF    0x80    /* where the LX header sits */
+#define CRT_LX_OBJTBL_OFF 0xC0    /* object table, relative to e_lfanew */
+#define CRT_LX_SCRATCH    "CRTLXHDR.TMP"
+
+/* poke a little-endian uint32 into buf at byte offset off */
+static void crt_put32(uint8 *buf, int off, uint32 v)
+{
+    buf[off + 0] = (uint8)(v & 0xFF);
+    buf[off + 1] = (uint8)((v >> 8) & 0xFF);
+    buf[off + 2] = (uint8)((v >> 16) & 0xFF);
+    buf[off + 3] = (uint8)((v >> 24) & 0xFF);
+}
+
+/* Build an LX image into buf with n_objs object records whose virtual
+ * sizes come from vsizes[]. Returns nothing; buf must be zeroed first. */
+static void crt_build_lx_image(uint8 *buf, int n_objs, const uint32 *vsizes)
+{
+    int rec_base;
+    int i;
+
+    /* e_lfanew at MZ+0x3C points at the LX header */
+    crt_put32(buf, 0x3C, CRT_LX_HDR_OFF);
+
+    /* LX magic "LX" at the header start */
+    buf[CRT_LX_HDR_OFF + 0] = 'L';
+    buf[CRT_LX_HDR_OFF + 1] = 'X';
+
+    /* object_table_offset (relative to e_lfanew) and number_of_objects */
+    crt_put32(buf, CRT_LX_HDR_OFF + 0x40, CRT_LX_OBJTBL_OFF);
+    crt_put32(buf, CRT_LX_HDR_OFF + 0x44, (uint32)n_objs);
+
+    /* object records: 0x18 bytes each; virtual size at +0x00 */
+    rec_base = CRT_LX_HDR_OFF + CRT_LX_OBJTBL_OFF;
+    for (i = 0; i < n_objs; i++) {
+        crt_put32(buf, rec_base + i * 0x18 + 0x00, vsizes[i]);
+    }
+}
+
+/* in-memory (mode bit0=1) happy path: single object */
+static void test_lx_header_inmem_single_object(void)
+{
+    static uint8 buf[CRT_LX_BUF_SIZE];
+    static const uint32 vsizes[1] = { 0x1000 };
+    int r;
+    int i;
+
+    for (i = 0; i < CRT_LX_BUF_SIZE; i++) {
+        buf[i] = 0;
+    }
+    crt_build_lx_image(buf, 1, vsizes);
+
+    /* mode bit0=1 -> base address path; arg0 == in-memory base */
+    r = crt_equivalent_lx_header_reader_36344((char *)buf, 1);
+
+    /* 1*15 + 0x1000 */
+    ASSERT_EQ(r, 1 * 15 + 0x1000);
+}
+
+/* in-memory happy path: several objects -> verifies the object loop
+ * accumulates every virtual size and chains the read offset by 0x18. */
+static void test_lx_header_inmem_multi_object(void)
+{
+    static uint8 buf[CRT_LX_BUF_SIZE];
+    static const uint32 vsizes[3] = { 0x100, 0x2000, 0x30 };
+    int r;
+    int i;
+
+    for (i = 0; i < CRT_LX_BUF_SIZE; i++) {
+        buf[i] = 0;
+    }
+    crt_build_lx_image(buf, 3, vsizes);
+
+    r = crt_equivalent_lx_header_reader_36344((char *)buf, 1);
+
+    /* 3*15 + (0x100 + 0x2000 + 0x30) */
+    ASSERT_EQ(r, 3 * 15 + (0x100 + 0x2000 + 0x30));
+}
+
+/* in-memory: zero objects still validates magic and returns 0*15+0 == 0. */
+static void test_lx_header_inmem_zero_objects(void)
+{
+    static uint8 buf[CRT_LX_BUF_SIZE];
+    int r;
+    int i;
+
+    for (i = 0; i < CRT_LX_BUF_SIZE; i++) {
+        buf[i] = 0;
+    }
+    crt_build_lx_image(buf, 0, (const uint32 *)0);
+
+    r = crt_equivalent_lx_header_reader_36344((char *)buf, 1);
+
+    ASSERT_EQ(r, 0);
+}
+
+/* in-memory: bad LX magic -> strcmp mismatch -> return 0 (no aggregate). */
+static void test_lx_header_inmem_bad_magic(void)
+{
+    static uint8 buf[CRT_LX_BUF_SIZE];
+    static const uint32 vsizes[1] = { 0x9999 };
+    int r;
+    int i;
+
+    for (i = 0; i < CRT_LX_BUF_SIZE; i++) {
+        buf[i] = 0;
+    }
+    crt_build_lx_image(buf, 1, vsizes);
+    /* corrupt the magic: "MZ" instead of "LX" */
+    buf[CRT_LX_HDR_OFF + 0] = 'M';
+    buf[CRT_LX_HDR_OFF + 1] = 'Z';
+
+    r = crt_equivalent_lx_header_reader_36344((char *)buf, 1);
+
+    ASSERT_EQ(r, 0);
+}
+
+/* file-backed (mode bit0=0): write the same image to a scratch file and
+ * drive the real open/lseek/read path. The scratch file is generated
+ * here (not a game resource). */
+static void test_lx_header_file_multi_object(void)
+{
+    static uint8 buf[CRT_LX_BUF_SIZE];
+    static const uint32 vsizes[2] = { 0x800, 0x40 };
+    int fd;
+    int r;
+    int i;
+
+    for (i = 0; i < CRT_LX_BUF_SIZE; i++) {
+        buf[i] = 0;
+    }
+    crt_build_lx_image(buf, 2, vsizes);
+
+    fd = open(CRT_LX_SCRATCH, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY,
+              S_IREAD | S_IWRITE);
+    ASSERT_TRUE(fd >= 0);
+    write(fd, buf, CRT_LX_BUF_SIZE);
+    close(fd);
+
+    /* mode bit0=0 -> open(path,...) + lseek/read drive the reads */
+    r = crt_equivalent_lx_header_reader_36344(CRT_LX_SCRATCH, 0);
+    remove(CRT_LX_SCRATCH);
+
+    /* 2*15 + (0x800 + 0x40) */
+    ASSERT_EQ(r, 2 * 15 + (0x800 + 0x40));
+}
+
+/* file-backed: open() failure on a missing path -> return 0, no crash. */
+static void test_lx_header_file_open_fail(void)
+{
+    int r;
+
+    remove(CRT_LX_SCRATCH);   /* ensure it does not exist */
+    r = crt_equivalent_lx_header_reader_36344(CRT_LX_SCRATCH, 0);
+    ASSERT_EQ(r, 0);
+}
+
 void run_crt_crt_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -207,5 +384,11 @@ void run_crt_crt_tests(void)
     RUN_TEST(test_file_read_at_zero);
     RUN_TEST(test_file_read_at_offset);
     RUN_TEST(test_file_even_mode);
+    RUN_TEST(test_lx_header_inmem_single_object);
+    RUN_TEST(test_lx_header_inmem_multi_object);
+    RUN_TEST(test_lx_header_inmem_zero_objects);
+    RUN_TEST(test_lx_header_inmem_bad_magic);
+    RUN_TEST(test_lx_header_file_multi_object);
+    RUN_TEST(test_lx_header_file_open_fail);
     printf("\n");
 }

@@ -4336,8 +4336,9 @@
     "name": "crt_equivalent_lx_header_reader_36344",
     "target": "crt/crt.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0003647b": {
     "name": "crt_equivalent_lx_module_loader_3647b",

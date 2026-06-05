@@ -578,5 +578,17 @@
         "severity": "low"
       }
     ]
+  },
+  "00036344": {
+    "name": "crt_equivalent_lx_header_reader_36344",
+    "target": "crt/crt.c",
+    "issues": [
+      {
+        "type": "rodata_const_init_codegen",
+        "desc": "The 4-byte LX-magic stack slot is pre-filled with the constant 0x00002020 before the 2-byte magic read overwrites its low 2 bytes. The binary materializes this as a memory load from a rodata constant adjacent to code: MOV EAX,[0x000360ff] (the dword at 0x360ff is 20 20 00 00) / MOV [slot],EAX @0x3634d-0x36352. Emitted as C 'lx_magic_buf = 0x00002020;'. Watcom 9.5a may re-emit this as an immediate store (MOV dword [slot],0x2020) instead of a rodata load; the two are runtime-equivalent. Behavior is identical for ALL inputs because the upper 2 slot bytes stay 0x0000 (never written by the 2-byte read), so the slot is always the NUL-terminated C string {magic0,magic1,0} and strcmp(&slot,\"LX\") (LX string @0x502f0 = 4c 58 00 00) compares only the first 3 bytes. The actual game LX magic 'LX' makes byte[2] irrelevant; any non-LX magic mismatches at byte0/byte1 regardless of the prefill. verify_method: post-build -d disasm to confirm the prefill value 0x2020 reaches the slot (immediate or rodata load) and the strcmp arg is &slot.",
+        "severity": "info",
+        "verify_method": "compile_and_disasm"
+      }
+    ]
   }
 }
