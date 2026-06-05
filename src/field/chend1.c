@@ -372,3 +372,36 @@ void fd2_chapter_08_end(void)
     fd2_save_runtime_char_to_template();
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_09_end @ 0x235BC  (0 direct callers; dispatched via the
+ *   chapter-end handler pointer table @ 0x51DE9)
+ *
+ * Chapter 9「騎士的抉擇」end handler. Revives runtime char #11 by clearing all
+ * of its status flags (flags = 0; the char was previously asleep/disabled —
+ * this re-enables it rather than recruiting a new member), pans the view window
+ * to (6,1), refreshes the portrait cache for race 4, fires cutscene event 0x24,
+ * shows the chapter-end dialog page 4, persists the party's runtime-character
+ * state back to the template store, then advances the current-chapter id by 1.
+ *
+ * In the binary the function ends with `JMP 0x231C6`, a tail-jump into the
+ * shared tail of fd2_chapter_04_end @ 0x231C6 (+0xA: PUSH current_chapter_text;
+ * dialog page 4; cleanup; save; INC chapter id; RET). It is emitted here as a
+ * self-contained function (Layer 2 functional equivalence — the jump-into-middle
+ * sharing is not preserved in source).
+ *
+ * Paired init handler: fd2_chapter_09_init @ 0x3327D.
+ * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
+ * Walkthrough: assets/chapters/chapter_09.md.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_09_end(void)
+{
+    data_fd2_battle_runtime_char_array_ptr[0xb].flags = 0;
+    fd2_pan_cursor_and_window(6, 1);
+    fd2_load_chapter_portraits_and_dump_tmp(4);
+    fd2_cutscene_event_trigger(0x24);
+    fd2_display_dialog_scene(current_chapter_text, 4, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+    fd2_save_runtime_char_to_template();
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}

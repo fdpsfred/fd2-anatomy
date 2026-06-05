@@ -1659,6 +1659,199 @@ static void test_chapter_08_end_increments_not_absolute(void)
     ASSERT_EQ((long)chapter_id, 4L);           /* 3 + 1, not a constant */
 }
 
+/* ================================================================
+ * fd2_chapter_09_end @ 0x235BC
+ *
+ * The Chapter 9 end handler is a straight-line (no-branch) orchestrator that
+ * differs from the chapter 06 shape only by a leading REVIVE step:
+ *   (1) revives runtime char #11 by clearing all of its status flags
+ *       (runtime_char[0xB].flags = 0 — the binary's
+ *       MOV byte ptr [runtime_char_array_ptr + 0xB*0x50 + 0x5], 0); the char was
+ *       previously asleep/disabled, so this re-enables it (no new recruit),
+ *   (2) pans the view window to (6,1) via the real fd2_pan_cursor_and_window,
+ *   (3) refreshes the portrait cache for race 4 via the real
+ *       fd2_load_chapter_portraits_and_dump_tmp (re-reads FDFIELD.DAT, race-scans
+ *       the tile-event table, rewrites FD2.TMP from portrait_sprite_cache),
+ *   (4) fires cutscene event 0x24 via the real fd2_cutscene_event_trigger,
+ *   (5) shows chapter-end dialog page 4 via the real fd2_display_dialog_scene
+ *       (the shared chapter-04 tail @ 0x231C6),
+ *   (6) persists the party via the real fd2_save_runtime_char_to_template, then
+ *   (7) advances chapter_id by 1 (the binary's INC [0x53c03]).
+ *
+ * EVERY callee is the real linked function (no fakes). The fixture mirrors the
+ * chapter 06 suite's safe headless env, plus the chapter 02 suite's runtime-char
+ * array swap: data_fd2_battle_runtime_char_array_ptr is repointed at a local
+ * 16-slot array so index 0xB is in bounds, and char #11 is seeded with poisoned
+ * flags 0x05 (dead|cannot_act) so the revive (-> 0) is observable. Unlike chapter
+ * 06 there is no recruit, so the roster count is not asserted; the real save pass
+ * still runs over runtime char 0.
+ *
+ * Asserted: char #11 revived (flags 0x05 -> 0), the dialog page that ran (glyph
+ * id 0x66 pins page 4 / text base), the real portrait dump completed (FD2.TMP
+ * rewritten), and the chapter-id transition is a relative INCREMENT (not an
+ * absolute set). On-screen pixels of the dialog/cutscene/pan are display
+ * side-effects deferred to Phase 9.
+ * ================================================================ */
+
+static runtime_char g_ce9_rc[16];
+static uint8        g_ce9_roster[8 * 0x50];
+static uint8        g_ce9_script[1];           /* n_groups == 0 */
+static uint32       g_ce9_psc;                 /* portrait_sprite_cache scratch */
+static int16        g_ce9_text[16];
+static runtime_char *g_ce9_saved_rc_ptr;
+
+static void ce9_fixture_reset(void)
+{
+    int i;
+
+    /* dialog VM safe env. */
+    *(volatile uint16 *)0x41AuL = 0x20;   /* BIOS kbd buffer head == tail */
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+
+    /* dialog program: page 4's header word (prog[4]) is a byte offset that
+     * redirects cur_op to prog[5] = one glyph (0x66), prog[6] = -1 END. */
+    for (i = 0; i < 16; i++) {
+        g_ce9_text[i] = 0;
+    }
+    g_ce9_text[4] = 10;       /* byte offset to prog[5] (page 4 start) */
+    g_ce9_text[5] = 0x66;     /* one glyph */
+    g_ce9_text[6] = -1;       /* END */
+    current_chapter_text = (uint32)g_ce9_text;
+
+    /* runtime-char array: 16 local slots so char #11 (revive) is in bounds.
+     * Seed char #11 with poisoned flags so the revive (flags -> 0) is visible;
+     * char 0 stays zeroed (alive) for the real save scan. */
+    g_ce9_saved_rc_ptr = data_fd2_battle_runtime_char_array_ptr;
+    memset(g_ce9_rc, 0, sizeof(g_ce9_rc));
+    g_ce9_rc[0xb].flags = 0x05;          /* dead|cannot_act -> handler clears */
+    data_fd2_battle_runtime_char_array_ptr = g_ce9_rc;
+
+    /* save safe env (chapter 01 baseline): zeroed roster, one scanned runtime
+     * char and one template entry. */
+    memset(g_ce9_roster, 0, sizeof(g_ce9_roster));
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_ce9_roster;
+    g_check_char_is_dead_return = 0;
+    data_fd2_battle_party_member_count = 1;
+    data_fd2_shared_menu_party_member_count = 1;
+
+    /* portrait dump: skip the race scan (alloc_offset 0 -> no FDICON per-char
+     * parse), give the FD2.TMP fwrite a real 0x32A00 source, re-read a valid
+     * FDFIELD index (chapter 4 -> idx 0xE, proven by the rsrc suite). */
+    if (g_ce9_psc == 0) {
+        g_ce9_psc = (uint32)malloc(0x32a00);
+    }
+    portrait_sprite_cache = g_ce9_psc;
+    chapter_portrait_load_buffer = 0;
+    data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+
+    /* cutscene event 0x24 -> empty (n_groups == 0) script. */
+    g_ce9_script[0] = 0;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x24] = g_ce9_script;
+    data_fd2_chapter_cutscene_event_state = 0;    /* normal compose path */
+
+    /* bounded view-window pan (origin near the (6,1) target). */
+    data_fd2_battle_view_window_origin_x = 6;
+    data_fd2_battle_view_window_origin_y = 1;
+
+    /* seed chapter id: 4 makes the FDFIELD re-read index (4*3+2 = 0xE) valid;
+     * the +1 transition is then observable as 4 -> 5. */
+    data_fd2_chapter_current_chapter_id = 4;
+}
+
+static void ce9_fixture_teardown(void)
+{
+    data_fd2_battle_runtime_char_array_ptr = g_ce9_saved_rc_ptr;
+    current_chapter_text = 0;
+    data_fd2_shared_menu_party_roster_buffer_ptr = 0;
+    data_fd2_shared_menu_party_member_count = 0;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_battle_view_window_origin_x = 0;
+    data_fd2_battle_view_window_origin_y = 0;
+    data_fd2_battle_cursor_world_x = 5;
+    data_fd2_battle_cursor_world_y = 5;
+    data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    data_fd2_chapter_cutscene_event_state = 0;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x24] = 0;
+    portrait_sprite_cache = 0;
+    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_current_chapter_id = 1;
+    remove("FD2.TMP");
+}
+
+/* ----------------------------------------------------------------
+ * End-to-end: the handler revives char #11 (flags 0x05 -> 0), pans the window,
+ * refreshes the race-4 portrait set (real FDICON/FDFIELD read + FD2.TMP rewrite),
+ * fires the (empty) cutscene event, runs dialog page 4 (its single glyph 0x66),
+ * persists the party, and advances chapter_id 4 -> 5. The glyph recorder pins
+ * that the real dialog VM ran on page 4 of current_chapter_text; FD2.TMP's
+ * presence proves the real portrait dump completed.
+ * ---------------------------------------------------------------- */
+static void test_chapter_09_end_revives_char11_and_increments_id(void)
+{
+    int    glyph_calls;
+    uint32 glyph_idx;
+    uint8  char11_flags;
+    uint32 chapter_id;
+    FILE  *tmp_fp;
+    int    tmp_present;
+
+    ce9_fixture_reset();
+
+    fd2_chapter_09_end();
+
+    /* snapshot observables, then restore globals, then assert (so the teardown's
+     * global-restore runs even if an assert early-returns). */
+    char11_flags = g_ce9_rc[0xb].flags;
+    glyph_calls  = g_dlg_glyph_calls;
+    glyph_idx    = g_dlg_glyph_last_idx;
+    chapter_id   = data_fd2_chapter_current_chapter_id;
+    tmp_fp = fopen("FD2.TMP", "rb");
+    tmp_present = (tmp_fp != NULL);
+    if (tmp_fp != NULL) {
+        fclose(tmp_fp);
+    }
+    ce9_fixture_teardown();
+
+    /* char #11 revived: every status flag cleared. */
+    ASSERT_EQ((long)char11_flags, 0L);
+
+    /* dialog page 4 rendered exactly its glyph 0x66. */
+    ASSERT_EQ((long)glyph_calls, 1);
+    ASSERT_EQ((long)glyph_idx, (long)0x66);
+
+    /* the real portrait dump rewrote FD2.TMP. */
+    ASSERT_EQ((long)tmp_present, 1L);
+
+    /* state transition: id incremented 4 -> 5 (relative, not absolute). */
+    ASSERT_EQ((long)chapter_id, 5L);
+}
+
+/* ----------------------------------------------------------------
+ * The chapter-id update is a relative INCREMENT, not an absolute set: seeded
+ * with a distinctive unrelated value (7), the handler leaves 8 — proving it does
+ * not hardcode the id. (The FDFIELD re-read index 7*3+2 = 0x17 is still a valid
+ * FDFIELD entry, so the real portrait dump runs unchanged.)
+ * ---------------------------------------------------------------- */
+static void test_chapter_09_end_increments_not_absolute(void)
+{
+    uint32 chapter_id;
+
+    ce9_fixture_reset();
+    data_fd2_chapter_current_chapter_id = 7;   /* distinctive, unrelated to 5 */
+
+    fd2_chapter_09_end();
+
+    chapter_id = data_fd2_chapter_current_chapter_id;
+    ce9_fixture_teardown();
+
+    ASSERT_EQ((long)chapter_id, 8L);           /* 7 + 1, not a constant */
+}
+
 void run_field_chend1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1680,5 +1873,7 @@ void run_field_chend1_tests(void)
     RUN_TEST(test_chapter_07_end_flag_clear_short_circuits);
     RUN_TEST(test_chapter_08_end_stages_scene_cutscene_and_recruits);
     RUN_TEST(test_chapter_08_end_increments_not_absolute);
+    RUN_TEST(test_chapter_09_end_revives_char11_and_increments_id);
+    RUN_TEST(test_chapter_09_end_increments_not_absolute);
     printf("\n");
 }
