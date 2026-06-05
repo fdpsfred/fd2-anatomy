@@ -2775,7 +2775,6 @@ static void test_cand_row_offset_per_iter(void)
  * two recruitment numbers render BEFORE the panel, so they lead the rle log
  * at indices 0..3.
  * ================================================================ */
-extern int g_count_selected_calls;     /* testglob.c: fd2_count_selected_chars */
 extern int g_blitdim_calls;            /* testglob.c: dimmed-grayscale blit count */
 extern runtime_char g_test_rc_array[8];/* testglob.c: shared runtime_char array */
 
@@ -2832,7 +2831,6 @@ static uint32 recr_setup(uint32 anim_idx, uint32 member_count)
 
     g_blitpass_calls = 0;
     g_blitdim_calls = 0;
-    g_count_selected_calls = 0;
     g_rle_blit_calls = 0;
     g_rle_blit_log_on = 1;
     g_blitraw_count = 0;
@@ -2862,8 +2860,9 @@ static void recr_assert_number(int from, uint32 dst, uint32 value,
 }
 
 /* ----------------------------------------------------------------
- * Full frame: memmove restore, double count call, both counter numbers,
- * cursor highlight blit, and the 3-slot grid with a dim/pass mix.
+ * Full frame: memmove restore, both counter numbers (the "remaining"
+ * number is driven by the real fd2_count_selected_chars), cursor
+ * highlight blit, and the 3-slot grid with a dim/pass mix.
  * (member_count = 4 -> loop iter 0,1,2; palette_idx = 2.)
  * ---------------------------------------------------------------- */
 static void test_recruit_compose_full(void)
@@ -2898,16 +2897,15 @@ static void test_recruit_compose_full(void)
     ASSERT_EQ((long)g_recr_surface[0], 0xABL);
     ASSERT_EQ((long)g_recr_surface[63999], 0xABL);
 
-    /* (2) count helper called exactly twice (1st return discarded). */
-    ASSERT_EQ((long)g_count_selected_calls, 2);
-
-    /* (3) top "max" number = max_chars (15) at surface+0x2BFD, color 0x1F. */
+    /* (2) top "max" number = max_chars (15) at surface+0x2BFD, color 0x1F. */
     recr_assert_number(0, surf + 0x2bfd, max_chars, 0x1f, 2, sheet);
-    /* (4) bottom "remaining" number = max_chars - count.  count = non-zero
-     * bytes over [0,3) = 1 (slot 1 only) -> 14, at surface+0x5B7D, color 0x2A. */
+    /* (3) bottom "remaining" number = max_chars - count, where count comes
+     * from the real fd2_count_selected_chars: non-zero bytes over [0,3) = 1
+     * (slot 1 only) -> 14, at surface+0x5B7D, color 0x2A. This pins both the
+     * renderer's use of the count and the real function's result. */
     recr_assert_number(2, surf + 0x5b7d, max_chars - 1, 0x2a, 2, sheet);
 
-    /* (5) cursor highlight: passthrough blit #0, src = battle_state +
+    /* (4) cursor highlight: passthrough blit #0, src = battle_state +
      * *(int*)(battle_state+6), dst = surface + cursor cell offset. */
     ASSERT_EQ((long)g_blitpass_src[0], (long)(bstate + 0x40));
     ASSERT_EQ((long)g_blitpass_dst[0],
@@ -2916,7 +2914,7 @@ static void test_recruit_compose_full(void)
                      + ((cursor / 10) * 0x1e + 0x68) * 0x140));
     ASSERT_EQ((long)g_blitpass_stride[0], 0x140);
 
-    /* (6) grid loop: highlight + 3 slot blits = 4 total; 2 of them dimmed. */
+    /* (5) grid loop: highlight + 3 slot blits = 4 total; 2 of them dimmed. */
     ASSERT_EQ((long)g_blitpass_calls, 4);
     ASSERT_EQ((long)g_blitdim_calls, 2);
 

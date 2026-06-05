@@ -160,3 +160,40 @@ char fd2_require_char_id_in_active_party(uint32 max_chars, uint32 req_char_id)
     }
     return (char)found;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_count_selected_chars @ 0x320CE  (2 callers)
+ *
+ * Counts the non-zero bytes in the per-member selection_state array
+ * sel_state over the iteration range [0, menu_party_member_count - 1)
+ * — i.e. every recruitable party member except the final sentinel slot.
+ * Returns the count of selected members.
+ *
+ * Used by the recruitment screen:
+ *   - fd2_render_recruitment_select_screen @ 0x31E80 to display the
+ *     "N selected" / "max-N remaining" counters.
+ *   - fd2_run_recruitment_or_branch_screen @ 0x318AD to auto-commit when
+ *     the count equals max_chars after a toggle (caller compares the
+ *     returned EAX against its max-chars cap).
+ *
+ * Cdecl, 1 stack param (pointer to the selection_state byte array); int
+ * return in EAX. The binary's __CHK(8) stack-probe prologue is
+ * compiler-generated and omitted here. EBX (the running count) is
+ * callee-saved and is the value loaded into EAX by the shared epilogue
+ * the loop exits into.
+ * ---------------------------------------------------------------- */
+int fd2_count_selected_chars(uint32 sel_state)
+{
+    int count;
+    int iter;
+
+    count = 0;
+    for (iter = 0;
+         iter < (int32)data_fd2_shared_menu_party_member_count - 1;
+         iter++) {
+        if (*(char *)(sel_state + iter) != '\0') {
+            count++;
+        }
+    }
+    return count;
+}

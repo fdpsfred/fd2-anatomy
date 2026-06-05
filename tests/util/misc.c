@@ -16,6 +16,7 @@
 #include "globals.h"
 #include "protos.h"
 #include <stdio.h>
+#include <string.h>
 
 extern int g_ce_find_have_d6;
 extern int g_ce_find_have_item100;
@@ -281,6 +282,119 @@ static void test_require_char_found_low_byte_only(void)
     ASSERT_EQ((int)result, 1);
 }
 
+/* ================================================================
+ * fd2_count_selected_chars @ 0x320CE
+ *
+ * Counts non-zero bytes in the selection_state array passed by pointer,
+ * over the range [0, menu_party_member_count - 1) — the final sentinel
+ * slot is excluded by the -1. Returns the count. Pure in-memory: the
+ * tests pass a pointer to a local byte array (mirroring the caller, which
+ * passes a stack array) and drive the loop bound via the global
+ * data_fd2_shared_menu_party_member_count.
+ * ================================================================ */
+
+/* ----------------------------------------------------------------
+ * Mixed selection: with count == 8 the scan covers slots [0..6] (slot 7
+ * is the excluded sentinel). Three in-range slots are non-zero, so the
+ * result is 3. Proves the accumulator and the per-byte != 0 test.
+ * ---------------------------------------------------------------- */
+static void test_count_selected_mixed(void)
+{
+    unsigned char sel[8];
+    int result;
+
+    memset(sel, 0, sizeof(sel));
+    data_fd2_shared_menu_party_member_count = 8;   /* scans slots 0..6 */
+    sel[0] = 1;
+    sel[3] = 1;
+    sel[6] = 1;   /* last in-range slot (idx == count-2) */
+
+    result = fd2_count_selected_chars((uint32)sel);
+
+    ASSERT_EQ(result, 3);
+}
+
+/* ----------------------------------------------------------------
+ * The final slot (index count-1) is the sentinel and is NOT scanned:
+ * marking only slot count-1 yields 0. Pins the -1 loop bound (an
+ * off-by-one that scanned count slots would return 1 here).
+ * ---------------------------------------------------------------- */
+static void test_count_selected_last_slot_excluded(void)
+{
+    unsigned char sel[8];
+    int result;
+
+    memset(sel, 0, sizeof(sel));
+    data_fd2_shared_menu_party_member_count = 8;   /* slot 7 is the sentinel */
+    sel[7] = 1;   /* index count-1: outside the scan window */
+
+    result = fd2_count_selected_chars((uint32)sel);
+
+    ASSERT_EQ(result, 0);
+}
+
+/* ----------------------------------------------------------------
+ * Every in-range slot selected: with count == 8 slots [0..6] are all
+ * non-zero, so the result is count-1 == 7. Proves the full-range walk
+ * and that the upper bound is exclusive of count-1.
+ * ---------------------------------------------------------------- */
+static void test_count_selected_all_in_range(void)
+{
+    unsigned char sel[8];
+    int result;
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        sel[i] = 1;
+    }
+    data_fd2_shared_menu_party_member_count = 8;
+
+    result = fd2_count_selected_chars((uint32)sel);
+
+    ASSERT_EQ(result, 7);
+}
+
+/* ----------------------------------------------------------------
+ * High-bit-set bytes (0xFF, 0x80) count as selected: the binary tests
+ * byte != 0, not a signed > 0, so values that are negative when read as
+ * a signed char must still increment the count. Two such slots in range
+ * (count == 4 -> scans slots 0..2) give 2. Guards against a signedness
+ * regression in the != 0 test.
+ * ---------------------------------------------------------------- */
+static void test_count_selected_high_bit_bytes(void)
+{
+    unsigned char sel[4];
+    int result;
+
+    memset(sel, 0, sizeof(sel));
+    data_fd2_shared_menu_party_member_count = 4;   /* scans slots 0..2 */
+    sel[0] = 0xFF;
+    sel[2] = 0x80;
+
+    result = fd2_count_selected_chars((uint32)sel);
+
+    ASSERT_EQ(result, 2);
+}
+
+/* ----------------------------------------------------------------
+ * Loop-bound gate: when count <= 1 the bound (count-1) is <= 0, so the
+ * loop body never runs and the result is 0 even though slot 0 is marked
+ * selected. Proves the count gate rather than the buffer contents.
+ * ---------------------------------------------------------------- */
+static void test_count_selected_empty_when_count_one(void)
+{
+    unsigned char sel[4];
+    int result;
+
+    memset(sel, 0, sizeof(sel));
+    sel[0] = 1;                                    /* marked but unscanned */
+    data_fd2_shared_menu_party_member_count = 1;   /* bound = 0: no iterations */
+
+    result = fd2_count_selected_chars((uint32)sel);
+
+    ASSERT_EQ(result, 0);
+}
+
 void run_util_misc_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -296,5 +410,10 @@ void run_util_misc_tests(void)
     RUN_TEST(test_require_char_found_last_slot);
     RUN_TEST(test_require_char_found_inrange_with_out_of_window_copies);
     RUN_TEST(test_require_char_found_low_byte_only);
+    RUN_TEST(test_count_selected_mixed);
+    RUN_TEST(test_count_selected_last_slot_excluded);
+    RUN_TEST(test_count_selected_all_in_range);
+    RUN_TEST(test_count_selected_high_bit_bytes);
+    RUN_TEST(test_count_selected_empty_when_count_one);
     printf("\n");
 }

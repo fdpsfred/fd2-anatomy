@@ -3269,8 +3269,9 @@
     "name": "fd2_count_selected_chars",
     "target": "util/misc.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000320fc": {
     "name": "fd2_reorder_party_by_selection",
