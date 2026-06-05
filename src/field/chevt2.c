@@ -425,3 +425,80 @@ void fd2_chapter_event_handler_39__ch26_cinematic(uint32 event_arg)
     fd2_pan_cursor_and_window(9, 0);
     __delay_thunk_375b2(400);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_3a__unref_pickup @ 0x354FE  (0 direct callers)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x3A (table entry
+ * @ 0x51C79). No chapter FDFIELD turn-event / tile-step hook references this
+ * slot (unref / possibly cut content). Category: item pickup at cursor tile.
+ * Dispatch-table signature is 1-arg cdecl (the stepping char id under the
+ * tile-step ABI); this handler uses it as the pickup recipient.
+ *
+ * Effect: tile-pickup — copy the inline 5-byte item-id lookup table (from
+ * 0x5274E: { 0x1D, 0x2B, 0x33, 0x3D, 0x47 }, indexed by tile terrain class)
+ * into a local, clear the keyboard buffer, load the stepping char's portrait.
+ * If the char's inventory is full (8 usable slots) show the "inventory full"
+ * dialog page 0x1E0 and slide the status screen back out. Otherwise read the
+ * cursor tile's attribute, take its terrain-class byte as the table index,
+ * publish the picked-up item sprite id (table[idx] + 0xB5) for the dialog, show
+ * the "you got [item]" dialog page 0x1A6, grant the item, slide the status
+ * screen out, mark all 5 tile-event slots consumed (broad lockout), and tick
+ * the tile-event animations.
+ *
+ * Unlike the chapter-dialog handlers in this file this one renders against
+ * data_fd2_all_game_text_ptr with the 0xA9F23 render buffer (a different text
+ * scope from current_chapter_text), matching the shop / battle item dialogs.
+ *
+ * The tile-attribute read fills an 8-byte buffer; the index byte is the low
+ * byte of the +2 ushort terrain_class field (0..0x1F). The lookup table is only
+ * 5 entries, so only terrain classes 0..4 select a defined item; the binary
+ * reads the raw frame slot for any larger index (see emit_issues 000354fe).
+ * ---------------------------------------------------------------- */
+static const unsigned char data_fd2_chapter_event_handler_3a_pickup_item_id_table_inline[5] =
+    { 0x1D, 0x2B, 0x33, 0x3D, 0x47 };
+
+void fd2_chapter_event_handler_3a__unref_pickup(uint32 stepping_char_id)
+{
+    unsigned char item_id_table[5];
+    uint8 tile_read_buf[8];
+    uint8 tile_attr;
+    int usable_slots;
+    uint8 i;
+
+    item_id_table[0] = data_fd2_chapter_event_handler_3a_pickup_item_id_table_inline[0];
+    item_id_table[1] = data_fd2_chapter_event_handler_3a_pickup_item_id_table_inline[1];
+    item_id_table[2] = data_fd2_chapter_event_handler_3a_pickup_item_id_table_inline[2];
+    item_id_table[3] = data_fd2_chapter_event_handler_3a_pickup_item_id_table_inline[3];
+    item_id_table[4] = data_fd2_chapter_event_handler_3a_pickup_item_id_table_inline[4];
+
+    fd2_clear_keyboard_buffer();
+    fd2_load_chapter_portrait(
+        (uint32)data_fd2_battle_runtime_char_array_ptr[stepping_char_id].portrait_id);
+
+    usable_slots = fd2_count_usable_inventory_slots(stepping_char_id);
+    if (usable_slots == 8) {
+        fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1E0, 0xA9F23,
+                                 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
+        fd2_paint_portrait_to_dialog_area(0);
+        fd2_wait_for_input_dialog_with_blink(0);
+        fd2_close_status_screen_with_slide_out();
+    } else {
+        fd2_read_tile_attribute_at_pos(data_fd2_battle_cursor_world_x,
+                                       data_fd2_battle_cursor_world_y,
+                                       (uint32)tile_read_buf);
+        tile_attr = tile_read_buf[2];
+        data_fd2_dialog_last_action_sprite_id_param =
+            (uint32)item_id_table[tile_attr] + 0xB5;
+        fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1A6, 0xA9F23,
+                                 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
+        fd2_paint_portrait_to_dialog_area(0);
+        fd2_wait_for_input_dialog_with_blink(0);
+        fd2_add_item_to_inventory(stepping_char_id, (uint32)item_id_table[tile_attr]);
+        fd2_close_status_screen_with_slide_out();
+        for (i = 0; i < 5; i = i + 1) {
+            *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + i) = 1;
+        }
+        fd2_tick_tile_event_animations();
+    }
+}

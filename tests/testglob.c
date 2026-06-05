@@ -1442,6 +1442,18 @@ int    g_dlg_blit_mirrored_calls = 0;
 uint32 g_dlg_blit_last_dst = 0;
 uint32 g_dlg_blit_last_sprite = 0;
 uint32 g_dlg_blit_last_stride = 0;
+/* Opt-in input seam for callers that drain the BIOS keyboard buffer
+ * (fd2_clear_keyboard_buffer) and THEN block on the real
+ * fd2_wait_for_input_dialog_with_blink, but draw a portrait via the mirrored
+ * blit in between (e.g. the fd2_load_chapter_portrait -> dialog -> wait path of
+ * the tile-pickup chapter event handler). When g_dlg_blit_mirror_inject_after
+ * != 0, the spy flips the BIOS keyboard buffer nonempty with the injected
+ * scancode on its g_dlg_blit_mirror_inject_after-th call, so the next
+ * fd2_check_keyboard_buffer_nonempty() inside the busy-wait returns nonzero and
+ * the real INT 16h read returns at once. Default 0 keeps the historical
+ * record-only behaviour for every other test. */
+int    g_dlg_blit_mirror_inject_after = 0;     /* 0 = disabled */
+int    g_dlg_blit_mirror_inject_scancode = 0;
 void fd2_dialog_sprite_blit_normal(uint32 dst, uint32 sprite, uint32 stride) {
     g_dlg_blit_normal_calls++;
     g_dlg_blit_last_dst = dst;
@@ -1453,6 +1465,13 @@ void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite, uint32 stride) {
     g_dlg_blit_last_dst = dst;
     g_dlg_blit_last_sprite = sprite;
     g_dlg_blit_last_stride = stride;
+    if (g_dlg_blit_mirror_inject_after != 0
+        && g_dlg_blit_mirrored_calls == g_dlg_blit_mirror_inject_after) {
+        *(volatile uint16 *)0x41AuL = 0x1E;                 /* head        */
+        *(volatile uint16 *)0x41CuL = 0x20;                 /* tail=head+2 */
+        *(volatile uint16 *)0x41EuL =
+            (uint16)((g_dlg_blit_mirror_inject_scancode << 8) & 0xFF00);
+    }
 }
 /* Promote/revive candidate-picker callees (not yet emitted in src) — recording
  * no-op spies driving tests/ui_menu/promote.c fd2_promote_members_select_loop.

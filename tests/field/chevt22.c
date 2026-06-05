@@ -53,12 +53,19 @@
 #include "protos.h"
 #include <stdio.h>
 #include "audiofix.h"   /* audiofix_make_bank / audiofix_enable_sfx */
+#include "minipfix.h"   /* minip_setup_env: sprite sheet + dialog-blit spies */
 
 extern runtime_char g_test_rc_array[8];
 
 /* testglob recorders */
 extern int g_composite_call_count;   /* tile-map blit (composite stage 1)   */
 extern int g_dlg_glyph_calls;        /* dialog glyph blitter                 */
+
+/* testglob opt-in seam: flip the BIOS keyboard buffer nonempty on the Nth
+ * mirrored-portrait blit, releasing the blocking wait that follows a
+ * fd2_clear_keyboard_buffer drain (handler_3a path). */
+extern int g_dlg_blit_mirror_inject_after;
+extern int g_dlg_blit_mirror_inject_scancode;
 
 extern void *data_fd2_chapter_cutscene_event_script_ptr_table_106[106];
 
@@ -306,6 +313,256 @@ static void test_h39_pan_to_9_0_ignores_arg(void)
     ce22_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_3a__unref_pickup @ 0x354FE
+ *
+ * Tile-pickup handler (dispatch idx 0x3A @ table 0x51B91). Body:
+ *   - copy the inline 5-byte item-id table { 0x1D,0x2B,0x33,0x3D,0x47 } to a local
+ *   - fd2_clear_keyboard_buffer()
+ *   - fd2_load_chapter_portrait(runtime_char[ci].portrait_id)
+ *   - if (fd2_count_usable_inventory_slots(ci) == 8):   // inventory full
+ *       page-0x1E0 "inventory full" dialog -> paint -> wait -> close
+ *     else:                                             // has space
+ *       read cursor tile attr; tile_attr = terrain-class low byte
+ *       last_action_sprite_id = item_id_table[tile_attr] + 0xB5
+ *       page-0x1A6 "you got [item]" dialog -> paint -> wait
+ *       fd2_add_item_to_inventory(ci, item_id_table[tile_attr])
+ *       close; consumed_flags[0..4] = 1; tick tile-event anims
+ *
+ * The risk-bearing computed contract pinned here is: the inventory-full vs
+ * has-space BRANCH, the table-lookup + sprite-id formula (+0xB5), the item grant,
+ * and the 5-slot consume lockout. The REAL handler is driven end-to-end over the
+ * proven host-safe render env (minipfix sprite sheet + dialog-blit spies; the
+ * portrait loader re-reads the real staged DATO.DAT; the page dialogs run the
+ * REAL dialog VM over an in-memory immediate-END text table whose END path skips
+ * the portrait/close work because no speaker portrait was armed; the blocking
+ * fd2_wait_for_input_dialog_with_blink(0) returns at once because the BIOS
+ * keyboard buffer is pre-seeded non-empty; the slide-out close + composite + the
+ * memmove to/from 0xA0000 are harmless under DOS/4GW, same convention as the
+ * status.c / rsrc.c lcp suites). The display side effects (frame draw, portrait
+ * blit, slide animation) are owned by the dialog/rsrc/status/input suites; here
+ * they only execute for real as a byproduct.
+ * ================================================================ */
+
+/* in-memory dialog text table covering both page indices the handler uses
+ * (0x1A6 and 0x1E0); each redirects to an immediate END (-1) so the dialog VM
+ * returns without page-break wait or speaker portrait work. */
+static int16 g_ce3a_text[0x200];
+
+/* tile fixture for fd2_read_tile_attribute_at_pos / fd2_tick_tile_event_animations
+ * (1x1 map). tile meta is 4 bytes; the read uses [+4..+5]=sprite_idx and
+ * [+6]=terrain_byte. attr-flags buffer is indexed by sprite_idx*4. consume-flags
+ * buffer is indexed by [0..4] (handler) and by terrain-class (tick). */
+static uint8 g_ce3a_tile_map[64];
+static uint8 g_ce3a_attr_flags[64];
+static uint8 g_ce3a_consume[0x100];
+
+/* render workspace backing for fd2_composite_battle_frame(0) inside the slide-out
+ * close (the tile-map composite stage is the testglob recorder; the workspace is
+ * never dereferenced, but back it for safety). */
+static uint8 g_ce3a_ws[0x10000];
+
+#define CE3A_SPRITE_SENTINEL 0x5A5A5A5AuL   /* poison for last_action_sprite_id */
+
+/* Stand up the shared host-safe env; `terrain_class` is the tile terrain-class
+ * byte the cursor-tile read will yield (used by the pickup-branch tests). */
+static void ce3a_setup(uint8 terrain_class)
+{
+    int i;
+
+    minip_setup_env();                 /* sprite sheet + dialog-blit spies      */
+
+    /* immediate-END program for both handler page indices */
+    for (i = 0; i < 0x200; i++) {
+        g_ce3a_text[i] = 0;
+    }
+    g_ce3a_text[0x1A6] = (int16)(0x1FE * 2);   /* page 0x1A6 -> END word */
+    g_ce3a_text[0x1E0] = (int16)(0x1FE * 2);   /* page 0x1E0 -> END word */
+    g_ce3a_text[0x1FE] = -1;                    /* END */
+    data_fd2_all_game_text_ptr = (uint32)(uint8 *)g_ce3a_text;
+
+    /* runtime_char array: the loader reads char[ci].portrait_id; the inventory
+     * helpers read/write char[ci].inventory_slots[]. */
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+
+    /* tile fixture: cursor at (0,0); 1x1 map. sprite_idx 0 -> attr_ptr = flags+0.
+     * terrain_byte at meta[+6] -> terrain class (low 5 bits). attr flags byte 0
+     * so tick's (flags & 0x60)==0x20 branch is false (no anim bump). */
+    memset(g_ce3a_tile_map, 0, sizeof(g_ce3a_tile_map));
+    memset(g_ce3a_attr_flags, 0, sizeof(g_ce3a_attr_flags));
+    memset(g_ce3a_consume, 0, sizeof(g_ce3a_consume));
+    g_ce3a_tile_map[4] = 0;            /* sprite_idx low  */
+    g_ce3a_tile_map[5] = 0;            /* sprite_idx high */
+    g_ce3a_tile_map[6] = terrain_class;
+    data_fd2_battle_cursor_world_x = 0;
+    data_fd2_battle_cursor_world_y = 0;
+    data_fd2_battle_map_width_tiles = 1;
+    data_fd2_battle_map_height_tiles = 1;
+    data_fd2_battle_tile_map_ptr = (uint32)g_ce3a_tile_map;
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)g_ce3a_attr_flags;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ce3a_consume;
+
+    /* slide-out close env: composite workspace + phase 0 (cursor overlay no-op),
+     * empty party (per-char overlays no-op). The portrait loader allocates the
+     * three slide workspaces and the close frees them, so null the globals first
+     * (loader assigns fresh; the prev-portrait-buffer free path needs null too). */
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_ce3a_ws - 0x8088;
+    data_fd2_battle_anim_phase = 0;
+    data_fd2_battle_party_member_count = 0;
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+    if (data_fd2_portrait_sprite_buffer != 0) {
+        free((void *)data_fd2_portrait_sprite_buffer);
+    }
+    data_fd2_portrait_sprite_buffer = 0;
+
+    /* The handler's FIRST call is fd2_clear_keyboard_buffer (tail := head), which
+     * empties the buffer, so a pre-seed here would be wiped. Instead arm the
+     * mirrored-blit seam: fd2_load_chapter_portrait draws the portrait via the
+     * mirrored blit (call #1) AFTER the drain and BEFORE the blocking
+     * fd2_wait_for_input_dialog_with_blink(0); the spy then re-fills the buffer
+     * nonempty so the wait returns at once. */
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x1E;     /* start EMPTY (head == tail) */
+    g_dlg_blit_mirror_inject_after = 1;     /* flip on the 1st mirrored blit */
+    g_dlg_blit_mirror_inject_scancode = 0x01;   /* Esc scancode */
+
+    data_fd2_dialog_last_action_sprite_id_param = CE3A_SPRITE_SENTINEL;
+}
+
+static void ce3a_teardown(void)
+{
+    /* the handler's slide-out close already free()d the three slide workspaces;
+     * drop the dangling globals. free + null the loaded portrait buffer. */
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+    if (data_fd2_portrait_sprite_buffer != 0) {
+        free((void *)data_fd2_portrait_sprite_buffer);
+        data_fd2_portrait_sprite_buffer = 0;
+    }
+    data_fd2_battle_tile_map_ptr = 0;
+    data_fd2_tile_attribute_flags_buffer_ptr = 0;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
+    data_fd2_all_game_text_ptr = 0;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    g_dlg_blit_mirror_inject_after = 0;
+    g_dlg_blit_mirror_inject_scancode = 0;
+}
+
+/* ----------------------------------------------------------------
+ * Inventory-FULL branch: all 8 of char 2's inventory slots are occupied
+ * (slot_flag bit 0x80 clear) so fd2_count_usable_inventory_slots == 8 and the
+ * handler takes the "inventory full" path. Proof the full path was taken (and the
+ * pickup path was NOT): (a) last_action_sprite_id is never written (stays at the
+ * poison sentinel — it is only assigned in the pickup branch), (b) no item was
+ * granted (the slots stay exactly as seeded — a reached add-item would clear a
+ * 0x80 flag, but there is none to clear here anyway, so we instead assert the
+ * seeded occupied item ids are intact), and (c) the 5 tile-event consume flags
+ * stay 0 (the lockout loop runs only on the pickup path).
+ * ---------------------------------------------------------------- */
+static void test_h3a_inventory_full_branch(void)
+{
+    int i;
+
+    ce3a_setup(3);
+
+    g_test_rc_array[2].portrait_id = 0x40;     /* default 0x9017 portrait slot */
+    /* fill all 8 inventory slots occupied (flag 0, item id sentinel) */
+    for (i = 0; i < 8; i++) {
+        g_test_rc_array[2].inventory_slots[i * 2 + 0] = 0x00;   /* occupied */
+        g_test_rc_array[2].inventory_slots[i * 2 + 1] = (uint8)(0xA0 + i);
+    }
+
+    fd2_chapter_event_handler_3a__unref_pickup(2);
+
+    /* (a) the pickup-only sprite-id write did not happen */
+    ASSERT_EQ((long)data_fd2_dialog_last_action_sprite_id_param,
+              (long)CE3A_SPRITE_SENTINEL);
+    /* (b) inventory untouched: every slot still occupied with its sentinel id */
+    for (i = 0; i < 8; i++) {
+        ASSERT_EQ(g_test_rc_array[2].inventory_slots[i * 2 + 0], 0x00);
+        ASSERT_EQ(g_test_rc_array[2].inventory_slots[i * 2 + 1],
+                  (uint8)(0xA0 + i));
+    }
+    /* (c) no tile-event slot was consumed */
+    for (i = 0; i < 5; i++) {
+        ASSERT_EQ(g_ce3a_consume[i], 0x00);
+    }
+
+    ce3a_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Pickup branch: char 2 has a free inventory slot so the handler reads the
+ * cursor tile, looks the item up in the 5-byte table by terrain class, publishes
+ * the item sprite id, grants the item and locks out all 5 tile-event slots. With
+ * terrain class 3 the table selects item id 0x3D, so:
+ *   - last_action_sprite_id == 0x3D + 0xB5 == 0xF2  (table lookup + sprite formula)
+ *   - the first empty slot becomes occupied (flag 0) holding item id 0x3D (grant)
+ *   - consumed_flags[0..4] are all 1                 (broad lockout)
+ * Slot 0 is seeded empty (0x80) and the other 7 occupied so the grant lands in a
+ * deterministic slot 0; a pre-seeded sentinel id there is overwritten by 0x3D.
+ * ---------------------------------------------------------------- */
+static void test_h3a_pickup_grants_item_and_locks_slots(void)
+{
+    int i;
+
+    ce3a_setup(3);                              /* terrain class 3 -> item 0x3D */
+
+    g_test_rc_array[2].portrait_id = 0x40;      /* default portrait slot */
+    g_test_rc_array[2].inventory_slots[0] = 0x80;   /* slot 0 EMPTY        */
+    g_test_rc_array[2].inventory_slots[1] = 0xEE;   /* sentinel item id    */
+    for (i = 1; i < 8; i++) {
+        g_test_rc_array[2].inventory_slots[i * 2 + 0] = 0x00;   /* occupied */
+        g_test_rc_array[2].inventory_slots[i * 2 + 1] = (uint8)(0xB0 + i);
+    }
+
+    fd2_chapter_event_handler_3a__unref_pickup(2);
+
+    /* table lookup (item_id_table[3] == 0x3D) + sprite formula (+0xB5) */
+    ASSERT_EQ((long)data_fd2_dialog_last_action_sprite_id_param,
+              (long)(0x3D + 0xB5));
+    /* item granted into the empty slot 0: flag cleared to occupied, id == 0x3D */
+    ASSERT_EQ(g_test_rc_array[2].inventory_slots[0], 0x00);
+    ASSERT_EQ(g_test_rc_array[2].inventory_slots[1], 0x3D);
+    /* all 5 tile-event slots locked out */
+    for (i = 0; i < 5; i++) {
+        ASSERT_EQ(g_ce3a_consume[i], 0x01);
+    }
+    /* the other occupied slots were left alone (grant hit slot 0 only) */
+    ASSERT_EQ(g_test_rc_array[2].inventory_slots[2], 0x00);
+    ASSERT_EQ(g_test_rc_array[2].inventory_slots[3], (uint8)0xB1);
+
+    ce3a_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Table-index coverage: a different terrain class selects a different item,
+ * proving the index is the tile's terrain-class byte (not a constant). Terrain
+ * class 0 -> item id 0x1D -> sprite 0x1D + 0xB5 == 0xD2, granted as id 0x1D.
+ * ---------------------------------------------------------------- */
+static void test_h3a_pickup_table_index_class0(void)
+{
+    ce3a_setup(0);                              /* terrain class 0 -> item 0x1D */
+
+    g_test_rc_array[2].portrait_id = 0x40;
+    g_test_rc_array[2].inventory_slots[0] = 0x80;   /* slot 0 empty */
+    g_test_rc_array[2].inventory_slots[1] = 0xEE;
+
+    fd2_chapter_event_handler_3a__unref_pickup(2);
+
+    ASSERT_EQ((long)data_fd2_dialog_last_action_sprite_id_param,
+              (long)(0x1D + 0xB5));
+    ASSERT_EQ(g_test_rc_array[2].inventory_slots[0], 0x00);
+    ASSERT_EQ(g_test_rc_array[2].inventory_slots[1], 0x1D);
+
+    ce3a_teardown();
+}
+
 void run_field_chevt22_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -314,5 +571,8 @@ void run_field_chevt22_tests(void)
     RUN_TEST(test_h38_ignores_dispatch_arg);
     RUN_TEST(test_h39_portrait_index_is_raw_counter);
     RUN_TEST(test_h39_pan_to_9_0_ignores_arg);
+    RUN_TEST(test_h3a_inventory_full_branch);
+    RUN_TEST(test_h3a_pickup_grants_item_and_locks_slots);
+    RUN_TEST(test_h3a_pickup_table_index_class0);
     printf("\n");
 }

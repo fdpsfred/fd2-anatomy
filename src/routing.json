@@ -4011,8 +4011,9 @@
     "name": "fd2_chapter_event_handler_3a__unref_pickup",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035641": {
     "name": "fd2_chapter_event_handler_3b__ch26_ai_ctrl",
