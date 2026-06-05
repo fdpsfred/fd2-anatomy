@@ -3924,8 +3924,9 @@
     "name": "fd2_chapter_event_handler_31__ch22_turn_gated",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035261": {
     "name": "fd2_chapter_event_handler_32__ch22_reinforcement",

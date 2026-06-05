@@ -295,6 +295,112 @@ static void test_h30_boundaries_and_gap_untouched(void)
     ce30_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_31__ch22_turn_gated @ 0x351E9
+ *
+ * Same turn-gated cinematic shape as handler_2f but for chapter 22: the
+ * portrait index is the SAME signed (int)turn_counter/2, the pan sweep is only
+ * 2 corners across row y=0x23 (x=0x20 then x=0), and the dialog gate fires on
+ * turn_counter == 3 with dialog page 1 (vs handler_2f: turn==2, page 3). Reuses
+ * the ce_setup_portrait_env / ce_teardown_portrait_env fixtures above.
+ * ================================================================ */
+
+/* ----------------------------------------------------------------
+ * Gate NOT taken (turn_counter != 3): the 2-corner sweep runs and the window
+ * origin lands on the LAST swept corner (0, 0x23). The dialog VM is NOT
+ * entered. turn_counter = 7 is a real ch22 trigger turn; alloc_offset = 0 makes
+ * the portrait scan a host-safe no-op (still re-reads FDFIELD + writes FD2.TMP).
+ * ---------------------------------------------------------------- */
+static void test_h31_gate_skips_dialog_on_non_trigger_turn(void)
+{
+    ce_setup_portrait_env(0, (const uint8 *)0);
+    data_fd2_battle_turn_counter = 7;
+
+    /* start the window away from both sweep targets */
+    data_fd2_battle_view_window_origin_x = 0x40;
+    data_fd2_battle_view_window_origin_y = 0x40;
+    current_chapter_text = 0;          /* gate must not deref this */
+    g_composite_call_count = 0;
+    g_dlg_glyph_calls = 0;
+
+    fd2_chapter_event_handler_31__ch22_turn_gated(0);
+
+    /* sweep ended on the 2nd (last) corner (0, 0x23) */
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_x, 0);
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_y, 0x23);
+    /* camera sweep composited frames */
+    ASSERT_TRUE(g_composite_call_count > 0);
+    /* gate (turn != 3) skipped the dialog VM entirely */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 0);
+
+    ce_teardown_portrait_env();
+}
+
+/* ----------------------------------------------------------------
+ * Portrait index == (int)turn_counter / 2 (SIGNED /2). turn_counter = 8 must
+ * select race index 4. The tile-event table holds a decoy record race=3 (the
+ * value a wrong-shift / off-by-one would pick) and a target record race=4; only
+ * the race=4 record matches, so the real fd2_init_runtime_char_for_battle runs
+ * exactly once (party_member_count 0->1). Gate not taken (turn != 3).
+ * ---------------------------------------------------------------- */
+static void test_h31_portrait_index_is_turn_div_2(void)
+{
+    static const uint8 races[2] = { 0x03, 0x04 };  /* decoy 3, target 4 */
+
+    ce_setup_portrait_env(2, races);
+    data_fd2_battle_turn_counter = 8;              /* (int)8/2 == 4 */
+    current_chapter_text = 0;
+
+    fd2_chapter_event_handler_31__ch22_turn_gated(0);
+
+    /* exactly the race==4 record matched -> one char inited */
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 1);
+    ASSERT_EQ((long)chapter_portrait_load_buffer, 0);  /* loader freed+nulled */
+
+    ce_teardown_portrait_env();
+}
+
+/* ----------------------------------------------------------------
+ * Gate TAKEN (turn_counter == 3): the handler runs the real dialog VM with
+ * page_idx 1. An in-memory int16 program whose page-1 header points to a
+ * 1-glyph + END body proves the gate fired (g_dlg_glyph_calls == 1). The empty
+ * keyboard buffer keeps blink_flag set so the typewriter/blink path is taken;
+ * audiofix gates that path host-safely. alloc_offset = 0 keeps the portrait
+ * load a no-op.
+ * ---------------------------------------------------------------- */
+static void test_h31_gate_fires_dialog_on_turn_3(void)
+{
+    static int16 prog[8];
+
+    ce_setup_portrait_env(0, (const uint8 *)0);
+    data_fd2_battle_turn_counter = 3;             /* gate taken */
+
+    /* page-1 header word (index 1 -> byte offset 2) -> opcode body at byte 8
+     * (= int16 index 4). Body: one glyph then END. */
+    memset(prog, 0, sizeof(prog));
+    prog[1] = 8;        /* byte offset of the page-1 opcode body */
+    prog[4] = 0x41;     /* TEXT glyph */
+    prog[5] = -1;       /* END */
+    current_chapter_text = (uint32)prog;
+
+    /* deterministic dialog VM env: empty BIOS keyboard buffer + audio gated so
+     * the per-glyph blink/typewriter step is host-safe. No active portrait, so
+     * END does not run the portrait-close path. */
+    *(volatile uint16 *)0x41AuL = 0x20;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    audiofix_enable_sfx();
+    data_fd2_audio_fdother_sfx_bank_buf_ptr = audiofix_make_bank(0x1F);
+    g_dlg_glyph_calls = 0;
+
+    fd2_chapter_event_handler_31__ch22_turn_gated(0);
+
+    /* the gate fired: the dialog VM rendered the single glyph */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+
+    ce_teardown_portrait_env();
+}
+
 void run_field_chevt2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -304,5 +410,8 @@ void run_field_chevt2_tests(void)
     RUN_TEST(test_gate_fires_dialog_on_turn_2);
     RUN_TEST(test_h30_both_ranges_armed);
     RUN_TEST(test_h30_boundaries_and_gap_untouched);
+    RUN_TEST(test_h31_gate_skips_dialog_on_non_trigger_turn);
+    RUN_TEST(test_h31_portrait_index_is_turn_div_2);
+    RUN_TEST(test_h31_gate_fires_dialog_on_turn_3);
     printf("\n");
 }
