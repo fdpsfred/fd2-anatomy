@@ -2756,8 +2756,9 @@
     "name": "fd2_play_figani_char_intro_animation",
     "target": "anim/anicine.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00028a6c": {
     "name": "fd2_play_full_combat_cinematic",

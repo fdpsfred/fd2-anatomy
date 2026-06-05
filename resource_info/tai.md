@@ -41,8 +41,8 @@ placeholder 相同，共用 constant)。Placeholder idx：0, 1, 2, 3, 11, 20, ..
 
 | idx | callsite | 用途 |
 |---|---|---|
-| 0x00 | `fd2_execute_summon_spell_cast` / `fd2_play_figani_char_intro_animation` | 通用 / placeholder pattern |
-| 0x03 | `fd2_play_final_chapter_30_ending` | 結局特殊 terrain |
+| 0x00 | `fd2_execute_summon_spell_cast` | 通用 / placeholder pattern |
+| 0x03 | `fd2_play_figani_char_intro_animation` (path 0x52393) / `fd2_play_final_chapter_30_ending` | 角色登場橫幅名牌 sprite (name banner) / 結局特殊 terrain |
 
 注意：TAI[0] 是 7-byte placeholder (與 default load 一致)。執行 spell cast 時若無
 特殊 TAI 載入，可能 fall back to placeholder default。

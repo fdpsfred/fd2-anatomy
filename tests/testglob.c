@@ -59,6 +59,9 @@ char   data_fd2_string_resource_filename_fdother_dat[] = "FDOTHER.DAT";
 char   data_fd2_string_resource_filename_fdfield_dat_51a59[] = "FDFIELD.DAT";
 char   data_fd2_string_resource_filename_fdshap_dat_51a65[] = "FDSHAP.DAT";
 char   data_fd2_string_resource_filename_dato_dat_51a70[] = "DATO.DAT";
+char   data_fd2_string_resource_filename_bg_dat_52381[] = "BG.DAT";
+char   data_fd2_string_resource_filename_figani_dat_52388[] = "FIGANI.DAT";
+char   data_fd2_string_resource_filename_tai_dat[] = "TAI.DAT";
 char   data_fd2_string_save_load_oom_msg_load_pbuf_50004[] = " Out of Memory !!!\n";
 char   data_fd2_string_save_load_oom_msg_tile_event_50023[] = " Out of Memory !!!\n";
 char   data_fd2_string_save_load_oom_msg_runtime_char_50037[] = " Out of Memory !!!\n";
@@ -180,6 +183,11 @@ uint8 data_fd2_animation_spell_sfx_frame_table[33] = {
 /* Resource portrait sheet base pointer (data segment @ 0x53AD1). Tests point it
  * at a zeroed scratch buffer. */
 uint32 data_fd2_resource_portrait_sheet_ptr = 0;
+/* FIGANI cinematic backdrop / SFX-bank pointers (data segment @ 0x54107 /
+ * 0x54117). Written + read by fd2_play_figani_char_intro_animation
+ * (src/anim/anicine.c); zero-init writable BSS-style globals. */
+uint32 data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr = 0;
+uint32 data_fd2_audio_figani_sfx_bank_buf_ptr = 0;
 void fd2_play_rising_pre_cast_effect(int a, int b, int c) { }
 void fd2_play_variant_b_slide_pre_effect(int a, int b) { }
 void fd2_animate_warp_teleport_char(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e) { }
@@ -629,6 +637,9 @@ uint32 g_rle_blit_log_sprite[64];
 uint32 g_rle_blit_log_dst[64];
 int32  g_rle_blit_log_stride[64];
 uint32 g_rle_blit_log_palette[64];
+int32  g_rle_blit_log_y[64];
+int32  g_rle_blit_log_x[64];
+uint8  g_rle_blit_log_first_byte[64];
 void fd2_rle_blit_sprite(uint32 rle_stream, int32 dst_x, int32 dst_y,
                          uint32 dst_buf, int32 stride, uint32 palette_op) {
     g_rle_blit_last_sprite = rle_stream;
@@ -650,6 +661,12 @@ void fd2_rle_blit_sprite(uint32 rle_stream, int32 dst_x, int32 dst_y,
         g_rle_blit_log_dst[g_rle_blit_calls] = dst_buf;
         g_rle_blit_log_stride[g_rle_blit_calls] = stride;
         g_rle_blit_log_palette[g_rle_blit_calls] = palette_op;
+        g_rle_blit_log_y[g_rle_blit_calls] = dst_y;
+        g_rle_blit_log_x[g_rle_blit_calls] = dst_x;
+        /* capture the first payload byte NOW (the sprite buffer may be freed
+         * by the caller's cleanup before the test inspects it). */
+        g_rle_blit_log_first_byte[g_rle_blit_calls] =
+            (rle_stream != 0) ? *(uint8 *)rle_stream : 0;
     }
     g_rle_blit_calls++;
 }
@@ -952,7 +969,42 @@ void fd2_render_combat_combatant_panels(uint32 st, uint32 a, uint32 d) { }
 void fd2_play_full_combat_cinematic(uint32 a, uint32 d) { }
 void fd2_process_xp_and_level_up_for_char(uint32 ci) { }
 /* fd2_execute_ai_item_use: now in btl_ai.c */
-void fd2_play_figani_char_intro_animation(uint32 c) { }
+/* fd2_play_figani_char_intro_animation: now emitted for real in
+ * src/anim/anicine.c; its former noop stub here was removed. The
+ * anicine.c FIGANI-intro test drives the real function against staged real
+ * FIGANI.DAT and asserts the per-pose SFX-dispatch sequence; the two
+ * not-yet-emitted callees it reaches are stubbed just below. */
+/* g_figani_sfx_bank_nonnull: when set, return a real malloc'd handle (the
+ * caller's cleanup free()s it, so it must be a genuine heap pointer, never a
+ * fake sentinel); when 0, return 0 (the no-bank path). */
+int    g_figani_sfx_bank_nonnull = 0;
+int    g_load_figani_sfx_bank_calls = 0;
+uint32 g_load_figani_sfx_bank_last_arg = 0;
+uint32 g_load_figani_sfx_bank_last_ret = 0;
+uint32 fd2_load_figani_sfx_bank(uint32 figani_data)
+{
+    uint32 h;
+
+    g_load_figani_sfx_bank_calls++;
+    g_load_figani_sfx_bank_last_arg = figani_data;
+    h = g_figani_sfx_bank_nonnull ? (uint32)malloc(16) : 0u;
+    g_load_figani_sfx_bank_last_ret = h;
+    return h;
+}
+int    g_zoom_anim_calls = 0;
+uint32 g_zoom_anim_last_char = 0;
+uint32 g_zoom_anim_last_mode = 0;
+void fd2_play_char_intro_zoom_anim(uint32 char_unit_id, uint32 mode_flag,
+                                   uint32 char_sprite, uint32 char_sprite2,
+                                   uint32 workspace, uint32 bg_sprite,
+                                   uint32 weapon_sprite)
+{
+    g_zoom_anim_calls++;
+    g_zoom_anim_last_char = char_unit_id;
+    g_zoom_anim_last_mode = mode_flag;
+    (void)char_sprite; (void)char_sprite2; (void)workspace;
+    (void)bg_sprite; (void)weapon_sprite;
+}
 /* fd2_apply_use_effect_dispatch: already in spellwk.c */
 uint32 data_fd2_battle_tile_map_anim_frame_counter = 0;
 uint32 data_fd2_graphics_bg_anim_flip_flag = 0;

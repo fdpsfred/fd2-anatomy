@@ -169,6 +169,9 @@ extern char   data_fd2_string_resource_filename_fdother_dat[];          /* 0x51A
 extern char   data_fd2_string_resource_filename_fdfield_dat_51a59[];    /* 0x51A59  "FDFIELD.DAT" */
 extern char   data_fd2_string_resource_filename_fdshap_dat_51a65[];     /* 0x51A65  "FDSHAP.DAT" */
 extern char   data_fd2_string_resource_filename_dato_dat_51a70[];       /* 0x51A70  "DATO.DAT" */
+extern char   data_fd2_string_resource_filename_bg_dat_52381[];         /* 0x52381  "BG.DAT" */
+extern char   data_fd2_string_resource_filename_figani_dat_52388[];     /* 0x52388  "FIGANI.DAT" */
+extern char   data_fd2_string_resource_filename_tai_dat[];              /* 0x52393  "TAI.DAT" */
 
 /* ---- UI render format strings (.object2 const) ---- */
 extern char   data_fd2_string_ui_render_decimal_format_template[6];     /* 0x51EBF  "%0.5d" */
@@ -222,6 +225,7 @@ extern uint32 data_fd2_audio_sfx_sample_handle_1;                       /* 0x53E
 extern uint32 data_fd2_audio_fdother_sfx_bank_buf_ptr;                  /* 0x53EEC */
 extern uint32 data_fd2_audio_status_effect_sfx_handle_ptr;              /* 0x53B13 */
 extern uint8  data_fd2_audio_walk_step_sfx_cadence_counter;             /* 0x540FE */
+extern uint32 data_fd2_audio_figani_sfx_bank_buf_ptr;                   /* 0x54117 */
 extern char   data_fd2_string_fdmus_dat[];                              /* 0x51A79  "FDMUS.DAT" */
 
 /* ---- animation tables (.object2 const) ---- */

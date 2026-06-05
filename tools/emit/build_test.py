@@ -66,7 +66,8 @@ GAME_DIR = _resolve_game_dir()
 # presence and copy from fd2_game_files/ only when missing/stale — no DOSBox
 # mount. tests/OUT is gitignored, so src/ stays clean.
 GAME_FILES = ["FDICON.B24", "FDFIELD.DAT", "FDSHAP.DAT", "FDOTHER.DAT",
-              "FDTXT.DAT", "FDMUS.DAT", "DATO.DAT", "FD2.SAV"]
+              "FDTXT.DAT", "FDMUS.DAT", "DATO.DAT", "FD2.SAV",
+              "FIGANI.DAT", "BG.DAT", "TAI.DAT"]
 
 
 def stage_game_files():
