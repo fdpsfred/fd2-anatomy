@@ -201,6 +201,9 @@ uint32 fd2_check_party_has_char_id(uint32 char_id);
 /* ---- field cutscene ---- */
 void fd2_cutscene_event_trigger(uint32 event_id);
 
+/* ---- chapter event handlers (dispatch table @ 0x51B91) ---- */
+void fd2_chapter_event_handler_2f__ch21_turn_gated(uint32 event_arg);
+
 /* ---- animation ---- */
 void fd2_play_ani_file_animation_sequence(uint32 anim_idx, uint32 per_frame_delay,
                                           uint32 skip_on_key_flag);
