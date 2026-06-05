@@ -177,3 +177,38 @@ void fd2_chapter_event_handler_33__unref_drop(uint32 stepping_char_id)
     fd2_display_dialog_scene(current_chapter_text, 3, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_34__ch23_ai_ctrl @ 0x352E2  (0 direct callers)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x34. Triggered
+ * in chapter 23 at turns 13, 15, 18, 22 (all phase 0; ch23 turn-event slots
+ * 0-3). Category: AI/cinematic, no dialog. Dispatch-table signature is 1-arg
+ * cdecl (void fn(uint event_arg)); this handler does not read the arg.
+ *
+ * Effect: ch23 turn cinematic — two portrait white-flash cutscenes per call (a
+ * 2-portrait pair) at fixed tile positions (2, 0xB) and (0x1A, 0xB), with the
+ * portrait id derived from the current turn counter. The id is computed in 8-bit
+ * (AL) arithmetic: ((uint8)turn - 0x0E) * 2 for the first portrait and the same
+ * value + 1 for the second, both truncated to a byte. As the counter advances
+ * (0xE -> 0xF -> 0x10 -> 0x11), each call uses a different pair (0/1, 2/3, 4/5,
+ * 6/7).
+ *
+ * In the binary the SECOND call shares a borrowed tail: after pushing its 3 args
+ * the handler falls through (no JMP — its body ends at 0x35317) into the
+ * CALL fd2_cinematic_chapter_portrait_dump_with_white_flash; ADD ESP,0xC; RET
+ * tail hosted in fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash
+ * @ 0x35318. That tail-merge is a binary size optimisation; the
+ * functionally-exact source is simply two complete calls.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_34__ch23_ai_ctrl(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_cinematic_chapter_portrait_dump_with_white_flash(
+        2, 0xB,
+        (uint32)(uint8)(((uint8)data_fd2_battle_turn_counter - 0x0E) * 2));
+    fd2_cinematic_chapter_portrait_dump_with_white_flash(
+        0x1A, 0xB,
+        (uint32)(uint8)(((uint8)data_fd2_battle_turn_counter - 0x0E) * 2 + 1));
+}

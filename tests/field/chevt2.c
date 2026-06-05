@@ -540,6 +540,115 @@ static void test_h33_item_drop_gated_off_then_page3_dialog(void)
     current_chapter_text = 0;
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_34__ch23_ai_ctrl @ 0x352E2
+ *
+ * Straight-line ch23 turn cinematic (no turn gate, no dialog): two paired
+ * portrait white-flash cutscenes at fixed tile positions (2, 0xB) and
+ * (0x1A, 0xB). The only computed logic is the portrait id, derived from the turn
+ * counter in 8-bit (AL) arithmetic:
+ *   id0 = (uint8)((uint8)turn_counter - 0x0E) * 2          (first portrait)
+ *   id1 = id0 + 1 (also 8-bit truncated)                   (second portrait)
+ * The second call is reached via a borrowed tail (fall-through into the
+ * CALL;ADD ESP;RET tail of fd2_wrap_... @ 0x35318) in the binary; these tests
+ * prove that tail is correctly inlined here as a complete second call.
+ *
+ * The real portrait-flash cinematic is pure display side effect (deferred to
+ * Phase 9); these tests drive the REAL handler against the recording stub
+ * fd2_cinematic_chapter_portrait_dump_with_white_flash (testglob.c), which
+ * captures each call's (x, y, id). No game files, no display.
+ * ================================================================ */
+
+/* testglob recorders for the portrait-flash cinematic stub */
+extern int    g_portrait_flash_calls;
+extern uint32 g_portrait_flash_x[4];
+extern uint32 g_portrait_flash_y[4];
+extern uint32 g_portrait_flash_id[4];
+
+static void h34_reset_flash_log(void)
+{
+    int i;
+    g_portrait_flash_calls = 0;
+    for (i = 0; i < 4; i++) {
+        g_portrait_flash_x[i] = 0;
+        g_portrait_flash_y[i] = 0;
+        g_portrait_flash_id[i] = 0;
+    }
+}
+
+/* ----------------------------------------------------------------
+ * A real ch23 trigger turn (22) maps to save_metadata_block 0x11 -> portrait
+ * pair 6/7. With turn_counter = 22 (0x16): (0x16 - 0x0E) * 2 = 16 ... wait, the
+ * id math is on the turn counter byte directly: ((uint8)22 - 0x0E) * 2 = (8)*2 =
+ * 16 (0x10) for the first, 17 (0x11) for the second. Two calls are made, at the
+ * fixed positions (2, 0xB) then (0x1A, 0xB), proving BOTH calls run (the second
+ * via the borrowed tail) and the +1 odd/even pairing.
+ * ---------------------------------------------------------------- */
+static void test_h34_two_portrait_flashes_with_paired_ids(void)
+{
+    h34_reset_flash_log();
+    data_fd2_battle_turn_counter = 22;          /* real ch23 trigger turn      */
+
+    fd2_chapter_event_handler_34__ch23_ai_ctrl(0);
+
+    /* exactly two paired portrait flashes */
+    ASSERT_EQ((long)g_portrait_flash_calls, 2);
+
+    /* first flash: fixed pos (2, 0xB), id = (22-0x0E)*2 = 16 */
+    ASSERT_EQ((long)g_portrait_flash_x[0], 2);
+    ASSERT_EQ((long)g_portrait_flash_y[0], 0xB);
+    ASSERT_EQ((long)g_portrait_flash_id[0], 16);
+
+    /* second flash (borrowed tail): fixed pos (0x1A, 0xB), id = 16 + 1 = 17 */
+    ASSERT_EQ((long)g_portrait_flash_x[1], 0x1A);
+    ASSERT_EQ((long)g_portrait_flash_y[1], 0xB);
+    ASSERT_EQ((long)g_portrait_flash_id[1], 17);
+}
+
+/* ----------------------------------------------------------------
+ * Portrait-id pairs track the turn counter exactly as documented: when the
+ * counter advances 0xE -> 0xF -> 0x10 -> 0x11 the pair advances 0/1 -> 2/3 ->
+ * 4/5 -> 6/7 (= ((turn-0xE)*2) and +1). Pins the per-call arithmetic at the
+ * lowest documented counter value 0xE (-> pair 0/1).
+ * ---------------------------------------------------------------- */
+static void test_h34_portrait_id_pair_tracks_counter(void)
+{
+    h34_reset_flash_log();
+    data_fd2_battle_turn_counter = 0x0E;        /* (0x0E-0x0E)*2 = 0 -> pair 0/1 */
+
+    fd2_chapter_event_handler_34__ch23_ai_ctrl(0);
+
+    ASSERT_EQ((long)g_portrait_flash_calls, 2);
+    ASSERT_EQ((long)g_portrait_flash_id[0], 0);
+    ASSERT_EQ((long)g_portrait_flash_id[1], 1);
+}
+
+/* ----------------------------------------------------------------
+ * The id is computed in 8-bit (AL) arithmetic and TRUNCATED to a byte, NOT a
+ * 32-bit int. turn_counter = 0 drives a borrow: ((uint8)0 - 0x0E) = 0xF2 (242),
+ * *2 = 0x1E4 -> low byte 0xE4 (228) for the first portrait, 0xE5 (229) for the
+ * second. A naive 32-bit `((int)turn - 0x0E) * 2` would instead yield -28 / -27,
+ * so this case guards the byte-wrap (MOVZX EAX,AL) semantics. The upper bytes of
+ * the turn counter must also be ignored: a high garbage byte in the dword must
+ * not leak into the id.
+ * ---------------------------------------------------------------- */
+static void test_h34_portrait_id_is_8bit_truncated(void)
+{
+    h34_reset_flash_log();
+    /* 0xFF00 -> low byte 0x00; the high byte must be masked off (MOV AL,[...]) */
+    data_fd2_battle_turn_counter = 0xFF00;
+
+    fd2_chapter_event_handler_34__ch23_ai_ctrl(0);
+
+    ASSERT_EQ((long)g_portrait_flash_calls, 2);
+    /* (0x00 - 0x0E) * 2 = -28 -> (uint8) = 0xE4 = 228; +1 = 0xE5 = 229 */
+    ASSERT_EQ((long)g_portrait_flash_id[0], 0xE4);
+    ASSERT_EQ((long)g_portrait_flash_id[1], 0xE5);
+    /* positions are unaffected by the id arithmetic */
+    ASSERT_EQ((long)g_portrait_flash_x[0], 2);
+    ASSERT_EQ((long)g_portrait_flash_x[1], 0x1A);
+}
+
 void run_field_chevt2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -554,5 +663,8 @@ void run_field_chevt2_tests(void)
     RUN_TEST(test_h31_gate_fires_dialog_on_turn_3);
     RUN_TEST(test_h32_pan_corner_and_unconditional_page2_dialog);
     RUN_TEST(test_h33_item_drop_gated_off_then_page3_dialog);
+    RUN_TEST(test_h34_two_portrait_flashes_with_paired_ids);
+    RUN_TEST(test_h34_portrait_id_pair_tracks_counter);
+    RUN_TEST(test_h34_portrait_id_is_8bit_truncated);
     printf("\n");
 }

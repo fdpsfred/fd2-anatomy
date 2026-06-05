@@ -794,6 +794,30 @@ int    g_delay375b2_calls = 0;
 uint32 g_delay375b2_last_ticks = 0;
 void __delay_thunk_375b2(uint32 ticks) { g_delay375b2_calls++; g_delay375b2_last_ticks = ticks; }
 
+/* Recording stub for fd2_cinematic_chapter_portrait_dump_with_white_flash
+ * (src/field/chevt2.c callee, real body not yet emitted — routed to phase 4).
+ * That cinematic is pure display side effect (pan to tile, swap portrait set,
+ * 300ms hold, white palette flash, recover, composite, 400ms hold); deferred to
+ * Phase 9 integration. Recording each call's 3 args (target_tile_x,
+ * target_tile_y, chapter_id/portrait_id) lets fd2_chapter_event_handler_34's
+ * test pin the EAX-bug-free 8-bit portrait-id arithmetic and the 2-call
+ * (paired-portrait) sequence at fixed tile positions without touching pixels. */
+int    g_portrait_flash_calls = 0;
+uint32 g_portrait_flash_x[4];
+uint32 g_portrait_flash_y[4];
+uint32 g_portrait_flash_id[4];
+void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x,
+                                                          uint32 target_tile_y,
+                                                          uint32 chapter_id)
+{
+    if (g_portrait_flash_calls < 4) {
+        g_portrait_flash_x[g_portrait_flash_calls] = target_tile_x;
+        g_portrait_flash_y[g_portrait_flash_calls] = target_tile_y;
+        g_portrait_flash_id[g_portrait_flash_calls] = chapter_id;
+    }
+    g_portrait_flash_calls++;
+}
+
 /* Link-time stub for the still-unemitted callee of the orphan/unreachable
  * fd2_execute_aoe_spell_with_caster_portrait_radial_scatter (src/spell/spellcin.c).
  * That AoE cinematic has no caller and no test drives it (its per-frame work is

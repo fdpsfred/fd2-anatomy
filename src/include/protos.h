@@ -207,6 +207,8 @@ void fd2_chapter_event_handler_30__ch21_ai_ctrl(uint32 event_arg);
 void fd2_chapter_event_handler_31__ch22_turn_gated(uint32 event_arg);
 void fd2_chapter_event_handler_32__ch22_reinforcement(uint32 event_arg);
 void fd2_chapter_event_handler_33__unref_drop(uint32 stepping_char_id);
+void fd2_chapter_event_handler_34__ch23_ai_ctrl(uint32 event_arg);
+void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
 
 /* ---- animation ---- */
 void fd2_play_ani_file_animation_sequence(uint32 anim_idx, uint32 per_frame_delay,
