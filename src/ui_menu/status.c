@@ -1104,3 +1104,45 @@ void fd2_give_item_to_first_player_char(uint32 item_id)
         }
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_run_status_screen_member_menu @ 0x2FFA5  (2 callers)
+ *
+ * Status-screen viewer loop for party members. Each iteration picks a
+ * member via the standard party-roster select, opens that member's
+ * status screen, then reloads the DATO.DAT portrait sheet (which the
+ * status screen overwrote) before looping again. Loops until Esc.
+ *
+ * Called from the chapter-intro menus (option 0 = 状態).
+ *
+ * void __cdecl with the __CHK(0x1c) stack-probe prologue (compiler-
+ * injected, not part of the source). EBX and ESI both hold the
+ * roster-select return value; EBX gates the in-body break and ESI the
+ * loop-back test — both compare against -1, so the trailing
+ * "while (sel != -1)" is the same value already broken on, i.e. an
+ * infinite loop with an Esc break. EDI saves dialog_portrait_mode
+ * across the status submenu; it is restored only on the non-Esc path.
+ * The CALL fd2_load_dat_resource return value is stored back into
+ * data_fd2_portrait_sprite_buffer (genuine return use).
+ * ---------------------------------------------------------------- */
+void fd2_run_status_screen_member_menu(void)
+{
+    int sel;
+    uint32 saved_portrait_mode;
+
+    data_fd2_ui_menu_visible_item_count = data_fd2_shared_menu_party_member_count;
+    for (;;) {
+        sel = fd2_party_roster_single_select_loop();
+        fd2_close_intro_dialog_with_slide_out();
+        saved_portrait_mode = data_fd2_dialog_active_portrait_blit_offset;
+        if (sel == -1) {
+            break;
+        }
+        fd2_open_char_status_screen(data_fd2_ui_menu_cursor_idx);
+        data_fd2_dialog_active_portrait_blit_offset = saved_portrait_mode;
+        data_fd2_portrait_sprite_buffer = (uint8 *)fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_dato_dat_51a70,
+            (uint32)data_fd2_portrait_sprite_buffer,
+            (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[0]);
+    }
+}

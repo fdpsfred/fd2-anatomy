@@ -3123,8 +3123,9 @@
     "name": "fd2_run_status_screen_member_menu",
     "target": "ui_menu/status.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00030012": {
     "name": "fd2_save_current_state_to_slot",

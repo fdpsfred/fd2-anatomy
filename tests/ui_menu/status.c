@@ -61,6 +61,9 @@ extern int g_composite_call_count;
  * counter (fd2_count_active_chars_for_team_filter) is now real and reads
  * data_fd2_battle_party_member_count / g_test_rc_array. */
 extern uint32 g_has_char_fake;
+/* controllable fake for fd2_party_roster_single_select_loop (testglob.c) */
+extern int g_roster_select_calls;
+extern int g_roster_select_return;
 /* data_fd2_ui_slide_* workspace ptr globals are declared in globals.h */
 
 /* Inject one keystroke into the BIOS keyboard buffer (BDA @ 0x400) so the real
@@ -1443,6 +1446,52 @@ static void test_give_item_respects_party_count_bound(void)
     data_fd2_battle_party_member_count = saved_count;
 }
 
+/*
+ * fd2_run_status_screen_member_menu @ 0x2FFA5 — Esc-on-first-select path.
+ *
+ * The roster-select fake returns -1 (cancel) so the loop runs exactly one
+ * iteration: it sets visible_item_count = party_member_count, calls the REAL
+ * fd2_close_intro_dialog_with_slide_out (so the three slide-workspace buffers
+ * must be pre-allocated, exactly as the close-fn teardown test does), reads the
+ * portrait-mode global into the save slot, then breaks before the status screen.
+ *
+ * Asserts (a) the visible_item_count assignment ran, (b) the loop iterated once
+ * and exited (g_roster_select_calls == 1). A passing run also proves the break
+ * fired before fd2_open_char_status_screen — had control fallen through, the
+ * status screen's blocking input wait would hang the test. The portrait-mode
+ * global is left untouched on the Esc path (its restore is on the commit path).
+ */
+static void test_status_screen_member_menu_esc_first_exits(void)
+{
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_composed_target_buf_ptr = (uint32)malloc(64000);
+    ASSERT_TRUE(data_fd2_ui_slide_anim_accumulator_buf_ptr != 0);
+    ASSERT_TRUE(data_fd2_ui_slide_bg_snapshot_buf_ptr != 0);
+    ASSERT_TRUE(data_fd2_ui_slide_composed_target_buf_ptr != 0);
+
+    data_fd2_shared_menu_party_member_count = 5;
+    data_fd2_ui_menu_visible_item_count = 0;
+    data_fd2_dialog_active_portrait_blit_offset = 0x1234;
+    g_roster_select_return = -1;
+    g_roster_select_calls = 0;
+
+    fd2_run_status_screen_member_menu();
+
+    /* visible-item count was seeded from the party member count. */
+    ASSERT_EQ((int)data_fd2_ui_menu_visible_item_count, 5);
+    /* exactly one loop iteration, then Esc break. */
+    ASSERT_EQ(g_roster_select_calls, 1);
+    /* portrait-mode global is not disturbed on the Esc path. */
+    ASSERT_EQ((int)data_fd2_dialog_active_portrait_blit_offset, 0x1234);
+
+    /* the real close fn already free()d all three workspace buffers; drop the
+     * dangling globals so later suite tests never reuse a freed pointer. */
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+}
+
 void run_ui_menu_status_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1500,5 +1549,6 @@ void run_ui_menu_status_tests(void)
     RUN_TEST(test_give_item_all_players_full_is_noop);
     RUN_TEST(test_give_item_empty_party_is_noop);
     RUN_TEST(test_give_item_respects_party_count_bound);
+    RUN_TEST(test_status_screen_member_menu_esc_first_exits);
     printf("\n");
 }

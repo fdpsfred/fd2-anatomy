@@ -366,6 +366,8 @@ void fd2_portrait_blink_animation_step(void);
 void fd2_load_chapter_portrait(uint32 portrait_id);
 void fd2_close_status_screen_with_slide_out(void);
 void fd2_show_portrait_dialog_with_input(uint32 portrait_id, uint32 text_idx);
+int fd2_party_roster_single_select_loop(void);
+void fd2_run_status_screen_member_menu(void);
 
 /* ---- input / timing ---- */
 int fd2_check_keyboard_buffer_nonempty(void);

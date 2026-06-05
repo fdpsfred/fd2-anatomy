@@ -79,6 +79,7 @@ extern uint8  data_fd2_ui_play_active_flag;                             /* 0x51A
 extern uint32 data_fd2_ui_terrain_hud_panel_offset_51a0c;               /* 0x51A0C */
 extern uint8  data_fd2_ui_game_speed_flag;                              /* 0x53AF9 */
 extern uint32 data_fd2_ui_menu_cursor_idx;                              /* 0x53C57 */
+extern uint32 data_fd2_ui_menu_visible_item_count;                      /* 0x5413F */
 extern int32  data_fd2_ui_field_command_menu_options_template[4];       /* 0x51E9F */
 extern int32  data_fd2_ui_field_command_menu_state_template[4];         /* 0x53EF2 */
 extern int32  data_fd2_ui_player_action_menu_state_template[4];         /* 0x53F12 */
@@ -119,6 +120,7 @@ extern double data_fd2_graphics_scatter_y_offset_neg8;                  /* 0x502
 
 /* ---- chapter intro dialog corner offsets (.object2 const) ---- */
 extern uint32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4]; /* 0x526EA */
+extern uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6];  /* 0x52659 */
 
 /* ---- recruitment screen ---- */
 extern uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch;         /* 0x54127 */

@@ -452,6 +452,10 @@ uint32 data_fd2_ui_slide_composed_target_buf_ptr = 0;
 uint32 data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
 uint32 data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
 uint32 data_fd2_ui_menu_cursor_idx = 0;
+uint32 data_fd2_ui_menu_visible_item_count = 0;
+/* chapter-intro menu speaker portrait IDs — real FD2.LE values @ 0x52659 */
+uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6] =
+    { 0x81, 0x80, 0x00, 0x82, 0x83, 0x84 };
 /* field command menu templates — real FD2.LE values @ 0x51E9F / 0x53EF2 */
 int32  data_fd2_ui_field_command_menu_options_template[4] = { 7, 5, 6, 4 };
 int32  data_fd2_ui_field_command_menu_state_template[4] = { 0, 0, 0, 0 };
@@ -618,6 +622,16 @@ int fd2_save_slot_selector_ui(uint32 b, uint32 m) { (void)b; (void)m; return g_s
  * test lives in tests/dialog/dialog.c. */
 int g_chapter_transition_return = 0;
 int fd2_chapter_transition_menu(void) { return g_chapter_transition_return; }
+/* fd2_party_roster_single_select_loop @ 0x2E6B8: not yet emitted; controllable
+ * fake (returns 1=commit / -1=cancel) so caller loops can be driven without the
+ * real blocking-input roster grid. */
+int g_roster_select_calls = 0;
+int g_roster_select_return = -1;
+int fd2_party_roster_single_select_loop(void)
+{
+    g_roster_select_calls++;
+    return g_roster_select_return;
+}
 
 /* ---- fd2_load_save_and_init_engine leaf helper fakes ----
  * (the real fd2_load_save_and_init_engine now lives in src/life/main.c) */
