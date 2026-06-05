@@ -239,6 +239,72 @@ static void test_money_increment_roll_and_total(void)
 }
 
 
+/*
+ * fd2_animate_money_decrement — gold mutation + descending rolling-digit
+ * structure (inverse of money_increment).
+ *
+ * The function (a) snapshots the 8 current decimal digits, (b) commits the
+ * subtraction to data_fd2_shared_party_total_gold immediately, (c) snapshots
+ * the 8 target digits, then per outer iteration diffs the two. Unlike the
+ * increment variant, each mismatching position is pre-decremented in the diff
+ * loop itself (anim_state=9; cur_digit-=1 with 0xFF->9 borrow), and the inner
+ * 9-frame roll renders sprite (anim_state + cur_digit*9 - 1) while anim_state
+ * counts 9..1 down to 0. Re-diffing between steps resolves borrows to higher
+ * positions. Each (digit, frame) pair emits one fd2_blit_money_digit_sprite.
+ *
+ * Host-verifiable observables (every assertion below is hand-traced):
+ *   - the gold total is the load-bearing state mutation: gold -= delta, applied
+ *     up-front (the visual catches down) — asserted exactly for each case.
+ *   - the blit count is fully determined by the start->target digit transition:
+ *       1->0 : pos7 mismatches, one 9-frame step (cur pre-dec 1->0)    = 9 blits
+ *       2->0 : pos7 rolls two steps (re-diff drives 2->1->0)           = 18 blits
+ *       10->5: step1 borrows pos7 0->9 + decrements pos6 1->0 (2 digits)
+ *              then pos7 rolls 9->8->7->6->5 across 4 more steps        = 54 blits
+ *   - the last blit's resolved sprite index encodes anim_state + cur_digit*9 - 1
+ *     with anim_state bottoming at 1 on the final frame of the last advance step,
+ *     and the slot dst = 0xA7A90 + pos*6 (pos7 = +0x2A), stride 0x140.
+ * The 9x6 pixel copy itself is a display side-effect deferred to Phase 9.
+ */
+static void test_money_decrement_roll_and_total(void)
+{
+    /* single-digit, single advance step: 00000001 -> 00000000 */
+    data_fd2_shared_party_total_gold = 1;
+    g_money_blit_calls = 0;
+    g_delay375b2_calls = 0;
+    fd2_animate_money_decrement(1);
+    ASSERT_EQ(data_fd2_shared_party_total_gold, 0u);
+    ASSERT_EQ(g_money_blit_calls, 9);          /* 1 digit * 9 frames * 1 step */
+    ASSERT_EQ(g_delay375b2_calls, 9);          /* one 10ms delay per frame */
+    ASSERT_EQ(g_delay375b2_last_ticks, 10u);
+    ASSERT_EQ(g_money_blit_last_stride, 0x140u);
+    ASSERT_EQ(g_money_blit_last_dst, 0xA7A90u + 7u * 6u);
+    /* last frame: anim_state=1, cur=0 -> 1 + 0*9 - 1 = 0 */
+    ASSERT_EQ(g_money_blit_last_sprite, 0u);
+
+    /* single-digit, two advance steps: 00000002 -> 00000000 (re-diff 2->1->0) */
+    data_fd2_shared_party_total_gold = 2;
+    g_money_blit_calls = 0;
+    fd2_animate_money_decrement(2);
+    ASSERT_EQ(data_fd2_shared_party_total_gold, 0u);
+    ASSERT_EQ(g_money_blit_calls, 18);
+    ASSERT_EQ(g_money_blit_last_dst, 0xA7A90u + 7u * 6u);
+    /* last step cur pre-dec 1->0, last frame anim=1 -> 1 + 0*9 - 1 = 0 */
+    ASSERT_EQ(g_money_blit_last_sprite, 0u);
+
+    /* borrow path: 00000010 -> 00000005. step1: pos7 0->9 (0xFF borrow) and
+     * pos6 1->0 both animate (2 digits); then pos7 rolls 9->8->7->6->5 over
+     * 4 more steps (re-diff each). */
+    data_fd2_shared_party_total_gold = 10;
+    g_money_blit_calls = 0;
+    fd2_animate_money_decrement(5);
+    ASSERT_EQ(data_fd2_shared_party_total_gold, 5u);      /* 10 - 5 = 5 decimal */
+    ASSERT_EQ(g_money_blit_calls, 54);          /* 2*9 (step1) + 9*4 (steps 2-5) */
+    ASSERT_EQ(g_money_blit_last_dst, 0xA7A90u + 7u * 6u);
+    /* last step cur=5, last frame anim=1 -> 1 + 5*9 - 1 = 45 */
+    ASSERT_EQ(g_money_blit_last_sprite, 45u);
+}
+
+
 void run_anim_aniui_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -246,5 +312,6 @@ void run_anim_aniui_tests(void)
     RUN_TEST(test_tick_tutorial_sfx_counter);
     RUN_TEST(test_screen_shake_loop_and_jitter);
     RUN_TEST(test_money_increment_roll_and_total);
+    RUN_TEST(test_money_decrement_roll_and_total);
     printf("\n");
 }

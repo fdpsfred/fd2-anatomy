@@ -183,3 +183,88 @@ void fd2_animate_money_increment(uint32 delta)
         }
     } while (!all_match);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_animate_money_decrement @ 0x2D516 (2 callers)
+ *
+ * Animated DECREMENT of the party gold counter
+ * (data_fd2_shared_party_total_gold @ 0x53BF3) by delta with a
+ * rolling-digit visual. Inverse of fd2_animate_money_increment @
+ * 0x2D3FF — counts each mismatching digit DOWN with borrow from
+ * 0 -> 9.
+ *
+ * Snapshots the 8 current decimal digits, subtracts delta from the
+ * gold total immediately, snapshots the 8 target digits, then per
+ * outer iteration diffs the two. Each mismatching digit position is
+ * flagged (anim_state=9) and pre-decremented in the diff loop itself
+ * (with a 0xFF -> 9 borrow), so the inner 9-frame roll renders the
+ * descending sprite index (anim_state + cur_digit*9 - 1) while
+ * anim_state counts 9..1 down to 0. Borrows to higher positions are
+ * resolved on the next outer re-diff. Loops until current digits
+ * equal target digits.
+ *
+ * Cadence: 9 rolling frames per advance step, 10ms (__delay_thunk_375b2)
+ * per frame.
+ *
+ * Callers:
+ *   fd2_run_buy_item_menu     — debit gold on shop purchase.
+ *   fd2_run_revive_menu_main  — debit gold on revive payment.
+ *
+ * Args (cdecl):
+ *   delta — amount of gold to subtract.
+ * ---------------------------------------------------------------- */
+void fd2_animate_money_decrement(uint32 delta)
+{
+    uint8 new_digits[20];
+    uint8 anim_state[20];
+    uint8 cur_digits[20];
+    uint8 all_match;
+    uint32 screen_pos;
+    uint32 sprite_idx;
+    uint32 digit_iter;
+    int32 iter;
+    int32 i;
+
+    sprintf((char *)cur_digits, "%0.8d", data_fd2_shared_party_total_gold);
+    for (iter = 0; iter < 8; iter++) {
+        cur_digits[iter] = cur_digits[iter] - 0x30;
+    }
+
+    data_fd2_shared_party_total_gold = data_fd2_shared_party_total_gold - delta;
+
+    sprintf((char *)new_digits, "%0.8d", data_fd2_shared_party_total_gold);
+    for (i = 0; i < 8; i++) {
+        new_digits[i] = new_digits[i] - 0x30;
+    }
+
+    do {
+        all_match = 1;
+        for (i = 0; i < 8; i++) {
+            if (cur_digits[i] == new_digits[i]) {
+                anim_state[i] = 0;
+            } else {
+                anim_state[i] = 9;
+                all_match = 0;
+                cur_digits[i] = cur_digits[i] - 1;
+                if (cur_digits[i] == 0xFF) {
+                    cur_digits[i] = 9;
+                }
+            }
+        }
+
+        if (!all_match) {
+            for (i = 0; i < 9; i++) {
+                for (digit_iter = 0; (int32)digit_iter < 8; digit_iter++) {
+                    if (anim_state[digit_iter] != 0) {
+                        sprite_idx = ((uint32)anim_state[digit_iter] +
+                            (uint32)cur_digits[digit_iter] * 9) - 1;
+                        screen_pos = digit_iter * 6 + 0xA7A90;
+                        fd2_blit_money_digit_sprite(screen_pos, 0x140, sprite_idx);
+                        anim_state[digit_iter] = anim_state[digit_iter] - 1;
+                    }
+                }
+                __delay_thunk_375b2(10);
+            }
+        }
+    } while (!all_match);
+}
