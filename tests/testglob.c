@@ -217,6 +217,16 @@ uint8 data_fd2_chapter_ch08_end_scene_char_pos_x_table[10] =
     { 14, 13, 15, 12, 13, 14, 16, 11, 15, 17 };
 uint8 data_fd2_chapter_ch08_end_scene_char_pos_y_table[10] =
     { 20, 20, 20, 19, 19, 18, 19, 18, 19, 18 };
+/* Chapter 10 end scene char placement tables (data segment @ 0x52113 /
+ * 0x5211E). Real binary bytes until the data segment is emitted;
+ * fd2_chapter_10_end copies each 11-byte table into an on-stack placement block
+ * and places chars 0..0xA at those tiles. X/Y are battle-tile coords; chapter
+ * 10 has no facing table (the handler writes the inline fixed facing value 2
+ * into sprite_state[1] for every placed char). */
+uint8 data_fd2_chapter_ch10_end_scene_char_pos_x_table[11] =
+    { 14, 15, 16, 13, 14, 15, 16, 17, 14, 15, 16 };
+uint8 data_fd2_chapter_ch10_end_scene_char_pos_y_table[11] =
+    { 38, 39, 38, 38, 39, 38, 39, 39, 40, 40, 40 };
 /* Resource portrait sheet base pointer (data segment @ 0x53AD1). Tests point it
  * at a zeroed scratch buffer. */
 uint32 data_fd2_resource_portrait_sheet_ptr = 0;

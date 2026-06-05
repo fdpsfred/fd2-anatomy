@@ -1,5 +1,5 @@
 /*
- * chend1.c — Chapter end handlers (chapters 1-7)
+ * chend1.c — Chapter end handlers (chapters 1-10)
  */
 
 #include "types.h"
@@ -403,5 +403,92 @@ void fd2_chapter_09_end(void)
     fd2_display_dialog_scene(current_chapter_text, 4, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     fd2_save_runtime_char_to_template();
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_10_end @ 0x235F9  (0 direct callers; dispatched via the
+ *   chapter-end handler pointer table @ 0x51DE9)
+ *
+ * Chapter 10「洞窟中的激戰」end handler. Plays the end cutscene that
+ * restores and repositions the party after the cave rescue:
+ *   fades the screen to black, clears every char's acted flag, then copies
+ *   the 11-byte X / Y scene position tables (@ 0x52113 / 0x5211E) onto the
+ *   stack and places the 11 party units (chars 0..0xA) at those tiles, each
+ *   with sprite_state[1] (facing) = 2.
+ *   It then revives/repositions the rescued NPCs that started the battle
+ *   asleep or disabled: char 0x32 (索菲亞) -> (15,35) sleep flag cleared;
+ *   char 0x33 (卡納恩三世) -> (14,35) sleep flag cleared; char 0x34 -> (16,35)
+ *   flags cleared; char 5 flags cleared.
+ *   Resets battle_anim_phase, sets the view window origin and cursor-world to
+ *   (9,34) and cursor-screen to (0,0), composites one battle frame, fades the
+ *   palette back in, and delays 200 ticks.
+ *   Shows the chapter-end dialog page 4, resets battle_anim_phase, fires
+ *   cutscene event 0x25, shows dialog page 5, persists the party's runtime
+ *   state to the template store, recruits char 11 (索菲亞) and char 6 (萊汀)
+ *   via fd2_init_runtime_char_from_base_growth, then advances the
+ *   current-chapter id by 1.
+ *
+ * Paired init handler: fd2_chapter_10_init @ 0x3332B (sets chars 0x32/0x33
+ *   sleep flag = 100 so they start the battle asleep).
+ * Post-action handler: fd2_chapter_10_post_action @ 0x20707 (extra lose if
+ *   char 0x32 OR char 0x33 is dead).
+ * Walkthrough: assets/chapters/chapter_10.md.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_10_end(void)
+{
+    uint8 scene_block_x[11];
+    uint8 scene_block_y[11];
+    runtime_char *party;
+    int i;
+
+    for (i = 0; i < 11; i++) {
+        scene_block_x[i] = data_fd2_chapter_ch10_end_scene_char_pos_x_table[i];
+        scene_block_y[i] = data_fd2_chapter_ch10_end_scene_char_pos_y_table[i];
+    }
+
+    fd2_play_palette_fade_to_black();
+    fd2_clear_all_chars_acted_flag();
+
+    for (i = 0; i < 0xb; i++) {
+        party = data_fd2_battle_runtime_char_array_ptr + i;
+        party->pos_x = scene_block_x[i];
+        party->pos_y = scene_block_y[i];
+        party->sprite_state[1] = 2;
+    }
+
+    data_fd2_battle_runtime_char_array_ptr[0x32].pos_x = 0xf;
+    data_fd2_battle_runtime_char_array_ptr[0x32].pos_y = 0x23;
+    data_fd2_battle_runtime_char_array_ptr[0x32].status_sleep_flag = 0;
+    data_fd2_battle_runtime_char_array_ptr[0x33].pos_x = 0xe;
+    data_fd2_battle_runtime_char_array_ptr[0x33].pos_y = 0x23;
+    data_fd2_battle_runtime_char_array_ptr[0x33].status_sleep_flag = 0;
+    data_fd2_battle_runtime_char_array_ptr[0x34].pos_x = 0x10;
+    data_fd2_battle_runtime_char_array_ptr[0x34].pos_y = 0x23;
+    data_fd2_battle_runtime_char_array_ptr[0x34].flags = 0;
+    data_fd2_battle_runtime_char_array_ptr[5].flags = 0;
+
+    data_fd2_battle_anim_phase = 0;
+    data_fd2_battle_view_window_origin_x = 9;
+    data_fd2_battle_view_window_origin_y = 0x22;
+    data_fd2_battle_cursor_world_x = 9;
+    data_fd2_battle_cursor_world_y = 0x22;
+    data_fd2_battle_cursor_screen_x = 0;
+    data_fd2_battle_cursor_screen_y = 0;
+
+    fd2_composite_battle_frame(1);
+    fd2_play_palette_fade_in();
+    __delay_thunk_375b2(200);
+
+    fd2_display_dialog_scene(current_chapter_text, 4, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x25);
+
+    fd2_display_dialog_scene(current_chapter_text, 5, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+    fd2_save_runtime_char_to_template();
+    fd2_init_runtime_char_from_base_growth(0xb);
+    fd2_init_runtime_char_from_base_growth(6);
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }

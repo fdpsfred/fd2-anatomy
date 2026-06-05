@@ -1852,6 +1852,307 @@ static void test_chapter_09_end_increments_not_absolute(void)
     ASSERT_EQ((long)chapter_id, 8L);           /* 7 + 1, not a constant */
 }
 
+/* ================================================================
+ * fd2_chapter_10_end @ 0x235F9
+ *
+ * The Chapter 10「洞窟中的激戰」end handler is a straight-line (no-branch)
+ * cutscene orchestrator that restores and repositions the party after the cave
+ * rescue:
+ *   (1) copies the two 11-byte scene position tables (X / Y @ 0x52113 / 0x5211E)
+ *       onto on-stack placement blocks,
+ *   (2) fades the screen to black (real fd2_play_palette_fade_to_black) and
+ *       clears every char's acted flag (real fd2_clear_all_chars_acted_flag),
+ *   (3) places the 11 party units (chars 0..0xA) at those tiles, each with
+ *       sprite_state[1] (facing) = 2 (the handler's own loop, INDEPENDENT of
+ *       party_member_count),
+ *   (4) revives/repositions the rescued NPCs that started the battle asleep or
+ *       disabled: char 0x32 -> (15,35) sleep flag cleared; char 0x33 -> (14,35)
+ *       sleep flag cleared; char 0x34 -> (16,35) flags cleared; char 5 flags
+ *       cleared,
+ *   (5) resets battle_anim_phase, sets the view-window origin and cursor-world
+ *       to (9,34) and cursor-screen to (0,0),
+ *   (6) composites one battle frame (real fd2_composite_battle_frame(1)), fades
+ *       the palette back in (real fd2_play_palette_fade_in), delays 200 ticks,
+ *   (7) shows dialog page 4 (real fd2_display_dialog_scene), resets
+ *       battle_anim_phase, fires cutscene event 0x25 (real
+ *       fd2_cutscene_event_trigger), shows dialog page 5,
+ *   (8) persists the party (real fd2_save_runtime_char_to_template), recruits
+ *       char 11 (索菲亞) then char 6 (萊汀) (real
+ *       fd2_init_runtime_char_from_base_growth), then
+ *   (9) advances chapter_id by 1.
+ *
+ * EVERY callee is the real linked function. The only recording seams (shared
+ * with the compositor / dialog suites) are the testglob.c stubs already used
+ * everywhere: the dialog-VM glyph blit, the fd2_composite_battle_tile_map proxy
+ * (the first stage of every composite frame, a no-op counter), the __delay_thunk
+ * recorder, and fd2_check_char_is_dead. The fixture mirrors the gfx/rndscene.c
+ * composite-frame env (workspace at large_game_state_buffer + 0x8088, full
+ * window, a sprite atlas for the cursor overlay) plus the chapter 08 dialog /
+ * palette env, and swaps data_fd2_battle_runtime_char_array_ptr to a 64-slot
+ * local array so indices 0x32/0x33/0x34 (and the 0..0xA placement loop) are in
+ * bounds. party_member_count is 0 so the real fade/clear/save/composite-char
+ * loops are clean no-ops, isolating the handler's own placement + revive writes.
+ *
+ * Asserted: chars 0..0xA placed from the X/Y tables with facing 2; the four
+ * rescued NPCs revived/repositioned (poisoned sleep flags / flags / positions
+ * overwritten to the handler's literals); both dialog pages ran in order (4 then
+ * 5, via the glyph recorder); the view-window/cursor globals set to (9,34) and
+ * (0,0) and battle_anim_phase ended 0; and chapter_id := prev+1 (a relative
+ * increment, not absolute). On-screen pixels of the fade / composite / dialog /
+ * cutscene are display side-effects deferred to Phase 9.
+ * ================================================================ */
+
+/* composite-frame recording seams (testglob.c). */
+extern int    g_tile_map_calls;
+extern int    g_composite_call_count;
+
+/* CHEND10_WS_SPAN: the real fd2_blit_rectangle (composite finalizer) memmoves
+ * the visible 312x192 region from workspace (src == large_game_state_buffer +
+ * 0x8088) to VGA 0xA0504, reading (h-1)*sstride + w = 191*0x1c8 + 0x138 bytes
+ * from the workspace. Back the workspace with exactly that span and offset the
+ * base pointer back by 0x8088 (the gfx/rndscene.c compositor-test trick) so the
+ * +0x8088 read window lands at the buffer start. */
+#define CHEND10_WS_SPAN (191u * 0x1c8u + 0x138u)
+static uint8 g_ce10_ws[CHEND10_WS_SPAN];
+
+/* cursor-overlay sprite atlas: fd2_paint_cursor_overlay_pattern resolves cursor
+ * sprites through data_fd2_runtime_battle_state_ptr (a sheet with a dword table
+ * at +6 indexed by sprite_idx). An identity table keeps every resolved sprite
+ * address valid so the overlay's blit reaches the recording passthrough stub. */
+static uint8 g_ce10_atlas[6 + 64 * 4 + 4];
+
+static uint8        g_ce10_palette[768];       /* fade source (768 = 0x100*3) */
+static uint8        g_ce10_roster[8 * 0x50];   /* save-template target */
+static int16        g_ce10_text[16];           /* dialog program (pages 4,5) */
+static uint8        g_ce10_script[1];          /* cutscene 0x25: n_groups == 0 */
+static runtime_char g_ce10_rc[64];             /* indices 0..0x34 in bounds */
+static runtime_char *g_ce10_saved_rc_ptr;
+
+static void ce10_fixture_reset(void)
+{
+    int i;
+    uint32 *atlas_table;
+
+    /* dialog VM safe env. */
+    *(volatile uint16 *)0x41AuL = 0x20;   /* BIOS kbd buffer head == tail */
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+    g_delay375b2_calls = 0;
+    g_delay375b2_last_ticks = 0;
+    g_tile_map_calls = 0;
+    g_composite_call_count = 0;
+
+    /* dialog program: page 4 -> idx 8 (glyph 0x44 + END), page 5 -> idx 10
+     * (glyph 0x55 + END). Distinct glyphs pin the page order (4 before 5). */
+    for (i = 0; i < 16; i++) {
+        g_ce10_text[i] = 0;
+    }
+    g_ce10_text[4]  = 16;     /* page 4 -> idx 8 */
+    g_ce10_text[5]  = 20;     /* page 5 -> idx 10 */
+    g_ce10_text[8]  = 0x44;   /* page 4 glyph */
+    g_ce10_text[9]  = -1;     /* END */
+    g_ce10_text[10] = 0x55;   /* page 5 glyph */
+    g_ce10_text[11] = -1;     /* END */
+    current_chapter_text = (uint32)g_ce10_text;
+
+    /* runtime-char array: 64 local slots so the 0..0xA placement loop and the
+     * 0x32/0x33/0x34/5 revives are in bounds. Poison the revive targets so the
+     * handler's writes (sleep flag/flags -> 0, position -> literals) are visible,
+     * and poison chars 0..0xA so the table-driven placement is observable. */
+    g_ce10_saved_rc_ptr = data_fd2_battle_runtime_char_array_ptr;
+    memset(g_ce10_rc, 0, sizeof(g_ce10_rc));
+    for (i = 0; i < 0xb; i++) {
+        g_ce10_rc[i].pos_x = 0xEE;
+        g_ce10_rc[i].pos_y = 0xEE;
+        g_ce10_rc[i].sprite_state[1] = 0xEE;
+    }
+    g_ce10_rc[0x32].pos_x = 0xEE; g_ce10_rc[0x32].pos_y = 0xEE;
+    g_ce10_rc[0x32].status_sleep_flag = 100;   /* asleep -> handler clears */
+    g_ce10_rc[0x33].pos_x = 0xEE; g_ce10_rc[0x33].pos_y = 0xEE;
+    g_ce10_rc[0x33].status_sleep_flag = 100;   /* asleep -> handler clears */
+    g_ce10_rc[0x34].pos_x = 0xEE; g_ce10_rc[0x34].pos_y = 0xEE;
+    g_ce10_rc[0x34].flags = 0x05;              /* dead|cannot_act -> cleared */
+    g_ce10_rc[5].flags = 0x05;                 /* dead|cannot_act -> cleared */
+    data_fd2_battle_runtime_char_array_ptr = g_ce10_rc;
+
+    /* save + clear-acted + composite-char loops are all gated by
+     * party_member_count: 0 makes them clean no-ops (the handler's OWN placement
+     * loop runs regardless). Recruits append at shared-menu slot 0. */
+    memset(g_ce10_roster, 0, sizeof(g_ce10_roster));
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_ce10_roster;
+    data_fd2_battle_party_member_count = 0;
+    data_fd2_shared_menu_party_member_count = 0;
+    g_check_char_is_dead_return = 0;
+
+    /* cutscene event 0x25 -> empty (n_groups == 0) script; the interpreter still
+     * runs one real fd2_composite_battle_frame(1) at its tail. */
+    g_ce10_script[0] = 0;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x25] = g_ce10_script;
+    data_fd2_chapter_cutscene_event_state = 0;   /* normal compose path */
+
+    /* fade-to-black / fade-in palette source (real fd2_set_vga_palette_range
+     * reads palette[idx*3 + 0..2] for idx 0..0xFF = 768 bytes). */
+    memset(g_ce10_palette, 0, sizeof(g_ce10_palette));
+    data_fd2_vga_palette_data_ptr = (uint32)g_ce10_palette;
+
+    /* composite-frame env (gfx/rndscene.c compositor-test fixture): workspace at
+     * large_game_state_buffer + 0x8088, a full window so the cursor overlay's
+     * coords are in-window, and an identity sprite atlas for cursor resolution. */
+    memset(g_ce10_ws, 0, sizeof(g_ce10_ws));
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_ce10_ws - 0x8088u;
+    data_fd2_battle_view_window_max_x = 0x100;
+    data_fd2_battle_view_window_max_y = 0x100;
+    atlas_table = (uint32 *)(g_ce10_atlas + 6);
+    for (i = 0; i < 64; i++) {
+        atlas_table[i] = (uint32)i;
+    }
+    data_fd2_runtime_battle_state_ptr = (uint32)g_ce10_atlas;
+
+    /* poison the view/cursor globals so the handler's writes (9,34)/(0,0) and
+     * the battle_anim_phase reset are observable. */
+    data_fd2_battle_anim_phase = 0x55;
+    data_fd2_battle_view_window_origin_x = 0xAA;
+    data_fd2_battle_view_window_origin_y = 0xAA;
+    data_fd2_battle_cursor_world_x = 0xAA;
+    data_fd2_battle_cursor_world_y = 0xAA;
+    data_fd2_battle_cursor_screen_x = 0xAA;
+    data_fd2_battle_cursor_screen_y = 0xAA;
+
+    /* preset chapter id so the +1 transition is observable. */
+    data_fd2_chapter_current_chapter_id = 10;
+}
+
+static void ce10_fixture_teardown(void)
+{
+    data_fd2_battle_runtime_char_array_ptr = g_ce10_saved_rc_ptr;
+    current_chapter_text = 0;
+    data_fd2_shared_menu_party_roster_buffer_ptr = 0;
+    data_fd2_shared_menu_party_member_count = 0;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x25] = 0;
+    data_fd2_chapter_cutscene_event_state = 0;
+    data_fd2_vga_palette_data_ptr = 0;
+    data_fd2_battle_anim_phase = 0;
+    data_fd2_battle_view_window_origin_x = 0;
+    data_fd2_battle_view_window_origin_y = 0;
+    data_fd2_battle_cursor_world_x = 5;
+    data_fd2_battle_cursor_world_y = 5;
+    data_fd2_battle_cursor_screen_x = 0;
+    data_fd2_battle_cursor_screen_y = 0;
+    data_fd2_chapter_current_chapter_id = 1;
+    g_check_char_is_dead_return = 0;
+}
+
+/* ----------------------------------------------------------------
+ * End-to-end: the handler places chars 0..0xA from the scene tables (each
+ * facing 2), revives/repositions the four rescued NPCs (chars 0x32/0x33 sleep
+ * flag -> 0 at (15,35)/(14,35); char 0x34 flags -> 0 at (16,35); char 5 flags ->
+ * 0), runs dialog pages 4 then 5 (glyphs 0x44 then 0x55), sets the view-window
+ * and cursor to (9,34) and cursor-screen to (0,0) with battle_anim_phase 0, and
+ * advances chapter_id 10 -> 11. The glyph recorder pins that the real dialog VM
+ * ran on pages 4 and 5 of current_chapter_text in order.
+ * ---------------------------------------------------------------- */
+static void test_chapter_10_end_places_party_revives_npcs_and_increments(void)
+{
+    int    placement_ok;
+    uint8  c32_x, c32_y, c32_sleep;
+    uint8  c33_x, c33_y, c33_sleep;
+    uint8  c34_x, c34_y, c34_flags;
+    uint8  c5_flags;
+    int    glyph_calls;
+    uint32 glyph_idx;
+    uint32 win_ox, win_oy, cur_wx, cur_wy, cur_sx, cur_sy;
+    uint32 anim_phase;
+    uint32 chapter_id;
+    int    i;
+
+    ce10_fixture_reset();
+
+    fd2_chapter_10_end();
+
+    /* snapshot observables, then restore globals, then assert. */
+    placement_ok = 1;
+    for (i = 0; i < 0xb; i++) {
+        if (g_ce10_rc[i].pos_x != data_fd2_chapter_ch10_end_scene_char_pos_x_table[i] ||
+            g_ce10_rc[i].pos_y != data_fd2_chapter_ch10_end_scene_char_pos_y_table[i] ||
+            g_ce10_rc[i].sprite_state[1] != 2) {
+            placement_ok = 0;
+        }
+    }
+    c32_x = g_ce10_rc[0x32].pos_x; c32_y = g_ce10_rc[0x32].pos_y;
+    c32_sleep = g_ce10_rc[0x32].status_sleep_flag;
+    c33_x = g_ce10_rc[0x33].pos_x; c33_y = g_ce10_rc[0x33].pos_y;
+    c33_sleep = g_ce10_rc[0x33].status_sleep_flag;
+    c34_x = g_ce10_rc[0x34].pos_x; c34_y = g_ce10_rc[0x34].pos_y;
+    c34_flags = g_ce10_rc[0x34].flags;
+    c5_flags = g_ce10_rc[5].flags;
+    glyph_calls = g_dlg_glyph_calls;
+    glyph_idx   = g_dlg_glyph_last_idx;
+    win_ox = data_fd2_battle_view_window_origin_x;
+    win_oy = data_fd2_battle_view_window_origin_y;
+    cur_wx = data_fd2_battle_cursor_world_x;
+    cur_wy = data_fd2_battle_cursor_world_y;
+    cur_sx = data_fd2_battle_cursor_screen_x;
+    cur_sy = data_fd2_battle_cursor_screen_y;
+    anim_phase = data_fd2_battle_anim_phase;
+    chapter_id = data_fd2_chapter_current_chapter_id;
+    ce10_fixture_teardown();
+
+    /* chars 0..0xA placed from the X/Y tables, each facing 2. */
+    ASSERT_EQ((long)placement_ok, 1L);
+
+    /* rescued NPCs revived/repositioned to the handler's literals. */
+    ASSERT_EQ((long)c32_x, (long)0xf);
+    ASSERT_EQ((long)c32_y, (long)0x23);
+    ASSERT_EQ((long)c32_sleep, 0L);
+    ASSERT_EQ((long)c33_x, (long)0xe);
+    ASSERT_EQ((long)c33_y, (long)0x23);
+    ASSERT_EQ((long)c33_sleep, 0L);
+    ASSERT_EQ((long)c34_x, (long)0x10);
+    ASSERT_EQ((long)c34_y, (long)0x23);
+    ASSERT_EQ((long)c34_flags, 0L);
+    ASSERT_EQ((long)c5_flags, 0L);
+
+    /* both dialog pages ran in order: page 4 (0x44) then page 5 (0x55). */
+    ASSERT_EQ((long)glyph_calls, 2);
+    ASSERT_EQ((long)glyph_idx, (long)0x55);
+
+    /* view-window origin + cursor-world (9,34); cursor-screen (0,0); anim 0. */
+    ASSERT_EQ((long)win_ox, 9L);
+    ASSERT_EQ((long)win_oy, (long)0x22);
+    ASSERT_EQ((long)cur_wx, 9L);
+    ASSERT_EQ((long)cur_wy, (long)0x22);
+    ASSERT_EQ((long)cur_sx, 0L);
+    ASSERT_EQ((long)cur_sy, 0L);
+    ASSERT_EQ((long)anim_phase, 0L);
+
+    /* state transition: id incremented 10 -> 11 (relative, not absolute). */
+    ASSERT_EQ((long)chapter_id, 11L);
+}
+
+/* ----------------------------------------------------------------
+ * The chapter-id update is a relative INCREMENT, not an absolute set: seeded
+ * with a distinctive unrelated value (7), the handler leaves 8 — proving it does
+ * not hardcode the id. (The placement / revives / cutscene are unconditional and
+ * run identically regardless of the seed.)
+ * ---------------------------------------------------------------- */
+static void test_chapter_10_end_increments_not_absolute(void)
+{
+    uint32 chapter_id;
+
+    ce10_fixture_reset();
+    data_fd2_chapter_current_chapter_id = 7;   /* distinctive, unrelated to 11 */
+
+    fd2_chapter_10_end();
+
+    chapter_id = data_fd2_chapter_current_chapter_id;
+    ce10_fixture_teardown();
+
+    ASSERT_EQ((long)chapter_id, 8L);           /* 7 + 1, not a constant */
+}
+
 void run_field_chend1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1875,5 +2176,7 @@ void run_field_chend1_tests(void)
     RUN_TEST(test_chapter_08_end_increments_not_absolute);
     RUN_TEST(test_chapter_09_end_revives_char11_and_increments_id);
     RUN_TEST(test_chapter_09_end_increments_not_absolute);
+    RUN_TEST(test_chapter_10_end_places_party_revives_npcs_and_increments);
+    RUN_TEST(test_chapter_10_end_increments_not_absolute);
     printf("\n");
 }
