@@ -308,3 +308,60 @@ void fd2_chapter_event_handler_36__ch24_cinematic(uint32 event_arg)
     fd2_pan_cursor_and_window(0x1A, 2);
     __delay_thunk_375b2(400);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_37__ch25_first_time @ 0x353DA  (0 direct callers)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x37. Triggered
+ * in chapter 25 as tile-step event_type 0x01 (ch25 tile-step slot 0). Category:
+ * first-time gated tile-step combat trigger. Dispatch-table signature is 1-arg
+ * cdecl (void fn(uint event_arg)); the arg is the stepping char id (read from
+ * [ESP+0x10]).
+ *
+ * Effect: ch25 lord-only tile trigger. Copy the inline 3-byte battle-drop entry
+ * (type=0 ITEM, value=0x0B -> item id 11) into a local. When the lord (char 0)
+ * steps and the tile event has not yet been consumed (consumed_flags[0] == 0):
+ * show dialog page 0, play the full combat cinematic against target char 0x11,
+ * run the death animation, and only if char 0x11 was actually killed mark the
+ * tile event consumed, tick tile-event animations, recomposite the battle frame,
+ * and grant char 0 the battle drop. The pending XP credit is always cleared.
+ *
+ * In the binary the handler ends with JMP 0x34FC5 — the cleanup-only Class-3
+ * shared tail (ADD ESP,4; POP EDI; POP ESI; RET) hosted in
+ * fd2_chapter_event_handler_27__unref_drop. That tail-merge is a binary size
+ * optimisation; the borrowed teardown is just this handler's own local-slot
+ * cleanup and register restore, so the functionally-exact source is a plain
+ * return.
+ * ---------------------------------------------------------------- */
+static const unsigned char data_fd2_chapter_event_handler_37_drop_entry_inline[3] =
+    { 0x00, 0x0B, 0x00 };
+
+void fd2_chapter_event_handler_37__ch25_first_time(uint32 event_arg)
+{
+    uint8 drop_entry[3];
+
+    drop_entry[0] = data_fd2_chapter_event_handler_37_drop_entry_inline[0];
+    drop_entry[1] = data_fd2_chapter_event_handler_37_drop_entry_inline[1];
+    drop_entry[2] = data_fd2_chapter_event_handler_37_drop_entry_inline[2];
+
+    if (event_arg == 0 &&
+        *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr) == 0) {
+        fd2_display_dialog_scene(current_chapter_text, 0, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        /* second arg is the stepping char id from [ESP+0x10] (= event_arg);
+         * inside this branch event_arg is provably 0, so the lord (char 0) is
+         * the defender_idx fighting attacker char 0x11. */
+        fd2_play_full_combat_cinematic(0x11, event_arg);
+        fd2_play_death_animation_and_mark_dead();
+        if (fd2_check_char_is_dead(0x11) != 0) {
+            *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr) = 1;
+            fd2_tick_tile_event_animations();
+            fd2_composite_battle_frame(1);
+            /* drop recipient is the stepping char id from [ESP+0x18]
+             * (= event_arg), provably 0 here so the lord (char 0) gets it. */
+            fd2_process_battle_drop_entries(event_arg, 1, (uint32)drop_entry);
+        }
+    }
+
+    data_fd2_battle_pending_xp_credit = 0;
+}

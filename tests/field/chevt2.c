@@ -874,6 +874,100 @@ static void test_h36_four_corner_sweep_ends_top_right(void)
     ce_teardown_portrait_env();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_37__ch25_first_time @ 0x353DA
+ *
+ * ch25 lord-only, first-time-gated tile-step combat trigger. The handler's
+ * computed control flow is the entry gate
+ *     if (event_arg == 0 && consumed_flags[0] == 0)
+ * which decides whether the whole cinematic body runs, and the nested kill gate
+ *     if (fd2_check_char_is_dead(0x11)) { consume; ...; drop }
+ * which decides whether the tile event is consumed and char 0 gets the drop.
+ * The unconditional tail clears data_fd2_battle_pending_xp_credit.
+ *
+ * The gate-ON body (dialog page 0 + the full combat cinematic
+ * fd2_play_full_combat_cinematic against char 0x11 + death animation +
+ * recomposite) is heavy display/combat orchestration that loads real combat
+ * resources (BG/TAI/FIGANI/FDSHAP.DAT) and is pure side effect; per the same
+ * deferral the h32/h33 suites apply to display branches, the gate-ON cinematic
+ * body and its kill-gated consume+drop are deferred to Phase 9 integration.
+ *
+ * These tests pin the deterministic, display-free contract: both halves of the
+ * entry AND-gate. When the gate is NOT taken the handler must touch nothing but
+ * the unconditional XP clear — no dialog VM, no cinematic, no consume. The
+ * consumed-flags global is backed by a local byte array (the established
+ * aniwalk1.c recipe) so the "not consumed" observation is real memory, and the
+ * dialog-glyph / composite recorders confirm no heavy path executed.
+ * ================================================================ */
+
+/* ----------------------------------------------------------------
+ * Gate fails on the FIRST condition: a non-lord char (event_arg != 0) steps the
+ * tile. Even with the tile un-consumed, the body must be skipped entirely; only
+ * the unconditional pending-XP clear runs. Pins event_arg == 0 as a hard gate
+ * (the arg is the stepping char id, read from [ESP+0x10]).
+ * ---------------------------------------------------------------- */
+static void test_h37_gate_off_when_non_lord_steps(void)
+{
+    uint8 t_consumed[4];
+    uint32 save_cf;
+
+    save_cf = data_fd2_field_map_tile_event_consumed_flags_ptr;
+    t_consumed[0] = 0;                 /* tile NOT yet consumed */
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)t_consumed;
+
+    current_chapter_text = 0;          /* gate must not deref this */
+    data_fd2_battle_pending_xp_credit = 0x1234;   /* sentinel: must be cleared */
+    g_dlg_glyph_calls = 0;
+    g_composite_call_count = 0;
+
+    fd2_chapter_event_handler_37__ch25_first_time(1);   /* non-lord stepping id */
+
+    /* gate skipped the body: no dialog VM ran, nothing composited, and the tile
+     * event was NOT consumed (the kill-gated consume lives inside the body). */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 0);
+    ASSERT_EQ((long)g_composite_call_count, 0);
+    ASSERT_EQ((long)t_consumed[0], 0);
+    /* pending XP is cleared unconditionally */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 0);
+
+    data_fd2_field_map_tile_event_consumed_flags_ptr = save_cf;
+    current_chapter_text = 0;
+}
+
+/* ----------------------------------------------------------------
+ * Gate fails on the SECOND condition: the lord (event_arg == 0) steps, but the
+ * tile event was already consumed (consumed_flags[0] != 0). The body must be
+ * skipped, the consumed flag must stay set (the body never re-stamps it on this
+ * path), and only the unconditional pending-XP clear runs. Pins the
+ * consumed_flags[0] == 0 half of the AND gate.
+ * ---------------------------------------------------------------- */
+static void test_h37_gate_off_when_already_consumed(void)
+{
+    uint8 t_consumed[4];
+    uint32 save_cf;
+
+    save_cf = data_fd2_field_map_tile_event_consumed_flags_ptr;
+    t_consumed[0] = 1;                 /* tile ALREADY consumed */
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)t_consumed;
+
+    current_chapter_text = 0;          /* gate must not deref this */
+    data_fd2_battle_pending_xp_credit = 0x5678;   /* sentinel: must be cleared */
+    g_dlg_glyph_calls = 0;
+    g_composite_call_count = 0;
+
+    fd2_chapter_event_handler_37__ch25_first_time(0);   /* lord (char 0) steps */
+
+    /* gate skipped the body even though the stepping char IS the lord */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 0);
+    ASSERT_EQ((long)g_composite_call_count, 0);
+    ASSERT_EQ((long)t_consumed[0], 1);            /* flag untouched */
+    /* pending XP is cleared unconditionally */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 0);
+
+    data_fd2_field_map_tile_event_consumed_flags_ptr = save_cf;
+    current_chapter_text = 0;
+}
+
 void run_field_chevt2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -896,5 +990,7 @@ void run_field_chevt2_tests(void)
     RUN_TEST(test_h35_kill_index_is_literal_ignores_arg);
     RUN_TEST(test_h36_portrait_index_is_raw_counter);
     RUN_TEST(test_h36_four_corner_sweep_ends_top_right);
+    RUN_TEST(test_h37_gate_off_when_non_lord_steps);
+    RUN_TEST(test_h37_gate_off_when_already_consumed);
     printf("\n");
 }
