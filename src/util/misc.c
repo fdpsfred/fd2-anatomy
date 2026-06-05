@@ -265,3 +265,90 @@ void fd2_reorder_party_by_selection(uint32 sel_state)
 
     free(snapshot);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_pin_required_char_to_party_slot1 @ 0x321C8  (1 caller)
+ *
+ * Pins the character whose char_id == char_id into menu/template
+ * roster slot 1 and shifts the remaining non-lord chars down to slots
+ * 2..N-1. Slot 0 (the lord) is never touched.
+ *
+ * It scans the active battle roster
+ * (data_fd2_battle_runtime_char_array_ptr) over slots
+ * [1, menu_party_member_count) for the entry whose char_id byte
+ * (+0x08) matches char_id, recording match_idx (the loop runs to the
+ * end with no early-out, so the LAST match wins; char_ids are unique in
+ * practice so 0 or 1 match exists). It snapshots the template roster
+ * (data_fd2_shared_menu_party_roster_buffer_ptr, 0x50-byte entries)
+ * into a 0xA00-byte temp (0xA00/0x50 = 0x20 = 32 entries), copies the
+ * matched snapshot entry into roster slot 1, then packs every other
+ * snapshot entry [1..N-1] (skipping match_idx) into slots 2.. in order.
+ * The temp is freed.
+ *
+ * It then reloads the portrait sprite cache to match the new roster
+ * order: free(portrait_sprite_cache); reopen FDICON.B24; reset
+ * portrait_cache_count to 0; for each roster slot [0, member_count)
+ * call fd2_load_portrait_to_cache(roster[slot].portrait_id (+0x07), fp);
+ * fclose(fp).
+ *
+ * char_id = required char_id (low byte; this is a char_id, NOT a
+ * class/job id). The runtime roster slot i and template roster slot i
+ * reference the same char, so the search index maps directly to the
+ * reorder index.
+ *
+ * Caller: fd2_run_recruitment_or_branch_screen @ 0x31D2A / 0x31D34
+ * (post-confirm, after the required-char-id check passes).
+ *
+ * Cdecl, 1 stack param; void return. The binary's __CHK(0x20) stack-
+ * probe prologue is compiler-generated and omitted here. EBX/ESI are
+ * callee-saved.
+ * ---------------------------------------------------------------- */
+void fd2_pin_required_char_to_party_slot1(uint32 char_id)
+{
+    void *snapshot;
+    int iter;
+    void *fp;
+    uint8 match_idx;
+    uint8 out_slot;
+
+    match_idx = 0;
+    out_slot = 2;
+
+    for (iter = 1; iter < (int32)data_fd2_shared_menu_party_member_count;
+         iter++) {
+        if (data_fd2_battle_runtime_char_array_ptr[iter].char_id ==
+            (uint8)char_id) {
+            match_idx = (uint8)iter;
+        }
+    }
+
+    snapshot = malloc(0xA00);
+    memmove(snapshot,
+            (void *)data_fd2_shared_menu_party_roster_buffer_ptr, 0xA00);
+    memmove((void *)(data_fd2_shared_menu_party_roster_buffer_ptr + 0x50),
+            (void *)((uint32)match_idx * 0x50 + (uint32)snapshot), 0x50);
+
+    for (iter = 1; iter < (int32)data_fd2_shared_menu_party_member_count;
+         iter++) {
+        if ((uint32)iter != match_idx) {
+            memmove((void *)((uint32)out_slot * 0x50 +
+                             data_fd2_shared_menu_party_roster_buffer_ptr),
+                    (void *)((uint32)iter * 0x50 + (uint32)snapshot), 0x50);
+            out_slot++;
+        }
+    }
+
+    free(snapshot);
+
+    free((void *)portrait_sprite_cache);
+    fp = fopen("FDICON.B24", "rb");
+    data_fd2_resource_portrait_cache_count = 0;
+    for (iter = 0;
+         iter < (int32)data_fd2_shared_menu_party_member_count; iter++) {
+        fd2_load_portrait_to_cache(
+            *(uint8 *)(data_fd2_shared_menu_party_roster_buffer_ptr +
+                       iter * 0x50 + 7),
+            (uint32)fp);
+    }
+    fclose(fp);
+}

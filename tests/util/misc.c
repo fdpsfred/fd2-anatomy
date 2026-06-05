@@ -576,6 +576,245 @@ static void test_reorder_high_bit_selected(void)
     ASSERT_EQ((int)reorder_slot_tag(3), (int)g_reorder_tag(3));  /* uns iter2 */
 }
 
+/* ================================================================
+ * fd2_pin_required_char_to_party_slot1 @ 0x321C8
+ *
+ * Pins the char whose char_id == char_id into template-roster slot 1 and
+ * packs the remaining non-lord chars into slots 2.. ; slot 0 (the lord) is
+ * left untouched. match_idx is found by scanning the ACTIVE runtime array
+ * data_fd2_battle_runtime_char_array_ptr[1 .. member_count) for the entry
+ * whose char_id (+0x08) matches (last match wins, no early-out); the matched
+ * index then drives a reorder of the SEPARATE template roster
+ * data_fd2_shared_menu_party_roster_buffer_ptr (snapshot -> slot 1 gets
+ * snapshot[match_idx]; slots 2.. get snapshot[1..N) skipping match_idx, in
+ * order). It finishes by reloading the portrait cache from the REAL staged
+ * FDICON.B24: free(portrait_sprite_cache); fopen; count=0; for each roster
+ * slot [0,member_count) load roster[slot].portrait_id (+0x07); fclose.
+ *
+ * The reorder logic is the load-bearing core and is asserted exactly via a
+ * per-slot tag fixture. The portrait reload is driven against the real
+ * FDICON.B24 (staged into the test cwd by build_test.py) with valid portrait
+ * ids in every slot, and asserted via the resulting cache count (one fresh
+ * append per distinct id => count == member_count). No fabricated FDICON.
+ *
+ * Slot-i invariant: the runtime array slot i and the template roster slot i
+ * describe the same char, so the search index found in the runtime array
+ * maps directly to the reorder index in the template roster. The tests honor
+ * that by seeding both arrays at the same indices.
+ * ================================================================ */
+
+#define PIN_STRIDE   0x50
+#define PIN_SLOTS    32          /* 0xA00 / 0x50 = snapshot capacity */
+static uint8 g_pin_roster[PIN_STRIDE * PIN_SLOTS];
+
+/* Distinct, non-zero tag for slot i. 0x40 + i keeps every slot's tag unique,
+ * clear of 0, AND a valid FDICON.B24 portrait id (entries 0x40.. carry real
+ * sprite data), so the same byte serves both the placement assertion (read at
+ * entry +0x00) and the real portrait reload (read at entry +0x07). */
+static uint8 g_pin_tag(int slot)
+{
+    return (uint8)(0x40 + slot);
+}
+
+/* Fill template roster slot i entirely with g_pin_tag(i); point the template
+ * globals at it and set member_count. */
+static void pin_roster_reset(int count)
+{
+    int slot;
+    int b;
+    for (slot = 0; slot < PIN_SLOTS; slot++) {
+        for (b = 0; b < PIN_STRIDE; b++) {
+            g_pin_roster[slot * PIN_STRIDE + b] = g_pin_tag(slot);
+        }
+    }
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_pin_roster;
+    data_fd2_shared_menu_party_member_count = (uint32)count;
+}
+
+/* Tag byte at the start of template-roster slot i (proves which source entry
+ * landed there: the whole 0x50 entry was moved by memmove). */
+static uint8 pin_slot_tag(int slot)
+{
+    return g_pin_roster[slot * PIN_STRIDE];
+}
+
+/* Seed the ACTIVE runtime array used for the match-find scan. Slot 0 is the
+ * lord (never matched against in [1..N)); a 0xFF sentinel in the rest means
+ * only slots a test populates can match. */
+static void pin_rc_reset(void)
+{
+    int i;
+    for (i = 0; i < 8; i++) {
+        g_test_rc_array[i].char_id = 0xFF;
+    }
+}
+
+/* free()/reset the portrait cache so the function's reload starts clean and
+ * its leading free(portrait_sprite_cache) is a safe free(NULL). */
+static void pin_cache_reset(void)
+{
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_resource_portrait_cache_count = 0;
+    data_fd2_resource_portrait_cache_buffer_used = 0;
+    memset(data_fd2_resource_portrait_cache_id_list_base, 0,
+           sizeof(data_fd2_resource_portrait_cache_id_list_base));
+}
+
+static void pin_cache_teardown(void)
+{
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_resource_portrait_cache_count = 0;
+    data_fd2_resource_portrait_cache_buffer_used = 0;
+}
+
+/* ----------------------------------------------------------------
+ * Match mid-array. member_count == 6, runtime slots 1..5 scanned; the required
+ * char_id 0x0A sits in runtime slot 2, so match_idx == 2. Expected template
+ * roster after the pin:
+ *   slot 0: untouched lord            (tag 0x40)
+ *   slot 1: snapshot[match_idx == 2]  (tag 0x42)
+ *   slots 2..5: snapshot 1,3,4,5 (every other non-lord, in order, skipping 2)
+ * Proves the match-find index, the pin into slot 1, the skip-match pack, and
+ * slot-0 preservation. The portrait reload runs over all 6 slots (6 distinct
+ * valid ids) -> cache count == 6.
+ * ---------------------------------------------------------------- */
+static void test_pin_match_mid(void)
+{
+    pin_roster_reset(6);
+    pin_rc_reset();
+    pin_cache_reset();
+    g_test_rc_array[2].char_id = 0x0A;   /* runtime slot 2 holds required id */
+
+    fd2_pin_required_char_to_party_slot1(0x0A);
+
+    ASSERT_EQ((int)pin_slot_tag(0), (int)g_pin_tag(0));  /* lord kept      */
+    ASSERT_EQ((int)pin_slot_tag(1), (int)g_pin_tag(2));  /* matched -> s1  */
+    ASSERT_EQ((int)pin_slot_tag(2), (int)g_pin_tag(1));  /* pack: snap 1   */
+    ASSERT_EQ((int)pin_slot_tag(3), (int)g_pin_tag(3));  /* pack: snap 3   */
+    ASSERT_EQ((int)pin_slot_tag(4), (int)g_pin_tag(4));  /* pack: snap 4   */
+    ASSERT_EQ((int)pin_slot_tag(5), (int)g_pin_tag(5));  /* pack: snap 5   */
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_count, 6);
+    pin_cache_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Match in the LAST scanned slot. member_count == 6 -> runtime slots 1..5;
+ * the id sits in slot 5, so the scan must reach the end to set match_idx == 5
+ * (proves the inclusive upper bound and that the loop does not stop early).
+ * Expected: slot 1 <- snapshot 5; slots 2..5 <- snapshot 1,2,3,4 (skip 5).
+ * ---------------------------------------------------------------- */
+static void test_pin_match_last(void)
+{
+    pin_roster_reset(6);
+    pin_rc_reset();
+    pin_cache_reset();
+    g_test_rc_array[5].char_id = 0x15;   /* last scanned runtime slot */
+
+    fd2_pin_required_char_to_party_slot1(0x15);
+
+    ASSERT_EQ((int)pin_slot_tag(0), (int)g_pin_tag(0));  /* lord kept     */
+    ASSERT_EQ((int)pin_slot_tag(1), (int)g_pin_tag(5));  /* matched -> s1 */
+    ASSERT_EQ((int)pin_slot_tag(2), (int)g_pin_tag(1));  /* snap 1        */
+    ASSERT_EQ((int)pin_slot_tag(3), (int)g_pin_tag(2));  /* snap 2        */
+    ASSERT_EQ((int)pin_slot_tag(4), (int)g_pin_tag(3));  /* snap 3        */
+    ASSERT_EQ((int)pin_slot_tag(5), (int)g_pin_tag(4));  /* snap 4        */
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_count, 6);
+    pin_cache_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * LAST match wins. Two runtime slots (2 and 4) carry the required id; the scan
+ * has no early-out and keeps overwriting match_idx, so match_idx ends at 4.
+ * Expected: slot 1 <- snapshot 4; slots 2..5 <- snapshot 1,2,3,5 (skip 4).
+ * Pins the "loop continues after a match -> latest index wins" semantics.
+ * ---------------------------------------------------------------- */
+static void test_pin_last_match_wins(void)
+{
+    pin_roster_reset(6);
+    pin_rc_reset();
+    pin_cache_reset();
+    g_test_rc_array[2].char_id = 0x07;   /* first match */
+    g_test_rc_array[4].char_id = 0x07;   /* later match: this one wins */
+
+    fd2_pin_required_char_to_party_slot1(0x07);
+
+    ASSERT_EQ((int)pin_slot_tag(0), (int)g_pin_tag(0));  /* lord kept      */
+    ASSERT_EQ((int)pin_slot_tag(1), (int)g_pin_tag(4));  /* last match -> s1 */
+    ASSERT_EQ((int)pin_slot_tag(2), (int)g_pin_tag(1));  /* snap 1         */
+    ASSERT_EQ((int)pin_slot_tag(3), (int)g_pin_tag(2));  /* snap 2         */
+    ASSERT_EQ((int)pin_slot_tag(4), (int)g_pin_tag(3));  /* snap 3         */
+    ASSERT_EQ((int)pin_slot_tag(5), (int)g_pin_tag(5));  /* snap 5 (skip 4) */
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_count, 6);
+    pin_cache_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * No match. The required id is absent from the scanned runtime slots, so
+ * match_idx stays 0 (its init). The pin then copies snapshot[0] (the lord's
+ * template entry) into slot 1, and the pack loop (skipping iter == 0, but iter
+ * starts at 1 so nothing is skipped) lays snapshot 1..N-1 into slots 2..N-1.
+ * member_count == 5. Expected:
+ *   slot 0: untouched (tag 0x40)
+ *   slot 1: snapshot 0  (tag 0x40)  -- lord template duplicated into slot 1
+ *   slots 2..4: snapshot 1,2,3
+ * Exercises the match_idx == 0 default path (the != match_idx test never
+ * skips), a corner the matched-path cases do not reach.
+ *
+ * Because slot 0 and slot 1 then carry the SAME portrait id (0x40, the
+ * lord's), the portrait reload's second load(0x40) is an idempotent cache hit
+ * and does not grow the cache, so the distinct-id count is member_count - 1 ==
+ * 4. This dedup is itself a faithful consequence of the lord-duplication on
+ * the no-match path, so the test pins it.
+ * ---------------------------------------------------------------- */
+static void test_pin_no_match(void)
+{
+    pin_roster_reset(5);
+    pin_rc_reset();
+    pin_cache_reset();
+    /* every runtime char_id is the 0xFF sentinel; 0x33 matches none */
+
+    fd2_pin_required_char_to_party_slot1(0x33);
+
+    ASSERT_EQ((int)pin_slot_tag(0), (int)g_pin_tag(0));  /* lord kept       */
+    ASSERT_EQ((int)pin_slot_tag(1), (int)g_pin_tag(0));  /* snapshot[0]->s1 */
+    ASSERT_EQ((int)pin_slot_tag(2), (int)g_pin_tag(1));  /* snap 1          */
+    ASSERT_EQ((int)pin_slot_tag(3), (int)g_pin_tag(2));  /* snap 2          */
+    ASSERT_EQ((int)pin_slot_tag(4), (int)g_pin_tag(3));  /* snap 3          */
+    /* slot0 and slot1 share portrait id 0x40 -> reload dedups to 4 distinct */
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_count, 4);
+    pin_cache_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Low-byte-only match. The required id is loaded with MOVZX from a single
+ * byte, so a wide argument whose low byte equals an in-range slot's char_id
+ * must still match. member_count == 4 (runtime slots 1..3); slot 3 holds 0x0C
+ * and the argument is 0x2200 | 0x0C, so match_idx == 3. Expected: slot 1 <-
+ * snapshot 3; slots 2..3 <- snapshot 1,2. Pins the (uint8)char_id narrowing.
+ * ---------------------------------------------------------------- */
+static void test_pin_low_byte_only(void)
+{
+    pin_roster_reset(4);
+    pin_rc_reset();
+    pin_cache_reset();
+    g_test_rc_array[3].char_id = 0x0C;   /* low byte 0x0C */
+
+    fd2_pin_required_char_to_party_slot1(0x2200 | 0x0C);
+
+    ASSERT_EQ((int)pin_slot_tag(0), (int)g_pin_tag(0));  /* lord kept      */
+    ASSERT_EQ((int)pin_slot_tag(1), (int)g_pin_tag(3));  /* matched -> s1  */
+    ASSERT_EQ((int)pin_slot_tag(2), (int)g_pin_tag(1));  /* snap 1         */
+    ASSERT_EQ((int)pin_slot_tag(3), (int)g_pin_tag(2));  /* snap 2         */
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_count, 4);
+    pin_cache_teardown();
+}
+
 void run_util_misc_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -601,5 +840,10 @@ void run_util_misc_tests(void)
     RUN_TEST(test_reorder_none_selected);
     RUN_TEST(test_reorder_bound_and_offset);
     RUN_TEST(test_reorder_high_bit_selected);
+    RUN_TEST(test_pin_match_mid);
+    RUN_TEST(test_pin_match_last);
+    RUN_TEST(test_pin_last_match_wins);
+    RUN_TEST(test_pin_no_match);
+    RUN_TEST(test_pin_low_byte_only);
     printf("\n");
 }

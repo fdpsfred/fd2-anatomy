@@ -3285,8 +3285,9 @@
     "name": "fd2_pin_required_char_to_party_slot1",
     "target": "util/misc.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0003231b": {
     "name": "fd2_chapter_01_init",

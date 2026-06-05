@@ -453,6 +453,7 @@ void fd2_blit_scaled_chapter_pose(uint32 src_cx, uint32 src_cy,
 int fd2_wait_input_with_recruitment_repaint(uint32 p1, uint32 p2, uint32 p3, uint32 p4);
 int fd2_count_selected_chars(uint32 sel_state);
 void fd2_reorder_party_by_selection(uint32 sel_state);
+void fd2_pin_required_char_to_party_slot1(uint32 char_id);
 void fd2_render_recruitment_select_screen(uint32 a, uint32 b, uint32 c, uint32 d);
 int fd2_check_char_is_dead(uint32 char_idx);
 int fd2_scan_chars_within_manhattan_range(uint32 x, uint32 y, uint32 range, uint32 flag, int mode);
