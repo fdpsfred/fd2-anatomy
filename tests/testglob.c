@@ -439,6 +439,10 @@ int32  data_fd2_ui_game_options_menu_state_template[4] = { 0, 0, 0, 0 };
 int32  data_fd2_dialog_advance_collapse_template[4] = { 0x10, 0x11, 0x10, 0x11 };
 uint32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4] = {0};
 uint32 data_fd2_chapter_intro_dialog_anim_frame_idx = 0;
+/* chapter-intro metadata entry pointer (real data @ 0x54137). Restored by
+ * fd2_load_state_from_selected_slot via fd2_get_chapter_intro_metadata_entry;
+ * its load test asserts against the real accessor's return. */
+uint32 data_fd2_chapter_intro_active_metadata_entry_ptr = 0;
 uint32 data_fd2_chapter_intro_dialog_subframe_anim_counter = 0;
 uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
 uint32 data_fd2_ui_menu_scroll_offset = 0;
@@ -471,11 +475,10 @@ void fd2_run_give_item_menu(void) { }
 /* heavy-callee stubs for fd2_run_chapter_intro_menu_typeB (the non-shop
  * between-chapters orchestrator, also Phase 9 deferred). status/load open their
  * own real-file UI; stubbed to satisfy the link, never invoked.
- * fd2_save_current_state_to_slot is now emitted for real in src/save/save.c and
- * driven by the test_scs_* cases in tests/save/save.c against the real
- * FD2.SAV. */
+ * fd2_save_current_state_to_slot and fd2_load_state_from_selected_slot are now
+ * emitted for real in src/save/save.c and driven by the test_scs_* /
+ * test_lss_* cases in tests/save/save.c against the real FD2.SAV. */
 void fd2_run_status_screen_member_menu(void) { }
-void fd2_load_state_from_selected_slot(void) { }
 void fd2_blit_scaled_chapter_pose(uint32 cx, uint32 cy, uint32 bmp, int32 s)
 { (void)cx; (void)cy; (void)bmp; (void)s; }
 void fd2_render_chapter_dialog_borders(void) { }

@@ -3134,8 +3134,9 @@
     "name": "fd2_load_state_from_selected_slot",
     "target": "save/save.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00030437": {
     "name": "fd2_render_save_slot_grid",

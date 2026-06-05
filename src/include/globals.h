@@ -173,6 +173,7 @@ extern uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch;         /* 0x54
 extern uint32 data_fd2_chapter_intro_menu_cursor_state;                 /* 0x5412B */
 extern uint32 data_fd2_chapter_intro_menu_overlay_buf_ptr;              /* 0x5413B */
 extern uint32 data_fd2_chapter_intro_dialog_anim_frame_idx;             /* 0x54133 */
+extern uint32 data_fd2_chapter_intro_active_metadata_entry_ptr;         /* 0x54137 */
 extern uint32 data_fd2_chapter_intro_dialog_subframe_anim_counter;      /* 0x54153 */
 extern uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr;             /* 0x54147 */
 extern uint32 data_fd2_ui_menu_scroll_offset;                           /* 0x5412F */

@@ -22,6 +22,11 @@
 #include "protos.h"
 #include <stdio.h>
 #include <stdlib.h>
+/* minipfix.h: immediate-END text table + sprite sheet + dialog/blit spies, so
+ * the load path's real fd2_load_chapter_portrait / fd2_display_dialog_scene /
+ * fd2_paint_portrait_to_dialog_area run without VGA, and the dialog returns at
+ * the END opcode without consuming the injected keystroke. */
+#include "minipfix.h"
 
 extern runtime_char g_test_rc_array[8];
 extern int g_check_char_is_dead_return;
@@ -606,6 +611,307 @@ static void test_scs_cancel_leaves_file_unchanged(void)
     scs_teardown(0x18);
 }
 
+/* ================================================================
+ * fd2_load_state_from_selected_slot — restore current-state globals
+ * from a chosen FD2.SAV slot (inverse of fd2_save_current_state_to_slot).
+ *
+ * Host-testable without reaching the modal confirmation:
+ *   - cancel arm (selector -1): body skipped, no state touched, no dialog.
+ *   - empty-slot arm (slot[+0xA00]==0xFF): inner if skipped (no restore,
+ *     no dialog) and the loop re-prompts, exercising the slot-base
+ *     arithmetic + the re-prompt sentinel.
+ *
+ * The restore arm (category==0) unconditionally runs the real load-confirm
+ * dialog + the real blocking fd2_wait_for_input_dialog_with_blink. That is
+ * driven here exactly like the status-screen tests drive the same real wait:
+ * a scancode is injected into the BIOS keyboard buffer so the wait returns on
+ * its first poll, and minip_setup_env() points data_fd2_all_game_text_ptr at
+ * an immediate-END text table so the real fd2_display_dialog_scene returns at
+ * the END opcode WITHOUT consuming that keystroke. fd2_load_chapter_portrait
+ * runs for real against the staged DATO.DAT (it neither clears the keyboard
+ * buffer nor blocks). The slot's member-count byte is set to 0 so the
+ * per-member portrait-cache rebuild loop body never runs (no FDICON parse
+ * needed for the assertions); the rebuild's per-member routing is left to the
+ * sibling fd2_load_save_and_init_engine coverage. Expected slot bytes are the
+ * exact plaintext written into the real FD2.SAV (encrypted with the linked
+ * real cipher) before the load; the original file is restored at teardown.
+ * ================================================================ */
+
+extern int    g_slot_selector_oneshot;
+extern int    g_slot_selector_first_ret;
+extern uint32 g_slot_selector_cursor;
+extern int    g_slot_selector_calls;
+
+/* backup of the staged FD2.SAV so teardown restores the original */
+static uint8 *g_lss_sav_backup;
+/* the plaintext we wrote into the slot (for verbatim roster comparison) */
+static uint8 *g_lss_plain;
+/* dest roster buffer the loader memmoves the slot body into */
+static uint8 *g_lss_roster;
+
+/* Inject one keystroke into the BIOS keyboard buffer (BDA @ 0x400) so the real
+ * fd2_wait_for_input_dialog_with_blink() returns on its first poll. Mirrors
+ * tests/ui_menu/status.c kbd_inject_scancode. */
+static void lss_kbd_inject(int scancode)
+{
+    *(volatile uint16 *)0x41AuL = 0x1E;                       /* head        */
+    *(volatile uint16 *)0x41CuL = 0x20;                       /* tail=head+2 */
+    *(volatile uint16 *)0x41EuL = (uint16)((scancode << 8) & 0xFF00);
+}
+
+/* free the three 64000-byte workspaces fd2_load_chapter_portrait leaks each
+ * call plus the portrait buffer it loads. */
+static void lss_free_portrait_workspaces(void)
+{
+    if (data_fd2_ui_slide_anim_accumulator_buf_ptr != 0) {
+        free((void *)data_fd2_ui_slide_anim_accumulator_buf_ptr);
+        data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    }
+    if (data_fd2_ui_slide_bg_snapshot_buf_ptr != 0) {
+        free((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr);
+        data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    }
+    if (data_fd2_ui_slide_composed_target_buf_ptr != 0) {
+        free((void *)data_fd2_ui_slide_composed_target_buf_ptr);
+        data_fd2_ui_slide_composed_target_buf_ptr = 0;
+    }
+    if (data_fd2_portrait_sprite_buffer != 0) {
+        free((void *)data_fd2_portrait_sprite_buffer);
+        data_fd2_portrait_sprite_buffer = 0;
+    }
+}
+
+/* Build a known plaintext save image with slot `slot` carrying the given
+ * header fields + a recognisable roster body, encrypt it into the real
+ * FD2.SAV, and arm the one-shot selector to commit that slot. */
+static void lss_setup(uint32 chapter_story, uint32 member_count, uint32 slot)
+{
+    FILE  *fp;
+    long   base;
+    long   i;
+
+    /* back up the staged real FD2.SAV verbatim */
+    g_lss_sav_backup = (uint8 *)malloc(SAV_SIZE);
+    fp = fopen("FD2.SAV", "rb");
+    fread(g_lss_sav_backup, 1, SAV_SIZE, fp);
+    fclose(fp);
+
+    /* author a fresh plaintext image */
+    g_lss_plain = (uint8 *)malloc(SAV_SIZE);
+    for (i = 0; i < SAV_SIZE; i++) {
+        g_lss_plain[i] = (uint8)(i & 0xFF);
+    }
+    base = SAV_SLOT0 + (long)slot * SAV_STRIDE;
+    /* recognisable 0xA00-byte roster body */
+    for (i = 0; i < 0xA00; i++) {
+        g_lss_plain[base + i] = (uint8)(i * 5 + 0x23);
+    }
+    /* scalar header at +0xA00.. */
+    g_lss_plain[base + 0xA00] = (uint8)chapter_story;        /* chapter id   */
+    g_lss_plain[base + 0xA01] = (uint8)member_count;         /* member count */
+    *(uint32 *)(g_lss_plain + base + 0xA02) = 0x0BADF00D;    /* gold (u32)   */
+    g_lss_plain[base + 0xA06] = 0x5A;                        /* terrain hud  */
+    g_lss_plain[base + 0xA07] = 0x3C;                        /* game speed   */
+    g_lss_plain[base + 0xA08] = 1;                           /* bgm enabled  */
+    g_lss_plain[base + 0xA09] = 0;                           /* sfx enabled  */
+    /* valid checksum tail (the load path does not verify it, but keep the
+     * on-disk image self-consistent) */
+    *(uint32 *)(g_lss_plain + 0x59C7) =
+        fd2_save_compute_checksum((uint32)g_lss_plain, SAV_SIZE);
+
+    /* encrypt a copy into FD2.SAV; keep g_lss_plain as the plaintext oracle */
+    {
+        uint8 *enc = (uint8 *)malloc(SAV_SIZE);
+        memcpy(enc, g_lss_plain, SAV_SIZE);
+        fd2_save_crypt_buffer((uint32)enc, SAV_SIZE);
+        fp = fopen("FD2.SAV", "wb");
+        fwrite(enc, 1, SAV_SIZE, fp);
+        fclose(fp);
+        free(enc);
+    }
+
+    /* dest roster buffer the loader writes the slot body into */
+    g_lss_roster = (uint8 *)malloc(0xA00);
+    memset(g_lss_roster, 0, 0xA00);
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_lss_roster;
+
+    /* this chapter is a story chapter -> the load (restore) arm */
+    data_fd2_chapter_per_chapter_category_table[chapter_story] = 0;
+
+    /* default-slot speaker portrait id for fd2_load_chapter_portrait */
+    data_fd2_chapter_intro_menu_speaker_portrait_id_table[0] = 0x40;
+
+    /* immediate-END dialog text + sprite sheet + blit spies */
+    minip_setup_env();
+    data_fd2_portrait_sprite_buffer = 0;
+
+    /* one-shot selector commits `slot` once, then cancels */
+    g_slot_selector_oneshot = 1;
+    g_slot_selector_first_ret = 1;
+    g_slot_selector_cursor = slot;
+    g_slot_selector_calls = 0;
+}
+
+static void lss_teardown(uint32 chapter_story)
+{
+    FILE *fp;
+
+    /* restore the original staged FD2.SAV bytes */
+    fp = fopen("FD2.SAV", "wb");
+    fwrite(g_lss_sav_backup, 1, SAV_SIZE, fp);
+    fclose(fp);
+    free(g_lss_sav_backup);
+    free(g_lss_plain);
+    free(g_lss_roster);
+    g_lss_sav_backup = 0;
+    g_lss_plain = 0;
+    g_lss_roster = 0;
+
+    lss_free_portrait_workspaces();
+
+    data_fd2_shared_menu_party_roster_buffer_ptr = 0;
+    data_fd2_chapter_per_chapter_category_table[chapter_story] = 0;
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    g_slot_selector_oneshot = 0;
+    g_slot_selector_first_ret = 1;
+    g_slot_selector_cursor = 0;
+    g_slot_selector_calls = 0;
+    g_slot_selector_return = -1;
+    data_fd2_chapter_current_chapter_id = 1;
+    data_fd2_resource_portrait_cache_count = 0;
+}
+
+/* ---- Test: cancel arm -> no state touched, selector consulted once ---- */
+static void test_lss_cancel_restores_nothing(void)
+{
+    uint32 chap_before;
+    uint32 gold_before;
+    uint32 count_before;
+
+    /* setup builds an image but we override to pure-cancel */
+    lss_setup(5, 0, 1);
+    g_slot_selector_oneshot = 0;
+    g_slot_selector_return = -1;
+
+    chap_before  = data_fd2_chapter_current_chapter_id;
+    gold_before  = data_fd2_shared_party_total_gold;
+    count_before = data_fd2_shared_menu_party_member_count;
+
+    fd2_load_state_from_selected_slot();
+
+    /* selector consulted exactly once, then the do-while exits */
+    ASSERT_EQ((long)g_slot_selector_calls, 1);
+    /* nothing restored on cancel */
+    ASSERT_EQ((long)data_fd2_chapter_current_chapter_id, (long)chap_before);
+    ASSERT_EQ((long)data_fd2_shared_party_total_gold, (long)gold_before);
+    ASSERT_EQ((long)data_fd2_shared_menu_party_member_count,
+              (long)count_before);
+    /* dest roster untouched (still zero) */
+    ASSERT_EQ((long)g_lss_roster[0], 0);
+
+    lss_teardown(5);
+}
+
+/* ---- Test: empty slot (chapter byte 0xFF) -> re-prompt, no restore ---- */
+static void test_lss_empty_slot_reprompts(void)
+{
+    long   base;
+    uint32 count_before;
+
+    lss_setup(5, 0, 1);
+
+    /* overwrite slot 1's chapter byte to 0xFF (empty) in the on-disk image */
+    base = SAV_SLOT0 + 1 * SAV_STRIDE;
+    g_lss_plain[base + 0xA00] = 0xFF;
+    *(uint32 *)(g_lss_plain + 0x59C7) =
+        fd2_save_compute_checksum((uint32)g_lss_plain, SAV_SIZE);
+    {
+        uint8 *enc = (uint8 *)malloc(SAV_SIZE);
+        FILE  *fp;
+        memcpy(enc, g_lss_plain, SAV_SIZE);
+        fd2_save_crypt_buffer((uint32)enc, SAV_SIZE);
+        fp = fopen("FD2.SAV", "wb");
+        fwrite(enc, 1, SAV_SIZE, fp);
+        fclose(fp);
+        free(enc);
+    }
+
+    count_before = data_fd2_shared_menu_party_member_count;
+
+    fd2_load_state_from_selected_slot();
+
+    /* selector consulted twice: first commit hits the empty slot (no restore,
+     * no dialog) and re-prompts; the second call cancels and exits */
+    ASSERT_EQ((long)g_slot_selector_calls, 2);
+    /* empty slot -> nothing restored, dest roster still zero */
+    ASSERT_EQ((long)data_fd2_shared_menu_party_member_count,
+              (long)count_before);
+    ASSERT_EQ((long)g_lss_roster[0], 0);
+
+    lss_teardown(5);
+}
+
+/* ---- Test: restore arm -> 8 scalar fields + roster + chapter meta ---- */
+static void test_lss_restores_slot_state(void)
+{
+    long base;
+
+    lss_setup(5, 0, 2);          /* story chapter 5, member_count 0, slot 2 */
+    lss_kbd_inject(0x01);        /* ESC: lets the modal confirm wait return */
+
+    fd2_load_state_from_selected_slot();
+
+    /* successful restore forces slot_result = -1 -> loop exits after ONE
+     * selector call (no re-prompt) */
+    ASSERT_EQ((long)g_slot_selector_calls, 1);
+
+    base = SAV_SLOT0 + 2 * SAV_STRIDE;
+
+    /* 8 scalar fields restored from the slot header (exact offsets/widths) */
+    ASSERT_EQ((long)data_fd2_chapter_current_chapter_id, 5);
+    ASSERT_EQ((long)data_fd2_shared_menu_party_member_count, 0);
+    ASSERT_EQ((long)data_fd2_shared_party_total_gold, (long)0x0BADF00D);
+    ASSERT_EQ((long)data_fd2_ui_terrain_hud_user_enabled, 0x5A);
+    ASSERT_EQ((long)data_fd2_ui_game_speed_flag, 0x3C);
+    ASSERT_EQ((long)data_fd2_audio_bgm_enabled_flag, 1);
+    ASSERT_EQ((long)data_fd2_audio_sfx_enabled_flag, 0);
+
+    /* 0xA00-byte roster restored verbatim out of the slot body */
+    ASSERT_MEM_EQ(g_lss_roster, g_lss_plain + base, 0xA00);
+
+    /* chapter-intro metadata pointer refreshed for the now-active chapter */
+    ASSERT_EQ((long)data_fd2_chapter_intro_active_metadata_entry_ptr,
+              (long)(uint32)fd2_get_chapter_intro_metadata_entry(5));
+
+    /* member_count 0 -> portrait rebuild loop body skipped (count stays 0) */
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_count, 0);
+
+    lss_teardown(5);
+}
+
+/* ---- Test: restore arm frees a non-null prior portrait sprite cache ---- */
+static void test_lss_restore_frees_prior_portrait_cache(void)
+{
+    lss_setup(5, 0, 2);
+    /* a non-null prior cache pointer must be freed by the restore arm */
+    portrait_sprite_cache = (uint32)malloc(64);
+    lss_kbd_inject(0x01);
+
+    fd2_load_state_from_selected_slot();
+
+    /* restore happened (chapter id came through) */
+    ASSERT_EQ((long)data_fd2_chapter_current_chapter_id, 5);
+    /* the free path ran (no crash / no double-free under the harness). The
+     * pointer value itself is not nulled by the function, so teardown must not
+     * free it again. */
+    portrait_sprite_cache = 0;
+
+    lss_teardown(5);
+}
+
 void run_save_save_tests(void)
 {
     SUITE_BEGIN(save_save);
@@ -628,5 +934,9 @@ void run_save_save_tests(void)
     RUN_TEST(test_scs_writes_slot_header_and_roster);
     RUN_TEST(test_scs_slot_index_routes_offset);
     RUN_TEST(test_scs_cancel_leaves_file_unchanged);
+    RUN_TEST(test_lss_cancel_restores_nothing);
+    RUN_TEST(test_lss_empty_slot_reprompts);
+    RUN_TEST(test_lss_restores_slot_state);
+    RUN_TEST(test_lss_restore_frees_prior_portrait_cache);
     SUITE_END();
 }

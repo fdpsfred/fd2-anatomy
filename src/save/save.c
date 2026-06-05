@@ -219,3 +219,116 @@ void fd2_save_current_state_to_slot(uint32 prompt_flag)
 
     free(pBuf);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_load_state_from_selected_slot @ 0x301f4 (1 caller)
+ *
+ * Restore game state from a user-selected FD2.SAV slot — inverse of
+ * fd2_save_current_state_to_slot @ 0x30012. __cdecl, void return.
+ * Called by fd2_run_chapter_intro_menu_typeB (option 2 = ロード).
+ *
+ * Flow:
+ *   1. malloc(0x59CB); read FD2.SAV ("rb"): on fopen failure fill the
+ *      buffer with 0xFF, else fread + decrypt + close.
+ *   2. cursor_idx = 0, then loop: ask the slot selector (mode 1; the
+ *      chosen 0..3 slot is left in cursor_idx; returns -1 on cancel).
+ *      Always close the intro dialog after the selector. On cancel
+ *      (-1) the body is skipped and the loop exits.
+ *   3. slot_base = pBuf + cursor_idx * 0xA28 + 0x312B; the chapter
+ *      header byte lives at slot_base + 0xA00.
+ *   4. If the slot is empty (slot_base[0xA00] == 0xFF) silently
+ *      re-prompt. Else if that chapter's category is non-zero (not a
+ *      story chapter) show the error dialog (text 0x1DF) and re-prompt.
+ *   5. On a loadable slot (category == 0): memmove the 0xA00-byte
+ *      template/menu roster out of the slot, restore the 8 scalar
+ *      fields (chapter id / member count / gold u32 / terrain-hud /
+ *      game speed / bgm / sfx flags), free the old portrait sprite
+ *      cache, reopen FDICON.B24 and rebuild the per-member portrait
+ *      cache (roster[i].bPortrait_id at +7), refresh the active
+ *      chapter intro metadata entry, set slot_result = -1 to end the
+ *      loop, then show the "loaded" confirmation dialog (text 0x1DE)
+ *      + blink wait.
+ *   6. free the buffer.
+ *
+ * NOTE: cursor_idx is reset to 0 once before the loop; the selector
+ * leaves the user's chosen slot there. slot_result doubles as the
+ * loop sentinel — it is forced to -1 only after a successful restore,
+ * so empty/non-story selections fall through and re-prompt.
+ * ---------------------------------------------------------------- */
+void fd2_load_state_from_selected_slot(void)
+{
+    uint8 *pBuf;
+    void  *fp;
+    uint32 slot_result;
+    uint8 *slot_base;
+    int32  i;
+    uint32 text_id;
+
+    pBuf = (uint8 *)malloc(0x59cb);
+    fp = fopen("FD2.SAV", "rb");
+    if (fp == NULL) {
+        memset(pBuf, 0xff, 0x59cb);
+    } else {
+        fread(pBuf, 1, 0x59cb, fp);
+        fd2_save_crypt_buffer((uint32)pBuf, 0x59cb);
+        fclose(fp);
+    }
+
+    data_fd2_ui_menu_cursor_idx = 0;
+    do {
+        slot_result = (uint32)fd2_save_slot_selector_ui((uint32)pBuf, 1);
+        fd2_close_intro_dialog_with_slide_out();
+        if (slot_result != 0xffffffff) {
+            slot_base = pBuf + data_fd2_ui_menu_cursor_idx * 0xa28 + 0x312b;
+            if (slot_base[0xa00] != 0xff) {
+                if (data_fd2_chapter_per_chapter_category_table
+                        [slot_base[0xa00]] == 0) {
+                    memmove((void *)data_fd2_shared_menu_party_roster_buffer_ptr,
+                            (void *)slot_base, 0xa00);
+                    data_fd2_chapter_current_chapter_id = slot_base[0xa00];
+                    data_fd2_shared_menu_party_member_count = slot_base[0xa01];
+                    data_fd2_shared_party_total_gold =
+                        *(uint32 *)(slot_base + 0xa02);
+                    data_fd2_ui_terrain_hud_user_enabled = slot_base[0xa06];
+                    data_fd2_ui_game_speed_flag = slot_base[0xa07];
+                    data_fd2_audio_bgm_enabled_flag = slot_base[0xa08];
+                    data_fd2_audio_sfx_enabled_flag = slot_base[0xa09];
+
+                    if (portrait_sprite_cache != 0) {
+                        free((void *)portrait_sprite_cache);
+                    }
+                    fp = fopen("FDICON.B24", "rb");
+                    data_fd2_resource_portrait_cache_count = 0;
+                    for (i = 0;
+                         i < (int32)data_fd2_shared_menu_party_member_count;
+                         i++) {
+                        fd2_load_portrait_to_cache(
+                            (uint32)*(uint8 *)(
+                                data_fd2_shared_menu_party_roster_buffer_ptr +
+                                i * 0x50 + 7),
+                            (uint32)fp);
+                    }
+                    fclose(fp);
+                    data_fd2_chapter_intro_active_metadata_entry_ptr =
+                        (uint32)fd2_get_chapter_intro_metadata_entry(
+                            data_fd2_chapter_current_chapter_id);
+                    slot_result = 0xffffffff;
+                    fd2_load_chapter_portrait(
+                        (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[0]);
+                    text_id = 0x1de;
+                } else {
+                    fd2_load_chapter_portrait(
+                        (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[0]);
+                    text_id = 0x1df;
+                }
+                fd2_display_dialog_scene(data_fd2_all_game_text_ptr, text_id,
+                    0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+                fd2_paint_portrait_to_dialog_area(0);
+                fd2_wait_for_input_dialog_with_blink(0);
+                fd2_close_intro_dialog_with_slide_out();
+            }
+        }
+    } while (slot_result != 0xffffffff);
+
+    free(pBuf);
+}
