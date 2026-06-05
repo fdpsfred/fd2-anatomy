@@ -225,6 +225,7 @@ void fd2_chapter_event_handler_41__shared_dyn_turn_event(uint32 event_arg);
 void fd2_chapter_event_handler_42__ch28_dialog_with_state(uint32 event_arg);
 void fd2_chapter_event_handler_43__unref_dyn_turn_event(uint32 event_arg);
 void fd2_chapter_event_handler_44__ch28_dialog_with_state(uint32 event_arg);
+void fd2_chapter_event_handler_45__ch28_dyn_turn_event(uint32 stepping_char_id);
 void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
 void fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
 

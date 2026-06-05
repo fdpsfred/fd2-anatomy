@@ -909,3 +909,43 @@ void fd2_chapter_event_handler_44__ch28_dialog_with_state(uint32 event_arg)
 
     *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x12) = 1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_45__ch28_dyn_turn_event @ 0x35AB8
+ *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CA5)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x45. Triggered
+ * in chapter 28 as tile-step event_type 0x00 (ch28 tile-step slot 1). Category:
+ * state-machine mutator (dependency-gated dynamic turn-event scheduler).
+ *
+ * Unlike the no-arg handlers in this family, this one runs on the tile-step
+ * dispatch path and reads the stepping char_id argument: the tile-step
+ * dispatcher (fd2_handle_tile_event_interaction) is __cdecl(char_idx) and the
+ * 0-arg indirect call through the handler table leaves char_idx in the same
+ * stack slot the handler reads as its arg. The functionally-exact source is a
+ * 1-arg cdecl handler that indexes runtime_char_array by that char_id.
+ *
+ * Effect: ch28 chained tile trigger. Fires only when a non-enemy (npc/player)
+ * steps the tile (runtime_char_array[stepping_char_id].team != 0; team
+ * encoding 0=enemy 1=npc 2=player), this slot is still
+ * unconsumed (tile_event_consumed_flags[0x11] == 0), AND the prerequisite slot
+ * 0x12 has already been consumed (tile_event_consumed_flags[0x12] != 0, set by
+ * handler_44 / handler_49). When all three hold: write turn_counter (immediate,
+ * no +1) into the turn-event hook table at tile_event_data_table[+9] (hook
+ * entry 2's turn byte), arming a follow-up turn-event for the current turn,
+ * then consume this slot (flags[0x11] = 1) so it never re-arms.
+ *
+ * The turn counter is read as a single byte and stored as a byte
+ * (MOV DL,[turn_counter] / MOV [data_table+9],DL); the (uint8) truncation on
+ * store reproduces that 8-bit move exactly.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_45__ch28_dyn_turn_event(uint32 stepping_char_id)
+{
+    if ((data_fd2_battle_runtime_char_array_ptr[stepping_char_id].team != 0) &&
+        (*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x11) == 0) &&
+        (*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x12) != 0)) {
+        *(uint8 *)(data_fd2_tile_event_data_table_ptr + 9) =
+            (uint8)data_fd2_battle_turn_counter;
+        *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x11) = 1;
+    }
+}

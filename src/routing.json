@@ -4107,8 +4107,9 @@
     "name": "fd2_chapter_event_handler_45__ch28_dyn_turn_event",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035b05": {
     "name": "fd2_chapter_event_handler_46__ch28_dialog_with_state",

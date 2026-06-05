@@ -3,6 +3,7 @@
  *
  * fd2_chapter_event_handler_43__unref_dyn_turn_event @ 0x35A2F
  * fd2_chapter_event_handler_44__ch28_dialog_with_state @ 0x35A48
+ * fd2_chapter_event_handler_45__ch28_dyn_turn_event   @ 0x35AB8
  *
  * --- handler_43 ---
  * Pure state-machine mutator (no display side effects, no real-file I/O). The
@@ -59,6 +60,40 @@
  * The dialog glyph pixels and the cutscene pan/flash composites are pure display
  * side effects (deferred to Phase 9); they execute for real here only as a
  * byproduct and are not asserted.
+ *
+ * --- handler_45 ---
+ * Pure state-machine mutator (no display side effects, no real-file I/O). The
+ * functionally-exact body is a three-way AND gate guarding one armed write plus
+ * a consume store:
+ *     if (runtime_char_array[stepping_char_id].team != 0
+ *         && tile_event_consumed_flags[0x11] == 0
+ *         && tile_event_consumed_flags[0x12] != 0) {
+ *         tile_event_data_table[9] = (uint8)turn_counter;
+ *         tile_event_consumed_flags[0x11] = 1;
+ *     }
+ *
+ * The risk-bearing contract pinned here:
+ *   (a) THREE-WAY GATE: all three conditions must hold to fire. Each is pinned
+ *       independently by a case that flips exactly one off and asserts NOTHING is
+ *       written (data_table[+9] stays 0 and the consume flag stays 0):
+ *         - team == 0 (an enemy steps instead of a non-enemy; encoding
+ *           0=enemy 1=npc 2=player, so the team != 0 firing path is npc/player),
+ *         - own slot flags[0x11] already consumed (!= 0),
+ *         - PREREQ slot flags[0x12] not yet consumed (== 0) — the defining
+ *           difference from handler_3e, which gates on its own slot only.
+ *   (b) ARG IS THE CHAR INDEX: unlike the no-arg handlers in this family, the arg
+ *       is the stepping char_id and indexes runtime_char_array by stride 0x50 at
+ *       team (+6). A nonzero index with team set ONLY on that slot (and the team
+ *       byte of a decoy slot left 0) pins both the stride and the +6 field.
+ *   (c) OFFSET +9: the armed byte is hook entry 2's turn byte (data_table[+9]),
+ *       not handler_41's +3 nor handler_43's +6; those slots stay untouched.
+ *   (d) NO VALUE OFFSET: the scheduled value is turn_counter EXACTLY — no +1
+ *       (contrast handler_3e); a value whose +1 would differ pins it.
+ *   (e) BYTE-width store: the turn counter is read as one byte and stored as one
+ *       byte (MOV DL,[turn_counter] / MOV [data_table+9],DL), so only the low
+ *       byte reaches data_table[+9] and the high bytes never leak.
+ *   (f) CONSUME store: when fired, flags[0x11] becomes 1 and only that byte
+ *       (neighbours stay untouched).
  *
  * Each handler keeps its own in-memory fixture so the suite never aliases the
  * other chevt2 part suites' state.
@@ -398,6 +433,167 @@ static void test_h44_consume_store_is_unconditional(void)
     ce44_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_45__ch28_dyn_turn_event @ 0x35AB8
+ * ================================================================ */
+
+/* Own runtime_char array (stride 0x50) so the suite never aliases other parts'
+ * char state; index 9 of the data table is hook entry 2's turn byte, with
+ * headroom guarding the +3/+6/+8/+10 neighbours; consume-flags index 0x11 is
+ * this handler's own slot and 0x12 the prerequisite slot. */
+static runtime_char g_ce45_rc[8];
+static uint8        g_ce45_dtable[0x10];
+static uint8        g_ce45_consumed[0x20];
+
+/* Arm all three gate conditions in the firing state, then let each test knock
+ * one condition out. char index `idx` is the stepping char; its team is set
+ * nonzero (non-enemy: npc/player) while the rest stay 0. */
+static void ce45_setup(uint32 idx)
+{
+    memset(g_ce45_rc, 0, sizeof(g_ce45_rc));
+    memset(g_ce45_dtable, 0, sizeof(g_ce45_dtable));
+    memset(g_ce45_consumed, 0, sizeof(g_ce45_consumed));
+
+    g_ce45_rc[idx].team = 1;                 /* non-enemy steps (team != 0)      */
+    g_ce45_consumed[0x11] = 0;               /* own slot unconsumed              */
+    g_ce45_consumed[0x12] = 1;               /* PREREQ slot already consumed     */
+    data_fd2_battle_turn_counter = 0;
+
+    data_fd2_battle_runtime_char_array_ptr = g_ce45_rc;
+    data_fd2_tile_event_data_table_ptr = (uint32)g_ce45_dtable;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ce45_consumed;
+}
+
+static void ce45_teardown(void)
+{
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
+    data_fd2_battle_turn_counter = 0;
+}
+
+/* ----------------------------------------------------------------
+ * All three gate conditions hold -> the handler arms hook entry 2's turn byte
+ * (data_table[+9]) with turn_counter EXACTLY (7, not 7+1) and consumes its own
+ * slot (flags[0x11] = 1). Pins (a) the fire path, (b) char-index stride (the
+ * stepping char is index 3 and only its team is set), (c) offset +9 (the +3/+6
+ * sibling slots and the immediate +8/+10 neighbours stay 0), (d) no +1, (f) the
+ * consume store and its untouched neighbour. The prerequisite slot 0x12 must
+ * remain set (the handler reads it, never clears it).
+ * ---------------------------------------------------------------- */
+static void test_h45_fires_when_all_conditions_met(void)
+{
+    ce45_setup(3);
+    data_fd2_battle_turn_counter = 7;
+
+    fd2_chapter_event_handler_45__ch28_dyn_turn_event(3);
+
+    /* (c)+(d) hook entry 2's turn byte = turn_counter EXACTLY */
+    ASSERT_EQ((long)g_ce45_dtable[9], 7);
+    /* (c) sibling slots used by handler_41 (+3) and handler_43 (+6) untouched */
+    ASSERT_EQ((long)g_ce45_dtable[3], 0);
+    ASSERT_EQ((long)g_ce45_dtable[6], 0);
+    /* (c) immediate neighbours of data_table[+9] untouched */
+    ASSERT_EQ((long)g_ce45_dtable[8], 0);
+    ASSERT_EQ((long)g_ce45_dtable[10], 0);
+    /* (f) own slot consumed, exactly that byte */
+    ASSERT_EQ((long)g_ce45_consumed[0x11], 1);
+    ASSERT_EQ((long)g_ce45_consumed[0x10], 0);
+    ASSERT_EQ((long)g_ce45_consumed[0x13], 0);
+    /* prerequisite slot is read-only — still set, never cleared */
+    ASSERT_EQ((long)g_ce45_consumed[0x12], 1);
+
+    ce45_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * GATE 1 (team): an enemy steps. With the stepping char's team == 0 (enemy; the
+ * firing path needs a non-enemy, team != 0) the gate fails first and NOTHING is
+ * written — neither the armed byte nor the consume flag. Indexed by char 3 (only
+ * the OTHER fixture state differs from the firing case), so this isolates the
+ * team condition.
+ * ---------------------------------------------------------------- */
+static void test_h45_gated_off_when_enemy(void)
+{
+    ce45_setup(3);
+    g_ce45_rc[3].team = 0;            /* enemy steps (team == 0) -> first gate fails */
+    data_fd2_battle_turn_counter = 7;
+
+    fd2_chapter_event_handler_45__ch28_dyn_turn_event(3);
+
+    ASSERT_EQ((long)g_ce45_dtable[9], 0);       /* not armed */
+    ASSERT_EQ((long)g_ce45_consumed[0x11], 0);  /* not consumed */
+
+    ce45_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * GATE 2 (own slot): this slot is already consumed (flags[0x11] != 0). The
+ * second gate fails so the handler does not re-arm and does not re-consume; the
+ * armed byte stays 0 and flags[0x11] keeps its pre-set value. Pins the
+ * idempotence of the own-slot consume.
+ * ---------------------------------------------------------------- */
+static void test_h45_gated_off_when_own_slot_consumed(void)
+{
+    ce45_setup(3);
+    g_ce45_consumed[0x11] = 1;       /* already consumed -> second gate fails */
+    data_fd2_battle_turn_counter = 7;
+
+    fd2_chapter_event_handler_45__ch28_dyn_turn_event(3);
+
+    ASSERT_EQ((long)g_ce45_dtable[9], 0);       /* not re-armed */
+    ASSERT_EQ((long)g_ce45_consumed[0x11], 1);  /* unchanged (was already 1) */
+
+    ce45_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * GATE 3 (prerequisite): the defining dependency. The prerequisite slot 0x12 is
+ * NOT yet consumed (== 0), so even with a non-enemy stepping and the own slot
+ * free, the third gate fails and nothing fires. This is what distinguishes
+ * handler_45 from handler_3e (which has no prerequisite-slot check): with the
+ * same non-enemy + free-own-slot setup, handler_3e would arm, but handler_45 must stay inert
+ * until slot 0x12 is consumed elsewhere first.
+ * ---------------------------------------------------------------- */
+static void test_h45_gated_off_when_prereq_not_met(void)
+{
+    ce45_setup(3);
+    g_ce45_consumed[0x12] = 0;       /* prereq NOT consumed -> third gate fails */
+    data_fd2_battle_turn_counter = 7;
+
+    fd2_chapter_event_handler_45__ch28_dyn_turn_event(3);
+
+    ASSERT_EQ((long)g_ce45_dtable[9], 0);       /* not armed */
+    ASSERT_EQ((long)g_ce45_consumed[0x11], 0);  /* not consumed */
+
+    ce45_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * BYTE-width store + char-index isolation: turn_counter = 0x1234, so only the
+ * low byte 0x34 may reach data_table[+9] (the binary reads turn_counter as a
+ * single byte and stores a byte); the 0x12 high byte must never leak into the
+ * neighbour. The stepping char is index 5 and its team is the only nonzero team
+ * in the array — if the handler indexed the wrong slot (e.g. index 0, whose team
+ * is 0) the first gate would fail and nothing would arm, so a successful armed
+ * write also proves the char_id * 0x50 indexing.
+ * ---------------------------------------------------------------- */
+static void test_h45_turn_counter_low_byte_only(void)
+{
+    ce45_setup(5);
+    data_fd2_battle_turn_counter = 0x1234;
+
+    fd2_chapter_event_handler_45__ch28_dyn_turn_event(5);
+
+    /* low byte 0x34 stored verbatim (no +1); high byte 0x12 never reaches it */
+    ASSERT_EQ((long)g_ce45_dtable[9], 0x34);
+    ASSERT_EQ((long)g_ce45_dtable[10], 0);      /* neighbour catches no high byte */
+    /* the armed write happened -> index 5 (not 0) was used, slot consumed */
+    ASSERT_EQ((long)g_ce45_consumed[0x11], 1);
+
+    ce45_teardown();
+}
+
 void run_field_chevt24_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -408,5 +604,10 @@ void run_field_chevt24_tests(void)
     RUN_TEST(test_h44_dialog_cutscene_dialog_then_consume);
     RUN_TEST(test_h44_cutscene_chapter_id_is_two_not_coords);
     RUN_TEST(test_h44_consume_store_is_unconditional);
+    RUN_TEST(test_h45_fires_when_all_conditions_met);
+    RUN_TEST(test_h45_gated_off_when_enemy);
+    RUN_TEST(test_h45_gated_off_when_own_slot_consumed);
+    RUN_TEST(test_h45_gated_off_when_prereq_not_met);
+    RUN_TEST(test_h45_turn_counter_low_byte_only);
     printf("\n");
 }
