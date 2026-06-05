@@ -178,6 +178,16 @@ int32 data_fd2_chapter_ending_music_trigger_frames[15] = {
     0x208, 0x1AE, 0x19A, 0x154, 0x136, 0x12C, 0xF0, 0xB4,
     0x96,  0x82,  0x6E,  0x57,  0x40,  0x16,  0x3E8
 };
+/* Chapter 3 end recruit-scene char placement tables (data segment @ 0x520BA /
+ * 0x520C1 / 0x520C8). Real binary bytes until the data segment is emitted;
+ * fd2_chapter_03_end copies each 7-byte table into an on-stack placement block.
+ * X/Y are battle-tile coords, facing is sprite direction (0..3). */
+uint8 data_fd2_chapter_ch03_end_scene_char_pos_x_table[7] =
+    { 8, 7, 9, 6, 10, 8, 8 };
+uint8 data_fd2_chapter_ch03_end_scene_char_pos_y_table[7] =
+    { 3, 3, 3, 2, 2, 4, 1 };
+uint8 data_fd2_chapter_ch03_end_scene_char_facing_table[7] =
+    { 2, 2, 2, 3, 1, 2, 0 };
 /* Resource portrait sheet base pointer (data segment @ 0x53AD1). Tests point it
  * at a zeroed scratch buffer. */
 uint32 data_fd2_resource_portrait_sheet_ptr = 0;
@@ -653,6 +663,47 @@ int fd2_chapter_transition_menu(void) { return g_chapter_transition_return; }
 int    g_delay375b2_calls = 0;
 uint32 g_delay375b2_last_ticks = 0;
 void __delay_thunk_375b2(uint32 ticks) { g_delay375b2_calls++; g_delay375b2_last_ticks = ticks; }
+
+/* fd2_setup_chars_and_camera_for_intro recording fake. The real function (not yet
+ * emitted; assigned to src/field/chtrans.c) is a chapter intro scene stager:
+ * palette fade-out, place chars in the [char_start..char_end] range using the
+ * three byte-array tables, reset the camera, composite + fade-in. That is all VGA
+ * display side-effect deferred to Phase 9, so here we only record the call and
+ * snapshot the three placement-block tables + scalar args, letting a caller test
+ * (field/chend1's chapter 03 end) verify the orchestration: which branch invoked
+ * it, the exact 7-byte X/Y/facing tables copied into the on-stack blocks, the
+ * char index range, and the camera origin. */
+int    g_setup_intro_calls = 0;
+uint8  g_setup_intro_px[7];
+uint8  g_setup_intro_py[7];
+uint8  g_setup_intro_facing[7];
+int32  g_setup_intro_char_start = -1;
+int32  g_setup_intro_char_end = -1;
+uint32 g_setup_intro_extra_char_idx = 0xFFFFFFFFuL;
+uint32 g_setup_intro_camera_x = 0xFFFFFFFFuL;
+uint32 g_setup_intro_camera_y = 0xFFFFFFFFuL;
+void fd2_setup_chars_and_camera_for_intro(uint32 px_table, uint32 py_table,
+                                          uint32 facing_table_or_fixed,
+                                          int32 char_start, int32 char_end,
+                                          uint32 extra_char_idx, int32 extra_pos_x,
+                                          int32 extra_pos_y, int32 extra_facing,
+                                          uint32 camera_origin_x,
+                                          uint32 camera_origin_y)
+{
+    int i;
+    (void)extra_pos_x; (void)extra_pos_y; (void)extra_facing;
+    g_setup_intro_calls++;
+    for (i = 0; i < 7; i++) {
+        g_setup_intro_px[i]     = ((uint8 *)px_table)[i];
+        g_setup_intro_py[i]     = ((uint8 *)py_table)[i];
+        g_setup_intro_facing[i] = ((uint8 *)facing_table_or_fixed)[i];
+    }
+    g_setup_intro_char_start = char_start;
+    g_setup_intro_char_end = char_end;
+    g_setup_intro_extra_char_idx = extra_char_idx;
+    g_setup_intro_camera_x = camera_origin_x;
+    g_setup_intro_camera_y = camera_origin_y;
+}
 
 /* fd2_composite_chars_with_spell_effect_overlay is now a real emitted function
  * (src/gfx/rndscene.c); its former recording stub here was removed. The real

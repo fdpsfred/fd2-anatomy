@@ -331,8 +331,16 @@ void fd2_render_chapter_status_panel_segments(uint32 panel_sheet, uint32 active_
                                               uint32 menu_options);
 void fd2_init_battle_state_for_chapter(void);
 void fd2_save_runtime_char_to_template(void);
+void fd2_setup_chars_and_camera_for_intro(uint32 px_table, uint32 py_table,
+                                          uint32 facing_table_or_fixed,
+                                          int32 char_start, int32 char_end,
+                                          uint32 extra_char_idx, int32 extra_pos_x,
+                                          int32 extra_pos_y, int32 extra_facing,
+                                          uint32 camera_origin_x,
+                                          uint32 camera_origin_y);
 void fd2_chapter_01_end(void);
 void fd2_chapter_02_end(void);
+void fd2_chapter_03_end(void);
 
 /* ---- lifecycle / main menu ---- */
 void fd2_play_chapter_clear_fanfare(void);

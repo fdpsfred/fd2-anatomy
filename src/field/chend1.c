@@ -93,3 +93,60 @@ void fd2_chapter_02_end(void)
     fd2_save_runtime_char_to_template();
     data_fd2_chapter_current_chapter_id = 2;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_03_end @ 0x230F2  (0 direct callers; dispatched via the
+ *   chapter-end handler pointer table @ 0x51DE9, slot 2)
+ *
+ * Chapter 3「往塞拉村途中」end handler. Persists the party's runtime-char
+ * state to the template store, then branches on whether chapter survivor
+ * runtime char #6 is alive (fd2_check_char_is_dead(6) == 0):
+ *   alive: stages the recruit scene by copying the chapter-3 end scene
+ *     position tables (X / Y / facing, 7 bytes each @ 0x520BA / 0x520C1 /
+ *     0x520C8) into three on-stack char-placement blocks and handing them to
+ *     fd2_setup_chars_and_camera_for_intro (place chars 0..6, camera origin
+ *     (2,0)), shows the recruit dialog page 7, then recruits char #2
+ *     (劍士鐵諾) via fd2_init_runtime_char_from_base_growth.
+ *   dead: shows the no-recruit dialog page 6 only.
+ * It then advances the current-chapter id by 1.
+ *
+ * The position tables are read unconditionally into the stack blocks before
+ * the branch (matching the binary), but the blocks are only consumed on the
+ * alive path.
+ *
+ * Paired init handler: fd2_chapter_03_init @ 0x32E8C.
+ * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
+ * Walkthrough: assets/chapters/chapter_03.md.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_03_end(void)
+{
+    uint8 recruit_block_a[7];
+    uint8 recruit_block_b[7];
+    uint8 recruit_block_c[7];
+    uint8 char6_dead;
+    int i;
+
+    for (i = 0; i < 7; i++) {
+        recruit_block_a[i] = data_fd2_chapter_ch03_end_scene_char_pos_x_table[i];
+        recruit_block_b[i] = data_fd2_chapter_ch03_end_scene_char_pos_y_table[i];
+        recruit_block_c[i] = data_fd2_chapter_ch03_end_scene_char_facing_table[i];
+    }
+
+    fd2_save_runtime_char_to_template();
+    char6_dead = (uint8)fd2_check_char_is_dead(6);
+
+    if (char6_dead == 0) {
+        fd2_setup_chars_and_camera_for_intro(
+            (uint32)recruit_block_a, (uint32)recruit_block_b,
+            (uint32)recruit_block_c, 0, 6, 0, 0, 0, 0, 2, char6_dead);
+        fd2_display_dialog_scene(current_chapter_text, 7, 0xa0000, 0x140, 0xcd,
+                                 0x4c, 0x4a, 0x13, 1);
+        fd2_init_runtime_char_from_base_growth(2);
+    }
+    else {
+        fd2_display_dialog_scene(current_chapter_text, 6, 0xa0000, 0x140, 0xcd,
+                                 0x4c, 0x4a, 0x13, 1);
+    }
+
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}

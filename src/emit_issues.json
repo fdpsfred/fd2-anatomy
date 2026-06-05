@@ -567,5 +567,16 @@
         "reviewer_verdict": "KEEP (reviewer-confirmed valid; truncation direction guaranteed equivalent, tested via exact-integer products 10/5/100*1.6, no code change needed; residual 80-bit-x87 vs 64-bit-double-load deferred to post-build -d disasm of FILD/FMUL[0x50208=0x3FF999999999999A]/__CHP/FISTP)"
       }
     ]
+  },
+  "000230f2": {
+    "name": "fd2_chapter_03_end",
+    "target": "field/chend1.c",
+    "issues": [
+      {
+        "type": "table_copy_codegen",
+        "desc": "The binary copies each of the three chapter-3 end scene placement tables (X/Y/facing, 7 bytes each @ 0x520BA/0x520C1/0x520C8) into an on-stack 7-byte block with an inlined MOVSD+MOVSW+MOVSB sequence (4+2+1 bytes) at 0x2310A-0x23125. Emitted as a plain byte-wise for(i<7) copy loop into uint8 recruit_block_a/b/c[7]. The copied bytes and their order are identical; the only difference is instruction selection (Watcom 9.5a may regenerate this as REP MOVS / unrolled MOVs / a byte loop). Result is provably byte-identical and the destination is only ever read back as a byte array by the callee fd2_setup_chars_and_camera_for_intro (target[i] for i in 0..6), so no aliasing/width risk. The unit test test_chapter_03_end_survivor_alive_recruits asserts the exact 21 bytes reach the callee. verify_method: post-build -d disasm of 0x230F2 to confirm the three 7-byte block contents match the binary; no behavioral risk.",
+        "severity": "low"
+      }
+    ]
   }
 }
