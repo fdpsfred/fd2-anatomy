@@ -248,6 +248,8 @@ extern uint8  data_fd2_animation_spell_sfx_frame_table[33];             /* 0x51F
 extern uint8  data_fd2_animation_spell_overlay_blink_mask_table[28];    /* 0x52006 */
 extern uint8  data_fd2_battle_summon_minor_anim_state5_frame_counter;    /* 0x540FA */
 extern uint8  data_fd2_battle_summon_minor_anim_alternating_blit_toggle; /* 0x540FB */
+extern uint8  data_fd2_graphics_figani_pose_anim_subframe_idx;           /* 0x540FC */
+extern uint8  data_fd2_graphics_figani_pose_anim_pose_idx;               /* 0x540FD */
 extern uint32 data_fd2_audio_summon_spell_sfx_bank_buf_ptr;             /* 0x5411F */
 extern int32  data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[15]; /* 0x53F42 */
 extern uint8  data_fd2_battle_summon_spell_8slot_visibility_table[7];            /* 0x523E1 */

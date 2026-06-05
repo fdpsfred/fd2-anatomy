@@ -2869,8 +2869,9 @@
     "name": "fd2_step_figani_pose_animation",
     "target": "anim/anicine.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002ba22": {
     "name": "fd2_animate_spell_hit_cinematic",

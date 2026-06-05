@@ -430,6 +430,140 @@ static void test_figani_remap_idx_default_0x0b(void)
     run_remap_case(2, FA_VAL_0B);
 }
 
+/* ===== fd2_step_figani_pose_animation @ 0x2B9A1 =====
+ *
+ * The per-frame pose-loop stepper. These tests pin its risk-bearing piece:
+ * the (pose_idx, subframe_idx) state machine and its three exits
+ * (within-pose advance / pose advance with subframe reset / wrap-to-start
+ * after the last pose), plus the palette_op == 0 explicit rewind path.
+ *
+ * A synthetic FIGANI stream gives exact per-pose sub-frame counts (the
+ * function reads the pose count at byte [0] and each pose's sub-frame count
+ * at pose_block[+6]); fa_build_figani already lays both out. The indexed
+ * sprite blit routes through the testglob spy, whose last_frame / last_x /
+ * last_y record the pose index, dst_buf and dst_stride the stepper forwards.
+ * The actual painted pixels are a pure display side-effect (Phase 9). */
+
+extern uint8 data_fd2_graphics_figani_pose_anim_subframe_idx;
+extern uint8 data_fd2_graphics_figani_pose_anim_pose_idx;
+extern uint32 g_blit_indexed_sprite_last_frame;
+extern int    g_blit_indexed_sprite_last_x;
+extern int    g_blit_indexed_sprite_last_y;
+
+/* Caster stream for the stepper: pose 0 has 2 sub-frames, pose 1 has 1. */
+static void fs_build_2pose_2then1(void)
+{
+    static const uint8 meta[2][3] = { {0, 0, 2}, {0, 0, 1} };
+    fa_build_figani(g_fa_caster_fig, 2, meta);
+}
+
+/* Zero the two stepper globals + the blit spy before a fresh walk. */
+static void fs_reset(void)
+{
+    data_fd2_graphics_figani_pose_anim_pose_idx = 0;
+    data_fd2_graphics_figani_pose_anim_subframe_idx = 0;
+    g_blit_indexed_sprite_calls = 0;
+    g_blit_indexed_log_on = 0;
+    g_blit_indexed_sprite_last_frame = 0xFFFF;
+    g_blit_indexed_sprite_last_x = 0;
+    g_blit_indexed_sprite_last_y = 0;
+}
+
+/*
+ * Walks the full 2-pose / (2,1)-subframe loop a step at a time and pins the
+ * (pose_idx, subframe_idx) pair plus the blit's pose-index argument after
+ * each call, covering every exit:
+ *   start (0,0)
+ *   step1 -> within pose 0:      blit pose 0, (0,1)
+ *   step2 -> pose 0 done:        blit pose 0, advance to pose 1, (1,0)
+ *   step3 -> last pose done:     blit pose 1, wrap to start, (0,0)
+ * The blit's frame arg is the pose index sampled BEFORE any advance, so the
+ * recorded sequence is 0, 0, 1.
+ */
+static void test_step_figani_pose_walk(void)
+{
+    uint32 fig;
+
+    fs_build_2pose_2then1();
+    fs_reset();
+    fig = (uint32)g_fa_caster_fig;
+
+    /* step 1: blit pose 0, sub-frame 0 -> 1, still inside pose 0 */
+    fd2_step_figani_pose_animation(fig, 1, 0xA0000, (uint8 *)0x140);
+    ASSERT_EQ(g_blit_indexed_sprite_calls, 1);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_frame, 0L);   /* pose idx pre-advance */
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_x, (long)0xA0000);  /* dst_buf */
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_y, 0x140L);         /* dst_stride */
+    ASSERT_EQ((int)data_fd2_graphics_figani_pose_anim_pose_idx, 0);
+    ASSERT_EQ((int)data_fd2_graphics_figani_pose_anim_subframe_idx, 1);
+
+    /* step 2: blit pose 0, sub-frame 1 -> 2 == sub_count -> advance to pose 1 */
+    fd2_step_figani_pose_animation(fig, 1, 0xA0000, (uint8 *)0x140);
+    ASSERT_EQ(g_blit_indexed_sprite_calls, 2);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_frame, 0L);
+    ASSERT_EQ((int)data_fd2_graphics_figani_pose_anim_pose_idx, 1);
+    ASSERT_EQ((int)data_fd2_graphics_figani_pose_anim_subframe_idx, 0);
+
+    /* step 3: blit pose 1, sub-frame 0 -> 1 == sub_count -> pose 2 == count -> wrap */
+    fd2_step_figani_pose_animation(fig, 1, 0xA0000, (uint8 *)0x140);
+    ASSERT_EQ(g_blit_indexed_sprite_calls, 3);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_frame, 1L);
+    ASSERT_EQ((int)data_fd2_graphics_figani_pose_anim_pose_idx, 0);
+    ASSERT_EQ((int)data_fd2_graphics_figani_pose_anim_subframe_idx, 0);
+}
+
+/*
+ * palette_op == 0 is the explicit rewind: from a mid-loop state (pose 1,
+ * sub-frame 0) a zero call must reset BOTH counters to 0 and issue NO blit.
+ */
+static void test_step_figani_rewind_on_zero(void)
+{
+    uint32 fig;
+
+    fs_build_2pose_2then1();
+    fs_reset();
+    fig = (uint32)g_fa_caster_fig;
+
+    /* advance two steps into the loop (lands at pose 1, sub-frame 0) */
+    fd2_step_figani_pose_animation(fig, 1, 0xA0000, (uint8 *)0x140);
+    fd2_step_figani_pose_animation(fig, 1, 0xA0000, (uint8 *)0x140);
+    ASSERT_EQ((int)data_fd2_graphics_figani_pose_anim_pose_idx, 1);
+    ASSERT_EQ(g_blit_indexed_sprite_calls, 2);
+
+    /* rewind: no blit, both counters back to 0 */
+    fd2_step_figani_pose_animation(fig, 0, 0xA0000, (uint8 *)0x140);
+    ASSERT_EQ(g_blit_indexed_sprite_calls, 2);   /* unchanged: no blit on rewind */
+    ASSERT_EQ((int)data_fd2_graphics_figani_pose_anim_pose_idx, 0);
+    ASSERT_EQ((int)data_fd2_graphics_figani_pose_anim_subframe_idx, 0);
+}
+
+/*
+ * Single-pose, single-sub-frame stream: every non-zero call blits pose 0
+ * then wraps straight back to (0,0) (sub-frame hits the count and the pose
+ * counter immediately passes the 1-pose bound). Confirms the wrap path fires
+ * on the very first pose when it is also the last.
+ */
+static void test_step_figani_single_pose_wraps_each_call(void)
+{
+    static const uint8 meta[1][3] = { {0, 0, 1} };
+    uint32 fig;
+
+    fa_build_figani(g_fa_caster_fig, 1, meta);
+    fs_reset();
+    fig = (uint32)g_fa_caster_fig;
+
+    fd2_step_figani_pose_animation(fig, 1, 0xA0000, (uint8 *)0x140);
+    ASSERT_EQ(g_blit_indexed_sprite_calls, 1);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_frame, 0L);
+    ASSERT_EQ((int)data_fd2_graphics_figani_pose_anim_pose_idx, 0);
+    ASSERT_EQ((int)data_fd2_graphics_figani_pose_anim_subframe_idx, 0);
+
+    fd2_step_figani_pose_animation(fig, 1, 0xA0000, (uint8 *)0x140);
+    ASSERT_EQ(g_blit_indexed_sprite_calls, 2);
+    ASSERT_EQ((int)data_fd2_graphics_figani_pose_anim_pose_idx, 0);
+    ASSERT_EQ((int)data_fd2_graphics_figani_pose_anim_subframe_idx, 0);
+}
+
 void run_anim_anicine2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -444,6 +578,9 @@ void run_anim_anicine2_tests(void)
     RUN_TEST(test_figani_remap_idx_0x13);
     RUN_TEST(test_figani_remap_idx_0x0f);
     RUN_TEST(test_figani_remap_idx_default_0x0b);
+    RUN_TEST(test_step_figani_pose_walk);
+    RUN_TEST(test_step_figani_rewind_on_zero);
+    RUN_TEST(test_step_figani_single_pose_wraps_each_call);
     printf("\n");
     (void)_prev_fails;
 }

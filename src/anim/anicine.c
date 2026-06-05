@@ -1091,3 +1091,65 @@ void fd2_play_figani_animation_loop(uint32 caster_idx, uint32 spell_id,
         }
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_step_figani_pose_animation @ 0x2B9A1  (3 callers)
+ *
+ * Per-frame state stepper for a free-running FIGANI pose-loop. Maintains
+ * two module-global byte counters that walk forward through pose ×
+ * sub-frame, blitting the current pose into dst_buf and auto-wrapping back
+ * to the start of the loop once the last pose finishes.
+ *
+ * Globals:
+ *   data_fd2_graphics_figani_pose_anim_pose_idx     [0x540FD] current pose index
+ *   data_fd2_graphics_figani_pose_anim_subframe_idx [0x540FC] current sub-frame within pose
+ *
+ * FIGANI stream layout used here:
+ *   byte +0                       = pose count (the wrap bound)
+ *   int32 +8 + pose_idx*4         = byte offset (relative to the stream) to pose's metadata block
+ *   pose_block +6                 = that pose's sub-frame count
+ *
+ * Algorithm:
+ *   palette_op != 0:
+ *     blit the current pose, then advance the sub-frame counter.
+ *     while still inside the pose (sub_frame < pose.sub_count) -> return.
+ *     otherwise advance the pose counter; if still inside the loop
+ *     (pose_idx < pose_count) reset the sub-frame counter and return.
+ *   palette_op == 0  OR  the pose counter ran past the last pose:
+ *     reset both counters to 0 (rewind to the start of the loop). palette_op
+ *     == 0 is an explicit "rewind" call used between cinematic phases.
+ *
+ * palette_op is forwarded straight to fd2_blit_indexed_sprite as its blit
+ * mode (0xFFFFFFFF = passthrough, > 0xFF = translucent, <= 0xFF = silhouette).
+ *
+ * Callers: fd2_execute_special_attack_skill @ 0x276EC,
+ *   fd2_play_final_chapter_30_ending @ 0x2C405,
+ *   fd2_play_spell_cast_sequence @ 0x2A6BD.
+ * System = graphics (FIGANI pose-loop state machine; pose × sub-frame walk
+ * with auto-reset).
+ * ---------------------------------------------------------------- */
+void fd2_step_figani_pose_animation(uint32 figani_data, uint32 palette_op,
+                                    uint32 dst_buf, uint8 *dst_stride)
+{
+    if (palette_op != 0) {
+        fd2_blit_indexed_sprite(figani_data,
+                                data_fd2_graphics_figani_pose_anim_pose_idx,
+                                dst_buf, (int)dst_stride, palette_op);
+        data_fd2_graphics_figani_pose_anim_subframe_idx =
+            data_fd2_graphics_figani_pose_anim_subframe_idx + 1;
+        if (data_fd2_graphics_figani_pose_anim_subframe_idx <
+            *(uint8 *)(figani_data + 6 +
+                       *(int32 *)(figani_data + 8 +
+                                  (uint32)data_fd2_graphics_figani_pose_anim_pose_idx * 4))) {
+            return;
+        }
+        data_fd2_graphics_figani_pose_anim_pose_idx =
+            data_fd2_graphics_figani_pose_anim_pose_idx + 1;
+        if (data_fd2_graphics_figani_pose_anim_pose_idx < *(uint8 *)figani_data) {
+            data_fd2_graphics_figani_pose_anim_subframe_idx = 0;
+            return;
+        }
+    }
+    data_fd2_graphics_figani_pose_anim_pose_idx = 0;
+    data_fd2_graphics_figani_pose_anim_subframe_idx = 0;
+}
