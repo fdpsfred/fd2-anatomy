@@ -9,6 +9,7 @@
  *   crt_equivalent_lx_chunk_read_36107  @ 0x36107  (2 callers)
  *   crt_equivalent_lx_header_reader_36344 @ 0x36344 (1 caller)
  *   crt_equivalent_lx_module_loader_3647b @ 0x3647b (0 callers)
+ *   crt_equivalent_exit_chain_stub_36de3 @ 0x36de3 (2 callers)
  */
 
 #include "types.h"
@@ -337,4 +338,27 @@ loader_abort:
         close(handle);
     }
     return (void *)0;
+}
+
+/* ----------------------------------------------------------------
+ * crt_equivalent_exit_chain_stub_36de3 @ 0x36de3  (2 callers)
+ *
+ * atexit default no-op handler. 1-byte RET stub. The Watcom CRT
+ * initializes the three atexit chain slots @ 0x527d8 / 0x527dc / 0x527e0
+ * with a pointer to this RET. When exit / _exit walk the chain via
+ * CALL [0x527d8] (etc.), an empty slot lands on this stub and returns
+ * immediately, so an unregistered atexit slot is a harmless no-op. When
+ * the program calls atexit(fn), the slot is overwritten with fn instead.
+ *
+ * Its address is taken (referenced as DATA from the three atexit slots),
+ * so it must remain a real, callable function — not folded away.
+ *
+ * __cdecl, no parameters, no return value: the original body is the
+ * single instruction RET (no callee stack cleanup; callers do not adjust
+ * ESP because nothing was pushed). No CALL inside, so there is no
+ * EAX-tracking concern.
+ * ---------------------------------------------------------------- */
+void crt_equivalent_exit_chain_stub_36de3(void)
+{
+    return;
 }

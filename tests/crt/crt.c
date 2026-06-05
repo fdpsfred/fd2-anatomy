@@ -652,6 +652,55 @@ static void test_lxl_alloc_fail(void)
     ASSERT_TRUE(r == (void *)0);
 }
 
+/* ================================================================
+ * crt_equivalent_exit_chain_stub_36de3 @ 0x36de3
+ *
+ * atexit default no-op handler: a 1-byte RET. The CRT seeds the three
+ * atexit chain slots with this stub, and exit/_exit invoke an unused
+ * slot via CALL [slot] expecting an immediate clean return. The only
+ * observable contract is therefore: (1) calling it directly is a no-op
+ * that returns to the caller, and (2) calling it THROUGH a function
+ * pointer (its real invocation form) likewise returns cleanly with the
+ * surrounding state intact. There is no return value to check.
+ * ================================================================ */
+
+/* direct call returns cleanly: sentinels bracketing a local are intact
+ * after the call, and execution proceeds past it (a broken RET / stack
+ * imbalance would corrupt the frame or fail to return). */
+static void test_exit_stub_direct_call_is_noop(void)
+{
+    volatile int guard_lo = 0x11223344;
+    volatile int marker   = 0;
+    volatile int guard_hi = 0x55667788;
+
+    crt_equivalent_exit_chain_stub_36de3();
+    marker = 1;   /* reached only if the stub returned */
+
+    ASSERT_EQ(marker, 1);
+    ASSERT_EQ(guard_lo, 0x11223344);
+    ASSERT_EQ(guard_hi, 0x55667788);
+}
+
+/* call THROUGH a function pointer, exactly as exit/_exit invoke the
+ * atexit slots (CALL [slot]); the indirect call must also return
+ * cleanly. Invoke it repeatedly to mirror the 3-slot chain walk. */
+static void test_exit_stub_indirect_call_chain(void)
+{
+    void (*chain_slot)(void);
+    int  i;
+    int  completed;
+
+    chain_slot = crt_equivalent_exit_chain_stub_36de3;
+    ASSERT_TRUE(chain_slot != (void (*)(void))0);
+
+    completed = 0;
+    for (i = 0; i < 3; i++) {     /* slots 0x527d8 / 0x527dc / 0x527e0 */
+        chain_slot();
+        completed++;
+    }
+    ASSERT_EQ(completed, 3);
+}
+
 void run_crt_crt_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -674,5 +723,7 @@ void run_crt_crt_tests(void)
     RUN_TEST(test_lxl_inmem_bad_fixup);
     RUN_TEST(test_lxl_alloc_path);
     RUN_TEST(test_lxl_alloc_fail);
+    RUN_TEST(test_exit_stub_direct_call_is_noop);
+    RUN_TEST(test_exit_stub_indirect_call_chain);
     printf("\n");
 }
