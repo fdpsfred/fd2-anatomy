@@ -563,6 +563,130 @@ static void test_h3a_pickup_table_index_class0(void)
     ce3a_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_3b__ch26_ai_ctrl @ 0x35641
+ *
+ * Char-conditional in-memory computation: only when the stepping char's team
+ * (runtime_char +0x06) is non-zero (npc/player; an enemy stepper with team==0
+ * is skipped) does it disarm AI control flag 0 (the low nibble of
+ * runtime_char.combat_aux_block[0xD], absolute offset 0x34) for the inclusive
+ * char range 0x27..0x2C.
+ *
+ * Drives the REAL handler and its REAL callee
+ * (fd2_set_combat_aux_block_byte_d_low4_for_char_range) against a local
+ * runtime_char array big enough for index 0x2C (the shared g_test_rc_array[8]
+ * is too small). No game files, no display.
+ * ================================================================ */
+
+#define CE3B_NCHARS      0x30       /* must cover the highest index 0x2C */
+#define CE3B_AI_OFF      0x34       /* combat_aux_block[0xD] absolute offset */
+
+static runtime_char g_ce3b_rc[CE3B_NCHARS];
+
+/* offset 0x34 of char `idx`, read as raw byte */
+static uint8 ce3b_ai(int idx)
+{
+    return ((uint8 *)&g_ce3b_rc[idx])[CE3B_AI_OFF];
+}
+
+/* Seed offset 0x34 of every char with a non-zero HIGH nibble (0xA0) and a
+ * non-zero LOW nibble (0x05) so we can prove: (a) in-range chars get their low
+ * nibble cleared to 0 with the high nibble preserved -> 0xA0, and (b)
+ * out-of-range chars keep 0xA5 untouched. `stepper_team` seeds the team byte
+ * of the stepping char (index 0). */
+static void ce3b_setup(uint8 stepper_team)
+{
+    int i;
+
+    memset(g_ce3b_rc, 0, sizeof(g_ce3b_rc));
+    for (i = 0; i < CE3B_NCHARS; i++) {
+        ((uint8 *)&g_ce3b_rc[i])[CE3B_AI_OFF] = 0xA5;
+    }
+    g_ce3b_rc[0].team = stepper_team;
+    data_fd2_battle_runtime_char_array_ptr = g_ce3b_rc;
+}
+
+static void ce3b_teardown(void)
+{
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+}
+
+/* ----------------------------------------------------------------
+ * Non-enemy stepper (team != 0) disarms the range: every char in 0x27..0x2C
+ * gets its low nibble cleared to 0 (high nibble 0xA preserved -> 0xA0).
+ * ---------------------------------------------------------------- */
+static void test_h3b_nonzero_team_disarms_range(void)
+{
+    int i;
+
+    ce3b_setup(1);                              /* team 1 (npc) -> fires */
+
+    fd2_chapter_event_handler_3b__ch26_ai_ctrl(0);
+
+    for (i = 0x27; i <= 0x2C; i++) {
+        ASSERT_EQ((long)ce3b_ai(i), 0xA0);
+    }
+
+    ce3b_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Player stepper (team == 2) also fires (the condition is team != 0, not a
+ * specific team): the range is disarmed identically.
+ * ---------------------------------------------------------------- */
+static void test_h3b_player_team_also_fires(void)
+{
+    int i;
+
+    ce3b_setup(2);                              /* team 2 (player) -> fires */
+
+    fd2_chapter_event_handler_3b__ch26_ai_ctrl(0);
+
+    for (i = 0x27; i <= 0x2C; i++) {
+        ASSERT_EQ((long)ce3b_ai(i), 0xA0);
+    }
+
+    ce3b_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Enemy stepper (team == 0) is skipped: the conditional branch is NOT taken,
+ * so the whole range stays at its seeded 0xA5 (no call to the AI-range writer).
+ * ---------------------------------------------------------------- */
+static void test_h3b_enemy_team_skips(void)
+{
+    int i;
+
+    ce3b_setup(0);                              /* team 0 (enemy) -> skipped */
+
+    fd2_chapter_event_handler_3b__ch26_ai_ctrl(0);
+
+    for (i = 0x27; i <= 0x2C; i++) {
+        ASSERT_EQ((long)ce3b_ai(i), 0xA5);
+    }
+
+    ce3b_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Range boundaries are exact and inclusive: with a firing (non-enemy) stepper,
+ * the chars just outside the range (0x26, 0x2D) stay 0xA5. Guards against
+ * off-by-one bounds.
+ * ---------------------------------------------------------------- */
+static void test_h3b_range_boundaries_exact(void)
+{
+    ce3b_setup(1);
+
+    fd2_chapter_event_handler_3b__ch26_ai_ctrl(0);
+
+    ASSERT_EQ((long)ce3b_ai(0x26), 0xA5);       /* just before */
+    ASSERT_EQ((long)ce3b_ai(0x2D), 0xA5);       /* just after  */
+    ASSERT_EQ((long)ce3b_ai(0x27), 0xA0);       /* inclusive start fired */
+    ASSERT_EQ((long)ce3b_ai(0x2C), 0xA0);       /* inclusive end fired   */
+
+    ce3b_teardown();
+}
+
 void run_field_chevt22_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -574,5 +698,9 @@ void run_field_chevt22_tests(void)
     RUN_TEST(test_h3a_inventory_full_branch);
     RUN_TEST(test_h3a_pickup_grants_item_and_locks_slots);
     RUN_TEST(test_h3a_pickup_table_index_class0);
+    RUN_TEST(test_h3b_nonzero_team_disarms_range);
+    RUN_TEST(test_h3b_player_team_also_fires);
+    RUN_TEST(test_h3b_enemy_team_skips);
+    RUN_TEST(test_h3b_range_boundaries_exact);
     printf("\n");
 }

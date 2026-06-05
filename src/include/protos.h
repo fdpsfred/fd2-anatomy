@@ -215,6 +215,7 @@ void fd2_chapter_event_handler_37__ch25_first_time(uint32 event_arg);
 void fd2_chapter_event_handler_38__ch25_dialog_with_state(uint32 event_arg);
 void fd2_chapter_event_handler_39__ch26_cinematic(uint32 event_arg);
 void fd2_chapter_event_handler_3a__unref_pickup(uint32 stepping_char_id);
+void fd2_chapter_event_handler_3b__ch26_ai_ctrl(uint32 stepping_char_id);
 void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
 void fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
 

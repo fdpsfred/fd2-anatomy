@@ -685,5 +685,17 @@
         "verify_method": "compile_and_disasm"
       }
     ]
+  },
+  "00035641": {
+    "name": "fd2_chapter_event_handler_3b__ch26_ai_ctrl",
+    "target": "field/chevt2.c",
+    "issues": [
+      {
+        "type": "plate_persist_pending",
+        "desc": "FD2.LE plate edit @ 0x35641 was made by the emitter but is not yet persisted; per workflow the orchestrator/reviewer must save_program. Reviewer-side this is expected (noted in emitter's report), not a code blocker — flagging only so the save step is not missed.",
+        "severity": "low",
+        "verify_method": "orchestrator_save_program"
+      }
+    ]
   }
 }
