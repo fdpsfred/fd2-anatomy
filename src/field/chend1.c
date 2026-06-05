@@ -928,3 +928,32 @@ void fd2_chapter_16_end(void)
 
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_19_end @ 0x23E39  (0 direct callers; dispatched via the
+ *   chapter-end handler pointer table @ 0x51DE9)
+ *
+ * Chapter 19「黑暗中的狙擊」end handler. Persists the party's runtime-char
+ * state to the template store, shows the chapter-end dialog page 3, then
+ * advances the current-chapter id by 1. Unlike most sibling handlers the save
+ * runs up front (before the dialog), matching the binary's instruction order.
+ *
+ * In the binary the function ends with `ADD ESP,0x24; JMP 0x231F2`, a tail-jump
+ * into the shared snippet @ 0x231F2 (INC current_chapter_id; RET) that also
+ * closes fd2_chapter_11_end. It is emitted here as a self-contained function
+ * (Layer 2 functional equivalence — the jump-into-middle sharing is not
+ * preserved in source). No char is recruited in this handler; 龍劍士巴拿羅西亞
+ * recruitment is triggered by an FDFIELD event, not this handler.
+ *
+ * Paired init handler: fd2_chapter_19_init @ 0x33674 (shared with ch20/21).
+ * Post-action handler: fd2_chapter_19_post_action @ 0x20926 (gated lose:
+ *   save_metadata > 6 AND char[0x40] dead -> lose, 巴拿羅西亞 死亡視為失敗).
+ * Walkthrough: assets/chapters/chapter_19.md.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_19_end(void)
+{
+    fd2_save_runtime_char_to_template();
+    fd2_display_dialog_scene(current_chapter_text, 3, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}

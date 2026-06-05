@@ -4055,6 +4055,134 @@ static void test_chapter_18_end_increments_not_absolute(void)
     ASSERT_EQ((long)chapter_id, 8L);           /* 7 + 1, not a constant */
 }
 
+/* ================================================================
+ * fd2_chapter_19_end @ 0x23E39
+ *
+ * The Chapter 19「黑暗中的狙擊」end handler is a straight-line (no-branch)
+ * orchestrator — the same trivial shape as the chapter 1 handler but with a
+ * relative chapter-id increment instead of an absolute set, and with the save
+ * pass running UP FRONT (before the dialog), matching the binary's instruction
+ * order (CALL fd2_save_runtime_char_to_template precedes the
+ * fd2_display_dialog_scene push block):
+ *   (1) persists battle-runtime char state via the real
+ *       fd2_save_runtime_char_to_template,
+ *   (2) shows chapter-end dialog page 3 via the real fd2_display_dialog_scene,
+ *   (3) advances chapter_id by 1 (the binary's tail-jump to the shared
+ *       `INC [0x53c03]; RET` snippet @ 0x231F2 that also closes
+ *       fd2_chapter_11_end).
+ * No char is recruited in this handler (巴拿羅西亞 recruitment is an FDFIELD
+ * event, not this handler).
+ *
+ * Every callee is the real linked function (no fakes). The fixture stands up the
+ * same safe headless env the chapter 1 / 11 suites use for the same real
+ * callees: current_chapter_text points at a minimal int16 program whose page-3
+ * header word redirects to one glyph (0x33) + END (so the real dialog VM runs
+ * headless via the testglob.c glyph recorder, BIOS kbd buffer empty, portrait
+ * latch cleared), plus a zeroed runtime-char array + zeroed roster with the
+ * roster pointer set and member_count = 1, so the real save pass runs harmlessly.
+ *
+ * Asserted: the dialog VM actually ran against page 3 (glyph id 0x33 pins the
+ * page index / text base — guards a wrong text base / page number), and the
+ * chapter-id transition is a relative INCREMENT (not an absolute set). The dialog
+ * page's pixels are display side-effects deferred to Phase 9.
+ * ================================================================ */
+
+static uint8 g_ce19_roster[8 * 0x50];
+static int16 g_ce19_text[16];
+
+static void ce19_fixture_reset(void)
+{
+    int i;
+
+    /* dialog VM safe env. */
+    *(volatile uint16 *)0x41AuL = 0x20;   /* BIOS kbd buffer head == tail */
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+
+    /* dialog program: page 3's header word (prog[3]) is a byte offset that
+     * redirects cur_op to prog[4] = one glyph (0x33), prog[5] = -1 END. */
+    for (i = 0; i < 16; i++) {
+        g_ce19_text[i] = 0;
+    }
+    g_ce19_text[3] = 8;        /* byte offset to prog[4] (page 3 start) */
+    g_ce19_text[4] = 0x33;     /* one glyph */
+    g_ce19_text[5] = -1;       /* END */
+    current_chapter_text = (uint32)g_ce19_text;
+
+    /* save-template safe env (chapter 01 baseline): zeroed runtime chars +
+     * zeroed roster, one scanned runtime char and one template entry. */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(g_ce19_roster, 0, sizeof(g_ce19_roster));
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_ce19_roster;
+    g_check_char_is_dead_return = 0;
+    data_fd2_battle_party_member_count = 1;
+    data_fd2_shared_menu_party_member_count = 1;
+
+    /* preset chapter id below (per test) so the transition is observable. */
+    data_fd2_chapter_current_chapter_id = 0;
+}
+
+static void ce19_fixture_teardown(void)
+{
+    current_chapter_text = 0;
+    data_fd2_shared_menu_party_roster_buffer_ptr = 0;
+    data_fd2_shared_menu_party_member_count = 0;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_chapter_current_chapter_id = 1;
+}
+
+/* ----------------------------------------------------------------
+ * End-to-end: the straight-line handler persists the party, runs dialog page 3
+ * (its single glyph 0x33), and advances chapter_id 18 -> 19 (chapter 19 follows
+ * chapter 18). The glyph recorder proves the real dialog VM ran on page 3 of
+ * current_chapter_text (guards a wrong text base / page index).
+ * ---------------------------------------------------------------- */
+static void test_chapter_19_end_saves_runs_dialog_and_increments_id(void)
+{
+    int    glyph_calls;
+    uint32 glyph_idx;
+    uint32 chapter_id;
+
+    ce19_fixture_reset();
+    data_fd2_chapter_current_chapter_id = 18;  /* chapter 19 follows chapter 18 */
+
+    fd2_chapter_19_end();
+
+    glyph_calls = g_dlg_glyph_calls;
+    glyph_idx   = g_dlg_glyph_last_idx;
+    chapter_id  = data_fd2_chapter_current_chapter_id;
+    ce19_fixture_teardown();
+
+    /* page 3 redirected to a single glyph: the real VM blitted exactly it. */
+    ASSERT_EQ((long)glyph_calls, 1);
+    ASSERT_EQ((long)glyph_idx, (long)0x33);
+
+    /* state transition: id incremented 18 -> 19 (relative, not absolute). */
+    ASSERT_EQ((long)chapter_id, 19L);
+}
+
+/* ----------------------------------------------------------------
+ * The chapter-id update is a relative INCREMENT, not an absolute set: seeded
+ * with a distinctive unrelated value (7), the handler leaves 8 — proving it does
+ * not hardcode the id to 19.
+ * ---------------------------------------------------------------- */
+static void test_chapter_19_end_increments_not_absolute(void)
+{
+    uint32 chapter_id;
+
+    ce19_fixture_reset();
+    data_fd2_chapter_current_chapter_id = 7;   /* distinctive, unrelated to 19 */
+
+    fd2_chapter_19_end();
+
+    chapter_id = data_fd2_chapter_current_chapter_id;
+    ce19_fixture_teardown();
+
+    ASSERT_EQ((long)chapter_id, 8L);           /* 7 + 1, not a constant */
+}
+
 void run_field_chend1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -4105,5 +4233,7 @@ void run_field_chend1_tests(void)
     RUN_TEST(test_chapter_17_end_increments_not_absolute);
     RUN_TEST(test_chapter_18_end_stages_scene_cutscenes_and_recruits_two);
     RUN_TEST(test_chapter_18_end_increments_not_absolute);
+    RUN_TEST(test_chapter_19_end_saves_runs_dialog_and_increments_id);
+    RUN_TEST(test_chapter_19_end_increments_not_absolute);
     printf("\n");
 }
