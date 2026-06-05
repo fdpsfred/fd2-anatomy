@@ -389,6 +389,10 @@ void fd2_save_crypt_buffer(uint32 buf, uint32 size);
 int fd2_save_slot_selector_ui(uint32 buf, uint32 mode);
 void fd2_close_intro_dialog_with_slide_out(void);
 int fd2_chapter_transition_menu(void);
+int fd2_chapter_transition_with_intro(void);
+void fd2_render_chapter_intro_overlay(void);
+int fd2_run_recruitment_or_branch_screen(void);
+void fd2_save_current_state_to_slot(int slot);
 void fd2_load_save_and_init_engine(void);
 
 /* ---- dialog / UI screens ---- */

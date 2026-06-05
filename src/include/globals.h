@@ -129,12 +129,24 @@ extern uint32 data_fd2_graphics_chapter_ambient_palette_anim_tick_latch; /* 0x53
 /* ---- chapter intro dialog corner offsets (.object2 const) ---- */
 extern uint32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4]; /* 0x526EA */
 
+/* ---- per-chapter transition tables (.object2 const) ----
+ * category: 0 = story (intro panel + radio menu), nonzero = battle (save
+ * prompt + recruitment). intro panel resource idx is selected by the
+ * chapter-intro category byte (metadata[0]). */
+extern uint8  data_fd2_chapter_per_chapter_category_table[30];                       /* 0x526B9 */
+extern uint8  data_fd2_chapter_intro_panel_resource_idx_per_metadata_category_table[3]; /* 0x526D7 */
+
 /* ---- recruitment screen ---- */
 extern uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch;         /* 0x54127 */
 
 /* ---- chapter intro dialog anim ---- */
 extern uint32 data_fd2_chapter_intro_dialog_anim_frame_idx;             /* 0x54133 */
 extern uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr;             /* 0x54147 */
+
+/* ---- chapter transition radio menu state ---- */
+extern uint32 data_fd2_chapter_intro_menu_cursor_state;                 /* 0x5412B  radio 0..5 */
+extern uint32 data_fd2_chapter_intro_active_metadata_entry_ptr;         /* 0x54137 */
+extern uint32 data_fd2_chapter_intro_menu_overlay_buf_ptr;              /* 0x5413B  FDOTHER[10] */
 
 /* ---- text / dialog ---- */
 extern uint32 data_fd2_all_game_text_ptr;                               /* 0x53A7D */

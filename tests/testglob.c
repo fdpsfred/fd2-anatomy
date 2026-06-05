@@ -451,6 +451,19 @@ int32  data_fd2_dialog_advance_collapse_template[4] = { 0x10, 0x11, 0x10, 0x11 }
 uint32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4] = {0};
 uint32 data_fd2_chapter_intro_dialog_anim_frame_idx = 0;
 uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
+/* chapter transition radio-menu state (BSS) + per-chapter tables.
+ * category table is the real FD2.LE @0x526B9 (0=story, nonzero=battle);
+ * intro-panel resource-idx table is the real FD2.LE @0x526D7. */
+uint32 data_fd2_chapter_intro_menu_cursor_state = 0;
+uint32 data_fd2_chapter_intro_active_metadata_entry_ptr = 0;
+uint32 data_fd2_chapter_intro_menu_overlay_buf_ptr = 0;
+uint8  data_fd2_chapter_per_chapter_category_table[30] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 1, 1, 0, 0, 1, 1, 1
+};
+uint8  data_fd2_chapter_intro_panel_resource_idx_per_metadata_category_table[3] = {
+    0x0b, 0x3d, 0x3e
+};
 void fd2_render_chapter_dialog_borders(void) { }
 void fd2_render_chapter_intro_dialog_panels(uint32 c, uint32 m) { }
 /* capture wiring for fd2_blit_indexed_sprite_with_alloc tests; also drives the
@@ -572,8 +585,25 @@ int fd2_play_ending_and_record_clear(void) { return g_ending_menu_return; }
 int g_slot_selector_return = -1;
 int fd2_save_slot_selector_ui(uint32 b, uint32 m) { (void)b; (void)m; return g_slot_selector_return; }
 void fd2_close_intro_dialog_with_slide_out(void) { }
-int g_chapter_transition_return = 0;
-int fd2_chapter_transition_menu(void) { return g_chapter_transition_return; }
+/* fd2_chapter_transition_menu: now emitted in src/field/chtrans.c and linked
+ * for real. (g_chapter_transition_return is gone; the orphan extern decls in
+ * the per-suite boilerplate blocks are unused and harmless.) */
+
+/* fd2_chapter_transition_menu callees not yet emitted -- stubbed so TEST.EXE
+ * links. The intro radio-menu commit and the recruitment-screen result default
+ * nonzero so the (unreached-by-tests) do/while loops would terminate. */
+int g_chapter_transition_with_intro_return = 1;
+int fd2_chapter_transition_with_intro(void)
+{
+    return g_chapter_transition_with_intro_return;
+}
+void fd2_render_chapter_intro_overlay(void) { }
+int g_run_recruitment_return = 1;
+int fd2_run_recruitment_or_branch_screen(void)
+{
+    return g_run_recruitment_return;
+}
+void fd2_save_current_state_to_slot(int slot) { (void)slot; }
 
 /* ---- fd2_load_save_and_init_engine leaf helper fakes ----
  * (the real fd2_load_save_and_init_engine now lives in src/life/main.c) */

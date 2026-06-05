@@ -6,6 +6,10 @@
 #include "consts.h"
 #include "globals.h"
 #include "protos.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <dos.h>
 
 /* ----------------------------------------------------------------
  * fd2_cutscene_event_trigger @ 0x1366A  (51 callers)
@@ -224,4 +228,217 @@ void fd2_setup_chars_and_camera_for_intro(uint32 pX_byte_array,
     fd2_composite_battle_frame(1);
     fd2_play_palette_fade_in();
     __delay_thunk_375b2(200);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_transition_menu @ 0x2CAD7  (2 callers)
+ *
+ * Between-chapter dispatch + intro/save menu. Invoked from the main loop
+ * (fd2_main / fd2_main_menu_continue_dispatcher) when a chapter transition
+ * is pending. Returns:
+ *   1 - story-chapter intro committed without choosing "save" (cursor != 2)
+ *       => caller continues normal flow.
+ *   0 - story-chapter "save" chosen (cursor == 2), or battle-chapter branch
+ *       completed (recruitment/branch screen done).
+ *
+ * Phase 1 frees the per-chapter dynamic state (idempotent, NULL-guarded).
+ * Phase 2 rebuilds the portrait cache from FDICON.B24 for every menu-party
+ * member. Phase 3 dispatches on the per-chapter category:
+ *   category == 0  -> STORY: render the FDOTHER intro panel + menu overlay,
+ *                     run the radio-option input loop (left/right cycle the
+ *                     5-option cursor, F8 cycles a debug BGM, a metadata
+ *                     hotkey jumps to option 5), commit via
+ *                     fd2_chapter_transition_with_intro.
+ *   category != 0  -> BATTLE: show the save-prompt dialog, optionally save to
+ *                     slot 0, then run the recruitment/branch screen loop.
+ *
+ * The story branch's "cursor != 2 -> return 1" early-out and the battle
+ * branch share the single trailing "return 0" (the original's
+ * XOR EAX,EAX; JMP epilogue at 0x2CCFD is reached both from the battle
+ * tail and from the story cursor==2 case).
+ *
+ * intro_panel_idx_lut: the original copies the 3 bytes of
+ * data_fd2_chapter_intro_panel_resource_idx_per_metadata_category_table
+ * (@0x526D7) onto its stack frame and indexes them by the chapter-intro
+ * category (= metadata[0]). The disasm's base/index rebasing is reproduced
+ * here as a direct lut[category] read over the 3 copied bytes; for the
+ * in-range categories (0..2) this is byte-identical to the original access.
+ *
+ * Globals first defined here (see globals.h):
+ *   data_fd2_chapter_intro_menu_cursor_state            (0x5412B) radio 0..5
+ *   data_fd2_chapter_intro_active_metadata_entry_ptr    (0x54137)
+ *   data_fd2_chapter_intro_menu_overlay_buf_ptr         (0x5413B)
+ *   data_fd2_chapter_per_chapter_category_table         (0x526B9) 30B
+ *   data_fd2_chapter_intro_panel_resource_idx_per_metadata_category_table
+ *                                                       (0x526D7) 3B
+ * ---------------------------------------------------------------- */
+int fd2_chapter_transition_menu(void)
+{
+    void *fp;
+    int i;
+    uint8 intro_panel_idx_lut[3];
+    uint8 *metadata;
+    uint8 category;
+    void *intro_rle;
+    uint8 commit_result;
+    uint8 debug_bgm_idx;
+    uint16 saved_tick;
+    int dialog_result;
+    int recruit_result;
+
+    commit_result = 0;
+    intro_panel_idx_lut[0] =
+        data_fd2_chapter_intro_panel_resource_idx_per_metadata_category_table[0];
+    intro_panel_idx_lut[1] =
+        data_fd2_chapter_intro_panel_resource_idx_per_metadata_category_table[1];
+    intro_panel_idx_lut[2] =
+        data_fd2_chapter_intro_panel_resource_idx_per_metadata_category_table[2];
+    debug_bgm_idx = 0;
+
+    /* Phase 1: free per-chapter dynamic state (idempotent, NULL-guarded). */
+    if (data_fd2_battle_runtime_char_array_ptr != (runtime_char *)0) {
+        free(data_fd2_battle_runtime_char_array_ptr);
+    }
+    data_fd2_battle_runtime_char_array_ptr = (runtime_char *)0;
+    if (data_fd2_tile_event_data_table_ptr != 0) {
+        free((void *)data_fd2_tile_event_data_table_ptr);
+    }
+    data_fd2_tile_event_data_table_ptr = 0;
+    if (battle_scene_snapshot != 0) {
+        free((void *)battle_scene_snapshot);
+    }
+    battle_scene_snapshot = 0;
+    if (data_fd2_battle_tile_map_ptr != 0) {
+        free((void *)data_fd2_battle_tile_map_ptr);
+    }
+    data_fd2_battle_tile_map_ptr = 0;
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+    }
+
+    /* Phase 2: rebuild portrait cache from FDICON.B24 for menu-party members. */
+    fp = fopen("FDICON.B24", "rb");
+    data_fd2_resource_portrait_cache_count = 0;
+    for (i = 0; i < (int)data_fd2_shared_menu_party_member_count; i++) {
+        fd2_load_portrait_to_cache(
+            (uint32)((runtime_char *)data_fd2_shared_menu_party_roster_buffer_ptr)[i]
+                .portrait_id,
+            (uint32)fp);
+    }
+    fclose(fp);
+
+    /* Phase 3: dispatch on per-chapter category. */
+    if (data_fd2_chapter_per_chapter_category_table[
+            data_fd2_chapter_current_chapter_id] == 0) {
+        /* ---- STORY CHAPTER: intro panel + radio menu ---- */
+        battle_scene_snapshot = (uint32)malloc(0x25680);
+        metadata = fd2_get_chapter_intro_metadata_entry(
+            (int)data_fd2_chapter_current_chapter_id);
+        category = metadata[0];
+        data_fd2_chapter_intro_active_metadata_entry_ptr = (uint32)metadata;
+        fd2_play_palette_fade_to_black();
+        fd2_set_bgm_track_with_fade(10, 0);
+        data_fd2_chapter_intro_menu_cursor_state = 0;
+
+        intro_rle = (void *)fd2_load_dat_resource(
+            0x51a4d, 0, (uint32)intro_panel_idx_lut[category]);
+        fd2_rle_blit_sprite((uint32)intro_rle, 0, 0,
+                            battle_scene_snapshot + 0x8088, 0x1c8, 0xffffffff);
+        free(intro_rle);
+
+        data_fd2_chapter_intro_menu_overlay_buf_ptr = 0;
+        data_fd2_chapter_intro_menu_overlay_buf_ptr =
+            fd2_load_dat_resource(0x51a4d, 0, 10);
+        fd2_render_chapter_intro_overlay();
+        fd2_play_palette_fade_in();
+        fd2_clear_keyboard_buffer();
+
+        do {
+            fd2_render_chapter_intro_overlay();
+            saved_tick = BIOS_TICK_WORD;
+            while (fd2_check_keyboard_buffer_nonempty() == 0) {
+                if ((int)(int16)BIOS_TICK_WORD - (int)(int16)saved_tick > 3
+                    || (int)(int16)BIOS_TICK_WORD - (int)(int16)saved_tick < 0) {
+                    data_fd2_chapter_intro_dialog_anim_frame_idx++;
+                    if (data_fd2_chapter_intro_dialog_anim_frame_idx == 4) {
+                        data_fd2_chapter_intro_dialog_anim_frame_idx = 0;
+                    }
+                    fd2_render_chapter_intro_overlay();
+                    saved_tick = BIOS_TICK_WORD;
+                }
+            }
+            data_fd2_input_key_input_mode = 0x10;
+            int386(0x16, (union REGS *)&data_fd2_input_last_key_pressed,
+                         (union REGS *)&data_fd2_input_last_key_pressed);
+            if (data_fd2_input_key_input_mode == 0xe0
+                || data_fd2_input_key_input_mode == 0x52) {
+                data_fd2_input_key_input_mode = 0x1c;
+            } else if (data_fd2_input_key_input_mode == 0x22) {
+                debug_bgm_idx++;
+                if (debug_bgm_idx == 10) {
+                    debug_bgm_idx = 0;
+                }
+                fd2_set_bgm_track_with_fade((uint32)debug_bgm_idx, 0);
+            } else if (data_fd2_input_key_input_mode == 0x4d) {
+                fd2_play_sfx_with_handle(
+                    data_fd2_audio_fdother_sfx_bank_buf_ptr, 0, 1);
+                data_fd2_chapter_intro_menu_cursor_state--;
+                if ((int)data_fd2_chapter_intro_menu_cursor_state < 0) {
+                    data_fd2_chapter_intro_menu_cursor_state = 4;
+                }
+            } else if (data_fd2_input_key_input_mode == 0x4b) {
+                fd2_play_sfx_with_handle(
+                    data_fd2_audio_fdother_sfx_bank_buf_ptr, 0, 1);
+                data_fd2_chapter_intro_menu_cursor_state++;
+                if ((int)data_fd2_chapter_intro_menu_cursor_state > 4) {
+                    data_fd2_chapter_intro_menu_cursor_state = 0;
+                }
+            } else if (data_fd2_input_key_input_mode ==
+                       *(uint8 *)(data_fd2_chapter_intro_active_metadata_entry_ptr + 2)
+                       && *(uint8 *)(data_fd2_chapter_intro_active_metadata_entry_ptr
+                                     + 1) == data_fd2_chapter_intro_menu_cursor_state) {
+                data_fd2_chapter_intro_menu_cursor_state = 5;
+            }
+            if (data_fd2_input_key_input_mode == 0x1c
+                || data_fd2_input_last_key_pressed == ' ') {
+                if (data_fd2_chapter_intro_menu_cursor_state != 2) {
+                    fd2_play_sfx_with_handle(
+                        data_fd2_audio_fdother_sfx_bank_buf_ptr, 1, 3);
+                }
+                commit_result = (uint8)fd2_chapter_transition_with_intro();
+            }
+        } while (commit_result == 0);
+
+        free((void *)data_fd2_chapter_intro_menu_overlay_buf_ptr);
+        if (data_fd2_chapter_intro_menu_cursor_state != 2) {
+            return 1;
+        }
+    } else {
+        /* ---- BATTLE CHAPTER: save prompt + recruitment screen ---- */
+        memset((void *)0xa0000, 0, 64000);
+        fd2_set_vga_palette_range(0, 0xff, 0);
+        fd2_load_chapter_portrait(0x4b);
+        fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x19a, 0xa9524,
+                                 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+        fd2_paint_portrait_to_dialog_area(0);
+        data_fd2_battle_tile_map_ptr = 1;
+        dialog_result = (int)fd2_text_dialog_typewriter_loop();
+        data_fd2_battle_tile_map_ptr = 0;
+        fd2_animate_dialog_page_advance_collapse();
+        fd2_close_intro_dialog_with_slide_out();
+        if (dialog_result != -1 && data_fd2_ui_menu_cursor_idx == 0) {
+            data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = fd2_load_dat_resource(
+                0x51a4d, data_fd2_ui_menu_screen_sprite_atlas_buf_ptr, 0xd);
+            fd2_save_current_state_to_slot(0);
+            free((void *)data_fd2_ui_menu_screen_sprite_atlas_buf_ptr);
+        }
+        do {
+            data_fd2_battle_runtime_char_array_ptr =
+                (runtime_char *)data_fd2_shared_menu_party_roster_buffer_ptr;
+            recruit_result = fd2_run_recruitment_or_branch_screen();
+            data_fd2_battle_runtime_char_array_ptr = (runtime_char *)0;
+        } while (recruit_result == 0);
+        fd2_set_vga_palette_range(0, 0xff, 0xff);
+    }
+    return 0;
 }

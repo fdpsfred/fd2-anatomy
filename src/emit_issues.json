@@ -569,5 +569,18 @@
         "source_review": "fd2_execute_combat_hit_cinematic @0002939d (emit; RNG EAX-bug @0x2946a)"
       }
     ]
+  },
+  "0002cad7": {
+    "name": "fd2_chapter_transition_menu",
+    "target": "field/chtrans.c",
+    "issues": [
+      {
+        "type": "test_deferral_note",
+        "desc": "Behavioral unit test for fd2_chapter_transition_menu is DEFERRED to Phase 9 integration (reason proven, not convenience). The function has two top-level branches and each enters an input-driven do/while loop that only terminates on a real keyboard scancode read through the REAL-linked int386(0x16,...): the STORY branch (category==0) loops until fd2_chapter_transition_with_intro returns nonzero after an INT 16h read, and the BATTLE branch (category!=0) loops on fd2_run_recruitment_or_branch_screen which itself fopens FDICON.B24 and polls the keyboard. Per the established harness limitation (cf. fd2_main @00025bf4 and the display orchestrators), the real int386 has no deterministic seam in the DOS/4GW silent runner and an INT 16h poll cannot be satisfied unattended -> a full-function test would hang. The branch also drives real-linked callees in OTHER translation units that fopen non-staged DAT files where the real loader does exit(1) on failure (the battle save-prompt fd2_display_dialog_scene reads _all_game_text@0x53A7D which the test build does not back with DATO.DAT content; fd2_save_current_state_to_slot fopens FD2.SAV), which would abort the whole run. There is no isolatable pure-logic sub-path: the scancode->cursor radio arithmetic (left 0x4D: --state wrap-to-4; right 0x4B: ++state wrap-at>4 to 0; F8 0x22 debug-bgm cycle %10; metadata-hotkey ptr compare metadata[2]==mode && metadata[1]==state -> state=5; 0xE0/0x52->0x1C Enter remap) is interleaved with fd2_play_sfx_with_handle / fd2_set_bgm_track_with_fade side-effect calls and the active-metadata pointer dereference. The control-flow translation was instead verified statically line-by-line against the disasm: the cdecl 0-param signature + EAX return (1 when story cursor!=2 @0x2CF65 MOV EAX,1; 0 shared @0x2CCFD XOR EAX,EAX for both the battle tail and the story cursor==2 fall-through); the BIOS-tick idle-frame advance uses signed-short delta (3<delta||delta<0) matching MOVSX/SUB/CMP 0x4 JGE / TEST JGE @0x2CDD7-0x2CDE8; the portrait-cache loop stride 80 offset 7 (roster[i].portrait_id) matches SHL2/ADD/SHL4 MOVZX [ECX+EAX+7] @0x2CBC8-0x2CBD2; every CALL-then-EAX use (fopen->fp, typewriter->dialog_result EBX, metadata ptr->BL, load_dat_resource->buffers, recruitment->loop cond, transition_with_intro->commit AL) was checked against assembly for the Ghidra EAX-tracking bug. The intro_panel_idx_lut[category] read reproduces the original 3-byte stack copy of the @0x526D7 table indexed by metadata[0]; the disasm base/index rebasing (intro_const_arr[category-2] with arr[0]=table[2]) is byte-identical to lut[category] over {0x0B,0x3D,0x3E} for the in-range categories 0..2.",
+        "severity": "low",
+        "verify_method": "phase9_integration",
+        "source_review": "fd2_chapter_transition_menu @0002cad7 (emit; INT 16h input do/while loops + cross-TU exit(1) DAT loads = no unit seam, cf. 00025bf4)"
+      }
+    ]
   }
 }
