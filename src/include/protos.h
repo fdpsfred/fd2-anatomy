@@ -360,6 +360,7 @@ void fd2_chapter_19_end(void);
 
 /* ---- lifecycle / main menu ---- */
 void fd2_play_chapter_clear_fanfare(void);
+void fd2_play_chapter_intro_sprite_slideshow(void);
 int fd2_play_ending_and_record_clear(void);
 int fd2_main_menu_continue_dispatcher(void);
 void fd2_save_crypt_buffer(uint32 buf, uint32 size);

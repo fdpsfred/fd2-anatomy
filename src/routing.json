@@ -2495,8 +2495,9 @@
     "name": "fd2_play_chapter_intro_sprite_slideshow",
     "target": "anim/aniend.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000244b6": {
     "name": "fd2_chapter_22_end",

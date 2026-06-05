@@ -356,3 +356,73 @@ void fd2_play_chapter_clear_fanfare(void)
     fd2_wait_n_bios_ticks(0x24);
     free((void *)fanfare_sprite);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_play_chapter_intro_sprite_slideshow @ 0x24336  (1 caller)
+ *
+ * Sole caller: fd2_chapter_21_end @ 0x240FA (call site 0x242C9), reached only
+ * after the chapter-21 hidden-stage 6-item collection unlock. Plays a 101-frame
+ * (0x65) sprite slideshow off FDOTHER.DAT[0x22], with a mid-show white flash.
+ *
+ * Sequence:
+ *   - pan cursor/window to (0xE, 8)
+ *   - malloc a 64000-byte workspace, snapshot the live VGA framebuffer into it
+ *   - load FDOTHER.DAT[0x22] sprite sheet, blit base frame 0 into the workspace
+ *   - Phase 1 (frames 1..0x44, with palette cycling each frame):
+ *       copy workspace -> large_game_state_buffer, blit frame, copy to 0xA0000,
+ *       advance palette cycle, hold 3 ticks, drain keyboard
+ *   - play ANI sequence 0; flash white (palette +0x3F, hold 100), restore
+ *     (palette +0, hold 500)
+ *   - Phase 2 (frames 0x45..0x64, no palette cycling): same blit/copy, hold 3
+ *     ticks, drain keyboard
+ *   - free workspace + sprite sheet, then composite battle frame 0
+ *
+ * The large_game_state_buffer global holds a scratch address used as the blit
+ * scratch (read/written as a raw far buffer, like 0xA0000). The tail call to
+ * fd2_composite_battle_frame_zero compiles (in the original) into a JMP that
+ * replaces the epilogue; the plain call below is the functional equivalent.
+ * ---------------------------------------------------------------- */
+void fd2_play_chapter_intro_sprite_slideshow(void)
+{
+    void *workspace;
+    uint32 sheet;
+    uint32 sprite_idx;
+
+    fd2_pan_cursor_and_window(0xE, 8);
+    workspace = malloc(64000);
+    memmove(workspace, (void *)0xA0000, 64000);
+    sheet = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 0x22);
+    fd2_blit_indexed_sprite(sheet, 0, (int)workspace, 0x140, -1);
+
+    /* Phase 1 — frames 1..0x44 with palette cycling */
+    for (sprite_idx = 1; (int)sprite_idx < 0x45; sprite_idx++) {
+        memmove((void *)data_fd2_large_game_state_buffer_ptr, workspace, 64000);
+        fd2_blit_indexed_sprite(sheet, sprite_idx,
+                                (int)data_fd2_large_game_state_buffer_ptr, 0x140, -1);
+        memmove((void *)0xA0000, (void *)data_fd2_large_game_state_buffer_ptr, 64000);
+        fd2_update_palette_cycle_anim();
+        fd2_wait_n_bios_ticks(3);
+        fd2_clear_keyboard_buffer();
+    }
+
+    fd2_play_ani_file_animation_sequence(0, 0xF, 0);
+    fd2_set_vga_palette_range_with_add(0, 0xFF, 0x3F);
+    __delay_thunk_375b2(100);
+    fd2_set_vga_palette_range_with_add(0, 0xFF, 0);
+    __delay_thunk_375b2(500);
+
+    /* Phase 2 — frames 0x45..0x64 without palette cycling */
+    for (; (int)sprite_idx < 0x65; sprite_idx++) {
+        memmove((void *)data_fd2_large_game_state_buffer_ptr, workspace, 64000);
+        fd2_blit_indexed_sprite(sheet, sprite_idx,
+                                (int)data_fd2_large_game_state_buffer_ptr, 0x140, -1);
+        memmove((void *)0xA0000, (void *)data_fd2_large_game_state_buffer_ptr, 64000);
+        fd2_wait_n_bios_ticks(3);
+        fd2_clear_keyboard_buffer();
+    }
+
+    free(workspace);
+    free((void *)sheet);
+    fd2_composite_battle_frame_zero();
+}

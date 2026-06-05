@@ -1156,11 +1156,21 @@ int g_blit_indexed_sprite_calls = 0;
 uint32 g_blit_indexed_sprite_last_frame = 0;
 int g_blit_indexed_sprite_last_x = 0;
 int g_blit_indexed_sprite_last_y = 0;
+/* additive per-call frame-index log (capacity 128); lets the chapter-intro
+ * slideshow test (tests/anim/aniend.c) witness the exact 101-frame ordering and
+ * the phase-1 -> phase-2 shared-index continuation. Existing consumers only read
+ * the _calls / _last_* scalars and are unaffected. */
+uint32 g_blit_indexed_sprite_frame_log[128];
+int    g_blit_indexed_sprite_frame_log_n = 0;
 void fd2_blit_indexed_sprite(uint32 a, uint32 f, int x, int y, int m) {
     g_blit_indexed_sprite_calls++;
     g_blit_indexed_sprite_last_frame = f;
     g_blit_indexed_sprite_last_x = x;
     g_blit_indexed_sprite_last_y = y;
+    if (g_blit_indexed_sprite_frame_log_n < 128) {
+        g_blit_indexed_sprite_frame_log[g_blit_indexed_sprite_frame_log_n] = f;
+        g_blit_indexed_sprite_frame_log_n++;
+    }
     (void)a; (void)m;
 }
 uint8  data_fd2_chapter_chapter_init_done_flag = 0;

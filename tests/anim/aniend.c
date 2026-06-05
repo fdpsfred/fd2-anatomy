@@ -130,6 +130,107 @@ static void test_ending_music_trigger_frames_real_values(void)
     }
 }
 
+/* ================================================================
+ * fd2_play_chapter_intro_sprite_slideshow @ 0x24336
+ *
+ * Dual-phase 101-frame (0x65) sprite slideshow. The function is a display
+ * driver: it blits to the literal mode13h framebuffer at 0xA0000 and to the
+ * large_game_state scratch buffer, advances the palette cycle, and issues
+ * BIOS-tick waits — all pure display side-effects. The framebuffer copies
+ * (memmove to/from 0xA0000) are harmless scratch in the host harness; the
+ * scratch-buffer copies are aimed at a real malloc'd region pointed to by
+ * data_fd2_large_game_state_buffer_ptr for the duration of the call.
+ *
+ * What IS isolable and exercised here is the CONTROL-FLOW STRUCTURE that the
+ * three-source comparison turns on, witnessed end-to-end via the testglob
+ * recording spies while the real FDOTHER.DAT sprite sheet is loaded by the
+ * real loader:
+ *   - the exact 101-blit sequence: base frame 0, then frames 1..0x64 ascending
+ *     with no gaps, proving the phase-1 (1..0x44) -> phase-2 (0x45..0x64)
+ *     shared-index continuation (sprite_idx is NOT reset between phases);
+ *   - the single mid-show ANI playback fires exactly once, between the phases,
+ *     with the (0, 0xF, 0) argument triple;
+ *   - the white-flash sequence runs exactly once: the two __delay_thunk_375b2
+ *     holds (100 then 500) bracket the palette flash, and the loops themselves
+ *     use fd2_wait_n_bios_ticks (not the delay thunk), so the delay-thunk call
+ *     count is precisely 2 with a final ticks of 500.
+ *
+ * The pixel output of the blits/palette writes is a pure display side-effect
+ * deferred to Phase 9 integration playtest. fd2_load_dat_resource,
+ * fd2_update_palette_cycle_anim, fd2_set_vga_palette_range_with_add,
+ * fd2_wait_n_bios_ticks, fd2_clear_keyboard_buffer, fd2_pan_cursor_and_window
+ * and fd2_composite_battle_frame_zero are all real-linked and run end-to-end;
+ * fd2_blit_indexed_sprite, fd2_play_ani_file_animation_sequence and
+ * __delay_thunk_375b2 are testglob recording spies.
+ * ================================================================ */
+
+extern int    g_blit_indexed_sprite_calls;
+extern uint32 g_blit_indexed_sprite_frame_log[128];
+extern int    g_blit_indexed_sprite_frame_log_n;
+extern int    g_play_ani_calls;
+extern uint32 g_play_ani_last_idx;
+extern uint32 g_play_ani_last_delay;
+extern uint32 g_play_ani_last_skip;
+extern int    g_delay375b2_calls;
+extern uint32 g_delay375b2_last_ticks;
+
+static void test_chapter_intro_slideshow_frame_sequence(void)
+{
+    uint32 saved_lgs;
+    void  *scratch;
+    int    i;
+
+    /* aim the scratch-buffer copies at real RAM; keep the original global so
+     * other suites in the same TEST.EXE process are unaffected. */
+    saved_lgs = data_fd2_large_game_state_buffer_ptr;
+    scratch = malloc(64000);
+    ASSERT_TRUE(scratch != NULL);
+    data_fd2_large_game_state_buffer_ptr = (uint32)scratch;
+
+    /* Park the battle window at the pan target (0xE, 8) so the opening
+     * fd2_pan_cursor_and_window(0xE, 8) does zero pan iterations (both axis
+     * while-loops are already satisfied) — the camera-already-at-target case.
+     * This makes the drive deterministic and keeps the incidental real
+     * fd2_composite_battle_frame work to the single tail composite. */
+    data_fd2_battle_view_window_origin_x = 0xE;
+    data_fd2_battle_view_window_origin_y = 8;
+
+    g_blit_indexed_sprite_calls = 0;
+    g_blit_indexed_sprite_frame_log_n = 0;
+    g_play_ani_calls = 0;
+    g_play_ani_last_idx = 0xFFFFFFFF;
+    g_play_ani_last_delay = 0xFFFFFFFF;
+    g_play_ani_last_skip = 0xFFFFFFFF;
+    g_delay375b2_calls = 0;
+    g_delay375b2_last_ticks = 0;
+
+    fd2_play_chapter_intro_sprite_slideshow();
+
+    /* exactly 101 blits: base frame + 100 slideshow frames (0x44 + 0x20) */
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 0x65);
+    ASSERT_EQ((long)g_blit_indexed_sprite_frame_log_n, 0x65);
+
+    /* base frame 0, then frames 1..0x64 strictly ascending (no gap at the
+     * 0x44->0x45 phase boundary => shared sprite_idx, not a reset) */
+    ASSERT_EQ((long)g_blit_indexed_sprite_frame_log[0], 0);
+    for (i = 1; i < 0x65; i++) {
+        ASSERT_EQ((long)g_blit_indexed_sprite_frame_log[i], (long)i);
+    }
+
+    /* one mid-show ANI playback with the (0, 0xF, 0) arg triple */
+    ASSERT_EQ((long)g_play_ani_calls, 1);
+    ASSERT_EQ((long)g_play_ani_last_idx, 0);
+    ASSERT_EQ((long)g_play_ani_last_delay, 0xF);
+    ASSERT_EQ((long)g_play_ani_last_skip, 0);
+
+    /* the flash sequence is the only delay-thunk user: 2 holds, last is 500 */
+    ASSERT_EQ((long)g_delay375b2_calls, 2);
+    ASSERT_EQ((long)g_delay375b2_last_ticks, 500);
+
+    data_fd2_large_game_state_buffer_ptr = saved_lgs;
+    free(scratch);
+}
+
 void run_anim_aniend_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -137,5 +238,6 @@ void run_anim_aniend_tests(void)
     RUN_TEST(test_sav_checksum_matches_stored);
     RUN_TEST(test_sav_menu_options_decision);
     RUN_TEST(test_ending_music_trigger_frames_real_values);
+    RUN_TEST(test_chapter_intro_slideshow_frame_sequence);
     printf("\n");
 }
