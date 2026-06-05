@@ -873,3 +873,39 @@ void fd2_chapter_event_handler_43__unref_dyn_turn_event(uint32 event_arg)
     *(uint8 *)(data_fd2_tile_event_data_table_ptr + 6) =
         (uint8)data_fd2_battle_turn_counter;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_44__ch28_dialog_with_state @ 0x35A48
+ *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CA1)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x44. Triggered
+ * in chapter 28 at turn-event slot 1 (turn=0xFF sentinel marker). Category:
+ * dialog with state. Dispatch-table signature is 1-arg cdecl
+ * (void fn(uint event_arg)); this handler does not read the arg.
+ *
+ * Effect: ch28 turn-FF marker scene — show dialog page 4, play one chapter
+ * portrait white-flash cutscene at tile (0xE, 7) with chapter id 2, then show
+ * dialog page 6, and finally consume the tile-event slot by writing
+ * tile_event_consumed_flags[0x12] = 1 so this sentinel scene never re-fires.
+ * The two dialog pages bracket the portrait reveal; the consume store is the
+ * only state mutation.
+ *
+ * In the binary the final consume store is a Class-3 shared tail
+ * (L_chapter_event_handler_44_alt_66 @ 0x35AAE: MOV EAX, [tile_event_consumed_flags];
+ * MOV byte [EAX + 0x12], 1; RET) tail-borrowed by
+ * fd2_chapter_event_handler_49__unref_sentinel. That tail-merge is a binary
+ * size optimisation; the functionally-exact source is the straight-line
+ * three-call sequence followed by the byte store below.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_44__ch28_dialog_with_state(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_display_dialog_scene(current_chapter_text, 4, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_cinematic_chapter_portrait_dump_with_white_flash(0xE, 7, 2);
+    fd2_display_dialog_scene(current_chapter_text, 6, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+
+    *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x12) = 1;
+}
