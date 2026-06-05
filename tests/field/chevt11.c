@@ -318,6 +318,188 @@ static void test_ch1_event3_reloads_race6_brackets_initphase(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_13__unref_char_cond @ 0x34716
+ *
+ * Dispatch idx 0x13 of the per-event handler table at 0x51B91. No chapter
+ * FDFIELD turn-event / tile-step hook references this slot (unreferenced —
+ * possibly cut content / non-chapter dispatcher). It is a char-conditional beat:
+ *   set_combat_aux_block_byte_d_low4_for_char_range(7, 0x24, 7);   // arm 30 chars
+ *   display_dialog_scene(page 8, ...);                             // unconditional
+ *   any_alive = 0;
+ *   for (i = 7; i < 0x25; i++):
+ *     if (check_char_is_dead(i) == 0): any_alive = 1;              // no early break
+ *   if (any_alive):
+ *     display_dialog_scene(page 0xB, ...);                         // conditional
+ *
+ * Two distinct testable risk cores: (1) the AI-flag arming over the wide band
+ * 0x07..0x24 (30 chars), and (2) the BRANCH whose guard is the EAX return value
+ * of fd2_check_char_is_dead — exactly the CALL-return-value control-flow case
+ * (the Ghidra EAX-tracking-bug risk class), so BOTH paths are exercised.
+ *
+ * fd2_set_combat_aux_block_byte_d_low4_for_char_range is the REAL emitted callee
+ * (@0x3419C): for each char i in the INCLUSIVE range it rewrites
+ * combat_aux_block[0xD] = (old & 0xF0) | (7 & 0xFF), i.e. it sets the low nibble
+ * (ai_class) to 7 while PRESERVING the high nibble. fd2_check_char_is_dead
+ * (@0x3453E) is also REAL: it reads runtime_char[i].flags bit0 through
+ * data_fd2_battle_runtime_char_array_ptr, so the alive scan is pinned by the
+ * g_ev_rc[i].flags bits. Both fd2_display_dialog_scene calls run FOR REAL.
+ *
+ * The dialog program here is custom (not the shared immediate-END one): page 8
+ * is a single TEXT glyph (idx 0x41) then END, and page 0xB is a single TEXT
+ * glyph (idx 0x42) then END. The TEXT-glyph blit is the testglob recorder
+ * (g_dlg_glyph_calls / g_dlg_glyph_last_idx), so each dialog call that reaches
+ * its glyph is observable WITHOUT touching real VGA. That makes the branch
+ * directly observable: the any-alive path blits BOTH glyphs (page 8 then page
+ * 0xB, last idx 0x42, 2 calls); the all-dead path blits only page 8's glyph
+ * (last idx 0x41, 1 call). On the glyph+END path the VM touches no portrait,
+ * scroll, file load, or busy-wait, so the run is deterministic with the BIOS
+ * keyboard buffer left empty (blink_flag stays set -> one blink per glyph).
+ *
+ * The 64-slot g_ev_rc fixture keeps the highest touched char (0x24) in-bounds.
+ * The pure blit/display side effects (the real glyph render path, cutscene/pan
+ * compositing — none of which this handler invokes) are deferred to Phase 9.
+ * ================================================================ */
+
+/* glyph-blit recorder from testglob.c (the dialog VM's TEXT-glyph blit is a
+ * stub there, so glyph emission is observable without touching real VGA). */
+extern int    g_dlg_glyph_calls;
+extern uint32 g_dlg_glyph_last_idx;
+
+/* custom dialog program: pages 0..0x10 each have their own header word.
+ * page 8 -> one glyph (0x41) then END; page 0xB -> one glyph (0x42) then END;
+ * every other page -> immediate END. Layout (int16 words):
+ *   [0..0x10]   header words (byte offsets into this same array)
+ *   [0x11]      shared END (-1)           -> byte offset 0x11*2 = 0x22
+ *   [0x12]      page 8 glyph (0x41)       -> byte offset 0x12*2 = 0x24
+ *   [0x13]      page 8 END (-1)
+ *   [0x14]      page 0xB glyph (0x42)     -> byte offset 0x14*2 = 0x28
+ *   [0x15]      page 0xB END (-1)                                          */
+static int16 g_ev13_dlg[0x16];
+
+static void ev13_install_safe_env(void)
+{
+    int i;
+
+    /* runtime-char slots: the AI write + dead scan span chars 0x07..0x24, so an
+     * oversized (64-slot) array keeps every access in-bounds. */
+    memset(g_ev_rc, 0, sizeof(g_ev_rc));
+    data_fd2_battle_runtime_char_array_ptr = g_ev_rc;
+
+    /* custom dialog program (distinct page 8 / page 0xB so the branch is
+     * observable via the glyph recorder). */
+    for (i = 0; i <= 0x10; i++) {
+        g_ev13_dlg[i] = (int16)(0x11 * 2);   /* default: immediate END opcode */
+    }
+    g_ev13_dlg[8]    = (int16)(0x12 * 2);    /* page 8  -> glyph(0x41), END */
+    g_ev13_dlg[0xB]  = (int16)(0x14 * 2);    /* page 0xB-> glyph(0x42), END */
+    g_ev13_dlg[0x11] = -1;                    /* shared END */
+    g_ev13_dlg[0x12] = 0x41;                  /* page 8 glyph */
+    g_ev13_dlg[0x13] = -1;                    /* page 8 END */
+    g_ev13_dlg[0x14] = 0x42;                  /* page 0xB glyph */
+    g_ev13_dlg[0x15] = -1;                    /* page 0xB END */
+    current_chapter_text = (uint32)g_ev13_dlg;
+
+    /* no portrait open on entry, so each END path skips the close sequence. */
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+
+    /* empty BIOS keyboard buffer (head==tail) so the real keyboard poll the VM
+     * runs after each glyph returns 0 and the run stays deterministic. */
+    *(volatile uint16 *)0x41AuL = 0x20;
+    *(volatile uint16 *)0x41CuL = 0x20;
+
+    /* reset the glyph recorder so the per-test counts are clean. */
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+}
+
+/* ----------------------------------------------------------------
+ * ANY-ALIVE path: every char in 0x07..0x24 starts alive (flags bit0 clear), so
+ * the alive scan sets any_alive and the conditional page-0xB dialog runs.
+ * Observable, deterministic contract: the AI low nibble of combat_aux_block[0xD]
+ * becomes 7 for exactly chars 0x07..0x24 (high nibble preserved; neighbours
+ * 0x06/0x25 untouched), BOTH dialog pages are emitted (page 8 glyph 0x41 then
+ * page 0xB glyph 0x42 -> 2 glyph calls, last idx 0x42), and the whole real
+ * callee chain runs to completion without faulting.
+ * ---------------------------------------------------------------- */
+static void test_ch_event13_any_alive_arms_band_and_shows_second_dialog(void)
+{
+    int i;
+
+    ev13_install_safe_env();
+
+    /* g_ev_rc was memset to 0, so every char's flags bit0 is clear -> all 30
+     * chars in 0x07..0x24 are alive and the any_alive guard passes. */
+
+    /* seed every char the AI range touches (plus the two bounding neighbours)
+     * with a sentinel whose high nibble is non-zero and low nibble differs from
+     * 7, so both the low-nibble write to 7 AND the high-nibble preservation are
+     * observable. */
+    for (i = 7; i <= 0x24; i++) {
+        g_ev_rc[i].combat_aux_block[0xD] = 0x93;
+    }
+    g_ev_rc[6].combat_aux_block[0xD]    = 0x55;   /* below the inclusive range */
+    g_ev_rc[0x25].combat_aux_block[0xD] = 0x66;   /* above the inclusive range */
+
+    fd2_chapter_event_handler_13__unref_char_cond(0);
+
+    /* exactly chars 0x07..0x24 armed: low nibble -> 7, high nibble (0x90) kept. */
+    for (i = 7; i <= 0x24; i++) {
+        ASSERT_EQ(g_ev_rc[i].combat_aux_block[0xD], 0x97);
+    }
+    /* bounding neighbours just outside the inclusive range left untouched. */
+    ASSERT_EQ(g_ev_rc[6].combat_aux_block[0xD], 0x55);
+    ASSERT_EQ(g_ev_rc[0x25].combat_aux_block[0xD], 0x66);
+
+    /* both dialog pages were shown (page 8 then conditional page 0xB). */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 2);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0x42);   /* page 0xB glyph */
+
+    ev_restore_rc_ptr();
+}
+
+/* ----------------------------------------------------------------
+ * ALL-DEAD path: every char in 0x07..0x24 is dead (flags bit0 set), so the
+ * alive scan never sets any_alive and the conditional page-0xB dialog is
+ * SKIPPED. Observable, deterministic contract: the AI arming (which happens
+ * BEFORE the branch) still applies to all 30 chars, only the unconditional
+ * page-8 dialog is emitted (1 glyph call, last idx 0x41 — never 0x42), and the
+ * whole beat runs to completion without faulting.
+ * ---------------------------------------------------------------- */
+static void test_ch_event13_all_dead_skips_second_dialog(void)
+{
+    int i;
+
+    ev13_install_safe_env();
+
+    /* pin every char in 0x07..0x24 dead so fd2_check_char_is_dead returns 1 for
+     * all of them and any_alive stays 0. Also seed the AI sentinel as above so
+     * the pre-branch arming is still observable. */
+    for (i = 7; i <= 0x24; i++) {
+        g_ev_rc[i].flags |= CHARFLAG_DEAD;
+        g_ev_rc[i].combat_aux_block[0xD] = 0x93;
+    }
+    g_ev_rc[6].combat_aux_block[0xD]    = 0x55;
+    g_ev_rc[0x25].combat_aux_block[0xD] = 0x66;
+
+    fd2_chapter_event_handler_13__unref_char_cond(0);
+
+    /* the AI arming runs BEFORE the branch, so it still applied to all 30 chars
+     * (low nibble -> 7, high nibble 0x90 kept) regardless of the dead scan. */
+    for (i = 7; i <= 0x24; i++) {
+        ASSERT_EQ(g_ev_rc[i].combat_aux_block[0xD], 0x97);
+    }
+    ASSERT_EQ(g_ev_rc[6].combat_aux_block[0xD], 0x55);
+    ASSERT_EQ(g_ev_rc[0x25].combat_aux_block[0xD], 0x66);
+
+    /* only the unconditional page-8 dialog ran: 1 glyph, and the page-0xB glyph
+     * (0x42) was never emitted. */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0x41);   /* page 8 glyph only */
+
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt11_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -326,5 +508,7 @@ void run_field_chevt11_tests(void)
     RUN_TEST(test_ch1_event1_fires_appear_anim_for_slot4);
     RUN_TEST(test_ch1_event2_fires_appear_anim_for_slot5);
     RUN_TEST(test_ch1_event3_reloads_race6_brackets_initphase);
+    RUN_TEST(test_ch_event13_any_alive_arms_band_and_shows_second_dialog);
+    RUN_TEST(test_ch_event13_all_dead_skips_second_dialog);
     printf("\n");
 }

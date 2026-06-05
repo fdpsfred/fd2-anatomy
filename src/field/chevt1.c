@@ -40,6 +40,9 @@
  * fd2_chapter_event_handler_11__ch5_dialog_with_state @ 0x346C8
  *     (0 direct callers; dispatched as idx 0x11 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_13__unref_char_cond @ 0x34716
+ *     (0 direct callers; dispatched as idx 0x13 of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -511,4 +514,56 @@ void fd2_chapter_event_handler_11__ch5_dialog_with_state(uint32 event_arg)
     fd2_cutscene_event_trigger(0x18);
     fd2_display_dialog_scene(current_chapter_text, 7, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_13__unref_char_cond @ 0x34716
+ *   — Dispatch idx 0x13 of the per-event handler table at 0x51B91.
+ *
+ * No chapter FDFIELD turn-event / tile-step hook references this slot
+ * (unreferenced — possibly cut content / non-chapter dispatcher). It is
+ * a char-conditional beat that arms an AI flag across a wide character
+ * band, shows a dialog page unconditionally, then re-scans the same band
+ * and shows a second dialog page only if any of those characters is still
+ * alive:
+ *   set_combat_aux_block_byte_d_low4_for_char_range(7, 0x24, 7);
+ *   display_dialog_scene(page 8, ...);
+ *   any_alive = false;
+ *   for (i = 7; i < 0x25; i++):
+ *     if (check_char_is_dead(i) == 0): any_alive = true;
+ *   if (any_alive):
+ *     display_dialog_scene(page 0xB, ...);
+ * No RNG and no numeric computation; the only branch is the any_alive
+ * gate driven by the fd2_check_char_is_dead return value.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is
+ * callee-saved; the __CHK(0x30) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * The alive scan walks all 30 chars (0x07..0x24) even after the first
+ * alive one is found — there is no early break in the original; the loop
+ * just keeps re-setting the flag. Reproduced faithfully here for Layer-2
+ * equivalence.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_13__unref_char_cond(uint32 event_arg)
+{
+    uint8 any_alive;
+    uint32 i;
+
+    (void)event_arg;
+
+    any_alive = 0;
+    fd2_set_combat_aux_block_byte_d_low4_for_char_range(7, 0x24, 7);
+    fd2_display_dialog_scene(current_chapter_text, 8, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    for (i = 7; (int32)i < 0x25; i++) {
+        if (fd2_check_char_is_dead(i) == 0) {
+            any_alive = 1;
+        }
+    }
+    if (any_alive != 0) {
+        fd2_display_dialog_scene(current_chapter_text, 0xB, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+    }
 }
