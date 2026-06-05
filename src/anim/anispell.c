@@ -5,6 +5,7 @@
  * fd2_play_ani_file_animation_sequence    @ 0x20421 (4 callers)
  * fd2_animate_bg_zoom_transition_in       @ 0x29C90 (2 callers)
  * fd2_animate_bg_zoom_transition_out      @ 0x29DED (1 caller)
+ * fd2_play_spell_cast_cinematic           @ 0x2A2E8 (1 caller)
  */
 
 #include "types.h"
@@ -224,4 +225,125 @@ void fd2_animate_bg_zoom_transition_out(uint32 char_unit_id,
         fd2_blit_rectangle(0xa0000, 0x140, frame_iter * 0x20 + workspace,
                            0x280, 0x140, 0xc8);
     }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_play_spell_cast_cinematic @ 0x2A2E8  (1 caller)
+ *
+ * The CLASS PROMOTION cinematic. Sole caller: fd2_run_class_promotion_menu_main
+ * @ 0x31385, which invokes it as fd2_play_spell_cast_cinematic(char_idx,
+ * class_id). The "spell_cast" / "spell_id" naming is a misnomer kept stable
+ * across xrefs; the second arg is the target class id, used purely to index
+ * FIGANI.DAT for a "becomes-this-class" silhouette — the fn does not care about
+ * spell semantics.
+ *
+ * Loads three parallax BGs from BG.DAT[0..2] into the 3-layer cache
+ * (data_fd2_battle_special_cinematic_bg_layer_0/1/2 @ 0x5410B/0F/13), loads the
+ * caster silhouette FIGANI.DAT[caster.portrait_id*3] and the target-class
+ * silhouette FIGANI.DAT[class_id*3], backs up the current VGA frame, then plays:
+ *   Phase 1  fade out + 9-frame (iter 8..0) zoom-in slide of the caster figure,
+ *            brightness ramping from 48 down to 0 (set_vga_palette_range iter*6);
+ *   Phase 2  fd2_cycle_sprite_anim_with_bg_frames(caster, work, 0x10) — 16 anim
+ *            frames over the cycling parallax BG;
+ *   Phase 3  20-step additive palette flash (the "shine" burst), 10ms/step;
+ *   Phase 4  swap to the target-class silhouette at the slide-in cap (0x14*10),
+ *            restore full brightness, then anim it (0x18 = 24 frames);
+ *   Phase 5  fade to black, restore the pre-cinematic VGA frame, fade in, free.
+ *
+ * The three BG-layer pointers sit contiguously at 0x5410B/0F/13; the original
+ * indexes them as a uint32[3], reproduced here by indexing through the address
+ * of the first slot (same idiom as the bg_zoom_transition siblings above).
+ *
+ * Phase-1 BG cycler note: in the disassembly the per-frame cycler
+ * (bg_idx = (bg_idx+1) % 3) is reached via a JZ that tests the flags left by the
+ * preceding `ADD ESP,0xC` (stack cleanup), which is never zero — so the branch is
+ * never taken and the cycler advances every frame, exactly like the unconditional
+ * cycler in fd2_cycle_sprite_anim_with_bg_frames. The dead `MOV EAX,0x46C; MOVSX`
+ * BIOS-tick read that precedes the JZ has no effect (result discarded); it is not
+ * reproduced. See src/emit_issues.json (0002a2e8).
+ *
+ * caster_char_idx indexes data_fd2_battle_runtime_char_array_ptr (stride 0x50);
+ * .portrait_id is at +0x07. cdecl, void return.
+ * ---------------------------------------------------------------- */
+void fd2_play_spell_cast_cinematic(uint32 caster_char_idx, uint32 spell_id)
+{
+    uint32 *bg_layer = &data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr;
+    void   *work;
+    void   *caster_figani;
+    void   *target_figani;
+    void   *vga_backup;
+    int     bg_idx;
+    int     zoom_iter;
+    int     flash_iter;
+
+    data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = 0;
+    data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = 0;
+    data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = 0;
+
+    data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_bg_dat_52381, 0, 0);
+    data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_bg_dat_52381,
+        data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr, 1);
+    data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_bg_dat_52381,
+        data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr, 2);
+
+    work = malloc(0x1f400);
+    caster_figani = (void *)fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0,
+        (uint32)data_fd2_battle_runtime_char_array_ptr[caster_char_idx].portrait_id * 3);
+    target_figani = (void *)fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0,
+        spell_id * 3);
+    vga_backup = malloc(64000);
+    memmove(vga_backup, (void *)0xa0000, 64000);
+
+    fd2_play_palette_fade_to_black();
+    fd2_wait_n_bios_ticks(1);
+
+    /* Phase 1 — fade out, 9-frame zoom-in slide of the caster figure. */
+    bg_idx = 0;
+    for (zoom_iter = 8; zoom_iter >= 0; zoom_iter--) {
+        memset(work, 0, 0x1f400);
+        bg_idx = (bg_idx + 1) % 3;
+        fd2_rle_blit_sprite(bg_layer[bg_idx], 0, 0x32, (uint32)work, 0x280,
+                            0xffffffff);
+        fd2_blit_indexed_sprite((uint32)caster_figani, 0,
+                                zoom_iter * 10 + (int)work, 0x280, -1);
+        fd2_blit_rectangle(0xa0000, 0x140, (uint32)work, 0x280, 0x140, 0xc8);
+        fd2_set_vga_palette_range(0, 0xff, zoom_iter * 6);
+    }
+
+    /* Phase 2 — caster animation over cycling parallax BG (16 frames). */
+    fd2_cycle_sprite_anim_with_bg_frames((uint32)caster_figani, (uint32)work, 0x10);
+
+    /* Phase 3 — additive palette flash burst (20 steps, 10ms each). */
+    for (flash_iter = 0; flash_iter < 0x14; flash_iter++) {
+        fd2_set_vga_palette_range_with_add(0, 0xff, flash_iter * 3);
+        __delay_thunk_375b2(10);
+    }
+
+    /* Phase 4 — swap to the target-class silhouette at the slide-in cap. */
+    memset(work, 0, 0x1f400);
+    fd2_rle_blit_sprite(data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr, 0,
+                        0x32, (uint32)work, 0x280, 0xffffffff);
+    fd2_blit_indexed_sprite((uint32)target_figani, 0,
+                            flash_iter * 10 + (int)work, 0x280, -1);
+    fd2_blit_rectangle(0xa0000, 0x140, (uint32)work, 0x280, 0x140, 0xc8);
+    fd2_set_vga_palette_range(0, 0xff, 0);
+    fd2_cycle_sprite_anim_with_bg_frames((uint32)target_figani, (uint32)work, 0x18);
+
+    /* Phase 5 — fade to black, restore the pre-cinematic frame, fade in, free. */
+    fd2_play_palette_fade_to_black();
+    memmove((void *)0xa0000, vga_backup, 64000);
+    fd2_play_palette_fade_in();
+
+    free(vga_backup);
+    free((void *)data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr);
+    free((void *)data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr);
+    free((void *)data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr);
+    free(caster_figani);
+    free(target_figani);
+    free(work);
 }

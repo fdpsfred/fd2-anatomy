@@ -94,6 +94,60 @@
  * only the single silhouette blit). fd2_rle_blit_sprite is the same recording
  * stub; the intervening fd2_flash_char_hit_sprite is REAL-linked and stood up by
  * the shared minipfix.h fixture. See emit_issues.json (00029ded).
+ *
+ * ===== fd2_play_spell_cast_cinematic @ 0x2A2E8 =====
+ *
+ * TEST DEFERRED TO PHASE 9 (INTEGRATION) — reason below.
+ *
+ * This is the class-promotion cinematic: a real-file + decode-to-VGA + timing
+ * orchestrator with no host-harness unit seam for its only non-display logic.
+ *
+ *   1. Real-file I/O with no recording seam. The two pieces of computation
+ *      unique to this function are the FIGANI indices it derives —
+ *      caster = rt_chars[caster_char_idx].portrait_id * 3 and target =
+ *      spell_id * 3 — but each is passed straight into the REAL
+ *      fd2_load_dat_resource (src/rsrc/rsrc.c, linked into TEST.EXE), which
+ *      fopen()s the genuine FIGANI.DAT and seeks to that index. There is no
+ *      recording stub in the seam to observe the index, and fd2_load_dat_resource
+ *      is real-linked (shared by many suites) so it cannot be replaced for this
+ *      one test. FIGANI.DAT / BG.DAT are real game files (forbidden to fake), and
+ *      are not in build_test.py's staged GAME_FILES set, so a real load would not
+ *      even resolve in the harness without changing the stage list.
+ *   2. The phase-2 / phase-4 anim is the REAL-class end-to-end cinematic. Both
+ *      animation phases call fd2_cycle_sprite_anim_with_bg_frames (a separate
+ *      routing target @ 0x2A5D0, not yet emitted; stubbed no-op in testglob.c so
+ *      this object links). Its real body dereferences the real FIGANI sprite
+ *      atlas (*(byte*)atlas, *(int*)(atlas+8+frame*4)) and spins on the REAL
+ *      fd2_wait_n_bios_ticks 16 + 24 = 40 times — i.e. ~2.2s of real BIOS-tick
+ *      waiting plus a full real atlas traversal. Driving it for real is an
+ *      integration scenario, not a unit test of this orchestrator.
+ *   3. The phase-1 BG cycler is timer-coupled at the instruction level: the
+ *      cycler advance is reached past a JZ on the flags left by `ADD ESP,0xC`
+ *      (always non-zero -> branch never taken -> the cycler advances every
+ *      frame), with a dead `MOVSX EAX, word ptr [0x46C]` BIOS-tick read in front
+ *      of it. The emitted C reproduces the actual (unconditional) behavior; there
+ *      is nothing data-dependent here to assert beyond the cycling sequence,
+ *      which is observed identically through the same rle-blit stub already
+ *      exercised by the two zoom suites above.
+ *   4. Everything else is pure display/timing side effects: malloc + memmove of
+ *      the VGA aperture (0xA0000), fade-to-black / fade-in (no-op stubs),
+ *      set_vga_palette_range[_with_add] (real, exercised by tests/gfx/palette.c),
+ *      blit_rectangle / blit_indexed_sprite, __delay_thunk_375b2 (spy). Per the
+ *      project test policy, pure blit/display side-effect state defers to Phase 9
+ *      integration.
+ *
+ * The non-display arithmetic that could carry risk was verified directly against
+ * ground truth during emit: the runtime_char stride (0x50) and .portrait_id
+ * offset (+0x07) from types.h, the FIGANI index *3 and the caller's
+ * (char_idx, class_id) argument order from fd2_run_class_promotion_menu_main @
+ * 0x31385, the BG.DAT / FIGANI.DAT filename constants at 0x52381 / 0x52388, and
+ * the unconditional phase-1 cycler from the JZ-on-ADD-flags disassembly. The
+ * emitted C mirrors the disassembly exactly. See src/emit_issues.json (0002a2e8).
+ *
+ * The Phase 9 integration test will stage the real BG.DAT + FIGANI.DAT, install
+ * the real fd2_cycle_sprite_anim_with_bg_frames, and drive the real function,
+ * asserting the two FIGANI loads request indices portrait_id*3 and class_id*3 and
+ * that the cinematic restores the backed-up VGA frame on exit.
  */
 
 #include <string.h>
@@ -334,6 +388,8 @@ void run_anim_anispell_tests(void)
     printf("Suite: anim/anispell\n");
     printf("  (fd2_play_ani_file_animation_sequence deferred to Phase 9 "
            "integration: decode-to-VGA orchestrator; see file header)\n");
+    printf("  (fd2_play_spell_cast_cinematic deferred to Phase 9 integration: "
+           "real-file + decode-to-VGA + timing orchestrator; see file header)\n");
     RUN_TEST(test_bg_zoom_transition_bg_cycling);
     RUN_TEST(test_bg_zoom_transition_out_bg_cycling);
     printf("\n");
