@@ -3542,8 +3542,9 @@
     "name": "fd2_blit_24x24_tile_to_battle_grid_position",
     "target": "gfx/blittile.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0003419c": {
     "name": "fd2_set_combat_aux_block_byte_d_low4_for_char_range",

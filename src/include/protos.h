@@ -403,6 +403,7 @@ void fd2_paint_chars_shadow_overlay(void);
 void fd2_blit_animated_tile_at_pos(uint32 buf, int32 tile_x, int32 tile_y);
 void fd2_blit_scaled_tile_map_view(uint32 src_cx_fp, uint32 src_cy_fp, uint32 scale, uint32 tile_data_table);
 void fd2_blit_scaled_chapter_pose(uint32 src_cx, uint32 src_cy, uint32 src_bitmap, int32 scale_fp_step);
+void fd2_blit_24x24_tile_to_battle_grid_position(uint32 atlas_base, uint32 tile_index, uint32 dst_buffer, uint32 dst_row_stride, uint32 dst_x, uint32 dst_y);
 void fd2_render_terrain_info_hud_panel(uint32 buf, uint32 stride);
 void fd2_blit_rectangle(uint32 dst, uint32 dstride, uint32 src, uint32 sstride, uint32 w, uint32 h);
 void fd2_render_circle_anim_row(int cx, int cy, int r, int scale_num, int start_row, int end_row, uint8 *palette_remap_src);

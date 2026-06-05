@@ -855,6 +855,81 @@ static void test_pose_partial_offmap_edges(void)
     }
 }
 
+/* ================================================================
+ * fd2_blit_24x24_tile_to_battle_grid_position @ 0x3415E
+ *
+ * 24x24 tile blit helper for the battle preview/intro composer.
+ * Leaf: resolves a sprite pointer from an atlas offset table, computes
+ * dst = dst_buffer + dst_y*dst_row_stride + dst_x, and tail-calls the
+ * passthrough blitter forwarding the caller-supplied stride (NOT the
+ * fixed 0x1C8 the window-relative helpers use). Drives the real routine
+ * and inspects the single recorded passthrough call.
+ *
+ * Reuses g_atlas (offset table at +6, table[i]==i*0x10) and g_ws.
+ * ================================================================ */
+
+/* src = atlas_base + table[tile_index] ; with table[i]==i*0x10 the
+ * recorded src uniquely identifies the tile index used. */
+static uint32 grid_expect_src(uint32 tile_index)
+{
+    return (uint32)g_atlas + tile_index * 0x10u;
+}
+
+/* dst = dst_buffer + dst_y*stride + dst_x, computed directly from the
+ * passed-through stride (not assumed 0x140). */
+static uint32 grid_expect_dst(uint32 dst_y, uint32 stride, uint32 dst_x)
+{
+    return (uint32)g_ws + dst_y * stride + dst_x;
+}
+
+/* Exactly one passthrough call with src from atlas indexing, dst from
+ * the dst_y*stride+dst_x formula, and the caller-supplied stride
+ * forwarded verbatim. */
+static void test_grid_blit_arg_forwarding(void)
+{
+    setup_blittile();
+    /* arbitrary atlas index, dst buffer = g_ws, stride 0x140, (x,y) */
+    fd2_blit_24x24_tile_to_battle_grid_position((uint32)g_atlas, 9u,
+                                                (uint32)g_ws, 0x140u,
+                                                0x96u, 0x4Bu);
+    ASSERT_EQ(g_blitpass_calls, 1);
+    ASSERT_EQ(g_blitpass_src[0], grid_expect_src(9u));
+    ASSERT_EQ(g_blitpass_dst[0], grid_expect_dst(0x4Bu, 0x140u, 0x96u));
+    ASSERT_EQ(g_blitpass_stride[0], 0x140u);
+}
+
+/* The blit pitch is the caller's dst_row_stride, not a hardcoded 0x1C8:
+ * use a distinctive stride and confirm both the dst arithmetic and the
+ * forwarded pitch follow it. */
+static void test_grid_blit_stride_passthrough(void)
+{
+    uint32 stride = 0x123u;
+
+    setup_blittile();
+    fd2_blit_24x24_tile_to_battle_grid_position((uint32)g_atlas, 3u,
+                                                (uint32)g_ws, stride,
+                                                7u, 5u);
+    ASSERT_EQ(g_blitpass_calls, 1);
+    ASSERT_EQ(g_blitpass_stride[0], stride);
+    ASSERT_EQ(g_blitpass_dst[0], grid_expect_dst(5u, stride, 7u));
+    ASSERT_EQ(g_blitpass_src[0], grid_expect_src(3u));
+}
+
+/* tile_index 0 selects atlas entry 0 (table[0]==0 -> src == atlas_base);
+ * dst with x==0,y==0 == dst_buffer exactly. Matches the reserved-pos
+ * highlight call site (tile id 0). */
+static void test_grid_blit_index_zero_origin(void)
+{
+    setup_blittile();
+    fd2_blit_24x24_tile_to_battle_grid_position((uint32)g_atlas, 0u,
+                                                (uint32)g_ws, 0x140u,
+                                                0u, 0u);
+    ASSERT_EQ(g_blitpass_calls, 1);
+    ASSERT_EQ(g_blitpass_src[0], (uint32)g_atlas);
+    ASSERT_EQ(g_blitpass_dst[0], (uint32)g_ws);
+    ASSERT_EQ(g_blitpass_stride[0], 0x140u);
+}
+
 void run_gfx_blittile_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -887,5 +962,8 @@ void run_gfx_blittile_tests(void)
     RUN_TEST(test_pose_zoom_in_half_step);
     RUN_TEST(test_pose_zoom_out_negative_origin);
     RUN_TEST(test_pose_partial_offmap_edges);
+    RUN_TEST(test_grid_blit_arg_forwarding);
+    RUN_TEST(test_grid_blit_stride_passthrough);
+    RUN_TEST(test_grid_blit_index_zero_origin);
     printf("\n");
 }

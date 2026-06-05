@@ -304,3 +304,42 @@ void fd2_blit_scaled_chapter_pose(uint32 src_cx, uint32 src_cy,
         out_row_ptr = out_row_ptr + 0x140;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_blit_24x24_tile_to_battle_grid_position @ 0x3415E (1 caller)
+ *
+ * 24x24 tile blit helper for the battle preview/intro composer
+ * (fd2_render_battle_scene_with_portrait_grid_layout @ 0x34010, 4 call
+ * sites: chapter-digit pair, player tile row, enemy tile row, and the
+ * reserved-position highlight). Resolves a tile sprite pointer from an
+ * atlas table, computes the destination pixel address, and tail-calls
+ * the passthrough blitter.
+ *
+ * Atlas indexing (same offset-table form as the sibling blit helpers):
+ *   src = atlas_base + *(int*)(atlas_base + tile_index*4 + 6)
+ * Each atlas entry is 4 bytes; the 4-byte value at +6 from the entry is
+ * the sprite's absolute byte offset within the atlas.
+ *
+ * Destination address (caller-supplied row stride, not the fixed 0x1C8
+ * the window-relative helpers use):
+ *   dst = dst_buffer + dst_y * dst_row_stride + dst_x
+ *
+ * The blit pitch forwarded to fd2_tile_blit_24x24_passthrough is the
+ * same dst_row_stride (typically 0x140 = 320).
+ *
+ * Cdecl, 6 stack params; void return. The binary's __CHK(0x14)
+ * stack-probe prologue is compiler-injected, not emitted here.
+ * ---------------------------------------------------------------- */
+void fd2_blit_24x24_tile_to_battle_grid_position(uint32 atlas_base,
+                                                 uint32 tile_index,
+                                                 uint32 dst_buffer,
+                                                 uint32 dst_row_stride,
+                                                 uint32 dst_x, uint32 dst_y)
+{
+    uint32 src;
+    uint32 dst;
+
+    src = atlas_base + *(int *)(atlas_base + tile_index * 4 + 6);
+    dst = dst_buffer + dst_y * dst_row_stride + dst_x;
+    fd2_tile_blit_24x24_passthrough(src, dst, dst_row_stride);
+}
