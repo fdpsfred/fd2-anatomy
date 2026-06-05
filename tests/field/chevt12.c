@@ -1,11 +1,11 @@
 /*
- * unit tests for src/field/chevt1.c (part 2 of 2: handlers 04/06/09/0b/0c/0e)
+ * unit tests for src/field/chevt1.c (part 2 of 2: handlers 04/06/09/0b/0c/0e/0f)
  *
  * The chapter turn-event handlers in src/field/chevt1.c are dispatched as
  * indices of the per-event handler table at 0x51B91. Part 1 (chevt11.c) covers
- * the four chapter-1 handlers (00..03); this part covers 04/06/09/0b/0c/0e. The
- * shared "ch25-style real portrait reload" safe env both parts drive the real
- * callees through lives in tests/include/fieldfix.h.
+ * the four chapter-1 handlers (00..03); this part covers 04/06/09/0b/0c/0e/0f.
+ * The shared "ch25-style real portrait reload" safe env both parts drive the
+ * real callees through lives in tests/include/fieldfix.h.
  */
 
 #include <string.h>
@@ -657,6 +657,162 @@ static void test_ch5_event0e_disarms_two_ranges_and_shows_dialog(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_0f__ch5_dialog_with_state @ 0x3462E
+ *
+ * Dispatch idx 0x0F of the per-event handler table at 0x51B91 — ch5 turn-4
+ * dialog-with-state beat. A straight-line, no-branch sequence (no RNG, no
+ * numeric computation, and no CALL-return value used) that combines a real
+ * portrait reload, a real cutscene event, and two trailing AI-flag disarms:
+ *   data_fd2_battle_anim_phase = 0;
+ *   data_fd2_chapter_init_phase_flag = 1;
+ *   load_chapter_portraits_and_dump_tmp(2);
+ *   data_fd2_chapter_init_phase_flag = 0;
+ *   pan_cursor_and_window(0xE, 0);
+ *   cutscene_event_trigger(0x17);
+ *   clear_all_chars_facing();
+ *   set_combat_aux_block_byte_d_low4_for_char_range(0x07, 0x0C, 0);
+ *   set_combat_aux_block_byte_d_low4_for_char_range(0x21, 0x23, 0);
+ *   display_dialog_scene(page 4, ...);
+ *
+ * In the binary the trailing dialog call is reached by a JMP into handler_09's
+ * shared tail at 0x34516 (PUSH page=4..PUSH current_chapter_text; CALL
+ * fd2_display_dialog_scene; ADD ESP,0x24; RET); the emit reproduces that tail
+ * inline.
+ *
+ * The two AI-flag disarms are its distinguishing, deterministic state contract
+ * and its primary testable risk core. fd2_set_combat_aux_block_byte_d_low4_for_char_range
+ * is the REAL emitted callee (@0x3419C): for each char i in an INCLUSIVE range
+ * it rewrites combat_aux_block[0xD] = (old & 0xF0) | (0 & 0xFF), i.e. it clears
+ * the low nibble (ai_class -> 0) while PRESERVING the high nibble. The two calls
+ * cover exactly chars 0x07..0x0C (6 chars) and chars 0x21..0x23 (3 chars); the
+ * char just outside each range (0x06/0x0D below/above the first, 0x20/0x24
+ * below/above the second) is left untouched.
+ *
+ * The rest of the beat runs FOR REAL against the same proven ch25-style env
+ * handler_06/09/0b use. The single fd2_load_chapter_portraits_and_dump_tmp(2)
+ * runs against the staged real FDICON.B24 + FDFIELD.DAT (alloc_offset 0 ->
+ * empty per-record scan; current_chapter_id 4 -> valid FDFIELD index 0xE),
+ * bracketed by data_fd2_chapter_init_phase_flag 1->0; the loader does not read
+ * that flag, so the bracketing is harmless for the reload itself and ends back
+ * at 0. The reload frees+nulls the field buffer and rewrites the full
+ * 0x32A00-byte FD2.TMP (the portrait-set argument 2 only selects which portrait
+ * pixels load). fd2_pan_cursor_and_window(0xE,0), the zero-group cutscene event
+ * 0x17, fd2_clear_all_chars_facing, and the immediate-END dialog page 4 all run
+ * for real and return fast.
+ *
+ * Observable, deterministic contract asserted: the AI low nibbles land at 0 on
+ * exactly chars 0x07..0x0C and 0x21..0x23 with the high nibbles preserved and
+ * the four bounding neighbours untouched, the battle-anim phase is 0, the
+ * init-phase flag ends at 0, the camera panned to (0xE, 0), the real reload
+ * happened (field buffer nulled, FD2.TMP at full size), and the whole real
+ * callee chain runs to completion without faulting. The pure blit/display side
+ * effects (camera pan, cutscene compositing, dialog glyphs, portrait pixels)
+ * are deferred to Phase 9 integration.
+ * ================================================================ */
+
+/* zero-group cutscene script for event 0x17: n_groups byte = 0, so the real
+ * fd2_cutscene_event_trigger just composites once and returns. */
+static uint8 g_ev0f_script_17[1] = { 0 };
+
+static void ev0f_install_safe_env(void)
+{
+    /* shared ch25-style real-portrait-reload env (empty party, gated HUD,
+     * throttled palette, real compositor workspace, immediate-END dialog,
+     * empty keyboard buffer, alloc_offset 0, current_chapter_id 4, fresh
+     * field buffer). handler_0f reloads ONCE (portrait set 2). */
+    ev_install_safe_env();
+
+    /* handler_0f fires cutscene EVENT 0x17; register its own zero-group
+     * script so the real fd2_cutscene_event_trigger returns fast. */
+    g_ev0f_script_17[0] = 0;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x17] = g_ev0f_script_17;
+}
+
+/* ----------------------------------------------------------------
+ * The handler fires its fixed ch5 turn-4 sequence end-to-end, then disarms the
+ * AI/dialog control flag across two char ranges. Its observable, deterministic
+ * contract is: the low nibble (ai_class) of combat_aux_block[0xD] becomes 0 for
+ * exactly chars 0x07..0x0C and 0x21..0x23 with each high nibble preserved, the
+ * four bounding neighbours (0x06/0x0D and 0x20/0x24) are untouched, the
+ * battle-anim phase is 0, the init-phase flag ends at 0, the camera panned to
+ * (0xE, 0), the real portrait reload ran (field buffer nulled, FD2.TMP at full
+ * size), and the whole real callee chain (reload, pan, cutscene 0x17,
+ * clear-facing, immediate-END dialog page 4) runs to completion without faulting.
+ * ---------------------------------------------------------------- */
+static void test_ch5_event0f_reloads_and_disarms_two_ranges(void)
+{
+    int i;
+
+    ev0f_install_safe_env();
+
+    /* perturb the battle-anim phase and the init-phase flag so the handler's
+     * resets (anim_phase -> 0, init_phase 1->0) are observable. */
+    data_fd2_battle_anim_phase = 0x55;
+    data_fd2_chapter_init_phase_flag = 0x66;
+
+    /* seed the camera away from the pan target (0xE, 0) so the pan is observable. */
+    data_fd2_battle_view_window_origin_x = 0x42;
+    data_fd2_battle_view_window_origin_y = 0x37;
+
+    /* seed every char the two ranges touch (plus the four bounding neighbours)
+     * with a sentinel whose high nibble is non-zero and low nibble differs from
+     * 0, so both the low-nibble clear AND the high-nibble preservation are
+     * observable. */
+    for (i = 0x07; i <= 0x0C; i++) {
+        g_ev_rc[i].combat_aux_block[0xD] = 0xD9;
+    }
+    for (i = 0x21; i <= 0x23; i++) {
+        g_ev_rc[i].combat_aux_block[0xD] = 0xE7;
+    }
+    /* bounding neighbours just outside each inclusive range. */
+    g_ev_rc[0x06].combat_aux_block[0xD] = 0x41;
+    g_ev_rc[0x0D].combat_aux_block[0xD] = 0x42;
+    g_ev_rc[0x20].combat_aux_block[0xD] = 0x43;
+    g_ev_rc[0x24].combat_aux_block[0xD] = 0x44;
+
+    remove("FD2.TMP");
+
+    fd2_chapter_event_handler_0f__ch5_dialog_with_state(0);
+
+    /* range 1 (chars 0x07..0x0C): low nibble cleared to 0, high nibble (0xD0)
+     * preserved. */
+    for (i = 0x07; i <= 0x0C; i++) {
+        ASSERT_EQ(g_ev_rc[i].combat_aux_block[0xD], 0xD0);
+    }
+    /* range 2 (chars 0x21..0x23): low nibble cleared to 0, high nibble (0xE0)
+     * preserved. */
+    for (i = 0x21; i <= 0x23; i++) {
+        ASSERT_EQ(g_ev_rc[i].combat_aux_block[0xD], 0xE0);
+    }
+
+    /* bounding neighbours just outside both ranges left untouched. */
+    ASSERT_EQ(g_ev_rc[0x06].combat_aux_block[0xD], 0x41);
+    ASSERT_EQ(g_ev_rc[0x0D].combat_aux_block[0xD], 0x42);
+    ASSERT_EQ(g_ev_rc[0x20].combat_aux_block[0xD], 0x43);
+    ASSERT_EQ(g_ev_rc[0x24].combat_aux_block[0xD], 0x44);
+
+    /* the battle-anim phase was reset to 0. */
+    ASSERT_EQ(data_fd2_battle_anim_phase, 0);
+
+    /* the init-phase flag was set to 1 around the reload and reset to 0. */
+    ASSERT_EQ(data_fd2_chapter_init_phase_flag, 0);
+
+    /* the camera panned to the target (0xE, 0). */
+    ASSERT_EQ(data_fd2_battle_view_window_origin_x, 0xE);
+    ASSERT_EQ(data_fd2_battle_view_window_origin_y, 0);
+
+    /* the real portrait reload ran: field buffer freed+nulled, and FD2.TMP
+     * was rewritten to its full 0x32A00-byte size. */
+    ASSERT_EQ(chapter_portrait_load_buffer, 0);
+    ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
+
+    /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
+    remove("FD2.TMP");
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt12_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -669,5 +825,6 @@ void run_field_chevt12_tests(void)
     RUN_TEST(test_ch_event0c_firsttime_arms_ai_flag7_and_consumes);
     RUN_TEST(test_ch_event0c_already_consumed_skips_beat);
     RUN_TEST(test_ch5_event0e_disarms_two_ranges_and_shows_dialog);
+    RUN_TEST(test_ch5_event0f_reloads_and_disarms_two_ranges);
     printf("\n");
 }

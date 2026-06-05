@@ -31,6 +31,9 @@
  * fd2_chapter_event_handler_0e__ch5_dialog_with_state @ 0x345EA
  *     (0 direct callers; dispatched as idx 0x0E of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_0f__ch5_dialog_with_state @ 0x3462E
+ *     (0 direct callers; dispatched as idx 0x0F of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -390,5 +393,50 @@ void fd2_chapter_event_handler_0e__ch5_dialog_with_state(uint32 event_arg)
     fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x25, 0x28, 0);
     fd2_set_combat_aux_block_byte_d_low4_for_char_range(0xD, 0x18, 0);
     fd2_display_dialog_scene(current_chapter_text, 3, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_0f__ch5_dialog_with_state @ 0x3462E
+ *   — Chapter 5 turn-event slot 1 (triggered at turn 4 / phase 1),
+ *     dispatched as idx 0x0F of the per-event handler table at 0x51B91.
+ *
+ * ch5 turn-4 beat: the battle-animation phase is reset to 0, then
+ * portrait set 2 reloads — bracketed by setting
+ * data_fd2_chapter_init_phase_flag to 1 before the reload and back to 0
+ * after, so the reload is treated as an "init phase" load. The camera
+ * pans to world (0xE, 0), cutscene event 0x17 plays, every character's
+ * facing is reset, and the per-event AI/dialog control flag (low 4 bits
+ * of combat_aux_block[0xD]) is disarmed by writing 0 across two
+ * character ranges — chars 0x07..0x0C (6 chars) and chars 0x21..0x23
+ * (3 chars). Finally dialog page 4 is shown.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * In the original binary this handler prepares its own 8 PUSHes (page=4
+ * plus the fixed dialog geometry) and then JMPs into handler_09's shared
+ * tail at 0x34516 (PUSH current_chapter_text; CALL fd2_display_dialog_scene;
+ * ADD ESP,0x24; RET); reproduced here as the inline call for Layer-2
+ * equivalence.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_05.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_0f__ch5_dialog_with_state(uint32 event_arg)
+{
+    (void)event_arg;
+
+    data_fd2_battle_anim_phase = 0;
+    data_fd2_chapter_init_phase_flag = 1;
+    fd2_load_chapter_portraits_and_dump_tmp(2);
+    data_fd2_chapter_init_phase_flag = 0;
+    fd2_pan_cursor_and_window(0xE, 0);
+    fd2_cutscene_event_trigger(0x17);
+    fd2_clear_all_chars_facing();
+    fd2_set_combat_aux_block_byte_d_low4_for_char_range(7, 0xC, 0);
+    fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x21, 0x23, 0);
+    fd2_display_dialog_scene(current_chapter_text, 4, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
