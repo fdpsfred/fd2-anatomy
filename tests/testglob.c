@@ -818,6 +818,25 @@ void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x,
     g_portrait_flash_calls++;
 }
 
+/* Recording stub for the still-unemitted callee
+ * fd2_kill_runtime_chars_from_index_to_end (routing target battle/btl_turn.c,
+ * not yet emitted). The real function zeroes hp_current for runtime_char slots
+ * [start_char_idx .. party_member_count) and then plays the death animation;
+ * that loop is the callee's own behavior and is covered when 0x35BBA is emitted
+ * into btl_turn.c. Recording each call's start index + call count lets
+ * fd2_chapter_event_handler_35's test pin THIS handler's contract: a single
+ * kill call with start index 0x12, issued AFTER the page-5 dialog. The stub
+ * will be replaced by the real body when its routing target is emitted. */
+int    g_kill_from_calls = 0;
+uint32 g_kill_from_index[4];
+void fd2_kill_runtime_chars_from_index_to_end(uint32 start_char_idx)
+{
+    if (g_kill_from_calls < 4) {
+        g_kill_from_index[g_kill_from_calls] = start_char_idx;
+    }
+    g_kill_from_calls++;
+}
+
 /* Link-time stub for the still-unemitted callee of the orphan/unreachable
  * fd2_execute_aoe_spell_with_caster_portrait_radial_scatter (src/spell/spellcin.c).
  * That AoE cinematic has no caller and no test drives it (its per-frame work is

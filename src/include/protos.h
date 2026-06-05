@@ -141,6 +141,7 @@ void fd2_load_status_effect_sfx(void);
 void fd2_play_and_free_status_effect_sfx(void);
 int fd2_collect_pending_death_drops(uint32 out_buffer);
 void fd2_play_death_animation_and_mark_dead(void);
+void fd2_kill_runtime_chars_from_index_to_end(uint32 start_char_idx);
 void fd2_process_battle_drop_entries(uint32, uint32, uint32);
 void fd2_cast_group_hp_heal_spell(uint32, uint32, uint32, uint32);
 void fd2_cast_status_cure_spell(uint32, uint32, uint32, uint32, uint32);
@@ -208,6 +209,7 @@ void fd2_chapter_event_handler_31__ch22_turn_gated(uint32 event_arg);
 void fd2_chapter_event_handler_32__ch22_reinforcement(uint32 event_arg);
 void fd2_chapter_event_handler_33__unref_drop(uint32 stepping_char_id);
 void fd2_chapter_event_handler_34__ch23_ai_ctrl(uint32 event_arg);
+void fd2_chapter_event_handler_35__unref_dialog_with_state(uint32 event_arg);
 void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
 void fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
 

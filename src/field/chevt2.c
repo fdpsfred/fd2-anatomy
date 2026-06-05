@@ -241,3 +241,32 @@ void fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(
     fd2_cinematic_chapter_portrait_dump_with_white_flash(
         target_tile_x, target_tile_y, chapter_id);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_35__unref_dialog_with_state @ 0x35321
+ *   (0 direct callers)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x35. No chapter
+ * FDFIELD turn-event / tile-step hook references this slot (unref / possibly
+ * cut content). Category: dialog with state. Dispatch-table signature is 1-arg
+ * cdecl (void fn(uint event_arg)); this handler does not read the arg.
+ *
+ * Effect: show dialog page 5, then kill every runtime_char_array slot from
+ * index 0x12 to the end (sets hp_current = 0 for slots 0x12..count-1, then
+ * plays the death animation once) — a cinematic terminator-style mass kill.
+ *
+ * In the binary the kill call hosts a borrowed shared tail at 0x35354
+ * (CALL fd2_kill_runtime_chars_from_index_to_end; ADD ESP,4; RET):
+ * fd2_chapter_event_handler_53 does its own inline dialog then JMPs here
+ * pre-pushing its own kill-from index to reuse this 0xC-byte cleanup tail.
+ * That tail-merge is a binary size optimisation; the functionally-exact source
+ * for this handler is simply the dialog call followed by the kill call.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_35__unref_dialog_with_state(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_display_dialog_scene(current_chapter_text, 5, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_kill_runtime_chars_from_index_to_end(0x12);
+}
