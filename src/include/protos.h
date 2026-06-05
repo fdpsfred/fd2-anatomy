@@ -170,6 +170,7 @@ void fd2_set_full_vga_palette_to_color(uint32 r, uint32 g, uint32 b);
 void fd2_palette_overbright_settle_step_loop(uint32 start_intensity, uint32 step_delay_ms);
 void fd2_interpolate_palette_range_toward_color(uint32 start_idx, uint32 end_idx, uint32 blend, uint32 target_r, uint32 target_g, uint32 target_b);
 void fd2_apply_palette_remap_run(uint32 remap_table, uint32 byte_count, uint8 *buf);
+void fd2_fill_palette_blink_pattern_6byte(int input_index, uint32 output_buffer_addr);
 void fd2_tick_chapter_palette_animation(void);
 void fd2_update_palette_cycle_anim(void);
 

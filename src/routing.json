@@ -3527,8 +3527,9 @@
     "name": "fd2_fill_palette_blink_pattern_6byte",
     "target": "gfx/palette.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00034010": {
     "name": "fd2_render_battle_scene_with_portrait_grid_layout",

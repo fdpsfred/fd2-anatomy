@@ -265,6 +265,49 @@ static void test_play_palette_fade_to_black(void)
 }
 
 
+/* fill_palette_blink_pattern_6byte: out[i] = base + bump + i for i in 0..5,
+ * where base = input_index & 0xF8 and bump = (input_index % 8 > 3) ? 2 : 0.
+ * Numeric + branchy, so assert the exact 6-byte sequence across both the
+ * bump-off / bump-on arms and the nonzero-base case. A guard byte at out[6]
+ * (and the slot before the buffer) confirms exactly 6 bytes are written —
+ * no over/underrun. Expected values hand-derived from the disassembly at
+ * 0x33FC1 (signed IDIV by 8; for the 0..255 byte domain == unsigned %8). */
+static void check_blink_pattern(int input_index, uint8 e0, uint8 e1,
+                                uint8 e2, uint8 e3, uint8 e4, uint8 e5)
+{
+    uint8 buf[8];
+    memset(buf, 0xAA, sizeof(buf));
+    /* write into buf[1..6]; buf[0] and buf[7] are write guards */
+    fd2_fill_palette_blink_pattern_6byte(input_index, (uint32)(buf + 1));
+    ASSERT_EQ(buf[1], e0);
+    ASSERT_EQ(buf[2], e1);
+    ASSERT_EQ(buf[3], e2);
+    ASSERT_EQ(buf[4], e3);
+    ASSERT_EQ(buf[5], e4);
+    ASSERT_EQ(buf[6], e5);
+    ASSERT_EQ(buf[0], 0xAA);   /* no underrun */
+    ASSERT_EQ(buf[7], 0xAA);   /* no overrun (exactly 6 bytes) */
+}
+
+static void test_fill_palette_blink_pattern_6byte(void)
+{
+    /* base=0, bump=0 */
+    check_blink_pattern(0,    0,  1,  2,  3,  4,  5);
+    /* %8==3 boundary: still bump=0 */
+    check_blink_pattern(3,    0,  1,  2,  3,  4,  5);
+    /* %8==4 boundary: bump turns on (=2) */
+    check_blink_pattern(4,    2,  3,  4,  5,  6,  7);
+    /* base=0, bump=2 */
+    check_blink_pattern(5,    2,  3,  4,  5,  6,  7);
+    /* nonzero base, bump=0 */
+    check_blink_pattern(0x10, 16, 17, 18, 19, 20, 21);
+    /* nonzero base AND bump=2 */
+    check_blink_pattern(0x1F, 26, 27, 28, 29, 30, 31);
+    /* top of byte domain: base=0xF8, bump=2 */
+    check_blink_pattern(0xFF, 250, 251, 252, 253, 254, 255);
+}
+
+
 void run_gfx_palette_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -282,5 +325,6 @@ void run_gfx_palette_tests(void)
     RUN_TEST(test_tick_chapter_palette_slow_triggers_negative_delta);
     RUN_TEST(test_play_palette_fade_in);
     RUN_TEST(test_play_palette_fade_to_black);
+    RUN_TEST(test_fill_palette_blink_pattern_6byte);
     printf("\n");
 }

@@ -301,3 +301,43 @@ void fd2_play_palette_fade_to_black(void)
         __delay_thunk_375b2(2);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_fill_palette_blink_pattern_6byte @ 0x33FC1  (0 direct callers)
+ *
+ * Writes a 6-byte incrementing palette-index sequence into a caller
+ * buffer, anchored on input_index:
+ *   base = input_index & 0xF8   (floor to a multiple of 8)
+ *   bump = (input_index % 8 > 3) ? 2 : 0
+ *   for i in 0..5: out[i] = (uint8)(base + bump + i)
+ * The +2 bump shifts the anchor when the low 3 bits of input_index are
+ * in the high half (4-7), so the two halves of an 8-step cycle map onto
+ * palette pair A (offset 0) vs pair B (offset 2) — a double-buffered
+ * blink swap (cursor blink / portrait highlight / status flash).
+ *
+ * input_index is a byte value (0..255). The binary divides by 8 with a
+ * signed IDIV; for the documented 0..255 domain this equals the unsigned
+ * remainder, so `int % 8` reproduces it exactly. base/bump/i are summed
+ * and truncated in an 8-bit register, mirrored here by the uint8 store.
+ *
+ * Invoked indirectly (palette-effect dispatch via a function-pointer
+ * table); no direct xref callers in the binary.
+ *
+ * Cdecl, 2 stack params; void return. The binary's __CHK(0xC) stack-probe
+ * prologue is compiler-generated and omitted here. EBX is callee-saved.
+ * ---------------------------------------------------------------- */
+void fd2_fill_palette_blink_pattern_6byte(int input_index,
+                                          uint32 output_buffer_addr)
+{
+    int bump;
+    int i;
+
+    bump = 0;
+    if (input_index % 8 > 3) {
+        bump = 2;
+    }
+    for (i = 0; i < 6; i++) {
+        *(uint8 *)(output_buffer_addr + (uint32)i) =
+            (uint8)((input_index & 0xF8) + bump + i);
+    }
+}
