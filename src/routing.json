@@ -3253,8 +3253,9 @@
     "name": "fd2_render_recruitment_select_screen",
     "target": "gfx/rndmenu.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00032004": {
     "name": "fd2_wait_input_with_recruitment_repaint",

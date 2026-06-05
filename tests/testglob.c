@@ -396,6 +396,26 @@ uint32 fd2_pick_stat_compare_color(int32 current_stat, int32 preview_stat) {
     }
     return 0x77;
 }
+/* fd2_count_selected_chars (recruitment screen non-zero-byte counter; real body
+ * not yet emitted). The stub reproduces the real loop exactly — count non-zero
+ * bytes of sel_state over [0, menu_party_member_count - 1) — so callers see a
+ * faithful selected-count, and logs a call counter. The recruitment render test
+ * relies on the counter being exactly 2 per frame (the renderer calls it twice,
+ * discarding the first return and using only the second). */
+int g_count_selected_calls = 0;
+int fd2_count_selected_chars(uint32 sel_state) {
+    int iter;
+    int count;
+
+    g_count_selected_calls++;
+    count = 0;
+    for (iter = 0; iter < (int)data_fd2_shared_menu_party_member_count - 1; iter++) {
+        if (*(char *)(sel_state + iter) != '\0') {
+            count++;
+        }
+    }
+    return count;
+}
 /* fd2_render_terrain_info_hud_panel is now a real emitted function
  * (src/gfx/rndstat.c). Its former recording/loop-break stub here was removed;
  * the idle-loop break seam (g_repaint_settings_calls / g_repaint_flip_buffer_after)
@@ -578,7 +598,9 @@ uint32 fd2_blit_sprite_raw_with_header(uint32 d, uint32 s, uint32 st)
     }
     return 0;
 }
-void fd2_render_recruitment_select_screen(uint32 a, uint32 b, uint32 c, uint32 d) { }
+/* fd2_render_recruitment_select_screen is now a real emitted function
+ * (src/gfx/rndmenu.c); its former no-op stub here was removed. The
+ * recruitment render test (tests/gfx/rndmenu.c) drives the real renderer. */
 /* fd2_animate_spell_impact_per_target is now a real emitted function
  * (src/anim/anicombt.c); its former no-op stub here was removed. */
 /* fd2_animate_status_effect_overlay_flicker is now a real emitted function

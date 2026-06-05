@@ -916,3 +916,104 @@ void fd2_render_promote_candidates_grid(uint32 candidate_count,
             text_col + 0xef, 0x140, border_glyph, 0x4c, 0, 0, 0);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_recruitment_select_screen @ 0x31E80  (2 callers)
+ *
+ * Composes one frame of the recruitment / chapter-branch party-select
+ * screen into the shared composed-target working surface
+ * (data_fd2_ui_slide_composed_target_buf_ptr, 64000 bytes). The caller
+ * later memmoves the surface to VGA 0xA0000.
+ *
+ *   panel_buf  — backup panel buffer (caller's pvVar2); the pre-built
+ *                base panel with header banner + grid frame. Restored
+ *                into the working surface each frame.
+ *   max_chars  — recruit cap (0x0F or 0x13).
+ *   sel_state  — selection_state byte array (1 = picked, 0 = not).
+ *   cursor_idx — current cursor slot (passed as uint*, used as an int
+ *                grid index).
+ *
+ * Frame composition:
+ *   1. memmove(surface, panel_buf, 64000): restore base panel.
+ *   2. Top "max" digits at surface+0x2BFD (value = max_chars).
+ *   3. fd2_count_selected_chars(sel_state) called twice; only the 2nd
+ *      return is used (preserved as-is — the 1st call's result is
+ *      discarded by the original code).
+ *   4. Bottom "remaining" digits at surface+0x5B7D (value =
+ *      max_chars - count).
+ *   5. Tick the chapter ambient palette animation, then read the anim
+ *      index and collapse 3 -> 1 (4 phases map to 3 frame slots).
+ *   6. fd2_render_full_char_stat_panel(cursor_idx + 1, surface): cursor
+ *      character's stat panel on the right.
+ *   7. Cursor highlight sprite blitted at the cursor's grid cell.
+ *      highlight_sprite = runtime_battle_state +
+ *      *(int*)(runtime_battle_state + 6). Cell offset uses a 10-wide
+ *      grid: column 28 px, row 30 px, base y = 0x68.
+ *   8. For each grid slot iter in [0, menu_party_member_count - 1):
+ *        portrait RLE stream = cache + cache[(iter*0xC + palette_idx
+ *        + 0xC)*4]  (12 ptr entries per char; +0xC skips lord/leader).
+ *        cell offset uses the same 10-wide grid (base y = 100).
+ *        sel_state[iter] == 0 -> dimmed grayscale blit at the cell;
+ *        else passthrough blit 3 rows lower (cell + 0x3C0) = "pressed".
+ *
+ * Returns void. __cdecl, 4 stack params. The __CHK(0x28) stack-probe
+ * prologue is compiler-injected and omitted here.
+ *
+ * Callers (2): fd2_run_recruitment_or_branch_screen @ 0x318AD,
+ *              fd2_wait_input_with_recruitment_repaint @ 0x32004.
+ * ---------------------------------------------------------------- */
+void fd2_render_recruitment_select_screen(uint32 panel_buf,
+                                          uint32 max_chars,
+                                          uint32 sel_state,
+                                          uint32 cursor_idx)
+{
+    uint32 surface;
+    int    count;
+    int    palette_idx;
+    uint32 highlight_src;
+    uint32 cursor_off;
+    int    iter;
+    uint32 char_off;
+    uint32 rle_stream;
+
+    surface = data_fd2_ui_slide_composed_target_buf_ptr;
+    memmove((void *)surface, (void *)panel_buf, 64000);
+
+    fd2_render_decimal_number_to_buffer(
+        surface + 0x2bfd, 0x140, max_chars, 0x1f, 2);
+
+    fd2_count_selected_chars(sel_state);
+    count = fd2_count_selected_chars(sel_state);
+    fd2_render_decimal_number_to_buffer(
+        surface + 0x5b7d, 0x140, max_chars - count, 0x2a, 2);
+
+    fd2_tick_chapter_palette_animation();
+    palette_idx = (int)data_fd2_graphics_chapter_ambient_palette_anim_idx;
+    if (palette_idx == 3) {
+        palette_idx = 1;
+    }
+
+    fd2_render_full_char_stat_panel(cursor_idx + 1, surface);
+
+    highlight_src = data_fd2_runtime_battle_state_ptr
+                  + *(int32 *)(data_fd2_runtime_battle_state_ptr + 6);
+    cursor_off = ((int)cursor_idx % 10) * 0x1c + 0x17
+               + (((int)cursor_idx / 10) * 0x1e + 0x68) * 0x140;
+    fd2_tile_blit_24x24_passthrough(highlight_src, surface + cursor_off, 0x140);
+
+    for (iter = 0; iter < (int32)data_fd2_shared_menu_party_member_count - 1;
+         iter++) {
+        char_off = (iter % 10) * 0x1c + 0x17
+                 + ((iter / 10) * 0x1e + 100) * 0x140;
+        rle_stream = portrait_sprite_cache
+                   + *(int32 *)(portrait_sprite_cache
+                                + (iter * 0xc + palette_idx + 0xc) * 4);
+        if (*(char *)(sel_state + iter) == '\0') {
+            fd2_tile_blit_24x24_dimmed_grayscale(
+                rle_stream, surface + char_off, 0x140);
+        } else {
+            fd2_tile_blit_24x24_passthrough(
+                rle_stream, surface + char_off + 0x3c0, 0x140);
+        }
+    }
+}

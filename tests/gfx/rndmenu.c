@@ -2746,6 +2746,255 @@ static void test_cand_row_offset_per_iter(void)
     cand_teardown();
 }
 
+/* ================================================================
+ * fd2_render_recruitment_select_screen @ 0x31E80
+ *
+ * Composes one recruitment-select frame into the shared composed-target
+ * surface. The pure pixel copies route through recording spies
+ * (g_blitpass_* for the 24x24 highlight/portrait blitters; g_blitraw_*
+ * for the stat panel's sheet blits), and the two counter numbers route
+ * through the REAL decimal renderer -> fd2_rle_blit_sprite spy
+ * (g_rle_blit_log_*). The risk-bearing logic verified here:
+ *   - the memmove restore of the base panel,
+ *   - the double fd2_count_selected_chars call (exactly 2/frame; only the
+ *     2nd return feeds the "remaining" number) — pinned via the bottom
+ *     decimal value max_chars - count,
+ *   - the top "max" decimal value (max_chars) and its surface dst,
+ *   - the chapter-palette anim index collapse 3 -> 1,
+ *   - the cursor-highlight sprite src (battle_state + *(battle_state+6))
+ *     and grid-cell dst arithmetic,
+ *   - the per-slot grid loop: char_off arithmetic, the portrait RLE-stream
+ *     cache lookup index (iter*0xC + palette_idx + 0xC), the selected vs
+ *     un-selected blit choice (dimmed grayscale at the cell vs passthrough
+ *     3 rows lower), and the loop bound menu_party_member_count - 1.
+ *
+ * fd2_render_full_char_stat_panel runs for real over a zeroed runtime_char
+ * (its bars early-return on max==0, its numbers render 0, its dialog labels
+ * hit the immediate-END program), so it is harmless and does not touch the
+ * g_blitpass_* log (it uses the sheet blitter, logged in g_blitraw_*). The
+ * two recruitment numbers render BEFORE the panel, so they lead the rle log
+ * at indices 0..3.
+ * ================================================================ */
+extern int g_count_selected_calls;     /* testglob.c: fd2_count_selected_chars */
+extern int g_blitdim_calls;            /* testglob.c: dimmed-grayscale blit count */
+extern runtime_char g_test_rc_array[8];/* testglob.c: shared runtime_char array */
+
+/* sheet header (6 bytes) + 256-entry int32 offset table, table[i]=i, so a
+ * decimal glyph's resolved sprite is sheet + (color + digit). */
+static int32 g_recr_sheet[2 + 256];
+static uint8 g_recr_panel[64000];      /* base panel (memmove source)        */
+static uint8 g_recr_surface[64000];    /* composed target (memmove dest)     */
+static uint8 g_recr_cache[1024];       /* portrait sprite cache + offset tbl */
+static uint8 g_recr_battlestate[64];   /* runtime battle state (highlight)   */
+static uint16 g_recr_text[0x400];      /* immediate-END dialog program       */
+static uint8 g_recr_sel[8];            /* selection_state byte array         */
+
+static uint32 recr_setup(uint32 anim_idx, uint32 member_count)
+{
+    uint8 *sheet = (uint8 *)g_recr_sheet;
+    int i;
+
+    for (i = 0; i < 256; i++) {
+        *(int32 *)(sheet + 6 + i * 4) = i;          /* table[i] = i */
+    }
+    data_fd2_ui_anim_sprite_sheet_ptr = (uint32)sheet;
+
+    memset(g_recr_panel, 0xAB, sizeof(g_recr_panel));
+    memset(g_recr_surface, 0x00, sizeof(g_recr_surface));
+    memset(g_recr_cache, 0, sizeof(g_recr_cache));
+    memset(g_recr_battlestate, 0, sizeof(g_recr_battlestate));
+    *(int32 *)(g_recr_battlestate + 6) = 0x40;      /* highlight sprite off */
+
+    data_fd2_ui_slide_composed_target_buf_ptr = (uint32)g_recr_surface;
+    portrait_sprite_cache                     = (uint32)g_recr_cache;
+    data_fd2_runtime_battle_state_ptr         = (uint32)g_recr_battlestate;
+    data_fd2_shared_menu_party_member_count   = member_count;
+    data_fd2_graphics_chapter_ambient_palette_anim_idx = anim_idx;
+    /* neutralise the per-frame ambient tick: latch == current BIOS tick -> the
+     * slow cycle sees delta 0 and leaves anim_idx at the value we set, so the
+     * renderer's palette_idx is deterministic (anim_idx, with 3 -> 1 collapse). */
+    data_fd2_graphics_chapter_ambient_palette_anim_tick_latch =
+        (uint32)(int)(int16)BIOS_TICK_WORD;
+
+    /* zeroed runtime_char array (already pointed at by the global): bars
+     * early-return on max==0, all stat numbers render 0. */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+
+    /* immediate-END text program for the stat panel's 3 label dialogs. */
+    for (i = 0; i < 0x400; i++) {
+        g_recr_text[i] = 0;
+    }
+    *(int16 *)((uint8 *)g_recr_text + 0x780) = -1;
+    for (i = 0; i < 0x3c0; i++) {
+        g_recr_text[i] = (uint16)0x780;
+    }
+    data_fd2_all_game_text_ptr = (uint32)g_recr_text;
+
+    g_blitpass_calls = 0;
+    g_blitdim_calls = 0;
+    g_count_selected_calls = 0;
+    g_rle_blit_calls = 0;
+    g_rle_blit_log_on = 1;
+    g_blitraw_count = 0;
+    g_blitraw_log_on = 1;
+    return (uint32)sheet;
+}
+
+/* assert the `digits`-glyph run for "%0.<digits>d" of `value` at surface
+ * offset `dst`, sprite base `color`, starting at rle-log index `from`. */
+static void recr_assert_number(int from, uint32 dst, uint32 value,
+                               uint32 color, uint32 digits, uint32 sheet)
+{
+    char fmt[8];
+    char s[20];
+    int  i;
+
+    fmt[0] = '%'; fmt[1] = '0'; fmt[2] = '.';
+    fmt[3] = (char)('0' + digits);
+    fmt[4] = 'd'; fmt[5] = '\0';
+    sprintf(s, fmt, value);
+    for (i = 0; i < (int)digits; i++) {
+        ASSERT_EQ((long)(g_rle_blit_log_sprite[from + i] - sheet),
+                  (long)(color + (uint32)(uint8)s[i] - 0x30));
+        ASSERT_EQ((long)g_rle_blit_log_dst[from + i],
+                  (long)(dst + (uint32)(i * 6)));
+    }
+}
+
+/* ----------------------------------------------------------------
+ * Full frame: memmove restore, double count call, both counter numbers,
+ * cursor highlight blit, and the 3-slot grid with a dim/pass mix.
+ * (member_count = 4 -> loop iter 0,1,2; palette_idx = 2.)
+ * ---------------------------------------------------------------- */
+static void test_recruit_compose_full(void)
+{
+    uint32 surf;
+    uint32 bstate;
+    uint32 cache;
+    uint32 sheet;
+    uint32 max_chars = 0x0f;
+    uint32 cursor = 1;
+
+    sheet = recr_setup(2, 4);
+    surf = (uint32)g_recr_surface;
+    bstate = (uint32)g_recr_battlestate;
+    cache = (uint32)g_recr_cache;
+
+    g_recr_sel[0] = 0;        /* un-selected -> dimmed */
+    g_recr_sel[1] = 2;        /* selected    -> passthrough, 3 rows lower */
+    g_recr_sel[2] = 0;        /* un-selected -> dimmed */
+    g_recr_sel[3] = 0;        /* outside loop (member_count-1 == 3) */
+
+    /* portrait cache offset table for palette_idx 2: index = i*0xC + 2 + 0xC */
+    *(int32 *)(g_recr_cache + 0x0e * 4) = 0x100;   /* slot 0 (i=0) */
+    *(int32 *)(g_recr_cache + 0x1a * 4) = 0x200;   /* slot 1 (i=1) */
+    *(int32 *)(g_recr_cache + 0x26 * 4) = 0x300;   /* slot 2 (i=2) */
+
+    fd2_render_recruitment_select_screen((uint32)g_recr_panel, max_chars,
+                                         (uint32)g_recr_sel, cursor);
+
+    /* (1) base panel restored into the working surface (byte 0 is never
+     * overwritten by any later glyph/blit dst). */
+    ASSERT_EQ((long)g_recr_surface[0], 0xABL);
+    ASSERT_EQ((long)g_recr_surface[63999], 0xABL);
+
+    /* (2) count helper called exactly twice (1st return discarded). */
+    ASSERT_EQ((long)g_count_selected_calls, 2);
+
+    /* (3) top "max" number = max_chars (15) at surface+0x2BFD, color 0x1F. */
+    recr_assert_number(0, surf + 0x2bfd, max_chars, 0x1f, 2, sheet);
+    /* (4) bottom "remaining" number = max_chars - count.  count = non-zero
+     * bytes over [0,3) = 1 (slot 1 only) -> 14, at surface+0x5B7D, color 0x2A. */
+    recr_assert_number(2, surf + 0x5b7d, max_chars - 1, 0x2a, 2, sheet);
+
+    /* (5) cursor highlight: passthrough blit #0, src = battle_state +
+     * *(int*)(battle_state+6), dst = surface + cursor cell offset. */
+    ASSERT_EQ((long)g_blitpass_src[0], (long)(bstate + 0x40));
+    ASSERT_EQ((long)g_blitpass_dst[0],
+              (long)(surf
+                     + (cursor % 10) * 0x1c + 0x17
+                     + ((cursor / 10) * 0x1e + 0x68) * 0x140));
+    ASSERT_EQ((long)g_blitpass_stride[0], 0x140);
+
+    /* (6) grid loop: highlight + 3 slot blits = 4 total; 2 of them dimmed. */
+    ASSERT_EQ((long)g_blitpass_calls, 4);
+    ASSERT_EQ((long)g_blitdim_calls, 2);
+
+    /* slot 0 (i=0, un-selected): dimmed at the cell. */
+    ASSERT_EQ((long)g_blitpass_src[1], (long)(cache + 0x100));
+    ASSERT_EQ((long)g_blitpass_dst[1],
+              (long)(surf + 0x17 + (0 * 0x1e + 100) * 0x140));
+    /* slot 1 (i=1, selected): passthrough 3 rows (0x3C0) lower. */
+    ASSERT_EQ((long)g_blitpass_src[2], (long)(cache + 0x200));
+    ASSERT_EQ((long)g_blitpass_dst[2],
+              (long)(surf + 0x1c + 0x17 + (0 * 0x1e + 100) * 0x140 + 0x3c0));
+    /* slot 2 (i=2, un-selected): dimmed at the cell. */
+    ASSERT_EQ((long)g_blitpass_src[3], (long)(cache + 0x300));
+    ASSERT_EQ((long)g_blitpass_dst[3],
+              (long)(surf + 0x38 + 0x17 + (0 * 0x1e + 100) * 0x140));
+}
+
+/* ----------------------------------------------------------------
+ * Palette anim index 3 collapses to slot 1: the per-slot cache lookup
+ * index uses palette_idx == 1, not 3.
+ * ---------------------------------------------------------------- */
+static void test_recruit_palette_idx_3_collapses_to_1(void)
+{
+    uint32 cache;
+
+    recr_setup(3, 2);                 /* anim_idx 3 -> palette_idx 1; 1 slot */
+    cache = (uint32)g_recr_cache;
+    g_recr_sel[0] = 0;
+
+    /* slot 0 with palette_idx 1: index = 0*0xC + 1 + 0xC = 0xD.  Seed both the
+     * idx-1 entry (used) and the idx-3 entry (must be ignored) distinctly. */
+    *(int32 *)(g_recr_cache + 0x0d * 4) = 0x111;   /* palette_idx 1 (expected) */
+    *(int32 *)(g_recr_cache + 0x0f * 4) = 0x999;   /* palette_idx 3 (ignored)  */
+
+    fd2_render_recruitment_select_screen((uint32)g_recr_panel, 0x13,
+                                         (uint32)g_recr_sel, 0);
+
+    /* g_blitpass[0] = highlight, [1] = slot 0 portrait. */
+    ASSERT_EQ((long)g_blitpass_src[1], (long)(cache + 0x111));
+}
+
+/* ----------------------------------------------------------------
+ * Non-special palette anim index is used verbatim (no collapse): index 2
+ * drives cache lookup at palette_idx 2.
+ * ---------------------------------------------------------------- */
+static void test_recruit_palette_idx_passthrough(void)
+{
+    uint32 cache;
+
+    recr_setup(2, 2);                 /* anim_idx 2 -> palette_idx 2; 1 slot */
+    cache = (uint32)g_recr_cache;
+    g_recr_sel[0] = 0;
+
+    /* slot 0 with palette_idx 2: index = 0*0xC + 2 + 0xC = 0xE. */
+    *(int32 *)(g_recr_cache + 0x0e * 4) = 0x222;
+
+    fd2_render_recruitment_select_screen((uint32)g_recr_panel, 0x13,
+                                         (uint32)g_recr_sel, 0);
+
+    ASSERT_EQ((long)g_blitpass_src[1], (long)(cache + 0x222));
+}
+
+/* ----------------------------------------------------------------
+ * The grid loop runs exactly menu_party_member_count - 1 iterations, so the
+ * total blit count is (member_count - 1) slots + 1 cursor highlight.
+ * ---------------------------------------------------------------- */
+static void test_recruit_loop_bound_member_count(void)
+{
+    recr_setup(0, 7);                 /* 7 -> 6 slot iterations + 1 highlight */
+    memset(g_recr_sel, 0, sizeof(g_recr_sel));
+
+    fd2_render_recruitment_select_screen((uint32)g_recr_panel, 0x13,
+                                         (uint32)g_recr_sel, 0);
+
+    ASSERT_EQ((long)g_blitpass_calls, 7);   /* 1 highlight + 6 slots */
+    ASSERT_EQ((long)g_blitdim_calls, 6);    /* all 6 slots un-selected -> dimmed */
+}
+
 void run_gfx_rndmenu_tests(void)
 {
     SUITE_BEGIN(gfx_rndmenu);
@@ -2831,5 +3080,9 @@ void run_gfx_rndmenu_tests(void)
     RUN_TEST(test_cand_target_job_page_dst_via_real_table);
     RUN_TEST(test_cand_target_list_indexed_by_scroll);
     RUN_TEST(test_cand_row_offset_per_iter);
+    RUN_TEST(test_recruit_compose_full);
+    RUN_TEST(test_recruit_palette_idx_3_collapses_to_1);
+    RUN_TEST(test_recruit_palette_idx_passthrough);
+    RUN_TEST(test_recruit_loop_bound_member_count);
     SUITE_END();
 }
