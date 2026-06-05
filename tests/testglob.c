@@ -683,32 +683,21 @@ void fd2_animate_phase_banner_slide_out(uint32 banner_sprite_id) {
  * a defined global because many test files still carry its extern in their
  * boilerplate decl block (none increment it now). */
 int g_cast_status_cure_calls = 0;
-/* fd2_cast_status_inflict_spell @ 0x22D1B: the inflict-status worker, not yet
- * emitted (routing done=false). Kept as a recording stub so the wrapper
- * fd2_cast_status_spell_via_d1b @ 0x22CDA can be verified to forward all five
- * args verbatim after resetting the AoE/fx index + deducting MP. */
-int    g_cast_status_inflict_calls = 0;
-uint32 g_cast_status_inflict_last_caster = 0;
-uint32 g_cast_status_inflict_last_spell = 0;
-uint32 g_cast_status_inflict_last_n_targets = 0;
-uint32 g_cast_status_inflict_last_p_targets = 0;
-uint32 g_cast_status_inflict_last_sprite = 0;
-void fd2_cast_status_inflict_spell(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e)
-{
-    g_cast_status_inflict_calls++;
-    g_cast_status_inflict_last_caster = a;
-    g_cast_status_inflict_last_spell = b;
-    g_cast_status_inflict_last_n_targets = c;
-    g_cast_status_inflict_last_p_targets = d;
-    g_cast_status_inflict_last_sprite = e;
-}
+/* fd2_cast_status_inflict_spell @ 0x22D1B: now emitted for real in
+ * src/spell/spelleff.c and linked; its former call-recording stub here was
+ * removed. The spellef1.c inflict tests drive the real function (per-target
+ * affliction roll + status-byte timer write, real fd2_apply_damage_and_award_
+ * xp, real impact/flicker/composite callees), and the d1b-wrapper test below
+ * verifies verbatim arg forwarding through the real worker's observable
+ * effects (MP deduct on the forwarded caster/spell + affliction landing on the
+ * forwarded target at the forwarded sprite_id). */
 /* fd2_cast_status_spell_via_d1b: now emitted for real in src/spell/spelleff.c
  * and linked; its former call-counting stub here was removed. The spellef1.c
  * d1b-wrapper test drives the real function (real fd2_deduct_caster_mp MP
- * deduction + AoE-index reset + verbatim forward into the inflict worker stub
- * above). g_cast_status_via_d1b_calls is retained as a defined global because
- * other spell test files still carry its extern in their boilerplate decl
- * block (none increment it now). */
+ * deduction + AoE-index reset + verbatim forward into the REAL inflict worker).
+ * g_cast_status_via_d1b_calls is retained as a defined global because other
+ * spell test files still carry its extern in their boilerplate decl block (none
+ * increment it now). */
 int g_cast_status_via_d1b_calls = 0;
 /* fd2_render_mini_char_status_panel @ 0x18c6d: now emitted for real in
  * src/gfx/rndstat.c and linked. Its callers' tests (fd2_flash_char_hit_sprite

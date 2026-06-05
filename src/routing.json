@@ -2308,8 +2308,9 @@
     "name": "fd2_cast_status_inflict_spell",
     "target": "spell/spelleff.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00022e41": {
     "name": "fd2_spell_handler_id_27_via_status_d1b_effect_26",

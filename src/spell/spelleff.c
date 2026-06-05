@@ -994,3 +994,97 @@ void fd2_cast_status_spell_via_d1b(int caster_idx,
     fd2_cast_status_inflict_spell(caster_idx, status_spell_id,
         target_count, p_target_array, status_byte_offset);
 }
+
+
+/* ----------------------------------------------------------------
+ * fd2_cast_status_inflict_spell @ 0x22D1B  (3 callers)
+ *
+ * STATUS-INFLICT spell worker (sleep / silence / freeze / paralyze on
+ * opponents). Plays the per-target impact + status-overlay-flicker
+ * animations, then for each target in the byte array attempts to inflict
+ * a status: the affliction lands only if the target does not already
+ * carry that status (the status byte at struct offset sprite_id is 0),
+ * its job_id is not a boss/immune class (0x19 or 0x1A), and a ~50% RNG
+ * roll succeeds. On a hit it deals a flat 10-HP bonus damage (drawn with
+ * glyph 0x5E = '^'), sets the status byte to a (rng%4)+2 turn timer, and
+ * credits status_flags_block[0]*8 pending XP (the 8x multiplier is the
+ * highest reward tier). On any miss it draws the miss indicator. Closes
+ * with fd2_composite_battle_frame(0) followed by a conditional
+ * fd2_animate_spell_projectile_paths() when the AoE/fx queue index is
+ * non-zero.
+ *
+ * The status byte is addressed by the raw struct byte offset sprite_id
+ * (callers pass 0x26 = status_sleep_flag for spell 0x1B / 麻痺術, and
+ * 0x27 = combat_aux_block[0] for spell 0x16 / 封咒術), so it is read and
+ * written as ((uint8 *)target_rc)[sprite_id], matching the asm
+ * byte ptr [target_rc + sprite_id] (Ghidra prints this as the artificial
+ * sprite_state[sprite_id-2]; sprite_state sits at +0x02 so that index
+ * resolves to the same +sprite_id byte).
+ *
+ * The 4th param is the target-id byte-array pointer (Ghidra mislabels it
+ * caster_idx); each entry is read as ((uint8 *)target_id_array)[iter],
+ * matching the asm MOVZX from *(byte *)(p_targets + iter).
+ *
+ * EAX-bug corrections (two RNG sites): at asm 0x22DBA CALL
+ * fd2_advance_rng_state the EAX return feeds 0x22DBF MOV EDX,EAX /
+ * SAR EDX,0x1F / IDIV EBX(=100), so the success roll is
+ * (rng_return % 100); and at 0x22DED the EAX return feeds the same
+ * idiom with IDIV EBX(=4) so the timer is (rng_return % 4) + 2. The
+ * Ghidra decompiler instead reused uVar4 (the job_id, then the
+ * fd2_apply_damage_and_award_xp return) for both modulos -- wrong source.
+ * The RNG return is the 16-bit seed zero-extended (always 0..0xFFFF), so
+ * the signed modulos stay non-negative.
+ *
+ * Pattern-A shared epilogue / cross-fn body sharing: after the loop the
+ * asm runs fd2_composite_battle_frame(0) then, when the AoE/fx queue
+ * index is non-zero, JMPs (0x22E3C) into the body of
+ * fd2_cast_speed_boost_spell @ 0x22997 at 0x22A7B to reuse its
+ * fd2_animate_spell_projectile_paths() call + the shared POP/RET stub at
+ * 0x22BBE; the AoE==0 case JMPs straight to 0x22BBE. Emitted here as the
+ * two inlined calls under the explicit AoE guard plus the implicit C
+ * return (Layer-2 functional equivalence; the JMP body-sharing is a
+ * compiler size optimization not reproduced in source).
+ *
+ * Callers: fd2_apply_use_effect_dispatch @ 0x20C6F (item effects 0x0E /
+ * 麻痺術 and 0x16 / 封咒術), fd2_cast_status_spell_via_d1b @ 0x22CDA
+ * (wrapper delegate), and fd2_execute_summon_spell_cast @ 0x27FC9
+ * (summon combo).
+ * ---------------------------------------------------------------- */
+void fd2_cast_status_inflict_spell(uint32 caster_unit_id, uint32 spell_id,
+                                   uint32 num_targets, uint32 target_id_array,
+                                   uint32 sprite_id)
+{
+    int iter;
+    uint8 target_id;
+    runtime_char *target_rc;
+    int damage;
+
+    fd2_animate_spell_impact_per_target(
+        caster_unit_id, spell_id, num_targets, target_id_array);
+    fd2_animate_status_effect_overlay_flicker(
+        caster_unit_id, spell_id, num_targets, target_id_array);
+
+    for (iter = 0; iter < (int)num_targets; iter++) {
+        target_id = ((uint8 *)target_id_array)[iter];
+        target_rc = &data_fd2_battle_runtime_char_array_ptr[
+                        (uint32)target_id];
+        if (((uint8 *)target_rc)[sprite_id] == 0 &&
+            target_rc->job_id != 0x19 && target_rc->job_id != 0x1a &&
+            (int)fd2_advance_rng_state() % 100 < 0x32) {
+            damage = fd2_apply_damage_and_award_xp((uint32)target_id, 10);
+            fd2_show_damage_number((uint32)damage, 0x5e, (uint32)target_id);
+            ((uint8 *)target_rc)[sprite_id] =
+                (uint8)((int)fd2_advance_rng_state() % 4 + 2);
+            data_fd2_battle_pending_xp_credit =
+                data_fd2_battle_pending_xp_credit +
+                target_rc->status_flags_block[0] * 8;
+        } else {
+            fd2_show_miss_indicator((uint32)target_id);
+        }
+    }
+
+    fd2_composite_battle_frame(0);
+    if (data_fd2_battle_spell_aoe_count_and_fx_queue_idx != 0) {
+        fd2_animate_spell_projectile_paths();
+    }
+}

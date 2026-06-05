@@ -73,12 +73,6 @@ extern int g_pathfind_md0_dst_x;
 extern int g_pathfind_md0_dst_y;
 extern int g_cast_status_cure_calls;
 extern int g_cast_status_via_d1b_calls;
-extern int g_cast_status_inflict_calls;
-extern uint32 g_cast_status_inflict_last_caster;
-extern uint32 g_cast_status_inflict_last_spell;
-extern uint32 g_cast_status_inflict_last_n_targets;
-extern uint32 g_cast_status_inflict_last_p_targets;
-extern uint32 g_cast_status_inflict_last_sprite;
 extern int g_repaint_settings_calls;
 extern int g_repaint_flip_buffer_after;
 
@@ -314,31 +308,46 @@ static void test_apply_status_effect_calls_cure_worker(void)
  * 0x16 and the 0x1A/0x1B sibling thunks). Its three observable acts: (1) zero
  * the AoE/fx queue index (asm 0x22CE4 MOV [0x53EC4],0); (2) deduct the caster's
  * MP for the spell via the REAL fd2_deduct_caster_mp (asm 0x22CF6); (3) forward
- * ALL FIVE args verbatim into the inflict worker @0x22D1B (asm 0x22CFE..0x22D12
- * push caster/spell/n_tgt/p_tgt/sprite then CALL). There is no post-delegate
- * animate tail (the worker owns the projectile pass), so the wrapper just
- * returns. Set the AoE index nonzero beforehand to prove it is reset; give the
- * caster mp_current = mp_cost + slack to prove the real deduction ran; capture
- * the worker args through the recording stub to prove verbatim forwarding (a
- * dropped/reordered arg, or a forgotten reset/deduct, fails an assert). */
+ * ALL FIVE args verbatim into the REAL inflict worker @0x22D1B (asm
+ * 0x22CFE..0x22D12 push caster/spell/n_tgt/p_tgt/sprite then CALL). There is no
+ * post-delegate animate tail (the worker owns the projectile pass), so the
+ * wrapper just returns.
+ *
+ * Drives the real worker and pins each forwarded arg via an observable effect:
+ *   - AoE index pre-stained 0x99 must end 0 (the reset);
+ *   - caster=0 + spell_id=0x16 -> fd2_deduct_caster_mp subtracts
+ *     spell_effect_table[0x16].mp_cost(6) from runtime_char[0].mp_current(50)
+ *     -> 44; entry [0] is poisoned with 99 so a caster/spell mix-up would drop
+ *     mp to 50-99 (underflow) instead, proving BOTH caster and spell forward;
+ *   - p_targets -> {unit 3}, n_targets=1, sprite_id=0x27 all forward iff the
+ *     real worker afflicts unit 3 at its +0x27 byte: seed 0 -> roll 0x80A4
+ *     %100=32 < 50 -> HIT -> combat_aux_block[0] set to timer (0xAEA0%4)+2 = 2,
+ *     and XP 5*8=40. A dropped/reordered arg or a missed reset/deduct fails an
+ *     assert. */
 static void test_status_via_d1b_resets_deducts_and_forwards(void)
 {
     uint8 target_arr[1];
     memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;   /* bound impact/flicker loops */
     g_test_rc_array[0].mp_current = 50;
+    data_fd2_battle_spell_effect_table[0].mp_cost = 99;   /* poison entry 0 */
     data_fd2_battle_spell_effect_table[0x16].mp_cost = 6;
+    g_test_rc_array[3].hp_current = 50;
+    g_test_rc_array[3].hp_max = 200;
+    g_test_rc_array[3].portrait_id = 0x00;          /* < 0x44 -> no inner XP */
+    g_test_rc_array[3].job_id = 1;                  /* not immune */
+    g_test_rc_array[3].status_flags_block[0] = 5;   /* level -> XP 40 */
+    g_test_rc_array[3].combat_aux_block[0] = 0;     /* +0x27 must move */
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
     target_arr[0] = 3;
     data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0x99;
-    g_cast_status_inflict_calls = 0;
     fd2_cast_status_spell_via_d1b(0, 0x16, 1, (int)target_arr, 0x27);
     ASSERT_EQ(data_fd2_battle_spell_aoe_count_and_fx_queue_idx, 0); /* reset */
     ASSERT_EQ(g_test_rc_array[0].mp_current, 44);                   /* 50 - 6 */
-    ASSERT_EQ(g_cast_status_inflict_calls, 1);                      /* delegated */
-    ASSERT_EQ(g_cast_status_inflict_last_caster, 0);
-    ASSERT_EQ(g_cast_status_inflict_last_spell, 0x16);
-    ASSERT_EQ(g_cast_status_inflict_last_n_targets, 1);
-    ASSERT_EQ(g_cast_status_inflict_last_p_targets, (uint32)target_arr);
-    ASSERT_EQ(g_cast_status_inflict_last_sprite, 0x27);
+    ASSERT_EQ(g_test_rc_array[3].combat_aux_block[0], 2);  /* forwarded -> hit */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 40);      /* worker ran */
 }
 
 
@@ -780,6 +789,182 @@ static void test_holy_word_visits_all_targets_by_array_index(void)
     ASSERT_EQ(data_fd2_battle_pending_xp_credit, 80);        /* 40 + 40 */
 }
 
+/* ---- fd2_cast_status_inflict_spell @ 0x22D1B ---- */
+
+/* Single un-afflicted target, ordinary job (1): the status lands. The
+ * success roll is the FIRST RNG draw (asm 0x22DBA CALL fd2_advance_rng_state
+ * -> 0x22DBF MOV EDX,EAX / IDIV 100), seed 0 -> 0x80A4, %100 = 32 < 0x32 ->
+ * HIT. The real fd2_apply_damage_and_award_xp(target,10) consumes the SECOND
+ * RNG draw (0x85C0) internally and, with base 10 -> floor(10*9/10)=9 + the
+ * variance floor((0x85C0%100)*10/1000)=floor(400/1000)=0, deals 9 damage:
+ * hp 50 -> 41 (portrait_id 0 < 0x44 so apply_damage early-returns the damage
+ * via the JL 0x14230 tail, awarding no inner XP). The status byte at the raw
+ * struct offset sprite_id (0x26 = status_sleep_flag) is then set from the
+ * THIRD RNG draw (asm 0x22DED CALL / IDIV 4): 0xAEA0 % 4 = 0, +2 -> 2. XP
+ * credit is status_flags_block[0]*8 = 5*8 = 40 with NO intermediate-class
+ * bonus (the inflict worker has no +30, unlike the buff/cure siblings).
+ * Guards the dual EAX-bug fix: both modulos read the RNG return, not the
+ * job_id / apply_damage return that Ghidra mis-attributed. */
+static void test_status_inflict_applies_status_and_timer(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;   /* bound impact/flicker loops */
+    g_test_rc_array[0].hp_current = 50;
+    g_test_rc_array[0].hp_max = 200;
+    g_test_rc_array[0].portrait_id = 0x00;          /* < 0x44 -> no inner XP */
+    g_test_rc_array[0].job_id = 1;                  /* not 0x19/0x1A immune */
+    g_test_rc_array[0].status_flags_block[0] = 5;   /* level */
+    g_test_rc_array[0].status_sleep_flag = 0;       /* +0x26: not afflicted */
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+    target_id = 0;
+    fd2_cast_status_inflict_spell(0, 0x1b, 1, (uint32)&target_id, 0x26);
+    ASSERT_EQ(g_test_rc_array[0].status_sleep_flag, 2);   /* timer 2..5 -> 2 */
+    ASSERT_EQ(g_test_rc_array[0].hp_current, 41);         /* 50 - 9 damage */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 40);     /* 5 * 8, no +30 */
+}
+
+/* RNG-roll miss: un-afflicted, ordinary job, but the success roll lands
+ * >= 0x32. seed 3 -> first RNG draw 0x80BC, %100 = 56 >= 50 (asm 0x22DCE
+ * JGE -> MISS branch), so the else path draws the miss indicator and NOTHING
+ * changes -- status byte stays 0, HP stays put, no XP. Only ONE RNG draw is
+ * consumed (the roll) before the miss, distinguishing this from the hit path
+ * which draws three. */
+static void test_status_inflict_rng_roll_miss_no_change(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[0].hp_current = 60;
+    g_test_rc_array[0].hp_max = 200;
+    g_test_rc_array[0].job_id = 1;
+    g_test_rc_array[0].status_flags_block[0] = 5;
+    g_test_rc_array[0].status_sleep_flag = 0;
+    data_fd2_shared_rng_seed = 3;                   /* roll 0x80BC %100=56 */
+    data_fd2_battle_pending_xp_credit = 0;
+    target_id = 0;
+    fd2_cast_status_inflict_spell(0, 0x1b, 1, (uint32)&target_id, 0x26);
+    ASSERT_EQ(g_test_rc_array[0].status_sleep_flag, 0);   /* not afflicted */
+    ASSERT_EQ(g_test_rc_array[0].hp_current, 60);         /* no damage */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 0);      /* no credit */
+}
+
+/* Boss/immune class gate: job_id 0x19 (asm 0x22DB0 CMP 0x19 JZ) and 0x1A
+ * (0x22DB5 CMP 0x1A JZ) both short-circuit to the miss path BEFORE the RNG is
+ * touched, even though the status byte is 0. The status byte stays 0, no XP
+ * is credited, and the RNG seed is UNCHANGED (proving the gate precedes the
+ * success roll). Both immune ids are checked in one test. */
+static void test_status_inflict_immune_job_no_affliction(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[0].job_id = 0x19;               /* boss/immune */
+    g_test_rc_array[0].status_flags_block[0] = 5;
+    g_test_rc_array[0].status_sleep_flag = 0;
+    data_fd2_shared_rng_seed = 0x1234;
+    data_fd2_battle_pending_xp_credit = 0;
+    target_id = 0;
+    fd2_cast_status_inflict_spell(0, 0x1b, 1, (uint32)&target_id, 0x26);
+    ASSERT_EQ(g_test_rc_array[0].status_sleep_flag, 0);   /* immune */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 0);
+    ASSERT_EQ(data_fd2_shared_rng_seed, 0x1234);          /* RNG untouched */
+
+    g_test_rc_array[0].job_id = 0x1a;               /* second immune class */
+    fd2_cast_status_inflict_spell(0, 0x1b, 1, (uint32)&target_id, 0x26);
+    ASSERT_EQ(g_test_rc_array[0].status_sleep_flag, 0);
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 0);
+    ASSERT_EQ(data_fd2_shared_rng_seed, 0x1234);
+}
+
+/* Already-afflicted gate: the status byte at sprite_id is non-zero (asm
+ * 0x22DA5 MOVZX EAX,[EBP] / 0x22DAB JNZ -> miss), so the spell will not stack
+ * -- it draws the miss indicator, leaves the existing timer untouched, awards
+ * no XP, and does not advance the RNG (the affliction test precedes the
+ * roll). */
+static void test_status_inflict_already_afflicted_no_restack(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[0].job_id = 1;
+    g_test_rc_array[0].status_flags_block[0] = 5;
+    g_test_rc_array[0].status_sleep_flag = 4;       /* already afflicted */
+    data_fd2_shared_rng_seed = 0x55aa;
+    data_fd2_battle_pending_xp_credit = 0;
+    target_id = 0;
+    fd2_cast_status_inflict_spell(0, 0x1b, 1, (uint32)&target_id, 0x26);
+    ASSERT_EQ(g_test_rc_array[0].status_sleep_flag, 4);   /* unchanged */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 0);
+    ASSERT_EQ(data_fd2_shared_rng_seed, 0x55aa);          /* RNG untouched */
+}
+
+/* The status byte is addressed by the RAW struct byte offset sprite_id (asm
+ * 0x22D9F MOV EBP,[ESP+0x28] / 0x22DA3 ADD EBP,EDI -> byte ptr [target+
+ * sprite_id]), NOT a fixed field. Passing sprite_id 0x27 (combat_aux_block[0])
+ * must set the byte at +0x27 to the timer (2) while the +0x26 status_sleep_
+ * flag stays 0. If the worker used a hard-coded offset, the wrong byte would
+ * move. Same seed-0 hit chain as the first test (timer 0xAEA0%4+2 = 2). */
+static void test_status_inflict_sprite_id_selects_correct_byte(void)
+{
+    uint8 target_id;
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[0].hp_current = 50;
+    g_test_rc_array[0].hp_max = 200;
+    g_test_rc_array[0].portrait_id = 0x00;
+    g_test_rc_array[0].job_id = 1;
+    g_test_rc_array[0].status_flags_block[0] = 5;
+    g_test_rc_array[0].status_sleep_flag = 0;        /* +0x26 must stay 0 */
+    g_test_rc_array[0].combat_aux_block[0] = 0;      /* +0x27 target byte */
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+    target_id = 0;
+    fd2_cast_status_inflict_spell(0, 0x16, 1, (uint32)&target_id, 0x27);
+    ASSERT_EQ(g_test_rc_array[0].combat_aux_block[0], 2);  /* +0x27 set */
+    ASSERT_EQ(g_test_rc_array[0].status_sleep_flag, 0);    /* +0x26 untouched */
+}
+
+/* The per-target loop reads the unit id from the BYTE array by array index
+ * (asm 0x22D81 MOV ESI,[ESP+0x24] / 0x22D85 ADD ESI,EAX / 0x22D87 MOVZX from
+ * *ESI), not from the loop counter. With target_ids = {5, 2}: the first entry
+ * (value 5) consumes RNG call 1 (0x80A4 %100=32 -> HIT) and is afflicted
+ * (timer from call 3 -> 2, XP 5*8=40); the second entry (value 2) consumes
+ * RNG call 4 (0xF5A1 %100=81 >= 50 -> MISS) and stays 0. Bystanders at the
+ * loop-counter indices 0 and 1 must stay 0, proving the char id comes from
+ * the array value (5) and not the iteration index. */
+static void test_status_inflict_visits_targets_by_array_index(void)
+{
+    uint8 target_ids[2];
+    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();
+    data_fd2_battle_party_member_count = 0;
+    g_test_rc_array[5].hp_current = 50;
+    g_test_rc_array[5].hp_max = 200;
+    g_test_rc_array[5].portrait_id = 0x00;
+    g_test_rc_array[5].job_id = 1;
+    g_test_rc_array[5].status_flags_block[0] = 5;
+    g_test_rc_array[5].status_sleep_flag = 0;
+    g_test_rc_array[2].job_id = 1;
+    g_test_rc_array[2].status_sleep_flag = 0;
+    data_fd2_shared_rng_seed = 0;
+    data_fd2_battle_pending_xp_credit = 0;
+    target_ids[0] = 5;
+    target_ids[1] = 2;
+    fd2_cast_status_inflict_spell(0, 0x1b, 2, (uint32)target_ids, 0x26);
+    ASSERT_EQ(g_test_rc_array[5].status_sleep_flag, 2);   /* array entry 0 hit */
+    ASSERT_EQ(g_test_rc_array[2].status_sleep_flag, 0);   /* entry 1 rolled miss */
+    ASSERT_EQ(g_test_rc_array[0].status_sleep_flag, 0);   /* not loop-indexed */
+    ASSERT_EQ(g_test_rc_array[1].status_sleep_flag, 0);   /* not loop-indexed */
+    ASSERT_EQ(data_fd2_battle_pending_xp_credit, 40);     /* only unit 5 hit */
+}
+
 void run_spell_spelleff1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -813,5 +998,11 @@ void run_spell_spelleff1_tests(void)
     RUN_TEST(test_holy_word_no_status_shows_miss_no_change);
     RUN_TEST(test_holy_word_intermediate_class_xp_bonus);
     RUN_TEST(test_holy_word_visits_all_targets_by_array_index);
+    RUN_TEST(test_status_inflict_applies_status_and_timer);
+    RUN_TEST(test_status_inflict_rng_roll_miss_no_change);
+    RUN_TEST(test_status_inflict_immune_job_no_affliction);
+    RUN_TEST(test_status_inflict_already_afflicted_no_restack);
+    RUN_TEST(test_status_inflict_sprite_id_selects_correct_byte);
+    RUN_TEST(test_status_inflict_visits_targets_by_array_index);
     printf("\n");
 }
