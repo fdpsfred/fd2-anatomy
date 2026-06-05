@@ -1102,6 +1102,310 @@ static void test_chapter_06_end_increments_not_absolute(void)
     ASSERT_EQ((long)chapter_id, 8L);           /* 7 + 1, not a constant */
 }
 
+/* ================================================================
+ * fd2_chapter_07_end @ 0x232E8
+ *
+ * The Chapter 7 end handler unconditionally copies three 9-byte scene tables
+ * (recruit-scene X / Y / facing @ 0x520E4 / 0x520ED / 0x520F6) into on-stack
+ * placement blocks and persists the party (real fd2_save_runtime_char_to_template),
+ * then takes a DUAL-condition recruit:
+ *   tile_event_consumed_flags[0x11] == 1  AND  fd2_check_char_is_dead(0x2B) == 0:
+ *     stages the scene via fd2_setup_chars_and_camera_for_intro (chars 0..8, plus
+ *     extra char 0x2B at (0xC,7) facing 2, camera origin (6,2)), shows recruit
+ *     dialog page 4, recruits char #12 (武者凱麗, real
+ *     fd2_init_runtime_char_from_base_growth).
+ *   otherwise: shows the no-recruit dialog page 5 only — no scene, no recruit.
+ * It then advances chapter_id by 1.
+ *
+ * The C `&&` short-circuits exactly as the binary does (CMP flag==1 / JNZ, then
+ * the dead-check CALL only on the flag-true fall-through), so when the flag is
+ * clear the dead-check is never invoked.
+ *
+ * Every callee is the real linked function EXCEPT two seams (same as the chapter
+ * 03/05 suites): fd2_check_char_is_dead (testglob.c stub — now also records its
+ * call count + last arg so this suite can pin the short-circuit and the 0x2B
+ * query) and fd2_setup_chars_and_camera_for_intro (testglob.c recording fake —
+ * the real one is an unemitted VGA scene stager deferred to Phase 9; its capture
+ * loop is bounded by the inclusive char range, so it snapshots all 9 table
+ * entries here). The real save pass is made a clean no-op (battle_party_member_count
+ * == 0) so the dead-check call recorder reflects only the dual-condition's query.
+ *
+ * Fixtures mirror the chapter 03/05 suites: a minimal dialog program whose pages 4
+ * and 5 each redirect to one distinct glyph (0x44 / 0x55) + END, a zeroed
+ * runtime-char array + zeroed roster, and a 0x20-byte tile-event consumed-flags
+ * buffer. On-screen pixels of the dialog/scene are deferred to Phase 9.
+ *
+ * Asserted per branch: which dialog page ran (glyph id), whether the scene staged
+ * and (recruit) the exact 9 copied table entries + char range (0..8) + extra char
+ * 0x2B at (0xC,7) facing 2 + camera (6,2), whether char #12 was recruited (roster
+ * count delta), whether/with-what the dead-check was queried, and chapter_id := prev+1.
+ * ================================================================ */
+
+extern int    g_check_char_is_dead_calls;
+extern uint32 g_check_char_is_dead_last_arg;
+
+extern uint8 data_fd2_chapter_ch07_end_scene_char_pos_x_table[9];
+extern uint8 data_fd2_chapter_ch07_end_scene_char_pos_y_table[9];
+extern uint8 data_fd2_chapter_ch07_end_scene_char_facing_table[9];
+
+static uint8  g_ce7_roster[8 * 0x50];
+static int16  g_ce7_text[16];
+static uint8  g_ce7_consumed[0x20];
+
+static void ce7_fixture_reset(void)
+{
+    int i;
+
+    /* dialog VM safe env. */
+    *(volatile uint16 *)0x41AuL = 0x20;   /* BIOS kbd buffer head == tail */
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+
+    /* dialog program: pages 4 and 5 each redirect to one distinct glyph + END. */
+    for (i = 0; i < 16; i++) {
+        g_ce7_text[i] = 0;
+    }
+    g_ce7_text[4]  = 16;      /* page 4 -> idx 8 */
+    g_ce7_text[5]  = 20;      /* page 5 -> idx 10 */
+    g_ce7_text[8]  = 0x44;    /* page 4 glyph */
+    g_ce7_text[9]  = -1;      /* END */
+    g_ce7_text[10] = 0x55;    /* page 5 glyph */
+    g_ce7_text[11] = -1;      /* END */
+    current_chapter_text = (uint32)g_ce7_text;
+
+    /* save pass made a clean no-op (no runtime chars scanned) so the dead-check
+     * recorder reflects only the dual-condition's query; the recruit append uses
+     * the shared-menu count so roster growth is still observable. */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(g_ce7_roster, 0, sizeof(g_ce7_roster));
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_ce7_roster;
+    data_fd2_battle_party_member_count = 0;       /* save pass: no-op */
+    data_fd2_shared_menu_party_member_count = 0;  /* recruit appends at slot 0 */
+
+    /* tile-event consumed-flags buffer (index 0x11 is the gate). */
+    memset(g_ce7_consumed, 0, sizeof(g_ce7_consumed));
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ce7_consumed;
+
+    /* dead-check stub recorder + return reset. */
+    g_check_char_is_dead_return = 0;
+    g_check_char_is_dead_calls = 0;
+    g_check_char_is_dead_last_arg = 0xFFFFFFFFuL;
+
+    /* scene-stager recording fake reset. */
+    g_setup_intro_calls = 0;
+    g_setup_intro_char_start = -1;
+    g_setup_intro_char_end = -1;
+    g_setup_intro_extra_char_idx = 0xFFFFFFFFuL;
+    g_setup_intro_extra_pos_x = -1;
+    g_setup_intro_extra_pos_y = -1;
+    g_setup_intro_extra_facing = -1;
+    g_setup_intro_camera_x = 0xFFFFFFFFuL;
+    g_setup_intro_camera_y = 0xFFFFFFFFuL;
+    for (i = 0; i < 9; i++) {
+        g_setup_intro_px[i] = 0xFF;
+        g_setup_intro_py[i] = 0xFF;
+        g_setup_intro_facing[i] = 0xFF;
+    }
+
+    /* preset chapter id to a known value so the +1 transition is observable. */
+    data_fd2_chapter_current_chapter_id = 7;
+}
+
+static void ce7_fixture_teardown(void)
+{
+    current_chapter_text = 0;
+    data_fd2_shared_menu_party_roster_buffer_ptr = 0;
+    data_fd2_shared_menu_party_member_count = 0;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
+    data_fd2_chapter_current_chapter_id = 1;
+    g_check_char_is_dead_return = 0;
+}
+
+/* ----------------------------------------------------------------
+ * Both conditions met (flag[0x11]==1 AND char #0x2B alive): the handler stages
+ * the recruit scene (setup fired once with the three 9-byte tables copied
+ * verbatim, chars 0..8, extra char 0x2B at (0xC,7) facing 2, camera (6,2)), runs
+ * recruit dialog page 4 (its single glyph 0x44), recruits char #12 (roster count
+ * 0 -> 1), and advances chapter_id 7 -> 8. The dead-check was queried for char
+ * 0x2B (the second conjunct).
+ * ---------------------------------------------------------------- */
+static void test_chapter_07_end_flag_and_alive_recruits(void)
+{
+    int    setup_calls;
+    int    glyph_calls;
+    uint32 glyph_idx;
+    int32  char_start;
+    int32  char_end;
+    uint32 extra_idx;
+    int32  extra_x;
+    int32  extra_y;
+    int32  extra_facing;
+    uint32 cam_x;
+    uint32 cam_y;
+    uint32 recruit_count;
+    uint32 chapter_id;
+    int    dead_calls;
+    uint32 dead_arg;
+    int    tables_match;
+    int    i;
+
+    ce7_fixture_reset();
+    g_ce7_consumed[0x11] = 1;          /* tile event 0x11 triggered */
+    g_check_char_is_dead_return = 0;   /* char 0x2B alive -> recruit branch */
+
+    fd2_chapter_07_end();
+
+    /* snapshot observables, then restore globals, then assert. */
+    setup_calls   = g_setup_intro_calls;
+    glyph_calls   = g_dlg_glyph_calls;
+    glyph_idx     = g_dlg_glyph_last_idx;
+    char_start    = g_setup_intro_char_start;
+    char_end      = g_setup_intro_char_end;
+    extra_idx     = g_setup_intro_extra_char_idx;
+    extra_x       = g_setup_intro_extra_pos_x;
+    extra_y       = g_setup_intro_extra_pos_y;
+    extra_facing  = g_setup_intro_extra_facing;
+    cam_x         = g_setup_intro_camera_x;
+    cam_y         = g_setup_intro_camera_y;
+    recruit_count = data_fd2_shared_menu_party_member_count;
+    chapter_id    = data_fd2_chapter_current_chapter_id;
+    dead_calls    = g_check_char_is_dead_calls;
+    dead_arg      = g_check_char_is_dead_last_arg;
+    tables_match  = 1;
+    for (i = 0; i < 9; i++) {
+        if (g_setup_intro_px[i] != data_fd2_chapter_ch07_end_scene_char_pos_x_table[i] ||
+            g_setup_intro_py[i] != data_fd2_chapter_ch07_end_scene_char_pos_y_table[i] ||
+            g_setup_intro_facing[i] != data_fd2_chapter_ch07_end_scene_char_facing_table[i]) {
+            tables_match = 0;
+        }
+    }
+    ce7_fixture_teardown();
+
+    /* scene staged once with all 9 table entries copied verbatim into the blocks. */
+    ASSERT_EQ((long)setup_calls, 1L);
+    ASSERT_EQ((long)tables_match, 1L);
+    ASSERT_EQ((long)char_start, 0L);
+    ASSERT_EQ((long)char_end, 8L);
+
+    /* extra char placed: idx 0x2B at (0xC,7) facing 2. */
+    ASSERT_EQ((long)extra_idx, (long)0x2b);
+    ASSERT_EQ((long)extra_x, (long)0xc);
+    ASSERT_EQ((long)extra_y, 7L);
+    ASSERT_EQ((long)extra_facing, 2L);
+
+    /* camera origin (6,2). */
+    ASSERT_EQ((long)cam_x, 6L);
+    ASSERT_EQ((long)cam_y, 2L);
+
+    /* recruit dialog page 4 rendered exactly its glyph 0x44. */
+    ASSERT_EQ((long)glyph_calls, 1);
+    ASSERT_EQ((long)glyph_idx, (long)0x44);
+
+    /* the second conjunct was evaluated: dead-check queried char 0x2B. */
+    ASSERT_EQ((long)dead_calls, 1L);
+    ASSERT_EQ((long)dead_arg, (long)0x2b);
+
+    /* char #12 recruited (roster grew) and chapter id advanced. */
+    ASSERT_EQ((long)recruit_count, 1L);
+    ASSERT_EQ((long)chapter_id, 8L);
+}
+
+/* ----------------------------------------------------------------
+ * Flag set but char #0x2B dead (flag[0x11]==1, dead-check != 0): the second
+ * conjunct fails, so the handler skips the scene and the recruit, showing only
+ * the no-recruit dialog page 5 (glyph 0x55). The dead-check WAS queried for char
+ * 0x2B (the flag passed, so the conjunct was reached). Roster unchanged; chapter
+ * id still advances 7 -> 8.
+ * ---------------------------------------------------------------- */
+static void test_chapter_07_end_flag_set_but_dead_no_recruit(void)
+{
+    int    setup_calls;
+    int    glyph_calls;
+    uint32 glyph_idx;
+    uint32 recruit_count;
+    uint32 chapter_id;
+    int    dead_calls;
+    uint32 dead_arg;
+
+    ce7_fixture_reset();
+    g_ce7_consumed[0x11] = 1;          /* tile event 0x11 triggered */
+    g_check_char_is_dead_return = 1;   /* char 0x2B dead -> no-recruit branch */
+
+    fd2_chapter_07_end();
+
+    setup_calls   = g_setup_intro_calls;
+    glyph_calls   = g_dlg_glyph_calls;
+    glyph_idx     = g_dlg_glyph_last_idx;
+    recruit_count = data_fd2_shared_menu_party_member_count;
+    chapter_id    = data_fd2_chapter_current_chapter_id;
+    dead_calls    = g_check_char_is_dead_calls;
+    dead_arg      = g_check_char_is_dead_last_arg;
+    ce7_fixture_teardown();
+
+    /* no scene staged, no recruit. */
+    ASSERT_EQ((long)setup_calls, 0L);
+    ASSERT_EQ((long)recruit_count, 0L);
+
+    /* the conjunct was reached (flag passed): dead-check queried char 0x2B. */
+    ASSERT_EQ((long)dead_calls, 1L);
+    ASSERT_EQ((long)dead_arg, (long)0x2b);
+
+    /* no-recruit dialog page 5 rendered exactly its glyph 0x55. */
+    ASSERT_EQ((long)glyph_calls, 1);
+    ASSERT_EQ((long)glyph_idx, (long)0x55);
+
+    /* chapter id still advances. */
+    ASSERT_EQ((long)chapter_id, 8L);
+}
+
+/* ----------------------------------------------------------------
+ * Flag clear (flag[0x11]==0): the FIRST conjunct fails, so the && short-circuits
+ * — the dead-check is never invoked — and the handler shows only the no-recruit
+ * dialog page 5 (glyph 0x55) with no scene and no recruit. (Even with the dead-
+ * check primed to "alive", the recruit must not fire, proving the flag gate.)
+ * Chapter id still advances 7 -> 8.
+ * ---------------------------------------------------------------- */
+static void test_chapter_07_end_flag_clear_short_circuits(void)
+{
+    int    setup_calls;
+    int    glyph_calls;
+    uint32 glyph_idx;
+    uint32 recruit_count;
+    uint32 chapter_id;
+    int    dead_calls;
+
+    ce7_fixture_reset();
+    /* g_ce7_consumed[0x11] left 0: first conjunct fails. */
+    g_check_char_is_dead_return = 0;   /* primed alive — must be irrelevant. */
+
+    fd2_chapter_07_end();
+
+    setup_calls   = g_setup_intro_calls;
+    glyph_calls   = g_dlg_glyph_calls;
+    glyph_idx     = g_dlg_glyph_last_idx;
+    recruit_count = data_fd2_shared_menu_party_member_count;
+    chapter_id    = data_fd2_chapter_current_chapter_id;
+    dead_calls    = g_check_char_is_dead_calls;
+    ce7_fixture_teardown();
+
+    /* no scene staged, no recruit. */
+    ASSERT_EQ((long)setup_calls, 0L);
+    ASSERT_EQ((long)recruit_count, 0L);
+
+    /* short-circuit: the dead-check was never invoked. */
+    ASSERT_EQ((long)dead_calls, 0L);
+
+    /* no-recruit dialog page 5 rendered exactly its glyph 0x55. */
+    ASSERT_EQ((long)glyph_calls, 1);
+    ASSERT_EQ((long)glyph_idx, (long)0x55);
+
+    /* chapter id still advances. */
+    ASSERT_EQ((long)chapter_id, 8L);
+}
+
 void run_field_chend1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1118,5 +1422,8 @@ void run_field_chend1_tests(void)
     RUN_TEST(test_chapter_05_end_increments_not_absolute);
     RUN_TEST(test_chapter_06_end_recruits_loads_and_increments_id);
     RUN_TEST(test_chapter_06_end_increments_not_absolute);
+    RUN_TEST(test_chapter_07_end_flag_and_alive_recruits);
+    RUN_TEST(test_chapter_07_end_flag_set_but_dead_no_recruit);
+    RUN_TEST(test_chapter_07_end_flag_clear_short_circuits);
     printf("\n");
 }

@@ -198,6 +198,16 @@ uint8 data_fd2_chapter_ch05_end_scene_char_pos_y_table[7] =
     { 11, 11, 11, 9, 10, 9, 10 };
 uint8 data_fd2_chapter_ch05_end_scene_char_facing_table[7] =
     { 2, 2, 2, 3, 3, 1, 1 };
+/* Chapter 7 end recruit-scene char placement tables (data segment @ 0x520E4 /
+ * 0x520ED / 0x520F6). Real binary bytes until the data segment is emitted;
+ * fd2_chapter_07_end copies each 9-byte table into an on-stack placement block.
+ * X/Y are battle-tile coords, facing is sprite direction (0..3). */
+uint8 data_fd2_chapter_ch07_end_scene_char_pos_x_table[9] =
+    { 12, 11, 13, 10, 14, 10, 14, 9, 15 };
+uint8 data_fd2_chapter_ch07_end_scene_char_pos_y_table[9] =
+    { 4, 4, 4, 5, 5, 6, 6, 7, 7 };
+uint8 data_fd2_chapter_ch07_end_scene_char_facing_table[9] =
+    { 0, 0, 0, 3, 1, 3, 1, 3, 1 };
 /* Resource portrait sheet base pointer (data segment @ 0x53AD1). Tests point it
  * at a zeroed scratch buffer. */
 uint32 data_fd2_resource_portrait_sheet_ptr = 0;
@@ -213,9 +223,22 @@ uint8  data_fd2_animation_palette_cycle_rgb_table[93] = {0};
 /* fd2_check_char_is_dead stub. Default 0 (alive) keeps historical behavior for
  * every existing test. fd2_save_runtime_char_to_template uses this to decide the
  * char-0 (索爾) dead-skip special case, so its test pins the return via
- * g_check_char_is_dead_return. */
-int g_check_char_is_dead_return = 0;
-int fd2_check_char_is_dead(uint32 c) { (void)c; return g_check_char_is_dead_return; }
+ * g_check_char_is_dead_return.
+ *
+ * g_check_char_is_dead_calls / g_check_char_is_dead_last_arg additionally record
+ * the invocation count and the most recent char index, so a caller test can pin
+ * which char a branch queried and whether a short-circuit skipped the call
+ * (field/chend1's chapter 07 dual-condition recruit). Both default 0 and are
+ * ignored by every other suite; tests that read them reset them in their fixture. */
+int    g_check_char_is_dead_return = 0;
+int    g_check_char_is_dead_calls = 0;
+uint32 g_check_char_is_dead_last_arg = 0xFFFFFFFFuL;
+int fd2_check_char_is_dead(uint32 c)
+{
+    g_check_char_is_dead_calls++;
+    g_check_char_is_dead_last_arg = c;
+    return g_check_char_is_dead_return;
+}
 /* fd2_scan_chars_within_manhattan_range: now in btl_ai.c */
 uint32 data_fd2_ui_anim_sprite_sheet_ptr = 0;
 void  *data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[5] = {0};
@@ -680,13 +703,21 @@ void __delay_thunk_375b2(uint32 ticks) { g_delay375b2_calls++; g_delay375b2_last
  * three byte-array tables, reset the camera, composite + fade-in. That is all VGA
  * display side-effect deferred to Phase 9, so here we only record the call and
  * snapshot the three placement-block tables + scalar args, letting a caller test
- * (field/chend1's chapter 03 end) verify the orchestration: which branch invoked
- * it, the exact 7-byte X/Y/facing tables copied into the on-stack blocks, the
- * char index range, and the camera origin. */
+ * (field/chend1's chapter 03/05/07 end) verify the orchestration: which branch
+ * invoked it, the X/Y/facing tables copied into the on-stack blocks, the char
+ * index range, and the camera origin.
+ *
+ * The real function consumes exactly (char_end - char_start + 1) table entries
+ * (it indexes the byte arrays by the inclusive [char_start..char_end] loop var),
+ * so the snapshot loop is bounded the same way: chapter 03/05 pass 7-entry blocks
+ * (char_end == 6) and chapter 07 passes 9-entry blocks (char_end == 8). Bounding
+ * by the live range avoids reading past a 7-byte caller's on-stack block while
+ * still capturing all 9 entries for the 9-byte caller. Buffers are sized 9 (the
+ * widest table). */
 int    g_setup_intro_calls = 0;
-uint8  g_setup_intro_px[7];
-uint8  g_setup_intro_py[7];
-uint8  g_setup_intro_facing[7];
+uint8  g_setup_intro_px[9];
+uint8  g_setup_intro_py[9];
+uint8  g_setup_intro_facing[9];
 int32  g_setup_intro_char_start = -1;
 int32  g_setup_intro_char_end = -1;
 uint32 g_setup_intro_extra_char_idx = 0xFFFFFFFFuL;
@@ -704,11 +735,19 @@ void fd2_setup_chars_and_camera_for_intro(uint32 px_table, uint32 py_table,
                                           uint32 camera_origin_y)
 {
     int i;
+    int count;
     g_setup_intro_calls++;
-    for (i = 0; i < 7; i++) {
-        g_setup_intro_px[i]     = ((uint8 *)px_table)[i];
-        g_setup_intro_py[i]     = ((uint8 *)py_table)[i];
-        g_setup_intro_facing[i] = ((uint8 *)facing_table_or_fixed)[i];
+    count = char_end - char_start + 1;
+    if (count < 0) {
+        count = 0;
+    }
+    if (count > 9) {
+        count = 9;
+    }
+    for (i = 0; i < count; i++) {
+        g_setup_intro_px[i]     = ((uint8 *)px_table)[char_start + i];
+        g_setup_intro_py[i]     = ((uint8 *)py_table)[char_start + i];
+        g_setup_intro_facing[i] = ((uint8 *)facing_table_or_fixed)[char_start + i];
     }
     g_setup_intro_char_start = char_start;
     g_setup_intro_char_end = char_end;

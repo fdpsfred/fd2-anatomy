@@ -2370,8 +2370,9 @@
     "name": "fd2_chapter_07_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000233c6": {
     "name": "fd2_setup_chars_and_camera_for_intro",
