@@ -3932,8 +3932,9 @@
     "name": "fd2_chapter_event_handler_32__ch22_reinforcement",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0003529a": {
     "name": "fd2_chapter_event_handler_33__unref_drop",

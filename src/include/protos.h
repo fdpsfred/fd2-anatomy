@@ -205,6 +205,7 @@ void fd2_cutscene_event_trigger(uint32 event_id);
 void fd2_chapter_event_handler_2f__ch21_turn_gated(uint32 event_arg);
 void fd2_chapter_event_handler_30__ch21_ai_ctrl(uint32 event_arg);
 void fd2_chapter_event_handler_31__ch22_turn_gated(uint32 event_arg);
+void fd2_chapter_event_handler_32__ch22_reinforcement(uint32 event_arg);
 
 /* ---- animation ---- */
 void fd2_play_ani_file_animation_sequence(uint32 anim_idx, uint32 per_frame_delay,

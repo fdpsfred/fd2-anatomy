@@ -401,6 +401,69 @@ static void test_h31_gate_fires_dialog_on_turn_3(void)
     ce_teardown_portrait_env();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_32__ch22_reinforcement @ 0x35261
+ *
+ * Straight-line reinforcement spawner (no turn gate, no computed logic): load
+ * portrait set 2, a single-corner pan to window origin (0x10, 0x2A), an 8-tick
+ * hold, spawn reinforcement char id 0x14, then UNCONDITIONALLY show dialog
+ * page 2. The dialog call is reached via a borrowed tail (JMP 0x347F1) in the
+ * binary; these tests prove that tail is correctly inlined here by checking the
+ * dialog VM fires with page 2 and that the single pan corner is applied. Reuses
+ * the ce_setup_portrait_env / ce_teardown_portrait_env fixtures above.
+ * ================================================================ */
+
+/* ----------------------------------------------------------------
+ * The single-corner pan lands the window origin on exactly (0x10, 0x2A), and
+ * the dialog tail (borrowed via JMP 0x347F1) fires unconditionally — there is
+ * no turn gate. An in-memory int16 program whose page-2 header points to a
+ * 1-glyph + END body proves the page-2 dialog body ran (g_dlg_glyph_calls == 1).
+ * The empty keyboard buffer keeps blink_flag set so the typewriter/blink path
+ * is taken; audiofix gates that path host-safely. alloc_offset = 0 keeps the
+ * portrait load a host-safe no-op (still re-reads FDFIELD + writes FD2.TMP).
+ * ---------------------------------------------------------------- */
+static void test_h32_pan_corner_and_unconditional_page2_dialog(void)
+{
+    static int16 prog[8];
+
+    ce_setup_portrait_env(0, (const uint8 *)0);
+
+    /* start the window away from the pan target so the move is observable */
+    data_fd2_battle_view_window_origin_x = 0x40;
+    data_fd2_battle_view_window_origin_y = 0x40;
+
+    /* page-2 header word (index 2 -> byte offset 4) -> opcode body at byte 8
+     * (= int16 index 4). Body: one glyph then END. */
+    memset(prog, 0, sizeof(prog));
+    prog[2] = 8;        /* byte offset of the page-2 opcode body */
+    prog[4] = 0x41;     /* TEXT glyph */
+    prog[5] = -1;       /* END */
+    current_chapter_text = (uint32)prog;
+
+    /* deterministic dialog VM env: empty BIOS keyboard buffer + audio gated so
+     * the per-glyph blink/typewriter step is host-safe. No active portrait, so
+     * END does not run the portrait-close path. */
+    *(volatile uint16 *)0x41AuL = 0x20;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    audiofix_enable_sfx();
+    data_fd2_audio_fdother_sfx_bank_buf_ptr = audiofix_make_bank(0x1F);
+    g_composite_call_count = 0;
+    g_dlg_glyph_calls = 0;
+
+    fd2_chapter_event_handler_32__ch22_reinforcement(0);
+
+    /* single pan corner applied */
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_x, 0x10);
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_y, 0x2A);
+    /* pan composited a frame */
+    ASSERT_TRUE(g_composite_call_count > 0);
+    /* the borrowed tail fired the page-2 dialog VM (rendered the single glyph) */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+
+    ce_teardown_portrait_env();
+}
+
 void run_field_chevt2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -413,5 +476,6 @@ void run_field_chevt2_tests(void)
     RUN_TEST(test_h31_gate_skips_dialog_on_non_trigger_turn);
     RUN_TEST(test_h31_portrait_index_is_turn_div_2);
     RUN_TEST(test_h31_gate_fires_dialog_on_turn_3);
+    RUN_TEST(test_h32_pan_corner_and_unconditional_page2_dialog);
     printf("\n");
 }

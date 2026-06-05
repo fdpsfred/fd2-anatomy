@@ -108,3 +108,36 @@ void fd2_chapter_event_handler_31__ch22_turn_gated(uint32 event_arg)
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_32__ch22_reinforcement @ 0x35261  (0 direct callers)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x32.
+ * Triggered in chapter 22 at turn 5 / phase 2 (ch22 turn-event slot 1).
+ * Category: reinforcement spawner. Dispatch-table signature is 1-arg cdecl
+ * (void fn(uint event_arg)); this handler does not read the arg.
+ *
+ * Effect: ch22 turn-5 reinforcement — load portrait set 2, a single-corner pan
+ * to window origin (0x10, 0x2A), an 8-tick hold, spawn reinforcement char id
+ * 0x14 from base+growth, then unconditionally show dialog page 2.
+ *
+ * In the binary the dialog call shares a borrowed tail: after the spawn the
+ * handler does JMP 0x347F1, falling into the
+ * PUSH 1/0x13/0x4A/0x4C/0xCD/0x140/0xA0000/2; PUSH current_chapter_text;
+ * CALL fd2_display_dialog_scene; ADD ESP,0x24; RET tail of
+ * fd2_chapter_event_handler_15 @ 0x347D9 (the page=2 dialog body). That
+ * tail-merge is a binary size optimisation; the functionally-exact source is a
+ * single self-contained dialog call.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_32__ch22_reinforcement(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_load_chapter_portraits_and_dump_tmp(2);
+    fd2_pan_cursor_and_window(0x10, 0x2A);
+    fd2_wait_n_bios_ticks(8);
+    fd2_init_runtime_char_from_base_growth(0x14);
+
+    fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+}
