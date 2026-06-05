@@ -859,6 +859,78 @@ static void test_entry_start_clean_tailcall_return(void)
     ASSERT_EQ(g_cstart_bootstrap_entered, 2);
 }
 
+/* ================================================================
+ * crt_equivalent_fpe_default_handler_3d26e @ 0x3d26e
+ *
+ * SIGFPE / FPU-exception default no-op handler: a 1-byte RET. The CRT
+ * seeds the FPE dispatch slot @ 0x5283c with this stub, and the exception
+ * deliverers (__FPE_exception_ / __int7) invoke the slot via CALL [slot]
+ * with the FPE code as the argument, expecting an immediate clean return.
+ * The observable contract is therefore: (1) a direct __cdecl call passing
+ * an fpe_code is a no-op that returns to the caller with the surrounding
+ * stack intact, and (2) a call THROUGH a function pointer (its real
+ * invocation form) likewise returns cleanly. There is no return value.
+ * ================================================================ */
+
+/* direct __cdecl call passing an fpe code returns cleanly: sentinels
+ * bracketing a local are intact afterward and execution proceeds past the
+ * call. A broken RET or a stub that wrongly cleaned the stack (RET 4)
+ * would imbalance the cdecl frame and corrupt these guards. */
+static void test_fpe_handler_direct_call_is_noop(void)
+{
+    volatile int guard_lo = 0x12345678;
+    volatile int marker   = 0;
+    volatile int guard_hi = 0x76543210;
+
+    crt_equivalent_fpe_default_handler_3d26e(8);   /* 8 == typical SIGFPE */
+    marker = 1;   /* reached only if the stub returned */
+
+    ASSERT_EQ(marker, 1);
+    ASSERT_EQ(guard_lo, 0x12345678);
+    ASSERT_EQ(guard_hi, 0x76543210);
+}
+
+/* the argument is ignored: any fpe_code value behaves identically (the
+ * body never reads it). Drive several distinct codes through the cdecl
+ * call and confirm each returns and leaves the frame undisturbed. */
+static void test_fpe_handler_ignores_code(void)
+{
+    static const int codes[4] = { 0, 8, -1, 0x7FFFFFFF };
+    volatile int guard = 0x0FACADE0;
+    int i;
+    int completed;
+
+    completed = 0;
+    for (i = 0; i < 4; i++) {
+        crt_equivalent_fpe_default_handler_3d26e(codes[i]);
+        completed++;
+    }
+
+    ASSERT_EQ(completed, 4);
+    ASSERT_EQ(guard, 0x0FACADE0);
+}
+
+/* call THROUGH a function pointer, exactly as __FPE_exception_ / __int7
+ * invoke the dispatch slot (CALL [0x5283c]); the indirect call must also
+ * return cleanly. The slot signature is void(int), so call it with a code
+ * argument through that pointer type. */
+static void test_fpe_handler_indirect_call(void)
+{
+    void (*handler_slot)(int);
+    int  i;
+    int  completed;
+
+    handler_slot = crt_equivalent_fpe_default_handler_3d26e;
+    ASSERT_TRUE(handler_slot != (void (*)(int))0);
+
+    completed = 0;
+    for (i = 0; i < 3; i++) {
+        handler_slot(i);
+        completed++;
+    }
+    ASSERT_EQ(completed, 3);
+}
+
 void run_crt_crt_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -888,5 +960,8 @@ void run_crt_crt_tests(void)
     RUN_TEST(test_eflags_thunk_clean_return);
     RUN_TEST(test_entry_start_jumps_to_bootstrap);
     RUN_TEST(test_entry_start_clean_tailcall_return);
+    RUN_TEST(test_fpe_handler_direct_call_is_noop);
+    RUN_TEST(test_fpe_handler_ignores_code);
+    RUN_TEST(test_fpe_handler_indirect_call);
     printf("\n");
 }

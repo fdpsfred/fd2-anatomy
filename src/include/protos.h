@@ -487,6 +487,13 @@ unsigned long crt_equivalent_get_eflags_thunk(void);
  * #pragma aux helper in src/crt/crt.c. */
 void crt_equivalent_entry_start(void);
 
+/* crt_equivalent_fpe_default_handler_3d26e @ 0x3d26e — SIGFPE / FPU-exception
+ * default no-op handler (1-byte RET). Seeds the FPE dispatch slot @ 0x5283c;
+ * invoked indirectly by __FPE_exception_ / __int7 when signal(SIGFPE, ...) was
+ * never set. Address-taken (referenced as DATA from the slot), so it is a real
+ * callable function. __cdecl void(int fpe_code); ignores the code and returns. */
+void crt_equivalent_fpe_default_handler_3d26e(int fpe_code);
+
 /* ---- util / dpmi ---- */
 int fd2_dpmi_alloc_dos_memory(uint32 paragraphs, uint32 *out_linear, uint32 *out_segment, uint32 *out_selector);
 void fd2_dpmi_free_dos_memory(uint32 linear_unused, uint32 segment_unused, uint32 selector);

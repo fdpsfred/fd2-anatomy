@@ -12,6 +12,7 @@
  *   crt_equivalent_exit_chain_stub_36de3 @ 0x36de3 (2 callers)
  *   crt_equivalent_get_eflags_thunk     @ 0x37f86 (2 callers)
  *   crt_equivalent_entry_start          @ 0x3c964 (0 callers; LE entry point)
+ *   crt_equivalent_fpe_default_handler_3d26e @ 0x3d26e (2 callers)
  */
 
 #include "types.h"
@@ -479,4 +480,35 @@ extern void crt_entry_jmp_to_dos_main_bootstrap(void);
 void crt_equivalent_entry_start(void)
 {
     crt_entry_jmp_to_dos_main_bootstrap();
+}
+
+/* ----------------------------------------------------------------
+ * crt_equivalent_fpe_default_handler_3d26e @ 0x3d26e  (2 callers)
+ *
+ * SIGFPE / FPU-exception default no-op handler. 1-byte RET stub. The
+ * Watcom CRT seeds the FPE-handler dispatch slot @ 0x5283c with a pointer
+ * to this RET. The exception deliverers invoke the slot indirectly:
+ *   __FPE_exception_ @ 0x4d3d6 : PUSH EAX; CALL [0x5283c]; ADD ESP,4
+ *   __int7           @ 0x49feb : MOVZX EAX,AH; CALL [0x5283c]
+ * If the program never called signal(SIGFPE, fn), the slot still points
+ * here and the indirect CALL lands on this stub, which returns at once,
+ * making an unhandled FPU exception a harmless no-op. When the program
+ * calls signal(SIGFPE, fn), the slot is overwritten with fn instead.
+ *
+ * Its address is taken (referenced as DATA from the dispatch slot
+ * @ 0x5283c), so it must remain a real, callable function — not folded
+ * away.
+ *
+ * __cdecl void(int fpe_code): the FPE code is the argument the deliverer
+ * supplies (pushed by __FPE_exception_ as a cdecl stack arg; placed in
+ * EAX by __int7). The original body is the single instruction RET — it
+ * neither reads the argument nor cleans the stack (plain RET, not RET 4),
+ * so the cdecl caller is responsible for reclaiming the pushed arg, which
+ * __FPE_exception_ does via ADD ESP,4. No CALL inside, so there is no
+ * EAX-tracking concern.
+ * ---------------------------------------------------------------- */
+void crt_equivalent_fpe_default_handler_3d26e(int fpe_code)
+{
+    (void)fpe_code;
+    return;
 }

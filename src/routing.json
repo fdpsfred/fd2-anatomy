@@ -4479,8 +4479,9 @@
     "name": "crt_equivalent_fpe_default_handler_3d26e",
     "target": "crt/crt.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0003ed58": {
     "name": "crt_equivalent_get_eflags",
