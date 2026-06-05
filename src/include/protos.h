@@ -162,6 +162,7 @@ void fd2_pan_cursor_to_tile_animated(int target_x, int target_y);
 void fd2_pan_cursor_to_char(uint32 char_idx);
 void fd2_pan_cursor_and_window(uint32 target_ox, uint32 target_oy);
 void fd2_composite_battle_frame(int skip_palette_cycle);
+void fd2_animate_party_addition_with_appear_effect(uint32 chapter_id);
 
 /* ---- graphics / palette ---- */
 void fd2_set_vga_palette_range(uint32 start_idx, uint32 end_idx, uint32 brightness_subtract);
@@ -200,6 +201,7 @@ void fd2_chapter_30_end(void);
 
 /* ---- chapter turn-event handlers (dispatch table 0x51B91) ---- */
 void fd2_chapter_event_handler_00__ch1_dialog_with_state(uint32 event_arg);
+void fd2_chapter_event_handler_01__ch1_dialog_with_state(uint32 event_arg);
 
 void fd2_setup_chars_and_camera_for_intro(uint32 pos_x_table, uint32 pos_y_table,
                                           uint32 facing_table, uint32 place_start,

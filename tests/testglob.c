@@ -709,6 +709,21 @@ int    g_delay375b2_calls = 0;
 uint32 g_delay375b2_last_ticks = 0;
 void __delay_thunk_375b2(uint32 ticks) { g_delay375b2_calls++; g_delay375b2_last_ticks = ticks; }
 
+/* fd2_animate_party_addition_with_appear_effect (@0x32999) is not yet emitted.
+ * It is a heavy 12-frame "new char appearance" explosion animation (real
+ * FDOTHER.DAT reads, 0x25680-byte back-buffer snapshots, per-new-char sprite
+ * blits, and a portrait reload that rewrites FD2.TMP). A recording stub here
+ * lets callers that merely fire it (the ch1 turn-event handlers) be tested for
+ * their own contract — that they invoke it once with the right chapter id —
+ * without dragging the full animation pipeline into the unit test. Its own
+ * display/state effects are covered when that function is emitted. */
+int    g_animate_party_addition_calls = 0;
+uint32 g_animate_party_addition_last_chapter = 0;
+void fd2_animate_party_addition_with_appear_effect(uint32 chapter_id) {
+    g_animate_party_addition_calls++;
+    g_animate_party_addition_last_chapter = chapter_id;
+}
+
 /* fd2_composite_chars_with_spell_effect_overlay is now a real emitted function
  * (src/gfx/rndscene.c); its former recording stub here was removed. The real
  * overlay first composites a tile map (observable via the

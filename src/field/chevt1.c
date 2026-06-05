@@ -4,6 +4,9 @@
  * fd2_chapter_event_handler_00__ch1_dialog_with_state @ 0x341DB
  *     (0 direct callers; dispatched as idx 0x00 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_01__ch1_dialog_with_state @ 0x342B5
+ *     (0 direct callers; dispatched as idx 0x01 of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -51,4 +54,34 @@ void fd2_chapter_event_handler_00__ch1_dialog_with_state(uint32 event_arg)
     fd2_display_dialog_scene(current_chapter_text, 3, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_clear_all_chars_facing();
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_01__ch1_dialog_with_state @ 0x342B5
+ *   — Chapter 1 turn-event slot 1 (triggered at turn 4 / phase 0).
+ *
+ * ch1 mid-turn beat: the camera pans to world (0xB, 0x10), party
+ * slot 4 joins the field with the "new char appearance" explosion
+ * animation, cutscene event 3 plays, every character's facing is
+ * reset, and dialog page 4 is shown.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is
+ * callee-saved; the __CHK(0x2C) stack-probe prologue is
+ * compiler-injected and omitted here.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_01.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_01__ch1_dialog_with_state(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_pan_cursor_and_window(0xB, 0x10);
+    fd2_animate_party_addition_with_appear_effect(4);
+    fd2_clear_keyboard_buffer();
+    fd2_composite_battle_frame(1);
+    fd2_cutscene_event_trigger(3);
+    fd2_clear_all_chars_facing();
+    fd2_display_dialog_scene(current_chapter_text, 4, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
 }

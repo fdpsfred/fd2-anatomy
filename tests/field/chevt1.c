@@ -201,10 +201,113 @@ static void test_ch1_event0_recruits_hanuo_and_reloads_portraits(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_01__ch1_dialog_with_state @ 0x342B5
+ *
+ * Like handler_00 this is a straight-line, no-branch ch1 turn-event beat: no
+ * RNG, no numeric computation, no CALL-return value used, and (unlike
+ * handler_00) NO state of its own — it just fires a fixed sequence of callees:
+ *   pan_cursor_and_window(0xB,0x10); animate_party_addition_with_appear_effect(4);
+ *   clear_keyboard_buffer; composite_battle_frame(1); cutscene_event_trigger(3);
+ *   clear_all_chars_facing; display_dialog_scene(page 4, ...).
+ *
+ * The handler's distinguishing contract versus handler_00 is the
+ * animate_party_addition_with_appear_effect(4) call (party slot/chapter 4 joins
+ * with the appear explosion). That callee (@0x32999) is not yet emitted, so the
+ * shared recording stub in testglob.c stands in for it; the test asserts the
+ * handler fires it exactly once with chapter id 4. All the OTHER callees are
+ * real emitted functions and run end-to-end against the same proven safe env
+ * handler_00 uses (empty active party, gated HUD, throttled palette cycle, a
+ * zero-group cutscene script for event 3 so it composites once and returns, an
+ * immediate-END dialog program for page 4, and an empty BIOS keyboard buffer).
+ *
+ * The heavy animation's own display + portrait-reload (FD2.TMP rewrite) state is
+ * covered when fd2_animate_party_addition_with_appear_effect is itself emitted;
+ * the pure blit/display side effects of this beat (camera pan, cutscene
+ * compositing, dialog glyphs, frame blits) are deferred to Phase 9 integration.
+ * ================================================================ */
+
+extern int    g_animate_party_addition_calls;
+extern uint32 g_animate_party_addition_last_chapter;
+
+/* zero-group cutscene script for event 3: n_groups byte = 0, so the real
+ * fd2_cutscene_event_trigger just composites once and returns. */
+static uint8 g_ev1_script_03[1] = { 0 };
+
+static void ev1_install_safe_env(void)
+{
+    int i;
+
+    g_animate_party_addition_calls = 0;
+    g_animate_party_addition_last_chapter = 0;
+
+    /* runtime-char slots the real callees touch. */
+    memset(g_ev_rc, 0, sizeof(g_ev_rc));
+    data_fd2_battle_runtime_char_array_ptr = g_ev_rc;
+
+    /* empty active party: the real composite/paint char loops iterate zero. */
+    data_fd2_battle_party_member_count = 0;
+
+    /* real compositor workspace backing (handler_00 convention: the logical
+     * row-0 the real fd2_composite_battle_frame reads is at ptr+0x8088). */
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_ev_ws_buffer - 0x8088;
+
+    /* anim_phase=0 -> cursor-overlay switch falls through (no blits). */
+    data_fd2_battle_anim_phase = 0;
+
+    /* HUD panel gated off. */
+    data_fd2_ui_terrain_hud_user_enabled = 0;
+    data_fd2_ui_play_active_flag = 0;
+
+    /* palette-cycle to its no-op early-return path (no extra VGA writes). */
+    data_fd2_animation_palette_cycle_last_tick =
+        (uint16)data_fd2_input_idle_current_bios_tick_word;
+
+    /* 768-byte palette so any real palette read stays in-bounds. */
+    memset(g_ev_palette, 0, sizeof(g_ev_palette));
+    data_fd2_vga_palette_data_ptr = (uint32)g_ev_palette;
+
+    /* immediate-END dialog program (pages 0..0x10 -> single END opcode). */
+    for (i = 0; i <= 0x10; i++) {
+        g_ev_dlg[i] = (int16)(0x11 * 2);   /* byte offset of the END opcode */
+    }
+    g_ev_dlg[0x11] = -1;                    /* END */
+    current_chapter_text = (uint32)g_ev_dlg;
+
+    /* empty BIOS keyboard buffer (head==tail) for fd2_clear_keyboard_buffer. */
+    *(volatile uint16 *)0x41AuL = 0x20;
+    *(volatile uint16 *)0x41CuL = 0x20;
+
+    /* zero-group cutscene script for the one event (3) the handler fires. */
+    g_ev1_script_03[0] = 0;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[3] = g_ev1_script_03;
+}
+
+/* ----------------------------------------------------------------
+ * The handler fires its fixed ch1 slot-1 sequence end-to-end. Its observable,
+ * deterministic contract is: it invokes the appear-animation exactly once with
+ * chapter id 4, and the whole real callee chain (camera pan, frame composite,
+ * zero-group cutscene 3, facing reset, immediate-END dialog page 4) runs to
+ * completion without faulting.
+ * ---------------------------------------------------------------- */
+static void test_ch1_event1_fires_appear_anim_for_slot4(void)
+{
+    ev1_install_safe_env();
+
+    fd2_chapter_event_handler_01__ch1_dialog_with_state(0);
+
+    /* the appear-explosion animation fired exactly once, for chapter/slot 4. */
+    ASSERT_EQ(g_animate_party_addition_calls, 1);
+    ASSERT_EQ(g_animate_party_addition_last_chapter, 4);
+
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
     printf("Suite: field/chevt1\n");
     RUN_TEST(test_ch1_event0_recruits_hanuo_and_reloads_portraits);
+    RUN_TEST(test_ch1_event1_fires_appear_anim_for_slot4);
     printf("\n");
 }
