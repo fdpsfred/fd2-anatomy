@@ -15,8 +15,8 @@ offset  size  field             意義
 +0      1     bCategory         chapter category byte
                                  0 = story chapter (走 intro panel + shop menu)
                                  非 0 = battle chapter (跳過 intro，直接 transition)
-+1      1     bHotkey_state     觸發特殊 hotkey commit 的 chapter_transition_state 值
-                                 hotkey 命中後 state 跳為 5
++1      1     bHotkey_state     觸發特殊 hotkey commit 的 data_fd2_chapter_intro_menu_cursor_state 值
+                                 (0x5412B)；hotkey 命中後該 state 跳為 5
 +2      1     bHotkey_scancode  特殊 commit hotkey 的鍵盤 scancode
 +3      12    bWeapons[12]      武器店 item IDs (0xFF = 空 slot)
                                  對應 fd2_load_chapter_party_roster 的 state==1 路徑

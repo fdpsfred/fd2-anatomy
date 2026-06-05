@@ -705,6 +705,197 @@ static void test_buy_menu_cancel_returns_and_persists_cursor(void)
     buy_free_workspaces();
 }
 
+/* ================================================================
+ * fd2_run_sell_item_menu @ 0x2F642 — sell-branch top-level loop.
+ *
+ * Drives the REAL outer loop. The seller roster select
+ * (fd2_party_roster_single_select_loop) is the scripted testglob stub
+ * (g_single_select_ret / _cursor): it returns a seller index then a cancel so
+ * the loop runs exactly one productive iteration and then exits.
+ *
+ * test_sell_menu_cancel_returns_immediately: the first seller select cancels
+ * (-1). The loop must set data_fd2_ui_menu_visible_item_count from the party
+ * count at the top, then return without opening the item panel — pinning the
+ * loop-top visible-count store and the sel==-1 early return.
+ *
+ * test_sell_menu_builds_inventory_list_skips_empty: drives the host-safe part of
+ * a productive iteration. The seller's 8 inventory slots are seeded with a mix
+ * of empty (flag bit 0x80 set) and occupied slots; the loop must build the
+ * compacted item-id list skipping the empty slots, reset cursor/scroll to 0,
+ * open the REAL sell-mode panel (sell_mode=1: 3x64000 mallocs + title/grid spies
+ * + slide steps into the host-safe VGA aperture), then run the REAL shop input
+ * loop, which a staged Esc cancels (-1) so the iteration loops back to the
+ * seller roster (scripted to cancel the 2nd time). The forwarded count and the
+ * captured list contents (g_shop_grid_capture_list) prove the skip-empty build
+ * and ordering; the open panel's grid render pins sell_mode=1 and the cursor
+ * reset to 0.
+ *
+ * The deeper sell mechanics past the item-grid commit (the chosen-item lookup,
+ * the 75%-resale price = item_entry[+0x13]*3/4, the "sell?" confirm typewriter,
+ * the transaction + money-gain animation, the slot removal + stat recompute) sit
+ * behind the blocking confirm dialog + real VGA blits + the item-effect/runtime
+ * tables, exactly as the sibling fd2_run_buy_item_menu deferred its post-confirm
+ * flow; they are deferred to Phase 9 integration. The "nothing to sell" reject
+ * dialog (empty inventory) likewise drives the real dialog VM + portrait path
+ * and is deferred with it.
+ * ================================================================ */
+
+/* scripted seller-select stub controls (testglob.c) */
+extern int  g_single_select_ret[8];
+extern int  g_single_select_cursor[8];
+extern int  g_single_select_idx;
+extern int  g_single_select_calls;
+/* opt-in capture of the forwarded item-id list (testglob.c grid-render spy) */
+extern int   g_shop_grid_capture_list;
+extern uint8 g_shop_grid_list[32];
+
+/* sprite-atlas backing buffer for fd2_open_shop_dialog_panel's title blit. */
+static uint8 g_sell_atlas[0x100];
+/* a small runtime_char array so the inventory-build loop can index the seller. */
+static runtime_char g_sell_chars[4];
+
+static void sell_free_workspaces(void)
+{
+    if (data_fd2_ui_slide_anim_accumulator_buf_ptr != 0) {
+        free((void *)data_fd2_ui_slide_anim_accumulator_buf_ptr);
+        data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    }
+    if (data_fd2_ui_slide_bg_snapshot_buf_ptr != 0) {
+        free((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr);
+        data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    }
+    if (data_fd2_ui_slide_composed_target_buf_ptr != 0) {
+        free((void *)data_fd2_ui_slide_composed_target_buf_ptr);
+        data_fd2_ui_slide_composed_target_buf_ptr = 0;
+    }
+}
+
+/* reset the seller-select script + the slide-buffer globals + grid spies. */
+static void sell_reset(void)
+{
+    int i;
+    for (i = 0; i < 8; i++) {
+        g_single_select_ret[i] = -1;
+        g_single_select_cursor[i] = 0;
+    }
+    g_single_select_idx = 0;
+    g_single_select_calls = 0;
+
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+
+    g_dlg_blit_normal_calls = 0;
+    g_shop_grid_render_calls = 0;
+    g_shop_grid_last_count = 0;
+    g_shop_grid_last_array = 0;
+    g_shop_grid_last_cursor = 0xFFFFFFFFu;
+    g_shop_grid_last_dst = 0;
+    g_shop_grid_last_sell = 0xFFFFFFFFu;
+    g_shop_grid_capture_list = 0;
+    memset(g_shop_grid_list, 0xEE, sizeof(g_shop_grid_list));
+
+    /* keep the real input wait off its idle/blink/corner paths */
+    data_fd2_shared_rng_seed = 0;
+    *(uint32 *)(g_sell_atlas + 0x46) = 0u;
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = (uint32)g_sell_atlas;
+    data_fd2_audio_fdother_sfx_bank_buf_ptr = 0x55AA;
+}
+
+static void test_sell_menu_cancel_returns_immediately(void)
+{
+    sell_reset();
+
+    /* first (and only) seller select cancels */
+    g_single_select_ret[0] = -1;
+
+    data_fd2_shared_menu_party_member_count = 6;
+    data_fd2_ui_menu_visible_item_count = 0;   /* must be overwritten at top */
+
+    fd2_run_sell_item_menu();
+
+    /* loop-top store ran, then sel==-1 returned before opening the panel */
+    ASSERT_EQ(g_single_select_calls, 1);
+    ASSERT_EQ(data_fd2_ui_menu_visible_item_count, 6);
+    ASSERT_EQ(g_shop_grid_render_calls, 0);
+    ASSERT_EQ(g_dlg_blit_normal_calls, 0);
+
+    sell_free_workspaces();
+}
+
+static void test_sell_menu_builds_inventory_list_skips_empty(void)
+{
+    uint8 keys[1];
+    runtime_char *seller;
+    runtime_char *saved_rc;
+
+    sell_reset();
+
+    /* this test repoints the shared runtime-char array global; save it so the
+     * later suites (status.c etc.) that rely on its default wiring are not
+     * disturbed (same save/restore discipline as tests/battle/battle2.c). */
+    saved_rc = data_fd2_battle_runtime_char_array_ptr;
+
+    /* seller = index 2; 1st select returns it, 2nd select cancels the loop. */
+    g_single_select_ret[0] = 1;       /* any non -1 commit code */
+    g_single_select_cursor[0] = 2;    /* seller index written to cursor_idx */
+    g_single_select_ret[1] = -1;      /* exit after the productive iteration */
+
+    /* seed seller 2's 8 inventory slots (each = [flag, item_id]): occupy 0,1,4,6
+     * (item ids 0x10,0x11,0x14,0x16) and mark 2,3,5,7 empty (flag bit 0x80). */
+    seller = &g_sell_chars[2];
+    memset(g_sell_chars, 0, sizeof(g_sell_chars));
+    seller->inventory_slots[0]  = 0x00; seller->inventory_slots[1]  = 0x10;
+    seller->inventory_slots[2]  = 0x00; seller->inventory_slots[3]  = 0x11;
+    seller->inventory_slots[4]  = 0x80; seller->inventory_slots[5]  = 0x99;
+    seller->inventory_slots[6]  = 0x80; seller->inventory_slots[7]  = 0x98;
+    seller->inventory_slots[8]  = 0x00; seller->inventory_slots[9]  = 0x14;
+    seller->inventory_slots[10] = 0x80; seller->inventory_slots[11] = 0x97;
+    seller->inventory_slots[12] = 0x00; seller->inventory_slots[13] = 0x16;
+    seller->inventory_slots[14] = 0x80; seller->inventory_slots[15] = 0x96;
+    data_fd2_battle_runtime_char_array_ptr = g_sell_chars;
+
+    /* distinct from the built inv_count (4) so the final visible-count store
+     * (set from the party count at the top of the looped-back 2nd iteration)
+     * is unambiguously the party count, proving the iteration looped back. */
+    data_fd2_shared_menu_party_member_count = 5;
+    /* seed cursor/scroll non-zero so the loop's reset-to-0 is observable */
+    data_fd2_ui_menu_cursor_idx = 7;
+    data_fd2_ui_menu_scroll_offset = 6;
+
+    g_shop_grid_capture_list = 1;     /* the array is the real on-stack list */
+
+    keys[0] = MFIX_SC_ESC;            /* cancel the shop item grid */
+    mfix_load_keys(keys, 1);
+
+    fd2_run_sell_item_menu();
+
+    /* both scripted selects consumed (seller, then exit) */
+    ASSERT_EQ(g_single_select_calls, 2);
+
+    /* the panel opened once with the compacted list: 4 occupied slots, the
+     * empties (0x99/0x98/0x97/0x96) dropped, original order preserved. */
+    ASSERT_EQ(g_dlg_blit_normal_calls, 1);
+    ASSERT_EQ(g_shop_grid_render_calls, 1);
+    ASSERT_EQ(g_shop_grid_last_count, 4);
+    ASSERT_EQ(g_shop_grid_last_sell, 1);          /* sell_mode=1 */
+    ASSERT_EQ(g_shop_grid_last_cursor, 0);        /* cursor reset to 0 at open */
+    ASSERT_EQ(g_shop_grid_list[0], 0x10);
+    ASSERT_EQ(g_shop_grid_list[1], 0x11);
+    ASSERT_EQ(g_shop_grid_list[2], 0x14);
+    ASSERT_EQ(g_shop_grid_list[3], 0x16);
+
+    /* the open also reset the scroll offset to 0 */
+    ASSERT_EQ(data_fd2_ui_menu_scroll_offset, 0);
+    /* after the shop-grid Esc the iteration looped back to the seller roster:
+     * the loop-top visible-count store ran again from the party count (5). */
+    ASSERT_EQ(data_fd2_ui_menu_visible_item_count, 5);
+
+    g_shop_grid_capture_list = 0;
+    data_fd2_battle_runtime_char_array_ptr = saved_rc;
+    sell_free_workspaces();
+}
+
 void run_ui_menu_shop_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -735,4 +926,6 @@ void run_ui_menu_shop_tests(void)
     RUN_TEST(test_stat_color_current_less_returns_white);
     RUN_TEST(test_stat_color_current_greater_returns_orange);
     RUN_TEST(test_buy_menu_cancel_returns_and_persists_cursor);
+    RUN_TEST(test_sell_menu_cancel_returns_immediately);
+    RUN_TEST(test_sell_menu_builds_inventory_list_skips_empty);
 }

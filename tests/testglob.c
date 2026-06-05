@@ -440,6 +440,13 @@ int16  data_fd2_dialog_shop_no_equip_dialog_text_id_table[6] = {
 int16  data_fd2_dialog_shop_auto_equip_dialog_text_id_table[6] = {
     1, 507, 1, 507, 1, 507
 };
+/* real .rdata values from FD2.LE @ 0x5272A / 0x52736 */
+int16  data_fd2_dialog_shop_sell_for_dialog_text_id_table[6] = {
+    508, 508, 508, 659, 508, 508
+};
+int16  data_fd2_dialog_shop_sell_nothing_to_sell_text_id_table[6] = {
+    509, 509, 509, 509, 509, 509
+};
 /* not-yet-emitted buy-flow callees (real fns in src later; stubbed for the
  * link). The buy-menu cancel test never reaches these — Esc on the item grid
  * returns before the eligibility scan / recipient select. */
@@ -450,7 +457,31 @@ int  fd2_party_roster_class_select_loop(uint32 candidate_count,
     (void)candidate_count; (void)candidate_array_ptr; (void)item_id;
     return -1;
 }
-int  fd2_party_roster_single_select_loop(void) { return -1; }
+/* Scripted seller/recipient single-select loop. Each call consumes the next
+ * entry of g_single_select_ret[] as its return value and writes the matching
+ * g_single_select_cursor[] entry into data_fd2_ui_menu_cursor_idx (the real
+ * function leaves the chosen index there). The arrays default to {-1,...}
+ * (immediate cancel), which is exactly the prior unconditional `return -1`
+ * behaviour relied on by the buy-menu cancel test (that test never reaches this
+ * call). The sell-menu tests script a seller index then a cancel. */
+int  g_single_select_ret[8]    = { -1, -1, -1, -1, -1, -1, -1, -1 };
+int  g_single_select_cursor[8] = {  0,  0,  0,  0,  0,  0,  0,  0 };
+int  g_single_select_idx       = 0;
+int  g_single_select_calls     = 0;
+int  fd2_party_roster_single_select_loop(void)
+{
+    int i;
+    int r;
+    i = g_single_select_idx;
+    if (i > 7) {
+        i = 7;
+    }
+    r = g_single_select_ret[i];
+    data_fd2_ui_menu_cursor_idx = (uint32)g_single_select_cursor[i];
+    g_single_select_idx++;
+    g_single_select_calls++;
+    return r;
+}
 /* fd2_animate_shop_transaction_feedback: now emitted in src/anim/aniui.c and
  * linked for real. Its caller tests (tests/anim/aniui.c) drive the real
  * per-state sprite cycle + state-4 palette flash through the real
@@ -473,16 +504,34 @@ uint32 g_shop_grid_last_array = 0;
 uint32 g_shop_grid_last_cursor = 0;
 uint32 g_shop_grid_last_dst = 0;
 uint32 g_shop_grid_last_sell = 0;
+/* Opt-in capture of the forwarded item-id list contents. Default OFF so the
+ * existing shop/buy/open tests (which pass a synthetic non-dereferenceable
+ * pointer for item_id_array) are unaffected. The sell-menu test sets
+ * g_shop_grid_capture_list=1 because there the array is the real on-stack
+ * inventory list built by fd2_run_sell_item_menu, live during this call. */
+int    g_shop_grid_capture_list = 0;
+uint8  g_shop_grid_list[32];
 void fd2_render_shop_item_grid(uint32 item_count, uint32 item_id_array,
                                uint32 cursor, uint32 dst_buf,
                                uint32 sell_mode_flag)
 {
+    uint32 i;
+    uint32 n;
     g_shop_grid_render_calls++;
     g_shop_grid_last_count = item_count;
     g_shop_grid_last_array = item_id_array;
     g_shop_grid_last_cursor = cursor;
     g_shop_grid_last_dst = dst_buf;
     g_shop_grid_last_sell = sell_mode_flag;
+    if (g_shop_grid_capture_list && item_id_array != 0) {
+        n = item_count;
+        if (n > sizeof(g_shop_grid_list)) {
+            n = sizeof(g_shop_grid_list);
+        }
+        for (i = 0; i < n; i++) {
+            g_shop_grid_list[i] = ((const uint8 *)item_id_array)[i];
+        }
+    }
 }
 /* Both shop-dialog scroll animations are now REAL emitted functions in
  * src/anim/aniui.c: fd2_animate_scroll_up_in_shop_dialog (page-DOWN) and

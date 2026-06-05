@@ -8,6 +8,7 @@
  * fd2_pick_stat_compare_color @ 0x2EF8F (1 caller:
  *   fd2_render_party_roster_with_item_stat_preview)
  * fd2_run_buy_item_menu @ 0x2F0B0 (1 caller: fd2_run_chapter_intro_menu_main)
+ * fd2_run_sell_item_menu @ 0x2F642 (1 caller: fd2_run_chapter_intro_menu_main)
  */
 
 #include "types.h"
@@ -416,5 +417,160 @@ void fd2_run_buy_item_menu(uint32 shop_item_count, uint32 shop_item_id_array)
         }
         fd2_animate_shop_transaction_feedback();
         fd2_animate_money_decrement(data_fd2_dialog_last_action_value_param);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_run_sell_item_menu @ 0x2F642  (1 caller: fd2_run_chapter_intro_menu_main)
+ *
+ * Top-level loop for the SELL branch of the chapter-intro shop menu. The mirror
+ * of fd2_run_buy_item_menu: it picks the seller char FIRST, builds that char's
+ * inventory list, then runs the item grid; on a commit it sells the chosen item
+ * at 75% of its base price (price * 3 / 4). Esc on the seller roster exits.
+ *
+ * Per iteration:
+ *   1. data_fd2_ui_menu_visible_item_count = party_member_count, then
+ *      fd2_party_roster_single_select_loop() picks the seller. -1 (Esc) returns.
+ *   2. Build the seller's inventory id list: for slot 0..7, skip slots whose
+ *      flag byte (inventory_slots[slot*2]) has bit 0x80 set (empty); otherwise
+ *      append the item id (inventory_slots[slot*2+1]) to a local 8-byte list.
+ *   3. If the list is empty, show the "nothing to sell" reject dialog (second
+ *      table) and loop back to the seller roster.
+ *   4. Otherwise reset cursor/scroll, open the sell-mode item panel (sell_mode=1
+ *      shows 75% price), and run the shop input loop (sell_mode=1). -1 (Esc)
+ *      loops back to the seller roster.
+ *   5. On commit, read the chosen slot's item id via
+ *      fd2_get_inventory_slot_item_id(seller, cursor), set the portrait param
+ *      (item_id + 0xB5), and compute the sale price = item_entry[+0x13] * 3 / 4
+ *      (signed >>2) into data_fd2_dialog_last_action_value_param.
+ *   6. Show the "sell?" yes/no confirm dialog (first table); cancel / "no"
+ *      (cursor == 1) loops back. On "yes": transaction feedback, a money-gain
+ *      animation of the sale price, remove the slot, and recompute combat stats.
+ *
+ * Per-shop-tier dialog text ids come from two short[6] tables indexed by
+ * data_fd2_chapter_intro_menu_cursor_state (the shop variant, 0..5), snapshotted
+ * up front into local arrays (matching the binary's MOVSD block copies):
+ *   sell_for   (0x5272A) -> "what would you sell?" confirm
+ *   no_items   (0x52736) -> "you have nothing to sell" reject
+ *
+ * Price is the 16-bit field at item_entry[+0x13] (same field the buy sibling
+ * reads); fd2_get_item_effect_entry returns the item-effect pointer.
+ *
+ * The binary's __CHK(0x54) stack-probe prologue is compiler-injected and not
+ * part of the source, so it is omitted (as in the sibling shop functions). The
+ * decompiler's frame_pad[4036] / in_stack_00000000 are __CHK artifacts and not
+ * real locals.
+ *
+ * EAX-bug notes (each "CALL then use return" point checked against asm):
+ *   - fd2_party_roster_single_select_loop returns the full int selection
+ *     (-1 cancel), captured as int (no byte narrowing). The seller index is
+ *     then read from data_fd2_ui_menu_cursor_idx.
+ *   - fd2_get_inventory_slot_item_id returns a clean zero-extended byte (its
+ *     tail is MOVZX EAX,[..]; RET), so item_id + 0xB5 and the +0x13 price word
+ *     both use the byte value unambiguously.
+ *   - fd2_shop_menu_input_loop returns the full int (-1 cancel / 1 commit).
+ *   - fd2_text_dialog_typewriter_loop returns the yes/no choice (-1 / else);
+ *     the actual yes/no is then read from data_fd2_ui_menu_cursor_idx (== 1 is
+ *     "no").
+ *
+ * The sale price is a plain signed integer (price*3)>>2 (asm SHL/SUB then SAR),
+ * which floors toward zero for the always-non-negative price*3.
+ * ---------------------------------------------------------------- */
+void fd2_run_sell_item_menu(void)
+{
+    int16   sell_for_table[6];
+    int16   no_items_table[6];
+    uint8   char_inventory[8];
+    uint8  *item_entry;
+    uint32  seller;
+    uint32  slot_idx;
+    uint8   item_id;
+    int     select_result;
+    uint32  inv_count;
+    int     slot_iter;
+    int     menu_result;
+    int     confirm_choice;
+
+    memcpy(sell_for_table, data_fd2_dialog_shop_sell_for_dialog_text_id_table,
+           sizeof(sell_for_table));
+    memcpy(no_items_table,
+           data_fd2_dialog_shop_sell_nothing_to_sell_text_id_table,
+           sizeof(no_items_table));
+
+    for (;;) {
+        data_fd2_ui_menu_visible_item_count =
+            data_fd2_shared_menu_party_member_count;
+        select_result = fd2_party_roster_single_select_loop();
+        fd2_close_intro_dialog_with_slide_out();
+        if (select_result == -1) {
+            return;
+        }
+        seller = data_fd2_ui_menu_cursor_idx;
+
+        inv_count = 0;
+        for (slot_iter = 0; slot_iter < 8; slot_iter++) {
+            if ((data_fd2_battle_runtime_char_array_ptr[seller]
+                     .inventory_slots[slot_iter * 2] & 0x80) == 0) {
+                char_inventory[inv_count] =
+                    data_fd2_battle_runtime_char_array_ptr[seller]
+                        .inventory_slots[slot_iter * 2 + 1];
+                inv_count++;
+            }
+        }
+
+        if (inv_count == 0) {
+            data_fd2_dialog_last_action_sprite_id_param =
+                data_fd2_battle_runtime_char_array_ptr[seller].portrait_id + 1;
+            fd2_load_chapter_portrait(
+                data_fd2_chapter_intro_menu_speaker_portrait_id_table[
+                    data_fd2_chapter_intro_menu_cursor_state]);
+            fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
+                no_items_table[data_fd2_chapter_intro_menu_cursor_state],
+                0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+            fd2_paint_portrait_to_dialog_area(0);
+            fd2_wait_for_input_dialog_with_blink(1);
+            fd2_close_intro_dialog_with_slide_out();
+            continue;
+        }
+
+        data_fd2_ui_menu_cursor_idx = 0;
+        data_fd2_ui_menu_scroll_offset = 0;
+        fd2_open_shop_dialog_panel(inv_count, (uint32)char_inventory, 1);
+        data_fd2_ui_menu_visible_item_count = inv_count;
+        menu_result = fd2_shop_menu_input_loop(inv_count,
+                                               (uint32)char_inventory, 1);
+        if (menu_result == -1) {
+            fd2_close_intro_dialog_with_slide_out();
+            continue;
+        }
+        slot_idx = data_fd2_ui_menu_cursor_idx;
+        fd2_close_intro_dialog_with_slide_out();
+
+        item_id = fd2_get_inventory_slot_item_id(seller,
+                                                 data_fd2_ui_menu_cursor_idx);
+        data_fd2_dialog_last_action_sprite_id_param = item_id + 0xb5;
+        item_entry = fd2_get_item_effect_entry(item_id);
+        data_fd2_dialog_last_action_value_param =
+            (uint32)((int)((uint32)*(uint16 *)(item_entry + 0x13) * 3) >> 2);
+
+        fd2_load_chapter_portrait(
+            data_fd2_chapter_intro_menu_speaker_portrait_id_table[
+                data_fd2_chapter_intro_menu_cursor_state]);
+        fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
+            sell_for_table[data_fd2_chapter_intro_menu_cursor_state],
+            0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+        fd2_paint_portrait_to_dialog_area(0);
+        confirm_choice = fd2_text_dialog_typewriter_loop();
+        fd2_animate_dialog_page_advance_collapse();
+        if (confirm_choice == -1 || data_fd2_ui_menu_cursor_idx == 1) {
+            fd2_close_intro_dialog_with_slide_out();
+            continue;
+        }
+
+        fd2_close_intro_dialog_with_slide_out();
+        fd2_animate_shop_transaction_feedback();
+        fd2_animate_money_increment(data_fd2_dialog_last_action_value_param);
+        fd2_remove_inventory_slot_at(seller, slot_idx);
+        fd2_recalculate_combat_stats(seller);
     }
 }

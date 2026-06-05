@@ -180,6 +180,8 @@ extern int16  data_fd2_dialog_shop_buy_for_dialog_text_id_table[6];        /* 0x
 extern int16  data_fd2_dialog_shop_no_money_dialog_text_id_table[6];       /* 0x52706 */
 extern int16  data_fd2_dialog_shop_no_equip_dialog_text_id_table[6];       /* 0x52712 */
 extern int16  data_fd2_dialog_shop_auto_equip_dialog_text_id_table[6];     /* 0x5271E */
+extern int16  data_fd2_dialog_shop_sell_for_dialog_text_id_table[6];       /* 0x5272A */
+extern int16  data_fd2_dialog_shop_sell_nothing_to_sell_text_id_table[6];  /* 0x52736 */
 extern void  *data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[5];   /* 0x53A18 */
 extern uint32 data_fd2_dialog_portrait_blink_frame_idx;                 /* 0x53A10 */
 extern uint32 data_fd2_dialog_portrait_blink_subtick_counter;           /* 0x53A14 */
