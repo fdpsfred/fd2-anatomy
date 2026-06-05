@@ -454,6 +454,85 @@ static void test_ch1_event3_reloads_race6_brackets_initphase(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_04__unref_dialog_with_state @ 0x343E2
+ *
+ * Dispatch idx 0x04 of the per-event handler table at 0x51B91. No chapter
+ * FDFIELD turn-event / tile-step hook references this slot (unreferenced —
+ * possibly cut content). It is the simplest of the group: a straight-line,
+ * no-branch beat with no RNG, no numeric computation, and no CALL-return value
+ * used. Its ONLY deterministic, non-display state mutation — and thus its entire
+ * testable risk core — is the team flip:
+ *   - runtime_char_array[0xD].team = 1 (哈瓦特, char_id 0xD, flipped to ally);
+ * followed by a single dialog page-7 display.
+ *
+ * The dialog call (fd2_display_dialog_scene, page 7) runs FOR REAL against the
+ * immediate-END dialog program (current_chapter_text[7] -> a single -1 END
+ * opcode): with no portrait open the VM reads END and returns at once, so it
+ * performs zero glyph blits and never touches the compositor, palette, BIOS
+ * tick, or the runtime-char sprite-load opcodes. Handler_04 calls NONE of the
+ * heavy callees the other handlers use (no portrait reload, composite, pan,
+ * cutscene, keyboard flush, or recruit), so the safe env here is just the
+ * runtime-char array (for the team write + index bound) and the immediate-END
+ * dialog program.
+ *
+ * The pure display side effect (the page-7 dialog render path when it is NOT
+ * the immediate-END program) is deferred to Phase 9 integration.
+ * ================================================================ */
+
+/* immediate-END dialog program private to the handler_04 suite (pages 0..0x10
+ * each point at a single -1 END opcode at the tail). */
+static int16 g_ev4_dlg[0x12];
+
+static void ev4_install_safe_env(void)
+{
+    int i;
+
+    /* runtime-char slots: index 0xD must be writable for the team flip, and an
+     * oversized (64-slot) array keeps the write in-bounds. */
+    memset(g_ev_rc, 0, sizeof(g_ev_rc));
+    data_fd2_battle_runtime_char_array_ptr = g_ev_rc;
+
+    /* immediate-END dialog program (pages 0..0x10 -> single END opcode), so the
+     * real fd2_display_dialog_scene(page 7) returns at once with no blits. */
+    for (i = 0; i <= 0x10; i++) {
+        g_ev4_dlg[i] = (int16)(0x11 * 2);   /* byte offset of the END opcode */
+    }
+    g_ev4_dlg[0x11] = -1;                    /* END */
+    current_chapter_text = (uint32)g_ev4_dlg;
+
+    /* no portrait open on entry, so the END path skips the close sequence. */
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+}
+
+/* ----------------------------------------------------------------
+ * The handler flips 哈瓦特 (char_id 0xD) to the ally side and shows dialog
+ * page 7. Its observable, deterministic contract is: runtime_char_array[0xD].team
+ * becomes 1, and the whole beat (the immediate-END page-7 dialog) runs to
+ * completion without faulting.
+ * ---------------------------------------------------------------- */
+static void test_ch_event4_flips_hawat_to_ally(void)
+{
+    ev4_install_safe_env();
+
+    /* perturb char 0xD's team to a non-ally sentinel so the flip is observable,
+     * and seed neighbours so we can confirm the write lands on index 0xD only. */
+    g_ev_rc[0xD].team = 0x55;
+    g_ev_rc[0xC].team = 0x33;
+    g_ev_rc[0xE].team = 0x44;
+
+    fd2_chapter_event_handler_04__unref_dialog_with_state(0);
+
+    /* 哈瓦特 (char_id 0xD) flipped to ally (team 1). */
+    ASSERT_EQ(g_ev_rc[0xD].team, 1);
+
+    /* exactly that slot was touched: neighbours are unchanged. */
+    ASSERT_EQ(g_ev_rc[0xC].team, 0x33);
+    ASSERT_EQ(g_ev_rc[0xE].team, 0x44);
+
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -462,5 +541,6 @@ void run_field_chevt1_tests(void)
     RUN_TEST(test_ch1_event1_fires_appear_anim_for_slot4);
     RUN_TEST(test_ch1_event2_fires_appear_anim_for_slot5);
     RUN_TEST(test_ch1_event3_reloads_race6_brackets_initphase);
+    RUN_TEST(test_ch_event4_flips_hawat_to_ally);
     printf("\n");
 }

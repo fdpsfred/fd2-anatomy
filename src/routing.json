@@ -3590,8 +3590,9 @@
     "name": "fd2_chapter_event_handler_04__unref_dialog_with_state",
     "target": "field/chevt1.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00034422": {
     "name": "fd2_chapter_event_handler_06__ch2_reinforcement",

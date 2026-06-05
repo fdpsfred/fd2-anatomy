@@ -204,6 +204,7 @@ void fd2_chapter_event_handler_00__ch1_dialog_with_state(uint32 event_arg);
 void fd2_chapter_event_handler_01__ch1_dialog_with_state(uint32 event_arg);
 void fd2_chapter_event_handler_02__ch1_dialog_with_state(uint32 event_arg);
 void fd2_chapter_event_handler_03__ch1_dialog_with_state(uint32 event_arg);
+void fd2_chapter_event_handler_04__unref_dialog_with_state(uint32 event_arg);
 
 void fd2_setup_chars_and_camera_for_intro(uint32 pos_x_table, uint32 pos_y_table,
                                           uint32 facing_table, uint32 place_start,

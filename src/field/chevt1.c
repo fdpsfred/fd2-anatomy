@@ -13,6 +13,9 @@
  * fd2_chapter_event_handler_03__ch1_dialog_with_state @ 0x34377
  *     (0 direct callers; dispatched as idx 0x03 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_04__unref_dialog_with_state @ 0x343E2
+ *     (0 direct callers; dispatched as idx 0x04 of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -164,5 +167,35 @@ void fd2_chapter_event_handler_03__ch1_dialog_with_state(uint32 event_arg)
     fd2_clear_all_chars_facing();
     fd2_clear_keyboard_buffer();
     fd2_display_dialog_scene(current_chapter_text, 6, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_04__unref_dialog_with_state @ 0x343E2
+ *   — Dispatch idx 0x04 of the per-event handler table at 0x51B91.
+ *
+ * No chapter FDFIELD turn-event / tile-step hook references this
+ * slot (unreferenced — possibly cut content). Its single beat flips
+ * 哈瓦特 (char_id 0xD) to the ally side (team = 1) and then shows
+ * dialog page 7.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * In the original binary the dialog call is the head of a shared
+ * tail at 0x343FA (PUSH page=7..PUSH current_chapter_text; CALL
+ * fd2_display_dialog_scene; ADD ESP,0x24; RET) that
+ * fd2_chapter_event_handler_11 @ 0x346C8 JMPs into for its own
+ * page-7 dialog; reproduced here as the inline call for Layer-2
+ * equivalence.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_04__unref_dialog_with_state(uint32 event_arg)
+{
+    (void)event_arg;
+
+    data_fd2_battle_runtime_char_array_ptr[0xD].team = 1;
+    fd2_display_dialog_scene(current_chapter_text, 7, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
