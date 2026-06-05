@@ -1,9 +1,9 @@
 /*
- * unit tests for src/field/chevt1.c (part 2 of 2: handlers 04/06/09/0b/0c/0e/0f/10)
+ * unit tests for src/field/chevt1.c (part 2 of 2: handlers 04/06/09/0b/0c/0e/0f/10/11)
  *
  * The chapter turn-event handlers in src/field/chevt1.c are dispatched as
  * indices of the per-event handler table at 0x51B91. Part 1 (chevt11.c) covers
- * the four chapter-1 handlers (00..03); this part covers 04/06/09/0b/0c/0e/0f/10.
+ * the four chapter-1 handlers (00..03); this part covers 04/06/09/0b/0c/0e/0f/10/11.
  * The shared "ch25-style real portrait reload" safe env both parts drive the
  * real callees through lives in tests/include/fieldfix.h.
  */
@@ -875,6 +875,107 @@ static void test_ch5_event10_reloads_portraits_and_shows_dialog(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_11__ch5_dialog_with_state @ 0x346C8
+ *
+ * Dispatch idx 0x11 of the per-event handler table at 0x51B91 — ch5 turn-8
+ * dialog-with-state beat. A straight-line, no-branch sequence (no RNG, no
+ * numeric computation, and no CALL-return value used). It does four things:
+ *   set_combat_aux_block_byte_d_low4_for_char_range(0x30, 0x33, 7);
+ *   display_dialog_scene(page 6, ...);
+ *   cutscene_event_trigger(0x18);
+ *   display_dialog_scene(page 7, ...);
+ *
+ * In the binary the trailing page-7 dialog call is reached by a JMP into the
+ * shared tail of handler_04 at 0x343FA (PUSH page=7..PUSH current_chapter_text;
+ * CALL fd2_display_dialog_scene; ADD ESP,0x24; RET); the emit reproduces that
+ * tail inline.
+ *
+ * The AI-flag arming is its distinguishing, deterministic state contract and
+ * its testable risk core. fd2_set_combat_aux_block_byte_d_low4_for_char_range
+ * is the REAL emitted callee (@0x3419C): for each char i in the INCLUSIVE range
+ * it rewrites combat_aux_block[0xD] = (old & 0xF0) | (7 & 0xFF), i.e. it sets
+ * the low nibble (ai_class) to 7 while PRESERVING the high nibble. Exactly the
+ * four chars 0x30..0x33 are armed; chars 0x2F (below) and 0x34 (above) are left
+ * untouched (inclusive loop 0x30 <= i <= 0x33). The 64-slot fixture keeps the
+ * highest target 0x33 in-bounds.
+ *
+ * The rest of the beat runs FOR REAL against the same proven ch25-style env
+ * handler_06/0f use. Both fd2_display_dialog_scene calls (pages 6 and 7) run
+ * against the immediate-END dialog program (current_chapter_text[6]/[7] -> a
+ * single -1 END opcode): with no portrait open the VM reads END and returns at
+ * once, so each performs zero glyph blits and never touches the compositor,
+ * palette, BIOS tick, or the runtime-char sprite-load opcodes. The single
+ * fd2_cutscene_event_trigger(0x18) runs against a zero-group script (n_groups
+ * byte = 0), so the real interpreter skips the group loop and just composites
+ * one clean frame (against the empty-party workspace env) and returns.
+ *
+ * Observable, deterministic contract asserted: the AI low nibbles land at 7 on
+ * exactly chars 0x30..0x33 with the high nibbles preserved, the two bounding
+ * neighbours (0x2F/0x34) are untouched, and the whole real callee chain (AI
+ * write, immediate-END dialog page 6, zero-group cutscene 0x18, immediate-END
+ * dialog page 7) runs to completion without faulting. The pure blit/display
+ * side effects (dialog glyphs, cutscene compositing) are deferred to Phase 9
+ * integration.
+ * ================================================================ */
+
+/* zero-group cutscene script for event 0x18: n_groups byte = 0, so the real
+ * fd2_cutscene_event_trigger just composites once and returns. */
+static uint8 g_ev11_script_18[1] = { 0 };
+
+static void ev11_install_safe_env(void)
+{
+    /* shared ch25-style env (empty party, gated HUD, throttled palette, real
+     * compositor workspace, immediate-END dialog, empty keyboard buffer).
+     * handler_11 reloads NO portraits, so the reload knobs are unused here. */
+    ev_install_safe_env();
+
+    /* handler_11 fires cutscene EVENT 0x18; register its own zero-group script
+     * so the real fd2_cutscene_event_trigger returns fast. */
+    g_ev11_script_18[0] = 0;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x18] = g_ev11_script_18;
+}
+
+/* ----------------------------------------------------------------
+ * The handler arms the AI/dialog control flag to 7 across one char range and
+ * fires its fixed ch5 turn-8 dialog/cutscene sequence end-to-end. Its
+ * observable, deterministic contract is: the low nibble (ai_class) of
+ * combat_aux_block[0xD] becomes 7 for exactly chars 0x30..0x33 with each high
+ * nibble preserved, the bounding neighbours (0x2F/0x34) are untouched, and the
+ * whole real callee chain (AI write, immediate-END dialog page 6, zero-group
+ * cutscene 0x18, immediate-END dialog page 7) runs to completion without
+ * faulting.
+ * ---------------------------------------------------------------- */
+static void test_ch5_event11_arms_ai_flag7_and_shows_dialogs(void)
+{
+    int i;
+
+    ev11_install_safe_env();
+
+    /* seed the four target chars' combat_aux_block[0xD] with a sentinel whose
+     * high nibble is non-zero and low nibble differs from 7, so both the
+     * low-nibble write to 7 AND the high-nibble preservation are observable. */
+    for (i = 0x30; i <= 0x33; i++) {
+        g_ev_rc[i].combat_aux_block[0xD] = 0x52;
+    }
+    /* bounding neighbours just outside the inclusive range. */
+    g_ev_rc[0x2F].combat_aux_block[0xD] = 0x41;
+    g_ev_rc[0x34].combat_aux_block[0xD] = 0x42;
+
+    fd2_chapter_event_handler_11__ch5_dialog_with_state(0);
+
+    /* exactly chars 0x30..0x33 armed: low nibble -> 7, high nibble (0x50) kept. */
+    for (i = 0x30; i <= 0x33; i++) {
+        ASSERT_EQ(g_ev_rc[i].combat_aux_block[0xD], 0x57);
+    }
+
+    /* bounding neighbours just outside the inclusive range left untouched. */
+    ASSERT_EQ(g_ev_rc[0x2F].combat_aux_block[0xD], 0x41);
+    ASSERT_EQ(g_ev_rc[0x34].combat_aux_block[0xD], 0x42);
+
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt12_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -889,5 +990,6 @@ void run_field_chevt12_tests(void)
     RUN_TEST(test_ch5_event0e_disarms_two_ranges_and_shows_dialog);
     RUN_TEST(test_ch5_event0f_reloads_and_disarms_two_ranges);
     RUN_TEST(test_ch5_event10_reloads_portraits_and_shows_dialog);
+    RUN_TEST(test_ch5_event11_arms_ai_flag7_and_shows_dialogs);
     printf("\n");
 }

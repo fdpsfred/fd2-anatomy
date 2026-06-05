@@ -37,6 +37,9 @@
  * fd2_chapter_event_handler_10__ch5_dialog @ 0x34696
  *     (0 direct callers; dispatched as idx 0x10 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_11__ch5_dialog_with_state @ 0x346C8
+ *     (0 direct callers; dispatched as idx 0x11 of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -472,5 +475,40 @@ void fd2_chapter_event_handler_10__ch5_dialog(uint32 event_arg)
 
     fd2_load_chapter_portraits_and_dump_tmp(3);
     fd2_display_dialog_scene(current_chapter_text, 5, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_11__ch5_dialog_with_state @ 0x346C8
+ *   — Chapter 5 turn-event slot 3 (triggered at turn 8 / phase 0),
+ *     dispatched as idx 0x11 of the per-event handler table at 0x51B91.
+ *
+ * ch5 turn-8 beat: a straight-line, no-branch sequence (no RNG, no
+ * numeric computation, and no CALL-return value used). It arms the
+ * per-event AI/dialog control flag (low 4 bits of combat_aux_block[0xD])
+ * to 7 across chars 0x30..0x33 (4 chars), shows dialog page 6, plays
+ * cutscene event 0x18, then shows dialog page 7.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * In the original binary the trailing page-7 dialog call is reached by
+ * a JMP into the shared tail of handler_04 at 0x343FA (PUSH page=7 ..
+ * PUSH current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24;
+ * RET); reproduced here as the inline call for Layer-2 equivalence.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_05.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_11__ch5_dialog_with_state(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x30, 0x33, 7);
+    fd2_display_dialog_scene(current_chapter_text, 6, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_cutscene_event_trigger(0x18);
+    fd2_display_dialog_scene(current_chapter_text, 7, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
