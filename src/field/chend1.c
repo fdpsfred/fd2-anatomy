@@ -573,3 +573,36 @@ void fd2_chapter_12_end(void)
     fd2_init_runtime_char_from_base_growth(0x11);
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_13_end @ 0x2389F  (0 direct callers; dispatched via the
+ *   chapter-end handler pointer table @ 0x51DE9)
+ *
+ * Chapter 13「哈斯米爾之戰」end handler. Shows the chapter-end dialog page 9,
+ * persists the party's runtime-character state back to the template store,
+ * recruits char #3 (哈瓦特) via fd2_init_runtime_char_from_base_growth, then
+ * advances the current-chapter id by 1.
+ *
+ * In the binary the function ends with `PUSH 3; JMP 0x237C8`, a tail-jump into
+ * the shared snippet @ 0x237C8 (CALL fd2_init_runtime_char_from_base_growth;
+ * ADD ESP,4; JMP 0x231F2 — INC current_chapter_id; RET), reusing the tail of
+ * fd2_chapter_11_end. It is emitted here as a self-contained function (Layer 2
+ * functional equivalence — the jump-into-middle sharing is not preserved in
+ * source).
+ *
+ * Note: the walkthrough's「哈瓦諾」is a typo for 哈瓦特 (char 3).
+ *
+ * Paired init handler: fd2_chapter_13_init @ 0x3346B.
+ * Post-action handler: fd2_chapter_13_post_action @ 0x20765 (non-default lose
+ *   checks: (1) chars[0xF..0x1A] 12 NPC all dead -> lose + dialog page 10;
+ *   (2) save_metadata > 5 AND char[0x3B] dead -> lose + dialog page 2).
+ * Walkthrough: assets/chapters/chapter_13.md.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_13_end(void)
+{
+    fd2_display_dialog_scene(current_chapter_text, 9, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+    fd2_save_runtime_char_to_template();
+    fd2_init_runtime_char_from_base_growth(3);
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}

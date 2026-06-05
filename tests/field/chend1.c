@@ -2513,6 +2513,140 @@ static void test_chapter_12_end_increments_not_absolute(void)
     ASSERT_EQ((long)chapter_id, 8L);           /* 7 + 1, not a constant */
 }
 
+/* ================================================================
+ * fd2_chapter_13_end @ 0x2389F
+ *
+ * The Chapter 13「哈斯米爾之戰」end handler is a straight-line (no-branch)
+ * orchestrator — the same trivial 4-step shape as chapter 11 (dialog page →
+ * save → single recruit → INC id), differing only in the page (9), the
+ * recruited char id (#3 哈瓦特), and the chapter transition (12 -> 13):
+ *   (1) shows chapter-end dialog page 9 via the real fd2_display_dialog_scene,
+ *   (2) persists battle-runtime char state via the real
+ *       fd2_save_runtime_char_to_template,
+ *   (3) recruits char #3 (哈瓦特) via the real
+ *       fd2_init_runtime_char_from_base_growth (appends a roster slot from the
+ *       static char base/growth tables), then
+ *   (4) advances chapter_id by 1 (the binary's `PUSH 3; JMP 0x237C8` tail-jump
+ *       reuses chapter 11's tail: recruit, then `INC [0x53c03]; RET` @ 0x231F2).
+ *
+ * Every callee is the real linked function (no fakes). The fixture stands up the
+ * same safe headless env the chapter 11 suite uses for the same real callees:
+ * current_chapter_text points at a minimal int16 program whose page-9 header word
+ * redirects to one glyph (0x33) + END (so the real dialog VM runs headless via
+ * the testglob.c glyph recorder, BIOS kbd buffer empty, portrait latch cleared),
+ * plus a zeroed runtime-char array + zeroed roster with the roster pointer set and
+ * member_count = 1, so the real save pass runs harmlessly and the recruit appends
+ * at slot 1 (observable as a 1 -> 2 roster delta).
+ *
+ * Asserted: the dialog VM actually ran against page 9 (glyph id 0x33 pins the
+ * page index / text base), char #3 was recruited (roster count delta), and the
+ * chapter-id transition is a relative INCREMENT (not an absolute set). The dialog
+ * page's pixels are display side-effects deferred to Phase 9.
+ * ================================================================ */
+
+static uint8 g_ce13_roster[8 * 0x50];
+static int16 g_ce13_text[24];
+
+static void ce13_fixture_reset(void)
+{
+    int i;
+
+    /* dialog VM safe env. */
+    *(volatile uint16 *)0x41AuL = 0x20;   /* BIOS kbd buffer head == tail */
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+
+    /* dialog program: page 9's header word (prog[9]) is a byte offset that
+     * redirects cur_op to prog[10] = one glyph (0x33), prog[11] = -1 END. */
+    for (i = 0; i < 24; i++) {
+        g_ce13_text[i] = 0;
+    }
+    g_ce13_text[9] = 20;        /* byte offset to prog[10] (page 9 start) */
+    g_ce13_text[10] = 0x33;     /* one glyph */
+    g_ce13_text[11] = -1;       /* END */
+    current_chapter_text = (uint32)g_ce13_text;
+
+    /* save + recruit safe env (chapter 01 baseline): zeroed runtime chars +
+     * zeroed roster, one scanned runtime char and one template entry so the
+     * recruit appends at slot 1. */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(g_ce13_roster, 0, sizeof(g_ce13_roster));
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_ce13_roster;
+    g_check_char_is_dead_return = 0;
+    data_fd2_battle_party_member_count = 1;
+    data_fd2_shared_menu_party_member_count = 1;  /* recruit appends at slot 1 */
+
+    /* preset chapter id below (per test) so the transition is observable. */
+    data_fd2_chapter_current_chapter_id = 0;
+}
+
+static void ce13_fixture_teardown(void)
+{
+    current_chapter_text = 0;
+    data_fd2_shared_menu_party_roster_buffer_ptr = 0;
+    data_fd2_shared_menu_party_member_count = 0;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_chapter_current_chapter_id = 1;
+}
+
+/* ----------------------------------------------------------------
+ * End-to-end: the straight-line handler runs dialog page 9 (its single glyph
+ * 0x33), persists the party, recruits char #3, and advances chapter_id 12 -> 13
+ * (chapter 13 follows chapter 12). The glyph recorder proves the real dialog VM
+ * ran on page 9 of current_chapter_text (guards a wrong text base / page index);
+ * the roster delta proves the real recruit ran.
+ * ---------------------------------------------------------------- */
+static void test_chapter_13_end_runs_dialog_recruits_and_increments_id(void)
+{
+    int    glyph_calls;
+    uint32 glyph_idx;
+    uint32 recruit_count;
+    uint32 chapter_id;
+
+    ce13_fixture_reset();
+    data_fd2_chapter_current_chapter_id = 12;  /* chapter 13 follows chapter 12 */
+
+    fd2_chapter_13_end();
+
+    glyph_calls   = g_dlg_glyph_calls;
+    glyph_idx     = g_dlg_glyph_last_idx;
+    recruit_count = data_fd2_shared_menu_party_member_count;
+    chapter_id    = data_fd2_chapter_current_chapter_id;
+    ce13_fixture_teardown();
+
+    /* page 9 redirected to a single glyph: the real VM blitted exactly it. */
+    ASSERT_EQ((long)glyph_calls, 1);
+    ASSERT_EQ((long)glyph_idx, (long)0x33);
+
+    /* char #3 recruited (roster grew 1 -> 2). */
+    ASSERT_EQ((long)recruit_count, 2L);
+
+    /* state transition: id incremented 12 -> 13 (relative, not absolute). */
+    ASSERT_EQ((long)chapter_id, 13L);
+}
+
+/* ----------------------------------------------------------------
+ * The chapter-id update is a relative INCREMENT, not an absolute set: seeded
+ * with a distinctive unrelated value (7), the handler leaves 8 — proving it does
+ * not hardcode the id to 13.
+ * ---------------------------------------------------------------- */
+static void test_chapter_13_end_increments_not_absolute(void)
+{
+    uint32 chapter_id;
+
+    ce13_fixture_reset();
+    data_fd2_chapter_current_chapter_id = 7;   /* distinctive, unrelated to 13 */
+
+    fd2_chapter_13_end();
+
+    chapter_id = data_fd2_chapter_current_chapter_id;
+    ce13_fixture_teardown();
+
+    ASSERT_EQ((long)chapter_id, 8L);           /* 7 + 1, not a constant */
+}
+
 void run_field_chend1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -2542,5 +2676,7 @@ void run_field_chend1_tests(void)
     RUN_TEST(test_chapter_11_end_increments_not_absolute);
     RUN_TEST(test_chapter_12_end_stages_scene_cutscene_and_recruits);
     RUN_TEST(test_chapter_12_end_increments_not_absolute);
+    RUN_TEST(test_chapter_13_end_runs_dialog_recruits_and_increments_id);
+    RUN_TEST(test_chapter_13_end_increments_not_absolute);
     printf("\n");
 }
