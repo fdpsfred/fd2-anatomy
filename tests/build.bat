@@ -63,6 +63,7 @@ D:\BIN\WCC386.EXE E:\dialog\dialog.c %CF% -fo=E:\out\obj\tdialog.obj >> E:\out\b
 D:\BIN\WCC386.EXE E:\field\chend2.c %CF% -fo=E:\out\obj\tchend2.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\field\chevt11.c %CF% -fo=E:\out\obj\tchevt11.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\field\chevt12.c %CF% -fo=E:\out\obj\tchevt12.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE E:\field\chevt13.c %CF% -fo=E:\out\obj\tchevt13.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\field\chtrans.c %CF% -fo=E:\out\obj\tchtrans.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\gfx\blitspr.c %CF% -fo=E:\out\obj\tblitspr.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\gfx\blittile.c %CF% -fo=E:\out\obj\tblittil.obj >> E:\out\build.out

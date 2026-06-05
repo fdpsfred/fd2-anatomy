@@ -35,6 +35,7 @@ extern void run_dialog_dialog_tests(void);
 extern void run_field_chend2_tests(void);
 extern void run_field_chevt11_tests(void);
 extern void run_field_chevt12_tests(void);
+extern void run_field_chevt13_tests(void);
 extern void run_field_chtrans_tests(void);
 extern void run_gfx_blitspr_tests(void);
 extern void run_gfx_blittile_tests(void);
@@ -86,6 +87,7 @@ int main(void)
     run_field_chend2_tests();
     run_field_chevt11_tests();
     run_field_chevt12_tests();
+    run_field_chevt13_tests();
     run_field_chtrans_tests();
     run_gfx_blitspr_tests();
     run_gfx_blittile_tests();
