@@ -3750,8 +3750,9 @@
     "name": "fd2_chapter_event_handler_1c__ch8_ai_ctrl",
     "target": "field/chevt1.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00034a3c": {
     "name": "fd2_chapter_event_handler_1d__unref_dialog_with_state",

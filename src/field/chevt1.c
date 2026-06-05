@@ -66,6 +66,10 @@
  * fd2_chapter_event_handler_1a__ch7_char_cond @ 0x3499B
  *     (0 direct callers; dispatched as idx 0x1A of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_1c__ch8_ai_ctrl @ 0x34A0E
+ *     (1 caller: fd2_chapter_event_handler_1d__unref_dialog_with_state
+ *      @ 0x34A3C; also dispatched as idx 0x1C of the per-event handler
+ *      table at 0x51B91)
  */
 
 #include <string.h>
@@ -935,4 +939,40 @@ void fd2_chapter_event_handler_1b__ch8_cinematic(uint32 event_arg)
     __delay_thunk_375b2(100);
     fd2_load_chapter_portraits_and_dump_tmp(data_fd2_battle_turn_counter);
     __delay_thunk_375b2(100);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_1c__ch8_ai_ctrl @ 0x34A0E
+ *   — Chapter 8 turn-event slot 6 (triggered at turn 15 / phase 0),
+ *     dispatched as idx 0x1C of the per-event handler table at 0x51B91.
+ *     Also tail-called from
+ *     fd2_chapter_event_handler_1d__unref_dialog_with_state @ 0x34A3C.
+ *
+ * ch8 turn-15 AI-control beat: for the 18 runtime-char slots 0x0A..0x1B,
+ * clear bits 0-6 of combat_aux_block[0xD] (the AI-class / sub-state byte),
+ * preserving only bit 7 (the high "locked" bit):
+ *   for (i = 0; i < 0x12; i++)
+ *       runtime_char[i + 10].combat_aux_block[0xD] &= 0x80;
+ *
+ * No dialog, no RNG, no CALL-return value used; a single masked write per
+ * slot. (This clears the low 7 bits, unlike
+ * fd2_set_combat_aux_block_byte_d_low4_for_char_range, which only touches
+ * the low 4 bits.)
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91 (1-arg
+ * uniform cdecl); the body never reads the arg. EBX is callee-saved; the
+ * __CHK(8) stack-probe prologue is compiler-injected and omitted here.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_08.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_1c__ch8_ai_ctrl(uint32 event_arg)
+{
+    int32 i;
+
+    (void)event_arg;
+
+    for (i = 0; i < 0x12; i++) {
+        data_fd2_battle_runtime_char_array_ptr[i + 10].combat_aux_block[0xD] &=
+            0x80;
+    }
 }

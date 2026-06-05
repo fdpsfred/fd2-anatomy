@@ -1,12 +1,13 @@
 /*
  * unit tests for src/field/chevt1.c (part 3: handler 18 +
- * fd2_show_chapter_intro_text_dialog_mode_3 + handler 19 + handler 1A)
+ * fd2_show_chapter_intro_text_dialog_mode_3 + handlers 19, 1A, 1B, 1C)
  *
  * The chapter turn-event handlers in src/field/chevt1.c are dispatched as
  * indices of the per-event handler table at 0x51B91. Parts 1/2 (chevt11.c /
  * chevt12.c) cover handlers 00..17; this part covers handler 18, the named
- * helper fd2_show_chapter_intro_text_dialog_mode_3 @ 0x34906, handler 19, and
- * the tile-step char-conditional handler 1A.
+ * helper fd2_show_chapter_intro_text_dialog_mode_3 @ 0x34906, handler 19, the
+ * tile-step char-conditional handler 1A, the ch8 every-turn cinematic handler
+ * 1B, and the ch8 turn-15 AI-control handler 1C.
  *
  * fd2_chapter_event_handler_18__unref_dialog @ 0x348FC is dispatch idx 0x18 of
  * that table. No chapter FDFIELD turn-event / tile-step hook references the
@@ -493,6 +494,60 @@ static void test_ch8_event1b_runs_cinematic_with_turn_keyed_reload(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_1c__ch8_ai_ctrl @ 0x34A0E
+ *
+ * Dispatch idx 0x1C of the per-event handler table at 0x51B91 (chapter 8
+ * turn-event slot 6, turn 15 / phase 0); also tail-called from handler_1D
+ * @ 0x34A3C. A straight-line AI-control beat with NO branch, no RNG and no
+ * CALL-return value used: a single masked write per slot over the 18
+ * runtime-char slots 0x0A..0x1B inclusive:
+ *   for (i = 0; i < 0x12; i++)
+ *       runtime_char[i + 10].combat_aux_block[0xD] &= 0x80;
+ *
+ * The testable risk core is the exact MASK and the exact slot RANGE. There is
+ * no display side effect, so every effect is a directly observable in-memory
+ * write. Seeding combat_aux_block[0xD] = 0xFF for every char makes the mask
+ * fully discriminating: an in-range slot must become 0x80 (low 7 bits cleared,
+ * bit 7 preserved) — distinguishing the &= 0x80 mask from &= 0xF0 (the low-4
+ * variant fd2_set_combat_aux_block_byte_d_low4_for_char_range, which would
+ * leave 0xF0), from &= 0x0F (would leave 0x0F) and from a no-op (0xFF). The
+ * range boundaries are pinned explicitly: slots 0x09 (just below) and 0x1C
+ * (just above) must stay 0xFF, and the bottom/top edges 0x0A and 0x1B must be
+ * cleared to 0x80.
+ * ================================================================ */
+
+/* local runtime-char array for handler_1C: oversized so the cleared range
+ * [0x0A,0x1B] and both just-outside boundary slots (0x09, 0x1C) are
+ * in-bounds. */
+static runtime_char g_ev1c_rc[64];
+
+static void test_ch8_event1c_clears_low7_bits_for_slots_0a_1b(void)
+{
+    int i;
+
+    /* seed every char's combat_aux_block[0xD] with 0xFF so a masked write is
+     * observable as 0xFF -> 0x80 (bit 7 kept, low 7 cleared) and an untouched
+     * char keeps 0xFF. */
+    memset(g_ev1c_rc, 0, sizeof(g_ev1c_rc));
+    for (i = 0; i < 64; i++) {
+        g_ev1c_rc[i].combat_aux_block[0xD] = 0xFF;
+    }
+    data_fd2_battle_runtime_char_array_ptr = g_ev1c_rc;
+
+    fd2_chapter_event_handler_1c__ch8_ai_ctrl(0);
+
+    /* slots 0x0A..0x1B inclusive (18 chars): low 7 bits cleared, bit 7 kept. */
+    for (i = 0x0A; i <= 0x1B; i++) {
+        ASSERT_EQ(g_ev1c_rc[i].combat_aux_block[0xD], 0x80);
+    }
+    /* boundaries just outside the cleared range are untouched. */
+    ASSERT_EQ(g_ev1c_rc[0x09].combat_aux_block[0xD], 0xFF);
+    ASSERT_EQ(g_ev1c_rc[0x1C].combat_aux_block[0xD], 0xFF);
+
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt13_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -505,5 +560,6 @@ void run_field_chevt13_tests(void)
     RUN_TEST(test_ch7_event1a_npc_steps_disarms_and_consumes);
     RUN_TEST(test_ch7_event1a_enemy_steps_skips_beat);
     RUN_TEST(test_ch8_event1b_runs_cinematic_with_turn_keyed_reload);
+    RUN_TEST(test_ch8_event1c_clears_low7_bits_for_slots_0a_1b);
     printf("\n");
 }
