@@ -376,6 +376,62 @@ static void test_h3e_turn_counter_high_bytes_ignored(void)
     ce3e_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_3f__ch27_ai_ctrl @ 0x358C7
+ *
+ * 2-portrait cinematic pair (ch27 turn-FF marker). Functionally-exact body:
+ *     fd2_cinematic_chapter_portrait_dump_with_white_flash(3,   0x1B, 1);
+ *     fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(0xF, 0x1B, 2);
+ * (the second cutscene reaches the cinematic helper through the transparent
+ * wrap thunk, which the binary tail-JMPs into to borrow its cleanup tail).
+ *
+ * The cinematic helper's own contract (arg order, low-byte chapter_id, the
+ * 300/200/400 delay triple) is already pinned by the three
+ * test_white_flash_* cases above; what is risk-bearing HERE is the handler's
+ * own argument routing — two cutscenes, in order, with the right literal
+ * chapter ids (1 then 2) and the second targeting tile (0xF, 0x1B). All three
+ * are driven over the real helper + real portrait loader (real FDFIELD.DAT):
+ *   (a) BOTH cutscenes run, in order: the delay log holds exactly two
+ *       300/200/400 triples (6 ticks),
+ *   (b) the SECOND cutscene targets (0xF, 0x1B) and runs last: the final
+ *       window origin lands on (0xF, 0x1B),
+ *   (c) the two chapter ids are exactly {1, 2} in that order: the tile-event
+ *       table carries one race-1 record (index 0) and TWO race-2 records
+ *       (indices 1, 2). Cutscene 1 (chapter 1) matches the single race-1
+ *       record (count += 1); cutscene 2 (chapter 2) matches both race-2
+ *       records (count += 2) -> total 3. This count is unique to the correct
+ *       {1, 2} pair: a duplicated {1,1} would total 2, a duplicated {2,2}
+ *       would total 4, so 3 proves both the values AND their order.
+ * The two pan composites and the white-flash palette writes execute for real
+ * as a byproduct (pure display side effects, deferred to Phase 9).
+ * ================================================================ */
+static void test_h3f_two_portrait_pair_routes_both_cutscenes(void)
+{
+    static const uint8 races[3] = { 1, 2, 2 };  /* race-1 x1, race-2 x2 */
+
+    /* window starts away from (0xF, 0x1B) on both axes so the second pan is
+     * observable on the final origin */
+    ce23_setup(3, races, 0x40, 0x40);
+
+    fd2_chapter_event_handler_3f__ch27_ai_ctrl(0);
+
+    /* (a) both cutscenes ran fully, in order: two 300/200/400 triples */
+    ASSERT_EQ((long)g_delay375b2_log_count, 6);
+    ASSERT_EQ((long)g_delay375b2_log[0], 300);
+    ASSERT_EQ((long)g_delay375b2_log[1], 200);
+    ASSERT_EQ((long)g_delay375b2_log[2], 400);
+    ASSERT_EQ((long)g_delay375b2_log[3], 300);
+    ASSERT_EQ((long)g_delay375b2_log[4], 200);
+    ASSERT_EQ((long)g_delay375b2_log[5], 400);
+    /* (b) the second cutscene targeted (0xF, 0x1B) and ran last */
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_x, 0xF);
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_y, 0x1B);
+    /* (c) chapter ids were exactly {1, 2}: 1 (race-1 x1) + 2 (race-2 x2) = 3 */
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 3);
+
+    ce23_teardown();
+}
+
 void run_field_chevt23_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -387,5 +443,6 @@ void run_field_chevt23_tests(void)
     RUN_TEST(test_h3e_already_consumed_is_noop);
     RUN_TEST(test_h3e_turn_counter_byte_wraps);
     RUN_TEST(test_h3e_turn_counter_high_bytes_ignored);
+    RUN_TEST(test_h3f_two_portrait_pair_routes_both_cutscenes);
     printf("\n");
 }

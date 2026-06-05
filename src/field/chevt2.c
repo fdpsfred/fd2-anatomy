@@ -692,3 +692,32 @@ void fd2_chapter_event_handler_3e__ch27_dyn_turn_event(uint32 event_arg)
         *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x11) = 1;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_3f__ch27_ai_ctrl @ 0x358C7
+ *   (1 caller: dispatch table @ 0x51B91, entry @ 0x51C8D)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x3F. Triggered
+ * in chapter 27 at turn-event slot 0 (turn=0xFF / sentinel marker). Category:
+ * 2-portrait cinematic pair. Dispatch-table signature is 1-arg cdecl
+ * (void fn(uint event_arg)); this handler does not read the arg.
+ *
+ * Effect: ch27 turn-FF marker — a 2-portrait reveal. The first portrait white-
+ * flash cutscene is shown at tile (3, 0x1B) with chapter id 1, the second at
+ * tile (0xF, 0x1B) with chapter id 2.
+ *
+ * In the binary the second cutscene is reached by pushing its 3 args (0xF,
+ * 0x1B, 2) and tail-JMPing into fd2_wrap_cinematic_chapter_portrait_dump_with_
+ * white_flash @ 0x35318, so the handler borrows that thunk's 0xC-byte cleanup
+ * tail instead of emitting its own. The thunk forwards the args straight to
+ * fd2_cinematic_chapter_portrait_dump_with_white_flash @ 0x35822; calling the
+ * thunk here keeps that documented tail-JMP relationship intact and is
+ * functionally exact.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_3f__ch27_ai_ctrl(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_cinematic_chapter_portrait_dump_with_white_flash(3, 0x1B, 1);
+    fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(0xF, 0x1B, 2);
+}
