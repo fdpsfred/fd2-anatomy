@@ -3220,8 +3220,9 @@
     "name": "fd2_execute_class_promotion_with_dialog",
     "target": "ui_menu/promote.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00031793": {
     "name": "fd2_build_promotion_candidates_with_targets",

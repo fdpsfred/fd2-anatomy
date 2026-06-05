@@ -296,6 +296,112 @@ int fd2_promote_member_select_loop(int char_count, void *char_list_ptr,
 }
 
 /* ----------------------------------------------------------------
+ * fd2_execute_class_promotion_with_dialog @ 0x31602  (1 caller)
+ *
+ * Class-promotion finalization with stat-gain dialogs. char_idx =
+ * index into the runtime_char array. Sole caller:
+ * fd2_run_class_promotion_menu_main @ 0x31385 (after the candidate has
+ * been picked, confirmed, the required item consumed, the promotion
+ * fanfare/cinematic played, and job_id/portrait_id written back).
+ *
+ * Sequence:
+ *   1. growth = fd2_get_char_growth_entry(rt_chars[idx].portrait_id) ->
+ *      pointer to this (new) class's growth table row (5 (min,max) byte
+ *      pairs: AP, DP, DX, HP, MP).
+ *   2. Reload the speaker portrait and set the dialog substitution sprite
+ *      id = rt_chars[idx].job_id + 0x96 ("becomes [class]" portrait).
+ *   3. Show the "becomes [class]" dialog (FDTXT page 0x253) + paint the
+ *      portrait + clear keyboard.
+ *   4. Five fd2_roll_stat_gain_and_show_message rolls, one per stat. Each
+ *      takes the stat's 16-bit raw slot, the matching (min,max) growth
+ *      pair, the per-stat message page (0x1EA..0x1EE), and a 4-row dialog
+ *      cursor that it returns advanced (so the messages stack down the
+ *      box); the cursor is threaded call-to-call. The final return is the
+ *      row index reused as the spell-dialog vertical offset base.
+ *        +0x37 (combat_aux[0x10], AP raw)  growth+0  page 0x1EA
+ *        +0x39 (combat_aux[0x12], DP raw)  growth+2  page 0x1EB
+ *        +0x3E (ai_target_and_dx[1], DX raw) growth+4 page 0x1EC
+ *        +0x42 (hp_max)                    growth+6  page 0x1ED
+ *        +0x46 (mp_max)                    growth+8  page 0x1EE
+ *   5. promo_entry = fd2_get_class_promotion_data_entry(rt_chars[idx].
+ *      portrait_id). If promo_entry[1] != 0 (this class learns a spell on
+ *      promotion): stash it as the dialog value, show the "learns [spell]"
+ *      dialog (page 0x254) at row*0x17C0 + base, wait for a keypress, then
+ *      append the spell id to combat_aux[0x14] (the known-spell list tail).
+ *   6. fd2_recalculate_combat_stats(idx) (re-derive AP/DP/DX/EV from the
+ *      new raw stats + equipment) then slide the dialog out.
+ *   7. Reset to a fresh level-1 state for the new class: status_flags[0]
+ *      (level) = 1, movement_order = 0 (XP-carry reset), and full-restore
+ *      HP/MP (current = max).
+ *   8. Clear the keyboard buffer.
+ *
+ * void __cdecl with the __CHK(0x34) stack-probe prologue (compiler-
+ * injected, not part of the source). EDI caches the growth pointer, then
+ * is reused for the threaded stat-roll cursor; ESI holds &rt_chars[idx];
+ * the trailing POP EDI,ESI,EBX / RET is the function's own epilogue.
+ *
+ * EAX-tracking note (verified against the asm): the five
+ * fd2_roll_stat_gain_and_show_message calls each PUSH their EAX result
+ * straight into the next call's 4th arg (the threaded cursor), and the
+ * last one is MOV EDI,EAX (reused as the spell-dialog row base), so all
+ * five return values are genuinely consumed. fd2_get_class_promotion_
+ * data_entry returns a pointer immediately dereferenced (MOVZX EAX,
+ * byte ptr [EAX+1]); the TEST EAX,EAX is the real has-a-spell test.
+ * ---------------------------------------------------------------- */
+void fd2_execute_class_promotion_with_dialog(uint32 char_idx)
+{
+    uint8 *growth;
+    int row;
+    uint8 *promo_entry;
+    runtime_char *rt_chars;
+
+    rt_chars = data_fd2_battle_runtime_char_array_ptr;
+    growth = fd2_get_char_growth_entry((int)rt_chars[char_idx].portrait_id);
+    fd2_clear_keyboard_buffer();
+    fd2_load_chapter_portrait((uint32)rt_chars[char_idx].portrait_id);
+    data_fd2_dialog_last_action_sprite_id_param =
+        (uint32)rt_chars[char_idx].job_id + 0x96;
+    fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x253, 0xa951f,
+        0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_paint_portrait_to_dialog_area(0);
+    fd2_clear_keyboard_buffer();
+
+    row = fd2_roll_stat_gain_and_show_message(
+        (short *)(rt_chars[char_idx].combat_aux_block + 0x10),
+        growth, 0x1ea, 1);
+    row = fd2_roll_stat_gain_and_show_message(
+        (short *)(rt_chars[char_idx].combat_aux_block + 0x12),
+        growth + 2, 0x1eb, row);
+    row = fd2_roll_stat_gain_and_show_message(
+        (short *)(rt_chars[char_idx].ai_target_and_dx_block + 1),
+        growth + 4, 0x1ec, row);
+    row = fd2_roll_stat_gain_and_show_message(
+        (short *)&rt_chars[char_idx].hp_max, growth + 6, 0x1ed, row);
+    row = fd2_roll_stat_gain_and_show_message(
+        (short *)&rt_chars[char_idx].mp_max, growth + 8, 0x1ee, row);
+
+    promo_entry = fd2_get_class_promotion_data_entry(
+        (int)rt_chars[char_idx].portrait_id);
+    if (promo_entry[1] != 0) {
+        data_fd2_dialog_last_action_value_param = (uint32)promo_entry[1];
+        fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x254,
+            (uint32)(row * 0x17c0 + 0xa951f), 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+        fd2_wait_for_input_dialog_with_blink(0);
+        rt_chars[char_idx].combat_aux_block[0x14] = (uint8)
+            (rt_chars[char_idx].combat_aux_block[0x14] +
+             (int8)data_fd2_dialog_last_action_value_param);
+    }
+
+    fd2_recalculate_combat_stats(char_idx);
+    fd2_close_intro_dialog_with_slide_out();
+    rt_chars[char_idx].status_flags_block[0] = 1;
+    rt_chars[char_idx].movement_order = 0;
+    rt_chars[char_idx].hp_current = rt_chars[char_idx].hp_max;
+    rt_chars[char_idx].mp_current = rt_chars[char_idx].mp_max;
+    fd2_clear_keyboard_buffer();
+}
+
+/* ----------------------------------------------------------------
  * fd2_run_class_promotion_menu_main @ 0x31385  (1 caller)
  *
  * CLASS PROMOTION main menu (church / promotion service). Sole caller:

@@ -681,20 +681,59 @@ uint8 fd2_build_promotion_candidates_with_targets(uint8 *out_chars,
     return g_promote_cand_count_return;
 }
 
-/* fd2_find_inventory_slot_with_item @ 0x31860 and
- * fd2_execute_class_promotion_with_dialog @ 0x31602: not yet emitted; no-op
- * link stubs so fd2_run_class_promotion_menu_main links. Neither is reached
- * on the count==0 early-return path the unit test drives; their behavioral
- * coverage rides with the (Phase 9 integration) commit path. */
+/* fd2_find_inventory_slot_with_item @ 0x31860: not yet emitted; no-op link
+ * stub so fd2_run_class_promotion_menu_main links. Not reached on the
+ * count==0 early-return path the unit test drives; its behavioral coverage
+ * rides with the (Phase 9 integration) commit path.
+ * (fd2_execute_class_promotion_with_dialog @ 0x31602 is now emitted for real
+ * in src/ui_menu/promote.c and linked for real.) */
 int fd2_find_inventory_slot_with_item(uint32 char_idx, uint32 item_id)
 {
     (void)char_idx;
     (void)item_id;
     return -1;
 }
-void fd2_execute_class_promotion_with_dialog(uint32 char_idx)
+
+/* fd2_roll_stat_gain_and_show_message @ 0x1E529: not yet emitted (its real
+ * emit lands in battle/btl_turn.c); controllable fake so its two callers
+ * (fd2_execute_class_promotion_with_dialog @ 0x31602 and
+ * fd2_process_xp_and_level_up_for_char) link and can be driven without the
+ * real RNG roll + blocking stat-gain dialog. The fake records the threaded
+ * 4-row cursor it was last handed and returns g_roll_stat_next_row so the
+ * caller's row-threading and final-row-as-spell-offset wiring stay testable;
+ * it does NOT mutate *stat_ptr (the real roll's stat add is exercised in the
+ * real function's own emit test, not via this caller).
+ *
+ * g_roll_stat_arm_kbd_on_call: when set, each invocation pre-arms the BIOS
+ * keyboard buffer NONEMPTY. The class-promotion caller drains the buffer
+ * (fd2_clear_keyboard_buffer) BEFORE these rolls and then, in its learned-
+ * spell branch, blocks on fd2_wait_for_input_dialog_with_blink(0) AFTER them;
+ * an in-process test cannot inject the awaited keypress between the drain and
+ * that wait, so the fake stands in for the player's keypress (the real roll's
+ * own clear/redisplay does not run here). The intervening real
+ * fd2_display_dialog_scene does not drain the buffer (proven by the sibling
+ * no-candidates test), so the armed state survives to the blink-wait. */
+int    g_roll_stat_calls = 0;
+short *g_roll_stat_last_stat_ptr = 0;
+uint8 *g_roll_stat_last_growth_ptr = 0;
+uint32 g_roll_stat_last_text_id = 0;
+int    g_roll_stat_last_row = 0;
+int    g_roll_stat_next_row = 0;
+int    g_roll_stat_arm_kbd_on_call = 0;
+int fd2_roll_stat_gain_and_show_message(short *stat_ptr, uint8 *growth_pair_ptr,
+                                        uint32 dialog_text_id, int row_idx)
 {
-    (void)char_idx;
+    g_roll_stat_calls++;
+    g_roll_stat_last_stat_ptr = stat_ptr;
+    g_roll_stat_last_growth_ptr = growth_pair_ptr;
+    g_roll_stat_last_text_id = dialog_text_id;
+    g_roll_stat_last_row = row_idx;
+    if (g_roll_stat_arm_kbd_on_call) {
+        *(volatile uint16 *)0x41AuL = 0x1E;          /* head                 */
+        *(volatile uint16 *)0x41CuL = 0x20;          /* tail = head+2 -> nonempty */
+        *(volatile uint16 *)0x41EuL = 0x1C00;        /* Enter scancode in AH */
+    }
+    return g_roll_stat_next_row;
 }
 
 /* ---- fd2_load_save_and_init_engine leaf helper fakes ----

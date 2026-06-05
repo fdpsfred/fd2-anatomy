@@ -539,6 +539,216 @@ static void test_promote_no_candidates_returns(void)
     }
 }
 
+/* ----------------------------------------------------------------
+ * fd2_execute_class_promotion_with_dialog @ 0x31602 — promotion finalization.
+ *
+ * Drives the REAL function in-process against the minip immediate-END dialog
+ * program + a zeroed runtime_char fixture, with the not-yet-emitted
+ * fd2_roll_stat_gain_and_show_message faked (records the threaded 4-row cursor
+ * + per-stat args, returns g_roll_stat_next_row). portrait_id is held in
+ * [0x20,0x33] so it is simultaneously a valid DATO.DAT portrait index (136
+ * entries 0..0x87, used by the REAL fd2_load_chapter_portrait), an in-bounds
+ * character_growth[68] index (fd2_get_char_growth_entry), and an in-bounds
+ * class_promotion_data_table[20*2] index ((id-0x20)*2; fd2_get_class_promotion_
+ * data_entry). The REAL fd2_load_chapter_portrait / fd2_paint_portrait_to_
+ * dialog_area / fd2_display_dialog_scene / fd2_recalculate_combat_stats /
+ * fd2_close_intro_dialog_with_slide_out all run for real (slide buffers are
+ * malloc'd by the loader and freed by the close fn within this one call).
+ *
+ * Pinned (the risk-bearing logic, not the blit side effects):
+ *   - the dialog substitution sprite id = job_id + 0x96 (step 2);
+ *   - the five stat rolls receive the correct stat pointers, growth-pair
+ *     offsets (+0,+2,+4,+6,+8) and message pages (0x1EA..0x1EE), and the
+ *     4-row cursor is threaded call-to-call (5th call's row == the value the
+ *     fake returns), exercising the EAX-from-CALL chain;
+ *   - the conditional spell append: when promo_entry[1] != 0 the spell id is
+ *     stashed in last_action_value and added to combat_aux[0x14] (and the
+ *     blink-wait is reached — BIOS buffer pre-armed); when 0 the append is
+ *     skipped and combat_aux[0x14] is left untouched (the MOVZX/TEST branch);
+ *   - the fresh-state reset (step 7): level(status_flags[0])=1,
+ *     movement_order=0, hp_current=hp_max, mp_current=mp_max.
+ * ---------------------------------------------------------------- */
+extern int    g_roll_stat_calls;
+extern short *g_roll_stat_last_stat_ptr;
+extern uint8 *g_roll_stat_last_growth_ptr;
+extern uint32 g_roll_stat_last_text_id;
+extern int    g_roll_stat_last_row;
+extern int    g_roll_stat_next_row;
+extern int    g_roll_stat_arm_kbd_on_call;
+
+/* This function shows dialog pages 0x253 / 0x254, which lie past the end of
+ * minipfix's t_minip_text[0x200]. Use a larger immediate-END program so the
+ * REAL fd2_display_dialog_scene resolves those pages to an END opcode (it
+ * reads *(int16*)(base + page*2) as the byte offset to the page program, then
+ * the first opcode there): every page entry in [0,0x300) points to the END
+ * word parked at byte offset 0x600 (= index 0x300). */
+static uint16 t_promote_text[0x400];
+
+static void promote_text_setup(void)
+{
+    int i;
+
+    for (i = 0; i < 0x400; i++) {
+        t_promote_text[i] = 0x600;          /* -> byte offset of the END word */
+    }
+    t_promote_text[0x300] = (uint16)-1;     /* END opcode */
+    data_fd2_all_game_text_ptr = (uint32)(uint8 *)t_promote_text;
+}
+
+/* Stand up the shared env for a real promotion-finalize run: minip dialog/
+ * sprite env (sprite sheet + blit spies), a larger immediate-END text program
+ * (pages 0x253/0x254 are out of minip's range), a single zeroed runtime_char
+ * at slot 0, the slide-buffer globals cleared (the loader mallocs them), the
+ * roll fake reset, and the BIOS keyboard buffer pre-armed nonempty. */
+static void promote_exec_setup(uint8 portrait_id, uint8 job_id)
+{
+    minip_setup_env();
+    promote_text_setup();                             /* override text table  */
+    data_fd2_battle_tile_map_ptr = 0;                 /* full-screen layout   */
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    data_fd2_portrait_sprite_buffer = 0;              /* loader frees prev iff !=0 */
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].portrait_id = portrait_id;
+    g_test_rc_array[0].job_id = job_id;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+
+    g_roll_stat_calls = 0;
+    g_roll_stat_last_stat_ptr = 0;
+    g_roll_stat_last_growth_ptr = 0;
+    g_roll_stat_last_text_id = 0;
+    g_roll_stat_last_row = 0;
+    g_roll_stat_next_row = 0;
+    g_roll_stat_arm_kbd_on_call = 0;
+
+    /* pre-arm the BIOS keyboard buffer NONEMPTY so the spell-branch
+     * fd2_wait_for_input_dialog_with_blink(0) exits on its first poll. */
+    *(volatile uint16 *)0x41AuL = 0x1E;               /* head                 */
+    *(volatile uint16 *)0x41CuL = 0x20;               /* tail = head+2 -> nonempty */
+    *(volatile uint16 *)0x41EuL = 0x1C00;             /* Enter scancode in AH */
+}
+
+static void promote_exec_teardown(void)
+{
+    g_roll_stat_arm_kbd_on_call = 0;     /* don't leak into other suites */
+    /* the close fn freed the slide buffers; drop dangling globals and free
+     * the portrait buffer the real loader allocated. */
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+    if (data_fd2_portrait_sprite_buffer != 0) {
+        free((void *)data_fd2_portrait_sprite_buffer);
+        data_fd2_portrait_sprite_buffer = 0;
+    }
+}
+
+/* ---- spell-append branch TAKEN: class learns a spell on promotion ---- */
+static void test_promote_exec_learns_spell(void)
+{
+    runtime_char *rc;
+
+    /* portrait_id 0x30 -> promotion entry at table+(0x30-0x20)*2 = +0x20. */
+    promote_exec_setup(0x30, 0x07);
+    rc = &g_test_rc_array[0];
+
+    /* promotion entry: [0]=new job id (unused here), [1]=learned spell id. */
+    data_fd2_class_promotion_data_table[(0x30 - 0x20) * 2 + 0] = 0x09;
+    data_fd2_class_promotion_data_table[(0x30 - 0x20) * 2 + 1] = 0x0B;  /* spell 11 */
+
+    /* the roll fake returns this as the threaded cursor / spell-dialog row. */
+    g_roll_stat_next_row = 2;
+    /* the spell branch blocks on a blink-wait after the post-roll drain; the
+     * fake re-arms the BIOS buffer (stands in for the player's keypress) so
+     * the wait is satisfiable in-process. */
+    g_roll_stat_arm_kbd_on_call = 1;
+
+    /* seed HP/MP max distinct from a poisoned current; reset must copy max->cur. */
+    rc->hp_max = 0x0140;
+    rc->mp_max = 0x0037;
+    rc->hp_current = 0xAAAA;          /* poisoned: reset must overwrite */
+    rc->mp_current = 0xBBBB;          /* poisoned: reset must overwrite */
+    rc->status_flags_block[0] = 0x55; /* poisoned level: reset must set 1 */
+    rc->movement_order = 0xFF;        /* poisoned XP carry: reset must clear */
+    rc->combat_aux_block[0x14] = 0x05;/* existing known-spell-list tail byte */
+
+    fd2_execute_class_promotion_with_dialog(0);
+
+    /* step 2: sprite id = job_id + 0x96. */
+    ASSERT_EQ((long)data_fd2_dialog_last_action_sprite_id_param,
+              (long)(0x07 + 0x96));
+
+    /* step 4: five rolls, cursor threaded; last (5th) call's incoming row is
+     * what the fake returned for the 4th call. */
+    ASSERT_EQ((long)g_roll_stat_calls, 5);
+    ASSERT_EQ((long)g_roll_stat_last_row, 2);            /* 5th call got fake's row */
+    ASSERT_EQ((long)g_roll_stat_last_text_id, 0x1ee);    /* 5th page = MP_max */
+    /* 5th roll targets &mp_max with growth+8. */
+    ASSERT_EQ((long)(uint32)g_roll_stat_last_stat_ptr, (long)(uint32)&rc->mp_max);
+    ASSERT_EQ((long)(uint32)g_roll_stat_last_growth_ptr,
+              (long)(uint32)(fd2_get_char_growth_entry(0x30) + 8));
+
+    /* step 5: spell learned -> value stashed + appended to combat_aux[0x14]. */
+    ASSERT_EQ((long)data_fd2_dialog_last_action_value_param, 0x0B);
+    ASSERT_EQ((long)rc->combat_aux_block[0x14], (long)(0x05 + 0x0B));
+
+    /* step 7: fresh level-1 state + full HP/MP restore. */
+    ASSERT_EQ((long)rc->status_flags_block[0], 1);
+    ASSERT_EQ((long)rc->movement_order, 0);
+    ASSERT_EQ((long)rc->hp_current, 0x0140);
+    ASSERT_EQ((long)rc->mp_current, 0x0037);
+
+    promote_exec_teardown();
+}
+
+/* ---- spell-append branch SKIPPED: class learns no spell (entry[1]==0) ---- */
+static void test_promote_exec_no_spell(void)
+{
+    runtime_char *rc;
+
+    /* portrait_id 0x20 -> promotion entry at table+0; force [1]=0. */
+    promote_exec_setup(0x20, 0x11);
+    rc = &g_test_rc_array[0];
+
+    data_fd2_class_promotion_data_table[(0x20 - 0x20) * 2 + 0] = 0x21;
+    data_fd2_class_promotion_data_table[(0x20 - 0x20) * 2 + 1] = 0x00;  /* no spell */
+
+    g_roll_stat_next_row = 1;
+
+    rc->hp_max = 0x00C8;
+    rc->mp_max = 0x0010;
+    rc->hp_current = 0x0001;          /* poisoned */
+    rc->mp_current = 0x0002;          /* poisoned */
+    rc->status_flags_block[0] = 0x33; /* poisoned level */
+    rc->movement_order = 0xFF;        /* poisoned XP carry */
+    rc->combat_aux_block[0x14] = 0x07;/* must stay untouched (branch skipped) */
+
+    /* sentinel the dialog value so we can prove the skipped branch never wrote it. */
+    data_fd2_dialog_last_action_value_param = 0xDEAD;
+
+    fd2_execute_class_promotion_with_dialog(0);
+
+    /* step 2 still runs. */
+    ASSERT_EQ((long)data_fd2_dialog_last_action_sprite_id_param,
+              (long)(0x11 + 0x96));
+    /* all five rolls still run regardless of the spell branch. */
+    ASSERT_EQ((long)g_roll_stat_calls, 5);
+
+    /* step 5 SKIPPED: combat_aux[0x14] untouched, dialog value sentinel intact. */
+    ASSERT_EQ((long)rc->combat_aux_block[0x14], 0x07);
+    ASSERT_EQ((long)data_fd2_dialog_last_action_value_param, (long)0xDEAD);
+
+    /* step 7 still applies. */
+    ASSERT_EQ((long)rc->status_flags_block[0], 1);
+    ASSERT_EQ((long)rc->movement_order, 0);
+    ASSERT_EQ((long)rc->hp_current, 0x00C8);
+    ASSERT_EQ((long)rc->mp_current, 0x0010);
+
+    promote_exec_teardown();
+}
+
 void run_ui_menu_promote_tests(void)
 {
     SUITE_BEGIN(ui_menu_promote);
@@ -555,6 +765,8 @@ void run_ui_menu_promote_tests(void)
     RUN_TEST(test_cand_loop_esc_cancels);
     RUN_TEST(test_revive_no_dead_chars_returns);
     RUN_TEST(test_promote_no_candidates_returns);
+    RUN_TEST(test_promote_exec_learns_spell);
+    RUN_TEST(test_promote_exec_no_spell);
     /* restore stub default so later suites keep historical behavior */
     g_check_char_is_dead_use_array = 0;
     g_check_char_is_dead_return = 0;
