@@ -402,6 +402,74 @@ void fd2_execute_class_promotion_with_dialog(uint32 char_idx)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_build_promotion_candidates_with_targets @ 0x31793  (1 caller)
+ *
+ * Build the promotion-eligible candidate list with target classes.
+ * out_chars  = char-idx output buffer (max 32 entries),
+ * out_targets = target-class output buffer (max 32 entries).
+ * Returns the count (byte, zero-extended into EAX by the epilogue).
+ *
+ * Iterates char_idx over [0, party_member_count):
+ *   - reads runtime_char[char_idx] (stride 0x50): portrait_id at +0x07,
+ *     level at +0x21 (status_flags_block[0]).
+ *   - skip unless level >= 0x14 (20) AND portrait_id < 0x12 (basic
+ *     classes 0..0x11 only) AND portrait_id != 7 (索爾/Sol main lord,
+ *     reserved for a special path).
+ *   - else record: out_chars[count] = char_idx;
+ *     out_targets[count] = portrait_id + 0x20 (default tier-1 upgrade).
+ *   - if fd2_find_inventory_slot_with_item(char_idx, key_item) != -1
+ *     (has the required class-change key item, where key_item =
+ *     data_fd2_ui_per_basic_portrait_class_change_key_item_id_table
+ *     [portrait_id]): out_targets[count] = portrait_id + 0x32 (alt path).
+ *   - special: if portrait_id == 9 (主角/Lord candidate) AND the unit
+ *     holds item 0x5A (Sword): out_targets[count] = 0x34 (Lord direct).
+ *   - count++.
+ *
+ * Sole caller: fd2_run_class_promotion_menu_main @ 0x31385.
+ *
+ * uint8 __cdecl with the __CHK(0x24) stack-probe prologue (compiler-
+ * injected, not part of the source). EBP caches out_chars, EDI caches
+ * out_targets, EBX holds portrait_id, ESI the &rt_chars[idx] pointer
+ * (then reused for &out_targets[count]); count is a single-byte local.
+ *
+ * EAX-tracking notes (verified against the asm): both
+ * fd2_find_inventory_slot_with_item calls are immediately followed by
+ * ADD ESP,8 / CMP EAX,-1, so EAX is the genuine slot return value.
+ * ---------------------------------------------------------------- */
+uint8 fd2_build_promotion_candidates_with_targets(uint8 *out_chars,
+                                                  uint8 *out_targets)
+{
+    uint8 count;
+    uint32 char_idx;
+    uint8 portrait_id;
+    runtime_char *rt_chars;
+
+    rt_chars = data_fd2_battle_runtime_char_array_ptr;
+    count = 0;
+    for (char_idx = 0; (int)char_idx < (int)data_fd2_shared_menu_party_member_count;
+         char_idx++) {
+        portrait_id = rt_chars[char_idx].portrait_id;
+        if (rt_chars[char_idx].status_flags_block[0] >= 0x14 &&
+            (uint32)portrait_id < 0x12 && portrait_id != 7) {
+            out_chars[count] = (uint8)char_idx;
+            out_targets[count] = portrait_id + 0x20;
+            if (fd2_find_inventory_slot_with_item(char_idx,
+                    (uint32)data_fd2_ui_per_basic_portrait_class_change_key_item_id_table
+                            [portrait_id]) != 0xffffffff) {
+                out_targets[count] = portrait_id + 0x32;
+            }
+            if (portrait_id == 9) {
+                if (fd2_find_inventory_slot_with_item(char_idx, 0x5a) != -1) {
+                    out_targets[count] = 0x34;
+                }
+            }
+            count++;
+        }
+    }
+    return count;
+}
+
+/* ----------------------------------------------------------------
  * fd2_run_class_promotion_menu_main @ 0x31385  (1 caller)
  *
  * CLASS PROMOTION main menu (church / promotion service). Sole caller:

@@ -3228,8 +3228,9 @@
     "name": "fd2_build_promotion_candidates_with_targets",
     "target": "ui_menu/promote.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00031860": {
     "name": "fd2_find_inventory_slot_with_item",

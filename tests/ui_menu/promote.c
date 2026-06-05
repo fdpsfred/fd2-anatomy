@@ -39,10 +39,20 @@ extern int    g_promote_grid_last_list;
 extern int    g_promote_scroll_down_calls;
 extern int    g_promote_scroll_up_calls;
 
-/* class-promotion candidate builder fake (testglob.c): controls the candidate
- * count the menu sees, to drive the count==0 early-return path. */
-extern int    g_promote_build_calls;
-extern uint8  g_promote_cand_count_return;
+/* configurable fd2_find_inventory_slot_with_item fake (testglob.c): grant a
+ * char a specific item id so the real candidate builder takes its key-item /
+ * Sword target-class branches; reset clears the owned set + spy counters. */
+extern int    g_find_item_slot_calls;
+extern uint32 g_find_item_slot_last_char;
+extern uint32 g_find_item_slot_last_item;
+extern int    g_find_item_slot_owned_slot;
+extern void   test_find_item_reset(void);
+extern void   test_find_item_grant(uint32 char_idx, uint32 item_id);
+
+/* per-basic-class required class-change key-item id (real FD2.LE values
+ * @ 0x526A7), mirrored from testglob.c so the builder's expected key item per
+ * portrait_id can be referenced in assertions. */
+extern uint8  data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[18];
 
 /* class-promotion candidate-grid spy (5-arg renderer, testglob.c) */
 extern int    g_promote_cand_grid_calls;
@@ -462,8 +472,9 @@ static void test_revive_no_dead_chars_returns(void)
 /* ----------------------------------------------------------------
  * fd2_run_class_promotion_menu_main @ 0x31385 — "no one is ready" early-return.
  *
- * Forces the candidate builder fake to report 0 eligible members so the menu
- * takes its count==0 branch: load the town speaker portrait, show the "no one
+ * Uses an under-level single-member party so the REAL candidate builder reports
+ * 0 eligible members and the menu takes its count==0 branch: load the town
+ * speaker portrait, show the "no one
  * is ready" dialog (FDTXT 0x24F), wait one key, close, and return — never
  * reaching the picker, the item-consume branch, the BGM fanfare, or any
  * runtime_char mutation. This is the one class-promotion path bounded enough
@@ -494,9 +505,11 @@ static void test_promote_no_candidates_returns(void)
     data_fd2_dialog_active_portrait_blit_offset = 0;
     data_fd2_portrait_sprite_buffer = 0;                /* loader frees prev iff != 0 */
 
-    /* builder fake reports zero eligible candidates -> count==0 branch. */
-    g_promote_build_calls = 0;
-    g_promote_cand_count_return = 0;
+    /* the REAL builder now decides the count: a single under-level member is
+     * ineligible (level 0 < 0x14), so it reports 0 -> count==0 branch. The
+     * find-item fake is reset so no key item is granted (irrelevant here since
+     * the member is filtered out before any inventory lookup). */
+    test_find_item_reset();
 
     /* single-member party on the shared (file-static) fixture so any
      * (unexpected) commit-path roster read stays in bounds AND no dangling
@@ -505,6 +518,7 @@ static void test_promote_no_candidates_returns(void)
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     g_test_rc_array[0].job_id = 0x55;                   /* sentinel: must survive */
     g_test_rc_array[0].portrait_id = 0x09;
+    g_test_rc_array[0].status_flags_block[0] = 0x00;    /* level 0 < 0x14 -> skip */
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     data_fd2_shared_menu_party_member_count = 1;
 
@@ -523,8 +537,6 @@ static void test_promote_no_candidates_returns(void)
 
     /* control returned via the count==0 branch (no hang in the picker). */
     ASSERT_EQ(reached, 1);
-    /* the builder ran exactly once (the outer loop's first pass returned). */
-    ASSERT_EQ((long)g_promote_build_calls, 1);
     /* the commit path never ran: the sentinel char + dialog-substitution param
      * were left untouched. */
     ASSERT_EQ((long)g_test_rc_array[0].job_id, 0x55);
@@ -749,6 +761,170 @@ static void test_promote_exec_no_spell(void)
     promote_exec_teardown();
 }
 
+/* ----------------------------------------------------------------
+ * fd2_build_promotion_candidates_with_targets @ 0x31793 — REAL emit tests.
+ *
+ * Stands up the shared g_test_rc_array fixture directly (no blocking I/O) and
+ * drives the real eligibility scan + parallel out_chars/out_targets packing.
+ * The find-item callee is the configurable testglob fake: by default no char
+ * owns any item (-> the default +0x20 target), and test_find_item_grant()
+ * grants exactly one (char,item) pair to fire the key-item / Sword branches.
+ *
+ * Eligibility (all three must hold to record a candidate):
+ *   level (status_flags_block[0]) >= 0x14, portrait_id < 0x12, portrait_id != 7.
+ * Target class: portrait_id+0x20 default; portrait_id+0x32 if the char owns the
+ * per-class key item (data..key_item_id_table[portrait_id]); 0x34 if
+ * portrait_id==9 and the char owns Sword(0x5A) (this last write wins).
+ * ---------------------------------------------------------------- */
+
+/* zero the fixture, set party size, reset the find-item fake. */
+static void promo_cand_setup(int member_count)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_shared_menu_party_member_count = (uint32)member_count;
+    test_find_item_reset();
+}
+
+/* an eligible member: level 0x14, given portrait_id (caller picks < 0x12,
+ * != 7 for "kept"). */
+static void promo_cand_set_member(int idx, uint8 portrait_id, uint8 level)
+{
+    g_test_rc_array[idx].portrait_id = portrait_id;
+    g_test_rc_array[idx].status_flags_block[0] = level;
+}
+
+/* ---- every eligibility filter + default +0x20 target, with packing ---- */
+static void test_build_cand_filters_and_default_target(void)
+{
+    uint8 out_chars[32];
+    uint8 out_targets[32];
+    uint8 count;
+
+    promo_cand_setup(6);
+    /* idx0: eligible, basic class 3 -> kept, target 0x23.            */
+    promo_cand_set_member(0, 0x03, 0x14);
+    /* idx1: level 0x13 (< 0x14) -> skipped.                          */
+    promo_cand_set_member(1, 0x04, 0x13);
+    /* idx2: portrait_id 0x12 (>= 0x12) -> skipped.                   */
+    promo_cand_set_member(2, 0x12, 0x20);
+    /* idx3: portrait_id 7 (reserved lord) -> skipped.                */
+    promo_cand_set_member(3, 0x07, 0x20);
+    /* idx4: eligible, class 0x11 (highest basic), high level -> kept */
+    promo_cand_set_member(4, 0x11, 0x40);
+    /* idx5: eligible, class 0 -> kept, target 0x20.                  */
+    promo_cand_set_member(5, 0x00, 0x14);
+
+    memset(out_chars, 0xAA, sizeof(out_chars));
+    memset(out_targets, 0xAA, sizeof(out_targets));
+
+    count = fd2_build_promotion_candidates_with_targets(out_chars, out_targets);
+
+    /* three kept (idx 0,4,5), packed contiguously skipping the filtered ones. */
+    ASSERT_EQ((long)count, 3);
+    ASSERT_EQ((long)out_chars[0], 0);
+    ASSERT_EQ((long)out_chars[1], 4);
+    ASSERT_EQ((long)out_chars[2], 5);
+    /* default target = portrait_id + 0x20 (no char owns its key item). */
+    ASSERT_EQ((long)out_targets[0], 0x03 + 0x20);
+    ASSERT_EQ((long)out_targets[1], 0x11 + 0x20);
+    ASSERT_EQ((long)out_targets[2], 0x00 + 0x20);
+    /* the slot past the last candidate was never written. */
+    ASSERT_EQ((long)out_chars[3], 0xAA);
+    ASSERT_EQ((long)out_targets[3], 0xAA);
+}
+
+/* ---- key-item branch: owning key_item[portrait_id] -> target +0x32 ---- */
+static void test_build_cand_key_item_branch(void)
+{
+    uint8 out_chars[32];
+    uint8 out_targets[32];
+    uint8 count;
+    uint8 key_for_8;
+
+    promo_cand_setup(2);
+    /* idx0: portrait_id 8 owns its key item -> +0x32; idx1: class 3, no item. */
+    promo_cand_set_member(0, 0x08, 0x14);
+    promo_cand_set_member(1, 0x03, 0x14);
+
+    key_for_8 = data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[0x08];
+    test_find_item_grant(0, (uint32)key_for_8);   /* char 0 holds class-8 key */
+
+    count = fd2_build_promotion_candidates_with_targets(out_chars, out_targets);
+
+    ASSERT_EQ((long)count, 2);
+    ASSERT_EQ((long)out_chars[0], 0);
+    ASSERT_EQ((long)out_chars[1], 1);
+    /* idx0 took the alt path (+0x32); idx1 stayed on the default (+0x20). */
+    ASSERT_EQ((long)out_targets[0], 0x08 + 0x32);
+    ASSERT_EQ((long)out_targets[1], 0x03 + 0x20);
+    /* the builder queried char 0 against exactly its class-8 key item. */
+    ASSERT_EQ((long)g_find_item_slot_last_char, 1);   /* last call = idx1 */
+    /* both eligible chars were probed for their key item. */
+    ASSERT_EQ((long)g_find_item_slot_calls, 2);
+}
+
+/* ---- Lord direct: portrait_id 9 + Sword(0x5A) -> target 0x34 (wins) ---- */
+static void test_build_cand_lord_sword_branch(void)
+{
+    uint8 out_chars[32];
+    uint8 out_targets[32];
+    uint8 count;
+    uint8 key_for_9;
+
+    promo_cand_setup(1);
+    promo_cand_set_member(0, 0x09, 0x14);   /* Lord candidate, eligible */
+
+    /* grant BOTH the class-9 key item AND the Sword so the +0x32 write happens
+     * first and the 0x34 Sword write then overrides it (the asm order). */
+    key_for_9 = data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[0x09];
+    test_find_item_grant(0, (uint32)key_for_9);
+    test_find_item_grant(0, 0x5A);
+
+    count = fd2_build_promotion_candidates_with_targets(out_chars, out_targets);
+
+    ASSERT_EQ((long)count, 1);
+    ASSERT_EQ((long)out_chars[0], 0);
+    ASSERT_EQ((long)out_targets[0], 0x34);   /* Lord-direct overrides +0x32 */
+}
+
+/* ---- portrait_id 9 WITHOUT Sword stays on the key-item / default path ---- */
+static void test_build_cand_lord_no_sword(void)
+{
+    uint8 out_chars[32];
+    uint8 out_targets[32];
+    uint8 count;
+
+    promo_cand_setup(1);
+    promo_cand_set_member(0, 0x09, 0x14);
+    /* own nothing: no key item, no Sword -> plain default target. */
+
+    count = fd2_build_promotion_candidates_with_targets(out_chars, out_targets);
+
+    ASSERT_EQ((long)count, 1);
+    ASSERT_EQ((long)out_chars[0], 0);
+    ASSERT_EQ((long)out_targets[0], 0x09 + 0x20);   /* 0x29, not 0x34 */
+}
+
+/* ---- empty party -> count 0, no writes, no find-item probes ---- */
+static void test_build_cand_empty_party(void)
+{
+    uint8 out_chars[32];
+    uint8 out_targets[32];
+    uint8 count;
+
+    promo_cand_setup(0);
+    memset(out_chars, 0xAA, sizeof(out_chars));
+    memset(out_targets, 0xAA, sizeof(out_targets));
+
+    count = fd2_build_promotion_candidates_with_targets(out_chars, out_targets);
+
+    ASSERT_EQ((long)count, 0);
+    ASSERT_EQ((long)g_find_item_slot_calls, 0);
+    ASSERT_EQ((long)out_chars[0], 0xAA);
+    ASSERT_EQ((long)out_targets[0], 0xAA);
+}
+
 void run_ui_menu_promote_tests(void)
 {
     SUITE_BEGIN(ui_menu_promote);
@@ -767,6 +943,14 @@ void run_ui_menu_promote_tests(void)
     RUN_TEST(test_promote_no_candidates_returns);
     RUN_TEST(test_promote_exec_learns_spell);
     RUN_TEST(test_promote_exec_no_spell);
+    RUN_TEST(test_build_cand_filters_and_default_target);
+    RUN_TEST(test_build_cand_key_item_branch);
+    RUN_TEST(test_build_cand_lord_sword_branch);
+    RUN_TEST(test_build_cand_lord_no_sword);
+    RUN_TEST(test_build_cand_empty_party);
+    /* leave the find-item fake reset so later suites start from a clean owned
+     * set / spy state. */
+    test_find_item_reset();
     /* restore stub default so later suites keep historical behavior */
     g_check_char_is_dead_use_array = 0;
     g_check_char_is_dead_return = 0;
