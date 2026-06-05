@@ -3125,8 +3125,9 @@
     "name": "fd2_run_equip_member_menu",
     "target": "ui_menu/shop.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002f8ea": {
     "name": "fd2_run_give_item_menu",

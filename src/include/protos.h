@@ -181,6 +181,7 @@ void fd2_render_shop_item_grid(uint32 item_count, uint32 item_id_array, uint32 c
 uint32 fd2_pick_stat_compare_color(int current_stat, int preview_stat);
 void fd2_run_buy_item_menu(uint32 shop_item_count, uint32 shop_item_id_array);
 void fd2_run_sell_item_menu(void);
+void fd2_run_equip_member_menu(void);
 int  fd2_party_roster_class_select_loop(uint32 candidate_count, uint32 candidate_array_ptr, uint32 item_id);
 int  fd2_party_roster_single_select_loop(void);
 void fd2_animate_shop_transaction_feedback(void);

@@ -9,6 +9,7 @@
  *   fd2_render_party_roster_with_item_stat_preview)
  * fd2_run_buy_item_menu @ 0x2F0B0 (1 caller: fd2_run_chapter_intro_menu_main)
  * fd2_run_sell_item_menu @ 0x2F642 (1 caller: fd2_run_chapter_intro_menu_main)
+ * fd2_run_equip_member_menu @ 0x2F883 (1 caller: fd2_run_chapter_intro_menu_main)
  */
 
 #include "types.h"
@@ -572,5 +573,69 @@ void fd2_run_sell_item_menu(void)
         fd2_animate_money_increment(data_fd2_dialog_last_action_value_param);
         fd2_remove_inventory_slot_at(seller, slot_idx);
         fd2_recalculate_combat_stats(seller);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_run_equip_member_menu @ 0x2F883  (1 caller:
+ *   fd2_run_chapter_intro_menu_main, option idx 2 = 裝備)
+ *
+ * Top-level loop for the EQUIP branch of the chapter-intro shop menu. Each
+ * iteration: present the full party roster, let the player pick a member, run
+ * that member's 8-slot equip/unequip inventory submenu, then reload the chapter
+ * speaker portrait. Esc on the roster exits the loop.
+ *
+ * Per iteration:
+ *   1. data_fd2_ui_menu_visible_item_count = party_member_count, then
+ *      fd2_party_roster_single_select_loop() picks the member; the selection is
+ *      kept (signed -1 means Esc).
+ *   2. fd2_close_intro_dialog_with_slide_out() tears down the roster panel.
+ *   3. Snapshot data_fd2_dialog_active_portrait_blit_offset (the equip submenu
+ *      clobbers it) — done after the Esc check, since the snapshot is unused on
+ *      the exit path (matching the binary's MOV-after-JZ ordering).
+ *   4. On Esc (selection == -1) return.
+ *   5. fd2_equip_unequip_inventory_menu(data_fd2_ui_menu_cursor_idx) runs the
+ *      per-member equip UI for the member left in the cursor global.
+ *   6. Restore data_fd2_dialog_active_portrait_blit_offset.
+ *   7. Reload the chapter speaker portrait sprite from DATO.DAT (path string
+ *      0x51A70, the 80x80 portrait archive) into data_fd2_portrait_sprite_buffer,
+ *      indexed by
+ *      data_fd2_chapter_intro_menu_speaker_portrait_id_table[
+ *      data_fd2_chapter_intro_menu_cursor_state].
+ *
+ * The binary's __CHK(0x14) stack-probe prologue is compiler-injected and not
+ * part of the source, so it is omitted (as in the sibling shop functions). The
+ * decompiler's in_stack_* are __CHK artifacts and not real locals.
+ *
+ * EAX-bug notes (each "CALL then use return" point checked against asm):
+ *   - fd2_party_roster_single_select_loop returns the full int selection
+ *     (asm MOV EBX,EAX then CMP EBX,-1), captured as int (no byte narrowing).
+ *     The chosen member is then read from data_fd2_ui_menu_cursor_idx.
+ *   - fd2_load_dat_resource returns the freshly loaded sprite buffer pointer
+ *     (asm MOV [0x53A85],EAX), stored straight into the portrait buffer global.
+ * ---------------------------------------------------------------- */
+void fd2_run_equip_member_menu(void)
+{
+    int    select_result;
+    uint32 saved_blit_offset;
+
+    for (;;) {
+        data_fd2_ui_menu_visible_item_count =
+            data_fd2_shared_menu_party_member_count;
+        select_result = fd2_party_roster_single_select_loop();
+        fd2_close_intro_dialog_with_slide_out();
+        saved_blit_offset = data_fd2_dialog_active_portrait_blit_offset;
+        if (select_result == -1) {
+            return;
+        }
+
+        fd2_equip_unequip_inventory_menu(data_fd2_ui_menu_cursor_idx);
+        data_fd2_dialog_active_portrait_blit_offset = saved_blit_offset;
+
+        data_fd2_portrait_sprite_buffer =
+            (uint8 *)fd2_load_dat_resource(0x51a70,
+                (uint32)data_fd2_portrait_sprite_buffer,
+                data_fd2_chapter_intro_menu_speaker_portrait_id_table[
+                    data_fd2_chapter_intro_menu_cursor_state]);
     }
 }

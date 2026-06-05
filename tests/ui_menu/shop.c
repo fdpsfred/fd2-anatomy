@@ -896,6 +896,64 @@ static void test_sell_menu_builds_inventory_list_skips_empty(void)
     sell_free_workspaces();
 }
 
+/* ================================================================
+ * fd2_run_equip_member_menu @ 0x2F883 — equip-branch top-level loop.
+ *
+ * Drives the REAL outer loop through its CANCEL exit. The member roster select
+ * (fd2_party_roster_single_select_loop) is the scripted testglob stub
+ * (g_single_select_ret / _cursor); fd2_close_intro_dialog_with_slide_out is the
+ * testglob no-op stub.
+ *
+ * test_equip_menu_cancel_returns_immediately: the (only) member select cancels
+ * (-1). The loop must (1) store data_fd2_ui_menu_visible_item_count from the
+ * party count at the top, (2) call the roster select exactly once, (3) snapshot
+ * data_fd2_dialog_active_portrait_blit_offset, then (4) return on sel==-1 —
+ * before the per-member equip submenu or the portrait reload run. Pins the
+ * loop-top visible-count store and the sel==-1 early return, and confirms the
+ * Esc path leaves data_fd2_dialog_active_portrait_blit_offset untouched (its
+ * restore lives only on the productive path, which is skipped on Esc).
+ *
+ * The productive iteration cannot be unit-driven: on a non-Esc selection the
+ * loop immediately enters fd2_equip_unequip_inventory_menu @ 0x1BFFE, the heavy
+ * EQUIP/UNEQUIP modal that busy-waits on the BIOS keyboard buffer with no
+ * in-process key source (documented as un-unit-testable in tests/ui_menu/
+ * status.c). The blit-offset save/restore round-trip and the post-submenu
+ * portrait reload (real fd2_load_dat_resource against staged DATO.DAT) sit
+ * behind that blocking modal and are deferred to Phase 9 integration under the
+ * emulator — the same deferral the sibling buy/sell loops apply to their
+ * post-commit flows.
+ * ================================================================ */
+
+static void test_equip_menu_cancel_returns_immediately(void)
+{
+    int i;
+
+    /* reset the scripted member-select stub */
+    for (i = 0; i < 8; i++) {
+        g_single_select_ret[i] = -1;
+        g_single_select_cursor[i] = 0;
+    }
+    g_single_select_idx = 0;
+    g_single_select_calls = 0;
+
+    /* first (and only) member select cancels */
+    g_single_select_ret[0] = -1;
+
+    data_fd2_shared_menu_party_member_count = 7;
+    data_fd2_ui_menu_visible_item_count = 0;   /* must be overwritten at top */
+    /* sentinel the Esc path must NOT touch (the restore is productive-only) */
+    data_fd2_dialog_active_portrait_blit_offset = 0xABCD1234u;
+
+    fd2_run_equip_member_menu();
+
+    /* loop-top store ran, select called once, then sel==-1 returned before the
+     * equip submenu or any portrait reload. */
+    ASSERT_EQ(g_single_select_calls, 1);
+    ASSERT_EQ(data_fd2_ui_menu_visible_item_count, 7);
+    /* the Esc path leaves the blit offset as seeded (restore path skipped) */
+    ASSERT_EQ(data_fd2_dialog_active_portrait_blit_offset, 0xABCD1234u);
+}
+
 void run_ui_menu_shop_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -928,4 +986,5 @@ void run_ui_menu_shop_tests(void)
     RUN_TEST(test_buy_menu_cancel_returns_and_persists_cursor);
     RUN_TEST(test_sell_menu_cancel_returns_immediately);
     RUN_TEST(test_sell_menu_builds_inventory_list_skips_empty);
+    RUN_TEST(test_equip_menu_cancel_returns_immediately);
 }
