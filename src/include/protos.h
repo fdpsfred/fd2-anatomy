@@ -297,6 +297,10 @@ void fd2_play_figani_animation_loop(uint32 caster_idx, uint32 spell_id,
                                     uint8 *bg_layer_a, uint32 *bg_layer_b);
 void fd2_step_figani_pose_animation(uint32 figani_data, uint32 palette_op,
                                     uint32 dst_buf, uint8 *dst_stride);
+void fd2_animate_spell_hit_cinematic(uint32 attacker_idx, uint32 dispatch_sprite_atlas,
+                                     uint32 spell_sprite_atlas, int caster_sprite_atlas,
+                                     uint32 base_workspace_offset, uint8 *bg_workbuf,
+                                     int hit_effect_sprite, int spell_type_idx);
 uint32 fd2_load_figani_sfx_bank(uint32 figani_data);
 void fd2_apply_use_effect_dispatch(uint32 ci, uint32 sl, uint32 n, uint32 buf);
 void fd2_clear_all_chars_facing(void);

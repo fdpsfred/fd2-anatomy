@@ -909,6 +909,37 @@ void (*data_fd2_chapter_post_action_handler_table[30])(uint32) = {
     g_noop_post_action_handler, g_noop_post_action_handler,
     g_noop_post_action_handler, g_noop_post_action_handler
 };
+/* 10-entry summon-spell tick dispatch table (@ 0x523B9). Real entries return an
+ * int frame count and perform per-element palette flash / sprite tick. The
+ * fd2_animate_spell_hit_cinematic test drives the cinematic and needs this
+ * table populated (the binary calls through it twice per frame). All slots are
+ * wired to a single spy that records the phase_code (arg5) sequence and the
+ * call count so the test can pin the per-phase dispatch order; the returned
+ * frame count is ignored by the cinematic, so the spy returns a fixed value. */
+int    g_spell_phase_handler_calls = 0;
+int    g_spell_phase_handler_log_count = 0;
+int    g_spell_phase_handler_phase_log[64] = {0};
+uint32 g_spell_phase_handler_arg2_log[64] = {0};
+uint32 g_spell_phase_handler_dst_log[64] = {0};
+static int g_noop_spell_phase_handler(uint32 sprite_handle, uint32 sprite_atlas,
+                                      uint32 dst, uint32 stride, uint32 phase_code) {
+    if (g_spell_phase_handler_log_count < 64) {
+        g_spell_phase_handler_phase_log[g_spell_phase_handler_log_count] = (int)phase_code;
+        g_spell_phase_handler_arg2_log[g_spell_phase_handler_log_count] = sprite_atlas;
+        g_spell_phase_handler_dst_log[g_spell_phase_handler_log_count] = dst;
+        g_spell_phase_handler_log_count++;
+    }
+    g_spell_phase_handler_calls++;
+    (void)sprite_handle; (void)stride;
+    return 0;
+}
+int (*data_fd2_battle_spell_cast_cinematic_phase_handler_table[10])(
+    uint32, uint32, uint32, uint32, uint32) = {
+    g_noop_spell_phase_handler, g_noop_spell_phase_handler, g_noop_spell_phase_handler,
+    g_noop_spell_phase_handler, g_noop_spell_phase_handler, g_noop_spell_phase_handler,
+    g_noop_spell_phase_handler, g_noop_spell_phase_handler, g_noop_spell_phase_handler,
+    g_noop_spell_phase_handler
+};
 uint32 data_fd2_battle_ai_best_spell_score = 0;
 uint32 data_fd2_battle_ai_best_item_score = 0;
 uint32 data_fd2_battle_ai_best_spell_target_x = 0;
@@ -933,6 +964,11 @@ int    g_blit_indexed_log_on = 0;
 int    g_blit_indexed_log_count = 0;
 uint32 g_blit_indexed_atlas_log[64] = {0};
 uint32 g_blit_indexed_frame_log[64] = {0};
+/* per-call dst x/y log (parallel to atlas/frame; additive — existing tests read
+ * only atlas/frame). The spell-hit-cinematic test reads x to pin the per-frame
+ * slide position (frame*0x23*team_dir_sign + workspace_ptr). */
+int    g_blit_indexed_x_log[64] = {0};
+int    g_blit_indexed_y_log[64] = {0};
 void fd2_blit_indexed_sprite(uint32 a, uint32 f, int x, int y, int m) {
     g_blit_indexed_sprite_calls++;
     g_blit_indexed_sprite_last_frame = f;
@@ -941,6 +977,8 @@ void fd2_blit_indexed_sprite(uint32 a, uint32 f, int x, int y, int m) {
     if (g_blit_indexed_log_on && g_blit_indexed_log_count < 64) {
         g_blit_indexed_atlas_log[g_blit_indexed_log_count] = a;
         g_blit_indexed_frame_log[g_blit_indexed_log_count] = f;
+        g_blit_indexed_x_log[g_blit_indexed_log_count] = x;
+        g_blit_indexed_y_log[g_blit_indexed_log_count] = y;
         g_blit_indexed_log_count++;
     }
     (void)m;

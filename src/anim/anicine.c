@@ -1153,3 +1153,120 @@ void fd2_step_figani_pose_animation(uint32 figani_data, uint32 palette_op,
     data_fd2_graphics_figani_pose_anim_pose_idx = 0;
     data_fd2_graphics_figani_pose_anim_subframe_idx = 0;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_animate_spell_hit_cinematic @ 0x2BA22  (1 caller)
+ *
+ * Spell-HIT cinematic sub-loop: a 9-frame zoom that brackets one target's
+ * hit moment inside the basic-spell cast sequence. Phase 1 (frame 1..4)
+ * slides the CASTER sprite in; Phase 2 (frame 4..0) slides the HIT-EFFECT
+ * sprite back out, reversing the motion. Each frame composites the static
+ * background, fires the per-element palette-flash handler before and after
+ * the sprite blits, pushes the workspace to the mode13h primary at 0xA0000,
+ * and waits one BIOS tick.
+ *
+ * Setup:
+ *   workspace_ptr = base_workspace_offset + 0x49C0   // composite scratch base
+ *   team_dir_sign = runtime_char[attacker_idx].team == 0 ? +1 : -1
+ *       // enemy casters (team 0) slide in from the right (+); player from left
+ *   pose_count    = *(uint8 *)spell_sprite_atlas     // pose total of the spell anim
+ *   flicker_toggle = 0   // shared across BOTH phases (Phase 2 keeps Phase 1's value)
+ *
+ * Per-frame body (identical in both phases except the slide sprite + direction):
+ *   1. background composite into flicker_dst:
+ *        electric/lightning spells (spell_type_idx 3 or 7): flicker_toggle ^= 1,
+ *          flicker_dst = workspace_ptr - flicker_toggle*0x280 (1-row vertical jitter);
+ *        else flicker_dst = workspace_ptr.
+ *        fd2_blit_rectangle(flicker_dst, 0x280, bg_workbuf, 0x140, 0x140, 0xC8)
+ *   2. dispatch[spell_type_idx](attacker_idx, dispatch_sprite_atlas,
+ *                               workspace_ptr, 0x280, 4)   // pre-blit palette flash
+ *   3. blit spell top-half pose:
+ *        fd2_blit_indexed_sprite(spell_sprite_atlas, pose_count-1, workspace_ptr, 0x280, -1)
+ *   4. blit the sliding sprite at frame*0x23 px/frame:
+ *        Phase 1: caster_sprite_atlas; Phase 2: hit_effect_sprite
+ *        fd2_blit_indexed_sprite(slide_sprite, 0,
+ *                                frame*0x23*team_dir_sign + workspace_ptr, 0x280, -1)
+ *   5. dispatch[spell_type_idx](attacker_idx, dispatch_sprite_atlas,
+ *                               workspace_ptr, 0x280, 5)   // post-blit palette flash
+ *   6. fd2_blit_rectangle(0xA0000, 0x140, workspace_ptr, 0x280, 0x140, 0xC8)  // push to VGA
+ *   7. fd2_wait_n_bios_ticks(1)
+ *
+ * The dispatch is data_fd2_battle_spell_cast_cinematic_phase_handler_table
+ * (the 10-entry summon-spell tick table @ 0x523B9), indexed by spell_type_idx;
+ * each entry takes (sprite_handle, sprite_atlas, dst, stride, phase_code) and
+ * returns an int frame count which is IGNORED here (the cinematic frame count
+ * is fixed at 4+5). The Ghidra decompiler drops the five pushed arguments and
+ * the return for these indirect calls; the assembly (PUSH x5 ; ADD ESP,0x14)
+ * is authoritative.
+ *
+ * Globals: data_fd2_battle_runtime_char_array_ptr (team read);
+ *   data_fd2_battle_spell_cast_cinematic_phase_handler_table (palette flash dispatch).
+ *
+ * Sole caller: fd2_play_spell_cast_sequence @ 0x2A6BD (basic-spell path, between
+ * consecutive targets of an AoE cast).
+ * System = battle (spell-hit cinematic 9-frame zoom; per-element palette flash).
+ * ---------------------------------------------------------------- */
+void fd2_animate_spell_hit_cinematic(uint32 attacker_idx, uint32 dispatch_sprite_atlas,
+                                     uint32 spell_sprite_atlas, int caster_sprite_atlas,
+                                     uint32 base_workspace_offset, uint8 *bg_workbuf,
+                                     int hit_effect_sprite, int spell_type_idx)
+{
+    uint32 workspace_ptr;
+    int    team_dir_sign;
+    uint8  flicker_toggle;
+    uint8  pose_count;
+    uint32 flicker_dst;
+    int    frame;
+
+    workspace_ptr = base_workspace_offset + 0x49C0;
+    team_dir_sign = -1;
+    flicker_toggle = 0;
+    pose_count = *(uint8 *)spell_sprite_atlas;
+    if (data_fd2_battle_runtime_char_array_ptr[attacker_idx].team == 0) {
+        team_dir_sign = 1;
+    }
+
+    /* Phase 1 — zoom-IN, caster sprite sliding in (frame 1..4). */
+    for (frame = 1; frame < 5; frame++) {
+        if (spell_type_idx == 7 || spell_type_idx == 3) {
+            flicker_toggle = (uint8)(flicker_toggle ^ 1);
+            flicker_dst = workspace_ptr - (uint32)flicker_toggle * 0x280;
+        } else {
+            flicker_dst = workspace_ptr;
+        }
+        fd2_blit_rectangle(flicker_dst, 0x280, (uint32)bg_workbuf, 0x140, 0x140, 0xC8);
+        data_fd2_battle_spell_cast_cinematic_phase_handler_table[spell_type_idx](
+            attacker_idx, dispatch_sprite_atlas, workspace_ptr, 0x280, 4);
+        fd2_blit_indexed_sprite(spell_sprite_atlas, (uint32)(pose_count - 1),
+                                (int)workspace_ptr, 0x280, -1);
+        fd2_blit_indexed_sprite((uint32)caster_sprite_atlas, 0,
+                                frame * 0x23 * team_dir_sign + (int)workspace_ptr,
+                                0x280, -1);
+        data_fd2_battle_spell_cast_cinematic_phase_handler_table[spell_type_idx](
+            attacker_idx, dispatch_sprite_atlas, workspace_ptr, 0x280, 5);
+        fd2_blit_rectangle(0xA0000, 0x140, workspace_ptr, 0x280, 0x140, 0xC8);
+        fd2_wait_n_bios_ticks(1);
+    }
+
+    /* Phase 2 — zoom-OUT, hit-effect sprite sliding out (frame 4..0). */
+    for (frame = 4; -1 < frame; frame--) {
+        if (spell_type_idx == 7 || spell_type_idx == 3) {
+            flicker_toggle = (uint8)(flicker_toggle ^ 1);
+            flicker_dst = workspace_ptr - (uint32)flicker_toggle * 0x280;
+        } else {
+            flicker_dst = workspace_ptr;
+        }
+        fd2_blit_rectangle(flicker_dst, 0x280, (uint32)bg_workbuf, 0x140, 0x140, 0xC8);
+        data_fd2_battle_spell_cast_cinematic_phase_handler_table[spell_type_idx](
+            attacker_idx, dispatch_sprite_atlas, workspace_ptr, 0x280, 4);
+        fd2_blit_indexed_sprite(spell_sprite_atlas, (uint32)(pose_count - 1),
+                                (int)workspace_ptr, 0x280, -1);
+        fd2_blit_indexed_sprite((uint32)hit_effect_sprite, 0,
+                                frame * 0x23 * team_dir_sign + (int)workspace_ptr,
+                                0x280, -1);
+        data_fd2_battle_spell_cast_cinematic_phase_handler_table[spell_type_idx](
+            attacker_idx, dispatch_sprite_atlas, workspace_ptr, 0x280, 5);
+        fd2_blit_rectangle(0xA0000, 0x140, workspace_ptr, 0x280, 0x140, 0xC8);
+        fd2_wait_n_bios_ticks(1);
+    }
+}

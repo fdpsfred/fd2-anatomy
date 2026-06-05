@@ -306,7 +306,13 @@ extern void (*data_fd2_chapter_end_handler_table[30])(void);            /* 0x51D
 extern void (*data_fd2_chapter_post_action_handler_table[30])(uint32);  /* 0x51B19 */
 extern void (*data_fd2_battle_ai_post_action_consequence_table[90])(uint32); /* 0x51B91 */
 extern void (*data_fd2_battle_spell_handler_table[28])(uint32, uint32, uint8 *); /* 0x51D01 */
-extern void (*data_fd2_battle_spell_cast_cinematic_phase_handler_table[10])(void); /* 0x523B9 */
+/* 10-entry summon-spell tick dispatch table. Each entry takes
+ * (sprite_handle, sprite_atlas, dst, stride, phase_code) and returns an int
+ * frame count (e.g. fd2_tick_summon_spell_minor_animation_state @ 0x275D6,
+ * entry #9). Dispatched by spell_type_idx for per-element palette flash /
+ * tick advance in the spell-cast cinematic. */
+extern int (*data_fd2_battle_spell_cast_cinematic_phase_handler_table[10])(
+    uint32, uint32, uint32, uint32, uint32); /* 0x523B9 */
 extern uint16 data_fd2_animation_ani_decoder_target_width;              /* 0x52760 */
 extern uint32 data_fd2_animation_ani_decoder_dst_buf;                   /* 0x52762 */
 extern uint32 data_fd2_animation_ani_decoder_src_buf;                   /* 0x52766 */

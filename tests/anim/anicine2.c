@@ -564,6 +564,225 @@ static void test_step_figani_single_pose_wraps_each_call(void)
     ASSERT_EQ((int)data_fd2_graphics_figani_pose_anim_subframe_idx, 0);
 }
 
+/* ===== fd2_animate_spell_hit_cinematic @ 0x2BA22 =====
+ *
+ * The spell-HIT cinematic sub-loop: Phase 1 (frame 1..4) slides the caster
+ * sprite in, Phase 2 (frame 4..0) slides the hit-effect sprite back out. These
+ * tests pin its risk-bearing CONTROL FLOW:
+ *   - the per-frame slide x = frame*0x23*team_dir_sign + workspace_ptr, where
+ *     team_dir_sign is +1 for team-0 (enemy) casters and -1 otherwise — the
+ *     single team-branch that flips the whole zoom direction;
+ *   - the Phase 1 (caster atlas, 4 frames) vs Phase 2 (hit-effect atlas, 5
+ *     frames) sprite-source + iteration split, plus the once-per-frame spell
+ *     top-half pose blit (9 total);
+ *   - the per-element palette-flash dispatch: handler[spell_type_idx] fired
+ *     twice per frame with phase codes 4 then 5 (18 calls over 9 frames), its
+ *     ignored int return notwithstanding;
+ *   - the electric/lightning flicker branch (spell_type_idx 3 or 7): the
+ *     background composite dst alternates workspace_ptr and workspace_ptr-0x280,
+ *     observed through the REAL fd2_blit_rectangle landing a seeded sentinel.
+ *
+ * The indexed-sprite blits route through the testglob spy (atlas/frame/x logged
+ * per call); the palette-flash dispatch routes through the testglob spell-phase
+ * handler spy (phase-code sequence logged). The background + VGA-push
+ * fd2_blit_rectangle and the per-frame fd2_wait_n_bios_ticks(1) run for real
+ * over in-memory buffers; the actual composited pixels are a display side-effect
+ * left to Phase 9, except the flicker dst which is asserted via the sentinel. */
+
+extern int    g_blit_indexed_x_log[64];
+
+extern int    g_spell_phase_handler_calls;
+extern int    g_spell_phase_handler_log_count;
+extern int    g_spell_phase_handler_phase_log[64];
+
+/* Workspace large enough for the real fd2_blit_rectangle composite: the bg
+ * composite writes 0xC8 rows x 0x280 stride from flicker_dst (>= workspace_ptr -
+ * 0x280 = base + 0x4740), reaching base + 0x4740 + 0xC8*0x280 = base + 0x24240. */
+static uint8 g_hc_workspace[0x30000];
+/* bg source: real blit reads 0xC8 rows x 0x140 = 0x10F00 bytes. Seed [0]. */
+static uint8 g_hc_bg[0x11000];
+/* distinct atlas buffers so the spy log tells spell-pose / caster / effect
+ * apart. spell atlas[0] = pose_count (the function reads *(uint8*)atlas). */
+static uint8 g_hc_spell_atlas[16];
+static uint8 g_hc_caster_atlas[16];
+static uint8 g_hc_effect_atlas[16];
+
+#define HC_POSE_COUNT 5
+
+static void hc_setup(uint8 caster_team)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = caster_team;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+
+    memset(g_hc_workspace, 0, sizeof(g_hc_workspace));
+    memset(g_hc_bg, 0, sizeof(g_hc_bg));
+    g_hc_bg[0] = 0xAB;                 /* flicker-landing sentinel */
+    memset(g_hc_spell_atlas, 0, sizeof(g_hc_spell_atlas));
+    g_hc_spell_atlas[0] = HC_POSE_COUNT;
+
+    g_blit_indexed_sprite_calls = 0;
+    g_blit_indexed_log_on = 1;
+    g_blit_indexed_log_count = 0;
+    memset(g_blit_indexed_atlas_log, 0, sizeof(g_blit_indexed_atlas_log));
+    memset(g_blit_indexed_frame_log, 0, sizeof(g_blit_indexed_frame_log));
+    memset(g_blit_indexed_x_log, 0, sizeof(g_blit_indexed_x_log));
+
+    g_spell_phase_handler_calls = 0;
+    g_spell_phase_handler_log_count = 0;
+    memset(g_spell_phase_handler_phase_log, 0, sizeof(g_spell_phase_handler_phase_log));
+}
+
+static void hc_run(int spell_type_idx)
+{
+    fd2_animate_spell_hit_cinematic(
+        0 /* attacker_idx */, 0xD15Au /* dispatch_sprite_atlas (opaque) */,
+        (uint32)g_hc_spell_atlas, (int)(uint32)g_hc_caster_atlas,
+        (uint32)g_hc_workspace, g_hc_bg,
+        (int)(uint32)g_hc_effect_atlas, spell_type_idx);
+}
+
+/*
+ * Blit inventory + phase split: a non-flicker spell (type 5) issues 9 spell-pose
+ * blits (one per frame), 4 caster-atlas blits (Phase 1, frames 1..4) and 5
+ * effect-atlas blits (Phase 2, frames 4..0) = 18 indexed blits, interleaved
+ * [spell-pose, slide] per frame. The dispatch fires 18 times (2/frame) with the
+ * phase-code sequence 4,5 repeated.
+ */
+static void test_hit_cinematic_blit_inventory(void)
+{
+    uint32 spell = (uint32)g_hc_spell_atlas;
+    uint32 caster = (uint32)g_hc_caster_atlas;
+    uint32 effect = (uint32)g_hc_effect_atlas;
+    int    i;
+    int    spell_pose, caster_hit, effect_hit;
+
+    hc_setup(0);
+    hc_run(5);
+
+    ASSERT_EQ(g_blit_indexed_log_count, 18);
+    spell_pose = 0; caster_hit = 0; effect_hit = 0;
+    for (i = 0; i < g_blit_indexed_log_count; i++) {
+        if (g_blit_indexed_atlas_log[i] == spell) {
+            spell_pose++;
+            /* spell pose blits pose_count-1 every frame */
+            ASSERT_EQ((long)g_blit_indexed_frame_log[i], (long)(HC_POSE_COUNT - 1));
+        } else if (g_blit_indexed_atlas_log[i] == caster) {
+            caster_hit++;
+            ASSERT_EQ((long)g_blit_indexed_frame_log[i], 0L);
+        } else if (g_blit_indexed_atlas_log[i] == effect) {
+            effect_hit++;
+            ASSERT_EQ((long)g_blit_indexed_frame_log[i], 0L);
+        }
+    }
+    ASSERT_EQ(spell_pose, 9);
+    ASSERT_EQ(caster_hit, 4);
+    ASSERT_EQ(effect_hit, 5);
+
+    /* every frame: [spell-pose, slide] order -> even idx = spell, odd = slide */
+    for (i = 0; i < g_blit_indexed_log_count; i += 2) {
+        ASSERT_EQ((long)g_blit_indexed_atlas_log[i], (long)spell);
+    }
+    /* Phase 1 slide sprites are the caster (idx 1,3,5,7); Phase 2 the effect. */
+    ASSERT_EQ((long)g_blit_indexed_atlas_log[1], (long)caster);
+    ASSERT_EQ((long)g_blit_indexed_atlas_log[7], (long)caster);
+    ASSERT_EQ((long)g_blit_indexed_atlas_log[9], (long)effect);
+    ASSERT_EQ((long)g_blit_indexed_atlas_log[17], (long)effect);
+
+    /* dispatch: 2 per frame x 9 frames, phase codes 4,5 repeated */
+    ASSERT_EQ(g_spell_phase_handler_calls, 18);
+    ASSERT_EQ(g_spell_phase_handler_log_count, 18);
+    for (i = 0; i < 18; i += 2) {
+        ASSERT_EQ(g_spell_phase_handler_phase_log[i], 4);
+        ASSERT_EQ(g_spell_phase_handler_phase_log[i + 1], 5);
+    }
+}
+
+/*
+ * team 0 (enemy) -> team_dir_sign = +1: the slide sprite moves to
+ * frame*0x23 + workspace_ptr. Phase 1 caster x at frames 1..4 = workspace_ptr +
+ * {0x23,0x46,0x69,0x8C}; Phase 2 effect x at frames 4,3,2,1,0 = workspace_ptr +
+ * {0x8C,0x69,0x46,0x23,0}. The slide blits are the odd-indexed log entries.
+ */
+static void test_hit_cinematic_slide_team0_positive(void)
+{
+    int wp = (int)(uint32)g_hc_workspace + 0x49C0;
+    int p1_frame[4];
+    int p2_frame[5];
+    int i;
+
+    hc_setup(0);
+    hc_run(5);
+
+    p1_frame[0] = 1; p1_frame[1] = 2; p1_frame[2] = 3; p1_frame[3] = 4;
+    for (i = 0; i < 4; i++) {
+        /* slide blit for Phase-1 frame (i+1) sits at log idx 2*i+1 */
+        ASSERT_EQ((long)g_blit_indexed_x_log[2 * i + 1],
+                  (long)(p1_frame[i] * 0x23 + wp));
+    }
+    p2_frame[0] = 4; p2_frame[1] = 3; p2_frame[2] = 2; p2_frame[3] = 1; p2_frame[4] = 0;
+    for (i = 0; i < 5; i++) {
+        /* Phase-2 slide blit sits at log idx 8 + 2*i + 1 */
+        ASSERT_EQ((long)g_blit_indexed_x_log[8 + 2 * i + 1],
+                  (long)(p2_frame[i] * 0x23 + wp));
+    }
+}
+
+/*
+ * team != 0 (player) -> team_dir_sign = -1: the slide direction REVERSES, so the
+ * sprite moves to workspace_ptr - frame*0x23. Same FIGANI/buffers as the team-0
+ * case; only the team byte differs. Spot-check Phase 1 frame 1 and 4, Phase 2
+ * frame 4 and 0.
+ */
+static void test_hit_cinematic_slide_team_nonzero_negative(void)
+{
+    int wp = (int)(uint32)g_hc_workspace + 0x49C0;
+
+    hc_setup(2);
+    hc_run(5);
+
+    /* Phase 1 frame 1 (idx 1) and frame 4 (idx 7) */
+    ASSERT_EQ((long)g_blit_indexed_x_log[1], (long)(wp - 1 * 0x23));
+    ASSERT_EQ((long)g_blit_indexed_x_log[7], (long)(wp - 4 * 0x23));
+    /* Phase 2 frame 4 (idx 9) and frame 0 (idx 17) */
+    ASSERT_EQ((long)g_blit_indexed_x_log[9], (long)(wp - 4 * 0x23));
+    ASSERT_EQ((long)g_blit_indexed_x_log[17], (long)(wp - 0 * 0x23));
+}
+
+/*
+ * Electric/lightning flicker branch (spell_type_idx 3): the background composite
+ * dst drops to workspace_ptr-0x280 on odd flicker_toggle frames. The composite
+ * copies bg[0]=0xAB to its dst's first byte, so an odd frame stamps 0xAB at
+ * workspace_ptr-0x280[0]. A non-flicker spell (type 5) ALWAYS composites at
+ * workspace_ptr and never writes the -0x280 row, so that byte stays 0 — it is
+ * the flicker discriminator. (The composite's stride 0x280 spans the whole
+ * frame, so a -0x280 write's row 1 also lands on workspace_ptr with bg's zero
+ * rows; the discriminator is the -0x280 row-0 byte, which only the flicker path
+ * can set.) Dispatch index 3 is a valid handler slot. */
+static void test_hit_cinematic_flicker_type3(void)
+{
+    uint32 wp;
+
+    hc_setup(3);
+    wp = (uint32)g_hc_workspace + 0x49C0;
+    hc_run(3);
+    /* flicker dropped a composite to the -0x280 row -> sentinel landed there */
+    ASSERT_EQ((int)*(uint8 *)(wp - 0x280), 0xAB);
+}
+
+static void test_hit_cinematic_no_flicker_type5(void)
+{
+    uint32 wp;
+
+    hc_setup(0);
+    wp = (uint32)g_hc_workspace + 0x49C0;
+    hc_run(5);
+    /* non-flicker spell never composites at workspace_ptr-0x280 ... */
+    ASSERT_EQ((int)*(uint8 *)(wp - 0x280), 0x00);
+    /* ... it always composites at workspace_ptr, stamping the sentinel there */
+    ASSERT_EQ((int)*(uint8 *)wp, 0xAB);
+}
+
 void run_anim_anicine2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -581,6 +800,11 @@ void run_anim_anicine2_tests(void)
     RUN_TEST(test_step_figani_pose_walk);
     RUN_TEST(test_step_figani_rewind_on_zero);
     RUN_TEST(test_step_figani_single_pose_wraps_each_call);
+    RUN_TEST(test_hit_cinematic_blit_inventory);
+    RUN_TEST(test_hit_cinematic_slide_team0_positive);
+    RUN_TEST(test_hit_cinematic_slide_team_nonzero_negative);
+    RUN_TEST(test_hit_cinematic_flicker_type3);
+    RUN_TEST(test_hit_cinematic_no_flicker_type5);
     printf("\n");
     (void)_prev_fails;
 }

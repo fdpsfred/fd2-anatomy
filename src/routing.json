@@ -2877,8 +2877,9 @@
     "name": "fd2_animate_spell_hit_cinematic",
     "target": "anim/anicine.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002bc9a": {
     "name": "fd2_load_figani_sfx_bank",
