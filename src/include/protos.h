@@ -209,6 +209,7 @@ void fd2_chapter_event_handler_06__ch2_reinforcement(uint32 event_arg);
 void fd2_chapter_event_handler_07__ch13_dialog_with_state(uint32 event_arg);
 void fd2_chapter_event_handler_08__ch13_first_time(uint32 stepping_char_id);
 void fd2_chapter_event_handler_09__ch3_char_cond(uint32 event_arg);
+void fd2_chapter_event_handler_0a__ch14_first_time(uint32 event_arg);
 void fd2_chapter_event_handler_0b__ch4_dialog(uint32 event_arg);
 void fd2_chapter_event_handler_0c__unref_first_time(uint32 event_arg);
 void fd2_chapter_event_handler_0e__ch5_dialog_with_state(uint32 event_arg);

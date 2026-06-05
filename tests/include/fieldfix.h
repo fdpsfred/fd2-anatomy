@@ -9,8 +9,9 @@
  *
  * ev_install_safe_env() sets up the proven "ch25-style real portrait reload"
  * environment the handlers' real callees run against:
- *   - a 64-slot runtime-char array (oversized so every callee write is
- *     in-bounds), pointed at by data_fd2_battle_runtime_char_array_ptr;
+ *   - a 0x48-slot runtime-char array (oversized so every callee write is
+ *     in-bounds, incl. handler 0x0A's 0x10..0x47 range), pointed at by
+ *     data_fd2_battle_runtime_char_array_ptr;
  *   - an empty active party so the real composite/paint char loops iterate zero;
  *   - the real fd2_composite_battle_frame workspace (logical row 0 at ptr+0x8088),
  *     HUD gated off, the palette cycle throttled to its no-op early return;
@@ -33,9 +34,12 @@
 extern runtime_char g_test_rc_array[8];
 extern void *data_fd2_chapter_cutscene_event_script_ptr_table_106[106];
 
-/* 64-slot runtime-char fixture (the handlers' callees touch active battle
- * slots; an oversized array keeps every write in-bounds). */
-static runtime_char g_ev_rc[64];
+/* runtime-char fixture (the handlers' callees touch active battle slots; an
+ * oversized array keeps every write in-bounds). Sized 0x48 (72) so the widest
+ * range any handler writes — fd2_chapter_event_handler_0a__ch14_first_time
+ * clears the AI-flag low nibble for chars 0x10..0x47 inclusive — stays in
+ * bounds (index 0x47 = 71 < 72). */
+static runtime_char g_ev_rc[0x48];
 
 /* compositor workspace span the real fd2_blit_rectangle reads:
  * (h-1)*stride + w = 191*0x1C8 + 0x138. */

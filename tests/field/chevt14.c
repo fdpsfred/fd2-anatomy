@@ -829,6 +829,157 @@ static void test_ch13_event08_already_consumed_does_nothing(void)
     ev08_restore_env();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_0a__ch14_first_time @ 0x34E3B (dispatch idx 0x0A)
+ * — chapter 14 tile-step event slot 0 (tile-step event_type 0x00): a single
+ * first-time-gated beat. It runs only while the trigger byte [0x10] of the
+ * tile-event consumed-flags block is still 0; when it fires it (a) clears the
+ * AI-class flag of the WIDEST char range in this group — the low 4 bits of
+ * combat_aux_block[0xD] become 0 for every char 0x10..0x47 inclusive (56 chars)
+ * via the real fd2_set_combat_aux_block_byte_d_low4_for_char_range, which masks
+ * with 0xF0 and ORs the new low nibble so the HIGH nibble is preserved — (b)
+ * shows dialog page 1, and (c) writes consumed-flags byte [0x10] = 1 so it runs
+ * at most once.
+ *
+ * Both callees are REAL: the AI-flag write lands on combat_aux_block[0xD] of
+ * each g_ev_rc slot in the range (the fixture is sized 0x48 so index 0x47 is in
+ * bounds), and the real dialog VM runs on the per-page-distinct-glyph program
+ * ev20_install_safe_env() installs (page p -> single TEXT glyph idx 0x50+p, then
+ * END), so a correct page-1 dispatch emits exactly one glyph with idx 0x51 and
+ * any wrong page fails loudly via the testglob glyph recorder. The consumed-
+ * flags block is a private 0x20-byte buffer so both the read gate and the write
+ * consume are observable.
+ *
+ * Two cases pin both sides of the single gate:
+ *   (1) trigger un-consumed (byte [0x10] == 0): the body fires — the low nibble
+ *       of combat_aux_block[0xD] is cleared to 0 (high nibble preserved) at the
+ *       two range boundaries 0x10 and 0x47 and an interior char 0x30, the chars
+ *       just OUTSIDE the range (0x0F below, the absent-from-range 0x47+1 cannot
+ *       be checked as it is the last slot) and the in-slot neighbour bytes
+ *       ([0xC]/[0xE]) are untouched, page 1 is shown (one glyph idx 0x51), and
+ *       byte [0x10] is consumed to 1;
+ *   (2) trigger already consumed (byte [0x10] == 1 on entry): NOTHING fires —
+ *       no glyph, byte [0x10] stays 1, and the AI-class bytes in the range are
+ *       left at their seeded sentinel (no clear).
+ *
+ * The pure blit/display side effects (the real glyph render path) are deferred
+ * to Phase 9 integration; here only the dispatched-page identity, the precise
+ * low-nibble AI-flag clear over the exact range, and the consume flag are
+ * asserted.
+ * ================================================================ */
+
+/* private 0x20-byte tile-event consumed-flags block: the handler reads/writes
+ * byte [0x10] of this block via data_fd2_field_map_tile_event_consumed_flags_ptr. */
+static uint8   g_ev0a_consumed_flags[0x20];
+static uint32  g_ev0a_saved_consumed_ptr;
+
+static void ev0a_install_env(void)
+{
+    /* per-page-distinct-glyph dialog program + ch25-style real env (0x48-slot
+     * g_ev_rc, empty party, ...); also resets the glyph recorder. */
+    ev20_install_safe_env();
+
+    /* aim the consumed-flags pointer at a private 0x20-byte buffer; start every
+     * flag clear (each case seeds byte [0x10] as needed). */
+    memset(g_ev0a_consumed_flags, 0, sizeof(g_ev0a_consumed_flags));
+    g_ev0a_saved_consumed_ptr = data_fd2_field_map_tile_event_consumed_flags_ptr;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ev0a_consumed_flags;
+}
+
+static void ev0a_restore_env(void)
+{
+    data_fd2_field_map_tile_event_consumed_flags_ptr = g_ev0a_saved_consumed_ptr;
+    ev_restore_rc_ptr();
+}
+
+/* Seed combat_aux_block[0xD] of every char the range covers (and the guards)
+ * to the sentinel 0xA5: high nibble 0xA (a survivor witness) + low nibble 0x5
+ * (a non-zero value a real clear must drive to 0). */
+static void ev0a_seed_ai_flags(void)
+{
+    int i;
+    for (i = 0x0F; i <= 0x47; i++) {
+        g_ev_rc[i].combat_aux_block[0xD] = 0xA5;
+    }
+    /* in-slot neighbour bytes of the two boundary slots: must survive. */
+    g_ev_rc[0x10].combat_aux_block[0xC] = 0xCC;
+    g_ev_rc[0x10].combat_aux_block[0xE] = 0xEE;
+    g_ev_rc[0x47].combat_aux_block[0xC] = 0xCC;
+    g_ev_rc[0x47].combat_aux_block[0xE] = 0xEE;
+}
+
+/* ----------------------------------------------------------------
+ * (1) Trigger un-consumed: the beat fires. The low nibble of
+ * combat_aux_block[0xD] is cleared to 0 (high nibble preserved -> 0xA5 becomes
+ * 0xA0) for every char in 0x10..0x47, the char just below the range (0x0F) and
+ * the in-slot neighbour bytes are untouched, dialog page 1 is shown (one glyph
+ * idx 0x51), and byte [0x10] is consumed to 1.
+ * ---------------------------------------------------------------- */
+static void test_ch14_event0a_first_time_clears_ai_range_shows_page_consumes(void)
+{
+    ev0a_install_env();
+    ev0a_seed_ai_flags();
+
+    /* trigger not yet consumed. */
+    g_ev0a_consumed_flags[0x10] = 0;
+
+    fd2_chapter_event_handler_0a__ch14_first_time(0);
+
+    /* low nibble cleared, high nibble preserved (low-nibble-only write) at both
+     * range boundaries and an interior char. */
+    ASSERT_EQ((long)g_ev_rc[0x10].combat_aux_block[0xD], (long)0xA0);
+    ASSERT_EQ((long)g_ev_rc[0x30].combat_aux_block[0xD], (long)0xA0);
+    ASSERT_EQ((long)g_ev_rc[0x47].combat_aux_block[0xD], (long)0xA0);
+
+    /* the char just BELOW the range was not touched (lower bound is exact). */
+    ASSERT_EQ((long)g_ev_rc[0x0F].combat_aux_block[0xD], (long)0xA5);
+
+    /* in-slot neighbour bytes of the boundary slots survive (single-byte write
+     * to [0xD] only). */
+    ASSERT_EQ((long)g_ev_rc[0x10].combat_aux_block[0xC], (long)0xCC);
+    ASSERT_EQ((long)g_ev_rc[0x10].combat_aux_block[0xE], (long)0xEE);
+    ASSERT_EQ((long)g_ev_rc[0x47].combat_aux_block[0xC], (long)0xCC);
+    ASSERT_EQ((long)g_ev_rc[0x47].combat_aux_block[0xE], (long)0xEE);
+
+    /* exactly page 1 was shown: one glyph, idx 0x51 (= 0x50 + page 1). */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0x51);
+
+    /* the trigger was consumed. */
+    ASSERT_EQ((long)g_ev0a_consumed_flags[0x10], 1L);
+
+    ev0a_restore_env();
+}
+
+/* ----------------------------------------------------------------
+ * (2) Consumed gate: byte [0x10] is already 1 on entry. NOTHING fires — no
+ * dialog, byte [0x10] stays 1, and the AI-class bytes in the range keep their
+ * seeded sentinel (no clear).
+ * ---------------------------------------------------------------- */
+static void test_ch14_event0a_already_consumed_does_nothing(void)
+{
+    ev0a_install_env();
+    ev0a_seed_ai_flags();
+
+    /* trigger already consumed. */
+    g_ev0a_consumed_flags[0x10] = 1;
+
+    fd2_chapter_event_handler_0a__ch14_first_time(0);
+
+    /* no dialog dispatched. */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 0);
+
+    /* trigger still consumed (unchanged). */
+    ASSERT_EQ((long)g_ev0a_consumed_flags[0x10], 1L);
+
+    /* the AI-class bytes were NOT cleared — boundaries + interior keep 0xA5. */
+    ASSERT_EQ((long)g_ev_rc[0x10].combat_aux_block[0xD], (long)0xA5);
+    ASSERT_EQ((long)g_ev_rc[0x30].combat_aux_block[0xD], (long)0xA5);
+    ASSERT_EQ((long)g_ev_rc[0x47].combat_aux_block[0xD], (long)0xA5);
+
+    ev0a_restore_env();
+}
+
 void run_field_chevt14_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -846,5 +997,7 @@ void run_field_chevt14_tests(void)
     RUN_TEST(test_ch13_event08_non_lord_step_does_nothing);
     RUN_TEST(test_ch13_event08_full_inventory_does_nothing);
     RUN_TEST(test_ch13_event08_already_consumed_does_nothing);
+    RUN_TEST(test_ch14_event0a_first_time_clears_ai_range_shows_page_consumes);
+    RUN_TEST(test_ch14_event0a_already_consumed_does_nothing);
     printf("\n");
 }

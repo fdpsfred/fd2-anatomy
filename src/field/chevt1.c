@@ -28,6 +28,9 @@
  * fd2_chapter_event_handler_09__ch3_char_cond @ 0x344C2
  *     (0 direct callers; dispatched as idx 0x09 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_0a__ch14_first_time @ 0x34E3B
+ *     (0 direct callers; dispatched as idx 0x0A of the per-event
+ *      handler table at 0x51B91)
  * fd2_chapter_event_handler_0b__ch4_dialog @ 0x34565
  *     (0 direct callers; dispatched as idx 0x0B of the per-event
  *      handler table at 0x51B91)
@@ -1557,4 +1560,37 @@ void fd2_chapter_event_handler_25__unref_major_cinematic(uint32 event_arg)
     fd2_clear_all_chars_facing();
 
     data_fd2_battle_anim_phase = 1;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_0a__ch14_first_time @ 0x34E3B
+ *   — Dispatch idx 0x0A of the per-event handler table at 0x51B91.
+ *
+ * Triggered in chapter 14 as tile-step event_type 0x00 (ch14 tile-step
+ * slot 0). First-time-gated: the body runs only while
+ * tile_event_consumed_flags[0x10] is still 0, and consuming the flag
+ * (set to 1) at the end makes every later call a no-op. Its single beat
+ * disarms the AI flag on 56 chars — the low nibble of combat_aux_block[0xD]
+ * becomes 0 for chars 0x10..0x47 (the largest range in this group) — and
+ * then shows dialog page 1.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here. fd2_display_dialog_scene's uint32 return is discarded.
+ *
+ * The pointer global data_fd2_field_map_tile_event_consumed_flags_ptr
+ * holds the base of the 0x20-byte tile-event consumed-flags block; the
+ * gate flag is byte [0x10] of that block.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_0a__ch14_first_time(uint32 event_arg)
+{
+    (void)event_arg;
+
+    if (*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) == 0) {
+        fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x10, 0x47, 0);
+        fd2_display_dialog_scene(current_chapter_text, 1, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) = 1;
+    }
 }
