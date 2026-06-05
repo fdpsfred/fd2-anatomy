@@ -494,6 +494,17 @@ void crt_equivalent_entry_start(void);
  * callable function. __cdecl void(int fpe_code); ignores the code and returns. */
 void crt_equivalent_fpe_default_handler_3d26e(int fpe_code);
 
+/* crt_equivalent_matherr_default_thunk_4d340 @ 0x4d340 — default value of the
+ * user-matherr-handler slot @ 0x539A8. Read+CALLed by _matherr (PUSH exc;
+ * CALL [0x539A8]; ADD ESP,4) before any diagnostic output; returns 0 ("not
+ * handled") so _matherr runs its default path. Address-taken (the slot's
+ * default contents, written by _set_matherr), so it is a real callable
+ * function. Real out-of-line body tail-JMPs to the separate emit target
+ * crt_equivalent_matherr_default_return_zero_4d8ea @ 0x4d8ea via an in-line
+ * #pragma aux helper in src/crt/crt.c. __cdecl int(void *exc); ignores exc
+ * and returns 0. */
+int crt_equivalent_matherr_default_thunk_4d340(void *exc);
+
 /* ---- util / dpmi ---- */
 int fd2_dpmi_alloc_dos_memory(uint32 paragraphs, uint32 *out_linear, uint32 *out_segment, uint32 *out_selector);
 void fd2_dpmi_free_dos_memory(uint32 linear_unused, uint32 segment_unused, uint32 selector);

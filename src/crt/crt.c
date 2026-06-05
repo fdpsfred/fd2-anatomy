@@ -13,6 +13,7 @@
  *   crt_equivalent_get_eflags_thunk     @ 0x37f86 (2 callers)
  *   crt_equivalent_entry_start          @ 0x3c964 (0 callers; LE entry point)
  *   crt_equivalent_fpe_default_handler_3d26e @ 0x3d26e (2 callers)
+ *   crt_equivalent_matherr_default_thunk_4d340 @ 0x4d340 (1 caller)
  */
 
 #include "types.h"
@@ -511,4 +512,84 @@ void crt_equivalent_fpe_default_handler_3d26e(int fpe_code)
 {
     (void)fpe_code;
     return;
+}
+
+/* ----------------------------------------------------------------
+ * crt_equivalent_matherr_default_thunk_4d340 @ 0x4d340  (1 caller)
+ *
+ * Default value of the user-matherr-handler slot @ 0x539A8. _matherr
+ * (vendor CLIB3S obj) reads the slot and CALLs it before any diagnostic
+ * output: PUSH exc; CALL [0x539A8]; ADD ESP,4 (__cdecl, 1 stack arg, the
+ * exception-struct pointer; caller cleans up). A handler returning 0 means
+ * "I did not handle this error", so _matherr proceeds with its default
+ * behaviour (fputs diagnostic + __set_EDOM/__set_ERANGE + the struct's
+ * pre-populated retval). _set_matherr overwrites the slot to install a
+ * custom handler, bypassing this thunk.
+ *
+ * Original body is a single 5-byte JMP:
+ *     0x4d340: JMP 0x4d8ea
+ * forwarding to the separate emit target crt_equivalent_matherr_default_
+ * return_zero_4d8ea @ 0x4d8ea, whose body is the "return 0" primitive
+ * (PUSH EBP; MOV EBP,ESP; XOR EAX,EAX; POP EBP; RET). Net effect at the
+ * call boundary: EAX = 0, stack balanced.
+ *
+ * Its address is taken — it is the default contents of slot [0x539A8]
+ * (written by _set_matherr, read+CALLed by _matherr) — so it must remain a
+ * real, callable function with a genuine PUBDEF symbol, not folded away.
+ *
+ * Emit form (mirrors crt_equivalent_entry_start @ 0x3c964 and
+ * crt_equivalent_get_eflags_thunk @ 0x37f86): the control transfer MUST be
+ * a JMP to a distinct symbol, not a C `return ...4d8ea();` CALL. The
+ * original thunk has no frame at all — it JMPs straight through, and 0x4d8ea
+ * RETs directly back to _matherr. A C return-call would push a 4-byte
+ * return address and route the RET back here instead of to _matherr; the
+ * tail-JMP semantics (and byte-level fidelity) are preserved only by an
+ * actual JMP. crt_equivalent_matherr_default_return_zero_4d8ea is a SEPARATE
+ * emit target (its own routing.json entry, same target file); it must NOT be
+ * re-emitted here.
+ *
+ * A tail-JMP to a distinct symbol carries a symbolic relative displacement
+ * that raw #pragma aux opcode bytes cannot encode, so the JMP is expressed
+ * via a #pragma aux in-line helper whose body is the single instruction
+ * `jmp <target>` (Watcom resolves the symbol with a relocation). The helper
+ * (crt_matherr_jmp_to_return_zero) is only ever called, never address-taken,
+ * so Watcom 9.5a expands it in place with no symbol of its own.
+ * crt_equivalent_matherr_default_thunk_4d340 is a REAL out-of-line function
+ * so it owns the PUBDEF that slot [0x539A8] resolves to. It has no locals and
+ * no stack frame, so Watcom emits no __CHK probe / prologue before the JMP —
+ * ESP reaches the target exactly as _matherr left it (exc still pushed,
+ * cleaned by _matherr's ADD ESP,4 after control returns). Verified emitted
+ * body (WDISASM): `E9 <disp32> jmp crt_equivalent_matherr_default_return_zero
+ * _4d8ea` — a single relative JMP, matching the original 5-byte `JMP 0x4d8ea`.
+ * Watcom also appends an unreachable `xor eax,eax; ret` (the int wrapper's
+ * `return 0;` epilogue) after the JMP; it is never executed because the JMP
+ * always transfers control away. See the per-function note at the definition.
+ *
+ * __cdecl int(void *exc): the matherr ABI passes the exception-struct
+ * pointer as a single cdecl stack arg (PUSH exc by _matherr). The thunk
+ * never reads it (it JMPs straight through); it is declared only so the
+ * thunk's PUBDEF carries the correct cdecl signature for the slot. The
+ * return value is 0, produced by the JMP target in EAX. No CALL precedes any
+ * EAX use here, so there is no EAX-tracking concern.
+ * ---------------------------------------------------------------- */
+extern int crt_equivalent_matherr_default_return_zero_4d8ea(void);
+
+extern void crt_matherr_jmp_to_return_zero(void);
+#pragma aux crt_matherr_jmp_to_return_zero = \
+    "jmp crt_equivalent_matherr_default_return_zero_4d8ea";
+
+/* The helper's `jmp` is the entire executed body and matches the original
+ * 5-byte `JMP 0x4d8ea`. The trailing `return 0;` is required only to silence
+ * Watcom's W107 (this is an int-typed function); the optimiser keeps it as an
+ * unreachable `xor eax,eax; ret` epilogue AFTER the jmp, which is never
+ * executed (the jmp always transfers control away). Those few unreachable
+ * trailing bytes are the only divergence from the original — a Layer 3
+ * (byte-exact) thunk-tail detail the project does not pursue; the Layer 2
+ * (functionally-exact) contract is met (return 0 in EAX, stack balanced, the
+ * jmp tail-transfers so 0x4d8ea's RET returns straight to _matherr). */
+int crt_equivalent_matherr_default_thunk_4d340(void *exc)
+{
+    (void)exc;
+    crt_matherr_jmp_to_return_zero();
+    return 0;
 }

@@ -4511,8 +4511,9 @@
     "name": "crt_equivalent_matherr_default_thunk_4d340",
     "target": "crt/crt.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004d8ea": {
     "name": "crt_equivalent_matherr_default_return_zero_4d8ea",
