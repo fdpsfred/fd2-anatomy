@@ -7,6 +7,7 @@
 #include "globals.h"
 #include "protos.h"
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 /* ----------------------------------------------------------------
@@ -292,6 +293,167 @@ int fd2_promote_member_select_loop(int char_count, void *char_list_ptr,
     } while (result == 0);
 
     return result;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_run_class_promotion_menu_main @ 0x31385  (1 caller)
+ *
+ * CLASS PROMOTION main menu (church / promotion service). Sole caller:
+ * fd2_run_chapter_intro_menu_typeC @ 0x3072F (town promotion option).
+ *
+ * Outer loop:
+ *   1. fd2_build_promotion_candidates_with_targets builds the parallel
+ *      candidate_chars[] / target_classes[] lists (eligibility checked
+ *      inside that helper: level>=20, basic class only, key-item check).
+ *   2. If count==0: load chapter type-C portrait, show "no one is ready"
+ *      dialog (page 0x24F), wait input, slide out, return.
+ *   3. Show "promote whom?" prompt (page 0x250), wait input(blink=1),
+ *      slide out, clear keyboard buffer.
+ *   4. fd2_promote_member_select_loop -> 1=commit / -1=cancel; cancel
+ *      returns from the menu.
+ *   5. Reload chapter portrait, fetch candidate_chars[cursor_idx] and
+ *      target_classes[cursor_idx], set last_action_sprite_id =
+ *      char.portrait_id+1, show "ready to become [class]?" dialog
+ *      (page 0x252) via fd2_text_dialog_typewriter_loop. Loop back to
+ *      the top if the typewriter returns -1 (cancel) or cursor_idx!=0
+ *      (NO selected; yes=row 0, no=row 1).
+ *   6. Consume the required item: class_id==0x34 (劍士/Lord direct path)
+ *      consumes Sword(0x5A); class_id>0x31 consumes the key item read
+ *      from data_fd2_ui_per_basic_portrait_class_change_key_item_id_table
+ *      [char.portrait_id]; class_id<=0x31 (the 0x20..0x31 tier-1 upgrade)
+ *      consumes nothing.
+ *   7. fd2_set_bgm_track_with_fade(0x10,1) promotion fanfare,
+ *      fd2_play_spell_cast_cinematic(char_idx,class_id),
+ *      fd2_set_bgm_track_with_fade(0xB,0).
+ *   8. rt_chars[idx].job_id = *fd2_get_class_promotion_data_entry(class_id);
+ *      rt_chars[idx].portrait_id = target_classes[cursor_idx]. Free the
+ *      portrait sprite cache if set, reopen FDICON.B24, reset the portrait
+ *      cache count, reload every party portrait
+ *      (fd2_load_portrait_to_cache(roster[7 + i*0x50])), fclose.
+ *   9. fd2_execute_class_promotion_with_dialog(char_idx) (stat gains +
+ *      spell unlock + HP/MP restore), clear keyboard, loop back to step 1.
+ *
+ * void __cdecl with the __CHK(0x7c) stack-probe prologue (compiler-
+ * injected, not part of the source). The frame holds two parallel
+ * 32-entry byte arrays (target_classes[], candidate_chars[]) plus the
+ * stashed class_id. EDI caches char_idx, ESI the &rt_chars[idx] pointer
+ * (and is also reused as the portrait reload counter); the trailing
+ * ADD ESP / POP EBP,EDI,ESI,EBX / RET is the function's own epilogue.
+ *
+ * EAX-tracking notes (verified against the asm):
+ *   - fd2_build_promotion_candidates_with_targets returns its byte count
+ *     zero-extended (epilogue MOVZX EAX,[count]); TEST EAX,EAX is a true
+ *     count==0 test and the value is forwarded as a plain count.
+ *   - fd2_promote_member_select_loop (MOV ESI,EAX) and
+ *     fd2_text_dialog_typewriter_loop (MOV EBX,EAX) genuinely consume EAX.
+ *   - fd2_find_inventory_slot_with_item's result is passed straight into
+ *     fd2_remove_inventory_slot_at, and fd2_get_class_promotion_data_entry
+ *     returns a pointer that is immediately dereferenced (MOV AL,[EAX]).
+ * ---------------------------------------------------------------- */
+void fd2_run_class_promotion_menu_main(void)
+{
+    uint8 candidate_count;
+    int sel;
+    int typewriter_ret;
+    uint32 char_idx;
+    uint32 class_id;
+    uint32 item_id;
+    int do_consume;
+    uint32 slot;
+    uint8 *promo_entry;
+    void *fp;
+    int i;
+    runtime_char *rt_chars;
+    uint8 target_classes[32];
+    uint8 candidate_chars[32];
+
+    do {
+        do {
+            candidate_count = fd2_build_promotion_candidates_with_targets(
+                candidate_chars, target_classes);
+            if (candidate_count == 0) {
+                fd2_load_chapter_portrait(
+                    (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[4]);
+                fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x24f,
+                    0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+                fd2_paint_portrait_to_dialog_area(0);
+                fd2_wait_for_input_dialog_with_blink(0);
+                fd2_close_intro_dialog_with_slide_out();
+                return;
+            }
+
+            fd2_load_chapter_portrait(
+                (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[4]);
+            fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x250,
+                0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+            fd2_paint_portrait_to_dialog_area(0);
+            fd2_wait_for_input_dialog_with_blink(1);
+            fd2_close_intro_dialog_with_slide_out();
+            fd2_clear_keyboard_buffer();
+
+            sel = fd2_promote_member_select_loop((int)candidate_count,
+                candidate_chars, target_classes);
+            fd2_close_intro_dialog_with_slide_out();
+            if (sel == -1) {
+                return;
+            }
+
+            fd2_load_chapter_portrait(
+                (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[4]);
+            rt_chars = data_fd2_battle_runtime_char_array_ptr;
+            char_idx = (uint32)candidate_chars[data_fd2_ui_menu_cursor_idx];
+            class_id = (uint32)target_classes[data_fd2_ui_menu_cursor_idx];
+            data_fd2_dialog_last_action_sprite_id_param =
+                (uint32)rt_chars[char_idx].portrait_id + 1;
+
+            fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x252,
+                0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+            fd2_clear_keyboard_buffer();
+            typewriter_ret = fd2_text_dialog_typewriter_loop();
+            fd2_animate_dialog_page_advance_collapse();
+            fd2_close_intro_dialog_with_slide_out();
+        } while (typewriter_ret == -1 || data_fd2_ui_menu_cursor_idx != 0);
+
+        do_consume = 0;
+        item_id = 0;
+        if (class_id == 0x34) {
+            item_id = 0x5a;
+            do_consume = 1;
+        }
+        else if (class_id > 0x31) {
+            item_id = (uint32)data_fd2_ui_per_basic_portrait_class_change_key_item_id_table
+                [rt_chars[char_idx].portrait_id];
+            do_consume = 1;
+        }
+        if (do_consume) {
+            slot = (uint32)fd2_find_inventory_slot_with_item(char_idx, item_id);
+            fd2_remove_inventory_slot_at(char_idx, slot);
+        }
+
+        fd2_set_bgm_track_with_fade(0x10, 1);
+        fd2_play_spell_cast_cinematic(char_idx, class_id);
+        fd2_set_bgm_track_with_fade(0xb, 0);
+
+        promo_entry = fd2_get_class_promotion_data_entry((int)class_id);
+        rt_chars[char_idx].job_id = *promo_entry;
+        rt_chars[char_idx].portrait_id = (uint8)class_id;
+
+        if (portrait_sprite_cache != 0) {
+            free((void *)portrait_sprite_cache);
+        }
+        fp = fopen("FDICON.B24", "rb");
+        data_fd2_resource_portrait_cache_count = 0;
+        for (i = 0; i < (int)data_fd2_shared_menu_party_member_count; i++) {
+            fd2_load_portrait_to_cache(
+                (uint32)*(uint8 *)(data_fd2_shared_menu_party_roster_buffer_ptr
+                                   + 7 + i * 0x50),
+                (uint32)fp);
+        }
+        fclose(fp);
+
+        fd2_execute_class_promotion_with_dialog(char_idx);
+        fd2_clear_keyboard_buffer();
+    } while (1);
 }
 
 void fd2_run_revive_menu_main(void)

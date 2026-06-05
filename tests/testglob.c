@@ -482,6 +482,13 @@ int16  data_fd2_dialog_shop_inventory_full_dialog_text_id_table[36] = {
     0x04B0, 0x03E8, 0x0BB8, 0x03E8, 0x03E8, 0x0578, 0x015E, 0x0064,
     0x0064, 0x0064, 0x0064, 0x0064
 };
+/* per-basic-class required class-change key-item id — real FD2.LE values
+ * @ 0x526A7 (= 0x5266B + 0x3C). Indexed directly by runtime_char.portrait_id
+ * (basic classes 0..0x11); 0xFF marks classes with no table-driven item. */
+uint8  data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[18] = {
+    0x59, 0x5D, 0xFF, 0x5D, 0xCD, 0xCD, 0xCD, 0xCD, 0x5C,
+    0x58, 0x58, 0x58, 0x5B, 0x5C, 0x58, 0x5B, 0xFF, 0xFF
+};
 /* field command menu templates — real FD2.LE values @ 0x51E9F / 0x53EF2 */
 int32  data_fd2_ui_field_command_menu_options_template[4] = { 7, 5, 6, 4 };
 int32  data_fd2_ui_field_command_menu_state_template[4] = { 0, 0, 0, 0 };
@@ -657,6 +664,37 @@ int fd2_party_roster_single_select_loop(void)
 {
     g_roster_select_calls++;
     return g_roster_select_return;
+}
+
+/* fd2_build_promotion_candidates_with_targets @ 0x31793: not yet emitted;
+ * controllable fake. Returns g_promote_cand_count_return as the candidate
+ * count so the class-promotion menu's count==0 early-return path can be
+ * driven without standing up an eligible party + the real inventory scan. */
+int g_promote_build_calls = 0;
+uint8 g_promote_cand_count_return = 0;
+uint8 fd2_build_promotion_candidates_with_targets(uint8 *out_chars,
+                                                  uint8 *out_targets)
+{
+    g_promote_build_calls++;
+    (void)out_chars;
+    (void)out_targets;
+    return g_promote_cand_count_return;
+}
+
+/* fd2_find_inventory_slot_with_item @ 0x31860 and
+ * fd2_execute_class_promotion_with_dialog @ 0x31602: not yet emitted; no-op
+ * link stubs so fd2_run_class_promotion_menu_main links. Neither is reached
+ * on the count==0 early-return path the unit test drives; their behavioral
+ * coverage rides with the (Phase 9 integration) commit path. */
+int fd2_find_inventory_slot_with_item(uint32 char_idx, uint32 item_id)
+{
+    (void)char_idx;
+    (void)item_id;
+    return -1;
+}
+void fd2_execute_class_promotion_with_dialog(uint32 char_idx)
+{
+    (void)char_idx;
 }
 
 /* ---- fd2_load_save_and_init_engine leaf helper fakes ----

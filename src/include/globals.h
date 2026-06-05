@@ -130,6 +130,10 @@ extern uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6];  /* 0x52
  * accessed as [bJob_id + 5]. (vendor data overlap) */
 extern int16  data_fd2_dialog_shop_inventory_full_dialog_text_id_table[]; /* 0x5265F */
 
+/* Per-basic-class required key-item id for class change, indexed directly by
+ * runtime_char.portrait_id (basic classes 0..0x11). 18 bytes. (= 0x5266B+0x3C) */
+extern uint8  data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[18]; /* 0x526A7 */
+
 /* ---- recruitment screen ---- */
 extern uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch;         /* 0x54127 */
 

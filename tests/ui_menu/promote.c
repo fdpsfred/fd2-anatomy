@@ -39,6 +39,11 @@ extern int    g_promote_grid_last_list;
 extern int    g_promote_scroll_down_calls;
 extern int    g_promote_scroll_up_calls;
 
+/* class-promotion candidate builder fake (testglob.c): controls the candidate
+ * count the menu sees, to drive the count==0 early-return path. */
+extern int    g_promote_build_calls;
+extern uint8  g_promote_cand_count_return;
+
 /* class-promotion candidate-grid spy (5-arg renderer, testglob.c) */
 extern int    g_promote_cand_grid_calls;
 extern uint32 g_promote_cand_grid_last_count;
@@ -454,6 +459,86 @@ static void test_revive_no_dead_chars_returns(void)
     }
 }
 
+/* ----------------------------------------------------------------
+ * fd2_run_class_promotion_menu_main @ 0x31385 — "no one is ready" early-return.
+ *
+ * Forces the candidate builder fake to report 0 eligible members so the menu
+ * takes its count==0 branch: load the town speaker portrait, show the "no one
+ * is ready" dialog (FDTXT 0x24F), wait one key, close, and return — never
+ * reaching the picker, the item-consume branch, the BGM fanfare, or any
+ * runtime_char mutation. This is the one class-promotion path bounded enough
+ * for an in-process unit test (it drives the REAL fd2_load_chapter_portrait
+ * against the staged real DATO.DAT, the REAL fd2_display_dialog_scene on the
+ * minip immediate-END program, and the REAL fd2_wait_for_input_dialog_with_blink
+ * released by a pre-armed nonempty BIOS keyboard buffer). It pins the
+ * EAX-consuming count==0 branch — the builder's byte count is returned
+ * zero-extended (MOVZX) and TEST EAX,EAX drives the if — and proves the early
+ * return fires before any commit-side state changes.
+ *
+ * The commit path (item consume by class_id band, the promotion fanfare,
+ * job_id/portrait_id writeback, FDICON.B24 portrait reload, and the stat-gain
+ * dialog) sits behind two sequential blocking input loops — the candidate
+ * picker then the yes/no typewriter — which a single in-process BIOS buffer
+ * cannot feed, so its behavioral coverage is deferred to Phase 9 integration
+ * under the emulator (the same deferral the sibling fd2_run_revive_menu_main
+ * and the other input-loop menus already apply).
+ * ---------------------------------------------------------------- */
+static void test_promote_no_candidates_returns(void)
+{
+    uint32 saved_sprite_id;
+    int reached;
+
+    /* minip env: sprite sheet + immediate-END dialog program + blit spies. */
+    minip_setup_env();
+    data_fd2_battle_tile_map_ptr = 0;                   /* full-screen dialog layout */
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    data_fd2_portrait_sprite_buffer = 0;                /* loader frees prev iff != 0 */
+
+    /* builder fake reports zero eligible candidates -> count==0 branch. */
+    g_promote_build_calls = 0;
+    g_promote_cand_count_return = 0;
+
+    /* single-member party on the shared (file-static) fixture so any
+     * (unexpected) commit-path roster read stays in bounds AND no dangling
+     * pointer is left behind for later suites; the count==0 branch must not
+     * touch it. */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].job_id = 0x55;                   /* sentinel: must survive */
+    g_test_rc_array[0].portrait_id = 0x09;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_shared_menu_party_member_count = 1;
+
+    data_fd2_dialog_last_action_sprite_id_param = 0xCAFE;
+    saved_sprite_id = data_fd2_dialog_last_action_sprite_id_param;
+
+    /* pre-arm the BIOS keyboard buffer NONEMPTY so the single
+     * fd2_wait_for_input_dialog_with_blink(0) exits on its first poll. */
+    *(volatile uint16 *)0x41AuL = 0x1E;                 /* head        */
+    *(volatile uint16 *)0x41CuL = 0x20;                 /* tail = head+2 -> nonempty */
+    *(volatile uint16 *)0x41EuL = 0x1C00;              /* Enter scancode in AH       */
+
+    reached = 0;
+    fd2_run_class_promotion_menu_main();
+    reached = 1;
+
+    /* control returned via the count==0 branch (no hang in the picker). */
+    ASSERT_EQ(reached, 1);
+    /* the builder ran exactly once (the outer loop's first pass returned). */
+    ASSERT_EQ((long)g_promote_build_calls, 1);
+    /* the commit path never ran: the sentinel char + dialog-substitution param
+     * were left untouched. */
+    ASSERT_EQ((long)g_test_rc_array[0].job_id, 0x55);
+    ASSERT_EQ((long)g_test_rc_array[0].portrait_id, 0x09);
+    ASSERT_EQ((long)data_fd2_dialog_last_action_sprite_id_param,
+              (long)saved_sprite_id);
+
+    /* free the portrait buffer the real loader may have allocated. */
+    if (data_fd2_portrait_sprite_buffer != 0) {
+        free((void *)data_fd2_portrait_sprite_buffer);
+        data_fd2_portrait_sprite_buffer = 0;
+    }
+}
+
 void run_ui_menu_promote_tests(void)
 {
     SUITE_BEGIN(ui_menu_promote);
@@ -469,6 +554,7 @@ void run_ui_menu_promote_tests(void)
     RUN_TEST(test_cand_loop_space_commits);
     RUN_TEST(test_cand_loop_esc_cancels);
     RUN_TEST(test_revive_no_dead_chars_returns);
+    RUN_TEST(test_promote_no_candidates_returns);
     /* restore stub default so later suites keep historical behavior */
     g_check_char_is_dead_use_array = 0;
     g_check_char_is_dead_return = 0;
