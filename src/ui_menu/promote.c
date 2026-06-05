@@ -148,3 +148,121 @@ int fd2_promote_members_select_loop(uint32 candidate_count, uint8 *candidate_idx
 
     return result;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_run_revive_menu_main @ 0x30DC3  (1 caller)
+ *
+ * CHURCH REVIVE main menu loop. Picks a dead party member, charges a
+ * per-level fee, then revives them (clears bFlags + restores HP_current
+ * to HP_max). Sole caller: fd2_run_chapter_intro_menu_typeC @ 0x3072F
+ * (option 2 = 復活 at the town chapter).
+ *
+ * Outer loop:
+ *   - Build list of dead chars; if none, show "no one is dead" (FDTXT
+ *     0x24C) and return.
+ *   - Greeting "revive whom?" (0x24D), then run the candidate picker.
+ *     Esc (-1) exits.
+ *   - Compute price = char.bLevel * price_table[char.bJob_id + 5]
+ *     (the per-job multiplier table that aliases the shop "inventory
+ *     full" dialog-id table @ 0x5265F). Store dialog substitution
+ *     params (sprite id = bChar_id + 1, value = price).
+ *   - Confirm "pay X gold?" (0x24E). On yes (cursor 0) with enough
+ *     gold: deduct, clear bFlags, full-restore HP, redraw money panel,
+ *     play revive fanfare (BGM 0x11) then return to ambient (BGM 0x0B),
+ *     loop again. Not enough gold -> show 0x1F8.
+ *
+ * void __cdecl with the __CHK(0x50) stack-probe prologue (compiler-
+ * injected, not part of the source). EBX holds the dead-char count
+ * (callee-saved), reused as the chosen runtime_char pointer once a
+ * candidate is picked; ESI holds the typewriter result. The trailing
+ * ADD ESP / POP ESI / POP EBX / RET is the function's own epilogue.
+ *
+ * The three return-value CALLs (build_dead_chars_list, the picker, and
+ * the typewriter loop) each have an explicit MOV reg,EAX after them in
+ * the assembly, so the return values are genuinely consumed (not the
+ * Ghidra EAX-tracking artifact). count==0 branch passes that 0 count
+ * straight through to the two dialog helpers.
+ * ---------------------------------------------------------------- */
+void fd2_run_revive_menu_main(void)
+{
+    int dead_count;
+    int sel;
+    int typewriter_ret;
+    uint8 chosen_idx;
+    runtime_char *rc;
+    uint8 candidate_chars[32];
+
+    do {
+        dead_count = fd2_build_dead_chars_list_for_revive(candidate_chars);
+        if (dead_count == 0) {
+            fd2_load_chapter_portrait(
+                (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[4]);
+            fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x24c,
+                0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+            fd2_paint_portrait_to_dialog_area(0);
+            fd2_wait_for_input_dialog_with_blink(0);
+            fd2_close_intro_dialog_with_slide_out();
+            return;
+        }
+
+        fd2_load_chapter_portrait(
+            (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[4]);
+        fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x24d,
+            0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+        fd2_paint_portrait_to_dialog_area(0);
+        fd2_wait_for_input_dialog_with_blink(1);
+        fd2_close_intro_dialog_with_slide_out();
+
+        sel = fd2_promote_members_select_loop((uint32)dead_count,
+                                              candidate_chars);
+        fd2_close_intro_dialog_with_slide_out();
+        if (sel == -1) {
+            return;
+        }
+
+        fd2_load_chapter_portrait(
+            (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[4]);
+        rc = data_fd2_battle_runtime_char_array_ptr;
+        chosen_idx = candidate_chars[data_fd2_ui_menu_cursor_idx];
+        data_fd2_dialog_last_action_sprite_id_param =
+            (uint32)rc[chosen_idx].char_id + 1;
+        data_fd2_dialog_last_action_value_param =
+            (uint32)rc[chosen_idx].status_flags_block[0] *
+            (int32)data_fd2_dialog_shop_inventory_full_dialog_text_id_table
+                [rc[chosen_idx].job_id + 5];
+
+        fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x24e,
+            0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+        typewriter_ret = fd2_text_dialog_typewriter_loop();
+        fd2_animate_dialog_page_advance_collapse();
+
+        if (typewriter_ret != -1 && data_fd2_ui_menu_cursor_idx == 0) {
+            if ((int32)data_fd2_dialog_last_action_value_param <=
+                    (int32)data_fd2_shared_party_total_gold) {
+                fd2_animate_money_decrement(
+                    data_fd2_dialog_last_action_value_param);
+                rc[chosen_idx].flags = 0;
+                rc[chosen_idx].hp_current = rc[chosen_idx].hp_max;
+                fd2_dialog_sprite_blit_normal(
+                    data_fd2_ui_slide_bg_snapshot_buf_ptr + 0x76c5,
+                    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr +
+                        *(int32 *)(data_fd2_ui_menu_screen_sprite_atlas_buf_ptr
+                                   + 10),
+                    0x140);
+                fd2_render_decimal_number_to_buffer(
+                    data_fd2_ui_slide_bg_snapshot_buf_ptr + 0x7bd0, 0x140,
+                    data_fd2_shared_party_total_gold, 0x1f, 8);
+                fd2_close_intro_dialog_with_slide_out();
+                fd2_set_bgm_track_with_fade(0x11, 1);
+                fd2_animate_shop_transaction_feedback();
+                fd2_set_bgm_track_with_fade(0xb, 1);
+                continue;
+            }
+            fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1f8,
+                0xac44c, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+            fd2_paint_portrait_to_dialog_area(0);
+            fd2_wait_for_input_dialog_with_blink(1);
+        }
+        fd2_close_intro_dialog_with_slide_out();
+    } while (1);
+}

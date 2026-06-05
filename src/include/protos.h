@@ -435,11 +435,14 @@ int fd2_check_char_is_dead(uint32 char_idx);
 int fd2_scan_chars_within_manhattan_range(uint32 x, uint32 y, uint32 range, uint32 flag, int mode);
 
 /* ---- ui_menu / revive + promote ---- */
+void fd2_run_revive_menu_main(void);
 int fd2_build_dead_chars_list_for_revive(uint8 *out_list_buf);
 int fd2_promote_members_select_loop(uint32 candidate_count, uint8 *candidate_idx_list);
 void fd2_render_promote_members_grid(uint32 candidate_count, uint32 dst_buffer, uint32 cursor_idx, int candidate_idx_list);
 void fd2_animate_scroll_down_in_shop_dialog(void);
 void fd2_animate_scroll_up_in_shop_dialog(void);
+void fd2_animate_money_decrement(uint32 amount);
+void fd2_animate_shop_transaction_feedback(void);
 
 /* ---- util / misc ---- */
 void fd2_debug_print_ans_and_length(int value);

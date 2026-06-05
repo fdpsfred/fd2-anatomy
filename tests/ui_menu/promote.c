@@ -14,11 +14,16 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
 #include "testharn.h"
 #include "types.h"
 #include "consts.h"
 #include "globals.h"
 #include "protos.h"
+/* immediate-END dialog text program + sprite sheet + blit spies, so the real
+ * fd2_load_chapter_portrait / fd2_display_dialog_scene that the revive menu
+ * drives return without hanging (minip_setup_env). */
+#include "minipfix.h"
 
 /* shared runtime_char fixture + the dead-check stub controls (testglob.c) */
 extern runtime_char g_test_rc_array[8];
@@ -256,6 +261,90 @@ static void test_select_loop_esc_cancels(void)
     ASSERT_EQ((long)g_promote_scroll_up_calls, 0);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_run_revive_menu_main @ 0x30DC3 — "nobody is dead" early-return path.
+ *
+ * Seeds an all-alive party so the real fd2_build_dead_chars_list_for_revive
+ * returns 0; the menu then takes its count==0 branch: load the town speaker
+ * portrait, show the "no one is dead" dialog (FDTXT 0x24C), wait one key,
+ * close, and return — never touching gold, the picker, or the price globals.
+ *
+ * This is the one revive-loop path that is bounded enough for an in-process
+ * unit test: it drives the REAL fd2_load_chapter_portrait (against the staged
+ * real DATO.DAT, portrait kind = speaker_table[4] = 0x83), the REAL
+ * fd2_display_dialog_scene (returns at once on the minip immediate-END text
+ * program), and the REAL fd2_wait_for_input_dialog_with_blink(0) (released by
+ * a pre-armed nonempty BIOS keyboard buffer). It pins the EAX-consuming
+ * count==0 branch (build_dead_chars_list's return drives the if) and proves
+ * the early return fires before any gold mutation.
+ *
+ * The commit path (price = level * price_table[job_id+5], the signed
+ * affordability compare, and the bFlags=0 / HP-restore payoff) sits behind
+ * three sequential blocking input loops — the candidate picker, then the
+ * yes/no typewriter — plus the large-game-state / menu-dialog-handle / portrait
+ * buffers those loops composite into. A single in-process BIOS buffer cannot
+ * feed that many sequential waits, so its behavioral coverage is deferred to
+ * Phase 9 integration under the emulator, the same deferral the sibling
+ * input-loop menus (status member menu, inventory modal) already apply.
+ * ---------------------------------------------------------------- */
+static void test_revive_no_dead_chars_returns(void)
+{
+    uint32 saved_gold;
+    uint32 saved_sprite_id;
+    uint32 saved_value;
+    int reached;
+
+    /* minip env: sprite sheet + immediate-END dialog program + blit spies. */
+    minip_setup_env();
+    /* battle tile map NULL -> dialog helpers take their full-screen (menu)
+     * layout, not the in-battle small-box path. */
+    data_fd2_battle_tile_map_ptr = 0;
+    data_fd2_dialog_active_portrait_blit_offset = 0;     /* != 0x728 menu pos */
+    data_fd2_portrait_sprite_buffer = 0;                 /* loader frees prev iff != 0 */
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+
+    /* all-alive party -> dead-char list comes back empty (count 0). */
+    seed_party(5, 0u);
+
+    /* sentinels: the count==0 branch must NOT write any of these. */
+    data_fd2_shared_party_total_gold = 4242;
+    saved_gold = data_fd2_shared_party_total_gold;
+    data_fd2_dialog_last_action_sprite_id_param = 0xCAFE;
+    saved_sprite_id = data_fd2_dialog_last_action_sprite_id_param;
+    data_fd2_dialog_last_action_value_param = 0xBEEF;
+    saved_value = data_fd2_dialog_last_action_value_param;
+
+    /* pre-arm the BIOS keyboard buffer NONEMPTY so the single
+     * fd2_wait_for_input_dialog_with_blink(0) exits on its first poll. */
+    *(volatile uint16 *)0x41AuL = 0x1E;          /* head        */
+    *(volatile uint16 *)0x41CuL = 0x20;          /* tail = head + 2 -> nonempty */
+    *(volatile uint16 *)0x41EuL = 0x1C00;        /* Enter scancode in AH       */
+
+    reached = 0;
+    fd2_run_revive_menu_main();
+    reached = 1;
+
+    /* control returned via the count==0 branch (no hang in the picker). */
+    ASSERT_EQ(reached, 1);
+    /* none of the money / dialog-substitution globals were touched. */
+    ASSERT_EQ((long)data_fd2_shared_party_total_gold, (long)saved_gold);
+    ASSERT_EQ((long)data_fd2_dialog_last_action_sprite_id_param,
+              (long)saved_sprite_id);
+    ASSERT_EQ((long)data_fd2_dialog_last_action_value_param, (long)saved_value);
+
+    /* the real close fn freed all three workspaces; drop the dangling globals
+     * and free the leaked portrait buffer so later suites stay clean. */
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+    if (data_fd2_portrait_sprite_buffer != 0) {
+        free((void *)data_fd2_portrait_sprite_buffer);
+        data_fd2_portrait_sprite_buffer = 0;
+    }
+}
+
 void run_ui_menu_promote_tests(void)
 {
     SUITE_BEGIN(ui_menu_promote);
@@ -267,6 +356,7 @@ void run_ui_menu_promote_tests(void)
     RUN_TEST(test_select_loop_enter_commits);
     RUN_TEST(test_select_loop_space_commits);
     RUN_TEST(test_select_loop_esc_cancels);
+    RUN_TEST(test_revive_no_dead_chars_returns);
     /* restore stub default so later suites keep historical behavior */
     g_check_char_is_dead_use_array = 0;
     g_check_char_is_dead_return = 0;

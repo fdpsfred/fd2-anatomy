@@ -124,6 +124,12 @@ extern double data_fd2_graphics_scatter_y_offset_neg8;                  /* 0x502
 extern uint32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4]; /* 0x526EA */
 extern uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6];  /* 0x52659 */
 
+/* Per-chapter shop "inventory full" FDTXT dialog-id table (int16, indexed
+ * by chapter cursor state in the buy/sell menus). The church-revive menu
+ * aliases the same bytes as a per-job revive-price multiplier table,
+ * accessed as [bJob_id + 5]. (vendor data overlap) */
+extern int16  data_fd2_dialog_shop_inventory_full_dialog_text_id_table[]; /* 0x5265F */
+
 /* ---- recruitment screen ---- */
 extern uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch;         /* 0x54127 */
 

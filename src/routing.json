@@ -3189,8 +3189,9 @@
     "name": "fd2_run_revive_menu_main",
     "target": "ui_menu/promote.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00031019": {
     "name": "fd2_render_promote_candidates_grid",

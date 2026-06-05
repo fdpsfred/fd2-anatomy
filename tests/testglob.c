@@ -472,6 +472,16 @@ uint32 data_fd2_ui_menu_candidate_array_ptr = 0;
 /* chapter-intro menu speaker portrait IDs — real FD2.LE values @ 0x52659 */
 uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6] =
     { 0x81, 0x80, 0x00, 0x82, 0x83, 0x84 };
+/* shop "inventory full" FDTXT dialog-id table — real FD2.LE values @ 0x5265F.
+ * The church-revive menu aliases the same bytes as a per-job revive-price
+ * multiplier table, read as [bJob_id + 5]. (int16; vendor data overlap) */
+int16  data_fd2_dialog_shop_inventory_full_dialog_text_id_table[36] = {
+    0x0001, 0x01FA, 0x0001, 0x01FA, 0x01FA, 0x01FA, 0x0064, 0x0096,
+    0x0064, 0x0064, 0x0064, 0x0064, 0x0064, 0x0064, 0x04B0, 0x0640,
+    0x03E8, 0x03E8, 0x04B0, 0x0578, 0x04B0, 0x0640, 0x0064, 0x0708,
+    0x04B0, 0x03E8, 0x0BB8, 0x03E8, 0x03E8, 0x0578, 0x015E, 0x0064,
+    0x0064, 0x0064, 0x0064, 0x0064
+};
 /* field command menu templates — real FD2.LE values @ 0x51E9F / 0x53EF2 */
 int32  data_fd2_ui_field_command_menu_options_template[4] = { 7, 5, 6, 4 };
 int32  data_fd2_ui_field_command_menu_state_template[4] = { 0, 0, 0, 0 };
@@ -1318,6 +1328,18 @@ void fd2_render_promote_members_grid(uint32 candidate_count, uint32 dst_buffer,
 }
 void fd2_animate_scroll_down_in_shop_dialog(void) { g_promote_scroll_down_calls++; }
 void fd2_animate_scroll_up_in_shop_dialog(void)   { g_promote_scroll_up_calls++; }
+/* Shop money/transaction feedback animations (not yet emitted in src) —
+ * recording no-op spies. The church-revive + buy/sell menus call these on the
+ * commit path; that path is deferred to Phase 9 integration, so these only
+ * count + capture the last decrement amount for future use. */
+int    g_money_decrement_calls = 0;
+uint32 g_money_decrement_last_amount = 0;
+int    g_shop_txn_feedback_calls = 0;
+void fd2_animate_money_decrement(uint32 amount) {
+    g_money_decrement_calls++;
+    g_money_decrement_last_amount = amount;
+}
+void fd2_animate_shop_transaction_feedback(void) { g_shop_txn_feedback_calls++; }
 /* fd2_render_full_char_stat_panel @ 0x17fc0: now emitted for real in
  * src/gfx/rndstat.c and driven by tests/gfx/rndstat.c (the numeric/bar
  * render primitives it dispatches to are the recording spies defined
