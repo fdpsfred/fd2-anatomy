@@ -27,6 +27,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include "testharn.h"
 #include "types.h"
 #include "consts.h"
@@ -45,6 +46,11 @@ extern int    g_shop_scroll_up_calls;
 extern int    g_shop_scroll_down_calls;
 /* cursor-move chime counter (testglob.c fd2_play_sfx_with_handle spy) */
 extern int    g_play_sfx_with_handle_calls;
+/* title-sprite blit spy from testglob.c (fd2_dialog_sprite_blit_normal) */
+extern int    g_dlg_blit_normal_calls;
+extern uint32 g_dlg_blit_last_dst;
+extern uint32 g_dlg_blit_last_sprite;
+extern uint32 g_dlg_blit_last_stride;
 
 /* A distinct item_id_array pointer value the loop forwards verbatim to the
  * grid renderer (never dereferenced by the loop itself). */
@@ -413,6 +419,146 @@ static void test_multi_move_then_commit(void)
     ASSERT_EQ(g_shop_grid_last_cursor, 5);
 }
 
+/* ================================================================
+ * fd2_open_shop_dialog_panel @ 0x2E0BD — panel open with slide-down.
+ *
+ * Drives the REAL open end-to-end. The three 64000-byte workspaces are
+ * malloc'd for real; the framebuffer-snapshot memmove(snapshot, 0xA0000) and
+ * the per-frame fd2_slide_panel_down_step memmove(0xA0000, ...) target the VGA
+ * aperture, which under DOS/4GW is real RAM so the access is harmless (same
+ * convention as the close-side test_close_status_screen_slide_out and
+ * tests/rsrc fd2_load_chapter_portrait). The title-sprite blit and the item-
+ * grid render are the recording testglob spies, so the composited writes the
+ * test asserts on never touch real video state.
+ *
+ * The function leaks the three workspaces (the close counterpart frees them in
+ * game), so the test free()s all three and zeroes the globals afterward.
+ *
+ * Slide-loop bounds (proves the 64000-byte buffers suffice for all 6 frames):
+ * the worst case is the final frame y=0x70 -> row_count clamps to 0x56 (86)
+ * rows; the top dst write is workspace_a + 0x70*0x140 + 5 + 85*0x140 + 0x135
+ * = workspace_a + 63354 < 64000 and the top src read is workspace_c + 0x8C05 +
+ * 85*0x140 + 0x135 = workspace_c + 63354 < 64000. Every frame y>=0x70 yields
+ * the same or fewer rows, so all stay in bounds.
+ *
+ * Risk coverage: the three malloc->global stores, the title-sprite atlas-offset
+ * address math (atlas + *(atlas+0x46)) and its fixed dst (composed+0x8C05) /
+ * stride 0x140, the grid-render argument forwarding (count, array, cursor read
+ * from 0x53C57, dst = composed_target, sell_mode low byte), and the 6-frame
+ * slide loop running to completion in-bounds.
+ * ================================================================ */
+
+/* A small backing buffer for the sprite atlas. Slot +0x46 holds the relative
+ * sprite offset the open fn adds to the atlas base to form the blit source. */
+static uint8 g_shop_atlas[0x100];
+
+/* item_id_array pointer the open fn forwards verbatim to the grid renderer
+ * (never dereferenced). */
+#define OPEN_ARR 0x0BADF00Du
+
+static void open_reset_observed(void)
+{
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+
+    g_dlg_blit_normal_calls = 0;
+    g_dlg_blit_last_dst = 0;
+    g_dlg_blit_last_sprite = 0;
+    g_dlg_blit_last_stride = 0;
+
+    g_shop_grid_render_calls = 0;
+    g_shop_grid_last_count = 0;
+    g_shop_grid_last_array = 0;
+    g_shop_grid_last_cursor = 0xFFFFFFFFu;
+    g_shop_grid_last_dst = 0;
+    g_shop_grid_last_sell = 0xFFFFFFFFu;
+}
+
+/* Free the three leaked workspaces and zero the globals (no dangling ptrs). */
+static void open_free_workspaces(void)
+{
+    if (data_fd2_ui_slide_anim_accumulator_buf_ptr != 0) {
+        free((void *)data_fd2_ui_slide_anim_accumulator_buf_ptr);
+        data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    }
+    if (data_fd2_ui_slide_bg_snapshot_buf_ptr != 0) {
+        free((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr);
+        data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    }
+    if (data_fd2_ui_slide_composed_target_buf_ptr != 0) {
+        free((void *)data_fd2_ui_slide_composed_target_buf_ptr);
+        data_fd2_ui_slide_composed_target_buf_ptr = 0;
+    }
+}
+
+static void test_open_shop_dialog_composites_and_slides(void)
+{
+    uint32 composed;
+    uint32 atlas_base;
+    uint32 sprite_off;
+
+    open_reset_observed();
+
+    /* sprite atlas: relative offset 0x1234 stored at slot +0x46 */
+    sprite_off = 0x1234u;
+    *(uint32 *)(g_shop_atlas + 0x46) = sprite_off;
+    atlas_base = (uint32)g_shop_atlas;
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = atlas_base;
+
+    data_fd2_ui_menu_cursor_idx = 4;
+
+    fd2_open_shop_dialog_panel(8, OPEN_ARR, 0);
+
+    /* three workspaces allocated, distinct, non-zero */
+    ASSERT_TRUE(data_fd2_ui_slide_anim_accumulator_buf_ptr != 0);
+    ASSERT_TRUE(data_fd2_ui_slide_bg_snapshot_buf_ptr != 0);
+    ASSERT_TRUE(data_fd2_ui_slide_composed_target_buf_ptr != 0);
+    ASSERT_NE(data_fd2_ui_slide_anim_accumulator_buf_ptr,
+              data_fd2_ui_slide_bg_snapshot_buf_ptr);
+    ASSERT_NE(data_fd2_ui_slide_bg_snapshot_buf_ptr,
+              data_fd2_ui_slide_composed_target_buf_ptr);
+
+    composed = data_fd2_ui_slide_composed_target_buf_ptr;
+
+    /* title-sprite blit fired once: dst = composed+0x8C05, stride 0x140,
+     * sprite = atlas_base + *(atlas_base+0x46) */
+    ASSERT_EQ(g_dlg_blit_normal_calls, 1);
+    ASSERT_EQ(g_dlg_blit_last_dst, composed + 0x8c05);
+    ASSERT_EQ(g_dlg_blit_last_stride, 0x140);
+    ASSERT_EQ(g_dlg_blit_last_sprite, atlas_base + sprite_off);
+
+    /* item grid rendered once into composed_target with forwarded args */
+    ASSERT_EQ(g_shop_grid_render_calls, 1);
+    ASSERT_EQ(g_shop_grid_last_count, 8);
+    ASSERT_EQ(g_shop_grid_last_array, OPEN_ARR);
+    ASSERT_EQ(g_shop_grid_last_cursor, 4);          /* read from 0x53C57 */
+    ASSERT_EQ(g_shop_grid_last_dst, composed);       /* composed_target, not VGA */
+    ASSERT_EQ(g_shop_grid_last_sell, 0);
+
+    open_free_workspaces();
+}
+
+/* sell_mode_flag is forwarded masked to its low byte (MOVZX AL at the call
+ * site); the cursor highlight is read live from 0x53C57. */
+static void test_open_shop_dialog_sell_mode_masked(void)
+{
+    open_reset_observed();
+
+    *(uint32 *)(g_shop_atlas + 0x46) = 0u;
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = (uint32)g_shop_atlas;
+    data_fd2_ui_menu_cursor_idx = 9;
+
+    fd2_open_shop_dialog_panel(20, OPEN_ARR, 0x1FFu);   /* low byte = 0xFF */
+
+    ASSERT_EQ(g_shop_grid_render_calls, 1);
+    ASSERT_EQ(g_shop_grid_last_count, 20);
+    ASSERT_EQ(g_shop_grid_last_cursor, 9);
+    ASSERT_EQ(g_shop_grid_last_sell, 0xFF);
+
+    open_free_workspaces();
+}
+
 void run_ui_menu_shop_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -437,4 +583,6 @@ void run_ui_menu_shop_tests(void)
     RUN_TEST(test_up_pages_viewport_up);
     RUN_TEST(test_left_no_page_within_viewport);
     RUN_TEST(test_multi_move_then_commit);
+    RUN_TEST(test_open_shop_dialog_composites_and_slides);
+    RUN_TEST(test_open_shop_dialog_sell_mode_masked);
 }

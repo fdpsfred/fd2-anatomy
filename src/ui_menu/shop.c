@@ -1,6 +1,8 @@
 /*
- * shop.c — Shop / give-item screen navigation input loop.
+ * shop.c — Shop / give-item screen: panel open animation + navigation loop.
  *
+ * fd2_open_shop_dialog_panel @ 0x2E0BD (3 callers: fd2_run_buy_item_menu,
+ *   fd2_run_sell_item_menu, fd2_run_give_item_menu)
  * fd2_shop_menu_input_loop @ 0x2DF6B (3 callers: fd2_run_buy_item_menu,
  *   fd2_run_sell_item_menu, fd2_run_give_item_menu)
  */
@@ -9,6 +11,8 @@
 #include "consts.h"
 #include "globals.h"
 #include "protos.h"
+#include <stdlib.h>
+#include <string.h>
 
 /* ----------------------------------------------------------------
  * fd2_shop_menu_input_loop @ 0x2DF6B  (3 callers)
@@ -106,4 +110,66 @@ LAB_e01e:
             return result;
         }
     } while (1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_open_shop_dialog_panel @ 0x2E0BD  (3 callers)
+ *
+ * Open the SHOP DIALOG panel with a 6-frame slide-down reveal. Open-side
+ * counterpart of fd2_close_intro_dialog_with_slide_out @ 0x2D31B; shares the
+ * three 64000-byte (320x200) workspace globals with it.
+ *
+ * Setup:
+ *   1. Allocate three 64000-byte render workspaces:
+ *        slide_anim_accumulator (0x53C5B) — per-frame slide scratch
+ *        slide_bg_snapshot      (0x53C5F) — VGA backup (restored by close fn)
+ *        slide_composed_target  (0x53C63) — full panel composite
+ *   2. memmove 0xA0000 -> snapshot (capture the live framebuffer), then
+ *      memmove snapshot -> composed_target (composite starts as the screen).
+ *   3. Paint the shop-title sprite into composed_target at mode-13h offset
+ *      0x8C05: fd2_dialog_sprite_blit_normal(composed_target + 0x8C05,
+ *      atlas + *(atlas + 0x46), 0x140), atlas = sprite-atlas buffer (0x54147).
+ *   4. Render the item grid into composed_target with the current cursor:
+ *      fd2_render_shop_item_grid(item_count, item_id_array,
+ *      cursor_idx (0x53C57), composed_target, sell_mode_flag & 0xFF).
+ *   5. 6-frame slide-down loop (frame_iter 5->0):
+ *        panel_y = frame_iter*0xD + 0x70  (0xB1,0xA4,0x97,0x8A,0x7D,0x70)
+ *        fd2_slide_panel_down_step(panel_y, slide_anim_accumulator,
+ *                                  slide_composed_target)
+ *
+ * The binary's __CHK(0x1C) stack-probe prologue is compiler-injected and not
+ * part of the source, so it is omitted. sell_mode_flag is forwarded masked to
+ * its low byte (the call site does MOVZX EAX, byte ptr [sell_mode_flag]).
+ * ---------------------------------------------------------------- */
+void fd2_open_shop_dialog_panel(uint32 item_count, uint32 item_id_array,
+                                uint32 sell_mode_flag)
+{
+    uint32 frame_iter;
+    uint32 panel_y;
+
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_composed_target_buf_ptr = (uint32)malloc(64000);
+
+    memmove((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr,
+            (void *)0xa0000, 64000);
+    memmove((void *)data_fd2_ui_slide_composed_target_buf_ptr,
+            (void *)data_fd2_ui_slide_bg_snapshot_buf_ptr, 64000);
+
+    fd2_dialog_sprite_blit_normal(
+        data_fd2_ui_slide_composed_target_buf_ptr + 0x8c05,
+        data_fd2_ui_menu_screen_sprite_atlas_buf_ptr
+            + *(uint32 *)(data_fd2_ui_menu_screen_sprite_atlas_buf_ptr + 0x46),
+        0x140);
+
+    fd2_render_shop_item_grid(item_count, item_id_array,
+        data_fd2_ui_menu_cursor_idx,
+        data_fd2_ui_slide_composed_target_buf_ptr, sell_mode_flag & 0xff);
+
+    for (frame_iter = 5; -1 < (int)frame_iter; frame_iter--) {
+        panel_y = frame_iter * 0xd + 0x70;
+        fd2_slide_panel_down_step(panel_y,
+            data_fd2_ui_slide_anim_accumulator_buf_ptr,
+            data_fd2_ui_slide_composed_target_buf_ptr);
+    }
 }
