@@ -6,6 +6,7 @@
 #include "consts.h"
 #include "globals.h"
 #include "protos.h"
+#include <stdlib.h>     /* free (FDOTHER.DAT cinematic sprite teardown) */
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_2f__ch21_turn_gated @ 0x35112  (0 direct callers)
@@ -549,4 +550,74 @@ void fd2_chapter_event_handler_3c__ch26_ai_ctrl(uint32 stepping_char_id)
         fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x17, 0x18, 0);
         fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x35, 0x38, 0);
     }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_3d__ch26_pickup @ 0x356B7  (0 direct callers)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x3D. Triggered
+ * in chapter 26 as tile-step event_type 0x01 (ch26 tile-step slot 2). Category:
+ * major-quest item pickup with cinematic + char spawn. Dispatch-table signature
+ * is 1-arg cdecl (the stepping char id under the tile-step ABI, read from
+ * [ESP+0x4]).
+ *
+ * First-time only (tile_event_consumed_flags[0xC] == 0): load the stepping
+ * char's portrait, then check whether that char is carrying key item 0xD0.
+ *   - NOT carrying it: show the "you don't have it" dialog (page 2), paint the
+ *     portrait, wait for input, slide the status screen back out, and return
+ *     WITHOUT consuming the tile event (it may be retried later).
+ *   - Carrying it: consume the item (remove its inventory slot), show dialog
+ *     page 3, wait, slide out, then play the 59-frame FDOTHER.DAT[0x2D] cinematic
+ *     (blit each frame to the 0xABCE4 VGA target, 2 BIOS ticks per frame), free
+ *     the sprite, mark the tile event consumed (flags[0xC] = 1), tick the
+ *     tile-event animations, reload the chapter portraits, spawn the joining
+ *     char id 0x1F from base+growth, and show the full-screen dialog page 4.
+ *
+ * The dialog render target differs by page: 0xA951F for the in-frame portrait
+ * dialogs (pages 2, 3) and 0xA0000 for the final full-screen page 4. The blit
+ * loop runs over [0, 0x3B) = 59 frames.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_3d__ch26_pickup(uint32 stepping_char_id)
+{
+    uint32 slot;
+    uint32 sprite_atlas;
+    uint32 frame_idx;
+
+    if (*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0xC) != 0) {
+        return;
+    }
+
+    fd2_load_chapter_portrait(
+        (uint32)data_fd2_battle_runtime_char_array_ptr[stepping_char_id].portrait_id);
+
+    slot = (uint32)fd2_find_inventory_slot_with_item(stepping_char_id, 0xD0);
+    if (slot == 0xFFFFFFFF) {
+        fd2_display_dialog_scene(current_chapter_text, 2, 0xA951F, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        fd2_paint_portrait_to_dialog_area(0);
+        fd2_wait_for_input_dialog_with_blink(0);
+        fd2_close_status_screen_with_slide_out();
+        return;
+    }
+
+    fd2_remove_inventory_slot_at(stepping_char_id, slot);
+    fd2_display_dialog_scene(current_chapter_text, 3, 0xA951F, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_wait_for_input_dialog_with_blink(0);
+    fd2_close_status_screen_with_slide_out();
+
+    sprite_atlas = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 0x2D);
+    for (frame_idx = 0; (int)frame_idx < 0x3B; frame_idx = frame_idx + 1) {
+        fd2_blit_indexed_sprite(sprite_atlas, frame_idx, 0xABCE4, 0x140, -1);
+        fd2_wait_n_bios_ticks(2);
+    }
+    free((void *)sprite_atlas);
+
+    *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0xC) = 1;
+    fd2_tick_tile_event_animations();
+    fd2_load_chapter_portraits_and_dump_tmp(1);
+    fd2_init_runtime_char_from_base_growth(0x1F);
+    fd2_display_dialog_scene(current_chapter_text, 4, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
 }

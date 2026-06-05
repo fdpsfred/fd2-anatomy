@@ -67,6 +67,10 @@ extern int g_dlg_glyph_calls;        /* dialog glyph blitter                 */
 extern int g_dlg_blit_mirror_inject_after;
 extern int g_dlg_blit_mirror_inject_scancode;
 
+/* testglob spy for fd2_blit_indexed_sprite (atlas-frame blit): counts calls so a
+ * fixed-length cinematic blit loop is recoverable as the call count. */
+extern int g_blit_indexed_sprite_calls;
+
 extern void *data_fd2_chapter_cutscene_event_script_ptr_table_106[106];
 
 /* ---- host-safe render workspace (mirrors chtrans ct_install_safe_render_env) */
@@ -833,6 +837,291 @@ static void test_h3c_range_boundaries_and_gap_exact(void)
     ce3c_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_3d__ch26_pickup @ 0x356B7
+ *
+ * ch26 major-quest item-pickup tile handler (dispatch idx 0x3D @ table 0x51B91).
+ * Body (1-arg cdecl; arg = stepping char id):
+ *   if (tile_event_consumed_flags[0xC] != 0) return;       -- first-time gate
+ *   fd2_load_chapter_portrait(runtime_char[ci].portrait_id)
+ *   slot = fd2_find_inventory_slot_with_item(ci, 0xD0)
+ *   if (slot == -1):                                        -- NOT carrying 0xD0
+ *       page-2 dialog -> paint -> wait -> close; return     (NOT consumed)
+ *   else:                                                   -- carrying 0xD0
+ *       fd2_remove_inventory_slot_at(ci, slot)
+ *       page-3 dialog -> wait -> close
+ *       atlas = fd2_load_dat_resource(FDOTHER.DAT, 0, 0x2D)
+ *       for (f = 0; f < 0x3B; f++) { blit(atlas, f, ...); wait(2); }   59 frames
+ *       free(atlas)
+ *       tile_event_consumed_flags[0xC] = 1                  -- consume
+ *       tick tile-event anims; reload portraits(1); spawn char 0x1F
+ *       page-4 dialog
+ *
+ * The risk-bearing computed contract pinned here: the FIRST-TIME gate
+ * (consumed_flags[0xC]), the carrying-0xD0 BRANCH, the two EAX-return capture
+ * points (find -> remove slot, load_dat_resource -> blit/free pointer), the
+ * 59-frame loop bound, the item-consume + tile-event-consume state transitions
+ * and the char-0x1F spawn (menu-party member count + 1). The display side
+ * effects (frame draw, portrait blit, slide animation, the 59 atlas blits' pixel
+ * output) are owned by the dialog/rsrc/status/anim suites; here they execute for
+ * real only as a byproduct (the atlas blit is the testglob counting spy).
+ *
+ * Host-safety recipe mirrors the proven h3a (tile-pickup) suite above, extended
+ * with: current_chapter_text (not all_game_text) for the page dialogs, a real
+ * menu-party roster buffer + zeroed char_base/growth tables for the spawn, and
+ * the h39 portrait-loader env (alloc_offset 0 -> no-op scan; still re-reads the
+ * real staged FDFIELD.DAT and rewrites FD2.TMP) for fd2_load_chapter_portraits_
+ * and_dump_tmp(1). The carrying-0xD0 path runs the real FDOTHER.DAT[0x2D] load
+ * and paces 59*2 real BIOS ticks, exactly as the binary does.
+ * ================================================================ */
+
+/* immediate-END dialog program covering pages 2, 3, 4: each page header points
+ * at an END (-1) word so the dialog VM returns without a page-break wait or any
+ * speaker-portrait work. Header word i is at int16 index i (byte offset i*2). */
+static int16 g_ce3d_text[0x10];
+
+/* tile fixture for fd2_tick_tile_event_animations (1x1 map; same shape as the
+ * h3a tile fixture). meta +4..+5 = sprite_idx, +6 = terrain byte; attr flags
+ * indexed by sprite_idx*4; consume flags indexed by [0..0xC]. */
+static uint8 g_ce3d_tile_map[64];
+static uint8 g_ce3d_attr_flags[64];
+static uint8 g_ce3d_consume[0x100];
+
+/* render workspace backing for fd2_composite_battle_frame inside the slide-out
+ * close (the tile-map composite stage is the testglob recorder). */
+static uint8 g_ce3d_ws[0x10000];
+
+/* real menu-party roster buffer for the char-0x1F spawn: one slot is enough
+ * (member count starts at 0). RUNTIME_CHAR_SIZE bytes, zeroed. */
+static uint8 g_ce3d_roster[RUNTIME_CHAR_SIZE * 2];
+
+/* Stand up the shared host-safe env. After this the consumed_flags[0xC] gate is
+ * OPEN (0) and char 0's portrait slot is the default 0x9017 kind. */
+static void ce3d_setup(void)
+{
+    int i;
+
+    minip_setup_env();                 /* sprite sheet + dialog-blit spies      */
+
+    /* immediate-END program for pages 2, 3, 4 (current_chapter_text scope) */
+    for (i = 0; i < 0x10; i++) {
+        g_ce3d_text[i] = 0;
+    }
+    g_ce3d_text[2] = (int16)(0xF * 2);     /* page 2 -> END word */
+    g_ce3d_text[3] = (int16)(0xF * 2);     /* page 3 -> END word */
+    g_ce3d_text[4] = (int16)(0xF * 2);     /* page 4 -> END word */
+    g_ce3d_text[0xF] = -1;                  /* END */
+    current_chapter_text = (uint32)(uint8 *)g_ce3d_text;
+
+    /* runtime_char array (the shared 8-slot fixture covers char 0) */
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].portrait_id = 0x40;     /* default 0x9017 portrait slot */
+
+    /* tile fixture: cursor at (0,0); 1x1 map. terrain byte 0 -> consume index 0;
+     * attr flags 0 so tick's (flags & 0x60)==0x20 branch is false. */
+    memset(g_ce3d_tile_map, 0, sizeof(g_ce3d_tile_map));
+    memset(g_ce3d_attr_flags, 0, sizeof(g_ce3d_attr_flags));
+    memset(g_ce3d_consume, 0, sizeof(g_ce3d_consume));
+    data_fd2_battle_cursor_world_x = 0;
+    data_fd2_battle_cursor_world_y = 0;
+    data_fd2_battle_map_width_tiles = 1;
+    data_fd2_battle_map_height_tiles = 1;
+    data_fd2_battle_tile_map_ptr = (uint32)g_ce3d_tile_map;
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)g_ce3d_attr_flags;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ce3d_consume;
+
+    /* slide-out close env: composite workspace + phase 0 + empty party. Null the
+     * slide workspaces (the portrait loader allocates fresh; the close frees). */
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_ce3d_ws - 0x8088;
+    data_fd2_battle_anim_phase = 0;
+    data_fd2_battle_party_member_count = 0;
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+    if (data_fd2_portrait_sprite_buffer != 0) {
+        free((void *)data_fd2_portrait_sprite_buffer);
+    }
+    data_fd2_portrait_sprite_buffer = 0;
+
+    /* portrait-loader env for fd2_load_chapter_portraits_and_dump_tmp(1):
+     * alloc_offset 0 -> the tile-event scan is a no-op (the loader still re-reads
+     * the real staged FDFIELD.DAT[chapter*3+2] and rewrites FD2.TMP). */
+    data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_init_phase_flag = 1;
+    data_fd2_chapter_current_chapter_id = 4;     /* re-read idx = 4*3+2 = 0xE   */
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_resource_portrait_cache_count = 0;
+    data_fd2_resource_portrait_cache_buffer_used = 0;
+
+    /* menu-party roster for the char-0x1F spawn: real buffer, count 0 */
+    memset(g_ce3d_roster, 0, sizeof(g_ce3d_roster));
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_ce3d_roster;
+    data_fd2_shared_menu_party_member_count = 0;
+
+    /* The handler's portrait load does the mirrored blit AFTER which the blocking
+     * fd2_wait_for_input_dialog_with_blink(0) must return: arm the mirrored-blit
+     * seam to fill the BIOS keyboard buffer nonempty on the 1st mirrored blit.
+     * (Unlike h3a the handler does NOT drain the buffer first, but the seam is
+     * harmless either way and matches the proven release recipe.) */
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x1E;         /* start EMPTY (head == tail) */
+    g_dlg_blit_mirror_inject_after = 1;         /* flip on the 1st mirrored blit */
+    g_dlg_blit_mirror_inject_scancode = 0x01;   /* Esc scancode */
+
+    g_composite_call_count = 0;
+    g_dlg_glyph_calls = 0;
+    g_blit_indexed_sprite_calls = 0;
+}
+
+static void ce3d_teardown(void)
+{
+    /* the handler's slide-out close already free()d the three slide workspaces */
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+    if (data_fd2_portrait_sprite_buffer != 0) {
+        free((void *)data_fd2_portrait_sprite_buffer);
+        data_fd2_portrait_sprite_buffer = 0;
+    }
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_battle_tile_map_ptr = 0;
+    data_fd2_tile_attribute_flags_buffer_ptr = 0;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
+    data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_init_phase_flag = 0;
+    current_chapter_text = 0;
+    data_fd2_shared_menu_party_roster_buffer_ptr = 0;
+    data_fd2_shared_menu_party_member_count = 0;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_chapter_current_chapter_id = 1;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    g_dlg_blit_mirror_inject_after = 0;
+    g_dlg_blit_mirror_inject_scancode = 0;
+    remove("FD2.TMP");                  /* generated swap file (not a game file) */
+}
+
+/* ----------------------------------------------------------------
+ * First-time gate: when tile_event_consumed_flags[0xC] is already non-zero the
+ * handler returns immediately — no portrait load, no dialog, no item check, no
+ * spawn. Proof: the menu-party member count stays 0 (a reached spawn would make
+ * it 1), no atlas blit ran, and char 0's seeded item 0xD0 is left in place (a
+ * reached carrying-branch would have removed it). Guards the early-return gate.
+ * ---------------------------------------------------------------- */
+static void test_h3d_already_consumed_gate_returns_early(void)
+{
+    ce3d_setup();
+    g_ce3d_consume[0xC] = 1;                     /* gate CLOSED */
+
+    /* seed char 0 carrying item 0xD0 in slot 0 so we can prove it is NOT removed */
+    g_test_rc_array[0].inventory_slots[0] = 0x00;   /* occupied */
+    g_test_rc_array[0].inventory_slots[1] = 0xD0;   /* the key item */
+
+    fd2_chapter_event_handler_3d__ch26_pickup(0);
+
+    /* nothing ran: no spawn, no blit, item untouched, gate still set */
+    ASSERT_EQ((long)data_fd2_shared_menu_party_member_count, 0);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 0);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[0], 0x00);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[1], 0xD0);
+    ASSERT_EQ(g_ce3d_consume[0xC], 0x01);
+
+    ce3d_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * NOT-carrying-0xD0 branch: char 0's inventory is empty so
+ * fd2_find_inventory_slot_with_item(0, 0xD0) == -1 and the handler takes the
+ * "you don't have it" path: page-2 dialog -> paint -> wait -> close -> return.
+ * Proof the no-item path was taken (and the cinematic path was NOT): the tile
+ * event stays UN-consumed (consumed_flags[0xC] == 0 -> the tile may be retried),
+ * no atlas blit ran, and no char was spawned. This drives the real portrait load
+ * (DATO.DAT), the real page-2 dialog VM, the real paint + blocking wait (released
+ * by the mirrored-blit seam) and the real slide-out close.
+ * ---------------------------------------------------------------- */
+static void test_h3d_not_carrying_item_shows_page2_no_consume(void)
+{
+    int i;
+
+    ce3d_setup();
+
+    /* char 0 carries nothing: all 8 slots empty (flag 0x80) */
+    for (i = 0; i < 8; i++) {
+        g_test_rc_array[0].inventory_slots[i * 2 + 0] = 0x80;
+        g_test_rc_array[0].inventory_slots[i * 2 + 1] = 0x00;
+    }
+
+    fd2_chapter_event_handler_3d__ch26_pickup(0);
+
+    /* the no-item branch does NOT consume the tile event */
+    ASSERT_EQ(g_ce3d_consume[0xC], 0x00);
+    /* the cinematic + spawn did not run */
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 0);
+    ASSERT_EQ((long)data_fd2_shared_menu_party_member_count, 0);
+
+    ce3d_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * CARRYING-0xD0 branch (full cinematic + spawn): char 0 holds item 0xD0 in slot
+ * 0, so find returns slot 0 and the handler runs the whole consume path. Pins
+ * the risk-bearing state transitions end to end:
+ *   - the item is consumed: fd2_remove_inventory_slot_at shifts the inventory
+ *     down (slot 0's 0xD0 is removed; the slot-1 item moves into slot 0, and the
+ *     last slot becomes empty 0x80),
+ *   - the 59-frame cinematic blit loop ran exactly 0x3B times (loop bound +
+ *     the load_dat_resource EAX-return pointer feeding the blit),
+ *   - the tile event is consumed (consumed_flags[0xC] == 1),
+ *   - char 0x1F is spawned into the menu party (member count 0 -> 1).
+ * Drives the real FDOTHER.DAT[0x2D] load, the real page-3/page-4 dialog VMs, the
+ * real slide-out close, the real tile-event tick, the real portrait reload and
+ * the real base+growth spawn over zeroed char tables.
+ * ---------------------------------------------------------------- */
+static void test_h3d_carrying_item_consumes_plays_and_spawns(void)
+{
+    int i;
+
+    ce3d_setup();
+
+    /* char 0 carries item 0xD0 in slot 0; slot 1 holds a marker so we can see the
+     * shift; slots 2..7 occupied with markers; none empty before the remove. */
+    g_test_rc_array[0].inventory_slots[0] = 0x00;   /* slot 0 occupied */
+    g_test_rc_array[0].inventory_slots[1] = 0xD0;   /* the key item */
+    g_test_rc_array[0].inventory_slots[2] = 0x00;   /* slot 1 occupied */
+    g_test_rc_array[0].inventory_slots[3] = 0x55;   /* marker that shifts to slot 0 */
+    for (i = 2; i < 8; i++) {
+        g_test_rc_array[0].inventory_slots[i * 2 + 0] = 0x00;
+        g_test_rc_array[0].inventory_slots[i * 2 + 1] = (uint8)(0x60 + i);
+    }
+
+    fd2_chapter_event_handler_3d__ch26_pickup(0);
+
+    /* item 0xD0 consumed: the slot-1 marker (0x55) shifted down into slot 0, and
+     * the last slot was vacated (flag 0x80). */
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[0], 0x00);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[1], 0x55);
+    ASSERT_EQ(g_test_rc_array[0].inventory_slots[14], (uint8)0x80);
+    /* the 59-frame cinematic blit loop ran exactly 0x3B times */
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 0x3B);
+    /* the tile event is now consumed */
+    ASSERT_EQ(g_ce3d_consume[0xC], 0x01);
+    /* char 0x1F was spawned into the menu party */
+    ASSERT_EQ((long)data_fd2_shared_menu_party_member_count, 1);
+    ASSERT_EQ(g_ce3d_roster[0x21], (uint8)0);   /* spawned slot level (zeroed base) */
+
+    ce3d_teardown();
+}
+
 void run_field_chevt22_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -852,5 +1141,8 @@ void run_field_chevt22_tests(void)
     RUN_TEST(test_h3c_player_team_also_fires);
     RUN_TEST(test_h3c_enemy_team_skips);
     RUN_TEST(test_h3c_range_boundaries_and_gap_exact);
+    RUN_TEST(test_h3d_already_consumed_gate_returns_early);
+    RUN_TEST(test_h3d_not_carrying_item_shows_page2_no_consume);
+    RUN_TEST(test_h3d_carrying_item_consumes_plays_and_spawns);
     printf("\n");
 }
