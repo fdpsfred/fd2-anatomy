@@ -1,5 +1,5 @@
 /*
- * chend1.c — Chapter end handlers (chapters 1-10)
+ * chend1.c — Chapter end handlers (chapters 1-19)
  */
 
 #include "types.h"
@@ -490,5 +490,34 @@ void fd2_chapter_10_end(void)
     fd2_save_runtime_char_to_template();
     fd2_init_runtime_char_from_base_growth(0xb);
     fd2_init_runtime_char_from_base_growth(6);
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_11_end @ 0x23790  (0 direct callers; dispatched via the
+ *   chapter-end handler pointer table @ 0x51DE9, slot @ 0x51E11)
+ *
+ * Chapter 11「幻之森林」end handler. Shows the chapter-end dialog page 3,
+ * persists the party's runtime-character state back to the template store,
+ * recruits char #14 (珊) via fd2_init_runtime_char_from_base_growth, then
+ * advances the current-chapter id by 1.
+ *
+ * In the binary the function ends with `PUSH 0xE; CALL
+ * fd2_init_runtime_char_from_base_growth; ADD ESP,4; JMP 0x231F2`, a tail-jump
+ * into the shared snippet @ 0x231F2 (INC current_chapter_id; RET). That same
+ * shared snippet is reached by fd2_chapter_19_end as well; chapter 11 is
+ * emitted here as a self-contained function (Layer 2 functional equivalence —
+ * the jump-into-middle sharing is not preserved in source).
+ *
+ * Paired init handler: fd2_chapter_11_init @ 0x33367.
+ * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
+ * Walkthrough: assets/chapters/chapter_11.md.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_11_end(void)
+{
+    fd2_display_dialog_scene(current_chapter_text, 3, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+    fd2_save_runtime_char_to_template();
+    fd2_init_runtime_char_from_base_growth(0xe);
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }
