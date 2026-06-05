@@ -354,6 +354,7 @@ void fd2_chapter_13_end(void);
 void fd2_chapter_14_end(void);
 void fd2_chapter_15_end(void);
 void fd2_chapter_16_end(void);
+void fd2_chapter_17_end(void);
 
 /* ---- lifecycle / main menu ---- */
 void fd2_play_chapter_clear_fanfare(void);

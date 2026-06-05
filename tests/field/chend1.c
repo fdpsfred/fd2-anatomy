@@ -3485,6 +3485,331 @@ static void test_chapter_16_end_increments_not_absolute(void)
     ASSERT_EQ((long)chapter_id, 8L);           /* 7 + 1, not a constant */
 }
 
+/* ================================================================
+ * fd2_chapter_17_end @ 0x23B5F
+ *
+ * The Chapter 17「血與冰之刃」end handler copies two 16-byte X/Y scene tables onto
+ * the stack, persists the party, then branches on whether 蜜蒂 (char 0x12) is in
+ * the party (fd2_check_party_has_char_id(0x12)):
+ *   未加入 (returns 0): stages the post-battle scene via
+ *     fd2_setup_chars_and_camera_for_intro (fixed facing 0, chars 0..0xF, extra
+ *     char 0x34 at (0x17,0x17) facing 2, camera (0x11,0x11)), shows farewell page
+ *     7, fires cutscene 0x32, pans to (0x11,0xE), loads race-3 portraits, then
+ *     selects next cutscene 0x33 — i.e. setup_chars IS called.
+ *   已加入 (returns non-zero): shows page 5 (NO scene staged), pans to (0x11,0xE),
+ *     loads race-3 portraits, then selects next cutscene 0x34.
+ * Both paths then fire the selected cutscene, show page 6, fire cutscene 0x35,
+ * show page 8, recruit char 0x10 (凱拉斯), and advance chapter_id by 1.
+ *
+ * Scene staging goes through the testglob.c fd2_setup_chars_and_camera_for_intro
+ * recording fake (its real body is VGA display side-effect deferred to Phase 9):
+ * the two 16-byte X/Y tables are copied verbatim into on-stack blocks with the
+ * inline fixed facing 0. The membership query routes to the testglob.c
+ * fd2_check_party_has_char_id recording fake (real one -> src/util/misc.c, not yet
+ * emitted), driven by its controllable return; the recorded arg pins that the
+ * handler asks for char 0x12. The dialog VM, save-template, recruit, and the
+ * cutscene-event engine are the real linked functions. The four cutscene indices
+ * 0x32/0x33/0x34/0x35 point at empty (n_groups == 0) scripts, so each
+ * fd2_cutscene_event_trigger is the real no-op. The branch is pinned by the
+ * scene-stager call count (1 only on the 未加入 path) together with which dialog
+ * page ran first (7 vs 5); the selected cutscene index (0x33 vs 0x34) follows the
+ * same branch and is display side-effect deferred to Phase 9. The dialog program
+ * maps pages 5/6/7/8 to four distinct glyphs (0x55/0x66/0x77/0x88), so the glyph
+ * recorder pins the page sequence; on-screen pixels are deferred to Phase 9.
+ * ================================================================ */
+
+extern uint8 data_fd2_chapter_ch17_end_scene_char_pos_x_table[16];
+extern uint8 data_fd2_chapter_ch17_end_scene_char_pos_y_table[16];
+
+static uint8 g_ce17_roster[8 * 0x50];
+static int16 g_ce17_text[24];
+static uint8 g_ce17_script[1];            /* cutscene 0x32..0x35: n_groups == 0 */
+
+/* mitsuki_present drives the membership branch; page5_only / page7_only restrict
+ * which page emits a glyph so the recorder can pin a single branch page (when both
+ * 0, all four pages 5/6/7/8 each emit one distinct glyph). */
+static void ce17_fixture_reset(int mitsuki_present, int page5_only, int page7_only)
+{
+    int i;
+
+    /* dialog VM safe env. */
+    *(volatile uint16 *)0x41AuL = 0x20;   /* BIOS kbd buffer head == tail */
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+
+    /* dialog program: pages 5/6/7/8 each redirect to one distinct glyph + END,
+     * unless page5_only / page7_only restrict the glyph to a single branch page
+     * (the others becoming END-only so they show no glyph). */
+    for (i = 0; i < 24; i++) {
+        g_ce17_text[i] = 0;
+    }
+    g_ce17_text[5]  = 32;     /* page 5 -> int16 idx 16 */
+    g_ce17_text[6]  = 36;     /* page 6 -> int16 idx 18 */
+    g_ce17_text[7]  = 40;     /* page 7 -> int16 idx 20 */
+    g_ce17_text[8]  = 44;     /* page 8 -> int16 idx 22 */
+    g_ce17_text[16] = (page7_only ? -1 : 0x55);   /* page 5 glyph (or END) */
+    g_ce17_text[17] = -1;
+    g_ce17_text[18] = ((page5_only || page7_only) ? -1 : 0x66); /* page 6 */
+    g_ce17_text[19] = -1;
+    g_ce17_text[20] = (page5_only ? -1 : 0x77);   /* page 7 glyph (or END) */
+    g_ce17_text[21] = -1;
+    g_ce17_text[22] = ((page5_only || page7_only) ? -1 : 0x88); /* page 8 */
+    g_ce17_text[23] = -1;
+    current_chapter_text = (uint32)g_ce17_text;
+
+    /* membership branch: testglob.c recording fake return + arg log. */
+    g_has_char_fake = (uint32)(mitsuki_present ? 1 : 0);
+    g_has_char_last_arg = 0;
+    g_has_char_calls = 0;
+
+    /* save + recruit safe env: zeroed runtime chars + zeroed roster, one scanned
+     * runtime char and one template entry so the recruit appends at slot 1. */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(g_ce17_roster, 0, sizeof(g_ce17_roster));
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_ce17_roster;
+    g_check_char_is_dead_return = 0;
+    data_fd2_battle_party_member_count = 1;
+    data_fd2_shared_menu_party_member_count = 1;  /* recruit appends at slot 1 */
+
+    /* cutscene events 0x32..0x35 -> empty (n_groups == 0) script: real no-op. */
+    g_ce17_script[0] = 0;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x32] = g_ce17_script;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x33] = g_ce17_script;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x34] = g_ce17_script;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x35] = g_ce17_script;
+    data_fd2_chapter_cutscene_event_state = 0;
+
+    /* scene-stager recording fake reset (16-wide for chapter 17's range). */
+    g_setup_intro_calls = 0;
+    g_setup_intro_facing_arg = 0xFFFFFFFFuL;
+    g_setup_intro_char_start = -1;
+    g_setup_intro_char_end = -1;
+    g_setup_intro_extra_char_idx = 0xFFFFFFFFuL;
+    g_setup_intro_extra_pos_x = -1;
+    g_setup_intro_extra_pos_y = -1;
+    g_setup_intro_extra_facing = -1;
+    g_setup_intro_camera_x = 0xFFFFFFFFuL;
+    g_setup_intro_camera_y = 0xFFFFFFFFuL;
+    for (i = 0; i < 16; i++) {
+        g_setup_intro_px[i] = 0xFF;
+        g_setup_intro_py[i] = 0xFF;
+        g_setup_intro_facing[i] = 0xFF;
+    }
+
+    data_fd2_chapter_current_chapter_id = 17;
+}
+
+static void ce17_fixture_teardown(void)
+{
+    current_chapter_text = 0;
+    data_fd2_shared_menu_party_roster_buffer_ptr = 0;
+    data_fd2_shared_menu_party_member_count = 0;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x32] = 0;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x33] = 0;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x34] = 0;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x35] = 0;
+    data_fd2_chapter_cutscene_event_state = 0;
+    data_fd2_chapter_current_chapter_id = 1;
+}
+
+/* ----------------------------------------------------------------
+ * 蜜蒂 (char 0x12) NOT in party (membership fake returns 0): the handler stages
+ * the post-battle scene exactly once — both 16-byte X/Y tables copied verbatim,
+ * inline fixed facing 0, chars 0..0xF, extra char 0x34 at (0x17,0x17) facing 2,
+ * camera (0x11,0x11). It queries membership once for char 0x12, shows three dialog
+ * pages (7,6,8 -> 3 glyph calls, last 0x88), recruits char 0x10 (roster 1 -> 2),
+ * and advances chapter_id 17 -> 18.
+ * ---------------------------------------------------------------- */
+static void test_chapter_17_end_mitsuki_absent_stages_scene_and_recruits(void)
+{
+    int    setup_calls;
+    int    glyph_calls;
+    uint32 glyph_idx;
+    uint32 facing_arg;
+    int32  char_start;
+    int32  char_end;
+    uint32 extra_idx;
+    int32  extra_x;
+    int32  extra_y;
+    int32  extra_facing;
+    uint32 cam_x;
+    uint32 cam_y;
+    uint32 queried_char;
+    int    query_calls;
+    uint32 recruit_count;
+    uint32 chapter_id;
+    int    tables_match;
+    int    i;
+
+    ce17_fixture_reset(0, 0, 0);   /* 蜜蒂 absent, all pages glyphed */
+
+    fd2_chapter_17_end();
+
+    setup_calls   = g_setup_intro_calls;
+    glyph_calls   = g_dlg_glyph_calls;
+    glyph_idx     = g_dlg_glyph_last_idx;
+    facing_arg    = g_setup_intro_facing_arg;
+    char_start    = g_setup_intro_char_start;
+    char_end      = g_setup_intro_char_end;
+    extra_idx     = g_setup_intro_extra_char_idx;
+    extra_x       = g_setup_intro_extra_pos_x;
+    extra_y       = g_setup_intro_extra_pos_y;
+    extra_facing  = g_setup_intro_extra_facing;
+    cam_x         = g_setup_intro_camera_x;
+    cam_y         = g_setup_intro_camera_y;
+    queried_char  = g_has_char_last_arg;
+    query_calls   = g_has_char_calls;
+    recruit_count = data_fd2_shared_menu_party_member_count;
+    chapter_id    = data_fd2_chapter_current_chapter_id;
+    tables_match  = 1;
+    for (i = 0; i < 16; i++) {
+        if (g_setup_intro_px[i] != data_fd2_chapter_ch17_end_scene_char_pos_x_table[i] ||
+            g_setup_intro_py[i] != data_fd2_chapter_ch17_end_scene_char_pos_y_table[i] ||
+            g_setup_intro_facing[i] != 0) {
+            tables_match = 0;
+        }
+    }
+    ce17_fixture_teardown();
+
+    /* scene staged once with all 16 table entries copied verbatim; fixed facing 0. */
+    ASSERT_EQ((long)setup_calls, 1L);
+    ASSERT_EQ((long)tables_match, 1L);
+    ASSERT_EQ((long)facing_arg, 0L);
+    ASSERT_EQ((long)char_start, 0L);
+    ASSERT_EQ((long)char_end, (long)0xf);
+
+    /* extra char 0x34 at (0x17,0x17) facing 2, camera (0x11,0x11). */
+    ASSERT_EQ((long)extra_idx, (long)0x34);
+    ASSERT_EQ((long)extra_x, (long)0x17);
+    ASSERT_EQ((long)extra_y, (long)0x17);
+    ASSERT_EQ((long)extra_facing, 2L);
+    ASSERT_EQ((long)cam_x, (long)0x11);
+    ASSERT_EQ((long)cam_y, (long)0x11);
+
+    /* the handler asked exactly once whether 蜜蒂 (char 0x12) is in the party. */
+    ASSERT_EQ((long)query_calls, 1);
+    ASSERT_EQ((long)queried_char, (long)0x12);
+
+    /* three pages shown (7,6,8); page 8 ran last. char 0x10 recruited 1 -> 2. */
+    ASSERT_EQ((long)glyph_calls, 3);
+    ASSERT_EQ((long)glyph_idx, (long)0x88);
+    ASSERT_EQ((long)recruit_count, 2L);
+
+    /* chapter id advanced 17 -> 18 (relative increment). */
+    ASSERT_EQ((long)chapter_id, 18L);
+}
+
+/* ----------------------------------------------------------------
+ * 蜜蒂 absent, page-7-only glyph: pins that the FIRST dialog the absent branch
+ * shows is the 蜜蒂 farewell page 7 (not the present-branch page 5) and that the
+ * scene is staged on this branch. Only page 7 emits a glyph, so glyph_calls == 1
+ * with last == 0x77; setup_chars called once.
+ * ---------------------------------------------------------------- */
+static void test_chapter_17_end_mitsuki_absent_shows_page7_first(void)
+{
+    int    setup_calls;
+    int    glyph_calls;
+    uint32 glyph_idx;
+
+    ce17_fixture_reset(0, 0, 1);   /* 蜜蒂 absent, only page 7 glyphed */
+
+    fd2_chapter_17_end();
+
+    setup_calls = g_setup_intro_calls;
+    glyph_calls = g_dlg_glyph_calls;
+    glyph_idx   = g_dlg_glyph_last_idx;
+    ce17_fixture_teardown();
+
+    ASSERT_EQ((long)setup_calls, 1L);         /* absent path stages the scene */
+    ASSERT_EQ((long)glyph_calls, 1);          /* only page 7 emitted a glyph */
+    ASSERT_EQ((long)glyph_idx, (long)0x77);   /* farewell page 7 */
+}
+
+/* ----------------------------------------------------------------
+ * 蜜蒂 present (membership fake returns 1), page-5-only glyph: the present branch
+ * shows page 5 first and does NOT stage the scene (setup_chars not called). Only
+ * page 5 emits a glyph, so glyph_calls == 1 with last == 0x55; setup_calls == 0.
+ * ---------------------------------------------------------------- */
+static void test_chapter_17_end_mitsuki_present_no_scene_page5_first(void)
+{
+    int    setup_calls;
+    int    glyph_calls;
+    uint32 glyph_idx;
+    uint32 queried_char;
+    int    query_calls;
+
+    ce17_fixture_reset(1, 1, 0);   /* 蜜蒂 present, only page 5 glyphed */
+
+    fd2_chapter_17_end();
+
+    setup_calls  = g_setup_intro_calls;
+    glyph_calls  = g_dlg_glyph_calls;
+    glyph_idx    = g_dlg_glyph_last_idx;
+    queried_char = g_has_char_last_arg;
+    query_calls  = g_has_char_calls;
+    ce17_fixture_teardown();
+
+    ASSERT_EQ((long)setup_calls, 0L);         /* present path does NOT stage scene */
+    ASSERT_EQ((long)glyph_calls, 1);          /* only page 5 emitted a glyph */
+    ASSERT_EQ((long)glyph_idx, (long)0x55);   /* page 5 (not farewell page 7) */
+    ASSERT_EQ((long)query_calls, 1);
+    ASSERT_EQ((long)queried_char, (long)0x12);
+}
+
+/* ----------------------------------------------------------------
+ * 蜜蒂 present, full dialog program: confirms the present branch still runs the
+ * common tail — three pages shown (5,6,8 -> 3 glyph calls, last 0x88), char 0x10
+ * recruited (roster 1 -> 2), chapter_id advanced 17 -> 18 — with NO scene staged.
+ * ---------------------------------------------------------------- */
+static void test_chapter_17_end_mitsuki_present_recruits_and_increments(void)
+{
+    int    setup_calls;
+    int    glyph_calls;
+    uint32 glyph_idx;
+    uint32 recruit_count;
+    uint32 chapter_id;
+
+    ce17_fixture_reset(1, 0, 0);   /* 蜜蒂 present, all pages glyphed */
+
+    fd2_chapter_17_end();
+
+    setup_calls   = g_setup_intro_calls;
+    glyph_calls   = g_dlg_glyph_calls;
+    glyph_idx     = g_dlg_glyph_last_idx;
+    recruit_count = data_fd2_shared_menu_party_member_count;
+    chapter_id    = data_fd2_chapter_current_chapter_id;
+    ce17_fixture_teardown();
+
+    ASSERT_EQ((long)setup_calls, 0L);         /* no scene on present path */
+    ASSERT_EQ((long)glyph_calls, 3);          /* pages 5,6,8 */
+    ASSERT_EQ((long)glyph_idx, (long)0x88);   /* page 8 last */
+    ASSERT_EQ((long)recruit_count, 2L);       /* char 0x10 recruited */
+    ASSERT_EQ((long)chapter_id, 18L);
+}
+
+/* ----------------------------------------------------------------
+ * The chapter-id update is a relative INCREMENT, not an absolute set: seeded with
+ * a distinctive unrelated value (7), the handler leaves 8 — proving it does not
+ * hardcode the id to 18.
+ * ---------------------------------------------------------------- */
+static void test_chapter_17_end_increments_not_absolute(void)
+{
+    uint32 chapter_id;
+
+    ce17_fixture_reset(1, 0, 0);
+    data_fd2_chapter_current_chapter_id = 7;   /* distinctive, unrelated to 18 */
+
+    fd2_chapter_17_end();
+
+    chapter_id = data_fd2_chapter_current_chapter_id;
+    ce17_fixture_teardown();
+
+    ASSERT_EQ((long)chapter_id, 8L);           /* 7 + 1, not a constant */
+}
+
 void run_field_chend1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -3528,5 +3853,10 @@ void run_field_chend1_tests(void)
     RUN_TEST(test_chapter_16_end_turn18_recruits);
     RUN_TEST(test_chapter_16_end_hp319_no_recruit);
     RUN_TEST(test_chapter_16_end_increments_not_absolute);
+    RUN_TEST(test_chapter_17_end_mitsuki_absent_stages_scene_and_recruits);
+    RUN_TEST(test_chapter_17_end_mitsuki_absent_shows_page7_first);
+    RUN_TEST(test_chapter_17_end_mitsuki_present_no_scene_page5_first);
+    RUN_TEST(test_chapter_17_end_mitsuki_present_recruits_and_increments);
+    RUN_TEST(test_chapter_17_end_increments_not_absolute);
     printf("\n");
 }

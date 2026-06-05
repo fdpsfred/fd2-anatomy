@@ -258,6 +258,16 @@ uint8 data_fd2_chapter_ch16_end_scene_char_pos_x_table[16] =
     { 28, 27, 28, 29, 30, 25, 26, 27, 26, 29, 30, 31, 25, 26, 30, 31 };
 uint8 data_fd2_chapter_ch16_end_scene_char_pos_y_table[16] =
     { 28, 27, 27, 27, 27, 28, 28, 28, 27, 28, 28, 28, 29, 29, 29, 29 };
+/* Chapter 17 end scene char placement tables (data segment @ 0x521A3 / 0x521B3).
+ * Real binary bytes until the data segment is emitted; fd2_chapter_17_end copies
+ * each 16-byte table into an on-stack placement block and places chars 0..0xF on
+ * the 蜜蒂-absent branch. X/Y are battle-tile coords; chapter 17 has no facing
+ * table (the handler passes the inline fixed facing value 0 to
+ * fd2_setup_chars_and_camera_for_intro). */
+uint8 data_fd2_chapter_ch17_end_scene_char_pos_x_table[16] =
+    { 23, 22, 23, 24, 21, 22, 23, 24, 25, 20, 21, 22, 23, 24, 25, 26 };
+uint8 data_fd2_chapter_ch17_end_scene_char_pos_y_table[16] =
+    { 18, 19, 19, 19, 20, 20, 20, 20, 20, 21, 21, 21, 21, 21, 21, 21 };
 /* Resource portrait sheet base pointer (data segment @ 0x53AD1). Tests point it
  * at a zeroed scratch buffer. */
 uint32 data_fd2_resource_portrait_sheet_ptr = 0;

@@ -700,6 +700,84 @@ void fd2_chapter_15_end(void)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_chapter_17_end @ 0x23B5F  (0 direct callers; dispatched via the
+ *   chapter-end handler pointer table @ 0x51DE9)
+ *
+ * Chapter 17「血與冰之刃」end handler. Unconditionally copies two 16-byte scene
+ * position tables (post-battle X / Y @ 0x521A3 / 0x521B3) into on-stack placement
+ * blocks and persists the party's runtime-char state to the template store. It
+ * then branches on whether 蜜蒂 (char #0x12) is currently in the party
+ * (fd2_check_party_has_char_id(0x12)):
+ *   蜜蒂未加入 (returns 0): stages the post-battle scene via
+ *     fd2_setup_chars_and_camera_for_intro — the facing argument is the inline
+ *     fixed value 0 (< 4), so every placed char faces direction 0 and there is no
+ *     facing table (chars 0..0xF, plus an extra char 0x34 placed at (0x17,0x17)
+ *     facing 2, camera origin (0x11,0x11)). Shows the 蜜蒂 farewell dialog page 7,
+ *     resets battle_anim_phase, fires cutscene event 0x32, pans the camera/window
+ *     to (0x11,0xE), refreshes the portrait cache for race 3, and selects next
+ *     cutscene event 0x33.
+ *   蜜蒂已加入 (returns non-zero): shows dialog page 5, resets battle_anim_phase,
+ *     pans the camera/window to (0x11,0xE), refreshes the portrait cache for race
+ *     3, and selects next cutscene event 0x34.
+ * It then fires the selected cutscene event, shows dialog page 6, fires cutscene
+ * event 0x35, shows dialog page 8, recruits char #16 (凱拉斯, id 0x10) via
+ * fd2_init_runtime_char_from_base_growth, then advances the current-chapter id by 1.
+ *
+ * The position tables are read unconditionally into the stack blocks (matching the
+ * binary), but the blocks are only consumed on the 蜜蒂未加入 branch. In the binary
+ * this function is self-contained (no fall-through / no jump-into-middle sharing).
+ *
+ * Paired init handler: fd2_chapter_17_init @ 0x335AA.
+ * Post-action handler: fd2_chapter_17_post_action @ 0x20872 (gated lose: 蜜蒂
+ *   (char 0x12) 未加入 AND char[0x34] dead -> dialog page 2 + lose).
+ * Walkthrough: assets/chapters/chapter_17.md.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_17_end(void)
+{
+    uint8 scene_block_x[16];
+    uint8 scene_block_y[16];
+    uint32 next_cutscene;
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        scene_block_x[i] = data_fd2_chapter_ch17_end_scene_char_pos_x_table[i];
+        scene_block_y[i] = data_fd2_chapter_ch17_end_scene_char_pos_y_table[i];
+    }
+
+    fd2_save_runtime_char_to_template();
+
+    if (fd2_check_party_has_char_id(0x12) == 0) {
+        fd2_setup_chars_and_camera_for_intro(
+            (uint32)scene_block_x, (uint32)scene_block_y, 0, 0, 0xf, 0x34, 0x17,
+            0x17, 2, 0x11, 0x11);
+        fd2_display_dialog_scene(current_chapter_text, 7, 0xa0000, 0x140, 0xcd,
+                                 0x4c, 0x4a, 0x13, 1);
+        data_fd2_battle_anim_phase = 0;
+        fd2_cutscene_event_trigger(0x32);
+        fd2_pan_cursor_and_window(0x11, 0xe);
+        fd2_load_chapter_portraits_and_dump_tmp(3);
+        next_cutscene = 0x33;
+    }
+    else {
+        fd2_display_dialog_scene(current_chapter_text, 5, 0xa0000, 0x140, 0xcd,
+                                 0x4c, 0x4a, 0x13, 1);
+        data_fd2_battle_anim_phase = 0;
+        fd2_pan_cursor_and_window(0x11, 0xe);
+        fd2_load_chapter_portraits_and_dump_tmp(3);
+        next_cutscene = 0x34;
+    }
+
+    fd2_cutscene_event_trigger(next_cutscene);
+    fd2_display_dialog_scene(current_chapter_text, 6, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+    fd2_cutscene_event_trigger(0x35);
+    fd2_display_dialog_scene(current_chapter_text, 8, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+    fd2_init_runtime_char_from_base_growth(0x10);
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}
+
+/* ----------------------------------------------------------------
  * fd2_chapter_16_end @ 0x23A0A  (0 direct callers; dispatched via the
  *   chapter-end handler pointer table @ 0x51DE9, slot @ 0x51E25)
  *
