@@ -2923,8 +2923,9 @@
     "name": "fd2_close_intro_dialog_with_slide_out",
     "target": "dialog/dialog.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002d392": {
     "name": "fd2_load_chapter_party_roster",

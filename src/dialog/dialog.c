@@ -1147,6 +1147,50 @@ void fd2_scroll_text_screen_up_by_lines(uint32 lines)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_close_intro_dialog_with_slide_out @ 0x2D31B (19 callers)
+ *
+ * Close a chapter-intro / menu dialog panel with a 5-frame slide-down
+ * animation, restore the framebuffer from a backup snapshot, then free
+ * the three dialog workspace buffers. Same algorithmic shape as
+ * fd2_close_status_screen_with_slide_out @ 0x196CB, except this variant
+ * does NOT recomposite a battle frame afterward (chapter-transition flow
+ * rather than the in-battle status flow).
+ *
+ * Pipeline:
+ *   1. 5-frame slide-down (frame_iter 1..5): each frame drives
+ *      fd2_slide_panel_down_step(frame_iter*0xD + 0x70, accumulator, target)
+ *      (panel_y = 0x7D, 0x8A, 0x97, 0xA4, 0xB1).
+ *   2. memmove(0xA0000, bg_snapshot, 64000) — restore the screen snapshot
+ *      to mode-13h VRAM.
+ *   3. free the three 64000-byte workspaces (a / b / c).
+ *
+ * Globals (allocated by the open counterpart, freed here):
+ *   render_workspace_a @ 0x53C5B — per-frame animation accumulator
+ *   render_workspace_b @ 0x53C5F — underlying framebuffer snapshot
+ *   render_workspace_c @ 0x53C63 — composed dialog-panel target image
+ *
+ * void __cdecl with the compiler-injected __CHK(0x14) stack-probe prologue
+ * (not part of the source). EBX is the loop counter (callee-saved); the
+ * trailing POP EBX + RET is the shared epilogue.
+ * ---------------------------------------------------------------- */
+void fd2_close_intro_dialog_with_slide_out(void)
+{
+    uint32 frame_iter;
+
+    for (frame_iter = 1; (int)frame_iter < 6; frame_iter++) {
+        fd2_slide_panel_down_step(frame_iter * 0xd + 0x70,
+            data_fd2_ui_slide_anim_accumulator_buf_ptr,
+            data_fd2_ui_slide_composed_target_buf_ptr);
+    }
+
+    memmove((void *)0xa0000,
+            (void *)data_fd2_ui_slide_bg_snapshot_buf_ptr, 64000);
+    free((void *)data_fd2_ui_slide_anim_accumulator_buf_ptr);
+    free((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr);
+    free((void *)data_fd2_ui_slide_composed_target_buf_ptr);
+}
+
+/* ----------------------------------------------------------------
  * fd2_show_portrait_dialog_with_input @ 0x2C39B (1 caller)
  *
  * Display a portrait + dialog scene and block on user input. Used by

@@ -1470,6 +1470,48 @@ static void test_scroll_mode_b_cylinder_n3(void)
     data_fd2_graphics_text_scroll_pending_line_count = 0;
 }
 
+/*
+ * fd2_close_intro_dialog_with_slide_out @ 0x2D31B — end-to-end teardown.
+ *
+ * Identical teardown shape to fd2_close_status_screen_with_slide_out, with
+ * one deliberate difference: this chapter-transition variant does NOT
+ * recomposite a battle frame at the end. So the host-observable proxies are
+ * (1) it runs the fixed 1..5 slide loop + VRAM-restore memmove + three
+ * free()s and returns (never hangs), and (2) g_composite_call_count stays 0
+ * — that final assertion is what distinguishes this emit from the status
+ * counterpart and guards against accidentally copying the composite call.
+ *
+ * We pre-allocate the three 64000-byte workspaces (the open counterpart's
+ * job) so the real fd2_slide_panel_down_step memmoves stay in bounds; the
+ * function free()s all three, so the test must NOT free them again and
+ * resets the globals to 0 afterward to avoid dangling pointers. The in-loop
+ * blit and the restore memmove both target 0xA0000 (real VGA RAM under
+ * DOS/4GW, harmless — same convention as tests/anim/aniwalk2.c).
+ */
+static void test_close_intro_dialog_slide_out_no_composite(void)
+{
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_composed_target_buf_ptr = (uint32)malloc(64000);
+    ASSERT_TRUE(data_fd2_ui_slide_anim_accumulator_buf_ptr != 0);
+    ASSERT_TRUE(data_fd2_ui_slide_bg_snapshot_buf_ptr != 0);
+    ASSERT_TRUE(data_fd2_ui_slide_composed_target_buf_ptr != 0);
+
+    g_composite_call_count = 0;
+
+    fd2_close_intro_dialog_with_slide_out();
+
+    /* The chapter-transition close, unlike the status close, performs NO
+     * recomposite after the teardown. */
+    ASSERT_EQ((long)g_composite_call_count, 0);
+
+    /* The function already free()d all three; drop the dangling globals so
+     * later tests in the suite never reuse a freed pointer. */
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+}
+
 void run_dialog_dialog_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1506,6 +1548,7 @@ void run_dialog_dialog_tests(void)
     RUN_TEST(test_scroll_mode_a_stores_low_byte);
     RUN_TEST(test_scroll_mode_b_cylinder_n1);
     RUN_TEST(test_scroll_mode_b_cylinder_n3);
+    RUN_TEST(test_close_intro_dialog_slide_out_no_composite);
     audiofix_disable_sfx();   /* restore safe gate state for later suites */
     printf("\n");
 }

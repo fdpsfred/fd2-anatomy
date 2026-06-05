@@ -611,7 +611,11 @@ int g_ending_menu_return = 0;
 int fd2_play_ending_and_record_clear(void) { return g_ending_menu_return; }
 int g_slot_selector_return = -1;
 int fd2_save_slot_selector_ui(uint32 b, uint32 m) { (void)b; (void)m; return g_slot_selector_return; }
-void fd2_close_intro_dialog_with_slide_out(void) { }
+/* fd2_close_intro_dialog_with_slide_out: now emitted in src/dialog/dialog.c
+ * and linked for real; its caller test (tests/life/main.c
+ * test_main_menu_continue_quit) pre-allocates the three slide workspace
+ * buffers so the real teardown's memmoves stay in bounds, and its own caller
+ * test lives in tests/dialog/dialog.c. */
 int g_chapter_transition_return = 0;
 int fd2_chapter_transition_menu(void) { return g_chapter_transition_return; }
 
