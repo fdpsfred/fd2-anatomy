@@ -578,6 +578,89 @@ static void test_ch6_event14_shows_dialog_page1(void)
     ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0x51);
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_15__ch6_char_cond @ 0x347D9
+ *
+ * Dispatch idx 0x15 of the per-event handler table at 0x51B91 (chapter 6
+ * turn-event slot 1). A char-conditional beat:
+ *   if (check_char_is_dead(8) == 0):           // 索倫 still alive
+ *     display_dialog_scene(page 2, ...);
+ * The single branch is guarded by the EAX return value of fd2_check_char_is_dead
+ * — exactly the CALL-return-value control-flow case (the Ghidra EAX-tracking-bug
+ * risk class) — so BOTH paths are exercised. No RNG, no numeric computation.
+ *
+ * fd2_check_char_is_dead (@0x3453E) is the REAL emitted callee: it reads
+ * runtime_char[8].flags bit0 through data_fd2_battle_runtime_char_array_ptr, so
+ * the alive/dead decision is pinned by g_ev_rc[8].flags. fd2_display_dialog_scene
+ * runs FOR REAL on the same per-page-distinct-glyph program handler_14 uses
+ * (page p -> single TEXT glyph idx 0x50+p, then END), so a correct page-2
+ * dispatch must emit exactly one glyph with idx 0x52 and any wrong page fails
+ * loudly. The glyph blit is the testglob recorder (g_dlg_glyph_calls /
+ * g_dlg_glyph_last_idx), making both the dispatch-vs-skip branch and the page
+ * selection observable WITHOUT touching real VGA. With no portrait open
+ * (active_portrait_blit_offset 0) the END opcode returns at once and an empty
+ * BIOS keyboard buffer keeps the per-glyph poll deterministic.
+ *
+ * The 64-slot g_ev_rc fixture keeps char 8 in-bounds. The pure blit/display
+ * side effects (the real glyph render path) are deferred to Phase 9 integration.
+ * ================================================================ */
+
+static void ev15_install_safe_env(void)
+{
+    /* runtime-char slots: the gate reads char 8, so the 64-slot array keeps it
+     * in-bounds. memset clears flags bit0 -> char 8 starts alive. */
+    memset(g_ev_rc, 0, sizeof(g_ev_rc));
+    data_fd2_battle_runtime_char_array_ptr = g_ev_rc;
+
+    /* reuse handler_14's per-page-distinct-glyph dialog program (page p ->
+     * glyph 0x50+p, END) so the dispatched page is identifiable, the empty
+     * keyboard buffer + no-portrait setup, and a clean glyph recorder. */
+    ev14_install_safe_env();
+}
+
+/* ----------------------------------------------------------------
+ * ALIVE path: char 8 (索倫) starts alive (flags bit0 clear), so the gate passes
+ * and the conditional dialog page 2 runs. Observable, deterministic contract:
+ * exactly one glyph is emitted and it is page 2's glyph (idx 0x52) — proving the
+ * handler dispatches page 2 (not any other page) — and the real call runs to
+ * completion without faulting.
+ * ---------------------------------------------------------------- */
+static void test_ch6_event15_alive_shows_dialog_page2(void)
+{
+    ev15_install_safe_env();
+
+    /* g_ev_rc was memset to 0, so char 8's flags bit0 is clear -> alive. */
+
+    fd2_chapter_event_handler_15__ch6_char_cond(0);
+
+    /* exactly page 2 was shown: one glyph, idx 0x52 (= 0x50 + page 2). */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0x52);
+
+    ev_restore_rc_ptr();
+}
+
+/* ----------------------------------------------------------------
+ * DEAD path: char 8 (索倫) is pinned dead (flags bit0 set), so the gate fails
+ * and the conditional dialog is SKIPPED. Observable, deterministic contract: no
+ * glyph is emitted at all (the dialog VM is never entered) and the beat runs to
+ * completion without faulting.
+ * ---------------------------------------------------------------- */
+static void test_ch6_event15_dead_skips_dialog(void)
+{
+    ev15_install_safe_env();
+
+    /* pin char 8 dead so fd2_check_char_is_dead(8) returns 1 and the gate fails. */
+    g_ev_rc[8].flags |= CHARFLAG_DEAD;
+
+    fd2_chapter_event_handler_15__ch6_char_cond(0);
+
+    /* dialog skipped entirely: no glyph emitted. */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 0);
+
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt11_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -589,5 +672,7 @@ void run_field_chevt11_tests(void)
     RUN_TEST(test_ch_event13_any_alive_arms_band_and_shows_second_dialog);
     RUN_TEST(test_ch_event13_all_dead_skips_second_dialog);
     RUN_TEST(test_ch6_event14_shows_dialog_page1);
+    RUN_TEST(test_ch6_event15_alive_shows_dialog_page2);
+    RUN_TEST(test_ch6_event15_dead_skips_dialog);
     printf("\n");
 }

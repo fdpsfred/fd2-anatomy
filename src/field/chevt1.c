@@ -46,6 +46,9 @@
  * fd2_chapter_event_handler_14__ch6_dialog @ 0x347B1
  *     (0 direct callers; dispatched as idx 0x14 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_15__ch6_char_cond @ 0x347D9
+ *     (0 direct callers; dispatched as idx 0x15 of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -600,4 +603,39 @@ void fd2_chapter_event_handler_14__ch6_dialog(uint32 event_arg)
 
     fd2_display_dialog_scene(current_chapter_text, 1, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_15__ch6_char_cond @ 0x347D9
+ *   — Chapter 6 turn-event slot 1 (triggered at turn 10 / phase 2),
+ *     dispatched as idx 0x15 of the per-event handler table at 0x51B91.
+ *
+ * char-conditional beat: gated on 索倫 (char_id 8) still being alive
+ * (flags bit0 clear). If alive, dialog page 2 is shown; if 索倫 is
+ * already dead the beat is skipped. The only branch is the alive gate
+ * driven by the fd2_check_char_is_dead return value — no RNG, no numeric
+ * computation, and the call's return value is used only as a zero test.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * In the original binary the trailing dialog call is the head of a
+ * shared tail at 0x347F1 (PUSH page=2 .. PUSH current_chapter_text;
+ * CALL fd2_display_dialog_scene; ADD ESP,0x24; RET) that
+ * fd2_chapter_event_handler_32 (ch22 reinforcement) JMPs into for its
+ * own page-2 dialog; reproduced here as the inline call for Layer-2
+ * equivalence.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_06.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_15__ch6_char_cond(uint32 event_arg)
+{
+    (void)event_arg;
+
+    if (fd2_check_char_is_dead(8) == 0) {
+        fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+    }
 }
