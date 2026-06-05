@@ -7,6 +7,7 @@
  *   fd2_run_sell_item_menu, fd2_run_give_item_menu)
  * fd2_pick_stat_compare_color @ 0x2EF8F (1 caller:
  *   fd2_render_party_roster_with_item_stat_preview)
+ * fd2_run_buy_item_menu @ 0x2F0B0 (1 caller: fd2_run_chapter_intro_menu_main)
  */
 
 #include "types.h"
@@ -206,5 +207,214 @@ void fd2_open_shop_dialog_panel(uint32 item_count, uint32 item_id_array,
         fd2_slide_panel_down_step(panel_y,
             data_fd2_ui_slide_anim_accumulator_buf_ptr,
             data_fd2_ui_slide_composed_target_buf_ptr);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_run_buy_item_menu @ 0x2F0B0  (1 caller: fd2_run_chapter_intro_menu_main)
+ *
+ * Top-level loop for the BUY branch of the chapter-intro shop menu. Each
+ * iteration: open the item-grid panel, run the cursor loop, and on a commit
+ * walk the buy flow (eligibility filter -> "buy for whom?" confirm ->
+ * affordability -> recipient roster select -> inventory-full check -> add item
+ * -> optional auto-equip -> transaction + money-drop animation). Esc on the
+ * item grid exits.
+ *
+ *   shop_item_count     number of items offered this visit
+ *   shop_item_id_array  byte array of item ids (indexed by the saved cursor)
+ *
+ * Per-shop-tier dialog text ids are pulled from five short[6] tables, indexed
+ * by data_fd2_chapter_intro_menu_cursor_state (the shop variant, 0..5). Four of
+ * them are snapshotted into local arrays up front (matching the binary's MOVSD
+ * block copies); the inventory-full table is read straight from the global:
+ *   buy_for     (0x526FA) -> "buy for whom?" confirmation
+ *   no_money    (0x52706) -> "can't afford"
+ *   no_equip    (0x52712) -> "no one can equip this"
+ *   auto_equip  (0x5271E) -> "auto-equip the gear just bought?"
+ *   inv_full    (0x5265F) -> "inventory is full"
+ *
+ * Item category: fd2_get_item_effect_entry(item_id)[+0] < 0x20 means gear (an
+ * equip eligibility scan + stat-preview roster + auto-equip prompt apply); >=
+ * 0x20 is a consumable (whole party eligible, plain roster select, no equip).
+ * Price is the 16-bit field at item_entry[+0x13].
+ *
+ * The binary's __CHK(0x90) stack-probe prologue is compiler-injected and not
+ * part of the source, so it is omitted (as in the sibling shop functions). The
+ * decompiler's frame_pad[4004] / in_stack_00000000 are __CHK artifacts and not
+ * real locals (the real frame is the 0x58 declared below).
+ *
+ * EAX-bug notes (each "CALL then use return" point checked against asm):
+ *   - fd2_get_item_effect_entry returns the item-effect pointer (EBX), used for
+ *     the category byte and the +0x13 price word.
+ *   - fd2_shop_menu_input_loop / both roster select loops return the full int
+ *     selection (-1 cancel / 1 commit), captured as int (no byte narrowing).
+ *   - fd2_text_dialog_typewriter_loop returns the yes/no choice (-1 / else);
+ *     the actual yes/no is then read from data_fd2_ui_menu_cursor_idx.
+ *   - In the auto-equip branch the slot index is fd2_count_usable_inventory_
+ *     slots(recipient) - 1 (the asm SUB EAX,ESI has ESI == 1 here, the commit
+ *     result, which is provably 1 on this path).
+ *
+ * The gold-vs-price test is SIGNED (asm JGE), so both sides are cast to int.
+ * ---------------------------------------------------------------- */
+void fd2_run_buy_item_menu(uint32 shop_item_count, uint32 shop_item_id_array)
+{
+    int16   buy_for_table[6];
+    int16   no_money_table[6];
+    int16   no_equip_table[6];
+    int16   auto_equip_table[6];
+    uint8   eligible_chars[32];
+    uint8  *item_entry;
+    uint32  item_id;
+    uint32  candidate_count;
+    uint32  scan_iter;
+    uint32  saved_visible_count;
+    uint32  buy_char_idx;
+    int     menu_choice;
+    int     confirm_choice;
+    int     auto_equip_choice;
+    int     select_result;
+    int     slot_count;
+    uint8   recipient;
+
+    memcpy(no_equip_table, data_fd2_dialog_shop_no_equip_dialog_text_id_table,
+           sizeof(no_equip_table));
+    memcpy(buy_for_table, data_fd2_dialog_shop_buy_for_dialog_text_id_table,
+           sizeof(buy_for_table));
+    memcpy(auto_equip_table,
+           data_fd2_dialog_shop_auto_equip_dialog_text_id_table,
+           sizeof(auto_equip_table));
+    memcpy(no_money_table, data_fd2_dialog_shop_no_money_dialog_text_id_table,
+           sizeof(no_money_table));
+
+    for (;;) {
+        data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_saved_cursor_idx;
+        data_fd2_ui_menu_scroll_offset = data_fd2_ui_menu_saved_scroll_offset;
+        fd2_open_shop_dialog_panel(shop_item_count, shop_item_id_array, 0);
+        menu_choice = fd2_shop_menu_input_loop(shop_item_count,
+                                               shop_item_id_array, 0);
+        data_fd2_ui_menu_saved_cursor_idx = data_fd2_ui_menu_cursor_idx;
+        data_fd2_ui_menu_saved_scroll_offset = data_fd2_ui_menu_scroll_offset;
+        fd2_close_intro_dialog_with_slide_out();
+        if (menu_choice == -1) {
+            return;
+        }
+
+        item_id = *(uint8 *)(data_fd2_ui_menu_saved_cursor_idx
+                             + shop_item_id_array);
+        data_fd2_dialog_last_action_sprite_id_param = item_id + 0xb5;
+        item_entry = fd2_get_item_effect_entry(item_id);
+        data_fd2_dialog_last_action_value_param =
+            *(uint16 *)(item_entry + 0x13);
+
+        candidate_count = 0;
+        for (scan_iter = 0;
+             (int)scan_iter < (int)data_fd2_shared_menu_party_member_count;
+             scan_iter++) {
+            if (*item_entry < 0x20) {
+                if (fd2_check_job_can_equip_item(scan_iter, item_id) != 1) {
+                    continue;
+                }
+            }
+            eligible_chars[candidate_count] = (uint8)scan_iter;
+            candidate_count++;
+        }
+
+        if (*item_entry < 0x20 && candidate_count == 0) {
+            fd2_load_chapter_portrait(
+                data_fd2_chapter_intro_menu_speaker_portrait_id_table[
+                    data_fd2_chapter_intro_menu_cursor_state]);
+            fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
+                no_equip_table[data_fd2_chapter_intro_menu_cursor_state],
+                0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+            fd2_paint_portrait_to_dialog_area(0);
+            fd2_wait_for_input_dialog_with_blink(1);
+            fd2_close_intro_dialog_with_slide_out();
+            continue;
+        }
+
+        saved_visible_count = data_fd2_ui_menu_visible_item_count;
+        data_fd2_ui_menu_visible_item_count = candidate_count;
+        data_fd2_ui_menu_candidate_array_ptr = eligible_chars;
+
+        fd2_load_chapter_portrait(
+            data_fd2_chapter_intro_menu_speaker_portrait_id_table[
+                data_fd2_chapter_intro_menu_cursor_state]);
+        fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
+            buy_for_table[data_fd2_chapter_intro_menu_cursor_state],
+            0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+        fd2_paint_portrait_to_dialog_area(0);
+        confirm_choice = fd2_text_dialog_typewriter_loop();
+        fd2_animate_dialog_page_advance_collapse();
+        if (confirm_choice == -1 || data_fd2_ui_menu_cursor_idx == 1) {
+            fd2_close_intro_dialog_with_slide_out();
+            continue;
+        }
+
+        if ((int)data_fd2_shared_party_total_gold
+                < (int)data_fd2_dialog_last_action_value_param) {
+            fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
+                no_money_table[data_fd2_chapter_intro_menu_cursor_state],
+                0xac44c, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+            fd2_paint_portrait_to_dialog_area(0);
+            fd2_wait_for_input_dialog_with_blink(1);
+            fd2_close_intro_dialog_with_slide_out();
+            continue;
+        }
+
+        fd2_close_intro_dialog_with_slide_out();
+
+        if (*item_entry < 0x20) {
+            select_result = fd2_party_roster_class_select_loop(candidate_count,
+                (uint32)eligible_chars, item_id);
+        } else {
+            data_fd2_ui_menu_visible_item_count =
+                data_fd2_shared_menu_party_member_count;
+            select_result = fd2_party_roster_single_select_loop();
+        }
+        data_fd2_ui_menu_visible_item_count = saved_visible_count;
+        fd2_close_intro_dialog_with_slide_out();
+        if (select_result != 1) {
+            continue;
+        }
+
+        recipient = eligible_chars[data_fd2_ui_menu_cursor_idx];
+        if (fd2_count_usable_inventory_slots(recipient) == 8) {
+            data_fd2_dialog_last_action_sprite_id_param =
+                data_fd2_battle_runtime_char_array_ptr[recipient].portrait_id
+                + 1;
+            fd2_load_chapter_portrait(
+                data_fd2_chapter_intro_menu_speaker_portrait_id_table[
+                    data_fd2_chapter_intro_menu_cursor_state]);
+            fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
+                data_fd2_dialog_shop_inventory_full_dialog_text_id_table[
+                    data_fd2_chapter_intro_menu_cursor_state],
+                0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+            fd2_paint_portrait_to_dialog_area(0);
+            fd2_wait_for_input_dialog_with_blink(1);
+            fd2_close_intro_dialog_with_slide_out();
+            continue;
+        }
+
+        fd2_add_item_to_inventory(recipient, item_id);
+        if (*item_entry < 0x20) {
+            fd2_load_chapter_portrait(
+                data_fd2_chapter_intro_menu_speaker_portrait_id_table[
+                    data_fd2_chapter_intro_menu_cursor_state]);
+            fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
+                auto_equip_table[data_fd2_chapter_intro_menu_cursor_state],
+                0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+            fd2_paint_portrait_to_dialog_area(0);
+            buy_char_idx = recipient;
+            auto_equip_choice = fd2_text_dialog_typewriter_loop();
+            fd2_animate_dialog_page_advance_collapse();
+            if (auto_equip_choice != -1 && data_fd2_ui_menu_cursor_idx == 0) {
+                slot_count = fd2_count_usable_inventory_slots(buy_char_idx);
+                fd2_equip_item_in_slot(buy_char_idx, slot_count - 1);
+                fd2_recalculate_combat_stats(buy_char_idx);
+            }
+            fd2_close_intro_dialog_with_slide_out();
+        }
+        fd2_animate_shop_transaction_feedback();
+        fd2_animate_money_decrement(data_fd2_dialog_last_action_value_param);
     }
 }

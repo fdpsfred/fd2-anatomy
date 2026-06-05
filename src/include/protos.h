@@ -179,6 +179,10 @@ void fd2_open_shop_dialog_panel(uint32 item_count, uint32 item_id_array, uint32 
 int  fd2_shop_menu_input_loop(uint32 item_count, uint32 item_id_array, uint32 sell_mode_flag);
 void fd2_render_shop_item_grid(uint32 item_count, uint32 item_id_array, uint32 cursor, uint32 dst_buf, uint32 sell_mode_flag);
 uint32 fd2_pick_stat_compare_color(int current_stat, int preview_stat);
+void fd2_run_buy_item_menu(uint32 shop_item_count, uint32 shop_item_id_array);
+int  fd2_party_roster_class_select_loop(uint32 candidate_count, uint32 candidate_array_ptr, uint32 item_id);
+int  fd2_party_roster_single_select_loop(void);
+void fd2_animate_shop_transaction_feedback(void);
 void fd2_animate_scroll_up_in_shop_dialog(void);
 void fd2_animate_scroll_down_in_shop_dialog(void);
 void fd2_equip_unequip_inventory_menu(uint32 char_idx);

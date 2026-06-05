@@ -604,6 +604,107 @@ static void test_stat_color_current_greater_returns_orange(void)
     ASSERT_EQ(fd2_pick_stat_compare_color(1, -1), 0x77u);
 }
 
+/* ================================================================
+ * fd2_run_buy_item_menu @ 0x2F0B0 — buy-branch top-level loop.
+ *
+ * Drives the REAL outer loop through its CANCEL exit: each iteration the loop
+ * restores the cursor/scroll from their saved copies, opens the item panel
+ * (real fd2_open_shop_dialog_panel: 3 x 64000-byte mallocs + title-blit/grid
+ * spies + slide steps into the host-safe VGA aperture), runs the real shop
+ * input loop, saves the cursor/scroll back, then closes. A staged Esc makes the
+ * input loop return -1 on the first key, so the loop returns immediately —
+ * before any item-table / party-state / recipient-select code runs.
+ *
+ * fd2_close_intro_dialog_with_slide_out is a no-op stub here (it frees the 3
+ * workspaces in game), so the test frees them itself after the call (same as
+ * the open-panel test).
+ *
+ * Risk coverage: the loop-top cursor/scroll RESTORE-from-saved (cursor and
+ * scroll are seeded different from their saved copies, so a swapped
+ * save/restore direction would land the wrong value), the matching SAVE-back
+ * after the input loop, the sell_mode=0 buy-branch flag forwarded to the panel
+ * open + grid render, and the sel==-1 early return (the function returns rather
+ * than looping). The deeper buy mechanics (eligibility filter, confirm,
+ * affordability, recipient select, inventory check, add/auto-equip, money anim)
+ * are dominated by blocking input + VGA blits + not-yet-emitted callees and are
+ * deferred to Phase 9 integration.
+ * ================================================================ */
+
+/* sprite-atlas backing buffer for fd2_open_shop_dialog_panel's title blit
+ * (it reads the relative sprite offset at slot +0x46, then calls the spy). */
+static uint8 g_buy_atlas[0x100];
+
+#define BUY_ARR 0xCAFEF00Du
+
+static void buy_free_workspaces(void)
+{
+    if (data_fd2_ui_slide_anim_accumulator_buf_ptr != 0) {
+        free((void *)data_fd2_ui_slide_anim_accumulator_buf_ptr);
+        data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    }
+    if (data_fd2_ui_slide_bg_snapshot_buf_ptr != 0) {
+        free((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr);
+        data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    }
+    if (data_fd2_ui_slide_composed_target_buf_ptr != 0) {
+        free((void *)data_fd2_ui_slide_composed_target_buf_ptr);
+        data_fd2_ui_slide_composed_target_buf_ptr = 0;
+    }
+}
+
+static void test_buy_menu_cancel_returns_and_persists_cursor(void)
+{
+    uint8 keys[1];
+
+    /* observed seams + slide-buffer globals */
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+    g_dlg_blit_normal_calls = 0;
+    g_shop_grid_render_calls = 0;
+    g_shop_grid_last_sell = 0xFFFFFFFFu;
+    g_shop_grid_last_count = 0;
+    g_shop_grid_last_array = 0;
+    g_shop_grid_last_cursor = 0xFFFFFFFFu;
+
+    /* keep the real input wait off its idle/blink/corner paths */
+    data_fd2_shared_rng_seed = 0;
+    *(uint32 *)(g_buy_atlas + 0x46) = 0u;
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = (uint32)g_buy_atlas;
+    data_fd2_audio_fdother_sfx_bank_buf_ptr = 0x55AA;
+
+    /* saved cursor/scroll differ from the live ones: the loop must overwrite
+     * the live cursor/scroll FROM the saved copies at the top, then (Esc moves
+     * nothing) save the same values back. */
+    data_fd2_ui_menu_saved_cursor_idx = 5;
+    data_fd2_ui_menu_saved_scroll_offset = 4;
+    data_fd2_ui_menu_cursor_idx = 1;
+    data_fd2_ui_menu_scroll_offset = 0;
+
+    keys[0] = MFIX_SC_ESC;
+    mfix_load_keys(keys, 1);
+
+    fd2_run_buy_item_menu(8, BUY_ARR);
+
+    /* loop restored cursor/scroll from saved (5/4), Esc moved nothing, then
+     * saved them back -> all four equal the saved seeds. */
+    ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 5);
+    ASSERT_EQ(data_fd2_ui_menu_scroll_offset, 4);
+    ASSERT_EQ(data_fd2_ui_menu_saved_cursor_idx, 5);
+    ASSERT_EQ(data_fd2_ui_menu_saved_scroll_offset, 4);
+
+    /* the panel opened exactly once (one iteration), buy-branch sell_mode=0,
+     * with the restored cursor (5) and forwarded count/array. */
+    ASSERT_EQ(g_dlg_blit_normal_calls, 1);
+    ASSERT_EQ(g_shop_grid_render_calls, 1);
+    ASSERT_EQ(g_shop_grid_last_sell, 0);
+    ASSERT_EQ(g_shop_grid_last_count, 8);
+    ASSERT_EQ(g_shop_grid_last_array, BUY_ARR);
+    ASSERT_EQ(g_shop_grid_last_cursor, 5);
+
+    buy_free_workspaces();
+}
+
 void run_ui_menu_shop_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -633,4 +734,5 @@ void run_ui_menu_shop_tests(void)
     RUN_TEST(test_stat_color_equal_returns_red);
     RUN_TEST(test_stat_color_current_less_returns_white);
     RUN_TEST(test_stat_color_current_greater_returns_orange);
+    RUN_TEST(test_buy_menu_cancel_returns_and_persists_cursor);
 }

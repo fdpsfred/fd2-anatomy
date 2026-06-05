@@ -92,6 +92,10 @@ extern uint32 data_fd2_ui_terrain_hud_panel_offset_51a0c;               /* 0x51A
 extern uint8  data_fd2_ui_game_speed_flag;                              /* 0x53AF9 */
 extern uint32 data_fd2_ui_menu_cursor_idx;                              /* 0x53C57 */
 extern uint32 data_fd2_ui_menu_scroll_offset;                           /* 0x5412F */
+extern uint32 data_fd2_ui_menu_visible_item_count;                      /* 0x5413F */
+extern void  *data_fd2_ui_menu_candidate_array_ptr;                     /* 0x54143 */
+extern uint32 data_fd2_ui_menu_saved_cursor_idx;                        /* 0x5414B */
+extern uint32 data_fd2_ui_menu_saved_scroll_offset;                     /* 0x5414F */
 extern int32  data_fd2_ui_field_command_menu_options_template[4];       /* 0x51E9F */
 extern int32  data_fd2_ui_field_command_menu_state_template[4];         /* 0x53EF2 */
 extern int32  data_fd2_ui_player_action_menu_state_template[4];         /* 0x53F12 */
@@ -159,6 +163,7 @@ extern uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr;             /* 0x541
 extern uint32 data_fd2_chapter_intro_menu_cursor_state;                 /* 0x5412B  radio 0..5 */
 extern uint32 data_fd2_chapter_intro_active_metadata_entry_ptr;         /* 0x54137 */
 extern uint32 data_fd2_chapter_intro_menu_overlay_buf_ptr;              /* 0x5413B  FDOTHER[10] */
+extern uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6]; /* 0x52659 */
 
 /* ---- text / dialog ---- */
 extern uint32 data_fd2_all_game_text_ptr;                               /* 0x53A7D */
@@ -167,6 +172,14 @@ extern uint32 data_fd2_dialog_last_action_sprite_id_param;              /* 0x53A
 extern uint32 data_fd2_dialog_drop_swap_text_id_param;                  /* 0x53ADD */
 extern uint32 data_fd2_dialog_last_action_value_param;                  /* 0x53AE1 */
 extern uint32 data_fd2_dialog_active_portrait_blit_offset;              /* 0x53C67 */
+
+/* ---- per-shop-tier dialog text-id tables (short[6], indexed by
+ *      data_fd2_chapter_intro_menu_cursor_state) ---- */
+extern int16  data_fd2_dialog_shop_inventory_full_dialog_text_id_table[6]; /* 0x5265F */
+extern int16  data_fd2_dialog_shop_buy_for_dialog_text_id_table[6];        /* 0x526FA */
+extern int16  data_fd2_dialog_shop_no_money_dialog_text_id_table[6];       /* 0x52706 */
+extern int16  data_fd2_dialog_shop_no_equip_dialog_text_id_table[6];       /* 0x52712 */
+extern int16  data_fd2_dialog_shop_auto_equip_dialog_text_id_table[6];     /* 0x5271E */
 extern void  *data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[5];   /* 0x53A18 */
 extern uint32 data_fd2_dialog_portrait_blink_frame_idx;                 /* 0x53A10 */
 extern uint32 data_fd2_dialog_portrait_blink_subtick_counter;           /* 0x53A14 */

@@ -406,6 +406,52 @@ uint32 data_fd2_ui_menu_cursor_idx = 0;
 /* Shop / give-item menu scroll offset (top-row index of the 6-item viewport,
  * steps of 2). Real FD2.LE global @ 0x5412F; shared menu-scroll state. */
 uint32 data_fd2_ui_menu_scroll_offset = 0;
+/* Shop / roster menu shared state (BSS) — real FD2.LE globals.
+ *   visible_item_count @ 0x5413F  rows the renderer paints
+ *   candidate_array_ptr @ 0x54143  -> the equip-eligible char-id byte array
+ *   saved_cursor / saved_scroll @ 0x5414B / 0x5414F  persist across re-opens */
+uint32 data_fd2_ui_menu_visible_item_count = 0;
+void  *data_fd2_ui_menu_candidate_array_ptr = 0;
+uint32 data_fd2_ui_menu_saved_cursor_idx = 0;
+uint32 data_fd2_ui_menu_saved_scroll_offset = 0;
+/* per-shop-tier dialog text-id tables (short[6], indexed by
+ * data_fd2_chapter_intro_menu_cursor_state) — real FD2.LE values:
+ *   speaker portrait id  @ 0x52659 (byte[6])
+ *   inventory-full       @ 0x5265F
+ *   buy-for-whom         @ 0x526FA
+ *   can't-afford         @ 0x52706
+ *   no-one-can-equip     @ 0x52712
+ *   auto-equip           @ 0x5271E */
+uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6] = {
+    0x81, 0x80, 0x00, 0x82, 0x83, 0x84
+};
+int16  data_fd2_dialog_shop_inventory_full_dialog_text_id_table[6] = {
+    1, 506, 1, 506, 506, 506
+};
+int16  data_fd2_dialog_shop_buy_for_dialog_text_id_table[6] = {
+    1, 502, 1, 439, 1, 439
+};
+int16  data_fd2_dialog_shop_no_money_dialog_text_id_table[6] = {
+    1, 504, 1, 438, 1, 438
+};
+int16  data_fd2_dialog_shop_no_equip_dialog_text_id_table[6] = {
+    1, 505, 1, 437, 1, 437
+};
+int16  data_fd2_dialog_shop_auto_equip_dialog_text_id_table[6] = {
+    1, 507, 1, 507, 1, 507
+};
+/* not-yet-emitted buy-flow callees (real fns in src later; stubbed for the
+ * link). The buy-menu cancel test never reaches these — Esc on the item grid
+ * returns before the eligibility scan / recipient select. */
+int  fd2_party_roster_class_select_loop(uint32 candidate_count,
+                                        uint32 candidate_array_ptr,
+                                        uint32 item_id)
+{
+    (void)candidate_count; (void)candidate_array_ptr; (void)item_id;
+    return -1;
+}
+int  fd2_party_roster_single_select_loop(void) { return -1; }
+void fd2_animate_shop_transaction_feedback(void) { }
 /* Recording stubs for fd2_shop_menu_input_loop's not-yet-emitted display
  * callees: the grid renderer (gfx/rndmenu.c) and the page-up scroll animation
  * (anim/aniui.c fd2_animate_scroll_down_in_shop_dialog). The shop input loop

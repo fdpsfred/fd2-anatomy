@@ -582,5 +582,18 @@
         "source_review": "fd2_chapter_transition_menu @0002cad7 (emit; INT 16h input do/while loops + cross-TU exit(1) DAT loads = no unit seam, cf. 00025bf4)"
       }
     ]
+  },
+  "0002f0b0": {
+    "name": "fd2_run_buy_item_menu",
+    "target": "ui_menu/shop.c",
+    "issues": [
+      {
+        "type": "types_h_struct_offset_discrepancy",
+        "desc": "types.h 'item_effect' struct places price at +0x14 (it carries a phantom leading unknown_00 byte), which contradicts the binary's actual +0x13 16-bit price read (the canonical 23-byte item record: TY@0, MM@0x13). This emit sidesteps it via raw uint8* pointer arithmetic so it is byte-faithful regardless, but the types.h discrepancy is real and belongs to whichever function legitimately owns/parses the item_effect struct. Should be reconciled there (shift fields so price lands at +0x13, or document/remove the phantom unknown_00) when that owner is emitted/reviewed.",
+        "severity": "low",
+        "verify_method": "fix_at_struct_owner_emit",
+        "source_review": "fd2_run_buy_item_menu @0002f0b0 (reviewer-approved)"
+      }
+    ]
   }
 }
