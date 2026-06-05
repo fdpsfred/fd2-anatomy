@@ -479,6 +479,13 @@ void fd2_run_give_item_menu(void) { }
  * emitted for real in src/save/save.c and driven by the test_scs_* /
  * test_lss_* cases in tests/save/save.c against the real FD2.SAV. */
 void fd2_run_status_screen_member_menu(void) { }
+/* heavy-callee stubs for fd2_run_chapter_intro_menu_typeC (the town-services
+ * orchestrator, Phase 9 deferred). Revive (church revive) and class-promotion
+ * each open their own real-file dialog UI; stubbed to satisfy the link, never
+ * invoked. fd2_run_give_item_menu / fd2_run_status_screen_member_menu (typeC's
+ * other two dispatch targets) are already stubbed above. */
+void fd2_run_revive_menu_main(void) { }
+void fd2_run_class_promotion_menu_main(void) { }
 void fd2_blit_scaled_chapter_pose(uint32 cx, uint32 cy, uint32 bmp, int32 s)
 { (void)cx; (void)cy; (void)bmp; (void)s; }
 void fd2_render_chapter_dialog_borders(void) { }

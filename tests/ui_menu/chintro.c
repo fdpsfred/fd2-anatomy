@@ -53,6 +53,29 @@
  * (FDOTHER idx 0x0D, greeting ids 0x249/0x24A, begin-battle dialog ids
  * 0x19F/0x1A0, render_pos 0xA94CC vs 0xAAC8C, dispatch order, save arg, return
  * flag), and the pose-out arithmetic confirmed byte-for-byte against _main.
+ *
+ * fd2_run_chapter_intro_menu_typeC @ 0x3072F is likewise NOT unit-tested here:
+ * behavioral coverage is DEFERRED to Phase 9 integration for the same reasons
+ * as fd2_run_chapter_intro_menu_main / typeB. It is the town-services
+ * between-chapters orchestrator (Status / Give / Revive / Promote) with the
+ * identical display/input shape; it has no computed return value at all (always
+ * returns 0 — there is no begin-battle branch), so its only computation is the
+ * inline pose-out scale arithmetic, which is byte-for-byte identical to _main's
+ * and reachable only by running the whole function. A meaningful assertion would
+ * require (a) fopening real game files FDOTHER.DAT / DATO.DAT (and, inside the
+ * revive/promotion dispatch targets, FDICON.B24) through the load/dialog/revive/
+ * promotion callees, (b) driving the shared 4-way input loop and dispatching
+ * into the four heavy interactive sub-menus, and (c) VGA DAC port I/O plus
+ * physical writes at 0xA0000 in the 11-frame exit animation — all only
+ * exercisable at the scripted gameplay level. The shared decision logic it
+ * relies on (cursor wrap + commit/cancel) IS covered above via
+ * fd2_chapter_intro_menu_input_loop. Correctness was established by three-source
+ * review (plate / disassembly / decompiler): every CALL-then-EAX use checked
+ * against the assembly (the chapter-meta byte read; the dispatch's cursor==1
+ * test emitted from CMP EAX,[cursor] where EAX = committed result 1), every
+ * branch constant (FDOTHER idx 0x0E, fixed portrait_id_table[4], greeting ids
+ * 0x249/0x24A, dispatch order Status/Give/Revive/Promote, constant return 0),
+ * and the pose-out arithmetic confirmed byte-for-byte against _main.
  */
 
 #include <string.h>

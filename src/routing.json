@@ -3158,8 +3158,9 @@
     "name": "fd2_run_chapter_intro_menu_typeC",
     "target": "ui_menu/chintro.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000309ff": {
     "name": "fd2_build_dead_chars_list_for_revive",
