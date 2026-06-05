@@ -1,5 +1,5 @@
 /*
- * chend1.c — Chapter 1「初試身手」end handler
+ * chend1.c — Chapter end handlers (chapters 1-6)
  */
 
 #include "types.h"
@@ -216,6 +216,38 @@ void fd2_chapter_05_end(void)
     fd2_display_dialog_scene(current_chapter_text, 9, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     fd2_init_runtime_char_from_base_growth(10);
+    fd2_save_runtime_char_to_template();
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_06_end @ 0x23296  (0 direct callers; dispatched via the
+ *   chapter-end handler pointer table @ 0x51DE9)
+ *
+ * Chapter 6「普里茲港」end handler. Recruits char #13 (弓兵貝克威) via
+ * fd2_init_runtime_char_from_base_growth, refreshes the portrait cache for
+ * race 3, pans the camera/window to (5, 0xE), fires cutscene event 0x1B,
+ * shows the chapter-end dialog page 6, persists the party's runtime-char
+ * state to the template store, then advances the current-chapter id by 1.
+ *
+ * In the binary the function falls through into the shared tail of
+ * fd2_chapter_04_end @ 0x231DF (PUSH current_chapter_text; dialog; cleanup;
+ * save; INC chapter id; RET). It is emitted here as a self-contained
+ * function (Layer 2 functional equivalence — the jump-into-middle sharing is
+ * not preserved in source).
+ *
+ * Paired init handler: fd2_chapter_06_init @ 0x3314B.
+ * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
+ * Walkthrough: assets/chapters/chapter_06.md.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_06_end(void)
+{
+    fd2_init_runtime_char_from_base_growth(0xd);
+    fd2_load_chapter_portraits_and_dump_tmp(3);
+    fd2_pan_cursor_and_window(5, 0xe);
+    fd2_cutscene_event_trigger(0x1b);
+    fd2_display_dialog_scene(current_chapter_text, 6, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
     fd2_save_runtime_char_to_template();
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }
