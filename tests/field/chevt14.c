@@ -231,6 +231,90 @@ static void test_event22_shows_dialog_page3(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_23__ch12_cinematic @ 0x34C76 (dispatch idx 0x23) —
+ * chapter 12 turn-event slot 0, fired at turn 1 / phase 0 (when the player's
+ * first turn ends the first reinforcement wave arrives and 龍劍士米亞斯多德
+ * joins). A cinematic, no-dialog beat with no branch, no RNG, no numeric
+ * computation, and no CALL-return value used:
+ *   pan_cursor_and_window(0xC, 5);
+ *   chapter_init_phase_flag = 1; load_chapter_portraits_and_dump_tmp(2);
+ *   chapter_init_phase_flag = 0;
+ *   cutscene_event_trigger(0x2A);
+ *   clear_all_chars_facing;                                  // tail-JMP
+ *
+ * Every callee is a REAL emitted function driven against the shared fieldfix
+ * "ch25-style real portrait reload" env, plus a zero-group cutscene script for
+ * event 0x2A so the real fd2_cutscene_event_trigger composites once and returns:
+ *   - fd2_load_chapter_portraits_and_dump_tmp(2) runs FOR REAL against the
+ *     staged FDICON.B24 + FDFIELD.DAT (alloc_offset 0 -> empty per-record scan,
+ *     current_chapter_id 4 -> valid FDFIELD index 0xE), freeing+nulling the
+ *     field buffer and rewriting FD2.TMP to its full 0x32A00 bytes;
+ *   - fd2_pan_cursor_and_window / fd2_composite_battle_frame run against the
+ *     staged camera + compositor workspace with the empty active party;
+ *   - fd2_clear_all_chars_facing iterates party_member_count (= 0) so its facing
+ *     loop is a no-op and only its __delay_thunk_375b2(20) busy-wait runs.
+ *
+ * The observable, deterministic contract: the init-phase flag is set to 1 around
+ * the reload and reset to 0 afterward, the real reload happened (field buffer
+ * nulled, FD2.TMP at its full 0x32A00 size), and the whole real callee chain
+ * (camera pan, real portrait reload, zero-group cutscene 0x2A, facing reset) runs
+ * to completion without faulting. The pure blit/display side effects (camera pan,
+ * cutscene compositing, portrait pixels) are deferred to Phase 9 integration.
+ * ================================================================ */
+
+/* zero-group cutscene script for event 0x2A: n_groups byte = 0, so the real
+ * fd2_cutscene_event_trigger just composites once and returns. */
+static uint8 g_ev23_script_2a[1] = { 0 };
+
+static void ev23_install_safe_env(void)
+{
+    /* shared ch25-style real-portrait-reload env (empty party, gated HUD,
+     * throttled palette, real compositor workspace, empty keyboard buffer,
+     * alloc_offset 0, current_chapter_id 4, fresh field buffer, 64-slot
+     * g_ev_rc). */
+    ev_install_safe_env();
+
+    /* handler_23 fires cutscene EVENT 0x2A; register its own zero-group script
+     * so the real fd2_cutscene_event_trigger returns fast. */
+    g_ev23_script_2a[0] = 0;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x2A] = g_ev23_script_2a;
+}
+
+/* ----------------------------------------------------------------
+ * The handler fires its fixed ch12 turn-1 cinematic end-to-end. Observable,
+ * deterministic contract: the init-phase flag is set to 1 during the real
+ * portrait reload and reset to 0 afterward, the real reload runs (field buffer
+ * nulled, FD2.TMP rewritten to its full 0x32A00-byte size), and the whole real
+ * callee chain (camera pan, real portrait reload, zero-group cutscene 0x2A,
+ * facing reset) runs to completion without faulting.
+ * ---------------------------------------------------------------- */
+static void test_ch12_event23_reloads_portrait2_brackets_initphase(void)
+{
+    ev23_install_safe_env();
+
+    /* perturb the init-phase flag so the handler's set-then-reset is observable
+     * (it must end back at 0, not at this sentinel). */
+    data_fd2_chapter_init_phase_flag = 0x55;
+
+    remove("FD2.TMP");
+
+    fd2_chapter_event_handler_23__ch12_cinematic(0);
+
+    /* the flag was set to 1 around the reload and reset to 0 at the end. */
+    ASSERT_EQ(data_fd2_chapter_init_phase_flag, 0);
+
+    /* the real portrait reload ran: field buffer freed+nulled, and FD2.TMP was
+     * rewritten to its full 0x32A00-byte size. */
+    ASSERT_EQ(chapter_portrait_load_buffer, 0);
+    ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
+
+    /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
+    remove("FD2.TMP");
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt14_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -239,5 +323,6 @@ void run_field_chevt14_tests(void)
     RUN_TEST(test_show_chapter_dialog_portrait_set_1_reloads_portrait1_page1);
     RUN_TEST(test_ch10_event21_shows_page2_and_clears_ai_flag_for_0c_0d);
     RUN_TEST(test_event22_shows_dialog_page3);
+    RUN_TEST(test_ch12_event23_reloads_portrait2_brackets_initphase);
     printf("\n");
 }

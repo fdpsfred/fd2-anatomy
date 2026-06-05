@@ -3814,8 +3814,9 @@
     "name": "fd2_chapter_event_handler_23__ch12_cinematic",
     "target": "field/chevt1.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00034cb3": {
     "name": "fd2_chapter_event_handler_24__ch12_ai_ctrl",

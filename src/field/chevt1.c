@@ -88,6 +88,9 @@
  * fd2_chapter_event_handler_22__unref_dialog @ 0x34C6C
  *     (0 direct callers; dispatched as idx 0x22 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_23__ch12_cinematic @ 0x34C76
+ *     (0 direct callers; dispatched as idx 0x23 of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -1305,4 +1308,40 @@ void fd2_chapter_event_handler_22__unref_dialog(uint32 event_arg)
 
     fd2_display_dialog_scene(current_chapter_text, 3, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_23__ch12_cinematic @ 0x34C76
+ *   — Chapter 12 turn-event slot 0 (triggered at turn 1 / phase 0),
+ *     dispatched as idx 0x23 of the per-event handler table at 0x51B91.
+ *
+ * ch12 turn-1 cinematic, no dialog (walkthrough: 第一回合己方結束時敵方
+ * 第一波援軍出現在右上洞口，龍劍士米亞斯多德加入). A straight-line beat
+ * with no branch, no RNG, no numeric computation, and no CALL-return value
+ * used: the camera pans to world (0xC, 5), portrait set 2 reloads —
+ * bracketed by setting data_fd2_chapter_init_phase_flag to 1 before the
+ * reload and back to 0 after, so the reload is treated as an "init phase"
+ * load — cutscene event 0x2A plays, and every character's facing is reset.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0xC) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * In the original binary the trailing facing-reset is a tail-JMP
+ * (0x34CAE -> 0x000134E4) into fd2_clear_all_chars_facing (void, no args);
+ * reproduced here as the inline call for Layer-2 equivalence.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_12.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_23__ch12_cinematic(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_pan_cursor_and_window(0xC, 5);
+    data_fd2_chapter_init_phase_flag = 1;
+    fd2_load_chapter_portraits_and_dump_tmp(2);
+    data_fd2_chapter_init_phase_flag = 0;
+    fd2_cutscene_event_trigger(0x2A);
+    fd2_clear_all_chars_facing();
 }
