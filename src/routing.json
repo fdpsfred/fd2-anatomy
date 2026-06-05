@@ -3940,8 +3940,9 @@
     "name": "fd2_chapter_event_handler_33__unref_drop",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000352e2": {
     "name": "fd2_chapter_event_handler_34__ch23_ai_ctrl",

@@ -141,3 +141,39 @@ void fd2_chapter_event_handler_32__ch22_reinforcement(uint32 event_arg)
     fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_33__unref_drop @ 0x3529A  (0 direct callers)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x33. No chapter
+ * FDFIELD turn-event / tile-step hook references this slot (unref / possibly
+ * cut content). Category: battle drop + dialog. Dispatch-table signature is
+ * 1-arg cdecl (the stepping char id under the tile-step ABI); this handler
+ * forwards the arg as the drop recipient.
+ *
+ * Effect: drop one battle item from an inline 3-byte drop entry
+ * (type=0 ITEM, value=0x65 -> item id 101), then unconditionally show dialog
+ * page 3.
+ *
+ * In the binary the dialog call shares a borrowed tail: after pushing its 8
+ * args (page=3) the handler does JMP 0x34FB7, falling into the
+ * PUSH current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24 tail
+ * hosted in fd2_chapter_event_handler_27__unref_drop @ 0x34F74. That tail-merge
+ * is a binary size optimisation; the functionally-exact source is a single
+ * self-contained dialog call.
+ * ---------------------------------------------------------------- */
+static const unsigned char data_fd2_chapter_event_handler_33_drop_entry_inline[3] =
+    { 0x00, 0x65, 0x00 };
+
+void fd2_chapter_event_handler_33__unref_drop(uint32 stepping_char_id)
+{
+    uint8 drop_entry[3];
+
+    drop_entry[0] = data_fd2_chapter_event_handler_33_drop_entry_inline[0];
+    drop_entry[1] = data_fd2_chapter_event_handler_33_drop_entry_inline[1];
+    drop_entry[2] = data_fd2_chapter_event_handler_33_drop_entry_inline[2];
+    fd2_process_battle_drop_entries(stepping_char_id, 1, (uint32)drop_entry);
+
+    fd2_display_dialog_scene(current_chapter_text, 3, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+}

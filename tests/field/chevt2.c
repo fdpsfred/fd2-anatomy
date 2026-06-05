@@ -464,6 +464,82 @@ static void test_h32_pan_corner_and_unconditional_page2_dialog(void)
     ce_teardown_portrait_env();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_33__unref_drop @ 0x3529A
+ *
+ * Straight-line battle-drop + dialog (no turn gate, no computed logic): copy a
+ * fixed inline 3-byte drop entry {type=0 ITEM, value=0x65 -> item id 101} into a
+ * local, run it through the REAL fd2_process_battle_drop_entries with recipient =
+ * the dispatch arg (stepping char id) and count = 1, then UNCONDITIONALLY show
+ * dialog page 3. The dialog is reached via a borrowed tail (JMP 0x34FB7) in the
+ * binary; this test proves that tail is correctly inlined here.
+ *
+ * The drop entry's ITEM path (type 0) only renders when the recipient is on the
+ * player team (bTeam==2); that branch drives the real item-pickup dialog +
+ * portrait load + VGA (0xA0000) and is deferred to Phase 9 integration — the
+ * same deferral the battle/btl_turn.c drop-processor tests apply. This test
+ * pins the deterministic, display-free contract:
+ *   (a) recipient routing + ITEM-type team gate: the entry is dispatched to
+ *       recipient_idx == the handler arg, and with that recipient on a NON-player
+ *       team the drop processor early-returns BEFORE fd2_add_item_to_inventory,
+ *       so the recipient's pre-seeded empty slot stays untouched, and
+ *   (b) the handler's own unconditional page-3 dialog still fires afterwards
+ *       (proves the borrowed dialog tail with page_idx 3).
+ * The page-3 dialog runs the REAL dialog VM over an in-memory int16 program (NOT
+ * a game file): page-3 header -> a 1-glyph + END body; the glyph blitter is the
+ * testglob recorder (g_dlg_glyph_calls); the empty BIOS keyboard buffer keeps
+ * blink_flag set and audiofix gates the per-glyph blink path host-safely.
+ * ================================================================ */
+static void test_h33_item_drop_gated_off_then_page3_dialog(void)
+{
+    static int16 prog[8];
+
+    /* recipient = char 1 on a NON-player team -> the type-0 ITEM drop hits the
+     * team gate and early-returns before any item dialog / portrait / VGA. */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    g_test_rc_array[1].team = 0;                     /* enemy team -> gate fails */
+    g_test_rc_array[1].inventory_slots[0] = 0x80;    /* slot 0 empty            */
+    g_test_rc_array[1].inventory_slots[1] = 0xEE;    /* sentinel item id        */
+    data_fd2_battle_party_member_count = 4;
+
+    /* page-3 header word (index 3 -> byte offset 6) -> opcode body at byte 8
+     * (= int16 index 4). Body: one glyph then END. */
+    memset(prog, 0, sizeof(prog));
+    prog[3] = 8;        /* byte offset of the page-3 opcode body */
+    prog[4] = 0x41;     /* TEXT glyph */
+    prog[5] = -1;       /* END */
+    current_chapter_text = (uint32)prog;
+
+    /* deterministic dialog VM env: empty BIOS keyboard buffer + audio gated so
+     * the per-glyph blink/typewriter step is host-safe. No active portrait, so
+     * END does not run the portrait-close path. */
+    *(volatile uint16 *)0x41AuL = 0x20;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    audiofix_enable_sfx();
+    data_fd2_audio_fdother_sfx_bank_buf_ptr = audiofix_make_bank(0x1F);
+    g_dlg_glyph_calls = 0;
+
+    fd2_chapter_event_handler_33__unref_drop(1);
+
+    /* (a) ITEM drop gated off: recipient's slot 0 untouched, sentinel intact
+     * (a reached add-item would stamp flag=0 + item id 0x65). This also proves
+     * the entry's type byte is the ITEM type (0): a type-2 entry would instead
+     * dispatch the chapter-event handler table, and the recipient is the handler
+     * arg (1), not 0. */
+    ASSERT_EQ(g_test_rc_array[1].inventory_slots[0], 0x80);
+    ASSERT_EQ(g_test_rc_array[1].inventory_slots[1], 0xEE);
+    /* (b) the borrowed tail fired the page-3 dialog VM (rendered the single
+     * glyph) unconditionally after the drop. */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+
+    /* minimal teardown */
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_party_member_count = 4;
+    current_chapter_text = 0;
+}
+
 void run_field_chevt2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -477,5 +553,6 @@ void run_field_chevt2_tests(void)
     RUN_TEST(test_h31_portrait_index_is_turn_div_2);
     RUN_TEST(test_h31_gate_fires_dialog_on_turn_3);
     RUN_TEST(test_h32_pan_corner_and_unconditional_page2_dialog);
+    RUN_TEST(test_h33_item_drop_gated_off_then_page3_dialog);
     printf("\n");
 }
