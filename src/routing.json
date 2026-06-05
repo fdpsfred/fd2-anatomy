@@ -3598,8 +3598,9 @@
     "name": "fd2_chapter_event_handler_06__ch2_reinforcement",
     "target": "field/chevt1.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000344c2": {
     "name": "fd2_chapter_event_handler_09__ch3_char_cond",

@@ -533,6 +533,116 @@ static void test_ch_event4_flips_hawat_to_ally(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_06__ch2_reinforcement @ 0x34422
+ *
+ * Dispatch idx 0x06 of the per-event handler table at 0x51B91 — ch2
+ * turn-3 reinforcement beat. Like the other group-1 handlers it is a
+ * straight-line, no-branch dialog/cutscene sequence (no RNG, no
+ * CALL-return value used) PLUS one trailing fixed-count loop. The loop
+ * is its distinguishing, deterministic state contract and its testable
+ * risk core:
+ *   for (i = 5; i < 0xB; i++):
+ *     runtime_char_array[i].combat_aux_block[0xE] = 0x1A   (AI behaviour)
+ *     runtime_char_array[i].combat_aux_block[0xF] = 0x0F   (AI parameter)
+ * i.e. exactly slots 5..0xA (six reinforcement enemies) are armed; slots
+ * 4 and 0xB are left untouched (loop bound 5 <= i < 0xB).
+ *
+ * The dialog/cutscene prologue runs end-to-end against the same proven
+ * env handler_03 uses. The single fd2_load_chapter_portraits_and_dump_tmp(3)
+ * runs FOR REAL against the staged real FDICON.B24 + FDFIELD.DAT
+ * (alloc_offset 0 -> empty per-record scan; current_chapter_id 4 ->
+ * valid FDFIELD index 0xE), bracketed by data_fd2_chapter_init_phase_flag
+ * 1->0; the loader does not read that flag, so the bracketing is harmless
+ * for the reload itself and ends back at 0. fd2_pan_cursor_and_window(9,1),
+ * the two __delay_thunk_375b2 busy-waits, the zero-group cutscene event
+ * 0xD, and the immediate-END dialog page 4 all run for real and return
+ * fast. The portrait-set argument (3 here vs 6 in handler_03) only selects
+ * which portrait pixels load; the FDFIELD re-read index and the full
+ * 0x32A00-byte FD2.TMP rewrite are identical.
+ *
+ * Observable, deterministic contract asserted: the six AI-byte pairs land
+ * on exactly slots 5..0xA, the init-phase flag ends at 0, the real reload
+ * happened (field buffer nulled, FD2.TMP at full size), and the whole real
+ * callee chain runs to completion without faulting. The pure blit/display
+ * side effects (camera pan, cutscene compositing, dialog glyphs, portrait
+ * pixels) are deferred to Phase 9 integration.
+ * ================================================================ */
+
+/* zero-group cutscene script for event 0xD: n_groups byte = 0, so the real
+ * fd2_cutscene_event_trigger just composites once and returns. */
+static uint8 g_ev6_script_0d[1] = { 0 };
+
+static void ev6_install_safe_env(void)
+{
+    /* shared ch25-style real-portrait-reload env (empty party, gated HUD,
+     * throttled palette, real compositor workspace, immediate-END dialog,
+     * empty keyboard buffer, alloc_offset 0, current_chapter_id 4, fresh
+     * field buffer). handler_06 reloads ONCE (portrait set 3). */
+    ev_install_safe_env();
+
+    /* handler_06 fires cutscene EVENT 0xD; register its own zero-group
+     * script so the real fd2_cutscene_event_trigger returns fast. */
+    g_ev6_script_0d[0] = 0;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0xD] = g_ev6_script_0d;
+}
+
+/* ----------------------------------------------------------------
+ * The handler fires its fixed ch2 reinforcement sequence end-to-end, then
+ * arms six reinforcement enemies. Its observable, deterministic contract
+ * is: combat_aux_block[0xE]/[0xF] become (0x1A, 0x0F) for exactly slots
+ * 5..0xA (slots 4 and 0xB untouched), the init-phase flag ends at 0, the
+ * real portrait reload runs (field buffer nulled, FD2.TMP at full size),
+ * and the whole real callee chain (pan, two delays, cutscene 0xD,
+ * immediate-END dialog page 4) runs to completion without faulting.
+ * ---------------------------------------------------------------- */
+static void test_ch2_event6_arms_reinforcement_enemies(void)
+{
+    int i;
+
+    ev6_install_safe_env();
+
+    /* perturb the init-phase flag so the handler's reset to 0 is observable. */
+    data_fd2_chapter_init_phase_flag = 0x55;
+
+    /* seed every aux-block byte the loop targets (plus the bounding
+     * neighbours 4 and 0xB) with sentinels distinct from 0x1A/0x0F so both
+     * the writes and the loop bounds are observable. */
+    for (i = 4; i <= 0xB; i++) {
+        g_ev_rc[i].combat_aux_block[0xE] = 0x77;
+        g_ev_rc[i].combat_aux_block[0xF] = 0x88;
+    }
+
+    remove("FD2.TMP");
+
+    fd2_chapter_event_handler_06__ch2_reinforcement(0);
+
+    /* exactly slots 5..0xA armed with the AI behaviour pair (0x1A, 0x0F). */
+    for (i = 5; i <= 0xA; i++) {
+        ASSERT_EQ(g_ev_rc[i].combat_aux_block[0xE], 0x1A);
+        ASSERT_EQ(g_ev_rc[i].combat_aux_block[0xF], 0x0F);
+    }
+
+    /* bounding neighbours left untouched: slot 4 (below) and slot 0xB (above). */
+    ASSERT_EQ(g_ev_rc[4].combat_aux_block[0xE], 0x77);
+    ASSERT_EQ(g_ev_rc[4].combat_aux_block[0xF], 0x88);
+    ASSERT_EQ(g_ev_rc[0xB].combat_aux_block[0xE], 0x77);
+    ASSERT_EQ(g_ev_rc[0xB].combat_aux_block[0xF], 0x88);
+
+    /* the init-phase flag was set to 1 around the reload and reset to 0. */
+    ASSERT_EQ(data_fd2_chapter_init_phase_flag, 0);
+
+    /* the real portrait reload ran: field buffer freed+nulled, and FD2.TMP
+     * was rewritten to its full 0x32A00-byte size. */
+    ASSERT_EQ(chapter_portrait_load_buffer, 0);
+    ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
+
+    /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
+    remove("FD2.TMP");
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -542,5 +652,6 @@ void run_field_chevt1_tests(void)
     RUN_TEST(test_ch1_event2_fires_appear_anim_for_slot5);
     RUN_TEST(test_ch1_event3_reloads_race6_brackets_initphase);
     RUN_TEST(test_ch_event4_flips_hawat_to_ally);
+    RUN_TEST(test_ch2_event6_arms_reinforcement_enemies);
     printf("\n");
 }

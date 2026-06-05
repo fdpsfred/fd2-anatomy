@@ -16,6 +16,9 @@
  * fd2_chapter_event_handler_04__unref_dialog_with_state @ 0x343E2
  *     (0 direct callers; dispatched as idx 0x04 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_06__ch2_reinforcement @ 0x34422
+ *     (0 direct callers; dispatched as idx 0x06 of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -198,4 +201,46 @@ void fd2_chapter_event_handler_04__unref_dialog_with_state(uint32 event_arg)
     data_fd2_battle_runtime_char_array_ptr[0xD].team = 1;
     fd2_display_dialog_scene(current_chapter_text, 7, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_06__ch2_reinforcement @ 0x34422
+ *   — Chapter 2 turn-event slot 0 (triggered at turn 3 / phase 1),
+ *     dispatched as idx 0x06 of the per-event handler table at 0x51B91.
+ *
+ * ch2 reinforcement beat: the camera pans to world (9, 1), portrait
+ * set 3 reloads — bracketed by setting data_fd2_chapter_init_phase_flag
+ * to 1 before the reload and back to 0 after, so it is treated as an
+ * "init phase" load — cutscene event 0xD plays, and dialog page 4 is
+ * shown. Then six reinforcement enemies (runtime-char slots 5..0xA) are
+ * armed with the AI behaviour pair (combat_aux_block[0xE]=0x1A,
+ * combat_aux_block[0xF]=0x0F).
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is
+ * callee-saved; the __CHK(0x2C) stack-probe prologue is
+ * compiler-injected and omitted here.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_02.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_06__ch2_reinforcement(uint32 event_arg)
+{
+    int32 i;
+
+    (void)event_arg;
+
+    fd2_pan_cursor_and_window(9, 1);
+    __delay_thunk_375b2(100);
+    data_fd2_chapter_init_phase_flag = 1;
+    fd2_load_chapter_portraits_and_dump_tmp(3);
+    data_fd2_chapter_init_phase_flag = 0;
+    fd2_cutscene_event_trigger(0xD);
+    __delay_thunk_375b2(200);
+    fd2_display_dialog_scene(current_chapter_text, 4, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+
+    for (i = 5; i < 0xB; i++) {
+        data_fd2_battle_runtime_char_array_ptr[i].combat_aux_block[0xE] = 0x1A;
+        data_fd2_battle_runtime_char_array_ptr[i].combat_aux_block[0xF] = 0x0F;
+    }
 }
