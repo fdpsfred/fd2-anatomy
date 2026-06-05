@@ -60,6 +60,9 @@
  *      handler table at 0x51B91)
  * fd2_show_chapter_intro_text_dialog_mode_3 @ 0x34906
  *     (1 caller: fd2_chapter_event_handler_16__ch6_char_cond @ 0x34819)
+ * fd2_chapter_event_handler_19__ch7_first_time @ 0x34924
+ *     (0 direct callers; dispatched as idx 0x19 of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -803,4 +806,49 @@ void fd2_show_chapter_intro_text_dialog_mode_3(void)
 {
     fd2_display_dialog_scene(current_chapter_text, 3, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_19__ch7_first_time @ 0x34924
+ *   — Chapter 7 turn-event slot 0 (triggered at turn 10 / phase 0),
+ *     dispatched as idx 0x19 of the per-event handler table at 0x51B91.
+ *
+ * A first-time-gated SECOND-STAGE beat: unlike the first-time handlers
+ * whose gate fires while their slot is still 0, this one runs only AFTER
+ * a prior event (tile-event slot 0x10) has been consumed (its byte set to
+ * 1) — i.e. it is the second half of a two-stage trigger. Once it fires it
+ * consumes its OWN slot (byte [0x11] set to 1), so it runs at most once.
+ *
+ * When the gate passes its single beat is: portrait set 2 reloads —
+ * bracketed by setting data_fd2_chapter_init_phase_flag to 1 before the
+ * reload and back to 0 after, so the reload is treated as an "init phase"
+ * load — the camera pans to world (0x10, 10), cutscene event 0x1E plays,
+ * dialog page 2 is shown, and finally tile-event slot 0x11 is consumed.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * The pointer global data_fd2_field_map_tile_event_consumed_flags_ptr
+ * holds the base of the 0x20-byte tile-event consumed-flags block; the
+ * second-stage gate flag is byte [0x10] of that block and this handler's
+ * own consumed flag is byte [0x11].
+ *
+ * Walkthrough SOT: assets/chapters/chapter_07.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_19__ch7_first_time(uint32 event_arg)
+{
+    (void)event_arg;
+
+    if (*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) == 1) {
+        data_fd2_chapter_init_phase_flag = 1;
+        fd2_load_chapter_portraits_and_dump_tmp(2);
+        data_fd2_chapter_init_phase_flag = 0;
+        fd2_pan_cursor_and_window(0x10, 10);
+        fd2_cutscene_event_trigger(0x1E);
+        fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x11) = 1;
+    }
 }
