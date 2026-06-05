@@ -8,6 +8,7 @@
 #include "protos.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /* ----------------------------------------------------------------
  * fd2_tick_tutorial_progress_with_sfx @ 0x2C9EC
@@ -267,4 +268,83 @@ void fd2_animate_money_decrement(uint32 delta)
             }
         }
     } while (!all_match);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_animate_tutorial_dialog_intro_or_outro @ 0x2D669 (3 callers)
+ *
+ * 4-frame "speech-bubble wing" slide-in/out animation for the
+ * chapter-intro dialog panel. Used by all three chapter-intro menu
+ * types (main / typeB / typeC) when opening or closing the panel.
+ *
+ * Setup: backs up the current mode13h framebuffer (0xA0000, 64000 B)
+ * into a malloc'd scratch, paints a 20-row dark band (palette 0x4A,
+ * 104 px wide at x=0xC9, rows y=0xA9..0xBC) into that backup, then
+ * seeds the working composite buffer with the banded backup.
+ *
+ * Per-frame loop (frame = 0..3): restores the banded backdrop into the
+ * working buffer, then for each of the 4 corners blits the corner
+ * sprite into the buffer at base + corner_offs[corner]/divisor + 0xD430.
+ * The divisor ramps the wing size: OPEN (open_or_close != 0) uses
+ * frame+1 (1,2,3,4 -> wings grow); CLOSE (open_or_close == 0) uses
+ * 4-frame (4,3,2,1 -> wings shrink). Each frame is then committed to
+ * 0xA0000. corner_offs is the 4-entry signed offset table @ 0x526DA
+ * (-39,-13,13,39); the per-corner divide is signed (truncates toward 0).
+ *
+ * Cleanup: OPEN leaves the band+wings on screen; CLOSE restores the
+ * original framebuffer from the backup. The scratch is freed.
+ *
+ * The sprite source is atlas-indexed exactly like the sibling
+ * fd2_wait_input_with_chapter_dialog_blink corner blit: atlas base +
+ * *(int *)(atlas + 6 + (corner*2+3)*4).
+ *
+ * Callers: fd2_run_chapter_intro_menu_main, _typeB, _typeC.
+ *
+ * Cdecl, 1 stack param (open_or_close); void return. The binary's
+ * __CHK(0x34) stack-probe prologue is compiler-generated and omitted
+ * here. The memmove traffic to/from 0xA0000 hits the VGA aperture
+ * (real VGA RAM under DOS/4GW).
+ * ---------------------------------------------------------------- */
+void fd2_animate_tutorial_dialog_intro_or_outro(uint32 open_or_close)
+{
+    int32 corner_offs[4];
+    void *dst;
+    int32 row;
+    int32 divisor;
+    uint32 corner_iter;
+    uint32 frame;
+
+    corner_offs[0] = data_fd2_ui_chapter_intro_dialog_corner_offset_table_a[0];
+    corner_offs[1] = data_fd2_ui_chapter_intro_dialog_corner_offset_table_a[1];
+    corner_offs[2] = data_fd2_ui_chapter_intro_dialog_corner_offset_table_a[2];
+    corner_offs[3] = data_fd2_ui_chapter_intro_dialog_corner_offset_table_a[3];
+
+    dst = malloc(64000);
+    memmove(dst, (void *)0xA0000, 64000);
+    for (row = 0; row < 0x14; row++) {
+        memset((void *)((int32)dst + (row + 0xA9) * 0x140 + 0xC9), 0x4A, 0x68);
+    }
+    memmove((void *)data_fd2_large_game_state_buffer_ptr, dst, 64000);
+
+    for (frame = 0; (int32)frame < 4; frame++) {
+        memmove((void *)data_fd2_large_game_state_buffer_ptr, dst, 64000);
+        for (corner_iter = 0; (int32)corner_iter < 4; corner_iter++) {
+            divisor = (open_or_close != 0) ? (int32)(frame + 1)
+                                           : (int32)(4 - frame);
+            fd2_blit_sprite_with_stride_setup(
+                data_fd2_large_game_state_buffer_ptr
+                    + corner_offs[corner_iter] / divisor + 0xD430,
+                data_fd2_ui_menu_screen_sprite_atlas_buf_ptr
+                    + *(int32 *)(data_fd2_ui_menu_screen_sprite_atlas_buf_ptr
+                                 + 6 + (corner_iter * 2 + 3) * 4),
+                0x140);
+        }
+        memmove((void *)0xA0000,
+                (void *)data_fd2_large_game_state_buffer_ptr, 64000);
+    }
+
+    if (open_or_close != 0) {
+        memmove((void *)0xA0000, dst, 64000);
+    }
+    free(dst);
 }

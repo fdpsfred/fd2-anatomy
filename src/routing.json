@@ -2981,8 +2981,9 @@
     "name": "fd2_animate_tutorial_dialog_intro_or_outro",
     "target": "anim/aniui.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002d7bd": {
     "name": "fd2_chapter_intro_menu_input_loop",

@@ -305,6 +305,109 @@ static void test_money_decrement_roll_and_total(void)
 }
 
 
+/*
+ * fd2_animate_tutorial_dialog_intro_or_outro — per-frame "wing" slide math.
+ *
+ * The function runs 4 frames x 4 corners = 16 corner-sprite blits. Per blit
+ * (frame f, corner c) it resolves, against the working composite buffer base
+ * (data_fd2_large_game_state_buffer_ptr):
+ *     dst    = base + corner_offs[c] / divisor + 0xD430
+ *     sprite = atlas + *(int *)(atlas + 6 + (c*2+3)*4)
+ *     stride = 0x140
+ * where corner_offs = the signed table @ 0x526DA = {-39,-13,13,39} and the
+ * divisor RAMP is the load-bearing branch:
+ *     OPEN  (open_or_close != 0): divisor = f+1   -> 1,2,3,4 (wings grow)
+ *     CLOSE (open_or_close == 0): divisor = 4-f   -> 4,3,2,1 (wings shrink)
+ * The divide is SIGNED (x86 IDIV / Watcom int division: truncates toward 0),
+ * so e.g. -39/2 == -19 and -13/4 == -3, NOT floor.
+ *
+ * Risk-driven coverage: the divisor branch (open vs close), the signed
+ * truncating division over negative offsets, and the atlas-indexed sprite
+ * source are pinned EXACTLY for all 16 blits via the recording blit stub's
+ * per-call log (g_blitsetup_*_log). The host-side observables are computed
+ * here by an independent reference (signed C division) so the assertion does
+ * not merely echo the implementation.
+ *
+ * Display side-effects (the malloc'd framebuffer backup, the band fill, the
+ * per-frame memmove commits to/from the VGA aperture 0xA0000, and the OPEN
+ * vs CLOSE final framebuffer restore) are pixel output deferred to Phase 9
+ * integration; 0xA0000 is real VGA RAM under DOS/4GW so the memmoves are
+ * host-safe scratch. The working buffer is backed by a 64000+ byte host
+ * buffer so the in-loop memmove(base, dst, 64000) stays in-bounds.
+ */
+extern int    g_blitsetup_calls;
+extern uint32 g_blitsetup_stride;
+extern uint32 g_blitsetup_dst_log[32];
+extern uint32 g_blitsetup_sprite_log[32];
+
+/* working composite buffer backing (>= 64000 for the per-frame memmove) */
+static uint8 g_wing_lgs[64000];
+/* atlas: corner c reads *(int*)(atlas + 6 + (c*2+3)*4); c=3 -> off 42..45,
+ * so 64 bytes is in-bounds. Distinct per-corner offset values let the
+ * sprite-source resolution be verified per corner. */
+static uint8 g_wing_atlas[64];
+static const int32 g_wing_corner_off[4] = { -39, -13, 13, 39 };
+/* per-corner atlas dword offset values placed at 6 + (c*2+3)*4 */
+static const int32 g_wing_atlas_val[4] = { 0x100, 0x200, 0x300, 0x400 };
+
+static void wing_setup(void)
+{
+    int c;
+    memset(g_wing_lgs, 0, sizeof(g_wing_lgs));
+    memset(g_wing_atlas, 0, sizeof(g_wing_atlas));
+    for (c = 0; c < 4; c++) {
+        *(int32 *)(g_wing_atlas + 6 + (c * 2 + 3) * 4) = g_wing_atlas_val[c];
+    }
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_wing_lgs;
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = (uint32)g_wing_atlas;
+    g_blitsetup_calls = 0;
+}
+
+/* Verify all 16 blit (dst, sprite) pairs for one open_or_close value.
+ * divisor_of(f) supplies the expected ramp for OPEN vs CLOSE. */
+static void wing_check(uint32 open_or_close)
+{
+    uint32 base;
+    uint32 atlas;
+    int f, c, k;
+    int32 divisor;
+    uint32 exp_dst;
+    uint32 exp_sprite;
+
+    wing_setup();
+    base = (uint32)g_wing_lgs;
+    atlas = (uint32)g_wing_atlas;
+
+    fd2_animate_tutorial_dialog_intro_or_outro(open_or_close);
+
+    ASSERT_EQ(g_blitsetup_calls, 16);   /* 4 frames x 4 corners */
+
+    k = 0;
+    for (f = 0; f < 4; f++) {
+        divisor = (open_or_close != 0) ? (f + 1) : (4 - f);
+        for (c = 0; c < 4; c++) {
+            exp_dst = base + (uint32)(g_wing_corner_off[c] / divisor) + 0xD430u;
+            exp_sprite = atlas + (uint32)g_wing_atlas_val[c];
+            ASSERT_EQ(g_blitsetup_dst_log[k], exp_dst);
+            ASSERT_EQ(g_blitsetup_sprite_log[k], exp_sprite);
+            k++;
+        }
+    }
+    ASSERT_EQ(g_blitsetup_stride, 0x140u);
+}
+
+static void test_wing_slide_open_and_close(void)
+{
+    /* OPEN: divisor ramps 1,2,3,4 (wings grow). Spot anchors on the signed
+     * truncating divide: frame0 div1 -> offsets verbatim {-39,-13,13,39};
+     * frame1 div2 -> {-19,-6,6,19} (NOT floor: -39/2==-19, -13/2==-6). */
+    wing_check(1);
+
+    /* CLOSE: divisor ramps 4,3,2,1 (wings shrink). frame0 div4 ->
+     * {-9,-3,3,9} (-39/4==-9, -13/4==-3); frame3 div1 -> verbatim. */
+    wing_check(0);
+}
+
 void run_anim_aniui_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -313,5 +416,6 @@ void run_anim_aniui_tests(void)
     RUN_TEST(test_screen_shake_loop_and_jitter);
     RUN_TEST(test_money_increment_roll_and_total);
     RUN_TEST(test_money_decrement_roll_and_total);
+    RUN_TEST(test_wing_slide_open_and_close);
     printf("\n");
 }

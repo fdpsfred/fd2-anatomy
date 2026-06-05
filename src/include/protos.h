@@ -223,6 +223,7 @@ void fd2_tick_tutorial_progress_with_sfx(uint32 char_idx);
 void fd2_animate_screen_shake(uint32 num_frames);
 void fd2_animate_money_increment(uint32 delta);
 void fd2_animate_money_decrement(uint32 delta);
+void fd2_animate_tutorial_dialog_intro_or_outro(uint32 open_or_close);
 void fd2_slide_panel_step_left_main(uint32 src_buffer, uint32 frame_idx);
 void fd2_slide_panel_step_right_main(uint32 src_buffer, uint32 frame_idx);
 void fd2_slide_panel_step_top_small(uint32 src_buffer, uint32 frame_idx);
