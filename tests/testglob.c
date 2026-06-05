@@ -106,6 +106,11 @@ uint8  data_fd2_audio_bgm_driver_available_flag = 1;
 uint32 data_fd2_audio_bgm_sequence_data_buf_ptr = 0;
 char   data_fd2_string_fdmus_dat[] = "FDMUS.DAT";
 uint32 data_fd2_audio_bgm_sequence_handle = 0;
+/* AIL driver / sample handles -- first used by fd2_main (life/main.c). */
+void  *data_fd2_audio_bgm_driver_handle = 0;
+uint32 data_fd2_audio_sfx_dig_driver_handle = 0;
+uint32 data_fd2_audio_sfx_sample_handle_0 = 0;
+uint32 data_fd2_audio_sfx_sample_handle_1 = 0;
 uint32 data_fd2_resource_last_loaded_resource_size = 0;
 uint32 data_fd2_audio_fdother_sfx_bank_buf_ptr = 0;
 uint32 data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
@@ -587,6 +592,21 @@ void AIL_stop_sequence(uint32 s) { (void)s; }
 int  AIL_init_sequence(uint32 s, uint32 d, int i) { (void)s; (void)d; (void)i; return 0; }
 void AIL_start_sequence(uint32 s) { (void)s; }
 void AIL_set_sequence_loop_count(uint32 s, uint32 c) { (void)s; (void)c; }
+/* AIL sound-system lifecycle stubs. Referenced only by fd2_main (whose own
+ * behavioral test is deferred to Phase 9 integration -- it issues INT 10h via
+ * the real linked int386, which has no deterministic seam in the DOS/4GW
+ * harness; see src/emit_issues.json @00025bf4). These exist purely to satisfy
+ * the link; returning NULL handles keeps fd2_main's "driver installed?" arms
+ * un-taken if it were ever driven. */
+void  AIL_startup(void) {}
+void  AIL_shutdown(void) {}
+int   AIL_install_MDI_INI(void) { return 0; }
+int   AIL_install_DIG_INI(void) { return 0; }
+void *AIL_allocate_sequence_handle(void *mdi_driver) { (void)mdi_driver; return (void *)0; }
+void *AIL_allocate_sample_handle(void *dig_driver) { (void)dig_driver; return (void *)0; }
+/* fd2_play_chapter_clear_fanfare: chapter-clear jingle, not yet emitted;
+ * referenced only by the (Phase 9-deferred) fd2_main loop. */
+void fd2_play_chapter_clear_fanfare(void) {}
 /* fd2_load_dat_resource: now emitted in src/rsrc/rsrc.c. Its caller tests
  * drive the real loader against the staged real DAT files (copied into the
  * test cwd by build_test.py) and cross-check its output against an independent

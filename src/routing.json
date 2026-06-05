@@ -2630,8 +2630,9 @@
     "name": "fd2_main",
     "target": "life/main.c",
     "phase": 2,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00025ebb": {
     "name": "fd2_main_menu_continue_dispatcher",

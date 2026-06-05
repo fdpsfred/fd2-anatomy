@@ -12,6 +12,155 @@
 #include <dos.h>
 
 /* ----------------------------------------------------------------
+ * fd2_main @ 0x25BF4  (1 caller: __CMain @ 0x45D4B)
+ *
+ * FD2 game entry point. __CMain pushes (argv, argc) and consumes the
+ * EAX result as the DOS exit code (PUSH EAX; JMP _exit), but the
+ * original source is void main(): neither argc/argv nor a return value
+ * is used by the body, and the function physically tail-jumps into a
+ * shared epilogue (Watcom merged-epilogue optimization). Emitted as a
+ * normal void function (pipeline_spec pattern A, rule A-1): Watcom 9.5a
+ * regenerates an equivalent POP/RET epilogue; the shared tail-jump is
+ * not reproduced and is not required for Layer-2 equivalence.
+ *
+ * One-shot init: AIL sound startup + driver/handle allocation, eight
+ * fd2_load_dat_resource loads (FDOTHER/FDTXT banks), three work-buffer
+ * mallocs, INT 10h mode-13h set, and an RNG warm-up of rand()%256
+ * fd2_advance_rng_state() iterations seeded off the BIOS tick low word.
+ *
+ * Main loop: outer = main-menu BGM + fd2_main_menu_continue_dispatcher;
+ * if it returns 0, run the inner gameplay loop (fd2_game_main_loop +
+ * chapter-clear / chapter-switch dispatch keyed on
+ * data_fd2_chapter_event_or_battle_end_code @ 0x53ECC). Quit drops to
+ * AIL_shutdown + INT 10h text mode 3.
+ * ---------------------------------------------------------------- */
+void fd2_main(void)
+{
+    uint32 menu_result;
+    uint32 game_loop_result;
+    uint32 exit_inner_loop;
+    uint32 calibration_iter;
+    uint32 rng_warmup_count;
+
+    AIL_startup();
+
+    data_fd2_audio_bgm_driver_handle = (void *)AIL_install_MDI_INI();
+    if (data_fd2_audio_bgm_driver_handle != NULL) {
+        data_fd2_audio_bgm_driver_available_flag = 1;
+        data_fd2_audio_bgm_sequence_handle =
+            (uint32)AIL_allocate_sequence_handle(
+                data_fd2_audio_bgm_driver_handle);
+    }
+
+    data_fd2_audio_sfx_dig_driver_handle = (uint32)AIL_install_DIG_INI();
+    if (data_fd2_audio_sfx_dig_driver_handle != 0) {
+        data_fd2_audio_sfx_driver_available_flag = 1;
+        data_fd2_audio_sfx_sample_handle_0 =
+            (uint32)AIL_allocate_sample_handle(
+                (void *)data_fd2_audio_sfx_dig_driver_handle);
+        data_fd2_audio_sfx_sample_handle_1 =
+            (uint32)AIL_allocate_sample_handle(
+                (void *)data_fd2_audio_sfx_dig_driver_handle);
+    }
+
+    data_fd2_audio_fdother_sfx_bank_buf_ptr =
+        fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_fdother_dat,
+            data_fd2_audio_fdother_sfx_bank_buf_ptr, 0x1F);
+    data_fd2_runtime_battle_state_ptr =
+        fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_fdother_dat,
+            data_fd2_runtime_battle_state_ptr, 1);
+    data_fd2_menu_dialog_state_handle =
+        fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_fdother_dat,
+            data_fd2_menu_dialog_state_handle, 2);
+    data_fd2_tile_anim_table_base =
+        fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_fdother_dat,
+            data_fd2_tile_anim_table_base, 3);
+    data_fd2_chinese_font_sheet =
+        fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_fdother_dat,
+            data_fd2_chinese_font_sheet, 4);
+    data_fd2_ui_anim_sprite_sheet_ptr =
+        fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_fdother_dat,
+            data_fd2_ui_anim_sprite_sheet_ptr, 5);
+    data_fd2_all_game_text_ptr =
+        fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_fdtxt_dat,
+            data_fd2_all_game_text_ptr, 0);
+    data_fd2_resource_portrait_sheet_ptr =
+        fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_fdother_dat,
+            data_fd2_resource_portrait_sheet_ptr, 6);
+
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)malloc(0x20);
+    data_fd2_large_game_state_buffer_ptr = (uint32)malloc(0x25680);
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)malloc(0xA00);
+
+    *(uint16 *)&data_fd2_input_last_key_pressed = 0x13;
+    int386(0x10, (union REGS *)&data_fd2_input_last_key_pressed,
+                 (union REGS *)&data_fd2_input_last_key_pressed);
+
+    data_fd2_graphics_chapter_ambient_palette_anim_tick_latch =
+        (uint32)(int32)*(int16 *)0x46C;
+    rng_warmup_count = rand();
+    for (calibration_iter = 0;
+         (int32)calibration_iter < (int32)rng_warmup_count % 0x100;
+         calibration_iter++) {
+        fd2_advance_rng_state();
+    }
+
+    do {
+        fd2_set_bgm_track_with_fade(0x12, 0);
+        menu_result = fd2_main_menu_continue_dispatcher();
+        if (menu_result == 0) {
+            do {
+                game_loop_result = fd2_game_main_loop();
+                if (data_fd2_chapter_event_or_battle_end_code == 1) {
+                    data_fd2_ui_play_active_flag = 0;
+                    fd2_play_chapter_clear_fanfare();
+                    data_fd2_ui_play_active_flag = 1;
+                    data_fd2_chapter_event_or_battle_end_code = 0;
+                    game_loop_result = 1;
+                } else if (data_fd2_chapter_event_or_battle_end_code == 2) {
+                    data_fd2_ui_play_active_flag = 0;
+                    fd2_set_bgm_track_with_fade(0xFFFFFFFF, 1);
+                    data_fd2_chapter_end_handler_table
+                        [data_fd2_chapter_current_chapter_id]();
+                    exit_inner_loop = fd2_chapter_transition_menu();
+                    if (exit_inner_loop == 0) {
+                        data_fd2_chapter_init_handler_table
+                            [data_fd2_chapter_current_chapter_id]();
+                        fd2_set_bgm_track_with_fade(
+                            (uint32)data_fd2_audio_per_chapter_player_turn_bgm_track
+                                [data_fd2_chapter_current_chapter_id], 0);
+                    } else {
+                        menu_result = 1;
+                    }
+                    data_fd2_ui_play_active_flag = 1;
+                    data_fd2_chapter_event_or_battle_end_code = 0;
+                    fd2_clear_keyboard_buffer();
+                    game_loop_result = exit_inner_loop;
+                }
+            } while (game_loop_result == 0);
+            if (game_loop_result == 0xFFFFFFFF) {
+                menu_result = 1;
+            }
+        } else if (menu_result == 0xFFFFFFFF) {
+            menu_result = 0;
+        }
+    } while (menu_result == 0);
+
+    AIL_shutdown();
+    *(uint16 *)&data_fd2_input_last_key_pressed = 3;
+    int386(0x10, (union REGS *)&data_fd2_input_last_key_pressed,
+                 (union REGS *)&data_fd2_input_last_key_pressed);
+}
+
+/* ----------------------------------------------------------------
  * fd2_main_menu_continue_dispatcher @ 0x25EBB
  *
  * Main-menu: NEW GAME / CONTINUE / fallback. Returns 0 (menu),

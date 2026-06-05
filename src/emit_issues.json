@@ -1,5 +1,25 @@
 {
   "_doc": "三源交叉驗證時發現的待後續確認問題。Key = function address, value = {name, issues: [...]}。所有 emit phase 完成後統一解決。",
+  "00025bf4": {
+    "name": "fd2_main",
+    "target": "life/main.c",
+    "issues": [
+      {
+        "type": "test_deferral_note",
+        "desc": "Behavioral unit test for fd2_main is DEFERRED to Phase 9 integration (reason proven, not convenience). fd2_main unconditionally issues int386(0x10,...) twice -- INT 10h video mode 0x13 on entry and mode 3 at shutdown -- through the REAL linked Watcom int386. Per the established harness limitation (see 000361cc fd2_dpmi_alloc_dos_memory), the real int386 has no deterministic seam in the DOS/4GW silent harness and a test-local override deterministically crashes/hangs the extender; an INT 10h video mode set in the automated runner is likewise unsafe. fd2_main also (a) calls fd2_main_menu_continue_dispatcher and fd2_load_save_and_init_engine, which live in the SAME translation unit as fd2_main and so cannot be replaced by capture stubs to drive the loop, (b) drives fd2_game_main_loop (the whole-game per-frame dispatcher) whose return value is the inner-loop exit condition, and (c) performs AIL sound init + 8 fd2_load_dat_resource loads + a 152 KB malloc on every entry before the loop is even reached. There is therefore no deterministic unit seam for the outer/inner loop exit logic. The control-flow translation was instead verified statically line-by-line against the disassembly: the EDI(menu_result/exit_outer) and ESI(game_loop_result) state machine (0x25DBD MOV EDI,EAX; chapter-clear arm MOV ESI,1 @0x25DFB; chapter-switch arm MOV EDI,1 @0x25E59 on transition!=0; post-inner CMP ESI,-1/MOV EDI,1 @0x25E7C; menu!=0 arm CMP EAX,-1/XOR EDI,EAX @0x25E88 giving menu_result=0 only when ==-1; outer TEST EDI/JZ 0x25DB1). The RNG warm-up loop bound (int)rand()%0x100 matches MOV EDX,EAX;SAR EDX,31;IDIV 0x100;MOV EDI,EDX (signed remainder) @0x25D90-0x25DAF. The two driver-handle stores match the EAX returns of AIL_install_MDI_INI / AIL_install_DIG_INI; both sample handles take the same DIG driver.",
+        "severity": "low",
+        "verify_method": "phase9_integration",
+        "source_review": "fd2_main @00025bf4 (emit; int386 INT 10h + in-TU menu dispatcher = no unit seam, cf. 000361cc)"
+      },
+      {
+        "type": "fragment_equivalence_handoff",
+        "desc": "Shared-epilogue equivalence-by-regeneration (pipeline_spec pattern A, rule A-1). fd2_main physically ends with JMP 0x16F04, a tail-jump into the shared epilogue (ADD ESP,0xC; POP EDI; POP ESI; POP EBX; RET) inside fd2_cinematic_scroll_text_up_for_special_scenes @0x16E24 (already emitted, dialog/dialog.c). The merged epilogue is a Watcom code-size optimization; it is NOT reproduced. fd2_main is emitted as a self-contained void function and relies on Watcom 9.5a regenerating an equivalent POP-saved-regs + RET epilogue. Also: __CMain @0x45D4B consumes fd2_main EAX as the DOS exit code (PUSH EAX; JMP _exit @0x36DE4), but the shared epilogue leaves EAX = the last int386 return (BIOS-dependent, a dont-care exit code for a terminating game); the original source is void main(argc,argv) with argc/argv used only by the __CHK frame probe and no explicit return, so void fd2_main(void) is functionally exact. verify_method: post-build -d disasm to confirm the regenerated epilogue + that no caller relies on a specific exit code.",
+        "severity": "info",
+        "verify_method": "compile_and_disasm",
+        "source_review": "fd2_main @00025bf4 (emit; shared-epilogue tail-jump 0x16F04, cf. 000362f1 / 00010b43)"
+      }
+    ]
+  },
   "000117e7": {
     "name": "fd2_game_main_loop",
     "target": "ui_menu/menu.c",

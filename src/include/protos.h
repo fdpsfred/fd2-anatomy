@@ -332,6 +332,13 @@ void AIL_stop_sequence(uint32 seq);
 int  AIL_init_sequence(uint32 seq, uint32 xmi_data, int seq_idx);
 void AIL_start_sequence(uint32 seq);
 void AIL_set_sequence_loop_count(uint32 seq, uint32 count);
+void  AIL_startup(void);
+void  AIL_shutdown(void);
+int   AIL_install_MDI_INI(void);
+int   AIL_install_DIG_INI(void);
+void *AIL_allocate_sequence_handle(void *mdi_driver);
+void *AIL_allocate_sample_handle(void *dig_driver);
+void fd2_play_chapter_clear_fanfare(void);
 uint32 fd2_load_dat_resource(uint32 fname, uint32 buf, uint32 idx);
 void fd2_rle_blit_sprite(uint32 rle_stream, int32 dst_x, int32 dst_y,
                          uint32 dst_buf, int32 stride, uint32 palette_op);
