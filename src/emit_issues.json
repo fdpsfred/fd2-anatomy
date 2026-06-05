@@ -520,5 +520,18 @@
   },
   "00034c1e": [
     "Equivalence-relevant nuance the emitter could have flagged: Ghidra's 'pCombat_aux_block' field name implies a pointer field, but the store is an inline byte write at struct offset 0x34 — the emitted C correctly uses the inline-array form, so no functional issue, but worth noting that the Ghidra struct field naming diverges from the verified inline layout."
-  ]
+  ],
+  "00034e90": {
+    "name": "fd2_chapter_event_handler_0d__ch15_dialog_with_state",
+    "target": "field/chevt1.c",
+    "issues": [
+      {
+        "type": "documentation_accuracy",
+        "desc": "Documentation accuracy: emitter's notes/test comments describe driving the real dialog VM 'against staged real DATO.DAT', but the chosen page-6 TEXT+END program path provably never loads DATO.DAT (gate staged_game_files=[]). Recommend future emitter wording distinguish 'real dialog-VM dispatch on a pure-text program (no DAT read)' from paths that actually fread game resources, to avoid implying a real-file dependency that the test does not exercise.",
+        "severity": "low",
+        "verify_method": "doc_wording_clarification",
+        "source_review": "fd2_chapter_event_handler_0d__ch15_dialog_with_state @00034e90 (reviewer-approved)"
+      }
+    ]
+  }
 }

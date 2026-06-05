@@ -37,6 +37,9 @@
  * fd2_chapter_event_handler_0c__unref_first_time @ 0x34594
  *     (0 direct callers; dispatched as idx 0x0C of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_0d__ch15_dialog_with_state @ 0x34E90
+ *     (0 direct callers; dispatched as idx 0x0D of the per-event
+ *      handler table at 0x51B91)
  * fd2_chapter_event_handler_0e__ch5_dialog_with_state @ 0x345EA
  *     (0 direct callers; dispatched as idx 0x0E of the per-event
  *      handler table at 0x51B91)
@@ -516,6 +519,43 @@ void fd2_chapter_event_handler_0c__unref_first_time(uint32 event_arg)
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
         *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) = 1;
     }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_0d__ch15_dialog_with_state @ 0x34E90
+ *   — Chapter 15 turn-event slot 0 (triggered at turn 4 / phase 1),
+ *     dispatched as idx 0x0D of the per-event handler table at 0x51B91.
+ *
+ * ch15 turn-4 beat: dialog page 6 is shown first, then the boss group
+ * (runtime-char slots 0x40..0x49, 10 chars) is armed for AI mode 3 in
+ * two steps — every slot's AI param byte combat_aux_block[0xE] is preset
+ * to 0, then the low nibble of combat_aux_block[0xD] is set to 3 across
+ * the same range — and finally the per-event AI/dialog control flag (low
+ * 4 bits of combat_aux_block[0xD]) is disarmed by writing 0 across chars
+ * 0x23..0x31 (15 mid-tier chars). A straight-line, no-branch sequence
+ * with no RNG, no numeric computation, and no CALL-return value used.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is
+ * callee-saved; the __CHK(0x2C) stack-probe prologue is compiler-injected
+ * and omitted here. fd2_display_dialog_scene's uint32 return is discarded.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_15.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_0d__ch15_dialog_with_state(uint32 event_arg)
+{
+    int32 i;
+
+    (void)event_arg;
+
+    fd2_display_dialog_scene(current_chapter_text, 6, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+
+    for (i = 0x40; i < 0x4A; i++) {
+        data_fd2_battle_runtime_char_array_ptr[i].combat_aux_block[0xE] = 0;
+    }
+    fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x40, 0x49, 3);
+    fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x23, 0x31, 0);
 }
 
 /* ----------------------------------------------------------------
