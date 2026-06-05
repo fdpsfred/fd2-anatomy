@@ -3702,8 +3702,9 @@
     "name": "fd2_chapter_event_handler_17__unref_turn_gated",
     "target": "field/chevt1.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000348fc": {
     "name": "fd2_chapter_event_handler_18__unref_dialog",

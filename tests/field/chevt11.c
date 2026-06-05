@@ -745,6 +745,181 @@ static void test_ch6_event16_dead_skips_beat(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_17__unref_turn_gated @ 0x34844
+ *
+ * Dispatch idx 0x17 of the per-event handler table at 0x51B91. No chapter
+ * FDFIELD turn-event / tile-step hook references this slot (unreferenced —
+ * possibly cut content / non-chapter dispatcher). It is a turn-counter-gated
+ * beat:
+ *   set_combat_aux_block_byte_d_low4_for_char_range(8, 0x1C, 0);  // arm 21 chars
+ *   display_dialog_scene(page 4, ...);                            // unconditional
+ *   if ((int)data_fd2_battle_turn_counter < 0x0F):                // signed (JGE)
+ *     load_chapter_portraits_and_dump_tmp(2);                     // portrait set 2
+ *     pan_cursor_and_window(5, 0x11);  cutscene_event_trigger(0x19);
+ *     display_dialog_scene(page 5, ...);
+ *     pan_cursor_and_window(5, 0x11);  cutscene_event_trigger(0x1A);
+ *     mark_char_as_dead(0x21);                                    // kill char 0x21
+ *     battle_anim_phase = 1;
+ *
+ * The testable risk core is the turn-counter GATE (a complex-control-flow /
+ * state-transition branch), so BOTH paths are exercised. The guard is a SIGNED
+ * compare in the binary (CMP [0x53BEF],0xF; JGE), so the boundary value 0x0F
+ * itself must skip; the gate-fail test pins turn == 0x0F to nail that boundary.
+ *
+ * Every callee here is a REAL emitted function driven against the shared
+ * fieldfix "ch25-style real portrait reload" env, plus zero-group cutscene
+ * scripts for events 0x19 / 0x1A so the real fd2_cutscene_event_trigger
+ * composites once and returns:
+ *   - fd2_set_combat_aux_block_byte_d_low4_for_char_range (@0x3419C) writes
+ *     combat_aux_block[0xD] = (old & 0xF0) | (0 & 0x0F) for the INCLUSIVE range
+ *     0x08..0x1C, i.e. it clears the low nibble (ai_class) while preserving the
+ *     high nibble — observable on g_ev_rc, and it runs BEFORE the gate so it
+ *     applies on BOTH paths;
+ *   - fd2_mark_char_as_dead (@0x32975) stores g_ev_rc[0x21].flags = 1 (a direct
+ *     byte store of 1, not an OR) through data_fd2_battle_runtime_char_array_ptr;
+ *   - fd2_load_chapter_portraits_and_dump_tmp(2) runs FOR REAL against the staged
+ *     FDICON.B24 + FDFIELD.DAT and rewrites FD2.TMP to its full 0x32A00 bytes;
+ *   - the two fd2_display_dialog_scene calls (pages 4 and 5) take the shared
+ *     immediate-END program so each returns at once with no glyph blits;
+ *   - fd2_pan_cursor_and_window / fd2_composite_battle_frame run against the
+ *     staged camera + compositor workspace with the empty active party.
+ * The final battle_anim_phase = 1 store (which the binary reaches via the JMP
+ * into the shared __CHK epilogue tail at 0x35C18) is observable on the
+ * gate-pass path; the gate-fail path leaves it at its perturbed sentinel.
+ *
+ * The 64-slot g_ev_rc fixture keeps the highest touched char (0x21) in-bounds.
+ * The pure blit/display side effects (dialog glyphs, cutscene/pan compositing,
+ * portrait pixels) are deferred to Phase 9 integration.
+ * ================================================================ */
+
+/* zero-group cutscene scripts for events 0x19 / 0x1A: n_groups byte = 0, so the
+ * real fd2_cutscene_event_trigger just composites once and returns. */
+static uint8 g_ev17_script_19[1] = { 0 };
+static uint8 g_ev17_script_1a[1] = { 0 };
+
+static void ev17_install_safe_env(void)
+{
+    /* shared ch25-style real-portrait-reload env (empty party, gated HUD,
+     * throttled palette, real compositor workspace, immediate-END dialog,
+     * empty keyboard buffer, alloc_offset 0, current_chapter_id 4, fresh
+     * field buffer, 64-slot g_ev_rc). */
+    ev_install_safe_env();
+
+    /* handler_17 fires cutscene EVENTS 0x19 and 0x1A; register their own
+     * zero-group scripts so the real fd2_cutscene_event_trigger returns fast. */
+    g_ev17_script_19[0] = 0;
+    g_ev17_script_1a[0] = 0;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x19] = g_ev17_script_19;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x1A] = g_ev17_script_1a;
+}
+
+/* ----------------------------------------------------------------
+ * GATE-PASS path: the battle turn counter is below 0x0F, so the full boss-death
+ * cinematic runs. Observable, deterministic contract: the AI low nibble of
+ * combat_aux_block[0xD] is cleared to 0 for exactly chars 0x08..0x1C (high
+ * nibble preserved; bounding neighbours 0x07/0x1D untouched), char 0x21 is
+ * killed (flags = 1), battle_anim_phase ends at 1, the real portrait reload
+ * rewrote FD2.TMP to its full 0x32A00 bytes, and the whole real callee chain
+ * runs to completion without faulting.
+ * ---------------------------------------------------------------- */
+static void test_ch_event17_turn_below_gate_runs_cinematic(void)
+{
+    int i;
+
+    ev17_install_safe_env();
+
+    /* gate passes: turn counter below 0x0F. */
+    data_fd2_battle_turn_counter = 5;
+
+    /* seed the AI band (plus the two bounding neighbours) with a sentinel whose
+     * high nibble is non-zero and low nibble differs from 0, so both the
+     * low-nibble clear AND the high-nibble preservation are observable. */
+    for (i = 8; i <= 0x1C; i++) {
+        g_ev_rc[i].combat_aux_block[0xD] = 0x9A;
+    }
+    g_ev_rc[7].combat_aux_block[0xD]    = 0x55;   /* below the inclusive range */
+    g_ev_rc[0x1D].combat_aux_block[0xD] = 0x66;   /* above the inclusive range */
+
+    /* char 0x21 starts alive; perturb anim_phase so its set-to-1 is observable. */
+    g_ev_rc[0x21].flags = 0;
+    data_fd2_battle_anim_phase = 0x77;
+
+    remove("FD2.TMP");
+
+    fd2_chapter_event_handler_17__unref_turn_gated(0);
+
+    /* exactly chars 0x08..0x1C armed: low nibble -> 0, high nibble (0x90) kept. */
+    for (i = 8; i <= 0x1C; i++) {
+        ASSERT_EQ(g_ev_rc[i].combat_aux_block[0xD], 0x90);
+    }
+    /* bounding neighbours just outside the inclusive range left untouched. */
+    ASSERT_EQ(g_ev_rc[7].combat_aux_block[0xD], 0x55);
+    ASSERT_EQ(g_ev_rc[0x1D].combat_aux_block[0xD], 0x66);
+
+    /* the gated cinematic ran: char 0x21 killed, anim_phase flipped to 1, and
+     * the real portrait reload rewrote FD2.TMP to its full 0x32A00 bytes. */
+    ASSERT_EQ(g_ev_rc[0x21].flags, 1);
+    ASSERT_EQ(data_fd2_battle_anim_phase, 1);
+    ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
+
+    /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
+    remove("FD2.TMP");
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    ev_restore_rc_ptr();
+}
+
+/* ----------------------------------------------------------------
+ * GATE-FAIL path: the battle turn counter is at the boundary value 0x0F, so the
+ * signed (JGE) gate fails and the whole cinematic block is SKIPPED. Observable,
+ * deterministic contract: the AI arming (which happens BEFORE the gate) still
+ * cleared the low nibble for all of chars 0x08..0x1C; but char 0x21 is NOT
+ * killed (flags stay 0), battle_anim_phase keeps its perturbed sentinel (never
+ * set to 1), and no portrait reload happened (FD2.TMP absent). This also pins
+ * the signed-compare boundary: turn == 0x0F must take the skip path.
+ * ---------------------------------------------------------------- */
+static void test_ch_event17_turn_at_gate_skips_cinematic(void)
+{
+    int i;
+
+    ev17_install_safe_env();
+
+    /* gate fails at the boundary: 0x0F is NOT < 0x0F (signed JGE -> skip). */
+    data_fd2_battle_turn_counter = 0xF;
+
+    for (i = 8; i <= 0x1C; i++) {
+        g_ev_rc[i].combat_aux_block[0xD] = 0x9A;
+    }
+    g_ev_rc[7].combat_aux_block[0xD]    = 0x55;
+    g_ev_rc[0x1D].combat_aux_block[0xD] = 0x66;
+
+    /* char 0x21 starts alive; perturb anim_phase to a sentinel that the skip
+     * path must leave untouched. */
+    g_ev_rc[0x21].flags = 0;
+    data_fd2_battle_anim_phase = 0x77;
+
+    remove("FD2.TMP");
+
+    fd2_chapter_event_handler_17__unref_turn_gated(0);
+
+    /* the AI arming runs BEFORE the gate, so it still applied to all of
+     * chars 0x08..0x1C regardless of the turn counter. */
+    for (i = 8; i <= 0x1C; i++) {
+        ASSERT_EQ(g_ev_rc[i].combat_aux_block[0xD], 0x90);
+    }
+    ASSERT_EQ(g_ev_rc[7].combat_aux_block[0xD], 0x55);
+    ASSERT_EQ(g_ev_rc[0x1D].combat_aux_block[0xD], 0x66);
+
+    /* the gated cinematic was skipped: char 0x21 NOT killed, anim_phase keeps
+     * its sentinel, and no FD2.TMP was written. */
+    ASSERT_EQ(g_ev_rc[0x21].flags, 0);
+    ASSERT_EQ(data_fd2_battle_anim_phase, 0x77);
+    ASSERT_EQ(ev_fd2_tmp_size(), -1);
+
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt11_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -760,5 +935,7 @@ void run_field_chevt11_tests(void)
     RUN_TEST(test_ch6_event15_dead_skips_dialog);
     RUN_TEST(test_ch6_event16_alive_reloads_portraits_and_shows_dialog);
     RUN_TEST(test_ch6_event16_dead_skips_beat);
+    RUN_TEST(test_ch_event17_turn_below_gate_runs_cinematic);
+    RUN_TEST(test_ch_event17_turn_at_gate_skips_cinematic);
     printf("\n");
 }

@@ -217,6 +217,7 @@ void fd2_chapter_event_handler_13__unref_char_cond(uint32 event_arg);
 void fd2_chapter_event_handler_14__ch6_dialog(uint32 event_arg);
 void fd2_chapter_event_handler_15__ch6_char_cond(uint32 event_arg);
 void fd2_chapter_event_handler_16__ch6_char_cond(uint32 event_arg);
+void fd2_chapter_event_handler_17__unref_turn_gated(uint32 event_arg);
 void fd2_show_chapter_intro_text_dialog_mode_3(void);
 
 void fd2_setup_chars_and_camera_for_intro(uint32 pos_x_table, uint32 pos_y_table,

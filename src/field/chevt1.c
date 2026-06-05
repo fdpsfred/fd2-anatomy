@@ -52,6 +52,9 @@
  * fd2_chapter_event_handler_16__ch6_char_cond @ 0x34819
  *     (0 direct callers; dispatched as idx 0x16 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_17__unref_turn_gated @ 0x34844
+ *     (0 direct callers; dispatched as idx 0x17 of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -678,5 +681,57 @@ void fd2_chapter_event_handler_16__ch6_char_cond(uint32 event_arg)
     if (fd2_check_char_is_dead(8) == 0) {
         fd2_load_chapter_portraits_and_dump_tmp(1);
         fd2_show_chapter_intro_text_dialog_mode_3();
+    }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_17__unref_turn_gated @ 0x34844
+ *   — Dispatch idx 0x17 of the per-event handler table at 0x51B91.
+ *
+ * No chapter FDFIELD turn-event / tile-step hook references this slot
+ * (unreferenced — possibly cut content / non-chapter dispatcher). It is
+ * a turn-counter-gated beat. Its unconditional head disarms the
+ * per-event AI/dialog control flag (low 4 bits of combat_aux_block[0xD])
+ * by writing 0 across chars 0x08..0x1C (21 chars) and shows dialog
+ * page 4. Then, only while the battle turn counter is still below 0x0F
+ * (i.e. before turn 15), it runs a two-cutscene boss-death cinematic:
+ * portrait set 2 reloads, the camera pans to world (5, 0x11), cutscene
+ * event 0x19 plays, dialog page 5 is shown, the camera pans to (5, 0x11)
+ * again, cutscene event 0x1A plays, char 0x21 (狄歐?) is killed, and the
+ * battle-animation phase is flipped to 1.
+ *
+ * The gate (data_fd2_battle_turn_counter < 0x0F) is a signed compare in
+ * the original (CMP [0x53BEF],0xF; JGE); reproduced as the (int32) cast
+ * here. There is no RNG and no numeric computation; no CALL-return value
+ * is used.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * In the original binary the if-true branch JMPs into the shared __CHK
+ * epilogue tail at 0x35C18 (MOV [0x51A83],1; RET), so the final
+ * battle_anim_phase = 1 store lives in that shared tail; the gate-fail
+ * path JGEs straight to the bare RET at 0x35C22. Reproduced here as the
+ * inline store inside the gated block for Layer-2 equivalence.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_17__unref_turn_gated(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_set_combat_aux_block_byte_d_low4_for_char_range(8, 0x1C, 0);
+    fd2_display_dialog_scene(current_chapter_text, 4, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    if ((int32)data_fd2_battle_turn_counter < 0xF) {
+        fd2_load_chapter_portraits_and_dump_tmp(2);
+        fd2_pan_cursor_and_window(5, 0x11);
+        fd2_cutscene_event_trigger(0x19);
+        fd2_display_dialog_scene(current_chapter_text, 5, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        fd2_pan_cursor_and_window(5, 0x11);
+        fd2_cutscene_event_trigger(0x1A);
+        fd2_mark_char_as_dead(0x21);
+        data_fd2_battle_anim_phase = 1;
     }
 }
