@@ -1,12 +1,18 @@
 #ifndef CRT_COMPAT_H
 #define CRT_COMPAT_H
 
+#include "types.h"
+
 /*
  * Prototypes for 13 crt_equivalent_* functions.
  * These behave identically to Watcom CRT counterparts but do not
  * byte-match any CLIB3S .obj, so they are emitted as FD2 source.
  *
  * See rebuild_info/crt/symbol_inventory.md for details.
+ *
+ * The authoritative prototypes for emitted crt_equivalent_* functions
+ * live in protos.h (the header every .c includes). Entries here are kept
+ * in sync as each function is emitted.
  */
 
 /* cstart pair */
@@ -18,7 +24,8 @@ unsigned long crt_equivalent_get_eflags(void);
 void crt_equivalent_get_eflags_thunk(void);
 
 /* LX module loader chain */
-void crt_equivalent_lx_chunk_read_36107(void);
+int  crt_equivalent_lx_chunk_read_36107(int file_handle, int offset,
+                                        uint8 mode, void *dest, uint32 length);
 void crt_equivalent_lx_header_reader_36344(void);
 void crt_equivalent_lx_module_loader_3647b(void);
 

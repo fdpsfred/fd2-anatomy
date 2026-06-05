@@ -465,6 +465,10 @@ void fd2_noop_stub_4e915(void);
 /* ---- crt thunks ---- */
 void __delay_thunk_375b2(uint32 ticks);
 
+/* ---- crt_equivalent (FD2-specific CRT helpers; src/crt/crt.c) ---- */
+int crt_equivalent_lx_chunk_read_36107(int file_handle, int offset,
+                                       uint8 mode, void *dest, uint32 length);
+
 /* ---- util / dpmi ---- */
 int fd2_dpmi_alloc_dos_memory(uint32 paragraphs, uint32 *out_linear, uint32 *out_segment, uint32 *out_selector);
 void fd2_dpmi_free_dos_memory(uint32 linear_unused, uint32 segment_unused, uint32 selector);

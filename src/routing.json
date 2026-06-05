@@ -4264,8 +4264,9 @@
     "name": "crt_equivalent_lx_chunk_read_36107",
     "target": "crt/crt.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0003615e": {
     "name": "fd2_set_word_global_52758",
