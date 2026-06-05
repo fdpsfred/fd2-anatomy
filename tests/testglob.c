@@ -139,6 +139,15 @@ void fd2_dispatch_variant_b_cast(int a, int b, int c, int d) { }
 void fd2_cast_ap_boost_spell(int a, int b, uint8 *c) { }
 void fd2_cast_dp_boost_spell(int a, int b, uint32 c) { }
 void fd2_cast_speed_boost_spell(uint32 a, uint32 b, uint32 c) { }
+/* Link-only stub for the not-yet-emitted cstart bootstrap (its own emit
+ * target, src/crt/crt.c). crt_equivalent_entry_start's #pragma aux helper
+ * tail-JMPs to this symbol; the thunk is never executed at LE entry in the
+ * test build (testmain.c is the test entry). The stub bumps a counter so
+ * the crt/crt.c suite can verify the thunk's JMP actually reaches the
+ * bootstrap. Removed once crt_equivalent_dos_main_bootstrap @ 0x3c9de is
+ * emitted (the real bootstrap supersedes this stub + the counter). */
+int g_cstart_bootstrap_entered = 0;
+void crt_equivalent_dos_main_bootstrap(void) { g_cstart_bootstrap_entered++; }
 int g_play_sfx_with_handle_calls = 0;
 int g_dlg_blink_calls = 0;
 /* SFX-id capture log: fd2_animate_spell_impact_per_target's per-spell SFX

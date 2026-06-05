@@ -480,6 +480,13 @@ void crt_equivalent_exit_chain_stub_36de3(void);
  * src/crt/crt.c. */
 unsigned long crt_equivalent_get_eflags_thunk(void);
 
+/* crt_equivalent_entry_start @ 0x3c964 — DOS LE entry-point trampoline
+ * (LE header Entry Point references this address). Real out-of-line
+ * function so it owns a PUBDEF; its body tail-JMPs to the separate emit
+ * target crt_equivalent_dos_main_bootstrap @ 0x3c9de via an in-line
+ * #pragma aux helper in src/crt/crt.c. */
+void crt_equivalent_entry_start(void);
+
 /* ---- util / dpmi ---- */
 int fd2_dpmi_alloc_dos_memory(uint32 paragraphs, uint32 *out_linear, uint32 *out_segment, uint32 *out_selector);
 void fd2_dpmi_free_dos_memory(uint32 linear_unused, uint32 segment_unused, uint32 selector);

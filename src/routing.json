@@ -4464,8 +4464,9 @@
     "name": "crt_equivalent_entry_start",
     "target": "crt/crt.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0003c9de": {
     "name": "crt_equivalent_dos_main_bootstrap",
