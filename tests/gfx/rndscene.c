@@ -2479,6 +2479,258 @@ static void test_band_empty_when_start_ge_end(void)
     }
 }
 
+/* ====================================================================
+ * fd2_render_summon_aura_sprite_ring @ 0x262EF
+ *
+ * Drives the dispatch-table aura-ring renderer through every state_code
+ * branch. The blit/sfx callees are recorded by the testglob.c spies
+ * (g_blit_indexed_sprite_*, g_play_sfx_with_handle / g_sfx_*). The
+ * per-slot phase counters live in the *upper* 8 slots [7..14] of the
+ * shared 15-slot array (asm indexes [i*4 + 0x53F5E]); these tests pin
+ * that +7 offset, the j=(i+4)%8 rotation swap, the enemy x-shift, the
+ * blit-position arithmetic, and the state-5 advance/done/chime logic. */
+extern int    g_blit_indexed_sprite_calls;
+extern uint32 g_blit_indexed_sprite_last_frame;
+extern int    g_blit_indexed_sprite_last_x;
+extern int    g_blit_indexed_sprite_last_y;
+extern int    g_play_sfx_with_handle_calls;
+extern int    g_sfx_last_id;
+extern int    g_sfx_id_count;
+extern int32  data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[15];
+extern int32  data_fd2_battle_summon_aura_ring_8slot_x_offset_table[8];
+extern int32  data_fd2_battle_summon_aura_ring_8slot_row_multiplier_table[8];
+
+/* reset spies + array + caster team for an aura-ring test. team: value
+ * written to g_test_rc_array[0].team (+6); 0 = enemy (triggers x-shift). */
+static void aura_reset(int team)
+{
+    int k;
+
+    g_blit_indexed_sprite_calls = 0;
+    g_blit_indexed_sprite_last_frame = 0;
+    g_blit_indexed_sprite_last_x = 0;
+    g_blit_indexed_sprite_last_y = 0;
+    g_play_sfx_with_handle_calls = 0;
+    g_sfx_last_id = 0;
+    g_sfx_id_count = 0;
+    for (k = 0; k < 15; k++) {
+        data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[k] = 0;
+    }
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = (uint8)team;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+}
+
+/* set the per-slot counter for logical slot i (0..7) -> array index i+7 */
+static void aura_set_slot(int i, int32 v)
+{
+    data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[i + 7] = v;
+}
+
+/* state 3 (INIT): writes counter[i+7] = -2*i for i in 0..7 and returns
+ * 0x1F. The +7 offset is load-bearing: slots 0..6 must stay untouched. */
+static void test_aura_state3_init_offsets(void)
+{
+    int rc;
+    int i;
+
+    aura_reset(1);                 /* ally team; no x-shift effect on state 3 */
+    /* poke the lower 7 slots so we can prove they are NOT overwritten */
+    for (i = 0; i < 7; i++) {
+        data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[i] = 0x55;
+    }
+    rc = fd2_render_summon_aura_sprite_ring(0, 0x1000, 100, 10, 3);
+
+    ASSERT_EQ(rc, 0x1f);
+    ASSERT_EQ(g_blit_indexed_sprite_calls, 0);
+    /* upper 8 slots staggered -2*i */
+    for (i = 0; i < 8; i++) {
+        ASSERT_EQ(
+            data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[i + 7],
+            -2 * i);
+    }
+    /* lower 7 slots untouched */
+    for (i = 0; i < 7; i++) {
+        ASSERT_EQ(
+            data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[i],
+            0x55);
+    }
+}
+
+/* state 3 still returns 0x1F for an enemy caster (team==0). The x-shift
+ * branch executes against the local copy only and cannot affect state 3. */
+static void test_aura_state3_enemy_same_return(void)
+{
+    int rc;
+
+    aura_reset(0);                 /* enemy team -> x_off += 0x94 path runs */
+    rc = fd2_render_summon_aura_sprite_ring(0, 0x1000, 100, 10, 3);
+    ASSERT_EQ(rc, 0x1f);
+    ASSERT_EQ(g_blit_indexed_sprite_calls, 0);
+}
+
+/* state 4, top-half slot i=0 (unrotated): only slot 0 in gate, slots 1..7
+ * pinned at 0xF (gate fail). Verifies single blit, frame index, and the
+ * exact position x = row_mul[0]*stride + x_off[0] + 0x50 + origin_y. */
+static void test_aura_state4_tophalf_position(void)
+{
+    int rc;
+    int i;
+    int expect_x;
+
+    aura_reset(1);                 /* ally: no x-shift */
+    for (i = 1; i < 8; i++) {
+        aura_set_slot(i, 0xf);     /* out of gate (counter < 0xF is false) */
+    }
+    aura_set_slot(0, 5);           /* in gate -> blit */
+
+    rc = fd2_render_summon_aura_sprite_ring(0, 0x1000, 100, 10, 4);
+
+    ASSERT_EQ(rc, 0);
+    ASSERT_EQ(g_blit_indexed_sprite_calls, 1);
+    ASSERT_EQ(g_blit_indexed_sprite_last_frame, 5);    /* frame = counter */
+    /* row_mul[0]=-10, x_off[0]=-59 : -10*10 + (-59) + 0x50 + 100 = 21 */
+    expect_x = -10 * 10 + (-59) + 0x50 + 100;
+    ASSERT_EQ(g_blit_indexed_sprite_last_x, expect_x);
+    ASSERT_EQ(g_blit_indexed_sprite_last_y, 10);       /* y = row_stride */
+}
+
+/* state 4, bottom-half slot i=4 (tail-set + j swap): only slot 4 in gate.
+ * j = (4+4)%8 = 0 so position uses slot-0 offsets; frame = counter+0xF. */
+static void test_aura_state4_bottomhalf_jswap(void)
+{
+    int rc;
+    int i;
+    int expect_x;
+
+    aura_reset(1);
+    for (i = 0; i < 8; i++) {
+        aura_set_slot(i, 0xf);     /* all out of gate */
+    }
+    aura_set_slot(4, 7);           /* slot 4 in gate -> tail blit, j=0 */
+
+    rc = fd2_render_summon_aura_sprite_ring(0, 0x1000, 100, 10, 4);
+
+    ASSERT_EQ(rc, 0);
+    ASSERT_EQ(g_blit_indexed_sprite_calls, 1);
+    ASSERT_EQ(g_blit_indexed_sprite_last_frame, 7 + 0xf);   /* tail-set +0xF */
+    /* j=0 offsets: -10*10 + (-59) + 0x50 + 100 = 21 */
+    expect_x = -10 * 10 + (-59) + 0x50 + 100;
+    ASSERT_EQ(g_blit_indexed_sprite_last_x, expect_x);
+    ASSERT_EQ(g_blit_indexed_sprite_last_y, 10);
+}
+
+/* enemy caster (team==0): the local x-offset table is shifted by +0x94
+ * before the blit, so slot-0 position moves by exactly 0x94 vs the ally
+ * case (state 4, top-half slot 0). */
+static void test_aura_state4_enemy_xshift(void)
+{
+    int rc;
+    int i;
+    int expect_x;
+
+    aura_reset(0);                 /* enemy -> x_off[i] += 0x94 */
+    for (i = 1; i < 8; i++) {
+        aura_set_slot(i, 0xf);
+    }
+    aura_set_slot(0, 5);
+
+    rc = fd2_render_summon_aura_sprite_ring(0, 0x1000, 100, 10, 4);
+
+    ASSERT_EQ(rc, 0);
+    ASSERT_EQ(g_blit_indexed_sprite_calls, 1);
+    /* -10*10 + (-59 + 0x94) + 0x50 + 100 = 21 + 0x94 = 169 */
+    expect_x = -10 * 10 + (-59 + 0x94) + 0x50 + 100;
+    ASSERT_EQ(g_blit_indexed_sprite_last_x, expect_x);
+}
+
+/* state 4 gate boundaries: counter == 0xF must NOT blit, counter == 0 must
+ * blit (0 <= c < 0xF), and a negative counter must NOT blit. */
+static void test_aura_state4_gate_boundaries(void)
+{
+    int rc;
+    int i;
+
+    aura_reset(1);
+    for (i = 0; i < 8; i++) {
+        aura_set_slot(i, 0xf);     /* exactly the upper bound -> excluded */
+    }
+    rc = fd2_render_summon_aura_sprite_ring(0, 0x1000, 100, 10, 4);
+    ASSERT_EQ(rc, 0);
+    ASSERT_EQ(g_blit_indexed_sprite_calls, 0);
+
+    aura_reset(1);
+    aura_set_slot(0, -1);          /* below lower bound */
+    for (i = 1; i < 8; i++) {
+        aura_set_slot(i, 0xf);
+    }
+    aura_set_slot(1, 0);           /* lower bound included -> top-half blit */
+    rc = fd2_render_summon_aura_sprite_ring(0, 0x1000, 100, 10, 4);
+    ASSERT_EQ(rc, 0);
+    ASSERT_EQ(g_blit_indexed_sprite_calls, 1);
+}
+
+/* state 5 ADVANCE: all 8 slots at 8 -> after ++ all become 9, so the
+ * mid-cycle done flag is set and the function returns 1. No counter hits
+ * 5, so no chime SFX. (8 in-gate slots also blit during the draw loops.) */
+static void test_aura_state5_done_flag(void)
+{
+    int rc;
+    int i;
+
+    aura_reset(1);
+    for (i = 0; i < 8; i++) {
+        aura_set_slot(i, 8);
+    }
+    rc = fd2_render_summon_aura_sprite_ring(0, 0x1000, 100, 10, 5);
+
+    ASSERT_EQ(rc, 1);                       /* done_flag */
+    ASSERT_EQ(g_play_sfx_with_handle_calls, 0);
+    ASSERT_EQ(g_blit_indexed_sprite_calls, 8);
+    /* every slot advanced 8 -> 9 */
+    for (i = 0; i < 8; i++) {
+        ASSERT_EQ(
+            data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[i + 7],
+            9);
+    }
+}
+
+/* state 5 chime: all 8 slots at 4 -> after ++ all become 5, firing the
+ * per-slot chime SFX (id 1) eight times. None reach 9, so done_flag is 0
+ * and the function returns 0. */
+static void test_aura_state5_chime_sfx(void)
+{
+    int rc;
+    int i;
+
+    aura_reset(1);
+    for (i = 0; i < 8; i++) {
+        aura_set_slot(i, 4);
+    }
+    rc = fd2_render_summon_aura_sprite_ring(0, 0x1000, 100, 10, 5);
+
+    ASSERT_EQ(rc, 0);
+    ASSERT_EQ(g_play_sfx_with_handle_calls, 8);
+    ASSERT_EQ(g_sfx_last_id, 1);
+    for (i = 0; i < 8; i++) {
+        ASSERT_EQ(
+            data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[i + 7],
+            5);
+    }
+}
+
+/* unknown state_code -> shared epilogue returns 0, nothing blitted. */
+static void test_aura_other_state_noop(void)
+{
+    int rc;
+
+    aura_reset(1);
+    rc = fd2_render_summon_aura_sprite_ring(0, 0x1000, 100, 10, 0);
+    ASSERT_EQ(rc, 0);
+    ASSERT_EQ(g_blit_indexed_sprite_calls, 0);
+    ASSERT_EQ(g_play_sfx_with_handle_calls, 0);
+}
+
 void run_gfx_rndscene_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -2556,5 +2808,14 @@ void run_gfx_rndscene_tests(void)
     RUN_TEST(test_band_left_clamp);
     RUN_TEST(test_band_right_clamp);
     RUN_TEST(test_band_empty_when_start_ge_end);
+    RUN_TEST(test_aura_state3_init_offsets);
+    RUN_TEST(test_aura_state3_enemy_same_return);
+    RUN_TEST(test_aura_state4_tophalf_position);
+    RUN_TEST(test_aura_state4_bottomhalf_jswap);
+    RUN_TEST(test_aura_state4_enemy_xshift);
+    RUN_TEST(test_aura_state4_gate_boundaries);
+    RUN_TEST(test_aura_state5_done_flag);
+    RUN_TEST(test_aura_state5_chime_sfx);
+    RUN_TEST(test_aura_other_state_noop);
     printf("\n");
 }

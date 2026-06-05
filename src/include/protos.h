@@ -160,6 +160,7 @@ void fd2_pan_cursor_and_window(uint32 target_ox, uint32 target_oy);
 void fd2_composite_battle_frame(int skip_palette_cycle);
 void fd2_composite_then_animate_projectiles(void);
 void fd2_composite_battle_frame_zero(void);
+int fd2_render_summon_aura_sprite_ring(int caster_unit_id, int sprite_handle, int origin_y, int row_stride, char state_code);
 
 /* ---- graphics / palette ---- */
 void fd2_set_vga_palette_range(uint32 start_idx, uint32 end_idx, uint32 brightness_subtract);

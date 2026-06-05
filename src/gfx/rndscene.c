@@ -1135,3 +1135,150 @@ void fd2_composite_battle_frame_zero(void)
 {
     fd2_composite_battle_frame(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_summon_aura_sprite_ring @ 0x262EF (0 direct callers)
+ *
+ * Renders the 8-directional summon-spell aura sprite ring around the
+ * caster. Entry +1 (offset +0x04) of the 10-element summon-spell tick
+ * dispatch table data_fd2_battle_spell_cast_cinematic_phase_handler_table
+ * @ 0x523B9; invoked indirectly through that table, no direct CALL xref.
+ *
+ * Prologue copies two 8-entry .rodata tables into local frame:
+ *   data_fd2_battle_summon_aura_ring_8slot_x_offset_table   @ 0x52420
+ *   data_fd2_battle_summon_aura_ring_8slot_row_multiplier_table @ 0x52440
+ *
+ * Per-slot phase counters live in the upper 8 slots [7..14] of the shared
+ * 15-slot frame-counter array (asm indexes [EBX*4 + 0x53F5E], and
+ * 0x53F5E - 0x53F42 = 0x1C = 7 int32s), i.e. counter[i + 7].
+ *
+ * Team adjust: if caster's bTeam (runtime_char +6) == 0 (enemy), shift
+ * every slot's baseline X by 0x94.
+ *
+ * state_code dispatch:
+ *   3 (INIT)  : counter[i+7] = -2*i for i in 0..7 ; return 0x1F.
+ *   4 (BLIT N->S): i in 0..3 blit unrotated frame=counter[i+7] at slot i;
+ *                  i in 4..7 blit tail frame=counter[i+7]+0xF at slot
+ *                  j=(i+4)%8 ; return 0.
+ *   5 (BLIT S->N + ADVANCE, mirror of 4): i in 0..3 tail frame+0xF at
+ *                  slot j=(i+4)%8 ; i in 4..7 unrotated frame at slot i ;
+ *                  then advance every counter[i+7]: if ==9 set done; if
+ *                  ==5 play per-slot chime SFX ; return done.
+ *   other     : return 0.
+ *
+ * Blit gate per slot: 0 <= counter < 0xF. Blit position passed as the x
+ * argument is row_mul[k]*row_stride + x_off[k] + 0x50 + origin_y, with
+ * row_stride passed as the y argument and -1 as mode.
+ *
+ * cc __cdecl (caller cleans 5 stack args; callees blit/sfx are __cdecl).
+ * System=battle.
+ * ---------------------------------------------------------------- */
+int fd2_render_summon_aura_sprite_ring(int caster_unit_id, int sprite_handle,
+                                       int origin_y, int row_stride,
+                                       char state_code)
+{
+    int x_off[8];
+    int row_mul[8];
+    int i;
+    int j;
+    int done_flag;
+    uint8 *pCaster;
+
+    done_flag = 0;
+    memcpy(x_off, data_fd2_battle_summon_aura_ring_8slot_x_offset_table, 32);
+    memcpy(row_mul, data_fd2_battle_summon_aura_ring_8slot_row_multiplier_table,
+           32);
+
+    pCaster = (uint8 *)data_fd2_battle_runtime_char_array_ptr
+            + caster_unit_id * RUNTIME_CHAR_SIZE;
+    if (pCaster[6] == 0) {
+        for (i = 0; i < 8; i++) {
+            x_off[i] += 0x94;
+        }
+    }
+
+    if (state_code == 3) {
+        for (i = 0; i < 8; i++) {
+            data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[i + 7]
+                = -2 * i;
+        }
+        return 0x1f;
+    }
+
+    if (state_code == 4) {
+        for (i = 0; i < 4; i++) {
+            if (data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[
+                    i + 7] >= 0 &&
+                data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[
+                    i + 7] < 0xf) {
+                fd2_blit_indexed_sprite(
+                    (uint32)sprite_handle,
+                    (uint32)data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[
+                        i + 7],
+                    row_mul[i] * row_stride + x_off[i] + 0x50 + origin_y,
+                    row_stride, -1);
+            }
+        }
+        for (; i < 8; i++) {
+            if (data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[
+                    i + 7] >= 0 &&
+                data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[
+                    i + 7] < 0xf) {
+                j = (i + 4) % 8;
+                fd2_blit_indexed_sprite(
+                    (uint32)sprite_handle,
+                    (uint32)(data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[
+                        i + 7] + 0xf),
+                    row_mul[j] * row_stride + x_off[j] + 0x50 + origin_y,
+                    row_stride, -1);
+            }
+        }
+        return 0;
+    }
+
+    if (state_code == 5) {
+        for (i = 0; i < 4; i++) {
+            if (data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[
+                    i + 7] >= 0 &&
+                data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[
+                    i + 7] < 0xf) {
+                j = (i + 4) % 8;
+                fd2_blit_indexed_sprite(
+                    (uint32)sprite_handle,
+                    (uint32)(data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[
+                        i + 7] + 0xf),
+                    row_mul[j] * row_stride + x_off[j] + 0x50 + origin_y,
+                    row_stride, -1);
+            }
+        }
+        for (; i < 8; i++) {
+            if (data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[
+                    i + 7] >= 0 &&
+                data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[
+                    i + 7] < 0xf) {
+                fd2_blit_indexed_sprite(
+                    (uint32)sprite_handle,
+                    (uint32)data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[
+                        i + 7],
+                    row_mul[i] * row_stride + x_off[i] + 0x50 + origin_y,
+                    row_stride, -1);
+            }
+        }
+        for (i = 0; i < 8; i++) {
+            data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[i + 7]
+                += 1;
+            if (data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[
+                    i + 7] == 9) {
+                done_flag = 1;
+            }
+            if (data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[
+                    i + 7] == 5) {
+                fd2_play_sfx_with_handle(
+                    data_fd2_audio_summon_spell_sfx_bank_buf_ptr, 1, 1);
+            }
+        }
+        return done_flag;
+    }
+
+    return 0;
+}

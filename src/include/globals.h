@@ -295,6 +295,8 @@ extern int32  data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[15]
 extern uint8  data_fd2_battle_summon_spell_8slot_visibility_table[7];            /* 0x523E1 */
 extern uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7];              /* 0x523E8 */
 extern int32  data_fd2_battle_summon_spell_8slot_row_multiplier_table[7];        /* 0x52404 */
+extern int32  data_fd2_battle_summon_aura_ring_8slot_x_offset_table[8];          /* 0x52420 */
+extern int32  data_fd2_battle_summon_aura_ring_8slot_row_multiplier_table[8];    /* 0x52440 */
 extern int32  data_fd2_battle_summon_main_anim_12slot_frame_counter_array[12];    /* 0x53F81 */
 extern int32  data_fd2_battle_summon_main_anim_12slot_color_idx_array[12];       /* 0x53FB1 */
 extern uint8  data_fd2_battle_summon_main_anim_color_rotation_counter;           /* 0x53FE1 */

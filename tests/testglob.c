@@ -1016,6 +1016,12 @@ int32  data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[15] = {0};
 uint8  data_fd2_battle_summon_spell_8slot_visibility_table[7] = {0};
 uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7] = {0};
 int32  data_fd2_battle_summon_spell_8slot_row_multiplier_table[7] = {0};
+/* .rodata const tables for fd2_render_summon_aura_sprite_ring @ 0x262EF.
+ * Real in-binary values: x-offset @ 0x52420, row-multiplier @ 0x52440. */
+int32  data_fd2_battle_summon_aura_ring_8slot_x_offset_table[8] =
+    {-59, -39, 0, 39, 55, 39, 0, -39};
+int32  data_fd2_battle_summon_aura_ring_8slot_row_multiplier_table[8] =
+    {-10, -24, -30, -24, -10, 4, 10, 4};
 int32  data_fd2_battle_summon_main_anim_12slot_frame_counter_array[12] = {0};
 int32  data_fd2_battle_summon_main_anim_12slot_color_idx_array[12] = {0};
 uint8  data_fd2_battle_summon_main_anim_color_rotation_counter = 0;

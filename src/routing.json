@@ -2663,8 +2663,9 @@
     "name": "fd2_render_summon_aura_sprite_ring",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00026528": {
     "name": "fd2_tick_summon_spell_animation_state",
