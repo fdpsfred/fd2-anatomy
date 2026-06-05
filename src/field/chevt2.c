@@ -949,3 +949,40 @@ void fd2_chapter_event_handler_45__ch28_dyn_turn_event(uint32 stepping_char_id)
         *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x11) = 1;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_46__ch28_dialog_with_state @ 0x35B05
+ *   (1 caller: dispatch table @ 0x51B91, entry @ 0x51CA9)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x46. Triggered
+ * in chapter 28 at turn-event slot 2 (turn=0xFF sentinel marker). Category:
+ * dialog with state. Dispatch-table signature is 1-arg cdecl
+ * (void fn(uint event_arg)); this handler does not read the arg.
+ *
+ * Effect: ch28 turn-FF marker scene — disarm AI control flag 0 (combat_aux
+ * block[0xD] low nibble = 0) for the NPC range 0x29..0x2D (5 chars), show dialog
+ * page 5, play a three-portrait white-flash cutscene chain (chapter ids 3, 4, 5
+ * at tiles (8,7) / (4,7) / (0,7)), then show dialog page 6.
+ *
+ * In the binary the 3rd cutscene call and the page-6 dialog share a borrowed
+ * tail: after pushing its own cinematic args (0, 7, 5) this handler does
+ * JMP 0x359FF, falling through into the
+ * CALL fd2_cinematic_chapter_portrait_dump_with_white_flash; ADD ESP,0xC;
+ * <page-6 dialog>; cleanup; RET tail (alt_37) of
+ * fd2_chapter_event_handler_42__ch28_dialog_with_state @ 0x359C8. That
+ * tail-merge is a binary size optimisation; the functionally-exact source is the
+ * straight-line call sequence below.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_46__ch28_dialog_with_state(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x29, 0x2D, 0);
+    fd2_display_dialog_scene(current_chapter_text, 5, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_cinematic_chapter_portrait_dump_with_white_flash(8, 7, 3);
+    fd2_cinematic_chapter_portrait_dump_with_white_flash(4, 7, 4);
+    fd2_cinematic_chapter_portrait_dump_with_white_flash(0, 7, 5);
+    fd2_display_dialog_scene(current_chapter_text, 6, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+}

@@ -594,6 +594,272 @@ static void test_h45_turn_counter_low_byte_only(void)
     ce45_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_46__ch28_dialog_with_state @ 0x35B05
+ *
+ * Straight-line ch28 turn-FF marker scene. Functionally-exact body:
+ *     fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x29, 0x2D, 0);  disarm
+ *     fd2_display_dialog_scene(current_chapter_text, 5, 0xA0000, ...);     page 5
+ *     fd2_cinematic_chapter_portrait_dump_with_white_flash(8, 7, 3);
+ *     fd2_cinematic_chapter_portrait_dump_with_white_flash(4, 7, 4);
+ *     fd2_cinematic_chapter_portrait_dump_with_white_flash(0, 7, 5);
+ *     fd2_display_dialog_scene(current_chapter_text, 6, 0xA0000, ...);     page 6
+ *
+ * The dialog VM opcode handling, the cinematic helper's own white-flash contract
+ * and the AI-flag writer's range semantics are each pinned elsewhere (the dialog
+ * suite, the chevt23 white-flash cases, the chevt21 handler_30 range cases). What
+ * is risk-bearing HERE is this handler's own argument routing across the REAL
+ * AI-flag writer + REAL dialog VM + REAL cinematic helper + REAL portrait loader
+ * (real FDICON.B24 + FDFIELD.DAT):
+ *   (a) AI DISARM: the low nibble of combat_aux_block[0xD] (abs offset 0x34) is
+ *       written 0 for the inclusive range 0x29..0x2D (5 chars) with the high
+ *       nibble preserved; the just-outside chars 0x28 and 0x2E stay untouched,
+ *   (b) BOTH dialog pages render: pages 5 and 6 point at a shared 1-glyph body,
+ *       so g_dlg_glyph_calls == 2 proves both pages ran,
+ *   (c) THREE distinct cutscenes run, with chapter ids 3, 4, 5: the portrait
+ *       loader increments party_member_count once per matching tile-event record
+ *       and never resets it, so one record each for races 3/4/5 makes the final
+ *       count == 3 (a dropped or merged cutscene would make it < 3; an id other
+ *       than 3/4/5 would not match its record),
+ *   (d) the THIRD cutscene (the one hosted in the borrowed alt_37 tail) actually
+ *       runs and pans LAST to its literal tile (0, 7): the window origin (started
+ *       away on both axes) lands exactly there,
+ *   (e) exactly three white-flash delay triples (300/200/400) fire -> three
+ *       cutscenes (9 logged ticks in the repeating 300,200,400 order),
+ *   (f) the dispatch arg is ignored (passed nonzero).
+ * The dialog glyph pixels and the cutscene pan/flash composites are pure display
+ * side effects (deferred to Phase 9); they execute for real here only as a
+ * byproduct and are not asserted. A single 0x50-entry runtime_char array backs
+ * both the AI-flag range (chars 0x29..0x2D) and the loader's count-indexed spawn
+ * slots (0,1,2) — the two regions do not overlap.
+ * ================================================================ */
+
+/* offset 0x34 of char `idx` (combat_aux_block[0xD]), read as a raw byte */
+#define CE46_AI_OFF      0x34
+
+static runtime_char g_ce46_rc[0x50];           /* must cover index 0x2D */
+static uint8       *g_ce46_tileevent;
+#define CE46_WS_SPAN (191u * 0x1c8u + 0x138u)
+static uint8 g_ce46_ws[CE46_WS_SPAN];
+static uint8 g_ce46_atlas[6 + 64 * 4 + 4];
+static uint8 g_ce46_palette[256 * 3];
+static int16 g_ce46_prog[20];
+
+static uint8 ce46_ai(int idx)
+{
+    return ((uint8 *)&g_ce46_rc[idx])[CE46_AI_OFF];
+}
+
+/* Stand up the full real-cinematic + real-dialog + AI-flag env (mirrors the
+ * proven handler_44 env). `count`/`races` drive the three cutscenes' chapter-id
+ * observation; the window starts at (start_ox, start_oy) so the final pan target
+ * is observable on the origin. Every char's combat_aux_block[0xD] is seeded 0xA5
+ * (non-zero high nibble, non-zero low nibble) so the disarm-to-0 write and the
+ * out-of-range preservation are both observable. */
+static void ce46_setup(int count, const uint8 *races,
+                       uint32 start_ox, uint32 start_oy)
+{
+    int i;
+    uint32 *atlas_tbl;
+
+    /* --- runtime_char array: AI nibbles seeded 0xA5 across the whole array --- */
+    memset(g_ce46_rc, 0, sizeof(g_ce46_rc));
+    for (i = 0; i < 0x50; i++) {
+        ((uint8 *)&g_ce46_rc[i])[CE46_AI_OFF] = 0xA5;
+    }
+    data_fd2_battle_runtime_char_array_ptr = g_ce46_rc;
+
+    /* --- portrait loader env --- */
+    g_ce46_tileevent =
+        (uint8 *)malloc((size_t)0x98 + (size_t)count * 0x1a + 0x20);
+    memset(g_ce46_tileevent, 0, (size_t)0x98 + (size_t)count * 0x1a + 0x20);
+    for (i = 0; i < count; i++) {
+        g_ce46_tileevent[i * 0x1a + 0x98] = races[i];
+    }
+    data_fd2_tile_event_data_table_ptr = (uint32)g_ce46_tileevent;
+    data_fd2_resource_portrait_cache_alloc_offset = (uint32)count;
+    chapter_portrait_load_buffer = 0;            /* loaded fresh by the loader  */
+    data_fd2_chapter_init_phase_flag = 1;        /* spawn = field value verbatim */
+    data_fd2_battle_party_member_count = 0;
+    data_fd2_chapter_current_chapter_id = 4;     /* re-read idx = 4*3+2 = 0xE    */
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_resource_portrait_cache_count = 0;
+    data_fd2_resource_portrait_cache_buffer_used = 0;
+
+    /* --- render env for pan composites + final composite --- */
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_ce46_ws - 0x8088;
+    data_fd2_battle_view_window_max_x = 0x100;
+    data_fd2_battle_view_window_max_y = 0x100;
+    data_fd2_battle_view_window_origin_x = start_ox;
+    data_fd2_battle_view_window_origin_y = start_oy;
+    data_fd2_battle_anim_phase = 1;
+    atlas_tbl = (uint32 *)(g_ce46_atlas + 6);
+    for (i = 0; i < 64; i++) {
+        atlas_tbl[i] = (uint32)i;
+    }
+    data_fd2_runtime_battle_state_ptr = (uint32)g_ce46_atlas;
+    data_fd2_animation_palette_cycle_last_tick = (uint16)BIOS_TICK_WORD;
+
+    /* --- 768-byte palette for the white-flash palette writes --- */
+    for (i = 0; i < 256 * 3; i++) {
+        g_ce46_palette[i] = 0x20;
+    }
+    data_fd2_vga_palette_data_ptr = (uint32)g_ce46_palette;
+
+    /* --- dialog program + deterministic dialog VM env --- */
+    memset(g_ce46_prog, 0, sizeof(g_ce46_prog));
+    g_ce46_prog[5]  = 0x18;          /* page-5 body byte offset (= int16 idx 12) */
+    g_ce46_prog[6]  = 0x18;          /* page-6 body byte offset (same body)      */
+    g_ce46_prog[12] = 0x41;          /* one TEXT glyph */
+    g_ce46_prog[13] = -1;            /* END */
+    current_chapter_text = (uint32)g_ce46_prog;
+
+    /* empty BIOS keyboard buffer + audio gated so the per-glyph blink/typewriter
+     * step is host-safe; no active portrait, so END does not run the
+     * portrait-close path. */
+    *(volatile uint16 *)0x41AuL = 0x20;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    audiofix_enable_sfx();
+    data_fd2_audio_fdother_sfx_bank_buf_ptr = audiofix_make_bank(0x1F);
+
+    /* --- delay-tick log + composite counter + glyph counter --- */
+    g_delay375b2_log_on = 1;
+    g_delay375b2_log_count = 0;
+    g_composite_call_count = 0;
+    g_dlg_glyph_calls = 0;
+}
+
+static void ce46_teardown(void)
+{
+    audiofix_disable_sfx();
+    free(g_ce46_tileevent);
+    g_ce46_tileevent = 0;
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_init_phase_flag = 0;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_chapter_current_chapter_id = 1;
+    g_delay375b2_log_on = 0;
+    g_delay375b2_log_count = 0;
+    remove("FD2.TMP");        /* generated swap file (not a staged game file) */
+}
+
+/* ----------------------------------------------------------------
+ * Full sequence: the handler disarms the AI flag for chars 0x29..0x2D, shows
+ * dialog page 5, runs three portrait cutscenes (chapter ids 3, 4, 5 at tiles
+ * (8,7)/(4,7)/(0,7)) and shows dialog page 6. The tile-event table carries one
+ * record each for races 3, 4 and 5 so each cutscene matches exactly one record
+ * and the running party count reaches 3. The window starts away from the final
+ * tile (0, 7) on both axes so the last pan is observable. The dispatch arg is
+ * passed nonzero to prove it is ignored.
+ * ---------------------------------------------------------------- */
+static void test_h46_disarm_dialog_three_cutscenes_dialog(void)
+{
+    static const uint8 races[3] = { 3, 4, 5 };   /* one per cutscene chapter id */
+    int i;
+
+    ce46_setup(3, races, 0x40, 0x40);
+
+    fd2_chapter_event_handler_46__ch28_dialog_with_state(0x77);
+
+    /* (a) AI disarm: chars 0x29..0x2D got low nibble 0 (0xA5 -> 0xA0) */
+    for (i = 0x29; i <= 0x2D; i++) {
+        ASSERT_EQ((long)ce46_ai(i), 0xA0);
+    }
+    /* (a) just-outside chars stay 0xA5 (range is inclusive 0x29..0x2D only) */
+    ASSERT_EQ((long)ce46_ai(0x28), 0xA5);
+    ASSERT_EQ((long)ce46_ai(0x2E), 0xA5);
+    /* (b) both dialog pages (5 and 6) rendered their 1-glyph body */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 2);
+    /* (c) three cutscenes ran with distinct ids 3,4,5 -> count accumulated to 3 */
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 3);
+    /* (d) the final (3rd) cutscene panned LAST to the literal tile (0, 7) */
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_x, 0);
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_y, 7);
+    /* (e) three white-flash delay triples fired (9 ticks, repeating 300/200/400) */
+    ASSERT_EQ((long)g_delay375b2_log_count, 9);
+    for (i = 0; i < 3; i++) {
+        ASSERT_EQ((long)g_delay375b2_log[i * 3 + 0], 300);
+        ASSERT_EQ((long)g_delay375b2_log[i * 3 + 1], 200);
+        ASSERT_EQ((long)g_delay375b2_log[i * 3 + 2], 400);
+    }
+
+    ce46_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * The three cutscene chapter ids are the literals 3, 4, 5 — not the pan coords
+ * and not a single shared id. Seed the tile-event table with one record each for
+ * races 3, 4, 5 plus decoy records carrying the pan coords (8, 7, 4, 0) as their
+ * race. The count must reach EXACTLY 3: only the race-3/4/5 records may match
+ * (one per cutscene); the coord decoys (and the duplicate-coord 4) must not add
+ * spurious matches. A merged/dropped cutscene would make count < 3; a cutscene
+ * that forwarded a coord as its id would over-count. This pins all three ids
+ * distinct from each other and from the (x, y) arguments.
+ * ---------------------------------------------------------------- */
+static void test_h46_three_chapter_ids_are_3_4_5_not_coords(void)
+{
+    /* races 3,4,5 (the ids, one match each) + coord decoys 8,7,0 that must not
+     * match any forwarded id (4 already present as an id record above) */
+    static const uint8 races[6] = { 3, 4, 5, 8, 7, 0 };
+
+    ce46_setup(6, races, 0x40, 0x40);
+
+    fd2_chapter_event_handler_46__ch28_dialog_with_state(0);
+
+    /* exactly the race-3, race-4 and race-5 records matched (one per cutscene);
+     * the coord decoys 8/7/0 matched nothing, so count is exactly 3 */
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 3);
+    /* both dialogs still ran and the final pan still landed on (0, 7) */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 2);
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_x, 0);
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_y, 7);
+
+    ce46_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * The THIRD cutscene (hosted in the borrowed alt_37 tail of handler_42) actually
+ * executes and pans to its own literal target (0, 7), distinct from the first
+ * two cutscenes' tiles. Start the window on the SECOND cutscene's tile (4, 7):
+ * if the borrowed-tail 3rd call were dropped the origin would stay at (4, 7);
+ * landing on (0, 7) proves the 3rd cutscene ran and forwarded its own (0, 7)
+ * args. The full triple of cutscenes still logs 9 delay ticks. The race never
+ * matches any id so the loader stays a host-safe no-op, keeping the focus on the
+ * pan target of the tail-hosted call.
+ * ---------------------------------------------------------------- */
+static void test_h46_third_cutscene_runs_and_pans_to_zero_seven(void)
+{
+    static const uint8 races[1] = { 0x7F };      /* never equals id 3, 4 or 5 */
+
+    ce46_setup(1, races, 4, 7);                   /* start ON the 2nd tile (4,7) */
+
+    fd2_chapter_event_handler_46__ch28_dialog_with_state(0x33);
+
+    /* origin moved off (4, 7) onto the 3rd cutscene's literal target (0, 7):
+     * the tail-hosted 3rd call ran and forwarded its own coords */
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_x, 0);
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_y, 7);
+    /* all three cutscenes fired -> 9 delay ticks (3 x 300/200/400) */
+    ASSERT_EQ((long)g_delay375b2_log_count, 9);
+    /* no record matched any id -> loader scan was a no-op every time */
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 0);
+    /* both dialog pages still rendered */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 2);
+
+    ce46_teardown();
+}
+
 void run_field_chevt24_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -609,5 +875,8 @@ void run_field_chevt24_tests(void)
     RUN_TEST(test_h45_gated_off_when_own_slot_consumed);
     RUN_TEST(test_h45_gated_off_when_prereq_not_met);
     RUN_TEST(test_h45_turn_counter_low_byte_only);
+    RUN_TEST(test_h46_disarm_dialog_three_cutscenes_dialog);
+    RUN_TEST(test_h46_three_chapter_ids_are_3_4_5_not_coords);
+    RUN_TEST(test_h46_third_cutscene_runs_and_pans_to_zero_seven);
     printf("\n");
 }
