@@ -26,11 +26,6 @@ extern int    g_figani_sfx_bank_nonnull;
 extern int    g_load_figani_sfx_bank_calls;
 extern uint32 g_load_figani_sfx_bank_last_arg;
 
-/* fd2_play_char_intro_zoom_anim stub (testglob.c): records call + args. */
-extern int    g_zoom_anim_calls;
-extern uint32 g_zoom_anim_last_char;
-extern uint32 g_zoom_anim_last_mode;
-
 /* fd2_rle_blit_sprite spy full per-call log (testglob.c). The BG backdrop blit
  * fd2_rle_blit_sprite(spotlight, 0, 0x32, dst, 0x140, -1) is the unique call
  * with dst_y == 0x32; the mini-panel painter (run earlier via the real
@@ -42,6 +37,20 @@ extern int    g_rle_blit_log_on;
 extern int32  g_rle_blit_log_y[64];
 extern int32  g_rle_blit_log_x[64];
 extern uint8  g_rle_blit_log_first_byte[64];
+extern uint32 g_rle_blit_log_dst[64];
+extern int32  g_rle_blit_log_stride[64];
+
+/* fd2_blit_indexed_sprite spy (testglob.c): keeps the call count and the LAST
+ * call's frame_idx / x (= destination pointer) / y (= stride). */
+extern int    g_blit_indexed_sprite_calls;
+extern uint32 g_blit_indexed_sprite_last_frame;
+extern int    g_blit_indexed_sprite_last_x;
+extern int    g_blit_indexed_sprite_last_y;
+
+/* 768-byte VGA palette source so the REAL fd2_set_vga_palette_range invoked
+ * inside the (now real) fd2_play_char_intro_zoom_anim has a valid table to
+ * read; fd2_play_palette_fade_* stay stubbed empty in testglob.c. */
+static uint8 g_cine_pal[768];
 
 /* ----------------------------------------------------------------
  * fd2_play_figani_char_intro_animation @ 0x28784
@@ -146,9 +155,10 @@ static void setup_figani_intro(uint8 portrait_id, uint8 team)
     g_load_figani_sfx_bank_calls = 0;
     g_load_figani_sfx_bank_last_arg = 0;
 
-    g_zoom_anim_calls = 0;
-    g_zoom_anim_last_char = 0;
-    g_zoom_anim_last_mode = 0;
+    /* the (now real) fd2_play_char_intro_zoom_anim run from this intro calls the
+     * real fd2_set_vga_palette_range, which reads this 768-byte table */
+    memset(g_cine_pal, 0, sizeof(g_cine_pal));
+    data_fd2_vga_palette_data_ptr = (uint32)g_cine_pal;
 
     g_play_sfx_with_handle_calls = 0;
     g_sfx_id_count = 0;
@@ -219,10 +229,9 @@ static void run_intro_case(uint8 portrait_id, uint8 team)
     /* SFX bank was loaded from the figani stream and forwarded */
     ASSERT_EQ(g_load_figani_sfx_bank_calls, 1);
 
-    /* zoom-anim hand-off: char idx 0, mode flag 1 (per the call site) */
-    ASSERT_EQ(g_zoom_anim_calls, 1);
-    ASSERT_EQ((long)g_zoom_anim_last_char, 0L);
-    ASSERT_EQ((long)g_zoom_anim_last_mode, 1L);
+    /* The zoom-anim hand-off (char idx 0, mode flag 1) now runs the REAL
+     * fd2_play_char_intro_zoom_anim; reaching the assertions below without a
+     * fault means it composited over the staged buffers and returned. */
 
     /* Find the unique BG backdrop blit in the rle log. The backdrop is the only
      * call passing literal (dst_x=0, dst_y=0x32); pose-sprite blits carry
@@ -351,9 +360,9 @@ static void setup_scripted_cinematic(uint8 att_portrait, uint8 def_portrait,
     data_fd2_audio_figani_sfx_bank_buf_ptr = 0;
     data_fd2_audio_figani_sfx_bank_defender_buf_ptr = 0;
 
-    g_zoom_anim_calls = 0;
-    g_zoom_anim_last_char = 0;
-    g_zoom_anim_last_mode = 0;
+    /* real fd2_play_char_intro_zoom_anim -> real fd2_set_vga_palette_range read */
+    memset(g_cine_pal, 0, sizeof(g_cine_pal));
+    data_fd2_vga_palette_data_ptr = (uint32)g_cine_pal;
 
     g_exec_hit_calls = 0;
     g_exec_hit_return = 1;
@@ -411,10 +420,10 @@ static void run_scripted_case(uint8 att_portrait, uint8 def_portrait,
     ASSERT_EQ((long)g_exec_hit_sfx[0], 0L);
     ASSERT_EQ((long)g_exec_hit_sfx[1], 0L);
 
-    /* zoom-anim handed off once: char idx 0 (attacker), mode = split flag */
-    ASSERT_EQ(g_zoom_anim_calls, 1);
-    ASSERT_EQ((long)g_zoom_anim_last_char, 0L);
-    ASSERT_EQ((long)g_zoom_anim_last_mode, (long)exp_flag);
+    /* These scripted portraits are single-background (FIGANI[+1] == 0), so the
+     * real fd2_play_char_intro_zoom_anim ran for real with mode_flag == 0 (its
+     * char-layer arm) and returned, reaching the assertions here. */
+    ASSERT_EQ((long)exp_flag, 0L);
 
     /* the scripted flag is latched to 1 by the guided-counter block */
     ASSERT_EQ((long)data_fd2_battle_scripted_cinematic_mode_or_terrain_idx, 1L);
@@ -569,9 +578,9 @@ static void setup_override_terrain(uint8 chapter_idx)
     data_fd2_audio_figani_sfx_bank_buf_ptr = 0;
     data_fd2_audio_figani_sfx_bank_defender_buf_ptr = 0;
 
-    g_zoom_anim_calls = 0;
-    g_zoom_anim_last_char = 0;
-    g_zoom_anim_last_mode = 0;
+    /* real fd2_play_char_intro_zoom_anim -> real fd2_set_vga_palette_range read */
+    memset(g_cine_pal, 0, sizeof(g_cine_pal));
+    data_fd2_vga_palette_data_ptr = (uint32)g_cine_pal;
 
     g_exec_hit_calls = 0;
     g_exec_hit_return = 1;
@@ -626,6 +635,168 @@ static void test_nonscripted_immune_override_zero_banner(void)
     ASSERT_EQ(g_exec_hit_banner_first[0], exp_first0);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_play_char_intro_zoom_anim @ 0x29164  (direct drive)
+ *
+ * Drives the real zoom-in/fade-in animation with controlled buffers and
+ * asserts its deterministic control flow through the (testglob) render spies:
+ *
+ *   - team != 0 -> TOP-HALF: a 9-frame slide-in. The background RLE blit is
+ *     issued at dst = workspace + frame*10 (frame 8..0) with stride 0x280, plus
+ *     a final settle RLE blit at dst = bg_sprite with stride 0x140 -> 10 RLE
+ *     blits total. The char-layer indexed blit fires once per frame only when
+ *     mode_flag == 0.
+ *   - team == 0 -> BOTTOM-HALF: no per-frame RLE; one pre-loop settle RLE blit
+ *     fires only when mode_flag == 0. The overlay indexed blit slides at
+ *     (workspace+0x140) - iter*10; the char-layer indexed blit fires at the
+ *     fixed origin workspace+0x140 only when mode_flag == 0.
+ *
+ * fd2_rle_blit_sprite / fd2_blit_indexed_sprite are spied; fd2_blit_rectangle
+ * (real memmove) and fd2_set_vga_palette_range (real DAC writes off a seeded
+ * 768-byte palette) run for real but are not host-observable. Buffer sizes
+ * mirror the game's malloc(0x1F400) workspace and malloc(64000) framebuffer so
+ * the per-row strided memmoves stay in bounds. */
+
+/* workspace_a (0x280-stride slide base): top-half writes up to +0x1F280; the
+ * bottom-half base is workspace+0x140 so it writes up to +0x1F3C0. */
+static uint8 g_zoom_ws[0x1F400];
+/* bg_sprite = clear source + settle dst (0x140-stride): read 0xC8 rows of
+ * 0x140 bytes -> up to +0xFA00. */
+static uint8 g_zoom_bg[0xFA00 + 16];
+/* RLE background stream — the spy reads only its first payload byte. */
+static uint8 g_zoom_weap[16];
+/* indexed-sprite atlases — the spy ignores the pointer entirely. */
+static uint8 g_zoom_spr[16];
+
+#define ZOOM_WS    ((uint32)g_zoom_ws)
+#define ZOOM_BG    ((uint32)g_zoom_bg)
+#define ZOOM_WEAP  ((uint32)g_zoom_weap)
+#define ZOOM_SPR1  ((uint32)g_zoom_spr)
+#define ZOOM_SPR2  ((uint32)g_zoom_spr)
+
+/* Seed runtime char `idx` team and reset the render spies + palette source. */
+static void setup_zoom(uint32 idx, uint8 team)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[idx].team = team;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+
+    memset(g_cine_pal, 0, sizeof(g_cine_pal));
+    data_fd2_vga_palette_data_ptr = (uint32)g_cine_pal;
+
+    g_zoom_weap[0] = 0x5A;
+
+    g_rle_blit_calls = 0;
+    g_rle_blit_log_on = 1;
+    g_blit_indexed_sprite_calls = 0;
+    g_blit_indexed_sprite_last_x = 0;
+}
+
+/* Count the RLE blits in the log matching a given dst_y (the zoom slide uses
+ * y == 0x9D for every background/settle blit). */
+static int zoom_rle_count_y(int32 want_y)
+{
+    int n = g_rle_blit_calls < 64 ? g_rle_blit_calls : 64;
+    int c = 0;
+    int i;
+    for (i = 0; i < n; i++) {
+        if (g_rle_blit_log_y[i] == want_y) {
+            c++;
+        }
+    }
+    return c;
+}
+
+/*
+ * Top-half (team=2 player), mode_flag=0: 9-frame slide-in. Asserts the 10 RLE
+ * blits (9 sliding background + 1 settle), the sliding dst sequence
+ * workspace+80 .. workspace+0 then settle at bg_sprite (stride 0x140), and that
+ * the char-layer indexed blit fires (mode==0) -> 18 indexed blits.
+ */
+static void test_zoom_tophalf_mode0(void)
+{
+    int i;
+
+    setup_zoom(0, 2);
+    fd2_play_char_intro_zoom_anim(0, 0, ZOOM_SPR1, ZOOM_SPR2,
+                                  ZOOM_WS, ZOOM_BG, ZOOM_WEAP);
+
+    /* 9 sliding background blits + 1 final settle, all at y=0x9D, x=0xA4 */
+    ASSERT_EQ(g_rle_blit_calls, 10);
+    ASSERT_EQ(zoom_rle_count_y(0x9D), 10);
+
+    /* sliding background dst = workspace + frame*10 for frame 8..0, stride 0x280 */
+    for (i = 0; i < 9; i++) {
+        int frame = 8 - i;
+        ASSERT_EQ((long)g_rle_blit_log_dst[i], (long)(ZOOM_WS + frame * 10));
+        ASSERT_EQ((long)g_rle_blit_log_x[i], 0xA4L);
+        ASSERT_EQ((long)g_rle_blit_log_stride[i], 0x280L);
+    }
+    /* final settle: dst = bg_sprite, stride 0x140 */
+    ASSERT_EQ((long)g_rle_blit_log_dst[9], (long)ZOOM_BG);
+    ASSERT_EQ((long)g_rle_blit_log_stride[9], 0x140L);
+
+    /* mode==0 -> per-frame char-layer blit fires: 9 char + 9 overlay = 18 */
+    ASSERT_EQ(g_blit_indexed_sprite_calls, 18);
+}
+
+/*
+ * Top-half, mode_flag!=0: the static char-layer indexed blit is suppressed, so
+ * only the 9 overlay blits fire; the 10 RLE blits are unchanged. Pins the
+ * mode_flag gate on the top-half arm.
+ */
+static void test_zoom_tophalf_mode1(void)
+{
+    setup_zoom(0, 1);
+    fd2_play_char_intro_zoom_anim(0, 1, ZOOM_SPR1, ZOOM_SPR2,
+                                  ZOOM_WS, ZOOM_BG, ZOOM_WEAP);
+
+    ASSERT_EQ(g_rle_blit_calls, 10);
+    ASSERT_EQ(zoom_rle_count_y(0x9D), 10);
+    /* only the overlay blit per frame -> 9 indexed blits */
+    ASSERT_EQ(g_blit_indexed_sprite_calls, 9);
+}
+
+/*
+ * Bottom-half (team=0 enemy), mode_flag=0: no per-frame RLE; exactly one
+ * pre-loop settle RLE blit (gated by mode==0) at dst=bg_sprite. The overlay +
+ * char-layer indexed blits both fire (18); the LAST indexed blit (final
+ * iteration char layer) lands at the fixed origin workspace+0x140.
+ */
+static void test_zoom_bottomhalf_mode0(void)
+{
+    setup_zoom(3, 0);
+    fd2_play_char_intro_zoom_anim(3, 0, ZOOM_SPR1, ZOOM_SPR2,
+                                  ZOOM_WS, ZOOM_BG, ZOOM_WEAP);
+
+    /* one settle blit only (loop issues no RLE), at bg_sprite stride 0x140 */
+    ASSERT_EQ(g_rle_blit_calls, 1);
+    ASSERT_EQ((long)g_rle_blit_log_dst[0], (long)ZOOM_BG);
+    ASSERT_EQ((long)g_rle_blit_log_y[0], 0x9DL);
+    ASSERT_EQ((long)g_rle_blit_log_stride[0], 0x140L);
+
+    /* mode==0 -> 9 overlay + 9 char-layer = 18; last is the char layer at base */
+    ASSERT_EQ(g_blit_indexed_sprite_calls, 18);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_x, (long)(ZOOM_WS + 0x140));
+}
+
+/*
+ * Bottom-half, mode_flag!=0: the pre-loop settle RLE is gated off (0 RLE) and
+ * the char-layer blit is suppressed -> only 9 overlay blits. The last overlay
+ * (iter 0) lands at base - 0 = workspace+0x140.
+ */
+static void test_zoom_bottomhalf_mode1(void)
+{
+    setup_zoom(3, 0);
+    /* keep team==0 but pass a nonzero mode flag (split-screen pre-composited) */
+    fd2_play_char_intro_zoom_anim(3, 7, ZOOM_SPR1, ZOOM_SPR2,
+                                  ZOOM_WS, ZOOM_BG, ZOOM_WEAP);
+
+    ASSERT_EQ(g_rle_blit_calls, 0);
+    ASSERT_EQ(g_blit_indexed_sprite_calls, 9);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_x, (long)(ZOOM_WS + 0x140));
+}
+
 void run_anim_anicine_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -637,6 +808,10 @@ void run_anim_anicine_tests(void)
     RUN_TEST(test_scripted_banner_not_forced);
     RUN_TEST(test_scripted_counter_ignores_hit_result);
     RUN_TEST(test_nonscripted_immune_override_zero_banner);
+    RUN_TEST(test_zoom_tophalf_mode0);
+    RUN_TEST(test_zoom_tophalf_mode1);
+    RUN_TEST(test_zoom_bottomhalf_mode0);
+    RUN_TEST(test_zoom_bottomhalf_mode1);
     printf("\n");
     (void)_prev_fails;
 }

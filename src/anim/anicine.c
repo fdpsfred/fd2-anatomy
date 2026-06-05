@@ -473,3 +473,97 @@ void fd2_play_full_combat_cinematic(uint32 a, uint32 d)
         fd2_play_palette_fade_in();
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_play_char_intro_zoom_anim @ 0x29164  (6 callers)
+ *
+ * 9-frame zoom-in / fade-in introduction animation for a character
+ * displayed in a special-attack cinematic backdrop. Each frame combines a
+ * 10-px-per-frame slide with a palette-darkening fade (intensity steps of 6
+ * from 0x36 down to 0). Drives the "character sweeps onto the screen" intro
+ * before the per-hit FIGANI frames play.
+ *
+ * Branch on data_fd2_battle_runtime_char_array_ptr[char_unit_id].team
+ * (0 = enemy, 1 = NPC ally, 2 = player):
+ *
+ *   team != 0 (ally / player) -> TOP-HALF display, slide-in from the right:
+ *     for frame in 8..0 descending:
+ *       clear workspace from bg_sprite, (mode_flag==0) lay the static char
+ *       sprite (char_sprite2), RLE-blit the background (weapon_sprite) and the
+ *       overlay (char_sprite) at workspace + frame*10, push to VGA, ramp the
+ *       palette by frame*6.
+ *     final settle: RLE-blit the background into bg_sprite at stride 0x140.
+ *
+ *   team == 0 (enemy) -> BOTTOM-HALF display (workspace + 0x140 origin),
+ *   slide direction reversed:
+ *     (mode_flag==0) settle the background into bg_sprite first.
+ *     for iter in 8..0 descending:
+ *       clear the bottom-half region from bg_sprite, RLE-blit the overlay
+ *       (char_sprite) at base - iter*10, (mode_flag==0) lay the static char
+ *       sprite (char_sprite2) at base, push to VGA, ramp the palette by iter*6.
+ *
+ * mode_flag == 0 enables the static character-sprite layer; nonzero skips it
+ * (used when the caller pre-composited the character into the backdrop, e.g.
+ * for split-screen 1-on-1 cinematics).
+ *
+ * Positional args mirror the two callers in this file:
+ *   char_unit_id  unit index -> runtime_char.team selects top/bottom half
+ *   mode_flag     0 = draw static char layer, nonzero = skip it
+ *   char_sprite   sliding overlay sprite (blitted every frame at the offset)
+ *   char_sprite2  static character sprite (blitted at the fixed origin)
+ *   workspace     composite work buffer (0x280-stride slide base)
+ *   bg_sprite     clear source + final-settle RLE destination (0x140 stride)
+ *   weapon_sprite RLE background sprite stream
+ *
+ * Globals touched: data_fd2_battle_runtime_char_array_ptr [0x53A45] (read team).
+ *
+ * Callers: fd2_execute_special_attack_skill, fd2_execute_summon_spell_cast,
+ *   fd2_play_figani_char_intro_animation, fd2_play_final_chapter_30_ending,
+ *   fd2_play_full_combat_cinematic, fd2_play_spell_cast_sequence.
+ * System = battle (cinematic-intro zoom + palette-fade reveal).
+ * ---------------------------------------------------------------- */
+void fd2_play_char_intro_zoom_anim(uint32 char_unit_id, uint32 mode_flag,
+                                   uint32 char_sprite, uint32 char_sprite2,
+                                   uint32 workspace, uint32 bg_sprite,
+                                   uint32 weapon_sprite)
+{
+    int    frame;
+    uint32 blit_dst;
+    uint32 base;
+
+    if (data_fd2_battle_runtime_char_array_ptr[char_unit_id].team != 0) {
+        for (frame = 8; frame >= 0; frame--) {
+            fd2_blit_rectangle(workspace, 0x280, bg_sprite, 0x140, 0x140, 0xC8);
+            if (mode_flag == 0) {
+                fd2_blit_indexed_sprite(char_sprite2, 0, (int)workspace, 0x280,
+                                        -1);
+            }
+            blit_dst = workspace + (uint32)frame * 10;
+            fd2_rle_blit_sprite(weapon_sprite, 0xA4, 0x9D, blit_dst, 0x280,
+                                0xFFFFFFFF);
+            fd2_blit_indexed_sprite(char_sprite, 0, (int)blit_dst, 0x280, -1);
+            fd2_blit_rectangle(0xA0000, 0x140, workspace, 0x280, 0x140, 0xC8);
+            fd2_set_vga_palette_range(0, 0xFF, (uint32)frame * 6);
+        }
+        fd2_rle_blit_sprite(weapon_sprite, 0xA4, 0x9D, bg_sprite, 0x140,
+                            0xFFFFFFFF);
+        return;
+    }
+
+    if (mode_flag == 0) {
+        fd2_rle_blit_sprite(weapon_sprite, 0xA4, 0x9D, bg_sprite, 0x140,
+                            0xFFFFFFFF);
+    }
+    for (frame = 8; frame >= 0; frame--) {
+        base = workspace + 0x140;
+        fd2_blit_rectangle(base, 0x280, bg_sprite, 0x140, 0x140, 0xC8);
+        fd2_blit_indexed_sprite(char_sprite, 0, (int)(base - (uint32)frame * 10),
+                                0x280, -1);
+        if (mode_flag == 0) {
+            fd2_blit_indexed_sprite(char_sprite2, 0, (int)base, 0x280, -1);
+        }
+        fd2_blit_rectangle(0xA0000, 0x140, workspace + 0x140, 0x280, 0x140,
+                           0xC8);
+        fd2_set_vga_palette_range(0, 0xFF, (uint32)frame * 6);
+    }
+}

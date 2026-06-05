@@ -1043,20 +1043,9 @@ uint32 fd2_load_figani_sfx_bank(uint32 figani_data)
     g_load_figani_sfx_bank_last_ret = h;
     return h;
 }
-int    g_zoom_anim_calls = 0;
-uint32 g_zoom_anim_last_char = 0;
-uint32 g_zoom_anim_last_mode = 0;
-void fd2_play_char_intro_zoom_anim(uint32 char_unit_id, uint32 mode_flag,
-                                   uint32 char_sprite, uint32 char_sprite2,
-                                   uint32 workspace, uint32 bg_sprite,
-                                   uint32 weapon_sprite)
-{
-    g_zoom_anim_calls++;
-    g_zoom_anim_last_char = char_unit_id;
-    g_zoom_anim_last_mode = mode_flag;
-    (void)char_sprite; (void)char_sprite2; (void)workspace;
-    (void)bg_sprite; (void)weapon_sprite;
-}
+/* fd2_play_char_intro_zoom_anim is now a real emitted function
+ * (src/anim/anicine.c); its former spy stub here is retired. Sibling tests
+ * (figani intro / combat cinematic) now exercise it for real. */
 /* fd2_apply_use_effect_dispatch: already in spellwk.c */
 uint32 data_fd2_battle_tile_map_anim_frame_counter = 0;
 uint32 data_fd2_graphics_bg_anim_flip_flag = 0;

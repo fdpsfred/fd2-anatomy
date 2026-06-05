@@ -2779,8 +2779,9 @@
     "name": "fd2_play_char_intro_zoom_anim",
     "target": "anim/anicine.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002935b": {
     "name": "fd2_blit_indexed_sprite",
