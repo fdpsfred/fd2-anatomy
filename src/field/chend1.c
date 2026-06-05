@@ -179,3 +179,43 @@ void fd2_chapter_04_end(void)
     fd2_save_runtime_char_to_template();
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_05_end @ 0x231F9  (0 direct callers; dispatched via the
+ *   chapter-end handler pointer table @ 0x51DE9, slot @ 0x51DF9)
+ *
+ * Chapter 5「塞拉村」end handler. Stages the recruit scene by copying the
+ * chapter-5 end scene position tables (X / Y / facing, 7 bytes each @
+ * 0x520CF / 0x520D6 / 0x520DD) into three on-stack char-placement blocks and
+ * handing them to fd2_setup_chars_and_camera_for_intro (place chars 0..6,
+ * extra char 0x29 at (0xC,8) facing 0, camera origin (6,4)). It then shows
+ * the recruit dialog page 9, recruits char #10 (僧侶瑪琳) via
+ * fd2_init_runtime_char_from_base_growth, persists the party's runtime-char
+ * state to the template store, then advances the current-chapter id by 1.
+ *
+ * Paired init handler: fd2_chapter_05_init @ 0x33049.
+ * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
+ * Walkthrough: assets/chapters/chapter_05.md.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_05_end(void)
+{
+    uint8 recruit_block_a[7];
+    uint8 recruit_block_b[7];
+    uint8 recruit_block_c[7];
+    int i;
+
+    for (i = 0; i < 7; i++) {
+        recruit_block_a[i] = data_fd2_chapter_ch05_end_scene_char_pos_x_table[i];
+        recruit_block_b[i] = data_fd2_chapter_ch05_end_scene_char_pos_y_table[i];
+        recruit_block_c[i] = data_fd2_chapter_ch05_end_scene_char_facing_table[i];
+    }
+
+    fd2_setup_chars_and_camera_for_intro(
+        (uint32)recruit_block_a, (uint32)recruit_block_b,
+        (uint32)recruit_block_c, 0, 6, 0x29, 0xc, 8, 0, 6, 4);
+    fd2_display_dialog_scene(current_chapter_text, 9, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+    fd2_init_runtime_char_from_base_growth(10);
+    fd2_save_runtime_char_to_template();
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}

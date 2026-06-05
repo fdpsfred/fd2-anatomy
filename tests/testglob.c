@@ -188,6 +188,16 @@ uint8 data_fd2_chapter_ch03_end_scene_char_pos_y_table[7] =
     { 3, 3, 3, 2, 2, 4, 1 };
 uint8 data_fd2_chapter_ch03_end_scene_char_facing_table[7] =
     { 2, 2, 2, 3, 1, 2, 0 };
+/* Chapter 5 end recruit-scene char placement tables (data segment @ 0x520CF /
+ * 0x520D6 / 0x520DD). Real binary bytes until the data segment is emitted;
+ * fd2_chapter_05_end copies each 7-byte table into an on-stack placement block.
+ * X/Y are battle-tile coords, facing is sprite direction (0..3). */
+uint8 data_fd2_chapter_ch05_end_scene_char_pos_x_table[7] =
+    { 12, 11, 13, 10, 10, 14, 14 };
+uint8 data_fd2_chapter_ch05_end_scene_char_pos_y_table[7] =
+    { 11, 11, 11, 9, 10, 9, 10 };
+uint8 data_fd2_chapter_ch05_end_scene_char_facing_table[7] =
+    { 2, 2, 2, 3, 3, 1, 1 };
 /* Resource portrait sheet base pointer (data segment @ 0x53AD1). Tests point it
  * at a zeroed scratch buffer. */
 uint32 data_fd2_resource_portrait_sheet_ptr = 0;
@@ -680,6 +690,9 @@ uint8  g_setup_intro_facing[7];
 int32  g_setup_intro_char_start = -1;
 int32  g_setup_intro_char_end = -1;
 uint32 g_setup_intro_extra_char_idx = 0xFFFFFFFFuL;
+int32  g_setup_intro_extra_pos_x = -1;
+int32  g_setup_intro_extra_pos_y = -1;
+int32  g_setup_intro_extra_facing = -1;
 uint32 g_setup_intro_camera_x = 0xFFFFFFFFuL;
 uint32 g_setup_intro_camera_y = 0xFFFFFFFFuL;
 void fd2_setup_chars_and_camera_for_intro(uint32 px_table, uint32 py_table,
@@ -691,7 +704,6 @@ void fd2_setup_chars_and_camera_for_intro(uint32 px_table, uint32 py_table,
                                           uint32 camera_origin_y)
 {
     int i;
-    (void)extra_pos_x; (void)extra_pos_y; (void)extra_facing;
     g_setup_intro_calls++;
     for (i = 0; i < 7; i++) {
         g_setup_intro_px[i]     = ((uint8 *)px_table)[i];
@@ -701,6 +713,9 @@ void fd2_setup_chars_and_camera_for_intro(uint32 px_table, uint32 py_table,
     g_setup_intro_char_start = char_start;
     g_setup_intro_char_end = char_end;
     g_setup_intro_extra_char_idx = extra_char_idx;
+    g_setup_intro_extra_pos_x = extra_pos_x;
+    g_setup_intro_extra_pos_y = extra_pos_y;
+    g_setup_intro_extra_facing = extra_facing;
     g_setup_intro_camera_x = camera_origin_x;
     g_setup_intro_camera_y = camera_origin_y;
 }

@@ -710,6 +710,207 @@ static void test_chapter_04_end_increments_not_absolute(void)
     ASSERT_EQ((long)chapter_id, 8L);           /* 7 + 1, not a constant */
 }
 
+/* ================================================================
+ * fd2_chapter_05_end @ 0x231F9
+ *
+ * The Chapter 5 end handler is UNCONDITIONAL (no branch): it copies three
+ * 7-byte scene tables (recruit-scene X / Y / facing @ 0x520CF / 0x520D6 /
+ * 0x520DD) into on-stack placement blocks and stages the recruit scene via
+ * fd2_setup_chars_and_camera_for_intro (chars 0..6, plus an extra char 0x29
+ * placed at (0xC,8) facing 0, camera origin (6,4)). It then shows recruit
+ * dialog page 9 (real fd2_display_dialog_scene), recruits char #10 (僧侶瑪琳,
+ * real fd2_init_runtime_char_from_base_growth), persists the party (real
+ * fd2_save_runtime_char_to_template), then advances chapter_id by 1.
+ *
+ * Every callee is the real linked function EXCEPT two seams (same as the
+ * chapter 03 suite): fd2_check_char_is_dead (testglob.c stub — only gates the
+ * save's char-0 dead-skip here, harmless) and fd2_setup_chars_and_camera_for_intro
+ * (testglob.c recording fake — the real one is an unemitted VGA scene stager
+ * deferred to Phase 9). The fake now also snapshots the extra-char placement
+ * args (idx / pos_x / pos_y / facing), which chapter 5 exercises with non-zero
+ * values (chapter 3 left them 0), so this test pins the full 11-arg call shape.
+ *
+ * Fixtures mirror the chapter 03 suite: a minimal dialog program whose page 9
+ * redirects to one glyph (0x99) + END, a zeroed runtime-char array + zeroed
+ * roster (member_count seeded so the recruit append and chapter-id transition
+ * are observable). On-screen pixels of the dialog/scene are deferred to Phase 9.
+ *
+ * Asserted: the scene staged once with the three tables copied verbatim, the
+ * full scalar arg set (chars 0..6, extra char 0x29 at (0xC,8) facing 0, camera
+ * (6,4)), recruit dialog page 9 ran (glyph 0x99), char #10 recruited (roster
+ * count delta), and chapter_id := prev+1 (a relative increment, not absolute).
+ * ================================================================ */
+
+extern int32  g_setup_intro_extra_pos_x;
+extern int32  g_setup_intro_extra_pos_y;
+extern int32  g_setup_intro_extra_facing;
+
+extern uint8 data_fd2_chapter_ch05_end_scene_char_pos_x_table[7];
+extern uint8 data_fd2_chapter_ch05_end_scene_char_pos_y_table[7];
+extern uint8 data_fd2_chapter_ch05_end_scene_char_facing_table[7];
+
+static uint8  g_ce5_roster[8 * 0x50];
+static int16  g_ce5_text[16];
+
+static void ce5_fixture_reset(void)
+{
+    int i;
+
+    /* dialog VM safe env. */
+    *(volatile uint16 *)0x41AuL = 0x20;   /* BIOS kbd buffer head == tail */
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+
+    /* dialog program: page 9's header word (prog[9]) is a byte offset that
+     * redirects cur_op to prog[10] = one glyph (0x99), prog[11] = -1 END. */
+    for (i = 0; i < 16; i++) {
+        g_ce5_text[i] = 0;
+    }
+    g_ce5_text[9]  = 20;      /* byte offset to prog[10] (page 9 start) */
+    g_ce5_text[10] = 0x99;    /* one glyph */
+    g_ce5_text[11] = -1;      /* END */
+    current_chapter_text = (uint32)g_ce5_text;
+
+    /* save-template safe env (chapter 01 baseline): zeroed runtime chars +
+     * zeroed roster, one scanned runtime char and one template entry. */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(g_ce5_roster, 0, sizeof(g_ce5_roster));
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_ce5_roster;
+    g_check_char_is_dead_return = 0;
+    data_fd2_battle_party_member_count = 1;
+    data_fd2_shared_menu_party_member_count = 1;  /* recruit appends at slot 1 */
+
+    /* scene-stager recording fake reset. */
+    g_setup_intro_calls = 0;
+    g_setup_intro_char_start = -1;
+    g_setup_intro_char_end = -1;
+    g_setup_intro_extra_char_idx = 0xFFFFFFFFuL;
+    g_setup_intro_extra_pos_x = -1;
+    g_setup_intro_extra_pos_y = -1;
+    g_setup_intro_extra_facing = -1;
+    g_setup_intro_camera_x = 0xFFFFFFFFuL;
+    g_setup_intro_camera_y = 0xFFFFFFFFuL;
+    for (i = 0; i < 7; i++) {
+        g_setup_intro_px[i] = 0xFF;
+        g_setup_intro_py[i] = 0xFF;
+        g_setup_intro_facing[i] = 0xFF;
+    }
+
+    /* preset chapter id to a known value so the +1 transition is observable. */
+    data_fd2_chapter_current_chapter_id = 5;
+}
+
+static void ce5_fixture_teardown(void)
+{
+    current_chapter_text = 0;
+    data_fd2_shared_menu_party_roster_buffer_ptr = 0;
+    data_fd2_shared_menu_party_member_count = 0;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_chapter_current_chapter_id = 1;
+    g_check_char_is_dead_return = 0;
+}
+
+/* ----------------------------------------------------------------
+ * End-to-end: the unconditional handler stages the recruit scene (setup fired
+ * once with the three tables copied verbatim, chars 0..6, extra char 0x29 at
+ * (0xC,8) facing 0, camera (6,4)), runs recruit dialog page 9 (its single glyph
+ * 0x99), recruits char #10 (roster count 1 -> 2), and advances chapter_id 5 -> 6.
+ * ---------------------------------------------------------------- */
+static void test_chapter_05_end_stages_scene_and_recruits(void)
+{
+    int    setup_calls;
+    int    glyph_calls;
+    uint32 glyph_idx;
+    int32  char_start;
+    int32  char_end;
+    uint32 extra_idx;
+    int32  extra_x;
+    int32  extra_y;
+    int32  extra_facing;
+    uint32 cam_x;
+    uint32 cam_y;
+    uint32 recruit_count;
+    uint32 chapter_id;
+    int    tables_match;
+    int    i;
+
+    ce5_fixture_reset();
+
+    fd2_chapter_05_end();
+
+    /* snapshot observables, then restore globals, then assert. */
+    setup_calls   = g_setup_intro_calls;
+    glyph_calls   = g_dlg_glyph_calls;
+    glyph_idx     = g_dlg_glyph_last_idx;
+    char_start    = g_setup_intro_char_start;
+    char_end      = g_setup_intro_char_end;
+    extra_idx     = g_setup_intro_extra_char_idx;
+    extra_x       = g_setup_intro_extra_pos_x;
+    extra_y       = g_setup_intro_extra_pos_y;
+    extra_facing  = g_setup_intro_extra_facing;
+    cam_x         = g_setup_intro_camera_x;
+    cam_y         = g_setup_intro_camera_y;
+    recruit_count = data_fd2_shared_menu_party_member_count;
+    chapter_id    = data_fd2_chapter_current_chapter_id;
+    tables_match  = 1;
+    for (i = 0; i < 7; i++) {
+        if (g_setup_intro_px[i] != data_fd2_chapter_ch05_end_scene_char_pos_x_table[i] ||
+            g_setup_intro_py[i] != data_fd2_chapter_ch05_end_scene_char_pos_y_table[i] ||
+            g_setup_intro_facing[i] != data_fd2_chapter_ch05_end_scene_char_facing_table[i]) {
+            tables_match = 0;
+        }
+    }
+    ce5_fixture_teardown();
+
+    /* scene staged once with the three tables copied verbatim into the blocks. */
+    ASSERT_EQ((long)setup_calls, 1L);
+    ASSERT_EQ((long)tables_match, 1L);
+    ASSERT_EQ((long)char_start, 0L);
+    ASSERT_EQ((long)char_end, 6L);
+
+    /* extra char placed: idx 0x29 at (0xC,8) facing 0 (chapter 5's distinct
+     * non-zero placement, vs chapter 3's all-zero extra args). */
+    ASSERT_EQ((long)extra_idx, (long)0x29);
+    ASSERT_EQ((long)extra_x, (long)0xc);
+    ASSERT_EQ((long)extra_y, 8L);
+    ASSERT_EQ((long)extra_facing, 0L);
+
+    /* camera origin (6,4). */
+    ASSERT_EQ((long)cam_x, 6L);
+    ASSERT_EQ((long)cam_y, 4L);
+
+    /* recruit dialog page 9 rendered exactly its glyph 0x99. */
+    ASSERT_EQ((long)glyph_calls, 1);
+    ASSERT_EQ((long)glyph_idx, (long)0x99);
+
+    /* char #10 recruited (roster grew) and chapter id advanced. */
+    ASSERT_EQ((long)recruit_count, 2L);
+    ASSERT_EQ((long)chapter_id, 6L);
+}
+
+/* ----------------------------------------------------------------
+ * The chapter-id update is a relative INCREMENT, not an absolute set: seeded
+ * with a distinctive unrelated value (7), the handler leaves 8 — proving it does
+ * not hardcode the id. (The scene staging / recruit are unconditional and run
+ * identically regardless of the seed.)
+ * ---------------------------------------------------------------- */
+static void test_chapter_05_end_increments_not_absolute(void)
+{
+    uint32 chapter_id;
+
+    ce5_fixture_reset();
+    data_fd2_chapter_current_chapter_id = 7;   /* distinctive, unrelated to 6 */
+
+    fd2_chapter_05_end();
+
+    chapter_id = data_fd2_chapter_current_chapter_id;
+    ce5_fixture_teardown();
+
+    ASSERT_EQ((long)chapter_id, 8L);           /* 7 + 1, not a constant */
+}
+
 void run_field_chend1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -722,5 +923,7 @@ void run_field_chend1_tests(void)
     RUN_TEST(test_chapter_03_end_survivor_dead_no_recruit);
     RUN_TEST(test_chapter_04_end_runs_dialog_page4_and_increments_id);
     RUN_TEST(test_chapter_04_end_increments_not_absolute);
+    RUN_TEST(test_chapter_05_end_stages_scene_and_recruits);
+    RUN_TEST(test_chapter_05_end_increments_not_absolute);
     printf("\n");
 }
