@@ -2936,8 +2936,9 @@
     "name": "fd2_chapter_transition_with_intro",
     "target": "field/chtrans.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002d31b": {
     "name": "fd2_close_intro_dialog_with_slide_out",

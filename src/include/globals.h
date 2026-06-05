@@ -136,6 +136,14 @@ extern uint32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4]; /* 0x52
 extern uint8  data_fd2_chapter_per_chapter_category_table[30];                       /* 0x526B9 */
 extern uint8  data_fd2_chapter_intro_panel_resource_idx_per_metadata_category_table[3]; /* 0x526D7 */
 
+/* chapter-intro pose target position tables, indexed by
+ * (transition_state + metadata_category*6). The "y_row" table feeds the
+ * blit's X arg (-0x96, *0x80, +0x5000); the "x_column" table feeds the Y
+ * arg (-0x64, *0x80, +0x3200) -- the column/row naming is the world-grid
+ * axis the byte selects, not the screen axis it scales into. */
+extern uint8  data_fd2_chapter_intro_portrait_pose_y_row_table[18];     /* 0x52635 */
+extern uint8  data_fd2_chapter_intro_portrait_pose_x_column_table[18];  /* 0x52647 */
+
 /* ---- recruitment screen ---- */
 extern uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch;         /* 0x54127 */
 

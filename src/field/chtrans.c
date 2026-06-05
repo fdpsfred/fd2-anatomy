@@ -442,3 +442,133 @@ int fd2_chapter_transition_menu(void)
     }
     return 0;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_transition_with_intro @ 0x2D093  (1 caller)
+ *
+ * Inter-chapter dispatch with chapter-intro pose zoom-in. Sole caller:
+ * fd2_chapter_transition_menu @ 0x2CAD7 (the story-chapter radio menu).
+ * Returns 1 if the user committed the advance, 0 if cancelled.
+ *
+ * Setup: reads the chapter-intro metadata entry for the current chapter,
+ * keeps its category byte, and stops the current BGM (track -1).
+ *
+ * If transition_state == 2 (story-dialog branch): shows the portrait +
+ * dialog scene, runs the typewriter loop, and tears the dialog down. A
+ * typewriter result of -1 or a non-zero menu cursor cancels (return 0).
+ * Otherwise, past a late-chapter/game-clear party-size threshold it splices
+ * the menu roster into the runtime char ptr and runs the recruitment/branch
+ * screen (cancel there also returns 0). On success result_code = 1.
+ *
+ * Common pose zoom-in (10 frames): splices the menu roster into the runtime
+ * char ptr (so the intro menus can read char data), backs up the VGA frame
+ * to a malloc'd 64000-byte buffer, then for i in 1..10 blits the scaled pose
+ * toward its per-chapter target position (table index = transition_state +
+ * category*6) with a shrinking scale, commits the per-frame composite to
+ * VGA, and ramps palette brightness. Then it settles the palette at full
+ * intensity and clears VGA.
+ *
+ * Post-anim menu dispatch on transition_state selects a BGM and an intro
+ * menu (typeB / typeC / main); state 2 skips this (result already set by the
+ * dialog branch). After the menu, the post-intro ambient BGM (track 10) is
+ * started. Cleanup frees the pose backup, nulls the runtime char ptr splice,
+ * and returns result_code.
+ *
+ * The "_pose_y_row_table" feeds the blit's X arg and "_pose_x_column_table"
+ * feeds the Y arg (the per-frame coordinate math: (table[off]-bias)*i/10 is a
+ * signed 32-bit divide, *0x80, +screen_base).
+ * ---------------------------------------------------------------- */
+int fd2_chapter_transition_with_intro(void)
+{
+    uint8 *chapter_meta;
+    uint8 chapter_meta_byte;
+    int typewriter_result;
+    int recruit_result;
+    uint32 pose_bitmap;
+    int iVar2;
+    uint32 table_off;
+    int result_code;
+
+    result_code = 0;
+    chapter_meta = fd2_get_chapter_intro_metadata_entry(
+        (int)data_fd2_chapter_current_chapter_id);
+    chapter_meta_byte = chapter_meta[0];
+    fd2_set_bgm_track_with_fade(0xffffffff, 0);
+
+    if (data_fd2_chapter_intro_menu_cursor_state == 2) {
+        fd2_load_chapter_portrait(0x4b);
+        fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x201, 0xa951f,
+                                 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+        data_fd2_battle_tile_map_ptr = 1;
+        fd2_paint_portrait_to_dialog_area(0);
+        typewriter_result = (int)fd2_text_dialog_typewriter_loop();
+        fd2_animate_dialog_page_advance_collapse();
+        data_fd2_battle_tile_map_ptr = 0;
+        fd2_close_intro_dialog_with_slide_out();
+
+        if (typewriter_result == -1 || data_fd2_ui_menu_cursor_idx != 0) {
+            return 0;
+        }
+
+        if (((int)data_fd2_chapter_current_chapter_id < 0x1b
+             && (int)data_fd2_shared_menu_party_member_count > 0x10)
+            || ((int)data_fd2_chapter_current_chapter_id >= 0x1b
+                && (int)data_fd2_shared_menu_party_member_count > 0x14)) {
+            data_fd2_battle_runtime_char_array_ptr =
+                (runtime_char *)data_fd2_shared_menu_party_roster_buffer_ptr;
+            recruit_result = fd2_run_recruitment_or_branch_screen();
+            if (recruit_result == 0) {
+                data_fd2_battle_runtime_char_array_ptr = (runtime_char *)0;
+                return 0;
+            }
+        }
+        result_code = 1;
+    }
+
+    data_fd2_battle_runtime_char_array_ptr =
+        (runtime_char *)data_fd2_shared_menu_party_roster_buffer_ptr;
+    pose_bitmap = (uint32)malloc(64000);
+    memmove((void *)pose_bitmap, (void *)0xa0000, 64000);
+
+    for (iVar2 = 1; iVar2 < 0xb; iVar2++) {
+        table_off = data_fd2_chapter_intro_menu_cursor_state
+                  + (uint32)chapter_meta_byte * 6;
+        fd2_blit_scaled_chapter_pose(
+            (uint32)(((int)(data_fd2_chapter_intro_portrait_pose_y_row_table[
+                                table_off] - 0x96) * iVar2 / 10) * 0x80
+                     + 0x5000),
+            (uint32)(((int)(data_fd2_chapter_intro_portrait_pose_x_column_table[
+                                table_off] - 0x64) * iVar2 / 10) * 0x80
+                     + 0x3200),
+            pose_bitmap,
+            (uint32)(0x80 - iVar2 * 9));
+        memmove((void *)0xa0000,
+                (void *)data_fd2_large_game_state_buffer_ptr, 64000);
+        fd2_set_vga_palette_range(0, 0xff, (uint32)(iVar2 * 4));
+    }
+    fd2_set_vga_palette_range(0, 0xff, 0x40);
+    memset((void *)0xa0000, 0, 64000);
+
+    if (data_fd2_chapter_intro_menu_cursor_state == 0) {
+        fd2_set_bgm_track_with_fade(0xd, 0);
+        result_code = fd2_run_chapter_intro_menu_typeB(pose_bitmap);
+    } else if (data_fd2_chapter_intro_menu_cursor_state == 4) {
+        fd2_set_bgm_track_with_fade(0xb, 0);
+        result_code = fd2_run_chapter_intro_menu_typeC(pose_bitmap);
+    } else if (data_fd2_chapter_intro_menu_cursor_state == 2) {
+        goto cleanup;
+    } else {
+        if (data_fd2_chapter_intro_menu_cursor_state == 3) {
+            fd2_set_bgm_track_with_fade(0xf, 0);
+        } else {
+            fd2_set_bgm_track_with_fade(0xe, 0);
+        }
+        result_code = fd2_run_chapter_intro_menu_main(pose_bitmap);
+    }
+    fd2_set_bgm_track_with_fade(10, 0);
+
+cleanup:
+    free((void *)pose_bitmap);
+    data_fd2_battle_runtime_char_array_ptr = (runtime_char *)0;
+    return result_code;
+}

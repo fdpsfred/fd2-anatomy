@@ -589,14 +589,33 @@ void fd2_close_intro_dialog_with_slide_out(void) { }
  * for real. (g_chapter_transition_return is gone; the orphan extern decls in
  * the per-suite boilerplate blocks are unused and harmless.) */
 
-/* fd2_chapter_transition_menu callees not yet emitted -- stubbed so TEST.EXE
- * links. The intro radio-menu commit and the recruitment-screen result default
- * nonzero so the (unreached-by-tests) do/while loops would terminate. */
-int g_chapter_transition_with_intro_return = 1;
-int fd2_chapter_transition_with_intro(void)
+/* fd2_chapter_transition_with_intro: now emitted in src/field/chtrans.c and
+ * linked for real. Its not-yet-emitted callees (the three intro menus, the
+ * scaled-pose blit, and the two pose target tables) are stubbed/faked below so
+ * TEST.EXE links; the menu commit results default nonzero. */
+int g_chapter_intro_menu_return = 1;
+int fd2_run_chapter_intro_menu_typeB(uint32 pose_bitmap)
 {
-    return g_chapter_transition_with_intro_return;
+    (void)pose_bitmap;
+    return g_chapter_intro_menu_return;
 }
+int fd2_run_chapter_intro_menu_typeC(uint32 pose_bitmap)
+{
+    (void)pose_bitmap;
+    return g_chapter_intro_menu_return;
+}
+int fd2_run_chapter_intro_menu_main(uint32 pose_bitmap)
+{
+    (void)pose_bitmap;
+    return g_chapter_intro_menu_return;
+}
+void fd2_blit_scaled_chapter_pose(uint32 dst_x, uint32 dst_y,
+                                  uint32 src_bitmap, uint32 scale)
+{
+    (void)dst_x; (void)dst_y; (void)src_bitmap; (void)scale;
+}
+uint8 data_fd2_chapter_intro_portrait_pose_y_row_table[18];
+uint8 data_fd2_chapter_intro_portrait_pose_x_column_table[18];
 void fd2_render_chapter_intro_overlay(void) { }
 int g_run_recruitment_return = 1;
 int fd2_run_recruitment_or_branch_screen(void)
