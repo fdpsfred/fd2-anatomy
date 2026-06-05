@@ -522,3 +522,31 @@ void fd2_chapter_event_handler_3b__ch26_ai_ctrl(uint32 stepping_char_id)
         fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x27, 0x2C, 0);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_3c__ch26_ai_ctrl @ 0x35675  (0 direct callers)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x3C (table
+ * entry @ 0x51C81). Triggered in chapter 26 as tile-step event_type 0x00
+ * (ch26 tile-step slot 1). Category: char-conditional AI setup.
+ * Dispatch-table signature is 1-arg cdecl (the stepping char id under the
+ * tile-step ABI, read from [ESP+0x4]).
+ *
+ * Effect: when the stepping char is a non-enemy (team != 0, i.e. npc or
+ * player; an enemy stepper with team==0 is skipped), disarm AI control flag
+ * (combat_aux_block[0xD] low nibble) for two char ranges — 0x17..0x18 and
+ * 0x35..0x38 (2 + 4 = 6 chars). No dialog.
+ *
+ * In the binary the SECOND call + cleanup + RET is a Class-3 shared tail at
+ * 0x356AE: fd2_chapter_event_handler_50__ch30_ai_ctrl pushes its own 3 args
+ * then JMPs here to borrow this call + ADD ESP,0xC + RET tail. That tail-merge
+ * is a binary size optimisation; the functionally-exact source is simply two
+ * complete calls.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_3c__ch26_ai_ctrl(uint32 stepping_char_id)
+{
+    if (data_fd2_battle_runtime_char_array_ptr[stepping_char_id].team != 0) {
+        fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x17, 0x18, 0);
+        fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x35, 0x38, 0);
+    }
+}

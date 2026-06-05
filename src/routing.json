@@ -4027,8 +4027,9 @@
     "name": "fd2_chapter_event_handler_3c__ch26_ai_ctrl",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000356b7": {
     "name": "fd2_chapter_event_handler_3d__ch26_pickup",
