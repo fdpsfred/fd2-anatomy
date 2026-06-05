@@ -230,6 +230,8 @@ extern char   data_fd2_string_resource_filename_fdother_dat[];          /* 0x51A
 extern char   data_fd2_string_resource_filename_fdfield_dat_51a59[];    /* 0x51A59  "FDFIELD.DAT" */
 extern char   data_fd2_string_resource_filename_fdshap_dat_51a65[];     /* 0x51A65  "FDSHAP.DAT" */
 extern char   data_fd2_string_resource_filename_dato_dat_51a70[];       /* 0x51A70  "DATO.DAT" */
+extern char   data_fd2_string_resource_filename_figani_dat_52388[];     /* 0x52388  "FIGANI.DAT" */
+extern char   data_fd2_string_resource_filename_tai_dat[];              /* 0x52393  "TAI.DAT" */
 
 /* ---- UI render format strings (.object2 const) ---- */
 extern char   data_fd2_string_ui_render_decimal_format_template[6];     /* 0x51EBF  "%0.5d" */

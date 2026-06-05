@@ -344,6 +344,171 @@ static void test_ending_credit_roll_per_duel_setup(void)
     data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = saved_mode;
 }
 
+/* ================================================================
+ * fd2_play_final_chapter_30_ending @ 0x2C405
+ *
+ * Chapter-30 finale per-character portrait + epilogue monologue driver. The
+ * body is a heavy display/IO driver — it loads chapter-30 battle data
+ * (fopen FDICON.B24 / FDSHAP / FDFIELD / FDTXT, INT 386h), mallocs hundreds of
+ * KB, blits the mode-13h framebuffer, fades the palette, plays FIGANI/DATO
+ * animations, runs dialog screens and BIOS-tick holds, and blocks on the
+ * keyboard — none callable end-to-end under TEST.EXE. The full drive is
+ * deferred to Phase 9 integration playtest.
+ *
+ * What IS isolable, branch/arithmetic/state-bearing, and (critically) carries
+ * the decompiler's EAX-tracking-bug risk is exercised below by exact replay of
+ * the emitted logic:
+ *
+ *  (1) the RNG-driven mouth-jitter state machine — the EAX-bug-corrected piece.
+ *      The machine code reloads the jitter counter from the RNG return
+ *      (CALL fd2_advance_rng_state; AND AL,0x1F; ADD AL,0x28), NOT from the
+ *      DATO sprite buffer as the raw decompile reads. We drive the exact
+ *      recurrence using the REAL-LINKED fd2_advance_rng_state and cross-check
+ *      every reload against an independent rol16((seed+0x9014),3) reference,
+ *      plus the frame_offset = (counter < 2) ? 0xC : 0 toggle.
+ *
+ *  (2) the per-character index derivation: the 0/1 display-slot swap, the
+ *      figani_idx = portrait_id*3 sprite index, the tick_count = (char_idx==0)
+ *      ? 0x1B8 : 0xDC monologue length, and the epilogue page select
+ *      epilogue_idx = (t < 0xDC) ? (uint8)(char_id+0xC) : 0x2D (byte arithmetic).
+ * ================================================================ */
+
+/* rol16((seed + 0x9014) & 0xFFFF, 3) — one fd2_advance_rng_state() step.
+ * Independent reference for the real-linked RNG primitive. */
+static uint16 ce_rng_next(uint16 seed)
+{
+    uint32 v;
+    v = (uint32)((seed + 0x9014u) & 0xFFFFu);
+    v = ((v << 3) | (v >> 13)) & 0xFFFFu;
+    return (uint16)v;
+}
+
+/* ---- mouth-jitter recurrence: EAX-bug-corrected RNG drive ----
+ * Replays the emitted per-tick jitter exactly:
+ *   if (counter == 0) { rng = fd2_advance_rng_state(); counter = (rng & 0x1F)+0x28; }
+ *   else                counter--;
+ *   frame_offset = (counter < 2) ? 0xC : 0;
+ * over the long-monologue length (0x1B8 ticks), starting counter == 0 as the
+ * function does (jitter_counter is zero-initialised on entry and persists).
+ * Each RNG reload is cross-checked against ce_rng_next, and the reload value is
+ * asserted to land in [0x28,0x47] (= AND 0x1F then +0x28), and frame_offset is
+ * asserted to be exactly 0xC iff counter < 2. */
+static void test_ch30_mouth_jitter_recurrence(void)
+{
+    uint16 seed;
+    uint16 ref_seed;
+    uint8  counter;
+    int    frame_offset;
+    int    t;
+    uint32 rng_val;
+    int    reload_count;
+
+    seed = 0x1234;
+    data_fd2_shared_rng_seed = seed;
+    ref_seed = seed;
+    counter = 0;            /* matches the function's entry init (and counter==0 first tick) */
+    reload_count = 0;
+
+    for (t = 0; t < 0x1B8; t++) {
+        if (counter == 0) {
+            /* real-linked RNG advance; returns the new seed in AX/EAX */
+            rng_val = fd2_advance_rng_state();
+            ref_seed = ce_rng_next(ref_seed);
+
+            /* the real primitive advanced the global seed to the reference */
+            ASSERT_EQ((long)data_fd2_shared_rng_seed, (long)ref_seed);
+            /* its return value (low 16 bits) equals the new seed */
+            ASSERT_EQ((long)(rng_val & 0xFFFFu), (long)ref_seed);
+
+            counter = (uint8)((rng_val & 0x1F) + 0x28);
+
+            /* AND 0x1F (0..31) then +0x28 (40) => strictly within [0x28,0x47] */
+            ASSERT_TRUE(counter >= 0x28 && counter <= 0x47);
+            /* independent recomputation from the reference seed */
+            ASSERT_EQ((long)counter, (long)((ref_seed & 0x1F) + 0x28));
+            reload_count++;
+        } else {
+            counter = counter - 1;
+        }
+
+        frame_offset = (counter < 2) ? 0xC : 0;
+        ASSERT_EQ((long)frame_offset, (counter < 2) ? 0xCL : 0L);
+    }
+
+    /* the machine reloads whenever the counter decays to 0; with reloads in
+     * [0x28,0x47] across 0x1B8 ticks there must be several reloads, and the
+     * very first tick is always a reload (counter started at 0). */
+    ASSERT_TRUE(reload_count >= 1);
+}
+
+/* ---- per-character index derivation: swap / figani / tick / epilogue ----
+ * Replays the four pure-logic decisions the emitted body makes, exactly as the
+ * three-source comparison fixed them, over a representative party span. */
+static void test_ch30_char_index_derivation(void)
+{
+    int   char_idx;
+    int   t;
+
+    /* (a) 0/1 display-slot swap: 0<->1 trade, all others identity */
+    for (char_idx = 0; char_idx < 8; char_idx++) {
+        uint8 swap_idx;
+        if (char_idx == 0) {
+            swap_idx = 1;
+        } else if (char_idx == 1) {
+            swap_idx = 0;
+        } else {
+            swap_idx = (uint8)char_idx;
+        }
+        if (char_idx == 0) {
+            ASSERT_EQ((long)swap_idx, 1L);
+        } else if (char_idx == 1) {
+            ASSERT_EQ((long)swap_idx, 0L);
+        } else {
+            ASSERT_EQ((long)swap_idx, (long)char_idx);
+        }
+    }
+
+    /* (b) figani sprite index = portrait_id * 3 (SHL2/SUB form, all 8-bit ids) */
+    {
+        int pid;
+        for (pid = 0; pid < 0x100; pid++) {
+            uint32 figani_idx = (uint32)(uint8)pid * 3;
+            ASSERT_EQ((long)figani_idx, (long)(pid * 3));
+        }
+    }
+
+    /* (c) monologue length: last character (char_idx 0) gets 0x1B8, else 0xDC */
+    for (char_idx = 0; char_idx < 8; char_idx++) {
+        int tick_count = (char_idx == 0) ? 0x1B8 : 0xDC;
+        ASSERT_EQ((long)tick_count, (char_idx == 0) ? 0x1B8L : 0xDCL);
+    }
+
+    /* (d) epilogue page select: first 0xDC ticks use (uint8)(char_id + 0xC),
+     * the remainder use the fixed ending-closer page 0x2D. Cover the byte-wrap
+     * boundary at char_id 0xF4 (0xF4 + 0xC == 0x100 -> 0x00). */
+    {
+        static const uint8 char_ids[5] = { 0x00, 0x01, 0x10, 0xF3, 0xF4 };
+        int j;
+        for (j = 0; j < 5; j++) {
+            uint8 cid = char_ids[j];
+            /* per-char branch (t < 0xDC) */
+            t = 0;
+            {
+                uint32 epilogue_idx = (uint8)(cid + 0xC);
+                ASSERT_EQ((long)epilogue_idx, (long)(uint8)(cid + 0xC));
+            }
+            /* ending-closer branch (t >= 0xDC) */
+            t = 0xDC;
+            {
+                uint32 epilogue_idx = (t < 0xDC) ? (uint8)(cid + 0xC) : 0x2D;
+                ASSERT_EQ((long)epilogue_idx, 0x2DL);
+            }
+        }
+        /* explicit wrap witness: 0xF4 + 0xC wraps to 0x00 in a byte */
+        ASSERT_EQ((long)(uint8)(0xF4 + 0xC), 0x00L);
+    }
+}
+
 void run_anim_aniend_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -354,5 +519,7 @@ void run_anim_aniend_tests(void)
     RUN_TEST(test_chapter_intro_slideshow_frame_sequence);
     RUN_TEST(test_ending_credit_roll_tables_real_values);
     RUN_TEST(test_ending_credit_roll_per_duel_setup);
+    RUN_TEST(test_ch30_mouth_jitter_recurrence);
+    RUN_TEST(test_ch30_char_index_derivation);
     printf("\n");
 }

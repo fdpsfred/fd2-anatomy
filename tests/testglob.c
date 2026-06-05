@@ -59,6 +59,8 @@ char   data_fd2_string_resource_filename_fdother_dat[] = "FDOTHER.DAT";
 char   data_fd2_string_resource_filename_fdfield_dat_51a59[] = "FDFIELD.DAT";
 char   data_fd2_string_resource_filename_fdshap_dat_51a65[] = "FDSHAP.DAT";
 char   data_fd2_string_resource_filename_dato_dat_51a70[] = "DATO.DAT";
+char   data_fd2_string_resource_filename_figani_dat_52388[] = "FIGANI.DAT";
+char   data_fd2_string_resource_filename_tai_dat[] = "TAI.DAT";
 char   data_fd2_string_save_load_oom_msg_load_pbuf_50004[] = " Out of Memory !!!\n";
 char   data_fd2_string_save_load_oom_msg_tile_event_50023[] = " Out of Memory !!!\n";
 char   data_fd2_string_save_load_oom_msg_runtime_char_50037[] = " Out of Memory !!!\n";
@@ -1273,13 +1275,29 @@ void fd2_play_spell_cast_sequence(uint32 ci, uint32 si, uint32 nt, uint32 tb) { 
  * (src/anim/anicombt.c); its former call-counting stub (g_attack_hit_seq_calls)
  * here was removed. */
 void fd2_play_full_combat_cinematic(uint32 a, uint32 d) { }
-/* fd2_play_final_chapter_30_ending (0x2C405) and fd2_show_portrait_dialog_with_input
- * (0x2C39B): both are display/dialog drivers not yet emitted; referenced by
- * fd2_play_game_ending_cinematic (src/anim/aniend.c). No-op stubs so the test
- * binary links; their pixel/dialog output is a Phase 9 integration concern. */
-void fd2_play_final_chapter_30_ending(void) { }
+/* fd2_play_final_chapter_30_ending (0x2C405) is now a real emitted function
+ * (src/anim/aniend.c) and linked for real; its former no-op stub here was
+ * removed. fd2_show_portrait_dialog_with_input (0x2C39B) is still a display/
+ * dialog driver not yet emitted; referenced by fd2_play_game_ending_cinematic
+ * (src/anim/aniend.c). No-op stub so the test binary links; its dialog output
+ * is a Phase 9 integration concern. */
 void fd2_show_portrait_dialog_with_input(uint32 dialog_text_id, uint32 portrait_id) {
     (void)dialog_text_id; (void)portrait_id;
+}
+/* fd2_play_char_intro_zoom_anim (0x29164) and fd2_step_figani_pose_animation
+ * (0x2B9A1): FIGANI cinematic helpers not yet emitted (future src/anim/anicine.c);
+ * referenced by the real fd2_play_final_chapter_30_ending (src/anim/aniend.c).
+ * No-op stubs so the test binary links; their pixel output and the figani
+ * pose-state advance are a Phase 9 integration concern. */
+void fd2_play_char_intro_zoom_anim(uint32 char_idx, uint32 mode_flag, uint32 char_sprite,
+                                   int char_idx2, uint32 workspace, uint32 base_sprite,
+                                   uint32 weapon_sprite) {
+    (void)char_idx; (void)mode_flag; (void)char_sprite; (void)char_idx2;
+    (void)workspace; (void)base_sprite; (void)weapon_sprite;
+}
+void fd2_step_figani_pose_animation(uint32 figani_data, uint32 palette_op,
+                                    uint32 dst_buf, uint32 dst_stride) {
+    (void)figani_data; (void)palette_op; (void)dst_buf; (void)dst_stride;
 }
 /* fd2_process_xp_and_level_up_for_char: now emitted in src/battle/btl_turn.c
  * and linked for real; driven by the test_xp_* cases below. */

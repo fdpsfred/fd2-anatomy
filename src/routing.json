@@ -2908,8 +2908,9 @@
     "name": "fd2_play_final_chapter_30_ending",
     "target": "anim/aniend.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002c9ec": {
     "name": "fd2_tick_tutorial_progress_with_sfx",

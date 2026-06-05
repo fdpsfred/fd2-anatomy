@@ -690,3 +690,249 @@ void fd2_play_game_ending_cinematic(void)
     fd2_play_palette_fade_in();
     free((void *)res_3b);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_play_final_chapter_30_ending @ 0x2C405  (1 caller)
+ *
+ * Sole caller: fd2_play_game_ending_cinematic @ 0x2BCE5 (call site 0x2C18F,
+ * invoked just before the 20-char credit roll).
+ *
+ * Chapter-30 final per-character portrait + epilogue monologue sequence:
+ *   - load chapter-30 battle data (idx 0x1E); set the dialog portrait blit
+ *     offset to 0xC88
+ *   - 0x36B00-byte workspace: render the chapter-30 opening text (page 0x2C),
+ *     then run a 500-iteration palette "breathing" sweep (brightness 0x28
+ *     fades down to 0 over the first 200 frames, fades back up after frame 300)
+ *   - reload a 0x1F400 workspace + two 64000-byte buffers; load the TAI.DAT[3]
+ *     backdrop sprite + FDOTHER.DAT[0x38] RLE base image into bg_buf; start
+ *     ending BGM track 4
+ *   - reverse-iterate the menu party (most-recently-recruited first), with a
+ *     0/1 display-slot swap so the two lead characters trade order:
+ *       * load FIGANI.DAT pose data (figani_idx+1) and sprite sheet (figani_idx)
+ *         where figani_idx = portrait_id * 3
+ *       * play the char intro zoom, then a 20-tick figani pose hold, then walk
+ *         the pose-step table (count = pose_data[2]; per-step delay =
+ *         pose_data[pose_data[s*4+8] + 6])
+ *       * snapshot bg_buf -> scratch, load the DATO.DAT portrait, frame the
+ *         dialog panel; the last character (char_idx 0) gets a 0x1B8-tick
+ *         monologue, all others 0xDC
+ *       * per tick: render frame + RNG-driven mouth jitter + 5 dialog fragments
+ *         (header / char name / separator / job name / epilogue passage); a key
+ *         press skips to the next character; fade to black between characters
+ *
+ * EAX-tracking-bug correction: the decompiler renders the mouth-jitter reload
+ * as `(byte)DATO_load_result & 0x1F`, but the machine code reloads it from the
+ * RNG: `CALL fd2_advance_rng_state; AND AL,0x1F; ADD AL,0x28`. Reproduced as
+ * `(fd2_advance_rng_state() & 0x1F) + 0x28` — the advance returns the new seed
+ * in AX, which the compiler reuses in AL.
+ *
+ * Resources:
+ *   chapter-30 battle data row (idx 0x1E)
+ *   TAI.DAT[3]            — chapter-30 ending backdrop sprite
+ *   FDOTHER.DAT[0x38]     — RLE base image
+ *   FIGANI.DAT[portrait*3 (+1)] — per-char sprite sheet + pose data
+ *   DATO.DAT[portrait_id] — large portrait sprite
+ *   BGM track 4          — ending BGM
+ *
+ * The tail free(workspace) compiles (in the original) into a jump into the
+ * shared free-wrapper epilogue; the plain call below is the equivalent.
+ * ---------------------------------------------------------------- */
+void fd2_play_final_chapter_30_ending(void)
+{
+    void   *workspace;       /* 0x36B00 then 0x1F400 compose/scroll workspace  */
+    void   *bg_buf;          /* 64000-byte backdrop (RLE base image)           */
+    void   *scratch;         /* 64000-byte per-character dialog backdrop copy  */
+    uint32  bg_sprite;       /* TAI.DAT[3] backdrop sprite sheet               */
+    uint8  *pose_data;       /* FIGANI.DAT[figani_idx+1] pose-step table        */
+    uint32  sprite_sheet;    /* FIGANI.DAT[figani_idx] sprite sheet            */
+    uint32  rle_stream;      /* FDOTHER.DAT[0x38] RLE base image (freed after)  */
+    runtime_char *party;     /* cached runtime_char array base in the loop      */
+    uint32  brightness;
+    uint32  i;
+    int     char_idx;
+    uint8   swap_idx;
+    uint8   portrait_id;
+    uint32  figani_idx;
+    int     t;
+    int     s;
+    int     step_offset;
+    int     tick_count;
+    int     frame_offset;
+    uint32  rng_val;
+    uint8   jitter_counter;
+
+    workspace = (void *)0;   /* pose_data / sprite_sheet self-ref buf seeds     */
+    pose_data = (uint8 *)0;
+    sprite_sheet = 0;
+    jitter_counter = 0;
+
+    fd2_load_chapter_battle_data(0x1E);
+    data_fd2_dialog_active_portrait_blit_offset = 0xC88;
+
+    workspace = malloc(0x36B00);
+    memset(workspace, 0, 0x36B00);
+    fd2_display_dialog_scene(current_chapter_text, 0x2C,
+                             (uint32)workspace + 0x12C30, 0x140, 0xCD, 0x4C,
+                             0, 0x19, 0);
+
+    /* 500-iter palette breathing: fade-down to 0 over frames 0..199,
+       fade-up after frame 300 */
+    brightness = 0x28;
+    for (i = 0; (int)i < 500; i++) {
+        fd2_set_vga_palette_range(0, 0xFF, brightness);
+        fd2_blit_rectangle(0xA0000, 0x140,
+                           (uint32)workspace + i * 0x140, 0x140, 0x140, 0xC8);
+        if ((int)i < 200 && (uint8)brightness != 0 && (int)i % 5 == 0) {
+            brightness = (uint8)(brightness - 1);
+        }
+        if ((int)i > 300 && (int)i % 5 == 0) {
+            brightness = (uint8)(brightness + 1);
+        }
+        fd2_wait_n_bios_ticks(1);
+    }
+    free(workspace);
+
+    workspace = malloc(0x1F400);
+    bg_buf  = malloc(64000);
+    scratch = malloc(64000);
+
+    bg_sprite = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_tai_dat, 0, 3);
+    rle_stream = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 0x38);
+    fd2_rle_blit_sprite(rle_stream, 0, 0, (uint32)bg_buf, 0x140, 0xFFFFFFFF);
+    free((void *)rle_stream);
+    fd2_set_bgm_track_with_fade(4, 0);
+
+    /* reverse-iterate menu party (most-recently-recruited first) */
+    for (char_idx = (int)data_fd2_shared_menu_party_member_count - 1;
+         char_idx >= 0; char_idx--) {
+        party = data_fd2_battle_runtime_char_array_ptr;
+
+        /* 0/1 swap so the two lead slots trade display order */
+        if (char_idx == 0) {
+            swap_idx = 1;
+        } else if (char_idx == 1) {
+            swap_idx = 0;
+        } else {
+            swap_idx = (uint8)char_idx;
+        }
+
+        portrait_id = data_fd2_battle_runtime_char_array_ptr[swap_idx].portrait_id;
+        figani_idx = (uint32)portrait_id * 3;
+
+        pose_data = (uint8 *)fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_figani_dat_52388,
+            (uint32)pose_data, figani_idx + 1);
+        sprite_sheet = fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_figani_dat_52388,
+            sprite_sheet, figani_idx);
+
+        fd2_play_char_intro_zoom_anim((uint32)char_idx, 1, sprite_sheet, 0,
+                                      (uint32)workspace, (uint32)bg_buf,
+                                      bg_sprite);
+        fd2_step_figani_pose_animation(sprite_sheet, 0, (uint32)workspace, 0x140);
+
+        /* 20-tick figani pose hold */
+        for (t = 0; t < 0x14; t++) {
+            fd2_blit_rectangle((uint32)workspace, 0x140, (uint32)bg_buf,
+                               0x140, 0x140, 0xC8);
+            fd2_step_figani_pose_animation(sprite_sheet, 0xFFFFFFFF,
+                                           (uint32)workspace, 0x140);
+            fd2_blit_rectangle(0xA0000, 0x140, (uint32)workspace,
+                               0x140, 0x140, 0xC8);
+            fd2_wait_n_bios_ticks(1);
+        }
+
+        /* pose-step loop driven by the pose_data header */
+        for (s = 0; s < (int)pose_data[2]; s++) {
+            step_offset = *(int32 *)(pose_data + s * 4 + 8);
+            fd2_blit_rectangle((uint32)workspace, 0x140, (uint32)bg_buf,
+                               0x140, 0x140, 0xC8);
+            fd2_blit_indexed_sprite((uint32)pose_data, (uint32)s,
+                                    (uint32)workspace, 0x140, -1);
+            fd2_blit_rectangle(0xA0000, 0x140, (uint32)workspace,
+                               0x140, 0x140, 0xC8);
+            fd2_wait_n_bios_ticks((uint32)pose_data[step_offset + 6]);
+        }
+
+        memmove(scratch, bg_buf, 64000);
+        data_fd2_portrait_sprite_buffer = (uint8 *)fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_dato_dat_51a70,
+            (uint32)data_fd2_portrait_sprite_buffer, (uint32)portrait_id);
+        fd2_assemble_dialog_frame_layered((uint32)scratch, 0x140, 5, 7, 5, 5);
+
+        /* last character (char_idx 0) gets the long monologue */
+        if (char_idx == 0) {
+            tick_count = 0x1B8;
+        } else {
+            tick_count = 0xDC;
+        }
+
+        for (t = 0; t < tick_count; t++) {
+            fd2_blit_rectangle((uint32)workspace, 0x140, (uint32)scratch,
+                               0x140, 0x140, 0xC8);
+
+            /* RNG-driven mouth jitter (EAX-bug corrected: jitter from RNG) */
+            if (jitter_counter == 0) {
+                rng_val = fd2_advance_rng_state();
+                jitter_counter = (uint8)((rng_val & 0x1F) + 0x28);
+            } else {
+                jitter_counter = jitter_counter - 1;
+            }
+            if (jitter_counter < 2) {
+                frame_offset = 0xC;
+            } else {
+                frame_offset = 0;
+            }
+            fd2_dialog_sprite_blit_normal(
+                data_fd2_dialog_active_portrait_blit_offset + (uint32)workspace,
+                (uint32)data_fd2_portrait_sprite_buffer
+                    + *(int32 *)(data_fd2_portrait_sprite_buffer + frame_offset),
+                0x140);
+            fd2_step_figani_pose_animation(sprite_sheet, 0xFFFFFFFF,
+                                           (uint32)workspace, 0x140);
+
+            /* 5-fragment dialog assembly */
+            fd2_display_dialog_scene(current_chapter_text, 10,
+                                     (uint32)workspace + 0x16E9, 0x140, 0xCD,
+                                     0x4C, 0, 0, 0);
+            fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
+                                     (uint32)(party[swap_idx].char_id + 1),
+                                     (uint32)workspace + 0x171B, 0x140, 0xCD,
+                                     0x4C, 0, 0, 0);
+            fd2_display_dialog_scene(current_chapter_text, 0xB,
+                                     (uint32)workspace + 0x2FE9, 0x140, 0xCD,
+                                     0x4C, 0, 0, 0);
+            fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
+                                     (uint32)(party[swap_idx].job_id + 0x96),
+                                     (uint32)workspace + 0x301B, 0x140, 0xCD,
+                                     0x4C, 0, 0, 0);
+            if (t < 0xDC) {
+                i = (uint8)(party[swap_idx].char_id + 0xC);
+            } else {
+                i = 0x2D;
+            }
+            fd2_display_dialog_scene(current_chapter_text, i,
+                                     (uint32)workspace + 0x7D08, 0x140, 0xCD,
+                                     0x4C, 0, 0x14, 0);
+
+            fd2_blit_rectangle(0xA0000, 0x140, (uint32)workspace,
+                               0x140, 0x140, 0xC8);
+            fd2_wait_n_bios_ticks(1);
+
+            /* key press -> skip to next character */
+            if (fd2_check_keyboard_buffer_nonempty() != 0) {
+                char_idx = 1;
+                fd2_clear_keyboard_buffer();
+            }
+        }
+        fd2_play_palette_fade_to_black();
+    }
+
+    free(bg_buf);
+    free(scratch);
+    free((void *)pose_data);
+    free((void *)bg_sprite);
+    free(workspace);
+}

@@ -252,6 +252,8 @@ int fd2_build_usable_spell_list(uint32 ci, uint32 buf);
 int fd2_score_spell_candidate(uint32 si, uint32 nt, uint32 tb);
 void fd2_execute_ai_item_use(uint32 char_idx, uint32 ctx);
 void fd2_play_figani_char_intro_animation(uint32 char_idx);
+void fd2_play_char_intro_zoom_anim(uint32 char_idx, uint32 mode_flag, uint32 char_sprite, int char_idx2, uint32 workspace, uint32 base_sprite, uint32 weapon_sprite);
+void fd2_step_figani_pose_animation(uint32 figani_data, uint32 palette_op, uint32 dst_buf, uint32 dst_stride);
 void fd2_apply_use_effect_dispatch(uint32 ci, uint32 sl, uint32 n, uint32 buf);
 void fd2_clear_all_chars_facing(void);
 void fd2_clear_all_chars_acted_flag(void);
