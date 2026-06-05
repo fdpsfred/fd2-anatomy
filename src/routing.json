@@ -3854,8 +3854,9 @@
     "name": "fd2_chapter_event_handler_08__ch13_first_time",
     "target": "field/chevt1.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00034e3b": {
     "name": "fd2_chapter_event_handler_0a__ch14_first_time",

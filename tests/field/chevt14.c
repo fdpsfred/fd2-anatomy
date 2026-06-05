@@ -617,6 +617,218 @@ static void test_ch13_event07_reloads_portrait2_brackets_initphase_page8(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_08__ch13_first_time @ 0x34DCD (dispatch idx 0x08)
+ * — chapter 13 tile-step event slot 0 (tile-step event_type 0x01): a
+ * first-time-gated item pickup for the lord. The dispatch arg is the id of the
+ * char who stepped onto the trigger tile; the beat fires only when ALL THREE
+ * gates pass — the stepping char is the lord (char 0), the lord's inventory is
+ * not full (fd2_count_usable_inventory_slots(0) != 8 — the one CALL-return
+ * value the handler tests), and the trigger byte [0x10] of the tile-event
+ * consumed-flags block is still 0. When all pass it gives the lord item id 0x59
+ * (fd2_add_item_to_inventory drops it in the first empty slot), shows dialog
+ * page 0xB, and writes consumed-flags byte [0x10] = 1 so it runs at most once.
+ *
+ * Every callee is REAL: fd2_count_usable_inventory_slots / fd2_add_item_to_inventory
+ * operate on the lord's inventory_slots[] in the 64-slot g_ev_rc fixture (slot i:
+ * [i*2] = flag, bit 0x80 set = empty; [i*2+1] = item id), and the real dialog VM
+ * runs on the per-page-distinct-glyph program ev20_install_safe_env() installs
+ * (page p -> single TEXT glyph idx 0x50+p, then END), so a correct page-0xB
+ * dispatch emits exactly one glyph with idx 0x5B and any wrong page fails loudly
+ * via the testglob glyph recorder. The consumed-flags block is a private
+ * 0x20-byte buffer so both the read gate and the write consume are observable.
+ *
+ * Four cases pin every branch of the three-gate cascade:
+ *   (1) all gates pass: item 0x59 lands in the lord's first empty slot
+ *       (flag -> 0, item id -> 0x59), page 0xB is shown (one glyph idx 0x5B),
+ *       and byte [0x10] is consumed to 1;
+ *   (2) a non-lord steps (char 5): the char gate blocks everything — no glyph,
+ *       byte [0x10] stays 0, the lord's inventory is untouched;
+ *   (3) the lord's inventory is full (all 8 slots occupied -> count == 8): the
+ *       slot-count gate blocks everything — no glyph, byte [0x10] stays 0
+ *       (exercises the CALL-return-value gate, the Ghidra EAX-tracking risk
+ *       point);
+ *   (4) the trigger was already consumed (byte [0x10] == 1 on entry): the
+ *       consumed gate blocks everything — no glyph, byte [0x10] stays 1, and no
+ *       item is added even though a slot is free.
+ *
+ * The pure blit/display side effects (the real glyph render path) are deferred
+ * to Phase 9 integration; here only the dispatched-page identity, the inventory
+ * write, and the consume flag are asserted.
+ * ================================================================ */
+
+/* private 0x20-byte tile-event consumed-flags block: the handler reads/writes
+ * byte [0x10] of this block via data_fd2_field_map_tile_event_consumed_flags_ptr. */
+static uint8   g_ev08_consumed_flags[0x20];
+static uint32  g_ev08_saved_consumed_ptr;
+
+/* Set all 8 inventory slots of char `ci` empty (flag bit 0x80 set), so
+ * fd2_count_usable_inventory_slots(ci) == 0 (not full) and the first empty slot
+ * is slot 0. */
+static void ev08_set_inventory_all_empty(int ci)
+{
+    int i;
+    for (i = 0; i < 8; i++) {
+        g_ev_rc[ci].inventory_slots[i * 2]     = 0x80;  /* empty */
+        g_ev_rc[ci].inventory_slots[i * 2 + 1] = 0x00;  /* item id */
+    }
+}
+
+/* Set all 8 inventory slots of char `ci` occupied (flag bit 0x80 clear), so
+ * fd2_count_usable_inventory_slots(ci) == 8 (full). */
+static void ev08_set_inventory_full(int ci)
+{
+    int i;
+    for (i = 0; i < 8; i++) {
+        g_ev_rc[ci].inventory_slots[i * 2]     = 0x00;  /* occupied */
+        g_ev_rc[ci].inventory_slots[i * 2 + 1] = 0x10;  /* arbitrary held item */
+    }
+}
+
+static void ev08_install_env(void)
+{
+    /* per-page-distinct-glyph dialog program + ch25-style real env (64-slot
+     * g_ev_rc, empty party, ...); also resets the glyph recorder. */
+    ev20_install_safe_env();
+
+    /* aim the consumed-flags pointer at a private 0x20-byte buffer; start every
+     * flag clear (each case seeds byte [0x10] as needed). */
+    memset(g_ev08_consumed_flags, 0, sizeof(g_ev08_consumed_flags));
+    g_ev08_saved_consumed_ptr = data_fd2_field_map_tile_event_consumed_flags_ptr;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ev08_consumed_flags;
+}
+
+static void ev08_restore_env(void)
+{
+    data_fd2_field_map_tile_event_consumed_flags_ptr = g_ev08_saved_consumed_ptr;
+    ev_restore_rc_ptr();
+}
+
+/* ----------------------------------------------------------------
+ * (1) All three gates pass: the lord (char 0) steps on the tile with a free
+ * inventory slot and an un-consumed trigger. The handler must give the lord
+ * item 0x59 in his first empty slot (flag -> 0, item id -> 0x59), show dialog
+ * page 0xB (one glyph, idx 0x5B), and consume byte [0x10] to 1.
+ * ---------------------------------------------------------------- */
+static void test_ch13_event08_lord_pickup_gives_item_shows_page_consumes(void)
+{
+    ev08_install_env();
+
+    /* lord has empty inventory slots -> count != 8 (not full); first empty slot
+     * is slot 0 so the added item lands there. */
+    ev08_set_inventory_all_empty(0);
+
+    /* trigger not yet consumed. */
+    g_ev08_consumed_flags[0x10] = 0;
+
+    fd2_chapter_event_handler_08__ch13_first_time(0);
+
+    /* item 0x59 was added to the lord's first empty slot: flag cleared to
+     * occupied-unequipped (0), item id byte set to 0x59. */
+    ASSERT_EQ((long)g_ev_rc[0].inventory_slots[0], 0L);
+    ASSERT_EQ((long)g_ev_rc[0].inventory_slots[1], (long)0x59);
+
+    /* exactly page 0xB was shown: one glyph, idx 0x5B (= 0x50 + page 0xB). */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0x5B);
+
+    /* the trigger was consumed. */
+    ASSERT_EQ((long)g_ev08_consumed_flags[0x10], 1L);
+
+    ev08_restore_env();
+}
+
+/* ----------------------------------------------------------------
+ * (2) Char gate: a non-lord unit (char 5) steps on the tile. Even with a free
+ * slot and an un-consumed trigger, NOTHING fires — no dialog, the trigger stays
+ * clear, and the lord's inventory is untouched.
+ * ---------------------------------------------------------------- */
+static void test_ch13_event08_non_lord_step_does_nothing(void)
+{
+    ev08_install_env();
+
+    /* both the lord (char 0) and the stepping char (char 5) have free slots, so
+     * only the char gate can block the pickup. */
+    ev08_set_inventory_all_empty(0);
+    ev08_set_inventory_all_empty(5);
+
+    g_ev08_consumed_flags[0x10] = 0;
+
+    fd2_chapter_event_handler_08__ch13_first_time(5);
+
+    /* no dialog dispatched. */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 0);
+
+    /* trigger untouched. */
+    ASSERT_EQ((long)g_ev08_consumed_flags[0x10], 0L);
+
+    /* the lord's first slot is still empty (no item added). */
+    ASSERT_EQ((long)g_ev_rc[0].inventory_slots[0], (long)0x80);
+    ASSERT_EQ((long)g_ev_rc[0].inventory_slots[1], 0L);
+
+    ev08_restore_env();
+}
+
+/* ----------------------------------------------------------------
+ * (3) Slot-count gate: the lord steps on the tile but his inventory is full
+ * (all 8 slots occupied -> fd2_count_usable_inventory_slots(0) == 8). NOTHING
+ * fires. This exercises the one CALL-return value the handler tests (the Ghidra
+ * EAX-tracking risk point): no dialog and the trigger stays clear.
+ * ---------------------------------------------------------------- */
+static void test_ch13_event08_full_inventory_does_nothing(void)
+{
+    ev08_install_env();
+
+    /* lord's inventory full -> count == 8 -> the != 8 gate blocks the pickup. */
+    ev08_set_inventory_full(0);
+
+    g_ev08_consumed_flags[0x10] = 0;
+
+    fd2_chapter_event_handler_08__ch13_first_time(0);
+
+    /* no dialog dispatched. */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 0);
+
+    /* trigger untouched. */
+    ASSERT_EQ((long)g_ev08_consumed_flags[0x10], 0L);
+
+    /* the lord's slot 0 still holds its pre-seeded occupied item (unchanged). */
+    ASSERT_EQ((long)g_ev_rc[0].inventory_slots[0], 0L);
+    ASSERT_EQ((long)g_ev_rc[0].inventory_slots[1], (long)0x10);
+
+    ev08_restore_env();
+}
+
+/* ----------------------------------------------------------------
+ * (4) Consumed gate: the trigger byte [0x10] is already 1 on entry. Even though
+ * the lord steps on the tile with a free slot, NOTHING fires — no dialog, the
+ * trigger stays 1, and no item is added.
+ * ---------------------------------------------------------------- */
+static void test_ch13_event08_already_consumed_does_nothing(void)
+{
+    ev08_install_env();
+
+    /* lord has a free slot (so only the consumed gate can block the pickup). */
+    ev08_set_inventory_all_empty(0);
+
+    /* trigger already consumed. */
+    g_ev08_consumed_flags[0x10] = 1;
+
+    fd2_chapter_event_handler_08__ch13_first_time(0);
+
+    /* no dialog dispatched. */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 0);
+
+    /* trigger still consumed (unchanged). */
+    ASSERT_EQ((long)g_ev08_consumed_flags[0x10], 1L);
+
+    /* the lord's first slot is still empty (no item added). */
+    ASSERT_EQ((long)g_ev_rc[0].inventory_slots[0], (long)0x80);
+    ASSERT_EQ((long)g_ev_rc[0].inventory_slots[1], 0L);
+
+    ev08_restore_env();
+}
+
 void run_field_chevt14_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -630,5 +842,9 @@ void run_field_chevt14_tests(void)
     RUN_TEST(test_ch12_event24_sets_ai_flag_0x83_for_char_0e);
     RUN_TEST(test_event25_dialog_page1_two_stage_cinematic);
     RUN_TEST(test_ch13_event07_reloads_portrait2_brackets_initphase_page8);
+    RUN_TEST(test_ch13_event08_lord_pickup_gives_item_shows_page_consumes);
+    RUN_TEST(test_ch13_event08_non_lord_step_does_nothing);
+    RUN_TEST(test_ch13_event08_full_inventory_does_nothing);
+    RUN_TEST(test_ch13_event08_already_consumed_does_nothing);
     printf("\n");
 }

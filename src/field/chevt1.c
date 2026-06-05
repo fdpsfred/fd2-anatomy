@@ -22,6 +22,9 @@
  * fd2_chapter_event_handler_06__ch2_reinforcement @ 0x34422
  *     (0 direct callers; dispatched as idx 0x06 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_08__ch13_first_time @ 0x34DCD
+ *     (0 direct callers; dispatched as idx 0x08 of the per-event
+ *      handler table at 0x51B91)
  * fd2_chapter_event_handler_09__ch3_char_cond @ 0x344C2
  *     (0 direct callers; dispatched as idx 0x09 of the per-event
  *      handler table at 0x51B91)
@@ -364,6 +367,49 @@ void fd2_chapter_event_handler_07__ch13_dialog_with_state(uint32 event_arg)
     fd2_clear_all_chars_facing();
     fd2_display_dialog_scene(current_chapter_text, 8, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_08__ch13_first_time @ 0x34DCD
+ *   — Chapter 13 tile-step event slot 0 (tile-step event_type 0x01),
+ *     dispatched as idx 0x08 of the per-event handler table at 0x51B91.
+ *
+ * first-time-gated tile-step item pickup. The dispatch arg is the id of
+ * the char who stepped onto the trigger tile; the beat fires only when the
+ * lord (char 0) steps on it, the lord's inventory is not full, and the
+ * trigger has not yet been consumed. When all three gates pass it gives the
+ * lord item id 0x59, shows dialog page 0xB, and consumes the trigger so it
+ * runs at most once. The three gates are: stepping_char_id == 0,
+ * fd2_count_usable_inventory_slots(0) != 8 (the count of the lord's used
+ * slots — 8 means full), and tile-event slot [0x10] == 0. No RNG, no numeric
+ * computation; the only CALL-return value used is the slot count.
+ *
+ * void __cdecl(uint stepping_char_id) per the tile-step dispatch hooks: the
+ * stepping char id arrives as a single stack arg (the table at 0x51B91 is
+ * uniform 1-arg cdecl, but tile-step slots pass the stepping char id rather
+ * than the unread turn-event arg). EBX is not touched; the __CHK(0x28)
+ * stack-probe prologue is compiler-injected and omitted here. Inside the
+ * char-0 gate stepping_char_id is provably 0, so it is the value passed to
+ * both inventory calls (matching the original's PUSH of the stack arg).
+ *
+ * The pointer global data_fd2_field_map_tile_event_consumed_flags_ptr holds
+ * the base of the 0x20-byte tile-event consumed-flags block; this handler's
+ * trigger is byte [0x10] of that block (read as the gate, written 1 to
+ * consume).
+ *
+ * Walkthrough SOT: assets/chapters/chapter_13.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_08__ch13_first_time(uint32 stepping_char_id)
+{
+    if (stepping_char_id == 0) {
+        if (fd2_count_usable_inventory_slots(stepping_char_id) != 8 &&
+            *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) == 0) {
+            fd2_add_item_to_inventory(stepping_char_id, 0x59);
+            fd2_display_dialog_scene(current_chapter_text, 0xB, 0xA0000, 0x140,
+                                     0xCD, 0x4C, 0x4A, 0x13, 1);
+            *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) = 1;
+        }
+    }
 }
 
 /* ----------------------------------------------------------------
