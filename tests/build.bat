@@ -37,6 +37,7 @@ D:\BIN\WCC386.EXE spell\spellsel.c %CF% -fo=E:\out\obj\spellsel.obj >> E:\out\bu
 D:\BIN\WCC386.EXE anim\anicombt.c %CF% -fo=E:\out\obj\anicombt.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE anim\anicine.c %CF% -fo=E:\out\obj\anicine.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE field\chpost.c %CF% -fo=E:\out\obj\chpost.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE ui_menu\shop.c %CF% -fo=E:\out\obj\shop.obj >> E:\out\build.out
 
 echo === compile tests === >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\testmain.c %CF% -fo=E:\out\obj\testmain.obj >> E:\out\build.out
@@ -80,6 +81,7 @@ D:\BIN\WCC386.EXE E:\ui_menu\cursor.c %CF% -fo=E:\out\obj\tcursor.obj >> E:\out\
 D:\BIN\WCC386.EXE E:\ui_menu\menu.c %CF% -fo=E:\out\obj\tmenu.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\ui_menu\menucfg.c %CF% -fo=E:\out\obj\tmenucfg.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\ui_menu\menufld.c %CF% -fo=E:\out\obj\tmenufld.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE E:\ui_menu\shop.c %CF% -fo=E:\out\obj\tshop.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\ui_menu\status.c %CF% -fo=E:\out\obj\tstatus.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\util\pathfnd.c %CF% -fo=E:\out\obj\tpathfnd.obj >> E:\out\build.out
 

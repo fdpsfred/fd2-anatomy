@@ -1,0 +1,109 @@
+/*
+ * shop.c — Shop / give-item screen navigation input loop.
+ *
+ * fd2_shop_menu_input_loop @ 0x2DF6B (3 callers: fd2_run_buy_item_menu,
+ *   fd2_run_sell_item_menu, fd2_run_give_item_menu)
+ */
+
+#include "types.h"
+#include "consts.h"
+#include "globals.h"
+#include "protos.h"
+
+/* ----------------------------------------------------------------
+ * fd2_shop_menu_input_loop @ 0x2DF6B  (3 callers)
+ *
+ * Cursor navigation + row-paged scroll for the buy / sell / give-item
+ * screens, laid out as a 2-column grid showing 6 items (3 rows) at a
+ * time. Per iteration it reads one scancode through the real
+ * fd2_wait_input_with_chapter_dialog_blink(1) (mode 1 = 2-panel layout)
+ * and dispatches:
+ *   Right (0x4D): if cursor != item_count-1, cursor += 1
+ *   Left  (0x4B): if cursor != 0,            cursor -= 1
+ *   Up    (0x48): if cursor > 1,             cursor -= 2  (row up)
+ *   Down  (0x50): if cursor < item_count-2,  cursor += 2  (row down)
+ *   Enter (0x1C) / Space (0x39): return 1   (commit)
+ *   Esc   (0x01):                return -1  (cancel)
+ * On any move it plays SFX 0 (cursor chime), pages the 6-item viewport
+ * by 2 when the cursor leaves it (animating the scroll), and re-renders
+ * the grid. Loops until commit or cancel.
+ *
+ * Globals: data_fd2_ui_menu_cursor_idx (0x53C57) absolute cursor;
+ *          data_fd2_ui_menu_scroll_offset (0x5412F) top-row index of the
+ *          6-item viewport (steps of 2);
+ *          data_fd2_audio_fdother_sfx_bank_buf_ptr (0x53EEC) SFX bank.
+ *
+ * EAX-bug note: the scancode is the full int return of
+ * fd2_wait_input_with_chapter_dialog_blink (disasm CMP EAX,0x4d et al.
+ * compare the full 32-bit EAX), captured as an int here — Ghidra
+ * narrows it to a byte via CONCAT31, which this avoids.
+ * ---------------------------------------------------------------- */
+int fd2_shop_menu_input_loop(uint32 param_1, uint32 param_2, uint32 param_3)
+{
+    int scancode;
+    uint32 delta;
+    int result;
+
+    result = 0;
+    do {
+        scancode = fd2_wait_input_with_chapter_dialog_blink(1);
+        if (scancode == 0x4d) {
+            if (param_1 - 1 != data_fd2_ui_menu_cursor_idx) {
+                fd2_play_sfx_with_handle(
+                    data_fd2_audio_fdother_sfx_bank_buf_ptr, 0, 1);
+                data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx + 1;
+LAB_dfb8:
+                delta = data_fd2_ui_menu_cursor_idx
+                      - data_fd2_ui_menu_scroll_offset;
+                if (5 < (int)delta) {
+                    data_fd2_ui_menu_scroll_offset =
+                        data_fd2_ui_menu_scroll_offset + 2;
+                    fd2_animate_scroll_up_in_shop_dialog();
+                }
+LAB_dfd4:
+                fd2_render_shop_item_grid(param_1, param_2,
+                    data_fd2_ui_menu_cursor_idx, 0xa0000, param_3 & 0xff);
+            }
+        }
+        else if (scancode == 0x4b) {
+            if (data_fd2_ui_menu_cursor_idx != 0) {
+                fd2_play_sfx_with_handle(
+                    data_fd2_audio_fdother_sfx_bank_buf_ptr, 0, 1);
+                data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx - 1;
+LAB_e01e:
+                if ((int)data_fd2_ui_menu_cursor_idx
+                        < (int)data_fd2_ui_menu_scroll_offset) {
+                    data_fd2_ui_menu_scroll_offset =
+                        data_fd2_ui_menu_scroll_offset - 2;
+                    fd2_animate_scroll_down_in_shop_dialog();
+                }
+                goto LAB_dfd4;
+            }
+        }
+        else if (scancode == 0x48) {
+            if (1 < (int)data_fd2_ui_menu_cursor_idx) {
+                fd2_play_sfx_with_handle(
+                    data_fd2_audio_fdother_sfx_bank_buf_ptr, 0, 1);
+                data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx - 2;
+                goto LAB_e01e;
+            }
+        }
+        else if (scancode == 0x50) {
+            if ((int)data_fd2_ui_menu_cursor_idx < (int)(param_1 - 2)) {
+                fd2_play_sfx_with_handle(
+                    data_fd2_audio_fdother_sfx_bank_buf_ptr, 0, 1);
+                data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx + 2;
+                goto LAB_dfb8;
+            }
+        }
+        else if ((scancode == 0x1c) || (scancode == 0x39)) {
+            result = 1;
+        }
+        else if (scancode == 1) {
+            result = -1;
+        }
+        if (result != 0) {
+            return result;
+        }
+    } while (1);
+}

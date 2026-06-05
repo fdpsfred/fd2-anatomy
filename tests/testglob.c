@@ -403,6 +403,36 @@ uint32 data_fd2_ui_slide_composed_target_buf_ptr = 0;
 uint32 data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
 uint32 data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
 uint32 data_fd2_ui_menu_cursor_idx = 0;
+/* Shop / give-item menu scroll offset (top-row index of the 6-item viewport,
+ * steps of 2). Real FD2.LE global @ 0x5412F; shared menu-scroll state. */
+uint32 data_fd2_ui_menu_scroll_offset = 0;
+/* Recording stubs for fd2_shop_menu_input_loop's not-yet-emitted display
+ * callees (targets gfx/rndmenu.c + anim/aniui.c). The shop input loop re-renders
+ * the 2-column item grid after every cursor move and animates the viewport when
+ * it pages; recording the last forwarded (item_count, cursor, dst, sell_mode)
+ * and per-callee call counts lets the shop.c navigation test pin the cursor /
+ * scroll-paging arithmetic and the SFX/render sequencing without touching VGA. */
+int    g_shop_grid_render_calls = 0;
+uint32 g_shop_grid_last_count = 0;
+uint32 g_shop_grid_last_array = 0;
+uint32 g_shop_grid_last_cursor = 0;
+uint32 g_shop_grid_last_dst = 0;
+uint32 g_shop_grid_last_sell = 0;
+int    g_shop_scroll_up_calls = 0;
+int    g_shop_scroll_down_calls = 0;
+void fd2_render_shop_item_grid(uint32 item_count, uint32 item_id_array,
+                               uint32 cursor, uint32 dst_buf,
+                               uint32 sell_mode_flag)
+{
+    g_shop_grid_render_calls++;
+    g_shop_grid_last_count = item_count;
+    g_shop_grid_last_array = item_id_array;
+    g_shop_grid_last_cursor = cursor;
+    g_shop_grid_last_dst = dst_buf;
+    g_shop_grid_last_sell = sell_mode_flag;
+}
+void fd2_animate_scroll_up_in_shop_dialog(void) { g_shop_scroll_up_calls++; }
+void fd2_animate_scroll_down_in_shop_dialog(void) { g_shop_scroll_down_calls++; }
 /* field command menu templates — real FD2.LE values @ 0x51E9F / 0x53EF2 */
 int32  data_fd2_ui_field_command_menu_options_template[4] = { 7, 5, 6, 4 };
 int32  data_fd2_ui_field_command_menu_state_template[4] = { 0, 0, 0, 0 };
