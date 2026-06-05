@@ -1021,6 +1021,117 @@ static void test_cinematic_keeps_palette_when_idx_neg1(void)
     cinematic_reset();                       /* frees the global (= pal_buf) */
 }
 
+/* ================================================================
+ * fd2_restore_portrait_cache_from_tmp @ 0x29117
+ *
+ * Reads the full 0x32A00-byte portrait sprite cache back from FD2.TMP into a
+ * freshly malloc'd portrait_sprite_cache. This is the symmetric read of the
+ * swap file written by fd2_load_chapter_portraits_and_dump_tmp's fwrite tail.
+ *
+ * Genuine round-trip (no fabricated file): seed portrait_sprite_cache with
+ * real FDICON.B24-loaded portrait bytes, dump it to FD2.TMP with the REAL
+ * writer (alloc_offset 0 so the writer's per-record loop is skipped and it
+ * fwrites the cache verbatim), snapshot those genuine on-disk bytes, then drive
+ * the reader and assert it restored a fresh non-NULL buffer holding byte-
+ * identical content. Also asserts the on-disk FD2.TMP is exactly 0x32A00.
+ * ================================================================ */
+
+/* Fill the first `n` bytes of portrait_sprite_cache with genuine sprite bytes
+ * by loading real portraits from the staged FDICON.B24 until the cache's used
+ * span covers `n`; the rest of the 0x32A00 buffer keeps its malloc contents
+ * (also written out verbatim by the dump, so the round-trip stays exact). */
+static void rt_seed_cache_from_fdicon(void)
+{
+    FILE *fp;
+    int   pid;
+
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_resource_portrait_cache_count = 0;
+    data_fd2_resource_portrait_cache_buffer_used = 0;
+
+    fp = fopen("FDICON.B24", "rb");
+    /* load a handful of distinct real portraits -> genuine packed sprite bytes
+     * land at cache+0x780.. ; first call malloc's the 0x32A00 buffer */
+    for (pid = 1; pid <= 8; pid++) {
+        fd2_load_portrait_to_cache((uint32)pid, (uint32)fp);
+    }
+    fclose(fp);
+}
+
+static void test_restore_roundtrip_from_tmp(void)
+{
+    uint8 *ref;
+    uint8  prev_tileevent_dummy;
+    uint32 saved_alloc;
+    uint32 saved_chapter;
+    uint32 saved_tileptr;
+    uint32 saved_loadbuf;
+    runtime_char *saved_rc;
+    FILE  *vf;
+    long   fsize;
+
+    /* --- seed portrait_sprite_cache with genuine FDICON sprite content --- */
+    rt_seed_cache_from_fdicon();
+    ASSERT_TRUE(portrait_sprite_cache != 0);
+
+    /* snapshot the genuine cache image we are about to write out */
+    ref = (uint8 *)malloc(0x32a00);
+    memcpy(ref, (void *)portrait_sprite_cache, 0x32a00);
+
+    /* --- write FD2.TMP with the REAL writer, loop skipped (alloc_offset 0) --- */
+    saved_alloc   = data_fd2_resource_portrait_cache_alloc_offset;
+    saved_chapter = data_fd2_chapter_current_chapter_id;
+    saved_tileptr = data_fd2_tile_event_data_table_ptr;
+    saved_loadbuf = chapter_portrait_load_buffer;
+    saved_rc      = data_fd2_battle_runtime_char_array_ptr;
+
+    prev_tileevent_dummy = 0;
+    data_fd2_tile_event_data_table_ptr = (uint32)&prev_tileevent_dummy;
+    data_fd2_resource_portrait_cache_alloc_offset = 0; /* no per-record inits */
+    data_fd2_chapter_current_chapter_id = 4;           /* re-read FDFIELD[0xE] */
+    chapter_portrait_load_buffer = 0;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+
+    fd2_load_chapter_portraits_and_dump_tmp(0xFF);     /* no race matches -> dump */
+
+    /* FD2.TMP now on disk, exactly the cache size */
+    vf = fopen("FD2.TMP", "rb");
+    ASSERT_TRUE(vf != NULL);
+    fseek(vf, 0, SEEK_END);
+    fsize = ftell(vf);
+    fclose(vf);
+    ASSERT_EQ(fsize, 0x32a00);
+
+    /* the writer freed+nulled chapter_portrait_load_buffer; drop the cache so
+     * the reader must re-malloc a fresh buffer */
+    free((void *)portrait_sprite_cache);
+    portrait_sprite_cache = 0;
+
+    /* --- drive the reader under test --- */
+    fd2_restore_portrait_cache_from_tmp();
+
+    /* fresh non-NULL buffer holding the exact genuine bytes written out */
+    ASSERT_TRUE(portrait_sprite_cache != 0);
+    ASSERT_EQ((long)memcmp((void *)portrait_sprite_cache, ref, 0x32a00), 0);
+
+    /* cleanup */
+    free((void *)portrait_sprite_cache);
+    portrait_sprite_cache = 0;
+    free(ref);
+    data_fd2_resource_portrait_cache_count = 0;
+    data_fd2_resource_portrait_cache_buffer_used = 0;
+    remove("FD2.TMP");        /* generated swap file (not a staged game file) */
+
+    data_fd2_resource_portrait_cache_alloc_offset = saved_alloc;
+    data_fd2_chapter_current_chapter_id = saved_chapter;
+    data_fd2_tile_event_data_table_ptr = saved_tileptr;
+    chapter_portrait_load_buffer = saved_loadbuf;
+    data_fd2_battle_runtime_char_array_ptr = saved_rc;
+}
+
 void run_rsrc_rsrc_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1051,5 +1162,6 @@ void run_rsrc_rsrc_tests(void)
     RUN_TEST(test_lcp_default_kind);
     RUN_TEST(test_cinematic_loads_palette_and_renders);
     RUN_TEST(test_cinematic_keeps_palette_when_idx_neg1);
+    RUN_TEST(test_restore_roundtrip_from_tmp);
     printf("\n");
 }

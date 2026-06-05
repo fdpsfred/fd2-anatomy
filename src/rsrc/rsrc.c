@@ -598,3 +598,32 @@ void fd2_load_and_fade_in_cinematic_image(uint32 anim_idx, uint32 per_frame_dela
     fd2_play_ani_file_animation_sequence(anim_idx, per_frame_delay, 0);
     fd2_play_palette_fade_to_black();
 }
+
+/* ----------------------------------------------------------------
+ * fd2_restore_portrait_cache_from_tmp @ 0x29117  (3 callers)
+ *
+ * Restores the portrait sprite cache (portrait_sprite_cache @ 0x53A61)
+ * by reading the full 0x32A00-byte (~207KB) image back from FD2.TMP.
+ * Symmetric read-back of the swap file written by
+ * fd2_load_chapter_portraits_and_dump_tmp's fopen("FD2.TMP","wb")+
+ * fwrite tail. Called after FIGANI combat cinematics that freed and
+ * replaced the in-game portrait/tile caches; this re-loads the working
+ * portrait set from the precomputed file written during chapter init.
+ * Callers: fd2_execute_special_attack_skill, fd2_play_full_combat_cinematic,
+ * fd2_play_spell_cast_sequence.
+ *
+ * void __cdecl, no params. fp is held in EBX (callee-saved) across the
+ * malloc/fread; the __CHK(0x18) stack-probe prologue is compiler-injected.
+ * Note the freshly malloc'd buffer is stored into portrait_sprite_cache
+ * and reused as the fread destination (same pointer), so the cache global
+ * is the read target.
+ * ---------------------------------------------------------------- */
+void fd2_restore_portrait_cache_from_tmp(void)
+{
+    void *fp;
+
+    fp = fopen("FD2.TMP", "rb");
+    portrait_sprite_cache = (uint32)malloc(0x32a00);
+    fread((void *)portrait_sprite_cache, 1, 0x32a00, fp);
+    fclose(fp);
+}

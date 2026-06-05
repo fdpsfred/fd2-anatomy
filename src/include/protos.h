@@ -317,6 +317,7 @@ int  fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp);
 /* ---- chapter / battle init ---- */
 void fd2_load_chapter_battle_data(uint32 chapter_id);
 void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id);
+void fd2_restore_portrait_cache_from_tmp(void);
 void fd2_init_runtime_char_for_battle(uint32 char_field_idx, uint32 fdicon_fp);
 void fd2_init_runtime_char_from_base_growth(uint32 char_id);
 void fd2_load_chapter_background_layers(void);
