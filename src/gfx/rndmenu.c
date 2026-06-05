@@ -807,3 +807,112 @@ void fd2_render_promote_members_grid(uint32 candidate_count,
             0x77, 5);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_promote_candidates_grid @ 0x31019  (1 caller)
+ *
+ * Render the CLASS PROMOTION candidate grid — up to 3 visible chars in a
+ * single column, each showing portrait + char name + current job + a "->"
+ * promotion icon + the target post-promotion job. The target job comes from
+ * the per-class promotion data table looked up via
+ * fd2_get_class_promotion_data_entry (entry[0] = post-promotion job_id).
+ *
+ * Sole caller: fd2_promote_member_select_loop @ 0x311DC (the in-grid Up/Down
+ * cursor loop), which passes the candidate count, the compose surface, the
+ * highlight cursor index, the candidate index list, and the parallel
+ * promotion-target class list.
+ *
+ * Blink-frame mapping:
+ *   blink_frame = (subframe_counter == 3) ? 1 : counter   // 0,1,2,3->0,1,2,1
+ *
+ * Visible cap: draw_count = min(candidate_count, 3).
+ *
+ * Per char (iter = 0..draw_count-1):
+ *   char_idx       = candidate_idx_list[scroll_offset + iter]
+ *   row_off        = iter * 0x1A
+ *   24x24 portrait bg-fill blit (blink variant):
+ *     src = cache + cache[char_idx*0x30 + blink_frame*4]
+ *     dst = (row_off+0x75)*0x140 + surface_offset + 0x0E
+ *   border_glyph = (scroll_offset + iter == highlight_idx) ? 0xC9 : 0xCD
+ *   four FDTXT labels at text_col = surface_offset + (row_off+0x79)*0x140:
+ *     char name  : page = char.char_id + 1,                      pos = +0x28
+ *     current job: page = char.job_id  + 0x96,                   pos = +0x82
+ *     "-> 轉職"  : page = 0x251,                                 pos = +0xAF
+ *     target job : page = promo_entry[0] + 0x96,                 pos = +0xEF
+ *       where promo_entry = fd2_get_class_promotion_data_entry(
+ *                               promotion_target_list[scroll_offset + iter])
+ *
+ * void __cdecl. EBX/ESI/EDI/EBP callee-saved; the __CHK(0x48) stack-probe
+ * prologue is compiler-injected and omitted here. The target-job page reads
+ * the first byte of the looked-up 2-byte promotion entry; the EAX returned by
+ * fd2_get_class_promotion_data_entry is the pointer dereferenced for that byte
+ * (verified against the disassembly, not the EAX-tracking decompiler output).
+ * ---------------------------------------------------------------- */
+void fd2_render_promote_candidates_grid(uint32 candidate_count,
+                                        uint32 surface_offset,
+                                        uint32 highlight_idx,
+                                        uint8 *candidate_idx_list,
+                                        uint8 *promotion_target_list)
+{
+    uint32 blink_frame;
+    uint32 draw_count;
+    uint32 iter;
+    uint32 char_idx;
+    uint32 row_off;
+    uint32 portrait_src;
+    uint8  border_glyph;
+    uint32 text_col;
+    uint8 *promo_entry;
+    runtime_char *rt_chars;
+
+    blink_frame = data_fd2_chapter_intro_dialog_subframe_anim_counter;
+    if (data_fd2_chapter_intro_dialog_subframe_anim_counter == 3) {
+        blink_frame = 1;
+    }
+
+    draw_count = candidate_count;
+    if ((int32)candidate_count > 3) {
+        draw_count = 3;
+    }
+
+    for (iter = 0; (rt_chars = data_fd2_battle_runtime_char_array_ptr,
+                    (int32)iter < (int32)draw_count); iter++) {
+        char_idx = (uint32)candidate_idx_list[data_fd2_ui_menu_scroll_offset
+                                              + iter];
+        row_off = iter * 0x1a;
+
+        portrait_src = *(int32 *)(portrait_sprite_cache
+                                  + char_idx * 0x30 + blink_frame * 4)
+                     + portrait_sprite_cache;
+        fd2_tile_blit_24x24_with_dialog_bg_fill(
+            portrait_src,
+            (row_off + 0x75) * 0x140 + surface_offset + 0xe,
+            0x140);
+
+        border_glyph = 0xcd;
+        if (data_fd2_ui_menu_scroll_offset + iter == highlight_idx) {
+            border_glyph = 0xc9;
+        }
+
+        text_col = surface_offset + (row_off + 0x79) * 0x140;
+        fd2_display_dialog_scene(
+            data_fd2_all_game_text_ptr,
+            rt_chars[char_idx].char_id + 1,
+            text_col + 0x28, 0x140, border_glyph, 0x4c, 0, 0, 0);
+        fd2_display_dialog_scene(
+            data_fd2_all_game_text_ptr,
+            rt_chars[char_idx].job_id + 0x96,
+            text_col + 0x82, 0x140, border_glyph, 0x4c, 0, 0, 0);
+        fd2_display_dialog_scene(
+            data_fd2_all_game_text_ptr,
+            0x251,
+            text_col + 0xaf, 0x140, border_glyph, 0x4c, 0, 0, 0);
+
+        promo_entry = fd2_get_class_promotion_data_entry(
+            (int)promotion_target_list[data_fd2_ui_menu_scroll_offset + iter]);
+        fd2_display_dialog_scene(
+            data_fd2_all_game_text_ptr,
+            promo_entry[0] + 0x96,
+            text_col + 0xef, 0x140, border_glyph, 0x4c, 0, 0, 0);
+    }
+}

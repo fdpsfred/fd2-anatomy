@@ -2389,6 +2389,363 @@ static void test_promo_row_offset_per_iter(void)
     promo_teardown();
 }
 
+/* ================================================================
+ * fd2_render_promote_candidates_grid @ 0x31019
+ *
+ * Class-promotion candidate grid (up to 3 visible chars, single column).
+ * Per char it draws a 24x24 portrait, then FOUR FDTXT labels: char name,
+ * current job, a "-> 轉職" promotion icon (page 0x251), and the target
+ * post-promotion job. Unlike fd2_render_promote_members_grid it takes a 5th
+ * argument — a parallel promotion-target class list — and looks the target
+ * job up through the REAL fd2_get_class_promotion_data_entry (entry[0] =
+ * post-promotion job_id). It draws no coin/price.
+ *
+ * The harness reaches every side-effect through the real pipeline:
+ *   - portrait: real fd2_tile_blit_24x24_with_dialog_bg_fill (g_blitpass_* /
+ *     g_blitbgfill_calls) -> pins blink-frame source + row dst arithmetic.
+ *   - all four labels: the REAL fd2_display_dialog_scene against a text program
+ *     where exactly ONE page is aimed at a one-glyph blob, so a rendered glyph
+ *     proves that page index reached the VM and g_dlg_glyph_last_pos / _p5
+ *     capture the dst arithmetic and the border glyph.
+ *   - target job: the REAL fd2_get_class_promotion_data_entry against the
+ *     file-scope data_fd2_class_promotion_data_table (seeded per test), so the
+ *     target-list indexing AND the entry[0] dereference are both exercised.
+ *
+ * Risk-bearing logic under test: the visible-count cap (min 3), the blink-frame
+ * remap (3->1), char_idx = candidate_idx_list[scroll+iter], the single-column
+ * portrait dst/src, the highlight border (0xC9 vs 0xCD), each label's page index
+ * (char_id+1 / job+0x96 / 0x251 / target_job+0x96) and dst, and above all the
+ * target-job lookup: promotion_target_list[scroll+iter] -> table entry[0] (the
+ * 5th-arg list is read with the SAME scroll+iter index as the candidate list
+ * but is an INDEPENDENT array, and only the first byte of the 2-byte entry is
+ * used for the page index).
+ * ================================================================ */
+
+/* parallel promotion-target class list (5th arg); class ids 0x20..0x33 keep the
+ * real fd2_get_class_promotion_data_entry lookup inside the 20-entry table. */
+static uint8 g_cand_targets[64];
+static runtime_char *g_cand_saved_char_ptr;
+
+/* class-promotion candidate-grid fixture: N candidates mapped 1:1 to
+ * g_roster_chars, scroll offset, blink (subframe) counter, portrait cache
+ * cleared, names default to all-END (override with roster_text_glyph_at). The
+ * candidate index list defaults to identity; the promotion-target list defaults
+ * to class 0x20; the class-promotion data table is zeroed (each test seeds the
+ * entries it exercises). */
+static void cand_setup(uint32 scroll, uint32 subframe)
+{
+    int i;
+
+    g_cand_saved_char_ptr = data_fd2_battle_runtime_char_array_ptr;
+
+    memset(g_roster_chars, 0, sizeof(g_roster_chars));
+    memset(g_portrait_cache, 0, sizeof(g_portrait_cache));
+    for (i = 0; i < 64; i++) {
+        g_promo_cands[i]  = (uint8)i;          /* candidate k -> char k */
+        g_cand_targets[i] = 0x20;              /* default target class 0x20 */
+    }
+    for (i = 0; i < 20 * 2; i++) {
+        data_fd2_class_promotion_data_table[i] = 0;
+    }
+
+    data_fd2_battle_runtime_char_array_ptr = g_roster_chars;
+    portrait_sprite_cache = (uint32)g_portrait_cache;
+    data_fd2_ui_menu_scroll_offset = scroll;
+    data_fd2_chapter_intro_dialog_subframe_anim_counter = subframe;
+
+    roster_text_all_end();
+
+    g_blitpass_calls = 0;
+    g_blitbgfill_calls = 0;
+    g_dlg_glyph_calls = 0;
+}
+
+static void cand_teardown(void)
+{
+    data_fd2_battle_runtime_char_array_ptr = g_cand_saved_char_ptr;
+}
+
+/* ----------------------------------------------------------------
+ * Visible-count cap: draw_count = min(candidate_count, 3). One portrait
+ * bg-fill blit per drawn row.
+ * ---------------------------------------------------------------- */
+static void test_cand_cap_min_of_count_and_3(void)
+{
+    cand_setup(0, 0);
+
+    g_blitbgfill_calls = 0;
+    fd2_render_promote_candidates_grid(2, 0x1000, 99, g_promo_cands,
+                                       g_cand_targets);
+    ASSERT_EQ((long)g_blitbgfill_calls, 2);
+
+    g_blitbgfill_calls = 0;
+    fd2_render_promote_candidates_grid(5, 0x1000, 99, g_promo_cands,
+                                       g_cand_targets);
+    ASSERT_EQ((long)g_blitbgfill_calls, 3);     /* capped at 3 */
+
+    g_blitbgfill_calls = 0;
+    fd2_render_promote_candidates_grid(0, 0x1000, 99, g_promo_cands,
+                                       g_cand_targets);
+    ASSERT_EQ((long)g_blitbgfill_calls, 0);     /* nothing to draw */
+    cand_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Portrait dst (single column) + src. char_idx = cands[scroll+iter];
+ * dst = (row_off+0x75)*0x140 + surf + 0xE with row_off = iter*0x1A; src =
+ * cache + cache[char_idx*0x30 + blink*4]. scroll 0, blink 0, 2 rows.
+ * ---------------------------------------------------------------- */
+static void test_cand_portrait_dst_src(void)
+{
+    uint32 surf = 0x2000;
+    int32 *cache;
+
+    cand_setup(0, 0);
+    cache = (int32 *)g_portrait_cache;
+    cache[(0 * 0x30 + 0 * 4) / 4] = 0x111;      /* char 0, blink 0 */
+    cache[(1 * 0x30 + 0 * 4) / 4] = 0x222;      /* char 1, blink 0 */
+
+    fd2_render_promote_candidates_grid(2, surf, 99, g_promo_cands,
+                                       g_cand_targets);
+
+    ASSERT_EQ((long)g_blitpass_calls, 2);
+    /* row 0: row_off 0 */
+    ASSERT_EQ((long)g_blitpass_dst[0], (long)((0x00u + 0x75u) * 0x140u + surf + 0xeu));
+    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_portrait_cache + 0x111u));
+    /* row 1: row_off 0x1A */
+    ASSERT_EQ((long)g_blitpass_dst[1], (long)((0x1au + 0x75u) * 0x140u + surf + 0xeu));
+    ASSERT_EQ((long)g_blitpass_src[1], (long)((uint32)g_portrait_cache + 0x222u));
+    ASSERT_EQ((long)g_blitpass_stride[0], 0x140);
+    cand_teardown();
+}
+
+/* char_idx comes from candidate_idx_list[scroll + iter], NOT scroll+iter
+ * directly: scroll 1, and cands[1] -> char 7, so the first drawn portrait
+ * indexes char 7's cache row. ---------------------------------------------- */
+static void test_cand_char_idx_from_candidate_list(void)
+{
+    int32 *cache;
+
+    cand_setup(1, 0);                           /* scroll 1 */
+    g_promo_cands[1] = 7;                        /* cands[scroll+0] = 7 */
+    cache = (int32 *)g_portrait_cache;
+    cache[(7 * 0x30 + 0 * 4) / 4] = 0x3C0;       /* char 7, blink 0 */
+
+    fd2_render_promote_candidates_grid(1, 0x1000, 99, g_promo_cands,
+                                       g_cand_targets);
+
+    ASSERT_EQ((long)g_blitpass_calls, 1);
+    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_portrait_cache + 0x3C0u));
+    cand_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Blink-frame remap: subframe 3 -> blink 1 (src uses cache[id*0x30 + 1*4]).
+ * ---------------------------------------------------------------- */
+static void test_cand_blink_frame_3_maps_to_1(void)
+{
+    int32 *cache;
+
+    cand_setup(0, 3);                           /* subframe 3 -> blink 1 */
+    cache = (int32 *)g_portrait_cache;
+    cache[(0 * 0x30 + 1 * 4) / 4] = 0xAA;        /* blink 1 (expected) */
+    cache[(0 * 0x30 + 3 * 4) / 4] = 0xBB;        /* blink 3 (must NOT be used) */
+
+    fd2_render_promote_candidates_grid(1, 0x1000, 99, g_promo_cands,
+                                       g_cand_targets);
+
+    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_portrait_cache + 0xAAu));
+    cand_teardown();
+}
+
+/* blink passthrough: subframe 2 (not 3) used as-is. */
+static void test_cand_blink_frame_passthrough(void)
+{
+    int32 *cache;
+
+    cand_setup(0, 2);
+    cache = (int32 *)g_portrait_cache;
+    cache[(0 * 0x30 + 2 * 4) / 4] = 0x5C;
+
+    fd2_render_promote_candidates_grid(1, 0x1000, 99, g_promo_cands,
+                                       g_cand_targets);
+
+    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_portrait_cache + 0x5Cu));
+    cand_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Char-name label: page = char.char_id + 1, dst = text_col + 0x28 where
+ * text_col = surf + (row_off+0x79)*0x140; highlighted row (scroll+iter ==
+ * highlight_idx) -> border 0xC9. One char, iter 0.
+ * ---------------------------------------------------------------- */
+static void test_cand_name_page_dst_and_highlight(void)
+{
+    uint32 surf = 0x4000;
+    uint32 text_col = surf + (0x00u + 0x79u) * 0x140u;   /* iter 0 */
+
+    cand_setup(0, 0);
+    g_roster_chars[0].char_id = 0x0A;           /* name page = 0x0B */
+    roster_text_glyph_at(0x0B, 0x37);           /* only the name page emits a glyph */
+
+    fd2_render_promote_candidates_grid(1, surf, 0, g_promo_cands,
+                                       g_cand_targets);  /* highlight idx 0 */
+
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);                /* page 0x0B reached VM */
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, 0x37);
+    ASSERT_EQ((long)g_dlg_glyph_last_pos, (long)(text_col + 0x28u));
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xC9);           /* highlighted */
+    cand_teardown();
+}
+
+/* non-highlighted row -> border 0xCD. Two chars, highlight slot 1 (not 0);
+ * mark char 0's name page so the emitted glyph carries row 0's border. */
+static void test_cand_border_not_highlighted(void)
+{
+    cand_setup(0, 0);
+    g_roster_chars[0].char_id = 0x03;           /* name page = 0x04 */
+    g_roster_chars[1].char_id = 0x07;
+    roster_text_glyph_at(0x04, 0x22);           /* only row 0's name emits a glyph */
+
+    fd2_render_promote_candidates_grid(2, 0x4000, 1, g_promo_cands,
+                                       g_cand_targets);  /* highlight slot 1 */
+
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xCD);           /* row 0 not highlighted */
+    cand_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Current-job label: page = char.job_id + 0x96, dst = text_col + 0x82. Aim
+ * only the current-job page at the glyph (job_id 4 -> page 0x9A). The target
+ * class defaults to 0x20 whose entry[0] is 0, so its label page would be 0x96
+ * (no glyph), keeping this assertion specific to the CURRENT job.
+ * ---------------------------------------------------------------- */
+static void test_cand_current_job_page_and_dst(void)
+{
+    uint32 surf = 0x4000;
+    uint32 text_col = surf + (0x00u + 0x79u) * 0x140u;
+
+    cand_setup(0, 0);
+    g_roster_chars[0].job_id = 0x04;            /* current-job page = 0x9A */
+    roster_text_glyph_at(0x9A, 0x55);
+
+    fd2_render_promote_candidates_grid(1, surf, 99, g_promo_cands,
+                                       g_cand_targets);
+
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);                /* current-job page reached VM */
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, 0x55);
+    ASSERT_EQ((long)g_dlg_glyph_last_pos, (long)(text_col + 0x82u));
+    cand_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Promotion icon label: fixed page 0x251, dst = text_col + 0xAF. Aim that page
+ * at the glyph; no char field feeds it (it is a constant "-> 轉職" sprite id).
+ * ---------------------------------------------------------------- */
+static void test_cand_promotion_icon_page_and_dst(void)
+{
+    uint32 surf = 0x4000;
+    uint32 text_col = surf + (0x00u + 0x79u) * 0x140u;
+
+    cand_setup(0, 0);
+    roster_text_glyph_at(0x251, 0x66);          /* the fixed promotion-icon page */
+
+    fd2_render_promote_candidates_grid(1, surf, 99, g_promo_cands,
+                                       g_cand_targets);
+
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);                /* page 0x251 reached VM */
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, 0x66);
+    ASSERT_EQ((long)g_dlg_glyph_last_pos, (long)(text_col + 0xafu));
+    cand_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Target-job label: page = promo_entry[0] + 0x96, dst = text_col + 0xEF, where
+ * promo_entry = fd2_get_class_promotion_data_entry(targets[scroll+iter]). Seed
+ * the real promotion table so target class 0x25 -> entry[0] = 0x07 -> page
+ * 0x9D, and aim only that page at the glyph. A decoy in the entry's SECOND byte
+ * proves only the first byte feeds the page.
+ * ---------------------------------------------------------------- */
+static void test_cand_target_job_page_dst_via_real_table(void)
+{
+    uint32 surf = 0x4000;
+    uint32 text_col = surf + (0x00u + 0x79u) * 0x140u;
+
+    cand_setup(0, 0);
+    g_cand_targets[0] = 0x25;                    /* target class 0x25 */
+    /* class 0x25 -> table index (0x25-0x20)*2 = 10 */
+    data_fd2_class_promotion_data_table[10] = 0x07;   /* entry[0] -> page 0x9D */
+    data_fd2_class_promotion_data_table[11] = 0x40;   /* entry[1] decoy (spell id) */
+    roster_text_glyph_at(0x9D, 0x71);            /* only the target-job page glyphs */
+
+    fd2_render_promote_candidates_grid(1, surf, 99, g_promo_cands,
+                                       g_cand_targets);
+
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);                /* target-job page reached VM */
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, 0x71);
+    ASSERT_EQ((long)g_dlg_glyph_last_pos, (long)(text_col + 0xefu));
+    cand_teardown();
+}
+
+/* The promotion-target list is read with scroll+iter (same index as the
+ * candidate list) but is an INDEPENDENT array: scroll 1, targets[1] -> class
+ * 0x28 whose entry[0] feeds the target-job page. cands[1] != targets[1] so a
+ * mix-up would resolve the wrong class. -------------------------------------- */
+static void test_cand_target_list_indexed_by_scroll(void)
+{
+    uint32 surf = 0x1000;
+    uint32 text_col = surf + (0x00u + 0x79u) * 0x140u;
+
+    cand_setup(1, 0);                            /* scroll 1 */
+    g_promo_cands[1]  = 7;                        /* candidate (char) index, unrelated */
+    g_cand_targets[1] = 0x28;                     /* target class for slot scroll+0 */
+    /* class 0x28 -> table index (0x28-0x20)*2 = 16 */
+    data_fd2_class_promotion_data_table[16] = 0x12;   /* entry[0] -> page 0xA8 */
+    roster_text_glyph_at(0xA8, 0x4D);
+
+    fd2_render_promote_candidates_grid(1, surf, 99, g_promo_cands,
+                                       g_cand_targets);
+
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);                /* targets[1] resolved class 0x28 */
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, 0x4D);
+    ASSERT_EQ((long)g_dlg_glyph_last_pos, (long)(text_col + 0xefu));
+    cand_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Row arithmetic across iters: with 3 candidates the portrait dst for iter
+ * 0/1/2 pins the row_off = iter*0x1A single-column stride (one bg-fill blit per
+ * row). Each row's portrait src also confirms char_idx = iter (identity list).
+ * ---------------------------------------------------------------- */
+static void test_cand_row_offset_per_iter(void)
+{
+    uint32 surf = 0x6000;
+    int32 *cache;
+    int    i;
+
+    cand_setup(0, 0);
+    cache = (int32 *)g_portrait_cache;
+    for (i = 0; i < 3; i++) {
+        cache[(i * 0x30 + 0 * 4) / 4] = 0x10 + i;     /* distinct src per char */
+    }
+
+    fd2_render_promote_candidates_grid(3, surf, 99, g_promo_cands,
+                                       g_cand_targets);
+
+    ASSERT_EQ((long)g_blitpass_calls, 3);                 /* one portrait per row */
+    ASSERT_EQ((long)g_blitpass_dst[0],
+              (long)((0x00u + 0x75u) * 0x140u + surf + 0xeu));
+    ASSERT_EQ((long)g_blitpass_dst[1],
+              (long)((0x1au + 0x75u) * 0x140u + surf + 0xeu));
+    ASSERT_EQ((long)g_blitpass_dst[2],
+              (long)((0x34u + 0x75u) * 0x140u + surf + 0xeu));
+    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_portrait_cache + 0x10u));
+    ASSERT_EQ((long)g_blitpass_src[1], (long)((uint32)g_portrait_cache + 0x11u));
+    ASSERT_EQ((long)g_blitpass_src[2], (long)((uint32)g_portrait_cache + 0x12u));
+    cand_teardown();
+}
+
 void run_gfx_rndmenu_tests(void)
 {
     SUITE_BEGIN(gfx_rndmenu);
@@ -2462,5 +2819,17 @@ void run_gfx_rndmenu_tests(void)
     RUN_TEST(test_promo_price_level_times_cost_indexed_by_job_minus_1);
     RUN_TEST(test_promo_price_multiply);
     RUN_TEST(test_promo_row_offset_per_iter);
+    RUN_TEST(test_cand_cap_min_of_count_and_3);
+    RUN_TEST(test_cand_portrait_dst_src);
+    RUN_TEST(test_cand_char_idx_from_candidate_list);
+    RUN_TEST(test_cand_blink_frame_3_maps_to_1);
+    RUN_TEST(test_cand_blink_frame_passthrough);
+    RUN_TEST(test_cand_name_page_dst_and_highlight);
+    RUN_TEST(test_cand_border_not_highlighted);
+    RUN_TEST(test_cand_current_job_page_and_dst);
+    RUN_TEST(test_cand_promotion_icon_page_and_dst);
+    RUN_TEST(test_cand_target_job_page_dst_via_real_table);
+    RUN_TEST(test_cand_target_list_indexed_by_scroll);
+    RUN_TEST(test_cand_row_offset_per_iter);
     SUITE_END();
 }
