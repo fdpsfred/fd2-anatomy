@@ -606,3 +606,58 @@ void fd2_chapter_13_end(void)
     fd2_init_runtime_char_from_base_growth(3);
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_14_end @ 0x238DC  (0 direct callers; dispatched via the
+ *   chapter-end handler pointer table @ 0x51DE9, slot @ 0x51E1D)
+ *
+ * Chapter 14「平原的會戰」end handler. No char is recruited — it is a pure
+ * scene + dialog + cutscene closer. It unconditionally copies three 16-byte
+ * scene tables (post-battle X / Y / facing @ 0x52153 / 0x52163 / 0x52173) into
+ * on-stack placement blocks, refreshes the portrait cache for race 1, then
+ * stages the post-battle scene via fd2_setup_chars_and_camera_for_intro (place
+ * chars 0..0xF, no extra char (extra idx 0 at (0,0) facing 0), camera origin
+ * (0xC,10)). It then plays the cutscene: shows dialog page 2, resets
+ * battle_anim_phase, fires cutscene event 0x2F, shows dialog page 3, persists
+ * the party's runtime-char state to the template store, then advances the
+ * current-chapter id by 1.
+ *
+ * In the binary the function body carries two mid-function entry points reused
+ * by other chapter-end handlers as tail-jump targets:
+ *   0x239AC <- fd2_chapter_22_end (save; INC chapter id; RET)
+ *   0x239B1 <- fd2_chapter_12_end (INC chapter id; RET)
+ * Chapter 14 is emitted here as a self-contained function (Layer 2 functional
+ * equivalence — the jump-into-middle sharing is not preserved in source).
+ *
+ * Paired init handler: fd2_chapter_14_init @ 0x3347C.
+ * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
+ * Walkthrough: assets/chapters/chapter_14.md.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_14_end(void)
+{
+    uint8 scene_block_x[16];
+    uint8 scene_block_y[16];
+    uint8 scene_block_facing[16];
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        scene_block_x[i] = data_fd2_chapter_ch14_end_scene_char_pos_x_table[i];
+        scene_block_y[i] = data_fd2_chapter_ch14_end_scene_char_pos_y_table[i];
+        scene_block_facing[i] = data_fd2_chapter_ch14_end_scene_char_facing_table[i];
+    }
+
+    fd2_load_chapter_portraits_and_dump_tmp(1);
+    fd2_setup_chars_and_camera_for_intro(
+        (uint32)scene_block_x, (uint32)scene_block_y, (uint32)scene_block_facing,
+        0, 0xf, 0, 0, 0, 0, 0xc, 10);
+
+    fd2_display_dialog_scene(current_chapter_text, 2, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x2f);
+    fd2_display_dialog_scene(current_chapter_text, 3, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+
+    fd2_save_runtime_char_to_template();
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}

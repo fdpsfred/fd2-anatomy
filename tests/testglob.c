@@ -238,6 +238,17 @@ uint8 data_fd2_chapter_ch12_end_scene_char_pos_y_table[14] =
     { 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 3, 3, 2, 2 };
 uint8 data_fd2_chapter_ch12_end_scene_char_facing_table[14] =
     { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 3, 1 };
+/* Chapter 14 end scene char placement tables (data segment @ 0x52153 /
+ * 0x52163 / 0x52173). Real binary bytes until the data segment is emitted;
+ * fd2_chapter_14_end copies each 16-byte table into an on-stack placement block
+ * and places chars 0..0xF. X/Y are battle-tile coords, facing is sprite
+ * direction (0..3). */
+uint8 data_fd2_chapter_ch14_end_scene_char_pos_x_table[16] =
+    { 18, 17, 19, 18, 17, 19, 16, 20, 16, 15, 15, 16, 20, 21, 21, 20 };
+uint8 data_fd2_chapter_ch14_end_scene_char_pos_y_table[16] =
+    { 15, 15, 15, 16, 16, 16, 15, 15, 12, 13, 14, 14, 12, 13, 14, 14 };
+uint8 data_fd2_chapter_ch14_end_scene_char_facing_table[16] =
+    { 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 1, 1, 1, 1 };
 /* Resource portrait sheet base pointer (data segment @ 0x53AD1). Tests point it
  * at a zeroed scratch buffer. */
 uint32 data_fd2_resource_portrait_sheet_ptr = 0;
@@ -744,15 +755,15 @@ void __delay_thunk_375b2(uint32 ticks) { g_delay375b2_calls++; g_delay375b2_last
  * 08 passes 10-entry blocks (char_end == 9, only entries 0..9 captured into the
  * size-9-indexed buffers via the count clamp). Bounding by the live range avoids
  * reading past a caller's on-stack block. The facing argument is a byte-array
- * table address (>= 4) for chapters 3/5/7 and an inline fixed facing value (< 4)
- * for chapter 8; g_setup_intro_facing_arg records the raw value. Buffers are
- * sized 14 to hold the widest caller's live range (chapter 12 places chars
- * 0..0xD = 14 entries); narrower callers (chapters 3/5/7/8) fill only their
+ * table address (>= 4) for chapters 3/5/7/12/14 and an inline fixed facing value
+ * (< 4) for chapter 8; g_setup_intro_facing_arg records the raw value. Buffers
+ * are sized 16 to hold the widest caller's live range (chapter 14 places chars
+ * 0..0xF = 16 entries); narrower callers (chapters 3/5/7/8/12) fill only their
  * leading entries. */
 int    g_setup_intro_calls = 0;
-uint8  g_setup_intro_px[14];
-uint8  g_setup_intro_py[14];
-uint8  g_setup_intro_facing[14];
+uint8  g_setup_intro_px[16];
+uint8  g_setup_intro_py[16];
+uint8  g_setup_intro_facing[16];
 uint32 g_setup_intro_facing_arg = 0xFFFFFFFFuL;
 int32  g_setup_intro_char_start = -1;
 int32  g_setup_intro_char_end = -1;
@@ -778,8 +789,8 @@ void fd2_setup_chars_and_camera_for_intro(uint32 px_table, uint32 py_table,
     if (count < 0) {
         count = 0;
     }
-    if (count > 14) {
-        count = 14;
+    if (count > 16) {
+        count = 16;
     }
     for (i = 0; i < count; i++) {
         g_setup_intro_px[i]     = ((uint8 *)px_table)[char_start + i];
