@@ -303,11 +303,74 @@ static void test_ch1_event1_fires_appear_anim_for_slot4(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_02__ch1_dialog_with_state @ 0x3431D
+ *
+ * Structurally identical to handler_01 (same straight-line, no-branch callee
+ * sequence; no RNG, no numeric computation, no CALL-return value used, no state
+ * of its own). It differs only in the fixed arguments:
+ *   pan_cursor_and_window(0,0x10); animate_party_addition_with_appear_effect(5);
+ *   clear_keyboard_buffer; composite_battle_frame(1); cutscene_event_trigger(4);
+ *   clear_all_chars_facing; display_dialog_scene(page 5, ...).
+ *
+ * In the binary the dialog call is reached by a JMP into handler_01's shared
+ * tail (PUSH current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24;
+ * POP EBX; RET); the emit reproduces that tail inline. The distinguishing
+ * testable contract versus handler_01 is the slot/chapter id (5, not 4) passed
+ * to the appear animation and the cutscene EVENT id (4, not 3). As with
+ * handler_01 the appear animation is the not-yet-emitted heavy callee, so the
+ * shared testglob recording stub stands in for it; every other callee is a real
+ * emitted function and runs end-to-end against the same proven safe env (empty
+ * active party, gated HUD, throttled palette cycle, a zero-group cutscene script
+ * for event 4 so it composites once and returns, an immediate-END dialog program
+ * for page 5, and an empty BIOS keyboard buffer).
+ *
+ * The pure blit/display side effects of this beat (camera pan, cutscene
+ * compositing, dialog glyphs, frame blits) are deferred to Phase 9 integration.
+ * ================================================================ */
+
+/* zero-group cutscene script for event 4: n_groups byte = 0, so the real
+ * fd2_cutscene_event_trigger just composites once and returns. */
+static uint8 g_ev2_script_04[1] = { 0 };
+
+static void ev2_install_safe_env(void)
+{
+    /* shared safe env (empty party, gated HUD, throttled palette, real
+     * compositor workspace, immediate-END dialog, empty keyboard buffer). */
+    ev1_install_safe_env();
+
+    /* handler_02 fires cutscene EVENT 4 (handler_01 fires 3); register its own
+     * zero-group script so the real fd2_cutscene_event_trigger returns fast. */
+    g_ev2_script_04[0] = 0;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[4] = g_ev2_script_04;
+}
+
+/* ----------------------------------------------------------------
+ * The handler fires its fixed ch1 slot-2 sequence end-to-end. Its observable,
+ * deterministic contract is: it invokes the appear-animation exactly once with
+ * chapter/slot id 5, and the whole real callee chain (camera pan, frame
+ * composite, zero-group cutscene 4, facing reset, immediate-END dialog page 5)
+ * runs to completion without faulting.
+ * ---------------------------------------------------------------- */
+static void test_ch1_event2_fires_appear_anim_for_slot5(void)
+{
+    ev2_install_safe_env();
+
+    fd2_chapter_event_handler_02__ch1_dialog_with_state(0);
+
+    /* the appear-explosion animation fired exactly once, for chapter/slot 5. */
+    ASSERT_EQ(g_animate_party_addition_calls, 1);
+    ASSERT_EQ(g_animate_party_addition_last_chapter, 5);
+
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
     printf("Suite: field/chevt1\n");
     RUN_TEST(test_ch1_event0_recruits_hanuo_and_reloads_portraits);
     RUN_TEST(test_ch1_event1_fires_appear_anim_for_slot4);
+    RUN_TEST(test_ch1_event2_fires_appear_anim_for_slot5);
     printf("\n");
 }
