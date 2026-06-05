@@ -627,3 +627,58 @@ void fd2_restore_portrait_cache_from_tmp(void)
     fread((void *)portrait_sprite_cache, 1, 0x32a00, fp);
     fclose(fp);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_load_chapter_party_roster @ 0x2d392  (1 caller)
+ *
+ * Extract the chapter intro shop/equip menu's "available rows" byte array
+ * from the cached chapter-intro metadata entry
+ * (data_fd2_chapter_intro_active_metadata_entry_ptr @ 0x54137) into the
+ * caller's out_buf, stopping at the first 0xFF terminator or a
+ * state-specific cap. Returns the number of bytes written.
+ *
+ * Sole caller: fd2_run_chapter_intro_menu_main @ 0x2E341, which passes a
+ * 12-byte stack buffer and uses the count for the shop sub-menus.
+ *
+ * Layout selection by data_fd2_chapter_intro_menu_cursor_state @ 0x5412B:
+ *   state == 1: cap = 0xC, source offset within metadata = 0x03 (weapons)
+ *   state == 3: cap = 8,   source offset = 0x0F                  (items)
+ *   else:       cap = 8,   source offset = 0x17                  (mystery)
+ *
+ * The metadata entry is the FDFIELD-style chapter intro record fetched by
+ * fd2_get_chapter_intro_metadata_entry; bytes are item IDs with 0xFF as the
+ * empty-slot sentinel. The store index (out_count) and the loop counter
+ * (iter) are tracked separately to mirror the disassembly, but since 0xFF
+ * only breaks (never skips), out_count == iter at every step.
+ * ---------------------------------------------------------------- */
+int fd2_load_chapter_party_roster(uint32 out_buf)
+{
+    uint32 table_off;
+    uint32 max_count;
+    uint32 out_count;
+    uint32 iter;
+    uint32 src_byte;
+
+    max_count = 8;
+    if (data_fd2_chapter_intro_menu_cursor_state == 1) {
+        max_count = 0xc;
+        table_off = 3;
+    } else if (data_fd2_chapter_intro_menu_cursor_state == 3) {
+        table_off = 0xf;
+    } else {
+        table_off = 0x17;
+    }
+
+    out_count = 0;
+    for (iter = 0; (int)iter < (int)max_count; iter++) {
+        src_byte = data_fd2_chapter_intro_active_metadata_entry_ptr
+                   + table_off + iter;
+        if (*(uint8 *)src_byte == 0xff) {
+            break;
+        }
+        *(uint8 *)(out_buf + out_count) = *(uint8 *)src_byte;
+        out_count++;
+    }
+
+    return (int)out_count;
+}

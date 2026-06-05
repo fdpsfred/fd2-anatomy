@@ -184,8 +184,10 @@ extern uint32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4]; /* 0x52
 /* ---- recruitment screen ---- */
 extern uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch;         /* 0x54127 */
 
-/* ---- chapter intro dialog anim ---- */
+/* ---- chapter intro / transition menu state ---- */
+extern uint32 data_fd2_chapter_intro_menu_cursor_state;                 /* 0x5412B  selects intro BG idx / portrait / roster layout / return flag */
 extern uint32 data_fd2_chapter_intro_dialog_anim_frame_idx;             /* 0x54133 */
+extern uint32 data_fd2_chapter_intro_active_metadata_entry_ptr;         /* 0x54137  cached chapter-intro metadata entry pointer (weapons/items/mystery byte slices) */
 extern uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr;             /* 0x54147 */
 
 /* ---- text / dialog ---- */

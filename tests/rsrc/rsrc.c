@@ -1132,6 +1132,116 @@ static void test_restore_roundtrip_from_tmp(void)
     data_fd2_battle_runtime_char_array_ptr = saved_rc;
 }
 
+/* ================================================================
+ * fd2_load_chapter_party_roster @ 0x2d392
+ *
+ * Pure in-memory extractor: copies the chapter-intro shop byte slice from
+ * data_fd2_chapter_intro_active_metadata_entry_ptr + state_offset into the
+ * caller's buffer, stopping at the first 0xFF or the state-specific cap, and
+ * returns the count. No file I/O. The cursor state selects (cap, offset):
+ *   state==1 -> (0xC, 0x03)   state==3 -> (8, 0xF)   else -> (8, 0x17).
+ * The fixture is a single byte array the global points at; the expected
+ * result is the same slice re-read independently here.
+ * ================================================================ */
+
+/* A metadata entry blob large enough to cover the 0x17+8 = 0x1F-byte window.
+ * Filled with a recognizable ramp; specific 0xFF sentinels are placed per
+ * test. The roster reader reads [offset .. offset+cap-1]. */
+static uint8 g_lpr_meta[0x40];
+
+static void lpr_setup(void)
+{
+    int i;
+
+    for (i = 0; i < (int)sizeof(g_lpr_meta); i++) {
+        g_lpr_meta[i] = (uint8)(0x10 + i);   /* never 0xFF on its own */
+    }
+    data_fd2_chapter_intro_active_metadata_entry_ptr = (uint32)g_lpr_meta;
+}
+
+/* Drive the reader for `state` and cross-check against an independent copy of
+ * the same slice (offset/cap derived the same way the function does), honoring
+ * the 0xFF terminator. */
+static void lpr_check(uint32 state, uint32 exp_off, int exp_cap)
+{
+    uint8 out[16];
+    int   ref_count;
+    int   ret;
+    int   i;
+
+    data_fd2_chapter_intro_menu_cursor_state = state;
+    memset(out, 0xAA, sizeof(out));
+
+    /* independent reference: walk the same window, stop at 0xFF */
+    ref_count = 0;
+    for (i = 0; i < exp_cap; i++) {
+        if (g_lpr_meta[exp_off + i] == 0xff) break;
+        ref_count++;
+    }
+
+    ret = fd2_load_chapter_party_roster((uint32)out);
+
+    ASSERT_EQ((long)ret, (long)ref_count);
+    for (i = 0; i < ref_count; i++) {
+        ASSERT_EQ((long)out[i], (long)g_lpr_meta[exp_off + i]);
+    }
+    /* the byte just past the written count must be untouched (no overrun) */
+    ASSERT_EQ((long)out[ref_count], 0xAA);
+}
+
+/* state==1: cap 0xC, offset 0x03; no sentinel in the window -> full 12 bytes. */
+static void test_lpr_state1_weapons_full(void)
+{
+    lpr_setup();
+    lpr_check(1, 0x03, 0xc);
+}
+
+/* state==3: cap 8, offset 0x0F; full 8 bytes when no sentinel. */
+static void test_lpr_state3_items_full(void)
+{
+    lpr_setup();
+    lpr_check(3, 0x0f, 8);
+}
+
+/* else (state 0): cap 8, offset 0x17; full 8 bytes when no sentinel. */
+static void test_lpr_state_other_mystery_full(void)
+{
+    lpr_setup();
+    lpr_check(0, 0x17, 8);
+}
+
+/* else path is also taken for state 5 (and any non-1/3 value): same offset. */
+static void test_lpr_state5_uses_else(void)
+{
+    lpr_setup();
+    lpr_check(5, 0x17, 8);
+}
+
+/* 0xFF mid-window truncates: state==1, sentinel at window index 4 -> count 4. */
+static void test_lpr_sentinel_truncates(void)
+{
+    lpr_setup();
+    g_lpr_meta[0x03 + 4] = 0xff;        /* 5th byte of the state==1 window */
+    lpr_check(1, 0x03, 0xc);
+}
+
+/* 0xFF at the first window byte -> count 0, nothing written. */
+static void test_lpr_sentinel_at_start(void)
+{
+    lpr_setup();
+    g_lpr_meta[0x0f] = 0xff;            /* first byte of the state==3 window */
+    lpr_check(3, 0x0f, 8);
+}
+
+/* Cap boundary: a 0xFF sits exactly one past the cap, so it must NOT be seen;
+ * the full cap is returned (state==3, sentinel at window index 8). */
+static void test_lpr_sentinel_past_cap_ignored(void)
+{
+    lpr_setup();
+    g_lpr_meta[0x0f + 8] = 0xff;        /* index == cap, outside the loop */
+    lpr_check(3, 0x0f, 8);
+}
+
 void run_rsrc_rsrc_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1163,5 +1273,12 @@ void run_rsrc_rsrc_tests(void)
     RUN_TEST(test_cinematic_loads_palette_and_renders);
     RUN_TEST(test_cinematic_keeps_palette_when_idx_neg1);
     RUN_TEST(test_restore_roundtrip_from_tmp);
+    RUN_TEST(test_lpr_state1_weapons_full);
+    RUN_TEST(test_lpr_state3_items_full);
+    RUN_TEST(test_lpr_state_other_mystery_full);
+    RUN_TEST(test_lpr_state5_uses_else);
+    RUN_TEST(test_lpr_sentinel_truncates);
+    RUN_TEST(test_lpr_sentinel_at_start);
+    RUN_TEST(test_lpr_sentinel_past_cap_ignored);
     printf("\n");
 }

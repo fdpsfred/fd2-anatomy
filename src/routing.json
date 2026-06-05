@@ -2952,8 +2952,9 @@
     "name": "fd2_load_chapter_party_roster",
     "target": "rsrc/rsrc.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002d3ff": {
     "name": "fd2_animate_money_increment",
