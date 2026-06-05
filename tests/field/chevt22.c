@@ -211,11 +211,108 @@ static void test_h38_ignores_dispatch_arg(void)
     ce22_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_39__ch26_cinematic @ 0x354DD
+ *
+ * ch26 establishing-shot stub (dispatch idx 0x39 @ table 0x51B91). Body:
+ *   fd2_load_chapter_portraits_and_dump_tmp(data_fd2_battle_turn_counter)
+ *       -- the RAW counter, same as the ch24 handler_36, NOT the signed /2 used
+ *          by the ch21/ch22 handlers
+ *   fd2_pan_cursor_and_window(9, 0)
+ *   __delay_thunk_375b2(400)
+ * No turn gate, no dialog. In the binary the pan + 400ms hold + RET is a
+ * Class-3 shared tail borrowed from handler_36 @ 0x353C4; these tests pin THIS
+ * handler's functionally-exact contract: the RAW-counter portrait index and the
+ * single pan target (9, 0). Reuses ce22_setup's real render/portrait env above
+ * (the portrait loader re-reads the staged real FDFIELD.DAT and rewrites
+ * FD2.TMP); __delay_thunk_375b2 is REAL and paces 400ms against the
+ * host-advancing BIOS tick word.
+ * ================================================================ */
+
+/* ----------------------------------------------------------------
+ * Portrait index is the RAW counter (NO /2) — guards against copying the
+ * ch21/ch22 handlers' signed /2. The tile-event table holds a decoy record
+ * race=2 (the value a wrong /2 port — 5/2 == 2 — would select) and a target
+ * record race=5; with turn_counter = 5 only the race=5 record matches, so the
+ * real fd2_init_runtime_char_for_battle runs exactly once (party_member_count
+ * 0 -> 1). ce22_setup primes the real loader env; we then install a non-zero
+ * tile-event scan (ce22_setup leaves alloc_offset 0) with the decoy records.
+ * ---------------------------------------------------------------- */
+static uint8 *g_ce22_h39_tileevent;
+
+static void test_h39_portrait_index_is_raw_counter(void)
+{
+    static const uint8 races[6] = { 0, 0, 0x02, 0, 0, 0x05 }; /* decoy@2, target@5 */
+    int i;
+
+    ce22_setup(0);
+
+    /* install a 6-record tile-event scan (stride 0x1A, race byte at +0x98) over
+     * the no-op env ce22_setup left in place. */
+    g_ce22_h39_tileevent =
+        (uint8 *)malloc((size_t)0x98 + (size_t)6 * 0x1a + 0x20);
+    memset(g_ce22_h39_tileevent, 0, (size_t)0x98 + (size_t)6 * 0x1a + 0x20);
+    for (i = 0; i < 6; i++) {
+        g_ce22_h39_tileevent[i * 0x1a + 0x98] = races[i];
+    }
+    data_fd2_tile_event_data_table_ptr = (uint32)g_ce22_h39_tileevent;
+    data_fd2_resource_portrait_cache_alloc_offset = 6;
+    data_fd2_battle_party_member_count = 0;
+
+    data_fd2_battle_turn_counter = 5;             /* raw 5 (NOT 5/2 == 2) */
+
+    fd2_chapter_event_handler_39__ch26_cinematic(0);
+
+    /* exactly the race==5 record matched -> one char inited; the race==2 decoy
+     * (the only other non-zero record) would have matched a wrong /2 port. */
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 1);
+    ASSERT_EQ((long)chapter_portrait_load_buffer, 0);  /* loader freed+nulled */
+
+    free(g_ce22_h39_tileevent);
+    g_ce22_h39_tileevent = 0;
+    ce22_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * The single pan lands the window origin exactly on the borrowed-tail target
+ * (9, 0). The window starts away from the target on both axes so the move is
+ * observable, and g_composite_call_count > 0 proves the pan composited frames.
+ * No dialog runs in this handler. A non-zero dispatch arg (0x55) is passed to
+ * confirm the arg does not leak into the pan target (the body reads only
+ * literals + the turn counter). alloc_offset 0 keeps the portrait load a
+ * host-safe no-op.
+ * ---------------------------------------------------------------- */
+static void test_h39_pan_to_9_0_ignores_arg(void)
+{
+    ce22_setup(0);                       /* alloc_offset 0: portrait scan no-op */
+    data_fd2_battle_turn_counter = 2;    /* real ch26 trigger turn */
+
+    /* start the window away from the target on both axes */
+    data_fd2_battle_view_window_origin_x = 0x40;
+    data_fd2_battle_view_window_origin_y = 0x40;
+    g_composite_call_count = 0;
+    g_dlg_glyph_calls = 0;
+
+    fd2_chapter_event_handler_39__ch26_cinematic(0x55);
+
+    /* pan landed the window origin on the literal target (9, 0) */
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_x, 9);
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_y, 0);
+    /* the camera pan composited frames on the way to the target */
+    ASSERT_TRUE(g_composite_call_count > 0);
+    /* no dialog in this handler */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 0);
+
+    ce22_teardown();
+}
+
 void run_field_chevt22_tests(void)
 {
     int _prev_fails = g_test_fail_count;
     printf("Suite: field/chevt2 (part 2)\n");
     RUN_TEST(test_h38_pan_to_6_28_then_page5_dialog);
     RUN_TEST(test_h38_ignores_dispatch_arg);
+    RUN_TEST(test_h39_portrait_index_is_raw_counter);
+    RUN_TEST(test_h39_pan_to_9_0_ignores_arg);
     printf("\n");
 }

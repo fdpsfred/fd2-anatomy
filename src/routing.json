@@ -4003,8 +4003,9 @@
     "name": "fd2_chapter_event_handler_39__ch26_cinematic",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000354fe": {
     "name": "fd2_chapter_event_handler_3a__unref_pickup",

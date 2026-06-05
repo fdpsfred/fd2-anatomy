@@ -395,3 +395,33 @@ void fd2_chapter_event_handler_38__ch25_dialog_with_state(uint32 event_arg)
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_clear_all_chars_facing();
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_39__ch26_cinematic @ 0x354DD  (0 direct callers)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x39 (table
+ * entry @ 0x51C75). Triggered in chapter 26 across turn-event slots 0-7+
+ * (turns 2/4/6/8/A/C/F/0x10, all phase 0). Category: cinematic, no dialog.
+ * Dispatch-table signature is 1-arg cdecl (void fn(uint event_arg)); this
+ * handler does not read the arg.
+ *
+ * Effect: ch26 establishing-shot stub — load the portrait set indexed directly
+ * by data_fd2_battle_turn_counter (the RAW counter, same as the ch24 handler,
+ * NOT the signed /2 used by the ch21/ch22 handlers; the set rotates per turn),
+ * pan the camera/window to (9, 0), and hold 400ms.
+ *
+ * In the binary the final pan + 400ms hold + RET is a Class-3 shared tail at
+ * 0x353C4 hosted in fd2_chapter_event_handler_36__ch24_cinematic: after pushing
+ * its pan args (Y=0, X=9) this handler does JMP 0x353C4, falling into the
+ * CALL fd2_pan_cursor_and_window; ADD ESP,8; PUSH 0x190; CALL __delay_thunk_375b2;
+ * ADD ESP,4; RET tail. That tail-merge is a binary size optimisation; the
+ * functionally-exact source is the portrait load followed by one pan + 400ms hold.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_39__ch26_cinematic(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_load_chapter_portraits_and_dump_tmp(data_fd2_battle_turn_counter);
+    fd2_pan_cursor_and_window(9, 0);
+    __delay_thunk_375b2(400);
+}
