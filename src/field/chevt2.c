@@ -806,3 +806,43 @@ void fd2_chapter_event_handler_41__shared_dyn_turn_event(uint32 event_arg)
         *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) = 1;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_42__ch28_dialog_with_state @ 0x359C8
+ *   (1 caller: dispatch table @ 0x51B91, entry @ 0x51C99)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x42. Triggered
+ * in chapter 28 at turn-event slot 0 (turn=0xFF sentinel marker). Category:
+ * dialog with state. Dispatch-table signature is 1-arg cdecl
+ * (void fn(uint event_arg)); this handler does not read the arg.
+ *
+ * Effect: ch28 turn-FF marker scene — show dialog page 3, play one chapter
+ * portrait white-flash cutscene at tile (0x11, 0x12) with chapter id 1, then
+ * show dialog page 6. The two dialog pages bracket the portrait reveal.
+ *
+ * This function additionally HOSTS three Class-3 shared tails borrowed by other
+ * handlers (all confirmed by xref; binary size optimisations that do not affect
+ * this handler's own functionally-exact source):
+ *   - alt_37 @ 0x359FF (the cutscene + page-6 dialog + cleanup + RET tail) is
+ *     tail-JMPed into by fd2_chapter_event_handler_46 (from 0x35B66) after it
+ *     pre-pushes its own cinematic args (0, 7, 5);
+ *   - alt_58 @ 0x35A20 (the PUSH current_chapter_text; CALL display_dialog;
+ *     ADD ESP,0x24; RET tail) is tail-JMPed into by
+ *     fd2_chapter_event_handler_31__ch22_turn_gated (from 0x3525C) on its
+ *     turn==3 branch after it pre-pushes its own 8 page-1 dialog args;
+ *   - alt_66 @ 0x35A2E (the lone RET) is the JNZ early-out target of the same
+ *     handler_31 (from 0x3523D) on its turn!=3 path.
+ * Those consumers are emitted self-contained (handler_31 already in this file);
+ * the borrowed tails are pure code sharing, so this handler's source is just the
+ * straight-line three-call sequence below.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_42__ch28_dialog_with_state(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_display_dialog_scene(current_chapter_text, 3, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_cinematic_chapter_portrait_dump_with_white_flash(0x11, 0x12, 1);
+    fd2_display_dialog_scene(current_chapter_text, 6, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+}

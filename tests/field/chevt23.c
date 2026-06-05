@@ -768,6 +768,138 @@ static void test_h41_turn_counter_low_byte_only(void)
     ce41_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_42__ch28_dialog_with_state @ 0x359C8
+ *
+ * Straight-line three-call scene (ch28 turn-FF marker). Functionally-exact body:
+ *     fd2_display_dialog_scene(current_chapter_text, 3, 0xA0000, ...);   page 3
+ *     fd2_cinematic_chapter_portrait_dump_with_white_flash(0x11, 0x12, 1);
+ *     fd2_display_dialog_scene(current_chapter_text, 6, 0xA0000, ...);   page 6
+ *
+ * The cinematic helper's own contract (arg order, low-byte chapter_id, the
+ * 300/200/400 delay triple) is already pinned by the test_white_flash_* cases
+ * above; the dialog VM's own opcode handling is owned by the dialog suite. What
+ * is risk-bearing HERE is the handler's own argument routing: that it issues
+ * exactly the two dialog pages (3 then 6) bracketing exactly one portrait
+ * cutscene, with the cutscene's literal args (tile 0x11,0x12 / chapter id 1).
+ * All three calls are driven over the REAL dialog VM + REAL cinematic helper +
+ * REAL portrait loader (real FDFIELD.DAT), reusing the proven handler_40 env:
+ *   (a) BOTH dialog pages render: pages 3 and 6 each point at a shared 1-glyph
+ *       body, so g_dlg_glyph_calls == 2 proves both pages ran (a missing/extra
+ *       dialog call would make it 1 or 3),
+ *   (b) EXACTLY ONE cutscene runs with chapter id 1: a single race-1 tile-event
+ *       record makes party_member_count == 1 (the loader inits one runtime_char
+ *       per record whose race == the forwarded chapter id); a decoy race-2 record
+ *       must NOT match, proving the literal id is 1 and not some other value,
+ *   (c) the cutscene's pan target is the literal (0x11, 0x12): the window origin
+ *       (started away on both axes) lands exactly there,
+ *   (d) exactly one white-flash delay triple (300/200/400) fires -> exactly one
+ *       cutscene ran (not zero, not two),
+ *   (e) the dispatch arg is ignored (passed nonzero).
+ * The dialog glyph pixels and the cutscene pan/flash composites are pure display
+ * side effects (deferred to Phase 9); they execute for real here only as a
+ * byproduct and are not asserted.
+ * ================================================================ */
+
+/* dialog program: page-3 header (idx 3) and page-6 header (idx 6) both point at a
+ * shared body at byte 0x18 (int16 idx 12): one TEXT glyph + END. */
+static int16 g_ce42_prog[20];
+
+/* Stand up the handler_42 env: ce23_setup provides the real cinematic
+ * render/portrait/palette env over a tile-event table of `count` records (races
+ * `races`) so the cutscene's chapter id is observable as a party-member-count
+ * delta; a host-safe dialog VM env (empty BIOS key buffer + gated audio + no
+ * active portrait) backs the real page-3/page-6 dialogs. */
+static void ce42_setup(int count, const uint8 *races,
+                       uint32 start_ox, uint32 start_oy)
+{
+    ce23_setup(count, races, start_ox, start_oy);
+
+    memset(g_ce42_prog, 0, sizeof(g_ce42_prog));
+    g_ce42_prog[3]  = 0x18;          /* page-3 body byte offset (= int16 idx 12) */
+    g_ce42_prog[6]  = 0x18;          /* page-6 body byte offset (same body)      */
+    g_ce42_prog[12] = 0x41;          /* one TEXT glyph */
+    g_ce42_prog[13] = -1;            /* END */
+    current_chapter_text = (uint32)g_ce42_prog;
+
+    /* deterministic dialog VM env: empty BIOS keyboard buffer + audio gated so
+     * the per-glyph blink/typewriter step is host-safe; no active portrait, so
+     * END does not run the portrait-close path. */
+    *(volatile uint16 *)0x41AuL = 0x20;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    audiofix_enable_sfx();
+    data_fd2_audio_fdother_sfx_bank_buf_ptr = audiofix_make_bank(0x1F);
+
+    g_dlg_glyph_calls = 0;
+}
+
+static void ce42_teardown(void)
+{
+    audiofix_disable_sfx();
+    ce23_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Full sequence: the handler shows dialog page 3, runs one portrait cutscene at
+ * tile (0x11, 0x12) with chapter id 1, then shows dialog page 6. The tile-event
+ * table carries one race-1 record (the cutscene's chapter id) and a race-2 decoy
+ * (a wrong id that must not match). The dispatch arg is passed nonzero to prove
+ * it is ignored. The window starts away from (0x11, 0x12) on both axes so the
+ * pan is observable on the final origin.
+ * ---------------------------------------------------------------- */
+static void test_h42_dialog_cutscene_dialog_routes_all_three(void)
+{
+    static const uint8 races[2] = { 1, 2 };    /* target id 1, decoy id 2 */
+
+    ce42_setup(2, races, 0x40, 0x40);
+
+    fd2_chapter_event_handler_42__ch28_dialog_with_state(0x77);
+
+    /* (a) both dialog pages (3 and 6) rendered their 1-glyph body */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 2);
+    /* (b) exactly one cutscene ran with chapter id 1: the race-1 record inited,
+     * the race-2 decoy did not -> count == 1 */
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 1);
+    /* (c) the cutscene's pan target is the literal (0x11, 0x12) */
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_x, 0x11);
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_y, 0x12);
+    /* (d) exactly one white-flash delay triple fired -> one cutscene */
+    ASSERT_EQ((long)g_delay375b2_log_count, 3);
+    ASSERT_EQ((long)g_delay375b2_log[0], 300);
+    ASSERT_EQ((long)g_delay375b2_log[1], 200);
+    ASSERT_EQ((long)g_delay375b2_log[2], 400);
+
+    ce42_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * The cutscene's chapter id is the literal 1, not the tile coords: seed the
+ * tile-event table with one race-0x11 record and one race-0x12 record (the two
+ * pan coords) plus one race-1 record. Only the race-1 record may match — if the
+ * handler ever forwarded a coord as the id, count would be 2 (one coord record +
+ * the race-1 record) instead of 1. This pins chapter id == 1 distinct from the
+ * (0x11, 0x12) arguments.
+ * ---------------------------------------------------------------- */
+static void test_h42_cutscene_chapter_id_is_one_not_coords(void)
+{
+    static const uint8 races[3] = { 0x11, 0x12, 1 };  /* coords as decoys + id 1 */
+
+    ce42_setup(3, races, 0x40, 0x40);
+
+    fd2_chapter_event_handler_42__ch28_dialog_with_state(0);
+
+    /* only the race-1 record matched chapter id 1; neither coord (0x11, 0x12)
+     * was forwarded as the id, so count is exactly 1 */
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 1);
+    /* both dialogs still ran and the pan still landed on (0x11, 0x12) */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 2);
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_x, 0x11);
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_y, 0x12);
+
+    ce42_teardown();
+}
+
 void run_field_chevt23_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -787,5 +919,7 @@ void run_field_chevt23_tests(void)
     RUN_TEST(test_h41_first_time_arms_no_offset_and_consumes);
     RUN_TEST(test_h41_already_consumed_is_noop);
     RUN_TEST(test_h41_turn_counter_low_byte_only);
+    RUN_TEST(test_h42_dialog_cutscene_dialog_routes_all_three);
+    RUN_TEST(test_h42_cutscene_chapter_id_is_one_not_coords);
     printf("\n");
 }
