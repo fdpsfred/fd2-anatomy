@@ -189,6 +189,9 @@ extern uint8  data_fd2_chapter_intro_portrait_pose_x_column_table[18];  /* 0x526
 /* speaker portrait id per chapter-intro menu variant, indexed by
  * chapter_intro_menu_cursor_state (0..5). */
 extern uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6]; /* 0x52659 */
+/* per-job revive/promote price multiplier (signed int16), indexed by
+ * job_id-1; promote/revive grid price = char.level * table[job_id-1]. */
+extern int16  data_fd2_ui_per_job_revive_or_promote_cost_table[];       /* 0x5266B  int16 per job */
 
 /* ---- text / dialog ---- */
 extern uint32 data_fd2_all_game_text_ptr;                               /* 0x53A7D */

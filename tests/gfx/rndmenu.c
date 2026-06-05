@@ -2015,6 +2015,380 @@ static void test_sav_chapter_two_draws_empty_one_draw(void)
     ASSERT_EQ((long)g_dlg_glyph_calls, 5);
 }
 
+/* ================================================================
+ * fd2_render_promote_members_grid @ 0x30A47
+ *
+ * Single-column promote/revive candidate grid (up to 3 visible chars).
+ * Per char it draws a 24x24 portrait, three FDTXT labels (char name,
+ * archetype, job), a coin icon and a 5-digit per-job price. The harness
+ * reaches every side-effect through the real pipeline against fakes:
+ *   - portrait: real fd2_tile_blit_24x24_with_dialog_bg_fill (g_blitpass_* /
+ *     g_blitbgfill_calls) -> pins blink-frame source + row dst arithmetic.
+ *   - three labels: the REAL fd2_display_dialog_scene against a text program
+ *     where exactly ONE page is aimed at a one-glyph blob, so a rendered glyph
+ *     proves that page index reached the VM and g_dlg_glyph_last_pos / _p5
+ *     capture the dst arithmetic and the border glyph.
+ *   - coin icon: real fd2_blit_sheet_sprite_at_offset -> fd2_blit_sprite_raw_
+ *     with_header spy (g_blitraw_log_*); with sheet[i]=i the sprite index is
+ *     (logged_sprite - sheet_base).
+ *   - price: real fd2_render_decimal_number_to_buffer -> fd2_rle_blit_sprite
+ *     spy (g_rle_blit_log_*); the 5 digit glyphs encode the rendered value
+ *     (verified via shop_assert_decimal).
+ *   - the candidate index list is a plain in-memory byte array passed by the
+ *     caller; the runtime-char array is the file-scope g_roster_chars.
+ *
+ * Risk-bearing logic under test: the visible-count cap (min 3), the blink-frame
+ * remap (3->1), char_idx = candidate_idx_list[scroll+iter], the single-column
+ * portrait dst/src, the highlight border (0xC9 vs 0xCD), each label's page index
+ * (char_id+1 / archetype+0x8C / job+0x96) and dst, the coin icon sprite + dst,
+ * and above all the price = level * cost_table[job_id-1] computation (signed
+ * int16 table indexed by job_id-1).
+ * ================================================================ */
+
+/* candidate index list the grid dereferences via scroll_offset + iter. */
+static uint8 g_promo_cands[64];
+static runtime_char *g_promo_saved_char_ptr;
+
+/* common promote-grid fixture: N candidates mapped 1:1 to g_roster_chars, scroll
+ * offset, blink (subframe) counter, portrait cache + atlas/anim sheets cleared,
+ * names default to all-END (override with roster_text_glyph_at). The coin/price
+ * spies (g_blitraw_* / g_rle_blit_*) are armed; the cost table is zeroed (each
+ * test seeds the entries it exercises). */
+static void promo_setup(uint32 scroll, uint32 subframe)
+{
+    uint8 *anim = (uint8 *)g_shop_anim_sheet;
+    uint8 *menu = (uint8 *)g_shop_menu_atlas;
+    int    i;
+
+    g_promo_saved_char_ptr = data_fd2_battle_runtime_char_array_ptr;
+
+    memset(g_roster_chars, 0, sizeof(g_roster_chars));
+    memset(g_portrait_cache, 0, sizeof(g_portrait_cache));
+    for (i = 0; i < 256; i++) {
+        *(int32 *)(anim + 6 + i * 4) = i;
+        *(int32 *)(menu + 6 + i * 4) = i;
+    }
+    for (i = 0; i < 64; i++) {
+        g_promo_cands[i] = (uint8)i;       /* candidate k -> char k by default */
+    }
+    for (i = 0; i < 32; i++) {
+        data_fd2_ui_per_job_revive_or_promote_cost_table[i] = 0;
+    }
+
+    g_shop_anim_base = (uint32)anim;
+    g_shop_menu_base = (uint32)menu;
+    data_fd2_battle_runtime_char_array_ptr = g_roster_chars;
+    portrait_sprite_cache = (uint32)g_portrait_cache;
+    /* coin icon is blit from the MENU atlas (param [0x54147]); the price digit
+     * glyphs come from the anim sheet ([0x53A81]) inside
+     * fd2_render_decimal_number_to_buffer. Both use table[i]=i so a resolved
+     * sprite = base + index. */
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = g_shop_menu_base;
+    data_fd2_ui_anim_sprite_sheet_ptr = g_shop_anim_base;
+    data_fd2_ui_menu_scroll_offset = scroll;
+    data_fd2_chapter_intro_dialog_subframe_anim_counter = subframe;
+
+    roster_text_all_end();
+
+    g_blitpass_calls = 0;
+    g_blitbgfill_calls = 0;
+    g_dlg_glyph_calls = 0;
+    g_blitraw_count = 0;
+    g_blitraw_log_on = 1;
+    g_rle_blit_calls = 0;
+    g_rle_blit_log_on = 1;
+}
+
+static void promo_teardown(void)
+{
+    data_fd2_battle_runtime_char_array_ptr = g_promo_saved_char_ptr;
+    g_blitraw_log_on = 0;
+    g_rle_blit_log_on = 0;
+}
+
+/* ----------------------------------------------------------------
+ * Visible-count cap: draw_count = min(candidate_count, 3). One portrait
+ * bg-fill blit per drawn row.
+ * ---------------------------------------------------------------- */
+static void test_promo_cap_min_of_count_and_3(void)
+{
+    promo_setup(0, 0);
+
+    g_blitbgfill_calls = 0;
+    fd2_render_promote_members_grid(2, 0x1000, 99, g_promo_cands);
+    ASSERT_EQ((long)g_blitbgfill_calls, 2);
+
+    g_blitbgfill_calls = 0;
+    fd2_render_promote_members_grid(5, 0x1000, 99, g_promo_cands);
+    ASSERT_EQ((long)g_blitbgfill_calls, 3);     /* capped at 3 */
+
+    g_blitbgfill_calls = 0;
+    fd2_render_promote_members_grid(0, 0x1000, 99, g_promo_cands);
+    ASSERT_EQ((long)g_blitbgfill_calls, 0);     /* nothing to draw */
+    promo_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Portrait dst (single column) + src. char_idx = cands[scroll+iter];
+ * dst = (row_off+0x75)*0x140 + surf + 0xE with row_off = iter*0x1A; src =
+ * cache + cache[char_idx*0x30 + blink*4]. scroll 0, blink 0, 2 rows.
+ * ---------------------------------------------------------------- */
+static void test_promo_portrait_dst_src(void)
+{
+    uint32 surf = 0x2000;
+    int32 *cache;
+
+    promo_setup(0, 0);
+    cache = (int32 *)g_portrait_cache;
+    cache[(0 * 0x30 + 0 * 4) / 4] = 0x111;      /* char 0, blink 0 */
+    cache[(1 * 0x30 + 0 * 4) / 4] = 0x222;      /* char 1, blink 0 */
+
+    fd2_render_promote_members_grid(2, surf, 99, g_promo_cands);
+
+    ASSERT_EQ((long)g_blitpass_calls, 2);
+    /* row 0: row_off 0 */
+    ASSERT_EQ((long)g_blitpass_dst[0], (long)((0x00u + 0x75u) * 0x140u + surf + 0xeu));
+    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_portrait_cache + 0x111u));
+    /* row 1: row_off 0x1A */
+    ASSERT_EQ((long)g_blitpass_dst[1], (long)((0x1au + 0x75u) * 0x140u + surf + 0xeu));
+    ASSERT_EQ((long)g_blitpass_src[1], (long)((uint32)g_portrait_cache + 0x222u));
+    ASSERT_EQ((long)g_blitpass_stride[0], 0x140);
+    promo_teardown();
+}
+
+/* char_idx comes from candidate_idx_list[scroll + iter], NOT scroll+iter
+ * directly: scroll 1, and cands[1] -> char 7, so the first drawn portrait
+ * indexes char 7's cache row. ---------------------------------------------- */
+static void test_promo_char_idx_from_candidate_list(void)
+{
+    int32 *cache;
+
+    promo_setup(1, 0);                          /* scroll 1 */
+    g_promo_cands[1] = 7;                        /* cands[scroll+0] = 7 */
+    cache = (int32 *)g_portrait_cache;
+    cache[(7 * 0x30 + 0 * 4) / 4] = 0x3C0;       /* char 7, blink 0 */
+
+    fd2_render_promote_members_grid(1, 0x1000, 99, g_promo_cands);
+
+    ASSERT_EQ((long)g_blitpass_calls, 1);
+    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_portrait_cache + 0x3C0u));
+    promo_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Blink-frame remap: subframe 3 -> blink 1 (src uses cache[id*0x30 + 1*4]).
+ * ---------------------------------------------------------------- */
+static void test_promo_blink_frame_3_maps_to_1(void)
+{
+    int32 *cache;
+
+    promo_setup(0, 3);                          /* subframe 3 -> blink 1 */
+    cache = (int32 *)g_portrait_cache;
+    cache[(0 * 0x30 + 1 * 4) / 4] = 0xAA;        /* blink 1 (expected) */
+    cache[(0 * 0x30 + 3 * 4) / 4] = 0xBB;        /* blink 3 (must NOT be used) */
+
+    fd2_render_promote_members_grid(1, 0x1000, 99, g_promo_cands);
+
+    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_portrait_cache + 0xAAu));
+    promo_teardown();
+}
+
+/* blink passthrough: subframe 2 (not 3) used as-is. */
+static void test_promo_blink_frame_passthrough(void)
+{
+    int32 *cache;
+
+    promo_setup(0, 2);
+    cache = (int32 *)g_portrait_cache;
+    cache[(0 * 0x30 + 2 * 4) / 4] = 0x5C;
+
+    fd2_render_promote_members_grid(1, 0x1000, 99, g_promo_cands);
+
+    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_portrait_cache + 0x5Cu));
+    promo_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Char-name label: page = char.char_id + 1, dst = text_col + 0x28 where
+ * text_col = surf + (row_off+0x79)*0x140; highlighted row (scroll+iter ==
+ * highlight_idx) -> border 0xC9. One char, iter 0.
+ * ---------------------------------------------------------------- */
+static void test_promo_name_page_dst_and_highlight(void)
+{
+    uint32 surf = 0x4000;
+    uint32 text_col = surf + (0x00u + 0x79u) * 0x140u;   /* iter 0 */
+
+    promo_setup(0, 0);
+    g_roster_chars[0].char_id = 0x0A;           /* name page = 0x0B */
+    roster_text_glyph_at(0x0B, 0x37);           /* only the name page emits a glyph */
+
+    fd2_render_promote_members_grid(1, surf, 0, g_promo_cands);  /* highlight idx 0 */
+
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);                /* page 0x0B reached VM */
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, 0x37);
+    ASSERT_EQ((long)g_dlg_glyph_last_pos, (long)(text_col + 0x28u));
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xC9);           /* highlighted */
+    promo_teardown();
+}
+
+/* non-highlighted row -> border 0xCD. Two chars, highlight slot 1 (not 0);
+ * mark char 0's name page so the emitted glyph carries row 0's border. */
+static void test_promo_border_not_highlighted(void)
+{
+    promo_setup(0, 0);
+    g_roster_chars[0].char_id = 0x03;           /* name page = 0x04 */
+    g_roster_chars[1].char_id = 0x07;
+    roster_text_glyph_at(0x04, 0x22);           /* only row 0's name emits a glyph */
+
+    fd2_render_promote_members_grid(2, 0x4000, 1, g_promo_cands);  /* highlight slot 1 */
+
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xCD);           /* row 0 not highlighted */
+    promo_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Archetype label: page = char.archetype_flag + 0x8C, dst = text_col + 0x82.
+ * Aim only that page at the glyph. ---------------------------------------- */
+static void test_promo_archetype_page_and_dst(void)
+{
+    uint32 surf = 0x4000;
+    uint32 text_col = surf + (0x00u + 0x79u) * 0x140u;
+
+    promo_setup(0, 0);
+    g_roster_chars[0].char_id = 0x00;           /* name page 1 (no glyph there) */
+    g_roster_chars[0].archetype_flag = 0x05;    /* archetype page = 0x05 + 0x8C = 0x91 */
+    roster_text_glyph_at(0x91, 0x44);
+
+    fd2_render_promote_members_grid(1, surf, 99, g_promo_cands);
+
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);                /* archetype page reached VM */
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, 0x44);
+    ASSERT_EQ((long)g_dlg_glyph_last_pos, (long)(text_col + 0x82u));
+    promo_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Job label: page = char.job_id + 0x96, dst = text_col + 0xAF. Aim only the
+ * job page at the glyph (job_id 4 -> page 0x9A). Guards against confusing the
+ * job label with the price (the price reads job_id-1 from the cost table).
+ * ---------------------------------------------------------------- */
+static void test_promo_job_page_and_dst(void)
+{
+    uint32 surf = 0x4000;
+    uint32 text_col = surf + (0x00u + 0x79u) * 0x140u;
+
+    promo_setup(0, 0);
+    g_roster_chars[0].job_id = 0x04;            /* job page = 0x04 + 0x96 = 0x9A */
+    roster_text_glyph_at(0x9A, 0x55);
+
+    fd2_render_promote_members_grid(1, surf, 99, g_promo_cands);
+
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);                /* job page reached VM */
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, 0x55);
+    ASSERT_EQ((long)g_dlg_glyph_last_pos, (long)(text_col + 0xafu));
+    promo_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Coin icon: sprite 0x0F from the MENU atlas, dst = price_y + 0xDC where
+ * price_y = surf + (row_off+0x7D)*0x140. job_id 1 keeps the price well-defined
+ * (cost[0] is seeded). One char, iter 0.
+ * ---------------------------------------------------------------- */
+static void test_promo_coin_icon_sprite_and_dst(void)
+{
+    uint32 surf = 0x3000;
+    uint32 price_y = surf + (0x00u + 0x7du) * 0x140u;
+
+    promo_setup(0, 0);
+    g_roster_chars[0].job_id = 1;
+    g_roster_chars[0].status_flags_block[0] = 1;          /* level 1 */
+    data_fd2_ui_per_job_revive_or_promote_cost_table[0] = 100;
+
+    fd2_render_promote_members_grid(1, surf, 99, g_promo_cands);
+
+    /* exactly one sheet blit: the coin icon (labels go through the dialog VM, not
+     * the sheet path; the price digits go through the rle path). */
+    ASSERT_EQ((long)g_blitraw_count, 1);
+    ASSERT_EQ((long)(g_blitraw_log_sprite[0] - g_shop_menu_base), 0x0F);
+    ASSERT_EQ((long)g_blitraw_log_dst[0], (long)(price_y + 0xDCu));
+    promo_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Price = level * cost_table[job_id - 1], 5 orange (0x77) digits at
+ * price_y + 0xE4. The cost table is indexed by job_id-1 (not job_id): seed a
+ * decoy at index job_id and the real value at index job_id-1, and prove the
+ * rendered value uses the job_id-1 entry. level 7, job_id 5, cost[4] = 300 ->
+ * price 2100; cost[5] (decoy) = 9999 must NOT be used.
+ * ---------------------------------------------------------------- */
+static void test_promo_price_level_times_cost_indexed_by_job_minus_1(void)
+{
+    uint32 surf = 0x1000;
+    uint32 price_y = surf + (0x00u + 0x7du) * 0x140u;
+
+    promo_setup(0, 0);
+    g_roster_chars[0].job_id = 5;
+    g_roster_chars[0].status_flags_block[0] = 7;          /* level 7 */
+    data_fd2_ui_per_job_revive_or_promote_cost_table[4] = 300;   /* job_id-1 = 4 */
+    data_fd2_ui_per_job_revive_or_promote_cost_table[5] = 9999;  /* decoy at job_id */
+
+    fd2_render_promote_members_grid(1, surf, 99, g_promo_cands);
+
+    /* 5 price digits via the rle path; value = 7 * 300 = 2100 -> "02100". */
+    ASSERT_EQ((long)g_rle_blit_calls, 5);
+    shop_assert_decimal(0, price_y + 0xE4u, 2100, 0x77, 5);
+    promo_teardown();
+}
+
+/* Price with a different level/cost to pin the multiply (not a fixed value):
+ * level 12, job_id 2, cost[1] = 150 -> 1800. ----------------------------- */
+static void test_promo_price_multiply(void)
+{
+    uint32 surf = 0x1000;
+    uint32 price_y = surf + (0x00u + 0x7du) * 0x140u;
+
+    promo_setup(0, 0);
+    g_roster_chars[0].job_id = 2;
+    g_roster_chars[0].status_flags_block[0] = 12;         /* level 12 */
+    data_fd2_ui_per_job_revive_or_promote_cost_table[1] = 150;   /* job_id-1 = 1 */
+
+    fd2_render_promote_members_grid(1, surf, 99, g_promo_cands);
+
+    shop_assert_decimal(0, price_y + 0xE4u, 1800, 0x77, 5);   /* 12 * 150 */
+    promo_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Row arithmetic across iters: with 3 candidates the coin-icon dst for iter
+ * 0/1/2 pins the row_off = iter*0x1A single-column stride. job_id 1, level 1
+ * (cost[0]=1) so each row makes exactly one coin blit (index = iter).
+ * ---------------------------------------------------------------- */
+static void test_promo_row_offset_per_iter(void)
+{
+    uint32 surf = 0x6000;
+    int    i;
+
+    promo_setup(0, 0);
+    for (i = 0; i < 3; i++) {
+        g_roster_chars[i].job_id = 1;
+        g_roster_chars[i].status_flags_block[0] = 1;
+    }
+    data_fd2_ui_per_job_revive_or_promote_cost_table[0] = 1;
+
+    fd2_render_promote_members_grid(3, surf, 99, g_promo_cands);
+
+    ASSERT_EQ((long)g_blitraw_count, 3);                  /* one coin per row */
+    /* coin dst for iter k = surf + (k*0x1A + 0x7D)*0x140 + 0xDC */
+    ASSERT_EQ((long)g_blitraw_log_dst[0],
+              (long)(surf + (0x00u + 0x7du) * 0x140u + 0xDCu));
+    ASSERT_EQ((long)g_blitraw_log_dst[1],
+              (long)(surf + (0x1au + 0x7du) * 0x140u + 0xDCu));
+    ASSERT_EQ((long)g_blitraw_log_dst[2],
+              (long)(surf + (0x34u + 0x7du) * 0x140u + 0xDCu));
+    promo_teardown();
+}
+
 void run_gfx_rndmenu_tests(void)
 {
     SUITE_BEGIN(gfx_rndmenu);
@@ -2075,5 +2449,18 @@ void run_gfx_rndmenu_tests(void)
     RUN_TEST(test_sav_slot_base_and_chapter_offset);
     RUN_TEST(test_sav_row_offset_per_slot);
     RUN_TEST(test_sav_chapter_two_draws_empty_one_draw);
+    RUN_TEST(test_promo_cap_min_of_count_and_3);
+    RUN_TEST(test_promo_portrait_dst_src);
+    RUN_TEST(test_promo_char_idx_from_candidate_list);
+    RUN_TEST(test_promo_blink_frame_3_maps_to_1);
+    RUN_TEST(test_promo_blink_frame_passthrough);
+    RUN_TEST(test_promo_name_page_dst_and_highlight);
+    RUN_TEST(test_promo_border_not_highlighted);
+    RUN_TEST(test_promo_archetype_page_and_dst);
+    RUN_TEST(test_promo_job_page_and_dst);
+    RUN_TEST(test_promo_coin_icon_sprite_and_dst);
+    RUN_TEST(test_promo_price_level_times_cost_indexed_by_job_minus_1);
+    RUN_TEST(test_promo_price_multiply);
+    RUN_TEST(test_promo_row_offset_per_iter);
     SUITE_END();
 }

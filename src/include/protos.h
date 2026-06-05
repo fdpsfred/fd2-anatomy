@@ -416,6 +416,7 @@ void fd2_render_chapter_intro_dialog_panels(uint32 corner_offs_ptr, uint32 mode)
 void fd2_render_shop_item_grid(uint32 item_count, uint8 *item_id_array, uint32 highlight_slot, int32 surface_offset, int32 sell_mode_flag);
 void fd2_render_party_roster_grid(uint32 highlight_idx, uint32 surface_offset);
 void fd2_render_party_roster_with_item_stat_preview(uint32 candidate_count, uint32 candidate_array_ptr, uint32 item_id, int32 highlight_idx, int32 surface_offset);
+void fd2_render_promote_members_grid(uint32 candidate_count, uint32 surface_offset, uint32 highlight_idx, uint8 *candidate_idx_list);
 void fd2_blit_sprite_with_stride_setup(uint32 dst, uint32 sprite, uint32 stride);
 void fd2_backup_dialog_area_to_buffer(void);
 void fd2_restore_dialog_area_from_buffer(void);

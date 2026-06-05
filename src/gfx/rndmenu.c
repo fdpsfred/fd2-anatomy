@@ -693,3 +693,117 @@ void fd2_render_save_slot_grid(uint32 highlight_slot, uint32 surface_offset,
             0x140, border_glyph, 0x4c, 0, 0, 0);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_promote_members_grid @ 0x30A47  (1 caller)
+ *
+ * Render the promote / revive candidate grid — up to 3 visible chars in
+ * a single column, each showing portrait + char name + archetype + job +
+ * a per-job price (5-digit decimal). Shared by both the promote-member and
+ * class-promotion menu loops (both display the same fields).
+ *
+ * Sole caller: fd2_promote_members_select_loop @ 0x30C22 (the in-grid
+ * Up/Down cursor loop), which passes the candidate count, the compose
+ * surface, the highlight cursor index, and the candidate index list.
+ *
+ * Blink-frame mapping:
+ *   blink_frame = (subframe_counter == 3) ? 1 : counter   // 0,1,2,3->0,1,2,1
+ *
+ * Visible cap: draw_count = min(candidate_count, 3).
+ *
+ * Per char (iter = 0..draw_count-1):
+ *   char_idx = candidate_idx_list[scroll_offset + iter]
+ *   row_off  = iter * 0x1A
+ *   24x24 portrait bg-fill blit (blink variant):
+ *     src = cache + cache[char_idx*0x30 + blink_frame*4]
+ *     dst = (row_off+0x75)*0x140 + surface_offset + 0x0E
+ *   border_glyph = (scroll_offset + iter == highlight_idx) ? 0xC9 : 0xCD
+ *   three FDTXT labels at text_col = surface_offset + (row_off+0x79)*0x140:
+ *     char name : page = char.char_id        + 1,    pos = text_col + 0x28
+ *     archetype : page = char.archetype_flag + 0x8C, pos = text_col + 0x82
+ *     job name  : page = char.job_id         + 0x96, pos = text_col + 0xAF
+ *   price + gold icon at price_y = surface_offset + (row_off+0x7D)*0x140:
+ *     coin icon sprite 0x0F (menu atlas) at price_y + 0xDC
+ *     price = char.level * cost_table[char.job_id - 1]   // int16 cost mult
+ *     5-digit orange (colour 0x77) at price_y + 0xE4
+ *
+ * void __cdecl. EBX/ESI/EDI/EBP callee-saved; the __CHK(0x4C) stack-probe
+ * prologue is compiler-injected and omitted here. The cost-table read is a
+ * sign-extended int16 (MOVSX) indexed by job_id-1; the price multiply is a
+ * signed int * level (the table values are all positive, so the low 32 bits
+ * match an unsigned multiply either way).
+ * ---------------------------------------------------------------- */
+void fd2_render_promote_members_grid(uint32 candidate_count,
+                                     uint32 surface_offset,
+                                     uint32 highlight_idx,
+                                     uint8 *candidate_idx_list)
+{
+    uint32 blink_frame;
+    uint32 draw_count;
+    uint32 iter;
+    uint32 char_idx;
+    uint8  job_id;
+    uint8  level;
+    uint32 row_off;
+    uint32 portrait_src;
+    uint8  border_glyph;
+    uint32 text_col;
+    uint32 price_y;
+    runtime_char *rt_chars;
+
+    blink_frame = data_fd2_chapter_intro_dialog_subframe_anim_counter;
+    if (data_fd2_chapter_intro_dialog_subframe_anim_counter == 3) {
+        blink_frame = 1;
+    }
+
+    draw_count = candidate_count;
+    if ((int32)candidate_count > 3) {
+        draw_count = 3;
+    }
+
+    for (iter = 0; (rt_chars = data_fd2_battle_runtime_char_array_ptr,
+                    (int32)iter < (int32)draw_count); iter++) {
+        char_idx = (uint32)candidate_idx_list[data_fd2_ui_menu_scroll_offset
+                                              + iter];
+        job_id = rt_chars[char_idx].job_id;
+        level  = rt_chars[char_idx].status_flags_block[0];
+        row_off = iter * 0x1a;
+
+        portrait_src = *(int32 *)(portrait_sprite_cache
+                                  + char_idx * 0x30 + blink_frame * 4)
+                     + portrait_sprite_cache;
+        fd2_tile_blit_24x24_with_dialog_bg_fill(
+            portrait_src,
+            (row_off + 0x75) * 0x140 + surface_offset + 0xe,
+            0x140);
+
+        border_glyph = 0xcd;
+        if (data_fd2_ui_menu_scroll_offset + iter == highlight_idx) {
+            border_glyph = 0xc9;
+        }
+
+        text_col = surface_offset + (row_off + 0x79) * 0x140;
+        fd2_display_dialog_scene(
+            data_fd2_all_game_text_ptr,
+            rt_chars[char_idx].char_id + 1,
+            text_col + 0x28, 0x140, border_glyph, 0x4c, 0, 0, 0);
+        fd2_display_dialog_scene(
+            data_fd2_all_game_text_ptr,
+            rt_chars[char_idx].archetype_flag + 0x8c,
+            text_col + 0x82, 0x140, border_glyph, 0x4c, 0, 0, 0);
+        fd2_display_dialog_scene(
+            data_fd2_all_game_text_ptr,
+            rt_chars[char_idx].job_id + 0x96,
+            text_col + 0xaf, 0x140, border_glyph, 0x4c, 0, 0, 0);
+
+        price_y = surface_offset + (row_off + 0x7d) * 0x140;
+        fd2_blit_sheet_sprite_at_offset(
+            price_y + 0xdc, 0x140,
+            data_fd2_ui_menu_screen_sprite_atlas_buf_ptr, 0xf);
+        fd2_render_decimal_number_to_buffer(
+            price_y + 0xe4, 0x140,
+            (int32)data_fd2_ui_per_job_revive_or_promote_cost_table[job_id - 1]
+                * (uint32)level,
+            0x77, 5);
+    }
+}

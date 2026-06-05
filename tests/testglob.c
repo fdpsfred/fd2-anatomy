@@ -459,6 +459,11 @@ uint8  data_fd2_chapter_intro_portrait_pose_x_column_table[18] = {0};
  * sub-menus — see the deferral note in tests/ui_menu/chintro.c), so these only
  * satisfy the link and are never invoked by a test. */
 uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6] = {0};
+/* per-job revive/promote price multiplier (real int16 data @ 0x5266B, emit'd
+ * by the data pipeline; zero-filled fake here, sized past job_id 0x1A for the
+ * table[job_id-1] read in fd2_render_promote_members_grid). Tests seed the
+ * entries they exercise. */
+int16  data_fd2_ui_per_job_revive_or_promote_cost_table[32] = {0};
 /* per-chapter dispatch category (real data @ 0x526B9, emit'd by the data
  * pipeline; zero-filled fake here, sized past chapter_id 30 (0x1E) for the
  * indexed read in fd2_save_current_state_to_slot / fd2_chapter_transition_menu /

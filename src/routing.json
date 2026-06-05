@@ -3173,8 +3173,9 @@
     "name": "fd2_render_promote_members_grid",
     "target": "gfx/rndmenu.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00030c22": {
     "name": "fd2_promote_members_select_loop",
