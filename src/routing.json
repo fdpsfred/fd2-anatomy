@@ -3766,8 +3766,9 @@
     "name": "fd2_chapter_event_handler_1e__unref_major_cinematic",
     "target": "field/chevt1.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00034b5d": {
     "name": "fd2_chapter_event_handler_1f__ch9_reinforcement",

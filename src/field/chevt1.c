@@ -73,6 +73,9 @@
  * fd2_chapter_event_handler_1d__unref_dialog_with_state @ 0x34A3C
  *     (0 direct callers; dispatched as idx 0x1D of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_1e__unref_major_cinematic @ 0x34A7A
+ *     (0 direct callers; dispatched as idx 0x1E of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -1006,4 +1009,74 @@ void fd2_chapter_event_handler_1d__unref_dialog_with_state(uint32 event_arg)
     fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_chapter_event_handler_1c__ch8_ai_ctrl(event_arg);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_1e__unref_major_cinematic @ 0x34A7A
+ *   — Dispatch idx 0x1E of the per-event handler table at 0x51B91.
+ *
+ * No chapter FDFIELD turn-event / tile-step hook references this slot
+ * (unreferenced — possibly cut content or a non-chapter dispatcher).
+ * Major-cinematic beat with a character spawn and dynamic turn-event
+ * scheduling:
+ *   - Clear the AI/sub-state byte (combat_aux_block[0xD]) for the 22
+ *     runtime-char slots 0x0C..0x21.
+ *   - Schedule two future turn events relative to the current battle
+ *     turn counter: the trigger-turn byte of table entry +3 is set to
+ *     turn_counter+1 and that of entry +6 to turn_counter+2 (entries
+ *     begin at byte offset +3 with a 3-byte stride inside the table
+ *     pointed to by data_fd2_tile_event_data_table_ptr).
+ *   - Spawn / configure runtime-char slot 0x0B as an enemy: clear its
+ *     flags byte (revive if dead), set team=1, portrait_id=6, char_id=6,
+ *     combat_aux_block[0x0A]=0xFF, combat_aux_block[0x0D]=0x80 (AI byte
+ *     with the locked bit 7 set), and hp_current=1.
+ *   - Show dialog page 2, reload portrait set 1, show dialog page 3.
+ *   - Reset pending XP (data_fd2_battle_pending_xp_credit = 0).
+ *   - Consume tile-event slot 0x10 with value 2 (distinct from the "1"
+ *     written by the other handlers).
+ *
+ * The only branch is the AI-clear loop; no RNG, no numeric computation,
+ * and no CALL-return value is used.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91 (1-arg
+ * uniform cdecl); the body never reads the arg. EBX is callee-saved; the
+ * __CHK(0x2C) stack-probe prologue is compiler-injected and omitted here.
+ *
+ * The byte read from data_fd2_battle_turn_counter for the two scheduled
+ * turns is a byte read + byte increment in the original (MOV DL,[..];
+ * INC DL / ADD DL,2), reproduced here as a (uint8) truncating cast.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_1e__unref_major_cinematic(uint32 event_arg)
+{
+    int32 i;
+    runtime_char *p;
+
+    (void)event_arg;
+
+    for (i = 0xC; i < 0x22; i++) {
+        data_fd2_battle_runtime_char_array_ptr[i].combat_aux_block[0xD] = 0;
+    }
+
+    *((uint8 *)data_fd2_tile_event_data_table_ptr + 3) =
+        (uint8)(data_fd2_battle_turn_counter + 1);
+    *((uint8 *)data_fd2_tile_event_data_table_ptr + 6) =
+        (uint8)(data_fd2_battle_turn_counter + 2);
+
+    p = data_fd2_battle_runtime_char_array_ptr;
+    p[0xB].flags = 0;
+    p[0xB].team = 1;
+    p[0xB].portrait_id = 6;
+    p[0xB].char_id = 6;
+    p[0xB].combat_aux_block[0x0A] = 0xFF;
+    p[0xB].combat_aux_block[0x0D] = 0x80;
+    p[0xB].hp_current = 1;
+
+    fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_load_chapter_portraits_and_dump_tmp(1);
+    fd2_display_dialog_scene(current_chapter_text, 3, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+
+    data_fd2_battle_pending_xp_credit = 0;
+    *((uint8 *)data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) = 2;
 }

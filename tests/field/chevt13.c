@@ -1,13 +1,14 @@
 /*
  * unit tests for src/field/chevt1.c (part 3: handler 18 +
- * fd2_show_chapter_intro_text_dialog_mode_3 + handlers 19, 1A, 1B, 1C)
+ * fd2_show_chapter_intro_text_dialog_mode_3 + handlers 19, 1A, 1B, 1C, 1D, 1E)
  *
  * The chapter turn-event handlers in src/field/chevt1.c are dispatched as
  * indices of the per-event handler table at 0x51B91. Parts 1/2 (chevt11.c /
  * chevt12.c) cover handlers 00..17; this part covers handler 18, the named
  * helper fd2_show_chapter_intro_text_dialog_mode_3 @ 0x34906, handler 19, the
  * tile-step char-conditional handler 1A, the ch8 every-turn cinematic handler
- * 1B, and the ch8 turn-15 AI-control handler 1C.
+ * 1B, the ch8 turn-15 AI-control handler 1C, the dialog+chain handler 1D, and
+ * the unreferenced major-cinematic handler 1E.
  *
  * fd2_chapter_event_handler_18__unref_dialog @ 0x348FC is dispatch idx 0x18 of
  * that table. No chapter FDFIELD turn-event / tile-step hook references the
@@ -656,6 +657,216 @@ static void test_ch_event1d_shows_dialog_page2_then_chains_handler_1c(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_1e__unref_major_cinematic @ 0x34A7A
+ *
+ * Dispatch idx 0x1E of the per-event handler table at 0x51B91. No chapter
+ * FDFIELD turn-event / tile-step hook references this slot (unreferenced —
+ * possibly cut content / non-chapter dispatcher). A major-cinematic beat that
+ * mixes pure in-memory state writes with two dialog dispatches and a portrait
+ * reload:
+ *   for (i = 0xC; i < 0x22; i++)                          // AI-clear loop
+ *       runtime_char[i].combat_aux_block[0xD] = 0;
+ *   tile_event_table[+3] = (uint8)(turn_counter + 1);     // schedule turn N+1
+ *   tile_event_table[+6] = (uint8)(turn_counter + 2);     // schedule turn N+2
+ *   runtime_char[0xB].flags = 0;  team = 1; portrait_id = 6; char_id = 6;
+ *   runtime_char[0xB].combat_aux_block[0x0A] = 0xFF;
+ *   runtime_char[0xB].combat_aux_block[0x0D] = 0x80;      // locked AI bit
+ *   runtime_char[0xB].hp_current = 1;                     // spawn at 1 HP
+ *   display_dialog_scene(page 2, ...);
+ *   load_chapter_portraits_and_dump_tmp(1);
+ *   display_dialog_scene(page 3, ...);
+ *   pending_xp_credit = 0;
+ *   tile_event_consumed_flags[0x10] = 2;                  // consume w/ value 2
+ *
+ * The testable risk core is the numeric / state logic: the AI-clear slot RANGE
+ * (0x0C..0x21 inclusive — slot 0x0B is NOT cleared by the loop, it is the spawn
+ * target), the two scheduled turn bytes (a BYTE read + byte increment of the
+ * turn counter, so a high turn count wraps mod 256), the exact char-0x0B spawn
+ * block (offsets + values), the pending-XP reset, and the consumed-flag written
+ * with the DISTINCT value 2 (not the 1 the sibling handlers write). All of that
+ * is pinned by test_ch_event1e_state in one shot:
+ *   - the runtime-char array and the tile-event table are local buffers so the
+ *     loop range, the spawn block and the two scheduled turn bytes are
+ *     observable;
+ *   - turn_counter is seeded 0xFE, so the byte truncation is fully
+ *     discriminating: entry +3 must become 0xFF (0xFE+1) and entry +6 must wrap
+ *     to 0x00 (0xFE+2 mod 256) — distinguishing the byte write from a wider one;
+ *   - combat_aux_block[0xD] is seeded 0xA5 for every slot, so the loop clear
+ *     shows as 0xA5 -> 0 across 0x0C..0x21, the just-below boundary slot 0x0A
+ *     stays 0xA5, the just-above boundary slot 0x22 stays 0xA5, and the spawn
+ *     slot 0x0B ends 0x80 (overwritten by the spawn, not the loop);
+ *   - the two dialog calls + the portrait reload run FOR REAL against the shared
+ *     ch25-style env: with the immediate-END dialog program installed by
+ *     ev_install_safe_env they return at once (no glyphs), and the real reload
+ *     (alloc_offset 0 -> no per-record char init, so it never disturbs the
+ *     seeded char array) rewrites FD2.TMP to its full 0x32A00 bytes — proving
+ *     the whole real callee chain runs to completion without faulting.
+ *
+ * The dialog PAGE dispatch (page 2 then page 3) is pinned separately by
+ * test_ch_event1e_shows_dialog_pages_2_then_3 against the per-page-distinct-glyph
+ * program: exactly two glyphs are emitted and the last is page 3's (idx 0x53).
+ * The pure blit/display side effects (dialog glyphs, portrait pixels) are
+ * deferred to Phase 9 integration.
+ * ================================================================ */
+
+/* tile-event table backing the handler writes its two scheduled turn bytes into
+ * (entry +3 and +6). Oversized past the +6 write so both land in-bounds; the
+ * real portrait reload never reads it (alloc_offset 0). */
+static uint8 g_ev1e_tile_table[0x10];
+
+/* backing for the 0x20-byte tile-event consumed-flags block: byte [0x10] is the
+ * slot this handler consumes with the distinct value 2. */
+static uint8 g_ev1e_consumed_flags[0x20];
+
+/* per-page-distinct-glyph dialog program (page p -> single glyph idx 0x50+p,
+ * then END), so the dispatched page is identifiable by the recorded glyph idx.
+ * Layout (int16 words):
+ *   [0..0x10]      header words: page p -> byte offset of its glyph word
+ *   [0x11+2*p]     page p glyph (0x50+p)
+ *   [0x12+2*p]     page p END (-1)                                          */
+static int16 g_ev1e_dlg[0x11 + 2 * 0x11];
+
+/* ----------------------------------------------------------------
+ * State / numeric risk core. Drives the handler against the shared ch25-style
+ * real-reload env (dialogs return immediately via the immediate-END program,
+ * the real portrait reload rewrites FD2.TMP) and pins every in-memory write:
+ * the AI-clear range 0x0C..0x21 with both boundaries, the two byte-truncated
+ * scheduled turns (0xFE -> 0xFF / 0x00), the full char-0x0B spawn block, the
+ * pending-XP reset, and the consumed-flag written with the distinct value 2.
+ * ---------------------------------------------------------------- */
+static void test_ch_event1e_state(void)
+{
+    int i;
+
+    /* shared ch25-style real-reload env: empty party, real compositor
+     * workspace, immediate-END dialog program, alloc_offset 0, chapter 4,
+     * 64-slot g_ev_rc (memset to 0). */
+    ev_install_safe_env();
+
+    /* seed every char's combat_aux_block[0xD] with 0xA5 so the loop clear shows
+     * as 0xA5 -> 0, the spawn slot ends 0x80, and untouched boundary slots keep
+     * 0xA5. */
+    for (i = 0; i < 64; i++) {
+        g_ev_rc[i].combat_aux_block[0xD] = 0xA5;
+    }
+
+    /* point the tile-event table at a local buffer so the two scheduled turn
+     * bytes (entry +3 / +6) are observable; seed it with a sentinel so the
+     * writes are visible against a known background. */
+    memset(g_ev1e_tile_table, 0x5A, sizeof(g_ev1e_tile_table));
+    data_fd2_tile_event_data_table_ptr = (uint32)g_ev1e_tile_table;
+
+    /* turn counter 0xFE so the byte increments wrap: +1 -> 0xFF, +2 -> 0x00. */
+    data_fd2_battle_turn_counter = 0xFE;
+
+    /* point the consumed-flags block at a local buffer; seed [0x10] with a
+     * sentinel so the write of the distinct value 2 is observable. */
+    memset(g_ev1e_consumed_flags, 0, sizeof(g_ev1e_consumed_flags));
+    g_ev1e_consumed_flags[0x10] = 0x77;
+    data_fd2_field_map_tile_event_consumed_flags_ptr =
+        (uint32)g_ev1e_consumed_flags;
+
+    /* perturb pending XP so its reset to 0 is observable. */
+    data_fd2_battle_pending_xp_credit = 0x12345678;
+
+    remove("FD2.TMP");
+
+    fd2_chapter_event_handler_1e__unref_major_cinematic(0);
+
+    /* AI-clear loop: slots 0x0C..0x21 inclusive cleared to 0. */
+    for (i = 0x0C; i <= 0x21; i++) {
+        ASSERT_EQ(g_ev_rc[i].combat_aux_block[0xD], 0);
+    }
+    /* boundary just below the loop (slot 0x0A) untouched; slot 0x0B is the spawn
+     * target (checked below); boundary just above the loop (slot 0x22) untouched. */
+    ASSERT_EQ(g_ev_rc[0x0A].combat_aux_block[0xD], 0xA5);
+    ASSERT_EQ(g_ev_rc[0x22].combat_aux_block[0xD], 0xA5);
+
+    /* two scheduled turn bytes, byte-truncated: +3 -> 0xFF, +6 -> 0x00. The
+     * surrounding sentinel bytes are left intact (only +3 and +6 are written). */
+    ASSERT_EQ(g_ev1e_tile_table[3], 0xFF);
+    ASSERT_EQ(g_ev1e_tile_table[6], 0x00);
+    ASSERT_EQ(g_ev1e_tile_table[2], 0x5A);
+    ASSERT_EQ(g_ev1e_tile_table[4], 0x5A);
+    ASSERT_EQ(g_ev1e_tile_table[5], 0x5A);
+    ASSERT_EQ(g_ev1e_tile_table[7], 0x5A);
+
+    /* char-0x0B spawn block. */
+    ASSERT_EQ(g_ev_rc[0x0B].flags, 0);
+    ASSERT_EQ(g_ev_rc[0x0B].team, 1);
+    ASSERT_EQ(g_ev_rc[0x0B].portrait_id, 6);
+    ASSERT_EQ(g_ev_rc[0x0B].char_id, 6);
+    ASSERT_EQ(g_ev_rc[0x0B].combat_aux_block[0x0A], 0xFF);
+    ASSERT_EQ(g_ev_rc[0x0B].combat_aux_block[0x0D], 0x80);
+    ASSERT_EQ((long)g_ev_rc[0x0B].hp_current, 1);
+
+    /* pending XP reset. */
+    ASSERT_EQ((long)data_fd2_battle_pending_xp_credit, 0);
+
+    /* consumed-flag slot [0x10] written with the DISTINCT value 2. */
+    ASSERT_EQ(g_ev1e_consumed_flags[0x10], 2);
+
+    /* the real portrait reload ran end-to-end: FD2.TMP rewritten to full size. */
+    ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
+
+    /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
+    remove("FD2.TMP");
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    ev_restore_rc_ptr();
+}
+
+/* ----------------------------------------------------------------
+ * Dialog PAGE dispatch. Against the per-page-distinct-glyph program (page p ->
+ * single glyph idx 0x50+p, then END), the handler's two dialog calls must emit
+ * exactly two glyphs and the LAST must be page 3's (idx 0x53) — proving the
+ * second dialog dispatches page 3. (The recorder keeps only the last idx, so the
+ * first page is not independently provable here; the count of 2 confirms exactly
+ * two dialogs fired.)
+ * ---------------------------------------------------------------- */
+static void test_ch_event1e_shows_dialog_pages_2_then_3(void)
+{
+    int p;
+
+    /* shared ch25-style env (real reload, empty party); then override its
+     * immediate-END dialog program with the per-page-distinct-glyph program. */
+    ev_install_safe_env();
+
+    for (p = 0; p <= 0x10; p++) {
+        g_ev1e_dlg[p] = (int16)((0x11 + 2 * p) * 2);   /* byte offset of glyph */
+        g_ev1e_dlg[0x11 + 2 * p] = (int16)(0x50 + p);  /* page p glyph idx */
+        g_ev1e_dlg[0x12 + 2 * p] = -1;                  /* page p END */
+    }
+    current_chapter_text = (uint32)g_ev1e_dlg;
+
+    /* no portrait open on entry, so each dialog END path returns at once. */
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+
+    /* point the tile-event table + consumed-flags at local buffers so the
+     * handler's state writes do not fault on a null pointer. */
+    memset(g_ev1e_tile_table, 0, sizeof(g_ev1e_tile_table));
+    data_fd2_tile_event_data_table_ptr = (uint32)g_ev1e_tile_table;
+    memset(g_ev1e_consumed_flags, 0, sizeof(g_ev1e_consumed_flags));
+    data_fd2_field_map_tile_event_consumed_flags_ptr =
+        (uint32)g_ev1e_consumed_flags;
+
+    /* reset the glyph recorder so the per-test count is clean. */
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+
+    remove("FD2.TMP");
+
+    fd2_chapter_event_handler_1e__unref_major_cinematic(0);
+
+    /* exactly two dialogs fired; the last dispatched page 3 (idx 0x53). */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 2);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0x53);
+
+    remove("FD2.TMP");
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt13_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -670,5 +881,7 @@ void run_field_chevt13_tests(void)
     RUN_TEST(test_ch8_event1b_runs_cinematic_with_turn_keyed_reload);
     RUN_TEST(test_ch8_event1c_clears_low7_bits_for_slots_0a_1b);
     RUN_TEST(test_ch_event1d_shows_dialog_page2_then_chains_handler_1c);
+    RUN_TEST(test_ch_event1e_state);
+    RUN_TEST(test_ch_event1e_shows_dialog_pages_2_then_3);
     printf("\n");
 }
