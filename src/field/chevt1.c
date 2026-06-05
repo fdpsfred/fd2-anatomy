@@ -25,6 +25,9 @@
  * fd2_chapter_event_handler_0b__ch4_dialog @ 0x34565
  *     (0 direct callers; dispatched as idx 0x0B of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_0c__unref_first_time @ 0x34594
+ *     (0 direct callers; dispatched as idx 0x0C of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -319,4 +322,37 @@ void fd2_chapter_event_handler_0b__ch4_dialog(uint32 event_arg)
     fd2_load_chapter_portraits_and_dump_tmp(2);
     fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_0c__unref_first_time @ 0x34594
+ *   — Dispatch idx 0x0C of the per-event handler table at 0x51B91.
+ *
+ * No chapter FDFIELD turn-event / tile-step hook references this slot
+ * (unreferenced — possibly cut content). It is a first-time-gated beat:
+ * the body runs only while tile_event_consumed_flags[0x10] is still 0,
+ * and consuming the flag (set to 1) at the end makes every later call a
+ * no-op. Its single beat arms AI flag 7 on four enemies (the low nibble
+ * of combat_aux_block[0xD] becomes 7 for chars 0x18..0x1B) and then shows
+ * dialog page 3.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * The pointer global data_fd2_field_map_tile_event_consumed_flags_ptr
+ * holds the base of the 0x20-byte tile-event consumed-flags block; the
+ * gate flag is byte [0x10] of that block.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_0c__unref_first_time(uint32 event_arg)
+{
+    (void)event_arg;
+
+    if (*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) == 0) {
+        fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x18, 0x1B, 7);
+        fd2_display_dialog_scene(current_chapter_text, 3, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) = 1;
+    }
 }

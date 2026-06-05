@@ -3630,8 +3630,9 @@
     "name": "fd2_chapter_event_handler_0c__unref_first_time",
     "target": "field/chevt1.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000345ea": {
     "name": "fd2_chapter_event_handler_0e__ch5_dialog_with_state",

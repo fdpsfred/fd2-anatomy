@@ -827,6 +827,163 @@ static void test_ch4_event0b_reloads_portraits_and_shows_dialog(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_0c__unref_first_time @ 0x34594
+ *
+ * Dispatch idx 0x0C of the per-event handler table at 0x51B91. No chapter
+ * FDFIELD turn-event / tile-step hook references this slot (unreferenced —
+ * possibly cut content). Unlike the group's straight-line handlers it is
+ * FIRST-TIME GATED, so it has a single guarding BRANCH and TWO paths that
+ * both must be exercised:
+ *   if (tile_event_consumed_flags[0x10] == 0)        // first time only
+ *     set_combat_aux_block_byte_d_low4_for_char_range(0x18, 0x1B, 7);
+ *     display_dialog_scene(page 3, ...);
+ *     tile_event_consumed_flags[0x10] = 1;           // consume the flag
+ *   // else: skip the entire beat
+ * No RNG, no numeric computation, no CALL-return value used.
+ *
+ * The AI-flag arming is its distinguishing, deterministic state contract
+ * and its testable risk core. fd2_set_combat_aux_block_byte_d_low4_for_char_range
+ * is the REAL emitted callee (@0x3419C): for each char i in [0x18, 0x1B] it
+ * rewrites combat_aux_block[0xD] = (old & 0xF0) | (7 & 0xFF), i.e. it sets the
+ * low nibble (ai_class) to 7 while PRESERVING the high nibble. Exactly the
+ * four enemies 0x18..0x1B are armed; chars 0x17 (below) and 0x1C (above) are
+ * left untouched (inclusive loop 0x18 <= i <= 0x1B). The gate flag is byte
+ * [0x10] of the 0x20-byte tile-event consumed-flags block pointed at by
+ * data_fd2_field_map_tile_event_consumed_flags_ptr; the env aims that pointer
+ * at a private 0x20-byte buffer so both the read and the write stay in-bounds.
+ *
+ * The dialog call (fd2_display_dialog_scene, page 3) runs FOR REAL against the
+ * immediate-END dialog program (current_chapter_text[3] -> a single -1 END
+ * opcode): with no portrait open the VM reads END and returns at once, so it
+ * performs zero glyph blits and never touches the compositor, palette, BIOS
+ * tick, or the runtime-char sprite-load opcodes. Handler_0c calls NONE of the
+ * heavy callees the dialog/cutscene handlers use (no portrait reload, composite,
+ * pan, cutscene, keyboard flush, or recruit), so the safe env here is just the
+ * runtime-char array (for the AI writes + index bound), the consumed-flags
+ * block, and the immediate-END dialog program.
+ *
+ * The pure display side effect (the page-3 dialog render path when it is NOT
+ * the immediate-END program) is deferred to Phase 9 integration.
+ * ================================================================ */
+
+/* immediate-END dialog program private to the handler_0c suite (pages 0..0x10
+ * each point at a single -1 END opcode at the tail). */
+static int16 g_ev0c_dlg[0x12];
+
+/* 0x20-byte tile-event consumed-flags block: the handler reads/writes byte
+ * [0x10] of this block via data_fd2_field_map_tile_event_consumed_flags_ptr. */
+static uint8 g_ev0c_consumed[0x20];
+
+static uint32 g_ev0c_saved_consumed_ptr;
+
+static void ev0c_install_safe_env(void)
+{
+    int i;
+
+    /* runtime-char slots: the AI write targets chars 0x18..0x1B, so an
+     * oversized (64-slot) array keeps every write in-bounds. */
+    memset(g_ev_rc, 0, sizeof(g_ev_rc));
+    data_fd2_battle_runtime_char_array_ptr = g_ev_rc;
+
+    /* private consumed-flags block; start every flag clear. */
+    memset(g_ev0c_consumed, 0, sizeof(g_ev0c_consumed));
+    g_ev0c_saved_consumed_ptr = data_fd2_field_map_tile_event_consumed_flags_ptr;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ev0c_consumed;
+
+    /* immediate-END dialog program (pages 0..0x10 -> single END opcode), so the
+     * real fd2_display_dialog_scene(page 3) returns at once with no blits. */
+    for (i = 0; i <= 0x10; i++) {
+        g_ev0c_dlg[i] = (int16)(0x11 * 2);   /* byte offset of the END opcode */
+    }
+    g_ev0c_dlg[0x11] = -1;                    /* END */
+    current_chapter_text = (uint32)g_ev0c_dlg;
+
+    /* no portrait open on entry, so the END path skips the close sequence. */
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+}
+
+static void ev0c_restore_env(void)
+{
+    data_fd2_field_map_tile_event_consumed_flags_ptr = g_ev0c_saved_consumed_ptr;
+    ev_restore_rc_ptr();
+}
+
+/* ----------------------------------------------------------------
+ * FIRST-TIME path: gate flag [0x10] clear -> the beat runs. Observable,
+ * deterministic contract: the low nibble (ai_class) of combat_aux_block[0xD]
+ * becomes 7 for exactly chars 0x18..0x1B with the high nibble preserved, the
+ * bounding neighbours 0x17 and 0x1C are untouched, the gate flag [0x10] is
+ * consumed (set to 1), and the immediate-END page-3 dialog runs to completion
+ * without faulting.
+ * ---------------------------------------------------------------- */
+static void test_ch_event0c_firsttime_arms_ai_flag7_and_consumes(void)
+{
+    int i;
+
+    ev0c_install_safe_env();
+
+    /* seed the four target chars' combat_aux_block[0xD] with a sentinel whose
+     * high nibble is non-zero and low nibble differs from 7, so both the
+     * low-nibble write to 7 AND the high-nibble preservation are observable. */
+    for (i = 0x18; i <= 0x1B; i++) {
+        g_ev_rc[i].combat_aux_block[0xD] = 0xA3;
+    }
+    /* bounding neighbours just outside the inclusive range. */
+    g_ev_rc[0x17].combat_aux_block[0xD] = 0x55;
+    g_ev_rc[0x1C].combat_aux_block[0xD] = 0x66;
+
+    fd2_chapter_event_handler_0c__unref_first_time(0);
+
+    /* exactly chars 0x18..0x1B armed: low nibble -> 7, high nibble (0xA0) kept. */
+    for (i = 0x18; i <= 0x1B; i++) {
+        ASSERT_EQ(g_ev_rc[i].combat_aux_block[0xD], 0xA7);
+    }
+
+    /* bounding neighbours left untouched. */
+    ASSERT_EQ(g_ev_rc[0x17].combat_aux_block[0xD], 0x55);
+    ASSERT_EQ(g_ev_rc[0x1C].combat_aux_block[0xD], 0x66);
+
+    /* the gate flag was consumed (set to 1). */
+    ASSERT_EQ(g_ev0c_consumed[0x10], 1);
+
+    ev0c_restore_env();
+}
+
+/* ----------------------------------------------------------------
+ * ALREADY-CONSUMED path: gate flag [0x10] already 1 -> the entire beat is
+ * skipped. Observable, deterministic contract: the AI bytes for chars
+ * 0x18..0x1B keep the sentinel they were seeded with (the first-time path
+ * would have set their low nibble to 7), and the gate flag stays 1.
+ * ---------------------------------------------------------------- */
+static void test_ch_event0c_already_consumed_skips_beat(void)
+{
+    int i;
+
+    ev0c_install_safe_env();
+
+    /* pin the gate flag to 1 so the first-time guard fails. */
+    g_ev0c_consumed[0x10] = 1;
+
+    /* seed the target chars with a sentinel distinct from any (old&0xF0)|7
+     * result, so a write would be detectable. */
+    for (i = 0x18; i <= 0x1B; i++) {
+        g_ev_rc[i].combat_aux_block[0xD] = 0x22;
+    }
+
+    fd2_chapter_event_handler_0c__unref_first_time(0);
+
+    /* body skipped: no AI write ran, so each target keeps its sentinel. */
+    for (i = 0x18; i <= 0x1B; i++) {
+        ASSERT_EQ(g_ev_rc[i].combat_aux_block[0xD], 0x22);
+    }
+
+    /* the gate flag is unchanged (still consumed). */
+    ASSERT_EQ(g_ev0c_consumed[0x10], 1);
+
+    ev0c_restore_env();
+}
+
 void run_field_chevt1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -840,5 +997,7 @@ void run_field_chevt1_tests(void)
     RUN_TEST(test_ch3_event9_char6_alive_reloads_and_shows_dialog);
     RUN_TEST(test_ch3_event9_char6_dead_skips_beat);
     RUN_TEST(test_ch4_event0b_reloads_portraits_and_shows_dialog);
+    RUN_TEST(test_ch_event0c_firsttime_arms_ai_flag7_and_consumes);
+    RUN_TEST(test_ch_event0c_already_consumed_skips_beat);
     printf("\n");
 }
