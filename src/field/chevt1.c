@@ -79,6 +79,9 @@
  * fd2_chapter_event_handler_1f__ch9_reinforcement @ 0x34B5D
  *     (0 direct callers; dispatched as idx 0x1F of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_20__ch10_dialog @ 0x34BE2
+ *     (0 direct callers; dispatched as idx 0x20 of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -1130,4 +1133,42 @@ void fd2_chapter_event_handler_1f__ch9_reinforcement(uint32 event_arg)
     __delay_thunk_375b2(200);
     fd2_pan_cursor_and_window(0, 0xB);
     __delay_thunk_375b2(200);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_20__ch10_dialog @ 0x34BE2
+ *   — Chapter 10 turn-event slot 0 (triggered at turn 5 / phase 1).
+ *
+ * ch10 reinforcement-arrival beat: when the player's 5th turn ends the
+ * reinforcements (援軍) appear, and this dialog-only handler shows the
+ * accompanying line. Its single beat reloads portrait set 1 and shows
+ * dialog page 1 — a straight-line, no-branch sequence with no camera
+ * pan, no cutscene trigger, no state writes, no RNG, no numeric
+ * computation, and no CALL-return value used.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * In the original binary this handler is a 5-byte adapter stub
+ * (PUSH 0x28) that falls through (no JMP; 0x34BE2 -> 0x34BE7) into the
+ * shared body fd2_show_chapter_dialog_with_portrait_set_1 @ 0x34BE7,
+ * which begins with the CALL __CHK that consumes the pushed 0x28 frame
+ * size, then runs fd2_load_chapter_portraits_and_dump_tmp(1) and the
+ * page-1 dialog call before returning. That shared body has no params
+ * and expects every caller to push __CHK arg 0x28 first; the sibling
+ * handler_05 @ 0x34D68 reaches the same body via "PUSH 0x28; JMP". The
+ * shared body's effect is reproduced inline here for Layer-2
+ * equivalence.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_10.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_20__ch10_dialog(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_load_chapter_portraits_and_dump_tmp(1);
+    fd2_display_dialog_scene(current_chapter_text, 1, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
 }
