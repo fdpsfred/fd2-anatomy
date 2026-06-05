@@ -52,3 +52,48 @@ void fd2_tick_tutorial_progress_with_sfx(uint32 char_idx)
     }
     data_fd2_audio_walk_step_sfx_cadence_counter++;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_animate_screen_shake @ 0x24B4D (3 callers)
+ *
+ * Animates a screen-shake effect for num_frames frames by alternating
+ * the blit source row (a 1-row vertical jitter).
+ *
+ * Snapshots the current battle scene once into the render workspace
+ * (large_game_state_buffer + 0x8088) via a mode-9 tile-map composite,
+ * then runs the finalizer composite, then loops num_frames times:
+ * each frame blits the visible 312x192 region to the mode13h primary
+ * at 0xA0504 from either the workspace base (even iterations) or one
+ * row (0x1C8 bytes) further down (odd iterations), giving a perceived
+ * up/down jitter, with a 20-tick (~1100ms) delay per frame.
+ *
+ * Used after big spells (earthquake / boss attacks) and chapter event
+ * cinematics (earthquake intros).
+ *
+ * Callers:
+ *   fd2_chapter_23_end  — chapter 23 ending shake
+ *   fd2_chapter_25_init — chapter 25 init earthquake sfx + shake chain
+ *   fd2_chapter_29_end  — chapter 29 climax shake
+ *
+ * Args (cdecl):
+ *   num_frames — number of jitter frames to play
+ * ---------------------------------------------------------------- */
+void fd2_animate_screen_shake(uint32 num_frames)
+{
+    uint32 i;
+
+    fd2_composite_battle_tile_map(
+        data_fd2_large_game_state_buffer_ptr + 0x8088,
+        0x1C8, 0xD, 9,
+        data_fd2_battle_view_window_origin_x,
+        data_fd2_battle_view_window_origin_y);
+    fd2_composite_battle_frame(0);
+
+    for (i = 0; (int32)i < (int32)num_frames; i++) {
+        fd2_blit_rectangle(0xA0504, 0x140,
+            data_fd2_large_game_state_buffer_ptr + 0x8088 +
+                (i & 1) * 0x1C8,
+            0x1C8, 0x138, 0xC0);
+        __delay_thunk_375b2(0x14);
+    }
+}
