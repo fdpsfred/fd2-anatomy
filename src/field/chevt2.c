@@ -19,7 +19,7 @@
  * handler does not read the arg.
  *
  * Effect: ch21 every-2-turns reinforcement scan — load portrait set indexed
- * by save_metadata/2 (data_fd2_battle_turn_counter, signed /2, rotates per
+ * by turn_counter/2 (data_fd2_battle_turn_counter, signed /2, rotates per
  * call), 4-corner camera sweep with 8-tick pauses, finally show dialog
  * page 3 only when the counter equals 2 (the 5th call).
  * ---------------------------------------------------------------- */
@@ -79,7 +79,7 @@ void fd2_chapter_event_handler_30__ch21_ai_ctrl(uint32 event_arg)
  * slots 0 and 2). Category: turn-gated cinematic. Dispatch-table signature is
  * 1-arg cdecl (void fn(uint event_arg)); this handler does not read the arg.
  *
- * Effect: ch22 turn-gated — load portrait set indexed by save_metadata/2
+ * Effect: ch22 turn-gated — load portrait set indexed by turn_counter/2
  * (data_fd2_battle_turn_counter, signed /2, rotates per call), a 2-corner pan
  * across row y=0x23 (right edge x=0x20 then left edge x=0) with an 8-tick
  * pause after each, finally show dialog page 1 only when the counter equals 3.
@@ -788,7 +788,7 @@ void fd2_chapter_event_handler_40__unref_dyn_turn_event(uint32 event_arg)
  * ch28 tile-step. The first time its own slot is hit
  * (tile_event_consumed_flags[0x10] == 0): write turn_counter (immediate, no +1)
  * into the turn-event hook table at tile_event_data_table[+3] (hook entry 0's
- * turn byte), arming a dynamic turn-event for the current save_meta turn, then
+ * turn byte), arming a dynamic turn-event for the current turn, then
  * consume the slot (flags[0x10] = 1) so it never re-arms. Differs from
  * handler_3e, which schedules turn_counter + 1.
  *
@@ -845,4 +845,31 @@ void fd2_chapter_event_handler_42__ch28_dialog_with_state(uint32 event_arg)
     fd2_cinematic_chapter_portrait_dump_with_white_flash(0x11, 0x12, 1);
     fd2_display_dialog_scene(current_chapter_text, 6, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_43__unref_dyn_turn_event @ 0x35A2F
+ *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51C9D)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x43. No chapter
+ * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
+ * content / non-chapter dispatcher). Category: state-machine mutator (turn-event
+ * scheduler, no gate). Dispatch-table signature is 1-arg cdecl
+ * (void fn(uint event_arg)); this handler does not read the arg.
+ *
+ * Effect: write turn_counter (immediate, no +1) into the turn-event hook table
+ * at tile_event_data_table[+6] (hook entry 1's turn byte), arming a dynamic
+ * turn-event for the current turn. Unlike handler_41, there is no
+ * consume-flag gate, so calling it repeatedly keeps overwriting the same slot.
+ *
+ * The turn counter is read as a single byte and stored as a byte
+ * (MOV DL,[turn_counter] / MOV [data_table+6],DL); the (uint8) truncation on
+ * store reproduces that 8-bit move exactly.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_43__unref_dyn_turn_event(uint32 event_arg)
+{
+    (void)event_arg;
+
+    *(uint8 *)(data_fd2_tile_event_data_table_ptr + 6) =
+        (uint8)data_fd2_battle_turn_counter;
 }
