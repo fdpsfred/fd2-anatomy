@@ -244,6 +244,46 @@ void fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(
 }
 
 /* ----------------------------------------------------------------
+ * fd2_cinematic_chapter_portrait_dump_with_white_flash @ 0x35822
+ *   (11 callers: chapter 28/29 init, chapter event handlers 34/3f/40/42/44/
+ *    46/48/4a, and the transparent thunk above)
+ *
+ * Chapter portrait cinematic with a white-flash transition. Pans the cursor /
+ * window to the target tile, swaps the portrait set (chapter_id truncated to its
+ * low byte), then plays a brief pure-white screen flash (palette +0xFF then +0)
+ * to mask the portrait change.
+ *
+ * Sequence (functionally-exact):
+ *   fd2_pan_cursor_and_window(target_tile_x, target_tile_y)
+ *   fd2_load_chapter_portraits_and_dump_tmp(chapter_id & 0xFF)
+ *   __delay_thunk_375b2(300)                            -- hold the new portrait
+ *   fd2_set_vga_palette_range_with_add(0, 0xFF, 0xFF)   -- +0xFF = pure white
+ *   __delay_thunk_375b2(200)                            -- white screen
+ *   fd2_set_vga_palette_range_with_add(0, 0xFF, 0)      -- restore palette
+ *   fd2_composite_battle_frame(0)
+ *   fd2_delay_400ms_via_idle_thunk()                    -- 400ms recovery hold
+ *
+ * The chapter_id arg arrives as a full 32-bit stack word; the binary applies a
+ * MOVZX of its low byte (param_3 & 0xFF) before forwarding it to the portrait
+ * loader. In the binary the final delay is reached by JMP into
+ * fd2_delay_400ms_via_idle_thunk @ 0x353CC (a tail-call that borrows that
+ * function's PUSH 0x190 / CALL __delay_thunk_375b2 / cleanup / RET); the
+ * functionally-exact source is a plain call followed by return.
+ * ---------------------------------------------------------------- */
+void fd2_cinematic_chapter_portrait_dump_with_white_flash(
+    uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id)
+{
+    fd2_pan_cursor_and_window(target_tile_x, target_tile_y);
+    fd2_load_chapter_portraits_and_dump_tmp(chapter_id & 0xFF);
+    __delay_thunk_375b2(300);
+    fd2_set_vga_palette_range_with_add(0, 0xFF, 0xFF);
+    __delay_thunk_375b2(200);
+    fd2_set_vga_palette_range_with_add(0, 0xFF, 0);
+    fd2_composite_battle_frame(0);
+    fd2_delay_400ms_via_idle_thunk();
+}
+
+/* ----------------------------------------------------------------
  * fd2_chapter_event_handler_35__unref_dialog_with_state @ 0x35321
  *   (0 direct callers)
  *

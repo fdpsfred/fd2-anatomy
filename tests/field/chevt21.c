@@ -553,100 +553,167 @@ static void test_h33_item_drop_gated_off_then_page3_dialog(void)
  * CALL;ADD ESP;RET tail of fd2_wrap_... @ 0x35318) in the binary; these tests
  * prove that tail is correctly inlined here as a complete second call.
  *
- * The real portrait-flash cinematic is pure display side effect (deferred to
- * Phase 9); these tests drive the REAL handler against the recording stub
- * fd2_cinematic_chapter_portrait_dump_with_white_flash (testglob.c), which
- * captures each call's (x, y, id). No game files, no display.
+ * fd2_cinematic_chapter_portrait_dump_with_white_flash is now a REAL emitted
+ * function (src/field/chevt2.c). These tests drive the REAL handler and the REAL
+ * cinematic, observing the two forwarded portrait ids one level down through the
+ * real portrait loader: the cinematic forwards (id & 0xFF) to
+ * fd2_load_chapter_portraits_and_dump_tmp, whose tile-event race-scan inits one
+ * runtime_char per record whose race byte equals the forwarded id. By seeding a
+ * tile-event table whose records carry exactly the two expected pair ids (plus
+ * off-by-one decoys that must NOT match), the party-member count after the
+ * handler == 2 proves both ids were computed and forwarded correctly, and the
+ * 6-entry delay log (3 per cinematic call) proves both calls ran (the second via
+ * the borrowed tail). The pan target of the second call is pinned via the final
+ * window origin. Reuses ce_setup_portrait_env above for the real loader env and
+ * adds a host-safe render workspace + 768-byte palette so the cinematic's pan /
+ * white-flash / composite execute for real without wild reads. No display
+ * assertions: the pixel output is owned by the cursor / palette / rndscene
+ * suites and is deferred to Phase 9 integration.
  * ================================================================ */
 
-/* testglob recorders for the portrait-flash cinematic stub */
-extern int    g_portrait_flash_calls;
-extern uint32 g_portrait_flash_x[4];
-extern uint32 g_portrait_flash_y[4];
-extern uint32 g_portrait_flash_id[4];
+/* testglob ordered delay-tick log (opt-in): pins the 300/200/400 per-call
+ * white-flash sequence and counts cinematic calls. */
+extern int    g_delay375b2_log_on;
+extern int    g_delay375b2_log_count;
+extern uint32 g_delay375b2_log[16];
 
-static void h34_reset_flash_log(void)
+/* host-safe render workspace + sprite atlas + 768-byte palette for the real
+ * cinematic (pan composites + the two white-flash palette writes + the final
+ * composite). Mirrors chevt22 ce22_setup's render env. */
+#define CE34_WS_SPAN (191u * 0x1c8u + 0x138u)
+static uint8 g_ce34_ws[CE34_WS_SPAN];
+static uint8 g_ce34_atlas[6 + 64 * 4 + 4];
+static uint8 g_ce34_palette[256 * 3];
+
+/* Stand up the full real-cinematic env on top of the portrait-loader fixture:
+ * `count` tile-event records with races `races[]` drive the id observation, and
+ * the render workspace + palette let the cinematic body run for real. The window
+ * origin starts at `start_ox`,`start_oy` so the final pan target is observable. */
+static void h34_setup_real_cinematic(int count, const uint8 *races,
+                                     uint32 start_ox, uint32 start_oy)
 {
     int i;
-    g_portrait_flash_calls = 0;
-    for (i = 0; i < 4; i++) {
-        g_portrait_flash_x[i] = 0;
-        g_portrait_flash_y[i] = 0;
-        g_portrait_flash_id[i] = 0;
+    uint32 *atlas_tbl;
+
+    ce_setup_portrait_env(count, races);
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_ce34_ws - 0x8088;
+    data_fd2_battle_view_window_max_x = 0x100;
+    data_fd2_battle_view_window_max_y = 0x100;
+    data_fd2_battle_view_window_origin_x = start_ox;
+    data_fd2_battle_view_window_origin_y = start_oy;
+    data_fd2_battle_anim_phase = 1;
+    atlas_tbl = (uint32 *)(g_ce34_atlas + 6);
+    for (i = 0; i < 64; i++) {
+        atlas_tbl[i] = (uint32)i;
     }
+    data_fd2_runtime_battle_state_ptr = (uint32)g_ce34_atlas;
+    data_fd2_animation_palette_cycle_last_tick = (uint16)BIOS_TICK_WORD;
+
+    for (i = 0; i < 256 * 3; i++) {
+        g_ce34_palette[i] = 0x20;
+    }
+    data_fd2_vga_palette_data_ptr = (uint32)g_ce34_palette;
+
+    g_delay375b2_log_on = 1;
+    g_delay375b2_log_count = 0;
+    g_composite_call_count = 0;
+}
+
+static void h34_teardown_real_cinematic(void)
+{
+    g_delay375b2_log_on = 0;
+    g_delay375b2_log_count = 0;
+    ce_teardown_portrait_env();
 }
 
 /* ----------------------------------------------------------------
- * A real ch23 trigger turn (22) maps to save_metadata_block 0x11 -> portrait
- * pair 6/7. With turn_counter = 22 (0x16): (0x16 - 0x0E) * 2 = 16 ... wait, the
- * id math is on the turn counter byte directly: ((uint8)22 - 0x0E) * 2 = (8)*2 =
- * 16 (0x10) for the first, 17 (0x11) for the second. Two calls are made, at the
- * fixed positions (2, 0xB) then (0x1A, 0xB), proving BOTH calls run (the second
- * via the borrowed tail) and the +1 odd/even pairing.
+ * A real ch23 trigger turn (22 = 0x16): the id math is on the turn-counter byte
+ * directly: ((uint8)22 - 0x0E) * 2 = 8*2 = 16 (0x10) for the first portrait and
+ * 17 (0x11) for the second. The tile-event table carries one record per expected
+ * id (race 16, race 17) plus off-by-one decoys (race 15, race 18) that must NOT
+ * match. Both cinematic calls run (the second via the borrowed tail), so exactly
+ * the two intended records init (party_member_count 0 -> 2), the delay log holds
+ * 6 ticks (3 per call: 300, 200, 400), and the final pan lands the window origin
+ * on the second call's target (0x1A, 0xB).
  * ---------------------------------------------------------------- */
 static void test_h34_two_portrait_flashes_with_paired_ids(void)
 {
-    h34_reset_flash_log();
+    /* idx0 race=16 (call-1 id), idx1 race=17 (call-2 id), idx2/3 decoys */
+    static const uint8 races[4] = { 16, 17, 15, 18 };
+
+    h34_setup_real_cinematic(4, races, 0x1A, 0xB);
     data_fd2_battle_turn_counter = 22;          /* real ch23 trigger turn      */
 
     fd2_chapter_event_handler_34__ch23_ai_ctrl(0);
 
-    /* exactly two paired portrait flashes */
-    ASSERT_EQ((long)g_portrait_flash_calls, 2);
+    /* both ids (16, 17) matched their record; the 15/18 decoys did not -> the
+     * pair was computed exactly, not off by one */
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 2);
+    /* exactly two cinematic calls ran (3 delays each: 300, 200, 400) */
+    ASSERT_EQ((long)g_delay375b2_log_count, 6);
+    ASSERT_EQ((long)g_delay375b2_log[0], 300);
+    ASSERT_EQ((long)g_delay375b2_log[1], 200);
+    ASSERT_EQ((long)g_delay375b2_log[2], 400);
+    ASSERT_EQ((long)g_delay375b2_log[3], 300);
+    ASSERT_EQ((long)g_delay375b2_log[4], 200);
+    ASSERT_EQ((long)g_delay375b2_log[5], 400);
+    /* the second (last) call panned to the fixed target (0x1A, 0xB) */
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_x, 0x1A);
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_y, 0xB);
 
-    /* first flash: fixed pos (2, 0xB), id = (22-0x0E)*2 = 16 */
-    ASSERT_EQ((long)g_portrait_flash_x[0], 2);
-    ASSERT_EQ((long)g_portrait_flash_y[0], 0xB);
-    ASSERT_EQ((long)g_portrait_flash_id[0], 16);
-
-    /* second flash (borrowed tail): fixed pos (0x1A, 0xB), id = 16 + 1 = 17 */
-    ASSERT_EQ((long)g_portrait_flash_x[1], 0x1A);
-    ASSERT_EQ((long)g_portrait_flash_y[1], 0xB);
-    ASSERT_EQ((long)g_portrait_flash_id[1], 17);
+    h34_teardown_real_cinematic();
 }
 
 /* ----------------------------------------------------------------
- * Portrait-id pairs track the turn counter exactly as documented: when the
- * counter advances 0xE -> 0xF -> 0x10 -> 0x11 the pair advances 0/1 -> 2/3 ->
- * 4/5 -> 6/7 (= ((turn-0xE)*2) and +1). Pins the per-call arithmetic at the
- * lowest documented counter value 0xE (-> pair 0/1).
+ * Portrait-id pair tracks the turn counter at the lowest documented value 0xE:
+ * ((0x0E - 0x0E) * 2) = 0 and +1 = 1 -> pair 0/1. Records race 0 (call-1 id) and
+ * race 1 (call-2 id) with a race-2 decoy; alloc_offset scans exactly these three
+ * so the zero-filled tail beyond them is never reached (no spurious id-0 match).
+ * Both records init -> count 2.
  * ---------------------------------------------------------------- */
 static void test_h34_portrait_id_pair_tracks_counter(void)
 {
-    h34_reset_flash_log();
+    static const uint8 races[3] = { 0, 1, 2 };  /* call-1 id 0, call-2 id 1, decoy 2 */
+
+    h34_setup_real_cinematic(3, races, 0x1A, 0xB);
     data_fd2_battle_turn_counter = 0x0E;        /* (0x0E-0x0E)*2 = 0 -> pair 0/1 */
 
     fd2_chapter_event_handler_34__ch23_ai_ctrl(0);
 
-    ASSERT_EQ((long)g_portrait_flash_calls, 2);
-    ASSERT_EQ((long)g_portrait_flash_id[0], 0);
-    ASSERT_EQ((long)g_portrait_flash_id[1], 1);
+    /* ids 0 and 1 each matched their record; the decoy (2) did not */
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 2);
+    ASSERT_EQ((long)g_delay375b2_log_count, 6);
+
+    h34_teardown_real_cinematic();
 }
 
 /* ----------------------------------------------------------------
  * The id is computed in 8-bit (AL) arithmetic and TRUNCATED to a byte, NOT a
- * 32-bit int. turn_counter = 0 drives a borrow: ((uint8)0 - 0x0E) = 0xF2 (242),
- * *2 = 0x1E4 -> low byte 0xE4 (228) for the first portrait, 0xE5 (229) for the
- * second. A naive 32-bit `((int)turn - 0x0E) * 2` would instead yield -28 / -27,
- * so this case guards the byte-wrap (MOVZX EAX,AL) semantics. The upper bytes of
- * the turn counter must also be ignored: a high garbage byte in the dword must
- * not leak into the id.
+ * 32-bit int. turn_counter = 0xFF00: the loader reads only the low byte (0x00),
+ * so ((uint8)0x00 - 0x0E) = 0xF2, *2 = 0x1E4 -> low byte 0xE4 (228) for the first
+ * portrait, 0xE5 (229) for the second. A naive 32-bit `((int)turn - 0x0E) * 2`
+ * would instead yield -28 / -27 (no record matches), and the upper bytes of the
+ * counter must not leak into the id. Records race 0xE4 (call-1) and 0xE5 (call-2)
+ * plus a 0xE3 decoy guard the byte-wrap (MOVZX EAX,AL) semantics: count 2 proves
+ * both wrapped ids matched.
  * ---------------------------------------------------------------- */
 static void test_h34_portrait_id_is_8bit_truncated(void)
 {
-    h34_reset_flash_log();
+    static const uint8 races[3] = { 0xE4, 0xE5, 0xE3 };  /* wrapped ids + decoy */
+
+    h34_setup_real_cinematic(3, races, 0x1A, 0xB);
     /* 0xFF00 -> low byte 0x00; the high byte must be masked off (MOV AL,[...]) */
     data_fd2_battle_turn_counter = 0xFF00;
 
     fd2_chapter_event_handler_34__ch23_ai_ctrl(0);
 
-    ASSERT_EQ((long)g_portrait_flash_calls, 2);
-    /* (0x00 - 0x0E) * 2 = -28 -> (uint8) = 0xE4 = 228; +1 = 0xE5 = 229 */
-    ASSERT_EQ((long)g_portrait_flash_id[0], 0xE4);
-    ASSERT_EQ((long)g_portrait_flash_id[1], 0xE5);
-    /* positions are unaffected by the id arithmetic */
-    ASSERT_EQ((long)g_portrait_flash_x[0], 2);
-    ASSERT_EQ((long)g_portrait_flash_x[1], 0x1A);
+    /* both wrapped ids (0xE4, 0xE5) matched; the 0xE3 decoy did not -> the
+     * arithmetic truncated to a byte and ignored the high bytes */
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 2);
+    ASSERT_EQ((long)g_delay375b2_log_count, 6);
+
+    h34_teardown_real_cinematic();
 }
 
 /* ================================================================
@@ -659,38 +726,51 @@ static void test_h34_portrait_id_is_8bit_truncated(void)
  * args. The functionally-exact contract is "call the target exactly once with
  * the 3 args unchanged, in order".
  *
- * Drives the REAL wrapper against the recording stub
- * fd2_cinematic_chapter_portrait_dump_with_white_flash (testglob.c, reused from
- * the handler_34 suite), which captures each call's (x, y, id). No game files,
- * no display.
+ * Drives the REAL wrapper and the REAL cinematic over the same host-safe env as
+ * the handler_34 suite. Because the wrapper makes exactly ONE cinematic call, all
+ * three forwarded args are pinned precisely: the pan target (x, y) via the final
+ * window origin, and the masked portrait id via the single race-scan match
+ * (party_member_count 0 -> 1). A single delay triple (300, 200, 400) confirms one
+ * call. No game-file display assertions.
  * ================================================================ */
 
 /* ----------------------------------------------------------------
  * The wrapper forwards all 3 args verbatim and in order, exactly once. Uses
  * three distinct, non-equal values so any argument swap / drop / duplication
- * would change the recorded tuple. Includes the live caller's own arg triple
- * (0xF, 0x1B, 2) as the second case to pin the real ch27 usage.
+ * would change an observable: x=0x11 and y=0x22 (distinct) land the window origin
+ * exactly, and id=0x33 matches the sole race-0x33 record. The window starts away
+ * from (0x11, 0x22) on both axes so the pan is visible on each.
  * ---------------------------------------------------------------- */
 static void test_wrap_forwards_three_args_in_order(void)
 {
-    h34_reset_flash_log();
+    static const uint8 races_a[1] = { 0x33 };
+    static const uint8 races_b[1] = { 2 };
 
     /* distinct values: x != y != id, none zero, so order is observable */
+    h34_setup_real_cinematic(1, races_a, 0x40, 0x10);
     fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(0x11, 0x22, 0x33);
 
-    ASSERT_EQ((long)g_portrait_flash_calls, 1);
-    ASSERT_EQ((long)g_portrait_flash_x[0], 0x11);
-    ASSERT_EQ((long)g_portrait_flash_y[0], 0x22);
-    ASSERT_EQ((long)g_portrait_flash_id[0], 0x33);
+    /* exactly one cinematic call: one delay triple */
+    ASSERT_EQ((long)g_delay375b2_log_count, 3);
+    ASSERT_EQ((long)g_delay375b2_log[0], 300);
+    ASSERT_EQ((long)g_delay375b2_log[1], 200);
+    ASSERT_EQ((long)g_delay375b2_log[2], 400);
+    /* x=0x11, y=0x22 forwarded (and in order) -> window origin landed on them */
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_x, 0x11);
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_y, 0x22);
+    /* id=0x33 forwarded (low byte) -> the sole race-0x33 record inited */
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 1);
+    h34_teardown_real_cinematic();
 
     /* the exact arg triple the live caller (handler_3f, ch27) tail-JMPs with */
-    h34_reset_flash_log();
+    h34_setup_real_cinematic(1, races_b, 0x40, 0x10);
     fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(0xF, 0x1B, 2);
 
-    ASSERT_EQ((long)g_portrait_flash_calls, 1);
-    ASSERT_EQ((long)g_portrait_flash_x[0], 0xF);
-    ASSERT_EQ((long)g_portrait_flash_y[0], 0x1B);
-    ASSERT_EQ((long)g_portrait_flash_id[0], 2);
+    ASSERT_EQ((long)g_delay375b2_log_count, 3);
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_x, 0xF);
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_y, 0x1B);
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 1);
+    h34_teardown_real_cinematic();
 }
 
 /* ================================================================

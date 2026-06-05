@@ -792,31 +792,38 @@ int fd2_roll_stat_gain_and_show_message(short *stat_ptr, uint8 *growth_pair_ptr,
  * observe its rendered digit glyphs through the g_rle_blit_log_* log. */
 int    g_delay375b2_calls = 0;
 uint32 g_delay375b2_last_ticks = 0;
-void __delay_thunk_375b2(uint32 ticks) { g_delay375b2_calls++; g_delay375b2_last_ticks = ticks; }
-
-/* Recording stub for fd2_cinematic_chapter_portrait_dump_with_white_flash
- * (src/field/chevt2.c callee, real body not yet emitted — routed to phase 4).
- * That cinematic is pure display side effect (pan to tile, swap portrait set,
- * 300ms hold, white palette flash, recover, composite, 400ms hold); deferred to
- * Phase 9 integration. Recording each call's 3 args (target_tile_x,
- * target_tile_y, chapter_id/portrait_id) lets fd2_chapter_event_handler_34's
- * test pin the EAX-bug-free 8-bit portrait-id arithmetic and the 2-call
- * (paired-portrait) sequence at fixed tile positions without touching pixels. */
-int    g_portrait_flash_calls = 0;
-uint32 g_portrait_flash_x[4];
-uint32 g_portrait_flash_y[4];
-uint32 g_portrait_flash_id[4];
-void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x,
-                                                          uint32 target_tile_y,
-                                                          uint32 chapter_id)
+/* Opt-in ordered tick log (default off; additive — existing tests only read the
+ * count + last_ticks above). The white-flash cinematic test turns this on to pin
+ * its exact 300 / 200 / 400 delay sequence (the third value arrives via the
+ * fd2_delay_400ms_via_idle_thunk tail-call below, which forwards 400 here). */
+int    g_delay375b2_log_on = 0;
+int    g_delay375b2_log_count = 0;
+uint32 g_delay375b2_log[16];
+void __delay_thunk_375b2(uint32 ticks)
 {
-    if (g_portrait_flash_calls < 4) {
-        g_portrait_flash_x[g_portrait_flash_calls] = target_tile_x;
-        g_portrait_flash_y[g_portrait_flash_calls] = target_tile_y;
-        g_portrait_flash_id[g_portrait_flash_calls] = chapter_id;
+    g_delay375b2_calls++;
+    g_delay375b2_last_ticks = ticks;
+    if (g_delay375b2_log_on && g_delay375b2_log_count < 16) {
+        g_delay375b2_log[g_delay375b2_log_count] = ticks;
+        g_delay375b2_log_count++;
     }
-    g_portrait_flash_calls++;
 }
+/* fd2_delay_400ms_via_idle_thunk @ 0x353CC: a separately-routed real function
+ * (target src/util/misc.c, not yet emitted) whose entire body is
+ * __delay_thunk_375b2(400). The white-flash cinematic tail-calls it (JMP 0x353CC)
+ * for its final 400ms hold. Stub forwards to the real delay thunk so callers link
+ * and the 400 is observed in the delay log; remove when misc.c emits the real
+ * body. */
+void fd2_delay_400ms_via_idle_thunk(void) { __delay_thunk_375b2(400); }
+
+/* fd2_cinematic_chapter_portrait_dump_with_white_flash is now a real emitted
+ * function (src/field/chevt2.c); its former (x, y, id) recording stub here was
+ * removed. The handler_34 + wrap-thunk suites that used to spy on this stub now
+ * drive the real cinematic over a host-safe render/portrait/palette env and
+ * observe its forwarded args one level down: the masked portrait id via the real
+ * fd2_load_chapter_portraits_and_dump_tmp race-scan (party member count), the
+ * pan target via the real fd2_pan_cursor_and_window window origin, and the
+ * per-call delay sequence via the g_delay375b2_log above. */
 
 /* Recording stub for the still-unemitted callee
  * fd2_kill_runtime_chars_from_index_to_end (routing target battle/btl_turn.c,
