@@ -3085,8 +3085,9 @@
     "name": "fd2_pick_stat_compare_color",
     "target": "ui_menu/shop.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002efb7": {
     "name": "fd2_compute_equipped_stats_with_item_preview",

@@ -565,6 +565,45 @@ static void test_open_shop_dialog_sell_mode_masked(void)
     open_free_workspaces();
 }
 
+/* ================================================================
+ * fd2_pick_stat_compare_color @ 0x2EF8F — 3-branch signed comparator.
+ *
+ * Pure function: maps (current_stat, preview_stat) -> digit-color sprite
+ * base. Branch map (signed):
+ *   current == preview -> 0x1F
+ *   current  <  preview -> 0x2A
+ *   current  >  preview -> 0x77
+ *
+ * Risk coverage: each of the three branches returns its exact constant;
+ * the comparison is SIGNED (disasm JGE + int operands), so the negative
+ * cases (current=-1 vs preview=1, current=1 vs preview=-1, and an equal
+ * pair at a negative value) pin the signedness — an accidental unsigned
+ * compare would flip those two ordered cases.
+ * ================================================================ */
+
+static void test_stat_color_equal_returns_red(void)
+{
+    ASSERT_EQ(fd2_pick_stat_compare_color(50, 50), 0x1fu);
+    ASSERT_EQ(fd2_pick_stat_compare_color(0, 0), 0x1fu);
+    ASSERT_EQ(fd2_pick_stat_compare_color(-7, -7), 0x1fu);   /* equal, negative */
+}
+
+static void test_stat_color_current_less_returns_white(void)
+{
+    ASSERT_EQ(fd2_pick_stat_compare_color(10, 25), 0x2au);
+    ASSERT_EQ(fd2_pick_stat_compare_color(0, 1), 0x2au);
+    /* signed: -1 < 1 -> 0x2A (unsigned 0xFFFFFFFF would be > 1 -> 0x77) */
+    ASSERT_EQ(fd2_pick_stat_compare_color(-1, 1), 0x2au);
+}
+
+static void test_stat_color_current_greater_returns_orange(void)
+{
+    ASSERT_EQ(fd2_pick_stat_compare_color(25, 10), 0x77u);
+    ASSERT_EQ(fd2_pick_stat_compare_color(1, 0), 0x77u);
+    /* signed: 1 > -1 -> 0x77 */
+    ASSERT_EQ(fd2_pick_stat_compare_color(1, -1), 0x77u);
+}
+
 void run_ui_menu_shop_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -591,4 +630,7 @@ void run_ui_menu_shop_tests(void)
     RUN_TEST(test_multi_move_then_commit);
     RUN_TEST(test_open_shop_dialog_composites_and_slides);
     RUN_TEST(test_open_shop_dialog_sell_mode_masked);
+    RUN_TEST(test_stat_color_equal_returns_red);
+    RUN_TEST(test_stat_color_current_less_returns_white);
+    RUN_TEST(test_stat_color_current_greater_returns_orange);
 }

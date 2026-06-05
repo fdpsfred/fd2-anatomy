@@ -5,6 +5,8 @@
  *   fd2_run_sell_item_menu, fd2_run_give_item_menu)
  * fd2_shop_menu_input_loop @ 0x2DF6B (3 callers: fd2_run_buy_item_menu,
  *   fd2_run_sell_item_menu, fd2_run_give_item_menu)
+ * fd2_pick_stat_compare_color @ 0x2EF8F (1 caller:
+ *   fd2_render_party_roster_with_item_stat_preview)
  */
 
 #include "types.h"
@@ -13,6 +15,39 @@
 #include "protos.h"
 #include <stdlib.h>
 #include <string.h>
+
+/* ----------------------------------------------------------------
+ * fd2_pick_stat_compare_color @ 0x2EF8F  (1 caller)
+ *
+ * Pick the digit-color sprite-base for the "with item equipped" stat
+ * preview, comparing the char's current base stat against the previewed
+ * stat (signed):
+ *   current == preview  -> 0x1F  (red,    "no change")
+ *   current  <  preview  -> 0x2A  (white,  new stat is LARGER -> player
+ *                                  loses points when changing; counter-
+ *                                  intuitive but matches the original)
+ *   current  >  preview  -> 0x77  (orange, "would increase")
+ *
+ * Sole caller fd2_render_party_roster_with_item_stat_preview @ 0x2EBE0
+ * invokes it once per stat (AP, DP, DX, Stat4) per visible char in the
+ * buy-item compare overlay; the cdecl call sites PUSH preview then
+ * current and ADD ESP,8 afterward, consuming the uint return in EAX.
+ *
+ * The binary's __CHK(4) stack-probe prologue is compiler-injected and not
+ * part of the source, so it is omitted. The post-__CHK code reloads both
+ * operands from the stack (no CALL-return value is used), so there is no
+ * EAX-tracking hazard here.
+ * ---------------------------------------------------------------- */
+uint32 fd2_pick_stat_compare_color(int current_stat, int preview_stat)
+{
+    if (current_stat == preview_stat) {
+        return 0x1f;
+    }
+    if (current_stat < preview_stat) {
+        return 0x2a;
+    }
+    return 0x77;
+}
 
 /* ----------------------------------------------------------------
  * fd2_shop_menu_input_loop @ 0x2DF6B  (3 callers)
