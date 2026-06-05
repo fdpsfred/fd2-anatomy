@@ -365,6 +365,7 @@ void fd2_close_dialog_panels_then_slide_in_at(uint32 anim_handle, uint32 slot_of
 void fd2_portrait_blink_animation_step(void);
 void fd2_load_chapter_portrait(uint32 portrait_id);
 void fd2_close_status_screen_with_slide_out(void);
+void fd2_show_portrait_dialog_with_input(uint32 portrait_id, uint32 text_idx);
 
 /* ---- input / timing ---- */
 int fd2_check_keyboard_buffer_nonempty(void);

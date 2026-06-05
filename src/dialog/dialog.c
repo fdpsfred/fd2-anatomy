@@ -1145,3 +1145,39 @@ void fd2_scroll_text_screen_up_by_lines(uint32 lines)
             (uint32)data_fd2_graphics_text_scroll_pending_line_count * 0x138);
     free(scratch);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_show_portrait_dialog_with_input @ 0x2C39B (1 caller)
+ *
+ * Display a portrait + dialog scene and block on user input. Used by
+ * fd2_play_game_ending_cinematic (sole caller) for the per-character
+ * ending epilogue dialogs.
+ *
+ * Sequence (fixed, no branches):
+ *   fd2_clear_keyboard_buffer()
+ *   fd2_load_chapter_portrait(portrait_id)        // loads from DATO.DAT
+ *   fd2_clear_keyboard_buffer()
+ *   fd2_display_dialog_scene(current_chapter_text, text_idx,
+ *                            0xA9514, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1)
+ *   fd2_paint_portrait_to_dialog_area(0)
+ *   fd2_wait_for_input_dialog_with_blink(0)        // blocking cursor blink
+ *   fd2_close_intro_dialog_with_slide_out()
+ *   fd2_clear_keyboard_buffer()
+ *
+ * current_chapter_text (0x53A79) is the active FDTXT dialog source block.
+ * The display-scene return value is discarded. Cdecl, 2 stack params;
+ * void return. The binary's __CHK(0x2c) stack-probe prologue is
+ * compiler-injected, not emitted here.
+ * ---------------------------------------------------------------- */
+void fd2_show_portrait_dialog_with_input(uint32 portrait_id, uint32 text_idx)
+{
+    fd2_clear_keyboard_buffer();
+    fd2_load_chapter_portrait(portrait_id);
+    fd2_clear_keyboard_buffer();
+    fd2_display_dialog_scene(current_chapter_text, text_idx, 0xa9514, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_paint_portrait_to_dialog_area(0);
+    fd2_wait_for_input_dialog_with_blink(0);
+    fd2_close_intro_dialog_with_slide_out();
+    fd2_clear_keyboard_buffer();
+}

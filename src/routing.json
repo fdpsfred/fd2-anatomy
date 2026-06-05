@@ -2879,8 +2879,9 @@
     "name": "fd2_show_portrait_dialog_with_input",
     "target": "dialog/dialog.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002c405": {
     "name": "fd2_play_final_chapter_30_ending",

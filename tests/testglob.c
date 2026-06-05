@@ -1273,6 +1273,22 @@ void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite, uint32 stride) {
  * src/dialog/dialog.c and linked for real; its teardown + slide-out
  * interpolation is driven by the test_close_* cases in
  * tests/dialog/dialog.c (observed via the restore/save/blit-setup stubs). */
+/* fd2_show_portrait_dialog_with_input @ 0x2C39B: now emitted in
+ * src/dialog/dialog.c and linked for real (satisfies the link from its sole
+ * caller fd2_play_game_ending_cinematic). It is a straight-line orchestration
+ * wrapper (cyclomatic complexity 1: no branches/computation/RNG) that runs
+ * clear_kbd -> load_chapter_portrait(portrait_id) -> clear_kbd ->
+ * display_dialog_scene(current_chapter_text, text_idx, ...) -> paint(0) ->
+ * wait_for_input_dialog_with_blink(0) -> close_intro_dialog -> clear_kbd.
+ * No direct test drives it: it clears the BIOS keyboard buffer immediately
+ * before the unconditional blocking fd2_wait_for_input_dialog_with_blink(0),
+ * whose loop can only be released by async keyboard input the silent harness
+ * cannot deliver (the same self-cleared-buffer + blocking-wait deferral this
+ * file applies to the status-screen/settings modal dispatchers above). Its
+ * argument forwarding and per-callee behavior are covered by the callees' own
+ * suites (rsrc/rsrc.c test_lcp_* for load_chapter_portrait; dialog/dialog.c for
+ * the dialog VM; input/input.c for the blink-wait), so end-to-end behavioral
+ * coverage is deferred to Phase 9 integration. */
 
 /* ---- fd2_open_char_status_screen / fd2_open_status_screen_with_slide_in
  * (status.c) support ----
