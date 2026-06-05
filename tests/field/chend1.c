@@ -3098,6 +3098,393 @@ static void test_chapter_15_end_increments_not_absolute(void)
     ASSERT_EQ((long)chapter_id, 8L);           /* 7 + 1, not a constant */
 }
 
+/* ================================================================
+ * fd2_chapter_16_end @ 0x23A0A
+ *
+ * The Chapter 16「冰原之戰」end handler stages a post-battle scene, then gates the
+ * 蜜蒂 (char 0x12) recruit on a three-condition AND:
+ *   recruit  <=>  turn counter < 19  AND  (chars[0x42..0x49] dead-count > 4) == 0
+ *                 AND  runtime_char[0] (索爾) hp_max >= 320
+ *   recruit  path: dialog page 4, then recruit char 0x12, NO cutscene.
+ *   else     path: dialog page 2, reset anim_phase, cutscene event 0x31, dialog
+ *                  page 3 — NO recruit.
+ * Both paths then advance chapter_id by 1.
+ *
+ * Scene staging goes through the testglob.c fd2_setup_chars_and_camera_for_intro
+ * recording fake (its real body is VGA display side-effect deferred to Phase 9):
+ * the two 16-byte X/Y tables are copied verbatim into on-stack blocks, the facing
+ * argument is the inline fixed value 0 (every char faces 0, no facing table),
+ * chars 0..0xF placed plus extra char 0x41 (蜜蒂) at (0x1C,0x1E) facing 2, camera
+ * (0x16,0x19). The dialog VM, save-template, recruit, and cutscene are the real
+ * linked functions.
+ *
+ * The death-count gate is driven by the per-index fd2_check_char_is_dead override
+ * (g_check_char_is_dead_use_by_idx + g_check_char_is_dead_by_idx[]), so the exact
+ * count threshold (> 4: 4 dead still recruits, 5 dead does not) is probed directly
+ * rather than all-or-nothing. The dialog program redirects pages 2/3/4 to three
+ * distinct single glyphs (0x22/0x33/0x44) so the recorded glyph id/order pins which
+ * page(s) ran. The cutscene event 0x31 points at an empty (n_groups == 0) script,
+ * so it is the real no-op + its trailing composite; g_cutscene_event_fired here is
+ * inferred from the page-2-then-page-3 glyph sequence (the else path is the only
+ * one that shows two pages). On-screen pixels are display side-effects deferred to
+ * Phase 9.
+ * ================================================================ */
+
+extern uint8 data_fd2_chapter_ch16_end_scene_char_pos_x_table[16];
+extern uint8 data_fd2_chapter_ch16_end_scene_char_pos_y_table[16];
+
+/* per-index fd2_check_char_is_dead override (testglob.c). */
+extern int   g_check_char_is_dead_use_by_idx;
+extern uint8 g_check_char_is_dead_by_idx[256];
+
+/* fd2_setup_chars_and_camera_for_intro recording fake (testglob.c). */
+extern int    g_setup_intro_calls;
+extern uint8  g_setup_intro_px[16];
+extern uint8  g_setup_intro_py[16];
+extern uint8  g_setup_intro_facing[16];
+extern uint32 g_setup_intro_facing_arg;
+extern int32  g_setup_intro_char_start;
+extern int32  g_setup_intro_char_end;
+extern uint32 g_setup_intro_extra_char_idx;
+extern int32  g_setup_intro_extra_pos_x;
+extern int32  g_setup_intro_extra_pos_y;
+extern int32  g_setup_intro_extra_facing;
+extern uint32 g_setup_intro_camera_x;
+extern uint32 g_setup_intro_camera_y;
+
+static uint8 g_ce16_roster[8 * 0x50];
+static int16 g_ce16_text[24];
+static uint8 g_ce16_script[1];            /* cutscene 0x31: n_groups == 0 */
+
+/* turn_count < 19, dead_count, hp_max >= 320 are the three recruit conditions.
+ * dead_idx_count marks the first N of chars[0x42..0x49] dead via the per-index
+ * override; hp_max seeds runtime_char[0] (索爾); turn_count seeds the turn gate. */
+static void ce16_fixture_reset(uint32 turn_count, int dead_idx_count, uint16 hp_max)
+{
+    int i;
+
+    /* dialog VM safe env. */
+    *(volatile uint16 *)0x41AuL = 0x20;   /* BIOS kbd buffer head == tail */
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+
+    /* dialog program: pages 2/3/4 each redirect to one distinct glyph + END.
+     * Distinct glyphs pin which page the branch selected and (else path) the
+     * page-2-then-page-3 order around the cutscene event. */
+    for (i = 0; i < 24; i++) {
+        g_ce16_text[i] = 0;
+    }
+    g_ce16_text[2]  = 32;     /* page 2 -> int16 idx 16 */
+    g_ce16_text[3]  = 36;     /* page 3 -> int16 idx 18 */
+    g_ce16_text[4]  = 40;     /* page 4 -> int16 idx 20 */
+    g_ce16_text[16] = 0x22;   /* page 2 glyph */
+    g_ce16_text[17] = -1;     /* END */
+    g_ce16_text[18] = 0x33;   /* page 3 glyph */
+    g_ce16_text[19] = -1;     /* END */
+    g_ce16_text[20] = 0x44;   /* page 4 glyph */
+    g_ce16_text[21] = -1;     /* END */
+    current_chapter_text = (uint32)g_ce16_text;
+
+    /* save + recruit safe env: zeroed runtime chars + zeroed roster, one scanned
+     * runtime char and one template entry so the recruit appends at slot 1. Seed
+     * runtime_char[0] (索爾) hp_max for the third recruit condition. */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(g_ce16_roster, 0, sizeof(g_ce16_roster));
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_ce16_roster;
+    data_fd2_battle_party_member_count = 1;
+    data_fd2_shared_menu_party_member_count = 1;
+    data_fd2_battle_runtime_char_array_ptr[0].hp_max = hp_max;
+
+    /* death-count gate: mark the first dead_idx_count of chars[0x42..0x49] dead via
+     * the per-index override. Save's char-0 dead-skip queries index 0 (left alive
+     * here: g_check_char_is_dead_by_idx[0] stays 0), so it never short-circuits. */
+    g_check_char_is_dead_use_by_idx = 1;
+    g_check_char_is_dead_return = 0;
+    g_check_char_is_dead_calls = 0;
+    for (i = 0; i < 256; i++) {
+        g_check_char_is_dead_by_idx[i] = 0;
+    }
+    for (i = 0; i < dead_idx_count; i++) {
+        g_check_char_is_dead_by_idx[0x42 + i] = 1;
+    }
+
+    /* turn-counter gate. */
+    data_fd2_battle_turn_counter = turn_count;
+
+    /* cutscene event 0x31 -> empty (n_groups == 0) script (else path only). */
+    g_ce16_script[0] = 0;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x31] = g_ce16_script;
+    data_fd2_chapter_cutscene_event_state = 0;    /* normal compose path */
+
+    /* bounded view-window origin for the cutscene event's trailing composite. */
+    data_fd2_battle_view_window_origin_x = 0x16;
+    data_fd2_battle_view_window_origin_y = 0x19;
+
+    /* scene-stager recording fake reset (16-wide for chapter 16's range). */
+    g_setup_intro_calls = 0;
+    g_setup_intro_facing_arg = 0xFFFFFFFFuL;
+    g_setup_intro_char_start = -1;
+    g_setup_intro_char_end = -1;
+    g_setup_intro_extra_char_idx = 0xFFFFFFFFuL;
+    g_setup_intro_extra_pos_x = -1;
+    g_setup_intro_extra_pos_y = -1;
+    g_setup_intro_extra_facing = -1;
+    g_setup_intro_camera_x = 0xFFFFFFFFuL;
+    g_setup_intro_camera_y = 0xFFFFFFFFuL;
+    for (i = 0; i < 16; i++) {
+        g_setup_intro_px[i] = 0xFF;
+        g_setup_intro_py[i] = 0xFF;
+        g_setup_intro_facing[i] = 0xFF;
+    }
+
+    data_fd2_chapter_current_chapter_id = 16;
+}
+
+static void ce16_fixture_teardown(void)
+{
+    current_chapter_text = 0;
+    data_fd2_shared_menu_party_roster_buffer_ptr = 0;
+    data_fd2_shared_menu_party_member_count = 0;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_battle_view_window_origin_x = 0;
+    data_fd2_battle_view_window_origin_y = 0;
+    data_fd2_battle_cursor_world_x = 5;
+    data_fd2_battle_cursor_world_y = 5;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x31] = 0;
+    data_fd2_chapter_cutscene_event_state = 0;
+    data_fd2_battle_turn_counter = 0;
+    g_check_char_is_dead_use_by_idx = 0;     /* restore uniform-return for other suites */
+    data_fd2_chapter_current_chapter_id = 1;
+}
+
+/* ----------------------------------------------------------------
+ * All three conditions met (turn 10 < 19; 0 of 8 subordinates dead; 索爾 hp_max
+ * 320 >= 320): the handler stages the scene once, then takes the recruit branch —
+ * dialog page 4 only (glyph 0x44, exactly one page), recruits char 0x12 (roster
+ * 1 -> 2), fires NO cutscene, and advances chapter_id 16 -> 17.
+ * ---------------------------------------------------------------- */
+static void test_chapter_16_end_all_conditions_recruits_mitsuki(void)
+{
+    int    setup_calls;
+    int    glyph_calls;
+    uint32 glyph_idx;
+    uint32 facing_arg;
+    int32  char_start;
+    int32  char_end;
+    uint32 extra_idx;
+    int32  extra_x;
+    int32  extra_y;
+    int32  extra_facing;
+    uint32 cam_x;
+    uint32 cam_y;
+    uint32 recruit_count;
+    uint32 chapter_id;
+    int    tables_match;
+    int    i;
+
+    ce16_fixture_reset(10, 0, 320);
+
+    fd2_chapter_16_end();
+
+    setup_calls   = g_setup_intro_calls;
+    glyph_calls   = g_dlg_glyph_calls;
+    glyph_idx     = g_dlg_glyph_last_idx;
+    facing_arg    = g_setup_intro_facing_arg;
+    char_start    = g_setup_intro_char_start;
+    char_end      = g_setup_intro_char_end;
+    extra_idx     = g_setup_intro_extra_char_idx;
+    extra_x       = g_setup_intro_extra_pos_x;
+    extra_y       = g_setup_intro_extra_pos_y;
+    extra_facing  = g_setup_intro_extra_facing;
+    cam_x         = g_setup_intro_camera_x;
+    cam_y         = g_setup_intro_camera_y;
+    recruit_count = data_fd2_shared_menu_party_member_count;
+    chapter_id    = data_fd2_chapter_current_chapter_id;
+    tables_match  = 1;
+    for (i = 0; i < 16; i++) {
+        if (g_setup_intro_px[i] != data_fd2_chapter_ch16_end_scene_char_pos_x_table[i] ||
+            g_setup_intro_py[i] != data_fd2_chapter_ch16_end_scene_char_pos_y_table[i] ||
+            g_setup_intro_facing[i] != 0) {
+            tables_match = 0;
+        }
+    }
+    ce16_fixture_teardown();
+
+    /* scene staged once with all 16 table entries copied verbatim; fixed facing 0. */
+    ASSERT_EQ((long)setup_calls, 1L);
+    ASSERT_EQ((long)tables_match, 1L);
+    ASSERT_EQ((long)facing_arg, 0L);
+    ASSERT_EQ((long)char_start, 0L);
+    ASSERT_EQ((long)char_end, (long)0xf);
+
+    /* extra char 0x41 (蜜蒂) at (0x1C,0x1E) facing 2, camera (0x16,0x19). */
+    ASSERT_EQ((long)extra_idx, (long)0x41);
+    ASSERT_EQ((long)extra_x, (long)0x1c);
+    ASSERT_EQ((long)extra_y, (long)0x1e);
+    ASSERT_EQ((long)extra_facing, 2L);
+    ASSERT_EQ((long)cam_x, (long)0x16);
+    ASSERT_EQ((long)cam_y, (long)0x19);
+
+    /* recruit branch: ONLY page 4 ran (one glyph, 0x44), char recruited 1 -> 2. */
+    ASSERT_EQ((long)glyph_calls, 1);
+    ASSERT_EQ((long)glyph_idx, (long)0x44);
+    ASSERT_EQ((long)recruit_count, 2L);
+
+    /* chapter id advanced 16 -> 17 (relative increment). */
+    ASSERT_EQ((long)chapter_id, 17L);
+}
+
+/* ----------------------------------------------------------------
+ * Death-count boundary, NOT exceeding: exactly 4 of the 8 subordinates dead with
+ * the other two conditions met. dead_count > 4 is FALSE at 4, so the recruit
+ * branch still fires (page 4 glyph 0x44, roster 1 -> 2). Pins the `> 4` boundary.
+ * ---------------------------------------------------------------- */
+static void test_chapter_16_end_four_dead_still_recruits(void)
+{
+    int    glyph_calls;
+    uint32 glyph_idx;
+    uint32 recruit_count;
+
+    ce16_fixture_reset(10, 4, 320);   /* exactly 4 dead: not > 4 */
+
+    fd2_chapter_16_end();
+
+    glyph_calls   = g_dlg_glyph_calls;
+    glyph_idx     = g_dlg_glyph_last_idx;
+    recruit_count = data_fd2_shared_menu_party_member_count;
+    ce16_fixture_teardown();
+
+    ASSERT_EQ((long)glyph_calls, 1);
+    ASSERT_EQ((long)glyph_idx, (long)0x44);   /* page 4 = recruit */
+    ASSERT_EQ((long)recruit_count, 2L);       /* char 0x12 recruited */
+}
+
+/* ----------------------------------------------------------------
+ * Death-count boundary, exceeding: 5 of 8 subordinates dead (others met). At 5,
+ * dead_count > 4 is TRUE, so the else branch fires: page 2 then page 3 (glyphs
+ * 0x22 then 0x33, two glyph calls last = 0x33), the real cutscene event 0x31 runs
+ * between them, and NO char is recruited (roster stays 1). chapter_id 16 -> 17.
+ * ---------------------------------------------------------------- */
+static void test_chapter_16_end_five_dead_no_recruit(void)
+{
+    int    glyph_calls;
+    uint32 glyph_idx;
+    uint32 recruit_count;
+    uint32 chapter_id;
+
+    ce16_fixture_reset(10, 5, 320);   /* 5 dead: > 4 */
+
+    fd2_chapter_16_end();
+
+    glyph_calls   = g_dlg_glyph_calls;
+    glyph_idx     = g_dlg_glyph_last_idx;
+    recruit_count = data_fd2_shared_menu_party_member_count;
+    chapter_id    = data_fd2_chapter_current_chapter_id;
+    ce16_fixture_teardown();
+
+    /* else path: page 2 (0x22) then page 3 (0x33), cutscene 0x31 between. */
+    ASSERT_EQ((long)glyph_calls, 2);
+    ASSERT_EQ((long)glyph_idx, (long)0x33);
+    ASSERT_EQ((long)recruit_count, 1L);       /* NO recruit */
+    ASSERT_EQ((long)chapter_id, 17L);
+}
+
+/* ----------------------------------------------------------------
+ * Turn-counter gate decisive: turn 19 is NOT < 19, with the other two conditions
+ * met (0 dead, hp_max 320). The else branch fires (pages 2/3, cutscene, no
+ * recruit). Pins that the turn cutoff is < 19 (19 fails).
+ * ---------------------------------------------------------------- */
+static void test_chapter_16_end_turn19_no_recruit(void)
+{
+    int    glyph_calls;
+    uint32 glyph_idx;
+    uint32 recruit_count;
+
+    ce16_fixture_reset(19, 0, 320);   /* turn 19: not < 19 */
+
+    fd2_chapter_16_end();
+
+    glyph_calls   = g_dlg_glyph_calls;
+    glyph_idx     = g_dlg_glyph_last_idx;
+    recruit_count = data_fd2_shared_menu_party_member_count;
+    ce16_fixture_teardown();
+
+    ASSERT_EQ((long)glyph_calls, 2);          /* pages 2 then 3 */
+    ASSERT_EQ((long)glyph_idx, (long)0x33);
+    ASSERT_EQ((long)recruit_count, 1L);       /* NO recruit */
+}
+
+/* ----------------------------------------------------------------
+ * Turn-counter boundary, just inside: turn 18 IS < 19 (with 0 dead, hp_max 320),
+ * so the recruit branch fires (page 4, roster 1 -> 2). Confirms 18 passes the gate
+ * that 19 failed above.
+ * ---------------------------------------------------------------- */
+static void test_chapter_16_end_turn18_recruits(void)
+{
+    int    glyph_calls;
+    uint32 glyph_idx;
+    uint32 recruit_count;
+
+    ce16_fixture_reset(18, 0, 320);   /* turn 18: < 19 */
+
+    fd2_chapter_16_end();
+
+    glyph_calls   = g_dlg_glyph_calls;
+    glyph_idx     = g_dlg_glyph_last_idx;
+    recruit_count = data_fd2_shared_menu_party_member_count;
+    ce16_fixture_teardown();
+
+    ASSERT_EQ((long)glyph_calls, 1);
+    ASSERT_EQ((long)glyph_idx, (long)0x44);   /* page 4 = recruit */
+    ASSERT_EQ((long)recruit_count, 2L);
+}
+
+/* ----------------------------------------------------------------
+ * HP gate decisive: 索爾 hp_max 319 is NOT >= 320 (turn 10, 0 dead). The else
+ * branch fires (no recruit). Pins the >= 320 cutoff (319 fails).
+ * ---------------------------------------------------------------- */
+static void test_chapter_16_end_hp319_no_recruit(void)
+{
+    int    glyph_calls;
+    uint32 glyph_idx;
+    uint32 recruit_count;
+
+    ce16_fixture_reset(10, 0, 319);   /* hp_max 319: not >= 320 */
+
+    fd2_chapter_16_end();
+
+    glyph_calls   = g_dlg_glyph_calls;
+    glyph_idx     = g_dlg_glyph_last_idx;
+    recruit_count = data_fd2_shared_menu_party_member_count;
+    ce16_fixture_teardown();
+
+    ASSERT_EQ((long)glyph_calls, 2);          /* pages 2 then 3 */
+    ASSERT_EQ((long)glyph_idx, (long)0x33);
+    ASSERT_EQ((long)recruit_count, 1L);       /* NO recruit */
+}
+
+/* ----------------------------------------------------------------
+ * The chapter-id update is a relative INCREMENT, not an absolute set: seeded with
+ * a distinctive unrelated value (7) on the recruit path, the handler leaves 8 —
+ * proving it does not hardcode the id to 17.
+ * ---------------------------------------------------------------- */
+static void test_chapter_16_end_increments_not_absolute(void)
+{
+    uint32 chapter_id;
+
+    ce16_fixture_reset(10, 0, 320);
+    data_fd2_chapter_current_chapter_id = 7;   /* distinctive, unrelated to 17 */
+
+    fd2_chapter_16_end();
+
+    chapter_id = data_fd2_chapter_current_chapter_id;
+    ce16_fixture_teardown();
+
+    ASSERT_EQ((long)chapter_id, 8L);           /* 7 + 1, not a constant */
+}
+
 void run_field_chend1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -3134,5 +3521,12 @@ void run_field_chend1_tests(void)
     RUN_TEST(test_chapter_15_end_kelly_present_page12_recruits_increments);
     RUN_TEST(test_chapter_15_end_kelly_absent_page13_recruits_increments);
     RUN_TEST(test_chapter_15_end_increments_not_absolute);
+    RUN_TEST(test_chapter_16_end_all_conditions_recruits_mitsuki);
+    RUN_TEST(test_chapter_16_end_four_dead_still_recruits);
+    RUN_TEST(test_chapter_16_end_five_dead_no_recruit);
+    RUN_TEST(test_chapter_16_end_turn19_no_recruit);
+    RUN_TEST(test_chapter_16_end_turn18_recruits);
+    RUN_TEST(test_chapter_16_end_hp319_no_recruit);
+    RUN_TEST(test_chapter_16_end_increments_not_absolute);
     printf("\n");
 }

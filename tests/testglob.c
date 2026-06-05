@@ -249,6 +249,15 @@ uint8 data_fd2_chapter_ch14_end_scene_char_pos_y_table[16] =
     { 15, 15, 15, 16, 16, 16, 15, 15, 12, 13, 14, 14, 12, 13, 14, 14 };
 uint8 data_fd2_chapter_ch14_end_scene_char_facing_table[16] =
     { 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 1, 1, 1, 1 };
+/* Chapter 16 end scene char placement tables (data segment @ 0x52183 / 0x52193).
+ * Real binary bytes until the data segment is emitted; fd2_chapter_16_end copies
+ * each 16-byte table into an on-stack placement block and places chars 0..0xF.
+ * X/Y are battle-tile coords; chapter 16 has no facing table (the handler passes
+ * the inline fixed facing value 0 to fd2_setup_chars_and_camera_for_intro). */
+uint8 data_fd2_chapter_ch16_end_scene_char_pos_x_table[16] =
+    { 28, 27, 28, 29, 30, 25, 26, 27, 26, 29, 30, 31, 25, 26, 30, 31 };
+uint8 data_fd2_chapter_ch16_end_scene_char_pos_y_table[16] =
+    { 28, 27, 27, 27, 27, 28, 28, 28, 27, 28, 28, 28, 29, 29, 29, 29 };
 /* Resource portrait sheet base pointer (data segment @ 0x53AD1). Tests point it
  * at a zeroed scratch buffer. */
 uint32 data_fd2_resource_portrait_sheet_ptr = 0;
@@ -270,14 +279,25 @@ uint8  data_fd2_animation_palette_cycle_rgb_table[93] = {0};
  * the invocation count and the most recent char index, so a caller test can pin
  * which char a branch queried and whether a short-circuit skipped the call
  * (field/chend1's chapter 07 dual-condition recruit). Both default 0 and are
- * ignored by every other suite; tests that read them reset them in their fixture. */
+ * ignored by every other suite; tests that read them reset them in their fixture.
+ *
+ * Per-index override: when g_check_char_is_dead_use_by_idx != 0, the stub returns
+ * g_check_char_is_dead_by_idx[c & 0xFF] instead of the uniform return, so a caller
+ * test can mark an exact subset of char indices dead and probe a count threshold
+ * (field/chend1's chapter 16 end: the chars[0x42..0x49] dead-count > 4 gate).
+ * Default 0 preserves the uniform-return behavior every other suite relies on. */
 int    g_check_char_is_dead_return = 0;
 int    g_check_char_is_dead_calls = 0;
 uint32 g_check_char_is_dead_last_arg = 0xFFFFFFFFuL;
+int    g_check_char_is_dead_use_by_idx = 0;
+uint8  g_check_char_is_dead_by_idx[256] = {0};
 int fd2_check_char_is_dead(uint32 c)
 {
     g_check_char_is_dead_calls++;
     g_check_char_is_dead_last_arg = c;
+    if (g_check_char_is_dead_use_by_idx) {
+        return (int)g_check_char_is_dead_by_idx[c & 0xFF];
+    }
     return g_check_char_is_dead_return;
 }
 /* fd2_scan_chars_within_manhattan_range: now in btl_ai.c */

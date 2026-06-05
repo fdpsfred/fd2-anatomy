@@ -698,3 +698,86 @@ void fd2_chapter_15_end(void)
     fd2_init_runtime_char_from_base_growth(0xf);
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_16_end @ 0x23A0A  (0 direct callers; dispatched via the
+ *   chapter-end handler pointer table @ 0x51DE9, slot @ 0x51E25)
+ *
+ * Chapter 16「冰原之戰」end handler. Unconditionally copies two 16-byte scene
+ * position tables (post-battle X / Y @ 0x52183 / 0x52193) into on-stack placement
+ * blocks and stages the post-battle scene via fd2_setup_chars_and_camera_for_intro
+ * — the facing argument is the inline fixed value 0 (< 4), so every placed char
+ * faces direction 0 and there is no facing table (chars 0..0xF, plus an extra char
+ * 0x41 (蜜蒂) placed at (0x1C,0x1E) facing 2, camera origin (0x16,0x19)).
+ *
+ * It then counts how many of the 8 cave-NPC subordinates chars[0x42..0x49] died:
+ * for i in 0..7, fd2_check_char_is_dead(i + 0x42) increments a dead counter, and
+ * dead_exceeds_4 := (dead_count > 4) ? 1 : 0. It persists the party's runtime-char
+ * state to the template store, then takes the 蜜蒂 recruit branch:
+ *   if save_metadata (turn counter) < 19  AND  dead_exceeds_4 == 0  AND
+ *      runtime_char[0] (索爾) hp_max >= 320:
+ *     shows the recruit dialog page 4, then recruits char #18 (蜜蒂, id 0x12) via
+ *     fd2_init_runtime_char_from_base_growth.
+ *   else: shows dialog page 2, resets battle_anim_phase, fires cutscene event 0x31,
+ *     shows dialog page 3 — no recruit.
+ * It then advances the current-chapter id by 1.
+ *
+ * 蜜蒂三條件招募: chars[0].hp_max >= 320  +  turn counter <= 18 (< 19)  +
+ * chars[0x42..0x49] 8 subordinates dead <= 4.
+ *
+ * The position tables are read unconditionally into the stack blocks (matching the
+ * binary). In the binary this function is self-contained (no fall-through / no
+ * jump-into-middle sharing).
+ *
+ * Paired init handler: fd2_chapter_16_init @ 0x335A0.
+ * Post-action handler: fd2_chapter_16_post_action @ 0x2084A (extra lose if char
+ *   0x41 (蜜蒂) is dead).
+ * Walkthrough: assets/chapters/chapter_16.md.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_16_end(void)
+{
+    uint8 scene_block_x[16];
+    uint8 scene_block_y[16];
+    uint8 dead_count;
+    uint8 dead_exceeds_4;
+    int   i;
+
+    dead_exceeds_4 = 0;
+    for (i = 0; i < 16; i++) {
+        scene_block_x[i] = data_fd2_chapter_ch16_end_scene_char_pos_x_table[i];
+        scene_block_y[i] = data_fd2_chapter_ch16_end_scene_char_pos_y_table[i];
+    }
+
+    dead_count = 0;
+    fd2_setup_chars_and_camera_for_intro(
+        (uint32)scene_block_x, (uint32)scene_block_y, 0, 0, 0xf, 0x41, 0x1c, 0x1e,
+        2, 0x16, 0x19);
+
+    for (i = 0; i < 8; i++) {
+        if (fd2_check_char_is_dead(i + 0x42) != 0) {
+            dead_count = dead_count + 1;
+        }
+    }
+    if (dead_count > 4) {
+        dead_exceeds_4 = 1;
+    }
+
+    fd2_save_runtime_char_to_template();
+
+    if ((int32)data_fd2_battle_turn_counter < 0x13 && dead_exceeds_4 != 1 &&
+        data_fd2_battle_runtime_char_array_ptr->hp_max >= 0x140) {
+        fd2_display_dialog_scene(current_chapter_text, 4, 0xa0000, 0x140, 0xcd,
+                                 0x4c, 0x4a, 0x13, 1);
+        fd2_init_runtime_char_from_base_growth(0x12);
+    }
+    else {
+        fd2_display_dialog_scene(current_chapter_text, 2, 0xa0000, 0x140, 0xcd,
+                                 0x4c, 0x4a, 0x13, 1);
+        data_fd2_battle_anim_phase = 0;
+        fd2_cutscene_event_trigger(0x31);
+        fd2_display_dialog_scene(current_chapter_text, 3, 0xa0000, 0x140, 0xcd,
+                                 0x4c, 0x4a, 0x13, 1);
+    }
+
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}
