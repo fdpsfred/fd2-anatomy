@@ -234,3 +234,73 @@ void fd2_blit_scaled_tile_map_view(uint32 src_cx_fp, uint32 src_cy_fp,
         out_row_ptr = out_row_ptr + 0x140;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_blit_scaled_chapter_pose @ 0x2FB9F (4 callers)
+ *
+ * Software rasterizer: nearest-neighbour scale a 320x200 source
+ * bitmap (1 byte/pixel, row stride 0x140) into the full 320x200
+ * working surface data_fd2_large_game_state_buffer_ptr (0x53A49),
+ * centred on (src_cx, src_cy) in fixed-point. Used by the chapter
+ * intro/outro pose-zoom animations:
+ *   fd2_chapter_transition_with_intro      @ 0x2D093 (10-frame zoom-in)
+ *   fd2_run_chapter_intro_menu_main        @ 0x2E341
+ *   fd2_run_chapter_intro_menu_typeB       @ 0x2FC85
+ *   fd2_run_chapter_intro_menu_typeC       @ 0x3072F
+ *
+ * Coordinate format: 7-bit fractional fixed-point (>>7 recovers the
+ * integer source pixel index, 0x80 = 1 source pixel). scale_fp_step
+ * is the per-output-pixel source step: < 0x80 magnifies (zoom-in),
+ * > 0x80 shrinks (zoom-out).
+ *
+ * Top-left source = centre - step*(half-extent):
+ *   src_x_fp = src_cx - step*0xA0   (0xA0 = 160 = 320/2 cols)
+ *   src_y_fp = src_cy - step*0x64   (0x64 = 100 = 200/2 rows)
+ * Per output pixel the fixed coord is >>7 to pick the source byte;
+ * source rows use stride 0x140 (320 bytes/row). The whole surface is
+ * memset-cleared to 0 first; output pixels whose source maps outside
+ * [0, 320)x[0, 200) (fixed bounds 0xA000 / 0x6400) stay background.
+ *
+ * Globals:
+ *   data_fd2_large_game_state_buffer_ptr (0x53A49) — output surface
+ *
+ * Cdecl, 4 stack params; void return. The binary's __CHK(0x28)
+ * stack-probe prologue is compiler-injected, not emitted here.
+ *
+ * The fixed-point fraction strip is an arithmetic right shift
+ * ((int)>>7); the source coord is always >= 0 at the point of use
+ * (the in-bounds guard rejects negatives), so >>7 reproduces the
+ * Watcom signed-shift flooring idiom seen in the disassembly exactly.
+ * ---------------------------------------------------------------- */
+void fd2_blit_scaled_chapter_pose(uint32 src_cx, uint32 src_cy,
+                                  uint32 src_bitmap, int32 scale_fp_step)
+{
+    uint32 src_x_fp_start;
+    uint32 src_x_fp;
+    uint32 src_y_fp;
+    uint32 src_row_base;
+    uint32 out_row_ptr;
+    uint32 out_row;
+    uint32 out_col;
+
+    src_x_fp_start = src_cx + scale_fp_step * -0xA0;
+    src_y_fp = src_cy + scale_fp_step * -0x64;
+    out_row_ptr = data_fd2_large_game_state_buffer_ptr;
+    memset((void *)data_fd2_large_game_state_buffer_ptr, 0, 64000);
+
+    for (out_row = 0; (int)out_row < 200; out_row = out_row + 1) {
+        if ((int)src_y_fp >= 0 && (int)src_y_fp < 0x6400) {
+            src_x_fp = src_x_fp_start;
+            src_row_base = src_bitmap + ((int)src_y_fp >> 7) * 0x140;
+            for (out_col = 0; (int)out_col < 0x140; out_col = out_col + 1) {
+                if ((int)src_x_fp >= 0 && (int)src_x_fp < 0xA000) {
+                    *(uint8 *)(out_col + out_row_ptr) =
+                        *(uint8 *)(src_row_base + ((int)src_x_fp >> 7));
+                }
+                src_x_fp = src_x_fp + scale_fp_step;
+            }
+        }
+        src_y_fp = src_y_fp + scale_fp_step;
+        out_row_ptr = out_row_ptr + 0x140;
+    }
+}

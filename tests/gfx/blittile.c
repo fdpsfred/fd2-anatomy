@@ -637,6 +637,224 @@ static void test_scaled_partial_offmap_edges(void)
     }
 }
 
+/* ================================================================
+ * fd2_blit_scaled_chapter_pose @ 0x2FB9F
+ *
+ * Nearest-neighbour scale of a 320x200 source bitmap (stride 0x140)
+ * into the full 320x200 working surface, centred on (src_cx, src_cy)
+ * in 7-bit fixed-point. High-risk: fixed-point math, signed bounds
+ * guards on each axis, nested loops, signed-shift fraction strip.
+ *
+ * Fixtures build a real 320x200 source whose bytes encode (row, col),
+ * render into a real surface, then compare against an independent
+ * reference implementation (ref_scaled_pose, written differently from
+ * the emit) across identity / zoom-in / zoom-out-negative-origin /
+ * partial-offmap / fully-offmap cases. The identity case is also
+ * checked against hand-computed source bytes.
+ * ================================================================ */
+
+#define CP_W      0x140              /* source row stride (320) */
+#define CP_H      200                /* source rows */
+#define CP_BYTES  (CP_W * CP_H)      /* 64000 = source size */
+
+static uint8 g_cp_src[CP_BYTES];
+
+/* source byte encoding: identifies (row, col) with a nonzero value
+ * (0 is reserved for the memset-cleared background). */
+static uint8 cp_src_byte(int row, int col)
+{
+    return (uint8)(1u + (((unsigned)row * 7u + (unsigned)col) * 3u));
+}
+
+static void setup_chapter_pose(void)
+{
+    int row;
+    int col;
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_sv_surf;
+    for (row = 0; row < CP_H; row++) {
+        for (col = 0; col < CP_W; col++) {
+            g_cp_src[row * CP_W + col] = cp_src_byte(row, col);
+        }
+    }
+}
+
+/* Independent reference for the scaler, written in a deliberately
+ * different shape (explicit signed source walk) to cross-check the
+ * emit rather than mirror it. */
+static void ref_scaled_pose(uint32 cx, uint32 cy, int scale)
+{
+    int row;
+    int col;
+    int sxs;
+    int sx;
+    int sy;
+    int six;
+    int siy;
+
+    memset(g_sv_ref, 0, 64000);
+
+    sxs = (int)cx - scale * 0xA0;
+    sy = (int)cy - scale * 0x64;
+    for (row = 0; row < 200; row++) {
+        if (sy >= 0 && sy < 0x6400) {
+            siy = sy >> 7;
+            sx = sxs;
+            for (col = 0; col < 0x140; col++) {
+                if (sx >= 0 && sx < 0xA000) {
+                    six = sx >> 7;
+                    g_sv_ref[row * 0x140 + col] =
+                        g_cp_src[siy * 0x140 + six];
+                }
+                sx += scale;
+            }
+        }
+        sy += scale;
+    }
+}
+
+static int cp_compare_against_ref(void)
+{
+    /* full memset extent so background-clear is also checked. */
+    return memcmp(g_sv_surf, g_sv_ref, 64000);
+}
+
+/* scale 0x80: each output pixel steps the source by exactly one byte.
+ * Centre so the top-left source lands on (0,0) -> clean 1:1 copy of
+ * the 320x200 source. Hand-check several pixels and ref-compare. */
+static void test_pose_identity_scale_0x80(void)
+{
+    int scale = 0x80;
+    uint32 cx;
+    uint32 cy;
+
+    setup_chapter_pose();
+    /* src_x_fp = cx - scale*0xA0 ; want 0 -> cx = 0x80*0xA0 = 0x5000 */
+    cx = (uint32)(scale * 0xA0);
+    /* src_y_fp = cy - scale*0x64 ; want 0 -> cy = 0x80*0x64 = 0x3200 */
+    cy = (uint32)(scale * 0x64);
+
+    fd2_blit_scaled_chapter_pose(cx, cy, (uint32)g_cp_src, scale);
+
+    /* row 0 col 0 -> source (0,0) */
+    ASSERT_EQ(g_sv_surf[0], cp_src_byte(0, 0));
+    /* row 0 col 1 -> source (0,1) */
+    ASSERT_EQ(g_sv_surf[1], cp_src_byte(0, 1));
+    /* row 0 last col (0x13F) -> source (0, 0x13F) */
+    ASSERT_EQ(g_sv_surf[0x13F], cp_src_byte(0, 0x13F));
+    /* row 1 col 0 -> source (1,0) */
+    ASSERT_EQ(g_sv_surf[0x140], cp_src_byte(1, 0));
+    /* last row (199) col 0 -> source (199,0) */
+    ASSERT_EQ(g_sv_surf[199 * 0x140], cp_src_byte(199, 0));
+    /* last row col last -> source (199, 0x13F) */
+    ASSERT_EQ(g_sv_surf[199 * 0x140 + 0x13F], cp_src_byte(199, 0x13F));
+
+    ref_scaled_pose(cx, cy, scale);
+    ASSERT_EQ(cp_compare_against_ref(), 0);
+}
+
+/* whole 64000-byte surface is memset to 0 first; with the camera far
+ * below the bitmap every row's source-Y starts past 0x6400 and only
+ * increases, so every row is rejected, leaving an all-zero surface
+ * (and bytes beyond the 64000 extent keep their sentinel). */
+static void test_pose_memset_clears_offmap(void)
+{
+    int scale = 0x80;
+    uint32 cy;
+    int i;
+
+    setup_chapter_pose();
+    memset(g_sv_surf, 0xAB, sizeof(g_sv_surf)); /* sentinel before render */
+
+    /* src_y_fp = cy - scale*0x64 ; choose so it starts >= 0x6400 and
+     * only grows (scale>0) -> every row rejected. */
+    cy = (uint32)(0x6400 + scale * 0x64);
+    fd2_blit_scaled_chapter_pose(0x5000u, cy, (uint32)g_cp_src, scale);
+
+    for (i = 0; i < 64000; i++) {
+        if (g_sv_surf[i] != 0) {
+            ASSERT_EQ((int)g_sv_surf[i], 0); /* report first nonzero */
+            return;
+        }
+    }
+    ASSERT_EQ((int)g_sv_surf[64000], 0xAB);
+}
+
+/* zoom-in (scale 0x40 < 0x80) magnifies: each source byte spans two
+ * output pixels. Centre offset into the bitmap interior. Pure
+ * cross-check against the reference. */
+static void test_pose_zoom_in_half_step(void)
+{
+    int scale = 0x40;
+    uint32 cx = (uint32)(scale * 0xA0) + 0x2000u; /* interior centre */
+    uint32 cy = (uint32)(scale * 0x64) + 0x1800u;
+
+    setup_chapter_pose();
+    fd2_blit_scaled_chapter_pose(cx, cy, (uint32)g_cp_src, scale);
+    ref_scaled_pose(cx, cy, scale);
+    ASSERT_EQ(cp_compare_against_ref(), 0);
+}
+
+/* zoom-out (scale 0x140 > 0x80) skips source bytes; small centre makes
+ * the top-left source coordinate NEGATIVE, exercising the signed
+ * lower-bound guard ((int)src_x_fp >= 0 / (int)src_y_fp >= 0) and the
+ * arithmetic-shift fraction strip across the zero crossing. */
+static void test_pose_zoom_out_negative_origin(void)
+{
+    int scale = 0x140;
+    /* small centre so cx - scale*0xA0 and cy - scale*0x64 go negative */
+    uint32 cx = 0x800u;
+    uint32 cy = 0x500u;
+
+    setup_chapter_pose();
+    fd2_blit_scaled_chapter_pose(cx, cy, (uint32)g_cp_src, scale);
+    ref_scaled_pose(cx, cy, scale);
+    ASSERT_EQ(cp_compare_against_ref(), 0);
+
+    /* sanity: this fixture must exercise both the rejected (cleared)
+     * and the rendered paths, i.e. negative source coords really are
+     * being clipped while in-range ones render. */
+    {
+        int i;
+        int saw_zero = 0;
+        int saw_nonzero = 0;
+        for (i = 0; i < 64000; i++) {
+            if (g_sv_ref[i] == 0) { saw_zero = 1; }
+            else { saw_nonzero = 1; }
+        }
+        ASSERT_EQ(saw_zero, 1);
+        ASSERT_EQ(saw_nonzero, 1);
+    }
+}
+
+/* camera placed so the visible span runs off the right/bottom bitmap
+ * edge: source coords >= 0xA000 (x) / 0x6400 (y) stay background while
+ * in-range ones render. Cross-checked against the reference. */
+static void test_pose_partial_offmap_edges(void)
+{
+    int scale = 0x100;
+    /* centre near the far corner so the right/bottom edge clips */
+    uint32 cx = (uint32)(0xA000 - 0x1000) + (uint32)(scale * 0xA0);
+    uint32 cy = (uint32)(0x6400 - 0x1000) + (uint32)(scale * 0x64);
+
+    setup_chapter_pose();
+    fd2_blit_scaled_chapter_pose(cx, cy, (uint32)g_cp_src, scale);
+    ref_scaled_pose(cx, cy, scale);
+    ASSERT_EQ(cp_compare_against_ref(), 0);
+
+    {
+        int i;
+        int saw_zero = 0;
+        int saw_nonzero = 0;
+        for (i = 0; i < 64000; i++) {
+            if (g_sv_ref[i] == 0) { saw_zero = 1; }
+            else { saw_nonzero = 1; }
+        }
+        ASSERT_EQ(saw_zero, 1);
+        ASSERT_EQ(saw_nonzero, 1);
+    }
+}
+
 void run_gfx_blittile_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -664,5 +882,10 @@ void run_gfx_blittile_tests(void)
     RUN_TEST(test_scaled_zoom_in_half_step);
     RUN_TEST(test_scaled_zoom_out_negative_origin);
     RUN_TEST(test_scaled_partial_offmap_edges);
+    RUN_TEST(test_pose_identity_scale_0x80);
+    RUN_TEST(test_pose_memset_clears_offmap);
+    RUN_TEST(test_pose_zoom_in_half_step);
+    RUN_TEST(test_pose_zoom_out_negative_origin);
+    RUN_TEST(test_pose_partial_offmap_edges);
     printf("\n");
 }
