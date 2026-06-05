@@ -1662,6 +1662,359 @@ static void test_preview_decimal_values_colors_dsts(void)
     pv_teardown();
 }
 
+/* ================================================================
+ * fd2_render_save_slot_grid @ 0x30437
+ *
+ * 4-slot save-file grid. Per slot it renders a "Slot N" header (FDTXT
+ * page 0x225) plus either a chapter intro-icon (page chapter_id+0x202)
+ * and chapter title (page chapter_id+0x226), or a single "EMPTY"
+ * sentinel sprite (page 0x202) when the slot's chapter byte is 0xFF.
+ * The selected slot draws in the highlight border glyph (0xC9 vs 0xCD).
+ *
+ * The decrypted FD2.SAV buffer here is a pure in-memory byte array
+ * (the function receives an already-decrypted pointer from its caller
+ * and does no fopen). The risk-bearing logic — per-slot loop, border
+ * glyph selection, the slot-base address arithmetic (0x312B + iter*0xA28,
+ * chapter byte at +0xA00), the row dst arithmetic
+ * ((iter*0x13+0x77)*0x140), the empty-vs-chapter branch and its page /
+ * position selection, and the per-slot display_slot_number — is pinned
+ * by driving the REAL fd2_display_dialog_scene against a text program
+ * where exactly one page is aimed at a single-glyph (or literal-number)
+ * blob, so a rendered glyph proves the page index reached the VM while
+ * g_dlg_glyph_last_pos / g_dlg_glyph_last_p5 capture the dst arithmetic
+ * and the border glyph.
+ * ================================================================ */
+
+/* SAV header = 0x312B, 4 slots x 0xA28; chapter byte at slot+0xA00.
+ * Last read = 0x312B + 3*0xA28 + 0xA00 = 0x5A23, so 0x5B00 covers it. */
+#define SAV_HDR_SIZE   0x312Bu
+#define SAV_SLOT_SIZE  0x0A28u
+#define SAV_CHAP_OFF   0x0A00u
+#define SAV_BUF_SIZE   0x5B00u
+static uint8 g_sav_buf[SAV_BUF_SIZE];
+
+/* dialog text program for the save-slot grid (mirrors roster_text_*):
+ * page-pointer table at words 0..0x3BF, opcode blobs above it. */
+static uint16 g_sav_text[0x400];
+
+#define SAV_END_OFF    0x780               /* byte offset of the shared END   */
+#define SAV_GLYPH_OFF  0x782               /* byte offset of the 1-glyph blob  */
+#define SAV_NUM_OFF    0x788               /* byte offset of the literal-num op */
+
+/* All pages -> END (no glyph). */
+static void sav_text_all_end(void)
+{
+    int i;
+
+    for (i = 0; i < 0x400; i++) {
+        g_sav_text[i] = 0;
+    }
+    *(int16 *)((uint8 *)g_sav_text + SAV_END_OFF) = -1;        /* shared END */
+    for (i = 0; i < 0x3c0; i++) {
+        g_sav_text[i] = (uint16)SAV_END_OFF;                  /* default END */
+    }
+    data_fd2_all_game_text_ptr = (uint32)g_sav_text;
+}
+
+/* Aim page `glyph_page` at a [glyph_val][END] blob so exactly that page
+ * renders one glyph; its render_pos and p5 capture the call arithmetic. */
+static void sav_text_glyph_at(uint32 glyph_page, uint16 glyph_val)
+{
+    sav_text_all_end();
+    *(uint16 *)((uint8 *)g_sav_text + SAV_GLYPH_OFF)     = glyph_val;
+    *(int16  *)((uint8 *)g_sav_text + SAV_GLYPH_OFF + 2) = -1;
+    g_sav_text[glyph_page] = (uint16)SAV_GLYPH_OFF;
+}
+
+/* Aim page `num_page` at a [literal-number(-6)][END] blob so that page
+ * renders the digits of data_fd2_dialog_last_action_value_param. */
+static void sav_text_number_at(uint32 num_page)
+{
+    sav_text_all_end();
+    *(int16 *)((uint8 *)g_sav_text + SAV_NUM_OFF)     = -6;
+    *(int16 *)((uint8 *)g_sav_text + SAV_NUM_OFF + 2) = -1;
+    g_sav_text[num_page] = (uint16)SAV_NUM_OFF;
+}
+
+/* Set slot `slot`'s stored chapter byte. */
+static void sav_set_chapter(uint32 slot, uint8 chapter)
+{
+    g_sav_buf[SAV_HDR_SIZE + slot * SAV_SLOT_SIZE + SAV_CHAP_OFF] = chapter;
+}
+
+/* Common fixture: zeroed SAV buffer, all-END text, glyph counters reset. */
+static void sav_setup(void)
+{
+    memset(g_sav_buf, 0, SAV_BUF_SIZE);
+    sav_text_all_end();
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+    g_dlg_glyph_last_pos = 0;
+    g_dlg_glyph_last_p5 = 0;
+}
+
+/* Expected row base for a slot: surface_offset + (slot*0x13 + 0x77)*0x140. */
+static uint32 sav_row_off(uint32 slot, uint32 surf)
+{
+    return surf + (slot * 0x13u + 0x77u) * 0x140u;
+}
+
+/* ----------------------------------------------------------------
+ * "Slot N" header: page 0x225 at row_off + 0xA, highlighted slot draws
+ * the 0xC9 border glyph. Isolate slot 0 by making it the only slot whose
+ * header reaches a glyph is impossible (all 4 use page 0x225), so instead
+ * make all 4 chapters EMPTY (0xFF) and aim page 0x225 at the glyph: every
+ * slot emits a header glyph; the LAST captured (slot 3) is asserted, and
+ * highlight slot 3 -> 0xC9.
+ * ---------------------------------------------------------------- */
+static void test_sav_header_highlighted_last_slot(void)
+{
+    uint32 surf = 0x2000;
+
+    sav_setup();
+    sav_set_chapter(0, 0xFF);
+    sav_set_chapter(1, 0xFF);
+    sav_set_chapter(2, 0xFF);
+    sav_set_chapter(3, 0xFF);
+    sav_text_glyph_at(0x225, 0x41);        /* header page -> one glyph */
+
+    fd2_render_save_slot_grid(3, surf, g_sav_buf);   /* highlight slot 3 */
+
+    /* 4 headers reached the VM (one glyph each) */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 4);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, 0x41);
+    /* last header = slot 3: pos = row3 + 0xA */
+    ASSERT_EQ((long)g_dlg_glyph_last_pos, (long)(sav_row_off(3, surf) + 0xau));
+    /* slot 3 highlighted -> 0xC9 */
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xC9);
+}
+
+/* Non-highlighted header -> 0xCD. Highlight slot 0; the last header
+ * rendered (slot 3) is NOT highlighted. */
+static void test_sav_header_not_highlighted(void)
+{
+    sav_setup();
+    sav_set_chapter(0, 0xFF);
+    sav_set_chapter(1, 0xFF);
+    sav_set_chapter(2, 0xFF);
+    sav_set_chapter(3, 0xFF);
+    sav_text_glyph_at(0x225, 0x41);
+
+    fd2_render_save_slot_grid(0, 0x2000, g_sav_buf);  /* highlight slot 0 */
+
+    ASSERT_EQ((long)g_dlg_glyph_calls, 4);
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xCD);       /* slot 3 not highlighted */
+}
+
+/* ----------------------------------------------------------------
+ * display_slot_number @ [0x53AE1] = slot_iter + 1, consumed by the
+ * dialog VM literal-number opcode. Aim the header page 0x225 at a
+ * literal-number blob; each slot emits one digit (slots 1..4 are all
+ * single-digit), and the last (slot 3) renders "4" -> glyph idx 4.
+ * ---------------------------------------------------------------- */
+static void test_sav_display_slot_number_per_slot(void)
+{
+    sav_setup();
+    sav_set_chapter(0, 0xFF);
+    sav_set_chapter(1, 0xFF);
+    sav_set_chapter(2, 0xFF);
+    sav_set_chapter(3, 0xFF);
+    sav_text_number_at(0x225);
+
+    fd2_render_save_slot_grid(0, 0x2000, g_sav_buf);
+
+    /* 4 slots, each a single-digit slot number -> 4 glyph calls */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 4);
+    /* last slot (iter 3) -> display_slot_number 4 -> digit '4' -> idx 4 */
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, 4);
+    /* the global is left at the final iteration's value */
+    ASSERT_EQ((long)data_fd2_dialog_last_action_value_param, 4);
+}
+
+/* ----------------------------------------------------------------
+ * Empty slot (chapter byte 0xFF): renders the "EMPTY" sprite (page
+ * 0x202) at row_off + 0x58 via the shared tail call, and does NOT render
+ * a chapter intro-icon. Isolate slot 2: only slot 2 empty, others use a
+ * distinct non-zero chapter so page 0x202 is unique to the empty slot.
+ * ---------------------------------------------------------------- */
+static void test_sav_empty_slot_renders_empty_sprite(void)
+{
+    uint32 surf = 0x3000;
+
+    sav_setup();
+    sav_set_chapter(0, 0x10);
+    sav_set_chapter(1, 0x11);
+    sav_set_chapter(2, 0xFF);              /* empty */
+    sav_set_chapter(3, 0x12);
+    sav_text_glyph_at(0x202, 0x55);        /* EMPTY sprite page */
+
+    fd2_render_save_slot_grid(0, surf, g_sav_buf);
+
+    /* exactly one EMPTY sprite rendered (only slot 2) */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, 0x55);
+    /* EMPTY sprite dst = row2 + 0x58 */
+    ASSERT_EQ((long)g_dlg_glyph_last_pos, (long)(sav_row_off(2, surf) + 0x58u));
+}
+
+/* The empty branch must NOT render a chapter intro-icon. With chapter
+ * 0xFF the icon page (0xFF would be 0x301, but that page is never used);
+ * verify by aiming the glyph at the chapter-title page chapter+0x226 and
+ * the icon page chapter+0x202 -> neither fires for an empty slot. Use a
+ * single empty slot and confirm no glyph when only those pages carry it. */
+static void test_sav_empty_slot_skips_icon_and_title(void)
+{
+    sav_setup();
+    sav_set_chapter(0, 0xFF);
+    sav_set_chapter(1, 0xFF);
+    sav_set_chapter(2, 0xFF);
+    sav_set_chapter(3, 0xFF);
+    /* aim glyph at a chapter icon/title page that a non-empty slot would
+     * use (e.g. chapter 0x10 -> icon 0x212); empties never reach it. */
+    sav_text_glyph_at(0x212, 0x66);
+
+    fd2_render_save_slot_grid(0, 0x2000, g_sav_buf);
+
+    ASSERT_EQ((long)g_dlg_glyph_calls, 0);   /* no icon/title for empties */
+}
+
+/* ----------------------------------------------------------------
+ * Chapter slot intro-icon: page = chapter_id + 0x202 at row_off + 0x28.
+ * Give slot 1 a unique chapter so its icon page is reached by no other
+ * slot. ---------------------------------------------------------------- */
+static void test_sav_chapter_icon_page_and_pos(void)
+{
+    uint32 surf = 0x4000;
+    uint8  chap = 0x05;
+
+    sav_setup();
+    sav_set_chapter(0, 0xFF);
+    sav_set_chapter(1, chap);              /* chapter slot */
+    sav_set_chapter(2, 0xFF);
+    sav_set_chapter(3, 0xFF);
+    sav_text_glyph_at((uint32)chap + 0x202, 0x77);   /* intro-icon page */
+
+    fd2_render_save_slot_grid(0, surf, g_sav_buf);
+
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, 0x77);
+    /* icon dst = row1 + 0x28 */
+    ASSERT_EQ((long)g_dlg_glyph_last_pos, (long)(sav_row_off(1, surf) + 0x28u));
+    /* slot 1 not highlighted -> 0xCD */
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xCD);
+}
+
+/* Chapter slot title: page = chapter_id + 0x226 at row_off + 0x82,
+ * highlighted slot -> 0xC9. Isolate slot 0 with a unique chapter. */
+static void test_sav_chapter_title_page_pos_highlight(void)
+{
+    uint32 surf = 0x4000;
+    uint8  chap = 0x07;
+
+    sav_setup();
+    sav_set_chapter(0, chap);              /* chapter slot, highlighted */
+    sav_set_chapter(1, 0xFF);
+    sav_set_chapter(2, 0xFF);
+    sav_set_chapter(3, 0xFF);
+    sav_text_glyph_at((uint32)chap + 0x226, 0x88);   /* chapter-title page */
+
+    fd2_render_save_slot_grid(0, surf, g_sav_buf);    /* highlight slot 0 */
+
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, 0x88);
+    /* title dst = row0 + 0x82 */
+    ASSERT_EQ((long)g_dlg_glyph_last_pos, (long)(sav_row_off(0, surf) + 0x82u));
+    /* slot 0 highlighted -> 0xC9 */
+    ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xC9);
+}
+
+/* ----------------------------------------------------------------
+ * Slot-base address + chapter-byte offset: the chapter byte must be read
+ * from 0x312B + slot*0xA28 + 0xA00. Put a unique chapter only at slot 3's
+ * exact offset (all others 0xFF) and aim the glyph at slot 3's title
+ * page -> the glyph fires only if the byte was read from the right place.
+ * ---------------------------------------------------------------- */
+static void test_sav_slot_base_and_chapter_offset(void)
+{
+    uint32 surf = 0x1000;
+    uint8  chap = 0x0A;
+
+    sav_setup();
+    sav_set_chapter(0, 0xFF);
+    sav_set_chapter(1, 0xFF);
+    sav_set_chapter(2, 0xFF);
+    sav_set_chapter(3, chap);              /* only slot 3 non-empty */
+    sav_text_glyph_at((uint32)chap + 0x226, 0x99);   /* slot 3 title page */
+
+    fd2_render_save_slot_grid(0, surf, g_sav_buf);
+
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);            /* read from slot 3's +0xA00 */
+    ASSERT_EQ((long)g_dlg_glyph_last_pos, (long)(sav_row_off(3, surf) + 0x82u));
+}
+
+/* ----------------------------------------------------------------
+ * Row arithmetic across slots: isolate each slot via a unique chapter
+ * title page and verify its row base. Covers the (slot*0x13+0x77)*0x140
+ * stride for slots 0..3 individually.
+ * ---------------------------------------------------------------- */
+static void test_sav_row_offset_per_slot(void)
+{
+    uint32 surf = 0x6000;
+    uint32 slot;
+    uint8  chap;
+
+    for (slot = 0; slot < 4; slot++) {
+        chap = (uint8)(0x20 + slot);       /* distinct chapter per slot */
+        sav_setup();
+        sav_set_chapter(0, 0xFF);
+        sav_set_chapter(1, 0xFF);
+        sav_set_chapter(2, 0xFF);
+        sav_set_chapter(3, 0xFF);
+        sav_set_chapter(slot, chap);
+        sav_text_glyph_at((uint32)chap + 0x226, 0x30);  /* this slot's title */
+
+        fd2_render_save_slot_grid(99, surf, g_sav_buf);
+
+        ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+        ASSERT_EQ((long)g_dlg_glyph_last_pos,
+                  (long)(sav_row_off(slot, surf) + 0x82u));
+    }
+}
+
+/* ----------------------------------------------------------------
+ * Chapter slot renders BOTH icon and title (two dialog draws), while an
+ * empty slot renders ONE (the EMPTY sprite). One chapter slot + one empty
+ * slot, aiming the glyph at pages shared by the loop is not isolable, so
+ * verify the call counts by routing every relevant page to a glyph and
+ * counting: a chapter slot contributes icon+title+header = but header
+ * page 0x225 is shared. Instead count only the non-header chapter pages.
+ * Here: slot 0 chapter 0x0C -> icon 0x20E + title 0x232 both glyph;
+ * slot 1 empty -> sprite 0x202 glyph. Total = 3 distinct glyph pages.
+ * ---------------------------------------------------------------- */
+static void test_sav_chapter_two_draws_empty_one_draw(void)
+{
+    uint8 chap = 0x0C;
+
+    sav_setup();
+    sav_set_chapter(0, chap);              /* chapter -> icon + title */
+    sav_set_chapter(1, 0xFF);              /* empty   -> EMPTY sprite  */
+    sav_set_chapter(2, 0xFF);
+    sav_set_chapter(3, 0xFF);
+    /* route icon, title, and EMPTY pages each to a one-glyph blob */
+    sav_text_all_end();
+    *(uint16 *)((uint8 *)g_sav_text + SAV_GLYPH_OFF)     = 0x10;
+    *(int16  *)((uint8 *)g_sav_text + SAV_GLYPH_OFF + 2) = -1;
+    g_sav_text[(uint32)chap + 0x202] = (uint16)SAV_GLYPH_OFF;  /* icon  */
+    g_sav_text[(uint32)chap + 0x226] = (uint16)SAV_GLYPH_OFF;  /* title */
+    g_sav_text[0x202]                = (uint16)SAV_GLYPH_OFF;  /* EMPTY */
+    g_dlg_glyph_calls = 0;
+
+    fd2_render_save_slot_grid(0, 0x2000, g_sav_buf);
+
+    /* slot0: icon + title (2); slots 1..3 empty: EMPTY sprite x3 (3) */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 5);
+}
+
 void run_gfx_rndmenu_tests(void)
 {
     SUITE_BEGIN(gfx_rndmenu);
@@ -1712,5 +2065,15 @@ void run_gfx_rndmenu_tests(void)
     RUN_TEST(test_preview_stat_icon_sprites_and_dsts);
     RUN_TEST(test_preview_compare_color_pairs);
     RUN_TEST(test_preview_decimal_values_colors_dsts);
+    RUN_TEST(test_sav_header_highlighted_last_slot);
+    RUN_TEST(test_sav_header_not_highlighted);
+    RUN_TEST(test_sav_display_slot_number_per_slot);
+    RUN_TEST(test_sav_empty_slot_renders_empty_sprite);
+    RUN_TEST(test_sav_empty_slot_skips_icon_and_title);
+    RUN_TEST(test_sav_chapter_icon_page_and_pos);
+    RUN_TEST(test_sav_chapter_title_page_pos_highlight);
+    RUN_TEST(test_sav_slot_base_and_chapter_offset);
+    RUN_TEST(test_sav_row_offset_per_slot);
+    RUN_TEST(test_sav_chapter_two_draws_empty_one_draw);
     SUITE_END();
 }

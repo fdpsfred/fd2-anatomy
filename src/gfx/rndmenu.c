@@ -599,3 +599,97 @@ void fd2_render_party_roster_with_item_stat_preview(uint32 candidate_count,
             row_base12 + 0xf2, 0x140, preview[3], color, 3);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_save_slot_grid @ 0x30437  (1 caller)
+ *
+ * Render the 4-slot SAVE-SLOT grid — per slot a "Slot N" header plus a
+ * chapter intro-icon + chapter title (or a single "EMPTY" sentinel
+ * sprite), with the selected slot drawn in the highlight border glyph.
+ * Reads the decrypted FD2.SAV buffer to obtain each slot's stored
+ * chapter id.
+ *
+ * Sole caller: fd2_save_slot_selector_ui @ 0x30550 (the slot picker
+ * shared by both the save and load flows), which passes the current
+ * cursor index, the compose target surface, and the decrypted SAV buf.
+ *
+ * Per slot (slot_iter = 0..3):
+ *   slot_base    = sav_decrypted_buf + 0x312B + slot_iter*0xA28
+ *   border_glyph = (slot_iter == highlight_slot) ? 0xC9 : 0xCD
+ *   display_slot_number @ [0x53AE1] = slot_iter + 1   // 1-indexed, used
+ *                                                     // by the dialog VM
+ *                                                     // literal-number op
+ *   row_off      = surface_offset + (slot_iter*0x13 + 0x77)*0x140
+ *
+ *   // "Slot N" header (FDTXT page 0x225):
+ *   fd2_display_dialog_scene(all_game_text, 0x225, row_off + 0x0A,
+ *                            0x140, border_glyph, 0x4C, 0, 0, 0)
+ *
+ *   chapter_id = slot_base[0xA00]                     // 0xFF = empty slot
+ *   if (chapter_id != 0xFF):
+ *     // chapter intro icon (page = chapter_id + 0x202):
+ *     fd2_display_dialog_scene(all_game_text, chapter_id + 0x202,
+ *                              row_off + 0x28, 0x140, border_glyph,
+ *                              0x4C, 0, 0, 0)
+ *     // shared tail renders the chapter title (page = chapter_id + 0x226)
+ *     // at row_off + 0x82
+ *   else:
+ *     // shared tail renders "EMPTY" sprite (page 0x202) at row_off + 0x58
+ *
+ *   // shared tail call:
+ *   fd2_display_dialog_scene(all_game_text, tail_page, tail_pos,
+ *                            0x140, border_glyph, 0x4C, 0, 0, 0)
+ *
+ * Save-slot binary layout (per slot, 0xA28 bytes); the chapter byte sits
+ * at +0xA00 after the 0xA00-byte per-slot map_terrain dump. SAV header =
+ * 0x312B, 4 slots x 0xA28.
+ *
+ * void __cdecl. EBX/ESI/EDI/EBP callee-saved; the __CHK(0x38) stack-probe
+ * prologue is compiler-injected and omitted here. tail_page/tail_pos are
+ * the shared third dialog call: in the chapter branch they are the title;
+ * in the empty branch they are the "EMPTY" sentinel.
+ * ---------------------------------------------------------------- */
+void fd2_render_save_slot_grid(uint32 highlight_slot, uint32 surface_offset,
+                               uint8 *sav_decrypted_buf)
+{
+    uint32 slot_iter;
+    uint8 *slot_base;
+    uint8  border_glyph;
+    uint32 row_off;
+    uint32 chapter_id;
+    uint32 tail_page;
+    uint32 tail_pos;
+
+    for (slot_iter = 0; (int32)slot_iter < 4; slot_iter++) {
+        slot_base = sav_decrypted_buf + 0x312b + slot_iter * 0xa28;
+
+        if (slot_iter == highlight_slot) {
+            border_glyph = 0xc9;
+        } else {
+            border_glyph = 0xcd;
+        }
+        data_fd2_dialog_last_action_value_param = slot_iter + 1;
+
+        row_off = surface_offset + (slot_iter * 0x13 + 0x77) * 0x140;
+
+        fd2_display_dialog_scene(
+            data_fd2_all_game_text_ptr, 0x225, row_off + 0xa,
+            0x140, border_glyph, 0x4c, 0, 0, 0);
+
+        chapter_id = (uint32)slot_base[0xa00];
+        if (chapter_id == 0xff) {
+            tail_pos = row_off + 0x58;
+            tail_page = 0x202;
+        } else {
+            fd2_display_dialog_scene(
+                data_fd2_all_game_text_ptr, chapter_id + 0x202,
+                row_off + 0x28, 0x140, border_glyph, 0x4c, 0, 0, 0);
+            tail_pos = row_off + 0x82;
+            tail_page = chapter_id + 0x226;
+        }
+
+        fd2_display_dialog_scene(
+            data_fd2_all_game_text_ptr, tail_page, tail_pos,
+            0x140, border_glyph, 0x4c, 0, 0, 0);
+    }
+}

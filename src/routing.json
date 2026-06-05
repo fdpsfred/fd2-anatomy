@@ -3142,8 +3142,9 @@
     "name": "fd2_render_save_slot_grid",
     "target": "gfx/rndmenu.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00030550": {
     "name": "fd2_save_slot_selector_ui",

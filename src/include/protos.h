@@ -348,6 +348,7 @@ int fd2_play_ending_and_record_clear(void);
 int fd2_main_menu_continue_dispatcher(void);
 void fd2_save_crypt_buffer(uint32 buf, uint32 size);
 int fd2_save_slot_selector_ui(uint32 buf, uint32 mode);
+void fd2_render_save_slot_grid(uint32 highlight_slot, uint32 surface_offset, uint8 *sav_decrypted_buf);
 void fd2_close_intro_dialog_with_slide_out(void);
 int fd2_chapter_transition_menu(void);
 void fd2_render_chapter_intro_overlay(void);
