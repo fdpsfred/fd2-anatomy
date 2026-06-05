@@ -150,6 +150,48 @@ static void test_show_chapter_dialog_portrait_set_1_reloads_portrait1_page1(void
 }
 
 /* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_05__ch13_thunk @ 0x34D68 (dispatch idx 0x05) —
+ * chapter 13 (哈斯米爾之戰) turn-event slot. In the binary it is a 7-byte
+ * adapter stub ("PUSH 0x28; JMP 0x34BE7") that tail-jumps into the shared body
+ * fd2_show_chapter_dialog_with_portrait_set_1 @ 0x34BE7, so its full effect is
+ * that body: reload portrait set 1, then show dialog page 1. It is the ch13
+ * entry path of the same body handler_20 falls through into, so it must produce
+ * the SAME observable effect as handler_20 / the helper. A straight-line,
+ * no-branch beat with no camera pan, no cutscene trigger, no state write beyond
+ * the portrait reload, no RNG, no numeric computation, and no CALL-return value
+ * used.
+ *
+ * Observable, deterministic contract (identical to handler_20): the real
+ * fd2_load_chapter_portraits_and_dump_tmp(1) rewrites FD2.TMP to its full
+ * 0x32A00 bytes, exactly one glyph is emitted and it is page 1's glyph (idx
+ * 0x51 = 0x50 + page 1) — proving the ch13 path dispatches page 1 (not any
+ * other page) — and the whole real callee chain runs to completion without
+ * faulting. The pure blit/display side effects are deferred to Phase 9
+ * integration.
+ * ---------------------------------------------------------------- */
+static void test_ch13_event05_thunk_reloads_portrait1_and_shows_page1(void)
+{
+    ev20_install_safe_env();
+
+    remove("FD2.TMP");
+
+    fd2_chapter_event_handler_05__ch13_thunk(0);
+
+    /* the real portrait reload ran: FD2.TMP rewritten to its full 0x32A00. */
+    ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
+
+    /* exactly page 1 was shown: one glyph, idx 0x51 (= 0x50 + page 1) — the
+     * ch13 entry path lands on the same page-1 body as handler_20. */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0x51);
+
+    /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
+    remove("FD2.TMP");
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    ev_restore_rc_ptr();
+}
+
+/* ----------------------------------------------------------------
  * fd2_chapter_event_handler_21__ch10_dialog_with_state @ 0x34C1E (dispatch idx
  * 0x21) — chapter 10 turn-event slot 1, fired at the end of turn 20. Two
  * deterministic, observable effects, both checked here:
@@ -481,6 +523,7 @@ void run_field_chevt14_tests(void)
     printf("Suite: field/chevt14\n");
     RUN_TEST(test_ch10_event20_reloads_portrait1_and_shows_dialog_page1);
     RUN_TEST(test_show_chapter_dialog_portrait_set_1_reloads_portrait1_page1);
+    RUN_TEST(test_ch13_event05_thunk_reloads_portrait1_and_shows_page1);
     RUN_TEST(test_ch10_event21_shows_page2_and_clears_ai_flag_for_0c_0d);
     RUN_TEST(test_event22_shows_dialog_page3);
     RUN_TEST(test_ch12_event23_reloads_portrait2_brackets_initphase);

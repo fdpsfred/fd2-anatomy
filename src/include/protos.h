@@ -230,6 +230,7 @@ void fd2_chapter_event_handler_1f__ch9_reinforcement(uint32 event_arg);
 void fd2_chapter_event_handler_20__ch10_dialog(uint32 event_arg);
 void fd2_chapter_event_handler_21__ch10_dialog_with_state(uint32 event_arg);
 void fd2_show_chapter_dialog_with_portrait_set_1(void);
+void fd2_chapter_event_handler_05__ch13_thunk(uint32 event_arg);
 void fd2_chapter_event_handler_22__unref_dialog(uint32 event_arg);
 void fd2_chapter_event_handler_23__ch12_cinematic(uint32 event_arg);
 void fd2_chapter_event_handler_24__ch12_ai_ctrl(uint32 event_arg);

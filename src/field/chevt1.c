@@ -16,6 +16,9 @@
  * fd2_chapter_event_handler_04__unref_dialog_with_state @ 0x343E2
  *     (0 direct callers; dispatched as idx 0x04 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_05__ch13_thunk @ 0x34D68
+ *     (0 direct callers; dispatched as idx 0x05 of the per-event
+ *      handler table at 0x51B91)
  * fd2_chapter_event_handler_06__ch2_reinforcement @ 0x34422
  *     (0 direct callers; dispatched as idx 0x06 of the per-event
  *      handler table at 0x51B91)
@@ -1239,6 +1242,38 @@ void fd2_show_chapter_dialog_with_portrait_set_1(void)
     fd2_load_chapter_portraits_and_dump_tmp(1);
     fd2_display_dialog_scene(current_chapter_text, 1, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_05__ch13_thunk @ 0x34D68
+ *   — Chapter 13 turn-event slot (哈斯米爾之戰 / Battle of Hasmir).
+ *
+ * ch13 beat: reload portrait set 1, then show current_chapter_text
+ * dialog page 1 with the standard dialog geometry — the exact effect
+ * of fd2_show_chapter_dialog_with_portrait_set_1. A straight-line,
+ * no-branch sequence with no camera pan, no cutscene trigger, no state
+ * writes, no RNG, no numeric computation, and no CALL-return value used.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched.
+ *
+ * In the original binary this handler is a 7-byte adapter stub
+ * ("PUSH 0x28; JMP 0x34BE7") that tail-jumps into the shared body
+ * fd2_show_chapter_dialog_with_portrait_set_1 @ 0x34BE7. The pushed
+ * 0x28 is the __CHK stack-probe frame size that the shared body's
+ * compiler-injected CALL __CHK prologue consumes on entry; that probe
+ * is omitted here, so the thunk is emitted as a direct call to the
+ * shared helper. The sibling handler_20 @ 0x34BE2 reaches the same body
+ * by falling through ("PUSH 0x28; 0x34BE2 -> 0x34BE7").
+ *
+ * Walkthrough SOT: assets/chapters/chapter_13.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_05__ch13_thunk(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_show_chapter_dialog_with_portrait_set_1();
 }
 
 /* ----------------------------------------------------------------
