@@ -97,6 +97,9 @@ uint32 data_fd2_resource_portrait_cache_alloc_offset = 0;
 uint32 data_fd2_resource_portrait_cache_buffer_used = 0;
 uint8  data_fd2_resource_portrait_cache_id_list_base[40] = {0};
 uint32 data_fd2_battle_current_active_char_idx = 0;
+/* 0x540FF: scripted-cinematic mode / terrain idx. First compiled reader/writer
+ * is fd2_play_game_ending_cinematic (sets it per credit-roll duel). */
+uint32 data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = 0;
 uint8  data_fd2_ui_click_debounce_skip_count = 0;
 uint8  data_fd2_audio_bgm_last_set_track_id = 0xFF;
 uint8  data_fd2_audio_bgm_enabled_flag = 1;
@@ -177,6 +180,22 @@ uint8 data_fd2_animation_spell_sfx_frame_table[33] = {
 int32 data_fd2_chapter_ending_music_trigger_frames[15] = {
     0x208, 0x1AE, 0x19A, 0x154, 0x136, 0x12C, 0xF0, 0xB4,
     0x96,  0x82,  0x6E,  0x57,  0x40,  0x16,  0x3E8
+};
+/* Game-clear credit-roll per-duel tables (data segment @ 0x525DC / 0x525F0 /
+ * 0x52604). Real binary bytes until the data segment is emitted;
+ * fd2_play_game_ending_cinematic copies each 20-byte table to its stack and
+ * drives the 20-char credit roll from them. */
+uint8 data_fd2_chapter_ending_credit_roll_top_portrait_id_table[20] = {
+    0x33,0x6E,0x13,0x69,0x36,0x75,0x1E,0x7B,0x27,0x7F,
+    0x40,0x51,0x34,0x7D,0x1A,0x73,0x29,0x5B,0x1F,0x7E
+};
+uint8 data_fd2_chapter_ending_credit_roll_bottom_portrait_id_table[20] = {
+    0x67,0x14,0x53,0x1C,0x7C,0x26,0x5D,0x22,0x70,0x2C,
+    0x56,0x35,0x50,0x37,0x78,0x24,0x6A,0x3C,0x7A,0x32
+};
+uint8 data_fd2_chapter_ending_credit_roll_scripted_outcome_table[20] = {
+    0x04,0x03,0x33,0x0E,0x19,0x12,0x28,0x35,0x16,0x18,
+    0x1C,0x11,0x1E,0x1F,0x32,0x21,0x22,0x34,0x24,0x2F
 };
 /* Chapter 3 end recruit-scene char placement tables (data segment @ 0x520BA /
  * 0x520C1 / 0x520C8). Real binary bytes until the data segment is emitted;
@@ -1254,6 +1273,14 @@ void fd2_play_spell_cast_sequence(uint32 ci, uint32 si, uint32 nt, uint32 tb) { 
  * (src/anim/anicombt.c); its former call-counting stub (g_attack_hit_seq_calls)
  * here was removed. */
 void fd2_play_full_combat_cinematic(uint32 a, uint32 d) { }
+/* fd2_play_final_chapter_30_ending (0x2C405) and fd2_show_portrait_dialog_with_input
+ * (0x2C39B): both are display/dialog drivers not yet emitted; referenced by
+ * fd2_play_game_ending_cinematic (src/anim/aniend.c). No-op stubs so the test
+ * binary links; their pixel/dialog output is a Phase 9 integration concern. */
+void fd2_play_final_chapter_30_ending(void) { }
+void fd2_show_portrait_dialog_with_input(uint32 dialog_text_id, uint32 portrait_id) {
+    (void)dialog_text_id; (void)portrait_id;
+}
 /* fd2_process_xp_and_level_up_for_char: now emitted in src/battle/btl_turn.c
  * and linked for real; driven by the test_xp_* cases below. */
 /* fd2_execute_ai_item_use: now in btl_ai.c */

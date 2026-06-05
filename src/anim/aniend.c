@@ -426,3 +426,267 @@ void fd2_play_chapter_intro_sprite_slideshow(void)
     free((void *)sheet);
     fd2_composite_battle_frame_zero();
 }
+
+/* ----------------------------------------------------------------
+ * fd2_play_game_ending_cinematic @ 0x2BCE5  (2 callers)
+ *
+ * Callers: fd2_chapter_27_end @ 0x250CC (BAD path — no sky key, 悠妮 alone
+ *          game over, short ending) and fd2_chapter_30_end @ 0x25757 (GOOD
+ *          path — final boss killed, full ending + 20-char credit roll).
+ *
+ * The whole branch structure pivots on current_chapter_id == 0x1A: the BAD
+ * path takes the == 0x1A side of every dialog dispatch; the GOOD path takes
+ * the else side and reaches the post-fd2_play_final_chapter_30_ending credit
+ * roll (the BAD path's chapter_27_end never sets up the conditions to reach
+ * here with a non-0x1A id... but the code itself runs the same tail either
+ * way once invoked — faithfully reproduced).
+ *
+ * Phases (see plate @ 0x2BCE5 for the full per-address breakdown):
+ *   - copy the three 20-byte per-duel credit-roll tables to the stack
+ *   - malloc a 320KB scroll workspace + a 64000-byte VGA backup
+ *   - title frame (FDOTHER.DAT[0x36] frame 0), fade in, mid ANI seq 2
+ *   - highlight frame 9 + fade-down, dialog dispatch 1
+ *   - 3x full palette fade, sprite cycling 0x0C..0x6C, dialog dispatch 2
+ *   - 0x28-iteration horizontal-scroll duel intro (var_14/var_18 offsets)
+ *   - dialog dispatch 3
+ *   - 200-iteration scroll with a trailing palette fade-out (rows >0x87)
+ *   - fd2_play_final_chapter_30_ending()
+ *   - BGM transition image (FDOTHER.DAT[0x3C]), credits BGM
+ *   - 20-char credit roll: per duel, derive runtime_char[0]/[1] team+portrait
+ *     from the top/bottom tables (team = 2 if id < 0x4C else 0) and the
+ *     scripted-cinematic mode from the scripted table, run a scripted duel,
+ *     then show the credit sprite frame and fade
+ *   - final ending image (FDOTHER.DAT[0x3B])
+ *
+ * Resource handles in the credit roll, exactly as the machine code uses them
+ * (note these run opposite to the obvious name->index reading): res_3a =
+ * FDOTHER.DAT[0x3A] is the sprite atlas passed to fd2_blit_indexed_sprite,
+ * while res_39 = FDOTHER.DAT[0x39] is assigned to the VGA palette-data global
+ * (and is the one freed after the loop); res_3a is intentionally leaked, as
+ * in the original. The EBP-saved data_fd2_vga_palette_data_ptr is restored at
+ * the top of every credit-roll iteration (and once after the loop).
+ *
+ * data_fd2_vga_palette_data_ptr is the 0x53A65 global; the decompiler tracks
+ * it as a stale local in places, but every such site is this palette-data
+ * global.
+ * ---------------------------------------------------------------- */
+void fd2_play_game_ending_cinematic(void)
+{
+    uint8 *workspace;          /* 320KB scroll/compose workspace               */
+    void  *vga_backup;         /* 64000-byte snapshot of the title frame       */
+    uint8 *sheet;              /* FDOTHER.DAT[0x36] character-endings atlas     */
+    uint32 res_3a;             /* FDOTHER.DAT[0x3A] — credit-roll blit atlas    */
+    uint32 res_39;             /* FDOTHER.DAT[0x39] — assigned to palette ptr   */
+    uint32 res_3b;             /* FDOTHER.DAT[0x3B] — final ending image        */
+    uint32 res_3c;             /* FDOTHER.DAT[0x3C] — BGM-transition image      */
+    uint32 saved_palette_ptr;  /* EBP — saved data_fd2_vga_palette_data_ptr     */
+    uint8  top_tbl[20];        /* top-half portrait ids per duel                */
+    uint8  bottom_tbl[20];     /* bottom-half portrait ids per duel             */
+    uint8  scripted_tbl[20];   /* scripted_cinematic mode per duel              */
+    uint32 v;                  /* palette brightness sweep                      */
+    uint32 brightness_sub;     /* 200-loop fade-out accumulator                 */
+    uint32 sprite_idx;
+    uint32 dialog_id;
+    uint32 portrait_id;
+    int32  off_down;           /* var_14 — descending sprite x offset           */
+    int32  off_up;             /* var_18 — ascending sprite x offset            */
+    int    i;
+    int    k;
+
+    /* copy the three 20-byte per-duel tables to the stack */
+    for (k = 0; k < 20; k++) {
+        top_tbl[k] = data_fd2_chapter_ending_credit_roll_top_portrait_id_table[k];
+    }
+    for (k = 0; k < 20; k++) {
+        bottom_tbl[k] = data_fd2_chapter_ending_credit_roll_bottom_portrait_id_table[k];
+    }
+    for (k = 0; k < 20; k++) {
+        scripted_tbl[k] = data_fd2_chapter_ending_credit_roll_scripted_outcome_table[k];
+    }
+
+    off_down = 0x122;
+    off_up   = 0x50;
+
+    workspace  = (uint8 *)malloc(0x1F400);
+    vga_backup = malloc(64000);
+    memset(vga_backup, 0, 64000);
+
+    /* title frame, fade out/in, mid ANI */
+    sheet = (uint8 *)fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 0x36);
+    fd2_blit_indexed_sprite((uint32)sheet, 0, (int)vga_backup, 0x140, -1);
+    fd2_play_palette_fade_to_black();
+    memmove((void *)0xA0000, vga_backup, 64000);
+    fd2_play_palette_fade_in();
+    __delay_thunk_375b2(1000);
+    fd2_play_ani_file_animation_sequence(2, 100, 0);
+
+    /* highlight frame 9 + fade-down */
+    fd2_set_vga_palette_range_with_add(0, 0xFF, 0x3F);
+    memmove((void *)0xA0000, vga_backup, 64000);
+    fd2_blit_indexed_sprite((uint32)sheet, 9, 0xA0000, 0x140, -1);
+    for (v = 0x3F; (int)v >= 0; v--) {
+        fd2_set_vga_palette_range_with_add(0, 0xFF, v);
+        __delay_thunk_375b2(4);
+    }
+    __delay_thunk_375b2(2000);
+
+    /* dialog dispatch 1 */
+    if (data_fd2_chapter_current_chapter_id == 0x1A) {
+        portrait_id = 0x11;
+        dialog_id   = 4;
+    } else {
+        fd2_show_portrait_dialog_with_input(0x25, 2);
+        fd2_show_portrait_dialog_with_input(0x15, 3);
+        fd2_show_portrait_dialog_with_input(0x1A, 4);
+        fd2_show_portrait_dialog_with_input(0x69, 5);
+        portrait_id = 6;
+        dialog_id   = 0x20;
+    }
+    fd2_show_portrait_dialog_with_input(dialog_id, portrait_id);
+    __delay_thunk_375b2(500);
+
+    /* 3x full palette fade + 200ms hold */
+    for (i = 0; i < 3; i++) {
+        for (v = 0x3F; (int)v >= 0; v--) {
+            fd2_set_vga_palette_range_with_add(0, 0xFF, v);
+            __delay_thunk_375b2(4);
+        }
+        __delay_thunk_375b2(200);
+    }
+
+    /* sprite cycling 0x0C..0x6C */
+    for (sprite_idx = 0xC; (int)sprite_idx < 0x6D; sprite_idx++) {
+        fd2_blit_indexed_sprite((uint32)sheet, sprite_idx, 0xA0000, 0x140, -1);
+        __delay_thunk_375b2(0x14);
+    }
+    memmove((void *)0xA0000, vga_backup, 64000);
+
+    /* dialog dispatch 2 */
+    if (data_fd2_chapter_current_chapter_id == 0x1A) {
+        fd2_show_portrait_dialog_with_input(0x15, 0x12);
+        fd2_show_portrait_dialog_with_input(0x18, 0x13);
+        portrait_id = 0x14;
+        dialog_id   = 0x1A;
+    } else {
+        portrait_id = 7;
+        dialog_id   = 0x2D;
+    }
+    fd2_show_portrait_dialog_with_input(dialog_id, portrait_id);
+    __delay_thunk_375b2(2000);
+
+    /* 0x28-iteration horizontal-scroll duel intro */
+    for (i = 0; i < 0x28; i++) {
+        fd2_blit_rectangle((uint32)workspace + 0xA0, 0x280, (uint32)vga_backup,
+                           0x140, 0x140, 0xC8);
+        fd2_blit_indexed_sprite((uint32)sheet, i % 4 + 1,
+                                off_down + (int)workspace, 0x280, -1);
+        fd2_blit_indexed_sprite((uint32)sheet, i % 4 + 5,
+                                off_up + (int)workspace, 0x280, -1);
+        off_up = off_up + 2;
+        if (i < 0x19) {
+            off_down = off_down - 4;
+        } else {
+            off_down = off_down - 2;
+        }
+        __delay_thunk_375b2(0x14);
+        fd2_blit_rectangle(0xA0000, 0x140, (uint32)workspace + 0xA0,
+                           0x280, 0x140, 0xC8);
+    }
+
+    memmove(workspace, vga_backup, 64000);
+    fd2_blit_indexed_sprite((uint32)sheet, 1, (int)workspace, 0x140, -1);
+    fd2_blit_indexed_sprite((uint32)sheet, 5, (int)workspace, 0x140, -1);
+    fd2_blit_rectangle(0xA0000, 0x140, (uint32)workspace, 0x140, 0x140, 0xC8);
+
+    /* dialog dispatch 3 */
+    if (data_fd2_chapter_current_chapter_id == 0x1A) {
+        fd2_show_portrait_dialog_with_input(0x20, 0x15);
+        fd2_show_portrait_dialog_with_input(0x24, 0x16);
+        portrait_id = 0x17;
+        dialog_id   = 0x20;
+    } else {
+        fd2_show_portrait_dialog_with_input(0x20, 8);
+        portrait_id = 9;
+        dialog_id   = 0x24;
+    }
+    fd2_show_portrait_dialog_with_input(dialog_id, portrait_id);
+
+    /* 200-iteration scroll with trailing palette fade-out (rows > 0x87) */
+    brightness_sub = 0;
+    for (i = 0; i < 200; i++) {
+        memmove(workspace, vga_backup, 64000);
+        fd2_blit_indexed_sprite((uint32)sheet, i % 4 + 1, (int)workspace, 0x140, -1);
+        fd2_blit_indexed_sprite((uint32)sheet, i % 4 + 5, (int)workspace, 0x140, -1);
+        __delay_thunk_375b2(0x14);
+        fd2_blit_rectangle(0xA0000, 0x140, (uint32)workspace, 0x140, 0x140, 0xC8);
+        if (i > 0x87) {
+            brightness_sub = brightness_sub + 1;
+        }
+        fd2_set_vga_palette_range(0, 0xFF, brightness_sub);
+    }
+
+    free(workspace);
+    memset((void *)0xA0000, 0, 64000);
+
+    fd2_play_final_chapter_30_ending();
+
+    memset((void *)0xA0000, 0, 64000);
+    fd2_set_bgm_track_with_fade(0xFFFFFFFF, 1);
+    fd2_wait_n_bios_ticks(0x32);
+    res_3c = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 0x3C);
+    fd2_rle_blit_sprite(res_3c, 0, 0, 0xA0000, 0x140, 0xFFFFFFFF);
+    fd2_play_palette_fade_in();
+    fd2_set_bgm_track_with_fade(0x12, 0);
+    fd2_wait_n_bios_ticks(0x50);
+    fd2_play_palette_fade_to_black();
+    memset((void *)0xA0000, 0, 64000);
+
+    res_3a = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdother_dat, res_3c, 0x3A);
+    /* the 0x39 load's buf arg is the still-zero res_39 slot, not res_3a
+       (matches the machine code's [ESP+0x40]==0 at this point) */
+    res_39 = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 0x39);
+
+    /* 20-char credit roll (good ending only reaches the post-final tail) */
+    saved_palette_ptr = data_fd2_vga_palette_data_ptr;
+    for (v = 0; (int)v < 0x14; v++) {
+        data_fd2_vga_palette_data_ptr = saved_palette_ptr;
+
+        if (top_tbl[v] < 0x4C) {
+            data_fd2_battle_runtime_char_array_ptr->team = 2;
+        } else {
+            data_fd2_battle_runtime_char_array_ptr->team = 0;
+        }
+        data_fd2_battle_runtime_char_array_ptr->portrait_id = top_tbl[v];
+
+        if (bottom_tbl[v] < 0x4C) {
+            data_fd2_battle_runtime_char_array_ptr[1].team = 2;
+        } else {
+            data_fd2_battle_runtime_char_array_ptr[1].team = 0;
+        }
+        data_fd2_battle_runtime_char_array_ptr[1].portrait_id = bottom_tbl[v];
+
+        data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = scripted_tbl[v];
+        fd2_play_full_combat_cinematic(0, 1);
+
+        data_fd2_vga_palette_data_ptr = res_39;
+        fd2_set_vga_palette_range(0, 0xFF, 0);
+        fd2_wait_n_bios_ticks(0x14);
+        fd2_blit_indexed_sprite(res_3a, v, 0xA0000, 0x140, -1);
+        fd2_wait_n_bios_ticks(0x4E);
+        fd2_play_palette_fade_to_black();
+        memset((void *)0xA0000, 0, 64000);
+    }
+    data_fd2_vga_palette_data_ptr = saved_palette_ptr;
+
+    free((void *)res_39);
+    fd2_wait_n_bios_ticks(0x32);
+    res_3b = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdother_dat, res_3a, 0x3B);
+    fd2_rle_blit_sprite(res_3b, 0, 0, 0xA0000, 0x140, 0xFFFFFFFF);
+    fd2_play_palette_fade_in();
+    free((void *)res_3b);
+}

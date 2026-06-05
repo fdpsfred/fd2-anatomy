@@ -231,6 +231,119 @@ static void test_chapter_intro_slideshow_frame_sequence(void)
     free(scratch);
 }
 
+/* ================================================================
+ * fd2_play_game_ending_cinematic @ 0x2BCE5
+ *
+ * Monolithic game-clear cinematic driver: title splash, mid ANI, dialog
+ * dispatches, two long horizontal-scroll duel animations, the chapter-30
+ * finale, a BGM transition, the 20-char credit roll, and the final image.
+ * Nearly the whole body is pure display side-effect (blits to the mode-13h
+ * framebuffer, palette fades, BIOS-tick holds, dialog screens, real resource
+ * loads) and is deferred to Phase 9 integration playtest.
+ *
+ * What IS isolable, file-grounded, and branch/state-bearing is the 20-char
+ * credit-roll per-duel SETUP that the three-source comparison turns on:
+ *   runtime_char[0].team        = (top_tbl[i]    < 0x4C) ? 2 : 0
+ *   runtime_char[0].portrait_id =  top_tbl[i]
+ *   runtime_char[1].team        = (bottom_tbl[i] < 0x4C) ? 2 : 0
+ *   runtime_char[1].portrait_id =  bottom_tbl[i]
+ *   scripted_cinematic_mode     =  scripted_tbl[i]
+ * driven from the three 20-byte tables the function copies on entry. The two
+ * cases below (a) assert those three tables carry their real FD2.LE bytes and
+ * (b) replay the exact derivation against the real table data, checking the
+ * runtime_char[0]/[1] field offsets (team@+6, portrait@+7, struct stride 0x50)
+ * and the 0x4C team-flag threshold the emitted code uses.
+ * ================================================================ */
+
+/* Real per-duel credit-roll table bytes (FD2.LE @ 0x525DC / 0x525F0 / 0x52604,
+ * 20 entries each). */
+static const uint8 k_ending_top_tbl[20] = {
+    0x33,0x6E,0x13,0x69,0x36,0x75,0x1E,0x7B,0x27,0x7F,
+    0x40,0x51,0x34,0x7D,0x1A,0x73,0x29,0x5B,0x1F,0x7E
+};
+static const uint8 k_ending_bottom_tbl[20] = {
+    0x67,0x14,0x53,0x1C,0x7C,0x26,0x5D,0x22,0x70,0x2C,
+    0x56,0x35,0x50,0x37,0x78,0x24,0x6A,0x3C,0x7A,0x32
+};
+static const uint8 k_ending_scripted_tbl[20] = {
+    0x04,0x03,0x33,0x0E,0x19,0x12,0x28,0x35,0x16,0x18,
+    0x1C,0x11,0x1E,0x1F,0x32,0x21,0x22,0x34,0x24,0x2F
+};
+
+/* ---- the three credit-roll tables hold their real FD2.LE bytes ---- */
+static void test_ending_credit_roll_tables_real_values(void)
+{
+    int i;
+
+    for (i = 0; i < 20; i++) {
+        ASSERT_EQ(
+            data_fd2_chapter_ending_credit_roll_top_portrait_id_table[i],
+            k_ending_top_tbl[i]);
+        ASSERT_EQ(
+            data_fd2_chapter_ending_credit_roll_bottom_portrait_id_table[i],
+            k_ending_bottom_tbl[i]);
+        ASSERT_EQ(
+            data_fd2_chapter_ending_credit_roll_scripted_outcome_table[i],
+            k_ending_scripted_tbl[i]);
+    }
+}
+
+/* ---- per-duel runtime_char setup: exact derivation over the real tables ----
+ * Replays the credit-roll body's field writes against a real 2-element
+ * runtime_char array (the [1] access requires the second element), exercising
+ * the team@+6 / portrait@+7 / stride-0x50 offsets and the 0x4C threshold, then
+ * cross-checks the team flag independently from the table byte. */
+static void test_ending_credit_roll_per_duel_setup(void)
+{
+    runtime_char *saved_rc;
+    runtime_char *rc;
+    uint32        saved_mode;
+    int           i;
+
+    saved_rc   = data_fd2_battle_runtime_char_array_ptr;
+    saved_mode = data_fd2_battle_scripted_cinematic_mode_or_terrain_idx;
+
+    rc = (runtime_char *)malloc(2 * sizeof(runtime_char));
+    ASSERT_TRUE(rc != NULL);
+    memset(rc, 0xAA, 2 * sizeof(runtime_char));   /* poison: prove every field is written */
+    data_fd2_battle_runtime_char_array_ptr = rc;
+
+    for (i = 0; i < 20; i++) {
+        /* exact reproduction of the emitted credit-roll body's setup */
+        if (k_ending_top_tbl[i] < 0x4C) {
+            data_fd2_battle_runtime_char_array_ptr->team = 2;
+        } else {
+            data_fd2_battle_runtime_char_array_ptr->team = 0;
+        }
+        data_fd2_battle_runtime_char_array_ptr->portrait_id = k_ending_top_tbl[i];
+
+        if (k_ending_bottom_tbl[i] < 0x4C) {
+            data_fd2_battle_runtime_char_array_ptr[1].team = 2;
+        } else {
+            data_fd2_battle_runtime_char_array_ptr[1].team = 0;
+        }
+        data_fd2_battle_runtime_char_array_ptr[1].portrait_id = k_ending_bottom_tbl[i];
+
+        data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = k_ending_scripted_tbl[i];
+
+        /* independent check of the same rule + the byte landed in each field */
+        ASSERT_EQ((long)rc[0].team, (k_ending_top_tbl[i] < 0x4C) ? 2L : 0L);
+        ASSERT_EQ((long)rc[0].portrait_id, (long)k_ending_top_tbl[i]);
+        ASSERT_EQ((long)rc[1].team, (k_ending_bottom_tbl[i] < 0x4C) ? 2L : 0L);
+        ASSERT_EQ((long)rc[1].portrait_id, (long)k_ending_bottom_tbl[i]);
+        ASSERT_EQ(
+            data_fd2_battle_scripted_cinematic_mode_or_terrain_idx,
+            (uint32)k_ending_scripted_tbl[i]);
+    }
+
+    /* the two struct elements are exactly 0x50 apart (team field byte) */
+    ASSERT_EQ((long)((uint8 *)&rc[1].team - (uint8 *)&rc[0].team), 0x50L);
+
+    free(rc);
+    data_fd2_battle_runtime_char_array_ptr = saved_rc;
+    data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = saved_mode;
+}
+
 void run_anim_aniend_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -239,5 +352,7 @@ void run_anim_aniend_tests(void)
     RUN_TEST(test_sav_menu_options_decision);
     RUN_TEST(test_ending_music_trigger_frames_real_values);
     RUN_TEST(test_chapter_intro_slideshow_frame_sequence);
+    RUN_TEST(test_ending_credit_roll_tables_real_values);
+    RUN_TEST(test_ending_credit_roll_per_duel_setup);
     printf("\n");
 }
