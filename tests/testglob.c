@@ -819,6 +819,10 @@ uint32 data_fd2_battle_summon_spell_palette_r_table = 0x3535333fU;
 uint32 data_fd2_battle_summon_spell_palette_g_table = 0x3a00393fU;
 uint32 data_fd2_battle_summon_spell_palette_b_table = 0x09003f3fU;
 uint32 data_fd2_battle_summon_spell_sfx_bank_index_table = 0x5e5d5c5bU;
+/* fd2_load_figani_sfx_bank FDOTHER index LUT @0x525D6, real binary bytes
+ * (1-based: lut[sfx_id-1]); 6 bytes copied onto the stack by the binary. */
+uint8 data_fd2_audio_figani_sfx_bank_fdother_index_lut[6] =
+    {0x30, 0x31, 0x32, 0x33, 0x34, 0x35};
 /* fd2_tick_tutorial_progress_with_sfx: now in anim.c */
 /* fd2_run_full_turn_cycle: now emitted in src/battle/btl_turn.c */
 /* fd2_enemy_turn_action_dispatcher: now in btl_ai.c */
@@ -1325,7 +1329,8 @@ uint32 fd2_check_party_has_char_id(uint32 char_id) {
  * src/include/protos.h. */
 uint8 fd2_resolve_terrain_for_aoe_targets(int n_chars, uint32 target_byte_array)
     { return 0; }
-uint32 fd2_load_figani_sfx_bank(uint32 figani_data) { return 0; }
+/* fd2_load_figani_sfx_bank: now emitted for real in src/audio/audio.c
+ * (its former no-op linker stub was removed). */
 void fd2_step_figani_pose_animation(uint32 figani_data, uint32 palette_op,
     uint32 dst_buf, uint32 dst_stride) { }
 /* fd2_animate_bg_zoom_transition_in: now emitted for real in

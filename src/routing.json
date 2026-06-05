@@ -2864,8 +2864,9 @@
     "name": "fd2_load_figani_sfx_bank",
     "target": "audio/audio.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002bce5": {
     "name": "fd2_play_game_ending_cinematic",

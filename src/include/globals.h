@@ -225,6 +225,7 @@ extern uint32 data_fd2_audio_sfx_sample_handle_1;                       /* 0x53E
 extern uint32 data_fd2_audio_fdother_sfx_bank_buf_ptr;                  /* 0x53EEC */
 extern uint32 data_fd2_audio_status_effect_sfx_handle_ptr;              /* 0x53B13 */
 extern uint32 data_fd2_audio_figani_sfx_bank_buf_ptr;                  /* 0x54117 */
+extern uint8  data_fd2_audio_figani_sfx_bank_fdother_index_lut[];       /* 0x525D6  6B; 1-based id->FDOTHER idx */
 extern uint8  data_fd2_audio_walk_step_sfx_cadence_counter;             /* 0x540FE */
 extern char   data_fd2_string_fdmus_dat[];                              /* 0x51A79  "FDMUS.DAT" */
 

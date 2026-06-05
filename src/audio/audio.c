@@ -3,6 +3,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "types.h"
 #include "consts.h"
@@ -215,4 +216,45 @@ void fd2_play_sfx_sample_from_bank(uint32 bank_ptr, uint32 sfx_id,
     AIL_set_sample_loop_count(data_fd2_audio_sfx_sample_handle_1,
                               loop_count);
     AIL_start_sample(data_fd2_audio_sfx_sample_handle_1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_load_figani_sfx_bank @ 0x2bc9a (3 callers)
+ *
+ * Translate a FIGANI header's SFX-bank reference byte (figani_data[+4])
+ * into an FDOTHER.DAT entry index, then load that entry as the
+ * animation's SFX bank. Returns the loaded buffer pointer, or 0 when
+ * figani_data is NULL or has no SFX-bank reference (byte == 0).
+ *
+ * Translation table: the binary copies the 6-byte
+ * data_fd2_audio_figani_sfx_bank_fdother_index_lut (0x525D6) onto the
+ * stack (MOVSD+MOVSW into an 8-byte local) and indexes it 1-based:
+ *   fdother_idx = lut[sfx_id_byte - 1]
+ * Reproduced verbatim here via an 8-byte local + memcpy of 6 bytes so
+ * the bounded-buffer / 1-based-index behaviour is preserved exactly.
+ *
+ * Cdecl, uint32(uint32). The binary's __CHK(0x20) stack-probe prologue
+ * and the unused PUSH/POP ESI/EDI register reservation are
+ * compiler-injected and not source. The return pointer is stored by
+ * each caller into data_fd2_audio_figani_sfx_bank_buf_ptr (0x54117)
+ * and freed by the caller after the cinematic.
+ * ---------------------------------------------------------------- */
+uint32 fd2_load_figani_sfx_bank(uint32 figani_data)
+{
+    uint8  idx_lut[8];
+    uint8  sfx_id_byte;
+    uint32 sfx_bank;
+
+    memcpy(idx_lut,
+           data_fd2_audio_figani_sfx_bank_fdother_index_lut, 6);
+
+    sfx_bank = 0;
+    if (figani_data != 0 && *(uint8 *)(figani_data + 4) != 0) {
+        sfx_id_byte = *(uint8 *)(figani_data + 4);
+        sfx_bank = (uint32)fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_fdother_dat,
+            0,
+            (uint32)idx_lut[sfx_id_byte - 1]);
+    }
+    return sfx_bank;
 }

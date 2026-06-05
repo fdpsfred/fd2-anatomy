@@ -452,6 +452,82 @@ static void test_play_and_free_status_effect_sfx(void)
 }
 
 
+/* ---- Test: fd2_load_figani_sfx_bank ---- */
+
+extern uint8 data_fd2_audio_figani_sfx_bank_fdother_index_lut[6];
+
+/* Core translation path: figani_data[+4] is a 1-based id into the 6-byte
+ * FDOTHER index LUT; the function loads FDOTHER.DAT entry lut[id-1] via the
+ * REAL fd2_load_dat_resource and returns its buffer. For each id 1..6 build an
+ * in-memory FIGANI header (only [+4] is read — NOT a game file), drive the
+ * function, and cross-check the returned buffer's payload + the size side
+ * effect against an INDEPENDENT parse (realfile.h) of the SAME real FDOTHER
+ * entry lut[id-1]. Proves: the 1-based LUT lookup, the exact LUT bytes, the
+ * right filename/index forwarded, and the EAX return-value capture. */
+static void test_load_figani_sfx_bank_translate_real(void)
+{
+    static const uint8 lut_truth[6] =
+        {0x30, 0x31, 0x32, 0x33, 0x34, 0x35};   /* binary @0x525D6 */
+    uint8   figani[8];
+    uint8  *ref;
+    long    ref_size;
+    uint32  got;
+    int     id;
+
+    /* anchor the LUT bytes to the binary's ground truth (independent of the
+     * loader cross-check below) so neither side can drift together silently */
+    ASSERT_EQ((long)memcmp(
+        data_fd2_audio_figani_sfx_bank_fdother_index_lut,
+        lut_truth, 6), 0);
+
+    for (id = 1; id <= 6; ++id) {
+        int idx = (int)data_fd2_audio_figani_sfx_bank_fdother_index_lut[id - 1];
+
+        ref_size = realdat_read_resource("FDOTHER.DAT", idx, &ref);
+        ASSERT_TRUE(ref_size > 0);
+
+        memset(figani, 0, sizeof(figani));
+        figani[4] = (uint8)id;
+        data_fd2_resource_last_loaded_resource_size = 0;
+
+        got = fd2_load_figani_sfx_bank((uint32)figani);
+
+        ASSERT_TRUE(got != 0);
+        ASSERT_EQ((long)data_fd2_resource_last_loaded_resource_size, ref_size);
+        ASSERT_EQ((long)memcmp((void *)got, ref, (size_t)ref_size), 0);
+
+        free((void *)got);
+        free(ref);
+    }
+}
+
+/* NULL figani_data short-circuits before any load: returns 0 and does not
+ * touch the loader (size global stays at its pre-poison sentinel). */
+static void test_load_figani_sfx_bank_null(void)
+{
+    uint32 got;
+
+    data_fd2_resource_last_loaded_resource_size = 0x1234;
+    got = fd2_load_figani_sfx_bank(0);
+    ASSERT_EQ((long)got, 0);
+    ASSERT_EQ((long)data_fd2_resource_last_loaded_resource_size, 0x1234);
+}
+
+/* figani_data[+4] == 0 means "no SFX bank": returns 0 without loading (size
+ * global untouched), even though figani_data itself is non-NULL. */
+static void test_load_figani_sfx_bank_no_ref(void)
+{
+    uint8  figani[8];
+    uint32 got;
+
+    memset(figani, 0, sizeof(figani));      /* [+4] == 0 */
+    data_fd2_resource_last_loaded_resource_size = 0x5678;
+    got = fd2_load_figani_sfx_bank((uint32)figani);
+    ASSERT_EQ((long)got, 0);
+    ASSERT_EQ((long)data_fd2_resource_last_loaded_resource_size, 0x5678);
+}
+
+
 void run_audio_audio_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -469,6 +545,9 @@ void run_audio_audio_tests(void)
     RUN_TEST(test_play_sfx_from_bank_stop_only);
     RUN_TEST(test_play_sfx_from_bank_normal_play);
     RUN_TEST(test_play_and_free_status_effect_sfx);
+    RUN_TEST(test_load_figani_sfx_bank_translate_real);
+    RUN_TEST(test_load_figani_sfx_bank_null);
+    RUN_TEST(test_load_figani_sfx_bank_no_ref);
     audiofix_disable_sfx();   /* restore safe gate state for later suites */
     printf("\n");
 }
