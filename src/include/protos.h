@@ -332,6 +332,7 @@ void fd2_render_chapter_status_panel_segments(uint32 panel_sheet, uint32 active_
 void fd2_init_battle_state_for_chapter(void);
 void fd2_save_runtime_char_to_template(void);
 void fd2_chapter_01_end(void);
+void fd2_chapter_02_end(void);
 
 /* ---- lifecycle / main menu ---- */
 void fd2_play_chapter_clear_fanfare(void);
