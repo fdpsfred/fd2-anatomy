@@ -174,6 +174,95 @@ static void test_find_template_char_empty_roster(void)
     ASSERT_EQ(result, 0);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_check_party_has_char_id @ 0x33499: byte-identical twin of
+ * fd2_find_template_char_by_id. Reuses the same in-memory template-roster
+ * fixture (tmpl_roster_reset / tmpl_roster_set_char_id).
+ *
+ * Match in the very first slot (idx 0): early return 1.
+ * ---------------------------------------------------------------- */
+static void test_check_party_has_char_found_first(void)
+{
+    uint32 result;
+
+    tmpl_roster_reset(TMPL_SLOTS);
+    tmpl_roster_set_char_id(0, 0x0C);   /* slot 0 holds char_id 0x0C (凱麗) */
+
+    result = fd2_check_party_has_char_id(0x0C);
+
+    ASSERT_EQ((int)result, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_check_party_has_char_id: match at a non-zero slot. Proves the
+ * 0x50-byte stride and +0x08 offset, walking past earlier entries.
+ * ---------------------------------------------------------------- */
+static void test_check_party_has_char_found_mid(void)
+{
+    uint32 result;
+
+    tmpl_roster_reset(TMPL_SLOTS);
+    tmpl_roster_set_char_id(6, 0x12);   /* slot 6 holds char_id 0x12 (蜜蒂) */
+
+    result = fd2_check_party_has_char_id(0x12);
+
+    ASSERT_EQ((int)result, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_check_party_has_char_id: id absent from all populated slots.
+ * The scan exhausts the count and returns 0.
+ * ---------------------------------------------------------------- */
+static void test_check_party_has_char_not_found(void)
+{
+    uint32 result;
+
+    tmpl_roster_reset(TMPL_SLOTS);
+    tmpl_roster_set_char_id(1, 0x03);
+    tmpl_roster_set_char_id(3, 0x09);   /* present ids, but not the query */
+
+    result = fd2_check_party_has_char_id(0x12);
+
+    ASSERT_EQ((int)result, 0);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_check_party_has_char_id: empty roster (count 0). The loop body
+ * never runs even though a matching byte sits in slot 0's memory, so the
+ * function returns 0. Proves the signed count gate, not buffer contents.
+ * ---------------------------------------------------------------- */
+static void test_check_party_has_char_empty_roster(void)
+{
+    uint32 result;
+
+    tmpl_roster_reset(0);
+    tmpl_roster_set_char_id(0, 0x12);   /* byte present but count == 0 */
+
+    result = fd2_check_party_has_char_id(0x12);
+
+    ASSERT_EQ((int)result, 0);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_check_party_has_char_id: full-width comparison. The roster byte is
+ * loaded with MOVZX (zero-extended to 32 bits) and compared against the
+ * whole uint32 argument — there is no (uint8) narrowing of the argument
+ * (unlike the require/pin helpers). So a wide argument whose low byte
+ * equals a slot's char_id but whose upper bits are set must NOT match.
+ * slot 4 holds 0x12; querying 0x1212 finds nothing and returns 0.
+ * ---------------------------------------------------------------- */
+static void test_check_party_has_char_wide_arg_no_match(void)
+{
+    uint32 result;
+
+    tmpl_roster_reset(TMPL_SLOTS);
+    tmpl_roster_set_char_id(4, 0x12);   /* byte 0x12 present */
+
+    result = fd2_check_party_has_char_id(0x1212);  /* low byte 0x12, hi set */
+
+    ASSERT_EQ((int)result, 0);
+}
+
 /* ================================================================
  * fd2_require_char_id_in_active_party @ 0x31DBE
  *
@@ -826,6 +915,11 @@ void run_util_misc_tests(void)
     RUN_TEST(test_find_template_char_found_mid);
     RUN_TEST(test_find_template_char_not_found);
     RUN_TEST(test_find_template_char_empty_roster);
+    RUN_TEST(test_check_party_has_char_found_first);
+    RUN_TEST(test_check_party_has_char_found_mid);
+    RUN_TEST(test_check_party_has_char_not_found);
+    RUN_TEST(test_check_party_has_char_empty_roster);
+    RUN_TEST(test_check_party_has_char_wide_arg_no_match);
     RUN_TEST(test_require_char_found_first_slot);
     RUN_TEST(test_require_char_found_last_slot);
     RUN_TEST(test_require_char_found_inrange_with_out_of_window_copies);

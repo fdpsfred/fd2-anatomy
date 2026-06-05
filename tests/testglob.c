@@ -1278,17 +1278,13 @@ void fd2_draw_spell_selection_list(uint32 char_idx, uint32 spell_idx,
  * now seed g_test_rc_array with a known per-team alive distribution so the
  * real counter feeds the per-team decimal renders. */
 
-/* Fake for the remaining unemitted party-query callee of the content renderer
- * (fd2_check_party_has_char_id -> src/util/misc.c). Tests set the return value
- * directly. */
-uint32 g_has_char_fake = 0;
-uint32 g_has_char_last_arg = 0;
-int    g_has_char_calls = 0;
-uint32 fd2_check_party_has_char_id(uint32 char_id) {
-    g_has_char_calls++;
-    g_has_char_last_arg = char_id;
-    return g_has_char_fake;
-}
+/* fd2_check_party_has_char_id is now emitted for real in src/util/misc.c
+ * (it scans the menu/template roster via
+ * data_fd2_shared_menu_party_roster_buffer_ptr /
+ * data_fd2_shared_menu_party_member_count). The recording fake and its
+ * g_has_char_* globals were removed; the content-renderer tests in
+ * tests/gfx/rndstat.c now seed that roster so the real query drives the
+ * Mitti subtitle branch. */
 
 /* ---- fd2_chapter_21_end (field/chend2.c) not-yet-emitted callees ----
  * fd2_chapter_21_end calls three functions that have not been emitted yet:

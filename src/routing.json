@@ -3406,8 +3406,9 @@
     "name": "fd2_check_party_has_char_id",
     "target": "util/misc.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000334d9": {
     "name": "fd2_chapter_15_init",

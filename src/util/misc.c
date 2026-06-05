@@ -106,6 +106,46 @@ int fd2_find_template_char_by_id(uint32 char_id)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_check_party_has_char_id @ 0x33499  (7 callers)
+ *
+ * Linear-scans the menu/template party roster (buffer ptr at
+ * data_fd2_shared_menu_party_roster_buffer_ptr, 0x50-byte stride,
+ * count at data_fd2_shared_menu_party_member_count) for an entry
+ * whose char_id byte at offset +0x08 equals char_id. Returns 1 on
+ * the first match, 0 if the scan exhausts. char_id is the char_id
+ * (init value, the value passed to fd2_init_runtime_char_from_base_growth
+ * when the char joined), NOT a job_id/class.
+ *
+ * Byte-identical twin of fd2_find_template_char_by_id @ 0x24BDE
+ * (Watcom emitted the same body into two translation units); this copy
+ * is in the menu/chapter address range. Distinct from
+ * fd2_require_char_id_in_active_party @ 0x31DBE, which iterates the live
+ * runtime_char_array (active battle scope) and shows an error dialog on
+ * a miss.
+ *
+ * Callers / use cases: chapter 15/17 init/end dialog branches
+ * (凱麗 char_id 0xC, 蜜蒂 char_id 0x12), fd2_chapter_17_post_action
+ * lose condition, fd2_run_recruitment_or_branch_screen required-char
+ * gate, and fd2_render_party_status_overview_content (0x12 present check).
+ *
+ * Cdecl, 1 stack param; uint32 return. The binary's __CHK(8) stack-probe
+ * prologue is compiler-generated and omitted here. EBX is callee-saved.
+ * ---------------------------------------------------------------- */
+uint32 fd2_check_party_has_char_id(uint32 char_id)
+{
+    int iter;
+
+    for (iter = 0; (int32)data_fd2_shared_menu_party_member_count > iter;
+         iter++) {
+        if (*(uint8 *)(iter * 0x50 + 8 +
+                       data_fd2_shared_menu_party_roster_buffer_ptr) == char_id) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* ----------------------------------------------------------------
  * fd2_require_char_id_in_active_party @ 0x31DBE  (2 callers)
  *
  * Verifies a required char_id is in the active battle party

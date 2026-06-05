@@ -2534,9 +2534,33 @@ static void test_signmod_negative_magnitude_overflow(void)
  * still faked in testglob.c.
  * ---------------------------------------------------------------- */
 extern uint32 g_dlg_glyph_last_idx;
-extern uint32 g_has_char_fake;
-extern uint32 g_has_char_last_arg;
-extern int    g_has_char_calls;
+
+/* In-memory template-roster fixture driving the REAL fd2_check_party_has_char_id
+ * (src/util/misc.c) that the overview renderer calls on the Mitti chapter. The
+ * function scans data_fd2_shared_menu_party_roster_buffer_ptr as 0x50-byte
+ * entries (count = data_fd2_shared_menu_party_member_count) for the char_id byte
+ * at +0x08. We seed it to make char_id 0x12 (蜜蒂) present or absent, so the real
+ * return value gates the subtitle-page branch — no fake seam. */
+#define OV_TMPL_STRIDE  0x50
+#define OV_TMPL_SLOTS   8
+static uint8 g_ov_tmpl_roster[OV_TMPL_STRIDE * OV_TMPL_SLOTS];
+
+/* Seed the roster so fd2_check_party_has_char_id(0x12) returns has_mitti.
+ * Every char_id byte is the 0xFF sentinel (never 0x12); when has_mitti, slot 1
+ * carries 0x12 so the scan finds it. */
+static void ov_roster_set_mitti(int has_mitti)
+{
+    int i;
+
+    for (i = 0; i < (int)sizeof(g_ov_tmpl_roster); i++) {
+        g_ov_tmpl_roster[i] = 0xFF;
+    }
+    if (has_mitti) {
+        g_ov_tmpl_roster[1 * OV_TMPL_STRIDE + 8] = 0x12;
+    }
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_ov_tmpl_roster;
+    data_fd2_shared_menu_party_member_count = (uint32)OV_TMPL_SLOTS;
+}
 
 /* shared text buffer for the overview dialog-plumbing tests */
 static uint16 g_ov_text[0x400];
@@ -2590,7 +2614,7 @@ static void test_overview_static_blits(void)
     g_test_rc_array[6].team = 2;
     g_test_rc_array[7].team = 1;
     data_fd2_battle_party_member_count = 8;
-    g_has_char_fake = 0;
+    /* chapter 5 (off the Mitti branch): the has-char query is never made. */
 
     fd2_render_party_status_overview_content(buf, stride);
 
@@ -2653,17 +2677,15 @@ static void test_overview_subtitle_mitti_absent(void)
     data_fd2_battle_turn_counter        = 1;
     data_fd2_shared_party_total_gold    = 0;
     data_fd2_battle_party_member_count = 0;        /* real counter -> 0 */
-    g_has_char_fake = 0;                           /* Mitti NOT in party */
-    g_has_char_calls = 0;
-    g_has_char_last_arg = 0;
+    ov_roster_set_mitti(0);                        /* 蜜蒂 0x12 NOT in roster */
     g_dlg_glyph_calls = 0;
     g_dlg_glyph_last_idx = 0;
 
     fd2_render_party_status_overview_content(buf, stride);
 
-    ASSERT_EQ((long)g_has_char_calls, 1);
-    ASSERT_EQ((long)g_has_char_last_arg, (long)0x12);
-    /* exactly one glyph, from the Mitti-absent subtitle page (0x274 -> 0xAA) */
+    /* The real fd2_check_party_has_char_id(0x12) returns 0, so the renderer
+     * picks the Mitti-absent subtitle page (0x274 -> 0xAA). Exactly one glyph
+     * proves the -2-shifted branch was taken via the real query. */
     ASSERT_EQ((long)g_dlg_glyph_calls, 1);
     ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0xAA);
     ASSERT_EQ((long)g_dlg_glyph_last_pos, (long)(buf + 0x50 + stride * 0x74));
@@ -2692,15 +2714,14 @@ static void test_overview_subtitle_mitti_present(void)
     data_fd2_battle_turn_counter        = 1;
     data_fd2_shared_party_total_gold    = 0;
     data_fd2_battle_party_member_count = 0;        /* real counter -> 0 */
-    g_has_char_fake = 1;                           /* Mitti IN party */
-    g_has_char_calls = 0;
+    ov_roster_set_mitti(1);                        /* 蜜蒂 0x12 IN roster */
     g_dlg_glyph_calls = 0;
     g_dlg_glyph_last_idx = 0;
 
     fd2_render_party_status_overview_content(buf, stride);
 
-    ASSERT_EQ((long)g_has_char_calls, 1);
-    /* normal subtitle page (0x276 -> 0xBB) used; no shift */
+    /* The real fd2_check_party_has_char_id(0x12) returns 1, so no -2 shift:
+     * normal subtitle page (0x276 -> 0xBB) used. */
     ASSERT_EQ((long)g_dlg_glyph_calls, 1);
     ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0xBB);
 }
@@ -2728,16 +2749,14 @@ static void test_overview_title_subtitle_pages_normal(void)
     data_fd2_battle_turn_counter        = 1;
     data_fd2_shared_party_total_gold    = 0;
     data_fd2_battle_party_member_count = 0;        /* real counter -> 0 */
-    g_has_char_fake = 0;
-    g_has_char_calls = 0;
     g_dlg_glyph_calls = 0;
     g_dlg_glyph_last_idx = 0;
 
     fd2_render_party_status_overview_content(buf, stride);
 
-    /* not the Mitti chapter: no has-char query */
-    ASSERT_EQ((long)g_has_char_calls, 0);
-    /* title then subtitle: 2 glyphs, last is the subtitle (0xC2) */
+    /* chapter 5 (not the Mitti chapter): the has-char query is never made, so
+     * the subtitle uses the normal page unconditionally.
+     * title then subtitle: 2 glyphs, last is the subtitle (0xC2) */
     ASSERT_EQ((long)g_dlg_glyph_calls, 2);
     ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0xC2);
     ASSERT_EQ((long)g_dlg_glyph_last_pos, (long)(buf + 0x50 + stride * 0x74));
