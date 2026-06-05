@@ -722,6 +722,20 @@ void fd2_animate_party_addition_with_appear_effect(uint32 chapter_id) {
     g_animate_party_addition_last_chapter = chapter_id;
 }
 
+/* fd2_show_chapter_intro_text_dialog_mode_3 (@0x34906) is not yet emitted.
+ * It is a small class-3 "shared tail" helper: 8 fixed PUSHes then a JMP into
+ * the dialog tail of fd2_show_chapter_dialog_with_portrait_set_1, i.e. it
+ * calls fd2_display_dialog_scene(current_chapter_text, page=3, ...). Its sole
+ * caller is fd2_chapter_event_handler_16, which tail-JMPs to it on the
+ * 索倫-alive branch. A recording stub here lets that handler be tested for its
+ * own contract — that the alive gate delegates to the page-3 dialog helper
+ * exactly once, and the dead gate skips it — without pulling the dialog VM in;
+ * the helper's own page-3 dispatch is covered when it is emitted (Phase 4). */
+int g_show_ch_intro_dialog_mode3_calls = 0;
+void fd2_show_chapter_intro_text_dialog_mode_3(void) {
+    g_show_ch_intro_dialog_mode3_calls++;
+}
+
 /* fd2_composite_chars_with_spell_effect_overlay is now a real emitted function
  * (src/gfx/rndscene.c); its former recording stub here was removed. The real
  * overlay first composites a tile map (observable via the

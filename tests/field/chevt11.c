@@ -661,6 +661,90 @@ static void test_ch6_event15_dead_skips_dialog(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_16__ch6_char_cond @ 0x34819
+ *
+ * Dispatch idx 0x16 of the per-event handler table at 0x51B91 (chapter 6
+ * turn-event slot 2). A char-conditional beat:
+ *   if (check_char_is_dead(8) == 0):              // 索倫 still alive
+ *     load_chapter_portraits_and_dump_tmp(1);     // portrait set 1 reload
+ *     show_chapter_intro_text_dialog_mode_3();    // page-3 dialog helper
+ * The single branch is guarded by the EAX return value of fd2_check_char_is_dead
+ * — exactly the CALL-return-value control-flow case (the Ghidra EAX-tracking-bug
+ * risk class) — so BOTH paths are exercised. No RNG, no numeric computation.
+ *
+ * fd2_check_char_is_dead (@0x3453E) is the REAL emitted gate: it reads
+ * runtime_char[8].flags bit0 through data_fd2_battle_runtime_char_array_ptr, so
+ * the alive/dead decision is pinned by g_ev_rc[8].flags.
+ *
+ * On the alive branch the handler does NOT inline a dialog call — in the binary
+ * it tail-JMPs to the named helper fd2_show_chapter_intro_text_dialog_mode_3
+ * @0x34906 (it is that helper's sole caller). That helper is not yet emitted, so
+ * the testglob recording stub (g_show_ch_intro_dialog_mode3_calls) stands in for
+ * it and the test asserts the alive gate delegates to it exactly once (and the
+ * dead gate not at all). The portrait reload fd2_load_chapter_portraits_and_dump_tmp(1)
+ * is the REAL emitted callee: it re-reads FDFIELD.DAT[chapter*3+2] and rewrites
+ * the 0x32A00-byte FD2.TMP swap file, so the alive branch is additionally pinned
+ * by the real FD2.TMP rewrite (and the dead branch by its absence).
+ *
+ * Driven on-host with the shared fieldfix "ch25-style real portrait reload" env
+ * (64-slot g_ev_rc keeps char 8 in-bounds, alloc_offset 0 -> empty per-record
+ * scan, current_chapter_id 4 -> valid FDFIELD index 0xE, staged real FDICON.B24
+ * + FDFIELD.DAT). The helper's own page-3 dispatch / pure blit side effects are
+ * covered when fd2_show_chapter_intro_text_dialog_mode_3 is emitted (Phase 4).
+ * ================================================================ */
+
+extern int g_show_ch_intro_dialog_mode3_calls;
+
+/* ----------------------------------------------------------------
+ * ALIVE path: char 8 (索倫) starts alive (flags bit0 clear), so the gate passes:
+ * the real portrait set 1 reload runs (rewriting FD2.TMP to its full 0x32A00
+ * bytes) and the page-3 dialog helper is invoked exactly once.
+ * ---------------------------------------------------------------- */
+static void test_ch6_event16_alive_reloads_portraits_and_shows_dialog(void)
+{
+    ev_install_safe_env();
+    g_show_ch_intro_dialog_mode3_calls = 0;
+
+    /* g_ev_rc was memset to 0, so char 8's flags bit0 is clear -> alive. */
+    remove("FD2.TMP");
+
+    fd2_chapter_event_handler_16__ch6_char_cond(0);
+
+    /* real portrait reload ran: FD2.TMP rewritten to its full 0x32A00 bytes. */
+    ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
+    /* the page-3 dialog helper was delegated to exactly once. */
+    ASSERT_EQ((long)g_show_ch_intro_dialog_mode3_calls, 1);
+
+    remove("FD2.TMP");
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    ev_restore_rc_ptr();
+}
+
+/* ----------------------------------------------------------------
+ * DEAD path: char 8 (索倫) is pinned dead (flags bit0 set), so the gate fails
+ * and the whole beat is SKIPPED — neither the real portrait reload (no FD2.TMP
+ * written) nor the dialog helper runs.
+ * ---------------------------------------------------------------- */
+static void test_ch6_event16_dead_skips_beat(void)
+{
+    ev_install_safe_env();
+    g_show_ch_intro_dialog_mode3_calls = 0;
+
+    /* pin char 8 dead so fd2_check_char_is_dead(8) returns 1 and the gate fails. */
+    g_ev_rc[8].flags |= CHARFLAG_DEAD;
+    remove("FD2.TMP");
+
+    fd2_chapter_event_handler_16__ch6_char_cond(0);
+
+    /* beat skipped: no portrait reload (FD2.TMP absent) and no dialog helper. */
+    ASSERT_EQ(ev_fd2_tmp_size(), -1);
+    ASSERT_EQ((long)g_show_ch_intro_dialog_mode3_calls, 0);
+
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt11_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -674,5 +758,7 @@ void run_field_chevt11_tests(void)
     RUN_TEST(test_ch6_event14_shows_dialog_page1);
     RUN_TEST(test_ch6_event15_alive_shows_dialog_page2);
     RUN_TEST(test_ch6_event15_dead_skips_dialog);
+    RUN_TEST(test_ch6_event16_alive_reloads_portraits_and_shows_dialog);
+    RUN_TEST(test_ch6_event16_dead_skips_beat);
     printf("\n");
 }

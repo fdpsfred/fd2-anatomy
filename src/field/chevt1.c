@@ -49,6 +49,9 @@
  * fd2_chapter_event_handler_15__ch6_char_cond @ 0x347D9
  *     (0 direct callers; dispatched as idx 0x15 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_16__ch6_char_cond @ 0x34819
+ *     (0 direct callers; dispatched as idx 0x16 of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -637,5 +640,43 @@ void fd2_chapter_event_handler_15__ch6_char_cond(uint32 event_arg)
     if (fd2_check_char_is_dead(8) == 0) {
         fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_16__ch6_char_cond @ 0x34819
+ *   — Chapter 6 turn-event slot 2 (triggered at turn 15 / phase 2),
+ *     dispatched as idx 0x16 of the per-event handler table at 0x51B91.
+ *
+ * char-conditional beat: gated on 索倫 (char_id 8) still being alive
+ * (flags bit0 clear). If alive, portrait set 1 reloads and the chapter
+ * intro dialog page 3 is shown; if 索倫 is already dead the beat is
+ * skipped. The only branch is the alive gate driven by the
+ * fd2_check_char_is_dead return value — no RNG, no numeric computation,
+ * and the call's return value is used only as a zero test.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * Unlike the other char-conditional handlers in this group, the
+ * original does NOT inline the dialog call: it tail-JMPs (0x3483F ->
+ * 0x34906) to the named helper fd2_show_chapter_intro_text_dialog_mode_3
+ * @ 0x34906, which is the sole consumer of that helper. The "dead"
+ * branch (JNZ 0x34C1D) falls into a bare RET borrowed from the shared
+ * tail of fd2_show_chapter_dialog_with_portrait_set_1, i.e. a plain
+ * return; reproduced here as the call to the named helper for Layer-2
+ * equivalence.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_06.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_16__ch6_char_cond(uint32 event_arg)
+{
+    (void)event_arg;
+
+    if (fd2_check_char_is_dead(8) == 0) {
+        fd2_load_chapter_portraits_and_dump_tmp(1);
+        fd2_show_chapter_intro_text_dialog_mode_3();
     }
 }
