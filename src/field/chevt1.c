@@ -892,3 +892,47 @@ void fd2_chapter_event_handler_1a__ch7_char_cond(uint32 stepping_char_id)
         *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) = 1;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_1b__ch8_cinematic @ 0x349D9
+ *   — Chapter 8 every-turn cinematic, dispatched as idx 0x1B of the
+ *     per-event handler table at 0x51B91. Bound to turn-event slots 0-5
+ *     (turns 2, 3, 4, 5, 6, 7, all phase 0), so it fires once on every one
+ *     of chapter 8's first six player turns.
+ *
+ * cinematic, no dialog. A straight-line beat with no branch, no RNG, no
+ * numeric computation and no CALL-return value used:
+ *   fd2_pan_cursor_and_window(8, 2);                            // pan camera to (8,2)
+ *   __delay_thunk_375b2(100);                                   // ~100ms hold
+ *   fd2_load_chapter_portraits_and_dump_tmp(turn_counter);      // reload portrait set
+ *   __delay_thunk_375b2(100);                                   // ~100ms hold
+ *
+ * The portrait set reloaded each turn is keyed off the battle turn counter
+ * (data_fd2_battle_turn_counter @ 0x53BEF), which fd2_run_full_turn_cycle
+ * increments by one at the start of every new player turn. Because the
+ * counter advances between turns, each of turns 2..7 passes a different
+ * value as the portrait loader's target_race_id and so selects a different
+ * NPC portrait pose — producing an animated NPC sequence across the six
+ * turns.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91 (1-arg
+ * uniform cdecl); the body never reads the arg. EBX is not touched; the
+ * __CHK(0xC) stack-probe prologue is compiler-injected and omitted here.
+ *
+ * In the binary the final 100ms hold is emitted as "PUSH 0x64; JMP 0x353D1":
+ * a tail-jump into the shared CALL __delay_thunk_375b2 / ADD ESP,4 / RET
+ * tail of fd2_delay_400ms_via_idle_thunk (0x353CC..0x353D9). The borrowed
+ * tail performs the cdecl 4-byte cleanup and RET; reproduced here as the
+ * inline __delay_thunk_375b2(100) call for Layer-2 equivalence.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_08.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_1b__ch8_cinematic(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_pan_cursor_and_window(8, 2);
+    __delay_thunk_375b2(100);
+    fd2_load_chapter_portraits_and_dump_tmp(data_fd2_battle_turn_counter);
+    __delay_thunk_375b2(100);
+}

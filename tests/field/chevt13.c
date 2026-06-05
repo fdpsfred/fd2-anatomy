@@ -48,6 +48,11 @@
 extern int    g_dlg_glyph_calls;
 extern uint32 g_dlg_glyph_last_idx;
 
+/* testglob.c's __delay_thunk_375b2 stub records each idle-hold (call count +
+ * last tick arg), so handler_1b's two 100ms holds are observable. */
+extern int    g_delay375b2_calls;
+extern uint32 g_delay375b2_last_ticks;
+
 /* custom dialog program: each page 0..0x10 resolves to its own single glyph
  * (idx 0x50+page) then END, so the page the handler selects is identifiable by
  * the recorded glyph idx. Layout (int16 words):
@@ -426,6 +431,68 @@ static void test_ch7_event1a_enemy_steps_skips_beat(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_1b__ch8_cinematic @ 0x349D9
+ *
+ * Dispatch idx 0x1B of the per-event handler table at 0x51B91 (chapter 8
+ * every-turn cinematic, turn-event slots 0-5 = turns 2..7). A straight-line
+ * cinematic beat with NO branch, no RNG, no numeric computation and no
+ * CALL-return value used:
+ *   pan_cursor_and_window(8, 2);
+ *   __delay_thunk_375b2(100);                          // ~100ms hold
+ *   load_chapter_portraits_and_dump_tmp(turn_counter); // reload portrait set
+ *   __delay_thunk_375b2(100);                          // ~100ms hold
+ *
+ * Two observable, deterministic contracts are pinned:
+ *   1. the portrait-set arg is wired to the battle turn counter
+ *      (data_fd2_battle_turn_counter @ 0x53BEF) and the real loader runs
+ *      end-to-end against the staged FDICON.B24 + FDFIELD.DAT, rewriting
+ *      FD2.TMP to its full 0x32A00 bytes — proving the whole real callee
+ *      chain (pan + portrait reload) runs to completion without faulting;
+ *   2. both ~100ms holds fire: the testglob __delay_thunk_375b2 recorder
+ *      stub sees exactly two calls, the last with ticks == 100 (0x64). This
+ *      is what nails the binary's "PUSH 0x64; JMP 0x353D1" tail-jump (into
+ *      the shared CALL __delay_thunk_375b2 / RET tail) as a real 100ms hold
+ *      rather than fd2_delay_400ms_via_idle_thunk's own 0x190 PUSH.
+ *
+ * The env is the shared ch25-style real-portrait-reload fixture: alloc_offset
+ * 0 (the per-record race scan iterates zero, so the turn-counter arg gates no
+ * fd2_init_runtime_char_for_battle but is still consumed by the loader),
+ * current_chapter_id 4 (FDFIELD re-read index 4*3+2 = 0xE is valid), an empty
+ * active party, and the real compositor workspace for the camera pan. The pure
+ * blit/display side effects (camera pan pixels, portrait pixels) are deferred
+ * to Phase 9 integration.
+ * ================================================================ */
+static void test_ch8_event1b_runs_cinematic_with_turn_keyed_reload(void)
+{
+    ev_install_safe_env();
+
+    /* reset the idle-hold recorder so the per-test count is clean. */
+    g_delay375b2_calls = 0;
+    g_delay375b2_last_ticks = 0;
+
+    /* a concrete turn-counter value is handed to the portrait loader as its
+     * target_race_id; with alloc_offset 0 the value gates nothing, but the
+     * loader still re-reads FDFIELD and rewrites FD2.TMP. */
+    data_fd2_battle_turn_counter = 4;
+
+    remove("FD2.TMP");
+
+    fd2_chapter_event_handler_1b__ch8_cinematic(0);
+
+    /* the real portrait reload ran end-to-end: FD2.TMP rewritten to full size. */
+    ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
+
+    /* exactly two ~100ms holds fired; the last hold carried ticks == 100. */
+    ASSERT_EQ((long)g_delay375b2_calls, 2);
+    ASSERT_EQ((long)g_delay375b2_last_ticks, (long)0x64);
+
+    /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
+    remove("FD2.TMP");
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt13_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -437,5 +504,6 @@ void run_field_chevt13_tests(void)
     RUN_TEST(test_ch7_event1a_player_steps_disarms_and_consumes);
     RUN_TEST(test_ch7_event1a_npc_steps_disarms_and_consumes);
     RUN_TEST(test_ch7_event1a_enemy_steps_skips_beat);
+    RUN_TEST(test_ch8_event1b_runs_cinematic_with_turn_keyed_reload);
     printf("\n");
 }

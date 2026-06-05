@@ -3742,8 +3742,9 @@
     "name": "fd2_chapter_event_handler_1b__ch8_cinematic",
     "target": "field/chevt1.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00034a0e": {
     "name": "fd2_chapter_event_handler_1c__ch8_ai_ctrl",
