@@ -39,6 +39,14 @@ extern int    g_promote_grid_last_list;
 extern int    g_promote_scroll_down_calls;
 extern int    g_promote_scroll_up_calls;
 
+/* class-promotion candidate-grid spy (5-arg renderer, testglob.c) */
+extern int    g_promote_cand_grid_calls;
+extern uint32 g_promote_cand_grid_last_count;
+extern uint32 g_promote_cand_grid_last_dst;
+extern uint32 g_promote_cand_grid_last_cursor;
+extern int    g_promote_cand_grid_last_list;
+extern int    g_promote_cand_grid_last_aux;
+
 /* Inject one keystroke into the BIOS keyboard buffer (BDA @ 0x400) so the real
  * fd2_wait_input_with_chapter_dialog_blink() exits its busy-wait on the first
  * poll and INT 16h fn 10h returns `scancode` in AH. head != tail makes the
@@ -262,6 +270,107 @@ static void test_select_loop_esc_cancels(void)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_promote_member_select_loop @ 0x311DC — CLASS-PROMOTION input-loop
+ * dispatch tests (singular loop; takes a 3rd target_classes arg and renders
+ * via the 5-arg fd2_render_promote_candidates_grid).
+ *
+ * Same bounded shape as the revive picker above: full setup (3 workspace
+ * mallocs, VRAM snapshot/clone, recording blit + 5-arg grid stub, 6 REAL
+ * fd2_slide_panel_down_step frames) then one REAL
+ * fd2_wait_input_with_chapter_dialog_blink(2) frame whose injected scancode
+ * terminates the do/while on the first iteration. They pin the EAX-from-CALL
+ * scancode dispatch (Enter/Space => 1, Esc => -1; the asm compares full EAX,
+ * so the int compare here mirrors it) and prove setup zeroes cursor +
+ * scroll_offset, stashes count/list, and renders the grid exactly once with
+ * cursor 0, the char list, AND the new price/aux (target_classes) list
+ * forwarded as the 5th arg. The Up/Down navigation arithmetic re-renders and
+ * loops again (needs a 2nd key the in-process BIOS buffer cannot async-refill);
+ * deferred to Phase 9 integration like the sibling picker, asserted absent via
+ * the scroll-animator spies staying at 0. */
+static uint8 g_promote_cand_list[4] = { 1, 4, 6, 8 };
+static uint8 g_promote_target_list[4] = { 0x32, 0x33, 0x34, 0x35 };
+
+static void promote_cand_loop_setup(void)
+{
+    promote_loop_setup();
+    g_promote_cand_grid_calls = 0;
+    g_promote_cand_grid_last_count = 0;
+    g_promote_cand_grid_last_dst = 0;
+    g_promote_cand_grid_last_cursor = 0;
+    g_promote_cand_grid_last_list = 0;
+    g_promote_cand_grid_last_aux = 0;
+}
+
+/* Enter (0x1C) on the first frame commits -> returns 1; setup invariants. */
+static void test_cand_loop_enter_commits(void)
+{
+    int r;
+
+    promote_cand_loop_setup();
+    kbd_inject_scancode(0x1c);
+
+    r = fd2_promote_member_select_loop(4, g_promote_cand_list,
+                                       g_promote_target_list);
+
+    ASSERT_EQ((long)r, 1);
+    /* setup zeroed the poisoned cursor/scroll before the loop */
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);
+    ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 0);
+    /* candidate list + count stashed for re-render */
+    ASSERT_EQ((long)data_fd2_ui_menu_candidate_array_ptr,
+              (long)(uint32)g_promote_cand_list);
+    ASSERT_EQ((long)data_fd2_ui_menu_visible_item_count, 4);
+    /* the 5-arg candidates grid rendered exactly once (setup), cursor 0,
+     * with BOTH the char list and the target/aux list forwarded */
+    ASSERT_EQ((long)g_promote_cand_grid_calls, 1);
+    ASSERT_EQ((long)g_promote_cand_grid_last_count, 4);
+    ASSERT_EQ((long)g_promote_cand_grid_last_cursor, 0);
+    ASSERT_EQ((long)g_promote_cand_grid_last_list, (long)(int)g_promote_cand_list);
+    ASSERT_EQ((long)g_promote_cand_grid_last_aux, (long)(int)g_promote_target_list);
+    /* setup render targets the composed workspace_c, not the live aperture */
+    ASSERT_EQ((long)g_promote_cand_grid_last_dst,
+              (long)data_fd2_ui_slide_composed_target_buf_ptr);
+    /* the revive members grid (4-arg) must NOT have fired */
+    ASSERT_EQ((long)g_promote_grid_calls, 0);
+    /* no navigation occurred -> neither scroll animator fired */
+    ASSERT_EQ((long)g_promote_scroll_down_calls, 0);
+    ASSERT_EQ((long)g_promote_scroll_up_calls, 0);
+}
+
+/* Space (0x39) is the second commit key -> also returns 1. */
+static void test_cand_loop_space_commits(void)
+{
+    int r;
+
+    promote_cand_loop_setup();
+    kbd_inject_scancode(0x39);
+
+    r = fd2_promote_member_select_loop(4, g_promote_cand_list,
+                                       g_promote_target_list);
+
+    ASSERT_EQ((long)r, 1);
+    ASSERT_EQ((long)g_promote_cand_grid_calls, 1);
+}
+
+/* Esc (0x01) cancels -> returns -1. */
+static void test_cand_loop_esc_cancels(void)
+{
+    int r;
+
+    promote_cand_loop_setup();
+    kbd_inject_scancode(0x01);
+
+    r = fd2_promote_member_select_loop(4, g_promote_cand_list,
+                                       g_promote_target_list);
+
+    ASSERT_EQ((long)r, -1);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);
+    ASSERT_EQ((long)g_promote_cand_grid_calls, 1);
+    ASSERT_EQ((long)g_promote_scroll_down_calls, 0);
+    ASSERT_EQ((long)g_promote_scroll_up_calls, 0);
+}
+
+/* ----------------------------------------------------------------
  * fd2_run_revive_menu_main @ 0x30DC3 — "nobody is dead" early-return path.
  *
  * Seeds an all-alive party so the real fd2_build_dead_chars_list_for_revive
@@ -356,6 +465,9 @@ void run_ui_menu_promote_tests(void)
     RUN_TEST(test_select_loop_enter_commits);
     RUN_TEST(test_select_loop_space_commits);
     RUN_TEST(test_select_loop_esc_cancels);
+    RUN_TEST(test_cand_loop_enter_commits);
+    RUN_TEST(test_cand_loop_space_commits);
+    RUN_TEST(test_cand_loop_esc_cancels);
     RUN_TEST(test_revive_no_dead_chars_returns);
     /* restore stub default so later suites keep historical behavior */
     g_check_char_is_dead_use_array = 0;

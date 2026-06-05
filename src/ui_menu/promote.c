@@ -183,6 +183,117 @@ int fd2_promote_members_select_loop(uint32 candidate_count, uint8 *candidate_idx
  * Ghidra EAX-tracking artifact). count==0 branch passes that 0 count
  * straight through to the two dialog helpers.
  * ---------------------------------------------------------------- */
+/* ----------------------------------------------------------------
+ * fd2_promote_member_select_loop @ 0x311DC  (1 caller)
+ *
+ * CLASS-PROMOTION member-select grid loop (singular — distinct from
+ * the church-revive picker fd2_promote_members_select_loop @ 0x30C22).
+ * Allocates three 64000-byte (mode 13h) render workspaces, snapshots
+ * VRAM 0xA0000 -> workspace_b -> workspace_c, blits the dialog frame
+ * at workspace_c+0x8C05, renders the candidate grid (current job ->
+ * target job arrow), then plays a 6-frame slide-down reveal. The input
+ * loop moves the cursor Up(0x48)/Down(0x50) with 3-row auto-scroll,
+ * commits on Enter(0x1C)/Space(0x39) -> return 1, cancels on
+ * ESC(0x01) -> return -1.
+ *
+ * Sole caller: fd2_run_class_promotion_menu_main @ 0x31385. Unlike the
+ * revive picker, this one takes a THIRD param (price_aux_list_ptr; the
+ * caller passes target_classes[]) and renders via the 5-arg
+ * fd2_render_promote_candidates_grid (which shows the post-promotion
+ * target job per candidate).
+ *
+ * int __cdecl with the __CHK(0x28) stack-probe prologue (compiler-
+ * injected, not part of the source). ESI is the result accumulator
+ * (callee-saved), EBX the reveal-frame counter, EDI/EBP cache the
+ * char_count / char_list_ptr params. The function tail-jumps to a
+ * shared MOV EAX,ESI / POP EBP,EDI,ESI,EBX / RET epilogue (the
+ * trailing epilogue at 0x2D3F8), i.e. plain `return result`. The
+ * buffers are NOT freed here; cleanup is the caller's job via
+ * fd2_close_intro_dialog_with_slide_out.
+ *
+ * fd2_wait_input_with_chapter_dialog_blink returns the scancode in the
+ * full EAX; the asm compares it directly as int (CMP EAX,imm, no byte
+ * truncation), so no CONCAT31 narrowing is modelled.
+ * ---------------------------------------------------------------- */
+int fd2_promote_member_select_loop(int char_count, void *char_list_ptr,
+                                   void *price_aux_list_ptr)
+{
+    int result;
+    int frame_iter;
+    int scancode;
+
+    result = 0;
+
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_composed_target_buf_ptr = (uint32)malloc(64000);
+
+    memmove((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr,
+            (void *)0xa0000, 64000);
+    memmove((void *)data_fd2_ui_slide_composed_target_buf_ptr,
+            (void *)data_fd2_ui_slide_bg_snapshot_buf_ptr, 64000);
+
+    data_fd2_ui_menu_scroll_offset = 0;
+    data_fd2_ui_menu_cursor_idx = 0;
+    data_fd2_ui_menu_candidate_array_ptr = (uint32)char_list_ptr;
+    data_fd2_ui_menu_visible_item_count = (uint32)char_count;
+
+    fd2_dialog_sprite_blit_normal(
+        data_fd2_ui_slide_composed_target_buf_ptr + 0x8c05,
+        data_fd2_ui_menu_screen_sprite_atlas_buf_ptr +
+            *(int *)(data_fd2_ui_menu_screen_sprite_atlas_buf_ptr + 0x46),
+        0x140);
+
+    fd2_render_promote_candidates_grid((uint32)char_count,
+        data_fd2_ui_slide_composed_target_buf_ptr,
+        data_fd2_ui_menu_cursor_idx, (int)char_list_ptr,
+        (int)price_aux_list_ptr);
+
+    for (frame_iter = 5; frame_iter >= 0; frame_iter--) {
+        fd2_slide_panel_down_step((uint32)(frame_iter * 0xd + 0x70),
+            data_fd2_ui_slide_anim_accumulator_buf_ptr,
+            data_fd2_ui_slide_composed_target_buf_ptr);
+    }
+
+    do {
+        scancode = fd2_wait_input_with_chapter_dialog_blink(2);
+        if (scancode == 0x48) {
+            if (data_fd2_ui_menu_cursor_idx != 0) {
+                data_fd2_ui_menu_cursor_idx--;
+                if ((int)data_fd2_ui_menu_cursor_idx <
+                        (int)data_fd2_ui_menu_scroll_offset) {
+                    data_fd2_ui_menu_scroll_offset--;
+                    fd2_animate_scroll_down_in_shop_dialog();
+                }
+                fd2_render_promote_candidates_grid((uint32)char_count, 0xa0000,
+                    data_fd2_ui_menu_cursor_idx, (int)char_list_ptr,
+                    (int)price_aux_list_ptr);
+            }
+        }
+        else if (scancode == 0x50) {
+            if ((int)data_fd2_ui_menu_cursor_idx < char_count - 1) {
+                data_fd2_ui_menu_cursor_idx++;
+                if ((int)(data_fd2_ui_menu_cursor_idx -
+                          data_fd2_ui_menu_scroll_offset) > 2) {
+                    data_fd2_ui_menu_scroll_offset++;
+                    fd2_animate_scroll_up_in_shop_dialog();
+                }
+                fd2_render_promote_candidates_grid((uint32)char_count, 0xa0000,
+                    data_fd2_ui_menu_cursor_idx, (int)char_list_ptr,
+                    (int)price_aux_list_ptr);
+            }
+        }
+        else if (scancode == 0x1c || scancode == 0x39) {
+            result = 1;
+        }
+        else if (scancode == 1) {
+            result = -1;
+        }
+    } while (result == 0);
+
+    return result;
+}
+
 void fd2_run_revive_menu_main(void)
 {
     int dead_count;

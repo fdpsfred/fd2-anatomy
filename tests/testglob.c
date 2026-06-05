@@ -1326,6 +1326,26 @@ void fd2_render_promote_members_grid(uint32 candidate_count, uint32 dst_buffer,
     g_promote_grid_last_cursor = cursor_idx;
     g_promote_grid_last_list = candidate_idx_list;
 }
+/* CLASS-PROMOTION candidate-grid renderer (5-arg, distinct from the revive
+ * members grid above) — recording no-op spy driving the singular select loop
+ * fd2_promote_member_select_loop. Captures the extra price/aux (target_classes)
+ * list arg too. Not yet emitted in src. */
+int    g_promote_cand_grid_calls = 0;
+uint32 g_promote_cand_grid_last_count = 0;
+uint32 g_promote_cand_grid_last_dst = 0;
+uint32 g_promote_cand_grid_last_cursor = 0;
+int    g_promote_cand_grid_last_list = 0;
+int    g_promote_cand_grid_last_aux = 0;
+void fd2_render_promote_candidates_grid(uint32 char_count, uint32 dst_surface,
+                                        uint32 cursor_idx, int char_list_ptr,
+                                        int price_aux_list_ptr) {
+    g_promote_cand_grid_calls++;
+    g_promote_cand_grid_last_count = char_count;
+    g_promote_cand_grid_last_dst = dst_surface;
+    g_promote_cand_grid_last_cursor = cursor_idx;
+    g_promote_cand_grid_last_list = char_list_ptr;
+    g_promote_cand_grid_last_aux = price_aux_list_ptr;
+}
 void fd2_animate_scroll_down_in_shop_dialog(void) { g_promote_scroll_down_calls++; }
 void fd2_animate_scroll_up_in_shop_dialog(void)   { g_promote_scroll_up_calls++; }
 /* Shop money/transaction feedback animations (not yet emitted in src) —
