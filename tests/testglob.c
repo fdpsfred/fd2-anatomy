@@ -74,6 +74,14 @@ uint32 data_fd2_battle_anim_phase = 0;
 uint32 data_fd2_battle_ai_post_action_consequence_idx = 0;
 uint32 data_fd2_battle_player_action_result_code = 0;
 uint32 data_fd2_chapter_current_chapter_id = 1;
+/* per-chapter combat-cinematic terrain override byte — real FD2.LE values
+ * @ 0x52363 (30 bytes, indexed by chapter id 0..29). Read by
+ * fd2_play_full_combat_cinematic: when non-zero it overrides the under-foot
+ * tile for immune (flying/lifted) classes. */
+uint8  data_fd2_chapter_combat_cinematic_mode_per_chapter[30] = {
+    3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,
+    3,3,3,3,3,3,3,3,0,0,0,3,0,0
+};
 uint32 data_fd2_chapter_cutscene_event_state = 0;
 uint32 data_fd2_graphics_static_bg_buffer_ptr = 0;
 uint32 data_fd2_graphics_animated_bg_buffer_ptr = 0;
@@ -188,6 +196,20 @@ uint32 data_fd2_resource_portrait_sheet_ptr = 0;
  * (src/anim/anicine.c); zero-init writable BSS-style globals. */
 uint32 data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr = 0;
 uint32 data_fd2_audio_figani_sfx_bank_buf_ptr = 0;
+/* Full-combat-cinematic state (data segment @ 0x540FF / 0x54103 / 0x54113 /
+ * 0x5411B). Written + read by fd2_play_full_combat_cinematic
+ * (src/anim/anicine.c); zero-init writable globals. */
+uint32 data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = 0;
+uint32 data_fd2_battle_combat_cinematic_split_bg_b_buf_ptr = 0;
+uint32 data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = 0;
+uint32 data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = 0;
+uint32 data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = 0;
+uint32 data_fd2_audio_figani_sfx_bank_defender_buf_ptr = 0;
+/* fd2_restore_portrait_cache_from_tmp: slated for src/rsrc/rsrc.c (not yet
+ * emitted). The non-scripted cleanup path of fd2_play_full_combat_cinematic
+ * reaches it, but the anicine.c unit tests exercise only the scripted path
+ * (which skips cleanup), so a noop stub suffices here. */
+void fd2_restore_portrait_cache_from_tmp(void) { }
 void fd2_play_rising_pre_cast_effect(int a, int b, int c) { }
 void fd2_play_variant_b_slide_pre_effect(int a, int b) { }
 void fd2_animate_warp_teleport_char(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e) { }
@@ -966,7 +988,37 @@ uint32 fd2_animate_combat_speech_bubbles(uint32 ci, uint32 ti) { return 0; }
 void fd2_render_combatant_hp_bar_proportional(uint32 d, uint32 s, uint32 ci, uint32 st) { }
 int fd2_animate_combat_hit_with_hp_drain(uint32 a, uint32 d, uint32 st) { return 0; }
 void fd2_render_combat_combatant_panels(uint32 st, uint32 a, uint32 d) { }
-void fd2_play_full_combat_cinematic(uint32 a, uint32 d) { }
+/* fd2_play_full_combat_cinematic: now emitted for real in src/anim/anicine.c;
+ * its former noop stub here was removed. The anicine.c scripted-cinematic test
+ * drives the real function and asserts the banner-index forcing + dispatch
+ * order; its not-yet-emitted callee fd2_execute_combat_hit_cinematic is spied
+ * just below. */
+/* fd2_execute_combat_hit_cinematic spy (the real 553-insn function is emitted
+ * separately). Records the per-call attacker/defender order, the banner sprite
+ * ptr's first payload byte (captured at call time, before the caller frees the
+ * buffer) and the forwarded SFX-bank handle; returns g_exec_hit_return so a
+ * test can drive the "hit landed" gate. */
+int    g_exec_hit_calls = 0;
+uint32 g_exec_hit_att[8] = {0};
+uint32 g_exec_hit_def[8] = {0};
+int    g_exec_hit_banner_first[8] = {0};
+uint32 g_exec_hit_sfx[8] = {0};
+int    g_exec_hit_return = 1;
+int fd2_execute_combat_hit_cinematic(uint32 attacker_idx, uint32 defender_idx,
+    uint32 figani_anim, uint32 silhouette, uint32 workbuf, uint32 dst,
+    uint32 banner, uint32 sfx_bank)
+{
+    int i = g_exec_hit_calls;
+    if (i < 8) {
+        g_exec_hit_att[i] = attacker_idx;
+        g_exec_hit_def[i] = defender_idx;
+        g_exec_hit_banner_first[i] = banner ? (int)*(uint8 *)banner : -1;
+        g_exec_hit_sfx[i] = sfx_bank;
+    }
+    g_exec_hit_calls++;
+    (void)figani_anim; (void)silhouette; (void)workbuf; (void)dst;
+    return g_exec_hit_return;
+}
 void fd2_process_xp_and_level_up_for_char(uint32 ci) { }
 /* fd2_execute_ai_item_use: now in btl_ai.c */
 /* fd2_play_figani_char_intro_animation: now emitted for real in

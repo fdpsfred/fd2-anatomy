@@ -20,6 +20,9 @@ extern uint32 data_fd2_battle_current_active_char_idx;                  /* 0x53A
 extern uint32 data_fd2_chapter_current_chapter_id;                      /* 0x53C03 */
 extern uint32 data_fd2_chapter_event_or_battle_end_code;                /* 0x53ECC */
 extern uint32 data_fd2_chapter_cutscene_event_state;                    /* 0x53AFB */
+/* Per-chapter combat-cinematic terrain override byte for immune (flying/
+ * lifted) classes; indexed by chapter id. (.object2 const, byte[30]) */
+extern uint8  data_fd2_chapter_combat_cinematic_mode_per_chapter[30];   /* 0x52363 */
 
 /* ---- battle state ---- */
 extern uint32 data_fd2_battle_anim_phase;                               /* 0x51A83 */
@@ -32,9 +35,11 @@ extern uint32 data_fd2_battle_pending_xp_credit;                       /* 0x53EC
 extern uint32 data_fd2_battle_tile_map_anim_frame_counter;              /* 0x53C1F */
 extern uint32 data_fd2_battle_spell_aoe_count_and_fx_queue_idx;         /* 0x53EC4 */
 extern uint32 data_fd2_battle_scripted_cinematic_mode_or_terrain_idx;   /* 0x540FF */
+extern uint32 data_fd2_battle_combat_cinematic_split_bg_b_buf_ptr;      /* 0x54103 */
 extern uint32 data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr;    /* 0x54107 */
 extern uint32 data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr;     /* 0x5410B */
 extern uint32 data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr;     /* 0x5410F */
+extern uint32 data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr;     /* 0x54113 */
 extern uint32 data_fd2_battle_fast_mode_walk_overlay_ptr;               /* 0x53B0F */
 
 /* ---- battle spell-effect constants ---- */
@@ -226,6 +231,7 @@ extern uint32 data_fd2_audio_fdother_sfx_bank_buf_ptr;                  /* 0x53E
 extern uint32 data_fd2_audio_status_effect_sfx_handle_ptr;              /* 0x53B13 */
 extern uint8  data_fd2_audio_walk_step_sfx_cadence_counter;             /* 0x540FE */
 extern uint32 data_fd2_audio_figani_sfx_bank_buf_ptr;                   /* 0x54117 */
+extern uint32 data_fd2_audio_figani_sfx_bank_defender_buf_ptr;          /* 0x5411B */
 extern char   data_fd2_string_fdmus_dat[];                              /* 0x51A79  "FDMUS.DAT" */
 
 /* ---- animation tables (.object2 const) ---- */

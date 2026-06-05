@@ -272,6 +272,9 @@ void fd2_render_combatant_hp_bar_proportional(uint32 d, uint32 s, uint32 ci, uin
 int fd2_animate_combat_hit_with_hp_drain(uint32 a, uint32 d, uint32 st);
 void fd2_render_combat_combatant_panels(uint32 st, uint32 a, uint32 d);
 void fd2_play_full_combat_cinematic(uint32 a, uint32 d);
+int fd2_execute_combat_hit_cinematic(uint32 attacker_idx, uint32 defender_idx,
+    uint32 figani_anim, uint32 silhouette, uint32 workbuf, uint32 dst,
+    uint32 banner, uint32 sfx_bank);
 void fd2_process_xp_and_level_up_for_char(uint32 ci);
 int fd2_count_usable_inventory_slots(uint32 ci);
 int fd2_build_usable_spell_list(uint32 ci, uint32 buf);
@@ -351,6 +354,7 @@ void fd2_rle_blit_sprite(uint32 rle_stream, int32 dst_x, int32 dst_y,
 void fd2_scroll_text_screen_up_by_lines(uint32 lines);
 uint32 fd2_save_compute_checksum(uint32 buf, uint32 size);
 int  fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp);
+void fd2_restore_portrait_cache_from_tmp(void);
 
 /* ---- chapter / battle init ---- */
 void fd2_load_chapter_battle_data(uint32 chapter_id);

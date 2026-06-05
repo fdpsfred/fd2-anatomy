@@ -281,6 +281,351 @@ static void test_intro_multi_sfx_sequence(void)
     run_intro_case(0x20, 2);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_play_full_combat_cinematic @ 0x28A6C  (scripted-mode path)
+ *
+ * The full attack/counter cinematic. These tests drive the SCRIPTED-mode
+ * path (data_..._scripted_cinematic_mode != 0), which isolates the novel
+ * value/branch logic — name-banner index forcing and the attacker/counter
+ * dispatch order — from the non-scripted display-cache plumbing (the entry
+ * cache frees, FD2.TMP portrait-cache restore, and final composite are all
+ * gated off in scripted mode and deferred to Phase 9 integration).
+ *
+ * In scripted mode the function: skips the mini-panel flash + SFX-bank
+ * load + cleanup, forces the spotlight terrain to the scripted value,
+ * forces the banner index to 3 for the climactic portraits (attacker
+ * 0x1A/0x36 or defender 0x37) else uses the scripted value, then calls
+ * fd2_execute_combat_hit_cinematic twice — first (attacker, defender),
+ * then (defender, attacker) for the guided counter — and latches the
+ * scripted flag to 1.
+ *
+ * The not-yet-emitted fd2_execute_combat_hit_cinematic is spied
+ * (testglob.c): the spy records each call's attacker/defender order and
+ * the banner sprite's first payload byte, which is cross-checked against
+ * an INDEPENDENT realdat read of TAI.DAT[expected index] — pinning which
+ * TAI entry the forcing logic selected, with no hardcoded magic.
+ * ---------------------------------------------------------------- */
+
+/* fd2_execute_combat_hit_cinematic spy (testglob.c) */
+extern int    g_exec_hit_calls;
+extern uint32 g_exec_hit_att[8];
+extern uint32 g_exec_hit_def[8];
+extern int    g_exec_hit_banner_first[8];
+extern uint32 g_exec_hit_sfx[8];
+extern int    g_exec_hit_return;
+
+/* A valid BG.DAT index used as the scripted spotlight-terrain value. */
+#define CINE_SCRIPT_BG  5
+
+/* Seed two adjacent runtime chars (attacker = idx 0, defender = idx 1) with
+ * the given portraits and a non-zero scripted-cinematic mode. job_id and
+ * archetype are 0 (not an immune class) so the terrain path reads the tile;
+ * the tile-map fixture makes that read well-defined. */
+static void setup_scripted_cinematic(uint8 att_portrait, uint8 def_portrait,
+                                     uint32 scripted_mode)
+{
+    int i;
+
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].pos_x = CINE_WIN_OX + 1;
+    g_test_rc_array[0].pos_y = CINE_WIN_OY + 1;
+    g_test_rc_array[0].portrait_id = att_portrait;
+    g_test_rc_array[0].team = 2;                /* player attacker */
+    g_test_rc_array[1].pos_x = CINE_WIN_OX + 2; /* adjacent to attacker */
+    g_test_rc_array[1].pos_y = CINE_WIN_OY + 1;
+    g_test_rc_array[1].portrait_id = def_portrait;
+    g_test_rc_array[1].team = 0;                /* enemy defender */
+
+    memset(g_cine_tile_map, 0, sizeof(g_cine_tile_map));
+    memset(g_cine_attr_buf, 0, sizeof(g_cine_attr_buf));
+    memset(g_cine_tile_event, 0, sizeof(g_cine_tile_event));
+    data_fd2_battle_tile_map_ptr = (uint32)g_cine_tile_map;
+    data_fd2_battle_map_width_tiles = CINE_MAP_W;
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)g_cine_attr_buf;
+    data_fd2_tile_event_data_table_ptr = (uint32)g_cine_tile_event;
+    data_fd2_chapter_current_chapter_id = 1;
+
+    /* scripted mode: skips entry cache frees + cleanup, so these globals are
+     * never freed/restored; the SFX banks are not loaded (stay as set). */
+    data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = scripted_mode;
+    data_fd2_audio_figani_sfx_bank_buf_ptr = 0;
+    data_fd2_audio_figani_sfx_bank_defender_buf_ptr = 0;
+
+    g_zoom_anim_calls = 0;
+    g_zoom_anim_last_char = 0;
+    g_zoom_anim_last_mode = 0;
+
+    g_exec_hit_calls = 0;
+    g_exec_hit_return = 1;
+    for (i = 0; i < 8; i++) {
+        g_exec_hit_att[i] = 0;
+        g_exec_hit_def[i] = 0;
+        g_exec_hit_banner_first[i] = 0;
+        g_exec_hit_sfx[i] = 0;
+    }
+}
+
+/* Drive the scripted cinematic and assert the two-call dispatch order +
+ * the banner index the forcing logic selected (via TAI.DAT[exp_banner]). */
+static void run_scripted_case(uint8 att_portrait, uint8 def_portrait,
+                              uint32 scripted_mode, int exp_banner_idx)
+{
+    uint8 *tai;
+    long   tai_size;
+    int    exp_first;
+    uint32 exp_flag;
+    uint8 *fig;
+    long   fig_size;
+
+    /* independent TAI.DAT[exp_banner_idx] first byte */
+    tai_size = realdat_read_resource("TAI.DAT", exp_banner_idx, &tai);
+    ASSERT_TRUE(tai_size > 0 && tai != 0);
+    exp_first = (int)tai[0];
+    free(tai);
+
+    /* independent split-screen flag = attacker anim-FIGANI[+1] (the byte the
+     * function reads to choose single vs split background) */
+    fig_size = realdat_read_resource("FIGANI.DAT",
+                                     (int)att_portrait * 3 + 1, &fig);
+    ASSERT_TRUE(fig_size > 1 && fig != 0);
+    exp_flag = (uint32)fig[1];
+    free(fig);
+
+    setup_scripted_cinematic(att_portrait, def_portrait, scripted_mode);
+    fd2_play_full_combat_cinematic(0, 1);
+
+    /* scripted mode dispatches the hit cinematic exactly twice: the attacker
+     * blow (0->1) then the guided counter (1->0) */
+    ASSERT_EQ(g_exec_hit_calls, 2);
+    ASSERT_EQ((long)g_exec_hit_att[0], 0L);
+    ASSERT_EQ((long)g_exec_hit_def[0], 1L);
+    ASSERT_EQ((long)g_exec_hit_att[1], 1L);
+    ASSERT_EQ((long)g_exec_hit_def[1], 0L);
+
+    /* both calls receive the same banner sprite; its first payload byte pins
+     * the forced/selected TAI index */
+    ASSERT_EQ(g_exec_hit_banner_first[0], exp_first);
+    ASSERT_EQ(g_exec_hit_banner_first[1], exp_first);
+
+    /* scripted mode does not load the SFX banks: both forwarded handles are 0 */
+    ASSERT_EQ((long)g_exec_hit_sfx[0], 0L);
+    ASSERT_EQ((long)g_exec_hit_sfx[1], 0L);
+
+    /* zoom-anim handed off once: char idx 0 (attacker), mode = split flag */
+    ASSERT_EQ(g_zoom_anim_calls, 1);
+    ASSERT_EQ((long)g_zoom_anim_last_char, 0L);
+    ASSERT_EQ((long)g_zoom_anim_last_mode, (long)exp_flag);
+
+    /* the scripted flag is latched to 1 by the guided-counter block */
+    ASSERT_EQ((long)data_fd2_battle_scripted_cinematic_mode_or_terrain_idx, 1L);
+}
+
+/*
+ * Scripted + attacker portrait 0x1A (a climactic-portrait trigger): the
+ * banner index is FORCED to 3 regardless of the scripted-mode value 5.
+ * TAI[3] (first byte) differs from TAI[5], so the assertion distinguishes
+ * the forced path from the not-forced path. (FIGANI[0x1A*3+1][+1] == 0, so
+ * the single-background arm is taken.)
+ */
+static void test_scripted_banner_forced(void)
+{
+    run_scripted_case(0x1A, 0x02, CINE_SCRIPT_BG, 3);
+}
+
+/*
+ * Scripted + neither trigger portrait (attacker 0x01, defender 0x02, none of
+ * 0x1A/0x36/0x37): the banner index is the scripted-mode value itself
+ * (CINE_SCRIPT_BG), exercising the not-forced arm of the same branch.
+ */
+static void test_scripted_banner_not_forced(void)
+{
+    run_scripted_case(0x01, 0x02, CINE_SCRIPT_BG, CINE_SCRIPT_BG);
+}
+
+/*
+ * Scripted dispatch is independent of the attacker-blow return value: even
+ * when fd2_execute_combat_hit_cinematic reports "miss" (return 0), the
+ * guided-counter block (gated only by the scripted flag, not the return)
+ * still fires the second call. Confirms the scripted counter is NOT gated by
+ * the hit-landed result the way the non-scripted counter is.
+ */
+static void test_scripted_counter_ignores_hit_result(void)
+{
+    uint8 *tai;
+    long   tai_size;
+    int    exp_first;
+
+    tai_size = realdat_read_resource("TAI.DAT", 3, &tai);
+    ASSERT_TRUE(tai_size > 0 && tai != 0);
+    exp_first = (int)tai[0];
+    free(tai);
+
+    setup_scripted_cinematic(0x1A, 0x02, CINE_SCRIPT_BG);
+    g_exec_hit_return = 0;               /* attacker blow "misses" */
+    fd2_play_full_combat_cinematic(0, 1);
+
+    ASSERT_EQ(g_exec_hit_calls, 2);      /* counter still dispatched */
+    ASSERT_EQ((long)g_exec_hit_att[1], 1L);
+    ASSERT_EQ((long)g_exec_hit_def[1], 0L);
+    ASSERT_EQ(g_exec_hit_banner_first[1], exp_first);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_play_full_combat_cinematic @ 0x28A6C  (non-scripted terrain-override path)
+ *
+ * Regression for the immune-class + chapter-override==0 sub-case, where the
+ * binary keeps TWO distinct terrain values (EAX vs the [ESP+8] slot):
+ *
+ *   banner_term     (EAX, drives the TAI.DAT name-banner index)
+ *   defender_terrain ([ESP+8], drives the BG.DAT split-bg index)
+ *
+ * Both start equal to the per-chapter override byte. For an immune terrain
+ * char (job 0x13 / archetype 4|5, portrait != 0x1C) with override==0, only
+ * [ESP+8] is reloaded to the under-foot tile attribute while EAX stays = the
+ * override (0). At the non-scripted exit the value PUSHed as the TAI.DAT index
+ * is EAX, so the name banner is TAI.DAT[override] = TAI.DAT[0], NOT
+ * TAI.DAT[tile_attr[6]]. (Verified at 0x28bff JNZ / 0x28c01..0x28c0a — EAX is
+ * never reloaded in that arm — and 0x28c41 PUSH EAX.)
+ *
+ * The non-scripted path loads that banner unconditionally and forwards it to
+ * fd2_execute_combat_hit_cinematic; the spy captures the banner sprite's first
+ * payload byte, cross-checked against an INDEPENDENT realdat read of
+ * TAI.DAT[0] (no hardcoded magic). The tile_attr[+6] fixture byte points at a
+ * different TAI entry whose first byte differs from TAI.DAT[0]'s, so the
+ * assertion fails if the banner index ever collapses back to defender_terrain.
+ *
+ * Chapter 24 is chosen because data_fd2_chapter_combat_cinematic_mode_per_chapter
+ * [24] == 0 (the real FD2.LE override table). The full non-scripted cleanup
+ * (cache frees + reload + final composite) runs host-safely over the same
+ * in-memory battle-scene fixture the FIGANI-intro test uses.
+ * ---------------------------------------------------------------- */
+
+/* tile_attr[+6] value the buggy (collapsed) banner index would select. It must
+ * resolve to a TAI.DAT entry whose first byte differs from TAI.DAT[0]'s. */
+#define CINE_OVR_TILE_BG  5
+
+/* Seed attacker (idx 0) as the immune TERRAIN char and defender (idx 1) as the
+ * spotlight, non-scripted, on a chapter whose override byte is 0. Attacker
+ * team != 0 -> p_terrain = attacker; job_id 0x13 + portrait != 0x1C makes the
+ * immune branch fire; the zeroed inventory makes fd2_check_can_counter_attack
+ * return -1 (no counter FIGANI / single hit). */
+static void setup_override_terrain(uint8 chapter_idx)
+{
+    int i;
+    uint32 *table;
+
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].pos_x = CINE_WIN_OX + 1;
+    g_test_rc_array[0].pos_y = CINE_WIN_OY + 1;
+    g_test_rc_array[0].portrait_id = 0x01;      /* != 0x1C, FIGANI split flag 0 */
+    g_test_rc_array[0].team = 2;                /* player -> terrain = attacker */
+    g_test_rc_array[0].job_id = 0x13;           /* immune class */
+    g_test_rc_array[1].pos_x = CINE_WIN_OX + 2; /* adjacent to attacker */
+    g_test_rc_array[1].pos_y = CINE_WIN_OY + 1;
+    g_test_rc_array[1].portrait_id = 0x02;
+    g_test_rc_array[1].team = 0;                /* enemy spotlight */
+
+    /* zeroed tile map -> sprite_idx 0; attr_buf[2] lands at tile_attr[+6]. Set
+     * it to the non-override BG so banner_term(=override 0) and defender_terrain
+     * (=tile_attr[6]) provably diverge. */
+    memset(g_cine_tile_map, 0, sizeof(g_cine_tile_map));
+    memset(g_cine_attr_buf, 0, sizeof(g_cine_attr_buf));
+    memset(g_cine_tile_event, 0, sizeof(g_cine_tile_event));
+    g_cine_attr_buf[2] = CINE_OVR_TILE_BG;
+    data_fd2_battle_tile_map_ptr = (uint32)g_cine_tile_map;
+    data_fd2_battle_map_width_tiles = CINE_MAP_W;
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)g_cine_attr_buf;
+    data_fd2_tile_event_data_table_ptr = (uint32)g_cine_tile_event;
+    data_fd2_chapter_current_chapter_id = chapter_idx;
+
+    /* non-scripted: the entry cache frees + final reload/composite all run, so
+     * NULL the freed globals (free(NULL) no-op; the loader-reload mallocs run)
+     * and stand up the portrait cache + mini-panel + view-window fixtures. */
+    data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = 0;
+    data_fd2_large_game_state_buffer_ptr = 0;
+    battle_scene_snapshot = 0;
+    portrait_sprite_cache = 0;
+
+    table = (uint32 *)g_cine_portrait_cache;
+    for (i = 0; i < 256; i++) {
+        table[i] = (uint32)i * 0x100u;
+    }
+    portrait_sprite_cache = (uint32)g_cine_portrait_cache;
+
+    data_fd2_battle_view_window_origin_x = CINE_WIN_OX;
+    data_fd2_battle_view_window_origin_y = CINE_WIN_OY;
+    data_fd2_battle_view_window_max_x = 0x100;
+    data_fd2_battle_view_window_max_y = 0x100;
+    data_fd2_ui_terrain_hud_user_enabled = 0;
+    data_fd2_ui_play_active_flag = 0;
+    data_fd2_battle_anim_phase = 0;
+    data_fd2_animation_palette_cycle_last_tick = (uint16)BIOS_TICK_WORD;
+
+    minip_setup_env();
+
+    /* SFX banks: stub returns a real malloc'd handle (freed by cleanup). */
+    g_figani_sfx_bank_nonnull = 1;
+    g_load_figani_sfx_bank_calls = 0;
+    data_fd2_audio_figani_sfx_bank_buf_ptr = 0;
+    data_fd2_audio_figani_sfx_bank_defender_buf_ptr = 0;
+
+    g_zoom_anim_calls = 0;
+    g_zoom_anim_last_char = 0;
+    g_zoom_anim_last_mode = 0;
+
+    g_exec_hit_calls = 0;
+    g_exec_hit_return = 1;
+    for (i = 0; i < 8; i++) {
+        g_exec_hit_att[i] = 0;
+        g_exec_hit_def[i] = 0;
+        g_exec_hit_banner_first[i] = 0;
+        g_exec_hit_sfx[i] = 0;
+    }
+}
+
+/*
+ * Non-scripted, immune terrain char, chapter 24 (override byte 0): the
+ * name-banner index must be the override (0) -> TAI.DAT[0], NOT the under-foot
+ * tile attribute (CINE_OVR_TILE_BG). Asserts the banner sprite forwarded to
+ * fd2_execute_combat_hit_cinematic is TAI.DAT[0] via an independent read, and
+ * confirms TAI.DAT[0] and TAI.DAT[CINE_OVR_TILE_BG] actually differ so the
+ * check discriminates the fixed value flow from the collapsed one.
+ */
+static void test_nonscripted_immune_override_zero_banner(void)
+{
+    uint8 *tai0;
+    uint8 *tai_tile;
+    long   sz0;
+    long   sz_tile;
+    int    exp_first0;
+    int    tile_first;
+
+    /* independent TAI.DAT[0] (the override index) first byte */
+    sz0 = realdat_read_resource("TAI.DAT", 0, &tai0);
+    ASSERT_TRUE(sz0 > 0 && tai0 != 0);
+    exp_first0 = (int)tai0[0];
+    free(tai0);
+
+    /* independent TAI.DAT[tile] first byte -> must differ from TAI.DAT[0]'s, or
+     * the assertion below could not distinguish the bug from the fix */
+    sz_tile = realdat_read_resource("TAI.DAT", CINE_OVR_TILE_BG, &tai_tile);
+    ASSERT_TRUE(sz_tile > 0 && tai_tile != 0);
+    tile_first = (int)tai_tile[0];
+    free(tai_tile);
+    ASSERT_TRUE(exp_first0 != tile_first);
+
+    setup_override_terrain(24);
+    fd2_play_full_combat_cinematic(0, 1);
+
+    /* non-scripted single attacker blow (no counter: zeroed defender weapon) */
+    ASSERT_EQ(g_exec_hit_calls, 1);
+    ASSERT_EQ((long)g_exec_hit_att[0], 0L);
+    ASSERT_EQ((long)g_exec_hit_def[0], 1L);
+
+    /* the forwarded banner sprite is TAI.DAT[override=0], NOT TAI.DAT[tile] */
+    ASSERT_EQ(g_exec_hit_banner_first[0], exp_first0);
+}
+
 void run_anim_anicine_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -288,6 +633,10 @@ void run_anim_anicine_tests(void)
     RUN_TEST(test_intro_single_sfx_fire);
     RUN_TEST(test_intro_other_portrait);
     RUN_TEST(test_intro_multi_sfx_sequence);
+    RUN_TEST(test_scripted_banner_forced);
+    RUN_TEST(test_scripted_banner_not_forced);
+    RUN_TEST(test_scripted_counter_ignores_hit_result);
+    RUN_TEST(test_nonscripted_immune_override_zero_banner);
     printf("\n");
     (void)_prev_fails;
 }
