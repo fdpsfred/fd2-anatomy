@@ -765,6 +765,68 @@ static void test_ch3_event9_char6_dead_skips_beat(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_0b__ch4_dialog @ 0x34565
+ *
+ * Dispatch idx 0x0B of the per-event handler table at 0x51B91 — ch4
+ * turn-4 dialog-only beat, and the simplest handler in the group: a
+ * straight-line, no-branch sequence with no RNG, no numeric computation,
+ * and no CALL-return value used. It does just two things:
+ *   load_chapter_portraits_and_dump_tmp(2);
+ *   display_dialog_scene(page 2, ...);
+ *
+ * In the binary the handler prepares its own 8 PUSHes (page=2 plus the
+ * fixed dialog geometry) and JMPs into handler_09's shared tail at 0x3452F
+ * (PUSH current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24;
+ * RET); the emit reproduces that tail inline. It has NO state of its own
+ * and NO branch, so its entire testable risk core is that the real portrait
+ * reload happens and the whole beat runs to completion without faulting.
+ *
+ * Both callees are REAL emitted functions and run end-to-end against the
+ * same proven ch25-style env handler_09's alive path uses: the single
+ * fd2_load_chapter_portraits_and_dump_tmp(2) runs FOR REAL against the
+ * staged real FDICON.B24 + FDFIELD.DAT (alloc_offset 0 -> empty per-record
+ * scan; current_chapter_id 4 -> valid FDFIELD index 0xE), so it frees+nulls
+ * the field buffer and rewrites the full 0x32A00-byte FD2.TMP; the portrait
+ * set argument (2) only selects which portrait pixels load. The immediate-END
+ * dialog program (page 2 <= 0x10) makes fd2_display_dialog_scene return at
+ * once with no glyph blits. Handler_0b fires NO cutscene, pan, delay, or
+ * recruit, so no extra env is needed.
+ *
+ * The pure blit/display side effects (dialog glyphs, portrait pixels) are
+ * deferred to Phase 9 integration.
+ * ================================================================ */
+
+/* ----------------------------------------------------------------
+ * The handler fires its fixed ch4 dialog-only beat end-to-end. Its
+ * observable, deterministic contract is: the real portrait reload happened
+ * (field buffer freed+nulled, FD2.TMP rewritten to its full 0x32A00-byte
+ * size) and the whole beat (real reload + immediate-END dialog page 2) runs
+ * to completion without faulting.
+ * ---------------------------------------------------------------- */
+static void test_ch4_event0b_reloads_portraits_and_shows_dialog(void)
+{
+    /* shared ch25-style real-portrait-reload env (empty party, gated HUD,
+     * throttled palette, real compositor workspace, immediate-END dialog,
+     * empty keyboard buffer, alloc_offset 0, current_chapter_id 4, fresh
+     * field buffer). handler_0b reloads ONCE (portrait set 2). */
+    ev_install_safe_env();
+
+    remove("FD2.TMP");
+
+    fd2_chapter_event_handler_0b__ch4_dialog(0);
+
+    /* the real portrait reload ran: field buffer freed+nulled, and FD2.TMP
+     * was rewritten to its full 0x32A00-byte size. */
+    ASSERT_EQ(chapter_portrait_load_buffer, 0);
+    ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
+
+    /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
+    remove("FD2.TMP");
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -777,5 +839,6 @@ void run_field_chevt1_tests(void)
     RUN_TEST(test_ch2_event6_arms_reinforcement_enemies);
     RUN_TEST(test_ch3_event9_char6_alive_reloads_and_shows_dialog);
     RUN_TEST(test_ch3_event9_char6_dead_skips_beat);
+    RUN_TEST(test_ch4_event0b_reloads_portraits_and_shows_dialog);
     printf("\n");
 }
