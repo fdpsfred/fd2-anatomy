@@ -3236,8 +3236,9 @@
     "name": "fd2_find_inventory_slot_with_item",
     "target": "ui_menu/status.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000318ad": {
     "name": "fd2_run_recruitment_or_branch_screen",

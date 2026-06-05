@@ -1146,3 +1146,41 @@ void fd2_run_status_screen_member_menu(void)
             (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[0]);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_find_inventory_slot_with_item @ 0x31860  (5 callers)
+ *
+ * Search runtime_char[char_idx]'s inventory for a slot holding item_id.
+ * Iterates over the per-char usable slot count returned by
+ * fd2_count_usable_inventory_slots(char_idx); for each slot it reads the
+ * slot's item id via fd2_get_inventory_slot_item_id(char_idx, slot) and
+ * returns the first slot index whose item id equals item_id. Returns -1
+ * when the usable count is 0 or no slot matches.
+ *
+ * Used to detect whether a char carries a specific key item (promotion
+ * key, plot item, the Sword that triggers the Lord-class path).
+ *
+ * Callers: fd2_run_class_promotion_menu_main,
+ * fd2_build_promotion_candidates_with_targets, fd2_any_char_has_item,
+ * fd2_chapter_21_end, fd2_chapter_event_handler_3d__ch26_pickup.
+ *
+ * int __cdecl with the __CHK(0x1c) stack-probe prologue (compiler-
+ * injected, not part of the source). fd2_get_inventory_slot_item_id
+ * returns a zero-extended byte (MOVZX), so the full-EAX compare in the
+ * asm is exactly a byte == item_id test.
+ * ---------------------------------------------------------------- */
+int fd2_find_inventory_slot_with_item(uint32 char_idx, uint32 item_id)
+{
+    int slot_count;
+    uint32 slot_iter;
+
+    slot_count = fd2_count_usable_inventory_slots(char_idx);
+    if (slot_count != 0) {
+        for (slot_iter = 0; (int)slot_iter < slot_count; slot_iter++) {
+            if (fd2_get_inventory_slot_item_id(char_idx, slot_iter) == item_id) {
+                return (int)slot_iter;
+            }
+        }
+    }
+    return -1;
+}

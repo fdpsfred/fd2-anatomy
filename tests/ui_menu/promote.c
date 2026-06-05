@@ -39,16 +39,6 @@ extern int    g_promote_grid_last_list;
 extern int    g_promote_scroll_down_calls;
 extern int    g_promote_scroll_up_calls;
 
-/* configurable fd2_find_inventory_slot_with_item fake (testglob.c): grant a
- * char a specific item id so the real candidate builder takes its key-item /
- * Sword target-class branches; reset clears the owned set + spy counters. */
-extern int    g_find_item_slot_calls;
-extern uint32 g_find_item_slot_last_char;
-extern uint32 g_find_item_slot_last_item;
-extern int    g_find_item_slot_owned_slot;
-extern void   test_find_item_reset(void);
-extern void   test_find_item_grant(uint32 char_idx, uint32 item_id);
-
 /* per-basic-class required class-change key-item id (real FD2.LE values
  * @ 0x526A7), mirrored from testglob.c so the builder's expected key item per
  * portrait_id can be referenced in assertions. */
@@ -506,10 +496,9 @@ static void test_promote_no_candidates_returns(void)
     data_fd2_portrait_sprite_buffer = 0;                /* loader frees prev iff != 0 */
 
     /* the REAL builder now decides the count: a single under-level member is
-     * ineligible (level 0 < 0x14), so it reports 0 -> count==0 branch. The
-     * find-item fake is reset so no key item is granted (irrelevant here since
-     * the member is filtered out before any inventory lookup). */
-    test_find_item_reset();
+     * ineligible (level 0 < 0x14), so it reports 0 -> count==0 branch. No key
+     * item matters here since the member is filtered out before any inventory
+     * lookup, and the all-zero fixture below has no special inventory state. */
 
     /* single-member party on the shared (file-static) fixture so any
      * (unexpected) commit-path roster read stays in bounds AND no dangling
@@ -766,9 +755,10 @@ static void test_promote_exec_no_spell(void)
  *
  * Stands up the shared g_test_rc_array fixture directly (no blocking I/O) and
  * drives the real eligibility scan + parallel out_chars/out_targets packing.
- * The find-item callee is the configurable testglob fake: by default no char
- * owns any item (-> the default +0x20 target), and test_find_item_grant()
- * grants exactly one (char,item) pair to fire the key-item / Sword branches.
+ * The find-item callee is the REAL fd2_find_inventory_slot_with_item: by
+ * default promo_cand_setup empties every inventory slot so no char owns any
+ * item (-> the default +0x20 target), and promo_cand_grant_item() stamps an
+ * item into a char's real inventory to fire the key-item / Sword branches.
  *
  * Eligibility (all three must hold to record a candidate):
  *   level (status_flags_block[0]) >= 0x14, portrait_id < 0x12, portrait_id != 7.
@@ -777,13 +767,22 @@ static void test_promote_exec_no_spell(void)
  * portrait_id==9 and the char owns Sword(0x5A) (this last write wins).
  * ---------------------------------------------------------------- */
 
-/* zero the fixture, set party size, reset the find-item fake. */
+/* zero the fixture, set party size, and mark every inventory slot of every
+ * char EMPTY (flag bit 0x80) so the real fd2_find_inventory_slot_with_item
+ * reports "not owned" by default (usable count 0 -> returns -1). Tests grant
+ * an item via promo_cand_grant_item to fire the key-item / Sword branches. */
 static void promo_cand_setup(int member_count)
 {
+    int c;
+    int s;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     data_fd2_shared_menu_party_member_count = (uint32)member_count;
-    test_find_item_reset();
+    for (c = 0; c < 8; c++) {
+        for (s = 0; s < 8; s++) {
+            g_test_rc_array[c].inventory_slots[s * 2] = 0x80;   /* empty */
+        }
+    }
 }
 
 /* an eligible member: level 0x14, given portrait_id (caller picks < 0x12,
@@ -792,6 +791,23 @@ static void promo_cand_set_member(int idx, uint8 portrait_id, uint8 level)
 {
     g_test_rc_array[idx].portrait_id = portrait_id;
     g_test_rc_array[idx].status_flags_block[0] = level;
+}
+
+/* grant char idx a real inventory copy of item_id by making its first empty
+ * slot usable (flag clear) and stamping the item id there. Since promo_cand_setup
+ * empties all slots and grants fill consecutively from slot 0, after k grants
+ * slots 0..k-1 are usable, so fd2_count_usable_inventory_slots(idx)==k and
+ * fd2_find_inventory_slot_with_item scans exactly the granted slots [0,k). */
+static void promo_cand_grant_item(int idx, uint8 item_id)
+{
+    int s;
+    for (s = 0; s < 8; s++) {
+        if ((g_test_rc_array[idx].inventory_slots[s * 2] & 0x80) != 0) {
+            g_test_rc_array[idx].inventory_slots[s * 2] = 0x00;
+            g_test_rc_array[idx].inventory_slots[s * 2 + 1] = item_id;
+            return;
+        }
+    }
 }
 
 /* ---- every eligibility filter + default +0x20 target, with packing ---- */
@@ -848,20 +864,18 @@ static void test_build_cand_key_item_branch(void)
     promo_cand_set_member(1, 0x03, 0x14);
 
     key_for_8 = data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[0x08];
-    test_find_item_grant(0, (uint32)key_for_8);   /* char 0 holds class-8 key */
+    promo_cand_grant_item(0, key_for_8);          /* char 0 holds class-8 key */
 
     count = fd2_build_promotion_candidates_with_targets(out_chars, out_targets);
 
     ASSERT_EQ((long)count, 2);
     ASSERT_EQ((long)out_chars[0], 0);
     ASSERT_EQ((long)out_chars[1], 1);
-    /* idx0 took the alt path (+0x32); idx1 stayed on the default (+0x20). */
+    /* idx0 took the alt path (+0x32) because it owns its class-8 key item;
+     * idx1 owns nothing so it stayed on the default (+0x20). The per-char
+     * key-item probe is thus pinned by the divergent targets. */
     ASSERT_EQ((long)out_targets[0], 0x08 + 0x32);
     ASSERT_EQ((long)out_targets[1], 0x03 + 0x20);
-    /* the builder queried char 0 against exactly its class-8 key item. */
-    ASSERT_EQ((long)g_find_item_slot_last_char, 1);   /* last call = idx1 */
-    /* both eligible chars were probed for their key item. */
-    ASSERT_EQ((long)g_find_item_slot_calls, 2);
 }
 
 /* ---- Lord direct: portrait_id 9 + Sword(0x5A) -> target 0x34 (wins) ---- */
@@ -878,8 +892,8 @@ static void test_build_cand_lord_sword_branch(void)
     /* grant BOTH the class-9 key item AND the Sword so the +0x32 write happens
      * first and the 0x34 Sword write then overrides it (the asm order). */
     key_for_9 = data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[0x09];
-    test_find_item_grant(0, (uint32)key_for_9);
-    test_find_item_grant(0, 0x5A);
+    promo_cand_grant_item(0, key_for_9);
+    promo_cand_grant_item(0, 0x5A);
 
     count = fd2_build_promotion_candidates_with_targets(out_chars, out_targets);
 
@@ -920,7 +934,8 @@ static void test_build_cand_empty_party(void)
     count = fd2_build_promotion_candidates_with_targets(out_chars, out_targets);
 
     ASSERT_EQ((long)count, 0);
-    ASSERT_EQ((long)g_find_item_slot_calls, 0);
+    /* no eligible char -> the builder never reached an inventory probe and
+     * wrote nothing into either output buffer. */
     ASSERT_EQ((long)out_chars[0], 0xAA);
     ASSERT_EQ((long)out_targets[0], 0xAA);
 }
@@ -948,9 +963,6 @@ void run_ui_menu_promote_tests(void)
     RUN_TEST(test_build_cand_lord_sword_branch);
     RUN_TEST(test_build_cand_lord_no_sword);
     RUN_TEST(test_build_cand_empty_party);
-    /* leave the find-item fake reset so later suites start from a clean owned
-     * set / spy state. */
-    test_find_item_reset();
     /* restore stub default so later suites keep historical behavior */
     g_check_char_is_dead_use_array = 0;
     g_check_char_is_dead_return = 0;

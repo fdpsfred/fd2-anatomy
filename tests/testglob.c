@@ -666,66 +666,13 @@ int fd2_party_roster_single_select_loop(void)
     return g_roster_select_return;
 }
 
-/* fd2_build_promotion_candidates_with_targets @ 0x31793: now REAL in
- * src/ui_menu/promote.c and linked for real (it drives the real per-char
- * eligibility scan + the configurable fd2_find_inventory_slot_with_item fake
- * below). The class-promotion menu's count==0 early-return path is now driven
- * by an ineligible (under-level) party on g_test_rc_array, not a count fake. */
-
-/* fd2_find_inventory_slot_with_item @ 0x31860: not yet emitted (its real emit
- * scans each char's inventory via fd2_count_usable_inventory_slots +
- * fd2_get_inventory_slot_item_id). Controllable fake: returns
- * g_find_item_slot_return for any item_id NOT registered as "owned"; for an
- * owned (char_idx,item_id) pair it returns g_find_item_slot_owned_slot (>=0 =
- * found). Used by the real fd2_build_promotion_candidates_with_targets to drive
- * its key-item / Sword target-class branches. The owned set is a small
- * (char_idx,item_id) table so a test can grant exactly one char one key item.
- * Default (empty owned set, return -1) reproduces the prior no-op stub, so the
- * commit-path coverage that rides Phase 9 integration is unaffected. */
-#define FIND_ITEM_OWNED_MAX 8
-int    g_find_item_slot_calls = 0;
-uint32 g_find_item_slot_last_char = 0;
-uint32 g_find_item_slot_last_item = 0;
-int    g_find_item_slot_return = -1;       /* result when not in owned set   */
-int    g_find_item_slot_owned_slot = 0;    /* result when in owned set       */
-int    g_find_item_owned_n = 0;
-uint32 g_find_item_owned_char[FIND_ITEM_OWNED_MAX];
-uint32 g_find_item_owned_item[FIND_ITEM_OWNED_MAX];
-
-void test_find_item_reset(void)
-{
-    g_find_item_slot_calls = 0;
-    g_find_item_slot_last_char = 0;
-    g_find_item_slot_last_item = 0;
-    g_find_item_slot_return = -1;
-    g_find_item_slot_owned_slot = 0;
-    g_find_item_owned_n = 0;
-}
-
-void test_find_item_grant(uint32 char_idx, uint32 item_id)
-{
-    if (g_find_item_owned_n < FIND_ITEM_OWNED_MAX) {
-        g_find_item_owned_char[g_find_item_owned_n] = char_idx;
-        g_find_item_owned_item[g_find_item_owned_n] = item_id;
-        g_find_item_owned_n++;
-    }
-}
-
-int fd2_find_inventory_slot_with_item(uint32 char_idx, uint32 item_id)
-{
-    int i;
-
-    g_find_item_slot_calls++;
-    g_find_item_slot_last_char = char_idx;
-    g_find_item_slot_last_item = item_id;
-    for (i = 0; i < g_find_item_owned_n; i++) {
-        if (g_find_item_owned_char[i] == char_idx &&
-            g_find_item_owned_item[i] == item_id) {
-            return g_find_item_slot_owned_slot;
-        }
-    }
-    return g_find_item_slot_return;
-}
+/* fd2_build_promotion_candidates_with_targets @ 0x31793: REAL in
+ * src/ui_menu/promote.c. It drives the real per-char eligibility scan and the
+ * real fd2_find_inventory_slot_with_item (also real, src/ui_menu/status.c) for
+ * its key-item / Sword target-class branches. Tests grant a char an item by
+ * populating g_test_rc_array's real inventory slots, so no find-item fake is
+ * needed here. The class-promotion menu's count==0 early-return path is driven
+ * by an ineligible (under-level) party on g_test_rc_array. */
 
 /* fd2_roll_stat_gain_and_show_message @ 0x1E529: not yet emitted (its real
  * emit lands in battle/btl_turn.c); controllable fake so its two callers
