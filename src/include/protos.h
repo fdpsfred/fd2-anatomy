@@ -341,6 +341,7 @@ void fd2_setup_chars_and_camera_for_intro(uint32 px_table, uint32 py_table,
 void fd2_chapter_01_end(void);
 void fd2_chapter_02_end(void);
 void fd2_chapter_03_end(void);
+void fd2_chapter_04_end(void);
 
 /* ---- lifecycle / main menu ---- */
 void fd2_play_chapter_clear_fanfare(void);

@@ -150,3 +150,32 @@ void fd2_chapter_03_end(void)
 
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_04_end @ 0x231BC  (0 direct callers; dispatched via the
+ *   chapter-end handler pointer table @ 0x51DF5)
+ *
+ * Chapter 4「塞拉村前」end handler. Shows the chapter-end dialog page 4,
+ * persists the party's runtime-character state back to the template store,
+ * then advances the current-chapter id by 1.
+ *
+ * The function body carries three mid-function entry points reused by other
+ * chapter-end handlers, which JMP into the shared tail rather than calling:
+ *   0x231C6 (+0xA)  <- fd2_chapter_09_end
+ *   0x231DF (+0x23) <- fd2_chapter_06_end, fd2_chapter_28_end
+ *   0x231F2 (+0x36) <- fd2_chapter_11_end, fd2_chapter_19_end
+ * Those handlers replicate the relevant portion of this tail when emitted;
+ * chapter 4 itself is emitted as a self-contained function (Layer 2 functional
+ * equivalence — the jump-into-middle sharing is not preserved in source).
+ *
+ * Paired init handler: fd2_chapter_04_init @ 0x32FB2.
+ * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
+ * Walkthrough: assets/chapters/chapter_04.md.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_04_end(void)
+{
+    fd2_display_dialog_scene(current_chapter_text, 4, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+    fd2_save_runtime_char_to_template();
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}

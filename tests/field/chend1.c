@@ -596,6 +596,120 @@ static void test_chapter_03_end_survivor_dead_no_recruit(void)
     ASSERT_EQ((long)chapter_id, 4L);
 }
 
+/* ================================================================
+ * fd2_chapter_04_end @ 0x231BC
+ *
+ * The Chapter 4 end handler is the trivial 3-step shape: it shows chapter-end
+ * dialog page 4 via the real fd2_display_dialog_scene, persists battle-runtime
+ * char state via the real fd2_save_runtime_char_to_template, then advances the
+ * chapter id. Unlike chapter 1 (which writes the id := 1 absolutely), chapter 4
+ * INCREMENTS the id (+= 1, the binary's `INC [0x53c03]`).
+ *
+ * Both callees are the real linked functions, so the fixture stands up the same
+ * in-memory env the chapter 1 suite uses: current_chapter_text points at a
+ * minimal int16 program whose page-4 header word redirects to one glyph + END
+ * (so the real dialog VM runs headless via the testglob.c glyph recorder), plus
+ * a zeroed runtime-char array + zeroed roster with member_count = 1 so the real
+ * save pass runs harmlessly.
+ *
+ * Asserted: the dialog VM ran against page 4 (glyph recorder pins the page
+ * index / text base), and the id transition is an INCREMENT of the prior value
+ * (not an absolute set). The dialog page's pixels are display side-effects
+ * deferred to Phase 9.
+ * ================================================================ */
+
+static uint8 g_ce4_tmpl[8 * 0x50];
+static int16 g_ce4_text[16];
+
+static void ce4_fixture_reset(void)
+{
+    int i;
+
+    /* dialog VM safe env. */
+    *(volatile uint16 *)0x41AuL = 0x20;   /* BIOS kbd buffer head == tail */
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+
+    /* dialog program: page 4's header word (prog[4]) is a byte offset that
+     * redirects cur_op to prog[5] = one glyph (0x44), prog[6] = -1 END. */
+    for (i = 0; i < 16; i++) {
+        g_ce4_text[i] = 0;
+    }
+    g_ce4_text[4] = 10;       /* byte offset to prog[5] (page 4 start) */
+    g_ce4_text[5] = 0x44;     /* one glyph */
+    g_ce4_text[6] = -1;       /* END */
+    current_chapter_text = (uint32)g_ce4_text;
+
+    /* save-template safe env (save suite baseline). */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(g_ce4_tmpl, 0, sizeof(g_ce4_tmpl));
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_ce4_tmpl;
+    g_check_char_is_dead_return = 0;
+    data_fd2_battle_party_member_count = 1;
+    data_fd2_shared_menu_party_member_count = 1;
+}
+
+static void ce4_fixture_teardown(void)
+{
+    current_chapter_text = 0;
+    data_fd2_shared_menu_party_roster_buffer_ptr = 0;
+    data_fd2_shared_menu_party_member_count = 0;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_chapter_current_chapter_id = 1;
+}
+
+/* ----------------------------------------------------------------
+ * End-to-end: the handler runs dialog page 4 then advances the chapter id by 1.
+ * Seeded at the in-game value (3, chapter 4 follows chapter 3), it lands on 4.
+ * The glyph recorder proves the real dialog VM ran on page 4 of
+ * current_chapter_text (guards a wrong text base / page index).
+ * ---------------------------------------------------------------- */
+static void test_chapter_04_end_runs_dialog_page4_and_increments_id(void)
+{
+    int    glyph_calls;
+    uint32 glyph_idx;
+    uint32 chapter_id;
+
+    ce4_fixture_reset();
+    data_fd2_chapter_current_chapter_id = 3;   /* chapter 4 follows chapter 3 */
+
+    fd2_chapter_04_end();
+
+    glyph_calls = g_dlg_glyph_calls;
+    glyph_idx   = g_dlg_glyph_last_idx;
+    chapter_id  = data_fd2_chapter_current_chapter_id;
+    ce4_fixture_teardown();
+
+    /* page 4 redirected to a single glyph: the real VM blitted exactly it. */
+    ASSERT_EQ((long)glyph_calls, 1);
+    ASSERT_EQ((long)glyph_idx, (long)0x44);
+
+    /* state transition: id incremented 3 -> 4. */
+    ASSERT_EQ((long)chapter_id, 4L);
+}
+
+/* ----------------------------------------------------------------
+ * The id update is a relative INCREMENT, not an absolute set: seeded with a
+ * distinctive unrelated value (7), the handler leaves 8 — proving it does not
+ * hardcode the id to 4 (or to 1, as chapter 1 does).
+ * ---------------------------------------------------------------- */
+static void test_chapter_04_end_increments_not_absolute(void)
+{
+    uint32 chapter_id;
+
+    ce4_fixture_reset();
+    data_fd2_chapter_current_chapter_id = 7;   /* distinctive, unrelated to 4 */
+
+    fd2_chapter_04_end();
+
+    chapter_id = data_fd2_chapter_current_chapter_id;
+    ce4_fixture_teardown();
+
+    ASSERT_EQ((long)chapter_id, 8L);           /* 7 + 1, not a constant */
+}
+
 void run_field_chend1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -606,5 +720,7 @@ void run_field_chend1_tests(void)
     RUN_TEST(test_chapter_02_end_villager_dead_page7_no_gift);
     RUN_TEST(test_chapter_03_end_survivor_alive_recruits);
     RUN_TEST(test_chapter_03_end_survivor_dead_no_recruit);
+    RUN_TEST(test_chapter_04_end_runs_dialog_page4_and_increments_id);
+    RUN_TEST(test_chapter_04_end_increments_not_absolute);
     printf("\n");
 }
