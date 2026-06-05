@@ -197,6 +197,10 @@ void fd2_chapter_26_end(void);
 void fd2_chapter_27_end(void);
 void fd2_chapter_28_end(void);
 void fd2_chapter_30_end(void);
+
+/* ---- chapter turn-event handlers (dispatch table 0x51B91) ---- */
+void fd2_chapter_event_handler_00__ch1_dialog_with_state(uint32 event_arg);
+
 void fd2_setup_chars_and_camera_for_intro(uint32 pos_x_table, uint32 pos_y_table,
                                           uint32 facing_table, uint32 place_start,
                                           uint32 place_end, uint32 scene2_char_idx,
