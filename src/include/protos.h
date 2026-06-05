@@ -469,6 +469,8 @@ void __delay_thunk_375b2(uint32 ticks);
 int crt_equivalent_lx_chunk_read_36107(int file_handle, int offset,
                                        uint8 mode, void *dest, uint32 length);
 int crt_equivalent_lx_header_reader_36344(char *path, uint8 mode_byte);
+void *crt_equivalent_lx_module_loader_3647b(char *path, int flags,
+                                            void *caller_buf);
 
 /* ---- util / dpmi ---- */
 int fd2_dpmi_alloc_dos_memory(uint32 paragraphs, uint32 *out_linear, uint32 *out_segment, uint32 *out_selector);

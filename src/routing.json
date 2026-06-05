@@ -4344,8 +4344,9 @@
     "name": "crt_equivalent_lx_module_loader_3647b",
     "target": "crt/crt.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00036ae7": {
     "name": "fd2_ani_decoder_chunk_palette_fill_byte",

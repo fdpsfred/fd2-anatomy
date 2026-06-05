@@ -374,6 +374,284 @@ static void test_lx_header_file_open_fail(void)
     ASSERT_EQ(r, 0);
 }
 
+/* ================================================================
+ * crt_equivalent_lx_module_loader_3647b @ 0x3647b
+ *
+ * Drives the full loader entirely in memory (mode/flags bit0=1 makes
+ * every chunk read a memcpy from the supplied base, so no file I/O is
+ * needed and the loader's path argument doubles as the source-image
+ * base address). A complete LX image is assembled in a SOURCE buffer;
+ * the loader writes the loaded pages and applies relocations into a
+ * separate DESTINATION buffer (the caller_buf), which is then checked.
+ *
+ * Image layout (offsets into the source buffer):
+ *   +0x3C            : uint32 e_lfanew -> LX header at CRT_LXL_HDR_OFF.
+ *   HDR+0x00         : "LX" magic.
+ *   HDR+0x14         : uint32 number_of_fixup_pages (outer fixup loop).
+ *   HDR+0x28         : uint32 page_size_max (fixup src_offset bound).
+ *   HDR+0x2C         : uint8  page_offset_shift (we use 0).
+ *   HDR+0x40         : uint32 object_table_offset       (rel to e_lfanew).
+ *   HDR+0x44         : uint32 number_of_objects.
+ *   HDR+0x48         : uint32 object_page_table_offset   (rel to e_lfanew).
+ *   HDR+0x68         : uint32 fixup_page_table_offset    (rel to e_lfanew).
+ *   HDR+0x6C         : uint32 fixup_record_table_offset  (rel to e_lfanew).
+ *   HDR+0x80         : uint32 page_data_base (absolute file offset base).
+ *   object record    : 0x18 bytes; +0x00 vsize, +0x08 flags, +0x10 #pages.
+ *   page entry       : 0x08 bytes; +0x00 page index, +0x04 byte count.
+ *   fixup page table : uint32 cumulative offsets into the fixup records.
+ *   fixup record     : src_type(1) target_type(1) src_off(2)
+ *                      target_obj(1) target_disp(2).
+ *
+ * page file offset = (page_index << shift) + page_data_base, so with
+ * shift 0 the page data sits at page_data_base + page_index.
+ * ================================================================ */
+
+#define CRT_LXL_SRC_SIZE   1024
+#define CRT_LXL_DST_SIZE   512
+#define CRT_LXL_HDR_OFF    0x80
+#define CRT_LXL_OBJTBL     0xC0   /* object table,  rel to e_lfanew */
+#define CRT_LXL_PAGETBL    0x100  /* page table,    rel to e_lfanew */
+#define CRT_LXL_FIXPAGE    0x140  /* fixup page tbl, rel to e_lfanew */
+#define CRT_LXL_FIXREC     0x160  /* fixup records, rel to e_lfanew */
+#define CRT_LXL_PAGEDATA   0x200  /* page data, absolute file offset */
+
+/* allocator stub for the flags&4 path: hands back a fixed static buffer
+ * and records the size it was asked for so the test can assert the
+ * loader passed the header reader's total image size through. */
+static uint8  crt_lxl_alloc_pool[CRT_LXL_DST_SIZE];
+static uint32 crt_lxl_alloc_last_size;
+static int    crt_lxl_alloc_return_null;
+
+static void *crt_lxl_test_alloc(uint32 size)
+{
+    crt_lxl_alloc_last_size = size;
+    if (crt_lxl_alloc_return_null) {
+        return (void *)0;
+    }
+    return crt_lxl_alloc_pool;
+}
+
+/* Build a single-object, single-page LX image with one fixup record.
+ * page_bytes bytes of payload (0x80,0x81,...) are placed at the page
+ * data location; the fixup writes obj_base+target_disp at src_off. */
+static void crt_lxl_build_image(uint8 *buf, uint32 vsize, uint32 page_bytes,
+                                uint16 src_off, uint8 target_obj,
+                                uint16 target_disp, uint8 obj_flags)
+{
+    int hdr = CRT_LXL_HDR_OFF;
+    int rec;
+    int i;
+
+    crt_put32(buf, 0x3C, hdr);                         /* e_lfanew      */
+
+    buf[hdr + 0] = 'L';
+    buf[hdr + 1] = 'X';
+    crt_put32(buf, hdr + 0x14, 1);                     /* 1 fixup page  */
+    crt_put32(buf, hdr + 0x28, 0x1000);                /* page_size_max */
+    buf[hdr + 0x2C] = 0;                               /* shift = 0     */
+    crt_put32(buf, hdr + 0x40, CRT_LXL_OBJTBL);        /* obj table off */
+    crt_put32(buf, hdr + 0x44, 1);                     /* 1 object      */
+    crt_put32(buf, hdr + 0x48, CRT_LXL_PAGETBL);       /* page table off*/
+    crt_put32(buf, hdr + 0x68, CRT_LXL_FIXPAGE);       /* fixup page off*/
+    crt_put32(buf, hdr + 0x6C, CRT_LXL_FIXREC);        /* fixup rec off */
+    crt_put32(buf, hdr + 0x80, CRT_LXL_PAGEDATA);      /* page data base*/
+
+    /* object record at e_lfanew + object_table_offset */
+    rec = hdr + CRT_LXL_OBJTBL;
+    crt_put32(buf, rec + 0x00, vsize);                 /* virtual size  */
+    buf[rec + 0x08] = obj_flags;                       /* flags         */
+    crt_put32(buf, rec + 0x10, 1);                     /* 1 page        */
+
+    /* page table entry at e_lfanew + object_page_table_offset */
+    rec = hdr + CRT_LXL_PAGETBL;
+    crt_put32(buf, rec + 0x00, 0);                     /* page index 0  */
+    buf[rec + 0x04] = (uint8)(page_bytes & 0xFF);      /* byte count lo */
+    buf[rec + 0x05] = (uint8)((page_bytes >> 8) & 0xFF);
+
+    /* fixup page table: entry[0]=0, entry[1]=7 (one 7-byte record).
+     * A record is src_type(1)+target_type(1)+src_off(2)+target_obj(1)
+     * +target_disp(2) = 7 bytes; the cumulative offsets bound the
+     * per-page record range [entry[i], entry[i+1]). */
+    rec = hdr + CRT_LXL_FIXPAGE;
+    crt_put32(buf, rec + 0x00, 0);
+    crt_put32(buf, rec + 0x04, 7);
+
+    /* one fixup record at e_lfanew + fixup_record_table_offset */
+    rec = hdr + CRT_LXL_FIXREC;
+    buf[rec + 0] = 0x07;                               /* src_type      */
+    buf[rec + 1] = 0x00;                               /* target_type   */
+    buf[rec + 2] = (uint8)(src_off & 0xFF);            /* src_off lo    */
+    buf[rec + 3] = (uint8)((src_off >> 8) & 0xFF);     /* src_off hi    */
+    buf[rec + 4] = target_obj;                         /* target object */
+    buf[rec + 5] = (uint8)(target_disp & 0xFF);        /* disp lo       */
+    buf[rec + 6] = (uint8)((target_disp >> 8) & 0xFF); /* disp hi       */
+
+    /* page payload at page_data_base + page_index(0) */
+    for (i = 0; i < (int)page_bytes; i++) {
+        buf[CRT_LXL_PAGEDATA + i] = (uint8)(0x80 + i);
+    }
+}
+
+/* full in-memory load + relocation: object base is the destination
+ * buffer; one page of payload is copied, then one fixup patches a
+ * 32-bit word = obj_base + target_disp at src_off. */
+static void test_lxl_inmem_load_and_fixup(void)
+{
+    static uint8 src[CRT_LXL_SRC_SIZE];
+    static uint8 dst[CRT_LXL_DST_SIZE];
+    void  *r;
+    uint32 expect;
+    int    i;
+
+    for (i = 0; i < CRT_LXL_SRC_SIZE; i++) src[i] = 0;
+    for (i = 0; i < CRT_LXL_DST_SIZE; i++) dst[i] = 0xCC;
+
+    /* vsize 0x40, 0x20 page bytes, fixup at src_off 0x10,
+     * target object 1, disp 0x4. obj_flags 0 (no 16-byte skip). */
+    crt_lxl_build_image(src, 0x40, 0x20, 0x10, 1, 0x4, 0x00);
+
+    /* flags bit0=1 -> src doubles as in-memory base; bit2=0 -> use dst. */
+    r = crt_equivalent_lx_module_loader_3647b((char *)src, 1, dst);
+
+    /* returns the caller buffer */
+    ASSERT_TRUE(r == (void *)dst);
+
+    /* page payload copied to the object base (== dst start) */
+    ASSERT_EQ(dst[0x00], 0x80);
+    ASSERT_EQ(dst[0x1F], (uint8)(0x80 + 0x1F));
+
+    /* relocation: *(uint32*)(page_base + src_off) = obj_base + disp.
+     * obj_base == (uint32)dst, page_base == (uint32)dst (page 0). */
+    expect = (uint32)dst + 0x4;
+    ASSERT_EQ(*(uint32 *)(dst + 0x10), expect);
+}
+
+/* min(remaining_obj_size, page_byte_count): vsize smaller than the page
+ * byte count clamps the copy to the remaining object size. */
+static void test_lxl_inmem_clamp_to_vsize(void)
+{
+    static uint8 src[CRT_LXL_SRC_SIZE];
+    static uint8 dst[CRT_LXL_DST_SIZE];
+    void *r;
+    int   i;
+
+    for (i = 0; i < CRT_LXL_SRC_SIZE; i++) src[i] = 0;
+    for (i = 0; i < CRT_LXL_DST_SIZE; i++) dst[i] = 0xCC;
+
+    /* vsize 0x0C but page byte count 0x20 -> copy clamps to 0x0C.
+     * Keep the fixup at src_off 4 so it patches dst[4..7] (clear of the
+     * 0x0B payload byte we assert below). The loader first
+     * memset(dst,0,total_size) where total_size = 1*15 + 0x0C = 0x1B,
+     * so untouched-but-zeroed bytes read back 0, while bytes past
+     * total_size keep the 0xCC fill. */
+    crt_lxl_build_image(src, 0x0C, 0x20, 0x04, 1, 0x0, 0x00);
+
+    r = crt_equivalent_lx_module_loader_3647b((char *)src, 1, dst);
+    ASSERT_TRUE(r == (void *)dst);
+
+    /* last clamped payload byte present (0x0B); had the copy used the
+     * page byte count 0x20 instead, dst[0x0C] would be 0x8C, but the
+     * clamp means it is only the memset 0. */
+    ASSERT_EQ(dst[0x0B], (uint8)(0x80 + 0x0B));
+    ASSERT_EQ(dst[0x0C], 0x00);
+    /* memset spanned exactly total_size (0x1B); past that the fill survives */
+    ASSERT_EQ(dst[0x1B], 0xCC);
+}
+
+/* bad LX magic -> loader returns 0 without touching the destination. */
+static void test_lxl_inmem_bad_magic(void)
+{
+    static uint8 src[CRT_LXL_SRC_SIZE];
+    static uint8 dst[CRT_LXL_DST_SIZE];
+    void *r;
+    int   i;
+
+    for (i = 0; i < CRT_LXL_SRC_SIZE; i++) src[i] = 0;
+    for (i = 0; i < CRT_LXL_DST_SIZE; i++) dst[i] = 0xCC;
+    crt_lxl_build_image(src, 0x40, 0x20, 0x10, 1, 0x4, 0x00);
+    src[CRT_LXL_HDR_OFF + 0] = 'M';   /* corrupt magic */
+    src[CRT_LXL_HDR_OFF + 1] = 'Z';
+
+    r = crt_equivalent_lx_module_loader_3647b((char *)src, 1, dst);
+    ASSERT_TRUE(r == (void *)0);
+}
+
+/* invalid fixup record (src_type low 3 bits zero) -> abort, return 0. */
+static void test_lxl_inmem_bad_fixup(void)
+{
+    static uint8 src[CRT_LXL_SRC_SIZE];
+    static uint8 dst[CRT_LXL_DST_SIZE];
+    void *r;
+    int   i;
+
+    for (i = 0; i < CRT_LXL_SRC_SIZE; i++) src[i] = 0;
+    for (i = 0; i < CRT_LXL_DST_SIZE; i++) dst[i] = 0xCC;
+    crt_lxl_build_image(src, 0x40, 0x20, 0x10, 1, 0x4, 0x00);
+    /* src_type = 0 -> (src_type & 7)==0 -> invalid */
+    src[CRT_LXL_HDR_OFF + CRT_LXL_FIXREC + 0] = 0x00;
+
+    r = crt_equivalent_lx_module_loader_3647b((char *)src, 1, dst);
+    ASSERT_TRUE(r == (void *)0);
+}
+
+/* flags&4 alloc path: the loader allocates via data_ail_alloc_fnptr,
+ * which must be called with the header reader's total image size, and
+ * the returned pool becomes both the object base and the return value. */
+static void test_lxl_alloc_path(void)
+{
+    static uint8 src[CRT_LXL_SRC_SIZE];
+    uint32 saved_fnptr;
+    void  *r;
+    uint32 expect_size;
+    int    i;
+
+    for (i = 0; i < CRT_LXL_SRC_SIZE; i++) src[i] = 0;
+    for (i = 0; i < CRT_LXL_DST_SIZE; i++) crt_lxl_alloc_pool[i] = 0xCC;
+    crt_lxl_build_image(src, 0x40, 0x20, 0x10, 1, 0x4, 0x00);
+
+    saved_fnptr = data_ail_alloc_fnptr;
+    data_ail_alloc_fnptr = (uint32)crt_lxl_test_alloc;
+    crt_lxl_alloc_last_size = 0;
+    crt_lxl_alloc_return_null = 0;
+
+    /* flags bit0=1 (in-memory base) | bit2=1 (alloc). caller_buf ignored. */
+    r = crt_equivalent_lx_module_loader_3647b((char *)src, 1 | 4, (void *)0);
+    data_ail_alloc_fnptr = saved_fnptr;
+
+    /* allocator returned the pool, which is the loader's return value */
+    ASSERT_TRUE(r == (void *)crt_lxl_alloc_pool);
+
+    /* header reader formula: num_obj*15 + Sum(vsize) = 1*15 + 0x40 */
+    expect_size = 1 * 15 + 0x40;
+    ASSERT_EQ(crt_lxl_alloc_last_size, expect_size);
+
+    /* page payload landed in the allocated pool */
+    ASSERT_EQ(crt_lxl_alloc_pool[0x00], 0x80);
+}
+
+/* flags&4 alloc path with allocator failure -> loader returns 0. */
+static void test_lxl_alloc_fail(void)
+{
+    static uint8 src[CRT_LXL_SRC_SIZE];
+    uint32 saved_fnptr;
+    void  *r;
+    int    i;
+
+    for (i = 0; i < CRT_LXL_SRC_SIZE; i++) src[i] = 0;
+    crt_lxl_build_image(src, 0x40, 0x20, 0x10, 1, 0x4, 0x00);
+
+    saved_fnptr = data_ail_alloc_fnptr;
+    data_ail_alloc_fnptr = (uint32)crt_lxl_test_alloc;
+    crt_lxl_alloc_return_null = 1;
+
+    r = crt_equivalent_lx_module_loader_3647b((char *)src, 1 | 4, (void *)0);
+
+    data_ail_alloc_fnptr = saved_fnptr;
+    crt_lxl_alloc_return_null = 0;
+
+    ASSERT_TRUE(r == (void *)0);
+}
+
 void run_crt_crt_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -390,5 +668,11 @@ void run_crt_crt_tests(void)
     RUN_TEST(test_lx_header_inmem_bad_magic);
     RUN_TEST(test_lx_header_file_multi_object);
     RUN_TEST(test_lx_header_file_open_fail);
+    RUN_TEST(test_lxl_inmem_load_and_fixup);
+    RUN_TEST(test_lxl_inmem_clamp_to_vsize);
+    RUN_TEST(test_lxl_inmem_bad_magic);
+    RUN_TEST(test_lxl_inmem_bad_fixup);
+    RUN_TEST(test_lxl_alloc_path);
+    RUN_TEST(test_lxl_alloc_fail);
     printf("\n");
 }
