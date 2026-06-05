@@ -438,6 +438,11 @@ int fd2_scan_chars_within_manhattan_range(uint32 x, uint32 y, uint32 range, uint
 /* ---- ui_menu / revive + promote ---- */
 void fd2_run_revive_menu_main(void);
 void fd2_run_class_promotion_menu_main(void);
+int  fd2_run_recruitment_or_branch_screen(void);
+int  fd2_count_selected_chars(uint32 selection_state);
+void fd2_reorder_party_by_selection(uint32 selection_state);
+char fd2_require_char_id_in_active_party(uint32 active_party_cap, uint32 char_id);
+void fd2_pin_required_char_to_party_slot1(uint32 char_id);
 uint8 fd2_build_promotion_candidates_with_targets(uint8 *out_chars, uint8 *out_targets);
 int fd2_find_inventory_slot_with_item(uint32 char_idx, uint32 item_id);
 void fd2_execute_class_promotion_with_dialog(uint32 char_idx);

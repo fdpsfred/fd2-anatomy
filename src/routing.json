@@ -3244,8 +3244,9 @@
     "name": "fd2_run_recruitment_or_branch_screen",
     "target": "ui_menu/promote.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00031dbe": {
     "name": "fd2_require_char_id_in_active_party",

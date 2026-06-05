@@ -52,6 +52,15 @@ extern uint32 g_promote_cand_grid_last_cursor;
 extern int    g_promote_cand_grid_last_list;
 extern int    g_promote_cand_grid_last_aux;
 
+/* recruitment-screen renderer spy + input-injection seam (4-arg, testglob.c) */
+extern int    g_recruit_render_calls;
+extern uint32 g_recruit_render_last_panel;
+extern uint32 g_recruit_render_last_max;
+extern uint32 g_recruit_render_last_sel;
+extern uint32 g_recruit_render_last_cursor;
+extern int    g_recruit_inject_scancode;
+extern int    g_recruit_inject_after;
+
 /* Inject one keystroke into the BIOS keyboard buffer (BDA @ 0x400) so the real
  * fd2_wait_input_with_chapter_dialog_blink() exits its busy-wait on the first
  * poll and INT 16h fn 10h returns `scancode` in AH. head != tail makes the
@@ -940,6 +949,102 @@ static void test_build_cand_empty_party(void)
     ASSERT_EQ((long)out_targets[0], 0xAA);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_run_recruitment_or_branch_screen @ 0x318AD — ESC / return-value path.
+ *
+ * Ghidra modelled this function as `void`, but BOTH callers TEST EAX after
+ * the call (a 0 result re-runs the mandatory screen, a 1 proceeds). These
+ * tests pin the corrected int return AND the asm's "collapse to 0" rule:
+ * pressing ESC sets the internal result_flag to -1 inside the input loop,
+ * but the post-loop gate (LAB 0x31CD4: CMP result_flag,1 / JNZ -> XOR
+ * EDI,EDI) forces the observable return to 0, never -1. Getting this wrong
+ * (returning result_flag = -1) is the single biggest correctness risk in
+ * this emit, so it is the property under test.
+ *
+ * The ESC path runs the REAL setup (4 workspace mallocs, VRAM snapshot/
+ * clone, stubbed blits, initial render) + 12 REAL fd2_play_status_screen_
+ * outro_step slide-in/out frames + one REAL fd2_wait_input_with_recruitment_
+ * repaint frame whose injected ESC scancode terminates the do/while on the
+ * first iteration. result_flag stays -1, so the result_flag==1 block (the
+ * portrait reload via fopen FDICON.B24 + the required-char gate + the
+ * confirm dialog) is never entered — keeping the test file-free.
+ *
+ * The full-commit path (Enter while exactly max_chars are selected, then
+ * the chapter required-char gate and the yes/no confirm) is gated behind
+ * several sequential blocking input frames that a single in-process BIOS
+ * buffer cannot feed; its behavioral coverage is deferred to Phase 9
+ * integration under the emulator, the same deferral the sibling select
+ * loops apply.
+ *
+ * Also asserts the chapter -> max_chars mapping (current_chapter_id > 0x1A
+ * ? 0x13 : 0x0F) via the recruitment render spy's captured 2nd arg.
+ * ---------------------------------------------------------------- */
+static void recruit_esc_setup(uint32 chapter_id)
+{
+    minip_setup_env();                       /* sprite sheet + text + blit spies */
+    data_fd2_battle_tile_map_ptr = 0;
+    data_fd2_chapter_current_chapter_id = chapter_id;
+    data_fd2_shared_menu_party_member_count = 6;
+    /* SFX driver off -> the real fd2_play_sfx_* calls early-return without
+     * dereferencing the (null) bank pointer. */
+    data_fd2_audio_sfx_driver_available_flag = 0;
+    data_fd2_audio_fdother_sfx_bank_buf_ptr = 0;
+    portrait_sprite_cache = 0;
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+    g_recruit_render_calls = 0;
+    g_recruit_render_last_max = 0;
+    data_fd2_resource_portrait_cache_count = 0xABCD;   /* poisoned: ESC must NOT reset */
+
+    /* The driver clears the BIOS keyboard buffer before its input loop, so a
+     * pre-armed key would be wiped. Instead inject via the render seam: the
+     * REAL fd2_wait_input_with_recruitment_repaint busy-waits and calls the
+     * renderer once per tick while the buffer is empty; render call #2 (call
+     * #1 is the pre-loop setup render) flips the buffer nonempty with ESC.
+     * Force the repaint tick-latch to a sentinel no (int16)tick can match so
+     * the busy-wait fires the renderer on its very first spin. */
+    data_fd2_ui_recruitment_screen_repaint_tick_latch = 0x7FFFFFFF;
+    g_recruit_inject_scancode = 0x01;     /* ESC */
+    g_recruit_inject_after = 2;           /* setup render = 1, busy-wait render = 2 */
+}
+
+/* chapter <= 0x1A: ESC -> returns 0 (NOT -1); max_chars resolved to 0x0F. */
+static void test_recruit_esc_returns_zero_low_chapter(void)
+{
+    int r;
+
+    recruit_esc_setup(0x10);
+    r = fd2_run_recruitment_or_branch_screen();
+
+    ASSERT_EQ((long)r, 0);
+    /* render fired at least once (setup) and saw max_chars = 0x0F */
+    ASSERT_TRUE(g_recruit_render_calls >= 1);
+    ASSERT_EQ((long)g_recruit_render_last_max, 0x0F);
+    /* ESC path never entered the result_flag==1 block -> cache count untouched */
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_count, 0xABCD);
+
+    g_recruit_inject_scancode = 0;       /* disable seam for later suites */
+    data_fd2_resource_portrait_cache_count = 0;
+}
+
+/* chapter > 0x1A: ESC -> returns 0; max_chars resolved to 0x13. */
+static void test_recruit_esc_returns_zero_high_chapter(void)
+{
+    int r;
+
+    recruit_esc_setup(0x1B);
+    r = fd2_run_recruitment_or_branch_screen();
+
+    ASSERT_EQ((long)r, 0);
+    ASSERT_TRUE(g_recruit_render_calls >= 1);
+    ASSERT_EQ((long)g_recruit_render_last_max, 0x13);
+    ASSERT_EQ((long)data_fd2_resource_portrait_cache_count, 0xABCD);
+
+    g_recruit_inject_scancode = 0;       /* disable seam for later suites */
+    data_fd2_resource_portrait_cache_count = 0;
+}
+
 void run_ui_menu_promote_tests(void)
 {
     SUITE_BEGIN(ui_menu_promote);
@@ -963,6 +1068,8 @@ void run_ui_menu_promote_tests(void)
     RUN_TEST(test_build_cand_lord_sword_branch);
     RUN_TEST(test_build_cand_lord_no_sword);
     RUN_TEST(test_build_cand_empty_party);
+    RUN_TEST(test_recruit_esc_returns_zero_low_chapter);
+    RUN_TEST(test_recruit_esc_returns_zero_high_chapter);
     /* restore stub default so later suites keep historical behavior */
     g_check_char_is_dead_use_array = 0;
     g_check_char_is_dead_return = 0;

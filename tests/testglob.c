@@ -605,7 +605,54 @@ uint32 fd2_blit_sprite_raw_with_header(uint32 d, uint32 s, uint32 st)
     }
     return 0;
 }
-void fd2_render_recruitment_select_screen(uint32 a, uint32 b, uint32 c, uint32 d) { }
+/* fd2_render_recruitment_select_screen: no-op renderer with arg capture so the
+ * recruitment-screen driver test can assert the chapter->max_chars mapping
+ * (param b) and the panel buffer / cursor forwarded into each render.
+ *
+ * It also doubles as the input seam for the recruitment driver: that driver
+ * calls fd2_clear_keyboard_buffer() right before its input loop (wiping any
+ * pre-armed key), then the REAL fd2_wait_input_with_recruitment_repaint busy-
+ * waits, calling THIS renderer once per tick while the buffer is empty. When
+ * g_recruit_inject_scancode != 0, the renderer flips the BIOS keyboard buffer
+ * nonempty with that scancode on its g_recruit_inject_after-th call, so the
+ * very next fd2_check_keyboard_buffer_nonempty() inside the busy-wait returns
+ * nonzero and the real INT 16h read returns the injected key. */
+int    g_recruit_render_calls = 0;
+uint32 g_recruit_render_last_panel = 0;
+uint32 g_recruit_render_last_max = 0;
+uint32 g_recruit_render_last_sel = 0;
+uint32 g_recruit_render_last_cursor = 0;
+int    g_recruit_inject_scancode = 0;   /* 0 = disabled */
+int    g_recruit_inject_after = 0;      /* flip on the call whose 1-based index == this */
+void fd2_render_recruitment_select_screen(uint32 a, uint32 b, uint32 c, uint32 d)
+{
+    g_recruit_render_calls++;
+    g_recruit_render_last_panel = a;
+    g_recruit_render_last_max = b;
+    g_recruit_render_last_sel = c;
+    g_recruit_render_last_cursor = d;
+    if (g_recruit_inject_scancode != 0
+        && g_recruit_render_calls == g_recruit_inject_after) {
+        *(volatile uint16 *)0x41AuL = 0x1E;                  /* head        */
+        *(volatile uint16 *)0x41CuL = 0x20;                  /* tail=head+2 */
+        *(volatile uint16 *)0x41EuL =
+            (uint16)((g_recruit_inject_scancode << 8) & 0xFF00);
+    }
+}
+/* Placeholder stubs for the recruitment-screen helper callees (each a real
+ * fd2_* routine pending its own emit work item: count_selected @ 0x320CE,
+ * reorder @ 0x320FC, require_char_id @ 0x31DBE, pin_required @ 0x321C8).
+ * The recruitment driver only reaches these on the commit / required-char
+ * gate path, which is deferred to Phase 9 integration; the ESC unit tests
+ * never call them. They will be replaced by the real emitted functions when
+ * those items are processed. */
+int  fd2_count_selected_chars(uint32 selection_state) { (void)selection_state; return 0; }
+void fd2_reorder_party_by_selection(uint32 selection_state) { (void)selection_state; }
+char fd2_require_char_id_in_active_party(uint32 cap, uint32 char_id)
+{
+    (void)cap; (void)char_id; return 0;
+}
+void fd2_pin_required_char_to_party_slot1(uint32 char_id) { (void)char_id; }
 /* fd2_animate_spell_impact_per_target is now a real emitted function
  * (src/anim/anicombt.c); its former no-op stub here was removed. */
 /* fd2_animate_status_effect_overlay_flicker is now a real emitted function

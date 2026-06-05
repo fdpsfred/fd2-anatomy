@@ -630,6 +630,337 @@ void fd2_run_class_promotion_menu_main(void)
     } while (1);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_run_recruitment_or_branch_screen @ 0x318AD  (2 callers)
+ *
+ * RECRUITMENT SCREEN / CHAPTER-BRANCH party-select dispatch, shown at
+ * chapter transitions where the player picks who joins the next battle
+ * (10x3 selectable grid). No params; reads current_chapter_id; returns
+ * 1 when a full party was committed and all required-char gates passed,
+ * else 0 (ESC / declined / failed gate). Party order escapes via
+ * runtime_char_array (reorder) + the menu roster globals.
+ *
+ * Both callers (fd2_chapter_transition_menu @ 0x2CCD6 and
+ * fd2_chapter_transition_with_intro @ 0x2D16B) consume the return value
+ * with TEST EAX,EAX / JZ <loop>: a 0 result re-runs the screen (you
+ * cannot ESC out of a mandatory recruitment), a 1 proceeds. The ESC
+ * path sets the internal result_flag to -1 inside the input loop, but
+ * the post-commit gate (LAB at 0x31CD4: CMP result_flag,1 / JNZ ->
+ * XOR EDI,EDI) collapses every non-1 value to 0 before the final
+ * MOV EAX,EDI / RET, so the only observable returns are 0 and 1.
+ *
+ * Flow:
+ *   - max_chars = current_chapter_id > 0x1A ? 0x13 : 0x0F.
+ *   - memset(selection_state[32], 0, 0x1E) (32-byte local cap; only the
+ *     first 30 entries are cleared/used).
+ *   - malloc 4x 64000-byte mode-13h buffers: render_workspace_a (0x53C5B),
+ *     render_workspace_b (0x53C5F), panel_buf (local), render_workspace_c
+ *     (0x53C63). Snapshot VGA 0xA0000 -> b -> panel_buf (twin: b restores,
+ *     panel_buf is the foreground panel).
+ *   - Blit the recruitment panel layers into panel_buf: atlas-offset +0x56
+ *     (header banner) -> +0x91C, atlas-offset +0x5A (grid frame) -> +0x7585
+ *     (both via fd2_dialog_sprite_blit_normal), sprite_id 0x89 -> +0x8C5
+ *     (fd2_blit_indexed_sprite_at_xy). Initial render.
+ *   - Intro slide-in: iter 0xB..0 (12 frames) via
+ *     fd2_play_status_screen_outro_step; SFX 5 at iter==0xB and iter==5.
+ *   - Input loop (do/while result_flag == 0):
+ *       fd2_wait_input_with_recruitment_repaint -> scancode (full EAX,
+ *       returned MOVZX byte; the asm compares it as int via EBX so the
+ *       byte/CONCAT31 narrowing in the raw decompiler is an artifact).
+ *       The scancode tests are independent ifs (matching the asm's chained
+ *       CMP EBX), NOT a switch: 0x1C Enter intentionally rewrites scancode
+ *       to 0x4D so the right-arrow auto-advance also fires.
+ *         0x01 ESC   : result_flag = -1.
+ *         0x1C Enter : SFX 7 (fd2_play_sfx_sample_from_bank),
+ *                      selection_state[cursor] ^= 1, scancode := 0x4D; if
+ *                      fd2_count_selected_chars == max_chars then
+ *                      result_flag = 1 + fd2_reorder_party_by_selection.
+ *         0x4B Left  : SFX 0, cursor--; if underflow (==0xffffffff) ->
+ *                      menu_party_member_count - 2.
+ *         0x4D Right : SFX 0, cursor++; if == menu_party_member_count - 1
+ *                      -> cursor ^= (count - 1) (i.e. 0).
+ *         0x48 Up && cursor > 9   : SFX 0, cursor -= 10.
+ *         0x50 Down && cursor < count - 11 : SFX 0, cursor += 10.
+ *       Re-render then memmove panel_buf(via render_workspace_c) -> 0xA0000.
+ *   - Outro slide-out: iter 0..0xB (12 frames); SFX 6 at iter==0 and
+ *     iter==7. Restore VGA via render_workspace_b -> 0xA0000. Free all 4.
+ *   - Required-char gate (only if result_flag == 1): free portrait cache,
+ *     fopen FDICON.B24, reset portrait_cache_count, reload every party
+ *     portrait, fclose. Then by current_chapter_id resolve a required
+ *     char_id and call fd2_require_char_id_in_active_party(max_chars, id),
+ *     storing its 0/1 result into result_flag:
+ *         0x10 && fd2_check_party_has_char_id(0x12) -> id 0x12
+ *         0x11 / 0x13 / >=0x1A                       -> id 9
+ *         0x12                                       -> id 0x10
+ *         0x14                                       -> id 0x15
+ *         0x15 / 0x16                                -> id 0x18
+ *         0x19 && fd2_require_char_id_in_active_party(max_chars,9) -> id 0x1D
+ *         (other chapters: no gate, result_flag stays 1)
+ *       If the gate fails, result_flag becomes 0 and the function returns 0.
+ *   - Pin + confirm (result_flag == 1 only): re-resolve the same chapter
+ *     table (chapter 0x19 additionally pins char 9 first), call
+ *     fd2_pin_required_char_to_party_slot1(id). Load portrait 0x4B, show
+ *     the "ready to fight?" dialog (FDTXT 0x292) + paint portrait, set the
+ *     battle_tile_map guard = 1, clear keyboard, run the typewriter loop,
+ *     guard = 0, page-advance collapse, slide the dialog out. Final return:
+ *     1 only if the typewriter was not cancelled (!= -1) AND the YES row
+ *     (cursor_idx == 0) was chosen; otherwise 0.
+ *
+ * int __cdecl with the __CHK(0x64) stack-probe prologue (compiler-
+ * injected, not part of the source). EBP caches max_chars, ESI the cursor
+ * index, EDI the result_flag (also the return value), EBX the slide-frame
+ * counter; the trailing ADD ESP / POP EBP,EDI,ESI,EBX / RET is the
+ * function's own epilogue.
+ *
+ * GHIDRA SIGNATURE FIX: the decompiler modelled this as `void` with the
+ * return value dropped, but both callers TEST EAX after the call, so it is
+ * int-returning. Corrected the Ghidra prototype + plate accordingly.
+ *
+ * EAX-tracking notes (verified against the asm):
+ *   - fd2_wait_input_with_recruitment_repaint -> MOV EBX,EAX, scancode is
+ *     the genuine full-word (zero-extended byte) return.
+ *   - fd2_count_selected_chars -> CMP EAX,EBP (count vs max_chars).
+ *   - fd2_check_party_has_char_id -> TEST EAX,EAX (real has-char test).
+ *   - fd2_require_char_id_in_active_party -> MOV EDI,EAX (0/1 into result_flag).
+ *   - fd2_text_dialog_typewriter_loop -> MOV EBX,EAX (typewriter_ret).
+ * ---------------------------------------------------------------- */
+int fd2_run_recruitment_or_branch_screen(void)
+{
+    uint8 selection_state[32];
+    void *panel_buf;
+    int max_chars;
+    int cursor_idx;
+    int result_flag;
+    int iter;
+    int scancode;
+    int count;
+    int found;
+    int typewriter_ret;
+    int i;
+    uint32 required_id;
+    void *fp;
+
+    max_chars = 0xf;
+    result_flag = 0;
+    cursor_idx = 0;
+    memset(selection_state, 0, 0x1e);
+    if ((int)data_fd2_chapter_current_chapter_id > 0x1a) {
+        max_chars = 0x13;
+    }
+
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = (uint32)malloc(64000);
+    panel_buf = malloc(64000);
+    data_fd2_ui_slide_composed_target_buf_ptr = (uint32)malloc(64000);
+
+    memmove((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr,
+            (void *)0xa0000, 64000);
+    memmove(panel_buf, (void *)data_fd2_ui_slide_bg_snapshot_buf_ptr, 64000);
+
+    fd2_dialog_sprite_blit_normal(
+        (uint32)panel_buf + 0x91c,
+        data_fd2_ui_anim_sprite_sheet_ptr +
+            *(int *)(data_fd2_ui_anim_sprite_sheet_ptr + 0x56),
+        0x140);
+    fd2_dialog_sprite_blit_normal(
+        (uint32)panel_buf + 0x7585,
+        data_fd2_ui_anim_sprite_sheet_ptr +
+            *(int *)(data_fd2_ui_anim_sprite_sheet_ptr + 0x5a),
+        0x140);
+    fd2_blit_indexed_sprite_at_xy((uint32)panel_buf + 0x8c5, 0x140,
+        data_fd2_ui_anim_sprite_sheet_ptr, 0x89);
+
+    fd2_render_recruitment_select_screen((uint32)panel_buf, (uint32)max_chars,
+        (uint32)selection_state, 0);
+
+    for (iter = 0xb; iter >= 0; iter--) {
+        if (iter == 0xb || iter == 5) {
+            fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
+                5, 1);
+        }
+        fd2_play_status_screen_outro_step((uint32)iter,
+            data_fd2_ui_slide_anim_accumulator_buf_ptr,
+            data_fd2_ui_slide_composed_target_buf_ptr,
+            (int)data_fd2_ui_slide_bg_snapshot_buf_ptr);
+    }
+
+    fd2_clear_keyboard_buffer();
+    do {
+        scancode = fd2_wait_input_with_recruitment_repaint((uint32)panel_buf,
+            (uint32)max_chars, (uint32)selection_state, (uint32)cursor_idx);
+        if (scancode == 1) {
+            result_flag = -1;
+        }
+        if (scancode == 0x1c) {
+            fd2_play_sfx_sample_from_bank(
+                data_fd2_audio_fdother_sfx_bank_buf_ptr, 7, 1);
+            selection_state[cursor_idx] = selection_state[cursor_idx] ^ 1;
+            scancode = 0x4d;
+            count = fd2_count_selected_chars((uint32)selection_state);
+            if (count == max_chars) {
+                result_flag = 1;
+                fd2_reorder_party_by_selection((uint32)selection_state);
+            }
+        }
+        if (scancode == 0x4b) {
+            fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
+                0, 1);
+            cursor_idx--;
+            if (cursor_idx == -1) {
+                cursor_idx = (int)data_fd2_shared_menu_party_member_count - 2;
+            }
+        }
+        if (scancode == 0x4d) {
+            fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
+                0, 1);
+            cursor_idx++;
+            if (cursor_idx ==
+                    (int)(data_fd2_shared_menu_party_member_count - 1)) {
+                cursor_idx = cursor_idx ^
+                    (int)(data_fd2_shared_menu_party_member_count - 1);
+            }
+        }
+        if (scancode == 0x48 && cursor_idx > 9) {
+            fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
+                0, 1);
+            cursor_idx -= 10;
+        }
+        if (scancode == 0x50 &&
+            cursor_idx < (int)data_fd2_shared_menu_party_member_count - 0xb) {
+            fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
+                0, 1);
+            cursor_idx += 10;
+        }
+        fd2_render_recruitment_select_screen((uint32)panel_buf,
+            (uint32)max_chars, (uint32)selection_state, (uint32)cursor_idx);
+        memmove((void *)0xa0000,
+            (void *)data_fd2_ui_slide_composed_target_buf_ptr, 64000);
+    } while (result_flag == 0);
+
+    for (iter = 0; iter < 0xc; iter++) {
+        if (iter == 0 || iter == 7) {
+            fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
+                6, 1);
+        }
+        fd2_play_status_screen_outro_step((uint32)iter,
+            data_fd2_ui_slide_anim_accumulator_buf_ptr,
+            data_fd2_ui_slide_composed_target_buf_ptr,
+            (int)data_fd2_ui_slide_bg_snapshot_buf_ptr);
+    }
+    memmove((void *)0xa0000,
+        (void *)data_fd2_ui_slide_bg_snapshot_buf_ptr, 64000);
+    free((void *)data_fd2_ui_slide_anim_accumulator_buf_ptr);
+    free((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr);
+    free(panel_buf);
+    free((void *)data_fd2_ui_slide_composed_target_buf_ptr);
+
+    if (result_flag == 1) {
+        free((void *)portrait_sprite_cache);
+        fp = fopen("FDICON.B24", "rb");
+        data_fd2_resource_portrait_cache_count = 0;
+        for (i = 0; i < (int)data_fd2_shared_menu_party_member_count; i++) {
+            fd2_load_portrait_to_cache(
+                (uint32)*(uint8 *)(data_fd2_shared_menu_party_roster_buffer_ptr
+                                   + 7 + i * 0x50),
+                (uint32)fp);
+        }
+        fclose(fp);
+
+        required_id = 0;
+        if (data_fd2_chapter_current_chapter_id == 0x10 &&
+            fd2_check_party_has_char_id(0x12) != 0) {
+            required_id = 0x12;
+            found = fd2_require_char_id_in_active_party((uint32)max_chars,
+                required_id);
+            result_flag = found;
+        }
+        else if (data_fd2_chapter_current_chapter_id == 0x11 ||
+                 data_fd2_chapter_current_chapter_id == 0x13 ||
+                 data_fd2_chapter_current_chapter_id > 0x19) {
+            required_id = 9;
+            found = fd2_require_char_id_in_active_party((uint32)max_chars,
+                required_id);
+            result_flag = found;
+        }
+        else if (data_fd2_chapter_current_chapter_id == 0x12) {
+            required_id = 0x10;
+            found = fd2_require_char_id_in_active_party((uint32)max_chars,
+                required_id);
+            result_flag = found;
+        }
+        else if (data_fd2_chapter_current_chapter_id == 0x14) {
+            required_id = 0x15;
+            found = fd2_require_char_id_in_active_party((uint32)max_chars,
+                required_id);
+            result_flag = found;
+        }
+        else if (data_fd2_chapter_current_chapter_id == 0x15 ||
+                 data_fd2_chapter_current_chapter_id == 0x16) {
+            required_id = 0x18;
+            found = fd2_require_char_id_in_active_party((uint32)max_chars,
+                required_id);
+            result_flag = found;
+        }
+        else if (data_fd2_chapter_current_chapter_id == 0x19) {
+            found = fd2_require_char_id_in_active_party((uint32)max_chars, 9);
+            result_flag = 0;
+            if (found != 0) {
+                required_id = 0x1d;
+                found = fd2_require_char_id_in_active_party((uint32)max_chars,
+                    required_id);
+                result_flag = found;
+            }
+        }
+    }
+
+    /* LAB_00031CD4: every non-1 result_flag (0 declined, -1 ESC, or a failed
+     * required-char gate) is collapsed to 0 here (asm XOR EDI,EDI before the
+     * shared MOV EAX,EDI / RET). Only result_flag == 1 continues to pin+confirm. */
+    if (result_flag != 1) {
+        return 0;
+    }
+
+    if (data_fd2_chapter_current_chapter_id == 0x11 ||
+        data_fd2_chapter_current_chapter_id == 0x13 ||
+        data_fd2_chapter_current_chapter_id > 0x19) {
+        required_id = 9;
+    }
+    else if (data_fd2_chapter_current_chapter_id == 0x14) {
+        required_id = 0x15;
+    }
+    else if (data_fd2_chapter_current_chapter_id == 0x15 ||
+             data_fd2_chapter_current_chapter_id == 0x16) {
+        required_id = 0x18;
+    }
+    else {
+        if (data_fd2_chapter_current_chapter_id != 0x19) {
+            goto after_pin;
+        }
+        fd2_pin_required_char_to_party_slot1(9);
+        required_id = 0x1d;
+    }
+    fd2_pin_required_char_to_party_slot1(required_id);
+
+after_pin:
+    fd2_load_chapter_portrait(0x4b);
+    fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x292, 0xa951f,
+        0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_paint_portrait_to_dialog_area(0);
+    data_fd2_battle_tile_map_ptr = 1;
+    fd2_clear_keyboard_buffer();
+    typewriter_ret = fd2_text_dialog_typewriter_loop();
+    data_fd2_battle_tile_map_ptr = 0;
+    fd2_animate_dialog_page_advance_collapse();
+    fd2_close_intro_dialog_with_slide_out();
+    if (typewriter_ret == -1) {
+        return 0;
+    }
+    if (data_fd2_ui_menu_cursor_idx != 0) {
+        return 0;
+    }
+    return 1;
+}
+
 void fd2_run_revive_menu_main(void)
 {
     int dead_count;
