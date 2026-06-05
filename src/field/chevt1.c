@@ -63,6 +63,9 @@
  * fd2_chapter_event_handler_19__ch7_first_time @ 0x34924
  *     (0 direct callers; dispatched as idx 0x19 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_1a__ch7_char_cond @ 0x3499B
+ *     (0 direct callers; dispatched as idx 0x1A of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -850,5 +853,42 @@ void fd2_chapter_event_handler_19__ch7_first_time(uint32 event_arg)
         fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
         *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x11) = 1;
+    }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_1a__ch7_char_cond @ 0x3499B
+ *   — Chapter 7 tile-step event slot 0 (tile-step event_type 0x00),
+ *     dispatched as idx 0x1A of the per-event handler table at 0x51B91.
+ *
+ * char-conditional, tile-step variant. Unlike the turn-event handlers in
+ * this group (which ignore their dispatch arg), this tile-step handler
+ * reads the dispatch arg as the id of the char who stepped onto the
+ * trigger tile and gates on that char's team: the beat fires only when a
+ * non-enemy (team != 0, i.e. an NPC or player unit) steps on the tile.
+ * When it fires it disarms the per-event AI/dialog control flag (low 4
+ * bits of combat_aux_block[0xD]) by writing 0 across chars 0x09..0x1B
+ * (19 chars) and consumes tile-event slot 0x10. No dialog. The only
+ * branch is the team gate; no RNG, no numeric computation, and no
+ * CALL-return value is used.
+ *
+ * void __cdecl(uint stepping_char_id) per the tile-step dispatch hooks:
+ * the stepping char id arrives as a single stack arg (the table at
+ * 0x51B91 is uniform 1-arg cdecl, but tile-step slots pass the stepping
+ * char id rather than the unread turn-event arg). EBX is not touched; the
+ * __CHK(0x10) stack-probe prologue is compiler-injected and omitted here.
+ *
+ * The pointer global data_fd2_field_map_tile_event_consumed_flags_ptr
+ * holds the base of the 0x20-byte tile-event consumed-flags block; this
+ * handler consumes byte [0x10] of that block (the same slot whose
+ * consumption gates the second-stage handler_19 @ 0x34924).
+ *
+ * Walkthrough SOT: assets/chapters/chapter_07.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_1a__ch7_char_cond(uint32 stepping_char_id)
+{
+    if (data_fd2_battle_runtime_char_array_ptr[stepping_char_id].team != 0) {
+        fd2_set_combat_aux_block_byte_d_low4_for_char_range(9, 0x1B, 0);
+        *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) = 1;
     }
 }

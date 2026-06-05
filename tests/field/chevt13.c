@@ -1,11 +1,12 @@
 /*
  * unit tests for src/field/chevt1.c (part 3: handler 18 +
- * fd2_show_chapter_intro_text_dialog_mode_3 + handler 19)
+ * fd2_show_chapter_intro_text_dialog_mode_3 + handler 19 + handler 1A)
  *
  * The chapter turn-event handlers in src/field/chevt1.c are dispatched as
  * indices of the per-event handler table at 0x51B91. Parts 1/2 (chevt11.c /
  * chevt12.c) cover handlers 00..17; this part covers handler 18, the named
- * helper fd2_show_chapter_intro_text_dialog_mode_3 @ 0x34906, and handler 19.
+ * helper fd2_show_chapter_intro_text_dialog_mode_3 @ 0x34906, handler 19, and
+ * the tile-step char-conditional handler 1A.
  *
  * fd2_chapter_event_handler_18__unref_dialog @ 0x348FC is dispatch idx 0x18 of
  * that table. No chapter FDFIELD turn-event / tile-step hook references the
@@ -296,6 +297,135 @@ static void test_ch7_event19_gate_clear_skips_beat(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_1a__ch7_char_cond @ 0x3499B
+ *
+ * Dispatch idx 0x1A of the per-event handler table at 0x51B91 (chapter 7
+ * tile-step event slot 0). char-conditional, TILE-STEP variant: the dispatch
+ * arg is the id of the char who stepped onto the trigger tile, and the beat is
+ * gated on that char's team:
+ *   if (runtime_char_array[stepping_char_id].team != 0):    // a non-enemy stepped
+ *     set_combat_aux_block_byte_d_low4_for_char_range(9, 0x1B, 0); // disarm AI flag
+ *     tile_event_consumed_flags[0x10] = 1;                  // consume the trigger
+ *
+ * The testable risk core is the TEAM GATE branch (a control-flow branch whose
+ * guard is the stepping char's team byte) plus its two write effects, so all
+ * three team senses are exercised: team 0 (enemy) takes the SKIP path, while
+ * team 1 (npc) and team 2 (player) both take the FIRE path — pinning the guard
+ * as "!= 0" (any non-enemy), not "== 2" or a signed >= test. There is no dialog,
+ * no RNG, and no display side effect, so every effect is a directly observable
+ * in-memory write.
+ *
+ * The range disarm is driven against the REAL emitted helper
+ * fd2_set_combat_aux_block_byte_d_low4_for_char_range (it ORs (byte&0xF0)|0 into
+ * combat_aux_block[0xD] for chars 0x09..0x1B inclusive, preserving the high
+ * nibble); the consumed-flags block and the runtime-char array are local buffers
+ * so both the gate read and every write are observable. The stepping char id is
+ * chosen OUTSIDE the [9,0x1B] disarm range (char 5) so its team seed is
+ * independent of the range write, and the disarm-range boundaries (chars 8 and
+ * 0x1C just outside, chars 9 and 0x1B at the edges) are checked explicitly.
+ * ================================================================ */
+
+/* local runtime-char array for handler_1A: oversized so the disarm range
+ * [9,0x1B] and the stepping char (5) are all in-bounds. */
+static runtime_char g_ev1a_rc[64];
+
+/* backing for the 0x20-byte tile-event consumed-flags block: byte [0x10] is the
+ * slot this handler consumes when the gate passes. */
+static uint8 g_ev1a_consumed_flags[0x20];
+
+/* Seed every char's combat_aux_block[0xD] with 0xA5 (high nibble 0xA, low
+ * nibble 5) so a disarm write is observable as low nibble -> 0 with the high
+ * nibble preserved (0xA5 -> 0xA0), and an untouched char keeps 0xA5. */
+static void ev1a_install_env(uint8 stepping_team)
+{
+    int i;
+
+    memset(g_ev1a_rc, 0, sizeof(g_ev1a_rc));
+    for (i = 0; i < 64; i++) {
+        g_ev1a_rc[i].combat_aux_block[0xD] = 0xA5;
+    }
+    /* the stepping char (id 5) carries the team the gate reads. */
+    g_ev1a_rc[5].team = stepping_team;
+    data_fd2_battle_runtime_char_array_ptr = g_ev1a_rc;
+
+    memset(g_ev1a_consumed_flags, 0, sizeof(g_ev1a_consumed_flags));
+    data_fd2_field_map_tile_event_consumed_flags_ptr =
+        (uint32)g_ev1a_consumed_flags;
+}
+
+/* ----------------------------------------------------------------
+ * GATE-PASS path (team 2 = player). The non-enemy stepping char fires the beat:
+ * chars 0x09..0x1B inclusive get combat_aux_block[0xD] low nibble cleared to 0
+ * (high nibble preserved: 0xA5 -> 0xA0), chars just outside that range (8 and
+ * 0x1C) stay 0xA5, and tile-event slot [0x10] is consumed (set to 1).
+ * ---------------------------------------------------------------- */
+static void test_ch7_event1a_player_steps_disarms_and_consumes(void)
+{
+    int i;
+
+    ev1a_install_env(2);   /* TEAM_PLAYER */
+
+    fd2_chapter_event_handler_1a__ch7_char_cond(5);
+
+    /* chars 0x09..0x1B inclusive: low nibble cleared, high nibble preserved. */
+    for (i = 0x09; i <= 0x1B; i++) {
+        ASSERT_EQ(g_ev1a_rc[i].combat_aux_block[0xD], 0xA0);
+    }
+    /* boundaries just outside the range are untouched. */
+    ASSERT_EQ(g_ev1a_rc[0x08].combat_aux_block[0xD], 0xA5);
+    ASSERT_EQ(g_ev1a_rc[0x1C].combat_aux_block[0xD], 0xA5);
+
+    /* the trigger slot [0x10] was consumed. */
+    ASSERT_EQ(g_ev1a_consumed_flags[0x10], 1);
+
+    ev_restore_rc_ptr();
+}
+
+/* ----------------------------------------------------------------
+ * GATE-PASS path (team 1 = npc). An npc is also a non-enemy, so it must take the
+ * same FIRE path as the player — this pins the guard as "team != 0" rather than
+ * "team == 2". Same observable effects: range disarm + slot [0x10] consumed.
+ * ---------------------------------------------------------------- */
+static void test_ch7_event1a_npc_steps_disarms_and_consumes(void)
+{
+    int i;
+
+    ev1a_install_env(1);   /* TEAM_NPC */
+
+    fd2_chapter_event_handler_1a__ch7_char_cond(5);
+
+    for (i = 0x09; i <= 0x1B; i++) {
+        ASSERT_EQ(g_ev1a_rc[i].combat_aux_block[0xD], 0xA0);
+    }
+    ASSERT_EQ(g_ev1a_consumed_flags[0x10], 1);
+
+    ev_restore_rc_ptr();
+}
+
+/* ----------------------------------------------------------------
+ * GATE-FAIL path (team 0 = enemy). An enemy stepping onto the tile must take the
+ * SKIP path: NO char in [9,0x1B] is disarmed (every seeded 0xA5 is left intact)
+ * and slot [0x10] stays 0 (never consumed).
+ * ---------------------------------------------------------------- */
+static void test_ch7_event1a_enemy_steps_skips_beat(void)
+{
+    int i;
+
+    ev1a_install_env(0);   /* TEAM_ENEMY */
+
+    fd2_chapter_event_handler_1a__ch7_char_cond(5);
+
+    /* whole disarm range untouched. */
+    for (i = 0x09; i <= 0x1B; i++) {
+        ASSERT_EQ(g_ev1a_rc[i].combat_aux_block[0xD], 0xA5);
+    }
+    /* trigger slot never consumed. */
+    ASSERT_EQ(g_ev1a_consumed_flags[0x10], 0);
+
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt13_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -304,5 +434,8 @@ void run_field_chevt13_tests(void)
     RUN_TEST(test_show_chapter_intro_text_dialog_mode_3_shows_page3);
     RUN_TEST(test_ch7_event19_gate_set_runs_beat_and_consumes_slot);
     RUN_TEST(test_ch7_event19_gate_clear_skips_beat);
+    RUN_TEST(test_ch7_event1a_player_steps_disarms_and_consumes);
+    RUN_TEST(test_ch7_event1a_npc_steps_disarms_and_consumes);
+    RUN_TEST(test_ch7_event1a_enemy_steps_skips_beat);
     printf("\n");
 }
