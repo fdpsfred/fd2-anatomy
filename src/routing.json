@@ -4115,8 +4115,9 @@
     "name": "fd2_kill_runtime_chars_from_index_to_end",
     "target": "battle/btl_turn.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035bf2": {
     "name": "fd2_chapter_event_handler_48__unref_ai_ctrl",

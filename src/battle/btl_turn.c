@@ -935,3 +935,28 @@ void fd2_process_xp_and_level_up_for_char(uint32 ci)
     pCharArray[ci].movement_order = (uint8)remaining_xp;
     data_fd2_battle_pending_xp_credit = 0;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_kill_runtime_chars_from_index_to_end @ 0x35BBA (4 callers)
+ *
+ * Sets hp_current = 0 for every runtime_char_array entry from
+ * start_char_idx (inclusive) to party_member_count-1, then plays the
+ * death animation once.
+ *
+ * Usage: game-over / story-event mass kill of trailing party slots
+ * (e.g. wiping enemy reinforcement squads at chapter transitions).
+ * Callers: fd2_chapter_29_end @ 0x2548C,
+ *   fd2_chapter_event_handler_35__unref_dialog_with_state @ 0x35321,
+ *   fd2_chapter_event_handler_40__unref_dyn_turn_event @ 0x358EA,
+ *   fd2_chapter_event_handler_47__unref_dyn_turn_event @ 0x35B6B.
+ * ---------------------------------------------------------------- */
+void fd2_kill_runtime_chars_from_index_to_end(uint32 start_char_idx)
+{
+    uint32 i;
+
+    for (i = start_char_idx;
+         (int)i < (int)data_fd2_battle_party_member_count; i++) {
+        data_fd2_battle_runtime_char_array_ptr[i].hp_current = 0;
+    }
+    fd2_play_death_animation_and_mark_dead();
+}

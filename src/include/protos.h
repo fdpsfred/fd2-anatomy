@@ -71,6 +71,7 @@ void fd2_mark_char_acted_this_turn(uint32 char_idx);
 void fd2_check_all_player_acted_or_asleep(void);
 void fd2_check_tile_event_post_action(uint32 x, uint32 y, uint32 arg);
 void fd2_mark_char_as_dead(uint32 char_idx);
+void fd2_kill_runtime_chars_from_index_to_end(uint32 start_char_idx);
 void fd2_set_chapter_init_done_flag(void);
 void fd2_set_battle_anim_phase_to_1(void);
 void fd2_set_combat_aux_block_byte_d_low4_for_char_range(uint32 start_idx, uint32 end_idx, uint32 new_val);

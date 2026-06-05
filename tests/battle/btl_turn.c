@@ -275,6 +275,85 @@ static void test_set_combat_aux_low4(void)
 }
 
 
+/* ---- Test: fd2_kill_runtime_chars_from_index_to_end @ 0x35BBA ----
+ *
+ * Zeroes hp_current for slots [start_char_idx, party_member_count) then
+ * runs the (now real) fd2_play_death_animation_and_mark_dead tail call.
+ *
+ * To keep the death tail a silent no-render no-op, every killed char is
+ * placed OFF-screen (pos_x past the view window): the real death function
+ * then collects 0 on-screen dying chars and takes its silent branch, which
+ * sets flags |= 1 (CHARFLAG_DEAD) on every hp_current==0 char and returns
+ * without touching the VGA buffer. Asserting that silent mark also confirms
+ * the tail call actually ran. */
+
+static void t_kill_setup_offscreen_chars(int n, uint16 hp)
+{
+    int k;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    /* default view window so pos_x=100 is off-screen for every slot */
+    data_fd2_battle_view_window_origin_x = 0;
+    data_fd2_battle_view_window_origin_y = 0;
+    data_fd2_battle_view_window_max_x = 13;
+    data_fd2_battle_view_window_max_y = 8;
+    for (k = 0; k < n; k++) {
+        g_test_rc_array[k].pos_x = 100;   /* > origin_x + max_x => off-screen */
+        g_test_rc_array[k].pos_y = 0;
+        g_test_rc_array[k].flags = 0;
+        g_test_rc_array[k].hp_current = hp;
+    }
+}
+
+static void test_kill_from_index_zeros_tail_range(void)
+{
+    /* start_char_idx = 2 of 4 -> slots 2,3 killed, slots 0,1 preserved */
+    t_kill_setup_offscreen_chars(4, 250);
+    data_fd2_battle_party_member_count = 4;
+    fd2_kill_runtime_chars_from_index_to_end(2);
+    ASSERT_EQ((long)g_test_rc_array[0].hp_current, 250);
+    ASSERT_EQ((long)g_test_rc_array[1].hp_current, 250);
+    ASSERT_EQ((long)g_test_rc_array[2].hp_current, 0);
+    ASSERT_EQ((long)g_test_rc_array[3].hp_current, 0);
+    /* untouched (still alive) slots keep flags clear */
+    ASSERT_EQ(g_test_rc_array[0].flags, 0);
+    ASSERT_EQ(g_test_rc_array[1].flags, 0);
+    /* killed slots: silent death path marked them dead (flags |= 1) */
+    ASSERT_EQ(g_test_rc_array[2].flags, 1);
+    ASSERT_EQ(g_test_rc_array[3].flags, 1);
+}
+
+static void test_kill_from_index_zero_kills_all(void)
+{
+    /* start_char_idx = 0 -> whole party killed and marked dead */
+    t_kill_setup_offscreen_chars(3, 99);
+    data_fd2_battle_party_member_count = 3;
+    fd2_kill_runtime_chars_from_index_to_end(0);
+    ASSERT_EQ((long)g_test_rc_array[0].hp_current, 0);
+    ASSERT_EQ((long)g_test_rc_array[1].hp_current, 0);
+    ASSERT_EQ((long)g_test_rc_array[2].hp_current, 0);
+    ASSERT_EQ(g_test_rc_array[0].flags, 1);
+    ASSERT_EQ(g_test_rc_array[1].flags, 1);
+    ASSERT_EQ(g_test_rc_array[2].flags, 1);
+    data_fd2_battle_party_member_count = 4;
+}
+
+static void test_kill_from_index_empty_range_noop(void)
+{
+    /* start_char_idx == party_member_count -> loop body never runs;
+     * no char has hp_current==0, so the death tail marks nothing dead. */
+    t_kill_setup_offscreen_chars(3, 77);
+    data_fd2_battle_party_member_count = 3;
+    fd2_kill_runtime_chars_from_index_to_end(3);
+    ASSERT_EQ((long)g_test_rc_array[0].hp_current, 77);
+    ASSERT_EQ((long)g_test_rc_array[1].hp_current, 77);
+    ASSERT_EQ((long)g_test_rc_array[2].hp_current, 77);
+    ASSERT_EQ(g_test_rc_array[0].flags, 0);
+    ASSERT_EQ(g_test_rc_array[1].flags, 0);
+    ASSERT_EQ(g_test_rc_array[2].flags, 0);
+    data_fd2_battle_party_member_count = 4;
+}
+
+
 /* fd2_collect_pending_death_drops @ 0x1B6B7 — 3-condition AND filter
  * (flags&CHARFLAG_DEAD==0, combat_aux_block[10]!=0xFF, hp_current==0)
  * packing each kept 3-byte entry (combat_aux_block[10..12]) at
@@ -1672,6 +1751,9 @@ void run_battle_btl_turn_tests(void)
     RUN_TEST(test_check_tile_event_event_type_mismatch);
     RUN_TEST(test_mark_char_as_dead);
     RUN_TEST(test_set_combat_aux_low4);
+    RUN_TEST(test_kill_from_index_zeros_tail_range);
+    RUN_TEST(test_kill_from_index_zero_kills_all);
+    RUN_TEST(test_kill_from_index_empty_range_noop);
     RUN_TEST(test_check_battle_end_victory);
     RUN_TEST(test_check_battle_end_continues);
     RUN_TEST(test_check_battle_end_gameover);
