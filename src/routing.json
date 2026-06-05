@@ -3606,8 +3606,9 @@
     "name": "fd2_chapter_event_handler_09__ch3_char_cond",
     "target": "field/chevt1.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0003453e": {
     "name": "fd2_check_char_is_dead",

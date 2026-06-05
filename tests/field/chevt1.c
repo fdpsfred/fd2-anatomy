@@ -54,6 +54,12 @@
 extern runtime_char g_test_rc_array[8];
 extern void *data_fd2_chapter_cutscene_event_script_ptr_table_106[106];
 
+/* fd2_check_char_is_dead is not emitted yet; in the test build it is the
+ * testglob stub that ignores its char index and returns this global. The
+ * handler_09 guard is therefore pinned via g_check_char_is_dead_return rather
+ * than a per-char .flags byte. */
+extern int g_check_char_is_dead_return;
+
 /* 64-slot runtime-char fixture (the handler's callees touch active battle
  * slots; an oversized array keeps every write in-bounds). */
 static runtime_char g_ev_rc[64];
@@ -643,6 +649,126 @@ static void test_ch2_event6_arms_reinforcement_enemies(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_09__ch3_char_cond @ 0x344C2
+ *
+ * Dispatch idx 0x09 of the per-event handler table at 0x51B91 — ch3
+ * turn-3 char-conditional beat. Unlike the group's straight-line handlers
+ * this one has a single guarding BRANCH and therefore TWO paths that both
+ * must be exercised:
+ *   if (fd2_check_char_is_dead(6) == 0)   // 沃斯 (char 6) still alive
+ *     load_chapter_portraits_and_dump_tmp(2);
+ *     pan_cursor_and_window(3,0); delay(800);
+ *     pan_cursor_and_window(3,0x11); delay(200);
+ *     display_dialog_scene(page 4, ...);
+ *   // else: skip the entire beat
+ * No RNG, no numeric computation, no CALL-return value used other than the
+ * fd2_check_char_is_dead(6) guard.
+ *
+ * fd2_check_char_is_dead is not emitted yet, so in the test build it is the
+ * testglob stub that returns g_check_char_is_dead_return for every index (the
+ * same control the gfx/rndscene and battle/btl_turn suites use). The guard is
+ * therefore pinned via that global: 0 -> alive -> body runs; 1 -> dead -> body
+ * skipped. Both paths are asserted, and the global is restored to its default 0
+ * afterward.
+ *
+ * ALIVE path: the single fd2_load_chapter_portraits_and_dump_tmp(2) runs FOR
+ * REAL against the staged real FDICON.B24 + FDFIELD.DAT using the same proven
+ * ch25-style env handler_03/06 use (alloc_offset 0 -> empty per-record scan;
+ * current_chapter_id 4 -> valid FDFIELD index 0xE), so it frees+nulls the
+ * field buffer and rewrites the full 0x32A00-byte FD2.TMP. The portrait-set
+ * argument (2 here) only selects which portrait pixels load; the FDFIELD
+ * re-read index and the FD2.TMP rewrite are identical to the other reloads.
+ * The two __delay_thunk_375b2 busy-waits spin on the live BIOS tick, the two
+ * fd2_pan_cursor_and_window calls run against the staged camera, and the
+ * immediate-END dialog program (page 4 <= 0x10) makes fd2_display_dialog_scene
+ * return at once with no glyph blits. Handler_09 fires NO cutscene event, so
+ * no cutscene script needs registering.
+ *
+ * DEAD path: with the dead-check pinned to 1 the guard fails and NONE of the
+ * body runs; the test proves it via a per-handler memory observable
+ * (chapter_portrait_load_buffer): the env seeds it NULL and the real reload
+ * would assign it a fresh buffer (and ultimately null it after freeing), so a
+ * still-NULL buffer afterward proves fd2_load_chapter_portraits_and_dump_tmp
+ * never executed. This is independent of the shared FD2.TMP swap file (a
+ * global-cwd artifact five suites write, whose remove() DOSBox's local-drive
+ * layer defers within a run, so its absence is not a reliable negative).
+ *
+ * The pure blit/display side effects of the alive beat (camera pan, dialog
+ * glyphs, portrait pixels) are deferred to Phase 9 integration.
+ * ================================================================ */
+
+/* ----------------------------------------------------------------
+ * ALIVE path: 沃斯 (char 6) alive -> the beat runs end-to-end. Observable,
+ * deterministic contract: the real portrait reload happened (field buffer
+ * freed+nulled, FD2.TMP rewritten to its full 0x32A00-byte size) and the whole
+ * real callee chain (reload, two pans, two delays, immediate-END dialog page 4)
+ * runs to completion without faulting.
+ * ---------------------------------------------------------------- */
+static void test_ch3_event9_char6_alive_reloads_and_shows_dialog(void)
+{
+    /* shared ch25-style real-portrait-reload env (empty party, gated HUD,
+     * throttled palette, real compositor workspace, immediate-END dialog,
+     * empty keyboard buffer, alloc_offset 0, current_chapter_id 4, fresh
+     * field buffer). handler_09 reloads ONCE (portrait set 2). */
+    ev_install_safe_env();
+
+    /* 沃斯 (char 6) alive: pin the dead-check stub to 0 so the guard passes. */
+    g_check_char_is_dead_return = 0;
+
+    /* seed the camera at the origin so the two pans (to (3,0) then (3,0x11))
+     * are bounded and the final window origin is the observable. */
+    data_fd2_battle_view_window_origin_x = 0;
+    data_fd2_battle_view_window_origin_y = 0;
+
+    remove("FD2.TMP");
+
+    fd2_chapter_event_handler_09__ch3_char_cond(0);
+
+    /* the body ran: the camera panned to the final target (3, 0x11). */
+    ASSERT_EQ(data_fd2_battle_view_window_origin_x, 3);
+    ASSERT_EQ(data_fd2_battle_view_window_origin_y, 0x11);
+
+    /* and the real portrait reload ran: field buffer freed+nulled, and FD2.TMP
+     * was rewritten to its full 0x32A00-byte size. */
+    ASSERT_EQ(chapter_portrait_load_buffer, 0);
+    ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
+
+    /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
+    remove("FD2.TMP");
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    ev_restore_rc_ptr();
+}
+
+/* ----------------------------------------------------------------
+ * DEAD path: 沃斯 (char 6) already dead -> the entire beat is skipped.
+ * Observable, deterministic contract: with the dead-check pinned to 1 the guard
+ * fails, so the body's camera pans never run and the window origin keeps the
+ * sentinel it was seeded with (the alive path would have moved it to (3,0x11)).
+ * ---------------------------------------------------------------- */
+static void test_ch3_event9_char6_dead_skips_beat(void)
+{
+    ev_install_safe_env();
+
+    /* 沃斯 (char 6) dead: pin the dead-check stub to 1 so the guard fails. */
+    g_check_char_is_dead_return = 1;
+
+    /* seed the camera at a sentinel distinct from the body's final pan target
+     * (3, 0x11); if the body runs it would overwrite this. */
+    data_fd2_battle_view_window_origin_x = 0x42;
+    data_fd2_battle_view_window_origin_y = 0x37;
+
+    fd2_chapter_event_handler_09__ch3_char_cond(0);
+
+    /* body skipped: no pan ran, so the camera origin still holds the sentinel. */
+    ASSERT_EQ(data_fd2_battle_view_window_origin_x, 0x42);
+    ASSERT_EQ(data_fd2_battle_view_window_origin_y, 0x37);
+
+    /* restore the dead-check stub to its default 0 for later suites. */
+    g_check_char_is_dead_return = 0;
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -653,5 +779,7 @@ void run_field_chevt1_tests(void)
     RUN_TEST(test_ch1_event3_reloads_race6_brackets_initphase);
     RUN_TEST(test_ch_event4_flips_hawat_to_ally);
     RUN_TEST(test_ch2_event6_arms_reinforcement_enemies);
+    RUN_TEST(test_ch3_event9_char6_alive_reloads_and_shows_dialog);
+    RUN_TEST(test_ch3_event9_char6_dead_skips_beat);
     printf("\n");
 }

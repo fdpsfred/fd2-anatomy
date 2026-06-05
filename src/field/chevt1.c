@@ -19,6 +19,9 @@
  * fd2_chapter_event_handler_06__ch2_reinforcement @ 0x34422
  *     (0 direct callers; dispatched as idx 0x06 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_09__ch3_char_cond @ 0x344C2
+ *     (0 direct callers; dispatched as idx 0x09 of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -242,5 +245,44 @@ void fd2_chapter_event_handler_06__ch2_reinforcement(uint32 event_arg)
     for (i = 5; i < 0xB; i++) {
         data_fd2_battle_runtime_char_array_ptr[i].combat_aux_block[0xE] = 0x1A;
         data_fd2_battle_runtime_char_array_ptr[i].combat_aux_block[0xF] = 0x0F;
+    }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_09__ch3_char_cond @ 0x344C2
+ *   — Chapter 3 turn-event slot 0 (triggered at turn 3 / phase 2),
+ *     dispatched as idx 0x09 of the per-event handler table at 0x51B91.
+ *
+ * char-conditional beat: gated on 沃斯 (char_id 6) still being alive
+ * (flags bit0 clear). If alive, portrait set 2 reloads, the camera pans
+ * from world (3, 0) to (3, 0x11) with an ~800ms / ~200ms hold between
+ * the two pans, and dialog page 4 is shown. If 沃斯 is already dead the
+ * whole beat is skipped.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * In the original binary the trailing dialog call is the head of a
+ * shared tail at 0x34516 (PUSH page=4 .. PUSH current_chapter_text;
+ * CALL fd2_display_dialog_scene; ADD ESP,0x24; RET) that
+ * fd2_chapter_event_handler_0F @ 0x3462E JMPs into for its own page-4
+ * dialog; reproduced here as the inline call for Layer-2 equivalence.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_03.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_09__ch3_char_cond(uint32 event_arg)
+{
+    (void)event_arg;
+
+    if (fd2_check_char_is_dead(6) == 0) {
+        fd2_load_chapter_portraits_and_dump_tmp(2);
+        fd2_pan_cursor_and_window(3, 0);
+        __delay_thunk_375b2(800);
+        fd2_pan_cursor_and_window(3, 0x11);
+        __delay_thunk_375b2(200);
+        fd2_display_dialog_scene(current_chapter_text, 4, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
     }
 }
