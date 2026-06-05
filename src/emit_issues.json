@@ -1,5 +1,17 @@
 {
   "_doc": "三源交叉驗證時發現的待後續確認問題。Key = function address, value = {name, issues: [...]}。所有 emit phase 完成後統一解決。",
+  "00037f86": {
+    "name": "crt_equivalent_get_eflags_thunk",
+    "target": "crt/crt.c",
+    "issues": [
+      {
+        "type": "asm_thunk_inline_vs_jmp_and_pubdef_packaging",
+        "desc": "The original 0x37f86 is a 5-byte JMP into the 4-byte `_disable` primitive crt_equivalent_get_eflags @ 0x3ed58 (PUSHFD; POP EAX; CLI; RET). Emitted as a real externally-linked wrapper crt_equivalent_get_eflags_thunk() whose body inlines a #pragma aux helper (PUSHFD; POP EAX; CLI) -- functionally exact at the call boundary (same EAX = prior EFLAGS, same IF=0 side effect), verified by unit test (test_eflags_thunk_disables_interrupts confirms IF set on entry then cleared by CLI, and the returned image is the pre-CLI snapshot; reserved-bit oracle &0x2A==0x02 confirms a genuine EFLAGS value; clean stack-balanced near-CALL return validated direct and via function pointer). Two integration-time (Layer 3 / wlink) notes, neither a behavioral risk: (1) the JMP-to-shared-target structure is replaced by inlining the primitive, so once crt_equivalent_get_eflags @ 0x3ed58 is emitted as its own function there will be two byte copies of PUSHFD/POP EAX/CLI -- Layer 2 equivalent, byte-exact not pursued. (2) Watcom 9.5a emits no standalone symbol for a pragma-aux in-line function (address-take => undefined external), so the wrapper supplies the real PUBDEF that the AIL vendor .obj EXTDEF (ISR near-CALL from AIL_internal_driver_timer_isr @ 0x3f22a and AIL_internal_audio_mix_isr @ 0x4019a) must resolve to at Phase C wlink integration; confirm crt.obj exports crt_equivalent_get_eflags_thunk as PUBDEF and the vendor EXTDEF binds to it.",
+        "severity": "low",
+        "verify_method": "post_link_disasm_thunk_body_and_confirm_pubdef_extdef_bind"
+      }
+    ]
+  },
   "0002000a": {
     "name": "fd2_open_tactical_overview_zoom",
     "target": "ui_menu/menufld.c",

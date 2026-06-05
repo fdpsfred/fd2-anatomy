@@ -473,6 +473,13 @@ void *crt_equivalent_lx_module_loader_3647b(char *path, int flags,
                                             void *caller_buf);
 void crt_equivalent_exit_chain_stub_36de3(void);
 
+/* crt_equivalent_get_eflags_thunk @ 0x37f86 — Watcom `_disable` primitive
+ * reached by the two AIL ISRs via near CALL. Returns the prior EFLAGS in
+ * EAX and disables interrupts (CLI). Real out-of-line function; the raw
+ * asm body is spliced in from an in-line #pragma aux helper in
+ * src/crt/crt.c. */
+unsigned long crt_equivalent_get_eflags_thunk(void);
+
 /* ---- util / dpmi ---- */
 int fd2_dpmi_alloc_dos_memory(uint32 paragraphs, uint32 *out_linear, uint32 *out_segment, uint32 *out_selector);
 void fd2_dpmi_free_dos_memory(uint32 linear_unused, uint32 segment_unused, uint32 selector);

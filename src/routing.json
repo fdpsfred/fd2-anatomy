@@ -4456,8 +4456,9 @@
     "name": "crt_equivalent_get_eflags_thunk",
     "target": "crt/crt.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0003c964": {
     "name": "crt_equivalent_entry_start",

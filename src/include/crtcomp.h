@@ -21,7 +21,7 @@ void crt_equivalent_dos_main_bootstrap(void);
 
 /* _disable primitive pair */
 unsigned long crt_equivalent_get_eflags(void);
-void crt_equivalent_get_eflags_thunk(void);
+unsigned long crt_equivalent_get_eflags_thunk(void);
 
 /* LX module loader chain */
 int  crt_equivalent_lx_chunk_read_36107(int file_handle, int offset,

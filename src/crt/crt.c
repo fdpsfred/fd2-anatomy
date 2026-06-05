@@ -10,6 +10,7 @@
  *   crt_equivalent_lx_header_reader_36344 @ 0x36344 (1 caller)
  *   crt_equivalent_lx_module_loader_3647b @ 0x3647b (0 callers)
  *   crt_equivalent_exit_chain_stub_36de3 @ 0x36de3 (2 callers)
+ *   crt_equivalent_get_eflags_thunk     @ 0x37f86 (2 callers)
  */
 
 #include "types.h"
@@ -361,4 +362,60 @@ loader_abort:
 void crt_equivalent_exit_chain_stub_36de3(void)
 {
     return;
+}
+
+/* ----------------------------------------------------------------
+ * crt_equivalent_get_eflags_thunk @ 0x37f86  (2 callers)
+ *
+ * Watcom `_disable`-style critical-section entry primitive. The two AIL
+ * ISRs reach it by near CALL:
+ *   AIL_internal_driver_timer_isr @ 0x3f22a: CALL 0x37f86; MOV [..],EAX
+ *   AIL_internal_audio_mix_isr    @ 0x4019a: CALL 0x37f86; MOV EDI,EAX
+ *                                            ; MOV [..],EAX
+ * Both immediately save the returned EAX, so the function RETURNS the prior
+ * EFLAGS image (consumed by the caller, later restored via PUSH+POPFD on
+ * critical-section exit). It is __cdecl with no parameters: the body ends
+ * in a plain near RET and the callers push nothing / do not adjust ESP.
+ *
+ * The original 0x37f86 is a 5-byte JMP into the 4-byte primitive
+ * crt_equivalent_get_eflags @ 0x3ed58:
+ *     0x3ed58: PUSHFD ; 0x3ed59: POP EAX ; 0x3ed5a: CLI ; 0x3ed5b: RET
+ * i.e. it atomically (a) captures the current EFLAGS into EAX and (b)
+ * disables interrupts (clears IF) so the ISR can run its body in a critical
+ * section. crt_equivalent_get_eflags is a SEPARATE emit target; this thunk
+ * must not re-emit it.
+ *
+ * Emit form: a tail-JMP into a distinct symbol carries a symbolic relative
+ * displacement that #pragma aux opcode bytes cannot encode, and re-emitting
+ * the target (crt_equivalent_get_eflags) here would duplicate a function
+ * owned by another unit. The thunk is therefore expressed as the equivalent
+ * in-line primitive itself (PUSHFD; POP EAX; CLI), which is functionally
+ * identical at the call boundary — same EAX return (prior EFLAGS) and the
+ * same IF=0 side effect. The JMP-vs-inline difference is a Layer 3
+ * (byte-exact) detail the project does not pursue; the Layer 2
+ * (functionally-exact) contract is met.
+ *
+ * It is emitted as a REAL out-of-line function (not a header-only #pragma
+ * aux) so it has a genuine PUBDEF symbol: both the AIL vendor .obj EXTDEF
+ * (the ISR near-CALL at link integration) and any address-taken use resolve
+ * to it. Watcom 9.5a never emits a standalone symbol for a pragma-aux
+ * in-line function (an address-take becomes an undefined external), so the
+ * raw opcodes live in an in-line helper (crt_capture_eflags_cli) that is
+ * only ever called (never address-taken) and therefore expands in place
+ * with no symbol of its own; this externally-linked wrapper splices it into
+ * a real callable body (the optimiser inlines the helper ->
+ * PUSHFD; POP EAX; CLI; RET). A pragma-aux in-line function must have
+ * external linkage in 9.5a -- a `static` one yields E1035 "not defined" --
+ * hence the bare-extern helper.
+ * ---------------------------------------------------------------- */
+extern unsigned long crt_capture_eflags_cli(void);
+#pragma aux crt_capture_eflags_cli = \
+    0x9c    /* pushfd  : push EFLAGS                       */ \
+    0x58    /* pop eax : EAX = prior EFLAGS (return value) */ \
+    0xfa    /* cli     : disable interrupts (IF -> 0)      */ \
+    value [eax] modify exact [eax];
+
+unsigned long crt_equivalent_get_eflags_thunk(void)
+{
+    return crt_capture_eflags_cli();
 }

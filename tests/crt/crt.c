@@ -701,6 +701,109 @@ static void test_exit_stub_indirect_call_chain(void)
     ASSERT_EQ(completed, 3);
 }
 
+/* ================================================================
+ * crt_equivalent_get_eflags_thunk @ 0x37f86
+ *
+ * Watcom `_disable` primitive: PUSHFD; POP EAX; CLI -> returns the prior
+ * EFLAGS in EAX and disables interrupts (clears IF). The two observable
+ * contracts are (1) the return value is a genuine live EFLAGS image, and
+ * (2) the CLI side effect actually clears IF, while the call itself
+ * remains stack-balanced (it is reached by a near CALL and must RET to
+ * the caller without disturbing the frame).
+ *
+ * Test-local helpers (read-only / restore) keep the suite safe: a missed
+ * timer tick during the few instructions IF is cleared is harmless, and
+ * interrupts are re-enabled immediately after each observation so later
+ * suites run normally.
+ *
+ * x86 EFLAGS architectural invariants used as deterministic, environment-
+ * independent oracles: bit 1 is reserved and always reads 1; bits 3 and 5
+ * are reserved and always read 0. A real PUSHFD image therefore satisfies
+ * (eflags & 0x2A) == 0x02, which 0 / uninitialized garbage would not.
+ * IF is bit 9 (0x200).
+ * ================================================================ */
+
+/* read-only EFLAGS snapshot: PUSHFD; POP EAX (no CLI -> unprivileged and
+ * side-effect-free). Used to observe IF before/after the thunk. */
+extern unsigned long test_read_eflags(void);
+#pragma aux test_read_eflags = \
+    0x9c    /* pushfd  */ \
+    0x58    /* pop eax */ \
+    value [eax] modify exact [eax];
+
+/* re-enable interrupts after the thunk's CLI so the timer tick resumes. */
+extern void test_enable_interrupts(void);
+#pragma aux test_enable_interrupts = \
+    0xfb    /* sti */ \
+    modify exact [];
+
+/* (1) the thunk returns a genuine live EFLAGS image (not 0 / garbage):
+ * the architectural reserved-bit pattern must hold. */
+static void test_eflags_thunk_returns_live_eflags(void)
+{
+    unsigned long r;
+
+    r = crt_equivalent_get_eflags_thunk();
+    test_enable_interrupts();     /* restore IF that the thunk's CLI cleared */
+
+    /* bit 1 always set, bits 3 and 5 always clear in a real EFLAGS image */
+    ASSERT_EQ((int)(r & 0x2A), 0x02);
+}
+
+/* (2) the value the thunk returns is captured BEFORE its own CLI runs, so
+ * its IF bit reflects the prior interrupt state, and the CLI side effect
+ * actually clears IF afterward (observed via a fresh read). With the timer
+ * ISR live on entry, IF is set going in. */
+static void test_eflags_thunk_disables_interrupts(void)
+{
+    unsigned long before;
+    unsigned long captured;
+    unsigned long after;
+
+    before   = test_read_eflags();              /* IF state on entry        */
+    captured = crt_equivalent_get_eflags_thunk();/* returns prior EFLAGS,CLI */
+    after    = test_read_eflags();              /* IF after the CLI         */
+    test_enable_interrupts();                   /* restore for later suites */
+
+    /* the returned image is the pre-CLI snapshot: its IF matches `before` */
+    ASSERT_EQ((int)(captured & 0x200), (int)(before & 0x200));
+    /* interrupts were enabled on entry (timer ISR running) ... */
+    ASSERT_EQ((int)(before & 0x200), 0x200);
+    /* ... and the thunk's CLI cleared IF */
+    ASSERT_EQ((int)(after & 0x200), 0x00);
+}
+
+/* (3) stack-balanced clean return, both direct and THROUGH a function
+ * pointer (the original near-CALL / address-taken invocation form). Stack
+ * guard sentinels bracketing a local must survive; a wrong cc (e.g. RET N)
+ * or a non-callable in-line splice would corrupt the frame or fail to
+ * return. */
+static void test_eflags_thunk_clean_return(void)
+{
+    volatile int   guard_lo = 0x0BADF00D;
+    volatile int   marker   = 0;
+    volatile int   guard_hi = 0x0C0FFEE0;
+    unsigned long (*fp)(void);
+    unsigned long  r1;
+    unsigned long  r2;
+
+    r1 = crt_equivalent_get_eflags_thunk();   /* direct near call */
+    test_enable_interrupts();
+    marker = 1;
+
+    fp = crt_equivalent_get_eflags_thunk;     /* address-taken -> out-of-line */
+    ASSERT_TRUE(fp != (unsigned long (*)(void))0);
+    r2 = fp();                                 /* indirect call */
+    test_enable_interrupts();
+
+    ASSERT_EQ(marker, 1);
+    ASSERT_EQ(guard_lo, 0x0BADF00D);
+    ASSERT_EQ(guard_hi, 0x0C0FFEE0);
+    /* both invocation forms returned a real EFLAGS image */
+    ASSERT_EQ((int)(r1 & 0x2A), 0x02);
+    ASSERT_EQ((int)(r2 & 0x2A), 0x02);
+}
+
 void run_crt_crt_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -725,5 +828,8 @@ void run_crt_crt_tests(void)
     RUN_TEST(test_lxl_alloc_fail);
     RUN_TEST(test_exit_stub_direct_call_is_noop);
     RUN_TEST(test_exit_stub_indirect_call_chain);
+    RUN_TEST(test_eflags_thunk_returns_live_eflags);
+    RUN_TEST(test_eflags_thunk_disables_interrupts);
+    RUN_TEST(test_eflags_thunk_clean_return);
     printf("\n");
 }
