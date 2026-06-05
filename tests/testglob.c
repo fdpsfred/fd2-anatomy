@@ -923,12 +923,50 @@ int g_blit_indexed_sprite_calls = 0;
 uint32 g_blit_indexed_sprite_last_frame = 0;
 int g_blit_indexed_sprite_last_x = 0;
 int g_blit_indexed_sprite_last_y = 0;
+/* Per-call atlas/frame log (off by default). The FIGANI animation-loop test
+ * pins the team/spell-id-dependent composite ORDER by reading the atlas (caster
+ * vs target FIGANI stream pointer) and frame index of each indexed-sprite blit
+ * in sequence. */
+int    g_blit_indexed_log_on = 0;
+int    g_blit_indexed_log_count = 0;
+uint32 g_blit_indexed_atlas_log[64] = {0};
+uint32 g_blit_indexed_frame_log[64] = {0};
 void fd2_blit_indexed_sprite(uint32 a, uint32 f, int x, int y, int m) {
     g_blit_indexed_sprite_calls++;
     g_blit_indexed_sprite_last_frame = f;
     g_blit_indexed_sprite_last_x = x;
     g_blit_indexed_sprite_last_y = y;
-    (void)a; (void)m;
+    if (g_blit_indexed_log_on && g_blit_indexed_log_count < 64) {
+        g_blit_indexed_atlas_log[g_blit_indexed_log_count] = a;
+        g_blit_indexed_frame_log[g_blit_indexed_log_count] = f;
+        g_blit_indexed_log_count++;
+    }
+    (void)m;
+}
+/* fd2_rle_blit_with_palette_remap @ 0x4E583 is a display-only RLE sprite
+ * decoder with a 256-entry palette LUT; it is not emitted yet (only the FIGANI
+ * animation loop references it). Recording spy: the loop's spell-cast-frame
+ * block computes a remap_table address from data_fd2_tile_anim_table_base +
+ * remap_idx, then passes it as palette_remap. Capturing palette_remap (and the
+ * dst_x/dst_y/stream that pin which of the two layer blits) lets the test
+ * assert the remap_idx selection numerically without touching real VGA RAM. */
+int    g_rle_remap_calls = 0;
+int    g_rle_remap_log_count = 0;
+int32  g_rle_remap_log_palette[16] = {0};
+int32  g_rle_remap_log_dstx[16] = {0};
+int32  g_rle_remap_log_dsty[16] = {0};
+uint32 g_rle_remap_log_stream[16] = {0};
+void fd2_rle_blit_with_palette_remap(uint16 *rle_stream, int32 dst_x, int32 dst_y,
+                                     int32 dst_buf, int32 stride, int32 palette_remap) {
+    g_rle_remap_calls++;
+    if (g_rle_remap_log_count < 16) {
+        g_rle_remap_log_palette[g_rle_remap_log_count] = palette_remap;
+        g_rle_remap_log_dstx[g_rle_remap_log_count] = dst_x;
+        g_rle_remap_log_dsty[g_rle_remap_log_count] = dst_y;
+        g_rle_remap_log_stream[g_rle_remap_log_count] = (uint32)rle_stream;
+        g_rle_remap_log_count++;
+    }
+    (void)dst_buf; (void)stride;
 }
 uint8  data_fd2_chapter_chapter_init_done_flag = 0;
 uint8  data_fd2_ui_play_active_flag = 0;

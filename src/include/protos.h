@@ -291,6 +291,10 @@ void fd2_play_char_intro_zoom_anim(uint32 char_unit_id, uint32 mode_flag,
                                    uint32 char_sprite, uint32 char_sprite2,
                                    uint32 workspace, uint32 bg_sprite,
                                    uint32 weapon_sprite);
+void fd2_play_figani_animation_loop(uint32 caster_idx, uint32 spell_id,
+                                    uint8 *caster_figani, uint8 *target_figani,
+                                    uint32 workspace, uint8 *dst_buf,
+                                    uint8 *bg_layer_a, uint32 *bg_layer_b);
 uint32 fd2_load_figani_sfx_bank(uint32 figani_data);
 void fd2_apply_use_effect_dispatch(uint32 ci, uint32 sl, uint32 n, uint32 buf);
 void fd2_clear_all_chars_facing(void);
@@ -419,6 +423,8 @@ void fd2_tile_blit_24x24_passthrough(uint32 src, uint32 dst, uint32 stride);
 void *fd2_convert_battle_tiles_to_24px(void);
 void fd2_tile_blit_24x24_dimmed_grayscale(uint32 src, uint32 dst, uint32 stride);
 void fd2_tile_blit_24x24_with_remap_table(uint32 src, uint32 dst, uint32 stride, uint32 remap_table);
+void fd2_rle_blit_with_palette_remap(uint16 *rle_stream, int32 dst_x, int32 dst_y,
+                                     int32 dst_buf, int32 stride, int32 palette_remap);
 void fd2_tile_blit_24x24_solid_color(uint32 src, uint32 dst, uint32 color_or_stride, uint32 unused);
 void fd2_composite_all_chars_overlay(void);
 void fd2_paint_char_sprite_at_world_pos(uint32 char_idx);

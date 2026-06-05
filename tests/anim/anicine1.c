@@ -1007,10 +1007,10 @@ static void test_zoom_bottomhalf_mode1(void)
     ASSERT_EQ((long)g_blit_indexed_sprite_last_x, (long)(ZOOM_WS + 0x140));
 }
 
-void run_anim_anicine_tests(void)
+void run_anim_anicine1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
-    printf("Suite: anim/anicine\n");
+    printf("Suite: anim/anicine (1)\n");
     RUN_TEST(test_intro_single_sfx_fire);
     RUN_TEST(test_intro_other_portrait);
     RUN_TEST(test_intro_multi_sfx_sequence);

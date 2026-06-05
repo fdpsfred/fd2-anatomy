@@ -41,7 +41,8 @@ D:\BIN\WCC386.EXE field\chpost.c %CF% -fo=E:\out\obj\chpost.obj >> E:\out\build.
 echo === compile tests === >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\testmain.c %CF% -fo=E:\out\obj\testmain.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\testglob.c %CF% -fo=E:\out\obj\testglob.obj >> E:\out\build.out
-D:\BIN\WCC386.EXE E:\anim\anicine.c %CF% -fo=E:\out\obj\tanicine.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE E:\anim\anicine1.c %CF% -fo=E:\out\obj\tanicin1.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE E:\anim\anicine2.c %CF% -fo=E:\out\obj\tanicin2.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\anim\anicombt.c %CF% -fo=E:\out\obj\tanicomb.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\anim\anidec.c %CF% -fo=E:\out\obj\tanidec.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\anim\anisumm1.c %CF% -fo=E:\out\obj\tanisum1.obj >> E:\out\build.out

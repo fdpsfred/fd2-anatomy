@@ -2861,8 +2861,9 @@
     "name": "fd2_play_figani_animation_loop",
     "target": "anim/anicine.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002b9a1": {
     "name": "fd2_step_figani_pose_animation",

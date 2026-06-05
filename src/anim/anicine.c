@@ -928,3 +928,166 @@ int fd2_execute_combat_hit_cinematic(uint32 attacker_idx, uint32 defender_idx,
         }
     } while (1);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_play_figani_animation_loop @ 0x2B659  (3 callers)
+ *
+ * Master FIGANI animation player — iterates a FIGANI byte stream pose by
+ * pose, performing per-pose SFX hooks, MP deductions, character composite,
+ * and palette FX. Heart of every special-attack + summon visual sequence.
+ *
+ * Callers: fd2_execute_special_attack_skill @ 0x276EC,
+ *   fd2_execute_summon_spell_cast @ 0x27FC9,
+ *   fd2_play_spell_cast_sequence @ 0x2A6BD.
+ *
+ * Arguments (mapped from the three call sites; the Ghidra decompiler's
+ * formal names are scrambled, so names here follow the actual pushed args):
+ *   caster_idx    runtime_char index of the casting unit (selects team)
+ *   spell_id      spell / technique id (drives all the branch gates)
+ *   caster_figani caster animation byte stream — the per-pose loop driver
+ *   target_figani target pose animation byte stream (the wrapping pose)
+ *   workspace     128 KB composite work buffer (0x140-stride blit target)
+ *   dst_buf       64 KB framebuffer-sized scratch (restore source)
+ *   bg_layer_a    background sprite stream for the palette-remap RLE blit
+ *   bg_layer_b    second background sprite stream for the palette-remap blit
+ *
+ * FIGANI byte-stream layout (caster_figani):
+ *   byte +2 = pose count; per-pose table at +8 (pose_idx*4 -> relative
+ *   offset). Per-pose entry: +4 type marker (1 = spell-cast frame),
+ *   +5 SFX hook idx (0 = none), +6 sub-frame count.
+ *
+ * remap_idx selects a palette-remap table from data_fd2_tile_anim_table_base:
+ *   spell_id in {8, 0x20, 0x21}       -> 0x13
+ *   spell_id > 3 or spell_id == 0x23  -> 0x0F
+ *   otherwise                         -> 0x0B
+ *
+ * Per pose:
+ *   - special-skill SFX hook: when spell_id is 0x18 or in 0x1C..0x1E and the
+ *     pose carries an SFX hook (+5 != 0), play it from the figani SFX bank.
+ *   - spell-cast frame (type +4 == 1): deduct caster MP, flash the caster
+ *     hit sprite, and (when spell_id < 10 or > 31) arm a 6-subframe palette
+ *     write, RLE-blit the two background layers with the remap table, and
+ *     fire the summon cast SFX.
+ *   - per sub-frame (+6 count): restore dst_buf into workspace, composite
+ *     the caster/target poses (order keyed on caster team and spell_id),
+ *     flush workspace to VGA, optionally paint palette index 0 from the
+ *     per-spell RGB flash table for the armed countdown, advance the target
+ *     FIGANI counters, and wait one BIOS tick.
+ *
+ * NOTE: every CALL in this body returns into a discarded value (the loop
+ * uses memory loads, not call return values), so there is no EAX-tracking
+ * hazard here.
+ * ---------------------------------------------------------------- */
+void fd2_play_figani_animation_loop(uint32 caster_idx, uint32 spell_id,
+                                    uint8 *caster_figani, uint8 *target_figani,
+                                    uint32 workspace, uint8 *dst_buf,
+                                    uint8 *bg_layer_a, uint32 *bg_layer_b)
+{
+    uint32 remap_idx;
+    uint32 pose_iter;
+    uint32 subframe_iter;
+    uint32 palette_write_countdown;
+    uint32 pose_entry;
+    uint32 remap_table;
+    uint8  target_pose_idx;
+    uint8  subframe_in_target;
+
+    subframe_in_target = 0;
+    target_pose_idx = 0;
+    palette_write_countdown = 0;
+    remap_idx = 0x0B;
+    if ((spell_id == 8) || (spell_id == 0x20) || (spell_id == 0x21)) {
+        remap_idx = 0x13;
+    } else if (((int32)spell_id > 3) || (spell_id == 0x23)) {
+        remap_idx = 0x0F;
+    }
+
+    for (pose_iter = 0;
+         (int32)pose_iter < (int32)(uint32)caster_figani[2];
+         pose_iter = pose_iter + 1) {
+        pose_entry = (uint32)caster_figani
+                     + *(int32 *)(caster_figani + pose_iter * 4 + 8);
+
+        if (((spell_id == 0x18) ||
+             (((int32)spell_id > 0x1B) && ((int32)spell_id < 0x1F))) &&
+            (*(int8 *)(pose_entry + 5) != 0)) {
+            fd2_play_sfx_with_handle(data_fd2_audio_figani_sfx_bank_buf_ptr,
+                                     *(uint8 *)(pose_entry + 5), 1);
+        }
+
+        if (*(int8 *)(pose_entry + 4) == 1) {
+            fd2_deduct_caster_mp(caster_idx, spell_id);
+            fd2_flash_char_hit_sprite((uint32)dst_buf, caster_idx);
+            if (((int32)spell_id < 10) || ((int32)spell_id > 31)) {
+                palette_write_countdown = 6;
+                remap_table = data_fd2_tile_anim_table_base
+                    + *(int32 *)(data_fd2_tile_anim_table_base + remap_idx * 4
+                                 + 6);
+                fd2_rle_blit_with_palette_remap((uint16 *)bg_layer_a, 0, 0x32,
+                                                (int32)dst_buf, 0x140,
+                                                (int32)remap_table);
+                fd2_rle_blit_with_palette_remap((uint16 *)bg_layer_b, 0xA4,
+                                                0x9D, (int32)dst_buf, 0x140,
+                                                (int32)remap_table);
+                fd2_play_sfx_with_handle(
+                    data_fd2_audio_summon_spell_sfx_bank_buf_ptr, 0, 1);
+            }
+        }
+
+        for (subframe_iter = 0;
+             (int32)subframe_iter < (int32)(uint32) * (uint8 *)(pose_entry + 6);
+             subframe_iter = subframe_iter + 1) {
+            fd2_blit_rectangle(workspace, 0x140, (uint32)dst_buf, 0x140, 0x140,
+                               0xC8);
+            if (data_fd2_battle_runtime_char_array_ptr[caster_idx].team == 0) {
+                if (((int32)spell_id < 10) || (spell_id == 0x1C)) {
+                    fd2_blit_indexed_sprite((uint32)target_figani,
+                                            (uint32)target_pose_idx,
+                                            (int)workspace, 0x140, -1);
+                }
+                fd2_blit_indexed_sprite((uint32)caster_figani, pose_iter,
+                                        (int)workspace, 0x140, -1);
+            } else {
+                fd2_blit_indexed_sprite((uint32)caster_figani, pose_iter,
+                                        (int)workspace, 0x140, -1);
+                if (((int32)spell_id < 10) || (spell_id == 0x1C)) {
+                    fd2_blit_indexed_sprite((uint32)target_figani,
+                                            (uint32)target_pose_idx,
+                                            (int)workspace, 0x140, -1);
+                }
+            }
+            fd2_blit_rectangle(0xA0000, 0x140, workspace, 0x140, 0x140, 0xC8);
+
+            if (palette_write_countdown != 0) {
+                outp(0x3C8, 0);
+                outp(0x3C9,
+                     data_fd2_animation_spell_palette_flash_table[spell_id]);
+                outp(0x3C9,
+                     data_fd2_animation_spell_palette_flash_table[spell_id
+                                                                  + 0x24]);
+                outp(0x3C9,
+                     data_fd2_animation_spell_palette_flash_table[spell_id
+                                                                  + 0x48]);
+                __delay_thunk_375b2(0x1E);
+                outp(0x3C8, 0);
+                outp(0x3C9, 0);
+                outp(0x3C9, 0);
+                outp(0x3C9, 0);
+                palette_write_countdown = palette_write_countdown - 1;
+            }
+
+            subframe_in_target = subframe_in_target + 1;
+            if ((uint32)subframe_in_target
+                == *(uint8 *)((uint32)target_figani + 6
+                              + *(int32 *)((uint32)target_figani
+                                           + (uint32)target_pose_idx * 4 + 8))) {
+                subframe_in_target = 0;
+                target_pose_idx = target_pose_idx + 1;
+                if (target_pose_idx == *(uint8 *)target_figani) {
+                    target_pose_idx = 0;
+                }
+            }
+            fd2_wait_n_bios_ticks(1);
+        }
+    }
+}

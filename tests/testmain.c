@@ -15,7 +15,8 @@ void test_print_summary(void)
 
 /* Forward declarations for test suites */
 /* >>> GENBUILD externs >>> */
-extern void run_anim_anicine_tests(void);
+extern void run_anim_anicine1_tests(void);
+extern void run_anim_anicine2_tests(void);
 extern void run_anim_anicombt_tests(void);
 extern void run_anim_anidec_tests(void);
 extern void run_anim_anisummn1_tests(void);
@@ -63,7 +64,8 @@ int main(void)
     printf("========================================\n\n");
 
     /* >>> GENBUILD calls >>> */
-    run_anim_anicine_tests();
+    run_anim_anicine1_tests();
+    run_anim_anicine2_tests();
     run_anim_anicombt_tests();
     run_anim_anidec_tests();
     run_anim_anisummn1_tests();
