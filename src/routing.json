@@ -3126,8 +3126,9 @@
     "name": "fd2_save_current_state_to_slot",
     "target": "save/save.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000301f4": {
     "name": "fd2_load_state_from_selected_slot",

@@ -455,6 +455,11 @@ uint8  data_fd2_chapter_intro_portrait_pose_x_column_table[18] = {0};
  * sub-menus — see the deferral note in tests/ui_menu/chintro.c), so these only
  * satisfy the link and are never invoked by a test. */
 uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6] = {0};
+/* per-chapter dispatch category (real data @ 0x526B9, emit'd by the data
+ * pipeline; zero-filled fake here, sized past chapter_id 30 (0x1E) for the
+ * indexed read in fd2_save_current_state_to_slot / fd2_chapter_transition_menu /
+ * fd2_load_state_from_selected_slot). Tests set the one index they exercise. */
+uint8  data_fd2_chapter_per_chapter_category_table[64] = {0};
 uint32 data_fd2_ui_menu_saved_cursor_idx = 0;
 uint32 data_fd2_ui_menu_saved_scroll_offset = 0;
 void fd2_animate_tutorial_dialog_intro_or_outro(uint32 closing) { (void)closing; }
@@ -464,10 +469,12 @@ void fd2_run_sell_item_menu(void) { }
 void fd2_run_equip_member_menu(void) { }
 void fd2_run_give_item_menu(void) { }
 /* heavy-callee stubs for fd2_run_chapter_intro_menu_typeB (the non-shop
- * between-chapters orchestrator, also Phase 9 deferred). status/save/load each
- * open their own real-file UI; stubbed to satisfy the link, never invoked. */
+ * between-chapters orchestrator, also Phase 9 deferred). status/load open their
+ * own real-file UI; stubbed to satisfy the link, never invoked.
+ * fd2_save_current_state_to_slot is now emitted for real in src/save/save.c and
+ * driven by the test_scs_* cases in tests/save/save.c against the real
+ * FD2.SAV. */
 void fd2_run_status_screen_member_menu(void) { }
-void fd2_save_current_state_to_slot(uint32 prompt_flag) { (void)prompt_flag; }
 void fd2_load_state_from_selected_slot(void) { }
 void fd2_blit_scaled_chapter_pose(uint32 cx, uint32 cy, uint32 bmp, int32 s)
 { (void)cx; (void)cy; (void)bmp; (void)s; }
@@ -595,8 +602,32 @@ void fd2_play_and_free_status_effect_sfx(void) { }
  * neutralizing stub was removed. */
 int g_ending_menu_return = 0;
 int fd2_play_ending_and_record_clear(void) { return g_ending_menu_return; }
-int g_slot_selector_return = -1;
-int fd2_save_slot_selector_ui(uint32 b, uint32 m) { (void)b; (void)m; return g_slot_selector_return; }
+/* Slot-selector fake. Default (constant) mode returns g_slot_selector_return
+ * every call (used by the life/main quit test: -1 = cancel). One-shot mode
+ * (g_slot_selector_oneshot != 0) mimics a single commit: the first call writes
+ * g_slot_selector_cursor into data_fd2_ui_menu_cursor_idx (the real selector
+ * leaves the chosen slot there) and returns g_slot_selector_first_ret (1 =
+ * commit), every later call returns -1 so the caller's do-while terminates.
+ * g_slot_selector_calls counts invocations. The save-current-state test arms
+ * one-shot and resets these in its fixture so other suites are unaffected. */
+int    g_slot_selector_return = -1;
+int    g_slot_selector_oneshot = 0;
+int    g_slot_selector_first_ret = 1;
+uint32 g_slot_selector_cursor = 0;
+int    g_slot_selector_calls = 0;
+int fd2_save_slot_selector_ui(uint32 b, uint32 m)
+{
+    (void)b; (void)m;
+    g_slot_selector_calls++;
+    if (g_slot_selector_oneshot) {
+        if (g_slot_selector_calls == 1) {
+            data_fd2_ui_menu_cursor_idx = g_slot_selector_cursor;
+            return g_slot_selector_first_ret;
+        }
+        return -1;
+    }
+    return g_slot_selector_return;
+}
 void fd2_close_intro_dialog_with_slide_out(void) { }
 int g_chapter_transition_return = 0;
 int fd2_chapter_transition_menu(void) { return g_chapter_transition_return; }

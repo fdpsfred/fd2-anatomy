@@ -21,9 +21,11 @@
 #include "globals.h"
 #include "protos.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 extern runtime_char g_test_rc_array[8];
 extern int g_check_char_is_dead_return;
+extern int g_slot_selector_return;
 
 /* Test-owned template (menu/roster) buffer: 8 entries x 0x50 bytes. */
 static uint8 g_test_tmpl[8 * 0x50];
@@ -380,6 +382,230 @@ static void test_crypt_size_one(void)
     ASSERT_EQ(buf[0], (uint8)(0xFF ^ 0xCC));   /* 0x33 */
 }
 
+/* ================================================================
+ * fd2_save_current_state_to_slot — write current-state globals into
+ * a chosen FD2.SAV slot, recompute checksum, re-encrypt, write back.
+ *
+ * Drives the REAL function against the staged real FD2.SAV (copied
+ * into the test cwd by build_test.py). The interactive slot selector
+ * is a controllable fake (testglob.c one-shot mode); the modal "saved"
+ * confirmation dialog (which busy-waits on a keypress via the real
+ * fd2_wait_for_input_dialog_with_blink and would hang the silent
+ * harness) is gated behind per_chapter_category[chapter]==0, so the
+ * save-path tests pick a chapter whose category is non-zero to skip
+ * it. The cancel path and the slot-write arithmetic / field widths /
+ * checksum round-trip are covered here; the confirmation-dialog arm is
+ * deferred to Phase 9 integration (see src/emit_issues.json).
+ *
+ * Expected slot bytes are read back from the same real FD2.SAV after
+ * the write and decrypted with the linked real cipher — no fabricated
+ * save image, no hardcoded magic. The original file bytes are backed
+ * up at setup and rewritten at teardown so neither later suites nor a
+ * subsequent build (staged files persist) see a mutated FD2.SAV.
+ * ================================================================ */
+
+#define SAV_SIZE   0x59CBL
+#define SAV_SLOT0  0x312BL          /* file offset of slot 0 base */
+#define SAV_STRIDE 0xA28L           /* bytes per slot */
+
+extern int    g_slot_selector_oneshot;
+extern int    g_slot_selector_first_ret;
+extern uint32 g_slot_selector_cursor;
+extern int    g_slot_selector_calls;
+
+/* roster source the function memmoves into the slot (0xA00 bytes) */
+static uint8 *g_scs_roster;
+/* backup of the staged FD2.SAV so teardown can restore the original */
+static uint8 *g_scs_sav_backup;
+
+static void scs_setup(uint32 chapter_with_nonzero_category, uint32 slot)
+{
+    FILE  *fp;
+    int    i;
+
+    /* back up the staged real FD2.SAV verbatim */
+    g_scs_sav_backup = (uint8 *)malloc(SAV_SIZE);
+    fp = fopen("FD2.SAV", "rb");
+    fread(g_scs_sav_backup, 1, SAV_SIZE, fp);
+    fclose(fp);
+
+    /* roster the function copies into the slot: a recognisable pattern */
+    g_scs_roster = (uint8 *)malloc(0xA00);
+    for (i = 0; i < 0xA00; i++) {
+        g_scs_roster[i] = (uint8)(i * 3 + 0x11);
+    }
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_scs_roster;
+
+    /* current-state scalar globals the function stores into the slot header */
+    data_fd2_chapter_current_chapter_id = chapter_with_nonzero_category;
+    data_fd2_shared_menu_party_member_count = 7;
+    data_fd2_shared_party_total_gold = 0x1234ABCD;   /* tests the u32 +0xA02 */
+    data_fd2_ui_terrain_hud_user_enabled = 0x5A;
+    data_fd2_ui_game_speed_flag = 0x3C;
+    data_fd2_audio_bgm_enabled_flag = 1;
+    data_fd2_audio_sfx_enabled_flag = 0;
+
+    /* non-zero category for this chapter -> the modal confirmation
+     * (and its blocking input wait) is skipped */
+    data_fd2_chapter_per_chapter_category_table[chapter_with_nonzero_category] = 1;
+
+    /* one-shot selector: commit slot `slot` once, then cancel */
+    g_slot_selector_oneshot = 1;
+    g_slot_selector_first_ret = 1;
+    g_slot_selector_cursor = slot;
+    g_slot_selector_calls = 0;
+}
+
+static void scs_teardown(uint32 chapter)
+{
+    FILE *fp;
+
+    /* restore the original staged FD2.SAV bytes */
+    fp = fopen("FD2.SAV", "wb");
+    fwrite(g_scs_sav_backup, 1, SAV_SIZE, fp);
+    fclose(fp);
+    free(g_scs_sav_backup);
+    free(g_scs_roster);
+
+    /* clear test-owned shared state so later suites are clean */
+    g_scs_sav_backup = 0;
+    g_scs_roster = 0;
+    data_fd2_shared_menu_party_roster_buffer_ptr = 0;
+    data_fd2_chapter_per_chapter_category_table[chapter] = 0;
+    g_slot_selector_oneshot = 0;
+    g_slot_selector_first_ret = 1;
+    g_slot_selector_cursor = 0;
+    g_slot_selector_calls = 0;
+    g_slot_selector_return = -1;
+    data_fd2_chapter_current_chapter_id = 1;
+}
+
+/* Read the just-written FD2.SAV and decrypt it (cipher is an involution),
+ * returning the malloc'd 0x59CB plaintext (caller frees). */
+static uint8 *scs_read_decrypted(void)
+{
+    FILE  *fp;
+    uint8 *buf;
+
+    buf = (uint8 *)malloc(SAV_SIZE);
+    fp = fopen("FD2.SAV", "rb");
+    fread(buf, 1, SAV_SIZE, fp);
+    fclose(fp);
+    fd2_save_crypt_buffer((uint32)buf, SAV_SIZE);
+    return buf;
+}
+
+/* ---- Test: commit one slot -> header fields + roster written, checksum valid ---- */
+static void test_scs_writes_slot_header_and_roster(void)
+{
+    uint8 *sav;
+    uint8 *slot;
+    long   base;
+
+    scs_setup(0x16, 2);          /* chapter 0x16 has category 1; slot 2 */
+
+    fd2_save_current_state_to_slot(1);
+
+    /* selector called twice: one commit + one cancel to exit the loop */
+    ASSERT_EQ((long)g_slot_selector_calls, 2);
+
+    sav = scs_read_decrypted();
+    base = SAV_SLOT0 + 2 * SAV_STRIDE;
+    slot = sav + base;
+
+    /* 0xA00-byte roster copied verbatim into the slot body */
+    ASSERT_MEM_EQ(slot, g_scs_roster, 0xA00);
+    /* scalar header at +0xA00.. */
+    ASSERT_EQ((long)slot[0xA00], 0x16);              /* chapter id (byte) */
+    ASSERT_EQ((long)slot[0xA01], 7);                 /* member count (byte) */
+    ASSERT_EQ((long)*(uint32 *)(slot + 0xA02),
+              (long)0x1234ABCD);                     /* gold (u32) */
+    ASSERT_EQ((long)slot[0xA06], 0x5A);              /* terrain hud */
+    ASSERT_EQ((long)slot[0xA07], 0x3C);              /* game speed */
+    ASSERT_EQ((long)slot[0xA08], 1);                 /* bgm enabled */
+    ASSERT_EQ((long)slot[0xA09], 0);                 /* sfx enabled */
+
+    /* checksum tail (+0x59C7) is the byte-sum of buf[0..0x59C6] */
+    ASSERT_EQ((long)*(uint32 *)(sav + 0x59C7),
+              (long)fd2_save_compute_checksum((uint32)sav, SAV_SIZE));
+
+    free(sav);
+    scs_teardown(0x16);
+}
+
+/* ---- Test: slot index routes the write to base 0x312B + slot*0xA28 ---- */
+static void test_scs_slot_index_routes_offset(void)
+{
+    uint8 *sav;
+    uint8 *orig;
+    long   base3;
+    long   base0;
+    int    i;
+    int    differs;
+
+    scs_setup(0x17, 3);          /* chapter 0x17 category 1; slot 3 */
+
+    /* snapshot the decrypted ORIGINAL so we can prove only slot 3 changed */
+    orig = (uint8 *)malloc(SAV_SIZE);
+    memcpy(orig, g_scs_sav_backup, SAV_SIZE);
+    fd2_save_crypt_buffer((uint32)orig, SAV_SIZE);
+
+    fd2_save_current_state_to_slot(1);
+
+    sav = scs_read_decrypted();
+    base3 = SAV_SLOT0 + 3 * SAV_STRIDE;
+    base0 = SAV_SLOT0 + 0 * SAV_STRIDE;
+
+    /* slot 3 header carries the written chapter id */
+    ASSERT_EQ((long)sav[base3 + 0xA00], 0x17);
+
+    /* slot 0 body region is unchanged vs the original plaintext (the write
+     * landed at slot 3, not slot 0) */
+    differs = 0;
+    for (i = 0; i < 0xA00; i++) {
+        if (sav[base0 + i] != orig[base0 + i]) { differs = 1; break; }
+    }
+    ASSERT_EQ((long)differs, 0);
+
+    free(orig);
+    free(sav);
+    scs_teardown(0x17);
+}
+
+/* ---- Test: cancel (selector returns -1) writes nothing, file unchanged ---- */
+static void test_scs_cancel_leaves_file_unchanged(void)
+{
+    uint8 *sav;
+    int    i;
+    int    differs;
+
+    /* setup arms one-shot but we override to pure-cancel below */
+    scs_setup(0x18, 1);
+    g_slot_selector_oneshot = 0;     /* constant mode */
+    g_slot_selector_return = -1;     /* immediate cancel */
+
+    fd2_save_current_state_to_slot(1);
+
+    /* selector consulted exactly once, then the do-while exits */
+    ASSERT_EQ((long)g_slot_selector_calls, 1);
+
+    /* file bytes identical to the staged original (no fopen "wb" path taken) */
+    sav = (uint8 *)malloc(SAV_SIZE);
+    {
+        FILE *fp = fopen("FD2.SAV", "rb");
+        fread(sav, 1, SAV_SIZE, fp);
+        fclose(fp);
+    }
+    differs = 0;
+    for (i = 0; i < SAV_SIZE; i++) {
+        if (sav[i] != g_scs_sav_backup[i]) { differs = 1; break; }
+    }
+    ASSERT_EQ((long)differs, 0);
+
+    free(sav);
+    scs_teardown(0x18);
+}
+
 void run_save_save_tests(void)
 {
     SUITE_BEGIN(save_save);
@@ -399,5 +625,8 @@ void run_save_save_tests(void)
     RUN_TEST(test_crypt_xor_known_data);
     RUN_TEST(test_crypt_is_involution);
     RUN_TEST(test_crypt_size_one);
+    RUN_TEST(test_scs_writes_slot_header_and_roster);
+    RUN_TEST(test_scs_slot_index_routes_offset);
+    RUN_TEST(test_scs_cancel_leaves_file_unchanged);
     SUITE_END();
 }

@@ -476,5 +476,23 @@
   },
   "0001f525": [
     "DUPLICATE SYMBOL / LINK-ORDER DEPENDENCY (verified harmless, worth logging): testglob.c:616 keeps an empty stub `void fd2_play_palette_fade_in(void){}` alongside the now-real src/gfx/palette.c definition, producing wlink Warning(1027) 'redefinition of fd2_play_palette_fade_in ignored (testglob.obj)'. I independently confirmed the REAL palette.obj symbol wins (the test asserts g_delay375b2_calls==0x41 and PASSED; the empty stub would make 0). build_test.py warning_count parser ignores wlink Warning(NNNN) lines so warning_count=0 / gate_pass=true. Keeping the stub is the CORRECT/SAFE choice: I verified tests/battle/btl_init.c (setup_init_fixture) never sets data_fd2_vga_palette_data_ptr yet drives the real fd2_init_battle_state_for_chapter() (src/battle/btl_init.c:34 calls fade_in) -> removing the stub would make that suite run the real fade against a stale/NULL palette ptr (0x100*3 OOB reads -> crash risk). src/life/main.c:296 is the other real caller. Correctness relies on object link order placing palette.obj before testglob.obj; stable in this build but undocumented -- consider a comment at testglob.c:616 noting the real def lives in src/gfx/palette.c and the stub intentionally neutralizes the fade for btl_init/life suites."
-  ]
+  ],
+  "00030012": {
+    "name": "fd2_save_current_state_to_slot",
+    "target": "save/save.c",
+    "issues": [
+      {
+        "type": "test_coverage_note",
+        "desc": "Unit-tested (risk-driven) against the REAL staged FD2.SAV: the slot-write path (slot_base = pBuf + cursor*0xA28 + 0x312B; 0xA00-byte roster memmove; the 8 scalar header fields at +0xA00..+0xA09 incl. the u32 gold at +0xA02), the checksum recompute into +0x59C7, the encrypt/fwrite/decrypt round-trip, the slot-index routing (write lands at slot N and leaves slot 0 untouched), and the cancel path (selector returns -1 -> no fopen wb, file byte-identical to the original). Expected slot bytes are read back from the same real FD2.SAV after the write and decrypted with the linked real cipher (involution) -- no fabricated save image. The fixture backs up the staged FD2.SAV at setup and rewrites the original bytes at teardown so neither later suites nor a subsequent build (staged game files persist across runs) see a mutated file. The slot selector is testglob.c's controllable fake (new one-shot mode: commit slot N once with cursor set, then cancel).",
+        "severity": "info",
+        "verify_method": "unit_tested"
+      },
+      {
+        "type": "test_deferral_note",
+        "desc": "The story-chapter confirmation-dialog arm (taken when per_chapter_category[current_chapter_id]==0: fd2_close_intro_dialog_with_slide_out + fd2_load_chapter_portrait + fd2_display_dialog_scene + fd2_paint_portrait_to_dialog_area + fd2_wait_for_input_dialog_with_blink) is deferred to Phase 9 integration. Reason: fd2_wait_for_input_dialog_with_blink is the real linked function (src/input/input.c) whose busy-wait while(fd2_check_keyboard_buffer_nonempty()==0){...} blocks on a keypress and would hang the silent harness (same hang documented for sibling fd2_load_save_and_init_engine @00010010). The save-path tests pick a chapter whose category is non-zero so this arm is skipped; it is a pure display + blocking-input confirmation that does not change the saved bytes (the file is already fully written before it runs), so the equivalence-relevant logic is fully covered above.",
+        "severity": "low",
+        "verify_method": "phase9_integration_with_scripted_input"
+      }
+    ]
+  }
 }

@@ -20,6 +20,7 @@ extern uint32 data_fd2_battle_current_active_char_idx;                  /* 0x53A
 extern uint32 data_fd2_chapter_current_chapter_id;                      /* 0x53C03 */
 extern uint32 data_fd2_chapter_event_or_battle_end_code;                /* 0x53ECC */
 extern uint32 data_fd2_chapter_cutscene_event_state;                    /* 0x53AFB */
+extern uint8  data_fd2_chapter_per_chapter_category_table[];            /* 0x526B9  1B per chapter (idx by chapter_id; 0 = story) */
 
 /* ch20 end-scene char position tables (private to fd2_chapter_20_end) */
 extern const uint8 data_fd2_chapter_ch20_end_scene1_char_pos_x_table[16];  /* 0x521F6 */
