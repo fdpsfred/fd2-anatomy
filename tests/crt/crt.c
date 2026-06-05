@@ -945,25 +945,22 @@ static void test_fpe_handler_indirect_call(void)
  * caller reclaims the pushed arg), both as a direct call and THROUGH a
  * function pointer — the address-taken slot-CALL form _matherr uses.
  *
- * In the test build the JMP target is testglob.c's stub, which returns 0
- * (the real primitive's value) and bumps g_matherr_return_zero_entered, so
- * reaching it is directly observable.
+ * The JMP target is the real primitive crt_equivalent_matherr_default_return_
+ * zero_4d8ea @ 0x4d8ea (src/crt/crt.c), whose sole effect is returning 0; the
+ * thunk's JMP reaching it is observable as the call yielding 0.
  * ================================================================ */
-extern int g_matherr_return_zero_entered;
 
 /* (1) the thunk's JMP reaches the target and the call yields 0 ("not
- * handled"): each invocation runs the (stubbed) primitive exactly once and
- * returns its 0. */
+ * handled"): control tail-transfers through the JMP into the real "return 0"
+ * primitive, whose 0 becomes the thunk's result. */
 static void test_matherr_thunk_returns_zero_via_jmp(void)
 {
     int dummy_exc;     /* stand-in exception struct; never read by the thunk */
     int r;
 
-    g_matherr_return_zero_entered = 0;
     r = crt_equivalent_matherr_default_thunk_4d340(&dummy_exc);
 
     ASSERT_EQ(r, 0);
-    ASSERT_EQ(g_matherr_return_zero_entered, 1);
 }
 
 /* (2) the exception-struct argument is ignored: any pointer value (including
@@ -981,7 +978,6 @@ static void test_matherr_thunk_ignores_exc_arg(void)
     args[1] = &marker;            /* valid pointer */
     args[2] = (void *)0xDEADBEEF; /* bogus, must not be dereferenced */
 
-    g_matherr_return_zero_entered = 0;
     completed = 0;
     for (i = 0; i < 3; i++) {
         ASSERT_EQ(crt_equivalent_matherr_default_thunk_4d340(args[i]), 0);
@@ -989,7 +985,6 @@ static void test_matherr_thunk_ignores_exc_arg(void)
     }
 
     ASSERT_EQ(completed, 3);
-    ASSERT_EQ(g_matherr_return_zero_entered, 3);
     ASSERT_EQ(marker, 0);   /* the pointed-to slot was never touched */
 }
 
@@ -1009,8 +1004,6 @@ static void test_matherr_thunk_clean_return_direct_and_indirect(void)
     int r1;
     int r2;
 
-    g_matherr_return_zero_entered = 0;
-
     r1 = crt_equivalent_matherr_default_thunk_4d340(&dummy_exc); /* direct */
     marker = 1;
 
@@ -1021,9 +1014,71 @@ static void test_matherr_thunk_clean_return_direct_and_indirect(void)
     ASSERT_EQ(marker, 1);
     ASSERT_EQ(guard_lo, 0x0BADF00D);
     ASSERT_EQ(guard_hi, 0x0C0FFEE0);
+    ASSERT_EQ(r1, 0);  /* both forms tail-JMP into the real "return 0" -> 0 */
+    ASSERT_EQ(r2, 0);
+}
+
+/* ================================================================
+ * crt_equivalent_matherr_default_return_zero_4d8ea @ 0x4d8ea
+ *
+ * The "return 0" primitive the matherr thunk JMPs to (slot [0x539A8]'s
+ * default handler body). Body: XOR EAX,EAX; RET — returns 0 for any input
+ * and ignores its exception-struct pointer. Contracts: (1) returns 0 for
+ * every exc argument, including the NULL and slot-CALL forms _matherr uses;
+ * (2) __cdecl stack-balanced both direct and through a function pointer (the
+ * address-taken slot form), with bracketing guard sentinels intact.
+ *
+ * Not in protos.h (it is a JMP target, reached only via the thunk, like
+ * crt_equivalent_dos_main_bootstrap), so it is declared locally here to call
+ * it directly.
+ * ================================================================ */
+extern int crt_equivalent_matherr_default_return_zero_4d8ea(void *exc);
+
+/* (1) returns 0 regardless of the exception-struct pointer (NULL, a valid
+ * pointer, and a bogus non-NULL one that must never be dereferenced). */
+static void test_matherr_primitive_returns_zero_any_arg(void)
+{
+    int  marker;
+    void *args[3];
+    int  i;
+
+    marker  = 0;
+    args[0] = (void *)0;          /* NULL */
+    args[1] = &marker;            /* valid pointer */
+    args[2] = (void *)0xDEADBEEF; /* bogus, must not be dereferenced */
+
+    for (i = 0; i < 3; i++) {
+        ASSERT_EQ(crt_equivalent_matherr_default_return_zero_4d8ea(args[i]), 0);
+    }
+    ASSERT_EQ(marker, 0);   /* the pointed-to slot was never touched */
+}
+
+/* (2) __cdecl clean return, both direct and through a function pointer (the
+ * address-taken slot form: CALL [0x539A8] with exc pushed, caller cleans up).
+ * Guard sentinels bracketing a local must survive a balanced cdecl frame; a
+ * wrong cc (e.g. RET 4 swallowing the arg) would corrupt them. */
+static void test_matherr_primitive_clean_return_direct_and_indirect(void)
+{
+    volatile int guard_lo = 0x0BADF00D;
+    volatile int marker   = 0;
+    volatile int guard_hi = 0x0C0FFEE0;
+    int dummy_exc;
+    int (*fp)(void *);
+    int r1;
+    int r2;
+
+    r1 = crt_equivalent_matherr_default_return_zero_4d8ea(&dummy_exc); /* direct */
+    marker = 1;
+
+    fp = crt_equivalent_matherr_default_return_zero_4d8ea; /* address-taken */
+    ASSERT_TRUE(fp != (int (*)(void *))0);
+    r2 = fp(&dummy_exc);                                   /* indirect (slot form) */
+
+    ASSERT_EQ(marker, 1);
+    ASSERT_EQ(guard_lo, 0x0BADF00D);
+    ASSERT_EQ(guard_hi, 0x0C0FFEE0);
     ASSERT_EQ(r1, 0);
     ASSERT_EQ(r2, 0);
-    ASSERT_EQ(g_matherr_return_zero_entered, 2);   /* both forms reached it */
 }
 
 void run_crt_crt_tests(void)
@@ -1061,5 +1116,7 @@ void run_crt_crt_tests(void)
     RUN_TEST(test_matherr_thunk_returns_zero_via_jmp);
     RUN_TEST(test_matherr_thunk_ignores_exc_arg);
     RUN_TEST(test_matherr_thunk_clean_return_direct_and_indirect);
+    RUN_TEST(test_matherr_primitive_returns_zero_any_arg);
+    RUN_TEST(test_matherr_primitive_clean_return_direct_and_indirect);
     printf("\n");
 }

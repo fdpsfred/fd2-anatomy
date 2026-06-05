@@ -148,20 +148,11 @@ void fd2_cast_speed_boost_spell(uint32 a, uint32 b, uint32 c) { }
  * emitted (the real bootstrap supersedes this stub + the counter). */
 int g_cstart_bootstrap_entered = 0;
 void crt_equivalent_dos_main_bootstrap(void) { g_cstart_bootstrap_entered++; }
-/* Link-only stub for the not-yet-emitted matherr "return 0" primitive (its
- * own emit target @ 0x4d8ea, src/crt/crt.c). crt_equivalent_matherr_default_
- * thunk_4d340's #pragma aux helper tail-JMPs to this symbol. The real body
- * returns 0; the stub returns 0 too (so the thunk's observable result is
- * unchanged) and bumps a counter so the crt/crt.c suite can verify the JMP
- * actually reaches it. Removed once crt_equivalent_matherr_default_return_
- * zero_4d8ea @ 0x4d8ea is emitted (the real primitive supersedes this stub +
- * the counter). */
-int g_matherr_return_zero_entered = 0;
-int crt_equivalent_matherr_default_return_zero_4d8ea(void)
-{
-    g_matherr_return_zero_entered++;
-    return 0;
-}
+/* crt_equivalent_matherr_default_return_zero_4d8ea @ 0x4d8ea is now emitted as
+ * the real "return 0" primitive in src/crt/crt.c; its earlier link-only stub
+ * and the g_matherr_return_zero_entered counter have been removed. The thunk
+ * tests now observe the thunk's return value (0, produced by the real
+ * primitive) directly. */
 int g_play_sfx_with_handle_calls = 0;
 int g_dlg_blink_calls = 0;
 /* SFX-id capture log: fd2_animate_spell_impact_per_target's per-spell SFX

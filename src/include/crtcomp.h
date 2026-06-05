@@ -38,7 +38,7 @@ void crt_equivalent_lx_module_loader_3647b(void);
 void crt_equivalent_exit_chain_stub_36de3(void);
 void crt_equivalent_fpe_default_handler_3d26e(void);
 int  crt_equivalent_matherr_default_thunk_4d340(void *exc);
-void crt_equivalent_matherr_default_return_zero_4d8ea(void);
+int  crt_equivalent_matherr_default_return_zero_4d8ea(void *exc);
 
 /* softfp */
 void crt_equivalent_softfp_tan_worker_4c630(void);
