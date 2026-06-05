@@ -2958,8 +2958,9 @@
     "name": "fd2_animate_money_increment",
     "target": "anim/aniui.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002d516": {
     "name": "fd2_animate_money_decrement",

@@ -7,6 +7,7 @@
 #include "globals.h"
 #include "protos.h"
 #include <string.h>
+#include <stdio.h>
 
 /* ----------------------------------------------------------------
  * fd2_tick_tutorial_progress_with_sfx @ 0x2C9EC
@@ -96,4 +97,89 @@ void fd2_animate_screen_shake(uint32 num_frames)
             0x1C8, 0x138, 0xC0);
         __delay_thunk_375b2(0x14);
     }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_animate_money_increment @ 0x2D3FF (1 caller)
+ *
+ * Animated INCREMENT of the party gold counter
+ * (data_fd2_shared_party_total_gold @ 0x53BF3) by delta with a
+ * rolling-digit slot-machine visual. Mirror of
+ * fd2_animate_money_decrement @ 0x2D516.
+ *
+ * Snapshots the 8 current decimal digits, applies delta to the gold
+ * total immediately, snapshots the 8 target digits, then per outer
+ * iteration diffs the two: each mismatching digit position is flagged
+ * (anim_state=1) and animated through a 9-frame roll. On each frame
+ * the per-digit blit primitive draws sprite (cur_digit*9 + anim_state)
+ * at slot offset 0xA7A90 + pos*6, advancing anim_state; when a digit's
+ * roll completes (anim_state hits 10) its cur_digit advances by one
+ * (wrapping 10->0). Carries to higher positions are resolved on the
+ * next outer re-diff. Loops until current digits equal target digits.
+ *
+ * Cadence: 9 rolling frames per advance step, 10ms (__delay_thunk_375b2)
+ * per frame.
+ *
+ * Caller:
+ *   fd2_run_sell_item_menu — credit gold from item sale.
+ *
+ * Args (cdecl):
+ *   delta — amount of gold to add.
+ * ---------------------------------------------------------------- */
+void fd2_animate_money_increment(uint32 delta)
+{
+    uint8 new_digits[20];
+    uint8 cur_digits[20];
+    uint8 anim_state[20];
+    uint8 all_match;
+    uint32 screen_pos;
+    uint32 anim_phase;
+    uint32 digit_iter;
+    int32 iter;
+    int32 i;
+
+    sprintf((char *)cur_digits, "%0.8d", data_fd2_shared_party_total_gold);
+    for (iter = 0; iter < 8; iter++) {
+        cur_digits[iter] = cur_digits[iter] - 0x30;
+    }
+
+    data_fd2_shared_party_total_gold = data_fd2_shared_party_total_gold + delta;
+
+    sprintf((char *)new_digits, "%0.8d", data_fd2_shared_party_total_gold);
+    for (i = 0; i < 8; i++) {
+        new_digits[i] = new_digits[i] - 0x30;
+    }
+
+    do {
+        all_match = 1;
+        for (i = 0; i < 8; i++) {
+            if (cur_digits[i] == new_digits[i]) {
+                anim_state[i] = 0;
+            } else {
+                anim_state[i] = 1;
+                all_match = 0;
+            }
+        }
+
+        if (!all_match) {
+            for (i = 0; i < 9; i++) {
+                for (digit_iter = 0; (int32)digit_iter < 8; digit_iter++) {
+                    anim_phase = (uint32)anim_state[digit_iter];
+                    if (anim_phase != 0) {
+                        screen_pos = digit_iter * 6 + 0xA7A90;
+                        fd2_blit_money_digit_sprite(screen_pos, 0x140,
+                            (uint32)cur_digits[digit_iter] * 9 + anim_phase);
+                        anim_state[digit_iter] = anim_state[digit_iter] + 1;
+                        if (anim_state[digit_iter] == 10) {
+                            cur_digits[digit_iter] = cur_digits[digit_iter] + 1;
+                            if (cur_digits[digit_iter] == 10) {
+                                cur_digits[digit_iter] = 0;
+                            }
+                        }
+                    }
+                }
+                __delay_thunk_375b2(10);
+            }
+        }
+    } while (!all_match);
 }

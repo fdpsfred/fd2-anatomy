@@ -65,6 +65,13 @@ extern uint32 g_delay375b2_last_ticks;
 extern int    g_tile_map_calls;
 extern int    g_composite_call_count;
 
+/* money-roller observability (testglob.c): the per-digit blit primitive records
+ * its call count + last resolved args (slot dst, stride, sprite index). */
+extern int    g_money_blit_calls;
+extern uint32 g_money_blit_last_dst;
+extern uint32 g_money_blit_last_stride;
+extern uint32 g_money_blit_last_sprite;
+
 
 /* Backing for data_fd2_large_game_state_buffer_ptr. The real fd2_blit_rectangle
  * (and the real fd2_composite_battle_frame finalizer) read the visible region
@@ -173,11 +180,71 @@ static void test_screen_shake_loop_and_jitter(void)
 }
 
 
+/*
+ * fd2_animate_money_increment — gold mutation + rolling-digit structure.
+ *
+ * The function (a) snapshots the 8 current decimal digits, (b) commits the
+ * delta to data_fd2_shared_party_total_gold immediately, (c) snapshots the 8
+ * target digits, then rolls each mismatching digit forward through 9-frame
+ * advance steps until current==target, re-diffing between steps so carries to
+ * higher positions resolve on the next outer iteration. Each (digit, frame)
+ * pair emits one fd2_blit_money_digit_sprite(slot, 0x140, cur_digit*9+phase).
+ *
+ * Host-verifiable observables (every assertion below is hand-traced):
+ *   - the gold total is the load-bearing state mutation: gold += delta, applied
+ *     up-front (the visual catches up) — asserted exactly for each case.
+ *   - the blit count is fully determined by the start->target digit transition:
+ *       0->1 : one mismatching position (pos7), one 9-frame step      = 9 blits
+ *       0->2 : pos7 rolls two advance steps (re-diff drives 0->1->2)  = 18 blits
+ *       5->10: pos7 rolls 6->7->8->9->0 across 5 steps (wrap 9->0 hit)
+ *              + pos6 0->1 in the first step (2 digits *9)            = 54 blits
+ *   - the last blit's resolved sprite index encodes cur_digit*9+phase with
+ *     phase peaking at 9 on the final frame of the last advance step, and the
+ *     slot dst = 0xA7A90 + pos*6 (pos7 = +0x2A), stride 0x140.
+ * The 9x6 pixel copy itself is a display side-effect deferred to Phase 9.
+ */
+static void test_money_increment_roll_and_total(void)
+{
+    /* single-digit, single advance step: 00000000 -> 00000001 */
+    data_fd2_shared_party_total_gold = 0;
+    g_money_blit_calls = 0;
+    g_delay375b2_calls = 0;
+    fd2_animate_money_increment(1);
+    ASSERT_EQ(data_fd2_shared_party_total_gold, 1u);
+    ASSERT_EQ(g_money_blit_calls, 9);          /* 1 digit * 9 frames * 1 step */
+    ASSERT_EQ(g_delay375b2_calls, 9);          /* one 10ms delay per frame */
+    ASSERT_EQ(g_delay375b2_last_ticks, 10u);
+    ASSERT_EQ(g_money_blit_last_stride, 0x140u);
+    ASSERT_EQ(g_money_blit_last_dst, 0xA7A90u + 7u * 6u);
+    ASSERT_EQ(g_money_blit_last_sprite, 0u * 9u + 9u);  /* cur=0, phase=9 */
+
+    /* single-digit, two advance steps: 00000000 -> 00000002 (re-diff 0->1->2) */
+    data_fd2_shared_party_total_gold = 0;
+    g_money_blit_calls = 0;
+    fd2_animate_money_increment(2);
+    ASSERT_EQ(data_fd2_shared_party_total_gold, 2u);
+    ASSERT_EQ(g_money_blit_calls, 18);
+    ASSERT_EQ(g_money_blit_last_dst, 0xA7A90u + 7u * 6u);
+    ASSERT_EQ(g_money_blit_last_sprite, 1u * 9u + 9u);  /* last step cur=1, phase=9 */
+
+    /* carry/wrap path: 00000005 -> 00000010. pos7 rolls 6->7->8->9->0 (wrap
+     * 9->0 on the 5th step); pos6 advances 0->1 only on the first step. */
+    data_fd2_shared_party_total_gold = 5;
+    g_money_blit_calls = 0;
+    fd2_animate_money_increment(5);
+    ASSERT_EQ(data_fd2_shared_party_total_gold, 10u);     /* 5 + 5 = 10 decimal */
+    ASSERT_EQ(g_money_blit_calls, 54);          /* 2*9 (step1) + 9*4 (steps 2-5) */
+    ASSERT_EQ(g_money_blit_last_dst, 0xA7A90u + 7u * 6u);
+    ASSERT_EQ(g_money_blit_last_sprite, 9u * 9u + 9u);    /* wrap step cur=9, phase=9 */
+}
+
+
 void run_anim_aniui_tests(void)
 {
     int _prev_fails = g_test_fail_count;
     printf("Suite: anim/aniui\n");
     RUN_TEST(test_tick_tutorial_sfx_counter);
     RUN_TEST(test_screen_shake_loop_and_jitter);
+    RUN_TEST(test_money_increment_roll_and_total);
     printf("\n");
 }

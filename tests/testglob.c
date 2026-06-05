@@ -655,6 +655,24 @@ int    g_delay375b2_calls = 0;
 uint32 g_delay375b2_last_ticks = 0;
 void __delay_thunk_375b2(uint32 ticks) { g_delay375b2_calls++; g_delay375b2_last_ticks = ticks; }
 
+/* fd2_blit_money_digit_sprite: the per-digit slot-machine blit primitive, not
+ * yet emitted (target gfx/blitspr.c). Recording stub: the money-roller animations
+ * (fd2_animate_money_increment / _decrement) drive it once per (digit, frame);
+ * the tests observe the rolling structure through the call count + last args
+ * (resolved screen slot, stride, and sprite index = cur_digit*9 + anim_phase).
+ * The actual sprite pixel copy is a display side-effect deferred to Phase 9. */
+int    g_money_blit_calls = 0;
+uint32 g_money_blit_last_dst = 0;
+uint32 g_money_blit_last_stride = 0;
+uint32 g_money_blit_last_sprite = 0;
+void fd2_blit_money_digit_sprite(uint32 dst_buf, uint32 dst_stride, uint32 sprite_idx)
+{
+    g_money_blit_calls++;
+    g_money_blit_last_dst = dst_buf;
+    g_money_blit_last_stride = dst_stride;
+    g_money_blit_last_sprite = sprite_idx;
+}
+
 /* fd2_composite_chars_with_spell_effect_overlay is now a real emitted function
  * (src/gfx/rndscene.c); its former recording stub here was removed. The real
  * overlay first composites a tile map (observable via the
