@@ -778,6 +778,75 @@ void fd2_chapter_17_end(void)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_chapter_18_end @ 0x23CD5  (0 direct callers; dispatched via the
+ *   chapter-end handler pointer table @ 0x51DE9)
+ *
+ * Chapter 18「遙遠的彼岸」end handler. Unconditionally copies three 17-byte
+ * scene tables (post-battle X / Y / facing @ 0x521C3 / 0x521D4 / 0x521E5) into
+ * on-stack placement blocks, persists the party's runtime-char state to the
+ * template store, then stages the post-battle scene via
+ * fd2_setup_chars_and_camera_for_intro (place chars 0..0x10, extra char 0x11
+ * at (0x19,8) facing 1, camera origin (0x12,4)). It then plays the closing
+ * cutscene, interleaving dialog pages with cutscene events:
+ *   dialog page 7; battle_anim_phase = 0; cutscene event 0x38;
+ *   dialog page 8; battle_anim_phase = 0; cutscene event 0x39;
+ *   dialog page 9; battle_anim_phase = 0; cutscene event 0x3A;
+ *   dialog page 10 (no trailing cutscene event).
+ * It then recruits char #21 (約拿, id 0x15) and char #7 (蘭斯洛特, id 7) via
+ * fd2_init_runtime_char_from_base_growth, then advances the current-chapter id
+ * by 1.
+ *
+ * Unlike most sibling handlers this one does not save the party at its tail —
+ * fd2_save_runtime_char_to_template runs up front (before the scene setup),
+ * matching the binary. In the binary this function is self-contained (no
+ * fall-through / no jump-into-middle sharing).
+ *
+ * Paired init handler: fd2_chapter_18_init @ 0x335DA.
+ * Post-action handler: fd2_chapter_18_post_action @ 0x208CF (non-default win/
+ *   lose: chars[0, 0x10, 0x11] any dead -> lose; char[0x34] dead -> win).
+ * Walkthrough: assets/chapters/chapter_18.md.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_18_end(void)
+{
+    uint8 scene_block_x[17];
+    uint8 scene_block_y[17];
+    uint8 scene_block_facing[17];
+    int i;
+
+    for (i = 0; i < 17; i++) {
+        scene_block_x[i] = data_fd2_chapter_ch18_end_scene_char_pos_x_table[i];
+        scene_block_y[i] = data_fd2_chapter_ch18_end_scene_char_pos_y_table[i];
+        scene_block_facing[i] = data_fd2_chapter_ch18_end_scene_char_facing_table[i];
+    }
+
+    fd2_save_runtime_char_to_template();
+    fd2_setup_chars_and_camera_for_intro(
+        (uint32)scene_block_x, (uint32)scene_block_y, (uint32)scene_block_facing,
+        0, 0x10, 0x11, 0x19, 8, 1, 0x12, 4);
+
+    fd2_display_dialog_scene(current_chapter_text, 7, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x38);
+
+    fd2_display_dialog_scene(current_chapter_text, 8, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x39);
+
+    fd2_display_dialog_scene(current_chapter_text, 9, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x3a);
+
+    fd2_display_dialog_scene(current_chapter_text, 10, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+    fd2_init_runtime_char_from_base_growth(0x15);
+    fd2_init_runtime_char_from_base_growth(7);
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}
+
+/* ----------------------------------------------------------------
  * fd2_chapter_16_end @ 0x23A0A  (0 direct callers; dispatched via the
  *   chapter-end handler pointer table @ 0x51DE9, slot @ 0x51E25)
  *

@@ -268,6 +268,17 @@ uint8 data_fd2_chapter_ch17_end_scene_char_pos_x_table[16] =
     { 23, 22, 23, 24, 21, 22, 23, 24, 25, 20, 21, 22, 23, 24, 25, 26 };
 uint8 data_fd2_chapter_ch17_end_scene_char_pos_y_table[16] =
     { 18, 19, 19, 19, 20, 20, 20, 20, 20, 21, 21, 21, 21, 21, 21, 21 };
+/* Chapter 18 end scene char placement tables (data segment @ 0x521C3 / 0x521D4 /
+ * 0x521E5). Real binary bytes until the data segment is emitted;
+ * fd2_chapter_18_end copies each 17-byte table into an on-stack placement block
+ * and places chars 0..0x10. X/Y are battle-tile coords, facing is sprite
+ * direction (0..3). */
+uint8 data_fd2_chapter_ch18_end_scene_char_pos_x_table[17] =
+    { 22, 22, 21, 21, 21, 21, 20, 20, 20, 20, 22, 23, 24, 22, 23, 24, 25 };
+uint8 data_fd2_chapter_ch18_end_scene_char_pos_y_table[17] =
+    { 7, 8, 6, 7, 8, 9, 6, 7, 8, 9, 5, 5, 5, 10, 10, 10, 7 };
+uint8 data_fd2_chapter_ch18_end_scene_char_facing_table[17] =
+    { 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 2, 2, 2, 1 };
 /* Resource portrait sheet base pointer (data segment @ 0x53AD1). Tests point it
  * at a zeroed scratch buffer. */
 uint32 data_fd2_resource_portrait_sheet_ptr = 0;
