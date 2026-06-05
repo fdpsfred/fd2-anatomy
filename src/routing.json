@@ -3535,8 +3535,9 @@
     "name": "fd2_render_battle_scene_with_portrait_grid_layout",
     "target": "gfx/rndmenu.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0003415e": {
     "name": "fd2_blit_24x24_tile_to_battle_grid_position",

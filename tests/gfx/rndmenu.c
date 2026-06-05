@@ -2993,6 +2993,223 @@ static void test_recruit_loop_bound_member_count(void)
     ASSERT_EQ((long)g_blitdim_calls, 6);    /* all 6 slots un-selected -> dimmed */
 }
 
+/* ================================================================
+ * fd2_render_battle_scene_with_portrait_grid_layout @ 0x34010
+ *
+ * Every drawn tile goes through the recording spy for
+ * fd2_blit_24x24_tile_to_battle_grid_position (testglob.c). The spy captures
+ * the full 6-arg call (atlas_base, tile_index, dst_buffer, row_stride, x, y)
+ * so these tests pin: the two-digit chapter glyph ids (0x40 + digit), the
+ * player-row and enemy-row tile ids + grid x/y arithmetic, the loop bounds,
+ * and that the reserved-position highlight uses the runtime_battle_state atlas
+ * (the pointer VALUE at data_fd2_runtime_battle_state_ptr) with tile id 0.
+ * No real pixels are touched; the internal malloc/memmove canvas is exercised
+ * by passing a real 64000-byte background source. ================ */
+extern int    g_battlegrid_calls;
+extern uint32 g_battlegrid_atlas[64];
+extern uint32 g_battlegrid_tile[64];
+extern uint32 g_battlegrid_dst[64];
+extern uint32 g_battlegrid_stride[64];
+extern uint32 g_battlegrid_x[64];
+extern uint32 g_battlegrid_y[64];
+
+/* real 64000-byte background source for the entry memmove. */
+static uint8 g_bs_src[64000];
+
+static void bs_reset(void)
+{
+    g_battlegrid_calls = 0;
+    memset(g_battlegrid_atlas, 0, sizeof(g_battlegrid_atlas));
+    memset(g_battlegrid_tile, 0, sizeof(g_battlegrid_tile));
+    memset(g_battlegrid_dst, 0, sizeof(g_battlegrid_dst));
+    memset(g_battlegrid_stride, 0, sizeof(g_battlegrid_stride));
+    memset(g_battlegrid_x, 0, sizeof(g_battlegrid_x));
+    memset(g_battlegrid_y, 0, sizeof(g_battlegrid_y));
+    memset(g_bs_src, 0xCD, sizeof(g_bs_src));
+}
+
+/* ----------------------------------------------------------------
+ * Full compose: chapter 27, 6 player tiles, 3 enemy tiles, highlight slot 4.
+ * Pins the complete call sequence, ids, positions, strides, and the shared
+ * malloc'd canvas pointer threaded through every blit.
+ * ---------------------------------------------------------------- */
+static void test_battlescene_compose_full(void)
+{
+    uint8  players[6];
+    uint8  enemies[3];
+    uint32 atlas = 0x12340000u;
+    uint32 canvas;
+    int    i;
+
+    bs_reset();
+    data_fd2_runtime_battle_state_ptr = 0xABCD0000u;
+    for (i = 0; i < 6; i++) { players[i] = (uint8)(0x10 + i); }
+    enemies[0] = 0x80; enemies[1] = 0x81; enemies[2] = 0x82;
+
+    fd2_render_battle_scene_with_portrait_grid_layout(
+        atlas, (uint32)g_bs_src, 27, players, 3, enemies, 4);
+
+    /* 2 digits + 6 players + 3 enemies + 1 highlight = 12 blits. */
+    ASSERT_EQ((long)g_battlegrid_calls, 12);
+
+    /* every blit shares the same internally-malloc'd canvas and 0x140 stride. */
+    canvas = g_battlegrid_dst[0];
+    ASSERT_TRUE(canvas != 0);
+    for (i = 0; i < 12; i++) {
+        ASSERT_EQ((long)g_battlegrid_dst[i], (long)canvas);
+        ASSERT_EQ((long)g_battlegrid_stride[i], 0x140);
+    }
+
+    /* [0] tens digit of 27 = 2 -> tile 0x42 at (0x96, 0x4B) from atlas. */
+    ASSERT_EQ((long)g_battlegrid_atlas[0], (long)atlas);
+    ASSERT_EQ((long)g_battlegrid_tile[0], 0x42);
+    ASSERT_EQ((long)g_battlegrid_x[0], 0x96);
+    ASSERT_EQ((long)g_battlegrid_y[0], 0x4b);
+    /* [1] ones digit of 27 = 7 -> tile 0x40 + 7 = 0x47 at (0xA2, 0x4B). */
+    ASSERT_EQ((long)g_battlegrid_tile[1], 0x47);
+    ASSERT_EQ((long)g_battlegrid_x[1], 0xa2);
+    ASSERT_EQ((long)g_battlegrid_y[1], 0x4b);
+
+    /* [2..7] player row: tile = players[i], x = i*0x19 + 0x56, y = 0x84. */
+    for (i = 0; i < 6; i++) {
+        ASSERT_EQ((long)g_battlegrid_atlas[2 + i], (long)atlas);
+        ASSERT_EQ((long)g_battlegrid_tile[2 + i], (long)(0x10 + i));
+        ASSERT_EQ((long)g_battlegrid_x[2 + i], (long)(i * 0x19 + 0x56));
+        ASSERT_EQ((long)g_battlegrid_y[2 + i], 0x84);
+    }
+
+    /* [8..10] enemy row: tile = enemies[i], x = i*0x20 + 0x74, y = 0x61. */
+    for (i = 0; i < 3; i++) {
+        ASSERT_EQ((long)g_battlegrid_atlas[8 + i], (long)atlas);
+        ASSERT_EQ((long)g_battlegrid_tile[8 + i], (long)(0x80 + i));
+        ASSERT_EQ((long)g_battlegrid_x[8 + i], (long)(i * 0x20 + 0x74));
+        ASSERT_EQ((long)g_battlegrid_y[8 + i], 0x61);
+    }
+
+    /* [11] highlight: runtime_battle_state atlas, tile 0, slot 4 on player row. */
+    ASSERT_EQ((long)g_battlegrid_atlas[11], (long)0xABCD0000u);
+    ASSERT_EQ((long)g_battlegrid_tile[11], 0);
+    ASSERT_EQ((long)g_battlegrid_x[11], (long)(4 * 0x19 + 0x56));
+    ASSERT_EQ((long)g_battlegrid_y[11], 0x84);
+}
+
+/* ----------------------------------------------------------------
+ * Leading-zero chapter: "%02d" of 5 -> "05" -> tens 0 (tile 0x40),
+ * ones 5 (tile 0x45). Pins the per-digit '0'-subtract + 0x40 offset.
+ * ---------------------------------------------------------------- */
+static void test_battlescene_chapter_digit_split_leading_zero(void)
+{
+    uint8 players[6];
+    uint8 enemies[1];
+
+    bs_reset();
+    memset(players, 0, sizeof(players));
+    enemies[0] = 0;
+
+    fd2_render_battle_scene_with_portrait_grid_layout(
+        0, (uint32)g_bs_src, 5, players, 0, enemies, 0);
+
+    ASSERT_EQ((long)g_battlegrid_tile[0], 0x40);   /* tens 0 */
+    ASSERT_EQ((long)g_battlegrid_tile[1], 0x45);   /* ones 5 */
+}
+
+/* ----------------------------------------------------------------
+ * Two-digit chapter with trailing zero: "%02d" of 10 -> "10" -> tens 1
+ * (tile 0x41), ones 0 (tile 0x40).
+ * ---------------------------------------------------------------- */
+static void test_battlescene_chapter_digit_split_two_digit(void)
+{
+    uint8 players[6];
+    uint8 enemies[1];
+
+    bs_reset();
+    memset(players, 0, sizeof(players));
+    enemies[0] = 0;
+
+    fd2_render_battle_scene_with_portrait_grid_layout(
+        0, (uint32)g_bs_src, 10, players, 0, enemies, 0);
+
+    ASSERT_EQ((long)g_battlegrid_tile[0], 0x41);   /* tens 1 */
+    ASSERT_EQ((long)g_battlegrid_tile[1], 0x40);   /* ones 0 */
+}
+
+/* ----------------------------------------------------------------
+ * Enemy loop bound = 0: no enemy tiles drawn. Total = 2 digits + 6 players
+ * + 0 enemies + 1 highlight = 9.
+ * ---------------------------------------------------------------- */
+static void test_battlescene_enemy_loop_bound_zero(void)
+{
+    uint8 players[6];
+    uint8 enemies[1];
+
+    bs_reset();
+    memset(players, 0, sizeof(players));
+    enemies[0] = 0x99;
+
+    fd2_render_battle_scene_with_portrait_grid_layout(
+        0, (uint32)g_bs_src, 1, players, 0, enemies, 0);
+
+    ASSERT_EQ((long)g_battlegrid_calls, 9);
+    /* call #8 (0-based) is the highlight, NOT an enemy tile (tile 0). */
+    ASSERT_EQ((long)g_battlegrid_tile[8], 0);
+}
+
+/* ----------------------------------------------------------------
+ * Enemy loop bound = 2: total = 2 + 6 + 2 + 1 = 11; enemy ids/positions
+ * land at indices [8],[9] and highlight at [10].
+ * ---------------------------------------------------------------- */
+static void test_battlescene_enemy_loop_bound_two(void)
+{
+    uint8 players[6];
+    uint8 enemies[2];
+
+    bs_reset();
+    memset(players, 0, sizeof(players));
+    enemies[0] = 0x40; enemies[1] = 0x41;
+
+    fd2_render_battle_scene_with_portrait_grid_layout(
+        0, (uint32)g_bs_src, 1, players, 2, enemies, 0);
+
+    ASSERT_EQ((long)g_battlegrid_calls, 11);
+    ASSERT_EQ((long)g_battlegrid_tile[8], 0x40);
+    ASSERT_EQ((long)g_battlegrid_x[8], 0x74);          /* i=0: 0*0x20 + 0x74 */
+    ASSERT_EQ((long)g_battlegrid_tile[9], 0x41);
+    ASSERT_EQ((long)g_battlegrid_x[9], (long)(0x20 + 0x74)); /* i=1 */
+    ASSERT_EQ((long)g_battlegrid_y[9], 0x61);
+    ASSERT_EQ((long)g_battlegrid_tile[10], 0);         /* highlight */
+}
+
+/* ----------------------------------------------------------------
+ * Highlight overlay uses the runtime_battle_state atlas VALUE (the pointer
+ * stored at data_fd2_runtime_battle_state_ptr), tile id 0, positioned at the
+ * reserved player slot. Distinct from the tile_atlas_base used by every other
+ * blit. reserved_char_pos = 3 -> x = 3*0x19 + 0x56.
+ * ---------------------------------------------------------------- */
+static void test_battlescene_highlight_uses_runtime_state_atlas(void)
+{
+    uint8  players[6];
+    uint8  enemies[1];
+    uint32 atlas = 0x55550000u;
+
+    bs_reset();
+    data_fd2_runtime_battle_state_ptr = 0x77770000u;
+    memset(players, 0, sizeof(players));
+    enemies[0] = 0;
+
+    fd2_render_battle_scene_with_portrait_grid_layout(
+        atlas, (uint32)g_bs_src, 1, players, 0, enemies, 3);
+
+    /* highlight is the last (index 8) blit when enemy_count == 0. */
+    ASSERT_EQ((long)g_battlegrid_calls, 9);
+    ASSERT_EQ((long)g_battlegrid_atlas[8], (long)0x77770000u);
+    ASSERT_EQ((long)g_battlegrid_tile[8], 0);
+    ASSERT_EQ((long)g_battlegrid_x[8], (long)(3 * 0x19 + 0x56));
+    ASSERT_EQ((long)g_battlegrid_y[8], 0x84);
+    /* a player/digit blit still uses the supplied tile_atlas_base, not the
+     * runtime_battle_state atlas. */
+    ASSERT_EQ((long)g_battlegrid_atlas[0], (long)atlas);
+}
+
 void run_gfx_rndmenu_tests(void)
 {
     SUITE_BEGIN(gfx_rndmenu);
@@ -3082,5 +3299,11 @@ void run_gfx_rndmenu_tests(void)
     RUN_TEST(test_recruit_palette_idx_3_collapses_to_1);
     RUN_TEST(test_recruit_palette_idx_passthrough);
     RUN_TEST(test_recruit_loop_bound_member_count);
+    RUN_TEST(test_battlescene_compose_full);
+    RUN_TEST(test_battlescene_chapter_digit_split_leading_zero);
+    RUN_TEST(test_battlescene_chapter_digit_split_two_digit);
+    RUN_TEST(test_battlescene_enemy_loop_bound_zero);
+    RUN_TEST(test_battlescene_enemy_loop_bound_two);
+    RUN_TEST(test_battlescene_highlight_uses_runtime_state_atlas);
     SUITE_END();
 }

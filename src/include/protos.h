@@ -390,6 +390,7 @@ void fd2_composite_battle_tile_map(uint32 dst, uint32 stride, uint32 w, uint32 h
 void fd2_composite_chars_with_spell_effect_overlay(uint32 dst_buf, uint32 n_targets, uint32 target_array, int fx_sprite_idx);
 void fd2_paint_cursor_overlay_pattern(void);
 void fd2_blit_24x24_at_window_relative_pos(uint32 world_x, uint32 world_y, uint32 sprite_idx);
+void fd2_blit_24x24_tile_to_battle_grid_position(uint32 atlas_base, uint32 tile_index, uint32 dst_buffer, uint32 row_stride, uint32 dst_x, uint32 dst_y);
 void fd2_tile_blit_24x24_passthrough(uint32 src, uint32 dst, uint32 stride);
 void *fd2_convert_battle_tiles_to_24px(void);
 void fd2_tile_blit_24x24_dimmed_grayscale(uint32 src, uint32 dst, uint32 stride);
@@ -456,6 +457,7 @@ int fd2_count_selected_chars(uint32 sel_state);
 void fd2_reorder_party_by_selection(uint32 sel_state);
 void fd2_pin_required_char_to_party_slot1(uint32 char_id);
 void fd2_render_recruitment_select_screen(uint32 a, uint32 b, uint32 c, uint32 d);
+void fd2_render_battle_scene_with_portrait_grid_layout(uint32 tile_atlas_base, uint32 src_framebuffer, uint32 chapter_id, uint8 *player_char_id_array, int32 enemy_count, uint8 *enemy_id_array, int32 reserved_char_pos);
 int fd2_check_char_is_dead(uint32 char_idx);
 int fd2_scan_chars_within_manhattan_range(uint32 x, uint32 y, uint32 range, uint32 flag, int mode);
 

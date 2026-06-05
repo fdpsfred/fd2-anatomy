@@ -1017,3 +1017,79 @@ void fd2_render_recruitment_select_screen(uint32 panel_buf,
         }
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_battle_scene_with_portrait_grid_layout @ 0x34010  (0 callers)
+ *
+ * Composes the battle preview/intro screen into a private 64000-byte
+ * working canvas, then commits it to VGA 0xA0000. Draws, in order:
+ *   - the two-digit chapter number (tens + ones) as glyph tiles,
+ *   - a row of 6 player-character portrait tiles,
+ *   - a row of `enemy_count` enemy portrait tiles,
+ *   - one reserved-position highlight overlay tile on the player row.
+ * Every tile is drawn via fd2_blit_24x24_tile_to_battle_grid_position
+ * (atlas_base, tile_id, dst_buf, row_stride=0x140, dst_x, dst_y).
+ *
+ * Sequence:
+ *   1. dst = malloc(64000); memmove(dst, src_framebuffer, 64000) — copy
+ *      the supplied background as the starting canvas.
+ *   2. sprintf(scratch, "%02d", chapter_id) -> two ASCII digits; subtract
+ *      '0' from each to get 0..9 nibbles.
+ *   3. tens digit  -> tile (0x40 + digit) at (x=0x96, y=0x4B).
+ *      ones digit  -> tile (0x40 + digit) at (x=0xA2, y=0x4B). 0xC px apart.
+ *   4. for i in 0..5: player_char_id_array[i] tile at (i*0x19 + 0x56, 0x84).
+ *   5. for i in 0..enemy_count-1: enemy_id_array[i] tile at
+ *      (i*0x20 + 0x74, 0x61).
+ *   6. highlight overlay: tile 0 from the runtime_battle_state atlas
+ *      (atlas base = the pointer value at data_fd2_runtime_battle_state_ptr)
+ *      at the player-row slot reserved_char_pos: (pos*0x19 + 0x56, 0x84).
+ *   7. memmove(0xA0000, dst, 64000); free(dst).
+ *
+ * The "%02d" format string lives at 0x502E8 in the binary; reproduced
+ * here as a literal. chapter_id is the sprintf vararg.
+ *
+ * void __cdecl, 7 stack params. EBX/ESI/EDI/EBP are callee-saved; the
+ * __CHK(0x34) stack-probe prologue is compiler-injected and omitted here.
+ * No direct xref callers — invoked indirectly (battle preview / intro
+ * dispatcher).
+ * ---------------------------------------------------------------- */
+void fd2_render_battle_scene_with_portrait_grid_layout(
+    uint32 tile_atlas_base, uint32 src_framebuffer, uint32 chapter_id,
+    uint8 *player_char_id_array, int32 enemy_count, uint8 *enemy_id_array,
+    int32 reserved_char_pos)
+{
+    void  *dst;
+    char   digits[4];
+    int32  i;
+
+    dst = malloc(64000);
+    memmove(dst, (void *)src_framebuffer, 64000);
+
+    sprintf(digits, "%02d", chapter_id);
+    digits[0] = (char)(digits[0] - '0');
+    digits[1] = (char)(digits[1] - '0');
+
+    fd2_blit_24x24_tile_to_battle_grid_position(
+        tile_atlas_base, (uint8)digits[0] + 0x40, (uint32)dst, 0x140, 0x96, 0x4b);
+    fd2_blit_24x24_tile_to_battle_grid_position(
+        tile_atlas_base, (uint8)digits[1] + 0x40, (uint32)dst, 0x140, 0xa2, 0x4b);
+
+    for (i = 0; i < 6; i++) {
+        fd2_blit_24x24_tile_to_battle_grid_position(
+            tile_atlas_base, (uint32)player_char_id_array[i], (uint32)dst,
+            0x140, i * 0x19 + 0x56, 0x84);
+    }
+
+    for (i = 0; i < enemy_count; i++) {
+        fd2_blit_24x24_tile_to_battle_grid_position(
+            tile_atlas_base, (uint32)enemy_id_array[i], (uint32)dst,
+            0x140, i * 0x20 + 0x74, 0x61);
+    }
+
+    fd2_blit_24x24_tile_to_battle_grid_position(
+        data_fd2_runtime_battle_state_ptr, 0, (uint32)dst, 0x140,
+        reserved_char_pos * 0x19 + 0x56, 0x84);
+
+    memmove((void *)0xa0000, dst, 64000);
+    free(dst);
+}

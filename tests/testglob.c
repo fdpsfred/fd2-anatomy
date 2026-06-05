@@ -321,6 +321,35 @@ void fd2_tile_blit_24x24_with_remap_table(uint32 src, uint32 dst, uint32 stride,
     g_blitpass_calls++;
     g_blitremap_calls++;
 }
+/* Recording stub for fd2_blit_24x24_tile_to_battle_grid_position (real body not
+ * yet emitted; routing target gfx/blittile.c). The real helper resolves a tile
+ * sprite from the atlas and computes a dst address; recording the full 6-arg
+ * call (atlas_base, tile_index, dst_buffer, row_stride, dst_x, dst_y) lets the
+ * fd2_render_battle_scene_with_portrait_grid_layout test verify the digit / char
+ * tile ids and the per-row x/y grid arithmetic without touching pixels. */
+int    g_battlegrid_calls = 0;
+uint32 g_battlegrid_atlas[64];
+uint32 g_battlegrid_tile[64];
+uint32 g_battlegrid_dst[64];
+uint32 g_battlegrid_stride[64];
+uint32 g_battlegrid_x[64];
+uint32 g_battlegrid_y[64];
+void fd2_blit_24x24_tile_to_battle_grid_position(uint32 atlas_base,
+                                                 uint32 tile_index,
+                                                 uint32 dst_buffer,
+                                                 uint32 row_stride,
+                                                 uint32 dst_x,
+                                                 uint32 dst_y) {
+    if (g_battlegrid_calls < 64) {
+        g_battlegrid_atlas[g_battlegrid_calls] = atlas_base;
+        g_battlegrid_tile[g_battlegrid_calls] = tile_index;
+        g_battlegrid_dst[g_battlegrid_calls] = dst_buffer;
+        g_battlegrid_stride[g_battlegrid_calls] = row_stride;
+        g_battlegrid_x[g_battlegrid_calls] = dst_x;
+        g_battlegrid_y[g_battlegrid_calls] = dst_y;
+    }
+    g_battlegrid_calls++;
+}
 /* fd2_tile_blit_24x24_solid_color (the solid-colour silhouette blitter, real
  * body not yet emitted). The real fd2_animate_status_effect_overlay_flicker is
  * the caller; recording (src, dst, stride) into the shared g_blitpass_* arrays
