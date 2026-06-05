@@ -149,11 +149,67 @@ static void test_show_chapter_dialog_portrait_set_1_reloads_portrait1_page1(void
     ev_restore_rc_ptr();
 }
 
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_21__ch10_dialog_with_state @ 0x34C1E (dispatch idx
+ * 0x21) — chapter 10 turn-event slot 1, fired at the end of turn 20. Two
+ * deterministic, observable effects, both checked here:
+ *   (1) dialog page 2 is dispatched (the real dialog VM emits exactly one glyph
+ *       whose idx is 0x52 = 0x50 + page 2; any wrong page fails loudly);
+ *   (2) the AI-class byte combat_aux_block[0xD] (struct offset 0x34) of the two
+ *       protected NPC units 0x0C and 0x0D is cleared to 0, and ONLY that byte
+ *       of those two slots — neighbouring bytes within each slot
+ *       (combat_aux_block[0xC] at 0x33, combat_aux_block[0xE] at 0x35) and the
+ *       neighbouring slots 0x0B / 0x0E are left untouched.
+ *
+ * Both target slots are pre-seeded to 0xFF (and the guard bytes/slots to a
+ * distinct 0xAA sentinel) so a correct run must zero exactly two bytes. Unlike
+ * handler_20 this handler has its own __CHK and no portrait reload, so FD2.TMP
+ * is not part of its contract and is not asserted.
+ * ---------------------------------------------------------------- */
+static void test_ch10_event21_shows_page2_and_clears_ai_flag_for_0c_0d(void)
+{
+    ev20_install_safe_env();
+
+    /* seed the two target AI-class bytes non-zero so a real clear is visible. */
+    g_ev_rc[0x0C].combat_aux_block[0xD] = 0xFF;
+    g_ev_rc[0x0D].combat_aux_block[0xD] = 0xFF;
+
+    /* distinct guard sentinels: the immediate in-slot neighbours of [0xD] and
+     * the adjacent slots must survive untouched. */
+    g_ev_rc[0x0C].combat_aux_block[0xC] = 0xAA;
+    g_ev_rc[0x0C].combat_aux_block[0xE] = 0xAA;
+    g_ev_rc[0x0D].combat_aux_block[0xC] = 0xAA;
+    g_ev_rc[0x0D].combat_aux_block[0xE] = 0xAA;
+    g_ev_rc[0x0B].combat_aux_block[0xD] = 0xAA;
+    g_ev_rc[0x0E].combat_aux_block[0xD] = 0xAA;
+
+    fd2_chapter_event_handler_21__ch10_dialog_with_state(0);
+
+    /* (1) exactly page 2 was shown: one glyph, idx 0x52 (= 0x50 + page 2). */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0x52);
+
+    /* (2) the two AI-class bytes were cleared to 0. */
+    ASSERT_EQ((long)g_ev_rc[0x0C].combat_aux_block[0xD], 0L);
+    ASSERT_EQ((long)g_ev_rc[0x0D].combat_aux_block[0xD], 0L);
+
+    /* and nothing adjacent was disturbed (precise single-byte writes). */
+    ASSERT_EQ((long)g_ev_rc[0x0C].combat_aux_block[0xC], (long)0xAA);
+    ASSERT_EQ((long)g_ev_rc[0x0C].combat_aux_block[0xE], (long)0xAA);
+    ASSERT_EQ((long)g_ev_rc[0x0D].combat_aux_block[0xC], (long)0xAA);
+    ASSERT_EQ((long)g_ev_rc[0x0D].combat_aux_block[0xE], (long)0xAA);
+    ASSERT_EQ((long)g_ev_rc[0x0B].combat_aux_block[0xD], (long)0xAA);
+    ASSERT_EQ((long)g_ev_rc[0x0E].combat_aux_block[0xD], (long)0xAA);
+
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt14_tests(void)
 {
     int _prev_fails = g_test_fail_count;
     printf("Suite: field/chevt14\n");
     RUN_TEST(test_ch10_event20_reloads_portrait1_and_shows_dialog_page1);
     RUN_TEST(test_show_chapter_dialog_portrait_set_1_reloads_portrait1_page1);
+    RUN_TEST(test_ch10_event21_shows_page2_and_clears_ai_flag_for_0c_0d);
     printf("\n");
 }

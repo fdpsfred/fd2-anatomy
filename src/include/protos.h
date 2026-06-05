@@ -228,6 +228,7 @@ void fd2_chapter_event_handler_1d__unref_dialog_with_state(uint32 event_arg);
 void fd2_chapter_event_handler_1e__unref_major_cinematic(uint32 event_arg);
 void fd2_chapter_event_handler_1f__ch9_reinforcement(uint32 event_arg);
 void fd2_chapter_event_handler_20__ch10_dialog(uint32 event_arg);
+void fd2_chapter_event_handler_21__ch10_dialog_with_state(uint32 event_arg);
 void fd2_show_chapter_dialog_with_portrait_set_1(void);
 
 void fd2_setup_chars_and_camera_for_intro(uint32 pos_x_table, uint32 pos_y_table,

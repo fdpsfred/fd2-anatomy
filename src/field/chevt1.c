@@ -82,6 +82,9 @@
  * fd2_chapter_event_handler_20__ch10_dialog @ 0x34BE2
  *     (0 direct callers; dispatched as idx 0x20 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_21__ch10_dialog_with_state @ 0x34C1E
+ *     (0 direct callers; dispatched as idx 0x21 of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -1224,4 +1227,43 @@ void fd2_show_chapter_dialog_with_portrait_set_1(void)
     fd2_load_chapter_portraits_and_dump_tmp(1);
     fd2_display_dialog_scene(current_chapter_text, 1, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_21__ch10_dialog_with_state @ 0x34C1E
+ *   — Chapter 10 turn-event slot 1 (triggered at the end of turn 20).
+ *
+ * ch10 turn-20 beat (walkthrough: 第二十回合結束時，敵軍開始攻擊國王和
+ * 索菲亞): dialog page 2 is shown, then the AI-class byte
+ * (combat_aux_block[0xD]) of the two protected NPC units 0x0C and 0x0D
+ * is cleared to 0. Zeroing the AI-class flips both units out of their
+ * passive guard behaviour so the enemy host begins attacking them on
+ * the following turns. A straight-line, no-branch sequence with no
+ * camera pan, no cutscene trigger, no RNG, no numeric computation, and
+ * no CALL-return value used.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * The two state writes are byte stores at struct offset 0x34
+ * (combat_aux_block[0xD]) of runtime_char_array[0x0C] (base +0x3C0)
+ * and runtime_char_array[0x0D] (base +0x410).
+ *
+ * Magic numbers (matching every dialog call in this group):
+ *   0xA0000 VGA framebuffer base, 0x140 (=320) row stride,
+ *   0xCD/0x4C dialog window position (X, Y), 0x4A charset/style code,
+ *   0x13 (=19) max line count, 1 wait-for-input flag.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_10.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_21__ch10_dialog_with_state(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    data_fd2_battle_runtime_char_array_ptr[0xC].combat_aux_block[0xD] = 0;
+    data_fd2_battle_runtime_char_array_ptr[0xD].combat_aux_block[0xD] = 0;
 }
