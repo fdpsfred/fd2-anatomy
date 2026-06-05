@@ -270,6 +270,16 @@ extern uint8  data_fd2_battle_summon_anim_variant_d_odd_even_frame_toggle;      
 extern int32  data_fd2_animation_summon_variant_d_3slot_color_row_offsets[10];   /* 0x52511 */
 extern uint8  data_fd2_animation_summon_variant_e_16slot_sprite_base_table[16]; /* 0x52539 */
 extern int32  data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[16]; /* 0x540BA */
+extern int32  data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[5];      /* 0x54054 */
+extern int32  data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[5];      /* 0x54068 */
+extern int32  data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[5]; /* 0x5407C */
+extern uint8  data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[5]; /* 0x54090 */
+extern uint8  data_fd2_battle_summon_anim_variant_c_angle_accumulator;           /* 0x54095 */
+extern uint8  data_fd2_battle_summon_anim_variant_c_swap_done_latch;             /* 0x54096 */
+extern int32  data_fd2_animation_summon_variant_c_radial_5slot_offsets[5];       /* 0x524F8 */
+extern uint8  data_fd2_animation_summon_variant_c_radial_5slot_byte_offsets[5];  /* 0x5250C */
+extern double data_fd2_animation_summon_radial_angle_step_12;                    /* 0x5022B (1.2 y-amplitude) */
+extern double data_fd2_animation_summon_radial_radius_30;                        /* 0x50233 (30.0) */
 extern uint32 data_fd2_battle_summon_spell_palette_r_table;             /* 0x5254F */
 extern uint32 data_fd2_battle_summon_spell_palette_g_table;             /* 0x52553 */
 extern uint32 data_fd2_battle_summon_spell_palette_b_table;             /* 0x52557 */

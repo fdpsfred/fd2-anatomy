@@ -537,5 +537,17 @@
         "source_review": "fd2_cast_group_hp_heal_spell @000211a4 (reviewer)"
       }
     ]
+  },
+  "00026e39": {
+    "name": "fd2_tick_summon_anim_variant_c_5slot_radial",
+    "target": "anim/anisummn.c",
+    "issues": [
+      {
+        "type": "fpu_rounding",
+        "desc": "Radial x/y coords use the cos/sin FPU idiom FILD/FMUL/FLD(cos|sin result)/FILD word/FMULP/FADD(P)/__CHP/FISTP at 0x26fa7-0x26ff6 (x) and 0x27005-0x27044 (y). __CHP @0x377A4 sets FPU RC=truncate-toward-zero before FISTP, so the binary TRUNCATES (does not round-to-nearest); emitted C uses (int)(double_expr), which also truncates toward zero, so the rounding DIRECTION matches (same proven pattern as 0x1b750 / 0x15b77). The angle is computed single-precision: binary does FILD dword(i*0x48) / FMUL float[0x3C8EFA2D] / FSTP double, i.e. a float*float product (in x87 80-bit) stored to a 64-bit double then passed to cos/sin; emitted as the identical-shape expression angle_rad = (double)((float)(i*0x48) * pi180.f) with pi180.f bit-cast from the exact 0x3C8EFA2D (value 0.017453277, NOT the textbook pi/180 0.0174532925). Residual concern is ONLY Watcom 9.5a codegen: (a) whether it keeps the float*float product in the 80-bit register before the (double) cast (matching FSTP double) rather than rounding to float first (double-rounding), and (b) x87 80-bit cos/sin/FMUL intermediates vs C 64-bit double. Unit tests bypass this by asserting the libm-INDEPENDENT acc==0 case (cos/sin terms multiplied by 0 -> x=sweep, y=30 exact) plus all integer-only state-4/5 blit-coord arithmetic; the cos/sin-derived non-zero coords are NOT hard-asserted offline. Tests run under the real Watcom 9.5a + its CLIB cos/sin (same routines as the game binary @0x3c885/0x3c898), all PASS. Recommend post-build -d disasm to confirm byte-identical FILD/FMUL float/FSTP double + __CHP/FISTP emission for the angle and both coord stores.",
+        "severity": "low",
+        "verify_method": "compile_and_disasm"
+      }
+    ]
   }
 }

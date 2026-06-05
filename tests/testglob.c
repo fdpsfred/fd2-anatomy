@@ -764,6 +764,20 @@ uint8  data_fd2_battle_summon_anim_variant_d_odd_even_frame_toggle = 0;
 int32  data_fd2_animation_summon_variant_d_3slot_color_row_offsets[10] = {0};
 uint8  data_fd2_animation_summon_variant_e_16slot_sprite_base_table[16] = {0};
 int32  data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[16] = {0};
+int32  data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[5] = {0};
+int32  data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[5] = {0};
+int32  data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[5] = {0};
+uint8  data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[5] = {0};
+uint8  data_fd2_battle_summon_anim_variant_c_angle_accumulator = 0;
+uint8  data_fd2_battle_summon_anim_variant_c_swap_done_latch = 0;
+/* rodata offset tables: real binary values (0x524F8 / 0x5250C) */
+int32  data_fd2_animation_summon_variant_c_radial_5slot_offsets[5] =
+    {10, 8, 3, 0, 0};
+uint8  data_fd2_animation_summon_variant_c_radial_5slot_byte_offsets[5] =
+    {10, 8, 3, 0, 0};
+/* sin/cos y placement constants: real binary values (0x5022B / 0x50233) */
+double data_fd2_animation_summon_radial_angle_step_12 = 1.2;
+double data_fd2_animation_summon_radial_radius_30 = 30.0;
 /* fd2_tick_tutorial_progress_with_sfx: now in anim.c */
 /* fd2_run_full_turn_cycle: now emitted in src/battle/btl_turn.c */
 /* fd2_enemy_turn_action_dispatcher: now in btl_ai.c */

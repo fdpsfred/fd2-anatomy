@@ -2702,8 +2702,9 @@
     "name": "fd2_tick_summon_anim_variant_c_5slot_radial",
     "target": "anim/anisummn.c",
     "phase": 2,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000272b8": {
     "name": "fd2_tick_summon_anim_variant_d_3slot",

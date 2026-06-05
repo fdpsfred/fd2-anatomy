@@ -311,6 +311,7 @@ int fd2_tick_summon_anim_variant_b_6slot(uint32 ci, uint32 sh, uint32 oy, uint32
 int fd2_tick_summon_spell_animation_state(uint32 ci, uint32 sh, uint32 oy, uint32 rs, uint32 sc);
 int fd2_tick_summon_spell_main_animation_state(uint32 ci, uint32 sh, uint32 oy, uint32 rs, uint32 sc);
 int fd2_tick_summon_spell_setup_pre_animation_8slot(uint32 ci, uint32 sh, uint32 oy, uint32 rs, uint32 sc);
+int fd2_tick_summon_anim_variant_c_5slot_radial(uint32 ci, uint32 sh, uint32 oy, uint32 rs, uint32 sc);
 
 /* ---- ANI decoder ---- */
 void fd2_ani_decoder_decode_frame_bytes(uint16 count, uint32 src);
