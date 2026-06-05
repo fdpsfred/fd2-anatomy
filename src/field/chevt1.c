@@ -327,6 +327,46 @@ void fd2_chapter_event_handler_06__ch2_reinforcement(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_07__ch13_dialog_with_state @ 0x34D72
+ *   — Chapter 13 turn-event slot 1 (triggered at turn 9 / phase 0),
+ *     dispatched as idx 0x07 of the per-event handler table at 0x51B91.
+ *
+ * ch13 turn-9 beat: the camera pans to world (0x1B, 5), portrait set 2
+ * reloads — bracketed by setting data_fd2_chapter_init_phase_flag to 1
+ * before the reload and back to 0 after, so the reload is treated as an
+ * "init phase" load — cutscene event 0x2E plays, every character's facing
+ * is reset, and dialog page 8 is shown. A straight-line, no-branch
+ * sequence with no RNG, no numeric computation, and no CALL-return value
+ * used.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * In the original binary this handler prepares its own 8 PUSHes (page=8
+ * plus the fixed dialog geometry) and then JMPs (0x34DC8 -> 0x34C0F) into
+ * the shared tail of fd2_show_chapter_dialog_with_portrait_set_1 (PUSH
+ * current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24; RET);
+ * reproduced here as the inline call for Layer-2 equivalence.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_13.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_07__ch13_dialog_with_state(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_pan_cursor_and_window(0x1B, 5);
+    data_fd2_chapter_init_phase_flag = 1;
+    fd2_load_chapter_portraits_and_dump_tmp(2);
+    data_fd2_chapter_init_phase_flag = 0;
+    fd2_cutscene_event_trigger(0x2E);
+    fd2_clear_all_chars_facing();
+    fd2_display_dialog_scene(current_chapter_text, 8, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* ----------------------------------------------------------------
  * fd2_chapter_event_handler_09__ch3_char_cond @ 0x344C2
  *   — Chapter 3 turn-event slot 0 (triggered at turn 3 / phase 2),
  *     dispatched as idx 0x09 of the per-event handler table at 0x51B91.
