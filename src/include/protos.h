@@ -183,6 +183,14 @@ uint32 fd2_check_party_has_char_id(uint32 char_id);
 
 /* ---- field cutscene ---- */
 void fd2_cutscene_event_trigger(uint32 event_id);
+void fd2_setup_chars_and_camera_for_intro(uint32 pX_byte_array,
+                                          uint32 pY_byte_array,
+                                          uint32 sprite_facing_fixed_or_array,
+                                          int char_start, int char_end,
+                                          uint32 extra_char_idx,
+                                          int extra_x, int extra_y,
+                                          int extra_facing,
+                                          int origin_x, int origin_y);
 
 /* ---- chapter post-action handlers ---- */
 void fd2_chapter_02_post_action(uint32 event_arg);

@@ -146,3 +146,82 @@ void fd2_cutscene_event_trigger(uint32 event_id)
 
     fd2_composite_battle_frame(1);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_setup_chars_and_camera_for_intro @ 0x233C6  (15 callers)
+ *
+ * Chapter cutscene -> battle transition helper. Places a contiguous
+ * range of runtime-chars (and one optional extra char) at fixed map
+ * positions/facings, then resets the battle camera/cursor origin and
+ * does one composite-with-fade reveal of the new arrangement.
+ *
+ * Fades to black first so the re-positioning is hidden, lays out the
+ * chars, resets camera + anim phase, composites one frame, then fades
+ * back in and holds for 200 ticks.
+ *
+ * Params (all 11 are cdecl stack slots, each a 4-byte push):
+ *   pX_byte_array  = base of per-char X-position byte table
+ *   pY_byte_array  = base of per-char Y-position byte table
+ *   sprite_facing_fixed_or_array:
+ *       value < 4  -> use that value as a fixed facing for every char
+ *       value >= 4 -> treat as base of a per-char facing byte table
+ *   char_start / char_end = inclusive runtime_char index range to place
+ *   extra_char_idx = one additional runtime_char index, or 0 to skip
+ *   extra_x / extra_y / extra_facing = position/facing for the extra char
+ *       (low byte of each used)
+ *   origin_x / origin_y = battle view-window + cursor world origin
+ *
+ * Callers: 15 chapter end handlers (ch 03/05/07/08/12/14/16/17/18/21/
+ * 22/23/26/27/30 end).
+ *
+ * Body ends by tail-jumping into fd2_composite_battle_frame_zero's
+ * shared epilogue (past its composite call, straight to the register
+ * restore + RET); semantically a plain return after the fade-in/delay.
+ * ---------------------------------------------------------------- */
+void fd2_setup_chars_and_camera_for_intro(uint32 pX_byte_array,
+                                          uint32 pY_byte_array,
+                                          uint32 sprite_facing_fixed_or_array,
+                                          int char_start, int char_end,
+                                          uint32 extra_char_idx,
+                                          int extra_x, int extra_y,
+                                          int extra_facing,
+                                          int origin_x, int origin_y)
+{
+    runtime_char *pChar;
+    uint8 facing;
+    int char_idx;
+
+    fd2_play_palette_fade_to_black();
+    fd2_clear_all_chars_acted_flag();
+
+    for (char_idx = char_start; char_idx <= char_end; char_idx++) {
+        pChar = data_fd2_battle_runtime_char_array_ptr + char_idx;
+        pChar->pos_x = *(uint8 *)(char_idx + pX_byte_array);
+        pChar->pos_y = *(uint8 *)(char_idx + pY_byte_array);
+        if (sprite_facing_fixed_or_array < 4) {
+            facing = (uint8)sprite_facing_fixed_or_array;
+        } else {
+            facing = *(uint8 *)(char_idx + sprite_facing_fixed_or_array);
+        }
+        pChar->sprite_state[1] = facing;
+    }
+
+    if (extra_char_idx != 0) {
+        pChar = data_fd2_battle_runtime_char_array_ptr + extra_char_idx;
+        pChar->pos_x = (uint8)extra_x;
+        pChar->pos_y = (uint8)extra_y;
+        pChar->sprite_state[1] = (uint8)extra_facing;
+    }
+
+    data_fd2_battle_anim_phase = 0;
+    data_fd2_battle_view_window_origin_x = (uint32)origin_x;
+    data_fd2_battle_view_window_origin_y = (uint32)origin_y;
+    data_fd2_battle_cursor_world_x = (uint32)origin_x;
+    data_fd2_battle_cursor_world_y = (uint32)origin_y;
+    data_fd2_battle_cursor_screen_x = 0;
+    data_fd2_battle_cursor_screen_y = 0;
+
+    fd2_composite_battle_frame(1);
+    fd2_play_palette_fade_in();
+    __delay_thunk_375b2(200);
+}

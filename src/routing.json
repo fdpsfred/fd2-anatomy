@@ -2380,8 +2380,9 @@
     "name": "fd2_setup_chars_and_camera_for_intro",
     "target": "field/chtrans.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000234bb": {
     "name": "fd2_chapter_08_end",
