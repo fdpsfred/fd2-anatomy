@@ -2974,8 +2974,9 @@
     "name": "fd2_blit_money_digit_sprite",
     "target": "gfx/blitspr.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002d669": {
     "name": "fd2_animate_tutorial_dialog_intro_or_outro",
