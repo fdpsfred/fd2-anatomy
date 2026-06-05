@@ -4499,10 +4499,13 @@
   },
   "0004cbce": {
     "name": "crt_equivalent_linker_padding_4cbce",
-    "target": "crt/crt.c",
+    "target": "<artifact:linker-padding>",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true,
+    "skip": true,
+    "skip_reason": "Watcom CRT linker alignment padding, not a real function (pipeline_spec.md binary_artifact/skip_artifact; plate 'no logical purpose'). Bytes @ 0x4cbce: lone 0xC3 (Ghidra auto-disassembled as RET and created a spurious 1B fn) followed by 0x00 @ 0x4cbcf, sitting between __int7 (body ends 0x4cbcd) and __init_80x87 (body starts 0x4cbd0). callers=0, callees=0, zero xref/get_xrefs_to (NOT a shared epilogue: nothing tail-jumps in). Emit pipeline skips this address; wlink re-pads the segment alignment on relink. NOT emitted to crt/crt.c; prototype removed from crtcomp.h."
   },
   "0004d340": {
     "name": "crt_equivalent_matherr_default_thunk_4d340",

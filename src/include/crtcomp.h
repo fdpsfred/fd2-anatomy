@@ -4,7 +4,7 @@
 #include "types.h"
 
 /*
- * Prototypes for 13 crt_equivalent_* functions.
+ * Prototypes for the crt_equivalent_* functions.
  * These behave identically to Watcom CRT counterparts but do not
  * byte-match any CLIB3S .obj, so they are emitted as FD2 source.
  *
@@ -13,6 +13,11 @@
  * The authoritative prototypes for emitted crt_equivalent_* functions
  * live in protos.h (the header every .c includes). Entries here are kept
  * in sync as each function is emitted.
+ *
+ * NOTE: crt_equivalent_linker_padding_4cbce (0x4cbce) is intentionally
+ * absent: it is a lone 0xC3 byte of Watcom CRT linker alignment padding
+ * between __int7 and __init_80x87 (zero xref, zero caller). It is not a
+ * real function and is not emitted; wlink re-pads the segment on relink.
  */
 
 /* cstart pair */
@@ -32,7 +37,6 @@ void crt_equivalent_lx_module_loader_3647b(void);
 /* exit / error handlers */
 void crt_equivalent_exit_chain_stub_36de3(void);
 void crt_equivalent_fpe_default_handler_3d26e(void);
-void crt_equivalent_linker_padding_4cbce(void);
 void crt_equivalent_matherr_default_thunk_4d340(void);
 void crt_equivalent_matherr_default_return_zero_4d8ea(void);
 
