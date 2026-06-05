@@ -3972,8 +3972,9 @@
     "name": "fd2_chapter_event_handler_36__ch24_cinematic",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000353cc": {
     "name": "fd2_delay_400ms_via_idle_thunk",

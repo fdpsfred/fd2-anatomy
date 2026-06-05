@@ -803,6 +803,77 @@ static void test_h35_kill_index_is_literal_ignores_arg(void)
     ce35_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_36__ch24_cinematic @ 0x3535D
+ *
+ * ch24 establishing-shot cinematic: load the portrait set indexed by the RAW
+ * data_fd2_battle_turn_counter (NOT the signed /2 of handler_2f/handler_31),
+ * then a 4-corner camera sweep top-left (0,4) -> bottom-left (0,0x16) ->
+ * bottom-right (0x1A,0x18) -> top-right (0x1A,2) with a 400ms (__delay_thunk)
+ * hold at each. No turn gate, no dialog. The final pan + delay + RET is a
+ * Class-3 shared tail in the binary; these tests confirm all four corners run
+ * here (the window origin ends on the LAST corner). Reuses the
+ * ce_setup_portrait_env / ce_teardown_portrait_env fixtures above.
+ * ================================================================ */
+
+/* ----------------------------------------------------------------
+ * Portrait index is the RAW counter (NO /2). turn_counter = 5 must select race
+ * index 5. The tile-event table holds a decoy record race=2 (the value a wrong
+ * signed-/2 port — 5/2 == 2 — would pick) and a target record race=5; only the
+ * race=5 record matches, so the real fd2_init_runtime_char_for_battle runs
+ * exactly once (party_member_count 0->1). This guards against accidentally
+ * copying the ch21/ch22 handlers' /2.
+ * ---------------------------------------------------------------- */
+static void test_h36_portrait_index_is_raw_counter(void)
+{
+    static const uint8 races[6] = { 0, 0, 0x02, 0, 0, 0x05 }; /* decoy@2, target@5 */
+
+    ce_setup_portrait_env(6, races);
+    data_fd2_battle_turn_counter = 5;              /* raw 5 (NOT 5/2 == 2) */
+    current_chapter_text = 0;
+
+    fd2_chapter_event_handler_36__ch24_cinematic(0);
+
+    /* exactly the race==5 record matched -> one char inited (race==2 decoy
+     * would have matched a /2 port and is the only other non-zero record) */
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 1);
+    ASSERT_EQ((long)chapter_portrait_load_buffer, 0);  /* loader freed+nulled */
+
+    ce_teardown_portrait_env();
+}
+
+/* ----------------------------------------------------------------
+ * The full 4-corner sweep runs in order and the window origin lands on the LAST
+ * swept corner — top-right (0x1A, 2). The window starts away from every target
+ * so the moves are observable, and g_composite_call_count > 0 proves the pans
+ * composited frames. Landing on (0x1A, 2) (and not an earlier corner) proves
+ * the final pan — the Class-3 shared tail at 0x353C4 — is inlined here.
+ * alloc_offset = 0 keeps the portrait load a host-safe no-op.
+ * ---------------------------------------------------------------- */
+static void test_h36_four_corner_sweep_ends_top_right(void)
+{
+    ce_setup_portrait_env(0, (const uint8 *)0);
+    data_fd2_battle_turn_counter = 4;             /* real ch24 trigger turn */
+
+    /* start the window away from all four sweep targets */
+    data_fd2_battle_view_window_origin_x = 0x40;
+    data_fd2_battle_view_window_origin_y = 0x40;
+    g_composite_call_count = 0;
+    g_dlg_glyph_calls = 0;
+
+    fd2_chapter_event_handler_36__ch24_cinematic(0);
+
+    /* sweep ended on the 4th corner top-right (0x1A, 2) */
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_x, 0x1A);
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_y, 2);
+    /* camera sweep composited frames */
+    ASSERT_TRUE(g_composite_call_count > 0);
+    /* no dialog in this handler */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 0);
+
+    ce_teardown_portrait_env();
+}
+
 void run_field_chevt2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -823,5 +894,7 @@ void run_field_chevt2_tests(void)
     RUN_TEST(test_wrap_forwards_three_args_in_order);
     RUN_TEST(test_h35_dialog_page5_then_kill_from_0x12);
     RUN_TEST(test_h35_kill_index_is_literal_ignores_arg);
+    RUN_TEST(test_h36_portrait_index_is_raw_counter);
+    RUN_TEST(test_h36_four_corner_sweep_ends_top_right);
     printf("\n");
 }

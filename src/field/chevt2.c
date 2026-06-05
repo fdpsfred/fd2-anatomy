@@ -270,3 +270,41 @@ void fd2_chapter_event_handler_35__unref_dialog_with_state(uint32 event_arg)
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_kill_runtime_chars_from_index_to_end(0x12);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_36__ch24_cinematic @ 0x3535D  (0 direct callers)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x36. Triggered
+ * in chapter 24 at turns 2, 4, 7, 10 (all phase 0; ch24 turn-event slots 0-3).
+ * Category: cinematic, no dialog. Dispatch-table signature is 1-arg cdecl
+ * (void fn(uint event_arg)); this handler does not read the arg.
+ *
+ * Effect: ch24 establishing shot — load the portrait set indexed directly by
+ * data_fd2_battle_turn_counter (the RAW counter, NOT the signed /2 used by the
+ * ch21/ch22 handlers; the set rotates per turn), then sweep the camera around
+ * the four map corners with a 400ms hold at each: top-left (0, 4), bottom-left
+ * (0, 0x16), bottom-right (0x1A, 0x18), top-right (0x1A, 2). No dialog.
+ *
+ * In the binary the final pan + 400ms hold + RET is a Class-3 shared tail at
+ * 0x353C4: fd2_chapter_event_handler_39__ch26_cinematic performs its own
+ * initial pans then JMPs here for the last pan-and-delay-and-RET. Additionally
+ * the 4th delay block (PUSH 0x190; CALL delay; ADD ESP,4; RET) at 0x353CC is
+ * registered as a separate callable fd2_delay_400ms_via_idle_thunk. Both are
+ * binary size optimisations; the functionally-exact source for this handler is
+ * the portrait load followed by all four pan + 400ms-hold pairs.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_36__ch24_cinematic(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_load_chapter_portraits_and_dump_tmp(data_fd2_battle_turn_counter);
+
+    fd2_pan_cursor_and_window(0, 4);
+    __delay_thunk_375b2(400);
+    fd2_pan_cursor_and_window(0, 0x16);
+    __delay_thunk_375b2(400);
+    fd2_pan_cursor_and_window(0x1A, 0x18);
+    __delay_thunk_375b2(400);
+    fd2_pan_cursor_and_window(0x1A, 2);
+    __delay_thunk_375b2(400);
+}
