@@ -51,6 +51,7 @@
 #include "globals.h"
 #include "protos.h"
 #include <stdio.h>
+#include "audiofix.h"   /* audiofix_make_bank / audiofix_enable_sfx (handler_40 dialog) */
 
 extern runtime_char g_test_rc_array[8];
 
@@ -59,6 +60,9 @@ extern int    g_composite_call_count;
 extern int    g_delay375b2_log_on;
 extern int    g_delay375b2_log_count;
 extern uint32 g_delay375b2_log[16];
+extern int    g_dlg_glyph_calls;             /* real dialog VM glyph recorder      */
+extern int    g_kill_from_calls;             /* kill-from-index recording stub     */
+extern uint32 g_kill_from_index[4];
 
 /* ---- portrait-loader fixture (mirrors chevt2 ce_setup_portrait_env): a
  * tile-event table of `count` records (stride 0x1A) whose race bytes (+0x98) are
@@ -432,6 +436,214 @@ static void test_h3f_two_portrait_pair_routes_both_cutscenes(void)
     ce23_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_40__unref_dyn_turn_event @ 0x358EA
+ *
+ * Multi-stage state-machine mutator: it reads the stage byte
+ * tile_event_consumed_flags[0x10] (binary MOVZX, zero-extended), dispatches on
+ * it, then unconditionally increments it (8-bit INC byte ptr). The risk-bearing
+ * control flow pinned here is the THREE-WAY dispatch + the advance:
+ *   stage 1 -> dialog page 1, the 3-portrait white-flash cutscene reveal, and
+ *              data_fd2_battle_anim_phase = 1 (NO kill); flag advances 1 -> 2,
+ *   stage 2 -> dialog page 2, exactly one kill-from-index 0x10 (NO cutscene, NO
+ *              anim_phase write); flag advances 2 -> 3,
+ *   any other stage (0, 3+) -> no dialog, no cutscene, no kill, no anim_phase
+ *              write; flag still advances,
+ *   the advance is a BYTE increment (0xFF -> 0x00).
+ *
+ * The handler's dialog (real, src/dialog/dialog.c) runs over an in-memory int16
+ * program (NOT a game file): page-1 and page-2 headers each point at the same
+ * 1-glyph + END body, so g_dlg_glyph_calls == 1 proves the stage's page body ran
+ * and 0 proves no dialog ran. The 3 stage-1 cutscenes drive the REAL
+ * fd2_cinematic_chapter_portrait_dump_with_white_flash over the ce23_setup
+ * render/portrait/palette env; each cutscene forwards its chapter id (3, 4, 5) as
+ * the low byte to the real portrait loader, whose race-scan inits one runtime_char
+ * per record whose race byte equals the forwarded id. Seeding tile-event records
+ * with races {3, 4, 5} therefore makes party_member_count == 3 prove all three
+ * cutscenes ran AND carried the correct ids in order (this is the dialog-delay-
+ * immune signal; the dialog itself can call __delay_thunk_375b2 on its panel
+ * open/close paths, so the delay log is NOT used to count cutscenes). The kill
+ * callee (0x35BBA, not yet emitted) is the testglob recording stub
+ * (g_kill_from_calls / g_kill_from_index). The dialog glyph pixels, the cutscene
+ * pan/flash composites, and the kill's HP-zeroing are pure display / callee side
+ * effects, deferred to Phase 9 integration.
+ * ================================================================ */
+
+/* flags buffer: index 0x10 is the stage byte; headroom guards both neighbours */
+static uint8 g_ce40_flags[0x20];
+/* dialog program: page-1 header (idx 1) and page-2 header (idx 2) both point at a
+ * shared body at byte 0x10 (int16 idx 8); the body is `glyphs` TEXT ops + END. */
+static int16 g_ce40_prog[16];
+
+/* Stand up the handler_40 env: stage byte at flags[0x10]; ce23_setup provides the
+ * real cinematic render/portrait/palette env over a tile-event table of `count`
+ * records (races `races`) so a stage-1 cutscene's portrait id is observable as a
+ * party-member-count delta; a host-safe dialog VM env (empty BIOS key buffer +
+ * gated audio) backs the real page-1/page-2 dialog. anim_phase is seeded to a
+ * sentinel so a stage-1 write to 1 is observable and a no-write is provable. */
+static void ce40_setup(uint8 stage, int glyphs, int count, const uint8 *races)
+{
+    int i;
+
+    ce23_setup(count, races, 0x40, 0x40);
+
+    memset(g_ce40_flags, 0, sizeof(g_ce40_flags));
+    g_ce40_flags[0x10] = stage;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ce40_flags;
+
+    memset(g_ce40_prog, 0, sizeof(g_ce40_prog));
+    g_ce40_prog[1] = 0x10;          /* page-1 body byte offset (= int16 idx 8) */
+    g_ce40_prog[2] = 0x10;          /* page-2 body byte offset (same body)     */
+    for (i = 0; i < glyphs; i++) {
+        g_ce40_prog[8 + i] = 0x41;  /* TEXT glyph */
+    }
+    g_ce40_prog[8 + glyphs] = -1;   /* END */
+    current_chapter_text = (uint32)g_ce40_prog;
+
+    /* deterministic dialog VM env: empty BIOS keyboard buffer + audio gated so
+     * the per-glyph blink/typewriter step is host-safe. No active portrait, so
+     * END does not run the portrait-close path. */
+    *(volatile uint16 *)0x41AuL = 0x20;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    audiofix_enable_sfx();
+    data_fd2_audio_fdother_sfx_bank_buf_ptr = audiofix_make_bank(0x1F);
+
+    data_fd2_battle_anim_phase = 0x55;   /* sentinel: stage 1 must overwrite -> 1 */
+    g_dlg_glyph_calls = 0;
+    g_kill_from_calls = 0;
+    g_kill_from_index[0] = 0xDEAD;       /* overwritten iff the kill is issued */
+}
+
+static void ce40_teardown(void)
+{
+    audiofix_disable_sfx();
+    data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
+    ce23_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Stage 1 path: stage byte == 1 dispatches the dialog page 1 + the 3-portrait
+ * cutscene reveal + anim_phase = 1, then advances the stage to 2. A 1-glyph
+ * page-1 body proves the dialog ran. The three cutscenes forward chapter ids
+ * 3, 4, 5 to the real portrait loader; tile-event records with races {3, 4, 5}
+ * (plus a never-matching decoy) make party_member_count == 3 prove all three ran
+ * with the correct ids. anim_phase flips from the 0x55 sentinel to 1; no kill is
+ * issued; and the stage byte advances 1 -> 2 (its neighbours stay 0).
+ * ---------------------------------------------------------------- */
+static void test_h40_stage1_cutscene_reveal_then_advance(void)
+{
+    /* one record per cutscene id (3, 4, 5) + a decoy that no id matches */
+    static const uint8 races[4] = { 3, 4, 5, 0x7F };
+
+    ce40_setup(1, 1, 4, races);
+
+    fd2_chapter_event_handler_40__unref_dyn_turn_event(0);
+
+    /* page-1 dialog body ran (rendered the single glyph) */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    /* all three cutscenes ran with ids 3, 4, 5: one matching record each -> 3
+     * (the 0x7F decoy never matched) */
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 3);
+    /* stage 1 set anim_phase to 1 (overwrote the 0x55 sentinel) */
+    ASSERT_EQ((long)data_fd2_battle_anim_phase, 1);
+    /* stage 1 issues NO kill */
+    ASSERT_EQ((long)g_kill_from_calls, 0);
+    /* the stage byte advanced 1 -> 2; neighbours untouched */
+    ASSERT_EQ((long)g_ce40_flags[0x10], 2);
+    ASSERT_EQ((long)g_ce40_flags[0x0F], 0);
+    ASSERT_EQ((long)g_ce40_flags[0x11], 0);
+
+    ce40_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Stage 2 path: stage byte == 2 dispatches the dialog page 2 + exactly one
+ * mass-kill from index 0x10, then advances the stage to 3. A 1-glyph page-2 body
+ * proves the dialog ran; the kill recorder captures one call with the literal
+ * start index 0x10. NO cutscene runs: the tile-event table carries races {3, 4, 5}
+ * (the stage-1 cutscene ids), so party_member_count staying 0 proves the loader —
+ * and thus no stage-1 cutscene — never executed (the delay log is not used here
+ * because the page-2 dialog can itself call __delay_thunk_375b2). anim_phase is
+ * NOT written (stays at the 0x55 sentinel); and the stage byte advances 2 -> 3.
+ * ---------------------------------------------------------------- */
+static void test_h40_stage2_dialog_then_kill_then_advance(void)
+{
+    /* races that the WRONG (stage-1) branch would match; stage 2 must not run it */
+    static const uint8 races[3] = { 3, 4, 5 };
+
+    ce40_setup(2, 1, 3, races);
+
+    fd2_chapter_event_handler_40__unref_dyn_turn_event(0);
+
+    /* page-2 dialog body ran (rendered the single glyph) */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    /* exactly one kill, with the literal start index 0x10 */
+    ASSERT_EQ((long)g_kill_from_calls, 1);
+    ASSERT_EQ((long)g_kill_from_index[0], 0x10);
+    /* stage 2 runs NO cutscene -> the loader never ran -> no record inited */
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 0);
+    /* stage 2 does NOT touch anim_phase (sentinel preserved) */
+    ASSERT_EQ((long)data_fd2_battle_anim_phase, 0x55);
+    /* the stage byte advanced 2 -> 3 */
+    ASSERT_EQ((long)g_ce40_flags[0x10], 3);
+
+    ce40_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Non-dispatching stage (0): neither stage body runs — no dialog, no cutscene, no
+ * kill, no anim_phase write — but the stage byte STILL advances (0 -> 1). This is
+ * the "other stage values are a no-op besides the increment" contract and proves
+ * the advance is unconditional (outside both if branches). The dispatch arg is
+ * passed nonzero to prove the handler ignores it.
+ * ---------------------------------------------------------------- */
+static void test_h40_stage0_noop_but_still_advances(void)
+{
+    /* races both stage branches' cutscenes would match; neither branch runs */
+    static const uint8 races[3] = { 3, 4, 5 };
+
+    ce40_setup(0, 1, 3, races);
+
+    fd2_chapter_event_handler_40__unref_dyn_turn_event(0x77);
+
+    /* no dialog, no cutscene (no loader -> no record inited), no kill, no
+     * anim_phase write */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 0);
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 0);
+    ASSERT_EQ((long)g_delay375b2_log_count, 0);
+    ASSERT_EQ((long)g_kill_from_calls, 0);
+    ASSERT_EQ((long)data_fd2_battle_anim_phase, 0x55);
+    /* the stage byte still advances 0 -> 1 (the 0x77 arg did not leak in) */
+    ASSERT_EQ((long)g_ce40_flags[0x10], 1);
+
+    ce40_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * The advance is a BYTE increment (binary INC byte ptr), not a wider add: a stage
+ * byte of 0xFF wraps to 0x00. 0xFF is a non-dispatching stage, so the body is a
+ * no-op and only the byte wrap is observable; the neighbour bytes must stay 0
+ * (the increment must not carry past the byte).
+ * ---------------------------------------------------------------- */
+static void test_h40_stage_byte_increment_wraps(void)
+{
+    ce40_setup(0xFF, 0, 0, (const uint8 *)0);
+
+    fd2_chapter_event_handler_40__unref_dyn_turn_event(0);
+
+    /* non-dispatching stage: no body ran */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 0);
+    ASSERT_EQ((long)g_delay375b2_log_count, 0);
+    ASSERT_EQ((long)g_kill_from_calls, 0);
+    /* (0xFF + 1) truncated to a byte == 0x00; neighbours did not catch a carry */
+    ASSERT_EQ((long)g_ce40_flags[0x10], 0x00);
+    ASSERT_EQ((long)g_ce40_flags[0x0F], 0);
+    ASSERT_EQ((long)g_ce40_flags[0x11], 0);
+
+    ce40_teardown();
+}
+
 void run_field_chevt23_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -444,5 +656,9 @@ void run_field_chevt23_tests(void)
     RUN_TEST(test_h3e_turn_counter_byte_wraps);
     RUN_TEST(test_h3e_turn_counter_high_bytes_ignored);
     RUN_TEST(test_h3f_two_portrait_pair_routes_both_cutscenes);
+    RUN_TEST(test_h40_stage1_cutscene_reveal_then_advance);
+    RUN_TEST(test_h40_stage2_dialog_then_kill_then_advance);
+    RUN_TEST(test_h40_stage0_noop_but_still_advances);
+    RUN_TEST(test_h40_stage_byte_increment_wraps);
     printf("\n");
 }

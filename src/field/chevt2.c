@@ -721,3 +721,55 @@ void fd2_chapter_event_handler_3f__ch27_ai_ctrl(uint32 event_arg)
     fd2_cinematic_chapter_portrait_dump_with_white_flash(3, 0x1B, 1);
     fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(0xF, 0x1B, 2);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_40__unref_dyn_turn_event @ 0x358EA
+ *   (0 direct callers)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x40 (table entry
+ * @ 0x51C91). No chapter FDFIELD turn-event / tile-step hook references this slot
+ * (unref / possibly cut content). Category: multi-stage state-machine mutator
+ * that advances and dispatches on tile_event_consumed_flags[0x10]. Dispatch-table
+ * signature is 1-arg cdecl (void fn(uint event_arg)); this handler does not read
+ * the arg.
+ *
+ * The stage byte is read zero-extended (binary MOVZX EAX, byte ptr [flags+0x10]):
+ *   stage 1: show dialog page 1, then a 3-portrait white-flash cutscene reveal at
+ *            tiles (9, 0x2C)/id 3, (0, 9)/id 4, (0x11, 9)/id 5, then flip
+ *            data_fd2_battle_anim_phase to 1.
+ *   stage 2: show dialog page 2, then mass-kill every runtime_char slot from
+ *            index 0x10 to the end.
+ *   any other value (0, 3+): no-op besides the advance.
+ * In every case the stage byte is then incremented by 1 (8-bit, INC byte ptr) so
+ * consecutive calls dispatch in order.
+ *
+ * In the binary the final "advance and return" is a Class-3 shared tail at
+ * 0x35992 (MOV EAX,[flags_ptr]; INC byte [EAX+0x10]; RET): both of this handler's
+ * own non-stage-1/2 exits JMP to it, and fd2_chapter_event_handler_4a (ch29 dyn
+ * turn event) tail-JMPs into it to borrow the same advance. That tail-merge is a
+ * binary size optimisation; the functionally-exact source for this handler is the
+ * if/else-if dispatch followed by the unconditional byte increment.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_40__unref_dyn_turn_event(uint32 event_arg)
+{
+    uint8 stage;
+
+    (void)event_arg;
+
+    stage = *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10);
+    if (stage == 1) {
+        fd2_display_dialog_scene(current_chapter_text, 1, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        fd2_cinematic_chapter_portrait_dump_with_white_flash(9, 0x2C, 3);
+        fd2_cinematic_chapter_portrait_dump_with_white_flash(0, 9, 4);
+        fd2_cinematic_chapter_portrait_dump_with_white_flash(0x11, 9, 5);
+        data_fd2_battle_anim_phase = 1;
+    } else if (stage == 2) {
+        fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        fd2_kill_runtime_chars_from_index_to_end(0x10);
+    }
+
+    *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) =
+        (uint8)(*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) + 1);
+}
