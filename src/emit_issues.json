@@ -507,5 +507,15 @@
         "source_review": "fd2_require_char_id_in_active_party @00031dbe (emitter)"
       }
     ]
+  },
+  "000345ea": {
+    "name": "fd2_chapter_event_handler_0e__ch5_dialog_with_state",
+    "target": "field/chevt1.c",
+    "issues": [
+      {
+        "type": "reviewer_note",
+        "desc": "Minor prose inaccuracy in emitter notes (non-blocking, no equivalence impact): the pre-existing linker warning is Warning(1027) redefinition of fd2_play_palette_fade_in from testglob.obj, not a 'testglob redefinition' symbol per se. The emitter's conclusion (pre-existing, unrelated, warning_count=0) is correct; only the named symbol in the prose was imprecise."
+      }
+    ]
   }
 }

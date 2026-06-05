@@ -28,6 +28,9 @@
  * fd2_chapter_event_handler_0c__unref_first_time @ 0x34594
  *     (0 direct callers; dispatched as idx 0x0C of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_0e__ch5_dialog_with_state @ 0x345EA
+ *     (0 direct callers; dispatched as idx 0x0E of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -355,4 +358,37 @@ void fd2_chapter_event_handler_0c__unref_first_time(uint32 event_arg)
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
         *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) = 1;
     }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_0e__ch5_dialog_with_state @ 0x345EA
+ *   — Chapter 5 turn-event slot 0 (triggered at turn 3 / phase 0),
+ *     dispatched as idx 0x0E of the per-event handler table at 0x51B91.
+ *
+ * ch5 turn-3 beat: disarm the per-event AI/dialog control flag (low 4
+ * bits of combat_aux_block[0xD]) by writing 0 across two character
+ * ranges — chars 0x25..0x28 (4 chars) and chars 0x0D..0x18 (12 chars)
+ * — then show dialog page 3.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * In the original binary this handler prepares its own 8 PUSHes (page=3
+ * plus the fixed dialog geometry) and then JMPs into handler_09's shared
+ * tail at 0x3452F (PUSH current_chapter_text; CALL fd2_display_dialog_scene;
+ * ADD ESP,0x24; RET); reproduced here as the inline call for Layer-2
+ * equivalence.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_05.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_0e__ch5_dialog_with_state(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x25, 0x28, 0);
+    fd2_set_combat_aux_block_byte_d_low4_for_char_range(0xD, 0x18, 0);
+    fd2_display_dialog_scene(current_chapter_text, 3, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
 }
