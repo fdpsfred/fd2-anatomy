@@ -204,6 +204,33 @@ static void test_ch10_event21_shows_page2_and_clears_ai_flag_for_0c_0d(void)
     ev_restore_rc_ptr();
 }
 
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_22__unref_dialog @ 0x34C6C (dispatch idx 0x22) —
+ * an unreferenced dialog-only slot whose entire 7-byte body is
+ * "PUSH 0x28; JMP 0x34901", borrowing handler_18's shared entry so its effect
+ * is identical to handler_18: show dialog page 3 and return. No portrait
+ * reload, no camera pan, no state write, no branch, no RNG.
+ *
+ * The single deterministic, observable contract: the real dialog VM emits
+ * exactly one glyph and it is page 3's glyph (idx 0x53 = 0x50 + page 3),
+ * proving the handler dispatches page 3 (not any other page) and the borrowed
+ * shared body runs to completion without faulting. Like handler_21 it has its
+ * own __CHK and no portrait reload, so FD2.TMP is not part of its contract and
+ * is not asserted.
+ * ---------------------------------------------------------------- */
+static void test_event22_shows_dialog_page3(void)
+{
+    ev20_install_safe_env();
+
+    fd2_chapter_event_handler_22__unref_dialog(0);
+
+    /* exactly page 3 was shown: one glyph, idx 0x53 (= 0x50 + page 3). */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0x53);
+
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt14_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -211,5 +238,6 @@ void run_field_chevt14_tests(void)
     RUN_TEST(test_ch10_event20_reloads_portrait1_and_shows_dialog_page1);
     RUN_TEST(test_show_chapter_dialog_portrait_set_1_reloads_portrait1_page1);
     RUN_TEST(test_ch10_event21_shows_page2_and_clears_ai_flag_for_0c_0d);
+    RUN_TEST(test_event22_shows_dialog_page3);
     printf("\n");
 }

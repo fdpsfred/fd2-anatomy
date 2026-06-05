@@ -85,6 +85,9 @@
  * fd2_chapter_event_handler_21__ch10_dialog_with_state @ 0x34C1E
  *     (0 direct callers; dispatched as idx 0x21 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_22__unref_dialog @ 0x34C6C
+ *     (0 direct callers; dispatched as idx 0x22 of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -1266,4 +1269,40 @@ void fd2_chapter_event_handler_21__ch10_dialog_with_state(uint32 event_arg)
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     data_fd2_battle_runtime_char_array_ptr[0xC].combat_aux_block[0xD] = 0;
     data_fd2_battle_runtime_char_array_ptr[0xD].combat_aux_block[0xD] = 0;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_22__unref_dialog @ 0x34C6C
+ *   — Dispatch idx 0x22 of the per-event handler table at 0x51B91.
+ *
+ * No chapter FDFIELD turn-event / tile-step hook references this slot
+ * (unreferenced — possibly cut content / non-chapter dispatcher). Its
+ * single beat is the minimal dialog-only call: a straight-line, no-branch
+ * sequence with no portrait reload, no camera pan, no state writes, no
+ * RNG, no numeric computation, and no CALL-return value used — it just
+ * shows dialog page 3 and returns. Its effect is identical to
+ * fd2_chapter_event_handler_18__unref_dialog @ 0x348FC.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * In the original binary this handler is a 7-byte Class-3 shared-body
+ * consumer: its entire body is "PUSH 0x28; JMP 0x34901", borrowing the
+ * shared entry of fd2_chapter_event_handler_18 @ 0x34901 (the CALL __CHK
+ * instruction). It thereby reuses handler_18's __CHK probe, the 8-PUSH
+ * chain (page=3 plus the fixed dialog geometry) at 0x34906, and the
+ * JMP (0x3491F -> 0x34C0F) into the shared tail of
+ * fd2_show_chapter_dialog_with_portrait_set_1 (PUSH current_chapter_text;
+ * CALL fd2_display_dialog_scene; ADD ESP,0x24; RET) unchanged. The whole
+ * borrowed body's effect is reproduced here as the inline page-3 dialog
+ * call for Layer-2 equivalence.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_22__unref_dialog(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_display_dialog_scene(current_chapter_text, 3, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
 }
