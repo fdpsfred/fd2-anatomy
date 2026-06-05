@@ -773,3 +773,36 @@ void fd2_chapter_event_handler_40__unref_dyn_turn_event(uint32 event_arg)
     *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) =
         (uint8)(*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) + 1);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_41__shared_dyn_turn_event @ 0x3599B
+ *   (1 caller: dispatch table @ 0x51B91, entry @ 0x51C95)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x41. Triggered
+ * in chapter 27 at turn-event slot 1 (turn=0xFF sentinel) and in chapter 28 as
+ * tile-step event_type 0x00 (ch28 tile-step slot 0). Category: state-machine
+ * mutator (turn-event scheduler). Dispatch-table signature is 1-arg cdecl
+ * (void fn(uint event_arg)); this handler does not read the arg.
+ *
+ * Effect: first-time turn scheduler shared by the ch27 sentinel slot and the
+ * ch28 tile-step. The first time its own slot is hit
+ * (tile_event_consumed_flags[0x10] == 0): write turn_counter (immediate, no +1)
+ * into the turn-event hook table at tile_event_data_table[+3] (hook entry 0's
+ * turn byte), arming a dynamic turn-event for the current save_meta turn, then
+ * consume the slot (flags[0x10] = 1) so it never re-arms. Differs from
+ * handler_3e, which schedules turn_counter + 1.
+ *
+ * The turn counter is read as a single byte and stored as a byte
+ * (MOV DL,[turn_counter] / MOV [data_table+3],DL); the (uint8) truncation on
+ * store reproduces that 8-bit move exactly.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_41__shared_dyn_turn_event(uint32 event_arg)
+{
+    (void)event_arg;
+
+    if (*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) == 0) {
+        *(uint8 *)(data_fd2_tile_event_data_table_ptr + 3) =
+            (uint8)data_fd2_battle_turn_counter;
+        *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) = 1;
+    }
+}

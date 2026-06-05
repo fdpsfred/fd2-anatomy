@@ -644,6 +644,130 @@ static void test_h40_stage_byte_increment_wraps(void)
     ce40_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_41__shared_dyn_turn_event @ 0x3599B
+ *
+ * Pure state-machine mutator (no display side effects, no real-file I/O). The
+ * functionally-exact body is:
+ *     if (tile_event_consumed_flags[0x10] == 0) {
+ *         tile_event_data_table[3] = (uint8)turn_counter;
+ *         tile_event_consumed_flags[0x10] = 1;
+ *     }
+ * The risk-bearing contract pinned here:
+ *   (a) FIRST-TIME gate: when flags[0x10] == 0 the handler arms hook entry 0's
+ *       turn byte (data_table[+3]) with turn_counter and consumes the slot,
+ *   (b) NO-OFFSET: the scheduled value is turn_counter EXACTLY — no +1. This is
+ *       the sole behavioural difference from handler_3e (which stores
+ *       turn_counter + 1); a value whose +1 would differ pins it,
+ *   (c) IDEMPOTENCE: when flags[0x10] != 0 the handler writes nothing (the
+ *       already-armed schedule and the consumed flag are both preserved),
+ *   (d) BYTE-width store: the turn counter is read as one byte and stored as one
+ *       byte (MOV DL,[turn_counter] / MOV [data_table+3],DL), so only the low
+ *       byte reaches data_table[+3] and high bytes never leak,
+ *   (e) exact byte offsets: only data_table[+3] and flags[+0x10] are written;
+ *       their neighbours stay untouched,
+ *   (f) the dispatch arg is ignored (the handler reads no param).
+ *
+ * Distinct slot index from handler_3e (0x10 here vs 0x11 there) gets its own
+ * in-memory fixtures so the two suites never alias state.
+ * ================================================================ */
+
+/* flags buffer: index 0x10 is the consume slot; extra headroom guards neighbours */
+static uint8 g_ce41_flags[0x20];
+/* data table: index 3 is hook entry 0's turn byte; headroom guards neighbours */
+static uint8 g_ce41_dtable[0x10];
+
+static void ce41_setup(void)
+{
+    memset(g_ce41_flags, 0, sizeof(g_ce41_flags));
+    memset(g_ce41_dtable, 0, sizeof(g_ce41_dtable));
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ce41_flags;
+    data_fd2_tile_event_data_table_ptr = (uint32)g_ce41_dtable;
+    data_fd2_battle_turn_counter = 0;
+}
+
+static void ce41_teardown(void)
+{
+    data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
+    data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_battle_turn_counter = 0;
+}
+
+/* ----------------------------------------------------------------
+ * First-time trigger + NO-OFFSET: flags[0x10] == 0 and turn_counter == 5. The
+ * handler arms hook entry 0's turn byte (data_table[+3]) with 5 EXACTLY (not
+ * 6 — this is the contrast against handler_3e's +1) and consumes the slot
+ * (flags[0x10] -> 1). The dispatch arg is passed nonzero to prove it is ignored.
+ * Guard bytes around both write targets must stay 0.
+ * ---------------------------------------------------------------- */
+static void test_h41_first_time_arms_no_offset_and_consumes(void)
+{
+    ce41_setup();
+    data_fd2_battle_turn_counter = 5;
+
+    fd2_chapter_event_handler_41__shared_dyn_turn_event(0x77);
+
+    /* (a)+(b) hook entry 0's turn byte = turn_counter EXACTLY (5, not 5+1) */
+    ASSERT_EQ((long)g_ce41_dtable[3], 5);
+    /* slot consumed */
+    ASSERT_EQ((long)g_ce41_flags[0x10], 1);
+    /* (e) neighbours of data_table[+3] untouched */
+    ASSERT_EQ((long)g_ce41_dtable[2], 0);
+    ASSERT_EQ((long)g_ce41_dtable[4], 0);
+    /* (e) neighbours of flags[+0x10] untouched */
+    ASSERT_EQ((long)g_ce41_flags[0x0F], 0);
+    ASSERT_EQ((long)g_ce41_flags[0x11], 0);
+
+    ce41_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Idempotence: when the slot is already consumed (flags[0x10] != 0) the handler
+ * must do nothing. Pre-arm data_table[+3] with a sentinel and pre-set the flag;
+ * after the call both must be byte-for-byte unchanged (no re-arm, no re-write),
+ * even though turn_counter differs from the sentinel.
+ * ---------------------------------------------------------------- */
+static void test_h41_already_consumed_is_noop(void)
+{
+    ce41_setup();
+    g_ce41_flags[0x10] = 0xAA;     /* already consumed (any nonzero) */
+    g_ce41_dtable[3]   = 0x5C;     /* previously-armed schedule sentinel */
+    data_fd2_battle_turn_counter = 9;
+
+    fd2_chapter_event_handler_41__shared_dyn_turn_event(0);
+
+    /* (c) schedule byte preserved (NOT overwritten with turn_counter 9) */
+    ASSERT_EQ((long)g_ce41_dtable[3], 0x5C);
+    /* consumed flag preserved exactly */
+    ASSERT_EQ((long)g_ce41_flags[0x10], 0xAA);
+
+    ce41_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Byte-width store, high bytes ignored: the binary reads turn_counter as a single
+ * byte (MOV DL, byte ptr [turn_counter]) and stores it as a byte. turn_counter =
+ * 0x1234: only the low byte 0x34 reaches data_table[+3]; the 0x12 high byte never
+ * leaks. (A naive 32-bit store would still drop the high bytes at the byte slot,
+ * but pairing this with the no-offset value above pins both the byte width and
+ * the absence of the +1.)
+ * ---------------------------------------------------------------- */
+static void test_h41_turn_counter_low_byte_only(void)
+{
+    ce41_setup();
+    data_fd2_battle_turn_counter = 0x1234;
+
+    fd2_chapter_event_handler_41__shared_dyn_turn_event(0);
+
+    /* low byte 0x34 stored verbatim (no +1); high byte 0x12 never reaches it */
+    ASSERT_EQ((long)g_ce41_dtable[3], 0x34);
+    ASSERT_EQ((long)g_ce41_flags[0x10], 1);
+    /* neighbour past the byte must not catch a high byte */
+    ASSERT_EQ((long)g_ce41_dtable[4], 0);
+
+    ce41_teardown();
+}
+
 void run_field_chevt23_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -660,5 +784,8 @@ void run_field_chevt23_tests(void)
     RUN_TEST(test_h40_stage2_dialog_then_kill_then_advance);
     RUN_TEST(test_h40_stage0_noop_but_still_advances);
     RUN_TEST(test_h40_stage_byte_increment_wraps);
+    RUN_TEST(test_h41_first_time_arms_no_offset_and_consumes);
+    RUN_TEST(test_h41_already_consumed_is_noop);
+    RUN_TEST(test_h41_turn_counter_low_byte_only);
     printf("\n");
 }
