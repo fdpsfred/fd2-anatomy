@@ -438,6 +438,39 @@ static void test_shop_scroll_up_cadence(void)
 }
 
 
+/*
+ * fd2_animate_scroll_down_in_shop_dialog — staged-shift cadence (mirror of
+ * scroll_up with reversed direction + backward row iteration).
+ *
+ * The function shifts the same 0x4A-row shop-dialog block DOWN the mode13h
+ * framebuffer in three 6-row steps (each followed by a 6-row palette-0x49 fill
+ * of the freed top rows and a 10ms pace), then a final 8-row shift + 8-row fill.
+ * It takes no args, returns nothing, reads no state back. Direction is the only
+ * structural difference from scroll_up: memmove copies src 0xA8FCA -> dst
+ * 0xA974A (and 0xA99CA in Phase 2), and the row loop runs DESCENDING (0x49..0,
+ * 0x47..0) so the overlapping copy proceeds high-address-first and never
+ * clobbers a not-yet-moved source row.
+ *
+ * Host-observable side-effect = the pacing: exactly three __delay_thunk_375b2(10)
+ * calls (one per Phase-1 step), none in Phase 2. The page-stepping callers depend
+ * on that fixed three-beat cadence (identical to scroll_up), so it is pinned
+ * here. The actual 0x11C-byte-per-row block scroll, the descending-iteration
+ * overlap correctness, and the top-row fill are pixel output bound to the fixed
+ * absolute aperture addresses 0xA8FCA.. (mode13h VGA RAM, host-safe scratch under
+ * DOS/4GW); no host buffer can back those compile-time-literal addresses for
+ * read-back, so that verification is deferred to Phase 9 integration, consistent
+ * with the scroll_up counterpart and the other VGA-output animations here.
+ */
+static void test_shop_scroll_down_cadence(void)
+{
+    g_delay375b2_calls = 0;
+    g_delay375b2_last_ticks = 0;
+    fd2_animate_scroll_down_in_shop_dialog();
+    ASSERT_EQ(g_delay375b2_calls, 3);        /* 3 Phase-1 steps, Phase-2 paces none */
+    ASSERT_EQ(g_delay375b2_last_ticks, 10u); /* each step paces 10ms */
+}
+
+
 void run_anim_aniui_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -448,5 +481,6 @@ void run_anim_aniui_tests(void)
     RUN_TEST(test_money_decrement_roll_and_total);
     RUN_TEST(test_wing_slide_open_and_close);
     RUN_TEST(test_shop_scroll_up_cadence);
+    RUN_TEST(test_shop_scroll_down_cadence);
     printf("\n");
 }

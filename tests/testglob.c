@@ -422,7 +422,6 @@ uint32 g_shop_grid_last_array = 0;
 uint32 g_shop_grid_last_cursor = 0;
 uint32 g_shop_grid_last_dst = 0;
 uint32 g_shop_grid_last_sell = 0;
-int    g_shop_scroll_down_calls = 0;
 void fd2_render_shop_item_grid(uint32 item_count, uint32 item_id_array,
                                uint32 cursor, uint32 dst_buf,
                                uint32 sell_mode_flag)
@@ -434,12 +433,13 @@ void fd2_render_shop_item_grid(uint32 item_count, uint32 item_id_array,
     g_shop_grid_last_dst = dst_buf;
     g_shop_grid_last_sell = sell_mode_flag;
 }
-/* fd2_animate_scroll_up_in_shop_dialog is the REAL emitted function in
- * src/anim/aniui.c (it only writes the mode13h aperture + paces via the
- * delay thunk, so it is host-safe to call directly). The shop navigation
- * test verifies its page-down invocation via g_delay375b2_calls (the real
- * function calls __delay_thunk_375b2 three times). */
-void fd2_animate_scroll_down_in_shop_dialog(void) { g_shop_scroll_down_calls++; }
+/* Both shop-dialog scroll animations are now REAL emitted functions in
+ * src/anim/aniui.c: fd2_animate_scroll_up_in_shop_dialog (page-DOWN) and
+ * fd2_animate_scroll_down_in_shop_dialog (page-UP). Each only writes the
+ * mode13h aperture + paces with three __delay_thunk_375b2(10) calls, so both
+ * are host-safe to call directly. The shop navigation test observes that an
+ * animation paced via g_delay375b2_calls == 3, with the branch direction
+ * pinned independently by data_fd2_ui_menu_scroll_offset. */
 /* field command menu templates — real FD2.LE values @ 0x51E9F / 0x53EF2 */
 int32  data_fd2_ui_field_command_menu_options_template[4] = { 7, 5, 6, 4 };
 int32  data_fd2_ui_field_command_menu_state_template[4] = { 0, 0, 0, 0 };

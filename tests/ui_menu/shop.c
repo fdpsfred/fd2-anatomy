@@ -42,12 +42,14 @@ extern uint32 g_shop_grid_last_array;
 extern uint32 g_shop_grid_last_cursor;
 extern uint32 g_shop_grid_last_dst;
 extern uint32 g_shop_grid_last_sell;
-extern int    g_shop_scroll_down_calls;
-/* Page-DOWN scroll animation fd2_animate_scroll_up_in_shop_dialog is the REAL
- * emitted function (anim/aniui.c): it shifts the shop-dialog block up the VGA
- * aperture (host-safe scratch under DOS/4GW) and paces with three
- * __delay_thunk_375b2(10) calls. So its page-down invocation is observed via the
- * delay-thunk spy (g_delay375b2_calls == 3), not a dedicated call counter. */
+/* Both shop-dialog scroll animations are the REAL emitted functions
+ * (anim/aniui.c): fd2_animate_scroll_up_in_shop_dialog (page-DOWN) and
+ * fd2_animate_scroll_down_in_shop_dialog (page-UP). Each shifts the shop-dialog
+ * block along the VGA aperture (host-safe scratch under DOS/4GW) and paces with
+ * three __delay_thunk_375b2(10) calls. A paging move is therefore observed via
+ * the delay-thunk spy (g_delay375b2_calls == 3); the direction that ran is
+ * pinned independently by data_fd2_ui_menu_scroll_offset (page-up lands lower,
+ * page-down lands higher), so no per-animation call counter is needed. */
 extern int    g_delay375b2_calls;
 /* cursor-move chime counter (testglob.c fd2_play_sfx_with_handle spy) */
 extern int    g_play_sfx_with_handle_calls;
@@ -80,7 +82,6 @@ static void shop_setup(uint32 item_count, uint32 cursor, uint32 scroll,
     g_shop_grid_last_dst = 0;
     g_shop_grid_last_sell = 0xFFFFFFFFu;
     g_delay375b2_calls = 0;
-    g_shop_scroll_down_calls = 0;
     g_play_sfx_with_handle_calls = 0;
 
     mfix_load_keys(keys, n);
@@ -211,7 +212,7 @@ static void test_left_moves(void)
     ASSERT_EQ(g_play_sfx_with_handle_calls, 1);
     ASSERT_EQ(g_shop_grid_render_calls, 1);
     ASSERT_EQ(g_shop_grid_last_cursor, 2);
-    ASSERT_EQ(g_shop_scroll_down_calls, 0);
+    ASSERT_EQ(g_delay375b2_calls, 0);                /* no page: no anim pace */
 }
 
 /* Left at cursor 0: guard blocks the move. */
@@ -310,10 +311,9 @@ static void test_right_pages_viewport_down(void)
     r = fd2_shop_menu_input_loop(12, SHOP_ARR, 0);
     ASSERT_EQ(r, 1);
     ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 6);
-    ASSERT_EQ(data_fd2_ui_menu_scroll_offset, 2);
-    /* page-down ran the REAL scroll-up anim (3 paced delays), not scroll-down */
+    ASSERT_EQ(data_fd2_ui_menu_scroll_offset, 2);    /* page-DOWN branch */
+    /* the page-down scroll-up anim paced 3 delays (10ms each) */
     ASSERT_EQ(g_delay375b2_calls, 3);
-    ASSERT_EQ(g_shop_scroll_down_calls, 0);
     ASSERT_EQ(g_shop_grid_render_calls, 1);
     ASSERT_EQ(g_shop_grid_last_cursor, 6);
 }
@@ -365,9 +365,9 @@ static void test_left_pages_viewport_up(void)
     r = fd2_shop_menu_input_loop(12, SHOP_ARR, 0);
     ASSERT_EQ(r, 1);
     ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 1);
-    ASSERT_EQ(data_fd2_ui_menu_scroll_offset, 0);
-    ASSERT_EQ(g_shop_scroll_down_calls, 1);
-    ASSERT_EQ(g_delay375b2_calls, 0);   /* page-up uses scroll-DOWN, not -up */
+    ASSERT_EQ(data_fd2_ui_menu_scroll_offset, 0);    /* page-UP branch */
+    /* page-up ran the REAL scroll-down anim (3 paced 10ms delays) */
+    ASSERT_EQ(g_delay375b2_calls, 3);
     ASSERT_EQ(g_shop_grid_render_calls, 1);
     ASSERT_EQ(g_shop_grid_last_cursor, 1);
 }
@@ -384,8 +384,8 @@ static void test_up_pages_viewport_up(void)
     r = fd2_shop_menu_input_loop(12, SHOP_ARR, 0);
     ASSERT_EQ(r, 1);
     ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 1);
-    ASSERT_EQ(data_fd2_ui_menu_scroll_offset, 0);
-    ASSERT_EQ(g_shop_scroll_down_calls, 1);
+    ASSERT_EQ(data_fd2_ui_menu_scroll_offset, 0);    /* page-UP branch */
+    ASSERT_EQ(g_delay375b2_calls, 3);   /* page-up -> real scroll-down anim */
     ASSERT_EQ(g_shop_grid_render_calls, 1);
 }
 
@@ -402,7 +402,7 @@ static void test_left_no_page_within_viewport(void)
     ASSERT_EQ(r, 1);
     ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 2);
     ASSERT_EQ(data_fd2_ui_menu_scroll_offset, 2);
-    ASSERT_EQ(g_shop_scroll_down_calls, 0);
+    ASSERT_EQ(g_delay375b2_calls, 0);                /* no page: no anim pace */
 }
 
 /* ---- multi-key navigation: several accepted moves before commit ---- */
