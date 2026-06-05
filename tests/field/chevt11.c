@@ -679,32 +679,45 @@ static void test_ch6_event15_dead_skips_dialog(void)
  *
  * On the alive branch the handler does NOT inline a dialog call — in the binary
  * it tail-JMPs to the named helper fd2_show_chapter_intro_text_dialog_mode_3
- * @0x34906 (it is that helper's sole caller). That helper is not yet emitted, so
- * the testglob recording stub (g_show_ch_intro_dialog_mode3_calls) stands in for
- * it and the test asserts the alive gate delegates to it exactly once (and the
- * dead gate not at all). The portrait reload fd2_load_chapter_portraits_and_dump_tmp(1)
- * is the REAL emitted callee: it re-reads FDFIELD.DAT[chapter*3+2] and rewrites
- * the 0x32A00-byte FD2.TMP swap file, so the alive branch is additionally pinned
- * by the real FD2.TMP rewrite (and the dead branch by its absence).
+ * @0x34906 (it is that helper's sole caller). That helper is now the REAL
+ * emitted function (src/field/chevt1.c): it dispatches dialog page 3 through the
+ * real fd2_display_dialog_scene VM. Reusing handler_14's per-page-distinct-glyph
+ * program (page p -> single TEXT glyph idx 0x50+p, then END) over the portrait-
+ * reload env, the alive gate must emit exactly one glyph with idx 0x53 (= page
+ * 3) and the dead gate must emit none — proving the gate delegates to the real
+ * page-3 helper iff 索倫 is alive. The portrait reload
+ * fd2_load_chapter_portraits_and_dump_tmp(1) is the REAL emitted callee too: it
+ * re-reads FDFIELD.DAT[chapter*3+2] and rewrites the 0x32A00-byte FD2.TMP swap
+ * file, so the alive branch is additionally pinned by the real FD2.TMP rewrite
+ * (and the dead branch by its absence).
  *
  * Driven on-host with the shared fieldfix "ch25-style real portrait reload" env
  * (64-slot g_ev_rc keeps char 8 in-bounds, alloc_offset 0 -> empty per-record
  * scan, current_chapter_id 4 -> valid FDFIELD index 0xE, staged real FDICON.B24
- * + FDFIELD.DAT). The helper's own page-3 dispatch / pure blit side effects are
- * covered when fd2_show_chapter_intro_text_dialog_mode_3 is emitted (Phase 4).
+ * + FDFIELD.DAT), with current_chapter_text re-pointed at the per-page glyph
+ * program so the real helper's page-3 dispatch is observable. The pure
+ * blit/display side effects (the real glyph render path) are deferred to Phase 9
+ * integration.
  * ================================================================ */
 
-extern int g_show_ch_intro_dialog_mode3_calls;
+/* portrait-reload env (FD2.TMP rewrite) PLUS handler_14's per-page-distinct-
+ * glyph dialog program, so the real page-3 helper's dispatch is observable via
+ * the glyph recorder (alive -> 1 glyph idx 0x53; dead -> 0). */
+static void ev16_install_safe_env(void)
+{
+    ev_install_safe_env();
+    ev14_install_safe_env();
+}
 
 /* ----------------------------------------------------------------
  * ALIVE path: char 8 (索倫) starts alive (flags bit0 clear), so the gate passes:
  * the real portrait set 1 reload runs (rewriting FD2.TMP to its full 0x32A00
- * bytes) and the page-3 dialog helper is invoked exactly once.
+ * bytes) and the real page-3 dialog helper dispatches page 3 exactly once
+ * (one glyph, idx 0x53).
  * ---------------------------------------------------------------- */
 static void test_ch6_event16_alive_reloads_portraits_and_shows_dialog(void)
 {
-    ev_install_safe_env();
-    g_show_ch_intro_dialog_mode3_calls = 0;
+    ev16_install_safe_env();
 
     /* g_ev_rc was memset to 0, so char 8's flags bit0 is clear -> alive. */
     remove("FD2.TMP");
@@ -713,8 +726,9 @@ static void test_ch6_event16_alive_reloads_portraits_and_shows_dialog(void)
 
     /* real portrait reload ran: FD2.TMP rewritten to its full 0x32A00 bytes. */
     ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
-    /* the page-3 dialog helper was delegated to exactly once. */
-    ASSERT_EQ((long)g_show_ch_intro_dialog_mode3_calls, 1);
+    /* the real page-3 helper dispatched exactly page 3: one glyph, idx 0x53. */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0x53);
 
     remove("FD2.TMP");
     data_fd2_resource_portrait_cache_alloc_offset = 0;
@@ -724,12 +738,11 @@ static void test_ch6_event16_alive_reloads_portraits_and_shows_dialog(void)
 /* ----------------------------------------------------------------
  * DEAD path: char 8 (索倫) is pinned dead (flags bit0 set), so the gate fails
  * and the whole beat is SKIPPED — neither the real portrait reload (no FD2.TMP
- * written) nor the dialog helper runs.
+ * written) nor the real page-3 dialog helper runs (no glyph emitted).
  * ---------------------------------------------------------------- */
 static void test_ch6_event16_dead_skips_beat(void)
 {
-    ev_install_safe_env();
-    g_show_ch_intro_dialog_mode3_calls = 0;
+    ev16_install_safe_env();
 
     /* pin char 8 dead so fd2_check_char_is_dead(8) returns 1 and the gate fails. */
     g_ev_rc[8].flags |= CHARFLAG_DEAD;
@@ -737,9 +750,9 @@ static void test_ch6_event16_dead_skips_beat(void)
 
     fd2_chapter_event_handler_16__ch6_char_cond(0);
 
-    /* beat skipped: no portrait reload (FD2.TMP absent) and no dialog helper. */
+    /* beat skipped: no portrait reload (FD2.TMP absent) and no dialog dispatch. */
     ASSERT_EQ(ev_fd2_tmp_size(), -1);
-    ASSERT_EQ((long)g_show_ch_intro_dialog_mode3_calls, 0);
+    ASSERT_EQ((long)g_dlg_glyph_calls, 0);
 
     data_fd2_resource_portrait_cache_alloc_offset = 0;
     ev_restore_rc_ptr();

@@ -1,9 +1,11 @@
 /*
- * unit tests for src/field/chevt1.c (part 3: handler 18)
+ * unit tests for src/field/chevt1.c (part 3: handler 18 +
+ * fd2_show_chapter_intro_text_dialog_mode_3)
  *
  * The chapter turn-event handlers in src/field/chevt1.c are dispatched as
  * indices of the per-event handler table at 0x51B91. Parts 1/2 (chevt11.c /
- * chevt12.c) cover handlers 00..17; this part covers handler 18.
+ * chevt12.c) cover handlers 00..17; this part covers handler 18 and the named
+ * helper fd2_show_chapter_intro_text_dialog_mode_3 @ 0x34906.
  *
  * fd2_chapter_event_handler_18__unref_dialog @ 0x348FC is dispatch idx 0x18 of
  * that table. No chapter FDFIELD turn-event / tile-step hook references the
@@ -94,10 +96,32 @@ static void test_ch_event18_shows_dialog_page3(void)
     ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0x53);
 }
 
+/* ----------------------------------------------------------------
+ * fd2_show_chapter_intro_text_dialog_mode_3 @ 0x34906 is the named helper
+ * handler_16 tail-JMPs to; it shows current_chapter_text dialog page 3 with
+ * the same fixed geometry as handler_18 (it borrows the same shared dialog
+ * tail at 0x34C0F). It takes no args and uses no CALL-return value, so the one
+ * observable, deterministic contract is again the dispatched PAGE. Reusing the
+ * per-page glyph program (page p -> glyph 0x50+p), a correct page-3 dispatch
+ * must emit exactly one glyph with idx 0x53; any other page would emit a
+ * different idx and fail loudly.
+ * ---------------------------------------------------------------- */
+static void test_show_chapter_intro_text_dialog_mode_3_shows_page3(void)
+{
+    ev18_install_safe_env();
+
+    fd2_show_chapter_intro_text_dialog_mode_3();
+
+    /* exactly page 3 was shown: one glyph, idx 0x53 (= 0x50 + page 3). */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0x53);
+}
+
 void run_field_chevt13_tests(void)
 {
     int _prev_fails = g_test_fail_count;
     printf("Suite: field/chevt13\n");
     RUN_TEST(test_ch_event18_shows_dialog_page3);
+    RUN_TEST(test_show_chapter_intro_text_dialog_mode_3_shows_page3);
     printf("\n");
 }

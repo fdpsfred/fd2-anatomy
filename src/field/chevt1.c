@@ -58,6 +58,8 @@
  * fd2_chapter_event_handler_18__unref_dialog @ 0x348FC
  *     (0 direct callers; dispatched as idx 0x18 of the per-event
  *      handler table at 0x51B91)
+ * fd2_show_chapter_intro_text_dialog_mode_3 @ 0x34906
+ *     (1 caller: fd2_chapter_event_handler_16__ch6_char_cond @ 0x34819)
  */
 
 #include <string.h>
@@ -769,6 +771,36 @@ void fd2_chapter_event_handler_18__unref_dialog(uint32 event_arg)
 {
     (void)event_arg;
 
+    fd2_display_dialog_scene(current_chapter_text, 3, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_show_chapter_intro_text_dialog_mode_3 @ 0x34906
+ *   — Named helper that shows current_chapter_text dialog page 3 with
+ *     the standard dialog geometry. Its sole caller is
+ *     fd2_chapter_event_handler_16__ch6_char_cond @ 0x34819, which
+ *     tail-JMPs here (0x3483F -> 0x34906) when 索倫 (char_id 8) is
+ *     still alive at chapter 6 turn 15.
+ *
+ * void __cdecl(void); no stack frame and no __CHK probe. EBX is not
+ * touched. The body is a pure 8-PUSH chain (page=3 plus the fixed
+ * dialog geometry) followed by a JMP (0x3491F -> 0x34C0F) into the
+ * shared tail of fd2_show_chapter_dialog_with_portrait_set_1 (PUSH
+ * current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24;
+ * RET). The borrowed tail supplies the 9th argument
+ * (current_chapter_text) and performs the cdecl 0x24-byte (9-arg)
+ * cleanup; reproduced here as the inline call for Layer-2 equivalence.
+ *
+ * Magic numbers (matching every dialog call in this group):
+ *   0xA0000 VGA framebuffer base, 0x140 (=320) row stride,
+ *   0xCD/0x4C dialog window position (X, Y), 0x4A charset/style code,
+ *   0x13 (=19) max line count, 1 wait-for-input flag.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_06.md
+ * ---------------------------------------------------------------- */
+void fd2_show_chapter_intro_text_dialog_mode_3(void)
+{
     fd2_display_dialog_scene(current_chapter_text, 3, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
