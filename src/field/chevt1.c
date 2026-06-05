@@ -70,6 +70,9 @@
  *     (1 caller: fd2_chapter_event_handler_1d__unref_dialog_with_state
  *      @ 0x34A3C; also dispatched as idx 0x1C of the per-event handler
  *      table at 0x51B91)
+ * fd2_chapter_event_handler_1d__unref_dialog_with_state @ 0x34A3C
+ *     (0 direct callers; dispatched as idx 0x1D of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -975,4 +978,32 @@ void fd2_chapter_event_handler_1c__ch8_ai_ctrl(uint32 event_arg)
         data_fd2_battle_runtime_char_array_ptr[i + 10].combat_aux_block[0xD] &=
             0x80;
     }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_1d__unref_dialog_with_state @ 0x34A3C
+ *   — Dispatch idx 0x1D of the per-event handler table at 0x51B91.
+ *
+ * No chapter FDFIELD turn-event / tile-step hook references this slot
+ * (unreferenced — possibly cut content or a non-chapter dispatcher).
+ * Two-beat handler: show dialog page 2, then tail-chain to
+ * fd2_chapter_event_handler_1c__ch8_ai_ctrl (the ch8 AI-control beat
+ * that clears the low 7 bits of combat_aux_block[0xD] for the 18
+ * runtime-char slots 0x0A..0x1B).
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl). EBX is not touched; the __CHK(0x28)
+ * stack-probe prologue is compiler-injected and omitted here.
+ *
+ * Unlike the sibling dialog handlers (which discard event_arg), this
+ * one forwards event_arg unchanged to handler_1c: the original tail is
+ * PUSH dword ptr [ESP+4]; CALL fd2_chapter_event_handler_1c; ADD ESP,4;
+ * RET. (handler_1c ignores the value, but the pass-through is kept for
+ * byte-faithful equivalence.)
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_1d__unref_dialog_with_state(uint32 event_arg)
+{
+    fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_chapter_event_handler_1c__ch8_ai_ctrl(event_arg);
 }

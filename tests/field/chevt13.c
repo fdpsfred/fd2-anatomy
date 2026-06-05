@@ -548,6 +548,114 @@ static void test_ch8_event1c_clears_low7_bits_for_slots_0a_1b(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_1d__unref_dialog_with_state @ 0x34A3C
+ *
+ * Dispatch idx 0x1D of the per-event handler table at 0x51B91. No chapter
+ * FDFIELD turn-event / tile-step hook references this slot (unreferenced —
+ * possibly cut content / non-chapter dispatcher). A straight-line, no-branch
+ * TWO-BEAT handler with no RNG and no CALL-return value used:
+ *   display_dialog_scene(page 2, ...);
+ *   fd2_chapter_event_handler_1c__ch8_ai_ctrl(event_arg);   // tail-chain
+ *
+ * In the binary it prepares its own 8 PUSHes (page=2 + the fixed dialog
+ * geometry) and CALLs fd2_display_dialog_scene, then forwards its own incoming
+ * arg (PUSH dword ptr [ESP+4]) into handler_1c and returns. The emit reproduces
+ * both beats inline; the arg pass-through is kept for byte-faithful equivalence
+ * (handler_1c ignores its parameter).
+ *
+ * Both beats are pinned, each against a REAL emitted callee:
+ *   - the dialog beat runs FOR REAL on the per-page-distinct-glyph program
+ *     (page p -> single TEXT glyph idx 0x50+p, then END), so a correct page-2
+ *     dispatch must emit exactly one glyph with idx 0x52 and any wrong page
+ *     fails loudly. The glyph blit is the testglob recorder (g_dlg_glyph_calls
+ *     / g_dlg_glyph_last_idx), making the dispatched page observable WITHOUT
+ *     touching real VGA;
+ *   - the chained handler_1c beat clears bits 0-6 of combat_aux_block[0xD]
+ *     (keeping bit 7) for the 18 runtime-char slots 0x0A..0x1B inclusive. With
+ *     every char's byte seeded 0xFF, an in-range slot must become 0x80 and the
+ *     just-outside boundary slots 0x09 / 0x1C must stay 0xFF — proving the tail
+ *     chain into handler_1c actually ran with the exact mask and range.
+ *
+ * The pure blit/display side effects (dialog glyphs) are deferred to Phase 9
+ * integration.
+ * ================================================================ */
+
+/* per-page-distinct-glyph dialog program (page p -> single glyph idx 0x50+p,
+ * then END), so the dispatched page is identifiable by the recorded glyph idx.
+ * Layout (int16 words):
+ *   [0..0x10]      header words: page p -> byte offset of its glyph word
+ *   [0x11+2*p]     page p glyph (0x50+p)
+ *   [0x12+2*p]     page p END (-1)                                          */
+static int16 g_ev1d_dlg[0x11 + 2 * 0x11];
+
+static void ev1d_install_safe_env(void)
+{
+    int p;
+    int i;
+
+    /* shared ch25-style env (64-slot g_ev_rc, empty party, gated HUD, throttled
+     * palette, real compositor workspace, empty keyboard buffer). It installs an
+     * immediate-END dialog program, which the per-page-distinct-glyph program
+     * below then overrides. */
+    ev_install_safe_env();
+
+    /* per-page (glyph, END) pairs start right after the 0x11 header words, so
+     * the page the handler selects is identifiable by the recorded glyph idx. */
+    for (p = 0; p <= 0x10; p++) {
+        g_ev1d_dlg[p] = (int16)((0x11 + 2 * p) * 2);   /* byte offset of glyph */
+        g_ev1d_dlg[0x11 + 2 * p] = (int16)(0x50 + p);  /* page p glyph idx */
+        g_ev1d_dlg[0x12 + 2 * p] = -1;                  /* page p END */
+    }
+    current_chapter_text = (uint32)g_ev1d_dlg;
+
+    /* no portrait open on entry, so the END path skips the close sequence and
+     * returns immediately. */
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+
+    /* seed every char's combat_aux_block[0xD] with 0xFF so the chained
+     * handler_1c masked write is observable as 0xFF -> 0x80 (bit 7 kept, low 7
+     * cleared) and an untouched char keeps 0xFF. */
+    for (i = 0; i < 64; i++) {
+        g_ev_rc[i].combat_aux_block[0xD] = 0xFF;
+    }
+
+    /* reset the glyph recorder so the per-test count is clean. */
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+}
+
+/* ----------------------------------------------------------------
+ * The handler fires both beats: show dialog page 2 via the real dialog VM, then
+ * tail-chain into handler_1c. Observable, deterministic contract: exactly one
+ * glyph is emitted and it is page 2's glyph (idx 0x52) — proving the page-2
+ * dispatch — AND the chained handler_1c masked slots 0x0A..0x1B to 0x80 while
+ * leaving the just-outside boundaries 0x09 / 0x1C at 0xFF.
+ * ---------------------------------------------------------------- */
+static void test_ch_event1d_shows_dialog_page2_then_chains_handler_1c(void)
+{
+    int i;
+
+    ev1d_install_safe_env();
+
+    fd2_chapter_event_handler_1d__unref_dialog_with_state(0);
+
+    /* beat 1: exactly page 2 was shown — one glyph, idx 0x52 (= 0x50 + page 2). */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0x52);
+
+    /* beat 2: the tail chain into handler_1c ran — slots 0x0A..0x1B inclusive
+     * (18 chars) had their low 7 bits cleared, bit 7 kept. */
+    for (i = 0x0A; i <= 0x1B; i++) {
+        ASSERT_EQ(g_ev_rc[i].combat_aux_block[0xD], 0x80);
+    }
+    /* boundaries just outside the cleared range are untouched. */
+    ASSERT_EQ(g_ev_rc[0x09].combat_aux_block[0xD], 0xFF);
+    ASSERT_EQ(g_ev_rc[0x1C].combat_aux_block[0xD], 0xFF);
+
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt13_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -561,5 +669,6 @@ void run_field_chevt13_tests(void)
     RUN_TEST(test_ch7_event1a_enemy_steps_skips_beat);
     RUN_TEST(test_ch8_event1b_runs_cinematic_with_turn_keyed_reload);
     RUN_TEST(test_ch8_event1c_clears_low7_bits_for_slots_0a_1b);
+    RUN_TEST(test_ch_event1d_shows_dialog_page2_then_chains_handler_1c);
     printf("\n");
 }
