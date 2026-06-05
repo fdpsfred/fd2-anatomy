@@ -1999,7 +1999,6 @@ extern int    g_blitpass_calls;
 extern uint32 g_blitpass_src[64];
 extern uint32 g_blitpass_dst[64];
 extern uint32 g_blitpass_stride[64];
-extern int    g_check_char_is_dead_return;
 extern uint32 g_rle_blit_last_sprite;
 extern uint32 g_rle_blit_last_buf;
 extern int32  g_rle_blit_last_stride;
@@ -2060,7 +2059,6 @@ static uint32 hud_setup(uint32 cx, uint32 cy)
     /* empty roster: no unit at the cursor */
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     data_fd2_battle_party_member_count = 4;
-    g_check_char_is_dead_return = 0;
     /* park all units off the cursor cell so find returns -1 by default */
     {
         int i;
@@ -2602,9 +2600,8 @@ static void test_overview_static_blits(void)
     /* Seed a known per-team alive distribution for the REAL counter:
      * team 0 (ENEMY) = 3, team 2 (PLAYER) = 4, team 1 (NPC ALLY) = 1.
      * memset leaves portrait_id/archetype_flag = 0 (both pass the filter)
-     * and g_check_char_is_dead_return = 0 keeps every char alive. */
+     * and .flags == 0 keeps every char alive for the real is_dead check. */
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
-    g_check_char_is_dead_return = 0;
     g_test_rc_array[0].team = 0;
     g_test_rc_array[1].team = 0;
     g_test_rc_array[2].team = 0;

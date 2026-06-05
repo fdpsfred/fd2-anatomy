@@ -829,6 +829,56 @@ static void test_find_equipped_char_idx_offset(void)
 }
 
 
+/* ---- fd2_check_char_is_dead @ 0x3453E ----
+ *
+ * Returns runtime_char[idx].flags bit0 as 0 (alive) or 1 (dead). The body is
+ * AL = flags; AL &= 1; MOVZX EAX,AL -- so the result is masked to exactly bit0
+ * and the other flag bits (cannot_act 0x04, acted 0x80) must NOT affect it. */
+
+/* flags bit0 clear -> alive (0), regardless of the other flag bits set. */
+static void test_is_dead_alive(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+
+    g_test_rc_array[0].flags = 0x00;   /* all clear */
+    ASSERT_EQ(fd2_check_char_is_dead(0), 0);
+
+    g_test_rc_array[1].flags = 0x84;   /* acted + cannot_act, bit0 clear */
+    ASSERT_EQ(fd2_check_char_is_dead(1), 0);
+}
+
+/* flags bit0 set -> dead (1); high bits are masked off so the result is
+ * exactly 1, never the raw flags byte. */
+static void test_is_dead_dead_and_masked(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+
+    g_test_rc_array[0].flags = 0x01;   /* only dead bit */
+    ASSERT_EQ(fd2_check_char_is_dead(0), 1);
+
+    g_test_rc_array[1].flags = 0x85;   /* dead + acted + cannot_act */
+    ASSERT_EQ(fd2_check_char_is_dead(1), 1);
+
+    g_test_rc_array[2].flags = 0xFF;   /* all bits -> masked to 1 */
+    ASSERT_EQ(fd2_check_char_is_dead(2), 1);
+}
+
+/* non-zero index reads the correct slot (idx * 0x50 stride): a dead char at a
+ * high index does not bleed into the alive check of its neighbours. */
+static void test_is_dead_indexing(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+
+    g_test_rc_array[5].flags = 0x01;   /* only slot 5 is dead */
+    ASSERT_EQ(fd2_check_char_is_dead(4), 0);
+    ASSERT_EQ(fd2_check_char_is_dead(5), 1);
+    ASSERT_EQ(fd2_check_char_is_dead(6), 0);
+}
+
+
 void run_battle_battle2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -869,5 +919,8 @@ void run_battle_battle2_tests(void)
     RUN_TEST(test_find_equipped_not_found);
     RUN_TEST(test_find_equipped_boundary_0x80);
     RUN_TEST(test_find_equipped_char_idx_offset);
+    RUN_TEST(test_is_dead_alive);
+    RUN_TEST(test_is_dead_dead_and_masked);
+    RUN_TEST(test_is_dead_indexing);
     printf("\n");
 }

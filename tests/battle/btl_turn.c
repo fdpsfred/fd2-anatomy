@@ -53,7 +53,6 @@ extern int g_cast_status_cure_calls;
 extern int g_cast_status_via_d1b_calls;
 extern int g_repaint_settings_calls;
 extern int g_repaint_flip_buffer_after;
-extern int g_check_char_is_dead_return;
 
 
 static uint8 t_tmpl_roster[4 * 0x50];
@@ -1143,13 +1142,13 @@ static void test_drop_type2_loop_dispatches_all(void)
  *
  * Counts chars on `team` that pass a 4-condition AND filter: team match,
  * portrait_id != 0x79 (hidden/quest portrait), archetype_flag != 10
- * (boss/special), and !fd2_check_char_is_dead(i) (alive). In the test
- * build fd2_check_char_is_dead is a global-controlled stub returning
- * g_check_char_is_dead_return for every index, so the alive condition is
- * pinned with that global rather than per-char .flags. */
+ * (boss/special), and !fd2_check_char_is_dead(i) (alive). The real
+ * fd2_check_char_is_dead reads runtime_char[i].flags bit0, so the alive
+ * condition is pinned by leaving .flags == 0 (memset) for alive chars and
+ * setting .flags |= CHARFLAG_DEAD for dead ones. */
 
 /* All four AND conditions, with one disqualifier per filter present so each
- * exclusion is individually proven. g_check_char_is_dead_return=0 (alive).
+ * exclusion is individually proven. All chars alive (.flags == 0 after memset).
  *   [0] team=1, portrait=1, arch=0   -> COUNTS
  *   [1] team=0 (wrong team)          -> excluded
  *   [2] team=1, portrait=0x79        -> excluded (hidden portrait)
@@ -1161,7 +1160,7 @@ static void test_count_active_basic_filters(void)
     int result;
 
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
-    g_check_char_is_dead_return = 0;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
 
     g_test_rc_array[0].team = 1;
     g_test_rc_array[0].portrait_id = 1;
@@ -1198,7 +1197,7 @@ static void test_count_active_basic_filters(void)
 static void test_count_active_per_team(void)
 {
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
-    g_check_char_is_dead_return = 0;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
 
     g_test_rc_array[0].team = 1;            /* counts for team 1 */
     g_test_rc_array[1].team = 0;            /* counts for team 0 */
@@ -1215,28 +1214,31 @@ static void test_count_active_per_team(void)
 }
 
 /* Dead-check AND-condition: chars that pass team/portrait/archetype are
- * still excluded when fd2_check_char_is_dead returns nonzero. With the stub
- * forced to 1 (all dead) the count drops to 0 even though every char would
- * otherwise qualify -- proving the alive condition gates the increment. */
+ * still excluded when fd2_check_char_is_dead returns nonzero. Setting the
+ * dead bit (CHARFLAG_DEAD) on all three otherwise-qualifying chars drops the
+ * count to 0 -- proving the alive condition gates the increment. */
 static void test_count_active_dead_excluded(void)
 {
     int result;
 
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     g_test_rc_array[0].team = 1;
     g_test_rc_array[1].team = 1;
     g_test_rc_array[2].team = 1;
     data_fd2_battle_party_member_count = 3;
 
-    g_check_char_is_dead_return = 0;        /* all alive -> all 3 count */
+    /* all alive (.flags == 0) -> all 3 count */
     result = fd2_count_active_chars_for_team_filter(1);
     ASSERT_EQ(result, 3);
 
-    g_check_char_is_dead_return = 1;        /* all dead -> none count */
+    /* all dead -> none count */
+    g_test_rc_array[0].flags |= CHARFLAG_DEAD;
+    g_test_rc_array[1].flags |= CHARFLAG_DEAD;
+    g_test_rc_array[2].flags |= CHARFLAG_DEAD;
     result = fd2_count_active_chars_for_team_filter(1);
     ASSERT_EQ(result, 0);
 
-    g_check_char_is_dead_return = 0;
     data_fd2_battle_party_member_count = 4;
 }
 
@@ -1246,7 +1248,6 @@ static void test_count_active_empty_roster(void)
 {
     int result;
 
-    g_check_char_is_dead_return = 0;
     data_fd2_battle_party_member_count = 0;
     result = fd2_count_active_chars_for_team_filter(1);
     ASSERT_EQ(result, 0);

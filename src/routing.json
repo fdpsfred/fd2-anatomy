@@ -3614,8 +3614,9 @@
     "name": "fd2_check_char_is_dead",
     "target": "battle/battle.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00034565": {
     "name": "fd2_chapter_event_handler_0b__ch4_dialog",

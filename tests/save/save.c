@@ -33,7 +33,6 @@
 #include "savefix.h"
 
 extern runtime_char g_test_rc_array[8];
-extern int g_check_char_is_dead_return;
 
 /* Test-owned template (menu/roster) buffer: 8 entries x 0x50 bytes. */
 static uint8 g_test_tmpl[8 * 0x50];
@@ -52,7 +51,6 @@ static void save_fixture_reset(void)
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     memset(g_test_tmpl, 0, sizeof(g_test_tmpl));
     data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_test_tmpl;
-    g_check_char_is_dead_return = 0;
     data_fd2_battle_party_member_count = 1;
     data_fd2_shared_menu_party_member_count = 1;
 }
@@ -131,9 +129,9 @@ static void test_save_dead_keeps_hp(void)
 static void test_save_char0_dead_skips(void)
 {
     save_fixture_reset();
-    g_check_char_is_dead_return = 1;   /* 索爾 reported dead in battle */
 
-    /* runtime char_id 0 (索爾), would carry battle-dead state. */
+    /* runtime char_id 0 (索爾), dead in battle (flags bit0 set) -> the real
+     * fd2_check_char_is_dead(0) returns 1, triggering the skip path. */
     RC_B(0, 0x08) = 0;
     RC_B(0, 0x05) = 0x01;    /* dead */
     RC_W(0, 0x40) = 0;       /* hp_current 0 */
@@ -154,8 +152,9 @@ static void test_save_char0_dead_skips(void)
 static void test_save_char0_alive_copies(void)
 {
     save_fixture_reset();
-    g_check_char_is_dead_return = 0;   /* 索爾 alive */
 
+    /* runtime char_id 0 (索爾) alive (flags bit0 clear) -> is_dead(0)==0, so the
+     * char-0 skip special case does NOT fire and the entry is copied. */
     RC_B(0, 0x08) = 0;
     RC_B(0, 0x05) = 0x80;    /* acted bit, not dead */
     RC_W(0, 0x40) = 5;

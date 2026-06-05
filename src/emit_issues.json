@@ -152,7 +152,7 @@
     "issues": [
       {
         "type": "test_coverage_gap",
-        "desc": "No dedicated test for the 'cursor matches a DEAD char then a later ALIVE char' path; consider adding to testanim.c to cover the JNZ-continue branch after fd2_check_char_is_dead (currently the is_dead stub always returns 0, so the dead-skip continuation is never exercised).",
+        "desc": "No dedicated test for the 'cursor matches a DEAD char then a later ALIVE char' path; consider a test that covers the JNZ-continue branch after fd2_check_char_is_dead. Now that fd2_check_char_is_dead is the real routine (reads runtime_char[idx].flags bit0), the dead-skip continuation can be exercised by seeding g_test_rc_array[idx].flags |= CHARFLAG_DEAD on the matched slot.",
         "severity": "low",
         "verify_method": "add_test"
       }

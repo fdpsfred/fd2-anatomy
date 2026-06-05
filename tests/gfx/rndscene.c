@@ -18,7 +18,6 @@ extern uint32 g_tile_map_last_w;
 extern uint32 g_tile_map_last_h;
 extern uint32 g_tile_map_last_ox;
 extern uint32 g_tile_map_last_oy;
-extern int    g_check_char_is_dead_return;
 extern int    g_composite_call_count;
 /* recording stub for fd2_tile_blit_24x24_passthrough (testglob.c). The real
  * fd2_blit_24x24_at_window_relative_pos (src/gfx/blittile.c) forwards every
@@ -50,7 +49,6 @@ static void reset_pipeline_record(void)
 {
     g_tile_map_calls = 0;
     g_blitpass_calls = 0;
-    g_check_char_is_dead_return = 0;   /* all party slots alive */
     g_composite_call_count = 0;
 
     /* fd2_render_terrain_info_hud_panel is now the real emitted routine; keep
@@ -626,16 +624,15 @@ static void test_paint_jitter_bit_toggles_on_tick_change(void)
  *
  * Real routine: for i in [0, party_member_count): if !is_dead(i)
  * fd2_paint_char_sprite_at_world_pos(i); then one unconditional shadow
- * overlay. fd2_check_char_is_dead is a testglob stub; the per-char paint
- * and shadow overlay are the real / stub routines. Each alive in-window
- * slot produces exactly one recorded blit; distinct pos_x per slot lets the
- * test recover which index painted (and in what order).
+ * overlay. The real fd2_check_char_is_dead reads runtime_char[i].flags bit0,
+ * so dead slots are pinned by setting .flags |= CHARFLAG_DEAD. Each alive
+ * in-window slot produces exactly one recorded blit; distinct pos_x per slot
+ * lets the test recover which index painted (and in what order).
  * ---------------------------------------------------------------- */
 static void reset_overlay_record(void)
 {
     int i;
 
-    g_check_char_is_dead_return = 0;
     reset_paint_window();
     /* shadow overlay runs the real fd2_blit_animated_tile_at_pos for every
      * char footprint tile; install a transparent tile-map (renderable bit
@@ -668,7 +665,7 @@ static void test_overlay_all_alive(void)
 
     reset_overlay_record();
     data_fd2_battle_party_member_count = 5;
-    g_check_char_is_dead_return = 0;
+    /* every slot alive: reset_overlay_record set .flags == 0 for all slots */
 
     fd2_composite_all_chars_overlay();
 
@@ -684,9 +681,13 @@ static void test_overlay_all_alive(void)
 /* All party slots dead: every slot skipped, still exactly one shadow pass. */
 static void test_overlay_all_dead(void)
 {
+    int i;
+
     reset_overlay_record();
     data_fd2_battle_party_member_count = 4;
-    g_check_char_is_dead_return = 1;
+    for (i = 0; i < 4; i++) {
+        g_test_rc_array[i].flags |= CHARFLAG_DEAD;   /* every scanned slot dead */
+    }
 
     fd2_composite_all_chars_overlay();
 
@@ -733,7 +734,6 @@ static void setup_shadow_char(int slot, uint8 px, uint8 py, uint8 facing,
 static void reset_shadow_record(void)
 {
     g_blitpass_calls = 0;
-    g_check_char_is_dead_return = 0;
     data_fd2_battle_party_member_count = 1;
     data_fd2_large_game_state_buffer_ptr = SHADOW_BUF;
     data_fd2_battle_view_window_origin_x = 0;
@@ -842,7 +842,7 @@ static void test_shadow_dead_skipped(void)
 {
     reset_shadow_record();
     setup_shadow_char(0, 0x0a, 0x07, 0, 1);
-    g_check_char_is_dead_return = 1;
+    g_test_rc_array[0].flags |= CHARFLAG_DEAD;   /* dead -> skipped */
 
     fd2_paint_chars_shadow_overlay();
 

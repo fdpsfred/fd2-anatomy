@@ -881,3 +881,16 @@ uint32 fd2_find_equipped_item_by_kind(uint32 char_idx, uint32 kind)
     }
     return 0xffffffff;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_check_char_is_dead @ 0x3453E  (33 callers)
+ *
+ * Return the dead bit (bit0) of runtime_char[char_idx].flags, as 0
+ * (alive) or 1 (dead). Counterpart to fd2_mark_char_as_dead @ 0x32975
+ * which writes flags = 1. Body: AL = flags; AL &= 1; MOVZX EAX,AL.
+ * ---------------------------------------------------------------- */
+int fd2_check_char_is_dead(uint32 char_idx)
+{
+    return data_fd2_battle_runtime_char_array_ptr[char_idx].flags
+         & CHARFLAG_DEAD;
+}

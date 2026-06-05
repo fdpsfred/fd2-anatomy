@@ -54,11 +54,10 @@
 extern runtime_char g_test_rc_array[8];
 extern void *data_fd2_chapter_cutscene_event_script_ptr_table_106[106];
 
-/* fd2_check_char_is_dead is not emitted yet; in the test build it is the
- * testglob stub that ignores its char index and returns this global. The
- * handler_09 guard is therefore pinned via g_check_char_is_dead_return rather
- * than a per-char .flags byte. */
-extern int g_check_char_is_dead_return;
+/* fd2_check_char_is_dead is now the real routine in src/battle/battle.c; it
+ * reads runtime_char[idx].flags bit0 through data_fd2_battle_runtime_char_array_ptr.
+ * ev_install_safe_env points that pointer at g_ev_rc, so the handler_09 guard
+ * for 沃斯 (char 6) is pinned by setting g_ev_rc[6].flags (CHARFLAG_DEAD). */
 
 /* 64-slot runtime-char fixture (the handler's callees touch active battle
  * slots; an oversized array keeps every write in-bounds). */
@@ -665,12 +664,11 @@ static void test_ch2_event6_arms_reinforcement_enemies(void)
  * No RNG, no numeric computation, no CALL-return value used other than the
  * fd2_check_char_is_dead(6) guard.
  *
- * fd2_check_char_is_dead is not emitted yet, so in the test build it is the
- * testglob stub that returns g_check_char_is_dead_return for every index (the
- * same control the gfx/rndscene and battle/btl_turn suites use). The guard is
- * therefore pinned via that global: 0 -> alive -> body runs; 1 -> dead -> body
- * skipped. Both paths are asserted, and the global is restored to its default 0
- * afterward.
+ * fd2_check_char_is_dead is the real routine; it reads runtime_char[6].flags
+ * bit0 through data_fd2_battle_runtime_char_array_ptr (pointed at g_ev_rc by
+ * ev_install_safe_env). The guard is therefore pinned by g_ev_rc[6].flags:
+ * bit0 clear -> alive -> body runs; CHARFLAG_DEAD set -> dead -> body skipped.
+ * Both paths are asserted.
  *
  * ALIVE path: the single fd2_load_chapter_portraits_and_dump_tmp(2) runs FOR
  * REAL against the staged real FDICON.B24 + FDFIELD.DAT using the same proven
@@ -713,8 +711,8 @@ static void test_ch3_event9_char6_alive_reloads_and_shows_dialog(void)
      * field buffer). handler_09 reloads ONCE (portrait set 2). */
     ev_install_safe_env();
 
-    /* 沃斯 (char 6) alive: pin the dead-check stub to 0 so the guard passes. */
-    g_check_char_is_dead_return = 0;
+    /* 沃斯 (char 6) alive: ev_install_safe_env memset g_ev_rc, so g_ev_rc[6].flags
+     * bit0 is clear -> fd2_check_char_is_dead(6)==0 and the guard passes. */
 
     /* seed the camera at the origin so the two pans (to (3,0) then (3,0x11))
      * are bounded and the final window origin is the observable. */
@@ -750,8 +748,8 @@ static void test_ch3_event9_char6_dead_skips_beat(void)
 {
     ev_install_safe_env();
 
-    /* 沃斯 (char 6) dead: pin the dead-check stub to 1 so the guard fails. */
-    g_check_char_is_dead_return = 1;
+    /* 沃斯 (char 6) dead: set the dead bit on g_ev_rc[6] so the guard fails. */
+    g_ev_rc[6].flags |= CHARFLAG_DEAD;
 
     /* seed the camera at a sentinel distinct from the body's final pan target
      * (3, 0x11); if the body runs it would overwrite this. */
@@ -764,8 +762,6 @@ static void test_ch3_event9_char6_dead_skips_beat(void)
     ASSERT_EQ(data_fd2_battle_view_window_origin_x, 0x42);
     ASSERT_EQ(data_fd2_battle_view_window_origin_y, 0x37);
 
-    /* restore the dead-check stub to its default 0 for later suites. */
-    g_check_char_is_dead_return = 0;
     ev_restore_rc_ptr();
 }
 
