@@ -1172,3 +1172,56 @@ void fd2_chapter_event_handler_20__ch10_dialog(uint32 event_arg)
     fd2_display_dialog_scene(current_chapter_text, 1, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_show_chapter_dialog_with_portrait_set_1 @ 0x34BE7
+ *   (1 caller: fd2_chapter_event_handler_05__ch13_thunk @ 0x34D68)
+ *
+ * Shared portrait+dialog body: reload portrait set 1, then show
+ * current_chapter_text dialog page 1 with the standard dialog
+ * geometry. A straight-line, no-branch sequence with no camera pan,
+ * no cutscene trigger, no state writes, no RNG, no numeric
+ * computation, and no CALL-return value used.
+ *
+ * void __cdecl(void). EBX is not touched; the __CHK(0x28) stack-probe
+ * prologue is compiler-injected and omitted here (the original body
+ * starts directly with CALL __CHK and expects every entry path to push
+ * the 0x28 frame size first).
+ *
+ * Two entry paths reach this body in the original binary, each pushing
+ * the 0x28 __CHK frame size first:
+ *   - fd2_chapter_event_handler_05__ch13_thunk @ 0x34D68 tail-JMPs here
+ *     ("PUSH 0x28; JMP 0x34BE7") for its ch13 beat — emitted as a call
+ *     to this helper.
+ *   - fd2_chapter_event_handler_20__ch10_dialog @ 0x34BE2 falls through
+ *     ("PUSH 0x28; 0x34BE2 -> 0x34BE7") for its ch10 beat — emitted with
+ *     this body's effect reproduced inline.
+ *
+ * The original body also hosts three Class-3 shared entry points borrowed
+ * by other handlers, all reproduced inline in their respective consumers
+ * for Layer-2 equivalence:
+ *   - 0x34BF6 (+0x0F): start of the 8-PUSH chain (page=1 plus the fixed
+ *     dialog geometry) — fd2_chapter_event_handler_28 reaches it for its
+ *     own page-1 dialog.
+ *   - 0x34C0F (+0x28): the "PUSH current_chapter_text; CALL
+ *     fd2_display_dialog_scene; ADD ESP,0x24; RET" tail —
+ *     fd2_show_chapter_intro_text_dialog_mode_3 (page=3),
+ *     fd2_chapter_event_handler_07 (ch13), fd2_chapter_event_handler_26
+ *     (ch15) and one more JMP into it as their dialog tail.
+ *   - 0x34C1D (+0x36): the bare RET — fd2_chapter_event_handler_16 (ch6)
+ *     uses it as a "ret-only" path join.
+ *
+ * Magic numbers (matching every dialog call in this group):
+ *   0xA0000 VGA framebuffer base, 0x140 (=320) row stride,
+ *   0xCD/0x4C dialog window position (X, Y), 0x4A charset/style code,
+ *   0x13 (=19) max line count, 1 wait-for-input flag.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_10.md (ch10 reinforcement
+ * arrival) and assets/chapters/chapter_13.md (ch13).
+ * ---------------------------------------------------------------- */
+void fd2_show_chapter_dialog_with_portrait_set_1(void)
+{
+    fd2_load_chapter_portraits_and_dump_tmp(1);
+    fd2_display_dialog_scene(current_chapter_text, 1, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+}

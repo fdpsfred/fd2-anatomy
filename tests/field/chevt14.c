@@ -1,9 +1,11 @@
 /*
- * unit tests for src/field/chevt1.c (part 4: handler 20)
+ * unit tests for src/field/chevt1.c (part 4: handler 20 + shared body
+ * fd2_show_chapter_dialog_with_portrait_set_1)
  *
  * The chapter turn-event handlers in src/field/chevt1.c are dispatched as
  * indices of the per-event handler table at 0x51B91. Parts 1/2/3 (chevt11.c /
- * chevt12.c / chevt13.c) cover handlers 00..1F; this part covers handler 20.
+ * chevt12.c / chevt13.c) cover handlers 00..1F; this part covers handler 20 and
+ * the shared portrait+dialog body it falls through into.
  *
  * fd2_chapter_event_handler_20__ch10_dialog @ 0x34BE2 is dispatch idx 0x20 of
  * that table — chapter 10 turn-event slot 0, fired at turn 5 / phase 1 when the
@@ -14,6 +16,12 @@
  * is a straight-line, no-branch beat with no camera pan, no cutscene trigger,
  * no state writes beyond the portrait reload, no RNG, no numeric computation,
  * and no CALL-return value used.
+ *
+ * fd2_show_chapter_dialog_with_portrait_set_1 @ 0x34BE7 is that shared body as
+ * a directly-callable void(void) helper. Its other entry path is
+ * fd2_chapter_event_handler_05__ch13_thunk @ 0x34D68 ("PUSH 0x28; JMP 0x34BE7",
+ * ch13). Calling the helper directly exercises the same two-callee chain
+ * (real portrait set 1 reload + real page-1 dialog dispatch) as handler 20.
  *
  * Two observable, deterministic contracts are checked:
  *   - the real fd2_load_chapter_portraits_and_dump_tmp(1) runs FOR REAL against
@@ -111,10 +119,41 @@ static void test_ch10_event20_reloads_portrait1_and_shows_dialog_page1(void)
     ev_restore_rc_ptr();
 }
 
+/* ----------------------------------------------------------------
+ * The shared body, called directly (handler_05's ch13 entry path). It must
+ * produce the SAME effect as handler_20: reload portrait set 1 (real) then show
+ * dialog page 1 via the real dialog VM. Observable, deterministic contract: the
+ * real portrait reload rewrote FD2.TMP to its full 0x32A00 bytes, exactly one
+ * glyph is emitted and it is page 1's glyph (idx 0x51) — proving the body
+ * dispatches page 1 (not any other page) — and the whole real callee chain runs
+ * to completion without faulting.
+ * ---------------------------------------------------------------- */
+static void test_show_chapter_dialog_portrait_set_1_reloads_portrait1_page1(void)
+{
+    ev20_install_safe_env();
+
+    remove("FD2.TMP");
+
+    fd2_show_chapter_dialog_with_portrait_set_1();
+
+    /* the real portrait reload ran: FD2.TMP rewritten to its full 0x32A00. */
+    ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
+
+    /* exactly page 1 was shown: one glyph, idx 0x51 (= 0x50 + page 1). */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0x51);
+
+    /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
+    remove("FD2.TMP");
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt14_tests(void)
 {
     int _prev_fails = g_test_fail_count;
     printf("Suite: field/chevt14\n");
     RUN_TEST(test_ch10_event20_reloads_portrait1_and_shows_dialog_page1);
+    RUN_TEST(test_show_chapter_dialog_portrait_set_1_reloads_portrait1_page1);
     printf("\n");
 }
