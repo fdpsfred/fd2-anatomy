@@ -9,6 +9,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <dos.h>
 
 /* ----------------------------------------------------------------
  * fd2_save_runtime_char_to_template @ 0x11506 (24 callers)
@@ -331,4 +332,102 @@ void fd2_load_state_from_selected_slot(void)
     } while (slot_result != 0xffffffff);
 
     free(pBuf);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_save_slot_selector_ui @ 0x30550 (3 callers)
+ *
+ * 4-slot save-file picker UI. __cdecl, two args:
+ *   sav_decrypted_buf = plaintext FD2.SAV image (forwarded to the
+ *                       grid renderer for per-slot summaries),
+ *   manual_mode       = 0 -> read keys via direct BIOS int 16h;
+ *                       nonzero -> poll-and-blink input helper.
+ * Returns 1 on commit (chosen slot left in data_fd2_ui_menu_cursor_idx,
+ * 0..3) and -1 on cancel.
+ *
+ * Allocates 3 x 64000-byte workspace buffers, snapshots the live VGA
+ * framebuffer (0xA0000) into b, clones it to c, blits the panel-header
+ * sprite into c, paints the initial slot grid into c, then reveals the
+ * panel with a 6-frame slide-down. After setup it runs an Up/Down
+ * navigation loop until the user commits or cancels.
+ *
+ * The workspace buffers a/b/c are NOT freed here — the caller frees
+ * them via fd2_close_intro_dialog_with_slide_out (same 3-buffer state).
+ *
+ * Callers: fd2_main_menu_continue_dispatcher @ 0x25EBB,
+ *          fd2_save_current_state_to_slot    @ 0x30012,
+ *          fd2_load_state_from_selected_slot @ 0x301F4.
+ *
+ * NOTE: the binary tail-JMPs into a shared epilogue at 0x2D3F8 that
+ * does MOV EAX,ESI / POP EBP,EDI,ESI,EBX / RET; ESI holds the result,
+ * so this is functionally identical to "return result;".
+ * ---------------------------------------------------------------- */
+int fd2_save_slot_selector_ui(uint32 sav_decrypted_buf, uint32 manual_mode)
+{
+    uint32 scancode;
+    int32  intro_iter;
+    int    result;
+
+    result = 0;
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_composed_target_buf_ptr = (uint32)malloc(64000);
+    memmove((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr,
+            (void *)0xa0000, 64000);
+    memmove((void *)data_fd2_ui_slide_composed_target_buf_ptr,
+            (void *)data_fd2_ui_slide_bg_snapshot_buf_ptr, 64000);
+    fd2_dialog_sprite_blit_normal(
+        data_fd2_ui_slide_composed_target_buf_ptr + 0x8c05,
+        data_fd2_ui_menu_screen_sprite_atlas_buf_ptr +
+            *(uint32 *)(data_fd2_ui_menu_screen_sprite_atlas_buf_ptr + 0x46),
+        0x140);
+    fd2_render_save_slot_grid(data_fd2_ui_menu_cursor_idx,
+                              data_fd2_ui_slide_composed_target_buf_ptr,
+                              (uint8 *)sav_decrypted_buf);
+    fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr, 5, 1);
+    for (intro_iter = 5; intro_iter >= 0; intro_iter--) {
+        fd2_slide_panel_down_step((uint32)(intro_iter * 0xd + 0x70),
+                                  data_fd2_ui_slide_anim_accumulator_buf_ptr,
+                                  data_fd2_ui_slide_composed_target_buf_ptr);
+    }
+
+    do {
+        if (manual_mode == 0) {
+            data_fd2_input_key_input_mode = 0x10;
+            int386(0x16, (union REGS *)&data_fd2_input_last_key_pressed,
+                         (union REGS *)&data_fd2_input_last_key_pressed);
+            if (data_fd2_input_key_input_mode == 0xe0
+                || data_fd2_input_key_input_mode == 0x52) {
+                data_fd2_input_key_input_mode = 0x1c;
+            }
+            if (data_fd2_input_key_input_mode == 0x53) {
+                data_fd2_input_key_input_mode = 1;
+            }
+            scancode = (uint32)data_fd2_input_key_input_mode;
+        } else {
+            scancode = (uint32)(uint8)fd2_wait_for_input_dialog_with_blink(0);
+        }
+
+        if (scancode == 0x50 && data_fd2_ui_menu_cursor_idx != 3) {
+            fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
+                                     7, 1);
+            data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx + 1;
+            fd2_render_save_slot_grid(data_fd2_ui_menu_cursor_idx, 0xa0000,
+                                      (uint8 *)sav_decrypted_buf);
+        } else if (scancode == 0x48 && data_fd2_ui_menu_cursor_idx != 0) {
+            fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
+                                     7, 1);
+            data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx - 1;
+            fd2_render_save_slot_grid(data_fd2_ui_menu_cursor_idx, 0xa0000,
+                                      (uint8 *)sav_decrypted_buf);
+        } else if (scancode == 0x1c || scancode == 0x39) {
+            result = 1;
+        } else if (scancode == 1) {
+            result = -1;
+        }
+
+        if (result != 0) {
+            return result;
+        }
+    } while (1);
 }

@@ -19,6 +19,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "realfile.h"   /* realdat_read_resource() */
+/* savefix.h: stage the real fd2_save_slot_selector_ui's setup deps + queue the
+ * scancode the CONTINUE branch's picker reads via int386(0x16). */
+#include "savefix.h"
 
 #define USE_ITEM_ID 10
 
@@ -40,7 +43,6 @@ static uint8 *realsav_decrypted(void)
 extern runtime_char g_test_rc_array[8];
 extern uint8 data_fd2_audio_bgm_last_set_track_id;
 extern int g_ending_menu_return;
-extern int g_slot_selector_return;
 
 /* fd2_load_save_and_init_engine cinematic-loop recorders (testglob.c).
  * fd2_alloc_and_blit_indexed_sprite_chunk is now the real emitted function; it
@@ -341,13 +343,25 @@ static void test_load_save_cinematic_loop_counts(void)
 static void test_main_menu_continue_quit(void)
 {
     int r;
+    int keys[1];
+
     setup_menu_dats();
     g_ending_menu_return = 1;
-    g_slot_selector_return = -1;
+
+    /* CONTINUE branch (menu_choice==1) loads the real FDOTHER menu atlas, then
+     * runs the REAL fd2_save_slot_selector_ui(pBuf, 0). Stage the all-END grid
+     * text (the atlas comes from the real FDOTHER load) and queue a single Esc
+     * so the picker cancels on its first poll and the dispatcher returns -1. */
+    savefix_setup_text();
+    keys[0] = 0x01;                       /* Esc = cancel */
+    savefix_queue_scancodes(keys, 1);
+
     r = fd2_main_menu_continue_dispatcher();
     ASSERT_EQ((long)r, -1);
+
     /* the menu-atlas FDOTHER[0xD] buffer is freed + nulled by the function;
-     * teardown frees the palette + any bgm buffer. */
+     * reclaim the 3 workspaces the picker leaked, then free palette + bgm. */
+    savefix_free_selector_workspaces();
     teardown_menu_dats();
 }
 

@@ -3150,8 +3150,9 @@
     "name": "fd2_save_slot_selector_ui",
     "target": "save/save.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0003072f": {
     "name": "fd2_run_chapter_intro_menu_typeC",

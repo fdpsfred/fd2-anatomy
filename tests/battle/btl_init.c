@@ -21,7 +21,6 @@ extern uint8 data_fd2_audio_bgm_last_set_track_id;
 extern uint8 data_fd2_battle_summon_minor_anim_state5_frame_counter;
 extern uint8 data_fd2_battle_summon_minor_anim_alternating_blit_toggle;
 extern int g_ending_menu_return;
-extern int g_slot_selector_return;
 extern int g_chapter_transition_return;
 extern int g_play_sfx_with_handle_calls;
 extern int g_play_sfx_sample_from_bank_calls;

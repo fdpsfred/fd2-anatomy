@@ -605,32 +605,17 @@ void fd2_play_and_free_status_effect_sfx(void) { }
  * neutralizing stub was removed. */
 int g_ending_menu_return = 0;
 int fd2_play_ending_and_record_clear(void) { return g_ending_menu_return; }
-/* Slot-selector fake. Default (constant) mode returns g_slot_selector_return
- * every call (used by the life/main quit test: -1 = cancel). One-shot mode
- * (g_slot_selector_oneshot != 0) mimics a single commit: the first call writes
- * g_slot_selector_cursor into data_fd2_ui_menu_cursor_idx (the real selector
- * leaves the chosen slot there) and returns g_slot_selector_first_ret (1 =
- * commit), every later call returns -1 so the caller's do-while terminates.
- * g_slot_selector_calls counts invocations. The save-current-state test arms
- * one-shot and resets these in its fixture so other suites are unaffected. */
-int    g_slot_selector_return = -1;
-int    g_slot_selector_oneshot = 0;
-int    g_slot_selector_first_ret = 1;
-uint32 g_slot_selector_cursor = 0;
-int    g_slot_selector_calls = 0;
-int fd2_save_slot_selector_ui(uint32 b, uint32 m)
-{
-    (void)b; (void)m;
-    g_slot_selector_calls++;
-    if (g_slot_selector_oneshot) {
-        if (g_slot_selector_calls == 1) {
-            data_fd2_ui_menu_cursor_idx = g_slot_selector_cursor;
-            return g_slot_selector_first_ret;
-        }
-        return -1;
-    }
-    return g_slot_selector_return;
-}
+/* fd2_save_slot_selector_ui is now emitted for real in src/save/save.c and
+ * linked. Its callers (fd2_save_current_state_to_slot,
+ * fd2_load_state_from_selected_slot in save/save.c, and
+ * fd2_main_menu_continue_dispatcher in life/main.c) drive the real picker:
+ * each iteration reads ONE scancode via the real int386(0x16) BIOS read, so
+ * tests pre-arm the BIOS keyboard buffer (Enter 0x1C = commit the slot left in
+ * data_fd2_ui_menu_cursor_idx, Esc 0x01 = cancel). The setup phase blits a
+ * panel sprite (the recording fd2_dialog_sprite_blit_normal stub below) and
+ * paints the grid via the real fd2_render_save_slot_grid, so those callers'
+ * fixtures stage a small sprite-atlas buffer and an all-END dialog text
+ * program. The former g_slot_selector_* control fake was removed. */
 void fd2_close_intro_dialog_with_slide_out(void) { }
 int g_chapter_transition_return = 0;
 int fd2_chapter_transition_menu(void) { return g_chapter_transition_return; }

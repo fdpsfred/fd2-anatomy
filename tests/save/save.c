@@ -27,10 +27,13 @@
  * fd2_paint_portrait_to_dialog_area run without VGA, and the dialog returns at
  * the END opcode without consuming the injected keystroke. */
 #include "minipfix.h"
+/* savefix.h: stages the real fd2_save_slot_selector_ui's setup deps (sprite
+ * atlas for the panel-header blit arg + all-END grid text) and queues the
+ * scancode sequence the picker's int386(0x16) reads one-per-poll. */
+#include "savefix.h"
 
 extern runtime_char g_test_rc_array[8];
 extern int g_check_char_is_dead_return;
-extern int g_slot_selector_return;
 
 /* Test-owned template (menu/roster) buffer: 8 entries x 0x50 bytes. */
 static uint8 g_test_tmpl[8 * 0x50];
@@ -413,20 +416,31 @@ static void test_crypt_size_one(void)
 #define SAV_SLOT0  0x312BL          /* file offset of slot 0 base */
 #define SAV_STRIDE 0xA28L           /* bytes per slot */
 
-extern int    g_slot_selector_oneshot;
-extern int    g_slot_selector_first_ret;
-extern uint32 g_slot_selector_cursor;
-extern int    g_slot_selector_calls;
-
 /* roster source the function memmoves into the slot (0xA00 bytes) */
 static uint8 *g_scs_roster;
 /* backup of the staged FD2.SAV so teardown can restore the original */
 static uint8 *g_scs_sav_backup;
 
+/* Down-navigate to slot `slot` then commit: the real picker resets the cursor
+ * to 0, so reaching slot N takes N Down keys (0x50) then Enter (0x1C). Returns
+ * the count written into `codes`. */
+static int scs_commit_keys(int *codes, uint32 slot)
+{
+    int n = 0;
+    uint32 k;
+    for (k = 0; k < slot; k++) {
+        codes[n++] = 0x50;            /* Down */
+    }
+    codes[n++] = 0x1C;                /* Enter = commit */
+    return n;
+}
+
 static void scs_setup(uint32 chapter_with_nonzero_category, uint32 slot)
 {
     FILE  *fp;
     int    i;
+
+    (void)slot;
 
     /* back up the staged real FD2.SAV verbatim */
     g_scs_sav_backup = (uint8 *)malloc(SAV_SIZE);
@@ -454,11 +468,8 @@ static void scs_setup(uint32 chapter_with_nonzero_category, uint32 slot)
      * (and its blocking input wait) is skipped */
     data_fd2_chapter_per_chapter_category_table[chapter_with_nonzero_category] = 1;
 
-    /* one-shot selector: commit slot `slot` once, then cancel */
-    g_slot_selector_oneshot = 1;
-    g_slot_selector_first_ret = 1;
-    g_slot_selector_cursor = slot;
-    g_slot_selector_calls = 0;
+    /* stage the real picker's setup deps (sprite atlas + all-END grid text) */
+    savefix_setup_env();
 }
 
 static void scs_teardown(uint32 chapter)
@@ -472,16 +483,14 @@ static void scs_teardown(uint32 chapter)
     free(g_scs_sav_backup);
     free(g_scs_roster);
 
+    /* reclaim the 3 workspaces the last picker call leaked */
+    savefix_free_selector_workspaces();
+
     /* clear test-owned shared state so later suites are clean */
     g_scs_sav_backup = 0;
     g_scs_roster = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_chapter_per_chapter_category_table[chapter] = 0;
-    g_slot_selector_oneshot = 0;
-    g_slot_selector_first_ret = 1;
-    g_slot_selector_cursor = 0;
-    g_slot_selector_calls = 0;
-    g_slot_selector_return = -1;
     data_fd2_chapter_current_chapter_id = 1;
 }
 
@@ -506,13 +515,19 @@ static void test_scs_writes_slot_header_and_roster(void)
     uint8 *sav;
     uint8 *slot;
     long   base;
+    int    keys[8];
+    int    n;
 
     scs_setup(0x16, 2);          /* chapter 0x16 has category 1; slot 2 */
 
-    fd2_save_current_state_to_slot(1);
+    /* picker call 1: Down,Down,Enter -> commit slot 2; call 2: Esc -> cancel
+     * (exits the save loop). All keys queued upfront; the real int386(0x16)
+     * reads one per poll. */
+    n = scs_commit_keys(keys, 2);
+    keys[n++] = 0x01;            /* Esc = cancel */
+    savefix_queue_scancodes(keys, n);
 
-    /* selector called twice: one commit + one cancel to exit the loop */
-    ASSERT_EQ((long)g_slot_selector_calls, 2);
+    fd2_save_current_state_to_slot(1);
 
     sav = scs_read_decrypted();
     base = SAV_SLOT0 + 2 * SAV_STRIDE;
@@ -548,12 +563,20 @@ static void test_scs_slot_index_routes_offset(void)
     int    i;
     int    differs;
 
+    int    keys[8];
+    int    n;
+
     scs_setup(0x17, 3);          /* chapter 0x17 category 1; slot 3 */
 
     /* snapshot the decrypted ORIGINAL so we can prove only slot 3 changed */
     orig = (uint8 *)malloc(SAV_SIZE);
     memcpy(orig, g_scs_sav_backup, SAV_SIZE);
     fd2_save_crypt_buffer((uint32)orig, SAV_SIZE);
+
+    /* commit slot 3 (Down x3, Enter), then Esc to exit the loop */
+    n = scs_commit_keys(keys, 3);
+    keys[n++] = 0x01;
+    savefix_queue_scancodes(keys, n);
 
     fd2_save_current_state_to_slot(1);
 
@@ -583,16 +606,16 @@ static void test_scs_cancel_leaves_file_unchanged(void)
     uint8 *sav;
     int    i;
     int    differs;
+    int    keys[1];
 
-    /* setup arms one-shot but we override to pure-cancel below */
     scs_setup(0x18, 1);
-    g_slot_selector_oneshot = 0;     /* constant mode */
-    g_slot_selector_return = -1;     /* immediate cancel */
+
+    /* single Esc -> the picker returns -1 on its first poll, the do-while
+     * exits, and no fopen "wb" write path is taken */
+    keys[0] = 0x01;
+    savefix_queue_scancodes(keys, 1);
 
     fd2_save_current_state_to_slot(1);
-
-    /* selector consulted exactly once, then the do-while exits */
-    ASSERT_EQ((long)g_slot_selector_calls, 1);
 
     /* file bytes identical to the staged original (no fopen "wb" path taken) */
     sav = (uint8 *)malloc(SAV_SIZE);
@@ -637,11 +660,6 @@ static void test_scs_cancel_leaves_file_unchanged(void)
  * real cipher) before the load; the original file is restored at teardown.
  * ================================================================ */
 
-extern int    g_slot_selector_oneshot;
-extern int    g_slot_selector_first_ret;
-extern uint32 g_slot_selector_cursor;
-extern int    g_slot_selector_calls;
-
 /* backup of the staged FD2.SAV so teardown restores the original */
 static uint8 *g_lss_sav_backup;
 /* the plaintext we wrote into the slot (for verbatim roster comparison) */
@@ -649,32 +667,23 @@ static uint8 *g_lss_plain;
 /* dest roster buffer the loader memmoves the slot body into */
 static uint8 *g_lss_roster;
 
-/* Inject one keystroke into the BIOS keyboard buffer (BDA @ 0x400) so the real
- * fd2_wait_for_input_dialog_with_blink() returns on its first poll. Mirrors
- * tests/ui_menu/status.c kbd_inject_scancode. */
-static void lss_kbd_inject(int scancode)
+/* Down-navigate to slot `slot` then commit (Down x slot, Enter). */
+static int lss_commit_keys(int *codes, uint32 slot)
 {
-    *(volatile uint16 *)0x41AuL = 0x1E;                       /* head        */
-    *(volatile uint16 *)0x41CuL = 0x20;                       /* tail=head+2 */
-    *(volatile uint16 *)0x41EuL = (uint16)((scancode << 8) & 0xFF00);
+    int n = 0;
+    uint32 k;
+    for (k = 0; k < slot; k++) {
+        codes[n++] = 0x50;            /* Down */
+    }
+    codes[n++] = 0x1C;                /* Enter = commit */
+    return n;
 }
 
-/* free the three 64000-byte workspaces fd2_load_chapter_portrait leaks each
- * call plus the portrait buffer it loads. */
+/* free the portrait buffer fd2_load_chapter_portrait leaks (the 3 picker /
+ * portrait workspaces are reclaimed via savefix_free_selector_workspaces). */
 static void lss_free_portrait_workspaces(void)
 {
-    if (data_fd2_ui_slide_anim_accumulator_buf_ptr != 0) {
-        free((void *)data_fd2_ui_slide_anim_accumulator_buf_ptr);
-        data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
-    }
-    if (data_fd2_ui_slide_bg_snapshot_buf_ptr != 0) {
-        free((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr);
-        data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
-    }
-    if (data_fd2_ui_slide_composed_target_buf_ptr != 0) {
-        free((void *)data_fd2_ui_slide_composed_target_buf_ptr);
-        data_fd2_ui_slide_composed_target_buf_ptr = 0;
-    }
+    savefix_free_selector_workspaces();
     if (data_fd2_portrait_sprite_buffer != 0) {
         free((void *)data_fd2_portrait_sprite_buffer);
         data_fd2_portrait_sprite_buffer = 0;
@@ -741,15 +750,14 @@ static void lss_setup(uint32 chapter_story, uint32 member_count, uint32 slot)
     /* default-slot speaker portrait id for fd2_load_chapter_portrait */
     data_fd2_chapter_intro_menu_speaker_portrait_id_table[0] = 0x40;
 
+    (void)slot;
+
     /* immediate-END dialog text + sprite sheet + blit spies */
     minip_setup_env();
     data_fd2_portrait_sprite_buffer = 0;
 
-    /* one-shot selector commits `slot` once, then cancels */
-    g_slot_selector_oneshot = 1;
-    g_slot_selector_first_ret = 1;
-    g_slot_selector_cursor = slot;
-    g_slot_selector_calls = 0;
+    /* stage the real picker's setup deps (sprite atlas + all-END grid text) */
+    savefix_setup_env();
 }
 
 static void lss_teardown(uint32 chapter_story)
@@ -775,26 +783,23 @@ static void lss_teardown(uint32 chapter_story)
         free((void *)portrait_sprite_cache);
         portrait_sprite_cache = 0;
     }
-    g_slot_selector_oneshot = 0;
-    g_slot_selector_first_ret = 1;
-    g_slot_selector_cursor = 0;
-    g_slot_selector_calls = 0;
-    g_slot_selector_return = -1;
     data_fd2_chapter_current_chapter_id = 1;
     data_fd2_resource_portrait_cache_count = 0;
 }
 
-/* ---- Test: cancel arm -> no state touched, selector consulted once ---- */
+/* ---- Test: cancel arm -> no state touched ---- */
 static void test_lss_cancel_restores_nothing(void)
 {
     uint32 chap_before;
     uint32 gold_before;
     uint32 count_before;
+    int    keys[1];
 
-    /* setup builds an image but we override to pure-cancel */
     lss_setup(5, 0, 1);
-    g_slot_selector_oneshot = 0;
-    g_slot_selector_return = -1;
+
+    /* single Esc -> the picker cancels on its first poll, loop exits */
+    keys[0] = 0x01;
+    savefix_queue_scancodes(keys, 1);
 
     chap_before  = data_fd2_chapter_current_chapter_id;
     gold_before  = data_fd2_shared_party_total_gold;
@@ -802,8 +807,6 @@ static void test_lss_cancel_restores_nothing(void)
 
     fd2_load_state_from_selected_slot();
 
-    /* selector consulted exactly once, then the do-while exits */
-    ASSERT_EQ((long)g_slot_selector_calls, 1);
     /* nothing restored on cancel */
     ASSERT_EQ((long)data_fd2_chapter_current_chapter_id, (long)chap_before);
     ASSERT_EQ((long)data_fd2_shared_party_total_gold, (long)gold_before);
@@ -820,8 +823,16 @@ static void test_lss_empty_slot_reprompts(void)
 {
     long   base;
     uint32 count_before;
+    int    keys[4];
+    int    n;
 
     lss_setup(5, 0, 1);
+
+    /* picker call 1: Down,Enter -> commit slot 1 (empty: no restore/dialog,
+     * re-prompt); call 2: Esc -> cancel and exit. */
+    n = lss_commit_keys(keys, 1);
+    keys[n++] = 0x01;
+    savefix_queue_scancodes(keys, n);
 
     /* overwrite slot 1's chapter byte to 0xFF (empty) in the on-disk image */
     base = SAV_SLOT0 + 1 * SAV_STRIDE;
@@ -843,9 +854,6 @@ static void test_lss_empty_slot_reprompts(void)
 
     fd2_load_state_from_selected_slot();
 
-    /* selector consulted twice: first commit hits the empty slot (no restore,
-     * no dialog) and re-prompts; the second call cancels and exits */
-    ASSERT_EQ((long)g_slot_selector_calls, 2);
     /* empty slot -> nothing restored, dest roster still zero */
     ASSERT_EQ((long)data_fd2_shared_menu_party_member_count,
               (long)count_before);
@@ -858,15 +866,20 @@ static void test_lss_empty_slot_reprompts(void)
 static void test_lss_restores_slot_state(void)
 {
     long base;
+    int  keys[4];
+    int  n;
 
     lss_setup(5, 0, 2);          /* story chapter 5, member_count 0, slot 2 */
-    lss_kbd_inject(0x01);        /* ESC: lets the modal confirm wait return */
+
+    /* picker call 1: Down,Down,Enter -> commit slot 2; the restore arm then
+     * runs the real confirm dialog whose blink wait reads ONE more scancode
+     * (Esc). A successful restore forces slot_result = -1, so the loop exits
+     * after this single picker call (no re-prompt). */
+    n = lss_commit_keys(keys, 2);
+    keys[n++] = 0x01;            /* consumed by the confirm-dialog blink wait */
+    savefix_queue_scancodes(keys, n);
 
     fd2_load_state_from_selected_slot();
-
-    /* successful restore forces slot_result = -1 -> loop exits after ONE
-     * selector call (no re-prompt) */
-    ASSERT_EQ((long)g_slot_selector_calls, 1);
 
     base = SAV_SLOT0 + 2 * SAV_STRIDE;
 
@@ -895,10 +908,17 @@ static void test_lss_restores_slot_state(void)
 /* ---- Test: restore arm frees a non-null prior portrait sprite cache ---- */
 static void test_lss_restore_frees_prior_portrait_cache(void)
 {
+    int keys[4];
+    int n;
+
     lss_setup(5, 0, 2);
     /* a non-null prior cache pointer must be freed by the restore arm */
     portrait_sprite_cache = (uint32)malloc(64);
-    lss_kbd_inject(0x01);
+
+    /* commit slot 2 (Down,Down,Enter) + Esc for the confirm-dialog blink wait */
+    n = lss_commit_keys(keys, 2);
+    keys[n++] = 0x01;
+    savefix_queue_scancodes(keys, n);
 
     fd2_load_state_from_selected_slot();
 
@@ -910,6 +930,177 @@ static void test_lss_restore_frees_prior_portrait_cache(void)
     portrait_sprite_cache = 0;
 
     lss_teardown(5);
+}
+
+/* ================================================================
+ * fd2_save_slot_selector_ui — the 4-slot picker itself, driven directly.
+ *
+ * Risk-bearing control flow exercised here (manual_mode==0, the direct
+ * int386(0x16) BIOS path): commit (Enter/Space -> 1), cancel (Esc -> -1),
+ * Up/Down cursor navigation with the 0..3 clamp, and the scancode remap
+ * (0xE0/0x52 -> Enter, 0x53 -> Esc). The picker leaves the chosen slot in
+ * data_fd2_ui_menu_cursor_idx; it does NOT reset the cursor (its callers do),
+ * so each test seeds the cursor directly. A single picker call consumes every
+ * queued navigation key until a terminating commit/cancel is read.
+ *
+ * The setup phase (3x malloc + VGA snapshot + grid render) runs for real;
+ * savefix_setup_env() stages the sprite atlas + all-END grid text. A zeroed
+ * in-memory SAV image is passed as the decrypted buffer (the grid render reads
+ * per-slot chapter bytes but renders nothing under the all-END program).
+ * ================================================================ */
+
+/* grid render reads per-slot chapter bytes up to slot 3 (0x312B + 3*0xA28 +
+ * 0xA00 = 0x59A3); 0x5A00 covers it. */
+#define SEL_SAV_SIZE 0x5A00u
+static uint8 g_sel_sav[SEL_SAV_SIZE];
+
+static void sel_setup(uint32 seed_cursor)
+{
+    memset(g_sel_sav, 0, sizeof(g_sel_sav));
+    savefix_setup_env();
+    data_fd2_ui_menu_cursor_idx = seed_cursor;
+}
+
+static void sel_teardown(void)
+{
+    savefix_free_selector_workspaces();
+    data_fd2_ui_menu_cursor_idx = 0;
+}
+
+/* ---- commit: Enter returns 1, cursor preserved as the result ---- */
+static void test_sel_enter_commits(void)
+{
+    int keys[1];
+    int r;
+
+    sel_setup(2);
+    keys[0] = 0x1C;                       /* Enter */
+    savefix_queue_scancodes(keys, 1);
+
+    r = fd2_save_slot_selector_ui((uint32)g_sel_sav, 0);
+
+    ASSERT_EQ((long)r, 1);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 2);
+    sel_teardown();
+}
+
+/* ---- commit: Space also returns 1 ---- */
+static void test_sel_space_commits(void)
+{
+    int keys[1];
+    int r;
+
+    sel_setup(1);
+    keys[0] = 0x39;                       /* Space */
+    savefix_queue_scancodes(keys, 1);
+
+    r = fd2_save_slot_selector_ui((uint32)g_sel_sav, 0);
+
+    ASSERT_EQ((long)r, 1);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 1);
+    sel_teardown();
+}
+
+/* ---- cancel: Esc returns -1 ---- */
+static void test_sel_esc_cancels(void)
+{
+    int keys[1];
+    int r;
+
+    sel_setup(0);
+    keys[0] = 0x01;                       /* Esc */
+    savefix_queue_scancodes(keys, 1);
+
+    r = fd2_save_slot_selector_ui((uint32)g_sel_sav, 0);
+
+    ASSERT_EQ((long)r, -1);
+    sel_teardown();
+}
+
+/* ---- Down navigates 0->3 and clamps at 3 ---- */
+static void test_sel_down_clamps_at_3(void)
+{
+    int keys[6];
+    int r;
+
+    sel_setup(0);
+    /* 4 Downs from slot 0: 0->1->2->3->(3 clamp), then Enter */
+    keys[0] = 0x50; keys[1] = 0x50; keys[2] = 0x50; keys[3] = 0x50;
+    keys[4] = 0x1C;
+    savefix_queue_scancodes(keys, 5);
+
+    r = fd2_save_slot_selector_ui((uint32)g_sel_sav, 0);
+
+    ASSERT_EQ((long)r, 1);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 3);
+    sel_teardown();
+}
+
+/* ---- Up navigates 3->0 and clamps at 0 ---- */
+static void test_sel_up_clamps_at_0(void)
+{
+    int keys[6];
+    int r;
+
+    sel_setup(3);
+    /* 4 Ups from slot 3: 3->2->1->0->(0 clamp), then Enter */
+    keys[0] = 0x48; keys[1] = 0x48; keys[2] = 0x48; keys[3] = 0x48;
+    keys[4] = 0x1C;
+    savefix_queue_scancodes(keys, 5);
+
+    r = fd2_save_slot_selector_ui((uint32)g_sel_sav, 0);
+
+    ASSERT_EQ((long)r, 1);
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);
+    sel_teardown();
+}
+
+/* ---- remap: extended 0xE0 prefix -> Enter (commit) ---- */
+static void test_sel_remap_e0_to_enter(void)
+{
+    int keys[1];
+    int r;
+
+    sel_setup(1);
+    keys[0] = 0xE0;
+    savefix_queue_scancodes(keys, 1);
+
+    r = fd2_save_slot_selector_ui((uint32)g_sel_sav, 0);
+
+    ASSERT_EQ((long)r, 1);
+    sel_teardown();
+}
+
+/* ---- remap: numpad 0x52 -> Enter (commit) ---- */
+static void test_sel_remap_52_to_enter(void)
+{
+    int keys[1];
+    int r;
+
+    sel_setup(1);
+    keys[0] = 0x52;
+    savefix_queue_scancodes(keys, 1);
+
+    r = fd2_save_slot_selector_ui((uint32)g_sel_sav, 0);
+
+    ASSERT_EQ((long)r, 1);
+    sel_teardown();
+}
+
+/* ---- remap: numpad 0x53 -> Esc (cancel) ---- */
+static void test_sel_remap_53_to_esc(void)
+{
+    int keys[1];
+    int r;
+
+    sel_setup(1);
+    keys[0] = 0x53;
+    savefix_queue_scancodes(keys, 1);
+
+    r = fd2_save_slot_selector_ui((uint32)g_sel_sav, 0);
+
+    ASSERT_EQ((long)r, -1);
+    sel_teardown();
 }
 
 void run_save_save_tests(void)
@@ -938,5 +1129,13 @@ void run_save_save_tests(void)
     RUN_TEST(test_lss_empty_slot_reprompts);
     RUN_TEST(test_lss_restores_slot_state);
     RUN_TEST(test_lss_restore_frees_prior_portrait_cache);
+    RUN_TEST(test_sel_enter_commits);
+    RUN_TEST(test_sel_space_commits);
+    RUN_TEST(test_sel_esc_cancels);
+    RUN_TEST(test_sel_down_clamps_at_3);
+    RUN_TEST(test_sel_up_clamps_at_0);
+    RUN_TEST(test_sel_remap_e0_to_enter);
+    RUN_TEST(test_sel_remap_52_to_enter);
+    RUN_TEST(test_sel_remap_53_to_esc);
     SUITE_END();
 }
