@@ -407,18 +407,21 @@ uint32 data_fd2_ui_menu_cursor_idx = 0;
  * steps of 2). Real FD2.LE global @ 0x5412F; shared menu-scroll state. */
 uint32 data_fd2_ui_menu_scroll_offset = 0;
 /* Recording stubs for fd2_shop_menu_input_loop's not-yet-emitted display
- * callees (targets gfx/rndmenu.c + anim/aniui.c). The shop input loop re-renders
- * the 2-column item grid after every cursor move and animates the viewport when
- * it pages; recording the last forwarded (item_count, cursor, dst, sell_mode)
- * and per-callee call counts lets the shop.c navigation test pin the cursor /
- * scroll-paging arithmetic and the SFX/render sequencing without touching VGA. */
+ * callees: the grid renderer (gfx/rndmenu.c) and the page-up scroll animation
+ * (anim/aniui.c fd2_animate_scroll_down_in_shop_dialog). The shop input loop
+ * re-renders the 2-column item grid after every cursor move and animates the
+ * viewport when it pages; recording the last forwarded (item_count, cursor,
+ * dst, sell_mode) and the call counts lets the shop.c navigation test pin the
+ * cursor / scroll-paging arithmetic and the SFX/render sequencing without
+ * touching VGA. (The page-DOWN scroll animation
+ * fd2_animate_scroll_up_in_shop_dialog is already emitted and host-safe, so the
+ * loop calls the real function — see below.) */
 int    g_shop_grid_render_calls = 0;
 uint32 g_shop_grid_last_count = 0;
 uint32 g_shop_grid_last_array = 0;
 uint32 g_shop_grid_last_cursor = 0;
 uint32 g_shop_grid_last_dst = 0;
 uint32 g_shop_grid_last_sell = 0;
-int    g_shop_scroll_up_calls = 0;
 int    g_shop_scroll_down_calls = 0;
 void fd2_render_shop_item_grid(uint32 item_count, uint32 item_id_array,
                                uint32 cursor, uint32 dst_buf,
@@ -431,7 +434,11 @@ void fd2_render_shop_item_grid(uint32 item_count, uint32 item_id_array,
     g_shop_grid_last_dst = dst_buf;
     g_shop_grid_last_sell = sell_mode_flag;
 }
-void fd2_animate_scroll_up_in_shop_dialog(void) { g_shop_scroll_up_calls++; }
+/* fd2_animate_scroll_up_in_shop_dialog is the REAL emitted function in
+ * src/anim/aniui.c (it only writes the mode13h aperture + paces via the
+ * delay thunk, so it is host-safe to call directly). The shop navigation
+ * test verifies its page-down invocation via g_delay375b2_calls (the real
+ * function calls __delay_thunk_375b2 three times). */
 void fd2_animate_scroll_down_in_shop_dialog(void) { g_shop_scroll_down_calls++; }
 /* field command menu templates — real FD2.LE values @ 0x51E9F / 0x53EF2 */
 int32  data_fd2_ui_field_command_menu_options_template[4] = { 7, 5, 6, 4 };

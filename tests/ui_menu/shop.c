@@ -42,8 +42,13 @@ extern uint32 g_shop_grid_last_array;
 extern uint32 g_shop_grid_last_cursor;
 extern uint32 g_shop_grid_last_dst;
 extern uint32 g_shop_grid_last_sell;
-extern int    g_shop_scroll_up_calls;
 extern int    g_shop_scroll_down_calls;
+/* Page-DOWN scroll animation fd2_animate_scroll_up_in_shop_dialog is the REAL
+ * emitted function (anim/aniui.c): it shifts the shop-dialog block up the VGA
+ * aperture (host-safe scratch under DOS/4GW) and paces with three
+ * __delay_thunk_375b2(10) calls. So its page-down invocation is observed via the
+ * delay-thunk spy (g_delay375b2_calls == 3), not a dedicated call counter. */
+extern int    g_delay375b2_calls;
 /* cursor-move chime counter (testglob.c fd2_play_sfx_with_handle spy) */
 extern int    g_play_sfx_with_handle_calls;
 /* title-sprite blit spy from testglob.c (fd2_dialog_sprite_blit_normal) */
@@ -74,7 +79,7 @@ static void shop_setup(uint32 item_count, uint32 cursor, uint32 scroll,
     g_shop_grid_last_cursor = 0xFFFFFFFFu;
     g_shop_grid_last_dst = 0;
     g_shop_grid_last_sell = 0xFFFFFFFFu;
-    g_shop_scroll_up_calls = 0;
+    g_delay375b2_calls = 0;
     g_shop_scroll_down_calls = 0;
     g_play_sfx_with_handle_calls = 0;
 
@@ -157,7 +162,7 @@ static void test_right_moves_and_renders(void)
     ASSERT_EQ(g_shop_grid_last_cursor, 3);
     ASSERT_EQ(g_shop_grid_last_dst, 0xa0000);
     ASSERT_EQ(g_shop_grid_last_sell, 1);
-    ASSERT_EQ(g_shop_scroll_up_calls, 0);
+    ASSERT_EQ(g_delay375b2_calls, 0);   /* no page -> scroll-up anim not run */
 }
 
 /* Right at the last item (cursor == item_count-1): guard blocks the move, so no
@@ -306,7 +311,8 @@ static void test_right_pages_viewport_down(void)
     ASSERT_EQ(r, 1);
     ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 6);
     ASSERT_EQ(data_fd2_ui_menu_scroll_offset, 2);
-    ASSERT_EQ(g_shop_scroll_up_calls, 1);
+    /* page-down ran the REAL scroll-up anim (3 paced delays), not scroll-down */
+    ASSERT_EQ(g_delay375b2_calls, 3);
     ASSERT_EQ(g_shop_scroll_down_calls, 0);
     ASSERT_EQ(g_shop_grid_render_calls, 1);
     ASSERT_EQ(g_shop_grid_last_cursor, 6);
@@ -325,7 +331,7 @@ static void test_down_pages_viewport_down(void)
     ASSERT_EQ(r, 1);
     ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 6);
     ASSERT_EQ(data_fd2_ui_menu_scroll_offset, 2);
-    ASSERT_EQ(g_shop_scroll_up_calls, 1);
+    ASSERT_EQ(g_delay375b2_calls, 3);   /* page-down -> real scroll-up anim */
     ASSERT_EQ(g_shop_grid_render_calls, 1);
 }
 
@@ -342,7 +348,7 @@ static void test_right_no_page_at_viewport_edge(void)
     ASSERT_EQ(r, 1);
     ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 5);
     ASSERT_EQ(data_fd2_ui_menu_scroll_offset, 0);
-    ASSERT_EQ(g_shop_scroll_up_calls, 0);
+    ASSERT_EQ(g_delay375b2_calls, 0);   /* delta 5 not >5: no page, no anim */
 }
 
 /* ---- viewport paging: page UP (scroll -= 2) via Left ---- */
@@ -361,7 +367,7 @@ static void test_left_pages_viewport_up(void)
     ASSERT_EQ(data_fd2_ui_menu_cursor_idx, 1);
     ASSERT_EQ(data_fd2_ui_menu_scroll_offset, 0);
     ASSERT_EQ(g_shop_scroll_down_calls, 1);
-    ASSERT_EQ(g_shop_scroll_up_calls, 0);
+    ASSERT_EQ(g_delay375b2_calls, 0);   /* page-up uses scroll-DOWN, not -up */
     ASSERT_EQ(g_shop_grid_render_calls, 1);
     ASSERT_EQ(g_shop_grid_last_cursor, 1);
 }

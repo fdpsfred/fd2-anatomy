@@ -408,6 +408,36 @@ static void test_wing_slide_open_and_close(void)
     wing_check(0);
 }
 
+
+/*
+ * fd2_animate_scroll_up_in_shop_dialog — staged-shift cadence.
+ *
+ * The function shifts a 0x4A-row block of the shop-dialog area UP the mode13h
+ * framebuffer in three 6-row steps (each followed by a 6-row palette-0x49 fill
+ * and a 10ms pace), then a final 8-row shift + 8-row fill. It takes no args,
+ * returns nothing, reads no state back; its only host-observable side-effect is
+ * the pacing: exactly three __delay_thunk_375b2(10) calls (one per Phase-1
+ * step), and none in the final Phase-2 shift. The page-stepping callers depend
+ * on that fixed three-beat cadence, so it is pinned here.
+ *
+ * All memmove/memset traffic targets absolute aperture addresses 0xA8FCA..
+ * ~0xAF466 (within mode13h VGA RAM 0xA0000..0xBFFFF, host-safe scratch under
+ * DOS/4GW; the memmove also reads uninitialized aperture bytes, harmlessly
+ * since nothing reads the result). The actual 0x11C-byte-per-row block scroll
+ * is pixel output deferred to Phase 9 integration (no host buffer backs the
+ * fixed VGA addresses for read-back), consistent with the other VGA-output
+ * animations in this suite.
+ */
+static void test_shop_scroll_up_cadence(void)
+{
+    g_delay375b2_calls = 0;
+    g_delay375b2_last_ticks = 0;
+    fd2_animate_scroll_up_in_shop_dialog();
+    ASSERT_EQ(g_delay375b2_calls, 3);        /* 3 Phase-1 steps, Phase-2 paces none */
+    ASSERT_EQ(g_delay375b2_last_ticks, 10u); /* each step paces 10ms */
+}
+
+
 void run_anim_aniui_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -417,5 +447,6 @@ void run_anim_aniui_tests(void)
     RUN_TEST(test_money_increment_roll_and_total);
     RUN_TEST(test_money_decrement_roll_and_total);
     RUN_TEST(test_wing_slide_open_and_close);
+    RUN_TEST(test_shop_scroll_up_cadence);
     printf("\n");
 }

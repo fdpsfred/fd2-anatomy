@@ -348,3 +348,56 @@ void fd2_animate_tutorial_dialog_intro_or_outro(uint32 open_or_close)
     }
     free(dst);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_animate_scroll_up_in_shop_dialog @ 0x2E19B (5 callers)
+ *
+ * Animate a 0x4A-row x 0x11C-byte block scrolling UP within the shop
+ * dialog area at framebuffer offset 0xA8FCA. Three staged shifts of 6
+ * rows each (with 10ms pacing), then a final 8-row shift to land 2 rows
+ * below original — total scroll distance 0x1A rows (the per-row height
+ * in the shop grid layout). Row stride is 0x140 (mode13h scanline).
+ *
+ * Phase 1 (3 x 6-row shifts, each followed by a 6-row dark-grey fill):
+ *   per step: shift the 0x4A-row block up by 6 rows
+ *   (src 0xA974A = dst 0xA8FCA + 0x780 = +6*0x140), clear the bottom 6
+ *   rows to palette 0x49 at 0xAEC4A, then __delay_thunk_375b2(10).
+ * Phase 2 (single 8-row final shift): shift the 0x48-row block up by 8
+ *   rows (src 0xA99CA = dst 0xA8FCA + 0xA00 = +8*0x140), clear the
+ *   bottom 8 rows to palette 0x49 at 0xAE9CA.
+ *
+ * Callers (5):
+ *   fd2_shop_menu_input_loop @ 0x2DF6B (Right/Down past the viewport)
+ *   fd2_party_roster_single_select_loop @ 0x2E7D5
+ *   fd2_party_roster_class_select_loop @ 0x2EA08
+ *   fd2_promote_members_select_loop @ 0x30D94
+ *   fd2_promote_member_select_loop @ 0x31356
+ *
+ * Cdecl, no params, void return. The binary's __CHK(0x18) stack-probe
+ * prologue is compiler-generated and omitted here. All memmove/memset
+ * traffic hits the mode13h aperture (real VGA RAM under DOS/4GW).
+ * ---------------------------------------------------------------- */
+void fd2_animate_scroll_up_in_shop_dialog(void)
+{
+    int row;
+    int step;
+
+    for (step = 0; step < 3; step++) {
+        for (row = 0; row < 0x4A; row++) {
+            memmove((void *)(row * 0x140 + 0xA8FCA),
+                    (void *)(row * 0x140 + 0xA974A), 0x11C);
+        }
+        for (row = 0; row < 6; row++) {
+            memset((void *)(row * 0x140 + 0xAEC4A), 0x49, 0x11C);
+        }
+        __delay_thunk_375b2(10);
+    }
+
+    for (row = 0; row < 0x48; row++) {
+        memmove((void *)(row * 0x140 + 0xA8FCA),
+                (void *)(row * 0x140 + 0xA99CA), 0x11C);
+    }
+    for (row = 0; row < 8; row++) {
+        memset((void *)(row * 0x140 + 0xAE9CA), 0x49, 0x11C);
+    }
+}
