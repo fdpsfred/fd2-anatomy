@@ -2385,8 +2385,9 @@
     "name": "fd2_chapter_08_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000235bc": {
     "name": "fd2_chapter_09_end",

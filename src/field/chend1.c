@@ -308,3 +308,67 @@ void fd2_chapter_07_end(void)
 
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_08_end @ 0x234BB  (0 direct callers; dispatched via the
+ *   chapter-end handler pointer table @ 0x51DE9, slot 7 @ 0x51E05)
+ *
+ * Chapter 8「王城前的戰鬥」end handler. Unconditionally copies two 10-byte
+ * scene position tables (recruit-scene X / Y @ 0x520FF / 0x52109) into on-stack
+ * placement blocks and stages the recruit scene via
+ * fd2_setup_chars_and_camera_for_intro — here the facing argument is the inline
+ * fixed value 2 (< 4), so every placed char faces direction 2 and there is no
+ * facing table (chars 0..9, plus an extra char 0x1C placed at (0xE,0x10) facing
+ * 0, camera origin (8,0xE)). It then plays the post-battle cutscene:
+ *   dialog page 3; battle_anim_phase = 0; cutscene event 0x21;
+ *   dialog page 4; cutscene_event_state = 1; battle_anim_phase = 0;
+ *   cutscene event 0x22; cutscene_event_state = 0.
+ * It fades the screen to black (fd2_set_vga_palette_range(0,0xff,0x40) then
+ * memset(0xA0000, 0, 64000)), recruits char #5 (騎士洛娜) via
+ * fd2_init_runtime_char_from_base_growth, persists the party's runtime-char
+ * state to the template store, then advances the current-chapter id by 1.
+ *
+ * In the binary the function ends with `PUSH 5; JMP 0x2327D`, a tail-jump into
+ * the shared tail of fd2_chapter_05_end @ 0x2327D (recruit char #5; save; INC
+ * chapter id; cleanup; RET). It is emitted here as a self-contained function
+ * (Layer 2 functional equivalence — the jump-into-middle sharing is not
+ * preserved in source).
+ *
+ * Paired init handler: fd2_chapter_08_init @ 0x33219.
+ * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
+ * Walkthrough: assets/chapters/chapter_08.md.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_08_end(void)
+{
+    uint8 scene_block_x[10];
+    uint8 scene_block_y[10];
+    int i;
+
+    for (i = 0; i < 10; i++) {
+        scene_block_x[i] = data_fd2_chapter_ch08_end_scene_char_pos_x_table[i];
+        scene_block_y[i] = data_fd2_chapter_ch08_end_scene_char_pos_y_table[i];
+    }
+
+    fd2_setup_chars_and_camera_for_intro(
+        (uint32)scene_block_x, (uint32)scene_block_y, 2, 0, 9, 0x1c, 0xe, 0x10,
+        0, 8, 0xe);
+
+    fd2_display_dialog_scene(current_chapter_text, 3, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x21);
+
+    fd2_display_dialog_scene(current_chapter_text, 4, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+    data_fd2_chapter_cutscene_event_state = 1;
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x22);
+    data_fd2_chapter_cutscene_event_state = 0;
+
+    fd2_set_vga_palette_range(0, 0xff, 0x40);
+    memset((void *)0xa0000, 0, 64000);
+
+    fd2_init_runtime_char_from_base_growth(5);
+    fd2_save_runtime_char_to_template();
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}

@@ -1406,6 +1406,259 @@ static void test_chapter_07_end_flag_clear_short_circuits(void)
     ASSERT_EQ((long)chapter_id, 8L);
 }
 
+/* ================================================================
+ * fd2_chapter_08_end @ 0x234BB
+ *
+ * The Chapter 8 end handler is UNCONDITIONAL (no branch): it copies two 10-byte
+ * scene position tables (recruit-scene X / Y @ 0x520FF / 0x52109) into on-stack
+ * placement blocks and stages the recruit scene via
+ * fd2_setup_chars_and_camera_for_intro with an INLINE FIXED facing value 2
+ * (< 4) — so unlike chapters 3/5/7 (which pass a facing-table address >= 4),
+ * chapter 8 has no facing table and every placed char faces direction 2 (chars
+ * 0..9, extra char 0x1C at (0xE,0x10) facing 0, camera origin (8,0xE)). It then
+ * plays the post-battle cutscene — dialog page 3; battle_anim_phase = 0; event
+ * 0x21; dialog page 4; cutscene_event_state = 1; battle_anim_phase = 0; event
+ * 0x22; cutscene_event_state = 0 — fades to black (real fd2_set_vga_palette_range
+ * then memset(0xA0000,0,64000)), recruits char #5 (騎士洛娜) via the real
+ * fd2_init_runtime_char_from_base_growth, persists the party (real
+ * fd2_save_runtime_char_to_template), then advances chapter_id by 1.
+ *
+ * Every callee is the real linked function EXCEPT two seams (same as the chapter
+ * 03/05/07 suites): fd2_check_char_is_dead (testglob.c stub — only gates the
+ * save's char-0 dead-skip here, and the composite char-paint loop, both no-ops
+ * with party_member_count 0) and fd2_setup_chars_and_camera_for_intro (testglob.c
+ * recording fake — the real one is an unemitted VGA scene stager deferred to
+ * Phase 9). The fake now also records the raw facing argument
+ * (g_setup_intro_facing_arg), which chapter 8 exercises with the fixed value 2.
+ *
+ * Fixtures mirror the chapter 06/07 suites' safe headless env: a minimal dialog
+ * program whose pages 3 and 4 each redirect to one distinct glyph (0x33 / 0x44)
+ * + END; party_member_count 0 so the save scan and the composite char-paint loop
+ * are clean no-ops; the cutscene event slots 0x21/0x22 point at empty (n_groups
+ * == 0) scripts; and a 768-byte VGA palette buffer so the real fade-to-black
+ * palette write reads valid source bytes. On-screen pixels of the dialog /
+ * cutscene / scene / fade are display side-effects deferred to Phase 9.
+ *
+ * Asserted: the scene staged once with the fixed facing arg 2 + the full scalar
+ * arg set (chars 0..9, extra char 0x1C at (0xE,0x10) facing 0, camera (8,0xE))
+ * + the X/Y tables copied verbatim; both dialog pages ran in order (3 then 4, via
+ * the glyph recorder: 2 glyphs, last = page-4's 0x44); the cutscene_event_state
+ * toggle ended 0 and battle_anim_phase ended 0; char #5 was recruited (roster
+ * count delta); and chapter_id := prev+1 (a relative increment, not absolute).
+ * ================================================================ */
+
+extern uint32 g_setup_intro_facing_arg;
+
+extern uint8 data_fd2_chapter_ch08_end_scene_char_pos_x_table[10];
+extern uint8 data_fd2_chapter_ch08_end_scene_char_pos_y_table[10];
+
+static uint8  g_ce8_roster[8 * 0x50];
+static int16  g_ce8_text[16];
+static uint8  g_ce8_script[1];           /* n_groups == 0 */
+static uint8  g_ce8_palette[768];        /* fade-to-black palette source */
+
+static void ce8_fixture_reset(void)
+{
+    int i;
+
+    /* dialog VM safe env. */
+    *(volatile uint16 *)0x41AuL = 0x20;   /* BIOS kbd buffer head == tail */
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+
+    /* dialog program: page 3 -> idx 8 (glyph 0x33 + END), page 4 -> idx 10
+     * (glyph 0x44 + END). Distinct glyphs pin the page order (3 before 4). */
+    for (i = 0; i < 16; i++) {
+        g_ce8_text[i] = 0;
+    }
+    g_ce8_text[3]  = 16;      /* page 3 -> idx 8 */
+    g_ce8_text[4]  = 20;      /* page 4 -> idx 10 */
+    g_ce8_text[8]  = 0x33;    /* page 3 glyph */
+    g_ce8_text[9]  = -1;      /* END */
+    g_ce8_text[10] = 0x44;    /* page 4 glyph */
+    g_ce8_text[11] = -1;      /* END */
+    current_chapter_text = (uint32)g_ce8_text;
+
+    /* save pass made a clean no-op (no runtime chars scanned), which also makes
+     * the composite char-paint loop a no-op; the recruit append uses the
+     * shared-menu count so roster growth is still observable. */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(g_ce8_roster, 0, sizeof(g_ce8_roster));
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_ce8_roster;
+    data_fd2_battle_party_member_count = 0;       /* save + composite: no-op */
+    data_fd2_shared_menu_party_member_count = 0;  /* recruit appends at slot 0 */
+    g_check_char_is_dead_return = 0;
+
+    /* cutscene events 0x21/0x22 -> empty (n_groups == 0) script. */
+    g_ce8_script[0] = 0;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x21] = g_ce8_script;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x22] = g_ce8_script;
+
+    /* fade-to-black palette source (real fd2_set_vga_palette_range reads
+     * palette[idx*3 + 0..2] for idx 0..0xFF = 768 bytes). */
+    memset(g_ce8_palette, 0, sizeof(g_ce8_palette));
+    data_fd2_vga_palette_data_ptr = (uint32)g_ce8_palette;
+
+    /* bounded view-window origin for the composite passes. */
+    data_fd2_battle_view_window_origin_x = 8;
+    data_fd2_battle_view_window_origin_y = 0xe;
+
+    /* scene-stager recording fake reset. */
+    g_setup_intro_calls = 0;
+    g_setup_intro_facing_arg = 0xFFFFFFFFuL;
+    g_setup_intro_char_start = -1;
+    g_setup_intro_char_end = -1;
+    g_setup_intro_extra_char_idx = 0xFFFFFFFFuL;
+    g_setup_intro_extra_pos_x = -1;
+    g_setup_intro_extra_pos_y = -1;
+    g_setup_intro_extra_facing = -1;
+    g_setup_intro_camera_x = 0xFFFFFFFFuL;
+    g_setup_intro_camera_y = 0xFFFFFFFFuL;
+    for (i = 0; i < 9; i++) {
+        g_setup_intro_px[i] = 0xFF;
+        g_setup_intro_py[i] = 0xFF;
+        g_setup_intro_facing[i] = 0xFF;
+    }
+
+    /* poison the toggled / reset state so the handler's writes are observable. */
+    data_fd2_chapter_cutscene_event_state = 0x77;
+    data_fd2_battle_anim_phase = 0x55;
+
+    /* preset chapter id to a known value so the +1 transition is observable. */
+    data_fd2_chapter_current_chapter_id = 8;
+}
+
+static void ce8_fixture_teardown(void)
+{
+    current_chapter_text = 0;
+    data_fd2_shared_menu_party_roster_buffer_ptr = 0;
+    data_fd2_shared_menu_party_member_count = 0;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_battle_view_window_origin_x = 0;
+    data_fd2_battle_view_window_origin_y = 0;
+    data_fd2_battle_cursor_world_x = 5;
+    data_fd2_battle_cursor_world_y = 5;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x21] = 0;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x22] = 0;
+    data_fd2_chapter_cutscene_event_state = 0;
+    data_fd2_vga_palette_data_ptr = 0;
+    data_fd2_chapter_current_chapter_id = 1;
+    data_fd2_battle_anim_phase = 0;
+    g_check_char_is_dead_return = 0;
+}
+
+/* ----------------------------------------------------------------
+ * End-to-end: the unconditional handler stages the recruit scene (setup fired
+ * once with the fixed facing arg 2, the two 10-byte tables copied verbatim,
+ * chars 0..9, extra char 0x1C at (0xE,0x10) facing 0, camera (8,0xE)), runs the
+ * cutscene (dialog pages 3 then 4, glyphs 0x33 then 0x44; cutscene_event_state
+ * toggled back to 0; battle_anim_phase reset to 0), fades to black, recruits
+ * char #5 (roster count 0 -> 1), and advances chapter_id 8 -> 9.
+ * ---------------------------------------------------------------- */
+static void test_chapter_08_end_stages_scene_cutscene_and_recruits(void)
+{
+    int    setup_calls;
+    uint32 facing_arg;
+    int    glyph_calls;
+    uint32 glyph_idx;
+    int32  char_start;
+    int32  char_end;
+    uint32 extra_idx;
+    int32  extra_x;
+    int32  extra_y;
+    int32  extra_facing;
+    uint32 cam_x;
+    uint32 cam_y;
+    uint32 event_state;
+    uint32 anim_phase;
+    uint32 recruit_count;
+    uint32 chapter_id;
+    int    tables_match;
+    int    i;
+
+    ce8_fixture_reset();
+
+    fd2_chapter_08_end();
+
+    /* snapshot observables, then restore globals, then assert. */
+    setup_calls   = g_setup_intro_calls;
+    facing_arg    = g_setup_intro_facing_arg;
+    glyph_calls   = g_dlg_glyph_calls;
+    glyph_idx     = g_dlg_glyph_last_idx;
+    char_start    = g_setup_intro_char_start;
+    char_end      = g_setup_intro_char_end;
+    extra_idx     = g_setup_intro_extra_char_idx;
+    extra_x       = g_setup_intro_extra_pos_x;
+    extra_y       = g_setup_intro_extra_pos_y;
+    extra_facing  = g_setup_intro_extra_facing;
+    cam_x         = g_setup_intro_camera_x;
+    cam_y         = g_setup_intro_camera_y;
+    event_state   = data_fd2_chapter_cutscene_event_state;
+    anim_phase    = data_fd2_battle_anim_phase;
+    recruit_count = data_fd2_shared_menu_party_member_count;
+    chapter_id    = data_fd2_chapter_current_chapter_id;
+    tables_match  = 1;
+    for (i = 0; i < 9; i++) {
+        if (g_setup_intro_px[i] != data_fd2_chapter_ch08_end_scene_char_pos_x_table[i] ||
+            g_setup_intro_py[i] != data_fd2_chapter_ch08_end_scene_char_pos_y_table[i]) {
+            tables_match = 0;
+        }
+    }
+    ce8_fixture_teardown();
+
+    /* scene staged once; facing is the inline fixed value 2 (NOT a table addr). */
+    ASSERT_EQ((long)setup_calls, 1L);
+    ASSERT_EQ((long)facing_arg, 2L);
+    ASSERT_EQ((long)tables_match, 1L);
+    ASSERT_EQ((long)char_start, 0L);
+    ASSERT_EQ((long)char_end, 9L);
+
+    /* extra char placed: idx 0x1C at (0xE,0x10) facing 0. */
+    ASSERT_EQ((long)extra_idx, (long)0x1c);
+    ASSERT_EQ((long)extra_x, (long)0xe);
+    ASSERT_EQ((long)extra_y, (long)0x10);
+    ASSERT_EQ((long)extra_facing, 0L);
+
+    /* camera origin (8,0xE). */
+    ASSERT_EQ((long)cam_x, 8L);
+    ASSERT_EQ((long)cam_y, (long)0xe);
+
+    /* both dialog pages ran in order: page 3 (0x33) then page 4 (0x44). */
+    ASSERT_EQ((long)glyph_calls, 2);
+    ASSERT_EQ((long)glyph_idx, (long)0x44);
+
+    /* cutscene_event_state toggled 1 then back to 0; battle_anim_phase reset 0. */
+    ASSERT_EQ((long)event_state, 0L);
+    ASSERT_EQ((long)anim_phase, 0L);
+
+    /* char #5 recruited (roster grew 0 -> 1) and chapter id advanced 8 -> 9. */
+    ASSERT_EQ((long)recruit_count, 1L);
+    ASSERT_EQ((long)chapter_id, 9L);
+}
+
+/* ----------------------------------------------------------------
+ * The chapter-id update is a relative INCREMENT, not an absolute set: seeded
+ * with a distinctive unrelated value (3), the handler leaves 4 — proving it does
+ * not hardcode the id. (The scene staging / cutscene / recruit are unconditional
+ * and run identically regardless of the seed.)
+ * ---------------------------------------------------------------- */
+static void test_chapter_08_end_increments_not_absolute(void)
+{
+    uint32 chapter_id;
+
+    ce8_fixture_reset();
+    data_fd2_chapter_current_chapter_id = 3;   /* distinctive, unrelated to 9 */
+
+    fd2_chapter_08_end();
+
+    chapter_id = data_fd2_chapter_current_chapter_id;
+    ce8_fixture_teardown();
+
+    ASSERT_EQ((long)chapter_id, 4L);           /* 3 + 1, not a constant */
+}
+
 void run_field_chend1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1425,5 +1678,7 @@ void run_field_chend1_tests(void)
     RUN_TEST(test_chapter_07_end_flag_and_alive_recruits);
     RUN_TEST(test_chapter_07_end_flag_set_but_dead_no_recruit);
     RUN_TEST(test_chapter_07_end_flag_clear_short_circuits);
+    RUN_TEST(test_chapter_08_end_stages_scene_cutscene_and_recruits);
+    RUN_TEST(test_chapter_08_end_increments_not_absolute);
     printf("\n");
 }

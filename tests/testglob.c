@@ -208,6 +208,15 @@ uint8 data_fd2_chapter_ch07_end_scene_char_pos_y_table[9] =
     { 4, 4, 4, 5, 5, 6, 6, 7, 7 };
 uint8 data_fd2_chapter_ch07_end_scene_char_facing_table[9] =
     { 0, 0, 0, 3, 1, 3, 1, 3, 1 };
+/* Chapter 8 end recruit-scene char placement tables (data segment @ 0x520FF /
+ * 0x52109). Real binary bytes until the data segment is emitted;
+ * fd2_chapter_08_end copies each 10-byte table into an on-stack placement block.
+ * X/Y are battle-tile coords; chapter 8 has no facing table (the handler passes
+ * the inline fixed facing value 2 to fd2_setup_chars_and_camera_for_intro). */
+uint8 data_fd2_chapter_ch08_end_scene_char_pos_x_table[10] =
+    { 14, 13, 15, 12, 13, 14, 16, 11, 15, 17 };
+uint8 data_fd2_chapter_ch08_end_scene_char_pos_y_table[10] =
+    { 20, 20, 20, 19, 19, 18, 19, 18, 19, 18 };
 /* Resource portrait sheet base pointer (data segment @ 0x53AD1). Tests point it
  * at a zeroed scratch buffer. */
 uint32 data_fd2_resource_portrait_sheet_ptr = 0;
@@ -703,21 +712,27 @@ void __delay_thunk_375b2(uint32 ticks) { g_delay375b2_calls++; g_delay375b2_last
  * three byte-array tables, reset the camera, composite + fade-in. That is all VGA
  * display side-effect deferred to Phase 9, so here we only record the call and
  * snapshot the three placement-block tables + scalar args, letting a caller test
- * (field/chend1's chapter 03/05/07 end) verify the orchestration: which branch
+ * (field/chend1's chapter 03/05/07/08 end) verify the orchestration: which branch
  * invoked it, the X/Y/facing tables copied into the on-stack blocks, the char
- * index range, and the camera origin.
+ * index range, the facing argument, and the camera origin.
  *
  * The real function consumes exactly (char_end - char_start + 1) table entries
  * (it indexes the byte arrays by the inclusive [char_start..char_end] loop var),
  * so the snapshot loop is bounded the same way: chapter 03/05 pass 7-entry blocks
- * (char_end == 6) and chapter 07 passes 9-entry blocks (char_end == 8). Bounding
- * by the live range avoids reading past a 7-byte caller's on-stack block while
- * still capturing all 9 entries for the 9-byte caller. Buffers are sized 9 (the
- * widest table). */
+ * (char_end == 6), chapter 07 passes 9-entry blocks (char_end == 8), and chapter
+ * 08 passes 10-entry blocks (char_end == 9, only entries 0..9 captured into the
+ * size-9-indexed buffers via the count clamp). Bounding by the live range avoids
+ * reading past a caller's on-stack block. The facing argument is a byte-array
+ * table address (>= 4) for chapters 3/5/7 and an inline fixed facing value (< 4)
+ * for chapter 8; g_setup_intro_facing_arg records the raw value. Buffers are
+ * sized 9 (chapters 3/5/7); chapter 8's 10th entry is not snapshotted (its scene
+ * staging is pure VGA side-effect deferred to Phase 9, and the test pins the
+ * fixed facing via g_setup_intro_facing_arg instead). */
 int    g_setup_intro_calls = 0;
 uint8  g_setup_intro_px[9];
 uint8  g_setup_intro_py[9];
 uint8  g_setup_intro_facing[9];
+uint32 g_setup_intro_facing_arg = 0xFFFFFFFFuL;
 int32  g_setup_intro_char_start = -1;
 int32  g_setup_intro_char_end = -1;
 uint32 g_setup_intro_extra_char_idx = 0xFFFFFFFFuL;
@@ -737,6 +752,7 @@ void fd2_setup_chars_and_camera_for_intro(uint32 px_table, uint32 py_table,
     int i;
     int count;
     g_setup_intro_calls++;
+    g_setup_intro_facing_arg = facing_table_or_fixed;
     count = char_end - char_start + 1;
     if (count < 0) {
         count = 0;
@@ -747,7 +763,15 @@ void fd2_setup_chars_and_camera_for_intro(uint32 px_table, uint32 py_table,
     for (i = 0; i < count; i++) {
         g_setup_intro_px[i]     = ((uint8 *)px_table)[char_start + i];
         g_setup_intro_py[i]     = ((uint8 *)py_table)[char_start + i];
-        g_setup_intro_facing[i] = ((uint8 *)facing_table_or_fixed)[char_start + i];
+        /* The real function treats facing_table_or_fixed < 4 as an inline fixed
+         * facing applied to every placed char (chapter 8); >= 4 is a byte-array
+         * table address indexed per char (chapters 3/5/7). Model both so the
+         * fixed case does not dereference a non-pointer. */
+        if (facing_table_or_fixed < 4) {
+            g_setup_intro_facing[i] = (uint8)facing_table_or_fixed;
+        } else {
+            g_setup_intro_facing[i] = ((uint8 *)facing_table_or_fixed)[char_start + i];
+        }
     }
     g_setup_intro_char_start = char_start;
     g_setup_intro_char_end = char_end;
