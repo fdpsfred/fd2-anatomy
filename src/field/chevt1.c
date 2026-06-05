@@ -91,6 +91,9 @@
  * fd2_chapter_event_handler_23__ch12_cinematic @ 0x34C76
  *     (0 direct callers; dispatched as idx 0x23 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_24__ch12_ai_ctrl @ 0x34CB3
+ *     (0 direct callers; dispatched as idx 0x24 of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -1344,4 +1347,29 @@ void fd2_chapter_event_handler_23__ch12_cinematic(uint32 event_arg)
     data_fd2_chapter_init_phase_flag = 0;
     fd2_cutscene_event_trigger(0x2A);
     fd2_clear_all_chars_facing();
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_24__ch12_ai_ctrl @ 0x34CB3
+ *   — Chapter 12 turn-event slot 1 (triggered at turn 5 / phase 1),
+ *     dispatched as idx 0x24 of the per-event handler table at 0x51B91.
+ *
+ * ch12 turn-5 AI-setup beat. A single straight-line write with no
+ * branch, no RNG, no numeric computation, and no CALL-return value
+ * used: character 0x0E's AI-class byte (combat_aux_block[0xD]) is set
+ * to 0x83 — bit 7 locked plus low bits 0/1 selecting AI mode 3. No
+ * other side effects.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(4) stack-probe prologue is compiler-injected and
+ * omitted here.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_12.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_24__ch12_ai_ctrl(uint32 event_arg)
+{
+    (void)event_arg;
+
+    data_fd2_battle_runtime_char_array_ptr[0xE].combat_aux_block[0xD] = 0x83;
 }

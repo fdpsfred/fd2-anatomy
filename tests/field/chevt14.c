@@ -315,6 +315,56 @@ static void test_ch12_event23_reloads_portrait2_brackets_initphase(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_24__ch12_ai_ctrl @ 0x34CB3 (dispatch idx 0x24) —
+ * chapter 12 turn-event slot 1, fired at turn 5 / phase 1. A single
+ * straight-line write with no branch, no RNG, no numeric computation, and no
+ * CALL-return value used: the AI-class byte combat_aux_block[0xD] (struct
+ * offset 0x34) of character slot 0x0E is set to 0x83 (bit 7 locked + low bits
+ * 0/1 selecting AI mode 3). No other side effects, no portrait reload, no
+ * dialog — so FD2.TMP and the glyph recorder are not part of its contract.
+ *
+ * The observable, deterministic contract checked here:
+ *   (1) slot 0x0E's combat_aux_block[0xD] becomes exactly 0x83 (the precise AI
+ *       flag value, not merely "bit 7 set");
+ *   (2) ONLY that one byte is written — the immediate in-slot neighbours of
+ *       [0xD] (combat_aux_block[0xC] at struct offset 0x33, combat_aux_block[0xE]
+ *       at 0x35) and the AI-class byte of the adjacent slots 0x0D / 0x0F are left
+ *       untouched, proving the char index (0x0E) and struct offset (0x34) are
+ *       exact with no off-by-one.
+ *
+ * The target byte is pre-seeded to a distinct sentinel and the guard bytes/slots
+ * to another, so a correct run must overwrite exactly one byte with 0x83.
+ * ================================================================ */
+static void test_ch12_event24_sets_ai_flag_0x83_for_char_0e(void)
+{
+    ev_install_safe_env();
+
+    /* seed the target AI-class byte to a non-0x83 sentinel so the write is
+     * unambiguously observable. */
+    g_ev_rc[0x0E].combat_aux_block[0xD] = 0x55;
+
+    /* distinct guard sentinels: the immediate in-slot neighbours of [0xD] and
+     * the AI-class byte of the adjacent slots must survive untouched. */
+    g_ev_rc[0x0E].combat_aux_block[0xC] = 0xAA;
+    g_ev_rc[0x0E].combat_aux_block[0xE] = 0xAA;
+    g_ev_rc[0x0D].combat_aux_block[0xD] = 0xAA;
+    g_ev_rc[0x0F].combat_aux_block[0xD] = 0xAA;
+
+    fd2_chapter_event_handler_24__ch12_ai_ctrl(0);
+
+    /* (1) the AI-class byte of slot 0x0E is exactly 0x83. */
+    ASSERT_EQ((long)g_ev_rc[0x0E].combat_aux_block[0xD], (long)0x83);
+
+    /* (2) nothing adjacent was disturbed (precise single-byte write). */
+    ASSERT_EQ((long)g_ev_rc[0x0E].combat_aux_block[0xC], (long)0xAA);
+    ASSERT_EQ((long)g_ev_rc[0x0E].combat_aux_block[0xE], (long)0xAA);
+    ASSERT_EQ((long)g_ev_rc[0x0D].combat_aux_block[0xD], (long)0xAA);
+    ASSERT_EQ((long)g_ev_rc[0x0F].combat_aux_block[0xD], (long)0xAA);
+
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt14_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -324,5 +374,6 @@ void run_field_chevt14_tests(void)
     RUN_TEST(test_ch10_event21_shows_page2_and_clears_ai_flag_for_0c_0d);
     RUN_TEST(test_event22_shows_dialog_page3);
     RUN_TEST(test_ch12_event23_reloads_portrait2_brackets_initphase);
+    RUN_TEST(test_ch12_event24_sets_ai_flag_0x83_for_char_0e);
     printf("\n");
 }
