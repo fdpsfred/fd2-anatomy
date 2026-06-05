@@ -197,6 +197,104 @@ static void test_gate_fires_dialog_on_turn_2(void)
     ce_teardown_portrait_env();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_30__ch21_ai_ctrl @ 0x351C6
+ *
+ * Pure in-memory computation: arms AI control flag 3 (the low nibble of
+ * runtime_char.combat_aux_block[0xD], absolute offset 0x34) for two inclusive
+ * char ranges 0x23..0x2A and 0x43..0x4A. The second range's call shares a
+ * borrowed tail in the binary; these tests confirm BOTH ranges are written.
+ *
+ * Drives the REAL handler and its REAL callee
+ * (fd2_set_combat_aux_block_byte_d_low4_for_char_range) against a local
+ * 0x50-entry runtime_char array (the shared g_test_rc_array[8] is too small for
+ * index 0x4A). No game files, no display.
+ * ================================================================ */
+
+#define CE30_NCHARS      0x50       /* must cover the highest index 0x4A */
+#define CE30_AI_OFF      0x34       /* combat_aux_block[0xD] absolute offset */
+
+static runtime_char g_ce30_rc[CE30_NCHARS];
+
+/* offset 0x34 of char `idx`, read as raw byte */
+static uint8 ce30_ai(int idx)
+{
+    return ((uint8 *)&g_ce30_rc[idx])[CE30_AI_OFF];
+}
+
+static void ce30_setup(void)
+{
+    int i;
+
+    memset(g_ce30_rc, 0, sizeof(g_ce30_rc));
+    /* Seed offset 0x34 of every char with a non-zero HIGH nibble (0xA0) and a
+     * non-3 LOW nibble (0x05) so we can prove: (a) in-range chars get their low
+     * nibble rewritten to 3 with the high nibble preserved -> 0xA3, and
+     * (b) out-of-range chars keep 0xA5 untouched. */
+    for (i = 0; i < CE30_NCHARS; i++) {
+        ((uint8 *)&g_ce30_rc[i])[CE30_AI_OFF] = 0xA5;
+    }
+    data_fd2_battle_runtime_char_array_ptr = g_ce30_rc;
+}
+
+static void ce30_teardown(void)
+{
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+}
+
+/* ----------------------------------------------------------------
+ * Both ranges are armed: every char in 0x23..0x2A and 0x43..0x4A gets its low
+ * nibble set to 3 (high nibble 0xA preserved -> 0xA3). Exercises the borrowed
+ * tail (second call) by asserting the 0x43..0x4A range too.
+ * ---------------------------------------------------------------- */
+static void test_h30_both_ranges_armed(void)
+{
+    int i;
+
+    ce30_setup();
+
+    fd2_chapter_event_handler_30__ch21_ai_ctrl(0);
+
+    for (i = 0x23; i <= 0x2A; i++) {
+        ASSERT_EQ((long)ce30_ai(i), 0xA3);
+    }
+    for (i = 0x43; i <= 0x4A; i++) {
+        ASSERT_EQ((long)ce30_ai(i), 0xA3);
+    }
+
+    ce30_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Range boundaries are exact and inclusive: the chars just outside each range
+ * (0x22, 0x2B, 0x42, 0x4B) and the whole gap 0x2B..0x42 stay 0xA5. This guards
+ * against off-by-one bounds and against the second call being dropped (which
+ * would leave 0x43..0x4A == 0xA5).
+ * ---------------------------------------------------------------- */
+static void test_h30_boundaries_and_gap_untouched(void)
+{
+    int i;
+
+    ce30_setup();
+
+    fd2_chapter_event_handler_30__ch21_ai_ctrl(0);
+
+    /* just-before / just-after each inclusive range */
+    ASSERT_EQ((long)ce30_ai(0x22), 0xA5);
+    ASSERT_EQ((long)ce30_ai(0x2B), 0xA5);
+    ASSERT_EQ((long)ce30_ai(0x42), 0xA5);
+    ASSERT_EQ((long)ce30_ai(0x4B), 0xA5);
+
+    /* the entire gap between the two ranges is untouched */
+    for (i = 0x2B; i <= 0x42; i++) {
+        ASSERT_EQ((long)ce30_ai(i), 0xA5);
+    }
+    /* char 0 (well below) is also untouched */
+    ASSERT_EQ((long)ce30_ai(0), 0xA5);
+
+    ce30_teardown();
+}
+
 void run_field_chevt2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -204,5 +302,7 @@ void run_field_chevt2_tests(void)
     RUN_TEST(test_gate_skips_dialog_on_non_trigger_turn);
     RUN_TEST(test_portrait_index_is_turn_div_2);
     RUN_TEST(test_gate_fires_dialog_on_turn_2);
+    RUN_TEST(test_h30_both_ranges_armed);
+    RUN_TEST(test_h30_boundaries_and_gap_untouched);
     printf("\n");
 }

@@ -44,3 +44,28 @@ void fd2_chapter_event_handler_2f__ch21_turn_gated(uint32 event_arg)
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_30__ch21_ai_ctrl @ 0x351C6  (0 direct callers)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x30.
+ * Triggered in chapter 21 at turn-event slot 1 (turn 5, phase 0). Category:
+ * AI setup. Dispatch-table signature is 1-arg cdecl (void fn(uint event_arg));
+ * this handler does not read the arg.
+ *
+ * Effect: arm AI control flag 3 (combat_aux_block[0xD] low nibble) for two
+ * NPC char ranges — 0x23..0x2A and 0x43..0x4A (8 + 8 = 16 chars).
+ *
+ * In the binary the second call shares a borrowed tail: after pushing its
+ * 3 args the handler does JMP 0x34F39, falling through into the
+ * CALL fd2_set_combat_aux_block_byte_d_low4_for_char_range; ADD ESP,0xC; RET
+ * tail of fd2_chapter_event_handler_12 @ 0x34F02. That tail-merge is a binary
+ * size optimisation; the functionally-exact source is simply two calls.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_30__ch21_ai_ctrl(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x23, 0x2A, 3);
+    fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x43, 0x4A, 3);
+}

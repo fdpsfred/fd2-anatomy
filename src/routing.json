@@ -3916,8 +3916,9 @@
     "name": "fd2_chapter_event_handler_30__ch21_ai_ctrl",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000351e9": {
     "name": "fd2_chapter_event_handler_31__ch22_turn_gated",
