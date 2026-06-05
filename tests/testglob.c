@@ -284,9 +284,23 @@ uint8  data_fd2_animation_palette_cycle_rgb_table[93] = {0};
 /* fd2_check_char_is_dead stub. Default 0 (alive) keeps historical behavior for
  * every existing test. fd2_save_runtime_char_to_template uses this to decide the
  * char-0 (索爾) dead-skip special case, so its test pins the return via
- * g_check_char_is_dead_return. */
+ * g_check_char_is_dead_return.
+ *
+ * When g_check_char_is_dead_use_array is non-zero, the stub instead mirrors the
+ * real function's semantics: it reads runtime_char[c].flags & 1 from
+ * data_fd2_battle_runtime_char_array_ptr (per-char dead test). This lets
+ * fd2_build_dead_chars_list_for_revive be exercised with a real per-char
+ * dead/alive pattern. */
 int g_check_char_is_dead_return = 0;
-int fd2_check_char_is_dead(uint32 c) { (void)c; return g_check_char_is_dead_return; }
+int g_check_char_is_dead_use_array = 0;
+int fd2_check_char_is_dead(uint32 c)
+{
+    if (g_check_char_is_dead_use_array) {
+        runtime_char *rc = data_fd2_battle_runtime_char_array_ptr;
+        return (int)(rc[c].flags & 1);
+    }
+    return g_check_char_is_dead_return;
+}
 /* fd2_scan_chars_within_manhattan_range: now in btl_ai.c */
 uint32 data_fd2_ui_anim_sprite_sheet_ptr = 0;
 void  *data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[5] = {0};

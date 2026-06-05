@@ -3166,8 +3166,9 @@
     "name": "fd2_build_dead_chars_list_for_revive",
     "target": "ui_menu/promote.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00030a47": {
     "name": "fd2_render_promote_members_grid",

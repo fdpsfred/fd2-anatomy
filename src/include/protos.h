@@ -434,6 +434,9 @@ void fd2_render_recruitment_select_screen(uint32 a, uint32 b, uint32 c, uint32 d
 int fd2_check_char_is_dead(uint32 char_idx);
 int fd2_scan_chars_within_manhattan_range(uint32 x, uint32 y, uint32 range, uint32 flag, int mode);
 
+/* ---- ui_menu / revive + promote ---- */
+int fd2_build_dead_chars_list_for_revive(uint8 *out_list_buf);
+
 /* ---- util / misc ---- */
 void fd2_debug_print_ans_and_length(int value);
 uint32 fd2_set_word_global_52758(uint32 new_val);
