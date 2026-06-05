@@ -206,6 +206,7 @@ void fd2_play_chapter_intro_sprite_slideshow(void);
 void fd2_play_game_ending_cinematic(void);
 int fd2_any_char_has_item(int item_id);
 int fd2_find_template_char_by_id(uint32 char_id);
+char fd2_require_char_id_in_active_party(uint32 max_chars, uint32 req_char_id);
 void fd2_animate_screen_shake(uint32 frame_count);
 
 /* ---- animation ---- */

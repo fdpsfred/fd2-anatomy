@@ -494,5 +494,18 @@
         "verify_method": "phase9_integration_with_scripted_input"
       }
     ]
+  },
+  "00031dbe": {
+    "name": "fd2_require_char_id_in_active_party",
+    "target": "util/misc.c",
+    "issues": [
+      {
+        "type": "test_deferral_note",
+        "desc": "The MISSING (found==0) arm is deferred to Phase 9 integration. On a miss the function runs fd2_load_chapter_portrait(0x4B) + fd2_display_dialog_scene(...) (both REAL linked heavy renderers: chapter-portrait DATO.DAT load + the dialog VM) then sets data_fd2_battle_tile_map_ptr=1 and calls fd2_wait_for_input_dialog_with_blink(0) -- the REAL linked busy-wait (src/input/input.c) whose while(fd2_check_keyboard_buffer_nonempty()==0){...} loop blocks on a keypress and hangs the silent harness (same hang documented for fd2_load_save_and_init_engine @00010010 and fd2_save_current_state_to_slot @00030012). A host unit test cannot drive this arm without scripted keyboard input, and it is pure display + blocking-input with no assertable non-display side effect that distinguishes THIS function (the renderers are already covered by their own suites: fd2_load_chapter_portrait in tests/rsrc/rsrc.c, fd2_display_dialog_scene in tests/dialog/dialog.c). The found path (return 1, zero side effects) IS unit-tested in tests/util/misc.c and exercises all of the load-bearing scan logic: the slot-(iter+1) offset (slot 0 / lord excluded), the 0x50-byte stride, the inclusive [1..max_chars] range (first slot, last slot == max_chars), the no-early-return scan, and the (uint8)req_char_id low-byte comparison.",
+        "severity": "low",
+        "verify_method": "phase9_integration_with_scripted_input",
+        "source_review": "fd2_require_char_id_in_active_party @00031dbe (emitter)"
+      }
+    ]
   }
 }

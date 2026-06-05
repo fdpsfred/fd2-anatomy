@@ -3245,8 +3245,9 @@
     "name": "fd2_require_char_id_in_active_party",
     "target": "util/misc.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00031e80": {
     "name": "fd2_render_recruitment_select_screen",

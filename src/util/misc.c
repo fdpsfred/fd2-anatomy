@@ -103,3 +103,60 @@ int fd2_find_template_char_by_id(uint32 char_id)
     }
     return 0;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_require_char_id_in_active_party @ 0x31DBE  (2 callers)
+ *
+ * Verifies a required char_id is in the active battle party
+ * (runtime_char_array slots 1..max_chars). If missing, shows a
+ * "you need [char-name]" portrait error dialog and returns 0; if
+ * present, returns 1 with no dialog.
+ *
+ * max_chars = active-party iteration cap (caller passes 0x0F or
+ * 0x13). req_char_id = required char_id (low byte). The scan checks
+ * slots [1..max_chars]: slot 0 is the lord (always present, not
+ * checked); slots 1..max_chars are the player-selected party from
+ * the recruitment screen.
+ *
+ * On a miss it loads chapter portrait 0x4B, sets the dynamic per-char
+ * portrait slot to (req_char_id & 0xFF) + 1, renders the "you need
+ * [name]" dialog scene, raises the battle-tile-map input guard,
+ * waits for an input dialog with blink, lowers the guard, then slides
+ * the dialog out.
+ *
+ * Distinct from fd2_check_party_has_char_id @ 0x33499 (template/menu
+ * scope, no side effect); this one checks the active battle scope and
+ * emits an error dialog.
+ *
+ * Caller: fd2_run_recruitment_or_branch_screen @ 0x31CC2 / 0x31CFF
+ * (required-class gate after commit).
+ *
+ * Cdecl, 2 stack params; char return. The binary's __CHK(0x30)
+ * stack-probe prologue is compiler-generated and omitted here. EBX is
+ * callee-saved.
+ * ---------------------------------------------------------------- */
+char fd2_require_char_id_in_active_party(uint32 max_chars, uint32 req_char_id)
+{
+    uint8 found;
+    int iter;
+
+    found = 0;
+    for (iter = 0; iter < (int32)max_chars; iter++) {
+        if (data_fd2_battle_runtime_char_array_ptr[iter + 1].char_id ==
+            (uint8)req_char_id) {
+            found = 1;
+        }
+    }
+    if (found == 0) {
+        fd2_load_chapter_portrait(0x4B);
+        data_fd2_dialog_last_action_sprite_id_param = (req_char_id & 0xFF) + 1;
+        fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x291, 0xA951F,
+                                 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
+        fd2_paint_portrait_to_dialog_area(0);
+        data_fd2_battle_tile_map_ptr = 1;
+        fd2_wait_for_input_dialog_with_blink(0);
+        data_fd2_battle_tile_map_ptr = 0;
+        fd2_close_intro_dialog_with_slide_out();
+    }
+    return (char)found;
+}
