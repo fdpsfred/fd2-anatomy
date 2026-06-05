@@ -661,3 +661,40 @@ void fd2_chapter_14_end(void)
     fd2_save_runtime_char_to_template();
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_15_end @ 0x239BD  (0 direct callers; dispatched via the
+ *   chapter-end handler pointer table @ 0x51DE9, slot @ 0x51E21)
+ *
+ * Chapter 15「拉卡湖的激戰」end handler. Shows a chapter-end dialog page whose
+ * index depends on whether 凱麗 (char #0xC) is currently in the party:
+ * fd2_check_party_has_char_id(0xC) returns 1 when present / 0 when absent, and
+ * the page is ((al ^ 1) + 0xC) -> page 12 when 凱麗 is present, page 13 when
+ * absent. It then persists the party's runtime-character state back to the
+ * template store, recruits char #15 (賽可邦勒) via
+ * fd2_init_runtime_char_from_base_growth, then advances the current-chapter id
+ * by 1.
+ *
+ * In the binary the function ends with `PUSH 0xF; JMP 0x237C8`, a tail-jump
+ * into the shared snippet @ 0x237C8 (CALL fd2_init_runtime_char_from_base_growth;
+ * ADD ESP,4; JMP 0x231F2 — INC current_chapter_id; RET), reusing the tail of
+ * fd2_chapter_11_end (the same snippet that closes fd2_chapter_13_end). It is
+ * emitted here as a self-contained function (Layer 2 functional equivalence —
+ * the jump-into-middle sharing is not preserved in source).
+ *
+ * Paired init handler: fd2_chapter_15_init @ 0x334D9.
+ * Post-action handler: fd2_chapter_15_post_action @ 0x20822 (extra lose if
+ *   char 0x40 (賽可邦勒) is dead).
+ * Walkthrough: assets/chapters/chapter_15.md.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_15_end(void)
+{
+    uint8 page;
+
+    page = (uint8)(((uint8)fd2_check_party_has_char_id(0xc) ^ 1) + 0xc);
+    fd2_display_dialog_scene(current_chapter_text, page, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+    fd2_save_runtime_char_to_template();
+    fd2_init_runtime_char_from_base_growth(0xf);
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}

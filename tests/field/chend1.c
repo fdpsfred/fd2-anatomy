@@ -42,6 +42,12 @@ extern uint32 g_dlg_glyph_last_idx;
 extern int    g_delay375b2_calls;
 extern uint32 g_delay375b2_last_ticks;
 
+/* fd2_check_party_has_char_id recording fake (testglob.c): returns
+ * g_has_char_fake, records the queried char id / call count. */
+extern uint32 g_has_char_fake;
+extern uint32 g_has_char_last_arg;
+extern int    g_has_char_calls;
+
 /* roster template the real save-template pass copies into. */
 static uint8 g_ce1_tmpl[8 * 0x50];
 
@@ -2908,6 +2914,190 @@ static void test_chapter_14_end_increments_not_absolute(void)
     ASSERT_EQ((long)chapter_id, 8L);           /* 7 + 1, not a constant */
 }
 
+/* ================================================================
+ * fd2_chapter_15_end @ 0x239BD
+ *
+ * The Chapter 15「拉卡湖的激戰」end handler is the same trivial 4-step shape as
+ * chapter 13 (dialog page -> save -> single recruit -> INC id) EXCEPT the dialog
+ * page is chosen by a membership branch:
+ *   (1) fd2_check_party_has_char_id(0xC) — is 凱麗 (char_id 0xC) in the template
+ *       party? returns 1 (present) / 0 (absent). The page is ((ret ^ 1) + 0xC):
+ *       page 12 when 凱麗 is present, page 13 when absent.
+ *   (2) shows that page via the real fd2_display_dialog_scene,
+ *   (3) persists battle-runtime char state via the real
+ *       fd2_save_runtime_char_to_template,
+ *   (4) recruits char #15 (賽可邦勒) via the real
+ *       fd2_init_runtime_char_from_base_growth, then
+ *   (5) advances chapter_id by 1 (the binary's `PUSH 0xF; JMP 0x237C8` tail-jump
+ *       reuses chapter 11's tail: recruit, then `INC [0x53c03]; RET` @ 0x231F2).
+ *
+ * Every callee is the real linked function (no fakes), reusing the chapter 13
+ * suite's safe headless env: current_chapter_text points at a minimal int16
+ * program whose page-12 and page-13 header words each redirect to ONE distinct
+ * glyph (0xC5 vs 0xD5) + END, so the recorded glyph id pins which page the branch
+ * selected; a zeroed runtime-char array + zeroed roster with the roster pointer
+ * set and member_count = 1. The membership check reads roster slot 0's char_id
+ * byte (+8) BEFORE the recruit, so setting that byte to 0xC vs leaving it 0 drives
+ * the branch; the recruit appends at slot 1 (observable as 1 -> 2 roster delta).
+ *
+ * Asserted (both branches): the real fd2_check_party_has_char_id branch selected
+ * the correct dialog page (glyph 0xC5 for present / 0xD5 for absent — guards the
+ * XOR/ADD page calc and a wrong text base), char #15 was recruited (roster count
+ * delta), and the chapter-id transition is a relative INCREMENT (not absolute).
+ * The dialog page's pixels are display side-effects deferred to Phase 9.
+ * ================================================================ */
+
+static uint8 g_ce15_roster[8 * 0x50];
+static int16 g_ce15_text[24];
+
+/* present: g_has_char_fake = 1 -> page 12 (glyph 0xC5);
+ * absent:  g_has_char_fake = 0 -> page 13 (glyph 0xD5). */
+static void ce15_fixture_reset(int kelly_present)
+{
+    int i;
+
+    /* dialog VM safe env. */
+    *(volatile uint16 *)0x41AuL = 0x20;   /* BIOS kbd buffer head == tail */
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+
+    /* dialog program: pages 12 and 13 each redirect to one distinct glyph + END.
+     * prog[12] / prog[13] are byte offsets to a one-glyph,one-END page body. */
+    for (i = 0; i < 24; i++) {
+        g_ce15_text[i] = 0;
+    }
+    g_ce15_text[12] = 28;       /* byte offset to prog[14] (page 12 body) */
+    g_ce15_text[14] = 0xc5;     /* page 12: one glyph */
+    g_ce15_text[15] = -1;       /* END */
+    g_ce15_text[13] = 32;       /* byte offset to prog[16] (page 13 body) */
+    g_ce15_text[16] = 0xd5;     /* page 13: one glyph */
+    g_ce15_text[17] = -1;       /* END */
+    current_chapter_text = (uint32)g_ce15_text;
+
+    /* The 凱麗-membership branch goes through fd2_check_party_has_char_id, which
+     * is the testglob.c recording fake (real one routes to src/util/misc.c, not
+     * yet emitted). Drive the branch via its controllable return; record the
+     * queried char id so the test pins that the handler asks for char 0xC. */
+    g_has_char_fake = (uint32)(kelly_present ? 1 : 0);
+    g_has_char_last_arg = 0;
+    g_has_char_calls = 0;
+
+    /* save + recruit safe env (chapter 13 baseline): zeroed runtime chars +
+     * zeroed roster, one scanned runtime char and one template entry so the
+     * recruit appends at slot 1. */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(g_ce15_roster, 0, sizeof(g_ce15_roster));
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_ce15_roster;
+    g_check_char_is_dead_return = 0;
+    data_fd2_battle_party_member_count = 1;
+    data_fd2_shared_menu_party_member_count = 1;  /* recruit appends at slot 1 */
+
+    data_fd2_chapter_current_chapter_id = 0;
+}
+
+static void ce15_fixture_teardown(void)
+{
+    current_chapter_text = 0;
+    data_fd2_shared_menu_party_roster_buffer_ptr = 0;
+    data_fd2_shared_menu_party_member_count = 0;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_chapter_current_chapter_id = 1;
+}
+
+/* ----------------------------------------------------------------
+ * 凱麗 (char 0xC) present: the membership branch selects dialog page 12. The
+ * glyph recorder proves the real VM ran on page 12 (its single glyph 0xC5),
+ * char #15 is recruited (roster 1 -> 2), and chapter_id advances 14 -> 15.
+ * ---------------------------------------------------------------- */
+static void test_chapter_15_end_kelly_present_page12_recruits_increments(void)
+{
+    int    glyph_calls;
+    uint32 glyph_idx;
+    uint32 recruit_count;
+    uint32 chapter_id;
+    uint32 queried_char;
+    int    query_calls;
+
+    ce15_fixture_reset(1);                      /* 凱麗 present */
+    data_fd2_chapter_current_chapter_id = 14;   /* chapter 15 follows chapter 14 */
+
+    fd2_chapter_15_end();
+
+    glyph_calls   = g_dlg_glyph_calls;
+    glyph_idx     = g_dlg_glyph_last_idx;
+    recruit_count = data_fd2_shared_menu_party_member_count;
+    chapter_id    = data_fd2_chapter_current_chapter_id;
+    queried_char  = g_has_char_last_arg;
+    query_calls   = g_has_char_calls;
+    ce15_fixture_teardown();
+
+    /* the handler asked exactly once whether 凱麗 (char 0xC) is in the party. */
+    ASSERT_EQ((long)query_calls, 1);
+    ASSERT_EQ((long)queried_char, (long)0xc);
+
+    /* present -> page 12 redirected to a single glyph: the real VM blitted it. */
+    ASSERT_EQ((long)glyph_calls, 1);
+    ASSERT_EQ((long)glyph_idx, (long)0xc5);
+
+    /* char #15 recruited (roster grew 1 -> 2). */
+    ASSERT_EQ((long)recruit_count, 2L);
+
+    /* state transition: id incremented 14 -> 15 (relative, not absolute). */
+    ASSERT_EQ((long)chapter_id, 15L);
+}
+
+/* ----------------------------------------------------------------
+ * 凱麗 absent: the membership branch selects dialog page 13 instead (glyph
+ * 0xD5). Same recruit + increment. Proves the ((ret ^ 1) + 0xC) page calc flips
+ * 12 <-> 13 on the fd2_check_party_has_char_id result.
+ * ---------------------------------------------------------------- */
+static void test_chapter_15_end_kelly_absent_page13_recruits_increments(void)
+{
+    int    glyph_calls;
+    uint32 glyph_idx;
+    uint32 recruit_count;
+    uint32 chapter_id;
+
+    ce15_fixture_reset(0);                      /* 凱麗 absent */
+    data_fd2_chapter_current_chapter_id = 14;
+
+    fd2_chapter_15_end();
+
+    glyph_calls   = g_dlg_glyph_calls;
+    glyph_idx     = g_dlg_glyph_last_idx;
+    recruit_count = data_fd2_shared_menu_party_member_count;
+    chapter_id    = data_fd2_chapter_current_chapter_id;
+    ce15_fixture_teardown();
+
+    /* page 13 redirected to a single glyph: the real VM blitted exactly it. */
+    ASSERT_EQ((long)glyph_calls, 1);
+    ASSERT_EQ((long)glyph_idx, (long)0xd5);
+    ASSERT_EQ((long)recruit_count, 2L);
+    ASSERT_EQ((long)chapter_id, 15L);
+}
+
+/* ----------------------------------------------------------------
+ * The chapter-id update is a relative INCREMENT, not an absolute set: seeded
+ * with a distinctive unrelated value (7), the handler leaves 8 — proving it does
+ * not hardcode the id to 15.
+ * ---------------------------------------------------------------- */
+static void test_chapter_15_end_increments_not_absolute(void)
+{
+    uint32 chapter_id;
+
+    ce15_fixture_reset(1);
+    data_fd2_chapter_current_chapter_id = 7;   /* distinctive, unrelated to 15 */
+
+    fd2_chapter_15_end();
+
+    chapter_id = data_fd2_chapter_current_chapter_id;
+    ce15_fixture_teardown();
+
+    ASSERT_EQ((long)chapter_id, 8L);           /* 7 + 1, not a constant */
+}
+
 void run_field_chend1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -2941,5 +3131,8 @@ void run_field_chend1_tests(void)
     RUN_TEST(test_chapter_13_end_increments_not_absolute);
     RUN_TEST(test_chapter_14_end_stages_scene_cutscene_loads_and_increments);
     RUN_TEST(test_chapter_14_end_increments_not_absolute);
+    RUN_TEST(test_chapter_15_end_kelly_present_page12_recruits_increments);
+    RUN_TEST(test_chapter_15_end_kelly_absent_page13_recruits_increments);
+    RUN_TEST(test_chapter_15_end_increments_not_absolute);
     printf("\n");
 }
