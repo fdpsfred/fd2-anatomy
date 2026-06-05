@@ -3277,8 +3277,9 @@
     "name": "fd2_reorder_party_by_selection",
     "target": "util/misc.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000321c8": {
     "name": "fd2_pin_required_char_to_party_slot1",

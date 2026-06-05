@@ -395,6 +395,187 @@ static void test_count_selected_empty_when_count_one(void)
     ASSERT_EQ(result, 0);
 }
 
+/* ================================================================
+ * fd2_reorder_party_by_selection @ 0x320FC
+ *
+ * Reorders the template roster (data_fd2_shared_menu_party_roster_buffer_ptr,
+ * 0x50-byte entries) by sel_state: selected members (sel_state[i] != 0) pack
+ * to the front (slots 1..K), unselected drop to the back, slot 0 preserved.
+ * It snapshots the roster, then runs two passes over [0, member_count-1)
+ * with a SHARED out_slot index (starts at 1, advances across both passes).
+ * Source entries come from snapshot index (iter+1), so snapshot slot 0 (the
+ * lord) is skipped and slot 0 of the live roster is left untouched. Pure
+ * in-memory: a real roster buffer is wired to the globals and each entry is
+ * stamped with a unique tag byte so the test can assert exact placement.
+ *
+ * Tag convention: slot i is filled with byte value g_reorder_tag(i) across
+ * the whole 0x50-byte entry; after the reorder we read back the tag at each
+ * destination slot to prove which source entry landed there (the entry moved
+ * wholesale, not just one field).
+ * ================================================================ */
+
+#define REORD_STRIDE   0x50
+#define REORD_SLOTS    32          /* 0xA00 / 0x50 = snapshot capacity */
+static uint8 g_reorder_roster[REORD_STRIDE * REORD_SLOTS];
+
+/* Distinct, non-zero tag for slot i (0x40 + i keeps every slot's tag unique
+ * and clear of 0). */
+static uint8 g_reorder_tag(int slot)
+{
+    return (uint8)(0x40 + slot);
+}
+
+/* Fill the roster so slot i is entirely g_reorder_tag(i); point the globals
+ * at it and set the member count. */
+static void reorder_roster_reset(int count)
+{
+    int slot;
+    int b;
+    for (slot = 0; slot < REORD_SLOTS; slot++) {
+        for (b = 0; b < REORD_STRIDE; b++) {
+            g_reorder_roster[slot * REORD_STRIDE + b] = g_reorder_tag(slot);
+        }
+    }
+    data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)g_reorder_roster;
+    data_fd2_shared_menu_party_member_count = (uint32)count;
+}
+
+/* Tag byte currently at the start of roster slot i. */
+static uint8 reorder_slot_tag(int slot)
+{
+    return g_reorder_roster[slot * REORD_STRIDE];
+}
+
+/* ----------------------------------------------------------------
+ * Mixed selection. count == 6, so iter runs 0..4 and source entries are
+ * snapshot slots 1..5 (slot 0 = lord, never sourced). sel_state marks
+ * members at iter 0,3 selected and 1,2,4 unselected. Expected live roster:
+ *   slot 0: untouched lord (tag 0x40)
+ *   slots 1..2: selected block in original order -> snapshot 1, 4
+ *   slots 3..5: unselected block in original order -> snapshot 2, 3, 5
+ * Proves the front/back partition, the shared out_slot advancing across both
+ * passes, the (iter+1) source mapping, and slot-0 preservation.
+ * ---------------------------------------------------------------- */
+static void test_reorder_mixed_partition(void)
+{
+    unsigned char sel[6];
+
+    reorder_roster_reset(6);
+    memset(sel, 0, sizeof(sel));
+    sel[0] = 1;   /* -> snapshot slot 1 */
+    sel[3] = 1;   /* -> snapshot slot 4 */
+    /* iter 1,2,4 unselected -> snapshot slots 2,3,5 */
+
+    fd2_reorder_party_by_selection((uint32)sel);
+
+    ASSERT_EQ((int)reorder_slot_tag(0), (int)g_reorder_tag(0));  /* lord kept */
+    ASSERT_EQ((int)reorder_slot_tag(1), (int)g_reorder_tag(1));  /* sel iter0 */
+    ASSERT_EQ((int)reorder_slot_tag(2), (int)g_reorder_tag(4));  /* sel iter3 */
+    ASSERT_EQ((int)reorder_slot_tag(3), (int)g_reorder_tag(2));  /* uns iter1 */
+    ASSERT_EQ((int)reorder_slot_tag(4), (int)g_reorder_tag(3));  /* uns iter2 */
+    ASSERT_EQ((int)reorder_slot_tag(5), (int)g_reorder_tag(5));  /* uns iter4 */
+}
+
+/* ----------------------------------------------------------------
+ * All in-range members selected. count == 5 -> iter 0..3, sources snapshot
+ * 1..4. Every member is selected, so pass 1 lays them into slots 1..4 in
+ * original order and pass 2 copies nothing. Slot 0 untouched. Proves the
+ * pure-front path and that out_slot reaches count-1.
+ * ---------------------------------------------------------------- */
+static void test_reorder_all_selected(void)
+{
+    unsigned char sel[5];
+    int i;
+
+    reorder_roster_reset(5);
+    for (i = 0; i < 5; i++) {
+        sel[i] = 1;
+    }
+
+    fd2_reorder_party_by_selection((uint32)sel);
+
+    ASSERT_EQ((int)reorder_slot_tag(0), (int)g_reorder_tag(0));
+    ASSERT_EQ((int)reorder_slot_tag(1), (int)g_reorder_tag(1));
+    ASSERT_EQ((int)reorder_slot_tag(2), (int)g_reorder_tag(2));
+    ASSERT_EQ((int)reorder_slot_tag(3), (int)g_reorder_tag(3));
+    ASSERT_EQ((int)reorder_slot_tag(4), (int)g_reorder_tag(4));
+}
+
+/* ----------------------------------------------------------------
+ * No member selected. count == 5 -> iter 0..3, sources snapshot 1..4. Pass 1
+ * copies nothing; pass 2 lays snapshot 1..4 into slots 1..4 in original
+ * order (out_slot still starts at 1). Slot 0 untouched. Confirms the
+ * back-block path starts at slot 1, not slot 0.
+ * ---------------------------------------------------------------- */
+static void test_reorder_none_selected(void)
+{
+    unsigned char sel[5];
+
+    reorder_roster_reset(5);
+    memset(sel, 0, sizeof(sel));
+
+    fd2_reorder_party_by_selection((uint32)sel);
+
+    ASSERT_EQ((int)reorder_slot_tag(0), (int)g_reorder_tag(0));
+    ASSERT_EQ((int)reorder_slot_tag(1), (int)g_reorder_tag(1));
+    ASSERT_EQ((int)reorder_slot_tag(2), (int)g_reorder_tag(2));
+    ASSERT_EQ((int)reorder_slot_tag(3), (int)g_reorder_tag(3));
+    ASSERT_EQ((int)reorder_slot_tag(4), (int)g_reorder_tag(4));
+}
+
+/* ----------------------------------------------------------------
+ * Loop bound + source offset. count == 4 -> iter runs 0..2 only (member at
+ * index count-1 == 3 is the sentinel, never processed). Sources are snapshot
+ * 1,2,3 (never snapshot 0). Mark iter 0 selected, 1,2 unselected. Even though
+ * sel[3] is set, it is outside the scan window and must not move snapshot
+ * slot 4 anywhere. Expected: slot1 <- snap1 (sel), slot2 <- snap2, slot3 <-
+ * snap3 (unsel); slot 4 keeps its own tag (never written). Pins the count-1
+ * bound and the (iter+1) mapping at the high end.
+ * ---------------------------------------------------------------- */
+static void test_reorder_bound_and_offset(void)
+{
+    unsigned char sel[5];
+
+    reorder_roster_reset(4);
+    memset(sel, 0, sizeof(sel));
+    sel[0] = 1;   /* in range, selected   -> snapshot slot 1 */
+    /* iter 1,2 unselected -> snapshot slots 2,3 */
+    sel[3] = 1;   /* index count-1: sentinel, outside the scan window */
+
+    fd2_reorder_party_by_selection((uint32)sel);
+
+    ASSERT_EQ((int)reorder_slot_tag(0), (int)g_reorder_tag(0));  /* lord kept */
+    ASSERT_EQ((int)reorder_slot_tag(1), (int)g_reorder_tag(1));  /* sel iter0 */
+    ASSERT_EQ((int)reorder_slot_tag(2), (int)g_reorder_tag(2));  /* uns iter1 */
+    ASSERT_EQ((int)reorder_slot_tag(3), (int)g_reorder_tag(3));  /* uns iter2 */
+    ASSERT_EQ((int)reorder_slot_tag(4), (int)g_reorder_tag(4));  /* untouched */
+}
+
+/* ----------------------------------------------------------------
+ * High-bit selection bytes. The binary tests sel_state[i] != 0, not a signed
+ * > 0, so 0x80 and 0xFF must count as selected. count == 4 -> iter 0..2.
+ * Mark iter 0 = 0xFF, iter 1 = 0x80 (both selected), iter 2 = 0 (unselected).
+ * Expected front block snapshot 1,2 then back block snapshot 3. Guards the
+ * != 0 byte test against a signedness regression.
+ * ---------------------------------------------------------------- */
+static void test_reorder_high_bit_selected(void)
+{
+    unsigned char sel[5];
+
+    reorder_roster_reset(4);
+    memset(sel, 0, sizeof(sel));
+    sel[0] = 0xFF;   /* selected -> snapshot slot 1 */
+    sel[1] = 0x80;   /* selected -> snapshot slot 2 */
+    /* iter 2 unselected -> snapshot slot 3 */
+
+    fd2_reorder_party_by_selection((uint32)sel);
+
+    ASSERT_EQ((int)reorder_slot_tag(0), (int)g_reorder_tag(0));
+    ASSERT_EQ((int)reorder_slot_tag(1), (int)g_reorder_tag(1));  /* 0xFF sel */
+    ASSERT_EQ((int)reorder_slot_tag(2), (int)g_reorder_tag(2));  /* 0x80 sel */
+    ASSERT_EQ((int)reorder_slot_tag(3), (int)g_reorder_tag(3));  /* uns iter2 */
+}
+
 void run_util_misc_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -415,5 +596,10 @@ void run_util_misc_tests(void)
     RUN_TEST(test_count_selected_all_in_range);
     RUN_TEST(test_count_selected_high_bit_bytes);
     RUN_TEST(test_count_selected_empty_when_count_one);
+    RUN_TEST(test_reorder_mixed_partition);
+    RUN_TEST(test_reorder_all_selected);
+    RUN_TEST(test_reorder_none_selected);
+    RUN_TEST(test_reorder_bound_and_offset);
+    RUN_TEST(test_reorder_high_bit_selected);
     printf("\n");
 }
