@@ -521,3 +521,55 @@ void fd2_chapter_11_end(void)
     fd2_init_runtime_char_from_base_growth(0xe);
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_12_end @ 0x237D5  (0 direct callers; dispatched via the
+ *   chapter-end handler pointer table @ 0x51DE9, slot @ 0x51E15)
+ *
+ * Chapter 12「北山道」end handler. Unconditionally copies three 14-byte scene
+ * tables (recruit-scene X / Y / facing @ 0x52129 / 0x52137 / 0x52145) into
+ * on-stack placement blocks and stages the post-battle scene via
+ * fd2_setup_chars_and_camera_for_intro (place chars 0..0xD, extra char 0xE at
+ * (0xA,2) facing 0, camera origin (4,0)). It then plays the cutscene: shows
+ * dialog page 3, fires cutscene event 0x2D, shows dialog page 4, persists the
+ * party's runtime-char state to the template store, recruits char #17
+ * (米亞斯多德) via fd2_init_runtime_char_from_base_growth, then advances the
+ * current-chapter id by 1.
+ *
+ * In the binary the function ends with `JMP 0x239B1`, a tail-jump into the
+ * shared `INC [0x53c03]; RET` snippet that closes fd2_chapter_13_end. It is
+ * emitted here as a self-contained function (Layer 2 functional equivalence —
+ * the jump-into-middle sharing is not preserved in source).
+ *
+ * Paired init handler: fd2_chapter_12_init @ 0x333F5.
+ * Post-action handler: fd2_chapter_12_post_action @ 0x2073D (extra lose if
+ *   char 0xE (米亞斯多德) is dead).
+ * Walkthrough: assets/chapters/chapter_12.md.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_12_end(void)
+{
+    uint8 scene_block_x[14];
+    uint8 scene_block_y[14];
+    uint8 scene_block_facing[14];
+    int i;
+
+    for (i = 0; i < 14; i++) {
+        scene_block_x[i] = data_fd2_chapter_ch12_end_scene_char_pos_x_table[i];
+        scene_block_y[i] = data_fd2_chapter_ch12_end_scene_char_pos_y_table[i];
+        scene_block_facing[i] = data_fd2_chapter_ch12_end_scene_char_facing_table[i];
+    }
+
+    fd2_setup_chars_and_camera_for_intro(
+        (uint32)scene_block_x, (uint32)scene_block_y, (uint32)scene_block_facing,
+        0, 0xd, 0xe, 0xa, 2, 0, 4, 0);
+
+    fd2_display_dialog_scene(current_chapter_text, 3, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+    fd2_cutscene_event_trigger(0x2d);
+    fd2_display_dialog_scene(current_chapter_text, 4, 0xa0000, 0x140, 0xcd,
+                             0x4c, 0x4a, 0x13, 1);
+
+    fd2_save_runtime_char_to_template();
+    fd2_init_runtime_char_from_base_growth(0x11);
+    data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
+}

@@ -49,6 +49,11 @@ extern uint8  data_fd2_chapter_ch08_end_scene_char_pos_y_table[10];     /* 0x521
 extern uint8  data_fd2_chapter_ch10_end_scene_char_pos_x_table[11];     /* 0x52113  11 chars X */
 extern uint8  data_fd2_chapter_ch10_end_scene_char_pos_y_table[11];     /* 0x5211E  11 chars Y */
 
+/* ---- chapter 12 end scene char placement tables (.object2 const) ---- */
+extern uint8  data_fd2_chapter_ch12_end_scene_char_pos_x_table[14];     /* 0x52129  14 chars X */
+extern uint8  data_fd2_chapter_ch12_end_scene_char_pos_y_table[14];     /* 0x52137  14 chars Y */
+extern uint8  data_fd2_chapter_ch12_end_scene_char_facing_table[14];    /* 0x52145  14 chars facing */
+
 /* ---- battle state ---- */
 extern uint32 data_fd2_battle_anim_phase;                               /* 0x51A83 */
 extern uint32 data_fd2_battle_ai_post_action_consequence_idx;           /* 0x51A8F */

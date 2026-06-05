@@ -227,6 +227,17 @@ uint8 data_fd2_chapter_ch10_end_scene_char_pos_x_table[11] =
     { 14, 15, 16, 13, 14, 15, 16, 17, 14, 15, 16 };
 uint8 data_fd2_chapter_ch10_end_scene_char_pos_y_table[11] =
     { 38, 39, 38, 38, 39, 38, 39, 39, 40, 40, 40 };
+/* Chapter 12 end scene char placement tables (data segment @ 0x52129 /
+ * 0x52137 / 0x52145). Real binary bytes until the data segment is emitted;
+ * fd2_chapter_12_end copies each 14-byte table into an on-stack placement block
+ * and places chars 0..0xD. X/Y are battle-tile coords, facing is sprite
+ * direction (0..3). */
+uint8 data_fd2_chapter_ch12_end_scene_char_pos_x_table[14] =
+    { 10, 11, 9, 12, 8, 10, 11, 9, 12, 8, 8, 12, 8, 12 };
+uint8 data_fd2_chapter_ch12_end_scene_char_pos_y_table[14] =
+    { 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 3, 3, 2, 2 };
+uint8 data_fd2_chapter_ch12_end_scene_char_facing_table[14] =
+    { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 3, 1 };
 /* Resource portrait sheet base pointer (data segment @ 0x53AD1). Tests point it
  * at a zeroed scratch buffer. */
 uint32 data_fd2_resource_portrait_sheet_ptr = 0;
@@ -735,13 +746,13 @@ void __delay_thunk_375b2(uint32 ticks) { g_delay375b2_calls++; g_delay375b2_last
  * reading past a caller's on-stack block. The facing argument is a byte-array
  * table address (>= 4) for chapters 3/5/7 and an inline fixed facing value (< 4)
  * for chapter 8; g_setup_intro_facing_arg records the raw value. Buffers are
- * sized 9 (chapters 3/5/7); chapter 8's 10th entry is not snapshotted (its scene
- * staging is pure VGA side-effect deferred to Phase 9, and the test pins the
- * fixed facing via g_setup_intro_facing_arg instead). */
+ * sized 14 to hold the widest caller's live range (chapter 12 places chars
+ * 0..0xD = 14 entries); narrower callers (chapters 3/5/7/8) fill only their
+ * leading entries. */
 int    g_setup_intro_calls = 0;
-uint8  g_setup_intro_px[9];
-uint8  g_setup_intro_py[9];
-uint8  g_setup_intro_facing[9];
+uint8  g_setup_intro_px[14];
+uint8  g_setup_intro_py[14];
+uint8  g_setup_intro_facing[14];
 uint32 g_setup_intro_facing_arg = 0xFFFFFFFFuL;
 int32  g_setup_intro_char_start = -1;
 int32  g_setup_intro_char_end = -1;
@@ -767,8 +778,8 @@ void fd2_setup_chars_and_camera_for_intro(uint32 px_table, uint32 py_table,
     if (count < 0) {
         count = 0;
     }
-    if (count > 9) {
-        count = 9;
+    if (count > 14) {
+        count = 14;
     }
     for (i = 0; i < count; i++) {
         g_setup_intro_px[i]     = ((uint8 *)px_table)[char_start + i];
