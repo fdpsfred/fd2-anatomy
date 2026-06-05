@@ -4,6 +4,7 @@
  *
  * fd2_play_ani_file_animation_sequence    @ 0x20421 (4 callers)
  * fd2_animate_bg_zoom_transition_in       @ 0x29C90 (2 callers)
+ * fd2_animate_bg_zoom_transition_out      @ 0x29DED (1 caller)
  */
 
 #include "types.h"
@@ -150,6 +151,76 @@ void fd2_animate_bg_zoom_transition_in(uint32 char_unit_id,
     for (frame_iter = 9; frame_iter >= 0; frame_iter--) {
         fd2_rle_blit_sprite(bg_layer[(frame_iter + 2) % 3], 0, 0x32,
                             workspace + 0x140, 0x280, 0xffffffff);
+        fd2_blit_rectangle(0xa0000, 0x140, frame_iter * 0x20 + workspace,
+                           0x280, 0x140, 0xc8);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_animate_bg_zoom_transition_out @ 0x29DED  (1 caller)
+ *
+ * BG zoom-out scroll transition for a combat cinematic — the camera
+ * pulls back from the attacker (player/ally side), the mirror of
+ * fd2_animate_bg_zoom_transition_in. Runs an outward scroll, repaints the
+ * defender into the work buffer, then a second outward scroll with a
+ * rotated BG cycle, all over the 3-layer parallax BG cache
+ * (data_fd2_battle_special_cinematic_bg_layer_0/1/2 @ 0x5410B/0F/13)
+ * loaded by the caller.
+ *
+ * Called by fd2_execute_combat_hit_cinematic.
+ *
+ * Params (__cdecl):
+ *   char_unit_id        runtime-char index of the unit (forwarded to the
+ *                       hit-flash overlay)
+ *   char_sprite_idx     atlas/sprite index blitted into the workspace after
+ *                       the defender is composed
+ *   terrain_bg          terrain backdrop RLE sprite stream
+ *   clear_buf           64000-byte (mode-13h sized) scratch the defender is
+ *                       composed into before being blitted into workspace
+ *   workspace           128K (0x1F400) work buffer holding the scrolled BG;
+ *                       blits target workspace + 0x140 in the lower row band
+ *   name_banner_sprite  RLE sprite stream for the unit name banner
+ *
+ * The three BG-layer pointers sit contiguously at 0x5410B/0F/13 and the
+ * original indexes them as a uint32[3]; reproduced here by indexing
+ * through the address of the first slot. See emit_issues.json.
+ *
+ * Unlike the zoom-in counterpart, both scroll passes here count forward
+ * (1..9 and 1..10) and the second pass blits into bare workspace while the
+ * first pass and the defender repaint use workspace + 0x140.
+ * ---------------------------------------------------------------- */
+void fd2_animate_bg_zoom_transition_out(uint32 char_unit_id,
+                                        uint32 char_sprite_idx,
+                                        uint32 terrain_bg,
+                                        uint32 clear_buf,
+                                        uint32 workspace,
+                                        uint32 name_banner_sprite)
+{
+    uint32 *bg_layer = &data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr;
+    uint32 lower_band = workspace + 0x140;
+    int frame_iter;
+
+    /* Phase 1 — outward scroll, BG cycle (frame_iter = 1..9) */
+    for (frame_iter = 1; frame_iter < 10; frame_iter++) {
+        fd2_rle_blit_sprite(bg_layer[frame_iter % 3], 0, 0x32,
+                            lower_band, 0x280, 0xffffffff);
+        fd2_blit_rectangle(0xa0000, 0x140, frame_iter * 0x20 + workspace,
+                           0x280, 0x140, 0xc8);
+    }
+
+    /* Phase 2 — reset buffers + paint banner, terrain and defender */
+    memset((void *)workspace, 0, 0x1f400);
+    memset((void *)clear_buf, 0, 64000);
+    fd2_rle_blit_sprite(name_banner_sprite, 0, 0x32, clear_buf, 0x140, 0xffffffff);
+    fd2_rle_blit_sprite(terrain_bg, 0xa4, 0x9d, clear_buf, 0x140, 0xffffffff);
+    fd2_flash_char_hit_sprite(clear_buf, char_unit_id);
+    fd2_blit_rectangle(lower_band, 0x280, clear_buf, 0x140, 0x140, 0xc8);
+    fd2_blit_indexed_sprite(char_sprite_idx, 0, (int)lower_band, 0x280, -1);
+
+    /* Phase 3 — outward scroll with rotated BG cycling (frame_iter = 1..10) */
+    for (frame_iter = 1; frame_iter <= 10; frame_iter++) {
+        fd2_rle_blit_sprite(bg_layer[(frame_iter + 1) % 3], 0, 0x32,
+                            workspace, 0x280, 0xffffffff);
         fd2_blit_rectangle(0xa0000, 0x140, frame_iter * 0x20 + workspace,
                            0x280, 0x140, 0xc8);
     }

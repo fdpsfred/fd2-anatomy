@@ -3,6 +3,7 @@
  *
  * fd2_play_ani_file_animation_sequence @ 0x20421
  * fd2_animate_bg_zoom_transition_in    @ 0x29C90
+ * fd2_animate_bg_zoom_transition_out   @ 0x29DED
  *
  * ===== fd2_play_ani_file_animation_sequence @ 0x20421 =====
  *
@@ -76,6 +77,23 @@
  * function runs without touching real VGA / fopen. The pure pixel output of the
  * scroll blits is the only thing deferred to Phase 9. See emit_issues.json
  * (00029c90).
+ *
+ * ===== fd2_animate_bg_zoom_transition_out @ 0x29DED =====
+ *
+ * UNIT-TESTED the same way as the zoom-in counterpart: the REAL function is
+ * driven and the non-display computation asserted; only the VRAM pixel output
+ * is left to Phase 9.
+ *
+ * The non-display logic differs from zoom-in in three ways, all asserted here:
+ *   - both scroll passes count FORWARD (phase 1 frame_iter 1..9, phase 3 1..10)
+ *   - the index math is bg_layer[frame_iter % 3] (phase 1) and
+ *     bg_layer[(frame_iter + 1) % 3] (phase 3)
+ *   - phase 1 + the phase-2 defender repaint blit into workspace + 0x140, while
+ *     phase 3 blits into bare workspace (the reverse band assignment of zoom-in)
+ * plus the extra phase-2 banner + terrain backdrop rle blits (the zoom-in has
+ * only the single silhouette blit). fd2_rle_blit_sprite is the same recording
+ * stub; the intervening fd2_flash_char_hit_sprite is REAL-linked and stood up by
+ * the shared minipfix.h fixture. See emit_issues.json (00029ded).
  */
 
 #include <string.h>
@@ -91,6 +109,9 @@
 extern runtime_char g_test_rc_array[8];
 extern int32  g_rle_blit_log_stride[64];
 extern int    g_blit_indexed_sprite_calls;
+extern uint32 g_blit_indexed_sprite_last_frame;
+extern int    g_blit_indexed_sprite_last_x;
+extern int    g_blit_indexed_sprite_last_y;
 
 /* distinguishable, non-zero sentinels for the 3 BG-layer slots. The function
  * only passes these opaque to the rle-blit stub (never dereferences them), so
@@ -192,6 +213,121 @@ static void test_bg_zoom_transition_bg_cycling(void)
     data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = 0;
 }
 
+/* opaque, never-dereferenced sentinels for the phase-2 banner + terrain blits.
+ * Both blits land at log index >= 9 (after phase 1's 9 blits), i.e. outside the
+ * stub's first-4-calls deref window, so any distinct non-zero values suffice. */
+#define BANNER_SENTINEL  0x44440000u
+#define TERRAIN_SENTINEL 0x55550000u
+
+/*
+ * Drives the REAL fd2_animate_bg_zoom_transition_out and asserts its only
+ * non-display computation: the forward 3-layer BG cycling for both scroll
+ * passes, the per-phase blit dst band (workspace+0x140 vs bare workspace), and
+ * the phase-2 banner + terrain backdrop blits.
+ *
+ * Expected rle-blit BG-layer indices:
+ *   phase 1 (frame_iter 1..9):  frame_iter % 3        = 1,2,0,1,2,0,1,2,0
+ *   phase 3 (frame_iter 1..10): (frame_iter + 1) % 3  = 2,0,1,2,0,1,2,0,1,2
+ *
+ * Log layout (the recording stub never wraps below the 64 cap here):
+ *   [0..8]   phase 1, dst = workspace + 0x140, stride 0x280
+ *   [9]      banner blit  (name_banner_sprite, dst = clear_buf, stride 0x140)
+ *   [10]     terrain blit (terrain_bg,         dst = clear_buf, stride 0x140)
+ *   [11..]   real mini-panel glyph blits (bounded count)
+ *   tail 10  phase 3, dst = workspace, stride 0x280
+ *
+ * Buffer sizing (same reasoning as the zoom-in test): workspace >= 0x1F400
+ * (phase-2 memset clears 0x1F400) and clear_buf >= 0x19000 (the phase-2
+ * blit_rectangle reads 0xC8 rows * 0x140 bytes from clear_buf).
+ */
+static void test_bg_zoom_transition_out_bg_cycling(void)
+{
+    static const int phase1_idx[9]  = {1, 2, 0, 1, 2, 0, 1, 2, 0};
+    static const int phase3_idx[10] = {2, 0, 1, 2, 0, 1, 2, 0, 1, 2};
+    uint32 sentinel[3];
+    uint8 *workspace;
+    uint8 *clear_buf;
+    int tail;
+    int i;
+
+    sentinel[0] = BG_SENTINEL_0;
+    sentinel[1] = BG_SENTINEL_1;
+    sentinel[2] = BG_SENTINEL_2;
+
+    workspace = (uint8 *)malloc(0x1f400);
+    clear_buf = (uint8 *)malloc(0x19000);
+    ASSERT_TRUE(workspace != NULL);
+    ASSERT_TRUE(clear_buf != NULL);
+
+    /* the function indexes the three contiguous globals as uint32[3]. */
+    data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = BG_SENTINEL_0;
+    data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = BG_SENTINEL_1;
+    data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = BG_SENTINEL_2;
+
+    /* stand up the real mini-panel painter so the phase-2
+     * fd2_flash_char_hit_sprite runs without touching VGA/fopen; also resets
+     * g_rle_blit_calls and enables g_rle_blit_log_on. */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    minip_setup_env();
+
+    /* char_unit_id 0 (-> mini-panel reads runtime_char[0], all-zero),
+     * char_sprite_idx 7 (opaque to the blit_indexed stub),
+     * terrain_bg / name_banner_sprite opaque to the rle stub. */
+    fd2_animate_bg_zoom_transition_out(0, 7, TERRAIN_SENTINEL,
+                                       (uint32)clear_buf, (uint32)workspace,
+                                       BANNER_SENTINEL);
+
+    /* the log must not have wrapped (64-entry cap) or the tail read is wrong. */
+    ASSERT_TRUE(g_rle_blit_calls < 64);
+    /* phase1 (9) + banner (1) + terrain (1) + panel glyphs + phase3 (10). */
+    ASSERT_TRUE(g_rle_blit_calls >= 21);
+
+    /* phase 2 defender repaint ran. The call is
+     * fd2_blit_indexed_sprite(char_sprite_idx, 0, workspace+0x140, 0x280, -1):
+     * char_sprite_idx is the atlas (arg1, discarded by the stub), the frame_idx
+     * (arg2) is the literal 0, and the x-arg is the lower band workspace+0x140.
+     * The stub records frame_idx/x/y, so assert those (the atlas is not
+     * observable through this stub). */
+    ASSERT_TRUE(g_blit_indexed_sprite_calls >= 1);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_frame, (long)0);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_x,
+              (long)((uint32)workspace + 0x140));
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_y, (long)0x280);
+
+    /* --- phase 1: first 9 logged blits, dst = workspace+0x140, stride 0x280 --- */
+    for (i = 0; i < 9; i++) {
+        ASSERT_EQ((long)g_rle_blit_log_sprite[i], (long)sentinel[phase1_idx[i]]);
+        ASSERT_EQ((long)g_rle_blit_log_dst[i],
+                  (long)((uint32)workspace + 0x140));
+        ASSERT_EQ((long)g_rle_blit_log_stride[i], (long)0x280);
+    }
+
+    /* --- phase 2: banner then terrain backdrop, both into clear_buf @ 0x140 --- */
+    ASSERT_EQ((long)g_rle_blit_log_sprite[9], (long)BANNER_SENTINEL);
+    ASSERT_EQ((long)g_rle_blit_log_dst[9], (long)(uint32)clear_buf);
+    ASSERT_EQ((long)g_rle_blit_log_stride[9], (long)0x140);
+    ASSERT_EQ((long)g_rle_blit_log_sprite[10], (long)TERRAIN_SENTINEL);
+    ASSERT_EQ((long)g_rle_blit_log_dst[10], (long)(uint32)clear_buf);
+    ASSERT_EQ((long)g_rle_blit_log_stride[10], (long)0x140);
+
+    /* --- phase 3: last 10 logged blits, dst = bare workspace, stride 0x280 --- */
+    tail = g_rle_blit_calls - 10;
+    /* phase 3 must start strictly after the banner+terrain pair. */
+    ASSERT_TRUE(tail >= 11);
+    for (i = 0; i < 10; i++) {
+        ASSERT_EQ((long)g_rle_blit_log_sprite[tail + i],
+                  (long)sentinel[phase3_idx[i]]);
+        ASSERT_EQ((long)g_rle_blit_log_dst[tail + i], (long)(uint32)workspace);
+        ASSERT_EQ((long)g_rle_blit_log_stride[tail + i], (long)0x280);
+    }
+
+    free(workspace);
+    free(clear_buf);
+    data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = 0;
+    data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = 0;
+    data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = 0;
+}
+
 void run_anim_anispell_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -199,5 +335,6 @@ void run_anim_anispell_tests(void)
     printf("  (fd2_play_ani_file_animation_sequence deferred to Phase 9 "
            "integration: decode-to-VGA orchestrator; see file header)\n");
     RUN_TEST(test_bg_zoom_transition_bg_cycling);
+    RUN_TEST(test_bg_zoom_transition_out_bg_cycling);
     printf("\n");
 }

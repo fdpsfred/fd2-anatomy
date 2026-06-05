@@ -588,5 +588,23 @@
         "verify_method": "phase9_integration"
       }
     ]
+  },
+  "00029ded": {
+    "name": "fd2_animate_bg_zoom_transition_out",
+    "target": "anim/anispell.c",
+    "issues": [
+      {
+        "type": "contiguous_globals_array_index",
+        "desc": "Same idiom as the zoom-in counterpart (00029c90). The binary indexes the 3-layer BG cache as a uint32[3] at 0x5410B/0F/13 via PUSH dword ptr [EDX*4 + 0x5410B] (EDX = frame%3 in phase 1, (frame+1)%3 in phase 3). globals.h declares the three slots as separate extern uint32 (data_fd2_battle_special_cinematic_bg_layer_0/1/2_buf_ptr), so the emitted C reproduces the array access via 'uint32 *bg_layer = &data_..._layer_0_buf_ptr; bg_layer[idx]'. Well-defined only if the linker places the three globals contiguously in declaration order (4 bytes apart); they ARE defined consecutively (testglob.c, declaration order layer_0,layer_1,layer_2) and Watcom 9.5a lays file-scope objects in definition order within the data segment, matching the original 0x5410B/0F/13 layout. Recommend a post-build -d disasm / map check to confirm &layer_1 == &layer_0+4 and &layer_2 == &layer_0+8 in the linked image.",
+        "severity": "low",
+        "verify_method": "compile_and_disasm"
+      },
+      {
+        "type": "test_coverage_note",
+        "desc": "UNIT-TESTED (risk-based): the only non-display computation is asserted by test_bg_zoom_transition_out_bg_cycling (tests/anim/anispell.c) driving the REAL function. Unlike zoom-in, both scroll passes count FORWARD: phase 1 frame_iter 1..9 (loop CMP ESI,0xa / JL @0x29e62) uses bg_layer[frame%3] with indices [1,2,0,1,2,0,1,2,0]; phase 3 frame_iter 1..10 (loop CMP ESI,0xa / JLE @0x29f6b, increment via LEA EDI,[ESI+1] then MOV ESI,EDI) uses bg_layer[(frame+1)%3] with indices [2,0,1,2,0,1,2,0,1,2]. The per-phase blit dst band is the REVERSE of zoom-in: phase 1 and the phase-2 defender repaint blit into workspace+0x140 (EDI=LEA [EBP+0x140], EBP=workspace=param5 @[ESP+0x24]), phase 3 into bare workspace (PUSH EBP). fd2_rle_blit_sprite is a recording stub (testglob.c) logging each resolved BG-layer pointer + dst into g_rle_blit_log_*; the test sets the three BG globals to distinguishable sentinels and asserts phase-1 (first 9 logged, dst=workspace+0x140, stride 0x280), the phase-2 banner blit (name_banner_sprite=param6 @[ESP+0x28], dst=clear_buf, stride 0x140) and terrain backdrop blit (terrain_bg=param3, dst_x 0xa4 dst_y 0x9d, dst=clear_buf, stride 0x140), and phase-3 (last 10 logged, dst=workspace, stride 0x280). The phase-2 defender repaint via fd2_blit_indexed_sprite(char_sprite_idx, 0, workspace+0x140, 0x280, -1) is pinned by the blit_indexed stub (last_frame/last_x/last_y). The intervening fd2_flash_char_hit_sprite(clear_buf, char_unit_id) is REAL-linked and stood up by the shared minipfix.h fixture (same as 00029c90 / tests/battle/battle2.c). Buffer sizing from disasm: workspace>=0x1F400 (phase-2 memset 0x1F400); clear_buf>=0x19000 because the phase-2 blit_rectangle(workspace+0x140,0x280,clear_buf,0x140,0x140,0xC8) reads a contiguous 0xC8*0x140=0x19000 bytes of clear_buf. cdecl 6-arg confirmed via stack-offset tracking ([ESP+0x14]=p1 char_unit_id, +0x18=p2 char_sprite_idx, +0x1c=p3 terrain_bg, +0x20=p4 clear_buf, +0x24=p5 workspace, +0x28=p6 name_banner_sprite after PUSH EBX/ESI/EDI/EBP); RET (not RET N) + caller ADD ESP after CALL @0x29397 in fd2_execute_combat_hit_cinematic confirm caller-cleanup. All callees are void; no EAX return value is consumed, so no EAX-tracking risk. DEFERRED to Phase 9 integration: only the pure VGA pixel output (the actual scrolled bytes written to 0xA0000) is left, consistent with the file-sibling 00029c90.",
+        "severity": "info",
+        "verify_method": "unit_tested"
+      }
+    ]
   }
 }

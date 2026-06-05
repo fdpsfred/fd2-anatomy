@@ -162,6 +162,7 @@ uint32 fd2_load_figani_sfx_bank(uint32 figani_data);
 uint8 fd2_resolve_terrain_for_aoe_targets(int n_chars, uint32 target_byte_array);
 void fd2_step_figani_pose_animation(uint32 figani_data, uint32 palette_op, uint32 dst_buf, uint32 dst_stride);
 void fd2_animate_bg_zoom_transition_in(uint32 char_unit_id, uint32 char_sprite_idx, uint32 clear_buf, uint32 workspace, uint32 caster_figani);
+void fd2_animate_bg_zoom_transition_out(uint32 char_unit_id, uint32 char_sprite_idx, uint32 terrain_bg, uint32 clear_buf, uint32 workspace, uint32 name_banner_sprite);
 void fd2_play_char_intro_zoom_anim(uint32 caster_idx, uint32 mode_flag, uint32 caster_figani_a, uint32 target_figani0, uint32 workbuf2, uint32 workbuf1, uint32 tai_resource);
 void fd2_play_figani_animation_loop(uint32 caster_idx, uint32 spell_id, uint32 caster_figani_b, uint32 target_figani0, uint32 workbuf2, uint32 workbuf1, uint32 bg_layer_saved, uint32 tai_resource);
 void fd2_restore_portrait_cache_from_tmp(void);
