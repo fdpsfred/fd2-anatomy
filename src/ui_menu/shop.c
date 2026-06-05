@@ -10,6 +10,7 @@
  * fd2_run_buy_item_menu @ 0x2F0B0 (1 caller: fd2_run_chapter_intro_menu_main)
  * fd2_run_sell_item_menu @ 0x2F642 (1 caller: fd2_run_chapter_intro_menu_main)
  * fd2_run_equip_member_menu @ 0x2F883 (1 caller: fd2_run_chapter_intro_menu_main)
+ * fd2_run_give_item_menu @ 0x2F8EA (1 caller: fd2_run_chapter_intro_menu_main)
  */
 
 #include "types.h"
@@ -637,5 +638,166 @@ void fd2_run_equip_member_menu(void)
                 (uint32)data_fd2_portrait_sprite_buffer,
                 data_fd2_chapter_intro_menu_speaker_portrait_id_table[
                     data_fd2_chapter_intro_menu_cursor_state]);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_run_give_item_menu @ 0x2F8EA  (1 caller: fd2_run_chapter_intro_menu_main,
+ *   option idx 3 = 贈)
+ *
+ * GIVE / TRADE an item between two party members. Each iteration runs a six-step
+ * flow with TWO roster selects (source then target):
+ *   1. Open the chapter-speaker portrait + the "give: pick a source" prompt
+ *      dialog (text page 0x200), then pick the SOURCE member via
+ *      fd2_party_roster_single_select_loop(). Esc (-1) exits the loop.
+ *   2. Build the source's inventory id list: for slot 0..7, skip slots whose
+ *      flag byte (inventory_slots[slot*2]) has bit 0x80 set (empty); otherwise
+ *      append the item id (inventory_slots[slot*2+1]) to a local 8-byte list.
+ *   3. If the list is empty, show the "nothing to give" reject dialog (fixed
+ *      page 0x1FF) and loop back to the source roster.
+ *   4. Otherwise reset cursor/scroll, open the sell-mode item panel (sell_mode=1
+ *      is layout-only here) and run the shop input loop (sell_mode=1). Esc (-1)
+ *      loops back to the source roster.
+ *   5. Show the "give to whom?" prompt dialog (fixed page 0x1FE; an informational
+ *      portrait+dialog, NOT a yes/no confirm), then pick the TARGET member.
+ *      Esc (-1) loops back to the source roster.
+ *   6. If the target already holds 8 items, show the "target inventory full"
+ *      reject dialog (data_fd2_dialog_shop_inventory_full_dialog_text_id_table[
+ *      data_fd2_chapter_intro_menu_cursor_state]) and loop back. Otherwise read
+ *      the chosen item from the source slot, remove it from the source, add it
+ *      (unequipped) to the target, and recompute the SOURCE's combat stats (the
+ *      target is not recomputed because the item is added unequipped).
+ *
+ * Slot/list-index identity: the shop cursor indexes the compacted display list,
+ * but the transfer passes that cursor straight to fd2_get_inventory_slot_item_id
+ * / fd2_remove_inventory_slot_at as a raw slot index. This is correct because
+ * inventories are kept gap-free (remove shifts later slots up, add fills the
+ * first free slot), so the compacted-list index always equals the raw slot.
+ *
+ * The two reject dialogs read the member's char_id (runtime struct +0x08), not
+ * the portrait_id (+0x07) that the sibling sell menu uses, into
+ * data_fd2_dialog_last_action_sprite_id_param (matching the binary's MOVZX +8).
+ *
+ * The binary's __CHK(0x3C) stack-probe prologue is compiler-injected and not
+ * part of the source, so it is omitted (as in the sibling shop functions). The
+ * decompiler's in_stack_* are __CHK artifacts and not real locals; the real
+ * frame is the 8-byte inventory list below.
+ *
+ * EAX-bug notes (each "CALL then use return" point checked against asm):
+ *   - both fd2_party_roster_single_select_loop calls return the full int
+ *     selection (asm MOV EBX,EAX then CMP EBX,-1), captured as int (no byte
+ *     narrowing). The source / target index is then read from
+ *     data_fd2_ui_menu_cursor_idx.
+ *   - fd2_shop_menu_input_loop returns the full int (-1 cancel / 1 commit); the
+ *     chosen slot is read from data_fd2_ui_menu_cursor_idx after it returns.
+ *   - fd2_get_inventory_slot_item_id returns a clean zero-extended byte (tail is
+ *     MOVZX EAX,[..]; RET); its value is saved into give_item_id BEFORE the
+ *     intervening fd2_remove_inventory_slot_at call (asm MOV EBX,EAX) and then
+ *     forwarded to fd2_add_item_to_inventory, so no EAX clobber hazard.
+ * ---------------------------------------------------------------- */
+void fd2_run_give_item_menu(void)
+{
+    uint8  inv_list[8];
+    uint32 source;
+    uint32 selected_slot;
+    uint32 inv_count;
+    int    slot_iter;
+    int    src_select;
+    int    item_select;
+    int    tgt_select;
+    uint8  give_item_id;
+
+    for (;;) {
+        fd2_load_chapter_portrait(
+            data_fd2_chapter_intro_menu_speaker_portrait_id_table[
+                data_fd2_chapter_intro_menu_cursor_state]);
+        fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x200,
+            0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+        fd2_paint_portrait_to_dialog_area(0);
+        fd2_wait_for_input_dialog_with_blink(1);
+        fd2_close_intro_dialog_with_slide_out();
+
+        data_fd2_ui_menu_visible_item_count =
+            data_fd2_shared_menu_party_member_count;
+        src_select = fd2_party_roster_single_select_loop();
+        fd2_close_intro_dialog_with_slide_out();
+        source = data_fd2_ui_menu_cursor_idx;
+        if (src_select == -1) {
+            return;
+        }
+
+        inv_count = 0;
+        for (slot_iter = 0; slot_iter < 8; slot_iter++) {
+            if ((data_fd2_battle_runtime_char_array_ptr[source]
+                     .inventory_slots[slot_iter * 2] & 0x80) == 0) {
+                inv_list[inv_count] =
+                    data_fd2_battle_runtime_char_array_ptr[source]
+                        .inventory_slots[slot_iter * 2 + 1];
+                inv_count++;
+            }
+        }
+
+        if (inv_count == 0) {
+            data_fd2_dialog_last_action_sprite_id_param =
+                data_fd2_battle_runtime_char_array_ptr[
+                    data_fd2_ui_menu_cursor_idx].char_id + 1;
+            fd2_load_chapter_portrait(
+                data_fd2_chapter_intro_menu_speaker_portrait_id_table[
+                    data_fd2_chapter_intro_menu_cursor_state]);
+            fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1ff,
+                0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+            fd2_paint_portrait_to_dialog_area(0);
+            fd2_wait_for_input_dialog_with_blink(1);
+            fd2_close_intro_dialog_with_slide_out();
+            continue;
+        }
+
+        data_fd2_ui_menu_cursor_idx = 0;
+        data_fd2_ui_menu_scroll_offset = 0;
+        fd2_open_shop_dialog_panel(inv_count, (uint32)inv_list, 1);
+        data_fd2_ui_menu_visible_item_count = inv_count;
+        item_select = fd2_shop_menu_input_loop(inv_count, (uint32)inv_list, 1);
+        selected_slot = data_fd2_ui_menu_cursor_idx;
+        if (item_select == -1) {
+            fd2_close_intro_dialog_with_slide_out();
+            continue;
+        }
+
+        fd2_close_intro_dialog_with_slide_out();
+        fd2_load_chapter_portrait(
+            data_fd2_chapter_intro_menu_speaker_portrait_id_table[
+                data_fd2_chapter_intro_menu_cursor_state]);
+        fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1fe,
+            0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+        fd2_paint_portrait_to_dialog_area(0);
+        fd2_wait_for_input_dialog_with_blink(1);
+        fd2_close_intro_dialog_with_slide_out();
+        tgt_select = fd2_party_roster_single_select_loop();
+        fd2_close_intro_dialog_with_slide_out();
+        if (tgt_select == -1) {
+            continue;
+        }
+
+        if (fd2_count_usable_inventory_slots(data_fd2_ui_menu_cursor_idx) == 8) {
+            data_fd2_dialog_last_action_sprite_id_param =
+                data_fd2_battle_runtime_char_array_ptr[
+                    data_fd2_ui_menu_cursor_idx].char_id + 1;
+            fd2_load_chapter_portrait(
+                data_fd2_chapter_intro_menu_speaker_portrait_id_table[
+                    data_fd2_chapter_intro_menu_cursor_state]);
+            fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
+                data_fd2_dialog_shop_inventory_full_dialog_text_id_table[
+                    data_fd2_chapter_intro_menu_cursor_state],
+                0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+            fd2_paint_portrait_to_dialog_area(0);
+            fd2_wait_for_input_dialog_with_blink(1);
+            fd2_close_intro_dialog_with_slide_out();
+            continue;
+        }
+
+        give_item_id = fd2_get_inventory_slot_item_id(source, selected_slot);
+        fd2_remove_inventory_slot_at(source, selected_slot);
+        fd2_add_item_to_inventory(data_fd2_ui_menu_cursor_idx, give_item_id);
+        fd2_recalculate_combat_stats(source);
     }
 }

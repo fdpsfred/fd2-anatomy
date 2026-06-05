@@ -81,7 +81,8 @@ D:\BIN\WCC386.EXE E:\ui_menu\cursor.c %CF% -fo=E:\out\obj\tcursor.obj >> E:\out\
 D:\BIN\WCC386.EXE E:\ui_menu\menu.c %CF% -fo=E:\out\obj\tmenu.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\ui_menu\menucfg.c %CF% -fo=E:\out\obj\tmenucfg.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\ui_menu\menufld.c %CF% -fo=E:\out\obj\tmenufld.obj >> E:\out\build.out
-D:\BIN\WCC386.EXE E:\ui_menu\shop.c %CF% -fo=E:\out\obj\tshop.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE E:\ui_menu\shop1.c %CF% -fo=E:\out\obj\tshop1.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE E:\ui_menu\shop2.c %CF% -fo=E:\out\obj\tshop2.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\ui_menu\status.c %CF% -fo=E:\out\obj\tstatus.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\util\pathfnd.c %CF% -fo=E:\out\obj\tpathfnd.obj >> E:\out\build.out
 

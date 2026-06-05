@@ -954,10 +954,10 @@ static void test_equip_menu_cancel_returns_immediately(void)
     ASSERT_EQ(data_fd2_dialog_active_portrait_blit_offset, 0xABCD1234u);
 }
 
-void run_ui_menu_shop_tests(void)
+void run_ui_menu_shop1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
-    printf("Suite: ui_menu/shop\n");
+    printf("Suite: ui_menu/shop1\n");
     RUN_TEST(test_commit_enter_returns_1);
     RUN_TEST(test_commit_space_returns_1);
     RUN_TEST(test_cancel_esc_returns_minus_1);

@@ -54,7 +54,8 @@ extern void run_ui_menu_cursor_tests(void);
 extern void run_ui_menu_menu_tests(void);
 extern void run_ui_menu_menucfg_tests(void);
 extern void run_ui_menu_menufld_tests(void);
-extern void run_ui_menu_shop_tests(void);
+extern void run_ui_menu_shop1_tests(void);
+extern void run_ui_menu_shop2_tests(void);
 extern void run_ui_menu_status_tests(void);
 extern void run_util_pathfnd_tests(void);
 /* <<< GENBUILD externs <<< */
@@ -104,7 +105,8 @@ int main(void)
     run_ui_menu_menu_tests();
     run_ui_menu_menucfg_tests();
     run_ui_menu_menufld_tests();
-    run_ui_menu_shop_tests();
+    run_ui_menu_shop1_tests();
+    run_ui_menu_shop2_tests();
     run_ui_menu_status_tests();
     run_util_pathfnd_tests();
 /* <<< GENBUILD calls <<< */

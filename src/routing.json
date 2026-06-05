@@ -3133,8 +3133,9 @@
     "name": "fd2_run_give_item_menu",
     "target": "ui_menu/shop.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002fb9f": {
     "name": "fd2_blit_scaled_chapter_pose",
