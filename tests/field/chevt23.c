@@ -238,6 +238,144 @@ static void test_white_flash_pan_target_is_args_not_constant(void)
     ce23_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_3e__ch27_dyn_turn_event @ 0x35898
+ *
+ * Pure state-machine mutator (no display side effects, no real-file I/O). The
+ * functionally-exact body is:
+ *     if (tile_event_consumed_flags[0x11] == 0) {
+ *         tile_event_data_table[3] = (uint8)(turn_counter + 1);
+ *         tile_event_consumed_flags[0x11] = 1;
+ *     }
+ * The risk-bearing contract pinned here:
+ *   (a) FIRST-TIME gate: when flags[0x11] == 0 the handler arms hook entry 0's
+ *       turn byte (data_table[+3]) with turn_counter + 1 and consumes the slot,
+ *   (b) IDEMPOTENCE: when flags[0x11] != 0 the handler writes nothing (the
+ *       already-armed schedule and the consumed flag are both preserved),
+ *   (c) 8-BIT arithmetic: the turn counter is read as one byte and incremented
+ *       in 8-bit (MOV DL,[turn_counter] / INC DL), so only the low byte feeds
+ *       the +1 and the result wraps modulo 256 (0xFF -> 0x00),
+ *   (d) exact byte offsets: only data_table[+3] and flags[+0x11] are written;
+ *       their neighbours stay untouched,
+ *   (e) the dispatch arg is ignored (the handler reads no param).
+ *
+ * In-memory fixtures only: a flags byte buffer (indexed at 0x11) and a data-table
+ * byte buffer (indexed at 3), both published through the existing globals; the
+ * turn counter is the plain uint32 global. No callee but the compiler's __CHK.
+ * ================================================================ */
+
+/* flags buffer: index 0x11 is the consume slot; extra headroom guards neighbours */
+static uint8 g_ce3e_flags[0x20];
+/* data table: index 3 is hook entry 0's turn byte; headroom guards neighbours */
+static uint8 g_ce3e_dtable[0x10];
+
+static void ce3e_setup(void)
+{
+    memset(g_ce3e_flags, 0, sizeof(g_ce3e_flags));
+    memset(g_ce3e_dtable, 0, sizeof(g_ce3e_dtable));
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ce3e_flags;
+    data_fd2_tile_event_data_table_ptr = (uint32)g_ce3e_dtable;
+    data_fd2_battle_turn_counter = 0;
+}
+
+static void ce3e_teardown(void)
+{
+    data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
+    data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_battle_turn_counter = 0;
+}
+
+/* ----------------------------------------------------------------
+ * First-time trigger: flags[0x11] == 0 and turn_counter == 5. The handler arms
+ * hook entry 0's turn byte (data_table[+3]) with 5 + 1 == 6 and consumes the
+ * slot (flags[0x11] -> 1). The dispatch arg is passed nonzero to prove it is
+ * ignored. Guard bytes around both write targets must stay 0.
+ * ---------------------------------------------------------------- */
+static void test_h3e_first_time_arms_and_consumes(void)
+{
+    ce3e_setup();
+    data_fd2_battle_turn_counter = 5;
+
+    fd2_chapter_event_handler_3e__ch27_dyn_turn_event(0x77);
+
+    /* (a) hook entry 0's turn byte = turn_counter + 1 */
+    ASSERT_EQ((long)g_ce3e_dtable[3], 6);
+    /* slot consumed */
+    ASSERT_EQ((long)g_ce3e_flags[0x11], 1);
+    /* (d) neighbours of data_table[+3] untouched */
+    ASSERT_EQ((long)g_ce3e_dtable[2], 0);
+    ASSERT_EQ((long)g_ce3e_dtable[4], 0);
+    /* (d) neighbours of flags[+0x11] untouched */
+    ASSERT_EQ((long)g_ce3e_flags[0x10], 0);
+    ASSERT_EQ((long)g_ce3e_flags[0x12], 0);
+
+    ce3e_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Idempotence: when the slot is already consumed (flags[0x11] != 0) the handler
+ * must do nothing. Pre-arm data_table[+3] with a sentinel and pre-set the flag;
+ * after the call both must be byte-for-byte unchanged (no re-arm, no re-write),
+ * even though turn_counter differs from the sentinel.
+ * ---------------------------------------------------------------- */
+static void test_h3e_already_consumed_is_noop(void)
+{
+    ce3e_setup();
+    g_ce3e_flags[0x11] = 0xAA;     /* already consumed (any nonzero) */
+    g_ce3e_dtable[3]   = 0x5C;     /* previously-armed schedule sentinel */
+    data_fd2_battle_turn_counter = 9;
+
+    fd2_chapter_event_handler_3e__ch27_dyn_turn_event(0);
+
+    /* (b) schedule byte preserved (NOT overwritten with 9 + 1 == 0xA) */
+    ASSERT_EQ((long)g_ce3e_dtable[3], 0x5C);
+    /* consumed flag preserved exactly */
+    ASSERT_EQ((long)g_ce3e_flags[0x11], 0xAA);
+
+    ce3e_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * 8-bit wrap: the increment is INC DL on the low byte of the turn counter, then
+ * a byte store. turn_counter = 0xFF -> stored byte = (0xFF + 1) & 0xFF == 0x00.
+ * A naive 32-bit `(turn_counter + 1)` written wide would also store 0x00 in the
+ * byte, but pairing this with the high-byte case below pins the byte semantics.
+ * ---------------------------------------------------------------- */
+static void test_h3e_turn_counter_byte_wraps(void)
+{
+    ce3e_setup();
+    data_fd2_battle_turn_counter = 0xFF;
+
+    fd2_chapter_event_handler_3e__ch27_dyn_turn_event(0);
+
+    ASSERT_EQ((long)g_ce3e_dtable[3], 0x00);   /* (0xFF + 1) truncated to a byte */
+    ASSERT_EQ((long)g_ce3e_flags[0x11], 1);
+
+    ce3e_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * High bytes of the turn counter must not leak: the binary reads turn_counter as
+ * a single byte (MOV DL, byte ptr [turn_counter]) before the +1. turn_counter =
+ * 0x12FF: only the low byte 0xFF feeds the increment, so the stored byte is
+ * (0xFF + 1) & 0xFF == 0x00 — identical to the 0xFF case — and the 0x12 high
+ * byte is irrelevant. Combined with the byte-wrap test this proves both the
+ * low-byte read and the byte-width store.
+ * ---------------------------------------------------------------- */
+static void test_h3e_turn_counter_high_bytes_ignored(void)
+{
+    ce3e_setup();
+    data_fd2_battle_turn_counter = 0x12FF;
+
+    fd2_chapter_event_handler_3e__ch27_dyn_turn_event(0);
+
+    /* low byte 0xFF + 1 -> 0x00; the 0x12 high byte never reaches data_table[+3] */
+    ASSERT_EQ((long)g_ce3e_dtable[3], 0x00);
+    ASSERT_EQ((long)g_ce3e_flags[0x11], 1);
+
+    ce3e_teardown();
+}
+
 void run_field_chevt23_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -245,5 +383,9 @@ void run_field_chevt23_tests(void)
     RUN_TEST(test_white_flash_full_sequence);
     RUN_TEST(test_white_flash_chapter_id_low_byte_only);
     RUN_TEST(test_white_flash_pan_target_is_args_not_constant);
+    RUN_TEST(test_h3e_first_time_arms_and_consumes);
+    RUN_TEST(test_h3e_already_consumed_is_noop);
+    RUN_TEST(test_h3e_turn_counter_byte_wraps);
+    RUN_TEST(test_h3e_turn_counter_high_bytes_ignored);
     printf("\n");
 }

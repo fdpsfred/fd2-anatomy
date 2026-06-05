@@ -661,3 +661,34 @@ void fd2_chapter_event_handler_3d__ch26_pickup(uint32 stepping_char_id)
     fd2_display_dialog_scene(current_chapter_text, 4, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_3e__ch27_dyn_turn_event @ 0x35898
+ *   (1 caller: dispatch table @ 0x51B91, entry @ 0x51C89)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x3E. Triggered
+ * in chapter 27 as tile-step event_type 0x00 (ch27 tile-step slot 0). Category:
+ * state-machine mutator (dynamic turn-event scheduler). Dispatch-table
+ * signature is 1-arg cdecl (void fn(uint event_arg)); this handler does not
+ * read the arg.
+ *
+ * Effect: ch27 first-time tile trigger. The first time this tile is stepped
+ * (tile_event_consumed_flags[0x11] == 0): write turn_counter + 1 into the
+ * turn-event hook table at tile_event_data_table[+3] (hook entry 0's turn
+ * byte), which arms a dynamic turn-event one player turn ahead, then consume
+ * the slot (flags[0x11] = 1) so it never re-arms.
+ *
+ * The turn counter is read as a single byte and incremented in 8-bit before
+ * the byte store (MOV DL,[turn_counter] / INC DL / MOV [data_table+3],DL); the
+ * (uint8) truncation on store reproduces that 8-bit arithmetic exactly.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_3e__ch27_dyn_turn_event(uint32 event_arg)
+{
+    (void)event_arg;
+
+    if (*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x11) == 0) {
+        *(uint8 *)(data_fd2_tile_event_data_table_ptr + 3) =
+            (uint8)(data_fd2_battle_turn_counter + 1);
+        *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x11) = 1;
+    }
+}
