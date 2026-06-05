@@ -34,6 +34,9 @@
  * fd2_chapter_event_handler_0f__ch5_dialog_with_state @ 0x3462E
  *     (0 direct callers; dispatched as idx 0x0F of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_10__ch5_dialog @ 0x34696
+ *     (0 direct callers; dispatched as idx 0x10 of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -438,5 +441,36 @@ void fd2_chapter_event_handler_0f__ch5_dialog_with_state(uint32 event_arg)
     fd2_set_combat_aux_block_byte_d_low4_for_char_range(7, 0xC, 0);
     fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x21, 0x23, 0);
     fd2_display_dialog_scene(current_chapter_text, 4, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_10__ch5_dialog @ 0x34696
+ *   — Chapter 5 turn-event slot 2 (triggered at turn 7 / phase 0),
+ *     dispatched as idx 0x10 of the per-event handler table at 0x51B91.
+ *
+ * A dialog-only beat: a straight-line, no-branch sequence with no RNG,
+ * no numeric computation, and no CALL-return value used. Portrait set 3
+ * reloads, then dialog page 5 is shown.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * In the original binary this handler prepares its own 8 PUSHes (page=5
+ * plus the fixed dialog geometry) and then JMPs into handler_09's shared
+ * tail at 0x3452F (PUSH current_chapter_text; CALL fd2_display_dialog_scene;
+ * ADD ESP,0x24; RET); reproduced here as the inline call for Layer-2
+ * equivalence.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_05.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_10__ch5_dialog(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_load_chapter_portraits_and_dump_tmp(3);
+    fd2_display_dialog_scene(current_chapter_text, 5, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
