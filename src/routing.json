@@ -3109,8 +3109,9 @@
     "name": "fd2_animate_shop_transaction_feedback",
     "target": "anim/aniui.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002f642": {
     "name": "fd2_run_sell_item_menu",

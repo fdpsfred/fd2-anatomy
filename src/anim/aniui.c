@@ -458,3 +458,95 @@ void fd2_animate_scroll_down_in_shop_dialog(void)
         memset((void *)(row * 0x140 + 0xA8FCA), 0x49, 0x11C);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_animate_shop_transaction_feedback @ 0x2F4C6 (3 callers)
+ *
+ * Animation feedback for a successful shop transaction (buy / sell /
+ * give). Plays a per-chapter-type sprite cycle and (for state 4 only)
+ * a cyan additive palette flash. Dispatches on the per-chapter byte
+ * data_fd2_chapter_intro_menu_cursor_state @ 0x5412B:
+ *
+ *   state 1: 5-frame sprite cycle (atlas frames 0x17..0x1B at framebuffer
+ *            0xA38E9), 2 BIOS ticks per frame.
+ *   state 3: single-sprite splash (frame 0x17 at 0xA3154), held 8 ticks
+ *            after a 1-tick pre-roll.
+ *   state 4: paint mouth-CLOSED portrait (frame 3), wait 2 ticks, 9-frame
+ *            sprite cycle (0x17..0x1F at 0xA2893, 2 ticks each), then a cyan
+ *            additive palette flash — ramp brightness UP 0..0x3E by step 2
+ *            (each step + a 4ms delay), wait 10 ticks, ramp DOWN 0x3E..0 by
+ *            step 2 (mirror), then wait 5 ticks.
+ *   state 5: 7-frame sprite cycle (0x17..0x1D at 0xA2383), 2 ticks per frame.
+ *   state 2 / other: no animation.
+ *
+ * After playing, states 1/3/4 restore via fd2_paint_portrait_to_dialog_area(0);
+ * states 5 and 2/other skip that restore. Every path ends with
+ * fd2_clear_keyboard_buffer().
+ *
+ * The frame blits go through fd2_blit_indexed_sprite_at_xy(dst, 0x140,
+ * data_fd2_ui_menu_screen_sprite_atlas_buf_ptr @ 0x54147, frame_idx); the
+ * destinations are fixed mode13h aperture addresses (real VGA RAM under
+ * DOS/4GW). The palette flash drives the DAC via the real
+ * fd2_set_vga_palette_range_with_add (port 0x3C8/0x3C9 writes). Used by all
+ * four shop flows (buy / sell / equip / give) and the class-promotion path.
+ *
+ * Cdecl, no params, void return. The binary's __CHK(0x18) stack-probe
+ * prologue is compiler-generated and omitted here.
+ *
+ * Callers:
+ *   fd2_run_buy_item_menu     @ 0x2F0B0
+ *   fd2_run_sell_item_menu    @ 0x2F642
+ *   fd2_run_revive_menu_main  @ 0x30DC3
+ * ---------------------------------------------------------------- */
+void fd2_animate_shop_transaction_feedback(void)
+{
+    int frame;
+    uint32 brightness;
+    uint32 wait_ticks;
+
+    if (data_fd2_chapter_intro_menu_cursor_state == 1) {
+        for (frame = 0; frame < 5; frame++) {
+            fd2_blit_indexed_sprite_at_xy(0xA38E9, 0x140,
+                data_fd2_ui_menu_screen_sprite_atlas_buf_ptr,
+                (uint32)(frame + 0x17));
+            fd2_wait_n_bios_ticks(2);
+        }
+        fd2_paint_portrait_to_dialog_area(0);
+    } else if (data_fd2_chapter_intro_menu_cursor_state == 3) {
+        fd2_wait_n_bios_ticks(1);
+        fd2_blit_indexed_sprite_at_xy(0xA3154, 0x140,
+            data_fd2_ui_menu_screen_sprite_atlas_buf_ptr, 0x17);
+        wait_ticks = 8;
+        fd2_wait_n_bios_ticks(wait_ticks);
+        fd2_paint_portrait_to_dialog_area(0);
+    } else if (data_fd2_chapter_intro_menu_cursor_state == 4) {
+        fd2_paint_portrait_to_dialog_area(3);
+        fd2_wait_n_bios_ticks(2);
+        for (frame = 0; frame < 9; frame++) {
+            fd2_blit_indexed_sprite_at_xy(0xA2893, 0x140,
+                data_fd2_ui_menu_screen_sprite_atlas_buf_ptr,
+                (uint32)(frame + 0x17));
+            fd2_wait_n_bios_ticks(2);
+        }
+        for (brightness = 0; (int32)brightness < 0x40; brightness += 2) {
+            fd2_set_vga_palette_range_with_add(0, 0xFF, brightness);
+            __delay_thunk_375b2(4);
+        }
+        fd2_wait_n_bios_ticks(10);
+        for (brightness = 0x3E; -1 < (int32)brightness; brightness -= 2) {
+            fd2_set_vga_palette_range_with_add(0, 0xFF, brightness);
+            __delay_thunk_375b2(4);
+        }
+        wait_ticks = 5;
+        fd2_wait_n_bios_ticks(wait_ticks);
+        fd2_paint_portrait_to_dialog_area(0);
+    } else if (data_fd2_chapter_intro_menu_cursor_state == 5) {
+        for (frame = 0; frame < 7; frame++) {
+            fd2_blit_indexed_sprite_at_xy(0xA2383, 0x140,
+                data_fd2_ui_menu_screen_sprite_atlas_buf_ptr,
+                (uint32)(frame + 0x17));
+            fd2_wait_n_bios_ticks(2);
+        }
+    }
+    fd2_clear_keyboard_buffer();
+}

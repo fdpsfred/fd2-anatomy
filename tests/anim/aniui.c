@@ -471,6 +471,161 @@ static void test_shop_scroll_down_cadence(void)
 }
 
 
+/*
+ * fd2_animate_shop_transaction_feedback — per-state sprite-cycle dispatch +
+ * state-4 palette-flash ramp.
+ *
+ * The function dispatches on data_fd2_chapter_intro_menu_cursor_state and runs
+ * a fixed-length sprite cycle per state, with state 4 additionally driving a
+ * cyan additive palette ramp. The load-bearing, host-verifiable logic is:
+ *
+ *   - the 5-way dispatch (states 1/3/4/5 each play a distinct cycle; state 2
+ *     and any other value play nothing) — pinned by the blit count + the fixed
+ *     framebuffer destination per state;
+ *   - the cycle frame counts (5 / 1 / 9 / 7) and the sprite-index ramp
+ *     (frame_idx = 0x17 + iter) — pinned by reading each blit's resolved sprite
+ *     index out of the real fd2_blit_indexed_sprite_at_xy ->
+ *     fd2_rle_blit_sprite spy log against a marker atlas (atlas[6+idx*4]=idx,
+ *     so resolved sprite = atlas + idx);
+ *   - the post-cycle portrait restore being taken ONLY by states 1/3/4 and
+ *     skipped by state 5 / others — pinned by the dialog-blit-primitive spy
+ *     call count (the real fd2_paint_portrait_to_dialog_area forwards to it);
+ *   - the state-4 palette ramp iteration count: UP 0..0x3E step 2 (32 steps) +
+ *     DOWN 0x3E..0 step 2 (32 steps) = 64, each step paced by
+ *     __delay_thunk_375b2(4) — pinned by the delay-thunk count + tick value.
+ *
+ * The frame blits target fixed mode13h aperture addresses and the palette ramp
+ * writes the VGA DAC (port 0x3C8/0x3C9 via the real
+ * fd2_set_vga_palette_range_with_add); those are display side-effects whose
+ * pixel/DAC output is deferred to Phase 9 integration. The per-frame
+ * fd2_wait_n_bios_ticks() pacing runs for real against the live BIOS tick
+ * counter (host-safe: the counter advances, so each wait terminates); the wait
+ * durations are display pacing, also Phase-9 concerns, so they are not asserted.
+ *
+ * Atlas fixture: marker atlas with atlas[6 + idx*4] = idx for the indices the
+ * cycles touch (max 0x1F -> 6+0x1F*4+4 = 134 bytes needed; 256 allocated).
+ * Palette fixture: the state-4 ramp reads data_fd2_vga_palette_data_ptr +
+ * idx*3 for idx 0..0xFF, so a 768-byte buffer keeps those reads in-bounds.
+ */
+extern int    g_rle_blit_calls;
+extern int    g_rle_blit_log_on;
+extern uint32 g_rle_blit_log_sprite[64];
+extern uint32 g_rle_blit_log_dst[64];
+extern int32  g_rle_blit_log_stride[64];
+extern int    g_dlg_blit_normal_calls;
+extern int    g_dlg_blit_mirrored_calls;
+
+static uint8 g_shopfb_atlas[256];
+static uint8 g_shopfb_pal[768];
+static int32 g_shopfb_portrait[64];
+
+static void shopfb_setup(uint32 state)
+{
+    int i;
+
+    for (i = 0; i < 256; i++) {
+        g_shopfb_atlas[i] = 0;
+    }
+    /* marker: resolved sub-sprite = atlas + atlas[6+idx*4] = atlas + idx */
+    for (i = 0x17; i <= 0x1F; i++) {
+        *(int32 *)(g_shopfb_atlas + 6 + i * 4) = i;
+    }
+    for (i = 0; i < 768; i++) {
+        g_shopfb_pal[i] = 0x20;
+    }
+    for (i = 0; i < 64; i++) {
+        g_shopfb_portrait[i] = 0;
+    }
+
+    data_fd2_chapter_intro_menu_cursor_state = state;
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = (uint32)g_shopfb_atlas;
+    data_fd2_vga_palette_data_ptr = (uint32)g_shopfb_pal;
+    data_fd2_portrait_sprite_buffer = (uint8 *)g_shopfb_portrait;
+    data_fd2_dialog_active_portrait_blit_offset = 0x728;  /* normal-blit path */
+
+    g_rle_blit_calls = 0;
+    g_rle_blit_log_on = 1;
+    g_dlg_blit_normal_calls = 0;
+    g_dlg_blit_mirrored_calls = 0;
+    g_delay375b2_calls = 0;
+    g_delay375b2_last_ticks = 0;
+}
+
+/* Verify a contiguous sprite cycle: `count` blits, all to `dst`, stride 0x140,
+ * sprite index ramping 0x17, 0x18, ... (recovered as resolved_sprite-atlas). */
+static void shopfb_check_cycle(int count, uint32 dst)
+{
+    uint32 atlas;
+    int k;
+
+    atlas = (uint32)g_shopfb_atlas;
+    ASSERT_EQ(g_rle_blit_calls, count);
+    for (k = 0; k < count; k++) {
+        ASSERT_EQ(g_rle_blit_log_dst[k], dst);
+        ASSERT_EQ(g_rle_blit_log_stride[k], (int32)0x140);
+        /* resolved sprite = atlas + idx, idx = 0x17 + k */
+        ASSERT_EQ(g_rle_blit_log_sprite[k] - atlas, (uint32)(0x17 + k));
+    }
+}
+
+static void test_shop_feedback_state1_cycle(void)
+{
+    /* state 1: 5-frame cycle at 0xA38E9, frames 0x17..0x1B, then restore. */
+    shopfb_setup(1);
+    fd2_animate_shop_transaction_feedback();
+    shopfb_check_cycle(5, 0xA38E9u);
+    ASSERT_EQ(g_dlg_blit_normal_calls, 1);   /* paint_portrait(0) restore */
+    ASSERT_EQ(g_dlg_blit_mirrored_calls, 0);
+}
+
+static void test_shop_feedback_state3_splash(void)
+{
+    /* state 3: single splash sprite 0x17 at 0xA3154, then restore. */
+    shopfb_setup(3);
+    fd2_animate_shop_transaction_feedback();
+    shopfb_check_cycle(1, 0xA3154u);
+    ASSERT_EQ(g_dlg_blit_normal_calls, 1);   /* paint_portrait(0) restore */
+}
+
+static void test_shop_feedback_state4_cycle_and_flash(void)
+{
+    /* state 4: paint_portrait(3) + 9-frame cycle at 0xA2893 (0x17..0x1F) +
+     * cyan palette ramp (UP 32 + DOWN 32 = 64 delay-paced steps) + restore. */
+    shopfb_setup(4);
+    fd2_animate_shop_transaction_feedback();
+    shopfb_check_cycle(9, 0xA2893u);
+    /* two portrait paints: mouth-closed (frame 3) before the cycle and the
+     * frame-0 restore after the flash; both take the normal-blit path. */
+    ASSERT_EQ(g_dlg_blit_normal_calls, 2);
+    ASSERT_EQ(g_dlg_blit_mirrored_calls, 0);
+    /* ramp UP 0..0x3E step 2 (32) + ramp DOWN 0x3E..0 step 2 (32) = 64 delays */
+    ASSERT_EQ(g_delay375b2_calls, 64);
+    ASSERT_EQ(g_delay375b2_last_ticks, 4u);
+}
+
+static void test_shop_feedback_state5_cycle(void)
+{
+    /* state 5: 7-frame cycle at 0xA2383 (0x17..0x1D); NO portrait restore. */
+    shopfb_setup(5);
+    fd2_animate_shop_transaction_feedback();
+    shopfb_check_cycle(7, 0xA2383u);
+    ASSERT_EQ(g_dlg_blit_normal_calls, 0);   /* state 5 skips paint_portrait(0) */
+    ASSERT_EQ(g_dlg_blit_mirrored_calls, 0);
+}
+
+static void test_shop_feedback_state_other_noop(void)
+{
+    /* state 2 (and any non-{1,3,4,5}): no animation, no restore — only the
+     * trailing fd2_clear_keyboard_buffer() runs (no blit, no delay). */
+    shopfb_setup(2);
+    fd2_animate_shop_transaction_feedback();
+    ASSERT_EQ(g_rle_blit_calls, 0);
+    ASSERT_EQ(g_dlg_blit_normal_calls, 0);
+    ASSERT_EQ(g_dlg_blit_mirrored_calls, 0);
+    ASSERT_EQ(g_delay375b2_calls, 0);
+}
+
+
 void run_anim_aniui_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -482,5 +637,10 @@ void run_anim_aniui_tests(void)
     RUN_TEST(test_wing_slide_open_and_close);
     RUN_TEST(test_shop_scroll_up_cadence);
     RUN_TEST(test_shop_scroll_down_cadence);
+    RUN_TEST(test_shop_feedback_state1_cycle);
+    RUN_TEST(test_shop_feedback_state3_splash);
+    RUN_TEST(test_shop_feedback_state4_cycle_and_flash);
+    RUN_TEST(test_shop_feedback_state5_cycle);
+    RUN_TEST(test_shop_feedback_state_other_noop);
     printf("\n");
 }

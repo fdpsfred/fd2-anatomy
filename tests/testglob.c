@@ -451,7 +451,12 @@ int  fd2_party_roster_class_select_loop(uint32 candidate_count,
     return -1;
 }
 int  fd2_party_roster_single_select_loop(void) { return -1; }
-void fd2_animate_shop_transaction_feedback(void) { }
+/* fd2_animate_shop_transaction_feedback: now emitted in src/anim/aniui.c and
+ * linked for real. Its caller tests (tests/anim/aniui.c) drive the real
+ * per-state sprite cycle + state-4 palette flash through the real
+ * fd2_blit_indexed_sprite_at_xy -> fd2_rle_blit_sprite spy and the real
+ * fd2_paint_portrait_to_dialog_area -> dialog-blit spy. The former empty stub
+ * here was removed (it shadowed the real function and warned at link). */
 /* Recording stubs for fd2_shop_menu_input_loop's not-yet-emitted display
  * callees: the grid renderer (gfx/rndmenu.c) and the page-up scroll animation
  * (anim/aniui.c fd2_animate_scroll_down_in_shop_dialog). The shop input loop
