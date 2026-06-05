@@ -867,6 +867,84 @@ static void test_ch_event1e_shows_dialog_pages_2_then_3(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_1f__ch9_reinforcement @ 0x34B5D
+ *
+ * Dispatch idx 0x1F of the per-event handler table at 0x51B91 (chapter 9
+ * turn-event slots 0+1, the race_id 0+1 batch reinforcements). A straight-line
+ * spawner cinematic with NO branch, no RNG, and no CALL-return value used:
+ *   load_chapter_portraits_and_dump_tmp(tile_event_consumed_flags[0x10]); // load batch N
+ *   tile_event_consumed_flags[0x10]++;                                    // advance counter
+ *   pan_cursor_and_window(0,    0);    __delay_thunk_375b2(200);          // TL
+ *   pan_cursor_and_window(0xC,  0);    __delay_thunk_375b2(200);          // TR
+ *   pan_cursor_and_window(0xC,  0xB);  __delay_thunk_375b2(200);          // BR
+ *   pan_cursor_and_window(0,    0xB);  __delay_thunk_375b2(200);          // BL
+ *
+ * Two observable, deterministic contracts are pinned:
+ *   1. the batch counter is byte [0x10] of the tile-event consumed-flags block
+ *      (pointed at by data_fd2_field_map_tile_event_consumed_flags_ptr, here
+ *      backed by a local buffer so the read-then-advance is observable): the
+ *      seeded value selects the batch loaded, and the handler advances it by
+ *      exactly 1 afterward. Seeding a non-0 / non-1 value also pins that this
+ *      handler is UNGATED (no first-time gate like the sibling 0x19) — a pure
+ *      read-and-increment, not a conditional. The real loader runs end-to-end
+ *      against the staged FDICON.B24 + FDFIELD.DAT, rewriting FD2.TMP to its
+ *      full 0x32A00 bytes — proving the whole real callee chain (portrait
+ *      reload + the four corner pans) runs to completion without faulting;
+ *   2. all four 200ms holds fire: the testglob __delay_thunk_375b2 recorder
+ *      stub sees exactly four calls, the last with ticks == 200 (0xC8). The
+ *      final hold nails the binary's "PUSH 0xC8; JMP 0x353D1" tail-jump (into
+ *      the shared CALL __delay_thunk_375b2 / RET tail) as a real 200ms hold.
+ *
+ * The env is the shared ch25-style real-portrait-reload fixture: alloc_offset
+ * 0 (the per-record race scan iterates zero, so the seeded batch counter gates
+ * no fd2_init_runtime_char_for_battle but is still consumed by the loader),
+ * current_chapter_id 4 (FDFIELD re-read index 4*3+2 = 0xE is valid), an empty
+ * active party, and the real compositor workspace for the four camera pans. The
+ * pure blit/display side effects (the four corner pans' pixels, portrait pixels)
+ * are deferred to Phase 9 integration.
+ * ================================================================ */
+
+/* backing for the 0x20-byte tile-event consumed-flags block: byte [0x10] is the
+ * race_id batch counter this handler reads and advances. */
+static uint8 g_ev1f_consumed_flags[0x20];
+
+static void test_ch9_event1f_loads_batch_and_advances_counter(void)
+{
+    ev_install_safe_env();
+
+    /* reset the idle-hold recorder so the per-test count is clean. */
+    g_delay375b2_calls = 0;
+    g_delay375b2_last_ticks = 0;
+
+    /* point the consumed-flags global at the local block and seed the batch
+     * counter to a non-0 / non-1 value: the handler must load that batch and
+     * advance the counter unconditionally (no first-time gate). */
+    memset(g_ev1f_consumed_flags, 0, sizeof(g_ev1f_consumed_flags));
+    data_fd2_field_map_tile_event_consumed_flags_ptr =
+        (uint32)g_ev1f_consumed_flags;
+    g_ev1f_consumed_flags[0x10] = 5;
+
+    remove("FD2.TMP");
+
+    fd2_chapter_event_handler_1f__ch9_reinforcement(0);
+
+    /* the real portrait reload ran end-to-end: FD2.TMP rewritten to full size. */
+    ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
+
+    /* the batch counter advanced by exactly 1 (read 5 -> stored 6). */
+    ASSERT_EQ(g_ev1f_consumed_flags[0x10], 6);
+
+    /* all four corner holds fired; the last hold carried ticks == 200. */
+    ASSERT_EQ((long)g_delay375b2_calls, 4);
+    ASSERT_EQ((long)g_delay375b2_last_ticks, (long)0xC8);
+
+    /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
+    remove("FD2.TMP");
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt13_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -883,5 +961,6 @@ void run_field_chevt13_tests(void)
     RUN_TEST(test_ch_event1d_shows_dialog_page2_then_chains_handler_1c);
     RUN_TEST(test_ch_event1e_state);
     RUN_TEST(test_ch_event1e_shows_dialog_pages_2_then_3);
+    RUN_TEST(test_ch9_event1f_loads_batch_and_advances_counter);
     printf("\n");
 }

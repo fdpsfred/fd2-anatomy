@@ -76,6 +76,9 @@
  * fd2_chapter_event_handler_1e__unref_major_cinematic @ 0x34A7A
  *     (0 direct callers; dispatched as idx 0x1E of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_1f__ch9_reinforcement @ 0x34B5D
+ *     (0 direct callers; dispatched as idx 0x1F of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -1079,4 +1082,52 @@ void fd2_chapter_event_handler_1e__unref_major_cinematic(uint32 event_arg)
 
     data_fd2_battle_pending_xp_credit = 0;
     *((uint8 *)data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) = 2;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_1f__ch9_reinforcement @ 0x34B5D
+ *   — Chapter-9 reinforcement-spawner cinematic, dispatched as idx
+ *     0x1F of the per-event handler table at 0x51B91.
+ *
+ * Activated by chapter 9 turn-event slots 0+1 (the race_id 0+1 batch
+ * reinforcements). The batch counter is byte [0x10] of the tile-event
+ * consumed-flags block: the current value selects which portrait batch
+ * is loaded (and dumped to FD2.TMP), then the counter is advanced so the
+ * next invocation loads the following batch. After loading, the camera
+ * performs a 4-corner scan (TL -> TR -> BR -> BL) holding ~200ms at each
+ * corner, revealing the spawn arrivals at the four map corners. No dialog
+ * and no cutscene trigger — a pure visual transition.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0xC) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * The pointer global data_fd2_field_map_tile_event_consumed_flags_ptr
+ * holds the base of the 0x20-byte tile-event consumed-flags block; the
+ * batch counter is byte [0x10] of that block.
+ *
+ * In the original binary the final ~200ms hold is the head of a shared
+ * tail at 0x353D1 (CALL __delay_thunk_375b2; ADD ESP,4; RET) that this
+ * handler reaches via "PUSH 0xC8; JMP 0x353D1"; reproduced here as the
+ * inline call for Layer-2 equivalence.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_09.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_1f__ch9_reinforcement(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_load_chapter_portraits_and_dump_tmp(
+        *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10));
+    (*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10))++;
+
+    fd2_pan_cursor_and_window(0, 0);
+    __delay_thunk_375b2(200);
+    fd2_pan_cursor_and_window(0xC, 0);
+    __delay_thunk_375b2(200);
+    fd2_pan_cursor_and_window(0xC, 0xB);
+    __delay_thunk_375b2(200);
+    fd2_pan_cursor_and_window(0, 0xB);
+    __delay_thunk_375b2(200);
 }
