@@ -3181,8 +3181,9 @@
     "name": "fd2_promote_members_select_loop",
     "target": "ui_menu/promote.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00030dc3": {
     "name": "fd2_run_revive_menu_main",

@@ -467,6 +467,8 @@ uint32 data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
 uint32 data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
 uint32 data_fd2_ui_menu_cursor_idx = 0;
 uint32 data_fd2_ui_menu_visible_item_count = 0;
+uint32 data_fd2_ui_menu_scroll_offset = 0;
+uint32 data_fd2_ui_menu_candidate_array_ptr = 0;
 /* chapter-intro menu speaker portrait IDs — real FD2.LE values @ 0x52659 */
 uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6] =
     { 0x81, 0x80, 0x00, 0x82, 0x83, 0x84 };
@@ -1295,6 +1297,27 @@ void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite, uint32 stride) {
     g_dlg_blit_last_sprite = sprite;
     g_dlg_blit_last_stride = stride;
 }
+/* Promote/revive candidate-picker callees (not yet emitted in src) — recording
+ * no-op spies driving tests/ui_menu/promote.c fd2_promote_members_select_loop.
+ * The grid renderer records its arg snapshot; the two scroll animators just
+ * count (they only fire on Up/Down navigation, deferred to Phase 9). */
+int    g_promote_grid_calls = 0;
+uint32 g_promote_grid_last_count = 0;
+uint32 g_promote_grid_last_dst = 0;
+uint32 g_promote_grid_last_cursor = 0;
+int    g_promote_grid_last_list = 0;
+int    g_promote_scroll_down_calls = 0;
+int    g_promote_scroll_up_calls = 0;
+void fd2_render_promote_members_grid(uint32 candidate_count, uint32 dst_buffer,
+                                     uint32 cursor_idx, int candidate_idx_list) {
+    g_promote_grid_calls++;
+    g_promote_grid_last_count = candidate_count;
+    g_promote_grid_last_dst = dst_buffer;
+    g_promote_grid_last_cursor = cursor_idx;
+    g_promote_grid_last_list = candidate_idx_list;
+}
+void fd2_animate_scroll_down_in_shop_dialog(void) { g_promote_scroll_down_calls++; }
+void fd2_animate_scroll_up_in_shop_dialog(void)   { g_promote_scroll_up_calls++; }
 /* fd2_render_full_char_stat_panel @ 0x17fc0: now emitted for real in
  * src/gfx/rndstat.c and driven by tests/gfx/rndstat.c (the numeric/bar
  * render primitives it dispatches to are the recording spies defined

@@ -80,6 +80,8 @@ extern uint32 data_fd2_ui_terrain_hud_panel_offset_51a0c;               /* 0x51A
 extern uint8  data_fd2_ui_game_speed_flag;                              /* 0x53AF9 */
 extern uint32 data_fd2_ui_menu_cursor_idx;                              /* 0x53C57 */
 extern uint32 data_fd2_ui_menu_visible_item_count;                      /* 0x5413F */
+extern uint32 data_fd2_ui_menu_scroll_offset;                          /* 0x5412F */
+extern uint32 data_fd2_ui_menu_candidate_array_ptr;                     /* 0x54143 */
 extern int32  data_fd2_ui_field_command_menu_options_template[4];       /* 0x51E9F */
 extern int32  data_fd2_ui_field_command_menu_state_template[4];         /* 0x53EF2 */
 extern int32  data_fd2_ui_player_action_menu_state_template[4];         /* 0x53F12 */

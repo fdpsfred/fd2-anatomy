@@ -436,6 +436,10 @@ int fd2_scan_chars_within_manhattan_range(uint32 x, uint32 y, uint32 range, uint
 
 /* ---- ui_menu / revive + promote ---- */
 int fd2_build_dead_chars_list_for_revive(uint8 *out_list_buf);
+int fd2_promote_members_select_loop(uint32 candidate_count, uint8 *candidate_idx_list);
+void fd2_render_promote_members_grid(uint32 candidate_count, uint32 dst_buffer, uint32 cursor_idx, int candidate_idx_list);
+void fd2_animate_scroll_down_in_shop_dialog(void);
+void fd2_animate_scroll_up_in_shop_dialog(void);
 
 /* ---- util / misc ---- */
 void fd2_debug_print_ans_and_length(int value);
