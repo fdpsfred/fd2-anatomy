@@ -1,10 +1,16 @@
 /*
- * unit tests for src/anim/aniend.c  (fd2_play_ending_and_record_clear)
+ * unit tests for src/anim/aniend.c
+ *   - fd2_play_ending_and_record_clear  (exercised below, Phase 8)
+ *   - fd2_play_chapter_clear_fanfare    (deferred, see below)
  *
- * The function itself is one monolithic cutscene driver: it writes the VGA
- * framebuffer at 0xA0000, plays ANI files, issues 1000-tick BIOS delays, and
- * blocks on INT 16h keyboard input — none of which is callable under TEST.EXE.
- * Its display/menu phases are deferred to Phase 9 integration playtest.
+ * The functions are cutscene/fanfare drivers: they write the VGA framebuffer
+ * at 0xA0000, stop/fade BGM, load FDOTHER.DAT sprite sheets, play ANI files,
+ * issue BIOS-tick delays, and (for the ending) block on INT 16h keyboard input
+ * — none of which is callable under TEST.EXE. fd2_play_chapter_clear_fanfare is
+ * a pure linear display side-effect sequence (no branch / arithmetic / RNG /
+ * state transition), so it has no isolable logic to unit-test and is deferred
+ * in full to Phase 9 integration playtest. The ending driver's display/menu
+ * phases are likewise deferred to Phase 9 integration playtest.
  *
  * What IS isolable and exercised here is Phase 8 — the FD2.SAV completion
  * check that decides the menu option count. We reproduce that exact decision

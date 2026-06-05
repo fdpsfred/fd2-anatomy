@@ -2314,8 +2314,9 @@
     "name": "fd2_play_chapter_clear_fanfare",
     "target": "anim/aniend.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00022ef6": {
     "name": "fd2_chapter_01_end",

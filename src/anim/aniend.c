@@ -321,3 +321,38 @@ int fd2_play_ending_and_record_clear(void)
     free(sfx_bank);
     return active_idx_var;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_play_chapter_clear_fanfare @ 0x22E5C  (1 caller)
+ *
+ * Sole caller: fd2_main @ 0x25BF4 (entered when game_event_flag == 1, i.e. a
+ * chapter was just cleared). Plays a short 2-frame "chapter cleared" fanfare
+ * sprite sequence, then returns; fd2_main clears the event flag afterward.
+ *
+ * Sequence:
+ *   - stop BGM with fade
+ *   - fade screen to black, load FDOTHER.DAT[0x4F] fanfare sprite sheet
+ *   - clear framebuffer, blit frame 0, fade in, hold 9 ticks
+ *   - blit frame 1, hold 36 ticks
+ *   - free the sprite sheet
+ *
+ * The tail free() compiles (via the original) into a jump into the shared
+ * free-wrapper epilogue; the plain call below is the functional equivalent.
+ * ---------------------------------------------------------------- */
+void fd2_play_chapter_clear_fanfare(void)
+{
+    uint32 fanfare_sprite;
+
+    fd2_set_bgm_track_with_fade(0xFFFFFFFF, 1);
+    fd2_wait_n_bios_ticks(1);
+    fd2_play_palette_fade_to_black();
+    fanfare_sprite = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 0x4F);
+    memset((void *)0xA0000, 0, 64000);
+    fd2_blit_indexed_sprite(fanfare_sprite, 0, 0xA0000, 0x140, -1);
+    fd2_play_palette_fade_in();
+    fd2_wait_n_bios_ticks(9);
+    fd2_blit_indexed_sprite(fanfare_sprite, 1, 0xA0000, 0x140, -1);
+    fd2_wait_n_bios_ticks(0x24);
+    free((void *)fanfare_sprite);
+}

@@ -333,6 +333,7 @@ void fd2_init_battle_state_for_chapter(void);
 void fd2_save_runtime_char_to_template(void);
 
 /* ---- lifecycle / main menu ---- */
+void fd2_play_chapter_clear_fanfare(void);
 int fd2_play_ending_and_record_clear(void);
 int fd2_main_menu_continue_dispatcher(void);
 void fd2_save_crypt_buffer(uint32 buf, uint32 size);
