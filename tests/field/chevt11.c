@@ -500,6 +500,84 @@ static void test_ch_event13_all_dead_skips_second_dialog(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_14__ch6_dialog @ 0x347B1
+ *
+ * Dispatch idx 0x14 of the per-event handler table at 0x51B91 (chapter 6
+ * turn-event slot 0). The MINIMAL dialog-only beat: a single straight-line
+ * call with no branch, no RNG, no numeric computation, and no CALL-return
+ * value used — it just shows dialog page 1 and does nothing else (no portrait
+ * reload, no camera pan, no state writes). In the binary it prepares its own 8
+ * PUSHes (page=1 + the fixed dialog geometry) and JMPs into handler_09's shared
+ * tail at 0x3452F.
+ *
+ * The one observable, deterministic contract is which PAGE it dispatches into
+ * the real fd2_display_dialog_scene VM. As in the handler_13 tests, a custom
+ * dialog program is installed where the targeted page resolves to a single TEXT
+ * glyph then END; the glyph blit is the testglob recorder
+ * (g_dlg_glyph_calls / g_dlg_glyph_last_idx), so the page selection is
+ * observable WITHOUT touching real VGA. To make a wrong-page dispatch fail
+ * loudly, EVERY page is given its own distinct glyph idx (page p -> glyph
+ * 0x50+p): a correct page-1 dispatch must emit exactly one glyph with idx 0x51.
+ * With no portrait open (active_portrait_blit_offset 0) the END opcode returns
+ * at once — no portrait, scroll, file load, or page-break busy-wait — and an
+ * empty BIOS keyboard buffer keeps the per-glyph poll deterministic.
+ *
+ * The pure blit/display side effects (the real glyph render path) are deferred
+ * to Phase 9 integration.
+ * ================================================================ */
+
+/* custom dialog program: each page 0..0x10 resolves to its own single glyph
+ * (idx 0x50+page) then END, so the page the handler selects is identifiable by
+ * the recorded glyph idx. Layout (int16 words):
+ *   [0..0x10]      header words: page p -> byte offset of its glyph word
+ *   [0x11+2*p]     page p glyph (0x50+p)
+ *   [0x12+2*p]     page p END (-1)                                          */
+static int16 g_ev14_dlg[0x11 + 2 * 0x11];
+
+static void ev14_install_safe_env(void)
+{
+    int p;
+
+    /* per-page (glyph, END) pairs start right after the 0x11 header words. */
+    for (p = 0; p <= 0x10; p++) {
+        g_ev14_dlg[p] = (int16)((0x11 + 2 * p) * 2);   /* byte offset of glyph */
+        g_ev14_dlg[0x11 + 2 * p] = (int16)(0x50 + p);  /* page p glyph idx */
+        g_ev14_dlg[0x12 + 2 * p] = -1;                  /* page p END */
+    }
+    current_chapter_text = (uint32)g_ev14_dlg;
+
+    /* no portrait open on entry, so the END path skips the close sequence and
+     * returns immediately. */
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+
+    /* empty BIOS keyboard buffer (head==tail) so the real keyboard poll after
+     * the glyph returns 0 and the run stays deterministic. */
+    *(volatile uint16 *)0x41AuL = 0x20;
+    *(volatile uint16 *)0x41CuL = 0x20;
+
+    /* reset the glyph recorder so the per-test count is clean. */
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+}
+
+/* ----------------------------------------------------------------
+ * The handler fires its one beat: show dialog page 1 via the real dialog VM.
+ * Observable, deterministic contract: exactly one glyph is emitted and it is
+ * page 1's glyph (idx 0x51) — proving the handler dispatches page 1 (not any
+ * other page) — and the real dialog call runs to completion without faulting.
+ * ---------------------------------------------------------------- */
+static void test_ch6_event14_shows_dialog_page1(void)
+{
+    ev14_install_safe_env();
+
+    fd2_chapter_event_handler_14__ch6_dialog(0);
+
+    /* exactly page 1 was shown: one glyph, idx 0x51 (= 0x50 + page 1). */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0x51);
+}
+
 void run_field_chevt11_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -510,5 +588,6 @@ void run_field_chevt11_tests(void)
     RUN_TEST(test_ch1_event3_reloads_race6_brackets_initphase);
     RUN_TEST(test_ch_event13_any_alive_arms_band_and_shows_second_dialog);
     RUN_TEST(test_ch_event13_all_dead_skips_second_dialog);
+    RUN_TEST(test_ch6_event14_shows_dialog_page1);
     printf("\n");
 }

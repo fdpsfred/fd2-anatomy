@@ -43,6 +43,9 @@
  * fd2_chapter_event_handler_13__unref_char_cond @ 0x34716
  *     (0 direct callers; dispatched as idx 0x13 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_14__ch6_dialog @ 0x347B1
+ *     (0 direct callers; dispatched as idx 0x14 of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -566,4 +569,35 @@ void fd2_chapter_event_handler_13__unref_char_cond(uint32 event_arg)
         fd2_display_dialog_scene(current_chapter_text, 0xB, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
     }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_14__ch6_dialog @ 0x347B1
+ *   — Chapter 6 turn-event slot 0 (triggered at turn 5 / phase 2),
+ *     dispatched as idx 0x14 of the per-event handler table at 0x51B91.
+ *
+ * The minimal dialog-only beat: no portrait reload, no camera pan, no
+ * state writes — a single straight-line dialog call with no RNG, no
+ * numeric computation, and no CALL-return value used. Dialog page 1 is
+ * shown; nothing else happens.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * In the original binary this handler prepares its own 8 PUSHes (page=1
+ * plus the fixed dialog geometry) and then JMPs into handler_09's shared
+ * tail at 0x3452F (PUSH current_chapter_text; CALL fd2_display_dialog_scene;
+ * ADD ESP,0x24; RET); reproduced here as the inline call for Layer-2
+ * equivalence.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_06.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_14__ch6_dialog(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_display_dialog_scene(current_chapter_text, 1, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
 }
