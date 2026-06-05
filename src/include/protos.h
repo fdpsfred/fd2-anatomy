@@ -167,6 +167,7 @@ void fd2_play_spell_cast_cinematic(uint32 caster_char_idx, uint32 spell_id);
 void fd2_cycle_sprite_anim_with_bg_frames(uint32 sprite_atlas, uint32 workspace, uint32 iter_count);
 void fd2_play_char_intro_zoom_anim(uint32 caster_idx, uint32 mode_flag, uint32 caster_figani_a, uint32 target_figani0, uint32 workbuf2, uint32 workbuf1, uint32 tai_resource);
 void fd2_play_figani_animation_loop(uint32 caster_idx, uint32 spell_id, uint32 caster_figani_b, uint32 target_figani0, uint32 workbuf2, uint32 workbuf1, uint32 bg_layer_saved, uint32 tai_resource);
+void fd2_animate_spell_hit_cinematic(uint32 caster_idx, uint32 caster_sprite, uint32 caster_figani_b, uint32 target_figani_cur, uint32 work_buf, uint32 backbuf, uint32 target_figani_next, uint32 spell_id);
 void fd2_restore_portrait_cache_from_tmp(void);
 
 /* ---- cursor + pan ---- */
@@ -326,6 +327,8 @@ void AIL_start_sample(uint32 sample);
 uint32 fd2_load_dat_resource(uint32 fname, uint32 buf, uint32 idx);
 void fd2_rle_blit_sprite(uint32 rle_stream, int32 dst_x, int32 dst_y,
                          uint32 dst_buf, int32 stride, uint32 palette_op);
+void fd2_rle_blit_with_palette_remap(uint32 rle_stream, int32 dst_x, int32 dst_y,
+                         uint32 dst_buf, int32 stride, uint32 palette_remap);
 void fd2_scroll_text_screen_up_by_lines(uint32 lines);
 uint32 fd2_save_compute_checksum(uint32 buf, uint32 size);
 int  fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp);

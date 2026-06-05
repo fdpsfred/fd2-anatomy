@@ -913,8 +913,31 @@ void (*data_fd2_chapter_post_action_handler_table[30])(uint32) = {
     g_noop_post_action_handler, g_noop_post_action_handler,
     g_noop_post_action_handler, g_noop_post_action_handler,
     g_noop_post_action_handler, g_noop_post_action_handler,
-    g_noop_post_action_handler, g_noop_post_action_handler,
     g_noop_post_action_handler, g_noop_post_action_handler
+};
+/* spell-cast cinematic phase-handler table (0x523B9): 10 per-spell handlers, each
+ * int(caster_idx, caster_sprite, work_buf, stride, phase_code) returning a frame
+ * count. Initialized to a noop returning 0 (fnptr table noop-init rule). The real
+ * handlers are heavy VGA cinematics; fd2_play_spell_cast_sequence is deferred to
+ * Phase 9 so this table is never invoked by a unit test. */
+static int g_noop_spell_phase_handler(uint32 a, uint32 b, uint32 c,
+                                      uint32 d, uint32 e) {
+    (void)a; (void)b; (void)c; (void)d; (void)e; return 0;
+}
+int (*data_fd2_battle_spell_cast_cinematic_phase_handler_table[10])(
+        uint32, uint32, uint32, uint32, uint32) = {
+    g_noop_spell_phase_handler, g_noop_spell_phase_handler,
+    g_noop_spell_phase_handler, g_noop_spell_phase_handler,
+    g_noop_spell_phase_handler, g_noop_spell_phase_handler,
+    g_noop_spell_phase_handler, g_noop_spell_phase_handler,
+    g_noop_spell_phase_handler, g_noop_spell_phase_handler
+};
+/* per-chapter combat-cinematic mode table (0x52363, byte[30]): real game values
+ * (24 chapters use mode 3, ch24=3, rest 0). */
+uint8 data_fd2_chapter_combat_cinematic_mode_per_chapter[30] = {
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    0, 0, 0, 3, 0, 0
 };
 uint32 data_fd2_battle_ai_best_spell_score = 0;
 uint32 data_fd2_battle_ai_best_item_score = 0;
@@ -999,7 +1022,8 @@ int g_execute_physical_calls = 0;
 /* fd2_ai_walk_to_target_tile: now in btl_ai.c */
 /* fd2_ai_score_physical_attack: now in btl_ai.c */
 /* fd2_execute_ai_offensive_spell: now in btl_ai.c */
-void fd2_play_spell_cast_sequence(uint32 ci, uint32 si, uint32 nt, uint32 tb) { }
+/* fd2_play_spell_cast_sequence: now emitted for real in src/anim/anispell.c
+ * (its former no-op linker stub was removed). */
 /* fd2_execute_ai_physical_attack: now in btl_ai.c */
 uint32 fd2_animate_combat_speech_bubbles(uint32 ci, uint32 ti) { return 0; }
 void fd2_render_combatant_hp_bar_proportional(uint32 d, uint32 s, uint32 ci, uint32 st) { }
@@ -1313,3 +1337,12 @@ void fd2_play_figani_animation_loop(uint32 caster_idx, uint32 spell_id,
     uint32 caster_figani_b, uint32 target_figani0, uint32 workbuf2,
     uint32 workbuf1, uint32 bg_layer_saved, uint32 tai_resource) { }
 void fd2_restore_portrait_cache_from_tmp(void) { }
+/* fd2_play_spell_cast_sequence (src/anim/anispell.c @ 0x2A6BD) callee stubs.
+ * That orchestrator is a real-file + VGA cinematic deferred to Phase 9 (no unit
+ * test drives it), so these are plain no-op linker stubs. Replaced when their
+ * real definitions are emitted. Signatures match src/include/protos.h. */
+void fd2_rle_blit_with_palette_remap(uint32 rle_stream, int32 dst_x, int32 dst_y,
+    uint32 dst_buf, int32 stride, uint32 palette_remap) { }
+void fd2_animate_spell_hit_cinematic(uint32 caster_idx, uint32 caster_sprite,
+    uint32 caster_figani_b, uint32 target_figani_cur, uint32 work_buf,
+    uint32 backbuf, uint32 target_figani_next, uint32 spell_id) { }

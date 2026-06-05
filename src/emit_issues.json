@@ -637,5 +637,41 @@
         "source_review": "fd2_play_spell_cast_cinematic @0002a2e8 (emitter)"
       }
     ]
+  },
+  "0002a6bd": {
+    "name": "fd2_play_spell_cast_sequence",
+    "target": "anim/anispell.c",
+    "issues": [
+      {
+        "type": "fnptr_dispatch_signature_reconstruction",
+        "desc": "The 10-entry table data_fd2_battle_spell_cast_cinematic_phase_handler_table @ 0x523B9 is called via FF /4 indirect jump (CALL dword ptr [EAX*4+0x523b9], EAX=spell_id) with 5 args pushed + ADD ESP,0x14, result used in EAX as a frame count. Ghidra masks the args (renders each call as \"()\") because it lacks the fn-ptr signature. Reconstructed from the disassembly + decompiling handler[0] (fd2_tick_summon_spell_setup_pre_animation_8slot @ 0x26152: param_count=5, returns int): signature int(uint32 caster_idx, uint32 caster_sprite, uint32 work_buf, uint32 stride, uint32 phase_code). globals.h table type changed void(*)(void) -> int(*)(uint32,uint32,uint32,uint32,uint32). All 10 sites reconstructed: phase_code = per-site immediate (pre-cast bound 0, pre-cast loop body 1 then 2; per-target bound 3, inner always 4, inner miss 5, inner hit 5; post-cast bound 6, post loop body 7 then 8); arg1=caster_idx, arg2=team_caster_sprite (FDOTHER team sprite, decompiler puVar5), arg3=work-buffer ptr matching the adjacent blit (work / work+0x4ba0 / swap_buf), arg4=stride 0x140 (full-frame) or 0x280 (wide composite).",
+        "severity": "info",
+        "verify_method": "compile_and_disasm"
+      },
+      {
+        "type": "latent_oob_local_table_read",
+        "desc": "The 6 function-local const tables (shake_x_offsets[4], shake_y_row_offsets[4], hp_lerp_hits[10], player_team_sprite_id[9], enemy_team_sprite_id[10], intro_sfx_bank[10]) are indexed by spell_id. The inline path runs for spell_id in 0x00..0x17,0x19..0x1B, so spell_id can exceed a table length (e.g. earth attack spells 0x0A/0x0B/0x0C reach the hit branch that reads hp_lerp_hits[spell_id], which has only 10 entries). In the original this is a latent OOB read of adjacent stack locals (the disassembly REP MOVSD-copies each table from .rodata onto the stack at distinct, non-contiguous offsets, so the over-read picks up neighboring stack/gap bytes). It only feeds the cosmetic HP-bar lerp divisor and the sprite/SFX index selection -- the applied damage (written by fd2_calc_magic_damage) is unaffected. Emitted as non-static initialized const local arrays indexed by spell_id, preserving the source-level OOB. The exact over-read byte is Watcom-stack-layout dependent in BOTH original and rebuild (Layer-2 target, not byte-exact); spells 0x00..0x09 are fully in-bounds and deterministic.",
+        "severity": "info",
+        "verify_method": "compile_and_disasm"
+      },
+      {
+        "type": "hp_lerp_signed_division",
+        "desc": "HP-bar lerp uses signed 32-bit IDIV: hp_current = starting_hp - (int16)((int)(starting_hp - final_hp) * hit_count / hp_lerp_hits[spell_id]). Both HP snapshots are sign-extended from int16 (MOVSX word [tgt+0x40]); multiply+divide are 32-bit signed (CDQ/IDIV @0x2aef2/0x2aef5); the quotient is subtracted from starting_hp and stored back truncated to int16. Emitted with explicit (int)/(int16) casts to force the same signed widths. Flag for compile+disasm confirmation that Watcom 9.5a emits IDIV (not unsigned DIV).",
+        "severity": "info",
+        "verify_method": "compile_and_disasm"
+      },
+      {
+        "type": "shared_epilogue_and_tail_call_regeneration",
+        "desc": "The summon (spell_id>=0x20) and special-attack (0x18 / 0x1C..0x1F) branches CALL the worker then JMP into the shared function epilogue (0x2b5d6: ADD ESP,0x130 / POP EBP/EDI/ESI/EBX / RET) rather than a separate RET. Emitted as plain early return after each call. The inline path falls through to the same epilogue, emitted as the natural end-of-function return. Equivalence relies on Watcom 9.5a regenerating an equivalent frame teardown; functionally identical (cdecl, caller cleans args, void return).",
+        "severity": "info",
+        "verify_method": "compile_and_disasm"
+      },
+      {
+        "type": "eax_tracking_bug_void_fn_returns_value",
+        "desc": "FIXED (reviewer-blocking, corrected in src/anim/anispell.c). shake_y_dir (decompiler palette_y_dir_sign, stack [ESP+0x104]) is computed from the freshly-advanced RNG seed left in EAX by fd2_advance_rng_state @0x4e893, NOT from flash_unit. Disasm 0x2af40-0x2af58: CALL 0x0004e893 ; MOV EDX,EAX ; MOV EBX,0x3 ; SAR EDX,0x1f ; IDIV EBX ; MOV EAX,0x1 ; SUB EAX,EDX ; MOV [ESP+0x104],EAX -- the value divided by 3 is the CALL's EAX return. fd2_advance_rng_state (XOR EAX,EAX / MOV AX,[0x627B8] / ADD AX,0x9014 / ROL AX,1 x3 / MOV [0x627B8],AX / RET) returns the new seed zero-extended in EAX, range [0,0xFFFF]. Ghidra mis-attributed the IDIV operand to uVar6/flash_unit because fd2_advance_rng_state was decompiled as void (documented EAX-after-CALL tracking bug). protos.h already prototypes it as uint32 fd2_advance_rng_state(void) and battle.c notes 'callers use return value'; many sibling sites (battle.c, anisummn.c) already consume the return. Emitter originally copied the decompiler bug as 'shake_y_dir = 1 - (int)flash_unit % 3;' which discarded the RNG result and used a different value. Corrected to 'shake_y_dir = 1 - (int)fd2_advance_rng_state() % 3;' which matches the disassembly (IDIV operand = the CALL's EAX) byte-for-byte in semantics and matches the established codebase convention (consume EAX return directly rather than re-read [0x627B8]). The reviewer's alternative fix (call then re-read data_fd2_shared_rng_seed) yields an identical value (EAX == stored seed, both [0,0xFFFF], both promote to the same non-negative int) but introduces a memory re-read not present in the original; the EAX-return form is the faithful one. shake_y_dir feeds only the cosmetic per-target shake X-offset sign (shake_x_offsets[shake_idx] * shake_y_dir); applied damage is unaffected.",
+        "severity": "info",
+        "verify_method": "compile_and_disasm"
+      }
+    ]
   }
 }

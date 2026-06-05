@@ -5,6 +5,7 @@
  * fd2_animate_bg_zoom_transition_in    @ 0x29C90
  * fd2_animate_bg_zoom_transition_out   @ 0x29DED
  * fd2_cycle_sprite_anim_with_bg_frames @ 0x2A5D0
+ * fd2_play_spell_cast_sequence         @ 0x2A6BD
  *
  * ===== fd2_play_ani_file_animation_sequence @ 0x20421 =====
  *
@@ -150,6 +151,77 @@
  * the real fd2_cycle_sprite_anim_with_bg_frames, and drive the real function,
  * asserting the two FIGANI loads request indices portrait_id*3 and class_id*3 and
  * that the cinematic restores the backed-up VGA frame on exit.
+ *
+ * ===== fd2_play_spell_cast_sequence @ 0x2A6BD =====
+ *
+ * TEST DEFERRED TO PHASE 9 (INTEGRATION) — reason below.
+ *
+ * This is the master "big spell cast" animation + damage orchestrator. Every one
+ * of its exit paths invokes a real, heavy VGA-cinematic / real-file callee with
+ * no host-harness unit seam:
+ *
+ *   1. Both top-level routing paths call a REAL cinematic worker:
+ *      spell_id >= 0x20 -> fd2_execute_summon_spell_cast (src/spell/spellcin.c),
+ *      spell_id == 0x18 || 0x1C..0x1F -> fd2_execute_special_attack_skill (same).
+ *      Both are real-linked into TEST.EXE (shared by other code), so they cannot
+ *      be replaced with a recording stub for this one test; and both themselves
+ *      fopen the genuine FIGANI.DAT / BG.DAT via the real fd2_load_dat_resource
+ *      and write to the 0xA0000 VGA aperture — i.e. invoking either is a full
+ *      cinematic run, an integration scenario.
+ *   2. The inline path (basic spells 0x00..0x17,0x19..0x1B) loads BG.DAT,
+ *      TAI.DAT and FIGANI.DAT through the real fd2_load_dat_resource (src/rsrc),
+ *      and then DEREFERENCES the returned buffers (the caster FIGANI's first
+ *      int16/byte for the frame count, the per-target FIGANI streams, the
+ *      tile-event byte). BG.DAT / TAI.DAT / FIGANI.DAT are real game files
+ *      (forbidden to fake) and are NOT in build_test.py's staged GAME_FILES set
+ *      (only FDICON.B24 / FDFIELD / FDSHAP / FDOTHER / FDTXT / FDMUS / DATO /
+ *      FD2.SAV are staged), so a real load would not even resolve in the harness
+ *      and the subsequent deref would fault. fd2_load_dat_resource is real-linked
+ *      and shared, so it cannot be stubbed for this one test.
+ *   3. The per-phase animation is driven by the 10-entry function-pointer table
+ *      data_fd2_battle_spell_cast_cinematic_phase_handler_table @ 0x523B9, whose
+ *      real handlers are themselves VGA cinematics; and the inner blits go to the
+ *      real fd2_blit_rectangle (0xA0000) plus the real fd2_flash_char_hit_sprite.
+ *   4. Everything else is display/timing side effects (malloc/free, the work +
+ *      backbuffer blits, BIOS-tick waits, palette fades, the final scene-cache
+ *      reload). Per the project test policy, pure blit/display side-effect state
+ *      defers to Phase 9 integration.
+ *
+ * The non-display logic that DOES carry risk was verified directly against the
+ * disassembly ground truth during emit, and the emitted C mirrors it exactly:
+ *   - Top-level dispatch thresholds: >= 0x20 summon; == 0x18 or in 0x1C..0x1F
+ *     special; otherwise inline (matches the CMP 0x20 / CMP 0x18 / CMP 0x1B
+ *     ladder).
+ *   - The portrait_load / shine-table-offset selection (spell 8 -> 0xB0/0x13;
+ *     spell > 3 -> 0xB0/0xF; else 0x20/0x0B).
+ *   - The HP-bar lerp: tgt->hp_current = starting_hp - (int16)((int)(starting_hp
+ *     - final_hp) * hit_count / hp_lerp_hits[spell_id]) (signed IDIV; both HP
+ *     snapshots sign-extended from int16; the damage is applied by, and the
+ *     final HP written by, the real fd2_calc_magic_damage; the original HP is
+ *     restored before the lerp). The miss test is is_miss = (damage == 0),
+ *     resolved from the SETZ -> byte in the assembly (NOT a stale EAX read).
+ *   - The per-target shake direction: shake_y_dir = 1 - fd2_advance_rng_state()
+ *     % 3, consuming the RNG seed left in EAX (range [0,0xFFFF], zero-extended)
+ *     by the CALL at 0x2af40 -- NOT a stale EAX read of flash_unit (the Ghidra
+ *     EAX-tracking bug: fd2_advance_rng_state decompiles as void). It feeds only
+ *     the cosmetic shake X-offset sign; the RNG primitive itself is unit-tested
+ *     in tests/battle. See src/emit_issues.json (0002a6bd). Reachable only
+ *     behind the same real-cinematic / real-file wall as the rest of this fn, so
+ *     it defers with the function.
+ *   - The 6 function-local const tables (shake X/Y offsets, HP-lerp hit counts,
+ *     player/enemy caster sprite-id tables, intro SFX-bank table) and the latent
+ *     spell_id >= table-length over-read documented in src/emit_issues.json.
+ *   - The 10 indirect dispatch-table calls' reconstructed 5 args (the decompiler
+ *     masks them as "()"): handler(caster_idx, team_caster_sprite, work_buffer,
+ *     stride, phase_code) with phase_code the per-site immediate 0..8.
+ * See src/emit_issues.json (0002a6bd).
+ *
+ * The Phase 9 integration test will stage the real BG.DAT / TAI.DAT / FIGANI.DAT,
+ * install controllable phase handlers in the 0x523B9 table, drive the real
+ * function for a basic attack spell (spell_id 0, target_count 1), and assert the
+ * target's HP bar lerps from its pre-cast value to the fd2_calc_magic_damage
+ * result over hp_lerp_hits[spell_id] steps, plus that the summon / special
+ * routing branches hand off to the correct worker.
  *
  * ===== fd2_cycle_sprite_anim_with_bg_frames @ 0x2A5D0 =====
  *
@@ -523,6 +595,8 @@ void run_anim_anispell_tests(void)
            "integration: decode-to-VGA orchestrator; see file header)\n");
     printf("  (fd2_play_spell_cast_cinematic deferred to Phase 9 integration: "
            "real-file + decode-to-VGA + timing orchestrator; see file header)\n");
+    printf("  (fd2_play_spell_cast_sequence deferred to Phase 9 integration: "
+           "all paths invoke real cinematic/real-file callees; see file header)\n");
     RUN_TEST(test_bg_zoom_transition_bg_cycling);
     RUN_TEST(test_bg_zoom_transition_out_bg_cycling);
     RUN_TEST(test_cycle_sprite_anim_frame_advance);

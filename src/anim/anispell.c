@@ -413,3 +413,423 @@ void fd2_cycle_sprite_anim_with_bg_frames(uint32 sprite_atlas, uint32 workspace,
         fd2_wait_n_bios_ticks(1);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_play_spell_cast_sequence @ 0x2A6BD  (2 callers)
+ *
+ * The master "big spell cast" animation + damage-application orchestrator.
+ * Callers: fd2_execute_ai_offensive_spell @ 0x15311 (enemy AI offensive
+ * spell) and fd2_spell_selection_menu_main @ 0x1CFF0 (player menu cast).
+ *
+ * Top-level dispatch on spell_id:
+ *   spell_id >= 0x20                  -> fd2_execute_summon_spell_cast
+ *   spell_id == 0x18 or in 0x1C..0x1F -> fd2_execute_special_attack_skill
+ *   otherwise (0x00..0x17,0x19..0x1B) -> inline main sequence below.
+ *
+ * The inline sequence frees the scratch caches, loads the battle backdrop
+ * (BG.DAT / TAI.DAT), the caster + per-target FIGANI streams and the
+ * spell-specific FDOTHER sprite, allocates a 64000-byte backbuffer and a
+ * 0x2A300 frame-scratch, then runs the cast animation in phases driven by a
+ * per-spell function-pointer "cinematic phase handler" table @ 0x523B9. Each
+ * handler call returns the frame count for that phase and is invoked with
+ * (caster_idx, team_caster_sprite, work_buffer, stride, phase_code). The
+ * HP bar of each target is lerped from its pre-cast value down to the value
+ * computed by fd2_calc_magic_damage (which itself applies the damage); the
+ * original HP is restored before the lerp and the final HP is written by
+ * calc_magic_damage. Finally all resources are freed and the battle scene
+ * caches are reloaded.
+ *
+ * Notes on the emit:
+ *  - The dispatch table @ 0x523B9 is called via an FF /4 indirect jump
+ *    pushing 5 args + ADD ESP,0x14 with the result in EAX (a frame count);
+ *    Ghidra's decompiler masks the args (shows "()") because it lacks the
+ *    fn-ptr signature. The 5 args are reconstructed from the disassembly:
+ *    phase_code is the per-call-site immediate (0..8), the work-buffer
+ *    pointer matches the buffer used by the adjacent blit, and stride is
+ *    0x140 for the full-frame phases / 0x280 for the wide composite phases.
+ *  - The 6 small const tables (shake X/Y offsets, HP-lerp hit counts, the
+ *    player/enemy caster sprite-id tables and the intro SFX-bank table) are
+ *    function-local const arrays in the original (the disassembly copies
+ *    each from .rodata onto the stack with REP MOVSD before use). They are
+ *    indexed by spell_id; for spell_id >= the table length this is a latent
+ *    out-of-bounds read in the original that reads adjacent stack locals
+ *    (it only feeds the cosmetic HP-bar lerp speed / sprite selection — the
+ *    applied damage is unaffected). Reproduced verbatim. See emit_issues.json.
+ *  - target FIGANI streams are held in a 30-dword stack buffer; index [0] is
+ *    the decompiler's "pTarget_first_figani", indices [0..target_count-1] are
+ *    the per-target streams (the original's off-by-one pointer arithmetic
+ *    target_figani_arr + i*4 - 4 resolves to figani_buf[i]).
+ *  - calc_magic_damage returns the damage amount; 0 means a miss (no HP
+ *    change, "miss" frame shown). EAX after that CALL is the damage value
+ *    (verified against the disassembly SETZ -> is_miss byte).
+ *
+ * cdecl, void return.
+ * ---------------------------------------------------------------- */
+void fd2_play_spell_cast_sequence(uint32 caster_idx, uint32 spell_id,
+                                  uint32 target_count, uint32 target_ids_arg)
+{
+    /* function-local const tables (the original copies each from .rodata onto
+     * the stack with REP MOVSD before use; emitted as initialized const locals
+     * so Watcom reproduces the same rodata->stack copy). */
+    const int32 shake_x_offsets[4]      = { 6, 4, 2, 0 };
+    const int32 shake_y_row_offsets[4]  = { -3, -2, -1, 0 };
+    const uint8 hp_lerp_hits[10]        = { 7, 8, 6, 13, 6, 6, 5, 5, 16, 20 };
+    const uint8 player_team_sprite_id[9]  = { 18, 19, 26, 39, 22, 24, 32, 37, 28 };
+    const uint8 enemy_team_sprite_id[10]  = { 20, 21, 27, 43, 23, 25, 33, 38, 30, 44 };
+    const uint8 intro_sfx_bank[10]      = { 82, 82, 83, 84, 85, 86, 87, 88, 89, 90 };
+
+    uint8  *target_ids = (uint8 *)target_ids_arg;
+    uint32  figani_buf[30];
+    uint8   tile_attr_buf[8];
+
+    runtime_char *caster;
+    runtime_char *tgt;
+    uint32  bg_idx;
+    uint32  tai_idx;
+    uint32  cinematic_mode;
+    uint32  team_caster_sprite;
+    uint32  bg_resource;
+    uint32  tai_resource;
+    uint32  caster_figani_a;
+    uint32  caster_figani_b;
+    void   *backbuf;
+    void   *work;
+    uint32  caster_anim_base;
+    uint32  caster_last_frame;
+
+    uint32  palette_op_base;   /* portrait_load_idx_x100, init 0x20 */
+    uint32  shine_table_offset;     /* portrait_load_idx_offset, init 0x0B */
+    uint32  shake_step_counter;     /* palette_y_loop_counter, init 8 */
+    uint32  shake_idx;              /* palette_idx, init 3 */
+    int32   shake_y_dir;            /* palette_y_dir_sign, init -1 */
+    uint32  swap_toggle;            /* init 0 */
+
+    int     i;
+    int     n_frames;
+    uint32  target_iter;
+    int     anim_iter;
+    uint32  hit_count;
+    int     damage;
+    int16   starting_hp;
+    int16   final_hp;
+    uint8   is_miss;
+    uint32  swap_buf;
+    uint32  ret_phase;
+    uint32  flash_unit;
+
+    shake_step_counter = 8;
+    shake_idx = 3;
+    shake_y_dir = -1;
+    palette_op_base = 0x20;
+    shine_table_offset = 0xb;
+    swap_toggle = 0;
+
+    if ((int)spell_id >= 0x20) {
+        fd2_execute_summon_spell_cast(caster_idx, spell_id, target_count,
+                                      (int)target_ids_arg);
+        return;
+    }
+
+    if ((spell_id == 0x18) || (0x1b < (int)spell_id)) {
+        fd2_execute_special_attack_skill(caster_idx, spell_id, (int)target_count,
+                                         target_ids);
+        return;
+    }
+
+    if (spell_id == 8) {
+        palette_op_base = 0xb0;
+        shine_table_offset = 0x13;
+    } else if (3 < (int)spell_id) {
+        palette_op_base = 0xb0;
+        shine_table_offset = 0xf;
+    }
+
+    free((void *)portrait_sprite_cache);
+    free((void *)data_fd2_large_game_state_buffer_ptr);
+    free((void *)battle_scene_snapshot);
+    battle_scene_snapshot = 0;
+
+    for (i = 0; i < 0x1e; i++) {
+        figani_buf[i] = 0;
+    }
+
+    caster = &data_fd2_battle_runtime_char_array_ptr[caster_idx];
+    fd2_read_tile_attribute_at_pos(caster->pos_x, caster->pos_y,
+                                   (uint32)tile_attr_buf);
+
+    cinematic_mode = (uint32)data_fd2_chapter_combat_cinematic_mode_per_chapter
+                         [data_fd2_chapter_current_chapter_id];
+    if ((fd2_check_char_status_immunity(caster_idx) == 0) || (cinematic_mode == 0)) {
+        cinematic_mode = (uint32)tile_attr_buf[6];
+    }
+
+    {
+        uint32 resolved_terrain;
+        resolved_terrain =
+            (uint32)fd2_resolve_terrain_for_aoe_targets((int)target_count,
+                                                        target_ids_arg);
+        tai_idx = cinematic_mode;
+        bg_idx = resolved_terrain;
+        if (caster->team == 0) {
+            tai_idx = resolved_terrain;
+            bg_idx = cinematic_mode;
+        }
+    }
+
+    bg_resource = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_bg_dat_52381, 0, bg_idx);
+    tai_resource = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_tai_dat, 0, tai_idx);
+
+    backbuf = malloc(64000);
+    work = malloc(0x2a300);
+    memset(backbuf, 0, 64000);
+    fd2_flash_char_hit_sprite((uint32)backbuf, caster_idx);
+    fd2_flash_char_hit_sprite((uint32)backbuf, (uint32)target_ids[0]);
+    fd2_rle_blit_sprite(bg_resource, 0, 0x32, (uint32)backbuf, 0x140, 0xffffffff);
+
+    caster = data_fd2_battle_runtime_char_array_ptr;
+    caster_anim_base =
+        (uint32)data_fd2_battle_runtime_char_array_ptr[caster_idx].portrait_id * 3;
+    caster_figani_a = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0, caster_anim_base);
+    caster_figani_b = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0, caster_anim_base + 2);
+
+    data_fd2_audio_summon_spell_sfx_bank_buf_ptr = 0;
+    data_fd2_audio_summon_spell_sfx_bank_buf_ptr = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdother_dat, 0,
+        (uint32)intro_sfx_bank[spell_id]);
+
+    if (*(int16 *)caster_figani_b == 0) {
+        caster_figani_b = fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_figani_dat_52388,
+            caster_figani_b, caster_anim_base + 1);
+    }
+
+    fd2_play_palette_fade_to_black();
+
+    for (i = 0; i < (int)target_count; i++) {
+        figani_buf[i] = fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_figani_dat_52388, figani_buf[i],
+            (uint32)data_fd2_battle_runtime_char_array_ptr[target_ids[i]].portrait_id * 3);
+    }
+
+    if (caster[caster_idx].team == 0) {
+        team_caster_sprite = fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_fdother_dat, 0,
+            (uint32)enemy_team_sprite_id[spell_id]);
+    } else {
+        team_caster_sprite = fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_fdother_dat, 0,
+            (uint32)player_team_sprite_id[spell_id]);
+    }
+
+    fd2_play_char_intro_zoom_anim(caster_idx, 0, caster_figani_a, figani_buf[0],
+                                  (uint32)work, (uint32)backbuf, tai_resource);
+    fd2_play_figani_animation_loop(caster_idx, spell_id, caster_figani_b, figani_buf[0],
+                                   (uint32)work, (uint32)backbuf, bg_resource, tai_resource);
+
+    /* pre-cast slide-in (spell_id == 9 only) */
+    if (spell_id == 9) {
+        for (i = 0; i < 0xb; i++) {
+            fd2_blit_rectangle((uint32)work + 0x140, 0x280, (uint32)backbuf,
+                               0x140, 0x140, 0xc8);
+            if (i != 10) {
+                fd2_blit_indexed_sprite(caster_figani_a, 0,
+                                        (int)((uint32)work + 0x140) + i * -10, 0x280, -1);
+            }
+            fd2_blit_indexed_sprite(figani_buf[0], 0, (int)((uint32)work + 0x140), 0x280, -1);
+            fd2_blit_rectangle(0xa0000, 0x140, (uint32)work + 0x140, 0x280, 0x140, 0xc8);
+        }
+        __delay_thunk_375b2(500);
+    }
+
+    caster_last_frame = *(uint8 *)caster_figani_b - 1;
+
+    /* pre-cast animation loop (phase 0 returns the frame count) */
+    n_frames = data_fd2_battle_spell_cast_cinematic_phase_handler_table[spell_id](
+                   caster_idx, team_caster_sprite, (uint32)work, 0x140, 0);
+    fd2_step_figani_pose_animation(figani_buf[0], 0, (uint32)work, 0x280);
+    for (i = 0; i < n_frames; i++) {
+        fd2_blit_rectangle((uint32)work + 0x4ba0, 0x280, (uint32)backbuf,
+                           0x140, 0x140, 0xc8);
+        data_fd2_battle_spell_cast_cinematic_phase_handler_table[spell_id](
+            caster_idx, team_caster_sprite, (uint32)work + 0x4ba0, 0x280, 1);
+        if (spell_id != 9) {
+            fd2_blit_indexed_sprite(caster_figani_b, caster_last_frame,
+                                    (int)((uint32)work + 0x4ba0), 0x280, -1);
+        }
+        fd2_step_figani_pose_animation(figani_buf[0], 0xffffffff,
+                                       (uint32)work + 0x4ba0, 0x280);
+        data_fd2_battle_spell_cast_cinematic_phase_handler_table[spell_id](
+            caster_idx, team_caster_sprite, (uint32)work + 0x4ba0, 0x280, 2);
+        fd2_blit_rectangle(0xa0000, 0x140, (uint32)work + 0x4ba0, 0x280, 0x140, 0xc8);
+        fd2_wait_n_bios_ticks(1);
+    }
+
+    /* main cast loop, per target */
+    for (target_iter = 0; (int)target_iter < (int)target_count; target_iter++) {
+        n_frames = data_fd2_battle_spell_cast_cinematic_phase_handler_table[spell_id](
+                       caster_idx, team_caster_sprite, (uint32)work, 0x140, 3);
+        fd2_step_figani_pose_animation(figani_buf[0], 0, (uint32)work, 0x280);
+
+        tgt = &data_fd2_battle_runtime_char_array_ptr[target_ids[target_iter]];
+        starting_hp = (int16)tgt->hp_current;
+        damage = fd2_calc_magic_damage((uint32)target_ids[target_iter], spell_id);
+        final_hp = (int16)tgt->hp_current;
+        tgt->hp_current = (uint16)starting_hp;
+        is_miss = (uint8)(damage == 0);
+        hit_count = 1;
+
+        for (anim_iter = 0; anim_iter < n_frames; anim_iter++) {
+            if ((spell_id == 7) || (spell_id == 3) || (spell_id == 9)) {
+                swap_toggle = swap_toggle ^ 1;
+                swap_buf = (uint32)work + 0x4ba0 - swap_toggle * 0x280;
+            } else {
+                swap_buf = (uint32)work + 0x4ba0;
+            }
+            fd2_blit_rectangle(swap_buf, 0x280, (uint32)backbuf, 0x140, 0x140, 0xc8);
+            data_fd2_battle_spell_cast_cinematic_phase_handler_table[spell_id](
+                caster_idx, team_caster_sprite, (uint32)work + 0x4ba0, 0x280, 4);
+            if (spell_id != 9) {
+                fd2_blit_indexed_sprite(caster_figani_b, caster_last_frame,
+                                        (int)((uint32)work + 0x4ba0), 0x280, -1);
+            }
+            if (is_miss) {
+                fd2_step_figani_pose_animation(figani_buf[target_iter], 0xffffffff,
+                                               (uint32)work + 0x4ba0, 0x280);
+                data_fd2_battle_spell_cast_cinematic_phase_handler_table[spell_id](
+                    caster_idx, team_caster_sprite, (uint32)work + 0x4ba0, 0x280, 5);
+            } else {
+                fd2_step_figani_pose_animation(
+                    figani_buf[target_iter],
+                    shake_step_counter * 0x100 + palette_op_base,
+                    shake_y_row_offsets[shake_idx] * 0x280 +
+                        shake_x_offsets[shake_idx] * shake_y_dir +
+                        (uint32)work + 0x4ba0,
+                    0x280);
+                shake_step_counter = shake_step_counter - 1;
+                if (shake_step_counter == 1) {
+                    shake_step_counter = 8;
+                }
+                if (shake_idx != 3) {
+                    shake_idx = shake_idx + 1;
+                }
+                ret_phase = data_fd2_battle_spell_cast_cinematic_phase_handler_table[spell_id](
+                                caster_idx, team_caster_sprite, (uint32)work + 0x4ba0, 0x280, 5);
+                if (ret_phase == 1) {
+                    flash_unit = 1;
+                    if ((int)hit_count <= (int)(uint32)hp_lerp_hits[spell_id]) {
+                        tgt->hp_current = (uint16)
+                            (starting_hp -
+                             (int16)(((int)(starting_hp - final_hp) * (int)hit_count) /
+                                     (int)(uint32)hp_lerp_hits[spell_id]));
+                        flash_unit = (uint32)target_ids[target_iter];
+                        fd2_flash_char_hit_sprite((uint32)backbuf, flash_unit);
+                        hit_count = hit_count + 1;
+                    }
+                    shake_idx = 0;
+                    /* shake_y_dir is computed from the freshly-advanced RNG
+                     * seed left in EAX by fd2_advance_rng_state (range
+                     * [0,0xFFFF]), NOT from flash_unit. The decompiler
+                     * mis-attributes the IDIV operand to flash_unit because
+                     * fd2_advance_rng_state is prototyped void; the
+                     * disassembly (0x2af40-0x2af58) divides the CALL's EAX
+                     * return by 3. Ghidra EAX-tracking bug, corrected here. */
+                    shake_y_dir = 1 - (int)fd2_advance_rng_state() % 3;
+                }
+            }
+            fd2_blit_rectangle(0xa0000, 0x140, (uint32)work + 0x4ba0, 0x280, 0x140, 0xc8);
+            fd2_wait_n_bios_ticks(1);
+        }
+
+        if (target_count - 1 != target_iter) {
+            fd2_animate_spell_hit_cinematic(caster_idx, team_caster_sprite, caster_figani_b,
+                                            figani_buf[target_iter], (uint32)work,
+                                            (uint32)backbuf, figani_buf[target_iter + 1],
+                                            spell_id);
+            fd2_flash_char_hit_sprite((uint32)backbuf,
+                                      (uint32)target_ids[target_iter + 1]);
+        }
+    }
+
+    /* post-cast animation loop (phase 6 returns the frame count) */
+    n_frames = data_fd2_battle_spell_cast_cinematic_phase_handler_table[spell_id](
+                   caster_idx, team_caster_sprite, (uint32)work, 0x140, 6);
+    for (i = 0; i < n_frames; i++) {
+        fd2_blit_rectangle((uint32)work + 0x4ba0, 0x280, (uint32)backbuf,
+                           0x140, 0x140, 0xc8);
+        data_fd2_battle_spell_cast_cinematic_phase_handler_table[spell_id](
+            caster_idx, team_caster_sprite, (uint32)work + 0x4ba0, 0x280, 7);
+        if (spell_id != 9) {
+            fd2_blit_indexed_sprite(caster_figani_b, caster_last_frame,
+                                    (int)((uint32)work + 0x4ba0), 0x280, -1);
+        }
+        fd2_step_figani_pose_animation(figani_buf[target_count - 1], 0xffffffff,
+                                       (uint32)work + 0x4ba0, 0x280);
+        data_fd2_battle_spell_cast_cinematic_phase_handler_table[spell_id](
+            caster_idx, team_caster_sprite, (uint32)work + 0x4ba0, 0x280, 8);
+        fd2_blit_rectangle(0xa0000, 0x140, (uint32)work + 0x4ba0, 0x280, 0x140, 0xc8);
+        fd2_wait_n_bios_ticks(1);
+    }
+
+    /* post-cast slide-out (spell_id == 9 only) */
+    if (spell_id == 9) {
+        for (i = 7; -1 < i; i--) {
+            uint32 slide_buf = (uint32)work + 0x140;
+            fd2_blit_rectangle(slide_buf, 0x280, (uint32)backbuf, 0x140, 0x140, 0xc8);
+            fd2_blit_indexed_sprite(caster_figani_a, 0, (int)slide_buf + i * -10, 0x280, -1);
+            fd2_blit_indexed_sprite(figani_buf[0], 0, (int)slide_buf, 0x280, -1);
+            fd2_blit_rectangle(0xa0000, 0x140, slide_buf, 0x280, 0x140, 0xc8);
+        }
+    }
+
+    /* final shake / shine lerp (4 frames) */
+    for (i = 1; i < 4; i++) {
+        int32 shine_remap;
+        fd2_blit_rectangle((uint32)work, 0x140, (uint32)backbuf, 0x140, 0x140, 0xc8);
+        shine_remap = *(int32 *)(data_fd2_tile_anim_table_base + 6 +
+                                 (shine_table_offset + i) * 4) +
+                      (int32)data_fd2_tile_anim_table_base;
+        fd2_rle_blit_with_palette_remap(bg_resource, 0, 0x32, (uint32)backbuf, 0x140, shine_remap);
+        fd2_rle_blit_with_palette_remap(tai_resource, 0xa4, 0x9d, (uint32)backbuf, 0x140, shine_remap);
+        fd2_blit_indexed_sprite(caster_figani_b, 0, (int)(uint32)work, 0x140, -1);
+        fd2_step_figani_pose_animation(figani_buf[target_count - 1], 0xffffffff,
+                                       (uint32)work, 0x140);
+        fd2_blit_rectangle(0xa0000, 0x140, (uint32)work, 0x140, 0x140, 0xc8);
+        fd2_wait_n_bios_ticks(1);
+    }
+
+    fd2_blit_rectangle((uint32)work, 0x140, (uint32)backbuf, 0x140, 0x140, 0xc8);
+    fd2_rle_blit_sprite(bg_resource, 0, 0x32, (uint32)backbuf, 0x140, 0xffffffff);
+    fd2_rle_blit_sprite(tai_resource, 0xa4, 0x9d, (uint32)backbuf, 0x140, 0xffffffff);
+    fd2_blit_indexed_sprite(caster_figani_b, 0, (int)(uint32)work, 0x140, -1);
+    fd2_step_figani_pose_animation(figani_buf[target_count - 1], 0xffffffff,
+                                   (uint32)work, 0x140);
+    fd2_blit_rectangle(0xa0000, 0x140, (uint32)work, 0x140, 0x140, 0xc8);
+
+    fd2_play_sfx_with_handle(data_fd2_audio_summon_spell_sfx_bank_buf_ptr, -1, 1);
+    free((void *)data_fd2_audio_summon_spell_sfx_bank_buf_ptr);
+    free((void *)team_caster_sprite);
+    for (i = 0; i < (int)target_count; i++) {
+        free((void *)figani_buf[i]);
+    }
+    free(backbuf);
+    free(work);
+    free((void *)caster_figani_a);
+    free((void *)caster_figani_b);
+    free((void *)bg_resource);
+    free((void *)tai_resource);
+
+    data_fd2_large_game_state_buffer_ptr = (uint32)malloc(0x25680);
+    battle_scene_snapshot = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdshap_dat_51a65, battle_scene_snapshot,
+        (uint32)*(uint8 *)data_fd2_tile_event_data_table_ptr * 2);
+    fd2_restore_portrait_cache_from_tmp();
+    fd2_wait_n_bios_ticks(8);
+    fd2_play_palette_fade_to_black();
+    memset((void *)0xa0000, 0, 64000);
+    fd2_composite_battle_frame(1);
+    fd2_play_palette_fade_in();
+}

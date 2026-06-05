@@ -279,6 +279,7 @@ extern uint32 data_fd2_battle_summon_spell_palette_r_table;             /* 0x525
 extern uint32 data_fd2_battle_summon_spell_palette_g_table;             /* 0x52553 */
 extern uint32 data_fd2_battle_summon_spell_palette_b_table;             /* 0x52557 */
 extern uint32 data_fd2_battle_summon_spell_sfx_bank_index_table;        /* 0x5255B */
+extern uint8  data_fd2_chapter_combat_cinematic_mode_per_chapter[30];   /* 0x52363 */
 
 /* ---- dispatch tables (.object2 const) ---- */
 extern void (*data_fd2_chapter_init_handler_table[30])(void);           /* 0x51D71 */
@@ -286,7 +287,7 @@ extern void (*data_fd2_chapter_end_handler_table[30])(void);            /* 0x51D
 extern void (*data_fd2_chapter_post_action_handler_table[30])(uint32);  /* 0x51B19 */
 extern void (*data_fd2_battle_ai_post_action_consequence_table[90])(uint32); /* 0x51B91 */
 extern void (*data_fd2_battle_spell_handler_table[28])(uint32, uint32, uint8 *); /* 0x51D01 */
-extern void (*data_fd2_battle_spell_cast_cinematic_phase_handler_table[10])(void); /* 0x523B9 */
+extern int (*data_fd2_battle_spell_cast_cinematic_phase_handler_table[10])(uint32, uint32, uint32, uint32, uint32); /* 0x523B9 */
 extern uint16 data_fd2_animation_ani_decoder_target_width;              /* 0x52760 */
 extern uint32 data_fd2_animation_ani_decoder_dst_buf;                   /* 0x52762 */
 extern uint32 data_fd2_animation_ani_decoder_src_buf;                   /* 0x52766 */

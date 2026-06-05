@@ -2828,8 +2828,9 @@
     "name": "fd2_play_spell_cast_sequence",
     "target": "anim/anispell.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002b5e1": {
     "name": "fd2_resolve_terrain_for_aoe_targets",
