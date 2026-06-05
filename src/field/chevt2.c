@@ -986,3 +986,40 @@ void fd2_chapter_event_handler_46__ch28_dialog_with_state(uint32 event_arg)
     fd2_display_dialog_scene(current_chapter_text, 6, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_47__unref_dyn_turn_event @ 0x35B6B
+ *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CAD)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x47. No chapter
+ * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
+ * content / non-chapter dispatcher). Category: state-machine mutator
+ * (post-trigger). Dispatch-table signature is 1-arg cdecl
+ * (void fn(uint event_arg)); this handler does not read the arg.
+ *
+ * Effect: priming counter at tile_event_consumed_flags[0x13]. Only on the 2nd+
+ * invocation (when flags[0x13] is already non-zero) does it show dialog page 2
+ * and then mass-kill every runtime_char slot from index 0x14 to the end; the
+ * first invocation merely advances the counter 0 -> 1. In every case the byte
+ * counter flags[0x13] is then incremented by 1 (8-bit INC byte ptr) so
+ * consecutive calls accumulate.
+ *
+ * The gate byte is read as a single char (binary CMP byte ptr [flags+0x13],0)
+ * and the post-advance is a byte increment (INC byte ptr [flags+0x13]); the
+ * (uint8) truncation on the advance reproduces that 8-bit arithmetic exactly.
+ * Stack frame 0x28 (__CHK) is the Watcom stack-probe prologue and carries no
+ * source-level semantics.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_47__unref_dyn_turn_event(uint32 event_arg)
+{
+    (void)event_arg;
+
+    if (*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x13) != 0) {
+        fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        fd2_kill_runtime_chars_from_index_to_end(0x14);
+    }
+
+    *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x13) =
+        (uint8)(*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x13) + 1);
+}

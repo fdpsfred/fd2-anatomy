@@ -213,6 +213,8 @@ extern int    g_delay375b2_log_count;
 extern uint32 g_delay375b2_log[16];
 extern int    g_dlg_glyph_calls;             /* real dialog VM glyph recorder */
 extern int    g_composite_call_count;
+extern int    g_kill_from_calls;             /* kill-from-index recording stub (handler_47) */
+extern uint32 g_kill_from_index[4];
 
 /* ---- portrait-loader fixture: a tile-event table of `count` records
  * (stride 0x1A) whose race bytes (+0x98) are races[k]; alloc_offset = count
@@ -860,6 +862,194 @@ static void test_h46_third_cutscene_runs_and_pans_to_zero_seven(void)
     ce46_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_47__unref_dyn_turn_event @ 0x35B6B
+ *
+ * Priming state-machine mutator: gate the dialog + mass-kill behind the byte
+ * counter tile_event_consumed_flags[0x13], then UNCONDITIONALLY advance that
+ * byte. Functionally-exact body:
+ *     if (tile_event_consumed_flags[0x13] != 0) {
+ *         fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, ...);   page 2
+ *         fd2_kill_runtime_chars_from_index_to_end(0x14);                    kill
+ *     }
+ *     tile_event_consumed_flags[0x13]++;                                     advance
+ *
+ * The kill callee (0x35BBA, routing target battle/btl_turn.c) is not yet emitted,
+ * so it is the recording stub in testglob.c (g_kill_from_calls / g_kill_from_index);
+ * its own HP-zeroing loop + death animation is the callee's behavior, covered when
+ * 0x35BBA is emitted into btl_turn.c. The page-2 dialog runs the REAL dialog VM
+ * over an in-memory int16 program (NOT a game file): the page-2 header points at a
+ * 1-glyph + END body, the glyph blitter is the testglob recorder
+ * (g_dlg_glyph_calls), an empty BIOS keyboard buffer keeps blink_flag set, and
+ * audiofix gates the per-glyph blink path host-safely. The dialog glyph pixels and
+ * the kill's HP-zeroing are pure display / callee side effects (deferred to
+ * Phase 9); the glyph recorder is used only to prove the page-2 body ran.
+ *
+ * The risk-bearing control flow pinned here:
+ *   (a) PRIMING gate: flags[0x13] == 0 (first invocation) runs NEITHER the dialog
+ *       NOR the kill; flags[0x13] != 0 (2nd+) runs BOTH,
+ *   (b) FIRE path: dialog page 2 (1-glyph body -> g_dlg_glyph_calls == 1) followed
+ *       by exactly one kill from the literal start index 0x14,
+ *   (c) PAGE literal 2: a 1-glyph body wired ONLY to the page-2 header (page 5,
+ *       handler_35's page, left empty) renders iff page 2 was selected,
+ *   (d) KILL index literal 0x14: distinct from handler_35's 0x12 and handler_40's
+ *       0x10; the dispatch arg must not leak in,
+ *   (e) UNCONDITIONAL advance: both the gated-off and the fired paths increment
+ *       flags[0x13]; the increment is a BYTE INC (0xFF wraps to 0x00, no carry),
+ *   (f) the dispatch arg is ignored (passed nonzero),
+ *   (g) only flags[0x13] is read/written; its neighbours stay untouched.
+ *
+ * Own in-memory fixture so the suite never aliases the other chevt2 part suites'
+ * state.
+ * ================================================================ */
+
+/* flags buffer: index 0x13 is the gate/counter byte; headroom guards neighbours.
+ * dialog program: the page-2 header (idx 2) points at a 1-glyph + END body at
+ * byte 0x10 (= int16 idx 8); the page-5 header (idx 5) is left 0 so a page-5
+ * selection would render nothing. */
+static uint8 g_ce47_flags[0x20];
+static int16 g_ce47_prog[12];
+
+/* Stand up the handler_47 env: gate byte at flags[0x13] = `gate`; the page-2
+ * dialog runs over an in-memory program whose body is `glyphs` TEXT opcodes + END
+ * with the host-safe dialog VM env; the kill recorder is reset so the forwarded
+ * start index is observable. */
+static void ce47_setup(uint8 gate, int glyphs)
+{
+    int i;
+
+    memset(g_ce47_flags, 0, sizeof(g_ce47_flags));
+    g_ce47_flags[0x13] = gate;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ce47_flags;
+
+    memset(g_ce47_prog, 0, sizeof(g_ce47_prog));
+    g_ce47_prog[2] = 0x10;                /* page-2 body byte offset (= int16 idx 8) */
+    for (i = 0; i < glyphs; i++) {
+        g_ce47_prog[8 + i] = 0x41;        /* TEXT glyph */
+    }
+    g_ce47_prog[8 + glyphs] = -1;         /* END */
+    current_chapter_text = (uint32)g_ce47_prog;
+
+    /* deterministic dialog VM env: empty BIOS keyboard buffer + audio gated so
+     * the per-glyph blink/typewriter step is host-safe. No active portrait, so
+     * END does not run the portrait-close path. */
+    *(volatile uint16 *)0x41AuL = 0x20;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    audiofix_enable_sfx();
+    data_fd2_audio_fdother_sfx_bank_buf_ptr = audiofix_make_bank(0x1F);
+
+    g_dlg_glyph_calls = 0;
+    g_kill_from_calls = 0;
+    g_kill_from_index[0] = 0xDEAD;        /* sentinel: overwritten iff kill issued */
+}
+
+static void ce47_teardown(void)
+{
+    audiofix_disable_sfx();
+    data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
+    current_chapter_text = 0;
+}
+
+/* ----------------------------------------------------------------
+ * PRIMING (first invocation): flags[0x13] == 0 -> NEITHER the dialog NOR the kill
+ * runs; the counter advances 0 -> 1. A 1-glyph page-2 body is wired so that if the
+ * dialog erroneously ran it would record a glyph; it must stay 0. The dispatch arg
+ * is passed nonzero to prove it is ignored. Only flags[0x13] changes; neighbours
+ * stay 0.
+ * ---------------------------------------------------------------- */
+static void test_h47_priming_no_dialog_no_kill_advance(void)
+{
+    ce47_setup(0, 1);
+
+    fd2_chapter_event_handler_47__unref_dyn_turn_event(0x77);
+
+    /* (a) gated off: no dialog body ran, no kill issued */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 0);
+    ASSERT_EQ((long)g_kill_from_calls, 0);
+    /* (e) the counter still advanced 0 -> 1 (0x77 arg did not leak in) */
+    ASSERT_EQ((long)g_ce47_flags[0x13], 1);
+    /* (g) neighbours untouched */
+    ASSERT_EQ((long)g_ce47_flags[0x12], 0);
+    ASSERT_EQ((long)g_ce47_flags[0x14], 0);
+
+    ce47_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * FIRE path (2nd+ invocation): flags[0x13] already non-zero -> dialog page 2 runs
+ * (1-glyph body -> g_dlg_glyph_calls == 1) AND exactly one kill from the literal
+ * start index 0x14 is issued, then the counter advances. Pins the page-2 selection
+ * (the page-5 header is empty, so a page-5 read would render nothing) and the
+ * literal kill index 0x14 (distinct from handler_35's 0x12). Pre-set gate = 1.
+ * ---------------------------------------------------------------- */
+static void test_h47_fire_dialog_page2_then_kill_from_0x14(void)
+{
+    ce47_setup(1, 1);
+
+    fd2_chapter_event_handler_47__unref_dyn_turn_event(0);
+
+    /* (b)+(c) page-2 dialog body ran (rendered the single glyph) */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    /* (b)+(d) exactly one kill, with the literal start index 0x14 */
+    ASSERT_EQ((long)g_kill_from_calls, 1);
+    ASSERT_EQ((long)g_kill_from_index[0], 0x14);
+    /* (e) the counter advanced 1 -> 2; neighbours untouched */
+    ASSERT_EQ((long)g_ce47_flags[0x13], 2);
+    ASSERT_EQ((long)g_ce47_flags[0x12], 0);
+    ASSERT_EQ((long)g_ce47_flags[0x14], 0);
+
+    ce47_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * The kill start index is the literal 0x14 regardless of the dispatch arg, and any
+ * non-zero gate value (not just 1) takes the fire path: the binary gate is
+ * CMP byte ptr,0 / JZ, so a gate of 0x5C still fires. Drive with a non-zero,
+ * non-0x14 arg (0x55) and an empty dialog body (immediate END) so the kill is the
+ * sole rendered effect; the forwarded start index must stay 0x14 and exactly one
+ * kill must be issued.
+ * ---------------------------------------------------------------- */
+static void test_h47_fire_kill_index_literal_ignores_arg(void)
+{
+    ce47_setup(0x5C, 0);              /* non-1 non-zero gate, 0 glyphs (immediate END) */
+
+    fd2_chapter_event_handler_47__unref_dyn_turn_event(0x55);
+
+    /* fired (gate 0x5C != 0): dialog entered but rendered nothing (immediate END) */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 0);
+    /* still exactly one kill from 0x14 — the 0x55 arg did not leak through */
+    ASSERT_EQ((long)g_kill_from_calls, 1);
+    ASSERT_EQ((long)g_kill_from_index[0], 0x14);
+    /* counter advanced 0x5C -> 0x5D */
+    ASSERT_EQ((long)g_ce47_flags[0x13], 0x5D);
+
+    ce47_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * The advance is a BYTE increment (binary INC byte ptr), not a wider add: a gate
+ * byte of 0xFF takes the fire path (non-zero) and then wraps to 0x00. The dialog
+ * body is empty so only the wrap is observable on the counter; the neighbour bytes
+ * must stay 0 (the increment must not carry past the byte).
+ * ---------------------------------------------------------------- */
+static void test_h47_advance_byte_increment_wraps(void)
+{
+    ce47_setup(0xFF, 0);
+
+    fd2_chapter_event_handler_47__unref_dyn_turn_event(0);
+
+    /* fired (0xFF != 0): empty body, but the kill still issued once from 0x14 */
+    ASSERT_EQ((long)g_kill_from_calls, 1);
+    ASSERT_EQ((long)g_kill_from_index[0], 0x14);
+    /* (e) (0xFF + 1) truncated to a byte == 0x00; neighbours caught no carry */
+    ASSERT_EQ((long)g_ce47_flags[0x13], 0x00);
+    ASSERT_EQ((long)g_ce47_flags[0x12], 0);
+    ASSERT_EQ((long)g_ce47_flags[0x14], 0);
+
+    ce47_teardown();
+}
+
 void run_field_chevt24_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -878,5 +1068,9 @@ void run_field_chevt24_tests(void)
     RUN_TEST(test_h46_disarm_dialog_three_cutscenes_dialog);
     RUN_TEST(test_h46_three_chapter_ids_are_3_4_5_not_coords);
     RUN_TEST(test_h46_third_cutscene_runs_and_pans_to_zero_seven);
+    RUN_TEST(test_h47_priming_no_dialog_no_kill_advance);
+    RUN_TEST(test_h47_fire_dialog_page2_then_kill_from_0x14);
+    RUN_TEST(test_h47_fire_kill_index_literal_ignores_arg);
+    RUN_TEST(test_h47_advance_byte_increment_wraps);
     printf("\n");
 }
