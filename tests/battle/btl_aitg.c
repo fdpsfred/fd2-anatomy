@@ -683,6 +683,140 @@ static void test_tally_chars_zero_field(void)
 }
 
 
+/* ---- Tests: fd2_resolve_terrain_for_aoe_targets @ 0x2B5E1 ----
+ *
+ * The resolver seeds fallback from
+ *   data_fd2_chapter_combat_cinematic_mode_per_chapter[current_chapter_id]
+ * then walks target_byte_array backwards; for each target it reads the
+ * tile-attribute byte (= read_tile_attribute_at_pos out[+6] = attr[+2])
+ * and adopts it iff (immune == 0 OR fallback == 0).
+ *
+ * Both callees are the REAL battle.c functions. To make each target's
+ * tile byte deterministic, t_ai_tile_map (reset to 0xFF) gets a fresh
+ * sprite word at cell (x,y) -> (y*width+x)*4+4, masked to 10 bits, which
+ * indexes t_terr_attr at sprite_idx*4; out[+6] = that record's byte +2.
+ * char.pos_x/pos_y select the cell; job_id 0x13 / archetype_flag make a
+ * target status-immune (verified by test_immunity_* in battle2.c).
+ */
+
+static uint8 t_terr_attr[64 * 4];
+
+/* Place char `idx` at cell (x,y) and arrange that its tile-attribute
+ * byte (out[+6]) equals `terr`. Uses sprite_idx == idx+1 (distinct,
+ * nonzero) so each target reads an independent attr record. */
+static void terr_setup_char(int idx, uint8 x, uint8 y, uint8 terr)
+{
+    uint32 cell;
+    uint32 sprite_idx;
+
+    g_test_rc_array[idx].pos_x = x;
+    g_test_rc_array[idx].pos_y = y;
+    sprite_idx = (uint32)(idx + 1);
+    cell = ((uint32)y * data_fd2_battle_map_width_tiles + x) * 4;
+    *(uint16 *)(t_ai_tile_map + cell + 4) = (uint16)sprite_idx;
+    t_terr_attr[sprite_idx * 4 + 2] = terr;
+}
+
+static void terr_begin(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    reset_ai_stubs();                 /* t_ai_tile_map=0xFF, tile_map_ptr set */
+    memset(t_terr_attr, 0, sizeof(t_terr_attr));
+    data_fd2_battle_map_width_tiles = 8;
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)t_terr_attr;
+    data_fd2_chapter_current_chapter_id = 1;
+    data_fd2_chapter_combat_cinematic_mode_per_chapter[1] = 0;
+}
+
+/* Single non-immune target: immune==0 -> fallback adopts its tile byte.
+ * Proves the basic loop body + the out[+6] read offset. */
+static void test_resolve_terrain_single_non_immune(void)
+{
+    uint8 targets[1];
+    char result;
+
+    terr_begin();
+    terr_setup_char(0, 3, 2, 0x55);
+    targets[0] = 0;
+    result = fd2_resolve_terrain_for_aoe_targets(1, targets);
+    ASSERT_EQ((int)(uint8)result, 0x55);
+}
+
+/* Backward iteration / last-non-immune-wins: three non-immune targets at
+ * distinct cells. The array is walked from i=n-1 down to 0, each adopting
+ * its own tile byte, so the FINAL value is targets[0]'s byte. */
+static void test_resolve_terrain_backward_last_wins(void)
+{
+    uint8 targets[3];
+    char result;
+
+    terr_begin();
+    terr_setup_char(0, 1, 1, 0x11);   /* first slot -> last written */
+    terr_setup_char(1, 2, 1, 0x22);
+    terr_setup_char(2, 3, 1, 0x33);   /* last slot  -> written first */
+    targets[0] = 0; targets[1] = 1; targets[2] = 2;
+    result = fd2_resolve_terrain_for_aoe_targets(3, targets);
+    ASSERT_EQ((int)(uint8)result, 0x11);
+}
+
+/* All targets immune AND chapter override nonzero: every iteration takes
+ * the else branch (immune!=0 && fallback!=0) and preserves the override. */
+static void test_resolve_terrain_all_immune_keep_override(void)
+{
+    uint8 targets[2];
+    char result;
+
+    terr_begin();
+    data_fd2_chapter_combat_cinematic_mode_per_chapter[1] = 0x77;
+    terr_setup_char(0, 1, 1, 0x11);
+    terr_setup_char(1, 2, 1, 0x22);
+    g_test_rc_array[0].job_id = 0x13;      /* immune */
+    g_test_rc_array[1].archetype_flag = 4; /* immune */
+    targets[0] = 0; targets[1] = 1;
+    result = fd2_resolve_terrain_for_aoe_targets(2, targets);
+    ASSERT_EQ((int)(uint8)result, 0x77);
+}
+
+/* All targets immune AND chapter override == 0: the FIRST-processed
+ * target is the last array slot (i = n-1). Its fallback==0 disjunct fires
+ * and sets fallback to its tile byte (0x66). The next (i=0) immune target
+ * now sees fallback!=0, so its else branch preserves 0x66. Net: the LAST
+ * array element's tile byte wins (matches the plate's all-immune-zero-
+ * override case). */
+static void test_resolve_terrain_all_immune_zero_override(void)
+{
+    uint8 targets[2];
+    char result;
+
+    terr_begin();                          /* override already 0 */
+    terr_setup_char(0, 1, 1, 0x44);        /* i=0, processed second */
+    terr_setup_char(1, 2, 1, 0x66);        /* i=1, processed first -> wins */
+    g_test_rc_array[0].job_id = 0x13;
+    g_test_rc_array[1].job_id = 0x13;
+    targets[0] = 0; targets[1] = 1;
+    result = fd2_resolve_terrain_for_aoe_targets(2, targets);
+    ASSERT_EQ((int)(uint8)result, 0x66);
+}
+
+/* Mixed: a non-immune target at the LAST slot (processed first) sets a
+ * nonzero fallback; an immune target at slot 0 (processed last) then hits
+ * the else branch (immune!=0 && fallback!=0) and must NOT overwrite. So
+ * the non-immune target's byte survives. */
+static void test_resolve_terrain_immune_keeps_prior_nonimmune(void)
+{
+    uint8 targets[2];
+    char result;
+
+    terr_begin();
+    terr_setup_char(0, 1, 1, 0x88);        /* immune, processed last */
+    terr_setup_char(1, 2, 1, 0x99);        /* non-immune, processed first */
+    g_test_rc_array[0].job_id = 0x13;      /* slot 0 immune */
+    targets[0] = 0; targets[1] = 1;
+    result = fd2_resolve_terrain_for_aoe_targets(2, targets);
+    ASSERT_EQ((int)(uint8)result, 0x99);
+}
+
+
 void run_battle_btl_aitg_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -710,5 +844,10 @@ void run_battle_btl_aitg_tests(void)
     RUN_TEST(test_scan_chars_manhattan_enemy);
     RUN_TEST(test_mark_aoe_plus_pattern);
     RUN_TEST(test_scan_chars_along_line);
+    RUN_TEST(test_resolve_terrain_single_non_immune);
+    RUN_TEST(test_resolve_terrain_backward_last_wins);
+    RUN_TEST(test_resolve_terrain_all_immune_keep_override);
+    RUN_TEST(test_resolve_terrain_all_immune_zero_override);
+    RUN_TEST(test_resolve_terrain_immune_keeps_prior_nonimmune);
     printf("\n");
 }

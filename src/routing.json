@@ -2853,8 +2853,9 @@
     "name": "fd2_resolve_terrain_for_aoe_targets",
     "target": "battle/btl_aitg.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002b659": {
     "name": "fd2_play_figani_animation_loop",

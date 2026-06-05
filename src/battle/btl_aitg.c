@@ -682,3 +682,41 @@ int fd2_ai_advance_to_nearest_team_target(uint32 char_idx,
     data_fd2_battle_anim_phase = 1;
     return moved;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_resolve_terrain_for_aoe_targets @ 0x2B5E1  (2 callers)
+ *
+ * Resolve the terrain-attribute byte that should back an AoE spell's
+ * cinematic, given n_chars target chars in target_byte_array.
+ *
+ * Starts with the per-chapter override byte, then walks the target
+ * array backwards (last non-immune wins): for each target, read its
+ * tile-attribute byte (buf[+6] = attr_ptr[+2]) and, when the target
+ * is not status-immune OR the running fallback is still 0, adopt that
+ * tile byte. Immune targets keep a nonzero chapter override.
+ * ---------------------------------------------------------------- */
+char fd2_resolve_terrain_for_aoe_targets(int n_chars,
+                                         uint8 *target_byte_array)
+{
+    uint8 fallback;
+    uint8 *pChar;
+    int immune;
+    int i;
+    uint8 tile_attr_buf[8];
+
+    fallback = data_fd2_chapter_combat_cinematic_mode_per_chapter[
+                   data_fd2_chapter_current_chapter_id];
+    for (i = n_chars - 1; i >= 0; i--) {
+        pChar = (uint8 *)data_fd2_battle_runtime_char_array_ptr
+              + (uint32)target_byte_array[i] * RUNTIME_CHAR_SIZE;
+        fd2_read_tile_attribute_at_pos((uint32)pChar[0],
+                                       (uint32)pChar[1],
+                                       (uint32)tile_attr_buf);
+        immune = fd2_check_char_status_immunity(
+                     (uint32)target_byte_array[i]);
+        if (immune == 0 || fallback == 0) {
+            fallback = tile_attr_buf[6];
+        }
+    }
+    return (char)fallback;
+}
