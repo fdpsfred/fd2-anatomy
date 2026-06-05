@@ -649,6 +649,50 @@ static void test_h34_portrait_id_is_8bit_truncated(void)
     ASSERT_EQ((long)g_portrait_flash_x[1], 0x1A);
 }
 
+/* ================================================================
+ * fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash @ 0x35318
+ *
+ * Transparent forwarding thunk: passes its 3 args straight through to
+ * fd2_cinematic_chapter_portrait_dump_with_white_flash and returns. No own
+ * frame, no computed logic — it exists only as the borrowed cleanup tail that
+ * fd2_chapter_event_handler_3f__ch27_ai_ctrl tail-JMPs into after pushing its 3
+ * args. The functionally-exact contract is "call the target exactly once with
+ * the 3 args unchanged, in order".
+ *
+ * Drives the REAL wrapper against the recording stub
+ * fd2_cinematic_chapter_portrait_dump_with_white_flash (testglob.c, reused from
+ * the handler_34 suite), which captures each call's (x, y, id). No game files,
+ * no display.
+ * ================================================================ */
+
+/* ----------------------------------------------------------------
+ * The wrapper forwards all 3 args verbatim and in order, exactly once. Uses
+ * three distinct, non-equal values so any argument swap / drop / duplication
+ * would change the recorded tuple. Includes the live caller's own arg triple
+ * (0xF, 0x1B, 2) as the second case to pin the real ch27 usage.
+ * ---------------------------------------------------------------- */
+static void test_wrap_forwards_three_args_in_order(void)
+{
+    h34_reset_flash_log();
+
+    /* distinct values: x != y != id, none zero, so order is observable */
+    fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(0x11, 0x22, 0x33);
+
+    ASSERT_EQ((long)g_portrait_flash_calls, 1);
+    ASSERT_EQ((long)g_portrait_flash_x[0], 0x11);
+    ASSERT_EQ((long)g_portrait_flash_y[0], 0x22);
+    ASSERT_EQ((long)g_portrait_flash_id[0], 0x33);
+
+    /* the exact arg triple the live caller (handler_3f, ch27) tail-JMPs with */
+    h34_reset_flash_log();
+    fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(0xF, 0x1B, 2);
+
+    ASSERT_EQ((long)g_portrait_flash_calls, 1);
+    ASSERT_EQ((long)g_portrait_flash_x[0], 0xF);
+    ASSERT_EQ((long)g_portrait_flash_y[0], 0x1B);
+    ASSERT_EQ((long)g_portrait_flash_id[0], 2);
+}
+
 void run_field_chevt2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -666,5 +710,6 @@ void run_field_chevt2_tests(void)
     RUN_TEST(test_h34_two_portrait_flashes_with_paired_ids);
     RUN_TEST(test_h34_portrait_id_pair_tracks_counter);
     RUN_TEST(test_h34_portrait_id_is_8bit_truncated);
+    RUN_TEST(test_wrap_forwards_three_args_in_order);
     printf("\n");
 }

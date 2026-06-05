@@ -3956,8 +3956,9 @@
     "name": "fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash",
     "target": "field/chevt2.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035321": {
     "name": "fd2_chapter_event_handler_35__unref_dialog_with_state",

@@ -212,3 +212,32 @@ void fd2_chapter_event_handler_34__ch23_ai_ctrl(uint32 event_arg)
         0x1A, 0xB,
         (uint32)(uint8)(((uint8)data_fd2_battle_turn_counter - 0x0E) * 2 + 1));
 }
+
+/* ----------------------------------------------------------------
+ * fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash @ 0x35318
+ *   (1 caller: fd2_chapter_event_handler_3f__ch27_ai_ctrl)
+ *
+ * Transparent thunk that forwards its 3 stack args (12 bytes) to
+ * fd2_cinematic_chapter_portrait_dump_with_white_flash @ 0x35822 and cleans
+ * them on return. The binary body is just:
+ *     CALL fd2_cinematic_chapter_portrait_dump_with_white_flash
+ *     ADD ESP, 0xC
+ *     RET
+ * No __CHK, no own stack frame.
+ *
+ * The thunk exists purely as a layer-insertion / binary size optimisation: it
+ * is the tail-JMP target of fd2_chapter_event_handler_3f__ch27_ai_ctrl
+ * @ 0x358C7, which pushes its 3 args (0xF, 0x1B, 2) and JMPs here so it can
+ * borrow this thunk's 0xC-byte cleanup tail instead of emitting its own. It
+ * carries no independent game semantics — it just passes the 3 args straight
+ * through to the cinematic helper (target_tile_x, target_tile_y, chapter_id).
+ *
+ * The functionally-exact source is a plain cdecl forwarding wrapper; Watcom
+ * lowers the wrapper to the same push-args / call / cleanup / ret shape.
+ * ---------------------------------------------------------------- */
+void fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(
+    uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id)
+{
+    fd2_cinematic_chapter_portrait_dump_with_white_flash(
+        target_tile_x, target_tile_y, chapter_id);
+}
