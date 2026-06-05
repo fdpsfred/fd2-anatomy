@@ -2820,8 +2820,9 @@
     "name": "fd2_cycle_sprite_anim_with_bg_frames",
     "target": "anim/anispell.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002a6bd": {
     "name": "fd2_play_spell_cast_sequence",

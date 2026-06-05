@@ -4,6 +4,7 @@
  * fd2_play_ani_file_animation_sequence @ 0x20421
  * fd2_animate_bg_zoom_transition_in    @ 0x29C90
  * fd2_animate_bg_zoom_transition_out   @ 0x29DED
+ * fd2_cycle_sprite_anim_with_bg_frames @ 0x2A5D0
  *
  * ===== fd2_play_ani_file_animation_sequence @ 0x20421 =====
  *
@@ -115,12 +116,13 @@
  *      even resolve in the harness without changing the stage list.
  *   2. The phase-2 / phase-4 anim is the REAL-class end-to-end cinematic. Both
  *      animation phases call fd2_cycle_sprite_anim_with_bg_frames (a separate
- *      routing target @ 0x2A5D0, not yet emitted; stubbed no-op in testglob.c so
- *      this object links). Its real body dereferences the real FIGANI sprite
- *      atlas (*(byte*)atlas, *(int*)(atlas+8+frame*4)) and spins on the REAL
- *      fd2_wait_n_bios_ticks 16 + 24 = 40 times — i.e. ~2.2s of real BIOS-tick
- *      waiting plus a full real atlas traversal. Driving it for real is an
- *      integration scenario, not a unit test of this orchestrator.
+ *      routing target @ 0x2A5D0, emitted in this file and unit-tested below). Its
+ *      real body dereferences the real FIGANI sprite atlas (*(byte*)atlas,
+ *      *(int*)(atlas+8+frame*4)) and spins on the REAL fd2_wait_n_bios_ticks
+ *      16 + 24 = 40 times — i.e. ~2.2s of real BIOS-tick waiting plus a full real
+ *      atlas traversal against the genuine FIGANI.DAT. Driving it inside this
+ *      cinematic for real is an integration scenario, not a unit test of this
+ *      orchestrator.
  *   3. The phase-1 BG cycler is timer-coupled at the instruction level: the
  *      cycler advance is reached past a JZ on the flags left by `ADD ESP,0xC`
  *      (always non-zero -> branch never taken -> the cycler advances every
@@ -148,6 +150,36 @@
  * the real fd2_cycle_sprite_anim_with_bg_frames, and drive the real function,
  * asserting the two FIGANI loads request indices portrait_id*3 and class_id*3 and
  * that the cinematic restores the backed-up VGA frame on exit.
+ *
+ * ===== fd2_cycle_sprite_anim_with_bg_frames @ 0x2A5D0 =====
+ *
+ * UNIT-TESTED: the two non-display computations are driven against the REAL
+ * function below; only the pure VRAM pixel output is left to Phase 9.
+ *
+ *   1. BG cycler — bg_variant_idx = (bg_variant_idx + 1) % 3, advanced once per
+ *      frame before the BG blit, so the rle-blit log records the cycling pointer
+ *      sequence 1,2,0,1,2,0,... (the three contiguous BG-layer globals indexed as
+ *      uint32[3], each seeded with a distinct readable buffer).
+ *   2. Frame-advance state machine — the higher-risk computation: per frame it
+ *      reads hold_count = atlas[6 + atlas[8 + frame_idx*4]], increments a tick,
+ *      and on tick == hold_count resets the tick (XOR-with-self -> 0) and advances
+ *      frame_idx, wrapping to 0 when it reaches frame_count (= atlas[0]). This is
+ *      driven over a hand-built in-memory atlas with frame_count=3 and per-frame
+ *      hold counts {2,1,3}, exercising multi-tick holds, single-tick holds, tick
+ *      accumulation + XOR-reset, the per-frame block-offset indexing, and the
+ *      frame_idx wrap. The frame_idx blitted each iteration is recovered through a
+ *      per-call frame log added to the fd2_blit_indexed_sprite stub (testglob.c).
+ *
+ * The atlas is a pure in-memory buffer (NOT a game file): the function only reads
+ * atlas[0], the int32 per-frame block-offset table at atlas+8, and the hold byte
+ * at atlas+6+offset, all of which are constructed here. fd2_blit_rectangle is the
+ * REAL emitted function; it reads 0xC8*0x140 = 0x19000 bytes from workspace
+ * (sized 0x1F400, in-bounds) and writes to the 0xA0000 VGA aperture (the harmless
+ * host-harness write convention used by the zoom suites). fd2_wait_n_bios_ticks is
+ * REAL and busy-waits one BIOS tick (~55ms) per frame against the physical tick
+ * word at 0x46C, which advances under the host; iter_count is kept small (8) so
+ * the test completes in well under a second. The pure scroll/atlas pixel output is
+ * the only thing deferred to Phase 9.
  */
 
 #include <string.h>
@@ -166,6 +198,8 @@ extern int    g_blit_indexed_sprite_calls;
 extern uint32 g_blit_indexed_sprite_last_frame;
 extern int    g_blit_indexed_sprite_last_x;
 extern int    g_blit_indexed_sprite_last_y;
+extern int    g_blit_indexed_log_on;
+extern uint32 g_blit_indexed_log_frame[64];
 
 /* distinguishable, non-zero sentinels for the 3 BG-layer slots. The function
  * only passes these opaque to the rle-blit stub (never dereferences them), so
@@ -382,6 +416,105 @@ static void test_bg_zoom_transition_out_bg_cycling(void)
     data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = 0;
 }
 
+/*
+ * Drives the REAL fd2_cycle_sprite_anim_with_bg_frames and asserts its two
+ * non-display computations over an in-memory atlas:
+ *   - the per-frame BG cycler bg_variant_idx = (bg_variant_idx + 1) % 3
+ *   - the atlas-driven frame-advance state machine (hold accumulate + wrap)
+ *
+ * Atlas layout (a pure in-memory buffer; not a game file):
+ *   atlas[0]            = 3              frame_count
+ *   atlas[8 + i*4]      = block_off[i]   int32 per-frame block offset
+ *   atlas[6 + block_off] = hold_count    byte, per frame
+ * Block offsets {0x20,0x24,0x28} place the three hold bytes at atlas[0x26/2A/2E]
+ * with hold counts {2,1,3}.
+ *
+ * Hand-derived expected sequences for iter_count = 8 (frame_idx blitted is the
+ * value BEFORE that frame's advance; the cycler advances before its blit):
+ *   iter:        0  1  2  3  4  5  6  7
+ *   bg index:    1  2  0  1  2  0  1  2      (% 3, every frame)
+ *   frame_idx:   0  0  1  2  2  2  0  0      (f0 hold 2, f1 hold 1, f2 hold 3,
+ *                                            wrap 3->0 at iter 5)
+ */
+static void test_cycle_sprite_anim_frame_advance(void)
+{
+    static const int bg_seq[8]    = {1, 2, 0, 1, 2, 0, 1, 2};
+    static const uint32 frame_seq[8] = {0, 0, 1, 2, 2, 2, 0, 0};
+    uint8  *atlas;
+    uint8  *workspace;
+    uint8  *bg_buf[3];
+    uint32  bg_ptr[3];
+    int     i;
+
+    /* build the in-memory atlas */
+    atlas = (uint8 *)malloc(0x40);
+    ASSERT_TRUE(atlas != NULL);
+    memset(atlas, 0, 0x40);
+    atlas[0] = 3;                                   /* frame_count */
+    *(int32 *)(atlas + 8)  = 0x20;                  /* block_off[0] */
+    *(int32 *)(atlas + 12) = 0x24;                  /* block_off[1] */
+    *(int32 *)(atlas + 16) = 0x28;                  /* block_off[2] */
+    atlas[6 + 0x20] = 2;                            /* frame 0 hold */
+    atlas[6 + 0x24] = 1;                            /* frame 1 hold */
+    atlas[6 + 0x28] = 3;                            /* frame 2 hold */
+
+    workspace = (uint8 *)malloc(0x1f400);
+    ASSERT_TRUE(workspace != NULL);
+
+    /* Seed the three contiguous BG-layer globals with distinct readable buffers.
+     * The function only passes them opaque to the rle stub, but the stub reads
+     * the first byte of the first 4 sprite pointers, so they must be readable. */
+    for (i = 0; i < 3; i++) {
+        bg_buf[i] = (uint8 *)malloc(16);
+        ASSERT_TRUE(bg_buf[i] != NULL);
+        bg_buf[i][0] = (uint8)(0x10 + i);
+        bg_ptr[i] = (uint32)bg_buf[i];
+    }
+    data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = bg_ptr[0];
+    data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = bg_ptr[1];
+    data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = bg_ptr[2];
+
+    g_rle_blit_calls = 0;
+    g_rle_blit_log_on = 1;
+    g_blit_indexed_sprite_calls = 0;
+    g_blit_indexed_log_on = 1;
+
+    fd2_cycle_sprite_anim_with_bg_frames((uint32)atlas, (uint32)workspace, 8);
+
+    g_rle_blit_log_on = 0;
+    g_blit_indexed_log_on = 0;
+
+    /* exactly one rle blit and one indexed blit per iteration */
+    ASSERT_EQ((long)g_rle_blit_calls, (long)8);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, (long)8);
+
+    /* BG cycler sequence: each blit's resolved sprite ptr = the cycled layer,
+     * and dst = workspace, stride 0x280. */
+    for (i = 0; i < 8; i++) {
+        ASSERT_EQ((long)g_rle_blit_log_sprite[i], (long)bg_ptr[bg_seq[i]]);
+        ASSERT_EQ((long)g_rle_blit_log_dst[i], (long)(uint32)workspace);
+        ASSERT_EQ((long)g_rle_blit_log_stride[i], (long)0x280);
+    }
+
+    /* frame-advance state machine: the frame_idx blitted each iteration. */
+    for (i = 0; i < 8; i++) {
+        ASSERT_EQ((long)g_blit_indexed_log_frame[i], (long)frame_seq[i]);
+    }
+
+    /* the indexed-sprite blit always targets workspace at y = 0x280 */
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_x, (long)(uint32)workspace);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_y, (long)0x280);
+
+    free(atlas);
+    free(workspace);
+    for (i = 0; i < 3; i++) {
+        free(bg_buf[i]);
+    }
+    data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = 0;
+    data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = 0;
+    data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = 0;
+}
+
 void run_anim_anispell_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -392,5 +525,6 @@ void run_anim_anispell_tests(void)
            "real-file + decode-to-VGA + timing orchestrator; see file header)\n");
     RUN_TEST(test_bg_zoom_transition_bg_cycling);
     RUN_TEST(test_bg_zoom_transition_out_bg_cycling);
+    RUN_TEST(test_cycle_sprite_anim_frame_advance);
     printf("\n");
 }

@@ -646,18 +646,6 @@ int    g_delay375b2_calls = 0;
 uint32 g_delay375b2_last_ticks = 0;
 void __delay_thunk_375b2(uint32 ticks) { g_delay375b2_calls++; g_delay375b2_last_ticks = ticks; }
 
-/* Link-time no-op stub for the still-unemitted fd2_cycle_sprite_anim_with_bg_frames
- * @ 0x2A5D0 (a separate routing target, emitted in its own turn). Called twice by
- * fd2_play_spell_cast_cinematic (src/anim/anispell.c, deferred to Phase 9
- * integration). The real body is a display-only sprite-anim loop that dereferences
- * a real FIGANI atlas and spins on the BIOS tick; this stub only resolves the
- * symbol so anispell.obj links. Its real impl will replace this when emitted. */
-void fd2_cycle_sprite_anim_with_bg_frames(uint32 sprite_atlas, uint32 workspace,
-                                          uint32 iter_count)
-{
-    (void)sprite_atlas; (void)workspace; (void)iter_count;
-}
-
 /* Link-time stub for the still-unemitted callee of the orphan/unreachable
  * fd2_execute_aoe_spell_with_caster_portrait_radial_scatter (src/spell/spellcin.c).
  * That AoE cinematic has no caller and no test drives it (its per-frame work is
@@ -944,7 +932,15 @@ int g_blit_indexed_sprite_calls = 0;
 uint32 g_blit_indexed_sprite_last_frame = 0;
 int g_blit_indexed_sprite_last_x = 0;
 int g_blit_indexed_sprite_last_y = 0;
+/* opt-in per-call frame-index log (default off; used by the cycle-sprite-anim
+ * test to recover the full frame-advance sequence produced by the atlas-driven
+ * hold/wrap state machine in fd2_cycle_sprite_anim_with_bg_frames). */
+int g_blit_indexed_log_on = 0;
+uint32 g_blit_indexed_log_frame[64];
 void fd2_blit_indexed_sprite(uint32 a, uint32 f, int x, int y, int m) {
+    if (g_blit_indexed_log_on && g_blit_indexed_sprite_calls < 64) {
+        g_blit_indexed_log_frame[g_blit_indexed_sprite_calls] = f;
+    }
     g_blit_indexed_sprite_calls++;
     g_blit_indexed_sprite_last_frame = f;
     g_blit_indexed_sprite_last_x = x;

@@ -6,6 +6,7 @@
  * fd2_animate_bg_zoom_transition_in       @ 0x29C90 (2 callers)
  * fd2_animate_bg_zoom_transition_out      @ 0x29DED (1 caller)
  * fd2_play_spell_cast_cinematic           @ 0x2A2E8 (1 caller)
+ * fd2_cycle_sprite_anim_with_bg_frames    @ 0x2A5D0 (1 caller)
  */
 
 #include "types.h"
@@ -346,4 +347,69 @@ void fd2_play_spell_cast_cinematic(uint32 caster_char_idx, uint32 spell_id)
     free(caster_figani);
     free(target_figani);
     free(work);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_cycle_sprite_anim_with_bg_frames @ 0x2A5D0  (1 caller)
+ *
+ * Generic sprite-animation player loop with a 3-variant cycling parallax
+ * background. Sole caller: fd2_play_spell_cast_cinematic, which invokes it for
+ * both the caster phase (iter_count = 0x10) and the target-class phase
+ * (iter_count = 0x18). Renders iter_count frames at 1 BIOS tick per frame.
+ *
+ * Params (__cdecl):
+ *   sprite_atlas   indexed-sprite atlas (FIGANI stream) blitted each frame
+ *   workspace      128K (0x1F400) work buffer; cleared and recomposited per frame
+ *   iter_count     number of frames to render
+ *
+ * Per iteration:
+ *   - memset(workspace, 0, 0x1F400)
+ *   - bg_variant_idx = (bg_variant_idx + 1) % 3       (advances every frame)
+ *   - rle-blit the cycling BG layer at y=0x32 into workspace
+ *   - blit the current atlas frame into workspace
+ *   - push workspace to the VGA aperture (0xA0000)
+ *   - per-frame hold: hold_count = atlas[6 + atlas[8 + frame_idx*4]]; tick++;
+ *     when tick == hold_count, reset tick to 0 and advance frame_idx, wrapping
+ *     to 0 when it reaches frame_count (= atlas[0]).
+ *   - wait 1 BIOS tick
+ *
+ * The tick / frame_idx resets use the original's XOR-with-self idiom
+ * (tick ^= hold_count when equal -> 0; frame_idx ^= frame_count at wrap -> 0);
+ * preserved verbatim. The three BG-layer pointers sit contiguously at
+ * 0x5410B/0F/13 and the original indexes them as a uint32[3]; reproduced here by
+ * indexing through the address of the first slot (same idiom as the
+ * bg_zoom_transition / spell_cast_cinematic siblings above).
+ * ---------------------------------------------------------------- */
+void fd2_cycle_sprite_anim_with_bg_frames(uint32 sprite_atlas, uint32 workspace,
+                                          uint32 iter_count)
+{
+    uint32 *bg_layer = &data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr;
+    uint32  frame_idx;
+    uint32  bg_variant_idx;
+    uint32  tick;
+    uint32  iter;
+    uint32  hold_count;
+
+    frame_idx = 0;
+    bg_variant_idx = 0;
+    tick = 0;
+    for (iter = 0; (int)iter < (int)iter_count; iter++) {
+        memset((void *)workspace, 0, 0x1f400);
+        bg_variant_idx = (int)(bg_variant_idx + 1) % 3;
+        fd2_rle_blit_sprite(bg_layer[bg_variant_idx], 0, 0x32, workspace, 0x280,
+                            0xffffffff);
+        fd2_blit_indexed_sprite(sprite_atlas, frame_idx, (int)workspace, 0x280, -1);
+        fd2_blit_rectangle(0xa0000, 0x140, workspace, 0x280, 0x140, 0xc8);
+        hold_count = (uint32)*(uint8 *)
+            (*(int *)(sprite_atlas + 8 + frame_idx * 4) + 6 + sprite_atlas);
+        tick = tick + 1;
+        if (tick == hold_count) {
+            tick = tick ^ hold_count;
+            frame_idx = frame_idx + 1;
+            if (frame_idx == *(uint8 *)sprite_atlas) {
+                frame_idx = frame_idx ^ *(uint8 *)sprite_atlas;
+            }
+        }
+        fd2_wait_n_bios_ticks(1);
+    }
 }
