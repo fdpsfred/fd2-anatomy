@@ -968,10 +968,10 @@ static void test_h37_gate_off_when_already_consumed(void)
     current_chapter_text = 0;
 }
 
-void run_field_chevt2_tests(void)
+void run_field_chevt21_tests(void)
 {
     int _prev_fails = g_test_fail_count;
-    printf("Suite: field/chevt2\n");
+    printf("Suite: field/chevt2 (part 1)\n");
     RUN_TEST(test_gate_skips_dialog_on_non_trigger_turn);
     RUN_TEST(test_portrait_index_is_turn_div_2);
     RUN_TEST(test_gate_fires_dialog_on_turn_2);

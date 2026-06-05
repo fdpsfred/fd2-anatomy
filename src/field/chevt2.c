@@ -365,3 +365,33 @@ void fd2_chapter_event_handler_37__ch25_first_time(uint32 event_arg)
 
     data_fd2_battle_pending_xp_credit = 0;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_38__ch25_dialog_with_state @ 0x35487
+ *   (0 direct callers)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x38. Triggered
+ * in chapter 25 at turn 6 / phase 1 (ch25 turn-event slot 0). Category: dialog
+ * with state. Dispatch-table signature is 1-arg cdecl (void fn(uint event_arg));
+ * this handler does not read the arg.
+ *
+ * Effect: ch25 turn-6 establishing scene — pan camera/window to (6, 0x28), load
+ * portrait set 1, fire cutscene event 0x4A, show dialog page 5, then reset every
+ * char's facing direction.
+ *
+ * In the binary the handler ends with JMP 0x134E4 — a tail-call into
+ * fd2_clear_all_chars_facing (borrowing that function's body instead of a
+ * CALL/RET pair). That tail-merge is a binary size optimisation; the
+ * functionally-exact source is a plain call followed by return.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_38__ch25_dialog_with_state(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_pan_cursor_and_window(6, 0x28);
+    fd2_load_chapter_portraits_and_dump_tmp(1);
+    fd2_cutscene_event_trigger(0x4A);
+    fd2_display_dialog_scene(current_chapter_text, 5, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_clear_all_chars_facing();
+}
