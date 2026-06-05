@@ -2794,8 +2794,9 @@
     "name": "fd2_execute_combat_hit_cinematic",
     "target": "anim/anicine.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00029c90": {
     "name": "fd2_animate_bg_zoom_transition_in",

@@ -988,37 +988,54 @@ uint32 fd2_animate_combat_speech_bubbles(uint32 ci, uint32 ti) { return 0; }
 void fd2_render_combatant_hp_bar_proportional(uint32 d, uint32 s, uint32 ci, uint32 st) { }
 int fd2_animate_combat_hit_with_hp_drain(uint32 a, uint32 d, uint32 st) { return 0; }
 void fd2_render_combat_combatant_panels(uint32 st, uint32 a, uint32 d) { }
-/* fd2_play_full_combat_cinematic: now emitted for real in src/anim/anicine.c;
- * its former noop stub here was removed. The anicine.c scripted-cinematic test
- * drives the real function and asserts the banner-index forcing + dispatch
- * order; its not-yet-emitted callee fd2_execute_combat_hit_cinematic is spied
- * just below. */
-/* fd2_execute_combat_hit_cinematic spy (the real 553-insn function is emitted
- * separately). Records the per-call attacker/defender order, the banner sprite
- * ptr's first payload byte (captured at call time, before the caller frees the
- * buffer) and the forwarded SFX-bank handle; returns g_exec_hit_return so a
- * test can drive the "hit landed" gate. */
-int    g_exec_hit_calls = 0;
-uint32 g_exec_hit_att[8] = {0};
-uint32 g_exec_hit_def[8] = {0};
-int    g_exec_hit_banner_first[8] = {0};
-uint32 g_exec_hit_sfx[8] = {0};
-int    g_exec_hit_return = 1;
-int fd2_execute_combat_hit_cinematic(uint32 attacker_idx, uint32 defender_idx,
-    uint32 figani_anim, uint32 silhouette, uint32 workbuf, uint32 dst,
-    uint32 banner, uint32 sfx_bank)
+/* fd2_play_full_combat_cinematic: now emitted for real in src/anim/anicine.c.
+ * Its callee fd2_execute_combat_hit_cinematic is also emitted for real now
+ * (src/anim/anicine.c); the former spy here was removed (it would duplicate
+ * the real symbol at link time). The anicine.c caller tests drive the real
+ * caller + real callee and observe the dispatch order / forwarded name-banner
+ * through the recording fd2_animate_bg_zoom_transition_in/out stubs below
+ * (the callee forwards char_idx + name_banner into them on its charge-in
+ * path), and the SFX-bank handle through the fd2_play_sfx_with_handle log. */
+
+/* Recording stubs for the FIGANI cinematic background zoom transitions (real
+ * bodies @ 0x29C90 / 0x29DED not yet emitted; display-only). The real
+ * fd2_execute_combat_hit_cinematic forwards the focus char_idx (and, for the
+ * _out variant, the name-banner sprite) into these on its charge-in path, so
+ * recording their args is the host-observable seam for the caller tests'
+ * dispatch-order + banner-forcing assertions. */
+int    g_zoom_in_calls = 0;
+int    g_zoom_out_calls = 0;
+uint32 g_zoom_in_char[8] = {0};
+uint32 g_zoom_out_char[8] = {0};
+int    g_zoom_out_banner_first[8] = {0};
+void fd2_animate_bg_zoom_transition_in(uint32 char_idx, uint32 figani,
+    uint32 framebuffer, uint32 workspace, uint32 bg_buf)
 {
-    int i = g_exec_hit_calls;
-    if (i < 8) {
-        g_exec_hit_att[i] = attacker_idx;
-        g_exec_hit_def[i] = defender_idx;
-        g_exec_hit_banner_first[i] = banner ? (int)*(uint8 *)banner : -1;
-        g_exec_hit_sfx[i] = sfx_bank;
+    if (g_zoom_in_calls < 8) {
+        g_zoom_in_char[g_zoom_in_calls] = char_idx;
     }
-    g_exec_hit_calls++;
-    (void)figani_anim; (void)silhouette; (void)workbuf; (void)dst;
-    return g_exec_hit_return;
+    g_zoom_in_calls++;
+    (void)figani; (void)framebuffer; (void)workspace; (void)bg_buf;
 }
+void fd2_animate_bg_zoom_transition_out(uint32 char_idx, uint32 figani,
+    uint32 name_banner, uint32 framebuffer, uint32 workspace, uint32 bg_buf)
+{
+    if (g_zoom_out_calls < 8) {
+        g_zoom_out_char[g_zoom_out_calls] = char_idx;
+        g_zoom_out_banner_first[g_zoom_out_calls] =
+            name_banner ? (int)*(uint8 *)name_banner : -1;
+    }
+    g_zoom_out_calls++;
+    (void)figani; (void)framebuffer; (void)workspace; (void)bg_buf;
+}
+/* Real combat-hit shake offset tables (.object2 const @ 0x5255F / 0x52577),
+ * defined here with the real FD2.LE bytes until the data segment is emitted so
+ * the anicine.c combat-hit test asserts on the true per-subframe shake offsets.
+ * x = {0,4,9,14,18,14}; y = {0,2,4,6,8,10}. */
+const int32 data_fd2_battle_combat_hit_shake_x_offset_table[6] =
+    { 0, 4, 9, 14, 18, 14 };
+const int32 data_fd2_battle_combat_hit_shake_y_offset_table[6] =
+    { 0, 2, 4, 6, 8, 10 };
 void fd2_process_xp_and_level_up_for_char(uint32 ci) { }
 /* fd2_execute_ai_item_use: now in btl_ai.c */
 /* fd2_play_figani_char_intro_animation: now emitted for real in

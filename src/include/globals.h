@@ -41,6 +41,10 @@ extern uint32 data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr;     /* 0x541
 extern uint32 data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr;     /* 0x5410F */
 extern uint32 data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr;     /* 0x54113 */
 extern uint32 data_fd2_battle_fast_mode_walk_overlay_ptr;               /* 0x53B0F */
+/* Per-subframe defender-sprite shake offsets for the combat-hit cinematic;
+ * indexed by a decaying shake counter (5..0). (.object2 const int[6]) */
+extern const int32 data_fd2_battle_combat_hit_shake_x_offset_table[6];  /* 0x5255F */
+extern const int32 data_fd2_battle_combat_hit_shake_y_offset_table[6];  /* 0x52577 */
 
 /* ---- battle spell-effect constants ---- */
 extern double data_fd2_battle_spell_ap_boost_factor_015;                /* 0x50210  const 0.15 */

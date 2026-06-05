@@ -275,6 +275,10 @@ void fd2_play_full_combat_cinematic(uint32 a, uint32 d);
 int fd2_execute_combat_hit_cinematic(uint32 attacker_idx, uint32 defender_idx,
     uint32 figani_anim, uint32 silhouette, uint32 workbuf, uint32 dst,
     uint32 banner, uint32 sfx_bank);
+void fd2_animate_bg_zoom_transition_in(uint32 char_idx, uint32 figani,
+    uint32 framebuffer, uint32 workspace, uint32 bg_buf);
+void fd2_animate_bg_zoom_transition_out(uint32 char_idx, uint32 figani,
+    uint32 name_banner, uint32 framebuffer, uint32 workspace, uint32 bg_buf);
 void fd2_process_xp_and_level_up_for_char(uint32 ci);
 int fd2_count_usable_inventory_slots(uint32 ci);
 int fd2_build_usable_spell_list(uint32 ci, uint32 buf);

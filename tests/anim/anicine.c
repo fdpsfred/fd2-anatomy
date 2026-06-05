@@ -304,24 +304,31 @@ static void test_intro_multi_sfx_sequence(void)
  * load + cleanup, forces the spotlight terrain to the scripted value,
  * forces the banner index to 3 for the climactic portraits (attacker
  * 0x1A/0x36 or defender 0x37) else uses the scripted value, then calls
- * fd2_execute_combat_hit_cinematic twice — first (attacker, defender),
- * then (defender, attacker) for the guided counter — and latches the
- * scripted flag to 1.
+ * the (now real) fd2_execute_combat_hit_cinematic twice — first
+ * (attacker, defender), then (defender, attacker) for the guided counter
+ * — and latches the scripted flag to 1.
  *
- * The not-yet-emitted fd2_execute_combat_hit_cinematic is spied
- * (testglob.c): the spy records each call's attacker/defender order and
- * the banner sprite's first payload byte, which is cross-checked against
- * an INDEPENDENT realdat read of TAI.DAT[expected index] — pinning which
- * TAI entry the forcing logic selected, with no hardcoded magic.
+ * Observation (the callee is real now, no spy):
+ *   - Banner index: the caller forwards the loaded name-banner sprite into
+ *     the REAL fd2_play_char_intro_zoom_anim, whose per-frame RLE blit
+ *     (fd2_rle_blit_sprite spy) carries the unique (x=0xA4, y=0x9D); the
+ *     captured first payload byte == TAI.DAT[selected index][0], pinning the
+ *     forcing logic against an INDEPENDENT realdat read (no hardcoded magic).
+ *   - Dispatch order: in scripted mode the real callee's damage is forced to
+ *     0, so each call writes its defender's hp_current to 0. Seeding both
+ *     chars' hp_current nonzero, the attacker blow (def=1) zeroes char1 and
+ *     the guided counter (def=0) zeroes char0 — pinning both dispatches and
+ *     their defender identity.
  * ---------------------------------------------------------------- */
 
-/* fd2_execute_combat_hit_cinematic spy (testglob.c) */
-extern int    g_exec_hit_calls;
-extern uint32 g_exec_hit_att[8];
-extern uint32 g_exec_hit_def[8];
-extern int    g_exec_hit_banner_first[8];
-extern uint32 g_exec_hit_sfx[8];
-extern int    g_exec_hit_return;
+/* Recording zoom-transition stubs (testglob.c). The real (now emitted)
+ * fd2_execute_combat_hit_cinematic forwards the focus char_idx (and, for the
+ * _out variant, the name-banner sprite) into these on its charge-in path. */
+extern int    g_zoom_in_calls;
+extern int    g_zoom_out_calls;
+extern uint32 g_zoom_in_char[8];
+extern uint32 g_zoom_out_char[8];
+extern int    g_zoom_out_banner_first[8];
 
 /* A valid BG.DAT index used as the scripted spotlight-terrain value. */
 #define CINE_SCRIPT_BG  5
@@ -340,10 +347,12 @@ static void setup_scripted_cinematic(uint8 att_portrait, uint8 def_portrait,
     g_test_rc_array[0].pos_y = CINE_WIN_OY + 1;
     g_test_rc_array[0].portrait_id = att_portrait;
     g_test_rc_array[0].team = 2;                /* player attacker */
+    g_test_rc_array[0].hp_current = 0x1111;     /* counter-phase defender sentinel */
     g_test_rc_array[1].pos_x = CINE_WIN_OX + 2; /* adjacent to attacker */
     g_test_rc_array[1].pos_y = CINE_WIN_OY + 1;
     g_test_rc_array[1].portrait_id = def_portrait;
     g_test_rc_array[1].team = 0;                /* enemy defender */
+    g_test_rc_array[1].hp_current = 0x2222;     /* attacker-phase defender sentinel */
 
     memset(g_cine_tile_map, 0, sizeof(g_cine_tile_map));
     memset(g_cine_attr_buf, 0, sizeof(g_cine_attr_buf));
@@ -364,14 +373,31 @@ static void setup_scripted_cinematic(uint8 att_portrait, uint8 def_portrait,
     memset(g_cine_pal, 0, sizeof(g_cine_pal));
     data_fd2_vga_palette_data_ptr = (uint32)g_cine_pal;
 
-    g_exec_hit_calls = 0;
-    g_exec_hit_return = 1;
+    /* observe the banner sprite via the intro-zoom RLE blit (x=0xA4,y=0x9D) */
+    g_rle_blit_calls = 0;
+    g_rle_blit_log_on = 1;
+    g_zoom_in_calls = 0;
+    g_zoom_out_calls = 0;
     for (i = 0; i < 8; i++) {
-        g_exec_hit_att[i] = 0;
-        g_exec_hit_def[i] = 0;
-        g_exec_hit_banner_first[i] = 0;
-        g_exec_hit_sfx[i] = 0;
+        g_zoom_in_char[i] = 0;
+        g_zoom_out_char[i] = 0;
+        g_zoom_out_banner_first[i] = 0;
     }
+}
+
+/* Scan the intro-zoom RLE blit log for the unique name-banner blit (the only
+ * RLE call carrying literal x=0xA4, y=0x9D) and return its captured first
+ * payload byte (= TAI.DAT[selected banner index][0]), or -1 if not found. */
+static int cine_banner_first_byte(void)
+{
+    int n = g_rle_blit_calls < 64 ? g_rle_blit_calls : 64;
+    int i;
+    for (i = 0; i < n; i++) {
+        if (g_rle_blit_log_x[i] == 0xA4 && g_rle_blit_log_y[i] == 0x9D) {
+            return (int)g_rle_blit_log_first_byte[i];
+        }
+    }
+    return -1;
 }
 
 /* Drive the scripted cinematic and assert the two-call dispatch order +
@@ -403,27 +429,21 @@ static void run_scripted_case(uint8 att_portrait, uint8 def_portrait,
     setup_scripted_cinematic(att_portrait, def_portrait, scripted_mode);
     fd2_play_full_combat_cinematic(0, 1);
 
-    /* scripted mode dispatches the hit cinematic exactly twice: the attacker
-     * blow (0->1) then the guided counter (1->0) */
-    ASSERT_EQ(g_exec_hit_calls, 2);
-    ASSERT_EQ((long)g_exec_hit_att[0], 0L);
-    ASSERT_EQ((long)g_exec_hit_def[0], 1L);
-    ASSERT_EQ((long)g_exec_hit_att[1], 1L);
-    ASSERT_EQ((long)g_exec_hit_def[1], 0L);
-
-    /* both calls receive the same banner sprite; its first payload byte pins
-     * the forced/selected TAI index */
-    ASSERT_EQ(g_exec_hit_banner_first[0], exp_first);
-    ASSERT_EQ(g_exec_hit_banner_first[1], exp_first);
-
-    /* scripted mode does not load the SFX banks: both forwarded handles are 0 */
-    ASSERT_EQ((long)g_exec_hit_sfx[0], 0L);
-    ASSERT_EQ((long)g_exec_hit_sfx[1], 0L);
-
     /* These scripted portraits are single-background (FIGANI[+1] == 0), so the
-     * real fd2_play_char_intro_zoom_anim ran for real with mode_flag == 0 (its
-     * char-layer arm) and returned, reaching the assertions here. */
+     * real fd2_play_char_intro_zoom_anim ran with mode_flag == 0 (its char-layer
+     * arm) and the real fd2_execute_combat_hit_cinematic took its no-charge-in
+     * path; reaching the assertions here means both ran without faulting. */
     ASSERT_EQ((long)exp_flag, 0L);
+
+    /* The banner the forcing logic selected: the intro-zoom RLE blit captured
+     * banner_rle[0] == TAI.DAT[selected index][0]. */
+    ASSERT_EQ(cine_banner_first_byte(), exp_first);
+
+    /* scripted mode dispatches the hit cinematic exactly twice: the attacker
+     * blow (def=1) then the guided counter (def=0). With scripted damage forced
+     * to 0, each call zeroes its defender's hp_current (seeded nonzero). */
+    ASSERT_EQ((long)g_test_rc_array[1].hp_current, 0L);  /* attacker blow hit def 1 */
+    ASSERT_EQ((long)g_test_rc_array[0].hp_current, 0L);  /* guided counter hit def 0 */
 
     /* the scripted flag is latched to 1 by the guided-counter block */
     ASSERT_EQ((long)data_fd2_battle_scripted_cinematic_mode_or_terrain_idx, 1L);
@@ -452,11 +472,13 @@ static void test_scripted_banner_not_forced(void)
 }
 
 /*
- * Scripted dispatch is independent of the attacker-blow return value: even
- * when fd2_execute_combat_hit_cinematic reports "miss" (return 0), the
- * guided-counter block (gated only by the scripted flag, not the return)
- * still fires the second call. Confirms the scripted counter is NOT gated by
- * the hit-landed result the way the non-scripted counter is.
+ * Scripted dispatch is independent of the attacker-blow result: the
+ * guided-counter block is gated only by the scripted flag (not the
+ * attacker-blow return), so the counter (def=0) always fires. The real
+ * attacker blow here returns 0 (scripted damage forced to 0 -> defender_HP_
+ * after 0), yet char0 is still zeroed by the counter, confirming the scripted
+ * counter is NOT gated by the hit-landed result the way the non-scripted
+ * counter is.
  */
 static void test_scripted_counter_ignores_hit_result(void)
 {
@@ -470,13 +492,14 @@ static void test_scripted_counter_ignores_hit_result(void)
     free(tai);
 
     setup_scripted_cinematic(0x1A, 0x02, CINE_SCRIPT_BG);
-    g_exec_hit_return = 0;               /* attacker blow "misses" */
     fd2_play_full_combat_cinematic(0, 1);
 
-    ASSERT_EQ(g_exec_hit_calls, 2);      /* counter still dispatched */
-    ASSERT_EQ((long)g_exec_hit_att[1], 1L);
-    ASSERT_EQ((long)g_exec_hit_def[1], 0L);
-    ASSERT_EQ(g_exec_hit_banner_first[1], exp_first);
+    /* counter still dispatched: char0 (counter defender) zeroed despite the
+     * attacker blow returning 0 */
+    ASSERT_EQ((long)g_test_rc_array[0].hp_current, 0L);
+    ASSERT_EQ((long)g_test_rc_array[1].hp_current, 0L);
+    ASSERT_EQ(cine_banner_first_byte(), exp_first);
+    ASSERT_EQ((long)data_fd2_battle_scripted_cinematic_mode_or_terrain_idx, 1L);
 }
 
 /* ----------------------------------------------------------------
@@ -529,10 +552,13 @@ static void setup_override_terrain(uint8 chapter_idx)
     g_test_rc_array[0].portrait_id = 0x01;      /* != 0x1C, FIGANI split flag 0 */
     g_test_rc_array[0].team = 2;                /* player -> terrain = attacker */
     g_test_rc_array[0].job_id = 0x13;           /* immune class */
+    g_test_rc_array[0].hp_current = 0x1111;     /* counter-defender sentinel (must stay) */
     g_test_rc_array[1].pos_x = CINE_WIN_OX + 2; /* adjacent to attacker */
     g_test_rc_array[1].pos_y = CINE_WIN_OY + 1;
     g_test_rc_array[1].portrait_id = 0x02;
     g_test_rc_array[1].team = 0;                /* enemy spotlight */
+    g_test_rc_array[1].hp_current = 0xFFFF;     /* attacker-blow defender */
+    g_test_rc_array[1].hp_max = 0xFFFF;
 
     /* zeroed tile map -> sprite_idx 0; attr_buf[2] lands at tile_attr[+6]. Set
      * it to the non-override BG so banner_term(=override 0) and defender_terrain
@@ -582,13 +608,15 @@ static void setup_override_terrain(uint8 chapter_idx)
     memset(g_cine_pal, 0, sizeof(g_cine_pal));
     data_fd2_vga_palette_data_ptr = (uint32)g_cine_pal;
 
-    g_exec_hit_calls = 0;
-    g_exec_hit_return = 1;
+    /* observe the banner via the intro-zoom RLE blit (x=0xA4,y=0x9D) */
+    g_rle_blit_calls = 0;
+    g_rle_blit_log_on = 1;
+    g_zoom_in_calls = 0;
+    g_zoom_out_calls = 0;
     for (i = 0; i < 8; i++) {
-        g_exec_hit_att[i] = 0;
-        g_exec_hit_def[i] = 0;
-        g_exec_hit_banner_first[i] = 0;
-        g_exec_hit_sfx[i] = 0;
+        g_zoom_in_char[i] = 0;
+        g_zoom_out_char[i] = 0;
+        g_zoom_out_banner_first[i] = 0;
     }
 }
 
@@ -626,13 +654,195 @@ static void test_nonscripted_immune_override_zero_banner(void)
     setup_override_terrain(24);
     fd2_play_full_combat_cinematic(0, 1);
 
-    /* non-scripted single attacker blow (no counter: zeroed defender weapon) */
-    ASSERT_EQ(g_exec_hit_calls, 1);
-    ASSERT_EQ((long)g_exec_hit_att[0], 0L);
-    ASSERT_EQ((long)g_exec_hit_def[0], 1L);
+    /* The banner forwarded into the cinematic is TAI.DAT[override=0], NOT
+     * TAI.DAT[tile]: the intro-zoom RLE blit captured banner_rle[0] == TAI[0][0].
+     * (Single attacker blow, player team -> top-half zoom mode 0 -> banner blit
+     * present at x=0xA4,y=0x9D.) */
+    ASSERT_EQ(cine_banner_first_byte(), exp_first0);
 
-    /* the forwarded banner sprite is TAI.DAT[override=0], NOT TAI.DAT[tile] */
-    ASSERT_EQ(g_exec_hit_banner_first[0], exp_first0);
+    /* non-scripted single attacker blow, no counter: the defender has no weapon
+     * so fd2_check_can_counter_attack != 1 and the counter cinematic (which
+     * would target char0) never runs -> char0's seeded sentinel is untouched.
+     * (The unconditional attacker-phase call ran -> reaching here past the
+     * banner blit means the cinematic executed end-to-end.) */
+    ASSERT_EQ((long)g_test_rc_array[0].hp_current, 0x1111L);  /* no counter ran */
+}
+
+/* ----------------------------------------------------------------
+ * fd2_execute_combat_hit_cinematic @ 0x2939D  (direct drive)
+ *
+ * Highest-risk path: the 3%-bonus extra-hit gate. The disassembly issues
+ * MOV EDX,EAX immediately after CALL fd2_advance_rng_state, so the modulo
+ * keys off the RNG RETURN VALUE — Ghidra's decompiler mis-attributes it to
+ * the dead defender_idx*0x50 (its EAX-tracking bug). These tests pin the
+ * fixed semantics: with a fixed defender index, seeding the RNG so the first
+ * roll % 100 < 3 yields TWO strikes, and >= 3 yields ONE; under the buggy
+ * (defender_idx*0x50) reading the seed would not move the strike count.
+ *
+ * Setup is non-scripted with zeroed attacker stats, so the real outcome calc
+ * resolves to a MISS (damage 0): the lone hit frame writes the defender's
+ * hp_current to hp_initial - 0 (nonzero), so the hp==0 short-circuit that
+ * would otherwise force a single strike does NOT fire and the strike count
+ * reflects the bonus roll. The attacker_figani's split flag (+1 != 0) makes
+ * the charge-in fire its background zoom once per strike, so the recording
+ * fd2_animate_bg_zoom_transition_in stub's call count == strike count.
+ *
+ * Synthetic FIGANI streams (1 frame each) drive the loop bounds; the indexed
+ * blits route through the testglob fd2_blit_indexed_sprite spy (atlas ignored)
+ * so no real sprite payload is needed. fd2_calculate_combat_hit_outcome runs
+ * for real over the zeroed runtime chars + the tile fixture.
+ * ---------------------------------------------------------------- */
+
+extern int g_delay375b2_calls;
+
+/* attacker anim FIGANI: 1 main frame (a hit frame), split flag set so the
+ * charge-in runs, 0 charge frames. frame meta at +16: [+4]=1 hit, [+5]=0 no
+ * sfx, [+6]=1 one subframe, [+7]=0. */
+static uint8 g_chit_att_figani[32];
+/* defender pose FIGANI: 1 frame; meta at +16 with [+6]=2 (subframe count used
+ * only by the pose-cycle advance). */
+static uint8 g_chit_def_figani[32];
+static uint8 g_chit_workbuf[0x1F400];
+static uint8 g_chit_framebuf[64000];
+
+static void chit_build_figani(void)
+{
+    uint32 off;
+
+    memset(g_chit_att_figani, 0, sizeof(g_chit_att_figani));
+    g_chit_att_figani[0] = 1;          /* frame count */
+    g_chit_att_figani[1] = 1;          /* split flag -> charge-in zoom fires */
+    g_chit_att_figani[2] = 0;          /* charge-in frame count */
+    off = 16;
+    memcpy(g_chit_att_figani + 8, &off, 4);   /* frame 0 metadata offset */
+    g_chit_att_figani[16 + 4] = 1;     /* hit marker */
+    g_chit_att_figani[16 + 5] = 0;     /* no SFX hook */
+    g_chit_att_figani[16 + 6] = 1;     /* 1 subframe */
+    g_chit_att_figani[16 + 7] = 0;     /* no special slash flag */
+
+    memset(g_chit_def_figani, 0, sizeof(g_chit_def_figani));
+    g_chit_def_figani[0] = 1;          /* 1 pose */
+    memcpy(g_chit_def_figani + 8, &off, 4);
+    g_chit_def_figani[16 + 6] = 2;     /* pose subframe count */
+}
+
+/* Independent oracle for the RNG step (battle.c fd2_advance_rng_state):
+ * next = rol3((seed + 0x9014) & 0xFFFF). Returns the value the FIRST advance
+ * would produce from `seed` without consuming the live generator. */
+static uint32 chit_rng_next(uint16 seed)
+{
+    uint32 ax = (uint32)((seed + 0x9014u) & 0xFFFFu);
+    ax = ((ax << 3) | (ax >> 13)) & 0xFFFFu;
+    return ax;
+}
+
+/* Find a seed whose first RNG advance yields (roll % 100 < 3) == want_low. */
+static uint16 chit_find_seed(int want_low)
+{
+    uint32 s;
+    for (s = 0; s < 0x10000u; s++) {
+        int low = (chit_rng_next((uint16)s) % 100u) < 3u;
+        if (low == want_low) {
+            return (uint16)s;
+        }
+    }
+    return 0;
+}
+
+/* Non-scripted, zeroed-stat (miss) drive; defender idx 1, hp seeded nonzero.
+ * Returns the charge-in zoom count (== strike count). */
+static void chit_setup_nonscripted(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].pos_x = CINE_WIN_OX + 1;
+    g_test_rc_array[0].pos_y = CINE_WIN_OY + 1;
+    g_test_rc_array[0].team = 2;             /* player attacker -> zoom_in path */
+    g_test_rc_array[1].pos_x = CINE_WIN_OX + 2;
+    g_test_rc_array[1].pos_y = CINE_WIN_OY + 1;
+    g_test_rc_array[1].team = 0;             /* enemy defender */
+    g_test_rc_array[1].hp_current = 100;     /* survives the miss -> no hp==0 cutoff */
+    g_test_rc_array[1].hp_max = 100;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+
+    /* tile fixture for the outcome calc's fd2_read_tile_attribute_at_pos */
+    memset(g_cine_tile_map, 0, sizeof(g_cine_tile_map));
+    memset(g_cine_attr_buf, 0, sizeof(g_cine_attr_buf));
+    data_fd2_battle_tile_map_ptr = (uint32)g_cine_tile_map;
+    data_fd2_battle_map_width_tiles = CINE_MAP_W;
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)g_cine_attr_buf;
+
+    data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = 0;
+
+    /* flash painter fixture (the hit frame's non-scripted flash) */
+    minip_setup_env();
+
+    memset(g_chit_workbuf, 0, sizeof(g_chit_workbuf));
+    memset(g_chit_framebuf, 0, sizeof(g_chit_framebuf));
+    chit_build_figani();
+
+    g_zoom_in_calls = 0;
+    g_zoom_out_calls = 0;
+    g_delay375b2_calls = 0;
+}
+
+static int chit_run_nonscripted(uint16 seed)
+{
+    chit_setup_nonscripted();
+    data_fd2_shared_rng_seed = seed;
+    fd2_execute_combat_hit_cinematic(0, 1,
+        (uint32)g_chit_att_figani, (uint32)g_chit_def_figani,
+        (uint32)g_chit_workbuf, (uint32)g_chit_framebuf,
+        /* name_banner (unused on the player/zoom_in path) */ 0,
+        /* sfx_bank */ 0);
+    return g_zoom_in_calls;
+}
+
+/*
+ * Bonus roll low (first RNG % 100 < 3): the gate raises the hit count to 2,
+ * and with the miss keeping the defender alive the cinematic plays TWO strikes
+ * -> the charge-in zoom fires twice.
+ */
+static void test_chit_bonus_roll_double_strike(void)
+{
+    uint16 seed = chit_find_seed(1);
+    /* oracle precondition: this seed really does roll < 3 */
+    ASSERT_TRUE((chit_rng_next(seed) % 100u) < 3u);
+    ASSERT_EQ(chit_run_nonscripted(seed), 2);
+}
+
+/*
+ * Bonus roll high (first RNG % 100 >= 3): the gate leaves the hit count at 1
+ * -> a single strike -> the charge-in zoom fires once. Same defender index as
+ * the double-strike case, so the differing result is driven purely by the RNG
+ * return value (the EAX-bug-fixed operand), not by defender_idx*0x50.
+ */
+static void test_chit_no_bonus_single_strike(void)
+{
+    uint16 seed = chit_find_seed(0);
+    ASSERT_TRUE((chit_rng_next(seed) % 100u) >= 3u);
+    ASSERT_EQ(chit_run_nonscripted(seed), 1);
+}
+
+/*
+ * Scripted mode (flag pre-latched to 1): the outcome is forced to all-zero and
+ * damage 0, so the lone hit frame zeroes the defender's hp_current, and the
+ * "scripted == 1 && last hit landed" early-return fires returning 1. Confirms
+ * the scripted short-circuit + HP-zero write independent of the bonus roll.
+ */
+static void test_chit_scripted_returns_one_and_zeroes_hp(void)
+{
+    int ret;
+
+    chit_setup_nonscripted();
+    g_test_rc_array[1].hp_current = 0x5555;
+    data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = 1;
+    data_fd2_shared_rng_seed = 0x1234;
+    ret = fd2_execute_combat_hit_cinematic(0, 1,
+        (uint32)g_chit_att_figani, (uint32)g_chit_def_figani,
+        (uint32)g_chit_workbuf, (uint32)g_chit_framebuf, 0, 0);
+
+    ASSERT_EQ((long)ret, 1L);                              /* scripted early-return */
+    ASSERT_EQ((long)g_test_rc_array[1].hp_current, 0L);    /* damage 0 -> hp_after 0 */
 }
 
 /* ----------------------------------------------------------------
@@ -808,6 +1018,9 @@ void run_anim_anicine_tests(void)
     RUN_TEST(test_scripted_banner_not_forced);
     RUN_TEST(test_scripted_counter_ignores_hit_result);
     RUN_TEST(test_nonscripted_immune_override_zero_banner);
+    RUN_TEST(test_chit_bonus_roll_double_strike);
+    RUN_TEST(test_chit_no_bonus_single_strike);
+    RUN_TEST(test_chit_scripted_returns_one_and_zeroes_hp);
     RUN_TEST(test_zoom_tophalf_mode0);
     RUN_TEST(test_zoom_tophalf_mode1);
     RUN_TEST(test_zoom_bottomhalf_mode0);

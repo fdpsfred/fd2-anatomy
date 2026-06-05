@@ -8,6 +8,7 @@
 #include "protos.h"
 #include <string.h>
 #include <stdlib.h>
+#include <conio.h>
 
 /* ----------------------------------------------------------------
  * fd2_display_cinematic_image_with_fade @ 0x1F73F  (1 caller)
@@ -566,4 +567,364 @@ void fd2_play_char_intro_zoom_anim(uint32 char_unit_id, uint32 mode_flag,
                            0xC8);
         fd2_set_vga_palette_range(0, 0xFF, (uint32)frame * 6);
     }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_execute_combat_hit_cinematic @ 0x2939D  (1 caller)
+ *
+ * COMBAT HIT EXECUTION inside the FIGANI cinematic. Drives the per-frame
+ * composite of the attacker's strike, the target reaction, progressive
+ * damage application, SFX, and the crit/poison palette flash. Called twice
+ * per encounter by fd2_play_full_combat_cinematic @ 0x28A6C (attacker phase,
+ * then counter-attack phase).
+ *
+ * Per-encounter hit-count gate:
+ *   hit_count defaults to 1. fd2_calculate_combat_hit_outcome fills the local
+ *   outcome block (miss/crit/poison/reserved/double-hit/damage). In scripted
+ *   mode (data_fd2_battle_scripted_cinematic_mode_or_terrain_idx != 0) the
+ *   outcome is forced to all-zero. A 3% RNG roll, or the double-hit flag on
+ *   the first pass, raises hit_count to 2.
+ *
+ * Charge-in sub-animation (figani[+1] != 0): plays the attacker's approach
+ * frames, then the background zoom transition. Branch on attacker.team:
+ *   team != 0 (player/ally attacker) -> fd2_animate_bg_zoom_transition_in
+ *                                       (top-half composite, workspace+0x140)
+ *   team == 0 (enemy attacker)       -> fd2_animate_bg_zoom_transition_out
+ *                                       (bottom-half composite, workspace)
+ *
+ * Per-frame inner loop: restore from framebuffer, composite attacker frame
+ * and defender pose (the defender pose is shaken by the x/y shake tables,
+ * indexed by a shake counter that resets to 5 on each landed hit and decays),
+ * push to VGA. frame[+4]==1 marks a hit: HP is reduced progressively as
+ * defender_HP_initial - hit_index*damage/total_hits (clamped >= 0). frame[+5]
+ * is an SFX hook; frame[+7]&1 selects the slash-layer draw order. On the final
+ * hit frame, poison flashes the DAC magenta and crit flashes it white.
+ *
+ * After all subframes for a strike, hit_count is decremented; while it stays
+ * positive the attacker recoil + opposite-direction zoom replays for the
+ * second strike. Returns the defender's final hp_current, used by the caller
+ * to decide whether the defender died this cinematic. In scripted mode, once
+ * the latched flag is 1 and the last hit landed, returns 1 early.
+ *
+ * Globals: data_fd2_battle_runtime_char_array_ptr [0x53A45] (reads
+ * attacker.team, writes defender.hp_current); data_fd2_battle_scripted_
+ * cinematic_mode_or_terrain_idx [0x540FF]; the combat-cinematic background
+ * buffers; data_fd2_battle_combat_hit_shake_x/y_offset_table [0x5255F/0x52577].
+ * DAC ports 0x3C8/0x3C9 drive the crit/poison palette flash.
+ *
+ * int __cdecl, 8 stack params. EBX/ESI/EDI/EBP callee-saved; __CHK(0xB8)
+ * stack-probe prologue is compiler-injected.
+ *
+ * NOTE: the 3% bonus-hit roll uses fd2_advance_rng_state()'s return value
+ * (Ghidra's decompiler mis-attributes it to defender_idx*0x50 via its EAX
+ * tracking bug; the disassembly does MOV EDX,EAX right after the CALL).
+ * ---------------------------------------------------------------- */
+int fd2_execute_combat_hit_cinematic(uint32 attacker_idx, uint32 defender_idx,
+    uint32 attacker_figani, uint32 defender_figani, uint32 workspace,
+    uint32 framebuffer, uint32 name_banner_sprite, uint32 sfx_bank)
+{
+    runtime_char *rt_chars;
+    int32  i;
+    int32  shake_x_table[6];
+    int32  shake_y_table[6];
+    /* fd2_calculate_combat_hit_outcome writes 6 consecutive dwords through the
+     * passed pointer (one contiguous stack block in the binary). Kept as a
+     * struct so the [0..5] layout the callee fills stays contiguous. */
+    struct {
+        uint32 miss_flag;       /* +0  1 = miss (whiff only) */
+        uint32 crit_flag;       /* +1  1 = critical (white DAC flash) */
+        uint32 poison_applied;  /* +2  1 = poison (magenta DAC flash) */
+        uint32 unused;          /* +3  reserved */
+        uint32 double_hit_flag; /* +4  1 = play two strikes back-to-back */
+        uint32 damage_value;    /* +5  HP to drain across the hit frames */
+    } oc;
+    uint32 hit_count;
+    uint32 hits_consumed;
+    uint32 defender_HP_initial;
+    uint32 defender_HP_after;
+    uint32 total_hit_frames;
+    uint32 hit_count_so_far;
+    uint32 frame_iter;
+    uint32 subframe_iter;
+    int32  shake_idx;
+    uint32 sprite_palette_color;
+    uint32 defender_y_offset;
+    uint32 dst;
+    uint32 frame_entry;
+    uint8  defender_figani_iter;
+    uint8  subframe_step;
+    int    double_hit_consumed;
+
+    rt_chars = data_fd2_battle_runtime_char_array_ptr;
+    subframe_step = 0;
+    defender_figani_iter = 0;
+    /* The binary leaves these two stack slots ([ESP+0x50] / [ESP+0x58])
+     * uninitialized on its degenerate paths (a zero-hit-frame attacker_figani,
+     * or scripted mode where the HP-initial load is skipped). Real FIGANI data
+     * always has hit frames, so on every reachable real-data path both are
+     * assigned in the frame loop before being read; the 0 init only removes the
+     * compiler's may-be-uninitialized warning and is behavior-identical there.
+     * In the scripted edge it yields a benign 0 (the scripted cinematic's
+     * defender HP is cosmetic; real combat resolution lives elsewhere) instead
+     * of UB stack garbage. */
+    defender_HP_initial = 0;
+    defender_HP_after = 0;
+    for (i = 0; i < 6; i++) {
+        shake_x_table[i] = data_fd2_battle_combat_hit_shake_x_offset_table[i];
+    }
+    for (i = 0; i < 6; i++) {
+        shake_y_table[i] = data_fd2_battle_combat_hit_shake_y_offset_table[i];
+    }
+    shake_idx = 0;
+    sprite_palette_color = 0xFFFFFFFF;
+    hit_count = 1;
+    total_hit_frames = 0;
+    double_hit_consumed = 0;
+
+    for (i = 0; i < (int32)(uint32) * (uint8 *)attacker_figani; i++) {
+        if (*(int8 *)(*(int32 *)(attacker_figani + 8 + i * 4)
+                      + 4 + attacker_figani) != 0) {
+            total_hit_frames = total_hit_frames + 1;
+        }
+    }
+    if (total_hit_frames == 0) {
+        total_hit_frames = 1;
+    }
+
+    /* 3% bonus-hit roll keys off the RNG return value (see header note). */
+    if (fd2_advance_rng_state() % 100 < 3) {
+        hit_count = 2;
+    }
+
+    do {
+        hits_consumed = hit_count - 1;
+        if (hit_count == 0) {
+            return (int)defender_HP_after;
+        }
+        hit_count_so_far = 0;
+        if (data_fd2_battle_scripted_cinematic_mode_or_terrain_idx == 0) {
+            defender_HP_initial = (uint32)rt_chars[defender_idx].hp_current;
+            fd2_calculate_combat_hit_outcome(attacker_idx, defender_idx,
+                                             (uint32 *)&oc);
+            if ((!double_hit_consumed) && (oc.double_hit_flag != 0)) {
+                double_hit_consumed = 1;
+                hits_consumed = hit_count;
+            }
+        }
+        hit_count = hits_consumed;
+        frame_iter = 0;
+        if (data_fd2_battle_scripted_cinematic_mode_or_terrain_idx != 0) {
+            oc.miss_flag = 0;
+            oc.crit_flag = 0;
+            oc.poison_applied = 0;
+            oc.unused = 0;
+            oc.double_hit_flag = 0;
+            oc.damage_value = 0;
+        }
+
+        if (*(int8 *)(attacker_figani + 1) != 0) {
+            memset((void *)workspace, 0, 0x1F400);
+            if (rt_chars[attacker_idx].team == 0) {
+                for (; (int32)frame_iter
+                       < (int32)(uint32) * (uint8 *)(attacker_figani + 2);
+                     frame_iter = frame_iter + 1) {
+                    frame_entry =
+                        *(int32 *)(attacker_figani + 8 + frame_iter * 4)
+                        + attacker_figani;
+                    if (*(int8 *)(frame_entry + 5) != 0) {
+                        fd2_play_sfx_with_handle(
+                            sfx_bank, *(uint8 *)(frame_entry + 5), 1);
+                    }
+                    fd2_blit_rectangle(workspace, 0x280, framebuffer, 0x140,
+                                       0x140, 0xC8);
+                    fd2_blit_indexed_sprite(attacker_figani, frame_iter,
+                                            (int)workspace, 0x280, -1);
+                    fd2_blit_rectangle(0xA0000, 0x140, workspace, 0x280, 0x140,
+                                       0xC8);
+                    fd2_wait_n_bios_ticks(*(uint8 *)(frame_entry + 6));
+                }
+                fd2_animate_bg_zoom_transition_out(
+                    defender_idx, defender_figani, name_banner_sprite,
+                    framebuffer, workspace,
+                    data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr);
+            } else {
+                for (; (int32)frame_iter
+                       < (int32)(uint32) * (uint8 *)(attacker_figani + 2);
+                     frame_iter = frame_iter + 1) {
+                    frame_entry =
+                        *(int32 *)(attacker_figani + 8 + frame_iter * 4)
+                        + attacker_figani;
+                    if (*(int8 *)(frame_entry + 5) != 0) {
+                        fd2_play_sfx_with_handle(
+                            sfx_bank, *(uint8 *)(frame_entry + 5), 1);
+                    }
+                    dst = workspace + 0x140;
+                    fd2_blit_rectangle(dst, 0x280, framebuffer, 0x140, 0x140,
+                                       0xC8);
+                    fd2_blit_indexed_sprite(attacker_figani, frame_iter,
+                                            (int)dst, 0x280, -1);
+                    fd2_blit_rectangle(0xA0000, 0x140, dst, 0x280, 0x140, 0xC8);
+                    fd2_wait_n_bios_ticks(*(uint8 *)(frame_entry + 6));
+                }
+                fd2_animate_bg_zoom_transition_in(
+                    defender_idx, defender_figani, framebuffer, workspace,
+                    data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr);
+            }
+        }
+
+        for (; (int32)frame_iter < (int32)(uint32) * (uint8 *)attacker_figani;
+             frame_iter = frame_iter + 1) {
+            frame_entry = *(int32 *)(attacker_figani + 8 + frame_iter * 4)
+                          + attacker_figani;
+            if (*(int8 *)(frame_entry + 4) == 0) {
+                if (*(int8 *)(frame_entry + 5) != 0) {
+                    fd2_play_sfx_with_handle(
+                        sfx_bank, *(uint8 *)(frame_entry + 5), 1);
+                }
+            } else {
+                hit_count_so_far = hit_count_so_far + 1;
+                defender_HP_after =
+                    defender_HP_initial
+                    - (int32)(hit_count_so_far * oc.damage_value)
+                          / (int32)total_hit_frames;
+                if ((int32)defender_HP_after < 0) {
+                    defender_HP_after = 0;
+                }
+                rt_chars[defender_idx].hp_current = (uint16)defender_HP_after;
+                if (data_fd2_battle_scripted_cinematic_mode_or_terrain_idx
+                    == 0) {
+                    fd2_flash_char_hit_sprite(framebuffer, defender_idx);
+                }
+                if (oc.miss_flag == 0) {
+                    shake_idx = 5;
+                    sprite_palette_color = 0x21;
+                    if (*(int8 *)(frame_entry + 5) != 0) {
+                        fd2_play_sfx_with_handle(
+                            sfx_bank, *(uint8 *)(frame_entry + 5), 1);
+                    }
+                } else if (*(int8 *)(frame_entry + 5) != 0) {
+                    fd2_play_sfx_with_handle(sfx_bank, 0, 1);
+                }
+            }
+
+            for (subframe_iter = 0;
+                 (int32)subframe_iter
+                     < (int32)(uint32) * (uint8 *)(frame_entry + 6);
+                 subframe_iter = subframe_iter + 1) {
+                defender_y_offset = (uint32)shake_y_table[shake_idx];
+                if (*(int8 *)(attacker_figani + 1) != 0) {
+                    defender_y_offset = 0;
+                }
+                dst = workspace + 0x3EA8;
+                fd2_blit_rectangle(dst, 400, framebuffer, 0x140, 0x140, 0xC8);
+                if (rt_chars[attacker_idx].team == 0) {
+                    if ((*(uint8 *)(frame_entry + 7) & 1) == 0) {
+                        fd2_blit_indexed_sprite(attacker_figani, frame_iter,
+                                                (int)dst, 400, -1);
+                    }
+                    fd2_blit_indexed_sprite(
+                        defender_figani, defender_figani_iter,
+                        (int)(workspace + 0x3EA8 + (uint32)shake_x_table[shake_idx]
+                              + defender_y_offset * 400),
+                        400, sprite_palette_color);
+                    if ((*(uint8 *)(frame_entry + 7) & 1) != 0) {
+                        fd2_blit_indexed_sprite(attacker_figani, frame_iter,
+                                                (int)(workspace + 0x3EA8), 400,
+                                                -1);
+                    }
+                } else {
+                    if ((*(uint8 *)(frame_entry + 7) & 1) != 0) {
+                        fd2_blit_indexed_sprite(attacker_figani, frame_iter,
+                                                (int)dst, 400, -1);
+                    }
+                    fd2_blit_indexed_sprite(
+                        defender_figani, defender_figani_iter,
+                        (int)((workspace + 0x3EA8
+                               - (uint32)shake_x_table[shake_idx])
+                              - defender_y_offset * 400),
+                        400, sprite_palette_color);
+                    if ((*(uint8 *)(frame_entry + 7) & 1) == 0) {
+                        fd2_blit_indexed_sprite(attacker_figani, frame_iter,
+                                                (int)(workspace + 0x3EA8), 400,
+                                                -1);
+                    }
+                }
+                fd2_blit_rectangle(0xA0000, 0x140, workspace + 0x3EA8, 0x190,
+                                   0x140, 0xC8);
+                if ((*(int8 *)(frame_entry + 4) == 1)
+                    && (hit_count_so_far == total_hit_frames)) {
+                    if (oc.poison_applied != 0) {
+                        outp(0x3C8, 0);
+                        outp(0x3C9, 1);
+                        outp(0x3C9, 0x20);
+                        outp(0x3C9, 0);
+                        __delay_thunk_375b2(0x14);
+                        outp(0x3C8, 0);
+                        outp(0x3C9, 0);
+                        outp(0x3C9, 0);
+                        outp(0x3C9, 0);
+                    }
+                    if (oc.crit_flag != 0) {
+                        outp(0x3C8, 0);
+                        outp(0x3C9, 0x3F);
+                        outp(0x3C9, 0x3F);
+                        outp(0x3C9, 0x3F);
+                        __delay_thunk_375b2(0x14);
+                        outp(0x3C8, 0);
+                        outp(0x3C9, 0);
+                        outp(0x3C9, 0);
+                        outp(0x3C9, 0);
+                        __delay_thunk_375b2(0x28);
+                    }
+                }
+                subframe_step = subframe_step + 1;
+                if (subframe_step
+                    == *(uint8 *)(defender_figani
+                                  + *(int32 *)((uint32)defender_figani_iter * 4
+                                               + defender_figani + 8)
+                                  + 6)) {
+                    subframe_step = 0;
+                    defender_figani_iter = defender_figani_iter + 1;
+                    if (defender_figani_iter == *(uint8 *)defender_figani) {
+                        defender_figani_iter = 0;
+                    }
+                }
+                if (shake_idx != 0) {
+                    shake_idx = shake_idx - 1;
+                }
+                sprite_palette_color = 0xFFFFFFFF;
+                fd2_wait_n_bios_ticks(1);
+            }
+
+            if ((data_fd2_battle_scripted_cinematic_mode_or_terrain_idx == 1)
+                && (hit_count_so_far == total_hit_frames)) {
+                return 1;
+            }
+        }
+
+        if (defender_HP_after == 0) {
+            hit_count = 0;
+        }
+        if ((hit_count != 0) && (*(int8 *)(attacker_figani + 1) == 1)) {
+            memset((void *)workspace, 0, 0x1F400);
+            if (rt_chars[attacker_idx].team == 0) {
+                fd2_blit_rectangle(workspace + 0x140, 0x280, framebuffer, 0x140,
+                                   0x140, 0xC8);
+                fd2_blit_indexed_sprite(defender_figani, 0,
+                                        (int)(workspace + 0x140), 0x280, -1);
+                fd2_animate_bg_zoom_transition_in(
+                    attacker_idx, attacker_figani, framebuffer, workspace,
+                    data_fd2_battle_combat_cinematic_split_bg_b_buf_ptr);
+            } else {
+                fd2_blit_rectangle(workspace, 0x280, framebuffer, 0x140, 0x140,
+                                   0xC8);
+                fd2_blit_indexed_sprite(defender_figani, 0, (int)workspace,
+                                        0x280, -1);
+                fd2_animate_bg_zoom_transition_out(
+                    attacker_idx, attacker_figani, name_banner_sprite,
+                    framebuffer, workspace,
+                    data_fd2_battle_combat_cinematic_split_bg_b_buf_ptr);
+            }
+        }
+    } while (1);
 }

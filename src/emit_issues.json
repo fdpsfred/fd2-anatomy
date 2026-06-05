@@ -549,5 +549,25 @@
         "verify_method": "compile_and_disasm"
       }
     ]
+  },
+  "0002939d": {
+    "name": "fd2_execute_combat_hit_cinematic",
+    "target": "anim/anicine.c",
+    "issues": [
+      {
+        "type": "uninitialized_stack_slot_zero_init",
+        "desc": "defender_HP_initial ([ESP+0x50]) and defender_HP_after ([ESP+0x58]) are read on paths where the binary leaves them uninitialized (a zero-hit-frame attacker_figani, or scripted mode where the HP-initial load @0x294a9-0x294b1 is skipped). The binary reads stack garbage there. Emitted with an explicit = 0 init to remove the Watcom W202 may-be-uninitialized warning (build is 0-warning). Equivalence: on every path reachable with real FIGANI data (which always has >=1 hit frame), both slots are assigned in the frame loop BEFORE any read, so the init is behavior-identical. In the scripted edge it yields a benign deterministic 0 (the scripted cinematic writes defender.wHP_current = HP_initial - 0; this animation HP is cosmetic, real combat resolution lives elsewhere) instead of UB garbage; no observable game-state difference. verify_method: post-build -d disasm confirms the slots are otherwise untouched on the real-data path.",
+        "severity": "info",
+        "verify_method": "compile_and_disasm",
+        "source_review": "fd2_execute_combat_hit_cinematic @0002939d (emit; [ESP+0x50]/[ESP+0x58] uninit on degenerate/scripted paths)"
+      },
+      {
+        "type": "eax_tracking_bug_fixed",
+        "desc": "The 3% bonus-hit roll: Ghidra decompiled it as (defender_idx*0x50) % 100 < 3, reusing the dead pre-CALL EAX value (systematic EAX-tracking bug). The disassembly @0x2946a does CALL fd2_advance_rng_state then MOV EDX,EAX; SAR EDX,0x1f; IDIV 0x64; CMP EDX,3 -- i.e. the roll keys off the RNG RETURN value, not defender_idx*0x50. Emitted as fd2_advance_rng_state() %% 100 < 3 (the RNG return is always <=0xFFFF so unsigned %% matches the signed IDIV). Pinned by tests test_chit_bonus_roll_double_strike / test_chit_no_bonus_single_strike (same defender index, RNG seed alone moves the strike count).",
+        "severity": "info",
+        "verify_method": "unit_test",
+        "source_review": "fd2_execute_combat_hit_cinematic @0002939d (emit; RNG EAX-bug @0x2946a)"
+      }
+    ]
   }
 }
