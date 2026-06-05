@@ -365,6 +365,116 @@ static void test_ch12_event24_sets_ai_flag_0x83_for_char_0e(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_25__unref_major_cinematic @ 0x34CCC (dispatch idx
+ * 0x25) — an unreferenced "major endgame cinematic" slot. A straight-line beat
+ * with no branch, no RNG, no numeric computation, and no CALL-return value used:
+ *   display_dialog_scene(page 1, ...);                          // opening dialog
+ *   pan_cursor_and_window(0xF, 0x22);                           // stage A pan
+ *   chapter_init_phase_flag = 1; load_chapter_portraits_and_dump_tmp(3);
+ *   chapter_init_phase_flag = 0;
+ *   cutscene_event_trigger(0x2B); clear_all_chars_facing;
+ *   pan_cursor_and_window(0, 0x1A);                             // stage B pan
+ *   chapter_init_phase_flag = 1; load_chapter_portraits_and_dump_tmp(4);
+ *   chapter_init_phase_flag = 0;
+ *   cutscene_event_trigger(0x2C); clear_all_chars_facing;
+ *   battle_anim_phase = 1;                                      // tail-JMP 0x35C18
+ *
+ * Every callee is a REAL emitted function driven against the shared
+ * ev20_install_safe_env() env (the same per-page-distinct-glyph dialog program
+ * handler_20 uses, so the dispatched page is observable), plus zero-group
+ * cutscene scripts for events 0x2B and 0x2C so the real fd2_cutscene_event_trigger
+ * composites once per stage and returns:
+ *   - fd2_display_dialog_scene runs FOR REAL on the per-page-distinct-glyph
+ *     program (page p -> single TEXT glyph idx 0x50+p, then END), so a correct
+ *     page-1 dispatch emits exactly one glyph with idx 0x51 and any wrong page
+ *     fails loudly;
+ *   - fd2_load_chapter_portraits_and_dump_tmp(3) then (4) each run FOR REAL
+ *     against the staged FDICON.B24 + FDFIELD.DAT, the second leaving FD2.TMP at
+ *     its full 0x32A00-byte size;
+ *   - fd2_pan_cursor_and_window / fd2_clear_all_chars_facing run against the
+ *     staged camera + compositor workspace with the empty active party (the
+ *     facing loop iterates 0).
+ *
+ * Two deterministic, observable contracts are checked, on top of the whole real
+ * callee chain running to completion without faulting:
+ *   (1) exactly one glyph is emitted and it is page 1's glyph (idx 0x51),
+ *       proving the opening dialog dispatches page 1 (and that the two cutscene
+ *       stages, which carry no dialog, emit no further glyphs);
+ *   (2) the init-phase flag ends back at 0 (set/reset bracketed the two reloads),
+ *       the second real reload left FD2.TMP at its full 0x32A00 bytes, and the
+ *       battle-animation phase ends at 1 (the shared-tail close at 0x35C18).
+ *
+ * The pure blit/display side effects (camera pan, cutscene compositing, portrait
+ * pixels, glyph render path) are deferred to Phase 9 integration.
+ * ================================================================ */
+
+/* zero-group cutscene scripts for events 0x2B and 0x2C: n_groups byte = 0, so the
+ * real fd2_cutscene_event_trigger just composites once and returns. */
+static uint8 g_ev25_script_2b[1] = { 0 };
+static uint8 g_ev25_script_2c[1] = { 0 };
+
+static void ev25_install_safe_env(void)
+{
+    /* per-page-distinct-glyph dialog program + ch25-style real-portrait-reload
+     * env (empty party, gated HUD, throttled palette, real compositor workspace,
+     * empty keyboard buffer, alloc_offset 0, current_chapter_id 4, fresh field
+     * buffer, 64-slot g_ev_rc); also resets the glyph recorder. */
+    ev20_install_safe_env();
+
+    /* handler_25 fires cutscene EVENTS 0x2B and 0x2C; register their own
+     * zero-group scripts so the real fd2_cutscene_event_trigger returns fast. */
+    g_ev25_script_2b[0] = 0;
+    g_ev25_script_2c[0] = 0;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x2B] = g_ev25_script_2b;
+    data_fd2_chapter_cutscene_event_script_ptr_table_106[0x2C] = g_ev25_script_2c;
+}
+
+/* ----------------------------------------------------------------
+ * The handler fires its fixed major-cinematic beat end-to-end. Observable,
+ * deterministic contract: exactly page 1 is shown (one glyph, idx 0x51), the
+ * init-phase flag is set/reset around the two reloads and ends at 0, the second
+ * real reload left FD2.TMP at its full 0x32A00 bytes, the battle-animation phase
+ * ends at 1, and the whole real callee chain (opening dialog, two camera pans,
+ * two real portrait reloads, zero-group cutscenes 0x2B/0x2C, two facing resets)
+ * runs to completion without faulting.
+ * ---------------------------------------------------------------- */
+static void test_event25_dialog_page1_two_stage_cinematic(void)
+{
+    ev25_install_safe_env();
+
+    /* perturb the init-phase flag so the handler's set-then-reset is observable
+     * (it must end back at 0, not at this sentinel). */
+    data_fd2_chapter_init_phase_flag = 0x55;
+
+    /* perturb the anim phase so the closing battle_anim_phase = 1 store is
+     * observable (the env installs 0; a wrong tail would leave it != 1). */
+    data_fd2_battle_anim_phase = 0x77;
+
+    remove("FD2.TMP");
+
+    fd2_chapter_event_handler_25__unref_major_cinematic(0);
+
+    /* (1) exactly page 1 was shown: one glyph, idx 0x51 (= 0x50 + page 1). The
+     * two cutscene stages carry no dialog, so no further glyph is emitted. */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0x51);
+
+    /* (2) the init-phase flag was set to 1 around each reload and reset to 0. */
+    ASSERT_EQ(data_fd2_chapter_init_phase_flag, 0);
+
+    /* the second real portrait reload ran: FD2.TMP rewritten to its full 0x32A00. */
+    ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
+
+    /* the shared-tail close ran: battle-animation phase flipped to 1. */
+    ASSERT_EQ(data_fd2_battle_anim_phase, 1);
+
+    /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
+    remove("FD2.TMP");
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt14_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -375,5 +485,6 @@ void run_field_chevt14_tests(void)
     RUN_TEST(test_event22_shows_dialog_page3);
     RUN_TEST(test_ch12_event23_reloads_portrait2_brackets_initphase);
     RUN_TEST(test_ch12_event24_sets_ai_flag_0x83_for_char_0e);
+    RUN_TEST(test_event25_dialog_page1_two_stage_cinematic);
     printf("\n");
 }

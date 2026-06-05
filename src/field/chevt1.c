@@ -94,6 +94,9 @@
  * fd2_chapter_event_handler_24__ch12_ai_ctrl @ 0x34CB3
  *     (0 direct callers; dispatched as idx 0x24 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_25__unref_major_cinematic @ 0x34CCC
+ *     (0 direct callers; dispatched as idx 0x25 of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -1372,4 +1375,65 @@ void fd2_chapter_event_handler_24__ch12_ai_ctrl(uint32 event_arg)
     (void)event_arg;
 
     data_fd2_battle_runtime_char_array_ptr[0xE].combat_aux_block[0xD] = 0x83;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_25__unref_major_cinematic @ 0x34CCC
+ *   — Dispatch idx 0x25 of the per-event handler table at 0x51B91.
+ *
+ * No chapter FDFIELD turn-event / tile-step hook references this slot
+ * (unreferenced — possibly cut content / non-chapter dispatcher),
+ * categorised as a major endgame cinematic. A straight-line beat with no
+ * branch, no RNG, no numeric computation, and no CALL-return value used:
+ * dialog page 1 is shown, then a two-stage cutscene cinematic plays.
+ *
+ *   Stage A: the camera pans to world (0xF, 0x22), portrait set 3 reloads
+ *     — bracketed by setting data_fd2_chapter_init_phase_flag to 1 before
+ *     the reload and back to 0 after, so it is treated as an "init phase"
+ *     load — cutscene event 0x2B plays, and every character's facing is
+ *     reset.
+ *   Stage B: the camera pans to world (0, 0x1A), portrait set 4 reloads
+ *     (same init-phase bracket), cutscene event 0x2C plays, and every
+ *     character's facing is reset again.
+ *
+ * It closes by flipping the battle-animation phase to 1.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * In the original binary the closing battle_anim_phase = 1 store is
+ * reached by a tail-JMP (0x34D63 -> 0x35C18) into the shared __CHK
+ * epilogue tail at 0x35C18 (MOV [0x51A83],1; RET) — the same shared tail
+ * fd2_chapter_event_handler_17 @ 0x34844 jumps into. Reproduced here as
+ * the inline store for Layer-2 equivalence.
+ *
+ * Magic numbers (matching every dialog call in this group):
+ *   0xA0000 VGA framebuffer base, 0x140 (=320) row stride,
+ *   0xCD/0x4C dialog window position (X, Y), 0x4A charset/style code,
+ *   0x13 (=19) max line count, 1 wait-for-input flag.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_25__unref_major_cinematic(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_display_dialog_scene(current_chapter_text, 1, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+
+    fd2_pan_cursor_and_window(0xF, 0x22);
+    data_fd2_chapter_init_phase_flag = 1;
+    fd2_load_chapter_portraits_and_dump_tmp(3);
+    data_fd2_chapter_init_phase_flag = 0;
+    fd2_cutscene_event_trigger(0x2B);
+    fd2_clear_all_chars_facing();
+
+    fd2_pan_cursor_and_window(0, 0x1A);
+    data_fd2_chapter_init_phase_flag = 1;
+    fd2_load_chapter_portraits_and_dump_tmp(4);
+    data_fd2_chapter_init_phase_flag = 0;
+    fd2_cutscene_event_trigger(0x2C);
+    fd2_clear_all_chars_facing();
+
+    data_fd2_battle_anim_phase = 1;
 }
