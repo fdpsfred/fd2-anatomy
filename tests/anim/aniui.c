@@ -743,6 +743,105 @@ static void test_party_add_frame_skeleton_and_sfx(void)
 }
 
 
+/*
+ * fd2_cinematic_warp_char_to_tile — argument-routing dispatcher.
+ *
+ * A 3-line cinematic wrapper with no internal branching or computation: it
+ * pans the cursor to the target tile, then plays the warp-teleport char
+ * animation onto that tile. The load-bearing, host-verifiable logic is the
+ * argument routing through its two callees:
+ *
+ *   - fd2_pan_cursor_to_tile_animated(tile_x, tile_y) — the X/Y order must be
+ *     correct. Pinned by pre-seating the cursor exactly at the target (with
+ *     tile_x != tile_y) so the real pan's two while-loops match immediately and
+ *     leave the cursor where it is. A swapped pan(tile_y, tile_x) would instead
+ *     see cursor_world_x(=tile_x) != target_x(=tile_y) and step the cursor away,
+ *     so an unchanged (tile_x, tile_y) cursor confirms the order.
+ *   - fd2_animate_warp_teleport_char(char_id, tile_x, tile_y, tile_x, tile_y) —
+ *     the defining "appear at target" semantics is that the source and
+ *     destination tile coords are BOTH the target (src == dst). Pinned exactly
+ *     via the recording spy in testglob.c, which captures all 5 received args.
+ *
+ * The pan callee is the real emitted routine (src/ui_menu/cursor.c); its initial
+ * fd2_composite_battle_frame(0) is made host-safe by the same recipe the
+ * screen-shake test uses (LGS buffer backed, view window set, HUD/play gated
+ * off, empty party, palette cycle throttled, anim_phase==0 -> no cursor overlay
+ * and no per-step BIOS wait). The teleport callee's actual malloc / FDOTHER.DAT
+ * load / portal+collapse+expand blit sequence is pure VGA-output animation
+ * deferred to Phase 9 integration; here it is the no-op recording spy.
+ */
+extern int    g_warp_teleport_calls;
+extern uint32 g_warp_teleport_arg[5];
+
+/* LGS backing for the real fd2_composite_battle_frame(0) reached by the pan's
+ * opening composite; sized exactly like the screen-shake fixture. */
+static uint8 g_cinwarp_lgs[SHAKE_LGS_SPAN];
+
+/* Seat the cursor at (tx, ty) so the real pan matches immediately, and make the
+ * opening composite host-safe. anim_phase==0 keeps the cursor overlay empty and
+ * skips the per-step bios wait; large map dims + small screen coords keep the
+ * cursor-move clip branches benign even if a loop were to step. */
+static void cinwarp_setup(uint32 tx, uint32 ty)
+{
+    memset(g_cinwarp_lgs, 0, sizeof(g_cinwarp_lgs));
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_cinwarp_lgs;
+
+    data_fd2_battle_view_window_origin_x = 0x10;
+    data_fd2_battle_view_window_origin_y = 0x20;
+    data_fd2_battle_view_window_max_x = 0x100;
+    data_fd2_battle_view_window_max_y = 0x100;
+
+    data_fd2_ui_terrain_hud_user_enabled = 0;
+    data_fd2_ui_play_active_flag = 0;
+    data_fd2_battle_party_member_count = 0;
+    data_fd2_animation_palette_cycle_last_tick = (uint16)BIOS_TICK_WORD;
+
+    data_fd2_battle_anim_phase = 0;
+    data_fd2_battle_map_width_tiles = 0x100;
+    data_fd2_battle_map_height_tiles = 0x100;
+    data_fd2_battle_cursor_screen_x = 5;
+    data_fd2_battle_cursor_screen_y = 5;
+    data_fd2_battle_cursor_world_x = tx;   /* already at target -> pan no-op */
+    data_fd2_battle_cursor_world_y = ty;
+
+    g_warp_teleport_calls = 0;
+    g_warp_teleport_arg[0] = 0;
+    g_warp_teleport_arg[1] = 0;
+    g_warp_teleport_arg[2] = 0;
+    g_warp_teleport_arg[3] = 0;
+    g_warp_teleport_arg[4] = 0;
+}
+
+static void cinwarp_check(uint32 char_id, uint32 tx, uint32 ty)
+{
+    cinwarp_setup(tx, ty);
+    fd2_cinematic_warp_char_to_tile(char_id, tx, ty);
+
+    /* pan got (tx, ty) in the right order: cursor (seated at target) unmoved */
+    ASSERT_EQ(data_fd2_battle_cursor_world_x, tx);
+    ASSERT_EQ(data_fd2_battle_cursor_world_y, ty);
+
+    /* warp-teleport got (char_id, tx, ty, tx, ty): src == dst == target tile */
+    ASSERT_EQ(g_warp_teleport_calls, 1);
+    ASSERT_EQ(g_warp_teleport_arg[0], char_id);
+    ASSERT_EQ(g_warp_teleport_arg[1], tx);
+    ASSERT_EQ(g_warp_teleport_arg[2], ty);
+    ASSERT_EQ(g_warp_teleport_arg[3], tx);
+    ASSERT_EQ(g_warp_teleport_arg[4], ty);
+}
+
+static void test_cinematic_warp_arg_routing(void)
+{
+    /* chapter-30 init call shape: char 5 -> tile (0x15, 5). tx != ty pins the
+     * pan X/Y order; the spy pins the src==dst teleport duplication. */
+    cinwarp_check(5, 0x15, 5);
+
+    /* event-handler call shape: char 0x18 -> tile (0x16, 0x12). Distinct values
+     * (and not hardcoded) re-confirm the routing on a second tuple. */
+    cinwarp_check(0x18, 0x16, 0x12);
+}
+
+
 void run_anim_aniui_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -760,5 +859,6 @@ void run_anim_aniui_tests(void)
     RUN_TEST(test_shop_feedback_state5_cycle);
     RUN_TEST(test_shop_feedback_state_other_noop);
     RUN_TEST(test_party_add_frame_skeleton_and_sfx);
+    RUN_TEST(test_cinematic_warp_arg_routing);
     printf("\n");
 }

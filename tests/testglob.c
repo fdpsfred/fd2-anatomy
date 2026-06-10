@@ -149,10 +149,10 @@ void fd2_delay_ticks(uint32 t) { }
 void fd2_cast_earthquake_spell_with_screen_shake(int a, int b, int c, uint8 *d) { }
 void fd2_cast_screen_wide_spell_with_fade(uint32 a, uint32 b, uint32 c, int d) { }
 void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 a, uint32 b, uint32 c) { }
-/* fd2_cinematic_warp_char_to_tile (@0x33F78) and
+/* fd2_cinematic_warp_char_to_tile (@0x33F78) now emitted for real in
+ * src/anim/aniui.c; stub removed.
  * fd2_animate_palette_flash_pulse_white (@0x35E5A): not yet emitted (referenced
- * only by fd2_chapter_30_init); stubbed for link until their src/ emit. */
-void fd2_cinematic_warp_char_to_tile(uint32 a, uint32 b, uint32 c) { }
+ * only by fd2_chapter_30_init); stubbed for link until its src/ emit. */
 void fd2_animate_palette_flash_pulse_white(void) { }
 void fd2_dispatch_variant_b_cast(int a, int b, int c, int d) { }
 /* fd2_cast_ap_boost_spell (@0x22721), fd2_cast_dp_boost_spell (@0x22866), and
@@ -219,7 +219,21 @@ uint32 data_fd2_audio_figani_sfx_bank_defender_buf_ptr = 0;
 void fd2_restore_portrait_cache_from_tmp(void) { }
 void fd2_play_rising_pre_cast_effect(int a, int b, int c) { }
 void fd2_play_variant_b_slide_pre_effect(int a, int b) { }
-void fd2_animate_warp_teleport_char(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e) { }
+/* fd2_animate_warp_teleport_char recording spy: captures call count + all 5
+ * received args so callers (fd2_cinematic_warp_char_to_tile) can pin their
+ * argument routing, in particular the src==dst tile duplication. Behaviorally
+ * still a no-op (the real teleport animation is a Phase-9 display concern). */
+int    g_warp_teleport_calls = 0;
+uint32 g_warp_teleport_arg[5] = {0,0,0,0,0};
+void fd2_animate_warp_teleport_char(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e)
+{
+    g_warp_teleport_calls++;
+    g_warp_teleport_arg[0] = a;
+    g_warp_teleport_arg[1] = b;
+    g_warp_teleport_arg[2] = c;
+    g_warp_teleport_arg[3] = d;
+    g_warp_teleport_arg[4] = e;
+}
 uint16 data_fd2_animation_palette_cycle_last_tick = 0;
 uint8  data_fd2_animation_palette_cycle_frame_idx = 0;
 uint8  data_fd2_animation_palette_cycle_rgb_table[93] = {0};

@@ -3564,8 +3564,9 @@
     "name": "fd2_cinematic_warp_char_to_tile",
     "target": "anim/aniui.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00033faf": {
     "name": "fd2_set_chapter_init_done_flag",

@@ -743,3 +743,29 @@ void fd2_animate_party_addition_with_appear_effect(uint32 target_race_id)
         snapshot++;
     } while (1);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_cinematic_warp_char_to_tile @ 0x33F78 (2 callers)
+ *
+ * Cinematic warp: pans the camera/cursor to a tile, then plays the
+ * warp-teleport char animation onto that tile.
+ *
+ * fd2_animate_warp_teleport_char takes both source and destination
+ * tile coords; here both are set to the same target tile, giving
+ * "appear at target tile" semantics (no separate source pan).
+ *
+ * Cdecl, three params, void return. The binary's __CHK(0x18)
+ * stack-probe prologue is compiler-generated and omitted here.
+ *
+ * Params: char_id = runtime_char_array index of the unit being warped,
+ *         tile_x / tile_y = target tile coordinates.
+ *
+ * Callers:
+ *   fd2_chapter_30_init                              @ 0x33E3C
+ *   fd2_chapter_event_handler_52__ch30_major_cinematic @ 0x35F92
+ * ---------------------------------------------------------------- */
+void fd2_cinematic_warp_char_to_tile(uint32 char_id, uint32 tile_x, uint32 tile_y)
+{
+    fd2_pan_cursor_to_tile_animated((int)tile_x, (int)tile_y);
+    fd2_animate_warp_teleport_char(char_id, tile_x, tile_y, tile_x, tile_y);
+}
