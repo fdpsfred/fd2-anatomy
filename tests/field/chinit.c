@@ -480,6 +480,33 @@
  * other chapter inits (one dispatch-table slot each), this single function is
  * dispatched from THREE consecutive table slots (xrefs @0x51DB9 / 0x51DBD /
  * 0x51DC1 = chapters 19/20/21). See src/emit_issues.json (00033674).
+ *
+ * fd2_chapter_22_init @0x3367E is a minimal flat orchestrator of the same
+ * family as chapter 06/14: re-init battle state, one camera-pan-and-window
+ * (0x10,0x1C), a single cutscene (0x43), clear-facing, a single dialog page
+ * (page 0), pan the camera to char 0. NO portrait load, NO char init, and
+ * (like chapter 14) NO battle_anim_phase reset on its code path. It is back to
+ * a pure straight-line orchestrator (unlike the data-dependent chapters
+ * 15/17): NO numeric computation, NO RNG, NO data-dependent branch, and NO
+ * CALL-result consumption (no EAX-bug exposure), and every callee is
+ * real-linked from src/ — the same fd2_display_dialog_scene ->
+ * fd2_wait_for_input_dialog_with_blink keyboard busy-wait hang plus the
+ * fd2_cutscene_event_trigger byte-script parsing apply (here there is no
+ * portrait load). Its behavioral test is therefore DEFERRED to Phase 9 on
+ * identical grounds; equivalence was verified statically, line-by-line,
+ * against the disassembly @0x3367E (call sequence, constants, the single
+ * (0x10,0x1C) camera pan, the 0x43 cutscene, the clear-facing sitting BEFORE
+ * the single page-0 dialog rather than after it, and the absence of any
+ * battle_anim_phase reset). Note this handler physically contains only its
+ * entry block (init battle state + the one fd2_pan_cursor_and_window) and then
+ * pushes the cutscene-0x43 arg and tail-JMPs (0x3369B -> 0x33440) into the
+ * shared body owned by fd2_chapter_12_init: the cutscene-trigger CALL, then
+ * clear-facing, then the shared page-0 dialog chain 0x3344D (page-0 dialog-arg
+ * push, owned by fd2_chapter_12_init) -> 0x33206 (the dialog call, in
+ * fd2_chapter_07_init) -> 0x33140 (the pan + RET, owned by
+ * fd2_chapter_05_init, entered directly without a clear-facing); the emit
+ * reconstructs the equivalent straight-line form. See src/emit_issues.json
+ * (0003367e).
  */
 
 #include <stdio.h>
@@ -534,5 +561,7 @@ void run_field_chinit_tests(void)
     printf("  (fd2_chapter_19_20_21_init_shared: pure thunk into chapter_13 "
            "shared body (3-chapter shared init); behavioral test deferred to "
            "Phase 9 integration; see src/emit_issues.json 00033674)\n");
+    printf("  (fd2_chapter_22_init: behavioral test deferred to Phase 9 "
+           "integration; see src/emit_issues.json 0003367e)\n");
     printf("\n");
 }

@@ -1138,3 +1138,53 @@ void fd2_chapter_19_20_21_init_shared(void)
                              0xcd, 0x4c, 0x4a, 0x13, 1);
     fd2_pan_cursor_to_char(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_22_init @ 0x3367E  (dispatched, 0 direct callers)
+ *
+ * Chapter 22「遠古呼喚」init handler. A minimal flat chapter-prologue
+ * orchestrator: it re-inits battle state, pans the camera-and-window
+ * once (target 0x10, 0x1C), plays a single cutscene (event id 0x43),
+ * clears all facings, plays exactly one dialog page (page 0), and pans
+ * the camera to char 0. There is NO portrait load and NO char init —
+ * chapter 22 carries the party over from the previous chapter.
+ *
+ * Unlike chapter 06, this handler never resets
+ * data_fd2_battle_anim_phase (there is no MOV [0x51A83],0 anywhere on
+ * its code path) — page 0 is the sole, tail dialog page. Note the
+ * clear-facing happens BEFORE the dialog page here (between cutscene
+ * 0x43 and the dialog), not after it.
+ *
+ * void __cdecl, no real params, void return. The leading __CHK(0x28)
+ * stack-probe is the Watcom-injected frame-size check and is not part
+ * of the source body.
+ *
+ * In the binary this handler physically contains only its entry block
+ * (init battle state + the one fd2_pan_cursor_and_window(0x10,0x1C))
+ * and then pushes the cutscene-0x43 arg and tail-JMPs (0x3369B ->
+ * 0x33440) into the shared body owned by fd2_chapter_12_init: the
+ * cutscene-trigger CALL, then fd2_clear_all_chars_facing(), then the
+ * shared page-0 dialog chain 0x3344D (page-0 dialog-arg push, owned by
+ * fd2_chapter_12_init) -> 0x33206 (the fd2_display_dialog_scene call,
+ * owned by fd2_chapter_07_init) -> 0x33140 (the fd2_pan_cursor_to_char(0)
+ * + RET tail, owned by fd2_chapter_05_init, entered directly without a
+ * clear-facing). The straight-line form here is the
+ * functionally-equivalent (Layer 2) reconstruction.
+ *
+ * Linked handlers:
+ *   End:         fd2_chapter_22_end @ 0x244B6
+ *   Post-action: fd2_chapter_22_post_action @ 0x20A87 (shared with
+ *                ch27/28) — extra lose if char[1] dead (希爾法).
+ *
+ * Walkthrough SOT: assets/chapters/chapter_22.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_22_init(void)
+{
+    fd2_init_battle_state_for_chapter();
+    fd2_pan_cursor_and_window(0x10, 0x1c);
+    fd2_cutscene_event_trigger(0x43);
+    fd2_clear_all_chars_facing();
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_pan_cursor_to_char(0);
+}
