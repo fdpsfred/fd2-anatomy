@@ -371,6 +371,189 @@ static void test_nstep_cost_table_indexing(void)
 }
 
 
+/* --- direction-tracked pathfind recursion tests
+ * (fd2_pathfind_recursive_with_direction @ 0x4E27C). Until its inner step
+ * fd2_pathfind_neighbor_step_with_tiebreak @ 0x4E330 is emitted for real, the
+ * recursion is driven against that helper's faithful stub in tests/testglob.c
+ * (coordinated landing per open_issues #33). The stub reproduces the binary's
+ * mode-0 marker logic (so the marker grid below matches the flood fill's,
+ * proving identical traversal order / bounds / +-4 / +-stride / termination)
+ * AND records per call the btm offset, residual cost, neighbour x/y and the
+ * direction byte found in the active step-stack frame (so this function's
+ * load-bearing step-stack bookkeeping -- the part that is NOT just recursion
+ * plumbing -- is asserted directly). */
+
+extern uint8 *g_ptbs_origin;
+extern int   g_ptbs_calls;
+extern int   g_ptbs_off[64];
+extern uint8 g_ptbs_cost[64];
+extern uint8 g_ptbs_x[64];
+extern uint8 g_ptbs_y[64];
+extern uint8 g_ptbs_dir[64];
+extern int   g_ptbs_depth_max;
+
+/* Reset the shared ff map + cost tables (open, every step costs 1), zero the
+ * recursion stack + depth marker the orchestrator would have cleared, point the
+ * stub's offset base at the origin tile's marker, and clear the call recorder.
+ * `pf_origin_col/row` is the seed tile. */
+static void pf_reset(int origin_col, int origin_row)
+{
+    ff_reset();
+    memset(data_fd2_battle_pathfind_step_stack, 0, 64 * 8);
+    data_fd2_battle_pathfind_current_depth = 0;
+    g_ptbs_origin = &FF_MARK(origin_col, origin_row);
+    g_ptbs_calls = 0;
+    g_ptbs_depth_max = 0;
+    memset(g_ptbs_off, 0, sizeof(g_ptbs_off));
+    memset(g_ptbs_cost, 0, sizeof(g_ptbs_cost));
+    memset(g_ptbs_x, 0, sizeof(g_ptbs_x));
+    memset(g_ptbs_y, 0, sizeof(g_ptbs_y));
+    memset(g_ptbs_dir, 0, sizeof(g_ptbs_dir));
+}
+
+/* Open 5x5, origin centre, cost 3: identical residual diamond to the flood
+ * fill (mode-0 commits the residual into the marker exactly as the flood fill
+ * does), confirming the direction-tracked recursion walks the same tiles in the
+ * same order with the same bounds and termination. Depth returns to 0. */
+static void test_pf_open_diamond(void)
+{
+    static const uint8 expect[MAPH][MAPW] = {
+        { 0, 0, 1, 0, 0 },
+        { 0, 1, 2, 1, 0 },
+        { 1, 2, 3, 2, 1 },
+        { 0, 1, 2, 1, 0 },
+        { 0, 0, 1, 0, 0 }
+    };
+    int col;
+    int row;
+
+    pf_reset(2, 2);
+    FF_MARK(2, 2) = 3;                 /* origin seeded by the orchestrator */
+    fd2_pathfind_recursive_with_direction(2, 2, 3, &FF_MARK(2, 2));
+
+    for (row = 0; row < MAPH; row++) {
+        for (col = 0; col < MAPW; col++) {
+            ASSERT_EQ(FF_MARK(col, row), expect[row][col]);
+        }
+    }
+    ASSERT_TRUE(ff_guards_intact());
+    ASSERT_EQ(data_fd2_battle_pathfind_current_depth, 0);   /* balanced */
+}
+
+/* Corner origin (0,0), cost 2: left/up are skipped (x==0 / y==0) so no OOB and
+ * only the two in-bounds neighbours get marked -- same clamp as the flood fill. */
+static void test_pf_corner_clamp(void)
+{
+    static const uint8 expect[MAPH][MAPW] = {
+        { 2, 1, 0, 0, 0 },
+        { 1, 0, 0, 0, 0 },
+        { 0, 0, 0, 0, 0 },
+        { 0, 0, 0, 0, 0 },
+        { 0, 0, 0, 0, 0 }
+    };
+    int col;
+    int row;
+
+    pf_reset(0, 0);
+    FF_MARK(0, 0) = 2;
+    fd2_pathfind_recursive_with_direction(0, 0, 2, &FF_MARK(0, 0));
+
+    for (row = 0; row < MAPH; row++) {
+        for (col = 0; col < MAPW; col++) {
+            ASSERT_EQ(FF_MARK(col, row), expect[row][col]);
+        }
+    }
+    ASSERT_TRUE(ff_guards_intact());
+    ASSERT_EQ(data_fd2_battle_pathfind_current_depth, 0);
+}
+
+/* 0x40 impassable blocks expansion (never marked); 0x80 sink is marked but
+ * pinned to 0 so the recursion stops past it -- same as the flood fill. */
+static void test_pf_blocked_and_sink(void)
+{
+    pf_reset(2, 2);
+    FF_FLAGS(3, 2) = 0x40;             /* impassable, east of origin */
+    FF_FLAGS(2, 1) = 0x80;             /* sink, north of origin */
+    FF_MARK(2, 2) = 4;
+    fd2_pathfind_recursive_with_direction(2, 2, 4, &FF_MARK(2, 2));
+
+    ASSERT_EQ(FF_MARK(3, 2), 0);       /* impassable stays unmarked */
+    ASSERT_EQ(FF_MARK(4, 2), 0);       /* only reachable via the wall -> 0 */
+    ASSERT_EQ(FF_MARK(2, 1), 0);       /* sink marked, pinned to 0 */
+    ASSERT_EQ(FF_MARK(2, 0), 0);       /* sink cannot expand into it */
+    ASSERT_EQ(FF_MARK(1, 2), 3);       /* west arm unobstructed */
+    ASSERT_EQ(FF_MARK(0, 2), 2);
+    ASSERT_TRUE(ff_guards_intact());
+    ASSERT_EQ(data_fd2_battle_pathfind_current_depth, 0);
+}
+
+/* Direction bookkeeping in isolation: with cost 1 and a step cost of 1 every
+ * neighbour's new residual is 0, which never improves the existing 0 marker, so
+ * the inner step returns "no improve" for all four neighbours and the recursion
+ * never descends. Exactly four calls happen, all from the origin, in the binary
+ * order right/left/down/up with direction codes 3/1/0/2 and btm offsets
+ * +4 / -4 / +stride / -stride; the neighbour coords and the active-frame
+ * direction byte the stub observed must match. Depth was 1 during the calls and
+ * returns to 0 afterwards. */
+static void test_pf_direction_codes_and_offsets(void)
+{
+    int stride;
+
+    pf_reset(2, 2);
+    FF_MARK(2, 2) = 1;
+    fd2_pathfind_recursive_with_direction(2, 2, 1, &FF_MARK(2, 2));
+
+    stride = (int)data_fd2_battle_pathfind_map_width * 4;
+
+    /* nothing improved -> no recursion -> exactly the four origin neighbours */
+    ASSERT_EQ(g_ptbs_calls, 4);
+
+    /* right: dir 3, btm +4, neighbour (3,2) */
+    ASSERT_EQ(g_ptbs_dir[0], 3);
+    ASSERT_EQ(g_ptbs_off[0], 4);
+    ASSERT_EQ(g_ptbs_x[0], 3);
+    ASSERT_EQ(g_ptbs_y[0], 2);
+    /* left: dir 1, btm -4, neighbour (1,2) */
+    ASSERT_EQ(g_ptbs_dir[1], 1);
+    ASSERT_EQ(g_ptbs_off[1], -4);
+    ASSERT_EQ(g_ptbs_x[1], 1);
+    ASSERT_EQ(g_ptbs_y[1], 2);
+    /* down: dir 0, btm +stride, neighbour (2,3) */
+    ASSERT_EQ(g_ptbs_dir[2], 0);
+    ASSERT_EQ(g_ptbs_off[2], stride);
+    ASSERT_EQ(g_ptbs_x[2], 2);
+    ASSERT_EQ(g_ptbs_y[2], 3);
+    /* up: dir 2, btm -stride, neighbour (2,1) */
+    ASSERT_EQ(g_ptbs_dir[3], 2);
+    ASSERT_EQ(g_ptbs_off[3], -stride);
+    ASSERT_EQ(g_ptbs_x[3], 2);
+    ASSERT_EQ(g_ptbs_y[3], 1);
+
+    /* every call was made at depth 1 (origin level); never deeper */
+    ASSERT_EQ(g_ptbs_depth_max, 1);
+    /* the four residuals passed in are all the origin's cost (1) */
+    ASSERT_EQ(g_ptbs_cost[0], 1);
+    ASSERT_EQ(g_ptbs_cost[3], 1);
+    ASSERT_EQ(data_fd2_battle_pathfind_current_depth, 0);
+}
+
+/* When the recursion does descend, the depth marker climbs: from the centre of
+ * an open map with cost 3 the search reaches tiles two steps out, so a
+ * neighbour step is issued at depth 3 (origin depth 1 -> neighbour depth 2 ->
+ * its neighbour depth 3). The per-level step-stack frames at successive depths
+ * carry the branch direction; verify the deepest observed call depth and that
+ * the recorder logged more than the four origin neighbours. */
+static void test_pf_depth_climbs_on_descent(void)
+{
+    pf_reset(2, 2);
+    FF_MARK(2, 2) = 3;
+    fd2_pathfind_recursive_with_direction(2, 2, 3, &FF_MARK(2, 2));
+
+    ASSERT_EQ(g_ptbs_depth_max, 3);
+    ASSERT_TRUE(g_ptbs_calls > 4);
+    ASSERT_EQ(data_fd2_battle_pathfind_current_depth, 0);
+}
+
 void run_util_pathfnd_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -387,5 +570,10 @@ void run_util_pathfnd_tests(void)
     RUN_TEST(test_nstep_impassable_flag);
     RUN_TEST(test_nstep_sink_flag_forces_zero);
     RUN_TEST(test_nstep_cost_table_indexing);
+    RUN_TEST(test_pf_open_diamond);
+    RUN_TEST(test_pf_corner_clamp);
+    RUN_TEST(test_pf_blocked_and_sink);
+    RUN_TEST(test_pf_direction_codes_and_offsets);
+    RUN_TEST(test_pf_depth_climbs_on_descent);
     printf("\n");
 }

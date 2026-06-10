@@ -4669,8 +4669,9 @@
     "name": "fd2_pathfind_recursive_with_direction",
     "target": "util/pathfnd.c",
     "phase": 2,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004e330": {
     "name": "fd2_pathfind_neighbor_step_with_tiebreak",

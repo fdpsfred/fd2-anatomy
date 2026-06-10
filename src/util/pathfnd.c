@@ -188,3 +188,120 @@ int fd2_flood_fill_neighbor_step(uint8 remaining_cost, uint8 *btm_attr_ptr,
     }
     return 0;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_pathfind_recursive_with_direction @ 0x4E27C (2 callers: the orchestrator
+ * fd2_pathfind_to_destination @ 0x4E1A6 and itself)
+ *
+ * Direction-tracked recursive pathfind expansion: the path-aware twin of
+ * fd2_flood_fill_movement_range_recursive @ 0x4E0DC. It visits the four
+ * neighbours of the current tile in the binary's order right/left/down/up,
+ * tags each visit with a direction code, and recurses into any neighbour whose
+ * cost step improved -- exactly like the flood fill -- but additionally records
+ * the per-level direction so the orchestrator can reconstruct the chosen path.
+ *
+ * In FD2.LE this is a register-passing routine (DL/DH = x/y, CL = residual
+ * cost, EBX = the tile's marker pointer, EBP = the map_width*4 row stride live
+ * for the whole search, EDI = the recursion stack cursor). Unlike the flood
+ * fill -- whose EDI stack was *purely* recursion plumbing that this project
+ * replaced with native C recursion -- here the recursion stack is real,
+ * consumed data: each 8-byte frame {x, y, cost, dir} written into
+ * data_fd2_battle_pathfind_step_stack at the current depth carries the
+ * direction byte that fd2_pathfind_neighbor_step_with_tiebreak reads back
+ * (via fd2_pathfind_count_unique_directions for its tiebreak weight, and via
+ * fd2_pathfind_check_destination_save_path to copy the direction sequence into
+ * the output buffer when the destination is reached). So this emit keeps native
+ * C recursion + parameters for the control flow, but still maintains the step
+ * stack frame {x, y, cost, dir} at data_fd2_battle_pathfind_step_stack[depth*8]
+ * for every level, since the direction bytes there are load-bearing. The depth
+ * marker data_fd2_battle_pathfind_current_depth is incremented on entry and
+ * decremented on exit, matching the binary's INC/DEC of 0x60077.
+ *
+ *   x, y     : current tile coordinates (DL/DH).
+ *   cost     : residual movement budget left at this tile (CL).
+ *   btm_ptr  : pointer to this tile's marker byte in the battle tile map (EBX);
+ *              the neighbour step reads the attribute word at [-3..-2] and the
+ *              flags byte at [-1] relative to it.
+ *
+ * Direction codes written per branch (pState[3] / frame[+3], the binary's CH):
+ *   3 = right, 1 = left, 0 = down (y+1), 2 = up (y-1).
+ *
+ * For each direction the neighbour coordinates are handed to
+ * fd2_pathfind_neighbor_step_with_tiebreak (which the helpers see as DL/DH);
+ * it returns non-zero (binary: carry clear) iff the neighbour improved and the
+ * search should descend, with new_cost = the reduced residual to recurse with
+ * (CL after the step, forced to 0 for an 0x80 movement-sink tile). The
+ * original x/y/cost/btm_ptr persist across directions and the recursive call
+ * (the binary reloads them from its saved frame; here the locals simply
+ * persist), so every direction starts from the same residual.
+ * ---------------------------------------------------------------- */
+void fd2_pathfind_recursive_with_direction(uint8 x, uint8 y, uint8 cost,
+    uint8 *btm_ptr)
+{
+    uint32 stride;
+    uint8 new_cost;
+    uint8 *frame;
+
+    /* Row stride in bytes = map_width tiles * 4 bytes/tile (EBP in the binary,
+     * set once by the orchestrator). */
+    stride = (uint32)data_fd2_battle_pathfind_map_width * 4;
+
+    /* Push this level's frame {x, y, cost, dir} onto the recursion stack at the
+     * current depth, then advance the depth marker (binary: write 8 bytes at
+     * EDI then INC [0x60077]). The direction byte starts at 3 (right) and is
+     * rewritten before each subsequent branch; the helpers read it back. */
+    frame = &data_fd2_battle_pathfind_step_stack[
+        (uint32)data_fd2_battle_pathfind_current_depth * 8];
+    frame[0] = x;
+    frame[1] = y;
+    frame[2] = cost;
+    frame[3] = 3;                  /* dir = right */
+    *(uint32 *)(frame + 4) = (uint32)btm_ptr;
+    data_fd2_battle_pathfind_current_depth++;
+
+    /* right: dir=3 (already set), (x+1) < map_width (unsigned) */
+    if ((uint8)(x + 1) < data_fd2_battle_pathfind_map_width) {
+        new_cost = 0;
+        if (fd2_pathfind_neighbor_step_with_tiebreak((uint8)(x + 1), y, cost,
+                btm_ptr + 4, &new_cost)) {
+            fd2_pathfind_recursive_with_direction((uint8)(x + 1), y,
+                new_cost, btm_ptr + 4);
+        }
+    }
+
+    /* left: dir=1, x != 0 */
+    frame[3] = 1;
+    if (x != 0) {
+        new_cost = 0;
+        if (fd2_pathfind_neighbor_step_with_tiebreak((uint8)(x - 1), y, cost,
+                btm_ptr - 4, &new_cost)) {
+            fd2_pathfind_recursive_with_direction((uint8)(x - 1), y,
+                new_cost, btm_ptr - 4);
+        }
+    }
+
+    /* down: dir=0, (y+1) < map_height (unsigned) */
+    frame[3] = 0;
+    if ((uint8)(y + 1) < data_fd2_battle_pathfind_map_height) {
+        new_cost = 0;
+        if (fd2_pathfind_neighbor_step_with_tiebreak(x, (uint8)(y + 1), cost,
+                btm_ptr + stride, &new_cost)) {
+            fd2_pathfind_recursive_with_direction(x, (uint8)(y + 1),
+                new_cost, btm_ptr + stride);
+        }
+    }
+
+    /* up: dir=2, y != 0 */
+    frame[3] = 2;
+    if (y != 0) {
+        new_cost = 0;
+        if (fd2_pathfind_neighbor_step_with_tiebreak(x, (uint8)(y - 1), cost,
+                btm_ptr - stride, &new_cost)) {
+            fd2_pathfind_recursive_with_direction(x, (uint8)(y - 1),
+                new_cost, btm_ptr - stride);
+        }
+    }
+
+    /* Pop this level's frame (binary: SUB DI,8 reload + DEC [0x60077]). */
+    data_fd2_battle_pathfind_current_depth--;
+}

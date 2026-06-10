@@ -220,6 +220,14 @@ void fd2_flood_fill_movement_range_recursive(uint8 x, uint8 y, uint8 cost, uint8
 /* returns non-zero (binary: carry clear) iff the neighbour improved and the
  * caller should recurse; on non-zero, *new_cost_out = residual cost - tile cost */
 int fd2_flood_fill_neighbor_step(uint8 remaining_cost, uint8 *btm_attr_ptr, uint8 *new_cost_out);
+void fd2_pathfind_recursive_with_direction(uint8 x, uint8 y, uint8 cost, uint8 *btm_ptr);
+/* fd2_pathfind_neighbor_step_with_tiebreak @ 0x4E330 (not yet emitted; real body
+ * pending coordinated landing per open_issues #33, faithful stub in testglob.c).
+ * x/y = neighbour coords (seen by the destination helpers as DL/DH); returns
+ * non-zero (binary: carry clear) iff the neighbour improved and the caller should
+ * recurse, with *new_cost_out = the reduced residual to recurse with. */
+int fd2_pathfind_neighbor_step_with_tiebreak(uint8 x, uint8 y, uint8 remaining_cost,
+    uint8 *btm_attr_ptr, uint8 *new_cost_out);
 void fd2_mark_char_occupant_tiles_for_team(uint32 exclude_idx, uint32 team_selector);
 void fd2_set_tile_overlay_bit_80(uint32 x, uint32 y);
 void fd2_mark_aoe_plus_pattern_at(uint32 x, uint32 y);
