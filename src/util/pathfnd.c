@@ -468,3 +468,57 @@ void fd2_pathfind_record_destination_xy(uint8 x, uint8 y, uint8 *btm_attr_ptr)
         data_fd2_battle_pathfind_best_path_length = 1;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_pathfind_check_destination_save_path @ 0x4E401 (2 callers: the
+ * orchestrator fd2_pathfind_to_destination @ 0x4E1A6 for the initial
+ * origin-equals-destination check, and the mode-0/1 commit branch of
+ * fd2_pathfind_neighbor_step_with_tiebreak @ 0x4E330 on every step)
+ *
+ * Path-completion check: when the current tile (x, y) is the destination and the
+ * search reached it at a depth that is no worse than the best path found so far,
+ * record this depth as the new best and snapshot the current direction sequence
+ * (one direction byte per recursion level, taken from the step stack) into the
+ * path output buffer.
+ *
+ * In FD2.LE this is a register-passing leaf with no stack frame: the current
+ * tile coordinates ride in DL/DH and everything else is read from the pathfind
+ * globals; it has no CALL instructions and returns void. This emit passes x/y
+ * explicitly (DL/DH; the caller already holds them) and is otherwise a direct
+ * Layer-2 transcription -- same global reads/writes, same guard order, same loop.
+ *
+ *   x, y : current tile coordinates (DL/DH in the binary).
+ *
+ * The depth-vs-best test is unsigned (binary CMP AH,[best]; JA), and
+ * best_path_length is overwritten with the current depth as soon as that test
+ * passes -- before the depth-nonzero guard -- so a zero-depth arrival still
+ * lowers the best to 0 (binary stores AH into [0x60078], then OR AH,AH / JZ).
+ * The copy loop walks the step stack with an 8-byte stride, taking each frame's
+ * direction byte at [+3] (the binary's MOV AL,[ESI+3] / STOSB / ADD ESI,8), and
+ * runs current_depth times into successive output-buffer bytes. void return.
+ * ---------------------------------------------------------------- */
+void fd2_pathfind_check_destination_save_path(uint8 x, uint8 y)
+{
+    uint8 *out_iter;
+    uint8 *stack_iter;
+    uint8  remain;
+
+    if (x == data_fd2_battle_pathfind_dst_x
+        && y == data_fd2_battle_pathfind_dst_y
+        && data_fd2_battle_pathfind_current_depth
+               <= data_fd2_battle_pathfind_best_path_length) {
+        data_fd2_battle_pathfind_best_path_length =
+            data_fd2_battle_pathfind_current_depth;
+        if (data_fd2_battle_pathfind_current_depth != 0) {
+            stack_iter = data_fd2_battle_pathfind_step_stack;
+            out_iter = (uint8 *)data_fd2_battle_pathfind_path_output_buffer_ptr;
+            remain = data_fd2_battle_pathfind_current_depth;
+            do {
+                *out_iter = stack_iter[3];
+                stack_iter += 8;
+                out_iter += 1;
+                remain--;
+            } while (remain != 0);
+        }
+    }
+}

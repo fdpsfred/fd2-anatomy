@@ -1415,42 +1415,12 @@ void fd2_init_movement_range_floodfill(uint32 ct, uint32 x, uint32 y,
  * removed; the floodfill caller tests in tests/util/pathfnd.c now drive the
  * real helper and assert the resulting marker grid directly. */
 
-/* fd2_pathfind_check_destination_save_path @ 0x4E401 — the destination helper
- * called by the real fd2_pathfind_neighbor_step_with_tiebreak @ 0x4E330 on every
- * mode-0/1 commit (src/util/pathfnd.c). It is not yet emitted for real (its own
- * routing entry 0x4E401), so its faithful body lives here as a test stub so the
- * real neighbour step links. It is a pure pathfind-global routine: it snapshots
- * the current direction sequence as the new best path whenever the search reaches
- * the destination at a not-worse depth. The neighbour-step tests in
- * tests/util/pathfnd.c drive it end to end through the real step and assert the
- * resulting path output directly. When 0x4E401 is emitted for real this stub is
- * removed. (Its sibling fd2_pathfind_record_destination_xy @ 0x4E3B3 is now
- * emitted for real in src/util/pathfnd.c; its former stub here was removed.) */
-void fd2_pathfind_check_destination_save_path(uint8 x, uint8 y)
-{
-    uint8 *out_buf;
-    uint8 *stack_iter;
-    uint8  remain;
-
-    if (x == data_fd2_battle_pathfind_dst_x
-        && y == data_fd2_battle_pathfind_dst_y
-        && data_fd2_battle_pathfind_current_depth
-               <= data_fd2_battle_pathfind_best_path_length) {
-        data_fd2_battle_pathfind_best_path_length =
-            data_fd2_battle_pathfind_current_depth;
-        if (data_fd2_battle_pathfind_current_depth != 0) {
-            stack_iter = data_fd2_battle_pathfind_step_stack;
-            out_buf = (uint8 *)data_fd2_battle_pathfind_path_output_buffer_ptr;
-            remain = data_fd2_battle_pathfind_current_depth;
-            do {
-                *out_buf = stack_iter[3];
-                stack_iter += 8;
-                out_buf += 1;
-                remain--;
-            } while (remain != 0);
-        }
-    }
-}
+/* fd2_pathfind_check_destination_save_path @ 0x4E401: now emitted for real in
+ * src/util/pathfnd.c (its own routing entry). Its former faithful test stub here
+ * was removed; the neighbour-step tests in tests/util/pathfnd.c drive the real
+ * helper through the real step, and dedicated direct tests assert its
+ * destination-snapshot path output. (Its sibling fd2_pathfind_record_destination_xy
+ * @ 0x4E3B3 is likewise real in src/util/pathfnd.c.) */
 /* fd2_compute_aoe_targets: now in btl_ai.c */
 /* fd2_pan_cursor_to_char: already in cursor.c */
 

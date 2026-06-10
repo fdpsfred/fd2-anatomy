@@ -824,6 +824,95 @@ static void test_record_dst_flag_clear_noop(void)
     ASSERT_TRUE(ff_guards_intact());
 }
 
+/* --- direct path-completion tests (fd2_pathfind_check_destination_save_path
+ * @ 0x4E401, real-emitted in src/util/pathfnd.c). The function fires only when
+ * the passed (x, y) equals (dst_x, dst_y) AND current_depth <= best_path_length;
+ * on a fire it lowers best_path_length to current_depth and (when depth>0) copies
+ * current_depth direction bytes -- the [+3] byte of each 8-byte step-stack frame
+ * -- into the path output buffer. We drive it directly with seeded globals. */
+
+/* Arrival at the destination with a strictly shorter depth: best_path_length is
+ * lowered and the per-frame direction bytes are copied out with the 8-byte
+ * stride (each frame's [+3] byte), leaving the rest of the buffer untouched. */
+static void test_save_path_records_shorter(void)
+{
+    pf_reset();
+    data_fd2_battle_pathfind_dst_x = 7;
+    data_fd2_battle_pathfind_dst_y = 9;
+    data_fd2_battle_pathfind_current_depth = 3;
+    data_fd2_battle_pathfind_best_path_length = 5;   /* 3 <= 5 -> fires */
+    /* direction byte lives at frame[+3]; other frame bytes must be ignored */
+    data_fd2_battle_pathfind_step_stack[0 * 8 + 3] = 3;   /* right */
+    data_fd2_battle_pathfind_step_stack[1 * 8 + 3] = 1;   /* left  */
+    data_fd2_battle_pathfind_step_stack[2 * 8 + 3] = 2;   /* up    */
+    data_fd2_battle_pathfind_step_stack[3 * 8 + 3] = 0;   /* must NOT be copied */
+
+    fd2_pathfind_check_destination_save_path(7, 9);
+
+    ASSERT_EQ(data_fd2_battle_pathfind_best_path_length, 3);
+    ASSERT_EQ(pf_outbuf[0], 3);
+    ASSERT_EQ(pf_outbuf[1], 1);
+    ASSERT_EQ(pf_outbuf[2], 2);
+    ASSERT_EQ(pf_outbuf[3], 0);        /* loop stopped after 3 bytes */
+}
+
+/* Coordinate mismatch on either axis -> the routine is inert (no best update, no
+ * copy). Covers both the DL (x) and DH (y) guard branches. */
+static void test_save_path_wrong_xy_noop(void)
+{
+    pf_reset();
+    data_fd2_battle_pathfind_dst_x = 7;
+    data_fd2_battle_pathfind_dst_y = 9;
+    data_fd2_battle_pathfind_current_depth = 3;
+    data_fd2_battle_pathfind_best_path_length = 5;
+    data_fd2_battle_pathfind_step_stack[0 * 8 + 3] = 3;
+
+    fd2_pathfind_check_destination_save_path(6, 9);   /* x wrong */
+    ASSERT_EQ(data_fd2_battle_pathfind_best_path_length, 5);
+    ASSERT_EQ(pf_outbuf[0], 0);
+
+    fd2_pathfind_check_destination_save_path(7, 8);   /* y wrong */
+    ASSERT_EQ(data_fd2_battle_pathfind_best_path_length, 5);
+    ASSERT_EQ(pf_outbuf[0], 0);
+}
+
+/* At the destination but at a worse (deeper) depth than the best so far: the
+ * unsigned depth-vs-best test (binary JA) rejects, so best_path_length is left
+ * alone and nothing is copied. */
+static void test_save_path_worse_depth_rejected(void)
+{
+    pf_reset();
+    data_fd2_battle_pathfind_dst_x = 7;
+    data_fd2_battle_pathfind_dst_y = 9;
+    data_fd2_battle_pathfind_current_depth = 6;
+    data_fd2_battle_pathfind_best_path_length = 4;   /* 6 > 4 -> rejected */
+    data_fd2_battle_pathfind_step_stack[0 * 8 + 3] = 3;
+
+    fd2_pathfind_check_destination_save_path(7, 9);
+
+    ASSERT_EQ(data_fd2_battle_pathfind_best_path_length, 4);   /* unchanged */
+    ASSERT_EQ(pf_outbuf[0], 0);                                /* no copy */
+}
+
+/* Zero-depth arrival that still passes the depth-vs-best test: best_path_length
+ * is overwritten with 0 BEFORE the depth-nonzero guard (binary stores AH then
+ * OR AH,AH / JZ), but the copy loop is skipped. Exercises the assign-before-
+ * zero-check ordering. */
+static void test_save_path_zero_depth_sets_best_no_copy(void)
+{
+    pf_reset();
+    data_fd2_battle_pathfind_dst_x = 7;
+    data_fd2_battle_pathfind_dst_y = 9;
+    data_fd2_battle_pathfind_current_depth = 0;
+    data_fd2_battle_pathfind_best_path_length = 5;   /* 0 <= 5 -> fires */
+    data_fd2_battle_pathfind_step_stack[0 * 8 + 3] = 3;
+
+    fd2_pathfind_check_destination_save_path(7, 9);
+
+    ASSERT_EQ(data_fd2_battle_pathfind_best_path_length, 0);   /* set to 0 */
+    ASSERT_EQ(pf_outbuf[0], 0);                                /* loop skipped */
+}
+
 void run_util_pathfnd_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -857,5 +946,9 @@ void run_util_pathfnd_tests(void)
     RUN_TEST(test_pstep_cost_table_indexing);
     RUN_TEST(test_record_dst_flag_set_writes_xy);
     RUN_TEST(test_record_dst_flag_clear_noop);
+    RUN_TEST(test_save_path_records_shorter);
+    RUN_TEST(test_save_path_wrong_xy_noop);
+    RUN_TEST(test_save_path_worse_depth_rejected);
+    RUN_TEST(test_save_path_zero_depth_sets_best_no_copy);
     printf("\n");
 }

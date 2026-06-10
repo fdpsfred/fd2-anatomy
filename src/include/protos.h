@@ -228,8 +228,8 @@ int fd2_pathfind_neighbor_step_with_tiebreak(uint8 x, uint8 y, uint8 remaining_c
     uint8 *btm_attr_ptr, uint8 *new_cost_out);
 /* fd2_pathfind_record_destination_xy @ 0x4E3B3, fd2_pathfind_check_destination_save_path
  * @ 0x4E401: mode-2 / mode-0&1 destination helpers called by
- * fd2_pathfind_neighbor_step_with_tiebreak. Not yet emitted for real (own routing
- * entries); faithful stubs in tests/testglob.c. x/y = neighbour coords (binary DL/DH). */
+ * fd2_pathfind_neighbor_step_with_tiebreak (both real-emitted in src/util/pathfnd.c).
+ * x/y = neighbour coords (binary DL/DH). */
 void fd2_pathfind_record_destination_xy(uint8 x, uint8 y, uint8 *btm_attr_ptr);
 void fd2_pathfind_check_destination_save_path(uint8 x, uint8 y);
 void fd2_mark_char_occupant_tiles_for_team(uint32 exclude_idx, uint32 team_selector);

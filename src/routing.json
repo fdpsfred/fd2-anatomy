@@ -4701,8 +4701,9 @@
     "name": "fd2_pathfind_check_destination_save_path",
     "target": "util/pathfnd.c",
     "phase": 2,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004e445": {
     "name": "fd2_blit_palette_remap_with_sprite_mask",
