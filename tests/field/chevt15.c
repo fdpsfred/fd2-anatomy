@@ -630,6 +630,115 @@ static void test_ch17_event28_reload2_pan_and_shows_dialog_page1(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * handler 29 — fd2_chapter_event_handler_29__unref_drop @ 0x34FF0
+ *   dispatch idx 0x29 of the per-event handler table at 0x51B91. No chapter
+ *   FDFIELD hook references this slot (unref / possibly cut content); it runs
+ *   the tile-step ABI (dispatch arg = stepping char id = drop recipient). Its
+ *   beat is a straight-line, no-branch sequence (no RNG, no numeric computation,
+ *   no CALL-return value used), and unlike handler 27 it BRACKETS the drop with
+ *   two dialog pages:
+ *     - show dialog page 3;
+ *     - copy the inline 3-byte drop-entry blob
+ *       data_fd2_chapter_event_handler_29_drop_entry_inline (= {0x00, 0xD5,
+ *       0x00}: type 0 / item id 0xD5) onto a local;
+ *     - hand it as a one-entry array to the REAL fd2_process_battle_drop_entries
+ *       (recipient = stepping char id, count = 1, &blob);
+ *     - show dialog page 4 (via the borrowed alt_43 shared tail hosted in
+ *       handler 27).
+ *
+ * fd2_process_battle_drop_entries only opens the drop-reward UI when the
+ * recipient is on the player team (team == 2); for an enemy/NPC recipient it
+ * reads the entry and returns at once (item dialog suppressed). The full
+ * player-team item-grant UI (real "你獲得 X，要嗎？" dialog page 0x1B0 on
+ * data_fd2_all_game_text_ptr + portrait/paint/wait/close) is a pure display
+ * side effect deferred to Phase 9 integration; this suite drives the non-player
+ * recipient (team != 2) early-return path so the real drop processor runs end to
+ * end through its team gate without the heavy UI, then witnesses the handler's
+ * own page-3 + page-4 dialogs in order. The blob's byte-exactness (the only
+ * "computation" — the table copy source) is asserted directly against the const
+ * definition.
+ * ================================================================ */
+
+/* per-page-distinct-glyph dialog program (page p -> single glyph idx 0x50+p,
+ * then END), identical layout to g_ev27_dlg, so the dispatched page is
+ * identifiable by the recorded glyph idx. */
+static int16 g_ev29_dlg[0x11 + 2 * 0x11];
+
+static void ev29_install_env(void)
+{
+    int p;
+
+    /* shared real dialog-VM / safe env; points the runtime-char pointer at the
+     * shared g_ev_rc fixture and installs an immediate-END dialog program — both
+     * the program and the glyph recorder are overridden below. */
+    ev_install_safe_env();
+
+    for (p = 0; p <= 0x10; p++) {
+        g_ev29_dlg[p] = (int16)((0x11 + 2 * p) * 2);   /* byte offset of glyph */
+        g_ev29_dlg[0x11 + 2 * p] = (int16)(0x50 + p);  /* page p glyph idx */
+        g_ev29_dlg[0x12 + 2 * p] = -1;                  /* page p END */
+    }
+    current_chapter_text = (uint32)g_ev29_dlg;
+
+    /* no portrait open on entry, so the dialog END path skips the close
+     * sequence and returns at once (one glyph for each dispatched page). */
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+
+    /* reset the glyph recorder so the per-test count is clean. */
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+}
+
+/* ----------------------------------------------------------------
+ * The inline drop-entry blob baked into the binary at 0x52745 must be exactly
+ * {type 0, value 0x00D5} = item id 0xD5 — this is the source the handler's
+ * inline copy reads, so its byte-exactness is the one correctness gate for the
+ * copy semantics.
+ * ---------------------------------------------------------------- */
+static void test_ch15_event29_drop_entry_blob_is_item_0xd5(void)
+{
+    ASSERT_EQ((long)data_fd2_chapter_event_handler_29_drop_entry_inline[0],
+              (long)0x00);   /* entry type 0 = ITEM pickup */
+    ASSERT_EQ((long)data_fd2_chapter_event_handler_29_drop_entry_inline[1],
+              (long)0xD5);   /* value low byte */
+    ASSERT_EQ((long)data_fd2_chapter_event_handler_29_drop_entry_inline[2],
+              (long)0x00);   /* value high byte (LE uint16 0x00D5 = item id 0xD5) */
+}
+
+/* ----------------------------------------------------------------
+ * The handler fires its beat in order: dialog page 3, forward the inline drop
+ * entry to the REAL fd2_process_battle_drop_entries with the stepping char as
+ * recipient, then dialog page 4. Driven with a non-player recipient (team != 2)
+ * so the drop processor reads the entry and returns at its team gate (no item
+ * UI); the only dialogs that run are the handler's own page-3 and page-4 calls.
+ * Observable, deterministic contract: exactly TWO glyphs are emitted and the
+ * LAST is page 4's glyph (idx 0x54) — proving the handler reaches its page-4
+ * dispatch AFTER the real drop call returns, that the page-3 dialog also ran
+ * (count includes it), and that the drop processor emitted no dialog of its own
+ * (otherwise the count would exceed 2 or the last glyph would not be page 4's).
+ * ---------------------------------------------------------------- */
+static void test_ch15_event29_dialog3_drop_then_dialog4(void)
+{
+    ev29_install_env();
+
+    /* recipient = stepping char id 5; mark it a non-player (npc) unit so the
+     * real drop processor hits its team!=2 gate and returns after reading the
+     * entry (drop-reward UI suppressed). The other slots stay zeroed (team 0 =
+     * enemy), so a mis-targeted recipient would also be non-player. */
+    g_ev_rc[5].team = 1;
+
+    fd2_chapter_event_handler_29__unref_drop(5);
+
+    /* exactly two pages were shown (page 3 then page 4): the count is 2 and the
+     * LAST glyph is idx 0x54 (= 0x50 + page 4). The count of 2 also proves the
+     * drop processor ran no dialog of its own (it returned at the team gate). */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 2);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0x54);
+
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt15_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -640,5 +749,7 @@ void run_field_chevt15_tests(void)
     RUN_TEST(test_ch15_event27_drop_entry_blob_is_item_0xd3);
     RUN_TEST(test_ch15_event27_forwards_drop_then_shows_dialog_page0xb);
     RUN_TEST(test_ch17_event28_reload2_pan_and_shows_dialog_page1);
+    RUN_TEST(test_ch15_event29_drop_entry_blob_is_item_0xd5);
+    RUN_TEST(test_ch15_event29_dialog3_drop_then_dialog4);
     printf("\n");
 }
