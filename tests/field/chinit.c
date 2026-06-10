@@ -451,6 +451,35 @@
  * fd2_chapter_05_init (the same 0x3310C alt-entry fd2_chapter_11_init enters,
  * at the cutscene-trigger CALL); the emit reconstructs the equivalent
  * straight-line form. See src/emit_issues.json (000335da).
+ *
+ * fd2_chapter_19_20_21_init_shared @0x33674 is the game's ONLY three-chapter
+ * shared init (chapters 19/20/21) and, in the binary, a 10-byte PURE THUNK
+ * (PUSH 0x28; JMP 0x33470) that tail-jumps into the shared body owned by
+ * fd2_chapter_13_init (0x33470 = fd2_chapter_13_init + 5, its CALL __CHK site) —
+ * the SAME 0x33470 alt-entry that fd2_chapter_16_init also enters. Its executed
+ * path is therefore byte-identical to chapters 13 and 16, so it runs the
+ * IDENTICAL minimal/smallest-init body: re-init battle state, a single dialog
+ * page (page 0), pan the camera to char 0; NO cutscene, NO portrait load, NO
+ * char init, NO camera-pan-and-window prelude, NO battle_anim_phase reset, NO
+ * clear-facing, and zero global writes at all. It likewise has NO numeric
+ * computation, NO RNG, NO data-dependent branch, and NO CALL-result consumption
+ * (no EAX-bug exposure), and every callee (fd2_init_battle_state_for_chapter,
+ * fd2_display_dialog_scene, fd2_pan_cursor_to_char) is real-linked from src/ —
+ * the same fd2_display_dialog_scene -> fd2_wait_for_input_dialog_with_blink
+ * keyboard busy-wait hang applies to its single dialog page (here there is no
+ * portrait load or cutscene at all). Its behavioral test is therefore DEFERRED
+ * to Phase 9 on identical grounds to chapters 13/16 (and there is no state
+ * contract to assert — zero global writes); equivalence was verified statically,
+ * line-by-line, against the disassembly @0x33674 + the shared tail at 0x33470
+ * (PUSH 0x28 -> the __CHK frame check; CALL fd2_init_battle_state_for_chapter;
+ * then JMP 0x3344D into the same shared page-0 dialog chain used by chapters
+ * 06/10/13/14/16 — 0x3344D page-0 dialog-arg push owned by fd2_chapter_12_init
+ * -> 0x33206 the dialog call in fd2_chapter_07_init -> 0x33140 the pan + RET
+ * owned by fd2_chapter_05_init, entered directly without a clear-facing). The
+ * straight-line form is identical to the fd2_chapter_13_init body. Unlike the
+ * other chapter inits (one dispatch-table slot each), this single function is
+ * dispatched from THREE consecutive table slots (xrefs @0x51DB9 / 0x51DBD /
+ * 0x51DC1 = chapters 19/20/21). See src/emit_issues.json (00033674).
  */
 
 #include <stdio.h>
@@ -502,5 +531,8 @@ void run_field_chinit_tests(void)
            "src/emit_issues.json 000335aa)\n");
     printf("  (fd2_chapter_18_init: behavioral test deferred to Phase 9 "
            "integration; see src/emit_issues.json 000335da)\n");
+    printf("  (fd2_chapter_19_20_21_init_shared: pure thunk into chapter_13 "
+           "shared body (3-chapter shared init); behavioral test deferred to "
+           "Phase 9 integration; see src/emit_issues.json 00033674)\n");
     printf("\n");
 }

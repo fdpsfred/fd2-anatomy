@@ -1071,3 +1071,70 @@ void fd2_chapter_18_init(void)
     fd2_clear_all_chars_facing();
     fd2_pan_cursor_to_char(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_19_20_21_init_shared @ 0x33674  (dispatched, 0 direct
+ *                                              callers; 3 table slots)
+ *
+ * Chapters 19/20/21 shared init handler — the game's ONLY three-chapter
+ * shared init. In the binary it is a 10-byte PURE THUNK (PUSH 0x28;
+ * JMP 0x33470) that tail-jumps into the shared body owned by
+ * fd2_chapter_13_init (0x33470 = fd2_chapter_13_init + 5, its CALL
+ * __CHK site) — the SAME entry that fd2_chapter_16_init also tail-JMPs
+ * into. It therefore runs the IDENTICAL body to fd2_chapter_13_init
+ * @0x3346B and fd2_chapter_16_init @0x335A0: re-init battle state, play
+ * a single dialog page (page 0), pan the camera to char 0. There is NO
+ * cutscene, NO portrait load, NO char init, NO camera-pan-and-window
+ * prelude, NO data_fd2_battle_anim_phase reset, and NO clear-facing —
+ * a member of the minimal/smallest init family (cf. chapter 13
+ * @0x3346B / chapter 16 @0x335A0 / chapter 06 @0x3314B). The three
+ * chapters share one init because their opening battle-id is selected
+ * by current_chapter_id inside fd2_init_battle_state_for_chapter; all
+ * chapter-specific behavior lives in each chapter's own post-action /
+ * end handler.
+ *
+ * It is dispatched from THREE consecutive slots of the chapter-init
+ * data table (xrefs @0x51DB9 / 0x51DBD / 0x51DC1 = chapters 19/20/21);
+ * unlike the other chapter inits (one table slot each), this single
+ * function backs all three. It has 0 direct callers.
+ *
+ * void __cdecl, no real params, void return. The leading __CHK(0x28)
+ * stack-probe (the PUSH 0x28 here, consumed by the shared CALL __CHK at
+ * 0x33470) is the Watcom-injected frame-size check and is not part of
+ * the source body.
+ *
+ * In the binary the whole body after the frame check is reached by the
+ * tail-JMP 0x33679 -> 0x33470 (= fd2_chapter_13_init + 5): CALL
+ * fd2_init_battle_state_for_chapter, then JMP 0x3344D into the same
+ * shared page-0 dialog chain used by chapters 06/10/13/14/16 — 0x3344D
+ * (page-0 dialog-arg push, owned by fd2_chapter_12_init) -> 0x33206
+ * (the fd2_display_dialog_scene call, in fd2_chapter_07_init) -> 0x33140
+ * (the fd2_pan_cursor_to_char(0) + RET tail, owned by fd2_chapter_05_init,
+ * entered directly without a clear-facing). The straight-line form here
+ * is the functionally-equivalent (Layer 2) reconstruction — identical to
+ * the fd2_chapter_13_init body, as documented at its 0x33470 alt-entry.
+ *
+ * Linked handlers:
+ *   Ends:        fd2_chapter_19_end @ 0x23E39
+ *                fd2_chapter_20_end @ 0x23E74
+ *                fd2_chapter_21_end @ 0x240FA
+ *   Post-action: fd2_chapter_19_post_action @ 0x20926
+ *                  (gated lose if save_metadata > 6 AND char[0x40] dead
+ *                   — 巴拿羅西亞)
+ *                fd2_chapter_20_post_action @ 0x20957
+ *                  (largest non-default handler — 3-stage NPC
+ *                   group/single/merge win)
+ *                fd2_chapter_21_post_action @ 0x20A51
+ *                  (extra lose if char[0x10] OR char[0x11] dead
+ *                   — 羅蘭/希爾法)
+ *
+ * Walkthrough SOT: assets/chapters/chapter_19.md, chapter_20.md,
+ *                  chapter_21.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_19_20_21_init_shared(void)
+{
+    fd2_init_battle_state_for_chapter();
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_pan_cursor_to_char(0);
+}
