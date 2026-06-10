@@ -1,5 +1,5 @@
 /*
- * unit tests for src/field/chevt1.c (part 5: handlers 0D, 12, 26, 27, 28, 29, 2A)
+ * unit tests for src/field/chevt1.c (part 5: handlers 0D, 12, 26, 27, 28, 29, 2A, 2B)
  *
  * The chapter turn-event handlers in src/field/chevt1.c are dispatched as
  * indices of the per-event handler table at 0x51B91. Parts 1..4 (chevt11.c /
@@ -834,6 +834,70 @@ static void test_ch18_event2a_reload1_and_shows_dialog_page6(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * handler 2B — fd2_chapter_event_handler_2b__ch18_ai_ctrl @ 0x35091
+ *   chapter 18 turn-event slot 0, fired at turn 3 / phase 0. Its beat is a
+ *   straight-line single call (no dialog, no RNG, no numeric computation, no
+ *   CALL-return value used):
+ *     - the per-event AI/dialog control flag (low nibble of combat_aux_block[0xD],
+ *       struct offset 0x34) is set to 3 for the SINGLE runtime-char slot 0x10
+ *       (the inclusive range [0x10, 0x10] is one char wide) via the real range
+ *       setter fd2_set_combat_aux_block_byte_d_low4_for_char_range (which masks
+ *       the byte to (old & 0xF0) | new_val, so only the low nibble moves and the
+ *       high nibble survives).
+ *
+ * The single callee is REAL. The only write lands on index 0x10, well inside the
+ * shared g_ev_rc[0x48] fixture (max index 0x47), so no private oversized array
+ * is needed and no dialog program / glyph recorder is involved. The handler's
+ * distinguishing feature is the SINGLE-char [0x10, 0x10] range, so the boundary
+ * guards (chars 0x0F below and 0x11 above) are the load-bearing assertions.
+ * ================================================================ */
+
+/* Seed combat_aux_block[0xD] of the touched char (and the boundary guards) to
+ * 0xA5 (high nibble 0xA must survive, low nibble 0x5 must move to 3), and the
+ * in-slot neighbour bytes [0xC]/[0xE] to distinct sentinels so the low-nibble-
+ * only write is independently witnessed. */
+static void ev2b_seed(void)
+{
+    g_ev_rc[0x10].combat_aux_block[0xD] = 0xA5;
+    g_ev_rc[0x10].combat_aux_block[0xC] = 0xCC;   /* in-slot neighbour guard */
+    g_ev_rc[0x10].combat_aux_block[0xE] = 0xEE;   /* in-slot neighbour guard */
+
+    /* chars just outside the single-char range: must stay at their sentinel. */
+    g_ev_rc[0x0F].combat_aux_block[0xD] = 0xA5;    /* below range */
+    g_ev_rc[0x11].combat_aux_block[0xD] = 0xA5;    /* above range */
+}
+
+/* ----------------------------------------------------------------
+ * The handler fires its one beat: set the AI flag of char 0x10 only
+ * ([0xD] low nibble 3). All deterministic and observable; checked in one pass.
+ * ---------------------------------------------------------------- */
+static void test_ch18_event2b_sets_ai_flag3_single_char_0x10(void)
+{
+    /* ev_install_safe_env zeroes g_ev_rc and points the runtime-char pointer at
+     * it; this handler only needs that pointer (it never touches the dialog VM). */
+    ev_install_safe_env();
+    ev2b_seed();
+
+    fd2_chapter_event_handler_2b__ch18_ai_ctrl(0);
+
+    /* (1) char 0x10 [0xD] low nibble set to 3, high nibble preserved
+     * (0xA5 -> 0xA3). */
+    ASSERT_EQ((long)g_ev_rc[0x10].combat_aux_block[0xD], (long)0xA3);
+
+    /* (2) the range is exactly one char wide: the chars just below (0x0F) and
+     * above (0x11) keep their seeded sentinel — load-bearing for [0x10, 0x10]. */
+    ASSERT_EQ((long)g_ev_rc[0x0F].combat_aux_block[0xD], (long)0xA5);
+    ASSERT_EQ((long)g_ev_rc[0x11].combat_aux_block[0xD], (long)0xA5);
+
+    /* (3) in-slot neighbour bytes survive: the low-nibble-only [0xD] write did
+     * not touch [0xC] or [0xE]. */
+    ASSERT_EQ((long)g_ev_rc[0x10].combat_aux_block[0xC], (long)0xCC);
+    ASSERT_EQ((long)g_ev_rc[0x10].combat_aux_block[0xE], (long)0xEE);
+
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt15_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -847,5 +911,6 @@ void run_field_chevt15_tests(void)
     RUN_TEST(test_ch15_event29_drop_entry_blob_is_item_0xd5);
     RUN_TEST(test_ch15_event29_dialog3_drop_then_dialog4);
     RUN_TEST(test_ch18_event2a_reload1_and_shows_dialog_page6);
+    RUN_TEST(test_ch18_event2b_sets_ai_flag3_single_char_0x10);
     printf("\n");
 }
