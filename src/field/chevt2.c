@@ -1200,3 +1200,73 @@ void fd2_chapter_event_handler_4b__ch29_major_cinematic(uint32 stepping_char_id)
             (uint8)data_fd2_battle_turn_counter;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_4c__ch29_major_cinematic @ 0x35D60
+ *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CC1)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x4C. Triggered
+ * in chapter 29 at turn-event slot 1 (turn=0xFF / phase=2). Category: endgame
+ * multi-stage cinematic. Dispatch-table signature is 1-arg cdecl
+ * (void fn(uint event_arg)); this handler does not read the arg.
+ *
+ * Effect: ch29 endgame multi-stage cinematic driven by a stage counter in
+ * tile_event_consumed_flags[0x11] (read zero-extended).
+ *   stage != 4 (the priming phase, stages 0..3): mark the acting char done for
+ *     this turn, advance the stage byte (consumed_flags[0x11]++), and schedule
+ *     the next turn-event by writing turn_counter + 1 into the turn-event hook
+ *     table at tile_event_data_table[+6] (hook entry 1's turn byte). Each of the
+ *     first four invocations runs this priming path, advancing the stage 0 -> 4.
+ *   stage == 4 (the 5th invocation): trigger the main cinematic — show the
+ *     full-screen page-2 dialog, swap to portrait set 1, prime a downstream
+ *     handler's slot by writing party_member_count - 3 into
+ *     consumed_flags[0x15], schedule slot +9 by writing turn_counter into
+ *     tile_event_data_table[+9] (hook entry 2's turn byte), play two white-flash
+ *     pulses (400ms between them), then loop pages 3..6 each preceded by a
+ *     white-flash pulse.
+ *
+ * The turn counter feeding the data-table stores is read as a single byte: the
+ * priming +6 store increments it in 8-bit (MOV AL,[turn_counter] / INC AL) while
+ * the cinematic +9 store writes it verbatim; the party_member_count - 3 store
+ * is likewise 8-bit (MOV AL,[party_member_count] / SUB AL,3). The (uint8)
+ * truncations on store reproduce that 8-bit arithmetic exactly. The page loop
+ * variable lives in a 1-byte stack slot, runs values 3,4,5,6 (binary inits it
+ * to 3, jumps to the signed JLE 6 test, so 3..6 inclusive). Stack frame 0x30
+ * (__CHK) is the Watcom stack-probe prologue and carries no source-level
+ * semantics.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_4c__ch29_major_cinematic(uint32 event_arg)
+{
+    uint8 page;
+
+    (void)event_arg;
+
+    if (*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x11) != 4) {
+        fd2_mark_char_acted_this_turn(1);
+        *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x11) =
+            (uint8)(*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x11) + 1);
+        *(uint8 *)(data_fd2_tile_event_data_table_ptr + 6) =
+            (uint8)(data_fd2_battle_turn_counter + 1);
+        return;
+    }
+
+    fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_load_chapter_portraits_and_dump_tmp(1);
+
+    *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x15) =
+        (uint8)((uint8)data_fd2_battle_party_member_count - 3);
+    *(uint8 *)(data_fd2_tile_event_data_table_ptr + 9) =
+        (uint8)data_fd2_battle_turn_counter;
+
+    fd2_animate_palette_flash_pulse_white();
+    __delay_thunk_375b2(400);
+    fd2_animate_palette_flash_pulse_white();
+    __delay_thunk_375b2(400);
+
+    for (page = 3; page < 7; page = page + 1) {
+        fd2_animate_palette_flash_pulse_white();
+        fd2_display_dialog_scene(current_chapter_text, (uint32)page, 0xA0000,
+                                 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
+    }
+}

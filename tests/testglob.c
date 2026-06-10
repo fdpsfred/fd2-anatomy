@@ -816,6 +816,22 @@ void __delay_thunk_375b2(uint32 ticks)
  * body. */
 void fd2_delay_400ms_via_idle_thunk(void) { __delay_thunk_375b2(400); }
 
+/* fd2_animate_palette_flash_pulse_white @ 0x35E5A: a separately-routed real
+ * function (target src/anim/aniui.c, not yet emitted) whose body is the
+ * ~1.4s pulse-white palette flash (a 64-step fade-up, 400ms peak hold, 63-step
+ * fade-down, all driven through fd2_set_vga_palette_range_with_add +
+ * __delay_thunk_375b2). The ch29 endgame handler_4c fires it six times, so a
+ * real run would churn ~750 palette writes and ~750 delay-log entries with no
+ * value to that handler's risk-bearing logic (its branch, the 8-bit
+ * party_member_count-3 / turn-counter stores, and the flash/dialog sequencing).
+ * The recording stub counts invocations so the caller can pin the exact flash
+ * count without that churn; remove when aniui.c emits the real body. */
+int g_palette_flash_pulse_white_calls = 0;
+void fd2_animate_palette_flash_pulse_white(void)
+{
+    g_palette_flash_pulse_white_calls++;
+}
+
 /* fd2_cinematic_chapter_portrait_dump_with_white_flash is now a real emitted
  * function (src/field/chevt2.c); its former (x, y, id) recording stub here was
  * removed. The handler_34 + wrap-thunk suites that used to spy on this stub now

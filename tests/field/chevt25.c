@@ -76,6 +76,7 @@
 #include "globals.h"
 #include "protos.h"
 #include "minipfix.h"   /* minip_setup_env: sprite sheet + dialog-blit spies (h4b) */
+#include "audiofix.h"   /* audiofix_make_bank / audiofix_enable_sfx (h4c dialog VM) */
 
 extern runtime_char g_test_rc_array[8];
 
@@ -84,6 +85,7 @@ extern int    g_composite_call_count;
 extern int    g_delay375b2_log_on;
 extern int    g_delay375b2_log_count;
 extern uint32 g_delay375b2_log[16];
+extern int    g_dlg_glyph_calls;        /* dialog VM glyph-blit counter (h4c) */
 
 /* ---- portrait-loader fixture: a tile-event table of `count` records (stride
  * 0x1A) whose race bytes (+0x98) are races[k]; alloc_offset = count drives the
@@ -871,6 +873,324 @@ static void test_h4b_scheduler_arithmetic_is_8bit(void)
     ce4b_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_4c__ch29_major_cinematic @ 0x35D60
+ *
+ * ch29 endgame multi-stage cinematic (dispatch idx 0x4C @ table 0x51B91). Body
+ * (1-arg cdecl; arg ignored):
+ *   stage = tile_event_consumed_flags[0x11];           (MOVZX, zero-extended)
+ *   if (stage != 4):                                    -- priming phase (0..3)
+ *     fd2_mark_char_acted_this_turn(1)                  -- set char[1] acted bit
+ *     tile_event_consumed_flags[0x11]++                 -- advance the stage (8-bit)
+ *     tile_event_data_table[+6] = (uint8)(turn_counter + 1)  -- arm hook 1 next turn
+ *     return
+ *   // stage == 4: the 5th call triggers the main cinematic
+ *   page-2 dialog (0xA0000)
+ *   fd2_load_chapter_portraits_and_dump_tmp(1)          -- portrait set 1
+ *   tile_event_consumed_flags[0x15] = (uint8)(party_member_count - 3)  -- prime downstream
+ *   tile_event_data_table[+9] = (uint8)turn_counter     -- arm hook 2 this turn (verbatim)
+ *   flash; delay(400); flash; delay(400)                -- 2-flash intro
+ *   for (page = 3; page < 7; page++): flash; page-`page` dialog (0xA0000)  -- 4 paired
+ *
+ * Risk-bearing (control-flow branch on stage==4, three 8-bit state stores incl.
+ * the party_member_count-3 subtraction and the turn+1 vs turn-verbatim split, and
+ * the flash/dialog sequencing). The priming path has no heavy callees and is
+ * driven over real in-memory buffers + the real fd2_mark_char_acted_this_turn.
+ * The cinematic path is driven over the REAL dialog VM (immediate-END page
+ * programs so each call returns without a page-break wait) + the REAL portrait
+ * loader (alloc_offset 0 -> the race scan is a host-safe no-op, leaving
+ * party_member_count exactly as seeded so the -3 store is deterministic); the six
+ * fd2_animate_palette_flash_pulse_white calls go through the testglob recording
+ * stub (the real ~1.4s pulse is a separately-routed unemitted function and pure
+ * display). The dialog glyph pixels and the white-flash palette churn are pure
+ * display side effects deferred to Phase 9; what is asserted is the handler's own
+ * routing: the branch, the exact-offset/exact-value/8-bit state stores, and the
+ * flash(6)/dialog(5) sequence counts.
+ *
+ * Own in-memory fixtures (own flags + data-table buffers, own runtime_char array)
+ * so the suite never aliases the h48/h49/h4a/h4b state.
+ * ================================================================ */
+extern int g_palette_flash_pulse_white_calls;
+
+/* ---- priming-path fixture: flags buffer (stage at [0x11]) + data-table buffer
+ * (+6 scheduler target) + a runtime_char array (char[1] receives the acted bit) +
+ * turn counter. No heavy callees on this path. */
+static uint8        g_ce4c_flags[0x20];
+static uint8        g_ce4c_dtable[0x10];
+static runtime_char g_ce4c_rc[8];
+
+static void ce4c_prime_setup(uint8 stage, uint8 turn)
+{
+    memset(g_ce4c_flags, 0, sizeof(g_ce4c_flags));
+    memset(g_ce4c_dtable, 0, sizeof(g_ce4c_dtable));
+    memset(g_ce4c_rc, 0, sizeof(g_ce4c_rc));
+    g_ce4c_flags[0x11] = stage;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ce4c_flags;
+    data_fd2_tile_event_data_table_ptr = (uint32)g_ce4c_dtable;
+    data_fd2_battle_runtime_char_array_ptr = g_ce4c_rc;
+    data_fd2_battle_turn_counter = turn;
+
+    g_palette_flash_pulse_white_calls = 0;
+    g_dlg_glyph_calls = 0;
+}
+
+static void ce4c_prime_teardown(void)
+{
+    data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
+    data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_turn_counter = 0;
+    g_palette_flash_pulse_white_calls = 0;
+}
+
+/* ---- cinematic-path fixture: the priming buffers PLUS the dialog VM env
+ * (immediate-END program for pages 2..6) PLUS the portrait-loader env with
+ * alloc_offset 0 (race scan is a host-safe no-op, so party_member_count stays as
+ * seeded for the -3 store). The +9 scheduler store and the loader's (skipped)
+ * race scan both reference data_fd2_tile_event_data_table_ptr; a single buffer
+ * large enough for the +0x98-based scan base serves both without collision since
+ * alloc_offset 0 means the scan never reads it. */
+static uint8 *g_ce4c_cine_dtable;   /* +9 scheduler target AND loader scan base   */
+static int16  g_ce4c_text[0x10];    /* page headers 2..6 -> shared 1-glyph+END body */
+
+static void ce4c_cine_setup(uint8 party_count, uint8 turn)
+{
+    int i;
+
+    /* handler state: stage forced to 4 (cinematic branch), data-table + flags.
+     * The data table is sized past +0x98 so the loader's scan base is in bounds
+     * even though alloc_offset 0 makes the scan a no-op. */
+    memset(g_ce4c_flags, 0, sizeof(g_ce4c_flags));
+    memset(g_ce4c_rc, 0, sizeof(g_ce4c_rc));
+    g_ce4c_cine_dtable = (uint8 *)malloc(0x98 + 0x20);
+    memset(g_ce4c_cine_dtable, 0, 0x98 + 0x20);
+    g_ce4c_flags[0x11] = 4;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ce4c_flags;
+    data_fd2_tile_event_data_table_ptr = (uint32)g_ce4c_cine_dtable;
+    data_fd2_battle_runtime_char_array_ptr = g_ce4c_rc;
+    data_fd2_battle_turn_counter = turn;
+    data_fd2_battle_party_member_count = party_count;
+
+    /* portrait loader: alloc_offset 0 -> the for-scan never iterates, so
+     * fd2_init_runtime_char_for_battle never runs and party_member_count is left
+     * untouched. The loader still re-reads FDFIELD.DAT + rewrites FD2.TMP. */
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_init_phase_flag = 1;
+    data_fd2_chapter_current_chapter_id = 4;        /* re-read idx = 4*3+2 = 0xE */
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_resource_portrait_cache_count = 0;
+    data_fd2_resource_portrait_cache_buffer_used = 0;
+
+    /* dialog VM program: page headers 2..6 each point at a shared 1-glyph + END
+     * body (byte offset 14 = int16 index 7). Each of the 5 dialog calls renders
+     * exactly one glyph then returns (no page-break wait). */
+    for (i = 0; i < 0x10; i++) {
+        g_ce4c_text[i] = 0;
+    }
+    for (i = 2; i <= 6; i++) {
+        g_ce4c_text[i] = (int16)(7 * 2);            /* byte offset of the body */
+    }
+    g_ce4c_text[7] = 0x41;                            /* TEXT glyph */
+    g_ce4c_text[8] = -1;                              /* END */
+    current_chapter_text = (uint32)(uint8 *)g_ce4c_text;
+
+    /* deterministic dialog VM env: empty BIOS keyboard buffer + audio gated +
+     * no active portrait so END takes neither the page-break wait nor the
+     * portrait-close path. */
+    *(volatile uint16 *)0x41AuL = 0x20;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    audiofix_enable_sfx();
+    data_fd2_audio_fdother_sfx_bank_buf_ptr = audiofix_make_bank(0x1F);
+
+    g_palette_flash_pulse_white_calls = 0;
+    g_dlg_glyph_calls = 0;
+    g_delay375b2_log_on = 1;
+    g_delay375b2_log_count = 0;
+}
+
+static void ce4c_cine_teardown(void)
+{
+    free(g_ce4c_cine_dtable);
+    g_ce4c_cine_dtable = 0;
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
+    data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_init_phase_flag = 0;
+    data_fd2_chapter_current_chapter_id = 1;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_battle_turn_counter = 0;
+    current_chapter_text = 0;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    g_palette_flash_pulse_white_calls = 0;
+    g_delay375b2_log_on = 0;
+    g_delay375b2_log_count = 0;
+    remove("FD2.TMP");        /* generated swap file (not a staged game file) */
+}
+
+/* ----------------------------------------------------------------
+ * PRIMING path (stage != 4): the first four invocations each mark char 1 acted,
+ * advance the stage byte, and arm the next turn-event. Seed stage=0, turn=0x40:
+ * after the call char[1]'s acted bit (flags +5, 0x80) is set, the stage byte
+ * (flags[0x11]) is 1, and hook entry 1 (data_table[+6]) holds 0x41 (turn+1).
+ * NO flash and NO dialog run on this path (it returns before the cinematic). The
+ * dispatch arg is passed nonzero to prove it is ignored, and the immediate
+ * neighbours of both stores are pinned.
+ * ---------------------------------------------------------------- */
+static void test_h4c_priming_marks_acted_advances_stage_schedules(void)
+{
+    ce4c_prime_setup(0, 0x40);
+    g_ce4c_dtable[5] = 0xAA;            /* +5 neighbour decoy */
+    g_ce4c_dtable[7] = 0xBB;            /* +7 neighbour decoy */
+    g_ce4c_flags[0x10] = 0xCC;          /* flags neighbour decoys around 0x11 */
+    g_ce4c_flags[0x12] = 0xDD;
+
+    fd2_chapter_event_handler_4c__ch29_major_cinematic(0x77);
+
+    /* fd2_mark_char_acted_this_turn(1) set char[1]'s acted bit */
+    ASSERT_EQ((long)(g_ce4c_rc[1].flags & CHARFLAG_ACTED), CHARFLAG_ACTED);
+    /* char 0 was NOT touched (the call targets index 1, not the dispatch arg) */
+    ASSERT_EQ((long)(g_ce4c_rc[0].flags & CHARFLAG_ACTED), 0);
+    /* the stage byte advanced 0 -> 1 */
+    ASSERT_EQ((long)g_ce4c_flags[0x11], 1);
+    /* hook entry 1 (data_table[+6]) = turn_counter + 1 = 0x41 */
+    ASSERT_EQ((long)g_ce4c_dtable[6], 0x41);
+    /* only +6 changed: immediate neighbours intact */
+    ASSERT_EQ((long)g_ce4c_dtable[5], 0xAA);
+    ASSERT_EQ((long)g_ce4c_dtable[7], 0xBB);
+    /* only [0x11] changed: flags neighbours intact */
+    ASSERT_EQ((long)g_ce4c_flags[0x10], 0xCC);
+    ASSERT_EQ((long)g_ce4c_flags[0x12], 0xDD);
+    /* the cinematic did NOT run: no flash, no dialog */
+    ASSERT_EQ((long)g_palette_flash_pulse_white_calls, 0);
+    ASSERT_EQ((long)g_dlg_glyph_calls, 0);
+
+    ce4c_prime_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * PRIMING path 8-bit arithmetic: the stage advance is INC byte ptr and the +6
+ * store is (uint8)(turn_counter + 1) (binary MOV AL,[turn] / INC AL). Seed
+ * stage=3, turn=0xFF: the stage byte advances 3 -> 4 (so the NEXT call will take
+ * the cinematic branch), and +6 wraps to 0x00 (= (uint8)(0xFF + 1)), pinning the
+ * 8-bit truncation of the +1 store.
+ * ---------------------------------------------------------------- */
+static void test_h4c_priming_stage_advance_and_schedule_are_8bit(void)
+{
+    ce4c_prime_setup(3, 0xFF);
+
+    fd2_chapter_event_handler_4c__ch29_major_cinematic(0);
+
+    /* stage advanced 3 -> 4 (the priming phase ends here; next call is cinematic) */
+    ASSERT_EQ((long)g_ce4c_flags[0x11], 4);
+    /* +6 = (uint8)(0xFF + 1) = 0x00 */
+    ASSERT_EQ((long)g_ce4c_dtable[6], 0x00);
+    /* still the priming path: no cinematic side effects */
+    ASSERT_EQ((long)g_palette_flash_pulse_white_calls, 0);
+    ASSERT_EQ((long)g_dlg_glyph_calls, 0);
+
+    ce4c_prime_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * CINEMATIC path (stage == 4): the 5th call triggers the main cinematic. It must
+ * NOT run the priming-path side effects (no acted bit, the stage byte is left at
+ * 4 — the cinematic branch never increments [0x11]) and instead perform the two
+ * cinematic state stores plus the flash/dialog sequence. Seed party_count=10 and
+ * turn=0x40 (alloc_offset 0 keeps party_count untouched by the loader): after the
+ * call flags[0x15] = (uint8)(10 - 3) = 7, hook entry 2 (data_table[+9]) = 0x40
+ * (turn verbatim), and the priming-only stores did NOT fire.
+ * ---------------------------------------------------------------- */
+static void test_h4c_stage4_triggers_cinematic_not_priming(void)
+{
+    ce4c_cine_setup(10, 0x40);
+
+    fd2_chapter_event_handler_4c__ch29_major_cinematic(0x77);
+
+    /* the cinematic branch does NOT mark char 1 acted (priming-only) */
+    ASSERT_EQ((long)(g_ce4c_rc[1].flags & CHARFLAG_ACTED), 0);
+    /* the cinematic branch does NOT advance the stage: [0x11] stays 4 */
+    ASSERT_EQ((long)g_ce4c_flags[0x11], 4);
+    /* downstream prime: flags[0x15] = (uint8)(party_member_count - 3) = 7 */
+    ASSERT_EQ((long)g_ce4c_flags[0x15], 7);
+    /* hook entry 2 (data_table[+9]) = turn_counter verbatim = 0x40 */
+    ASSERT_EQ((long)g_ce4c_cine_dtable[9], 0x40);
+
+    ce4c_cine_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * CINEMATIC store widths: flags[0x15] = (uint8)(party_member_count - 3) is 8-bit
+ * (binary MOV AL,[party_member_count] / SUB AL,3) and data_table[+9] =
+ * (uint8)turn_counter is a verbatim byte (no +1, distinct from the priming +6
+ * store). Seed party_count=2 -> flags[0x15] = (uint8)(2 - 3) = 0xFF (8-bit
+ * borrow/wrap), and turn=0xFF -> data_table[+9] = 0xFF (verbatim). The +6 slot
+ * (the priming scheduler target) must stay 0 on the cinematic path, pinning the
+ * +9-vs-+6 distinction, and the neighbours of both stores are pinned.
+ * ---------------------------------------------------------------- */
+static void test_h4c_stage4_stores_are_8bit_and_at_exact_offsets(void)
+{
+    ce4c_cine_setup(2, 0xFF);
+    g_ce4c_cine_dtable[8]  = 0xAA;      /* +8 neighbour decoy (just below +9) */
+    g_ce4c_cine_dtable[10] = 0xBB;      /* +10 neighbour decoy (just above +9) */
+    g_ce4c_flags[0x14] = 0xCC;          /* flags neighbour decoys around 0x15 */
+    g_ce4c_flags[0x16] = 0xDD;
+
+    fd2_chapter_event_handler_4c__ch29_major_cinematic(0);
+
+    /* flags[0x15] = (uint8)(2 - 3) = 0xFF (8-bit subtraction wraps) */
+    ASSERT_EQ((long)g_ce4c_flags[0x15], 0xFF);
+    /* data_table[+9] = (uint8)0xFF = 0xFF (verbatim turn, no +1) */
+    ASSERT_EQ((long)g_ce4c_cine_dtable[9], 0xFF);
+    /* the priming +6 scheduler store did NOT fire on the cinematic path */
+    ASSERT_EQ((long)g_ce4c_cine_dtable[6], 0);
+    /* only +9 changed in the data table: neighbours intact */
+    ASSERT_EQ((long)g_ce4c_cine_dtable[8], 0xAA);
+    ASSERT_EQ((long)g_ce4c_cine_dtable[10], 0xBB);
+    /* only [0x15] changed in the flags: neighbours intact */
+    ASSERT_EQ((long)g_ce4c_flags[0x14], 0xCC);
+    ASSERT_EQ((long)g_ce4c_flags[0x16], 0xDD);
+
+    ce4c_cine_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * CINEMATIC flash/dialog sequence: a 2-flash intro then a 4-iteration loop, each
+ * iteration a flash + a dialog (pages 3,4,5,6), preceded by the lone page-2
+ * dialog. That is exactly 6 flashes and 5 dialogs, with the structural relation
+ * flashes == dialogs + 1 (the two intro flashes minus the lone page-2 dialog).
+ * The two 400ms intro holds land in the delay log as the first two entries. Each
+ * of the 5 dialog calls renders exactly one glyph (immediate-END pages) so the
+ * glyph count is 5. The dispatch arg is ignored.
+ * ---------------------------------------------------------------- */
+static void test_h4c_stage4_flash_and_dialog_sequence_counts(void)
+{
+    ce4c_cine_setup(5, 0x10);
+
+    fd2_chapter_event_handler_4c__ch29_major_cinematic(0x33);
+
+    /* six pulse-white flashes: 2 intro + 4 in the page loop */
+    ASSERT_EQ((long)g_palette_flash_pulse_white_calls, 6);
+    /* five dialogs (page 2 + pages 3,4,5,6), one glyph each */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 5);
+    /* the two intro 400ms holds are the first two delay-log entries */
+    ASSERT_TRUE(g_delay375b2_log_count >= 2);
+    ASSERT_EQ((long)g_delay375b2_log[0], 400);
+    ASSERT_EQ((long)g_delay375b2_log[1], 400);
+
+    ce4c_cine_teardown();
+}
+
 void run_field_chevt25_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -890,5 +1210,11 @@ void run_field_chevt25_tests(void)
     RUN_TEST(test_h4b_enemy_team_zero_skips_entirely);
     RUN_TEST(test_h4b_already_consumed_slot_skips);
     RUN_TEST(test_h4b_scheduler_arithmetic_is_8bit);
+    RUN_TEST(test_h4c_priming_marks_acted_advances_stage_schedules);
+    RUN_TEST(test_h4c_priming_stage_advance_and_schedule_are_8bit);
+    RUN_TEST(test_h4c_stage4_triggers_cinematic_not_priming);
+    RUN_TEST(test_h4c_stage4_stores_are_8bit_and_at_exact_offsets);
+    RUN_TEST(test_h4c_stage4_flash_and_dialog_sequence_counts);
+    audiofix_disable_sfx();   /* restore safe gate state for later suites */
     printf("\n");
 }

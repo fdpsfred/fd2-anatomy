@@ -184,6 +184,7 @@ void fd2_composite_battle_frame(int skip_palette_cycle);
 /* ---- graphics / palette ---- */
 void fd2_set_vga_palette_range(uint32 start_idx, uint32 end_idx, uint32 brightness_subtract);
 void fd2_set_vga_palette_range_with_add(uint32 start_idx, uint32 end_idx, uint32 brightness_add);
+void fd2_animate_palette_flash_pulse_white(void);
 void fd2_set_full_vga_palette_to_color(uint32 r, uint32 g, uint32 b);
 void fd2_palette_overbright_settle_step_loop(uint32 start_intensity, uint32 step_delay_ms);
 void fd2_interpolate_palette_range_toward_color(uint32 start_idx, uint32 end_idx, uint32 blend, uint32 target_r, uint32 target_g, uint32 target_b);
@@ -232,6 +233,7 @@ void fd2_chapter_event_handler_48__unref_ai_ctrl(uint32 event_arg);
 void fd2_chapter_event_handler_49__unref_sentinel(uint32 event_arg);
 void fd2_chapter_event_handler_4a__ch29_dyn_turn_event(uint32 event_arg);
 void fd2_chapter_event_handler_4b__ch29_major_cinematic(uint32 stepping_char_id);
+void fd2_chapter_event_handler_4c__ch29_major_cinematic(uint32 event_arg);
 void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
 void fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
 

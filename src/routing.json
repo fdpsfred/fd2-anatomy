@@ -4178,8 +4178,9 @@
     "name": "fd2_chapter_event_handler_4c__ch29_major_cinematic",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035e5a": {
     "name": "fd2_animate_palette_flash_pulse_white",
