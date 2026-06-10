@@ -362,6 +362,31 @@
  * cutscene, the single battle_anim_phase reset after page_base+1 only, and the
  * self-contained 0x33594 pan_cursor_to_char(0)+RET tail shared into by chapters
  * 23/28). See src/emit_issues.json (000334d9).
+ *
+ * fd2_chapter_16_init @0x335A0 is, in the binary, a PURE THUNK (just PUSH 0x28;
+ * JMP 0x33470) that tail-jumps into the shared body owned by fd2_chapter_13_init
+ * (0x33470 = fd2_chapter_13_init + 5, its CALL __CHK site). It therefore runs the
+ * IDENTICAL body to chapter 13 — the SMALLEST/minimal init family: re-init battle
+ * state, a single dialog page (page 0), pan the camera to char 0; NO cutscene, NO
+ * portrait load, NO char init, NO camera-pan-and-window prelude, NO battle_anim_phase
+ * reset, NO clear-facing, and (like chapter 13) zero global writes at all. It
+ * likewise has NO numeric computation, NO RNG, NO data-dependent branch, and NO
+ * CALL-result consumption (no EAX-bug exposure), and every callee
+ * (fd2_init_battle_state_for_chapter, fd2_display_dialog_scene, fd2_pan_cursor_to_char)
+ * is real-linked from src/ — the same fd2_display_dialog_scene ->
+ * fd2_wait_for_input_dialog_with_blink keyboard busy-wait hang applies to its single
+ * dialog page (here there is no portrait load or cutscene at all). Its behavioral
+ * test is therefore DEFERRED to Phase 9 on identical grounds (and there is no state
+ * contract to assert — zero global writes); equivalence was verified statically,
+ * line-by-line, against the disassembly @0x335A0 + the shared tail at 0x33470 (PUSH
+ * 0x28 -> the __CHK frame check; CALL fd2_init_battle_state_for_chapter; then JMP
+ * 0x3344D into the same shared page-0 dialog chain used by chapters 06/10/13/14 —
+ * 0x3344D page-0 dialog-arg push owned by fd2_chapter_12_init -> 0x33206 the dialog
+ * call in fd2_chapter_07_init -> 0x33140 the pan + RET owned by fd2_chapter_05_init,
+ * entered directly without a clear-facing). The straight-line form is identical to
+ * the fd2_chapter_13_init body. The leading __CHK(0x28) is the Watcom frame-size
+ * stack-probe and is not part of the source body. See src/emit_issues.json
+ * (000335a0).
  */
 
 #include <stdio.h>
@@ -405,5 +430,8 @@ void run_field_chinit_tests(void)
     printf("  (fd2_chapter_15_init: data-dependent page_base swap; behavioral "
            "test deferred to Phase 9 integration; see src/emit_issues.json "
            "000334d9)\n");
+    printf("  (fd2_chapter_16_init: pure thunk into chapter_13 shared body; "
+           "behavioral test deferred to Phase 9 integration; see "
+           "src/emit_issues.json 000335a0)\n");
     printf("\n");
 }

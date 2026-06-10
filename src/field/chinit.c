@@ -918,3 +918,52 @@ void fd2_chapter_15_init(void)
                              0xa0000, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
     fd2_pan_cursor_to_char(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_16_init @ 0x335A0  (dispatched, 0 direct callers)
+ *
+ * Chapter 16「冰原之戰」init handler. In the binary this is a PURE
+ * THUNK — physically just two instructions, PUSH 0x28 then JMP 0x33470
+ * — that tail-jumps into the shared body owned by fd2_chapter_13_init.
+ * 0x33470 is fd2_chapter_13_init + 5 (its CALL __CHK site), so chapter
+ * 16 shares the entire chapter-13 tail and runs the IDENTICAL body:
+ * re-init battle state, play a single dialog page (page 0), pan the
+ * camera to char 0. There is NO cutscene, NO portrait load, NO char
+ * init, NO camera-pan-and-window prelude, NO data_fd2_battle_anim_phase
+ * reset, and NO clear-facing — chapter 16 carries the party over from
+ * the previous chapter. It is a member of the minimal/smallest init
+ * family (cf. chapter 13 @0x3346B / chapter 06 @0x3314B).
+ *
+ * void __cdecl, no real params, void return. The leading __CHK(0x28)
+ * stack-probe (the PUSH 0x28 here, consumed by the shared CALL __CHK at
+ * 0x33470) is the Watcom-injected frame-size check and is not part of
+ * the source body.
+ *
+ * In the binary the whole body after the frame check is reached by the
+ * tail-JMP 0x335A5 -> 0x33470 (= fd2_chapter_13_init + 5): CALL
+ * fd2_init_battle_state_for_chapter, then JMP 0x3344D into the same
+ * shared page-0 dialog chain used by chapters 06/10/13/14 — 0x3344D
+ * (page-0 dialog-arg push, owned by fd2_chapter_12_init) -> 0x33206
+ * (the fd2_display_dialog_scene call, in fd2_chapter_07_init) -> 0x33140
+ * (the fd2_pan_cursor_to_char(0) + RET tail, owned by fd2_chapter_05_init,
+ * entered directly without a clear-facing). The straight-line form here
+ * is the functionally-equivalent (Layer 2) reconstruction — identical to
+ * the fd2_chapter_13_init body, as documented at its 0x33470 alt-entry.
+ *
+ * Linked handlers:
+ *   End:         fd2_chapter_16_end @ 0x23A0A
+ *   Post-action: fd2_chapter_16_post_action @ 0x2084A
+ *                (extra lose if char[0x41] dead — 蜜蒂 NPC)
+ *
+ * (蜜蒂 conditional recruit logic lives in fd2_chapter_16_end: HP_max >= 320
+ * + save_metadata < 19 + chars[0x42..0x49] dead <= 4; char id 0x12 added.)
+ *
+ * Walkthrough SOT: assets/chapters/chapter_16.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_16_init(void)
+{
+    fd2_init_battle_state_for_chapter();
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_pan_cursor_to_char(0);
+}
