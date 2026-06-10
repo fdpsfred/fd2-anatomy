@@ -277,6 +277,57 @@ static void test_h56_pure_noop_mutates_nothing(void)
     data_fd2_battle_anim_phase = saved_anim_phase;
 }
 
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_57__unref_sentinel @ 0x360EA
+ *
+ * Pure no-op sentinel, functionally identical to handler_55 / handler_56. The
+ * binary body is a 7-byte stub: PUSH 4; JMP 0x360DD — it borrows handler_55's
+ * CALL __CHK; RET shared tail (it is one of the four consumers 56/57/58/59 of
+ * that tail). The net effect is a stack probe then an immediate return, with NO
+ * state mutation at all (not even a consumed_flags byte, unlike handler_49 / 4d /
+ * 4e).
+ *
+ * Same risk profile as handler_55 / 56: the "does nothing" contract plus cdecl
+ * stack discipline through the BORROWED tail (the bare RET lives in handler_55; a
+ * wrong frame size pushed before the JMP, or an arg read, would corrupt the stack
+ * on return and crash here rather than silently pass). This test drives the REAL
+ * handler with a fully seeded consumed_flags region and a sentinel
+ * battle_anim_phase, then asserts every byte of both is byte-identical afterwards
+ * and that it returns cleanly. The dispatch arg is passed nonzero to prove it is
+ * ignored. A distinct seed pattern from the handler_55 / 56 tests keeps this case
+ * self-contained.
+ * ---------------------------------------------------------------- */
+static void test_h57_pure_noop_mutates_nothing(void)
+{
+    uint8 flags_before[CE55_FLAGS_LEN];
+    uint32 saved_flags_ptr;
+    uint32 saved_anim_phase;
+    int i;
+
+    /* seed with yet another recognisable non-zero pattern, distinct from h55/h56 */
+    for (i = 0; i < CE55_FLAGS_LEN; i++) {
+        g_ce55_flags[i] = (uint8)(0x33 + i);
+    }
+    memcpy(flags_before, g_ce55_flags, sizeof(flags_before));
+
+    saved_flags_ptr = data_fd2_field_map_tile_event_consumed_flags_ptr;
+    saved_anim_phase = data_fd2_battle_anim_phase;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ce55_flags;
+    data_fd2_battle_anim_phase = 0x6C6C6C6C;
+
+    fd2_chapter_event_handler_57__unref_sentinel(0xAB);
+
+    /* no consumed-flag byte was touched */
+    for (i = 0; i < CE55_FLAGS_LEN; i++) {
+        ASSERT_EQ((long)g_ce55_flags[i], (long)flags_before[i]);
+    }
+    /* battle_anim_phase is likewise untouched */
+    ASSERT_EQ((long)data_fd2_battle_anim_phase, (long)0x6C6C6C6C);
+
+    data_fd2_field_map_tile_event_consumed_flags_ptr = saved_flags_ptr;
+    data_fd2_battle_anim_phase = saved_anim_phase;
+}
+
 void run_field_chevt27_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -287,5 +338,6 @@ void run_field_chevt27_tests(void)
     RUN_TEST(test_h54_empty_range_when_party_count_zero);
     RUN_TEST(test_h55_pure_noop_mutates_nothing);
     RUN_TEST(test_h56_pure_noop_mutates_nothing);
+    RUN_TEST(test_h57_pure_noop_mutates_nothing);
     printf("\n");
 }
