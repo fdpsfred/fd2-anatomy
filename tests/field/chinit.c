@@ -247,6 +247,31 @@
  * fd2_chapter_05_init (which fd2_chapter_11_init enters at the cutscene-0x27
  * trigger CALL); the emit reconstructs the equivalent straight-line form. See
  * src/emit_issues.json (00033367).
+ *
+ * fd2_chapter_12_init @0x333F5 is a flat orchestrator of the same family as
+ * chapters 02..11 but is CUTSCENE-FIRST (it leads with the portrait load + two
+ * cutscenes 0x28/0x29 rather than a dialog page): portrait set 1, two cutscenes
+ * each preceded by a camera pan, then clear-facing, then a single dialog page
+ * (page 0) before the final camera-to-char pan, NO char init. It likewise has
+ * NO numeric computation, NO RNG, NO data-dependent branch, and NO CALL-result
+ * consumption (no EAX-bug exposure), and every callee is real-linked from src/
+ * — the same fd2_display_dialog_scene -> fd2_wait_for_input_dialog_with_blink
+ * keyboard busy-wait hang plus the fd2_load_chapter_portraits_and_dump_tmp
+ * (fopen FDICON.B24) / fd2_cutscene_event_trigger byte-script parsing apply.
+ * Its behavioral test is therefore DEFERRED to Phase 9 on identical grounds;
+ * equivalence was verified statically, line-by-line, against the disassembly
+ * @0x333F5 (call sequence, constants, the init_phase_flag 1/0 bracket around
+ * the portrait load, the absence of any battle_anim_phase reset, and the
+ * clear-facing sitting BEFORE the single page-0 dialog rather than after it).
+ * Note the page-0 dialog call plus the final fd2_pan_cursor_to_char(0) are
+ * physically a tail-JMP from this handler's own dialog-arg push (0x3344D) into
+ * the shared epilogue at 0x33206 (owned by fd2_chapter_07_init) -> 0x33140
+ * (owned by fd2_chapter_05_init, entered directly without a clear-facing); the
+ * emit reconstructs the equivalent straight-line form. This handler itself OWNS
+ * two shared alt-entry points: 0x33440 (cutscene-0x29 CALL onward), entered by
+ * chapter_22_init; and 0x3344D (page-0 dialog-arg push onward), the shared
+ * page-0 dialog tail entered by chapters 06/10/13/14/17. See
+ * src/emit_issues.json (000333f5).
  */
 
 #include <stdio.h>
@@ -281,5 +306,7 @@ void run_field_chinit_tests(void)
            "integration; see src/emit_issues.json 0003332b)\n");
     printf("  (fd2_chapter_11_init: behavioral test deferred to Phase 9 "
            "integration; see src/emit_issues.json 00033367)\n");
+    printf("  (fd2_chapter_12_init: behavioral test deferred to Phase 9 "
+           "integration; see src/emit_issues.json 000333f5)\n");
     printf("\n");
 }

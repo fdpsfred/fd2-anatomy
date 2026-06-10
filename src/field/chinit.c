@@ -704,3 +704,62 @@ void fd2_chapter_11_init(void)
     fd2_clear_all_chars_facing();
     fd2_pan_cursor_to_char(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_12_init @ 0x333F5  (dispatched, 0 direct callers)
+ *
+ * Chapter 12「北山道」init handler. A flat chapter-prologue
+ * orchestrator that is CUTSCENE-FIRST (unlike chapters 02..11, which
+ * lead with a dialog page): it loads portrait set 1, plays two
+ * cutscenes (event ids 0x28 / 0x29) each preceded by a camera pan,
+ * clears all facings, then plays a single dialog page (page 0) before
+ * the final camera-to-char pan. There is NO char init — chapter 12
+ * carries the party over from chapter 11.
+ *
+ * data_fd2_chapter_init_phase_flag is set to 1 around the portrait
+ * load (set 1) and cleared afterward. There is NO
+ * data_fd2_battle_anim_phase reset anywhere on this handler's code
+ * path (no MOV [0x51A83],0): page 0 is the sole, tail dialog page.
+ * Note the clear-facing happens BEFORE the dialog page here (between
+ * cutscene 0x29 and the dialog), not after it.
+ *
+ * void __cdecl, no real params, void return. The leading __CHK(0x28)
+ * stack-probe is the Watcom-injected frame-size check and is not part
+ * of the source body.
+ *
+ * In the binary the page-0 dialog call + the final
+ * fd2_pan_cursor_to_char(0) are emitted as a tail-JMP from this
+ * handler's own dialog-arg push (0x3344D) into the shared epilogue at
+ * 0x33206 (owned by fd2_chapter_07_init: PUSH current_chapter_text;
+ * CALL fd2_display_dialog_scene; then JMP 0x33140, owned by
+ * fd2_chapter_05_init: pan_cursor_to_char(0); RET — entered directly
+ * without a clear-facing, hence the clear-facing sits earlier here).
+ * The straight-line form here is the functionally-equivalent (Layer 2)
+ * reconstruction. This function itself OWNS two shared alt-entry
+ * points that other chapter inits tail-JMP into:
+ *   0x33440 (cutscene-0x29 CALL onward) — chapter_22_init.
+ *   0x3344D (page-0 dialog-arg push onward) — the shared page-0
+ *           dialog tail used by chapters 06 / 10 / 13 / 14 / 17.
+ *
+ * Linked handlers:
+ *   End:         fd2_chapter_12_end @ 0x237D5
+ *   Post-action: fd2_chapter_12_post_action @ 0x2073D
+ *                (extra lose if char[0xE] dead — 米亞斯多德)
+ *
+ * Walkthrough SOT: assets/chapters/chapter_12.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_12_init(void)
+{
+    fd2_init_battle_state_for_chapter();
+    fd2_pan_cursor_and_window(4, 4);
+    data_fd2_chapter_init_phase_flag = 1;
+    fd2_load_chapter_portraits_and_dump_tmp(1);
+    data_fd2_chapter_init_phase_flag = 0;
+    fd2_cutscene_event_trigger(0x28);
+    fd2_pan_cursor_and_window(0xb, 0x28);
+    fd2_cutscene_event_trigger(0x29);
+    fd2_clear_all_chars_facing();
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_pan_cursor_to_char(0);
+}
