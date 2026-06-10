@@ -1654,3 +1654,62 @@ void fd2_chapter_28_init(void)
     data_fd2_battle_anim_phase = 1;
     fd2_pan_cursor_to_char(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_29_init @ 0x33DBA  (dispatched, 0 direct callers)
+ *
+ * Chapter 29「無邊的黑暗之中」init handler. A flat chapter-prologue
+ * orchestrator that plays two dialog pages (pages 7/8) and one
+ * white-flash portrait dump between them, bracketed by a single
+ * camera pan and one cutscene (event id 0x56), before handing the
+ * chapter off to the player. There is NO char init and NO portrait
+ * pre-load — chapter 29 carries the party over from chapter 28.
+ *
+ * Unusually for an init handler the dialog page indices start at 7
+ * (not 0): pages 0..6 of this chapter's text block belong to the
+ * end handler, so the init consumes pages 7 and 8. data_fd2_battle
+ * _anim_phase is reset to 0 exactly once — at the very top, right
+ * after fd2_init_battle_state_for_chapter() and before the camera
+ * pan; neither dialog page has a trailing reset.
+ *
+ * This is the ONLY chapter whose win/lose is decided by tile-event
+ * consumption rather than character death: its post-action handler
+ * fd2_chapter_29_post_action @ 0x20B72 wins when
+ * tile_event_consumed_flags[0x12,0x13,0x14] are all set and loses
+ * when chars[0,1] are dead.
+ *
+ * void __cdecl, no real params, void return. The leading __CHK(0x28)
+ * stack-probe is the Watcom-injected frame-size check and is not part
+ * of the source body.
+ *
+ * In the binary the page-8 dialog call + the trailing
+ * fd2_clear_all_chars_facing() and fd2_pan_cursor_to_char(0) are
+ * emitted as a tail-JMP (0x33E37 -> 0x3312D) into the shared epilogue
+ * owned by fd2_chapter_05_init (PUSH current_chapter_text; CALL
+ * fd2_display_dialog_scene; CALL fd2_clear_all_chars_facing; PUSH 0;
+ * CALL fd2_pan_cursor_to_char; RET) — the same 0x3312D alt-entry used
+ * by chapters 03 / 04 / 26 / 27. The straight-line form here is the
+ * functionally-equivalent (Layer 2) reconstruction.
+ *
+ * Linked handlers:
+ *   End:         fd2_chapter_29_end @ 0x2548C
+ *   Post-action: fd2_chapter_29_post_action @ 0x20B72 (non-default —
+ *                tile_event_consumed_flags[0x12,0x13,0x14] all set =
+ *                win; chars[0,1] dead = lose)
+ *
+ * Walkthrough SOT: assets/chapters/chapter_29.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_29_init(void)
+{
+    fd2_init_battle_state_for_chapter();
+    data_fd2_battle_anim_phase = 0;
+    fd2_pan_cursor_and_window(9, 0x38);
+    fd2_cutscene_event_trigger(0x56);
+    fd2_display_dialog_scene(current_chapter_text, 7, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_cinematic_chapter_portrait_dump_with_white_flash(9, 0x13, 8);
+    fd2_display_dialog_scene(current_chapter_text, 8, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_clear_all_chars_facing();
+    fd2_pan_cursor_to_char(0);
+}

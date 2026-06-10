@@ -769,6 +769,39 @@
  * (PUSH 0; CALL fd2_pan_cursor_to_char; POP EBX; RET — the same 0x33594
  * alt-entry chapter 23 reaches); the emit reconstructs the equivalent
  * straight-line form. See src/emit_issues.json (00033c9d).
+ *
+ * fd2_chapter_29_init @0x33DBA is back to a pure straight-line orchestrator of
+ * the same family as chapters 02..08/18/26: a flat handler that plays two
+ * dialog pages and one white-flash portrait dump between them, bracketed by a
+ * single camera pan (9,0x38) and one cutscene (0x56), NO char init, NO
+ * portrait pre-load. Two details set it apart from the other flat
+ * orchestrators: (1) its dialog page indices start at 7 (pages 7 then 8) —
+ * pages 0..6 of this chapter's text block belong to the end handler, so the
+ * init consumes pages 7/8; and (2) it is the ONLY chapter whose win/lose is
+ * decided by tile-event consumption rather than character death (its
+ * post-action handler fd2_chapter_29_post_action @0x20B72 wins when
+ * tile_event_consumed_flags[0x12,0x13,0x14] are all set and loses when
+ * chars[0,1] are dead). It has NO numeric computation, NO RNG, NO
+ * data-dependent branch, NO loops, and NO CALL-result consumption (no EAX-bug
+ * exposure — the dialog-scene / cutscene / portrait-dump CALL returns are all
+ * discarded), and every callee is real-linked from src/ — the same
+ * fd2_display_dialog_scene -> fd2_wait_for_input_dialog_with_blink keyboard
+ * busy-wait hang plus the fd2_cinematic_chapter_portrait_dump_with_white_flash
+ * (which drives fd2_load_chapter_portraits_and_dump_tmp: fopen FDICON.B24 +
+ * dump FD2.TMP) / fd2_cutscene_event_trigger byte-script parsing apply. Its
+ * behavioral test is therefore DEFERRED to Phase 9 on identical grounds;
+ * equivalence was verified statically, line-by-line, against the disassembly
+ * @0x33DBA (call sequence, constants, the (9,0x38) camera pan, the 0x56
+ * cutscene, the page-7/page-8 dialog indices bracketing the
+ * fd2_cinematic_chapter_portrait_dump_with_white_flash(9,0x13,8) call, and the
+ * single battle_anim_phase reset at the very top after
+ * fd2_init_battle_state_for_chapter only — neither dialog page has a trailing
+ * reset). Note the page-8 dialog call plus the trailing
+ * fd2_clear_all_chars_facing() and fd2_pan_cursor_to_char(0) are physically a
+ * tail-JMP (0x33E37 -> 0x3312D) into the shared epilogue owned by
+ * fd2_chapter_05_init (the same 0x3312D alt-entry chapters 03/04/26 reach); the
+ * emit reconstructs the equivalent straight-line form. See src/emit_issues.json
+ * (00033dba).
  */
 
 #include <stdio.h>
@@ -846,5 +879,9 @@ void run_field_chinit_tests(void)
            "screen-wide spell + HP-survivor revive filter (no CALL-result "
            "consumption); behavioral test deferred to Phase 9 integration; "
            "see src/emit_issues.json 00033c9d)\n");
+    printf("  (fd2_chapter_29_init: flat orchestrator (pan + cutscene 0x56 + "
+           "pages 7/8 bracketing portrait dump); tile-event win/lose; "
+           "behavioral test deferred to Phase 9 integration; see "
+           "src/emit_issues.json 00033dba)\n");
     printf("\n");
 }
