@@ -22,6 +22,12 @@ extern int g_ce_find_have_d6;
 extern int g_ce_find_have_item100;
 extern int g_ce_find_calls;
 
+/* __delay_thunk_375b2 recorder (tests/testglob.c): the stub increments
+ * g_delay375b2_calls and stores the last ticks argument, which lets the
+ * delay-wrapper test prove the exact 400-tick argument and single call. */
+extern int    g_delay375b2_calls;
+extern uint32 g_delay375b2_last_ticks;
+
 /* Active-party array (defined in tests/testglob.c) backing
  * data_fd2_battle_runtime_char_array_ptr; the require-char-id tests drive
  * its char_id bytes directly. */
@@ -904,6 +910,23 @@ static void test_pin_low_byte_only(void)
     pin_cache_teardown();
 }
 
+/* ----------------------------------------------------------------
+ * fd2_delay_400ms_via_idle_thunk @ 0x353CC: a one-line wrapper that calls
+ * __delay_thunk_375b2(400) exactly once. Drive it through the testglob
+ * recorder and assert the single call and the load-bearing 400-tick
+ * (0x190) argument.
+ * ---------------------------------------------------------------- */
+static void test_delay_400ms_calls_thunk_once_with_400(void)
+{
+    g_delay375b2_calls = 0;
+    g_delay375b2_last_ticks = 0;
+
+    fd2_delay_400ms_via_idle_thunk();
+
+    ASSERT_EQ((long)g_delay375b2_calls, 1);
+    ASSERT_EQ((long)g_delay375b2_last_ticks, (long)400);
+}
+
 void run_util_misc_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -939,5 +962,6 @@ void run_util_misc_tests(void)
     RUN_TEST(test_pin_last_match_wins);
     RUN_TEST(test_pin_no_match);
     RUN_TEST(test_pin_low_byte_only);
+    RUN_TEST(test_delay_400ms_calls_thunk_once_with_400);
     printf("\n");
 }

@@ -4021,8 +4021,9 @@
     "name": "fd2_delay_400ms_via_idle_thunk",
     "target": "util/misc.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000353da": {
     "name": "fd2_chapter_event_handler_37__ch25_first_time",

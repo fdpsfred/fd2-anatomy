@@ -392,3 +392,20 @@ void fd2_pin_required_char_to_party_slot1(uint32 char_id)
     }
     fclose(fp);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_delay_400ms_via_idle_thunk @ 0x353CC  (1 caller)
+ *
+ * 400ms idle-delay wrapper: PUSH 0x190 (=400); CALL __delay_thunk_375b2;
+ * ADD ESP,4; RET. No params, void return. The single argument is pushed
+ * by the caller and cleaned up by the caller's ADD ESP,4, i.e. cdecl.
+ *
+ * Caller: fd2_cinematic_chapter_portrait_dump_with_white_flash @ 0x35822.
+ * (The same 4-instruction body is also reached as the fall-through tail of
+ * fd2_chapter_event_handler_36__ch24_cinematic @ 0x3535D, which the other
+ * handlers reproduce as their own inline __delay_thunk_375b2 calls.)
+ * ---------------------------------------------------------------- */
+void fd2_delay_400ms_via_idle_thunk(void)
+{
+    __delay_thunk_375b2(400);
+}
