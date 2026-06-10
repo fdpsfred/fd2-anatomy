@@ -780,6 +780,50 @@ static void test_pstep_cost_table_indexing(void)
     ASSERT_TRUE(ff_guards_intact());
 }
 
+/* --- direct destination-record tests (fd2_pathfind_record_destination_xy
+ * @ 0x4E3B3, real-emitted in src/util/pathfnd.c). The function gates on the tile
+ * flags byte at [btm_attr_ptr-1] & 0x40: when set it writes the neighbour (x, y)
+ * into the path output buffer ([0]/[1]) and forces best_path_length = 1; when
+ * clear it does nothing. We point btm_attr_ptr at a tile's marker (+3) so [-1]
+ * is the tile's flags byte (+2), and watch pf_outbuf + best_path_length. */
+
+/* 0x40 flag set: records x into [0], y into [1], best_path_length := 1. The
+ * neighbour coords passed (here 0x12 / 0x34) are written verbatim, and only the
+ * first two output bytes are touched. */
+static void test_record_dst_flag_set_writes_xy(void)
+{
+    uint8 *tile;
+
+    pf_reset();
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    tile[2] = 0x40;                    /* flags byte (== [-1] of &tile[3]) */
+    fd2_pathfind_record_destination_xy(0x12, 0x34, &tile[3]);
+
+    ASSERT_EQ(pf_outbuf[0], 0x12);     /* x */
+    ASSERT_EQ(pf_outbuf[1], 0x34);     /* y */
+    ASSERT_EQ(pf_outbuf[2], 0);        /* nothing past the two bytes */
+    ASSERT_EQ(data_fd2_battle_pathfind_best_path_length, 1);
+    ASSERT_TRUE(ff_guards_intact());
+}
+
+/* 0x40 flag clear: no write at all. Other flag bits (here 0x80 | 0x3F) must not
+ * trigger it -- only bit 0x40 does. pf_outbuf stays zero and best_path_length
+ * keeps the orchestrator's 0xFF sentinel that pf_reset installs. */
+static void test_record_dst_flag_clear_noop(void)
+{
+    uint8 *tile;
+
+    pf_reset();
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    tile[2] = (uint8)(0x80 | 0x3F);    /* every bit except 0x40 */
+    fd2_pathfind_record_destination_xy(0x12, 0x34, &tile[3]);
+
+    ASSERT_EQ(pf_outbuf[0], 0);
+    ASSERT_EQ(pf_outbuf[1], 0);
+    ASSERT_EQ(data_fd2_battle_pathfind_best_path_length, 0xFF);
+    ASSERT_TRUE(ff_guards_intact());
+}
+
 void run_util_pathfnd_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -811,5 +855,7 @@ void run_util_pathfnd_tests(void)
     RUN_TEST(test_pstep_sink_forces_zero);
     RUN_TEST(test_pstep_mode2_records_destination);
     RUN_TEST(test_pstep_cost_table_indexing);
+    RUN_TEST(test_record_dst_flag_set_writes_xy);
+    RUN_TEST(test_record_dst_flag_clear_noop);
     printf("\n");
 }

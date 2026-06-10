@@ -4685,8 +4685,9 @@
     "name": "fd2_pathfind_record_destination_xy",
     "target": "util/pathfnd.c",
     "phase": 2,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004e3cf": {
     "name": "fd2_pathfind_count_unique_directions",

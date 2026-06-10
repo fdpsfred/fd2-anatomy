@@ -428,3 +428,43 @@ int fd2_pathfind_neighbor_step_with_tiebreak(uint8 x, uint8 y, uint8 remaining_c
     fd2_pathfind_check_destination_save_path(x, y);
     return 1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_pathfind_record_destination_xy @ 0x4E3B3 (1 caller: the mode-2 commit
+ * branch of fd2_pathfind_neighbor_step_with_tiebreak @ 0x4E330)
+ *
+ * Mode-2 destination snapshot: when an in-flight step commits on a tile that is
+ * flagged as a destination (the tile's flags byte at [-1] has bit 0x40 set),
+ * records the neighbour's (x, y) into the path output buffer and marks the path
+ * as "destination reached in one step" (best_path_length = 1). Reached only in
+ * mode 2 (ignore-obstacles + dst-record), where the neighbour step skips the
+ * passability gate, so a 0x40 tile is committed here rather than rejected.
+ *
+ * In FD2.LE this is a register-passing leaf with no stack frame: the neighbour
+ * coordinates ride in DL/DH and the tile's marker pointer in EBX (it reads the
+ * flags byte at [EBX-1]). This emit is Layer-2 equivalent: x/y are passed
+ * explicitly (the caller already holds them) and btm_attr_ptr carries the EBX
+ * marker pointer, so [btm_attr_ptr-1] is the same flags byte the binary tests.
+ * The output buffer base is read from data_fd2_battle_pathfind_path_output_buffer_ptr
+ * (the pointer the binary loads from 0x60073), and best_path_length is the byte
+ * at 0x60078; both are the same globals the orchestrator set up for the search.
+ *
+ *   x, y         : neighbour tile coordinates (DL/DH in the binary) -> output.
+ *   btm_attr_ptr : pointer to the neighbour tile's marker byte (EBX); the flags
+ *                  byte tested here lives at [btm_attr_ptr-1].
+ *
+ * The binary loads the output-buffer pointer only inside the taken branch (after
+ * the 0x40 test); this emit mirrors that by dereferencing the global inside the
+ * if. void return.
+ * ---------------------------------------------------------------- */
+void fd2_pathfind_record_destination_xy(uint8 x, uint8 y, uint8 *btm_attr_ptr)
+{
+    uint8 *out_buf;
+
+    if ((*(btm_attr_ptr - 1) & 0x40) != 0) {
+        out_buf = (uint8 *)data_fd2_battle_pathfind_path_output_buffer_ptr;
+        out_buf[0] = x;
+        out_buf[1] = y;
+        data_fd2_battle_pathfind_best_path_length = 1;
+    }
+}

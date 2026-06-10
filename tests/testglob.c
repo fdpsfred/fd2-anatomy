@@ -1415,32 +1415,17 @@ void fd2_init_movement_range_floodfill(uint32 ct, uint32 x, uint32 y,
  * removed; the floodfill caller tests in tests/util/pathfnd.c now drive the
  * real helper and assert the resulting marker grid directly. */
 
-/* fd2_pathfind_record_destination_xy @ 0x4E3B3 and
- * fd2_pathfind_check_destination_save_path @ 0x4E401 — the two destination
- * helpers called by the now-real fd2_pathfind_neighbor_step_with_tiebreak
- * @ 0x4E330 (src/util/pathfnd.c). They are not yet emitted for real (their own
- * routing entries 0x4E3B3 / 0x4E401), so their faithful bodies live here as test
- * stubs so the real neighbour step links. Both are pure pathfind-global routines:
- * record_destination_xy snapshots the destination tile's x/y into the path output
- * buffer when the tile carries the 0x40 flag (mode 2), and
- * check_destination_save_path snapshots the current direction sequence as the new
- * best path whenever the search reaches the destination at a not-worse depth
- * (modes 0/1). The neighbour-step tests in tests/util/pathfnd.c drive these end to
- * end through the real step and assert the resulting marker / direction / path
- * output directly. When 0x4E3B3 / 0x4E401 are emitted for real these stubs are
- * removed. */
-void fd2_pathfind_record_destination_xy(uint8 x, uint8 y, uint8 *btm_attr_ptr)
-{
-    uint8 *out_buf;
-
-    if ((*(btm_attr_ptr - 1) & 0x40) != 0) {
-        out_buf = (uint8 *)data_fd2_battle_pathfind_path_output_buffer_ptr;
-        out_buf[0] = x;
-        out_buf[1] = y;
-        data_fd2_battle_pathfind_best_path_length = 1;
-    }
-}
-
+/* fd2_pathfind_check_destination_save_path @ 0x4E401 — the destination helper
+ * called by the real fd2_pathfind_neighbor_step_with_tiebreak @ 0x4E330 on every
+ * mode-0/1 commit (src/util/pathfnd.c). It is not yet emitted for real (its own
+ * routing entry 0x4E401), so its faithful body lives here as a test stub so the
+ * real neighbour step links. It is a pure pathfind-global routine: it snapshots
+ * the current direction sequence as the new best path whenever the search reaches
+ * the destination at a not-worse depth. The neighbour-step tests in
+ * tests/util/pathfnd.c drive it end to end through the real step and assert the
+ * resulting path output directly. When 0x4E401 is emitted for real this stub is
+ * removed. (Its sibling fd2_pathfind_record_destination_xy @ 0x4E3B3 is now
+ * emitted for real in src/util/pathfnd.c; its former stub here was removed.) */
 void fd2_pathfind_check_destination_save_path(uint8 x, uint8 y)
 {
     uint8 *out_buf;
