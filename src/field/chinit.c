@@ -1474,3 +1474,93 @@ void fd2_chapter_26_init(void)
     fd2_clear_all_chars_facing();
     fd2_pan_cursor_to_char(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_27_init @ 0x33AF1  (dispatched, 0 direct callers)
+ *
+ * Chapter 27「命運的交會點」init handler — the GOOD/BAD ENDING fork
+ * chapter. A cinematic prologue built around three screen-wide spell
+ * visual effects: it re-inits battle state, pans the camera-and-window
+ * once (target 9, 0x31), plays a cutscene (event id 0x4C) and dialog
+ * page 0, then — ONLY if any party member is carrying item 100
+ * (天空之鑰 / Sky Key) — plays a bonus dialog page 3. It then plays
+ * dialog page 4, re-pans the camera, and runs three spell-effect beats
+ * each followed by a full VGA palette reset (add 0) and a dialog page,
+ * before clearing all facings and panning the camera to char 0. There
+ * is NO portrait load and NO char init — chapter 27 carries the party
+ * over from the previous chapter.
+ *
+ * The Sky-Key gate is fd2_any_char_has_item(100): the disassembly is
+ * CALL; CMP EAX,-1; JZ (skip page 3) — so the bonus page plays only on
+ * the return != -1 (Sky Key present) branch. The CMP EAX,-1 consumes
+ * the genuine return value of the CALL (not a Ghidra EAX-tracking
+ * artifact); it is the sole CALL-result consumed in this handler (the
+ * dialog-scene / spell / palette CALL returns are all discarded).
+ *
+ * The three spell beats are fd2_cast_screen_wide_spell_with_fade with
+ * a fixed starting-radius/increment of (2, 2), epicentered at the live
+ * battle cursor with a per-beat tile offset:
+ *   beat 1: (cursor_x,     cursor_y + 3, 2, 2)  -> page 5
+ *   beat 2: (cursor_x,     cursor_y,     2, 2)  -> cutscene 0x51, page 6
+ *   beat 3: (cursor_x + 2, cursor_y,     2, 2)  -> page 7
+ * Each beat is immediately followed by
+ * fd2_set_vga_palette_range_with_add(0, 0xFF, 0) to restore the palette.
+ * There is NO data_fd2_battle_anim_phase reset anywhere on this
+ * handler's code path (no MOV [0x51A83],0).
+ *
+ * void __cdecl, no real params, void return. The leading __CHK(0x28)
+ * stack-probe is the Watcom-injected frame-size check and is not part
+ * of the source body.
+ *
+ * In the binary this handler physically contains its own body up to the
+ * page-7 dialog-arg push; it then tail-JMPs (0x33C98 -> 0x3312D) into
+ * the shared epilogue owned by fd2_chapter_05_init (PUSH
+ * current_chapter_text; CALL fd2_display_dialog_scene [page 7];
+ * clear-facing; pan_cursor_to_char(0); RET). The straight-line form
+ * here is the functionally-equivalent (Layer 2) reconstruction.
+ *
+ * Linked handlers:
+ *   End:         fd2_chapter_27_end @ 0x250CC (BAD: game-over hard-lock
+ *                if the party has no 天空之鑰).
+ *   Post-action: fd2_chapter_22_27_28_post_action_shared @ 0x20A87
+ *                (shared with ch22/28) — extra lose if char[1] dead
+ *                (悠妮).
+ *
+ * Walkthrough SOT: assets/chapters/chapter_27.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_27_init(void)
+{
+    fd2_init_battle_state_for_chapter();
+    fd2_pan_cursor_and_window(9, 0x31);
+    fd2_cutscene_event_trigger(0x4c);
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    if (fd2_any_char_has_item(100) != -1) {
+        fd2_display_dialog_scene(current_chapter_text, 3, 0xa0000, 0x140,
+                                 0xcd, 0x4c, 0x4a, 0x13, 1);
+    }
+    fd2_display_dialog_scene(current_chapter_text, 4, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_pan_cursor_and_window(9, 0x31);
+    fd2_cast_screen_wide_spell_with_fade(data_fd2_battle_cursor_screen_x,
+                                         data_fd2_battle_cursor_screen_y + 3,
+                                         2, 2);
+    fd2_set_vga_palette_range_with_add(0, 0xff, 0);
+    fd2_display_dialog_scene(current_chapter_text, 5, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_cast_screen_wide_spell_with_fade(data_fd2_battle_cursor_screen_x,
+                                         data_fd2_battle_cursor_screen_y,
+                                         2, 2);
+    fd2_set_vga_palette_range_with_add(0, 0xff, 0);
+    fd2_cutscene_event_trigger(0x51);
+    fd2_display_dialog_scene(current_chapter_text, 6, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_cast_screen_wide_spell_with_fade(data_fd2_battle_cursor_screen_x + 2,
+                                         data_fd2_battle_cursor_screen_y,
+                                         2, 2);
+    fd2_set_vga_palette_range_with_add(0, 0xff, 0);
+    fd2_display_dialog_scene(current_chapter_text, 7, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_clear_all_chars_facing();
+    fd2_pan_cursor_to_char(0);
+}

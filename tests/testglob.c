@@ -1631,3 +1631,17 @@ uint32 fd2_check_party_has_char_id(uint32 char_id) {
     g_has_char_last_arg = char_id;
     return g_has_char_fake;
 }
+
+/* Fake for the remaining unemitted party-wide item-query callee of the
+ * chapter-init handlers (fd2_any_char_has_item -> src/util/misc.c; consumed by
+ * fd2_chapter_27_init's Sky-Key bonus-page gate). Returns 1 if any char carries
+ * the item, else -1; tests set the return value directly. Default -1 (item
+ * absent). */
+int    g_any_has_item_fake = -1;
+uint32 g_any_has_item_last_arg = 0;
+int    g_any_has_item_calls = 0;
+int fd2_any_char_has_item(uint32 item_id) {
+    g_any_has_item_calls++;
+    g_any_has_item_last_arg = item_id;
+    return g_any_has_item_fake;
+}

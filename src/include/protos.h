@@ -195,6 +195,7 @@ void fd2_open_party_status_overview_screen(void);
 void fd2_render_party_status_overview_content(uint32 dst_surface, uint32 stride);
 int fd2_count_active_chars_for_team_filter(uint32 team);
 uint32 fd2_check_party_has_char_id(uint32 char_id);
+int fd2_any_char_has_item(uint32 item_id);
 
 /* ---- field cutscene ---- */
 void fd2_cutscene_event_trigger(uint32 event_id);
@@ -249,6 +250,7 @@ void fd2_chapter_22_init(void);
 void fd2_chapter_24_init(void);
 void fd2_chapter_25_init(void);
 void fd2_chapter_26_init(void);
+void fd2_chapter_27_init(void);
 
 /* ---- animation ---- */
 void fd2_tick_tile_event_animations(void);

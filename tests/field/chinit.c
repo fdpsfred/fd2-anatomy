@@ -654,6 +654,62 @@
  * CALL fd2_display_dialog_scene; clear-facing; pan_cursor_to_char(0); RET — the
  * same 0x3312D alt-entry chapters 03/04 reach); the emit reconstructs the
  * equivalent straight-line form. See src/emit_issues.json (00033aae).
+ *
+ * fd2_chapter_27_init @0x33AF1 is the GOOD/BAD ENDING fork chapter — a
+ * cinematic prologue built around three screen-wide spell visual effects:
+ * re-init battle state, one camera-pan-and-window (9,0x31), a cutscene
+ * (0x4C) and dialog page 0, then — ONLY if any party member carries item
+ * 100 (天空之鑰 / Sky Key) — a bonus dialog page 3, then dialog page 4,
+ * a re-pan, and three spell-effect beats each followed by a full VGA
+ * palette reset (add 0) and a dialog page (5/6/7), with cutscene 0x51
+ * before page 6; clear-facing, pan the camera to char 0. NO portrait load,
+ * NO char init, and NO battle_anim_phase reset on its code path. The three
+ * spell beats are fd2_cast_screen_wide_spell_with_fade(.,.,2,2) epicentered
+ * at the live battle cursor with per-beat tile offsets (+0/+3, +0/+0,
+ * +2/+0). Unlike the pure straight-line orchestrators (chapters 22/24/26),
+ * it has a DATA-DEPENDENT, CALL-return-consuming branch (so, like chapters
+ * 15/17, it is NOT a pure orchestrator): the Sky-Key gate is the
+ * EAX-bug-risk point — in the disassembly @0x33AF1 it is CALL
+ * fd2_any_char_has_item; CMP EAX,-1; JZ (skip page 3), and the CMP consumes
+ * the genuine return of the CALL — the emit encodes it as the real return
+ * of fd2_any_char_has_item, `if (... != -1)` (verified against the assembly
+ * @0x33B47, NOT trusted from the decompiler). It is the sole CALL-result
+ * consumed; the dialog-scene / spell / palette CALL returns are discarded.
+ *
+ * Despite the added branch, its behavioral test is DEFERRED to Phase 9
+ * (reason proven, not convenience), on identical grounds to chapters 15/17.
+ * The branch outcome cannot be observed in isolation because:
+ *   - fd2_init_battle_state_for_chapter (real-linked) runs FIRST and RELOADS
+ *     current_chapter_text from the real FDTXT.DAT (it is the chapter-battle-
+ *     data loader), so there is no host-safe slice before the body.
+ *   - the body reaches fd2_display_dialog_scene(page 0) BEFORE the Sky-Key
+ *     gate; that call is real-linked (src/dialog/dialog.c) and reaches
+ *     fd2_wait_for_input_dialog_with_blink(1) on a -3 PAGE BREAK opcode in
+ *     the real FDTXT chapter stream — the real-linked keyboard busy-wait
+ *     that hangs forever in the silent automated harness — so the function
+ *     never reaches the fd2_any_char_has_item branch, and neither the
+ *     bonus-page-3 outcome nor any later spell/palette/dialog state is
+ *     observable at unit level.
+ *   - fd2_any_char_has_item is itself not yet emitted (slated for
+ *     src/util/misc.c) and fd2_cast_screen_wide_spell_with_fade /
+ *     fd2_set_vga_palette_range_with_add / fd2_cutscene_event_trigger are
+ *     real-linked from src/, so the call ordering cannot be observed via
+ *     capture stubs, and the emit must not be distorted to make it
+ *     host-testable (forbidden).
+ * Equivalence was therefore verified statically, line-by-line, against the
+ * disassembly @0x33AF1 (the (9,0x31) pan, the 0x4C cutscene, the page-0
+ * dialog, the Sky-Key gate consuming the real CALL return with its CMP
+ * EAX,-1; JZ over the page-3 dialog, the page-4 dialog, the second (9,0x31)
+ * pan, the three fd2_cast_screen_wide_spell_with_fade beats with their
+ * cursor +0/+3, +0/+0, +2/+0 epicenter offsets and (2,2) radius/increment,
+ * the three fd2_set_vga_palette_range_with_add(0,0xFF,0) palette resets
+ * after each beat, the 0x51 cutscene before page 6, the page-5/6/7 dialogs,
+ * and the absence of any battle_anim_phase reset). Note the page-7 dialog
+ * call plus the trailing fd2_clear_all_chars_facing() and
+ * fd2_pan_cursor_to_char(0) are physically a tail-JMP (0x33C98 -> 0x3312D)
+ * into the shared epilogue owned by fd2_chapter_05_init (the same 0x3312D
+ * alt-entry chapters 03/04/26 reach); the emit reconstructs the equivalent
+ * straight-line form. See src/emit_issues.json (00033af1).
  */
 
 #include <stdio.h>
@@ -723,5 +779,9 @@ void run_field_chinit_tests(void)
     printf("  (fd2_chapter_26_init: minimal orchestrator (pan + cutscene 0x4C "
            "+ single dialog page); behavioral test deferred to Phase 9 "
            "integration; see src/emit_issues.json 00033aae)\n");
+    printf("  (fd2_chapter_27_init: GOOD/BAD ending fork; data-dependent "
+           "Sky-Key bonus page + 3x screen-wide spell; behavioral test "
+           "deferred to Phase 9 integration; see src/emit_issues.json "
+           "00033af1)\n");
     printf("\n");
 }
