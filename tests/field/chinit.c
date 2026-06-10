@@ -710,6 +710,65 @@
  * into the shared epilogue owned by fd2_chapter_05_init (the same 0x3312D
  * alt-entry chapters 03/04/26 reach); the emit reconstructs the equivalent
  * straight-line form. See src/emit_issues.json (00033af1).
+ *
+ * fd2_chapter_28_init @0x33C9D is the direct twin of fd2_chapter_23_init — a
+ * cinematic "reassemble the party" prologue built around a screen-wide spell.
+ * Structurally it has the SAME three additions over the flat orchestrators —
+ * (1) a constant-bound mark-dead loop (fd2_mark_char_as_dead(i)), here over the
+ * first 20 active party slots (i in 0..0x13; the 0x14 bound is wider than
+ * chapter 23's 0x10/16-slot wipe); (2) a constant-strided post-spell
+ * HP-survivor revive filter (for i in 0..0x13, if runtime_char[i].hp_current
+ * != 0 then .flags = 0; disasm element address base + i*0x50, survivor test
+ * reads word [EAX+0x40], writes byte [EAX+5]) — note that, UNLIKE chapter 23,
+ * there is NO accompanying .sprite_state[1]=2 facing write; and (3) the spell
+ * cast fd2_cast_screen_wide_spell_with_fade(cursor_screen_x + 6,
+ * cursor_screen_y + 5, 10, 8) (identical params to chapter 23). It then fires
+ * three back-to-back fd2_cutscene_event_trigger(0x55) calls (the three parallel
+ * walk-in groups), clears all facings, plays a single dialog page (page 0), and
+ * drives battle_anim_phase as a phase fork around two portrait dumps
+ * (battle_anim_phase=0; fd2_cinematic_chapter_portrait_dump_with_white_flash
+ * (0,0x10,6); then (7,0x10,7); battle_anim_phase=1) before the final
+ * pan-to-char. Like chapter 23 it is NOT a pure straight-line orchestrator (it
+ * has the two loops and the HP-filter branch), BUT it still has NO numeric
+ * computation, NO RNG, and — critically — NO CALL-result consumption: the
+ * HP-filter branch tests an IN-MEMORY value (runtime_char[i].hp_current), not a
+ * CALL return, so there is NO Ghidra EAX-tracking-bug exposure (verified
+ * against the disassembly @0x33C9D: the only CALL whose result could be read is
+ * fd2_mark_char_as_dead, and its EAX is discarded — ADD ESP,0x4; INC EBX).
+ *
+ * Its behavioral test is DEFERRED to Phase 9 (reason proven, not convenience),
+ * on identical grounds to chapter 23 and the rest of this file. The loops and
+ * writes are NOT independently host-testable because there is no entry point
+ * that runs only them:
+ *   - fd2_init_battle_state_for_chapter (real-linked, src/battle/btl_init.c)
+ *     runs FIRST and RELOADS current_chapter_text from the real FDTXT.DAT (it
+ *     is the chapter-battle-data loader), so there is no host-safe slice before
+ *     the body.
+ *   - the mark-dead loop falls straight into
+ *     fd2_cast_screen_wide_spell_with_fade and then
+ *     fd2_display_dialog_scene(page 0); fd2_display_dialog_scene is real-linked
+ *     (src/dialog/dialog.c) and reaches fd2_wait_for_input_dialog_with_blink(1)
+ *     (real-linked, src/input/input.c) on a -3 PAGE BREAK opcode in the real
+ *     FDTXT chapter stream — the keyboard busy-wait that hangs forever in the
+ *     silent automated harness — so the function never returns and neither the
+ *     post-loop revive state, the battle_anim_phase fork, nor the two portrait
+ *     dumps are observable at unit level.
+ *   - fd2_mark_char_as_dead is itself real-linked (src/battle/btl_turn.c), so
+ *     the loop cannot be observed via a capture stub, and the emit must not be
+ *     distorted to make it host-testable (forbidden).
+ * Equivalence was therefore verified statically, line-by-line, against the
+ * disassembly @0x33C9D (the two 20-iteration loops with their i*0x50 element
+ * addresses and the hp_current/flags field offsets — and the ABSENCE of the
+ * sprite_state[1]=2 write that chapter 23 has, the
+ * fd2_cast_screen_wide_spell_with_fade(+6,+5,10,8) spell call, the three
+ * back-to-back cutscene-0x55 triggers, the single page-0 dialog, and the
+ * battle_anim_phase 0->1 fork bracketing the two
+ * fd2_cinematic_chapter_portrait_dump_with_white_flash(0,0x10,6)/(7,0x10,7)
+ * calls). Note the final fd2_pan_cursor_to_char(0) is physically a tail-JMP
+ * (0x33DB5 -> 0x33594) into the shared epilogue owned by fd2_chapter_15_init
+ * (PUSH 0; CALL fd2_pan_cursor_to_char; POP EBX; RET — the same 0x33594
+ * alt-entry chapter 23 reaches); the emit reconstructs the equivalent
+ * straight-line form. See src/emit_issues.json (00033c9d).
  */
 
 #include <stdio.h>
@@ -783,5 +842,9 @@ void run_field_chinit_tests(void)
            "Sky-Key bonus page + 3x screen-wide spell; behavioral test "
            "deferred to Phase 9 integration; see src/emit_issues.json "
            "00033af1)\n");
+    printf("  (fd2_chapter_28_init: twin of chapter_23; mark-dead loop + "
+           "screen-wide spell + HP-survivor revive filter (no CALL-result "
+           "consumption); behavioral test deferred to Phase 9 integration; "
+           "see src/emit_issues.json 00033c9d)\n");
     printf("\n");
 }

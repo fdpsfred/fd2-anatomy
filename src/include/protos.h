@@ -251,6 +251,7 @@ void fd2_chapter_24_init(void);
 void fd2_chapter_25_init(void);
 void fd2_chapter_26_init(void);
 void fd2_chapter_27_init(void);
+void fd2_chapter_28_init(void);
 
 /* ---- animation ---- */
 void fd2_tick_tile_event_animations(void);
@@ -418,6 +419,7 @@ void fd2_restore_portrait_cache_from_tmp(void);
 /* ---- chapter / battle init ---- */
 void fd2_load_chapter_battle_data(uint32 chapter_id);
 void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id);
+void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
 void fd2_init_runtime_char_for_battle(uint32 char_field_idx, uint32 fdicon_fp);
 void fd2_init_runtime_char_from_base_growth(uint32 char_id);
 void fd2_load_chapter_background_layers(void);

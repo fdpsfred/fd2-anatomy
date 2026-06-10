@@ -1564,3 +1564,93 @@ void fd2_chapter_27_init(void)
     fd2_clear_all_chars_facing();
     fd2_pan_cursor_to_char(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_28_init @ 0x33C9D  (dispatched, 0 direct callers)
+ *
+ * Chapter 28「探索者」init handler. A cinematic "reassemble the
+ * party" prologue, near-twin of fd2_chapter_23_init: it wipes all 20
+ * active party slots, casts a screen-wide radial spell at the cursor,
+ * then revives only the HP-survivors, before a triple parallel-walk
+ * cutscene and a two-pass portrait dump. There is NO char init —
+ * chapter 28 carries the party over from the previous chapter.
+ *
+ * Two constant-bound loops over the first 20 active slots:
+ *   - Pre-spell mark-dead loop: fd2_mark_char_as_dead(i) for
+ *     i in 0..0x13 (clears every active party slot's HP). The 20-slot
+ *     bound (0x14) is wider than chapter 23's 16-slot (0x10) wipe.
+ *   - Post-spell revive filter: for i in 0..0x13, any unit whose
+ *     hp_current != 0 gets flags = 0 (clear dead/acted bits). In the
+ *     disassembly the element address is base + i*0x50 (i*5 << 4); the
+ *     survivor test reads word [EAX+0x40] (hp_current) and, on the
+ *     non-zero branch, writes byte [EAX+5] (flags). Unlike chapter 23
+ *     there is NO accompanying sprite_state[1] = 2 (facing) write.
+ *
+ * The spell call is fd2_cast_screen_wide_spell_with_fade(
+ *   cursor_screen_x + 6, cursor_screen_y + 5, 10, 8) — epicenter at
+ * the current cursor (+6/+5 tile offset), starting radius 10, radius
+ * increment 8 per frame (identical params to chapter 23). After the
+ * spell the screen is composited and the VGA palette restored
+ * (add 0) before a 500ms hold.
+ *
+ * Three back-to-back fd2_cutscene_event_trigger(0x55) calls fire the
+ * three parallel walk-in groups, then all facings are cleared and a
+ * single dialog page (page 0) plays. data_fd2_battle_anim_phase is
+ * driven as a phase fork around the two portrait dumps: it is reset
+ * to 0 right after the dialog page, then the two
+ * fd2_cinematic_chapter_portrait_dump_with_white_flash calls run
+ * (set 0 white-flash slot 6, then set 7 white-flash slot 7), then it
+ * is set to 1 before the final camera-to-char pan.
+ *
+ * void __cdecl, no real params, void return. The leading __CHK(0x2C)
+ * stack-probe is the Watcom-injected frame-size check and is not part
+ * of the source body.
+ *
+ * In the binary the final fd2_pan_cursor_to_char(0) is emitted as a
+ * tail-JMP (0x33DB5 -> 0x33594) into the shared epilogue owned by
+ * fd2_chapter_15_init (PUSH 0; CALL fd2_pan_cursor_to_char; POP EBX;
+ * RET); the entry PUSH EBX is the matching callee-save restored by
+ * that shared POP EBX. The straight-line form here is the
+ * functionally-equivalent (Layer 2) reconstruction.
+ *
+ * Linked handlers:
+ *   End:         fd2_chapter_28_end @ 0x25464 (smallest end @ 40B —
+ *                pure dialog 7 + save + chapter advance)
+ *   Post-action: fd2_chapter_22_27_28_post_action_shared @ 0x20A87
+ *                (shared with ch22/27) — extra lose if char[1] dead
+ *                (悠妮).
+ *
+ * Walkthrough SOT: assets/chapters/chapter_28.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_28_init(void)
+{
+    int i;
+
+    fd2_init_battle_state_for_chapter();
+    for (i = 0; i < 0x14; i++) {
+        fd2_mark_char_as_dead(i);
+    }
+    fd2_pan_cursor_and_window(0x1d, 0xf);
+    fd2_cast_screen_wide_spell_with_fade(data_fd2_battle_cursor_screen_x + 6,
+                                         data_fd2_battle_cursor_screen_y + 5,
+                                         10, 8);
+    for (i = 0; i < 0x14; i++) {
+        if (data_fd2_battle_runtime_char_array_ptr[i].hp_current != 0) {
+            data_fd2_battle_runtime_char_array_ptr[i].flags = 0;
+        }
+    }
+    fd2_composite_battle_frame(0);
+    fd2_set_vga_palette_range_with_add(0, 0xff, 0);
+    __delay_thunk_375b2(500);
+    fd2_cutscene_event_trigger(0x55);
+    fd2_cutscene_event_trigger(0x55);
+    fd2_cutscene_event_trigger(0x55);
+    fd2_clear_all_chars_facing();
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cinematic_chapter_portrait_dump_with_white_flash(0, 0x10, 6);
+    fd2_cinematic_chapter_portrait_dump_with_white_flash(7, 0x10, 7);
+    data_fd2_battle_anim_phase = 1;
+    fd2_pan_cursor_to_char(0);
+}
