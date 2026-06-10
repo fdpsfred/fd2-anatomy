@@ -967,3 +967,54 @@ void fd2_chapter_16_init(void)
                              0xcd, 0x4c, 0x4a, 0x13, 1);
     fd2_pan_cursor_to_char(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_17_init @ 0x335AA  (dispatched, 0 direct callers)
+ *
+ * Chapter 17「血與冰之刃」init handler. A near-minimal chapter init
+ * distinguished only by a DATA-DEPENDENT portrait load: it re-inits
+ * battle state, conditionally loads portrait set 1 ONLY when 蜜蒂
+ * (char id 0x12) is NOT currently in the party, plays a single dialog
+ * page (page 0), and pans the camera to char 0. There is NO cutscene,
+ * NO char init, NO camera-pan-and-window prelude, NO
+ * data_fd2_battle_anim_phase reset, and NO clear-facing — chapter 17
+ * carries the party over from the previous chapter.
+ *
+ * The portrait load is gated by fd2_check_party_has_char_id(0x12): the
+ * disassembly is TEST EAX,EAX; JNZ (skip the load) — so the load runs
+ * only on the return == 0 (蜜蒂 absent) branch. The TEST EAX,EAX
+ * consumes the genuine return value of the CALL (not a Ghidra
+ * EAX-tracking artifact).
+ *
+ * void __cdecl, no real params, void return. The leading __CHK(0x28)
+ * stack-probe is the Watcom-injected frame-size check and is not part
+ * of the source body.
+ *
+ * In the binary this handler physically contains only its entry block
+ * (init battle state + the gated portrait load); both the load-taken
+ * and load-skipped paths converge on a tail-JMP into the same shared
+ * page-0 dialog chain used by chapters 06/10/13/14/16: 0x3344D (page-0
+ * dialog-arg push, owned by fd2_chapter_12_init) -> 0x33206 (the
+ * fd2_display_dialog_scene call, in fd2_chapter_07_init) -> 0x33140
+ * (the fd2_pan_cursor_to_char(0) + RET tail, owned by
+ * fd2_chapter_05_init, entered directly without a clear-facing). The
+ * straight-line form here is the functionally-equivalent (Layer 2)
+ * reconstruction.
+ *
+ * Linked handlers:
+ *   End:         fd2_chapter_17_end @ 0x23B5F
+ *   Post-action: fd2_chapter_17_post_action @ 0x20872 — gated lose:
+ *     蜜蒂(char 0x12) not joined AND char[0x34] dead -> page 2 + lose.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_17.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_17_init(void)
+{
+    fd2_init_battle_state_for_chapter();
+    if (fd2_check_party_has_char_id(0x12) == 0) {
+        fd2_load_chapter_portraits_and_dump_tmp(1);
+    }
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_pan_cursor_to_char(0);
+}

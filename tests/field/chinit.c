@@ -387,6 +387,50 @@
  * the fd2_chapter_13_init body. The leading __CHK(0x28) is the Watcom frame-size
  * stack-probe and is not part of the source body. See src/emit_issues.json
  * (000335a0).
+ *
+ * fd2_chapter_17_init @0x335AA is a near-minimal chapter init of the same family
+ * as chapters 06/13/14/16, with one structural addition: a DATA-DEPENDENT,
+ * CALL-return-consuming branch that gates the portrait load (so, like chapter
+ * 15, it is NOT a pure straight-line orchestrator). It re-inits battle state,
+ * loads portrait set 1 ONLY when 蜜蒂 (char id 0x12) is NOT in the party
+ * (if fd2_check_party_has_char_id(0x12) == 0), plays a single dialog page
+ * (page 0), and pans the camera to char 0. NO cutscene, NO char init, NO
+ * camera-pan-and-window prelude, NO battle_anim_phase reset, NO clear-facing.
+ * The gate is the EAX-bug-risk point: in the disassembly @0x335AA it is TEST
+ * EAX,EAX; JNZ (skip the load), and the TEST consumes the genuine byte return
+ * of the CALL — the emit encodes it as the real return of
+ * fd2_check_party_has_char_id (verified against the assembly @0x335C3, not
+ * trusted from the decompiler), as `if (... == 0)`.
+ *
+ * Despite the added branch, its behavioral test is DEFERRED to Phase 9 (reason
+ * proven, not convenience), on identical grounds to chapter 15. The branch
+ * outcome cannot be observed in isolation because:
+ *   - fd2_init_battle_state_for_chapter runs FIRST and is the real-linked
+ *     chapter-battle-data loader (it calls fd2_load_chapter_battle_data +
+ *     fd2_composite_battle_frame(1) + fd2_play_palette_fade_in), so there is no
+ *     host-safe slice before the branch.
+ *   - both the load-taken (蜜蒂 absent) and load-skipped (蜜蒂 present) paths
+ *     converge on the SAME single fd2_display_dialog_scene(page 0) call, which
+ *     is real-linked (src/dialog/dialog.c) and reaches
+ *     fd2_wait_for_input_dialog_with_blink(1) on a -3 PAGE BREAK opcode — the
+ *     real-linked keyboard busy-wait that hangs forever in the silent harness —
+ *     so the function never returns and neither the portrait-load side effect
+ *     (fopen FDICON.B24 + dump FD2.TMP) nor any post-branch state is observable.
+ *   - fd2_check_party_has_char_id is itself still the testglob.c fake (slated
+ *     for src/util/misc.c); its captured arg/return are only reachable after the
+ *     function survives past the blocking dialog, which it cannot.
+ * The emit must not be distorted to make it host-testable (forbidden).
+ * Equivalence was therefore verified statically, line-by-line, against the
+ * disassembly @0x335AA (the gated portrait load with its TEST EAX,EAX; JNZ
+ * consuming the real CALL return, the single page-0 dialog call, and the final
+ * fd2_pan_cursor_to_char(0); the absence of any battle_anim_phase reset and of
+ * any clear-facing). Note both branch paths converge on a tail-JMP through the
+ * same shared page-0 dialog chain used by chapters 06/10/13/14/16 — 0x3344D
+ * (page-0 dialog-arg push, owned by fd2_chapter_12_init) -> 0x33206 (the dialog
+ * call, in fd2_chapter_07_init) -> 0x33140 (the pan + RET, owned by
+ * fd2_chapter_05_init, entered directly without a clear-facing); the emit
+ * reconstructs the equivalent straight-line form. See src/emit_issues.json
+ * (000335aa).
  */
 
 #include <stdio.h>
@@ -433,5 +477,8 @@ void run_field_chinit_tests(void)
     printf("  (fd2_chapter_16_init: pure thunk into chapter_13 shared body; "
            "behavioral test deferred to Phase 9 integration; see "
            "src/emit_issues.json 000335a0)\n");
+    printf("  (fd2_chapter_17_init: data-dependent gated portrait load; "
+           "behavioral test deferred to Phase 9 integration; see "
+           "src/emit_issues.json 000335aa)\n");
     printf("\n");
 }
