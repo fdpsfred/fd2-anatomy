@@ -373,6 +373,224 @@ static void test_h49_store_is_unconditional_and_index_exact(void)
     ce49_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_4a__ch29_dyn_turn_event @ 0x35C32
+ *
+ * ch29 8-stage rotating portrait cinematic. stage = consumed_flags[0x10]:
+ *   fd2_cinematic_chapter_portrait_dump_with_white_flash(0xA, 0x1D, stage);
+ *   if (stage != 7) tile_event_data_table[+3] = (uint8)(turn_counter + 1);
+ *   consumed_flags[0x10] += 1;            (8-bit INC, the borrowed shared tail)
+ *
+ * Risk-bearing (RNG-free but: conditional scheduler branch on stage==7, 8-bit
+ * turn+1 arithmetic, unconditional 8-bit stage advance, and the portrait id =
+ * stage routing). Driven over the REAL cinematic helper + REAL portrait loader
+ * (real FDICON.B24 / FDFIELD.DAT) plus an in-memory tile-event table (whose +3
+ * slot is the scheduler target, never touched by the loader which only reads
+ * race at +0x98) and an in-memory consumed_flags buffer (whose [0x10] is the
+ * stage counter). Pure display side effects (pan composite, white-flash palette
+ * writes) execute host-safely as a byproduct; only the routing observables, the
+ * scheduler store, and the stage advance are asserted.
+ *
+ * Own fixture (own tile-event table + own flags buffer) so the suite never
+ * aliases the h48/h49 state; reuses the module render-scratch workspace.
+ * ================================================================ */
+static uint8 *g_ce4a_tileevent;
+static uint8  g_ce4a_flags[0x20];
+
+/* Stand up the real-cinematic env (same shape as ce48_setup) plus the stage
+ * counter. `count`/`races` drive whether the single cutscene's portrait id
+ * (= stage) matches a record; `stage` seeds consumed_flags[0x10]; `turn` seeds
+ * data_fd2_battle_turn_counter for the scheduler store. */
+static void ce4a_setup(int count, const uint8 *races, uint8 stage, uint8 turn)
+{
+    int i;
+    uint32 *atlas_tbl;
+
+    /* --- portrait loader env (tile-event table @ data_table_ptr) --- */
+    g_ce4a_tileevent =
+        (uint8 *)malloc((size_t)0x98 + (size_t)count * 0x1a + 0x20);
+    memset(g_ce4a_tileevent, 0, (size_t)0x98 + (size_t)count * 0x1a + 0x20);
+    for (i = 0; i < count; i++) {
+        g_ce4a_tileevent[i * 0x1a + 0x98] = races[i];
+    }
+    data_fd2_tile_event_data_table_ptr = (uint32)g_ce4a_tileevent;
+    data_fd2_resource_portrait_cache_alloc_offset = (uint32)count;
+    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_init_phase_flag = 1;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    data_fd2_battle_party_member_count = 0;
+    data_fd2_chapter_current_chapter_id = 4;     /* re-read idx = 4*3+2 = 0xE */
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_resource_portrait_cache_count = 0;
+    data_fd2_resource_portrait_cache_buffer_used = 0;
+
+    /* --- render env for the pan composite + final composite --- */
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_ce48_ws - 0x8088;
+    data_fd2_battle_view_window_max_x = 0x100;
+    data_fd2_battle_view_window_max_y = 0x100;
+    data_fd2_battle_view_window_origin_x = 0x40;
+    data_fd2_battle_view_window_origin_y = 0x40;
+    atlas_tbl = (uint32 *)(g_ce48_atlas + 6);
+    for (i = 0; i < 64; i++) {
+        atlas_tbl[i] = (uint32)i;
+    }
+    data_fd2_runtime_battle_state_ptr = (uint32)g_ce48_atlas;
+    data_fd2_animation_palette_cycle_last_tick = (uint16)BIOS_TICK_WORD;
+    for (i = 0; i < 256 * 3; i++) {
+        g_ce48_palette[i] = 0x20;
+    }
+    data_fd2_vga_palette_data_ptr = (uint32)g_ce48_palette;
+    data_fd2_battle_anim_phase = 1;              /* nonzero composite gate */
+
+    /* --- the handler's own state: stage counter + turn counter --- */
+    memset(g_ce4a_flags, 0, sizeof(g_ce4a_flags));
+    g_ce4a_flags[0x10] = stage;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ce4a_flags;
+    data_fd2_battle_turn_counter = turn;
+
+    g_delay375b2_log_on = 1;
+    g_delay375b2_log_count = 0;
+    g_composite_call_count = 0;
+}
+
+static void ce4a_teardown(void)
+{
+    free(g_ce4a_tileevent);
+    g_ce4a_tileevent = 0;
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_init_phase_flag = 0;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_chapter_current_chapter_id = 1;
+    data_fd2_battle_anim_phase = 0;
+    data_fd2_battle_turn_counter = 0;
+    g_delay375b2_log_on = 0;
+    g_delay375b2_log_count = 0;
+    remove("FD2.TMP");
+}
+
+/* ----------------------------------------------------------------
+ * The single portrait cutscene forwards chapter_id = the current stage value and
+ * targets the fixed tile (0xA, 0x1D). Seed stage=3 and a tile-event table with
+ * one race-3 record plus an off-by-one decoy (race 4): the cutscene's id (3)
+ * matches the race-3 record (party_member_count += 1) and not the decoy, proving
+ * chapter_id == stage. The window starts away from (0xA, 0x1D) on both axes, so
+ * landing there proves the pan target. One cutscene -> exactly one 300/200/400
+ * delay triple. The dispatch arg is passed nonzero to prove it is ignored.
+ * ---------------------------------------------------------------- */
+static void test_h4a_portrait_uses_stage_value_and_fixed_tile(void)
+{
+    static const uint8 races[2] = { 3, 4 };      /* id 3 matches; 4 is a decoy */
+
+    ce4a_setup(2, races, 3, 0x10);
+
+    fd2_chapter_event_handler_4a__ch29_dyn_turn_event(0x77);
+
+    /* one cutscene ran fully: exactly one 300/200/400 triple */
+    ASSERT_EQ((long)g_delay375b2_log_count, 3);
+    ASSERT_EQ((long)g_delay375b2_log[0], 300);
+    ASSERT_EQ((long)g_delay375b2_log[1], 200);
+    ASSERT_EQ((long)g_delay375b2_log[2], 400);
+    /* chapter_id forwarded == stage (3): only the race-3 record matched */
+    ASSERT_EQ((long)data_fd2_battle_party_member_count, 1);
+    /* the cutscene panned to the literal fixed tile (0xA, 0x1D) */
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_x, 0xA);
+    ASSERT_EQ((long)data_fd2_battle_view_window_origin_y, 0x1D);
+
+    ce4a_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * When the stage is NOT the final one (stage != 7) the handler arms the next
+ * turn-event: tile_event_data_table[+3] = (uint8)(turn_counter + 1). Seed
+ * stage=2, turn_counter=0x40, and a race that never equals the stage (loader is a
+ * host-safe no-op). Pre-seed +3 with a stale sentinel; after the call +3 holds
+ * 0x41 (= 0x40 + 1), proving both the store and the +1. The neighbouring table
+ * bytes (+2, +4) stay at their seeded sentinels, pinning the exact +3 offset. The
+ * stage byte also advances 2 -> 3.
+ * ---------------------------------------------------------------- */
+static void test_h4a_schedules_next_turn_when_stage_not_7(void)
+{
+    static const uint8 races[1] = { 0x7F };      /* never equals stage 2 */
+
+    ce4a_setup(1, races, 2, 0x40);
+    g_ce4a_tileevent[2] = 0xAA;                  /* +2 neighbour decoy */
+    g_ce4a_tileevent[3] = 0x5C;                  /* +3 stale sentinel  */
+    g_ce4a_tileevent[4] = 0xBB;                  /* +4 neighbour decoy */
+
+    fd2_chapter_event_handler_4a__ch29_dyn_turn_event(0);
+
+    /* scheduler wrote turn_counter + 1 into +3 */
+    ASSERT_EQ((long)g_ce4a_tileevent[3], 0x41);
+    /* only +3 changed: immediate neighbours preserved */
+    ASSERT_EQ((long)g_ce4a_tileevent[2], 0xAA);
+    ASSERT_EQ((long)g_ce4a_tileevent[4], 0xBB);
+    /* the stage counter advanced 2 -> 3 */
+    ASSERT_EQ((long)g_ce4a_flags[0x10], 3);
+
+    ce4a_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * On the FINAL stage (stage == 7) the scheduler is skipped (the binary JZ jumps
+ * straight to the shared advance tail), so tile_event_data_table[+3] is left
+ * untouched — the defining branch that stops the rotation. Seed stage=7 and a
+ * stale sentinel at +3; after the call +3 still holds the sentinel (no store),
+ * yet the stage byte STILL advances 7 -> 8 (the increment is unconditional). The
+ * race never matches stage 7 so the loader is a no-op.
+ * ---------------------------------------------------------------- */
+static void test_h4a_no_schedule_on_final_stage_7(void)
+{
+    static const uint8 races[1] = { 0x7F };      /* never equals stage 7 */
+
+    ce4a_setup(1, races, 7, 0x40);
+    g_ce4a_tileevent[3] = 0x5C;                  /* +3 stale sentinel must survive */
+
+    fd2_chapter_event_handler_4a__ch29_dyn_turn_event(0);
+
+    /* stage == 7: scheduler skipped, +3 untouched (rotation stops) */
+    ASSERT_EQ((long)g_ce4a_tileevent[3], 0x5C);
+    /* but the stage advance is unconditional: 7 -> 8 */
+    ASSERT_EQ((long)g_ce4a_flags[0x10], 8);
+
+    ce4a_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Both the stage advance and the turn+1 store are 8-bit (binary INC byte ptr /
+ * INC DL). Seed stage=0xFF and turn_counter=0xFF (stage != 7 so the scheduler
+ * still fires). After the call the stage byte wraps 0xFF -> 0x00 (8-bit INC) and
+ * +3 holds 0x00 (= (uint8)(0xFF + 1)), pinning both truncations. The race never
+ * matches stage 0xFF so the loader stays a no-op.
+ * ---------------------------------------------------------------- */
+static void test_h4a_stage_and_turn_arithmetic_are_8bit(void)
+{
+    static const uint8 races[1] = { 0x33 };      /* never equals stage 0xFF */
+
+    ce4a_setup(1, races, 0xFF, 0xFF);
+    g_ce4a_tileevent[3] = 0x5C;                  /* stale sentinel, overwritten */
+
+    fd2_chapter_event_handler_4a__ch29_dyn_turn_event(0x12);
+
+    /* turn+1 in 8-bit: (uint8)(0xFF + 1) == 0 stored at +3 */
+    ASSERT_EQ((long)g_ce4a_tileevent[3], 0);
+    /* stage advance in 8-bit: 0xFF wraps to 0 */
+    ASSERT_EQ((long)g_ce4a_flags[0x10], 0);
+
+    ce4a_teardown();
+}
+
 void run_field_chevt25_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -383,5 +601,9 @@ void run_field_chevt25_tests(void)
     RUN_TEST(test_h48_anim_phase_store_is_unconditional);
     RUN_TEST(test_h49_sets_consumed_flag_0x12);
     RUN_TEST(test_h49_store_is_unconditional_and_index_exact);
+    RUN_TEST(test_h4a_portrait_uses_stage_value_and_fixed_tile);
+    RUN_TEST(test_h4a_schedules_next_turn_when_stage_not_7);
+    RUN_TEST(test_h4a_no_schedule_on_final_stage_7);
+    RUN_TEST(test_h4a_stage_and_turn_arithmetic_are_8bit);
     printf("\n");
 }

@@ -1084,3 +1084,55 @@ void fd2_chapter_event_handler_49__unref_sentinel(uint32 event_arg)
 
     *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x12) = 1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_4a__ch29_dyn_turn_event @ 0x35C32
+ *   (1 caller: dispatch table @ 0x51B91, entry @ 0x51CB9)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x4A. Triggered
+ * in chapter 29 at turn-event slot 0 (turn=0xFF sentinel). Category: per-stage
+ * state-machine mutator with conditional turn-event scheduler. Dispatch-table
+ * signature is 1-arg cdecl (void fn(uint event_arg)); this handler does not read
+ * the arg.
+ *
+ * Effect: ch29 8-stage rotating portrait cinematic. The stage counter lives in
+ * tile_event_consumed_flags[0x10] (read zero-extended via MOVZX). Each call shows
+ * one chapter portrait white-flash cutscene at the fixed tile (0xA, 0x1D) with
+ * chapter id = the current stage value, so stages 0..7 reveal a rotating set of
+ * portraits. While the stage is not yet the final one (stage != 7), it arms the
+ * next turn-event one player turn ahead by writing turn_counter + 1 into the
+ * turn-event hook table at tile_event_data_table[+3] (hook entry 0's turn byte);
+ * on the final stage that scheduling is skipped so the rotation stops. In every
+ * case the stage byte is then incremented by 1 (8-bit INC byte ptr) so
+ * consecutive calls advance through the stages in order.
+ *
+ * The turn counter is read as a single byte and incremented in 8-bit before the
+ * byte store (MOV DL,[turn_counter] / INC DL / MOV [data_table+3],DL); the
+ * (uint8) truncation on store reproduces that 8-bit arithmetic exactly.
+ *
+ * In the binary the final "advance and return" is reached by JMP into the
+ * Class-3 shared tail at 0x35992 (MOV EAX,[consumed_flags_ptr]; INC byte
+ * [EAX+0x10]; RET) hosted in fd2_chapter_event_handler_40__unref_dyn_turn_event
+ * @ 0x358EA: both branches of this handler tail-JMP there to borrow that
+ * function's stage-advance tail instead of emitting their own. That tail-merge is
+ * a binary size optimisation; the functionally-exact source is the conditional
+ * scheduler below followed by the unconditional byte increment. Stack frame 0x10
+ * (__CHK) is the Watcom stack-probe prologue and carries no source-level
+ * semantics.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_4a__ch29_dyn_turn_event(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_cinematic_chapter_portrait_dump_with_white_flash(
+        0xA, 0x1D,
+        (uint32)*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10));
+
+    if (*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) != 7) {
+        *(uint8 *)(data_fd2_tile_event_data_table_ptr + 3) =
+            (uint8)(data_fd2_battle_turn_counter + 1);
+    }
+
+    *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) =
+        (uint8)(*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) + 1);
+}

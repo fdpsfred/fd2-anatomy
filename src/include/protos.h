@@ -230,6 +230,7 @@ void fd2_chapter_event_handler_46__ch28_dialog_with_state(uint32 event_arg);
 void fd2_chapter_event_handler_47__unref_dyn_turn_event(uint32 event_arg);
 void fd2_chapter_event_handler_48__unref_ai_ctrl(uint32 event_arg);
 void fd2_chapter_event_handler_49__unref_sentinel(uint32 event_arg);
+void fd2_chapter_event_handler_4a__ch29_dyn_turn_event(uint32 event_arg);
 void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
 void fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
 
