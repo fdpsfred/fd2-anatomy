@@ -3556,8 +3556,9 @@
     "name": "fd2_chapter_30_init",
     "target": "field/chinit.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00033f78": {
     "name": "fd2_cinematic_warp_char_to_tile",

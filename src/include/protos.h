@@ -153,6 +153,7 @@ void fd2_play_sfx_with_handle(uint32, int, int);
 void fd2_play_rising_pre_cast_effect(int, int, int);
 void fd2_play_variant_b_slide_pre_effect(int, int);
 void fd2_animate_warp_teleport_char(uint32, uint32, uint32, uint32, uint32);
+void fd2_cinematic_warp_char_to_tile(uint32 char_id, uint32 tile_x, uint32 tile_y);
 void fd2_cast_screen_wide_spell_with_fade(uint32 epicenter_tile_x, uint32 epicenter_tile_y, uint32 starting_radius, int radius_increment);
 
 /* ---- cursor + pan ---- */
@@ -174,6 +175,7 @@ void fd2_interpolate_palette_range_toward_color(uint32 start_idx, uint32 end_idx
 void fd2_apply_palette_remap_run(uint32 remap_table, uint32 byte_count, uint8 *buf);
 void fd2_tick_chapter_palette_animation(void);
 void fd2_update_palette_cycle_anim(void);
+void fd2_animate_palette_flash_pulse_white(void);
 
 /* ---- ui_menu / status ---- */
 void fd2_open_shop_dialog_panel(uint32 item_count, uint32 item_id_array, uint32 sell_mode_flag);
@@ -253,6 +255,7 @@ void fd2_chapter_26_init(void);
 void fd2_chapter_27_init(void);
 void fd2_chapter_28_init(void);
 void fd2_chapter_29_init(void);
+void fd2_chapter_30_init(void);
 
 /* ---- animation ---- */
 void fd2_tick_tile_event_animations(void);

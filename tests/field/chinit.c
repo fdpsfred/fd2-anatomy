@@ -802,6 +802,52 @@
  * fd2_chapter_05_init (the same 0x3312D alt-entry chapters 03/04/26 reach); the
  * emit reconstructs the equivalent straight-line form. See src/emit_issues.json
  * (00033dba).
+ *
+ * fd2_chapter_30_init @0x33E3C is the FINAL chapter init — a cinematic
+ * "魔神群進場" (demon-god warp-in) prologue. Structurally it is still a pure
+ * straight-line orchestrator of the same family as the flat chapters
+ * (02..08/18/26/29): a fixed sequence of void side-effect calls
+ * (cutscene/dialog/camera) plus unconditional constant writes to
+ * data_fd2_battle_anim_phase, with no loops. The one thing that sets it apart
+ * is seven fd2_cinematic_warp_char_to_tile(char_id, tile_x, tile_y) calls in
+ * two batches — batch 1 (上排, tile_y=5) warps in units 0x15/0x16/0x17/0x18,
+ * batch 2 (下排, tile_y=0x12) warps in units 0x18/0x19/0x1A — separated by a
+ * dramatic fd2_animate_palette_flash_pulse_white() between dialog pages 1 and
+ * 2. The third warp argument is the destination tile Y (written through to
+ * runtime_char.bPos_y by fd2_animate_warp_teleport_char), NOT a brightness;
+ * batch 1 uses y=5 and batch 2 uses y=0x12 for the two rows of units. It has
+ * NO numeric computation, NO RNG, NO data-dependent branch, NO loops, and NO
+ * CALL-result consumption (no EAX-bug exposure — the dialog-scene / cutscene /
+ * warp / palette-flash CALL returns are all discarded). Every callee is either
+ * real-linked from src/ (fd2_init_battle_state_for_chapter,
+ * fd2_cutscene_event_trigger, fd2_pan_cursor_and_window,
+ * fd2_display_dialog_scene, fd2_clear_all_chars_facing, fd2_pan_cursor_to_char)
+ * or a not-yet-emitted helper stubbed in testglob.c
+ * (fd2_cinematic_warp_char_to_tile @0x33F78,
+ * fd2_animate_palette_flash_pulse_white @0x35E5A). Its behavioral test is
+ * therefore DEFERRED to Phase 9 on identical grounds to the rest of this file:
+ * the first fd2_display_dialog_scene(page 0) call is real-linked
+ * (src/dialog/dialog.c) and reaches fd2_wait_for_input_dialog_with_blink(1)
+ * (real-linked, src/input/input.c) on a -3 PAGE BREAK opcode in the real FDTXT
+ * chapter stream — the keyboard busy-wait that hangs forever in the silent
+ * automated harness — and fd2_init_battle_state_for_chapter runs FIRST and
+ * RELOADS current_chapter_text from the real FDTXT.DAT (it is the chapter-
+ * battle-data loader), so there is no host-safe slice before the body and the
+ * function never returns; neither the three constant battle_anim_phase writes
+ * (0/0/1) nor the warp-in ordering is observable at unit level, and the emit
+ * must not be distorted to make it host-testable (forbidden). Equivalence was
+ * therefore verified statically, line-by-line, against the disassembly @0x33E3C
+ * (the 0x57 cutscene, the (0x10,0x13)/(0x10,1)/(0x10,0xE) camera pans, the
+ * page-0/1/2 dialog calls, the two warp batches with their per-unit
+ * (char_id,tile_x,tile_y) literals and tile_y 5 vs 0x12, the
+ * fd2_animate_palette_flash_pulse_white() between pages 1 and 2, and the three
+ * battle_anim_phase writes 0/0/1). Note the trailing
+ * fd2_clear_all_chars_facing() and fd2_pan_cursor_to_char(0) are physically a
+ * tail-JMP (0x33F73 -> 0x3313B) into the shared epilogue owned by
+ * fd2_chapter_05_init (entered at its clear-facing point); the emit
+ * reconstructs the equivalent straight-line form. This is the GOOD-ENDING
+ * chapter (end handler fd2_chapter_30_end @0x25757 + staff roll). See
+ * src/emit_issues.json (00033e3c).
  */
 
 #include <stdio.h>
@@ -883,5 +929,9 @@ void run_field_chinit_tests(void)
            "pages 7/8 bracketing portrait dump); tile-event win/lose; "
            "behavioral test deferred to Phase 9 integration; see "
            "src/emit_issues.json 00033dba)\n");
+    printf("  (fd2_chapter_30_init: FINAL chapter; 魔神 warp-in cinematic "
+           "(7x cinematic_warp + white palette flash); GOOD ENDING; behavioral "
+           "test deferred to Phase 9 integration; see src/emit_issues.json "
+           "00033e3c)\n");
     printf("\n");
 }

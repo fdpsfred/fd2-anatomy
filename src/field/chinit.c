@@ -1713,3 +1713,74 @@ void fd2_chapter_29_init(void)
     fd2_clear_all_chars_facing();
     fd2_pan_cursor_to_char(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_30_init @ 0x33E3C  (dispatched, 0 direct callers)
+ *
+ * Chapter 30「傳說的終章－結局」init handler — the final chapter.
+ * A cinematic chapter-prologue orchestrator that warps the 魔神
+ * (demon-god) group onto the map in two staged batches separated by
+ * a dramatic white palette-flash, plays three dialog pages (pages
+ * 0/1/2), and pans the camera, before handing the final battle off
+ * to the player. There is NO char init and NO portrait pre-load —
+ * chapter 30 carries the party over from chapter 29.
+ *
+ * Batch 1 (上排, tile_y = 5) warps in 4 units, batch 2 (下排,
+ * tile_y = 0x12) warps in 3 units, for 7 total
+ * fd2_cinematic_warp_char_to_tile calls. Each call is
+ * (char_id, tile_x, tile_y); the third argument is the destination
+ * tile Y coordinate (written through to runtime_char.bPos_y by
+ * fd2_animate_warp_teleport_char), which is why batch 1 uses y=5
+ * and batch 2 uses y=0x12 — the two rows of demon-gods.
+ * data_fd2_battle_anim_phase is reset to 0 after pages 0 and 1, then
+ * set to 1 at the very end (before clear-facing) to flag the final
+ * battle scene.
+ *
+ * void __cdecl, no real params, void return. The leading __CHK(0x28)
+ * stack-probe is the Watcom-injected frame-size check and is not part
+ * of the source body.
+ *
+ * In the binary the trailing fd2_clear_all_chars_facing() and
+ * fd2_pan_cursor_to_char(0) are emitted as a tail-JMP (0x33F73 ->
+ * 0x3313B) into the shared epilogue owned by fd2_chapter_05_init
+ * (CALL fd2_clear_all_chars_facing; PUSH 0; CALL
+ * fd2_pan_cursor_to_char; RET) — entered at its clear-facing point.
+ * The straight-line form here is the functionally-equivalent
+ * (Layer 2) reconstruction.
+ *
+ * Linked handlers:
+ *   End:         fd2_chapter_30_end @ 0x25757
+ *                (GOOD ENDING + staff roll)
+ *   Post-action: fd2_chapter_30_post_action @ 0x20BF5 (non-default —
+ *                char[0x14] dead = win (空魔神); chars[0,1] dead =
+ *                lose)
+ *
+ * Walkthrough SOT: assets/chapters/chapter_30.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_30_init(void)
+{
+    fd2_init_battle_state_for_chapter();
+    fd2_cutscene_event_trigger(0x57);
+    fd2_pan_cursor_and_window(0x10, 0x13);
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_pan_cursor_and_window(0x10, 1);
+    fd2_cinematic_warp_char_to_tile(0x15, 0x15, 5);
+    fd2_cinematic_warp_char_to_tile(0x16, 0x17, 5);
+    fd2_cinematic_warp_char_to_tile(0x17, 0x14, 5);
+    fd2_cinematic_warp_char_to_tile(0x18, 0x18, 5);
+    fd2_display_dialog_scene(current_chapter_text, 1, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_animate_palette_flash_pulse_white();
+    fd2_display_dialog_scene(current_chapter_text, 2, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_pan_cursor_and_window(0x10, 0xe);
+    fd2_cinematic_warp_char_to_tile(0x18, 0x16, 0x12);
+    fd2_cinematic_warp_char_to_tile(0x19, 0x15, 0x12);
+    fd2_cinematic_warp_char_to_tile(0x1a, 0x17, 0x12);
+    data_fd2_battle_anim_phase = 1;
+    fd2_clear_all_chars_facing();
+    fd2_pan_cursor_to_char(0);
+}
