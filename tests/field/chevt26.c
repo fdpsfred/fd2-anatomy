@@ -888,6 +888,120 @@ static void test_h52_stage4_final_branch(void)
     ce52_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_53__unref_dialog_with_state @ 0x36088
+ *
+ * Straight-line dialog + mass-kill (no turn gate, no computed logic): show
+ * dialog page 8, then kill every runtime_char_array slot from index 0x14 to the
+ * end via fd2_kill_runtime_chars_from_index_to_end(0x14). The direct twin of
+ * handler_35 (which is page 5 / kill-from 0x12); the only behavioural differences
+ * are the dialog page (8) and the literal kill-from index (0x14). In the binary
+ * this handler emits its own inline dialog then JMPs to 0x35354 to borrow
+ * handler_35's kill-call cleanup tail; these tests pin the functionally-exact
+ * contract of THIS handler (dialog page 8, then kill-from index 0x14).
+ *
+ * The kill callee (0x35BBA, routing target battle/btl_turn.c) is not yet emitted,
+ * so it is the recording stub in testglob.c (g_kill_from_index / g_kill_from_calls).
+ * The kill's own HP-zeroing loop + death animation is the callee's behavior and is
+ * covered when 0x35BBA is emitted into btl_turn.c; here we verify only that THIS
+ * handler issues exactly one kill with the literal start index 0x14.
+ *
+ * The page-8 dialog runs the REAL dialog VM over an in-memory int16 program (NOT
+ * a game file): page-8 header word (int16 index 8) -> a body placed clear of the
+ * 9 page-header words (indices 0..8); the glyph blitter is the testglob recorder
+ * (g_dlg_glyph_calls); the empty BIOS keyboard buffer keeps blink_flag set and
+ * audiofix gates the per-glyph blink path host-safely.
+ * ================================================================ */
+
+/* recording stub log for the still-unemitted kill callee (testglob.c) */
+extern int    g_kill_from_calls;
+extern uint32 g_kill_from_index[4];
+
+/* Drive the page-8 dialog over an in-memory program whose body is `glyphs`
+ * TEXT opcodes followed by END, with the host-safe dialog VM env. The page-8
+ * header word sits at int16 index 8; the body goes at byte 0x14 (= int16 index
+ * 0xA), clear of the 9 page-header words (indices 0..8). The kill recorder is
+ * reset so the caller can assert the forwarded start index. */
+static int16 g_ce53_prog[16];
+
+static void ce53_setup(int glyphs)
+{
+    int i;
+
+    memset(g_ce53_prog, 0, sizeof(g_ce53_prog));
+    g_ce53_prog[8] = 0x14;                /* page-8 body byte offset (= int16 idx 0xA) */
+    for (i = 0; i < glyphs; i++) {
+        g_ce53_prog[0xA + i] = 0x41;      /* TEXT glyph */
+    }
+    g_ce53_prog[0xA + glyphs] = -1;       /* END */
+    current_chapter_text = (uint32)g_ce53_prog;
+
+    /* deterministic dialog VM env: empty BIOS keyboard buffer + audio gated so
+     * the per-glyph blink/typewriter step is host-safe. No active portrait, so
+     * END does not run the portrait-close path. */
+    *(volatile uint16 *)0x41AuL = 0x20;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    audiofix_enable_sfx();
+    data_fd2_audio_fdother_sfx_bank_buf_ptr = audiofix_make_bank(0x1F);
+
+    g_dlg_glyph_calls = 0;
+    g_kill_from_calls = 0;
+    g_kill_from_index[0] = 0xDEAD;        /* sentinel: overwritten iff called */
+}
+
+static void ce53_teardown(void)
+{
+    current_chapter_text = 0;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+}
+
+/* ----------------------------------------------------------------
+ * Full handler contract: the page-8 dialog VM runs for real (g_dlg_glyph_calls
+ * == 1 proves the page-8 body executed), and the handler then issues exactly one
+ * mass-kill with the literal start index 0x14. A 1-glyph page-8 program exercises
+ * the dialog body; the kill recorder captures the forwarded index. The page-8
+ * header index + the 0x14 kill index are the two constants that distinguish this
+ * handler from its handler_35 twin.
+ * ---------------------------------------------------------------- */
+static void test_h53_dialog_page8_then_kill_from_0x14(void)
+{
+    ce53_setup(1);
+
+    fd2_chapter_event_handler_53__unref_dialog_with_state(0);
+
+    /* dialog page-8 body ran (rendered the single glyph) */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    /* exactly one kill, with the literal start index 0x14 */
+    ASSERT_EQ((long)g_kill_from_calls, 1);
+    ASSERT_EQ((long)g_kill_from_index[0], 0x14);
+
+    ce53_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * The kill start index is the literal 0x14 regardless of the dispatch arg: the
+ * handler ignores its arg (it is the table's tile-step ABI placeholder) and
+ * always kills from 0x14. Driving the handler with a non-zero, non-0x14 arg
+ * (0x55) must NOT change the forwarded start index, guarding against the arg
+ * leaking into the kill call. The dialog body is empty (immediate END) so the
+ * kill is the sole effect under test.
+ * ---------------------------------------------------------------- */
+static void test_h53_kill_index_is_literal_ignores_arg(void)
+{
+    ce53_setup(0);                         /* 0 glyphs: immediate END */
+
+    fd2_chapter_event_handler_53__unref_dialog_with_state(0x55);
+
+    /* dialog entered but rendered nothing (immediate END) */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 0);
+    /* still exactly one kill from 0x14 — the 0x55 arg did not leak through */
+    ASSERT_EQ((long)g_kill_from_calls, 1);
+    ASSERT_EQ((long)g_kill_from_index[0], 0x14);
+
+    ce53_teardown();
+}
+
 void run_field_chevt26_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -908,5 +1022,7 @@ void run_field_chevt26_tests(void)
     RUN_TEST(test_h52_stage0_spawn_branch);
     RUN_TEST(test_h52_stage3_indices_track_stage);
     RUN_TEST(test_h52_stage4_final_branch);
+    RUN_TEST(test_h53_dialog_page8_then_kill_from_0x14);
+    RUN_TEST(test_h53_kill_index_is_literal_ignores_arg);
     printf("\n");
 }

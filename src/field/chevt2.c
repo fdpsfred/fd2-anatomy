@@ -1495,3 +1495,36 @@ void fd2_chapter_event_handler_52__ch30_major_cinematic(uint32 event_arg)
     fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x14, 0x14, 0xB);
     fd2_set_battle_anim_phase_to_1();
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_53__unref_dialog_with_state @ 0x36088
+ *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CDD)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x53. No chapter
+ * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
+ * content / non-chapter dispatcher). Category: dialog with state. Dispatch-table
+ * signature is 1-arg cdecl (void fn(uint event_arg)); this handler does not read
+ * the arg.
+ *
+ * Effect: show dialog page 8, then kill every runtime_char_array slot from index
+ * 0x14 to the end (sets hp_current = 0 for slots 0x14..count-1, then plays the
+ * death animation once) — a cinematic terminator-style mass kill. Differs from
+ * handler_35 only in dialog page (8 vs 5) and kill-from index (0x14 vs 0x12).
+ *
+ * In the binary this handler emits its own inline dialog call then pushes its
+ * kill-from index (0x14) and JMPs to 0x35354 — the Class-3 shared tail hosted in
+ * fd2_chapter_event_handler_35 (CALL fd2_kill_runtime_chars_from_index_to_end;
+ * ADD ESP,4; RET) — to borrow that 0xC-byte cleanup tail instead of emitting its
+ * own. That tail-merge is a binary size optimisation; the functionally-exact
+ * source is simply the dialog call followed by the kill call. Stack frame 0x28
+ * (__CHK) is the Watcom stack-probe prologue and carries no source-level
+ * semantics.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_53__unref_dialog_with_state(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_display_dialog_scene(current_chapter_text, 8, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_kill_runtime_chars_from_index_to_end(0x14);
+}
