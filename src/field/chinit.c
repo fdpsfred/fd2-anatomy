@@ -1352,3 +1352,74 @@ void fd2_chapter_24_init(void)
                              0xcd, 0x4c, 0x4a, 0x13, 1);
     fd2_pan_cursor_to_char(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_25_init @ 0x3396A  (dispatched, 0 direct callers)
+ *
+ * Chapter 25「火焰的審判」init handler — the only chapter init that
+ * stages an earthquake set-piece. It re-inits battle state, loads the
+ * earthquake SFX wave from FDOTHER.DAT (entry 0x58) into the shared
+ * status-effect SFX handle, plays dialog page 1, wipes the large game-
+ * state buffer, then runs four screen-shake cycles each prefixed with
+ * the quake SFX: three normal-magnitude (0x14 frames) shakes separated
+ * by 600ms holds, followed by a final 3x-magnitude (0x3C frames) shake
+ * with no trailing hold. After the quake it plays dialog page 2, pans
+ * the camera to char 0, and frees the status-effect SFX. There is NO
+ * char init and NO portrait load — chapter 25 carries the party over
+ * from the previous chapter.
+ *
+ * The earthquake SFX handle is stored to / replayed from the shared
+ * data_fd2_audio_status_effect_sfx_handle_ptr global; it is cleared to
+ * 0 before the load. The memset zeroes the 0x25680-byte
+ * data_fd2_large_game_state_buffer. The fd2_load_dat_resource return
+ * (the loaded wave handle) is the sole CALL-result consumed — stored to
+ * the handle global, matching the disassembly (MOV [0x53B13],EAX); the
+ * dialog-scene CALL returns are discarded (no Ghidra EAX-tracking-bug
+ * exposure on those).
+ *
+ * void __cdecl, no real params, void return. The leading __CHK(0x28)
+ * stack-probe is the Watcom-injected frame-size check and is not part
+ * of the source body. In the binary the final
+ * fd2_play_and_free_status_effect_sfx() is emitted as a tail-JMP
+ * (0x33AA9 -> 0x1D4F6) to that self-contained handler; the straight-
+ * line call form here is the functionally-equivalent reconstruction.
+ *
+ * Linked handlers:
+ *   End:         fd2_chapter_25_end @ 0x24DF2
+ *   Post-action: fd2_chapter_25_post_action @ 0x20B14
+ *                (extra lose if char[0x10] dead — 聖寇拉斯)
+ *
+ * Walkthrough SOT: assets/chapters/chapter_25.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_25_init(void)
+{
+    fd2_init_battle_state_for_chapter();
+    data_fd2_audio_status_effect_sfx_handle_ptr = 0;
+    data_fd2_audio_status_effect_sfx_handle_ptr =
+        fd2_load_dat_resource(0x51a4d, 0, 0x58);
+    fd2_pan_cursor_and_window(5, 0);
+    fd2_display_dialog_scene(current_chapter_text, 1, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    memset((void *)data_fd2_large_game_state_buffer_ptr, 0, 0x25680);
+
+    fd2_play_sfx_with_handle(data_fd2_audio_status_effect_sfx_handle_ptr,
+                             1, 1);
+    fd2_animate_screen_shake(0x14);
+    __delay_thunk_375b2(600);
+    fd2_play_sfx_with_handle(data_fd2_audio_status_effect_sfx_handle_ptr,
+                             1, 1);
+    fd2_animate_screen_shake(0x14);
+    __delay_thunk_375b2(600);
+    fd2_play_sfx_with_handle(data_fd2_audio_status_effect_sfx_handle_ptr,
+                             1, 1);
+    fd2_animate_screen_shake(0x14);
+    __delay_thunk_375b2(600);
+    fd2_play_sfx_with_handle(data_fd2_audio_status_effect_sfx_handle_ptr,
+                             1, 1);
+    fd2_animate_screen_shake(0x3c);
+
+    fd2_display_dialog_scene(current_chapter_text, 2, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_pan_cursor_to_char(0);
+    fd2_play_and_free_status_effect_sfx();
+}

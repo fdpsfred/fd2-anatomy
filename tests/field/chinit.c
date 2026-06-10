@@ -583,6 +583,54 @@
  * -> 0x33140) into the shared epilogue owned by fd2_chapter_05_init (entered
  * directly without a clear-facing); the emit reconstructs the equivalent
  * straight-line form. See src/emit_issues.json (000338c4).
+ *
+ * fd2_chapter_25_init @0x3396A is the ONLY chapter init that stages an
+ * earthquake set-piece, but structurally it remains a flat orchestrator of
+ * the same family as chapters 02..14/18/22/24: re-init battle state, load the
+ * earthquake SFX wave from FDOTHER.DAT (fd2_load_dat_resource(0x51A4D, 0,
+ * 0x58)) into the shared status-effect SFX handle, pan the camera-and-window
+ * (5,0), play dialog page 1, memset the 0x25680-byte large game-state buffer,
+ * then four SFX-prefixed screen-shake cycles — three normal-magnitude
+ * (fd2_animate_screen_shake(0x14)) shakes separated by __delay_thunk_375b2(600)
+ * holds and a final 3x-magnitude (0x3C) shake with no trailing hold — then
+ * dialog page 2, pan to char 0, and fd2_play_and_free_status_effect_sfx(). NO
+ * char init, NO portrait load. It has NO numeric computation, NO RNG, NO
+ * data-dependent branch, and NO loops; the ONLY CALL-result consumed is the
+ * fd2_load_dat_resource return, which is stored verbatim to
+ * data_fd2_audio_status_effect_sfx_handle_ptr (disasm MOV [0x53B13],EAX — a
+ * direct pointer store, verified against the assembly, NOT a branch/compute,
+ * so no Ghidra EAX-tracking-bug exposure). Every other CALL return (the two
+ * fd2_display_dialog_scene calls) is discarded.
+ *
+ * Its behavioral test is DEFERRED to Phase 9 (reason proven, not convenience),
+ * on identical grounds to chapters 01..24:
+ *   - fd2_init_battle_state_for_chapter (real-linked) runs FIRST and RELOADS
+ *     current_chapter_text from the real FDTXT.DAT (it is the chapter-battle-
+ *     data loader), so there is no host-safe slice before the body, and the
+ *     loaded SFX handle / memset state cannot be set up independently.
+ *   - the body falls straight into fd2_display_dialog_scene(page 1), which is
+ *     real-linked (src/dialog/dialog.c) and reaches
+ *     fd2_wait_for_input_dialog_with_blink(1) on a -3 PAGE BREAK opcode in the
+ *     real FDTXT chapter stream — the real-linked keyboard busy-wait that
+ *     hangs forever in the silent automated harness — so the function never
+ *     returns and neither the loaded SFX handle, the memset, the shake
+ *     sequence, nor the final SFX free is observable at unit level. (The
+ *     fd2_load_dat_resource fopen of the REAL FDOTHER.DAT entry 0x58 is
+ *     likewise only reached on a path that immediately hangs on the next
+ *     dialog call, so it cannot be driven to a host-observable assertion.)
+ *   - fd2_load_dat_resource / fd2_play_sfx_with_handle / fd2_animate_screen_shake
+ *     / fd2_play_and_free_status_effect_sfx are all real-linked from src/, so
+ *     the call ordering cannot be observed via capture stubs, and the emit must
+ *     not be distorted to make it host-testable (forbidden).
+ * Equivalence was therefore verified statically, line-by-line, against the
+ * disassembly @0x3396A (the handle clear-to-0 then fd2_load_dat_resource(
+ * 0x51A4D,0,0x58) store to [0x53B13], the (5,0) camera pan, the two page-1/
+ * page-2 dialog calls, the memset(0x25680), the four SFX+shake cycles with
+ * shake magnitudes 0x14/0x14/0x14/0x3C and the three 600ms holds after the
+ * first three only, and the final fd2_pan_cursor_to_char(0)). Note the final
+ * fd2_play_and_free_status_effect_sfx() is physically a tail-JMP (0x33AA9 ->
+ * 0x1D4F6) to that self-contained handler; the emit reconstructs the
+ * equivalent straight-line call form. See src/emit_issues.json (0003396a).
  */
 
 #include <stdio.h>
@@ -646,5 +694,8 @@ void run_field_chinit_tests(void)
     printf("  (fd2_chapter_24_init: 4-corner camera scan orchestrator; "
            "behavioral test deferred to Phase 9 integration; see "
            "src/emit_issues.json 000338c4)\n");
+    printf("  (fd2_chapter_25_init: earthquake set-piece (SFX load + 4x "
+           "screen shake); behavioral test deferred to Phase 9 integration; "
+           "see src/emit_issues.json 0003396a)\n");
     printf("\n");
 }
