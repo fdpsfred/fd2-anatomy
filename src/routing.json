@@ -4193,8 +4193,9 @@
     "name": "fd2_chapter_event_handler_4d__unref_sentinel",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035ed2": {
     "name": "fd2_chapter_event_handler_4e__unref_sentinel",
