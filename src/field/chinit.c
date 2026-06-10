@@ -763,3 +763,48 @@ void fd2_chapter_12_init(void)
                              0xcd, 0x4c, 0x4a, 0x13, 1);
     fd2_pan_cursor_to_char(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_13_init @ 0x3346B  (dispatched, 0 direct callers)
+ *
+ * Chapter 13「哈斯米爾之戰」init handler — the smallest chapter init
+ * in the game (17 bytes). It only re-inits battle state, plays a
+ * single dialog page (page 0), and pans the camera to char 0. There
+ * is NO cutscene, NO portrait load, NO char init, NO camera-pan-and-
+ * window prelude, NO data_fd2_battle_anim_phase reset, and NO
+ * clear-facing — chapter 13 carries the party over from chapter 12.
+ *
+ * void __cdecl, no real params, void return. The leading __CHK(0x28)
+ * stack-probe is the Watcom-injected frame-size check and is not part
+ * of the source body.
+ *
+ * In the binary this handler physically contains only its entry block
+ * (init battle state) and then tail-JMPs through the same shared chain
+ * used by fd2_chapter_06_init / fd2_chapter_10_init: 0x3344D (page-0
+ * dialog-arg push, owned by fd2_chapter_12_init) -> 0x33206 (the
+ * fd2_display_dialog_scene call, owned by fd2_chapter_07_init) ->
+ * 0x33140 (the fd2_pan_cursor_to_char(0) + RET tail, owned by
+ * fd2_chapter_05_init, entered directly without a clear-facing). The
+ * straight-line form here is the functionally-equivalent (Layer 2)
+ * reconstruction.
+ *
+ * Shared alt-entry:
+ *   0x33470 (the fd2_init_battle_state_for_chapter CALL onward) is
+ *   itself tail-JMPed into by fd2_chapter_16_init and
+ *   fd2_chapter_19_20_21_init_shared.
+ *
+ * Linked handlers:
+ *   End:         fd2_chapter_13_end @ 0x2389F
+ *   Post-action: fd2_chapter_13_post_action @ 0x20765 — non-default:
+ *     (1) chars[0xF..0x1A] (12 NPCs) all dead = lose + dialog page 10;
+ *     (2) save_metadata > 5 AND char[0x3B] dead = lose + dialog page 2.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_13.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_13_init(void)
+{
+    fd2_init_battle_state_for_chapter();
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_pan_cursor_to_char(0);
+}
