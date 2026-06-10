@@ -1055,3 +1055,32 @@ void fd2_chapter_event_handler_48__unref_ai_ctrl(uint32 event_arg)
     fd2_cinematic_chapter_portrait_dump_with_white_flash(0xE, 0x23, 3);
     data_fd2_battle_anim_phase = 1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_49__unref_sentinel @ 0x35C23
+ *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CB5)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x49. No chapter
+ * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
+ * content / non-chapter dispatcher). Category: sentinel (consumed-flag setter
+ * only). Dispatch-table signature is 1-arg cdecl (void fn(uint event_arg)); this
+ * handler does not read the arg.
+ *
+ * Effect: set tile_event_consumed_flags[0x12] = 1 (no other side effects) — marks
+ * the ch28 sentinel scene slot consumed, the same slot the handler_44 /
+ * handler_45 chain depends on.
+ *
+ * In the binary the handler is a 10-byte stub: PUSH 4; CALL __CHK; JMP 0x35AAE
+ * into the Class-3 shared tail (MOV EAX, [tile_event_consumed_flags];
+ * MOV byte [EAX + 0x12], 1; RET) hosted as alt_66 in
+ * fd2_chapter_event_handler_44__ch28_dialog_with_state @ 0x35A48. That tail-merge
+ * is a binary size optimisation; the functionally-exact source is the single byte
+ * store below. Stack frame 4 (__CHK) is the Watcom stack-probe prologue and
+ * carries no source-level semantics.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_49__unref_sentinel(uint32 event_arg)
+{
+    (void)event_arg;
+
+    *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x12) = 1;
+}

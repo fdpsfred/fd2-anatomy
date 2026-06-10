@@ -1,6 +1,26 @@
 /*
  * unit tests for src/field/chevt2.c (part 5)
  *
+ * fd2_chapter_event_handler_49__unref_sentinel @ 0x35C23
+ *
+ * 10-byte sentinel stub: PUSH 4; CALL __CHK; JMP 0x35AAE into the Class-3 shared
+ * tail (MOV EAX, [tile_event_consumed_flags]; MOV byte [EAX + 0x12], 1; RET)
+ * hosted as alt_66 in fd2_chapter_event_handler_44 @ 0x35A48. Functionally-exact
+ * body is the single unconditional byte store:
+ *     *(uint8 *)(tile_event_consumed_flags_ptr + 0x12) = 1;
+ *
+ * Risk-bearing (state mutation / consumed-flag setter); driven over a real
+ * in-memory flags buffer:
+ *   (a) the store writes the immediate 1 into index 0x12,
+ *   (b) it is UNCONDITIONAL — pre-seeding 0x12 to a non-1 sentinel still ends at 1
+ *       (the binary has no CMP/JNZ gate, just MOV byte [EAX+0x12],1), which is the
+ *       defining contrast against the gated sentinels (handler_3e/41 only write
+ *       when their slot reads 0),
+ *   (c) ONLY index 0x12 changes: the immediate neighbours 0x11 and 0x13 stay
+ *       untouched, pinning the exact index (distinct from handler_45's 0x11 and
+ *       the handler_41/43 data-table stores),
+ *   (d) the dispatch arg is ignored (passed nonzero).
+ *
  * fd2_chapter_event_handler_48__unref_ai_ctrl @ 0x35BF2
  *
  * Straight-line 2-portrait cinematic pair followed by one state mutation.
@@ -286,6 +306,73 @@ static void test_h48_anim_phase_store_is_unconditional(void)
     ce48_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_49__unref_sentinel @ 0x35C23
+ *
+ * Pure single unconditional byte store: tile_event_consumed_flags[0x12] = 1.
+ * Own flags fixture (0x20 bytes) so the suite never aliases other suites' state.
+ * ================================================================ */
+static uint8 g_ce49_flags[0x20];
+
+static void ce49_setup(void)
+{
+    memset(g_ce49_flags, 0, sizeof(g_ce49_flags));
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ce49_flags;
+}
+
+static void ce49_teardown(void)
+{
+    data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
+}
+
+/* ----------------------------------------------------------------
+ * The handler sets tile_event_consumed_flags[0x12] = 1 and nothing else. Start
+ * with a zeroed flags buffer; after the call index 0x12 is exactly 1 while its
+ * immediate neighbours 0x11 and 0x13 stay 0 (pins the exact index, distinct from
+ * handler_45's 0x11). The dispatch arg is passed nonzero to prove it is ignored.
+ * ---------------------------------------------------------------- */
+static void test_h49_sets_consumed_flag_0x12(void)
+{
+    ce49_setup();
+
+    fd2_chapter_event_handler_49__unref_sentinel(0x77);
+
+    /* (a) the store wrote the immediate 1 into index 0x12 */
+    ASSERT_EQ((long)g_ce49_flags[0x12], 1);
+    /* (c) only index 0x12 changed: immediate neighbours untouched */
+    ASSERT_EQ((long)g_ce49_flags[0x11], 0);
+    ASSERT_EQ((long)g_ce49_flags[0x13], 0);
+
+    ce49_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * The store is UNCONDITIONAL (the binary has no CMP/JNZ gate, just
+ * MOV byte [EAX+0x12],1) — the defining contrast against the gated sentinels
+ * handler_3e/41 which only write when their slot reads 0. Pre-seed index 0x12
+ * with a non-1 sentinel; after the call it must equal 1 (the store always fires
+ * and always writes the immediate 1, never preserving the prior value). The
+ * neighbours, also pre-seeded non-zero, must be left exactly as they were. The
+ * dispatch arg is ignored.
+ * ---------------------------------------------------------------- */
+static void test_h49_store_is_unconditional_and_index_exact(void)
+{
+    ce49_setup();
+    g_ce49_flags[0x12] = 0x5C;       /* stale sentinel, NOT 1 */
+    g_ce49_flags[0x11] = 0xAB;       /* neighbour decoys: must be left untouched */
+    g_ce49_flags[0x13] = 0xCD;
+
+    fd2_chapter_event_handler_49__unref_sentinel(0);
+
+    /* (b) the store always fires and always writes the immediate 1 */
+    ASSERT_EQ((long)g_ce49_flags[0x12], 1);
+    /* (c) neighbours preserved verbatim -> only 0x12 is touched */
+    ASSERT_EQ((long)g_ce49_flags[0x11], 0xAB);
+    ASSERT_EQ((long)g_ce49_flags[0x13], 0xCD);
+
+    ce49_teardown();
+}
+
 void run_field_chevt25_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -294,5 +381,7 @@ void run_field_chevt25_tests(void)
     RUN_TEST(test_h48_chapter_ids_are_2_then_3_not_coords);
     RUN_TEST(test_h48_second_cutscene_pans_to_distinct_column_same_row);
     RUN_TEST(test_h48_anim_phase_store_is_unconditional);
+    RUN_TEST(test_h49_sets_consumed_flag_0x12);
+    RUN_TEST(test_h49_store_is_unconditional_and_index_exact);
     printf("\n");
 }
