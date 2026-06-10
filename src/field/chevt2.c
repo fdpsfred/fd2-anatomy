@@ -1298,3 +1298,29 @@ void fd2_chapter_event_handler_4d__unref_sentinel(uint32 event_arg)
 
     *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x13) = 1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_4e__unref_sentinel @ 0x35ED2
+ *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CC9)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x4E. No chapter
+ * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
+ * content / non-chapter dispatcher). Category: sentinel (consumed-flag setter
+ * only). Dispatch-table signature is 1-arg cdecl (void fn(uint event_arg)); this
+ * handler does not read the arg.
+ *
+ * Effect: set tile_event_consumed_flags[0x14] = 1 (no other side effects) — marks
+ * the slot adjacent to handler_4d's 0x13.
+ *
+ * In the binary the body is a self-contained 10-byte stub (no borrowed tail, and
+ * nothing tail-JMPs into it): PUSH 4; CALL __CHK; MOV EAX, [tile_event_consumed_flags_ptr];
+ * MOV byte [EAX + 0x14], 1; RET. The single byte store below is the only state
+ * mutation. Stack frame 4 (__CHK) is the Watcom stack-probe prologue and carries
+ * no source-level semantics.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_4e__unref_sentinel(uint32 event_arg)
+{
+    (void)event_arg;
+
+    *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x14) = 1;
+}

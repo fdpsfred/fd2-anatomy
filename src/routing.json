@@ -4201,8 +4201,9 @@
     "name": "fd2_chapter_event_handler_4e__unref_sentinel",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035ee6": {
     "name": "fd2_chapter_event_handler_4f__ch29_dyn_turn_event",

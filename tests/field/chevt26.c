@@ -2,6 +2,7 @@
  * unit tests for src/field/chevt2.c (part 6)
  *
  * fd2_chapter_event_handler_4d__unref_sentinel @ 0x35EBE
+ * fd2_chapter_event_handler_4e__unref_sentinel @ 0x35ED2
  *
  * 10-byte self-contained sentinel stub (no borrowed tail):
  *     PUSH 4; CALL __CHK;
@@ -23,6 +24,12 @@
  *       untouched neighbour proves this handler targets the ADJACENT 0x13 — the
  *       exact slot handler_47 reads on its mass-kill gate (this sentinel primes it),
  *   (d) the dispatch arg is ignored (passed nonzero).
+ *
+ * handler_4e is the same shape one slot up — an unconditional, self-contained
+ * single byte store of tile_event_consumed_flags[0x14] = 1 (also a 10-byte stub
+ * with no borrowed tail). It gets the identical risk-bearing coverage, with the
+ * adjacency pin flipped: index 0x13 (handler_4d's slot) and 0x15 (the slot
+ * handler_4c writes) bracket it and must stay untouched.
  *
  * Own in-memory flags fixture (0x20 bytes) so the suite never aliases the other
  * chevt2 part suites' state.
@@ -104,11 +111,82 @@ static void test_h4d_store_is_unconditional_and_index_exact(void)
     ce4d_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_4e__unref_sentinel @ 0x35ED2
+ *
+ * Pure single unconditional byte store: tile_event_consumed_flags[0x14] = 1.
+ * Own flags fixture (0x20 bytes) so the suite never aliases other suites' state.
+ * ================================================================ */
+static uint8 g_ce4e_flags[0x20];
+
+static void ce4e_setup(void)
+{
+    memset(g_ce4e_flags, 0, sizeof(g_ce4e_flags));
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ce4e_flags;
+}
+
+static void ce4e_teardown(void)
+{
+    data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
+}
+
+/* ----------------------------------------------------------------
+ * The handler sets tile_event_consumed_flags[0x14] = 1 and nothing else. Start
+ * with a zeroed flags buffer; after the call index 0x14 is exactly 1 while its
+ * immediate neighbours 0x13 and 0x15 stay 0. Pinning 0x13 untouched is the exact
+ * contrast against handler_4d (which sets the adjacent 0x13). The dispatch arg is
+ * passed nonzero to prove it is ignored.
+ * ---------------------------------------------------------------- */
+static void test_h4e_sets_consumed_flag_0x14(void)
+{
+    ce4e_setup();
+
+    fd2_chapter_event_handler_4e__unref_sentinel(0x77);
+
+    /* (a) the store wrote the immediate 1 into index 0x14 */
+    ASSERT_EQ((long)g_ce4e_flags[0x14], 1);
+    /* (c) only index 0x14 changed: immediate neighbours untouched. 0x13 is
+     *     handler_4d's slot, so its staying 0 proves the adjacent-index split. */
+    ASSERT_EQ((long)g_ce4e_flags[0x13], 0);
+    ASSERT_EQ((long)g_ce4e_flags[0x15], 0);
+
+    ce4e_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * The store is UNCONDITIONAL (the binary has no CMP/JNZ gate, just
+ * MOV byte [EAX+0x14],1) — the defining contrast against the gated sentinels
+ * handler_3e/41 which only write when their slot reads 0. Pre-seed index 0x14
+ * with a non-1 sentinel; after the call it must equal 1 (the store always fires
+ * and always writes the immediate 1, never preserving the prior value). The
+ * neighbours, also pre-seeded non-zero, must be left exactly as they were. The
+ * dispatch arg is ignored.
+ * ---------------------------------------------------------------- */
+static void test_h4e_store_is_unconditional_and_index_exact(void)
+{
+    ce4e_setup();
+    g_ce4e_flags[0x14] = 0x5C;       /* stale sentinel, NOT 1 */
+    g_ce4e_flags[0x13] = 0xAB;       /* neighbour decoys: must be left untouched */
+    g_ce4e_flags[0x15] = 0xCD;
+
+    fd2_chapter_event_handler_4e__unref_sentinel(0);
+
+    /* (b) the store always fires and always writes the immediate 1 */
+    ASSERT_EQ((long)g_ce4e_flags[0x14], 1);
+    /* (c) neighbours preserved verbatim -> only 0x14 is touched */
+    ASSERT_EQ((long)g_ce4e_flags[0x13], 0xAB);
+    ASSERT_EQ((long)g_ce4e_flags[0x15], 0xCD);
+
+    ce4e_teardown();
+}
+
 void run_field_chevt26_tests(void)
 {
     int _prev_fails = g_test_fail_count;
     printf("Suite: field/chevt2 (part 6)\n");
     RUN_TEST(test_h4d_sets_consumed_flag_0x13);
     RUN_TEST(test_h4d_store_is_unconditional_and_index_exact);
+    RUN_TEST(test_h4e_sets_consumed_flag_0x14);
+    RUN_TEST(test_h4e_store_is_unconditional_and_index_exact);
     printf("\n");
 }
