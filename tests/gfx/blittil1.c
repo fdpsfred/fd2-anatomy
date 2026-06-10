@@ -299,6 +299,306 @@ static void test_tint_row_stride_advance(void)
     }
 }
 
+/* ================================================================
+ * fd2_tile_blit_24x24_remap @ 0x4DCC6 — same RLE syntax as the tint
+ * blitter above, but every written pixel is mapped through a 256-entry
+ * palette_remap LUT, and the 0xC0 command is NOT a transparent skip:
+ * it REMAPS the existing destination byte in place (out = remap[dst]).
+ *
+ * Because there is no transparent-skip command, filler rows after the
+ * row under test use the in-place-remap command (CMD_INPLACE) over the
+ * sentinel-filled destination; the LUT is built so remap[SENT] == SENT,
+ * making that an observable no-op on untouched bytes.
+ * ================================================================ */
+
+#define CMD_INPLACE(n) ((uint8)(0xC0u | ((n) - 1)))  /* remap existing dst */
+
+/* Destination for the remap-blit tests (same geometry as the tint one). */
+static uint8 g_remap_dst[TINT_STRIDE * (TINT_H + 1)];
+
+/* 256-entry palette translation table used by the remap blitter. */
+static uint8 g_remap_lut[256];
+
+/* Build a non-identity LUT (out = in + 0x10, 8-bit wrap) but pin
+ * remap[SENT] = SENT so the in-place filler rows leave sentinel bytes
+ * unchanged and "untouched" assertions remain meaningful. */
+static void remap_lut_init(void)
+{
+    int i;
+    for (i = 0; i < 256; i++) {
+        g_remap_lut[i] = (uint8)(i + 0x10);
+    }
+    g_remap_lut[TINT_SENT] = TINT_SENT;
+}
+
+static void remap_reset_dst(void)
+{
+    memset(g_remap_dst, TINT_SENT, sizeof(g_remap_dst));
+}
+
+/* Append (TINT_H - 1) in-place-remap filler rows (rows 1..23). Over the
+ * sentinel destination with remap[SENT]==SENT these advance dst without
+ * changing any byte's value. */
+static void put_remap_filler_rows(uint8 **pp)
+{
+    int r;
+    for (r = 1; r < TINT_H; r++) {
+        *(*pp)++ = CMD_INPLACE(TINT_W);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * RUN mode (0x00..0x3F): fill n pixels from a SINGLE remapped source
+ * byte; only one source byte consumed.
+ * ---------------------------------------------------------------- */
+static void test_remap_run_mode(void)
+{
+    uint8 stream[64];
+    uint8 *p = stream;
+    int i;
+    uint8 e;
+
+    *p++ = CMD_RUN(6);
+    *p++ = 0x0Au;
+    *p++ = CMD_INPLACE(18);        /* 6 + 18 == 24, sentinel stays sentinel */
+    put_remap_filler_rows(&p);
+
+    remap_lut_init();
+    remap_reset_dst();
+    fd2_tile_blit_24x24_remap((uint32)stream, (uint32)g_remap_dst,
+                              TINT_W, (uint32)g_remap_lut);
+
+    e = g_remap_lut[0x0Au];
+    for (i = 0; i < 6; i++) {
+        ASSERT_EQ(g_remap_dst[i], e);
+    }
+    for (i = 6; i < TINT_W * TINT_H; i++) {
+        ASSERT_EQ(g_remap_dst[i], TINT_SENT);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * LITERAL mode (0x80..0xBF): copy n remapped pixels, one source byte
+ * each, into consecutive dst bytes.
+ * ---------------------------------------------------------------- */
+static void test_remap_literal_mode(void)
+{
+    uint8 stream[64];
+    uint8 *p = stream;
+    int i;
+
+    *p++ = CMD_LIT(5);
+    *p++ = 0x00u;
+    *p++ = 0x01u;
+    *p++ = 0x42u;
+    *p++ = 0x7Fu;
+    *p++ = 0xABu;
+    *p++ = CMD_INPLACE(19);        /* finish the 24-column row */
+    put_remap_filler_rows(&p);
+
+    remap_lut_init();
+    remap_reset_dst();
+    fd2_tile_blit_24x24_remap((uint32)stream, (uint32)g_remap_dst,
+                              TINT_W, (uint32)g_remap_lut);
+
+    ASSERT_EQ(g_remap_dst[0], g_remap_lut[0x00u]);
+    ASSERT_EQ(g_remap_dst[1], g_remap_lut[0x01u]);
+    ASSERT_EQ(g_remap_dst[2], g_remap_lut[0x42u]);
+    ASSERT_EQ(g_remap_dst[3], g_remap_lut[0x7Fu]);
+    ASSERT_EQ(g_remap_dst[4], g_remap_lut[0xABu]);
+    for (i = 5; i < TINT_W * TINT_H; i++) {
+        ASSERT_EQ(g_remap_dst[i], TINT_SENT);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * STRIDE-2 RUN (0x40..0x7F): write n remapped pixels from a single
+ * source byte at every other dst byte. The asm is INC EDI; STOSB, so
+ * pixels land at odd offsets 1,3,5,7 (dst += 2 per pixel, NOT +3), and
+ * each pixel consumes TWO column-counts. This is the load-bearing test
+ * for the +2 stride (the decompiler renders this branch as +3).
+ * ---------------------------------------------------------------- */
+static void test_remap_stride2_mode(void)
+{
+    uint8 stream[64];
+    uint8 *p = stream;
+    int i;
+    uint8 e;
+
+    *p++ = CMD_STRIDE(4);          /* 4 pixels -> 8 column-counts */
+    *p++ = 0x05u;
+    *p++ = CMD_INPLACE(16);        /* 8 + 16 == 24 */
+    put_remap_filler_rows(&p);
+
+    remap_lut_init();
+    remap_reset_dst();
+    fd2_tile_blit_24x24_remap((uint32)stream, (uint32)g_remap_dst,
+                              TINT_W, (uint32)g_remap_lut);
+
+    e = g_remap_lut[0x05u];
+    ASSERT_EQ(g_remap_dst[0], TINT_SENT);
+    ASSERT_EQ(g_remap_dst[1], e);
+    ASSERT_EQ(g_remap_dst[2], TINT_SENT);
+    ASSERT_EQ(g_remap_dst[3], e);
+    ASSERT_EQ(g_remap_dst[4], TINT_SENT);
+    ASSERT_EQ(g_remap_dst[5], e);
+    ASSERT_EQ(g_remap_dst[6], TINT_SENT);
+    ASSERT_EQ(g_remap_dst[7], e);
+    /* dst is now at offset 8; the rest of the image stays sentinel */
+    for (i = 8; i < TINT_W * TINT_H; i++) {
+        ASSERT_EQ(g_remap_dst[i], TINT_SENT);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * IN-PLACE REMAP (0xC0..0xFF): for n bytes at dst, write
+ * remap[existing_dst_byte] with NO source bytes consumed. Seed the dst
+ * with distinct values, remap them in place, then prove the very next
+ * stream byte is read as a source byte by a following RUN command
+ * (i.e. the in-place command consumed zero source bytes).
+ * ---------------------------------------------------------------- */
+static void test_remap_inplace_remap_mode(void)
+{
+    uint8 stream[64];
+    uint8 *p = stream;
+    int i;
+    uint8 seed[5];
+    uint8 run_pixel;
+
+    seed[0] = 0x00u;
+    seed[1] = 0x10u;
+    seed[2] = 0x55u;
+    seed[3] = 0x80u;
+    seed[4] = 0xFEu;
+
+    *p++ = CMD_INPLACE(5);         /* remap dst[0..4] in place */
+    *p++ = CMD_RUN(19);            /* fill dst[5..23] from one src byte */
+    *p++ = 0x2Au;                  /* <-- the RUN's source byte */
+    put_remap_filler_rows(&p);
+
+    remap_lut_init();
+    remap_reset_dst();
+    for (i = 0; i < 5; i++) {
+        g_remap_dst[i] = seed[i];  /* pre-seed the in-place region */
+    }
+
+    fd2_tile_blit_24x24_remap((uint32)stream, (uint32)g_remap_dst,
+                              TINT_W, (uint32)g_remap_lut);
+
+    /* dst[0..4] became remap[seed]; this also proves the LUT, not the
+     * source stream, drove these bytes. */
+    for (i = 0; i < 5; i++) {
+        ASSERT_EQ(g_remap_dst[i], g_remap_lut[seed[i]]);
+    }
+    /* RUN read stream byte 0x2A (in-place consumed no source byte). */
+    run_pixel = g_remap_lut[0x2Au];
+    for (i = 5; i < TINT_W; i++) {
+        ASSERT_EQ(g_remap_dst[i], run_pixel);
+    }
+    for (i = TINT_W; i < TINT_W * TINT_H; i++) {
+        ASSERT_EQ(g_remap_dst[i], TINT_SENT);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * Confirm the LUT is genuinely applied (output == table[src], not the
+ * raw source value) across a few source bytes, with a non-identity
+ * table whose mapping differs from the identity for each one.
+ * ---------------------------------------------------------------- */
+static void test_remap_lut_is_applied(void)
+{
+    uint8 stream[64];
+    uint8 *p = stream;
+
+    *p++ = CMD_LIT(4);
+    *p++ = 0x01u;                  /* remap -> 0x11 (!= 0x01) */
+    *p++ = 0x20u;                  /* remap -> 0x30 */
+    *p++ = 0xF0u;                  /* remap -> 0x00 (8-bit wrap) */
+    *p++ = 0x7Eu;                  /* remap -> 0x8E */
+    *p++ = CMD_INPLACE(20);
+    put_remap_filler_rows(&p);
+
+    remap_lut_init();
+    remap_reset_dst();
+    fd2_tile_blit_24x24_remap((uint32)stream, (uint32)g_remap_dst,
+                              TINT_W, (uint32)g_remap_lut);
+
+    ASSERT_EQ(g_remap_dst[0], 0x11u);
+    ASSERT_EQ(g_remap_dst[1], 0x30u);
+    ASSERT_EQ(g_remap_dst[2], 0x00u);
+    ASSERT_EQ(g_remap_dst[3], 0x8Eu);
+    /* none of the outputs equals the raw source byte */
+    ASSERT_EQ(g_remap_dst[0] != 0x01u, 1);
+    ASSERT_EQ(g_remap_dst[2] != 0xF0u, 1);
+}
+
+/* ----------------------------------------------------------------
+ * Full 24x24 sprite, one LITERAL-24 command per row, stride 24 so the
+ * destination is a contiguous 576-byte image. Source byte for row r,
+ * col c is (r*24 + c). Exercises all 24 rows and the row-wrap reset.
+ * ---------------------------------------------------------------- */
+static void test_remap_full_24x24_row_wrap(void)
+{
+    uint8 stream[TINT_H * (1 + TINT_W)];
+    uint8 *p = stream;
+    int r, c;
+    uint8 sv;
+
+    for (r = 0; r < TINT_H; r++) {
+        *p++ = CMD_LIT(TINT_W);
+        for (c = 0; c < TINT_W; c++) {
+            *p++ = (uint8)(r * TINT_W + c);
+        }
+    }
+
+    remap_lut_init();
+    remap_reset_dst();
+    fd2_tile_blit_24x24_remap((uint32)stream, (uint32)g_remap_dst,
+                              TINT_W, (uint32)g_remap_lut);
+
+    for (r = 0; r < TINT_H; r++) {
+        for (c = 0; c < TINT_W; c++) {
+            sv = (uint8)(r * TINT_W + c);
+            ASSERT_EQ(g_remap_dst[r * TINT_W + c], g_remap_lut[sv]);
+        }
+    }
+    ASSERT_EQ(g_remap_dst[TINT_W * TINT_H], TINT_SENT);
+}
+
+/* ----------------------------------------------------------------
+ * Row stride > 24: the decoder jumps dst by (stride - 0x18) at each row
+ * boundary, leaving the inter-row gap untouched. Row 0 is a RUN-24;
+ * rows 1..23 are in-place-remap (no value change over sentinel). Confirm
+ * row 0 content, the gap after it, and that row 1 begins at stride.
+ * ---------------------------------------------------------------- */
+static void test_remap_row_stride_advance(void)
+{
+    uint8 stream[64];
+    uint8 *p = stream;
+    int i;
+    uint8 e0;
+
+    *p++ = CMD_RUN(TINT_W);        /* row 0: RUN 24 from src 0x02 */
+    *p++ = 0x02u;
+    put_remap_filler_rows(&p);     /* rows 1..23: in-place over sentinel */
+
+    remap_lut_init();
+    remap_reset_dst();
+    fd2_tile_blit_24x24_remap((uint32)stream, (uint32)g_remap_dst,
+                              TINT_STRIDE, (uint32)g_remap_lut);
+
+    e0 = g_remap_lut[0x02u];
+    for (i = 0; i < TINT_W; i++) {
+        ASSERT_EQ(g_remap_dst[i], e0);
+    }
+    for (i = TINT_W; i < (int)TINT_STRIDE; i++) {
+        ASSERT_EQ(g_remap_dst[i], TINT_SENT);
+    }
+    for (i = (int)TINT_STRIDE; i < (int)(TINT_STRIDE * TINT_H); i++) {
+        ASSERT_EQ(g_remap_dst[i], TINT_SENT);
+    }
+}
+
 void run_gfx_blittile1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -310,5 +610,12 @@ void run_gfx_blittile1_tests(void)
     RUN_TEST(test_tint_offset_and_base_wrap);
     RUN_TEST(test_tint_full_24x24_row_wrap);
     RUN_TEST(test_tint_row_stride_advance);
+    RUN_TEST(test_remap_run_mode);
+    RUN_TEST(test_remap_literal_mode);
+    RUN_TEST(test_remap_stride2_mode);
+    RUN_TEST(test_remap_inplace_remap_mode);
+    RUN_TEST(test_remap_lut_is_applied);
+    RUN_TEST(test_remap_full_24x24_row_wrap);
+    RUN_TEST(test_remap_row_stride_advance);
     printf("\n");
 }

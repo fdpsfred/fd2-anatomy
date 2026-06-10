@@ -457,3 +457,118 @@ void fd2_tile_blit_24x24_with_tint_offset(uint32 rle_stream, uint32 dst_buf,
         dst = dst + row_advance;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_tile_blit_24x24_remap @ 0x4DCC6 (1 caller)
+ *
+ * Hand-written RLE blit of a 24x24 sprite into dst_buf, mapping every
+ * written pixel through a 256-entry palette translation table:
+ *
+ *   out = palette_remap[src_pixel]
+ *
+ * Same RLE command syntax as the sibling tint blitter
+ * (fd2_tile_blit_24x24_with_tint_offset @ 0x4DC34), but the transform
+ * is an LUT remap instead of an additive 8-colour band, and the
+ * 0x80+0x40 branch REMAPS the existing destination pixel in place
+ * rather than skipping it transparently. Sole caller is the
+ * non-transparent battle-tile path fd2_composite_battle_tile_map
+ * @ 0x11EEE.
+ *
+ * Each command byte's top two bits select the mode; the low 6 bits + 1
+ * are the run length:
+ *   bits 7..6 = 00 (0x00..0x3F)  RUN: remap one following source byte,
+ *               paint it len times contiguously; dst += len; x -= len.
+ *   bits 7..6 = 01 (0x40..0x7F)  STRIDE-2 RUN: remap one following
+ *               source byte, paint it len times at every other dst byte
+ *               (INC EDI; STOSB => +2 per pixel, written at the odd
+ *               offset); dst += 2*len; x -= 2*len.
+ *   bits 7..6 = 10 (0x80..0xBF)  LITERAL: copy len remapped pixels, one
+ *               following source byte each; dst += len; x -= len.
+ *   bits 7..6 = 11 (0xC0..0xFF)  IN-PLACE REMAP: for len bytes at dst,
+ *               write palette_remap[existing_dst_byte] (no source bytes
+ *               consumed); dst += len; x -= len.
+ *
+ * x is the per-row remaining-column counter (starts at 0x18). When it
+ * reaches 0 the row ends: dst advances by stride - 0x18 to the next row
+ * start, and 24 rows are rendered in total.
+ *
+ * Args (cdecl, 4x stack params; caller pops 0x10):
+ *   rle_stream    — source RLE-encoded 24x24 sprite stream
+ *   dst_buf       — destination base linear address
+ *   stride        — destination row stride in bytes (0x140 for VGA;
+ *                   the row reset advances stride - 0x18)
+ *   palette_remap — 256-entry palette translation table
+ *
+ * Hand-written asm leaf: no __CHK probe, no CALLs.
+ * ---------------------------------------------------------------- */
+void fd2_tile_blit_24x24_remap(uint32 rle_stream, uint32 dst_buf,
+                               uint32 stride, uint32 palette_remap)
+{
+    uint32 src;
+    uint32 dst;
+    uint32 row_advance;
+    uint8  cmd;
+    uint8  pixel;
+    uint8  x_remain;
+    uint32 count;
+    int    row;
+
+    src = rle_stream;
+    dst = dst_buf;
+    row_advance = stride - 0x18;
+
+    for (row = 0x18; row != 0; row--) {
+        x_remain = 0x18;
+        do {
+            cmd = *(uint8 *)src;
+            src = src + 1;
+            if ((cmd & 0x80) == 0) {
+                if ((cmd & 0x40) == 0) {
+                    /* RUN: len pixels from one remapped source byte */
+                    count = (uint32)(cmd & 0x3F) + 1;
+                    x_remain = (uint8)(x_remain - (uint8)count);
+                    pixel = *(uint8 *)(palette_remap + *(uint8 *)src);
+                    src = src + 1;
+                    do {
+                        *(uint8 *)dst = pixel;
+                        dst = dst + 1;
+                    } while (--count != 0);
+                } else {
+                    /* STRIDE-2 RUN: len pixels, every other dst byte */
+                    count = (uint32)(cmd & 0x3F) + 1;
+                    x_remain = (uint8)(x_remain - (uint8)count - (uint8)count);
+                    pixel = *(uint8 *)(palette_remap + *(uint8 *)src);
+                    src = src + 1;
+                    do {
+                        dst = dst + 1;
+                        *(uint8 *)dst = pixel;
+                        dst = dst + 1;
+                    } while (--count != 0);
+                }
+            } else {
+                if ((cmd & 0x40) == 0) {
+                    /* LITERAL: len pixels, one remapped source byte each */
+                    count = (uint32)(cmd & 0x3F) + 1;
+                    x_remain = (uint8)(x_remain - (uint8)count);
+                    do {
+                        *(uint8 *)dst =
+                            *(uint8 *)(palette_remap + *(uint8 *)src);
+                        src = src + 1;
+                        dst = dst + 1;
+                    } while (--count != 0);
+                } else {
+                    /* IN-PLACE REMAP: remap existing dst bytes (no source) */
+                    count = (uint32)(cmd & 0x3F) + 1;
+                    x_remain = (uint8)(x_remain - (uint8)count);
+                    do {
+                        *(uint8 *)dst =
+                            *(uint8 *)(palette_remap + *(uint8 *)dst);
+                        dst = dst + 1;
+                    } while (--count != 0);
+                }
+            }
+        } while (x_remain != 0);
+
+        dst = dst + row_advance;
+    }
+}
