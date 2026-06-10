@@ -4138,8 +4138,9 @@
     "name": "fd2_chapter_event_handler_48__unref_ai_ctrl",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035c15": {
     "name": "fd2_set_battle_anim_phase_to_1",

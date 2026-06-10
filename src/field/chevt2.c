@@ -1023,3 +1023,35 @@ void fd2_chapter_event_handler_47__unref_dyn_turn_event(uint32 event_arg)
     *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x13) =
         (uint8)(*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x13) + 1);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_48__unref_ai_ctrl @ 0x35BF2
+ *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CB1)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x48. No chapter
+ * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
+ * content / non-chapter dispatcher). Category: 2-portrait cinematic pair.
+ * Dispatch-table signature is 1-arg cdecl (void fn(uint event_arg)); this
+ * handler does not read the arg.
+ *
+ * Effect: a 2-portrait reveal at row y=0x23 — the first portrait white-flash
+ * cutscene is shown at tile (4, 0x23) with chapter id 2, the second at tile
+ * (0xE, 0x23) with chapter id 3, then data_fd2_battle_anim_phase is flipped to 1.
+ * No dialog. The "ai_ctrl" name is the loose dispatch-table-neighborhood label;
+ * the handler is really a portrait cinematic with no AI flag changes.
+ *
+ * In the binary the SECOND cutscene call falls through (no JMP — its body ends at
+ * 0x35C14) into fd2_set_battle_anim_phase_to_1 @ 0x35C15, borrowing that
+ * function's ADD ESP,0xC (the second call's arg cleanup) + MOV battle_anim_phase,1
+ * + RET tail. That tail-merge is a binary size optimisation; the
+ * functionally-exact source is the two complete calls followed by the
+ * battle_anim_phase store below.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_48__unref_ai_ctrl(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_cinematic_chapter_portrait_dump_with_white_flash(4, 0x23, 2);
+    fd2_cinematic_chapter_portrait_dump_with_white_flash(0xE, 0x23, 3);
+    data_fd2_battle_anim_phase = 1;
+}
