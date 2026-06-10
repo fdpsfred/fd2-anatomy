@@ -1528,3 +1528,39 @@ void fd2_chapter_event_handler_53__unref_dialog_with_state(uint32 event_arg)
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_kill_runtime_chars_from_index_to_end(0x14);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_54__ch27_ai_ctrl @ 0x360C0
+ *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CDD)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x54. Triggered
+ * in chapter 27. Category: AI setup. Dispatch-table signature is 1-arg cdecl
+ * (void fn(uint event_arg)); this handler does not read the arg.
+ *
+ * Effect: ch27 — disarm AI control flag (clear the low nibble of
+ * runtime_char.combat_aux_block[0xD], absolute offset 0x34, to 0) for the
+ * inclusive char range 0x10 .. (party_member_count - 1). The high nibble of
+ * each byte is preserved; only the low 4 bits are written. The range END is
+ * DYNAMIC: it is the last party slot, so the number of chars affected scales
+ * with the current party size. When party_member_count is 0 the end index
+ * computes to (uint)-1 = 0xFFFFFFFF, which is below the start 0x10 under the
+ * callee's signed inclusive comparison, so the range is empty and no char is
+ * touched.
+ *
+ * In the binary this handler pushes its value arg (0) and its dynamic end arg
+ * (party_member_count - 1) then does JMP 0x34F37 — the Class-3 shared tail
+ * hosted in fd2_chapter_event_handler_12 (PUSH 0x10 start; CALL
+ * fd2_set_combat_aux_block_byte_d_low4_for_char_range; ADD ESP,0xC; RET) — to
+ * borrow that fixed start=0x10 push plus the call+cleanup+RET tail instead of
+ * emitting its own. That tail-merge is a binary size optimisation; the
+ * functionally-exact source is a single self-contained call. Stack frame 0x10
+ * (__CHK) is the Watcom stack-probe prologue and carries no source-level
+ * semantics.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_54__ch27_ai_ctrl(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_set_combat_aux_block_byte_d_low4_for_char_range(
+        0x10, data_fd2_battle_party_member_count - 1, 0);
+}
