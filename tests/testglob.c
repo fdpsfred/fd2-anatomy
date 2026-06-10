@@ -420,22 +420,12 @@ void fd2_tile_blit_24x24_dimmed_grayscale(uint32 src, uint32 dst, uint32 stride)
     g_blitpass_calls++;
     g_blitdim_calls++;
 }
-/* fd2_tile_blit_24x24_with_remap_table (real body not yet emitted): records into
- * the shared g_blitpass_* arrays plus a separate remap counter so tests can tell
- * the remap branch from the plain passthrough branch. */
-int    g_blitremap_calls = 0;
-uint32 g_blitremap_table[64];
-void fd2_tile_blit_24x24_with_remap_table(uint32 src, uint32 dst, uint32 stride,
-                                          uint32 remap_table) {
-    if (g_blitpass_calls < 64) {
-        g_blitpass_src[g_blitpass_calls] = src;
-        g_blitpass_dst[g_blitpass_calls] = dst;
-        g_blitpass_stride[g_blitpass_calls] = stride;
-        g_blitremap_table[g_blitpass_calls] = remap_table;
-    }
-    g_blitpass_calls++;
-    g_blitremap_calls++;
-}
+/* fd2_tile_blit_24x24_with_remap_table is now emitted for real in
+ * src/gfx/blittile.c; its former recording stub here was removed. The sole
+ * caller test (fd2_blit_animated_tile_at_pos in tests/gfx/blittile.c) instead
+ * drives the real blitter against a one-pixel RLE sprite at the window-origin
+ * cell (in-bounds dst) and observes the painted LUT-remapped byte, which proves
+ * the caller's src / dst / remap_table arithmetic and remap-branch selection. */
 /* fd2_tile_blit_24x24_solid_color (the solid-colour silhouette blitter, real
  * body not yet emitted). The real fd2_animate_status_effect_overlay_flicker is
  * the caller; recording (src, dst, stride) into the shared g_blitpass_* arrays

@@ -84,12 +84,53 @@ static void t_install_dialog_text(void)
 }
 
 
+/* Safe battle-scene fixture for status-tick tests.
+ *
+ * fd2_tick_status_effects_and_show_messages pans the cursor / closes the status
+ * screen, and those real callees recomposite the battle frame, whose real
+ * fd2_composite_all_chars_overlay -> fd2_paint_chars_shadow_overlay loops over
+ * the live party calling the real fd2_blit_animated_tile_at_pos. That blitter is
+ * real and (for cursor-overlay tiles) reaches the real
+ * fd2_tile_blit_24x24_with_remap_table, which would read whatever RLE bytes the
+ * sprite source points at. Without a deterministic tile map the leftover globals
+ * from prior tests can make a tile resolve to a renderable+overlay blit over
+ * garbage, hanging the real decoder.
+ *
+ * Point the tile-map at the middle of a large zeroed buffer (so even the
+ * shadow overlay's negative-row probes read a 0 tile id) and give every tile a
+ * zeroed attribute entry: attr bit 0x80 (renderable) is clear, so
+ * fd2_blit_animated_tile_at_pos skips the blit entirely before computing a
+ * sprite source or calling any blitter. This keeps the status-tick logic under
+ * test while making the incidental repaint a deterministic no-op. */
+#define T_SCENE_W        0x20
+static uint8 t_scene_tilemap[0x4000];   /* (tile_y*W + tile_x)*4, mid-anchored */
+static uint8 t_scene_attr[0x1000];      /* tile_id (<=0x3FF) * 4 -> <= 0xFFC    */
+static uint8 t_scene_ws[0x2000];        /* dst workspace anchor (never written) */
+
+static void t_install_safe_battle_scene(void)
+{
+    memset(t_scene_tilemap, 0, sizeof(t_scene_tilemap));
+    memset(t_scene_attr, 0, sizeof(t_scene_attr));
+    data_fd2_battle_tile_map_ptr =
+        (uint32)(t_scene_tilemap + sizeof(t_scene_tilemap) / 2);
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)t_scene_attr;
+    data_fd2_battle_map_width_tiles = T_SCENE_W;
+    data_fd2_large_game_state_buffer_ptr = (uint32)t_scene_ws;
+    data_fd2_graphics_bg_anim_flip_flag = 0;
+    data_fd2_battle_view_window_origin_x = 0;
+    data_fd2_battle_view_window_origin_y = 0;
+    data_fd2_battle_view_window_max_x = 0x100;
+    data_fd2_battle_view_window_max_y = 0x100;
+}
+
+
 /* ---- Test: fd2_tick_status_effects_and_show_messages ---- */
 
 static void test_status_tick_poison_damage(void)
 {
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     t_install_dialog_text();
+    t_install_safe_battle_scene();
     g_test_rc_array[0].team = 0;
     g_test_rc_array[0].flags = 0;
     ((uint8 *)&g_test_rc_array[0])[0x25] = 1;
@@ -106,6 +147,7 @@ static void test_status_tick_poison_clamp_zero(void)
 {
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     t_install_dialog_text();
+    t_install_safe_battle_scene();
     g_test_rc_array[0].team = 0;
     g_test_rc_array[0].flags = 0;
     ((uint8 *)&g_test_rc_array[0])[0x25] = 1;
@@ -122,6 +164,7 @@ static void test_status_tick_poison_skip_dead(void)
 {
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     t_install_dialog_text();
+    t_install_safe_battle_scene();
     g_test_rc_array[0].team = 0;
     g_test_rc_array[0].flags = 1;
     ((uint8 *)&g_test_rc_array[0])[0x25] = 1;
@@ -138,6 +181,7 @@ static void test_status_tick_timer_decrement(void)
 {
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     t_install_dialog_text();
+    t_install_safe_battle_scene();
     g_test_rc_array[0].team = 0;
     g_test_rc_array[0].flags = 0;
     ((uint8 *)&g_test_rc_array[0])[0x22] = 3;
@@ -152,6 +196,7 @@ static void test_status_tick_timer_expires_recalc(void)
 {
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     t_install_dialog_text();
+    t_install_safe_battle_scene();
     g_test_rc_array[0].team = 0;
     g_test_rc_array[0].flags = 0;
     ((uint8 *)&g_test_rc_array[0])[0x22] = 1;

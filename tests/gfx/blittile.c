@@ -151,9 +151,10 @@ static void test_signed_lower_bound(void)
  * blitter call (passthrough or remap stub) it emits.
  * ================================================================ */
 
-/* fd2_tile_blit_24x24_with_remap_table recording (testglob.c) */
-extern int    g_blitremap_calls;
-extern uint32 g_blitremap_table[64];
+/* fd2_tile_blit_24x24_with_remap_table is emitted for real (src/gfx/blittile.c),
+ * so the remap branch here drives the real blitter against a one-pixel sprite at
+ * the in-bounds window-origin cell and reads back the painted LUT byte; there is
+ * no recording stub for it. The passthrough / dimmed blitters are still stubs. */
 
 /* battle_tile_map: 4 bytes/cell. +4..+5 word = tile id (low 10 bits),
  * +7 byte = cursor-overlay flag (0xFF = plain passthrough). */
@@ -164,8 +165,11 @@ static uint8 g_atm_map[ATM_W * ATM_ROWS * 4];
 static uint8 g_atm_attr[0x400 * 4];
 /* battle scene snapshot: 4-byte absolute offset table at +10 (tile_id*4) */
 static uint8 g_atm_scene[0x400 * 4 + 16];
-/* per-chapter tile anim remap table base: 4-byte offset table at +6 */
-static uint8 g_atm_anim_tbl[256];
+/* per-chapter tile anim remap table base: 4-byte offset table at +6. Sized to
+ * hold a full 256-entry LUT starting at the offset the remap branch selects
+ * (entry 5 -> base+0x90), so the real blitter can map a source pixel through a
+ * real LUT placed there. */
+static uint8 g_atm_anim_tbl[0x200];
 
 #define ATM_OX 0x10u
 #define ATM_OY 0x20u
@@ -187,7 +191,6 @@ static void setup_atm(void)
     uint32 *snap_tbl;
 
     g_blitpass_calls = 0;
-    g_blitremap_calls = 0;
 
     memset(g_atm_map, 0, sizeof(g_atm_map));
     memset(g_atm_attr, 0, sizeof(g_atm_attr));
@@ -238,8 +241,9 @@ static void test_anim_passthrough_branch(void)
 
     fd2_blit_animated_tile_at_pos((uint32)g_ws, 0x13, 0x23);
 
+    /* exactly one passthrough-stub call (the real remap blitter does not bump
+     * g_blitpass_calls, so this also proves the remap branch was NOT taken). */
     ASSERT_EQ(g_blitpass_calls, 1);
-    ASSERT_EQ(g_blitremap_calls, 0);
     ASSERT_EQ(g_blitpass_stride[0], 0x1c8u);
     ASSERT_EQ(g_blitpass_dst[0], atm_expect_dst(0x13, 0x23));
     /* src = snapshot + snap_tbl[7] = scene + 7*0x100 */
@@ -268,8 +272,8 @@ static void test_anim_transparent_skip(void)
 
     fd2_blit_animated_tile_at_pos((uint32)g_ws, 0x13, 0x23);
 
+    /* not renderable -> no blit of either kind (neither stub nor real ran). */
     ASSERT_EQ(g_blitpass_calls, 0);
-    ASSERT_EQ(g_blitremap_calls, 0);
 }
 
 /* attr bit 0x08 set -> tile id += bg_anim_flip_flag*2 for the sprite
@@ -289,28 +293,64 @@ static void test_anim_flip_offsets_sprite(void)
     ASSERT_EQ(g_blitpass_src[0], (uint32)g_atm_scene + 13u * 0x100u);
 }
 
-/* +7 overlay flag != 0xFF -> remap branch: one with_remap_table call,
- * remap arg = anim_base + *(int*)(anim_base + 6 + lookup[frame]*4). */
+/* +7 overlay flag != 0xFF -> remap branch: the caller dispatches to the real
+ * fd2_tile_blit_24x24_with_remap_table. We can no longer record the call
+ * (the real blitter paints pixels), so instead drive it end-to-end with a
+ * one-pixel sprite at the in-bounds window-origin cell and read back the single
+ * painted byte. A correct result (g_ws[0x8088] == LUT[S]) simultaneously proves
+ * the caller computed: the right sprite src (else a different/zero RLE byte is
+ * read), the right dst (g_ws + 0x8088 at the origin cell), and the right
+ * remap_table = anim_base + *(int*)(anim_base + 6 + lookup[frame]*4); and that
+ * the remap branch (not passthrough) was selected (g_blitpass_calls stays 0). */
 static void test_anim_remap_branch(void)
 {
-    uint32 expect_remap;
+    uint8 *sprite;
+    uint8 *lut;
+    uint32 remap_off;
+    uint8  src_pixel;
+    int    i;
 
     setup_atm();
-    atm_cell(0x13, 0x23, 7, 0x00);   /* overlay flag set (not 0xFF) */
+    /* place the renderable tile id 7 at the window-origin cell so its dst is
+     * g_ws + 0x8088 (well inside g_ws), with overlay flag set (not 0xFF). */
+    atm_cell(ATM_OX, ATM_OY, 7, 0x00);
     g_atm_attr[7 * 4] = 0x80;
     data_fd2_battle_tile_map_anim_frame_counter = 2;
     data_fd2_graphics_tile_anim_palette_phase_lookup[2] = 5;
 
-    fd2_blit_animated_tile_at_pos((uint32)g_ws, 0x13, 0x23);
+    /* lookup[2]=5 -> offset-table entry 5 -> value 5*0x10+0x40 = 0x90, so the
+     * caller's remap_table = g_atm_anim_tbl + 0x90. Lay a real 256-entry LUT
+     * there: out = in ^ 0xA5, a non-identity map. */
+    remap_off = *(uint32 *)(g_atm_anim_tbl + 6 + 5 * 4);
+    ASSERT_EQ(remap_off, 0x90u);
+    lut = g_atm_anim_tbl + remap_off;
+    for (i = 0; i < 256; i++) {
+        lut[i] = (uint8)(i ^ 0xA5);
+    }
 
-    ASSERT_EQ(g_blitpass_calls, 1);
-    ASSERT_EQ(g_blitremap_calls, 1);
-    ASSERT_EQ(g_blitpass_dst[0], atm_expect_dst(0x13, 0x23));
-    ASSERT_EQ(g_blitpass_src[0], (uint32)g_atm_scene + 7u * 0x100u);
-    /* lookup[2]=5 -> table entry 5 -> value 5*0x10+0x40 = 0x90 */
-    expect_remap = (uint32)g_atm_anim_tbl +
-        *(uint32 *)(g_atm_anim_tbl + 6 + 5 * 4);
-    ASSERT_EQ(g_blitremap_table[0], expect_remap);
+    /* sprite src for tile id 7 = g_atm_scene + snap_tbl[7] = scene + 0x700.
+     * One LITERAL pixel (source byte src_pixel) then skip the rest of row 0 and
+     * all 23 remaining rows, so the ONLY dst write is dst[0] = LUT[src_pixel]. */
+    src_pixel = 0xABu;
+    sprite = g_atm_scene + 7 * 0x100;
+    sprite[0] = (uint8)(0x80u | (1u - 1u));   /* LITERAL of 1 */
+    sprite[1] = src_pixel;
+    sprite[2] = (uint8)(0xC0u | (23u - 1u));  /* SKIP 23: finish 24-col row 0 */
+    for (i = 1; i < 24; i++) {
+        sprite[2 + i] = (uint8)(0xC0u | (24u - 1u)); /* rows 1..23: SKIP 24 */
+    }
+
+    /* clear the one observable dst byte to a sentinel distinct from the result */
+    g_ws[0x8088] = 0x00u;
+
+    fd2_blit_animated_tile_at_pos((uint32)g_ws, ATM_OX, ATM_OY);
+
+    /* the real remap blitter does not touch g_blitpass_calls; if the passthrough
+     * branch had been taken its stub would have bumped this to 1. */
+    ASSERT_EQ(g_blitpass_calls, 0);
+    /* the painted byte proves src, dst and remap_table arithmetic at once. */
+    ASSERT_EQ(g_ws[0x8088], lut[src_pixel]);
+    ASSERT_EQ(g_ws[0x8088], (uint8)(src_pixel ^ 0xA5));
 }
 
 /* window rejects: x == ox-2 (below ox-1 margin) -> no blit. */
