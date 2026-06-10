@@ -75,6 +75,7 @@
 #include "consts.h"
 #include "globals.h"
 #include "protos.h"
+#include "minipfix.h"   /* minip_setup_env: sprite sheet + dialog-blit spies (h4b) */
 
 extern runtime_char g_test_rc_array[8];
 
@@ -591,6 +592,285 @@ static void test_h4a_stage_and_turn_arithmetic_are_8bit(void)
     ce4a_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_4b__ch29_major_cinematic @ 0x35C79
+ *
+ * ch29 major-endgame trigger tile (dispatch idx 0x4B @ table 0x51B91). Body
+ * (1-arg cdecl; arg = stepping char id):
+ *   if (runtime_char_array[ci].team != 0                  -- non-enemy steps
+ *       && tile_event_consumed_flags[0x11] == 0):         -- own slot unconsumed
+ *     if (runtime_char_array[ci].char_id != 9):           -- WRONG character
+ *       fd2_load_chapter_portrait(char[ci].portrait_id)
+ *       page-0 dialog (0xA951F) -> paint -> wait -> close; return   (NO consume)
+ *     else:                                               -- char_id 9 (trigger)
+ *       page-1 dialog (0xA0000)
+ *       tile_event_consumed_flags[0x11] = 1               -- consume own slot
+ *       tile_event_data_table[+6] = (uint8)(turn_counter + 1)  -- arm hook 1 next turn
+ *       tile_event_consumed_flags[0x10] = 4               -- prime handler_4A stage = 4
+ *       tile_event_data_table[+3] = (uint8)turn_counter   -- arm hook 0 this turn
+ *
+ * Risk-bearing (control-flow gating + branch + state transitions + 8-bit
+ * arithmetic). Driven over the REAL dialog VM / portrait loader / slide-out close
+ * (the wrong-char path is the same load_chapter_portrait -> in-frame dialog ->
+ * paint -> wait -> close chain proven by the chevt22 h3a/h3d suites; the page
+ * dialogs use immediate-END programs so the VM returns without page-break wait or
+ * speaker-portrait work; the blocking standalone wait on the wrong-char path is
+ * released by the mirrored-blit input seam). The display side effects (frame draw,
+ * portrait blit, slide animation) are owned by the dialog/rsrc/status suites; here
+ * they execute for real only as a byproduct. What is asserted is the handler's own
+ * routing: the two gate conditions, the char_id==9 BRANCH, and on the trigger path
+ * the four exact-offset/exact-value state stores incl. the +6 turn+1 vs +3 verbatim
+ * split and its 8-bit truncation.
+ *
+ * Own in-memory fixture (own data table + own flags buffer) so the suite never
+ * aliases the h48/h49/h4a state; reuses the module render-scratch workspace.
+ * ================================================================ */
+extern int g_dlg_blit_mirror_inject_after;
+extern int g_dlg_blit_mirror_inject_scancode;
+
+/* immediate-END dialog program covering page 0 (wrong-char) and page 1 (trigger):
+ * each page header points at an END (-1) word so the dialog VM returns without a
+ * page-break wait or any speaker-portrait work. Header word i is at int16 idx i. */
+static int16  g_ce4b_text[0x10];
+static uint8  g_ce4b_dtable[0x10];     /* +3 / +6 are the scheduler targets */
+static uint8  g_ce4b_flags[0x20];      /* [0x10] stage prime, [0x11] consume slot */
+
+/* Stand up the full host-safe env (mirrors the proven chevt22 ce3d_setup): real
+ * portrait load + immediate-END page dialogs + paint + blocking wait (released by
+ * the mirrored-blit seam) + slide-out close. `stepper_team`/`stepper_char_id`
+ * seed runtime_char[0]'s gate fields; `consume_slot` seeds flags[0x11]; `turn`
+ * seeds the turn counter for the scheduler stores. */
+static void ce4b_setup(uint8 stepper_team, uint8 stepper_char_id,
+                       uint8 consume_slot, uint8 turn)
+{
+    int i;
+
+    minip_setup_env();                 /* sprite sheet + dialog-blit spies */
+
+    /* immediate-END program for pages 0 and 1 (current_chapter_text scope) */
+    for (i = 0; i < 0x10; i++) {
+        g_ce4b_text[i] = 0;
+    }
+    g_ce4b_text[0] = (int16)(0xF * 2);     /* page 0 -> END word (wrong-char) */
+    g_ce4b_text[1] = (int16)(0xF * 2);     /* page 1 -> END word (trigger)    */
+    g_ce4b_text[0xF] = -1;                  /* END */
+    current_chapter_text = (uint32)(uint8 *)g_ce4b_text;
+
+    /* runtime_char array: char[0] is the stepper. team / char_id / portrait_id. */
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = stepper_team;
+    g_test_rc_array[0].char_id = stepper_char_id;
+    g_test_rc_array[0].portrait_id = 0x40;     /* default 0x9017 portrait slot */
+
+    /* handler state: own data table + own flags buffer + turn counter */
+    memset(g_ce4b_dtable, 0, sizeof(g_ce4b_dtable));
+    memset(g_ce4b_flags, 0, sizeof(g_ce4b_flags));
+    g_ce4b_flags[0x11] = consume_slot;
+    data_fd2_tile_event_data_table_ptr = (uint32)g_ce4b_dtable;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ce4b_flags;
+    data_fd2_battle_turn_counter = turn;
+
+    /* slide-out close env: composite workspace + phase 0 + empty party. Null the
+     * slide workspaces (the portrait loader allocates fresh; the close frees). */
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_ce48_ws - 0x8088;
+    data_fd2_battle_anim_phase = 0;
+    data_fd2_battle_party_member_count = 0;
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+    if (data_fd2_portrait_sprite_buffer != 0) {
+        free((void *)data_fd2_portrait_sprite_buffer);
+    }
+    data_fd2_portrait_sprite_buffer = 0;
+
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+
+    /* the wrong-char path's standalone fd2_wait_for_input_dialog_with_blink(0)
+     * blocks until the BIOS keyboard buffer is nonempty: arm the mirrored-blit
+     * seam so the 1st mirrored blit (during the portrait load, before the wait)
+     * re-fills the buffer. Harmless on the trigger/gate paths (no standalone
+     * wait). */
+    *(volatile uint16 *)0x41AuL = 0x1E;
+    *(volatile uint16 *)0x41CuL = 0x1E;         /* start EMPTY (head == tail) */
+    g_dlg_blit_mirror_inject_after = 1;         /* flip on the 1st mirrored blit */
+    g_dlg_blit_mirror_inject_scancode = 0x01;   /* Esc scancode */
+
+    g_composite_call_count = 0;
+}
+
+static void ce4b_teardown(void)
+{
+    /* the wrong-char path's slide-out close already free()d the slide workspaces */
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+    if (data_fd2_portrait_sprite_buffer != 0) {
+        free((void *)data_fd2_portrait_sprite_buffer);
+        data_fd2_portrait_sprite_buffer = 0;
+    }
+    data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
+    data_fd2_battle_turn_counter = 0;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_battle_anim_phase = 0;
+    current_chapter_text = 0;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    g_dlg_blit_mirror_inject_after = 0;
+    g_dlg_blit_mirror_inject_scancode = 0;
+    remove("FD2.TMP");        /* generated swap file (not a staged game file) */
+}
+
+/* ----------------------------------------------------------------
+ * TRIGGER path: a non-enemy (team=1 npc) char whose char_id == 9 steps the
+ * unconsumed slot. The handler shows the page-1 dialog then performs all four
+ * state stores. Seed turn_counter=0x40: after the call the slot is consumed
+ * (flags[0x11]=1), hook entry 1's turn byte (data_table[+6]) holds 0x41 (turn+1),
+ * the stage counter (flags[0x10]) is primed to 4, and hook entry 0's turn byte
+ * (data_table[+3]) holds 0x40 (turn verbatim). The +6/+3 split (0x41 vs 0x40)
+ * pins the +1-on-+6 / no-+1-on-+3 contrast. The dispatch arg selects char 0.
+ * ---------------------------------------------------------------- */
+static void test_h4b_trigger_char9_consumes_and_schedules(void)
+{
+    ce4b_setup(1, 9, 0, 0x40);          /* npc team, char_id 9, unconsumed, turn 0x40 */
+    g_ce4b_dtable[2] = 0xAA;            /* +2 neighbour decoy */
+    g_ce4b_dtable[4] = 0xBB;            /* +4 neighbour decoy (between +3 and +6) */
+    g_ce4b_dtable[5] = 0xCC;            /* +5 neighbour decoy */
+    g_ce4b_dtable[7] = 0xDD;            /* +7 neighbour decoy */
+    g_ce4b_flags[0x0F] = 0x11;          /* flags neighbour decoys around 0x10/0x11 */
+    g_ce4b_flags[0x12] = 0x22;
+
+    fd2_chapter_event_handler_4b__ch29_major_cinematic(0);
+
+    /* the slot is consumed */
+    ASSERT_EQ((long)g_ce4b_flags[0x11], 1);
+    /* hook entry 1 (data_table[+6]) = turn_counter + 1 = 0x41 */
+    ASSERT_EQ((long)g_ce4b_dtable[6], 0x41);
+    /* stage counter primed to 4 */
+    ASSERT_EQ((long)g_ce4b_flags[0x10], 4);
+    /* hook entry 0 (data_table[+3]) = turn_counter verbatim = 0x40 (no +1) */
+    ASSERT_EQ((long)g_ce4b_dtable[3], 0x40);
+    /* only the four intended bytes changed: data-table neighbours intact */
+    ASSERT_EQ((long)g_ce4b_dtable[2], 0xAA);
+    ASSERT_EQ((long)g_ce4b_dtable[4], 0xBB);
+    ASSERT_EQ((long)g_ce4b_dtable[5], 0xCC);
+    ASSERT_EQ((long)g_ce4b_dtable[7], 0xDD);
+    /* flags neighbours of 0x10/0x11 intact */
+    ASSERT_EQ((long)g_ce4b_flags[0x0F], 0x11);
+    ASSERT_EQ((long)g_ce4b_flags[0x12], 0x22);
+
+    ce4b_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * WRONG-character branch: a non-enemy char whose char_id != 9 steps the
+ * unconsumed slot. The handler takes the page-0 "you're not the one" path
+ * (portrait load -> page-0 dialog -> paint -> wait -> close) and returns WITHOUT
+ * any state mutation — the defining contrast against the trigger path. Proof: the
+ * slot stays UN-consumed (flags[0x11]==0, so another character may retry), the
+ * stage counter is NOT primed (flags[0x10] stays at its seeded sentinel), and
+ * NEITHER data-table scheduler byte (+3 / +6) is written. Drives the real
+ * portrait load (DATO.DAT), the real page-0 dialog VM, the real paint + blocking
+ * wait (released by the mirrored-blit seam) and the real slide-out close.
+ * ---------------------------------------------------------------- */
+static void test_h4b_wrong_char_no_state_mutation(void)
+{
+    ce4b_setup(1, 8, 0, 0x40);          /* npc team, char_id 8 (!= 9), unconsumed */
+    g_ce4b_flags[0x10] = 0x5C;          /* stage-prime sentinel must survive */
+    g_ce4b_dtable[3] = 0x77;            /* +3 scheduler sentinel must survive */
+    g_ce4b_dtable[6] = 0x88;            /* +6 scheduler sentinel must survive */
+
+    fd2_chapter_event_handler_4b__ch29_major_cinematic(0);
+
+    /* no consume: the slot may be re-triggered by another character */
+    ASSERT_EQ((long)g_ce4b_flags[0x11], 0);
+    /* the stage counter was NOT primed (no flags[0x10]=4 store on this branch) */
+    ASSERT_EQ((long)g_ce4b_flags[0x10], 0x5C);
+    /* neither scheduler byte was armed */
+    ASSERT_EQ((long)g_ce4b_dtable[3], 0x77);
+    ASSERT_EQ((long)g_ce4b_dtable[6], 0x88);
+
+    ce4b_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * GATE 1 (team == 0): an enemy steps (team 0). The leading CMP/JZ skips the whole
+ * body before even reading the consume flag — nothing runs, nothing mutates. Seed
+ * char_id 9 (the would-be trigger char) so this proves the team gate dominates the
+ * char_id branch: even the correct char does nothing when it is an enemy. All
+ * state bytes keep their seeded sentinels.
+ * ---------------------------------------------------------------- */
+static void test_h4b_enemy_team_zero_skips_entirely(void)
+{
+    ce4b_setup(0, 9, 0, 0x40);          /* team 0 = enemy, char_id 9, unconsumed */
+    g_ce4b_flags[0x10] = 0x5C;
+    g_ce4b_dtable[3] = 0x77;
+    g_ce4b_dtable[6] = 0x88;
+
+    fd2_chapter_event_handler_4b__ch29_major_cinematic(0);
+
+    /* team gate failed -> no consume, no prime, no schedule */
+    ASSERT_EQ((long)g_ce4b_flags[0x11], 0);
+    ASSERT_EQ((long)g_ce4b_flags[0x10], 0x5C);
+    ASSERT_EQ((long)g_ce4b_dtable[3], 0x77);
+    ASSERT_EQ((long)g_ce4b_dtable[6], 0x88);
+
+    ce4b_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * GATE 2 (slot already consumed): a non-enemy char_id 9 steps, but
+ * tile_event_consumed_flags[0x11] is already non-zero (the JNZ skips the body) —
+ * nothing runs a second time. Seed flags[0x11]=1 and stage/scheduler sentinels;
+ * after the call flags[0x11] is unchanged (the handler never re-writes it on the
+ * gated-out path), the stage counter is NOT re-primed, and neither scheduler byte
+ * is armed. This is the one-shot lockout that makes the major cinematic fire once.
+ * ---------------------------------------------------------------- */
+static void test_h4b_already_consumed_slot_skips(void)
+{
+    ce4b_setup(1, 9, 1, 0x40);          /* npc, char_id 9, slot ALREADY consumed */
+    g_ce4b_flags[0x10] = 0x5C;
+    g_ce4b_dtable[3] = 0x77;
+    g_ce4b_dtable[6] = 0x88;
+
+    fd2_chapter_event_handler_4b__ch29_major_cinematic(0);
+
+    /* consume gate failed -> body skipped; the consume byte stays as seeded (1) */
+    ASSERT_EQ((long)g_ce4b_flags[0x11], 1);
+    ASSERT_EQ((long)g_ce4b_flags[0x10], 0x5C);
+    ASSERT_EQ((long)g_ce4b_dtable[3], 0x77);
+    ASSERT_EQ((long)g_ce4b_dtable[6], 0x88);
+
+    ce4b_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * 8-bit scheduler arithmetic: the trigger path reads turn_counter as one byte and
+ * stores +6 = (uint8)(turn_counter + 1) and +3 = (uint8)turn_counter. Seed
+ * turn_counter=0xFF: +6 wraps to 0x00 (8-bit INC) while +3 holds 0xFF verbatim,
+ * pinning both the 8-bit truncation AND the +1-only-on-+6 split (if +3 also added
+ * 1 it would read 0x00, and if +6 used 32-bit math it would read 0x100's low byte
+ * the same way — the contrast 0x00 vs 0xFF is what proves the two stores differ).
+ * The stage counter is still primed to 4 and the slot still consumed.
+ * ---------------------------------------------------------------- */
+static void test_h4b_scheduler_arithmetic_is_8bit(void)
+{
+    ce4b_setup(1, 9, 0, 0xFF);          /* npc, char_id 9, unconsumed, turn 0xFF */
+
+    fd2_chapter_event_handler_4b__ch29_major_cinematic(0);
+
+    /* +6 = (uint8)(0xFF + 1) = 0x00 */
+    ASSERT_EQ((long)g_ce4b_dtable[6], 0x00);
+    /* +3 = (uint8)0xFF = 0xFF (verbatim, no +1) */
+    ASSERT_EQ((long)g_ce4b_dtable[3], 0xFF);
+    /* the rest of the trigger stores still fired */
+    ASSERT_EQ((long)g_ce4b_flags[0x11], 1);
+    ASSERT_EQ((long)g_ce4b_flags[0x10], 4);
+
+    ce4b_teardown();
+}
+
 void run_field_chevt25_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -605,5 +885,10 @@ void run_field_chevt25_tests(void)
     RUN_TEST(test_h4a_schedules_next_turn_when_stage_not_7);
     RUN_TEST(test_h4a_no_schedule_on_final_stage_7);
     RUN_TEST(test_h4a_stage_and_turn_arithmetic_are_8bit);
+    RUN_TEST(test_h4b_trigger_char9_consumes_and_schedules);
+    RUN_TEST(test_h4b_wrong_char_no_state_mutation);
+    RUN_TEST(test_h4b_enemy_team_zero_skips_entirely);
+    RUN_TEST(test_h4b_already_consumed_slot_skips);
+    RUN_TEST(test_h4b_scheduler_arithmetic_is_8bit);
     printf("\n");
 }

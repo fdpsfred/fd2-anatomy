@@ -1136,3 +1136,67 @@ void fd2_chapter_event_handler_4a__ch29_dyn_turn_event(uint32 event_arg)
     *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) =
         (uint8)(*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) + 1);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_4b__ch29_major_cinematic @ 0x35C79
+ *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CBD)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x4B. Triggered in
+ * chapter 29 as tile-step event_type 0x01 (ch29 tile-step slot 1). Category: ch29
+ * trigger tile (major endgame cinematic). Dispatch-table signature is 1-arg cdecl
+ * (the stepping char id under the tile-step ABI, read from [ESP+0x4]).
+ *
+ * Gate: fire only when a non-enemy steps (runtime_char_array[stepping_char].team
+ * != 0; team encoding 0=enemy 1=npc 2=player, same gate as handler_45) AND this
+ * slot is still unconsumed (tile_event_consumed_flags[0x11] == 0). Inside the gate
+ * the handler branches on the stepper's char_id (the designated trigger character
+ * is char_id 9):
+ *   - char_id != 9 (WRONG character): show the "you're not the one" dialog
+ *     (in-frame page 0, render target 0xA951F), paint the portrait, wait for input,
+ *     slide the status screen back out, and return WITHOUT consuming the slot (so
+ *     another character can re-trigger it).
+ *   - char_id == 9 (the trigger character): trigger the major cinematic — show the
+ *     full-screen page-1 dialog (render target 0xA0000), then perform four state
+ *     mutations:
+ *       tile_event_consumed_flags[0x11] = 1                 -- consume this slot
+ *       tile_event_data_table[+6] = (uint8)(turn_counter+1) -- arm turn-event hook
+ *                                                              entry 1 next turn
+ *       tile_event_consumed_flags[0x10] = 4                 -- prime handler_4A's
+ *                                                              8-stage counter to 4
+ *       tile_event_data_table[+3] = (uint8)turn_counter     -- arm turn-event hook
+ *                                                              entry 0 this turn
+ *
+ * The wrong-char path tail-calls fd2_close_status_screen_with_slide_out via
+ * JMP 0x196CB (borrowing its body instead of a CALL/RET pair); that is a binary
+ * size optimisation, so the functionally-exact source is a plain call followed by
+ * return. The turn counter feeding both data-table stores is read as a single byte
+ * (MOV DL,[turn_counter]); the +6 store increments it in 8-bit (INC DL) while the
+ * +3 store writes it verbatim, so the (uint8) truncations reproduce that exactly.
+ * Stack frame 0x28 (__CHK) is the Watcom stack-probe prologue and carries no
+ * source-level semantics.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_4b__ch29_major_cinematic(uint32 stepping_char_id)
+{
+    if ((data_fd2_battle_runtime_char_array_ptr[stepping_char_id].team != 0) &&
+        (*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x11) == 0)) {
+        if (data_fd2_battle_runtime_char_array_ptr[stepping_char_id].char_id != 9) {
+            fd2_load_chapter_portrait(
+                (uint32)data_fd2_battle_runtime_char_array_ptr[stepping_char_id].portrait_id);
+            fd2_display_dialog_scene(current_chapter_text, 0, 0xA951F, 0x140,
+                                     0xCD, 0x4C, 0x4A, 0x13, 1);
+            fd2_paint_portrait_to_dialog_area(0);
+            fd2_wait_for_input_dialog_with_blink(0);
+            fd2_close_status_screen_with_slide_out();
+            return;
+        }
+
+        fd2_display_dialog_scene(current_chapter_text, 1, 0xA0000, 0x140,
+                                 0xCD, 0x4C, 0x4A, 0x13, 1);
+        *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x11) = 1;
+        *(uint8 *)(data_fd2_tile_event_data_table_ptr + 6) =
+            (uint8)(data_fd2_battle_turn_counter + 1);
+        *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) = 4;
+        *(uint8 *)(data_fd2_tile_event_data_table_ptr + 3) =
+            (uint8)data_fd2_battle_turn_counter;
+    }
+}
