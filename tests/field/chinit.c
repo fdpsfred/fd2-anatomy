@@ -91,6 +91,23 @@
  * physically a tail-JMP into the same shared epilogue at 0x3312D used by
  * chapter 03; the emit reconstructs the equivalent straight-line form. See
  * src/emit_issues.json (00032fb2).
+ *
+ * fd2_chapter_05_init @0x33049 is the same shape as chapter 03: a flat
+ * orchestrator playing three dialog pages chained with two cutscenes
+ * (0x16/0x15), portrait set 1 loaded mid-run (after one composited frame),
+ * two camera pans, NO char init. It likewise has NO numeric computation, NO
+ * RNG, NO data-dependent branch, and NO CALL-result consumption (no EAX-bug
+ * exposure), and every callee is real-linked from src/ — the same
+ * fd2_display_dialog_scene -> fd2_wait_for_input_dialog_with_blink keyboard
+ * busy-wait hang plus the fd2_load_chapter_portraits_and_dump_tmp (fopen
+ * FDICON.B24) / fd2_cutscene_event_trigger byte-script parsing apply. Its
+ * behavioral test is therefore DEFERRED to Phase 9 on identical grounds;
+ * equivalence was verified statically, line-by-line, against the disassembly
+ * @0x33049 (call sequence, constants, and the two battle_anim_phase resets
+ * after pages 0/1 but not page 2). Note this function is itself the OWNER of
+ * four shared alt-entry points (0x3310C/0x3312D/0x3313B/0x33140) that
+ * chapters 11/18, 03/04/26, 30, and 07 tail-JMP into; the straight-line body
+ * here is the canonical full code path. See src/emit_issues.json (00033049).
  */
 
 #include <stdio.h>
@@ -111,5 +128,7 @@ void run_field_chinit_tests(void)
            "integration; see src/emit_issues.json 00032e8c)\n");
     printf("  (fd2_chapter_04_init: behavioral test deferred to Phase 9 "
            "integration; see src/emit_issues.json 00032fb2)\n");
+    printf("  (fd2_chapter_05_init: behavioral test deferred to Phase 9 "
+           "integration; see src/emit_issues.json 00033049)\n");
     printf("\n");
 }

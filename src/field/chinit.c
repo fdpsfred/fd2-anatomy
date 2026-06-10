@@ -348,3 +348,61 @@ void fd2_chapter_04_init(void)
     fd2_clear_all_chars_facing();
     fd2_pan_cursor_to_char(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_05_init @ 0x33049  (dispatched, 0 direct callers)
+ *
+ * Chapter 5「塞拉村」init handler. A flat chapter-prologue
+ * orchestrator that plays three dialog pages chained with two
+ * cutscenes (event ids 0x16 / 0x15), loads portrait set 1 mid-run
+ * (after composing one battle frame), and pans the camera between
+ * scenes, before handing the chapter off to the player. There is NO
+ * char init — chapter 5 carries the party over from chapter 4.
+ *
+ * data_fd2_battle_anim_phase is reset to 0 after pages 0 and 1 only;
+ * page 2 has no reset — it is the tail before the final
+ * clear-facing + camera-to-char pan.
+ *
+ * void __cdecl, no real params, void return. The leading __CHK(0x28)
+ * stack-probe is the Watcom-injected frame-size check and is not part
+ * of the source body.
+ *
+ * In the binary this function OWNS four shared alt-entry points that
+ * other chapter_NN_init handlers tail-JMP into:
+ *   0x3310C (cutscene 0x15 onward) — chapter_11_init, chapter_18_init.
+ *   0x3312D (page-2 dialog onward) — chapter_03/04/26 (+2 more).
+ *   0x3313B (clear-facing onward)  — chapter_30_init.
+ *   0x33140 (pan-to-char onward)   — chapter_07_init.
+ * The straight-line body here is the canonical full code path; the
+ * sharing chapters reconstruct their own straight-line equivalents
+ * (Layer 2) per the established pattern.
+ *
+ * Linked handlers:
+ *   End:         fd2_chapter_05_end @ 0x231F9
+ *   Post-action: (default — fd2_check_battle_end_default_handler
+ *                @ 0x205B4)
+ *
+ * Walkthrough SOT: assets/chapters/chapter_05.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_05_init(void)
+{
+    fd2_init_battle_state_for_chapter();
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_pan_cursor_and_window(3, 3);
+    __delay_thunk_375b2(200);
+    fd2_load_chapter_portraits_and_dump_tmp(1);
+    fd2_composite_battle_frame(0);
+    __delay_thunk_375b2(200);
+    fd2_cutscene_event_trigger(0x16);
+    fd2_display_dialog_scene(current_chapter_text, 1, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_pan_cursor_and_window(8, 0xe);
+    fd2_cutscene_event_trigger(0x15);
+    fd2_display_dialog_scene(current_chapter_text, 2, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_clear_all_chars_facing();
+    fd2_pan_cursor_to_char(0);
+}

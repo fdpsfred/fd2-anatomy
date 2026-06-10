@@ -678,5 +678,25 @@
     "source_review": "fd2_chapter_04_init @00032fb2 (emit; tail-JMP into shared epilogue @0x3312D owned by fd2_chapter_05_init @0x33049; own tail @0x33028 alt-shared by fd2_chapter_08_init @0x33278)"
    }
   ]
+ },
+ "00033049": {
+  "name": "fd2_chapter_05_init",
+  "target": "field/chinit.c",
+  "issues": [
+   {
+    "type": "test_deferral_note",
+    "desc": "Behavioral unit test DEFERRED to Phase 9 integration (reason proven, not convenience). fd2_chapter_05_init is a flat chapter-prologue orchestrator of the same shape as the siblings fd2_chapter_02_init @0x32D18 / fd2_chapter_03_init @0x32E8C / fd2_chapter_04_init @0x32FB2: a fixed straight-line script of void side-effect calls plus unconditional constant global writes, with NO numeric computation, NO RNG, NO data-dependent branch, NO loops, and NO CALL-result consumption (no Ghidra EAX-tracking-bug exposure -- every CALL is followed by ADD ESP,K cdecl cleanup or a constant MOV to a global, never an EAX read). It cannot be unit-tested host-safely for the same proven reasons: (1) it issues three fd2_display_dialog_scene(current_chapter_text, page, 0xa0000,0x140,0xcd,0x4c,0x4a,0x13,1) calls -> real-linked (dialog/dialog.c) reaching fd2_wait_for_input_dialog_with_blink(), a real-linked keyboard busy-wait (input/input.c) that hangs forever in the silent harness (same hang bisection-proven for the 0x10010 checksum-mismatch arm), and dereferences current_chapter_text as a parsed opcode stream; (2) it drives fd2_load_chapter_portraits_and_dump_tmp(1) (fopen FDICON.B24 + dump FD2.TMP), fd2_composite_battle_frame(0), and two fd2_cutscene_event_trigger() calls (event ids 0x16/0x15) each parsing an in-memory per-event byte-script; (3) every callee is real-linked from src/ so none can be replaced by capture stubs to observe call ordering, and the emit code must not be distorted to make it testable (forbidden). There is no isolable host-safe computational slice. Equivalence was instead verified statically line-by-line against the disassembly @0x33049: fd2_init_battle_state_for_chapter; dialog page 0; battle_anim_phase=0; fd2_pan_cursor_and_window(3,3); delay 200; portraits(1); composite(0); delay 200; cutscene 0x16; dialog page 1; battle_anim_phase=0; fd2_pan_cursor_and_window(8,0xe); cutscene 0x15; dialog page 2 (no battle_anim_phase reset after page 2); clear_facing; pan_cursor_to_char(0). The leading __CHK(0x28) is the Watcom frame-size stack-probe and is not part of the source body.",
+    "severity": "low",
+    "verify_method": "phase9_integration",
+    "source_review": "fd2_chapter_05_init @00033049 (emit; 3 blocking fd2_display_dialog_scene + 2 in-memory cutscene scripts + FDICON.B24 portrait load + all-callees-real-linked = no unit seam, cf. 00032fb2 / 00032e8c / 00032d18 / 0003231b / 00017eef / 00010010)"
+   },
+   {
+    "type": "fragment_equivalence_handoff",
+    "desc": "Shared-tail equivalence-by-regeneration, OWNER side (pipeline_spec pattern: jump-into-middle / shared epilogue). fd2_chapter_05_init physically OWNS four mid-body alt-entry points that other chapter_NN_init handlers tail-JMP into (verified via get_xrefs_to): (a) 0x3310C (cutscene 0x15; then dialog page 2; clear_facing; pan_cursor_to_char(0); RET) entered by fd2_chapter_11_init @0x333F0 and fd2_chapter_18_init @0x3366F; (b) 0x3312D (PUSH [0x53A79]; CALL fd2_display_dialog_scene completing the page-2 call; then clear_facing; pan_cursor_to_char(0); RET) entered by fd2_chapter_03_init @0x32FAD, fd2_chapter_04_init @0x33044, fd2_chapter_26_init @0x33AEC, fd2_chapter_27_init @0x33C98, fd2_chapter_29_init @0x33E37; (c) 0x3313B (CALL fd2_clear_all_chars_facing; pan_cursor_to_char(0); RET) entered by fd2_chapter_30_init @0x33F73; (d) 0x33140 (PUSH 0; CALL fd2_pan_cursor_to_char; ADD ESP,4; RET) entered by fd2_chapter_07_init @0x33214. This tail-sharing is a Watcom code-size optimization and is NOT reproduced byte-identically: chapter_05_init is emitted as a self-contained void function whose full straight-line body (the canonical longest code path through all four alt-entries) is the Layer-2 functionally-equivalent reconstruction. The sibling chapters that JMP into these points each reconstruct their own straight-line equivalents of the borrowed tail (the chapter_03/04 emit_issues fragment_equivalence_handoff entries reference '0x3312D owned by fd2_chapter_05_init' from the consumer side; this is the matching owner-side record). Equivalence rests on Watcom 9.5a regenerating an equivalent epilogue per function; verify_method: post-build -d disasm to confirm chapter_05_init's body emits the page-0/1/2 dialog sequence, the two battle_anim_phase=0 resets (after pages 0/1 only), and the clear_facing + pan_cursor_to_char(0) tail.",
+    "severity": "info",
+    "verify_method": "compile_and_disasm",
+    "source_review": "fd2_chapter_05_init @00033049 (emit; OWNS shared alt-entries 0x3310C/0x3312D/0x3313B/0x33140 consumed by chapters 11/18, 03/04/26/27/29, 30, 07)"
+   }
+  ]
  }
 }
