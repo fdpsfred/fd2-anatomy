@@ -4289,8 +4289,9 @@
     "name": "fd2_chapter_event_handler_59__unref_sentinel",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00036107": {
     "name": "crt_equivalent_lx_chunk_read_36107",
