@@ -298,3 +298,53 @@ void fd2_chapter_03_init(void)
     fd2_clear_all_chars_facing();
     fd2_pan_cursor_to_char(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_04_init @ 0x32FB2  (dispatched, 0 direct callers)
+ *
+ * Chapter 4「塞拉村前」init handler. A flat chapter-prologue
+ * orchestrator that plays two dialog pages bracketing one cutscene
+ * (event id 0x14), loads portrait set 1 after page 0, and pans the
+ * camera between scenes, before handing the chapter off to the
+ * player. There is NO char init — chapter 4 carries the party over
+ * from chapter 3.
+ *
+ * data_fd2_battle_anim_phase is reset to 0 after page 0 only; page 1
+ * is the tail before the final camera-to-char pan and has no reset.
+ *
+ * void __cdecl, no real params, void return. The leading
+ * __CHK(0x28) stack-probe is the Watcom-injected frame-size check
+ * and is not part of the source body.
+ *
+ * In the binary the page-1 dialog call + the trailing
+ * fd2_clear_all_chars_facing() and fd2_pan_cursor_to_char(0) are
+ * emitted as a tail-JMP into the shared epilogue at 0x3312D (also
+ * reached by the chapter inits at 0x33049 and chapters 26/27/29);
+ * the straight-line form here is the functionally-equivalent
+ * (Layer 2) reconstruction. The trailing 4 calls (page-1 dialog +
+ * clear_facing + pan_cursor_to_char + ret) are themselves shared as
+ * an alt-entry (0x33028) by fd2_chapter_08_init.
+ *
+ * Linked handlers:
+ *   End:         fd2_chapter_04_end @ 0x231BC
+ *   Post-action: (default — fd2_check_battle_end_default_handler
+ *                @ 0x205B4)
+ *
+ * Walkthrough SOT: assets/chapters/chapter_04.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_04_init(void)
+{
+    fd2_init_battle_state_for_chapter();
+    fd2_pan_cursor_and_window(4, 0xb);
+    fd2_cutscene_event_trigger(0x14);
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_load_chapter_portraits_and_dump_tmp(1);
+    fd2_pan_cursor_and_window(4, 0);
+    __delay_thunk_375b2(200);
+    fd2_display_dialog_scene(current_chapter_text, 1, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_clear_all_chars_facing();
+    fd2_pan_cursor_to_char(0);
+}
