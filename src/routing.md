@@ -143,7 +143,7 @@
 
 | File | 包含的 function 類別 | fn |
 |------|---------------------|-----|
-| `crt.c` | 13 個 `crt_equivalent_*`: LX loader (`lx_chunk_read`, `lx_header_reader`, `lx_module_loader`), startup (`entry_start`, `dos_main_bootstrap`), exit (`exit_chain_stub`), FPU (`fpe_default_handler`, `softfp_tan_worker`), EFLAGS (`get_eflags`, `get_eflags_thunk`), math (`matherr_default_thunk`, `matherr_default_return_zero`), padding (`linker_padding`) | 13 |
+| `crt.c` | 12 個 emit `crt_equivalent_*`: LX loader (`lx_chunk_read`, `lx_header_reader`, `lx_module_loader`), startup (`entry_start`, `dos_main_bootstrap`), exit (`exit_chain_stub`), FPU (`fpe_default_handler`), EFLAGS (`get_eflags`, `get_eflags_thunk`), math (`matherr_default_thunk`, `matherr_default_return_zero`), padding (`linker_padding`)。第 13 筆 routing entry `crt_emu387_int7_fptan_opcode_worker_4c630` 已重分類為 link_vendor_lib（`__int7`/emu387.obj 內部 subroutine，不 emit C source） | 13 |
 
 ---
 

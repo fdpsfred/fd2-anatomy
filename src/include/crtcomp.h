@@ -18,6 +18,13 @@
  * absent: it is a lone 0xC3 byte of Watcom CRT linker alignment padding
  * between __int7 and __init_80x87 (zero xref, zero caller). It is not a
  * real function and is not emitted; wlink re-pads the segment on relink.
+ *
+ * NOTE: 0x4C630 (now crt_emu387_int7_fptan_opcode_worker_4c630 in Ghidra)
+ * is intentionally absent: it was reclassified to link_vendor_lib as an
+ * internal __int7 subroutine (the x87 FPTAN-opcode software-emulation worker
+ * of emu387.obj). Its bytes lie inside the byte-matched __int7 PUBDEF body
+ * (0x49D98..0x4CBCD) and have no separate PUBDEF, so it is resolved by linking
+ * that one module and is not emitted as FD2 C source.
  */
 
 /* cstart pair */
@@ -39,8 +46,5 @@ void crt_equivalent_exit_chain_stub_36de3(void);
 void crt_equivalent_fpe_default_handler_3d26e(void);
 int  crt_equivalent_matherr_default_thunk_4d340(void *exc);
 int  crt_equivalent_matherr_default_return_zero_4d8ea(void *exc);
-
-/* softfp */
-void crt_equivalent_softfp_tan_worker_4c630(void);
 
 #endif /* CRT_COMPAT_H */

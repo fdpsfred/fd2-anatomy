@@ -1,6 +1,6 @@
 # CRT 符號 inventory
 
-Watcom 9.5a C runtime 在 FD2.LE 內的命名約定、static-link duplicates、13 個
+Watcom 9.5a C runtime 在 FD2.LE 內的命名約定、static-link duplicates、12 個
 `crt_equivalent_*` 與 8 個 `fd2_*` CRT-style primitive 對照。完整 Watcom
 真符號 inventory 見同層 `lookup_9.5a.json` / `matched_function_sources.md`
 （個別 entry 的 verify 紀錄合併進 `notes` 欄位）。
@@ -15,7 +15,7 @@ Watcom 9.5a C runtime 在 FD2.LE 內的命名約定、static-link duplicates、1
   `_nmalloc` / `__filbuf` / `IF@COS` / `__CHK` / `L$1_*` 等）。在
   `rebuild_info/crt/lookup_9.5a.json.by_address` 內有 193 個 entry。re-emit 後
   Watcom 直接 link 同名函式。
-- **`crt_equivalent_*` (13 個)** — 行為等價 Watcom CRT 但 byte 不 match 任一
+- **`crt_equivalent_*` (12 個)** — 行為等價 Watcom CRT 但 byte 不 match 任一
   lib obj 版本。emit_action = `emit_fd2_source`（FD2 source 端 emit 一個
   behaviour-equivalent C function；wlink 無法 lib resolve）。Ghidra 內以
   `search_functions_enhanced(name_pattern="^crt_equivalent_")` 列出。
@@ -45,7 +45,7 @@ address ↔ lib symbol 對照存於 `lookup_9.5a.json`，human-readable view 見
 本段把 Watcom CRT 相關但 lookup 沒命中（=必須 emit 為 FD2 source）的 function
 按 CRT 角色分組。涵蓋兩類命名：
 
-- **`crt_equivalent_*` (13 個)** — 行為等價於 Watcom CRT 但 byte 不 match
+- **`crt_equivalent_*` (12 個)** — 行為等價於 Watcom CRT 但 byte 不 match
   任一 lib obj。`categorise()` 歸 `crt` pool,emit_action = `emit_fd2_source`。
 - **`fd2_*` 中的 8 個 CRT-style primitive** — FD2 工程師自寫的 helper,
   主要為 Miles AIL callback 提供 DPMI / global accessor。
@@ -56,7 +56,7 @@ dpmi / init / time / errno / signal / stream I/O / math 等）皆已歸 lookup
 真名（Watcom 9.5/9.5a 公開或 hidden PUBDEF）,由 `rebuild_info/crt/lookup_9.5a.json`
 維護。需要列出時查 `mcp__ghidra__search_functions_enhanced` 或 lookup file。
 
-### 13 個 `crt_equivalent_*`（依角色分組）
+### 12 個 `crt_equivalent_*`（依角色分組）
 
 **Startup / entry / exit (2)**：
 - `crt_equivalent_entry_start @ 0x3C964` — DOS LE entry point；JMP 到 dos_main_bootstrap
@@ -72,8 +72,14 @@ dpmi / init / time / errno / signal / stream I/O / math 等）皆已歸 lookup
 - `crt_equivalent_lx_header_reader_36344 @ 0x36344` — 311B LX header reader (open + 0x40-byte MZ + 4-byte LX magic + 0xac LX header + 0x18-byte object table)
 - `crt_equivalent_lx_module_loader_3647b @ 0x3647B` — 1151B 完整 LX loader (header + page table + fixup application + buffer alloc via [0x52758])
 
-**Softfp (1)**：
-- `crt_equivalent_softfp_tan_worker_4c630 @ 0x4C630` — soft-FP tan worker（被 `IF@TAN` 引用）
+註：原列入此段的 `softfp_tan_worker_4c630 @ 0x4C630` 已重分類為
+`crt_emu387_int7_fptan_opcode_worker_4c630`，**不再屬 `crt_equivalent_*`**，emit_action
+改為 `link_vendor_lib`。它是 `__int7`（EMU387 software-FPU emulator，`emu387.obj`）的內部
+subroutine：bytes 落在已 byte-match 的 `__int7` PUBDEF body（0x49D98..0x4CBCD）內部，無獨立
+PUBDEF，靠 link 該單一 `__int7` module 解析，不 emit C source。角色是 x87 `FPTAN` opcode 的
+軟體模擬 worker（無硬體 387 時 FPTAN 觸發 INT 7 → `__int7` opcode dispatch；與走硬體 FPTAN 的
+trig387 public entry `IF@TAN @ 0x3C8AB` 無關）。routing 由 `build_call_graph.py` 的
+`EMU387_INTERNAL_SUBROUTINES` set 導向 link_vendor_lib。
 
 註：原 KB 列入此段的 `crt_equivalent_uint64_to_decimal_ascii_4d9e1` / `_getip_4da53` /
 `_getip_body_4db08` 三個已 byte-match 為 Watcom `__Bin2String` 主體（297B 跨
