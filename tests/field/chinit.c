@@ -39,6 +39,24 @@
  * (scripted input + staged chapter-1 cutscene scripts), mirroring the
  * documented-empty pattern used for other pure display/blocking orchestrators
  * (e.g. fd2_render_status_screen_static_layout @0x17EEF).
+ *
+ * fd2_chapter_02_init @0x32D18 is the same shape (and simpler: no loops, no
+ * current_chapter_id transitions, four dialog pages chained with cutscenes
+ * 0x9/0xA/0xB/0xC, portrait sets 1/2, one composited frame, two camera pans).
+ * It likewise has NO numeric computation, NO RNG, NO data-dependent branch,
+ * and NO CALL-result consumption (no EAX-bug exposure), and every callee is
+ * real-linked from src/ — the same fd2_display_dialog_scene ->
+ * fd2_wait_for_input_dialog_with_blink keyboard busy-wait hang plus the
+ * fd2_load_chapter_portraits_and_dump_tmp (fopen FDICON.B24) /
+ * fd2_cutscene_event_trigger byte-script parsing apply. Its behavioral test is
+ * therefore DEFERRED to Phase 9 on identical grounds; equivalence was verified
+ * statically, line-by-line, against the disassembly @0x32D18 (call sequence,
+ * constants, the init_phase_flag 1/0 bracket around portrait set 2, and the
+ * three battle_anim_phase resets after pages 0/1/2 but not page 3). Note the
+ * page-3 dialog call and the final fd2_pan_cursor_to_char(0) are physically a
+ * tail-JMP into the shared epilogues of fd2_chapter_07_init (@0x33206) and
+ * fd2_chapter_05_init (@0x33140); the emit reconstructs the equivalent
+ * straight-line form. See src/emit_issues.json (00032d18).
  */
 
 #include <stdio.h>
@@ -53,5 +71,7 @@ void run_field_chinit_tests(void)
     printf("Suite: field/chinit\n");
     printf("  (fd2_chapter_01_init: behavioral test deferred to Phase 9 "
            "integration; see src/emit_issues.json 0003231b)\n");
+    printf("  (fd2_chapter_02_init: behavioral test deferred to Phase 9 "
+           "integration; see src/emit_issues.json 00032d18)\n");
     printf("\n");
 }
