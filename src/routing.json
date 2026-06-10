@@ -3373,8 +3373,9 @@
     "name": "fd2_chapter_06_init",
     "target": "field/chinit.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00033169": {
     "name": "fd2_chapter_07_init",

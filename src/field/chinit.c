@@ -406,3 +406,44 @@ void fd2_chapter_05_init(void)
     fd2_clear_all_chars_facing();
     fd2_pan_cursor_to_char(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_06_init @ 0x3314B  (dispatched, 0 direct callers)
+ *
+ * Chapter 6「普里茲港」init handler. The minimal chapter init: it
+ * re-inits battle state, plays exactly one dialog page (page 0), and
+ * pans the camera to char 0. There is NO cutscene, NO portrait load,
+ * NO char init, and NO camera-pan-and-window prelude — chapter 6
+ * carries the party over from chapter 5.
+ *
+ * data_fd2_battle_anim_phase is reset to 0 once, before the single
+ * dialog page (mirroring the entry-block MOV at 0x3315A which precedes
+ * the dialog call), and there is no clear-facing before the final pan.
+ *
+ * void __cdecl, no real params, void return. The leading __CHK(0x28)
+ * stack-probe is the Watcom-injected frame-size check and is not part
+ * of the source body.
+ *
+ * In the binary this function physically contains only its entry block
+ * (init battle state + battle_anim_phase=0) and then tail-JMPs through
+ * three shared alt-entries: 0x3344D (page-0 dialog-arg push, owned by
+ * fd2_chapter_12_init) -> 0x33206 (the fd2_display_dialog_scene call,
+ * owned by fd2_chapter_07_init) -> 0x33140 (the fd2_pan_cursor_to_char(0)
+ * + RET tail, owned by fd2_chapter_05_init). The straight-line form here
+ * is the functionally-equivalent (Layer 2) reconstruction.
+ *
+ * Linked handlers:
+ *   End:         fd2_chapter_06_end @ 0x23296
+ *   Post-action: (default — fd2_check_battle_end_default_handler
+ *                @ 0x205B4)
+ *
+ * Walkthrough SOT: assets/chapters/chapter_06.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_06_init(void)
+{
+    fd2_init_battle_state_for_chapter();
+    data_fd2_battle_anim_phase = 0;
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_pan_cursor_to_char(0);
+}
