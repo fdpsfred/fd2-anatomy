@@ -245,6 +245,7 @@ void fd2_chapter_event_handler_54__ch27_ai_ctrl(uint32 event_arg);
 void fd2_chapter_event_handler_55__unref_sentinel(uint32 event_arg);
 void fd2_chapter_event_handler_56__unref_sentinel(uint32 event_arg);
 void fd2_chapter_event_handler_57__unref_sentinel(uint32 event_arg);
+void fd2_chapter_event_handler_58__unref_sentinel(uint32 event_arg);
 void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
 void fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
 void fd2_cinematic_warp_char_to_tile(uint32 char_id, uint32 tile_x, uint32 tile_y);
