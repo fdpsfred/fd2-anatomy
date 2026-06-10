@@ -369,6 +369,109 @@ static void test_h4f_schedule_turn_plus1_is_8bit_at_offset_9(void)
     ce4f_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_50__ch30_ai_ctrl @ 0x35F5A
+ *
+ * ch30 AI setup (dispatch idx 0x50 @ table 0x51B91). Body (1-arg cdecl; arg
+ * ignored): a single self-contained call
+ *   fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x14, 0x14, 0xB)
+ * which arms AI control flag 0xB (the low nibble of runtime_char.combat_aux_block
+ * [0xD], absolute offset 0x34) for the single char index 0x14. The range
+ * 0x14..0x14 is exactly one char and the high nibble of the target byte is
+ * preserved.
+ *
+ * In the binary this handler pushes its 3 args then JMP 0x356AE, borrowing the
+ * CALL + ADD ESP,0xC + RET tail of handler_3c. The borrowed tail is pure code
+ * sharing; this test drives the REAL handler and its REAL callee against a local
+ * runtime_char array big enough for index 0x14 (the shared g_test_rc_array[8] is
+ * too small). No game files, no display.
+ *
+ * Risk-bearing (state mutation / AI-flag setter):
+ *   (a) char 0x14's low nibble is set to 0xB,
+ *   (b) the high nibble of that byte is PRESERVED (the callee does
+ *       (byte & 0xF0) | new_val, not a blind overwrite) — the OR-with-mask
+ *       semantics that distinguish this from a full-byte store,
+ *   (c) the range is a SINGLE char (0x14..0x14): the immediate neighbours 0x13
+ *       and 0x15 stay untouched (guards against an off-by-one wide range),
+ *   (d) the dispatch arg is ignored (passed nonzero).
+ * ================================================================ */
+
+#define CE50_NCHARS      0x20       /* must cover index 0x14 with neighbours */
+#define CE50_AI_OFF      0x34       /* combat_aux_block[0xD] absolute offset */
+
+static runtime_char g_ce50_rc[CE50_NCHARS];
+
+/* offset 0x34 of char `idx`, read as raw byte */
+static uint8 ce50_ai(int idx)
+{
+    return ((uint8 *)&g_ce50_rc[idx])[CE50_AI_OFF];
+}
+
+/* Seed offset 0x34 of every char with a non-zero HIGH nibble (0xA0) and a
+ * non-zero LOW nibble (0x05) so we can prove: (a) char 0x14's low nibble is set
+ * to 0xB with the high nibble preserved -> 0xAB, and (b) every other char keeps
+ * 0xA5 untouched. */
+static void ce50_setup(void)
+{
+    int i;
+
+    memset(g_ce50_rc, 0, sizeof(g_ce50_rc));
+    for (i = 0; i < CE50_NCHARS; i++) {
+        ((uint8 *)&g_ce50_rc[i])[CE50_AI_OFF] = 0xA5;
+    }
+    data_fd2_battle_runtime_char_array_ptr = g_ce50_rc;
+}
+
+static void ce50_teardown(void)
+{
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+}
+
+/* ----------------------------------------------------------------
+ * Char 0x14 gets its low nibble set to 0xB with the high nibble preserved:
+ * seeded 0xA5 -> (0xA0) | 0xB = 0xAB. Proves (a) the flag value 0xB lands in the
+ * low nibble and (b) the high nibble is NOT clobbered (OR-with-mask, not a full
+ * overwrite). The dispatch arg is passed nonzero to prove it is ignored.
+ * ---------------------------------------------------------------- */
+static void test_h50_sets_ai_flag_b_for_char_0x14(void)
+{
+    ce50_setup();
+
+    fd2_chapter_event_handler_50__ch30_ai_ctrl(0x77);
+
+    /* (a) low nibble = 0xB, (b) high nibble 0xA preserved -> 0xAB */
+    ASSERT_EQ((long)ce50_ai(0x14), 0xAB);
+
+    ce50_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * The range is a SINGLE char (0x14..0x14): only index 0x14 changes; the
+ * immediate neighbours 0x13 and 0x15 stay at their seeded 0xA5. Guards against an
+ * off-by-one that would widen the range. Also pins a far slot (0) untouched.
+ * ---------------------------------------------------------------- */
+static void test_h50_range_is_single_char_exact(void)
+{
+    int i;
+
+    ce50_setup();
+
+    fd2_chapter_event_handler_50__ch30_ai_ctrl(0);
+
+    ASSERT_EQ((long)ce50_ai(0x13), 0xA5);       /* just before the single-char range */
+    ASSERT_EQ((long)ce50_ai(0x14), 0xAB);       /* the one char that is written      */
+    ASSERT_EQ((long)ce50_ai(0x15), 0xA5);       /* just after the single-char range  */
+
+    /* every other char is left untouched */
+    for (i = 0; i < CE50_NCHARS; i++) {
+        if (i != 0x14) {
+            ASSERT_EQ((long)ce50_ai(i), 0xA5);
+        }
+    }
+
+    ce50_teardown();
+}
+
 void run_field_chevt26_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -381,5 +484,7 @@ void run_field_chevt26_tests(void)
     RUN_TEST(test_h4f_rng_pair_rotates_with_seed);
     RUN_TEST(test_h4f_base_offset_from_flags_0x15);
     RUN_TEST(test_h4f_schedule_turn_plus1_is_8bit_at_offset_9);
+    RUN_TEST(test_h50_sets_ai_flag_b_for_char_0x14);
+    RUN_TEST(test_h50_range_is_single_char_exact);
     printf("\n");
 }

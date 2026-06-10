@@ -1368,3 +1368,32 @@ void fd2_chapter_event_handler_4f__ch29_dyn_turn_event(uint32 event_arg)
     fd2_mark_char_acted_this_turn((uint32)(rng % 3) + base);
     fd2_mark_char_acted_this_turn((uint32)((rng + 1) % 3) + base);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_50__ch30_ai_ctrl @ 0x35F5A
+ *   (1 caller: dispatch table @ 0x51B91, entry @ 0x51CD1)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x50. Triggered
+ * in chapter 30. Category: AI setup. Dispatch-table signature is 1-arg cdecl
+ * (void fn(uint event_arg)); this handler does not read the arg.
+ *
+ * Effect: ch30 — arm AI control flag 0xB (the low nibble of
+ * runtime_char.combat_aux_block[0xD], absolute offset 0x34) for the single char
+ * index 0x14 (the range 0x14..0x14 is one char). The high nibble of that byte is
+ * preserved; only the low 4 bits are written.
+ *
+ * In the binary the call + cleanup + RET is a Class-3 shared tail at 0x356AE
+ * hosted in fd2_chapter_event_handler_3c__ch26_ai_ctrl: after pushing its 3 args
+ * (0x14, 0x14, 0xB) this handler does JMP 0x356AE, falling into the
+ * CALL fd2_set_combat_aux_block_byte_d_low4_for_char_range; ADD ESP,0xC; RET tail
+ * of that handler's second range call. That tail-merge is a binary size
+ * optimisation; the functionally-exact source is a single self-contained call.
+ * Stack frame 0x10 (__CHK) is the Watcom stack-probe prologue and carries no
+ * source-level semantics.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_50__ch30_ai_ctrl(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x14, 0x14, 0xB);
+}
