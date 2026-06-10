@@ -8,6 +8,7 @@
 #include "consts.h"
 #include "globals.h"
 #include "protos.h"
+#include "blitprob.h"   /* tg_install_compositor_safe_atlases */
 #include <stdio.h>
 
 #define USE_ITEM_ID 10
@@ -31,6 +32,20 @@ static void setup_impact_buffers(void)
     data_fd2_battle_view_window_origin_y = 0x20;
     data_fd2_battle_view_window_max_x = 0x0D;
     data_fd2_battle_view_window_max_y = 0x08;
+
+    /* spell 17 (warp) and the attack-spell impact pan/recomposite drive the REAL
+     * fd2_composite_battle_frame, whose per-char painter / shadow / cursor passes
+     * feed the now-real RLE blitters over the leftover party + unset sprite
+     * sources, looping forever on a malformed stream. Override those sprite
+     * sources with terminating all-SKIP atlases so every compositor blit is a
+     * deterministic no-op (the warp/impact pixels are display side effect, not
+     * asserted here; g_composite_call_count, the only display assertion, comes
+     * from the tile-map stub which this does not touch). No restore is needed:
+     * the safe atlas is a static buffer (so nothing to free) and the safe
+     * zeroed tile-map / cursor atlas it leaves behind are strictly safer than the
+     * prior leftover globals; no suite after spell/spelleff frees
+     * portrait_sprite_cache. */
+    tg_install_compositor_safe_atlases();
 }
 
 extern runtime_char g_test_rc_array[8];

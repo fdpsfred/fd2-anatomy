@@ -108,6 +108,7 @@
 #include "globals.h"
 #include "protos.h"
 #include "audiofix.h"   /* audiofix_make_bank / audiofix_enable_sfx (handler_44 dialog) */
+#include "blitprob.h"   /* tg_install/restore_compositor_safe_atlases */
 
 /* ================================================================
  * fd2_chapter_event_handler_43__unref_dyn_turn_event @ 0x35A2F
@@ -733,10 +734,20 @@ static void ce46_setup(int count, const uint8 *races,
     g_delay375b2_log_count = 0;
     g_composite_call_count = 0;
     g_dlg_glyph_calls = 0;
+
+    /* the three cutscenes pan the camera -> real fd2_composite_battle_frame; its
+     * per-char painter (party count reaches 3 over the real portrait cache),
+     * shadow overlay and cursor pass feed the now-real RLE blitters. Override the
+     * compositor's sprite sources with terminating all-SKIP atlases so every blit
+     * is a deterministic no-op (the cutscene pan/flash composites are deferred
+     * display side effect, not asserted here). Must run AFTER the env above sets
+     * portrait_sprite_cache / runtime_battle_state_ptr. */
+    tg_install_compositor_safe_atlases();
 }
 
 static void ce46_teardown(void)
 {
+    tg_restore_compositor_safe_atlases();
     audiofix_disable_sfx();
     free(g_ce46_tileevent);
     g_ce46_tileevent = 0;

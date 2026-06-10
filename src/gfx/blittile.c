@@ -345,6 +345,110 @@ void fd2_blit_24x24_tile_to_battle_grid_position(uint32 atlas_base,
 }
 
 /* ----------------------------------------------------------------
+ * fd2_tile_blit_24x24_passthrough @ 0x4DEDA (13 callers)
+ *
+ * Hand-written RLE blit of a 24x24 sprite into dst_buf with NO palette
+ * transform: source bytes are written to the destination as-is. This
+ * is the base member of the tile_blit_24x24_* family; the siblings
+ * (tint/remap/dim/solid) apply a recolour on top of this same RLE
+ * syntax. Used as the plain opaque blitter throughout the battle tile
+ * compositor, the recruitment select screen, and the battle-preview /
+ * chapter-intro composers.
+ *
+ * The RLE stream is decoded one command byte at a time. The top two
+ * bits of the command select the mode; the low 6 bits + 1 are the run
+ * length:
+ *   bits 7..6 = 00 (0x00..0x3F)  RUN: paint len pixels from a single
+ *               following source byte, contiguously; dst += len;
+ *               x -= len.
+ *   bits 7..6 = 01 (0x40..0x7F)  STRIDE-2 RUN: paint len pixels from a
+ *               single following source byte, spaced every other dst
+ *               byte (INC EDI; STOSB => dst += 2 per pixel, written at
+ *               the odd offset); dst += 2*len; x -= 2*len.
+ *   bits 7..6 = 10 (0x80..0xBF)  LITERAL: copy len following source
+ *               bytes, one dst byte each; dst += len; x -= len.
+ *   bits 7..6 = 11 (0xC0..0xFF)  SKIP: advance dst by len (transparent
+ *               run, no source bytes consumed); dst += len; x -= len.
+ *
+ * x is the per-row remaining-column counter (starts at 0x18). When it
+ * reaches 0 the row ends: dst advances by stride - 0x18 to the next
+ * row start, and 24 rows are rendered in total.
+ *
+ * Args (cdecl, 3x stack params; caller pops 0x0C):
+ *   src    — source RLE-encoded 24x24 sprite stream
+ *   dst    — destination base linear address
+ *   stride — destination row stride in bytes (0x1C8 from the window-
+ *            relative helpers; the row reset advances stride - 0x18)
+ *
+ * Hand-written asm leaf: no __CHK probe, no CALLs.
+ * ---------------------------------------------------------------- */
+void fd2_tile_blit_24x24_passthrough(uint32 src, uint32 dst, uint32 stride)
+{
+    uint32 src_p;
+    uint32 dst_p;
+    uint32 row_advance;
+    uint8  cmd;
+    uint8  pixel;
+    uint8  x_remain;
+    uint32 count;
+    int    row;
+
+    src_p = src;
+    dst_p = dst;
+    row_advance = stride - 0x18;
+
+    for (row = 0x18; row != 0; row--) {
+        x_remain = 0x18;
+        do {
+            cmd = *(uint8 *)src_p;
+            src_p = src_p + 1;
+            if ((cmd & 0x80) == 0) {
+                if ((cmd & 0x40) == 0) {
+                    /* RUN: len pixels from one source byte */
+                    count = (uint32)(cmd & 0x3F) + 1;
+                    x_remain = (uint8)(x_remain - (uint8)count);
+                    pixel = *(uint8 *)src_p;
+                    src_p = src_p + 1;
+                    do {
+                        *(uint8 *)dst_p = pixel;
+                        dst_p = dst_p + 1;
+                    } while (--count != 0);
+                } else {
+                    /* STRIDE-2 RUN: len pixels, every other dst byte */
+                    count = (uint32)(cmd & 0x3F) + 1;
+                    x_remain = (uint8)(x_remain - (uint8)count - (uint8)count);
+                    pixel = *(uint8 *)src_p;
+                    src_p = src_p + 1;
+                    do {
+                        dst_p = dst_p + 1;
+                        *(uint8 *)dst_p = pixel;
+                        dst_p = dst_p + 1;
+                    } while (--count != 0);
+                }
+            } else {
+                if ((cmd & 0x40) == 0) {
+                    /* LITERAL: len pixels, one source byte each */
+                    count = (uint32)(cmd & 0x3F) + 1;
+                    x_remain = (uint8)(x_remain - (uint8)count);
+                    do {
+                        *(uint8 *)dst_p = *(uint8 *)src_p;
+                        src_p = src_p + 1;
+                        dst_p = dst_p + 1;
+                    } while (--count != 0);
+                } else {
+                    /* SKIP: advance dst by len (transparent run) */
+                    count = (uint32)(cmd & 0x3F) + 1;
+                    x_remain = (uint8)(x_remain - (uint8)count);
+                    dst_p = dst_p + count;
+                }
+            }
+        } while (x_remain != 0);
+
+        dst_p = dst_p + row_advance;
+    }
+}
+
+/* ----------------------------------------------------------------
  * fd2_tile_blit_24x24_with_tint_offset @ 0x4DC34 (1 caller)
  *
  * Hand-written RLE blit of a 24x24 sprite into dst_buf, recolouring

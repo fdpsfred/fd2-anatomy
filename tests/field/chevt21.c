@@ -38,6 +38,7 @@
 #include "protos.h"
 #include <stdio.h>
 #include "audiofix.h"   /* audiofix_make_bank / audiofix_enable_sfx */
+#include "blitprob.h"   /* tg_install/restore_compositor_safe_atlases */
 
 extern runtime_char g_test_rc_array[8];
 
@@ -144,6 +145,7 @@ static void test_portrait_index_is_turn_div_2(void)
     static const uint8 races[2] = { 0x02, 0x03 };  /* decoy 2, target 3 */
 
     ce_setup_portrait_env(2, races);
+    tg_install_compositor_safe_atlases();          /* camera sweep -> real compositor */
     data_fd2_battle_turn_counter = 6;              /* (int)6/2 == 3 */
     current_chapter_text = 0;
 
@@ -153,6 +155,7 @@ static void test_portrait_index_is_turn_div_2(void)
     ASSERT_EQ((long)data_fd2_battle_party_member_count, 1);
     ASSERT_EQ((long)chapter_portrait_load_buffer, 0);  /* loader freed+nulled */
 
+    tg_restore_compositor_safe_atlases();
     ce_teardown_portrait_env();
 }
 
@@ -348,6 +351,7 @@ static void test_h31_portrait_index_is_turn_div_2(void)
     static const uint8 races[2] = { 0x03, 0x04 };  /* decoy 3, target 4 */
 
     ce_setup_portrait_env(2, races);
+    tg_install_compositor_safe_atlases();          /* camera sweep -> real compositor */
     data_fd2_battle_turn_counter = 8;              /* (int)8/2 == 4 */
     current_chapter_text = 0;
 
@@ -357,6 +361,7 @@ static void test_h31_portrait_index_is_turn_div_2(void)
     ASSERT_EQ((long)data_fd2_battle_party_member_count, 1);
     ASSERT_EQ((long)chapter_portrait_load_buffer, 0);  /* loader freed+nulled */
 
+    tg_restore_compositor_safe_atlases();
     ce_teardown_portrait_env();
 }
 
@@ -909,6 +914,7 @@ static void test_h36_portrait_index_is_raw_counter(void)
     static const uint8 races[6] = { 0, 0, 0x02, 0, 0, 0x05 }; /* decoy@2, target@5 */
 
     ce_setup_portrait_env(6, races);
+    tg_install_compositor_safe_atlases();          /* camera sweep -> real compositor */
     data_fd2_battle_turn_counter = 5;              /* raw 5 (NOT 5/2 == 2) */
     current_chapter_text = 0;
 
@@ -919,6 +925,7 @@ static void test_h36_portrait_index_is_raw_counter(void)
     ASSERT_EQ((long)data_fd2_battle_party_member_count, 1);
     ASSERT_EQ((long)chapter_portrait_load_buffer, 0);  /* loader freed+nulled */
 
+    tg_restore_compositor_safe_atlases();
     ce_teardown_portrait_env();
 }
 

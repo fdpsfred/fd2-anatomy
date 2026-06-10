@@ -8,21 +8,27 @@
 #include "consts.h"
 #include "globals.h"
 #include "protos.h"
+#include "blitprob.h"
 #include <stdio.h>
 
-/* recording stub for fd2_tile_blit_24x24_passthrough (testglob.c) */
-extern int    g_blitpass_calls;
-extern uint32 g_blitpass_src[64];
-extern uint32 g_blitpass_dst[64];
-extern uint32 g_blitpass_stride[64];
+/* fd2_tile_blit_24x24_passthrough is emitted for real, so these tests drive it
+ * through its callers with probe sprites (see blitprob.h) and read the painted
+ * destination bytes back: each atlas slot's one-pixel probe paints value idx+1,
+ * so a painted byte of value idx+1 at the expected dst offset proves the caller
+ * resolved that sprite index AND computed that dst; bp_count_painted gives the
+ * blit count (one painted pixel per blit). */
 
 /* Sprite atlas backing data_fd2_runtime_battle_state_ptr: a 4-byte absolute
- * offset table at +6 (index*4). table[i] == i*0x10 so the recorded src pointer
- * uniquely identifies the sprite index used. */
-static uint8 g_atlas[6 + 64 * 4];
-/* Real backing for the workspace base; the recording stub never dereferences
- * the dst pointer so the buffer only needs to exist as an address anchor. */
-static uint8 g_ws[0x10000];
+ * offset table at +6 (index*4) pointing slot i at bp_atlas_slot_off (a sprite
+ * region past the table, so slot 0 does not clobber the table), with a one-pixel
+ * probe (value i+1) at each slot. */
+#define ATLAS_SPAN 0x40u
+#define ATLAS_N    64
+static uint8 g_atlas[6 + ATLAS_N * 4 + ATLAS_N * ATLAS_SPAN];
+/* Real backing for the workspace; the real blitter writes the painted pixel(s)
+ * here, so it must span the largest dst any in-window blit below reaches
+ * (the far anim-tile rows approach ~0x1AC00 + one row stride). */
+static uint8 g_ws[0x1C000];
 
 #define WIN_OX 0x10u
 #define WIN_OY 0x20u
@@ -31,14 +37,9 @@ static uint8 g_ws[0x10000];
 
 static void setup_blittile(void)
 {
-    int i;
-    uint32 *table;
-
-    g_blitpass_calls = 0;
-    table = (uint32 *)(g_atlas + 6);
-    for (i = 0; i < 64; i++) {
-        table[i] = (uint32)i * 0x10u;
-    }
+    memset(g_atlas, 0, sizeof(g_atlas));
+    bp_build_atlas1(g_atlas, 6u, ATLAS_SPAN, ATLAS_N);
+    memset(g_ws, 0, sizeof(g_ws));
     data_fd2_runtime_battle_state_ptr = (uint32)g_atlas;
     data_fd2_large_game_state_buffer_ptr = (uint32)g_ws;
     data_fd2_battle_view_window_origin_x = WIN_OX;
@@ -47,53 +48,70 @@ static void setup_blittile(void)
     data_fd2_battle_view_window_max_y = WIN_MY;
 }
 
-static uint32 expect_dst(uint32 x, uint32 y)
+/* destination byte offset (into g_ws) of the painted pixel for a blit at (x,y) */
+static uint32 expect_off(uint32 x, uint32 y)
 {
-    return (uint32)g_ws +
-        (y - WIN_OY) * 0x2AC0u +
-        (x - WIN_OX) * 0x18u +
-        0x8088u;
+    return (y - WIN_OY) * 0x2AC0u + (x - WIN_OX) * 0x18u + 0x8088u;
 }
 
-static uint32 expect_src(uint32 idx)
-{
-    return (uint32)g_atlas + idx * 0x10u;
-}
-
-/* In-window blit forwards exactly one passthrough call with the correct
- * src (atlas + table[idx]), dst (row/col stride offset), and stride 0x1C8. */
+/* In-window blit paints exactly one pixel; its value (idx+1) identifies the
+ * resolved sprite index and its offset confirms the row/col dst arithmetic. */
 static void test_in_window_blit_args(void)
 {
+    uint32 first;
+
     setup_blittile();
     fd2_blit_24x24_at_window_relative_pos(0x13, 0x23, 5);
-    ASSERT_EQ(g_blitpass_calls, 1);
-    ASSERT_EQ(g_blitpass_src[0], expect_src(5));
-    ASSERT_EQ(g_blitpass_dst[0], expect_dst(0x13, 0x23));
-    ASSERT_EQ(g_blitpass_stride[0], 0x1c8u);
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 1);
+    /* sprite index 5 -> probe value 6, painted at the (0x13,0x23) dst offset */
+    ASSERT_EQ(bp_count_value(g_ws, sizeof(g_ws), 6u, &first), 1);
+    ASSERT_EQ(first, expect_off(0x13, 0x23));
 }
 
-/* Origin corner (x==ox, y==oy) is inside the window: dst == base + 0x8088. */
+/* Stride forwarded is 0x1C8: a two-pixel probe's second pixel lands exactly one
+ * stride (0x1C8) past the first. */
+static void test_in_window_blit_stride(void)
+{
+    uint32 base;
+
+    setup_blittile();
+    /* overwrite slot 5 with a two-pixel probe (value 6) to expose the stride */
+    bp_probe2(g_atlas + bp_atlas_slot_off(6u, ATLAS_N, ATLAS_SPAN, 5), 6u);
+    fd2_blit_24x24_at_window_relative_pos(0x13, 0x23, 5);
+    base = expect_off(0x13, 0x23);
+    ASSERT_EQ((int)g_ws[base], 6);
+    ASSERT_EQ((int)g_ws[base + 0x1c8u], 6);   /* stride 0x1C8 */
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 2);
+}
+
+/* Origin corner (x==ox, y==oy) is inside the window: pixel at base + 0x8088. */
 static void test_origin_corner_in_window(void)
 {
+    uint32 first;
+
     setup_blittile();
     fd2_blit_24x24_at_window_relative_pos(WIN_OX, WIN_OY, 0);
-    ASSERT_EQ(g_blitpass_calls, 1);
-    ASSERT_EQ(g_blitpass_dst[0], (uint32)g_ws + 0x8088u);
-    ASSERT_EQ(g_blitpass_src[0], expect_src(0));
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 1);
+    /* sprite index 0 -> probe value 1 at the origin-cell offset 0x8088 */
+    ASSERT_EQ(bp_count_value(g_ws, sizeof(g_ws), 1u, &first), 1);
+    ASSERT_EQ(first, 0x8088u);
 }
 
-/* Far in-window corner (x==ox+max_x-1, y==oy+max_y-1) still blits. */
+/* Far in-window corner (x==ox+max_x-1, y==oy+max_y-1) still blits, at its
+ * row/col offset. */
 static void test_far_corner_in_window(void)
 {
     uint32 x;
     uint32 y;
+    uint32 first;
 
     setup_blittile();
     x = WIN_OX + WIN_MX - 1u;
     y = WIN_OY + WIN_MY - 1u;
     fd2_blit_24x24_at_window_relative_pos(x, y, 7);
-    ASSERT_EQ(g_blitpass_calls, 1);
-    ASSERT_EQ(g_blitpass_dst[0], expect_dst(x, y));
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 1);
+    ASSERT_EQ(bp_count_value(g_ws, sizeof(g_ws), 8u, &first), 1);  /* idx 7 -> 8 */
+    ASSERT_EQ(first, expect_off(x, y));
 }
 
 /* x just left of window (x == ox-1) is a silent no-op. */
@@ -101,7 +119,7 @@ static void test_x_below_window_noop(void)
 {
     setup_blittile();
     fd2_blit_24x24_at_window_relative_pos(WIN_OX - 1u, WIN_OY, 0);
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 0);
 }
 
 /* x at right edge (x == ox+max_x) is out of window (half-open interval). */
@@ -109,7 +127,7 @@ static void test_x_at_right_edge_noop(void)
 {
     setup_blittile();
     fd2_blit_24x24_at_window_relative_pos(WIN_OX + WIN_MX, WIN_OY, 0);
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 0);
 }
 
 /* y just above window (y == oy-1) is a silent no-op. */
@@ -117,7 +135,7 @@ static void test_y_below_window_noop(void)
 {
     setup_blittile();
     fd2_blit_24x24_at_window_relative_pos(WIN_OX, WIN_OY - 1u, 0);
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 0);
 }
 
 /* y at bottom edge (y == oy+max_y) is out of window. */
@@ -125,7 +143,7 @@ static void test_y_at_bottom_edge_noop(void)
 {
     setup_blittile();
     fd2_blit_24x24_at_window_relative_pos(WIN_OX, WIN_OY + WIN_MY, 0);
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 0);
 }
 
 /* Bounds tests use signed comparison (decompile casts world coords to int):
@@ -140,7 +158,7 @@ static void test_signed_lower_bound(void)
     data_fd2_battle_view_window_max_y = 0x10;
     /* 0xFFFFFFFF as signed int = -1 < origin 0 -> rejected */
     fd2_blit_24x24_at_window_relative_pos(0xFFFFFFFFu, 0, 0);
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 0);
 }
 
 /* ================================================================
@@ -163,8 +181,15 @@ static void test_signed_lower_bound(void)
 static uint8 g_atm_map[ATM_W * ATM_ROWS * 4];
 /* tile-attribute flags, 4 bytes/tile */
 static uint8 g_atm_attr[0x400 * 4];
-/* battle scene snapshot: 4-byte absolute offset table at +10 (tile_id*4) */
-static uint8 g_atm_scene[0x400 * 4 + 16];
+/* battle scene snapshot: 4-byte absolute offset table at +10 (tile_id*4) that
+ * points each tile id at a real probe sprite in a dedicated sprite region past
+ * the table, so the REAL passthrough/remap blitters decode an actual sprite.
+ * SCENE_SPRITE_OFF clears the 0x1010-byte table; ATM_SPRITE_SPAN holds a probe
+ * (<= 26 bytes) per id; ATM_SPRITE_N ids are provisioned (covers the 7/13 used). */
+#define SCENE_SPRITE_OFF  0x1100u
+#define ATM_SPRITE_SPAN   0x40u
+#define ATM_SPRITE_N      0x20
+static uint8 g_atm_scene[0x2000];
 /* per-chapter tile anim remap table base: 4-byte offset table at +6. Sized to
  * hold a full 256-entry LUT starting at the offset the remap branch selects
  * (entry 5 -> base+0x90), so the real blitter can map a source pixel through a
@@ -185,27 +210,45 @@ static void atm_cell(uint32 x, uint32 y, uint16 tid, uint8 overlay_flag)
     g_atm_map[cell + 7] = overlay_flag;
 }
 
+/* scene-table byte offset of tile id `tid`'s probe sprite slot */
+static uint32 atm_slot_off(uint32 tid)
+{
+    return SCENE_SPRITE_OFF + (tid % (uint32)ATM_SPRITE_N) * ATM_SPRITE_SPAN;
+}
+
+/* probe value the scene sprite for tile id `tid` paints (1-based, id-specific) */
+static uint8 atm_tid_value(uint32 tid)
+{
+    return (uint8)((tid % (uint32)ATM_SPRITE_N) + 1u);
+}
+
 static void setup_atm(void)
 {
     int i;
     uint32 *snap_tbl;
 
-    g_blitpass_calls = 0;
-
     memset(g_atm_map, 0, sizeof(g_atm_map));
     memset(g_atm_attr, 0, sizeof(g_atm_attr));
+    memset(g_atm_scene, 0, sizeof(g_atm_scene));
 
-    /* snapshot offset table: entry[tid] = tid*0x100 so a recorded sprite
-     * src uniquely identifies which tile id was used. */
+    /* snapshot offset table: entry[tid] points at a real probe sprite in the
+     * dedicated sprite region; the painted byte value (atm_tid_value) then
+     * identifies which tile id the caller resolved. */
     snap_tbl = (uint32 *)(g_atm_scene + 10);
     for (i = 0; i < 0x400; i++) {
-        snap_tbl[i] = (uint32)i * 0x100u;
+        snap_tbl[i] = atm_slot_off((uint32)i);
+    }
+    for (i = 0; i < ATM_SPRITE_N; i++) {
+        bp_probe1(g_atm_scene + SCENE_SPRITE_OFF + (uint32)i * ATM_SPRITE_SPAN,
+                  (uint8)(i + 1));
     }
     /* anim remap table: entry[k] = k*0x10 + 0x40 so the remap arg is
      * identifiable; the lookup[frame_counter] selects which entry. */
     for (i = 0; i < 60; i++) {
         *(uint32 *)(g_atm_anim_tbl + 6 + i * 4) = (uint32)i * 0x10u + 0x40u;
     }
+
+    memset(g_ws, 0, sizeof(g_ws));
 
     data_fd2_battle_tile_map_ptr = (uint32)g_atm_map;
     data_fd2_battle_map_width_tiles = ATM_W;
@@ -224,43 +267,67 @@ static void setup_atm(void)
     data_fd2_battle_view_window_max_y = ATM_MY;
 }
 
-static uint32 atm_expect_dst(uint32 x, uint32 y)
+/* destination byte offset (into g_ws) of the painted pixel for tile (x,y) */
+static uint32 atm_expect_off(uint32 x, uint32 y)
 {
-    return (uint32)g_ws + 0x8088u +
-        (y - ATM_OY) * 0x2AC0u +
-        (x - ATM_OX) * 0x18u;
+    return 0x8088u + (y - ATM_OY) * 0x2AC0u + (x - ATM_OX) * 0x18u;
 }
 
-/* renderable tile, no overlay -> exactly one passthrough blit with the
- * sprite src derived from the tile id and the window-relative dst. */
+/* renderable tile, no overlay -> exactly one passthrough blit with the sprite
+ * src derived from the tile id and the window-relative dst. The painted byte's
+ * value (atm_tid_value(7)) proves the src resolved to tile id 7's slot and its
+ * offset proves the window-relative dst; the +0x18 transparent-skip rows leave
+ * exactly one painted pixel, so a remap-branch blit would have painted a second
+ * (the remap path uses a different sprite/dst and is exercised separately). */
 static void test_anim_passthrough_branch(void)
 {
+    uint32 first;
+
     setup_atm();
     atm_cell(0x13, 0x23, 7, 0xFF);   /* tile id 7, no overlay */
     g_atm_attr[7 * 4] = 0x80;        /* renderable, not animated */
 
     fd2_blit_animated_tile_at_pos((uint32)g_ws, 0x13, 0x23);
 
-    /* exactly one passthrough-stub call (the real remap blitter does not bump
-     * g_blitpass_calls, so this also proves the remap branch was NOT taken). */
-    ASSERT_EQ(g_blitpass_calls, 1);
-    ASSERT_EQ(g_blitpass_stride[0], 0x1c8u);
-    ASSERT_EQ(g_blitpass_dst[0], atm_expect_dst(0x13, 0x23));
-    /* src = snapshot + snap_tbl[7] = scene + 7*0x100 */
-    ASSERT_EQ(g_blitpass_src[0], (uint32)g_atm_scene + 7u * 0x100u);
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 1);
+    ASSERT_EQ(bp_count_value(g_ws, sizeof(g_ws), atm_tid_value(7), &first), 1);
+    ASSERT_EQ(first, atm_expect_off(0x13, 0x23));
 }
 
-/* tile id is masked to 10 bits: a +4 word of 0xFC07 -> id 0x007. */
+/* the forwarded stride is 0x1C8: a two-pixel probe at tile 7's slot lands its
+ * second pixel exactly one stride past the first. */
+static void test_anim_passthrough_stride(void)
+{
+    uint32 base;
+
+    setup_atm();
+    atm_cell(0x13, 0x23, 7, 0xFF);
+    g_atm_attr[7 * 4] = 0x80;
+    bp_probe2(g_atm_scene + atm_slot_off(7), atm_tid_value(7));
+
+    fd2_blit_animated_tile_at_pos((uint32)g_ws, 0x13, 0x23);
+
+    base = atm_expect_off(0x13, 0x23);
+    ASSERT_EQ((int)g_ws[base], (int)atm_tid_value(7));
+    ASSERT_EQ((int)g_ws[base + 0x1c8u], (int)atm_tid_value(7));
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 2);
+}
+
+/* tile id is masked to 10 bits: a +4 word of 0xFC07 -> id 0x007, so the painted
+ * byte is tile id 7's value. */
 static void test_anim_tile_id_masked_10_bits(void)
 {
+    uint32 first;
+
     setup_atm();
     atm_cell(0x13, 0x23, 0xFC07, 0xFF);
     g_atm_attr[7 * 4] = 0x80;
 
     fd2_blit_animated_tile_at_pos((uint32)g_ws, 0x13, 0x23);
 
-    ASSERT_EQ(g_blitpass_calls, 1);
-    ASSERT_EQ(g_blitpass_src[0], (uint32)g_atm_scene + 7u * 0x100u);
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 1);
+    ASSERT_EQ(bp_count_value(g_ws, sizeof(g_ws), atm_tid_value(7), &first), 1);
+    ASSERT_EQ(first, atm_expect_off(0x13, 0x23));
 }
 
 /* attr bit 0x80 clear -> transparent tile, no blit at all. */
@@ -272,15 +339,17 @@ static void test_anim_transparent_skip(void)
 
     fd2_blit_animated_tile_at_pos((uint32)g_ws, 0x13, 0x23);
 
-    /* not renderable -> no blit of either kind (neither stub nor real ran). */
-    ASSERT_EQ(g_blitpass_calls, 0);
+    /* not renderable -> no blit of either kind painted anything. */
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 0);
 }
 
-/* attr bit 0x08 set -> tile id += bg_anim_flip_flag*2 for the sprite
- * lookup. attr is indexed by the ORIGINAL id; the sprite src uses the
- * flipped id. flip_flag 3 -> id 7 + 6 = 13. */
+/* attr bit 0x08 set -> tile id += bg_anim_flip_flag*2 for the sprite lookup.
+ * attr is indexed by the ORIGINAL id; the sprite src uses the flipped id.
+ * flip_flag 3 -> id 7 + 6 = 13, so the painted byte is tile id 13's value. */
 static void test_anim_flip_offsets_sprite(void)
 {
+    uint32 first;
+
     setup_atm();
     atm_cell(0x13, 0x23, 7, 0xFF);
     g_atm_attr[7 * 4] = 0x80 | 0x08; /* renderable + animated */
@@ -288,20 +357,21 @@ static void test_anim_flip_offsets_sprite(void)
 
     fd2_blit_animated_tile_at_pos((uint32)g_ws, 0x13, 0x23);
 
-    ASSERT_EQ(g_blitpass_calls, 1);
-    /* src = scene + snap_tbl[7 + 3*2] = scene + 13*0x100 */
-    ASSERT_EQ(g_blitpass_src[0], (uint32)g_atm_scene + 13u * 0x100u);
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 1);
+    /* flipped src = scene + snap_tbl[7 + 3*2] = tile id 13's slot */
+    ASSERT_EQ(bp_count_value(g_ws, sizeof(g_ws), atm_tid_value(13), &first), 1);
+    ASSERT_EQ(first, atm_expect_off(0x13, 0x23));
 }
 
 /* +7 overlay flag != 0xFF -> remap branch: the caller dispatches to the real
- * fd2_tile_blit_24x24_with_remap_table. We can no longer record the call
- * (the real blitter paints pixels), so instead drive it end-to-end with a
- * one-pixel sprite at the in-bounds window-origin cell and read back the single
- * painted byte. A correct result (g_ws[0x8088] == LUT[S]) simultaneously proves
+ * fd2_tile_blit_24x24_with_remap_table. Drive it end-to-end with a one-pixel
+ * sprite at the in-bounds window-origin cell and read back the single painted
+ * byte. A correct result (g_ws[0x8088] == LUT[src_pixel]) simultaneously proves
  * the caller computed: the right sprite src (else a different/zero RLE byte is
  * read), the right dst (g_ws + 0x8088 at the origin cell), and the right
- * remap_table = anim_base + *(int*)(anim_base + 6 + lookup[frame]*4); and that
- * the remap branch (not passthrough) was selected (g_blitpass_calls stays 0). */
+ * remap_table = anim_base + *(int*)(anim_base + 6 + lookup[frame]*4); the
+ * remapped value (not the raw src_pixel a passthrough would paint) confirms the
+ * remap branch, not passthrough, was selected. */
 static void test_anim_remap_branch(void)
 {
     uint8 *sprite;
@@ -328,11 +398,10 @@ static void test_anim_remap_branch(void)
         lut[i] = (uint8)(i ^ 0xA5);
     }
 
-    /* sprite src for tile id 7 = g_atm_scene + snap_tbl[7] = scene + 0x700.
-     * One LITERAL pixel (source byte src_pixel) then skip the rest of row 0 and
-     * all 23 remaining rows, so the ONLY dst write is dst[0] = LUT[src_pixel]. */
+    /* overwrite tile id 7's slot with a custom one-pixel sprite carrying a known
+     * source byte (src_pixel), so the ONLY dst write is dst[0] = LUT[src_pixel]. */
     src_pixel = 0xABu;
-    sprite = g_atm_scene + 7 * 0x100;
+    sprite = g_atm_scene + atm_slot_off(7);
     sprite[0] = (uint8)(0x80u | (1u - 1u));   /* LITERAL of 1 */
     sprite[1] = src_pixel;
     sprite[2] = (uint8)(0xC0u | (23u - 1u));  /* SKIP 23: finish 24-col row 0 */
@@ -340,17 +409,14 @@ static void test_anim_remap_branch(void)
         sprite[2 + i] = (uint8)(0xC0u | (24u - 1u)); /* rows 1..23: SKIP 24 */
     }
 
-    /* clear the one observable dst byte to a sentinel distinct from the result */
-    g_ws[0x8088] = 0x00u;
-
     fd2_blit_animated_tile_at_pos((uint32)g_ws, ATM_OX, ATM_OY);
 
-    /* the real remap blitter does not touch g_blitpass_calls; if the passthrough
-     * branch had been taken its stub would have bumped this to 1. */
-    ASSERT_EQ(g_blitpass_calls, 0);
-    /* the painted byte proves src, dst and remap_table arithmetic at once. */
-    ASSERT_EQ(g_ws[0x8088], lut[src_pixel]);
-    ASSERT_EQ(g_ws[0x8088], (uint8)(src_pixel ^ 0xA5));
+    /* exactly one painted byte; its value is the LUT-remapped src_pixel, proving
+     * src, dst, remap_table arithmetic and that the remap (not passthrough)
+     * branch ran (passthrough would have painted the raw src_pixel 0xAB). */
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 1);
+    ASSERT_EQ((int)g_ws[0x8088], (int)lut[src_pixel]);
+    ASSERT_EQ((int)g_ws[0x8088], (int)(uint8)(src_pixel ^ 0xA5));
 }
 
 /* window rejects: x == ox-2 (below ox-1 margin) -> no blit. */
@@ -360,7 +426,7 @@ static void test_anim_x_below_margin_noop(void)
     atm_cell(ATM_OX - 2u, 0x23, 7, 0xFF);
     g_atm_attr[7 * 4] = 0x80;
     fd2_blit_animated_tile_at_pos((uint32)g_ws, (int32)(ATM_OX - 2u), 0x23);
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 0);
 }
 
 /* x == ox-1 IS inside the +-1 margin -> blits. */
@@ -370,7 +436,7 @@ static void test_anim_x_left_margin_in(void)
     atm_cell(ATM_OX - 1u, 0x23, 7, 0xFF);
     g_atm_attr[7 * 4] = 0x80;
     fd2_blit_animated_tile_at_pos((uint32)g_ws, (int32)(ATM_OX - 1u), 0x23);
-    ASSERT_EQ(g_blitpass_calls, 1);
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 1);
 }
 
 /* x == ox+max_x is inclusive (<=) -> blits; x == ox+max_x+1 -> no blit. */
@@ -380,12 +446,12 @@ static void test_anim_x_right_bound(void)
     atm_cell(ATM_OX + ATM_MX, 0x23, 7, 0xFF);
     g_atm_attr[7 * 4] = 0x80;
     fd2_blit_animated_tile_at_pos((uint32)g_ws, (int32)(ATM_OX + ATM_MX), 0x23);
-    ASSERT_EQ(g_blitpass_calls, 1);
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 1);
 
     setup_atm();
     fd2_blit_animated_tile_at_pos((uint32)g_ws,
                                   (int32)(ATM_OX + ATM_MX + 1u), 0x23);
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 0);
 }
 
 /* y == oy+max_y+1 inclusive -> blits; y == oy+max_y+2 -> no blit. */
@@ -396,12 +462,12 @@ static void test_anim_y_bottom_bound(void)
     g_atm_attr[7 * 4] = 0x80;
     fd2_blit_animated_tile_at_pos((uint32)g_ws, 0x13,
                                   (int32)(ATM_OY + ATM_MY + 1u));
-    ASSERT_EQ(g_blitpass_calls, 1);
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 1);
 
     setup_atm();
     fd2_blit_animated_tile_at_pos((uint32)g_ws, 0x13,
                                   (int32)(ATM_OY + ATM_MY + 2u));
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 0);
 }
 
 /* negative y is rejected even when it would pass the lower margin test
@@ -412,7 +478,7 @@ static void test_anim_negative_y_noop(void)
     data_fd2_battle_view_window_origin_y = 0;
     /* oy-1 = -1 <= -1 would pass, but y>=0 guard rejects -1 */
     fd2_blit_animated_tile_at_pos((uint32)g_ws, 0x13, -1);
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 0);
 }
 
 /* ================================================================
@@ -903,71 +969,70 @@ static void test_pose_partial_offmap_edges(void)
  * dst = dst_buffer + dst_y*dst_row_stride + dst_x, and tail-calls the
  * passthrough blitter forwarding the caller-supplied stride (NOT the
  * fixed 0x1C8 the window-relative helpers use). Drives the real routine
- * and inspects the single recorded passthrough call.
+ * and reads the painted destination byte(s) back.
  *
- * Reuses g_atlas (offset table at +6, table[i]==i*0x10) and g_ws.
+ * Reuses g_atlas (offset table at +6, probe value idx+1) and g_ws.
  * ================================================================ */
 
-/* src = atlas_base + table[tile_index] ; with table[i]==i*0x10 the
- * recorded src uniquely identifies the tile index used. */
-static uint32 grid_expect_src(uint32 tile_index)
+/* dst byte offset (into g_ws) = dst_y*stride + dst_x, computed directly from
+ * the passed-through stride (not assumed 0x140). */
+static uint32 grid_expect_off(uint32 dst_y, uint32 stride, uint32 dst_x)
 {
-    return (uint32)g_atlas + tile_index * 0x10u;
+    return dst_y * stride + dst_x;
 }
 
-/* dst = dst_buffer + dst_y*stride + dst_x, computed directly from the
- * passed-through stride (not assumed 0x140). */
-static uint32 grid_expect_dst(uint32 dst_y, uint32 stride, uint32 dst_x)
-{
-    return (uint32)g_ws + dst_y * stride + dst_x;
-}
-
-/* Exactly one passthrough call with src from atlas indexing, dst from
- * the dst_y*stride+dst_x formula, and the caller-supplied stride
- * forwarded verbatim. */
+/* Exactly one passthrough blit: src from atlas indexing (painted value idx+1),
+ * dst from the dst_y*stride+dst_x formula. */
 static void test_grid_blit_arg_forwarding(void)
 {
+    uint32 first;
+
     setup_blittile();
     /* arbitrary atlas index, dst buffer = g_ws, stride 0x140, (x,y) */
     fd2_blit_24x24_tile_to_battle_grid_position((uint32)g_atlas, 9u,
                                                 (uint32)g_ws, 0x140u,
                                                 0x96u, 0x4Bu);
-    ASSERT_EQ(g_blitpass_calls, 1);
-    ASSERT_EQ(g_blitpass_src[0], grid_expect_src(9u));
-    ASSERT_EQ(g_blitpass_dst[0], grid_expect_dst(0x4Bu, 0x140u, 0x96u));
-    ASSERT_EQ(g_blitpass_stride[0], 0x140u);
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 1);
+    /* tile index 9 -> probe value 10, at the dst_y*stride+dst_x offset */
+    ASSERT_EQ(bp_count_value(g_ws, sizeof(g_ws), 10u, &first), 1);
+    ASSERT_EQ(first, grid_expect_off(0x4Bu, 0x140u, 0x96u));
 }
 
-/* The blit pitch is the caller's dst_row_stride, not a hardcoded 0x1C8:
- * use a distinctive stride and confirm both the dst arithmetic and the
- * forwarded pitch follow it. */
+/* The blit pitch is the caller's dst_row_stride, not a hardcoded 0x1C8: use a
+ * distinctive stride and confirm both the dst arithmetic and the forwarded pitch
+ * follow it (the two-pixel probe's second pixel lands one stride later). */
 static void test_grid_blit_stride_passthrough(void)
 {
     uint32 stride = 0x123u;
+    uint32 base;
 
     setup_blittile();
+    /* index 3 -> value 4, 2 pixels */
+    bp_probe2(g_atlas + bp_atlas_slot_off(6u, ATLAS_N, ATLAS_SPAN, 3), 4u);
     fd2_blit_24x24_tile_to_battle_grid_position((uint32)g_atlas, 3u,
                                                 (uint32)g_ws, stride,
                                                 7u, 5u);
-    ASSERT_EQ(g_blitpass_calls, 1);
-    ASSERT_EQ(g_blitpass_stride[0], stride);
-    ASSERT_EQ(g_blitpass_dst[0], grid_expect_dst(5u, stride, 7u));
-    ASSERT_EQ(g_blitpass_src[0], grid_expect_src(3u));
+    base = grid_expect_off(5u, stride, 7u);
+    ASSERT_EQ((int)g_ws[base], 4);
+    ASSERT_EQ((int)g_ws[base + stride], 4);     /* forwarded pitch */
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 2);
 }
 
-/* tile_index 0 selects atlas entry 0 (table[0]==0 -> src == atlas_base);
- * dst with x==0,y==0 == dst_buffer exactly. Matches the reserved-pos
+/* tile_index 0 selects atlas entry 0 (src = atlas_base + table[0] -> slot 0's
+ * probe); dst with x==0,y==0 == dst_buffer exactly. Matches the reserved-pos
  * highlight call site (tile id 0). */
 static void test_grid_blit_index_zero_origin(void)
 {
+    uint32 first;
+
     setup_blittile();
     fd2_blit_24x24_tile_to_battle_grid_position((uint32)g_atlas, 0u,
                                                 (uint32)g_ws, 0x140u,
                                                 0u, 0u);
-    ASSERT_EQ(g_blitpass_calls, 1);
-    ASSERT_EQ(g_blitpass_src[0], (uint32)g_atlas);
-    ASSERT_EQ(g_blitpass_dst[0], (uint32)g_ws);
-    ASSERT_EQ(g_blitpass_stride[0], 0x140u);
+    ASSERT_EQ(bp_count_painted(g_ws, sizeof(g_ws)), 1);
+    /* index 0 -> probe value 1, painted at offset 0 (dst == dst_buffer) */
+    ASSERT_EQ(bp_count_value(g_ws, sizeof(g_ws), 1u, &first), 1);
+    ASSERT_EQ(first, 0u);
 }
 
 void run_gfx_blittile_tests(void)
@@ -975,6 +1040,7 @@ void run_gfx_blittile_tests(void)
     int _prev_fails = g_test_fail_count;
     printf("Suite: gfx/blittile\n");
     RUN_TEST(test_in_window_blit_args);
+    RUN_TEST(test_in_window_blit_stride);
     RUN_TEST(test_origin_corner_in_window);
     RUN_TEST(test_far_corner_in_window);
     RUN_TEST(test_x_below_window_noop);
@@ -983,6 +1049,7 @@ void run_gfx_blittile_tests(void)
     RUN_TEST(test_y_at_bottom_edge_noop);
     RUN_TEST(test_signed_lower_bound);
     RUN_TEST(test_anim_passthrough_branch);
+    RUN_TEST(test_anim_passthrough_stride);
     RUN_TEST(test_anim_tile_id_masked_10_bits);
     RUN_TEST(test_anim_transparent_skip);
     RUN_TEST(test_anim_flip_offsets_sprite);

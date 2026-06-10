@@ -15,14 +15,10 @@
 /* runtime-char array backing (testglob.c) */
 extern runtime_char g_test_rc_array[8];
 
-/* shared passthrough/decoded blit recording (testglob.c). The solid-colour
- * silhouette blitter (fd2_tile_blit_24x24_solid_color) is now emitted for real,
- * so the status-overlay tests below drive it directly and observe the painted
- * silhouette byte instead of a recording stub. */
-extern int    g_blitpass_calls;
-extern uint32 g_blitpass_src[64];
-extern uint32 g_blitpass_dst[64];
-extern uint32 g_blitpass_stride[64];
+/* The solid-colour silhouette blitter (fd2_tile_blit_24x24_solid_color) and the
+ * plain passthrough blitter are both emitted for real, so the status-overlay
+ * tests below drive them directly and observe the painted silhouette byte
+ * (count_silhouette_pixels) instead of a recording stub. */
 
 /* SFX-play recording (testglob.c) */
 extern int    g_play_sfx_with_handle_calls;
@@ -120,7 +116,6 @@ static void setup_overlay(uint32 palette_idx)
     int i;
     uint32 *table;
 
-    g_blitpass_calls = 0;
     g_play_sfx_with_handle_calls = 0;
 
     /* The flicker body opens with fd2_play_sfx_with_handle(status bank, 1, 1);
@@ -519,7 +514,6 @@ static void setup_fullflash(void)
     g_blitdec_log_on = 0;
     g_blitdec_log_count = 0;
     g_blitdec_calls = 0;
-    g_blitpass_calls = 0;
 
     /* the real fd2_composite_battle_frame(0) finalizer + the real
      * fd2_blit_rectangle strobe both read +0x8088 out of this buffer */

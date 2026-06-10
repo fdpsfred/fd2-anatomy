@@ -3,6 +3,7 @@
  */
 #include "types.h"
 #include "globals.h"
+#include "blitprob.h"
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -379,30 +380,214 @@ void fd2_composite_battle_tile_map(uint32 d, uint32 s, uint32 w, uint32 h, uint3
  * (src/gfx/rndscene.c / src/gfx/blittile.c); their former no-op/recording
  * stubs here were removed. The real fd2_composite_all_chars_overlay loops over
  * alive party slots calling the real fd2_paint_char_sprite_at_world_pos and
- * finishes with one unconditional real fd2_paint_chars_shadow_overlay. The
- * per-char paint's own blit reaches the recording fd2_tile_blit_24x24_passthrough
- * / fd2_tile_blit_24x24_dimmed_grayscale stubs below; the shadow overlay's
- * tile-redraw goes through the real fd2_blit_animated_tile_at_pos, whose own
- * blit reaches that same passthrough recording stub (rndscene shadow tests set
- * up a renderable tile-map so every requested tile resolves to a blit, then
- * recover (x, y) from the recorded dst offset). */
+ * finishes with one unconditional real fd2_paint_chars_shadow_overlay. */
 
-/* Recording stub for fd2_tile_blit_24x24_passthrough (the RLE row blitter, real
- * body not yet emitted). fd2_blit_24x24_at_window_relative_pos (real, emitted in
- * src/gfx/blittile.c) is the only caller; recording (src, dst, stride) at this
- * level lets the blittile.c + cursor-overlay tests verify the real window-clip /
- * dst-offset / sprite-source arithmetic without touching pixels. */
-int    g_blitpass_calls = 0;
-uint32 g_blitpass_src[64];
-uint32 g_blitpass_dst[64];
-uint32 g_blitpass_stride[64];
-void fd2_tile_blit_24x24_passthrough(uint32 src, uint32 dst, uint32 stride) {
-    if (g_blitpass_calls < 64) {
-        g_blitpass_src[g_blitpass_calls] = src;
-        g_blitpass_dst[g_blitpass_calls] = dst;
-        g_blitpass_stride[g_blitpass_calls] = stride;
+/* fd2_tile_blit_24x24_passthrough is now emitted for real in src/gfx/blittile.c;
+ * its former recording stub (the g_blitpass_calls counter and the g_blitpass_src
+ * / g_blitpass_dst / g_blitpass_stride arrays) here was removed. Caller tests
+ * that previously checked the recorded (src, dst, stride) now drive the real
+ * blitter against one-pixel RLE probe sprites over a real back-buffer and observe
+ * the painted bytes (same migration applied earlier to the dimmed / remap / solid
+ * siblings), which proves the caller's src / dst / stride arithmetic and branch
+ * selection without a stub. The probe-sprite helpers below (bp_*) build those
+ * sprites and read the painted output back. */
+
+/* ---- passthrough-blit probe support -------------------------------------
+ * Each "probe" sprite is a 24x24 RLE stream that paints exactly one identifying
+ * byte at tile-local (row 0, col 0) and is transparent everywhere else, so when
+ * a caller forwards it to the real fd2_tile_blit_24x24_passthrough the painted
+ * destination byte directly reveals (a) WHERE the blit landed (the byte offset)
+ * and (b) WHICH source the caller resolved (the byte value, since each atlas
+ * slot's probe paints a slot-specific value). bp_probe2 additionally paints a
+ * second copy at (row 1, col 0); because the passthrough row reset advances by
+ * stride-0x18, that second byte lands exactly `stride` past the first, so a test
+ * can confirm the forwarded row stride end-to-end. Probe values are 1-based
+ * (slot k -> k+1) so the painted byte is always distinct from the 0 background. */
+
+/* Write a one-pixel probe (paints `value` at row0/col0, transparent elsewhere)
+ * into a 24x24 RLE sprite slot. */
+void bp_probe1(uint8 *slot, uint8 value)
+{
+    int i;
+    slot[0] = (uint8)0x80u;          /* LITERAL run length 1 */
+    slot[1] = value;                 /* the one painted byte  */
+    slot[2] = (uint8)(0xC0u | 22u);  /* SKIP 23 -> finish row 0 (1 + 23 == 24) */
+    for (i = 1; i < 24; i++) {
+        slot[2 + i] = (uint8)(0xC0u | 23u);  /* rows 1..23: SKIP 24 */
     }
-    g_blitpass_calls++;
+}
+
+/* Write a two-pixel probe: `value` at row0/col0 AND row1/col0, transparent
+ * elsewhere. The second byte lands exactly `stride` past the first. */
+void bp_probe2(uint8 *slot, uint8 value)
+{
+    int i;
+    slot[0] = (uint8)0x80u;          /* row 0: LITERAL 1 */
+    slot[1] = value;
+    slot[2] = (uint8)(0xC0u | 22u);  /* row 0: SKIP 23 */
+    slot[3] = (uint8)0x80u;          /* row 1: LITERAL 1 */
+    slot[4] = value;
+    slot[5] = (uint8)(0xC0u | 22u);  /* row 1: SKIP 23 */
+    for (i = 2; i < 24; i++) {
+        slot[4 + i] = (uint8)(0xC0u | 23u);  /* rows 2..23: SKIP 24 */
+    }
+}
+
+/* Absolute byte offset (from atlas base) of slot i's sprite data, for an atlas
+ * laid out by bp_build_atlas1. The sprite data region begins right AFTER the
+ * n-entry offset table so no slot (in particular slot 0) overlaps the table. A
+ * caller that overwrites a specific slot's probe must use this same formula. */
+uint32 bp_atlas_slot_off(uint32 table_off, int n, uint32 entry_span, int i)
+{
+    return table_off + (uint32)n * 4u + (uint32)i * entry_span;
+}
+
+/* Build an atlas whose offset table (entry i at base+table_off+i*4) points slot
+ * i at bp_atlas_slot_off(...), and plant a one-pixel probe (value i+1) at each
+ * slot. After this, a caller that resolves src = base + table[idx] reads slot
+ * idx's probe, so the painted byte value identifies idx (value-1). The sprite
+ * data starts after the offset table (NOT at base+0), so slot 0 does not clobber
+ * the table; requires entry_span >= 26 so adjacent probe programs do not overlap.
+ * The backing buffer must span bp_atlas_slot_off(table_off, n, entry_span, n-1)
+ * + 26 bytes. */
+void bp_build_atlas1(uint8 *base, uint32 table_off, uint32 entry_span, int n)
+{
+    int i;
+    uint32 slot_off;
+    for (i = 0; i < n; i++) {
+        slot_off = bp_atlas_slot_off(table_off, n, entry_span, i);
+        *(uint32 *)(base + table_off + (uint32)i * 4u) = slot_off;
+        bp_probe1(base + slot_off, (uint8)(i + 1));
+    }
+}
+
+/* Count bytes equal to `value` in buf[0..size) and report the first offset
+ * (0xFFFFFFFF if none). Used to confirm a probe painted exactly where expected. */
+int bp_count_value(const uint8 *buf, uint32 size, uint8 value, uint32 *first_off)
+{
+    uint32 i;
+    int n = 0;
+    *first_off = 0xFFFFFFFFu;
+    for (i = 0; i < size; i++) {
+        if (buf[i] == value) {
+            if (n == 0) {
+                *first_off = i;
+            }
+            n++;
+        }
+    }
+    return n;
+}
+
+/* Count all nonzero (painted) bytes in buf[0..size). With one-pixel probes this
+ * equals the number of passthrough blits that actually painted. */
+int bp_count_painted(const uint8 *buf, uint32 size)
+{
+    uint32 i;
+    int n = 0;
+    for (i = 0; i < size; i++) {
+        if (buf[i] != 0) {
+            n++;
+        }
+    }
+    return n;
+}
+
+/* ---- shared compositor host-safety fixture (see blitprob.h) ----------------
+ * Turn-gated / cinematic chapter-event handlers pan the camera, which drives the
+ * REAL fd2_composite_battle_frame; its per-char painter, shadow overlay, cursor
+ * overlay and terrain HUD all feed a sprite stream to the REAL RLE blitters
+ * (fd2_tile_blit_24x24_passthrough + siblings). An unset / real-but-non-24x24-RLE
+ * sprite source makes the row decoder spin forever (the row loop only exits when
+ * the remaining-column counter hits exactly 0). Make every such blit a
+ * deterministic no-op without touching the emit C. */
+#define TG_PCACHE_SPAN  0x32a00u           /* size the loader's FD2.TMP fwrite reads */
+static uint8  tg_pcache[TG_PCACHE_SPAN];   /* +0 offset table -> all-SKIP sprite     */
+static uint8  tg_cursor_atlas[0x200];      /* +6 offset table -> all-SKIP sprite     */
+static uint8  tg_safe_tile_map[0x400];     /* zeroed: tiles resolve non-renderable   */
+static uint8  tg_safe_tile_attr[0x400];    /* zeroed: renderable bit 0x80 clear      */
+static uint32 tg_saved_pcache;
+static uint32 tg_saved_rbs;
+static uint32 tg_saved_tile_map;
+static uint32 tg_saved_tile_attr;
+static uint8  tg_saved_hud_enabled;
+static uint32 tg_saved_play_active;
+
+static void tg_fill_skip_sprite(uint8 *p)
+{
+    int i;
+    for (i = 0; i < 24; i++) {
+        p[i] = (uint8)(0xC0u | 23u);       /* one "SKIP 24" command per row */
+    }
+}
+
+void tg_install_compositor_safe_atlases(void)
+{
+    uint32 i;
+
+    tg_saved_pcache      = portrait_sprite_cache;
+    tg_saved_rbs         = data_fd2_runtime_battle_state_ptr;
+    tg_saved_tile_map    = data_fd2_battle_tile_map_ptr;
+    tg_saved_tile_attr   = data_fd2_tile_attribute_flags_buffer_ptr;
+    tg_saved_hud_enabled = data_fd2_ui_terrain_hud_user_enabled;
+    tg_saved_play_active = data_fd2_ui_play_active_flag;
+
+    /* per-char painter: a static safe portrait cache (NOT heap, so callers whose
+     * teardown does NOT free portrait_sprite_cache, e.g. the spelleff impact
+     * fixture, leak nothing). The +0 offset table all points at one transparent
+     * "SKIP 24 x 24" sprite at +0x780. Pre-seed the portrait cache id-list (id 0)
+     * + count 1 so a matching tile-event record's fd2_load_portrait_to_cache takes
+     * the cache-HIT early return, leaving this safe atlas intact instead of
+     * re-loading real FDICON. (The chapter-event loader fixtures zero every
+     * tile-event byte but the race tag, so the matched record's char_id is 0.)
+     * tg_restore_compositor_safe_atlases puts the saved pointer back, so a caller
+     * teardown that DOES free(portrait_sprite_cache) frees its own pointer, never
+     * this static buffer. */
+    for (i = 0; i < TG_PCACHE_SPAN; i++) {
+        tg_pcache[i] = 0;
+    }
+    for (i = 0; i < 0x80u; i++) {           /* covers facing*3 + cache_idx*0xC + pal */
+        *(int32 *)(tg_pcache + i * 4u) = (int32)0x780;
+    }
+    tg_fill_skip_sprite(tg_pcache + 0x780);
+    portrait_sprite_cache = (uint32)tg_pcache;
+    *(uint32 *)data_fd2_resource_portrait_cache_id_list_base = 0;  /* char_id 0    */
+    data_fd2_resource_portrait_cache_count = 1;                    /* -> cache hit */
+    data_fd2_resource_portrait_cache_buffer_used = 0x780;
+
+    /* cursor overlay: 4-byte offset table at +6 -> the all-SKIP sprite. */
+    for (i = 0; i < sizeof(tg_cursor_atlas); i++) {
+        tg_cursor_atlas[i] = 0;
+    }
+    for (i = 0; i < 0x40u; i++) {
+        *(int32 *)(tg_cursor_atlas + 6 + i * 4u) = (int32)0x100;
+    }
+    tg_fill_skip_sprite(tg_cursor_atlas + 0x100);
+    data_fd2_runtime_battle_state_ptr = (uint32)tg_cursor_atlas;
+
+    /* shadow / animated-tile overlay: non-renderable tiles. */
+    for (i = 0; i < sizeof(tg_safe_tile_map); i++) {
+        tg_safe_tile_map[i] = 0;
+    }
+    for (i = 0; i < sizeof(tg_safe_tile_attr); i++) {
+        tg_safe_tile_attr[i] = 0;
+    }
+    data_fd2_battle_tile_map_ptr = (uint32)tg_safe_tile_map;
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)tg_safe_tile_attr;
+
+    /* terrain HUD panel: stays off so it early-returns before any blit. */
+    data_fd2_ui_terrain_hud_user_enabled = 0;
+    data_fd2_ui_play_active_flag = 0;
+}
+
+void tg_restore_compositor_safe_atlases(void)
+{
+    portrait_sprite_cache                    = tg_saved_pcache;
+    data_fd2_runtime_battle_state_ptr        = tg_saved_rbs;
+    data_fd2_battle_tile_map_ptr             = tg_saved_tile_map;
+    data_fd2_tile_attribute_flags_buffer_ptr = tg_saved_tile_attr;
+    data_fd2_ui_terrain_hud_user_enabled     = tg_saved_hud_enabled;
+    data_fd2_ui_play_active_flag             = tg_saved_play_active;
 }
 /* fd2_tile_blit_24x24_dimmed_grayscale is now emitted for real in
  * src/gfx/blittile.c; its former recording stub (and the g_blitdim_calls

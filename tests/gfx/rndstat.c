@@ -9,6 +9,7 @@
 #include "consts.h"
 #include "globals.h"
 #include "protos.h"
+#include "blitprob.h"
 #include <stdio.h>
 
 /* recording spies for the two dialog blit primitives (testglob.c) */
@@ -1989,16 +1990,20 @@ static void test_mini_char_idx_selects_slot(void)
  * Corner terrain-info HUD panel. These tests pin the HUD-enable gate, the
  * panel_offset auto-positioning branches, the panel_base address arithmetic,
  * the per-tile MV/DEF modifier-table lookup + destination offsets, and the
- * char-present portrait/HP sub-path with its exclusion conditions. Blits are
- * observed through the recording spies: g_rle_blit_* for the backdrop, the HP
- * digits, and the real fd2_render_signed_modifier_with_icon sign-icon + 2-digit
- * MV/DEF modifier glyphs (g_rle_blit_log_* per-call log); g_blitpass_* for the
- * 24x24 terrain icon / portrait passthrough.
+ * char-present portrait/HP sub-path with its exclusion conditions. The backdrop,
+ * HP digits, and the real fd2_render_signed_modifier_with_icon sign-icon + 2-digit
+ * MV/DEF modifier glyphs are observed through the g_rle_blit_* / g_rle_blit_log_*
+ * spies; the 24x24 terrain-icon / portrait passthrough is the REAL emitted
+ * fd2_tile_blit_24x24_passthrough, driven with probe sprites (blitprob.h) and read
+ * back from a real panel buffer (g_hud_buf).
+ *
+ * The terrain icon uses a TWO-pixel probe (value HUD_ICON_VALUE at the icon dst
+ * and one row stride past it); the portrait a ONE-pixel probe (value
+ * HUD_PORTRAIT_VALUE at the same icon dst). So when both run (char present) the
+ * icon dst byte ends as the portrait value (painted last) while the icon's second
+ * pixel one stride down survives, letting a test confirm BOTH passthroughs ran
+ * even though they share a dst. bp_count_painted gives the total painted pixels.
  * ================================================================ */
-extern int    g_blitpass_calls;
-extern uint32 g_blitpass_src[64];
-extern uint32 g_blitpass_dst[64];
-extern uint32 g_blitpass_stride[64];
 extern int    g_check_char_is_dead_return;
 extern uint32 g_rle_blit_last_sprite;
 extern uint32 g_rle_blit_last_buf;
@@ -2013,12 +2018,18 @@ extern uint32 g_rle_blit_last_palette;
 static uint8  g_hud_map[256];
 static uint8  g_hud_attr[64];
 /* battle_scene_snapshot: the terrain icon source = snapshot + *(snapshot +
- * HUD_TILE_WORD*4 + 6). Park a known offset there so the icon src is derivable. */
+ * HUD_TILE_WORD*4 + 6). Point it at a probe sprite past the table. */
 #define HUD_ICON_TABLE_OFF  (HUD_TILE_WORD * 4u + 6u)   /* = 14 */
 #define HUD_ICON_PAYLOAD    0x40u
+#define HUD_ICON_VALUE      0x5Au
+#define HUD_PORTRAIT_VALUE  0x6Bu
 static uint8  g_hud_snapshot[256];
 /* portrait cache: portrait src = cache + *(cache + (frame_mod + cache_idx*0xC)*4). */
 static uint8  g_hud_portrait_cache[512];
+/* real panel buffer the passthrough paints into; the panel base
+ * buf + stride*0x9d + offset plus stride*5+6 plus one row stride must fit. */
+#define HUD_BUF_SPAN 0x14000u
+static uint8  g_hud_buf[HUD_BUF_SPAN];
 
 /* common setup: gate ON, sprite sheet + tile/attr/snapshot fixtures, cursor at
  * (cx,cy). Leaves the runtime-char array empty (no unit under cursor) unless a
@@ -2051,7 +2062,12 @@ static uint32 hud_setup(uint32 cx, uint32 cy)
 
     memset(g_hud_snapshot, 0, sizeof(g_hud_snapshot));
     *(int32 *)(g_hud_snapshot + HUD_ICON_TABLE_OFF) = (int32)HUD_ICON_PAYLOAD;
+    /* terrain icon source = snapshot + HUD_ICON_PAYLOAD; a two-pixel probe so the
+     * icon's second pixel (one stride down) survives a later portrait overwrite. */
+    bp_probe2(g_hud_snapshot + HUD_ICON_PAYLOAD, HUD_ICON_VALUE);
     battle_scene_snapshot = (uint32)g_hud_snapshot;
+
+    memset(g_hud_buf, 0, sizeof(g_hud_buf));   /* clean panel canvas */
 
     /* MV/DEF modifier tables keyed by tile_attr2 */
     data_fd2_battle_tile_attr_mv_modifier_table[HUD_TILE_ATTR2] = 0xFFFFFFFFu; /* -1 */
@@ -2075,8 +2091,20 @@ static uint32 hud_setup(uint32 cx, uint32 cy)
     g_rle_blit_calls = 0;
     g_rle_blit_log_on = 1;   /* log sign-icon + digit glyphs of the real
                               * fd2_render_signed_modifier_with_icon */
-    g_blitpass_calls = 0;
     return sheet;
+}
+
+/* panel base = buf + stride*0x9d + panel_offset; the icon/portrait dst is
+ * panel_base + stride*5 + 6, expressed as a byte offset into g_hud_buf. */
+static uint32 hud_icon_off(uint32 stride, uint32 panel_offset)
+{
+    return stride * 0x9du + panel_offset + stride * 5u + 6u;
+}
+
+/* total passthrough-painted pixels in the panel buffer */
+static int hud_paint_count(void)
+{
+    return bp_count_painted(g_hud_buf, HUD_BUF_SPAN);
 }
 
 /* Gate: terrain-HUD user-disable flag clears -> nothing renders at all. */
@@ -2085,10 +2113,10 @@ static void test_hud_gate_user_disabled(void)
     hud_setup(4, 4);
     data_fd2_ui_terrain_hud_user_enabled = 0;
 
-    fd2_render_terrain_info_hud_panel(0x100000, 0x1c8);
+    fd2_render_terrain_info_hud_panel((uint32)g_hud_buf, 0x1c8);
 
     ASSERT_EQ((long)g_rle_blit_calls, 0);
-    ASSERT_EQ((long)g_blitpass_calls, 0);
+    ASSERT_EQ((long)hud_paint_count(), 0);
 }
 
 /* Gate: play-active flag clears -> nothing renders. */
@@ -2097,10 +2125,10 @@ static void test_hud_gate_play_inactive(void)
     hud_setup(4, 4);
     data_fd2_ui_play_active_flag = 0;
 
-    fd2_render_terrain_info_hud_panel(0x100000, 0x1c8);
+    fd2_render_terrain_info_hud_panel((uint32)g_hud_buf, 0x1c8);
 
     ASSERT_EQ((long)g_rle_blit_calls, 0);
-    ASSERT_EQ((long)g_blitpass_calls, 0);
+    ASSERT_EQ((long)hud_paint_count(), 0);
 }
 
 /* Auto-position RIGHT column: cursor_screen_y > 5 && cursor_screen_x < 3 latches
@@ -2111,9 +2139,10 @@ static void test_hud_gate_play_inactive(void)
 static void test_hud_position_right_and_backdrop(void)
 {
     uint32 sheet;
-    uint32 buf    = 0x100000;
+    uint32 buf    = (uint32)g_hud_buf;
     uint32 stride = 0x1c8;
     uint32 panel_base;
+    uint32 icon_off;
 
     sheet = hud_setup(4, 4);
     data_fd2_battle_cursor_screen_x = 2;   /* < 3 */
@@ -2133,12 +2162,15 @@ static void test_hud_position_right_and_backdrop(void)
     ASSERT_EQ((long)g_rle_blit_log_stride[0], (long)stride);
     ASSERT_EQ((long)g_rle_blit_log_palette[0], (long)0xffffffffu);
 
-    /* terrain icon: passthrough(snapshot + payload, panel_base+stride*5+6, stride) */
-    ASSERT_EQ((long)g_blitpass_calls, 1);
-    ASSERT_EQ((long)g_blitpass_src[0],
-              (long)(battle_scene_snapshot + HUD_ICON_PAYLOAD));
-    ASSERT_EQ((long)g_blitpass_dst[0], (long)(panel_base + stride * 5 + 6));
-    ASSERT_EQ((long)g_blitpass_stride[0], (long)stride);
+    /* terrain icon: passthrough(snapshot + payload, panel_base+stride*5+6, stride).
+     * No unit under cursor -> exactly one passthrough; its two-pixel probe paints
+     * HUD_ICON_VALUE at the icon dst and one stride down (proving the dst and the
+     * forwarded stride). The icon dst offset into g_hud_buf is hud_icon_off. */
+    icon_off = hud_icon_off(stride, 0xf2u);
+    ASSERT_EQ((long)(panel_base + stride * 5 + 6), (long)(buf + icon_off));
+    ASSERT_EQ((long)g_hud_buf[icon_off], (long)HUD_ICON_VALUE);
+    ASSERT_EQ((long)g_hud_buf[icon_off + stride], (long)HUD_ICON_VALUE);
+    ASSERT_EQ((long)hud_paint_count(), 2);   /* one icon, two-pixel probe */
 }
 
 /* Auto-position LEFT column: cursor_screen_y > 5 && cursor_screen_x > 9 latches
@@ -2155,7 +2187,7 @@ static void test_hud_position_right_and_backdrop(void)
 static void test_hud_position_left_and_modifiers(void)
 {
     uint32 sheet;
-    uint32 buf    = 0x100000;
+    uint32 buf    = (uint32)g_hud_buf;
     uint32 stride = 0x1c8;
     uint32 panel_base;
     uint32 mv_dst;
@@ -2200,7 +2232,7 @@ static void test_hud_position_left_and_modifiers(void)
  * from its previous value (pre-seed 0x55). */
 static void test_hud_position_keep_previous(void)
 {
-    uint32 buf    = 0x100000;
+    uint32 buf    = (uint32)g_hud_buf;
     uint32 stride = 0x1c8;
 
     hud_setup(4, 4);
@@ -2222,7 +2254,7 @@ static void test_hud_position_keep_previous(void)
  * < 6). Latch stays at its pre-seeded value. Pins against inverting the y test. */
 static void test_hud_position_low_y_keeps_previous(void)
 {
-    uint32 buf    = 0x100000;
+    uint32 buf    = (uint32)g_hud_buf;
     uint32 stride = 0x1c8;
 
     hud_setup(4, 4);
@@ -2244,21 +2276,25 @@ static void test_hud_position_low_y_keeps_previous(void)
 static void test_hud_char_present_portrait_and_hp(void)
 {
     runtime_char *rc;
-    uint32 buf    = 0x100000;
+    uint32 buf    = (uint32)g_hud_buf;
     uint32 stride = 0x1c8;
     uint32 panel_base;
     uint32 cache_idx = 2;
     uint32 portrait_payload = 0x80;
+    uint32 icon_off;
+    uint32 first;
 
     hud_setup(4, 4);
     data_fd2_battle_cursor_screen_x = 5;   /* keep branch */
     data_fd2_battle_cursor_screen_y = 8;
     data_fd2_ui_terrain_hud_panel_offset_51a0c = 0;
 
-    /* portrait cache: entry (frame_mod 0 + cache_idx*0xC) */
+    /* portrait cache: entry (frame_mod 0 + cache_idx*0xC); a one-pixel probe at
+     * the resolved portrait sprite paints HUD_PORTRAIT_VALUE. */
     memset(g_hud_portrait_cache, 0, sizeof(g_hud_portrait_cache));
     *(int32 *)(g_hud_portrait_cache + (0 + cache_idx * 0xc) * 4) =
         (int32)portrait_payload;
+    bp_probe1(g_hud_portrait_cache + portrait_payload, HUD_PORTRAIT_VALUE);
     portrait_sprite_cache = (uint32)g_hud_portrait_cache;
 
     /* place a visible player unit at the cursor cell */
@@ -2277,17 +2313,23 @@ static void test_hud_char_present_portrait_and_hp(void)
     g_dec_sheet = data_fd2_ui_anim_sprite_sheet_ptr;
     g_rle_blit_log_on = 1;
     g_rle_blit_calls = 0;
-    g_blitpass_calls = 0;
 
     fd2_render_terrain_info_hud_panel(buf, stride);
 
     panel_base = buf + stride * 0x9d + 0;
+    icon_off = hud_icon_off(stride, 0u);
+    ASSERT_EQ((long)(panel_base + stride * 5 + 6), (long)(buf + icon_off));
 
-    /* two passthroughs: [0] terrain icon, [1] portrait overwrite (same dst) */
-    ASSERT_EQ((long)g_blitpass_calls, 2);
-    ASSERT_EQ((long)g_blitpass_src[1],
-              (long)(portrait_sprite_cache + portrait_payload));
-    ASSERT_EQ((long)g_blitpass_dst[1], (long)(panel_base + stride * 5 + 6));
+    /* two passthroughs at the same dst: the terrain icon (two-pixel probe) first,
+     * then the portrait (one-pixel probe) overwriting the icon's first pixel.
+     * The portrait value at the icon dst proves the portrait ran last and
+     * resolved cache + portrait_payload; the icon's second pixel one stride down
+     * proves the icon also ran. */
+    ASSERT_EQ((long)g_hud_buf[icon_off], (long)HUD_PORTRAIT_VALUE);
+    ASSERT_EQ((long)g_hud_buf[icon_off + stride], (long)HUD_ICON_VALUE);
+    ASSERT_EQ((long)bp_count_value(g_hud_buf, HUD_BUF_SPAN, HUD_PORTRAIT_VALUE,
+                                   &first), 1);
+    ASSERT_EQ((long)first, (long)icon_off);
 
     /* HP digits: fd2_render_number_red_when_full(panel_base+stride*0x15+9,
      * stride, 123, 200, 3) -> white (123 != 200), 3 glyphs "123" from the digit
@@ -2301,8 +2343,10 @@ static void test_hud_char_present_portrait_and_hp(void)
 static void test_hud_char_hidden_portrait_excluded(void)
 {
     runtime_char *rc;
-    uint32 buf    = 0x100000;
+    uint32 buf    = (uint32)g_hud_buf;
     uint32 stride = 0x1c8;
+    uint32 icon_off;
+    uint32 first;
 
     hud_setup(4, 4);
     data_fd2_battle_cursor_screen_x = 5;
@@ -2317,8 +2361,14 @@ static void test_hud_char_hidden_portrait_excluded(void)
 
     fd2_render_terrain_info_hud_panel(buf, stride);
 
-    /* only the terrain icon passthrough; portrait overwrite suppressed */
-    ASSERT_EQ((long)g_blitpass_calls, 1);
+    /* only the terrain icon passthrough (its two-pixel probe); portrait overwrite
+     * suppressed -> no HUD_PORTRAIT_VALUE painted anywhere. */
+    icon_off = hud_icon_off(stride, 0u);
+    ASSERT_EQ((long)bp_count_value(g_hud_buf, HUD_BUF_SPAN, HUD_ICON_VALUE,
+                                   &first), 2);
+    ASSERT_EQ((long)first, (long)icon_off);
+    ASSERT_EQ((long)bp_count_value(g_hud_buf, HUD_BUF_SPAN, HUD_PORTRAIT_VALUE,
+                                   &first), 0);
 }
 
 /* Archetype-10 enemy (archetype_flag == 10 && team == 1) is also excluded
@@ -2326,8 +2376,9 @@ static void test_hud_char_hidden_portrait_excluded(void)
 static void test_hud_char_archetype10_enemy_excluded(void)
 {
     runtime_char *rc;
-    uint32 buf    = 0x100000;
+    uint32 buf    = (uint32)g_hud_buf;
     uint32 stride = 0x1c8;
+    uint32 first;
 
     hud_setup(4, 4);
     data_fd2_battle_cursor_screen_x = 5;
@@ -2343,7 +2394,11 @@ static void test_hud_char_archetype10_enemy_excluded(void)
 
     fd2_render_terrain_info_hud_panel(buf, stride);
 
-    ASSERT_EQ((long)g_blitpass_calls, 1);
+    /* terrain icon only (two-pixel probe); portrait/HP sub-path excluded */
+    ASSERT_EQ((long)bp_count_value(g_hud_buf, HUD_BUF_SPAN, HUD_ICON_VALUE,
+                                   &first), 2);
+    ASSERT_EQ((long)bp_count_value(g_hud_buf, HUD_BUF_SPAN, HUD_PORTRAIT_VALUE,
+                                   &first), 0);
 }
 
 /* frame_mod remap: chapter ambient palette idx == 3 collapses to 1 before the
@@ -2352,8 +2407,10 @@ static void test_hud_char_archetype10_enemy_excluded(void)
 static void test_hud_char_palette_idx3_remaps_to_1(void)
 {
     runtime_char *rc;
-    uint32 buf    = 0x100000;
+    uint32 buf    = (uint32)g_hud_buf;
     uint32 stride = 0x1c8;
+    uint32 icon_off;
+    uint32 first;
 
     hud_setup(4, 4);
     data_fd2_battle_cursor_screen_x = 5;
@@ -2362,7 +2419,10 @@ static void test_hud_char_palette_idx3_remaps_to_1(void)
 
     memset(g_hud_portrait_cache, 0, sizeof(g_hud_portrait_cache));
     *(int32 *)(g_hud_portrait_cache + 1 * 4) = (int32)0x90;    /* entry 1 */
-    *(int32 *)(g_hud_portrait_cache + 3 * 4) = (int32)0xDEAD;  /* entry 3 (unused) */
+    *(int32 *)(g_hud_portrait_cache + 3 * 4) = (int32)0x120;   /* entry 3 (unused) */
+    /* probe ONLY at entry 1's sprite; entry 3's slot is left transparent so a
+     * regression that resolved entry 3 would paint nothing -> the assertion fails. */
+    bp_probe1(g_hud_portrait_cache + 0x90, HUD_PORTRAIT_VALUE);
     portrait_sprite_cache = (uint32)g_hud_portrait_cache;
 
     rc = &g_test_rc_array[1];
@@ -2374,12 +2434,15 @@ static void test_hud_char_palette_idx3_remaps_to_1(void)
     rc->hp_current     = 10;
     rc->hp_max         = 10;
 
-    g_blitpass_calls = 0;
     fd2_render_terrain_info_hud_panel(buf, stride);
 
-    ASSERT_EQ((long)g_blitpass_calls, 2);
-    ASSERT_EQ((long)g_blitpass_src[1],
-              (long)(portrait_sprite_cache + 0x90));
+    /* portrait resolved entry 1 (payload 0x90): its value overwrote the icon at
+     * the icon dst, and the icon's second pixel survives one stride down. */
+    icon_off = hud_icon_off(stride, 0u);
+    ASSERT_EQ((long)g_hud_buf[icon_off], (long)HUD_PORTRAIT_VALUE);
+    ASSERT_EQ((long)g_hud_buf[icon_off + stride], (long)HUD_ICON_VALUE);
+    ASSERT_EQ((long)bp_count_value(g_hud_buf, HUD_BUF_SPAN, HUD_PORTRAIT_VALUE,
+                                   &first), 1);
 }
 
 /* ================================================================
