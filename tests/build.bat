@@ -70,6 +70,7 @@ D:\BIN\WCC386.EXE E:\field\chevt26.c %CF% -fo=E:\out\obj\tchevt26.obj >> E:\out\
 D:\BIN\WCC386.EXE E:\field\chevt27.c %CF% -fo=E:\out\obj\tchevt27.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\field\chtrans.c %CF% -fo=E:\out\obj\tchtrans.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\gfx\blitspr.c %CF% -fo=E:\out\obj\tblitspr.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE E:\gfx\blittil1.c %CF% -fo=E:\out\obj\tblitti1.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\gfx\blittile.c %CF% -fo=E:\out\obj\tblittil.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\gfx\palette.c %CF% -fo=E:\out\obj\tpalette.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\gfx\rndscene.c %CF% -fo=E:\out\obj\trndscen.obj >> E:\out\build.out

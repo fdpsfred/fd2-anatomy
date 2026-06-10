@@ -343,3 +343,117 @@ void fd2_blit_24x24_tile_to_battle_grid_position(uint32 atlas_base,
     dst = dst_buffer + dst_y * dst_row_stride + dst_x;
     fd2_tile_blit_24x24_passthrough(src, dst, dst_row_stride);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_tile_blit_24x24_with_tint_offset @ 0x4DC34 (1 caller)
+ *
+ * Hand-written RLE blit of a 24x24 sprite into dst_buf, recolouring
+ * every painted pixel into an 8-colour palette band:
+ *
+ *   out = (uint8)(((uint8)(src_pixel + team_offset) & 7) + color_base)
+ *
+ * team_offset rotates the source pixel within its 0..7 octet (giving a
+ * per-team / per-fade colour variation), then color_base anchors the
+ * band; no remap LUT is needed. Sole caller is the spell-overlay blink
+ * animator fd2_animate_spell_overlay_blink @ 0x1CD17, which sweeps
+ * team_offset 7..0 across 10 frames to fade a hit-mark overlay.
+ *
+ * The RLE stream is decoded one command byte at a time. The top two
+ * bits of the command select the mode; the low 6 bits + 1 are the run
+ * length:
+ *   bits 7..6 = 00 (0x00..0x3F)  RUN: paint len tinted pixels from a
+ *               single following source byte, dst += len; x -= len.
+ *   bits 7..6 = 01 (0x40..0x7F)  STRIDE-2 RUN: paint len tinted pixels
+ *               from a single following source byte, spaced every other
+ *               dst byte (dst += 2 per pixel); x -= 2*len.
+ *   bits 7..6 = 10 (0x80..0xBF)  LITERAL: copy len tinted pixels, one
+ *               following source byte each, dst += len; x -= len.
+ *   bits 7..6 = 11 (0xC0..0xFF)  SKIP: advance dst by len (transparent
+ *               run, no source bytes consumed); x -= len.
+ *
+ * x is the per-row remaining-column counter (starts at 0x18). When it
+ * reaches 0 the row ends: dst advances by stride - 0x18 to the next
+ * row start, and 24 rows are rendered in total.
+ *
+ * Args (cdecl, 5x stack params; caller pops 0x14):
+ *   rle_stream  — source RLE-encoded 24x24 sprite stream
+ *   dst_buf     — destination base linear address
+ *   stride      — destination row stride in bytes (0x1C8 from the
+ *                 caller; the row reset advances stride - 0x18)
+ *   color_base  — palette band anchor (low byte used)
+ *   team_offset — per-team / per-fade add value (low byte used)
+ *
+ * Hand-written asm leaf: no __CHK probe, no CALLs.
+ * ---------------------------------------------------------------- */
+void fd2_tile_blit_24x24_with_tint_offset(uint32 rle_stream, uint32 dst_buf,
+                                          uint32 stride, uint32 color_base,
+                                          uint32 team_offset)
+{
+    uint32 src;
+    uint32 dst;
+    uint32 row_advance;
+    uint8  off;
+    uint8  base;
+    uint8  cmd;
+    uint8  pixel;
+    uint8  x_remain;
+    uint32 count;
+    int    row;
+
+    off = (uint8)team_offset;
+    base = (uint8)color_base;
+    src = rle_stream;
+    dst = dst_buf;
+    row_advance = stride - 0x18;
+
+    for (row = 0x18; row != 0; row--) {
+        x_remain = 0x18;
+        do {
+            cmd = *(uint8 *)src;
+            src = src + 1;
+            if ((cmd & 0x80) == 0) {
+                if ((cmd & 0x40) == 0) {
+                    /* RUN: len pixels from one source byte */
+                    count = (uint32)(cmd & 0x3F) + 1;
+                    x_remain = (uint8)(x_remain - (uint8)count);
+                    pixel = (uint8)((((uint8)(*(uint8 *)src + off)) & 7) + base);
+                    src = src + 1;
+                    do {
+                        *(uint8 *)dst = pixel;
+                        dst = dst + 1;
+                    } while (--count != 0);
+                } else {
+                    /* STRIDE-2 RUN: len pixels, every other dst byte */
+                    count = (uint32)(cmd & 0x3F) + 1;
+                    x_remain = (uint8)(x_remain - (uint8)count - (uint8)count);
+                    pixel = (uint8)((((uint8)(*(uint8 *)src + off)) & 7) + base);
+                    src = src + 1;
+                    do {
+                        dst = dst + 1;
+                        *(uint8 *)dst = pixel;
+                        dst = dst + 1;
+                    } while (--count != 0);
+                }
+            } else {
+                if ((cmd & 0x40) == 0) {
+                    /* LITERAL: len pixels, one source byte each */
+                    count = (uint32)(cmd & 0x3F) + 1;
+                    x_remain = (uint8)(x_remain - (uint8)count);
+                    do {
+                        *(uint8 *)dst =
+                            (uint8)((((uint8)(*(uint8 *)src + off)) & 7) + base);
+                        src = src + 1;
+                        dst = dst + 1;
+                    } while (--count != 0);
+                } else {
+                    /* SKIP: advance dst (transparent run) */
+                    count = (uint32)(cmd & 0x3F) + 1;
+                    dst = dst + count;
+                    x_remain = (uint8)(x_remain - (uint8)count);
+                }
+            }
+        } while (x_remain != 0);
+
+        dst = dst + row_advance;
+    }
+}

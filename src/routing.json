@@ -4587,8 +4587,9 @@
     "name": "fd2_tile_blit_24x24_with_tint_offset",
     "target": "gfx/blittile.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004dcc6": {
     "name": "fd2_tile_blit_24x24_remap",
