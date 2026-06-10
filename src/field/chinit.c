@@ -808,3 +808,50 @@ void fd2_chapter_13_init(void)
                              0xcd, 0x4c, 0x4a, 0x13, 1);
     fd2_pan_cursor_to_char(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_14_init @ 0x3347C  (dispatched, 0 direct callers)
+ *
+ * Chapter 14「平原的會戰」init handler. A minimal chapter init: it
+ * re-inits battle state, pans the camera-and-window once
+ * (target 0x14, 0x14), plays exactly one dialog page (page 0), and
+ * pans the camera to char 0. There is NO cutscene, NO portrait load,
+ * NO char init, and NO clear-facing — chapter 14 carries the party
+ * over from chapter 13. The single camera-pan-and-window prelude is
+ * the only thing that distinguishes it from the bare chapter 13.
+ *
+ * Unlike chapter 06, this handler never resets
+ * data_fd2_battle_anim_phase (there is no MOV [0x51A83],0 on its code
+ * path) — the entry block does init battle state + the one
+ * pan_cursor_and_window, then tail-JMPs straight into the shared
+ * dialog-arg-push chain, which sits after every anim_phase reset.
+ *
+ * void __cdecl, no real params, void return. The leading __CHK(0x28)
+ * stack-probe is the Watcom-injected frame-size check and is not part
+ * of the source body.
+ *
+ * In the binary the page-0 dialog call + the final
+ * fd2_pan_cursor_to_char(0) are emitted as a tail-JMP through the same
+ * shared chain used by fd2_chapter_06_init / fd2_chapter_10_init /
+ * fd2_chapter_13_init: 0x3344D (page-0 dialog-arg push, owned by
+ * fd2_chapter_12_init) -> 0x33206 (the fd2_display_dialog_scene call,
+ * in fd2_chapter_07_init) -> 0x33140 (the fd2_pan_cursor_to_char(0) +
+ * RET tail, owned by fd2_chapter_05_init, entered directly without a
+ * clear-facing). The straight-line form here is the
+ * functionally-equivalent (Layer 2) reconstruction.
+ *
+ * Linked handlers:
+ *   End:         fd2_chapter_14_end @ 0x238DC
+ *   Post-action: (default — fd2_check_battle_end_default_handler
+ *                @ 0x205B4)
+ *
+ * Walkthrough SOT: assets/chapters/chapter_14.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_14_init(void)
+{
+    fd2_init_battle_state_for_chapter();
+    fd2_pan_cursor_and_window(0x14, 0x14);
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_pan_cursor_to_char(0);
+}

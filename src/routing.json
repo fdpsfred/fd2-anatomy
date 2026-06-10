@@ -3437,8 +3437,9 @@
     "name": "fd2_chapter_14_init",
     "target": "field/chinit.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00033499": {
     "name": "fd2_check_party_has_char_id",

@@ -297,6 +297,31 @@
  * (0x33470, the fd2_init_battle_state_for_chapter CALL onward) is itself a
  * shared alt-entry tail-JMPed into by fd2_chapter_16_init and
  * fd2_chapter_19_20_21_init_shared. See src/emit_issues.json (0003346b).
+ *
+ * fd2_chapter_14_init @0x3347C is a minimal chapter init of the same family
+ * as chapter 06 / 13: it re-inits battle state, pans the camera-and-window
+ * once (0x14,0x14), plays a single dialog page (page 0), and pans the camera
+ * to char 0. NO cutscene, NO portrait load, NO char init, NO clear-facing,
+ * and — unlike chapter 06 — NO battle_anim_phase reset (there is no MOV
+ * [0x51A83],0 on its code path). The lone camera-pan-and-window prelude is
+ * the only thing distinguishing it from the bare chapter 13. It likewise has
+ * NO numeric computation, NO RNG, NO data-dependent branch, and NO CALL-result
+ * consumption (no EAX-bug exposure), and every callee is real-linked from src/
+ * — the same fd2_display_dialog_scene -> fd2_wait_for_input_dialog_with_blink
+ * keyboard busy-wait hang applies to its single dialog page (here there is no
+ * portrait load or cutscene at all). Its behavioral test is therefore DEFERRED
+ * to Phase 9 on identical grounds; equivalence was verified statically,
+ * line-by-line, against the disassembly @0x3347C (the entry block
+ * fd2_init_battle_state_for_chapter + the single fd2_pan_cursor_and_window
+ * (0x14,0x14), the single page-0 dialog call, and the final
+ * fd2_pan_cursor_to_char(0); the absence of any battle_anim_phase reset and of
+ * any clear-facing). Note the dialog call and the final pan are physically a
+ * tail-JMP through the same shared chain as chapters 06/10/13 — 0x3344D
+ * (page-0 dialog-arg push, owned by fd2_chapter_12_init) -> 0x33206 (the
+ * dialog call, in fd2_chapter_07_init) -> 0x33140 (the pan + RET, owned by
+ * fd2_chapter_05_init, entered directly without a clear-facing); the emit
+ * reconstructs the equivalent straight-line form. See src/emit_issues.json
+ * (0003347c).
  */
 
 #include <stdio.h>
@@ -335,5 +360,7 @@ void run_field_chinit_tests(void)
            "integration; see src/emit_issues.json 000333f5)\n");
     printf("  (fd2_chapter_13_init: behavioral test deferred to Phase 9 "
            "integration; see src/emit_issues.json 0003346b)\n");
+    printf("  (fd2_chapter_14_init: behavioral test deferred to Phase 9 "
+           "integration; see src/emit_issues.json 0003347c)\n");
     printf("\n");
 }
