@@ -322,6 +322,46 @@
  * fd2_chapter_05_init, entered directly without a clear-facing); the emit
  * reconstructs the equivalent straight-line form. See src/emit_issues.json
  * (0003347c).
+ *
+ * fd2_chapter_15_init @0x334D9 is the FIRST chapter init in this file with a
+ * DATA-DEPENDENT dialog page selection and a consumed CALL return value (so,
+ * unlike chapters 01..14, it is NOT a pure straight-line orchestrator). It
+ * re-inits battle state, then computes a three-page narrative base from party
+ * composition — page_base = (fd2_check_party_has_char_id(0xC) ^ 1) * 3, i.e.
+ * base 0 (pages 0/1/2) when 凱麗 is present and base 3 (pages 3/4/5) when 凱麗
+ * is absent — and plays pages page_base / page_base+1 / page_base+2 chained
+ * with one camera pan (0x18,0x11) and one cutscene (0x30), with a single
+ * battle_anim_phase reset after the page_base+1 dialog. The computation is the
+ * EAX-bug-risk point: in the disassembly @0x334D9 it is XOR AL,1; MOV AH,3;
+ * MUL AH (8-bit AX = AL*AH) with MOVZX EBX,AL taking the low byte, and the
+ * XOR consumes the genuine byte return of the CALL — the emit encodes it as the
+ * real return of fd2_check_party_has_char_id (verified against the assembly, not
+ * trusted from the decompiler).
+ *
+ * Despite the added computation, its behavioral test is STILL DEFERRED to Phase
+ * 9 (reason proven, not convenience). page_base is consumed by the very first
+ * fd2_display_dialog_scene call, and there is no entry point that runs only the
+ * computation before that blocking call (the handler's own alt-entry 0x33594 is
+ * the final fd2_pan_cursor_to_char(0)+RET tail, after all three dialogs). The
+ * computation cannot be observed in isolation because:
+ *   - fd2_init_battle_state_for_chapter runs FIRST and RELOADS current_chapter_text
+ *     from the real FDTXT.DAT (it is the linked chapter-battle-data loader), so the
+ *     immediate-END / single-glyph fixture-page trick used by the army-overview
+ *     tests (tests/gfx/rndstat.c) cannot substitute observable pages here — the
+ *     dialog VM would parse the real FDTXT chapter stream.
+ *   - Real FDTXT pages contain -3 PAGE BREAK opcodes, which drive
+ *     fd2_display_dialog_scene -> fd2_wait_for_input_dialog_with_blink(1), the
+ *     real-linked keyboard busy-wait that hangs forever in the silent harness.
+ *   - fd2_check_party_has_char_id is itself still the testglob.c fake (slated for
+ *     src/util/misc.c); its captured arg/return are only reachable after the
+ *     function survives past the first blocking dialog, which it cannot.
+ * The emit must not be distorted to make it host-testable (forbidden). Equivalence
+ * was therefore verified statically, line-by-line, against the disassembly @0x334D9
+ * (the page_base XOR/MUL computation and its consumption as the real CALL return,
+ * the three page_base+{0,1,2} dialog page indices, the (0x18,0x11) pan, the 0x30
+ * cutscene, the single battle_anim_phase reset after page_base+1 only, and the
+ * self-contained 0x33594 pan_cursor_to_char(0)+RET tail shared into by chapters
+ * 23/28). See src/emit_issues.json (000334d9).
  */
 
 #include <stdio.h>
@@ -362,5 +402,8 @@ void run_field_chinit_tests(void)
            "integration; see src/emit_issues.json 0003346b)\n");
     printf("  (fd2_chapter_14_init: behavioral test deferred to Phase 9 "
            "integration; see src/emit_issues.json 0003347c)\n");
+    printf("  (fd2_chapter_15_init: data-dependent page_base swap; behavioral "
+           "test deferred to Phase 9 integration; see src/emit_issues.json "
+           "000334d9)\n");
     printf("\n");
 }

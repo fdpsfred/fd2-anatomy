@@ -855,3 +855,66 @@ void fd2_chapter_14_init(void)
                              0xcd, 0x4c, 0x4a, 0x13, 1);
     fd2_pan_cursor_to_char(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_15_init @ 0x334D9  (dispatched, 0 direct callers)
+ *
+ * Chapter 15「拉卡湖的激戰」init handler. The first chapter init with
+ * a DATA-DEPENDENT dialog page selection: it swaps the three-page
+ * narrative block based on whether 凱麗 (char id 0xC) is currently in
+ * the party, then plays the three pages chained with one camera pan
+ * and one cutscene (event id 0x30), before handing the chapter off to
+ * the player. There is NO char init and NO portrait load — chapter 15
+ * carries the party over from chapter 14.
+ *
+ * The page base is computed as page_base = (has_char(0xC) ^ 1) * 3:
+ *   凱麗 present (fd2_check_party_has_char_id returns 1) -> base 0,
+ *     so dialog pages 0/1/2 play;
+ *   凱麗 absent  (returns 0)                            -> base 3,
+ *     so dialog pages 3/4/5 play.
+ * In the disassembly this is XOR AL,1; MOV AH,3; MUL AH (8-bit AX =
+ * AL*AH) with the low byte taken via MOVZX EBX,AL; EBX then carries
+ * page_base, page_base+1 (LEA EAX,[EBX+1]) and page_base+2 (ADD EBX,2)
+ * to the three dialog calls. The XOR AL,1 consumes the genuine byte
+ * return of the CALL (not a Ghidra EAX-tracking artifact).
+ *
+ * data_fd2_battle_anim_phase is reset to 0 after the page_base+1 dialog
+ * (and the cutscene) only; the page_base and page_base+2 dialogs have
+ * no reset.
+ *
+ * void __cdecl, no real params, void return. The leading __CHK(0x2C)
+ * stack-probe is the Watcom-injected frame-size check and is not part
+ * of the source body.
+ *
+ * In the binary the page_base+2 dialog call + the final
+ * fd2_pan_cursor_to_char(0) are physically self-contained here (no
+ * tail-JMP into another chapter's epilogue). This handler OWNS one
+ * shared alt-entry point that other chapter inits tail-JMP into:
+ *   0x33594 (the fd2_pan_cursor_to_char(0) + RET tail) — entered by
+ *           fd2_chapter_23_init and fd2_chapter_28_init.
+ *
+ * Linked handlers:
+ *   End:         fd2_chapter_15_end @ 0x239BD
+ *   Post-action: fd2_chapter_15_post_action @ 0x20822
+ *                (extra lose if char[0x40] dead — 賽可邦勒)
+ *
+ * Walkthrough SOT: assets/chapters/chapter_15.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_15_init(void)
+{
+    int page_base;
+
+    fd2_init_battle_state_for_chapter();
+    page_base = (int)((((fd2_check_party_has_char_id(0xc) & 0xff) ^ 1) * 3)
+                      & 0xff);
+    fd2_display_dialog_scene(current_chapter_text, (uint32)page_base,
+                             0xa0000, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_pan_cursor_and_window(0x18, 0x11);
+    fd2_display_dialog_scene(current_chapter_text, (uint32)(page_base + 1),
+                             0xa0000, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x30);
+    fd2_display_dialog_scene(current_chapter_text, (uint32)(page_base + 2),
+                             0xa0000, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_pan_cursor_to_char(0);
+}
