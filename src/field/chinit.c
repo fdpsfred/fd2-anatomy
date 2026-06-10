@@ -604,3 +604,53 @@ void fd2_chapter_09_init(void)
     fd2_pan_cursor_to_char(0);
     fd2_clear_all_chars_facing();
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_10_init @ 0x3332B  (dispatched, 0 direct callers)
+ *
+ * Chapter 10「洞窟中的激戰」init handler. The first chapter init to
+ * seed per-unit status: it re-inits battle state, pans the camera,
+ * puts two NPC units to sleep at full sleep-counter, plays one dialog
+ * page (page 0), and pans the camera to char 0. There is NO cutscene,
+ * NO portrait load, and NO char init — chapter 10 carries the party
+ * over from chapter 9.
+ *
+ * The two sleep writes set runtime_char[0x32] (索菲亞 / Sophia) and
+ * runtime_char[0x33] (卡納恩三世 / Kanaan III) status_sleep_flag
+ * (struct offset +0x26) = 100 — both NPCs start the battle asleep.
+ * In the disassembly each write is base[0x53A45] + idx*0x50 + 0x26
+ * (0xFA0 = 0x32*0x50, 0xFF0 = 0x33*0x50). There is no
+ * data_fd2_battle_anim_phase reset on the code path and no
+ * clear-facing before the final pan.
+ *
+ * void __cdecl, no real params, void return. The leading __CHK(0x28)
+ * stack-probe is the Watcom-injected frame-size check and is not part
+ * of the source body.
+ *
+ * In the binary the page-0 dialog call + the final
+ * fd2_pan_cursor_to_char(0) are emitted as a tail-JMP into the same
+ * shared chain used by fd2_chapter_06_init: 0x3344D (page-0 dialog-arg
+ * push, owned by fd2_chapter_12_init) -> 0x33206 (the
+ * fd2_display_dialog_scene call, in fd2_chapter_07_init) -> 0x33140
+ * (the fd2_pan_cursor_to_char(0) + RET, owned by fd2_chapter_05_init,
+ * entered directly without a clear-facing). The straight-line form
+ * here is the functionally-equivalent (Layer 2) reconstruction.
+ *
+ * Linked handlers:
+ *   End:         fd2_chapter_10_end @ 0x235F9
+ *   Post-action: fd2_chapter_10_post_action @ 0x20707
+ *                (extra lose if char[0x32] OR char[0x33] dead —
+ *                 索菲亞/卡納恩三世)
+ *
+ * Walkthrough SOT: assets/chapters/chapter_10.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_10_init(void)
+{
+    fd2_init_battle_state_for_chapter();
+    fd2_pan_cursor_and_window(0xa, 0);
+    data_fd2_battle_runtime_char_array_ptr[0x32].status_sleep_flag = 100;
+    data_fd2_battle_runtime_char_array_ptr[0x33].status_sleep_flag = 100;
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_pan_cursor_to_char(0);
+}

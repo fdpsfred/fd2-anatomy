@@ -235,6 +235,7 @@ void fd2_chapter_06_init(void);
 void fd2_chapter_07_init(void);
 void fd2_chapter_08_init(void);
 void fd2_chapter_09_init(void);
+void fd2_chapter_10_init(void);
 
 /* ---- animation ---- */
 void fd2_tick_tile_event_animations(void);

@@ -196,6 +196,38 @@
  * Note this handler is fully self-contained (no tail-JMP into another
  * chapter's epilogue and no alt-entry of its own). See src/emit_issues.json
  * (0003327d).
+ *
+ * fd2_chapter_10_init @0x3332B is a flat orchestrator of the same family as
+ * chapters 02..09, and is the first chapter init to seed per-unit status: it
+ * re-inits battle state, pans the camera (10,0), puts two NPC units to sleep,
+ * plays one dialog page (page 0), and pans the camera to char 0. NO cutscene,
+ * NO portrait load, NO char init. The one structural addition over the minimal
+ * chapter 06 is two unconditional constant writes that set
+ * data_fd2_battle_runtime_char_array_ptr[0x32].status_sleep_flag = 100
+ * (索菲亞/Sophia) and [0x33].status_sleep_flag = 100 (卡納恩三世/Kanaan III)
+ * — both NPCs start the battle asleep (struct offset +0x26; disasm element
+ * address base[0x53A45] + idx*0x50 + 0x26, 0xFA0 = 0x32*0x50, 0xFF0 =
+ * 0x33*0x50). Those writes are a pure constant in-memory store: NO numeric
+ * computation, NO RNG, NO data-dependent branch, and NO CALL-result consumption
+ * (no EAX-bug exposure). They are NOT independently host-testable, however,
+ * because there is no entry point that runs only the writes — fd2_chapter_10_init
+ * falls straight from them (which sit after fd2_pan_cursor_and_window(10,0)) into
+ * the blocking dialog pipeline, so the post-write sleep state is observable only
+ * after the function returns, which it cannot do in the silent harness. As with
+ * the siblings every callee is real-linked from src/ — the same
+ * fd2_display_dialog_scene -> fd2_wait_for_input_dialog_with_blink keyboard
+ * busy-wait hang applies to its single dialog page (here there is no portrait
+ * load or cutscene at all). Its behavioral test is therefore DEFERRED to Phase 9
+ * on identical grounds; equivalence was verified statically, line-by-line,
+ * against the disassembly @0x3332B (the two status_sleep_flag=100 writes with
+ * their idx*0x50+0x26 element addresses, the call sequence and constants, and
+ * the absence of any battle_anim_phase reset or clear-facing). Note the page-0
+ * dialog call plus the final fd2_pan_cursor_to_char(0) are physically a tail-JMP
+ * into the same shared chain as chapter 06 — 0x3344D (page-0 dialog-arg push,
+ * owned by fd2_chapter_12_init) -> 0x33206 (the dialog call, in
+ * fd2_chapter_07_init) -> 0x33140 (the pan + RET, owned by fd2_chapter_05_init,
+ * entered directly without a clear-facing); the emit reconstructs the equivalent
+ * straight-line form. See src/emit_issues.json (0003332b).
  */
 
 #include <stdio.h>
@@ -226,5 +258,7 @@ void run_field_chinit_tests(void)
            "integration; see src/emit_issues.json 00033219)\n");
     printf("  (fd2_chapter_09_init: behavioral test deferred to Phase 9 "
            "integration; see src/emit_issues.json 0003327d)\n");
+    printf("  (fd2_chapter_10_init: behavioral test deferred to Phase 9 "
+           "integration; see src/emit_issues.json 0003332b)\n");
     printf("\n");
 }
