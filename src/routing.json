@@ -4611,8 +4611,9 @@
     "name": "fd2_tile_blit_24x24_solid_color",
     "target": "gfx/blittile.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004de56": {
     "name": "fd2_tile_blit_24x24_dimmed_grayscale",

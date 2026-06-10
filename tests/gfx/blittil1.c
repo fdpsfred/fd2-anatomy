@@ -868,6 +868,288 @@ static void test_remaptab_row_stride_advance(void)
     }
 }
 
+/* ================================================================
+ * fd2_tile_blit_24x24_solid_color @ 0x4DDD7 — same 4-mode RLE syntax as
+ * the blitters above, but every painted pixel is forced to a single
+ * SILHOUETTE COLOR (the RLE source byte values are read to advance the
+ * stream but their values are discarded). The third parameter is PACKED:
+ * the row advance is (value - 0x18) and the fill colour is (uint8)value.
+ * The 0xC0 command is a TRUE transparent skip (no write, no source).
+ * Reuses the CMD_* builders and TINT_* constants above.
+ * ================================================================ */
+
+/* Destination for the solid-colour blit tests (same geometry). */
+static uint8 g_solid_dst[TINT_STRIDE * (TINT_H + 1)];
+
+/* Wider destination for the packed-colour test, which uses the real VGA
+ * stride 0x140: 24 SKIP rows advance dst by a full stride each, so the
+ * buffer must span all 24 rows even though only row 0 is written. */
+static uint8 g_solid_dst_wide[0x140 * TINT_H];
+
+static void solid_reset_dst(void)
+{
+    memset(g_solid_dst, TINT_SENT, sizeof(g_solid_dst));
+}
+
+/* Append (TINT_H - 1) transparent SKIP-24 filler rows (rows 1..23). */
+static void put_solid_skip_filler_rows(uint8 **pp)
+{
+    int r;
+    for (r = 1; r < TINT_H; r++) {
+        *(*pp)++ = CMD_SKIP(TINT_W);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * RUN mode (0x00..0x3F): consume ONE (ignored) source byte, paint n
+ * COLOUR pixels contiguously. Load-bearing: the painted value is the
+ * packed colour (low byte of param_3 == 0x18 here), NOT the source byte.
+ * ---------------------------------------------------------------- */
+static void test_solid_run_mode(void)
+{
+    uint8 stream[64];
+    uint8 *p = stream;
+    int i;
+
+    *p++ = CMD_RUN(6);
+    *p++ = 0x0Au;                  /* source byte: read but discarded */
+    *p++ = CMD_SKIP(18);          /* 6 + 18 == 24 */
+    put_solid_skip_filler_rows(&p);
+
+    solid_reset_dst();
+    /* stride 0x18 -> colour 0x18, row advance 0 (contiguous) */
+    fd2_tile_blit_24x24_solid_color((uint32)stream, (uint32)g_solid_dst,
+                                    TINT_W, 0u);
+
+    for (i = 0; i < 6; i++) {
+        ASSERT_EQ(g_solid_dst[i], (uint8)TINT_W);   /* colour, not 0x0A */
+    }
+    /* the source byte value never reached the destination */
+    ASSERT_EQ(g_solid_dst[0] != 0x0Au, 1);
+    for (i = 6; i < TINT_W * TINT_H; i++) {
+        ASSERT_EQ(g_solid_dst[i], TINT_SENT);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * LITERAL mode (0x80..0xBF): consume n source bytes (one per pixel) but
+ * paint the COLOUR each time. Proves both that n source bytes are
+ * consumed (stream advances so the trailing SKIP lands right) and that
+ * their values are ignored (all painted pixels equal the colour).
+ * ---------------------------------------------------------------- */
+static void test_solid_literal_mode(void)
+{
+    uint8 stream[64];
+    uint8 *p = stream;
+    int i;
+
+    *p++ = CMD_LIT(5);
+    *p++ = 0x00u;
+    *p++ = 0x11u;
+    *p++ = 0x22u;
+    *p++ = 0x33u;
+    *p++ = 0x44u;                  /* 5 source bytes, all discarded */
+    *p++ = CMD_SKIP(19);          /* 5 + 19 == 24 */
+    put_solid_skip_filler_rows(&p);
+
+    solid_reset_dst();
+    fd2_tile_blit_24x24_solid_color((uint32)stream, (uint32)g_solid_dst,
+                                    TINT_W, 0u);
+
+    for (i = 0; i < 5; i++) {
+        ASSERT_EQ(g_solid_dst[i], (uint8)TINT_W);   /* all == colour */
+    }
+    for (i = 5; i < TINT_W * TINT_H; i++) {
+        ASSERT_EQ(g_solid_dst[i], TINT_SENT);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * STRIDE-2 RUN (0x40..0x7F): consume ONE (ignored) source byte, paint n
+ * COLOUR pixels at every other dst byte. The asm is INC EDI; STOSB, so
+ * pixels land at odd offsets 1,3,5,7 (dst += 2 per pixel, NOT +3), and
+ * each pixel consumes TWO column-counts. Load-bearing test for the +2
+ * stride (the decompiler renders this branch as +3).
+ * ---------------------------------------------------------------- */
+static void test_solid_stride2_mode(void)
+{
+    uint8 stream[64];
+    uint8 *p = stream;
+    int i;
+    uint8 e;
+
+    *p++ = CMD_STRIDE(4);          /* 4 pixels -> 8 column-counts */
+    *p++ = 0x05u;                  /* source byte: discarded */
+    *p++ = CMD_SKIP(16);          /* 8 + 16 == 24 */
+    put_solid_skip_filler_rows(&p);
+
+    solid_reset_dst();
+    fd2_tile_blit_24x24_solid_color((uint32)stream, (uint32)g_solid_dst,
+                                    TINT_W, 0u);
+
+    e = (uint8)TINT_W;             /* colour == low byte of stride 0x18 */
+    ASSERT_EQ(g_solid_dst[0], TINT_SENT);
+    ASSERT_EQ(g_solid_dst[1], e);
+    ASSERT_EQ(g_solid_dst[2], TINT_SENT);
+    ASSERT_EQ(g_solid_dst[3], e);
+    ASSERT_EQ(g_solid_dst[4], TINT_SENT);
+    ASSERT_EQ(g_solid_dst[5], e);
+    ASSERT_EQ(g_solid_dst[6], TINT_SENT);
+    ASSERT_EQ(g_solid_dst[7], e);
+    /* dst is now at offset 8; the rest of the image stays sentinel */
+    for (i = 8; i < TINT_W * TINT_H; i++) {
+        ASSERT_EQ(g_solid_dst[i], TINT_SENT);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * TRANSPARENT SKIP (0xC0..0xFF): advance dst by n with no write and no
+ * source byte consumed. Pre-seed the skipped region with distinct values
+ * and prove they survive, then prove the byte right after the SKIP is
+ * read as a source byte by a following RUN (SKIP consumed zero source).
+ * ---------------------------------------------------------------- */
+static void test_solid_transparent_skip(void)
+{
+    uint8 stream[64];
+    uint8 *p = stream;
+    int i;
+    uint8 seed[5];
+
+    seed[0] = 0x00u;
+    seed[1] = 0x10u;
+    seed[2] = 0x55u;
+    seed[3] = 0x80u;
+    seed[4] = 0xFEu;
+
+    *p++ = CMD_SKIP(5);           /* skip dst[0..4]: leave them seeded */
+    *p++ = CMD_RUN(19);           /* fill dst[5..23] with colour */
+    *p++ = 0x2Au;                 /* the RUN's (ignored) source byte */
+    put_solid_skip_filler_rows(&p);
+
+    solid_reset_dst();
+    for (i = 0; i < 5; i++) {
+        g_solid_dst[i] = seed[i];
+    }
+
+    fd2_tile_blit_24x24_solid_color((uint32)stream, (uint32)g_solid_dst,
+                                    TINT_W, 0u);
+
+    /* dst[0..4] unchanged: true transparent skip */
+    for (i = 0; i < 5; i++) {
+        ASSERT_EQ(g_solid_dst[i], seed[i]);
+    }
+    /* RUN painted colour over dst[5..23]; SKIP consumed no source byte so
+     * the RUN read its source from the byte right after CMD_RUN(19). */
+    for (i = 5; i < TINT_W; i++) {
+        ASSERT_EQ(g_solid_dst[i], (uint8)TINT_W);
+    }
+    for (i = TINT_W; i < TINT_W * TINT_H; i++) {
+        ASSERT_EQ(g_solid_dst[i], TINT_SENT);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * Packed stride+colour: the fill colour is the LOW BYTE of param_3 while
+ * the value as a whole is the row stride. Pass 0x140 (typical VGA stride)
+ * and confirm every painted pixel is 0x40 (= 0x140 & 0xFF, the white-
+ * silhouette band) — distinct from both the source bytes and SENT.
+ * ---------------------------------------------------------------- */
+static void test_solid_packed_color_from_low_byte(void)
+{
+    uint8 stream[64];
+    uint8 *p = stream;
+    int i;
+
+    *p++ = CMD_LIT(4);
+    *p++ = 0x01u;
+    *p++ = 0x02u;
+    *p++ = 0x03u;
+    *p++ = 0x04u;
+    *p++ = CMD_SKIP(20);          /* 4 + 20 == 24 */
+    put_solid_skip_filler_rows(&p);
+
+    memset(g_solid_dst_wide, TINT_SENT, sizeof(g_solid_dst_wide));
+    /* stride 0x140 -> colour 0x40, row advance 0x128 (real VGA layout) */
+    fd2_tile_blit_24x24_solid_color((uint32)stream, (uint32)g_solid_dst_wide,
+                                    0x140u, 0u);
+
+    for (i = 0; i < 4; i++) {
+        ASSERT_EQ(g_solid_dst_wide[i], 0x40u);   /* 0x140 & 0xFF */
+    }
+    /* not the source bytes */
+    ASSERT_EQ(g_solid_dst_wide[0] != 0x01u, 1);
+    ASSERT_EQ(g_solid_dst_wide[3] != 0x04u, 1);
+    /* rows 1..23 are SKIP-only, so the entire rest of the surface stays
+     * sentinel (the row advance never causes a stray write). */
+    for (i = 4; i < (int)sizeof(g_solid_dst_wide); i++) {
+        ASSERT_EQ(g_solid_dst_wide[i], TINT_SENT);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * Row stride > 24: the decoder jumps dst by (stride - 0x18) at each row
+ * boundary, leaving the inter-row gap untouched. With stride 0x40 the
+ * colour is 0x40 and the advance is 0x28. Row 0 is a RUN-24; rows 1..23
+ * are transparent SKIP-24. Confirm row 0 colour, the gap after it, and
+ * that row 1 would begin at stride (all sentinel here).
+ * ---------------------------------------------------------------- */
+static void test_solid_row_stride_advance(void)
+{
+    uint8 stream[64];
+    uint8 *p = stream;
+    int i;
+
+    *p++ = CMD_RUN(TINT_W);        /* row 0: RUN 24 (colour fill) */
+    *p++ = 0x02u;                  /* ignored source byte */
+    put_solid_skip_filler_rows(&p);/* rows 1..23: transparent skip */
+
+    solid_reset_dst();
+    /* stride 0x40 -> colour 0x40, row advance 0x28 */
+    fd2_tile_blit_24x24_solid_color((uint32)stream, (uint32)g_solid_dst,
+                                    TINT_STRIDE, 0u);
+
+    for (i = 0; i < TINT_W; i++) {
+        ASSERT_EQ(g_solid_dst[i], (uint8)TINT_STRIDE);   /* 0x40 */
+    }
+    for (i = TINT_W; i < (int)TINT_STRIDE; i++) {
+        ASSERT_EQ(g_solid_dst[i], TINT_SENT);
+    }
+    for (i = (int)TINT_STRIDE; i < (int)(TINT_STRIDE * TINT_H); i++) {
+        ASSERT_EQ(g_solid_dst[i], TINT_SENT);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * Full 24x24 sprite, one LITERAL-24 command per row, stride 24 so the
+ * destination is a contiguous 576-byte image and the colour is 0x18.
+ * Every source byte differs (r*24 + c) yet every output pixel must be
+ * the single colour. Exercises all 24 rows and the row-wrap reset.
+ * ---------------------------------------------------------------- */
+static void test_solid_full_24x24_row_wrap(void)
+{
+    uint8 stream[TINT_H * (1 + TINT_W)];
+    uint8 *p = stream;
+    int r, c;
+
+    for (r = 0; r < TINT_H; r++) {
+        *p++ = CMD_LIT(TINT_W);
+        for (c = 0; c < TINT_W; c++) {
+            *p++ = (uint8)(r * TINT_W + c);
+        }
+    }
+
+    solid_reset_dst();
+    fd2_tile_blit_24x24_solid_color((uint32)stream, (uint32)g_solid_dst,
+                                    TINT_W, 0u);
+
+    for (r = 0; r < TINT_H; r++) {
+        for (c = 0; c < TINT_W; c++) {
+            ASSERT_EQ(g_solid_dst[r * TINT_W + c], (uint8)TINT_W);
+        }
+    }
+    ASSERT_EQ(g_solid_dst[TINT_W * TINT_H], TINT_SENT);
+}
+
 void run_gfx_blittile1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -893,5 +1175,12 @@ void run_gfx_blittile1_tests(void)
     RUN_TEST(test_remaptab_lut_is_applied);
     RUN_TEST(test_remaptab_full_24x24_row_wrap);
     RUN_TEST(test_remaptab_row_stride_advance);
+    RUN_TEST(test_solid_run_mode);
+    RUN_TEST(test_solid_literal_mode);
+    RUN_TEST(test_solid_stride2_mode);
+    RUN_TEST(test_solid_transparent_skip);
+    RUN_TEST(test_solid_packed_color_from_low_byte);
+    RUN_TEST(test_solid_row_stride_advance);
+    RUN_TEST(test_solid_full_24x24_row_wrap);
     printf("\n");
 }

@@ -426,25 +426,16 @@ void fd2_tile_blit_24x24_dimmed_grayscale(uint32 src, uint32 dst, uint32 stride)
  * drives the real blitter against a one-pixel RLE sprite at the window-origin
  * cell (in-bounds dst) and observes the painted LUT-remapped byte, which proves
  * the caller's src / dst / remap_table arithmetic and remap-branch selection. */
-/* fd2_tile_blit_24x24_solid_color (the solid-colour silhouette blitter, real
- * body not yet emitted). The real fd2_animate_status_effect_overlay_flicker is
- * the caller; recording (src, dst, stride) into the shared g_blitpass_* arrays
- * plus the colour arg into a separate log lets the status-overlay test verify
- * the per-char dst-offset / sprite-source / colour-index arithmetic without
- * touching pixels. */
-int    g_blitsolid_calls = 0;
-uint32 g_blitsolid_color[64];
-void fd2_tile_blit_24x24_solid_color(uint32 src, uint32 dst, uint32 color_or_stride,
-                                     uint32 unused) {
-    if (g_blitpass_calls < 64) {
-        g_blitpass_src[g_blitpass_calls] = src;
-        g_blitpass_dst[g_blitpass_calls] = dst;
-        g_blitpass_stride[g_blitpass_calls] = color_or_stride;
-        g_blitsolid_color[g_blitpass_calls] = unused;
-    }
-    g_blitpass_calls++;
-    g_blitsolid_calls++;
-}
+/* fd2_tile_blit_24x24_solid_color is now emitted for real in
+ * src/gfx/blittile.c; its former recording stub here was removed. The
+ * caller test (fd2_animate_status_effect_overlay_flicker in
+ * tests/anim/anicombt.c) instead drives the real blitter against a
+ * one-pixel RLE sprite placed only at the expected sprite-source offset
+ * (transparent SKIP bytes elsewhere) and observes the single painted
+ * silhouette byte, which proves the caller's src / dst arithmetic and
+ * window-cull predicate. The painted colour is the LOW BYTE of the
+ * stride argument (param_3 & 0xFF); param_4 is read by the caller but
+ * IGNORED by the blitter (verified against the 0x4DDD7 disassembly). */
 /* fd2_render_terrain_info_hud_panel is now a real emitted function
  * (src/gfx/rndstat.c). Its former recording/loop-break stub here was removed;
  * the idle-loop break seam (g_repaint_settings_calls / g_repaint_flip_buffer_after)

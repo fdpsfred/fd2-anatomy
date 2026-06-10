@@ -574,6 +574,123 @@ void fd2_tile_blit_24x24_remap(uint32 rle_stream, uint32 dst_buf,
 }
 
 /* ----------------------------------------------------------------
+ * fd2_tile_blit_24x24_solid_color @ 0x4DDD7 (2 callers)
+ *
+ * Hand-written RLE blit of a 24x24 sprite into dst_buf, but every
+ * painted pixel is forced to a single SILHOUETTE COLOR regardless of
+ * the RLE source byte values. Used for ghost/silhouette overlays
+ * (pre-attack flash, status-effect highlight) where the sprite shape
+ * matters but every visible pixel is one colour. Callers:
+ *   fd2_animate_status_effect_overlay_flicker @ 0x1C2DA
+ *   fd2_paint_char_sprite_at_world_with_mode  @ 0x1DA16
+ *
+ * The third parameter is a PACKED stride+colour used two ways at entry:
+ *   - row advance  = (color_or_stride - 0x18)  (stride - 24)
+ *   - fill colour  = (uint8)color_or_stride    (low byte)
+ * So colour = stride & 0xFF. For the typical stride 0x140 the colour
+ * is fixed at 0x40 (palette index 64, the white-silhouette band).
+ * param_4 is unused (present so the cdecl frame matches the caller).
+ *
+ * Same 4-mode RLE command encoding as the sibling blitters; each
+ * command byte's top two bits select the mode and the low 6 bits + 1
+ * are the run length:
+ *   bits 7..6 = 00 (0x00..0x3F)  RUN: consume one (ignored) source
+ *               byte, paint len colour pixels contiguously; dst += len;
+ *               x -= len.
+ *   bits 7..6 = 01 (0x40..0x7F)  STRIDE-2 RUN: consume one (ignored)
+ *               source byte, paint len colour pixels at every other dst
+ *               byte (INC EDI; STOSB => +2 per pixel); dst += 2*len;
+ *               x -= 2*len.
+ *   bits 7..6 = 10 (0x80..0xBF)  LITERAL: consume len (ignored) source
+ *               bytes, painting one colour pixel each; dst += len;
+ *               x -= len.
+ *   bits 7..6 = 11 (0xC0..0xFF)  TRANSPARENT SKIP: advance dst by len
+ *               bytes without writing (no source bytes consumed);
+ *               dst += len; x -= len.
+ *
+ * In every non-skip mode the source byte(s) are read to advance the
+ * stream pointer but their values are discarded; the colour is written
+ * instead. x is the per-row remaining-column counter (starts at 0x18).
+ * When it reaches 0 the row ends: dst advances by stride - 0x18 to the
+ * next row start, and 24 rows are rendered in total.
+ *
+ * Args (cdecl, 4x stack params; caller pops 0x10):
+ *   src             — source RLE-encoded 24x24 sprite stream
+ *   dst             — destination base linear address
+ *   color_or_stride — packed (stride in low..high bytes); row advance
+ *                     is value - 0x18, fill colour is the low byte
+ *   unused          — present only to match the caller's cdecl frame
+ *
+ * Hand-written asm leaf: no __CHK probe, no CALLs.
+ * ---------------------------------------------------------------- */
+void fd2_tile_blit_24x24_solid_color(uint32 src, uint32 dst,
+                                     uint32 color_or_stride, uint32 unused)
+{
+    uint32 rle_stream;
+    uint32 dst_buf;
+    uint32 row_advance;
+    uint8  color;
+    uint8  cmd;
+    uint8  x_remain;
+    uint32 count;
+    int    row;
+
+    (void)unused;
+    rle_stream = src;
+    dst_buf = dst;
+    row_advance = color_or_stride - 0x18;
+    color = (uint8)color_or_stride;
+
+    for (row = 0x18; row != 0; row--) {
+        x_remain = 0x18;
+        do {
+            cmd = *(uint8 *)rle_stream;
+            rle_stream = rle_stream + 1;
+            if ((cmd & 0x80) == 0) {
+                if ((cmd & 0x40) == 0) {
+                    /* RUN: one source byte, paint len colour pixels */
+                    count = (uint32)(cmd & 0x3F) + 1;
+                    x_remain = (uint8)(x_remain - (uint8)count);
+                    rle_stream = rle_stream + 1;
+                    do {
+                        *(uint8 *)dst_buf = color;
+                        dst_buf = dst_buf + 1;
+                    } while (--count != 0);
+                } else {
+                    /* STRIDE-2 RUN: one source byte, every other dst byte */
+                    count = (uint32)(cmd & 0x3F) + 1;
+                    x_remain = (uint8)(x_remain - (uint8)count - (uint8)count);
+                    rle_stream = rle_stream + 1;
+                    do {
+                        dst_buf = dst_buf + 1;
+                        *(uint8 *)dst_buf = color;
+                        dst_buf = dst_buf + 1;
+                    } while (--count != 0);
+                }
+            } else {
+                if ((cmd & 0x40) == 0) {
+                    /* LITERAL: consume len source bytes, paint colour each */
+                    count = (uint32)(cmd & 0x3F) + 1;
+                    x_remain = (uint8)(x_remain - (uint8)count);
+                    do {
+                        *(uint8 *)dst_buf = color;
+                        rle_stream = rle_stream + 1;
+                        dst_buf = dst_buf + 1;
+                    } while (--count != 0);
+                } else {
+                    /* TRANSPARENT SKIP: advance dst, write nothing */
+                    count = (uint32)(cmd & 0x3F) + 1;
+                    dst_buf = dst_buf + count;
+                    x_remain = (uint8)(x_remain - (uint8)count);
+                }
+            }
+        } while (x_remain != 0);
+
+        dst_buf = dst_buf + row_advance;
+    }
+}
+
+/* ----------------------------------------------------------------
  * fd2_tile_blit_24x24_with_remap_table @ 0x4DD52 (1 caller)
  *
  * Hand-written RLE blit of a 24x24 sprite into dst_buf, mapping every
