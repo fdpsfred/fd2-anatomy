@@ -57,6 +57,23 @@
  * tail-JMP into the shared epilogues of fd2_chapter_07_init (@0x33206) and
  * fd2_chapter_05_init (@0x33140); the emit reconstructs the equivalent
  * straight-line form. See src/emit_issues.json (00032d18).
+ *
+ * fd2_chapter_03_init @0x32E8C is the same shape as chapter 02: a flat
+ * orchestrator playing four dialog pages chained with three cutscenes
+ * (0x12/0x11/0x13), portrait set 1 loaded after the first cutscene, two camera
+ * pans, NO char init. It likewise has NO numeric computation, NO RNG, NO
+ * data-dependent branch, and NO CALL-result consumption (no EAX-bug exposure),
+ * and every callee is real-linked from src/ — the same fd2_display_dialog_scene
+ * -> fd2_wait_for_input_dialog_with_blink keyboard busy-wait hang plus the
+ * fd2_load_chapter_portraits_and_dump_tmp (fopen FDICON.B24) /
+ * fd2_cutscene_event_trigger byte-script parsing apply. Its behavioral test is
+ * therefore DEFERRED to Phase 9 on identical grounds; equivalence was verified
+ * statically, line-by-line, against the disassembly @0x32E8C (call sequence,
+ * constants, and the three battle_anim_phase resets after pages 0/1/2 but not
+ * page 3). Note the page-3 dialog call plus the trailing
+ * fd2_clear_all_chars_facing() and fd2_pan_cursor_to_char(0) are physically a
+ * tail-JMP into the shared epilogue at 0x3312D; the emit reconstructs the
+ * equivalent straight-line form. See src/emit_issues.json (00032e8c).
  */
 
 #include <stdio.h>
@@ -73,5 +90,7 @@ void run_field_chinit_tests(void)
            "integration; see src/emit_issues.json 0003231b)\n");
     printf("  (fd2_chapter_02_init: behavioral test deferred to Phase 9 "
            "integration; see src/emit_issues.json 00032d18)\n");
+    printf("  (fd2_chapter_03_init: behavioral test deferred to Phase 9 "
+           "integration; see src/emit_issues.json 00032e8c)\n");
     printf("\n");
 }
