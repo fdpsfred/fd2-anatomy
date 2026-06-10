@@ -1430,3 +1430,68 @@ void fd2_chapter_event_handler_51__unref_dyn_turn_event(uint32 event_arg)
     *(uint8 *)(data_fd2_tile_event_data_table_ptr + 3) =
         (uint8)(data_fd2_battle_turn_counter + 1);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_52__ch30_major_cinematic @ 0x35F92
+ *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CD9)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x52. Triggered
+ * in chapter 30 at turn-event slot 0 (turn 0xFF, phase 0). Category: ch30
+ * final-boss multi-stage cinematic. Dispatch-table signature is 1-arg cdecl
+ * (void fn(uint event_arg)); this handler does not read the arg.
+ *
+ * Stage counter = tile_event_consumed_flags[0x10] (0..4), advanced between
+ * calls by the downstream scheduler. Each call:
+ *   - pan camera to tile 0x10, show dialog page stage+2 (pages 2..6),
+ *   - clear battle_anim_phase, pan camera to tile 0x10 again,
+ *   - warp the boss-line char 0x18-stage onto tile (0x16,0x12)
+ *     (descending boss idx 0x18..0x14 over the 5 stages).
+ * Stages 0..3 additionally load portrait set `stage`, disarm the warped
+ * boss's AI nibble (combat_aux_block[0xD] low4 = 0 for char 0x18-stage),
+ * warp paired helper chars 0x19+2*stage onto (0x15,0x12) and 0x1A+2*stage
+ * onto (0x17,0x12), then set battle_anim_phase = 1.
+ * Final stage 4 instead arms AI mode 0xB for char 0x14, then sets
+ * battle_anim_phase = 1.
+ *
+ * In the binary the stage byte is re-read from memory at every use point
+ * (MOV EAX,[ptr]/MOVZX EAX,byte ptr[EAX+0x10]); the inline byte loads below
+ * reproduce that exactly. Both tail paths fall through to the shared
+ * battle_anim_phase=1 epilogue at 0x35C15 (JMP), modelled here as a call to
+ * fd2_set_battle_anim_phase_to_1 followed by return. Stack frame 0x28 (__CHK)
+ * is the Watcom stack-probe prologue and carries no source-level semantics.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_52__ch30_major_cinematic(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_pan_cursor_and_window(0x10, 1);
+    fd2_display_dialog_scene(
+        current_chapter_text,
+        (uint32)(*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) + 2),
+        0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_pan_cursor_and_window(0x10, 0xE);
+    fd2_cinematic_warp_char_to_tile(
+        0x18 - *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10),
+        0x16, 0x12);
+
+    if (*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) != 4) {
+        uint32 ai_char;
+
+        fd2_load_chapter_portraits_and_dump_tmp(
+            (uint32)*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10));
+        ai_char = 0x18 - *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10);
+        fd2_set_combat_aux_block_byte_d_low4_for_char_range(ai_char, ai_char, 0);
+        fd2_cinematic_warp_char_to_tile(
+            (uint32)*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) * 2 + 0x19,
+            0x15, 0x12);
+        fd2_cinematic_warp_char_to_tile(
+            (uint32)*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) * 2 + 0x1A,
+            0x17, 0x12);
+        fd2_set_battle_anim_phase_to_1();
+        return;
+    }
+
+    fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x14, 0x14, 0xB);
+    fd2_set_battle_anim_phase_to_1();
+}

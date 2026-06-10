@@ -860,6 +860,33 @@ void fd2_kill_runtime_chars_from_index_to_end(uint32 start_char_idx)
     g_kill_from_calls++;
 }
 
+/* Recording stub for the still-unemitted callee fd2_cinematic_warp_char_to_tile
+ * (routing target anim/aniui.c, not yet emitted). The real helper pans the camera
+ * to a tile then runs the full warp-teleport char animation
+ * (fd2_animate_warp_teleport_char: FDOTHER.DAT SFX load, a 150KB snapshot, portal
+ * open/collapse/expand frames, and a row-by-row "pop-in" copy to the mode-13h
+ * framebuffer). That entire chain is pure display owned by the spellcin warp suite
+ * and deferred to Phase 9; running it just to reach a caller's downstream logic
+ * would churn real file I/O + framebuffer writes with no value to the caller's
+ * risk-bearing routing. Recording each call's (char_id, tile_x, tile_y) lets
+ * fd2_chapter_event_handler_52's test pin THIS handler's contract: the exact warp
+ * char-index arithmetic (boss = 0x18-stage; pair = 2*stage+0x19 / +0x1A) and the
+ * literal tile targets. The stub will be replaced by the real body when aniui.c
+ * emits 0x33F78. */
+int    g_warp_char_calls = 0;
+uint32 g_warp_char_id[4];
+uint32 g_warp_tile_x[4];
+uint32 g_warp_tile_y[4];
+void fd2_cinematic_warp_char_to_tile(uint32 char_id, uint32 tile_x, uint32 tile_y)
+{
+    if (g_warp_char_calls < 4) {
+        g_warp_char_id[g_warp_char_calls] = char_id;
+        g_warp_tile_x[g_warp_char_calls] = tile_x;
+        g_warp_tile_y[g_warp_char_calls] = tile_y;
+    }
+    g_warp_char_calls++;
+}
+
 /* Link-time stub for the still-unemitted callee of the orphan/unreachable
  * fd2_execute_aoe_spell_with_caster_portrait_radial_scatter (src/spell/spellcin.c).
  * That AoE cinematic has no caller and no test drives it (its per-frame work is

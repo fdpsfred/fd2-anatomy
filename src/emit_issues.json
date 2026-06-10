@@ -697,5 +697,17 @@
         "verify_method": "orchestrator_save_program"
       }
     ]
+  },
+  "00035f92": {
+    "name": "fd2_chapter_event_handler_52__ch30_major_cinematic",
+    "target": "field/chevt2.c",
+    "issues": [
+      {
+        "type": "host_environment_dependency",
+        "desc": "handler_52 test exercises the real portrait loader on the spawn branch (stage!=4), which performs fwrite(portrait_sprite_cache=NULL, 1, 0x32A00, fp) reading 200KB from address 0. Benign under the DPMI flat host (no fault, build green) but is an equivalence-irrelevant host-environment dependency worth recording: if the test runner's memory model ever changes (e.g. a guarded null page), this fwrite could fault. Mitigation if ever needed: point portrait_sprite_cache at a 0x32A00 scratch buffer in ce52_setup so the real loader's tmp-dump reads valid memory. Not blocking for Layer-2 equivalence.",
+        "severity": "low",
+        "verify_method": "noted_non_blocking"
+      }
+    ]
   }
 }

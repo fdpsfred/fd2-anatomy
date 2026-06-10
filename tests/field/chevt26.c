@@ -37,16 +37,27 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include "testharn.h"
 #include "types.h"
 #include "consts.h"
 #include "globals.h"
 #include "protos.h"
+#include "audiofix.h"   /* audiofix_make_bank / audiofix_enable_sfx (h52 dialog VM) */
 
 /* shared runtime_char array (defined in testglob.c) — restored as the default
  * runtime_char_array_ptr in the h4f teardown after the suite points it at its own
  * fixture. */
 extern runtime_char g_test_rc_array[8];
+
+/* testglob recorders used by the handler_52 cinematic suite */
+extern int    g_composite_call_count;      /* real pan/composite tile-map blit proxy */
+extern int    g_dlg_glyph_calls;           /* real dialog VM glyph recorder          */
+extern int    g_warp_char_calls;           /* unemitted warp-helper recording stub   */
+extern uint32 g_warp_char_id[4];
+extern uint32 g_warp_tile_x[4];
+extern uint32 g_warp_tile_y[4];
 
 /* ================================================================
  * fd2_chapter_event_handler_4d__unref_sentinel @ 0x35EBE
@@ -596,6 +607,287 @@ static void test_h51_both_stores_are_8bit_wrap(void)
     ce51_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_52__ch30_major_cinematic @ 0x35F92
+ *
+ * ch30 final-boss multi-stage cinematic (dispatch idx 0x52 @ table 0x51B91).
+ * Body (1-arg cdecl; arg ignored), stage = tile_event_consumed_flags[0x10]:
+ *   fd2_pan_cursor_and_window(0x10, 1)
+ *   page-(stage+2) dialog (0xA0000)
+ *   battle_anim_phase = 0
+ *   fd2_pan_cursor_and_window(0x10, 0xE)
+ *   fd2_cinematic_warp_char_to_tile(0x18-stage, 0x16, 0x12)        -- boss line
+ *   if (stage != 4):                                               -- stages 0..3
+ *     fd2_load_chapter_portraits_and_dump_tmp(stage)
+ *     fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x18-stage, 0x18-stage, 0)  -- disarm
+ *     fd2_cinematic_warp_char_to_tile(2*stage+0x19, 0x15, 0x12)    -- pair A
+ *     fd2_cinematic_warp_char_to_tile(2*stage+0x1A, 0x17, 0x12)    -- pair B
+ *     battle_anim_phase = 1; return
+ *   // stage == 4
+ *   fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x14, 0x14, 0xB)  -- arm AI 0xB
+ *   battle_anim_phase = 1
+ *
+ * Risk-bearing HERE is this handler's own routing: the control-flow branch on
+ * stage==4, the warp char-index arithmetic (boss = 0x18-stage; pair =
+ * 2*stage+0x19 / +0x1A), the AI-nibble writer's char/value split (disarm 0 of the
+ * descending boss vs arm 0xB of fixed char 0x14, high nibble preserved each), the
+ * dialog page = stage+2 routing, and the battle_anim_phase end state. These drive
+ * the REAL handler + its REAL callees over the proven chevt2 host-safe env: the
+ * real pan (window origin pre-set to the literal x target so the x-loop is empty;
+ * the y-loop steps through the testglob composite recorder), the real dialog VM
+ * over an immediate-END page program (pages 2..6 share a 1-glyph body; the glyph
+ * blit is the testglob recorder), the real portrait loader with alloc_offset 0 so
+ * the race scan is a host-safe no-op (still re-reads FDFIELD.DAT + rewrites
+ * FD2.TMP), and the real AI-flag writer over a 0x20-entry runtime_char array.
+ * The still-unemitted fd2_cinematic_warp_char_to_tile is the testglob recording
+ * stub, so the warp char/tile arguments are observable directly (its full
+ * teleport animation is pure display deferred to Phase 9). The dialog glyph
+ * pixels and the pan composites are pure display side effects, deferred to Phase
+ * 9; they execute for real here only as a byproduct and are not asserted.
+ *
+ * Own in-memory fixtures (own flags buffer + render workspace + dialog program +
+ * 0x20-entry runtime_char array) so the suite never aliases the h4d/h4e/h4f state.
+ * ================================================================ */
+#define CE52_AI_OFF      0x34       /* combat_aux_block[0xD] absolute offset */
+#define CE52_NCHARS      0x30       /* must cover boss/pair indices up to ~0x20 */
+
+static uint8        g_ce52_flags[0x20];        /* [0x10] = stage counter            */
+static runtime_char g_ce52_rc[CE52_NCHARS];    /* AI-nibble + warp char targets     */
+static uint8       *g_ce52_tileevent;          /* portrait loader scan base         */
+#define CE52_WS_SPAN (191u * 0x1c8u + 0x138u)
+static uint8 g_ce52_ws[CE52_WS_SPAN];          /* render workspace for pan composite */
+static uint8 g_ce52_atlas[6 + 64 * 4 + 4];
+static int16 g_ce52_text[0x10];                /* dialog program: pages 2..6 -> body */
+
+/* offset 0x34 of char `idx` (combat_aux_block[0xD]), read as a raw byte */
+static uint8 ce52_ai(int idx)
+{
+    return ((uint8 *)&g_ce52_rc[idx])[CE52_AI_OFF];
+}
+
+/* Stand up the full real-pan + real-dialog + real-portrait + AI-flag env. `stage`
+ * seeds the stage counter; the window origin starts at (0x10, start_oy) so the two
+ * pans' x-loops are empty (x already on target) and the y-loops step to 1 then
+ * 0xE. Every char's combat_aux_block[0xD] is seeded 0xA5 (non-zero high + low
+ * nibble) so the AI writes (disarm-to-0 / arm-to-0xB) and the out-of-range
+ * preservation are all observable. */
+static void ce52_setup(uint8 stage, uint32 start_oy)
+{
+    int i;
+    uint32 *atlas_tbl;
+
+    /* --- handler state: stage byte --- */
+    memset(g_ce52_flags, 0, sizeof(g_ce52_flags));
+    g_ce52_flags[0x10] = stage;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ce52_flags;
+
+    /* --- runtime_char array: AI nibbles seeded 0xA5 across the whole array --- */
+    memset(g_ce52_rc, 0, sizeof(g_ce52_rc));
+    for (i = 0; i < CE52_NCHARS; i++) {
+        ((uint8 *)&g_ce52_rc[i])[CE52_AI_OFF] = 0xA5;
+    }
+    data_fd2_battle_runtime_char_array_ptr = g_ce52_rc;
+
+    /* --- portrait loader env: alloc_offset 0 -> race scan is a host-safe no-op --- */
+    g_ce52_tileevent = (uint8 *)malloc(0x98 + 0x20);
+    memset(g_ce52_tileevent, 0, 0x98 + 0x20);
+    data_fd2_tile_event_data_table_ptr = (uint32)g_ce52_tileevent;
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_init_phase_flag = 1;
+    data_fd2_battle_party_member_count = 0;
+    data_fd2_chapter_current_chapter_id = 4;       /* re-read idx = 4*3+2 = 0xE */
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_resource_portrait_cache_count = 0;
+    data_fd2_resource_portrait_cache_buffer_used = 0;
+
+    /* --- render env for the two pan composites --- */
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_ce52_ws - 0x8088;
+    data_fd2_battle_view_window_max_x = 0x100;
+    data_fd2_battle_view_window_max_y = 0x100;
+    data_fd2_battle_view_window_origin_x = 0x10;   /* x already on target -> empty x-loop */
+    data_fd2_battle_view_window_origin_y = start_oy;
+    data_fd2_battle_anim_phase = 1;
+    atlas_tbl = (uint32 *)(g_ce52_atlas + 6);
+    for (i = 0; i < 64; i++) {
+        atlas_tbl[i] = (uint32)i;
+    }
+    data_fd2_runtime_battle_state_ptr = (uint32)g_ce52_atlas;
+    data_fd2_animation_palette_cycle_last_tick = (uint16)BIOS_TICK_WORD;
+
+    /* --- dialog VM program: page headers 2..6 each point at a shared 1-glyph +
+     * END body (byte offset 14 = int16 index 7). Each dialog call renders one
+     * glyph then returns (no page-break wait). --- */
+    for (i = 0; i < 0x10; i++) {
+        g_ce52_text[i] = 0;
+    }
+    for (i = 2; i <= 6; i++) {
+        g_ce52_text[i] = (int16)(7 * 2);
+    }
+    g_ce52_text[7] = 0x41;                          /* one TEXT glyph */
+    g_ce52_text[8] = -1;                            /* END */
+    current_chapter_text = (uint32)(uint8 *)g_ce52_text;
+
+    /* deterministic dialog VM env: empty BIOS keyboard buffer + audio gated + no
+     * active portrait so END takes neither the page-break wait nor the
+     * portrait-close path. */
+    *(volatile uint16 *)0x41AuL = 0x20;
+    *(volatile uint16 *)0x41CuL = 0x20;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    audiofix_enable_sfx();
+    data_fd2_audio_fdother_sfx_bank_buf_ptr = audiofix_make_bank(0x1F);
+
+    /* --- recorders --- */
+    g_composite_call_count = 0;
+    g_dlg_glyph_calls = 0;
+    g_warp_char_calls = 0;
+    memset(g_warp_char_id, 0, sizeof(g_warp_char_id));
+    memset(g_warp_tile_x, 0, sizeof(g_warp_tile_x));
+    memset(g_warp_tile_y, 0, sizeof(g_warp_tile_y));
+}
+
+static void ce52_teardown(void)
+{
+    audiofix_disable_sfx();
+    free(g_ce52_tileevent);
+    g_ce52_tileevent = 0;
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
+    data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_init_phase_flag = 0;
+    data_fd2_battle_party_member_count = 4;
+    data_fd2_chapter_current_chapter_id = 1;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    current_chapter_text = 0;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+    remove("FD2.TMP");        /* generated swap file (not a staged game file) */
+}
+
+/* ----------------------------------------------------------------
+ * STAGE 0 (the != 4 spawn branch): drive the handler at stage 0.
+ *   - dialog page = stage + 2 = 2 renders (one glyph),
+ *   - THREE warps fire with the exact computed indices and literal tiles:
+ *       boss   = 0x18 - 0 = 0x18 onto (0x16, 0x12),
+ *       pair A = 2*0 + 0x19 = 0x19 onto (0x15, 0x12),
+ *       pair B = 2*0 + 0x1A = 0x1A onto (0x17, 0x12),
+ *   - the boss char 0x18 is DISARMED: combat_aux_block[0xD] low nibble = 0 with
+ *     the high nibble preserved (0xA5 -> 0xA0); the just-outside chars 0x17 and
+ *     0x19 keep 0xA5,
+ *   - battle_anim_phase ends at 1.
+ * The dispatch arg is passed nonzero to prove it is ignored.
+ * ---------------------------------------------------------------- */
+static void test_h52_stage0_spawn_branch(void)
+{
+    ce52_setup(0, 0x20);
+
+    fd2_chapter_event_handler_52__ch30_major_cinematic(0x77);
+
+    /* dialog ran for page stage+2 = 2: exactly one glyph rendered */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+
+    /* THREE warps with exact indices + literal tiles */
+    ASSERT_EQ((long)g_warp_char_calls, 3);
+    ASSERT_EQ((long)g_warp_char_id[0], 0x18);   /* boss = 0x18 - stage */
+    ASSERT_EQ((long)g_warp_tile_x[0], 0x16);
+    ASSERT_EQ((long)g_warp_tile_y[0], 0x12);
+    ASSERT_EQ((long)g_warp_char_id[1], 0x19);   /* pair A = 2*stage + 0x19 */
+    ASSERT_EQ((long)g_warp_tile_x[1], 0x15);
+    ASSERT_EQ((long)g_warp_tile_y[1], 0x12);
+    ASSERT_EQ((long)g_warp_char_id[2], 0x1A);   /* pair B = 2*stage + 0x1A */
+    ASSERT_EQ((long)g_warp_tile_x[2], 0x17);
+    ASSERT_EQ((long)g_warp_tile_y[2], 0x12);
+
+    /* boss char 0x18 disarmed: low nibble 0, high nibble preserved -> 0xA0 */
+    ASSERT_EQ((long)ce52_ai(0x18), 0xA0);
+    /* single-char range: immediate neighbours untouched */
+    ASSERT_EQ((long)ce52_ai(0x17), 0xA5);
+    ASSERT_EQ((long)ce52_ai(0x19), 0xA5);
+
+    /* end state */
+    ASSERT_EQ((long)data_fd2_battle_anim_phase, 1);
+
+    ce52_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * STAGE 3 (still the != 4 spawn branch): the warp/AI indices track the stage, so
+ * a second stage proves the arithmetic is computed, not constant.
+ *   - dialog page = 3 + 2 = 5,
+ *   - boss   = 0x18 - 3 = 0x15 onto (0x16, 0x12),
+ *   - pair A = 2*3 + 0x19 = 0x1F onto (0x15, 0x12),
+ *   - pair B = 2*3 + 0x1A = 0x20 onto (0x17, 0x12),
+ *   - the boss char 0x15 is disarmed to low-nibble 0 (0xA5 -> 0xA0); char 0x14
+ *     (the stage-4 target) and char 0x16 stay 0xA5,
+ *   - battle_anim_phase ends at 1.
+ * ---------------------------------------------------------------- */
+static void test_h52_stage3_indices_track_stage(void)
+{
+    ce52_setup(3, 0x20);
+
+    fd2_chapter_event_handler_52__ch30_major_cinematic(0);
+
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);          /* page 5 rendered one glyph */
+
+    ASSERT_EQ((long)g_warp_char_calls, 3);
+    ASSERT_EQ((long)g_warp_char_id[0], 0x15);       /* boss = 0x18 - 3 */
+    ASSERT_EQ((long)g_warp_char_id[1], 0x1F);       /* pair A = 6 + 0x19 */
+    ASSERT_EQ((long)g_warp_char_id[2], 0x20);       /* pair B = 6 + 0x1A */
+
+    ASSERT_EQ((long)ce52_ai(0x15), 0xA0);           /* boss disarmed */
+    ASSERT_EQ((long)ce52_ai(0x14), 0xA5);           /* stage-4 target untouched here */
+    ASSERT_EQ((long)ce52_ai(0x16), 0xA5);
+
+    ASSERT_EQ((long)data_fd2_battle_anim_phase, 1);
+
+    ce52_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * STAGE 4 (the final branch): the handler takes the OTHER path — no portrait
+ * load, no paired warps, and a DIFFERENT AI write.
+ *   - dialog page = 4 + 2 = 6 renders,
+ *   - exactly ONE warp fires: boss = 0x18 - 4 = 0x14 onto (0x16, 0x12)
+ *     (the boss-line bottom; this is the only warp on the final stage),
+ *   - char 0x14 is ARMED with AI mode 0xB: low nibble = 0xB, high nibble
+ *     preserved (0xA5 -> 0xAB) — the defining contrast against the stage 0..3
+ *     disarm-to-0; neighbours 0x13 and 0x15 stay 0xA5,
+ *   - battle_anim_phase ends at 1.
+ * The dispatch arg is passed nonzero to prove it is ignored.
+ * ---------------------------------------------------------------- */
+static void test_h52_stage4_final_branch(void)
+{
+    ce52_setup(4, 0x20);
+
+    fd2_chapter_event_handler_52__ch30_major_cinematic(0x77);
+
+    /* dialog ran for page 6 */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+
+    /* exactly ONE warp on the final stage (no paired spawns) */
+    ASSERT_EQ((long)g_warp_char_calls, 1);
+    ASSERT_EQ((long)g_warp_char_id[0], 0x14);       /* boss = 0x18 - 4 */
+    ASSERT_EQ((long)g_warp_tile_x[0], 0x16);
+    ASSERT_EQ((long)g_warp_tile_y[0], 0x12);
+
+    /* char 0x14 ARMED to 0xB (high nibble preserved) -> 0xAB */
+    ASSERT_EQ((long)ce52_ai(0x14), 0xAB);
+    /* single-char range: immediate neighbours untouched */
+    ASSERT_EQ((long)ce52_ai(0x13), 0xA5);
+    ASSERT_EQ((long)ce52_ai(0x15), 0xA5);
+
+    ASSERT_EQ((long)data_fd2_battle_anim_phase, 1);
+
+    ce52_teardown();
+}
+
 void run_field_chevt26_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -613,5 +905,8 @@ void run_field_chevt26_tests(void)
     RUN_TEST(test_h51_advances_stage_and_schedules);
     RUN_TEST(test_h51_advance_ungated_and_offsets_exact);
     RUN_TEST(test_h51_both_stores_are_8bit_wrap);
+    RUN_TEST(test_h52_stage0_spawn_branch);
+    RUN_TEST(test_h52_stage3_indices_track_stage);
+    RUN_TEST(test_h52_stage4_final_branch);
     printf("\n");
 }
