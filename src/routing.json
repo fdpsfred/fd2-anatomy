@@ -3878,8 +3878,9 @@
     "name": "fd2_chapter_event_handler_12__ch15_dialog_with_state",
     "target": "field/chevt1.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00034f42": {
     "name": "fd2_chapter_event_handler_26__ch15_dialog",

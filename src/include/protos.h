@@ -217,6 +217,7 @@ void fd2_chapter_event_handler_0e__ch5_dialog_with_state(uint32 event_arg);
 void fd2_chapter_event_handler_0f__ch5_dialog_with_state(uint32 event_arg);
 void fd2_chapter_event_handler_10__ch5_dialog(uint32 event_arg);
 void fd2_chapter_event_handler_11__ch5_dialog_with_state(uint32 event_arg);
+void fd2_chapter_event_handler_12__ch15_dialog_with_state(uint32 event_arg);
 void fd2_chapter_event_handler_13__unref_char_cond(uint32 event_arg);
 void fd2_chapter_event_handler_14__ch6_dialog(uint32 event_arg);
 void fd2_chapter_event_handler_15__ch6_char_cond(uint32 event_arg);

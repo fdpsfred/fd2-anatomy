@@ -1,10 +1,10 @@
 /*
- * unit tests for src/field/chevt1.c (part 5: handler 0D)
+ * unit tests for src/field/chevt1.c (part 5: handlers 0D, 12)
  *
  * The chapter turn-event handlers in src/field/chevt1.c are dispatched as
  * indices of the per-event handler table at 0x51B91. Parts 1..4 (chevt11.c /
  * chevt12.c / chevt13.c / chevt14.c) cover the other handlers; this part covers
- * handler 0D.
+ * handlers 0D and 12 (both chapter-15 turn-event slots).
  *
  * fd2_chapter_event_handler_0d__ch15_dialog_with_state @ 0x34E90 is dispatch
  * idx 0x0D of that table — chapter 15 turn-event slot 0, fired at turn 4 /
@@ -202,10 +202,115 @@ static void test_ch15_event0d_page6_arms_boss_ai3_and_clears_midtier(void)
     ev0d_restore_env();
 }
 
+/* ================================================================
+ * handler 12 — fd2_chapter_event_handler_12__ch15_dialog_with_state @ 0x34F02
+ *   chapter 15 turn-event slot 1, fired at turn 9 / phase 0. Its beat is a
+ *   straight-line, no-branch sequence (no RNG, no numeric computation, no
+ *   CALL-return value used):
+ *     - dialog page 8 is shown;
+ *     - the per-event AI/dialog control flag (low nibble of combat_aux_block[0xD],
+ *       struct offset 0x34) is disarmed by writing low nibble 0 across chars
+ *       0x10..0x22 inclusive (19 chars) via the real range setter (which masks
+ *       the byte to (old & 0xF0) | new_val, so only the low nibble moves and the
+ *       high nibble survives).
+ *
+ * Both callees are REAL. The 0x10..0x22 writes fit the shared g_ev_rc[0x48]
+ * fixture (max index 0x47), so no private oversized array is needed; only the
+ * dialog program and glyph recorder are overridden on top of ev_install_safe_env.
+ * ================================================================ */
+
+/* per-page-distinct-glyph dialog program (page p -> single glyph idx 0x50+p,
+ * then END), identical layout to g_ev0d_dlg, so the dispatched page is
+ * identifiable by the recorded glyph idx. */
+static int16 g_ev12_dlg[0x11 + 2 * 0x11];
+
+static void ev12_install_env(void)
+{
+    int p;
+
+    /* shared real dialog-VM / safe env; points the runtime-char pointer at the
+     * shared g_ev_rc fixture (g_ev_rc[0x48] covers the 0x10..0x22 writes) and
+     * installs an immediate-END dialog program — both the program and the glyph
+     * recorder are overridden below. */
+    ev_install_safe_env();
+
+    for (p = 0; p <= 0x10; p++) {
+        g_ev12_dlg[p] = (int16)((0x11 + 2 * p) * 2);   /* byte offset of glyph */
+        g_ev12_dlg[0x11 + 2 * p] = (int16)(0x50 + p);  /* page p glyph idx */
+        g_ev12_dlg[0x12 + 2 * p] = -1;                  /* page p END */
+    }
+    current_chapter_text = (uint32)g_ev12_dlg;
+
+    /* no portrait open on entry, so the dialog END path skips the close
+     * sequence and returns at once (one glyph for the dispatched page). */
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+
+    /* reset the glyph recorder so the per-test count is clean. */
+    g_dlg_glyph_calls = 0;
+    g_dlg_glyph_last_idx = 0;
+}
+
+/* Seed combat_aux_block[0xD] of every touched char (and the boundary guards) to
+ * 0xA5 (high nibble 0xA must survive, low nibble 0x5 must move to 0), and the
+ * in-slot neighbour bytes [0xC]/[0xE] to distinct sentinels so the low-nibble-
+ * only write is independently witnessed. */
+static void ev12_seed(void)
+{
+    int i;
+
+    for (i = 0x10; i <= 0x22; i++) {
+        g_ev_rc[i].combat_aux_block[0xD] = 0xA5;
+        g_ev_rc[i].combat_aux_block[0xC] = 0xCC;   /* in-slot neighbour guard */
+        g_ev_rc[i].combat_aux_block[0xE] = 0xEE;   /* in-slot neighbour guard */
+    }
+
+    /* chars just outside the range: must stay at their seeded sentinel. */
+    g_ev_rc[0x0F].combat_aux_block[0xD] = 0xA5;    /* below range */
+    g_ev_rc[0x23].combat_aux_block[0xD] = 0xA5;    /* above range */
+}
+
+/* ----------------------------------------------------------------
+ * The handler fires its one beat: dialog page 8, then disarm the AI flag of
+ * chars 0x10..0x22 ([0xD] low nibble 0). All deterministic and observable;
+ * checked in one pass.
+ * ---------------------------------------------------------------- */
+static void test_ch15_event12_page8_clears_ai_flag_0x10_to_0x22(void)
+{
+    ev12_install_env();
+    ev12_seed();
+
+    fd2_chapter_event_handler_12__ch15_dialog_with_state(0);
+
+    /* (1) exactly page 8 was shown: one glyph, idx 0x58 (= 0x50 + page 8). */
+    ASSERT_EQ((long)g_dlg_glyph_calls, 1);
+    ASSERT_EQ((long)g_dlg_glyph_last_idx, (long)0x58);
+
+    /* (2) combat_aux_block[0xD] low nibble cleared to 0, high nibble preserved
+     * (0xA5 -> 0xA0) across the whole range — boundaries + an interior char. */
+    ASSERT_EQ((long)g_ev_rc[0x10].combat_aux_block[0xD], (long)0xA0);
+    ASSERT_EQ((long)g_ev_rc[0x19].combat_aux_block[0xD], (long)0xA0);
+    ASSERT_EQ((long)g_ev_rc[0x22].combat_aux_block[0xD], (long)0xA0);
+
+    /* (3) range boundaries are exact: the chars just below/above the range keep
+     * their seeded sentinel. */
+    ASSERT_EQ((long)g_ev_rc[0x0F].combat_aux_block[0xD], (long)0xA5);
+    ASSERT_EQ((long)g_ev_rc[0x23].combat_aux_block[0xD], (long)0xA5);
+
+    /* (4) in-slot neighbour bytes survive: the low-nibble-only [0xD] write did
+     * not touch [0xC] or [0xE]. */
+    ASSERT_EQ((long)g_ev_rc[0x10].combat_aux_block[0xC], (long)0xCC);
+    ASSERT_EQ((long)g_ev_rc[0x10].combat_aux_block[0xE], (long)0xEE);
+    ASSERT_EQ((long)g_ev_rc[0x22].combat_aux_block[0xC], (long)0xCC);
+    ASSERT_EQ((long)g_ev_rc[0x22].combat_aux_block[0xE], (long)0xEE);
+
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt15_tests(void)
 {
     int _prev_fails = g_test_fail_count;
     printf("Suite: field/chevt15\n");
     RUN_TEST(test_ch15_event0d_page6_arms_boss_ai3_and_clears_midtier);
+    RUN_TEST(test_ch15_event12_page8_clears_ai_flag_0x10_to_0x22);
     printf("\n");
 }

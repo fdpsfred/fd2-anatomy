@@ -52,6 +52,9 @@
  * fd2_chapter_event_handler_11__ch5_dialog_with_state @ 0x346C8
  *     (0 direct callers; dispatched as idx 0x11 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_12__ch15_dialog_with_state @ 0x34F02
+ *     (0 direct callers; dispatched as idx 0x12 of the per-event
+ *      handler table at 0x51B91)
  * fd2_chapter_event_handler_13__unref_char_cond @ 0x34716
  *     (0 direct callers; dispatched as idx 0x13 of the per-event
  *      handler table at 0x51B91)
@@ -700,6 +703,44 @@ void fd2_chapter_event_handler_11__ch5_dialog_with_state(uint32 event_arg)
     fd2_cutscene_event_trigger(0x18);
     fd2_display_dialog_scene(current_chapter_text, 7, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_12__ch15_dialog_with_state @ 0x34F02
+ *   — Chapter 15 turn-event slot 1 (triggered at turn 9 / phase 0),
+ *     dispatched as idx 0x12 of the per-event handler table at 0x51B91.
+ *
+ * ch15 turn-9 beat: dialog page 8 is shown, then the per-event AI/dialog
+ * control flag (low 4 bits of combat_aux_block[0xD]) is disarmed by
+ * writing 0 across chars 0x10..0x22 (19 chars). A straight-line, no-branch
+ * sequence with no RNG, no numeric computation, and no CALL-return value
+ * used (fd2_display_dialog_scene's uint32 return is discarded).
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * In the original binary this function also HOSTS two class-3 shared
+ * tails that other handlers JMP into to reuse this AI-range call:
+ *   @ 0x34F37 (PUSH 0x10; CALL fd2_set_combat_aux_block_byte_d_low4_for_
+ *     char_range; ADD ESP,0xC; RET) — shared by handlers 0x2B (ch18),
+ *     0x2D (ch19), 0x54 (ch27), which pre-push the type and end args.
+ *   @ 0x34F39 (CALL ...; ADD ESP,0xC; RET) — shared by handlers 0x2C
+ *     (ch19) and 0x30 (ch21), which pre-push all three args themselves.
+ * Those tails are an in-binary layout artifact of code-folding and are
+ * reproduced here only as this function's own inline call; the consuming
+ * handlers emit their own equivalent calls for Layer-2 equivalence.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_15.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_12__ch15_dialog_with_state(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_display_dialog_scene(current_chapter_text, 8, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x10, 0x22, 0);
 }
 
 /* ----------------------------------------------------------------
