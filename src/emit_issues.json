@@ -533,5 +533,18 @@
         "source_review": "fd2_chapter_event_handler_0d__ch15_dialog_with_state @00034e90 (reviewer-approved)"
       }
     ]
+  },
+  "00034fcb": {
+    "name": "fd2_chapter_event_handler_28__ch17_dialog_with_state",
+    "target": "field/chevt1.c",
+    "issues": [
+      {
+        "type": "bookkeeping_flag_mismatch",
+        "desc": "Emitter self-report bookkeeping artifact (non-blocking, no code impact): the report sets c_changed=false and files_touched=[], but git diff HEAD shows the handler_28 C body (src/field/chevt1.c), the protos.h declaration, AND the test (tests/field/chevt15.c) WERE added and are present in the working tree, and the build passed with them. The report reflects only the emitter's final FIX-round (which re-touched just the Ghidra plate); the C/test were produced in the original emit. The diff (authoritative review artifact) is complete and correct. Future reports should carry the cumulative c_changed/files_touched state, not only the last fix-round delta.",
+        "severity": "low",
+        "verify_method": "next_round_set_flags",
+        "source_review": "fd2_chapter_event_handler_28__ch17_dialog_with_state @00034fcb (reviewer-approved)"
+      }
+    ]
   }
 }

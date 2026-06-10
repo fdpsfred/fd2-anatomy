@@ -242,6 +242,7 @@ void fd2_chapter_event_handler_24__ch12_ai_ctrl(uint32 event_arg);
 void fd2_chapter_event_handler_25__unref_major_cinematic(uint32 event_arg);
 void fd2_chapter_event_handler_26__ch15_dialog(uint32 event_arg);
 void fd2_chapter_event_handler_27__unref_drop(uint32 stepping_char_id);
+void fd2_chapter_event_handler_28__ch17_dialog_with_state(uint32 event_arg);
 
 void fd2_setup_chars_and_camera_for_intro(uint32 pos_x_table, uint32 pos_y_table,
                                           uint32 facing_table, uint32 place_start,

@@ -115,6 +115,9 @@
  * fd2_chapter_event_handler_27__unref_drop @ 0x34F74
  *     (0 direct callers; dispatched as idx 0x27 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_28__ch17_dialog_with_state @ 0x34FCB
+ *     (0 direct callers; dispatched as idx 0x28 of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -1776,5 +1779,50 @@ void fd2_chapter_event_handler_27__unref_drop(uint32 stepping_char_id)
     drop_entry[2] = data_fd2_chapter_event_handler_27_drop_entry_inline[2];
     fd2_process_battle_drop_entries(stepping_char_id, 1, (uint32)drop_entry);
     fd2_display_dialog_scene(current_chapter_text, 0xB, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_28__ch17_dialog_with_state @ 0x34FCB
+ *   — Chapter 17 turn-event slot 0 (triggered at turn 4 / phase 1),
+ *     dispatched as idx 0x28 of the per-event handler table at 0x51B91.
+ *
+ * ch17 turn-4 beat: reload portrait set 2, pan the camera to (0x11,
+ * 0x25), then show dialog page 1 with the standard dialog geometry. A
+ * straight-line, no-branch sequence with no cutscene trigger, no state
+ * writes beyond the portrait reload and the camera pan, no RNG, no
+ * numeric computation, and no CALL-return value used.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * In the original binary this handler runs its own prefix
+ * (fd2_load_chapter_portraits_and_dump_tmp(2); fd2_pan_cursor_and_window(
+ * 0x11, 0x25)) and then JMPs (0x34FEB -> 0x34BF6) into the +0x0F shared
+ * entry point of fd2_show_chapter_dialog_with_portrait_set_1 @ 0x34BE7:
+ * the start of its 8-PUSH chain (page=1 plus the fixed dialog geometry)
+ * followed by the "PUSH current_chapter_text; CALL fd2_display_dialog_scene;
+ * ADD ESP,0x24; RET" tail. The JMP skips that body's own portrait reload
+ * (PUSH 1; CALL fd2_load_chapter_portraits_and_dump_tmp at 0x34BEC) because
+ * this handler has already reloaded portrait set 2. The borrowed body's
+ * effect — the page-1 dialog — is reproduced here as the inline call for
+ * Layer-2 equivalence.
+ *
+ * Magic numbers (matching every dialog call in this group):
+ *   0xA0000 VGA framebuffer base, 0x140 (=320) row stride,
+ *   0xCD/0x4C dialog window position (X, Y), 0x4A charset/style code,
+ *   0x13 (=19) max line count, 1 wait-for-input flag.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_17.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_28__ch17_dialog_with_state(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_load_chapter_portraits_and_dump_tmp(2);
+    fd2_pan_cursor_and_window(0x11, 0x25);
+    fd2_display_dialog_scene(current_chapter_text, 1, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
