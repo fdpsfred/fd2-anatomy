@@ -118,3 +118,73 @@ void fd2_flood_fill_movement_range_recursive(uint8 x, uint8 y, uint8 cost,
         }
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_flood_fill_neighbor_step @ 0x4E16E (4 callers: all four directions of
+ * fd2_flood_fill_movement_range_recursive @ 0x4E0DC)
+ *
+ * Inner step of the movement-range flood fill: visit one neighbour tile, look
+ * up its movement cost via the two-level cost tables, and conditionally update
+ * the tile's BTM marker when the new residual cost beats the existing marker.
+ *
+ * In FD2.LE this is a register-passing leaf with no stack frame: remaining cost
+ * in CL, the tile's marker pointer in EBX, the secondary cost-table base live in
+ * ESI (set once by the orchestrator and inherited through the whole recursion),
+ * and it signals "improved, keep expanding" back to the caller via the carry
+ * flag (CLC = improved / recurse, STC = skip) while writing the new residual
+ * into the marker byte. This emit is Layer-2 equivalent: the carry result
+ * becomes the int return value (non-zero == binary CLC) and the updated residual
+ * is handed back through new_cost_out, which is how the caller obtains the value
+ * (CL) it feeds into the recursive descent. The ESI cost-table base is read from
+ * data_fd2_battle_pathfind_caller_context, the global the orchestrator writes ESI
+ * into at entry (0x4E047), so the value is identical to the inherited register.
+ *
+ *   remaining_cost : residual movement budget at the source tile (CL).
+ *   btm_attr_ptr   : pointer to the neighbour tile's marker byte (EBX); the raw
+ *                    16-bit attribute word lives at [-3..-2] and the flags byte
+ *                    at [-1] relative to it.
+ *   new_cost_out   : receives the residual cost passed to the neighbour
+ *                    (remaining_cost - tile_cost, forced to 0 for an 0x80 sink).
+ *
+ * Attribute -> cost: the low 10 bits of the attribute word index the primary
+ * table (pointer at 0x60060) at [(attr<<2)+1] to get a secondary index, which
+ * indexes the secondary cost table (ESI base) to get the tile's movement cost.
+ * The marker is rewritten (and non-zero returned) only when the tile is
+ * affordable (tile_cost <= remaining_cost), strictly improves on the current
+ * marker (signed compare), and is not flagged impassable (flags & 0x40). An
+ * 0x80 "movement sink" tile is marked reachable but with residual 0 so the
+ * recursion stops expanding past it.
+ * ---------------------------------------------------------------- */
+int fd2_flood_fill_neighbor_step(uint8 remaining_cost, uint8 *btm_attr_ptr,
+    uint8 *new_cost_out)
+{
+    uint16 attr_word;       /* AX  : raw 16-bit attribute word at [btm_attr_ptr-3] */
+    uint8  cost_idx;        /* CH  : secondary-table index from the primary table */
+    uint8  tile_cost;       /* cost_table[cost_idx] (ESI base) */
+    uint8  new_cost;        /* CL  : remaining_cost - tile_cost */
+    uint8  flags;           /* AL  : flags byte at [btm_attr_ptr-1] */
+
+    /* low 10 bits of the attribute word, *4, select the primary-table entry;
+     * its +1 byte is the index into the secondary cost table (ESI base). */
+    attr_word = *(uint16 *)(btm_attr_ptr - 3);
+    cost_idx = *(uint8 *)(data_fd2_battle_pathfind_tile_cost_table_ptr
+        + (uint16)((attr_word & 0x3FF) << 2) + 1);
+    tile_cost = *(uint8 *)(data_fd2_battle_pathfind_caller_context
+        + (uint32)cost_idx);
+
+    new_cost = (uint8)(remaining_cost - tile_cost);
+    *new_cost_out = new_cost;
+
+    flags = *(btm_attr_ptr - 1);
+    if (tile_cost <= remaining_cost
+        && (int8)*btm_attr_ptr < (int8)new_cost
+        && (flags & 0x40) == 0) {
+        if ((flags & 0x80) != 0) {
+            new_cost = 0;
+        }
+        *btm_attr_ptr = new_cost;
+        *new_cost_out = new_cost;
+        return 1;
+    }
+    return 0;
+}

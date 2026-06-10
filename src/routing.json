@@ -4654,8 +4654,9 @@
     "name": "fd2_flood_fill_neighbor_step",
     "target": "util/pathfnd.c",
     "phase": 2,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004e1a6": {
     "name": "fd2_pathfind_to_destination",

@@ -262,15 +262,16 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
   正確 emit，不需重做）。`fd2_pathfind_record_destination_xy` 等 helper 正是 spy 原本假造的真實對應，
   emit 後即提供真值。
 
-- **進度（0x4E0DC 已 emit）**：`fd2_flood_fill_movement_range_recursive` @ 0x4E0DC 已落到
-  `src/util/pathfnd.c`，以原生 C 遞迴 + 參數 `(x, y, cost, btm_ptr)` 取代原本 register-passing
-  + EDI 手刻遞迴堆疊（Layer-2 等價：相同 marker 寫入、相同 right/left/down/up 訪問順序、相同終止）。
-  它會呼叫尚未 emit 的內部 helper `fd2_flood_fill_neighbor_step` @ 0x4E16E，故本次在
-  `tests/testglob.c` 新增一個**忠實**的 `fd2_flood_fill_neighbor_step` 測試 stub（重現 binary 的
-  cost 查表 + signed-improvement + marker 寫入 + carry 邏輯，並用 `g_ffns_*` recorder 記錄每次呼叫的
-  btm offset/cost）。**待 0x4E16E 真正 emit 時，這個 stub 與 `g_ffns_*` recorder 一併移除**（與本節
-  其餘 coordinated landing 同樣處理，避免 W1027 redefinition）。剩餘 5 個 internal helper 與 2 個
-  entry 仍依本節規畫處理。
+- **進度（0x4E0DC、0x4E16E 已 emit）**：兩個 bottom-up helper 已落到 `src/util/pathfnd.c`。
+  `fd2_flood_fill_movement_range_recursive` @ 0x4E0DC 以原生 C 遞迴 + 參數 `(x, y, cost, btm_ptr)`
+  取代原本 register-passing + EDI 手刻遞迴堆疊（Layer-2 等價：相同 marker 寫入、相同 right/left/down/up
+  訪問順序、相同終止）。`fd2_flood_fill_neighbor_step` @ 0x4E16E（內部 step：cost 查表 +
+  signed-improvement gate + 0x40/0x80 flag + marker 寫入）以 `int` 回傳取代原本的 carry-flag 訊號、
+  residual 透過 `new_cost_out` 交回呼叫者；原本 ESI 內活著的 secondary cost-table base 改讀
+  orchestrator 在 entry 寫入的 `data_fd2_battle_pathfind_caller_context`（0x6006A）。emit 0x4E16E 時
+  已一併移除 `tests/testglob.c` 內它的忠實測試 stub 與 `g_ffns_*` recorder，並把 floodfill 呼叫者測試
+  改成直接斷言真實 marker grid（不再用 spy recorder）。剩餘 4 個 internal helper（0x4E27C、0x4E330、
+  0x4E3B3、0x4E401）與 2 個 entry 仍依本節規畫處理。
 
 ### 34. crt/crt.c 的 dos_main_bootstrap 需 within-branch 小型 coordinated landing
 

@@ -70,14 +70,12 @@ static void test_pathfind_count_unique_dirs(void)
     ASSERT_EQ(result, 8);
 }
 
-/* --- flood-fill recursion tests (fd2_flood_fill_movement_range_recursive) ---
- * The neighbour step (fd2_flood_fill_neighbor_step) is a faithful test stub in
- * testglob.c that records each call and applies the real marker/carry logic, so
- * these tests assert both the resulting marker grid and the traversal. */
-extern uint8 *g_ffns_origin;
-extern int    g_ffns_calls;
-extern int    g_ffns_off[64];
-extern uint8  g_ffns_cost[64];
+/* --- flood-fill tests (fd2_flood_fill_movement_range_recursive @ 0x4E0DC and
+ * its inner step fd2_flood_fill_neighbor_step @ 0x4E16E, both real-emitted in
+ * src/util/pathfnd.c). The recursion tests seed a small real tile map + cost
+ * tables and assert the resulting marker grid (which exercises the neighbour
+ * step's cost lookup, affordability/improvement gates and 0x40/0x80 flags end
+ * to end); dedicated neighbour-step tests below cover each branch directly. */
 
 /* Tile map = MAPW*MAPH tiles of 4 bytes each ([attr_lo,attr_hi,flags,marker]),
  * wrapped in GUARD bytes on each side to catch any out-of-bounds write. */
@@ -106,8 +104,6 @@ static void ff_reset(void)
     data_fd2_battle_pathfind_caller_context = (uint32)ff_costtab;
     data_fd2_battle_pathfind_map_width = MAPW;
     data_fd2_battle_pathfind_map_height = MAPH;
-    g_ffns_calls = 0;
-    g_ffns_origin = 0;
 }
 
 /* Assert the GUARD margins were never touched (no OOB btm write). */
@@ -136,7 +132,6 @@ static void test_floodfill_open_diamond(void)
     int row;
 
     ff_reset();
-    g_ffns_origin = &FF_MARK(2, 2);
     FF_MARK(2, 2) = 3;                 /* origin seeded by the orchestrator */
     fd2_flood_fill_movement_range_recursive(2, 2, 3, &FF_MARK(2, 2));
 
@@ -163,7 +158,6 @@ static void test_floodfill_corner_clamp(void)
     int row;
 
     ff_reset();
-    g_ffns_origin = &FF_MARK(0, 0);
     FF_MARK(0, 0) = 2;
     fd2_flood_fill_movement_range_recursive(0, 0, 2, &FF_MARK(0, 0));
 
@@ -185,7 +179,6 @@ static void test_floodfill_blocked_and_sink(void)
     ff_reset();
     FF_FLAGS(3, 2) = 0x40;             /* impassable, east of origin */
     FF_FLAGS(2, 1) = 0x80;             /* sink, north of origin */
-    g_ffns_origin = &FF_MARK(2, 2);
     FF_MARK(2, 2) = 4;
     fd2_flood_fill_movement_range_recursive(2, 2, 4, &FF_MARK(2, 2));
 
@@ -210,32 +203,171 @@ static void test_floodfill_blocked_and_sink(void)
     (void)col; (void)row;
 }
 
-/* Traversal contract: with a budget that cannot improve any neighbour
- * (cost=1, step cost=1 -> new_cost 0 <= existing 0), the routine calls the
- * neighbour step exactly once per in-bounds direction, in right/left/down/up
- * order, with offsets +4 / -4 / +stride / -stride and never recurses. */
-static void test_floodfill_visit_order(void)
+/* A budget too small to improve any neighbour: cost=1 with a step cost of 1
+ * yields new_cost 0, which never improves on the existing 0 marker, so no
+ * neighbour is marked and the fill cannot recurse -- the whole grid stays 0
+ * except the seeded origin. */
+static void test_floodfill_no_improvement_no_spread(void)
 {
-    int stride;
+    int col;
+    int row;
 
     ff_reset();
-    stride = MAPW * 4;
-    g_ffns_origin = &FF_MARK(2, 2);
     FF_MARK(2, 2) = 1;
     fd2_flood_fill_movement_range_recursive(2, 2, 1, &FF_MARK(2, 2));
 
-    ASSERT_EQ(g_ffns_calls, 4);
-    ASSERT_EQ(g_ffns_off[0], 4);
-    ASSERT_EQ(g_ffns_off[1], -4);
-    ASSERT_EQ(g_ffns_off[2], stride);
-    ASSERT_EQ(g_ffns_off[3], -stride);
-    ASSERT_EQ(g_ffns_cost[0], 1);
-    ASSERT_EQ(g_ffns_cost[1], 1);
-    ASSERT_EQ(g_ffns_cost[2], 1);
-    ASSERT_EQ(g_ffns_cost[3], 1);
-    /* nothing improved -> no marker beyond the seeded origin */
-    ASSERT_EQ(FF_MARK(2, 1), 0);
-    ASSERT_EQ(FF_MARK(3, 2), 0);
+    for (row = 0; row < MAPH; row++) {
+        for (col = 0; col < MAPW; col++) {
+            ASSERT_EQ(FF_MARK(col, row), (col == 2 && row == 2) ? 1 : 0);
+        }
+    }
+    ASSERT_TRUE(ff_guards_intact());
+}
+
+/* --- direct neighbour-step tests (fd2_flood_fill_neighbor_step @ 0x4E16E) ---
+ * Drive the real helper against a single tile in the shared ff map. The marker
+ * byte sits at offset +3 of a 4-byte tile; the helper reads the attribute word
+ * at [-3..-2] and the flags byte at [-1] relative to that marker pointer, i.e.
+ * the tile's own [attr_lo, attr_hi, flags] -> marker layout. */
+
+/* Wire the cost tables so that attribute `attr` -> tile cost `cost`, place that
+ * attribute + `flags` on tile (2,2), seed its marker, then run the step and
+ * return what it returned; *out receives the residual handed back. */
+static int nstep_run(uint16 attr, uint8 flags, uint8 marker, uint8 remaining,
+    uint8 *out)
+{
+    uint8 *tile;
+
+    ff_reset();
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    tile[0] = (uint8)(attr & 0xFF);
+    tile[1] = (uint8)(attr >> 8);
+    tile[2] = flags;
+    tile[3] = marker;
+    *out = 0;
+    return fd2_flood_fill_neighbor_step(remaining, &tile[3], out);
+}
+
+/* Affordable + strictly improves + passable: marker rewritten to residual,
+ * returns 1, and the out-param mirrors the new residual. attr 0 -> tct[1]=0 ->
+ * costtab[0]=1, so cost 1; remaining 5 -> new 4 > existing 0. */
+static void test_nstep_improves_writes_marker(void)
+{
+    uint8 *tile;
+    uint8 out;
+    int ret;
+
+    ret = nstep_run(0, 0x00, 0, 5, &out);
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    ASSERT_EQ(ret, 1);
+    ASSERT_EQ(tile[3], 4);
+    ASSERT_EQ(out, 4);
+    ASSERT_TRUE(ff_guards_intact());
+}
+
+/* tile_cost > remaining (unsigned borrow / JC): no write, returns 0. Here
+ * remaining 0, cost 1 -> 0 - 1 underflows, must be rejected. */
+static void test_nstep_unaffordable_rejected(void)
+{
+    uint8 *tile;
+    uint8 out;
+    int ret;
+
+    ret = nstep_run(0, 0x00, 7, 0, &out);
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    ASSERT_EQ(ret, 0);
+    ASSERT_EQ(tile[3], 7);          /* marker untouched */
+    ASSERT_TRUE(ff_guards_intact());
+}
+
+/* new_cost == existing must NOT improve (JLE is <=, signed): remaining 5, cost
+ * 1 -> new 4; existing already 4 -> rejected, no write, returns 0. */
+static void test_nstep_equal_not_improving(void)
+{
+    uint8 *tile;
+    uint8 out;
+    int ret;
+
+    ret = nstep_run(0, 0x00, 4, 5, &out);
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    ASSERT_EQ(ret, 0);
+    ASSERT_EQ(tile[3], 4);
+    ASSERT_TRUE(ff_guards_intact());
+}
+
+/* Improvement test is SIGNED: an existing marker with bit7 set (e.g. 0x80) is
+ * negative as int8, so any non-negative new_cost beats it. new 1 (0x01) >
+ * existing -128 -> writes, returns 1. */
+static void test_nstep_signed_improvement(void)
+{
+    uint8 *tile;
+    uint8 out;
+    int ret;
+
+    ret = nstep_run(0, 0x00, 0x80, 2, &out);
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    ASSERT_EQ(ret, 1);
+    ASSERT_EQ(tile[3], 1);
+    ASSERT_EQ(out, 1);
+    ASSERT_TRUE(ff_guards_intact());
+}
+
+/* flags & 0x40 (impassable): even when affordable and improving, never write,
+ * returns 0. */
+static void test_nstep_impassable_flag(void)
+{
+    uint8 *tile;
+    uint8 out;
+    int ret;
+
+    ret = nstep_run(0, 0x40, 0, 5, &out);
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    ASSERT_EQ(ret, 0);
+    ASSERT_EQ(tile[3], 0);          /* marker untouched */
+    ASSERT_TRUE(ff_guards_intact());
+}
+
+/* flags & 0x80 (movement sink): reachable, but the residual written is forced
+ * to 0 (and handed back as 0) so the recursion stops; still returns 1. */
+static void test_nstep_sink_flag_forces_zero(void)
+{
+    uint8 *tile;
+    uint8 out;
+    int ret;
+
+    ret = nstep_run(0, 0x80, 0, 5, &out);
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    ASSERT_EQ(ret, 1);
+    ASSERT_EQ(tile[3], 0);          /* forced to 0, not 4 */
+    ASSERT_EQ(out, 0);
+    ASSERT_TRUE(ff_guards_intact());
+}
+
+/* Two-level lookup: the low 10 bits of the attribute word index the primary
+ * table at [(attr<<2)+1] to get a secondary index, which indexes the cost
+ * table. Use attr=1 -> tct[(1<<2)+1] = tct[5]; set tct[5]=2 -> costtab[2]=3,
+ * so tile cost 3; remaining 10 -> new 7. Bits above bit9 must be masked off, so
+ * attr (0x400 | 1) resolves identically to attr 1. */
+static void test_nstep_cost_table_indexing(void)
+{
+    uint8 *tile;
+    uint8 out;
+    int ret;
+
+    ff_reset();
+    ff_tct[5] = 2;
+    ff_costtab[2] = 3;
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    tile[0] = (uint8)((0x0400 | 1) & 0xFF);   /* attr_lo */
+    tile[1] = (uint8)((0x0400 | 1) >> 8);     /* attr_hi: bit10 set, masked out */
+    tile[2] = 0x00;
+    tile[3] = 0;
+    out = 0;
+    ret = fd2_flood_fill_neighbor_step(10, &tile[3], &out);
+    ASSERT_EQ(ret, 1);
+    ASSERT_EQ(tile[3], 7);          /* 10 - 3 */
+    ASSERT_EQ(out, 7);
+    ASSERT_TRUE(ff_guards_intact());
 }
 
 
@@ -247,6 +379,13 @@ void run_util_pathfnd_tests(void)
     RUN_TEST(test_floodfill_open_diamond);
     RUN_TEST(test_floodfill_corner_clamp);
     RUN_TEST(test_floodfill_blocked_and_sink);
-    RUN_TEST(test_floodfill_visit_order);
+    RUN_TEST(test_floodfill_no_improvement_no_spread);
+    RUN_TEST(test_nstep_improves_writes_marker);
+    RUN_TEST(test_nstep_unaffordable_rejected);
+    RUN_TEST(test_nstep_equal_not_improving);
+    RUN_TEST(test_nstep_signed_improvement);
+    RUN_TEST(test_nstep_impassable_flag);
+    RUN_TEST(test_nstep_sink_flag_forces_zero);
+    RUN_TEST(test_nstep_cost_table_indexing);
     printf("\n");
 }
