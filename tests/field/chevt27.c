@@ -175,6 +175,58 @@ static void test_h54_empty_range_when_party_count_zero(void)
     ce54_teardown();
 }
 
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_55__unref_sentinel @ 0x360D8
+ *
+ * Pure no-op sentinel: the binary body is PUSH 4; CALL __CHK; RET — a stack
+ * probe then an immediate return, with NO state mutation at all. Unlike the
+ * consumed-flag sentinels (handler_49 / 4d / 4e) which each write one
+ * consumed_flags byte, this handler writes nothing.
+ *
+ * The risk here is purely the "does nothing" contract plus cdecl stack
+ * discipline (bare RET, caller cleans the arg). This test drives the REAL
+ * handler with a fully seeded consumed_flags region and a sentinel
+ * battle_anim_phase, then asserts that EVERY byte of both is byte-identical
+ * afterwards — i.e. the handler had no observable side effect — and that it
+ * returns cleanly (a wrong RET width / arg read would corrupt the stack and
+ * crash here, not silently pass). The dispatch arg is passed nonzero to prove
+ * it is ignored.
+ * ---------------------------------------------------------------- */
+#define CE55_FLAGS_LEN  0x20      /* covers every flag slot any sibling uses */
+
+static uint8 g_ce55_flags[CE55_FLAGS_LEN];
+
+static void test_h55_pure_noop_mutates_nothing(void)
+{
+    uint8 flags_before[CE55_FLAGS_LEN];
+    uint32 saved_flags_ptr;
+    uint32 saved_anim_phase;
+    int i;
+
+    /* seed the consumed-flag region with a recognisable non-zero pattern */
+    for (i = 0; i < CE55_FLAGS_LEN; i++) {
+        g_ce55_flags[i] = (uint8)(0x80 | i);
+    }
+    memcpy(flags_before, g_ce55_flags, sizeof(flags_before));
+
+    saved_flags_ptr = data_fd2_field_map_tile_event_consumed_flags_ptr;
+    saved_anim_phase = data_fd2_battle_anim_phase;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ce55_flags;
+    data_fd2_battle_anim_phase = 0x5A5A5A5A;
+
+    fd2_chapter_event_handler_55__unref_sentinel(0x77);
+
+    /* no consumed-flag byte was touched (contrast: handler_49/4d/4e write one) */
+    for (i = 0; i < CE55_FLAGS_LEN; i++) {
+        ASSERT_EQ((long)g_ce55_flags[i], (long)flags_before[i]);
+    }
+    /* battle_anim_phase is likewise untouched */
+    ASSERT_EQ((long)data_fd2_battle_anim_phase, (long)0x5A5A5A5A);
+
+    data_fd2_field_map_tile_event_consumed_flags_ptr = saved_flags_ptr;
+    data_fd2_battle_anim_phase = saved_anim_phase;
+}
+
 void run_field_chevt27_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -183,5 +235,6 @@ void run_field_chevt27_tests(void)
     RUN_TEST(test_h54_end_index_tracks_party_count);
     RUN_TEST(test_h54_single_char_range_when_count_is_start_plus_1);
     RUN_TEST(test_h54_empty_range_when_party_count_zero);
+    RUN_TEST(test_h55_pure_noop_mutates_nothing);
     printf("\n");
 }

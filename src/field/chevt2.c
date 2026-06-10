@@ -1564,3 +1564,32 @@ void fd2_chapter_event_handler_54__ch27_ai_ctrl(uint32 event_arg)
     fd2_set_combat_aux_block_byte_d_low4_for_char_range(
         0x10, data_fd2_battle_party_member_count - 1, 0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_55__unref_sentinel @ 0x360D8
+ *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CE5)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x55. No chapter
+ * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
+ * content / non-chapter dispatcher). Category: pure no-op sentinel. Dispatch-table
+ * signature is 1-arg cdecl (void fn(uint event_arg)); this handler does not read
+ * the arg.
+ *
+ * Effect: NONE. The binary body is an 11-byte stub: PUSH 4; CALL __CHK; RET — a
+ * stack-probe then an immediate return, a placeholder dispatch entry that does
+ * nothing meaningful (no state mutation, no display, no dialog). Unlike the
+ * consumed-flag sentinels (handler_49 / 4d / 4e) it does not even write a flag
+ * byte.
+ *
+ * The "CALL __CHK; RET" tail at 0x360DD is a Class-3 SHARED ENTRY borrowed by
+ * the four following handlers (fd2_chapter_event_handler_56/57/58/59): each
+ * pushes its own __CHK frame size then JMPs into 0x360DD to reuse this tail
+ * instead of emitting its own CALL/RET. That tail-merge is a binary size
+ * optimisation and does not affect this handler's own functionally-exact source.
+ * Stack frame 4 (__CHK) is the Watcom stack-probe prologue and carries no
+ * source-level semantics, so the functionally-exact source is an empty body.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_55__unref_sentinel(uint32 event_arg)
+{
+    (void)event_arg;
+}
