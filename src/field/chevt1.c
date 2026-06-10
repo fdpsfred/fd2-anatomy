@@ -112,6 +112,9 @@
  * fd2_chapter_event_handler_25__unref_major_cinematic @ 0x34CCC
  *     (0 direct callers; dispatched as idx 0x25 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_27__unref_drop @ 0x34F74
+ *     (0 direct callers; dispatched as idx 0x27 of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -1707,5 +1710,71 @@ void fd2_chapter_event_handler_26__ch15_dialog(uint32 event_arg)
 
     fd2_load_chapter_portraits_and_dump_tmp(1);
     fd2_display_dialog_scene(current_chapter_text, 0xA, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* Inline 3-byte battle-drop entry blob baked into the binary at 0x52742,
+ * read only by fd2_chapter_event_handler_27__unref_drop. Layout matches the
+ * drop-entry ABI fd2_process_battle_drop_entries consumes: byte[0] = entry
+ * type (0 = ITEM pickup), byte[1..2] = little-endian uint16 value. Here the
+ * value 0x00D3 is item id 0xD3, so the handler grants item 0xD3 to the
+ * stepping char (when that char is on the player team). */
+const uint8 data_fd2_chapter_event_handler_27_drop_entry_inline[3] = {
+    0x00, 0xD3, 0x00
+};
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_27__unref_drop @ 0x34F74
+ *   — Dispatch idx 0x27 of the per-event handler table at 0x51B91.
+ *
+ * No chapter FDFIELD turn-event / tile-step hook references this slot
+ * (unreferenced — possibly cut content / non-chapter dispatcher),
+ * categorised as battle drop + dialog. It runs the standard tile-step
+ * ABI: the dispatch arg is the id of the char who stepped onto the
+ * trigger tile, and that id is the recipient of the drop. Its single
+ * beat copies the inline 3-byte drop-entry blob
+ * (data_fd2_chapter_event_handler_27_drop_entry_inline = {0x00, 0xD3,
+ * 0x00}, i.e. type 0 / item id 0xD3) onto a local, hands it as a
+ * one-entry array to fd2_process_battle_drop_entries(recipient, 1,
+ * &blob), then shows dialog page 0xB. A straight-line, no-branch
+ * sequence with no RNG, no numeric computation, and no CALL-return value
+ * used (both calls are void-context; the dialog's uint32 return is
+ * discarded).
+ *
+ * fd2_process_battle_drop_entries only opens the drop-reward dialog when
+ * the recipient is on the player team (team == 2); for an enemy/NPC
+ * recipient it returns after reading the entry, so the item dialog is
+ * suppressed but the entry is still consumed.
+ *
+ * void __cdecl(uint stepping_char_id) per the tile-step dispatch hooks:
+ * the stepping char id arrives as a single stack arg (the table at
+ * 0x51B91 is uniform 1-arg cdecl, but tile-step slots pass the stepping
+ * char id rather than the unread turn-event arg). EBX is not touched; the
+ * __CHK(0x34) stack-probe prologue is compiler-injected and omitted here.
+ *
+ * In the original binary the inline blob is copied byte-for-byte into a
+ * 4-byte stack slot (MOVSW + MOVSB over the 3 used bytes); reproduced
+ * here as the three byte copies into drop_entry[3]. The final page-0xB
+ * dialog is emitted inline; the original ends with the cdecl cleanup +
+ * register restore that this function also hosts as the shared tails
+ * alt_43 (@ 0x34FB7) and alt_51 (@ 0x34FC5) borrowed by handlers 0x29 /
+ * 0x33 / 0x37 — those tails are an in-binary code-folding artifact and
+ * are reproduced only as this function's own inline call; the consuming
+ * handlers emit their own equivalent calls for Layer-2 equivalence.
+ *
+ * Magic numbers (matching every dialog call in this group):
+ *   0xA0000 VGA framebuffer base, 0x140 (=320) row stride,
+ *   0xCD/0x4C dialog window position (X, Y), 0x4A charset/style code,
+ *   0x13 (=19) max line count, 1 wait-for-input flag.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_27__unref_drop(uint32 stepping_char_id)
+{
+    uint8 drop_entry[3];
+
+    drop_entry[0] = data_fd2_chapter_event_handler_27_drop_entry_inline[0];
+    drop_entry[1] = data_fd2_chapter_event_handler_27_drop_entry_inline[1];
+    drop_entry[2] = data_fd2_chapter_event_handler_27_drop_entry_inline[2];
+    fd2_process_battle_drop_entries(stepping_char_id, 1, (uint32)drop_entry);
+    fd2_display_dialog_scene(current_chapter_text, 0xB, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }

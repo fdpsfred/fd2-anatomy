@@ -193,6 +193,11 @@ extern uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6]; /* 0x526
  * job_id-1; promote/revive grid price = char.level * table[job_id-1]. */
 extern int16  data_fd2_ui_per_job_revive_or_promote_cost_table[];       /* 0x5266B  int16 per job */
 
+/* inline 3-byte battle-drop entry blob for chapter-event handler 0x27
+ * (type byte + LE uint16 value); read only by
+ * fd2_chapter_event_handler_27__unref_drop. */
+extern const uint8 data_fd2_chapter_event_handler_27_drop_entry_inline[3]; /* 0x52742 */
+
 /* ---- text / dialog ---- */
 extern uint32 data_fd2_all_game_text_ptr;                               /* 0x53A7D */
 extern uint32 data_fd2_dialog_current_speaker_char_ptr;                 /* 0x53C1B */
