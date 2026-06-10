@@ -449,6 +449,7 @@ void fd2_tile_blit_24x24_with_remap_table(uint32 src, uint32 dst, uint32 stride,
 void fd2_tile_blit_24x24_solid_color(uint32 src, uint32 dst, uint32 color_or_stride, uint32 unused);
 void fd2_tile_blit_24x24_with_tint_offset(uint32 rle_stream, uint32 dst_buf, uint32 stride, uint32 color_base, uint32 team_offset);
 void fd2_tile_blit_24x24_remap(uint32 rle_stream, uint32 dst_buf, uint32 stride, uint32 palette_remap);
+void fd2_tile_blit_24x24_with_dialog_bg_fill(uint32 rle_stream, uint32 dst_buf, uint32 stride);
 void fd2_composite_all_chars_overlay(void);
 void fd2_paint_char_sprite_at_world_pos(uint32 char_idx);
 void fd2_paint_chars_shadow_overlay(void);

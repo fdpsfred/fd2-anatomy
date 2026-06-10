@@ -563,6 +563,281 @@ static void test_pass_row_stride_advance(void)
     }
 }
 
+/* ================================================================
+ * fd2_tile_blit_24x24_with_dialog_bg_fill @ 0x4DF4C
+ *
+ * Identical to the passthrough blitter above in RUN / STRIDE-2 RUN /
+ * LITERAL, but the 0xC0..0xFF command FILLS the run with the constant
+ * dialog-background colour 0x49 (no source bytes consumed) instead of
+ * leaving the destination untouched. These tests mirror the passthrough
+ * ones, with the load-bearing difference being that the 0xC0..0xFF run
+ * is now an active write of 0x49. The decoder always processes 24 rows
+ * of 24 columns, so each stream is a complete 24-row program; filler
+ * rows after the row under test are a single 0xC0..0xFF command, which
+ * for THIS routine paints a whole row of 0x49 (the test destinations are
+ * sized for that and the assertions account for it).
+ * ================================================================ */
+
+#define DLG_W       24          /* sprite is 24x24 */
+#define DLG_H       24
+#define DLG_STRIDE  0x40u       /* generous dst row stride for stride tests */
+#define DLG_SENT    0xEEu       /* sentinel for untouched dst bytes         */
+#define DLG_BG      0x49u       /* the constant dialog-background fill colour */
+#define DLG_FILL(n) ((uint8)(0xC0u | ((n) - 1)))  /* fill n with 0x49 */
+
+/* Destination big enough for 24 rows at the widest stride used here. */
+static uint8 g_dlg_dst[DLG_STRIDE * (DLG_H + 1)];
+
+static void dlg_reset_dst(void)
+{
+    memset(g_dlg_dst, DLG_SENT, sizeof(g_dlg_dst));
+}
+
+/* Append rows 1..23 as full-width FILL rows. For this routine a
+ * 0xC0..0xFF command paints 0x49, so each filler row writes 24 bytes of
+ * DLG_BG starting at that row's stride offset. Used when the test only
+ * cares about row 0 and treats the rest as "known background". */
+static void put_dlg_filler_rows_fill(uint8 **pp)
+{
+    int r;
+    for (r = 1; r < DLG_H; r++) {
+        *(*pp)++ = DLG_FILL(DLG_W);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * DIALOG-BG FILL mode (0xC0..0xFF): the defining difference from the
+ * passthrough sibling. A 0xC0..0xFF run writes the constant 0x49 for its
+ * length, consuming NO source bytes, then a following same-row command
+ * resumes at the advanced dst. Verify the fill bytes are exactly 0x49
+ * and that a literal after it lands at the right column.
+ * ---------------------------------------------------------------- */
+static void test_dlg_fill_mode(void)
+{
+    uint8 stream[64];
+    uint8 *p = stream;
+    int i;
+
+    *p++ = DLG_FILL(10);          /* cols 0..9 filled with 0x49 */
+    *p++ = GCMD_LIT(1);           /* one literal pixel at col 10 */
+    *p++ = 0x3Cu;
+    *p++ = DLG_FILL(13);          /* cols 11..23 filled with 0x49 */
+    put_dlg_filler_rows_fill(&p);
+
+    dlg_reset_dst();
+    fd2_tile_blit_24x24_with_dialog_bg_fill((uint32)stream, (uint32)g_dlg_dst,
+                                            DLG_W);
+
+    for (i = 0; i < 10; i++) {
+        ASSERT_EQ(g_dlg_dst[i], DLG_BG);     /* fill wrote 0x49, not skip */
+    }
+    ASSERT_EQ(g_dlg_dst[10], 0x3Cu);         /* literal pixel verbatim */
+    for (i = 11; i < DLG_W; i++) {
+        ASSERT_EQ(g_dlg_dst[i], DLG_BG);     /* trailing fill = 0x49 */
+    }
+    /* rows 1..23 are full FILL rows of 0x49, contiguous at stride 24 */
+    for (i = DLG_W; i < DLG_W * DLG_H; i++) {
+        ASSERT_EQ(g_dlg_dst[i], DLG_BG);
+    }
+    /* byte just past the 24x24 image stays untouched */
+    ASSERT_EQ(g_dlg_dst[DLG_W * DLG_H], DLG_SENT);
+}
+
+/* ----------------------------------------------------------------
+ * LITERAL mode (0x80..0xBF): copy n source bytes verbatim, one per dst
+ * byte (unchanged from passthrough). The remainder of row 0 is filled
+ * with 0x49 (not skipped), so columns 5..23 must read back as 0x49.
+ * ---------------------------------------------------------------- */
+static void test_dlg_literal_mode(void)
+{
+    uint8 stream[64];
+    uint8 *p = stream;
+    int i;
+
+    *p++ = GCMD_LIT(5);
+    *p++ = 0x00u;
+    *p++ = 0x42u;
+    *p++ = 0x9Du;
+    *p++ = 0x07u;
+    *p++ = 0xFFu;
+    *p++ = DLG_FILL(19);          /* 5 + 19 == 24, trailing cols -> 0x49 */
+    put_dlg_filler_rows_fill(&p);
+
+    dlg_reset_dst();
+    fd2_tile_blit_24x24_with_dialog_bg_fill((uint32)stream, (uint32)g_dlg_dst,
+                                            DLG_W);
+
+    ASSERT_EQ(g_dlg_dst[0], 0x00u);
+    ASSERT_EQ(g_dlg_dst[1], 0x42u);
+    ASSERT_EQ(g_dlg_dst[2], 0x9Du);
+    ASSERT_EQ(g_dlg_dst[3], 0x07u);
+    ASSERT_EQ(g_dlg_dst[4], 0xFFu);
+    for (i = 5; i < DLG_W * DLG_H; i++) {
+        ASSERT_EQ(g_dlg_dst[i], DLG_BG);
+    }
+    ASSERT_EQ(g_dlg_dst[DLG_W * DLG_H], DLG_SENT);
+}
+
+/* ----------------------------------------------------------------
+ * RUN mode (0x00..0x3F): fill n dst bytes from a SINGLE source byte
+ * (unchanged from passthrough); only one source byte consumed. The rest
+ * of the row is 0x49 fill.
+ * ---------------------------------------------------------------- */
+static void test_dlg_run_mode(void)
+{
+    uint8 stream[64];
+    uint8 *p = stream;
+    int i;
+
+    *p++ = GCMD_RUN(6);
+    *p++ = 0xA5u;                  /* written as-is, no transform */
+    *p++ = DLG_FILL(18);          /* 6 + 18 == 24 */
+    put_dlg_filler_rows_fill(&p);
+
+    dlg_reset_dst();
+    fd2_tile_blit_24x24_with_dialog_bg_fill((uint32)stream, (uint32)g_dlg_dst,
+                                            DLG_W);
+
+    for (i = 0; i < 6; i++) {
+        ASSERT_EQ(g_dlg_dst[i], 0xA5u);
+    }
+    for (i = 6; i < DLG_W * DLG_H; i++) {
+        ASSERT_EQ(g_dlg_dst[i], DLG_BG);
+    }
+    ASSERT_EQ(g_dlg_dst[DLG_W * DLG_H], DLG_SENT);
+}
+
+/* ----------------------------------------------------------------
+ * STRIDE-2 RUN (0x40..0x7F): write n pixels from a single source byte,
+ * spaced every other dst byte (dst += 2 per pixel). Same EAX-bug-prone
+ * mode as the passthrough sibling: INC EDI; STOSB places pixels at the
+ * ODD offsets 1,3,5,7 while the even offsets are SKIPPED (advanced over,
+ * NOT filled). The even offsets therefore stay at the sentinel value —
+ * confirming the stride-2 advance does not write the gap bytes. After
+ * the 8 column-counts a DLG_FILL(16) paints the remaining 16 columns.
+ * ---------------------------------------------------------------- */
+static void test_dlg_stride2_mode(void)
+{
+    uint8 stream[64];
+    uint8 *p = stream;
+    int i;
+
+    *p++ = GCMD_STRIDE(4);         /* 4 pixels -> 8 column-counts */
+    *p++ = 0x77u;
+    *p++ = DLG_FILL(16);          /* 8 + 16 == 24 */
+    put_dlg_filler_rows_fill(&p);
+
+    dlg_reset_dst();
+    fd2_tile_blit_24x24_with_dialog_bg_fill((uint32)stream, (uint32)g_dlg_dst,
+                                            DLG_W);
+
+    /* even offsets 0,2,4,6 are advanced over without writing -> sentinel;
+     * odd offsets 1,3,5,7 carry the source byte. */
+    ASSERT_EQ(g_dlg_dst[0], DLG_SENT);
+    ASSERT_EQ(g_dlg_dst[1], 0x77u);
+    ASSERT_EQ(g_dlg_dst[2], DLG_SENT);
+    ASSERT_EQ(g_dlg_dst[3], 0x77u);
+    ASSERT_EQ(g_dlg_dst[4], DLG_SENT);
+    ASSERT_EQ(g_dlg_dst[5], 0x77u);
+    ASSERT_EQ(g_dlg_dst[6], DLG_SENT);
+    ASSERT_EQ(g_dlg_dst[7], 0x77u);
+    /* cols 8..23 were FILL -> 0x49 */
+    for (i = 8; i < DLG_W; i++) {
+        ASSERT_EQ(g_dlg_dst[i], DLG_BG);
+    }
+    for (i = DLG_W; i < DLG_W * DLG_H; i++) {
+        ASSERT_EQ(g_dlg_dst[i], DLG_BG);
+    }
+    ASSERT_EQ(g_dlg_dst[DLG_W * DLG_H], DLG_SENT);
+}
+
+/* ----------------------------------------------------------------
+ * Mixed-mode row: all four modes in a single 24-column row, to confirm
+ * the dst cursor stays in sync as modes alternate, and that the trailing
+ * FILL actively writes 0x49 over the columns the passthrough sibling
+ * would have skipped. Column-count budget:
+ *   RUN 3 (3) + STRIDE 2 (2*2=4) + LITERAL 2 (2) + FILL 15 (15) == 24.
+ * After RUN 3 dst is at offset 3; STRIDE 2 does INC then store twice, so
+ * it writes at offsets 4 and 6, leaving 3 and 5 untouched; LITERAL 2
+ * then writes offsets 7 and 8; FILL 15 paints 0x49 over offsets 9..23.
+ * The even gaps 3 and 5 inside the stride run stay sentinel.
+ * ---------------------------------------------------------------- */
+static void test_dlg_mixed_modes_row(void)
+{
+    uint8 stream[64];
+    uint8 *p = stream;
+    int i;
+
+    *p++ = GCMD_RUN(3);    *p++ = 0x11u;           /* cols 0,1,2 = 0x11 */
+    *p++ = GCMD_STRIDE(2); *p++ = 0x22u;           /* writes at off 4,6 */
+    *p++ = GCMD_LIT(2);    *p++ = 0x33u; *p++ = 0x44u; /* off 7,8 */
+    *p++ = DLG_FILL(15);                           /* 3+4+2+15 == 24 */
+    put_dlg_filler_rows_fill(&p);
+
+    dlg_reset_dst();
+    fd2_tile_blit_24x24_with_dialog_bg_fill((uint32)stream, (uint32)g_dlg_dst,
+                                            DLG_W);
+
+    ASSERT_EQ(g_dlg_dst[0], 0x11u);
+    ASSERT_EQ(g_dlg_dst[1], 0x11u);
+    ASSERT_EQ(g_dlg_dst[2], 0x11u);
+    ASSERT_EQ(g_dlg_dst[3], DLG_SENT);   /* stride-2 starts with INC */
+    ASSERT_EQ(g_dlg_dst[4], 0x22u);
+    ASSERT_EQ(g_dlg_dst[5], DLG_SENT);
+    ASSERT_EQ(g_dlg_dst[6], 0x22u);
+    ASSERT_EQ(g_dlg_dst[7], 0x33u);
+    ASSERT_EQ(g_dlg_dst[8], 0x44u);
+    for (i = 9; i < DLG_W; i++) {
+        ASSERT_EQ(g_dlg_dst[i], DLG_BG);   /* trailing FILL = 0x49 */
+    }
+    for (i = DLG_W; i < DLG_W * DLG_H; i++) {
+        ASSERT_EQ(g_dlg_dst[i], DLG_BG);
+    }
+    ASSERT_EQ(g_dlg_dst[DLG_W * DLG_H], DLG_SENT);
+}
+
+/* ----------------------------------------------------------------
+ * Row stride > 24: the decoder must jump dst by (stride - 0x18) at each
+ * row boundary, leaving the inter-row gap untouched. Row 0 is a RUN-24
+ * (writes the source byte across all 24 cols); rows 1..23 are FILL-24
+ * (paint 0x49 across all 24 cols). Confirm row 0 content, that the gap
+ * between row 0's columns and the next row start stays sentinel, and
+ * that row 1 begins exactly at offset == stride with 0x49.
+ * ---------------------------------------------------------------- */
+static void test_dlg_row_stride_advance(void)
+{
+    uint8 stream[64];
+    uint8 *p = stream;
+    int i, r;
+
+    *p++ = GCMD_RUN(DLG_W);        /* row 0: RUN 24 from src 0x5A */
+    *p++ = 0x5Au;
+    put_dlg_filler_rows_fill(&p);  /* rows 1..23: FILL 24 each -> 0x49 */
+
+    dlg_reset_dst();
+    fd2_tile_blit_24x24_with_dialog_bg_fill((uint32)stream, (uint32)g_dlg_dst,
+                                            DLG_STRIDE);
+
+    /* row 0 columns 0..23 carry the run byte */
+    for (i = 0; i < DLG_W; i++) {
+        ASSERT_EQ(g_dlg_dst[i], 0x5Au);
+    }
+    /* gap between row 0 columns and the next row start (24..stride-1) */
+    for (i = DLG_W; i < (int)DLG_STRIDE; i++) {
+        ASSERT_EQ(g_dlg_dst[i], DLG_SENT);
+    }
+    /* rows 1..23: each starts at r*stride and fills 24 cols with 0x49,
+     * with the (stride-24) tail of each row left as sentinel. */
+    for (r = 1; r < DLG_H; r++) {
+        for (i = 0; i < DLG_W; i++) {
+            ASSERT_EQ(g_dlg_dst[r * (int)DLG_STRIDE + i], DLG_BG);
+        }
+        for (i = DLG_W; i < (int)DLG_STRIDE; i++) {
+            ASSERT_EQ(g_dlg_dst[r * (int)DLG_STRIDE + i], DLG_SENT);
+        }
+    }
+}
+
 void run_gfx_blittile2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -583,5 +858,13 @@ void run_gfx_blittile2_tests(void)
     RUN_TEST(test_pass_mixed_modes_row);
     RUN_TEST(test_pass_full_24x24_row_wrap);
     RUN_TEST(test_pass_row_stride_advance);
+
+    printf("Suite: gfx/blittile (dialog-bg fill RLE blit)\n");
+    RUN_TEST(test_dlg_fill_mode);
+    RUN_TEST(test_dlg_literal_mode);
+    RUN_TEST(test_dlg_run_mode);
+    RUN_TEST(test_dlg_stride2_mode);
+    RUN_TEST(test_dlg_mixed_modes_row);
+    RUN_TEST(test_dlg_row_stride_advance);
     printf("\n");
 }

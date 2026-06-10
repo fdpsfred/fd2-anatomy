@@ -4635,8 +4635,9 @@
     "name": "fd2_tile_blit_24x24_with_dialog_bg_fill",
     "target": "gfx/blittile.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004dfc0": {
     "name": "fd2_read_bios_midnight_tick",
