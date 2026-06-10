@@ -133,6 +133,9 @@
  * fd2_chapter_event_handler_2d__ch19_ai_ctrl @ 0x350B9
  *     (0 direct callers; dispatched as idx 0x2D of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_2e__ch19_reinforcement @ 0x350CC
+ *     (0 direct callers; dispatched as idx 0x2E of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -2057,4 +2060,34 @@ void fd2_chapter_event_handler_2d__ch19_ai_ctrl(uint32 event_arg)
     (void)event_arg;
 
     fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x10, 0x1F, 3);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_2e__ch19_reinforcement @ 0x350CC
+ *   — Chapter 19 turn-event slot 1 (triggered at turn 6 / phase 1),
+ *     dispatched as idx 0x2E of the per-event handler table at 0x51B91.
+ *
+ * ch19 turn-6 reinforcement beat: a straight-line, no-branch sequence
+ * (no RNG, no numeric computation, no CALL-return value used):
+ *   - reload portrait set 1 via fd2_load_chapter_portraits_and_dump_tmp(1);
+ *   - show dialog page 1;
+ *   - recruit char_id 0x1B as reinforcement via
+ *     fd2_init_runtime_char_from_base_growth(0x1B) — appends one template
+ *     slot (team=2, char_id at +7/+8) to the menu-party roster and
+ *     increments the member count.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91 (1-arg
+ * uniform cdecl); the body never reads the arg. EBX is not touched; the
+ * __CHK(0x28) stack-probe prologue is compiler-injected and omitted here.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_19.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_2e__ch19_reinforcement(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_load_chapter_portraits_and_dump_tmp(1);
+    fd2_display_dialog_scene(current_chapter_text, 1, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_init_runtime_char_from_base_growth(0x1B);
 }
