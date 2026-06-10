@@ -130,6 +130,9 @@
  * fd2_chapter_event_handler_2c__ch19_ai_ctrl @ 0x350A4
  *     (0 direct callers; dispatched as idx 0x2C of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_2d__ch19_ai_ctrl @ 0x350B9
+ *     (0 direct callers; dispatched as idx 0x2D of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -2019,4 +2022,39 @@ void fd2_chapter_event_handler_2c__ch19_ai_ctrl(uint32 event_arg)
     (void)event_arg;
 
     fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x1D, 0x3B, 3);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_2d__ch19_ai_ctrl @ 0x350B9
+ *   — Chapter 19 turn-event handler, dispatched as idx 0x2D of the
+ *     per-event handler table at 0x51B91.
+ *
+ * ch19 AI-control beat: set the per-event AI/dialog control flag
+ * (low 4 bits of combat_aux_block[0xD]) to 3 for the runtime-char
+ * range [0x10, 0x1F] inclusive (16 chars):
+ *   fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x10, 0x1F, 3);
+ *
+ * No dialog, no RNG, no numeric computation, no CALL-return value used;
+ * straight-line single call.
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91 (1-arg
+ * uniform cdecl); the body never reads the arg. EBX is not touched; the
+ * __CHK(0x10) stack-probe prologue is compiler-injected and omitted here.
+ *
+ * In the original binary this handler pre-pushes the flag (3) and end
+ * (0x1F) args, then JMPs (0x350C7 -> 0x34F37) into the class-3 shared tail
+ * hosted by fd2_chapter_event_handler_12__ch15_dialog_with_state @ 0x34F02
+ * (the tail "PUSH 0x10 start; CALL fd2_set_combat_aux_block_byte_d_low4_
+ * for_char_range; ADD ESP,0xC; RET" fixes the start arg at 0x10). That
+ * borrowed tail is an in-binary code-folding artifact; its effect — the
+ * AI-flag range write — is reproduced here as the inline call for Layer-2
+ * equivalence.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_19.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_2d__ch19_ai_ctrl(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x10, 0x1F, 3);
 }

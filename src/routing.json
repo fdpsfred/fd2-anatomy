@@ -3942,8 +3942,9 @@
     "name": "fd2_chapter_event_handler_2d__ch19_ai_ctrl",
     "target": "field/chevt1.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000350cc": {
     "name": "fd2_chapter_event_handler_2e__ch19_reinforcement",
