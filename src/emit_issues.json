@@ -1,612 +1,622 @@
 {
-  "_doc": "三源交叉驗證時發現的待後續確認問題。Key = function address, value = {name, issues: [...]}。所有 emit phase 完成後統一解決。",
-  "00025bf4": {
-    "name": "fd2_main",
-    "target": "life/main.c",
-    "issues": [
-      {
-        "type": "test_deferral_note",
-        "desc": "Behavioral unit test for fd2_main is DEFERRED to Phase 9 integration (reason proven, not convenience). fd2_main unconditionally issues int386(0x10,...) twice -- INT 10h video mode 0x13 on entry and mode 3 at shutdown -- through the REAL linked Watcom int386. Per the established harness limitation (see 000361cc fd2_dpmi_alloc_dos_memory), the real int386 has no deterministic seam in the DOS/4GW silent harness and a test-local override deterministically crashes/hangs the extender; an INT 10h video mode set in the automated runner is likewise unsafe. fd2_main also (a) calls fd2_main_menu_continue_dispatcher and fd2_load_save_and_init_engine, which live in the SAME translation unit as fd2_main and so cannot be replaced by capture stubs to drive the loop, (b) drives fd2_game_main_loop (the whole-game per-frame dispatcher) whose return value is the inner-loop exit condition, and (c) performs AIL sound init + 8 fd2_load_dat_resource loads + a 152 KB malloc on every entry before the loop is even reached. There is therefore no deterministic unit seam for the outer/inner loop exit logic. The control-flow translation was instead verified statically line-by-line against the disassembly: the EDI(menu_result/exit_outer) and ESI(game_loop_result) state machine (0x25DBD MOV EDI,EAX; chapter-clear arm MOV ESI,1 @0x25DFB; chapter-switch arm MOV EDI,1 @0x25E59 on transition!=0; post-inner CMP ESI,-1/MOV EDI,1 @0x25E7C; menu!=0 arm CMP EAX,-1/XOR EDI,EAX @0x25E88 giving menu_result=0 only when ==-1; outer TEST EDI/JZ 0x25DB1). The RNG warm-up loop bound (int)rand()%0x100 matches MOV EDX,EAX;SAR EDX,31;IDIV 0x100;MOV EDI,EDX (signed remainder) @0x25D90-0x25DAF. The two driver-handle stores match the EAX returns of AIL_install_MDI_INI / AIL_install_DIG_INI; both sample handles take the same DIG driver.",
-        "severity": "low",
-        "verify_method": "phase9_integration",
-        "source_review": "fd2_main @00025bf4 (emit; int386 INT 10h + in-TU menu dispatcher = no unit seam, cf. 000361cc)"
-      },
-      {
-        "type": "fragment_equivalence_handoff",
-        "desc": "Shared-epilogue equivalence-by-regeneration (pipeline_spec pattern A, rule A-1). fd2_main physically ends with JMP 0x16F04, a tail-jump into the shared epilogue (ADD ESP,0xC; POP EDI; POP ESI; POP EBX; RET) inside fd2_cinematic_scroll_text_up_for_special_scenes @0x16E24 (already emitted, dialog/dialog.c). The merged epilogue is a Watcom code-size optimization; it is NOT reproduced. fd2_main is emitted as a self-contained void function and relies on Watcom 9.5a regenerating an equivalent POP-saved-regs + RET epilogue. Also: __CMain @0x45D4B consumes fd2_main EAX as the DOS exit code (PUSH EAX; JMP _exit @0x36DE4), but the shared epilogue leaves EAX = the last int386 return (BIOS-dependent, a dont-care exit code for a terminating game); the original source is void main(argc,argv) with argc/argv used only by the __CHK frame probe and no explicit return, so void fd2_main(void) is functionally exact. verify_method: post-build -d disasm to confirm the regenerated epilogue + that no caller relies on a specific exit code.",
-        "severity": "info",
-        "verify_method": "compile_and_disasm",
-        "source_review": "fd2_main @00025bf4 (emit; shared-epilogue tail-jump 0x16F04, cf. 000362f1 / 00010b43)"
-      }
-    ]
-  },
-  "000117e7": {
-    "name": "fd2_game_main_loop",
-    "target": "ui_menu/menu.c",
-    "issues": [
-      {
-        "type": "eax_return_recovery",
-        "desc": "Ghidra decompiled this as __cdecl void with bare 'return;' everywhere, dropping the EAX return values (systematic EAX-tracking bug). The disassembly shows real int returns: most paths XOR EAX,EAX;RET (return 0), but the field-command path @0x118C1-0x118D9 does 'do{r=fd2_field_command_menu_loop();}while(r==0); if(r==1) r^=1; return r;' (MOV EAX,EBX;RET). The single caller fd2_main @0x25DCE consumes EAX (MOV ESI,EAX then TEST ESI;JZ re-invoke), so the return value is load-bearing: a 0 return makes fd2_main loop back into fd2_game_main_loop, non-zero exits. Emitted as int accordingly. Also: the two dispatch-table calls (per_chapter_post_action_handler @0x51B19 and ai_post_action_consequence @0x51B91) push ESI (=selected char idx uVar2) before CALL (PUSH ESI;CALL;ADD ESP,4), so they are invoked with (uVar2); Ghidra rendered them as '()' with no arg — emitted with (sel) per disasm + the (uint32) table prototype in globals.h. Recommend post-build -d disasm to confirm byte-identical return-value computation and the table-call argument.",
-        "severity": "low",
-        "verify_method": "compile_and_disasm"
-      }
-    ]
-  },
-  "0001b750": {
-    "name": "fd2_recalculate_combat_stats",
-    "target": "battle/battle.c",
-    "issues": [
-      {
-        "type": "fpu_rounding",
-        "desc": "AP/DP x1.15 buff. Assembly @0x1B7EF-0x1B819 = FILD/FMUL m64[0x5018D]/CALL __CHP/FISTP. __CHP (0x377A4) sets FPU RC=11 (round-toward-zero) then FRNDINT, so the value is TRUNCATED before FISTP stores it — i.e. assembly truncates, it does NOT round-to-nearest. The emitted C (int)((double)x * 1.15) ALSO truncates toward zero, so the rounding DIRECTION matches. Residual concern is only Watcom 9.5a codegen precision (x87 80-bit FMUL vs C 64-bit double intermediate); for unit-test ground-truth this is bypassed by choosing bases where 80-bit and 64-bit truncation agree (100->114, 200->229, tested in testbtl.c). Still recommend a post-build -d disasm to confirm byte-identical FILD/FMUL/__CHP/FISTP emission. [reviewer KEEP-confirmed valid] Precision-ordering refinement: the FMUL at 0x1B7F3 runs BEFORE __CHP sets PC=64-bit, so it uses the entry control-word precision. Cross-check: bases 100->114 and 200->229 agree at 64-bit and exact-80-bit truncation; base 40 would give 46 at 64-bit but 45 at exact-80-bit and was correctly AVOIDED in the tests. Unit tests pass under real Watcom, empirically confirming truncation; a post-build -d disasm to confirm byte-identical FILD/FMUL/__CHP/FISTP emission remains the recommended final check. No code change needed.",
-        "severity": "low",
-        "verify_method": "compile_and_disasm",
-        "reviewer_verdict": "KEEP (confirmed valid, no code change needed)"
-      }
-    ]
-  },
-  "00015b77": {
-    "name": "fd2_score_spell_candidate",
-    "target": "battle/btl_ai.c",
-    "issues": [
-      {
-        "type": "fpu_rounding",
-        "desc": "Assembly uses FILD+FMUL+__CHP+FISTP (round-to-nearest by default FPU mode); emitted C uses (int)((double)per_score * multiplier_1_5). For actual values 8*1.5=12 and 24*1.5=36 the result is exact integer so truncation vs rounding doesn't matter, but Watcom codegen may differ.",
-        "severity": "low",
-        "verify_method": "compile_and_disasm"
-      }
-    ]
-  },
-  "0001c75e": {
-    "name": "fd2_calc_magic_damage",
-    "target": "battle/battle.c",
-    "issues": [
-      {
-        "type": "resist_table_copy",
-        "desc": "Assembly 先 REP MOVSD 複製 28-dword resist table 到 stack 再索引；emitted C 直接讀 global。行為等價 (table 不在執行中被修改)，但 machine code 顯著不同。",
-        "severity": "info",
-        "verify_method": "compile_and_compare_behavior"
-      }
-    ]
-  },
-  "00010b43": {
-    "name": "fd2_noop_stub_b43",
-    "target": "<fragment:inline-epilogue>",
-    "issues": [
-      {
-        "type": "fragment_equivalence_handoff",
-        "desc": "0x10b43 fd2_noop_stub_b43 屬 SHARED EPILOGUE fragment，正確 skip 不獨立 emit。等價性疑慮：此 fragment 的等價靠『各 parent 的 return; 由 Watcom 9.5a 重新生成 ADD ESP/POP regs/RET』達成，而非 byte-identical。因此 Layer 2 等價驗證的責任轉移到 3 個 +0x00 parent (fd2_load_chapter_battle_data / fd2_play_rising_pre_cast_effect / fd2_play_variant_b_slide_pre_effect) 與 26 個 +0x03 parent 的 epilogue 各自 emit 時 — 屆時須確認每個 parent emit 出的 epilogue stack-cleanup 量(ADD ESP 對應其 locals + saved regs)與原 binary 等價。此非本 fragment 自身可驗，屬下游 parent emit 時的覆蓋點，建議記錄以免遺漏。",
-        "severity": "info",
-        "verify_method": "verify_at_parent_emit"
-      },
-      {
-        "type": "sibling_noop_stub_policy",
-        "desc": "原列的 6 個 noop stub 中，c49/1011/1452/13994/15983 經各自 review 後皆確認為 DECOMPILER FRAGMENT（c49/1011/1452/13994 = shared epilogue；15983 = shared return-tail，帶回傳值 MOV EAX,EDI），已改 <fragment:inline-epilogue> skip + plate marker，不再 route 到 util/noop.c。僅剩 fd2_noop_stub_4e915 仍 route 到 util/noop.c（done:true / reviewed:false），待其被 review 時逐一確認；應套用同一 fragment 政策(plate marker + routing skip)、不可預先批次處理。",
-        "severity": "info",
-        "verify_method": "per_function_review"
-      }
-    ]
-  },
-  "00010c49": {
-    "name": "fd2_noop_stub_c49",
-    "target": "<fragment:inline-epilogue>",
-    "issues": [
-      {
-        "type": "fragment_equivalence_handoff",
-        "desc": "0x10c49 fd2_noop_stub_c49 屬 SHARED EPILOGUE fragment (calling_convention.md epilogue cluster 0x10c49 = ADD ESP 0x4 + POP EDI/ESI/EBX + RET, locals=0x4 + 3 saved regs; pipeline_spec.md 模式A rule A-1)，正確 skip 不獨立 emit 到 util/noop.c。等價性靠『各 parent 的 return; 由 Watcom 9.5a 重新生成 epilogue』達成，而非 byte-identical。Layer 2 等價驗證責任轉移到 3 個 tail-JMP parent — fd2_convert_battle_tiles_to_24px (JMP @0x13a3f) / fd2_equip_unequip_inventory_menu (JMP @0x1c13d) / fd2_open_party_status_overview_screen (JMP @0x1b418) — 各自 emit 時須確認其 epilogue stack-cleanup 量 (ADD ESP 對應 locals=0x4 + POP EDI/ESI/EBX) 與原 binary 等價。此非本 fragment 自身可驗，屬下游 parent emit 時的覆蓋點。",
-        "severity": "info",
-        "verify_method": "verify_at_parent_emit"
-      }
-    ]
-  },
-  "00011452": {
-    "name": "fd2_noop_stub_1452",
-    "target": "<fragment:inline-epilogue>",
-    "issues": [
-      {
-        "type": "fragment_equivalence_handoff",
-        "desc": "0x11452 fd2_noop_stub_1452 屬 SHARED EPILOGUE fragment (calling_convention.md epilogue cluster 0x11452 = ADD ESP 0x20 + POP EBP/EDI/ESI/EBX + RET, locals=0x20 + 4 saved regs; pipeline_spec.md rule A-1)，正確 skip 不獨立 emit 到 util/noop.c。等價性靠『各 parent 的 return; 由 Watcom 9.5a 重新生成 epilogue』達成，而非 byte-identical。Layer 2 等價驗證責任轉移到 3 個 +0x00 全 epilogue parent — fd2_animate_spell_projectile_paths (JZ @0x1df7f + JMP @0x1e0d6) / fd2_assemble_dialog_frame_layered (JGE @0x16b39) / fd2_render_inventory_item_grid (JGE @0x186e4)，各有 PUSH EBX/ESI/EDI/EBP + SUB ESP,0x20 prologue — 以及 1 個 +0x03 alt-entry parent fd2_save_runtime_char_to_template (JGE @0x1151f，無 SUB ESP、僅 POP 4 regs)。各自 emit 時須確認其 epilogue stack-cleanup 量 (ADD ESP 對應 locals + POP regs) 與原 binary 等價。此非本 fragment 自身可驗，屬下游 parent emit 時的覆蓋點。",
-        "severity": "info",
-        "verify_method": "verify_at_parent_emit"
-      }
-    ]
-  },
-  "00013994": {
-    "name": "fd2_noop_stub_13994",
-    "target": "<fragment:inline-epilogue>",
-    "issues": [
-      {
-        "type": "fragment_equivalence_handoff",
-        "desc": "0x13994 fd2_noop_stub_13994 是 SHARED EPILOGUE fragment (calling_convention.md epilogue cluster 0x13994 = ADD ESP 0x5C + POP EBP/EDI/ESI/EBX + RET, locals=0x5C + 4 saved regs; pipeline_spec.md 模式A rule A-1)，已正確 skip、不再 emit 到 util/noop.c。等價性疑慮：此 fragment 的行為（caller-frame unwind + 把 EBP 載入 EAX 當回傳值）需靠唯一 parent fd2_play_ending_and_record_clear 的 return ebp_value; 由 Watcom 9.5a 重新生成 epilogue「等價」，而非 byte-identical。Layer 2 跨檔語意驗證責任轉移到 parent emit 時確認：parent 的 PUSH EBX/ESI/EDI/EBP + SUB ESP,0x5c (@0x1f89e) prologue 對應的 stack-cleanup 段 (ADD ESP 還原 locals=0x5C + POP EBP/EDI/ESI/EBX) 與原 binary 相同，且 MOV EAX,EBP (@0x1ff72) 的回傳值語意被 return 述句保留。非由 fragment 自身可驗，待下游 parent emit 時的覆蓋點。",
-        "severity": "info",
-        "verify_method": "verify_at_parent_emit"
-      }
-    ]
-  },
-  "00015983": {
-    "name": "fd2_score_item_candidate_tail_15983",
-    "target": "<fragment:inline-epilogue>",
-    "issues": [
-      {
-        "type": "fragment_equivalence_handoff",
-        "desc": "0x15983 屬 SHARED RETURN/EPILOGUE fragment（calling_convention.md epilogue cluster 0x15983；非 no-op，帶回傳值）。Disasm = MOV EAX,EDI; JMP 0x22bbe；0x22bbe = ADD ESP,4 + POP EBP/EDI/ESI/EBX + RET（與 fd2_composite_battle_frame_zero @0x22bb7 共用 epilogue）。已正確 skip、不獨立 emit 到 util/noop.c。等價性靠『各 parent 的 return 由 Watcom 9.5a 重新生成 MOV EAX,<retval> + 對應 stack-cleanup epilogue』達成，而非 byte-identical。Layer 2 等價驗證責任轉移到兩個 parent 各自 emit 時：(1) fd2_score_item_candidate @0x15880（target battle/btl_ai.c，已 reviewed）— 3 條 early-exit conditional jump，EDI=total_score，須確認 emit 出的 `return total_score;` 在 -d 反組譯後等於 MOV EAX,EDI + (ADD ESP,0x4 還原 locals=0x4 + POP EBX/ESI/EDI/EBP + RET)；(2) fd2_alloc_and_blit_indexed_sprite_chunk @0x15f0e（target gfx/blit.c，phase 5 未 emit）— tail-JMP @0x15f7f，EDI=malloc buffer pointer，須確認其回傳值語意（目前 Ghidra 簽名標 void，emit 時應依 MOV EAX,EDI 將其視為回傳 buffer pointer 並保留），且 prologue PUSH EBX/ESI/EDI/EBP + SUB ESP,0x4 對應的 cleanup 與原 binary 等價。此非本 fragment 自身可驗，屬下游 parent emit 時的覆蓋點。",
-        "severity": "info",
-        "verify_method": "verify_at_parent_emit"
-      },
-      {
-        "type": "fragment_equivalence_handoff",
-        "desc": "00015983 fragment_equivalence_handoff is correctly logged and accurate. Reiterate for downstream: parent2 fd2_alloc_and_blit_indexed_sprite_chunk @0x15f0e (gfx/blit.c, currently done:false / not emitted) returns the malloc'd buffer pointer via this fragment's MOV EAX,EDI even though its Ghidra signature is 'void'. When that parent is emitted, its return type MUST be a pointer (it returns the buffer allocated at CALL 0x36d16 / MOV EDI,EAX @0x15f51), and the SUB ESP,0x4 + PUSH EBX/ESI/EDI/EBP cleanup must regenerate equivalently. parent1 fd2_score_item_candidate @0x15880 (battle/btl_ai.c, already reviewed:true) returns int total_score; verify its emitted `return total_score;` disassembles to MOV EAX,EDI + the 0x18 cleanup.",
-        "severity": "info",
-        "verify_method": "verify_at_parent_emit",
-        "source_review": "fd2_score_item_candidate_tail_15983 @00015983 (reviewer-approved)"
-      }
-    ]
-  },
-  "00011aa8": {
-    "name": "fd2_wait_for_input_with_idle",
-    "target": "input/input.c",
-    "issues": [
-      {
-        "type": "single_read_vs_double_read",
-        "desc": "Single-read-reuse vs double-volatile-read on BIOS_TICK_WORD at 0x46C (store-to-0x539F0 + comparison): the original reuses one read; emitted C reads twice. Documented as unobservable because 0x539F0 has 0 readers binary-wide. If a wlink ORDER/byte-layout audit later cares about the exact bytes written to 0x539F0, note this write can lag the comparison value by one tick relative to the original. Recommend an inline comment in input.c near line 474 stating 0x539F0 is a dead/write-only latch (0 readers) so the double-read is intentional-equivalent.",
-        "severity": "info",
-        "verify_method": "compile_and_disasm"
-      }
-    ]
-  },
-  "00011d40": {
-    "name": "fd2_set_vga_palette_range",
-    "target": "gfx/palette.c",
-    "issues": [
-      {
-        "type": "test_deferral_note_missing",
-        "desc": "[deferral note missing] The palette outp-stream tests (test_set_vga_palette_range_basic and siblings) defer value-level verification of the subtract/clamp arithmetic to Phase 9 integration because the test harness lacks an outp-capture stub. The risk-based test policy requires such deferral to be explicitly noted with reason ('须在输出注明延后与理由'), but no such note exists in tests/testui.c or tests/_index.md. Emitter should add either (a) a short comment at the test marking the deferral + reason, or (b) a recording outp stub so the clamp branch can be asserted (e.g. fake_pal[3]=0x05,brightness=0x10 -> expect 0; fake_pal[0]=0x3F,brightness=0x10 -> expect 0x2F).",
-        "severity": "low",
-        "verify_method": "add_test_comment_or_outp_stub"
-      }
-    ]
-  },
-  "00012c0d": {
-    "name": "fd2_find_char_at_cursor_pos",
-    "target": "battle/btl_turn.c",
-    "issues": [
-      {
-        "type": "test_coverage_gap",
-        "desc": "No dedicated test for the 'cursor matches a DEAD char then a later ALIVE char' path; consider adding to testanim.c to cover the JNZ-continue branch after fd2_check_char_is_dead (currently the is_dead stub always returns 0, so the dead-skip continuation is never exercised).",
-        "severity": "low",
-        "verify_method": "add_test"
-      }
-    ]
-  },
-  "00013185": {
-    "name": "fd2_walk_step_up",
-    "target": "anim/anim.c",
-    "issues": [
-      {
-        "type": "test_coverage_gap",
-        "desc": "fd2_walk_step_up @ 00013185: scroll-up code path (origin_y!=0 && char in top-2 rows) is not unit-tested. Same gap exists for the 3 approved siblings (down/left/right). Recommend a future consolidated test that sets origin_y!=0 with pos within top 2 rows and asserts origin_y decrements by 1 (the one non-display observable effect of the scroll branch). Deferred to Phase 9 integration per risk-based policy (rest of branch is pure blit/display).",
-        "severity": "low",
-        "verify_method": "add_test"
-      }
-    ]
-  },
-  "00013315": {
-    "name": "fd2_walk_step_right",
-    "target": "anim/anim.c",
-    "issues": [
-      {
-        "type": "test_coverage_gap",
-        "desc": "fd2_walk_step_right @00013315 (src/anim/anim.c, testanim.c:764): test exercises NO-SCROLL arm only. UNCOVERED equivalence-relevant paths: (1) scroll arm else-branch -> scroll_delta_x=4 / scroll_window_flag=1 / composite_width=0xE / persistent data_fd2_battle_view_window_origin_x += 1; (2) right-edge-clamp OR operand data_fd2_battle_map_width_tiles - data_fd2_battle_view_window_max_x == data_fd2_battle_view_window_origin_x. Both verified correct against assembly during review. Recommend a scroll-path test in Phase 9 integration (set pos_x - origin_x > 0xA with map_width - max_x != origin_x; assert origin_x incremented by 1 and cursor_screen_x unchanged). Deferred consistent with sibling walk-step down/left/up tests.",
-        "severity": "low",
-        "verify_method": "add_test"
-      }
-    ]
-  },
-  "00013a9f": {
-    "name": "fd2_enemy_turn_action_dispatcher",
-    "target": "battle/btl_ai.c",
-    "issues": [
-      {
-        "type": "test_coverage_gap",
-        "desc": "TEST GAP (deferrable, not blocking): test_ai_dispatch_case11_both_execute (testbtl.c:451) makes ZERO assertions -- it is a no-crash smoke test only. Minimum strengthening: assert g_composite_call_count >= 1 (postlude reached). Currently it sets scores 7/7, calls, and resets without checking any observable.",
-        "severity": "low",
-        "verify_method": "add_test"
-      },
-      {
-        "type": "test_coverage_gap",
-        "desc": "TEST GAP (deferrable): the EAX-bug-corrected paths (case 4 pass_turn gating, case 5 item-pickup -> add_item/tile-consume/sfx/transition-to-class-7, case 7 dead-impact) and cases 9/10 are UNTESTED. They are not cheaply assertable in the current harness because the distinguishing callees (ai_ai_pass_turn_with_heal, ai_walk_to_target_tile, etc.) were promoted from counting-stubs to real implementations, so which callee ran is no longer observable. Recommend (Phase 9 integration or a harness counter-reinstatement) to cover case 5s state machine specifically, as it has the most independent logic + an EAX trap.",
-        "severity": "low",
-        "verify_method": "add_test"
-      },
-      {
-        "type": "dead_test_globals",
-        "desc": "DEAD TEST GLOBALS: testglob.c lines 318-326 (g_attack_dispatch_return, g_attack_dispatch_calls, g_seek_optimal_return, g_advance_nearest_return, g_walk_return, g_score_physical_return, g_pass_turn_calls, g_execute_spell_calls, g_execute_physical_calls) plus their extern decls in testbtl.c (394-402) are now orphaned -- the stubs they backed were replaced by real btl_ai.c implementations. They are still referenced/reset by reset_ai_stubs() but never read for assertions. Either remove them or re-wire observable counters to make the above EAX-sensitive paths assertable.",
-        "severity": "low",
-        "verify_method": "remove_or_rewire_test_globals"
-      }
-    ]
-  },
-  "00014ef0": {
-    "name": "fd2_attack_action_dispatch",
-    "target": "battle/btl_ai.c",
-    "issues": [
-      {
-        "type": "test_deferral_note_missing",
-        "desc": "Winner-selection coverage for fd2_attack_action_dispatch is deferred to Phase 9 integration but the deferral+reason is NOT documented in tests/testbtl.c. Policy requires noting deferral rationale for any high-risk path left uncovered. The selection logic (complex control flow + numeric tie comparisons + EAX-deref spell-damage path + no-op tie) is in the force-test category; it is left uncovered because the only observation channel is the real, un-stubbable, display-heavy executors (fd2_execute_ai_offensive_spell etc. deref spell tables, call handler-table fn-ptrs, run cinematics) driven by three real scorers. Equivalence is fully verified statically, so this is logged rather than blocked, but the test file should carry an explicit deferral comment.",
-        "severity": "low",
-        "verify_method": "add_test_comment"
-      }
-    ]
-  },
-  "00015055": {
-    "name": "fd2_execute_ai_item_use",
-    "target": "battle/btl_ai.c",
-    "issues": [
-      {
-        "type": "concat31_equivalence_note",
-        "desc": "Equivalence note for the emitter to record: data_fd2_ui_menu_cursor_idx assignment. Asm stores full 32-bit EAX (MOV [0x53c57],EAX at 0x1508b) and then PUSHes that same EAX to fd2_get_item_effect_entry. C truncates to uint8 item_id then zero-extends (uint32)item_id. This is EXACT because the source fd2_get_inventory_slot_item_id (0x1b722) ends in MOVZX EAX,byte ptr [EAX]; RET so EAX upper 24 bits are guaranteed 0. The Ghidra decompile CONCAT31(extraout_var,item_id) is conservative-only; the C is correct. Worth a one-line comment in the source so a future reviewer does not re-flag the CONCAT31.",
-        "severity": "info",
-        "verify_method": "add_source_comment"
-      },
-      {
-        "type": "test_deferral_note_missing",
-        "desc": "Test-deferral note (mandatory per risk-based policy): emitter should record in the emit output that test coverage for fd2_execute_ai_item_use is deferred to Phase 9 integration, with the reason that the function is display/animation orchestration and its only arithmetic block (interp+clamp) is display-bound (drives cursor pan only, not effect dispatch). This explicit deferral note is currently MISSING.",
-        "severity": "low",
-        "verify_method": "add_test_comment"
-      }
-    ]
-  },
-  "00018b84": {
-    "name": "fd2_wait_input_with_status_panel_repaint",
-    "target": "input/input.c",
-    "issues": [
-      {
-        "type": "equivalence_note",
-        "desc": "FAITHFUL EQUIVALENCE (not a defect): local 'last_tick' (asm reg ESI) is read-before-write on the first loop iteration -- ESI is never initialized before CMP ESI,EAX at 0x18bc1, and the emitted C 'int last_tick;' is likewise uninitialized, read at input.c:241 before its first assignment at input.c:261. On iteration 1 the status-panel repaint MAY be skipped depending on the garbage value vs the current tick. The emitted C correctly PRESERVES this original (technically-UB) behavior; Watcom 9.5a register-allocates last_tick with no implicit init, matching the original binary. Logged so the intentional non-initialization is documented -- a future tool/reviewer must NOT 'fix' it by zero-initializing last_tick (that would diverge from the binary).",
-        "severity": "info",
-        "verify_method": "compile_and_disasm"
-      },
-      {
-        "type": "test_deferral_note_missing",
-        "desc": "Test deferral for this display-only function is not recorded anywhere (no note in input.c, routing.json, or a tests file). Risk-based policy requires display deferrals be noted with reason. Suggest adding a brief 'Phase 9 integration: display-only, no assertable non-display effect' deferral marker near the function in src/input/input.c or in the tests file.",
-        "severity": "low",
-        "verify_method": "add_test_comment"
-      }
-    ]
-  },
-  "00029f72": {
-    "name": "fd2_calculate_combat_hit_outcome",
-    "target": "battle/battle.c",
-    "issues": [
-      {
-        "type": "uninitialized_tile_id_and_undersized_outbuf",
-        "desc": "SAME bug just fixed in sibling fd2_execute_attack_damage_calculation @0x1ECC7 (battle.c). The terrain AP/DP block here (battle.c:268-269, 302-316) declares 'uint32 tile_attr_buf;' (4 bytes) + a SEPARATE 'uint8 tile_id;' that is NEVER assigned from the buffer, then indexes data_fd2_battle_tile_attr_mv_modifier_table[tile_id] / _def_modifier_table[tile_id] on the uninitialized tile_id. Ghidra get_function_variables on 0x29F72 confirms tile_attr_word = Stack[-0x4c]:4 and tile_attr_byte = Stack[-0x47]:1, and -0x4c+5 = -0x47, i.e. the real table index is buffer[+5] (= attr_ptr[+1] from the 8-byte writer fd2_read_tile_attribute_at_pos). Two defects: (1) wrong terrain modifier index (reads garbage stack instead of tile_attr_buf[5]); (2) the helper writes out_buf[+0..+7] (8 bytes) into a 4-byte local -> 4-byte stack overflow. Out of scope for the 0x1ECC7 fix round (different function); MUST be fixed when fd2_calculate_combat_hit_outcome is reviewed, using the same pattern as the proven-correct btl_ai.c reference (uint8 tile_attr_buf[8]; pass (uint32)tile_attr_buf; tile_id = tile_attr_buf[5]; before each modifier-table index). Reference fix landed at battle.c fd2_execute_attack_damage_calculation and the passing test test_eatk_terrain_ap_bonus in testbtl.c.",
-        "severity": "high",
-        "verify_method": "fix_at_function_review"
-      }
-    ]
-  },
-  "0002147b": {
-    "name": "fd2_spell_handler_id_7_via_full_screen_flash",
-    "target": "spell/spell.c",
-    "issues": [
-      {
-        "type": "test_coverage_gap",
-        "desc": "Consistency note (non-equivalence): the full_screen_flash spell-handler family (id 4-7) has NO direct forwarding/smoke test, whereas the targeted_blink family has test_spell_handler_0_smoke. Since the per-handler high-risk path is just 'forward 3 args + inject the correct spell_id literal', a single parametrized forwarding assertion (e.g. capture the spell_id arg in the testglob.c worker stub and assert ==7 for id_7, ==4/5/6 for siblings) would cheaply pin the only thing that distinguishes these thunks. Optional / can be deferred to Phase 9 integration, but if deferred the rationale should be annotated per the risk-based test policy. Applies retroactively to already-reviewed id_4/5/6 as well.",
-        "severity": "low",
-        "verify_method": "add_forwarding_test",
-        "source_review": "fd2_spell_handler_id_7_via_full_screen_flash @0002147b (reviewer-approved)"
-      }
-    ]
-  },
-  "00035c15": {
-    "name": "fd2_set_battle_anim_phase_to_1",
-    "target": "battle/btl_init.c",
-    "issues": [
-      "跨函式相依（給 phase 7 emit fd2_chapter_event_handler_52__ch30_major_cinematic@0x35f92 的 emitter）：本函式（Pattern A SHARED EPILOGUE STUB，pipeline_spec.md:526）以 standalone `void(void)` setter 形式 emit。其 Layer-2 等價性「成立的前提」是唯一 main-entry consumer handler_52 必須 emit 為一般 cdecl C（呼叫前一個 3-param cdecl callee 後由 caller 自身清 args，再普通呼叫 fd2_set_battle_anim_phase_to_1()）。handler_52 decomp 已天然呈現此形（两條 path 結尾皆 `...(...); fd2_set_battle_anim_phase_to_1(); return;`），故照常 emit 即可；emitter 不可嘗試複刻原 binary 的 tail-JMP 或省略 caller 端 cdecl arg cleanup，否則會破壞 stack 平衡。",
-      "alt-entry（0x35C18 / 0x35C22）由 fd2_chapter_event_handler_17 / _25 透過 JMP 消費，與本 main-entry（0x35C15）為不同位址；那兩個 handler 的 fall-through/tail-share emit 屬其各自回合處理，本函式 standalone setter 不負責 alt-entry 的 stack 語意。"
-    ]
-  },
-  "0003616e": {
-    "name": "fd2_set_word_global_5275c",
-    "target": "util/misc.c",
-    "issues": [
-      {
-        "type": "equivalence_note",
-        "desc": "Equivalence note for emitter record: return-value-in-EAX is a direct memory load (MOV EAX,[0x5275c]) with no intervening CALL, so it is NOT subject to the Ghidra EAX-after-CALL tracking bug; decompiler captured it correctly and no assembly override was needed.",
-        "severity": "info",
-        "verify_method": "compile_and_disasm"
-      },
-      {
-        "type": "cc_justification",
-        "desc": "cc justification: __cdecl 1-stack-arg derived from disassembly only (param at [ESP+4], bare RET = caller cleanup), because the function has 0 static callers (cannot derive from caller ADD ESP,K). Preserved-as-original; matches identical sibling @ 0x3615e.",
-        "severity": "info",
-        "verify_method": "compile_and_disasm"
-      }
-    ]
-  },
-  "000361cc": {
-    "name": "fd2_dpmi_alloc_dos_memory",
-    "target": "util/dpmi.c",
-    "issues": [
-      {
-        "type": "test_deferral_note",
-        "desc": "Unit test for the high-risk numeric/branch paths of fd2_dpmi_alloc_dos_memory (CF success/failure branch; the three output computations out_segment=eax<<16 / out_linear=(eax&0xFFFF)<<4 / out_selector=edx&0xFFFF; the off-by-one page-lock arithmetic lock(seg>>12, paragraphs*16+(seg>>12)-1)) is DEFERRED to Phase 9 integration. Reason (proven, not convenience): these paths are reachable only via int386(), which has no deterministic unit-test seam in the DOS/4GW harness. (1) A test-local int386 override to inject the DPMI host result was implemented and proven by bisection to deterministically crash/hang the DOS/4GW runtime -- overriding the CRT int386 breaks the extender's protected-mode interrupt reflection that the CRT itself depends on, so the test executable faults before reaching the dpmi suite; with the override disabled the same build completes (369 pass + the 3 dpmi tests fail on real DPMI non-determinism). int386 is also used by src/input/input.c, whose suite depends on the real INT 16h. (2) Letting the real int386 service INT 31h fn 0x100 allocates real, non-deterministic DOS conventional memory and locks real pages with no paired free here -- leak-prone and unassertable on exact values. Deferral is documented in the src/util/dpmi.c file header. Equivalence of the bit-math was verified statically line-by-line against the assembly (0x36206 SHL EAX,0x10; 0x3620f AND/0x36214 SHL; 0x36221 AND; 0x36237 SHR EAX,0xc; 0x3623e SHL EDX,0x4; 0x36241 ADD; 0x36243 DEC).",
-        "severity": "low",
-        "verify_method": "phase9_integration",
-        "source_review": "fd2_dpmi_alloc_dos_memory @000361cc (emitter fix-round; int386 override proven to crash DOS/4GW)"
-      }
-    ]
-  },
-  "000362f1": {
-    "name": "fd2_dpmi_unlock_region",
-    "target": "util/dpmi.c",
-    "issues": [
-      {
-        "type": "fragment_equivalence_handoff",
-        "desc": "Class-3 shared-tail equivalence-by-regeneration. fd2_dpmi_unlock_region's INT 31h dispatch tail (asm @0x362a7) is shared via JMP from inside fd2_dpmi_lock_region (@0x36284) and is NOT byte-identical-preserved. The baseline emits both fd2_dpmi_lock_region and fd2_dpmi_unlock_region as independent full functions and relies on Watcom 9.5a regenerating an equivalent int386 dispatch + cflag-return in each. Layer-2 equivalence rests on that regeneration, not on preserving the original JMP-into-sibling tail. Logged per project convention for Class-3 shared-tail / shared-epilogue equivalence-by-regeneration concerns (cf. the 00010b43 and 00015983 fragment_equivalence_handoff entries). verify_method: post-build -d disasm to confirm each function emits a SUB ESP,0x38 frame + correct DWORDREGS packing + int386 + cflag SETZ.",
-        "severity": "info",
-        "verify_method": "compile_and_disasm",
-        "source_review": "fd2_dpmi_unlock_region @000362f1 (reviewer-approved)"
-      }
-    ]
-  },
-  "00036b0f": {
-    "name": "fd2_ani_decoder_chunk_palette_load_rle",
-    "target": "anim/anidec.c",
-    "issues": [
-      {
-        "type": "layer2_equivalence_assumption",
-        "desc": "Equivalence note not recorded by emitter: 16-bit BX exact-equality loop exit (JZ on CMP BX,DX) vs C 32-bit `pos < 0x300` differs on malformed overshooting input. Benign under the well-formed-stream vendor invariant and consistent with sibling row RLE handler @0x36BCE; should be captured as a known Layer-2 equivalence assumption for the decoder family.",
-        "severity": "info",
-        "verify_method": "well_formed_stream_invariant",
-        "reviewer_verdict": "approved (benign under well-formed-stream invariant, no code change needed)"
-      }
-    ]
-  },
-  "0004dfcc": {
-    "name": "fd2_update_palette_cycle_anim",
-    "target": "gfx/palette.c",
-    "issues": [
-      "Update-path of fd2_update_palette_cycle_anim is not unit-tested (frame advance + wrap-at-0x10 state transition + VGA DAC port writes). Reason: gated behind a throttle reading the live BIOS tick at 0x46C twice; harness does not fake the tick and fd2_read_bios_midnight_tick is itself a function-under-test, so delta>=2 cannot be forced deterministically. Display side effect deferred to Phase 9 integration. The frame-advance/wrap state transition remains uncovered at unit level due to this hardware gate — record this rationale in the test file comment (currently the no-update test has no note explaining why the update path is omitted)."
-    ]
-  },
-  "0004e3cf": {
-    "name": "fd2_pathfind_count_unique_directions",
-    "target": "util/pathfnd.c",
-    "issues": [
-      {
-        "type": "emulator_unmapped_region",
-        "desc": "emulate_function 對 0x60079 區段的 memory 覆寫無效（回傳恆為 EAX=0x94，與 input memory 內容無關），疑為該 data region 在 program image 未 mapped/initialized，emulator 讀寫 fall-through。故本 function 的期望值 (8) 改以 disasm+decomp 不可分歧邏輯做手算驗證：depth=4, dir bytes[0,0,1,1], prev=0xFF → transitions=2 → 2<<2=8，與 ASSERT_EQ(result,8) 相符。後續若需 emulate 驗 pathfind globals 類 function 需注意此限制。",
-        "severity": "info",
-        "verify_method": "manual_disasm_decomp"
-      }
-    ]
-  },
-  "00010010": {
-    "name": "fd2_load_save_and_init_engine",
-    "target": "src/life/main.c",
-    "issues": [
-      {
-        "type": "test_deferral_note",
-        "desc": "checksum-mismatch arm 的單元測試延後到 Phase 9 integration。該 arm 在 fd2_save_compute_checksum(pBuf,0x59CB) != *(uint*)(pBuf+0x59C7) 時呼叫 fd2_load_chapter_portrait / fd2_display_dialog_scene / fd2_paint_portrait_to_dialog_area / fd2_wait_for_input_dialog_with_blink / fd2_close_status_screen_with_slide_out。其中 fd2_wait_for_input_dialog_with_blink 是 real linked function（src/input/input.c），內含 while(fd2_check_keyboard_buffer_nonempty()==0){...} busy-wait 等待鍵盤輸入，在 silent 自動化 harness 無輸入時會無限 hang（已用 bisection 證實）。該 arm 只多一個 error dialog（display + blocking input）後 fall-through 回到與 match 路徑相同的 restore，已由 test_load_save_restores_scalar_state / test_load_save_cinematic_loop_counts 涵蓋。",
-        "severity": "info",
-        "verify_method": "phase9_integration_with_scripted_input"
-      },
-      {
-        "type": "test_coverage_note",
-        "desc": "已單元測試（風險導向）：scalar restore（chapter/party/turn/gold/cursor/view-origin/audio flags 全部從 save header tail 還原）、tile-map width/height 與 portrait-cache header（tile_event[1]/[2]）的 derived state、portrait-rebuild loop call count、兩段 cinematic loop 的 frame 計數（含 zoom loop 的 i==5->i=9 skip = 9+4=13 alloc/cleanup）、結尾 anim_phase=1 / current_active_char_idx=0。純 blit/display 副作用（實際像素輸出）依風險導向政策延後 Phase 9。fixture 在 C:\\(=src mount) 寫 FD2.SAV/FDICON.B24/FD2.TMP 後 teardown remove，並還原所有被 load 改動的 globals。",
-        "severity": "info",
-        "verify_method": "unit_tested"
-      }
-    ]
-  },
-  "0001088d": {
-    "name": "fd2_load_chapter_battle_data",
-    "target": "rsrc/rsrc.c",
-    "issues": [
-      {
-        "type": "shared_epilogue_regeneration",
-        "desc": "此函式正常路徑結尾 CALL fd2_load_chapter_portraits_and_dump_tmp(0) 後 fall-through 進共用 epilogue fragment fd2_noop_stub_b43 @ 0x10b43 (ADD ESP,0xc / POP EBP/EDI/ESI/EBX / RET)。emit 為 plain return；等價靠 Watcom 9.5a 重新生成等量 stack cleanup + saved-reg restore，非 byte-identical。對應 00010b43 handoff 的 +0x00 parent 覆蓋點。verify_method: post-build -d disasm 確認本函式 epilogue 的 ADD ESP 量與 POP 順序對應其 4 個 saved reg (EBX/ESI/EDI/EBP) + locals。",
-        "severity": "info",
-        "verify_method": "compile_and_disasm"
-      },
-      {
-        "type": "error_path_exit_code",
-        "desc": "兩條失敗路徑 (malloc fail / fopen fail) 原 binary 為 PUSH <msg>; JMP 0x10056，共用 sibling fd2_load_save_and_init_engine 的 tail：CALL printf; ADD ESP,4; PUSH 1; JMP exit。即實際 exit code 固定為 1。Ghidra decomp 將 PUSH 1 誤渲染為 exit(pRuntime_char_alloc)（fopen 結果變數）——為 decomp artifact。emit 採真實行為 exit(1)，與 sibling main.c 既有慣例一致。OOM 字串用 pooled global data_fd2_string_field_map_oom_msg_chapter_runtime_50064 @0x50064，file-not-found 用 data_fd2_string_field_map_fdicon_not_found_err_50086 @0x50086。",
-        "severity": "info",
-        "verify_method": "compile_and_disasm"
-      }
-    ]
-  },
-  "00015f84": {
-    "name": "fd2_display_dialog_scene",
-    "target": "dialog/dialog.c",
-    "issues": [
-      {
-        "type": "register_liveness_edge",
-        "desc": "Register-liveness edge (-0x11 ENEMY slot1 with target==0x27): the binary animates at the position held in EDI, which can have been set by a *previous* -0x12/-0x14 op (EDI <- current_speaker @0x1628c / runtime_char @0x1642b). The emitted C var pSpeaker is updated only in the -0x11(!=0x27) and -0x13 branches, NOT in -0x12/-0x14, so after a -0x12-then-(-0x11 with id 0x27) sequence the C would use a stale pSpeaker while the binary uses the -0x12 speaker. This is the documented liveness caveat in the function header. It does not affect compile/exec for the common single-portrait scripts and the first-use/garbage case is equally undefined in both; logged so a future pass can decide whether to mirror EDI exactly across all four portrait branches if such a script sequence is ever observed.",
-        "severity": "low",
-        "verify_method": "static-only; no observed script triggers -0x12-then-(-0x11 id 0x27); revisit if such sequence found"
-      }
-    ]
-  },
-  "000165ac": {
-    "name": "fd2_play_dialog_open_animation",
-    "target": "dialog/dialog.c",
-    "issues": [
-      {
-        "type": "deferred_test_coverage",
-        "desc": "flip!=0 的 cursor-pan + 線性內插 blit 迴圈未做 unit test：它呼叫真 emit 的 fd2_pan_cursor_to_tile_animated (cursor.obj) 與 fd2_blit_indexed_sprite_with_alloc (blitspr.obj)，兩者寫 VRAM 0xA0000 並依賴 cursor 硬體狀態，屬純 display 副作用，依 test 政策延到 Phase 9 integration。已測 flip==0 deterministic 路徑 (default-origin 對映 0x728->2 / 0x9017->0x70 / else 0、5 次 malloc、width=flip*0x140+5、5-stage assemble 常數表 (4,2)(8,3)(0xC,4)(0x10,5)(0x13,5) 與 dst_origin 轉發)。",
-        "severity": "info",
-        "verify_method": "phase9_integration"
-      },
-      {
-        "type": "signed_arithmetic_equivalence",
-        "desc": "內插式 interp_y = cursor_y_pixel - ((int)(cursor_y_pixel-flip)*step)/total_steps 與 interp_x = cursor_x_pixel - ((int)(cursor_x_pixel-5)*step)/total_steps 對應 binary 的 IMUL+IDIV (SAR EDX,0x1f 號擴展) 帶號乘除。C 用帶號 int 乘除等價，但 step/total_steps 邊界 (step==total_steps 時商=被除數) 之 round-toward-zero 行為須在實機/emulator 確認與 Watcom 9.5a IDIV codegen 完全一致。inputs(cursor 像素) 需真 pan 才會填，故與上面延後覆蓋點同批驗。",
-        "severity": "info",
-        "verify_method": "phase9_integration"
-      },
-      {
-        "type": "deferred_test_coverage",
-        "desc": "Phase-9 follow-up: add a test for the flip!=0 cursor-pan + interp_x/interp_y interpolation path of fd2_play_dialog_open_animation once a recording-stub or integration harness can capture the blitter's x/y args without colliding with the real linked fd2_blit_indexed_sprite_with_alloc used by gfx/blitspr.c. Expected values per step: interp_x=cursor_x_pixel-((cursor_x_pixel-5)*step)/total_steps, interp_y=cursor_y_pixel-((cursor_y_pixel-flip)*step)/total_steps, cursor_*_pixel=cursor_screen_*×0x18+4, total_steps=sx+sy.",
-        "severity": "info",
-        "verify_method": "phase9_integration",
-        "source_review": "fd2_play_dialog_open_animation @000165ac (reviewer-approved)"
-      }
-    ]
-  },
-  "00017eef": {
-    "name": "fd2_render_status_screen_static_layout",
-    "target": "gfx/rndstat.c",
-    "issues": [
-      {
-        "type": "test_deferred_phase9",
-        "desc": "Pure blit/display orchestrator. No isolated unit test: it calls the real-linked fd2_load_dat_resource with the hardcoded in-binary filename pointer 0x51a70 (DATO.DAT string). In the test binary that address does not hold a valid path, and the real loader does exit(1) on fopen failure, aborting the whole test run; fd2_load_dat_resource is already linked real (rsrc.c) so it cannot be stubbed, and DATO.DAT is not in build_test.py staged GAME_FILES. Cannot test without distorting the emit code (replacing 0x51a70 with a string global) which is forbidden. Deterministic behavior to verify at Phase 9 integration: data_fd2_dialog_active_portrait_blit_offset set to 0xC88; portrait_pixels = buf + *buf; three fd2_dialog_sprite_blit_normal dst offsets overlay_buffer+0xC88 / +0x91C / +0x7585; UI sprite sources sheet_ptr + *(int*)(sheet_ptr+0x56) and +0x5A; portrait_id selected as runtime_char[char_idx].portrait_id; trailing fd2_render_full_char_stat_panel(char_idx, overlay_buffer).",
-        "severity": "info",
-        "verify_method": "phase9_integration",
-        "source_review": "fd2_render_status_screen_static_layout @00017eef (emitter)"
-      }
-    ]
-  },
-  "00018890": {
-    "name": "fd2_player_action_menu_loop",
-    "target": "ui_menu/menu.c",
-    "issues": [
-      {
-        "type": "bookkeeping_flag_mismatch",
-        "desc": "c_changed flag was reported false but the diff is a real code emit of fd2_player_action_menu_loop plus 2 new tests and a new global — future rounds should set c_changed=true and list test_cases_added when the function body is emitted, even if a plate fact-correction also happened in the same round.",
-        "severity": "low",
-        "verify_method": "next_round_set_flags",
-        "source_review": "fd2_player_action_menu_loop @00018890 (reviewer-approved)"
-      }
-    ]
-  },
-  "0001b1e7": {
-    "name": "fd2_open_party_status_overview_screen",
-    "target": "ui_menu/status.c",
-    "issues": [
-      {
-        "type": "uninitialized_read_indeterminate_value",
-        "desc": "Wait-loop redraw gate compares the live BIOS tick to last_tick, which the binary NEVER writes: it is the caller leftover EBP at entry (asm 0x1B2FE CMP EAX,EBP; EBP is not set anywhere in this function nor in the single caller fd2_field_menu_status_save_load_quit_dispatch @0x19DF7, which uses ESP-relative framing). Emitted faithfully as int32 last_tick declared-but-never-assigned (Watcom 9.5a default -w1 produces NO warning; build gate 0 warnings). Observable behavior is identical to the binary: the redraw (palette tick + scene recomposite + content re-render + blit to 0xA0504) fires whenever (int16)*0x46C != that fixed indeterminate value, i.e. essentially every iteration, until a key is pressed. The exact garbage value differs between binary (specific call-chain EBP) and rebuild (compiler storage choice), but it is consumed ONLY by this one redraw-gate comparison and gates a pure display side effect, so no downstream logic depends on the specific value -> functionally equivalent. Residual check: post-build -d disasm to confirm Watcom emits the same MOVSX word ptr[0x46C] / CMP-against-indeterminate / conditional-skip shape.",
-        "severity": "low",
-        "verify_method": "compile_and_disasm"
-      }
-    ]
-  },
-  "0001cff0": {
-    "name": "fd2_spell_selection_menu_main",
-    "target": "spell/spellsel.c",
-    "issues": [
-      {
-        "type": "dropped_arg_call_recovery",
-        "desc": "Ghidra dropped arguments on three CALLs (systematic EAX/arg-tracking bug); reconstructed from the disassembly. (1) The per-spell status handler table call @0x1D479 'CALL [EAX*4+0x51D01]' is preceded by PUSH [ESP+0xf4](=caster_idx), PUSH ESI(=n_targets), PUSH ESP(=target_buf) and ADD ESP,0xC after -> emitted as data_fd2_battle_spell_handler_table[spell_id](caster_idx, n_targets, target_buf), matching the (uint32,uint32,uint8*) table prototype in globals.h. (2) fd2_play_spell_cast_sequence @0x1D43C takes (caster_idx, spell_id, ESI=n_targets, target_buf). (3) collect/process death-drops take the live drop count (EBX). Verify byte-identical arg push order post-build.",
-        "severity": "low",
-        "verify_method": "compile_and_disasm"
-      },
-      {
-        "type": "global_read_vs_table_read",
-        "desc": "Single-target branch @0x1D366: the binary computes compute_aoe_targets arg4 as (battle_anim_phase - 2) by reading the global [0x51A83] (which was set to pSpell[4]+2 at 0x1D188 with no intervening write), then stores battle_anim_phase=1. Emitted as the value-equal, alias-free pSpell[4] (the decompiler's own simplification) and a separate 'battle_anim_phase = 1' store. Result is numerically identical; the emitted code reads pSpell+4 instead of the global, so the memory access differs. Confirm equivalence post-build.",
-        "severity": "low",
-        "verify_method": "compile_and_disasm"
-      }
-    ]
-  },
-  "0001f73f": {
-    "name": "fd2_display_cinematic_image_with_fade",
-    "target": "anim/anicine.c",
-    "issues": [
-      {
-        "type": "test_deferred_phase9",
-        "desc": "Pure blit/display orchestrator, void return, no isolatable pure-computation slice. Its very first action after the no-op palette-fade stub is memset((void*)0xA0000,0,64000), a 64000-byte write to linear 0xA0000 (the VGA framebuffer), which is not a mapped surface in the flat-model TEST.EXE and faults; it then calls the real fd2_blit_rectangle (src/gfx/blitspr.c) which memmoves into 0xA0000 (same fault), and the real fd2_wait_n_bios_ticks (src/input/input.c) which busy-waits on the BIOS tick counter at linear 0x46C (uninitialized in the test -> indeterminate spin). The only arithmetic, stage2_src = row_idx*0x140 + src_x_off, is consumed inline as fd2_blit_rectangle src arg with no observable output (fd2_blit_rectangle is linked real, not a spy, and faults on 0xA0000 before any capture). Testing in isolation would require rewriting 0xA0000 to a test buffer and dropping the BIOS waits = distorting the emit code, which is forbidden. (Note: FDOTHER.DAT IS staged so the three real fd2_load_dat_resource loads at 0x51a4d themselves would succeed; the blocker is purely the 0xA0000 framebuffer writes + BIOS-timer waits, not the file loading.) Same class as fd2_render_status_screen_static_layout @00017eef. Deterministic behavior to verify at Phase 9 integration: Stage 1 fades to black, clears 0xA0000, loads FDOTHER.DAT[palette_idx] then FDOTHER.DAT[image1_idx] into data_fd2_vga_palette_data_ptr / image_data, rle-blits image_data full-screen (0,0,0xA0000,stride 0x140,palette_op 0xFFFFFFFF), fades in, holds 1+6 BIOS ticks, fades to black; Stage 2 loads FDOTHER.DAT[0x65] palette, blit_rectangle copies a 0x140x0xC8 region from (row_idx*0x140 + src_x_off) to 0xA0000 (both strides 0x140), fades in.",
-        "severity": "info",
-        "verify_method": "phase9_integration",
-        "source_review": "fd2_display_cinematic_image_with_fade @0001f73f (emitter)"
-      }
-    ]
-  },
-  "000211a4": {
-    "name": "fd2_cast_group_hp_heal_spell",
-    "target": "spell/spelleff.c",
-    "issues": [
-      {
-        "type": "callee_decompiler_artifact_handoff",
-        "desc": "NON-BLOCKING (callee, already emitted; not this function): Ghidra decompiler output for fd2_apply_hp_heal_and_award_xp @ 0x1c916 shows extra_heal computed as ((base_heal_90 % 100) * param_2)/1000, but the assembly (0x1c965 MOV EDX,EAX[=rng] / 0x1c96f IDIV 0x64 -> EDX=rng%100 / 0x1c971 IMUL EDX,heal_base) proves it is ((rng % 100) * heal_base)/1000. The decompiled C is wrong (register-aliasing artifact); the plate for that callee is already CORRECT (says 'rng_state % 100'). Recorded so any future re-emit/verify of that callee relies on the asm/plate, not the decompiled C. Does not affect the function under review, which calls the real worker.",
-        "severity": "info",
-        "verify_method": "asm_plate_authoritative",
-        "source_review": "fd2_cast_group_hp_heal_spell @000211a4 (reviewer)"
-      }
-    ]
-  },
-  "00026e39": {
-    "name": "fd2_tick_summon_anim_variant_c_5slot_radial",
-    "target": "anim/anisummn.c",
-    "issues": [
-      {
-        "type": "fpu_rounding",
-        "desc": "Radial x/y coords use the cos/sin FPU idiom FILD/FMUL/FLD(cos|sin result)/FILD word/FMULP/FADD(P)/__CHP/FISTP at 0x26fa7-0x26ff6 (x) and 0x27005-0x27044 (y). __CHP @0x377A4 sets FPU RC=truncate-toward-zero before FISTP, so the binary TRUNCATES (does not round-to-nearest); emitted C uses (int)(double_expr), which also truncates toward zero, so the rounding DIRECTION matches (same proven pattern as 0x1b750 / 0x15b77). The angle is computed single-precision: binary does FILD dword(i*0x48) / FMUL float[0x3C8EFA2D] / FSTP double, i.e. a float*float product (in x87 80-bit) stored to a 64-bit double then passed to cos/sin; emitted as the identical-shape expression angle_rad = (double)((float)(i*0x48) * pi180.f) with pi180.f bit-cast from the exact 0x3C8EFA2D (value 0.017453277, NOT the textbook pi/180 0.0174532925). Residual concern is ONLY Watcom 9.5a codegen: (a) whether it keeps the float*float product in the 80-bit register before the (double) cast (matching FSTP double) rather than rounding to float first (double-rounding), and (b) x87 80-bit cos/sin/FMUL intermediates vs C 64-bit double. Unit tests bypass this by asserting the libm-INDEPENDENT acc==0 case (cos/sin terms multiplied by 0 -> x=sweep, y=30 exact) plus all integer-only state-4/5 blit-coord arithmetic; the cos/sin-derived non-zero coords are NOT hard-asserted offline. Tests run under the real Watcom 9.5a + its CLIB cos/sin (same routines as the game binary @0x3c885/0x3c898), all PASS. Recommend post-build -d disasm to confirm byte-identical FILD/FMUL float/FSTP double + __CHP/FISTP emission for the angle and both coord stores.",
-        "severity": "low",
-        "verify_method": "compile_and_disasm"
-      }
-    ]
-  },
-  "0002939d": {
-    "name": "fd2_execute_combat_hit_cinematic",
-    "target": "anim/anicine.c",
-    "issues": [
-      {
-        "type": "uninitialized_stack_slot_zero_init",
-        "desc": "defender_HP_initial ([ESP+0x50]) and defender_HP_after ([ESP+0x58]) are read on paths where the binary leaves them uninitialized (a zero-hit-frame attacker_figani, or scripted mode where the HP-initial load @0x294a9-0x294b1 is skipped). The binary reads stack garbage there. Emitted with an explicit = 0 init to remove the Watcom W202 may-be-uninitialized warning (build is 0-warning). Equivalence: on every path reachable with real FIGANI data (which always has >=1 hit frame), both slots are assigned in the frame loop BEFORE any read, so the init is behavior-identical. In the scripted edge it yields a benign deterministic 0 (the scripted cinematic writes defender.wHP_current = HP_initial - 0; this animation HP is cosmetic, real combat resolution lives elsewhere) instead of UB garbage; no observable game-state difference. verify_method: post-build -d disasm confirms the slots are otherwise untouched on the real-data path.",
-        "severity": "info",
-        "verify_method": "compile_and_disasm",
-        "source_review": "fd2_execute_combat_hit_cinematic @0002939d (emit; [ESP+0x50]/[ESP+0x58] uninit on degenerate/scripted paths)"
-      },
-      {
-        "type": "eax_tracking_bug_fixed",
-        "desc": "The 3% bonus-hit roll: Ghidra decompiled it as (defender_idx*0x50) % 100 < 3, reusing the dead pre-CALL EAX value (systematic EAX-tracking bug). The disassembly @0x2946a does CALL fd2_advance_rng_state then MOV EDX,EAX; SAR EDX,0x1f; IDIV 0x64; CMP EDX,3 -- i.e. the roll keys off the RNG RETURN value, not defender_idx*0x50. Emitted as fd2_advance_rng_state() %% 100 < 3 (the RNG return is always <=0xFFFF so unsigned %% matches the signed IDIV). Pinned by tests test_chit_bonus_roll_double_strike / test_chit_no_bonus_single_strike (same defender index, RNG seed alone moves the strike count).",
-        "severity": "info",
-        "verify_method": "unit_test",
-        "source_review": "fd2_execute_combat_hit_cinematic @0002939d (emit; RNG EAX-bug @0x2946a)"
-      }
-    ]
-  },
-  "0002cad7": {
-    "name": "fd2_chapter_transition_menu",
-    "target": "field/chtrans.c",
-    "issues": [
-      {
-        "type": "test_deferral_note",
-        "desc": "Behavioral unit test for fd2_chapter_transition_menu is DEFERRED to Phase 9 integration (reason proven, not convenience). The function has two top-level branches and each enters an input-driven do/while loop that only terminates on a real keyboard scancode read through the REAL-linked int386(0x16,...): the STORY branch (category==0) loops until fd2_chapter_transition_with_intro returns nonzero after an INT 16h read, and the BATTLE branch (category!=0) loops on fd2_run_recruitment_or_branch_screen which itself fopens FDICON.B24 and polls the keyboard. Per the established harness limitation (cf. fd2_main @00025bf4 and the display orchestrators), the real int386 has no deterministic seam in the DOS/4GW silent runner and an INT 16h poll cannot be satisfied unattended -> a full-function test would hang. The branch also drives real-linked callees in OTHER translation units that fopen non-staged DAT files where the real loader does exit(1) on failure (the battle save-prompt fd2_display_dialog_scene reads _all_game_text@0x53A7D which the test build does not back with DATO.DAT content; fd2_save_current_state_to_slot fopens FD2.SAV), which would abort the whole run. There is no isolatable pure-logic sub-path: the scancode->cursor radio arithmetic (left 0x4D: --state wrap-to-4; right 0x4B: ++state wrap-at>4 to 0; F8 0x22 debug-bgm cycle %10; metadata-hotkey ptr compare metadata[2]==mode && metadata[1]==state -> state=5; 0xE0/0x52->0x1C Enter remap) is interleaved with fd2_play_sfx_with_handle / fd2_set_bgm_track_with_fade side-effect calls and the active-metadata pointer dereference. The control-flow translation was instead verified statically line-by-line against the disasm: the cdecl 0-param signature + EAX return (1 when story cursor!=2 @0x2CF65 MOV EAX,1; 0 shared @0x2CCFD XOR EAX,EAX for both the battle tail and the story cursor==2 fall-through); the BIOS-tick idle-frame advance uses signed-short delta (3<delta||delta<0) matching MOVSX/SUB/CMP 0x4 JGE / TEST JGE @0x2CDD7-0x2CDE8; the portrait-cache loop stride 80 offset 7 (roster[i].portrait_id) matches SHL2/ADD/SHL4 MOVZX [ECX+EAX+7] @0x2CBC8-0x2CBD2; every CALL-then-EAX use (fopen->fp, typewriter->dialog_result EBX, metadata ptr->BL, load_dat_resource->buffers, recruitment->loop cond, transition_with_intro->commit AL) was checked against assembly for the Ghidra EAX-tracking bug. The intro_panel_idx_lut[category] read reproduces the original 3-byte stack copy of the @0x526D7 table indexed by metadata[0]; the disasm base/index rebasing (intro_const_arr[category-2] with arr[0]=table[2]) is byte-identical to lut[category] over {0x0B,0x3D,0x3E} for the in-range categories 0..2.",
-        "severity": "low",
-        "verify_method": "phase9_integration",
-        "source_review": "fd2_chapter_transition_menu @0002cad7 (emit; INT 16h input do/while loops + cross-TU exit(1) DAT loads = no unit seam, cf. 00025bf4)"
-      }
-    ]
-  },
-  "0002f0b0": {
-    "name": "fd2_run_buy_item_menu",
-    "target": "ui_menu/shop.c",
-    "issues": [
-      {
-        "type": "types_h_struct_offset_discrepancy",
-        "desc": "types.h 'item_effect' struct places price at +0x14 (it carries a phantom leading unknown_00 byte), which contradicts the binary's actual +0x13 16-bit price read (the canonical 23-byte item record: TY@0, MM@0x13). This emit sidesteps it via raw uint8* pointer arithmetic so it is byte-faithful regardless, but the types.h discrepancy is real and belongs to whichever function legitimately owns/parses the item_effect struct. Should be reconciled there (shift fields so price lands at +0x13, or document/remove the phantom unknown_00) when that owner is emitted/reviewed.",
-        "severity": "low",
-        "verify_method": "fix_at_struct_owner_emit",
-        "source_review": "fd2_run_buy_item_menu @0002f0b0 (reviewer-approved)"
-      }
-    ]
-  },
-  "0003231b": {
-    "name": "fd2_chapter_01_init",
-    "target": "field/chinit.c",
-    "issues": [
-      {
-        "type": "test_deferral_note",
-        "desc": "Behavioral unit test DEFERRED to Phase 9 integration (reason proven, not convenience). fd2_chapter_01_init is a pure chapter-prologue orchestrator: a fixed straight-line script of void side-effect calls plus unconditional constant global writes, with NO numeric computation, NO RNG, NO data-dependent branch, and NO CALL-result consumption (no Ghidra EAX-tracking-bug exposure). The only control flow is two constant-bound counters (15x then 13x fd2_walk_step_up(2)). It cannot be unit-tested host-safely: (1) the body issues ~22 fd2_display_dialog_scene() calls -> real-linked (dialog/dialog.c) and reaches fd2_wait_for_input_dialog_with_blink(), a real-linked keyboard busy-wait (input/input.c) that hangs forever in the silent harness (same hang bisection-proven for the 0x10010 checksum-mismatch arm), and dereferences current_chapter_text as a parsed opcode stream; (2) it drives fd2_load_chapter_portraits_and_dump_tmp (fopen FDICON.B24 + dump FD2.TMP) and 30+ fd2_cutscene_event_trigger() calls each parsing an in-memory per-event byte-script for event ids 0x5A..0x69 and 0,1,2,5 (a full chapter-1 prologue scene environment); (3) every callee is real-linked from src/ so none can be replaced by capture stubs to observe call ordering, and the emit code must not be distorted to make it testable (forbidden). The ordered global-state contract (current_chapter_id 0x20->0x1F->0, party_total_gold=0, the cutscene_event_state=1/0 toggles, battle_anim_phase=0 resets) is reachable only after the blocking/display pipeline runs, so there is no isolable host-safe computational slice. Equivalence was instead verified statically line-by-line against the disassembly @0x3231B: the four phase current_chapter_id transitions, the two loop bounds (CMP EAX,0xf / CMP EAX,0xd), every cutscene event-id literal and its order, the nine fixed display_dialog_scene arguments (0xa0000,0x140,0xcd,0x4c,0x4a,0x13,1) with incrementing page indices, and the 0x375b2 delay literals (200/200/200/100). The leading __CHK(0x2c) is the Watcom frame-size stack-probe and is not part of the source body.",
-        "severity": "low",
-        "verify_method": "phase9_integration",
-        "source_review": "fd2_chapter_01_init @0003231b (emit; ~22 blocking fd2_display_dialog_scene + 30+ in-memory cutscene scripts + all-callees-real-linked = no unit seam, cf. 00017eef / 00010010)"
-      }
-    ]
-  }
+ "_doc": "三源交叉驗證時發現的待後續確認問題。Key = function address, value = {name, issues: [...]}。所有 emit phase 完成後統一解決。",
+ "00025bf4": {
+  "name": "fd2_main",
+  "target": "life/main.c",
+  "issues": [
+   {
+    "type": "test_deferral_note",
+    "desc": "Behavioral unit test for fd2_main is DEFERRED to Phase 9 integration (reason proven, not convenience). fd2_main unconditionally issues int386(0x10,...) twice -- INT 10h video mode 0x13 on entry and mode 3 at shutdown -- through the REAL linked Watcom int386. Per the established harness limitation (see 000361cc fd2_dpmi_alloc_dos_memory), the real int386 has no deterministic seam in the DOS/4GW silent harness and a test-local override deterministically crashes/hangs the extender; an INT 10h video mode set in the automated runner is likewise unsafe. fd2_main also (a) calls fd2_main_menu_continue_dispatcher and fd2_load_save_and_init_engine, which live in the SAME translation unit as fd2_main and so cannot be replaced by capture stubs to drive the loop, (b) drives fd2_game_main_loop (the whole-game per-frame dispatcher) whose return value is the inner-loop exit condition, and (c) performs AIL sound init + 8 fd2_load_dat_resource loads + a 152 KB malloc on every entry before the loop is even reached. There is therefore no deterministic unit seam for the outer/inner loop exit logic. The control-flow translation was instead verified statically line-by-line against the disassembly: the EDI(menu_result/exit_outer) and ESI(game_loop_result) state machine (0x25DBD MOV EDI,EAX; chapter-clear arm MOV ESI,1 @0x25DFB; chapter-switch arm MOV EDI,1 @0x25E59 on transition!=0; post-inner CMP ESI,-1/MOV EDI,1 @0x25E7C; menu!=0 arm CMP EAX,-1/XOR EDI,EAX @0x25E88 giving menu_result=0 only when ==-1; outer TEST EDI/JZ 0x25DB1). The RNG warm-up loop bound (int)rand()%0x100 matches MOV EDX,EAX;SAR EDX,31;IDIV 0x100;MOV EDI,EDX (signed remainder) @0x25D90-0x25DAF. The two driver-handle stores match the EAX returns of AIL_install_MDI_INI / AIL_install_DIG_INI; both sample handles take the same DIG driver.",
+    "severity": "low",
+    "verify_method": "phase9_integration",
+    "source_review": "fd2_main @00025bf4 (emit; int386 INT 10h + in-TU menu dispatcher = no unit seam, cf. 000361cc)"
+   },
+   {
+    "type": "fragment_equivalence_handoff",
+    "desc": "Shared-epilogue equivalence-by-regeneration (pipeline_spec pattern A, rule A-1). fd2_main physically ends with JMP 0x16F04, a tail-jump into the shared epilogue (ADD ESP,0xC; POP EDI; POP ESI; POP EBX; RET) inside fd2_cinematic_scroll_text_up_for_special_scenes @0x16E24 (already emitted, dialog/dialog.c). The merged epilogue is a Watcom code-size optimization; it is NOT reproduced. fd2_main is emitted as a self-contained void function and relies on Watcom 9.5a regenerating an equivalent POP-saved-regs + RET epilogue. Also: __CMain @0x45D4B consumes fd2_main EAX as the DOS exit code (PUSH EAX; JMP _exit @0x36DE4), but the shared epilogue leaves EAX = the last int386 return (BIOS-dependent, a dont-care exit code for a terminating game); the original source is void main(argc,argv) with argc/argv used only by the __CHK frame probe and no explicit return, so void fd2_main(void) is functionally exact. verify_method: post-build -d disasm to confirm the regenerated epilogue + that no caller relies on a specific exit code.",
+    "severity": "info",
+    "verify_method": "compile_and_disasm",
+    "source_review": "fd2_main @00025bf4 (emit; shared-epilogue tail-jump 0x16F04, cf. 000362f1 / 00010b43)"
+   }
+  ]
+ },
+ "000117e7": {
+  "name": "fd2_game_main_loop",
+  "target": "ui_menu/menu.c",
+  "issues": [
+   {
+    "type": "eax_return_recovery",
+    "desc": "Ghidra decompiled this as __cdecl void with bare 'return;' everywhere, dropping the EAX return values (systematic EAX-tracking bug). The disassembly shows real int returns: most paths XOR EAX,EAX;RET (return 0), but the field-command path @0x118C1-0x118D9 does 'do{r=fd2_field_command_menu_loop();}while(r==0); if(r==1) r^=1; return r;' (MOV EAX,EBX;RET). The single caller fd2_main @0x25DCE consumes EAX (MOV ESI,EAX then TEST ESI;JZ re-invoke), so the return value is load-bearing: a 0 return makes fd2_main loop back into fd2_game_main_loop, non-zero exits. Emitted as int accordingly. Also: the two dispatch-table calls (per_chapter_post_action_handler @0x51B19 and ai_post_action_consequence @0x51B91) push ESI (=selected char idx uVar2) before CALL (PUSH ESI;CALL;ADD ESP,4), so they are invoked with (uVar2); Ghidra rendered them as '()' with no arg — emitted with (sel) per disasm + the (uint32) table prototype in globals.h. Recommend post-build -d disasm to confirm byte-identical return-value computation and the table-call argument.",
+    "severity": "low",
+    "verify_method": "compile_and_disasm"
+   }
+  ]
+ },
+ "0001b750": {
+  "name": "fd2_recalculate_combat_stats",
+  "target": "battle/battle.c",
+  "issues": [
+   {
+    "type": "fpu_rounding",
+    "desc": "AP/DP x1.15 buff. Assembly @0x1B7EF-0x1B819 = FILD/FMUL m64[0x5018D]/CALL __CHP/FISTP. __CHP (0x377A4) sets FPU RC=11 (round-toward-zero) then FRNDINT, so the value is TRUNCATED before FISTP stores it — i.e. assembly truncates, it does NOT round-to-nearest. The emitted C (int)((double)x * 1.15) ALSO truncates toward zero, so the rounding DIRECTION matches. Residual concern is only Watcom 9.5a codegen precision (x87 80-bit FMUL vs C 64-bit double intermediate); for unit-test ground-truth this is bypassed by choosing bases where 80-bit and 64-bit truncation agree (100->114, 200->229, tested in testbtl.c). Still recommend a post-build -d disasm to confirm byte-identical FILD/FMUL/__CHP/FISTP emission. [reviewer KEEP-confirmed valid] Precision-ordering refinement: the FMUL at 0x1B7F3 runs BEFORE __CHP sets PC=64-bit, so it uses the entry control-word precision. Cross-check: bases 100->114 and 200->229 agree at 64-bit and exact-80-bit truncation; base 40 would give 46 at 64-bit but 45 at exact-80-bit and was correctly AVOIDED in the tests. Unit tests pass under real Watcom, empirically confirming truncation; a post-build -d disasm to confirm byte-identical FILD/FMUL/__CHP/FISTP emission remains the recommended final check. No code change needed.",
+    "severity": "low",
+    "verify_method": "compile_and_disasm",
+    "reviewer_verdict": "KEEP (confirmed valid, no code change needed)"
+   }
+  ]
+ },
+ "00015b77": {
+  "name": "fd2_score_spell_candidate",
+  "target": "battle/btl_ai.c",
+  "issues": [
+   {
+    "type": "fpu_rounding",
+    "desc": "Assembly uses FILD+FMUL+__CHP+FISTP (round-to-nearest by default FPU mode); emitted C uses (int)((double)per_score * multiplier_1_5). For actual values 8*1.5=12 and 24*1.5=36 the result is exact integer so truncation vs rounding doesn't matter, but Watcom codegen may differ.",
+    "severity": "low",
+    "verify_method": "compile_and_disasm"
+   }
+  ]
+ },
+ "0001c75e": {
+  "name": "fd2_calc_magic_damage",
+  "target": "battle/battle.c",
+  "issues": [
+   {
+    "type": "resist_table_copy",
+    "desc": "Assembly 先 REP MOVSD 複製 28-dword resist table 到 stack 再索引；emitted C 直接讀 global。行為等價 (table 不在執行中被修改)，但 machine code 顯著不同。",
+    "severity": "info",
+    "verify_method": "compile_and_compare_behavior"
+   }
+  ]
+ },
+ "00010b43": {
+  "name": "fd2_noop_stub_b43",
+  "target": "<fragment:inline-epilogue>",
+  "issues": [
+   {
+    "type": "fragment_equivalence_handoff",
+    "desc": "0x10b43 fd2_noop_stub_b43 屬 SHARED EPILOGUE fragment，正確 skip 不獨立 emit。等價性疑慮：此 fragment 的等價靠『各 parent 的 return; 由 Watcom 9.5a 重新生成 ADD ESP/POP regs/RET』達成，而非 byte-identical。因此 Layer 2 等價驗證的責任轉移到 3 個 +0x00 parent (fd2_load_chapter_battle_data / fd2_play_rising_pre_cast_effect / fd2_play_variant_b_slide_pre_effect) 與 26 個 +0x03 parent 的 epilogue 各自 emit 時 — 屆時須確認每個 parent emit 出的 epilogue stack-cleanup 量(ADD ESP 對應其 locals + saved regs)與原 binary 等價。此非本 fragment 自身可驗，屬下游 parent emit 時的覆蓋點，建議記錄以免遺漏。",
+    "severity": "info",
+    "verify_method": "verify_at_parent_emit"
+   },
+   {
+    "type": "sibling_noop_stub_policy",
+    "desc": "原列的 6 個 noop stub 中，c49/1011/1452/13994/15983 經各自 review 後皆確認為 DECOMPILER FRAGMENT（c49/1011/1452/13994 = shared epilogue；15983 = shared return-tail，帶回傳值 MOV EAX,EDI），已改 <fragment:inline-epilogue> skip + plate marker，不再 route 到 util/noop.c。僅剩 fd2_noop_stub_4e915 仍 route 到 util/noop.c（done:true / reviewed:false），待其被 review 時逐一確認；應套用同一 fragment 政策(plate marker + routing skip)、不可預先批次處理。",
+    "severity": "info",
+    "verify_method": "per_function_review"
+   }
+  ]
+ },
+ "00010c49": {
+  "name": "fd2_noop_stub_c49",
+  "target": "<fragment:inline-epilogue>",
+  "issues": [
+   {
+    "type": "fragment_equivalence_handoff",
+    "desc": "0x10c49 fd2_noop_stub_c49 屬 SHARED EPILOGUE fragment (calling_convention.md epilogue cluster 0x10c49 = ADD ESP 0x4 + POP EDI/ESI/EBX + RET, locals=0x4 + 3 saved regs; pipeline_spec.md 模式A rule A-1)，正確 skip 不獨立 emit 到 util/noop.c。等價性靠『各 parent 的 return; 由 Watcom 9.5a 重新生成 epilogue』達成，而非 byte-identical。Layer 2 等價驗證責任轉移到 3 個 tail-JMP parent — fd2_convert_battle_tiles_to_24px (JMP @0x13a3f) / fd2_equip_unequip_inventory_menu (JMP @0x1c13d) / fd2_open_party_status_overview_screen (JMP @0x1b418) — 各自 emit 時須確認其 epilogue stack-cleanup 量 (ADD ESP 對應 locals=0x4 + POP EDI/ESI/EBX) 與原 binary 等價。此非本 fragment 自身可驗，屬下游 parent emit 時的覆蓋點。",
+    "severity": "info",
+    "verify_method": "verify_at_parent_emit"
+   }
+  ]
+ },
+ "00011452": {
+  "name": "fd2_noop_stub_1452",
+  "target": "<fragment:inline-epilogue>",
+  "issues": [
+   {
+    "type": "fragment_equivalence_handoff",
+    "desc": "0x11452 fd2_noop_stub_1452 屬 SHARED EPILOGUE fragment (calling_convention.md epilogue cluster 0x11452 = ADD ESP 0x20 + POP EBP/EDI/ESI/EBX + RET, locals=0x20 + 4 saved regs; pipeline_spec.md rule A-1)，正確 skip 不獨立 emit 到 util/noop.c。等價性靠『各 parent 的 return; 由 Watcom 9.5a 重新生成 epilogue』達成，而非 byte-identical。Layer 2 等價驗證責任轉移到 3 個 +0x00 全 epilogue parent — fd2_animate_spell_projectile_paths (JZ @0x1df7f + JMP @0x1e0d6) / fd2_assemble_dialog_frame_layered (JGE @0x16b39) / fd2_render_inventory_item_grid (JGE @0x186e4)，各有 PUSH EBX/ESI/EDI/EBP + SUB ESP,0x20 prologue — 以及 1 個 +0x03 alt-entry parent fd2_save_runtime_char_to_template (JGE @0x1151f，無 SUB ESP、僅 POP 4 regs)。各自 emit 時須確認其 epilogue stack-cleanup 量 (ADD ESP 對應 locals + POP regs) 與原 binary 等價。此非本 fragment 自身可驗，屬下游 parent emit 時的覆蓋點。",
+    "severity": "info",
+    "verify_method": "verify_at_parent_emit"
+   }
+  ]
+ },
+ "00013994": {
+  "name": "fd2_noop_stub_13994",
+  "target": "<fragment:inline-epilogue>",
+  "issues": [
+   {
+    "type": "fragment_equivalence_handoff",
+    "desc": "0x13994 fd2_noop_stub_13994 是 SHARED EPILOGUE fragment (calling_convention.md epilogue cluster 0x13994 = ADD ESP 0x5C + POP EBP/EDI/ESI/EBX + RET, locals=0x5C + 4 saved regs; pipeline_spec.md 模式A rule A-1)，已正確 skip、不再 emit 到 util/noop.c。等價性疑慮：此 fragment 的行為（caller-frame unwind + 把 EBP 載入 EAX 當回傳值）需靠唯一 parent fd2_play_ending_and_record_clear 的 return ebp_value; 由 Watcom 9.5a 重新生成 epilogue「等價」，而非 byte-identical。Layer 2 跨檔語意驗證責任轉移到 parent emit 時確認：parent 的 PUSH EBX/ESI/EDI/EBP + SUB ESP,0x5c (@0x1f89e) prologue 對應的 stack-cleanup 段 (ADD ESP 還原 locals=0x5C + POP EBP/EDI/ESI/EBX) 與原 binary 相同，且 MOV EAX,EBP (@0x1ff72) 的回傳值語意被 return 述句保留。非由 fragment 自身可驗，待下游 parent emit 時的覆蓋點。",
+    "severity": "info",
+    "verify_method": "verify_at_parent_emit"
+   }
+  ]
+ },
+ "00015983": {
+  "name": "fd2_score_item_candidate_tail_15983",
+  "target": "<fragment:inline-epilogue>",
+  "issues": [
+   {
+    "type": "fragment_equivalence_handoff",
+    "desc": "0x15983 屬 SHARED RETURN/EPILOGUE fragment（calling_convention.md epilogue cluster 0x15983；非 no-op，帶回傳值）。Disasm = MOV EAX,EDI; JMP 0x22bbe；0x22bbe = ADD ESP,4 + POP EBP/EDI/ESI/EBX + RET（與 fd2_composite_battle_frame_zero @0x22bb7 共用 epilogue）。已正確 skip、不獨立 emit 到 util/noop.c。等價性靠『各 parent 的 return 由 Watcom 9.5a 重新生成 MOV EAX,<retval> + 對應 stack-cleanup epilogue』達成，而非 byte-identical。Layer 2 等價驗證責任轉移到兩個 parent 各自 emit 時：(1) fd2_score_item_candidate @0x15880（target battle/btl_ai.c，已 reviewed）— 3 條 early-exit conditional jump，EDI=total_score，須確認 emit 出的 `return total_score;` 在 -d 反組譯後等於 MOV EAX,EDI + (ADD ESP,0x4 還原 locals=0x4 + POP EBX/ESI/EDI/EBP + RET)；(2) fd2_alloc_and_blit_indexed_sprite_chunk @0x15f0e（target gfx/blit.c，phase 5 未 emit）— tail-JMP @0x15f7f，EDI=malloc buffer pointer，須確認其回傳值語意（目前 Ghidra 簽名標 void，emit 時應依 MOV EAX,EDI 將其視為回傳 buffer pointer 並保留），且 prologue PUSH EBX/ESI/EDI/EBP + SUB ESP,0x4 對應的 cleanup 與原 binary 等價。此非本 fragment 自身可驗，屬下游 parent emit 時的覆蓋點。",
+    "severity": "info",
+    "verify_method": "verify_at_parent_emit"
+   },
+   {
+    "type": "fragment_equivalence_handoff",
+    "desc": "00015983 fragment_equivalence_handoff is correctly logged and accurate. Reiterate for downstream: parent2 fd2_alloc_and_blit_indexed_sprite_chunk @0x15f0e (gfx/blit.c, currently done:false / not emitted) returns the malloc'd buffer pointer via this fragment's MOV EAX,EDI even though its Ghidra signature is 'void'. When that parent is emitted, its return type MUST be a pointer (it returns the buffer allocated at CALL 0x36d16 / MOV EDI,EAX @0x15f51), and the SUB ESP,0x4 + PUSH EBX/ESI/EDI/EBP cleanup must regenerate equivalently. parent1 fd2_score_item_candidate @0x15880 (battle/btl_ai.c, already reviewed:true) returns int total_score; verify its emitted `return total_score;` disassembles to MOV EAX,EDI + the 0x18 cleanup.",
+    "severity": "info",
+    "verify_method": "verify_at_parent_emit",
+    "source_review": "fd2_score_item_candidate_tail_15983 @00015983 (reviewer-approved)"
+   }
+  ]
+ },
+ "00011aa8": {
+  "name": "fd2_wait_for_input_with_idle",
+  "target": "input/input.c",
+  "issues": [
+   {
+    "type": "single_read_vs_double_read",
+    "desc": "Single-read-reuse vs double-volatile-read on BIOS_TICK_WORD at 0x46C (store-to-0x539F0 + comparison): the original reuses one read; emitted C reads twice. Documented as unobservable because 0x539F0 has 0 readers binary-wide. If a wlink ORDER/byte-layout audit later cares about the exact bytes written to 0x539F0, note this write can lag the comparison value by one tick relative to the original. Recommend an inline comment in input.c near line 474 stating 0x539F0 is a dead/write-only latch (0 readers) so the double-read is intentional-equivalent.",
+    "severity": "info",
+    "verify_method": "compile_and_disasm"
+   }
+  ]
+ },
+ "00011d40": {
+  "name": "fd2_set_vga_palette_range",
+  "target": "gfx/palette.c",
+  "issues": [
+   {
+    "type": "test_deferral_note_missing",
+    "desc": "[deferral note missing] The palette outp-stream tests (test_set_vga_palette_range_basic and siblings) defer value-level verification of the subtract/clamp arithmetic to Phase 9 integration because the test harness lacks an outp-capture stub. The risk-based test policy requires such deferral to be explicitly noted with reason ('须在输出注明延后与理由'), but no such note exists in tests/testui.c or tests/_index.md. Emitter should add either (a) a short comment at the test marking the deferral + reason, or (b) a recording outp stub so the clamp branch can be asserted (e.g. fake_pal[3]=0x05,brightness=0x10 -> expect 0; fake_pal[0]=0x3F,brightness=0x10 -> expect 0x2F).",
+    "severity": "low",
+    "verify_method": "add_test_comment_or_outp_stub"
+   }
+  ]
+ },
+ "00012c0d": {
+  "name": "fd2_find_char_at_cursor_pos",
+  "target": "battle/btl_turn.c",
+  "issues": [
+   {
+    "type": "test_coverage_gap",
+    "desc": "No dedicated test for the 'cursor matches a DEAD char then a later ALIVE char' path; consider adding to testanim.c to cover the JNZ-continue branch after fd2_check_char_is_dead (currently the is_dead stub always returns 0, so the dead-skip continuation is never exercised).",
+    "severity": "low",
+    "verify_method": "add_test"
+   }
+  ]
+ },
+ "00013185": {
+  "name": "fd2_walk_step_up",
+  "target": "anim/anim.c",
+  "issues": [
+   {
+    "type": "test_coverage_gap",
+    "desc": "fd2_walk_step_up @ 00013185: scroll-up code path (origin_y!=0 && char in top-2 rows) is not unit-tested. Same gap exists for the 3 approved siblings (down/left/right). Recommend a future consolidated test that sets origin_y!=0 with pos within top 2 rows and asserts origin_y decrements by 1 (the one non-display observable effect of the scroll branch). Deferred to Phase 9 integration per risk-based policy (rest of branch is pure blit/display).",
+    "severity": "low",
+    "verify_method": "add_test"
+   }
+  ]
+ },
+ "00013315": {
+  "name": "fd2_walk_step_right",
+  "target": "anim/anim.c",
+  "issues": [
+   {
+    "type": "test_coverage_gap",
+    "desc": "fd2_walk_step_right @00013315 (src/anim/anim.c, testanim.c:764): test exercises NO-SCROLL arm only. UNCOVERED equivalence-relevant paths: (1) scroll arm else-branch -> scroll_delta_x=4 / scroll_window_flag=1 / composite_width=0xE / persistent data_fd2_battle_view_window_origin_x += 1; (2) right-edge-clamp OR operand data_fd2_battle_map_width_tiles - data_fd2_battle_view_window_max_x == data_fd2_battle_view_window_origin_x. Both verified correct against assembly during review. Recommend a scroll-path test in Phase 9 integration (set pos_x - origin_x > 0xA with map_width - max_x != origin_x; assert origin_x incremented by 1 and cursor_screen_x unchanged). Deferred consistent with sibling walk-step down/left/up tests.",
+    "severity": "low",
+    "verify_method": "add_test"
+   }
+  ]
+ },
+ "00013a9f": {
+  "name": "fd2_enemy_turn_action_dispatcher",
+  "target": "battle/btl_ai.c",
+  "issues": [
+   {
+    "type": "test_coverage_gap",
+    "desc": "TEST GAP (deferrable, not blocking): test_ai_dispatch_case11_both_execute (testbtl.c:451) makes ZERO assertions -- it is a no-crash smoke test only. Minimum strengthening: assert g_composite_call_count >= 1 (postlude reached). Currently it sets scores 7/7, calls, and resets without checking any observable.",
+    "severity": "low",
+    "verify_method": "add_test"
+   },
+   {
+    "type": "test_coverage_gap",
+    "desc": "TEST GAP (deferrable): the EAX-bug-corrected paths (case 4 pass_turn gating, case 5 item-pickup -> add_item/tile-consume/sfx/transition-to-class-7, case 7 dead-impact) and cases 9/10 are UNTESTED. They are not cheaply assertable in the current harness because the distinguishing callees (ai_ai_pass_turn_with_heal, ai_walk_to_target_tile, etc.) were promoted from counting-stubs to real implementations, so which callee ran is no longer observable. Recommend (Phase 9 integration or a harness counter-reinstatement) to cover case 5s state machine specifically, as it has the most independent logic + an EAX trap.",
+    "severity": "low",
+    "verify_method": "add_test"
+   },
+   {
+    "type": "dead_test_globals",
+    "desc": "DEAD TEST GLOBALS: testglob.c lines 318-326 (g_attack_dispatch_return, g_attack_dispatch_calls, g_seek_optimal_return, g_advance_nearest_return, g_walk_return, g_score_physical_return, g_pass_turn_calls, g_execute_spell_calls, g_execute_physical_calls) plus their extern decls in testbtl.c (394-402) are now orphaned -- the stubs they backed were replaced by real btl_ai.c implementations. They are still referenced/reset by reset_ai_stubs() but never read for assertions. Either remove them or re-wire observable counters to make the above EAX-sensitive paths assertable.",
+    "severity": "low",
+    "verify_method": "remove_or_rewire_test_globals"
+   }
+  ]
+ },
+ "00014ef0": {
+  "name": "fd2_attack_action_dispatch",
+  "target": "battle/btl_ai.c",
+  "issues": [
+   {
+    "type": "test_deferral_note_missing",
+    "desc": "Winner-selection coverage for fd2_attack_action_dispatch is deferred to Phase 9 integration but the deferral+reason is NOT documented in tests/testbtl.c. Policy requires noting deferral rationale for any high-risk path left uncovered. The selection logic (complex control flow + numeric tie comparisons + EAX-deref spell-damage path + no-op tie) is in the force-test category; it is left uncovered because the only observation channel is the real, un-stubbable, display-heavy executors (fd2_execute_ai_offensive_spell etc. deref spell tables, call handler-table fn-ptrs, run cinematics) driven by three real scorers. Equivalence is fully verified statically, so this is logged rather than blocked, but the test file should carry an explicit deferral comment.",
+    "severity": "low",
+    "verify_method": "add_test_comment"
+   }
+  ]
+ },
+ "00015055": {
+  "name": "fd2_execute_ai_item_use",
+  "target": "battle/btl_ai.c",
+  "issues": [
+   {
+    "type": "concat31_equivalence_note",
+    "desc": "Equivalence note for the emitter to record: data_fd2_ui_menu_cursor_idx assignment. Asm stores full 32-bit EAX (MOV [0x53c57],EAX at 0x1508b) and then PUSHes that same EAX to fd2_get_item_effect_entry. C truncates to uint8 item_id then zero-extends (uint32)item_id. This is EXACT because the source fd2_get_inventory_slot_item_id (0x1b722) ends in MOVZX EAX,byte ptr [EAX]; RET so EAX upper 24 bits are guaranteed 0. The Ghidra decompile CONCAT31(extraout_var,item_id) is conservative-only; the C is correct. Worth a one-line comment in the source so a future reviewer does not re-flag the CONCAT31.",
+    "severity": "info",
+    "verify_method": "add_source_comment"
+   },
+   {
+    "type": "test_deferral_note_missing",
+    "desc": "Test-deferral note (mandatory per risk-based policy): emitter should record in the emit output that test coverage for fd2_execute_ai_item_use is deferred to Phase 9 integration, with the reason that the function is display/animation orchestration and its only arithmetic block (interp+clamp) is display-bound (drives cursor pan only, not effect dispatch). This explicit deferral note is currently MISSING.",
+    "severity": "low",
+    "verify_method": "add_test_comment"
+   }
+  ]
+ },
+ "00018b84": {
+  "name": "fd2_wait_input_with_status_panel_repaint",
+  "target": "input/input.c",
+  "issues": [
+   {
+    "type": "equivalence_note",
+    "desc": "FAITHFUL EQUIVALENCE (not a defect): local 'last_tick' (asm reg ESI) is read-before-write on the first loop iteration -- ESI is never initialized before CMP ESI,EAX at 0x18bc1, and the emitted C 'int last_tick;' is likewise uninitialized, read at input.c:241 before its first assignment at input.c:261. On iteration 1 the status-panel repaint MAY be skipped depending on the garbage value vs the current tick. The emitted C correctly PRESERVES this original (technically-UB) behavior; Watcom 9.5a register-allocates last_tick with no implicit init, matching the original binary. Logged so the intentional non-initialization is documented -- a future tool/reviewer must NOT 'fix' it by zero-initializing last_tick (that would diverge from the binary).",
+    "severity": "info",
+    "verify_method": "compile_and_disasm"
+   },
+   {
+    "type": "test_deferral_note_missing",
+    "desc": "Test deferral for this display-only function is not recorded anywhere (no note in input.c, routing.json, or a tests file). Risk-based policy requires display deferrals be noted with reason. Suggest adding a brief 'Phase 9 integration: display-only, no assertable non-display effect' deferral marker near the function in src/input/input.c or in the tests file.",
+    "severity": "low",
+    "verify_method": "add_test_comment"
+   }
+  ]
+ },
+ "00029f72": {
+  "name": "fd2_calculate_combat_hit_outcome",
+  "target": "battle/battle.c",
+  "issues": [
+   {
+    "type": "uninitialized_tile_id_and_undersized_outbuf",
+    "desc": "SAME bug just fixed in sibling fd2_execute_attack_damage_calculation @0x1ECC7 (battle.c). The terrain AP/DP block here (battle.c:268-269, 302-316) declares 'uint32 tile_attr_buf;' (4 bytes) + a SEPARATE 'uint8 tile_id;' that is NEVER assigned from the buffer, then indexes data_fd2_battle_tile_attr_mv_modifier_table[tile_id] / _def_modifier_table[tile_id] on the uninitialized tile_id. Ghidra get_function_variables on 0x29F72 confirms tile_attr_word = Stack[-0x4c]:4 and tile_attr_byte = Stack[-0x47]:1, and -0x4c+5 = -0x47, i.e. the real table index is buffer[+5] (= attr_ptr[+1] from the 8-byte writer fd2_read_tile_attribute_at_pos). Two defects: (1) wrong terrain modifier index (reads garbage stack instead of tile_attr_buf[5]); (2) the helper writes out_buf[+0..+7] (8 bytes) into a 4-byte local -> 4-byte stack overflow. Out of scope for the 0x1ECC7 fix round (different function); MUST be fixed when fd2_calculate_combat_hit_outcome is reviewed, using the same pattern as the proven-correct btl_ai.c reference (uint8 tile_attr_buf[8]; pass (uint32)tile_attr_buf; tile_id = tile_attr_buf[5]; before each modifier-table index). Reference fix landed at battle.c fd2_execute_attack_damage_calculation and the passing test test_eatk_terrain_ap_bonus in testbtl.c.",
+    "severity": "high",
+    "verify_method": "fix_at_function_review"
+   }
+  ]
+ },
+ "0002147b": {
+  "name": "fd2_spell_handler_id_7_via_full_screen_flash",
+  "target": "spell/spell.c",
+  "issues": [
+   {
+    "type": "test_coverage_gap",
+    "desc": "Consistency note (non-equivalence): the full_screen_flash spell-handler family (id 4-7) has NO direct forwarding/smoke test, whereas the targeted_blink family has test_spell_handler_0_smoke. Since the per-handler high-risk path is just 'forward 3 args + inject the correct spell_id literal', a single parametrized forwarding assertion (e.g. capture the spell_id arg in the testglob.c worker stub and assert ==7 for id_7, ==4/5/6 for siblings) would cheaply pin the only thing that distinguishes these thunks. Optional / can be deferred to Phase 9 integration, but if deferred the rationale should be annotated per the risk-based test policy. Applies retroactively to already-reviewed id_4/5/6 as well.",
+    "severity": "low",
+    "verify_method": "add_forwarding_test",
+    "source_review": "fd2_spell_handler_id_7_via_full_screen_flash @0002147b (reviewer-approved)"
+   }
+  ]
+ },
+ "00035c15": {
+  "name": "fd2_set_battle_anim_phase_to_1",
+  "target": "battle/btl_init.c",
+  "issues": [
+   "跨函式相依（給 phase 7 emit fd2_chapter_event_handler_52__ch30_major_cinematic@0x35f92 的 emitter）：本函式（Pattern A SHARED EPILOGUE STUB，pipeline_spec.md:526）以 standalone `void(void)` setter 形式 emit。其 Layer-2 等價性「成立的前提」是唯一 main-entry consumer handler_52 必須 emit 為一般 cdecl C（呼叫前一個 3-param cdecl callee 後由 caller 自身清 args，再普通呼叫 fd2_set_battle_anim_phase_to_1()）。handler_52 decomp 已天然呈現此形（两條 path 結尾皆 `...(...); fd2_set_battle_anim_phase_to_1(); return;`），故照常 emit 即可；emitter 不可嘗試複刻原 binary 的 tail-JMP 或省略 caller 端 cdecl arg cleanup，否則會破壞 stack 平衡。",
+   "alt-entry（0x35C18 / 0x35C22）由 fd2_chapter_event_handler_17 / _25 透過 JMP 消費，與本 main-entry（0x35C15）為不同位址；那兩個 handler 的 fall-through/tail-share emit 屬其各自回合處理，本函式 standalone setter 不負責 alt-entry 的 stack 語意。"
+  ]
+ },
+ "0003616e": {
+  "name": "fd2_set_word_global_5275c",
+  "target": "util/misc.c",
+  "issues": [
+   {
+    "type": "equivalence_note",
+    "desc": "Equivalence note for emitter record: return-value-in-EAX is a direct memory load (MOV EAX,[0x5275c]) with no intervening CALL, so it is NOT subject to the Ghidra EAX-after-CALL tracking bug; decompiler captured it correctly and no assembly override was needed.",
+    "severity": "info",
+    "verify_method": "compile_and_disasm"
+   },
+   {
+    "type": "cc_justification",
+    "desc": "cc justification: __cdecl 1-stack-arg derived from disassembly only (param at [ESP+4], bare RET = caller cleanup), because the function has 0 static callers (cannot derive from caller ADD ESP,K). Preserved-as-original; matches identical sibling @ 0x3615e.",
+    "severity": "info",
+    "verify_method": "compile_and_disasm"
+   }
+  ]
+ },
+ "000361cc": {
+  "name": "fd2_dpmi_alloc_dos_memory",
+  "target": "util/dpmi.c",
+  "issues": [
+   {
+    "type": "test_deferral_note",
+    "desc": "Unit test for the high-risk numeric/branch paths of fd2_dpmi_alloc_dos_memory (CF success/failure branch; the three output computations out_segment=eax<<16 / out_linear=(eax&0xFFFF)<<4 / out_selector=edx&0xFFFF; the off-by-one page-lock arithmetic lock(seg>>12, paragraphs*16+(seg>>12)-1)) is DEFERRED to Phase 9 integration. Reason (proven, not convenience): these paths are reachable only via int386(), which has no deterministic unit-test seam in the DOS/4GW harness. (1) A test-local int386 override to inject the DPMI host result was implemented and proven by bisection to deterministically crash/hang the DOS/4GW runtime -- overriding the CRT int386 breaks the extender's protected-mode interrupt reflection that the CRT itself depends on, so the test executable faults before reaching the dpmi suite; with the override disabled the same build completes (369 pass + the 3 dpmi tests fail on real DPMI non-determinism). int386 is also used by src/input/input.c, whose suite depends on the real INT 16h. (2) Letting the real int386 service INT 31h fn 0x100 allocates real, non-deterministic DOS conventional memory and locks real pages with no paired free here -- leak-prone and unassertable on exact values. Deferral is documented in the src/util/dpmi.c file header. Equivalence of the bit-math was verified statically line-by-line against the assembly (0x36206 SHL EAX,0x10; 0x3620f AND/0x36214 SHL; 0x36221 AND; 0x36237 SHR EAX,0xc; 0x3623e SHL EDX,0x4; 0x36241 ADD; 0x36243 DEC).",
+    "severity": "low",
+    "verify_method": "phase9_integration",
+    "source_review": "fd2_dpmi_alloc_dos_memory @000361cc (emitter fix-round; int386 override proven to crash DOS/4GW)"
+   }
+  ]
+ },
+ "000362f1": {
+  "name": "fd2_dpmi_unlock_region",
+  "target": "util/dpmi.c",
+  "issues": [
+   {
+    "type": "fragment_equivalence_handoff",
+    "desc": "Class-3 shared-tail equivalence-by-regeneration. fd2_dpmi_unlock_region's INT 31h dispatch tail (asm @0x362a7) is shared via JMP from inside fd2_dpmi_lock_region (@0x36284) and is NOT byte-identical-preserved. The baseline emits both fd2_dpmi_lock_region and fd2_dpmi_unlock_region as independent full functions and relies on Watcom 9.5a regenerating an equivalent int386 dispatch + cflag-return in each. Layer-2 equivalence rests on that regeneration, not on preserving the original JMP-into-sibling tail. Logged per project convention for Class-3 shared-tail / shared-epilogue equivalence-by-regeneration concerns (cf. the 00010b43 and 00015983 fragment_equivalence_handoff entries). verify_method: post-build -d disasm to confirm each function emits a SUB ESP,0x38 frame + correct DWORDREGS packing + int386 + cflag SETZ.",
+    "severity": "info",
+    "verify_method": "compile_and_disasm",
+    "source_review": "fd2_dpmi_unlock_region @000362f1 (reviewer-approved)"
+   }
+  ]
+ },
+ "00036b0f": {
+  "name": "fd2_ani_decoder_chunk_palette_load_rle",
+  "target": "anim/anidec.c",
+  "issues": [
+   {
+    "type": "layer2_equivalence_assumption",
+    "desc": "Equivalence note not recorded by emitter: 16-bit BX exact-equality loop exit (JZ on CMP BX,DX) vs C 32-bit `pos < 0x300` differs on malformed overshooting input. Benign under the well-formed-stream vendor invariant and consistent with sibling row RLE handler @0x36BCE; should be captured as a known Layer-2 equivalence assumption for the decoder family.",
+    "severity": "info",
+    "verify_method": "well_formed_stream_invariant",
+    "reviewer_verdict": "approved (benign under well-formed-stream invariant, no code change needed)"
+   }
+  ]
+ },
+ "0004dfcc": {
+  "name": "fd2_update_palette_cycle_anim",
+  "target": "gfx/palette.c",
+  "issues": [
+   "Update-path of fd2_update_palette_cycle_anim is not unit-tested (frame advance + wrap-at-0x10 state transition + VGA DAC port writes). Reason: gated behind a throttle reading the live BIOS tick at 0x46C twice; harness does not fake the tick and fd2_read_bios_midnight_tick is itself a function-under-test, so delta>=2 cannot be forced deterministically. Display side effect deferred to Phase 9 integration. The frame-advance/wrap state transition remains uncovered at unit level due to this hardware gate — record this rationale in the test file comment (currently the no-update test has no note explaining why the update path is omitted)."
+  ]
+ },
+ "0004e3cf": {
+  "name": "fd2_pathfind_count_unique_directions",
+  "target": "util/pathfnd.c",
+  "issues": [
+   {
+    "type": "emulator_unmapped_region",
+    "desc": "emulate_function 對 0x60079 區段的 memory 覆寫無效（回傳恆為 EAX=0x94，與 input memory 內容無關），疑為該 data region 在 program image 未 mapped/initialized，emulator 讀寫 fall-through。故本 function 的期望值 (8) 改以 disasm+decomp 不可分歧邏輯做手算驗證：depth=4, dir bytes[0,0,1,1], prev=0xFF → transitions=2 → 2<<2=8，與 ASSERT_EQ(result,8) 相符。後續若需 emulate 驗 pathfind globals 類 function 需注意此限制。",
+    "severity": "info",
+    "verify_method": "manual_disasm_decomp"
+   }
+  ]
+ },
+ "00010010": {
+  "name": "fd2_load_save_and_init_engine",
+  "target": "src/life/main.c",
+  "issues": [
+   {
+    "type": "test_deferral_note",
+    "desc": "checksum-mismatch arm 的單元測試延後到 Phase 9 integration。該 arm 在 fd2_save_compute_checksum(pBuf,0x59CB) != *(uint*)(pBuf+0x59C7) 時呼叫 fd2_load_chapter_portrait / fd2_display_dialog_scene / fd2_paint_portrait_to_dialog_area / fd2_wait_for_input_dialog_with_blink / fd2_close_status_screen_with_slide_out。其中 fd2_wait_for_input_dialog_with_blink 是 real linked function（src/input/input.c），內含 while(fd2_check_keyboard_buffer_nonempty()==0){...} busy-wait 等待鍵盤輸入，在 silent 自動化 harness 無輸入時會無限 hang（已用 bisection 證實）。該 arm 只多一個 error dialog（display + blocking input）後 fall-through 回到與 match 路徑相同的 restore，已由 test_load_save_restores_scalar_state / test_load_save_cinematic_loop_counts 涵蓋。",
+    "severity": "info",
+    "verify_method": "phase9_integration_with_scripted_input"
+   },
+   {
+    "type": "test_coverage_note",
+    "desc": "已單元測試（風險導向）：scalar restore（chapter/party/turn/gold/cursor/view-origin/audio flags 全部從 save header tail 還原）、tile-map width/height 與 portrait-cache header（tile_event[1]/[2]）的 derived state、portrait-rebuild loop call count、兩段 cinematic loop 的 frame 計數（含 zoom loop 的 i==5->i=9 skip = 9+4=13 alloc/cleanup）、結尾 anim_phase=1 / current_active_char_idx=0。純 blit/display 副作用（實際像素輸出）依風險導向政策延後 Phase 9。fixture 在 C:\\(=src mount) 寫 FD2.SAV/FDICON.B24/FD2.TMP 後 teardown remove，並還原所有被 load 改動的 globals。",
+    "severity": "info",
+    "verify_method": "unit_tested"
+   }
+  ]
+ },
+ "0001088d": {
+  "name": "fd2_load_chapter_battle_data",
+  "target": "rsrc/rsrc.c",
+  "issues": [
+   {
+    "type": "shared_epilogue_regeneration",
+    "desc": "此函式正常路徑結尾 CALL fd2_load_chapter_portraits_and_dump_tmp(0) 後 fall-through 進共用 epilogue fragment fd2_noop_stub_b43 @ 0x10b43 (ADD ESP,0xc / POP EBP/EDI/ESI/EBX / RET)。emit 為 plain return；等價靠 Watcom 9.5a 重新生成等量 stack cleanup + saved-reg restore，非 byte-identical。對應 00010b43 handoff 的 +0x00 parent 覆蓋點。verify_method: post-build -d disasm 確認本函式 epilogue 的 ADD ESP 量與 POP 順序對應其 4 個 saved reg (EBX/ESI/EDI/EBP) + locals。",
+    "severity": "info",
+    "verify_method": "compile_and_disasm"
+   },
+   {
+    "type": "error_path_exit_code",
+    "desc": "兩條失敗路徑 (malloc fail / fopen fail) 原 binary 為 PUSH <msg>; JMP 0x10056，共用 sibling fd2_load_save_and_init_engine 的 tail：CALL printf; ADD ESP,4; PUSH 1; JMP exit。即實際 exit code 固定為 1。Ghidra decomp 將 PUSH 1 誤渲染為 exit(pRuntime_char_alloc)（fopen 結果變數）——為 decomp artifact。emit 採真實行為 exit(1)，與 sibling main.c 既有慣例一致。OOM 字串用 pooled global data_fd2_string_field_map_oom_msg_chapter_runtime_50064 @0x50064，file-not-found 用 data_fd2_string_field_map_fdicon_not_found_err_50086 @0x50086。",
+    "severity": "info",
+    "verify_method": "compile_and_disasm"
+   }
+  ]
+ },
+ "00015f84": {
+  "name": "fd2_display_dialog_scene",
+  "target": "dialog/dialog.c",
+  "issues": [
+   {
+    "type": "register_liveness_edge",
+    "desc": "Register-liveness edge (-0x11 ENEMY slot1 with target==0x27): the binary animates at the position held in EDI, which can have been set by a *previous* -0x12/-0x14 op (EDI <- current_speaker @0x1628c / runtime_char @0x1642b). The emitted C var pSpeaker is updated only in the -0x11(!=0x27) and -0x13 branches, NOT in -0x12/-0x14, so after a -0x12-then-(-0x11 with id 0x27) sequence the C would use a stale pSpeaker while the binary uses the -0x12 speaker. This is the documented liveness caveat in the function header. It does not affect compile/exec for the common single-portrait scripts and the first-use/garbage case is equally undefined in both; logged so a future pass can decide whether to mirror EDI exactly across all four portrait branches if such a script sequence is ever observed.",
+    "severity": "low",
+    "verify_method": "static-only; no observed script triggers -0x12-then-(-0x11 id 0x27); revisit if such sequence found"
+   }
+  ]
+ },
+ "000165ac": {
+  "name": "fd2_play_dialog_open_animation",
+  "target": "dialog/dialog.c",
+  "issues": [
+   {
+    "type": "deferred_test_coverage",
+    "desc": "flip!=0 的 cursor-pan + 線性內插 blit 迴圈未做 unit test：它呼叫真 emit 的 fd2_pan_cursor_to_tile_animated (cursor.obj) 與 fd2_blit_indexed_sprite_with_alloc (blitspr.obj)，兩者寫 VRAM 0xA0000 並依賴 cursor 硬體狀態，屬純 display 副作用，依 test 政策延到 Phase 9 integration。已測 flip==0 deterministic 路徑 (default-origin 對映 0x728->2 / 0x9017->0x70 / else 0、5 次 malloc、width=flip*0x140+5、5-stage assemble 常數表 (4,2)(8,3)(0xC,4)(0x10,5)(0x13,5) 與 dst_origin 轉發)。",
+    "severity": "info",
+    "verify_method": "phase9_integration"
+   },
+   {
+    "type": "signed_arithmetic_equivalence",
+    "desc": "內插式 interp_y = cursor_y_pixel - ((int)(cursor_y_pixel-flip)*step)/total_steps 與 interp_x = cursor_x_pixel - ((int)(cursor_x_pixel-5)*step)/total_steps 對應 binary 的 IMUL+IDIV (SAR EDX,0x1f 號擴展) 帶號乘除。C 用帶號 int 乘除等價，但 step/total_steps 邊界 (step==total_steps 時商=被除數) 之 round-toward-zero 行為須在實機/emulator 確認與 Watcom 9.5a IDIV codegen 完全一致。inputs(cursor 像素) 需真 pan 才會填，故與上面延後覆蓋點同批驗。",
+    "severity": "info",
+    "verify_method": "phase9_integration"
+   },
+   {
+    "type": "deferred_test_coverage",
+    "desc": "Phase-9 follow-up: add a test for the flip!=0 cursor-pan + interp_x/interp_y interpolation path of fd2_play_dialog_open_animation once a recording-stub or integration harness can capture the blitter's x/y args without colliding with the real linked fd2_blit_indexed_sprite_with_alloc used by gfx/blitspr.c. Expected values per step: interp_x=cursor_x_pixel-((cursor_x_pixel-5)*step)/total_steps, interp_y=cursor_y_pixel-((cursor_y_pixel-flip)*step)/total_steps, cursor_*_pixel=cursor_screen_*×0x18+4, total_steps=sx+sy.",
+    "severity": "info",
+    "verify_method": "phase9_integration",
+    "source_review": "fd2_play_dialog_open_animation @000165ac (reviewer-approved)"
+   }
+  ]
+ },
+ "00017eef": {
+  "name": "fd2_render_status_screen_static_layout",
+  "target": "gfx/rndstat.c",
+  "issues": [
+   {
+    "type": "test_deferred_phase9",
+    "desc": "Pure blit/display orchestrator. No isolated unit test: it calls the real-linked fd2_load_dat_resource with the hardcoded in-binary filename pointer 0x51a70 (DATO.DAT string). In the test binary that address does not hold a valid path, and the real loader does exit(1) on fopen failure, aborting the whole test run; fd2_load_dat_resource is already linked real (rsrc.c) so it cannot be stubbed, and DATO.DAT is not in build_test.py staged GAME_FILES. Cannot test without distorting the emit code (replacing 0x51a70 with a string global) which is forbidden. Deterministic behavior to verify at Phase 9 integration: data_fd2_dialog_active_portrait_blit_offset set to 0xC88; portrait_pixels = buf + *buf; three fd2_dialog_sprite_blit_normal dst offsets overlay_buffer+0xC88 / +0x91C / +0x7585; UI sprite sources sheet_ptr + *(int*)(sheet_ptr+0x56) and +0x5A; portrait_id selected as runtime_char[char_idx].portrait_id; trailing fd2_render_full_char_stat_panel(char_idx, overlay_buffer).",
+    "severity": "info",
+    "verify_method": "phase9_integration",
+    "source_review": "fd2_render_status_screen_static_layout @00017eef (emitter)"
+   }
+  ]
+ },
+ "00018890": {
+  "name": "fd2_player_action_menu_loop",
+  "target": "ui_menu/menu.c",
+  "issues": [
+   {
+    "type": "bookkeeping_flag_mismatch",
+    "desc": "c_changed flag was reported false but the diff is a real code emit of fd2_player_action_menu_loop plus 2 new tests and a new global — future rounds should set c_changed=true and list test_cases_added when the function body is emitted, even if a plate fact-correction also happened in the same round.",
+    "severity": "low",
+    "verify_method": "next_round_set_flags",
+    "source_review": "fd2_player_action_menu_loop @00018890 (reviewer-approved)"
+   }
+  ]
+ },
+ "0001b1e7": {
+  "name": "fd2_open_party_status_overview_screen",
+  "target": "ui_menu/status.c",
+  "issues": [
+   {
+    "type": "uninitialized_read_indeterminate_value",
+    "desc": "Wait-loop redraw gate compares the live BIOS tick to last_tick, which the binary NEVER writes: it is the caller leftover EBP at entry (asm 0x1B2FE CMP EAX,EBP; EBP is not set anywhere in this function nor in the single caller fd2_field_menu_status_save_load_quit_dispatch @0x19DF7, which uses ESP-relative framing). Emitted faithfully as int32 last_tick declared-but-never-assigned (Watcom 9.5a default -w1 produces NO warning; build gate 0 warnings). Observable behavior is identical to the binary: the redraw (palette tick + scene recomposite + content re-render + blit to 0xA0504) fires whenever (int16)*0x46C != that fixed indeterminate value, i.e. essentially every iteration, until a key is pressed. The exact garbage value differs between binary (specific call-chain EBP) and rebuild (compiler storage choice), but it is consumed ONLY by this one redraw-gate comparison and gates a pure display side effect, so no downstream logic depends on the specific value -> functionally equivalent. Residual check: post-build -d disasm to confirm Watcom emits the same MOVSX word ptr[0x46C] / CMP-against-indeterminate / conditional-skip shape.",
+    "severity": "low",
+    "verify_method": "compile_and_disasm"
+   }
+  ]
+ },
+ "0001cff0": {
+  "name": "fd2_spell_selection_menu_main",
+  "target": "spell/spellsel.c",
+  "issues": [
+   {
+    "type": "dropped_arg_call_recovery",
+    "desc": "Ghidra dropped arguments on three CALLs (systematic EAX/arg-tracking bug); reconstructed from the disassembly. (1) The per-spell status handler table call @0x1D479 'CALL [EAX*4+0x51D01]' is preceded by PUSH [ESP+0xf4](=caster_idx), PUSH ESI(=n_targets), PUSH ESP(=target_buf) and ADD ESP,0xC after -> emitted as data_fd2_battle_spell_handler_table[spell_id](caster_idx, n_targets, target_buf), matching the (uint32,uint32,uint8*) table prototype in globals.h. (2) fd2_play_spell_cast_sequence @0x1D43C takes (caster_idx, spell_id, ESI=n_targets, target_buf). (3) collect/process death-drops take the live drop count (EBX). Verify byte-identical arg push order post-build.",
+    "severity": "low",
+    "verify_method": "compile_and_disasm"
+   },
+   {
+    "type": "global_read_vs_table_read",
+    "desc": "Single-target branch @0x1D366: the binary computes compute_aoe_targets arg4 as (battle_anim_phase - 2) by reading the global [0x51A83] (which was set to pSpell[4]+2 at 0x1D188 with no intervening write), then stores battle_anim_phase=1. Emitted as the value-equal, alias-free pSpell[4] (the decompiler's own simplification) and a separate 'battle_anim_phase = 1' store. Result is numerically identical; the emitted code reads pSpell+4 instead of the global, so the memory access differs. Confirm equivalence post-build.",
+    "severity": "low",
+    "verify_method": "compile_and_disasm"
+   }
+  ]
+ },
+ "0001f73f": {
+  "name": "fd2_display_cinematic_image_with_fade",
+  "target": "anim/anicine.c",
+  "issues": [
+   {
+    "type": "test_deferred_phase9",
+    "desc": "Pure blit/display orchestrator, void return, no isolatable pure-computation slice. Its very first action after the no-op palette-fade stub is memset((void*)0xA0000,0,64000), a 64000-byte write to linear 0xA0000 (the VGA framebuffer), which is not a mapped surface in the flat-model TEST.EXE and faults; it then calls the real fd2_blit_rectangle (src/gfx/blitspr.c) which memmoves into 0xA0000 (same fault), and the real fd2_wait_n_bios_ticks (src/input/input.c) which busy-waits on the BIOS tick counter at linear 0x46C (uninitialized in the test -> indeterminate spin). The only arithmetic, stage2_src = row_idx*0x140 + src_x_off, is consumed inline as fd2_blit_rectangle src arg with no observable output (fd2_blit_rectangle is linked real, not a spy, and faults on 0xA0000 before any capture). Testing in isolation would require rewriting 0xA0000 to a test buffer and dropping the BIOS waits = distorting the emit code, which is forbidden. (Note: FDOTHER.DAT IS staged so the three real fd2_load_dat_resource loads at 0x51a4d themselves would succeed; the blocker is purely the 0xA0000 framebuffer writes + BIOS-timer waits, not the file loading.) Same class as fd2_render_status_screen_static_layout @00017eef. Deterministic behavior to verify at Phase 9 integration: Stage 1 fades to black, clears 0xA0000, loads FDOTHER.DAT[palette_idx] then FDOTHER.DAT[image1_idx] into data_fd2_vga_palette_data_ptr / image_data, rle-blits image_data full-screen (0,0,0xA0000,stride 0x140,palette_op 0xFFFFFFFF), fades in, holds 1+6 BIOS ticks, fades to black; Stage 2 loads FDOTHER.DAT[0x65] palette, blit_rectangle copies a 0x140x0xC8 region from (row_idx*0x140 + src_x_off) to 0xA0000 (both strides 0x140), fades in.",
+    "severity": "info",
+    "verify_method": "phase9_integration",
+    "source_review": "fd2_display_cinematic_image_with_fade @0001f73f (emitter)"
+   }
+  ]
+ },
+ "000211a4": {
+  "name": "fd2_cast_group_hp_heal_spell",
+  "target": "spell/spelleff.c",
+  "issues": [
+   {
+    "type": "callee_decompiler_artifact_handoff",
+    "desc": "NON-BLOCKING (callee, already emitted; not this function): Ghidra decompiler output for fd2_apply_hp_heal_and_award_xp @ 0x1c916 shows extra_heal computed as ((base_heal_90 % 100) * param_2)/1000, but the assembly (0x1c965 MOV EDX,EAX[=rng] / 0x1c96f IDIV 0x64 -> EDX=rng%100 / 0x1c971 IMUL EDX,heal_base) proves it is ((rng % 100) * heal_base)/1000. The decompiled C is wrong (register-aliasing artifact); the plate for that callee is already CORRECT (says 'rng_state % 100'). Recorded so any future re-emit/verify of that callee relies on the asm/plate, not the decompiled C. Does not affect the function under review, which calls the real worker.",
+    "severity": "info",
+    "verify_method": "asm_plate_authoritative",
+    "source_review": "fd2_cast_group_hp_heal_spell @000211a4 (reviewer)"
+   }
+  ]
+ },
+ "00026e39": {
+  "name": "fd2_tick_summon_anim_variant_c_5slot_radial",
+  "target": "anim/anisummn.c",
+  "issues": [
+   {
+    "type": "fpu_rounding",
+    "desc": "Radial x/y coords use the cos/sin FPU idiom FILD/FMUL/FLD(cos|sin result)/FILD word/FMULP/FADD(P)/__CHP/FISTP at 0x26fa7-0x26ff6 (x) and 0x27005-0x27044 (y). __CHP @0x377A4 sets FPU RC=truncate-toward-zero before FISTP, so the binary TRUNCATES (does not round-to-nearest); emitted C uses (int)(double_expr), which also truncates toward zero, so the rounding DIRECTION matches (same proven pattern as 0x1b750 / 0x15b77). The angle is computed single-precision: binary does FILD dword(i*0x48) / FMUL float[0x3C8EFA2D] / FSTP double, i.e. a float*float product (in x87 80-bit) stored to a 64-bit double then passed to cos/sin; emitted as the identical-shape expression angle_rad = (double)((float)(i*0x48) * pi180.f) with pi180.f bit-cast from the exact 0x3C8EFA2D (value 0.017453277, NOT the textbook pi/180 0.0174532925). Residual concern is ONLY Watcom 9.5a codegen: (a) whether it keeps the float*float product in the 80-bit register before the (double) cast (matching FSTP double) rather than rounding to float first (double-rounding), and (b) x87 80-bit cos/sin/FMUL intermediates vs C 64-bit double. Unit tests bypass this by asserting the libm-INDEPENDENT acc==0 case (cos/sin terms multiplied by 0 -> x=sweep, y=30 exact) plus all integer-only state-4/5 blit-coord arithmetic; the cos/sin-derived non-zero coords are NOT hard-asserted offline. Tests run under the real Watcom 9.5a + its CLIB cos/sin (same routines as the game binary @0x3c885/0x3c898), all PASS. Recommend post-build -d disasm to confirm byte-identical FILD/FMUL float/FSTP double + __CHP/FISTP emission for the angle and both coord stores.",
+    "severity": "low",
+    "verify_method": "compile_and_disasm"
+   }
+  ]
+ },
+ "0002939d": {
+  "name": "fd2_execute_combat_hit_cinematic",
+  "target": "anim/anicine.c",
+  "issues": [
+   {
+    "type": "uninitialized_stack_slot_zero_init",
+    "desc": "defender_HP_initial ([ESP+0x50]) and defender_HP_after ([ESP+0x58]) are read on paths where the binary leaves them uninitialized (a zero-hit-frame attacker_figani, or scripted mode where the HP-initial load @0x294a9-0x294b1 is skipped). The binary reads stack garbage there. Emitted with an explicit = 0 init to remove the Watcom W202 may-be-uninitialized warning (build is 0-warning). Equivalence: on every path reachable with real FIGANI data (which always has >=1 hit frame), both slots are assigned in the frame loop BEFORE any read, so the init is behavior-identical. In the scripted edge it yields a benign deterministic 0 (the scripted cinematic writes defender.wHP_current = HP_initial - 0; this animation HP is cosmetic, real combat resolution lives elsewhere) instead of UB garbage; no observable game-state difference. verify_method: post-build -d disasm confirms the slots are otherwise untouched on the real-data path.",
+    "severity": "info",
+    "verify_method": "compile_and_disasm",
+    "source_review": "fd2_execute_combat_hit_cinematic @0002939d (emit; [ESP+0x50]/[ESP+0x58] uninit on degenerate/scripted paths)"
+   },
+   {
+    "type": "eax_tracking_bug_fixed",
+    "desc": "The 3% bonus-hit roll: Ghidra decompiled it as (defender_idx*0x50) % 100 < 3, reusing the dead pre-CALL EAX value (systematic EAX-tracking bug). The disassembly @0x2946a does CALL fd2_advance_rng_state then MOV EDX,EAX; SAR EDX,0x1f; IDIV 0x64; CMP EDX,3 -- i.e. the roll keys off the RNG RETURN value, not defender_idx*0x50. Emitted as fd2_advance_rng_state() %% 100 < 3 (the RNG return is always <=0xFFFF so unsigned %% matches the signed IDIV). Pinned by tests test_chit_bonus_roll_double_strike / test_chit_no_bonus_single_strike (same defender index, RNG seed alone moves the strike count).",
+    "severity": "info",
+    "verify_method": "unit_test",
+    "source_review": "fd2_execute_combat_hit_cinematic @0002939d (emit; RNG EAX-bug @0x2946a)"
+   }
+  ]
+ },
+ "0002cad7": {
+  "name": "fd2_chapter_transition_menu",
+  "target": "field/chtrans.c",
+  "issues": [
+   {
+    "type": "test_deferral_note",
+    "desc": "Behavioral unit test for fd2_chapter_transition_menu is DEFERRED to Phase 9 integration (reason proven, not convenience). The function has two top-level branches and each enters an input-driven do/while loop that only terminates on a real keyboard scancode read through the REAL-linked int386(0x16,...): the STORY branch (category==0) loops until fd2_chapter_transition_with_intro returns nonzero after an INT 16h read, and the BATTLE branch (category!=0) loops on fd2_run_recruitment_or_branch_screen which itself fopens FDICON.B24 and polls the keyboard. Per the established harness limitation (cf. fd2_main @00025bf4 and the display orchestrators), the real int386 has no deterministic seam in the DOS/4GW silent runner and an INT 16h poll cannot be satisfied unattended -> a full-function test would hang. The branch also drives real-linked callees in OTHER translation units that fopen non-staged DAT files where the real loader does exit(1) on failure (the battle save-prompt fd2_display_dialog_scene reads _all_game_text@0x53A7D which the test build does not back with DATO.DAT content; fd2_save_current_state_to_slot fopens FD2.SAV), which would abort the whole run. There is no isolatable pure-logic sub-path: the scancode->cursor radio arithmetic (left 0x4D: --state wrap-to-4; right 0x4B: ++state wrap-at>4 to 0; F8 0x22 debug-bgm cycle %10; metadata-hotkey ptr compare metadata[2]==mode && metadata[1]==state -> state=5; 0xE0/0x52->0x1C Enter remap) is interleaved with fd2_play_sfx_with_handle / fd2_set_bgm_track_with_fade side-effect calls and the active-metadata pointer dereference. The control-flow translation was instead verified statically line-by-line against the disasm: the cdecl 0-param signature + EAX return (1 when story cursor!=2 @0x2CF65 MOV EAX,1; 0 shared @0x2CCFD XOR EAX,EAX for both the battle tail and the story cursor==2 fall-through); the BIOS-tick idle-frame advance uses signed-short delta (3<delta||delta<0) matching MOVSX/SUB/CMP 0x4 JGE / TEST JGE @0x2CDD7-0x2CDE8; the portrait-cache loop stride 80 offset 7 (roster[i].portrait_id) matches SHL2/ADD/SHL4 MOVZX [ECX+EAX+7] @0x2CBC8-0x2CBD2; every CALL-then-EAX use (fopen->fp, typewriter->dialog_result EBX, metadata ptr->BL, load_dat_resource->buffers, recruitment->loop cond, transition_with_intro->commit AL) was checked against assembly for the Ghidra EAX-tracking bug. The intro_panel_idx_lut[category] read reproduces the original 3-byte stack copy of the @0x526D7 table indexed by metadata[0]; the disasm base/index rebasing (intro_const_arr[category-2] with arr[0]=table[2]) is byte-identical to lut[category] over {0x0B,0x3D,0x3E} for the in-range categories 0..2.",
+    "severity": "low",
+    "verify_method": "phase9_integration",
+    "source_review": "fd2_chapter_transition_menu @0002cad7 (emit; INT 16h input do/while loops + cross-TU exit(1) DAT loads = no unit seam, cf. 00025bf4)"
+   }
+  ]
+ },
+ "0002f0b0": {
+  "name": "fd2_run_buy_item_menu",
+  "target": "ui_menu/shop.c",
+  "issues": [
+   {
+    "type": "types_h_struct_offset_discrepancy",
+    "desc": "types.h 'item_effect' struct places price at +0x14 (it carries a phantom leading unknown_00 byte), which contradicts the binary's actual +0x13 16-bit price read (the canonical 23-byte item record: TY@0, MM@0x13). This emit sidesteps it via raw uint8* pointer arithmetic so it is byte-faithful regardless, but the types.h discrepancy is real and belongs to whichever function legitimately owns/parses the item_effect struct. Should be reconciled there (shift fields so price lands at +0x13, or document/remove the phantom unknown_00) when that owner is emitted/reviewed.",
+    "severity": "low",
+    "verify_method": "fix_at_struct_owner_emit",
+    "source_review": "fd2_run_buy_item_menu @0002f0b0 (reviewer-approved)"
+   }
+  ]
+ },
+ "0003231b": {
+  "name": "fd2_chapter_01_init",
+  "target": "field/chinit.c",
+  "issues": [
+   {
+    "type": "test_deferral_note",
+    "desc": "Behavioral unit test DEFERRED to Phase 9 integration (reason proven, not convenience). fd2_chapter_01_init is a pure chapter-prologue orchestrator: a fixed straight-line script of void side-effect calls plus unconditional constant global writes, with NO numeric computation, NO RNG, NO data-dependent branch, and NO CALL-result consumption (no Ghidra EAX-tracking-bug exposure). The only control flow is two constant-bound counters (15x then 13x fd2_walk_step_up(2)). It cannot be unit-tested host-safely: (1) the body issues ~22 fd2_display_dialog_scene() calls -> real-linked (dialog/dialog.c) and reaches fd2_wait_for_input_dialog_with_blink(), a real-linked keyboard busy-wait (input/input.c) that hangs forever in the silent harness (same hang bisection-proven for the 0x10010 checksum-mismatch arm), and dereferences current_chapter_text as a parsed opcode stream; (2) it drives fd2_load_chapter_portraits_and_dump_tmp (fopen FDICON.B24 + dump FD2.TMP) and 30+ fd2_cutscene_event_trigger() calls each parsing an in-memory per-event byte-script for event ids 0x5A..0x69 and 0,1,2,5 (a full chapter-1 prologue scene environment); (3) every callee is real-linked from src/ so none can be replaced by capture stubs to observe call ordering, and the emit code must not be distorted to make it testable (forbidden). The ordered global-state contract (current_chapter_id 0x20->0x1F->0, party_total_gold=0, the cutscene_event_state=1/0 toggles, battle_anim_phase=0 resets) is reachable only after the blocking/display pipeline runs, so there is no isolable host-safe computational slice. Equivalence was instead verified statically line-by-line against the disassembly @0x3231B: the four phase current_chapter_id transitions, the two loop bounds (CMP EAX,0xf / CMP EAX,0xd), every cutscene event-id literal and its order, the nine fixed display_dialog_scene arguments (0xa0000,0x140,0xcd,0x4c,0x4a,0x13,1) with incrementing page indices, and the 0x375b2 delay literals (200/200/200/100). The leading __CHK(0x2c) is the Watcom frame-size stack-probe and is not part of the source body.",
+    "severity": "low",
+    "verify_method": "phase9_integration",
+    "source_review": "fd2_chapter_01_init @0003231b (emit; ~22 blocking fd2_display_dialog_scene + 30+ in-memory cutscene scripts + all-callees-real-linked = no unit seam, cf. 00017eef / 00010010)"
+   }
+  ]
+ },
+ "00032999": {
+  "name": "fd2_animate_party_addition_with_appear_effect",
+  "target": "anim/aniui.c",
+  "issues": [
+   {
+    "type": "test_partial_phase9_deferral",
+    "desc": "12-frame \"new char appearance\" explosion animation orchestrator. The load-bearing control-flow skeleton IS unit-tested (tests/anim/aniui.c test_party_add_frame_skeleton_and_sfx): the fixed 12-frame loop, the frame-1 one-shot SFX, and the frame-7+frame-8 tile-map composite dispatch (exactly 2 composites) are pinned by driving the REAL function with portrait_cache_alloc_offset==0 so the real fd2_load_chapter_portraits_and_dump_tmp adds zero chars (old_count==party_count, the test_pt_empty_table path), against the staged real FDOTHER.DAT (sfx idx 0x5F + explosion-sprite idx 9 via real fd2_load_dat_resource) and real FDICON.B24/FDFIELD.DAT, observed via the recording fd2_composite_battle_tile_map / fd2_play_sfx_with_handle / fd2_blit_sprite_with_decoded_pixels spies (g_tile_map_calls==2, g_play_sfx_with_handle_calls==1, g_blitdec_calls==0). DEFERRED to Phase 9 integration (reason proven, not convenience): the per-newly-joined-char explosion-blit window-clip + dst-offset arithmetic ((pos_y-oy)*0x2AC0 + (pos_x-ox-1)*0x18 + 0x75D8 placement at stride 0x1C8) and the frame-6/7 large_game_state_buffer pointer-shift composite trick (base -= 0xE40 / -= 0x8E8 then restored) are pure VGA-output positioning that is reachable only AFTER the real fd2_init_runtime_char_for_battle chain spawns in-window chars: party_member_count can only grow via that init (old_count is latched before the portraits call), and the init derives each spawn position from the real FDFIELD chapter record (not test-controllable a priori) while also requiring the tile-map / tile-attribute / portrait_sprite_cache redraw fixtures of the alive-char frame-6/7/8 paint + fd2_paint_chars_shadow_overlay -> fd2_blit_animated_tile_at_pos paths (which deref data_fd2_battle_tile_map_ptr / data_fd2_tile_attribute_flags_buffer_ptr). There is no host-safe isolated seam to inject an in-window new char at a known position without standing up that whole real chapter-assembly environment; the emit code must not be distorted to make it testable. Equivalence verified statically line-by-line vs disasm @0x32999 (frame dispatch CMP ladder at 0x32aee/0x32c07/0x32cb0, the EBP = explosion_sprite + *(explosion_sprite + snapshot*4 + 6) source-offset compute at 0x32bee-0x32bfd, the signed window-clip JL/JG ladder at 0x32a36-0x32a6c, and the 0x2AC0/0x18/0x75D8 dst arithmetic at 0x32a6e-0x32aa9). To verify at Phase 9: in real chapter-1 party assembly, each in-window newly-joined char gets one explosion-sprite blit per frame (12 total) at the computed dst, with frames 6/7 compositing old+new char layers via the base pointer-shift. cdecl, 1 stack param (chapter_id), void; __CHK(0x3c) prologue omitted."
+   }
+  ]
+ }
 }

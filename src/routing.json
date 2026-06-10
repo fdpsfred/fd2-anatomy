@@ -3333,8 +3333,9 @@
     "name": "fd2_animate_party_addition_with_appear_effect",
     "target": "anim/aniui.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00032d18": {
     "name": "fd2_chapter_02_init",

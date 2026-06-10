@@ -550,3 +550,196 @@ void fd2_animate_shop_transaction_feedback(void)
     }
     fd2_clear_keyboard_buffer();
 }
+
+/* ----------------------------------------------------------------
+ * fd2_animate_party_addition_with_appear_effect @ 0x32999 (4 callers)
+ *
+ * Plays the "new char appearance" 12-frame animation with explosion
+ * sprites + SFX for newly added party members. param_1 is the joining
+ * recruit / party-slot id used as the target race-id filter; it is
+ * forwarded to fd2_load_chapter_portraits_and_dump_tmp, which spawns
+ * only the field chars whose race byte matches it. The actual chapter
+ * index is read separately from data_fd2_chapter_current_chapter_id
+ * (inside that loader), NOT from this parameter.
+ *
+ * Setup:
+ *   - fd2_load_dat_resource(0x51A4D = FDOTHER.DAT base, 0, 0x5F)
+ *       -> sfx_buf (appearance chime).
+ *   - fd2_load_dat_resource(0x51A4D, 0, 9) -> explosion_sprite
+ *       (sparkle/explosion sprite-sheet; explosion_sprite[snapshot*4 + 6]
+ *       = per-frame source offset into the sheet).
+ *   - malloc(0x25680) -> backup buf; memmove(backup,
+ *       large_game_state_buffer, 0x25680) (snapshot working surface).
+ *   - old_char_count = party_member_count (record pre-join count).
+ *   - fd2_load_chapter_portraits_and_dump_tmp(param_1) (spawns the
+ *       field chars whose race byte matches param_1, so may grow
+ *       party_member_count by adding the new chars).
+ *
+ * 12-frame loop (snapshot = 0..0xB):
+ *   - if snapshot == 1: fd2_play_sfx_with_handle(sfx_buf, 0, 1).
+ *   - memmove(large_game_state_buffer, backup, 0x25680): restore the
+ *       working surface (each frame redraws from scratch).
+ *   - src_off = explosion_sprite[snapshot*4 + 6].
+ *   - For each newly added char (char_iter in [old_char_count,
+ *       party_member_count)): if its (pos_x, pos_y) is inside the
+ *       battle view window, blit the explosion sprite into the buffer at
+ *       (pos_y - origin_y)*0x2AC0 + (pos_x - origin_x - 1)*0x18 + 0x75D8.
+ *   - fd2_blit_rectangle(0xA0504, 0x140, buffer + 0x8088, 0x1C8, 0x138,
+ *       0xC0): paint the frame to the mode13h primary.
+ *   - Frame 6 special path: restore backup, paint old chars
+ *       (iter < old_char_count, skip flags&1 = dead), shift buffer base
+ *       by -0xE40, paint new chars (skip dead), shift base back +0xE40,
+ *       fd2_paint_chars_shadow_overlay, save back to backup.
+ *   - Frame 7 special path: fd2_composite_battle_tile_map(buffer+0x8088,
+ *       0x1C8, 0xD, 8, origin_x, origin_y), paint old chars, shift base
+ *       by -0x8E8, paint new chars, shift base back +0x8E8,
+ *       fd2_paint_chars_shadow_overlay, save back to backup.
+ *   - Frame 8 special path: fd2_composite_battle_tile_map(...),
+ *       fd2_composite_all_chars_overlay (handles its own shadow), save
+ *       back to backup.
+ *   - All frames: fd2_clear_keyboard_buffer; fd2_wait_n_bios_ticks(1).
+ *
+ * Exit (snapshot > 0xB): free(explosion_sprite); free(backup);
+ * free(sfx_buf); return.
+ *
+ * The large_game_state_buffer pointer-shift trick (base -= 0xE40 / -=
+ * 0x8E8 then restored) is a temporary offset adjustment so the existing
+ * paint helper fd2_paint_char_sprite_at_world_pos writes to a shifted
+ * base, achieving a layered composite without separate buffer args.
+ *
+ * Callers (4): fd2_chapter_01_init @ 0x3289B + 0x328BB,
+ *   fd2_chapter_event_handler_01__ch1_dialog_with_state @ 0x342CE,
+ *   fd2_chapter_event_handler_02__ch1_dialog_with_state @ 0x34336.
+ *
+ * Cdecl, 1 stack param (target_race_id); void return. The binary's
+ * __CHK(0x3C) stack-probe prologue is compiler-generated and omitted
+ * here.
+ *
+ * Args (cdecl):
+ *   target_race_id — joining recruit / party-slot id, forwarded to
+ *     fd2_load_chapter_portraits_and_dump_tmp as the race-match filter
+ *     that selects which field chars spawn into the party. (The 4 call
+ *     sites pass small slot ids 1, 2, 4, 5.) The chapter index itself
+ *     comes from data_fd2_chapter_current_chapter_id, not this arg.
+ * ---------------------------------------------------------------- */
+void fd2_animate_party_addition_with_appear_effect(uint32 target_race_id)
+{
+    uint32 sfx_buf;
+    uint32 explosion_sprite;
+    uint32 backup;
+    int32 src_off;
+    uint32 src_ptr;
+    uint32 pos_x;
+    uint32 pos_y;
+    uint32 char_iter;
+    uint32 old_char_count;
+    uint32 snapshot;
+
+    sfx_buf = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 0x5F);
+    explosion_sprite = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 9);
+    backup = (uint32)malloc(0x25680);
+    memmove((void *)backup,
+            (void *)data_fd2_large_game_state_buffer_ptr, 0x25680);
+    old_char_count = data_fd2_battle_party_member_count;
+    fd2_load_chapter_portraits_and_dump_tmp(target_race_id);
+
+    snapshot = 0;
+    do {
+        if ((int32)snapshot > 0xB) {
+            free((void *)explosion_sprite);
+            free((void *)backup);
+            free((void *)sfx_buf);
+            return;
+        }
+        if (snapshot == 1) {
+            fd2_play_sfx_with_handle(sfx_buf, 0, 1);
+        }
+        memmove((void *)data_fd2_large_game_state_buffer_ptr,
+                (void *)backup, 0x25680);
+        src_off = *(int32 *)(snapshot * 4 + explosion_sprite + 6);
+        src_ptr = explosion_sprite + src_off;
+        for (char_iter = old_char_count;
+             (int32)char_iter < (int32)data_fd2_battle_party_member_count;
+             char_iter++) {
+            pos_x = data_fd2_battle_runtime_char_array_ptr[char_iter].pos_x;
+            pos_y = data_fd2_battle_runtime_char_array_ptr[char_iter].pos_y;
+            if ((int32)data_fd2_battle_view_window_origin_x - 1 <= (int32)pos_x &&
+                (int32)pos_x <= (int32)(data_fd2_battle_view_window_origin_x +
+                                        data_fd2_battle_view_window_max_x) &&
+                (int32)data_fd2_battle_view_window_origin_y <= (int32)pos_y &&
+                (int32)pos_y <= (int32)(data_fd2_battle_view_window_origin_y +
+                                        data_fd2_battle_view_window_max_y + 1)) {
+                fd2_blit_sprite_with_decoded_pixels(
+                    data_fd2_large_game_state_buffer_ptr +
+                        (pos_y - data_fd2_battle_view_window_origin_y) * 0x2AC0 +
+                        ((pos_x - data_fd2_battle_view_window_origin_x) - 1) * 0x18 +
+                        0x75D8,
+                    src_ptr, 0x1C8);
+            }
+        }
+        fd2_blit_rectangle(0xA0504, 0x140,
+            data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1C8, 0x138, 0xC0);
+
+        if (snapshot == 6) {
+            memmove((void *)data_fd2_large_game_state_buffer_ptr,
+                    (void *)backup, 0x25680);
+            for (char_iter = 0; (int32)char_iter < (int32)old_char_count;
+                 char_iter++) {
+                if ((data_fd2_battle_runtime_char_array_ptr[char_iter].flags & 1)
+                        == 0) {
+                    fd2_paint_char_sprite_at_world_pos(char_iter);
+                }
+            }
+            data_fd2_large_game_state_buffer_ptr -= 0xE40;
+            for (; (int32)char_iter < (int32)data_fd2_battle_party_member_count;
+                 char_iter++) {
+                if ((data_fd2_battle_runtime_char_array_ptr[char_iter].flags & 1)
+                        == 0) {
+                    fd2_paint_char_sprite_at_world_pos(char_iter);
+                }
+            }
+            data_fd2_large_game_state_buffer_ptr += 0xE40;
+            fd2_paint_chars_shadow_overlay();
+            memmove((void *)backup,
+                    (void *)data_fd2_large_game_state_buffer_ptr, 0x25680);
+        } else if (snapshot == 7) {
+            fd2_composite_battle_tile_map(
+                data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1C8, 0xD, 8,
+                data_fd2_battle_view_window_origin_x,
+                data_fd2_battle_view_window_origin_y);
+            for (char_iter = 0; (int32)char_iter < (int32)old_char_count;
+                 char_iter++) {
+                if ((data_fd2_battle_runtime_char_array_ptr[char_iter].flags & 1)
+                        == 0) {
+                    fd2_paint_char_sprite_at_world_pos(char_iter);
+                }
+            }
+            data_fd2_large_game_state_buffer_ptr -= 0x8E8;
+            for (; (int32)char_iter < (int32)data_fd2_battle_party_member_count;
+                 char_iter++) {
+                if ((data_fd2_battle_runtime_char_array_ptr[char_iter].flags & 1)
+                        == 0) {
+                    fd2_paint_char_sprite_at_world_pos(char_iter);
+                }
+            }
+            data_fd2_large_game_state_buffer_ptr += 0x8E8;
+            fd2_paint_chars_shadow_overlay();
+            memmove((void *)backup,
+                    (void *)data_fd2_large_game_state_buffer_ptr, 0x25680);
+        } else if (snapshot == 8) {
+            fd2_composite_battle_tile_map(
+                data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1C8, 0xD, 8,
+                data_fd2_battle_view_window_origin_x,
+                data_fd2_battle_view_window_origin_y);
+            fd2_composite_all_chars_overlay();
+            memmove((void *)backup,
+                    (void *)data_fd2_large_game_state_buffer_ptr, 0x25680);
+        }
+
+        fd2_clear_keyboard_buffer();
+        fd2_wait_n_bios_ticks(1);
+        snapshot++;
+    } while (1);
+}

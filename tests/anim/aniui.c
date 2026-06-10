@@ -9,6 +9,7 @@
 #include "globals.h"
 #include "protos.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 #define USE_ITEM_ID 10
 
@@ -64,6 +65,11 @@ extern int    g_delay375b2_calls;
 extern uint32 g_delay375b2_last_ticks;
 extern int    g_tile_map_calls;
 extern int    g_composite_call_count;
+
+/* party-addition appear-effect observability (testglob.c): the recording
+ * fd2_blit_sprite_with_decoded_pixels stub counts every explosion-sprite
+ * blit emitted by the per-frame new-char loop. */
+extern int    g_blitdec_calls;
 
 /* money-roller observability (testglob.c): the per-digit blit primitive records
  * its call count + last resolved args (slot dst, stride, sprite index). */
@@ -626,6 +632,117 @@ static void test_shop_feedback_state_other_noop(void)
 }
 
 
+/*
+ * fd2_animate_party_addition_with_appear_effect — 12-frame appearance-animation
+ * control-flow skeleton (frame dispatch + SFX timing + composite branches).
+ *
+ * The function is a per-newly-joined-char "explosion appearance" animation
+ * orchestrator. Its load-bearing, host-verifiable logic is the fixed 12-frame
+ * loop and its per-frame dispatch:
+ *   - frame 1 only: one fd2_play_sfx_with_handle (the appearance chime);
+ *   - frame 6: redraw-from-backup + char repaint, NO tile-map composite;
+ *   - frame 7 AND frame 8: each run exactly one fd2_composite_battle_tile_map
+ *     (the only two tile-map composites in the whole run);
+ *   - every frame: the per-new-char explosion-sprite blit loop runs over
+ *     [old_count, party_count); with zero newly-added chars it emits zero
+ *     fd2_blit_sprite_with_decoded_pixels calls.
+ *
+ * This case pins that skeleton deterministically by adding NO new chars: the
+ * real fd2_load_chapter_portraits_and_dump_tmp is driven with
+ * portrait_cache_alloc_offset == 0 (its race-scan loop body never runs, exactly
+ * the test_pt_empty_table path in tests/rsrc/rsrc.c), so party_member_count
+ * stays 0 and old_count == party_count. The two FDOTHER.DAT resource loads
+ * (sfx idx 0x5F, explosion-sprite idx 9) run for real against the staged real
+ * FDOTHER.DAT through the real fd2_load_dat_resource; the per-frame BIOS-tick
+ * waits and keyboard-buffer clears run for real (host-safe: the tick counter
+ * advances so each wait terminates). Observed via the recording spies:
+ *   - g_play_sfx_with_handle_calls == 1   (frame-1 chime, fired once)
+ *   - g_tile_map_calls            == 2    (frames 7 + 8)
+ *   - g_blitdec_calls             == 0    (no new chars -> no explosion blits)
+ * and the function returns (its three heap buffers are freed; no hang/leak).
+ *
+ * The per-new-char explosion-blit window-clip + dst-offset arithmetic (the
+ * (pos_y-oy)*0x2AC0 + (pos_x-ox-1)*0x18 + 0x75D8 placement, and the frame-6/7
+ * large_game_state_buffer pointer-shift composite trick) is pure VGA-output
+ * positioning reachable only after the real fd2_init_runtime_char_for_battle
+ * chain spawns in-window chars at FDFIELD-determined positions (which also
+ * drags in the tile-map / tile-attr / portrait-cache redraw fixtures of the
+ * frame-6/7/8 paint + shadow-overlay paths). That is deferred to Phase 9
+ * integration (real chapter-1 party assembly), consistent with the other
+ * VGA-output side-effects deferred across this suite; see src/emit_issues.json
+ * (00032999). The frame blits land in the mode13h aperture (0xA0504) via the
+ * real fd2_blit_rectangle; large_game_state_buffer is backed by a >= 0x25680
+ * host buffer so the per-frame memmove(base, backup, 0x25680) stays in-bounds,
+ * and portrait_sprite_cache is backed by a 0x32A00 buffer so the portrait
+ * loader's FD2.TMP fwrite reads valid memory.
+ */
+static uint8 g_pa_lgs[0x26000];
+static uint32 g_pa_saved_cache;
+static uint32 g_pa_saved_chapter;
+static uint32 g_pa_saved_alloc_off;
+static uint32 g_pa_saved_count;
+
+static void party_add_setup(void)
+{
+    memset(g_pa_lgs, 0, sizeof(g_pa_lgs));
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_pa_lgs;
+
+    /* portrait loader's FD2.TMP fwrite reads 0x32A00 bytes from this cache */
+    g_pa_saved_cache = portrait_sprite_cache;
+    portrait_sprite_cache = (uint32)malloc(0x32A00);
+
+    g_pa_saved_chapter = data_fd2_chapter_current_chapter_id;
+    g_pa_saved_alloc_off = data_fd2_resource_portrait_cache_alloc_offset;
+    g_pa_saved_count = data_fd2_battle_party_member_count;
+
+    /* chapter 1 -> FDFIELD re-read idx 1*3+2 = 5 (valid in the staged file) */
+    data_fd2_chapter_current_chapter_id = 1;
+    /* zero race-scan length -> portrait loader adds no chars (count stays 0) */
+    data_fd2_resource_portrait_cache_alloc_offset = 0;
+    chapter_portrait_load_buffer = 0;   /* loaded fresh by the loader */
+    data_fd2_battle_party_member_count = 0;
+
+    data_fd2_battle_view_window_origin_x = 0x10;
+    data_fd2_battle_view_window_origin_y = 0x20;
+    data_fd2_battle_view_window_max_x = 0x100;
+    data_fd2_battle_view_window_max_y = 0x100;
+
+    g_play_sfx_with_handle_calls = 0;
+    g_tile_map_calls = 0;
+    g_composite_call_count = 0;
+    g_blitdec_calls = 0;
+}
+
+static void party_add_teardown(void)
+{
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+    }
+    portrait_sprite_cache = g_pa_saved_cache;
+    data_fd2_chapter_current_chapter_id = g_pa_saved_chapter;
+    data_fd2_resource_portrait_cache_alloc_offset = g_pa_saved_alloc_off;
+    data_fd2_battle_party_member_count = g_pa_saved_count;
+    chapter_portrait_load_buffer = 0;
+    remove("FD2.TMP");   /* generated swap file (not a staged game file) */
+}
+
+static void test_party_add_frame_skeleton_and_sfx(void)
+{
+    party_add_setup();
+    fd2_animate_party_addition_with_appear_effect(1);
+
+    /* frame-1 appearance chime fires exactly once across the 12 frames */
+    ASSERT_EQ(g_play_sfx_with_handle_calls, 1);
+    /* only frames 7 and 8 run a tile-map composite */
+    ASSERT_EQ(g_tile_map_calls, 2);
+    ASSERT_EQ(g_composite_call_count, 2);
+    /* zero newly-added chars -> the per-frame explosion-blit loop is empty */
+    ASSERT_EQ(g_blitdec_calls, 0);
+
+    party_add_teardown();
+}
+
+
 void run_anim_aniui_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -642,5 +759,6 @@ void run_anim_aniui_tests(void)
     RUN_TEST(test_shop_feedback_state4_cycle_and_flash);
     RUN_TEST(test_shop_feedback_state5_cycle);
     RUN_TEST(test_shop_feedback_state_other_noop);
+    RUN_TEST(test_party_add_frame_skeleton_and_sfx);
     printf("\n");
 }
