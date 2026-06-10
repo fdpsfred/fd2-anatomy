@@ -799,3 +799,114 @@ void fd2_tile_blit_24x24_with_remap_table(uint32 src, uint32 dst,
         dst_buf = dst_buf + row_advance;
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_tile_blit_24x24_dimmed_grayscale @ 0x4DE56 (2 callers)
+ *
+ * Hand-written RLE blit of a 24x24 sprite into dst, recolouring every
+ * painted pixel into the fixed 8-step grayscale band at 0x18..0x1F:
+ *
+ *   out = (uint8)((src_pixel & 7) + 0x18)
+ *
+ * The base 0x18 and the &7 mask are hardcoded, so no runtime palette
+ * table or tint offset is needed. This is the off=0, base=0x18 special
+ * case of the sibling fd2_tile_blit_24x24_with_tint_offset @ 0x4DC34;
+ * the RLE command syntax and the four mode bodies are identical. Used
+ * to render dimmed / inactive portraits: the un-selected portrait grid
+ * in the recruitment/promotion menu, and the dead-character path in the
+ * battle-map sprite painter. Callers: fd2_paint_char_sprite_at_world_pos
+ * @ 0x127E0 and fd2_render_recruitment_select_screen @ 0x31E80.
+ *
+ * Each command byte's top two bits select the mode; the low 6 bits + 1
+ * are the run length:
+ *   bits 7..6 = 00 (0x00..0x3F)  RUN: paint len grayscale pixels from a
+ *               single following source byte; dst += len; x -= len.
+ *   bits 7..6 = 01 (0x40..0x7F)  STRIDE-2 RUN: paint len grayscale
+ *               pixels from a single following source byte at every
+ *               other dst byte (INC EDI; STOSB => +2 per pixel, written
+ *               at the odd offset); dst += 2*len; x -= 2*len.
+ *   bits 7..6 = 10 (0x80..0xBF)  LITERAL: copy len grayscale pixels, one
+ *               following source byte each; dst += len; x -= len.
+ *   bits 7..6 = 11 (0xC0..0xFF)  TRANSPARENT SKIP: advance dst by len
+ *               bytes without writing (no source bytes consumed);
+ *               dst += len; x -= len.
+ *
+ * x is the per-row remaining-column counter (starts at 0x18). When it
+ * reaches 0 the row ends: dst advances by stride - 0x18 to the next row
+ * start, and 24 rows are rendered in total.
+ *
+ * Args (cdecl, 3x stack params; caller pops 0x0C):
+ *   src     — source RLE-encoded 24x24 sprite stream
+ *   dst     — destination base linear address
+ *   stride  — destination row stride in bytes (0x1C8 from the battle
+ *             painter @ 0x127E0, 0x140 from the recruitment screen
+ *             @ 0x31E80; the row reset advances stride - 0x18)
+ *
+ * Hand-written asm leaf: no __CHK probe, no CALLs.
+ * ---------------------------------------------------------------- */
+void fd2_tile_blit_24x24_dimmed_grayscale(uint32 src, uint32 dst, uint32 stride)
+{
+    uint32 rle_stream;
+    uint32 dst_buf;
+    uint32 row_advance;
+    uint8  cmd;
+    uint8  pixel;
+    uint8  x_remain;
+    uint32 count;
+    int    row;
+
+    rle_stream = src;
+    dst_buf = dst;
+    row_advance = stride - 0x18;
+
+    for (row = 0x18; row != 0; row--) {
+        x_remain = 0x18;
+        do {
+            cmd = *(uint8 *)rle_stream;
+            rle_stream = rle_stream + 1;
+            if ((cmd & 0x80) == 0) {
+                if ((cmd & 0x40) == 0) {
+                    /* RUN: len grayscale pixels from one source byte */
+                    count = (uint32)(cmd & 0x3F) + 1;
+                    x_remain = (uint8)(x_remain - (uint8)count);
+                    pixel = (uint8)((*(uint8 *)rle_stream & 7) + 0x18);
+                    rle_stream = rle_stream + 1;
+                    do {
+                        *(uint8 *)dst_buf = pixel;
+                        dst_buf = dst_buf + 1;
+                    } while (--count != 0);
+                } else {
+                    /* STRIDE-2 RUN: len pixels, every other dst byte */
+                    count = (uint32)(cmd & 0x3F) + 1;
+                    x_remain = (uint8)(x_remain - (uint8)count - (uint8)count);
+                    pixel = (uint8)((*(uint8 *)rle_stream & 7) + 0x18);
+                    rle_stream = rle_stream + 1;
+                    do {
+                        dst_buf = dst_buf + 1;
+                        *(uint8 *)dst_buf = pixel;
+                        dst_buf = dst_buf + 1;
+                    } while (--count != 0);
+                }
+            } else {
+                if ((cmd & 0x40) == 0) {
+                    /* LITERAL: len grayscale pixels, one source byte each */
+                    count = (uint32)(cmd & 0x3F) + 1;
+                    x_remain = (uint8)(x_remain - (uint8)count);
+                    do {
+                        *(uint8 *)dst_buf =
+                            (uint8)((*(uint8 *)rle_stream & 7) + 0x18);
+                        rle_stream = rle_stream + 1;
+                        dst_buf = dst_buf + 1;
+                    } while (--count != 0);
+                } else {
+                    /* TRANSPARENT SKIP: advance dst, write nothing */
+                    count = (uint32)(cmd & 0x3F) + 1;
+                    dst_buf = dst_buf + count;
+                    x_remain = (uint8)(x_remain - (uint8)count);
+                }
+            }
+        } while (x_remain != 0);
+
+        dst_buf = dst_buf + row_advance;
+    }
+}

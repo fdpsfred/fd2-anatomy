@@ -28,7 +28,6 @@ extern int    g_blitpass_calls;
 extern uint32 g_blitpass_src[64];
 extern uint32 g_blitpass_dst[64];
 extern uint32 g_blitpass_stride[64];
-extern int    g_blitdim_calls;
 /* recording stub for fd2_blit_sprite_with_decoded_pixels (testglob.c); the
  * spell-effect overlay hit branch forwards (dst, sprite, stride) here. */
 extern uint32 g_blitdec_dst;
@@ -420,6 +419,73 @@ static void install_paint_atlas(void)
     portrait_sprite_cache = (uint32)g_paint_atlas;
 }
 
+/* ----------------------------------------------------------------
+ * Fixture for the acted (greyed) paint path. Unlike the passthrough path
+ * (recorded by a stub), fd2_tile_blit_24x24_dimmed_grayscale is the REAL
+ * emitted blitter, so the acted-flag test drives it for real: it needs a
+ * resolvable RLE sprite at the computed source slot and a real back-buffer
+ * at the computed dst. The cache holds a 256-dword absolute-offset table
+ * (table[i] == i*0x100) followed by RLE sprite slots; every slot is filled
+ * with transparent SKIP so a mis-resolved frame paints nothing, and one
+ * single-pixel grayscale sprite is planted at the expected slot. The blit
+ * lands at g_dim_lgs + 0x75D8 and paints exactly one (src & 7) + 0x18 byte.
+ * ---------------------------------------------------------------- */
+#define DIM_PCACHE_SIZE 0x3600u
+#define DIM_LGS_SPAN    0xC000u
+#define DIM_GRAY(src)   ((uint8)(((src) & 7u) + 0x18u))   /* dimmed transform */
+static uint8 g_dim_cache[DIM_PCACHE_SIZE];
+static uint8 g_dim_lgs[DIM_LGS_SPAN];
+
+/* RLE command builders (low 6 bits + 1 == run length; top 2 bits = mode). */
+#define DIM_LIT(n)   ((uint8)(0x80u | ((n) - 1)))   /* copy n grayscale pixels */
+#define DIM_SKIP(n)  ((uint8)(0xC0u | ((n) - 1)))   /* advance n (transparent) */
+
+/* Build the offset table, fill all sprite slots with a 24-row transparent
+ * program, then plant one single-pixel grayscale sprite (source byte src_b)
+ * at the slot the caller resolves for frame_idx. */
+static void plant_dim_sprite(uint32 frame_idx, uint8 src_b)
+{
+    uint32 *table;
+    uint8 *sprite;
+    uint32 i;
+
+    table = (uint32 *)g_dim_cache;
+    for (i = 0; i < 256; i++) {
+        table[i] = i * 0x100u;
+    }
+    for (i = 0x400u; i < DIM_PCACHE_SIZE; i++) {
+        g_dim_cache[i] = DIM_SKIP(1);
+    }
+    sprite = g_dim_cache + frame_idx * 0x100u;
+    sprite[0] = DIM_LIT(1);          /* one painted pixel at (0,0) */
+    sprite[1] = src_b;               /* its source byte -> (src_b & 7) + 0x18 */
+    sprite[2] = DIM_SKIP(23);        /* finish row 0 (1 + 23 == 24) */
+    for (i = 1; i < 24; i++) {
+        sprite[2 + i] = DIM_SKIP(24);   /* rows 1..23 transparent */
+    }
+    portrait_sprite_cache = (uint32)g_dim_cache;
+    memset(g_dim_lgs, 0, sizeof(g_dim_lgs));
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_dim_lgs;
+}
+
+/* Count painted grayscale bytes (value gray_v) in g_dim_lgs and report the
+ * offset of the first one. */
+static int count_dim_pixels(uint8 gray_v, uint32 *first_off)
+{
+    uint32 i;
+    int n = 0;
+    *first_off = 0xFFFFFFFFu;
+    for (i = 0; i < DIM_LGS_SPAN; i++) {
+        if (g_dim_lgs[i] == gray_v) {
+            if (n == 0) {
+                *first_off = i;
+            }
+            n++;
+        }
+    }
+    return n;
+}
+
 /* Configure one runtime_char slot for the real paint. Returns nothing; the
  * caller drives fd2_paint_char_sprite_at_world_pos(slot). */
 static void setup_paint_char(int slot, uint8 px, uint8 py, uint8 cache_idx,
@@ -449,7 +515,6 @@ static void reset_paint_window(void)
     data_fd2_graphics_chapter_ambient_palette_anim_idx = 0;
     data_fd2_graphics_chapter_walk_anim_alt_palette_idx = 0;
     g_blitpass_calls = 0;
-    g_blitdim_calls = 0;
     install_paint_atlas();
 }
 
@@ -471,8 +536,7 @@ static void test_paint_facing_down_passthrough(void)
     setup_paint_char(0, 0x05, 0x03, 2, 0, 1, 0x00, 0);
     fd2_paint_char_sprite_at_world_pos(0);
 
-    ASSERT_EQ(g_blitpass_calls, 1);
-    ASSERT_EQ(g_blitdim_calls, 0);
+    ASSERT_EQ(g_blitpass_calls, 1);    /* not-acted -> passthrough recorder ran */
     ASSERT_EQ(g_blitpass_stride[0], 0x1c8u);
     ASSERT_EQ((int32)g_blitpass_dst[0],
               expect_offset(5, 3, 1, 0x720, 0));
@@ -506,16 +570,33 @@ static void test_paint_facing_pitch_deltas(void)
     ASSERT_EQ(g_blitpass_calls, 3);
 }
 
-/* acted (flags bit7 set) -> dimmed/grayscale blitter, not passthrough. */
+/* acted (flags bit7 set) -> the REAL dimmed/grayscale blitter runs (not the
+ * passthrough recorder). Place the char at the window origin (0,0) so the dst
+ * offset reduces to the +0x75D8 workspace base, plant a single-pixel grayscale
+ * sprite at the resolved source slot, and confirm exactly one painted byte
+ * ((src & 7) + 0x18) lands at g_dim_lgs + 0x75D8. A correct resolution paints
+ * that one pixel; the passthrough recorder must NOT fire. cache_idx 4 ->
+ * frame_idx = 4*0xC + palette(0) = 0x30, whose slot (0x3000) clears the table. */
 static void test_paint_acted_dimmed(void)
 {
+    uint32 first_off;
+    int n;
+
     reset_paint_window();
-    setup_paint_char(0, 0x05, 0x03, 0, 0, 0, 0x80, 0);
+    /* px=py=0 (== origin) so position deltas vanish; cache_idx 4, walk_phase 0,
+     * acted flag 0x80. ambient palette is 0, so frame_idx = 0 + 0x30 + 0. */
+    setup_paint_char(0, 0x00, 0x00, 4, 0, 0, 0x80, 0);
+    plant_dim_sprite(0x30u, 0x02u);          /* src 0x02 -> grayscale 0x1A */
+
     fd2_paint_char_sprite_at_world_pos(0);
 
-    ASSERT_EQ(g_blitpass_calls, 1);
-    ASSERT_EQ(g_blitdim_calls, 1);
-    ASSERT_EQ((int32)g_blitpass_dst[0], expect_offset(5, 3, 0, 0x720, 0));
+    /* the dimmed path does NOT go through the passthrough recorder */
+    ASSERT_EQ(g_blitpass_calls, 0);
+    /* exactly one painted grayscale pixel, at the +0x75D8 workspace base */
+    n = count_dim_pixels(DIM_GRAY(0x02u), &first_off);
+    ASSERT_EQ(n, 1);
+    ASSERT_EQ(first_off, 0x75d8u);
+    ASSERT_EQ(DIM_GRAY(0x02u), 0x1au);
 }
 
 /* Out-of-window in each direction -> early return, no blit. The window margin
@@ -1032,7 +1113,6 @@ static void reset_spell_overlay(void)
     install_paint_atlas();      /* portrait_sprite_cache identity table */
     install_spell_sheet();      /* effect-sprite sheet identity table */
     g_blitpass_calls = 0;
-    g_blitdim_calls = 0;
     g_blitdec_calls = 0;
     g_tile_map_calls = 0;
     g_composite_call_count = 0;
@@ -1087,8 +1167,7 @@ static void test_spell_miss_draws_portrait(void)
     fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 0, (uint32)0, 0x4a);
 
     ASSERT_EQ(g_blitdec_calls, 0);          /* no effect sprite */
-    ASSERT_EQ(g_blitpass_calls, 1);         /* one portrait */
-    ASSERT_EQ(g_blitdim_calls, 0);          /* passthrough, not dimmed */
+    ASSERT_EQ(g_blitpass_calls, 1);         /* one portrait via passthrough */
     ASSERT_EQ(g_blitpass_stride[0], 0x1c8u);
     ASSERT_EQ(g_blitpass_dst[0], expect_screen_addr(SPELL_BUF, 5, 3, 0, 0));
     /* frame_idx = cache_idx(2)*0xC + ambient_palette(1) = 25; identity cache

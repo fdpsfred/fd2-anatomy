@@ -404,22 +404,15 @@ void fd2_tile_blit_24x24_passthrough(uint32 src, uint32 dst, uint32 stride) {
     }
     g_blitpass_calls++;
 }
-/* Recording stub for fd2_tile_blit_24x24_dimmed_grayscale (the greyed/dimmed
- * 24x24 blitter, real body not yet emitted). The real
- * fd2_paint_char_sprite_at_world_pos calls this instead of the passthrough
- * blitter when the unit's flags bit7 (already-acted) is set. Records into the
- * shared g_blitpass_* arrays (so dst/src arithmetic checks are uniform) and
- * bumps a separate dimmed counter so tests can distinguish which blitter ran. */
-int    g_blitdim_calls = 0;
-void fd2_tile_blit_24x24_dimmed_grayscale(uint32 src, uint32 dst, uint32 stride) {
-    if (g_blitpass_calls < 64) {
-        g_blitpass_src[g_blitpass_calls] = src;
-        g_blitpass_dst[g_blitpass_calls] = dst;
-        g_blitpass_stride[g_blitpass_calls] = stride;
-    }
-    g_blitpass_calls++;
-    g_blitdim_calls++;
-}
+/* fd2_tile_blit_24x24_dimmed_grayscale is now emitted for real in
+ * src/gfx/blittile.c; its former recording stub (and the g_blitdim_calls
+ * counter) here were removed. The acted-char caller test
+ * (test_paint_acted_dimmed in tests/gfx/rndscene.c) instead drives the real
+ * dimmed blitter against a single-pixel RLE sprite planted only at the
+ * expected sprite-source slot (transparent SKIP elsewhere) over a real
+ * back-buffer, and observes the single painted grayscale byte
+ * ((src & 7) + 0x18), which proves the caller's acted-flag branch selection
+ * plus its src / dst arithmetic. */
 /* fd2_tile_blit_24x24_with_remap_table is now emitted for real in
  * src/gfx/blittile.c; its former recording stub here was removed. The sole
  * caller test (fd2_blit_animated_tile_at_pos in tests/gfx/blittile.c) instead

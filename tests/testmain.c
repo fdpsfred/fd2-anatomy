@@ -43,6 +43,7 @@ extern void run_field_chevt27_tests(void);
 extern void run_field_chtrans_tests(void);
 extern void run_gfx_blitspr_tests(void);
 extern void run_gfx_blittile1_tests(void);
+extern void run_gfx_blittile2_tests(void);
 extern void run_gfx_blittile_tests(void);
 extern void run_gfx_palette_tests(void);
 extern void run_gfx_rndscene_tests(void);
@@ -99,6 +100,7 @@ int main(void)
     run_field_chtrans_tests();
     run_gfx_blitspr_tests();
     run_gfx_blittile1_tests();
+    run_gfx_blittile2_tests();
     run_gfx_blittile_tests();
     run_gfx_palette_tests();
     run_gfx_rndscene_tests();
