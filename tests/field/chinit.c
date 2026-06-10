@@ -150,6 +150,26 @@
  * shared alt-entry points (0x331EA, entered by chapter_24_init; 0x33206,
  * entered by chapter_02_init / chapter_12_init). See src/emit_issues.json
  * (00033169).
+ *
+ * fd2_chapter_08_init @0x33219 is the SIMPLEST chapter init: a flat
+ * orchestrator playing two dialog pages (pages 0/1) bracketing two cutscenes
+ * (0x1F/0x20) each preceded by a camera pan, NO char init, NO portrait load,
+ * and — uniquely — NO global-state writes at all (it never resets
+ * battle_anim_phase, not even between the two pages). It likewise has NO
+ * numeric computation, NO RNG, NO data-dependent branch, and NO CALL-result
+ * consumption (no EAX-bug exposure), and every callee is real-linked from
+ * src/ — the same fd2_display_dialog_scene -> fd2_wait_for_input_dialog_with_blink
+ * keyboard busy-wait hang plus the fd2_cutscene_event_trigger byte-script
+ * parsing apply (here there is no portrait load). Its behavioral test is
+ * therefore DEFERRED to Phase 9 on identical grounds; equivalence was verified
+ * statically, line-by-line, against the disassembly @0x33219 (call sequence
+ * and constants; there are no state writes and no battle_anim_phase resets to
+ * check). Note this handler is a two-hop tail consumer: it tail-JMPs (0x33278
+ * -> 0x33028) into the alt-entry physically owned by fd2_chapter_04_init, which
+ * in turn JMPs (0x33044 -> 0x3312D) into the shared epilogue owned by
+ * fd2_chapter_05_init; the emit reconstructs the equivalent straight-line form
+ * (page-1 dialog + clear_facing + pan_cursor_to_char(0)). See
+ * src/emit_issues.json (00033219).
  */
 
 #include <stdio.h>
@@ -176,5 +196,7 @@ void run_field_chinit_tests(void)
            "integration; see src/emit_issues.json 0003314b)\n");
     printf("  (fd2_chapter_07_init: behavioral test deferred to Phase 9 "
            "integration; see src/emit_issues.json 00033169)\n");
+    printf("  (fd2_chapter_08_init: behavioral test deferred to Phase 9 "
+           "integration; see src/emit_issues.json 00033219)\n");
     printf("\n");
 }
