@@ -898,6 +898,77 @@ static void test_ch18_event2b_sets_ai_flag3_single_char_0x10(void)
     ev_restore_rc_ptr();
 }
 
+/* ================================================================
+ * handler 2C — fd2_chapter_event_handler_2c__ch19_ai_ctrl @ 0x350A4
+ *   chapter 19 AI-control beat. Its body is a straight-line single call
+ *   (no dialog, no RNG, no numeric computation, no CALL-return value used):
+ *     - the per-event AI/dialog control flag (low nibble of combat_aux_block[0xD],
+ *       struct offset 0x34) is set to 3 for the runtime-char range [0x1D, 0x3B]
+ *       inclusive (31 chars) via the real range setter
+ *       fd2_set_combat_aux_block_byte_d_low4_for_char_range (which masks the byte
+ *       to (old & 0xF0) | new_val, so only the low nibble moves and the high
+ *       nibble survives).
+ *
+ * The single callee is REAL. The writes span indices 0x1D..0x3B, all inside the
+ * shared g_ev_rc[0x48] fixture (max index 0x47), so no private oversized array is
+ * needed and no dialog program / glyph recorder is involved. The distinguishing
+ * feature is the 31-char [0x1D, 0x3B] range, so the boundary guards (chars 0x1C
+ * below and 0x3C above) are the load-bearing assertions.
+ * ================================================================ */
+
+/* Seed combat_aux_block[0xD] of every touched char (and the boundary guards) to
+ * 0xA5 (high nibble 0xA must survive, low nibble 0x5 must move to 3), and the
+ * in-slot neighbour bytes [0xC]/[0xE] to distinct sentinels so the low-nibble-
+ * only write is independently witnessed. */
+static void ev2c_seed(void)
+{
+    int i;
+
+    for (i = 0x1D; i <= 0x3B; i++) {
+        g_ev_rc[i].combat_aux_block[0xD] = 0xA5;
+        g_ev_rc[i].combat_aux_block[0xC] = 0xCC;   /* in-slot neighbour guard */
+        g_ev_rc[i].combat_aux_block[0xE] = 0xEE;   /* in-slot neighbour guard */
+    }
+
+    /* chars just outside the range: must stay at their seeded sentinel. */
+    g_ev_rc[0x1C].combat_aux_block[0xD] = 0xA5;    /* below range */
+    g_ev_rc[0x3C].combat_aux_block[0xD] = 0xA5;    /* above range */
+}
+
+/* ----------------------------------------------------------------
+ * The handler fires its one beat: set the AI flag of chars 0x1D..0x3B
+ * ([0xD] low nibble 3). All deterministic and observable; checked in one pass.
+ * ---------------------------------------------------------------- */
+static void test_ch19_event2c_sets_ai_flag3_range_0x1d_to_0x3b(void)
+{
+    /* ev_install_safe_env zeroes g_ev_rc and points the runtime-char pointer at
+     * it; this handler only needs that pointer (it never touches the dialog VM). */
+    ev_install_safe_env();
+    ev2c_seed();
+
+    fd2_chapter_event_handler_2c__ch19_ai_ctrl(0);
+
+    /* (1) combat_aux_block[0xD] low nibble set to 3, high nibble preserved
+     * (0xA5 -> 0xA3) across the whole range — boundaries + an interior char. */
+    ASSERT_EQ((long)g_ev_rc[0x1D].combat_aux_block[0xD], (long)0xA3);
+    ASSERT_EQ((long)g_ev_rc[0x2C].combat_aux_block[0xD], (long)0xA3);
+    ASSERT_EQ((long)g_ev_rc[0x3B].combat_aux_block[0xD], (long)0xA3);
+
+    /* (2) range boundaries are exact: the chars just below (0x1C) and above
+     * (0x3C) keep their seeded sentinel — load-bearing for [0x1D, 0x3B]. */
+    ASSERT_EQ((long)g_ev_rc[0x1C].combat_aux_block[0xD], (long)0xA5);
+    ASSERT_EQ((long)g_ev_rc[0x3C].combat_aux_block[0xD], (long)0xA5);
+
+    /* (3) in-slot neighbour bytes survive: the low-nibble-only [0xD] write did
+     * not touch [0xC] or [0xE]. */
+    ASSERT_EQ((long)g_ev_rc[0x1D].combat_aux_block[0xC], (long)0xCC);
+    ASSERT_EQ((long)g_ev_rc[0x1D].combat_aux_block[0xE], (long)0xEE);
+    ASSERT_EQ((long)g_ev_rc[0x3B].combat_aux_block[0xC], (long)0xCC);
+    ASSERT_EQ((long)g_ev_rc[0x3B].combat_aux_block[0xE], (long)0xEE);
+
+    ev_restore_rc_ptr();
+}
+
 void run_field_chevt15_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -912,5 +983,6 @@ void run_field_chevt15_tests(void)
     RUN_TEST(test_ch15_event29_dialog3_drop_then_dialog4);
     RUN_TEST(test_ch18_event2a_reload1_and_shows_dialog_page6);
     RUN_TEST(test_ch18_event2b_sets_ai_flag3_single_char_0x10);
+    RUN_TEST(test_ch19_event2c_sets_ai_flag3_range_0x1d_to_0x3b);
     printf("\n");
 }
