@@ -129,6 +129,27 @@
  * fd2_chapter_07_init), and 0x33140 (the pan + RET, owned by
  * fd2_chapter_05_init); the emit reconstructs the equivalent straight-line
  * form. See src/emit_issues.json (0003314b).
+ *
+ * fd2_chapter_07_init @0x33169 is the same shape as chapter 04: a flat
+ * orchestrator playing two dialog pages (pages 0/1), portrait set 1 loaded
+ * between them, two cutscenes (0x1C/0x1D) each preceded by a camera pan, NO
+ * char init. It likewise has NO numeric computation, NO RNG, NO data-dependent
+ * branch, and NO CALL-result consumption (no EAX-bug exposure), and every
+ * callee is real-linked from src/ — the same fd2_display_dialog_scene ->
+ * fd2_wait_for_input_dialog_with_blink keyboard busy-wait hang plus the
+ * fd2_load_chapter_portraits_and_dump_tmp (fopen FDICON.B24) /
+ * fd2_cutscene_event_trigger byte-script parsing apply. Its behavioral test is
+ * therefore DEFERRED to Phase 9 on identical grounds; equivalence was verified
+ * statically, line-by-line, against the disassembly @0x33169 (call sequence,
+ * constants, the single battle_anim_phase reset after page 0 only, and the
+ * init_phase_flag 1/0 bracket around the portrait load). Note the page-1
+ * dialog call plus the final fd2_pan_cursor_to_char(0) are physically a
+ * tail-JMP into the shared epilogue at 0x33140 (owned by fd2_chapter_05_init,
+ * entered directly without a clear-facing); the emit reconstructs the
+ * equivalent straight-line form. This function is itself the OWNER of two
+ * shared alt-entry points (0x331EA, entered by chapter_24_init; 0x33206,
+ * entered by chapter_02_init / chapter_12_init). See src/emit_issues.json
+ * (00033169).
  */
 
 #include <stdio.h>
@@ -153,5 +174,7 @@ void run_field_chinit_tests(void)
            "integration; see src/emit_issues.json 00033049)\n");
     printf("  (fd2_chapter_06_init: behavioral test deferred to Phase 9 "
            "integration; see src/emit_issues.json 0003314b)\n");
+    printf("  (fd2_chapter_07_init: behavioral test deferred to Phase 9 "
+           "integration; see src/emit_issues.json 00033169)\n");
     printf("\n");
 }
