@@ -170,6 +170,32 @@
  * fd2_chapter_05_init; the emit reconstructs the equivalent straight-line form
  * (page-1 dialog + clear_facing + pan_cursor_to_char(0)). See
  * src/emit_issues.json (00033219).
+ *
+ * fd2_chapter_09_init @0x3327D is the same shape as chapter 04: a flat
+ * orchestrator playing two dialog pages (pages 0/1) bracketing one cutscene
+ * (0x23), one camera pan, NO char init, NO portrait load. The one structural
+ * addition over chapters 02..08 is a leading constant-bound loop that turns
+ * the 11 on-field units to face north — it writes
+ * data_fd2_battle_runtime_char_array_ptr[i].sprite_state[1] = 2 for i in
+ * 0..10 (struct offset +0x03; disasm element address base + i*0x50 + 3). That
+ * loop is a pure constant-strided in-memory fill: NO numeric computation, NO
+ * RNG, NO data-dependent branch, and NO CALL-result consumption (no EAX-bug
+ * exposure). It is NOT independently host-testable, however, because there is
+ * no entry point that runs only the loop — fd2_chapter_09_init falls straight
+ * from the loop into the blocking fd2_pan_cursor_and_window / dialog pipeline,
+ * so the post-loop facing state is observable only after the function returns,
+ * which it cannot do in the silent harness. As with chapters 02..08 every
+ * callee is real-linked from src/ — the same fd2_display_dialog_scene ->
+ * fd2_wait_for_input_dialog_with_blink keyboard busy-wait hang plus the
+ * fd2_cutscene_event_trigger byte-script parsing apply (here there is no
+ * portrait load). Its behavioral test is therefore DEFERRED to Phase 9 on
+ * identical grounds; equivalence was verified statically, line-by-line,
+ * against the disassembly @0x3327D (the 11-iteration facing loop with its
+ * i*0x50+3 element address and value 2, the call sequence and constants, and
+ * the single battle_anim_phase reset after page 0 only — page 1 has no reset).
+ * Note this handler is fully self-contained (no tail-JMP into another
+ * chapter's epilogue and no alt-entry of its own). See src/emit_issues.json
+ * (0003327d).
  */
 
 #include <stdio.h>
@@ -198,5 +224,7 @@ void run_field_chinit_tests(void)
            "integration; see src/emit_issues.json 00033169)\n");
     printf("  (fd2_chapter_08_init: behavioral test deferred to Phase 9 "
            "integration; see src/emit_issues.json 00033219)\n");
+    printf("  (fd2_chapter_09_init: behavioral test deferred to Phase 9 "
+           "integration; see src/emit_issues.json 0003327d)\n");
     printf("\n");
 }

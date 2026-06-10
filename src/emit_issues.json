@@ -758,5 +758,25 @@
     "source_review": "fd2_chapter_08_init @00033219 (emit; pure two-hop consumer: tail-JMP 0x33278->0x33028 [alt-entry owned by fd2_chapter_04_init @0x32FB2, sole consumer] -> 0x33044->0x3312D [shared epilogue owned by fd2_chapter_05_init @0x33049]; owns no alt-entry)"
    }
   ]
+ },
+ "0003327d": {
+  "name": "fd2_chapter_09_init",
+  "target": "field/chinit.c",
+  "issues": [
+   {
+    "type": "test_deferral_note",
+    "desc": "Behavioral unit test DEFERRED to Phase 9 integration (reason proven, not convenience). fd2_chapter_09_init is a flat chapter-prologue orchestrator of the same family as the siblings fd2_chapter_02_init @0x32D18 .. fd2_chapter_08_init @0x33219: a fixed straight-line script of void side-effect calls. Over chapters 02..08 it adds exactly one new structural element -- a leading constant-bound loop (for i in 0..10) that turns the 11 on-field units to face north by writing data_fd2_battle_runtime_char_array_ptr[i].sprite_state[1] = 2 (runtime_char struct offset +0x03; disasm @0x33291-0x332AA computes the element address as base[0x53A45] + i*0x50 + 3 via MOV EAX,EDX/SHL EAX,2/LEA EBX,[EDX+EAX]/SHL EBX,4, with loop bound CMP EDX,0xB/JL). That loop is a pure constant-strided in-memory fill: NO numeric computation, NO RNG, NO data-dependent branch, and NO CALL-result consumption (no Ghidra EAX-tracking-bug exposure -- every CALL on the path is followed by ADD ESP,K cdecl cleanup or is a void 0-arg call, never an EAX read). It is NOT independently host-testable: there is no entry point that runs only the loop, because the function falls straight from the loop into fd2_pan_cursor_and_window(6,0) and then the blocking dialog/cutscene pipeline, so the post-loop facing state is observable only after the function returns, which it cannot do in the silent harness. The blocking reasons are identical to the siblings: (1) two fd2_display_dialog_scene(current_chapter_text, page, 0xa0000,0x140,0xcd,0x4c,0x4a,0x13,1) calls (pages 0/1) -> real-linked (dialog/dialog.c) reaching fd2_wait_for_input_dialog_with_blink(), a real-linked keyboard busy-wait (input/input.c) that hangs forever in the silent harness (same hang bisection-proven for the 0x10010 checksum-mismatch arm), and dereferences current_chapter_text as a parsed opcode stream; (2) one fd2_cutscene_event_trigger(0x23) call parsing an in-memory per-event byte-script; (3) every callee is real-linked from src/ so none can be replaced by capture stubs to observe call ordering, and the emit code must not be distorted to make it testable (forbidden). Equivalence was instead verified statically line-by-line against the disassembly @0x3327D: fd2_init_battle_state_for_chapter; the 11-iteration sprite_state[1]=2 facing loop (i*0x50+3 element address, value 2, bound 0xB); fd2_pan_cursor_and_window(6,0); dialog page 0; data_fd2_battle_anim_phase=0 (MOV [0x51A83],0 @0x332DF -- the single reset, after page 0 only); fd2_cutscene_event_trigger(0x23); dialog page 1 (no reset); fd2_pan_cursor_to_char(0); fd2_clear_all_chars_facing. There is NO portrait load and NO char init. The leading __CHK(0x2C) is the Watcom frame-size stack-probe and is not part of the source body.",
+    "severity": "low",
+    "verify_method": "phase9_integration",
+    "source_review": "fd2_chapter_09_init @0003327d (emit; 11-iter pure-memory facing loop not isolable [falls straight into blocking pipeline] + 2 blocking fd2_display_dialog_scene + 1 in-memory cutscene script + all-callees-real-linked = no unit seam; cf. 00033219 / 00033169 / 0003314b / 00033049 / 00032fb2 / 00032e8c / 00032d18 / 0003231b / 00017eef / 00010010)"
+   },
+   {
+    "type": "self_contained_no_shared_tail",
+    "desc": "Equivalence-structure note (NOT a defect): unlike its siblings fd2_chapter_02_init..fd2_chapter_08_init, fd2_chapter_09_init is FULLY SELF-CONTAINED in the binary -- it physically contains its complete body (0x3327D-0x3332A, ending POP EBX; RET @0x33329-0x3332A) with no tail-JMP into another chapter's shared epilogue and owns no alt-entry of its own (get_xrefs_to into its body finds only the chapter-init data-table dispatch reference; no code JMPs into it). So there is no fragment_equivalence_handoff to record for this function -- the straight-line emit is a direct one-to-one translation of the disassembly, and the only Layer-2 regeneration concern is the standard Watcom 9.5a epilogue (POP EBX matching the entry PUSH EBX saved register + caller-cleanup cdecl). verify_method: post-build -d disasm to confirm the body emits the facing loop + the call sequence with the single battle_anim_phase reset after page 0, and a plain POP EBX/RET epilogue (no borrowed tail).",
+    "severity": "info",
+    "verify_method": "compile_and_disasm",
+    "source_review": "fd2_chapter_09_init @0003327d (emit; self-contained body 0x3327D-0x3332A, owns no alt-entry, no tail-JMP; direct translation)"
+   }
+  ]
  }
 }

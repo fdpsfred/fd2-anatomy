@@ -554,3 +554,53 @@ void fd2_chapter_08_init(void)
     fd2_clear_all_chars_facing();
     fd2_pan_cursor_to_char(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_09_init @ 0x3327D  (dispatched, 0 direct callers)
+ *
+ * Chapter 9「騎士的抉擇」init handler. A flat chapter-prologue
+ * orchestrator that turns the 11 on-field units to face north, plays
+ * two dialog pages (pages 0/1) bracketing one cutscene (event id
+ * 0x23), and pans the camera, before handing the chapter off to the
+ * player. There is NO char init and NO portrait load — chapter 9
+ * carries the party over from chapter 8.
+ *
+ * The leading loop walks runtime_char[0..10] and writes
+ * sprite_state[1] (the facing field, struct offset +0x03) = 2 (north)
+ * for all 11 units — the disassembly computes the element address as
+ * base + i*0x50 + 3 (i*5 << 4). data_fd2_battle_anim_phase is reset to
+ * 0 after page 0 only; page 1 is the tail before the final
+ * camera-to-char pan and has no reset.
+ *
+ * void __cdecl, no real params, void return. The leading __CHK(0x2C)
+ * stack-probe is the Watcom-injected frame-size check and is not part
+ * of the source body. The body is fully self-contained (no tail-JMP
+ * into another chapter's epilogue and no alt-entry of its own); the
+ * straight-line form here is the direct translation of the
+ * disassembly @0x3327D.
+ *
+ * Linked handlers:
+ *   End:         fd2_chapter_09_end @ 0x235BC
+ *   Post-action: (default — fd2_check_battle_end_default_handler
+ *                @ 0x205B4)
+ *
+ * Walkthrough SOT: assets/chapters/chapter_09.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_09_init(void)
+{
+    int i;
+
+    fd2_init_battle_state_for_chapter();
+    for (i = 0; i < 0xb; i++) {
+        data_fd2_battle_runtime_char_array_ptr[i].sprite_state[1] = 2;
+    }
+    fd2_pan_cursor_and_window(6, 0);
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x23);
+    fd2_display_dialog_scene(current_chapter_text, 1, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_pan_cursor_to_char(0);
+    fd2_clear_all_chars_facing();
+}
