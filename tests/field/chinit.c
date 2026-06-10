@@ -431,6 +431,26 @@
  * fd2_chapter_05_init, entered directly without a clear-facing); the emit
  * reconstructs the equivalent straight-line form. See src/emit_issues.json
  * (000335aa).
+ *
+ * fd2_chapter_18_init @0x335DA is the same shape as chapters 02..08/11: a
+ * flat orchestrator playing three dialog pages (pages 0/1/2) chained with
+ * two cutscenes (0x36/0x37), each cutscene preceded by a camera pan to the
+ * same (0x10,4) target, NO portrait load, NO char init. It is back to a pure
+ * straight-line orchestrator (unlike the data-dependent chapters 15/17): NO
+ * numeric computation, NO RNG, NO data-dependent branch, and NO CALL-result
+ * consumption (no EAX-bug exposure), and every callee is real-linked from
+ * src/ — the same fd2_display_dialog_scene -> fd2_wait_for_input_dialog_with_blink
+ * keyboard busy-wait hang plus the fd2_cutscene_event_trigger byte-script
+ * parsing apply (here there is no portrait load). Its behavioral test is
+ * therefore DEFERRED to Phase 9 on identical grounds; equivalence was verified
+ * statically, line-by-line, against the disassembly @0x335DA (call sequence,
+ * constants, the two (0x10,4) camera pans, and the two battle_anim_phase
+ * resets after pages 0 and 1 but not page 2). Note the page-2 dialog call plus
+ * the trailing fd2_clear_all_chars_facing() and fd2_pan_cursor_to_char(0) are
+ * physically a tail-JMP (0x3366f -> 0x3310c) into the shared epilogue owned by
+ * fd2_chapter_05_init (the same 0x3310C alt-entry fd2_chapter_11_init enters,
+ * at the cutscene-trigger CALL); the emit reconstructs the equivalent
+ * straight-line form. See src/emit_issues.json (000335da).
  */
 
 #include <stdio.h>
@@ -480,5 +500,7 @@ void run_field_chinit_tests(void)
     printf("  (fd2_chapter_17_init: data-dependent gated portrait load; "
            "behavioral test deferred to Phase 9 integration; see "
            "src/emit_issues.json 000335aa)\n");
+    printf("  (fd2_chapter_18_init: behavioral test deferred to Phase 9 "
+           "integration; see src/emit_issues.json 000335da)\n");
     printf("\n");
 }
