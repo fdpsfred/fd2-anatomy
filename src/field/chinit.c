@@ -1423,3 +1423,54 @@ void fd2_chapter_25_init(void)
     fd2_pan_cursor_to_char(0);
     fd2_play_and_free_status_effect_sfx();
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_26_init @ 0x33AAE  (dispatched, 0 direct callers)
+ *
+ * Chapter 26「未知的迴廊」init handler. A minimal flat chapter-prologue
+ * orchestrator: it re-inits battle state, pans the camera-and-window
+ * once (target 9, 0x27), plays a single cutscene (event id 0x4C),
+ * plays exactly one dialog page (page 0), clears all facings, and pans
+ * the camera to char 0. There is NO portrait load and NO char init —
+ * chapter 26 carries the party over from the previous chapter.
+ *
+ * There is NO data_fd2_battle_anim_phase reset anywhere on this
+ * handler's code path (no MOV [0x51A83],0): page 0 is the sole, tail
+ * dialog page. It is a pure straight-line orchestrator: NO numeric
+ * computation, NO RNG, NO data-dependent branch, and NO CALL-result
+ * consumption (no Ghidra EAX-tracking-bug exposure) — the dialog-scene
+ * CALL return is discarded.
+ *
+ * void __cdecl, no real params, void return. The leading __CHK(0x28)
+ * stack-probe is the Watcom-injected frame-size check and is not part
+ * of the source body.
+ *
+ * In the binary this handler physically contains only its entry block
+ * (init battle state, the one fd2_pan_cursor_and_window(9,0x27), and the
+ * cutscene-0x4C trigger); after pushing the 9 dialog-scene args (page 0)
+ * it tail-JMPs (0x33AEC -> 0x3312D) into the shared epilogue owned by
+ * fd2_chapter_05_init (PUSH current_chapter_text; CALL
+ * fd2_display_dialog_scene; clear-facing; pan_cursor_to_char(0); RET).
+ * The straight-line form here is the functionally-equivalent (Layer 2)
+ * reconstruction.
+ *
+ * Linked handlers:
+ *   End:         fd2_chapter_26_end @ 0x24E80
+ *   Post-action: fd2_chapter_26_post_action @ 0x20B3C
+ *                (extra lose if char[1] OR char[2] dead — 悠妮/亞奇梅吉)
+ *
+ * (9 階段密集 reinforcement turn 2/4/6/8/10/12/15/16/17 = FDFIELD event
+ * 觸發, 非此 init handler.)
+ *
+ * Walkthrough SOT: assets/chapters/chapter_26.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_26_init(void)
+{
+    fd2_init_battle_state_for_chapter();
+    fd2_pan_cursor_and_window(9, 0x27);
+    fd2_cutscene_event_trigger(0x4c);
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_clear_all_chars_facing();
+    fd2_pan_cursor_to_char(0);
+}

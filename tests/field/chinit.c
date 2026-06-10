@@ -631,6 +631,29 @@
  * fd2_play_and_free_status_effect_sfx() is physically a tail-JMP (0x33AA9 ->
  * 0x1D4F6) to that self-contained handler; the emit reconstructs the
  * equivalent straight-line call form. See src/emit_issues.json (0003396a).
+ *
+ * fd2_chapter_26_init @0x33AAE is back to a minimal flat orchestrator of the
+ * same family as chapter 22: re-init battle state, one camera-pan-and-window
+ * (9,0x27), a single cutscene (0x4C), a single dialog page (page 0),
+ * clear-facing, pan the camera to char 0. NO portrait load, NO char init, and
+ * NO battle_anim_phase reset on its code path. It is a pure straight-line
+ * orchestrator: NO numeric computation, NO RNG, NO data-dependent branch, NO
+ * loops, and NO CALL-result consumption (no EAX-bug exposure — the dialog-scene
+ * CALL return is discarded), and every callee is real-linked from src/ — the
+ * same fd2_display_dialog_scene -> fd2_wait_for_input_dialog_with_blink keyboard
+ * busy-wait hang plus the fd2_cutscene_event_trigger byte-script parsing apply
+ * (here there is no portrait load). Its behavioral test is therefore DEFERRED to
+ * Phase 9 on identical grounds; equivalence was verified statically,
+ * line-by-line, against the disassembly @0x33AAE (call sequence, constants, the
+ * single (9,0x27) camera pan, the 0x4C cutscene, the single page-0 dialog, the
+ * clear-facing AFTER it, and the absence of any battle_anim_phase reset). Note
+ * this handler physically contains only its entry block (init battle state, the
+ * one fd2_pan_cursor_and_window(9,0x27), and the cutscene-0x4C trigger) and then
+ * pushes the 9 page-0 dialog-scene args and tail-JMPs (0x33AEC -> 0x3312D) into
+ * the shared epilogue owned by fd2_chapter_05_init (PUSH current_chapter_text;
+ * CALL fd2_display_dialog_scene; clear-facing; pan_cursor_to_char(0); RET — the
+ * same 0x3312D alt-entry chapters 03/04 reach); the emit reconstructs the
+ * equivalent straight-line form. See src/emit_issues.json (00033aae).
  */
 
 #include <stdio.h>
@@ -697,5 +720,8 @@ void run_field_chinit_tests(void)
     printf("  (fd2_chapter_25_init: earthquake set-piece (SFX load + 4x "
            "screen shake); behavioral test deferred to Phase 9 integration; "
            "see src/emit_issues.json 0003396a)\n");
+    printf("  (fd2_chapter_26_init: minimal orchestrator (pan + cutscene 0x4C "
+           "+ single dialog page); behavioral test deferred to Phase 9 "
+           "integration; see src/emit_issues.json 00033aae)\n");
     printf("\n");
 }
