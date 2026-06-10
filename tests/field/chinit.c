@@ -560,6 +560,29 @@
  * fd2_pan_cursor_to_char(0) is physically a tail-JMP (0x336BF -> 0x33594) into
  * the shared epilogue owned by fd2_chapter_15_init; the emit reconstructs the
  * equivalent straight-line form. See src/emit_issues.json (000336a0).
+ *
+ * fd2_chapter_24_init @0x338C4 is back to a pure straight-line orchestrator of
+ * the same family as chapters 02..14/18/22: re-init battle state, play a dialog
+ * page (page 0), load portrait set 1, sweep the camera-and-window to the four
+ * map corners — fd2_pan_cursor_and_window to (0,4)/(0,0x16)/(0x1A,0x18)/(0x1A,2)
+ * each held 400ms via __delay_thunk_375b2(400) — play a second dialog page
+ * (page 1), and pan the camera to char 0. NO cutscene, NO char init, NO
+ * battle_anim_phase reset, NO clear-facing. It has NO numeric computation, NO
+ * RNG, NO data-dependent branch, NO loops, and NO CALL-result consumption (no
+ * EAX-bug exposure — the dialog-scene CALL returns are discarded), and every
+ * callee is real-linked from src/ — the same fd2_display_dialog_scene ->
+ * fd2_wait_for_input_dialog_with_blink keyboard busy-wait hang plus the
+ * fd2_load_chapter_portraits_and_dump_tmp (fopen FDICON.B24) apply. Its
+ * behavioral test is therefore DEFERRED to Phase 9 on identical grounds;
+ * equivalence was verified statically, line-by-line, against the disassembly
+ * @0x338C4 (call sequence, constants, the four corner pans each followed by a
+ * 400ms hold, and the absence of any battle_anim_phase reset / clear-facing).
+ * Note the page-1 dialog call plus the final fd2_pan_cursor_to_char(0) are
+ * physically a tail-JMP (0x33965 -> 0x331EA) into the alt-entry owned by
+ * fd2_chapter_07_init (its page-1 dialog-arg push), which in turn JMPs (0x33214
+ * -> 0x33140) into the shared epilogue owned by fd2_chapter_05_init (entered
+ * directly without a clear-facing); the emit reconstructs the equivalent
+ * straight-line form. See src/emit_issues.json (000338c4).
  */
 
 #include <stdio.h>
@@ -620,5 +643,8 @@ void run_field_chinit_tests(void)
            "screen-wide spell + HP-survivor revive filter (no CALL-result "
            "consumption); behavioral test deferred to Phase 9 integration; "
            "see src/emit_issues.json 000336a0)\n");
+    printf("  (fd2_chapter_24_init: 4-corner camera scan orchestrator; "
+           "behavioral test deferred to Phase 9 integration; see "
+           "src/emit_issues.json 000338c4)\n");
     printf("\n");
 }
