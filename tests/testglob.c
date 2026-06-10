@@ -147,6 +147,7 @@ void fd2_delay_ticks(uint32 t) { }
  * fd2_execute_offensive_full_screen_flash_spell (@0x213B7) now emitted for
  * real in src/spell/spelleff.c; stubs removed. */
 void fd2_cast_earthquake_spell_with_screen_shake(int a, int b, int c, uint8 *d) { }
+void fd2_cast_screen_wide_spell_with_fade(uint32 a, uint32 b, uint32 c, int d) { }
 void fd2_dispatch_variant_b_cast(int a, int b, int c, int d) { }
 /* fd2_cast_ap_boost_spell (@0x22721), fd2_cast_dp_boost_spell (@0x22866), and
  * fd2_cast_speed_boost_spell (@0x22997) now emitted for real in

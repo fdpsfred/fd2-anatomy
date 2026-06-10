@@ -153,6 +153,7 @@ void fd2_play_sfx_with_handle(uint32, int, int);
 void fd2_play_rising_pre_cast_effect(int, int, int);
 void fd2_play_variant_b_slide_pre_effect(int, int);
 void fd2_animate_warp_teleport_char(uint32, uint32, uint32, uint32, uint32);
+void fd2_cast_screen_wide_spell_with_fade(uint32 epicenter_tile_x, uint32 epicenter_tile_y, uint32 starting_radius, int radius_increment);
 
 /* ---- cursor + pan ---- */
 void fd2_cursor_move_up(void);

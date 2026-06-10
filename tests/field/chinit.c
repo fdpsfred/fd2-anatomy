@@ -507,6 +507,59 @@
  * fd2_chapter_05_init, entered directly without a clear-facing); the emit
  * reconstructs the equivalent straight-line form. See src/emit_issues.json
  * (0003367e).
+ *
+ * fd2_chapter_23_init @0x336A0 is the LARGEST chapter init in the game (548
+ * bytes): a cinematic "reassemble the party" prologue built around a
+ * screen-wide spell. Structurally it adds three things over the flat
+ * orchestrators (chapters 02..14/18/22) — (1) a constant-bound mark-dead loop
+ * over the 16 active party slots (fd2_mark_char_as_dead(i), i in 0..0xF);
+ * (2) a constant-strided post-spell HP-survivor revive filter (for i in
+ * 0..0xF, if runtime_char[i].hp_current != 0 then .flags = 0 and
+ * .sprite_state[1] = 2; disasm element address base + i*0x50, survivor test
+ * reads word [EAX+0x40], writes byte [EAX+5] then byte [EAX+3]); and (3) the
+ * spell cast fd2_cast_screen_wide_spell_with_fade(cursor_screen_x + 6,
+ * cursor_screen_y + 5, 10, 8) plus a portrait-load palette-flash sequence and
+ * two fixed slot-0x10/0x11 sprite_state[1]=2 writes. It is NOT a pure
+ * straight-line orchestrator (it has the two loops and the HP-filter branch),
+ * BUT it still has NO numeric computation, NO RNG, and — critically — NO
+ * CALL-result consumption: the HP-filter branch tests an IN-MEMORY value
+ * (runtime_char[i].hp_current), not a CALL return, so there is NO Ghidra
+ * EAX-tracking-bug exposure (verified against the disassembly @0x336A0: the
+ * only CALL whose result could be read is fd2_mark_char_as_dead, and its EAX
+ * is discarded — ADD ESP,0x4; INC EBX).
+ *
+ * Its behavioral test is DEFERRED to Phase 9 (reason proven, not convenience),
+ * on identical grounds to chapters 09/10 (constant in-memory loop writes) and
+ * the rest of this file. The loops and writes are NOT independently
+ * host-testable because there is no entry point that runs only them:
+ *   - fd2_init_battle_state_for_chapter (real-linked, src/battle/btl_init.c)
+ *     runs FIRST and RELOADS current_chapter_text from the real FDTXT.DAT
+ *     (it is the chapter-battle-data loader: fd2_load_chapter_battle_data +
+ *     fd2_composite_battle_frame(1) + fd2_play_palette_fade_in), so there is
+ *     no host-safe slice before the body.
+ *   - the mark-dead loop falls straight into
+ *     fd2_cast_screen_wide_spell_with_fade and then five
+ *     fd2_display_dialog_scene(page 0..4) calls; fd2_display_dialog_scene is
+ *     real-linked (src/dialog/dialog.c) and reaches
+ *     fd2_wait_for_input_dialog_with_blink(1) (real-linked, src/input/input.c)
+ *     on a -3 PAGE BREAK opcode in the real FDTXT chapter stream — the
+ *     keyboard busy-wait that hangs forever in the silent automated harness —
+ *     so the function never returns and neither the post-loop revive state nor
+ *     the slot-0x10/0x11 facing writes are observable at unit level.
+ *   - fd2_mark_char_as_dead is itself real-linked (src/battle/btl_turn.c), so
+ *     the loop cannot be observed via a capture stub, and the emit must not be
+ *     distorted to make it host-testable (forbidden).
+ * Equivalence was therefore verified statically, line-by-line, against the
+ * disassembly @0x336A0 (the two 16-iteration loops with their i*0x50 element
+ * addresses and the hp_current/flags/sprite_state[1] field offsets, the
+ * fd2_cast_screen_wide_spell_with_fade(+6,+5,10,8) spell call, the five
+ * page-0..4 dialog calls chained with cutscenes 0x44/0x45/0x46, the
+ * portrait-load palette-flash bracket (add 0xFF saturate -> add 0 restore),
+ * the two slot-0x10/0x11 sprite_state[1]=2 writes, and the single
+ * battle_anim_phase reset after page 3 only). Note the final
+ * fd2_pan_cursor_to_char(0) is physically a tail-JMP (0x336BF -> 0x33594) into
+ * the shared epilogue owned by fd2_chapter_15_init; the emit reconstructs the
+ * equivalent straight-line form. See src/emit_issues.json (000336a0).
  */
 
 #include <stdio.h>
@@ -563,5 +616,9 @@ void run_field_chinit_tests(void)
            "Phase 9 integration; see src/emit_issues.json 00033674)\n");
     printf("  (fd2_chapter_22_init: behavioral test deferred to Phase 9 "
            "integration; see src/emit_issues.json 0003367e)\n");
+    printf("  (fd2_chapter_23_init: largest init (548B); mark-dead loop + "
+           "screen-wide spell + HP-survivor revive filter (no CALL-result "
+           "consumption); behavioral test deferred to Phase 9 integration; "
+           "see src/emit_issues.json 000336a0)\n");
     printf("\n");
 }

@@ -1188,3 +1188,107 @@ void fd2_chapter_22_init(void)
                              0xcd, 0x4c, 0x4a, 0x13, 1);
     fd2_pan_cursor_to_char(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_23_init @ 0x336A0  (dispatched, 0 direct callers)
+ *
+ * Chapter 23「向天空之旅」init handler — the LARGEST chapter init in
+ * the game (548 bytes). A cinematic "reassemble the party" prologue
+ * built around a screen-wide spell effect: it wipes all 16 active
+ * party slots, casts a dramatic full-screen radial spell at the
+ * cursor, then revives only the HP-survivors, before playing five
+ * dialog pages chained with three cutscenes (event ids 0x44/0x45/0x46)
+ * and a portrait-load palette-flash sequence. There is NO char init —
+ * chapter 23 carries the party over from the previous chapter.
+ *
+ * Two constant-bound loops over the 16 active slots:
+ *   - Pre-spell mark-dead loop: fd2_mark_char_as_dead(i) for
+ *     i in 0..0xF (clears every active party slot's HP).
+ *   - Post-spell revive filter: for i in 0..0xF, any unit whose
+ *     hp_current != 0 gets flags = 0 (clear dead/acted bits) and
+ *     sprite_state[1] = 2 (face north). In the disassembly the
+ *     element address is base + i*0x50 (i*5 << 4); the survivor test
+ *     reads word [EAX+0x40] (hp_current), then writes byte [EAX+5]
+ *     (flags) and byte [EAX+3] (sprite_state[1]).
+ * After the dialog/cutscene block, two further fixed writes set slot
+ * 0x10 and slot 0x11 sprite_state[1] = 2 (disasm [EAX+0x503] =
+ * 0x10*0x50+3, [EAX+0x553] = 0x11*0x50+3).
+ *
+ * The spell call is fd2_cast_screen_wide_spell_with_fade(
+ *   cursor_screen_x + 6, cursor_screen_y + 5, 10, 8) — epicenter at
+ * the current cursor (+6/+5 tile offset), starting radius 10, radius
+ * increment 8 per frame. The palette-flash sequence around the
+ * portrait load saturates the VGA palette (add 0xFF) then restores
+ * it (add 0), bracketed by composite-frame redraws and timed delays.
+ *
+ * data_fd2_battle_anim_phase is reset to 0 once, after the page-3
+ * dialog only (pages 0/1/2 and the final page 4 have no reset).
+ *
+ * void __cdecl, no real params, void return. The leading __CHK(0x2C)
+ * stack-probe is the Watcom-injected frame-size check and is not part
+ * of the source body.
+ *
+ * In the binary the final fd2_pan_cursor_to_char(0) is emitted as a
+ * tail-JMP (0x336BF -> 0x33594) into the shared epilogue owned by
+ * fd2_chapter_15_init (PUSH 0; CALL fd2_pan_cursor_to_char; POP EBX;
+ * RET); the preceding fd2_clear_all_chars_facing() is physically the
+ * last instruction of this function's own body. The straight-line
+ * form here is the functionally-equivalent (Layer 2) reconstruction.
+ *
+ * Linked handlers:
+ *   End:         fd2_chapter_23_end @ 0x24754
+ *   Post-action: fd2_chapter_23_post_action @ 0x20AAF — bypass default:
+ *     chars[0, 1, 0x10, 0x11] any dead = lose; char[0x12] dead = win
+ *     (機甲隊長).
+ *
+ * Walkthrough SOT: assets/chapters/chapter_23.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_23_init(void)
+{
+    int i;
+
+    fd2_init_battle_state_for_chapter();
+    for (i = 0; i < 0x10; i++) {
+        fd2_mark_char_as_dead(i);
+    }
+    fd2_pan_cursor_and_window(0xe, 0x20);
+    fd2_cast_screen_wide_spell_with_fade(data_fd2_battle_cursor_screen_x + 6,
+                                         data_fd2_battle_cursor_screen_y + 5,
+                                         10, 8);
+    for (i = 0; i < 0x10; i++) {
+        if (data_fd2_battle_runtime_char_array_ptr[i].hp_current != 0) {
+            data_fd2_battle_runtime_char_array_ptr[i].flags = 0;
+            data_fd2_battle_runtime_char_array_ptr[i].sprite_state[1] = 2;
+        }
+    }
+    fd2_composite_battle_frame(0);
+    fd2_set_vga_palette_range_with_add(0, 0xff, 0);
+    __delay_thunk_375b2(500);
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_pan_cursor_and_window(0xe, 0x1d);
+    fd2_cutscene_event_trigger(0x44);
+    fd2_display_dialog_scene(current_chapter_text, 1, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_cutscene_event_trigger(0x45);
+    fd2_display_dialog_scene(current_chapter_text, 2, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_cutscene_event_trigger(0x46);
+    fd2_display_dialog_scene(current_chapter_text, 3, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_pan_cursor_and_window(0xe, 0xd);
+    fd2_load_chapter_portraits_and_dump_tmp(1);
+    __delay_thunk_375b2(200);
+    fd2_set_vga_palette_range_with_add(0, 0xff, 0xff);
+    __delay_thunk_375b2(100);
+    fd2_composite_battle_frame(0);
+    fd2_set_vga_palette_range_with_add(0, 0xff, 0);
+    __delay_thunk_375b2(500);
+    data_fd2_battle_runtime_char_array_ptr[0x10].sprite_state[1] = 2;
+    data_fd2_battle_runtime_char_array_ptr[0x11].sprite_state[1] = 2;
+    fd2_display_dialog_scene(current_chapter_text, 4, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_clear_all_chars_facing();
+    fd2_pan_cursor_to_char(0);
+}
