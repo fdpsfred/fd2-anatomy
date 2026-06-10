@@ -1324,3 +1324,47 @@ void fd2_chapter_event_handler_4e__unref_sentinel(uint32 event_arg)
 
     *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x14) = 1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_4f__ch29_dyn_turn_event @ 0x35EE6
+ *   (1 caller: dispatch table @ 0x51B91, entry @ 0x51CCD)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x4F. Triggered
+ * in chapter 29 at turn-event slot 2 (turn=0xFF / phase=0). Category: RNG-driven
+ * state mutator + turn-event scheduler. Dispatch-table signature is 1-arg cdecl
+ * (void fn(uint event_arg)); this handler does not read the arg.
+ *
+ * Effect: ch29 turn-FF — first arm the next turn-event by writing turn_counter + 1
+ * into the turn-event hook table at tile_event_data_table[+9] (hook entry 2's turn
+ * byte), so this scene re-fires one player turn ahead. Then pull the next RNG value
+ * and, using base = tile_event_consumed_flags[0x15] (= party_member_count - 3,
+ * primed by handler_4C), mark two of the last three party slots done for this turn:
+ * (rng % 3) + base and ((rng + 1) % 3) + base. Each turn this fires, the RNG picks
+ * a different pair from the 3 candidate slots placed by handler_4C.
+ *
+ * The +9 store reads turn_counter as a single byte and increments it in 8-bit
+ * (MOV BL,[turn_counter] / INC BL) before the byte store; the (uint8) truncation
+ * reproduces that 8-bit arithmetic exactly. The RNG value is the return of
+ * fd2_advance_rng_state captured in EBX — the decompiler's iVar1 = __CHK(...) is
+ * the EAX-tracking artifact (the stack-check thunk's return is unused). The % 3 is
+ * a signed IDIV (matching int % 3); fd2_advance_rng_state returns a zero-extended
+ * 16-bit value (0..0xFFFF), so the signed result equals the unsigned one. Stack
+ * frame 0x10 (__CHK) is the Watcom stack-probe prologue and carries no
+ * source-level semantics.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_4f__ch29_dyn_turn_event(uint32 event_arg)
+{
+    int rng;
+    uint32 base;
+
+    (void)event_arg;
+
+    *(uint8 *)(data_fd2_tile_event_data_table_ptr + 9) =
+        (uint8)(data_fd2_battle_turn_counter + 1);
+
+    rng = (int)fd2_advance_rng_state();
+    base = (uint32)*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x15);
+
+    fd2_mark_char_acted_this_turn((uint32)(rng % 3) + base);
+    fd2_mark_char_acted_this_turn((uint32)((rng + 1) % 3) + base);
+}
