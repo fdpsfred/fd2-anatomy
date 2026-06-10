@@ -654,3 +654,53 @@ void fd2_chapter_10_init(void)
                              0xcd, 0x4c, 0x4a, 0x13, 1);
     fd2_pan_cursor_to_char(0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_11_init @ 0x33367  (dispatched, 0 direct callers)
+ *
+ * Chapter 11「幻之森林」init handler. A flat chapter-prologue
+ * orchestrator that plays three dialog pages (pages 0/1/2), loads
+ * portrait set 1 after page 0, and chains two cutscenes (event ids
+ * 0x26 / 0x27) between the pages, before handing the chapter off to
+ * the player. There is NO char init — chapter 11 carries the party
+ * over from chapter 10.
+ *
+ * data_fd2_battle_anim_phase is reset to 0 after page 0 only; pages 1
+ * and 2 have no reset — page 2 is the tail before the final
+ * clear-facing + camera-to-char pan.
+ *
+ * void __cdecl, no real params, void return. The leading __CHK(0x28)
+ * stack-probe is the Watcom-injected frame-size check and is not part
+ * of the source body.
+ *
+ * In the binary this handler ends by pushing the cutscene-0x27 arg and
+ * tail-JMPing (0x333f0 -> 0x3310c) into the shared epilogue owned by
+ * fd2_chapter_05_init: the cutscene-trigger CALL, then PUSH text;
+ * PUSH 2; CALL fd2_display_dialog_scene (page 2); clear-facing;
+ * pan_cursor_to_char(0); RET. The straight-line form here is the
+ * functionally-equivalent (Layer 2) reconstruction.
+ *
+ * Linked handlers:
+ *   End:         fd2_chapter_11_end @ 0x23790
+ *   Post-action: (default — fd2_check_battle_end_default_handler
+ *                @ 0x205B4)
+ *
+ * Walkthrough SOT: assets/chapters/chapter_11.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_11_init(void)
+{
+    fd2_init_battle_state_for_chapter();
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_pan_cursor_and_window(10, 7);
+    fd2_load_chapter_portraits_and_dump_tmp(1);
+    fd2_cutscene_event_trigger(0x26);
+    fd2_display_dialog_scene(current_chapter_text, 1, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_cutscene_event_trigger(0x27);
+    fd2_display_dialog_scene(current_chapter_text, 2, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_clear_all_chars_facing();
+    fd2_pan_cursor_to_char(0);
+}
