@@ -24,6 +24,18 @@
       }
     ]
   },
+  "0003ed58": {
+    "name": "crt_equivalent_get_eflags",
+    "target": "crt/crt.c",
+    "issues": [
+      {
+        "type": "asm_primitive_inline_and_pubdef_packaging",
+        "desc": "The original 0x3ed58 is the 4-byte `_disable` primitive PUSHFD; POP EAX; CLI; RET that the thunk @ 0x37f86 JMPs into. Emitted as a real externally-linked wrapper crt_equivalent_get_eflags() that REUSES the same #pragma aux helper crt_capture_eflags_cli (PUSHFD; POP EAX; CLI) already declared once for the thunk in crt/crt.c (not re-declared); the optimiser inlines it so the wrapper expands to PUSHFD; POP EAX; CLI; RET -- byte-for-byte the original 4-byte body. Functionally exact at the call boundary (EAX = prior EFLAGS, IF=0 side effect), verified by unit tests test_get_eflags_returns_live_eflags / _disables_interrupts / _clean_return (reserved-bit oracle &0x2A==0x02 = genuine EFLAGS; IF set on entry then cleared by CLI; returned image is the pre-CLI snapshot; stack-balanced near-CALL return validated direct and via function pointer). Two integration-time (Layer 3 / wlink) notes, neither a behavioral risk: (1) this is the OTHER half of the thunk's anticipated 'two byte copies of PUSHFD/POP EAX/CLI' -- the program now holds the primitive's own copy here plus the thunk's inline copy; Layer 2 equivalent, the original JMP-to-shared-target dedup (one physical body, JMP into it) is byte-exact-only and not pursued. (2) Watcom 9.5a emits no standalone symbol for the pragma-aux helper, so this wrapper supplies the real PUBDEF for crt_equivalent_get_eflags; confirm crt.obj exports it as a distinct PUBDEF from crt_equivalent_get_eflags_thunk (both bodies are byte-identical but are separate symbols). In FD2 there are 0 direct callers and no FD2 EXTDEF binds to this symbol (reached only via the thunk's JMP), so no vendor-EXTDEF resolution is required for it; the PUBDEF exists so the thunk's JMP target is a real symbol.",
+        "severity": "low",
+        "verify_method": "post_link_disasm_body_and_confirm_distinct_pubdef_from_thunk"
+      }
+    ]
+  },
   "0002000a": {
     "name": "fd2_open_tactical_overview_zoom",
     "target": "ui_menu/menufld.c",

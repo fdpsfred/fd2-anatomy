@@ -11,6 +11,7 @@
  *   crt_equivalent_lx_module_loader_3647b @ 0x3647b (0 callers)
  *   crt_equivalent_exit_chain_stub_36de3 @ 0x36de3 (2 callers)
  *   crt_equivalent_get_eflags_thunk     @ 0x37f86 (2 callers)
+ *   crt_equivalent_get_eflags           @ 0x3ed58 (0 callers; thunk JMP target)
  *   crt_equivalent_entry_start          @ 0x3c964 (0 callers; LE entry point)
  *   crt_equivalent_fpe_default_handler_3d26e @ 0x3d26e (2 callers)
  *   crt_equivalent_matherr_default_thunk_4d340 @ 0x4d340 (1 caller)
@@ -420,6 +421,44 @@ extern unsigned long crt_capture_eflags_cli(void);
     value [eax] modify exact [eax];
 
 unsigned long crt_equivalent_get_eflags_thunk(void)
+{
+    return crt_capture_eflags_cli();
+}
+
+/* ----------------------------------------------------------------
+ * crt_equivalent_get_eflags @ 0x3ed58  (0 callers)
+ *
+ * The 4-byte Watcom `_disable` primitive that the thunk @ 0x37f86 above
+ * JMPs into. It captures the current EFLAGS into EAX and disables
+ * interrupts (clears IF), so the AIL ISRs run their body in a critical
+ * section, later restoring the prior interrupt state via PUSH+POPFD on
+ * exit. No direct callers: it is reached only through the thunk's JMP
+ * (and is address-taken nowhere else), but it owns its own PUBDEF so the
+ * thunk's JMP target resolves to a real symbol.
+ *
+ * Original body (4 bytes):
+ *     0x3ed58: PUSHFD ; 0x3ed59: POP EAX ; 0x3ed5a: CLI ; 0x3ed5b: RET
+ * i.e. EAX = prior EFLAGS image (the return value), with IF cleared as a
+ * side effect. The decompiler renders this as an EFLAGS bit-reassembly
+ * expression (its way of showing PUSHFD;POP EAX) and cannot represent the
+ * CLI; the disassembly is authoritative.
+ *
+ * Emit form: identical to the thunk above — the raw opcodes
+ * PUSHFD; POP EAX; CLI are spliced in from the shared #pragma aux in-line
+ * helper crt_capture_eflags_cli (declared once above; reused here, NOT
+ * re-declared). The optimiser inlines it, so this externally-linked
+ * wrapper expands to PUSHFD; POP EAX; CLI; RET — exactly the original
+ * 4-byte body. As anticipated when the thunk was emitted, the program now
+ * holds two byte copies of these opcodes (the thunk's inline copy and this
+ * one); that is Layer 2 (functionally exact) — byte-exact deduplication of
+ * the JMP-to-shared-target structure is a Layer 3 detail not pursued.
+ *
+ * __cdecl unsigned long(void): no parameters, returns EFLAGS in EAX. The
+ * original body ends in a plain near RET (no callee stack cleanup); no CALL
+ * precedes the EAX result (the helper's PUSHFD produces it directly), so
+ * there is no EAX-tracking concern.
+ * ---------------------------------------------------------------- */
+unsigned long crt_equivalent_get_eflags(void)
 {
     return crt_capture_eflags_cli();
 }

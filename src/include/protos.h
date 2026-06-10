@@ -489,6 +489,14 @@ void *crt_equivalent_lx_module_loader_3647b(char *path, int flags,
                                             void *caller_buf);
 void crt_equivalent_exit_chain_stub_36de3(void);
 
+/* crt_equivalent_get_eflags @ 0x3ed58 — the 4-byte Watcom `_disable`
+ * primitive the thunk @ 0x37f86 JMPs into (PUSHFD; POP EAX; CLI; RET).
+ * Returns the prior EFLAGS in EAX and disables interrupts (CLI). Real
+ * out-of-line function owning its own PUBDEF; the raw asm body is spliced
+ * in from the same in-line #pragma aux helper as the thunk in
+ * src/crt/crt.c. */
+unsigned long crt_equivalent_get_eflags(void);
+
 /* crt_equivalent_get_eflags_thunk @ 0x37f86 — Watcom `_disable` primitive
  * reached by the two AIL ISRs via near CALL. Returns the prior EFLAGS in
  * EAX and disables interrupts (CLI). Real out-of-line function; the raw

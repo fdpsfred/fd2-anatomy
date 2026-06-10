@@ -4487,8 +4487,9 @@
     "name": "crt_equivalent_get_eflags",
     "target": "crt/crt.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004c630": {
     "name": "crt_emu387_int7_fptan_opcode_worker_4c630",

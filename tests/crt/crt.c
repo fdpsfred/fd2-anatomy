@@ -1081,6 +1081,80 @@ static void test_matherr_primitive_clean_return_direct_and_indirect(void)
     ASSERT_EQ(r2, 0);
 }
 
+/* ================================================================
+ * crt_equivalent_get_eflags @ 0x3ed58
+ *
+ * The 4-byte `_disable` primitive the thunk @ 0x37f86 JMPs into:
+ * PUSHFD; POP EAX; CLI; RET. Same two observable contracts as the thunk
+ * (it has the identical body): (1) the return value is a genuine live
+ * EFLAGS image, and (2) the CLI side effect clears IF while the call
+ * stays stack-balanced. Reuses the test_read_eflags / test_enable_
+ * interrupts helpers defined above for the thunk suite (read-only / restore
+ * so a missed timer tick while IF is clear is harmless). The reserved-bit
+ * oracle (eflags & 0x2A) == 0x02 distinguishes a real EFLAGS value from
+ * 0 / garbage; IF is bit 9 (0x200).
+ * ================================================================ */
+
+/* (1) returns a genuine live EFLAGS image (not 0 / garbage). */
+static void test_get_eflags_returns_live_eflags(void)
+{
+    unsigned long r;
+
+    r = crt_equivalent_get_eflags();
+    test_enable_interrupts();     /* restore IF that the primitive's CLI cleared */
+
+    ASSERT_EQ((int)(r & 0x2A), 0x02);
+}
+
+/* (2) the returned value is captured BEFORE the primitive's own CLI (its IF
+ * reflects the prior state), and the CLI actually clears IF afterward. */
+static void test_get_eflags_disables_interrupts(void)
+{
+    unsigned long before;
+    unsigned long captured;
+    unsigned long after;
+
+    before   = test_read_eflags();          /* IF state on entry            */
+    captured = crt_equivalent_get_eflags(); /* returns prior EFLAGS, then CLI */
+    after    = test_read_eflags();          /* IF after the CLI             */
+    test_enable_interrupts();               /* restore for later suites     */
+
+    /* the returned image is the pre-CLI snapshot: its IF matches `before` */
+    ASSERT_EQ((int)(captured & 0x200), (int)(before & 0x200));
+    /* interrupts were enabled on entry (timer ISR running) ... */
+    ASSERT_EQ((int)(before & 0x200), 0x200);
+    /* ... and the primitive's CLI cleared IF */
+    ASSERT_EQ((int)(after & 0x200), 0x00);
+}
+
+/* (3) stack-balanced clean return, both direct and THROUGH a function
+ * pointer (the address-taken / out-of-line invocation form the thunk's JMP
+ * target must support). Guard sentinels bracketing a local must survive. */
+static void test_get_eflags_clean_return(void)
+{
+    volatile int   guard_lo = 0x0BADF00D;
+    volatile int   marker   = 0;
+    volatile int   guard_hi = 0x0C0FFEE0;
+    unsigned long (*fp)(void);
+    unsigned long  r1;
+    unsigned long  r2;
+
+    r1 = crt_equivalent_get_eflags();         /* direct near call */
+    test_enable_interrupts();
+    marker = 1;
+
+    fp = crt_equivalent_get_eflags;           /* address-taken -> out-of-line */
+    ASSERT_TRUE(fp != (unsigned long (*)(void))0);
+    r2 = fp();                                 /* indirect call */
+    test_enable_interrupts();
+
+    ASSERT_EQ(marker, 1);
+    ASSERT_EQ(guard_lo, 0x0BADF00D);
+    ASSERT_EQ(guard_hi, 0x0C0FFEE0);
+    ASSERT_EQ((int)(r1 & 0x2A), 0x02);
+    ASSERT_EQ((int)(r2 & 0x2A), 0x02);
+}
+
 void run_crt_crt_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1108,6 +1182,9 @@ void run_crt_crt_tests(void)
     RUN_TEST(test_eflags_thunk_returns_live_eflags);
     RUN_TEST(test_eflags_thunk_disables_interrupts);
     RUN_TEST(test_eflags_thunk_clean_return);
+    RUN_TEST(test_get_eflags_returns_live_eflags);
+    RUN_TEST(test_get_eflags_disables_interrupts);
+    RUN_TEST(test_get_eflags_clean_return);
     RUN_TEST(test_entry_start_jumps_to_bootstrap);
     RUN_TEST(test_entry_start_clean_tailcall_return);
     RUN_TEST(test_fpe_handler_direct_call_is_noop);
