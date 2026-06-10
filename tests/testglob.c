@@ -1142,9 +1142,51 @@ int fd2_pathfind_to_destination(uint32 ct, uint32 sx, uint32 sy, uint32 ms,
     }
     return g_pathfind_walk_return;
 }
-void fd2_obfuscate_battle_tile_map(uint32 tm) { }
+/* fd2_obfuscate_battle_tile_map: now in save/save.c */
+
+/* --- battle-AI tile-map reachability snapshot ---
+ * The real fd2_obfuscate_battle_tile_map (now linked from save/save.c, no
+ * longer a no-op stub) resets every tile record's +7 reachability byte to
+ * 0xFF. In the live game the very next call -- fd2_init_movement_range_
+ * floodfill -- recomputes that reachability layer. The battle-AI unit tests
+ * (battlfix.h) instead pre-paint the +7 bytes and stub the floodfill, so the
+ * stub must now repaint the test's intended reachability after obfuscate has
+ * wiped it. bf_capture_tilemap() snapshots the test's painted map; the stub
+ * restores it on every floodfill call (count = header[0]*header[2] tiles,
+ * 4-byte records after the 4-byte header). When disarmed (count 0) the stub
+ * is inert, matching its prior no-op behaviour for non-battle suites. */
+uint8  g_bf_tilemap_snapshot[4 + 20 * 15 * 4];
+uint32 g_bf_tilemap_snapshot_bytes = 0;
+uint32 g_bf_tilemap_snapshot_ptr = 0;   /* map the snapshot was taken from */
+
+void bf_capture_tilemap(void)
+{
+    uint32 n;
+
+    n = sizeof(g_bf_tilemap_snapshot);
+    if (data_fd2_battle_tile_map_ptr != 0) {
+        memcpy(g_bf_tilemap_snapshot, (void *)data_fd2_battle_tile_map_ptr, n);
+        g_bf_tilemap_snapshot_bytes = n;
+        g_bf_tilemap_snapshot_ptr = data_fd2_battle_tile_map_ptr;
+    } else {
+        g_bf_tilemap_snapshot_bytes = 0;
+        g_bf_tilemap_snapshot_ptr = 0;
+    }
+}
+
 void fd2_init_movement_range_floodfill(uint32 ct, uint32 x, uint32 y,
-    uint32 rng, uint32 tm, uint32 af) { }
+    uint32 rng, uint32 tm, uint32 af)
+{
+    /* Repaint only when armed AND the live map is the exact buffer the
+     * snapshot was captured from. The pointer guard keeps a stale armed flag
+     * from a prior battle suite from copying the (1204-byte) snapshot into a
+     * different, smaller tile-map buffer owned by a later suite. */
+    if (g_bf_tilemap_snapshot_bytes != 0 &&
+        data_fd2_battle_tile_map_ptr == g_bf_tilemap_snapshot_ptr) {
+        memcpy((void *)data_fd2_battle_tile_map_ptr, g_bf_tilemap_snapshot,
+               g_bf_tilemap_snapshot_bytes);
+    }
+}
 /* fd2_compute_aoe_targets: now in btl_ai.c */
 /* fd2_pan_cursor_to_char: already in cursor.c */
 

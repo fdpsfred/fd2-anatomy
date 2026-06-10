@@ -231,6 +231,7 @@ static void test_ai_score_phys_normal_hit_score8(void)
     g_test_rc_array[1].hp_current = 100;
     g_test_rc_array[1].char_id = 7;          /* non-leader: no flank */
     data_fd2_battle_ai_best_physical_target_idx = 0xFF;
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     fd2_ai_score_physical_attack(0, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_score, 8);
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_idx, 1);
@@ -252,6 +253,7 @@ static void test_ai_score_phys_kill_shot_score12(void)
     g_test_rc_array[1].hp_current = 5;
     g_test_rc_array[1].char_id = 7;
     data_fd2_battle_ai_best_physical_target_idx = 0xFF;
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     fd2_ai_score_physical_attack(0, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_score, 0x12);
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_idx, 1);
@@ -276,6 +278,7 @@ static void test_ai_score_phys_negligible_score0(void)
     g_test_rc_array[1].hp_current = 100;
     g_test_rc_array[1].char_id = 7;
     data_fd2_battle_ai_best_physical_target_idx = 0xFF;
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     fd2_ai_score_physical_attack(0, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_score, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_idx, 1);
@@ -312,6 +315,7 @@ static void test_ai_score_phys_counter_and_flank(void)
     g_test_rc_array[1].char_id = 0;    /* leader -> flank */
     g_test_rc_array[1].status_sleep_flag = 0;  /* awake -> counter eligible */
     data_fd2_battle_ai_best_physical_target_idx = 0xFF;
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     fd2_ai_score_physical_attack(0, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_score, 8);
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_idx, 1);
@@ -355,6 +359,7 @@ static void test_ai_score_phys_terrain_bonus_lifts_class(void)
     g_test_rc_array[1].hp_current = 100;
     g_test_rc_array[1].char_id = 7;
     data_fd2_battle_ai_best_physical_target_idx = 0xFF;
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     fd2_ai_score_physical_attack(0, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_score, 8);
     ASSERT_EQ((long)data_fd2_battle_ai_best_physical_target_idx, 1);
@@ -388,6 +393,7 @@ static void test_ai_score_item_short_range_score8(void)
     g_test_rc_array[1].hp_max = 100;
     t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;   /* candidate (1,1) */
     data_fd2_battle_ai_best_item_score = 99;
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     fd2_ai_score_item_use(0, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_score, 8);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_slot, 0);
@@ -418,6 +424,7 @@ static void test_ai_score_item_long_range_line(void)
     g_test_rc_array[1].hp_max = 100;
     t_ai_tile_map[(2 * 3 + 0) * 4 + 7] = 0;   /* candidate (0,2) */
     data_fd2_battle_ai_best_item_score = 99;
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     fd2_ai_score_item_use(0, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_score, 8);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_slot, 0);
@@ -452,6 +459,7 @@ static void test_ai_score_item_ctx_flag_aoe_arg(void)
     g_test_rc_array[2].hp_max = 100;
     t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
     data_fd2_battle_ai_best_item_score = 0;
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     fd2_ai_score_item_use(0, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_score, 8);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_x, 1);
@@ -472,6 +480,7 @@ static void test_ai_score_item_ctx_flag_aoe_arg(void)
     g_test_rc_array[2].hp_max = 100;
     t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
     data_fd2_battle_ai_best_item_score = 0;
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     fd2_ai_score_item_use(0, 1);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_score, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_x, 0xEE);  /* untouched */
@@ -502,6 +511,7 @@ static void test_ai_score_item_non_offensive_skip(void)
     g_test_rc_array[1].hp_max = 100;
     t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
     data_fd2_battle_ai_best_item_score = 77;
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     fd2_ai_score_item_use(0, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_score, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_x, 0xEE);
@@ -539,6 +549,7 @@ static void test_ai_score_item_best_candidate_gating(void)
     t_ai_tile_map[(0 * 3 + 2) * 4 + 7] = 0;   /* candidate (2,0) */
     t_ai_tile_map[(2 * 3 + 0) * 4 + 7] = 0;   /* candidate (0,2) */
     data_fd2_battle_ai_best_item_score = 0;
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     fd2_ai_score_item_use(0, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_score, 8);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_x, 0);
@@ -559,6 +570,7 @@ static void test_ai_score_item_best_candidate_gating(void)
     t_ai_tile_map[(0 * 3 + 2) * 4 + 7] = 0;
     t_ai_tile_map[(2 * 3 + 0) * 4 + 7] = 0;
     data_fd2_battle_ai_best_item_score = 0;
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     fd2_ai_score_item_use(0, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_score, 8);
     ASSERT_EQ((long)data_fd2_battle_ai_best_item_target_x, 2);
@@ -585,6 +597,7 @@ static void test_ai_spell_gate_no_castable(void)
     g_test_rc_array[1].hp_current = 5;
     t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
     data_fd2_battle_ai_best_spell_score = 99;
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     fd2_ai_score_offensive_spell(0, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_x, 0xEE);
@@ -612,6 +625,7 @@ static void test_ai_spell_gate_silenced(void)
     g_test_rc_array[1].hp_current = 5;
     t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
     data_fd2_battle_ai_best_spell_score = 77;
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     fd2_ai_score_offensive_spell(0, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_x, 0xEE);
@@ -640,6 +654,7 @@ static void test_ai_spell_mp_gate_skips(void)
     g_test_rc_array[1].hp_current = 5;
     t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
     data_fd2_battle_ai_best_spell_score = 0;
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     fd2_ai_score_offensive_spell(0, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_x, 0xEE);
@@ -678,6 +693,7 @@ static void test_ai_spell_happy_path_capture(void)
     xcheck_buf[0] = 1;
     expected = fd2_score_spell_candidate(0, 1, (uint32)xcheck_buf);
 
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     fd2_ai_score_offensive_spell(0, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, (long)expected);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0x18);
@@ -712,6 +728,7 @@ static void test_ai_spell_ctx_flag_aoe_arg(void)
     g_test_rc_array[1].hp_current = 5;
     t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
     data_fd2_battle_ai_best_spell_score = 0;
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     fd2_ai_score_offensive_spell(0, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0x18);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_x, 1);
@@ -732,6 +749,7 @@ static void test_ai_spell_ctx_flag_aoe_arg(void)
     g_test_rc_array[1].hp_current = 5;
     t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
     data_fd2_battle_ai_best_spell_score = 0;
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     fd2_ai_score_offensive_spell(0, 1);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_target_x, 0xEE);
@@ -772,6 +790,7 @@ static void test_ai_spell_base_dmg_tiebreak(void)
     g_test_rc_array[1].hp_current = 5;
     t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
     data_fd2_battle_ai_best_spell_score = 0;
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     fd2_ai_score_offensive_spell(0, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0x18);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_id, 3);   /* higher base_dmg */
@@ -796,6 +815,7 @@ static void test_ai_spell_base_dmg_tiebreak(void)
     g_test_rc_array[1].hp_current = 5;
     t_ai_tile_map[(1 * 3 + 1) * 4 + 7] = 0;
     data_fd2_battle_ai_best_spell_score = 0;
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     fd2_ai_score_offensive_spell(0, 0);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_score, 0x18);
     ASSERT_EQ((long)data_fd2_battle_ai_best_spell_id, 2);   /* first kept */

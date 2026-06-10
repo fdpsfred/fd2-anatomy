@@ -129,6 +129,54 @@ void fd2_save_crypt_buffer(uint32 buf, uint32 size)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_obfuscate_battle_tile_map @ 0x4dbfc (15 callers)
+ *
+ * In-place per-tile field clamp/reset over a battle tile-map buffer.
+ * __cdecl, one arg: tile_map = byte buffer base. void return.
+ *
+ * The buffer has a 4-byte header followed by (header[0] * header[2])
+ * tile records of 4 bytes each:
+ *   header[0] = map width, header[2] = map height -> tile_count =
+ *               width * height (8-bit MUL, result fits in 16 bits).
+ *   records start at tile_map + 4.
+ * For each tile record the routine clamps three of its four bytes:
+ *   rec[1] &= 0x03    (keep low 2 bits)
+ *   rec[2] &= 0x1F    (keep low 5 bits — clears the 0x40 "occupied"
+ *                      and 0x80 attribute bits read by callers)
+ *   rec[3]  = 0xFF    (force to 0xFF)
+ *   rec[0] is left untouched.
+ * Header bytes 0/2 are read for the count but not modified.
+ *
+ * The Ghidra decompiler renders this as a 16-bit "rolling state"
+ * LFSR with CONCAT11/&0x1FFF/&0x3FF/>>8 cascades, but that form is
+ * algebraically identical to the three masks above (the disassembly
+ * loads AL=0xFF once outside the loop and only ever stores it; each
+ * mask byte is freshly loaded from memory, AND-ed, and stored back —
+ * there is no carried state). The function's immediate constants are
+ * exactly 0x03 / 0x04 / 0xFF / 0x1F, confirming the simple-mask form.
+ *
+ * NOTE: do-while means tile_count == 0 (degenerate 0-area map)
+ * underflows the counter; callers always pass a loaded map with
+ * valid non-zero dimensions.
+ * ---------------------------------------------------------------- */
+void fd2_obfuscate_battle_tile_map(uint32 tile_map)
+{
+    uint8 *pTile;
+    uint32 tile_count;
+
+    pTile = (uint8 *)tile_map;
+    tile_count = (uint16)((uint16)pTile[0] * (uint16)pTile[2]);
+    pTile = pTile + 4;
+    do {
+        pTile[3] = 0xff;
+        pTile[2] = (uint8)(pTile[2] & 0x1f);
+        pTile[1] = (uint8)(pTile[1] & 0x03);
+        tile_count = tile_count - 1;
+        pTile = pTile + 4;
+    } while (tile_count != 0);
+}
+
+/* ----------------------------------------------------------------
  * fd2_save_current_state_to_slot @ 0x30012 (2 callers)
  *
  * Write the current game-state globals into a user-selected slot of

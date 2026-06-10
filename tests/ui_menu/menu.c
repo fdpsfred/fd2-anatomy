@@ -239,6 +239,19 @@ static void paml_setup(uint8 job_id, uint8 portrait_id, uint8 archetype,
     paml_chars[0].archetype_flag = archetype;
     paml_chars[0].combat_aux_block[0x14] = range_remaining;
 
+    /* Valid tile map (cleared, with a real 4x4 header) so the real
+     * fd2_obfuscate_battle_tile_map invoked by fd2_player_action_menu_loop
+     * iterates a bounded 16-record count instead of underflowing on a stale /
+     * zero map pointer. cursor (3,2) with width 4 indexes tile 11 -> byte 51,
+     * within the 256-byte buffer. */
+    for (i = 0; i < (int)sizeof(paml_tile_map); i++) {
+        paml_tile_map[i] = 0;
+    }
+    paml_tile_map[0] = 4;   /* map width  (header byte 0) */
+    paml_tile_map[2] = 4;   /* map height (header byte 2) */
+    data_fd2_battle_tile_map_ptr = (uint32)paml_tile_map;
+    data_fd2_battle_map_width_tiles = 4;
+
     data_fd2_battle_runtime_char_array_ptr = paml_chars;
     data_fd2_battle_party_member_count = 0;   /* party loops inert */
     data_fd2_battle_cursor_world_x = paml_chars[0].pos_x;
@@ -302,6 +315,10 @@ static void test_player_action_menu_unreachable(void)
         for (i = 0; i < (int)sizeof(paml_tile_map); i++) {
             paml_tile_map[i] = 0;        /* all passable (+7 byte == 0) */
         }
+        /* keep a valid header (paml_setup set it, but this re-clear wiped it)
+         * so the real obfuscate stays bounded. */
+        paml_tile_map[0] = 4;            /* map width  (header byte 0) */
+        paml_tile_map[2] = 4;            /* map height (header byte 2) */
     }
     data_fd2_battle_tile_map_ptr = (uint32)paml_tile_map;
     data_fd2_battle_map_width_tiles = 4;
@@ -394,6 +411,12 @@ static void iam_setup(uint8 job_id, uint8 level, uint8 silence_flag)
         iam_tile_attr[i] = 0;
         iam_tile_consumed[i] = 0;
     }
+    /* Valid 2x2 tile-map header so the real fd2_obfuscate_battle_tile_map
+     * (reached by the inline action / item dispatch under test) iterates a
+     * bounded 4-record count instead of underflowing its do-while on the
+     * all-zero (count 0) header. */
+    iam_tile_map[0] = 2;   /* map width  (header byte 0) */
+    iam_tile_map[2] = 2;   /* map height (header byte 2) */
     data_fd2_battle_tile_map_ptr = (uint32)iam_tile_map;
     data_fd2_tile_attribute_flags_buffer_ptr = (uint32)iam_tile_attr;
     data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)iam_tile_consumed;

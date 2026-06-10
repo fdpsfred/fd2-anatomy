@@ -1102,6 +1102,105 @@ static void test_sel_remap_53_to_esc(void)
     sel_teardown();
 }
 
+/* ----------------------------------------------------------------
+ * fd2_obfuscate_battle_tile_map @ 0x4dbfc
+ *
+ * Per-tile field clamp/reset. Buffer = 4-byte header + (hdr[0]*hdr[2])
+ * 4-byte tile records; per record: rec[1]&=0x03, rec[2]&=0x1F,
+ * rec[3]=0xFF, rec[0] untouched. Header bytes read-only.
+ * Pure in-memory; no globals / files involved.
+ * ---------------------------------------------------------------- */
+
+/* ---- Test: each tile record's three bytes masked, byte0 preserved ---- */
+static void test_obf_masks_each_record(void)
+{
+    uint8 buf[4 + 2 * 4];
+    uint8 *rec;
+    int i;
+
+    /* header: width=2, height=1 -> tile_count = 2 */
+    memset(buf, 0xff, sizeof(buf));
+    buf[0] = 2;
+    buf[1] = 0xAA; /* header padding byte, must stay untouched */
+    buf[2] = 1;
+    buf[3] = 0xBB; /* header padding byte, must stay untouched */
+
+    fd2_obfuscate_battle_tile_map((uint32)buf);
+
+    /* header preserved */
+    ASSERT_EQ((long)buf[0], 2);
+    ASSERT_EQ((long)buf[1], 0xAA);
+    ASSERT_EQ((long)buf[2], 1);
+    ASSERT_EQ((long)buf[3], 0xBB);
+
+    /* both records (start at buf+4): 0xFF -> rec[1]=0x03, rec[2]=0x1F,
+       rec[3]=0xFF, rec[0] untouched (still 0xFF). */
+    for (i = 0; i < 2; i++) {
+        rec = buf + 4 + i * 4;
+        ASSERT_EQ((long)rec[0], 0xFF);
+        ASSERT_EQ((long)rec[1], 0x03);
+        ASSERT_EQ((long)rec[2], 0x1F);
+        ASSERT_EQ((long)rec[3], 0xFF);
+    }
+}
+
+/* ---- Test: rec[2] clears the 0x40 occupied + 0x80 bits, keeps low5 ---- */
+static void test_obf_clears_occupied_bit(void)
+{
+    uint8 buf[4 + 1 * 4];
+    uint8 *rec;
+
+    /* width=1, height=1 -> tile_count = 1 */
+    memset(buf, 0, sizeof(buf));
+    buf[0] = 1;
+    buf[2] = 1;
+    rec = buf + 4;
+    rec[0] = 0x12;        /* base terrain index, must survive */
+    rec[1] = 0xFE;        /* -> &0x03 = 0x02 */
+    rec[2] = 0x40 | 0x80 | 0x0A; /* occupied+attr+low; -> 0x0A */
+    rec[3] = 0x00;        /* -> forced 0xFF */
+
+    fd2_obfuscate_battle_tile_map((uint32)buf);
+
+    ASSERT_EQ((long)rec[0], 0x12);
+    ASSERT_EQ((long)rec[1], 0x02);
+    ASSERT_EQ((long)rec[2], 0x0A);          /* 0x40 and 0x80 cleared */
+    ASSERT_EQ((long)(rec[2] & 0x40), 0);    /* caller's occupancy test now 0 */
+    ASSERT_EQ((long)rec[3], 0xFF);
+}
+
+/* ---- Test: tile_count = width*height bounds the loop; header & the
+ *           record just past the count are not touched ---- */
+static void test_obf_count_boundary_and_header(void)
+{
+    uint8 buf[4 + 5 * 4]; /* room for 4 processed records + 1 sentinel */
+    uint8 *sentinel;
+    int i;
+
+    /* width=2, height=2 -> tile_count = 4 records processed */
+    memset(buf, 0xff, sizeof(buf));
+    buf[0] = 2;
+    buf[2] = 2;
+
+    /* sentinel is the 5th record (index 4) — must remain all 0xFF */
+    sentinel = buf + 4 + 4 * 4;
+
+    fd2_obfuscate_battle_tile_map((uint32)buf);
+
+    /* all 4 processed records got masked */
+    for (i = 0; i < 4; i++) {
+        ASSERT_EQ((long)buf[4 + i * 4 + 1], 0x03);
+        ASSERT_EQ((long)buf[4 + i * 4 + 2], 0x1F);
+        ASSERT_EQ((long)buf[4 + i * 4 + 3], 0xFF);
+    }
+
+    /* record beyond tile_count is untouched */
+    ASSERT_EQ((long)sentinel[0], 0xFF);
+    ASSERT_EQ((long)sentinel[1], 0xFF);
+    ASSERT_EQ((long)sentinel[2], 0xFF);
+    ASSERT_EQ((long)sentinel[3], 0xFF);
+}
+
 void run_save_save_tests(void)
 {
     SUITE_BEGIN(save_save);
@@ -1136,5 +1235,8 @@ void run_save_save_tests(void)
     RUN_TEST(test_sel_remap_e0_to_enter);
     RUN_TEST(test_sel_remap_52_to_enter);
     RUN_TEST(test_sel_remap_53_to_esc);
+    RUN_TEST(test_obf_masks_each_record);
+    RUN_TEST(test_obf_clears_occupied_bit);
+    RUN_TEST(test_obf_count_boundary_and_header);
     SUITE_END();
 }

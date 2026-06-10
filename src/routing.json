@@ -4586,8 +4586,9 @@
     "name": "fd2_obfuscate_battle_tile_map",
     "target": "save/save.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004dc34": {
     "name": "fd2_tile_blit_24x24_with_tint_offset",

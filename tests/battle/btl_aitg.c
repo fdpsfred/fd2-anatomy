@@ -225,6 +225,7 @@ static void test_ai_walk_no_path(void)
     g_test_rc_array[0].pos_x = 5;
     g_test_rc_array[0].pos_y = 5;
     g_pathfind_return = 0;
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     result = fd2_ai_walk_to_target_tile(8, 8, 0, 0);
     ASSERT_EQ(result, 0);
 }
@@ -284,6 +285,7 @@ static void test_ai_walk_candidate_taxi_tiebreak(void)
     t_ai_tile_map[(0 * 5 + 0) * 4 + 7] = 0;
     t_ai_tile_map[(2 * 5 + 2) * 4 + 7] = 0;
     g_pathfind_walk_return = 0;                 /* Stage A !=0xFF, final route 0 */
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     result = fd2_ai_walk_to_target_tile(4, 0, 0, 0);
     ASSERT_EQ(result, 0);
     ASSERT_EQ((long)g_pathfind_md0_dst_x, 2);   /* tiebreak winner (2,2) */
@@ -339,6 +341,7 @@ static void test_ai_walk_stage_b_furthest_tile(void)
     g_pathfind_step_bytes[2] = 3;               /* E -> (2,1) */
     g_pathfind_step_bytes[3] = 2;               /* N -> (2,0) walkable */
     g_pathfind_step_bytes[4] = 1;               /* W -> (1,0) */
+    bf_capture_tilemap();   /* preserve painted reachability across obfuscate */
     result = fd2_ai_walk_to_target_tile(9, 9, 0, 0);
     ASSERT_EQ(result, 0);
     ASSERT_EQ((long)g_pathfind_md0_dst_x, 2);   /* furthest walkable (2,0) */

@@ -194,7 +194,11 @@ extern character_growth  data_fd2_battle_character_growth_table[68];
 
 static runtime_char g_irc_slots[8];
 static uint8 g_irc_field[64];
-static uint8 g_irc_tilemap[64];
+/* Tile map: 4-byte header + up to 4x4 tile records of 4 bytes (the largest
+ * grid any irc test uses, in test_irc_tile_search_nearest). Sized to 128 so
+ * the real fd2_obfuscate_battle_tile_map (count = header[0]*header[2]) and the
+ * nearest-tile search both stay in-bounds. */
+static uint8 g_irc_tilemap[128];
 static uint8 g_irc_tileevent[256];
 /* the real fd2_init_runtime_char_for_battle calls the now-real
  * fd2_load_portrait_to_cache(char_id, fdicon_fp), which fseek/freads the
@@ -218,6 +222,13 @@ static void irc_setup(uint32 field_idx, uint8 desired_x, uint8 desired_y)
     data_fd2_battle_runtime_char_array_ptr = g_irc_slots;
     data_fd2_battle_party_member_count = 0;
     chapter_portrait_load_buffer = (uint32)g_irc_field;
+    /* Valid tile-map header dims so the real fd2_obfuscate_battle_tile_map
+     * (invoked unconditionally by fd2_init_runtime_char_for_battle) iterates
+     * a bounded count = width*height = 4*4 = 16 records instead of underflowing
+     * its do-while. The search test overrides the map-dimension globals to the
+     * same 4x4 grid. */
+    g_irc_tilemap[0] = 4;   /* map width  (header byte 0) */
+    g_irc_tilemap[2] = 4;   /* map height (header byte 2) */
     data_fd2_battle_tile_map_ptr = (uint32)g_irc_tilemap;
     data_fd2_tile_event_data_table_ptr = (uint32)g_irc_tileevent;
     data_fd2_chapter_init_phase_flag = 1;

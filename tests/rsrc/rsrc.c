@@ -689,6 +689,12 @@ static void test_cb_slot6_special_active(void)
  * file (0x32A00 bytes).
  * ================================================================ */
 static uint8 *g_pt_tileevent;   /* tile-event table for the race scan */
+/* Tile map for the real fd2_init_runtime_char_for_battle -> the real
+ * fd2_obfuscate_battle_tile_map (count = header[0]*header[2]). phase_flag=1
+ * here skips the spawn search, so a tiny valid 2x2 map (4 records) is enough
+ * to keep the obfuscate do-while bounded instead of underflowing on a NULL
+ * map pointer. */
+static uint8 g_pt_tilemap[64];
 
 /* Build a tile-event table of `count` records (stride 0x1A); record k has its
  * race byte (+0x98) set to race_of[k]. alloc_offset = count drives the scan
@@ -704,6 +710,14 @@ static void setup_pt_fixture(int count, const uint8 *race_of)
     }
     data_fd2_tile_event_data_table_ptr = (uint32)g_pt_tileevent;
     data_fd2_resource_portrait_cache_alloc_offset = (uint32)count;
+
+    /* valid 2x2 tile map so the real obfuscate (invoked by the real
+     * fd2_init_runtime_char_for_battle on a race match) iterates 4 records
+     * instead of underflowing on a NULL map pointer. */
+    memset(g_pt_tilemap, 0, sizeof(g_pt_tilemap));
+    g_pt_tilemap[0] = 2;   /* map width  (header byte 0) */
+    g_pt_tilemap[2] = 2;   /* map height (header byte 2) */
+    data_fd2_battle_tile_map_ptr = (uint32)g_pt_tilemap;
 
     chapter_portrait_load_buffer = 0;          /* loaded fresh by the function */
     data_fd2_chapter_init_phase_flag = 1;       /* spawn = field value verbatim */
@@ -732,6 +746,7 @@ static void teardown_pt_fixture(void)
         portrait_sprite_cache = 0;
     }
     data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_battle_tile_map_ptr = 0;   /* g_pt_tilemap is static; just unlink */
     data_fd2_resource_portrait_cache_alloc_offset = 0;
     chapter_portrait_load_buffer = 0;
     data_fd2_chapter_init_phase_flag = 0;
