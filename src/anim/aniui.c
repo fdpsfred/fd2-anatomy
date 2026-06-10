@@ -769,3 +769,41 @@ void fd2_cinematic_warp_char_to_tile(uint32 char_id, uint32 tile_x, uint32 tile_
     fd2_pan_cursor_to_tile_animated((int)tile_x, (int)tile_y);
     fd2_animate_warp_teleport_char(char_id, tile_x, tile_y, tile_x, tile_y);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_animate_palette_flash_pulse_white @ 0x35E5A (7 callers)
+ *
+ * Pulse-white palette flash effect. The whole DAC (indices 0..0xFF) is
+ * brightened toward white, held at peak, then faded back, via the real
+ * fd2_set_vga_palette_range_with_add (port 0x3C8/0x3C9 writes).
+ *
+ *   Fade UP:   brightness 0..0x3F  (64 steps, 8ms each = 512ms)
+ *   Hold:      __delay_thunk_375b2(400)  (400ms at peak brightness)
+ *   Fade DOWN: brightness 0x3E..0  (63 steps, 8ms each = 504ms)
+ *
+ * Total duration ~1.4s. Used for celebratory / dramatic moments
+ * (level-up flash, victory, ch29/ch30 endgame transitions).
+ *
+ * Cdecl, no params, void return. EBX is the loop counter (callee-saved).
+ * The binary's __CHK(0x14) stack-probe prologue is compiler-generated
+ * and omitted here.
+ *
+ * Callers:
+ *   fd2_chapter_29_end                                 @ 0x25682, 0x25694, 0x256A6
+ *   fd2_chapter_30_init                                @ 0x33EFD
+ *   fd2_chapter_event_handler_4c__ch29_major_cinematic @ 0x35DF4, 0x35E06, 0x35E1E
+ * ---------------------------------------------------------------- */
+void fd2_animate_palette_flash_pulse_white(void)
+{
+    uint32 brightness;
+
+    for (brightness = 0; (int32)brightness < 0x40; brightness++) {
+        fd2_set_vga_palette_range_with_add(0, 0xFF, brightness);
+        __delay_thunk_375b2(8);
+    }
+    __delay_thunk_375b2(400);
+    for (brightness = 0x3E; -1 < (int32)brightness; brightness--) {
+        fd2_set_vga_palette_range_with_add(0, 0xFF, brightness);
+        __delay_thunk_375b2(8);
+    }
+}

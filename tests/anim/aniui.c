@@ -842,6 +842,52 @@ static void test_cinematic_warp_arg_routing(void)
 }
 
 
+/*
+ * fd2_animate_palette_flash_pulse_white — full pulse-white DAC fade cadence.
+ *
+ * No params, straight-line: fade the whole DAC up to white, hold at peak, fade
+ * back down. The load-bearing, host-verifiable logic is the exact step cadence,
+ * which pins both loop bounds and the mid-hold:
+ *
+ *   - fade UP   brightness 0..0x3F (64 steps, INC), each paced __delay_thunk_375b2(8)
+ *   - hold      one __delay_thunk_375b2(400) at peak brightness
+ *   - fade DOWN brightness 0x3E..0 (63 steps, DEC), each paced __delay_thunk_375b2(8)
+ *
+ * => exactly 64 + 1 + 63 = 128 delay calls; the final delay (fade-DOWN tail) is
+ * 8ms, so g_delay375b2_last_ticks == 8. The 128 count is unique to these two
+ * inclusive bounds (a 0..0x3E up-loop or a 0x3F..0 down-loop would not total
+ * 128), so it pins the whole control flow.
+ *
+ * The actual DAC writes go through the real fd2_set_vga_palette_range_with_add
+ * (port 0x3C8/0x3C9), reading data_fd2_vga_palette_data_ptr + idx*3 for
+ * idx 0..0xFF; a 768-byte palette buffer keeps those reads in-bounds and the
+ * port writes are host-safe under the emulated VGA. The emitted DAC pixel output
+ * itself is a display side-effect deferred to Phase 9 integration, consistent
+ * with the sibling fd2_animate_shop_transaction_feedback state-4 ramp test.
+ */
+static uint8 g_flash_pal[768];
+
+static void test_palette_flash_pulse_white_cadence(void)
+{
+    int i;
+
+    for (i = 0; i < 768; i++) {
+        g_flash_pal[i] = 0x20;
+    }
+    data_fd2_vga_palette_data_ptr = (uint32)g_flash_pal;
+
+    g_delay375b2_calls = 0;
+    g_delay375b2_last_ticks = 0;
+
+    fd2_animate_palette_flash_pulse_white();
+
+    /* UP 64 (0..0x3F) + hold 1 + DOWN 63 (0x3E..0) = 128 delay-paced steps */
+    ASSERT_EQ(g_delay375b2_calls, 128);
+    /* last paced delay is the fade-DOWN tail step (8ms), not the 400ms hold */
+    ASSERT_EQ(g_delay375b2_last_ticks, 8u);
+}
+
+
 void run_anim_aniui_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -860,5 +906,6 @@ void run_anim_aniui_tests(void)
     RUN_TEST(test_shop_feedback_state_other_noop);
     RUN_TEST(test_party_add_frame_skeleton_and_sfx);
     RUN_TEST(test_cinematic_warp_arg_routing);
+    RUN_TEST(test_palette_flash_pulse_white_cadence);
     printf("\n");
 }

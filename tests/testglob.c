@@ -149,11 +149,9 @@ void fd2_delay_ticks(uint32 t) { }
 void fd2_cast_earthquake_spell_with_screen_shake(int a, int b, int c, uint8 *d) { }
 void fd2_cast_screen_wide_spell_with_fade(uint32 a, uint32 b, uint32 c, int d) { }
 void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 a, uint32 b, uint32 c) { }
-/* fd2_cinematic_warp_char_to_tile (@0x33F78) now emitted for real in
- * src/anim/aniui.c; stub removed.
- * fd2_animate_palette_flash_pulse_white (@0x35E5A): not yet emitted (referenced
- * only by fd2_chapter_30_init); stubbed for link until its src/ emit. */
-void fd2_animate_palette_flash_pulse_white(void) { }
+/* fd2_cinematic_warp_char_to_tile (@0x33F78) and
+ * fd2_animate_palette_flash_pulse_white (@0x35E5A) now emitted for real in
+ * src/anim/aniui.c; stubs removed. */
 void fd2_dispatch_variant_b_cast(int a, int b, int c, int d) { }
 /* fd2_cast_ap_boost_spell (@0x22721), fd2_cast_dp_boost_spell (@0x22866), and
  * fd2_cast_speed_boost_spell (@0x22997) now emitted for real in
