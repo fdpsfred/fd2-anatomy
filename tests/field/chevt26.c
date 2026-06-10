@@ -472,6 +472,130 @@ static void test_h50_range_is_single_char_exact(void)
     ce50_teardown();
 }
 
+/* ================================================================
+ * fd2_chapter_event_handler_51__unref_dyn_turn_event @ 0x35F6F
+ *
+ * ch self-looping turn-event pump (dispatch idx 0x51 @ table 0x51B91, entry
+ * @ 0x51CD5). Body (1-arg cdecl; arg ignored):
+ *   tile_event_consumed_flags[0x10] = (uint8)(consumed_flags[0x10] + 1)  -- advance stage
+ *   tile_event_data_table[+3]       = (uint8)(turn_counter + 1)          -- arm hook 0 next turn
+ *
+ * Risk-bearing (state mutation + 8-bit arithmetic + two offset-exact stores):
+ *   (a) the stage counter at consumed_flags[0x10] advances by exactly 1,
+ *   (b) the +3 scheduler byte = (uint8)(turn_counter + 1),
+ *   (c) the advance is UNGATED and CUMULATIVE — unlike the gated schedulers
+ *       (handler_3e/41 only write when their slot reads 0), this one has no
+ *       CMP/JNZ gate; a pre-seeded non-zero stage still increments and the
+ *       scheduler byte is re-armed every call,
+ *   (d) BOTH stores are 8-bit (INC byte ptr / MOV DL,[turn]; INC DL): stage
+ *       0xFF wraps to 0x00 and turn 0xFF -> +3 byte wraps to 0x00,
+ *   (e) the two stores hit exactly consumed_flags[0x10] and data_table[+3]:
+ *       the immediate neighbours stay untouched,
+ *   (f) the dispatch arg is ignored.
+ *
+ * Driven over own in-memory flags + data-table fixtures (no game files, no
+ * display, no RNG) so the suite never aliases the h4d/h4e/h4f state.
+ * ================================================================ */
+static uint8 g_ce51_flags[0x20];    /* [0x10] = stage counter         */
+static uint8 g_ce51_dtable[0x10];   /* +3 = hook 0 scheduler target   */
+
+static void ce51_setup(uint8 stage, uint8 turn)
+{
+    memset(g_ce51_flags, 0, sizeof(g_ce51_flags));
+    memset(g_ce51_dtable, 0, sizeof(g_ce51_dtable));
+    g_ce51_flags[0x10] = stage;
+    data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)g_ce51_flags;
+    data_fd2_tile_event_data_table_ptr = (uint32)g_ce51_dtable;
+    data_fd2_battle_turn_counter = turn;
+}
+
+static void ce51_teardown(void)
+{
+    data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
+    data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_battle_turn_counter = 0;
+}
+
+/* ----------------------------------------------------------------
+ * From a zeroed stage and turn_counter = 0x20: the stage counter advances 0 -> 1
+ * and the +3 scheduler byte = turn_counter + 1 = 0x21. Both stores land at their
+ * exact offsets; the dispatch arg is passed nonzero to prove it is ignored.
+ * ---------------------------------------------------------------- */
+static void test_h51_advances_stage_and_schedules(void)
+{
+    ce51_setup(0, 0x20);
+
+    fd2_chapter_event_handler_51__unref_dyn_turn_event(0x77);
+
+    /* (a) stage counter advanced 0 -> 1 */
+    ASSERT_EQ((long)g_ce51_flags[0x10], 1);
+    /* (b) +3 scheduler byte = turn_counter + 1 = 0x21 */
+    ASSERT_EQ((long)g_ce51_dtable[3], 0x21);
+
+    ce51_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * The stage advance is UNGATED and CUMULATIVE — there is no CMP/JNZ gate (just
+ * INC byte ptr), the defining contrast against the gated schedulers handler_3e/41
+ * which only write when their slot reads 0. Pre-seed the stage with a non-zero
+ * value: it still increments by exactly 1 (0x05 -> 0x06), and the scheduler byte
+ * is re-armed on this call too. The stores hit exactly consumed_flags[0x10] and
+ * data_table[+3]: the flag neighbours 0x0F/0x11 and the data-table neighbours
+ * +2/+4, pre-seeded with sentinels, are left untouched.
+ * ---------------------------------------------------------------- */
+static void test_h51_advance_ungated_and_offsets_exact(void)
+{
+    ce51_setup(0x05, 0x40);
+    g_ce51_flags[0x0F] = 0xAB;     /* flag neighbour decoys: must stay untouched */
+    g_ce51_flags[0x11] = 0xCD;
+    g_ce51_dtable[2]   = 0xAA;     /* data-table neighbour decoys (around +3)     */
+    g_ce51_dtable[4]   = 0xBB;
+
+    fd2_chapter_event_handler_51__unref_dyn_turn_event(0);
+
+    /* (c) ungated: a non-zero stage still advances by exactly 1 */
+    ASSERT_EQ((long)g_ce51_flags[0x10], 0x06);
+    /* the scheduler byte is re-armed every call regardless of stage */
+    ASSERT_EQ((long)g_ce51_dtable[3], 0x41);   /* turn 0x40 + 1 */
+    /* (e) only the two target bytes changed: neighbours preserved verbatim */
+    ASSERT_EQ((long)g_ce51_flags[0x0F], 0xAB);
+    ASSERT_EQ((long)g_ce51_flags[0x11], 0xCD);
+    ASSERT_EQ((long)g_ce51_dtable[2], 0xAA);
+    ASSERT_EQ((long)g_ce51_dtable[4], 0xBB);
+
+    ce51_teardown();
+}
+
+/* ----------------------------------------------------------------
+ * Both stores are 8-bit. Seed stage = 0xFF and turn_counter = 0xFF: the stage
+ * INC wraps 0xFF -> 0x00 and the +3 store = (uint8)(0xFF + 1) = 0x00, pinning the
+ * truncation on both writes. Neighbours stay untouched so the wrap is the only
+ * effect at each offset.
+ * ---------------------------------------------------------------- */
+static void test_h51_both_stores_are_8bit_wrap(void)
+{
+    ce51_setup(0xFF, 0xFF);
+    g_ce51_flags[0x0F] = 0x11;
+    g_ce51_flags[0x11] = 0x22;
+    g_ce51_dtable[2]   = 0x33;
+    g_ce51_dtable[4]   = 0x44;
+
+    fd2_chapter_event_handler_51__unref_dyn_turn_event(0x33);
+
+    /* (d) stage INC wraps 0xFF -> 0x00 (8-bit INC byte ptr) */
+    ASSERT_EQ((long)g_ce51_flags[0x10], 0x00);
+    /* (d) +3 = (uint8)(0xFF + 1) = 0x00 (8-bit turn+1) */
+    ASSERT_EQ((long)g_ce51_dtable[3], 0x00);
+    /* neighbours preserved */
+    ASSERT_EQ((long)g_ce51_flags[0x0F], 0x11);
+    ASSERT_EQ((long)g_ce51_flags[0x11], 0x22);
+    ASSERT_EQ((long)g_ce51_dtable[2], 0x33);
+    ASSERT_EQ((long)g_ce51_dtable[4], 0x44);
+
+    ce51_teardown();
+}
+
 void run_field_chevt26_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -486,5 +610,8 @@ void run_field_chevt26_tests(void)
     RUN_TEST(test_h4f_schedule_turn_plus1_is_8bit_at_offset_9);
     RUN_TEST(test_h50_sets_ai_flag_b_for_char_0x14);
     RUN_TEST(test_h50_range_is_single_char_exact);
+    RUN_TEST(test_h51_advances_stage_and_schedules);
+    RUN_TEST(test_h51_advance_ungated_and_offsets_exact);
+    RUN_TEST(test_h51_both_stores_are_8bit_wrap);
     printf("\n");
 }

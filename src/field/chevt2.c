@@ -1397,3 +1397,36 @@ void fd2_chapter_event_handler_50__ch30_ai_ctrl(uint32 event_arg)
 
     fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x14, 0x14, 0xB);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_51__unref_dyn_turn_event @ 0x35F6F
+ *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CD5)
+ *
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x51. No chapter
+ * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
+ * content / non-chapter dispatcher). Category: state-machine mutator (stage
+ * counter advance + turn-event reschedule). Dispatch-table signature is 1-arg
+ * cdecl (void fn(uint event_arg)); this handler does not read the arg.
+ *
+ * Effect: a self-looping pump — advance the stage counter
+ * tile_event_consumed_flags[0x10] by one (8-bit INC byte ptr), then queue another
+ * turn-event fire one player turn ahead by writing turn_counter + 1 into the
+ * turn-event hook table at tile_event_data_table[+3] (hook entry 0's turn byte).
+ * Unlike the gated schedulers (handler_3e/41), there is no consume-flag gate, so
+ * each call advances the stage and re-arms the same hook slot.
+ *
+ * The turn counter is read as a single byte and incremented in 8-bit before the
+ * byte store (MOV DL,[turn_counter] / INC DL / MOV [data_table+3],DL); the
+ * (uint8) truncation on store reproduces that 8-bit arithmetic exactly. Stack
+ * frame 4 (__CHK) is the Watcom stack-probe prologue and carries no source-level
+ * semantics.
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_51__unref_dyn_turn_event(uint32 event_arg)
+{
+    (void)event_arg;
+
+    *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) =
+        (uint8)(*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) + 1);
+    *(uint8 *)(data_fd2_tile_event_data_table_ptr + 3) =
+        (uint8)(data_fd2_battle_turn_counter + 1);
+}
