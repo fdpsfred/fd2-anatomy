@@ -4646,8 +4646,9 @@
     "name": "fd2_flood_fill_movement_range_recursive",
     "target": "util/pathfnd.c",
     "phase": 2,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004e16e": {
     "name": "fd2_flood_fill_neighbor_step",

@@ -1407,6 +1407,64 @@ int fd2_pathfind_to_destination(uint32 ct, uint32 sx, uint32 sy, uint32 ms,
 void fd2_obfuscate_battle_tile_map(uint32 tm) { }
 void fd2_init_movement_range_floodfill(uint32 ct, uint32 x, uint32 y,
     uint32 rng, uint32 tm, uint32 af) { }
+
+/* fd2_flood_fill_neighbor_step @ 0x4E16E — one of the 6 internal pathfind
+ * helpers (open_issues #33); not yet emitted, so its real body lives here as a
+ * faithful test stub that the emitted fd2_flood_fill_movement_range_recursive
+ * @ 0x4E0DC drives. It (a) records every call (btm offset relative to
+ * g_ffns_origin + the residual cost passed in) so the recursion's traversal
+ * order / bounds / ±4 / ±stride arithmetic can be asserted, and (b) reproduces
+ * the binary's marker-update + carry logic so a small real tile map yields the
+ * exact flood-fill grid. When 0x4E16E is emitted for real this stub + the
+ * g_ffns_* recorders are removed (coordinated landing per open_issues #33). */
+uint8 *g_ffns_origin = 0;     /* btm marker addr of the seed tile (offset base) */
+int   g_ffns_calls = 0;       /* total neighbour-step invocations */
+int   g_ffns_off[64];         /* (btm_attr_ptr - g_ffns_origin) per call */
+uint8 g_ffns_cost[64];        /* remaining_cost passed in per call */
+int fd2_flood_fill_neighbor_step(uint8 remaining_cost, uint8 *btm_attr_ptr,
+    uint8 *new_cost_out)
+{
+    uint16  attr_word;
+    uint8   cost_idx;
+    uint8   tile_cost;
+    uint8   new_cost;
+    uint8   flags;
+    int8    existing;
+
+    if (g_ffns_calls < 64) {
+        g_ffns_off[g_ffns_calls] = (int)(btm_attr_ptr - g_ffns_origin);
+        g_ffns_cost[g_ffns_calls] = remaining_cost;
+    }
+    g_ffns_calls++;
+
+    /* attr index = low 10 bits of the 16-bit word at [btm-3..-2] */
+    attr_word = (uint16)(*(uint16 *)(btm_attr_ptr - 3) & 0x03FF);
+    cost_idx = ((uint8 *)data_fd2_battle_pathfind_tile_cost_table_ptr)
+        [(uint16)(attr_word << 2) + 1];
+    tile_cost = ((uint8 *)data_fd2_battle_pathfind_caller_context)[cost_idx];
+
+    /* SUB underflow guard (unsigned borrow) -> carry set, do not recurse */
+    if (tile_cost > remaining_cost) {
+        return 0;
+    }
+    new_cost = (uint8)(remaining_cost - tile_cost);
+
+    existing = (int8)*btm_attr_ptr;
+    /* signed "improves on existing" test (JLE skip) */
+    if ((int8)new_cost <= existing) {
+        return 0;
+    }
+    flags = *(btm_attr_ptr - 1);
+    if ((flags & 0x40) != 0) {        /* impassable */
+        return 0;
+    }
+    if ((flags & 0x80) != 0) {        /* movement sink: reachable, no expand */
+        new_cost = 0;
+    }
+    *btm_attr_ptr = new_cost;
+    *new_cost_out = new_cost;
+    return 1;
+}
 /* fd2_compute_aoe_targets: now in btl_ai.c */
 /* fd2_pan_cursor_to_char: already in cursor.c */
 

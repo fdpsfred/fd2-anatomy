@@ -262,6 +262,16 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
   正確 emit，不需重做）。`fd2_pathfind_record_destination_xy` 等 helper 正是 spy 原本假造的真實對應，
   emit 後即提供真值。
 
+- **進度（0x4E0DC 已 emit）**：`fd2_flood_fill_movement_range_recursive` @ 0x4E0DC 已落到
+  `src/util/pathfnd.c`，以原生 C 遞迴 + 參數 `(x, y, cost, btm_ptr)` 取代原本 register-passing
+  + EDI 手刻遞迴堆疊（Layer-2 等價：相同 marker 寫入、相同 right/left/down/up 訪問順序、相同終止）。
+  它會呼叫尚未 emit 的內部 helper `fd2_flood_fill_neighbor_step` @ 0x4E16E，故本次在
+  `tests/testglob.c` 新增一個**忠實**的 `fd2_flood_fill_neighbor_step` 測試 stub（重現 binary 的
+  cost 查表 + signed-improvement + marker 寫入 + carry 邏輯，並用 `g_ffns_*` recorder 記錄每次呼叫的
+  btm offset/cost）。**待 0x4E16E 真正 emit 時，這個 stub 與 `g_ffns_*` recorder 一併移除**（與本節
+  其餘 coordinated landing 同樣處理，避免 W1027 redefinition）。剩餘 5 個 internal helper 與 2 個
+  entry 仍依本節規畫處理。
+
 ### 34. crt/crt.c 的 dos_main_bootstrap 需 within-branch 小型 coordinated landing
 
 - **現狀**：`crt_equivalent_dos_main_bootstrap`（@0x3c9de，`crt/crt.c`）目前由 testglob.c:150 的 stub

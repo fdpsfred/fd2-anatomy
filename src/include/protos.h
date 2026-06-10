@@ -216,6 +216,10 @@ int fd2_tally_chars_with_zero_at_field(int len, uint32 char_idx_arr, int field_o
 int fd2_find_tile_with_attribute_match(uint32 target_tag, uint32 out_pos);
 int fd2_collect_unmarked_tile_positions(uint32 out_buf);
 uint8 fd2_pathfind_count_unique_directions(void);
+void fd2_flood_fill_movement_range_recursive(uint8 x, uint8 y, uint8 cost, uint8 *btm_ptr);
+/* returns non-zero (binary: carry clear) iff the neighbour improved and the
+ * caller should recurse; on non-zero, *new_cost_out = residual cost - tile cost */
+int fd2_flood_fill_neighbor_step(uint8 remaining_cost, uint8 *btm_attr_ptr, uint8 *new_cost_out);
 void fd2_mark_char_occupant_tiles_for_team(uint32 exclude_idx, uint32 team_selector);
 void fd2_set_tile_overlay_bit_80(uint32 x, uint32 y);
 void fd2_mark_aoe_plus_pattern_at(uint32 x, uint32 y);
