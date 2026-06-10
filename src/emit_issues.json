@@ -595,5 +595,18 @@
         "source_review": "fd2_run_buy_item_menu @0002f0b0 (reviewer-approved)"
       }
     ]
+  },
+  "0003231b": {
+    "name": "fd2_chapter_01_init",
+    "target": "field/chinit.c",
+    "issues": [
+      {
+        "type": "test_deferral_note",
+        "desc": "Behavioral unit test DEFERRED to Phase 9 integration (reason proven, not convenience). fd2_chapter_01_init is a pure chapter-prologue orchestrator: a fixed straight-line script of void side-effect calls plus unconditional constant global writes, with NO numeric computation, NO RNG, NO data-dependent branch, and NO CALL-result consumption (no Ghidra EAX-tracking-bug exposure). The only control flow is two constant-bound counters (15x then 13x fd2_walk_step_up(2)). It cannot be unit-tested host-safely: (1) the body issues ~22 fd2_display_dialog_scene() calls -> real-linked (dialog/dialog.c) and reaches fd2_wait_for_input_dialog_with_blink(), a real-linked keyboard busy-wait (input/input.c) that hangs forever in the silent harness (same hang bisection-proven for the 0x10010 checksum-mismatch arm), and dereferences current_chapter_text as a parsed opcode stream; (2) it drives fd2_load_chapter_portraits_and_dump_tmp (fopen FDICON.B24 + dump FD2.TMP) and 30+ fd2_cutscene_event_trigger() calls each parsing an in-memory per-event byte-script for event ids 0x5A..0x69 and 0,1,2,5 (a full chapter-1 prologue scene environment); (3) every callee is real-linked from src/ so none can be replaced by capture stubs to observe call ordering, and the emit code must not be distorted to make it testable (forbidden). The ordered global-state contract (current_chapter_id 0x20->0x1F->0, party_total_gold=0, the cutscene_event_state=1/0 toggles, battle_anim_phase=0 resets) is reachable only after the blocking/display pipeline runs, so there is no isolable host-safe computational slice. Equivalence was instead verified statically line-by-line against the disassembly @0x3231B: the four phase current_chapter_id transitions, the two loop bounds (CMP EAX,0xf / CMP EAX,0xd), every cutscene event-id literal and its order, the nine fixed display_dialog_scene arguments (0xa0000,0x140,0xcd,0x4c,0x4a,0x13,1) with incrementing page indices, and the 0x375b2 delay literals (200/200/200/100). The leading __CHK(0x2c) is the Watcom frame-size stack-probe and is not part of the source body.",
+        "severity": "low",
+        "verify_method": "phase9_integration",
+        "source_review": "fd2_chapter_01_init @0003231b (emit; ~22 blocking fd2_display_dialog_scene + 30+ in-memory cutscene scripts + all-callees-real-linked = no unit seam, cf. 00017eef / 00010010)"
+      }
+    ]
   }
 }

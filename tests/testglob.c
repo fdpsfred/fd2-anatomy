@@ -914,6 +914,10 @@ void fd2_scroll_text_screen_up_by_lines(uint32 lines) {
 }
 void fd2_play_palette_fade_in(void) { }
 void fd2_play_death_animation_and_mark_dead(void) { }
+/* Not-yet-emitted party-addition appear animation (real fn @0x32999); a pure
+ * display side-effect orchestrator. Stubbed no-op so the deferred
+ * fd2_chapter_01_init suite links; nothing asserts on it yet. */
+void fd2_animate_party_addition_with_appear_effect(uint32 char_idx) { (void)char_idx; }
 
 /* Turn-cycle display/dispatch callees driven by fd2_run_full_turn_cycle.
  * fd2_fire_chapter_turn_events_for_phase is now emitted for real in

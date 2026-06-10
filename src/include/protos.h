@@ -225,6 +225,9 @@ void fd2_chapter_26_post_action(uint32 event_arg);
 void fd2_chapter_29_post_action(uint32 event_arg);
 void fd2_chapter_30_post_action(uint32 event_arg);
 
+/* ---- chapter init handlers ---- */
+void fd2_chapter_01_init(void);
+
 /* ---- animation ---- */
 void fd2_tick_tile_event_animations(void);
 void fd2_walk_step_down(uint32 char_idx);
@@ -237,6 +240,7 @@ void fd2_animate_screen_shake(uint32 num_frames);
 void fd2_animate_money_increment(uint32 delta);
 void fd2_animate_money_decrement(uint32 delta);
 void fd2_animate_tutorial_dialog_intro_or_outro(uint32 open_or_close);
+void fd2_animate_party_addition_with_appear_effect(uint32 char_idx);
 void fd2_slide_panel_step_left_main(uint32 src_buffer, uint32 frame_idx);
 void fd2_slide_panel_step_right_main(uint32 src_buffer, uint32 frame_idx);
 void fd2_slide_panel_step_top_small(uint32 src_buffer, uint32 frame_idx);

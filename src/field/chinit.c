@@ -1,0 +1,174 @@
+/*
+ * chinit.c — per-chapter init handlers
+ *            (data_fd2_chapter_init_handler_table entries)
+ */
+
+#include "types.h"
+#include "consts.h"
+#include "globals.h"
+#include "protos.h"
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_01_init @ 0x3231B  (dispatched, 0 direct callers)
+ *
+ * Chapter 1「初試身手」init handler. The only chapter init that
+ * contains a full prologue; it plays four staged scenes by walking
+ * current_chapter_id backward through three prologue map ids
+ * (0x20 -> 0x1F -> 0) before the chapter-1 main battle begins.
+ *
+ * Phase A (map 0x20): walk-up cutscene + 2 dialog pages, stop BGM,
+ *   then a state=1 cutscene transition (0x63, 0x64).
+ * Phase B (still 0x20): pan camera, BGM 11, fade-in, then dialog
+ *   pages 2..5 chained with cutscenes 0x65..0x69.
+ * Phase C (map 0x1F): re-init battle state, load portrait sets 1/3/5,
+ *   dialog pages 0..9 chained with cutscenes 0x5A..0x62, mark NPC
+ *   slot 2 dead, stop BGM, state=1 cutscene 0x62.
+ * Phase D (map 0): init runtime chars 0/9/4/0x1E, two party-addition
+ *   appear animations with cutscenes 0/1/2, mark NPC slot 9 dead,
+ *   composite a battle frame, final dialog, clear facings, pan to
+ *   char 0, zero party gold.
+ *
+ * void __cdecl, no real params, void return. The leading
+ * __CHK(0x2C) stack-probe is the Watcom-injected frame-size check
+ * and is not part of the source body.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_01.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_01_init(void)
+{
+    int i;
+
+    /* Phase A — current_chapter_id = 0x20 (prologue map 1) */
+    data_fd2_chapter_current_chapter_id = 0x20;
+    fd2_init_battle_state_for_chapter();
+    fd2_pan_cursor_and_window(3, 0x22);
+    fd2_cutscene_event_trigger(0x63);
+    for (i = 0; i < 0xf; i++) {
+        fd2_walk_step_up(2);
+    }
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    for (i = 0; i < 0xd; i++) {
+        fd2_walk_step_up(2);
+    }
+    fd2_display_dialog_scene(current_chapter_text, 1, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_set_bgm_track_with_fade(0xffffffff, 0);
+    data_fd2_chapter_cutscene_event_state = 1;
+    fd2_cutscene_event_trigger(0x64);
+    data_fd2_chapter_cutscene_event_state = 0;
+
+    /* Phase B — still map 0x20; cutscene-driven transition to 0x1F */
+    fd2_pan_cursor_and_window(0, 0x2b);
+    fd2_set_bgm_track_with_fade(0xb, 0);
+    fd2_play_palette_fade_in();
+    fd2_cutscene_event_trigger(0x65);
+    fd2_display_dialog_scene(current_chapter_text, 2, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x66);
+    fd2_display_dialog_scene(current_chapter_text, 3, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x67);
+    fd2_display_dialog_scene(current_chapter_text, 4, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x68);
+    fd2_display_dialog_scene(current_chapter_text, 5, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_chapter_cutscene_event_state = 1;
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x69);
+    data_fd2_chapter_cutscene_event_state = 0;
+
+    /* Phase C — current_chapter_id = 0x1F (prologue map 2) */
+    data_fd2_chapter_current_chapter_id = 0x1f;
+    fd2_init_battle_state_for_chapter();
+    data_fd2_battle_anim_phase = 0;
+    fd2_pan_cursor_and_window(5, 0x2a);
+    fd2_load_chapter_portraits_and_dump_tmp(1);
+    fd2_cutscene_event_trigger(0x5a);
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x5b);
+    fd2_display_dialog_scene(current_chapter_text, 1, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x5c);
+    fd2_display_dialog_scene(current_chapter_text, 2, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_load_chapter_portraits_and_dump_tmp(3);
+    fd2_pan_cursor_and_window(4, 0x29);
+    fd2_display_dialog_scene(current_chapter_text, 3, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x5d);
+    fd2_display_dialog_scene(current_chapter_text, 4, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_mark_char_as_dead(2);
+    fd2_load_chapter_portraits_and_dump_tmp(5);
+    fd2_display_dialog_scene(current_chapter_text, 5, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x5e);
+    fd2_display_dialog_scene(current_chapter_text, 6, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x5f);
+    fd2_display_dialog_scene(current_chapter_text, 7, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x60);
+    fd2_display_dialog_scene(current_chapter_text, 8, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    fd2_cutscene_event_trigger(0x61);
+    fd2_display_dialog_scene(current_chapter_text, 9, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_set_bgm_track_with_fade(0xffffffff, 0);
+    data_fd2_battle_anim_phase = 0;
+    data_fd2_chapter_cutscene_event_state = 1;
+    fd2_cutscene_event_trigger(0x62);
+    data_fd2_chapter_cutscene_event_state = 0;
+
+    /* Phase D — current_chapter_id = 0 (chapter 1 main battle) */
+    data_fd2_chapter_current_chapter_id = 0;
+    fd2_init_runtime_char_from_base_growth(0);
+    fd2_init_runtime_char_from_base_growth(9);
+    fd2_init_runtime_char_from_base_growth(4);
+    fd2_init_runtime_char_from_base_growth(0x1e);
+    fd2_init_battle_state_for_chapter();
+    data_fd2_battle_anim_phase = 0;
+    fd2_pan_cursor_and_window(4, 0xc);
+    fd2_cutscene_event_trigger(0);
+    __delay_thunk_375b2(200);
+    fd2_display_dialog_scene(current_chapter_text, 0, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    __delay_thunk_375b2(200);
+    fd2_pan_cursor_and_window(0, 0);
+    fd2_animate_party_addition_with_appear_effect(1);
+    fd2_cutscene_event_trigger(1);
+    fd2_pan_cursor_and_window(0, 0xf);
+    fd2_animate_party_addition_with_appear_effect(2);
+    fd2_cutscene_event_trigger(2);
+    fd2_display_dialog_scene(current_chapter_text, 1, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    data_fd2_battle_anim_phase = 0;
+    __delay_thunk_375b2(200);
+    fd2_cutscene_event_trigger(5);
+    fd2_mark_char_as_dead(9);
+    fd2_composite_battle_frame(0);
+    __delay_thunk_375b2(100);
+    fd2_display_dialog_scene(current_chapter_text, 2, 0xa0000, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_clear_all_chars_facing();
+    fd2_pan_cursor_to_char(0);
+    data_fd2_shared_party_total_gold = 0;
+}
