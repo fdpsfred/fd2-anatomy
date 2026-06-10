@@ -262,16 +262,24 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
   正確 emit，不需重做）。`fd2_pathfind_record_destination_xy` 等 helper 正是 spy 原本假造的真實對應，
   emit 後即提供真值。
 
-- **進度（0x4E0DC、0x4E16E 已 emit）**：兩個 bottom-up helper 已落到 `src/util/pathfnd.c`。
-  `fd2_flood_fill_movement_range_recursive` @ 0x4E0DC 以原生 C 遞迴 + 參數 `(x, y, cost, btm_ptr)`
+- **進度（0x4E0DC、0x4E16E、0x4E27C、0x4E330 已 emit）**：四個 bottom-up helper 已落到
+  `src/util/pathfnd.c`。`fd2_flood_fill_movement_range_recursive` @ 0x4E0DC 與
+  `fd2_pathfind_recursive_with_direction` @ 0x4E27C 都以原生 C 遞迴 + 參數 `(x, y, cost, btm_ptr)`
   取代原本 register-passing + EDI 手刻遞迴堆疊（Layer-2 等價：相同 marker 寫入、相同 right/left/down/up
-  訪問順序、相同終止）。`fd2_flood_fill_neighbor_step` @ 0x4E16E（內部 step：cost 查表 +
-  signed-improvement gate + 0x40/0x80 flag + marker 寫入）以 `int` 回傳取代原本的 carry-flag 訊號、
-  residual 透過 `new_cost_out` 交回呼叫者；原本 ESI 內活著的 secondary cost-table base 改讀
-  orchestrator 在 entry 寫入的 `data_fd2_battle_pathfind_caller_context`（0x6006A）。emit 0x4E16E 時
-  已一併移除 `tests/testglob.c` 內它的忠實測試 stub 與 `g_ffns_*` recorder，並把 floodfill 呼叫者測試
-  改成直接斷言真實 marker grid（不再用 spy recorder）。剩餘 4 個 internal helper（0x4E27C、0x4E330、
-  0x4E3B3、0x4E401）與 2 個 entry 仍依本節規畫處理。
+  訪問順序、相同終止；後者另保留 `data_fd2_battle_pathfind_step_stack[depth*8]` 的 `{x,y,cost,dir}`
+  frame，因 direction byte 是 load-bearing）。`fd2_flood_fill_neighbor_step` @ 0x4E16E 與
+  `fd2_pathfind_neighbor_step_with_tiebreak` @ 0x4E330（內部 step：cost 查表 + signed-improvement gate
+  + 0x40/0x80 flag + marker 寫入；後者另含 mode 1 direction-diversity tiebreak、mode 2 dst-record、
+  以及把 direction code 打包進 marker 的 `[-2]`＝attribute 高位 byte，保留其低 2 bit）都以 `int` 回傳
+  取代原本的 carry-flag 訊號、residual 透過 `new_cost_out` 交回呼叫者；原本 ESI 內活著的 secondary
+  cost-table base 改讀 orchestrator 在 entry 寫入的 `data_fd2_battle_pathfind_caller_context`（0x6006A）。
+  emit 0x4E16E / 0x4E330 時各自一併移除 `tests/testglob.c` 內它的忠實測試 stub 與對應 recorder
+  （`g_ffns_*` / `g_ptbs_*`），並把呼叫者測試改成直接斷言真實 marker grid 與 direction grid（不再用
+  spy recorder）。mode flag global `data_fd2_battle_pathfind_mode_flags`（0x6017A）已補進 globals.h /
+  testglob.c。`fd2_pathfind_neighbor_step_with_tiebreak` 呼叫的兩個 destination helper
+  `fd2_pathfind_record_destination_xy` @ 0x4E3B3 與 `fd2_pathfind_check_destination_save_path` @ 0x4E401
+  目前以忠實 stub 住在 `tests/testglob.c`（純 pathfind-global routine，無跨分支依賴），待各自 routing
+  entry emit 為真時移除。剩餘：2 個 helper（0x4E3B3、0x4E401）與 2 個 entry（0x4E1A6、0x4E040）仍依本節規畫處理。
 
 ### 34. crt/crt.c 的 dos_main_bootstrap 需 within-branch 小型 coordinated landing
 

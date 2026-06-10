@@ -305,3 +305,126 @@ void fd2_pathfind_recursive_with_direction(uint8 x, uint8 y, uint8 cost,
     /* Pop this level's frame (binary: SUB DI,8 reload + DEC [0x60077]). */
     data_fd2_battle_pathfind_current_depth--;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_pathfind_neighbor_step_with_tiebreak @ 0x4E330 (1 caller: all four
+ * directions of fd2_pathfind_recursive_with_direction @ 0x4E27C)
+ *
+ * Path-aware inner step: the direction-recording twin of
+ * fd2_flood_fill_neighbor_step @ 0x4E16E. It visits one neighbour, looks up its
+ * movement cost via the same two-level cost tables, and -- when the new residual
+ * cost beats (or, in mode 1, ties-then-wins against) the existing marker --
+ * records the branch direction into the tile's direction nibble and conditionally
+ * commits the marker, signalling the caller to recurse.
+ *
+ * In FD2.LE this is a register-passing leaf with no stack frame: residual cost in
+ * CL, the tile's marker pointer in EBX, the secondary cost-table base live in ESI
+ * (inherited from the orchestrator through the whole recursion), and it signals
+ * "improved, keep expanding" back to the caller via the carry flag (CLC = recurse,
+ * STC = skip). The neighbour x/y ride in DL/DH and are not touched by this routine
+ * itself -- they exist only so its two destination helpers
+ * (fd2_pathfind_record_destination_xy / fd2_pathfind_check_destination_save_path)
+ * can read them. This emit is Layer-2 equivalent: the carry result becomes the int
+ * return (non-zero == binary CLC), the residual handed to the recursion (CL) is
+ * returned through new_cost_out, the ESI base is read from
+ * data_fd2_battle_pathfind_caller_context (the global the orchestrator writes ESI
+ * into at entry), and x/y are passed explicitly so the helpers receive them.
+ *
+ *   x, y           : neighbour tile coordinates (DL/DH; pass-through to helpers).
+ *   remaining_cost : residual movement budget at the source tile (CL).
+ *   btm_attr_ptr   : pointer to the neighbour tile's marker byte (EBX); the 16-bit
+ *                    attribute word lives at [-3..-2], the packed direction nibble
+ *                    at [-2], and the flags byte at [-1] relative to it.
+ *   new_cost_out   : on a non-zero return, receives the residual passed to the
+ *                    neighbour (remaining_cost - tile_cost, forced to 0 for an 0x80
+ *                    sink in modes 0/1).
+ *
+ * Mode (data_fd2_battle_pathfind_mode_flags @ 0x6017A, set by the orchestrator):
+ *   0: standard           -- strictly-better commits; ties never win.
+ *   1: standard + tiebreak -- on a tie, commit iff the new path's direction-change
+ *                            weight (fd2_pathfind_count_unique_directions, a count
+ *                            of direction transitions in the step stack, *4) beats
+ *                            the weight already packed in the marker's [-2] byte.
+ *   2: ignore-obstacles + dst-record -- skips the passability gate and records the
+ *                            destination on every commit.
+ *
+ * On any commit the chosen direction code (count*4) is OR'd into the marker's [-2]
+ * byte, preserving that byte's low 2 bits (the attribute's high 2 bits, which the
+ * cost lookup still needs). In modes 0/1 the marker itself (and the recurse
+ * signal) is then withheld for an 0x40 impassable tile -- but the direction byte
+ * has already been written -- while an 0x80 sink tile is marked reachable with
+ * residual 0 so the search stops expanding past it.
+ *
+ * NOTE: in every commit the value stored into the marker byte ([0]) is the residual
+ * cost CL (== remaining_cost - tile_cost, or 0 for a sink), exactly like the flood
+ * fill; the direction code is stored separately in [-2]. (The original plate
+ * comment mislabelled the marker write as "direction"; corrected here.)
+ * ---------------------------------------------------------------- */
+int fd2_pathfind_neighbor_step_with_tiebreak(uint8 x, uint8 y, uint8 remaining_cost,
+    uint8 *btm_attr_ptr, uint8 *new_cost_out)
+{
+    uint16 attr_word;       /* AX  : raw 16-bit attribute word at [btm_attr_ptr-3] */
+    uint8  cost_idx;        /* CH  : secondary-table index from the primary table */
+    uint8  tile_cost;       /* cost_table[cost_idx] (ESI base) */
+    uint8  new_cost;        /* CL  : remaining_cost - tile_cost */
+    uint8  dir_code;        /* AL  : direction weight from count_unique_directions */
+    uint8  flags;           /* AL  : flags byte at [btm_attr_ptr-1] */
+
+    /* low 10 bits of the attribute word, *4, select the primary-table entry; its
+     * +1 byte is the index into the secondary cost table (ESI base). */
+    attr_word = *(uint16 *)(btm_attr_ptr - 3);
+    cost_idx = *(uint8 *)(data_fd2_battle_pathfind_tile_cost_table_ptr
+        + (uint16)((attr_word & 0x3FF) << 2) + 1);
+    tile_cost = *(uint8 *)(data_fd2_battle_pathfind_caller_context
+        + (uint32)cost_idx);
+
+    /* tile too costly (binary SUB CL,cost -> carry / JC): skip, do not recurse. */
+    if (tile_cost > remaining_cost) {
+        return 0;
+    }
+    new_cost = (uint8)(remaining_cost - tile_cost);
+
+    /* improvement gate is SIGNED (CMP CL,[btm]; JL/JG). */
+    if ((int8)new_cost < (int8)*btm_attr_ptr) {
+        return 0;                                  /* existing strictly better */
+    }
+    if ((int8)new_cost > (int8)*btm_attr_ptr) {
+        dir_code = fd2_pathfind_count_unique_directions();
+    } else {
+        /* tie: only mode 1 attempts the direction-weight tiebreak. */
+        if (data_fd2_battle_pathfind_mode_flags != 1) {
+            return 0;
+        }
+        dir_code = fd2_pathfind_count_unique_directions();
+        /* commit only if the new weight strictly beats the one already packed
+         * into [-2] (its low 2 attr bits masked off): JBE -> skip. */
+        if (dir_code <= (uint8)(*(btm_attr_ptr - 2) & 0xFC)) {
+            return 0;
+        }
+    }
+
+    /* commit: pack the direction code into [-2], preserving its low 2 bits (the
+     * attribute's high 2 bits). */
+    *(btm_attr_ptr - 2) = (uint8)(dir_code | (*(btm_attr_ptr - 2) & 0x03));
+
+    if (data_fd2_battle_pathfind_mode_flags == 2) {
+        /* mode 2: write the residual marker, record the destination, recurse. */
+        *btm_attr_ptr = new_cost;
+        *new_cost_out = new_cost;
+        fd2_pathfind_record_destination_xy(x, y, btm_attr_ptr);
+        return 1;
+    }
+
+    /* modes 0/1: gate the marker write on passability. */
+    flags = *(btm_attr_ptr - 1);
+    if ((flags & 0x40) != 0) {
+        return 0;                                  /* impassable: no marker, no recurse */
+    }
+    if ((flags & 0x80) != 0) {
+        new_cost = 0;                              /* sink: reachable but no expand */
+    }
+    *btm_attr_ptr = new_cost;
+    *new_cost_out = new_cost;
+    fd2_pathfind_check_destination_save_path(x, y);
+    return 1;
+}

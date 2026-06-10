@@ -4677,8 +4677,9 @@
     "name": "fd2_pathfind_neighbor_step_with_tiebreak",
     "target": "util/pathfnd.c",
     "phase": 2,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004e3b3": {
     "name": "fd2_pathfind_record_destination_xy",

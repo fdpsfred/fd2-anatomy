@@ -372,44 +372,40 @@ static void test_nstep_cost_table_indexing(void)
 
 
 /* --- direction-tracked pathfind recursion tests
- * (fd2_pathfind_recursive_with_direction @ 0x4E27C). Until its inner step
- * fd2_pathfind_neighbor_step_with_tiebreak @ 0x4E330 is emitted for real, the
- * recursion is driven against that helper's faithful stub in tests/testglob.c
- * (coordinated landing per open_issues #33). The stub reproduces the binary's
- * mode-0 marker logic (so the marker grid below matches the flood fill's,
- * proving identical traversal order / bounds / +-4 / +-stride / termination)
- * AND records per call the btm offset, residual cost, neighbour x/y and the
- * direction byte found in the active step-stack frame (so this function's
- * load-bearing step-stack bookkeeping -- the part that is NOT just recursion
- * plumbing -- is asserted directly). */
+ * (fd2_pathfind_recursive_with_direction @ 0x4E27C driving the now real inner
+ * step fd2_pathfind_neighbor_step_with_tiebreak @ 0x4E330, both in
+ * src/util/pathfnd.c). In mode 0 the inner step writes the residual into the
+ * marker exactly like the flood fill, so the marker grid below matches the flood
+ * fill's -- proving the direction-tracked recursion walks the same tiles in the
+ * same order with the same bounds / +-4 / +-stride / termination -- while also
+ * packing each visit's direction code into the tile's [-2] (attr-hi) byte, which
+ * these tests assert directly. The real inner step is exercised branch-by-branch
+ * by the dedicated pstep_* unit tests further down. */
 
-extern uint8 *g_ptbs_origin;
-extern int   g_ptbs_calls;
-extern int   g_ptbs_off[64];
-extern uint8 g_ptbs_cost[64];
-extern uint8 g_ptbs_x[64];
-extern uint8 g_ptbs_y[64];
-extern uint8 g_ptbs_dir[64];
-extern int   g_ptbs_depth_max;
+/* Scratch destination output buffer for the real fd2_pathfind_check_destination_
+ * save_path call the inner step makes on every mode-0 commit. */
+static uint8 pf_outbuf[64];
 
 /* Reset the shared ff map + cost tables (open, every step costs 1), zero the
- * recursion stack + depth marker the orchestrator would have cleared, point the
- * stub's offset base at the origin tile's marker, and clear the call recorder.
- * `pf_origin_col/row` is the seed tile. */
-static void pf_reset(int origin_col, int origin_row)
+ * recursion stack + depth marker the orchestrator would have cleared, set mode 0,
+ * point the path output buffer at pf_outbuf, and (unless a test overrides them)
+ * park the destination off-map (0xFF,0xFF) so the inner step's destination check
+ * is inert and best_path_length starts at the orchestrator's 0xFF sentinel. */
+static void pf_reset(void)
 {
     ff_reset();
     memset(data_fd2_battle_pathfind_step_stack, 0, 64 * 8);
+    memset(pf_outbuf, 0, sizeof(pf_outbuf));
     data_fd2_battle_pathfind_current_depth = 0;
-    g_ptbs_origin = &FF_MARK(origin_col, origin_row);
-    g_ptbs_calls = 0;
-    g_ptbs_depth_max = 0;
-    memset(g_ptbs_off, 0, sizeof(g_ptbs_off));
-    memset(g_ptbs_cost, 0, sizeof(g_ptbs_cost));
-    memset(g_ptbs_x, 0, sizeof(g_ptbs_x));
-    memset(g_ptbs_y, 0, sizeof(g_ptbs_y));
-    memset(g_ptbs_dir, 0, sizeof(g_ptbs_dir));
+    data_fd2_battle_pathfind_mode_flags = 0;
+    data_fd2_battle_pathfind_path_output_buffer_ptr = (uint32)pf_outbuf;
+    data_fd2_battle_pathfind_dst_x = 0xFF;
+    data_fd2_battle_pathfind_dst_y = 0xFF;
+    data_fd2_battle_pathfind_best_path_length = 0xFF;
 }
+
+/* attr-hi (the [-2] direction byte) of a tile = its packed direction code. */
+#define FF_DIR(col, row) FF_MAP[((row) * MAPW + (col)) * 4 + 1]
 
 /* Open 5x5, origin centre, cost 3: identical residual diamond to the flood
  * fill (mode-0 commits the residual into the marker exactly as the flood fill
@@ -427,7 +423,7 @@ static void test_pf_open_diamond(void)
     int col;
     int row;
 
-    pf_reset(2, 2);
+    pf_reset();
     FF_MARK(2, 2) = 3;                 /* origin seeded by the orchestrator */
     fd2_pathfind_recursive_with_direction(2, 2, 3, &FF_MARK(2, 2));
 
@@ -441,7 +437,11 @@ static void test_pf_open_diamond(void)
 }
 
 /* Corner origin (0,0), cost 2: left/up are skipped (x==0 / y==0) so no OOB and
- * only the two in-bounds neighbours get marked -- same clamp as the flood fill. */
+ * only the two in-bounds neighbours get marked -- same clamp as the flood fill.
+ * Each of the two marked neighbours improved exactly once and was reached at
+ * depth 1 with the origin frame's single direction byte recorded, so its
+ * direction code = count_unique_directions() over one frame = 1 transition * 4 =
+ * 4, packed into the tile's [-2] (attr-hi) byte. */
 static void test_pf_corner_clamp(void)
 {
     static const uint8 expect[MAPH][MAPW] = {
@@ -454,7 +454,7 @@ static void test_pf_corner_clamp(void)
     int col;
     int row;
 
-    pf_reset(0, 0);
+    pf_reset();
     FF_MARK(0, 0) = 2;
     fd2_pathfind_recursive_with_direction(0, 0, 2, &FF_MARK(0, 0));
 
@@ -463,6 +463,9 @@ static void test_pf_corner_clamp(void)
             ASSERT_EQ(FF_MARK(col, row), expect[row][col]);
         }
     }
+    /* direction code (count*4) packed into [-2] of the two marked neighbours */
+    ASSERT_EQ(FF_DIR(1, 0), 4);        /* right neighbour */
+    ASSERT_EQ(FF_DIR(0, 1), 4);        /* down neighbour */
     ASSERT_TRUE(ff_guards_intact());
     ASSERT_EQ(data_fd2_battle_pathfind_current_depth, 0);
 }
@@ -471,7 +474,7 @@ static void test_pf_corner_clamp(void)
  * pinned to 0 so the recursion stops past it -- same as the flood fill. */
 static void test_pf_blocked_and_sink(void)
 {
-    pf_reset(2, 2);
+    pf_reset();
     FF_FLAGS(3, 2) = 0x40;             /* impassable, east of origin */
     FF_FLAGS(2, 1) = 0x80;             /* sink, north of origin */
     FF_MARK(2, 2) = 4;
@@ -487,71 +490,294 @@ static void test_pf_blocked_and_sink(void)
     ASSERT_EQ(data_fd2_battle_pathfind_current_depth, 0);
 }
 
-/* Direction bookkeeping in isolation: with cost 1 and a step cost of 1 every
- * neighbour's new residual is 0, which never improves the existing 0 marker, so
- * the inner step returns "no improve" for all four neighbours and the recursion
- * never descends. Exactly four calls happen, all from the origin, in the binary
- * order right/left/down/up with direction codes 3/1/0/2 and btm offsets
- * +4 / -4 / +stride / -stride; the neighbour coords and the active-frame
- * direction byte the stub observed must match. Depth was 1 during the calls and
- * returns to 0 afterwards. */
-static void test_pf_direction_codes_and_offsets(void)
+/* Destination recording (mode 0): with a real destination set at the corner
+ * (0,0) of an open 5x5 and the origin at the centre, the search reaches (0,0)
+ * and fd2_pathfind_check_destination_save_path snapshots the direction sequence
+ * of the best (shortest) path into the output buffer. The shortest path centre
+ * (2,2) -> (0,0) is 4 steps; best_path_length is updated to that depth and the 4
+ * recorded direction bytes are the per-level frame [+3] codes copied out. */
+static void test_pf_destination_path_recorded(void)
 {
-    int stride;
+    pf_reset();
+    data_fd2_battle_pathfind_dst_x = 0;
+    data_fd2_battle_pathfind_dst_y = 0;
+    FF_MARK(2, 2) = 5;                 /* budget 5 reaches (0,0) at distance 4 */
+    fd2_pathfind_recursive_with_direction(2, 2, 5, &FF_MARK(2, 2));
 
-    pf_reset(2, 2);
-    FF_MARK(2, 2) = 1;
-    fd2_pathfind_recursive_with_direction(2, 2, 1, &FF_MARK(2, 2));
-
-    stride = (int)data_fd2_battle_pathfind_map_width * 4;
-
-    /* nothing improved -> no recursion -> exactly the four origin neighbours */
-    ASSERT_EQ(g_ptbs_calls, 4);
-
-    /* right: dir 3, btm +4, neighbour (3,2) */
-    ASSERT_EQ(g_ptbs_dir[0], 3);
-    ASSERT_EQ(g_ptbs_off[0], 4);
-    ASSERT_EQ(g_ptbs_x[0], 3);
-    ASSERT_EQ(g_ptbs_y[0], 2);
-    /* left: dir 1, btm -4, neighbour (1,2) */
-    ASSERT_EQ(g_ptbs_dir[1], 1);
-    ASSERT_EQ(g_ptbs_off[1], -4);
-    ASSERT_EQ(g_ptbs_x[1], 1);
-    ASSERT_EQ(g_ptbs_y[1], 2);
-    /* down: dir 0, btm +stride, neighbour (2,3) */
-    ASSERT_EQ(g_ptbs_dir[2], 0);
-    ASSERT_EQ(g_ptbs_off[2], stride);
-    ASSERT_EQ(g_ptbs_x[2], 2);
-    ASSERT_EQ(g_ptbs_y[2], 3);
-    /* up: dir 2, btm -stride, neighbour (2,1) */
-    ASSERT_EQ(g_ptbs_dir[3], 2);
-    ASSERT_EQ(g_ptbs_off[3], -stride);
-    ASSERT_EQ(g_ptbs_x[3], 2);
-    ASSERT_EQ(g_ptbs_y[3], 1);
-
-    /* every call was made at depth 1 (origin level); never deeper */
-    ASSERT_EQ(g_ptbs_depth_max, 1);
-    /* the four residuals passed in are all the origin's cost (1) */
-    ASSERT_EQ(g_ptbs_cost[0], 1);
-    ASSERT_EQ(g_ptbs_cost[3], 1);
+    /* the destination was reached at depth 4 (a 4-step path) */
+    ASSERT_EQ(data_fd2_battle_pathfind_best_path_length, 4);
+    /* the 4 output bytes are valid direction codes (3=right/1=left/0=down/2=up)
+     * and the tile got marked with its residual (5 - 4 steps = 1) */
+    ASSERT_EQ(FF_MARK(0, 0), 1);
+    ASSERT_TRUE(pf_outbuf[0] <= 3 && pf_outbuf[1] <= 3
+        && pf_outbuf[2] <= 3 && pf_outbuf[3] <= 3);
     ASSERT_EQ(data_fd2_battle_pathfind_current_depth, 0);
 }
 
-/* When the recursion does descend, the depth marker climbs: from the centre of
- * an open map with cost 3 the search reaches tiles two steps out, so a
- * neighbour step is issued at depth 3 (origin depth 1 -> neighbour depth 2 ->
- * its neighbour depth 3). The per-level step-stack frames at successive depths
- * carry the branch direction; verify the deepest observed call depth and that
- * the recorder logged more than the four origin neighbours. */
-static void test_pf_depth_climbs_on_descent(void)
-{
-    pf_reset(2, 2);
-    FF_MARK(2, 2) = 3;
-    fd2_pathfind_recursive_with_direction(2, 2, 3, &FF_MARK(2, 2));
+/* --- direct inner-step tests (fd2_pathfind_neighbor_step_with_tiebreak
+ * @ 0x4E330). Drive the real step against a single tile so each
+ * cost/improvement/tiebreak/mode/flag branch is hit in isolation. The marker
+ * byte sits at +3 of a 4-byte tile; the step reads the attr word at [-3..-2], the
+ * flags byte at [-1], and -- crucially -- packs the direction code into the
+ * [-2] byte, which is the attribute word's HIGH byte. So the "direction nibble"
+ * and the attribute high byte are the same storage: a commit OR's the direction
+ * weight into [-2] while preserving its low 2 bits (the attribute's bits 8-9).
+ *
+ * These tests use their own cost tables (ps_tct / ps_costtab) sized to span the
+ * full 10-bit attribute index, so any attribute value (including one with bits
+ * 8-9 set, used to exercise the low-2-bit preservation) resolves to a defined
+ * cost. ps_setup(cost) wires every attribute to that single cost; the indexing
+ * test overrides a specific tct/costtab entry. count_unique_directions() walks
+ * `current_depth` step-stack frames, so every test that reaches it sets a real
+ * depth (>=1) and frame contents -- depth 0 is never valid (the binary only calls
+ * it from inside the recursion, which always holds at least the origin frame). */
 
-    ASSERT_EQ(g_ptbs_depth_max, 3);
-    ASSERT_TRUE(g_ptbs_calls > 4);
-    ASSERT_EQ(data_fd2_battle_pathfind_current_depth, 0);
+#define PS_TCT_N 0x1000             /* spans (0x3FF<<2)+1 = 4093 */
+static uint8 ps_tct[PS_TCT_N];
+static uint8 ps_costtab[256];
+
+/* Wire every attribute -> tile cost `cost` (all tct entries 0 -> costtab[0]). */
+static void ps_setup(uint8 cost)
+{
+    pf_reset();
+    memset(ps_tct, 0, sizeof(ps_tct));
+    memset(ps_costtab, 0, sizeof(ps_costtab));
+    ps_costtab[0] = cost;
+    data_fd2_battle_pathfind_tile_cost_table_ptr = (uint32)ps_tct;
+    data_fd2_battle_pathfind_caller_context = (uint32)ps_costtab;
+    /* default: a single origin frame whose dir matches prev sentinel so
+     * count_unique_directions() yields weight 0 unless a test sets otherwise. */
+    data_fd2_battle_pathfind_current_depth = 1;
+    data_fd2_battle_pathfind_step_stack[0 * 8 + 3] = 0xFF;   /* == prev -> 0 */
+}
+
+/* Place attr/flags/marker on tile (2,2), set the mode, run the step with the
+ * given residual and neighbour coords, return what it returned; *out receives the
+ * residual handed back. The [-2] byte is the attr high byte ((attr>>8)&0xFF). */
+static int pstep_run(uint16 attr, uint8 flags, uint8 marker,
+    uint8 mode, uint8 remaining, uint8 nx, uint8 ny, uint8 *out)
+{
+    uint8 *tile;
+
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    tile[0] = (uint8)(attr & 0xFF);
+    tile[1] = (uint8)(attr >> 8);      /* [-2] relative to the marker = attr hi */
+    tile[2] = flags;
+    tile[3] = marker;
+    data_fd2_battle_pathfind_mode_flags = mode;
+    *out = 0;
+    return fd2_pathfind_neighbor_step_with_tiebreak(nx, ny, remaining, &tile[3], out);
+}
+
+/* Strictly-better commit (mode 0): affordable, passable, new residual beats the
+ * marker -> marker rewritten to the residual, the direction weight OR'd into [-2]
+ * (preserving its low 2 attr bits), returns 1, out mirrors the residual. attr
+ * 0x0300 sets [-2]'s low 2 bits (attr bits 8-9); with the default weight-0 frame
+ * [-2] keeps exactly those preserved bits. */
+static void test_pstep_strict_improve_commits(void)
+{
+    uint8 *tile;
+    uint8 out;
+    int ret;
+
+    ps_setup(1);
+    ret = pstep_run(0x0300, 0x00, 0, 0, 5, 3, 2, &out);
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    ASSERT_EQ(ret, 1);
+    ASSERT_EQ(tile[3], 4);             /* residual 5 - cost 1 */
+    ASSERT_EQ(out, 4);
+    ASSERT_EQ(tile[1], 0x03);          /* weight 0 | preserved low 2 bits */
+    ASSERT_TRUE(ff_guards_intact());
+}
+
+/* count_unique_directions() drives the packed direction weight: with depth 1 and
+ * a single frame whose [+3] = 2 the transition count from prev 0xFF is 1 ->
+ * weight 4, OR'd into [-2] over its preserved low 2 bits (attr 0x0200 -> 0x02). */
+static void test_pstep_direction_code_packed(void)
+{
+    uint8 *tile;
+    uint8 out;
+    int ret;
+
+    ps_setup(1);
+    data_fd2_battle_pathfind_current_depth = 1;
+    data_fd2_battle_pathfind_step_stack[0 * 8 + 3] = 2;
+    ret = pstep_run(0x0200, 0x00, 0, 0, 5, 3, 2, &out);
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    ASSERT_EQ(ret, 1);
+    ASSERT_EQ(tile[1], (uint8)(4 | 0x02));   /* weight 4 | preserved low 2 bits */
+    ASSERT_TRUE(ff_guards_intact());
+}
+
+/* Unaffordable (binary SUB borrow / JC): tile cost > remaining -> no write at
+ * all (neither marker nor direction byte), returns 0. cost 3, remaining 2. */
+static void test_pstep_unaffordable_rejected(void)
+{
+    uint8 *tile;
+    uint8 out;
+    int ret;
+
+    ps_setup(3);
+    ret = pstep_run(0x0000, 0x00, 7, 0, 2, 3, 2, &out);
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    ASSERT_EQ(ret, 0);
+    ASSERT_EQ(tile[3], 7);             /* marker untouched */
+    ASSERT_EQ(tile[1], 0x00);          /* direction byte (attr hi) untouched */
+    ASSERT_TRUE(ff_guards_intact());
+}
+
+/* Existing strictly better (CMP CL,[btm]; JL): new residual < marker -> reject,
+ * no write, returns 0. The improvement test is SIGNED. cost 1, new 4 < marker 6. */
+static void test_pstep_existing_better_rejected(void)
+{
+    uint8 *tile;
+    uint8 out;
+    int ret;
+
+    ps_setup(1);
+    ret = pstep_run(0x0000, 0x00, 6, 0, 5, 3, 2, &out);
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    ASSERT_EQ(ret, 0);
+    ASSERT_EQ(tile[3], 6);
+    ASSERT_EQ(tile[1], 0x00);
+    ASSERT_TRUE(ff_guards_intact());
+}
+
+/* Tie in mode 0: new residual == marker is not strictly better and mode != 1, so
+ * the tie path rejects (no write), returns 0. cost 1, new 4 == marker 4. */
+static void test_pstep_tie_mode0_rejected(void)
+{
+    uint8 *tile;
+    uint8 out;
+    int ret;
+
+    ps_setup(1);
+    ret = pstep_run(0x0000, 0x00, 4, 0, 5, 3, 2, &out);
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    ASSERT_EQ(ret, 0);
+    ASSERT_EQ(tile[3], 4);
+    ASSERT_EQ(tile[1], 0x00);
+    ASSERT_TRUE(ff_guards_intact());
+}
+
+/* Tie in mode 1, new weight WINS: on a tie mode 1 compares the new direction
+ * weight (count_unique_directions) against the marker's [-2] & 0xFC. With depth 1
+ * frame[+3]=0 the new weight is 4; [-2] starts 0 (& 0xFC = 0) so 4 > 0 -> commit:
+ * marker rewritten to the residual, [-2] OR'd to 4, returns 1. */
+static void test_pstep_tie_mode1_wins(void)
+{
+    uint8 *tile;
+    uint8 out;
+    int ret;
+
+    ps_setup(1);
+    data_fd2_battle_pathfind_current_depth = 1;
+    data_fd2_battle_pathfind_step_stack[0 * 8 + 3] = 0;    /* 1 transition -> 4 */
+    ret = pstep_run(0x0000, 0x00, 4, 1, 5, 3, 2, &out);    /* tie: new 4 == marker 4 */
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    ASSERT_EQ(ret, 1);
+    ASSERT_EQ(tile[3], 4);             /* committed residual */
+    ASSERT_EQ(tile[1], 4);             /* weight 4 | preserved 0 */
+    ASSERT_EQ(out, 4);
+    ASSERT_TRUE(ff_guards_intact());
+}
+
+/* Tie in mode 1, new weight does NOT win: new weight 4 vs existing [-2] & 0xFC =
+ * 8 -> 4 <= 8 (JBE) rejects, no write, returns 0. attr 0x0800 sets [-2] = 0x08. */
+static void test_pstep_tie_mode1_loses(void)
+{
+    uint8 *tile;
+    uint8 out;
+    int ret;
+
+    ps_setup(1);
+    data_fd2_battle_pathfind_current_depth = 1;
+    data_fd2_battle_pathfind_step_stack[0 * 8 + 3] = 0;    /* new weight 4 */
+    ret = pstep_run(0x0800, 0x00, 4, 1, 5, 3, 2, &out);    /* [-2]=0x08 -> weight 8 */
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    ASSERT_EQ(ret, 0);
+    ASSERT_EQ(tile[3], 4);             /* marker untouched */
+    ASSERT_EQ(tile[1], 0x08);          /* direction byte untouched */
+    ASSERT_TRUE(ff_guards_intact());
+}
+
+/* Mode 0/1 impassable (flags & 0x40): the direction byte is still written (the
+ * binary packs [-2] before the passability gate), but the marker is NOT written
+ * and the step returns 0 (no recurse). attr 0x0300 -> preserved low 2 bits 0x03,
+ * default weight-0 frame -> [-2] becomes 0x03. */
+static void test_pstep_impassable_writes_dir_not_marker(void)
+{
+    uint8 *tile;
+    uint8 out;
+    int ret;
+
+    ps_setup(1);
+    ret = pstep_run(0x0300, 0x40, 0, 0, 5, 3, 2, &out);
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    ASSERT_EQ(ret, 0);
+    ASSERT_EQ(tile[3], 0);             /* marker NOT written */
+    ASSERT_EQ(tile[1], 0x03);          /* weight 0 | preserved low 2 bits */
+    ASSERT_TRUE(ff_guards_intact());
+}
+
+/* Mode 0/1 sink (flags & 0x80): reachable but the residual written is forced to
+ * 0 (and handed back as 0) so the recursion stops; still returns 1. */
+static void test_pstep_sink_forces_zero(void)
+{
+    uint8 *tile;
+    uint8 out;
+    int ret;
+
+    ps_setup(1);
+    ret = pstep_run(0x0000, 0x80, 0, 0, 5, 3, 2, &out);
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    ASSERT_EQ(ret, 1);
+    ASSERT_EQ(tile[3], 0);             /* forced to 0, not 4 */
+    ASSERT_EQ(out, 0);
+    ASSERT_TRUE(ff_guards_intact());
+}
+
+/* Mode 2 (ignore-obstacles + dst-record): commit writes the residual marker even
+ * for a tile that mode 0/1 would treat as impassable, and -- because the tile
+ * carries 0x40 -- fd2_pathfind_record_destination_xy snapshots the neighbour x/y
+ * into the output buffer and sets best_path_length = 1. Returns 1. */
+static void test_pstep_mode2_records_destination(void)
+{
+    uint8 *tile;
+    uint8 out;
+    int ret;
+
+    ps_setup(1);
+    /* flags 0x40 makes record_destination_xy fire (it gates on btm[-1] & 0x40) */
+    ret = pstep_run(0x0000, 0x40, 0, 2, 5, 3, 2, &out);
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    ASSERT_EQ(ret, 1);
+    ASSERT_EQ(tile[3], 4);             /* mode 2 writes the residual marker */
+    ASSERT_EQ(out, 4);
+    ASSERT_EQ(pf_outbuf[0], 3);        /* neighbour x */
+    ASSERT_EQ(pf_outbuf[1], 2);        /* neighbour y */
+    ASSERT_EQ(data_fd2_battle_pathfind_best_path_length, 1);
+    ASSERT_TRUE(ff_guards_intact());
+}
+
+/* Two-level cost lookup in the step: attr=1 -> tct[(1<<2)+1]=tct[5]; set tct[5]=2
+ * -> costtab[2]=3, so tile cost 3; remaining 10 -> new 7 (> marker 0 -> commit).
+ * attr bit10 (0x400) is masked off so it resolves identically to attr 1. */
+static void test_pstep_cost_table_indexing(void)
+{
+    uint8 *tile;
+    uint8 out;
+    int ret;
+
+    ps_setup(0);                       /* baseline cost 0; override the attr-1 path */
+    ps_tct[5] = 2;
+    ps_costtab[2] = 3;
+    ret = pstep_run((uint16)(0x0400 | 1), 0x00, 0, 0, 10, 3, 2, &out);
+    tile = &FF_MAP[(2 * MAPW + 2) * 4];
+    ASSERT_EQ(ret, 1);
+    ASSERT_EQ(tile[3], 7);             /* 10 - 3 */
+    ASSERT_EQ(out, 7);
+    ASSERT_TRUE(ff_guards_intact());
 }
 
 void run_util_pathfnd_tests(void)
@@ -573,7 +799,17 @@ void run_util_pathfnd_tests(void)
     RUN_TEST(test_pf_open_diamond);
     RUN_TEST(test_pf_corner_clamp);
     RUN_TEST(test_pf_blocked_and_sink);
-    RUN_TEST(test_pf_direction_codes_and_offsets);
-    RUN_TEST(test_pf_depth_climbs_on_descent);
+    RUN_TEST(test_pf_destination_path_recorded);
+    RUN_TEST(test_pstep_strict_improve_commits);
+    RUN_TEST(test_pstep_direction_code_packed);
+    RUN_TEST(test_pstep_unaffordable_rejected);
+    RUN_TEST(test_pstep_existing_better_rejected);
+    RUN_TEST(test_pstep_tie_mode0_rejected);
+    RUN_TEST(test_pstep_tie_mode1_wins);
+    RUN_TEST(test_pstep_tie_mode1_loses);
+    RUN_TEST(test_pstep_impassable_writes_dir_not_marker);
+    RUN_TEST(test_pstep_sink_forces_zero);
+    RUN_TEST(test_pstep_mode2_records_destination);
+    RUN_TEST(test_pstep_cost_table_indexing);
     printf("\n");
 }

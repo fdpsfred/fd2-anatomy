@@ -1240,6 +1240,7 @@ uint32 data_fd2_battle_pathfind_path_output_buffer_ptr = 0;
 uint8  data_fd2_battle_pathfind_current_depth = 0;
 uint8  data_fd2_battle_pathfind_best_path_length = 0;
 uint8  data_fd2_battle_pathfind_step_stack[256] = {0};
+uint8  data_fd2_battle_pathfind_mode_flags = 0;
 void  *data_fd2_animation_ani_decoder_frame_dispatch_table[10] = {0};
 uint16 data_fd2_animation_ani_decoder_target_width = 0;
 uint32 data_fd2_animation_ani_decoder_dst_buf = 0;
@@ -1414,86 +1415,56 @@ void fd2_init_movement_range_floodfill(uint32 ct, uint32 x, uint32 y,
  * removed; the floodfill caller tests in tests/util/pathfnd.c now drive the
  * real helper and assert the resulting marker grid directly. */
 
-/* fd2_pathfind_neighbor_step_with_tiebreak @ 0x4E330 — one of the 6 internal
- * pathfind helpers (open_issues #33); not yet emitted, so its real body lives
- * here as a faithful test stub that the emitted
- * fd2_pathfind_recursive_with_direction @ 0x4E27C drives. It (a) records every
- * call (btm offset relative to g_ptbs_origin, the residual cost passed in, the
- * neighbour x/y, and the direction byte currently in the active step-stack
- * frame) so the recursion's traversal order / bounds / +-4 / +-stride
- * arithmetic AND its step-stack direction bookkeeping can be asserted, and
- * (b) reproduces the binary's mode-0 marker-update + carry logic so a small
- * real tile map yields the exact pathfinding marker grid (mode 0 writes the
- * residual into the marker exactly like the flood fill; the direction-grid
- * packing into btm[-2] and modes 1/2 random-tiebreak / dst-record are covered
- * by the real body when 0x4E330 is emitted for real, at which point this stub +
- * the g_ptbs_* recorders are removed -- coordinated landing per open_issues
- * #33). */
-uint8 *g_ptbs_origin = 0;     /* btm marker addr of the seed tile (offset base) */
-int   g_ptbs_calls = 0;       /* total neighbour-step invocations */
-int   g_ptbs_off[64];         /* (btm_attr_ptr - g_ptbs_origin) per call */
-uint8 g_ptbs_cost[64];        /* remaining_cost passed in per call */
-uint8 g_ptbs_x[64];           /* neighbour x passed in per call */
-uint8 g_ptbs_y[64];           /* neighbour y passed in per call */
-uint8 g_ptbs_dir[64];         /* dir byte in the active step-stack frame per call */
-int   g_ptbs_depth_max = 0;   /* max current_depth observed across all calls */
-int fd2_pathfind_neighbor_step_with_tiebreak(uint8 x, uint8 y, uint8 remaining_cost,
-    uint8 *btm_attr_ptr, uint8 *new_cost_out)
+/* fd2_pathfind_record_destination_xy @ 0x4E3B3 and
+ * fd2_pathfind_check_destination_save_path @ 0x4E401 — the two destination
+ * helpers called by the now-real fd2_pathfind_neighbor_step_with_tiebreak
+ * @ 0x4E330 (src/util/pathfnd.c). They are not yet emitted for real (their own
+ * routing entries 0x4E3B3 / 0x4E401), so their faithful bodies live here as test
+ * stubs so the real neighbour step links. Both are pure pathfind-global routines:
+ * record_destination_xy snapshots the destination tile's x/y into the path output
+ * buffer when the tile carries the 0x40 flag (mode 2), and
+ * check_destination_save_path snapshots the current direction sequence as the new
+ * best path whenever the search reaches the destination at a not-worse depth
+ * (modes 0/1). The neighbour-step tests in tests/util/pathfnd.c drive these end to
+ * end through the real step and assert the resulting marker / direction / path
+ * output directly. When 0x4E3B3 / 0x4E401 are emitted for real these stubs are
+ * removed. */
+void fd2_pathfind_record_destination_xy(uint8 x, uint8 y, uint8 *btm_attr_ptr)
 {
-    uint16  attr_word;
-    uint8   cost_idx;
-    uint8   tile_cost;
-    uint8   new_cost;
-    uint8   flags;
-    int8    existing;
-    int     depth;
+    uint8 *out_buf;
 
-    if (g_ptbs_calls < 64) {
-        g_ptbs_off[g_ptbs_calls] = (int)(btm_attr_ptr - g_ptbs_origin);
-        g_ptbs_cost[g_ptbs_calls] = remaining_cost;
-        g_ptbs_x[g_ptbs_calls] = x;
-        g_ptbs_y[g_ptbs_calls] = y;
-        /* the active frame is the one written by the *current* recursion level,
-         * i.e. at depth-1 (the recursion increments depth right after pushing
-         * its frame); its [+3] byte is the direction this branch tagged. */
-        depth = (int)data_fd2_battle_pathfind_current_depth;
-        g_ptbs_dir[g_ptbs_calls] =
-            data_fd2_battle_pathfind_step_stack[(depth - 1) * 8 + 3];
+    if ((*(btm_attr_ptr - 1) & 0x40) != 0) {
+        out_buf = (uint8 *)data_fd2_battle_pathfind_path_output_buffer_ptr;
+        out_buf[0] = x;
+        out_buf[1] = y;
+        data_fd2_battle_pathfind_best_path_length = 1;
     }
-    if ((int)data_fd2_battle_pathfind_current_depth > g_ptbs_depth_max) {
-        g_ptbs_depth_max = (int)data_fd2_battle_pathfind_current_depth;
-    }
-    g_ptbs_calls++;
+}
 
-    /* attr index = low 10 bits of the 16-bit word at [btm-3..-2] */
-    attr_word = (uint16)(*(uint16 *)(btm_attr_ptr - 3) & 0x03FF);
-    cost_idx = ((uint8 *)data_fd2_battle_pathfind_tile_cost_table_ptr)
-        [(uint16)(attr_word << 2) + 1];
-    tile_cost = ((uint8 *)data_fd2_battle_pathfind_caller_context)[cost_idx];
+void fd2_pathfind_check_destination_save_path(uint8 x, uint8 y)
+{
+    uint8 *out_buf;
+    uint8 *stack_iter;
+    uint8  remain;
 
-    /* SUB underflow guard (unsigned borrow) -> carry set, do not recurse */
-    if (tile_cost > remaining_cost) {
-        return 0;
+    if (x == data_fd2_battle_pathfind_dst_x
+        && y == data_fd2_battle_pathfind_dst_y
+        && data_fd2_battle_pathfind_current_depth
+               <= data_fd2_battle_pathfind_best_path_length) {
+        data_fd2_battle_pathfind_best_path_length =
+            data_fd2_battle_pathfind_current_depth;
+        if (data_fd2_battle_pathfind_current_depth != 0) {
+            stack_iter = data_fd2_battle_pathfind_step_stack;
+            out_buf = (uint8 *)data_fd2_battle_pathfind_path_output_buffer_ptr;
+            remain = data_fd2_battle_pathfind_current_depth;
+            do {
+                *out_buf = stack_iter[3];
+                stack_iter += 8;
+                out_buf += 1;
+                remain--;
+            } while (remain != 0);
+        }
     }
-    new_cost = (uint8)(remaining_cost - tile_cost);
-
-    existing = (int8)*btm_attr_ptr;
-    /* mode-0 improvement gate: strictly-better (JG) commits; equal (tie) is
-     * rejected because the tie path only proceeds when mode == 1 (JL/JLE in
-     * the binary -> here new_cost <= existing is a skip in mode 0). */
-    if ((int8)new_cost <= existing) {
-        return 0;
-    }
-    flags = *(btm_attr_ptr - 1);
-    if ((flags & 0x40) != 0) {        /* impassable */
-        return 0;
-    }
-    if ((flags & 0x80) != 0) {        /* movement sink: reachable, no expand */
-        new_cost = 0;
-    }
-    *btm_attr_ptr = new_cost;
-    *new_cost_out = new_cost;
-    return 1;
 }
 /* fd2_compute_aoe_targets: now in btl_ai.c */
 /* fd2_pan_cursor_to_char: already in cursor.c */
