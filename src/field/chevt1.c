@@ -121,6 +121,9 @@
  * fd2_chapter_event_handler_29__unref_drop @ 0x34FF0
  *     (0 direct callers; dispatched as idx 0x29 of the per-event
  *      handler table at 0x51B91)
+ * fd2_chapter_event_handler_2a__ch18_dialog @ 0x3505F
+ *     (0 direct callers; dispatched as idx 0x2A of the per-event
+ *      handler table at 0x51B91)
  */
 
 #include <string.h>
@@ -1897,5 +1900,47 @@ void fd2_chapter_event_handler_29__unref_drop(uint32 stepping_char_id)
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_process_battle_drop_entries(stepping_char_id, 1, (uint32)drop_entry);
     fd2_display_dialog_scene(current_chapter_text, 4, 0xA0000, 0x140,
+                             0xCD, 0x4C, 0x4A, 0x13, 1);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_chapter_event_handler_2a__ch18_dialog @ 0x3505F
+ *   — Chapter 18 turn-event slot 1 (triggered at turn 8 / phase 0),
+ *     dispatched as idx 0x2A of the per-event handler table at 0x51B91.
+ *
+ * ch18 turn-8 beat: the dialog that accompanies the enemy reinforcement
+ * wave appearing on the left at the end of the player's 8th turn. Portrait
+ * set 1 reloads, then dialog page 6 is shown. A straight-line, no-branch
+ * sequence with no cutscene trigger, no camera pan, no state writes beyond
+ * the portrait reload, no RNG, no numeric computation, and no CALL-return
+ * value used (fd2_display_dialog_scene's uint32 return is discarded).
+ *
+ * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
+ * (1-arg uniform cdecl); the body never reads the arg. EBX is not
+ * touched; the __CHK(0x28) stack-probe prologue is compiler-injected
+ * and omitted here.
+ *
+ * In the original binary this handler reloads portrait set 1, prepares its
+ * own 8 PUSHes (page=6 plus the fixed dialog geometry), and then JMPs
+ * (0x3508C -> 0x34C0F) into the "PUSH current_chapter_text; CALL
+ * fd2_display_dialog_scene; ADD ESP,0x24; RET" tail of
+ * fd2_show_chapter_dialog_with_portrait_set_1 @ 0x34BE7 (entry +0x28).
+ * That borrowed tail is an in-binary code-folding artifact; its effect —
+ * the page-6 dialog — is reproduced here as the inline call for Layer-2
+ * equivalence.
+ *
+ * Magic numbers (matching every dialog call in this group):
+ *   0xA0000 VGA framebuffer base, 0x140 (=320) row stride,
+ *   0xCD/0x4C dialog window position (X, Y), 0x4A charset/style code,
+ *   0x13 (=19) max line count, 1 wait-for-input flag.
+ *
+ * Walkthrough SOT: assets/chapters/chapter_18.md
+ * ---------------------------------------------------------------- */
+void fd2_chapter_event_handler_2a__ch18_dialog(uint32 event_arg)
+{
+    (void)event_arg;
+
+    fd2_load_chapter_portraits_and_dump_tmp(1);
+    fd2_display_dialog_scene(current_chapter_text, 6, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
