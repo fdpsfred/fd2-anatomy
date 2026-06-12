@@ -37,9 +37,19 @@ context 接續。
   `tests/testglob.c` 且被跨 branch + base 套件依賴，無法單分支落地。完整依據在 p4 worktree 的
   `open_issues.md` #32 / #33 / #34 與 `src/emit_issues.json` `0002935b`。
 
-**Phase 2 手動 merge cascade — merge 1 的 build-gate 級聯遷移中**
+**Phase 2 手動 merge cascade — merge 1、merge 2 完成；merge 3（emit-p4）待做**
 - 順序：`integ`(=p1) ← `emit-p2` ← `emit-p3` ← `emit-p4`，在主 repo 工作目錄序列做。
-- **merge 1（`integ` ← `emit-p2`）：`git merge --no-commit` 進行中、衝突已全解且 staged、尚未 commit。**
+- **merge 1（`integ` ← `emit-p2`）：完成** — commit `588d8a6`（merge 本體）+ `b6d7f13`（DOSBox-X fault
+  logging + handoff 新作業方式）。
+- **merge 2（`integ` ← `emit-p3`）：完成** — commit `98ea47b`。跨 branch 簽名衝突（23 個 E1071 + 10 個
+  W101）依各函式 Ghidra body 用法以「真型別」收斂：A. 純轉手位址型參數改 uint32（`step_figani` dst_stride、
+  `play_figani` dst_buf/bg_layer_a/bg_layer_b、`animate_spell_hit` bg_workbuf，改 `anicine.c` def + `protos.h`、
+  body 不動）；B. 真指標維持指標、caller 加 cast（`resolve_terrain` uint8*、`play_figani` caster/target_figani
+  uint8*、`rle_blit` rle_stream uint16*，改 `anispell.c`/`spellcin.c` caller）；C. shop item-id 陣列全鏈統一
+  uint8*（`run_buy`/`open_shop_dialog_panel`/`shop_menu_input_loop` + `protos.h`，`run_sell`/`run_give` 去掉
+  `(uint32)` cast；使用者選定「全鏈 uint8*」）。Watcom 顯式 cast 不報 W101（只對 call-site 隱式轉換報），
+  故 A2 body 的 `(uint16*)bg_layer_a` 顯式 cast 無新 warning。測試 caller 同步對齊
+  （`tests/anim/anicine2.c`、`tests/ui_menu/shop1.c`）；testglob.c stub 不 include protos.h、無須改。
 
 - **⚑⚑ 當前操作策略（使用者定，覆寫 §3 的「逐一遷移到全綠才前進」與舊的 SKIP-to-green 做法）**：
   每個 merge 的 gate = **compile + link 通過、`error_count=0`、`warning_count=0`**（`warning_count` 指
@@ -55,12 +65,14 @@ context 接續。
   `rndmenu.c` owner 的 `fd2_render_promote_*_grid` 簽名 + globals.h `candidate_array_ptr` 型別 dedup）。
   （headers `globals.h`/`protos.h` 的重複 extern dedup / 型別 union 屬 merge 機制，不算「改 code」。）
 
-- **新 session 起手（完成 p2 commit）**：`git status`（`MERGE_HEAD`=emit-p2）→ `--diff-filter=U` 空 →
-  `python tools/emit/build_test.py` 確認 `error_count=0` 且 `warning_count=0`（**這就是 gate；run 階段
-  hang/fail 一律忽略**）→ `git commit` 完成 merge 1。merge 1 已做的 partial test skip（見下「partial skip
-  紀錄」）保留不動、留待系統性修復階段。
+- **新 session 起手（merge 3）**：`git status`（乾淨、HEAD=`98ea47b`）→ `git merge --no-ff --no-commit emit-p4`
+  → 依 §3 逐衝突檔手解（testglob.c 依 routing `done` 去留 stub、headers 取型別正解聯集、跨 branch 簽名衝突看
+  Ghidra body 定真型別）→ genbuild 三檔重生 → `build_test.py` 應 `error_count=0 && warning_count=0` →
+  `git commit` 完成 merge 3。emit-p4 仍含 22 個 coordinated-landing function（§4 Phase 2.5 處理），merge 3 只合
+  p4 已完成的 71 個 + 衝突解。**修完 compile error 後務必確認 link 也過**（merge 2 曾因 compile error 卡住、
+  link 期的 undefined-symbol straggler 到修完才浮現）。
 
-- **已完成遷移（全已存檔；src 僅 1 處、其餘全 tests/）**：
+- **merge 1 已完成遷移（committed `588d8a6`；src 僅 `promote.c` 一處、其餘全 tests/）**：
   - `src/ui_menu/promote.c`：6 個指標 cast `(int)/(uint32)`→`uint8 *`（**唯一手改的 src/*.c**，使用者
     核准 option A）。根因＝跨 branch 簽名衝突：`fd2_render_promote_*_grid` owner 是 p1 `src/gfx/rndmenu.c`，
     body 把 param 4 當 `uint8 *` 陣列索引（語意正解），p2 caller 用了較鬆的 int。（Ghidra 內這兩函式
@@ -90,8 +102,8 @@ context 接續。
     （roster/promo/cand 共用）；`g_portrait_cache` 已 256→4096。
   - **關鍵**：舊測試傳假 dst（0x1000）給只記錄的 spy；真 blitter 會實寫 → 必須傳真 surface buffer。
 
-- **merge 1 gate 狀態**：compile + link 通過、`error_count=0`、`warning_count=0`（已驗）→ **可直接 commit**。
-  以下全部非 merge blocker、留待系統性修復階段。
+- **merge 1：已 commit（`588d8a6`）**。以下（partial skip 紀錄 + cinematic 診斷）全部非 merge blocker、
+  留待系統性修復階段；merge 2/3 也會累積同類 skip。
 
 - **partial skip 紀錄（merge 1 期間做的；systematic phase 須重跑全套、勿當完整清單）**：因 stub→real cascade
   無法在 host 跑的 cinematic 測試已在各 suite `run_*_tests()` 註解掉（附 ASCII `/* SKIP: … */`）——
@@ -99,6 +111,13 @@ context 接續。
   （portrait_index×2 + h36_raw_counter + h34 white-flash×3）、`chevt24.c` 3 個（h46×3）。**未 skip 但已知
   待修**：chevt22/23/25/26 等仍有同類 real-cinematic spinner；assertion FAIL（如 chend2 ch21×2：
   `fd2_find_inventory_slot_with_item` 變 real → stub recorder `g_ce_find_calls` 失效，expected 96 got 0）。
+
+- **partial skip 紀錄（merge 2 期間做的）**：`tests/field/chpost.c` 的 chapter-17 suite 4 個測試在
+  `run_field_chpost_tests()` 註解掉（附 `/* SKIP */`）並把 `g_has_char_*` 改為檔內 placeholder 讓它 link——
+  它們驅動的 `fd2_check_party_has_char_id` fake 已隨該函式 emit real（`src/util/misc.c`）被移除，systematic phase
+  改成驅動真函式（seed `data_fd2_shared_menu_party_roster_buffer_ptr`，仿 `tests/gfx/rndstat.c`）。另 merge 2
+  後 run 階段在 `tests/field/chend2.c` test 433 `test_ch26_end_positions_robot_and_advances`（ch26 cinematic）
+  hang，同上述 real-cinematic 讀 garbage 根因、非 merge blocker。
 
 - **系統性修復階段診斷備忘（cinematic 測試 spin/fault 根因）**：這些測試驅動 merge 後變 real 的 cinematic
   （composite / camera pan / white-flash / rising-pre-cast），但 fixture 沒餵對 input → real RLE blitter 讀
@@ -155,9 +174,15 @@ DOSBox playtest 對比；規格見 `rebuild_info/emission/`。
   合併兩種記錄行為到同一份**。`globals.h` 自己也會有重複 extern，一併 dedup（用全檔掃描找）。
 - **`src/routing.json`**：各 branch 翻 disjoint entry，git 多自動合；手解 conflict hunk 取聯集
   （任一 true 即 true）；驗 `reviewed` 數。
-- **`src/include/protos.h` / `globals.h`**：取 extern 聯集；**型別衝突保留 owner（emit 該 function
-  的 branch）簽名**。跨分區 caller 重宣告造成的「型別相同／僅參數名異」合法 C 重複 prototype 是
-  build-safe，**留到四方全 merge 後一次性 dedup**（保留 owner 簽名）。
+- **`src/include/protos.h` / `globals.h`**：取 extern 聯集。**「型別相同／僅參數名異」的合法 C 重複 prototype
+  是 build-safe**（留到四方全 merge 後一次性 dedup）；**但「參數型別不同」的重複 prototype 會 `E1071`、必須當下
+  dedup**。⚠ **跨 branch 型別衝突的 dedup 不能盲信 owner/definer 簽名**——integ 與 p3 對「位址型參數」常用不同
+  慣例（uint32 vs uint8*/uint16*），且 **Ghidra 宣告 type、definer、caller 三方都可能標錯**（merge 2 實證：
+  `step_figani` 的 stride 被 Ghidra 誤 type 成 `byte*`、p3 照抄；`run_buy` 的 byte 陣列被 p3 誤標 `uint32`）。
+  **正解＝decompile 看 function body 怎麼用該值定真型別**（body 當 typed-array deref → 指標；當
+  stride/count/flag/純轉手位址用 → uint32），proto/def/caller 三方統一成真型別，只有真指標的跨 branch caller
+  才在呼叫點加 cast。完整實例見 §1「merge 2 簽名衝突修正清單」。**globals.h dedup defrx 要涵蓋 fn-ptr-array
+  定義**（`int (*name[N])(...)`）——一般 `type name=` 正則會漏（merge 2 漏過一次 → E1068）。
 - **`src/emit_issues.json`**：key 聯集（8-hex）。
 - **`open_issues.md`**：彙整各 branch（目前只 p4 改過 → merge p4 時帶入）。
 
