@@ -1478,18 +1478,6 @@
       }
     ]
   },
-  "0003c964": {
-    "name": "crt_equivalent_entry_start",
-    "target": "crt/crt.c",
-    "issues": [
-      {
-        "type": "entry_thunk_symbolic_jmp_and_testglob_stub",
-        "desc": "0x3c964 is the DOS LE Entry Point (LE header EIP=0x3c964; Ghidra xref \"From Entry Point [EXTERNAL]\", 0 FD2 callers). Original body = single 2-byte short JMP (EB 78) over the 0x78-byte \"WATCOM C/C++32...\" copyright string at 0x3c966..0x3c9dd into the cstart body crt_equivalent_dos_main_bootstrap @ 0x3c9de (a SEPARATE emit target, same target file crt/crt.c). Ghidra's decompiler renders 0x3c964 as the entire 435-byte bootstrap (it falls through the JMP target boundary and inlines the separate function); that decompiled text is a DECOMPILER FRAGMENT of 0x3c9de, not of this thunk -- the disasm shows the true body is only `JMP 0x3c9de`. Emitted (mirroring crt_equivalent_get_eflags_thunk @ 0x37f86) as a REAL out-of-line function crt_equivalent_entry_start (owns a genuine PUBDEF for the LE Entry Point to reference) whose body invokes a #pragma aux in-line helper crt_entry_jmp_to_dos_main_bootstrap = \"jmp crt_equivalent_dos_main_bootstrap\". The transfer MUST be a JMP not a CALL: the bootstrap reads the loader's entry stack/registers (captures entry ESP at [0x52804]/[0x52818]; derives the DOS/4GW cmdline frame from &stack[+4]); a CALL would push a 4-byte return address and shift all of those entry-stack reads, so a C `return crt_equivalent_dos_main_bootstrap();` is NOT equivalent. crt_equivalent_entry_start is void(void) with no locals -> Watcom emits no __CHK stack-probe prologue, so ESP reaches the bootstrap exactly as the loader left it; the helper's JMP transfers control away permanently so the wrapper's own RET is never reached (matching the original, which has no RET). Three integration-time notes, none a behavioral risk: (1) Layer 3 only -- the rebuild's Watcom cstart will regenerate the JMP-over-copyright structure for the _cstart_ pair; the project does not pursue byte-exact, the Layer-2 contract (control reaches the bootstrap with ESP unperturbed) is met. (2) Watcom 9.5a emits no standalone symbol for a pragma-aux in-line helper, so the helper expands in place with no PUBDEF; the wrapper supplies the real PUBDEF crt_equivalent_entry_start that the LE header Entry Point binds to at wlink integration -- confirm crt.obj exports it and the LE header EIP resolves to it. (3) crt_equivalent_dos_main_bootstrap is done:false (not yet emitted); for the test build (genbuild links ALL of src/*.obj) the symbol is satisfied by a link-only counter stub in tests/testglob.c (the thunk is never executed at LE entry in tests; testmain.c is the test entry). The stub bumps g_cstart_bootstrap_entered so the crt/crt.c suite asserts the thunk's JMP actually reaches the bootstrap (test_entry_start_jumps_to_bootstrap) and returns stack-balanced as a tail call (test_entry_start_clean_tailcall_return, direct + via function pointer). When the real bootstrap @ 0x3c9de is emitted, remove the testglob stub + g_cstart_bootstrap_entered (the real bootstrap supersedes them) and re-point those two assertions or fold them into the bootstrap's own suite.",
-        "severity": "low",
-        "verify_method": "post_link_confirm_le_entry_eip_resolves_to_pubdef_and_jmp_target_is_bootstrap"
-      }
-    ]
-  },
   "00037f86": {
     "name": "crt_equivalent_get_eflags_thunk",
     "target": "crt/crt.c",

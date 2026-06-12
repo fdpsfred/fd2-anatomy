@@ -824,13 +824,6 @@ unsigned long crt_equivalent_get_eflags(void);
  * src/crt/crt.c. */
 unsigned long crt_equivalent_get_eflags_thunk(void);
 
-/* crt_equivalent_entry_start @ 0x3c964 — DOS LE entry-point trampoline
- * (LE header Entry Point references this address). Real out-of-line
- * function so it owns a PUBDEF; its body tail-JMPs to the separate emit
- * target crt_equivalent_dos_main_bootstrap @ 0x3c9de via an in-line
- * #pragma aux helper in src/crt/crt.c. */
-void crt_equivalent_entry_start(void);
-
 /* crt_equivalent_fpe_default_handler_3d26e @ 0x3d26e — SIGFPE / FPU-exception
  * default no-op handler (1-byte RET). Seeds the FPE dispatch slot @ 0x5283c;
  * invoked indirectly by __FPE_exception_ / __int7 when signal(SIGFPE, ...) was

@@ -45,7 +45,7 @@ address ↔ lib symbol 對照存於 `lookup_9.5a.json`，human-readable view 見
 本段把 Watcom CRT 相關但 lookup 沒命中（=必須 emit 為 FD2 source）的 function
 按 CRT 角色分組。涵蓋兩類命名：
 
-- **`crt_equivalent_*` (12 個)** — 行為等價於 Watcom CRT 但 byte 不 match
+- **`crt_equivalent_*` (10 個)** — 行為等價於 Watcom CRT 但 byte 不 match
   任一 lib obj。`categorise()` 歸 `crt` pool,emit_action = `emit_fd2_source`。
 - **`fd2_*` 中的 8 個 CRT-style primitive** — FD2 工程師自寫的 helper,
   主要為 Miles AIL callback 提供 DPMI / global accessor。
@@ -54,14 +54,12 @@ address ↔ lib symbol 對照存於 `lookup_9.5a.json`，human-readable view 見
 當前 Ghidra 內所有其他 `crt_*` 系列函式（softfp / format / fopen / heap /
 dpmi / init / time / errno / signal / stream I/O / math 等）皆已歸 lookup
 真名（Watcom 9.5/9.5a 公開或 hidden PUBDEF）,由 `rebuild_info/crt/lookup_9.5a.json`
-維護。需要列出時查 `mcp__ghidra__search_functions_enhanced` 或 lookup file。
+維護。需要列出時查 `mcp__ghidra__search_functions_enhanced` 或 lookup file。DOS LE
+入口暨 cstart 啟動碼 `_cstart_ @ 0x3C964`（與 Watcom 9.5a `CSTART3S.ASM` 的
+`_cstart_ proc` 逐指令相同的 stock vendor code）同樣走 lookup（`link_vendor_lib`，由
+`system dos4g` 連入 cstart.obj），不在下列 emit 清單。
 
-### 12 個 `crt_equivalent_*`（依角色分組）
-
-**Startup / entry / exit (2)**：
-- `crt_equivalent_entry_start @ 0x3C964` — DOS LE entry point；JMP 到 dos_main_bootstrap
-- `crt_equivalent_dos_main_bootstrap @ 0x3C9DE` — Watcom 9.5a `cstart` startup body
-  （435B；DPMI/DOS4GW detect、PSP parse、bss 0x331 dwords zero-init、run init/exit list）
+### 10 個 `crt_equivalent_*`（依角色分組）
 
 **EFLAGS / `_disable` primitive (2)**：
 - `crt_equivalent_get_eflags @ 0x3ED58` — `pushfd; pop eax; cli; ret` (Watcom `_disable`)

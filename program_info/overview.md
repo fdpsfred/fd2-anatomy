@@ -89,8 +89,7 @@ table @ 0x51B91 → 編譯好的 cinematic C 函數的 dispatch 機制（同一�
 AI post-action consequence 共用）。
 
 四 pool 分類 (`ail` / `crt` / `fd2` / `binary_artifact`)、entry chain
-(`crt_equivalent_entry_start` → `crt_equivalent_dos_main_bootstrap` → `__CMain`
-→ `fd2_main`)、結局 cinematic、binary_artifact pool 的 alignment NOP 詳見
+(`_cstart_` → `__CMain` → `fd2_main`)、結局 cinematic、binary_artifact pool 的 alignment NOP 詳見
 `rebuild_info/emission/pool_routing.md`；Watcom CRT 真符號 inventory 見
 `rebuild_info/crt/lookup_9.5a.json` 與 `matched_function_sources.md`，
 15 個 `crt_equivalent_*` / 10 個 `fd2_*` CRT-style primitive 見

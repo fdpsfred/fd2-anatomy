@@ -27,10 +27,6 @@
  * that one module and is not emitted as FD2 C source.
  */
 
-/* cstart pair */
-void crt_equivalent_entry_start(void);
-void crt_equivalent_dos_main_bootstrap(void);
-
 /* _disable primitive pair */
 unsigned long crt_equivalent_get_eflags(void);
 unsigned long crt_equivalent_get_eflags_thunk(void);

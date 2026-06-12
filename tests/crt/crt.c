@@ -805,61 +805,6 @@ static void test_eflags_thunk_clean_return(void)
 }
 
 /* ================================================================
- * crt_equivalent_entry_start @ 0x3c964
- *
- * 2-byte short JMP trampoline (EB 78) that the LE header Entry Point names;
- * it jumps over the embedded Watcom copyright string to the cstart body
- * crt_equivalent_dos_main_bootstrap @ 0x3c9de. The thunk's single observable
- * contract is that it transfers control to the bootstrap via a JMP (not a
- * CALL): so when invoked as a function `entry_start()`, the bootstrap it
- * jumps to executes, and because the transfer was a JMP the bootstrap's own
- * RET returns straight to entry_start's caller — i.e. it behaves as a
- * stack-balanced tail call (test CALL -> entry_start JMP -> bootstrap RET ->
- * back to test). In the test build the bootstrap is testglob.c's counter
- * stub, so reaching it is directly observable via g_cstart_bootstrap_entered.
- * ================================================================ */
-extern int g_cstart_bootstrap_entered;
-
-/* (1) the thunk's JMP actually reaches the bootstrap: each invocation runs
- * the (stubbed) bootstrap exactly once. */
-static void test_entry_start_jumps_to_bootstrap(void)
-{
-    g_cstart_bootstrap_entered = 0;
-    crt_equivalent_entry_start();
-    ASSERT_EQ(g_cstart_bootstrap_entered, 1);
-}
-
-/* (2) stack-balanced tail-call return, both direct and THROUGH a function
- * pointer (the original is reached by the LE loader as an address; an
- * address-taken call forces the real out-of-line PUBDEF body). Guard
- * sentinels bracketing a local must survive and control must return; a
- * stack-perturbing transfer (e.g. a CALL that left an extra return address,
- * or a wrong cc) would corrupt the frame or fail to come back. The bootstrap
- * stub must have run once per call. */
-static void test_entry_start_clean_tailcall_return(void)
-{
-    volatile int guard_lo = 0x0BADF00D;
-    volatile int marker   = 0;
-    volatile int guard_hi = 0x0C0FFEE0;
-    void (*fp)(void);
-
-    g_cstart_bootstrap_entered = 0;
-
-    crt_equivalent_entry_start();          /* direct near call */
-    marker = 1;
-
-    fp = crt_equivalent_entry_start;       /* address-taken -> out-of-line */
-    ASSERT_TRUE(fp != (void (*)(void))0);
-    fp();                                  /* indirect call */
-
-    ASSERT_EQ(marker, 1);
-    ASSERT_EQ(guard_lo, 0x0BADF00D);
-    ASSERT_EQ(guard_hi, 0x0C0FFEE0);
-    /* both invocation forms transferred to the bootstrap */
-    ASSERT_EQ(g_cstart_bootstrap_entered, 2);
-}
-
-/* ================================================================
  * crt_equivalent_fpe_default_handler_3d26e @ 0x3d26e
  *
  * SIGFPE / FPU-exception default no-op handler: a 1-byte RET. The CRT
@@ -1028,9 +973,8 @@ static void test_matherr_thunk_clean_return_direct_and_indirect(void)
  * (2) __cdecl stack-balanced both direct and through a function pointer (the
  * address-taken slot form), with bracketing guard sentinels intact.
  *
- * Not in protos.h (it is a JMP target, reached only via the thunk, like
- * crt_equivalent_dos_main_bootstrap), so it is declared locally here to call
- * it directly.
+ * Not in protos.h (it is a JMP target, reached only via the matherr thunk),
+ * so it is declared locally here to call it directly.
  * ================================================================ */
 extern int crt_equivalent_matherr_default_return_zero_4d8ea(void *exc);
 
@@ -1185,8 +1129,6 @@ void run_crt_crt_tests(void)
     RUN_TEST(test_get_eflags_returns_live_eflags);
     RUN_TEST(test_get_eflags_disables_interrupts);
     RUN_TEST(test_get_eflags_clean_return);
-    RUN_TEST(test_entry_start_jumps_to_bootstrap);
-    RUN_TEST(test_entry_start_clean_tailcall_return);
     RUN_TEST(test_fpe_handler_direct_call_is_noop);
     RUN_TEST(test_fpe_handler_ignores_code);
     RUN_TEST(test_fpe_handler_indirect_call);

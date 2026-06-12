@@ -4731,21 +4731,6 @@
     "asm": false,
     "reviewed": true
   },
-  "0003c964": {
-    "name": "crt_equivalent_entry_start",
-    "target": "crt/crt.c",
-    "phase": 3,
-    "done": true,
-    "asm": false,
-    "reviewed": true
-  },
-  "0003c9de": {
-    "name": "crt_equivalent_dos_main_bootstrap",
-    "target": "crt/crt.c",
-    "phase": 3,
-    "done": false,
-    "asm": false
-  },
   "0003d26e": {
     "name": "crt_equivalent_fpe_default_handler_3d26e",
     "target": "crt/crt.c",

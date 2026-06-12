@@ -16,7 +16,7 @@ Commands:
   status     — Print per-phase and per-target progress summary
   mark <addr> done|asm  — Set done=true or asm=true for a function
   pending [--phase N]   — List pending (not done) functions, optionally filtered by phase
-  validate   — Check consistency (0 UNROUTED, 653 total)
+  validate   — Check consistency (0 UNROUTED, 651 total)
 """
 
 import re
@@ -517,8 +517,8 @@ def cmd_validate():
     """Check consistency."""
     routing = json.loads(ROUTING_JSON.read_text(encoding="utf-8"))
     issues = []
-    if len(routing) != 653:
-        issues.append(f"Expected 653 entries, got {len(routing)}")
+    if len(routing) != 651:
+        issues.append(f"Expected 651 entries, got {len(routing)}")
     unrouted = [k for k, v in routing.items() if v["target"] == "UNROUTED"]
     if unrouted:
         issues.append(f"{len(unrouted)} UNROUTED entries")

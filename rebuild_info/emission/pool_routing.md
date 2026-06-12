@@ -82,9 +82,9 @@ emit_action 對應 wlink / Watcom 9.5a recompile pipeline 的處理：
 ## Entry / startup / exit
 
 DOS LE entry + Watcom CRT startup + FD2 main 的 chain
-（`crt_equivalent_entry_start @ 0x3C964` → `crt_equivalent_dos_main_bootstrap`
-→ `__CMain` → `fd2_main`）見 `program_info/overview.md` §「執行流程」。
-emit pipeline 只需知道前三個屬 crt pool，後者屬 fd2 pool。
+（`_cstart_ @ 0x3C964`（stock Watcom cstart，`link_vendor_lib`）→ `__CMain`
+→ `fd2_main`）見 `program_info/overview.md` §「執行流程」。
+emit pipeline 只需知道 `_cstart_` / `__CMain` 屬 crt pool，`fd2_main` 屬 fd2 pool。
 
 ## binary_artifact pool
 

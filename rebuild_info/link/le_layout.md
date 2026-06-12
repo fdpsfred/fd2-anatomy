@@ -1,6 +1,6 @@
 # FD2.LE 連結時的 LE binary layout
 
-從 FD2.LE 的 LE header / object table / page map / 入口程式 (`crt_equivalent_entry_start` + `crt_equivalent_dos_main_bootstrap`) 反推出的 wlink 連結結果。本文件描述「FD2.LE 長甚麼樣」，對應的 wlink 命令列重建寫在 `wlink_settings.md`。
+從 FD2.LE 的 LE header / object table / page map / 入口程式 (`_cstart_`，stock Watcom cstart) 反推出的 wlink 連結結果。本文件描述「FD2.LE 長甚麼樣」，對應的 wlink 命令列重建寫在 `wlink_settings.md`。
 
 ## LE Header
 
@@ -14,7 +14,7 @@
 | num_pages | 71 | 全 71 個 data page（檔內 70 個全 page + 1 個 0x4D2 byte 尾 page）|
 | last_page_size | 0x4D2 (1234) | object 3 尾 page 有效 byte 數 |
 | autodata_obj | 2 | DGROUP = object 2 |
-| EIP_obj / EIP | 1 / 0x2C964 | 啟動位址 = 0x10000 + 0x2C964 = `0x3C964` (`crt_equivalent_entry_start`) |
+| EIP_obj / EIP | 1 / 0x2C964 | 啟動位址 = 0x10000 + 0x2C964 = `0x3C964` (`_cstart_`) |
 | ESP_obj / ESP | 2 / 0x56B0 | 初始 ESP = 0x50000 + 0x56B0 = `0x556B0` (object 2 頂端)|
 | stack_size (header) | 0 | LE header 欄位沒用，stack 包在 DGROUP 內，實際大小 4K (見下文) |
 | heap_size (header) | 0 | LE header 欄位沒用，heap 由 DOS/4GW DPMI 動態 alloc |
@@ -125,10 +125,8 @@ Object 3 內的 pointer table（cutscene script ptr table、weapon attack anim p
    - 設 CS:EIP = obj1:0x2C964 = `0x3C964`，SS:ESP = obj2:0x56B0 = `0x556B0`
    - JMP 到 entry
 
-2. **`crt_equivalent_entry_start @ 0x3C964`** (2-byte JMP thunk):
-   - JMP `crt_equivalent_dos_main_bootstrap @ 0x3C9DE`
-
-3. **`crt_equivalent_dos_main_bootstrap @ 0x3C9DE`** (Watcom 9.5a cstart.obj 對應 `_cstart_`):
+2. **`_cstart_ @ 0x3C964`** (stock Watcom 9.5a `cstart.obj _cstart_`；Ghidra 內單一
+   function，0x3C964 entry jmp 跳過內嵌 114B 版權字串到 `around @ 0x3C9DE` body):
    - DPMI host detect：INT 21 AX=3000h 取回 EAX 高 16-bit signature
      - `0x4458 "DX"` → DOS/4G，variant_id=0x22，env selector=0x2C
      - `0x4243 "CB"` → DOS/4GW，variant_id=9，PSP via EDX+0x10
@@ -143,7 +141,7 @@ Object 3 內的 pointer table（cutscene script ptr table、weapon attack anim p
    - CALL `__InitRtns @ 0x45D9A` (跑 XI ctor chain @ 0x539A0..0x539F1 的 10 個 entries)
    - JMP `__CMain @ 0x45D4B` (call `fd2_main`，main return 後 `__FiniRtns` + INT 21 AH=4Ch exit)
 
-4. **`fd2_main`** — FD2 遊戲主邏輯入口。
+3. **`fd2_main`** — FD2 遊戲主邏輯入口。
 
 ## 與 LE 規範的對齊驗證
 

@@ -174,15 +174,6 @@ void fd2_cast_earthquake_spell_with_screen_shake(int a, int b, int c, uint8 *d) 
 void fd2_cast_screen_wide_spell_with_fade(uint32 a, uint32 b, uint32 c, int d) { }
 void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 a, uint32 b, uint32 c) { }
 void fd2_dispatch_variant_b_cast(int a, int b, int c, int d) { }
-/* Link-only stub for the not-yet-emitted cstart bootstrap (its own emit
- * target, src/crt/crt.c). crt_equivalent_entry_start's #pragma aux helper
- * tail-JMPs to this symbol; the thunk is never executed at LE entry in the
- * test build (testmain.c is the test entry). The stub bumps a counter so
- * the crt/crt.c suite can verify the thunk's JMP actually reaches the
- * bootstrap. Removed once crt_equivalent_dos_main_bootstrap @ 0x3c9de is
- * emitted (the real bootstrap supersedes this stub + the counter). */
-int g_cstart_bootstrap_entered = 0;
-void crt_equivalent_dos_main_bootstrap(void) { g_cstart_bootstrap_entered++; }
 /* crt_equivalent_matherr_default_return_zero_4d8ea @ 0x4d8ea is now emitted as
  * the real "return 0" primitive in src/crt/crt.c; its earlier link-only stub
  * and the g_matherr_return_zero_entered counter have been removed. The thunk

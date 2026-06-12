@@ -638,7 +638,7 @@ callee 不同的 frame_size**。三種實作選項：
 
 **清單**: Watcom CRT noreturn 函數家族（`_exit @ 0x36df6` / `__exit @ 0x3cb91` /
 `__exit_with_msg @ 0x3cb93` — 三者結尾 INT 21h AH=4Ch DOS terminate 不返回）+
-`crt_equivalent_entry_start @ 0x3c964`（2B JMP，後接 114B Watcom 版權字串 data，
+`_cstart_ @ 0x3c964`（entry 2B JMP，後接 114B Watcom 版權字串 data，
 fall-through 路徑物理上不可達）— 這幾類 prev_fn 的 fall-through 區段皆不可達；
 個別案例的 prev → this pairing 待從 `tools/program_analysis/function_audit/data/verdicts.jsonl`
 重新枚舉並 cross-check 對應 `data_align_*` boundary（見 open_issues.md DEAD

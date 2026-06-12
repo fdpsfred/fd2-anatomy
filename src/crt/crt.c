@@ -12,7 +12,6 @@
  *   crt_equivalent_exit_chain_stub_36de3 @ 0x36de3 (2 callers)
  *   crt_equivalent_get_eflags_thunk     @ 0x37f86 (2 callers)
  *   crt_equivalent_get_eflags           @ 0x3ed58 (0 callers; thunk JMP target)
- *   crt_equivalent_entry_start          @ 0x3c964 (0 callers; LE entry point)
  *   crt_equivalent_fpe_default_handler_3d26e @ 0x3d26e (2 callers)
  *   crt_equivalent_matherr_default_thunk_4d340 @ 0x4d340 (1 caller)
  *   crt_equivalent_matherr_default_return_zero_4d8ea @ 0x4d8ea (0 callers)
@@ -464,66 +463,6 @@ unsigned long crt_equivalent_get_eflags(void)
 }
 
 /* ----------------------------------------------------------------
- * crt_equivalent_entry_start @ 0x3c964  (0 callers; LE entry point)
- *
- * The DOS LE binary entry-point trampoline. The LE header Entry Point
- * (EIP = 0x3c964) is the only reference to this address (Ghidra xref
- * "From Entry Point [EXTERNAL]"); no FD2 function calls it.
- *
- * Original body is a single 2-byte short JMP:
- *     0x3c964: EB 78    JMP 0x3c9de        (= 0x3c966 + 0x78)
- * It jumps OVER the 0x78-byte "WATCOM C/C++32 Run-Time system ..."
- * copyright string embedded at 0x3c966..0x3c9dd, landing on the real
- * Watcom 9.5a startup body crt_equivalent_dos_main_bootstrap @ 0x3c9de
- * (cstart.obj `_cstart_`). This entry-start + bootstrap pair is the
- * inseparable cstart `_cstart_` trampoline.
- *
- * crt_equivalent_dos_main_bootstrap is a SEPARATE emit target (its own
- * routing.json entry, same target file); it must NOT be re-emitted here.
- * Ghidra's decompiler renders 0x3c964 as the whole 435-byte bootstrap
- * body because it falls through the JMP's target boundary and inlines the
- * separate function — that decompiled text is a DECOMPILER FRAGMENT of
- * 0x3c9de, not of this 2-byte thunk.
- *
- * Emit form (mirrors crt_equivalent_get_eflags_thunk @ 0x37f86):
- * The control transfer MUST be a JMP, not a CALL — the bootstrap reads
- * the loader's entry stack/registers (it captures the entry ESP at
- * [0x52804]/[0x52818] and derives the DOS/4GW cmdline frame from
- * &stack[+4]); a CALL would push a 4-byte return address and shift every
- * one of those entry-stack reads. A C `return crt_equivalent_dos_main_
- * bootstrap();` is therefore NOT equivalent. A tail-JMP to a distinct
- * symbol carries a symbolic relative displacement that raw #pragma aux
- * opcode bytes cannot encode, so the JMP is expressed via a #pragma aux
- * in-line helper whose body is the single instruction `jmp <bootstrap>`
- * (Watcom resolves the symbol with a relocation; cf. the E9-disp32 JMP
- * thunk crt_jmp_thunk_to_sys_init_387_emulator @ 0x3cbcc).
- *
- * The helper (crt_entry_jmp_to_dos_main_bootstrap) is only ever called,
- * never address-taken, so Watcom 9.5a expands it in place with no symbol
- * of its own (a pragma-aux in-line function gets no standalone PUBDEF).
- * crt_equivalent_entry_start is a REAL out-of-line function so it owns a
- * genuine PUBDEF symbol for the LE header Entry Point to reference. It
- * has no locals and no stack frame, so Watcom emits no __CHK probe before
- * the JMP — ESP reaches the bootstrap exactly as the loader left it. The
- * helper's JMP transfers control away permanently, so the wrapper's own
- * RET is never reached (matching the original, which has no RET).
- *
- * __cdecl void(void): tail-JMP to a known function inherits the jump
- * target's cc, and crt_equivalent_dos_main_bootstrap is __cdecl void(void).
- * No CALL precedes any EAX use here, so there is no EAX-tracking concern.
- * ---------------------------------------------------------------- */
-extern void crt_equivalent_dos_main_bootstrap(void);
-
-extern void crt_entry_jmp_to_dos_main_bootstrap(void);
-#pragma aux crt_entry_jmp_to_dos_main_bootstrap = \
-    "jmp crt_equivalent_dos_main_bootstrap";
-
-void crt_equivalent_entry_start(void)
-{
-    crt_entry_jmp_to_dos_main_bootstrap();
-}
-
-/* ----------------------------------------------------------------
  * crt_equivalent_fpe_default_handler_3d26e @ 0x3d26e  (2 callers)
  *
  * SIGFPE / FPU-exception default no-op handler. 1-byte RET stub. The
@@ -577,8 +516,7 @@ void crt_equivalent_fpe_default_handler_3d26e(int fpe_code)
  * (written by _set_matherr, read+CALLed by _matherr) — so it must remain a
  * real, callable function with a genuine PUBDEF symbol, not folded away.
  *
- * Emit form (mirrors crt_equivalent_entry_start @ 0x3c964 and
- * crt_equivalent_get_eflags_thunk @ 0x37f86): the control transfer MUST be
+ * Emit form (mirrors crt_equivalent_get_eflags_thunk @ 0x37f86): the control transfer MUST be
  * a JMP to a distinct symbol, not a C `return ...4d8ea();` CALL. The
  * original thunk has no frame at all — it JMPs straight through, and 0x4d8ea
  * RETs directly back to _matherr. A C return-call would push a 4-byte

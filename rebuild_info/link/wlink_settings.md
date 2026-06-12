@@ -67,7 +67,7 @@ wlink @fd2.lnk
 | LE format (`'LE'` signature) | `system dos4g` 預設 format LE |
 | module_flags `0x200` (PM-compatible bit) | wlink dos4g 預設旗標 |
 | obj 1 base = `0x10000` | wlink dos4g 預設 code base |
-| EIP = `0x3C964` 指向 `crt_equivalent_entry_start` → 跳 `crt_equivalent_dos_main_bootstrap` | 對應 Watcom 9.5a `cstart.obj _cstart_`，由 `system dos4g` 預設 `libfile` |
+| EIP = `0x3C964` 指向 `_cstart_`（stock Watcom cstart）| 對應 Watcom 9.5a `cstart.obj _cstart_`，由 `system dos4g` 預設 `libfile` 連入（`link_vendor_lib`）|
 | 引用 `data_crt_emu387_*` / `__sys_init_387_emulator` / `__hook387` | math387s + emu387 lib，由 `system dos4g` 預設 link |
 | 字串 `"RATIONAL DOS/4G"` @ `0x51760` (被 `__hook387` 引用) | DOS/4G 認證字串，emu387 內 |
 | FD2.EXE 含 Watcom DOS bind stub (10424 byte) | `system dos4g` 預設打包 stub |
