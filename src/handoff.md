@@ -2,8 +2,8 @@
 
 把 Ghidra 內 FD2.LE 的 decompiled function 產出為 functionally-equivalent（Layer 2）的 C
 source、寫 unit test、build gate + 獨立 reviewer 三源復驗、per-function commit。**653 個
-function 已用 4-way 並行 branch 完成 emit，目前在 Phase 2 手動 merge cascade。** 讀完本檔即可零
-context 接續。
+function 已用 4-way 並行 branch 完成 emit；Phase 2 手動 merge cascade（merge 1/2/3）已全部完成，
+四方落入 `integ`；下一步＝Phase 2.5 coordinated landings（§4）。** 讀完本檔即可零 context 接續。
 
 ---
 
@@ -37,7 +37,7 @@ context 接續。
   `tests/testglob.c` 且被跨 branch + base 套件依賴，無法單分支落地。完整依據在 p4 worktree 的
   `open_issues.md` #32 / #33 / #34 與 `src/emit_issues.json` `0002935b`。
 
-**Phase 2 手動 merge cascade — merge 1、merge 2 完成；merge 3（emit-p4）待做**
+**Phase 2 手動 merge cascade — merge 1/2/3 全部完成（cascade 收尾）。下一步＝Phase 2.5（§4）**
 - 順序：`integ`(=p1) ← `emit-p2` ← `emit-p3` ← `emit-p4`，在主 repo 工作目錄序列做。
 - **merge 1（`integ` ← `emit-p2`）：完成** — commit `588d8a6`（merge 本體）+ `b6d7f13`（DOSBox-X fault
   logging + handoff 新作業方式）。
@@ -51,6 +51,19 @@ context 接續。
   故 A2 body 的 `(uint16*)bg_layer_a` 顯式 cast 無新 warning。測試 caller 同步對齊
   （`tests/anim/anicine2.c`、`tests/ui_menu/shop1.c`）；testglob.c stub 不 include protos.h、無須改。
 
+- **merge 3（`integ` ← `emit-p4`）：完成** — commit `bed6602`（parents `98a6aaa` + `483c37a`）。p4 帶入 71 個
+  已完成 function；22 個 coordinated-landing function（1 crt + 19 blitspr + 2 pathfnd）維持 `done=false` 留 Phase
+  2.5。要點：(a) p4 把 base 版測試檔 split 成 `anicomb1/2/3.c`，與 p2 的 silhouette-probe migration 三方
+  reconcile；`fd2_check_char_is_dead`／`fd2_blit_indexed_sprite`／`fd2_setup_chars_and_camera_for_intro` 三個 stub
+  合併兩 branch 的 recording 行為到同一份。(b) 跨 branch 簽名衝突依 Ghidra body 真型別收斂：
+  `fd2_load_chapter_party_roster` out_buf→`uint8 *`（rsrc.c def + proto；使用者核准）、
+  `fd2_roll_stat_gain_and_show_message` stat_ptr→`short *`（asm `ADD word ptr [EDX],AX` 證 16-bit；改 btl_turn.c
+  def+caller + proto + 測試，promote.c 原本就 short*；使用者定「先讀 Ghidra 判真型別」）；重複的 setup_chars／
+  display_cinematic proto dedup 成 real-def 簽名（chtrans.c／anicine.c）。**唯二改的 `src/*.c`＝rsrc.c + btl_turn.c**，
+  diff 只含該型別改動。(c) integ migration 移除、p4 測試仍需的 recorder（`g_blitpass_*`／`g_blitsolid_*`／
+  `g_has_char_*`）補回 testglob 定義（runtime 未填值，留系統性修復）。Ghidra `roll_stat` 函式簽名仍 stale，本次
+  未改 FD2.LE，留 review/Phase 8。
+
 - **⚑⚑ 當前操作策略（使用者定，覆寫 §3 的「逐一遷移到全綠才前進」與舊的 SKIP-to-green 做法）**：
   每個 merge 的 gate = **compile + link 通過、`error_count=0`、`warning_count=0`**（`warning_count` 指
   build_test.py 解析 build.out 的 Watcom 編譯 warning；link 階段的 **W1027 redefinition** 是 cascade 期間
@@ -61,16 +74,16 @@ context 接續。
   修復全部。merge 階段某測試 skip 與否、run 會不會 hang，**都不影響 commit gate**。
 - **src/ 鐵則（使用者定，強化）**：每個 merge **絕不更動 src/ 下的 code**；變動的 `src/*.c` 必須
   byte-identical 於某一 branch（用 `git diff <branch> -- <file>` 驗證）。真有跨 branch 衝突需改 src/ 的，
-  **先提出等使用者確認**，不可自行改。唯一已核准例外：`promote.c` 6 處指標 cast（→`uint8 *`，配合 p1
-  `rndmenu.c` owner 的 `fd2_render_promote_*_grid` 簽名 + globals.h `candidate_array_ptr` 型別 dedup）。
+  **先提出等使用者確認**，不可自行改。已核准例外（皆跨 branch 真型別收斂）：merge 1 `promote.c` 6 處指標
+  cast（→`uint8 *`，配 p1 `rndmenu.c` owner `fd2_render_promote_*_grid` 簽名 + globals.h `candidate_array_ptr`
+  dedup）；merge 3 `rsrc.c`（`fd2_load_chapter_party_roster` out_buf→`uint8 *`）+ `btl_turn.c`
+  （`fd2_roll_stat_gain_and_show_message` stat_ptr→`short *` def+5 caller，配 `ADD word ptr` 16-bit asm 真型別）。
   （headers `globals.h`/`protos.h` 的重複 extern dedup / 型別 union 屬 merge 機制，不算「改 code」。）
 
-- **新 session 起手（merge 3）**：`git status`（乾淨、HEAD=`98ea47b`）→ `git merge --no-ff --no-commit emit-p4`
-  → 依 §3 逐衝突檔手解（testglob.c 依 routing `done` 去留 stub、headers 取型別正解聯集、跨 branch 簽名衝突看
-  Ghidra body 定真型別）→ genbuild 三檔重生 → `build_test.py` 應 `error_count=0 && warning_count=0` →
-  `git commit` 完成 merge 3。emit-p4 仍含 22 個 coordinated-landing function（§4 Phase 2.5 處理），merge 3 只合
-  p4 已完成的 71 個 + 衝突解。**修完 compile error 後務必確認 link 也過**（merge 2 曾因 compile error 卡住、
-  link 期的 undefined-symbol straggler 到修完才浮現）。
+- **新 session 起手（Phase 2.5）**：`git status`（乾淨、HEAD=`bed6602`、branch `integ`）。merge cascade 已收尾，
+  四方 emit 全進 `integ`。接 §4 Phase 2.5 — 22 個 coordinated-landing function 的真 body 落地（順序 C→B→A：crt
+  `dos_main_bootstrap` → pathfind 2 → blit 19），需碰共享 testglob spy + 多套件，不可用孤立 per-function workflow。
+  之後 Phase 2.6（22 個 review-mode 復驗）、Phase 3（收斂 main）。
 
 - **merge 1 已完成遷移（committed `588d8a6`；src 僅 `promote.c` 一處、其餘全 tests/）**：
   - `src/ui_menu/promote.c`：6 個指標 cast `(int)/(uint32)`→`uint8 *`（**唯一手改的 src/*.c**，使用者
@@ -118,6 +131,13 @@ context 接續。
   改成驅動真函式（seed `data_fd2_shared_menu_party_roster_buffer_ptr`，仿 `tests/gfx/rndstat.c`）。另 merge 2
   後 run 階段在 `tests/field/chend2.c` test 433 `test_ch26_end_positions_robot_and_advances`（ch26 cinematic）
   hang，同上述 real-cinematic 讀 garbage 根因、非 merge blocker。
+
+- **partial skip 紀錄（merge 3 期間做的）**：`tests/life/main.c` 取 p4 側（移除 `test_main_menu_new_game`／
+  `_fallback`／`_continue_quit` 三個 dispatcher 測試 + externs）——merged run function 本來就只呼叫 load_save
+  兩測試，保留定義會變 unused-static W113；p4 NOTE 載明 `fd2_play_ending_and_record_clear` emit real 後 dispatcher
+  路徑 block on INT 16h、屬 Phase 9 integration。systematic phase 改注入 BIOS Esc 驅動真 dispatcher。補回 testglob
+  的 `g_blitpass_*`／`g_blitsolid_*`／`g_has_char_*` recorder（未填值）讓 p4 的 anicomb1/2、rndscene、chend1 測試
+  link，systematic phase 改讀 real 函式真實輸出。run 階段仍有 cinematic hang（gate 忽略）。
 
 - **系統性修復階段診斷備忘（cinematic 測試 spin/fault 根因）**：這些測試驅動 merge 後變 real 的 cinematic
   （composite / camera pan / white-flash / rising-pre-cast），但 fixture 沒餵對 input → real RLE blitter 讀
