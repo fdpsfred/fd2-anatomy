@@ -181,7 +181,7 @@ DOSBox playtest 對比；規格見 `rebuild_info/emission/`。
   `step_figani` 的 stride 被 Ghidra 誤 type 成 `byte*`、p3 照抄；`run_buy` 的 byte 陣列被 p3 誤標 `uint32`）。
   **正解＝decompile 看 function body 怎麼用該值定真型別**（body 當 typed-array deref → 指標；當
   stride/count/flag/純轉手位址用 → uint32），proto/def/caller 三方統一成真型別，只有真指標的跨 branch caller
-  才在呼叫點加 cast。完整實例見 §1「merge 2 簽名衝突修正清單」。**globals.h dedup defrx 要涵蓋 fn-ptr-array
+  才在呼叫點加 cast。完整實例見 §1 merge 2 完成摘要與 commit `98ea47b`。**globals.h dedup defrx 要涵蓋 fn-ptr-array
   定義**（`int (*name[N])(...)`）——一般 `type name=` 正則會漏（merge 2 漏過一次 → E1068）。
 - **`src/emit_issues.json`**：key 聯集（8-hex）。
 - **`open_issues.md`**：彙整各 branch（目前只 p4 改過 → merge p4 時帶入）。
