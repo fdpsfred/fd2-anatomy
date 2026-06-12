@@ -1435,15 +1435,17 @@
     "name": "fd2_load_status_effect_sfx",
     "target": "audio/audio.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001d4f6": {
     "name": "fd2_play_and_free_status_effect_sfx",
     "target": "audio/audio.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001d51d": {
     "name": "fd2_spell_select_input_loop",
@@ -1662,8 +1664,9 @@
     "name": "fd2_blit_scaled_tile_map_view",
     "target": "gfx/blittile.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001f6ef": {
     "name": "fd2_fill_screen_rect_with_byte",
@@ -1705,8 +1708,9 @@
     "name": "fd2_render_chapter_status_panel_segments",
     "target": "gfx/rndstat.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002000a": {
     "name": "fd2_open_tactical_overview_zoom",
@@ -1727,8 +1731,9 @@
     "name": "fd2_play_ani_file_animation_sequence",
     "target": "anim/anispell.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000205b4": {
     "name": "fd2_check_battle_end_default_handler",
@@ -2023,8 +2028,9 @@
     "name": "fd2_cast_earthquake_spell_with_screen_shake",
     "target": "spell/spellcin.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002185f": {
     "name": "fd2_cast_spell_0b_with_prefx",
@@ -2038,8 +2044,9 @@
     "name": "fd2_play_rising_pre_cast_effect",
     "target": "spell/spellcin.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000219ad": {
     "name": "fd2_render_circle_anim_row",
@@ -2068,8 +2075,9 @@
     "name": "fd2_dispatch_variant_b_cast",
     "target": "spell/spellcin.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00021b99": {
     "name": "fd2_cast_spell_0e_variant_b",
@@ -2083,22 +2091,25 @@
     "name": "fd2_execute_aoe_spell_with_caster_portrait_radial_scatter",
     "target": "spell/spellcin.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00021db2": {
     "name": "fd2_scatter_sprite_around_origin_with_random_offset",
     "target": "spell/spellcin.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00021eb1": {
     "name": "fd2_play_variant_b_slide_pre_effect",
     "target": "spell/spellcin.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00022046": {
     "name": "fd2_render_filled_circle_band_anim",
@@ -2135,29 +2146,33 @@
     "name": "fd2_animate_warp_teleport_char",
     "target": "spell/spellcin.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00022470": {
     "name": "fd2_animate_warp_portal_open_at",
     "target": "spell/spellcin.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00022547": {
     "name": "fd2_animate_warp_out_collapse",
     "target": "spell/spellcin.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": true,
+    "reviewed": true
   },
   "00022656": {
     "name": "fd2_animate_warp_in_expand",
     "target": "spell/spellcin.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000226ea": {
     "name": "fd2_cast_spell_11_stage_a",
@@ -2469,8 +2484,9 @@
     "name": "fd2_cast_screen_wide_spell_with_fade",
     "target": "spell/spellcin.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00024754": {
     "name": "fd2_chapter_23_end",
@@ -2515,8 +2531,9 @@
     "name": "fd2_scroll_text_screen_up_by_lines",
     "target": "dialog/dialog.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00024df2": {
     "name": "fd2_chapter_25_end",
@@ -2595,15 +2612,17 @@
     "name": "fd2_play_sfx_with_handle",
     "target": "audio/audio.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00025b45": {
     "name": "fd2_play_sfx_sample_from_bank",
     "target": "audio/audio.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00025bf4": {
     "name": "fd2_main",
@@ -2711,15 +2730,17 @@
     "name": "fd2_execute_special_attack_skill",
     "target": "spell/spellcin.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00027fc9": {
     "name": "fd2_execute_summon_spell_cast",
     "target": "spell/spellcin.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000286bd": {
     "name": "fd2_interpolate_palette_range_toward_color",
@@ -2775,15 +2796,17 @@
     "name": "fd2_animate_bg_zoom_transition_in",
     "target": "anim/anispell.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00029ded": {
     "name": "fd2_animate_bg_zoom_transition_out",
     "target": "anim/anispell.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00029f72": {
     "name": "fd2_calculate_combat_hit_outcome",
@@ -2805,22 +2828,25 @@
     "name": "fd2_play_spell_cast_cinematic",
     "target": "anim/anispell.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002a5d0": {
     "name": "fd2_cycle_sprite_anim_with_bg_frames",
     "target": "anim/anispell.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002a6bd": {
     "name": "fd2_play_spell_cast_sequence",
     "target": "anim/anispell.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002b5e1": {
     "name": "fd2_resolve_terrain_for_aoe_targets",
@@ -2854,8 +2880,9 @@
     "name": "fd2_load_figani_sfx_bank",
     "target": "audio/audio.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002bce5": {
     "name": "fd2_play_game_ending_cinematic",
@@ -2868,8 +2895,9 @@
     "name": "fd2_show_portrait_dialog_with_input",
     "target": "dialog/dialog.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002c405": {
     "name": "fd2_play_final_chapter_30_ending",
@@ -2912,8 +2940,9 @@
     "name": "fd2_close_intro_dialog_with_slide_out",
     "target": "dialog/dialog.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002d392": {
     "name": "fd2_load_chapter_party_roster",
@@ -3104,8 +3133,9 @@
     "name": "fd2_blit_scaled_chapter_pose",
     "target": "gfx/blittile.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002fc85": {
     "name": "fd2_run_chapter_intro_menu_typeB",
@@ -3119,8 +3149,9 @@
     "name": "fd2_run_status_screen_member_menu",
     "target": "ui_menu/status.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00030012": {
     "name": "fd2_save_current_state_to_slot",
@@ -3166,8 +3197,9 @@
     "name": "fd2_build_dead_chars_list_for_revive",
     "target": "ui_menu/promote.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00030a47": {
     "name": "fd2_render_promote_members_grid",
@@ -3181,15 +3213,17 @@
     "name": "fd2_promote_members_select_loop",
     "target": "ui_menu/promote.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00030dc3": {
     "name": "fd2_run_revive_menu_main",
     "target": "ui_menu/promote.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00031019": {
     "name": "fd2_render_promote_candidates_grid",
@@ -3203,43 +3237,49 @@
     "name": "fd2_promote_member_select_loop",
     "target": "ui_menu/promote.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00031385": {
     "name": "fd2_run_class_promotion_menu_main",
     "target": "ui_menu/promote.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00031602": {
     "name": "fd2_execute_class_promotion_with_dialog",
     "target": "ui_menu/promote.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00031793": {
     "name": "fd2_build_promotion_candidates_with_targets",
     "target": "ui_menu/promote.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00031860": {
     "name": "fd2_find_inventory_slot_with_item",
     "target": "ui_menu/status.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000318ad": {
     "name": "fd2_run_recruitment_or_branch_screen",
     "target": "ui_menu/promote.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00031dbe": {
     "name": "fd2_require_char_id_in_active_party",
@@ -3543,8 +3583,9 @@
     "name": "fd2_blit_24x24_tile_to_battle_grid_position",
     "target": "gfx/blittile.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0003419c": {
     "name": "fd2_set_combat_aux_block_byte_d_low4_for_char_range",
@@ -3958,64 +3999,73 @@
     "name": "fd2_chapter_event_handler_2f__ch21_turn_gated",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000351c6": {
     "name": "fd2_chapter_event_handler_30__ch21_ai_ctrl",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000351e9": {
     "name": "fd2_chapter_event_handler_31__ch22_turn_gated",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035261": {
     "name": "fd2_chapter_event_handler_32__ch22_reinforcement",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0003529a": {
     "name": "fd2_chapter_event_handler_33__unref_drop",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000352e2": {
     "name": "fd2_chapter_event_handler_34__ch23_ai_ctrl",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035318": {
     "name": "fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash",
     "target": "field/chevt2.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035321": {
     "name": "fd2_chapter_event_handler_35__unref_dialog_with_state",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0003535d": {
     "name": "fd2_chapter_event_handler_36__ch24_cinematic",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000353cc": {
     "name": "fd2_delay_400ms_via_idle_thunk",
@@ -4029,127 +4079,145 @@
     "name": "fd2_chapter_event_handler_37__ch25_first_time",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035487": {
     "name": "fd2_chapter_event_handler_38__ch25_dialog_with_state",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000354dd": {
     "name": "fd2_chapter_event_handler_39__ch26_cinematic",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000354fe": {
     "name": "fd2_chapter_event_handler_3a__unref_pickup",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035641": {
     "name": "fd2_chapter_event_handler_3b__ch26_ai_ctrl",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035675": {
     "name": "fd2_chapter_event_handler_3c__ch26_ai_ctrl",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000356b7": {
     "name": "fd2_chapter_event_handler_3d__ch26_pickup",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035822": {
     "name": "fd2_cinematic_chapter_portrait_dump_with_white_flash",
     "target": "field/chevt2.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035898": {
     "name": "fd2_chapter_event_handler_3e__ch27_dyn_turn_event",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000358c7": {
     "name": "fd2_chapter_event_handler_3f__ch27_ai_ctrl",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000358ea": {
     "name": "fd2_chapter_event_handler_40__unref_dyn_turn_event",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0003599b": {
     "name": "fd2_chapter_event_handler_41__shared_dyn_turn_event",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000359c8": {
     "name": "fd2_chapter_event_handler_42__ch28_dialog_with_state",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035a2f": {
     "name": "fd2_chapter_event_handler_43__unref_dyn_turn_event",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035a48": {
     "name": "fd2_chapter_event_handler_44__ch28_dialog_with_state",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035ab8": {
     "name": "fd2_chapter_event_handler_45__ch28_dyn_turn_event",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035b05": {
     "name": "fd2_chapter_event_handler_46__ch28_dialog_with_state",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035b6b": {
     "name": "fd2_chapter_event_handler_47__unref_dyn_turn_event",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035bba": {
     "name": "fd2_kill_runtime_chars_from_index_to_end",
@@ -4162,8 +4230,9 @@
     "name": "fd2_chapter_event_handler_48__unref_ai_ctrl",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035c15": {
     "name": "fd2_set_battle_anim_phase_to_1",
@@ -4177,29 +4246,33 @@
     "name": "fd2_chapter_event_handler_49__unref_sentinel",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035c32": {
     "name": "fd2_chapter_event_handler_4a__ch29_dyn_turn_event",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035c79": {
     "name": "fd2_chapter_event_handler_4b__ch29_major_cinematic",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035d60": {
     "name": "fd2_chapter_event_handler_4c__ch29_major_cinematic",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035e5a": {
     "name": "fd2_animate_palette_flash_pulse_white",
@@ -4212,92 +4285,105 @@
     "name": "fd2_chapter_event_handler_4d__unref_sentinel",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035ed2": {
     "name": "fd2_chapter_event_handler_4e__unref_sentinel",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035ee6": {
     "name": "fd2_chapter_event_handler_4f__ch29_dyn_turn_event",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035f5a": {
     "name": "fd2_chapter_event_handler_50__ch30_ai_ctrl",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035f6f": {
     "name": "fd2_chapter_event_handler_51__unref_dyn_turn_event",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035f92": {
     "name": "fd2_chapter_event_handler_52__ch30_major_cinematic",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00036088": {
     "name": "fd2_chapter_event_handler_53__unref_dialog_with_state",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000360c0": {
     "name": "fd2_chapter_event_handler_54__ch27_ai_ctrl",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000360d8": {
     "name": "fd2_chapter_event_handler_55__unref_sentinel",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000360e3": {
     "name": "fd2_chapter_event_handler_56__unref_sentinel",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000360ea": {
     "name": "fd2_chapter_event_handler_57__unref_sentinel",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000360f1": {
     "name": "fd2_chapter_event_handler_58__unref_sentinel",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000360f8": {
     "name": "fd2_chapter_event_handler_59__unref_sentinel",
     "target": "field/chevt2.c",
     "phase": 7,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00036107": {
     "name": "crt_equivalent_lx_chunk_read_36107",
@@ -4594,50 +4680,57 @@
     "name": "fd2_tile_blit_24x24_with_tint_offset",
     "target": "gfx/blittile.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004dcc6": {
     "name": "fd2_tile_blit_24x24_remap",
     "target": "gfx/blittile.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004dd52": {
     "name": "fd2_tile_blit_24x24_with_remap_table",
     "target": "gfx/blittile.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004ddd7": {
     "name": "fd2_tile_blit_24x24_solid_color",
     "target": "gfx/blittile.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004de56": {
     "name": "fd2_tile_blit_24x24_dimmed_grayscale",
     "target": "gfx/blittile.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004deda": {
     "name": "fd2_tile_blit_24x24_passthrough",
     "target": "gfx/blittile.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004df4c": {
     "name": "fd2_tile_blit_24x24_with_dialog_bg_fill",
     "target": "gfx/blittile.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004dfc0": {
     "name": "fd2_read_bios_midnight_tick",

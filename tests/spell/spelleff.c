@@ -8,6 +8,7 @@
 #include "consts.h"
 #include "globals.h"
 #include "protos.h"
+#include "blitprob.h"   /* tg_install_compositor_safe_atlases */
 #include <stdio.h>
 
 #define USE_ITEM_ID 10
@@ -31,6 +32,20 @@ static void setup_impact_buffers(void)
     data_fd2_battle_view_window_origin_y = 0x20;
     data_fd2_battle_view_window_max_x = 0x0D;
     data_fd2_battle_view_window_max_y = 0x08;
+
+    /* spell 17 (warp) and the attack-spell impact pan/recomposite drive the REAL
+     * fd2_composite_battle_frame, whose per-char painter / shadow / cursor passes
+     * feed the now-real RLE blitters over the leftover party + unset sprite
+     * sources, looping forever on a malformed stream. Override those sprite
+     * sources with terminating all-SKIP atlases so every compositor blit is a
+     * deterministic no-op (the warp/impact pixels are display side effect, not
+     * asserted here; g_composite_call_count, the only display assertion, comes
+     * from the tile-map stub which this does not touch). No restore is needed:
+     * the safe atlas is a static buffer (so nothing to free) and the safe
+     * zeroed tile-map / cursor atlas it leaves behind are strictly safer than the
+     * prior leftover globals; no suite after spell/spelleff frees
+     * portrait_sprite_cache. */
+    tg_install_compositor_safe_atlases();
 }
 
 extern runtime_char g_test_rc_array[8];
@@ -183,20 +198,39 @@ static void test_use_effect_resets_xp_credit(void)
 
 
 
+/* fd2_cast_spell_17_complex now reaches the real fd2_animate_warp_teleport_char
+ * (src/spell/spellcin.c), which memmoves the back-buffer through
+ * data_fd2_large_game_state_buffer_ptr and runs a destination "pop-in" row copy
+ * whose source/dest pointers are derived from (tile - view-window origin). The
+ * MP/XP assertions below are computed in fd2_cast_spell_17_complex BEFORE both
+ * warp calls, so they are unchanged; setup_impact_buffers() wires the lgs/sheet
+ * backing the real warp needs.
+ *
+ * Two invariants the coords must satisfy so the real callees run harmlessly:
+ *   (1) cast_spell_17 calls the REAL fd2_pan_cursor_to_tile_animated (twice:
+ *       fd2_pan_cursor_to_char(target), then to teleport_dest). That helper
+ *       single-steps the cursor with fd2_cursor_move_* (noop stubs here) until
+ *       cursor_world == target, so cursor_world_x/y MUST already equal both the
+ *       target tile and the teleport-dest tile or the pan loop never terminates.
+ *   (2) the warp tile coords must be in-window (origin 0x10/0x20, max 0x0D/0x08
+ *       from setup_impact_buffers -> x in [0x10,0x1D], y in [0x20,0x28]) so the
+ *       pop-in row math stays inside the lgs buffer.
+ * Both warps use the same target tile here, so set target.pos / cursor_world /
+ * teleport_dest all to one in-window tile. */
 static void test_spell_17_deducts_mp(void)
 {
     uint8 target_id;
-    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();          /* g_test_rc_array zeroed + lgs/sheet wired */
     g_test_rc_array[0].mp_current = 100;
     data_fd2_battle_spell_effect_table[0x17].mp_cost = 15;
-    g_test_rc_array[1].pos_x = 5;
-    g_test_rc_array[1].pos_y = 5;
+    g_test_rc_array[1].pos_x = 0x12;
+    g_test_rc_array[1].pos_y = 0x22;
     g_test_rc_array[1].job_id = 1;
     g_test_rc_array[1].status_flags_block[0] = 10;
-    data_fd2_battle_cursor_world_x = 5;
-    data_fd2_battle_cursor_world_y = 5;
-    data_fd2_battle_teleport_dest_world_x = 5;
-    data_fd2_battle_teleport_dest_world_y = 5;
+    data_fd2_battle_cursor_world_x = 0x12;
+    data_fd2_battle_cursor_world_y = 0x22;
+    data_fd2_battle_teleport_dest_world_x = 0x12;
+    data_fd2_battle_teleport_dest_world_y = 0x22;
     target_id = 1;
     fd2_cast_spell_17_complex(0, 0, (uint32)&target_id);
     ASSERT_EQ(g_test_rc_array[0].mp_current, 85);
@@ -206,17 +240,19 @@ static void test_spell_17_deducts_mp(void)
 static void test_spell_17_xp_with_job_bonus(void)
 {
     uint8 target_id;
-    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();          /* g_test_rc_array zeroed + lgs/sheet wired */
     g_test_rc_array[0].mp_current = 200;
     data_fd2_battle_spell_effect_table[0x17].mp_cost = 10;
-    g_test_rc_array[2].pos_x = 3;
-    g_test_rc_array[2].pos_y = 3;
+    g_test_rc_array[2].pos_x = 0x13;
+    g_test_rc_array[2].pos_y = 0x23;
     g_test_rc_array[2].job_id = 10;
     g_test_rc_array[2].status_flags_block[0] = 5;
-    data_fd2_battle_cursor_world_x = 3;
-    data_fd2_battle_cursor_world_y = 3;
-    data_fd2_battle_teleport_dest_world_x = 3;
-    data_fd2_battle_teleport_dest_world_y = 3;
+    /* cursor_world must already equal both pan targets (see test_spell_17_
+     * deducts_mp header): target tile and teleport-dest tile are the same. */
+    data_fd2_battle_cursor_world_x = 0x13;
+    data_fd2_battle_cursor_world_y = 0x23;
+    data_fd2_battle_teleport_dest_world_x = 0x13;
+    data_fd2_battle_teleport_dest_world_y = 0x23;
     data_fd2_battle_pending_xp_credit = 0;
     target_id = 2;
     fd2_cast_spell_17_complex(0, 0, (uint32)&target_id);
@@ -227,17 +263,19 @@ static void test_spell_17_xp_with_job_bonus(void)
 static void test_spell_17_xp_no_job_bonus(void)
 {
     uint8 target_id;
-    memset(g_test_rc_array, 0, sizeof(runtime_char) * 8);
+    setup_impact_buffers();          /* g_test_rc_array zeroed + lgs/sheet wired */
     g_test_rc_array[0].mp_current = 200;
     data_fd2_battle_spell_effect_table[0x17].mp_cost = 10;
-    g_test_rc_array[1].pos_x = 1;
-    g_test_rc_array[1].pos_y = 1;
+    g_test_rc_array[1].pos_x = 0x11;
+    g_test_rc_array[1].pos_y = 0x21;
     g_test_rc_array[1].job_id = 5;
     g_test_rc_array[1].status_flags_block[0] = 8;
-    data_fd2_battle_cursor_world_x = 1;
-    data_fd2_battle_cursor_world_y = 1;
-    data_fd2_battle_teleport_dest_world_x = 1;
-    data_fd2_battle_teleport_dest_world_y = 1;
+    /* cursor_world must already equal both pan targets (see test_spell_17_
+     * deducts_mp header): target tile and teleport-dest tile are the same. */
+    data_fd2_battle_cursor_world_x = 0x11;
+    data_fd2_battle_cursor_world_y = 0x21;
+    data_fd2_battle_teleport_dest_world_x = 0x11;
+    data_fd2_battle_teleport_dest_world_y = 0x21;
     data_fd2_battle_pending_xp_credit = 0;
     target_id = 1;
     fd2_cast_spell_17_complex(0, 0, (uint32)&target_id);

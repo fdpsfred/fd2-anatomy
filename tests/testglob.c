@@ -3,6 +3,7 @@
  */
 #include "types.h"
 #include "globals.h"
+#include "blitprob.h"
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -53,12 +54,23 @@ uint8  data_fd2_ui_terrain_hud_user_enabled = 0;
 uint32 data_fd2_ui_terrain_hud_panel_offset_51a0c = 0;
 uint8  data_fd2_audio_sfx_driver_available_flag = 0;
 uint8  data_fd2_audio_sfx_enabled_flag = 0;
+uint32 data_fd2_audio_sfx_sample_handle_0 = 0;
+/* Distinct non-zero default so the AIL_stop_sample spy can tell which real SFX
+ * player called it: fd2_play_sfx_sample_from_bank drives this slot-1 handle,
+ * fd2_play_sfx_with_handle drives slot-0 (handle_0). Callers that fire both
+ * players (summon ticks, etc.) don't set the handles, so this sentinel keeps the
+ * two routable. Tests that care set both handles explicitly. */
+uint32 data_fd2_audio_sfx_sample_handle_1 = 0x5EE80000;
+uint32 data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = 0;
 char   data_fd2_string_ui_render_decimal_format_template[6] = "%0.5d";
 char   data_fd2_string_resource_filename_fdtxt_dat[] = "FDTXT.DAT";
 char   data_fd2_string_resource_filename_fdother_dat[] = "FDOTHER.DAT";
 char   data_fd2_string_resource_filename_fdfield_dat_51a59[] = "FDFIELD.DAT";
 char   data_fd2_string_resource_filename_fdshap_dat_51a65[] = "FDSHAP.DAT";
 char   data_fd2_string_resource_filename_dato_dat_51a70[] = "DATO.DAT";
+char   data_fd2_string_resource_filename_bg_dat_52381[] = "BG.DAT";
+char   data_fd2_string_resource_filename_figani_dat_52388[] = "FIGANI.DAT";
+char   data_fd2_string_resource_filename_tai_dat[] = "TAI.DAT";
 char   data_fd2_string_save_load_oom_msg_load_pbuf_50004[] = " Out of Memory !!!\n";
 char   data_fd2_string_save_load_oom_msg_tile_event_50023[] = " Out of Memory !!!\n";
 char   data_fd2_string_save_load_oom_msg_runtime_char_50037[] = " Out of Memory !!!\n";
@@ -73,12 +85,20 @@ uint32 data_fd2_battle_player_action_result_code = 0;
 uint32 data_fd2_chapter_current_chapter_id = 1;
 uint32 data_fd2_chapter_cutscene_event_state = 0;
 uint32 data_fd2_graphics_static_bg_buffer_ptr = 0;
+uint8  data_fd2_graphics_text_scroll_pending_line_count = 0;
 uint32 data_fd2_graphics_animated_bg_buffer_ptr = 0;
 uint32 data_fd2_chapter_event_or_battle_end_code = 0;
 uint32 data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
 uint32 data_fd2_battle_teleport_dest_world_x = 0;
 uint32 data_fd2_battle_teleport_dest_world_y = 0;
 uint32 data_fd2_audio_status_effect_sfx_handle_ptr = 0;
+uint32 data_fd2_audio_figani_sfx_bank_buf_ptr = 0;
+uint32 data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = 0;
+uint32 data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = 0;
+uint32 data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = 0;
+/* real values from FD2.LE @ 0x52549 (per-sub-frame hit-shake X-offset cache) */
+uint8  data_fd2_battle_special_attack_shake_x_offset_table[6] =
+    { 0, 4, 9, 14, 18, 14 };
 uint32 data_fd2_battle_tile_attr_mv_modifier_table[32];
 uint32 data_fd2_battle_tile_attr_def_modifier_table[32];
 uint32 data_fd2_vga_palette_data_ptr = 0;
@@ -129,13 +149,18 @@ uint32 data_fd2_engine_wait_n_bios_ticks_last_seen = 0;
 void fd2_delay_ticks(uint32 t) { }
 void fd2_execute_offensive_targeted_spell(int a, int b, int c, int d) { }
 void fd2_execute_offensive_full_screen_flash_spell(int a, int b, int c, int d) { }
-void fd2_cast_earthquake_spell_with_screen_shake(int a, int b, int c, uint8 *d) { }
-void fd2_dispatch_variant_b_cast(int a, int b, int c, int d) { }
+/* fd2_dispatch_variant_b_cast: now emitted for real in src/spell/spellcin.c;
+ * its former no-op stub here was removed. */
 void fd2_cast_ap_boost_spell(int a, int b, uint8 *c) { }
 void fd2_cast_dp_boost_spell(int a, int b, uint32 c) { }
 void fd2_cast_speed_boost_spell(uint32 a, uint32 b, uint32 c) { }
 int g_play_sfx_with_handle_calls = 0;
 int g_dlg_blink_calls = 0;
+/* Per-invocation counter for the real fd2_play_sfx_sample_from_bank
+ * (src/audio/audio.c). Defined here ahead of the AIL_stop_sample spy that
+ * increments it; see the relocation note near the removed stub below for the
+ * handle-based routing rationale. */
+int g_play_sfx_sample_from_bank_calls = 0;
 /* SFX-id capture log: fd2_animate_spell_impact_per_target's per-spell SFX
  * dispatch chain is the highest-risk control flow in that function, so its
  * test pins the exact sequence of fired SFX ids (arg b) per frame. Additive:
@@ -143,19 +168,72 @@ int g_dlg_blink_calls = 0;
 int    g_sfx_last_id = 0;
 int    g_sfx_id_count = 0;
 int    g_sfx_id_log[64];
-/* The real fd2_portrait_blink_animation_step (src/dialog/dialog.c) calls this
- * exactly once per blink step, so g_dlg_blink_calls tracks blink invocations. */
-void fd2_play_sfx_with_handle(uint32 a, int b, int c)
+/* Additive arg-capture for fd2_play_and_free_status_effect_sfx's test: it must
+ * forward the bank handle (arg a) and the trailing flag (arg c). Existing tests
+ * only read g_sfx_last_id / g_play_sfx_with_handle_calls, so adding these is
+ * non-breaking. */
+uint32 g_sfx_last_arg_a = 0;
+int    g_sfx_last_arg_c = 0;
+/* Additive: captures the AIL sample handle (slot) the real player programmed, so
+ * fd2_play_sfx_sample_from_bank's direct test can assert it drives slot 1
+ * (data_fd2_audio_sfx_sample_handle_1) rather than slot 0. Non-breaking: existing
+ * tests don't read it. */
+uint32 g_sfx_last_handle = 0;
+/* fd2_play_sfx_with_handle is now a real emitted function (src/audio/audio.c);
+ * its former counting stub here was removed. The SFX spy seam relocates one
+ * level down into the AIL_* sample stubs the real player drives, mirroring the
+ * fd2_blit_rectangle -> fd2_composite_battle_tile_map relocation done earlier.
+ *
+ * The real player runs its three audio gates, then unconditionally calls
+ * AIL_stop_sample once per invocation (both the stop-only sfx_id==-1 path and
+ * the normal play path) -> that is the host-observable per-call counter
+ * (g_play_sfx_with_handle_calls / g_dlg_blink_calls). On the normal path it
+ * then calls AIL_set_sample_address(handle, base+off(id), end(id)-off(id)):
+ * caller tests stage a sfx bank (audiofix_make_bank) whose per-id offsets are
+ * laid out so that length == sfx_id and start == base + off(id). The spy
+ * therefore records the recovered sfx id in g_sfx_last_id / g_sfx_id_log (the
+ * captured length) and the resolved sample start in g_sfx_last_arg_a. The
+ * loop_count argument is recovered from AIL_set_sample_loop_count
+ * (g_sfx_last_arg_c). See audiofix.h for the exact (triangular) offset layout.
+ *
+ * Gate note: a caller test that wants the SFX to actually fire must enable the
+ * two driver flags + clear the cinematic flag; audiofix_enable_sfx() does this. */
+int g_ail_stop_sample_calls = 0;
+int g_ail_init_sample_calls = 0;
+int g_ail_set_sample_addr_calls = 0;
+int g_ail_start_sample_calls = 0;
+void AIL_stop_sample(uint32 sample)
 {
-    g_play_sfx_with_handle_calls++;
-    g_dlg_blink_calls++;
-    g_sfx_last_id = b;
+    g_ail_stop_sample_calls++;
+    /* Route the per-invocation counter to the right player by the handle the
+     * real function passed: slot 1 (handle_1) is fd2_play_sfx_sample_from_bank;
+     * everything else (slot 0 / handle_0) is fd2_play_sfx_with_handle, which the
+     * dialog typewriter and most callers drive. */
+    if (sample == data_fd2_audio_sfx_sample_handle_1) {
+        g_play_sfx_sample_from_bank_calls++;
+    } else {
+        g_play_sfx_with_handle_calls++;
+        g_dlg_blink_calls++;
+    }
+}
+void AIL_init_sample(uint32 sample) { (void)sample; g_ail_init_sample_calls++; }
+void AIL_set_sample_address(uint32 sample, uint32 start, uint32 len)
+{
+    g_ail_set_sample_addr_calls++;
+    g_sfx_last_handle = sample;   /* slot/handle programmed     */
+    g_sfx_last_arg_a = start;     /* bank base (entry off==0)  */
+    g_sfx_last_id = (int)len;     /* sfx id    (entry end==id) */
     if (g_sfx_id_count < 64) {
-        g_sfx_id_log[g_sfx_id_count] = b;
+        g_sfx_id_log[g_sfx_id_count] = (int)len;
     }
     g_sfx_id_count++;
-    (void)a; (void)c;
 }
+void AIL_set_sample_loop_count(uint32 sample, int count)
+{
+    (void)sample;
+    g_sfx_last_arg_c = count;
+}
+void AIL_start_sample(uint32 sample) { (void)sample; g_ail_start_sample_calls++; }
 /* Per-spell animation parameter tables (data segment @ 0x51F33/0x51F54/0x51F75).
  * Defined here with the real binary bytes until the data segment is emitted, so
  * anim tests assert on true frame counts / sprite offsets / SFX ids. */
@@ -171,12 +249,36 @@ uint8 data_fd2_animation_spell_frame_count_table[33] = {
 uint8 data_fd2_animation_spell_sfx_frame_table[33] = {
     6,6,6,6,9,9,9,9,10,14,0,0,0,12,12,12,12,6,7,8,4,4,3,0,0,5,3,2,0,0,0,0,9
 };
+/* Earthquake screen-shake params (data segment @ 0x52096). int[9] laid out as
+ * 3 X-offsets, 3 Y-offsets, 3 scales. Real binary values until data emitted. */
+int32 data_fd2_animation_earthquake_screen_shake_params_table[9] = {
+    128, 0, -128, 128, 0, 128, 131, 128, 125
+};
 /* Resource portrait sheet base pointer (data segment @ 0x53AD1). Tests point it
  * at a zeroed scratch buffer. */
 uint32 data_fd2_resource_portrait_sheet_ptr = 0;
-void fd2_play_rising_pre_cast_effect(int a, int b, int c) { }
-void fd2_play_variant_b_slide_pre_effect(int a, int b) { }
-void fd2_animate_warp_teleport_char(uint32 a, uint32 b, uint32 c, uint32 d, uint32 e) { }
+/* fd2_play_rising_pre_cast_effect and fd2_play_variant_b_slide_pre_effect are
+ * now real emitted functions (src/spell/spellcin.c); their former stubs were
+ * removed. Both are pure VGA/VRAM cinematic workers whose behavior is deferred
+ * to Phase 9 (see tests/spell/spellcin.c header). Their callees
+ * fd2_render_circle_anim_row and fd2_render_filled_circle_band_anim (graphics,
+ * not yet emitted) are stubbed here so spellcin.obj links. */
+void fd2_render_circle_anim_row(int cx, int cy, int r, int scale_num,
+                                int start_row, int end_row,
+                                uint8 *palette_remap_src) {
+    (void)cx; (void)cy; (void)r; (void)scale_num;
+    (void)start_row; (void)end_row; (void)palette_remap_src;
+}
+void fd2_render_filled_circle_band_anim(uint32 param_1, uint32 param_2,
+                                        uint32 param_3, int cx, int cy,
+                                        int radius) {
+    (void)param_1; (void)param_2; (void)param_3;
+    (void)cx; (void)cy; (void)radius;
+}
+/* The four warp sub-animations (fd2_animate_warp_teleport_char,
+ * fd2_animate_warp_portal_open_at, fd2_animate_warp_out_collapse,
+ * fd2_animate_warp_in_expand) now live in src/spell/spellcin.c; their former
+ * stubs were removed. */
 uint16 data_fd2_animation_palette_cycle_last_tick = 0;
 uint8  data_fd2_animation_palette_cycle_frame_idx = 0;
 uint8  data_fd2_animation_palette_cycle_rgb_table[93] = {0};
@@ -262,126 +364,103 @@ void fd2_composite_battle_tile_map(uint32 d, uint32 s, uint32 w, uint32 h, uint3
  * (src/gfx/rndscene.c / src/gfx/blittile.c); their former no-op/recording
  * stubs here were removed. The real fd2_composite_all_chars_overlay loops over
  * alive party slots calling the real fd2_paint_char_sprite_at_world_pos and
- * finishes with one unconditional real fd2_paint_chars_shadow_overlay. The
- * per-char paint's own blit reaches the recording fd2_tile_blit_24x24_passthrough
- * / fd2_tile_blit_24x24_dimmed_grayscale stubs below; the shadow overlay's
- * tile-redraw goes through the real fd2_blit_animated_tile_at_pos, whose own
- * blit reaches that same passthrough recording stub (rndscene shadow tests set
- * up a renderable tile-map so every requested tile resolves to a blit, then
- * recover (x, y) from the recorded dst offset). */
+ * finishes with one unconditional real fd2_paint_chars_shadow_overlay. */
 
-/* Recording stub for fd2_tile_blit_24x24_passthrough (the RLE row blitter, real
- * body not yet emitted). fd2_blit_24x24_at_window_relative_pos (real, emitted in
- * src/gfx/blittile.c) is the only caller; recording (src, dst, stride) at this
- * level lets the blittile.c + cursor-overlay tests verify the real window-clip /
- * dst-offset / sprite-source arithmetic without touching pixels. */
-int    g_blitpass_calls = 0;
-uint32 g_blitpass_src[64];
-uint32 g_blitpass_dst[64];
-uint32 g_blitpass_stride[64];
-void fd2_tile_blit_24x24_passthrough(uint32 src, uint32 dst, uint32 stride) {
-    if (g_blitpass_calls < 64) {
-        g_blitpass_src[g_blitpass_calls] = src;
-        g_blitpass_dst[g_blitpass_calls] = dst;
-        g_blitpass_stride[g_blitpass_calls] = stride;
+/* fd2_tile_blit_24x24_passthrough is now emitted for real in src/gfx/blittile.c;
+ * its former recording stub (the g_blitpass_calls counter and the g_blitpass_src
+ * / g_blitpass_dst / g_blitpass_stride arrays) here was removed. Caller tests
+ * that previously checked the recorded (src, dst, stride) now drive the real
+ * blitter against one-pixel RLE probe sprites over a real back-buffer and observe
+ * the painted bytes (same migration applied earlier to the dimmed / remap / solid
+ * siblings), which proves the caller's src / dst / stride arithmetic and branch
+ * selection without a stub. The probe-sprite helpers below (bp_*) build those
+ * sprites and read the painted output back. */
+
+/* ---- passthrough-blit probe support -------------------------------------
+ * Each "probe" sprite is a 24x24 RLE stream that paints exactly one identifying
+ * byte at tile-local (row 0, col 0) and is transparent everywhere else, so when
+ * a caller forwards it to the real fd2_tile_blit_24x24_passthrough the painted
+ * destination byte directly reveals (a) WHERE the blit landed (the byte offset)
+ * and (b) WHICH source the caller resolved (the byte value, since each atlas
+ * slot's probe paints a slot-specific value). bp_probe2 additionally paints a
+ * second copy at (row 1, col 0); because the passthrough row reset advances by
+ * stride-0x18, that second byte lands exactly `stride` past the first, so a test
+ * can confirm the forwarded row stride end-to-end. Probe values are 1-based
+ * (slot k -> k+1) so the painted byte is always distinct from the 0 background. */
+
+/* Write a one-pixel probe (paints `value` at row0/col0, transparent elsewhere)
+ * into a 24x24 RLE sprite slot. */
+void bp_probe1(uint8 *slot, uint8 value)
+{
+    int i;
+    slot[0] = (uint8)0x80u;          /* LITERAL run length 1 */
+    slot[1] = value;                 /* the one painted byte  */
+    slot[2] = (uint8)(0xC0u | 22u);  /* SKIP 23 -> finish row 0 (1 + 23 == 24) */
+    for (i = 1; i < 24; i++) {
+        slot[2 + i] = (uint8)(0xC0u | 23u);  /* rows 1..23: SKIP 24 */
     }
-    g_blitpass_calls++;
 }
-/* Recording stub for fd2_tile_blit_24x24_dimmed_grayscale (the greyed/dimmed
- * 24x24 blitter, real body not yet emitted). The real
- * fd2_paint_char_sprite_at_world_pos calls this instead of the passthrough
- * blitter when the unit's flags bit7 (already-acted) is set. Records into the
- * shared g_blitpass_* arrays (so dst/src arithmetic checks are uniform) and
- * bumps a separate dimmed counter so tests can distinguish which blitter ran. */
-int    g_blitdim_calls = 0;
-void fd2_tile_blit_24x24_dimmed_grayscale(uint32 src, uint32 dst, uint32 stride) {
-    if (g_blitpass_calls < 64) {
-        g_blitpass_src[g_blitpass_calls] = src;
-        g_blitpass_dst[g_blitpass_calls] = dst;
-        g_blitpass_stride[g_blitpass_calls] = stride;
+
+/* Write a two-pixel probe: `value` at row0/col0 AND row1/col0, transparent
+ * elsewhere. The second byte lands exactly `stride` past the first. */
+void bp_probe2(uint8 *slot, uint8 value)
+{
+    int i;
+    slot[0] = (uint8)0x80u;          /* row 0: LITERAL 1 */
+    slot[1] = value;
+    slot[2] = (uint8)(0xC0u | 22u);  /* row 0: SKIP 23 */
+    slot[3] = (uint8)0x80u;          /* row 1: LITERAL 1 */
+    slot[4] = value;
+    slot[5] = (uint8)(0xC0u | 22u);  /* row 1: SKIP 23 */
+    for (i = 2; i < 24; i++) {
+        slot[4 + i] = (uint8)(0xC0u | 23u);  /* rows 2..23: SKIP 24 */
     }
-    g_blitpass_calls++;
-    g_blitdim_calls++;
 }
-/* fd2_tile_blit_24x24_with_remap_table (real body not yet emitted): records into
- * the shared g_blitpass_* arrays plus a separate remap counter so tests can tell
- * the remap branch from the plain passthrough branch. */
-int    g_blitremap_calls = 0;
-uint32 g_blitremap_table[64];
-void fd2_tile_blit_24x24_with_remap_table(uint32 src, uint32 dst, uint32 stride,
-                                          uint32 remap_table) {
-    if (g_blitpass_calls < 64) {
-        g_blitpass_src[g_blitpass_calls] = src;
-        g_blitpass_dst[g_blitpass_calls] = dst;
-        g_blitpass_stride[g_blitpass_calls] = stride;
-        g_blitremap_table[g_blitpass_calls] = remap_table;
-    }
-    g_blitpass_calls++;
-    g_blitremap_calls++;
+
+/* Absolute byte offset (from atlas base) of slot i's sprite data, for an atlas
+ * laid out by bp_build_atlas1. The sprite data region begins right AFTER the
+ * n-entry offset table so no slot (in particular slot 0) overlaps the table. A
+ * caller that overwrites a specific slot's probe must use this same formula. */
+uint32 bp_atlas_slot_off(uint32 table_off, int n, uint32 entry_span, int i)
+{
+    return table_off + (uint32)n * 4u + (uint32)i * entry_span;
 }
-/* Recording stub for fd2_blit_24x24_tile_to_battle_grid_position (real body not
- * yet emitted; routing target gfx/blittile.c). The real helper resolves a tile
- * sprite from the atlas and computes a dst address; recording the full 6-arg
- * call (atlas_base, tile_index, dst_buffer, row_stride, dst_x, dst_y) lets the
- * fd2_render_battle_scene_with_portrait_grid_layout test verify the digit / char
- * tile ids and the per-row x/y grid arithmetic without touching pixels. */
-int    g_battlegrid_calls = 0;
-uint32 g_battlegrid_atlas[64];
-uint32 g_battlegrid_tile[64];
-uint32 g_battlegrid_dst[64];
-uint32 g_battlegrid_stride[64];
-uint32 g_battlegrid_x[64];
-uint32 g_battlegrid_y[64];
-void fd2_blit_24x24_tile_to_battle_grid_position(uint32 atlas_base,
-                                                 uint32 tile_index,
-                                                 uint32 dst_buffer,
-                                                 uint32 row_stride,
-                                                 uint32 dst_x,
-                                                 uint32 dst_y) {
-    if (g_battlegrid_calls < 64) {
-        g_battlegrid_atlas[g_battlegrid_calls] = atlas_base;
-        g_battlegrid_tile[g_battlegrid_calls] = tile_index;
-        g_battlegrid_dst[g_battlegrid_calls] = dst_buffer;
-        g_battlegrid_stride[g_battlegrid_calls] = row_stride;
-        g_battlegrid_x[g_battlegrid_calls] = dst_x;
-        g_battlegrid_y[g_battlegrid_calls] = dst_y;
+
+/* Build an atlas whose offset table (entry i at base+table_off+i*4) points slot
+ * i at bp_atlas_slot_off(...), and plant a one-pixel probe (value i+1) at each
+ * slot. After this, a caller that resolves src = base + table[idx] reads slot
+ * idx's probe, so the painted byte value identifies idx (value-1). The sprite
+ * data starts after the offset table (NOT at base+0), so slot 0 does not clobber
+ * the table; requires entry_span >= 26 so adjacent probe programs do not overlap.
+ * The backing buffer must span bp_atlas_slot_off(table_off, n, entry_span, n-1)
+ * + 26 bytes. */
+void bp_build_atlas1(uint8 *base, uint32 table_off, uint32 entry_span, int n)
+{
+    int i;
+    uint32 slot_off;
+    for (i = 0; i < n; i++) {
+        slot_off = bp_atlas_slot_off(table_off, n, entry_span, i);
+        *(uint32 *)(base + table_off + (uint32)i * 4u) = slot_off;
+        bp_probe1(base + slot_off, (uint8)(i + 1));
     }
-    g_battlegrid_calls++;
 }
-/* fd2_tile_blit_24x24_solid_color (the solid-colour silhouette blitter, real
- * body not yet emitted). The real fd2_animate_status_effect_overlay_flicker is
- * the caller; recording (src, dst, stride) into the shared g_blitpass_* arrays
- * plus the colour arg into a separate log lets the status-overlay test verify
- * the per-char dst-offset / sprite-source / colour-index arithmetic without
- * touching pixels. */
-int    g_blitsolid_calls = 0;
-uint32 g_blitsolid_color[64];
-void fd2_tile_blit_24x24_solid_color(uint32 src, uint32 dst, uint32 color_or_stride,
-                                     uint32 unused) {
-    if (g_blitpass_calls < 64) {
-        g_blitpass_src[g_blitpass_calls] = src;
-        g_blitpass_dst[g_blitpass_calls] = dst;
-        g_blitpass_stride[g_blitpass_calls] = color_or_stride;
-        g_blitsolid_color[g_blitpass_calls] = unused;
+
+/* Count bytes equal to `value` in buf[0..size) and report the first offset
+ * (0xFFFFFFFF if none). Used to confirm a probe painted exactly where expected. */
+int bp_count_value(const uint8 *buf, uint32 size, uint8 value, uint32 *first_off)
+{
+    uint32 i;
+    int n = 0;
+    *first_off = 0xFFFFFFFFu;
+    for (i = 0; i < size; i++) {
+        if (buf[i] == value) {
+            if (n == 0) {
+                *first_off = i;
+            }
+            n++;
+        }
     }
-    g_blitpass_calls++;
-    g_blitsolid_calls++;
-}
-/* fd2_tile_blit_24x24_with_dialog_bg_fill (the RLE blitter that fills
- * transparent runs with the dialog-bg colour 0x49; real body not yet emitted).
- * fd2_render_chapter_intro_dialog_panels (mode 2) drives it for the 3-icon
- * roster row; recording (src, dst, stride) into the shared g_blitpass_* arrays
- * lets the panel test verify the per-icon dst-offset / portrait-source /
- * blink-phase arithmetic without touching pixels. */
-int    g_blitbgfill_calls = 0;
-void fd2_tile_blit_24x24_with_dialog_bg_fill(uint32 src, uint32 dst, uint32 stride) {
-    if (g_blitpass_calls < 64) {
-        g_blitpass_src[g_blitpass_calls] = src;
-        g_blitpass_dst[g_blitpass_calls] = dst;
-        g_blitpass_stride[g_blitpass_calls] = stride;
-    }
-    g_blitpass_calls++;
-    g_blitbgfill_calls++;
+    return n;
 }
 /* fd2_render_party_roster_grid: now emitted for real in src/gfx/rndmenu.c and
  * linked. fd2_render_chapter_intro_dialog_panels (mode 3) overlays it; the panel
@@ -427,6 +506,142 @@ uint32 fd2_pick_stat_compare_color(int32 current_stat, int32 preview_stat) {
  * Its former counting stub (which logged g_count_selected_calls) was removed;
  * the recruitment render test now exercises the real counter through the
  * renderer's "remaining = max_chars - count" number output. */
+
+/* Count all nonzero (painted) bytes in buf[0..size). With one-pixel probes this
+ * equals the number of passthrough blits that actually painted. */
+int bp_count_painted(const uint8 *buf, uint32 size)
+{
+    uint32 i;
+    int n = 0;
+    for (i = 0; i < size; i++) {
+        if (buf[i] != 0) {
+            n++;
+        }
+    }
+    return n;
+}
+
+/* ---- shared compositor host-safety fixture (see blitprob.h) ----------------
+ * Turn-gated / cinematic chapter-event handlers pan the camera, which drives the
+ * REAL fd2_composite_battle_frame; its per-char painter, shadow overlay, cursor
+ * overlay and terrain HUD all feed a sprite stream to the REAL RLE blitters
+ * (fd2_tile_blit_24x24_passthrough + siblings). An unset / real-but-non-24x24-RLE
+ * sprite source makes the row decoder spin forever (the row loop only exits when
+ * the remaining-column counter hits exactly 0). Make every such blit a
+ * deterministic no-op without touching the emit C. */
+#define TG_PCACHE_SPAN  0x32a00u           /* size the loader's FD2.TMP fwrite reads */
+static uint8  tg_pcache[TG_PCACHE_SPAN];   /* +0 offset table -> all-SKIP sprite     */
+static uint8  tg_cursor_atlas[0x200];      /* +6 offset table -> all-SKIP sprite     */
+static uint8  tg_safe_tile_map[0x400];     /* zeroed: tiles resolve non-renderable   */
+static uint8  tg_safe_tile_attr[0x400];    /* zeroed: renderable bit 0x80 clear      */
+static uint32 tg_saved_pcache;
+static uint32 tg_saved_rbs;
+static uint32 tg_saved_tile_map;
+static uint32 tg_saved_tile_attr;
+static uint8  tg_saved_hud_enabled;
+static uint32 tg_saved_play_active;
+
+static void tg_fill_skip_sprite(uint8 *p)
+{
+    int i;
+    for (i = 0; i < 24; i++) {
+        p[i] = (uint8)(0xC0u | 23u);       /* one "SKIP 24" command per row */
+    }
+}
+
+void tg_install_compositor_safe_atlases(void)
+{
+    uint32 i;
+
+    tg_saved_pcache      = portrait_sprite_cache;
+    tg_saved_rbs         = data_fd2_runtime_battle_state_ptr;
+    tg_saved_tile_map    = data_fd2_battle_tile_map_ptr;
+    tg_saved_tile_attr   = data_fd2_tile_attribute_flags_buffer_ptr;
+    tg_saved_hud_enabled = data_fd2_ui_terrain_hud_user_enabled;
+    tg_saved_play_active = data_fd2_ui_play_active_flag;
+
+    /* per-char painter: a static safe portrait cache (NOT heap, so callers whose
+     * teardown does NOT free portrait_sprite_cache, e.g. the spelleff impact
+     * fixture, leak nothing). The +0 offset table all points at one transparent
+     * "SKIP 24 x 24" sprite at +0x780. Pre-seed the portrait cache id-list (id 0)
+     * + count 1 so a matching tile-event record's fd2_load_portrait_to_cache takes
+     * the cache-HIT early return, leaving this safe atlas intact instead of
+     * re-loading real FDICON. (The chapter-event loader fixtures zero every
+     * tile-event byte but the race tag, so the matched record's char_id is 0.)
+     * tg_restore_compositor_safe_atlases puts the saved pointer back, so a caller
+     * teardown that DOES free(portrait_sprite_cache) frees its own pointer, never
+     * this static buffer. */
+    for (i = 0; i < TG_PCACHE_SPAN; i++) {
+        tg_pcache[i] = 0;
+    }
+    for (i = 0; i < 0x80u; i++) {           /* covers facing*3 + cache_idx*0xC + pal */
+        *(int32 *)(tg_pcache + i * 4u) = (int32)0x780;
+    }
+    tg_fill_skip_sprite(tg_pcache + 0x780);
+    portrait_sprite_cache = (uint32)tg_pcache;
+    *(uint32 *)data_fd2_resource_portrait_cache_id_list_base = 0;  /* char_id 0    */
+    data_fd2_resource_portrait_cache_count = 1;                    /* -> cache hit */
+    data_fd2_resource_portrait_cache_buffer_used = 0x780;
+
+    /* cursor overlay: 4-byte offset table at +6 -> the all-SKIP sprite. */
+    for (i = 0; i < sizeof(tg_cursor_atlas); i++) {
+        tg_cursor_atlas[i] = 0;
+    }
+    for (i = 0; i < 0x40u; i++) {
+        *(int32 *)(tg_cursor_atlas + 6 + i * 4u) = (int32)0x100;
+    }
+    tg_fill_skip_sprite(tg_cursor_atlas + 0x100);
+    data_fd2_runtime_battle_state_ptr = (uint32)tg_cursor_atlas;
+
+    /* shadow / animated-tile overlay: non-renderable tiles. */
+    for (i = 0; i < sizeof(tg_safe_tile_map); i++) {
+        tg_safe_tile_map[i] = 0;
+    }
+    for (i = 0; i < sizeof(tg_safe_tile_attr); i++) {
+        tg_safe_tile_attr[i] = 0;
+    }
+    data_fd2_battle_tile_map_ptr = (uint32)tg_safe_tile_map;
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)tg_safe_tile_attr;
+
+    /* terrain HUD panel: stays off so it early-returns before any blit. */
+    data_fd2_ui_terrain_hud_user_enabled = 0;
+    data_fd2_ui_play_active_flag = 0;
+}
+
+void tg_restore_compositor_safe_atlases(void)
+{
+    portrait_sprite_cache                    = tg_saved_pcache;
+    data_fd2_runtime_battle_state_ptr        = tg_saved_rbs;
+    data_fd2_battle_tile_map_ptr             = tg_saved_tile_map;
+    data_fd2_tile_attribute_flags_buffer_ptr = tg_saved_tile_attr;
+    data_fd2_ui_terrain_hud_user_enabled     = tg_saved_hud_enabled;
+    data_fd2_ui_play_active_flag             = tg_saved_play_active;
+}
+/* fd2_tile_blit_24x24_dimmed_grayscale is now emitted for real in
+ * src/gfx/blittile.c; its former recording stub (and the g_blitdim_calls
+ * counter) here were removed. The acted-char caller test
+ * (test_paint_acted_dimmed in tests/gfx/rndscene.c) instead drives the real
+ * dimmed blitter against a single-pixel RLE sprite planted only at the
+ * expected sprite-source slot (transparent SKIP elsewhere) over a real
+ * back-buffer, and observes the single painted grayscale byte
+ * ((src & 7) + 0x18), which proves the caller's acted-flag branch selection
+ * plus its src / dst arithmetic. */
+/* fd2_tile_blit_24x24_with_remap_table is now emitted for real in
+ * src/gfx/blittile.c; its former recording stub here was removed. The sole
+ * caller test (fd2_blit_animated_tile_at_pos in tests/gfx/blittile.c) instead
+ * drives the real blitter against a one-pixel RLE sprite at the window-origin
+ * cell (in-bounds dst) and observes the painted LUT-remapped byte, which proves
+ * the caller's src / dst / remap_table arithmetic and remap-branch selection. */
+/* fd2_tile_blit_24x24_solid_color is now emitted for real in
+ * src/gfx/blittile.c; its former recording stub here was removed. The
+ * caller test (fd2_animate_status_effect_overlay_flicker in
+ * tests/anim/anicombt.c) instead drives the real blitter against a
+ * one-pixel RLE sprite placed only at the expected sprite-source offset
+ * (transparent SKIP bytes elsewhere) and observes the single painted
+ * silhouette byte, which proves the caller's src / dst arithmetic and
+ * window-cull predicate. The painted colour is the LOW BYTE of the
+ * stride argument (param_3 & 0xFF); param_4 is read by the caller but
+ * IGNORED by the blitter (verified against the 0x4DDD7 disassembly). */
 /* fd2_render_terrain_info_hud_panel is now a real emitted function
  * (src/gfx/rndstat.c). Its former recording/loop-break stub here was removed;
  * the idle-loop break seam (g_repaint_settings_calls / g_repaint_flip_buffer_after)
@@ -438,6 +653,26 @@ uint32 data_fd2_ui_slide_composed_target_buf_ptr = 0;
 uint32 data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
 uint32 data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
 uint32 data_fd2_ui_menu_cursor_idx = 0;
+/* chapter-intro menu speaker portrait IDs — real FD2.LE values @ 0x52659 */
+uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6] =
+    { 0x81, 0x80, 0x00, 0x82, 0x83, 0x84 };
+/* shop "inventory full" FDTXT dialog-id table — real FD2.LE values @ 0x5265F.
+ * The church-revive menu aliases the same bytes as a per-job revive-price
+ * multiplier table, read as [bJob_id + 5]. (int16; vendor data overlap) */
+int16  data_fd2_dialog_shop_inventory_full_dialog_text_id_table[36] = {
+    0x0001, 0x01FA, 0x0001, 0x01FA, 0x01FA, 0x01FA, 0x0064, 0x0096,
+    0x0064, 0x0064, 0x0064, 0x0064, 0x0064, 0x0064, 0x04B0, 0x0640,
+    0x03E8, 0x03E8, 0x04B0, 0x0578, 0x04B0, 0x0640, 0x0064, 0x0708,
+    0x04B0, 0x03E8, 0x0BB8, 0x03E8, 0x03E8, 0x0578, 0x015E, 0x0064,
+    0x0064, 0x0064, 0x0064, 0x0064
+};
+/* per-basic-class required class-change key-item id — real FD2.LE values
+ * @ 0x526A7 (= 0x5266B + 0x3C). Indexed directly by runtime_char.portrait_id
+ * (basic classes 0..0x11); 0xFF marks classes with no table-driven item. */
+uint8  data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[18] = {
+    0x59, 0x5D, 0xFF, 0x5D, 0xCD, 0xCD, 0xCD, 0xCD, 0x5C,
+    0x58, 0x58, 0x58, 0x5B, 0x5C, 0x58, 0x5B, 0xFF, 0xFF
+};
 /* field command menu templates — real FD2.LE values @ 0x51E9F / 0x53EF2 */
 int32  data_fd2_ui_field_command_menu_options_template[4] = { 7, 5, 6, 4 };
 int32  data_fd2_ui_field_command_menu_state_template[4] = { 0, 0, 0, 0 };
@@ -489,7 +724,6 @@ uint8  data_fd2_chapter_intro_portrait_pose_x_column_table[18] = {0};
  * in-process seam: real-file loaders + VGA port I/O + four nested interactive
  * sub-menus — see the deferral note in tests/ui_menu/chintro.c), so these only
  * satisfy the link and are never invoked by a test. */
-uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6] = {0};
 /* per-job revive/promote price multiplier (real int16 data @ 0x5266B, emit'd
  * by the data pipeline; zero-filled fake here, sized past job_id 0x1A for the
  * table[job_id-1] read in fd2_render_promote_members_grid). Tests seed the
@@ -623,11 +857,17 @@ void fd2_show_damage_number(uint32 v, uint32 t, uint32 tg) { }
 void fd2_show_miss_indicator(uint32 t) { }
 void fd2_show_status_effect_overlay(uint32 t, uint32 s) { }
 void fd2_animate_spell_projectile_paths(void) { }
+/* fd2_composite_then_animate_projectiles: shared spell-finale + epilogue helper
+ * @ 0x21190, routed to gfx/rndscene.c (not yet emitted). Stub here so callers
+ * link; remove when rndscene.c lands the real definition. */
+void fd2_composite_then_animate_projectiles(void) { }
 /* fd2_remove_inventory_slot_at: now emitted for real in src/ui_menu/status.c.
  * Its old spy global g_remove_inventory_calls is gone; spell/spelleff.c now
  * observes the real slot-consume by checking slot[7].flag == 0x80. */
-void fd2_load_status_effect_sfx(void) { }
-void fd2_play_and_free_status_effect_sfx(void) { }
+/* fd2_load_status_effect_sfx + fd2_play_and_free_status_effect_sfx: now emitted
+ * for real in src/audio/audio.c. test_load_status_effect_sfx_real drives the
+ * loader against staged real FDOTHER.DAT; test_play_and_free_status_effect_sfx
+ * drives the player+free (observed via the g_sfx_* capture spy). */
 /* fd2_collect_pending_death_drops: now in btl_turn.c */
 /* fd2_display_dialog_scene: now emitted in src/dialog/dialog.c */
 /* fd2_load_chapter_portrait: now emitted for real in src/rsrc/rsrc.c and
@@ -661,7 +901,11 @@ int fd2_play_ending_and_record_clear(void) { return g_ending_menu_return; }
  * paints the grid via the real fd2_render_save_slot_grid, so those callers'
  * fixtures stage a small sprite-atlas buffer and an all-END dialog text
  * program. The former g_slot_selector_* control fake was removed. */
-void fd2_close_intro_dialog_with_slide_out(void) { }
+/* fd2_close_intro_dialog_with_slide_out: now emitted in src/dialog/dialog.c
+ * and linked for real; its caller test (tests/life/main.c
+ * test_main_menu_continue_quit) pre-allocates the three slide workspace
+ * buffers so the real teardown's memmoves stay in bounds, and its own caller
+ * test lives in tests/dialog/dialog.c. */
 int g_chapter_transition_return = 0;
 int fd2_chapter_transition_menu(void) { return g_chapter_transition_return; }
 /* fd2_animate_scroll_up_in_shop_dialog / _down_in_shop_dialog (the shop/roster
@@ -673,8 +917,56 @@ int fd2_chapter_transition_menu(void) { return g_chapter_transition_return; }
  * Remove these doubles when the real functions are emitted. */
 int g_scroll_up_in_shop_calls = 0;
 int g_scroll_down_in_shop_calls = 0;
-void fd2_animate_scroll_up_in_shop_dialog(void) { g_scroll_up_in_shop_calls++; }
-void fd2_animate_scroll_down_in_shop_dialog(void) { g_scroll_down_in_shop_calls++; }
+
+/* fd2_build_promotion_candidates_with_targets @ 0x31793: REAL in
+ * src/ui_menu/promote.c. It drives the real per-char eligibility scan and the
+ * real fd2_find_inventory_slot_with_item (also real, src/ui_menu/status.c) for
+ * its key-item / Sword target-class branches. Tests grant a char an item by
+ * populating g_test_rc_array's real inventory slots, so no find-item fake is
+ * needed here. The class-promotion menu's count==0 early-return path is driven
+ * by an ineligible (under-level) party on g_test_rc_array. */
+
+/* fd2_roll_stat_gain_and_show_message @ 0x1E529: not yet emitted (its real
+ * emit lands in battle/btl_turn.c); controllable fake so its two callers
+ * (fd2_execute_class_promotion_with_dialog @ 0x31602 and
+ * fd2_process_xp_and_level_up_for_char) link and can be driven without the
+ * real RNG roll + blocking stat-gain dialog. The fake records the threaded
+ * 4-row cursor it was last handed and returns g_roll_stat_next_row so the
+ * caller's row-threading and final-row-as-spell-offset wiring stay testable;
+ * it does NOT mutate *stat_ptr (the real roll's stat add is exercised in the
+ * real function's own emit test, not via this caller).
+ *
+ * g_roll_stat_arm_kbd_on_call: when set, each invocation pre-arms the BIOS
+ * keyboard buffer NONEMPTY. The class-promotion caller drains the buffer
+ * (fd2_clear_keyboard_buffer) BEFORE these rolls and then, in its learned-
+ * spell branch, blocks on fd2_wait_for_input_dialog_with_blink(0) AFTER them;
+ * an in-process test cannot inject the awaited keypress between the drain and
+ * that wait, so the fake stands in for the player's keypress (the real roll's
+ * own clear/redisplay does not run here). The intervening real
+ * fd2_display_dialog_scene does not drain the buffer (proven by the sibling
+ * no-candidates test), so the armed state survives to the blink-wait. */
+int    g_roll_stat_calls = 0;
+short *g_roll_stat_last_stat_ptr = 0;
+uint8 *g_roll_stat_last_growth_ptr = 0;
+uint32 g_roll_stat_last_text_id = 0;
+int    g_roll_stat_last_row = 0;
+int    g_roll_stat_next_row = 0;
+int    g_roll_stat_arm_kbd_on_call = 0;
+int fd2_roll_stat_gain_and_show_message(short *stat_ptr, uint8 *growth_pair_ptr,
+                                        uint32 dialog_text_id, int row_idx)
+{
+    g_roll_stat_calls++;
+    g_roll_stat_last_stat_ptr = stat_ptr;
+    g_roll_stat_last_growth_ptr = growth_pair_ptr;
+    g_roll_stat_last_text_id = dialog_text_id;
+    g_roll_stat_last_row = row_idx;
+    if (g_roll_stat_arm_kbd_on_call) {
+        *(volatile uint16 *)0x41AuL = 0x1E;          /* head                 */
+        *(volatile uint16 *)0x41CuL = 0x20;          /* tail = head+2 -> nonempty */
+        *(volatile uint16 *)0x41EuL = 0x1C00;        /* Enter scancode in AH */
+    }
+    return g_roll_stat_next_row;
+}
 
 /* ---- fd2_load_save_and_init_engine leaf helper fakes ----
  * (the real fd2_load_save_and_init_engine now lives in src/life/main.c) */
@@ -705,7 +997,108 @@ void fd2_animate_scroll_down_in_shop_dialog(void) { g_scroll_down_in_shop_calls+
  * observe its rendered digit glyphs through the g_rle_blit_log_* log. */
 int    g_delay375b2_calls = 0;
 uint32 g_delay375b2_last_ticks = 0;
-void __delay_thunk_375b2(uint32 ticks) { g_delay375b2_calls++; g_delay375b2_last_ticks = ticks; }
+/* Opt-in ordered tick log (default off; additive — existing tests only read the
+ * count + last_ticks above). The white-flash cinematic test turns this on to pin
+ * its exact 300 / 200 / 400 delay sequence (the third value arrives via the
+ * fd2_delay_400ms_via_idle_thunk tail-call below, which forwards 400 here). */
+int    g_delay375b2_log_on = 0;
+int    g_delay375b2_log_count = 0;
+uint32 g_delay375b2_log[16];
+void __delay_thunk_375b2(uint32 ticks)
+{
+    g_delay375b2_calls++;
+    g_delay375b2_last_ticks = ticks;
+    if (g_delay375b2_log_on && g_delay375b2_log_count < 16) {
+        g_delay375b2_log[g_delay375b2_log_count] = ticks;
+        g_delay375b2_log_count++;
+    }
+}
+/* fd2_delay_400ms_via_idle_thunk @ 0x353CC: a separately-routed real function
+ * (target src/util/misc.c, not yet emitted) whose entire body is
+ * __delay_thunk_375b2(400). The white-flash cinematic tail-calls it (JMP 0x353CC)
+ * for its final 400ms hold. Stub forwards to the real delay thunk so callers link
+ * and the 400 is observed in the delay log; remove when misc.c emits the real
+ * body. */
+void fd2_delay_400ms_via_idle_thunk(void) { __delay_thunk_375b2(400); }
+
+/* fd2_animate_palette_flash_pulse_white @ 0x35E5A: a separately-routed real
+ * function (target src/anim/aniui.c, not yet emitted) whose body is the
+ * ~1.4s pulse-white palette flash (a 64-step fade-up, 400ms peak hold, 63-step
+ * fade-down, all driven through fd2_set_vga_palette_range_with_add +
+ * __delay_thunk_375b2). The ch29 endgame handler_4c fires it six times, so a
+ * real run would churn ~750 palette writes and ~750 delay-log entries with no
+ * value to that handler's risk-bearing logic (its branch, the 8-bit
+ * party_member_count-3 / turn-counter stores, and the flash/dialog sequencing).
+ * The recording stub counts invocations so the caller can pin the exact flash
+ * count without that churn; remove when aniui.c emits the real body. */
+int g_palette_flash_pulse_white_calls = 0;
+void fd2_animate_palette_flash_pulse_white(void)
+{
+    g_palette_flash_pulse_white_calls++;
+}
+
+/* fd2_cinematic_chapter_portrait_dump_with_white_flash is now a real emitted
+ * function (src/field/chevt2.c); its former (x, y, id) recording stub here was
+ * removed. The handler_34 + wrap-thunk suites that used to spy on this stub now
+ * drive the real cinematic over a host-safe render/portrait/palette env and
+ * observe its forwarded args one level down: the masked portrait id via the real
+ * fd2_load_chapter_portraits_and_dump_tmp race-scan (party member count), the
+ * pan target via the real fd2_pan_cursor_and_window window origin, and the
+ * per-call delay sequence via the g_delay375b2_log above. */
+
+/* Recording stub for the still-unemitted callee
+ * fd2_kill_runtime_chars_from_index_to_end (routing target battle/btl_turn.c,
+ * not yet emitted). The real function zeroes hp_current for runtime_char slots
+ * [start_char_idx .. party_member_count) and then plays the death animation;
+ * that loop is the callee's own behavior and is covered when 0x35BBA is emitted
+ * into btl_turn.c. Recording each call's start index + call count lets
+ * fd2_chapter_event_handler_35's test pin THIS handler's contract: a single
+ * kill call with start index 0x12, issued AFTER the page-5 dialog. The stub
+ * will be replaced by the real body when its routing target is emitted. */
+int    g_kill_from_calls = 0;
+uint32 g_kill_from_index[4];
+
+/* Recording stub for the still-unemitted callee fd2_cinematic_warp_char_to_tile
+ * (routing target anim/aniui.c, not yet emitted). The real helper pans the camera
+ * to a tile then runs the full warp-teleport char animation
+ * (fd2_animate_warp_teleport_char: FDOTHER.DAT SFX load, a 150KB snapshot, portal
+ * open/collapse/expand frames, and a row-by-row "pop-in" copy to the mode-13h
+ * framebuffer). That entire chain is pure display owned by the spellcin warp suite
+ * and deferred to Phase 9; running it just to reach a caller's downstream logic
+ * would churn real file I/O + framebuffer writes with no value to the caller's
+ * risk-bearing routing. Recording each call's (char_id, tile_x, tile_y) lets
+ * fd2_chapter_event_handler_52's test pin THIS handler's contract: the exact warp
+ * char-index arithmetic (boss = 0x18-stage; pair = 2*stage+0x19 / +0x1A) and the
+ * literal tile targets. The stub will be replaced by the real body when aniui.c
+ * emits 0x33F78. */
+int    g_warp_char_calls = 0;
+uint32 g_warp_char_id[4];
+uint32 g_warp_tile_x[4];
+uint32 g_warp_tile_y[4];
+void fd2_cinematic_warp_char_to_tile(uint32 char_id, uint32 tile_x, uint32 tile_y)
+{
+    if (g_warp_char_calls < 4) {
+        g_warp_char_id[g_warp_char_calls] = char_id;
+        g_warp_tile_x[g_warp_char_calls] = tile_x;
+        g_warp_tile_y[g_warp_char_calls] = tile_y;
+    }
+    g_warp_char_calls++;
+}
+
+/* Link-time stub for the still-unemitted callee of the orphan/unreachable
+ * fd2_execute_aoe_spell_with_caster_portrait_radial_scatter (src/spell/spellcin.c).
+ * That AoE cinematic has no caller and no test drives it (its per-frame work is
+ * unconditional VRAM blits to the hardcoded mode-13h literal 0xA0504, deferred to
+ * Phase 9 like the rest of spellcin.c). This stub only needs to resolve the
+ * symbol; its real body is owned by its routing target
+ * (fd2_blit_palette_remap_with_sprite_mask -> gfx/blitspr.c) and will replace
+ * this when emitted. (The sibling scatter callee
+ * fd2_scatter_sprite_around_origin_with_random_offset is now the real emitted
+ * function in src/spell/spellcin.c; its former stub here was removed.) */
+void fd2_blit_palette_remap_with_sprite_mask(
+    uint8 *dst, uint16 *sprite_mask, uint32 stride, uint32 remap_table) {
+    (void)dst; (void)sprite_mask; (void)stride; (void)remap_table;
+}
 
 /* fd2_animate_party_addition_with_appear_effect (@0x32999) is not yet emitted.
  * It is a heavy 12-frame "new char appearance" explosion animation (real
@@ -798,12 +1191,10 @@ void fd2_rle_blit_sprite(uint32 rle_stream, int32 dst_x, int32 dst_y,
  * 2-digit magnitude glyphs end-to-end via the g_rle_blit_log_* per-call log
  * against the fake sheet (table[i]=i). The former (dst,stride,modifier)
  * recording stub was removed. */
-int    g_scroll_text_calls = 0;
-uint32 g_scroll_text_last_arg = 0;
-void fd2_scroll_text_screen_up_by_lines(uint32 lines) {
-    g_scroll_text_last_arg = lines;
-    g_scroll_text_calls++;
-}
+/* fd2_scroll_text_screen_up_by_lines: now emitted in src/dialog/dialog.c. Its
+ * own dual-mode + cylinder-scroll behavior is covered by the dialog tests; the
+ * rsrc caller test (chapter 0x17) drives the real tail call against a bounded
+ * static_bg buffer. The former (calls, last_arg) recording stub was removed. */
 void fd2_play_palette_fade_in(void) { }
 void fd2_play_death_animation_and_mark_dead(void) { }
 
@@ -880,6 +1271,20 @@ uint8  data_fd2_battle_summon_anim_variant_d_odd_even_frame_toggle = 0;
 int32  data_fd2_animation_summon_variant_d_3slot_color_row_offsets[10] = {0};
 uint8  data_fd2_animation_summon_variant_e_16slot_sprite_base_table[16] = {0};
 int32  data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[16] = {0};
+/* Summon-spell per-summon RGB + SFX-bank-index tables (4-byte read-only game
+ * data, indexed by spell_id-0x20). The binary declares each as a dword that it
+ * byte-indexes; defined here with the real .object3 values (little-endian
+ * packed) so ((uint8*)&x)[i] yields the table byte on x86.
+ *   R @0x5254F = {3F,33,35,35}  G @0x52553 = {3F,39,00,3A}
+ *   B @0x52557 = {3F,3F,00,09}  sfx_idx @0x5255B = {5B,5C,5D,5E} */
+uint32 data_fd2_battle_summon_spell_palette_r_table = 0x3535333fU;
+uint32 data_fd2_battle_summon_spell_palette_g_table = 0x3a00393fU;
+uint32 data_fd2_battle_summon_spell_palette_b_table = 0x09003f3fU;
+uint32 data_fd2_battle_summon_spell_sfx_bank_index_table = 0x5e5d5c5bU;
+/* fd2_load_figani_sfx_bank FDOTHER index LUT @0x525D6, real binary bytes
+ * (1-based: lut[sfx_id-1]); 6 bytes copied onto the stack by the binary. */
+uint8 data_fd2_audio_figani_sfx_bank_fdother_index_lut[6] =
+    {0x30, 0x31, 0x32, 0x33, 0x34, 0x35};
 /* fd2_tick_tutorial_progress_with_sfx: now in anim.c */
 /* fd2_run_full_turn_cycle: now emitted in src/battle/btl_turn.c */
 /* fd2_enemy_turn_action_dispatcher: now in btl_ai.c */
@@ -889,6 +1294,12 @@ int32  data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[16] = {0
  * produces the desired (count, ascending ids). */
 /* fd2_score_spell_candidate: now in btl_ai.c */
 double data_fd2_battle_ai_enemy_spell_score_multiplier_15 = 1.5;
+/* AoE radial-scatter geometry constants (fd2_scatter_sprite_around_origin_with_random_offset).
+ * The deg->rad factor is the binary's exact stored literal 0.0174532 (a 7-digit
+ * approximation of pi/180, byte pattern af99d76c40df913f @ 0x501F8), NOT full-precision
+ * pi/180. The Y skew is -8.0 @ 0x50200. */
+double data_fd2_graphics_radian_per_degree_const = 0.0174532;
+double data_fd2_graphics_scatter_y_offset_neg8 = -8.0;
 /* fd2_ai_score_item_use: now in btl_ai.c */
 /* fd2_count_usable_inventory_slots: now REAL in src/ui_menu/status.c */
 /* inline action submenu dispatch seams (fd2_player_inline_action_menu_dispatch).
@@ -968,8 +1379,31 @@ void (*data_fd2_chapter_post_action_handler_table[30])(uint32) = {
     g_noop_post_action_handler, g_noop_post_action_handler,
     g_noop_post_action_handler, g_noop_post_action_handler,
     g_noop_post_action_handler, g_noop_post_action_handler,
-    g_noop_post_action_handler, g_noop_post_action_handler,
     g_noop_post_action_handler, g_noop_post_action_handler
+};
+/* spell-cast cinematic phase-handler table (0x523B9): 10 per-spell handlers, each
+ * int(caster_idx, caster_sprite, work_buf, stride, phase_code) returning a frame
+ * count. Initialized to a noop returning 0 (fnptr table noop-init rule). The real
+ * handlers are heavy VGA cinematics; fd2_play_spell_cast_sequence is deferred to
+ * Phase 9 so this table is never invoked by a unit test. */
+static int g_noop_spell_phase_handler(uint32 a, uint32 b, uint32 c,
+                                      uint32 d, uint32 e) {
+    (void)a; (void)b; (void)c; (void)d; (void)e; return 0;
+}
+int (*data_fd2_battle_spell_cast_cinematic_phase_handler_table[10])(
+        uint32, uint32, uint32, uint32, uint32) = {
+    g_noop_spell_phase_handler, g_noop_spell_phase_handler,
+    g_noop_spell_phase_handler, g_noop_spell_phase_handler,
+    g_noop_spell_phase_handler, g_noop_spell_phase_handler,
+    g_noop_spell_phase_handler, g_noop_spell_phase_handler,
+    g_noop_spell_phase_handler, g_noop_spell_phase_handler
+};
+/* per-chapter combat-cinematic mode table (0x52363, byte[30]): real game values
+ * (24 chapters use mode 3, ch24=3, rest 0). */
+uint8 data_fd2_chapter_combat_cinematic_mode_per_chapter[30] = {
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    0, 0, 0, 3, 0, 0
 };
 uint32 data_fd2_battle_ai_best_spell_score = 0;
 uint32 data_fd2_battle_ai_best_item_score = 0;
@@ -987,7 +1421,15 @@ int g_blit_indexed_sprite_calls = 0;
 uint32 g_blit_indexed_sprite_last_frame = 0;
 int g_blit_indexed_sprite_last_x = 0;
 int g_blit_indexed_sprite_last_y = 0;
+/* opt-in per-call frame-index log (default off; used by the cycle-sprite-anim
+ * test to recover the full frame-advance sequence produced by the atlas-driven
+ * hold/wrap state machine in fd2_cycle_sprite_anim_with_bg_frames). */
+int g_blit_indexed_log_on = 0;
+uint32 g_blit_indexed_log_frame[64];
 void fd2_blit_indexed_sprite(uint32 a, uint32 f, int x, int y, int m) {
+    if (g_blit_indexed_log_on && g_blit_indexed_sprite_calls < 64) {
+        g_blit_indexed_log_frame[g_blit_indexed_sprite_calls] = f;
+    }
     g_blit_indexed_sprite_calls++;
     g_blit_indexed_sprite_last_frame = f;
     g_blit_indexed_sprite_last_x = x;
@@ -1046,7 +1488,8 @@ int g_execute_physical_calls = 0;
 /* fd2_ai_walk_to_target_tile: now in btl_ai.c */
 /* fd2_ai_score_physical_attack: now in btl_ai.c */
 /* fd2_execute_ai_offensive_spell: now in btl_ai.c */
-void fd2_play_spell_cast_sequence(uint32 ci, uint32 si, uint32 nt, uint32 tb) { }
+/* fd2_play_spell_cast_sequence: now emitted for real in src/anim/anispell.c
+ * (its former no-op linker stub was removed). */
 /* fd2_execute_ai_physical_attack: now in btl_ai.c */
 uint32 fd2_animate_combat_speech_bubbles(uint32 ci, uint32 ti) { return 0; }
 void fd2_render_combatant_hp_bar_proportional(uint32 d, uint32 s, uint32 ci, uint32 st) { }
@@ -1072,8 +1515,19 @@ uint8  data_fd2_graphics_tile_anim_palette_phase_lookup[20] = {0};
  * clears the keyboard buffer before the loop, so the real wait can only be
  * released by async keyboard input (see tests/ui_menu/status.c). Both functions'
  * previous recording / sequence fakes were removed. */
-int g_play_sfx_sample_from_bank_calls = 0;
-void fd2_play_sfx_sample_from_bank(uint32 b, uint32 s, uint32 p) { g_play_sfx_sample_from_bank_calls++; (void)b; (void)s; (void)p; }
+/* fd2_play_sfx_sample_from_bank is now a real emitted function
+ * (src/audio/audio.c); its former counting stub here was removed (mirrors the
+ * fd2_play_sfx_with_handle relocation above). It is structurally identical to
+ * fd2_play_sfx_with_handle except it drives sample slot 1
+ * (data_fd2_audio_sfx_sample_handle_1) instead of slot 0. Both real players run
+ * their gates then unconditionally call AIL_stop_sample(<their handle>) once per
+ * invocation, so the AIL_stop_sample spy discriminates the two by the handle
+ * value it receives: handle_1 -> g_play_sfx_sample_from_bank_calls, otherwise
+ * (handle_0) -> g_play_sfx_with_handle_calls / g_dlg_blink_calls. Callers that
+ * count both (e.g. summon variant b/d/e ticks) leave the handle globals at their
+ * distinct testglob defaults, so the seam routes each caller's calls to the
+ * right counter. (Counter defined near the top of this file, ahead of the AIL
+ * spy that increments it.) */
 void fd2_paint_char_sprite_at_world_with_mode(uint32 w, uint32 s, uint32 c, uint32 m, uint32 co) { }
 /* Pathfind stub. Behavior is selected by the `md` (mode) arg:
  *   md==2  -> "find optimal reachable cell" call (fd2_ai_seek_optimal_position).
@@ -1307,6 +1761,18 @@ uint32 g_dlg_blit_last_stride = 0;
  * panel blits within a single render call) */
 uint32 g_dlg_blit_dst_log[16];
 uint32 g_dlg_blit_sprite_log[16];
+/* Opt-in input seam for callers that drain the BIOS keyboard buffer
+ * (fd2_clear_keyboard_buffer) and THEN block on the real
+ * fd2_wait_for_input_dialog_with_blink, but draw a portrait via the mirrored
+ * blit in between (e.g. the fd2_load_chapter_portrait -> dialog -> wait path of
+ * the tile-pickup chapter event handler). When g_dlg_blit_mirror_inject_after
+ * != 0, the spy flips the BIOS keyboard buffer nonempty with the injected
+ * scancode on its g_dlg_blit_mirror_inject_after-th call, so the next
+ * fd2_check_keyboard_buffer_nonempty() inside the busy-wait returns nonzero and
+ * the real INT 16h read returns at once. Default 0 keeps the historical
+ * record-only behaviour for every other test. */
+int    g_dlg_blit_mirror_inject_after = 0;     /* 0 = disabled */
+int    g_dlg_blit_mirror_inject_scancode = 0;
 void fd2_dialog_sprite_blit_normal(uint32 dst, uint32 sprite, uint32 stride) {
     if (g_dlg_blit_normal_calls < 16) {
         g_dlg_blit_dst_log[g_dlg_blit_normal_calls] = dst;
@@ -1322,7 +1788,67 @@ void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite, uint32 stride) {
     g_dlg_blit_last_dst = dst;
     g_dlg_blit_last_sprite = sprite;
     g_dlg_blit_last_stride = stride;
+    if (g_dlg_blit_mirror_inject_after != 0
+        && g_dlg_blit_mirrored_calls == g_dlg_blit_mirror_inject_after) {
+        *(volatile uint16 *)0x41AuL = 0x1E;                 /* head        */
+        *(volatile uint16 *)0x41CuL = 0x20;                 /* tail=head+2 */
+        *(volatile uint16 *)0x41EuL =
+            (uint16)((g_dlg_blit_mirror_inject_scancode << 8) & 0xFF00);
+    }
 }
+/* Promote/revive candidate-picker callees (not yet emitted in src) — recording
+ * no-op spies driving tests/ui_menu/promote.c fd2_promote_members_select_loop.
+ * The grid renderer records its arg snapshot; the two scroll animators just
+ * count (they only fire on Up/Down navigation, deferred to Phase 9). */
+int    g_promote_grid_calls = 0;
+uint32 g_promote_grid_last_count = 0;
+uint32 g_promote_grid_last_dst = 0;
+uint32 g_promote_grid_last_cursor = 0;
+int    g_promote_grid_last_list = 0;
+int    g_promote_scroll_down_calls = 0;
+int    g_promote_scroll_up_calls = 0;
+void fd2_render_promote_members_grid(uint32 candidate_count, uint32 dst_buffer,
+                                     uint32 cursor_idx, int candidate_idx_list) {
+    g_promote_grid_calls++;
+    g_promote_grid_last_count = candidate_count;
+    g_promote_grid_last_dst = dst_buffer;
+    g_promote_grid_last_cursor = cursor_idx;
+    g_promote_grid_last_list = candidate_idx_list;
+}
+/* CLASS-PROMOTION candidate-grid renderer (5-arg, distinct from the revive
+ * members grid above) — recording no-op spy driving the singular select loop
+ * fd2_promote_member_select_loop. Captures the extra price/aux (target_classes)
+ * list arg too. Not yet emitted in src. */
+int    g_promote_cand_grid_calls = 0;
+uint32 g_promote_cand_grid_last_count = 0;
+uint32 g_promote_cand_grid_last_dst = 0;
+uint32 g_promote_cand_grid_last_cursor = 0;
+int    g_promote_cand_grid_last_list = 0;
+int    g_promote_cand_grid_last_aux = 0;
+void fd2_render_promote_candidates_grid(uint32 char_count, uint32 dst_surface,
+                                        uint32 cursor_idx, int char_list_ptr,
+                                        int price_aux_list_ptr) {
+    g_promote_cand_grid_calls++;
+    g_promote_cand_grid_last_count = char_count;
+    g_promote_cand_grid_last_dst = dst_surface;
+    g_promote_cand_grid_last_cursor = cursor_idx;
+    g_promote_cand_grid_last_list = char_list_ptr;
+    g_promote_cand_grid_last_aux = price_aux_list_ptr;
+}
+void fd2_animate_scroll_down_in_shop_dialog(void) { g_promote_scroll_down_calls++; g_scroll_down_in_shop_calls++; }
+void fd2_animate_scroll_up_in_shop_dialog(void)   { g_promote_scroll_up_calls++; g_scroll_up_in_shop_calls++; }
+/* Shop money/transaction feedback animations (not yet emitted in src) —
+ * recording no-op spies. The church-revive + buy/sell menus call these on the
+ * commit path; that path is deferred to Phase 9 integration, so these only
+ * count + capture the last decrement amount for future use. */
+int    g_money_decrement_calls = 0;
+uint32 g_money_decrement_last_amount = 0;
+int    g_shop_txn_feedback_calls = 0;
+void fd2_animate_money_decrement(uint32 amount) {
+    g_money_decrement_calls++;
+    g_money_decrement_last_amount = amount;
+}
+void fd2_animate_shop_transaction_feedback(void) { g_shop_txn_feedback_calls++; }
 /* fd2_render_full_char_stat_panel @ 0x17fc0: now emitted for real in
  * src/gfx/rndstat.c and driven by tests/gfx/rndstat.c (the numeric/bar
  * render primitives it dispatches to are the recording spies defined
@@ -1333,6 +1859,22 @@ void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite, uint32 stride) {
  * src/dialog/dialog.c and linked for real; its teardown + slide-out
  * interpolation is driven by the test_close_* cases in
  * tests/dialog/dialog.c (observed via the restore/save/blit-setup stubs). */
+/* fd2_show_portrait_dialog_with_input @ 0x2C39B: now emitted in
+ * src/dialog/dialog.c and linked for real (satisfies the link from its sole
+ * caller fd2_play_game_ending_cinematic). It is a straight-line orchestration
+ * wrapper (cyclomatic complexity 1: no branches/computation/RNG) that runs
+ * clear_kbd -> load_chapter_portrait(portrait_id) -> clear_kbd ->
+ * display_dialog_scene(current_chapter_text, text_idx, ...) -> paint(0) ->
+ * wait_for_input_dialog_with_blink(0) -> close_intro_dialog -> clear_kbd.
+ * No direct test drives it: it clears the BIOS keyboard buffer immediately
+ * before the unconditional blocking fd2_wait_for_input_dialog_with_blink(0),
+ * whose loop can only be released by async keyboard input the silent harness
+ * cannot deliver (the same self-cleared-buffer + blocking-wait deferral this
+ * file applies to the status-screen/settings modal dispatchers above). Its
+ * argument forwarding and per-callee behavior are covered by the callees' own
+ * suites (rsrc/rsrc.c test_lcp_* for load_chapter_portrait; dialog/dialog.c for
+ * the dialog VM; input/input.c for the blink-wait), so end-to-end behavioral
+ * coverage is deferred to Phase 9 integration. */
 
 /* ---- fd2_open_char_status_screen / fd2_open_status_screen_with_slide_in
  * (status.c) support ----
@@ -1395,8 +1937,9 @@ void fd2_draw_spell_selection_list(uint32 char_idx, uint32 spell_idx,
  *     remove this double when the real function is emitted.)
  *
  *   fd2_setup_chars_and_camera_for_intro (0x233C6 -> field/chtrans.c) — places
- *     the cast and re-aims the camera then fades the screen; pure display, so
- *     a no-op here. Deferred to Phase 9 integration.
+ *     the cast, re-aims the camera, then fades the screen. The cast placement +
+ *     fade are display (Phase-9-deferred no-op), but the camera re-aim is
+ *     load-bearing state the later pans depend on, so the double still does that.
  *
  *   fd2_play_chapter_intro_sprite_slideshow (0x24336 -> anim/aniend.c) — the
  *     hidden-stage cinematic; it memmoves 64000 bytes to/from the absolute VGA
@@ -1429,7 +1972,16 @@ void fd2_setup_chars_and_camera_for_intro(uint32 pos_x_table, uint32 pos_y_table
     (void)pos_x_table; (void)pos_y_table; (void)facing_table;
     (void)place_start; (void)place_end; (void)scene2_char_idx;
     (void)scene2_pos_x; (void)scene2_pos_y; (void)scene2_facing;
-    (void)camera_world_x; (void)camera_world_y;
+    /* Skip the (Phase-9-deferred) cast placement + screen fade, but DO perform the
+     * camera re-aim: that is load-bearing STATE, not display. The real function points
+     * the view window at (camera_world_x, camera_world_y); the pan helpers that follow
+     * (fd2_pan_cursor_and_window) step the window origin one cell per composite until it
+     * equals their target, so leaving the origin at a prior suite's stale value makes
+     * those pans loop up to ~2^31 times (each compositing) -> an apparent hang. */
+    data_fd2_battle_view_window_origin_x = camera_world_x;
+    data_fd2_battle_view_window_origin_y = camera_world_y;
+    data_fd2_battle_cursor_world_x = camera_world_x;
+    data_fd2_battle_cursor_world_y = camera_world_y;
 }
 
 void fd2_play_chapter_intro_sprite_slideshow(void) { }
@@ -1500,7 +2052,38 @@ uint32 g_ce_kill_from_last_idx = 0;
 void fd2_kill_runtime_chars_from_index_to_end(uint32 start_char_idx) {
     g_ce_kill_from_calls++;
     g_ce_kill_from_last_idx = start_char_idx;
+    if (g_kill_from_calls < 4) {
+        g_kill_from_index[g_kill_from_calls] = start_char_idx;
+    }
+    g_kill_from_calls++;
 }
 
-void fd2_animate_palette_flash_pulse_white(void) {
-}
+/* ---- fd2_execute_special_attack_skill (src/spell/spellcin.c @ 0x276EC) callee
+ * stubs. That worker is a monolithic VGA/VRAM cinematic deferred to Phase 9
+ * integration (no unit test drives it), so these are plain no-op linker stubs.
+ * Each is replaced when its real definition is emitted. Signatures match
+ * src/include/protos.h. */
+uint8 fd2_resolve_terrain_for_aoe_targets(int n_chars, uint32 target_byte_array)
+    { return 0; }
+/* fd2_load_figani_sfx_bank: now emitted for real in src/audio/audio.c
+ * (its former no-op linker stub was removed). */
+void fd2_step_figani_pose_animation(uint32 figani_data, uint32 palette_op,
+    uint32 dst_buf, uint32 dst_stride) { }
+/* fd2_animate_bg_zoom_transition_in: now emitted for real in
+ * src/anim/anispell.c (its former no-op linker stub was removed). */
+void fd2_play_char_intro_zoom_anim(uint32 caster_idx, uint32 mode_flag,
+    uint32 caster_figani_a, uint32 target_figani0, uint32 workbuf2,
+    uint32 workbuf1, uint32 tai_resource) { }
+void fd2_play_figani_animation_loop(uint32 caster_idx, uint32 spell_id,
+    uint32 caster_figani_b, uint32 target_figani0, uint32 workbuf2,
+    uint32 workbuf1, uint32 bg_layer_saved, uint32 tai_resource) { }
+void fd2_restore_portrait_cache_from_tmp(void) { }
+/* fd2_play_spell_cast_sequence (src/anim/anispell.c @ 0x2A6BD) callee stubs.
+ * That orchestrator is a real-file + VGA cinematic deferred to Phase 9 (no unit
+ * test drives it), so these are plain no-op linker stubs. Replaced when their
+ * real definitions are emitted. Signatures match src/include/protos.h. */
+void fd2_rle_blit_with_palette_remap(uint32 rle_stream, int32 dst_x, int32 dst_y,
+    uint32 dst_buf, int32 stride, uint32 palette_remap) { }
+void fd2_animate_spell_hit_cinematic(uint32 caster_idx, uint32 caster_sprite,
+    uint32 caster_figani_b, uint32 target_figani_cur, uint32 work_buf,
+    uint32 backbuf, uint32 target_figani_next, uint32 spell_id) { }

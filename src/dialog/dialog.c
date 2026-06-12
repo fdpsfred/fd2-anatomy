@@ -1093,3 +1093,135 @@ int fd2_text_dialog_typewriter_loop(void)
     data_fd2_dialog_blink_phase_oscillator = 0;
     return 1;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_scroll_text_screen_up_by_lines @ 0x24D22 (3 callers)
+ *
+ * Dual-mode scroll-up helper over the static background buffer
+ * (data_fd2_graphics_static_bg_buffer_ptr, 0xC0 lines x 0x138
+ * bytes/line).
+ *
+ * Mode A (lines != 0): store low byte of lines into the pending
+ * line-count state and return; this pre-sets how many rows the next
+ * Mode-B call will scroll.
+ *
+ * Mode B (lines == 0): read N = pending line count and scroll the
+ * whole 0xC0-line buffer up by N lines, with the bottom N lines
+ * wrapping to the top (cylinder scroll):
+ *   1. malloc(N * 0x138) scratch buffer.
+ *   2. copy the bottom N rows (rows [0xC0-N .. 0xBF]) into scratch.
+ *   3. for i = 0xBF-N down to 0: move row[i] down to row[i+N]
+ *      (content visually moves up).
+ *   4. paste the saved bottom N rows at the top.
+ *   5. free scratch.
+ *
+ * Cdecl, 1 stack param; void return. The binary's __CHK(0x18)
+ * stack-probe prologue is compiler-injected, not emitted here.
+ * ---------------------------------------------------------------- */
+void fd2_scroll_text_screen_up_by_lines(uint32 lines)
+{
+    void *scratch;
+    int32 i;
+
+    if (lines != 0) {
+        data_fd2_graphics_text_scroll_pending_line_count = (uint8)lines;
+        return;
+    }
+
+    scratch = malloc((uint32)data_fd2_graphics_text_scroll_pending_line_count * 0x138);
+    memmove(scratch,
+            (void *)((0xC0 - (uint32)data_fd2_graphics_text_scroll_pending_line_count) * 0x138 +
+                     data_fd2_graphics_static_bg_buffer_ptr),
+            (uint32)data_fd2_graphics_text_scroll_pending_line_count * 0x138);
+
+    for (i = 0xBF - (int32)(uint32)data_fd2_graphics_text_scroll_pending_line_count; i >= 0; i--) {
+        void *src = (void *)(i * 0x138 + data_fd2_graphics_static_bg_buffer_ptr);
+        memmove((void *)((uint32)src +
+                         (uint32)data_fd2_graphics_text_scroll_pending_line_count * 0x138),
+                src, 0x138);
+    }
+
+    memmove((void *)data_fd2_graphics_static_bg_buffer_ptr, scratch,
+            (uint32)data_fd2_graphics_text_scroll_pending_line_count * 0x138);
+    free(scratch);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_close_intro_dialog_with_slide_out @ 0x2D31B (19 callers)
+ *
+ * Close a chapter-intro / menu dialog panel with a 5-frame slide-down
+ * animation, restore the framebuffer from a backup snapshot, then free
+ * the three dialog workspace buffers. Same algorithmic shape as
+ * fd2_close_status_screen_with_slide_out @ 0x196CB, except this variant
+ * does NOT recomposite a battle frame afterward (chapter-transition flow
+ * rather than the in-battle status flow).
+ *
+ * Pipeline:
+ *   1. 5-frame slide-down (frame_iter 1..5): each frame drives
+ *      fd2_slide_panel_down_step(frame_iter*0xD + 0x70, accumulator, target)
+ *      (panel_y = 0x7D, 0x8A, 0x97, 0xA4, 0xB1).
+ *   2. memmove(0xA0000, bg_snapshot, 64000) — restore the screen snapshot
+ *      to mode-13h VRAM.
+ *   3. free the three 64000-byte workspaces (a / b / c).
+ *
+ * Globals (allocated by the open counterpart, freed here):
+ *   render_workspace_a @ 0x53C5B — per-frame animation accumulator
+ *   render_workspace_b @ 0x53C5F — underlying framebuffer snapshot
+ *   render_workspace_c @ 0x53C63 — composed dialog-panel target image
+ *
+ * void __cdecl with the compiler-injected __CHK(0x14) stack-probe prologue
+ * (not part of the source). EBX is the loop counter (callee-saved); the
+ * trailing POP EBX + RET is the shared epilogue.
+ * ---------------------------------------------------------------- */
+void fd2_close_intro_dialog_with_slide_out(void)
+{
+    uint32 frame_iter;
+
+    for (frame_iter = 1; (int)frame_iter < 6; frame_iter++) {
+        fd2_slide_panel_down_step(frame_iter * 0xd + 0x70,
+            data_fd2_ui_slide_anim_accumulator_buf_ptr,
+            data_fd2_ui_slide_composed_target_buf_ptr);
+    }
+
+    memmove((void *)0xa0000,
+            (void *)data_fd2_ui_slide_bg_snapshot_buf_ptr, 64000);
+    free((void *)data_fd2_ui_slide_anim_accumulator_buf_ptr);
+    free((void *)data_fd2_ui_slide_bg_snapshot_buf_ptr);
+    free((void *)data_fd2_ui_slide_composed_target_buf_ptr);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_show_portrait_dialog_with_input @ 0x2C39B (1 caller)
+ *
+ * Display a portrait + dialog scene and block on user input. Used by
+ * fd2_play_game_ending_cinematic (sole caller) for the per-character
+ * ending epilogue dialogs.
+ *
+ * Sequence (fixed, no branches):
+ *   fd2_clear_keyboard_buffer()
+ *   fd2_load_chapter_portrait(portrait_id)        // loads from DATO.DAT
+ *   fd2_clear_keyboard_buffer()
+ *   fd2_display_dialog_scene(current_chapter_text, text_idx,
+ *                            0xA9514, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1)
+ *   fd2_paint_portrait_to_dialog_area(0)
+ *   fd2_wait_for_input_dialog_with_blink(0)        // blocking cursor blink
+ *   fd2_close_intro_dialog_with_slide_out()
+ *   fd2_clear_keyboard_buffer()
+ *
+ * current_chapter_text (0x53A79) is the active FDTXT dialog source block.
+ * The display-scene return value is discarded. Cdecl, 2 stack params;
+ * void return. The binary's __CHK(0x2c) stack-probe prologue is
+ * compiler-injected, not emitted here.
+ * ---------------------------------------------------------------- */
+void fd2_show_portrait_dialog_with_input(uint32 portrait_id, uint32 text_idx)
+{
+    fd2_clear_keyboard_buffer();
+    fd2_load_chapter_portrait(portrait_id);
+    fd2_clear_keyboard_buffer();
+    fd2_display_dialog_scene(current_chapter_text, text_idx, 0xa9514, 0x140,
+                             0xcd, 0x4c, 0x4a, 0x13, 1);
+    fd2_paint_portrait_to_dialog_area(0);
+    fd2_wait_for_input_dialog_with_blink(0);
+    fd2_close_intro_dialog_with_slide_out();
+    fd2_clear_keyboard_buffer();
+}

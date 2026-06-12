@@ -8,6 +8,7 @@
 #include "consts.h"
 #include "globals.h"
 #include "protos.h"
+#include "blitprob.h"
 #include <stdio.h>
 
 /* pipeline-callee recording vars (defined in testglob.c) */
@@ -19,15 +20,12 @@ extern uint32 g_tile_map_last_h;
 extern uint32 g_tile_map_last_ox;
 extern uint32 g_tile_map_last_oy;
 extern int    g_composite_call_count;
-/* recording stub for fd2_tile_blit_24x24_passthrough (testglob.c). The real
- * fd2_blit_24x24_at_window_relative_pos (src/gfx/blittile.c) forwards every
- * in-window blit to it; recording (src, dst) lets these tests reconstruct the
- * (world_x, world_y, sprite_idx) the caller computed. */
-extern int    g_blitpass_calls;
-extern uint32 g_blitpass_src[64];
-extern uint32 g_blitpass_dst[64];
-extern uint32 g_blitpass_stride[64];
-extern int    g_blitdim_calls;
+/* fd2_tile_blit_24x24_passthrough is emitted for real; the callers below drive
+ * it with probe sprites (see blitprob.h) and these tests read the painted bytes
+ * out of a real destination buffer to reconstruct the (world_x, world_y,
+ * sprite_idx) the caller computed: an atlas slot's one-pixel probe paints value
+ * idx+1, so a painted byte's offset gives the dst (hence world x/y) and its value
+ * gives the sprite index. */
 /* recording stub for fd2_blit_sprite_with_decoded_pixels (testglob.c); the
  * spell-effect overlay hit branch forwards (dst, sprite, stride) here. */
 extern uint32 g_blitdec_dst;
@@ -45,10 +43,21 @@ extern runtime_char g_test_rc_array[8];
 #define WS_SPAN (191u * 0x1c8u + 0x138u)
 static uint8 g_ws_buffer[WS_SPAN];
 
+/* Real destination buffer for the standalone window-relative paint tests (cursor
+ * pattern, per-char paint, char overlay, shadow overlay, spell overlay). The real
+ * passthrough/animated-tile blitters WRITE here for real, so it must span the
+ * largest window-relative dst any test reaches; the cursor pattern at
+ * (CX+3, CY+3) lands near +0x23000, plus one row stride of headroom. */
+#define PAINT_BUF_SPAN 0x24000u
+static uint8 g_paint_buf[PAINT_BUF_SPAN];
+
+/* probe-atlas slot stride: must hold a probe program (<= 26 bytes). */
+#define ATLAS_SPAN 0x40u
+
 static void reset_pipeline_record(void)
 {
     g_tile_map_calls = 0;
-    g_blitpass_calls = 0;
+    memset(g_ws_buffer, 0, sizeof(g_ws_buffer));   /* clean canvas for the count */
     g_composite_call_count = 0;
 
     /* fd2_render_terrain_info_hud_panel is now the real emitted routine; keep
@@ -76,53 +85,44 @@ static void reset_pipeline_record(void)
 }
 
 /* Sprite atlas backing data_fd2_runtime_battle_state_ptr. The real blit reads a
- * 4-byte absolute offset from the table at +6 (index*4), so an identity-ish
- * table where table[i] == i lets the tests recover sprite_idx from the recorded
- * src pointer: sprite_idx == src - atlas_base. 64 entries cover all cursor
- * sprite indices (0x00..0x12). */
-static uint8 g_sprite_atlas[6 + 64 * 4 + 4];
+ * 4-byte absolute offset from the table at +6 (index*4); bp_build_atlas1 points
+ * slot i at a probe in a sprite region past the table (so slot 0 does not clobber
+ * the table) and plants a one-pixel probe of value i+1 there, so the painted
+ * byte's value identifies the sprite index the caller resolved. 64 entries cover
+ * all cursor sprite indices (0x00..0x12). */
+static uint8 g_sprite_atlas[6 + 64 * 4 + 64 * ATLAS_SPAN];
 
 static void install_sprite_atlas(void)
 {
-    int i;
-    uint32 *table;
-
-    table = (uint32 *)(g_sprite_atlas + 6);
-    for (i = 0; i < 64; i++) {
-        table[i] = (uint32)i;
-    }
+    memset(g_sprite_atlas, 0, sizeof(g_sprite_atlas));
+    bp_build_atlas1(g_sprite_atlas, 6u, ATLAS_SPAN, 64);
     data_fd2_runtime_battle_state_ptr = (uint32)g_sprite_atlas;
 }
 
 /* Make the battle window large enough that every cursor-pattern coord is
- * in-window, so each caller blit reaches the recording passthrough stub. */
+ * in-window, so each caller blit paints into g_paint_buf. The base is anchored
+ * so a blit at world (x,y) paints at g_paint_buf + y*0x2AC0 + x*0x18. */
 static void install_full_window(void)
 {
     data_fd2_battle_view_window_origin_x = 0;
     data_fd2_battle_view_window_origin_y = 0;
     data_fd2_battle_view_window_max_x = 0x100;
     data_fd2_battle_view_window_max_y = 0x100;
-    data_fd2_large_game_state_buffer_ptr = (uint32)g_ws_buffer - 0x8088;
+    memset(g_paint_buf, 0, sizeof(g_paint_buf));
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_paint_buf - 0x8088;
 }
 
-/* Reconstruct (world_x, world_y, sprite_idx) of recorded blit #i from the
- * (src, dst) the real fd2_blit_24x24_at_window_relative_pos forwarded.
+/* Assert that the window-relative blit for world (x,y) with sprite index `s`
+ * painted its probe pixel into g_paint_buf. The real blit lands the pixel at
  *   dst = base + (y-oy)*0x2AC0 + (x-ox)*0x18 + 0x8088
- *   src = atlas + table[sprite_idx]  (table[idx] == idx here) */
-static void recover_blit(int i, uint32 *x, uint32 *y, uint32 *s)
+ * and base == g_paint_buf - 0x8088, so the byte offset into g_paint_buf is
+ * (y-oy)*0x2AC0 + (x-ox)*0x18; the probe for index s paints value s+1. */
+static void assert_blit(uint32 x, uint32 y, uint32 s)
 {
-    uint32 base;
-    uint32 oy;
-    uint32 ox;
-    uint32 rel;
-
-    base = data_fd2_large_game_state_buffer_ptr;
-    oy = data_fd2_battle_view_window_origin_y;
-    ox = data_fd2_battle_view_window_origin_x;
-    rel = g_blitpass_dst[i] - base - 0x8088u;
-    *y = rel / 0x2AC0u + oy;
-    *x = (rel % 0x2AC0u) / 0x18u + ox;
-    *s = g_blitpass_src[i] - (uint32)g_sprite_atlas;
+    uint32 oy = data_fd2_battle_view_window_origin_y;
+    uint32 ox = data_fd2_battle_view_window_origin_x;
+    uint32 off = (y - oy) * 0x2AC0u + (x - ox) * 0x18u;
+    ASSERT_EQ((uint32)g_paint_buf[off], s + 1u);
 }
 
 /* ----------------------------------------------------------------
@@ -138,16 +138,21 @@ static void recover_blit(int i, uint32 *x, uint32 *y, uint32 *s)
  * The tile-attribute buffer entry for tile id 1 (stride 4) carries the
  * renderable bit 0x80 when `renderable` is set; bit 0x08 stays clear so
  * no anim-flip occurs. With renderable set, every in-window (x, y) the
- * shadow overlay asks to paint reaches the recording passthrough stub,
- * and dst encodes (x, y) (recovered by recover_anim_tile). With
- * renderable clear the routine reads attr then returns without blitting
- * (used where only the *caller's* loop is under test). map width is
- * fixed at 0x20 so (y*0x20 + x) covers every shadow-test coord. */
+ * shadow overlay asks to paint runs the real passthrough blitter on tile id
+ * 1's probe sprite, landing one ANIM_TILE_VALUE pixel whose offset encodes
+ * (x, y) (checked by assert_anim_tile_at). With renderable clear the routine
+ * reads attr then returns without blitting (used where only the *caller's*
+ * loop is under test). map width is fixed at 0x20 so (y*0x20 + x) covers
+ * every shadow-test coord. */
 #define ANIM_MAP_W      0x20
 #define ANIM_MAP_ROWS   0x20
 static uint8 g_anim_tile_map[ANIM_MAP_W * ANIM_MAP_ROWS * 4];
 static uint8 g_anim_attr_buf[64];
-static uint8 g_anim_scene_snapshot[64];
+/* snapshot: offset table at +10 (tile_id*4) pointing tile id 1 at a probe sprite
+ * past the table, so every renderable anim-tile blit paints ANIM_TILE_VALUE. */
+#define ANIM_SNAP_SPRITE_OFF 0x40u
+#define ANIM_TILE_VALUE      0x5Au
+static uint8 g_anim_scene_snapshot[0x80];
 
 static void install_anim_tile_map(int renderable)
 {
@@ -162,6 +167,9 @@ static void install_anim_tile_map(int renderable)
     memset(g_anim_attr_buf, 0, sizeof(g_anim_attr_buf));
     g_anim_attr_buf[1 * 4] = renderable ? 0x80 : 0x00;
     memset(g_anim_scene_snapshot, 0, sizeof(g_anim_scene_snapshot));
+    /* tile id 1's sprite = snapshot + *(int*)(snapshot + 10 + 1*4) */
+    *(int32 *)(g_anim_scene_snapshot + 10 + 1 * 4) = (int32)ANIM_SNAP_SPRITE_OFF;
+    bp_probe1(g_anim_scene_snapshot + ANIM_SNAP_SPRITE_OFF, ANIM_TILE_VALUE);
 
     data_fd2_battle_tile_map_ptr = (uint32)g_anim_tile_map;
     data_fd2_battle_map_width_tiles = ANIM_MAP_W;
@@ -170,13 +178,12 @@ static void install_anim_tile_map(int renderable)
     data_fd2_graphics_bg_anim_flip_flag = 0;
 }
 
-/* recover (x, y) of recorded anim-tile blit #i from its dst offset:
- *   dst = buf + 0x8088 + (y-oy)*0x2AC0 + (x-ox)*0x18    (oy=ox=0 here) */
-static void recover_anim_tile(int i, uint32 buf, int32 *x, int32 *y)
+/* assert the renderable anim-tile blit for world (x, y) painted its probe pixel
+ * into `buf`. dst = buf + 0x8088 + (y-oy)*0x2AC0 + (x-ox)*0x18 (oy=ox=0 here). */
+static void assert_anim_tile_at(uint32 buf, int32 x, int32 y)
 {
-    uint32 rel = g_blitpass_dst[i] - buf - 0x8088u;
-    *y = (int32)(rel / 0x2AC0u);
-    *x = (int32)((rel % 0x2AC0u) / 0x18u);
+    uint32 off = 0x8088u + (uint32)y * 0x2AC0u + (uint32)x * 0x18u;
+    ASSERT_EQ((uint32)((uint8 *)buf)[off], (uint32)ANIM_TILE_VALUE);
 }
 
 
@@ -219,7 +226,7 @@ static void test_composite_pipeline_args(void)
      * passthrough blit is the cursor overlay's. The compositor->terrain-HUD
      * call itself (ws, 456) and the HUD's own rendering are covered in
      * tests/gfx/rndstat.c. */
-    ASSERT_EQ(g_blitpass_calls, 1);
+    ASSERT_EQ(bp_count_painted(g_ws_buffer, WS_SPAN), 1);
 
     /* final stage = real fd2_blit_rectangle(0xA0504, 320, ws, 456, 312, 192);
      * composite ran to completion (tile-map proxy counts it once). The blit's
@@ -254,7 +261,7 @@ static void test_composite_skip_palette_cycle(void)
 
     ASSERT_EQ(g_tile_map_calls, 1);
     ASSERT_EQ(g_tile_map_last_dst, ws);
-    ASSERT_EQ(g_blitpass_calls, 1);
+    ASSERT_EQ(bp_count_painted(g_ws_buffer, WS_SPAN), 1);
     ASSERT_EQ(g_composite_call_count, 1);
 }
 
@@ -265,108 +272,106 @@ static void test_composite_skip_palette_cycle(void)
  * Drives the real routine for each anim phase and asserts the exact
  * sequence of (world_x, world_y, sprite_idx) blits, matching the
  * 0x122DC disassembly. The window is set wide enough that every coord is
- * in-window, so each caller blit forwards to the recording passthrough
- * stub; the (x, y, sprite) tuple is reconstructed from (dst, src).
+ * in-window, so each caller blit forwards to the real passthrough blitter;
+ * the (x, y, sprite) tuple is reconstructed from the painted probe pixel
+ * (its offset gives the dst -> world x/y, its value gives the sprite index).
  * ---------------------------------------------------------------- */
 #define CX 0x14u
 #define CY 0x0Au
 
 static void set_cursor_phase(uint32 phase)
 {
-    g_blitpass_calls = 0;
-    install_full_window();
+    install_full_window();        /* memsets g_paint_buf, anchors the base */
     install_sprite_atlas();
     data_fd2_battle_cursor_world_x = CX;
     data_fd2_battle_cursor_world_y = CY;
     data_fd2_battle_anim_phase = phase;
 }
 
-static void check_blit(int i, uint32 ex, uint32 ey, uint32 es)
+/* count of painted probe pixels in g_paint_buf == number of cursor blits */
+static int cursor_blit_count(void)
 {
-    uint32 x;
-    uint32 y;
-    uint32 s;
-
-    recover_blit(i, &x, &y, &s);
-    ASSERT_EQ(x, ex);
-    ASSERT_EQ(y, ey);
-    ASSERT_EQ(s, es);
+    return bp_count_painted(g_paint_buf, PAINT_BUF_SPAN);
 }
 
+/* Each cursor blit writes a distinct (x,y); assert_blit confirms the probe pixel
+ * for sprite index `es` landed at (ex,ey). Order of the writes is not observable
+ * from the painted frame, so the tests assert the (x,y,sprite) SET plus the total
+ * blit count rather than a call sequence. */
 static void test_cursor_phase1(void)
 {
     set_cursor_phase(1);
     fd2_paint_cursor_overlay_pattern();
-    ASSERT_EQ(g_blitpass_calls, 1);
-    check_blit(0, CX, CY, 0);
+    ASSERT_EQ(cursor_blit_count(), 1);
+    assert_blit(CX, CY, 0);
 }
 
 static void test_cursor_phase2(void)
 {
     set_cursor_phase(2);
     fd2_paint_cursor_overlay_pattern();
-    ASSERT_EQ(g_blitpass_calls, 1);
-    check_blit(0, CX, CY, 1);
+    ASSERT_EQ(cursor_blit_count(), 1);
+    assert_blit(CX, CY, 1);
 }
 
 static void test_cursor_phase3(void)
 {
     set_cursor_phase(3);
     fd2_paint_cursor_overlay_pattern();
-    ASSERT_EQ(g_blitpass_calls, 5);
-    check_blit(0, CX,     CY,     0xe);
-    check_blit(1, CX,     CY - 1, 2);
-    check_blit(2, CX - 1, CY,     3);
-    check_blit(3, CX + 1, CY,     4);
-    check_blit(4, CX,     CY + 1, 5);
+    ASSERT_EQ(cursor_blit_count(), 5);
+    assert_blit(CX,     CY,     0xe);
+    assert_blit(CX,     CY - 1, 2);
+    assert_blit(CX - 1, CY,     3);
+    assert_blit(CX + 1, CY,     4);
+    assert_blit(CX,     CY + 1, 5);
 }
 
 static void test_cursor_phase4(void)
 {
     set_cursor_phase(4);
     fd2_paint_cursor_overlay_pattern();
-    ASSERT_EQ(g_blitpass_calls, 13);
-    check_blit(0,  CX,     CY,     1);
-    check_blit(1,  CX,     CY - 2, 2);
-    check_blit(2,  CX - 2, CY,     3);
-    check_blit(3,  CX + 2, CY,     4);
-    check_blit(4,  CX,     CY + 2, 5);
-    check_blit(5,  CX - 1, CY - 1, 6);
-    check_blit(6,  CX + 1, CY - 1, 7);
-    check_blit(7,  CX - 1, CY + 1, 8);
-    check_blit(8,  CX + 1, CY + 1, 9);
-    check_blit(9,  CX,     CY - 1, 0xa);
-    check_blit(10, CX - 1, CY,     0xb);
-    check_blit(11, CX + 1, CY,     0xc);
-    check_blit(12, CX,     CY + 1, 0xd);
+    ASSERT_EQ(cursor_blit_count(), 13);
+    assert_blit(CX,     CY,     1);
+    assert_blit(CX,     CY - 2, 2);
+    assert_blit(CX - 2, CY,     3);
+    assert_blit(CX + 2, CY,     4);
+    assert_blit(CX,     CY + 2, 5);
+    assert_blit(CX - 1, CY - 1, 6);
+    assert_blit(CX + 1, CY - 1, 7);
+    assert_blit(CX - 1, CY + 1, 8);
+    assert_blit(CX + 1, CY + 1, 9);
+    assert_blit(CX,     CY - 1, 0xa);
+    assert_blit(CX - 1, CY,     0xb);
+    assert_blit(CX + 1, CY,     0xc);
+    assert_blit(CX,     CY + 1, 0xd);
 }
 
 static void test_cursor_phase5(void)
 {
     set_cursor_phase(5);
     fd2_paint_cursor_overlay_pattern();
-    ASSERT_EQ(g_blitpass_calls, 21);
-    check_blit(0,  CX,     CY,     1);
-    check_blit(1,  CX,     CY - 3, 2);
-    check_blit(2,  CX - 3, CY,     3);
-    check_blit(3,  CX + 3, CY,     4);
-    check_blit(4,  CX,     CY + 3, 5);
-    check_blit(5,  CX - 1, CY - 2, 6);
-    check_blit(6,  CX - 2, CY - 1, 6);
-    check_blit(7,  CX + 1, CY - 2, 7);
-    check_blit(8,  CX + 2, CY - 1, 7);
-    check_blit(9,  CX - 1, CY + 2, 8);
-    check_blit(10, CX - 2, CY + 1, 8);
-    check_blit(11, CX + 1, CY + 2, 9);
-    check_blit(12, CX + 2, CY + 1, 9);
-    check_blit(13, CX,     CY - 2, 0xa);
-    check_blit(14, CX - 2, CY,     0xb);
-    check_blit(15, CX + 2, CY,     0xc);
-    check_blit(16, CX,     CY + 2, 0xd);
-    check_blit(17, CX - 1, CY - 1, 0xf);
-    check_blit(18, CX + 1, CY - 1, 0x10);
-    check_blit(19, CX - 1, CY + 1, 0x11);
-    check_blit(20, CX + 1, CY + 1, 0x12);
+    ASSERT_EQ(cursor_blit_count(), 21);
+    assert_blit(CX,     CY,     1);
+    assert_blit(CX,     CY - 3, 2);
+    assert_blit(CX - 3, CY,     3);
+    assert_blit(CX + 3, CY,     4);
+    assert_blit(CX,     CY + 3, 5);
+    assert_blit(CX - 1, CY - 2, 6);
+    assert_blit(CX - 2, CY - 1, 6);
+    assert_blit(CX + 1, CY - 2, 7);
+    assert_blit(CX + 2, CY - 1, 7);
+    assert_blit(CX - 1, CY + 2, 8);
+    assert_blit(CX - 2, CY + 1, 8);
+    assert_blit(CX + 1, CY + 2, 9);
+    assert_blit(CX + 2, CY + 1, 9);
+    assert_blit(CX,     CY - 2, 0xa);
+    assert_blit(CX - 2, CY,     0xb);
+    assert_blit(CX + 2, CY,     0xc);
+    assert_blit(CX,     CY + 2, 0xd);
+    assert_blit(CX - 1, CY - 1, 0xf);
+    assert_blit(CX + 1, CY - 1, 0x10);
+    assert_blit(CX - 1, CY + 1, 0x11);
+    assert_blit(CX + 1, CY + 1, 0x12);
 }
 
 /* phase 6: clear cursor flag byte tile_map[(y*map_width + x)*4 + 7] = 0;
@@ -384,7 +389,7 @@ static void test_cursor_phase6_clear_flag(void)
 
     fd2_paint_cursor_overlay_pattern();
 
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(cursor_blit_count(), 0);
     ASSERT_EQ((uint32)g_cursor_tile_map[idx], 0u);
 }
 
@@ -393,29 +398,107 @@ static void test_cursor_phase_default(void)
 {
     set_cursor_phase(99);
     fd2_paint_cursor_overlay_pattern();
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(cursor_blit_count(), 0);
 }
 
 /* ----------------------------------------------------------------
  * fd2_paint_char_sprite_at_world_pos — per-char sprite paint.
  *
- * Backing for the real routine: a sprite atlas whose offset table holds
- * table[i] == i, so the recorded src lets the test recover
- * sprite_idx = src - atlas_base. large_game_state_buffer is pinned to 0 so
- * the recorded dst == blit_offset directly. The window is opened wide so
- * the paint reaches the recording blitter.
- * ---------------------------------------------------------------- */
-static uint8 g_paint_atlas[256 * 4];
+ * Backing for the real routine: a portrait-cache atlas whose offset table at +0
+ * points frame slot i at a one-pixel probe (value i+1) in a sprite region past
+ * the table, so the painted byte's value identifies the resolved frame index
+ * (value-1). large_game_state_buffer is anchored at g_paint_buf so a painted
+ * pixel lands at g_paint_buf + the blit_offset the caller computed; the window is
+ * opened wide so the paint runs. */
+#define PAINT_ATLAS_N      64
+#define PAINT_SPRITE_BASE  0x100u   /* clears the 64*4-byte table */
+#define PAINT_SPRITE_SPAN  0x40u
+static uint8 g_paint_atlas[0x1200];
 static void install_paint_atlas(void)
 {
     int i;
-    int32 *table;
 
-    table = (int32 *)g_paint_atlas;
-    for (i = 0; i < 256; i++) {
-        table[i] = i;                 /* src = atlas + idx -> recover idx */
+    memset(g_paint_atlas, 0, sizeof(g_paint_atlas));
+    for (i = 0; i < PAINT_ATLAS_N; i++) {
+        *(int32 *)(g_paint_atlas + i * 4) =
+            (int32)(PAINT_SPRITE_BASE + (uint32)i * PAINT_SPRITE_SPAN);
+        bp_probe1(g_paint_atlas + PAINT_SPRITE_BASE + (uint32)i * PAINT_SPRITE_SPAN,
+                  (uint8)(i + 1));
     }
     portrait_sprite_cache = (uint32)g_paint_atlas;
+}
+
+/* probe value the portrait-cache slot `frame_idx` paints (1-based) */
+static uint8 paint_frame_value(uint32 frame_idx)
+{
+    return (uint8)(frame_idx + 1u);
+}
+
+/* ----------------------------------------------------------------
+ * Fixture for the acted (greyed) paint path. Unlike the passthrough path
+ * (recorded by a stub), fd2_tile_blit_24x24_dimmed_grayscale is the REAL
+ * emitted blitter, so the acted-flag test drives it for real: it needs a
+ * resolvable RLE sprite at the computed source slot and a real back-buffer
+ * at the computed dst. The cache holds a 256-dword absolute-offset table
+ * (table[i] == i*0x100) followed by RLE sprite slots; every slot is filled
+ * with transparent SKIP so a mis-resolved frame paints nothing, and one
+ * single-pixel grayscale sprite is planted at the expected slot. The blit
+ * lands at g_dim_lgs + 0x75D8 and paints exactly one (src & 7) + 0x18 byte.
+ * ---------------------------------------------------------------- */
+#define DIM_PCACHE_SIZE 0x3600u
+#define DIM_LGS_SPAN    0xC000u
+#define DIM_GRAY(src)   ((uint8)(((src) & 7u) + 0x18u))   /* dimmed transform */
+static uint8 g_dim_cache[DIM_PCACHE_SIZE];
+static uint8 g_dim_lgs[DIM_LGS_SPAN];
+
+/* RLE command builders (low 6 bits + 1 == run length; top 2 bits = mode). */
+#define DIM_LIT(n)   ((uint8)(0x80u | ((n) - 1)))   /* copy n grayscale pixels */
+#define DIM_SKIP(n)  ((uint8)(0xC0u | ((n) - 1)))   /* advance n (transparent) */
+
+/* Build the offset table, fill all sprite slots with a 24-row transparent
+ * program, then plant one single-pixel grayscale sprite (source byte src_b)
+ * at the slot the caller resolves for frame_idx. */
+static void plant_dim_sprite(uint32 frame_idx, uint8 src_b)
+{
+    uint32 *table;
+    uint8 *sprite;
+    uint32 i;
+
+    table = (uint32 *)g_dim_cache;
+    for (i = 0; i < 256; i++) {
+        table[i] = i * 0x100u;
+    }
+    for (i = 0x400u; i < DIM_PCACHE_SIZE; i++) {
+        g_dim_cache[i] = DIM_SKIP(1);
+    }
+    sprite = g_dim_cache + frame_idx * 0x100u;
+    sprite[0] = DIM_LIT(1);          /* one painted pixel at (0,0) */
+    sprite[1] = src_b;               /* its source byte -> (src_b & 7) + 0x18 */
+    sprite[2] = DIM_SKIP(23);        /* finish row 0 (1 + 23 == 24) */
+    for (i = 1; i < 24; i++) {
+        sprite[2 + i] = DIM_SKIP(24);   /* rows 1..23 transparent */
+    }
+    portrait_sprite_cache = (uint32)g_dim_cache;
+    memset(g_dim_lgs, 0, sizeof(g_dim_lgs));
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_dim_lgs;
+}
+
+/* Count painted grayscale bytes (value gray_v) in g_dim_lgs and report the
+ * offset of the first one. */
+static int count_dim_pixels(uint8 gray_v, uint32 *first_off)
+{
+    uint32 i;
+    int n = 0;
+    *first_off = 0xFFFFFFFFu;
+    for (i = 0; i < DIM_LGS_SPAN; i++) {
+        if (g_dim_lgs[i] == gray_v) {
+            if (n == 0) {
+                *first_off = i;
+            }
+            n++;
+        }
+    }
+    return n;
 }
 
 /* Configure one runtime_char slot for the real paint. Returns nothing; the
@@ -441,13 +524,14 @@ static void reset_paint_window(void)
     data_fd2_battle_view_window_origin_y = 0;
     data_fd2_battle_view_window_max_x = 0x40;
     data_fd2_battle_view_window_max_y = 0x40;
-    data_fd2_large_game_state_buffer_ptr = 0;   /* dst == blit_offset */
+    /* dst_buf == g_paint_buf, so the painted pixel lands at g_paint_buf + the
+     * blit_offset the caller computes (expect_offset). */
+    memset(g_paint_buf, 0, sizeof(g_paint_buf));
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_paint_buf;
     data_fd2_graphics_char_sprite_shake_jitter_bit = 0;
     data_fd2_graphics_char_sprite_paint_jitter_tick_latch = (int32)(int16)BIOS_TICK_WORD;
     data_fd2_graphics_chapter_ambient_palette_anim_idx = 0;
     data_fd2_graphics_chapter_walk_anim_alt_palette_idx = 0;
-    g_blitpass_calls = 0;
-    g_blitdim_calls = 0;
     install_paint_atlas();
 }
 
@@ -458,62 +542,111 @@ static int32 expect_offset(int32 px, int32 py, int32 walk_phase, int32 pitch,
     return walk_phase * pitch + py * 0x2ac0 + px * 0x18 + jitter + 0x75d8;
 }
 
+/* assert the per-char paint dropped its probe pixel (value paint_frame_value
+ * (frame_idx)) at g_paint_buf + off; off is positive for every test below. */
+static void assert_paint(int32 off, uint32 frame_idx)
+{
+    ASSERT_EQ((uint32)g_paint_buf[(uint32)off], (uint32)paint_frame_value(frame_idx));
+}
+
+static int paint_count(void)
+{
+    return bp_count_painted(g_paint_buf, PAINT_BUF_SPAN);
+}
+
 /* facing 0 (down): pitch +0x720, not acted -> passthrough. Verify dst offset,
- * sprite_idx lookup, and that the passthrough (not dimmed) blitter ran. */
+ * frame_idx lookup (painted value), and that exactly one passthrough pixel was
+ * painted (the dimmed branch was NOT taken). */
 static void test_paint_facing_down_passthrough(void)
 {
-    int32 idx;
+    uint32 frame_idx;
 
     reset_paint_window();
     /* facing 0, cache_idx 2, walk_phase 1, ambient palette 0 */
     setup_paint_char(0, 0x05, 0x03, 2, 0, 1, 0x00, 0);
     fd2_paint_char_sprite_at_world_pos(0);
 
-    ASSERT_EQ(g_blitpass_calls, 1);
-    ASSERT_EQ(g_blitdim_calls, 0);
-    ASSERT_EQ(g_blitpass_stride[0], 0x1c8u);
-    ASSERT_EQ((int32)g_blitpass_dst[0],
-              expect_offset(5, 3, 1, 0x720, 0));
-    /* idx = facing*3 + cache_idx*0xC + palette(0) = 0 + 24 + 0 = 24 */
-    idx = 0 * 3 + 2 * 0xc + 0;
-    ASSERT_EQ(g_blitpass_src[0] - (uint32)g_paint_atlas, (uint32)idx);
+    ASSERT_EQ(paint_count(), 1);       /* not-acted -> passthrough painted once */
+    /* frame_idx = facing*3 + cache_idx*0xC + palette(0) = 0 + 24 + 0 = 24 */
+    frame_idx = 0 * 3 + 2 * 0xc + 0;
+    assert_paint(expect_offset(5, 3, 1, 0x720, 0), frame_idx);
+}
+
+/* stride forwarded is 0x1C8: a two-pixel probe at the resolved frame slot lands
+ * its second pixel exactly one stride past the first. */
+static void test_paint_passthrough_stride(void)
+{
+    uint32 frame_idx;
+    int32  off;
+
+    reset_paint_window();
+    setup_paint_char(0, 0x05, 0x03, 2, 0, 1, 0x00, 0);
+    frame_idx = 0 * 3 + 2 * 0xc + 0;   /* 24 */
+    /* overwrite slot 24 with a two-pixel probe to expose the row stride */
+    bp_probe2(g_paint_atlas + PAINT_SPRITE_BASE + frame_idx * PAINT_SPRITE_SPAN,
+              paint_frame_value(frame_idx));
+    fd2_paint_char_sprite_at_world_pos(0);
+
+    off = expect_offset(5, 3, 1, 0x720, 0);
+    ASSERT_EQ((uint32)g_paint_buf[(uint32)off], (uint32)paint_frame_value(frame_idx));
+    ASSERT_EQ((uint32)g_paint_buf[(uint32)off + 0x1c8u],
+              (uint32)paint_frame_value(frame_idx));
+    ASSERT_EQ(paint_count(), 2);
 }
 
 /* facing 1 (left): pitch -4. facing 2 (up): pitch -0x720. facing 3 (right): +4.
- * Drives all three remaining facings and checks the dst offset. walk_phase 0 so
- * palette uses ambient idx (0). */
+ * Drives all three remaining facings; each paints a distinct frame value at a
+ * distinct dst (walk_phase 0 so palette uses ambient idx 0). */
 static void test_paint_facing_pitch_deltas(void)
 {
     reset_paint_window();
 
-    /* facing 1 -> pitch -4 */
+    /* facing 1 -> pitch -4, frame_idx = 1*3 = 3 */
     setup_paint_char(0, 0x08, 0x04, 0, 1, 3, 0x00, 0);
     fd2_paint_char_sprite_at_world_pos(0);
-    ASSERT_EQ((int32)g_blitpass_dst[0], expect_offset(8, 4, 3, -4, 0));
+    assert_paint(expect_offset(8, 4, 3, -4, 0), 1 * 3);
 
-    /* facing 2 -> pitch -0x720 */
+    /* facing 2 -> pitch -0x720, frame_idx = 2*3 = 6 */
     setup_paint_char(0, 0x08, 0x04, 0, 2, 3, 0x00, 0);
     fd2_paint_char_sprite_at_world_pos(0);
-    ASSERT_EQ((int32)g_blitpass_dst[1], expect_offset(8, 4, 3, -0x720, 0));
+    assert_paint(expect_offset(8, 4, 3, -0x720, 0), 2 * 3);
 
-    /* facing 3 -> pitch +4 */
+    /* facing 3 -> pitch +4, frame_idx = 3*3 = 9 */
     setup_paint_char(0, 0x08, 0x04, 0, 3, 3, 0x00, 0);
     fd2_paint_char_sprite_at_world_pos(0);
-    ASSERT_EQ((int32)g_blitpass_dst[2], expect_offset(8, 4, 3, 4, 0));
+    assert_paint(expect_offset(8, 4, 3, 4, 0), 3 * 3);
 
-    ASSERT_EQ(g_blitpass_calls, 3);
+    ASSERT_EQ(paint_count(), 3);
 }
 
-/* acted (flags bit7 set) -> dimmed/grayscale blitter, not passthrough. */
+/* acted (flags bit7 set) -> the REAL dimmed/grayscale blitter runs (not the
+ * passthrough recorder). Place the char at the window origin (0,0) so the dst
+ * offset reduces to the +0x75D8 workspace base, plant a single-pixel grayscale
+ * sprite at the resolved source slot, and confirm exactly one painted byte
+ * ((src & 7) + 0x18) lands at g_dim_lgs + 0x75D8. A correct resolution paints
+ * that one pixel; the passthrough recorder must NOT fire. cache_idx 4 ->
+ * frame_idx = 4*0xC + palette(0) = 0x30, whose slot (0x3000) clears the table. */
 static void test_paint_acted_dimmed(void)
 {
+    uint32 first_off;
+    int n;
+
     reset_paint_window();
-    setup_paint_char(0, 0x05, 0x03, 0, 0, 0, 0x80, 0);
+    /* px=py=0 (== origin) so position deltas vanish; cache_idx 4, walk_phase 0,
+     * acted flag 0x80. ambient palette is 0, so frame_idx = 0 + 0x30 + 0. */
+    setup_paint_char(0, 0x00, 0x00, 4, 0, 0, 0x80, 0);
+    plant_dim_sprite(0x30u, 0x02u);          /* src 0x02 -> grayscale 0x1A */
+
     fd2_paint_char_sprite_at_world_pos(0);
 
-    ASSERT_EQ(g_blitpass_calls, 1);
-    ASSERT_EQ(g_blitdim_calls, 1);
-    ASSERT_EQ((int32)g_blitpass_dst[0], expect_offset(5, 3, 0, 0x720, 0));
+    /* exactly one painted grayscale pixel total in g_dim_lgs, at the +0x75D8
+     * workspace base: proves the dimmed branch ran and that the passthrough
+     * branch did NOT (it would have added a non-grayscale pixel). */
+    n = count_dim_pixels(DIM_GRAY(0x02u), &first_off);
+    ASSERT_EQ(n, 1);
+    ASSERT_EQ(first_off, 0x75d8u);
+    ASSERT_EQ(DIM_GRAY(0x02u), 0x1au);
+    ASSERT_EQ(bp_count_painted(g_dim_lgs, DIM_LGS_SPAN), 1);
 }
 
 /* Out-of-window in each direction -> early return, no blit. The window margin
@@ -529,22 +662,22 @@ static void test_paint_out_of_window(void)
     /* x below origin_x-1 (origin 0x10 -> min 0x0F) */
     setup_paint_char(0, 0x0e, 0x12, 0, 0, 0, 0x00, 0);
     fd2_paint_char_sprite_at_world_pos(0);
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(paint_count(), 0);
 
     /* x above origin_x+max_x (0x10+0x08 = 0x18) */
     setup_paint_char(0, 0x19, 0x12, 0, 0, 0, 0x00, 0);
     fd2_paint_char_sprite_at_world_pos(0);
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(paint_count(), 0);
 
     /* y below origin_y-1 (0x0F) */
     setup_paint_char(0, 0x12, 0x0e, 0, 0, 0, 0x00, 0);
     fd2_paint_char_sprite_at_world_pos(0);
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(paint_count(), 0);
 
     /* y above origin_y+max_y+1 (0x10+0x08+1 = 0x19) */
     setup_paint_char(0, 0x12, 0x1a, 0, 0, 0, 0x00, 0);
     fd2_paint_char_sprite_at_world_pos(0);
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(paint_count(), 0);
 }
 
 /* In-window boundary: x == origin_x-1 and y == origin_y+max_y+1 are inclusive,
@@ -560,14 +693,14 @@ static void test_paint_window_boundary_inclusive(void)
     /* x == origin_x - 1 (lower inclusive edge), y == origin_y + max_y + 1 (upper) */
     setup_paint_char(0, 0x0f, 0x19, 0, 0, 0, 0x00, 0);
     fd2_paint_char_sprite_at_world_pos(0);
-    ASSERT_EQ(g_blitpass_calls, 1);
+    ASSERT_EQ(paint_count(), 1);
 }
 
 /* Sleep status: (a) adds the shake jitter byte to blit_offset, (b) forces
  * palette 0. Set jitter bit = 1 and an alt palette != 0 to prove both. */
 static void test_paint_sleep_jitter_and_palette(void)
 {
-    int32 idx;
+    uint32 frame_idx;
 
     reset_paint_window();
     data_fd2_graphics_char_sprite_shake_jitter_bit = 1;
@@ -576,29 +709,30 @@ static void test_paint_sleep_jitter_and_palette(void)
     setup_paint_char(0, 0x05, 0x03, 1, 0, 0, 0x00, 1);   /* sleep=1 */
     fd2_paint_char_sprite_at_world_pos(0);
 
-    ASSERT_EQ(g_blitpass_calls, 1);
-    /* +1 jitter folded into the offset */
-    ASSERT_EQ((int32)g_blitpass_dst[0], expect_offset(5, 3, 0, 0x720, 1));
-    /* palette forced to 0: idx = facing*3 + cache_idx*0xC + 0 = 0 + 12 + 0 */
-    idx = 0 * 3 + 1 * 0xc + 0;
-    ASSERT_EQ(g_blitpass_src[0] - (uint32)g_paint_atlas, (uint32)idx);
+    ASSERT_EQ(paint_count(), 1);
+    /* palette forced to 0: frame_idx = facing*3 + cache_idx*0xC + 0 = 0 + 12 + 0;
+     * +1 jitter folded into the offset. The painted value confirms the frame
+     * index, the offset confirms the jitter. */
+    frame_idx = 0 * 3 + 1 * 0xc + 0;
+    assert_paint(expect_offset(5, 3, 0, 0x720, 1), frame_idx);
 }
 
 /* Palette 3 falls back to 1 (non-sleep). Use walk_phase != 0 so the alt palette
  * idx feeds the selection, set it to 3, expect lookup palette component == 1. */
 static void test_paint_palette3_fallback(void)
 {
-    int32 idx;
+    uint32 frame_idx;
 
     reset_paint_window();
     data_fd2_graphics_chapter_walk_anim_alt_palette_idx = 3;   /* walk -> alt */
     setup_paint_char(0, 0x05, 0x03, 0, 0, 1, 0x00, 0);         /* walk_phase 1 */
     fd2_paint_char_sprite_at_world_pos(0);
 
-    ASSERT_EQ(g_blitpass_calls, 1);
-    /* idx = facing(0)*3 + cache_idx(0)*0xC + palette(3->1) = 1 */
-    idx = 0 * 3 + 0 * 0xc + 1;
-    ASSERT_EQ(g_blitpass_src[0] - (uint32)g_paint_atlas, (uint32)idx);
+    ASSERT_EQ(paint_count(), 1);
+    /* frame_idx = facing(0)*3 + cache_idx(0)*0xC + palette(3->1) = 1; facing 0
+     * (down) -> pitch +0x720, walk_phase 1 */
+    frame_idx = 0 * 3 + 0 * 0xc + 1;
+    assert_paint(expect_offset(5, 3, 1, 0x720, 0), frame_idx);
 }
 
 /* jitter toggle: a changed BIOS tick latch flips the shake jitter bit once. */
@@ -637,28 +771,26 @@ static void reset_overlay_record(void)
     /* shadow overlay runs the real fd2_blit_animated_tile_at_pos for every
      * char footprint tile; install a transparent tile-map (renderable bit
      * clear) so those redraws read attr then return without a blit. This
-     * isolates g_blitpass_calls to the per-char paint loop, whose dst/order
-     * this test verifies; the shadow tile fan-out itself is covered by the
+     * isolates the painted pixels to the per-char paint loop, whose dsts this
+     * test verifies; the shadow tile fan-out itself is covered by the
      * dedicated fd2_paint_chars_shadow_overlay tests below. */
     install_anim_tile_map(0);
     /* every slot in-window, not acted, awake, facing down, walk_phase 0.
-     * slot i gets pos_x = 0x04 + i so the recovered x identifies the index. */
+     * slot i gets pos_x = 0x04 + i so its painted offset identifies the index. */
     for (i = 0; i < 8; i++) {
         setup_paint_char(i, (uint8)(0x04 + i), 0x03, 0, 0, 0, 0x00, 0);
     }
 }
 
-/* recover the painted slot index of recorded blit #i from its dst offset:
- * dst = py*0x2AC0 + px*0x18 + 0x75D8 (origin 0, walk_phase 0, no jitter),
- * so px = (dst - 3*0x2AC0 - 0x75D8) / 0x18, and index = px - 0x04. */
-static uint32 recover_paint_index(int i)
+/* assert the per-char paint for slot `idx` (pos_x 0x04+idx, py 3, facing 0 down
+ * pitch +0x720 walk_phase 0) painted its probe pixel; frame_idx 0 -> value 1. */
+static void assert_overlay_slot(uint32 idx)
 {
-    int32 off = (int32)g_blitpass_dst[i];
-    int32 px = (off - 3 * 0x2ac0 - 0x75d8) / 0x18;
-    return (uint32)(px - 0x04);
+    int32 off = expect_offset((int32)(0x04u + idx), 3, 0, 0x720, 0);
+    ASSERT_EQ((uint32)g_paint_buf[(uint32)off], (uint32)paint_frame_value(0));
 }
 
-/* All party slots alive: paint every slot 0..count-1 in order, one shadow. */
+/* All party slots alive: paint every slot 0..count-1, one shadow. */
 static void test_overlay_all_alive(void)
 {
     int i;
@@ -669,9 +801,9 @@ static void test_overlay_all_alive(void)
 
     fd2_composite_all_chars_overlay();
 
-    ASSERT_EQ(g_blitpass_calls, 5);
+    ASSERT_EQ(paint_count(), 5);
     for (i = 0; i < 5; i++) {
-        ASSERT_EQ(recover_paint_index(i), (uint32)i);
+        assert_overlay_slot((uint32)i);
     }
     /* the shadow overlay also runs after the loop, but with the transparent
      * tile-map its per-char tile redraws produce no blit; the shadow tile
@@ -692,7 +824,7 @@ static void test_overlay_all_dead(void)
     fd2_composite_all_chars_overlay();
 
     /* shadow ran but every char is dead -> skipped, no per-char paint either */
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(paint_count(), 0);
 }
 
 /* Empty party (count == 0): loop body never runs; shadow pass still runs.
@@ -704,7 +836,7 @@ static void test_overlay_empty_party(void)
 
     fd2_composite_all_chars_overlay();
 
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(paint_count(), 0);
 }
 
 /* ----------------------------------------------------------------
@@ -714,10 +846,10 @@ static void test_overlay_empty_party(void)
  * fd2_blit_animated_tile_at_pos paints, matching the 0x129EC disassembly:
  * base footprint at (x,y)+(x,y-1), then a per-facing walk-trail tile only
  * when sprite_state[2] (walk_phase) != 0. A renderable tile-map (all tiles
- * id 1, attr 0x80, no cursor overlay) makes every requested tile resolve
- * to a passthrough blit; (x, y) is recovered from the recorded dst offset.
+ * id 1, attr 0x80, no cursor overlay) makes every requested tile paint its
+ * probe pixel; (x, y) is confirmed from the painted dst offset.
  * ---------------------------------------------------------------- */
-#define SHADOW_BUF 0xCAFE1234u
+#define SHADOW_BUF ((uint32)g_paint_buf)
 
 static void setup_shadow_char(int slot, uint8 px, uint8 py, uint8 facing,
                               uint8 walk_phase)
@@ -733,8 +865,8 @@ static void setup_shadow_char(int slot, uint8 px, uint8 py, uint8 facing,
 
 static void reset_shadow_record(void)
 {
-    g_blitpass_calls = 0;
     data_fd2_battle_party_member_count = 1;
+    memset(g_paint_buf, 0, sizeof(g_paint_buf));
     data_fd2_large_game_state_buffer_ptr = SHADOW_BUF;
     data_fd2_battle_view_window_origin_x = 0;
     data_fd2_battle_view_window_origin_y = 0;
@@ -743,15 +875,15 @@ static void reset_shadow_record(void)
     install_anim_tile_map(1);   /* renderable: every requested tile blits */
 }
 
-/* assert recorded anim-tile blit #i resolved to world (ex, ey) */
-static void assert_anim_tile(int i, int32 ex, int32 ey)
+static int shadow_count(void)
 {
-    int32 gx;
-    int32 gy;
+    return bp_count_painted(g_paint_buf, PAINT_BUF_SPAN);
+}
 
-    recover_anim_tile(i, SHADOW_BUF, &gx, &gy);
-    ASSERT_EQ(gx, ex);
-    ASSERT_EQ(gy, ey);
+/* assert the anim-tile blit for world (ex, ey) painted its probe pixel */
+static void assert_anim_tile(int32 ex, int32 ey)
+{
+    assert_anim_tile_at(SHADOW_BUF, ex, ey);
 }
 
 /* walk_phase == 0: only the 2-tile base footprint, no trail. */
@@ -762,9 +894,9 @@ static void test_shadow_stationary_base_only(void)
 
     fd2_paint_chars_shadow_overlay();
 
-    ASSERT_EQ(g_blitpass_calls, 2);
-    assert_anim_tile(0, 0x0a, 0x07);
-    assert_anim_tile(1, 0x0a, 0x06);
+    ASSERT_EQ(shadow_count(), 2);
+    assert_anim_tile(0x0a, 0x07);
+    assert_anim_tile(0x0a, 0x06);
 }
 
 /* facing 0 (down), walking: base 2 + single trail tile at (x, y+1). */
@@ -775,10 +907,10 @@ static void test_shadow_facing_down_trail(void)
 
     fd2_paint_chars_shadow_overlay();
 
-    ASSERT_EQ(g_blitpass_calls, 3);
-    assert_anim_tile(0, 0x0a, 0x07);
-    assert_anim_tile(1, 0x0a, 0x06);
-    assert_anim_tile(2, 0x0a, 0x08);
+    ASSERT_EQ(shadow_count(), 3);
+    assert_anim_tile(0x0a, 0x07);
+    assert_anim_tile(0x0a, 0x06);
+    assert_anim_tile(0x0a, 0x08);
 }
 
 /* facing 1 (left), walking: base 2 + (x-1,y) + (x-1,y-1). */
@@ -789,11 +921,11 @@ static void test_shadow_facing_left_trail(void)
 
     fd2_paint_chars_shadow_overlay();
 
-    ASSERT_EQ(g_blitpass_calls, 4);
-    assert_anim_tile(0, 0x0a, 0x07);
-    assert_anim_tile(1, 0x0a, 0x06);
-    assert_anim_tile(2, 0x09, 0x07);
-    assert_anim_tile(3, 0x09, 0x06);
+    ASSERT_EQ(shadow_count(), 4);
+    assert_anim_tile(0x0a, 0x07);
+    assert_anim_tile(0x0a, 0x06);
+    assert_anim_tile(0x09, 0x07);
+    assert_anim_tile(0x09, 0x06);
 }
 
 /* facing 2 (up), walking: base 2 + single trail tile at (x, y-2). */
@@ -804,10 +936,10 @@ static void test_shadow_facing_up_trail(void)
 
     fd2_paint_chars_shadow_overlay();
 
-    ASSERT_EQ(g_blitpass_calls, 3);
-    assert_anim_tile(0, 0x0a, 0x07);
-    assert_anim_tile(1, 0x0a, 0x06);
-    assert_anim_tile(2, 0x0a, 0x05);
+    ASSERT_EQ(shadow_count(), 3);
+    assert_anim_tile(0x0a, 0x07);
+    assert_anim_tile(0x0a, 0x06);
+    assert_anim_tile(0x0a, 0x05);
 }
 
 /* facing 3 (right), walking: base 2 + (x+1,y) + (x+1,y-1). */
@@ -818,11 +950,11 @@ static void test_shadow_facing_right_trail(void)
 
     fd2_paint_chars_shadow_overlay();
 
-    ASSERT_EQ(g_blitpass_calls, 4);
-    assert_anim_tile(0, 0x0a, 0x07);
-    assert_anim_tile(1, 0x0a, 0x06);
-    assert_anim_tile(2, 0x0b, 0x07);
-    assert_anim_tile(3, 0x0b, 0x06);
+    ASSERT_EQ(shadow_count(), 4);
+    assert_anim_tile(0x0a, 0x07);
+    assert_anim_tile(0x0a, 0x06);
+    assert_anim_tile(0x0b, 0x07);
+    assert_anim_tile(0x0b, 0x06);
 }
 
 /* immune char (job_id 0x13) is skipped entirely -> no anim-tile redraw. */
@@ -834,7 +966,7 @@ static void test_shadow_immune_skipped(void)
 
     fd2_paint_chars_shadow_overlay();
 
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(shadow_count(), 0);
 }
 
 /* dead char is skipped entirely -> no anim-tile redraw. */
@@ -846,11 +978,11 @@ static void test_shadow_dead_skipped(void)
 
     fd2_paint_chars_shadow_overlay();
 
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(shadow_count(), 0);
 }
 
 /* multi-char: each alive non-immune slot contributes its own footprint+trail,
- * in party order; verifies the loop advances per slot. */
+ * verifying the loop advances per slot. */
 static void test_shadow_multi_char(void)
 {
     reset_shadow_record();
@@ -860,12 +992,12 @@ static void test_shadow_multi_char(void)
 
     fd2_paint_chars_shadow_overlay();
 
-    ASSERT_EQ(g_blitpass_calls, 5);
-    assert_anim_tile(0, 0x04, 0x05);
-    assert_anim_tile(1, 0x04, 0x04);
-    assert_anim_tile(2, 0x08, 0x09);
-    assert_anim_tile(3, 0x08, 0x08);
-    assert_anim_tile(4, 0x08, 0x07);
+    ASSERT_EQ(shadow_count(), 5);
+    assert_anim_tile(0x04, 0x05);
+    assert_anim_tile(0x04, 0x04);
+    assert_anim_tile(0x08, 0x09);
+    assert_anim_tile(0x08, 0x08);
+    assert_anim_tile(0x08, 0x07);
 }
 
 /* ----------------------------------------------------------------
@@ -984,23 +1116,24 @@ static void test_threat_empty_party(void)
  * fd2_composite_chars_with_spell_effect_overlay @ 0x1CB94 — per-char
  * spell-cast layer: hit-list chars get the spell-effect sprite (via the
  * fd2_blit_sprite_with_decoded_pixels stub, recorded in g_blitdec_*),
- * every other alive in-window char keeps its normal portrait (via the
- * fd2_tile_blit_24x24_passthrough stub, recorded in g_blitpass_*).
+ * every other alive in-window char keeps its normal portrait, painted for real
+ * by fd2_tile_blit_24x24_passthrough into dst_buf.
  *
- * dst_buf is a sentinel: none of the three callee stubs dereference it,
- * so the address arithmetic can be checked directly from the recorded
- * dst. char_screen_addr = dst_buf + 0x75D8 + (py-oy)*0x2AC0 + (px-ox)*0x18.
+ * dst_buf is g_paint_buf (a real buffer): the effect blits go through the
+ * decoded-pixels stub (no real paint) but the portrait blits paint for real, at
+ * char_screen_addr = dst_buf + 0x75D8 + (py-oy)*0x2AC0 + (px-ox)*0x18; the probe
+ * pixel's value identifies the resolved frame index.
  *
  * Effect-sprite source: the sheet at data_fd2_resource_portrait_sheet_ptr
  * holds a dword table at +6 (index*4) of absolute offsets; an identity
  * table (table[i]==i) makes fx_sprite_addr == sheet + fx_sprite_idx, so
  * the recorded g_blitdec_sprite reveals which fx index was loaded.
  *
- * Portrait source: portrait_sprite_cache is install_paint_atlas()'s
- * identity table, so g_blitpass_src - g_paint_atlas == frame_idx, where
+ * Portrait source: portrait_sprite_cache is install_paint_atlas()'s probe atlas,
+ * so the painted portrait byte == paint_frame_value(frame_idx), where
  * frame_idx = cache_idx*0xC + (ambient_palette==3 ? 2 : ambient_palette).
  * ---------------------------------------------------------------- */
-#define SPELL_BUF 0xB0000000u
+#define SPELL_BUF ((uint32)g_paint_buf)
 
 /* Sheet fixture for data_fd2_resource_portrait_sheet_ptr: identity dword
  * table at +6 so fx_sprite_addr == sheet + fx_sprite_idx. 0x80 entries
@@ -1019,7 +1152,7 @@ static void install_spell_sheet(void)
     data_fd2_resource_portrait_sheet_ptr = (uint32)g_spell_sheet;
 }
 
-/* Open the window wide, pin the sentinel buffer + both atlases, clear all
+/* Open the window wide, pin the real dst buffer + both atlases, clear all
  * recorders. Party count is left for the test to set. */
 static void reset_spell_overlay(void)
 {
@@ -1027,12 +1160,11 @@ static void reset_spell_overlay(void)
     data_fd2_battle_view_window_origin_y = 0;
     data_fd2_battle_view_window_max_x = 0x40;
     data_fd2_battle_view_window_max_y = 0x40;
+    memset(g_paint_buf, 0, sizeof(g_paint_buf));
     data_fd2_large_game_state_buffer_ptr = SPELL_BUF;   /* unused by this fn */
     data_fd2_graphics_chapter_ambient_palette_anim_idx = 0;
-    install_paint_atlas();      /* portrait_sprite_cache identity table */
+    install_paint_atlas();      /* portrait_sprite_cache probe atlas */
     install_spell_sheet();      /* effect-sprite sheet identity table */
-    g_blitpass_calls = 0;
-    g_blitdim_calls = 0;
     g_blitdec_calls = 0;
     g_tile_map_calls = 0;
     g_composite_call_count = 0;
@@ -1044,6 +1176,20 @@ static uint32 expect_screen_addr(uint32 dst_buf, int32 px, int32 py,
 {
     return dst_buf + 0x75d8u + (uint32)(py - oy) * 0x2ac0u +
            (uint32)(px - ox) * 0x18u;
+}
+
+/* count of painted portrait probe pixels in g_paint_buf */
+static int spell_portrait_count(void)
+{
+    return bp_count_painted(g_paint_buf, PAINT_BUF_SPAN);
+}
+
+/* assert the portrait for (px,py) (origin ox,oy) painted frame_idx's probe */
+static void assert_spell_portrait(int32 px, int32 py, int32 ox, int32 oy,
+                                  uint32 frame_idx)
+{
+    uint32 off = expect_screen_addr(SPELL_BUF, px, py, ox, oy) - (uint32)g_paint_buf;
+    ASSERT_EQ((uint32)g_paint_buf[off], (uint32)paint_frame_value(frame_idx));
 }
 
 /* The unconditional tile-map composite runs once into dst_buf + 0x8088 with
@@ -1066,7 +1212,7 @@ static void test_spell_tilemap_composite(void)
     ASSERT_EQ(g_tile_map_last_ox, 0x11u);
     ASSERT_EQ(g_tile_map_last_oy, 0x22u);
     /* empty party -> no per-char blits of either kind */
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(spell_portrait_count(), 0);
     ASSERT_EQ(g_blitdec_calls, 0);
 }
 
@@ -1087,14 +1233,35 @@ static void test_spell_miss_draws_portrait(void)
     fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 0, (uint32)0, 0x4a);
 
     ASSERT_EQ(g_blitdec_calls, 0);          /* no effect sprite */
-    ASSERT_EQ(g_blitpass_calls, 1);         /* one portrait */
-    ASSERT_EQ(g_blitdim_calls, 0);          /* passthrough, not dimmed */
-    ASSERT_EQ(g_blitpass_stride[0], 0x1c8u);
-    ASSERT_EQ(g_blitpass_dst[0], expect_screen_addr(SPELL_BUF, 5, 3, 0, 0));
-    /* frame_idx = cache_idx(2)*0xC + ambient_palette(1) = 25; identity cache
-     * table -> src - atlas == frame_idx */
+    ASSERT_EQ(spell_portrait_count(), 1);   /* one portrait via passthrough */
+    /* frame_idx = cache_idx(2)*0xC + ambient_palette(1) = 25; the painted probe
+     * value identifies the frame index and its offset the screen dst. */
     frame_idx = 2 * 0xc + 1;
-    ASSERT_EQ(g_blitpass_src[0] - (uint32)g_paint_atlas, (uint32)frame_idx);
+    assert_spell_portrait(5, 3, 0, 0, (uint32)frame_idx);
+}
+
+/* the portrait passthrough forwards stride 0x1C8: a two-pixel probe at the
+ * resolved frame slot lands its second pixel one stride past the first. */
+static void test_spell_portrait_stride(void)
+{
+    int32 frame_idx;
+    uint32 off;
+
+    reset_spell_overlay();
+    data_fd2_battle_party_member_count = 1;
+    data_fd2_graphics_chapter_ambient_palette_anim_idx = 1;
+    setup_paint_char(0, 0x05, 0x03, 2, 0, 0, 0x00, 0);
+    frame_idx = 2 * 0xc + 1;            /* 25 */
+    bp_probe2(g_paint_atlas + PAINT_SPRITE_BASE + (uint32)frame_idx * PAINT_SPRITE_SPAN,
+              paint_frame_value((uint32)frame_idx));
+
+    fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 0, (uint32)0, 0x4a);
+
+    off = expect_screen_addr(SPELL_BUF, 5, 3, 0, 0) - (uint32)g_paint_buf;
+    ASSERT_EQ((uint32)g_paint_buf[off], (uint32)paint_frame_value((uint32)frame_idx));
+    ASSERT_EQ((uint32)g_paint_buf[off + 0x1c8u],
+              (uint32)paint_frame_value((uint32)frame_idx));
+    ASSERT_EQ(spell_portrait_count(), 2);
 }
 
 /* A char IN the target list draws the spell effect sprite through the
@@ -1112,7 +1279,7 @@ static void test_spell_hit_draws_effect(void)
     fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 1,
                                                   (uint32)targets, 0x4b);
 
-    ASSERT_EQ(g_blitpass_calls, 0);         /* no portrait */
+    ASSERT_EQ(spell_portrait_count(), 0);   /* no portrait */
     ASSERT_EQ(g_blitdec_calls, 1);          /* one effect sprite */
     ASSERT_EQ(g_blitdec_stride, 0x1c8u);
     ASSERT_EQ(g_blitdec_dst, expect_screen_addr(SPELL_BUF, 7, 5, 0, 0));
@@ -1141,13 +1308,14 @@ static void test_spell_mixed_hit_and_miss(void)
 
     /* chars 1 and 2 -> effect; chars 0 and 3 -> portrait */
     ASSERT_EQ(g_blitdec_calls, 2);
-    ASSERT_EQ(g_blitpass_calls, 2);
+    ASSERT_EQ(spell_portrait_count(), 2);
     /* the last effect blit recorded is char 2 at pos_x 6 (decoded stub keeps
      * only the most recent dst) */
     ASSERT_EQ(g_blitdec_dst, expect_screen_addr(SPELL_BUF, 6, 2, 0, 0));
-    /* portrait blits recorded in loop order: char 0 (px 4) then char 3 (px 7) */
-    ASSERT_EQ(g_blitpass_dst[0], expect_screen_addr(SPELL_BUF, 4, 2, 0, 0));
-    ASSERT_EQ(g_blitpass_dst[1], expect_screen_addr(SPELL_BUF, 7, 2, 0, 0));
+    /* portraits painted for the two misses: char 0 (px 4) and char 3 (px 7),
+     * both frame_idx 0 (cache_idx 0, palette 0) -> probe value 1 */
+    assert_spell_portrait(4, 2, 0, 0, 0);
+    assert_spell_portrait(7, 2, 0, 0, 0);
 }
 
 /* Dead chars (flags bit0) are skipped entirely: no blit of either kind even
@@ -1165,7 +1333,7 @@ static void test_spell_dead_skipped(void)
                                                   (uint32)targets, 0x4a);
 
     ASSERT_EQ(g_blitdec_calls, 0);
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(spell_portrait_count(), 0);
 }
 
 /* Out-of-window chars are culled (no blit) on each of the four edges; the
@@ -1183,27 +1351,27 @@ static void test_spell_window_cull(void)
     /* x below ox-1 (0x0F) */
     setup_paint_char(0, 0x0e, 0x12, 0, 0, 0, 0x00, 0);
     fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 0, (uint32)0, 0x4a);
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(spell_portrait_count(), 0);
 
     /* x above ox+max_x (0x18) */
     setup_paint_char(0, 0x19, 0x12, 0, 0, 0, 0x00, 0);
     fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 0, (uint32)0, 0x4a);
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(spell_portrait_count(), 0);
 
     /* y below oy-1 (0x0F) */
     setup_paint_char(0, 0x12, 0x0e, 0, 0, 0, 0x00, 0);
     fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 0, (uint32)0, 0x4a);
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(spell_portrait_count(), 0);
 
     /* y above oy+max_y+1 (0x19) */
     setup_paint_char(0, 0x12, 0x1a, 0, 0, 0, 0x00, 0);
     fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 0, (uint32)0, 0x4a);
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(spell_portrait_count(), 0);
 
-    /* inclusive lower-x / upper-y edge still paints */
+    /* inclusive lower-x / upper-y edge still paints (one portrait now present) */
     setup_paint_char(0, 0x0f, 0x19, 0, 0, 0, 0x00, 0);
     fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 0, (uint32)0, 0x4a);
-    ASSERT_EQ(g_blitpass_calls, 1);
+    ASSERT_EQ(spell_portrait_count(), 1);
 }
 
 /* Palette-3 special case: when ambient_palette == 3 the portrait frame_idx
@@ -1219,9 +1387,10 @@ static void test_spell_palette3_frame(void)
 
     fd2_composite_chars_with_spell_effect_overlay(SPELL_BUF, 0, (uint32)0, 0x4a);
 
-    ASSERT_EQ(g_blitpass_calls, 1);
+    ASSERT_EQ(spell_portrait_count(), 1);
+    /* frame_idx = cache_idx(1)*0xC + (palette 3 -> 2) = 14 */
     frame_idx = 1 * 0xc + 2;
-    ASSERT_EQ(g_blitpass_src[0] - (uint32)g_paint_atlas, (uint32)frame_idx);
+    assert_spell_portrait(5, 3, 0, 0, (uint32)frame_idx);
 }
 
 /* The target scan has no early break: a char_idx appearing multiple times in
@@ -1241,7 +1410,7 @@ static void test_spell_duplicate_target_single_hit(void)
                                                   (uint32)targets, 0x4a);
 
     ASSERT_EQ(g_blitdec_calls, 1);
-    ASSERT_EQ(g_blitpass_calls, 0);
+    ASSERT_EQ(spell_portrait_count(), 0);
 }
 
 void run_gfx_rndscene_tests(void)
@@ -1258,6 +1427,7 @@ void run_gfx_rndscene_tests(void)
     RUN_TEST(test_cursor_phase6_clear_flag);
     RUN_TEST(test_cursor_phase_default);
     RUN_TEST(test_paint_facing_down_passthrough);
+    RUN_TEST(test_paint_passthrough_stride);
     RUN_TEST(test_paint_facing_pitch_deltas);
     RUN_TEST(test_paint_acted_dimmed);
     RUN_TEST(test_paint_out_of_window);
@@ -1282,6 +1452,7 @@ void run_gfx_rndscene_tests(void)
     RUN_TEST(test_threat_empty_party);
     RUN_TEST(test_spell_tilemap_composite);
     RUN_TEST(test_spell_miss_draws_portrait);
+    RUN_TEST(test_spell_portrait_stride);
     RUN_TEST(test_spell_hit_draws_effect);
     RUN_TEST(test_spell_mixed_hit_and_miss);
     RUN_TEST(test_spell_dead_skipped);

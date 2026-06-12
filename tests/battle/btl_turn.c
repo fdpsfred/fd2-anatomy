@@ -82,12 +82,53 @@ static void t_install_dialog_text(void)
 }
 
 
+/* Safe battle-scene fixture for status-tick tests.
+ *
+ * fd2_tick_status_effects_and_show_messages pans the cursor / closes the status
+ * screen, and those real callees recomposite the battle frame, whose real
+ * fd2_composite_all_chars_overlay -> fd2_paint_chars_shadow_overlay loops over
+ * the live party calling the real fd2_blit_animated_tile_at_pos. That blitter is
+ * real and (for cursor-overlay tiles) reaches the real
+ * fd2_tile_blit_24x24_with_remap_table, which would read whatever RLE bytes the
+ * sprite source points at. Without a deterministic tile map the leftover globals
+ * from prior tests can make a tile resolve to a renderable+overlay blit over
+ * garbage, hanging the real decoder.
+ *
+ * Point the tile-map at the middle of a large zeroed buffer (so even the
+ * shadow overlay's negative-row probes read a 0 tile id) and give every tile a
+ * zeroed attribute entry: attr bit 0x80 (renderable) is clear, so
+ * fd2_blit_animated_tile_at_pos skips the blit entirely before computing a
+ * sprite source or calling any blitter. This keeps the status-tick logic under
+ * test while making the incidental repaint a deterministic no-op. */
+#define T_SCENE_W        0x20
+static uint8 t_scene_tilemap[0x4000];   /* (tile_y*W + tile_x)*4, mid-anchored */
+static uint8 t_scene_attr[0x1000];      /* tile_id (<=0x3FF) * 4 -> <= 0xFFC    */
+static uint8 t_scene_ws[0x2000];        /* dst workspace anchor (never written) */
+
+static void t_install_safe_battle_scene(void)
+{
+    memset(t_scene_tilemap, 0, sizeof(t_scene_tilemap));
+    memset(t_scene_attr, 0, sizeof(t_scene_attr));
+    data_fd2_battle_tile_map_ptr =
+        (uint32)(t_scene_tilemap + sizeof(t_scene_tilemap) / 2);
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)t_scene_attr;
+    data_fd2_battle_map_width_tiles = T_SCENE_W;
+    data_fd2_large_game_state_buffer_ptr = (uint32)t_scene_ws;
+    data_fd2_graphics_bg_anim_flip_flag = 0;
+    data_fd2_battle_view_window_origin_x = 0;
+    data_fd2_battle_view_window_origin_y = 0;
+    data_fd2_battle_view_window_max_x = 0x100;
+    data_fd2_battle_view_window_max_y = 0x100;
+}
+
+
 /* ---- Test: fd2_tick_status_effects_and_show_messages ---- */
 
 static void test_status_tick_poison_damage(void)
 {
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     t_install_dialog_text();
+    t_install_safe_battle_scene();
     g_test_rc_array[0].team = 0;
     g_test_rc_array[0].flags = 0;
     ((uint8 *)&g_test_rc_array[0])[0x25] = 1;
@@ -104,6 +145,7 @@ static void test_status_tick_poison_clamp_zero(void)
 {
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     t_install_dialog_text();
+    t_install_safe_battle_scene();
     g_test_rc_array[0].team = 0;
     g_test_rc_array[0].flags = 0;
     ((uint8 *)&g_test_rc_array[0])[0x25] = 1;
@@ -120,6 +162,7 @@ static void test_status_tick_poison_skip_dead(void)
 {
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     t_install_dialog_text();
+    t_install_safe_battle_scene();
     g_test_rc_array[0].team = 0;
     g_test_rc_array[0].flags = 1;
     ((uint8 *)&g_test_rc_array[0])[0x25] = 1;
@@ -136,6 +179,7 @@ static void test_status_tick_timer_decrement(void)
 {
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     t_install_dialog_text();
+    t_install_safe_battle_scene();
     g_test_rc_array[0].team = 0;
     g_test_rc_array[0].flags = 0;
     ((uint8 *)&g_test_rc_array[0])[0x22] = 3;
@@ -150,6 +194,7 @@ static void test_status_tick_timer_expires_recalc(void)
 {
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     t_install_dialog_text();
+    t_install_safe_battle_scene();
     g_test_rc_array[0].team = 0;
     g_test_rc_array[0].flags = 0;
     ((uint8 *)&g_test_rc_array[0])[0x22] = 1;
@@ -679,6 +724,70 @@ static void t_install_sprite_sheet(void)
     data_fd2_ui_anim_sprite_sheet_ptr = (uint32)t_sprite_sheet;
 }
 
+/* Terminating sprite atlases for the REAL battle-frame compositor that the full
+ * turn cycle drives (fd2_composite_battle_frame -> real cursor overlay / per-char
+ * paint / shadow overlay, plus the direct fd2_paint_char_sprite_at_world_with_mode
+ * calls). Those paths feed a sprite stream to the real RLE blitters
+ * (fd2_tile_blit_24x24_passthrough and siblings); an unset/garbage atlas would
+ * point them at a stream whose run-length decode never lands x_remain on 0,
+ * looping forever.
+ *
+ * The cursor overlay resolves its sprite through a +6 offset table
+ * (runtime_battle_state_ptr), the per-char painter through a +0 table
+ * (portrait_sprite_cache); both are pointed at one shared, fully transparent
+ * 24-row "SKIP 24 x 24" sprite that decodes cleanly and paints nothing. The
+ * animated-tile / shadow overlay (which would resolve a +10 snapshot table) is
+ * disarmed instead by zeroing the tile-map and tile-attribute buffers, so its
+ * per-tile renderable-bit gate is clear and it never reads the snapshot. */
+static uint8 t_cursor_atlas[0x200];     /* +6 offset table -> all-SKIP sprite   */
+static uint8 t_portrait_atlas[0x600];   /* +0 offset table -> all-SKIP sprite   */
+static uint8 t_blit_tile_map[0x400];    /* zeroed: tiles resolve non-renderable */
+static uint8 t_blit_tile_attr[0x400];   /* zeroed: renderable bit 0x80 clear    */
+
+static void t_fill_skip_sprite(uint8 *p)
+{
+    int i;
+    for (i = 0; i < 24; i++) {
+        p[i] = (uint8)(0xC0u | 23u);    /* one "SKIP 24" command per row */
+    }
+}
+
+static void t_install_blit_atlases(void)
+{
+    int i;
+
+    /* cursor atlas: 4-byte offset table at +6, entry idx -> the all-SKIP sprite
+     * placed past the table; covers every cursor sprite index (0x00..0x12). */
+    memset(t_cursor_atlas, 0, sizeof(t_cursor_atlas));
+    for (i = 0; i < 0x40; i++) {
+        *(int32 *)(t_cursor_atlas + 6 + i * 4) = (int32)0x100;
+    }
+    t_fill_skip_sprite(t_cursor_atlas + 0x100);
+    data_fd2_runtime_battle_state_ptr = (uint32)t_cursor_atlas;
+
+    /* portrait cache: 4-byte offset table at +0, entry idx -> the all-SKIP
+     * sprite; covers facing*3 + cache_idx*0xC + frame for the test's char. */
+    memset(t_portrait_atlas, 0, sizeof(t_portrait_atlas));
+    for (i = 0; i < 0x80; i++) {
+        *(int32 *)(t_portrait_atlas + i * 4) = (int32)0x400;
+    }
+    t_fill_skip_sprite(t_portrait_atlas + 0x400);
+    portrait_sprite_cache = (uint32)t_portrait_atlas;
+
+    /* zeroed tile-map + attr so the shadow/animated-tile overlay's renderable
+     * gate is clear -> it never reaches the snapshot lookup or a blit. */
+    memset(t_blit_tile_map, 0, sizeof(t_blit_tile_map));
+    memset(t_blit_tile_attr, 0, sizeof(t_blit_tile_attr));
+    data_fd2_battle_tile_map_ptr = (uint32)t_blit_tile_map;
+    data_fd2_tile_attribute_flags_buffer_ptr = (uint32)t_blit_tile_attr;
+
+    /* the real terrain-info HUD panel (also reached via fd2_composite_battle_frame)
+     * would blit a terrain icon through the snapshot table; keep its enable gate
+     * OFF so it early-returns and never reads the snapshot. */
+    data_fd2_ui_terrain_hud_user_enabled = 0;
+    data_fd2_ui_play_active_flag = 0;
+}
+
 
 /* Phase A heal arithmetic + early-exit. game_event_flag is pre-set
  * nonzero so the cycle runs Phase A (heal) + Phase B (status tick),
@@ -791,10 +900,23 @@ static void test_run_turn_cycle_full_reveal(void)
 {
     uint32 save_lgs;
     uint32 save_te;
+    uint32 save_rbs;
+    uint32 save_pcache;
+    uint32 save_map;
+    uint32 save_attr;
 
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     t_install_dialog_text();
     t_install_sprite_sheet();
+    /* this is the only turn-cycle test that runs the full reveal, so it is the
+     * only one that reaches the real fd2_composite_battle_frame; give the real
+     * compositor terminating sprite atlases (and a non-renderable tile-map) so its
+     * RLE blitters do not run away on a garbage stream. */
+    save_rbs    = data_fd2_runtime_battle_state_ptr;
+    save_pcache = portrait_sprite_cache;
+    save_map    = data_fd2_battle_tile_map_ptr;
+    save_attr   = data_fd2_tile_attribute_flags_buffer_ptr;
+    t_install_blit_atlases();
     save_lgs = data_fd2_large_game_state_buffer_ptr;
     data_fd2_large_game_state_buffer_ptr = (uint32)t_state_buf;
 
@@ -874,6 +996,10 @@ static void test_run_turn_cycle_full_reveal(void)
     data_fd2_battle_ai_post_action_consequence_table[0x12] = 0;
     data_fd2_tile_event_data_table_ptr = save_te;
     data_fd2_large_game_state_buffer_ptr = save_lgs;
+    data_fd2_runtime_battle_state_ptr = save_rbs;
+    portrait_sprite_cache = save_pcache;
+    data_fd2_battle_tile_map_ptr = save_map;
+    data_fd2_tile_attribute_flags_buffer_ptr = save_attr;
     data_fd2_battle_party_member_count = 4;
 }
 

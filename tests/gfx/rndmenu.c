@@ -25,6 +25,7 @@
 #include "consts.h"
 #include "globals.h"
 #include "protos.h"
+#include "blitprob.h"
 #include <stdio.h>
 
 /* panel-blit recording spy (testglob.c) */
@@ -32,11 +33,6 @@ extern int    g_dlg_blit_normal_calls;
 extern uint32 g_dlg_blit_last_dst;
 extern uint32 g_dlg_blit_last_sprite;
 extern uint32 g_dlg_blit_last_stride;
-/* portrait-blit recording spy (testglob.c) */
-extern int    g_blitpass_calls;
-extern uint32 g_blitpass_src[64];
-extern uint32 g_blitpass_dst[64];
-extern uint32 g_blitpass_stride[64];
 /* dialog-VM glyph spy (testglob.c); the chapter-intro metadata table is
  * already declared in globals.h and defined in testglob.c. */
 extern int    g_dlg_glyph_calls;
@@ -49,8 +45,10 @@ static uint8 g_lgsb_buf[LGSB_SPAN];
 static uint8 g_snapshot_buf[LGSB_SPAN];
 
 /* portrait sprite cache: head holds a per-frame int32 offset table; the chosen
- * frame's payload is at cache_base + offset_table[frame]. */
-static uint8 g_portrait_cache[256];
+ * frame's payload is at cache_base + offset_table[frame]. Sized to also hold the
+ * probe sprites the roster/preview/promo/cand tests plant past the table (the
+ * real bg-fill blitter reads its source from cache_base + offset). */
+static uint8 g_portrait_cache[4096];
 
 /* runtime-char array the roster grid indexes via scroll_offset + iter. Shared
  * by the mode-3 panel test and the fd2_render_party_roster_grid tests below. */
@@ -97,8 +95,23 @@ static void intro_setup(uint8 category, uint32 cursor_state)
     intro_text_all_end();
 
     g_dlg_blit_normal_calls = 0;
-    g_blitpass_calls = 0;
     g_dlg_glyph_calls = 0;
+}
+
+/* Chapter-intro portrait probe slot, well past the 16-frame offset table (frames
+ * 0..15 occupy cache bytes 0..0x3F). fd2_render_chapter_intro_overlay resolves the
+ * portrait src as cache + cache[frame*4] and forwards it to the REAL
+ * fd2_tile_blit_24x24_passthrough, so aiming frame `f`'s table slot at a probe
+ * planted here lets a test read the painted value/offset back from the working
+ * surface (g_lgsb_buf). */
+#define INTRO_PROBE_OFF(f)  (0x800u + (uint32)(f) * 0x40u)
+
+/* Aim frame `frame`'s offset-table slot at a 1-pixel probe (painted value `val`)
+ * planted at cache + INTRO_PROBE_OFF(frame). */
+static void intro_plant_frame(uint32 frame, uint8 val)
+{
+    *(int32 *)(g_portrait_cache + frame * 4u) = (int32)INTRO_PROBE_OFF(frame);
+    bp_probe1(g_portrait_cache + INTRO_PROBE_OFF(frame), val);
 }
 
 /* ----------------------------------------------------------------
@@ -112,7 +125,7 @@ static void test_compose_args_frame_nonremap(void)
     uint32 cursor   = 1;
     uint32 table_off;
     uint32 expect_dst;
-    uint32 expect_src;
+    uint32 off;
 
     intro_setup(category, cursor);
 
@@ -121,9 +134,12 @@ static void test_compose_args_frame_nonremap(void)
     data_fd2_chapter_intro_portrait_pose_x_column_table[table_off] = 0x0A; /* col */
     data_fd2_chapter_intro_portrait_pose_y_row_table[table_off]    = 0x14; /* row */
 
-    /* frame index 2 (not 3) -> used as-is; offset table[2] = 0x40 */
+    /* frame index 2 (not 3) -> used as-is; aim its offset-table slot at a 2-pixel
+     * probe (value 0x55) so the REAL passthrough blit paints 0x55 at the portrait
+     * dst (0,0) AND one stride lower, pinning the forwarded row stride 0x1C8. */
     data_fd2_chapter_intro_dialog_anim_frame_idx = 2;
-    *(int32 *)(g_portrait_cache + 2 * 4) = 0x40;
+    *(int32 *)(g_portrait_cache + 2 * 4) = (int32)INTRO_PROBE_OFF(2);
+    bp_probe2(g_portrait_cache + INTRO_PROBE_OFF(2), 0x55);
 
     fd2_render_chapter_intro_overlay();
 
@@ -140,17 +156,15 @@ static void test_compose_args_frame_nonremap(void)
     /* title dialog ran against immediate-END -> no glyphs emitted */
     ASSERT_EQ((long)g_dlg_glyph_calls, 0);
 
-    /* portrait blit recorded once */
-    ASSERT_EQ((long)g_blitpass_calls, 1);
-    ASSERT_EQ((long)g_blitpass_stride[0], 0x1c8);
+    /* portrait blit painted the 2-pixel probe once (its frame-2 slot was resolved
+     * to the planted probe -> proves the src = cache + cache[frame*4] lookup). */
+    ASSERT_EQ(bp_count_value(g_lgsb_buf, LGSB_SPAN, 0x55, &off), 2);
 
-    /* dst = lgsb + col*0x1C8 + row + 0x8088 */
-    expect_dst = (uint32)g_lgsb_buf + 0x0Au * 0x1c8u + 0x14u + 0x8088u;
-    ASSERT_EQ((long)g_blitpass_dst[0], (long)expect_dst);
-
-    /* src = *(int32*)(cache + frame*4) + cache = cache + 0x40 */
-    expect_src = (uint32)g_portrait_cache + 0x40u;
-    ASSERT_EQ((long)g_blitpass_src[0], (long)expect_src);
+    /* dst = lgsb + col*0x1C8 + row + 0x8088 (offset relative to the surface base) */
+    expect_dst = 0x0Au * 0x1c8u + 0x14u + 0x8088u;
+    ASSERT_EQ((long)off, (long)expect_dst);
+    /* the probe's 2nd pixel one stride lower confirms the forwarded stride 0x1C8 */
+    ASSERT_EQ((long)g_lgsb_buf[expect_dst + 0x1c8u], 0x55);
 }
 
 /* ----------------------------------------------------------------
@@ -161,21 +175,21 @@ static void test_frame_index_3_remaps_to_1(void)
 {
     uint8  category = 0;
     uint32 cursor   = 0;
-    uint32 expect_src;
+    uint32 off;
 
     intro_setup(category, cursor);
 
-    /* distinct offsets at [1] and [3] so a wrong index is detectable */
-    *(int32 *)(g_portrait_cache + 1 * 4) = 0x11;
-    *(int32 *)(g_portrait_cache + 3 * 4) = 0x99;
+    /* distinct probes at frame slots [1] and [3] so a wrong index is detectable:
+     * remap 3 -> 1 must paint slot [1]'s value (0x5A), not slot [3]'s (0x5B). */
+    intro_plant_frame(1, 0x5A);
+    intro_plant_frame(3, 0x5B);
     data_fd2_chapter_intro_dialog_anim_frame_idx = 3;
 
     fd2_render_chapter_intro_overlay();
 
-    ASSERT_EQ((long)g_blitpass_calls, 1);
-    /* remap 3 -> 1 means offset table[1] = 0x11 is used */
-    expect_src = (uint32)g_portrait_cache + 0x11u;
-    ASSERT_EQ((long)g_blitpass_src[0], (long)expect_src);
+    /* remap 3 -> 1 means frame slot [1]'s probe (0x5A) is painted, not [3]'s. */
+    ASSERT_EQ(bp_count_value(g_lgsb_buf, LGSB_SPAN, 0x5A, &off), 1);
+    ASSERT_EQ(bp_count_value(g_lgsb_buf, LGSB_SPAN, 0x5B, &off), 0);
 }
 
 /* ----------------------------------------------------------------
@@ -186,18 +200,18 @@ static void test_frame_index_1_unchanged(void)
 {
     uint8  category = 0;
     uint32 cursor   = 0;
-    uint32 expect_src;
+    uint32 off;
 
     intro_setup(category, cursor);
 
-    *(int32 *)(g_portrait_cache + 1 * 4) = 0x22;
+    intro_plant_frame(1, 0x22);
     data_fd2_chapter_intro_dialog_anim_frame_idx = 1;
 
     fd2_render_chapter_intro_overlay();
 
-    ASSERT_EQ((long)g_blitpass_calls, 1);
-    expect_src = (uint32)g_portrait_cache + 0x22u;
-    ASSERT_EQ((long)g_blitpass_src[0], (long)expect_src);
+    /* frame 1 is the remap TARGET value but is itself used unchanged (CMP vs 3
+     * only): frame slot [1]'s probe (0x22) is painted exactly once. */
+    ASSERT_EQ(bp_count_value(g_lgsb_buf, LGSB_SPAN, 0x22, &off), 1);
 }
 
 /* ----------------------------------------------------------------
@@ -211,6 +225,7 @@ static void test_pose_table_index_formula(void)
     uint32 cursor   = 3;
     uint32 table_off;
     uint32 expect_dst;
+    uint32 off;
 
     intro_setup(category, cursor);
 
@@ -219,15 +234,38 @@ static void test_pose_table_index_formula(void)
     data_fd2_chapter_intro_portrait_pose_y_row_table[table_off]    = 0x03;
 
     data_fd2_chapter_intro_dialog_anim_frame_idx = 0;
-    *(int32 *)(g_portrait_cache + 0 * 4) = 0;
+    intro_plant_frame(0, 0x66);
 
     fd2_render_chapter_intro_overlay();
 
-    ASSERT_EQ((long)g_blitpass_calls, 1);
     /* dst uses index 9 (= 1*6 + 3); index 13 etc. are still zero */
-    expect_dst = (uint32)g_lgsb_buf + 0x07u * 0x1c8u + 0x03u + 0x8088u;
-    ASSERT_EQ((long)g_blitpass_dst[0], (long)expect_dst);
+    ASSERT_EQ(bp_count_value(g_lgsb_buf, LGSB_SPAN, 0x66, &off), 1);
+    expect_dst = 0x07u * 0x1c8u + 0x03u + 0x8088u;
+    ASSERT_EQ((long)off, (long)expect_dst);
 }
+
+/* ---- VGA-primary probe readback (shared) ---------------------------------
+ * The chapter-intro dialog panels (mode-2 icon row) and the mode-3 roster grid /
+ * battle-scene compositor bg-fill / blit into the FIXED VGA primary at 0xA0000
+ * (a 64000-byte mode-13h frame, mapped+writable in the harness) rather than a
+ * caller-supplied surface. A test clears it, drives the real renderer, and reads
+ * the painted probe bytes back: the painted value identifies the resolved cache/
+ * atlas slot and its VGA offset is the blit dst. */
+#define VGA_PRIMARY  0xA0000u
+#define VGA_SPAN     64000u
+static void vga_clear(void)
+{
+    memset((void *)VGA_PRIMARY, 0, VGA_SPAN);
+}
+static int vga_count_value(uint8 value, uint32 *first_off)
+{
+    return bp_count_value((const uint8 *)VGA_PRIMARY, VGA_SPAN, value, first_off);
+}
+
+/* The shared portrait-grid probe harness (g_portrait_cache + roster_plant et al.)
+ * is defined in the roster section below; the panels mode-2/mode-3 tests above it
+ * aim portrait/icon cache slots at probes, so forward-declare roster_plant here. */
+static void roster_plant(uint32 ci, uint32 bk, uint32 cache_off, uint8 val);
 
 /* ================================================================
  * fd2_render_chapter_intro_dialog_panels @ 0x2D9FE
@@ -237,12 +275,13 @@ static void test_pose_table_index_formula(void)
  * display side-effects reached through recording spies:
  *   mode 0     -> fd2_blit_sprite_with_stride_setup (g_blitsetup_* log)
  *   mode 1/2/3 -> fd2_dialog_sprite_blit_normal     (g_dlg_blit_*  log)
- *   mode 2     -> fd2_tile_blit_24x24_with_dialog_bg_fill (g_blitpass_*)
- *   mode 3     -> the REAL fd2_render_party_roster_grid, whose portrait
- *                 bg-fill blits also land in g_blitpass_* / g_blitbgfill_calls
+ *   mode 2     -> REAL fd2_tile_blit_24x24_with_dialog_bg_fill into the VGA primary
+ *   mode 3     -> the REAL fd2_render_party_roster_grid, whose portrait bg-fill
+ *                 blits also land in the VGA primary
  * The risk-bearing logic is the sprite-index/address arithmetic, the
  * scroll/count branch selection, the icon-count cap, and the
- * anim-phase remap (0,1,2,3 -> 0,1,2,1).
+ * anim-phase remap (0,1,2,3 -> 0,1,2,1). The mode-2 icons / mode-3 grid bg-fill
+ * into the FIXED VGA primary 0xA0000, read back via probes (see vga_count_value).
  * ================================================================ */
 
 /* fd2_blit_sprite_with_stride_setup spy (testglob.c) */
@@ -251,11 +290,6 @@ extern int    g_blitsetup_calls;
 /* fd2_dialog_sprite_blit_normal per-call log (testglob.c) */
 extern uint32 g_dlg_blit_dst_log[16];
 extern uint32 g_dlg_blit_sprite_log[16];
-/* fd2_tile_blit_24x24_with_dialog_bg_fill spy (testglob.c, shared g_blitpass_*).
- * In mode 3 the REAL fd2_render_party_roster_grid (src/gfx/rndmenu.c) overlays
- * the roster, so its per-char portrait blits also land here; mode 1/2 never
- * invoke the grid, so g_blitbgfill_calls stays 0 there. */
-extern int    g_blitbgfill_calls;
 
 /* sprite atlas: int32 offset table. Slot at +6 + i*4 gives an animated
  * sprite's payload offset; slot at +0x4A is the static "no scroll" sprite. */
@@ -267,8 +301,6 @@ static void panels_reset_spies(void)
 {
     g_blitsetup_calls = 0;
     g_dlg_blit_normal_calls = 0;
-    g_blitpass_calls = 0;
-    g_blitbgfill_calls = 0;
 }
 
 /* common atlas/global fixture */
@@ -284,6 +316,7 @@ static void panels_setup(void)
     data_fd2_ui_menu_candidate_array_ptr = g_candidate_arr;
     portrait_sprite_cache = (uint32)g_portrait_cache;
     memset(g_portrait_cache, 0, sizeof(g_portrait_cache));
+    vga_clear();   /* mode-2 icons / mode-3 roster bg-fill into the VGA primary */
 
     data_fd2_chapter_intro_dialog_anim_frame_idx = 0;
     data_fd2_chapter_intro_dialog_subframe_anim_counter = 0;
@@ -314,10 +347,10 @@ static void test_subframe_advances_on_odd_frame(void)
     fd2_render_chapter_intro_dialog_panels((uint32)g_panel_atlas, 99);
 
     ASSERT_EQ((long)data_fd2_chapter_intro_dialog_subframe_anim_counter, 2);
-    /* no mode matched -> no blits */
+    /* no mode matched -> no blits (the kept spies cover the mode-0 setup blit and
+     * the mode-1/2/3 panels; mode 99 structurally cannot reach the mode-2 bg-fill) */
     ASSERT_EQ((long)g_blitsetup_calls, 0);
     ASSERT_EQ((long)g_dlg_blit_normal_calls, 0);
-    ASSERT_EQ((long)g_blitpass_calls, 0);
 }
 
 /* ----------------------------------------------------------------
@@ -412,7 +445,8 @@ static void test_mode1_panels_scroll_zero(void)
 
     fd2_render_chapter_intro_dialog_panels((uint32)g_panel_atlas, 1);
 
-    ASSERT_EQ((long)g_blitbgfill_calls, 0);             /* mode 1 -> no roster grid */
+    /* mode 1 draws the two scroll panels only (kept g_dlg_blit spy); it never calls
+     * the roster grid or the mode-2 icon bg-fill, so nothing reaches the VGA primary. */
     ASSERT_EQ((long)g_dlg_blit_normal_calls, 2);
     /* left panel: dst 0xA972A, sprite = atlas + static slot */
     ASSERT_EQ((long)g_dlg_blit_dst_log[0], 0xA972A);
@@ -458,6 +492,7 @@ static void test_mode1_panels_scrolled_and_tail(void)
 static void test_mode3_calls_roster_grid_then_panels(void)
 {
     runtime_char *saved_char_ptr = data_fd2_battle_runtime_char_array_ptr;
+    uint32 off;
 
     panels_setup();
     data_fd2_ui_menu_cursor_idx = 4;
@@ -472,15 +507,16 @@ static void test_mode3_calls_roster_grid_then_panels(void)
     data_fd2_shared_menu_party_member_count = 1;
     data_fd2_chapter_intro_dialog_subframe_anim_counter = 0;
     intro_text_all_end();
+    /* aim char 0's blink-0 portrait slot at a probe so the REAL grid paints it. */
+    roster_plant(0, 0, 0x800u, 0x5Eu);
 
     fd2_render_chapter_intro_dialog_panels((uint32)g_panel_atlas, 3);
 
-    /* roster grid ran for the single member: one portrait bg-fill blit whose
-     * dst is the iter-0 slot computed off surface_offset 0xA0000. */
-    ASSERT_EQ((long)g_blitbgfill_calls, 1);
-    ASSERT_EQ((long)g_blitpass_dst[0],
-              (long)((0x75u) * 0x140u + 0xA0000u + 0xeu));
-    /* both panels still drawn */
+    /* roster grid ran for the single member: one portrait bg-fill at the iter-0
+     * slot (col 0, row 0) computed off surface 0xA0000 -> VGA offset 0x75*0x140+0xE. */
+    ASSERT_EQ((long)vga_count_value(0x5Eu, &off), 1);
+    ASSERT_EQ((long)off, (long)((0x75u) * 0x140u + 0xeu));
+    /* both panels still drawn (kept g_dlg_blit spy) */
     ASSERT_EQ((long)g_dlg_blit_normal_calls, 2);
 
     data_fd2_battle_runtime_char_array_ptr = saved_char_ptr;
@@ -519,9 +555,7 @@ static void test_mode2_right_panel_uses_plus3_cap(void)
  * ---------------------------------------------------------------- */
 static void test_mode2_icon_loop_arithmetic(void)
 {
-    int32 *cache;
-    uint32 expect_dst0, expect_dst1;
-    uint32 expect_src0, expect_src1;
+    uint32 off;
 
     panels_setup();
     data_fd2_chapter_intro_dialog_anim_frame_idx = 0;
@@ -533,33 +567,23 @@ static void test_mode2_icon_loop_arithmetic(void)
     ATLAS_ANIM_SLOT(0 + 0xB) = 0;
     ATLAS_STATIC_SLOT = 0;
 
-    /* portrait ids at candidate[scroll+0]=candidate[1], candidate[scroll+1]=candidate[2] */
+    /* portrait ids at candidate[scroll+0]=candidate[1], candidate[scroll+1]=candidate[2];
+     * aim each (portrait_id, anim_phase 2) cache slot at a distinct probe so the
+     * painted value identifies the resolved src (cache[id*0x30 + phase*4]). */
     g_candidate_arr[1] = 0x02;
     g_candidate_arr[2] = 0x05;
-
-    cache = (int32 *)g_portrait_cache;
-    /* icon0: portrait_id 2 -> cache[2*0x30 + 2*4] = cache[(0x60+8)/4 = 0x1A] */
-    cache[(0x02 * 0x30 + 2 * 4) / 4] = 0x700;
-    /* icon1: portrait_id 5 -> cache[5*0x30 + 2*4] */
-    cache[(0x05 * 0x30 + 2 * 4) / 4] = 0x800;
+    roster_plant(0x02, 2, 0x700u, 0x61u);   /* icon0: portrait_id 2, anim_phase 2 */
+    roster_plant(0x05, 2, 0x800u, 0x62u);   /* icon1: portrait_id 5, anim_phase 2 */
 
     fd2_render_chapter_intro_dialog_panels((uint32)g_panel_atlas, 2);
 
-    /* 2 panel blits + 2 icon blits */
-    ASSERT_EQ((long)g_dlg_blit_normal_calls, 2);
-    ASSERT_EQ((long)g_blitbgfill_calls, 2);
-    ASSERT_EQ((long)g_blitpass_calls, 2);
-
-    expect_dst0 = (0x75u + 0u * 0x1Au) * 0x140u + 0xA000Eu;
-    expect_dst1 = (0x75u + 1u * 0x1Au) * 0x140u + 0xA000Eu;
-    ASSERT_EQ((long)g_blitpass_dst[0], (long)expect_dst0);
-    ASSERT_EQ((long)g_blitpass_dst[1], (long)expect_dst1);
-
-    expect_src0 = (uint32)g_portrait_cache + 0x700u;
-    expect_src1 = (uint32)g_portrait_cache + 0x800u;
-    ASSERT_EQ((long)g_blitpass_src[0], (long)expect_src0);
-    ASSERT_EQ((long)g_blitpass_src[1], (long)expect_src1);
-    ASSERT_EQ((long)g_blitpass_stride[0], 0x140);
+    ASSERT_EQ((long)g_dlg_blit_normal_calls, 2);   /* 2 scroll panels (kept spy) */
+    /* 2 icon bg-fills into VGA: painted value -> resolved cache src; VGA offset ->
+     * icon dst (0xA000E + (0x75+i*0x1A)*0x140; relative to 0xA0000 = 0xE + ...). */
+    ASSERT_EQ((long)vga_count_value(0x61u, &off), 1);
+    ASSERT_EQ((long)off, (long)((0x75u + 0u * 0x1Au) * 0x140u + 0xeu));
+    ASSERT_EQ((long)vga_count_value(0x62u, &off), 1);
+    ASSERT_EQ((long)off, (long)((0x75u + 1u * 0x1Au) * 0x140u + 0xeu));
 }
 
 /* ----------------------------------------------------------------
@@ -568,7 +592,7 @@ static void test_mode2_icon_loop_arithmetic(void)
  * ---------------------------------------------------------------- */
 static void test_mode2_anim_phase_3_maps_to_1(void)
 {
-    int32 *cache;
+    uint32 off;
 
     panels_setup();
     data_fd2_chapter_intro_dialog_subframe_anim_counter = 3;  /* -> phase 1 */
@@ -576,17 +600,15 @@ static void test_mode2_anim_phase_3_maps_to_1(void)
     data_fd2_ui_menu_visible_item_count = 1;            /* 1 icon */
     g_candidate_arr[0] = 0x01;                          /* portrait_id 1 */
 
-    cache = (int32 *)g_portrait_cache;
-    /* distinct values at phase 1 and phase 3 slots so a wrong phase is caught */
-    cache[(0x01 * 0x30 + 1 * 4) / 4] = 0xAA;            /* phase 1 (expected) */
-    cache[(0x01 * 0x30 + 3 * 4) / 4] = 0xBB;            /* phase 3 (must NOT be used) */
+    /* distinct probes at phase-1 and phase-3 cache slots so a wrong phase is caught */
+    roster_plant(0x01, 1, 0xAAu, 0x5Au);               /* phase 1 (expected) */
+    roster_plant(0x01, 3, 0xBBu, 0x5Bu);               /* phase 3 (must NOT be used) */
 
     fd2_render_chapter_intro_dialog_panels((uint32)g_panel_atlas, 2);
 
-    ASSERT_EQ((long)g_blitbgfill_calls, 1);
-    /* uses phase-1 slot value 0xAA */
-    ASSERT_EQ((long)g_blitpass_src[0],
-              (long)((uint32)g_portrait_cache + 0xAAu));
+    /* anim_phase 3->1 remap: the icon resolved the phase-1 slot (0x5A), not phase-3 */
+    ASSERT_EQ((long)vga_count_value(0x5Au, &off), 1);
+    ASSERT_EQ((long)vga_count_value(0x5Bu, &off), 0);
 }
 
 /* ----------------------------------------------------------------
@@ -594,13 +616,27 @@ static void test_mode2_anim_phase_3_maps_to_1(void)
  * ---------------------------------------------------------------- */
 static void test_mode2_icon_count_caps_at_3(void)
 {
+    uint32 off;
+
     panels_setup();
     data_fd2_ui_menu_scroll_offset = 0;
     data_fd2_ui_menu_visible_item_count = 9;            /* min(3,9) = 3 */
+    /* distinct portrait id per icon slot (anim_phase 0) so each icon paints a
+     * distinct probe; a 4th icon would read candidate[3] (id 3). */
+    g_candidate_arr[0] = 0; g_candidate_arr[1] = 1;
+    g_candidate_arr[2] = 2; g_candidate_arr[3] = 3;
+    roster_plant(0, 0, 0x600u, 0x71u);
+    roster_plant(1, 0, 0x640u, 0x72u);
+    roster_plant(2, 0, 0x680u, 0x73u);
+    roster_plant(3, 0, 0x6C0u, 0x74u);                 /* would paint if a 4th drew */
 
     fd2_render_chapter_intro_dialog_panels((uint32)g_panel_atlas, 2);
 
-    ASSERT_EQ((long)g_blitbgfill_calls, 3);
+    /* exactly the first 3 icons drawn (count capped at 3), not a 4th */
+    ASSERT_EQ((long)vga_count_value(0x71u, &off), 1);
+    ASSERT_EQ((long)vga_count_value(0x72u, &off), 1);
+    ASSERT_EQ((long)vga_count_value(0x73u, &off), 1);
+    ASSERT_EQ((long)vga_count_value(0x74u, &off), 0);  /* 4th icon NOT drawn */
 }
 
 /* ================================================================
@@ -1029,14 +1065,83 @@ static void roster_text_glyph_at(uint32 glyph_page, uint16 glyph_val)
  * restore the testglob default (g_test_rc_array) other suites depend on. */
 static runtime_char *roster_saved_char_ptr;
 
-/* common roster fixture: N members, scroll offset, blink counter, portrait
- * cache cleared; names default to all-END (override with roster_text_glyph_at). */
+/* Real dst surface the roster grid's portrait bg-fill blits paint into. The old
+ * tests passed a fake dst address (0x1000/0x2000) the recording stub never wrote
+ * to; the REAL fd2_tile_blit_24x24_with_dialog_bg_fill paints for real, so the
+ * grid is aimed at a real mode-13h-sized buffer and the tests read the painted
+ * bytes back. */
+#define ROSTER_SURF_SPAN  64000u
+static uint8 g_roster_surface[ROSTER_SURF_SPAN];
+
+/* Probe-sprite region inside the portrait cache, well past the char*0x30 + blink*4
+ * offset table (chars 0..15 occupy table bytes 0..0x2DF). */
+#define ROSTER_PROBE_OFF(ci)  (0x800u + (uint32)(ci) * 0x40u)
+
+/* Point char `ci`'s blink-`bk` portrait slot at a one-pixel probe whose painted
+ * value is `val`. fd2_render_party_roster_grid resolves the portrait source as
+ * cache + cache[ci*0x30 + bk*4] and forwards it to the REAL bg-fill blitter,
+ * which paints `val` at the blit dst's (0,0) (and fills the rest of the 24x24
+ * tile with the 0x49 dialog-bg constant). So `val`'s offset in the surface is
+ * the blit dst and its presence proves which cache slot the grid resolved. */
+static void roster_plant(uint32 ci, uint32 bk, uint32 cache_off, uint8 val)
+{
+    *(int32 *)(g_portrait_cache + ci * 0x30u + bk * 4u) = (int32)cache_off;
+    bp_probe1(g_portrait_cache + cache_off, val);
+}
+
+/* Surface offset where char `i`'s default portrait probe (value i+1) landed. */
+static uint32 roster_portrait_off(int i)
+{
+    uint32 off;
+    bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, (uint8)(i + 1), &off);
+    return off;
+}
+
+/* How many distinct per-char portrait probes (values 1..16) the grid painted ==
+ * the resolved draw_count (the bg-fill 0x49 fill bytes are ignored). */
+static int roster_portrait_count(void)
+{
+    uint32 off;
+    int v, n = 0;
+    for (v = 1; v <= 16; v++) {
+        if (bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, (uint8)v, &off) > 0) {
+            n++;
+        }
+    }
+    return n;
+}
+
+/* Install a default portrait probe (painted value ci+1, all 4 blink slots) for
+ * chars 0..15 in the shared portrait cache. The roster / preview / promote /
+ * candidate grids all resolve their portrait src as cache + cache[char*0x30 +
+ * blink*4] and forward it to the REAL bg-fill blitter, so a planted probe lets a
+ * test read the painted value/offset back. Source/blink tests re-plant specific
+ * slots. */
+static void grid_install_portrait_probes(void)
+{
+    uint32 ci, bk;
+    for (ci = 0; ci < 16; ci++) {
+        for (bk = 0; bk < 4; bk++) {
+            *(int32 *)(g_portrait_cache + ci * 0x30u + bk * 4u) =
+                (int32)ROSTER_PROBE_OFF(ci);
+        }
+        bp_probe1(g_portrait_cache + ROSTER_PROBE_OFF(ci), (uint8)(ci + 1));
+    }
+}
+
+/* common roster fixture: N members, scroll offset, blink counter; every char's
+ * four blink slots point at one probe whose painted value is char_idx+1, the dst
+ * surface is cleared, names default to all-END (override with
+ * roster_text_glyph_at). Blink/source tests re-plant specific slots. */
 static void roster_setup(uint32 member_count, uint32 scroll, uint32 subframe)
 {
+    uint32 ci, bk;
+
     roster_saved_char_ptr = data_fd2_battle_runtime_char_array_ptr;
 
     memset(g_roster_chars, 0, sizeof(g_roster_chars));
     memset(g_portrait_cache, 0, sizeof(g_portrait_cache));
+    memset(g_roster_surface, 0, sizeof(g_roster_surface));
 
     data_fd2_battle_runtime_char_array_ptr = g_roster_chars;
     portrait_sprite_cache = (uint32)g_portrait_cache;
@@ -1044,10 +1149,16 @@ static void roster_setup(uint32 member_count, uint32 scroll, uint32 subframe)
     data_fd2_ui_menu_scroll_offset = scroll;
     data_fd2_chapter_intro_dialog_subframe_anim_counter = subframe;
 
+    for (ci = 0; ci < 16; ci++) {
+        for (bk = 0; bk < 4; bk++) {
+            *(int32 *)(g_portrait_cache + ci * 0x30u + bk * 4u) =
+                (int32)ROSTER_PROBE_OFF(ci);
+        }
+        bp_probe1(g_portrait_cache + ROSTER_PROBE_OFF(ci), (uint8)(ci + 1));
+    }
+
     roster_text_all_end();
 
-    g_blitpass_calls = 0;
-    g_blitbgfill_calls = 0;
     g_dlg_glyph_calls = 0;
 }
 
@@ -1067,9 +1178,9 @@ static void test_roster_cap_small_draws_all(void)
 {
     roster_setup(4, 0, 0);
 
-    fd2_render_party_roster_grid(99, 0x1000);
+    fd2_render_party_roster_grid(99, (uint32)g_roster_surface);
 
-    ASSERT_EQ((long)g_blitbgfill_calls, 4);
+    ASSERT_EQ((long)roster_portrait_count(), 4);
     roster_teardown();
 }
 
@@ -1079,9 +1190,9 @@ static void test_roster_cap_large_draws_six(void)
 {
     roster_setup(10, 0, 0);                 /* 10 >= 0+6 -> 6 */
 
-    fd2_render_party_roster_grid(99, 0x1000);
+    fd2_render_party_roster_grid(99, (uint32)g_roster_surface);
 
-    ASSERT_EQ((long)g_blitbgfill_calls, 6);
+    ASSERT_EQ((long)roster_portrait_count(), 6);
     roster_teardown();
 }
 
@@ -1091,9 +1202,9 @@ static void test_roster_cap_tail_clamps_to_five(void)
 {
     roster_setup(8, 4, 0);
 
-    fd2_render_party_roster_grid(99, 0x1000);
+    fd2_render_party_roster_grid(99, (uint32)g_roster_surface);
 
-    ASSERT_EQ((long)g_blitbgfill_calls, 5);
+    ASSERT_EQ((long)roster_portrait_count(), 5);
     roster_teardown();
 }
 
@@ -1104,26 +1215,26 @@ static void test_roster_cap_tail_clamps_to_five(void)
  * ---------------------------------------------------------------- */
 static void test_roster_portrait_col_row_offsets(void)
 {
-    uint32 surf = 0x2000;
+    uint32 base = (uint32)g_roster_surface;
 
     roster_setup(4, 0, 0);
 
-    fd2_render_party_roster_grid(99, surf);
+    fd2_render_party_roster_grid(99, base);
 
-    ASSERT_EQ((long)g_blitpass_calls, 4);
-    /* iter0: col 0, row 0 */
-    ASSERT_EQ((long)g_blitpass_dst[0],
-              (long)((0x00u + 0x75u) * 0x140u + surf + 0xeu + 0x00u));
+    ASSERT_EQ((long)roster_portrait_count(), 4);
+    /* probe offsets are relative to the surface base, so the surf term drops
+     * out; iter0: col 0, row 0 */
+    ASSERT_EQ((long)roster_portrait_off(0),
+              (long)((0x00u + 0x75u) * 0x140u + 0xeu + 0x00u));
     /* iter1: col 0x84, row 0 */
-    ASSERT_EQ((long)g_blitpass_dst[1],
-              (long)((0x00u + 0x75u) * 0x140u + surf + 0xeu + 0x84u));
+    ASSERT_EQ((long)roster_portrait_off(1),
+              (long)((0x00u + 0x75u) * 0x140u + 0xeu + 0x84u));
     /* iter2: col 0, row 0x1A */
-    ASSERT_EQ((long)g_blitpass_dst[2],
-              (long)((0x1au + 0x75u) * 0x140u + surf + 0xeu + 0x00u));
+    ASSERT_EQ((long)roster_portrait_off(2),
+              (long)((0x1au + 0x75u) * 0x140u + 0xeu + 0x00u));
     /* iter3: col 0x84, row 0x1A */
-    ASSERT_EQ((long)g_blitpass_dst[3],
-              (long)((0x1au + 0x75u) * 0x140u + surf + 0xeu + 0x84u));
-    ASSERT_EQ((long)g_blitpass_stride[0], 0x140);
+    ASSERT_EQ((long)roster_portrait_off(3),
+              (long)((0x1au + 0x75u) * 0x140u + 0xeu + 0x84u));
     roster_teardown();
 }
 
@@ -1134,18 +1245,20 @@ static void test_roster_portrait_col_row_offsets(void)
  * ---------------------------------------------------------------- */
 static void test_roster_portrait_src_uses_scroll_and_blink(void)
 {
-    int32 *cache;
+    uint32 off;
 
-    roster_setup(2, 2, 1);                  /* scroll 2 -> char_idx 2,3; blink 1 */
-    cache = (int32 *)g_portrait_cache;
-    /* char_idx 2, blink 1 -> cache[2*0x30 + 1*4] */
-    cache[(2 * 0x30 + 1 * 4) / 4] = 0x123;
+    roster_setup(2, 2, 1);                  /* scroll 2 -> first drawn char_idx 2; blink 1 */
+    /* char_idx 2, blink 1 -> grid reads cache[2*0x30 + 1*4]; aim that slot at a
+     * distinct probe (value 0x55) planted at cache+0x123. */
+    roster_plant(2, 1, 0x123u, 0x55u);
 
-    fd2_render_party_roster_grid(99, 0x1000);
+    fd2_render_party_roster_grid(99, (uint32)g_roster_surface);
 
-    ASSERT_EQ((long)g_blitpass_calls, 2);
-    ASSERT_EQ((long)g_blitpass_src[0],
-              (long)((uint32)g_portrait_cache + 0x123u));
+    /* the first portrait painted the 0x123-slot probe -> the grid resolved
+     * src = cache + cache[char_idx*0x30 + blink*4] with char_idx = scroll + iter
+     * (= 2) and blink 1; the second drawn char 3 kept its default probe (4). */
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x55u, &off), 1);
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 4u, &off), 1);
     roster_teardown();
 }
 
@@ -1155,34 +1268,32 @@ static void test_roster_portrait_src_uses_scroll_and_blink(void)
  * ---------------------------------------------------------------- */
 static void test_roster_blink_frame_3_maps_to_1(void)
 {
-    int32 *cache;
+    uint32 off;
 
     roster_setup(1, 0, 3);                  /* subframe 3 -> blink 1 */
-    cache = (int32 *)g_portrait_cache;
-    cache[(0 * 0x30 + 1 * 4) / 4] = 0xAA;   /* blink 1 (expected) */
-    cache[(0 * 0x30 + 3 * 4) / 4] = 0xBB;   /* blink 3 (must NOT be used) */
+    roster_plant(0, 1, 0xAAu, 0x5Au);       /* blink 1 (expected after 3->1 remap) */
+    roster_plant(0, 3, 0xBBu, 0x5Bu);       /* blink 3 (must NOT be used) */
 
-    fd2_render_party_roster_grid(99, 0x1000);
+    fd2_render_party_roster_grid(99, (uint32)g_roster_surface);
 
-    ASSERT_EQ((long)g_blitpass_calls, 1);
-    ASSERT_EQ((long)g_blitpass_src[0],
-              (long)((uint32)g_portrait_cache + 0xAAu));
+    /* grid resolved the portrait via the blink-1 slot (0x5A), not blink-3 (0x5B) */
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x5Au, &off), 1);
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x5Bu, &off), 0);
     roster_teardown();
 }
 
 /* blink-frame passthrough: subframe 2 (not 3) used as-is. */
 static void test_roster_blink_frame_passthrough(void)
 {
-    int32 *cache;
+    uint32 off;
 
-    roster_setup(1, 0, 2);                  /* subframe 2 -> blink 2 */
-    cache = (int32 *)g_portrait_cache;
-    cache[(0 * 0x30 + 2 * 4) / 4] = 0x5C;
+    roster_setup(1, 0, 2);                  /* subframe 2 -> blink 2 (used as-is) */
+    roster_plant(0, 2, 0x5Cu, 0x5Du);       /* blink 2 slot -> distinct probe */
 
-    fd2_render_party_roster_grid(99, 0x1000);
+    fd2_render_party_roster_grid(99, (uint32)g_roster_surface);
 
-    ASSERT_EQ((long)g_blitpass_src[0],
-              (long)((uint32)g_portrait_cache + 0x5Cu));
+    /* subframe 2 is not remapped, so the grid read the blink-2 slot (0x5D) */
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x5Du, &off), 1);
     roster_teardown();
 }
 
@@ -1263,10 +1374,11 @@ extern int    g_pick_color_calls;
 extern int32  g_pick_color_cur_log[16];
 extern int32  g_pick_color_prev_log[16];
 
-/* preview-renderer fixture */
+/* preview-renderer fixture. The portrait bg-fill blit shares the file-scope
+ * g_portrait_cache + g_roster_surface probe harness (roster_plant / bp_count_value
+ * / roster_portrait_count); g_pv_* below cover the non-portrait side-effects. */
 static uint8        g_pv_cands[16];
 static runtime_char g_pv_chars[16];
-static uint8        g_pv_cache[512];
 static int32        g_pv_anim[2 + 256];
 static uint8        g_pv_atlas[256];
 static uint16       g_pv_text[0x400];
@@ -1316,7 +1428,9 @@ static void pv_setup(uint32 scroll, uint32 subframe)
     g_pv_saved_char_ptr = data_fd2_battle_runtime_char_array_ptr;
 
     memset(g_pv_chars, 0, sizeof(g_pv_chars));
-    memset(g_pv_cache, 0, sizeof(g_pv_cache));
+    memset(g_portrait_cache, 0, sizeof(g_portrait_cache));
+    memset(g_roster_surface, 0, sizeof(g_roster_surface));
+    grid_install_portrait_probes();
     memset(g_pv_anim, 0, sizeof(g_pv_anim));
     memset(g_pv_atlas, 0, sizeof(g_pv_atlas));
     for (i = 0; i < 256; i++) {
@@ -1332,7 +1446,7 @@ static void pv_setup(uint32 scroll, uint32 subframe)
     *(int32 *)(g_pv_atlas + 0x5e) = PV_ATLAS_PREV;
 
     data_fd2_battle_runtime_char_array_ptr = g_pv_chars;
-    portrait_sprite_cache = (uint32)g_pv_cache;
+    portrait_sprite_cache = (uint32)g_portrait_cache;
     data_fd2_ui_anim_sprite_sheet_ptr = (uint32)g_pv_anim;
     data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = (uint32)g_pv_atlas;
     data_fd2_ui_menu_scroll_offset = scroll;
@@ -1341,8 +1455,6 @@ static void pv_setup(uint32 scroll, uint32 subframe)
            sizeof(data_fd2_battle_item_effect_table));
     pv_text_all_end();
 
-    g_blitpass_calls = 0;
-    g_blitbgfill_calls = 0;
     g_dlg_glyph_calls = 0;
     g_dlg_blit_normal_calls = 0;
     g_pick_color_calls = 0;
@@ -1376,17 +1488,20 @@ static void test_preview_cap_min_of_count_and_3(void)
 {
     pv_setup(0, 0);
 
-    g_blitbgfill_calls = 0;
-    fd2_render_party_roster_with_item_stat_preview(2, (uint32)g_pv_cands, 0, 99, 0x1000);
-    ASSERT_EQ((long)g_blitbgfill_calls, 2);
+    memset(g_roster_surface, 0, sizeof(g_roster_surface));
+    fd2_render_party_roster_with_item_stat_preview(2, (uint32)g_pv_cands, 0, 99,
+                                                   (uint32)g_roster_surface);
+    ASSERT_EQ((long)roster_portrait_count(), 2);
 
-    g_blitbgfill_calls = 0;
-    fd2_render_party_roster_with_item_stat_preview(5, (uint32)g_pv_cands, 0, 99, 0x1000);
-    ASSERT_EQ((long)g_blitbgfill_calls, 3);   /* capped at 3 */
+    memset(g_roster_surface, 0, sizeof(g_roster_surface));
+    fd2_render_party_roster_with_item_stat_preview(5, (uint32)g_pv_cands, 0, 99,
+                                                   (uint32)g_roster_surface);
+    ASSERT_EQ((long)roster_portrait_count(), 3);   /* capped at 3 */
 
-    g_blitbgfill_calls = 0;
-    fd2_render_party_roster_with_item_stat_preview(0, (uint32)g_pv_cands, 0, 99, 0x1000);
-    ASSERT_EQ((long)g_blitbgfill_calls, 0);   /* nothing to draw */
+    memset(g_roster_surface, 0, sizeof(g_roster_surface));
+    fd2_render_party_roster_with_item_stat_preview(0, (uint32)g_pv_cands, 0, 99,
+                                                   (uint32)g_roster_surface);
+    ASSERT_EQ((long)roster_portrait_count(), 0);   /* nothing to draw */
     pv_teardown();
 }
 
@@ -1397,40 +1512,42 @@ static void test_preview_cap_min_of_count_and_3(void)
  * ---------------------------------------------------------------- */
 static void test_preview_portrait_dst_src(void)
 {
-    uint32 surf = 0x2000;
-    int32 *cache;
+    uint32 off;
 
     pv_setup(0, 0);
-    cache = (int32 *)g_pv_cache;
-    cache[(0 * 0x30 + 0 * 4) / 4] = 0x111;   /* char 0, blink 0 */
-    cache[(1 * 0x30 + 0 * 4) / 4] = 0x222;   /* char 1, blink 0 */
+    /* aim each char's blink-0 portrait slot at a distinct probe; the painted value
+     * identifies which cache slot the renderer resolved (src) and its surface
+     * offset is the row dst (relative to the surface base, so surf drops out). */
+    roster_plant(0, 0, 0x111u, 0x71u);       /* char 0, blink 0 */
+    roster_plant(1, 0, 0x222u, 0x72u);       /* char 1, blink 0 */
 
-    fd2_render_party_roster_with_item_stat_preview(2, (uint32)g_pv_cands, 0, 99, surf);
+    fd2_render_party_roster_with_item_stat_preview(2, (uint32)g_pv_cands, 0, 99,
+                                                   (uint32)g_roster_surface);
 
-    ASSERT_EQ((long)g_blitpass_calls, 2);
-    /* row 0: row_y = 0x75 */
-    ASSERT_EQ((long)g_blitpass_dst[0], (long)(0x75u * 0x140u + surf + 0xeu));
-    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_pv_cache + 0x111u));
-    /* row 1: row_y = 0x1A + 0x75 = 0x8F */
-    ASSERT_EQ((long)g_blitpass_dst[1], (long)(0x8fu * 0x140u + surf + 0xeu));
-    ASSERT_EQ((long)g_blitpass_src[1], (long)((uint32)g_pv_cache + 0x222u));
-    ASSERT_EQ((long)g_blitpass_stride[0], 0x140);
+    ASSERT_EQ((long)roster_portrait_count(), 2);
+    /* row 0: row_y = 0x75 -> src cache+0x111 */
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x71u, &off), 1);
+    ASSERT_EQ((long)off, (long)(0x75u * 0x140u + 0xeu));
+    /* row 1: row_y = 0x1A + 0x75 = 0x8F -> src cache+0x222 */
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x72u, &off), 1);
+    ASSERT_EQ((long)off, (long)(0x8fu * 0x140u + 0xeu));
     pv_teardown();
 }
 
 /* char_idx uses scroll + iter: scroll 2 -> first drawn char is cands[2]. */
 static void test_preview_char_idx_uses_scroll(void)
 {
-    int32 *cache;
+    uint32 off;
 
     pv_setup(2, 0);                          /* scroll 2 */
-    cache = (int32 *)g_pv_cache;
-    cache[(2 * 0x30 + 0 * 4) / 4] = 0x3C;    /* char 2, blink 0 */
+    roster_plant(2, 0, 0x3Cu, 0x73u);        /* char 2, blink 0 -> distinct probe */
 
-    fd2_render_party_roster_with_item_stat_preview(1, (uint32)g_pv_cands, 0, 99, 0x1000);
+    fd2_render_party_roster_with_item_stat_preview(1, (uint32)g_pv_cands, 0, 99,
+                                                   (uint32)g_roster_surface);
 
-    ASSERT_EQ((long)g_blitpass_calls, 1);
-    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_pv_cache + 0x3Cu));
+    /* scroll 2 -> first drawn char_idx = cands[2] = 2; its blink-0 probe painted */
+    ASSERT_EQ((long)roster_portrait_count(), 1);
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x73u, &off), 1);
     pv_teardown();
 }
 
@@ -1439,31 +1556,32 @@ static void test_preview_char_idx_uses_scroll(void)
  * ---------------------------------------------------------------- */
 static void test_preview_blink_frame_3_maps_to_1(void)
 {
-    int32 *cache;
+    uint32 off;
 
     pv_setup(0, 3);                          /* subframe 3 -> blink 1 */
-    cache = (int32 *)g_pv_cache;
-    cache[(0 * 0x30 + 1 * 4) / 4] = 0xAA;    /* blink 1 (expected) */
-    cache[(0 * 0x30 + 3 * 4) / 4] = 0xBB;    /* blink 3 (must NOT be used) */
+    roster_plant(0, 1, 0xAAu, 0x5Au);        /* blink 1 (expected after 3->1 remap) */
+    roster_plant(0, 3, 0xBBu, 0x5Bu);        /* blink 3 (must NOT be used) */
 
-    fd2_render_party_roster_with_item_stat_preview(1, (uint32)g_pv_cands, 0, 99, 0x1000);
+    fd2_render_party_roster_with_item_stat_preview(1, (uint32)g_pv_cands, 0, 99,
+                                                   (uint32)g_roster_surface);
 
-    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_pv_cache + 0xAAu));
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x5Au, &off), 1);
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x5Bu, &off), 0);
     pv_teardown();
 }
 
 /* blink passthrough: subframe 2 (not 3) used as-is. */
 static void test_preview_blink_frame_passthrough(void)
 {
-    int32 *cache;
+    uint32 off;
 
     pv_setup(0, 2);
-    cache = (int32 *)g_pv_cache;
-    cache[(0 * 0x30 + 2 * 4) / 4] = 0x5C;
+    roster_plant(0, 2, 0x5Cu, 0x5Du);        /* blink 2 slot -> distinct probe */
 
-    fd2_render_party_roster_with_item_stat_preview(1, (uint32)g_pv_cands, 0, 99, 0x1000);
+    fd2_render_party_roster_with_item_stat_preview(1, (uint32)g_pv_cands, 0, 99,
+                                                   (uint32)g_roster_surface);
 
-    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_pv_cache + 0x5Cu));
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x5Du, &off), 1);
     pv_teardown();
 }
 
@@ -1473,7 +1591,7 @@ static void test_preview_blink_frame_passthrough(void)
  * ---------------------------------------------------------------- */
 static void test_preview_name_page_dst_and_highlight(void)
 {
-    uint32 surf = 0x4000;
+    uint32 surf = (uint32)g_roster_surface;  /* real: the portrait bg-fill paints here */
     uint32 row_y = 0x75;                     /* iter 0 */
 
     pv_setup(0, 0);
@@ -1499,7 +1617,8 @@ static void test_preview_border_not_highlighted(void)
     g_pv_chars[1].char_id = 0x07;
     pv_text_glyph_at(0x04, 0x22);            /* only row 0's page emits a glyph */
 
-    fd2_render_party_roster_with_item_stat_preview(2, (uint32)g_pv_cands, 0, 1, 0x4000);
+    fd2_render_party_roster_with_item_stat_preview(2, (uint32)g_pv_cands, 0, 1,
+                                                   (uint32)g_roster_surface);
 
     ASSERT_EQ(g_dlg_glyph_calls, 1);
     ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xCD);            /* row 0 not highlighted */
@@ -1516,7 +1635,7 @@ static void test_preview_border_not_highlighted(void)
  * ---------------------------------------------------------------- */
 static void test_preview_stat_icon_sprites_and_dsts(void)
 {
-    uint32 surf = 0x6000;
+    uint32 surf = (uint32)g_roster_surface;  /* real: the portrait bg-fill paints here */
     uint32 row_y = 0x75;
     uint32 atlas = (uint32)g_pv_atlas;
     uint32 b3, b4, b12, b13;
@@ -1572,7 +1691,8 @@ static void test_preview_compare_color_pairs(void)
      * preview = item bonus */
     pv_seed_item(3, 5, 6, 7, 8);
 
-    fd2_render_party_roster_with_item_stat_preview(1, (uint32)g_pv_cands, 3, 99, 0x1000);
+    fd2_render_party_roster_with_item_stat_preview(1, (uint32)g_pv_cands, 3, 99,
+                                                   (uint32)g_roster_surface);
 
     ASSERT_EQ((long)g_pick_color_calls, 4);    /* AP, DP, DX, Stat4 */
     /* AP: current 10 vs preview 5 */
@@ -1603,7 +1723,7 @@ static void test_preview_compare_color_pairs(void)
  * ---------------------------------------------------------------- */
 static void test_preview_decimal_values_colors_dsts(void)
 {
-    uint32 surf = 0x8000;
+    uint32 surf = (uint32)g_roster_surface;  /* real: the portrait bg-fill paints here */
     uint32 row_y = 0x75;
     uint32 b3, b12, sheet;
 
@@ -2064,6 +2184,8 @@ static void promo_setup(uint32 scroll, uint32 subframe)
 
     memset(g_roster_chars, 0, sizeof(g_roster_chars));
     memset(g_portrait_cache, 0, sizeof(g_portrait_cache));
+    memset(g_roster_surface, 0, sizeof(g_roster_surface));
+    grid_install_portrait_probes();
     for (i = 0; i < 256; i++) {
         *(int32 *)(anim + 6 + i * 4) = i;
         *(int32 *)(menu + 6 + i * 4) = i;
@@ -2090,8 +2212,6 @@ static void promo_setup(uint32 scroll, uint32 subframe)
 
     roster_text_all_end();
 
-    g_blitpass_calls = 0;
-    g_blitbgfill_calls = 0;
     g_dlg_glyph_calls = 0;
     g_blitraw_count = 0;
     g_blitraw_log_on = 1;
@@ -2114,17 +2234,17 @@ static void test_promo_cap_min_of_count_and_3(void)
 {
     promo_setup(0, 0);
 
-    g_blitbgfill_calls = 0;
-    fd2_render_promote_members_grid(2, 0x1000, 99, g_promo_cands);
-    ASSERT_EQ((long)g_blitbgfill_calls, 2);
+    memset(g_roster_surface, 0, sizeof(g_roster_surface));
+    fd2_render_promote_members_grid(2, (uint32)g_roster_surface, 99, g_promo_cands);
+    ASSERT_EQ((long)roster_portrait_count(), 2);
 
-    g_blitbgfill_calls = 0;
-    fd2_render_promote_members_grid(5, 0x1000, 99, g_promo_cands);
-    ASSERT_EQ((long)g_blitbgfill_calls, 3);     /* capped at 3 */
+    memset(g_roster_surface, 0, sizeof(g_roster_surface));
+    fd2_render_promote_members_grid(5, (uint32)g_roster_surface, 99, g_promo_cands);
+    ASSERT_EQ((long)roster_portrait_count(), 3);     /* capped at 3 */
 
-    g_blitbgfill_calls = 0;
-    fd2_render_promote_members_grid(0, 0x1000, 99, g_promo_cands);
-    ASSERT_EQ((long)g_blitbgfill_calls, 0);     /* nothing to draw */
+    memset(g_roster_surface, 0, sizeof(g_roster_surface));
+    fd2_render_promote_members_grid(0, (uint32)g_roster_surface, 99, g_promo_cands);
+    ASSERT_EQ((long)roster_portrait_count(), 0);     /* nothing to draw */
     promo_teardown();
 }
 
@@ -2135,24 +2255,23 @@ static void test_promo_cap_min_of_count_and_3(void)
  * ---------------------------------------------------------------- */
 static void test_promo_portrait_dst_src(void)
 {
-    uint32 surf = 0x2000;
-    int32 *cache;
+    uint32 off;
 
     promo_setup(0, 0);
-    cache = (int32 *)g_portrait_cache;
-    cache[(0 * 0x30 + 0 * 4) / 4] = 0x111;      /* char 0, blink 0 */
-    cache[(1 * 0x30 + 0 * 4) / 4] = 0x222;      /* char 1, blink 0 */
+    /* char 0 (iter 0) and char 1 (iter 1): aim their blink-0 portrait slots at
+     * distinct probes so the painted value proves src = cache + cache[char*0x30]
+     * and the painted offset proves the per-row dst. */
+    roster_plant(0, 0, 0x111u, 0x71u);
+    roster_plant(1, 0, 0x222u, 0x72u);
 
-    fd2_render_promote_members_grid(2, surf, 99, g_promo_cands);
+    fd2_render_promote_members_grid(2, (uint32)g_roster_surface, 99, g_promo_cands);
 
-    ASSERT_EQ((long)g_blitpass_calls, 2);
-    /* row 0: row_off 0 */
-    ASSERT_EQ((long)g_blitpass_dst[0], (long)((0x00u + 0x75u) * 0x140u + surf + 0xeu));
-    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_portrait_cache + 0x111u));
-    /* row 1: row_off 0x1A */
-    ASSERT_EQ((long)g_blitpass_dst[1], (long)((0x1au + 0x75u) * 0x140u + surf + 0xeu));
-    ASSERT_EQ((long)g_blitpass_src[1], (long)((uint32)g_portrait_cache + 0x222u));
-    ASSERT_EQ((long)g_blitpass_stride[0], 0x140);
+    /* row 0: row_off 0 -> src cache+0x111 */
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x71u, &off), 1);
+    ASSERT_EQ((long)off, (long)((0x00u + 0x75u) * 0x140u + 0xeu));
+    /* row 1: row_off 0x1A -> src cache+0x222 */
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x72u, &off), 1);
+    ASSERT_EQ((long)off, (long)((0x1au + 0x75u) * 0x140u + 0xeu));
     promo_teardown();
 }
 
@@ -2161,17 +2280,16 @@ static void test_promo_portrait_dst_src(void)
  * indexes char 7's cache row. ---------------------------------------------- */
 static void test_promo_char_idx_from_candidate_list(void)
 {
-    int32 *cache;
+    uint32 off;
 
     promo_setup(1, 0);                          /* scroll 1 */
     g_promo_cands[1] = 7;                        /* cands[scroll+0] = 7 */
-    cache = (int32 *)g_portrait_cache;
-    cache[(7 * 0x30 + 0 * 4) / 4] = 0x3C0;       /* char 7, blink 0 */
+    roster_plant(7, 0, 0x3C0u, 0x77u);          /* char 7, blink 0 -> distinct probe */
 
-    fd2_render_promote_members_grid(1, 0x1000, 99, g_promo_cands);
+    fd2_render_promote_members_grid(1, (uint32)g_roster_surface, 99, g_promo_cands);
 
-    ASSERT_EQ((long)g_blitpass_calls, 1);
-    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_portrait_cache + 0x3C0u));
+    /* the single drawn portrait used char_idx = cands[scroll+0] = 7 */
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x77u, &off), 1);
     promo_teardown();
 }
 
@@ -2180,31 +2298,30 @@ static void test_promo_char_idx_from_candidate_list(void)
  * ---------------------------------------------------------------- */
 static void test_promo_blink_frame_3_maps_to_1(void)
 {
-    int32 *cache;
+    uint32 off;
 
     promo_setup(0, 3);                          /* subframe 3 -> blink 1 */
-    cache = (int32 *)g_portrait_cache;
-    cache[(0 * 0x30 + 1 * 4) / 4] = 0xAA;        /* blink 1 (expected) */
-    cache[(0 * 0x30 + 3 * 4) / 4] = 0xBB;        /* blink 3 (must NOT be used) */
+    roster_plant(0, 1, 0xAAu, 0x5Au);           /* blink 1 (expected after 3->1 remap) */
+    roster_plant(0, 3, 0xBBu, 0x5Bu);           /* blink 3 (must NOT be used) */
 
-    fd2_render_promote_members_grid(1, 0x1000, 99, g_promo_cands);
+    fd2_render_promote_members_grid(1, (uint32)g_roster_surface, 99, g_promo_cands);
 
-    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_portrait_cache + 0xAAu));
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x5Au, &off), 1);
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x5Bu, &off), 0);
     promo_teardown();
 }
 
 /* blink passthrough: subframe 2 (not 3) used as-is. */
 static void test_promo_blink_frame_passthrough(void)
 {
-    int32 *cache;
+    uint32 off;
 
     promo_setup(0, 2);
-    cache = (int32 *)g_portrait_cache;
-    cache[(0 * 0x30 + 2 * 4) / 4] = 0x5C;
+    roster_plant(0, 2, 0x5Cu, 0x5Du);           /* blink 2 used as-is (no remap) */
 
-    fd2_render_promote_members_grid(1, 0x1000, 99, g_promo_cands);
+    fd2_render_promote_members_grid(1, (uint32)g_roster_surface, 99, g_promo_cands);
 
-    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_portrait_cache + 0x5Cu));
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x5Du, &off), 1);
     promo_teardown();
 }
 
@@ -2440,6 +2557,8 @@ static void cand_setup(uint32 scroll, uint32 subframe)
 
     memset(g_roster_chars, 0, sizeof(g_roster_chars));
     memset(g_portrait_cache, 0, sizeof(g_portrait_cache));
+    memset(g_roster_surface, 0, sizeof(g_roster_surface));
+    grid_install_portrait_probes();
     for (i = 0; i < 64; i++) {
         g_promo_cands[i]  = (uint8)i;          /* candidate k -> char k */
         g_cand_targets[i] = 0x20;              /* default target class 0x20 */
@@ -2455,8 +2574,6 @@ static void cand_setup(uint32 scroll, uint32 subframe)
 
     roster_text_all_end();
 
-    g_blitpass_calls = 0;
-    g_blitbgfill_calls = 0;
     g_dlg_glyph_calls = 0;
 }
 
@@ -2473,20 +2590,20 @@ static void test_cand_cap_min_of_count_and_3(void)
 {
     cand_setup(0, 0);
 
-    g_blitbgfill_calls = 0;
-    fd2_render_promote_candidates_grid(2, 0x1000, 99, g_promo_cands,
+    memset(g_roster_surface, 0, sizeof(g_roster_surface));
+    fd2_render_promote_candidates_grid(2, (uint32)g_roster_surface, 99, g_promo_cands,
                                        g_cand_targets);
-    ASSERT_EQ((long)g_blitbgfill_calls, 2);
+    ASSERT_EQ((long)roster_portrait_count(), 2);
 
-    g_blitbgfill_calls = 0;
-    fd2_render_promote_candidates_grid(5, 0x1000, 99, g_promo_cands,
+    memset(g_roster_surface, 0, sizeof(g_roster_surface));
+    fd2_render_promote_candidates_grid(5, (uint32)g_roster_surface, 99, g_promo_cands,
                                        g_cand_targets);
-    ASSERT_EQ((long)g_blitbgfill_calls, 3);     /* capped at 3 */
+    ASSERT_EQ((long)roster_portrait_count(), 3);     /* capped at 3 */
 
-    g_blitbgfill_calls = 0;
-    fd2_render_promote_candidates_grid(0, 0x1000, 99, g_promo_cands,
+    memset(g_roster_surface, 0, sizeof(g_roster_surface));
+    fd2_render_promote_candidates_grid(0, (uint32)g_roster_surface, 99, g_promo_cands,
                                        g_cand_targets);
-    ASSERT_EQ((long)g_blitbgfill_calls, 0);     /* nothing to draw */
+    ASSERT_EQ((long)roster_portrait_count(), 0);     /* nothing to draw */
     cand_teardown();
 }
 
@@ -2497,25 +2614,21 @@ static void test_cand_cap_min_of_count_and_3(void)
  * ---------------------------------------------------------------- */
 static void test_cand_portrait_dst_src(void)
 {
-    uint32 surf = 0x2000;
-    int32 *cache;
+    uint32 off;
 
     cand_setup(0, 0);
-    cache = (int32 *)g_portrait_cache;
-    cache[(0 * 0x30 + 0 * 4) / 4] = 0x111;      /* char 0, blink 0 */
-    cache[(1 * 0x30 + 0 * 4) / 4] = 0x222;      /* char 1, blink 0 */
+    roster_plant(0, 0, 0x111u, 0x71u);
+    roster_plant(1, 0, 0x222u, 0x72u);
 
-    fd2_render_promote_candidates_grid(2, surf, 99, g_promo_cands,
+    fd2_render_promote_candidates_grid(2, (uint32)g_roster_surface, 99, g_promo_cands,
                                        g_cand_targets);
 
-    ASSERT_EQ((long)g_blitpass_calls, 2);
-    /* row 0: row_off 0 */
-    ASSERT_EQ((long)g_blitpass_dst[0], (long)((0x00u + 0x75u) * 0x140u + surf + 0xeu));
-    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_portrait_cache + 0x111u));
-    /* row 1: row_off 0x1A */
-    ASSERT_EQ((long)g_blitpass_dst[1], (long)((0x1au + 0x75u) * 0x140u + surf + 0xeu));
-    ASSERT_EQ((long)g_blitpass_src[1], (long)((uint32)g_portrait_cache + 0x222u));
-    ASSERT_EQ((long)g_blitpass_stride[0], 0x140);
+    /* row 0: row_off 0 -> src cache+0x111 */
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x71u, &off), 1);
+    ASSERT_EQ((long)off, (long)((0x00u + 0x75u) * 0x140u + 0xeu));
+    /* row 1: row_off 0x1A -> src cache+0x222 */
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x72u, &off), 1);
+    ASSERT_EQ((long)off, (long)((0x1au + 0x75u) * 0x140u + 0xeu));
     cand_teardown();
 }
 
@@ -2524,18 +2637,17 @@ static void test_cand_portrait_dst_src(void)
  * indexes char 7's cache row. ---------------------------------------------- */
 static void test_cand_char_idx_from_candidate_list(void)
 {
-    int32 *cache;
+    uint32 off;
 
     cand_setup(1, 0);                           /* scroll 1 */
     g_promo_cands[1] = 7;                        /* cands[scroll+0] = 7 */
-    cache = (int32 *)g_portrait_cache;
-    cache[(7 * 0x30 + 0 * 4) / 4] = 0x3C0;       /* char 7, blink 0 */
+    roster_plant(7, 0, 0x3C0u, 0x77u);          /* char 7, blink 0 -> distinct probe */
 
-    fd2_render_promote_candidates_grid(1, 0x1000, 99, g_promo_cands,
+    fd2_render_promote_candidates_grid(1, (uint32)g_roster_surface, 99, g_promo_cands,
                                        g_cand_targets);
 
-    ASSERT_EQ((long)g_blitpass_calls, 1);
-    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_portrait_cache + 0x3C0u));
+    /* the single drawn portrait used char_idx = cands[scroll+0] = 7 */
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x77u, &off), 1);
     cand_teardown();
 }
 
@@ -2544,33 +2656,32 @@ static void test_cand_char_idx_from_candidate_list(void)
  * ---------------------------------------------------------------- */
 static void test_cand_blink_frame_3_maps_to_1(void)
 {
-    int32 *cache;
+    uint32 off;
 
     cand_setup(0, 3);                           /* subframe 3 -> blink 1 */
-    cache = (int32 *)g_portrait_cache;
-    cache[(0 * 0x30 + 1 * 4) / 4] = 0xAA;        /* blink 1 (expected) */
-    cache[(0 * 0x30 + 3 * 4) / 4] = 0xBB;        /* blink 3 (must NOT be used) */
+    roster_plant(0, 1, 0xAAu, 0x5Au);           /* blink 1 (expected after 3->1 remap) */
+    roster_plant(0, 3, 0xBBu, 0x5Bu);           /* blink 3 (must NOT be used) */
 
-    fd2_render_promote_candidates_grid(1, 0x1000, 99, g_promo_cands,
+    fd2_render_promote_candidates_grid(1, (uint32)g_roster_surface, 99, g_promo_cands,
                                        g_cand_targets);
 
-    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_portrait_cache + 0xAAu));
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x5Au, &off), 1);
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x5Bu, &off), 0);
     cand_teardown();
 }
 
 /* blink passthrough: subframe 2 (not 3) used as-is. */
 static void test_cand_blink_frame_passthrough(void)
 {
-    int32 *cache;
+    uint32 off;
 
     cand_setup(0, 2);
-    cache = (int32 *)g_portrait_cache;
-    cache[(0 * 0x30 + 2 * 4) / 4] = 0x5C;
+    roster_plant(0, 2, 0x5Cu, 0x5Du);           /* blink 2 used as-is (no remap) */
 
-    fd2_render_promote_candidates_grid(1, 0x1000, 99, g_promo_cands,
+    fd2_render_promote_candidates_grid(1, (uint32)g_roster_surface, 99, g_promo_cands,
                                        g_cand_targets);
 
-    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_portrait_cache + 0x5Cu));
+    ASSERT_EQ(bp_count_value(g_roster_surface, ROSTER_SURF_SPAN, 0x5Du, &off), 1);
     cand_teardown();
 }
 
@@ -2720,29 +2831,20 @@ static void test_cand_target_list_indexed_by_scroll(void)
  * ---------------------------------------------------------------- */
 static void test_cand_row_offset_per_iter(void)
 {
-    uint32 surf = 0x6000;
-    int32 *cache;
-    int    i;
-
     cand_setup(0, 0);
-    cache = (int32 *)g_portrait_cache;
-    for (i = 0; i < 3; i++) {
-        cache[(i * 0x30 + 0 * 4) / 4] = 0x10 + i;     /* distinct src per char */
-    }
 
-    fd2_render_promote_candidates_grid(3, surf, 99, g_promo_cands,
+    fd2_render_promote_candidates_grid(3, (uint32)g_roster_surface, 99, g_promo_cands,
                                        g_cand_targets);
 
-    ASSERT_EQ((long)g_blitpass_calls, 3);                 /* one portrait per row */
-    ASSERT_EQ((long)g_blitpass_dst[0],
-              (long)((0x00u + 0x75u) * 0x140u + surf + 0xeu));
-    ASSERT_EQ((long)g_blitpass_dst[1],
-              (long)((0x1au + 0x75u) * 0x140u + surf + 0xeu));
-    ASSERT_EQ((long)g_blitpass_dst[2],
-              (long)((0x34u + 0x75u) * 0x140u + surf + 0xeu));
-    ASSERT_EQ((long)g_blitpass_src[0], (long)((uint32)g_portrait_cache + 0x10u));
-    ASSERT_EQ((long)g_blitpass_src[1], (long)((uint32)g_portrait_cache + 0x11u));
-    ASSERT_EQ((long)g_blitpass_src[2], (long)((uint32)g_portrait_cache + 0x12u));
+    /* one portrait per row; the default probes paint char ci -> value ci+1, so the
+     * painted value proves char_idx = scroll+iter (the per-char src lookup) and its
+     * surface offset proves the per-row dst arithmetic (relative to the surface
+     * base, so the surf term drops out): row_off = iter*0x1A, dst = (row_off+0x75)*
+     * 0x140 + 0xE. */
+    ASSERT_EQ((long)roster_portrait_count(), 3);
+    ASSERT_EQ((long)roster_portrait_off(0), (long)((0x00u + 0x75u) * 0x140u + 0xeu));
+    ASSERT_EQ((long)roster_portrait_off(1), (long)((0x1au + 0x75u) * 0x140u + 0xeu));
+    ASSERT_EQ((long)roster_portrait_off(2), (long)((0x34u + 0x75u) * 0x140u + 0xeu));
     cand_teardown();
 }
 
@@ -2750,11 +2852,13 @@ static void test_cand_row_offset_per_iter(void)
  * fd2_render_recruitment_select_screen @ 0x31E80
  *
  * Composes one recruitment-select frame into the shared composed-target
- * surface. The pure pixel copies route through recording spies
- * (g_blitpass_* for the 24x24 highlight/portrait blitters; g_blitraw_*
- * for the stat panel's sheet blits), and the two counter numbers route
- * through the REAL decimal renderer -> fd2_rle_blit_sprite spy
- * (g_rle_blit_log_*). The risk-bearing logic verified here:
+ * surface. The 24x24 highlight/portrait copies go through the REAL
+ * fd2_tile_blit_24x24_passthrough / fd2_tile_blit_24x24_dimmed_grayscale into
+ * the real g_recr_surface (probe sprites planted in the portrait cache + the
+ * battle-state atlas; the painted bytes are read back). The stat panel's sheet
+ * blits still route through the g_blitraw_* spy and the two counter numbers
+ * through the REAL decimal renderer -> fd2_rle_blit_sprite spy (g_rle_blit_log_*).
+ * The risk-bearing logic verified here:
  *   - the memmove restore of the base panel,
  *   - the double fd2_count_selected_chars call (exactly 2/frame; only the
  *     2nd return feeds the "remaining" number) — pinned via the bottom
@@ -2775,7 +2879,6 @@ static void test_cand_row_offset_per_iter(void)
  * two recruitment numbers render BEFORE the panel, so they lead the rle log
  * at indices 0..3.
  * ================================================================ */
-extern int g_blitdim_calls;            /* testglob.c: dimmed-grayscale blit count */
 extern runtime_char g_test_rc_array[8];/* testglob.c: shared runtime_char array */
 
 /* sheet header (6 bytes) + 256-entry int32 offset table, table[i]=i, so a
@@ -2783,10 +2886,33 @@ extern runtime_char g_test_rc_array[8];/* testglob.c: shared runtime_char array 
 static int32 g_recr_sheet[2 + 256];
 static uint8 g_recr_panel[64000];      /* base panel (memmove source)        */
 static uint8 g_recr_surface[64000];    /* composed target (memmove dest)     */
-static uint8 g_recr_cache[1024];       /* portrait sprite cache + offset tbl */
-static uint8 g_recr_battlestate[64];   /* runtime battle state (highlight)   */
+static uint8 g_recr_cache[4096];       /* portrait sprite cache + offset tbl */
+static uint8 g_recr_battlestate[128];  /* runtime battle state (highlight)   */
 static uint16 g_recr_text[0x400];      /* immediate-END dialog program       */
 static uint8 g_recr_sel[8];            /* selection_state byte array         */
+
+/* The recruitment highlight + per-slot portraits blit into the REAL g_recr_surface
+ * through the real passthrough / dimmed-grayscale blitters, so a test plants 1-pixel
+ * probes and reads the painted bytes back. passthrough paints the probe value
+ * verbatim; dimmed-grayscale paints (value & 7) + 0x18, so a slot's painted byte
+ * tells both the dimmed-vs-passthrough path and (via its offset) the cell dst. */
+#define RECR_DIM(val)            (uint8)(((val) & 7u) + 0x18u)
+#define RECR_PROBE_OFF(tbl_idx)  (0x400u + (uint32)(tbl_idx) * 0x20u)
+
+/* Aim portrait-cache offset-table slot `tbl_idx` (= iter*0xC + palette_idx + 0xC)
+ * at a probe (painted value `val`), well past the offset table. */
+static void recr_plant_slot(uint32 tbl_idx, uint8 val)
+{
+    *(int32 *)(g_recr_cache + tbl_idx * 4u) = (int32)RECR_PROBE_OFF(tbl_idx);
+    bp_probe1(g_recr_cache + RECR_PROBE_OFF(tbl_idx), val);
+}
+
+/* Aim the cursor-highlight source (battle_state + *(battle_state+6)) at a probe. */
+static void recr_plant_highlight(uint8 val)
+{
+    *(int32 *)(g_recr_battlestate + 6) = 0x40;
+    bp_probe1(g_recr_battlestate + 0x40, val);
+}
 
 static uint32 recr_setup(uint32 anim_idx, uint32 member_count)
 {
@@ -2802,7 +2928,9 @@ static uint32 recr_setup(uint32 anim_idx, uint32 member_count)
     memset(g_recr_surface, 0x00, sizeof(g_recr_surface));
     memset(g_recr_cache, 0, sizeof(g_recr_cache));
     memset(g_recr_battlestate, 0, sizeof(g_recr_battlestate));
-    *(int32 *)(g_recr_battlestate + 6) = 0x40;      /* highlight sprite off */
+    /* default highlight probe (value 0x70) so every test's cursor-highlight blit
+     * reads a valid sprite; a test that pins the highlight asserts 0x70. */
+    recr_plant_highlight(0x70);
 
     data_fd2_ui_slide_composed_target_buf_ptr = (uint32)g_recr_surface;
     portrait_sprite_cache                     = (uint32)g_recr_cache;
@@ -2829,8 +2957,6 @@ static uint32 recr_setup(uint32 anim_idx, uint32 member_count)
     }
     data_fd2_all_game_text_ptr = (uint32)g_recr_text;
 
-    g_blitpass_calls = 0;
-    g_blitdim_calls = 0;
     g_rle_blit_calls = 0;
     g_rle_blit_log_on = 1;
     g_blitraw_count = 0;
@@ -2868,32 +2994,31 @@ static void recr_assert_number(int from, uint32 dst, uint32 value,
 static void test_recruit_compose_full(void)
 {
     uint32 surf;
-    uint32 bstate;
-    uint32 cache;
     uint32 sheet;
+    uint32 off;
+    uint32 cursor_off, char_off0, char_off1, char_off2;
     uint32 max_chars = 0x0f;
     uint32 cursor = 1;
 
     sheet = recr_setup(2, 4);
     surf = (uint32)g_recr_surface;
-    bstate = (uint32)g_recr_battlestate;
-    cache = (uint32)g_recr_cache;
 
     g_recr_sel[0] = 0;        /* un-selected -> dimmed */
     g_recr_sel[1] = 2;        /* selected    -> passthrough, 3 rows lower */
     g_recr_sel[2] = 0;        /* un-selected -> dimmed */
     g_recr_sel[3] = 0;        /* outside loop (member_count-1 == 3) */
 
-    /* portrait cache offset table for palette_idx 2: index = i*0xC + 2 + 0xC */
-    *(int32 *)(g_recr_cache + 0x0e * 4) = 0x100;   /* slot 0 (i=0) */
-    *(int32 *)(g_recr_cache + 0x1a * 4) = 0x200;   /* slot 1 (i=1) */
-    *(int32 *)(g_recr_cache + 0x26 * 4) = 0x300;   /* slot 2 (i=2) */
+    /* portrait cache slots for palette_idx 2: tbl_idx = i*0xC + 2 + 0xC. Distinct
+     * low-3-bit values so the two dimmed paints are distinct bytes. */
+    recr_plant_slot(0x0e, 0x71);   /* slot 0 (i=0) -> dimmed (0x71&7)+0x18 = 0x19 */
+    recr_plant_slot(0x1a, 0x72);   /* slot 1 (i=1) -> passthrough 0x72 */
+    recr_plant_slot(0x26, 0x75);   /* slot 2 (i=2) -> dimmed (0x75&7)+0x18 = 0x1D */
 
     fd2_render_recruitment_select_screen((uint32)g_recr_panel, max_chars,
                                          (uint32)g_recr_sel, cursor);
 
-    /* (1) base panel restored into the working surface (byte 0 is never
-     * overwritten by any later glyph/blit dst). */
+    /* (1) base panel restored into the working surface (byte 0 / last are below
+     * every later glyph/blit dst). */
     ASSERT_EQ((long)g_recr_surface[0], 0xABL);
     ASSERT_EQ((long)g_recr_surface[63999], 0xABL);
 
@@ -2905,31 +3030,28 @@ static void test_recruit_compose_full(void)
      * renderer's use of the count and the real function's result. */
     recr_assert_number(2, surf + 0x5b7d, max_chars - 1, 0x2a, 2, sheet);
 
-    /* (4) cursor highlight: passthrough blit #0, src = battle_state +
-     * *(int*)(battle_state+6), dst = surface + cursor cell offset. */
-    ASSERT_EQ((long)g_blitpass_src[0], (long)(bstate + 0x40));
-    ASSERT_EQ((long)g_blitpass_dst[0],
-              (long)(surf
-                     + (cursor % 10) * 0x1c + 0x17
-                     + ((cursor / 10) * 0x1e + 0x68) * 0x140));
-    ASSERT_EQ((long)g_blitpass_stride[0], 0x140);
+    /* (4) cursor highlight: passthrough of the battle_state probe (0x70) at the
+     * cursor cell. The painted value proves src = battle_state + *(battle_state+6);
+     * the surface offset proves the cursor-cell dst arithmetic. */
+    cursor_off = (cursor % 10) * 0x1c + 0x17
+               + ((cursor / 10) * 0x1e + 0x68) * 0x140;
+    ASSERT_EQ(bp_count_value(g_recr_surface, sizeof(g_recr_surface), 0x70u, &off), 1);
+    ASSERT_EQ((long)off, (long)cursor_off);
 
-    /* (5) grid loop: highlight + 3 slot blits = 4 total; 2 of them dimmed. */
-    ASSERT_EQ((long)g_blitpass_calls, 4);
-    ASSERT_EQ((long)g_blitdim_calls, 2);
-
-    /* slot 0 (i=0, un-selected): dimmed at the cell. */
-    ASSERT_EQ((long)g_blitpass_src[1], (long)(cache + 0x100));
-    ASSERT_EQ((long)g_blitpass_dst[1],
-              (long)(surf + 0x17 + (0 * 0x1e + 100) * 0x140));
-    /* slot 1 (i=1, selected): passthrough 3 rows (0x3C0) lower. */
-    ASSERT_EQ((long)g_blitpass_src[2], (long)(cache + 0x200));
-    ASSERT_EQ((long)g_blitpass_dst[2],
-              (long)(surf + 0x1c + 0x17 + (0 * 0x1e + 100) * 0x140 + 0x3c0));
-    /* slot 2 (i=2, un-selected): dimmed at the cell. */
-    ASSERT_EQ((long)g_blitpass_src[3], (long)(cache + 0x300));
-    ASSERT_EQ((long)g_blitpass_dst[3],
-              (long)(surf + 0x38 + 0x17 + (0 * 0x1e + 100) * 0x140));
+    /* (5) grid loop: highlight + 3 slots = 4 blits, slots 0/2 dimmed (sel==0),
+     * slot 1 passthrough 3 rows (0x3C0) lower (sel!=0). */
+    char_off0 = 0x17 + (0 * 0x1e + 100) * 0x140;            /* i=0 */
+    char_off1 = 0x1c + 0x17 + (0 * 0x1e + 100) * 0x140;     /* i=1 */
+    char_off2 = 0x38 + 0x17 + (0 * 0x1e + 100) * 0x140;     /* i=2 */
+    /* slot 0 (un-selected -> dimmed at the cell): src cache[0x0E] probe 0x71. */
+    ASSERT_EQ(bp_count_value(g_recr_surface, sizeof(g_recr_surface), RECR_DIM(0x71), &off), 1);
+    ASSERT_EQ((long)off, (long)char_off0);
+    /* slot 1 (selected -> passthrough 3 rows lower): src cache[0x1A] probe 0x72. */
+    ASSERT_EQ(bp_count_value(g_recr_surface, sizeof(g_recr_surface), 0x72u, &off), 1);
+    ASSERT_EQ((long)off, (long)(char_off1 + 0x3c0));
+    /* slot 2 (un-selected -> dimmed at the cell): src cache[0x26] probe 0x75. */
+    ASSERT_EQ(bp_count_value(g_recr_surface, sizeof(g_recr_surface), RECR_DIM(0x75), &off), 1);
+    ASSERT_EQ((long)off, (long)char_off2);
 }
 
 /* ----------------------------------------------------------------
@@ -2938,22 +3060,23 @@ static void test_recruit_compose_full(void)
  * ---------------------------------------------------------------- */
 static void test_recruit_palette_idx_3_collapses_to_1(void)
 {
-    uint32 cache;
+    uint32 off;
 
     recr_setup(3, 2);                 /* anim_idx 3 -> palette_idx 1; 1 slot */
-    cache = (uint32)g_recr_cache;
-    g_recr_sel[0] = 0;
+    g_recr_sel[0] = 0;                /* un-selected -> dimmed */
 
-    /* slot 0 with palette_idx 1: index = 0*0xC + 1 + 0xC = 0xD.  Seed both the
+    /* slot 0 with palette_idx 1: tbl_idx = 0*0xC + 1 + 0xC = 0xD. Plant both the
      * idx-1 entry (used) and the idx-3 entry (must be ignored) distinctly. */
-    *(int32 *)(g_recr_cache + 0x0d * 4) = 0x111;   /* palette_idx 1 (expected) */
-    *(int32 *)(g_recr_cache + 0x0f * 4) = 0x999;   /* palette_idx 3 (ignored)  */
+    recr_plant_slot(0x0d, 0x71);      /* palette_idx 1 (expected) */
+    recr_plant_slot(0x0f, 0x76);      /* palette_idx 3 (must be ignored) */
 
     fd2_render_recruitment_select_screen((uint32)g_recr_panel, 0x13,
                                          (uint32)g_recr_sel, 0);
 
-    /* g_blitpass[0] = highlight, [1] = slot 0 portrait. */
-    ASSERT_EQ((long)g_blitpass_src[1], (long)(cache + 0x111));
+    /* slot 0 resolved the palette-1 cache slot -> dimmed paint of probe 0x71;
+     * the palette-3 slot (0x76 -> dimmed 0x1E) must NOT appear. */
+    ASSERT_EQ(bp_count_value(g_recr_surface, sizeof(g_recr_surface), RECR_DIM(0x71), &off), 1);
+    ASSERT_EQ(bp_count_value(g_recr_surface, sizeof(g_recr_surface), RECR_DIM(0x76), &off), 0);
 }
 
 /* ----------------------------------------------------------------
@@ -2962,19 +3085,19 @@ static void test_recruit_palette_idx_3_collapses_to_1(void)
  * ---------------------------------------------------------------- */
 static void test_recruit_palette_idx_passthrough(void)
 {
-    uint32 cache;
+    uint32 off;
 
     recr_setup(2, 2);                 /* anim_idx 2 -> palette_idx 2; 1 slot */
-    cache = (uint32)g_recr_cache;
-    g_recr_sel[0] = 0;
+    g_recr_sel[0] = 0;                /* un-selected -> dimmed */
 
-    /* slot 0 with palette_idx 2: index = 0*0xC + 2 + 0xC = 0xE. */
-    *(int32 *)(g_recr_cache + 0x0e * 4) = 0x222;
+    /* slot 0 with palette_idx 2 (no collapse): tbl_idx = 0*0xC + 2 + 0xC = 0xE. */
+    recr_plant_slot(0x0e, 0x72);
 
     fd2_render_recruitment_select_screen((uint32)g_recr_panel, 0x13,
                                          (uint32)g_recr_sel, 0);
 
-    ASSERT_EQ((long)g_blitpass_src[1], (long)(cache + 0x222));
+    /* slot 0 resolved the palette-2 cache slot -> dimmed paint of probe 0x72. */
+    ASSERT_EQ(bp_count_value(g_recr_surface, sizeof(g_recr_surface), RECR_DIM(0x72), &off), 1);
 }
 
 /* ----------------------------------------------------------------
@@ -2983,49 +3106,75 @@ static void test_recruit_palette_idx_passthrough(void)
  * ---------------------------------------------------------------- */
 static void test_recruit_loop_bound_member_count(void)
 {
+    uint32 off;
+
     recr_setup(0, 7);                 /* 7 -> 6 slot iterations + 1 highlight */
-    memset(g_recr_sel, 0, sizeof(g_recr_sel));
+    memset(g_recr_sel, 0, sizeof(g_recr_sel));   /* all un-selected -> dimmed */
+
+    /* palette_idx 0: slot iter -> tbl_idx = iter*0xC + 0 + 0xC. Distinct low-3-bit
+     * values so each dimmed paint is a distinct byte. tbl_idx 0x54 (iter 6) would
+     * only blit if the loop bound were wrong; it is planted as a guarded negative. */
+    recr_plant_slot(0x0c, 0x71); recr_plant_slot(0x18, 0x72);
+    recr_plant_slot(0x24, 0x73); recr_plant_slot(0x30, 0x74);
+    recr_plant_slot(0x3c, 0x75); recr_plant_slot(0x48, 0x76);
+    recr_plant_slot(0x54, 0x77);
 
     fd2_render_recruitment_select_screen((uint32)g_recr_panel, 0x13,
                                          (uint32)g_recr_sel, 0);
 
-    ASSERT_EQ((long)g_blitpass_calls, 7);   /* 1 highlight + 6 slots */
-    ASSERT_EQ((long)g_blitdim_calls, 6);    /* all 6 slots un-selected -> dimmed */
+    /* 1 highlight (passthrough 0x70) + exactly 6 dimmed slots (0x19..0x1E): 7 blits,
+     * 6 dimmed. The 7th slot (iter 6 -> dimmed 0x1F) must NOT appear (loop bound
+     * member_count-1 = 6). */
+    ASSERT_EQ(bp_count_value(g_recr_surface, sizeof(g_recr_surface), 0x70u, &off), 1);
+    ASSERT_EQ(bp_count_value(g_recr_surface, sizeof(g_recr_surface), RECR_DIM(0x71), &off), 1);
+    ASSERT_EQ(bp_count_value(g_recr_surface, sizeof(g_recr_surface), RECR_DIM(0x72), &off), 1);
+    ASSERT_EQ(bp_count_value(g_recr_surface, sizeof(g_recr_surface), RECR_DIM(0x73), &off), 1);
+    ASSERT_EQ(bp_count_value(g_recr_surface, sizeof(g_recr_surface), RECR_DIM(0x74), &off), 1);
+    ASSERT_EQ(bp_count_value(g_recr_surface, sizeof(g_recr_surface), RECR_DIM(0x75), &off), 1);
+    ASSERT_EQ(bp_count_value(g_recr_surface, sizeof(g_recr_surface), RECR_DIM(0x76), &off), 1);
+    ASSERT_EQ(bp_count_value(g_recr_surface, sizeof(g_recr_surface), RECR_DIM(0x77), &off), 0);
 }
 
 /* ================================================================
  * fd2_render_battle_scene_with_portrait_grid_layout @ 0x34010
  *
- * Every drawn tile goes through the recording spy for
- * fd2_blit_24x24_tile_to_battle_grid_position (testglob.c). The spy captures
- * the full 6-arg call (atlas_base, tile_index, dst_buffer, row_stride, x, y)
- * so these tests pin: the two-digit chapter glyph ids (0x40 + digit), the
- * player-row and enemy-row tile ids + grid x/y arithmetic, the loop bounds,
- * and that the reserved-position highlight uses the runtime_battle_state atlas
- * (the pointer VALUE at data_fd2_runtime_battle_state_ptr) with tile id 0.
- * No real pixels are touched; the internal malloc/memmove canvas is exercised
- * by passing a real 64000-byte background source. ================ */
-extern int    g_battlegrid_calls;
-extern uint32 g_battlegrid_atlas[64];
-extern uint32 g_battlegrid_tile[64];
-extern uint32 g_battlegrid_dst[64];
-extern uint32 g_battlegrid_stride[64];
-extern uint32 g_battlegrid_x[64];
-extern uint32 g_battlegrid_y[64];
+ * Every drawn tile goes through the REAL fd2_blit_24x24_tile_to_battle_grid_position
+ * (src/gfx/blittile.c), which resolves src = atlas + atlas[tile*4 + 6] and dst =
+ * canvas + y*stride + x, then forwards to the real passthrough blitter. The renderer
+ * composes into an internal malloc'd canvas (seeded from a real 64000-byte
+ * background) and memmoves it to the fixed VGA primary 0xA0000, so the tests install
+ * probe atlases and read the painted bytes back from 0xA0000 at each grid (x,y):
+ * the tile_atlas (bp_build_atlas1) paints value tile_id+1 for tile id 0..0x82; the
+ * separate runtime_battle_state atlas paints the distinct sentinel 0xFE for tile 0.
+ * They pin the two-digit chapter glyph ids (0x40 + digit), the player/enemy-row tile
+ * ids + grid x/y arithmetic, the loop bounds, and that the reserved-position
+ * highlight uses the runtime_battle_state atlas (sentinel) with tile id 0. The
+ * highlight overdraws the reserved player slot's cell (drawn last). ============ */
 
 /* real 64000-byte background source for the entry memmove. */
 static uint8 g_bs_src[64000];
+/* tile_atlas: offset table at +6 (tile*4 stride), bp_build_atlas1 paints tile id i
+ * -> value i+1 for ids 0..0x82. Separate runtime_battle_state atlas: tile-0 probe
+ * paints the distinct sentinel 0xFE. */
+static uint8 g_bs_atlas[5120];
+static uint8 g_bs_state_atlas[128];
+
+#define BS_TILES 0x83                  /* probe slots for tile ids 0..0x82 */
+
+/* Painted byte at battle-grid cell (x, y) in the VGA primary (row stride 0x140). */
+static uint8 bs_at(uint32 x, uint32 y)
+{
+    return *(uint8 *)(VGA_PRIMARY + y * 0x140u + x);
+}
 
 static void bs_reset(void)
 {
-    g_battlegrid_calls = 0;
-    memset(g_battlegrid_atlas, 0, sizeof(g_battlegrid_atlas));
-    memset(g_battlegrid_tile, 0, sizeof(g_battlegrid_tile));
-    memset(g_battlegrid_dst, 0, sizeof(g_battlegrid_dst));
-    memset(g_battlegrid_stride, 0, sizeof(g_battlegrid_stride));
-    memset(g_battlegrid_x, 0, sizeof(g_battlegrid_x));
-    memset(g_battlegrid_y, 0, sizeof(g_battlegrid_y));
-    memset(g_bs_src, 0xCD, sizeof(g_bs_src));
+    memset(g_bs_src, 0, sizeof(g_bs_src));          /* zeroed canvas background */
+    bp_build_atlas1(g_bs_atlas, 6, 32, BS_TILES);   /* tile id i -> painted value i+1 */
+    memset(g_bs_state_atlas, 0, sizeof(g_bs_state_atlas));
+    *(int32 *)(g_bs_state_atlas + 6) = 0x40;        /* highlight tile-0 sprite off */
+    bp_probe1(g_bs_state_atlas + 0x40, 0xFE);       /* highlight paints sentinel 0xFE */
+    vga_clear();
 }
 
 /* ----------------------------------------------------------------
@@ -3037,60 +3186,39 @@ static void test_battlescene_compose_full(void)
 {
     uint8  players[6];
     uint8  enemies[3];
-    uint32 atlas = 0x12340000u;
-    uint32 canvas;
+    uint32 atlas;
     int    i;
 
     bs_reset();
-    data_fd2_runtime_battle_state_ptr = 0xABCD0000u;
+    atlas = (uint32)g_bs_atlas;
+    data_fd2_runtime_battle_state_ptr = (uint32)g_bs_state_atlas;
     for (i = 0; i < 6; i++) { players[i] = (uint8)(0x10 + i); }
     enemies[0] = 0x80; enemies[1] = 0x81; enemies[2] = 0x82;
 
     fd2_render_battle_scene_with_portrait_grid_layout(
         atlas, (uint32)g_bs_src, 27, players, 3, enemies, 4);
 
-    /* 2 digits + 6 players + 3 enemies + 1 highlight = 12 blits. */
-    ASSERT_EQ((long)g_battlegrid_calls, 12);
+    /* tile id t paints value t+1 from the tile_atlas; each tile lands at its grid
+     * (x, y) in the canvas, which is memmoved to the VGA primary. */
+    /* digits of 27: tens 2 -> tile 0x42 at (0x96,0x4B); ones 7 -> tile 0x47 at (0xA2,0x4B) */
+    ASSERT_EQ((long)bs_at(0x96, 0x4b), 0x42 + 1);
+    ASSERT_EQ((long)bs_at(0xa2, 0x4b), 0x47 + 1);
 
-    /* every blit shares the same internally-malloc'd canvas and 0x140 stride. */
-    canvas = g_battlegrid_dst[0];
-    ASSERT_TRUE(canvas != 0);
-    for (i = 0; i < 12; i++) {
-        ASSERT_EQ((long)g_battlegrid_dst[i], (long)canvas);
-        ASSERT_EQ((long)g_battlegrid_stride[i], 0x140);
-    }
-
-    /* [0] tens digit of 27 = 2 -> tile 0x42 at (0x96, 0x4B) from atlas. */
-    ASSERT_EQ((long)g_battlegrid_atlas[0], (long)atlas);
-    ASSERT_EQ((long)g_battlegrid_tile[0], 0x42);
-    ASSERT_EQ((long)g_battlegrid_x[0], 0x96);
-    ASSERT_EQ((long)g_battlegrid_y[0], 0x4b);
-    /* [1] ones digit of 27 = 7 -> tile 0x40 + 7 = 0x47 at (0xA2, 0x4B). */
-    ASSERT_EQ((long)g_battlegrid_tile[1], 0x47);
-    ASSERT_EQ((long)g_battlegrid_x[1], 0xa2);
-    ASSERT_EQ((long)g_battlegrid_y[1], 0x4b);
-
-    /* [2..7] player row: tile = players[i], x = i*0x19 + 0x56, y = 0x84. */
+    /* player row: tile = players[i] = 0x10+i at (i*0x19+0x56, 0x84). Slot 4 is
+     * overdrawn by the reserved-position highlight (drawn last), so skip it. */
     for (i = 0; i < 6; i++) {
-        ASSERT_EQ((long)g_battlegrid_atlas[2 + i], (long)atlas);
-        ASSERT_EQ((long)g_battlegrid_tile[2 + i], (long)(0x10 + i));
-        ASSERT_EQ((long)g_battlegrid_x[2 + i], (long)(i * 0x19 + 0x56));
-        ASSERT_EQ((long)g_battlegrid_y[2 + i], 0x84);
+        if (i == 4) { continue; }
+        ASSERT_EQ((long)bs_at((uint32)(i * 0x19 + 0x56), 0x84), (0x10 + i) + 1);
     }
 
-    /* [8..10] enemy row: tile = enemies[i], x = i*0x20 + 0x74, y = 0x61. */
+    /* enemy row: tile = enemies[i] = 0x80+i at (i*0x20+0x74, 0x61). */
     for (i = 0; i < 3; i++) {
-        ASSERT_EQ((long)g_battlegrid_atlas[8 + i], (long)atlas);
-        ASSERT_EQ((long)g_battlegrid_tile[8 + i], (long)(0x80 + i));
-        ASSERT_EQ((long)g_battlegrid_x[8 + i], (long)(i * 0x20 + 0x74));
-        ASSERT_EQ((long)g_battlegrid_y[8 + i], 0x61);
+        ASSERT_EQ((long)bs_at((uint32)(i * 0x20 + 0x74), 0x61), (0x80 + i) + 1);
     }
 
-    /* [11] highlight: runtime_battle_state atlas, tile 0, slot 4 on player row. */
-    ASSERT_EQ((long)g_battlegrid_atlas[11], (long)0xABCD0000u);
-    ASSERT_EQ((long)g_battlegrid_tile[11], 0);
-    ASSERT_EQ((long)g_battlegrid_x[11], (long)(4 * 0x19 + 0x56));
-    ASSERT_EQ((long)g_battlegrid_y[11], 0x84);
+    /* highlight: runtime_battle_state atlas (sentinel 0xFE), tile 0, reserved slot 4
+     * on the player row -> overdraws player slot 4's cell. */
+    ASSERT_EQ((long)bs_at((uint32)(4 * 0x19 + 0x56), 0x84), 0xFE);
 }
 
 /* ----------------------------------------------------------------
@@ -3103,14 +3231,16 @@ static void test_battlescene_chapter_digit_split_leading_zero(void)
     uint8 enemies[1];
 
     bs_reset();
+    data_fd2_runtime_battle_state_ptr = (uint32)g_bs_state_atlas;
     memset(players, 0, sizeof(players));
     enemies[0] = 0;
 
     fd2_render_battle_scene_with_portrait_grid_layout(
-        0, (uint32)g_bs_src, 5, players, 0, enemies, 0);
+        (uint32)g_bs_atlas, (uint32)g_bs_src, 5, players, 0, enemies, 0);
 
-    ASSERT_EQ((long)g_battlegrid_tile[0], 0x40);   /* tens 0 */
-    ASSERT_EQ((long)g_battlegrid_tile[1], 0x45);   /* ones 5 */
+    /* "%02d" of 5 -> "05": tens 0 -> tile 0x40 (value 0x41), ones 5 -> tile 0x45 (0x46) */
+    ASSERT_EQ((long)bs_at(0x96, 0x4b), 0x40 + 1);
+    ASSERT_EQ((long)bs_at(0xa2, 0x4b), 0x45 + 1);
 }
 
 /* ----------------------------------------------------------------
@@ -3123,14 +3253,16 @@ static void test_battlescene_chapter_digit_split_two_digit(void)
     uint8 enemies[1];
 
     bs_reset();
+    data_fd2_runtime_battle_state_ptr = (uint32)g_bs_state_atlas;
     memset(players, 0, sizeof(players));
     enemies[0] = 0;
 
     fd2_render_battle_scene_with_portrait_grid_layout(
-        0, (uint32)g_bs_src, 10, players, 0, enemies, 0);
+        (uint32)g_bs_atlas, (uint32)g_bs_src, 10, players, 0, enemies, 0);
 
-    ASSERT_EQ((long)g_battlegrid_tile[0], 0x41);   /* tens 1 */
-    ASSERT_EQ((long)g_battlegrid_tile[1], 0x40);   /* ones 0 */
+    /* "%02d" of 10 -> "10": tens 1 -> tile 0x41 (value 0x42), ones 0 -> tile 0x40 (0x41) */
+    ASSERT_EQ((long)bs_at(0x96, 0x4b), 0x41 + 1);
+    ASSERT_EQ((long)bs_at(0xa2, 0x4b), 0x40 + 1);
 }
 
 /* ----------------------------------------------------------------
@@ -3143,15 +3275,17 @@ static void test_battlescene_enemy_loop_bound_zero(void)
     uint8 enemies[1];
 
     bs_reset();
+    data_fd2_runtime_battle_state_ptr = (uint32)g_bs_state_atlas;
     memset(players, 0, sizeof(players));
     enemies[0] = 0x99;
 
     fd2_render_battle_scene_with_portrait_grid_layout(
-        0, (uint32)g_bs_src, 1, players, 0, enemies, 0);
+        (uint32)g_bs_atlas, (uint32)g_bs_src, 1, players, 0, enemies, 0);
 
-    ASSERT_EQ((long)g_battlegrid_calls, 9);
-    /* call #8 (0-based) is the highlight, NOT an enemy tile (tile 0). */
-    ASSERT_EQ((long)g_battlegrid_tile[8], 0);
+    /* enemy_count 0 -> the enemy loop never runs: the i=0 enemy cell stays background. */
+    ASSERT_EQ((long)bs_at(0x74, 0x61), 0);
+    /* the reserved-position highlight still draws (sentinel 0xFE) at slot 0. */
+    ASSERT_EQ((long)bs_at(0x56, 0x84), 0xFE);
 }
 
 /* ----------------------------------------------------------------
@@ -3164,19 +3298,20 @@ static void test_battlescene_enemy_loop_bound_two(void)
     uint8 enemies[2];
 
     bs_reset();
+    data_fd2_runtime_battle_state_ptr = (uint32)g_bs_state_atlas;
     memset(players, 0, sizeof(players));
     enemies[0] = 0x40; enemies[1] = 0x41;
 
     fd2_render_battle_scene_with_portrait_grid_layout(
-        0, (uint32)g_bs_src, 1, players, 2, enemies, 0);
+        (uint32)g_bs_atlas, (uint32)g_bs_src, 1, players, 2, enemies, 0);
 
-    ASSERT_EQ((long)g_battlegrid_calls, 11);
-    ASSERT_EQ((long)g_battlegrid_tile[8], 0x40);
-    ASSERT_EQ((long)g_battlegrid_x[8], 0x74);          /* i=0: 0*0x20 + 0x74 */
-    ASSERT_EQ((long)g_battlegrid_tile[9], 0x41);
-    ASSERT_EQ((long)g_battlegrid_x[9], (long)(0x20 + 0x74)); /* i=1 */
-    ASSERT_EQ((long)g_battlegrid_y[9], 0x61);
-    ASSERT_EQ((long)g_battlegrid_tile[10], 0);         /* highlight */
+    /* 2 enemies: tile enemies[i] = 0x40+i (value 0x41+i) at (i*0x20+0x74, 0x61). */
+    ASSERT_EQ((long)bs_at(0x74, 0x61), 0x40 + 1);             /* i=0 */
+    ASSERT_EQ((long)bs_at(0x20 + 0x74, 0x61), 0x41 + 1);     /* i=1 */
+    /* loop bound 2 -> no 3rd enemy: the i=2 enemy cell stays background. */
+    ASSERT_EQ((long)bs_at(0x40 + 0x74, 0x61), 0);
+    /* reserved-position highlight (sentinel) at slot 0. */
+    ASSERT_EQ((long)bs_at(0x56, 0x84), 0xFE);
 }
 
 /* ----------------------------------------------------------------
@@ -3189,25 +3324,22 @@ static void test_battlescene_highlight_uses_runtime_state_atlas(void)
 {
     uint8  players[6];
     uint8  enemies[1];
-    uint32 atlas = 0x55550000u;
 
     bs_reset();
-    data_fd2_runtime_battle_state_ptr = 0x77770000u;
+    data_fd2_runtime_battle_state_ptr = (uint32)g_bs_state_atlas;
     memset(players, 0, sizeof(players));
     enemies[0] = 0;
 
     fd2_render_battle_scene_with_portrait_grid_layout(
-        atlas, (uint32)g_bs_src, 1, players, 0, enemies, 3);
+        (uint32)g_bs_atlas, (uint32)g_bs_src, 1, players, 0, enemies, 3);
 
-    /* highlight is the last (index 8) blit when enemy_count == 0. */
-    ASSERT_EQ((long)g_battlegrid_calls, 9);
-    ASSERT_EQ((long)g_battlegrid_atlas[8], (long)0x77770000u);
-    ASSERT_EQ((long)g_battlegrid_tile[8], 0);
-    ASSERT_EQ((long)g_battlegrid_x[8], (long)(3 * 0x19 + 0x56));
-    ASSERT_EQ((long)g_battlegrid_y[8], 0x84);
-    /* a player/digit blit still uses the supplied tile_atlas_base, not the
-     * runtime_battle_state atlas. */
-    ASSERT_EQ((long)g_battlegrid_atlas[0], (long)atlas);
+    /* the reserved-slot-3 highlight (x = 3*0x19+0x56, y = 0x84) uses the SEPARATE
+     * runtime_battle_state atlas -> its sentinel 0xFE, NOT the tile_atlas tile-0
+     * value (1). */
+    ASSERT_EQ((long)bs_at((uint32)(3 * 0x19 + 0x56), 0x84), 0xFE);
+    /* a digit still uses the supplied tile_atlas_base (chapter 1 -> tens tile 0x40
+     * -> value 0x41), proving the two blits draw from different atlases. */
+    ASSERT_EQ((long)bs_at(0x96, 0x4b), 0x40 + 1);
 }
 
 void run_gfx_rndmenu_tests(void)

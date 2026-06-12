@@ -10,18 +10,15 @@
 #include "globals.h"
 #include "protos.h"
 #include <stdio.h>
+#include "audiofix.h"   /* audiofix_make_bank / audiofix_enable_sfx */
 
 /* runtime-char array backing (testglob.c) */
 extern runtime_char g_test_rc_array[8];
 
-/* solid-colour blit recording (testglob.c): shared g_blitpass_* plus the
- * per-call colour log and a dedicated call counter. */
-extern int    g_blitpass_calls;
-extern uint32 g_blitpass_src[64];
-extern uint32 g_blitpass_dst[64];
-extern uint32 g_blitpass_stride[64];
-extern int    g_blitsolid_calls;
-extern uint32 g_blitsolid_color[64];
+/* The solid-colour silhouette blitter (fd2_tile_blit_24x24_solid_color) and the
+ * plain passthrough blitter are both emitted for real, so the status-overlay
+ * tests below drive them directly and observe the painted silhouette byte
+ * (count_silhouette_pixels) instead of a recording stub. */
 
 /* SFX-play recording (testglob.c) */
 extern int    g_play_sfx_with_handle_calls;
@@ -44,10 +41,70 @@ extern uint8  data_fd2_animation_spell_sfx_frame_table[33];
 #define LGS_SPAN 0x26000u
 static uint8 g_lgs[LGS_SPAN];
 
-/* Portrait sprite cache: a dword absolute-offset table. table[i] == i*0x100 so
- * the recorded src pointer (cache + table[frame_idx]) uniquely identifies the
- * resolved frame index. */
-static uint8 g_portrait_cache[256 * 4];
+/* Portrait sprite cache. The first 256 dwords are an absolute-offset table
+ * (table[i] == i*0x100) so the resolved src pointer is cache + frame_idx*0x100,
+ * which uniquely identifies the frame index. The bytes beyond the table hold the
+ * RLE sprite streams the real silhouette blitter decodes: every slot is filled
+ * with transparent SKIP commands so a wrongly-resolved frame paints nothing, and
+ * the one expected slot is overwritten with a single-pixel sprite. Sized to span
+ * the largest frame slot used here (0x31 -> offset 0x3100) plus a full 24x24
+ * transparent decode. */
+#define PCACHE_SIZE 0x3600u
+static uint8 g_portrait_cache[PCACHE_SIZE];
+
+/* Solid-colour silhouette RLE command builders (low 6 bits + 1 == run length;
+ * top two bits select the mode). Only LITERAL and SKIP are needed here. */
+#define SIL_LIT(n)   ((uint8)(0x80u | ((n) - 1)))   /* copy n (ignored) src bytes, paint colour */
+#define SIL_SKIP(n)  ((uint8)(0xC0u | ((n) - 1)))   /* advance n, paint nothing */
+#define SIL_COLOR    0xC8u    /* stride arg is 0x1C8; colour = 0x1C8 & 0xFF      */
+
+/* Build the offset table and fill every sprite slot with a full 24x24
+ * transparent (SKIP) program, then plant a single-pixel sprite at exactly the
+ * slot the caller should resolve (frame_idx). A correct resolution paints one
+ * SIL_COLOR pixel at the blit dst; a wrong one resolves to an all-SKIP slot and
+ * paints nothing. */
+static void plant_silhouette_sprite(uint32 frame_idx)
+{
+    uint32 *table;
+    uint8 *sprite;
+    uint32 i;
+
+    /* offset table at cache+0 */
+    table = (uint32 *)g_portrait_cache;
+    for (i = 0; i < 256; i++) {
+        table[i] = i * 0x100u;
+    }
+    /* fill the sprite-data region (past the 0x400-byte table) with SKIP-1 */
+    for (i = 0x400u; i < PCACHE_SIZE; i++) {
+        g_portrait_cache[i] = SIL_SKIP(1);
+    }
+    /* plant the one real single-pixel sprite at the expected slot */
+    sprite = g_portrait_cache + frame_idx * 0x100u;
+    sprite[0] = SIL_LIT(1);     /* one painted pixel at (0,0) */
+    sprite[1] = 0x00u;          /* its (ignored) source byte   */
+    sprite[2] = SIL_SKIP(23);   /* finish row 0 (1 + 23 == 24)  */
+    for (i = 1; i < 24; i++) {
+        sprite[2 + i] = SIL_SKIP(24);   /* rows 1..23 transparent */
+    }
+}
+
+/* Count SIL_COLOR bytes in the lgs surface (the only writer of that value is the
+ * silhouette blit) and report the offset of the first one. */
+static int count_silhouette_pixels(uint32 *first_off)
+{
+    uint32 i;
+    int n = 0;
+    *first_off = 0xFFFFFFFFu;
+    for (i = 0; i < LGS_SPAN; i++) {
+        if (g_lgs[i] == SIL_COLOR) {
+            if (n == 0) {
+                *first_off = i;
+            }
+            n++;
+        }
+    }
+    return n;
+}
 
 #define WIN_OX  0x10u
 #define WIN_OY  0x20u
@@ -59,9 +116,13 @@ static void setup_overlay(uint32 palette_idx)
     int i;
     uint32 *table;
 
-    g_blitpass_calls = 0;
-    g_blitsolid_calls = 0;
     g_play_sfx_with_handle_calls = 0;
+
+    /* The flicker body opens with fd2_play_sfx_with_handle(status bank, 1, 1);
+     * open the audio gates and stage a tri-offset sfx bank so the real player
+     * reaches the AIL spy (which bumps g_play_sfx_with_handle_calls). */
+    audiofix_enable_sfx();
+    data_fd2_audio_status_effect_sfx_handle_ptr = audiofix_make_bank(0x1F);
 
     table = (uint32 *)g_portrait_cache;
     for (i = 0; i < 256; i++) {
@@ -82,17 +143,26 @@ static void setup_overlay(uint32 palette_idx)
 }
 
 /*
- * One in-window char and one out-of-window char. Verifies the window-cull
- * predicate (only the in-window char blits), the dst screen-position
- * arithmetic, the frame-source arithmetic, and the colour argument.
- * palette_idx = 1 (not 3) takes the frame_idx = frame_off + palette branch.
+ * One in-window char and one out-of-window char. Drives the real silhouette
+ * blitter and verifies the window-cull predicate (only the in-window char
+ * paints), the dst screen-position arithmetic, and the frame-source arithmetic
+ * (a single-pixel sprite is planted only at the expected sprite slot, so exactly
+ * one painted pixel proves both that the source resolved correctly and that the
+ * cull dropped the second char). palette_idx = 1 (not 3) takes the
+ * frame_idx = frame_off + palette branch.
+ *
+ * Note: the real blitter paints colour = (stride & 0xFF); the caller passes
+ * stride 0x1C8, so the silhouette colour is 0xC8. The per-status-kind value the
+ * caller computes for param_4 (e.g. 0x92) is read by the caller but IGNORED by
+ * the blitter (verified against the 0x4DDD7 disassembly), so it is not asserted.
  */
 static void test_overlay_cull_and_arithmetic(void)
 {
     uint8 idx_array[2];
-    uint32 exp_dst;
     uint32 frame_idx;
-    uint32 exp_src;
+    uint32 exp_dst_off;
+    uint32 first_off;
+    int n;
 
     setup_overlay(1);
 
@@ -109,42 +179,40 @@ static void test_overlay_cull_and_arithmetic(void)
     idx_array[0] = 0;
     idx_array[1] = 1;
 
-    fd2_animate_status_effect_overlay_flicker(0xDEAD, 17, 2, (uint32)idx_array);
+    /* frame_idx = sprite_state[0]*0xC + palette(=1) -> 0x31; plant the real
+     * single-pixel sprite only at that slot so a correct resolution paints. */
+    frame_idx = 4u * 0xcu + 1u;                 /* 0x31 */
+    plant_silhouette_sprite(frame_idx);
 
-    /* exactly one status sprite drawn (char 1 culled) */
-    ASSERT_EQ(g_blitsolid_calls, 1);
+    fd2_animate_status_effect_overlay_flicker(0xDEAD, 17, 2, (uint32)idx_array);
 
     /* SFX 1 played once at entry */
     ASSERT_EQ(g_play_sfx_with_handle_calls, 1);
 
-    /* dst = lgs + (pos_y-OY)*0x2AC0 + (pos_x-OX)*0x18 + 0x75D8 */
-    exp_dst = (uint32)g_lgs
-            + (0x24u - WIN_OY) * 0x2ac0u
-            + (0x15u - WIN_OX) * 0x18u
-            + 0x75d8u;
-    ASSERT_EQ(g_blitpass_dst[0], exp_dst);
+    /* exactly one silhouette pixel painted: the culled char drew nothing, and
+     * the in-window char resolved to the planted single-pixel sprite. */
+    n = count_silhouette_pixels(&first_off);
+    ASSERT_EQ(n, 1);
 
-    /* frame_idx = sprite_state[0]*0xC + palette(=1); src = cache + table[frame_idx] */
-    frame_idx = 4u * 0xcu + 1u;                 /* 0x31 */
-    exp_src = (uint32)g_portrait_cache + frame_idx * 0x100u;
-    ASSERT_EQ(g_blitpass_src[0], exp_src);
-
-    /* stride arg is the fixed 0x1C8 */
-    ASSERT_EQ(g_blitpass_stride[0], 0x1c8u);
-
-    /* colour arg = template[status_kind]; status_kind 17 -> template[17] = 0x92 */
-    ASSERT_EQ(g_blitsolid_color[0], 0x92u);
+    /* and it landed at dst = lgs + (pos_y-OY)*0x2AC0 + (pos_x-OX)*0x18 + 0x75D8 */
+    exp_dst_off = (0x24u - WIN_OY) * 0x2ac0u
+                + (0x15u - WIN_OX) * 0x18u
+                + 0x75d8u;
+    ASSERT_EQ(first_off, exp_dst_off);
 }
 
 /*
  * palette_idx == 3 forces frame_idx = frame_off + 2 (clash-avoidance branch),
- * independent of the palette value. Confirms the special-case offset.
+ * independent of the palette value. Confirms the special-case offset by planting
+ * the single-pixel sprite only at frame_off+2 and checking exactly one pixel
+ * paints at the window-origin dst.
  */
 static void test_overlay_palette3_offset(void)
 {
     uint8 idx_array[1];
     uint32 frame_idx;
-    uint32 exp_src;
+    uint32 first_off;
+    int n;
 
     setup_overlay(3);
 
@@ -153,30 +221,31 @@ static void test_overlay_palette3_offset(void)
     g_test_rc_array[0].sprite_state[0] = 2;     /* frame_off = 2*0xC = 0x18 */
     idx_array[0] = 0;
 
-    fd2_animate_status_effect_overlay_flicker(0, 0, 1, (uint32)idx_array);
-
-    ASSERT_EQ(g_blitsolid_calls, 1);
-
     /* palette==3 -> frame_idx = frame_off + 2 = 0x18 + 2 = 0x1A */
     frame_idx = 2u * 0xcu + 2u;
-    exp_src = (uint32)g_portrait_cache + frame_idx * 0x100u;
-    ASSERT_EQ(g_blitpass_src[0], exp_src);
+    plant_silhouette_sprite(frame_idx);
+
+    fd2_animate_status_effect_overlay_flicker(0, 0, 1, (uint32)idx_array);
+
+    /* one painted pixel proves the palette-3 frame index resolved correctly */
+    n = count_silhouette_pixels(&first_off);
+    ASSERT_EQ(n, 1);
 
     /* dst at the window origin: offsets collapse to the +0x75D8 base */
-    ASSERT_EQ(g_blitpass_dst[0], (uint32)g_lgs + 0x75d8u);
-
-    /* status_kind 0 -> template[0] = 0xC0 */
-    ASSERT_EQ(g_blitsolid_color[0], 0xc0u);
+    ASSERT_EQ(first_off, 0x75d8u);
 }
 
 /*
  * Lower-edge culling: a char one row above the top window edge (pos_y = OY-2,
- * below the OY-1 lower bound) is rejected, leaving zero sprites drawn while the
- * snapshot/flicker plumbing still runs to completion.
+ * below the OY-1 lower bound) is rejected, leaving zero sprites painted while the
+ * snapshot/flicker plumbing still runs to completion. A single-pixel sprite is
+ * planted at the slot the char would resolve to, so a missing cull would paint.
  */
 static void test_overlay_cull_top_edge(void)
 {
     uint8 idx_array[1];
+    uint32 first_off;
+    int n;
 
     setup_overlay(0);
 
@@ -185,9 +254,15 @@ static void test_overlay_cull_top_edge(void)
     g_test_rc_array[0].sprite_state[0] = 1;
     idx_array[0] = 0;
 
+    /* sprite_state 1, palette 0 -> frame_idx = 1*0xC + 0 = 0xC; plant there so
+     * the assertion is meaningful (cull, not a missing sprite, suppresses paint) */
+    plant_silhouette_sprite(1u * 0xcu + 0u);
+
     fd2_animate_status_effect_overlay_flicker(0, 0, 1, (uint32)idx_array);
 
-    ASSERT_EQ(g_blitsolid_calls, 0);
+    /* nothing painted: the char was culled */
+    n = count_silhouette_pixels(&first_off);
+    ASSERT_EQ(n, 0);
     /* entry SFX still fired even though nothing was drawn */
     ASSERT_EQ(g_play_sfx_with_handle_calls, 1);
 }
@@ -208,6 +283,13 @@ static void setup_impact(void)
     g_sfx_id_count = 0;
     g_sfx_last_id = 0;
     memset(g_sfx_id_log, 0, sizeof(g_sfx_id_log));
+
+    /* The impact loop fires fd2_play_sfx_with_handle(status bank, sfx_id, 1)
+     * per frame; open the gates and stage a tri-offset bank so the captured
+     * sample length recovers each fired sfx_id (g_sfx_id_log). */
+    audiofix_enable_sfx();
+    data_fd2_audio_status_effect_sfx_handle_ptr = audiofix_make_bank(0x1F);
+
     g_blitdec_calls = 0;
     g_blitdec_dst = 0;
     g_blitdec_sprite = 0;
@@ -432,7 +514,6 @@ static void setup_fullflash(void)
     g_blitdec_log_on = 0;
     g_blitdec_log_count = 0;
     g_blitdec_calls = 0;
-    g_blitpass_calls = 0;
 
     /* the real fd2_composite_battle_frame(0) finalizer + the real
      * fd2_blit_rectangle strobe both read +0x8088 out of this buffer */
@@ -554,5 +635,6 @@ void run_anim_anicombt_tests(void)
     RUN_TEST(test_impact_cull_and_arithmetic);
     RUN_TEST(test_impact_zero_frames);
     RUN_TEST(test_fullflash_two_composites_and_strobe);
+    audiofix_disable_sfx();   /* restore safe gate state for later suites */
     printf("\n");
 }

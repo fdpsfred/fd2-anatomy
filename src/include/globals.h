@@ -85,6 +85,7 @@ extern uint32 data_fd2_battle_scripted_cinematic_mode_or_terrain_idx;   /* 0x540
 extern uint32 data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr;    /* 0x54107 */
 extern uint32 data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr;     /* 0x5410B */
 extern uint32 data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr;     /* 0x5410F */
+extern uint32 data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr;     /* 0x54113 */
 extern uint32 data_fd2_battle_fast_mode_walk_overlay_ptr;               /* 0x53B0F */
 
 /* ---- battle AI scoring ---- */
@@ -144,6 +145,7 @@ extern uint32 data_fd2_ui_slide_bg_snapshot_buf_ptr;                    /* 0x53C
 extern uint32 data_fd2_ui_slide_composed_target_buf_ptr;                /* 0x53C63 */
 
 /* ---- graphics ---- */
+extern uint8  data_fd2_graphics_text_scroll_pending_line_count;         /* 0x51A10 */
 extern uint32 data_fd2_battle_view_window_max_x;                        /* 0x51A87 */
 extern uint32 data_fd2_battle_view_window_max_y;                        /* 0x51A8B */
 extern uint32 data_fd2_graphics_forced_tile_anim_frame;                 /* 0x51A93 */
@@ -162,9 +164,22 @@ extern int32  data_fd2_graphics_char_sprite_paint_jitter_tick_latch;    /* 0x53A
 extern uint32 data_fd2_graphics_chapter_walk_anim_alt_palette_idx;      /* 0x53C07 */
 extern uint32 data_fd2_graphics_chapter_ambient_palette_anim_idx;       /* 0x53C0B */
 extern uint32 data_fd2_graphics_chapter_ambient_palette_anim_tick_latch; /* 0x53C0F */
+extern double data_fd2_graphics_radian_per_degree_const;                /* 0x501F8  const 0.0174532 (deg->rad) */
+extern double data_fd2_graphics_scatter_y_offset_neg8;                  /* 0x50200  const -8.0 (AoE scatter Y skew) */
 
 /* ---- chapter intro dialog corner offsets (.object2 const) ---- */
 extern uint32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4]; /* 0x526EA */
+extern uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6];  /* 0x52659 */
+
+/* Per-chapter shop "inventory full" FDTXT dialog-id table (int16, indexed
+ * by chapter cursor state in the buy/sell menus). The church-revive menu
+ * aliases the same bytes as a per-job revive-price multiplier table,
+ * accessed as [bJob_id + 5]. (vendor data overlap) */
+extern int16  data_fd2_dialog_shop_inventory_full_dialog_text_id_table[]; /* 0x5265F */
+
+/* Per-basic-class required key-item id for class change, indexed directly by
+ * runtime_char.portrait_id (basic classes 0..0x11). 18 bytes. (= 0x5266B+0x3C) */
+extern uint8  data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[18]; /* 0x526A7 */
 
 /* ---- recruitment screen ---- */
 extern uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch;         /* 0x54127 */
@@ -186,9 +201,6 @@ extern uint8 *data_fd2_ui_menu_candidate_array_ptr;                     /* 0x541
  * + pose_x_column[off]*stride + pose_y_row[off] (matches Ghidra symbols). */
 extern uint8  data_fd2_chapter_intro_portrait_pose_y_row_table[18];     /* 0x52635 */
 extern uint8  data_fd2_chapter_intro_portrait_pose_x_column_table[18];  /* 0x52647 */
-/* speaker portrait id per chapter-intro menu variant, indexed by
- * chapter_intro_menu_cursor_state (0..5). */
-extern uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6]; /* 0x52659 */
 /* per-job revive/promote price multiplier (signed int16), indexed by
  * job_id-1; promote/revive grid price = char.level * table[job_id-1]. */
 extern int16  data_fd2_ui_per_job_revive_or_promote_cost_table[];       /* 0x5266B  int16 per job */
@@ -244,6 +256,9 @@ extern char   data_fd2_string_resource_filename_fdother_dat[];          /* 0x51A
 extern char   data_fd2_string_resource_filename_fdfield_dat_51a59[];    /* 0x51A59  "FDFIELD.DAT" */
 extern char   data_fd2_string_resource_filename_fdshap_dat_51a65[];     /* 0x51A65  "FDSHAP.DAT" */
 extern char   data_fd2_string_resource_filename_dato_dat_51a70[];       /* 0x51A70  "DATO.DAT" */
+extern char   data_fd2_string_resource_filename_bg_dat_52381[];         /* 0x52381  "BG.DAT" */
+extern char   data_fd2_string_resource_filename_figani_dat_52388[];     /* 0x52388  "FIGANI.DAT" */
+extern char   data_fd2_string_resource_filename_tai_dat[];              /* 0x52393  "TAI.DAT" */
 
 /* ---- UI render format strings (.object2 const) ---- */
 extern char   data_fd2_string_ui_render_decimal_format_template[6];     /* 0x51EBF  "%0.5d" */
@@ -296,11 +311,15 @@ extern uint32 data_fd2_audio_sfx_sample_handle_0;                       /* 0x53E
 extern uint32 data_fd2_audio_sfx_sample_handle_1;                       /* 0x53EE8 */
 extern uint32 data_fd2_audio_fdother_sfx_bank_buf_ptr;                  /* 0x53EEC */
 extern uint32 data_fd2_audio_status_effect_sfx_handle_ptr;              /* 0x53B13 */
+extern uint32 data_fd2_audio_figani_sfx_bank_buf_ptr;                  /* 0x54117 */
+extern uint8  data_fd2_audio_figani_sfx_bank_fdother_index_lut[];       /* 0x525D6  6B; 1-based id->FDOTHER idx */
 extern uint8  data_fd2_audio_walk_step_sfx_cadence_counter;             /* 0x540FE */
 extern char   data_fd2_string_fdmus_dat[];                              /* 0x51A79  "FDMUS.DAT" */
 
 /* ---- animation tables (.object2 const) ---- */
 extern uint8  data_fd2_audio_footstep_sfx_per_job_cadence_class_table[]; /* 0x52618  29B */
+extern int32  data_fd2_animation_earthquake_screen_shake_params_table[9]; /* 0x52096  3 X-off + 3 Y-off + 3 scale */
+extern uint8  data_fd2_battle_special_attack_shake_x_offset_table[6];   /* 0x52549  per-sub-frame X-offset cache */
 extern uint8  data_fd2_animation_status_overlay_flicker_color_template[32]; /* 0x51F15 */
 extern uint8  data_fd2_animation_spell_sprite_offset_table[33];         /* 0x51F33 */
 extern uint8  data_fd2_animation_spell_frame_count_table[33];           /* 0x51F54 */
@@ -347,6 +366,8 @@ extern int32  data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[1
 extern uint32 data_fd2_battle_summon_spell_palette_r_table;             /* 0x5254F */
 extern uint32 data_fd2_battle_summon_spell_palette_g_table;             /* 0x52553 */
 extern uint32 data_fd2_battle_summon_spell_palette_b_table;             /* 0x52557 */
+extern uint32 data_fd2_battle_summon_spell_sfx_bank_index_table;        /* 0x5255B */
+extern uint8  data_fd2_chapter_combat_cinematic_mode_per_chapter[30];   /* 0x52363 */
 
 /* ---- dispatch tables (.object2 const) ---- */
 extern void (*data_fd2_chapter_init_handler_table[30])(void);           /* 0x51D71 */
@@ -354,7 +375,7 @@ extern void (*data_fd2_chapter_end_handler_table[30])(void);            /* 0x51D
 extern void (*data_fd2_chapter_post_action_handler_table[30])(uint32);  /* 0x51B19 */
 extern void (*data_fd2_battle_ai_post_action_consequence_table[90])(uint32); /* 0x51B91 */
 extern void (*data_fd2_battle_spell_handler_table[28])(uint32, uint32, uint8 *); /* 0x51D01 */
-extern void (*data_fd2_battle_spell_cast_cinematic_phase_handler_table[10])(void); /* 0x523B9 */
+extern int (*data_fd2_battle_spell_cast_cinematic_phase_handler_table[10])(uint32, uint32, uint32, uint32, uint32); /* 0x523B9 */
 extern uint16 data_fd2_animation_ani_decoder_target_width;              /* 0x52760 */
 extern uint32 data_fd2_animation_ani_decoder_dst_buf;                   /* 0x52762 */
 extern uint32 data_fd2_animation_ani_decoder_src_buf;                   /* 0x52766 */

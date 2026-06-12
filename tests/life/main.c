@@ -356,8 +356,25 @@ static void test_main_menu_continue_quit(void)
     keys[0] = 0x01;                       /* Esc = cancel */
     savefix_queue_scancodes(keys, 1);
 
+    /* The CONTINUE branch's slot-selector loop calls the REAL
+     * fd2_close_intro_dialog_with_slide_out() once before exiting (the open
+     * dialog counterpart is not on this path), so pre-allocate the three
+     * 64000-byte slide workspaces the real teardown reads from and free()s.
+     * fd2_close_intro_dialog_with_slide_out free()s all three, so we null
+     * them afterward to avoid reusing freed pointers. */
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_composed_target_buf_ptr = (uint32)malloc(64000);
+    ASSERT_TRUE(data_fd2_ui_slide_anim_accumulator_buf_ptr != 0);
+    ASSERT_TRUE(data_fd2_ui_slide_bg_snapshot_buf_ptr != 0);
+    ASSERT_TRUE(data_fd2_ui_slide_composed_target_buf_ptr != 0);
+
     r = fd2_main_menu_continue_dispatcher();
     ASSERT_EQ((long)r, -1);
+
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
 
     /* the menu-atlas FDOTHER[0xD] buffer is freed + nulled by the function;
      * reclaim the 3 workspaces the picker leaked, then free palette + bgm. */

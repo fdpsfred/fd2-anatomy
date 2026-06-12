@@ -92,7 +92,6 @@ extern int g_sfx_last_id;
  * portrait bg-fill blit lands in the testglob spy; its per-char name dialog runs
  * real against the immediate-END program below and emits a glyph (border-glyph
  * spy) only for the char ps_mark_highlight_char points at a one-glyph blob. */
-extern int    g_blitbgfill_calls;
 extern int    g_dlg_glyph_calls;
 extern uint32 g_dlg_glyph_last_p5;
 /* scroll-page animation recording stubs (testglob.c). */
@@ -292,8 +291,8 @@ static void test_chintro_two_lefts_then_cancel(void)
  *
  * fd2_render_party_roster_grid runs FOR REAL here. ps_prep gives it the fixture
  * it needs (a runtime-char array, a portrait cache, and an all-END dialog text
- * table) so its per-char portrait bg-fill blit (the testglob g_blitpass_* /
- * g_blitbgfill_calls spy) and per-char name dialog (real fd2_display_dialog_scene
+ * table) so its per-char portrait bg-fill blit (the real
+ * fd2_tile_blit_24x24_with_dialog_bg_fill) and per-char name dialog (real fd2_display_dialog_scene
  * against the immediate-END program) run without touching VGA. The loop forwards
  * data_fd2_ui_menu_cursor_idx to the grid as the highlight, so the highlighted
  * char renders its name with border glyph 0xC9; ps_mark_highlight_char() points
@@ -376,7 +375,6 @@ static void ps_prep(uint32 member_count, uint32 start_cursor,
 
     g_play_sfx_with_handle_calls = 0;
     g_sfx_last_id = -1;
-    g_blitbgfill_calls = 0;
     g_dlg_glyph_calls = 0;
     g_scroll_up_in_shop_calls = 0;
     g_scroll_down_in_shop_calls = 0;
@@ -424,7 +422,8 @@ static void test_ps_enter_commits_after_setup(void)
     ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);     /* setup reset */
     ASSERT_EQ((long)data_fd2_ui_menu_scroll_offset, 0);  /* setup reset */
     ASSERT_EQ(g_play_sfx_with_handle_calls, 0);          /* commit: no chime */
-    ASSERT_TRUE(g_blitbgfill_calls >= 1);                /* initial grid render */
+    /* the highlighted char's name rendered with border glyph 0xC9, which proves
+     * the REAL party-roster grid render ran on the commit frame. */
     ASSERT_EQ((long)g_dlg_glyph_last_p5, 0xC9);          /* grid highlighted @ 0 */
     ps_teardown();
 }

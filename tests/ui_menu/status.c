@@ -1441,6 +1441,177 @@ static void test_give_item_respects_party_count_bound(void)
     data_fd2_battle_party_member_count = saved_count;
 }
 
+/*
+ * fd2_run_status_screen_member_menu @ 0x2FFA5 — Esc-on-first-select path.
+ *
+ * Drives the REAL party-roster select loop (fd2_party_roster_single_select_loop,
+ * src/ui_menu/chintro.c) by injecting an Esc scancode into the BIOS keyboard
+ * ring, so the roster loop cancels (-1) on its first poll and the outer menu
+ * runs exactly one iteration: it sets visible_item_count = party_member_count,
+ * the real roster loop malloc's + renders the grid then returns -1, the real
+ * fd2_close_intro_dialog_with_slide_out frees those three slide buffers, the
+ * portrait-mode global is read into the save slot, then sel==-1 breaks before
+ * the status screen.
+ *
+ * Asserts (a) the visible_item_count assignment ran, (b) the real roster loop
+ * reset the cursor to 0 and the Esc cancel left it there. A passing run also
+ * proves the sel==-1 break fired before fd2_open_char_status_screen — had
+ * control fallen through, the status screen's blocking input wait would hang the
+ * test. The portrait-mode global is left untouched on the Esc path (its restore
+ * is on the commit path).
+ */
+static void test_status_screen_member_menu_esc_first_exits(void)
+{
+    int i;
+
+    /* Roster-select render prerequisites (the real party-roster loop renders the
+     * grid before polling input): zeroed sprite atlas + portrait cache, an
+     * all-END text page so the per-char name-glyph render is a bounded no-op,
+     * the real runtime-char array, a stable BIOS tick so wait-input skips its
+     * blink idle. Mirrors the proven ui_menu/chintro.c ps_prep recipe. */
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    memset(g_overview_sheet, 0, sizeof(g_overview_sheet));
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = (uint32)g_overview_sheet;
+    memset(g_grid_sheet, 0, sizeof(g_grid_sheet));
+    portrait_sprite_cache = (uint32)g_grid_sheet;
+    for (i = 0; i < 0x400; i++) {
+        g_grid_text[i] = 0x600;
+    }
+    *(int16 *)((uint8 *)g_grid_text + 0x600) = -1;
+    data_fd2_all_game_text_ptr = (uint32)g_grid_text;
+    data_fd2_chapter_intro_dialog_subframe_anim_counter = 0;
+    data_fd2_shared_rng_seed = 0;
+    *(volatile uint32 *)0x46CuL = 0x00000100uL;        /* stable BIOS tick */
+
+    data_fd2_shared_menu_party_member_count = 5;
+    data_fd2_ui_menu_visible_item_count = 0;
+    data_fd2_dialog_active_portrait_blit_offset = 0x1234;
+    kbd_inject_scancode(0x01);                          /* Esc -> roster cancels */
+
+    fd2_run_status_screen_member_menu();
+
+    /* (a) visible-item count was seeded from the party member count at entry. */
+    ASSERT_EQ((int)data_fd2_ui_menu_visible_item_count, 5);
+    /* (b) the real roster loop reset the cursor to 0; Esc left it there and the
+     *     outer loop broke on sel==-1 after one iteration. */
+    ASSERT_EQ((long)data_fd2_ui_menu_cursor_idx, 0);
+    /* portrait-mode global is not disturbed on the Esc path. */
+    ASSERT_EQ((int)data_fd2_dialog_active_portrait_blit_offset, 0x1234);
+
+    /* the real close fn already free()d all three slide-workspace buffers (the
+     * real roster loop malloc'd them); drop the dangling globals so later suite
+     * tests never reuse a freed pointer. */
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_find_inventory_slot_with_item @ 0x31860
+ *
+ * Searches runtime_char[char_idx] for the first slot index whose item-id
+ * byte equals item_id, iterating only over the per-char usable slot count
+ * from fd2_count_usable_inventory_slots(char_idx) (slots with flag bit 0x80
+ * clear, counted over all 8). Returns the slot index on first match, -1 on
+ * no match or when the usable count is 0. These tests pin: first-match
+ * short-circuit, middle/last-usable indices, the -1 paths (no match, zero
+ * usable count), the load-bearing fact that the scan is BOUNDED by the
+ * usable count (a matching id in a non-usable slot beyond the count is NOT
+ * found), and char_idx indexing into the 0x50-stride array.
+ *
+ * Fixture: g_test_rc_array, wired to data_fd2_battle_runtime_char_array_ptr.
+ * Slot stride is 2 bytes: [s*2] = flag (bit 0x80 = empty), [s*2+1] = item id.
+ * ---------------------------------------------------------------- */
+
+/* Helper: make the first n slots of char ci usable (flag clear) and the
+ * remaining 8-n slots empty (flag 0x80); all item-id bytes start at 0xFF. */
+static void find_slot_setup_usable(int ci, int n)
+{
+    int s;
+    for (s = 0; s < 8; s++) {
+        g_test_rc_array[ci].inventory_slots[s * 2]     = (uint8)(s < n ? 0x00 : 0x80);
+        g_test_rc_array[ci].inventory_slots[s * 2 + 1] = 0xFF;
+    }
+}
+
+/* Match in slot 0 -> returns 0 immediately. */
+static void test_find_slot_match_first(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    find_slot_setup_usable(0, 8);
+    g_test_rc_array[0].inventory_slots[1] = 0x5A;   /* slot 0 item id */
+    ASSERT_EQ(fd2_find_inventory_slot_with_item(0, 0x5A), 0);
+}
+
+/* Match in a middle slot -> iterates past non-matches, returns that index. */
+static void test_find_slot_match_middle(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    find_slot_setup_usable(0, 8);
+    g_test_rc_array[0].inventory_slots[3 * 2 + 1] = 0x12;   /* slot 3 item id */
+    ASSERT_EQ(fd2_find_inventory_slot_with_item(0, 0x12), 3);
+}
+
+/* Match in the last usable slot (index count-1) -> loop boundary. */
+static void test_find_slot_match_last_usable(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    find_slot_setup_usable(0, 5);                            /* usable count = 5 */
+    g_test_rc_array[0].inventory_slots[4 * 2 + 1] = 0x33;   /* slot 4 = last scanned */
+    ASSERT_EQ(fd2_find_inventory_slot_with_item(0, 0x33), 4);
+}
+
+/* No slot holds the item -> -1. */
+static void test_find_slot_no_match(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    find_slot_setup_usable(0, 8);
+    g_test_rc_array[0].inventory_slots[2 * 2 + 1] = 0x10;
+    g_test_rc_array[0].inventory_slots[5 * 2 + 1] = 0x20;
+    ASSERT_EQ(fd2_find_inventory_slot_with_item(0, 0x99), -1);
+}
+
+/* Usable count 0 (all slots empty) -> early-out -1 even if a matching id
+ * sits in an empty slot's item-id byte (the scan never runs). */
+static void test_find_slot_zero_usable_count(void)
+{
+    int s;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    for (s = 0; s < 8; s++) {
+        g_test_rc_array[0].inventory_slots[s * 2]     = 0x80;   /* all empty */
+        g_test_rc_array[0].inventory_slots[s * 2 + 1] = 0x44;   /* would match */
+    }
+    ASSERT_EQ(fd2_find_inventory_slot_with_item(0, 0x44), -1);
+}
+
+/* Scan is bounded by the usable count: a matching id in slot 6, which is
+ * BEYOND the usable count of 3, must NOT be found -> -1. Proves the loop
+ * bound is fd2_count_usable_inventory_slots (3), not a fixed 8. */
+static void test_find_slot_bounded_by_usable_count(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    find_slot_setup_usable(0, 3);                            /* usable count = 3 */
+    g_test_rc_array[0].inventory_slots[6 * 2 + 1] = 0x77;   /* slot 6 holds target */
+    ASSERT_EQ(fd2_find_inventory_slot_with_item(0, 0x77), -1);
+    /* But the same id within the usable range IS found. */
+    g_test_rc_array[0].inventory_slots[2 * 2 + 1] = 0x77;   /* slot 2 holds target */
+    ASSERT_EQ(fd2_find_inventory_slot_with_item(0, 0x77), 2);
+}
+
+/* char_idx indexing: char 3 search must read runtime_char[3], independent of
+ * char 0 (which holds the same id in slot 1 but must not be consulted). */
+static void test_find_slot_char_index_isolation(void)
+{
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    find_slot_setup_usable(0, 8);
+    find_slot_setup_usable(3, 8);
+    g_test_rc_array[0].inventory_slots[1 * 2 + 1] = 0x55;   /* char 0 slot 1 */
+    g_test_rc_array[3].inventory_slots[6 * 2 + 1] = 0x55;   /* char 3 slot 6 */
+    ASSERT_EQ(fd2_find_inventory_slot_with_item(3, 0x55), 6);
+    ASSERT_EQ(fd2_find_inventory_slot_with_item(0, 0x55), 1);
+}
+
 void run_ui_menu_status_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1498,5 +1669,13 @@ void run_ui_menu_status_tests(void)
     RUN_TEST(test_give_item_all_players_full_is_noop);
     RUN_TEST(test_give_item_empty_party_is_noop);
     RUN_TEST(test_give_item_respects_party_count_bound);
+    RUN_TEST(test_status_screen_member_menu_esc_first_exits);
+    RUN_TEST(test_find_slot_match_first);
+    RUN_TEST(test_find_slot_match_middle);
+    RUN_TEST(test_find_slot_match_last_usable);
+    RUN_TEST(test_find_slot_no_match);
+    RUN_TEST(test_find_slot_zero_usable_count);
+    RUN_TEST(test_find_slot_bounded_by_usable_count);
+    RUN_TEST(test_find_slot_char_index_isolation);
     printf("\n");
 }

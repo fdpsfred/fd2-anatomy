@@ -8,6 +8,7 @@
 #include "consts.h"
 #include "globals.h"
 #include "protos.h"
+#include "blitprob.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -736,18 +737,16 @@ static void test_clear_all_chars_acted_zero_count(void)
     data_fd2_battle_party_member_count = 0;
 }
 
-/* recording stub for fd2_tile_blit_24x24_passthrough (defined in testglob.c) */
-extern int    g_blitpass_calls;
-extern uint32 g_blitpass_src[64];
-extern uint32 g_blitpass_dst[64];
-extern uint32 g_blitpass_stride[64];
-
 /* ---- fd2_convert_battle_tiles_to_24px @ 0x1399C ----
- * Build an in-memory battle_scene_snapshot (uint16 tile_count @ +4,
- * int32 offset table @ +6), invoke the converter, and verify the
- * allocated bank header, the zeroed tile region, and every recorded
- * blit's (src, dst, stride) arithmetic. Covers the offset-table index
- * math and the i*0x240+6 dst computation (EAX-bug-prone arithmetic). */
+ * Build an in-memory battle_scene_snapshot (uint16 tile_count @ +4, int32 offset
+ * table @ +6), plant a distinct two-pixel probe sprite at each snapshot offset,
+ * invoke the converter, and read the painted output of the REAL passthrough
+ * blitter out of the allocated bank. Each tile i is blitted from snap+offsets[i]
+ * into bank+i*0x240+6 with stride 0x18, so tile i's probe (value i+1) must paint
+ * at bank+i*0x240+6 (proving the src offset-table index math and the i*0x240+6
+ * dst arithmetic) and again 0x18 bytes later (proving the forwarded stride 0x18).
+ * The only nonzero bytes in the tile region are the probe pixels, which also
+ * confirms the converter's tile-region memset-to-0. */
 static void test_convert_battle_tiles_to_24px(void)
 {
     uint8  *snap;
@@ -755,24 +754,27 @@ static void test_convert_battle_tiles_to_24px(void)
     uint16  tile_count;
     int32   offsets[3];
     int     i;
-    int     j;
+    uint32  region_bytes;
 
     tile_count = 3;
     offsets[0] = 0x100;   /* arbitrary byte offsets into the snapshot */
     offsets[1] = 0x040;
     offsets[2] = 0x200;
 
-    /* snapshot needs >= 6 + 3*4 header bytes plus room past the
-       largest offset; allocate generously */
+    /* snapshot needs >= 6 + 3*4 header bytes plus room past the largest offset
+       for the probe program; allocate generously */
     snap = (uint8 *)malloc(0x400);
     ASSERT_TRUE(snap != NULL);
     memset(snap, 0, 0x400);
     *(uint16 *)(snap + 4) = tile_count;
-    for (i = 0; i < 3; i = i + 1)
+    for (i = 0; i < 3; i = i + 1) {
         *(int32 *)(snap + 6 + i * 4) = offsets[i];
+        /* probe at the sprite the converter resolves for tile i; paints value
+           i+1 at (row0,col0) and (row1,col0) -> 0x18 apart at the dst */
+        bp_probe2(snap + offsets[i], (uint8)(i + 1));
+    }
 
     battle_scene_snapshot = (uint32)snap;
-    g_blitpass_calls = 0;
 
     bank = (uint8 *)fd2_convert_battle_tiles_to_24px();
     ASSERT_TRUE(bank != NULL);
@@ -782,24 +784,23 @@ static void test_convert_battle_tiles_to_24px(void)
     ASSERT_EQ((long)*(uint16 *)(bank + 2), 0x18);
     ASSERT_EQ((long)*(uint16 *)(bank + 4), (long)tile_count);
 
-    /* tile region memset to 0 */
-    for (j = 0; j < (int)(tile_count * 0x240); j = j + 1)
-        ASSERT_EQ((long)bank[6 + j], 0);
-
-    /* one blit per tile, in order, with correct src/dst/stride */
-    ASSERT_EQ((long)g_blitpass_calls, (long)tile_count);
+    /* one blit per tile: tile i's probe paints value i+1 at bank+i*0x240+6 and,
+       a row later (stride 0x18), at bank+i*0x240+6+0x18 */
     for (i = 0; i < (int)tile_count; i = i + 1) {
-        ASSERT_EQ((long)g_blitpass_src[i],
-                  (long)((uint32)snap + offsets[i]));
-        ASSERT_EQ((long)g_blitpass_dst[i],
-                  (long)((uint32)bank + i * 0x240 + 6));
-        ASSERT_EQ((long)g_blitpass_stride[i], 0x18);
+        ASSERT_EQ((long)bank[i * 0x240 + 6],        (long)(i + 1));
+        ASSERT_EQ((long)bank[i * 0x240 + 6 + 0x18], (long)(i + 1));
     }
+
+    /* the tile region (past the 6-byte header) is memset to 0 except for the 2
+       probe pixels per tile: exactly tile_count*2 nonzero bytes confirms the
+       memset + that no extra blits painted */
+    region_bytes = (uint32)tile_count * 0x240u;
+    ASSERT_EQ((long)bp_count_painted(bank + 6, region_bytes),
+              (long)(tile_count * 2));
 
     free(bank);
     free(snap);
     battle_scene_snapshot = 0;
-    g_blitpass_calls = 0;
 }
 
 
