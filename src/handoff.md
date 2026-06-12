@@ -54,7 +54,7 @@ source、寫 unit test、build gate + 獨立 reviewer 三源復驗、per-functio
 
 - **merge 3（`integ` ← `emit-p4`）：完成** — commit `bed6602`（parents `98a6aaa` + `483c37a`）。p4 帶入 71 個
   已完成 function；22 個 coordinated-landing function（1 crt + 19 blitspr + 2 pathfnd）維持 `done=false` 留 Phase
-  2.5。要點：(a) p4 把 base 版測試檔 split 成 `anicomb1/2/3.c`，與 p2 的 silhouette-probe migration 三方
+  2.5（crt 已於 Unit C 改 link_vendor_lib 落地，剩 21）。要點：(a) p4 把 base 版測試檔 split 成 `anicomb1/2/3.c`，與 p2 的 silhouette-probe migration 三方
   reconcile；`fd2_check_char_is_dead`／`fd2_blit_indexed_sprite`／`fd2_setup_chars_and_camera_for_intro` 三個 stub
   合併兩 branch 的 recording 行為到同一份。(b) 跨 branch 簽名衝突依 Ghidra body 真型別收斂：
   `fd2_load_chapter_party_roster` out_buf→`uint8 *`（rsrc.c def + proto；使用者核准）、
@@ -70,7 +70,7 @@ source、寫 unit test、build gate + 獨立 reviewer 三源復驗、per-functio
   build_test.py 解析 build.out 的 Watcom 編譯 warning；link 階段的 **W1027 redefinition** 是 cascade 期間
   stub+real 並存、real 勝出的預期產物，**不計入 `warning_count`**、合法留存）。**merge 階段完全不追
   run-green、不為 hang/fail 去 skip 測試、不陷進任何單一 cinematic 測試的修復**。理由：等所有 branch 都
-  merge 完，預期所有 fake/stub/spy 都被 real function 取代（除 p4 那 22 個 coordinated function，見 §4），
+  merge 完，預期所有 fake/stub/spy 都被 real function 取代（除 p4 那批 coordinated function，見 §4），
   **屆時才開「系統性修復階段」**——一次性恢復所有已 skip 的測試 + 連同所有 merged 測試實際跑起來 + 系統性
   修復全部。merge 階段某測試 skip 與否、run 會不會 hang，**都不影響 commit gate**。
 - **src/ 鐵則（使用者定，強化）**：每個 merge **絕不更動 src/ 下的 code**；變動的 `src/*.c` 必須
@@ -164,8 +164,8 @@ source、寫 unit test、build gate + 獨立 reviewer 三源復驗、per-functio
 
 ## 2. 整體路線
 
-`A. 並行 emit（完成）→ B. merge cascade（Phase 2，進行中）→ C. coordinated landings（Phase 2.5，
-22 個）→ D. review-mode 復驗（Phase 2.6）→ E. 收斂 main（Phase 3）`。之後才是完整 `fd2.exe` 的
+`A. 並行 emit（完成）→ B. merge cascade（Phase 2，完成）→ C. coordinated landings（Phase 2.5，
+剩 21 個，Unit C cstart 已 link 落地）→ D. review-mode 復驗（Phase 2.6）→ E. 收斂 main（Phase 3）`。之後才是完整 `fd2.exe` 的
 data emit（~1300 items）+ wlink 整合（`src/*.obj` + Watcom CLIB3S + AIL lib → LE）+ Layer-1
 DOSBox playtest 對比；規格見 `rebuild_info/emission/`。
 
