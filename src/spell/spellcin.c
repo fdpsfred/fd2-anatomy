@@ -1116,7 +1116,7 @@ void fd2_execute_special_attack_skill(uint32 caster_idx, uint32 spell_id,
         (uint32)caster_char->pos_y, (uint32)tile_attr_buf);
     tile_attr_byte = tile_attr_buf[6];
     resolved_terrain =
-        fd2_resolve_terrain_for_aoe_targets(n_targets, (uint32)target_idx_buf);
+        fd2_resolve_terrain_for_aoe_targets(n_targets, (uint8 *)target_idx_buf);
 
     pBg_layer = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_bg_dat_52381,
@@ -1176,8 +1176,8 @@ void fd2_execute_special_attack_skill(uint32 caster_idx, uint32 spell_id,
     fd2_play_char_intro_zoom_anim(caster_idx, (uint32)(spell_id != 0x1c),
         pCaster_figani_a, target_figani_arr[0], pAnimWorkBuf2, pAnimWorkBuf1,
         pTai_resource);
-    fd2_play_figani_animation_loop(caster_idx, spell_id, pCaster_figani_b,
-        target_figani_arr[0], pAnimWorkBuf2, pAnimWorkBuf1, pBg_layer_saved,
+    fd2_play_figani_animation_loop(caster_idx, spell_id, (uint8 *)pCaster_figani_b,
+        (uint8 *)target_figani_arr[0], pAnimWorkBuf2, pAnimWorkBuf1, pBg_layer_saved,
         pTai_resource);
 
     for (i = 0; i < n_targets; i++) {
@@ -1434,8 +1434,8 @@ void fd2_execute_summon_spell_cast(uint32 caster_idx, uint32 spell_id,
     /* Phase 1 — caster cast pose. */
     fd2_play_char_intro_zoom_anim(caster_idx, 1, pCaster_figani_a, 0,
         pWorkbuf_64k, (int)pCaster_figani, pTai_resource);
-    fd2_play_figani_animation_loop(caster_idx, spell_id, pCaster_figani_b,
-        pCaster_figani_b, pWorkbuf_64k, pCaster_figani, pBg_layer,
+    fd2_play_figani_animation_loop(caster_idx, spell_id, (uint8 *)pCaster_figani_b,
+        (uint8 *)pCaster_figani_b, pWorkbuf_64k, pCaster_figani, pBg_layer,
         pTai_resource);
     fd2_wait_n_bios_ticks(6);
 

@@ -28,7 +28,7 @@ header:
 
 per pose entry:
   byte +4   type                 (1 = spell-cast frame，會觸發 deduct_caster_mp + flash)
-  byte +5   sfx_hook_id          (0 = 無 sfx；非 0 = 從 special_attack_sfx_bank 取索引)
+  byte +5   sfx_hook_id          (0 = 無 sfx；非 0 = 從 data_fd2_audio_figani_sfx_bank_buf_ptr 取索引)
   byte +6   sub_frame_count
   byte +8.. sub-frame data       (sprite indices for 動畫子幀)
 ```

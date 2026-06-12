@@ -7,6 +7,7 @@
 #include "globals.h"
 #include "protos.h"
 #include <string.h>
+#include <math.h>
 
 /* ----------------------------------------------------------------
  * fd2_tick_sprite_animation_step @ 0x2673F
@@ -768,6 +769,212 @@ int fd2_tick_summon_spell_setup_pre_animation_8slot(
                 == 9)
                 done_flag = 1;
         }
+        return done_flag;
+    }
+
+    return 0;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_tick_summon_anim_variant_c_5slot_radial @ 0x26E39  (0 callers)
+ *
+ * Variant-C 5-slot summon animation that places sprites at radial
+ * positions computed via sin/cos. Dispatch table entry #6 at 0x523B9;
+ * no direct CALL xrefs (invoked indirectly via that table).
+ *
+ * Per-slot angle = i * 0x48 (degrees) * pi/180 (single-precision float
+ * 0x3C8EFA2D), promoted to double for cos/sin.
+ *   x_coord[i] = round(sweep + angle_accumulator * cos(angle_rad))
+ *   y_coord[i] = round(angle_accumulator * sin(angle_rad) * 1.2 + 30.0)
+ * sweep = 0x1E (player/ally) or 0x5A (enemy, with first-3 offsets negated).
+ *
+ * The local copies (offs[], byte_offs[]) come from the rodata tables at
+ * 0x524F8 / 0x5250C and are used only as the state-4/5 per-frame sprite
+ * displacement, indexed by the current frame value.
+ * ---------------------------------------------------------------- */
+int fd2_tick_summon_anim_variant_c_5slot_radial(
+    uint32 caster_unit_id, uint32 sprite_handle,
+    uint32 origin_y, uint32 row_stride, uint32 state_code)
+{
+    union { uint32 u; float f; } pi180;
+    int32 offs[5];
+    uint8 byte_offs[5];
+    int i;
+    int done_flag;
+    uint8 sweep;
+    uint8 team;
+    double angle_rad;
+    uint32 acc;
+
+    pi180.u = 0x3c8efa2d;       /* (float) pi/180, exact binary constant */
+    done_flag = 0;
+    memcpy(offs, data_fd2_animation_summon_variant_c_radial_5slot_offsets, 20);
+    memcpy(byte_offs,
+           data_fd2_animation_summon_variant_c_radial_5slot_byte_offsets, 5);
+    sweep = 0x1e;
+
+    team = ((uint8 *)data_fd2_battle_runtime_char_array_ptr
+            + caster_unit_id * RUNTIME_CHAR_SIZE)[6];
+    if (team == 0) {
+        sweep = 0x5a;
+        for (i = 0; i < 3; i++) {
+            offs[i] = -offs[i];
+            byte_offs[i] = 0;
+        }
+    }
+
+    if (state_code == 0) {
+        fd2_play_sfx_with_handle(
+            data_fd2_audio_summon_spell_sfx_bank_buf_ptr, 2, 1);
+        data_fd2_battle_summon_anim_variant_c_angle_accumulator = 0;
+        data_fd2_battle_summon_anim_variant_c_swap_done_latch = 0;
+        return 7;
+    }
+
+    if (state_code == 3) {
+        if (data_fd2_battle_summon_anim_variant_c_swap_done_latch == 0) {
+            int x2;
+            x2 = data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[2];
+            for (i = 0; i < 5; i++) {
+                data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[i]
+                    = -i;
+                data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[i]
+                    = 0;
+            }
+            data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[2] =
+                data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[4];
+            data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[4] = x2;
+            data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[2] =
+                data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[4];
+            data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[4] =
+                (int32)data_fd2_battle_summon_anim_variant_c_angle_accumulator;
+            data_fd2_battle_summon_anim_variant_c_swap_done_latch = 1;
+        }
+        return 0xc;
+    }
+
+    if (state_code == 6) {
+        fd2_play_sfx_with_handle(
+            data_fd2_audio_summon_spell_sfx_bank_buf_ptr, 3, 1);
+        data_fd2_battle_summon_anim_variant_c_angle_accumulator = 0x2a;
+        return 7;
+    }
+
+    if (state_code == 1 || state_code == 2 ||
+        state_code == 7 || state_code == 8) {
+        for (i = 0; i < 5; i++) {
+            int coord;
+
+            angle_rad = (double)((float)(i * 0x48) * pi180.f);
+            data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[i] =
+                (int)((double)(int)sweep
+                      + (double)data_fd2_battle_summon_anim_variant_c_angle_accumulator
+                        * cos(angle_rad));
+            data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[i] =
+                (int)((double)data_fd2_battle_summon_anim_variant_c_angle_accumulator
+                      * sin(angle_rad)
+                      * data_fd2_animation_summon_radial_angle_step_12
+                      + data_fd2_animation_summon_radial_radius_30);
+
+            if (team == 0) {
+                if (state_code == 2 || state_code == 8) {
+                    coord = data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[i]
+                            * (int)row_stride + (int)origin_y
+                            + data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[i];
+                    fd2_blit_indexed_sprite(
+                        sprite_handle, 4, coord, (int)row_stride, -1);
+                }
+            } else if ((((state_code == 1) || (state_code == 7)) && i < 2) ||
+                       (((state_code == 2) || (state_code == 8)) && i > 1)) {
+                coord = data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[i]
+                        + data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[i]
+                          * (int)row_stride + (int)origin_y;
+                fd2_blit_indexed_sprite(
+                    sprite_handle, 4, coord, (int)row_stride, -1);
+            }
+        }
+
+        if (state_code == 2)
+            data_fd2_battle_summon_anim_variant_c_angle_accumulator += 6;
+        else if (state_code == 8)
+            data_fd2_battle_summon_anim_variant_c_angle_accumulator -= 6;
+
+        return 0;
+    }
+
+    if (state_code == 4 || state_code == 5) {
+        for (i = 0; i < 5; i++) {
+            if (data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[i]
+                < 0) {
+                data_fd2_battle_summon_anim_variant_c_angle_accumulator = 4;
+            } else {
+                data_fd2_battle_summon_anim_variant_c_angle_accumulator =
+                    (uint8)data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[i];
+            }
+            if (data_fd2_battle_summon_anim_variant_c_angle_accumulator == 1)
+                data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[i]
+                    = 5;
+
+            if (team == 0) {
+                if (state_code != 5)
+                    continue;
+            } else if (!(((state_code == 4) && i < 2) ||
+                         ((state_code == 5) && i > 1))) {
+                continue;
+            }
+
+            acc = (uint32)data_fd2_battle_summon_anim_variant_c_angle_accumulator;
+            fd2_blit_indexed_sprite(
+                sprite_handle, acc,
+                ((int)(uint32)byte_offs[acc]
+                 + data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[i])
+                    * (int)row_stride + (int)origin_y
+                + data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[i]
+                + offs[acc],
+                (int)row_stride, -1);
+        }
+
+        if (state_code == 5) {
+            for (i = 0; i < 5; i++) {
+                if (data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[i]
+                    != 0) {
+                    fd2_blit_indexed_sprite(
+                        sprite_handle,
+                        (uint32)data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[i],
+                        (data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[i]
+                         + (data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[i]
+                            - 0x14) * (int)row_stride + (int)origin_y) - 0x3c,
+                        (int)row_stride, -1);
+                    data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[i]++;
+                    if (data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[i]
+                        == 10)
+                        data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[i]
+                            = 0;
+                }
+
+                if (data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[i]
+                    == 0) {
+                    if (i == 0 || i == 2)
+                        fd2_play_sfx_with_handle(
+                            data_fd2_audio_summon_spell_sfx_bank_buf_ptr,
+                            1, 1);
+                    else if (i != 5)
+                        fd2_play_sfx_sample_from_bank(
+                            data_fd2_audio_summon_spell_sfx_bank_buf_ptr,
+                            1, 1);
+                }
+
+                data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[i]++;
+                if (data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[i]
+                    == 5)
+                    data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[i]
+                        = 0;
+                if (data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[i]
+                    == 2)
+                    done_flag = 1;
+            }
+        }
+
         return done_flag;
     }
 

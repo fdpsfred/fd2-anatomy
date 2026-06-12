@@ -567,7 +567,7 @@ void fd2_play_spell_cast_sequence(uint32 caster_idx, uint32 spell_id,
         uint32 resolved_terrain;
         resolved_terrain =
             (uint32)fd2_resolve_terrain_for_aoe_targets((int)target_count,
-                                                        target_ids_arg);
+                                                        (uint8 *)target_ids_arg);
         tai_idx = cinematic_mode;
         bg_idx = resolved_terrain;
         if (caster->team == 0) {
@@ -627,8 +627,9 @@ void fd2_play_spell_cast_sequence(uint32 caster_idx, uint32 spell_id,
 
     fd2_play_char_intro_zoom_anim(caster_idx, 0, caster_figani_a, figani_buf[0],
                                   (uint32)work, (uint32)backbuf, tai_resource);
-    fd2_play_figani_animation_loop(caster_idx, spell_id, caster_figani_b, figani_buf[0],
-                                   (uint32)work, (uint32)backbuf, bg_resource, tai_resource);
+    fd2_play_figani_animation_loop(caster_idx, spell_id, (uint8 *)caster_figani_b,
+                                   (uint8 *)figani_buf[0], (uint32)work, (uint32)backbuf,
+                                   bg_resource, tai_resource);
 
     /* pre-cast slide-in (spell_id == 9 only) */
     if (spell_id == 9) {
@@ -792,8 +793,8 @@ void fd2_play_spell_cast_sequence(uint32 caster_idx, uint32 spell_id,
         shine_remap = *(int32 *)(data_fd2_tile_anim_table_base + 6 +
                                  (shine_table_offset + i) * 4) +
                       (int32)data_fd2_tile_anim_table_base;
-        fd2_rle_blit_with_palette_remap(bg_resource, 0, 0x32, (uint32)backbuf, 0x140, shine_remap);
-        fd2_rle_blit_with_palette_remap(tai_resource, 0xa4, 0x9d, (uint32)backbuf, 0x140, shine_remap);
+        fd2_rle_blit_with_palette_remap((uint16 *)bg_resource, 0, 0x32, (uint32)backbuf, 0x140, shine_remap);
+        fd2_rle_blit_with_palette_remap((uint16 *)tai_resource, 0xa4, 0x9d, (uint32)backbuf, 0x140, shine_remap);
         fd2_blit_indexed_sprite(caster_figani_b, 0, (int)(uint32)work, 0x140, -1);
         fd2_step_figani_pose_animation(figani_buf[target_count - 1], 0xffffffff,
                                        (uint32)work, 0x140);

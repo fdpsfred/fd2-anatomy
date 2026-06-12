@@ -15,6 +15,8 @@ void test_print_summary(void)
 
 /* Forward declarations for test suites */
 /* >>> GENBUILD externs >>> */
+extern void run_anim_anicine1_tests(void);
+extern void run_anim_anicine2_tests(void);
 extern void run_anim_anicombt_tests(void);
 extern void run_anim_anidec_tests(void);
 extern void run_anim_anispell_tests(void);
@@ -47,6 +49,8 @@ extern void run_field_chevt24_tests(void);
 extern void run_field_chevt25_tests(void);
 extern void run_field_chevt26_tests(void);
 extern void run_field_chevt27_tests(void);
+extern void run_field_chinit_tests(void);
+extern void run_field_chpost_tests(void);
 extern void run_field_chtrans_tests(void);
 extern void run_gfx_blitspr_tests(void);
 extern void run_gfx_blittile1_tests(void);
@@ -62,7 +66,8 @@ extern void run_rsrc_rsrc_tests(void);
 extern void run_save_save_tests(void);
 extern void run_spell_spell_tests(void);
 extern void run_spell_spellcin_tests(void);
-extern void run_spell_spelleff_tests(void);
+extern void run_spell_spelleff1_tests(void);
+extern void run_spell_spelleff2_tests(void);
 extern void run_spell_spellsel_tests(void);
 extern void run_table_table_tests(void);
 extern void run_ui_menu_chintro_tests(void);
@@ -71,6 +76,8 @@ extern void run_ui_menu_menu_tests(void);
 extern void run_ui_menu_menucfg_tests(void);
 extern void run_ui_menu_menufld_tests(void);
 extern void run_ui_menu_promote_tests(void);
+extern void run_ui_menu_shop1_tests(void);
+extern void run_ui_menu_shop2_tests(void);
 extern void run_ui_menu_status_tests(void);
 extern void run_util_misc_tests(void);
 extern void run_util_pathfnd_tests(void);
@@ -82,6 +89,8 @@ int main(void)
     printf("========================================\n\n");
 
     /* >>> GENBUILD calls >>> */
+    run_anim_anicine1_tests();
+    run_anim_anicine2_tests();
     run_anim_anicombt_tests();
     run_anim_anidec_tests();
     run_anim_anispell_tests();
@@ -114,6 +123,8 @@ int main(void)
     run_field_chevt25_tests();
     run_field_chevt26_tests();
     run_field_chevt27_tests();
+    run_field_chinit_tests();
+    run_field_chpost_tests();
     run_field_chtrans_tests();
     run_gfx_blitspr_tests();
     run_gfx_blittile1_tests();
@@ -129,7 +140,8 @@ int main(void)
     run_save_save_tests();
     run_spell_spell_tests();
     run_spell_spellcin_tests();
-    run_spell_spelleff_tests();
+    run_spell_spelleff1_tests();
+    run_spell_spelleff2_tests();
     run_spell_spellsel_tests();
     run_table_table_tests();
     run_ui_menu_chintro_tests();
@@ -138,6 +150,8 @@ int main(void)
     run_ui_menu_menucfg_tests();
     run_ui_menu_menufld_tests();
     run_ui_menu_promote_tests();
+    run_ui_menu_shop1_tests();
+    run_ui_menu_shop2_tests();
     run_ui_menu_status_tests();
     run_util_misc_tests();
     run_util_pathfnd_tests();

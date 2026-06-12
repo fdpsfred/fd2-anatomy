@@ -47,6 +47,7 @@ int fd2_execute_attack_damage_calculation(int attacker_idx, int defender_idx);
 void fd2_read_tile_attribute_at_pos(uint32 x, uint32 y, uint32 buf_ptr);
 void fd2_face_char_toward_target(uint32 actor_idx, uint32 target_idx);
 int fd2_check_char_status_immunity(uint32 char_idx);
+char fd2_resolve_terrain_for_aoe_targets(int n_chars, uint8 *target_byte_array);
 int fd2_find_char_at_cursor_pos(void);
 int fd2_find_char_by_id_or_template(uint32 char_id);
 int fd2_game_main_loop(void);
@@ -63,6 +64,7 @@ int fd2_player_action_menu_loop(uint32 char_idx);
 int fd2_player_inline_action_menu_dispatch(int char_idx,
     int32 *pSlot_disable_arr, int have_moved);
 int fd2_spell_selection_menu_main(uint32 caster_idx);
+int fd2_spell_select_input_loop(uint32 caster_idx);
 int fd2_item_command_menu_dispatch(uint32 char_idx);
 void fd2_handle_tile_event_interaction(uint32 char_idx);
 void fd2_open_char_status_screen(uint32 char_idx);
@@ -117,7 +119,9 @@ void fd2_spell_handler_id_27_via_status_d1b_effect_26(int, int, int);
 void fd2_cast_spell_17_complex(uint32, uint32, uint32);
 /* spell worker forward decls */
 void fd2_execute_offensive_targeted_spell(int, int, int, int);
+void fd2_execute_offensive_targeted_spell_variant_b(int, int, int, int);
 void fd2_execute_offensive_full_screen_flash_spell(int, int, int, int);
+void fd2_execute_offensive_single_target_spell_id_9(int, int, uint8 *);
 void fd2_cast_earthquake_spell_with_screen_shake(uint32, uint32, uint32, uint8 *);
 void fd2_dispatch_variant_b_cast(int, int, int, int);
 void fd2_apply_status_effect_with_anim(int, int, int, int, int);
@@ -125,6 +129,7 @@ void fd2_cast_status_spell_via_d1b(int, int, int, int, int);
 void fd2_cast_ap_boost_spell(int, int, uint8 *);
 void fd2_cast_dp_boost_spell(int, int, uint32);
 void fd2_cast_speed_boost_spell(uint32, uint32, uint32);
+void fd2_execute_status_clear_holy_word_spell_id_25(int, int, uint8 *);
 void fd2_animate_spell_impact_per_target(uint32, uint32, uint32, uint32);
 void fd2_animate_status_effect_overlay_flicker(uint32, uint32, uint32, uint32);
 void fd2_animate_spell_full_screen_flash(uint32, uint32, uint32, uint32);
@@ -163,16 +168,13 @@ void fd2_cast_screen_wide_spell_with_fade(uint32, uint32, uint32, int);
 void fd2_execute_special_attack_skill(uint32 caster_idx, uint32 spell_id, int n_targets, uint8 *target_idx_buf);
 void fd2_execute_summon_spell_cast(uint32 caster_idx, uint32 spell_id, uint32 n_targets, int target_id_array);
 uint32 fd2_load_figani_sfx_bank(uint32 figani_data);
-uint8 fd2_resolve_terrain_for_aoe_targets(int n_chars, uint32 target_byte_array);
-void fd2_step_figani_pose_animation(uint32 figani_data, uint32 palette_op, uint32 dst_buf, uint32 dst_stride);
 void fd2_animate_bg_zoom_transition_in(uint32 char_unit_id, uint32 char_sprite_idx, uint32 clear_buf, uint32 workspace, uint32 caster_figani);
 void fd2_animate_bg_zoom_transition_out(uint32 char_unit_id, uint32 char_sprite_idx, uint32 terrain_bg, uint32 clear_buf, uint32 workspace, uint32 name_banner_sprite);
 void fd2_play_spell_cast_cinematic(uint32 caster_char_idx, uint32 spell_id);
 void fd2_cycle_sprite_anim_with_bg_frames(uint32 sprite_atlas, uint32 workspace, uint32 iter_count);
 void fd2_play_char_intro_zoom_anim(uint32 caster_idx, uint32 mode_flag, uint32 caster_figani_a, uint32 target_figani0, uint32 workbuf2, uint32 workbuf1, uint32 tai_resource);
-void fd2_play_figani_animation_loop(uint32 caster_idx, uint32 spell_id, uint32 caster_figani_b, uint32 target_figani0, uint32 workbuf2, uint32 workbuf1, uint32 bg_layer_saved, uint32 tai_resource);
-void fd2_animate_spell_hit_cinematic(uint32 caster_idx, uint32 caster_sprite, uint32 caster_figani_b, uint32 target_figani_cur, uint32 work_buf, uint32 backbuf, uint32 target_figani_next, uint32 spell_id);
 void fd2_restore_portrait_cache_from_tmp(void);
+void fd2_cinematic_warp_char_to_tile(uint32 char_id, uint32 tile_x, uint32 tile_y);
 
 /* ---- cursor + pan ---- */
 void fd2_cursor_move_up(void);
@@ -196,11 +198,23 @@ void fd2_apply_palette_remap_run(uint32 remap_table, uint32 byte_count, uint8 *b
 void fd2_fill_palette_blink_pattern_6byte(int input_index, uint32 output_buffer_addr);
 void fd2_tick_chapter_palette_animation(void);
 void fd2_update_palette_cycle_anim(void);
+void fd2_animate_palette_flash_pulse_white(void);
 
 /* ---- ui_menu / status ---- */
+void fd2_open_shop_dialog_panel(uint32 item_count, uint8 *item_id_array, uint32 sell_mode_flag);
+int  fd2_shop_menu_input_loop(uint32 item_count, uint8 *item_id_array, uint32 sell_mode_flag);
+uint32 fd2_pick_stat_compare_color(int current_stat, int preview_stat);
+void fd2_run_buy_item_menu(uint32 shop_item_count, uint8 *shop_item_id_array);
+void fd2_run_sell_item_menu(void);
+void fd2_run_equip_member_menu(void);
+void fd2_run_give_item_menu(void);
+int  fd2_party_roster_class_select_loop(uint32 candidate_count, uint32 candidate_array_ptr, uint32 item_id);
+int  fd2_party_roster_single_select_loop(void);
+void fd2_animate_shop_transaction_feedback(void);
+void fd2_animate_scroll_up_in_shop_dialog(void);
+void fd2_animate_scroll_down_in_shop_dialog(void);
 void fd2_equip_unequip_inventory_menu(uint32 char_idx);
 void fd2_compute_equipped_stats_with_item_preview(uint32 char_idx, uint32 item_id, uint32 stats_out_ptr);
-uint32 fd2_pick_stat_compare_color(int32 current_stat, int32 preview_stat);
 void fd2_open_party_status_overview_screen(void);
 void fd2_render_party_status_overview_content(uint32 dst_surface, uint32 stride);
 int fd2_count_active_chars_for_team_filter(uint32 team);
@@ -208,6 +222,61 @@ uint32 fd2_check_party_has_char_id(uint32 char_id);
 
 /* ---- field cutscene ---- */
 void fd2_cutscene_event_trigger(uint32 event_id);
+void fd2_setup_chars_and_camera_for_intro(uint32 pX_byte_array,
+                                          uint32 pY_byte_array,
+                                          uint32 sprite_facing_fixed_or_array,
+                                          int char_start, int char_end,
+                                          uint32 extra_char_idx,
+                                          int extra_x, int extra_y,
+                                          int extra_facing,
+                                          int origin_x, int origin_y);
+
+/* ---- chapter post-action handlers ---- */
+void fd2_chapter_02_post_action(uint32 event_arg);
+void fd2_chapter_10_post_action(uint32 event_arg);
+void fd2_chapter_12_post_action(uint32 event_arg);
+void fd2_chapter_13_post_action(uint32 event_arg);
+void fd2_chapter_15_post_action(uint32 event_arg);
+void fd2_chapter_16_post_action(uint32 event_arg);
+void fd2_chapter_17_post_action(uint32 event_arg);
+void fd2_chapter_18_post_action(uint32 event_arg);
+void fd2_chapter_19_post_action(uint32 event_arg);
+void fd2_chapter_20_post_action(uint32 event_arg);
+void fd2_chapter_21_post_action(uint32 event_arg);
+void fd2_chapter_22_27_28_post_action_shared(uint32 event_arg);
+void fd2_chapter_23_post_action(uint32 event_arg);
+void fd2_chapter_25_post_action(uint32 event_arg);
+void fd2_chapter_26_post_action(uint32 event_arg);
+void fd2_chapter_29_post_action(uint32 event_arg);
+void fd2_chapter_30_post_action(uint32 event_arg);
+
+/* ---- chapter init handlers ---- */
+void fd2_chapter_01_init(void);
+void fd2_chapter_02_init(void);
+void fd2_chapter_03_init(void);
+void fd2_chapter_04_init(void);
+void fd2_chapter_05_init(void);
+void fd2_chapter_06_init(void);
+void fd2_chapter_07_init(void);
+void fd2_chapter_08_init(void);
+void fd2_chapter_09_init(void);
+void fd2_chapter_10_init(void);
+void fd2_chapter_11_init(void);
+void fd2_chapter_12_init(void);
+void fd2_chapter_13_init(void);
+void fd2_chapter_14_init(void);
+void fd2_chapter_16_init(void);
+void fd2_chapter_17_init(void);
+void fd2_chapter_18_init(void);
+void fd2_chapter_19_20_21_init_shared(void);
+void fd2_chapter_22_init(void);
+void fd2_chapter_24_init(void);
+void fd2_chapter_25_init(void);
+void fd2_chapter_26_init(void);
+void fd2_chapter_27_init(void);
+void fd2_chapter_28_init(void);
+void fd2_chapter_29_init(void);
+void fd2_chapter_30_init(void);
 
 /* ---- chapter end handlers ---- */
 void fd2_chapter_20_end(void);
@@ -272,12 +341,6 @@ void fd2_chapter_event_handler_2c__ch19_ai_ctrl(uint32 event_arg);
 void fd2_chapter_event_handler_2d__ch19_ai_ctrl(uint32 event_arg);
 void fd2_chapter_event_handler_2e__ch19_reinforcement(uint32 event_arg);
 
-void fd2_setup_chars_and_camera_for_intro(uint32 pos_x_table, uint32 pos_y_table,
-                                          uint32 facing_table, uint32 place_start,
-                                          uint32 place_end, uint32 scene2_char_idx,
-                                          uint32 scene2_pos_x, uint32 scene2_pos_y,
-                                          uint32 scene2_facing, uint32 camera_world_x,
-                                          uint32 camera_world_y);
 void fd2_play_chapter_intro_sprite_slideshow(void);
 void fd2_play_game_ending_cinematic(void);
 int fd2_any_char_has_item(int item_id);
@@ -343,6 +406,11 @@ void fd2_walk_step_up(uint32 char_idx);
 void fd2_walk_step_right(uint32 char_idx);
 void fd2_walk_path_animation_loop(uint32 char_idx, uint32 path_buf, uint32 step_count);
 void fd2_tick_tutorial_progress_with_sfx(uint32 char_idx);
+void fd2_animate_screen_shake(uint32 num_frames);
+void fd2_animate_money_increment(uint32 delta);
+void fd2_animate_money_decrement(uint32 delta);
+void fd2_animate_tutorial_dialog_intro_or_outro(uint32 open_or_close);
+void fd2_animate_party_addition_with_appear_effect(uint32 target_race_id);
 void fd2_slide_panel_step_left_main(uint32 src_buffer, uint32 frame_idx);
 void fd2_slide_panel_step_right_main(uint32 src_buffer, uint32 frame_idx);
 void fd2_slide_panel_step_top_small(uint32 src_buffer, uint32 frame_idx);
@@ -358,6 +426,8 @@ void fd2_render_status_screen_static_layout(uint32 char_idx, uint32 overlay_buff
 void fd2_render_full_char_stat_panel(uint32 char_idx, uint32 overlay_buffer);
 void fd2_render_inventory_item_grid(uint32 char_idx, int highlight_slot, uint32 dst_buf);
 void fd2_draw_spell_selection_list(uint32 char_idx, uint32 spell_idx, uint32 overlay_buffer);
+void fd2_display_cinematic_image_with_fade(uint32 image1_idx, uint32 palette_idx,
+                                           uint32 src_x_off, int32 row_idx);
 void fd2_tick_sprite_animation_step(uint8 *p_frame_idx, uint8 *p_tick, int x, int y, uint32 atlas);
 void fd2_blit_indexed_sprite(uint32 atlas, uint32 frame_idx, int x, int y, int mode);
 void fd2_ani_decoder_set_target_buffer(uint16 width, uint32 dst_buf, uint32 src_buf);
@@ -386,19 +456,43 @@ int fd2_ai_walk_to_target_tile(uint32 tx, uint32 ty, uint32 ci, uint32 team);
 int fd2_ai_score_physical_attack(uint32 char_idx, uint32 team);
 int fd2_execute_ai_offensive_spell(uint32 char_idx, uint32 team);
 void fd2_play_spell_cast_sequence(uint32 ci, uint32 si, uint32 nt, uint32 tb);
+void fd2_play_spell_palette_flash_with_sfx(int pattern_id);
 int fd2_execute_ai_physical_attack(uint32 char_idx, uint32 team);
 uint32 fd2_animate_combat_speech_bubbles(uint32 ci, uint32 ti);
 void fd2_render_combatant_hp_bar_proportional(uint32 d, uint32 s, uint32 ci, uint32 st);
 int fd2_animate_combat_hit_with_hp_drain(uint32 a, uint32 d, uint32 st);
 void fd2_render_combat_combatant_panels(uint32 st, uint32 a, uint32 d);
 void fd2_play_full_combat_cinematic(uint32 a, uint32 d);
+int fd2_execute_combat_hit_cinematic(uint32 attacker_idx, uint32 defender_idx,
+    uint32 figani_anim, uint32 silhouette, uint32 workbuf, uint32 dst,
+    uint32 banner, uint32 sfx_bank);
+void fd2_animate_bg_zoom_transition_in(uint32 char_idx, uint32 figani,
+    uint32 framebuffer, uint32 workspace, uint32 bg_buf);
+void fd2_animate_bg_zoom_transition_out(uint32 char_idx, uint32 figani,
+    uint32 name_banner, uint32 framebuffer, uint32 workspace, uint32 bg_buf);
 void fd2_process_xp_and_level_up_for_char(uint32 ci);
 int fd2_roll_stat_gain_and_show_message(short *stat_ptr, uint8 *growth_pair_ptr, uint32 dialog_text_id, int row_idx);
 int fd2_count_usable_inventory_slots(uint32 ci);
 int fd2_build_usable_spell_list(uint32 ci, uint32 buf);
+void fd2_grant_spell_to_char(uint32 char_idx, uint32 spell_id);
 int fd2_score_spell_candidate(uint32 si, uint32 nt, uint32 tb);
 void fd2_execute_ai_item_use(uint32 char_idx, uint32 ctx);
 void fd2_play_figani_char_intro_animation(uint32 char_idx);
+void fd2_play_char_intro_zoom_anim(uint32 char_unit_id, uint32 mode_flag,
+                                   uint32 char_sprite, uint32 char_sprite2,
+                                   uint32 workspace, uint32 bg_sprite,
+                                   uint32 weapon_sprite);
+void fd2_play_figani_animation_loop(uint32 caster_idx, uint32 spell_id,
+                                    uint8 *caster_figani, uint8 *target_figani,
+                                    uint32 workspace, uint32 dst_buf,
+                                    uint32 bg_layer_a, uint32 bg_layer_b);
+void fd2_step_figani_pose_animation(uint32 figani_data, uint32 palette_op,
+                                    uint32 dst_buf, uint32 dst_stride);
+void fd2_animate_spell_hit_cinematic(uint32 attacker_idx, uint32 dispatch_sprite_atlas,
+                                     uint32 spell_sprite_atlas, int caster_sprite_atlas,
+                                     uint32 base_workspace_offset, uint32 bg_workbuf,
+                                     int hit_effect_sprite, int spell_type_idx);
+uint32 fd2_load_figani_sfx_bank(uint32 figani_data);
 void fd2_apply_use_effect_dispatch(uint32 ci, uint32 sl, uint32 n, uint32 buf);
 void fd2_clear_all_chars_facing(void);
 void fd2_clear_all_chars_acted_flag(void);
@@ -431,6 +525,7 @@ int fd2_tick_summon_anim_variant_b_6slot(uint32 ci, uint32 sh, uint32 oy, uint32
 int fd2_tick_summon_spell_animation_state(uint32 ci, uint32 sh, uint32 oy, uint32 rs, uint32 sc);
 int fd2_tick_summon_spell_main_animation_state(uint32 ci, uint32 sh, uint32 oy, uint32 rs, uint32 sc);
 int fd2_tick_summon_spell_setup_pre_animation_8slot(uint32 ci, uint32 sh, uint32 oy, uint32 rs, uint32 sc);
+int fd2_tick_summon_anim_variant_c_5slot_radial(uint32 ci, uint32 sh, uint32 oy, uint32 rs, uint32 sc);
 
 /* ---- ANI decoder ---- */
 void fd2_ani_decoder_decode_frame_bytes(uint16 count, uint32 src);
@@ -457,18 +552,25 @@ void AIL_init_sample(uint32 sample);
 void AIL_set_sample_address(uint32 sample, uint32 start, uint32 len);
 void AIL_set_sample_loop_count(uint32 sample, int count);
 void AIL_start_sample(uint32 sample);
+void  AIL_startup(void);
+void  AIL_shutdown(void);
+int   AIL_install_MDI_INI(void);
+int   AIL_install_DIG_INI(void);
+void *AIL_allocate_sequence_handle(void *mdi_driver);
+void *AIL_allocate_sample_handle(void *dig_driver);
+void fd2_play_chapter_clear_fanfare(void);
 uint32 fd2_load_dat_resource(uint32 fname, uint32 buf, uint32 idx);
 void fd2_rle_blit_sprite(uint32 rle_stream, int32 dst_x, int32 dst_y,
                          uint32 dst_buf, int32 stride, uint32 palette_op);
-void fd2_rle_blit_with_palette_remap(uint32 rle_stream, int32 dst_x, int32 dst_y,
-                         uint32 dst_buf, int32 stride, uint32 palette_remap);
 void fd2_scroll_text_screen_up_by_lines(uint32 lines);
 uint32 fd2_save_compute_checksum(uint32 buf, uint32 size);
 int  fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp);
+void fd2_restore_portrait_cache_from_tmp(void);
 
 /* ---- chapter / battle init ---- */
 void fd2_load_chapter_battle_data(uint32 chapter_id);
 void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id);
+void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
 void fd2_init_runtime_char_for_battle(uint32 char_field_idx, uint32 fdicon_fp);
 void fd2_init_runtime_char_from_base_growth(uint32 char_id);
 void fd2_load_chapter_background_layers(void);
@@ -486,6 +588,7 @@ int fd2_save_slot_selector_ui(uint32 buf, uint32 mode);
 void fd2_render_save_slot_grid(uint32 highlight_slot, uint32 surface_offset, uint8 *sav_decrypted_buf);
 void fd2_close_intro_dialog_with_slide_out(void);
 int fd2_chapter_transition_menu(void);
+int fd2_chapter_transition_with_intro(void);
 void fd2_render_chapter_intro_overlay(void);
 void fd2_load_save_and_init_engine(void);
 
@@ -532,6 +635,8 @@ void fd2_tile_blit_24x24_passthrough(uint32 src, uint32 dst, uint32 stride);
 void *fd2_convert_battle_tiles_to_24px(void);
 void fd2_tile_blit_24x24_dimmed_grayscale(uint32 src, uint32 dst, uint32 stride);
 void fd2_tile_blit_24x24_with_remap_table(uint32 src, uint32 dst, uint32 stride, uint32 remap_table);
+void fd2_rle_blit_with_palette_remap(uint16 *rle_stream, int32 dst_x, int32 dst_y,
+                                     int32 dst_buf, int32 stride, int32 palette_remap);
 void fd2_tile_blit_24x24_solid_color(uint32 src, uint32 dst, uint32 color_or_stride, uint32 unused);
 void fd2_tile_blit_24x24_with_tint_offset(uint32 rle_stream, uint32 dst_buf, uint32 stride, uint32 color_base, uint32 team_offset);
 void fd2_tile_blit_24x24_remap(uint32 rle_stream, uint32 dst_buf, uint32 stride, uint32 palette_remap);
@@ -547,6 +652,7 @@ void fd2_render_terrain_info_hud_panel(uint32 buf, uint32 stride);
 void fd2_blit_rectangle(uint32 dst, uint32 dstride, uint32 src, uint32 sstride, uint32 w, uint32 h);
 void fd2_render_circle_anim_row(int cx, int cy, int r, int scale_num, int start_row, int end_row, uint8 *palette_remap_src);
 void fd2_render_filled_circle_band_anim(uint32 param_1, uint32 param_2, uint32 param_3, int cx, int cy, int radius);
+void fd2_blit_money_digit_sprite(uint32 dst_buf, uint32 dst_stride, uint32 sprite_idx);
 uint32 fd2_alloc_and_blit_indexed_sprite_chunk(uint32 sheet_base, uint32 dst, uint32 surface_pitch, uint32 col_offset, uint32 row_idx, uint32 sprite_idx);
 void fd2_render_decimal_number_to_buffer(uint32 dst, uint32 stride, uint32 value, uint32 x, uint32 digits);
 void fd2_render_hp_or_mp_bar_proportional(uint32 dst_off, uint32 pitch, uint32 sprite_base, uint32 current, uint32 max);
@@ -590,7 +696,6 @@ void fd2_save_current_state_to_slot(uint32 prompt_flag);
 void fd2_load_state_from_selected_slot(void);
 void fd2_animate_tutorial_dialog_intro_or_outro(uint32 closing);
 int fd2_load_chapter_party_roster(uint8 *out_buf);
-void fd2_run_buy_item_menu(uint32 shop_item_count, uint8 *shop_item_id_array);
 void fd2_run_sell_item_menu(void);
 void fd2_run_equip_member_menu(void);
 void fd2_run_give_item_menu(void);

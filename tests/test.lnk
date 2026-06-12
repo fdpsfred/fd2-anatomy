@@ -45,8 +45,14 @@ file E:\out\obj\anispell.obj
 file E:\out\obj\chevt2.obj
 file E:\out\obj\spellcin.obj
 file E:\out\obj\promote.obj
+file E:\out\obj\anicine.obj
+file E:\out\obj\chinit.obj
+file E:\out\obj\chpost.obj
+file E:\out\obj\shop.obj
 file E:\out\obj\testmain.obj
 file E:\out\obj\testglob.obj
+file E:\out\obj\tanicin1.obj
+file E:\out\obj\tanicin2.obj
 file E:\out\obj\tanicomb.obj
 file E:\out\obj\tanidec.obj
 file E:\out\obj\tanispel.obj
@@ -79,6 +85,8 @@ file E:\out\obj\tchevt24.obj
 file E:\out\obj\tchevt25.obj
 file E:\out\obj\tchevt26.obj
 file E:\out\obj\tchevt27.obj
+file E:\out\obj\tchinit.obj
+file E:\out\obj\tchpost.obj
 file E:\out\obj\tchtrans.obj
 file E:\out\obj\tblitspr.obj
 file E:\out\obj\tblitti1.obj
@@ -94,7 +102,8 @@ file E:\out\obj\trsrc.obj
 file E:\out\obj\tsave.obj
 file E:\out\obj\tspell.obj
 file E:\out\obj\tspellci.obj
-file E:\out\obj\tspellef.obj
+file E:\out\obj\tspelle1.obj
+file E:\out\obj\tspelle2.obj
 file E:\out\obj\tspellse.obj
 file E:\out\obj\ttable.obj
 file E:\out\obj\tchintro.obj
@@ -103,6 +112,8 @@ file E:\out\obj\tmenu.obj
 file E:\out\obj\tmenucfg.obj
 file E:\out\obj\tmenufld.obj
 file E:\out\obj\tpromote.obj
+file E:\out\obj\tshop1.obj
+file E:\out\obj\tshop2.obj
 file E:\out\obj\tstatus.obj
 file E:\out\obj\tmisc.obj
 file E:\out\obj\tpathfnd.obj
