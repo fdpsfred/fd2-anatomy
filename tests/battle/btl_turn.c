@@ -182,6 +182,10 @@ static void test_status_tick_timer_decrement(void)
     t_install_safe_battle_scene();
     g_test_rc_array[0].team = 0;
     g_test_rc_array[0].flags = 0;
+    /* alive char: hp>0 keeps the now-real fd2_play_death_animation_and_mark_dead
+     * (run between the two passes) from marking this hp==0 char dead, which
+     * would otherwise gate Pass 2's timer countdown (it skips dead chars). */
+    g_test_rc_array[0].hp_current = 100;
     ((uint8 *)&g_test_rc_array[0])[0x22] = 3;
     data_fd2_battle_party_member_count = 1;
     fd2_tick_status_effects_and_show_messages(0);
@@ -197,6 +201,9 @@ static void test_status_tick_timer_expires_recalc(void)
     t_install_safe_battle_scene();
     g_test_rc_array[0].team = 0;
     g_test_rc_array[0].flags = 0;
+    /* alive char (hp>0): see test_status_tick_timer_decrement — keeps the real
+     * inter-pass death pass from marking this char dead and gating Pass 2. */
+    g_test_rc_array[0].hp_current = 100;
     ((uint8 *)&g_test_rc_array[0])[0x22] = 1;
     data_fd2_battle_party_member_count = 1;
     fd2_tick_status_effects_and_show_messages(0);
@@ -308,6 +315,85 @@ static void test_set_combat_aux_low4(void)
     fd2_set_combat_aux_block_byte_d_low4_for_char_range(0, 1, 5);
     ASSERT_EQ(g_test_rc_array[0].combat_aux_block[0xD], 0xA5);
     ASSERT_EQ(g_test_rc_array[1].combat_aux_block[0xD], 0xF5);
+}
+
+
+/* ---- Test: fd2_kill_runtime_chars_from_index_to_end @ 0x35BBA ----
+ *
+ * Zeroes hp_current for slots [start_char_idx, party_member_count) then
+ * runs the (now real) fd2_play_death_animation_and_mark_dead tail call.
+ *
+ * To keep the death tail a silent no-render no-op, every killed char is
+ * placed OFF-screen (pos_x past the view window): the real death function
+ * then collects 0 on-screen dying chars and takes its silent branch, which
+ * sets flags |= 1 (CHARFLAG_DEAD) on every hp_current==0 char and returns
+ * without touching the VGA buffer. Asserting that silent mark also confirms
+ * the tail call actually ran. */
+
+static void t_kill_setup_offscreen_chars(int n, uint16 hp)
+{
+    int k;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    /* default view window so pos_x=100 is off-screen for every slot */
+    data_fd2_battle_view_window_origin_x = 0;
+    data_fd2_battle_view_window_origin_y = 0;
+    data_fd2_battle_view_window_max_x = 13;
+    data_fd2_battle_view_window_max_y = 8;
+    for (k = 0; k < n; k++) {
+        g_test_rc_array[k].pos_x = 100;   /* > origin_x + max_x => off-screen */
+        g_test_rc_array[k].pos_y = 0;
+        g_test_rc_array[k].flags = 0;
+        g_test_rc_array[k].hp_current = hp;
+    }
+}
+
+static void test_kill_from_index_zeros_tail_range(void)
+{
+    /* start_char_idx = 2 of 4 -> slots 2,3 killed, slots 0,1 preserved */
+    t_kill_setup_offscreen_chars(4, 250);
+    data_fd2_battle_party_member_count = 4;
+    fd2_kill_runtime_chars_from_index_to_end(2);
+    ASSERT_EQ((long)g_test_rc_array[0].hp_current, 250);
+    ASSERT_EQ((long)g_test_rc_array[1].hp_current, 250);
+    ASSERT_EQ((long)g_test_rc_array[2].hp_current, 0);
+    ASSERT_EQ((long)g_test_rc_array[3].hp_current, 0);
+    /* untouched (still alive) slots keep flags clear */
+    ASSERT_EQ(g_test_rc_array[0].flags, 0);
+    ASSERT_EQ(g_test_rc_array[1].flags, 0);
+    /* killed slots: silent death path marked them dead (flags |= 1) */
+    ASSERT_EQ(g_test_rc_array[2].flags, 1);
+    ASSERT_EQ(g_test_rc_array[3].flags, 1);
+}
+
+static void test_kill_from_index_zero_kills_all(void)
+{
+    /* start_char_idx = 0 -> whole party killed and marked dead */
+    t_kill_setup_offscreen_chars(3, 99);
+    data_fd2_battle_party_member_count = 3;
+    fd2_kill_runtime_chars_from_index_to_end(0);
+    ASSERT_EQ((long)g_test_rc_array[0].hp_current, 0);
+    ASSERT_EQ((long)g_test_rc_array[1].hp_current, 0);
+    ASSERT_EQ((long)g_test_rc_array[2].hp_current, 0);
+    ASSERT_EQ(g_test_rc_array[0].flags, 1);
+    ASSERT_EQ(g_test_rc_array[1].flags, 1);
+    ASSERT_EQ(g_test_rc_array[2].flags, 1);
+    data_fd2_battle_party_member_count = 4;
+}
+
+static void test_kill_from_index_empty_range_noop(void)
+{
+    /* start_char_idx == party_member_count -> loop body never runs;
+     * no char has hp_current==0, so the death tail marks nothing dead. */
+    t_kill_setup_offscreen_chars(3, 77);
+    data_fd2_battle_party_member_count = 3;
+    fd2_kill_runtime_chars_from_index_to_end(3);
+    ASSERT_EQ((long)g_test_rc_array[0].hp_current, 77);
+    ASSERT_EQ((long)g_test_rc_array[1].hp_current, 77);
+    ASSERT_EQ((long)g_test_rc_array[2].hp_current, 77);
+    ASSERT_EQ(g_test_rc_array[0].flags, 0);
+    ASSERT_EQ(g_test_rc_array[1].flags, 0);
+    ASSERT_EQ(g_test_rc_array[2].flags, 0);
+    data_fd2_battle_party_member_count = 4;
 }
 
 
@@ -674,8 +760,13 @@ static void test_mark_char_acted(void)
 
 /* ---- fd2_run_full_turn_cycle ---- */
 
-extern int g_phase_banner_slide_in_calls;
-extern int g_phase_banner_slide_out_calls;
+/* fd2_animate_phase_banner_slide_in / _out and fd2_render_phase_banner_frame are
+ * now all emitted for real (anicombt.c / rndscene.c), so the full cycle runs the
+ * real banners. Both banner animators are the ONLY callers of the recording
+ * fd2_scroll_buffer_block_with_wrap stub (slide_in scrolls 16x, slide_out 17x),
+ * so g_scroll_buffer_calls cleanly counts banner-animator activity end-to-end,
+ * isolated from the Phase-F reveal loops (which never scroll). */
+extern int g_scroll_buffer_calls;
 extern int g_restore_block_calls;
 extern uint8 data_fd2_audio_bgm_driver_available_flag;
 
@@ -859,7 +950,7 @@ static void test_run_turn_cycle_phase_a_heal(void)
     data_fd2_battle_party_member_count = 7;
 
     data_fd2_chapter_event_or_battle_end_code = 9;  /* gate -> early exit */
-    g_phase_banner_slide_in_calls = 0;
+    g_scroll_buffer_calls = 0;
 
     fd2_run_full_turn_cycle();
 
@@ -880,7 +971,7 @@ static void test_run_turn_cycle_phase_a_heal(void)
      * the phase-0 (Phase D) entry never fired and no banner animated. */
     ASSERT_EQ(g_turncycle_spy_b_fired, 1);
     ASSERT_EQ(g_turncycle_spy_d_fired, 0);
-    ASSERT_EQ(g_phase_banner_slide_in_calls, 0);
+    ASSERT_EQ(g_scroll_buffer_calls, 0);   /* no banner -> no scroll */
 
     data_fd2_battle_ai_post_action_consequence_table[0x10] = 0;
     data_fd2_battle_ai_post_action_consequence_table[0x11] = 0;
@@ -966,17 +1057,22 @@ static void test_run_turn_cycle_full_reveal(void)
     data_fd2_battle_turn_counter = 7;
     data_fd2_battle_current_active_char_idx = 99;
     data_fd2_battle_anim_phase = 5;
-    g_phase_banner_slide_in_calls = 0;
-    g_phase_banner_slide_out_calls = 0;
+    g_scroll_buffer_calls = 0;
     g_restore_block_calls = 0;
 
     fd2_run_full_turn_cycle();
 
     /* turn counter bumped exactly once (Phase F). */
     ASSERT_EQ((long)data_fd2_battle_turn_counter, 8);
-    /* Phase D banner (0x52) + Phase F banner (0x50): 2 in, 2 out. */
-    ASSERT_EQ(g_phase_banner_slide_in_calls, 2);
-    ASSERT_EQ(g_phase_banner_slide_out_calls, 2);
+    /* Phase D banner (0x52) + Phase F banner (0x50). Each phase shows a
+     * banner then slides it out: one real slide_in (scrolls 16x) + one real
+     * slide_out (scrolls 17x) = 33 scrolls per phase. Two phases => 66 scroll
+     * calls. fd2_scroll_buffer_block_with_wrap is called ONLY by the two banner
+     * animators, so this confirms both banners ran for both phases (slide_in
+     * AND slide_out fired exactly twice each; a missing slide_out would land at
+     * 32, a missing whole banner far lower). The per-frame banner renderer's own
+     * call sequence is pinned directly in tests/gfx/rndscene.c. */
+    ASSERT_EQ(g_scroll_buffer_calls, 66);
     /* Real dispatcher fired the matching chapter event at each phase:
      * phase 1 (B) + phase 0 (D) while turn==7, phase 2 (F) at turn==8. */
     ASSERT_EQ(g_turncycle_spy_b_fired, 1);
@@ -985,11 +1081,14 @@ static void test_run_turn_cycle_full_reveal(void)
     /* Phase F tail re-arms the active-char index and anim phase. */
     ASSERT_EQ((long)data_fd2_battle_current_active_char_idx, 0);
     ASSERT_EQ((long)data_fd2_battle_anim_phase, 1);
-    /* reveal loops freed every save buffer they allocated: the real
-     * cleanup forwarded to the restore stub 9 (loop1) + 4 (loop2) times.
-     * (If the EAX-fix were wrong, free() of a bad pointer would crash
-     * before we get here.) */
-    ASSERT_EQ(g_restore_block_calls, 13);
+    /* Every save buffer allocated by the real cleanup-driving callees was
+     * freed (the real fd2_cleanup_dialog_sprite_buffer forwards to the restore
+     * stub once per call, so this counts total cleanups). Sources, all
+     * deterministic: the two banners' per-frame renderer now cleans up 2x per
+     * frame -> 24 frame renders (Phase D 7+5, Phase F 7+5) x 2 = 48; plus the
+     * Phase-F reveal loops 9 (loop1) + 4 (loop2) = 13. Total 61. (If the EAX-fix
+     * were wrong anywhere, free() of a bad pointer would crash before here.) */
+    ASSERT_EQ(g_restore_block_calls, 61);
 
     data_fd2_battle_ai_post_action_consequence_table[0x10] = 0;
     data_fd2_battle_ai_post_action_consequence_table[0x11] = 0;
@@ -1381,6 +1480,382 @@ static void test_count_active_empty_roster(void)
 }
 
 
+/* ---- Tests: fd2_process_xp_and_level_up_for_char ----
+ *
+ * The handler drives the real dialog VM / portrait loader / status-screen
+ * teardown for its on-screen feedback, and the real char_growth / spell_learning
+ * table accessors, fd2_roll_stat_gain_and_show_message (the real stat roll, now
+ * emitted in this file) and fd2_recalculate_combat_stats for its math. Its one
+ * remaining not-yet-emitted callee (fd2_grant_spell_to_char) is a recording fake
+ * in testglob.c. The dialog VM is neutralised with an END-only page table
+ * (extended to cover page 0x24B used by the spell-learn message). What is pinned
+ * here is the handler's own logic: the three skip gates, the XP carry-in/carry-out
+ * arithmetic, the level-up count (observed via the per-slot stat gains the real
+ * roll applies), the per-call level cap (30 normal / 99 hero), and the spell-learn
+ * trigger. The 5-slot roll's stat-write sequence is checked here against the
+ * fixed RNG-free gains seeded by xp_setup; the roll primitive's own RNG / row /
+ * dialog paths are pinned by the test_roll_stat_* cases below. */
+
+extern int    g_grant_spell_calls;
+extern uint32 g_grant_spell_last_char;
+extern uint32 g_grant_spell_last_spell;
+extern uint32 data_fd2_dialog_last_action_sprite_id_param;
+extern character_growth data_fd2_battle_character_growth_table[68];
+extern uint8 data_fd2_spell_learning_table[20 * 12];
+
+/* END-only dialog page table covering every page index the handler emits
+ * (0x1E8/0x1E9/0x1EA-0x1EE and 0x24B). */
+#define T_XP_PAGES   0x24C
+static int16 t_xp_dlg_text[T_XP_PAGES + 1];
+
+static void xp_setup(uint8 portrait_id, uint8 spell_learn_idx)
+{
+    int p;
+    character_growth *g;
+
+    for (p = 0; p < T_XP_PAGES; p++) {
+        t_xp_dlg_text[p] = (int16)(T_XP_PAGES * 2);
+    }
+    t_xp_dlg_text[T_XP_PAGES] = -1;
+    data_fd2_all_game_text_ptr = (uint32)t_xp_dlg_text;
+    data_fd2_dialog_active_portrait_blit_offset = 0;
+
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].portrait_id = portrait_id;
+    g_test_rc_array[0].flags = 0;
+
+    /* Known growth row for this portrait. Each (min,max) pair is min==max so the
+     * real fd2_roll_stat_gain_and_show_message rolls a fixed, RNG-free gain equal
+     * to that min (range==0 -> no fd2_advance_rng_state). Distinct per-stat gains
+     * (AP 1, DP 2, DX 3, HP 4, MP 5) let the per-slot stat writes be pinned.
+     * spell-learning index per the test. */
+    g = &data_fd2_battle_character_growth_table[portrait_id];
+    memset(g, 0, sizeof(*g));
+    g->ap_min = 1; g->ap_max = 1;
+    g->dp_min = 2; g->dp_max = 2;
+    g->dx_min = 3; g->dx_max = 3;
+    g->hp_min = 4; g->hp_max = 4;
+    g->mp_min = 5; g->mp_max = 5;
+    g->spell_learning_idx = spell_learn_idx;
+
+    g_grant_spell_calls = 0;
+    g_grant_spell_last_char = 0xFFFFFFFFu;
+    g_grant_spell_last_spell = 0xFFFFFFFFu;
+    data_fd2_dialog_last_action_sprite_id_param = 0;
+    data_fd2_battle_party_member_count = 4;
+}
+
+static void test_xp_gate_no_pending(void)
+{
+    xp_setup(5, 0xFF);
+    g_test_rc_array[0].status_flags_block[0] = 1;
+    g_test_rc_array[0].movement_order = 7;
+    data_fd2_battle_pending_xp_credit = 0;
+    fd2_process_xp_and_level_up_for_char(0);
+    /* gate skips: no level-up, no stat roll applied (hp_max stays 0) */
+    ASSERT_EQ((long)g_test_rc_array[0].hp_max, 0);
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 1);
+    ASSERT_EQ((long)g_test_rc_array[0].movement_order, 7);
+}
+
+static void test_xp_gate_dead(void)
+{
+    xp_setup(5, 0xFF);
+    g_test_rc_array[0].flags = 1;
+    g_test_rc_array[0].status_flags_block[0] = 1;
+    data_fd2_battle_pending_xp_credit = 200;
+    fd2_process_xp_and_level_up_for_char(0);
+    ASSERT_EQ((long)g_test_rc_array[0].hp_max, 0);
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 1);
+    /* pending is NOT cleared when the gate skips */
+    ASSERT_EQ((long)data_fd2_battle_pending_xp_credit, 200);
+}
+
+static void test_xp_gate_normal_level_cap(void)
+{
+    xp_setup(5, 0xFF);
+    g_test_rc_array[0].status_flags_block[0] = 0x28;  /* normal cap */
+    data_fd2_battle_pending_xp_credit = 200;
+    fd2_process_xp_and_level_up_for_char(0);
+    ASSERT_EQ((long)g_test_rc_array[0].hp_max, 0);
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 0x28);
+    ASSERT_EQ((long)data_fd2_battle_pending_xp_credit, 200);
+}
+
+static void test_xp_gate_hero_level_cap(void)
+{
+    xp_setup(0x1E, 0xFF);                              /* hero portrait */
+    g_test_rc_array[0].status_flags_block[0] = 99;     /* hero cap */
+    data_fd2_battle_pending_xp_credit = 200;
+    fd2_process_xp_and_level_up_for_char(0);
+    ASSERT_EQ((long)g_test_rc_array[0].hp_max, 0);
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 99);
+}
+
+static void test_xp_single_levelup_and_roll_sequence(void)
+{
+    uint8 *base;
+
+    xp_setup(5, 0xFF);
+    g_test_rc_array[0].status_flags_block[0] = 1;
+    g_test_rc_array[0].movement_order = 0;
+    data_fd2_battle_pending_xp_credit = 150;
+    fd2_process_xp_and_level_up_for_char(0);
+
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 2);   /* +1 level */
+    ASSERT_EQ((long)g_test_rc_array[0].movement_order, 50);         /* 150-100 carry */
+    ASSERT_EQ((long)data_fd2_battle_pending_xp_credit, 0);          /* cleared */
+
+    /* The 5 stat slots the handler rolls, each += its fixed gain (AP 1, DP 2,
+     * DX 3, HP 4, MP 5 from xp_setup), proving the slot ptr / growth-pair
+     * routing the handler hands to fd2_roll_stat_gain_and_show_message. */
+    base = (uint8 *)&g_test_rc_array[0];
+    ASSERT_EQ((long)*(int16 *)(base + 0x37), 1);   /* combat_aux_block[0x10] AP */
+    ASSERT_EQ((long)*(int16 *)(base + 0x39), 2);   /* combat_aux_block[0x12] DP */
+    ASSERT_EQ((long)*(int16 *)(base + 0x3E), 3);   /* ai_target_and_dx_block[1] DX */
+    ASSERT_EQ((long)g_test_rc_array[0].hp_max, 4);
+    ASSERT_EQ((long)g_test_rc_array[0].mp_max, 5);
+    /* last roll's gain (MP slot, 5) stays latched in the dialog value param */
+    ASSERT_EQ((long)data_fd2_dialog_last_action_value_param, 5);
+}
+
+static void test_xp_multi_levelup(void)
+{
+    uint8 *base;
+
+    xp_setup(5, 0xFF);
+    g_test_rc_array[0].status_flags_block[0] = 1;
+    g_test_rc_array[0].movement_order = 0;
+    data_fd2_battle_pending_xp_credit = 250;
+    fd2_process_xp_and_level_up_for_char(0);
+
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 3);   /* +2 levels */
+    ASSERT_EQ((long)g_test_rc_array[0].movement_order, 50);        /* 250-200 */
+    ASSERT_EQ((long)data_fd2_battle_pending_xp_credit, 0);
+    /* each of the 5 slots rolled once per level -> twice the single-level gain */
+    base = (uint8 *)&g_test_rc_array[0];
+    ASSERT_EQ((long)*(int16 *)(base + 0x37), 2);   /* AP 1*2 */
+    ASSERT_EQ((long)*(int16 *)(base + 0x39), 4);   /* DP 2*2 */
+    ASSERT_EQ((long)*(int16 *)(base + 0x3E), 6);   /* DX 3*2 */
+    ASSERT_EQ((long)g_test_rc_array[0].hp_max, 8);
+    ASSERT_EQ((long)g_test_rc_array[0].mp_max, 10);
+}
+
+static void test_xp_carryover_movement_order(void)
+{
+    xp_setup(5, 0xFF);
+    g_test_rc_array[0].status_flags_block[0] = 1;
+    g_test_rc_array[0].movement_order = 60;            /* prior carry-over */
+    data_fd2_battle_pending_xp_credit = 50;            /* 50 + 60 = 110 */
+    fd2_process_xp_and_level_up_for_char(0);
+
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 2);   /* one level */
+    /* one level-up: each slot rolled once -> single-level gains */
+    ASSERT_EQ((long)g_test_rc_array[0].hp_max, 4);
+    ASSERT_EQ((long)g_test_rc_array[0].mp_max, 5);
+    ASSERT_EQ((long)g_test_rc_array[0].movement_order, 10);        /* 110-100 */
+    ASSERT_EQ((long)data_fd2_battle_pending_xp_credit, 0);
+}
+
+static void test_xp_percall_cap_level30(void)
+{
+    xp_setup(5, 0xFF);
+    g_test_rc_array[0].status_flags_block[0] = 29;
+    g_test_rc_array[0].movement_order = 0;
+    data_fd2_battle_pending_xp_credit = 500;           /* enough for many levels */
+    fd2_process_xp_and_level_up_for_char(0);
+
+    /* per-call cap: reaching level 30 forces remaining_xp to 0 -> single level */
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 0x1E);
+    ASSERT_EQ((long)g_test_rc_array[0].hp_max, 4);                /* single level-up roll */
+    ASSERT_EQ((long)g_test_rc_array[0].movement_order, 0);        /* leftover discarded */
+    ASSERT_EQ((long)data_fd2_battle_pending_xp_credit, 0);
+}
+
+static void test_xp_hero_cap_level99(void)
+{
+    xp_setup(0x1E, 0xFF);
+    g_test_rc_array[0].status_flags_block[0] = 98;
+    g_test_rc_array[0].movement_order = 0;
+    data_fd2_battle_pending_xp_credit = 500;
+    fd2_process_xp_and_level_up_for_char(0);
+
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 99);
+    ASSERT_EQ((long)g_test_rc_array[0].hp_max, 4);               /* single level-up roll */
+    ASSERT_EQ((long)g_test_rc_array[0].movement_order, 0);
+    ASSERT_EQ((long)data_fd2_battle_pending_xp_credit, 0);
+}
+
+static void test_xp_spell_learn_on_match(void)
+{
+    uint8 *learn;
+
+    xp_setup(5, 3);                                    /* growth[5].spell_learning_idx = 3 */
+    learn = &data_fd2_spell_learning_table[3 * 12];
+    memset(learn, 0xEE, 12);                           /* no pair matches by default */
+    learn[0] = 2;                                      /* pair0 req_level = 2 (the new level) */
+    learn[1] = 7;                                      /* pair0 spell_id = 7 */
+    g_test_rc_array[0].status_flags_block[0] = 1;
+    data_fd2_battle_pending_xp_credit = 150;           /* one level: 1 -> 2 */
+    fd2_process_xp_and_level_up_for_char(0);
+
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 2);
+    ASSERT_EQ((long)g_grant_spell_calls, 1);
+    ASSERT_EQ((long)g_grant_spell_last_char, 0);
+    ASSERT_EQ((long)g_grant_spell_last_spell, 7);
+    /* spell name text id = spell_id + 0x1B9 */
+    ASSERT_EQ((long)data_fd2_dialog_last_action_sprite_id_param, (long)(7 + 0x1B9));
+}
+
+static void test_xp_spell_learn_no_match(void)
+{
+    uint8 *learn;
+
+    xp_setup(5, 3);
+    learn = &data_fd2_spell_learning_table[3 * 12];
+    memset(learn, 0xEE, 12);                           /* no req_level equals level 2 */
+    g_test_rc_array[0].status_flags_block[0] = 1;
+    data_fd2_battle_pending_xp_credit = 150;
+    fd2_process_xp_and_level_up_for_char(0);
+
+    ASSERT_EQ((long)g_test_rc_array[0].status_flags_block[0], 2);
+    ASSERT_EQ((long)g_grant_spell_calls, 0);           /* nothing learned */
+}
+
+
+/* ---- Tests: fd2_roll_stat_gain_and_show_message (the stat-roll primitive) ----
+ *
+ * Drives the roll/apply/return logic directly. The display side (dialog VM,
+ * cinematic scroll) is neutralised: an END-only page table makes the real
+ * fd2_display_dialog_scene a no-op (portrait_anim never set), and with
+ * data_fd2_dialog_active_portrait_blit_offset == 0 the real cinematic scroll
+ * returns without touching VGA. What is pinned: the (min,max) growth decode,
+ * the RNG-vs-fixed gain (incl. the EAX-bug path that must use the RNG return,
+ * not the growth pointer), the gain==0 skip (no stat write, row unchanged),
+ * the *(int16*)stat_ptr += gain apply, and the row==3 collapse + advance. */
+
+/* END-only page table covering the few text ids these tests pass. */
+#define T_ROLL_PAGES   0x200
+static int16 t_roll_dlg_text[T_ROLL_PAGES + 1];
+
+static void roll_setup(void)
+{
+    int p;
+    for (p = 0; p < T_ROLL_PAGES; p++) {
+        t_roll_dlg_text[p] = (int16)(T_ROLL_PAGES * 2);   /* -> the END slot */
+    }
+    t_roll_dlg_text[T_ROLL_PAGES] = -1;                   /* END opcode */
+    data_fd2_all_game_text_ptr = (uint32)t_roll_dlg_text;
+    data_fd2_dialog_active_portrait_blit_offset = 0;      /* scroll = no-op */
+}
+
+static void test_roll_stat_zero_gain_skips(void)
+{
+    uint8 growth[2];
+    int16 stat;
+    int next_row;
+
+    roll_setup();
+    growth[0] = 0; growth[1] = 0;                         /* min==max==0 -> gain 0 */
+    stat = 7;
+    data_fd2_dialog_last_action_value_param = 0xFFFF;
+    next_row = fd2_roll_stat_gain_and_show_message(
+        (short *)&stat, growth, 0x1EA, 2);
+    ASSERT_EQ((long)next_row, 2);                         /* row unchanged */
+    ASSERT_EQ((long)stat, 7);                             /* no stat write */
+    ASSERT_EQ((long)data_fd2_dialog_last_action_value_param, 0);
+}
+
+static void test_roll_stat_fixed_gain_applies(void)
+{
+    uint8 growth[2];
+    int16 stat;
+    int next_row;
+
+    roll_setup();
+    growth[0] = 6; growth[1] = 6;                         /* range 0 -> fixed gain 6 */
+    stat = 10;
+    next_row = fd2_roll_stat_gain_and_show_message(
+        (short *)&stat, growth, 0x1EB, 2);
+    ASSERT_EQ((long)next_row, 3);                         /* advanced one row */
+    ASSERT_EQ((long)stat, 16);                            /* 10 + 6 */
+    ASSERT_EQ((long)data_fd2_dialog_last_action_value_param, 6);
+}
+
+static void test_roll_stat_rng_path_modulo(void)
+{
+    uint8 growth[2];
+    int16 stat;
+    int next_row;
+
+    /* seed 0 -> first fd2_advance_rng_state() returns 0x80A4 (32932).
+     * range 5 -> rand_extra = 32932 % 5 = 2; gain = min(10) + 2 = 12.
+     * This pins the EAX-bug fix: the dividend is the RNG return, not growth. */
+    roll_setup();
+    data_fd2_shared_rng_seed = 0;
+    growth[0] = 10; growth[1] = 15;                       /* range 5 */
+    stat = 100;
+    next_row = fd2_roll_stat_gain_and_show_message(
+        (short *)&stat, growth, 0x1EC, 2);
+    ASSERT_EQ((long)next_row, 3);
+    ASSERT_EQ((long)stat, 112);                           /* 100 + 12 */
+    ASSERT_EQ((long)data_fd2_dialog_last_action_value_param, 12);
+    ASSERT_EQ((long)data_fd2_shared_rng_seed, 0x80A4);    /* RNG advanced once */
+}
+
+static void test_roll_stat_negative_range_signed_modulo(void)
+{
+    uint8 growth[2];
+    int16 stat;
+    int next_row;
+
+    /* max < min -> range = 2 - 5 = -3 (signed IDIV). seed 0 -> rng 32932.
+     * 32932 % -3 == 1 (C truncates toward zero); gain = 5 + 1 = 6. */
+    roll_setup();
+    data_fd2_shared_rng_seed = 0;
+    growth[0] = 5; growth[1] = 2;
+    stat = 0;
+    next_row = fd2_roll_stat_gain_and_show_message(
+        (short *)&stat, growth, 0x1ED, 2);
+    ASSERT_EQ((long)next_row, 3);
+    ASSERT_EQ((long)stat, 6);
+    ASSERT_EQ((long)data_fd2_dialog_last_action_value_param, 6);
+}
+
+static void test_roll_stat_row3_collapses_and_advances(void)
+{
+    uint8 growth[2];
+    int16 stat;
+    int next_row;
+
+    /* row_idx 3 with a non-zero gain: collapse to row 2 (scroll is a no-op
+     * with offset 0), render, then advance -> returns 3 (not 4). */
+    roll_setup();
+    growth[0] = 4; growth[1] = 4;                         /* fixed gain 4 */
+    stat = 1;
+    next_row = fd2_roll_stat_gain_and_show_message(
+        (short *)&stat, growth, 0x1EE, 3);
+    ASSERT_EQ((long)next_row, 3);                         /* row 3 -> 2 -> ++ = 3 */
+    ASSERT_EQ((long)stat, 5);                             /* 1 + 4 */
+}
+
+static void test_roll_stat_zero_gain_row3_no_collapse(void)
+{
+    uint8 growth[2];
+    int16 stat;
+    int next_row;
+
+    /* gain 0 short-circuits before the row==3 branch: row returned verbatim. */
+    roll_setup();
+    growth[0] = 0; growth[1] = 0;
+    stat = 9;
+    next_row = fd2_roll_stat_gain_and_show_message(
+        (short *)&stat, growth, 0x1EA, 3);
+    ASSERT_EQ((long)next_row, 3);                         /* unchanged, no collapse */
+    ASSERT_EQ((long)stat, 9);
+}
+
+
 void run_battle_btl_turn_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1402,6 +1877,9 @@ void run_battle_btl_turn_tests(void)
     RUN_TEST(test_check_tile_event_event_type_mismatch);
     RUN_TEST(test_mark_char_as_dead);
     RUN_TEST(test_set_combat_aux_low4);
+    RUN_TEST(test_kill_from_index_zeros_tail_range);
+    RUN_TEST(test_kill_from_index_zero_kills_all);
+    RUN_TEST(test_kill_from_index_empty_range_noop);
     RUN_TEST(test_check_battle_end_victory);
     RUN_TEST(test_check_battle_end_continues);
     RUN_TEST(test_check_battle_end_gameover);
@@ -1426,5 +1904,22 @@ void run_battle_btl_turn_tests(void)
     RUN_TEST(test_count_active_per_team);
     RUN_TEST(test_count_active_dead_excluded);
     RUN_TEST(test_count_active_empty_roster);
+    RUN_TEST(test_xp_gate_no_pending);
+    RUN_TEST(test_xp_gate_dead);
+    RUN_TEST(test_xp_gate_normal_level_cap);
+    RUN_TEST(test_xp_gate_hero_level_cap);
+    RUN_TEST(test_xp_single_levelup_and_roll_sequence);
+    RUN_TEST(test_xp_multi_levelup);
+    RUN_TEST(test_xp_carryover_movement_order);
+    RUN_TEST(test_xp_percall_cap_level30);
+    RUN_TEST(test_xp_hero_cap_level99);
+    RUN_TEST(test_xp_spell_learn_on_match);
+    RUN_TEST(test_xp_spell_learn_no_match);
+    RUN_TEST(test_roll_stat_zero_gain_skips);
+    RUN_TEST(test_roll_stat_fixed_gain_applies);
+    RUN_TEST(test_roll_stat_rng_path_modulo);
+    RUN_TEST(test_roll_stat_negative_range_signed_modulo);
+    RUN_TEST(test_roll_stat_row3_collapses_and_advances);
+    RUN_TEST(test_roll_stat_zero_gain_row3_no_collapse);
     printf("\n");
 }

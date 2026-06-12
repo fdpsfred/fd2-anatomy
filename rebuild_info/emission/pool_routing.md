@@ -18,7 +18,7 @@ emit_action 對應 wlink / Watcom 9.5a recompile pipeline 的處理：
   直接解析（ail 全部 + crt 內 lookup-resolved + PUBLIC_CRT_SYMBOLS），
   FD2 source 端只保留 `extern` declaration
 - `emit_fd2_source` — FD2 source 端 emit C function。涵蓋全部
-  `fd2_*` + 13 個 `crt_equivalent_*`
+  `fd2_*` + 12 個 `crt_equivalent_*`
 - `skip_artifact` (93) — Watcom 9.5a 重 compile 自動生成 alignment padding，
   FD2 source 不需要寫
 
@@ -42,19 +42,31 @@ emit_action 對應 wlink / Watcom 9.5a recompile pipeline 的處理：
    - 56 個 `PUBLIC_CRT_SYMBOLS` (hard-coded set 在 `build_call_graph.py`，用於
      Ghidra 已還原 Watcom 公開符號但未進 lookup 的 fast-path：`malloc` / `free` /
      `fread` / `fwrite` / `sprintf` / `vfprintf` 等)
-   - 13 個 `crt_equivalent_*` — 行為等價 Watcom CRT 但 byte 不 match 任一 lib obj：
+   - 12 個 `crt_equivalent_*` — 行為等價 Watcom CRT 但 byte 不 match 任一 lib obj：
      `entry_start` / `dos_main_bootstrap` (cstart pair)、`get_eflags` /
      `get_eflags_thunk` (`_disable` primitive)、LX module loader chain
      (`lx_header_reader_36344` / `lx_module_loader_3647b` / `lx_chunk_read_36107`)、
-     softfp (`softfp_tan_worker_4c630`)、Watcom CRT exit chain / FPE default /
+     Watcom CRT exit chain / FPE default /
      linker padding / matherr default 系列 stub
      (`exit_chain_stub_36de3` / `fpe_default_handler_3d26e` /
      `linker_padding_4cbce` / `matherr_default_thunk_4d340` /
      `matherr_default_return_zero_4d8ea`)
+   - `crt_emu387_int7_fptan_opcode_worker_4c630 @ 0x4C630` — **不是** emit 目標。
+     它是 `__int7`（EMU387 software-FPU emulator，`emu387.obj`）的內部 subroutine：
+     bytes 落在已 byte-match 的 `__int7` PUBDEF body（0x49D98..0x4CBCD）內部，無獨立
+     PUBDEF，靠 link 該單一 `__int7` module 解析（`link_vendor_lib`），不重 emit C source。
+     原 Ghidra 把它 carve 成獨立 Function entity（analysis artifact，是 `__int7` 內唯一
+     一個被 carve 出來的；其 6 個 sibling helper 與 8 個 inline x87-opcode jump table 都
+     無 Function entity），曾被誤列為第 13 個 `crt_equivalent_*`。其角色是 x87 `FPTAN`
+     opcode 的軟體模擬 worker（math_mode != 3、無硬體 387 時 FPTAN 觸發 INT 7，由 `__int7`
+     opcode dispatch 進入；與走硬體 FPTAN 的 trig387 public entry `IF@TAN @ 0x3C8AB` 無關）。
+     routing 由 `build_call_graph.py` 的 `EMU387_INTERNAL_SUBROUTINES` set 導向 link_vendor_lib。
    - 上述 lookup 真符號 + PUBLIC_CRT_SYMBOLS 涵蓋 Watcom CRT 提供的全部 FD2.LE
      使用的 RTL 函式（softfp / format / fopen / heap / dpmi / init / time /
-     errno / signal / stream I/O / math 系列）。當前 Ghidra 內 `crt_*` 前綴
-     **僅剩 `crt_equivalent_*` (13 個)**；其餘 CRT-style 函式都已歸 lookup 真名
+     errno / signal / stream I/O / math 系列）。當前 Ghidra 內 `crt_*` 前綴有
+     **12 個 `crt_equivalent_*`（emit_fd2_source）+ 1 個
+     `crt_emu387_int7_fptan_opcode_worker_4c630`（link_vendor_lib，`__int7` 內部
+     subroutine，非 emit 目標）**；其餘 CRT-style 函式都已歸 lookup 真名
      （以 Watcom 9.5a CRT 公開或 hidden symbol 命名）。
 3. **FD2 pool** (`fd2_*`, 640 個) — FD2 工程師自寫的 game logic / glue / dispatch /
    wrapper / dead code。涵蓋：載 / 存檔、章節 init/end/post_action handler、

@@ -186,6 +186,9 @@ void fd2_pan_cursor_to_char(uint32 char_idx);
 void fd2_pan_cursor_and_window(uint32 target_ox, uint32 target_oy);
 void fd2_composite_battle_frame(int skip_palette_cycle);
 void fd2_animate_party_addition_with_appear_effect(uint32 chapter_id);
+void fd2_composite_then_animate_projectiles(void);
+void fd2_composite_battle_frame_zero(void);
+int fd2_render_summon_aura_sprite_ring(int caster_unit_id, int sprite_handle, int origin_y, int row_stride, char state_code);
 
 /* ---- graphics / palette ---- */
 void fd2_set_vga_palette_range(uint32 start_idx, uint32 end_idx, uint32 brightness_subtract);
@@ -196,6 +199,8 @@ void fd2_palette_overbright_settle_step_loop(uint32 start_intensity, uint32 step
 void fd2_interpolate_palette_range_toward_color(uint32 start_idx, uint32 end_idx, uint32 blend, uint32 target_r, uint32 target_g, uint32 target_b);
 void fd2_apply_palette_remap_run(uint32 remap_table, uint32 byte_count, uint8 *buf);
 void fd2_fill_palette_blink_pattern_6byte(int input_index, uint32 output_buffer_addr);
+void fd2_render_circle_anim_row(int cx, int cy, int r, int scale_num, int start_row, int end_row, uint8 *palette_remap_src);
+void fd2_render_filled_circle_band_anim(uint32 param_1, uint32 param_2, uint32 param_3, int cx, int cy, int radius);
 void fd2_tick_chapter_palette_animation(void);
 void fd2_update_palette_cycle_anim(void);
 void fd2_animate_palette_flash_pulse_white(void);
@@ -435,6 +440,22 @@ int fd2_tally_chars_with_zero_at_field(int len, uint32 char_idx_arr, int field_o
 int fd2_find_tile_with_attribute_match(uint32 target_tag, uint32 out_pos);
 int fd2_collect_unmarked_tile_positions(uint32 out_buf);
 uint8 fd2_pathfind_count_unique_directions(void);
+void fd2_flood_fill_movement_range_recursive(uint8 x, uint8 y, uint8 cost, uint8 *btm_ptr);
+/* returns non-zero (binary: carry clear) iff the neighbour improved and the
+ * caller should recurse; on non-zero, *new_cost_out = residual cost - tile cost */
+int fd2_flood_fill_neighbor_step(uint8 remaining_cost, uint8 *btm_attr_ptr, uint8 *new_cost_out);
+void fd2_pathfind_recursive_with_direction(uint8 x, uint8 y, uint8 cost, uint8 *btm_ptr);
+/* x/y = neighbour coords (seen by the destination helpers as DL/DH); returns
+ * non-zero (binary: carry clear) iff the neighbour improved and the caller should
+ * recurse, with *new_cost_out = the reduced residual to recurse with. */
+int fd2_pathfind_neighbor_step_with_tiebreak(uint8 x, uint8 y, uint8 remaining_cost,
+    uint8 *btm_attr_ptr, uint8 *new_cost_out);
+/* fd2_pathfind_record_destination_xy @ 0x4E3B3, fd2_pathfind_check_destination_save_path
+ * @ 0x4E401: mode-2 / mode-0&1 destination helpers called by
+ * fd2_pathfind_neighbor_step_with_tiebreak (both real-emitted in src/util/pathfnd.c).
+ * x/y = neighbour coords (binary DL/DH). */
+void fd2_pathfind_record_destination_xy(uint8 x, uint8 y, uint8 *btm_attr_ptr);
+void fd2_pathfind_check_destination_save_path(uint8 x, uint8 y);
 void fd2_mark_char_occupant_tiles_for_team(uint32 exclude_idx, uint32 team_selector);
 void fd2_set_tile_overlay_bit_80(uint32 x, uint32 y);
 void fd2_mark_aoe_plus_pattern_at(uint32 x, uint32 y);
@@ -460,8 +481,10 @@ void fd2_play_spell_palette_flash_with_sfx(int pattern_id);
 int fd2_execute_ai_physical_attack(uint32 char_idx, uint32 team);
 uint32 fd2_animate_combat_speech_bubbles(uint32 ci, uint32 ti);
 void fd2_render_combatant_hp_bar_proportional(uint32 d, uint32 s, uint32 ci, uint32 st);
+void fd2_render_combat_hp_bar_segments(uint32 dst_addr, uint32 stride, uint32 filled_count);
 int fd2_animate_combat_hit_with_hp_drain(uint32 a, uint32 d, uint32 st);
-void fd2_render_combat_combatant_panels(uint32 st, uint32 a, uint32 d);
+void fd2_animate_attack_hit_sequence(uint32 attacker_idx, uint32 defender_idx);
+void fd2_render_combat_combatant_panels(uint32 xy_array_ptr, uint32 defender_idx, uint32 attacker_idx);
 void fd2_play_full_combat_cinematic(uint32 a, uint32 d);
 int fd2_execute_combat_hit_cinematic(uint32 attacker_idx, uint32 defender_idx,
     uint32 figani_anim, uint32 silhouette, uint32 workbuf, uint32 dst,
@@ -471,7 +494,8 @@ void fd2_animate_bg_zoom_transition_in(uint32 char_idx, uint32 figani,
 void fd2_animate_bg_zoom_transition_out(uint32 char_idx, uint32 figani,
     uint32 name_banner, uint32 framebuffer, uint32 workspace, uint32 bg_buf);
 void fd2_process_xp_and_level_up_for_char(uint32 ci);
-int fd2_roll_stat_gain_and_show_message(short *stat_ptr, uint8 *growth_pair_ptr, uint32 dialog_text_id, int row_idx);
+int fd2_roll_stat_gain_and_show_message(short *stat_ptr, uint8 *growth_pair, uint32 dialog_text_id, int row_idx);
+void fd2_grant_spell_to_char(uint32 char_idx, uint32 spell_id);
 int fd2_count_usable_inventory_slots(uint32 ci);
 int fd2_build_usable_spell_list(uint32 ci, uint32 buf);
 void fd2_grant_spell_to_char(uint32 char_idx, uint32 spell_id);
@@ -515,6 +539,8 @@ void fd2_maybe_load_speed_mode_overlay(void);
 void fd2_maybe_free_speed_mode_overlay(void);
 void fd2_animate_phase_banner_slide_in(uint32 banner_sprite_id);
 void fd2_animate_phase_banner_slide_out(uint32 banner_sprite_id);
+void fd2_render_phase_banner_frame(uint32 x_offset, uint32 banner_sprite_id);
+void fd2_scroll_buffer_block_with_wrap(uint32 wrap_param, void *dst_buf, void *src_buf);
 
 /* ---- summon spell animation ---- */
 int fd2_tick_summon_spell_minor_animation_state(uint32 sh, uint32 sa, uint32 oy, uint32 rs, uint32 sc);
@@ -571,17 +597,49 @@ void fd2_restore_portrait_cache_from_tmp(void);
 void fd2_load_chapter_battle_data(uint32 chapter_id);
 void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id);
 void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
+void fd2_restore_portrait_cache_from_tmp(void);
+int  fd2_load_chapter_party_roster(uint8 *out_buf);
 void fd2_init_runtime_char_for_battle(uint32 char_field_idx, uint32 fdicon_fp);
 void fd2_init_runtime_char_from_base_growth(uint32 char_id);
 void fd2_load_chapter_background_layers(void);
 void fd2_play_palette_fade_in(void);
 void fd2_play_palette_fade_to_black(void);
+void fd2_play_ani_file_animation_sequence(uint32 anim_idx, uint32 per_frame_delay,
+                                          uint32 skip_on_key_flag);
+void fd2_load_and_fade_in_cinematic_image(uint32 anim_idx, uint32 per_frame_delay,
+                                          uint32 palette_idx);
+void fd2_render_chapter_status_panel_segments(uint32 panel_sheet, uint32 active_idx,
+                                              uint32 menu_options);
 void fd2_init_battle_state_for_chapter(void);
 void fd2_save_runtime_char_to_template(void);
 void fd2_restore_all_chars_full_hp_mp(void);
+void fd2_chapter_01_end(void);
+void fd2_chapter_02_end(void);
+void fd2_chapter_03_end(void);
+void fd2_chapter_04_end(void);
+void fd2_chapter_05_end(void);
+void fd2_chapter_06_end(void);
+void fd2_chapter_07_end(void);
+void fd2_chapter_08_end(void);
+void fd2_chapter_09_end(void);
+void fd2_chapter_10_end(void);
+void fd2_chapter_11_end(void);
+void fd2_chapter_12_end(void);
+void fd2_chapter_13_end(void);
+void fd2_chapter_14_end(void);
+void fd2_chapter_15_end(void);
+void fd2_chapter_16_end(void);
+void fd2_chapter_17_end(void);
+void fd2_chapter_18_end(void);
+void fd2_chapter_19_end(void);
 
 /* ---- lifecycle / main menu ---- */
+void fd2_play_chapter_clear_fanfare(void);
+void fd2_play_chapter_intro_sprite_slideshow(void);
 int fd2_play_ending_and_record_clear(void);
+void fd2_play_game_ending_cinematic(void);
+void fd2_play_final_chapter_30_ending(void);
+void fd2_show_portrait_dialog_with_input(uint32 dialog_text_id, uint32 portrait_id);
 int fd2_main_menu_continue_dispatcher(void);
 void fd2_save_crypt_buffer(uint32 buf, uint32 size);
 int fd2_save_slot_selector_ui(uint32 buf, uint32 mode);
@@ -623,6 +681,7 @@ int fd2_wait_for_action_target_input(int mode, uint32 n_options, uint8 *pTarget_
 uint32 fd2_blit_sprite_raw_with_header(uint32 dst, uint32 sprite_hdr, uint32 stride);
 void fd2_blit_sheet_sprite_at_offset(uint32 dst, uint32 dst_pitch, uint32 sheet, uint32 sprite_idx);
 void fd2_blit_indexed_sprite_at_xy(uint32 dst, uint32 dst_pitch, uint32 sheet, uint32 sprite_idx);
+void fd2_fill_screen_rect_with_byte(uint32 x, uint32 y, uint32 color, uint32 size);
 void fd2_paint_portrait_to_dialog_area(uint32 frame);
 void fd2_render_horizontal_bar_segments(uint32 dst_offset, uint32 dst_pitch, uint32 filled_count, uint32 sprite_base);
 void fd2_render_chapter_status_panel_segments(uint32 sheet, uint32 active_idx, uint32 segment_count);
@@ -633,6 +692,8 @@ void fd2_blit_24x24_at_window_relative_pos(uint32 world_x, uint32 world_y, uint3
 void fd2_blit_24x24_tile_to_battle_grid_position(uint32 atlas_base, uint32 tile_index, uint32 dst_buffer, uint32 row_stride, uint32 dst_x, uint32 dst_y);
 void fd2_tile_blit_24x24_passthrough(uint32 src, uint32 dst, uint32 stride);
 void *fd2_convert_battle_tiles_to_24px(void);
+void fd2_blit_scaled_tile_map_view(uint32 src_cx, uint32 src_cy, uint32 scale, uint32 tile_data_table);
+void fd2_open_tactical_overview_zoom(void);
 void fd2_tile_blit_24x24_dimmed_grayscale(uint32 src, uint32 dst, uint32 stride);
 void fd2_tile_blit_24x24_with_remap_table(uint32 src, uint32 dst, uint32 stride, uint32 remap_table);
 void fd2_rle_blit_with_palette_remap(uint16 *rle_stream, int32 dst_x, int32 dst_y,
@@ -654,6 +715,7 @@ void fd2_render_circle_anim_row(int cx, int cy, int r, int scale_num, int start_
 void fd2_render_filled_circle_band_anim(uint32 param_1, uint32 param_2, uint32 param_3, int cx, int cy, int radius);
 void fd2_blit_money_digit_sprite(uint32 dst_buf, uint32 dst_stride, uint32 sprite_idx);
 uint32 fd2_alloc_and_blit_indexed_sprite_chunk(uint32 sheet_base, uint32 dst, uint32 surface_pitch, uint32 col_offset, uint32 row_idx, uint32 sprite_idx);
+void fd2_blit_money_digit_sprite(uint32 dst_buf, uint32 dst_stride, uint32 sprite_idx);
 void fd2_render_decimal_number_to_buffer(uint32 dst, uint32 stride, uint32 value, uint32 x, uint32 digits);
 void fd2_render_hp_or_mp_bar_proportional(uint32 dst_off, uint32 pitch, uint32 sprite_base, uint32 current, uint32 max);
 void fd2_render_number_red_when_full(uint32 dst_off, uint32 pitch, uint32 current, uint32 max, uint32 digits);
@@ -738,6 +800,54 @@ void fd2_delay_400ms_via_idle_thunk(void);
 
 /* ---- crt thunks ---- */
 void __delay_thunk_375b2(uint32 ticks);
+
+/* ---- crt_equivalent (FD2-specific CRT helpers; src/crt/crt.c) ---- */
+int crt_equivalent_lx_chunk_read_36107(int file_handle, int offset,
+                                       uint8 mode, void *dest, uint32 length);
+int crt_equivalent_lx_header_reader_36344(char *path, uint8 mode_byte);
+void *crt_equivalent_lx_module_loader_3647b(char *path, int flags,
+                                            void *caller_buf);
+void crt_equivalent_exit_chain_stub_36de3(void);
+
+/* crt_equivalent_get_eflags @ 0x3ed58 — the 4-byte Watcom `_disable`
+ * primitive the thunk @ 0x37f86 JMPs into (PUSHFD; POP EAX; CLI; RET).
+ * Returns the prior EFLAGS in EAX and disables interrupts (CLI). Real
+ * out-of-line function owning its own PUBDEF; the raw asm body is spliced
+ * in from the same in-line #pragma aux helper as the thunk in
+ * src/crt/crt.c. */
+unsigned long crt_equivalent_get_eflags(void);
+
+/* crt_equivalent_get_eflags_thunk @ 0x37f86 — Watcom `_disable` primitive
+ * reached by the two AIL ISRs via near CALL. Returns the prior EFLAGS in
+ * EAX and disables interrupts (CLI). Real out-of-line function; the raw
+ * asm body is spliced in from an in-line #pragma aux helper in
+ * src/crt/crt.c. */
+unsigned long crt_equivalent_get_eflags_thunk(void);
+
+/* crt_equivalent_entry_start @ 0x3c964 — DOS LE entry-point trampoline
+ * (LE header Entry Point references this address). Real out-of-line
+ * function so it owns a PUBDEF; its body tail-JMPs to the separate emit
+ * target crt_equivalent_dos_main_bootstrap @ 0x3c9de via an in-line
+ * #pragma aux helper in src/crt/crt.c. */
+void crt_equivalent_entry_start(void);
+
+/* crt_equivalent_fpe_default_handler_3d26e @ 0x3d26e — SIGFPE / FPU-exception
+ * default no-op handler (1-byte RET). Seeds the FPE dispatch slot @ 0x5283c;
+ * invoked indirectly by __FPE_exception_ / __int7 when signal(SIGFPE, ...) was
+ * never set. Address-taken (referenced as DATA from the slot), so it is a real
+ * callable function. __cdecl void(int fpe_code); ignores the code and returns. */
+void crt_equivalent_fpe_default_handler_3d26e(int fpe_code);
+
+/* crt_equivalent_matherr_default_thunk_4d340 @ 0x4d340 — default value of the
+ * user-matherr-handler slot @ 0x539A8. Read+CALLed by _matherr (PUSH exc;
+ * CALL [0x539A8]; ADD ESP,4) before any diagnostic output; returns 0 ("not
+ * handled") so _matherr runs its default path. Address-taken (the slot's
+ * default contents, written by _set_matherr), so it is a real callable
+ * function. Real out-of-line body tail-JMPs to the separate emit target
+ * crt_equivalent_matherr_default_return_zero_4d8ea @ 0x4d8ea via an in-line
+ * #pragma aux helper in src/crt/crt.c. __cdecl int(void *exc); ignores exc
+ * and returns 0. */
+int crt_equivalent_matherr_default_thunk_4d340(void *exc);
 
 /* ---- util / dpmi ---- */
 int fd2_dpmi_alloc_dos_memory(uint32 paragraphs, uint32 *out_linear, uint32 *out_segment, uint32 *out_selector);

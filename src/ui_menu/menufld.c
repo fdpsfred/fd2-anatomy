@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dos.h>
 #include "types.h"
 #include "consts.h"
 #include "globals.h"
@@ -404,4 +405,171 @@ int fd2_field_menu_status_save_load_quit_dispatch(void)
     fd2_close_status_screen_with_slide_out();
     fd2_clear_keyboard_buffer();
     return 1;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_open_tactical_overview_zoom @ 0x2000A  (1 caller: fd2_game_main_loop)
+ *
+ * TACTICAL OVERVIEW: a smooth-scaling zoom-out battlefield preview
+ * centered on the cursor, with every unit drawn as a 1-byte
+ * team-tinted square and a separate cursor square.
+ *
+ * Setup:
+ *   Save battle_scene_snapshot, rebuild the tile cache at 24px
+ *   (fd2_convert_battle_tiles_to_24px). Copy the 3-entry team-color
+ *   base table. Pick zoom_level (4 for short maps <=0x28 tall, else 3)
+ *   and scroll_origin (0x280 / 0x380). Compute the fixed-point camera
+ *   base/max from the viewport window and map dimensions (16:6 fixed
+ *   point: origin*0xC00 + max*0x600; max = dim*0x600). malloc a
+ *   0x4000 per-tile sprite-pointer table and fill it with pointers
+ *   into the 24px cache (one per (ix,iy) tile, stride 0x40 rows).
+ *
+ * Intro 7-frame zoom-in (iVar6 = 1..7): interpolate the camera between
+ *   base and max by ratio (iVar6+1)/8 (signed div-by-8 truncating toward
+ *   zero, exactly what the binary's SHL/SBB/SAR idiom computes), with
+ *   scale = scroll_origin*iVar6/7 + 0x80; blit the scaled map then
+ *   memmove it to the VGA framebuffer at 0xA0000. Clear keyboard.
+ *
+ * Display loop (repaint every >=2 BIOS ticks until a key is pressed):
+ *   Compute half-extents for centering. For each live party member
+ *   (skip dead / portrait 0x79 / archetype 0x0A), draw a zoom_level x
+ *   zoom_level square at the unit's scaled map position tinted
+ *   team_color[team] + anim_phase. Then draw the cursor square tinted
+ *   anim_phase + 0x18. Bounce anim_phase in 0..7 and latch last_tick.
+ *
+ * On exit: consume the scancode via INT 16h; run a 6-frame zoom-out
+ *   (reverse interpolation using ratio (iVar6+1)); free the tile table
+ *   and the 24px cache; restore the original battle_scene_snapshot; and
+ *   recomposite the battle frame.
+ *
+ * void __cdecl with the __CHK(0x60) stack-probe prologue (compiler-
+ * injected, omitted). The repaint cadence reads the BIOS timer-tick
+ * counter at fixed linear 0x46C as a signed word (BIOS_TICK_WORD).
+ * ---------------------------------------------------------------- */
+void fd2_open_tactical_overview_zoom(void)
+{
+    int32   team_color_table[3];
+    uint8   attr_buf[20];
+    uint32  saved_tile_cache;
+    uint32  zoom_level;
+    uint32  scroll_origin;
+    int     anim_phase;
+    int     anim_dir;
+    uint32  src_cx_fp_base;
+    uint32  src_cy_fp_base;
+    int     src_cx_fp_max;
+    int     src_cy_fp;
+    uint32 *tile_data_table;
+    int     ix;
+    int     iy;
+    int     frame;
+    int     ratio;
+    int     last_tick;
+    int     half_w;
+    int     half_h;
+    int     i;
+    runtime_char *rt;
+
+    zoom_level = 4;
+    team_color_table[0] = data_fd2_ui_tactical_overview_team_colors_table[0];
+    team_color_table[1] = data_fd2_ui_tactical_overview_team_colors_table[1];
+    team_color_table[2] = data_fd2_ui_tactical_overview_team_colors_table[2];
+    scroll_origin = 0x280;
+    anim_phase = 7;
+    anim_dir = -1;
+    saved_tile_cache = battle_scene_snapshot;
+    battle_scene_snapshot = (uint32)fd2_convert_battle_tiles_to_24px();
+
+    if ((int)data_fd2_battle_map_height_tiles > 0x28) {
+        zoom_level = 3;
+        scroll_origin = 0x380;
+    }
+
+    src_cx_fp_base = data_fd2_battle_view_window_origin_x * 0xc00 +
+                     data_fd2_battle_view_window_max_x * 0x600;
+    src_cy_fp_base = data_fd2_battle_view_window_origin_y * 0xc00 +
+                     data_fd2_battle_view_window_max_y * 0x600;
+    src_cx_fp_max = (int)(data_fd2_battle_map_width_tiles * 0x600);
+    src_cy_fp = (int)(data_fd2_battle_map_height_tiles * 0x600);
+
+    tile_data_table = (uint32 *)malloc(0x4000);
+    for (iy = 0; iy < (int)data_fd2_battle_map_height_tiles; iy++) {
+        for (ix = 0; ix < (int)data_fd2_battle_map_width_tiles; ix++) {
+            fd2_read_tile_attribute_at_pos((uint32)ix, (uint32)iy,
+                (uint32)attr_buf);
+            tile_data_table[iy * 0x40 + ix] =
+                battle_scene_snapshot +
+                (uint32)(*(uint16 *)attr_buf) * 0x240 + 6;
+        }
+    }
+
+    /* Intro zoom-in: ratio (frame+1)/8, scale frame/7. */
+    for (frame = 1; frame < 8; frame++) {
+        ratio = frame + 1;
+        fd2_blit_scaled_tile_map_view(
+            (uint32)((src_cx_fp_max - (int)src_cx_fp_base) * ratio / 8 +
+                     (int)src_cx_fp_base),
+            (uint32)((src_cy_fp - (int)src_cy_fp_base) * ratio / 8 +
+                     (int)src_cy_fp_base),
+            (uint32)((int)scroll_origin * frame / 7 + 0x80),
+            (uint32)tile_data_table);
+        memmove((void *)0xa0000,
+            (void *)data_fd2_large_game_state_buffer_ptr, 64000);
+    }
+
+    fd2_clear_keyboard_buffer();
+    /* last_tick is intentionally left uninitialized: the binary seeds it
+       with garbage so the very first qualifying tick forces a repaint. */
+    while (fd2_check_keyboard_buffer_nonempty() == 0) {
+        if (((int)(int16)BIOS_TICK_WORD - last_tick > 1) ||
+            ((int)(int16)BIOS_TICK_WORD - last_tick < 0)) {
+            half_w = (int)(data_fd2_battle_map_width_tiles * zoom_level) / 2;
+            half_h = (int)(data_fd2_battle_map_height_tiles * zoom_level) / 2;
+            for (i = 0; i < (int)data_fd2_battle_party_member_count; i++) {
+                rt = &data_fd2_battle_runtime_char_array_ptr[i];
+                if ((rt->flags & 1) == 0 && rt->portrait_id != 0x79 &&
+                    rt->archetype_flag != 0x0a) {
+                    fd2_fill_screen_rect_with_byte(
+                        (rt->pos_x * zoom_level + 0xa0) - half_w,
+                        (rt->pos_y * zoom_level + 100) - half_h,
+                        (uint32)(team_color_table[rt->team] + anim_phase),
+                        zoom_level);
+                }
+            }
+            fd2_fill_screen_rect_with_byte(
+                (data_fd2_battle_cursor_world_x * zoom_level + 0xa0) - half_w,
+                (data_fd2_battle_cursor_world_y * zoom_level + 100) - half_h,
+                (uint32)(anim_phase + 0x18),
+                zoom_level);
+            anim_phase += anim_dir;
+            if (anim_phase < 0 || anim_phase > 7) {
+                anim_dir = -anim_dir;
+                anim_phase += anim_dir;
+            }
+            last_tick = (int)(int16)BIOS_TICK_WORD;
+        }
+    }
+
+    data_fd2_input_key_input_mode = 0x10;
+    int386(0x16, (union REGS *)&data_fd2_input_last_key_pressed,
+                 (union REGS *)&data_fd2_input_last_key_pressed);
+
+    /* Outro zoom-out: reverse interpolation, ratio (frame+1)/8. */
+    for (frame = 6; frame > 0; frame--) {
+        ratio = frame + 1;
+        fd2_blit_scaled_tile_map_view(
+            (uint32)((src_cx_fp_max - (int)src_cx_fp_base) * ratio / 8 +
+                     (int)src_cx_fp_base),
+            (uint32)((src_cy_fp - (int)src_cy_fp_base) * ratio / 8 +
+                     (int)src_cy_fp_base),
+            (uint32)((int)scroll_origin * frame / 7 + 0x80),
+            (uint32)tile_data_table);
+        memmove((void *)0xa0000,
+            (void *)data_fd2_large_game_state_buffer_ptr, 64000);
+    }
+
+    free((void *)tile_data_table);
+    free((void *)battle_scene_snapshot);
+    battle_scene_snapshot = saved_tile_cache;
+    fd2_composite_battle_frame(0);
 }

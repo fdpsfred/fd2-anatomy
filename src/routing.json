@@ -1414,8 +1414,9 @@
     "name": "fd2_animate_spell_overlay_blink",
     "target": "anim/anicombt.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001ceed": {
     "name": "fd2_draw_spell_selection_list",
@@ -1493,15 +1494,17 @@
     "name": "fd2_paint_char_sprite_at_world_with_mode",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001db65": {
     "name": "fd2_play_death_animation_and_mark_dead",
     "target": "anim/anicombt.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001debe": {
     "name": "fd2_check_can_default_attack_target",
@@ -1515,36 +1518,41 @@
     "name": "fd2_animate_spell_projectile_paths",
     "target": "anim/anicombt.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001e0db": {
     "name": "fd2_show_damage_number",
     "target": "anim/anicombt.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001e1dc": {
     "name": "fd2_show_miss_indicator",
     "target": "anim/anicombt.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001e292": {
     "name": "fd2_process_xp_and_level_up_for_char",
     "target": "battle/btl_turn.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001e529": {
     "name": "fd2_roll_stat_gain_and_show_message",
     "target": "battle/btl_turn.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001e5c0": {
     "name": "fd2_wait_ticks_or_keypress_with_palette",
@@ -1558,43 +1566,49 @@
     "name": "fd2_render_combat_combatant_panels",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001e739": {
     "name": "fd2_render_combat_hp_bar_segments",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001e7f6": {
     "name": "fd2_render_combatant_hp_bar_proportional",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001e856": {
     "name": "fd2_animate_combat_hit_with_hp_drain",
     "target": "anim/anicombt.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001e98c": {
     "name": "fd2_animate_attack_hit_sequence",
     "target": "anim/anicombt.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001eb05": {
     "name": "fd2_animate_combat_speech_bubbles",
     "target": "anim/anicombt.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001ec2a": {
     "name": "fd2_compute_combat_bubble_screen_pos",
@@ -1640,22 +1654,25 @@
     "name": "fd2_animate_phase_banner_slide_in",
     "target": "anim/anicombt.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001f30a": {
     "name": "fd2_animate_phase_banner_slide_out",
     "target": "anim/anicombt.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001f42d": {
     "name": "fd2_render_phase_banner_frame",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001f525": {
     "name": "fd2_play_palette_fade_in",
@@ -1677,8 +1694,9 @@
     "name": "fd2_fill_screen_rect_with_byte",
     "target": "gfx/blitspr.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001f73f": {
     "name": "fd2_display_cinematic_image_with_fade",
@@ -1692,8 +1710,9 @@
     "name": "fd2_load_and_fade_in_cinematic_image",
     "target": "rsrc/rsrc.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001f882": {
     "name": "fd2_play_palette_fade_to_black",
@@ -1707,8 +1726,9 @@
     "name": "fd2_play_ending_and_record_clear",
     "target": "anim/aniend.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0001ff79": {
     "name": "fd2_render_chapter_status_panel_segments",
@@ -1722,8 +1742,9 @@
     "name": "fd2_open_tactical_overview_zoom",
     "target": "ui_menu/menufld.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000203bd": {
     "name": "fd2_set_full_vga_palette_to_color",
@@ -1929,8 +1950,9 @@
     "name": "fd2_composite_then_animate_projectiles",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000211a4": {
     "name": "fd2_cast_group_hp_heal_spell",
@@ -2080,8 +2102,9 @@
     "name": "fd2_render_circle_anim_row",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00021a9e": {
     "name": "fd2_cast_spell_0c_with_prefx",
@@ -2143,8 +2166,9 @@
     "name": "fd2_render_filled_circle_band_anim",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002211c": {
     "name": "fd2_cast_spell_0f_variant_b",
@@ -2278,8 +2302,9 @@
     "name": "fd2_composite_battle_frame_zero",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00022bc6": {
     "name": "fd2_cast_spell_15_dispatch_aa8",
@@ -2341,57 +2366,65 @@
     "name": "fd2_play_chapter_clear_fanfare",
     "target": "anim/aniend.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00022ef6": {
     "name": "fd2_chapter_01_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00022f37": {
     "name": "fd2_chapter_02_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000230f2": {
     "name": "fd2_chapter_03_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": true,
+    "reviewed": true
   },
   "000231bc": {
     "name": "fd2_chapter_04_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000231f9": {
     "name": "fd2_chapter_05_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00023296": {
     "name": "fd2_chapter_06_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000232e8": {
     "name": "fd2_chapter_07_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000233c6": {
     "name": "fd2_setup_chars_and_camera_for_intro",
@@ -2405,85 +2438,97 @@
     "name": "fd2_chapter_08_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000235bc": {
     "name": "fd2_chapter_09_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000235f9": {
     "name": "fd2_chapter_10_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00023790": {
     "name": "fd2_chapter_11_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000237d5": {
     "name": "fd2_chapter_12_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002389f": {
     "name": "fd2_chapter_13_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000238dc": {
     "name": "fd2_chapter_14_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000239bd": {
     "name": "fd2_chapter_15_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00023a0a": {
     "name": "fd2_chapter_16_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00023b5f": {
     "name": "fd2_chapter_17_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00023cd5": {
     "name": "fd2_chapter_18_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00023e39": {
     "name": "fd2_chapter_19_end",
     "target": "field/chend1.c",
     "phase": 6,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00023e74": {
     "name": "fd2_chapter_20_end",
@@ -2505,8 +2550,9 @@
     "name": "fd2_play_chapter_intro_sprite_slideshow",
     "target": "anim/aniend.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "000244b6": {
     "name": "fd2_chapter_22_end",
@@ -2690,8 +2736,9 @@
     "name": "fd2_render_summon_aura_sprite_ring",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00026528": {
     "name": "fd2_tick_summon_spell_animation_state",
@@ -2809,8 +2856,9 @@
     "name": "fd2_restore_portrait_cache_from_tmp",
     "target": "rsrc/rsrc.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00029164": {
     "name": "fd2_play_char_intro_zoom_anim",
@@ -2935,8 +2983,9 @@
     "name": "fd2_play_game_ending_cinematic",
     "target": "anim/aniend.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002c39b": {
     "name": "fd2_show_portrait_dialog_with_input",
@@ -2950,8 +2999,9 @@
     "name": "fd2_play_final_chapter_30_ending",
     "target": "anim/aniend.c",
     "phase": 4,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002c9ec": {
     "name": "fd2_tick_tutorial_progress_with_sfx",
@@ -2997,8 +3047,9 @@
     "name": "fd2_load_chapter_party_roster",
     "target": "rsrc/rsrc.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002d3ff": {
     "name": "fd2_animate_money_increment",
@@ -3020,8 +3071,9 @@
     "name": "fd2_blit_money_digit_sprite",
     "target": "gfx/blitspr.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0002d669": {
     "name": "fd2_animate_tutorial_dialog_intro_or_outro",
@@ -4315,8 +4367,9 @@
     "name": "fd2_kill_runtime_chars_from_index_to_end",
     "target": "battle/btl_turn.c",
     "phase": 5,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00035bf2": {
     "name": "fd2_chapter_event_handler_48__unref_ai_ctrl",
@@ -4482,8 +4535,9 @@
     "name": "crt_equivalent_lx_chunk_read_36107",
     "target": "crt/crt.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0003615e": {
     "name": "fd2_set_word_global_52758",
@@ -4553,15 +4607,17 @@
     "name": "crt_equivalent_lx_header_reader_36344",
     "target": "crt/crt.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0003647b": {
     "name": "crt_equivalent_lx_module_loader_3647b",
     "target": "crt/crt.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00036ae7": {
     "name": "fd2_ani_decoder_chunk_palette_fill_byte",
@@ -4663,22 +4719,25 @@
     "name": "crt_equivalent_exit_chain_stub_36de3",
     "target": "crt/crt.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "00037f86": {
     "name": "crt_equivalent_get_eflags_thunk",
     "target": "crt/crt.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0003c964": {
     "name": "crt_equivalent_entry_start",
     "target": "crt/crt.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0003c9de": {
     "name": "crt_equivalent_dos_main_bootstrap",
@@ -4691,43 +4750,53 @@
     "name": "crt_equivalent_fpe_default_handler_3d26e",
     "target": "crt/crt.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0003ed58": {
     "name": "crt_equivalent_get_eflags",
     "target": "crt/crt.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004c630": {
-    "name": "crt_equivalent_softfp_tan_worker_4c630",
+    "name": "crt_emu387_int7_fptan_opcode_worker_4c630",
     "target": "crt/crt.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "reviewed": true,
+    "asm": false,
+    "emit_action": "link_vendor_lib",
+    "note": "Reclassified: NOT an FD2 emit target. Internal subroutine of __int7 (emu387.obj software-FPU emulator); bytes lie inside the byte-matched __int7 PUBDEF (0x49D98..0x4CBCD). Resolved by linking that one module (link_vendor_lib); has no separate PUBDEF. Renamed from crt_equivalent_softfp_tan_worker_4c630. Routed via EMU387_INTERNAL_SUBROUTINES in build_call_graph.py. Not written to crt/crt.c."
   },
   "0004cbce": {
     "name": "crt_equivalent_linker_padding_4cbce",
-    "target": "crt/crt.c",
+    "target": "<artifact:linker-padding>",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true,
+    "skip": true,
+    "skip_reason": "Watcom CRT linker alignment padding, not a real function (pipeline_spec.md binary_artifact/skip_artifact; plate 'no logical purpose'). Bytes @ 0x4cbce: lone 0xC3 (Ghidra auto-disassembled as RET and created a spurious 1B fn) followed by 0x00 @ 0x4cbcf, sitting between __int7 (body ends 0x4cbcd) and __init_80x87 (body starts 0x4cbd0). callers=0, callees=0, zero xref/get_xrefs_to (NOT a shared epilogue: nothing tail-jumps in). Emit pipeline skips this address; wlink re-pads the segment alignment on relink. NOT emitted to crt/crt.c; prototype removed from crtcomp.h."
   },
   "0004d340": {
     "name": "crt_equivalent_matherr_default_thunk_4d340",
     "target": "crt/crt.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004d8ea": {
     "name": "crt_equivalent_matherr_default_return_zero_4d8ea",
     "target": "crt/crt.c",
     "phase": 3,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004db84": {
     "name": "fd2_get_orphan_table_60181_entry",
@@ -4860,15 +4929,17 @@
     "name": "fd2_flood_fill_movement_range_recursive",
     "target": "util/pathfnd.c",
     "phase": 2,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004e16e": {
     "name": "fd2_flood_fill_neighbor_step",
     "target": "util/pathfnd.c",
     "phase": 2,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004e1a6": {
     "name": "fd2_pathfind_to_destination",
@@ -4881,22 +4952,25 @@
     "name": "fd2_pathfind_recursive_with_direction",
     "target": "util/pathfnd.c",
     "phase": 2,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004e330": {
     "name": "fd2_pathfind_neighbor_step_with_tiebreak",
     "target": "util/pathfnd.c",
     "phase": 2,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004e3b3": {
     "name": "fd2_pathfind_record_destination_xy",
     "target": "util/pathfnd.c",
     "phase": 2,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004e3cf": {
     "name": "fd2_pathfind_count_unique_directions",
@@ -4910,8 +4984,9 @@
     "name": "fd2_pathfind_check_destination_save_path",
     "target": "util/pathfnd.c",
     "phase": 2,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004e445": {
     "name": "fd2_blit_palette_remap_with_sprite_mask",

@@ -17,8 +17,8 @@ binary 行為。
 | category            | emit_action         | 數量           | emit 策略                                                                                                       |
 | ------------------- | ------------------- | -------------- | --------------------------------------------------------------------------------------------------------------- |
 | `ail`             | `link_vendor_lib` | (即時 dump)    | **不 emit**。Watcom AIL3DIG / AIL3MDI 靜態 library 直接 link，FD2 source 端只保留 `extern` declaration  |
-| `crt`             | `link_vendor_lib` | 201            | **不 emit**。Watcom 9.5a CLIB3S 直接 link（193 個 lookup-resolved Watcom 真符號 + 8 個 fast-path `PUBLIC_CRT_SYMBOLS` 不在 lookup）          |
-| `crt`             | `emit_fd2_source` | 13             | **emit 為 C source**。涵蓋 13 個 `crt_equivalent_*`（Watcom CRT 行為等價但 byte 不 match 任一 lib obj） |
+| `crt`             | `link_vendor_lib` | 202            | **不 emit**。Watcom 9.5a CLIB3S / EMU387 直接 link（193 個 lookup-resolved Watcom 真符號 + 8 個 fast-path `PUBLIC_CRT_SYMBOLS` 不在 lookup + 1 個 `__int7` 內部 subroutine `crt_emu387_int7_fptan_opcode_worker_4c630`）          |
+| `crt`             | `emit_fd2_source` | 12             | **emit 為 C source**。涵蓋 12 個 `crt_equivalent_*`（Watcom CRT 行為等價但 byte 不 match 任一 lib obj） |
 | `fd2`             | `emit_fd2_source` | 640            | **emit 為 C source**。game logic / glue / dispatch / wrapper / dead code / 8 個 CRT-style primitive       |
 | `binary_artifact` | `skip_artifact`   | 93             | **不 emit**。Watcom 9.5a 重 compile 自動生成 alignment NOP padding                                          |
 | **合計**      |                     | **1375** |                                                                                                                 |
@@ -715,9 +715,9 @@ emit pipeline 完成後 re-link 出的 binary 必須滿足下列三層 invariant
 驗證手段：DOSBox-X silent mode 跑 scripted gameplay session（按既定 input
 scancode 序列），dump screen buffer / FD2.SAV / 觸發的 BGM track ID 與原版對比。
 
-### Layer 2: functionally-exact（emit_action = emit_fd2_source 全部 653 個 function）
+### Layer 2: functionally-exact（emit_action = emit_fd2_source 全部 652 個 function）
 
-對於這 653 個 emit-out-of-source 的 function（640 個 `fd2_*` + 13 個
+對於這 652 個 emit-out-of-source 的 function（640 個 `fd2_*` + 12 個
 `crt_equivalent_*`），每個 function 在「相同 input register / stack / memory
 state」下執行完，必須產出「相同的 return value / register state /
 寫入 memory 的 bytes」。
@@ -752,7 +752,7 @@ vendor lib 直接 link 的自然結果，不需額外努力。
 - **`link_vendor_lib`**：Layer 2 由 vendor lib 保證；byte-exact 為自然副產物
 - **`skip_artifact` (93 個 binary_artifact)**：Watcom 9.5a 重 compile 自動
   產生 alignment padding；只需 Layer 1
-- **`emit_fd2_source` (653 個 = fd2 640 + crt_equivalent_* 13)**：**Layer 2
+- **`emit_fd2_source` (652 個 = fd2 640 + crt_equivalent_* 12)**：**Layer 2
   為目標**，不追求 Layer 3
 
 ### 結構性不變式（與 binary 等價無關）

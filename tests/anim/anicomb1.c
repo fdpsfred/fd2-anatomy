@@ -624,10 +624,463 @@ static void test_fullflash_two_composites_and_strobe(void)
     ASSERT_EQ(g_composite_call_count, 3);
 }
 
-void run_anim_anicombt_tests(void)
+/* ================================================================
+ * fd2_animate_spell_overlay_blink tests
+ * ================================================================ */
+
+/* tint-blit recording (testglob.c): shared g_blitpass_* (src/dst/stride) plus a
+ * dedicated colour_base / team_offset log and a call counter. */
+extern int    g_blitpass_calls;
+extern uint32 g_blitpass_src[64];
+extern uint32 g_blitpass_dst[64];
+extern uint32 g_blitpass_stride[64];
+extern int    g_blittint_calls;
+extern uint32 g_blittint_color_base[64];
+extern uint32 g_blittint_team_offset[64];
+
+/* per-spell tint-mask byte table (testglob.c, real binary bytes) */
+extern uint8  data_fd2_animation_spell_overlay_blink_mask_table[30];
+
+/*
+ * Drives the full 10-frame blink over one in-window char and one out-of-window
+ * char. Verifies: the window-cull predicate (only the in-window char blits, so
+ * 10 tint blits over 10 frames), the dst screen-position arithmetic, the
+ * frame-source arithmetic on the palette!=3 branch, the constant colour_base
+ * (mask_tbl[spell_id]), the fixed 0x1C8 stride, and the distinctive per-frame
+ * fade-step team_offset sequence 7..0 then wrapping (7 - frame%8).
+ */
+static void test_blink_cull_arith_and_fade(void)
+{
+    uint8 idx_array[2];
+    uint32 exp_dst;
+    uint32 frame_idx;
+    uint32 exp_src;
+    uint32 exp_color;
+    int f;
+    static const int exp_team[10] = { 7, 6, 5, 4, 3, 2, 1, 0, 7, 6 };
+
+    setup_overlay(1);   /* palette 1 -> frame_idx = frame_off + palette branch */
+
+    /* char 0: inside the window */
+    g_test_rc_array[0].pos_x = 0x15;
+    g_test_rc_array[0].pos_y = 0x24;
+    g_test_rc_array[0].sprite_state[0] = 4;   /* frame_off = 4*0xC = 0x30 */
+
+    /* char 1: pos_x past the right edge (OX+MX = 0x1D) -> culled */
+    g_test_rc_array[1].pos_x = 0x1E;
+    g_test_rc_array[1].pos_y = 0x24;
+    g_test_rc_array[1].sprite_state[0] = 7;
+
+    idx_array[0] = 0;
+    idx_array[1] = 1;
+
+    g_blittint_calls = 0;
+
+    /* spell_id 8 -> mask_tbl[8] = 0xC8 (the one outlier byte in the table) */
+    fd2_animate_spell_overlay_blink(0xDEAD, 8, 2, (uint32)idx_array);
+
+    /* one tint blit per frame (in-window char only), 10 frames */
+    ASSERT_EQ(g_blittint_calls, 10);
+    ASSERT_EQ(g_blitpass_calls, 10);
+
+    /* dst = lgs + (pos_y-OY)*0x2AC0 + (pos_x-OX)*0x18 + 0x75D8 (frame-invariant) */
+    exp_dst = (uint32)g_lgs
+            + (0x24u - WIN_OY) * 0x2ac0u
+            + (0x15u - WIN_OX) * 0x18u
+            + 0x75d8u;
+
+    /* frame_idx = sprite_state[0]*0xC + palette(=1); src = cache + table[frame_idx] */
+    frame_idx = 4u * 0xcu + 1u;                 /* 0x31 */
+    exp_src = (uint32)g_portrait_cache + frame_idx * 0x100u;
+
+    /* colour_base = mask_tbl[spell_id]; spell 8 -> 0xC8 */
+    exp_color = data_fd2_animation_spell_overlay_blink_mask_table[8];
+    ASSERT_EQ(exp_color, 0xc8u);
+
+    for (f = 0; f < 10; f++) {
+        ASSERT_EQ(g_blitpass_dst[f], exp_dst);
+        ASSERT_EQ(g_blitpass_src[f], exp_src);
+        ASSERT_EQ(g_blitpass_stride[f], 0x1c8u);
+        ASSERT_EQ(g_blittint_color_base[f], exp_color);
+        ASSERT_EQ(g_blittint_team_offset[f], (uint32)exp_team[f]);
+    }
+}
+
+/*
+ * palette_idx == 3 forces frame_idx = frame_off + 2 (clash-avoidance branch),
+ * independent of the palette value. One char on the window origin, single frame
+ * source checked (frame-invariant), confirming the special-case offset and the
+ * origin dst collapse.
+ */
+static void test_blink_palette3_offset(void)
+{
+    uint8 idx_array[1];
+    uint32 frame_idx;
+    uint32 exp_src;
+
+    setup_overlay(3);
+
+    g_test_rc_array[0].pos_x = WIN_OX;          /* on the left window edge */
+    g_test_rc_array[0].pos_y = WIN_OY;          /* on the top window edge  */
+    g_test_rc_array[0].sprite_state[0] = 2;     /* frame_off = 2*0xC = 0x18 */
+    idx_array[0] = 0;
+
+    g_blittint_calls = 0;
+    fd2_animate_spell_overlay_blink(0, 0, 1, (uint32)idx_array);
+
+    /* 10 frames, one in-window char -> 10 blits */
+    ASSERT_EQ(g_blittint_calls, 10);
+
+    /* palette==3 -> frame_idx = frame_off + 2 = 0x18 + 2 = 0x1A */
+    frame_idx = 2u * 0xcu + 2u;
+    exp_src = (uint32)g_portrait_cache + frame_idx * 0x100u;
+    ASSERT_EQ(g_blitpass_src[0], exp_src);
+
+    /* dst at the window origin: offsets collapse to the +0x75D8 base */
+    ASSERT_EQ(g_blitpass_dst[0], (uint32)g_lgs + 0x75d8u);
+
+    /* spell 0 -> mask_tbl[0] = 0x20 */
+    ASSERT_EQ(g_blittint_color_base[0], 0x20u);
+}
+
+/*
+ * Lower-edge culling: a char one row above the top window edge (pos_y = OY-2,
+ * below the OY-1 lower bound) is rejected, so zero tint blits are drawn while
+ * the 10-frame snapshot/restore/composite plumbing still runs to completion.
+ */
+static void test_blink_cull_top_edge(void)
+{
+    uint8 idx_array[1];
+
+    setup_overlay(0);
+
+    g_test_rc_array[0].pos_x = WIN_OX;
+    g_test_rc_array[0].pos_y = (uint8)(WIN_OY - 2);   /* below OY-1 -> culled */
+    g_test_rc_array[0].sprite_state[0] = 1;
+    idx_array[0] = 0;
+
+    g_blittint_calls = 0;
+    fd2_animate_spell_overlay_blink(0, 0, 1, (uint32)idx_array);
+
+    ASSERT_EQ(g_blittint_calls, 0);
+}
+
+/* ================================================================
+ * fd2_play_death_animation_and_mark_dead tests
+ * ================================================================
+ *
+ * Coverage is risk-oriented. The two high-value, host-cheap behaviours are
+ * exercised here through the n_dying_onscreen == 0 EARLY-EXIT branch:
+ *   (1) the Phase-1 window-cull predicate (the control flow that decides
+ *       whether a dying char is collected), driven across all four boundary
+ *       rejections plus the flags-bit0 and hp>0 gates; and
+ *   (2) the silent-off-screen mark-dead state transition (flags := 1 on every
+ *       hp_current==0 char, hp>0 chars untouched).
+ * Taking the early-exit branch is observable by the absence of any animation
+ * side effect (g_composite_call_count and the death SFX both stay 0).
+ *
+ * The full on-screen animation path (Phase 2 13-frame flicker + Phase 3
+ * 12-frame decay) is a pure blit/display side-effect sequence: it composites
+ * the battle frame, blits the back-buffer to the mode13h primary, strobes the
+ * death sprite, and calls fd2_wait_n_bios_ticks(1) ~25 times (each a real
+ * ~55ms BIOS-tick spin). Per the project's risk-oriented test policy, that
+ * display-only path (and its dst screen-position routing, which only feeds the
+ * blit destination) is deferred to Phase 9 integration; it carries no numeric
+ * result, RNG, or persisted state beyond the mark-dead flag already covered
+ * by the early-exit tests, and running it here would add no logic coverage at
+ * a multi-second wall-clock cost. */
+
+static void setup_death(void)
+{
+    g_composite_call_count = 0;
+    g_play_sfx_with_handle_calls = 0;
+    g_blitdec_calls = 0;
+    g_blitpass_calls = 0;
+
+    memset(g_lgs, 0, sizeof(g_lgs));
+    data_fd2_large_game_state_buffer_ptr = (uint32)g_lgs;
+
+    data_fd2_battle_view_window_origin_x = WIN_OX;
+    data_fd2_battle_view_window_origin_y = WIN_OY;
+    data_fd2_battle_view_window_max_x = WIN_MX;
+    data_fd2_battle_view_window_max_y = WIN_MY;
+
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+}
+
+/*
+ * Off-screen silent death: several hp==0 chars all positioned outside the
+ * window are never collected (n_dying stays 0), so the early-exit branch runs.
+ * It must set flags := 1 on every hp==0 char and leave hp>0 chars untouched,
+ * with zero animation (no composite, no SFX).
+ */
+static void test_death_offscreen_marks_all_hp0_dead(void)
+{
+    setup_death();
+    data_fd2_battle_party_member_count = 5;
+
+    /* idx0: hp==0, far off-screen (left of OX-1) -> not collected, mark dead */
+    g_test_rc_array[0].pos_x = 0;
+    g_test_rc_array[0].pos_y = 0;
+    g_test_rc_array[0].hp_current = 0;
+    g_test_rc_array[0].flags = 0;
+
+    /* idx1: hp>0, inside window -> never a death candidate, must stay alive */
+    g_test_rc_array[1].pos_x = 0x15;
+    g_test_rc_array[1].pos_y = 0x24;
+    g_test_rc_array[1].hp_current = 30;
+    g_test_rc_array[1].flags = 0;
+
+    /* idx2: hp==0 but already-dead (flags bit0 set), off-screen; mark loop in
+       the early-exit path keys only on hp==0, so flags stays 1 (idempotent) */
+    g_test_rc_array[2].pos_x = 0;
+    g_test_rc_array[2].pos_y = 0;
+    g_test_rc_array[2].hp_current = 0;
+    g_test_rc_array[2].flags = 1;
+
+    /* idx3: hp==0, off-screen (below OY+MY+1) -> mark dead */
+    g_test_rc_array[3].pos_x = 0x15;
+    g_test_rc_array[3].pos_y = 0x7f;
+    g_test_rc_array[3].hp_current = 0;
+    g_test_rc_array[3].flags = 4;       /* unrelated bit preserved? see assert */
+
+    /* idx4: hp>0, off-screen -> untouched */
+    g_test_rc_array[4].pos_x = 0;
+    g_test_rc_array[4].pos_y = 0;
+    g_test_rc_array[4].hp_current = 10;
+    g_test_rc_array[4].flags = 0;
+
+    fd2_play_death_animation_and_mark_dead();
+
+    /* early-exit branch: no animation ran */
+    ASSERT_EQ(g_composite_call_count, 0);
+    ASSERT_EQ(g_play_sfx_with_handle_calls, 0);
+    ASSERT_EQ(g_blitdec_calls, 0);
+
+    /* every hp==0 char is now flags == 1 (the store is an assignment, so idx3's
+       prior bit2 is overwritten, matching MOV byte ptr [flags],1) */
+    ASSERT_EQ(g_test_rc_array[0].flags, 1);
+    ASSERT_EQ(g_test_rc_array[2].flags, 1);
+    ASSERT_EQ(g_test_rc_array[3].flags, 1);
+
+    /* hp>0 chars are left exactly as they were */
+    ASSERT_EQ(g_test_rc_array[1].flags, 0);
+    ASSERT_EQ(g_test_rc_array[1].hp_current, 30);
+    ASSERT_EQ(g_test_rc_array[4].flags, 0);
+    ASSERT_EQ(g_test_rc_array[4].hp_current, 10);
+}
+
+/*
+ * Window-cull boundary rejections. Each dying (hp==0, alive) char sits one tile
+ * outside one of the four window edges, so none is collected and the early-exit
+ * branch runs (no animation). Also covers the two non-position gates: an
+ * already-dead char (flags bit0) and an hp>0 char that happen to be inside the
+ * window are likewise never collected. The just-inside extreme corners are NOT
+ * placed here (they would enter the deferred animation path); their accept side
+ * is covered structurally by the identical predicate in the sibling overlays.
+ */
+static void test_death_cull_boundary_rejections(void)
+{
+    setup_death();
+    data_fd2_battle_party_member_count = 6;
+
+    /* idx0: pos_x = OX-2  (below the OX-1 left bound) */
+    g_test_rc_array[0].pos_x = (uint8)(WIN_OX - 2);
+    g_test_rc_array[0].pos_y = WIN_OY;
+    g_test_rc_array[0].hp_current = 0;
+
+    /* idx1: pos_x = OX+MX+1 (above the OX+MX right bound) */
+    g_test_rc_array[1].pos_x = (uint8)(WIN_OX + WIN_MX + 1);
+    g_test_rc_array[1].pos_y = WIN_OY;
+    g_test_rc_array[1].hp_current = 0;
+
+    /* idx2: pos_y = OY-2  (below the OY-1 top bound) */
+    g_test_rc_array[2].pos_x = WIN_OX;
+    g_test_rc_array[2].pos_y = (uint8)(WIN_OY - 2);
+    g_test_rc_array[2].hp_current = 0;
+
+    /* idx3: pos_y = OY+MY+2 (above the OY+MY+1 bottom bound) */
+    g_test_rc_array[3].pos_x = WIN_OX;
+    g_test_rc_array[3].pos_y = (uint8)(WIN_OY + WIN_MY + 2);
+    g_test_rc_array[3].hp_current = 0;
+
+    /* idx4: inside the window, hp==0, but already-dead (flags bit0) -> gated */
+    g_test_rc_array[4].pos_x = 0x15;
+    g_test_rc_array[4].pos_y = 0x24;
+    g_test_rc_array[4].hp_current = 0;
+    g_test_rc_array[4].flags = 1;
+
+    /* idx5: inside the window, alive, hp>0 -> not a death candidate */
+    g_test_rc_array[5].pos_x = 0x15;
+    g_test_rc_array[5].pos_y = 0x24;
+    g_test_rc_array[5].hp_current = 7;
+    g_test_rc_array[5].flags = 0;
+
+    fd2_play_death_animation_and_mark_dead();
+
+    /* nothing collected -> early-exit, no animation side effects */
+    ASSERT_EQ(g_composite_call_count, 0);
+    ASSERT_EQ(g_play_sfx_with_handle_calls, 0);
+
+    /* the four boundary-rejected hp==0 chars are still marked dead by the
+       early-exit mark loop (it ignores position) */
+    ASSERT_EQ(g_test_rc_array[0].flags, 1);
+    ASSERT_EQ(g_test_rc_array[1].flags, 1);
+    ASSERT_EQ(g_test_rc_array[2].flags, 1);
+    ASSERT_EQ(g_test_rc_array[3].flags, 1);
+    ASSERT_EQ(g_test_rc_array[4].flags, 1);   /* hp==0 -> set (was already 1) */
+    ASSERT_EQ(g_test_rc_array[5].flags, 0);   /* hp>0 -> untouched */
+}
+
+/*
+ * Empty party guard: party_member_count == 0 collects nothing, takes the
+ * early-exit branch, and marks nothing (both loops iterate zero times).
+ */
+static void test_death_empty_party(void)
+{
+    setup_death();
+    data_fd2_battle_party_member_count = 0;
+
+    /* seed a stale hp==0 slot that must NOT be touched (out of party range) */
+    g_test_rc_array[0].pos_x = 0x15;
+    g_test_rc_array[0].pos_y = 0x24;
+    g_test_rc_array[0].hp_current = 0;
+    g_test_rc_array[0].flags = 0;
+
+    fd2_play_death_animation_and_mark_dead();
+
+    ASSERT_EQ(g_composite_call_count, 0);
+    ASSERT_EQ(g_play_sfx_with_handle_calls, 0);
+    ASSERT_EQ(g_test_rc_array[0].flags, 0);   /* outside party count -> untouched */
+}
+
+/* ================================================================
+ * fd2_animate_combat_speech_bubbles @ 0x1EB05
+ *
+ * The real fd2_alloc_and_blit_indexed_sprite_chunk (blitspr.c) resolves a
+ * sprite header from this fake portrait atlas (dword offset table at +6,
+ * indexed by sprite id 0x27..0x30) and forwards the malloc'd save buffer to
+ * the recording save-block stub (g_saveblk_calls / g_saveblk_out). The real
+ * fd2_cleanup_dialog_sprite_buffer forwards that same buffer to the restore-
+ * block stub (g_restore_block_*) and frees it. The real
+ * fd2_check_can_counter_attack / fd2_compute_combat_bubble_screen_pos /
+ * fd2_find_equipped_item_by_kind chain runs against g_test_rc_array.
+ * ================================================================ */
+extern uint32 g_saveblk_out;
+extern int    g_saveblk_calls;
+extern int    g_restore_block_calls;
+extern uint32 g_restore_block_last_buf;
+
+/* Fake portrait atlas covering sprite ids up to 0x30: every offset-table entry
+ * points at a single 4-byte header (width=0,height=0) placed just past the
+ * table, so fd2_alloc_and_blit_indexed_sprite_chunk mallocs 8 bytes and the
+ * (stubbed) blit/save never touch real VGA. */
+static uint8 g_bubble_atlas[6 + 0x31 * 4 + 4];
+
+static void bubble_reset(void)
+{
+    uint32 hdr_off;
+    int i;
+
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    memset(data_fd2_battle_item_effect_table, 0,
+           sizeof(data_fd2_battle_item_effect_table));
+
+    memset(g_bubble_atlas, 0, sizeof(g_bubble_atlas));
+    hdr_off = 6 + 0x31 * 4;            /* 0-width/0-height header location */
+    for (i = 0; i <= 0x30; i++) {
+        *(int32 *)(g_bubble_atlas + 6 + i * 4) = (int32)hdr_off;
+    }
+    data_fd2_resource_portrait_sheet_ptr = (uint32)g_bubble_atlas;
+
+    data_fd2_battle_view_window_origin_x = 0;
+    data_fd2_battle_view_window_origin_y = 0;
+
+    data_fd2_battle_combat_speech_bubble_pos_pairs[0] = 0;
+    data_fd2_battle_combat_speech_bubble_pos_pairs[1] = 0;
+    data_fd2_battle_combat_speech_bubble_pos_pairs[2] = 0;
+    data_fd2_battle_combat_speech_bubble_pos_pairs[3] = 0;
+
+    g_saveblk_calls = 0;
+    g_saveblk_out = 0;
+    g_restore_block_calls = 0;
+    g_restore_block_last_buf = 0;
+    g_delay375b2_calls = 0;
+    g_delay375b2_last_ticks = 0;
+}
+
+/*
+ * No-counter path. Attacker and defender share a tile (dx+dy == 0 != 1), so
+ * fd2_check_can_counter_attack returns -1 before any item lookup, the function
+ * stores the -1 sentinel in pos_pairs[2], and only the attacker bubble is
+ * drawn. Verifies:
+ *   - the return value is the address of the pos_pairs array;
+ *   - pos_pairs[2] == -1 (no-counter sentinel);
+ *   - exactly 10 attacker alloc/blit frames, 10 delays of 0x19 ticks,
+ *     9 cleanups (frames 0..8; frame 9 skips cleanup);
+ *   - the cleanup receives the malloc'd save buffer (a real heap pointer),
+ *     proving the alloc return value -- not the sprite id -- flows through
+ *     (guards the Ghidra CALL-EAX bug).
+ */
+static void test_bubbles_no_counter_single_buffer(void)
+{
+    uint32 ret;
+
+    bubble_reset();
+    g_test_rc_array[0].pos_x = 5;   /* attacker */
+    g_test_rc_array[0].pos_y = 5;
+    g_test_rc_array[1].pos_x = 5;   /* defender on same tile -> not adjacent */
+    g_test_rc_array[1].pos_y = 5;
+
+    ret = fd2_animate_combat_speech_bubbles(0, 1);
+
+    ASSERT_EQ(ret, (uint32)data_fd2_battle_combat_speech_bubble_pos_pairs);
+    ASSERT_EQ(data_fd2_battle_combat_speech_bubble_pos_pairs[2], 0xffffffff);
+    ASSERT_EQ(g_saveblk_calls, 10);
+    ASSERT_EQ(g_delay375b2_calls, 10);
+    ASSERT_EQ(g_delay375b2_last_ticks, 0x19);
+    ASSERT_EQ(g_restore_block_calls, 9);
+    ASSERT_TRUE(g_restore_block_last_buf > 0x1000);   /* heap ptr, not sprite id */
+}
+
+/*
+ * Counter path. Defender is adjacent to the attacker, awake, and holds an
+ * equipped melee weapon (range_min == 1), so fd2_check_can_counter_attack
+ * returns 1: the counter bubble position is computed (pos_pairs[2] != -1) and
+ * a second bubble is drawn every frame. Verifies the dual-buffer fan-out:
+ *   - pos_pairs[2] is a real computed coordinate, not the -1 sentinel;
+ *   - 20 alloc/blit frames (attacker + counter) and 18 cleanups
+ *     (2 per frame x frames 0..8);
+ *   - still exactly 10 delays (one per frame).
+ */
+static void test_bubbles_counter_dual_buffer(void)
+{
+    bubble_reset();
+    /* attacker (0) at (5,5); defender (1) adjacent at (6,5) -> dx+dy == 1 */
+    g_test_rc_array[0].pos_x = 5;
+    g_test_rc_array[0].pos_y = 5;
+    g_test_rc_array[1].pos_x = 6;
+    g_test_rc_array[1].pos_y = 5;
+    g_test_rc_array[1].status_sleep_flag = 0;               /* awake */
+    g_test_rc_array[1].inventory_slots[0] = 0x40;           /* equipped flag */
+    g_test_rc_array[1].inventory_slots[1] = 5;              /* weapon id 5 (<0x80) */
+    /* fd2_get_item_effect_entry returns &table[5].type (= &table[5]+1); the
+     * counter check reads pWeapon[+0xB] = table[5] byte +0xC = range_min. */
+    data_fd2_battle_item_effect_table[5].range_min = 1;     /* melee -> can counter */
+
+    fd2_animate_combat_speech_bubbles(0, 1);
+
+    ASSERT_NE(data_fd2_battle_combat_speech_bubble_pos_pairs[2], 0xffffffff);
+    ASSERT_EQ(g_saveblk_calls, 20);
+    ASSERT_EQ(g_restore_block_calls, 18);
+    ASSERT_EQ(g_delay375b2_calls, 10);
+}
+
+void run_anim_anicombt1_tests(void)
 {
     int _prev_fails = g_test_fail_count;
-    printf("Suite: anim/anicombt\n");
+    printf("Suite: anim/anicombt (1)\n");
     RUN_TEST(test_overlay_cull_and_arithmetic);
     RUN_TEST(test_overlay_palette3_offset);
     RUN_TEST(test_overlay_cull_top_edge);
@@ -635,6 +1088,14 @@ void run_anim_anicombt_tests(void)
     RUN_TEST(test_impact_cull_and_arithmetic);
     RUN_TEST(test_impact_zero_frames);
     RUN_TEST(test_fullflash_two_composites_and_strobe);
+    RUN_TEST(test_blink_cull_arith_and_fade);
+    RUN_TEST(test_blink_palette3_offset);
+    RUN_TEST(test_blink_cull_top_edge);
+    RUN_TEST(test_death_offscreen_marks_all_hp0_dead);
+    RUN_TEST(test_death_cull_boundary_rejections);
+    RUN_TEST(test_death_empty_party);
+    RUN_TEST(test_bubbles_no_counter_single_buffer);
+    RUN_TEST(test_bubbles_counter_dual_buffer);
     audiofix_disable_sfx();   /* restore safe gate state for later suites */
     printf("\n");
 }

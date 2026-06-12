@@ -30,6 +30,19 @@ extern uint32 g_rle_blit_last_palette;
 extern int32  g_rle_blit_y_log[4];
 extern uint8  g_rle_blit_sprite_first_byte_log[4];
 
+extern int    g_scroll_text_calls;
+extern uint32 g_scroll_text_last_arg;
+
+/* fd2_load_and_fade_in_cinematic_image captures (testglob.c spies). Note:
+ * fd2_set_vga_palette_range is NOT a spy -- it is the real emitted primitive
+ * (src/gfx/palette.c) and runs end-to-end, reading the 768-byte palette at
+ * data_fd2_vga_palette_data_ptr and outp-ing to the (no-op) VGA DAC. */
+extern int    g_play_ani_calls;
+extern uint32 g_play_ani_last_idx;
+extern uint32 g_play_ani_last_delay;
+extern uint32 g_play_ani_last_skip;
+extern int    g_fade_to_black_calls;
+
 /* fd2_load_chapter_battle_data captures (testglob.c) */
 extern runtime_char g_test_rc_array[8];
 
@@ -928,6 +941,324 @@ static void test_lcp_default_kind(void)
     lcp_check_kind(0x40, 0x9017);
 }
 
+/* ================================================================
+ * fd2_load_and_fade_in_cinematic_image @ 0x1f81e
+ *
+ * Loads FDOTHER.DAT[palette_idx] into data_fd2_vga_palette_data_ptr (the real
+ * loader, driven against the staged real FDOTHER.DAT), applies it at full
+ * brightness via the real fd2_set_vga_palette_range, renders the ANI cinematic,
+ * then falls through into fd2_play_palette_fade_to_black (emit pipeline §模式 B).
+ * The anim arg pass-through and the fade-out tail are observed via testglob
+ * spies; the loaded palette bytes are cross-checked against an independent
+ * realdat parse. The framebuffer memset + ANI playback are display
+ * side-effects deferred to Phase 9. fd2_set_vga_palette_range runs for real and
+ * reads the full 768-byte palette, so the global must point at a valid palette
+ * buffer across the call (the real FDOTHER.DAT[0] palette is exactly that).
+ * ================================================================ */
+
+/* Reset the spies + the loaded palette buffer between cases. */
+static void cinematic_reset(void)
+{
+    if (data_fd2_vga_palette_data_ptr != 0) {
+        free((void *)data_fd2_vga_palette_data_ptr);
+        data_fd2_vga_palette_data_ptr = 0;
+    }
+    g_play_ani_calls = 0;
+    g_fade_to_black_calls = 0;
+}
+
+/* palette_idx != -1: clears + loads the real FDOTHER.DAT palette into the
+ * global, passes (anim_idx,delay,0) straight to the ANI renderer, and fades to
+ * black exactly once. */
+static void test_cinematic_loads_palette_and_renders(void)
+{
+    uint8 *ref;
+    long   ref_size;
+
+    cinematic_reset();
+    ref_size = realdat_read_resource("FDOTHER.DAT", 0, &ref);   /* vga palette */
+    ASSERT_TRUE(ref_size > 0);
+
+    fd2_load_and_fade_in_cinematic_image(7, 3, 0);
+
+    /* palette actually loaded from the real archive into the global (and is the
+     * buffer the real fd2_set_vga_palette_range just consumed) */
+    ASSERT_TRUE(data_fd2_vga_palette_data_ptr != 0);
+    ASSERT_EQ((long)data_fd2_resource_last_loaded_resource_size, ref_size);
+    ASSERT_EQ((long)memcmp((void *)data_fd2_vga_palette_data_ptr, ref,
+                           (size_t)ref_size), 0);
+
+    /* anim_idx / per_frame_delay passed through; skip-on-key hardwired to 0 */
+    ASSERT_EQ((long)g_play_ani_calls, 1);
+    ASSERT_EQ((long)g_play_ani_last_idx, 7);
+    ASSERT_EQ((long)g_play_ani_last_delay, 3);
+    ASSERT_EQ((long)g_play_ani_last_skip, 0);
+
+    /* fall-through tail fades to black once */
+    ASSERT_EQ((long)g_fade_to_black_calls, 1);
+
+    free(ref);
+    cinematic_reset();
+}
+
+/* palette_idx == -1: keeps the current palette (no framebuffer clear, no
+ * FDOTHER load); the global keeps pointing at the pre-existing buffer and the
+ * loader never runs, but the palette is still applied, the cinematic still
+ * renders, and the screen still fades out with the same arg pass-through.
+ * Pre-seed the global with a REAL FDOTHER.DAT palette so the real
+ * fd2_set_vga_palette_range has a full 768-byte buffer to read. */
+static void test_cinematic_keeps_palette_when_idx_neg1(void)
+{
+    uint32 pal_buf;
+
+    cinematic_reset();
+    /* a genuine 768-byte palette already resident from a prior load */
+    pal_buf = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 0);
+    ASSERT_TRUE(pal_buf != 0);
+    data_fd2_vga_palette_data_ptr = pal_buf;
+
+    /* poison the loader's size output so a stray reload would be detectable */
+    data_fd2_resource_last_loaded_resource_size = 0xdeadbeef;
+
+    fd2_load_and_fade_in_cinematic_image(2, 5, 0xffffffff);
+
+    /* no reload: same pointer, and the loader's size output is still the poison
+     * value (the FDOTHER load block was skipped entirely) */
+    ASSERT_EQ((long)data_fd2_vga_palette_data_ptr, (long)pal_buf);
+    ASSERT_EQ((long)data_fd2_resource_last_loaded_resource_size, (long)0xdeadbeef);
+
+    ASSERT_EQ((long)g_play_ani_calls, 1);
+    ASSERT_EQ((long)g_play_ani_last_idx, 2);
+    ASSERT_EQ((long)g_play_ani_last_delay, 5);
+    ASSERT_EQ((long)g_play_ani_last_skip, 0);
+
+    ASSERT_EQ((long)g_fade_to_black_calls, 1);
+
+    cinematic_reset();                       /* frees the global (= pal_buf) */
+}
+
+/* ================================================================
+ * fd2_restore_portrait_cache_from_tmp @ 0x29117
+ *
+ * Reads the full 0x32A00-byte portrait sprite cache back from FD2.TMP into a
+ * freshly malloc'd portrait_sprite_cache. This is the symmetric read of the
+ * swap file written by fd2_load_chapter_portraits_and_dump_tmp's fwrite tail.
+ *
+ * Genuine round-trip (no fabricated file): seed portrait_sprite_cache with
+ * real FDICON.B24-loaded portrait bytes, dump it to FD2.TMP with the REAL
+ * writer (alloc_offset 0 so the writer's per-record loop is skipped and it
+ * fwrites the cache verbatim), snapshot those genuine on-disk bytes, then drive
+ * the reader and assert it restored a fresh non-NULL buffer holding byte-
+ * identical content. Also asserts the on-disk FD2.TMP is exactly 0x32A00.
+ * ================================================================ */
+
+/* Fill the first `n` bytes of portrait_sprite_cache with genuine sprite bytes
+ * by loading real portraits from the staged FDICON.B24 until the cache's used
+ * span covers `n`; the rest of the 0x32A00 buffer keeps its malloc contents
+ * (also written out verbatim by the dump, so the round-trip stays exact). */
+static void rt_seed_cache_from_fdicon(void)
+{
+    FILE *fp;
+    int   pid;
+
+    if (portrait_sprite_cache != 0) {
+        free((void *)portrait_sprite_cache);
+        portrait_sprite_cache = 0;
+    }
+    data_fd2_resource_portrait_cache_count = 0;
+    data_fd2_resource_portrait_cache_buffer_used = 0;
+
+    fp = fopen("FDICON.B24", "rb");
+    /* load a handful of distinct real portraits -> genuine packed sprite bytes
+     * land at cache+0x780.. ; first call malloc's the 0x32A00 buffer */
+    for (pid = 1; pid <= 8; pid++) {
+        fd2_load_portrait_to_cache((uint32)pid, (uint32)fp);
+    }
+    fclose(fp);
+}
+
+static void test_restore_roundtrip_from_tmp(void)
+{
+    uint8 *ref;
+    uint8  prev_tileevent_dummy;
+    uint32 saved_alloc;
+    uint32 saved_chapter;
+    uint32 saved_tileptr;
+    uint32 saved_loadbuf;
+    runtime_char *saved_rc;
+    FILE  *vf;
+    long   fsize;
+
+    /* --- seed portrait_sprite_cache with genuine FDICON sprite content --- */
+    rt_seed_cache_from_fdicon();
+    ASSERT_TRUE(portrait_sprite_cache != 0);
+
+    /* snapshot the genuine cache image we are about to write out */
+    ref = (uint8 *)malloc(0x32a00);
+    memcpy(ref, (void *)portrait_sprite_cache, 0x32a00);
+
+    /* --- write FD2.TMP with the REAL writer, loop skipped (alloc_offset 0) --- */
+    saved_alloc   = data_fd2_resource_portrait_cache_alloc_offset;
+    saved_chapter = data_fd2_chapter_current_chapter_id;
+    saved_tileptr = data_fd2_tile_event_data_table_ptr;
+    saved_loadbuf = chapter_portrait_load_buffer;
+    saved_rc      = data_fd2_battle_runtime_char_array_ptr;
+
+    prev_tileevent_dummy = 0;
+    data_fd2_tile_event_data_table_ptr = (uint32)&prev_tileevent_dummy;
+    data_fd2_resource_portrait_cache_alloc_offset = 0; /* no per-record inits */
+    data_fd2_chapter_current_chapter_id = 4;           /* re-read FDFIELD[0xE] */
+    chapter_portrait_load_buffer = 0;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+
+    fd2_load_chapter_portraits_and_dump_tmp(0xFF);     /* no race matches -> dump */
+
+    /* FD2.TMP now on disk, exactly the cache size */
+    vf = fopen("FD2.TMP", "rb");
+    ASSERT_TRUE(vf != NULL);
+    fseek(vf, 0, SEEK_END);
+    fsize = ftell(vf);
+    fclose(vf);
+    ASSERT_EQ(fsize, 0x32a00);
+
+    /* the writer freed+nulled chapter_portrait_load_buffer; drop the cache so
+     * the reader must re-malloc a fresh buffer */
+    free((void *)portrait_sprite_cache);
+    portrait_sprite_cache = 0;
+
+    /* --- drive the reader under test --- */
+    fd2_restore_portrait_cache_from_tmp();
+
+    /* fresh non-NULL buffer holding the exact genuine bytes written out */
+    ASSERT_TRUE(portrait_sprite_cache != 0);
+    ASSERT_EQ((long)memcmp((void *)portrait_sprite_cache, ref, 0x32a00), 0);
+
+    /* cleanup */
+    free((void *)portrait_sprite_cache);
+    portrait_sprite_cache = 0;
+    free(ref);
+    data_fd2_resource_portrait_cache_count = 0;
+    data_fd2_resource_portrait_cache_buffer_used = 0;
+    remove("FD2.TMP");        /* generated swap file (not a staged game file) */
+
+    data_fd2_resource_portrait_cache_alloc_offset = saved_alloc;
+    data_fd2_chapter_current_chapter_id = saved_chapter;
+    data_fd2_tile_event_data_table_ptr = saved_tileptr;
+    chapter_portrait_load_buffer = saved_loadbuf;
+    data_fd2_battle_runtime_char_array_ptr = saved_rc;
+}
+
+/* ================================================================
+ * fd2_load_chapter_party_roster @ 0x2d392
+ *
+ * Pure in-memory extractor: copies the chapter-intro shop byte slice from
+ * data_fd2_chapter_intro_active_metadata_entry_ptr + state_offset into the
+ * caller's buffer, stopping at the first 0xFF or the state-specific cap, and
+ * returns the count. No file I/O. The cursor state selects (cap, offset):
+ *   state==1 -> (0xC, 0x03)   state==3 -> (8, 0xF)   else -> (8, 0x17).
+ * The fixture is a single byte array the global points at; the expected
+ * result is the same slice re-read independently here.
+ * ================================================================ */
+
+/* A metadata entry blob large enough to cover the 0x17+8 = 0x1F-byte window.
+ * Filled with a recognizable ramp; specific 0xFF sentinels are placed per
+ * test. The roster reader reads [offset .. offset+cap-1]. */
+static uint8 g_lpr_meta[0x40];
+
+static void lpr_setup(void)
+{
+    int i;
+
+    for (i = 0; i < (int)sizeof(g_lpr_meta); i++) {
+        g_lpr_meta[i] = (uint8)(0x10 + i);   /* never 0xFF on its own */
+    }
+    data_fd2_chapter_intro_active_metadata_entry_ptr = (uint32)g_lpr_meta;
+}
+
+/* Drive the reader for `state` and cross-check against an independent copy of
+ * the same slice (offset/cap derived the same way the function does), honoring
+ * the 0xFF terminator. */
+static void lpr_check(uint32 state, uint32 exp_off, int exp_cap)
+{
+    uint8 out[16];
+    int   ref_count;
+    int   ret;
+    int   i;
+
+    data_fd2_chapter_intro_menu_cursor_state = state;
+    memset(out, 0xAA, sizeof(out));
+
+    /* independent reference: walk the same window, stop at 0xFF */
+    ref_count = 0;
+    for (i = 0; i < exp_cap; i++) {
+        if (g_lpr_meta[exp_off + i] == 0xff) break;
+        ref_count++;
+    }
+
+    ret = fd2_load_chapter_party_roster(out);
+
+    ASSERT_EQ((long)ret, (long)ref_count);
+    for (i = 0; i < ref_count; i++) {
+        ASSERT_EQ((long)out[i], (long)g_lpr_meta[exp_off + i]);
+    }
+    /* the byte just past the written count must be untouched (no overrun) */
+    ASSERT_EQ((long)out[ref_count], 0xAA);
+}
+
+/* state==1: cap 0xC, offset 0x03; no sentinel in the window -> full 12 bytes. */
+static void test_lpr_state1_weapons_full(void)
+{
+    lpr_setup();
+    lpr_check(1, 0x03, 0xc);
+}
+
+/* state==3: cap 8, offset 0x0F; full 8 bytes when no sentinel. */
+static void test_lpr_state3_items_full(void)
+{
+    lpr_setup();
+    lpr_check(3, 0x0f, 8);
+}
+
+/* else (state 0): cap 8, offset 0x17; full 8 bytes when no sentinel. */
+static void test_lpr_state_other_mystery_full(void)
+{
+    lpr_setup();
+    lpr_check(0, 0x17, 8);
+}
+
+/* else path is also taken for state 5 (and any non-1/3 value): same offset. */
+static void test_lpr_state5_uses_else(void)
+{
+    lpr_setup();
+    lpr_check(5, 0x17, 8);
+}
+
+/* 0xFF mid-window truncates: state==1, sentinel at window index 4 -> count 4. */
+static void test_lpr_sentinel_truncates(void)
+{
+    lpr_setup();
+    g_lpr_meta[0x03 + 4] = 0xff;        /* 5th byte of the state==1 window */
+    lpr_check(1, 0x03, 0xc);
+}
+
+/* 0xFF at the first window byte -> count 0, nothing written. */
+static void test_lpr_sentinel_at_start(void)
+{
+    lpr_setup();
+    g_lpr_meta[0x0f] = 0xff;            /* first byte of the state==3 window */
+    lpr_check(3, 0x0f, 8);
+}
+
+/* Cap boundary: a 0xFF sits exactly one past the cap, so it must NOT be seen;
+ * the full cap is returned (state==3, sentinel at window index 8). */
+static void test_lpr_sentinel_past_cap_ignored(void)
+{
+    lpr_setup();
+    g_lpr_meta[0x0f + 8] = 0xff;        /* index == cap, outside the loop */
+    lpr_check(3, 0x0f, 8);
+}
+
 void run_rsrc_rsrc_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -956,5 +1287,15 @@ void run_rsrc_rsrc_tests(void)
     RUN_TEST(test_pt_empty_table);
     RUN_TEST(test_lcp_special_kinds);
     RUN_TEST(test_lcp_default_kind);
+    RUN_TEST(test_cinematic_loads_palette_and_renders);
+    RUN_TEST(test_cinematic_keeps_palette_when_idx_neg1);
+    RUN_TEST(test_restore_roundtrip_from_tmp);
+    RUN_TEST(test_lpr_state1_weapons_full);
+    RUN_TEST(test_lpr_state3_items_full);
+    RUN_TEST(test_lpr_state_other_mystery_full);
+    RUN_TEST(test_lpr_state5_uses_else);
+    RUN_TEST(test_lpr_sentinel_truncates);
+    RUN_TEST(test_lpr_sentinel_at_start);
+    RUN_TEST(test_lpr_sentinel_past_cap_ignored);
     printf("\n");
 }

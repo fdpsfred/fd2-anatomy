@@ -74,6 +74,62 @@ extern const uint8 data_fd2_chapter_ch30_end_scene_char_facing_table[20];  /* 0x
  * lifted) classes; indexed by chapter id. (.object2 const, byte[30]) */
 extern uint8  data_fd2_chapter_combat_cinematic_mode_per_chapter[30];   /* 0x52363 */
 
+/* ---- ending cinematic scripted-frame table (.object2 const) ---- */
+extern int32  data_fd2_chapter_ending_music_trigger_frames[15];         /* 0x5204E  scroll-row thresholds for SFX/palette swaps */
+
+/* ---- game-clear credit-roll per-duel tables (.object2 const, 20 bytes each) ---- */
+extern uint8  data_fd2_chapter_ending_credit_roll_top_portrait_id_table[20];    /* 0x525DC  top-half portrait ids */
+extern uint8  data_fd2_chapter_ending_credit_roll_bottom_portrait_id_table[20]; /* 0x525F0  bottom-half portrait ids */
+extern uint8  data_fd2_chapter_ending_credit_roll_scripted_outcome_table[20];   /* 0x52604  scripted_cinematic mode per duel */
+
+/* ---- chapter 3 end recruit-scene char placement tables (.object2 const) ---- */
+extern uint8  data_fd2_chapter_ch03_end_scene_char_pos_x_table[7];      /* 0x520BA  7 chars X */
+extern uint8  data_fd2_chapter_ch03_end_scene_char_pos_y_table[7];      /* 0x520C1  7 chars Y */
+extern uint8  data_fd2_chapter_ch03_end_scene_char_facing_table[7];     /* 0x520C8  7 chars facing */
+
+/* ---- chapter 5 end recruit-scene char placement tables (.object2 const) ---- */
+extern uint8  data_fd2_chapter_ch05_end_scene_char_pos_x_table[7];      /* 0x520CF  7 chars X */
+extern uint8  data_fd2_chapter_ch05_end_scene_char_pos_y_table[7];      /* 0x520D6  7 chars Y */
+extern uint8  data_fd2_chapter_ch05_end_scene_char_facing_table[7];     /* 0x520DD  7 chars facing */
+
+/* ---- chapter 7 end recruit-scene char placement tables (.object2 const) ---- */
+extern uint8  data_fd2_chapter_ch07_end_scene_char_pos_x_table[9];      /* 0x520E4  9 chars X */
+extern uint8  data_fd2_chapter_ch07_end_scene_char_pos_y_table[9];      /* 0x520ED  9 chars Y */
+extern uint8  data_fd2_chapter_ch07_end_scene_char_facing_table[9];     /* 0x520F6  9 chars facing */
+
+/* ---- chapter 8 end recruit-scene char placement tables (.object2 const;
+ *      facing is an inline fixed value (2), so there is no facing table) ---- */
+extern uint8  data_fd2_chapter_ch08_end_scene_char_pos_x_table[10];     /* 0x520FF  10 chars X */
+extern uint8  data_fd2_chapter_ch08_end_scene_char_pos_y_table[10];     /* 0x52109  10 chars Y */
+
+/* ---- chapter 10 end scene char placement tables (.object2 const;
+ *      facing is an inline fixed value (2), so there is no facing table) ---- */
+extern uint8  data_fd2_chapter_ch10_end_scene_char_pos_x_table[11];     /* 0x52113  11 chars X */
+extern uint8  data_fd2_chapter_ch10_end_scene_char_pos_y_table[11];     /* 0x5211E  11 chars Y */
+
+/* ---- chapter 12 end scene char placement tables (.object2 const) ---- */
+extern uint8  data_fd2_chapter_ch12_end_scene_char_pos_x_table[14];     /* 0x52129  14 chars X */
+extern uint8  data_fd2_chapter_ch12_end_scene_char_pos_y_table[14];     /* 0x52137  14 chars Y */
+extern uint8  data_fd2_chapter_ch12_end_scene_char_facing_table[14];    /* 0x52145  14 chars facing */
+
+/* ---- chapter 14 end scene char placement tables (.object2 const) ---- */
+extern uint8  data_fd2_chapter_ch14_end_scene_char_pos_x_table[16];     /* 0x52153  16 chars X */
+extern uint8  data_fd2_chapter_ch14_end_scene_char_pos_y_table[16];     /* 0x52163  16 chars Y */
+extern uint8  data_fd2_chapter_ch14_end_scene_char_facing_table[16];    /* 0x52173  16 chars facing */
+
+/* ---- chapter 16 end scene char placement tables (.object2 const) ---- */
+extern uint8  data_fd2_chapter_ch16_end_scene_char_pos_x_table[16];     /* 0x52183  16 chars X */
+extern uint8  data_fd2_chapter_ch16_end_scene_char_pos_y_table[16];     /* 0x52193  16 chars Y */
+
+/* ---- chapter 17 end scene char placement tables (.object2 const) ---- */
+extern uint8  data_fd2_chapter_ch17_end_scene_char_pos_x_table[16];     /* 0x521A3  16 chars X */
+extern uint8  data_fd2_chapter_ch17_end_scene_char_pos_y_table[16];     /* 0x521B3  16 chars Y */
+
+/* ---- chapter 18 end scene char placement tables (.object2 const) ---- */
+extern uint8  data_fd2_chapter_ch18_end_scene_char_pos_x_table[17];     /* 0x521C3  17 chars X */
+extern uint8  data_fd2_chapter_ch18_end_scene_char_pos_y_table[17];     /* 0x521D4  17 chars Y */
+extern uint8  data_fd2_chapter_ch18_end_scene_char_facing_table[17];    /* 0x521E5  17 chars facing */
+
 /* ---- battle state ---- */
 extern uint32 data_fd2_battle_anim_phase;                               /* 0x51A83 */
 extern uint32 data_fd2_battle_ai_post_action_consequence_idx;           /* 0x51A8F */
@@ -84,6 +140,11 @@ extern uint8  data_fd2_battle_last_hit_or_miss_flag;                    /* 0x53C
 extern uint32 data_fd2_battle_pending_xp_credit;                       /* 0x53EC8 */
 extern uint32 data_fd2_battle_tile_map_anim_frame_counter;              /* 0x53C1F */
 extern uint32 data_fd2_battle_spell_aoe_count_and_fx_queue_idx;         /* 0x53EC4 */
+extern uint8  data_fd2_battle_damage_number_format_buffer[8];           /* 0x52045  "    \0" template */
+extern uint8  data_fd2_battle_miss_indicator_sprite_ids[4];             /* 0x5204A  adjacent to format buffer; 4 sprite ids for the MISS indicator */
+extern uint8  data_fd2_battle_floating_damage_sprite_id_queue[200];     /* 0x53C6C */
+extern uint8  data_fd2_battle_floating_damage_x_offset_queue[200];      /* 0x53D34 */
+extern uint8  data_fd2_battle_floating_damage_target_char_idx_queue[200]; /* 0x53DFC */
 extern uint32 data_fd2_battle_scripted_cinematic_mode_or_terrain_idx;   /* 0x540FF */
 extern uint32 data_fd2_battle_combat_cinematic_split_bg_b_buf_ptr;      /* 0x54103 */
 extern uint32 data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr;    /* 0x54107 */
@@ -99,6 +160,7 @@ extern const int32 data_fd2_battle_combat_hit_shake_y_offset_table[6];  /* 0x525
 /* ---- battle spell-effect constants ---- */
 extern double data_fd2_battle_spell_ap_boost_factor_015;                /* 0x50210  const 0.15 */
 extern double data_fd2_battle_spell_dp_boost_factor_015;                /* 0x50218  const 0.15 */
+extern uint32 data_fd2_battle_combat_speech_bubble_pos_pairs[4];        /* 0x53A30  attacker/counter bubble (x,y) pairs; [2]=-1 means no counter */
 
 /* ---- battle AI scoring ---- */
 extern double data_fd2_battle_ai_enemy_spell_score_multiplier_15;       /* 0x50144  const 1.5 */
@@ -154,6 +216,7 @@ extern int32  data_fd2_ui_game_options_menu_state_template[4];          /* 0x53F
 extern int32  data_fd2_dialog_advance_collapse_template[4];             /* 0x51EE5 */
 extern int32  data_fd2_ui_save_load_newgame_menu_template[4];           /* 0x51EF5 */
 extern int32  data_fd2_ui_save_load_menu_state_template[4];             /* 0x53F22 */
+extern int32  data_fd2_ui_tactical_overview_team_colors_table[3];       /* 0x5208a  3 x 4B per-team color base */
 extern int32  data_fd2_ui_item_command_menu_template[4];                /* 0x51F05  const {8,9,10,11} */
 extern int32  data_fd2_ui_item_command_menu_state_template[4];          /* 0x53F32 */
 extern uint32 data_fd2_ui_slide_anim_accumulator_buf_ptr;               /* 0x53C5B */
@@ -182,6 +245,8 @@ extern uint32 data_fd2_graphics_chapter_ambient_palette_anim_idx;       /* 0x53C
 extern uint32 data_fd2_graphics_chapter_ambient_palette_anim_tick_latch; /* 0x53C0F */
 extern double data_fd2_graphics_radian_per_degree_const;                /* 0x501F8  const 0.0174532 (deg->rad) */
 extern double data_fd2_graphics_scatter_y_offset_neg8;                  /* 0x50200  const -8.0 (AoE scatter Y skew) */
+extern double data_fd2_graphics_circle_anim_div_10;                     /* 0x501F0  const 10.0 */
+extern double data_fd2_graphics_circle_band_radius_scale_16;            /* 0x50208  const 1.6 */
 
 /* ---- chapter intro dialog corner offsets (.object2 const) ----
  * table_a is signed (used with IDIV in the wing slide-in/out animation:
@@ -218,11 +283,11 @@ extern uint8  data_fd2_chapter_intro_portrait_pose_x_column_table[18];  /* 0x526
 /* ---- recruitment screen ---- */
 extern uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch;         /* 0x54127 */
 
-/* ---- chapter intro dialog anim ---- */
-extern uint32 data_fd2_chapter_intro_menu_cursor_state;                 /* 0x5412B */
+/* ---- chapter intro / transition menu state ---- */
+extern uint32 data_fd2_chapter_intro_menu_cursor_state;                 /* 0x5412B  selects intro BG idx / portrait / roster layout / return flag */
 extern uint32 data_fd2_chapter_intro_menu_overlay_buf_ptr;              /* 0x5413B */
 extern uint32 data_fd2_chapter_intro_dialog_anim_frame_idx;             /* 0x54133 */
-extern uint32 data_fd2_chapter_intro_active_metadata_entry_ptr;         /* 0x54137 */
+extern uint32 data_fd2_chapter_intro_active_metadata_entry_ptr;         /* 0x54137  cached chapter-intro metadata entry pointer (weapons/items/mystery byte slices) */
 extern uint32 data_fd2_chapter_intro_dialog_subframe_anim_counter;      /* 0x54153 */
 extern uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr;             /* 0x54147 */
 extern uint8 *data_fd2_ui_menu_candidate_array_ptr;                     /* 0x54143 */
@@ -360,7 +425,8 @@ extern uint8  data_fd2_animation_spell_palette_flash_table[108];        /* 0x51A
 extern uint8  data_fd2_animation_spell_sprite_offset_table[33];         /* 0x51F33 */
 extern uint8  data_fd2_animation_spell_frame_count_table[33];           /* 0x51F54 */
 extern uint8  data_fd2_animation_spell_sfx_frame_table[33];             /* 0x51F75 */
-extern uint8  data_fd2_animation_spell_overlay_blink_mask_table[28];    /* 0x52006 */
+extern uint8  data_fd2_animation_spell_overlay_blink_mask_table[30];    /* 0x52006 */
+extern uint8  data_fd2_animation_spell_projectile_y_offset_table[28];   /* 0x0202C */
 extern uint8  data_fd2_battle_summon_minor_anim_state5_frame_counter;    /* 0x540FA */
 extern uint8  data_fd2_battle_summon_minor_anim_alternating_blit_toggle; /* 0x540FB */
 extern uint8  data_fd2_graphics_figani_pose_anim_subframe_idx;           /* 0x540FC */
@@ -370,6 +436,8 @@ extern int32  data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[15]
 extern uint8  data_fd2_battle_summon_spell_8slot_visibility_table[7];            /* 0x523E1 */
 extern uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7];              /* 0x523E8 */
 extern int32  data_fd2_battle_summon_spell_8slot_row_multiplier_table[7];        /* 0x52404 */
+extern int32  data_fd2_battle_summon_aura_ring_8slot_x_offset_table[8];          /* 0x52420 */
+extern int32  data_fd2_battle_summon_aura_ring_8slot_row_multiplier_table[8];    /* 0x52440 */
 extern int32  data_fd2_battle_summon_main_anim_12slot_frame_counter_array[12];    /* 0x53F81 */
 extern int32  data_fd2_battle_summon_main_anim_12slot_color_idx_array[12];       /* 0x53FB1 */
 extern uint8  data_fd2_battle_summon_main_anim_color_rotation_counter;           /* 0x53FE1 */
@@ -477,6 +545,7 @@ extern uint32 data_fd2_battle_pathfind_path_output_buffer_ptr;           /* 0x60
 extern uint8  data_fd2_battle_pathfind_current_depth;                    /* 0x60077 */
 extern uint8  data_fd2_battle_pathfind_best_path_length;                 /* 0x60078 */
 extern uint8  data_fd2_battle_pathfind_step_stack[];                     /* 0x60079  8B per frame */
+extern uint8  data_fd2_battle_pathfind_mode_flags;                       /* 0x6017A  0/1/2 tiebreak/dst-record mode */
 extern uint8  data_fd2_class_promotion_data_table[];                    /* 0x615FE  2B per entry */
 extern uint8  data_fd2_movement_cost_table[];                           /* 0x61646  20B per job */
 extern uint8  data_fd2_job_allowed_items_table[27 * 7];                 /* 0x6188A  7B per job, 27 jobs */

@@ -177,6 +177,123 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
   可作為 lookup 維護 regression script 重建（原 crt_audit pipeline 已移除），
   避免未來新增 byte_match entry 時再現此問題。
 
+### 32. gfx/blitspr.c blit-leaf cluster 需跨分支 coordinated landing（不可單分支 emit）
+
+- **現狀**：`gfx/blitspr.c` 的 blit 子系統有 19 個 function 尚未 emit（branch_4 分區內、
+  全部 `done=false`），且**整批不能用 per-function workflow 逐一落地**。核心是測試端有兩層
+  互相堆疊、且住在**共享檔 `tests/testglob.c`** 的 spy-mock：
+  - `fd2_blit_indexed_sprite`（dispatcher，@0x2935b）目前由 testglob.c 的 spy-mock 定義，
+    記錄 `g_blit_indexed_sprite_*`（calls / last_frame / last_x / last_y / frame_log[128]），
+    被 **132 處引用**分布在 4 個套件：`tests/gfx/rndscene.c`(25) 與 `tests/anim/aniend.c`(9)
+    屬 branch_4，**`tests/anim/anisumm1.c`(54) 與 `tests/anim/anisumm2.c`(44) 是 partition
+    之前就已 commit 的舊套件**。
+  - `fd2_rle_blit_sprite`（真正寫像素的葉子，@0x4e63d）同樣由 testglob.c 的 spy-mock 定義，
+    記錄 `g_rle_blit_*`（last_sprite / last_buf / last_stride / last_palette / log_sprite[64]
+    / log_dst[64] …），被 **約 193 處引用**：`tests/gfx/rndstat.c`(124) 屬 **branch_2**、
+    `tests/rsrc/rsrc.c`(47) 與 `tests/gfx/blitspr.c`(13) 屬 branch_4、另有
+    `tests/include/minipfix.h`(7) 與 `tests/battle/battle2.c`(2)。
+  - 兩層 spy 加總約 **325 處引用、橫跨約 8 個套件**。dispatcher（真 body）會 forward 給葉子：
+    `fd2_blit_indexed_sprite(sheet_ptr, sprite_idx, dst_buf, dst_stride, palette_op)` __cdecl，
+    `sprite_data = sheet_ptr + *(int*)(sheet_ptr+8+sprite_idx*4)`、width/height = sprite_data
+    起 uint16 zero-extend、再 `fd2_rle_blit_sprite(sprite_data+9, w, h, dst_buf, dst_stride,
+    palette_op)`。三源已逐一驗證、body emit-ready，逐 function 的完整 disasm/分類證據保存在
+    `src/emit_issues.json` 的 `0002935b` 條目（blocker commit 9c8b8a3）。
+- **為什麼還沒解**：emit 任一真 body 會與 testglob.c 的同名 spy 形成 Watcom W1027
+  redefinition，而 0-warning gate 要求刪掉 spy；但 spy 一刪，依賴它的套件全垮。其中
+  `rndstat.c` 屬 branch_2、`anisumm1/2` 是已 commit 的舊套件、`testglob.c` 本身是所有分支
+  共用的測試膠水——**branch_4 在共享檔上單方面刪 spy 會弄壞別的分支與已完成套件，且 merge 必
+  衝突**。per-function workflow 又明令「一次一 function、不准碰別的 function 的測試」，故此事
+  在當前並行架構下無法由任一分支單獨完成。
+- **解需要做什麼**：在**所有並行分支完成、合併成單一樹之後**，把整個 blit 子系統當**一個
+  coordinated unit** 落地（避免「把擷取點往下搬到 `g_rle_blit_*` 卻又要 emit `fd2_rle_blit_sprite`」
+  造成的二次 re-home）：
+  1. emit 全部 19 個 leaf 的真 body 進 `src/gfx/blitspr.c`：`0002935b fd2_blit_indexed_sprite`、
+     `0004e445 fd2_blit_palette_remap_with_sprite_mask`、`0004e583 fd2_rle_blit_with_palette_remap`、
+     `0004e63d fd2_rle_blit_sprite`、`0004e809 fd2_scroll_buffer_block_with_wrap`、
+     `0004e85b fd2_blit_sprite_with_decoded_pixels`、`0004e8af fd2_dialog_sprite_blit_normal`、
+     `0004e8e1 fd2_dialog_sprite_blit_mirrored`、`0004e916 fd2_decode_dialog_pixel_byte`、
+     `0004e92c fd2_restore_screen_block_from_buffer`、`0004e954 fd2_restore_block_loop`、
+     `0004e96f fd2_save_screen_block_to_buffer`、`0004e9a0 fd2_save_block_loop`、
+     `0004e9bb fd2_blit_sprite_raw_with_header`、`0004e9e4 fd2_blit_sprite_with_stride_setup`、
+     `0004e9ff fd2_blit_sprite_with_stride_loop`、`0004ea2a fd2_blit_glyph_2bpp_with_outline`、
+     `0004eae6 fd2_blit_sprite_scaled_with_skip`、`0004eb90 fd2_blit_buffer_with_per_row_offset`。
+  2. 刪掉 `tests/testglob.c` 內 `fd2_blit_indexed_sprite` 與 `fd2_rle_blit_sprite` 兩個 spy-mock
+     定義及其零散的 `extern g_blit_indexed_sprite_* / g_rle_blit_*` 宣告。
+  3. 把約 325 處依賴 spy 的測試**改為真實像素輸出斷言**（Layer-2 位元等價，也是這條鏈葉子唯一
+     可行的測法——葉子底下沒有東西可 mock）：seed 真實 sheet（+8 offset table 指向含 uint16
+     w/h header + RLE body 的真 sprite）或真實 RLE stream ＋ 一塊 malloc 的目標 buffer，呼叫後
+     逐 byte 斷言解碼像素（含透明、palette_op）。涵蓋 branch_4 的 rndscene/aniend/rsrc/blitspr
+     與 branch_2 的 rndstat、以及舊套件 anisumm1/2、battle2、minipfix.h。
+  4. 在 `tests/gfx/blitspr.c` 補上 dispatcher 自己的測試（offset-table base +8、uint16 尺寸
+     pass-through、palette_op pass-through、rle_stream = sprite_data+9）。
+  5. 修正 `src/include/protos.h` 內 `fd2_blit_indexed_sprite` 的誤導參數名
+     （atlas/frame_idx/x/y/mode → sheet_ptr/sprite_idx/dst_buf/dst_stride/palette_op；
+     呼叫端的值本來就正確，只有名字錯）。
+  - **caller 端不需重做**：已 commit 的呼叫者（如 `fd2_render_summon_aura_sprite_ring`）是按真實
+    binary 正確 emit 的——它傳的第 3 引數是算好的目標 offset、第 4 是 stride，只是舊 prototype
+    名字把它們叫成 x/y。
+
+### 33. util/pathfnd.c 的 2 個 pathfind/floodfill entry 需 coordinated landing
+
+- **現狀**：`util/pathfnd.c` 的 pathfind/floodfill 子系統共 8 個 function 待 emit（branch_4 分區），
+  其中 **6 個內部 helper 可正常 bottom-up emit**（`0004e0dc fd2_flood_fill_movement_range_recursive`、
+  `0004e16e fd2_flood_fill_neighbor_step`、`0004e27c fd2_pathfind_recursive_with_direction`、
+  `0004e330 fd2_pathfind_neighbor_step_with_tiebreak`、`0004e3b3 fd2_pathfind_record_destination_xy`、
+  `0004e401 fd2_pathfind_check_destination_save_path`——皆無 testglob stub、0 外部套件引用），
+  但 **2 個 entry 不能單獨落地**，與 blit 同模式（spy/stub 住在共享 `tests/testglob.c`、被其他套件依賴）：
+  - `fd2_pathfind_to_destination`（@0x4e1a6）目前由 testglob.c:1371 的 spy-mock 定義，
+    其 `g_pathfind_*` recorder 全域（return / dst_x / dst_y / walk_return / seq[] / step_bytes …）
+    被 **約 25 個套件**斷言，橫跨 anim / battle / spell / ui_menu / audio / input / table / gfx 與
+    共享 `tests/include/battlfix.h`——絕大多數在**其他分支**。這些套件用 spy 觀察「呼叫者（AI 走位 /
+    技能目標 / 游標移動 …）對 pathfind 傳了什麼、pathfind 回傳什麼 step/destination」。
+  - `fd2_init_movement_range_floodfill`（@0x4e040）目前由 testglob.c:1403 的空 stub 定義，
+    被 battle AI 套件 `tests/battle/btl_ais1.c` 與 `tests/battle/btl_aitg.c` 引用（呼叫者測試把它
+    當 noop，只驗自己的邏輯）。
+- **為什麼還沒解**：emit 任一 entry 的真 body 會與 testglob.c 同名 spy/stub 形成 Watcom W1027
+  redefinition，0-warning gate 逼著刪掉 spy/stub；一刪，依賴它的跨分支套件（pathfind 約 25 個）與
+  battle 套件（floodfill 2 個）全垮，且共享 testglob.c 在 merge 時必衝突。per-function workflow
+  亦明令不准碰別的 function 的測試。故這 2 個 entry 與 blit 一樣，無法由單一分支落地。
+- **解需要做什麼**：在所有並行分支合併後，把這 2 個 entry 當 coordinated unit 落地（最好連同上述 6 個
+  helper 一起，若屆時 helper 尚未 emit）：(a) emit 兩個 entry 的真 body 進 `src/util/pathfnd.c`；
+  (b) 刪掉 testglob.c 的 `fd2_pathfind_to_destination` spy、`fd2_init_movement_range_floodfill` stub
+  及散落的 `g_pathfind_*` recorder 宣告；(c) 把約 25 個 g_pathfind 依賴套件與 2 個 floodfill 依賴套件
+  改成**用真實演算法結果**驗證呼叫者：seed 真實 tile map ＋ cost table ＋ 起終點，呼叫真 pathfind /
+  floodfill 後斷言真實的「可達範圍 / 回傳 step 序列 / 找到的 destination」（呼叫者本身已按真實 binary
+  正確 emit，不需重做）。`fd2_pathfind_record_destination_xy` 等 helper 正是 spy 原本假造的真實對應，
+  emit 後即提供真值。
+
+- **進度（0x4E0DC、0x4E16E、0x4E27C、0x4E330 已 emit）**：四個 bottom-up helper 已落到
+  `src/util/pathfnd.c`。`fd2_flood_fill_movement_range_recursive` @ 0x4E0DC 與
+  `fd2_pathfind_recursive_with_direction` @ 0x4E27C 都以原生 C 遞迴 + 參數 `(x, y, cost, btm_ptr)`
+  取代原本 register-passing + EDI 手刻遞迴堆疊（Layer-2 等價：相同 marker 寫入、相同 right/left/down/up
+  訪問順序、相同終止；後者另保留 `data_fd2_battle_pathfind_step_stack[depth*8]` 的 `{x,y,cost,dir}`
+  frame，因 direction byte 是 load-bearing）。`fd2_flood_fill_neighbor_step` @ 0x4E16E 與
+  `fd2_pathfind_neighbor_step_with_tiebreak` @ 0x4E330（內部 step：cost 查表 + signed-improvement gate
+  + 0x40/0x80 flag + marker 寫入；後者另含 mode 1 direction-diversity tiebreak、mode 2 dst-record、
+  以及把 direction code 打包進 marker 的 `[-2]`＝attribute 高位 byte，保留其低 2 bit）都以 `int` 回傳
+  取代原本的 carry-flag 訊號、residual 透過 `new_cost_out` 交回呼叫者；原本 ESI 內活著的 secondary
+  cost-table base 改讀 orchestrator 在 entry 寫入的 `data_fd2_battle_pathfind_caller_context`（0x6006A）。
+  emit 0x4E16E / 0x4E330 時各自一併移除 `tests/testglob.c` 內它的忠實測試 stub 與對應 recorder
+  （`g_ffns_*` / `g_ptbs_*`），並把呼叫者測試改成直接斷言真實 marker grid 與 direction grid（不再用
+  spy recorder）。mode flag global `data_fd2_battle_pathfind_mode_flags`（0x6017A）已補進 globals.h /
+  testglob.c。`fd2_pathfind_neighbor_step_with_tiebreak` 呼叫的兩個 destination helper
+  `fd2_pathfind_record_destination_xy` @ 0x4E3B3 與 `fd2_pathfind_check_destination_save_path` @ 0x4E401
+  目前以忠實 stub 住在 `tests/testglob.c`（純 pathfind-global routine，無跨分支依賴），待各自 routing
+  entry emit 為真時移除。剩餘：2 個 helper（0x4E3B3、0x4E401）與 2 個 entry（0x4E1A6、0x4E040）仍依本節規畫處理。
+
+### 34. crt/crt.c 的 dos_main_bootstrap 需 within-branch 小型 coordinated landing
+
+- **現狀**：`crt_equivalent_dos_main_bootstrap`（@0x3c9de，`crt/crt.c`）目前由 testglob.c:150 的 stub
+  定義（`g_cstart_bootstrap_entered++`），這個 counter 被 **`tests/crt/crt.c` 內已 emit 的
+  `crt_equivalent_entry_start`（@0x3c964）測試**斷言（驗證 entry_start 會呼叫 bootstrap）。
+- **為什麼還沒解**：emit 真 bootstrap → 刪 stub → `g_cstart_bootstrap_entered` 失效 → entry_start
+  的測試斷言垮。雖然全在 branch_4 自己的 `crt.c` 內（**非跨分支**），但 per-function workflow 不准
+  emit 一個 function 時去改「另一個 function（entry_start）的測試」。
+- **解需要做什麼**：做一個 within-`crt.c` 的小型 coordinated mini-landing（範圍遠小於 blit / pathfind）：
+  emit 真 `crt_equivalent_dos_main_bootstrap`、刪 testglob.c 的 stub ＋ `g_cstart_bootstrap_entered`、
+  把 entry_start 的測試改成用真 bootstrap 觀察「entry → bootstrap」鏈（驗 bootstrap 的真實副作用，
+  或保留一個最小 seam）。可與 entry_start 視為 2-function 單位一起重整。
+
 ## 已解問題（記錄為基線）
 
 - ✅ #26 auto-classifier 加進去的 61 個 `uint` param 型別 — 由廣域 function re-review 覆蓋解：56 個 chapter_NN_init/end 的 spurious passthrough param 全部移除（per「Function-pointer dispatch table callees 的 0-arg signature」項，confirm 為 `void __cdecl func(void)`，0 args by dispatch site analysis）；11 個 misc function `FUN_*` 全部更名為語意名 + 正確型別（如 `FUN_000361a5` → `AIL_internal_decommit_and_free(void *, uint)`、`fd2_noop_stub_*` 系列 → `void(void)`）。最終 FD2.LE 內 `FUN_*` 計數 = 0，所有 signature 由「全 function re-review 完成」項逐一讀 asm/decomp 校正

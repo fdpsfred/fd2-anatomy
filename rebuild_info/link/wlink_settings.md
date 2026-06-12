@@ -22,7 +22,7 @@ option quiet                       # 安靜輸出（推測，無證據要求）
 # ---- 主入口物件（決定模組內部名 "f2"）----
 file f2.obj                        # 含 fd2_main；模組名取 file 列表第一個的 basename
 
-# ---- 全 FD2 source objects (≈653 個 emit_fd2_source function 分散在多個 .obj) ----
+# ---- 全 FD2 source objects (≈652 個 emit_fd2_source function 分散在多個 .obj) ----
 file <chapter_*.obj>               # ch01..ch30 init/end/post_action handler
 file <battle_*.obj>                # 戰鬥流程、AI、damage、傷害數字
 file <ui_*.obj>                    # 選單、cursor、portrait blit

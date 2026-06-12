@@ -556,3 +556,129 @@ void fd2_load_chapter_portrait(uint32 portrait_kind)
             data_fd2_ui_slide_composed_target_buf_ptr);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_load_and_fade_in_cinematic_image @ 0x1f81e  (1 caller)
+ *
+ * Loads a cinematic image palette, plays its ANI.DAT animation
+ * sequence, then fades the screen to black. Used during the chapter
+ * ending cinematic (fd2_play_ending_and_record_clear, 3 sites).
+ *
+ * Steps:
+ *   1. If palette_idx != -1: clear the mode-13h framebuffer
+ *      (memset 0xA0000 = 0, 64000 bytes), then load FDOTHER.DAT
+ *      entry palette_idx into data_fd2_vga_palette_data_ptr.
+ *      (palette_idx == -1 keeps the current palette.)
+ *   2. fd2_set_vga_palette_range(0, 0xff, 0) — apply the palette at
+ *      FULL brightness (3rd arg = darken-amount, 0 = no darkening).
+ *   3. fd2_play_ani_file_animation_sequence(anim_idx, per_frame_delay, 0)
+ *      — render the cinematic (its ANI frames carry their own fade-in).
+ *   4. Fall through into fd2_play_palette_fade_to_black @ 0x1f882,
+ *      which ramps darken 0..0x3F (fade-OUT to black) and RETs. The
+ *      fall-through's RET also returns from this function, so this is
+ *      emitted as a direct tail-call to that function (emit pipeline
+ *      §模式 B — shared fade-loop body; fade_to_black is a real,
+ *      separately-emitted function with 22 callers).
+ *
+ * Params: anim_idx, per_frame_delay = passed through to
+ * fd2_play_ani_file_animation_sequence; palette_idx = FDOTHER.DAT
+ * palette resource index, or -1 to keep the current palette.
+ * ---------------------------------------------------------------- */
+void fd2_load_and_fade_in_cinematic_image(uint32 anim_idx, uint32 per_frame_delay,
+                                          uint32 palette_idx)
+{
+    if (palette_idx != 0xffffffff) {
+        memset((void *)0xa0000, 0, 64000);
+        data_fd2_vga_palette_data_ptr = fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_fdother_dat,
+            data_fd2_vga_palette_data_ptr, palette_idx);
+    }
+
+    fd2_set_vga_palette_range(0, 0xff, 0);
+    fd2_play_ani_file_animation_sequence(anim_idx, per_frame_delay, 0);
+    fd2_play_palette_fade_to_black();
+}
+
+/* ----------------------------------------------------------------
+ * fd2_restore_portrait_cache_from_tmp @ 0x29117  (3 callers)
+ *
+ * Restores the portrait sprite cache (portrait_sprite_cache @ 0x53A61)
+ * by reading the full 0x32A00-byte (~207KB) image back from FD2.TMP.
+ * Symmetric read-back of the swap file written by
+ * fd2_load_chapter_portraits_and_dump_tmp's fopen("FD2.TMP","wb")+
+ * fwrite tail. Called after FIGANI combat cinematics that freed and
+ * replaced the in-game portrait/tile caches; this re-loads the working
+ * portrait set from the precomputed file written during chapter init.
+ * Callers: fd2_execute_special_attack_skill, fd2_play_full_combat_cinematic,
+ * fd2_play_spell_cast_sequence.
+ *
+ * void __cdecl, no params. fp is held in EBX (callee-saved) across the
+ * malloc/fread; the __CHK(0x18) stack-probe prologue is compiler-injected.
+ * Note the freshly malloc'd buffer is stored into portrait_sprite_cache
+ * and reused as the fread destination (same pointer), so the cache global
+ * is the read target.
+ * ---------------------------------------------------------------- */
+void fd2_restore_portrait_cache_from_tmp(void)
+{
+    void *fp;
+
+    fp = fopen("FD2.TMP", "rb");
+    portrait_sprite_cache = (uint32)malloc(0x32a00);
+    fread((void *)portrait_sprite_cache, 1, 0x32a00, fp);
+    fclose(fp);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_load_chapter_party_roster @ 0x2d392  (1 caller)
+ *
+ * Extract the chapter intro shop/equip menu's "available rows" byte array
+ * from the cached chapter-intro metadata entry
+ * (data_fd2_chapter_intro_active_metadata_entry_ptr @ 0x54137) into the
+ * caller's out_buf, stopping at the first 0xFF terminator or a
+ * state-specific cap. Returns the number of bytes written.
+ *
+ * Sole caller: fd2_run_chapter_intro_menu_main @ 0x2E341, which passes a
+ * 12-byte stack buffer and uses the count for the shop sub-menus.
+ *
+ * Layout selection by data_fd2_chapter_intro_menu_cursor_state @ 0x5412B:
+ *   state == 1: cap = 0xC, source offset within metadata = 0x03 (weapons)
+ *   state == 3: cap = 8,   source offset = 0x0F                  (items)
+ *   else:       cap = 8,   source offset = 0x17                  (mystery)
+ *
+ * The metadata entry is the FDFIELD-style chapter intro record fetched by
+ * fd2_get_chapter_intro_metadata_entry; bytes are item IDs with 0xFF as the
+ * empty-slot sentinel. The store index (out_count) and the loop counter
+ * (iter) are tracked separately to mirror the disassembly, but since 0xFF
+ * only breaks (never skips), out_count == iter at every step.
+ * ---------------------------------------------------------------- */
+int fd2_load_chapter_party_roster(uint8 *out_buf)
+{
+    uint32 table_off;
+    uint32 max_count;
+    uint32 out_count;
+    uint32 iter;
+    uint32 src_byte;
+
+    max_count = 8;
+    if (data_fd2_chapter_intro_menu_cursor_state == 1) {
+        max_count = 0xc;
+        table_off = 3;
+    } else if (data_fd2_chapter_intro_menu_cursor_state == 3) {
+        table_off = 0xf;
+    } else {
+        table_off = 0x17;
+    }
+
+    out_count = 0;
+    for (iter = 0; (int)iter < (int)max_count; iter++) {
+        src_byte = data_fd2_chapter_intro_active_metadata_entry_ptr
+                   + table_off + iter;
+        if (*(uint8 *)src_byte == 0xff) {
+            break;
+        }
+        *(uint8 *)(out_buf + out_count) = *(uint8 *)src_byte;
+        out_count++;
+    }
+
+    return (int)out_count;
+}

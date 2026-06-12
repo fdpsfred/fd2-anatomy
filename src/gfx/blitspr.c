@@ -224,3 +224,88 @@ void fd2_blit_indexed_sprite_at_xy(uint32 dst, uint32 dst_pitch,
     sprite_addr = sheet + *(int32 *)(sheet + 6 + sprite_idx * 4);
     fd2_rle_blit_sprite(sprite_addr, 0, 0, dst, dst_pitch, 0xFFFFFFFF);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_fill_screen_rect_with_byte @ 0x1F6EF (2 callers)
+ *
+ * Fill a solid (size-1) x (size-1) byte square directly into the
+ * mode13h VGA framebuffer (0xA0000), no backbuffer:
+ *
+ *   row_ptr = 0xA0000 + y * 320 + x
+ *   for row in 0..(size - 1):
+ *       memset(row_ptr, color, size - 1)      // (size-1) bytes wide
+ *       row_ptr += 320
+ *
+ * Both the row count and the per-row byte count are (size - 1); the
+ * loop bound is a signed compare ((int)row < (int)(size - 1)), so
+ * size 1 (and size 0) paint nothing.
+ *
+ * Used by fd2_open_tactical_overview_zoom to draw the per-unit colored
+ * marker squares in the tactical overview (player=green / enemy=red /
+ * NPC=blue), at two render points.
+ *
+ * Cdecl, 4 stack params; void return. The binary's __CHK(0x20)
+ * stack-probe prologue is compiler-generated and omitted here.
+ * ---------------------------------------------------------------- */
+void fd2_fill_screen_rect_with_byte(uint32 x, uint32 y, uint32 color,
+                                    uint32 size)
+{
+    uint32 row_ptr;
+    uint32 row;
+
+    row_ptr = y * 0x140 + 0xA0000 + x;
+    for (row = 0; (int32)row < (int32)(size - 1); row = row + 1) {
+        memset((void *)row_ptr, color, size - 1);
+        row_ptr = row_ptr + 0x140;
+    }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_blit_money_digit_sprite @ 0x2D620 (2 callers)
+ *
+ * Per-digit blit primitive for the slot-machine money-roller
+ * animation. Copies a 9-row x 6-pixel money-digit sprite into the
+ * destination buffer at row stride dst_stride.
+ *
+ * The sprite data lives in the chapter-intro sprite atlas
+ * (data_fd2_ui_menu_screen_sprite_atlas_buf_ptr, FDOTHER.DAT[0xD]
+ * payload). The digit-sprite section starts at the byte offset stored
+ * in atlas[+0xE]; a 4-byte section header is skipped, then sprite_idx
+ * selects a 6-byte-wide row run:
+ *
+ *   src_row = atlas
+ *             + *(int32 *)(atlas + 0xE)   // offset to digit-sprite section
+ *             + 4                          // skip 4-byte section header
+ *             + sprite_idx * 6             // sprite stride within row
+ *
+ * sprite_idx = digit_value * 9 + animation_frame, so 0..89 covers all
+ * 10 digits x 9 rolling frames. Each of the 9 rows is a 6-byte
+ * memmove; dst advances by dst_stride and src by 6 per row. The loop
+ * bound is a signed compare (row < 9).
+ *
+ * Called 8 x 9 = 72 times per slot-machine rolling step by
+ * fd2_animate_money_increment / fd2_animate_money_decrement.
+ *
+ * Args (cdecl, 3x uint32 on stack):
+ *   dst_buf    — destination base linear address
+ *   dst_stride — bytes to advance dst per row
+ *   sprite_idx — digit_value * 9 + animation_frame
+ *
+ * The binary's __CHK(0x20) stack-probe prologue is compiler-generated
+ * and omitted here.
+ * ---------------------------------------------------------------- */
+void fd2_blit_money_digit_sprite(uint32 dst_buf, uint32 dst_stride,
+                                 uint32 sprite_idx)
+{
+    uint32 src_row;
+    uint32 row;
+
+    src_row = data_fd2_ui_menu_screen_sprite_atlas_buf_ptr
+              + *(int32 *)(data_fd2_ui_menu_screen_sprite_atlas_buf_ptr + 0xE)
+              + 4 + sprite_idx * 6;
+    for (row = 0; (int32)row < 9; row = row + 1) {
+        memmove((void *)dst_buf, (void *)src_row, 6);
+        dst_buf += dst_stride;
+        src_row += 6;
+    }
+}

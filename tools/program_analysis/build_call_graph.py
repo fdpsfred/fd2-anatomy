@@ -11,7 +11,10 @@ Ghidra name via `categorise()` / `emit_action_for()`:
 - 3 emit_action: link_vendor_lib / emit_fd2_source / skip_artifact
 
 CRT classification consults `rebuild_info/crt/lookup_9.5a.json` (Watcom real
-symbols) + the hardcoded `PUBLIC_CRT_SYMBOLS` set in this file.
+symbols) + the hardcoded `PUBLIC_CRT_SYMBOLS` set in this file. The
+`EMU387_INTERNAL_SUBROUTINES` set additionally routes the lone __int7 emulator
+sub-routine that Ghidra carved out as its own entity to link_vendor_lib (its bytes
+are internal to the byte-matched __int7 / emu387.obj PUBDEF; not re-emitted).
 
 Raw dumps (refresh from Ghidra MCP before each re-run):
 
@@ -79,6 +82,18 @@ PUBLIC_CRT_SYMBOLS = {
     # crt audit byte-match additions (Watcom CLIB / EMU387 / GRAPH public symbols)
     "__exit", "_fpreset", "__EINVAL", "__set_EDOM", "__setEFGfmt",
     "_Not_Enough_Memory",
+}
+
+# EMU387 software-FPU emulator (__int7 @ 0x49D98, fb5b3f690802_emu387.obj) internal
+# subroutines that Ghidra carved out as their own Function entity even though their
+# bytes lie INSIDE the single __int7 PUBDEF body (0x49D98..0x4CBCD). They have no
+# separate PUBDEF symbol; they are resolved by linking the one __int7 module
+# (emit_action link_vendor_lib), NOT re-emitted as FD2 source. The vast majority of
+# __int7 internal labels (the FPTAN worker's 6 sibling helpers, the 8 inline x87-opcode
+# jump tables) carry no Function entity at all and so never reach categorise(); this set
+# covers the one(s) that do. Keyed by current Ghidra name.
+EMU387_INTERNAL_SUBROUTINES = {
+    "crt_emu387_int7_fptan_opcode_worker_4c630",
 }
 
 CATEGORY_FILL = {
@@ -165,7 +180,8 @@ def emit_action_for(name: str, category: str) -> str:
     if category == "fd2":
         return "emit_fd2_source"
     if category == "crt":
-        if name in _LOOKUP_NAMES or name in PUBLIC_CRT_SYMBOLS:
+        if (name in _LOOKUP_NAMES or name in PUBLIC_CRT_SYMBOLS
+                or name in EMU387_INTERNAL_SUBROUTINES):
             return "link_vendor_lib"
         # crt_equivalent_* and bare crt_* helpers that are FD2-emitted
         return "emit_fd2_source"
