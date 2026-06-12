@@ -1,9 +1,10 @@
 # FD2 Emit Pipeline — Handoff
 
 把 Ghidra 內 FD2.LE 的 decompiled function 產出為 functionally-equivalent（Layer 2）的 C
-source、寫 unit test、build gate + 獨立 reviewer 三源復驗、per-function commit。**653 個
-function 已用 4-way 並行 branch 完成 emit；Phase 2 手動 merge cascade（merge 1/2/3）已全部完成，
-四方落入 `integ`；下一步＝Phase 2.5 coordinated landings（§4）。** 讀完本檔即可零 context 接續。
+source、寫 unit test、build gate + 獨立 reviewer 三源復驗、per-function commit。**4-way 並行 emit
++ Phase 2 merge cascade 已完成，四方落入 `integ`。Phase 2.5 coordinated landings 進行中：Unit C
+（crt cstart `_cstart_`，改走 link_vendor_lib）已落地（commit `447c37c`），剩 Unit B（pathfind 2）
++ Unit A（blit 19）= 21 個（routing 651 total / reviewed 630 / await_emit 21）。** 讀完本檔即可零 context 接續。
 
 ---
 
@@ -32,8 +33,8 @@ function 已用 4-way 並行 branch 完成 emit；Phase 2 手動 merge cascade�
 **Phase 1 四路並行 emit — 完成**
 - 各 branch 在自己的 worktree session 用 `--partition` 跑 emit-review，per-function commit。
 - **p1 / p2 / p3：各 93 全完成**（該分區 `await_emit=0`）。
-- **p4：71/93 完成，剩 22 個 coordinated-landing function**（19 `gfx/blitspr.c` + 2
-  `util/pathfnd.c` + 1 `crt/crt.c`）—— **設計上 deferred 到 Phase 2.5**：其 test spy 住在共享
+- **p4：71/93 完成，deferred 22 個 coordinated-landing function**（19 `gfx/blitspr.c` + 2
+  `util/pathfnd.c` + 1 `crt/crt.c`；crt 已於 Phase 2.5 Unit C 落地，剩 21）—— **deferred 到 Phase 2.5**：其 test spy 住在共享
   `tests/testglob.c` 且被跨 branch + base 套件依賴，無法單分支落地。完整依據在 p4 worktree 的
   `open_issues.md` #32 / #33 / #34 與 `src/emit_issues.json` `0002935b`。
 
@@ -80,10 +81,14 @@ function 已用 4-way 並行 branch 完成 emit；Phase 2 手動 merge cascade�
   （`fd2_roll_stat_gain_and_show_message` stat_ptr→`short *` def+5 caller，配 `ADD word ptr` 16-bit asm 真型別）。
   （headers `globals.h`/`protos.h` 的重複 extern dedup / 型別 union 屬 merge 機制，不算「改 code」。）
 
-- **新 session 起手（Phase 2.5）**：`git status`（乾淨、HEAD=`bed6602`、branch `integ`）。merge cascade 已收尾，
-  四方 emit 全進 `integ`。接 §4 Phase 2.5 — 22 個 coordinated-landing function 的真 body 落地（順序 C→B→A：crt
-  `dos_main_bootstrap` → pathfind 2 → blit 19），需碰共享 testglob spy + 多套件，不可用孤立 per-function workflow。
-  之後 Phase 2.6（22 個 review-mode 復驗）、Phase 3（收斂 main）。
+- **新 session 起手（Phase 2.5）**：`git status`（乾淨、HEAD=`447c37c`、branch `integ`）。接 §4 — 剩
+  Unit B（pathfind 2 entries）→ Unit A（blit 19）共 21 個，真 body 落地需碰共享 testglob spy + 多套件，不可用
+  孤立 per-function workflow。之後 Phase 2.6（review-mode 復驗 21 個）、Phase 3（收斂 main）。
+  - **Unit C（crt cstart）已落地（commit `447c37c`）**：經與 Watcom 9.5a `CSTART3S.ASM` 逐指令比對，確認
+    `crt_equivalent_entry_start` + `crt_equivalent_dos_main_bootstrap` 為 stock vendor cstart `_cstart_`（非 FD2
+    自寫），**改走 `link_vendor_lib` 非 emit**：Ghidra 合併為單一 `_cstart_ @ 0x3c964`、加進 lookup、從 routing
+    移除（653→651）、刪 entry_start emit + bootstrap stub + 2 測試。詳見 open_issues ✅#34。**Unit B/A 仍是真 emit**
+    （blit/pathfind 是 FD2 自寫，逐 function 三源 emit 真 body，與 cstart 不同）。
 
 - **merge 1 已完成遷移（committed `588d8a6`；src 僅 `promote.c` 一處、其餘全 tests/）**：
   - `src/ui_menu/promote.c`：6 個指標 cast `(int)/(uint32)`→`uint8 *`（**唯一手改的 src/*.c**，使用者
@@ -184,9 +189,9 @@ DOSBox playtest 對比；規格見 `rebuild_info/emission/`。
   `src/*.c`**；驗證方式：變動的 `.c` 應全部 byte-identical（EOL-safe `git diff`）於某一 branch。
 - **`tests/testglob.c`（核心）**：以 `routing.json`（working tree = merge 後）的 `done` 為每個 stub
   去留依據 —— `done=true`（已被某 branch emit 成 real）→ **移除 stub**；`done=false`（await_emit）
-  → **保留**；另**永遠保留 5 個 coordinated spy**：blit `fd2_blit_indexed_sprite` /
+  → **保留**；另**永遠保留 4 個 coordinated spy**：blit `fd2_blit_indexed_sprite` /
   `fd2_rle_blit_sprite`、pathfind `fd2_pathfind_to_destination` /
-  `fd2_init_movement_range_floodfill`、crt `crt_equivalent_dos_main_bootstrap`。git 衝突上下文常
+  `fd2_init_movement_range_floodfill`（crt `_cstart_` 已於 Phase 2.5 Unit C 改 link_vendor_lib、stub 移除）。git 衝突上下文常
   錯位（共用結尾括號其實只屬單邊），逐 hunk 按 routing 親手重建，別盲取單邊。
 - **重複定義（globals + functions）**：git 把兩 branch 各自的定義都帶入非衝突區 →
   `E1129 / E1034 / E1068` → **dedup**：保留型別／真實值正確的一份（如型別衝突保留與 `globals.h`
@@ -224,20 +229,22 @@ gate 過；**runtime-fail / spin 一律延到系統性修復階段**逐一遷移
 
 ## 4. Phase 2.5 / 2.6 / 3（remaining）
 
-**Phase 2.5 — post-merge coordinated landings（22 個）**：四方 merge 成單一樹後做。3 個 unit，
-順序 **C→B→A（小→大）**：crt `dos_main_bootstrap`（#34，within-branch）→ pathfind 2 entries
-（#33，~25 套件）→ blit 19 fn（#32，~325 site / ~8 套件）。每 unit：emit 真 body（逐 function
-三源）+ 刪共享 spy/stub + `g_*` recorder + 把依賴套件改真實 Layer-2 斷言（真像素 byte / 真演算法
-結果）→ build-gate 0err/0warn/全過。**不可用孤立 per-function workflow**（刻意要碰共享檔 +
-多套件）。落地後在 `routing.json` 把該 function 設 `done=true, reviewed=false`（標 await_review）。
+**Phase 2.5 — post-merge coordinated landings（剩 21 個）**：
+- **Unit C（crt cstart，#34）已完成（commit `447c37c`）** —— 非 emit：確認 `_cstart_` 為 stock Watcom
+  cstart，改走 `link_vendor_lib`（Ghidra 合併 `_cstart_`、加 lookup、routing 653→651、刪 entry_start emit
+  + stub + 2 測試）。是「先讀三源判 emit-vs-link」的範例：reclassification 也是合法的 landing 結果。
+- **Unit B（pathfind 2 entries，#33，~25 套件）→ Unit A（blit 19 fn，#32，~325 site / ~8 套件）** ——
+  真 emit：blit/pathfind 是 FD2 自寫，逐 function 三源 emit 真 body + 刪共享 spy/stub + `g_*` recorder + 把
+  依賴套件改真實 Layer-2 斷言（真像素 byte / 真演算法結果）→ build-gate 0err/0warn/全過。**不可用孤立
+  per-function workflow**（刻意碰共享檔 + 多套件）。落地後在 `routing.json` 設 `done=true, reviewed=false`。
 
-**Phase 2.6 — 22 個 coordinated function review-mode 復驗**：它們是 coordinated 落地、未經獨立
+**Phase 2.6 — 21 個 coordinated function review-mode 復驗**（blit 19 + pathfind 2；Unit C cstart 走 link_vendor_lib 不經此）：它們是 coordinated 落地、未經獨立
 reviewer。`python tools/emit/next_batch.py --mode review` 掃出 +
 `Workflow(scriptPath:"tools/emit/emit_review.wf.js", args:…)` review 模式逐一三源復驗 → approved →
 per-function commit 設 `reviewed=true`。
 
 **Phase 3 — 收斂 main**：`git checkout main && git merge integ` → 最終 `build_test.py` 全綠 →
-`next_batch.py --stats` 應 `reviewed=653 / await_emit=0 / await_review=0` →
+`next_batch.py --stats` 應 `reviewed=651 / await_emit=0 / await_review=0` →
 `list_bookmarks(category="Bad Instruction")`=0 → 清 worktree（`git worktree remove ../fd2-wt/p1..p4`）
 + branch（`emit-p1..p4` / `integ`）→ 無 dosbox 孤兒 → 回寫本檔（完工時清空 §1 斷點 + protos.h 做
 那次一次性 dedup）。
