@@ -145,6 +145,16 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
 
 ## 重建相關 backlog
 
+### 35. le_layout 的 DPMI extender 標籤待對齊 CSTART3S.ASM
+
+- **現狀**：`rebuild_info/link/le_layout.md` §入口流程把 INT 21h AX=3000h 回傳的高 16-bit signature
+  標成 `'DX'`=DOS/4G、`'BC'`=DOS/4GW。但 Watcom 9.5a `SRC/STARTUP/386/CSTART3S.ASM` 的 `_cstart_`
+  原始註解是 `'DX'`=Phar Lap 386|DOS、`'BC'`=Intel CodeBuilder（IGC）、`INT 21h AX=FF00h DX=78h`=
+  Rational DOS/4G（FD2 實際應走此路徑 → `_Extender`=X_RATIONAL=1）。
+- **影響**：純 KB 文字精確性；`_cstart_` 已歸 link_vendor_lib（body 由 cstart.obj 連入），不影響 emit/link。
+- **解需要做什麼**：照 CSTART3S.ASM 把 le_layout 三路標籤改正（DX→Phar Lap、BC→Intel CodeBuilder、
+  FF00h→DOS/4G），並以 emulator / DOSBox trace 確認 FD2 runtime 確實走 FF00h（DOS/4G）路徑。
+
 ### 29. 手動 patch 3 個無法 import 的 .obj
 
 - **現狀**：770 個 dedup 後的 Watcom CRT .obj 中 3 個觸發 Ghidra OmfLoader
@@ -262,7 +272,7 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
   正確 emit，不需重做）。`fd2_pathfind_record_destination_xy` 等 helper 正是 spy 原本假造的真實對應，
   emit 後即提供真值。
 
-- **進度（0x4E0DC、0x4E16E、0x4E27C、0x4E330 已 emit）**：四個 bottom-up helper 已落到
+- **進度（6 個 helper 全部 `done`；本節剩 2 個 entry await_emit）**：四個 bottom-up helper 已落到
   `src/util/pathfnd.c`。`fd2_flood_fill_movement_range_recursive` @ 0x4E0DC 與
   `fd2_pathfind_recursive_with_direction` @ 0x4E27C 都以原生 C 遞迴 + 參數 `(x, y, cost, btm_ptr)`
   取代原本 register-passing + EDI 手刻遞迴堆疊（Layer-2 等價：相同 marker 寫入、相同 right/left/down/up
@@ -278,8 +288,9 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
   spy recorder）。mode flag global `data_fd2_battle_pathfind_mode_flags`（0x6017A）已補進 globals.h /
   testglob.c。`fd2_pathfind_neighbor_step_with_tiebreak` 呼叫的兩個 destination helper
   `fd2_pathfind_record_destination_xy` @ 0x4E3B3 與 `fd2_pathfind_check_destination_save_path` @ 0x4E401
-  目前以忠實 stub 住在 `tests/testglob.c`（純 pathfind-global routine，無跨分支依賴），待各自 routing
-  entry emit 為真時移除。剩餘：2 個 helper（0x4E3B3、0x4E401）與 2 個 entry（0x4E1A6、0x4E040）仍依本節規畫處理。
+  也已 emit 為真、原忠實 stub 移除。**6 個 helper 全部 `done`；本節剩 2 個 entry**：
+  `fd2_init_movement_range_floodfill` @ 0x4E040 與 `fd2_pathfind_to_destination` @ 0x4E1A6，依本節規畫做
+  coordinated landing（emit 真 body + 刪 testglob 共享 spy/stub + 把 ~25 個依賴套件改真實演算法結果斷言）。
 
 ## 已解問題（記錄為基線）
 

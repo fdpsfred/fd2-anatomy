@@ -81,8 +81,9 @@ source、寫 unit test、build gate + 獨立 reviewer 三源復驗、per-functio
   （`fd2_roll_stat_gain_and_show_message` stat_ptr→`short *` def+5 caller，配 `ADD word ptr` 16-bit asm 真型別）。
   （headers `globals.h`/`protos.h` 的重複 extern dedup / 型別 union 屬 merge 機制，不算「改 code」。）
 
-- **新 session 起手（Phase 2.5）**：`git status`（乾淨、HEAD=`447c37c`、branch `integ`）。接 §4 — 剩
-  Unit B（pathfind 2 entries）→ Unit A（blit 19）共 21 個，真 body 落地需碰共享 testglob spy + 多套件，不可用
+- **新 session 起手（Phase 2.5）**：`git status`（乾淨、HEAD=`2063071`、branch `integ`；近期 commit＝
+  `447c37c` Unit C cstart 落地 → handoff → `2063071` emu387 routing-drift 修正）。接 §4 — 剩 Unit B
+  （pathfind 2 entries）→ Unit A（blit 19）共 21 個，真 body 落地需碰共享 testglob spy + 多套件，不可用
   孤立 per-function workflow。之後 Phase 2.6（review-mode 復驗 21 個）、Phase 3（收斂 main）。
   - **Unit C（crt cstart）已落地（commit `447c37c`）**：經與 Watcom 9.5a `CSTART3S.ASM` 逐指令比對，確認
     `crt_equivalent_entry_start` + `crt_equivalent_dos_main_bootstrap` 為 stock vendor cstart `_cstart_`（非 FD2
