@@ -1,10 +1,10 @@
 # FD2 Emit Routing Table
 
-651 個 fd2/crt function 到 source file 的完整路由。每個 .c 編譯為一個 .obj。
+650 個 fd2/crt function 到 source file 的完整路由。每個 .c 編譯為一個 .obj。
 
 ## Source of Truth
 
-**`src/routing.json`** 是 function → target file 的唯一 source of truth（651 entries，key = address）。
+**`src/routing.json`** 是 function → target file 的唯一 source of truth（650 entries，key = address）。
 由 `tools/emit/mkroute.py generate` 從 `emit_functions.json` + 內建 routing rules 生成。
 
 查詢方式：`python -c "import json; d=json.load(open('src/routing.json')); print(d['<address>'])"`
@@ -143,11 +143,11 @@
 
 | File | 包含的 function 類別 | fn |
 |------|---------------------|-----|
-| `crt.c` | 10 個 emit `crt_equivalent_*`: LX loader (`lx_chunk_read`, `lx_header_reader`, `lx_module_loader`), exit (`exit_chain_stub`), FPU (`fpe_default_handler`), EFLAGS (`get_eflags`, `get_eflags_thunk`), math (`matherr_default_thunk`, `matherr_default_return_zero`), padding (`linker_padding`)。startup `_cstart_`（Ghidra 原切成 `entry_start`+`dos_main_bootstrap`，實為 stock Watcom cstart.obj，已從 routing.json 移除）與 `crt_emu387_int7_fptan_opcode_worker_4c630`（`__int7`/emu387.obj 內部 subroutine）皆 link_vendor_lib，不 emit C source | 11 |
+| `crt.c` | 10 個 emit `crt_equivalent_*`: LX loader (`lx_chunk_read`, `lx_header_reader`, `lx_module_loader`), exit (`exit_chain_stub`), FPU (`fpe_default_handler`), EFLAGS (`get_eflags`, `get_eflags_thunk`), math (`matherr_default_thunk`, `matherr_default_return_zero`), padding (`linker_padding`)。startup `_cstart_`（Ghidra 原切成 `entry_start`+`dos_main_bootstrap`，實為 stock Watcom cstart.obj）與 `crt_emu387_int7_fptan_opcode_worker_4c630`（`__int7`/emu387.obj 內部 subroutine）皆 link_vendor_lib、已從 routing.json 移除（兩者皆不 emit C source；前者經 lookup、後者經 build_call_graph 的 `EMU387_INTERNAL_SUBROUTINES` 導向 link）| 10 |
 
 ---
 
-## 二、Per-function Routing（651 entries）
+## 二、Per-function Routing（650 entries）
 
 完整 function → target 對照見 **`src/routing.json`**（JSON key = address hex）。
 
@@ -343,5 +343,5 @@ python -c "import json; d=json.load(open('src/routing.json')); e=d['000115b6']; 
 | util/noop.c | P2 | 1 |
 | &lt;fragment:inline-epilogue&gt; | P2 | 6 |
 | util/misc.c | P2+P4+P5 | 11 |
-| crt/crt.c | P3 | 11 |
-| **Total** | | **651** |
+| crt/crt.c | P3 | 10 |
+| **Total** | | **650** |

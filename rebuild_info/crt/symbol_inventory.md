@@ -77,7 +77,8 @@ subroutine：bytes 落在已 byte-match 的 `__int7` PUBDEF body（0x49D98..0x4C
 PUBDEF，靠 link 該單一 `__int7` module 解析，不 emit C source。角色是 x87 `FPTAN` opcode 的
 軟體模擬 worker（無硬體 387 時 FPTAN 觸發 INT 7 → `__int7` opcode dispatch；與走硬體 FPTAN 的
 trig387 public entry `IF@TAN @ 0x3C8AB` 無關）。routing 由 `build_call_graph.py` 的
-`EMU387_INTERNAL_SUBROUTINES` set 導向 link_vendor_lib。
+`EMU387_INTERNAL_SUBROUTINES` set 導向 link_vendor_lib，不入 `routing.json` emit worklist（同其他
+link_vendor_lib function）。
 
 註：原 KB 列入此段的 `crt_equivalent_uint64_to_decimal_ascii_4d9e1` / `_getip_4da53` /
 `_getip_body_4db08` 三個已 byte-match 為 Watcom `__Bin2String` 主體（297B 跨

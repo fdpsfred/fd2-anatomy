@@ -4,7 +4,7 @@
 source、寫 unit test、build gate + 獨立 reviewer 三源復驗、per-function commit。**4-way 並行 emit
 + Phase 2 merge cascade 已完成，四方落入 `integ`。Phase 2.5 coordinated landings 進行中：Unit C
 （crt cstart `_cstart_`，改走 link_vendor_lib）已落地（commit `447c37c`），剩 Unit B（pathfind 2）
-+ Unit A（blit 19）= 21 個（routing 651 total / reviewed 630 / await_emit 21）。** 讀完本檔即可零 context 接續。
++ Unit A（blit 19）= 21 個（routing 650 total / reviewed 629 / await_emit 21）。** 讀完本檔即可零 context 接續。
 
 ---
 
@@ -233,6 +233,9 @@ gate 過；**runtime-fail / spin 一律延到系統性修復階段**逐一遷移
 - **Unit C（crt cstart，#34）已完成（commit `447c37c`）** —— 非 emit：確認 `_cstart_` 為 stock Watcom
   cstart，改走 `link_vendor_lib`（Ghidra 合併 `_cstart_`、加 lookup、routing 653→651、刪 entry_start emit
   + stub + 2 測試）。是「先讀三源判 emit-vs-link」的範例：reclassification 也是合法的 landing 結果。
+- **順手修 emu387 routing-drift**：`crt_emu387_int7_fptan_opcode_worker_4c630 @ 0x4c630`（__int7/emu387.obj
+  內部 subroutine，早已 link_vendor_lib 但 routing.json 殘留 entry）移除，routing 651→650；它曾是 routing 內
+  唯一的 link_vendor_lib 異類（link 函式只由 lookup / `EMU387_INTERNAL_SUBROUTINES` 追蹤，不入 routing）。
 - **Unit B（pathfind 2 entries，#33，~25 套件）→ Unit A（blit 19 fn，#32，~325 site / ~8 套件）** ——
   真 emit：blit/pathfind 是 FD2 自寫，逐 function 三源 emit 真 body + 刪共享 spy/stub + `g_*` recorder + 把
   依賴套件改真實 Layer-2 斷言（真像素 byte / 真演算法結果）→ build-gate 0err/0warn/全過。**不可用孤立
@@ -244,7 +247,7 @@ reviewer。`python tools/emit/next_batch.py --mode review` 掃出 +
 per-function commit 設 `reviewed=true`。
 
 **Phase 3 — 收斂 main**：`git checkout main && git merge integ` → 最終 `build_test.py` 全綠 →
-`next_batch.py --stats` 應 `reviewed=651 / await_emit=0 / await_review=0` →
+`next_batch.py --stats` 應 `reviewed=650 / await_emit=0 / await_review=0` →
 `list_bookmarks(category="Bad Instruction")`=0 → 清 worktree（`git worktree remove ../fd2-wt/p1..p4`）
 + branch（`emit-p1..p4` / `integ`）→ 無 dosbox 孤兒 → 回寫本檔（完工時清空 §1 斷點 + protos.h 做
 那次一次性 dedup）。
