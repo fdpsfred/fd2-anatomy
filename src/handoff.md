@@ -22,20 +22,23 @@ Phase 4 收斂 fd2.exe + 實機對照`。
   **`verify_real.py` = byte-equality gate**（emitted data 每筆都要過；已證 28 個 real_in_src 全
   byte-identical）；`rename_global.py` 安全 whole-word 全域改名（caller 決定 old→new，工具只機械套用）。
 - ✅ **改名 4 個 plain-named 全域進 data_fd2_**（commit `95e6e64`）：`battle_scene_snapshot` /
-  `chapter_portrait_load_buffer` / `current_chapter_text` / `portrait_sprite_cache`（@0x53A5x cluster）→
-  Ghidra + code + KB 同步。它們原本 name-grep 抓不到，是 Phase 1 worklist 的漏網。
+  `chapter_portrait_load_buffer` / `current_chapter_text` / `portrait_sprite_cache`（@0x53A5x cluster）。
+- ✅ **11 個命名 drift 全對齊乾淨 `data_fd2_`**（commit `682444a`，`drift=0`、build 0err/0warn）：4 battle
+  表統一 `data_fd2_battle_*`（spell_learning / class_promotion / movement_cost / job_allowed_items）、
+  miss_indicator + orphan_table 建 Ghidra label、portrait_sprite_buffer + tile_event_data_table_ptr 加前綴、
+  3 個 resource-filename string 兩邊乾淨名。**命名規則（使用者定）**：game data 一律乾淨 `data_fd2_`（battle
+  核心表 `data_fd2_battle_*`、不帶 Ghidra 自動 `_<addr>` 後綴），見 memory `feedback_game_data_symbol_naming`。
+  **⚠ g_ gate 陷阱**：`rename_data` / `rename_or_label` 對已定型 data（string/struct 型別）強制 `g_`、拒
+  `data_fd2_`；**正解＝`run_script_inline` 跑 `symbol.setName("data_fd2_...", SourceType.USER_DEFINED)`
+  （逐一、包 transaction），絕不退讓改用 Ghidra 爛名**（label 創建 / undefined-data rename 不受 gate 影響）。
 - **神諭結果**：421 undefined = 339 `data_fd2_`（Phase 1 worklist）+ 17 `fd2_` fn + 60 vendor
   libc/math（Phase 4 CRT wiring，非 src 缺口）+ 1 dangling。**數值即時重跑神諭取得，勿從本檔抄。**
 
-**Task #2 剩餘（Step 0 收尾，新 session 下一步做）**：
-1. **命名 drift / 無符號真表**：`spell_learning` / `class_promotion` / `movement_cost` /
-   `job_allowed_items` / `orphan_table_60181` 等 —— Ghidra 名多 `_battle_` 中綴，或在 object3 是無 data
-   符號的 raw bytes（table.c 以算術位址引用）。逐一對齊：Ghidra 建 label / 改名 + code/KB 同步
-   （用 `rename_global.py`），一次一個（memory `feedback_strict_one_at_a_time`）。
-2. **2 個 stub-only fn**：`fd2_composite_battle_tile_map` / `fd2_delay_ticks` 只活在 testglob stub、
+**Task #2 剩餘（Step 0 收尾，新 session 下一步做；皆一次一個，memory `feedback_strict_one_at_a_time`）**：
+1. **2 個 stub-only fn**：`fd2_composite_battle_tile_map` / `fd2_delay_ticks` 只活在 testglob stub、
    未 emit 到 src/，對 fd2.exe 是真缺口。查在不在 routing 650 內、該 emit 或 link。
-3. **修 dangling ref**：`src/crt/crt.c` 引用已被 Unit C 移除的 `crt_equivalent_dos_main_bootstrap`。
-4. **home-file 對映**：給每個待遷 data 符號定所屬 src 檔 → 完整 Phase 1 worklist。
+2. **修 dangling ref**：`src/crt/crt.c` 引用已被 Unit C 移除的 `crt_equivalent_dos_main_bootstrap`。
+3. **home-file 對映**：給每個待遷 data 符號定所屬 src 檔 → 完整 Phase 1 worklist。
 
 **Phase 1 起手**：data-emit workflow，逐表抽 Ghidra 真 byte → emit 一般 `const` C 進 src/
 （**不用 FAR_DATA/object3，Layer-2**，見 memory `feedback_layer2_no_byte_exact_overengineering`）→
