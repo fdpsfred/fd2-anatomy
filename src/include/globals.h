@@ -140,8 +140,8 @@ extern uint8  data_fd2_battle_last_hit_or_miss_flag;                    /* 0x53C
 extern uint32 data_fd2_battle_pending_xp_credit;                       /* 0x53EC8 */
 extern uint32 data_fd2_battle_tile_map_anim_frame_counter;              /* 0x53C1F */
 extern uint32 data_fd2_battle_spell_aoe_count_and_fx_queue_idx;         /* 0x53EC4 */
-extern uint8  data_fd2_battle_damage_number_format_buffer[8];           /* 0x52045  "    \0" template */
-extern uint8  data_fd2_battle_miss_indicator_sprite_ids[4];             /* 0x5204A  adjacent to format buffer; 4 sprite ids for the MISS indicator */
+extern const uint8 data_fd2_battle_damage_number_format_buffer[5];      /* 0x52045  "    \0" template */
+extern const uint8 data_fd2_battle_miss_indicator_sprite_ids[4];        /* 0x5204A  adjacent to format buffer; 4 sprite ids for the MISS indicator */
 extern uint8  data_fd2_battle_floating_damage_sprite_id_queue[200];     /* 0x53C6C */
 extern uint8  data_fd2_battle_floating_damage_x_offset_queue[200];      /* 0x53D34 */
 extern uint8  data_fd2_battle_floating_damage_target_char_idx_queue[200]; /* 0x53DFC */
@@ -158,12 +158,12 @@ extern const int32 data_fd2_battle_combat_hit_shake_x_offset_table[6];  /* 0x525
 extern const int32 data_fd2_battle_combat_hit_shake_y_offset_table[6];  /* 0x52577 */
 
 /* ---- battle spell-effect constants ---- */
-extern double data_fd2_battle_spell_ap_boost_factor_015;                /* 0x50210  const 0.15 */
-extern double data_fd2_battle_spell_dp_boost_factor_015;                /* 0x50218  const 0.15 */
+extern const double data_fd2_battle_spell_ap_boost_factor_015;          /* 0x50210  const 0.15 */
+extern const double data_fd2_battle_spell_dp_boost_factor_015;          /* 0x50218  const 0.15 */
 extern uint32 data_fd2_battle_combat_speech_bubble_pos_pairs[4];        /* 0x53A30  attacker/counter bubble (x,y) pairs; [2]=-1 means no counter */
 
 /* ---- battle AI scoring ---- */
-extern double data_fd2_battle_ai_enemy_spell_score_multiplier_15;       /* 0x50144  const 1.5 */
+extern const double data_fd2_battle_ai_enemy_spell_score_multiplier_15; /* 0x50144  const 1.5 */
 extern uint32 data_fd2_battle_ai_best_spell_score;                      /* 0x53C23 */
 extern uint32 data_fd2_battle_ai_best_spell_target_x;                   /* 0x53C27 */
 extern uint32 data_fd2_battle_ai_best_spell_target_y;                   /* 0x53C2B */
@@ -436,7 +436,7 @@ extern int32  data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[15]
 extern uint8  data_fd2_battle_summon_spell_8slot_visibility_table[7];            /* 0x523E1 */
 extern uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7];              /* 0x523E8 */
 extern int32  data_fd2_battle_summon_spell_8slot_row_multiplier_table[7];        /* 0x52404 */
-extern int32  data_fd2_battle_summon_aura_ring_8slot_x_offset_table[8];          /* 0x52420 */
+extern const int32 data_fd2_battle_summon_aura_ring_8slot_x_offset_table[8];     /* 0x52420 */
 extern int32  data_fd2_battle_summon_aura_ring_8slot_row_multiplier_table[8];    /* 0x52440 */
 extern int32  data_fd2_battle_summon_main_anim_12slot_frame_counter_array[12];    /* 0x53F81 */
 extern int32  data_fd2_battle_summon_main_anim_12slot_color_idx_array[12];       /* 0x53FB1 */
@@ -520,14 +520,14 @@ extern uint32 data_fd2_engine_wait_one_bios_tick_last_seen;             /* 0x53A
 extern uint32 data_fd2_engine_wait_n_bios_ticks_last_seen;              /* 0x53A2C */
 
 /* ---- tile attribute modifier tables (.object2 const) ---- */
-extern uint32 data_fd2_battle_tile_attr_mv_modifier_table[];            /* 0x51A12 */
-extern uint32 data_fd2_battle_tile_attr_def_modifier_table[];           /* 0x51A2A */
+extern int32  data_fd2_battle_tile_attr_mv_modifier_table[6];           /* 0x51A12 */
+extern int32  data_fd2_battle_tile_attr_def_modifier_table[6];          /* 0x51A2A */
 
 /* ---- RNG ---- */
 extern uint16 data_fd2_shared_rng_seed;                                 /* 0x627B8 (.object3) */
 
 /* ---- battle misc const tables ---- */
-extern uint32 data_fd2_battle_job_magic_resist_table[27];               /* 0x51F96 */
+extern uint32 data_fd2_battle_job_magic_resist_table[28];               /* 0x51F96 */
 extern uint8  data_fd2_battle_job_crit_rate_table[27];                  /* 0x5239B */
 
 /* ---- .object3 tables accessed by table accessors (live sub-regions of former orphan blob) ---- */

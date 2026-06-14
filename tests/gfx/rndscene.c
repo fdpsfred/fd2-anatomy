@@ -2670,7 +2670,7 @@ extern int    g_play_sfx_with_handle_calls;
 extern int    g_sfx_last_id;
 extern int    g_sfx_id_count;
 extern int32  data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[15];
-extern int32  data_fd2_battle_summon_aura_ring_8slot_x_offset_table[8];
+extern const int32 data_fd2_battle_summon_aura_ring_8slot_x_offset_table[8];
 extern int32  data_fd2_battle_summon_aura_ring_8slot_row_multiplier_table[8];
 
 /* reset spies + array + caster team for an aura-ring test. team: value

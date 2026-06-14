@@ -42,8 +42,6 @@ void  *data_fd2_chapter_cutscene_event_script_ptr_table_106[106];
 uint32 data_fd2_battle_pending_xp_credit = 0;
 uint8  data_fd2_battle_last_hit_or_miss_flag = 1;
 uint16 data_fd2_shared_rng_seed = 0;
-uint32 data_fd2_battle_job_magic_resist_table[27];
-uint8  data_fd2_battle_job_crit_rate_table[27];
 uint32 data_fd2_battle_turn_counter = 0;
 uint32 data_fd2_runtime_battle_state_ptr = 0;
 uint32 data_fd2_battle_fast_mode_walk_overlay_ptr = 0;
@@ -106,8 +104,6 @@ uint32 data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = 0;
 /* real values from FD2.LE @ 0x52549 (per-sub-frame hit-shake X-offset cache) */
 uint8  data_fd2_battle_special_attack_shake_x_offset_table[6] =
     { 0, 4, 9, 14, 18, 14 };
-uint32 data_fd2_battle_tile_attr_mv_modifier_table[32];
-uint32 data_fd2_battle_tile_attr_def_modifier_table[32];
 uint32 data_fd2_vga_palette_data_ptr = 0;
 uint32 data_fd2_all_game_text_ptr = 0;
 uint32 data_fd2_battle_tile_map_ptr = 0;
@@ -1281,18 +1277,6 @@ void fd2_composite_then_animate_projectiles(void) { }
 uint8 data_fd2_battle_floating_damage_sprite_id_queue[200] = {0};
 uint8 data_fd2_battle_floating_damage_x_offset_queue[200] = {0};
 uint8 data_fd2_battle_floating_damage_target_char_idx_queue[200] = {0};
-/* damage-number work-buffer template — real FD2.LE bytes @ 0x52045, byte[8].
- * fd2_show_damage_number copies the first 5 bytes ("    \0") into an 8-byte
- * stack buffer before sprintf overwrites it; bytes 5..7 are never read. */
-uint8 data_fd2_battle_damage_number_format_buffer[8] = {
-    0x20,0x20,0x20,0x20,0x00,0x74,0x75,0x76
-};
-/* miss-indicator sprite ids — real FD2.LE bytes @ 0x5204A (= format buffer + 5;
- * the two are physically adjacent in the binary). fd2_show_miss_indicator loads
- * all 4 as one dword into a stack buffer, then enqueues one per indicator slot. */
-uint8 data_fd2_battle_miss_indicator_sprite_ids[4] = {
-    0x74,0x75,0x76,0x76
-};
 /* projectile y-offset table — real FD2.LE values @ 0x0202C (runtime 0x5202C),
  * 28 bytes (4-frame x 6-row rise pattern). The real
  * fd2_animate_spell_projectile_paths copies the first 25 bytes into a stack
@@ -1904,13 +1888,9 @@ uint8 data_fd2_graphics_figani_pose_anim_subframe_idx = 0;
 uint8 data_fd2_graphics_figani_pose_anim_pose_idx = 0;
 uint32 data_fd2_audio_summon_spell_sfx_bank_buf_ptr = 0;
 int32  data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[15] = {0};
-uint8  data_fd2_battle_summon_spell_8slot_visibility_table[7] = {0};
-uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7] = {0};
-int32  data_fd2_battle_summon_spell_8slot_row_multiplier_table[7] = {0};
-/* .rodata const tables for fd2_render_summon_aura_sprite_ring @ 0x262EF.
- * Real in-binary values: x-offset @ 0x52420, row-multiplier @ 0x52440. */
-int32  data_fd2_battle_summon_aura_ring_8slot_x_offset_table[8] =
-    {-59, -39, 0, 39, 55, 39, 0, -39};
+/* .rodata const table for fd2_render_summon_aura_sprite_ring @ 0x262EF.
+ * Real in-binary values: row-multiplier @ 0x52440. (The sibling x-offset table
+ * @ 0x52420 now lives in src/table/btltab.c.) */
 int32  data_fd2_battle_summon_aura_ring_8slot_row_multiplier_table[8] =
     {-10, -24, -30, -24, -10, 4, 10, 4};
 int32  data_fd2_battle_summon_main_anim_12slot_frame_counter_array[12] = {0};
@@ -1976,15 +1956,12 @@ double data_fd2_animation_summon_radial_radius_30 = 30.0;
  * via the queried unit's spells_known_bitmap (+0x1A) so the real enumerator
  * produces the desired (count, ascending ids). */
 /* fd2_score_spell_candidate: now in btl_ai.c */
-double data_fd2_battle_ai_enemy_spell_score_multiplier_15 = 1.5;
 /* AoE radial-scatter geometry constants (fd2_scatter_sprite_around_origin_with_random_offset).
  * The deg->rad factor is the binary's exact stored literal 0.0174532 (a 7-digit
  * approximation of pi/180, byte pattern af99d76c40df913f @ 0x501F8), NOT full-precision
  * pi/180. The Y skew is -8.0 @ 0x50200. */
 double data_fd2_graphics_radian_per_degree_const = 0.0174532;
 double data_fd2_graphics_scatter_y_offset_neg8 = -8.0;
-double data_fd2_battle_spell_ap_boost_factor_015 = 0.15;
-double data_fd2_battle_spell_dp_boost_factor_015 = 0.15;
 /* circle-band anim geometry constants (fd2_render_circle_anim_row /
  * fd2_render_filled_circle_band_anim): radius divisor 10.0 and the 1.6 band
  * radius scale. */
@@ -2032,8 +2009,6 @@ double data_fd2_graphics_circle_band_radius_scale_16 = 1.6;
  * gate-returns on a non-event cursor tile (see tests/ui_menu/menu.c iam_setup's
  * zeroed tile-map / attr buffers). Its own behavioral coverage lives in
  * tests/ui_menu/menufld.c. */
-void (*data_fd2_battle_ai_post_action_consequence_table[90])(uint32);
-void (*data_fd2_battle_spell_handler_table[28])(uint32, uint32, uint8 *);
 static void g_noop_post_action_handler(uint32 x) { (void)x; }
 static void g_noop_void_handler(void) { }
 void (*data_fd2_chapter_init_handler_table[30])(void) = {
@@ -2067,23 +2042,6 @@ void (*data_fd2_chapter_post_action_handler_table[30])(uint32) = {
     g_noop_post_action_handler, g_noop_post_action_handler,
     g_noop_post_action_handler, g_noop_post_action_handler,
     g_noop_post_action_handler, g_noop_post_action_handler
-};
-/* spell-cast cinematic phase-handler table (0x523B9): 10 per-spell handlers, each
- * int(caster_idx, caster_sprite, work_buf, stride, phase_code) returning a frame
- * count. Initialized to a noop returning 0 (fnptr table noop-init rule). The real
- * handlers are heavy VGA cinematics; fd2_play_spell_cast_sequence is deferred to
- * Phase 9 so this table is never invoked by a unit test. */
-static int g_noop_spell_phase_handler(uint32 a, uint32 b, uint32 c,
-                                      uint32 d, uint32 e) {
-    (void)a; (void)b; (void)c; (void)d; (void)e; return 0;
-}
-int (*data_fd2_battle_spell_cast_cinematic_phase_handler_table[10])(
-        uint32, uint32, uint32, uint32, uint32) = {
-    g_noop_spell_phase_handler, g_noop_spell_phase_handler,
-    g_noop_spell_phase_handler, g_noop_spell_phase_handler,
-    g_noop_spell_phase_handler, g_noop_spell_phase_handler,
-    g_noop_spell_phase_handler, g_noop_spell_phase_handler,
-    g_noop_spell_phase_handler, g_noop_spell_phase_handler
 };
 /* 10-entry summon-spell tick dispatch table (@ 0x523B9). Real entries return an
  * int frame count and perform per-element palette flash / sprite tick. The
@@ -2185,8 +2143,6 @@ void fd2_rle_blit_with_palette_remap(uint16 *rle_stream, int32 dst_x, int32 dst_
 uint8  data_fd2_chapter_chapter_init_done_flag = 0;
 uint8  data_fd2_ui_play_active_flag = 0;
 uint8  data_fd2_ui_game_speed_flag = 0;
-uint32 data_fd2_battle_view_window_max_x = 13;
-uint32 data_fd2_battle_view_window_max_y = 8;
 uint32 data_fd2_battle_compose_left_edge_clip_offset = 0;
 uint32 data_fd2_battle_compose_parallax_scroll_y_rows = 0;
 uint32 data_fd2_battle_compose_walk_step_y_sub_pixel_offset = 0;

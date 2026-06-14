@@ -25,8 +25,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_init_handler_table": {
@@ -65,13 +65,13 @@
     "len": 360,
     "datatype": "pointer[90]",
     "kind": "ptr_table",
-    "emit_class": "const",
+    "emit_class": "fnptr_table",
     "needs_bytes": true,
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_spell_cast_cinematic_phase_handler_table": {
@@ -80,13 +80,13 @@
     "len": 40,
     "datatype": "pointer[10]",
     "kind": "ptr_table",
-    "emit_class": "const",
+    "emit_class": "fnptr_table",
     "needs_bytes": true,
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_ani_decoder_frame_dispatch_table": {
@@ -227,16 +227,16 @@
   "data_fd2_battle_job_magic_resist_table": {
     "addr": "51f96",
     "segment": ".object2",
-    "len": 108,
-    "datatype": "dword[27]",
+    "len": 112,
+    "datatype": "dword[28]",
     "kind": "byte_data",
     "emit_class": "const",
     "needs_bytes": true,
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_job_crit_rate_table": {
@@ -250,8 +250,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_per_chapter_player_turn_bgm_track": {
@@ -2542,8 +2542,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_tactical_overview_team_colors_table": {
@@ -2819,8 +2819,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_view_window_max_y": {
@@ -2834,8 +2834,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_floating_damage_sprite_id_queue": {
@@ -4352,8 +4352,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_circle_anim_div_10": {
@@ -4427,8 +4427,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_spell_dp_boost_factor_015": {
@@ -4442,8 +4442,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_summon_radial_angle_step_12": {
@@ -4538,8 +4538,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_tile_attr_def_modifier_table": {
@@ -4553,8 +4553,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_spell_palette_flash_table": {
@@ -4628,8 +4628,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_spell_8slot_y_offset_table": {
@@ -4643,8 +4643,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_spell_8slot_row_multiplier_table": {
@@ -4658,8 +4658,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_aura_ring_8slot_x_offset_table": {
@@ -4673,8 +4673,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_aura_ring_8slot_row_multiplier_table": {
@@ -5708,8 +5708,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_orphan_table_60181": {

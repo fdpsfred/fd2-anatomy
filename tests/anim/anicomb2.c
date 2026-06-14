@@ -453,8 +453,8 @@ static void test_damagenum_cull_all_edges(void)
  * consumer; enqueues the 4-sprite "MISS" indicator)
  * ================================================================ */
 
-/* the 4 miss-indicator sprite ids (testglob.c, real binary bytes @ 0x5204A) */
-extern uint8 data_fd2_battle_miss_indicator_sprite_ids[4];
+/* the 4 miss-indicator sprite ids (src/table/btltab.c, real binary bytes @ 0x5204A) */
+extern const uint8 data_fd2_battle_miss_indicator_sprite_ids[4];
 
 /*
  * An in-window target: the producer appends exactly four queue slots, one per
