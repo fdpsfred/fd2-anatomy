@@ -29,6 +29,11 @@ DEF_RE = re.compile(
     r"^(?:const\s+)?[A-Za-z_][A-Za-z0-9_ ]*?\*?\s*"   # type (maybe trailing *)
     r"(data_fd2_[A-Za-z0-9_]+)\s*(\[|=)"               # name then [ or =
 )
+# function-pointer (array) definitions: `RET (*data_fd2_name[N])(params) = ...`
+# or the tentative-def `;` form. DEF_RE's leading-type pattern can't span `(*`.
+FNPTR_RE = re.compile(
+    r"^[A-Za-z_][\w ]*\(\s*\*\s*(data_fd2_[A-Za-z0-9_]+)\s*[\[)]"
+)
 
 def scan_defs(path):
     """Return {name: (basename, has_brace_initializer)} for file-scope defs."""
@@ -37,7 +42,7 @@ def scan_defs(path):
         text = f.read()
     base = os.path.basename(path)
     for line in text.splitlines():
-        m = DEF_RE.match(line)
+        m = DEF_RE.match(line) or FNPTR_RE.match(line)
         if m:
             name = m.group(1)
             brace = "{" in line  # initialized table vs scalar/bss
