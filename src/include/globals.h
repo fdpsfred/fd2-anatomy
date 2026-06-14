@@ -398,8 +398,8 @@ extern uint32 data_ail_free_fnptr;                                      /* 0x527
 extern uint8  data_fd2_audio_bgm_last_set_track_id;                     /* 0x51A11 */
 extern uint8  data_fd2_audio_bgm_enabled_flag;                          /* 0x51E61 */
 extern uint8  data_fd2_audio_sfx_enabled_flag;                          /* 0x51E62 */
-extern const uint8 data_fd2_audio_per_chapter_player_turn_bgm_track[30]; /* 0x51E63 */
-extern const uint8 data_fd2_audio_per_chapter_enemy_turn_bgm_track[30];  /* 0x51E81 */
+extern uint8  data_fd2_audio_per_chapter_player_turn_bgm_track[30];     /* 0x51E63 */
+extern uint8  data_fd2_audio_per_chapter_enemy_turn_bgm_track[30];      /* 0x51E81 */
 extern uint32 data_fd2_audio_bgm_sequence_handle;                       /* 0x53ED0 */
 extern void  *data_fd2_audio_bgm_driver_handle;                         /* 0x53ED8 */
 extern uint32 data_fd2_audio_bgm_sequence_data_buf_ptr;                 /* 0x53EE0 */
@@ -411,13 +411,13 @@ extern uint32 data_fd2_audio_sfx_sample_handle_1;                       /* 0x53E
 extern uint32 data_fd2_audio_fdother_sfx_bank_buf_ptr;                  /* 0x53EEC */
 extern uint32 data_fd2_audio_status_effect_sfx_handle_ptr;              /* 0x53B13 */
 extern uint32 data_fd2_audio_figani_sfx_bank_buf_ptr;                  /* 0x54117 */
-extern const uint8 data_fd2_audio_figani_sfx_bank_fdother_index_lut[6]; /* 0x525D6  6B; 1-based id->FDOTHER idx */
+extern uint8  data_fd2_audio_figani_sfx_bank_fdother_index_lut[];       /* 0x525D6  6B; 1-based id->FDOTHER idx */
 extern uint8  data_fd2_audio_walk_step_sfx_cadence_counter;             /* 0x540FE */
 extern uint32 data_fd2_audio_figani_sfx_bank_defender_buf_ptr;          /* 0x5411B */
 extern char   data_fd2_string_resource_filename_fdmus_dat[];                              /* 0x51A79  "FDMUS.DAT" */
 
 /* ---- animation tables (.object2 const) ---- */
-extern const uint8 data_fd2_audio_footstep_sfx_per_job_cadence_class_table[29]; /* 0x52618  29B */
+extern uint8  data_fd2_audio_footstep_sfx_per_job_cadence_class_table[]; /* 0x52618  29B */
 extern int32  data_fd2_animation_earthquake_screen_shake_params_table[9]; /* 0x52096  3 X-off + 3 Y-off + 3 scale */
 extern uint8  data_fd2_battle_special_attack_shake_x_offset_table[6];   /* 0x52549  per-sub-frame X-offset cache */
 extern uint8  data_fd2_animation_status_overlay_flicker_color_template[32]; /* 0x51F15 */

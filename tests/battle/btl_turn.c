@@ -1043,16 +1043,15 @@ static void test_run_turn_cycle_full_reveal(void)
     g_test_rc_array[0].hp_max = 50;
     data_fd2_battle_party_member_count = 1;
 
-    /* The per-chapter BGM tables are read-only const game data; at chapter 1
-     * player(0x13) != enemy(0x0C), so the Phase D / F "player!=enemy" fade-out
-     * branches DO fire and call the real fd2_set_bgm_track_with_fade(0xFFFFFFFF)
-     * -- which hits only the safe AIL_set_sequence_volume stub (no resource I/O,
-     * no effect on the scroll count below). Disable the BGM driver so the Phase
-     * E / F real-track calls (fd2_set_bgm_track_with_fade(enemy/player track))
-     * early-return before touching the real FDMUS.DAT loader. This keeps the
-     * cycle deterministic without writing the const tables or faking the setter. */
-    data_fd2_audio_bgm_driver_available_flag = 0;
-    data_fd2_audio_bgm_last_set_track_id = 0xFF;
+    /* Both per-chapter BGM tables are 0 at chapter 1 (default), so the
+     * player!=enemy fade-out branches are skipped. Pre-set the real
+     * fd2_set_bgm_track_with_fade's "last track" cache to 0 so its Phase
+     * E / F calls with track_id=0 early-return (0==0) instead of loading
+     * the real FDMUS.DAT. This keeps the cycle deterministic without
+     * faking the real BGM setter. */
+    data_fd2_audio_per_chapter_player_turn_bgm_track[1] = 0;
+    data_fd2_audio_per_chapter_enemy_turn_bgm_track[1] = 0;
+    data_fd2_audio_bgm_last_set_track_id = 0;
     data_fd2_chapter_current_chapter_id = 1;
     data_fd2_chapter_event_or_battle_end_code = 0;   /* no early exit */
     data_fd2_battle_turn_counter = 7;
@@ -1101,7 +1100,6 @@ static void test_run_turn_cycle_full_reveal(void)
     data_fd2_battle_tile_map_ptr = save_map;
     data_fd2_tile_attribute_flags_buffer_ptr = save_attr;
     data_fd2_battle_party_member_count = 4;
-    data_fd2_audio_bgm_driver_available_flag = 1;   /* restore default */
 }
 
 
