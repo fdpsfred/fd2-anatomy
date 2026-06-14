@@ -51,6 +51,8 @@ D:\BIN\WCC386.EXE anim\aniend.c %CF% -fo=E:\out\obj\aniend.obj >> E:\out\build.o
 D:\BIN\WCC386.EXE crt\crt.c %CF% -fo=E:\out\obj\crt.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE field\chend1.c %CF% -fo=E:\out\obj\chend1.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE table\audtab.c %CF% -fo=E:\out\obj\audtab.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE table\chtab.c %CF% -fo=E:\out\obj\chtab.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE table\anitab.c %CF% -fo=E:\out\obj\anitab.obj >> E:\out\build.out
 
 echo === compile tests === >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\testmain.c %CF% -fo=E:\out\obj\testmain.obj >> E:\out\build.out

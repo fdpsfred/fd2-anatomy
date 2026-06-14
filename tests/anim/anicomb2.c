@@ -92,8 +92,8 @@ extern uint32 g_blitraw_log_sprite[512];
 extern uint8  data_fd2_battle_floating_damage_sprite_id_queue[200];
 extern uint8  data_fd2_battle_floating_damage_x_offset_queue[200];
 extern uint8  data_fd2_battle_floating_damage_target_char_idx_queue[200];
-/* projectile y-offset table (testglob.c, real binary bytes) */
-extern uint8  data_fd2_animation_spell_projectile_y_offset_table[28];
+/* projectile y-offset table (src/table/anitab.c, real binary bytes) */
+extern const uint8 data_fd2_animation_spell_projectile_y_offset_table[25];
 
 /* Effect sprite sheet for the projectile blit: a dword table at +6 indexed by
  * sprite_id; entry[i] == i*0x10 so the resolved sprite addr (sheet + table[6 +

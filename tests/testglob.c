@@ -256,26 +256,6 @@ void AIL_set_sample_loop_count(uint32 sample, int count)
     g_sfx_last_arg_c = count;
 }
 void AIL_start_sample(uint32 sample) { (void)sample; g_ail_start_sample_calls++; }
-/* Per-spell animation parameter tables (data segment @ 0x51F33/0x51F54/0x51F75).
- * Defined here with the real binary bytes until the data segment is emitted, so
- * anim tests assert on true frame counts / sprite offsets / SFX ids. */
-uint8 data_fd2_animation_spell_sprite_offset_table[33] = {
-    0x31,0x31,0x31,0x31,0x40,0x40,0x40,0x40,0x4c,0x57,0x31,0x31,0x31,0x39,0x39,
-    0x39,0x39,0xb7,0x7e,0x93,0xcc,0xd9,0xaa,0x31,0x31,0xbf,0x8a,0x9e,0x31,0x31,
-    0x00,0x00,0x40
-};
-uint8 data_fd2_animation_spell_frame_count_table[33] = {
-    8,8,8,8,10,10,10,10,11,27,8,8,8,7,7,7,7,8,12,11,13,13,13,8,8,13,9,12,8,8,
-    0,0,10
-};
-uint8 data_fd2_animation_spell_sfx_frame_table[33] = {
-    6,6,6,6,9,9,9,9,10,14,0,0,0,12,12,12,12,6,7,8,4,4,3,0,0,5,3,2,0,0,0,0,9
-};
-/* Earthquake screen-shake params (data segment @ 0x52096). int[9] laid out as
- * 3 X-offsets, 3 Y-offsets, 3 scales. Real binary values until data emitted. */
-int32 data_fd2_animation_earthquake_screen_shake_params_table[9] = {
-    128, 0, -128, 128, 0, 128, 131, 128, 125
-};
 /* Ending cinematic scripted-frame thresholds (data segment @ 0x5204E). Real
  * binary int values until the data segment is emitted; aniend tests assert on
  * them and fd2_play_ending_and_record_clear copies the table to its stack. */
@@ -353,8 +333,8 @@ uint8 data_fd2_chapter_ch10_end_scene_char_pos_y_table[11] =
  * fd2_chapter_12_end copies each 14-byte table into an on-stack placement block
  * and places chars 0..0xD. X/Y are battle-tile coords, facing is sprite
  * direction (0..3). */
-uint8 data_fd2_chapter_ch12_end_scene_char_pos_x_table[14] =
-    { 10, 11, 9, 12, 8, 10, 11, 9, 12, 8, 8, 12, 8, 12 };
+/* data_fd2_chapter_ch12_end_scene_char_pos_x_table now has its real const
+ * definition in src/table/chtab.c (emitted), so no stand-in here. */
 uint8 data_fd2_chapter_ch12_end_scene_char_pos_y_table[14] =
     { 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 3, 3, 2, 2 };
 uint8 data_fd2_chapter_ch12_end_scene_char_facing_table[14] =
@@ -432,7 +412,6 @@ void fd2_play_variant_b_slide_pre_effect(int a, int b) { }
  * stubs were removed. */
 uint16 data_fd2_animation_palette_cycle_last_tick = 0;
 uint8  data_fd2_animation_palette_cycle_frame_idx = 0;
-uint8  data_fd2_animation_palette_cycle_rgb_table[93] = {0};
 /* FIGANI cinematic backdrop / SFX-bank pointers (data segment @ 0x54107 /
  * 0x54117). Written + read by fd2_play_figani_char_intro_animation
  * (src/anim/anicine.c); zero-init writable BSS-style globals. */
@@ -1063,41 +1042,6 @@ int32  data_fd2_ui_item_command_menu_state_template[4] = { 0, 0, 0, 0 };
 /* tactical-overview per-team color base table — real FD2.LE values @ 0x5208a
  * (player 0x20, enemy 0x50, neutral 0x48) */
 int32  data_fd2_ui_tactical_overview_team_colors_table[3] = { 0x20, 0x50, 0x48 };
-/* status-effect overlay flicker colour template — real FD2.LE values @ 0x51F15
- * (32 bytes; mostly 0xC0 with a few status-specific colours). The real
- * fd2_animate_status_effect_overlay_flicker copies the first 30 bytes into a
- * stack scratch and indexes it by status_kind. */
-uint8  data_fd2_animation_status_overlay_flicker_color_template[32] = {
-    0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,
-    0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,
-    0xc0,0x92,0x48,0xd8,0xc0,0xc0,0x23,0xc0,
-    0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0x31,0x31
-};
-/* spell palette-flash colour table — real FD2.LE values @ 0x51AAD
- * (108 bytes = 36 entries x 3, laid out as three contiguous 36-byte planes:
- * R at +0x00, G at +0x24, B at +0x48). fd2_play_spell_palette_flash_with_sfx
- * indexes it by spell_id (0x00..0x23) to drive the VGA DAC index-0 flash. */
-uint8  data_fd2_animation_spell_palette_flash_table[108] = {
-    0x3f,0x3f,0x3f,0x3f,0x2b,0x2b,0x2b,0x2b,0x3f,0x23,0x2e,0x2e,
-    0x2e,0x3f,0x3f,0x3f,0x3f,0x32,0x32,0x32,0x3f,0x3f,0x23,0x1e,
-    0x00,0x3f,0x0a,0x23,0x3f,0x3f,0x3f,0x3f,0x2b,0x3f,0x3f,0x2b,
-    0x00,0x00,0x00,0x00,0x32,0x32,0x32,0x32,0x3f,0x10,0x28,0x28,
-    0x28,0x3d,0x3d,0x28,0x28,0x32,0x32,0x32,0x28,0x28,0x00,0x2a,
-    0x00,0x3d,0x1f,0x19,0x3f,0x3f,0x3f,0x3f,0x32,0x3f,0x00,0x32,
-    0x00,0x00,0x00,0x00,0x3c,0x3c,0x3c,0x3c,0x3f,0x08,0x1e,0x1e,
-    0x1e,0x2e,0x2e,0x1e,0x1e,0x32,0x32,0x32,0x1e,0x1e,0x00,0x23,
-    0x00,0x2e,0x00,0x00,0x3f,0x3f,0x3f,0x3f,0x3c,0x3f,0x00,0x3c
-};
-/* spell-overlay-blink per-spell tint-mask byte table — real FD2.LE values @
- * 0x52006 (30 bytes). The real fd2_animate_spell_overlay_blink copies all 30
- * bytes into a stack scratch and indexes it by spell_id to pick the per-spell
- * colour_base anchor for the fading 24x24 tint blit. */
-uint8  data_fd2_animation_spell_overlay_blink_mask_table[30] = {
-    0x20,0x20,0x20,0x20,0x08,0x08,0x08,0x08,
-    0xc8,0x08,0x08,0x08,0x08,0x08,0x10,0x10,
-    0x10,0x10,0x08,0x08,0x10,0x10,0x10,0x08,
-    0x08,0x10,0x10,0x10,0x08,0x08
-};
 /* game options menu templates — real FD2.LE values @ 0x51EAF / 0x53F02 */
 int32  data_fd2_ui_game_options_menu_slots_template[4] = { 0x12, 0x14, 0x16, 0x18 };
 int32  data_fd2_ui_game_options_menu_state_template[4] = { 0, 0, 0, 0 };
@@ -1292,16 +1236,6 @@ uint8 data_fd2_battle_damage_number_format_buffer[8] = {
  * all 4 as one dword into a stack buffer, then enqueues one per indicator slot. */
 uint8 data_fd2_battle_miss_indicator_sprite_ids[4] = {
     0x74,0x75,0x76,0x76
-};
-/* projectile y-offset table — real FD2.LE values @ 0x0202C (runtime 0x5202C),
- * 28 bytes (4-frame x 6-row rise pattern). The real
- * fd2_animate_spell_projectile_paths copies the first 25 bytes into a stack
- * scratch and indexes it by (fx_iter % 4 + frame). */
-uint8 data_fd2_animation_spell_projectile_y_offset_table[28] = {
-    0x0f,0x0f,0x0f,0x0f,0x07,0x03,0x01,0x00,
-    0x00,0x01,0x03,0x07,0x0f,0x0f,0x0b,0x09,
-    0x08,0x08,0x09,0x0b,0x0f,0x0f,0x0f,0x0f,
-    0x0f,0x20,0x20,0x20
 };
 /* fd2_remove_inventory_slot_at: now emitted for real in src/ui_menu/status.c.
  * Its old spy global g_remove_inventory_calls is gone; spell/spelleff.c now
@@ -1941,8 +1875,6 @@ int32  data_fd2_battle_summon_anim_variant_d_4slot_color_idx_array[4] = {0};
 uint8  data_fd2_battle_summon_anim_variant_d_color_rotation_counter = 0;
 uint8  data_fd2_battle_summon_anim_variant_d_terminate_flag = 0;
 uint8  data_fd2_battle_summon_anim_variant_d_odd_even_frame_toggle = 0;
-int32  data_fd2_animation_summon_variant_d_3slot_color_row_offsets[10] = {0};
-uint8  data_fd2_animation_summon_variant_e_16slot_sprite_base_table[16] = {0};
 int32  data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[16] = {0};
 /* Summon-spell per-summon RGB + SFX-bank-index tables (4-byte read-only game
  * data, indexed by spell_id-0x20). The binary declares each as a dword that it
@@ -1960,14 +1892,6 @@ int32  data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[5] = {0};
 uint8  data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[5] = {0};
 uint8  data_fd2_battle_summon_anim_variant_c_angle_accumulator = 0;
 uint8  data_fd2_battle_summon_anim_variant_c_swap_done_latch = 0;
-/* rodata offset tables: real binary values (0x524F8 / 0x5250C) */
-int32  data_fd2_animation_summon_variant_c_radial_5slot_offsets[5] =
-    {10, 8, 3, 0, 0};
-uint8  data_fd2_animation_summon_variant_c_radial_5slot_byte_offsets[5] =
-    {10, 8, 3, 0, 0};
-/* sin/cos y placement constants: real binary values (0x5022B / 0x50233) */
-double data_fd2_animation_summon_radial_angle_step_12 = 1.2;
-double data_fd2_animation_summon_radial_radius_30 = 30.0;
 /* fd2_tick_tutorial_progress_with_sfx: now in anim.c */
 /* fd2_run_full_turn_cycle: now emitted in src/battle/btl_turn.c */
 /* fd2_enemy_turn_action_dispatcher: now in btl_ai.c */
@@ -2207,7 +2131,6 @@ uint8  data_fd2_battle_pathfind_current_depth = 0;
 uint8  data_fd2_battle_pathfind_best_path_length = 0;
 uint8  data_fd2_battle_pathfind_step_stack[256] = {0};
 uint8  data_fd2_battle_pathfind_mode_flags = 0;
-void  *data_fd2_animation_ani_decoder_frame_dispatch_table[10] = {0};
 uint16 data_fd2_animation_ani_decoder_target_width = 0;
 uint32 data_fd2_animation_ani_decoder_dst_buf = 0;
 uint32 data_fd2_animation_ani_decoder_src_buf = 0;

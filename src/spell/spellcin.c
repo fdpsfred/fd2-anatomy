@@ -50,7 +50,7 @@ void fd2_cast_earthquake_spell_with_screen_shake(
     uint32 caster_unit_id, uint32 spell_id,
     uint32 num_targets, uint8 *target_id_array)
 {
-    int32 *shake_params;
+    const int32 *shake_params;
     uint32 orig_battle_scene_snapshot;
     uint32 orig_large_game_state_buffer;
     void *buf0;

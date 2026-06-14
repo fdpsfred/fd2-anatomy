@@ -100,8 +100,8 @@
     "home": "table/anitab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21": {
@@ -430,8 +430,8 @@
     "home": "table/anitab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_spell_frame_count_table": {
@@ -445,8 +445,8 @@
     "home": "table/anitab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_spell_sfx_frame_table": {
@@ -460,23 +460,23 @@
     "home": "table/anitab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_spell_overlay_blink_mask_table": {
     "addr": "52006",
     "segment": ".object2",
-    "len": 28,
-    "datatype": "byte[28]",
+    "len": 30,
+    "datatype": "byte[30]",
     "kind": "byte_data",
     "emit_class": "const",
     "needs_bytes": true,
     "home": "table/anitab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_spell_palette_r_table": {
@@ -2527,8 +2527,8 @@
     "home": "table/anitab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_damage_number_format_buffer": {
@@ -2714,8 +2714,8 @@
     "home": "table/anitab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_ui_render_decimal_format_template": {
@@ -2804,8 +2804,8 @@
     "home": "table/anitab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_view_window_max_x": {
@@ -3542,8 +3542,8 @@
     "home": "table/anitab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_click_debounce_skip_count": {
@@ -4457,8 +4457,8 @@
     "home": "table/anitab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_summon_radial_radius_30": {
@@ -4472,8 +4472,8 @@
     "home": "table/anitab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_terrain_hud_panel_offset_51a0c": {
@@ -4568,8 +4568,8 @@
     "home": "table/anitab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_combat_cinematic_mode_per_chapter": {
@@ -4778,8 +4778,8 @@
     "home": "table/anitab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_summon_variant_c_radial_5slot_byte_offsets": {
@@ -4793,8 +4793,8 @@
     "home": "table/anitab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_summon_variant_d_3slot_color_row_offsets": {
@@ -4808,8 +4808,8 @@
     "home": "table/anitab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_summon_variant_e_16slot_sprite_base_table": {
@@ -4823,8 +4823,8 @@
     "home": "table/anitab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_per_job_revive_or_promote_cost_table": {

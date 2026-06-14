@@ -108,7 +108,7 @@ extern uint8  data_fd2_chapter_ch10_end_scene_char_pos_x_table[11];     /* 0x521
 extern uint8  data_fd2_chapter_ch10_end_scene_char_pos_y_table[11];     /* 0x5211E  11 chars Y */
 
 /* ---- chapter 12 end scene char placement tables (.object2 const) ---- */
-extern uint8  data_fd2_chapter_ch12_end_scene_char_pos_x_table[14];     /* 0x52129  14 chars X */
+extern const uint8 data_fd2_chapter_ch12_end_scene_char_pos_x_table[14]; /* 0x52129  14 chars X */
 extern uint8  data_fd2_chapter_ch12_end_scene_char_pos_y_table[14];     /* 0x52137  14 chars Y */
 extern uint8  data_fd2_chapter_ch12_end_scene_char_facing_table[14];    /* 0x52145  14 chars facing */
 
@@ -331,7 +331,7 @@ extern uint32 data_fd2_vga_palette_data_ptr;                            /* 0x53A
 /* ---- palette cycle animation (.object3) ---- */
 extern uint16 data_fd2_animation_palette_cycle_last_tick;               /* 0x60000 */
 extern uint8  data_fd2_animation_palette_cycle_frame_idx;               /* 0x60002 */
-extern uint8  data_fd2_animation_palette_cycle_rgb_table[];             /* 0x60003  93B */
+extern const uint8 data_fd2_animation_palette_cycle_rgb_table[93];      /* 0x60003  93B */
 
 /* ---- large game state buffer ---- */
 extern uint32 data_fd2_large_game_state_buffer_ptr;                     /* 0x53A49 */
@@ -418,15 +418,15 @@ extern char   data_fd2_string_resource_filename_fdmus_dat[];                    
 
 /* ---- animation tables (.object2 const) ---- */
 extern const uint8  data_fd2_audio_footstep_sfx_per_job_cadence_class_table[29]; /* 0x52618  29B */
-extern int32  data_fd2_animation_earthquake_screen_shake_params_table[9]; /* 0x52096  3 X-off + 3 Y-off + 3 scale */
+extern const int32 data_fd2_animation_earthquake_screen_shake_params_table[9]; /* 0x52096  3 X-off + 3 Y-off + 3 scale */
 extern uint8  data_fd2_battle_special_attack_shake_x_offset_table[6];   /* 0x52549  per-sub-frame X-offset cache */
-extern uint8  data_fd2_animation_status_overlay_flicker_color_template[32]; /* 0x51F15 */
-extern uint8  data_fd2_animation_spell_palette_flash_table[108];        /* 0x51AAD  36*3 RGB planes R/G/B */
-extern uint8  data_fd2_animation_spell_sprite_offset_table[33];         /* 0x51F33 */
-extern uint8  data_fd2_animation_spell_frame_count_table[33];           /* 0x51F54 */
-extern uint8  data_fd2_animation_spell_sfx_frame_table[33];             /* 0x51F75 */
-extern uint8  data_fd2_animation_spell_overlay_blink_mask_table[30];    /* 0x52006 */
-extern uint8  data_fd2_animation_spell_projectile_y_offset_table[28];   /* 0x0202C */
+extern const uint8 data_fd2_animation_status_overlay_flicker_color_template[30]; /* 0x51F15 */
+extern const uint8 data_fd2_animation_spell_palette_flash_table[108];   /* 0x51AAD  36*3 RGB planes R/G/B */
+extern const uint8 data_fd2_animation_spell_sprite_offset_table[33];    /* 0x51F33 */
+extern const uint8 data_fd2_animation_spell_frame_count_table[33];      /* 0x51F54 */
+extern const uint8 data_fd2_animation_spell_sfx_frame_table[33];        /* 0x51F75 */
+extern const uint8 data_fd2_animation_spell_overlay_blink_mask_table[30]; /* 0x52006 */
+extern const uint8 data_fd2_animation_spell_projectile_y_offset_table[25]; /* 0x5202C */
 extern uint8  data_fd2_battle_summon_minor_anim_state5_frame_counter;    /* 0x540FA */
 extern uint8  data_fd2_battle_summon_minor_anim_alternating_blit_toggle; /* 0x540FB */
 extern uint8  data_fd2_graphics_figani_pose_anim_subframe_idx;           /* 0x540FC */
@@ -466,8 +466,8 @@ extern int32  data_fd2_battle_summon_anim_variant_d_4slot_color_idx_array[4];   
 extern uint8  data_fd2_battle_summon_anim_variant_d_color_rotation_counter;      /* 0x540B7 */
 extern uint8  data_fd2_battle_summon_anim_variant_d_terminate_flag;              /* 0x540B8 */
 extern uint8  data_fd2_battle_summon_anim_variant_d_odd_even_frame_toggle;       /* 0x540B9 */
-extern int32  data_fd2_animation_summon_variant_d_3slot_color_row_offsets[10];   /* 0x52511 */
-extern uint8  data_fd2_animation_summon_variant_e_16slot_sprite_base_table[16]; /* 0x52539 */
+extern const int32 data_fd2_animation_summon_variant_d_3slot_color_row_offsets[10]; /* 0x52511 */
+extern const uint8 data_fd2_animation_summon_variant_e_16slot_sprite_base_table[16]; /* 0x52539 */
 extern int32  data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[16]; /* 0x540BA */
 extern int32  data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[5];      /* 0x54054 */
 extern int32  data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[5];      /* 0x54068 */
@@ -475,10 +475,10 @@ extern int32  data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[5]
 extern uint8  data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[5]; /* 0x54090 */
 extern uint8  data_fd2_battle_summon_anim_variant_c_angle_accumulator;           /* 0x54095 */
 extern uint8  data_fd2_battle_summon_anim_variant_c_swap_done_latch;             /* 0x54096 */
-extern int32  data_fd2_animation_summon_variant_c_radial_5slot_offsets[5];       /* 0x524F8 */
-extern uint8  data_fd2_animation_summon_variant_c_radial_5slot_byte_offsets[5];  /* 0x5250C */
-extern double data_fd2_animation_summon_radial_angle_step_12;                    /* 0x5022B (1.2 y-amplitude) */
-extern double data_fd2_animation_summon_radial_radius_30;                        /* 0x50233 (30.0) */
+extern const int32 data_fd2_animation_summon_variant_c_radial_5slot_offsets[5];  /* 0x524F8 */
+extern const uint8 data_fd2_animation_summon_variant_c_radial_5slot_byte_offsets[5]; /* 0x5250C */
+extern const double data_fd2_animation_summon_radial_angle_step_12;              /* 0x5022B (1.2 y-amplitude) */
+extern const double data_fd2_animation_summon_radial_radius_30;                  /* 0x50233 (30.0) */
 extern uint32 data_fd2_battle_summon_spell_palette_r_table;             /* 0x5254F */
 extern uint32 data_fd2_battle_summon_spell_palette_g_table;             /* 0x52553 */
 extern uint32 data_fd2_battle_summon_spell_palette_b_table;             /* 0x52557 */
@@ -500,7 +500,7 @@ extern int (*data_fd2_battle_spell_cast_cinematic_phase_handler_table[10])(
 extern uint16 data_fd2_animation_ani_decoder_target_width;              /* 0x52760 */
 extern uint32 data_fd2_animation_ani_decoder_dst_buf;                   /* 0x52762 */
 extern uint32 data_fd2_animation_ani_decoder_src_buf;                   /* 0x52766 */
-extern void  *data_fd2_animation_ani_decoder_frame_dispatch_table[10];  /* 0x5276A */
+extern void (*data_fd2_animation_ani_decoder_frame_dispatch_table[10])(void);  /* 0x5276A */
 
 /* ---- .object3 data tables ---- */
 extern item_effect       data_fd2_battle_item_effect_table[215];        /* 0x602AC */
