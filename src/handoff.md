@@ -5,6 +5,9 @@
 當前進入「真實資料落地 + 測試重寫 + 收斂 fd2.exe」收斂計畫（data-first），Step 0 進行中。**
 完整計畫：`C:\Users\fdpsf\.claude\plans\plan-plan-soft-dongarra.md`（**新 session 先讀它 + 下面這段**）。
 
+**溝通方式（使用者要求）**：給使用者的所有文字（含對話回覆，不只文件）一律用淺白通順的繁體中文完整句子，
+只有專有名詞、程式碼識別字，或絕對必要時才夾英文單字。詳見 memory `feedback_chinese_prose_readability`。
+
 ---
 
 ## 當前斷點（收斂計畫 — 最重要，先讀）
