@@ -205,7 +205,7 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
+    "emitted": true,
     "reviewed": false,
     "commit": null
   },
@@ -555,8 +555,8 @@
       "fd2_play_dialog_open_animation"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_bg_anim_flip_flag": {
@@ -1626,8 +1626,8 @@
       "fd2_run_equip_member_menu"
     ],
     "note": "multi-writer:anim/aniend.c,dialog/dialog.c,gfx/rndstat.c,rsrc/rsrc.c,ui_menu/shop.c,ui_menu/status.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_last_hit_or_miss_flag": {
@@ -3248,8 +3248,8 @@
       "fd2_portrait_blink_animation_step"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_portrait_blink_subtick_counter": {
@@ -3265,8 +3265,8 @@
       "fd2_portrait_blink_animation_step"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_combat_speech_bubble_pos_pairs": {
@@ -4506,8 +4506,8 @@
       "fd2_scroll_text_screen_up_by_lines"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_bgm_last_set_track_id": {
@@ -5558,8 +5558,8 @@
       "fd2_backup_dialog_area_to_buffer"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch10_end_scene_char_pos_x_table": {
@@ -5743,8 +5743,8 @@
       "fd2_run_equip_member_menu"
     ],
     "note": "multi-writer:anim/aniend.c,dialog/dialog.c,gfx/rndstat.c,rsrc/rsrc.c,ui_menu/shop.c,ui_menu/status.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_tile_event_data_table_ptr": {

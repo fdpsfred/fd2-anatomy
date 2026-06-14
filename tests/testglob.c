@@ -80,7 +80,6 @@ uint8  data_fd2_chapter_combat_cinematic_mode_per_chapter[30] = {
 };
 uint32 data_fd2_chapter_cutscene_event_state = 0;
 uint32 data_fd2_graphics_static_bg_buffer_ptr = 0;
-uint8  data_fd2_graphics_text_scroll_pending_line_count = 0;
 uint32 data_fd2_graphics_animated_bg_buffer_ptr = 0;
 uint32 data_fd2_chapter_event_or_battle_end_code = 0;
 uint32 data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
@@ -481,12 +480,7 @@ int fd2_check_char_is_dead(uint32 c)
 }
 /* fd2_scan_chars_within_manhattan_range: now in btl_ai.c */
 uint32 data_fd2_ui_anim_sprite_sheet_ptr = 0;
-void  *data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[5] = {0};
-uint32 data_fd2_dialog_portrait_blink_frame_idx = 0;
-uint32 data_fd2_dialog_portrait_blink_subtick_counter = 0;
 uint32 data_fd2_dialog_last_action_value_param = 0;
-uint32 data_fd2_dialog_active_portrait_blit_offset = 0;
-void  *data_fd2_dialog_area_backup_buffer = 0;
 uint32 data_fd2_dialog_current_speaker_char_ptr = 0;
 uint32 data_fd2_large_game_state_buffer_ptr = 0;
 uint32 data_fd2_dialog_blink_phase_oscillator = 0;
@@ -2510,7 +2504,6 @@ void fd2_restore_screen_block_from_buffer(uint32 saved_block, uint32 dst, uint32
  * real keyboard poll returns 0 so blink_flag stays set and the blink stub runs. */
 uint32 data_fd2_dialog_last_action_sprite_id_param = 0;
 uint32 data_fd2_dialog_drop_swap_text_id_param = 0;
-uint8 *data_fd2_portrait_sprite_buffer = (uint8 *)0;
 
 int    g_dlg_glyph_calls = 0;
 uint32 g_dlg_glyph_last_idx = 0;
