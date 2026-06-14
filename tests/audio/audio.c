@@ -453,7 +453,7 @@ static void test_play_and_free_status_effect_sfx(void)
 
 /* ---- Test: fd2_load_figani_sfx_bank ---- */
 
-extern uint8 data_fd2_audio_figani_sfx_bank_fdother_index_lut[6];
+extern const uint8 data_fd2_audio_figani_sfx_bank_fdother_index_lut[6];
 
 /* Core translation path: figani_data[+4] is a 1-based id into the 6-byte
  * FDOTHER index LUT; the function loads FDOTHER.DAT entry lut[id-1] via the
