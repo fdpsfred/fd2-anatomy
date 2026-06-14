@@ -2729,8 +2729,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_inline_action_menu_template": {
@@ -4071,8 +4071,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_save_load_oom_msg_tile_event_50023": {
@@ -4086,8 +4086,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_save_load_oom_msg_runtime_char_50037": {
@@ -4101,8 +4101,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_field_map_oom_msg_chapter_runtime_50064": {
@@ -4116,8 +4116,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_field_map_fdicon_not_found_err_50086": {
@@ -4131,8 +4131,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_resource_filename_fdtxt_dat": {
@@ -4146,8 +4146,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_resource_filename_fdother_dat": {
@@ -4161,8 +4161,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_resource_filename_fdfield_dat_51a59": {
@@ -4176,8 +4176,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_resource_filename_fdshap_dat_51a65": {
@@ -4191,8 +4191,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_resource_filename_dato_dat_51a70": {
@@ -4206,8 +4206,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_resource_filename_fdmus_dat": {
@@ -4221,8 +4221,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_resource_filename_bg_dat_52381": {
@@ -4236,8 +4236,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_resource_filename_figani_dat_52388": {
@@ -4251,8 +4251,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_intro_metadata_table": {
@@ -4598,8 +4598,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_chapter_intro_dialog_corner_offset_table_a": {

@@ -59,20 +59,10 @@ uint32 data_fd2_audio_sfx_sample_handle_0 = 0;
  * players (summon ticks, etc.) don't set the handles, so this sentinel keeps the
  * two routable. Tests that care set both handles explicitly. */
 uint32 data_fd2_audio_sfx_sample_handle_1 = 0x5EE80000;
-char   data_fd2_string_ui_render_decimal_format_template[6] = "%0.5d";
-char   data_fd2_string_resource_filename_fdtxt_dat[] = "FDTXT.DAT";
-char   data_fd2_string_resource_filename_fdother_dat[] = "FDOTHER.DAT";
-char   data_fd2_string_resource_filename_fdfield_dat_51a59[] = "FDFIELD.DAT";
-char   data_fd2_string_resource_filename_fdshap_dat_51a65[] = "FDSHAP.DAT";
-char   data_fd2_string_resource_filename_dato_dat_51a70[] = "DATO.DAT";
-char   data_fd2_string_resource_filename_bg_dat_52381[] = "BG.DAT";
-char   data_fd2_string_resource_filename_figani_dat_52388[] = "FIGANI.DAT";
-char   data_fd2_string_resource_filename_tai_dat[] = "TAI.DAT";
-char   data_fd2_string_save_load_oom_msg_load_pbuf_50004[] = " Out of Memory !!!\n";
-char   data_fd2_string_save_load_oom_msg_tile_event_50023[] = " Out of Memory !!!\n";
-char   data_fd2_string_save_load_oom_msg_runtime_char_50037[] = " Out of Memory !!!\n";
-char   data_fd2_string_field_map_oom_msg_chapter_runtime_50064[] = " Out of Memory !!!\n";
-char   data_fd2_string_field_map_fdicon_not_found_err_50086[] = "\n\n File not found 'FDICON.B24!! \n\n";
+/* The decimal format template, the 8 resource-filename strings (fdtxt / fdother
+ * / fdfield / fdshap / dato / bg / figani / tai; fdmus is below) and the 5 OOM /
+ * file-not-found message strings are now emitted const in src/table/strtab.c;
+ * their former fake non-const file-scope defs here were removed. */
 uint32 data_fd2_shared_party_total_gold = 0;
 uint32 data_fd2_shared_menu_party_roster_buffer_ptr = 0;
 uint32 data_fd2_shared_menu_party_member_count = 0;
@@ -128,7 +118,8 @@ uint8  data_fd2_audio_bgm_last_set_track_id = 0xFF;
 uint8  data_fd2_audio_bgm_enabled_flag = 1;
 uint8  data_fd2_audio_bgm_driver_available_flag = 1;
 uint32 data_fd2_audio_bgm_sequence_data_buf_ptr = 0;
-char   data_fd2_string_resource_filename_fdmus_dat[] = "FDMUS.DAT";
+/* data_fd2_string_resource_filename_fdmus_dat now emitted const in
+ * src/table/strtab.c; its former fake def here was removed. */
 uint32 data_fd2_audio_bgm_sequence_handle = 0;
 /* AIL driver / sample handles -- first used by fd2_main (life/main.c). */
 void  *data_fd2_audio_bgm_driver_handle = 0;

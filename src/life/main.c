@@ -290,7 +290,7 @@ int fd2_main_menu_continue_dispatcher(void)
  * ---------------------------------------------------------------- */
 void fd2_load_save_and_init_engine(void)
 {
-    char *err_msg;
+    const char *err_msg;
     uint8 *pBuf;
     void *fp;
     uint8 *pTileEvent;

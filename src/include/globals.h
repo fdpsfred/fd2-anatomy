@@ -350,26 +350,26 @@ extern uint32 data_fd2_tile_anim_table_base;                            /* 0x53A
 extern uint32 data_fd2_chinese_font_sheet;                              /* 0x53A75 */
 
 /* ---- resource filename strings (.object2 const) ---- */
-extern char   data_fd2_string_resource_filename_fdtxt_dat[];            /* 0x51A43  "FDTXT.DAT" */
-extern char   data_fd2_string_resource_filename_fdother_dat[];          /* 0x51A4D  "FDOTHER.DAT" */
-extern char   data_fd2_string_resource_filename_fdfield_dat_51a59[];    /* 0x51A59  "FDFIELD.DAT" */
-extern char   data_fd2_string_resource_filename_fdshap_dat_51a65[];     /* 0x51A65  "FDSHAP.DAT" */
-extern char   data_fd2_string_resource_filename_dato_dat_51a70[];       /* 0x51A70  "DATO.DAT" */
-extern char   data_fd2_string_resource_filename_bg_dat_52381[];         /* 0x52381  "BG.DAT" */
-extern char   data_fd2_string_resource_filename_figani_dat_52388[];     /* 0x52388  "FIGANI.DAT" */
-extern char   data_fd2_string_resource_filename_tai_dat[];              /* 0x52393  "TAI.DAT" */
+extern const char data_fd2_string_resource_filename_fdtxt_dat[10];      /* 0x51A43  "FDTXT.DAT" */
+extern const char data_fd2_string_resource_filename_fdother_dat[12];    /* 0x51A4D  "FDOTHER.DAT" */
+extern const char data_fd2_string_resource_filename_fdfield_dat_51a59[12]; /* 0x51A59  "FDFIELD.DAT" */
+extern const char data_fd2_string_resource_filename_fdshap_dat_51a65[11];  /* 0x51A65  "FDSHAP.DAT" */
+extern const char data_fd2_string_resource_filename_dato_dat_51a70[9];  /* 0x51A70  "DATO.DAT" */
+extern const char data_fd2_string_resource_filename_bg_dat_52381[7];    /* 0x52381  "BG.DAT" */
+extern const char data_fd2_string_resource_filename_figani_dat_52388[11]; /* 0x52388  "FIGANI.DAT" */
+extern const char data_fd2_string_resource_filename_tai_dat[8];         /* 0x52393  "TAI.DAT" */
 
 /* ---- UI render format strings (.object2 const) ---- */
-extern char   data_fd2_string_ui_render_decimal_format_template[6];     /* 0x51EBF  "%0.5d" */
+extern const char data_fd2_string_ui_render_decimal_format_template[6]; /* 0x51EBF  "%0.5d" */
 
 /* ---- save/load OOM message strings (.object2 const, 3 cross-.obj copies) ---- */
-extern char   data_fd2_string_save_load_oom_msg_load_pbuf_50004[];      /* 0x50004  " Out of Memory !!!\n" */
-extern char   data_fd2_string_save_load_oom_msg_tile_event_50023[];     /* 0x50023  " Out of Memory !!!\n" */
-extern char   data_fd2_string_save_load_oom_msg_runtime_char_50037[];   /* 0x50037  " Out of Memory !!!\n" */
+extern const char data_fd2_string_save_load_oom_msg_load_pbuf_50004[20];   /* 0x50004  " Out of Memory !!!\n" */
+extern const char data_fd2_string_save_load_oom_msg_tile_event_50023[20];  /* 0x50023  " Out of Memory !!!\n" */
+extern const char data_fd2_string_save_load_oom_msg_runtime_char_50037[20]; /* 0x50037  " Out of Memory !!!\n" */
 
 /* ---- chapter battle-data load error strings (.object2 const) ---- */
-extern char   data_fd2_string_field_map_oom_msg_chapter_runtime_50064[];   /* 0x50064  " Out of Memory !!!\n" */
-extern char   data_fd2_string_field_map_fdicon_not_found_err_50086[];      /* 0x50086  "\n\n File not found 'FDICON.B24!! \n\n" */
+extern const char data_fd2_string_field_map_oom_msg_chapter_runtime_50064[20]; /* 0x50064  " Out of Memory !!!\n" */
+extern const char data_fd2_string_field_map_fdicon_not_found_err_50086[35];    /* 0x50086  "\n\n File not found 'FDICON.B24!! \n\n" */
 
 /* ---- resource / portrait cache ---- */
 extern uint32 data_fd2_resource_portrait_cache_buffer_used;             /* 0x539EC */
@@ -414,7 +414,7 @@ extern uint32 data_fd2_audio_figani_sfx_bank_buf_ptr;                  /* 0x5411
 extern const uint8  data_fd2_audio_figani_sfx_bank_fdother_index_lut[6];      /* 0x525D6  6B; 1-based id->FDOTHER idx */
 extern uint8  data_fd2_audio_walk_step_sfx_cadence_counter;             /* 0x540FE */
 extern uint32 data_fd2_audio_figani_sfx_bank_defender_buf_ptr;          /* 0x5411B */
-extern char   data_fd2_string_resource_filename_fdmus_dat[];                              /* 0x51A79  "FDMUS.DAT" */
+extern const char data_fd2_string_resource_filename_fdmus_dat[10];                        /* 0x51A79  "FDMUS.DAT" */
 
 /* ---- animation tables (.object2 const) ---- */
 extern const uint8  data_fd2_audio_footstep_sfx_per_job_cadence_class_table[29]; /* 0x52618  29B */

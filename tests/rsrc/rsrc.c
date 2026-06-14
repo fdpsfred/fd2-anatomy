@@ -48,8 +48,8 @@ extern runtime_char g_test_rc_array[8];
 
 /* DAT filename strings (match the Ghidra/globals symbols; equal to the staged
  * real file names). */
-extern char data_fd2_string_resource_filename_fdmus_dat[];
-extern char data_fd2_string_resource_filename_fdother_dat[];
+extern const char data_fd2_string_resource_filename_fdmus_dat[10];
+extern const char data_fd2_string_resource_filename_fdother_dat[12];
 
 /* Read the 13 sprite-header ints (12 frame offsets + 1 end-mark) for a
  * portrait from the staged real FDICON.B24: entries portrait_id*12..+12,
