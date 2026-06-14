@@ -88,7 +88,6 @@ void fd2_give_item_to_first_player_char(uint32 item_id);
 int fd2_inventory_selection_modal_dispatch(uint32 char_idx, uint32 mode);
 int fd2_inventory_grid_input_step(uint32 char_idx, uint32 gate_flag);
 void fd2_handle_tile_event_interaction(uint32 char_idx);
-void fd2_delay_ticks(uint32 ticks);
 void fd2_run_full_turn_cycle(void);
 
 /* ---- spell handlers ---- */

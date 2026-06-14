@@ -65,7 +65,7 @@ extern int g_repaint_flip_buffer_after;
  * and the REAL VGA palette routines (palette.c) on the crit/poison branches.
  * The attacker (char 0) is equipped at slot 0 (eatk_reset) so the REAL
  * fd2_find_equipped_item_by_kind(attacker,0) returns slot 0 -> weapon =
- * item_effect_table[0]. fd2_delay_ticks -> no-op.
+ * item_effect_table[0]. __delay_thunk_375b2 -> no-op.
  *
  * RNG is the real ROL16(seed+0x9014,3) LFSR. seed 0 draws (each call returns
  * the NEW seed; values confirmed via emulate_function on fd2_advance_rng_state,

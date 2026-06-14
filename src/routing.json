@@ -128,7 +128,7 @@
   },
   "000114fb": {
     "name": "fd2_set_runtime_char_evade",
-    "target": "battle/battle.c",
+    "target": "<fragment:inline-epilogue>",
     "phase": 2,
     "done": true,
     "asm": true,
@@ -234,9 +234,9 @@
     "name": "fd2_composite_battle_tile_map",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": true,
+    "done": false,
     "asm": false,
-    "reviewed": true
+    "reviewed": false
   },
   "00012263": {
     "name": "fd2_tick_tile_event_animations",
@@ -900,7 +900,7 @@
   },
   "00017ee8": {
     "name": "fd2_wrapper_clear_keyboard_buffer",
-    "target": "input/input.c",
+    "target": "<fragment:inline-epilogue>",
     "phase": 1,
     "done": true,
     "asm": true,
