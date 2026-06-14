@@ -121,7 +121,7 @@ function reviewerPrompt(sym, emitterOut) {
     emitterOut ? ('Emitter 本回合回報（僅供定位，不可當證據）：\n' + JSON.stringify(emitterOut, null, 2)) : '',
     '',
     '# 步驟',
-    'A. 看 emitter 的精確改動：git --no-pager diff HEAD -- ROOT/src/' + sym.home + '（序列下 HEAD 之後未 commit 的就是本符號的，含新建檔）。讀 ROOT/src/' + sym.home + ' 確認定義真的寫進去了。',
+    'A. 看 emitter 的精確改動：git -C ' + ROOT + ' --no-pager diff HEAD -- src/' + sym.home + '（序列下 HEAD 之後未 commit 的就是本符號的，含新建檔）。讀 ROOT/src/' + sym.home + ' 確認定義真的寫進去了。',
     'B. 自己抓證據：get_plate_comment / read_memory(0x' + sym.addr + ') / get_xrefs_to；反編譯 1-2 個 caller。',
     'C. 逐項 checklist（每項 通過/不通過 + evidence 引指令或行）：',
     '   1. 型別/寬度/有號：與 caller 實際存取一致（base+idx*stride、.field、MOV 寬度）。',
