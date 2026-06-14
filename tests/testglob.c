@@ -836,16 +836,6 @@ uint32 data_fd2_ui_menu_cursor_idx = 0;
 /* chapter-intro menu speaker portrait IDs — real FD2.LE values @ 0x52659 */
 uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6] =
     { 0x81, 0x80, 0x00, 0x82, 0x83, 0x84 };
-/* shop "inventory full" FDTXT dialog-id table — real FD2.LE values @ 0x5265F.
- * The church-revive menu aliases the same bytes as a per-job revive-price
- * multiplier table, read as [bJob_id + 5]. (int16; vendor data overlap) */
-int16  data_fd2_dialog_shop_inventory_full_dialog_text_id_table[36] = {
-    0x0001, 0x01FA, 0x0001, 0x01FA, 0x01FA, 0x01FA, 0x0064, 0x0096,
-    0x0064, 0x0064, 0x0064, 0x0064, 0x0064, 0x0064, 0x04B0, 0x0640,
-    0x03E8, 0x03E8, 0x04B0, 0x0578, 0x04B0, 0x0640, 0x0064, 0x0708,
-    0x04B0, 0x03E8, 0x0BB8, 0x03E8, 0x03E8, 0x0578, 0x015E, 0x0064,
-    0x0064, 0x0064, 0x0064, 0x0064
-};
 /* per-basic-class required class-change key-item id — real FD2.LE values
  * @ 0x526A7 (= 0x5266B + 0x3C). Indexed directly by runtime_char.portrait_id
  * (basic classes 0..0x11); 0xFF marks classes with no table-driven item. */
@@ -863,33 +853,6 @@ uint32 data_fd2_ui_menu_scroll_offset = 0;
 uint32 data_fd2_ui_menu_visible_item_count = 0;
 uint32 data_fd2_ui_menu_saved_cursor_idx = 0;
 uint32 data_fd2_ui_menu_saved_scroll_offset = 0;
-/* per-shop-tier dialog text-id tables (short[6], indexed by
- * data_fd2_chapter_intro_menu_cursor_state) — real FD2.LE values:
- *   speaker portrait id  @ 0x52659 (byte[6])
- *   inventory-full       @ 0x5265F
- *   buy-for-whom         @ 0x526FA
- *   can't-afford         @ 0x52706
- *   no-one-can-equip     @ 0x52712
- *   auto-equip           @ 0x5271E */
-int16  data_fd2_dialog_shop_buy_for_dialog_text_id_table[6] = {
-    1, 502, 1, 439, 1, 439
-};
-int16  data_fd2_dialog_shop_no_money_dialog_text_id_table[6] = {
-    1, 504, 1, 438, 1, 438
-};
-int16  data_fd2_dialog_shop_no_equip_dialog_text_id_table[6] = {
-    1, 505, 1, 437, 1, 437
-};
-int16  data_fd2_dialog_shop_auto_equip_dialog_text_id_table[6] = {
-    1, 507, 1, 507, 1, 507
-};
-/* real .rdata values from FD2.LE @ 0x5272A / 0x52736 */
-int16  data_fd2_dialog_shop_sell_for_dialog_text_id_table[6] = {
-    508, 508, 508, 659, 508, 508
-};
-int16  data_fd2_dialog_shop_sell_nothing_to_sell_text_id_table[6] = {
-    509, 509, 509, 509, 509, 509
-};
 /* not-yet-emitted buy-flow callees (real fns in src later; stubbed for the
  * link). The buy-menu cancel test never reaches these — Esc on the item grid
  * returns before the eligibility scan / recipient select. */
@@ -1038,9 +1001,6 @@ uint8  data_fd2_animation_spell_overlay_blink_mask_table[30] = {
 /* game options menu templates — real FD2.LE values @ 0x51EAF / 0x53F02 */
 int32  data_fd2_ui_game_options_menu_slots_template[4] = { 0x12, 0x14, 0x16, 0x18 };
 int32  data_fd2_ui_game_options_menu_state_template[4] = { 0, 0, 0, 0 };
-/* dialog page-advance collapse template — real FD2.LE value @ 0x51EE5
- * (two corner sprite-index selectors, replicated to 16 bytes) */
-int32  data_fd2_dialog_advance_collapse_template[4] = { 0x10, 0x11, 0x10, 0x11 };
 /* speech-bubble wing corner offsets — real FD2.LE values @ 0x526DA
  * (signed: -39, -13, 13, 39; consumed via signed IDIV in the wing anim) */
 int32  data_fd2_ui_chapter_intro_dialog_corner_offset_table_a[4] =

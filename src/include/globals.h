@@ -213,7 +213,7 @@ extern int32  data_fd2_ui_player_action_menu_state_template[4];         /* 0x53F
 extern int32  data_fd2_ui_inline_action_menu_template[4];               /* 0x51ED5 */
 extern int32  data_fd2_ui_game_options_menu_slots_template[4];          /* 0x51EAF */
 extern int32  data_fd2_ui_game_options_menu_state_template[4];          /* 0x53F02 */
-extern int32  data_fd2_dialog_advance_collapse_template[4];             /* 0x51EE5 */
+extern const int32 data_fd2_dialog_advance_collapse_template[4];        /* 0x51EE5 */
 extern int32  data_fd2_ui_save_load_newgame_menu_template[4];           /* 0x51EF5 */
 extern int32  data_fd2_ui_save_load_menu_state_template[4];             /* 0x53F22 */
 extern int32  data_fd2_ui_tactical_overview_team_colors_table[3];       /* 0x5208a  3 x 4B per-team color base */
@@ -259,7 +259,7 @@ extern uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6];  /* 0x52
  * by chapter cursor state in the buy/sell menus). The church-revive menu
  * aliases the same bytes as a per-job revive-price multiplier table,
  * accessed as [bJob_id + 5]. (vendor data overlap) */
-extern int16  data_fd2_dialog_shop_inventory_full_dialog_text_id_table[]; /* 0x5265F */
+extern const int16 data_fd2_dialog_shop_inventory_full_dialog_text_id_table[6]; /* 0x5265F */
 
 /* Per-basic-class required key-item id for class change, indexed directly by
  * runtime_char.portrait_id (basic classes 0..0x11). 18 bytes. (= 0x5266B+0x3C) */
@@ -314,12 +314,12 @@ extern uint32 data_fd2_dialog_active_portrait_blit_offset;              /* 0x53C
 
 /* ---- per-shop-tier dialog text-id tables (short[6], indexed by
  *      data_fd2_chapter_intro_menu_cursor_state) ---- */
-extern int16  data_fd2_dialog_shop_buy_for_dialog_text_id_table[6];        /* 0x526FA */
-extern int16  data_fd2_dialog_shop_no_money_dialog_text_id_table[6];       /* 0x52706 */
-extern int16  data_fd2_dialog_shop_no_equip_dialog_text_id_table[6];       /* 0x52712 */
-extern int16  data_fd2_dialog_shop_auto_equip_dialog_text_id_table[6];     /* 0x5271E */
-extern int16  data_fd2_dialog_shop_sell_for_dialog_text_id_table[6];       /* 0x5272A */
-extern int16  data_fd2_dialog_shop_sell_nothing_to_sell_text_id_table[6];  /* 0x52736 */
+extern const int16 data_fd2_dialog_shop_buy_for_dialog_text_id_table[6];        /* 0x526FA */
+extern const int16 data_fd2_dialog_shop_no_money_dialog_text_id_table[6];       /* 0x52706 */
+extern const int16 data_fd2_dialog_shop_no_equip_dialog_text_id_table[6];       /* 0x52712 */
+extern const int16 data_fd2_dialog_shop_auto_equip_dialog_text_id_table[6];     /* 0x5271E */
+extern const int16 data_fd2_dialog_shop_sell_for_dialog_text_id_table[6];       /* 0x5272A */
+extern const int16 data_fd2_dialog_shop_sell_nothing_to_sell_text_id_table[6];  /* 0x52736 */
 extern void  *data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[5];   /* 0x53A18 */
 extern uint32 data_fd2_dialog_portrait_blink_frame_idx;                 /* 0x53A10 */
 extern uint32 data_fd2_dialog_portrait_blink_subtick_counter;           /* 0x53A14 */

@@ -2362,8 +2362,8 @@
     "home": "table/dlgtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_intro_panel_resource_idx_per_metadata_category_table": {
@@ -2392,8 +2392,8 @@
     "home": "table/dlgtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_shop_no_money_dialog_text_id_table": {
@@ -2407,8 +2407,8 @@
     "home": "table/dlgtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_shop_no_equip_dialog_text_id_table": {
@@ -2422,8 +2422,8 @@
     "home": "table/dlgtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_shop_auto_equip_dialog_text_id_table": {
@@ -2437,8 +2437,8 @@
     "home": "table/dlgtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_shop_sell_for_dialog_text_id_table": {
@@ -2452,8 +2452,8 @@
     "home": "table/dlgtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_shop_sell_nothing_to_sell_text_id_table": {
@@ -2467,8 +2467,8 @@
     "home": "table/dlgtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch03_end_scene_char_pos_x_table": {
@@ -2759,8 +2759,8 @@
     "home": "table/dlgtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_save_load_newgame_menu_template": {

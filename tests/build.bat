@@ -53,6 +53,7 @@ D:\BIN\WCC386.EXE field\chend1.c %CF% -fo=E:\out\obj\chend1.obj >> E:\out\build.
 D:\BIN\WCC386.EXE table\audtab.c %CF% -fo=E:\out\obj\audtab.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE table\chtab2.c %CF% -fo=E:\out\obj\chtab2.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE table\btltab2.c %CF% -fo=E:\out\obj\btltab2.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE table\dlgtab.c %CF% -fo=E:\out\obj\dlgtab.obj >> E:\out\build.out
 
 echo === compile tests === >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\testmain.c %CF% -fo=E:\out\obj\testmain.obj >> E:\out\build.out
