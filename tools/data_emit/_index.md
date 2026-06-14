@@ -10,7 +10,7 @@
 |---|---|
 | `reconcile.py` | 對帳器。讀 Ghidra data-symbol dump（`workspace/data_emit/ghidra_data_symbols.tsv`，由 `run_script_inline` 產），掃 `src/**/*.c` 與 `tests/testglob.c` 的 file-scope `data_fd2_*` 定義，把每個 Ghidra 符號標成 `real_in_src` / `fake_in_testglob` / `undefined` / `sublabel`，輸出 `workspace/data_emit/worklist.tsv` + 摘要。會對「testglob 有定義但 Ghidra 無同名符號」拋 drift 警告。**注意 `real_in_src` 只代表「src/ 有同名 file-scope 定義」（name-match），不代表內容正確 —— 內容正確性由 `verify_real.py` 另證。** |
 | `verify_real.py` | **byte-equality 驗證器（內容正解的唯一憑據）**。對每個 `real_in_src` 符號，從 Ghidra `read_memory` 抽真 bytes（dump 進 `real_in_src_ghidra_bytes.tsv`），解析 src/ 的 C initializer，逐 byte + 長度比對，輸出 PASS/FAIL（FAIL 附首個 diff 位置）。全 PASS 才能把 `real_in_src` 當可信。**Phase 1 每 emit 一個 data table 都要過此 gate（抽 Ghidra → emit → re-verify byte-identical）—— 它是所有 emitted data 的 regression 關卡，不只首批 28 個。** 自帶負控（同長度不同內容須區分、A 的 C 值比 B 的 Ghidra bytes 須 FAIL）以防假 PASS。 |
-| `home_map.py` | 為每個待遷 data 符號提議 **home src 檔**(Phase 1 fan-out 依此分組)。state 全域 → 寫入它的 owner 函式之 routing target 檔;唯讀 const 表(無 writer)→ 依 `data_fd2_<subsystem>_` 名歸 `const-data:<subsystem>`(Phase 1 取 8.3 檔名)。讀 `worklist.tsv` + Ghidra `data_xref_owners.tsv`(write/read xref dump)+ `routing.json`,輸出 `home_map.tsv` + 分布摘要。 |
+| `home_map.py` | 為每個待遷 data 符號定 **home src 檔** + **emit_class**。emit_class 用鐵證(symbol 位址的 bytes 非 0 = 有真初值)× write-xref 分:`const`(無 writer + 非 0 → `const T[]={bytes}`)/ `init-data`(有 writer + 非 0 → `T name={bytes};` 可變)/ `zero-bss`(全 0 → `T name;`,執行期或經 memcpy/ptr 間接寫)。`needs_bytes` = const∪init-data,須過 `verify_real`。home:有 writer → 該 owner 函式的 routing target 檔;否則 `const-data:<subsystem>`(Phase 1 取 8.3 檔名)。讀 `worklist.tsv` + `data_xref_owners.tsv` + `fake_bytes_nonzero.tsv`(皆 Ghidra dump)+ `routing.json`。 |
 | `rename_global.py` | 安全 whole-word 全域改名的**機械套用器**（caller 逐一決定 old→new，工具不 derive 名）。whole-word boundary 避免誤傷子字串（如 local `orig_<name>`）；掃 `src/`+`tests/` 的 `.c/.h` **與 KB `.md`（program_info / resource_info / rebuild_info / assets + index.md / open_issues.md）做 code+KB 同步**；套用後驗證舊名殘留 = 0。Ghidra 端另改（per 命名規則 [[feedback_game_data_symbol_naming]]）。 |
 
 ## 跑法
@@ -23,6 +23,10 @@ python tools/data_emit/reconcile.py
 # 3.（Ghidra 端）read_memory dump real_in_src 真 bytes -> real_in_src_ghidra_bytes.tsv
 # 4. byte-equality 驗證（內容正解的唯一憑據；Phase 1 每表 emit 後都跑）
 python tools/data_emit/verify_real.py
+# 5.（Ghidra 端）dump 每符號的 write/read xref owner -> data_xref_owners.tsv
+#    + dump fake_in_testglob 符號 bytes 是否全 0 -> fake_bytes_nonzero.tsv
+# 6. home + emit_class 對映（Phase 1 worklist 定案）
+python tools/data_emit/home_map.py
 ```
 
 中間檔（`ghidra_data_symbols.tsv` / `worklist.tsv`）寫到 `workspace/data_emit/`（scratch）。
