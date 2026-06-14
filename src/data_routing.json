@@ -355,8 +355,8 @@
     "home": "table/gfxtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_play_active_flag": {
@@ -4367,8 +4367,8 @@
     "home": "table/gfxtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_radian_per_degree_const": {
@@ -4382,8 +4382,8 @@
     "home": "table/gfxtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_scatter_y_offset_neg8": {
@@ -4397,8 +4397,8 @@
     "home": "table/gfxtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_circle_band_radius_scale_16": {
@@ -4412,8 +4412,8 @@
     "home": "table/gfxtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_spell_ap_boost_factor_015": {

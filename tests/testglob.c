@@ -1871,19 +1871,8 @@ double data_fd2_animation_summon_radial_radius_30 = 30.0;
  * produces the desired (count, ascending ids). */
 /* fd2_score_spell_candidate: now in btl_ai.c */
 double data_fd2_battle_ai_enemy_spell_score_multiplier_15 = 1.5;
-/* AoE radial-scatter geometry constants (fd2_scatter_sprite_around_origin_with_random_offset).
- * The deg->rad factor is the binary's exact stored literal 0.0174532 (a 7-digit
- * approximation of pi/180, byte pattern af99d76c40df913f @ 0x501F8), NOT full-precision
- * pi/180. The Y skew is -8.0 @ 0x50200. */
-double data_fd2_graphics_radian_per_degree_const = 0.0174532;
-double data_fd2_graphics_scatter_y_offset_neg8 = -8.0;
 double data_fd2_battle_spell_ap_boost_factor_015 = 0.15;
 double data_fd2_battle_spell_dp_boost_factor_015 = 0.15;
-/* circle-band anim geometry constants (fd2_render_circle_anim_row /
- * fd2_render_filled_circle_band_anim): radius divisor 10.0 and the 1.6 band
- * radius scale. */
-double data_fd2_graphics_circle_anim_div_10 = 10.0;
-double data_fd2_graphics_circle_band_radius_scale_16 = 1.6;
 /* fd2_ai_score_item_use: now in btl_ai.c */
 /* fd2_count_usable_inventory_slots: now REAL in src/ui_menu/status.c */
 /* fd2_spell_selection_menu_main is now emitted for real in src/spell/spellsel.c
@@ -2210,7 +2199,6 @@ uint32 fd2_load_figani_sfx_bank(uint32 figani_data)
 /* fd2_apply_use_effect_dispatch: already in spellwk.c */
 uint32 data_fd2_battle_tile_map_anim_frame_counter = 0;
 uint32 data_fd2_graphics_bg_anim_flip_flag = 0;
-uint8  data_fd2_graphics_tile_anim_palette_phase_lookup[20] = {0};
 /* fd2_add_item_to_inventory is now emitted for real in src/ui_menu/status.c
  * (and covered there by the test_add_item_* cases). The battle-drop suite that
  * once used the g_add_item_* spy now asserts on the real inventory state. */

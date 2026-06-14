@@ -228,7 +228,7 @@ extern uint8  data_fd2_graphics_text_scroll_pending_line_count;         /* 0x51A
 extern uint32 data_fd2_battle_view_window_max_x;                        /* 0x51A87 */
 extern uint32 data_fd2_battle_view_window_max_y;                        /* 0x51A8B */
 extern uint32 data_fd2_graphics_forced_tile_anim_frame;                 /* 0x51A93 */
-extern uint8  data_fd2_graphics_tile_anim_palette_phase_lookup[20];     /* 0x51A97 */
+extern const uint8 data_fd2_graphics_tile_anim_palette_phase_lookup[20]; /* 0x51A97 */
 extern uint32 data_fd2_graphics_bg_animation_frame_idx;                 /* 0x539FC */
 extern uint32 data_fd2_graphics_bg_anim_flip_flag;                      /* 0x53A40 */
 extern uint32 data_fd2_battle_compose_left_edge_clip_offset;            /* 0x53AED */
@@ -243,10 +243,10 @@ extern int32  data_fd2_graphics_char_sprite_paint_jitter_tick_latch;    /* 0x53A
 extern uint32 data_fd2_graphics_chapter_walk_anim_alt_palette_idx;      /* 0x53C07 */
 extern uint32 data_fd2_graphics_chapter_ambient_palette_anim_idx;       /* 0x53C0B */
 extern uint32 data_fd2_graphics_chapter_ambient_palette_anim_tick_latch; /* 0x53C0F */
-extern double data_fd2_graphics_radian_per_degree_const;                /* 0x501F8  const 0.0174532 (deg->rad) */
-extern double data_fd2_graphics_scatter_y_offset_neg8;                  /* 0x50200  const -8.0 (AoE scatter Y skew) */
-extern double data_fd2_graphics_circle_anim_div_10;                     /* 0x501F0  const 10.0 */
-extern double data_fd2_graphics_circle_band_radius_scale_16;            /* 0x50208  const 1.6 */
+extern const double data_fd2_graphics_radian_per_degree_const;          /* 0x501F8  const 0.0174532 (deg->rad) */
+extern const double data_fd2_graphics_scatter_y_offset_neg8;            /* 0x50200  const -8.0 (AoE scatter Y skew) */
+extern const double data_fd2_graphics_circle_anim_div_10;               /* 0x501F0  const 10.0 */
+extern const double data_fd2_graphics_circle_band_radius_scale_16;      /* 0x50208  const 1.6 */
 
 /* ---- chapter intro dialog corner offsets (.object2 const) ----
  * table_a is signed (used with IDIV in the wing slide-in/out animation:
