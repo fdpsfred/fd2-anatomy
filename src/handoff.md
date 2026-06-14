@@ -1,10 +1,57 @@
-# FD2 Emit Pipeline — Handoff
+# FD2 Rebuild — Handoff
 
-把 Ghidra 內 FD2.LE 的 decompiled function 產出為 functionally-equivalent（Layer 2）的 C
-source、寫 unit test、build gate + 獨立 reviewer 三源復驗、per-function commit。**4-way 並行 emit
-+ Phase 2 merge cascade 已完成，四方落入 `integ`。Phase 2.5 coordinated landings 進行中：Unit C
-（crt cstart `_cstart_`，改走 link_vendor_lib）已落地（commit `447c37c`），剩 Unit B（pathfind 2）
-+ Unit A（blit 19）= 21 個（routing 650 total / reviewed 629 / await_emit 21）。** 讀完本檔即可零 context 接續。
+目標：`src/` 自身 compile+link 出可正確執行的 `fd2.exe`；`src/`+`tests/` compile 出測試執行檔。
+**全 650 個遊戲 function 已 emit（reviewed 629 + 待補 21）、四分支 merge cascade 已落入 `integ`。
+當前進入「真實資料落地 + 測試重寫 + 收斂 fd2.exe」收斂計畫（data-first），Step 0 進行中。**
+完整計畫：`C:\Users\fdpsf\.claude\plans\plan-plan-soft-dongarra.md`（**新 session 先讀它 + 下面這段**）。
+
+---
+
+## 當前斷點（收斂計畫 — 最重要，先讀）
+
+**5 階段**（每階段 hard-stop 等使用者評估；批次工作用 workflow 多代理，但每 item 由獨立 agent
+親自 read_memory/disasm 檢視後個別套用，不 bulk derive）：
+`Step 0 神諭+盤點 → Phase 1 真資料落地 src/ → Phase 2 補完 21 fn → Phase 3 測試重寫到全綠 →
+Phase 4 收斂 fd2.exe + 實機對照`。
+
+**Step 0 — 進行中**（工具操作見 `tools/fd2_build/_index.md`、`tools/data_emit/_index.md`）
+- ✅ **神諭** `tools/fd2_build/`：`mklnk.py` 產 `tests/fd2.lnk`（src-only FD2.EXE wlink）；
+  `link_oracle.py` 在 DOSBox 跑 `wlink`；`analyze_undefined.py` 分類。**src-only link 的 undefined
+  symbol = 「fd2.exe 還缺什麼在 src/」的權威 worklist**（以 linker 符號引用為準，比 name-grep 可靠）。
+- ✅ **盤點 + 驗證器** `tools/data_emit/`：`reconcile.py` 對帳 Ghidra↔testglob↔src；
+  **`verify_real.py` = byte-equality gate**（emitted data 每筆都要過；已證 28 個 real_in_src 全
+  byte-identical）；`rename_global.py` 安全 whole-word 全域改名（caller 決定 old→new，工具只機械套用）。
+- ✅ **改名 4 個 plain-named 全域進 data_fd2_**（commit `95e6e64`）：`battle_scene_snapshot` /
+  `chapter_portrait_load_buffer` / `current_chapter_text` / `portrait_sprite_cache`（@0x53A5x cluster）→
+  Ghidra + code + KB 同步。它們原本 name-grep 抓不到，是 Phase 1 worklist 的漏網。
+- **神諭結果**：421 undefined = 339 `data_fd2_`（Phase 1 worklist）+ 17 `fd2_` fn + 60 vendor
+  libc/math（Phase 4 CRT wiring，非 src 缺口）+ 1 dangling。**數值即時重跑神諭取得，勿從本檔抄。**
+
+**Task #2 剩餘（Step 0 收尾，新 session 下一步做）**：
+1. **命名 drift / 無符號真表**：`spell_learning` / `class_promotion` / `movement_cost` /
+   `job_allowed_items` / `orphan_table_60181` 等 —— Ghidra 名多 `_battle_` 中綴，或在 object3 是無 data
+   符號的 raw bytes（table.c 以算術位址引用）。逐一對齊：Ghidra 建 label / 改名 + code/KB 同步
+   （用 `rename_global.py`），一次一個（memory `feedback_strict_one_at_a_time`）。
+2. **2 個 stub-only fn**：`fd2_composite_battle_tile_map` / `fd2_delay_ticks` 只活在 testglob stub、
+   未 emit 到 src/，對 fd2.exe 是真缺口。查在不在 routing 650 內、該 emit 或 link。
+3. **修 dangling ref**：`src/crt/crt.c` 引用已被 Unit C 移除的 `crt_equivalent_dos_main_bootstrap`。
+4. **home-file 對映**：給每個待遷 data 符號定所屬 src 檔 → 完整 Phase 1 worklist。
+
+**Phase 1 起手**：data-emit workflow，逐表抽 Ghidra 真 byte → emit 一般 `const` C 進 src/
+（**不用 FAR_DATA/object3，Layer-2**，見 memory `feedback_layer2_no_byte_exact_overengineering`）→
+`verify_real` byte gate + `build_test` 0err/0warn → 刪 testglob 假版。四類分別處理（唯讀表 / fn-ptr 表 /
+data-ptr 表 / mutable state）。
+
+**Phase 4 連結注意**：`fd2.lnk` 需顯式 `library clib3s`（`system dos4g` 在「遊戲只用 crt_* wrapper」
+時不自動 pull CLIB3S，但 AIL lib 引用真 libc）；AIL lib（`workspace/ail_extract/out/{ailv3,fd2common}.lib`）
+要 stage 到穩定路徑（`build_test.py` 會清 `tests/OUT`）。
+
+---
+
+> **以下 §0–§7 為 emit pipeline / merge cascade / build 的既有 handoff（下層參考）。**
+> merge cascade 已完成（historical）；§3–§5 的 merge how-to 不再需要。但 **Phase 3 測試重寫請讀
+> §1 的「系統性修復階段診斷備忘（cinematic spin/fault 根因）」+ partial-skip 紀錄**（那是輸入，保留）；
+> **Phase 2 的 21-fn coordinated landing 配方在 `open_issues.md` #32/#33**；§6 build 知識 + §7 鐵則仍適用。
 
 ---
 
