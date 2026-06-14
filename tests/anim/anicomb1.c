@@ -128,7 +128,7 @@ static void setup_overlay(uint32 palette_idx)
     for (i = 0; i < 256; i++) {
         table[i] = (uint32)i * 0x100u;
     }
-    portrait_sprite_cache = (uint32)g_portrait_cache;
+    data_fd2_portrait_sprite_cache = (uint32)g_portrait_cache;
 
     memset(g_lgs, 0, sizeof(g_lgs));
     data_fd2_large_game_state_buffer_ptr = (uint32)g_lgs;

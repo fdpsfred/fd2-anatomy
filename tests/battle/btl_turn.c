@@ -825,7 +825,7 @@ static void t_install_sprite_sheet(void)
  *
  * The cursor overlay resolves its sprite through a +6 offset table
  * (runtime_battle_state_ptr), the per-char painter through a +0 table
- * (portrait_sprite_cache); both are pointed at one shared, fully transparent
+ * (data_fd2_portrait_sprite_cache); both are pointed at one shared, fully transparent
  * 24-row "SKIP 24 x 24" sprite that decodes cleanly and paints nothing. The
  * animated-tile / shadow overlay (which would resolve a +10 snapshot table) is
  * disarmed instead by zeroing the tile-map and tile-attribute buffers, so its
@@ -863,7 +863,7 @@ static void t_install_blit_atlases(void)
         *(int32 *)(t_portrait_atlas + i * 4) = (int32)0x400;
     }
     t_fill_skip_sprite(t_portrait_atlas + 0x400);
-    portrait_sprite_cache = (uint32)t_portrait_atlas;
+    data_fd2_portrait_sprite_cache = (uint32)t_portrait_atlas;
 
     /* zeroed tile-map + attr so the shadow/animated-tile overlay's renderable
      * gate is clear -> it never reaches the snapshot lookup or a blit. */
@@ -1004,7 +1004,7 @@ static void test_run_turn_cycle_full_reveal(void)
      * compositor terminating sprite atlases (and a non-renderable tile-map) so its
      * RLE blitters do not run away on a garbage stream. */
     save_rbs    = data_fd2_runtime_battle_state_ptr;
-    save_pcache = portrait_sprite_cache;
+    save_pcache = data_fd2_portrait_sprite_cache;
     save_map    = data_fd2_battle_tile_map_ptr;
     save_attr   = data_fd2_tile_attribute_flags_buffer_ptr;
     t_install_blit_atlases();
@@ -1096,7 +1096,7 @@ static void test_run_turn_cycle_full_reveal(void)
     data_fd2_tile_event_data_table_ptr = save_te;
     data_fd2_large_game_state_buffer_ptr = save_lgs;
     data_fd2_runtime_battle_state_ptr = save_rbs;
-    portrait_sprite_cache = save_pcache;
+    data_fd2_portrait_sprite_cache = save_pcache;
     data_fd2_battle_tile_map_ptr = save_map;
     data_fd2_tile_attribute_flags_buffer_ptr = save_attr;
     data_fd2_battle_party_member_count = 4;

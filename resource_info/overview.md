@@ -52,9 +52,9 @@ FIGANI、BG、TAI。走獨立 fopen (但同 LLLLLL 格式) 的 2 個：TITLE、A
 
 每個 chapter 開戰前 `fd2_load_chapter_battle_data @ 0x1088D` 載入該章對應的：
 - FDFIELD `chapter_id × 3 + 0` / `+1` / `+2` → tile_map / tile_event / portrait_load_buffer
-- FDSHAP `shap_id × 2 + 0` / `+1` → battle_scene_snapshot / tile_attribute_flags
+- FDSHAP `shap_id × 2 + 0` / `+1` → data_fd2_battle_scene_snapshot / tile_attribute_flags
   (其中 `shap_id = tile_event_data_table[0]`)
-- FDTXT `chapter_id + 1` → current_chapter_text
+- FDTXT `chapter_id + 1` → data_fd2_current_chapter_text
 - FDICON.B24 全檔 → portrait cache 載入該章用到的 24×24 icons
 
 完整的 chapter ↔ DAT idx 對照見 `fdfield.md` 與 `fdshap.md`。

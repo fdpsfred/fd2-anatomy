@@ -78,7 +78,7 @@ static void ev20_install_safe_env(void)
         g_ev20_dlg[0x11 + 2 * p] = (int16)(0x50 + p);  /* page p glyph idx */
         g_ev20_dlg[0x12 + 2 * p] = -1;                  /* page p END */
     }
-    current_chapter_text = (uint32)g_ev20_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ev20_dlg;
 
     /* no portrait open on entry, so the dialog END path skips the close
      * sequence and returns at once (one glyph for the dispatched page). */
@@ -348,7 +348,7 @@ static void test_ch12_event23_reloads_portrait2_brackets_initphase(void)
 
     /* the real portrait reload ran: field buffer freed+nulled, and FD2.TMP was
      * rewritten to its full 0x32A00-byte size. */
-    ASSERT_EQ(chapter_portrait_load_buffer, 0);
+    ASSERT_EQ(data_fd2_chapter_portrait_load_buffer, 0);
     ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
 
     /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
@@ -531,7 +531,7 @@ static void test_event25_dialog_page1_two_stage_cinematic(void)
  * In the binary it prepares its own 8 PUSHes (page=8 plus the fixed dialog
  * geometry) and JMPs (0x34DC8 -> 0x34C0F) into the shared tail of
  * fd2_show_chapter_dialog_with_portrait_set_1, which supplies the 9th arg
- * (current_chapter_text) and performs the cdecl 0x24-byte cleanup.
+ * (data_fd2_current_chapter_text) and performs the cdecl 0x24-byte cleanup.
  *
  * Every callee is a REAL emitted function driven against the shared
  * ev20_install_safe_env() env (the same per-page-distinct-glyph dialog program

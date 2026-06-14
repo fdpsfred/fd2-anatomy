@@ -130,7 +130,7 @@ static void setup_figani_intro(uint8 portrait_id, uint8 team)
     for (i = 0; i < 256; i++) {
         table[i] = (uint32)i * 0x100u;
     }
-    portrait_sprite_cache = (uint32)g_cine_portrait_cache;
+    data_fd2_portrait_sprite_cache = (uint32)g_cine_portrait_cache;
 
     /* view window + finalizer gating (HUD off, play inactive, anim phase 0,
      * palette cycle throttled to no-op) */
@@ -145,7 +145,7 @@ static void setup_figani_intro(uint8 portrait_id, uint8 team)
     data_fd2_chapter_current_chapter_id = 1;
 
     /* entry frees of these globals must be no-ops (free(NULL)) */
-    battle_scene_snapshot = 0;
+    data_fd2_battle_scene_snapshot = 0;
 
     /* mini-panel painter fixture (sprite sheet + immediate-END text table) */
     minip_setup_env();
@@ -578,14 +578,14 @@ static void setup_override_terrain(uint8 chapter_idx)
      * and stand up the portrait cache + mini-panel + view-window fixtures. */
     data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = 0;
     data_fd2_large_game_state_buffer_ptr = 0;
-    battle_scene_snapshot = 0;
-    portrait_sprite_cache = 0;
+    data_fd2_battle_scene_snapshot = 0;
+    data_fd2_portrait_sprite_cache = 0;
 
     table = (uint32 *)g_cine_portrait_cache;
     for (i = 0; i < 256; i++) {
         table[i] = (uint32)i * 0x100u;
     }
-    portrait_sprite_cache = (uint32)g_cine_portrait_cache;
+    data_fd2_portrait_sprite_cache = (uint32)g_cine_portrait_cache;
 
     data_fd2_battle_view_window_origin_x = CINE_WIN_OX;
     data_fd2_battle_view_window_origin_y = CINE_WIN_OY;

@@ -64,7 +64,7 @@ static void ce_setup_portrait_env(int count, const uint8 *race_of)
     data_fd2_tile_event_data_table_ptr = (uint32)g_ce_tileevent;
     data_fd2_resource_portrait_cache_alloc_offset = (uint32)count;
 
-    chapter_portrait_load_buffer = 0;           /* loaded fresh by the loader   */
+    data_fd2_chapter_portrait_load_buffer = 0;           /* loaded fresh by the loader   */
     data_fd2_chapter_init_phase_flag = 1;        /* spawn = field value verbatim */
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
@@ -74,9 +74,9 @@ static void ce_setup_portrait_env(int count, const uint8 *race_of)
     /* the real fd2_load_portrait_to_cache (reached via the real
      * fd2_init_runtime_char_for_battle for matching races) parses real
      * FDICON.B24; reset the cache so it first-inits cleanly. */
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
@@ -86,18 +86,18 @@ static void ce_teardown_portrait_env(void)
 {
     free(g_ce_tileevent);
     g_ce_tileevent = 0;
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_resource_portrait_cache_alloc_offset = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_chapter_init_phase_flag = 0;
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     data_fd2_battle_party_member_count = 4;
     data_fd2_chapter_current_chapter_id = 1;
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     remove("FD2.TMP");        /* generated swap file (not a staged game file) */
 }
 
@@ -115,7 +115,7 @@ static void test_gate_skips_dialog_on_non_trigger_turn(void)
     /* start the window away from every sweep target */
     data_fd2_battle_view_window_origin_x = 0x40;
     data_fd2_battle_view_window_origin_y = 0x40;
-    current_chapter_text = 0;          /* gate must not deref this */
+    data_fd2_current_chapter_text = 0;          /* gate must not deref this */
     g_composite_call_count = 0;
     g_dlg_glyph_calls = 0;
 
@@ -147,13 +147,13 @@ static void test_portrait_index_is_turn_div_2(void)
     ce_setup_portrait_env(2, races);
     tg_install_compositor_safe_atlases();          /* camera sweep -> real compositor */
     data_fd2_battle_turn_counter = 6;              /* (int)6/2 == 3 */
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
 
     fd2_chapter_event_handler_2f__ch21_turn_gated(0);
 
     /* exactly the race==3 record matched -> one char inited */
     ASSERT_EQ((long)data_fd2_battle_party_member_count, 1);
-    ASSERT_EQ((long)chapter_portrait_load_buffer, 0);  /* loader freed+nulled */
+    ASSERT_EQ((long)data_fd2_chapter_portrait_load_buffer, 0);  /* loader freed+nulled */
 
     tg_restore_compositor_safe_atlases();
     ce_teardown_portrait_env();
@@ -180,7 +180,7 @@ static void test_gate_fires_dialog_on_turn_2(void)
     prog[3] = 8;        /* byte offset of the page-3 opcode body */
     prog[4] = 0x41;     /* TEXT glyph */
     prog[5] = -1;       /* END */
-    current_chapter_text = (uint32)prog;
+    data_fd2_current_chapter_text = (uint32)prog;
 
     /* deterministic dialog VM env: empty BIOS keyboard buffer + audio gated so
      * the per-glyph blink/typewriter step is host-safe. No active portrait, so
@@ -322,7 +322,7 @@ static void test_h31_gate_skips_dialog_on_non_trigger_turn(void)
     /* start the window away from both sweep targets */
     data_fd2_battle_view_window_origin_x = 0x40;
     data_fd2_battle_view_window_origin_y = 0x40;
-    current_chapter_text = 0;          /* gate must not deref this */
+    data_fd2_current_chapter_text = 0;          /* gate must not deref this */
     g_composite_call_count = 0;
     g_dlg_glyph_calls = 0;
 
@@ -353,13 +353,13 @@ static void test_h31_portrait_index_is_turn_div_2(void)
     ce_setup_portrait_env(2, races);
     tg_install_compositor_safe_atlases();          /* camera sweep -> real compositor */
     data_fd2_battle_turn_counter = 8;              /* (int)8/2 == 4 */
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
 
     fd2_chapter_event_handler_31__ch22_turn_gated(0);
 
     /* exactly the race==4 record matched -> one char inited */
     ASSERT_EQ((long)data_fd2_battle_party_member_count, 1);
-    ASSERT_EQ((long)chapter_portrait_load_buffer, 0);  /* loader freed+nulled */
+    ASSERT_EQ((long)data_fd2_chapter_portrait_load_buffer, 0);  /* loader freed+nulled */
 
     tg_restore_compositor_safe_atlases();
     ce_teardown_portrait_env();
@@ -386,7 +386,7 @@ static void test_h31_gate_fires_dialog_on_turn_3(void)
     prog[1] = 8;        /* byte offset of the page-1 opcode body */
     prog[4] = 0x41;     /* TEXT glyph */
     prog[5] = -1;       /* END */
-    current_chapter_text = (uint32)prog;
+    data_fd2_current_chapter_text = (uint32)prog;
 
     /* deterministic dialog VM env: empty BIOS keyboard buffer + audio gated so
      * the per-glyph blink/typewriter step is host-safe. No active portrait, so
@@ -443,7 +443,7 @@ static void test_h32_pan_corner_and_unconditional_page2_dialog(void)
     prog[2] = 8;        /* byte offset of the page-2 opcode body */
     prog[4] = 0x41;     /* TEXT glyph */
     prog[5] = -1;       /* END */
-    current_chapter_text = (uint32)prog;
+    data_fd2_current_chapter_text = (uint32)prog;
 
     /* deterministic dialog VM env: empty BIOS keyboard buffer + audio gated so
      * the per-glyph blink/typewriter step is host-safe. No active portrait, so
@@ -514,7 +514,7 @@ static void test_h33_item_drop_gated_off_then_page3_dialog(void)
     prog[3] = 8;        /* byte offset of the page-3 opcode body */
     prog[4] = 0x41;     /* TEXT glyph */
     prog[5] = -1;       /* END */
-    current_chapter_text = (uint32)prog;
+    data_fd2_current_chapter_text = (uint32)prog;
 
     /* deterministic dialog VM env: empty BIOS keyboard buffer + audio gated so
      * the per-glyph blink/typewriter step is host-safe. No active portrait, so
@@ -542,7 +542,7 @@ static void test_h33_item_drop_gated_off_then_page3_dialog(void)
     /* minimal teardown */
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     data_fd2_battle_party_member_count = 4;
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
 }
 
 /* ================================================================
@@ -823,7 +823,7 @@ static void ce35_setup(int glyphs)
         g_ce35_prog[8 + i] = 0x41;        /* TEXT glyph */
     }
     g_ce35_prog[8 + glyphs] = -1;         /* END */
-    current_chapter_text = (uint32)g_ce35_prog;
+    data_fd2_current_chapter_text = (uint32)g_ce35_prog;
 
     /* deterministic dialog VM env: empty BIOS keyboard buffer + audio gated so
      * the per-glyph blink/typewriter step is host-safe. No active portrait, so
@@ -841,7 +841,7 @@ static void ce35_setup(int glyphs)
 
 static void ce35_teardown(void)
 {
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
 }
 
 /* ----------------------------------------------------------------
@@ -916,14 +916,14 @@ static void test_h36_portrait_index_is_raw_counter(void)
     ce_setup_portrait_env(6, races);
     tg_install_compositor_safe_atlases();          /* camera sweep -> real compositor */
     data_fd2_battle_turn_counter = 5;              /* raw 5 (NOT 5/2 == 2) */
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
 
     fd2_chapter_event_handler_36__ch24_cinematic(0);
 
     /* exactly the race==5 record matched -> one char inited (race==2 decoy
      * would have matched a /2 port and is the only other non-zero record) */
     ASSERT_EQ((long)data_fd2_battle_party_member_count, 1);
-    ASSERT_EQ((long)chapter_portrait_load_buffer, 0);  /* loader freed+nulled */
+    ASSERT_EQ((long)data_fd2_chapter_portrait_load_buffer, 0);  /* loader freed+nulled */
 
     tg_restore_compositor_safe_atlases();
     ce_teardown_portrait_env();
@@ -1002,7 +1002,7 @@ static void test_h37_gate_off_when_non_lord_steps(void)
     t_consumed[0] = 0;                 /* tile NOT yet consumed */
     data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)t_consumed;
 
-    current_chapter_text = 0;          /* gate must not deref this */
+    data_fd2_current_chapter_text = 0;          /* gate must not deref this */
     data_fd2_battle_pending_xp_credit = 0x1234;   /* sentinel: must be cleared */
     g_dlg_glyph_calls = 0;
     g_composite_call_count = 0;
@@ -1018,7 +1018,7 @@ static void test_h37_gate_off_when_non_lord_steps(void)
     ASSERT_EQ(data_fd2_battle_pending_xp_credit, 0);
 
     data_fd2_field_map_tile_event_consumed_flags_ptr = save_cf;
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
 }
 
 /* ----------------------------------------------------------------
@@ -1037,7 +1037,7 @@ static void test_h37_gate_off_when_already_consumed(void)
     t_consumed[0] = 1;                 /* tile ALREADY consumed */
     data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)t_consumed;
 
-    current_chapter_text = 0;          /* gate must not deref this */
+    data_fd2_current_chapter_text = 0;          /* gate must not deref this */
     data_fd2_battle_pending_xp_credit = 0x5678;   /* sentinel: must be cleared */
     g_dlg_glyph_calls = 0;
     g_composite_call_count = 0;
@@ -1052,7 +1052,7 @@ static void test_h37_gate_off_when_already_consumed(void)
     ASSERT_EQ(data_fd2_battle_pending_xp_credit, 0);
 
     data_fd2_field_map_tile_event_consumed_flags_ptr = save_cf;
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
 }
 
 void run_field_chevt21_tests(void)

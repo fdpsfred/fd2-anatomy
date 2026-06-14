@@ -91,12 +91,12 @@ static void setup_init_fixture(void)
 
     /* loader-returned pointer globals start NULL (loader's free(old_buf) no-op) */
     data_fd2_battle_runtime_char_array_ptr = NULL;
-    portrait_sprite_cache = 0;
-    current_chapter_text = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_portrait_sprite_cache = 0;
+    data_fd2_current_chapter_text = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_battle_tile_map_ptr = 0;
-    battle_scene_snapshot = 0;
+    data_fd2_battle_scene_snapshot = 0;
     data_fd2_tile_attribute_flags_buffer_ptr = 0;
     data_fd2_graphics_static_bg_buffer_ptr = 0;
     data_fd2_graphics_animated_bg_buffer_ptr = 0;
@@ -106,37 +106,37 @@ static void teardown_init_fixture(void)
 {
     if (data_fd2_battle_runtime_char_array_ptr != NULL)
         free(data_fd2_battle_runtime_char_array_ptr);
-    if (portrait_sprite_cache != 0)
-        free((void *)portrait_sprite_cache);
+    if (data_fd2_portrait_sprite_cache != 0)
+        free((void *)data_fd2_portrait_sprite_cache);
     /* loader-returned buffers left live by the function */
-    if (current_chapter_text != 0)
-        free((void *)current_chapter_text);
+    if (data_fd2_current_chapter_text != 0)
+        free((void *)data_fd2_current_chapter_text);
     if (data_fd2_tile_event_data_table_ptr != 0)
         free((void *)data_fd2_tile_event_data_table_ptr);
     if (data_fd2_battle_tile_map_ptr != 0)
         free((void *)data_fd2_battle_tile_map_ptr);
-    if (battle_scene_snapshot != 0)
-        free((void *)battle_scene_snapshot);
+    if (data_fd2_battle_scene_snapshot != 0)
+        free((void *)data_fd2_battle_scene_snapshot);
     if (data_fd2_tile_attribute_flags_buffer_ptr != 0)
         free((void *)data_fd2_tile_attribute_flags_buffer_ptr);
     if (data_fd2_graphics_static_bg_buffer_ptr != 0)
         free((void *)data_fd2_graphics_static_bg_buffer_ptr);
     if (data_fd2_graphics_animated_bg_buffer_ptr != 0)
         free((void *)data_fd2_graphics_animated_bg_buffer_ptr);
-    /* chapter_portrait_load_buffer freed+nulled by the function */
+    /* data_fd2_chapter_portrait_load_buffer freed+nulled by the function */
 
     free(g_bi_consumed);
 
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_battle_tile_map_ptr = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_shared_menu_party_member_count = 0;
-    portrait_sprite_cache = 0;
-    current_chapter_text = 0;
-    battle_scene_snapshot = 0;
+    data_fd2_portrait_sprite_cache = 0;
+    data_fd2_current_chapter_text = 0;
+    data_fd2_battle_scene_snapshot = 0;
     data_fd2_tile_attribute_flags_buffer_ptr = 0;
     data_fd2_graphics_static_bg_buffer_ptr = 0;
     data_fd2_graphics_animated_bg_buffer_ptr = 0;
@@ -222,7 +222,7 @@ static void irc_setup(uint32 field_idx, uint8 desired_x, uint8 desired_y)
 
     data_fd2_battle_runtime_char_array_ptr = g_irc_slots;
     data_fd2_battle_party_member_count = 0;
-    chapter_portrait_load_buffer = (uint32)g_irc_field;
+    data_fd2_chapter_portrait_load_buffer = (uint32)g_irc_field;
     /* Valid tile-map header dims so the real fd2_obfuscate_battle_tile_map
      * (invoked unconditionally by fd2_init_runtime_char_for_battle) iterates
      * a bounded count = width*height = 4*4 = 16 records instead of underflowing
@@ -237,9 +237,9 @@ static void irc_setup(uint32 field_idx, uint8 desired_x, uint8 desired_y)
     /* fresh portrait cache + the STAGED real FDICON.B24 for the real portrait
      * loader (the returned portrait_idx lands in sprite_state[0] and is not
      * asserted; only that the load runs without faulting). */
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
@@ -252,16 +252,16 @@ static void irc_teardown(void)
         fclose(g_irc_fp);
         g_irc_fp = NULL;
     }
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
     remove("FD2.TMP");        /* generated swap file (not a staged game file) */
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     data_fd2_battle_party_member_count = 4;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_battle_tile_map_ptr = 0;
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_chapter_init_phase_flag = 0;
@@ -738,7 +738,7 @@ static void test_clear_all_chars_acted_zero_count(void)
 }
 
 /* ---- fd2_convert_battle_tiles_to_24px @ 0x1399C ----
- * Build an in-memory battle_scene_snapshot (uint16 tile_count @ +4, int32 offset
+ * Build an in-memory data_fd2_battle_scene_snapshot (uint16 tile_count @ +4, int32 offset
  * table @ +6), plant a distinct two-pixel probe sprite at each snapshot offset,
  * invoke the converter, and read the painted output of the REAL passthrough
  * blitter out of the allocated bank. Each tile i is blitted from snap+offsets[i]
@@ -774,7 +774,7 @@ static void test_convert_battle_tiles_to_24px(void)
         bp_probe2(snap + offsets[i], (uint8)(i + 1));
     }
 
-    battle_scene_snapshot = (uint32)snap;
+    data_fd2_battle_scene_snapshot = (uint32)snap;
 
     bank = (uint8 *)fd2_convert_battle_tiles_to_24px();
     ASSERT_TRUE(bank != NULL);
@@ -800,7 +800,7 @@ static void test_convert_battle_tiles_to_24px(void)
 
     free(bank);
     free(snap);
-    battle_scene_snapshot = 0;
+    data_fd2_battle_scene_snapshot = 0;
 }
 
 

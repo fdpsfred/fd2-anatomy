@@ -326,7 +326,7 @@ void fd2_reorder_party_by_selection(uint32 sel_state)
  * The temp is freed.
  *
  * It then reloads the portrait sprite cache to match the new roster
- * order: free(portrait_sprite_cache); reopen FDICON.B24; reset
+ * order: free(data_fd2_portrait_sprite_cache); reopen FDICON.B24; reset
  * portrait_cache_count to 0; for each roster slot [0, member_count)
  * call fd2_load_portrait_to_cache(roster[slot].portrait_id (+0x07), fp);
  * fclose(fp).
@@ -380,7 +380,7 @@ void fd2_pin_required_char_to_party_slot1(uint32 char_id)
 
     free(snapshot);
 
-    free((void *)portrait_sprite_cache);
+    free((void *)data_fd2_portrait_sprite_cache);
     fp = fopen("FDICON.B24", "rb");
     data_fd2_resource_portrait_cache_count = 0;
     for (iter = 0;

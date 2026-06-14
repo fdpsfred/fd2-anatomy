@@ -612,8 +612,8 @@ void fd2_run_class_promotion_menu_main(void)
         rt_chars[char_idx].job_id = *promo_entry;
         rt_chars[char_idx].portrait_id = (uint8)class_id;
 
-        if (portrait_sprite_cache != 0) {
-            free((void *)portrait_sprite_cache);
+        if (data_fd2_portrait_sprite_cache != 0) {
+            free((void *)data_fd2_portrait_sprite_cache);
         }
         fp = fopen("FDICON.B24", "rb");
         data_fd2_resource_portrait_cache_count = 0;
@@ -855,7 +855,7 @@ int fd2_run_recruitment_or_branch_screen(void)
     free((void *)data_fd2_ui_slide_composed_target_buf_ptr);
 
     if (result_flag == 1) {
-        free((void *)portrait_sprite_cache);
+        free((void *)data_fd2_portrait_sprite_cache);
         fp = fopen("FDICON.B24", "rb");
         data_fd2_resource_portrait_cache_count = 0;
         for (i = 0; i < (int)data_fd2_shared_menu_party_member_count; i++) {

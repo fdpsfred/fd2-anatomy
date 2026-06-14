@@ -115,7 +115,7 @@ static void ce_install_safe_env(void)
         g_ce_dlg[i] = (int16)(0x11 * 2);   /* byte offset of the END opcode */
     }
     g_ce_dlg[0x11] = -1;                    /* END */
-    current_chapter_text = (uint32)g_ce_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ce_dlg;
 
     /* empty BIOS keyboard buffer (head==tail). */
     *(volatile uint16 *)0x41AuL = 0x20;
@@ -468,7 +468,7 @@ static void ce23_setup(void)
         g_ce23_dlg[i] = (int16)(0x12 * 2);   /* byte offset of the END opcode */
     }
     g_ce23_dlg[0x12] = -1;                    /* END */
-    current_chapter_text = (uint32)g_ce23_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ce23_dlg;
 
     /* zero-group cutscene scripts for the events the handler can fire. */
     data_fd2_chapter_cutscene_event_script_ptr_table_106[0x47] = g_ce23_script_47;
@@ -676,10 +676,10 @@ static void test_ch25_end_real_portrait_reload_two_recruits_and_advance(void)
      * a valid FDFIELD re-read index (chapter 4 -> 4*3+2 = 0xE). */
     data_fd2_resource_portrait_cache_alloc_offset = 0;
     data_fd2_tile_event_data_table_ptr = 0;
-    chapter_portrait_load_buffer = 0;
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_chapter_current_chapter_id = 4;
     chap0 = data_fd2_chapter_current_chapter_id;
@@ -696,7 +696,7 @@ static void test_ch25_end_real_portrait_reload_two_recruits_and_advance(void)
 
     /* the real portrait reload ran: field buffer freed+nulled, and the FD2.TMP
      * swap file was rewritten to its full 0x32A00-byte size. */
-    ASSERT_EQ(chapter_portrait_load_buffer, 0);
+    ASSERT_EQ(data_fd2_chapter_portrait_load_buffer, 0);
     ASSERT_EQ(ce25_fd2_tmp_size(), 0x32A00);
 
     /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
@@ -984,10 +984,10 @@ static void test_ch29_end_transmutes_slot14_and_advances(void)
      * index the rsrc loader suite exercises). */
     data_fd2_resource_portrait_cache_alloc_offset = 0;
     data_fd2_tile_event_data_table_ptr = 0;
-    chapter_portrait_load_buffer = 0;
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_chapter_current_chapter_id = 4;
     chap0 = data_fd2_chapter_current_chapter_id;
@@ -1030,7 +1030,7 @@ static void test_ch29_end_transmutes_slot14_and_advances(void)
 
     /* the real portrait reload ran: field buffer freed+nulled, and the FD2.TMP
      * swap file was rewritten to its full 0x32A00-byte size. */
-    ASSERT_EQ(chapter_portrait_load_buffer, 0);
+    ASSERT_EQ(data_fd2_chapter_portrait_load_buffer, 0);
     ASSERT_EQ(ce25_fd2_tmp_size(), 0x32A00);
 
     /* leave the FD2.TMP swap file out of the shared cwd for later suites. */

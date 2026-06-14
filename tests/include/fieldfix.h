@@ -95,7 +95,7 @@ static void ev_install_safe_env(void)
         g_ev_dlg[i] = (int16)(0x11 * 2);   /* byte offset of the END opcode */
     }
     g_ev_dlg[0x11] = -1;                    /* END */
-    current_chapter_text = (uint32)g_ev_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ev_dlg;
 
     /* empty BIOS keyboard buffer (head==tail) for fd2_clear_keyboard_buffer. */
     *(volatile uint16 *)0x41AuL = 0x20;
@@ -117,10 +117,10 @@ static void ev_install_safe_env(void)
      * and a valid FDFIELD re-read index (chapter 4 -> 4*3+2 = 0xE). */
     data_fd2_resource_portrait_cache_alloc_offset = 0;
     data_fd2_tile_event_data_table_ptr = 0;
-    chapter_portrait_load_buffer = 0;
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_chapter_current_chapter_id = 4;
 }

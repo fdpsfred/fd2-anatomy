@@ -851,7 +851,7 @@ static void test_hpdrain_weapon_double_strike(void)
 static uint8 g_hitseq_sheet[6 + 256 * 4];
 /* per-weapon attack-animation script (max a few steps for the tests) */
 static uint8 g_hitseq_script[16];
-/* portrait_sprite_cache backing for the pose-paint path (mode dispatch reads
+/* data_fd2_portrait_sprite_cache backing for the pose-paint path (mode dispatch reads
  * *(int32*)(cache + sprite_idx*4); kept 0 -> rle_stream = cache base). */
 static uint8 g_hitseq_sprite_cache[64 * 4];
 
@@ -904,7 +904,7 @@ static void hitseq_setup(uint8 weapon_id, uint8 weapon_type)
     data_fd2_resource_portrait_sheet_ptr = (uint32)g_hitseq_sheet;
 
     memset(g_hitseq_sprite_cache, 0, sizeof(g_hitseq_sprite_cache));
-    portrait_sprite_cache = (uint32)g_hitseq_sprite_cache;
+    data_fd2_portrait_sprite_cache = (uint32)g_hitseq_sprite_cache;
 
     memset(g_hitseq_script, 0, sizeof(g_hitseq_script));
 

@@ -164,7 +164,7 @@ static void ev2e_install_env(void)
         g_ev2e_dlg[0x11 + 2 * p] = (int16)(0x50 + p);  /* page p glyph idx */
         g_ev2e_dlg[0x12 + 2 * p] = -1;                  /* page p END */
     }
-    current_chapter_text = (uint32)g_ev2e_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ev2e_dlg;
 
     /* no portrait open on entry, so the dialog END path skips the close
      * sequence and returns at once (one glyph for the dispatched page). */

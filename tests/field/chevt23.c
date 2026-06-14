@@ -95,15 +95,15 @@ static void ce23_setup(int count, const uint8 *races,
     }
     data_fd2_tile_event_data_table_ptr = (uint32)g_ce23_tileevent;
     data_fd2_resource_portrait_cache_alloc_offset = (uint32)count;
-    chapter_portrait_load_buffer = 0;            /* loaded fresh by the loader  */
+    data_fd2_chapter_portrait_load_buffer = 0;            /* loaded fresh by the loader  */
     data_fd2_chapter_init_phase_flag = 1;        /* spawn = field value verbatim */
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     data_fd2_battle_party_member_count = 0;
     data_fd2_chapter_current_chapter_id = 4;     /* re-read idx = 4*3+2 = 0xE    */
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
@@ -138,13 +138,13 @@ static void ce23_teardown(void)
 {
     free(g_ce23_tileevent);
     g_ce23_tileevent = 0;
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_resource_portrait_cache_alloc_offset = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_chapter_init_phase_flag = 0;
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     data_fd2_battle_party_member_count = 4;
@@ -183,7 +183,7 @@ static void test_white_flash_full_sequence(void)
     /* the cinematic composited frames (pan steps + final composite) */
     ASSERT_TRUE(g_composite_call_count > 0);
     /* the loader freed + nulled its scratch buffer */
-    ASSERT_EQ((long)chapter_portrait_load_buffer, 0);
+    ASSERT_EQ((long)data_fd2_chapter_portrait_load_buffer, 0);
 
     ce23_teardown();
 }
@@ -498,7 +498,7 @@ static void ce40_setup(uint8 stage, int glyphs, int count, const uint8 *races)
         g_ce40_prog[8 + i] = 0x41;  /* TEXT glyph */
     }
     g_ce40_prog[8 + glyphs] = -1;   /* END */
-    current_chapter_text = (uint32)g_ce40_prog;
+    data_fd2_current_chapter_text = (uint32)g_ce40_prog;
 
     /* deterministic dialog VM env: empty BIOS keyboard buffer + audio gated so
      * the per-glyph blink/typewriter step is host-safe. No active portrait, so
@@ -772,9 +772,9 @@ static void test_h41_turn_counter_low_byte_only(void)
  * fd2_chapter_event_handler_42__ch28_dialog_with_state @ 0x359C8
  *
  * Straight-line three-call scene (ch28 turn-FF marker). Functionally-exact body:
- *     fd2_display_dialog_scene(current_chapter_text, 3, 0xA0000, ...);   page 3
+ *     fd2_display_dialog_scene(data_fd2_current_chapter_text, 3, 0xA0000, ...);   page 3
  *     fd2_cinematic_chapter_portrait_dump_with_white_flash(0x11, 0x12, 1);
- *     fd2_display_dialog_scene(current_chapter_text, 6, 0xA0000, ...);   page 6
+ *     fd2_display_dialog_scene(data_fd2_current_chapter_text, 6, 0xA0000, ...);   page 6
  *
  * The cinematic helper's own contract (arg order, low-byte chapter_id, the
  * 300/200/400 delay triple) is already pinned by the test_white_flash_* cases
@@ -820,7 +820,7 @@ static void ce42_setup(int count, const uint8 *races,
     g_ce42_prog[6]  = 0x18;          /* page-6 body byte offset (same body)      */
     g_ce42_prog[12] = 0x41;          /* one TEXT glyph */
     g_ce42_prog[13] = -1;            /* END */
-    current_chapter_text = (uint32)g_ce42_prog;
+    data_fd2_current_chapter_text = (uint32)g_ce42_prog;
 
     /* deterministic dialog VM env: empty BIOS keyboard buffer + audio gated so
      * the per-glyph blink/typewriter step is host-safe; no active portrait, so

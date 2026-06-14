@@ -369,7 +369,7 @@ static void ps_prep(uint32 member_count, uint32 start_cursor,
     memset(g_ps_chars, 0, sizeof(g_ps_chars));
     memset(g_ps_cache, 0, sizeof(g_ps_cache));
     data_fd2_battle_runtime_char_array_ptr = g_ps_chars;
-    portrait_sprite_cache = (uint32)g_ps_cache;
+    data_fd2_portrait_sprite_cache = (uint32)g_ps_cache;
     data_fd2_chapter_intro_dialog_subframe_anim_counter = 0;
     ps_text_all_end();
 
@@ -865,7 +865,7 @@ static void cs_prep(uint32 start_cursor, uint32 start_scroll)
         cs_cands[i] = (uint8)i;                   /* candidate i -> char i */
     }
     data_fd2_battle_runtime_char_array_ptr = cs_chars;
-    portrait_sprite_cache = (uint32)cs_cache;
+    data_fd2_portrait_sprite_cache = (uint32)cs_cache;
     data_fd2_ui_anim_sprite_sheet_ptr = (uint32)cs_anim;
     data_fd2_chapter_intro_dialog_subframe_anim_counter = 0;
     memset(data_fd2_battle_item_effect_table, 0,

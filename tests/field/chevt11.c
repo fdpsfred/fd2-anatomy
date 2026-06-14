@@ -88,7 +88,7 @@ static void test_ch1_event0_recruits_hanuo_and_reloads_portraits(void)
 
     /* both real portrait reloads ran: field buffer freed+nulled, and FD2.TMP
      * was rewritten to its full 0x32A00-byte size. */
-    ASSERT_EQ(chapter_portrait_load_buffer, 0);
+    ASSERT_EQ(data_fd2_chapter_portrait_load_buffer, 0);
     ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
 
     /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
@@ -178,7 +178,7 @@ static void test_ch1_event1_fires_appear_anim_for_slot4(void)
  *   clear_all_chars_facing; display_dialog_scene(page 5, ...).
  *
  * In the binary the dialog call is reached by a JMP into handler_01's shared
- * tail (PUSH current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24;
+ * tail (PUSH data_fd2_current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24;
  * POP EBX; RET); the emit reproduces that tail inline. The distinguishing
  * testable contract versus handler_01 is the slot/chapter id (5, not 4) passed
  * to the appear animation and the cutscene EVENT id (4, not 3). As with
@@ -245,7 +245,7 @@ static void test_ch1_event2_fires_appear_anim_for_slot5(void)
  *   display_dialog_scene(page 6, ...).
  *
  * In the binary the dialog call is reached by a JMP into handler_01's shared
- * tail (PUSH current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24;
+ * tail (PUSH data_fd2_current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24;
  * POP EBX; RET); the emit reproduces that tail inline. The portrait loader does
  * NOT read the init-phase flag (it only gates the battle-init tile scan
  * elsewhere), so the flag bracketing is harmless for the reload itself.
@@ -309,7 +309,7 @@ static void test_ch1_event3_reloads_race6_brackets_initphase(void)
 
     /* the real portrait reload ran: field buffer freed+nulled, and FD2.TMP was
      * rewritten to its full 0x32A00-byte size. */
-    ASSERT_EQ(chapter_portrait_load_buffer, 0);
+    ASSERT_EQ(data_fd2_chapter_portrait_load_buffer, 0);
     ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
 
     /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
@@ -398,7 +398,7 @@ static void ev13_install_safe_env(void)
     g_ev13_dlg[0x13] = -1;                    /* page 8 END */
     g_ev13_dlg[0x14] = 0x42;                  /* page 0xB glyph */
     g_ev13_dlg[0x15] = -1;                    /* page 0xB END */
-    current_chapter_text = (uint32)g_ev13_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ev13_dlg;
 
     /* no portrait open on entry, so each END path skips the close sequence. */
     data_fd2_dialog_active_portrait_blit_offset = 0;
@@ -545,7 +545,7 @@ static void ev14_install_safe_env(void)
         g_ev14_dlg[0x11 + 2 * p] = (int16)(0x50 + p);  /* page p glyph idx */
         g_ev14_dlg[0x12 + 2 * p] = -1;                  /* page p END */
     }
-    current_chapter_text = (uint32)g_ev14_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ev14_dlg;
 
     /* no portrait open on entry, so the END path skips the close sequence and
      * returns immediately. */
@@ -694,7 +694,7 @@ static void test_ch6_event15_dead_skips_dialog(void)
  * Driven on-host with the shared fieldfix "ch25-style real portrait reload" env
  * (64-slot g_ev_rc keeps char 8 in-bounds, alloc_offset 0 -> empty per-record
  * scan, current_chapter_id 4 -> valid FDFIELD index 0xE, staged real FDICON.B24
- * + FDFIELD.DAT), with current_chapter_text re-pointed at the per-page glyph
+ * + FDFIELD.DAT), with data_fd2_current_chapter_text re-pointed at the per-page glyph
  * program so the real helper's page-3 dispatch is observable. The pure
  * blit/display side effects (the real glyph render path) are deferred to Phase 9
  * integration.

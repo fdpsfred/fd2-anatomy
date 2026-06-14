@@ -693,13 +693,13 @@ static void ce52_setup(uint8 stage, uint32 start_oy)
     memset(g_ce52_tileevent, 0, 0x98 + 0x20);
     data_fd2_tile_event_data_table_ptr = (uint32)g_ce52_tileevent;
     data_fd2_resource_portrait_cache_alloc_offset = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_chapter_init_phase_flag = 1;
     data_fd2_battle_party_member_count = 0;
     data_fd2_chapter_current_chapter_id = 4;       /* re-read idx = 4*3+2 = 0xE */
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
@@ -729,7 +729,7 @@ static void ce52_setup(uint8 stage, uint32 start_oy)
     }
     g_ce52_text[7] = 0x41;                          /* one TEXT glyph */
     g_ce52_text[8] = -1;                            /* END */
-    current_chapter_text = (uint32)(uint8 *)g_ce52_text;
+    data_fd2_current_chapter_text = (uint32)(uint8 *)g_ce52_text;
 
     /* deterministic dialog VM env: empty BIOS keyboard buffer + audio gated + no
      * active portrait so END takes neither the page-break wait nor the
@@ -754,19 +754,19 @@ static void ce52_teardown(void)
     audiofix_disable_sfx();
     free(g_ce52_tileevent);
     g_ce52_tileevent = 0;
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_resource_portrait_cache_alloc_offset = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_chapter_init_phase_flag = 0;
     data_fd2_battle_party_member_count = 4;
     data_fd2_chapter_current_chapter_id = 1;
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_dialog_active_portrait_blit_offset = 0;
     remove("FD2.TMP");        /* generated swap file (not a staged game file) */
 }
@@ -934,7 +934,7 @@ static void ce53_setup(int glyphs)
         g_ce53_prog[0xA + i] = 0x41;      /* TEXT glyph */
     }
     g_ce53_prog[0xA + glyphs] = -1;       /* END */
-    current_chapter_text = (uint32)g_ce53_prog;
+    data_fd2_current_chapter_text = (uint32)g_ce53_prog;
 
     /* deterministic dialog VM env: empty BIOS keyboard buffer + audio gated so
      * the per-glyph blink/typewriter step is host-safe. No active portrait, so
@@ -952,7 +952,7 @@ static void ce53_setup(int glyphs)
 
 static void ce53_teardown(void)
 {
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_dialog_active_portrait_blit_offset = 0;
 }
 

@@ -778,9 +778,9 @@ static void lss_teardown(uint32 chapter_story)
 
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_chapter_per_chapter_category_table[chapter_story] = 0;
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_chapter_current_chapter_id = 1;
     data_fd2_resource_portrait_cache_count = 0;
@@ -912,7 +912,7 @@ static void test_lss_restore_frees_prior_portrait_cache(void)
 
     lss_setup(5, 0, 2);
     /* a non-null prior cache pointer must be freed by the restore arm */
-    portrait_sprite_cache = (uint32)malloc(64);
+    data_fd2_portrait_sprite_cache = (uint32)malloc(64);
 
     /* commit slot 2 (Down,Down,Enter) + Esc for the confirm-dialog blink wait */
     n = lss_commit_keys(keys, 2);
@@ -926,7 +926,7 @@ static void test_lss_restore_frees_prior_portrait_cache(void)
     /* the free path ran (no crash / no double-free under the harness). The
      * pointer value itself is not nulled by the function, so teardown must not
      * free it again. */
-    portrait_sprite_cache = 0;
+    data_fd2_portrait_sprite_cache = 0;
 
     lss_teardown(5);
 }

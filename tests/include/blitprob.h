@@ -48,8 +48,8 @@ int  bp_count_painted(const uint8 *buf, uint32 size);
  * only exits when x_remain hits exactly 0).
  *
  * tg_install_compositor_safe_atlases (call at the END of a test's setup, after any
- * fixture that itself sets portrait_sprite_cache / runtime_battle_state_ptr):
- *   - per-char painter: a heap portrait_sprite_cache (0x32A00 — the size the
+ * fixture that itself sets data_fd2_portrait_sprite_cache / runtime_battle_state_ptr):
+ *   - per-char painter: a heap data_fd2_portrait_sprite_cache (0x32A00 — the size the
  *     loader's final FD2.TMP fwrite reads) whose +0 offset table all points at one
  *     transparent "SKIP 24 x 24" sprite, plus a pre-seeded portrait cache id-list
  *     (id 0) + count 1 so a matching tile-event record's fd2_load_portrait_to_cache
@@ -62,7 +62,7 @@ int  bp_count_painted(const uint8 *buf, uint32 size);
  *   - terrain HUD panel: enable + play-active gates off so it early-returns.
  * The portrait cache is heap so the caller's existing teardown free() stays valid.
  * tg_restore_compositor_safe_atlases restores the non-cache globals it changed;
- * call it before the test's teardown (which frees portrait_sprite_cache). */
+ * call it before the test's teardown (which frees data_fd2_portrait_sprite_cache). */
 void tg_install_compositor_safe_atlases(void);
 void tg_restore_compositor_safe_atlases(void);
 

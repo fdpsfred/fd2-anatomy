@@ -672,7 +672,7 @@ static void test_shop_feedback_state_other_noop(void)
  * (00032999). The frame blits land in the mode13h aperture (0xA0504) via the
  * real fd2_blit_rectangle; large_game_state_buffer is backed by a >= 0x25680
  * host buffer so the per-frame memmove(base, backup, 0x25680) stays in-bounds,
- * and portrait_sprite_cache is backed by a 0x32A00 buffer so the portrait
+ * and data_fd2_portrait_sprite_cache is backed by a 0x32A00 buffer so the portrait
  * loader's FD2.TMP fwrite reads valid memory.
  */
 static uint8 g_pa_lgs[0x26000];
@@ -687,8 +687,8 @@ static void party_add_setup(void)
     data_fd2_large_game_state_buffer_ptr = (uint32)g_pa_lgs;
 
     /* portrait loader's FD2.TMP fwrite reads 0x32A00 bytes from this cache */
-    g_pa_saved_cache = portrait_sprite_cache;
-    portrait_sprite_cache = (uint32)malloc(0x32A00);
+    g_pa_saved_cache = data_fd2_portrait_sprite_cache;
+    data_fd2_portrait_sprite_cache = (uint32)malloc(0x32A00);
 
     g_pa_saved_chapter = data_fd2_chapter_current_chapter_id;
     g_pa_saved_alloc_off = data_fd2_resource_portrait_cache_alloc_offset;
@@ -698,7 +698,7 @@ static void party_add_setup(void)
     data_fd2_chapter_current_chapter_id = 1;
     /* zero race-scan length -> portrait loader adds no chars (count stays 0) */
     data_fd2_resource_portrait_cache_alloc_offset = 0;
-    chapter_portrait_load_buffer = 0;   /* loaded fresh by the loader */
+    data_fd2_chapter_portrait_load_buffer = 0;   /* loaded fresh by the loader */
     data_fd2_battle_party_member_count = 0;
 
     data_fd2_battle_view_window_origin_x = 0x10;
@@ -714,14 +714,14 @@ static void party_add_setup(void)
 
 static void party_add_teardown(void)
 {
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
     }
-    portrait_sprite_cache = g_pa_saved_cache;
+    data_fd2_portrait_sprite_cache = g_pa_saved_cache;
     data_fd2_chapter_current_chapter_id = g_pa_saved_chapter;
     data_fd2_resource_portrait_cache_alloc_offset = g_pa_saved_alloc_off;
     data_fd2_battle_party_member_count = g_pa_saved_count;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     remove("FD2.TMP");   /* generated swap file (not a staged game file) */
 }
 

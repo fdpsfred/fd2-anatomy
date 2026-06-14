@@ -186,7 +186,7 @@ void fd2_load_chapter_background_layers(void)
  * Load a portrait's 12-sprite frames from FDICON.B24 into the global
  * 200KB cache. Idempotent on repeat calls (returns existing idx).
  *
- * Cache structure (200KB buffer at portrait_sprite_cache):
+ * Cache structure (200KB buffer at data_fd2_portrait_sprite_cache):
  *   [0 .. 0x77F]  sprite-offset lookup table: 40-portrait capacity
  *                 (40 x 12 sprites x 4-byte abs-offset)
  *   [0x780 ..]    packed sprite data, sequential per portrait
@@ -221,12 +221,12 @@ int fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp)
 
     if (data_fd2_resource_portrait_cache_count == 0) {
         *(uint32 *)data_fd2_resource_portrait_cache_id_list_base = portrait_id;
-        portrait_sprite_cache = (uint32)malloc(0x32a00);
+        data_fd2_portrait_sprite_cache = (uint32)malloc(0x32a00);
         fseek((void *)fp, sprite_offsets[0], SEEK_SET);
-        fread((void *)(portrait_sprite_cache + 0x780), 1, data_size,
+        fread((void *)(data_fd2_portrait_sprite_cache + 0x780), 1, data_size,
               (void *)fp);
         for (i = 0; i < 0xc; i++) {
-            *(int32 *)(portrait_sprite_cache + i * 4) =
+            *(int32 *)(data_fd2_portrait_sprite_cache + i * 4) =
                 (sprite_offsets[i] - sprite_offsets[0]) + 0x780;
         }
         data_fd2_resource_portrait_cache_buffer_used = data_size + 0x780;
@@ -242,11 +242,11 @@ int fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp)
         *(uint32 *)(data_fd2_resource_portrait_cache_id_list_base + i * 4) =
             portrait_id;
         fseek((void *)fp, sprite_offsets[0], SEEK_SET);
-        fread((void *)(portrait_sprite_cache
+        fread((void *)(data_fd2_portrait_sprite_cache
                        + data_fd2_resource_portrait_cache_buffer_used),
               1, data_size, (void *)fp);
         for (i = 0; i < 0xc; i++) {
-            *(int32 *)(portrait_sprite_cache
+            *(int32 *)(data_fd2_portrait_sprite_cache
                        + (data_fd2_resource_portrait_cache_count * 0xc + i) * 4)
                 = (int32)(data_fd2_resource_portrait_cache_buffer_used
                           + (sprite_offsets[i] - sprite_offsets[0]));
@@ -269,21 +269,21 @@ int fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp)
  *
  * Pipeline:
  *   1. fd2_load_chapter_background_layers()
- *   2. FDTXT.DAT[chapter+1] -> current_chapter_text
- *   3. FDFIELD.DAT[chapter*3 + 2/1/0] -> chapter_portrait_load_buffer /
+ *   2. FDTXT.DAT[chapter+1] -> data_fd2_current_chapter_text
+ *   3. FDFIELD.DAT[chapter*3 + 2/1/0] -> data_fd2_chapter_portrait_load_buffer /
  *      tile_event_data_table / battle_tile_map
  *   4. map width/height = tile_map[0]/[2] (16-bit)
- *   5. FDSHAP.DAT[tile_event[0]*2 (+1)] -> battle_scene_snapshot /
+ *   5. FDSHAP.DAT[tile_event[0]*2 (+1)] -> data_fd2_battle_scene_snapshot /
  *      tile_attribute_flags_buffer
  *   6. fd2_obfuscate_battle_tile_map(battle_tile_map)
  *   7. cache_total_size=tile_event[1], cache_alloc_offset=tile_event[2],
  *      party_member_count=cache_total_size
- *   8. free portrait_sprite_cache + old runtime_char_array
+ *   8. free data_fd2_portrait_sprite_cache + old runtime_char_array
  *   9. runtime_char_array = malloc(0x1E00)  (96 chars x 0x50)
  *  10. fopen("FDICON.B24","rb")
  *  11. per slot (0..cache_total_size): build active player units from the
  *      shared menu party roster template, or zero+mark dead for empty slots
- *  12. fclose; free chapter_portrait_load_buffer
+ *  12. fclose; free data_fd2_chapter_portrait_load_buffer
  *  13. fd2_load_chapter_portraits_and_dump_tmp(0)
  *
  * malloc/fopen failure -> INT 10h text-mode reset + printf + exit.
@@ -306,14 +306,14 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
     active_count = 0;
     fd2_load_chapter_background_layers();
 
-    current_chapter_text = fd2_load_dat_resource(
+    data_fd2_current_chapter_text = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdtxt_dat,
-        current_chapter_text, chapter_id + 1);
+        data_fd2_current_chapter_text, chapter_id + 1);
 
     fdfield_x3 = chapter_id * 3;
-    chapter_portrait_load_buffer = fd2_load_dat_resource(
+    data_fd2_chapter_portrait_load_buffer = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdfield_dat_51a59,
-        chapter_portrait_load_buffer, fdfield_x3 + 2);
+        data_fd2_chapter_portrait_load_buffer, fdfield_x3 + 2);
     data_fd2_tile_event_data_table_ptr = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdfield_dat_51a59,
         data_fd2_tile_event_data_table_ptr, fdfield_x3 + 1);
@@ -327,9 +327,9 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
         (int)*(int16 *)(data_fd2_battle_tile_map_ptr + 2);
 
     scene_id = *(uint8 *)data_fd2_tile_event_data_table_ptr;
-    battle_scene_snapshot = fd2_load_dat_resource(
+    data_fd2_battle_scene_snapshot = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdshap_dat_51a65,
-        battle_scene_snapshot, (uint32)scene_id * 2);
+        data_fd2_battle_scene_snapshot, (uint32)scene_id * 2);
     data_fd2_tile_attribute_flags_buffer_ptr = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdshap_dat_51a65,
         data_fd2_tile_attribute_flags_buffer_ptr, (uint32)scene_id * 2 + 1);
@@ -343,8 +343,8 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
     data_fd2_battle_party_member_count =
         data_fd2_resource_portrait_cache_total_size;
 
-    if (portrait_sprite_cache != 0)
-        free((void *)portrait_sprite_cache);
+    if (data_fd2_portrait_sprite_cache != 0)
+        free((void *)data_fd2_portrait_sprite_cache);
     if (data_fd2_battle_runtime_char_array_ptr != NULL)
         free(data_fd2_battle_runtime_char_array_ptr);
 
@@ -368,7 +368,7 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
         exit(1);
     }
 
-    field_pos = (uint8 *)(chapter_portrait_load_buffer
+    field_pos = (uint8 *)(data_fd2_chapter_portrait_load_buffer
         + data_fd2_resource_portrait_cache_alloc_offset * 6 + 2);
     template_ptr = (uint8 *)data_fd2_shared_menu_party_roster_buffer_ptr;
 
@@ -404,8 +404,8 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
     }
 
     fclose(fp);
-    free((void *)chapter_portrait_load_buffer);
-    chapter_portrait_load_buffer = 0;
+    free((void *)data_fd2_chapter_portrait_load_buffer);
+    data_fd2_chapter_portrait_load_buffer = 0;
     fd2_load_chapter_portraits_and_dump_tmp(0);
 }
 
@@ -419,14 +419,14 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
  *   1. fopen("FDICON.B24", "rb"); if NULL -> INT 10h text-mode reset +
  *      printf("File 'FDICON.B24' error !!\n") + exit.
  *   2. Re-read FDFIELD.DAT[current_chapter_id*3 + 2] into
- *      chapter_portrait_load_buffer (the buffer was freed by
+ *      data_fd2_chapter_portrait_load_buffer (the buffer was freed by
  *      fd2_load_chapter_battle_data after its own load).
  *   3. For each entry in the tile-event table (count =
  *      portrait_cache_alloc_offset, stride 0x1A, race byte at +0x98):
  *      if race == target_race_id, call fd2_init_runtime_char_for_battle
  *      to populate a runtime_char + load its portrait from FDICON.B24.
- *   4. fclose(FDICON); free + null chapter_portrait_load_buffer.
- *   5. fopen("FD2.TMP", "wb"); fwrite(portrait_sprite_cache, 1, 0x32A00);
+ *   4. fclose(FDICON); free + null data_fd2_chapter_portrait_load_buffer.
+ *   5. fopen("FD2.TMP", "wb"); fwrite(data_fd2_portrait_sprite_cache, 1, 0x32A00);
  *      fclose. FD2.TMP is the cross-chapter sprite swap file, refreshed
  *      (truncated + rewritten) after each portrait load.
  *
@@ -449,9 +449,9 @@ void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id)
         exit(1);
     }
 
-    chapter_portrait_load_buffer = fd2_load_dat_resource(
+    data_fd2_chapter_portrait_load_buffer = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdfield_dat_51a59,
-        chapter_portrait_load_buffer,
+        data_fd2_chapter_portrait_load_buffer,
         data_fd2_chapter_current_chapter_id * 3 + 2);
 
     for (iter = 0;
@@ -465,11 +465,11 @@ void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id)
     }
 
     fclose(fp);
-    free((void *)chapter_portrait_load_buffer);
-    chapter_portrait_load_buffer = 0;
+    free((void *)data_fd2_chapter_portrait_load_buffer);
+    data_fd2_chapter_portrait_load_buffer = 0;
 
     fp = fopen("FD2.TMP", "wb");
-    fwrite((void *)portrait_sprite_cache, 1, 0x32a00, fp);
+    fwrite((void *)data_fd2_portrait_sprite_cache, 1, 0x32a00, fp);
     fclose(fp);
 }
 
@@ -602,7 +602,7 @@ void fd2_load_and_fade_in_cinematic_image(uint32 anim_idx, uint32 per_frame_dela
 /* ----------------------------------------------------------------
  * fd2_restore_portrait_cache_from_tmp @ 0x29117  (3 callers)
  *
- * Restores the portrait sprite cache (portrait_sprite_cache @ 0x53A61)
+ * Restores the portrait sprite cache (data_fd2_portrait_sprite_cache @ 0x53A61)
  * by reading the full 0x32A00-byte (~207KB) image back from FD2.TMP.
  * Symmetric read-back of the swap file written by
  * fd2_load_chapter_portraits_and_dump_tmp's fopen("FD2.TMP","wb")+
@@ -614,7 +614,7 @@ void fd2_load_and_fade_in_cinematic_image(uint32 anim_idx, uint32 per_frame_dela
  *
  * void __cdecl, no params. fp is held in EBX (callee-saved) across the
  * malloc/fread; the __CHK(0x18) stack-probe prologue is compiler-injected.
- * Note the freshly malloc'd buffer is stored into portrait_sprite_cache
+ * Note the freshly malloc'd buffer is stored into data_fd2_portrait_sprite_cache
  * and reused as the fread destination (same pointer), so the cache global
  * is the read target.
  * ---------------------------------------------------------------- */
@@ -623,8 +623,8 @@ void fd2_restore_portrait_cache_from_tmp(void)
     void *fp;
 
     fp = fopen("FD2.TMP", "rb");
-    portrait_sprite_cache = (uint32)malloc(0x32a00);
-    fread((void *)portrait_sprite_cache, 1, 0x32a00, fp);
+    data_fd2_portrait_sprite_cache = (uint32)malloc(0x32a00);
+    fread((void *)data_fd2_portrait_sprite_cache, 1, 0x32a00, fp);
     fclose(fp);
 }
 

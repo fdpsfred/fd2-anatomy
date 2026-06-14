@@ -18,7 +18,7 @@
  *     fd2_wait_for_input_dialog_with_blink(), a real-linked keyboard busy-wait
  *     (src/input/input.c) that hangs forever in the silent automated harness
  *     (the same hang already proven by bisection for the 0x10010 save-load
- *     checksum-mismatch arm). It also dereferences current_chapter_text as a
+ *     checksum-mismatch arm). It also dereferences data_fd2_current_chapter_text as a
  *     parsed opcode stream.
  *   - It drives fd2_load_chapter_portraits_and_dump_tmp (fopen FDICON.B24 +
  *     dump FD2.TMP) and 30+ fd2_cutscene_event_trigger() calls that each parse
@@ -344,7 +344,7 @@
  * computation before that blocking call (the handler's own alt-entry 0x33594 is
  * the final fd2_pan_cursor_to_char(0)+RET tail, after all three dialogs). The
  * computation cannot be observed in isolation because:
- *   - fd2_init_battle_state_for_chapter runs FIRST and RELOADS current_chapter_text
+ *   - fd2_init_battle_state_for_chapter runs FIRST and RELOADS data_fd2_current_chapter_text
  *     from the real FDTXT.DAT (it is the linked chapter-battle-data loader), so the
  *     immediate-END / single-glyph fixture-page trick used by the army-overview
  *     tests (tests/gfx/rndstat.c) cannot substitute observable pages here — the
@@ -533,7 +533,7 @@
  * the rest of this file. The loops and writes are NOT independently
  * host-testable because there is no entry point that runs only them:
  *   - fd2_init_battle_state_for_chapter (real-linked, src/battle/btl_init.c)
- *     runs FIRST and RELOADS current_chapter_text from the real FDTXT.DAT
+ *     runs FIRST and RELOADS data_fd2_current_chapter_text from the real FDTXT.DAT
  *     (it is the chapter-battle-data loader: fd2_load_chapter_battle_data +
  *     fd2_composite_battle_frame(1) + fd2_play_palette_fade_in), so there is
  *     no host-safe slice before the body.
@@ -605,7 +605,7 @@
  * Its behavioral test is DEFERRED to Phase 9 (reason proven, not convenience),
  * on identical grounds to chapters 01..24:
  *   - fd2_init_battle_state_for_chapter (real-linked) runs FIRST and RELOADS
- *     current_chapter_text from the real FDTXT.DAT (it is the chapter-battle-
+ *     data_fd2_current_chapter_text from the real FDTXT.DAT (it is the chapter-battle-
  *     data loader), so there is no host-safe slice before the body, and the
  *     loaded SFX handle / memset state cannot be set up independently.
  *   - the body falls straight into fd2_display_dialog_scene(page 1), which is
@@ -650,7 +650,7 @@
  * this handler physically contains only its entry block (init battle state, the
  * one fd2_pan_cursor_and_window(9,0x27), and the cutscene-0x4C trigger) and then
  * pushes the 9 page-0 dialog-scene args and tail-JMPs (0x33AEC -> 0x3312D) into
- * the shared epilogue owned by fd2_chapter_05_init (PUSH current_chapter_text;
+ * the shared epilogue owned by fd2_chapter_05_init (PUSH data_fd2_current_chapter_text;
  * CALL fd2_display_dialog_scene; clear-facing; pan_cursor_to_char(0); RET — the
  * same 0x3312D alt-entry chapters 03/04 reach); the emit reconstructs the
  * equivalent straight-line form. See src/emit_issues.json (00033aae).
@@ -680,7 +680,7 @@
  * (reason proven, not convenience), on identical grounds to chapters 15/17.
  * The branch outcome cannot be observed in isolation because:
  *   - fd2_init_battle_state_for_chapter (real-linked) runs FIRST and RELOADS
- *     current_chapter_text from the real FDTXT.DAT (it is the chapter-battle-
+ *     data_fd2_current_chapter_text from the real FDTXT.DAT (it is the chapter-battle-
  *     data loader), so there is no host-safe slice before the body.
  *   - the body reaches fd2_display_dialog_scene(page 0) BEFORE the Sky-Key
  *     gate; that call is real-linked (src/dialog/dialog.c) and reaches
@@ -741,7 +741,7 @@
  * writes are NOT independently host-testable because there is no entry point
  * that runs only them:
  *   - fd2_init_battle_state_for_chapter (real-linked, src/battle/btl_init.c)
- *     runs FIRST and RELOADS current_chapter_text from the real FDTXT.DAT (it
+ *     runs FIRST and RELOADS data_fd2_current_chapter_text from the real FDTXT.DAT (it
  *     is the chapter-battle-data loader), so there is no host-safe slice before
  *     the body.
  *   - the mark-dead loop falls straight into
@@ -831,7 +831,7 @@
  * (real-linked, src/input/input.c) on a -3 PAGE BREAK opcode in the real FDTXT
  * chapter stream — the keyboard busy-wait that hangs forever in the silent
  * automated harness — and fd2_init_battle_state_for_chapter runs FIRST and
- * RELOADS current_chapter_text from the real FDTXT.DAT (it is the chapter-
+ * RELOADS data_fd2_current_chapter_text from the real FDTXT.DAT (it is the chapter-
  * battle-data loader), so there is no host-safe slice before the body and the
  * function never returns; neither the three constant battle_anim_phase writes
  * (0/0/1) nor the warp-in ordering is observable at unit level, and the emit

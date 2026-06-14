@@ -415,7 +415,7 @@ int fd2_field_menu_status_save_load_quit_dispatch(void)
  * team-tinted square and a separate cursor square.
  *
  * Setup:
- *   Save battle_scene_snapshot, rebuild the tile cache at 24px
+ *   Save data_fd2_battle_scene_snapshot, rebuild the tile cache at 24px
  *   (fd2_convert_battle_tiles_to_24px). Copy the 3-entry team-color
  *   base table. Pick zoom_level (4 for short maps <=0x28 tall, else 3)
  *   and scroll_origin (0x280 / 0x380). Compute the fixed-point camera
@@ -439,7 +439,7 @@ int fd2_field_menu_status_save_load_quit_dispatch(void)
  *
  * On exit: consume the scancode via INT 16h; run a 6-frame zoom-out
  *   (reverse interpolation using ratio (iVar6+1)); free the tile table
- *   and the 24px cache; restore the original battle_scene_snapshot; and
+ *   and the 24px cache; restore the original data_fd2_battle_scene_snapshot; and
  *   recomposite the battle frame.
  *
  * void __cdecl with the __CHK(0x60) stack-probe prologue (compiler-
@@ -477,8 +477,8 @@ void fd2_open_tactical_overview_zoom(void)
     scroll_origin = 0x280;
     anim_phase = 7;
     anim_dir = -1;
-    saved_tile_cache = battle_scene_snapshot;
-    battle_scene_snapshot = (uint32)fd2_convert_battle_tiles_to_24px();
+    saved_tile_cache = data_fd2_battle_scene_snapshot;
+    data_fd2_battle_scene_snapshot = (uint32)fd2_convert_battle_tiles_to_24px();
 
     if ((int)data_fd2_battle_map_height_tiles > 0x28) {
         zoom_level = 3;
@@ -498,7 +498,7 @@ void fd2_open_tactical_overview_zoom(void)
             fd2_read_tile_attribute_at_pos((uint32)ix, (uint32)iy,
                 (uint32)attr_buf);
             tile_data_table[iy * 0x40 + ix] =
-                battle_scene_snapshot +
+                data_fd2_battle_scene_snapshot +
                 (uint32)(*(uint16 *)attr_buf) * 0x240 + 6;
         }
     }
@@ -569,7 +569,7 @@ void fd2_open_tactical_overview_zoom(void)
     }
 
     free((void *)tile_data_table);
-    free((void *)battle_scene_snapshot);
-    battle_scene_snapshot = saved_tile_cache;
+    free((void *)data_fd2_battle_scene_snapshot);
+    data_fd2_battle_scene_snapshot = saved_tile_cache;
     fd2_composite_battle_frame(0);
 }

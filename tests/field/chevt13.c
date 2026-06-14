@@ -73,7 +73,7 @@ static void ev18_install_safe_env(void)
         g_ev18_dlg[0x11 + 2 * p] = (int16)(0x50 + p);  /* page p glyph idx */
         g_ev18_dlg[0x12 + 2 * p] = -1;                  /* page p END */
     }
-    current_chapter_text = (uint32)g_ev18_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ev18_dlg;
 
     /* no portrait open on entry, so the END path skips the close sequence and
      * returns immediately. */
@@ -108,7 +108,7 @@ static void test_ch_event18_shows_dialog_page3(void)
 
 /* ----------------------------------------------------------------
  * fd2_show_chapter_intro_text_dialog_mode_3 @ 0x34906 is the named helper
- * handler_16 tail-JMPs to; it shows current_chapter_text dialog page 3 with
+ * handler_16 tail-JMPs to; it shows data_fd2_current_chapter_text dialog page 3 with
  * the same fixed geometry as handler_18 (it borrows the same shared dialog
  * tail at 0x34C0F). It takes no args and uses no CALL-return value, so the one
  * observable, deterministic contract is again the dispatched PAGE. Reusing the
@@ -202,7 +202,7 @@ static void ev19_install_safe_env(void)
         g_ev19_dlg[0x11 + 2 * p] = (int16)(0x50 + p);  /* page p glyph idx */
         g_ev19_dlg[0x12 + 2 * p] = -1;                  /* page p END */
     }
-    current_chapter_text = (uint32)g_ev19_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ev19_dlg;
 
     /* no portrait open on entry, so each dialog END path skips the close
      * sequence and returns at once (one glyph per dispatched page). */
@@ -608,7 +608,7 @@ static void ev1d_install_safe_env(void)
         g_ev1d_dlg[0x11 + 2 * p] = (int16)(0x50 + p);  /* page p glyph idx */
         g_ev1d_dlg[0x12 + 2 * p] = -1;                  /* page p END */
     }
-    current_chapter_text = (uint32)g_ev1d_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ev1d_dlg;
 
     /* no portrait open on entry, so the END path skips the close sequence and
      * returns immediately. */
@@ -837,7 +837,7 @@ static void test_ch_event1e_shows_dialog_pages_2_then_3(void)
         g_ev1e_dlg[0x11 + 2 * p] = (int16)(0x50 + p);  /* page p glyph idx */
         g_ev1e_dlg[0x12 + 2 * p] = -1;                  /* page p END */
     }
-    current_chapter_text = (uint32)g_ev1e_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ev1e_dlg;
 
     /* no portrait open on entry, so each dialog END path returns at once. */
     data_fd2_dialog_active_portrait_blit_offset = 0;

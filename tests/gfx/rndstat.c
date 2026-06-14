@@ -2016,7 +2016,7 @@ extern uint32 g_rle_blit_last_palette;
 /* g_hud_map must hold cell (cy*width+cx)*4 + 8; cursor (4,4) width 8 -> 152. */
 static uint8  g_hud_map[256];
 static uint8  g_hud_attr[64];
-/* battle_scene_snapshot: the terrain icon source = snapshot + *(snapshot +
+/* data_fd2_battle_scene_snapshot: the terrain icon source = snapshot + *(snapshot +
  * HUD_TILE_WORD*4 + 6). Point it at a probe sprite past the table. */
 #define HUD_ICON_TABLE_OFF  (HUD_TILE_WORD * 4u + 6u)   /* = 14 */
 #define HUD_ICON_PAYLOAD    0x40u
@@ -2064,7 +2064,7 @@ static uint32 hud_setup(uint32 cx, uint32 cy)
     /* terrain icon source = snapshot + HUD_ICON_PAYLOAD; a two-pixel probe so the
      * icon's second pixel (one stride down) survives a later portrait overwrite. */
     bp_probe2(g_hud_snapshot + HUD_ICON_PAYLOAD, HUD_ICON_VALUE);
-    battle_scene_snapshot = (uint32)g_hud_snapshot;
+    data_fd2_battle_scene_snapshot = (uint32)g_hud_snapshot;
 
     memset(g_hud_buf, 0, sizeof(g_hud_buf));   /* clean panel canvas */
 
@@ -2293,7 +2293,7 @@ static void test_hud_char_present_portrait_and_hp(void)
     *(int32 *)(g_hud_portrait_cache + (0 + cache_idx * 0xc) * 4) =
         (int32)portrait_payload;
     bp_probe1(g_hud_portrait_cache + portrait_payload, HUD_PORTRAIT_VALUE);
-    portrait_sprite_cache = (uint32)g_hud_portrait_cache;
+    data_fd2_portrait_sprite_cache = (uint32)g_hud_portrait_cache;
 
     /* place a visible player unit at the cursor cell */
     rc = &g_test_rc_array[1];
@@ -2421,7 +2421,7 @@ static void test_hud_char_palette_idx3_remaps_to_1(void)
     /* probe ONLY at entry 1's sprite; entry 3's slot is left transparent so a
      * regression that resolved entry 3 would paint nothing -> the assertion fails. */
     bp_probe1(g_hud_portrait_cache + 0x90, HUD_PORTRAIT_VALUE);
-    portrait_sprite_cache = (uint32)g_hud_portrait_cache;
+    data_fd2_portrait_sprite_cache = (uint32)g_hud_portrait_cache;
 
     rc = &g_test_rc_array[1];
     rc->pos_x = 4; rc->pos_y = 4;

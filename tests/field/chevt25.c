@@ -119,15 +119,15 @@ static void ce48_setup(int count, const uint8 *races,
     }
     data_fd2_tile_event_data_table_ptr = (uint32)g_ce48_tileevent;
     data_fd2_resource_portrait_cache_alloc_offset = (uint32)count;
-    chapter_portrait_load_buffer = 0;            /* loaded fresh by the loader  */
+    data_fd2_chapter_portrait_load_buffer = 0;            /* loaded fresh by the loader  */
     data_fd2_chapter_init_phase_flag = 1;        /* spawn = field value verbatim */
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     data_fd2_battle_party_member_count = 0;
     data_fd2_chapter_current_chapter_id = 4;     /* re-read idx = 4*3+2 = 0xE    */
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
@@ -166,13 +166,13 @@ static void ce48_teardown(void)
 {
     free(g_ce48_tileevent);
     g_ce48_tileevent = 0;
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_resource_portrait_cache_alloc_offset = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_chapter_init_phase_flag = 0;
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     data_fd2_battle_party_member_count = 4;
@@ -418,15 +418,15 @@ static void ce4a_setup(int count, const uint8 *races, uint8 stage, uint8 turn)
     }
     data_fd2_tile_event_data_table_ptr = (uint32)g_ce4a_tileevent;
     data_fd2_resource_portrait_cache_alloc_offset = (uint32)count;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_chapter_init_phase_flag = 1;
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     data_fd2_battle_party_member_count = 0;
     data_fd2_chapter_current_chapter_id = 4;     /* re-read idx = 4*3+2 = 0xE */
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
@@ -464,14 +464,14 @@ static void ce4a_teardown(void)
 {
     free(g_ce4a_tileevent);
     g_ce4a_tileevent = 0;
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
     data_fd2_resource_portrait_cache_alloc_offset = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_chapter_init_phase_flag = 0;
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     data_fd2_battle_party_member_count = 4;
@@ -649,14 +649,14 @@ static void ce4b_setup(uint8 stepper_team, uint8 stepper_char_id,
 
     minip_setup_env();                 /* sprite sheet + dialog-blit spies */
 
-    /* immediate-END program for pages 0 and 1 (current_chapter_text scope) */
+    /* immediate-END program for pages 0 and 1 (data_fd2_current_chapter_text scope) */
     for (i = 0; i < 0x10; i++) {
         g_ce4b_text[i] = 0;
     }
     g_ce4b_text[0] = (int16)(0xF * 2);     /* page 0 -> END word (wrong-char) */
     g_ce4b_text[1] = (int16)(0xF * 2);     /* page 1 -> END word (trigger)    */
     g_ce4b_text[0xF] = -1;                  /* END */
-    current_chapter_text = (uint32)(uint8 *)g_ce4b_text;
+    data_fd2_current_chapter_text = (uint32)(uint8 *)g_ce4b_text;
 
     /* runtime_char array: char[0] is the stepper. team / char_id / portrait_id. */
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
@@ -717,7 +717,7 @@ static void ce4b_teardown(void)
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     data_fd2_battle_party_member_count = 4;
     data_fd2_battle_anim_phase = 0;
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_dialog_active_portrait_blit_offset = 0;
     g_dlg_blit_mirror_inject_after = 0;
     g_dlg_blit_mirror_inject_scancode = 0;
@@ -975,12 +975,12 @@ static void ce4c_cine_setup(uint8 party_count, uint8 turn)
      * fd2_init_runtime_char_for_battle never runs and party_member_count is left
      * untouched. The loader still re-reads FDFIELD.DAT + rewrites FD2.TMP. */
     data_fd2_resource_portrait_cache_alloc_offset = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_chapter_init_phase_flag = 1;
     data_fd2_chapter_current_chapter_id = 4;        /* re-read idx = 4*3+2 = 0xE */
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
@@ -996,7 +996,7 @@ static void ce4c_cine_setup(uint8 party_count, uint8 turn)
     }
     g_ce4c_text[7] = 0x41;                            /* TEXT glyph */
     g_ce4c_text[8] = -1;                              /* END */
-    current_chapter_text = (uint32)(uint8 *)g_ce4c_text;
+    data_fd2_current_chapter_text = (uint32)(uint8 *)g_ce4c_text;
 
     /* deterministic dialog VM env: empty BIOS keyboard buffer + audio gated +
      * no active portrait so END takes neither the page-break wait nor the
@@ -1017,20 +1017,20 @@ static void ce4c_cine_teardown(void)
 {
     free(g_ce4c_cine_dtable);
     g_ce4c_cine_dtable = 0;
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_resource_portrait_cache_alloc_offset = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_chapter_init_phase_flag = 0;
     data_fd2_chapter_current_chapter_id = 1;
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     data_fd2_battle_party_member_count = 4;
     data_fd2_battle_turn_counter = 0;
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_dialog_active_portrait_blit_offset = 0;
     g_palette_flash_pulse_white_calls = 0;
     g_delay375b2_log_on = 0;

@@ -1474,7 +1474,7 @@ static void test_status_screen_member_menu_esc_first_exits(void)
     memset(g_overview_sheet, 0, sizeof(g_overview_sheet));
     data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = (uint32)g_overview_sheet;
     memset(g_grid_sheet, 0, sizeof(g_grid_sheet));
-    portrait_sprite_cache = (uint32)g_grid_sheet;
+    data_fd2_portrait_sprite_cache = (uint32)g_grid_sheet;
     for (i = 0; i < 0x400; i++) {
         g_grid_text[i] = 0x600;
     }

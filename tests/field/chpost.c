@@ -383,9 +383,9 @@ static void test_chpost12_neighbor_slots_ignored(void)
  * disassembly has no branch between MOV [0x53ECC],1 and CALL 0x15F84), so
  * asserting the flag's 2 -> 1 transition fully pins that the override block
  * ran, and the dialog call is guaranteed to follow. To keep the real VM
- * side-effect-free here, current_chapter_text is pointed at an immediate-END
+ * side-effect-free here, data_fd2_current_chapter_text is pointed at an immediate-END
  * program (every page word references a -1 END marker): the VM dereferences
- * current_chapter_text + page*2, reads END, and returns at once without
+ * data_fd2_current_chapter_text + page*2, reads END, and returns at once without
  * touching the framebuffer or loading DATO.DAT. A clean (non-crashing) pass
  * therefore also confirms the real VM survives the chapter-13 call shape.
  *
@@ -407,7 +407,7 @@ static void test_chpost12_neighbor_slots_ignored(void)
 #define CH13_RC_SLOTS 64
 static runtime_char t_rc13[CH13_RC_SLOTS];
 
-/* Immediate-END dialog program for current_chapter_text: every page word
+/* Immediate-END dialog program for data_fd2_current_chapter_text: every page word
  * (pages 0..0x3F, covering pages 2 and 10) points at a -1 END marker parked
  * high in the buffer, so the real fd2_display_dialog_scene returns at once. */
 static uint16 t_ch13_text[0x400];
@@ -423,7 +423,7 @@ static void ch13_text_all_end(void)
     for (i = 0; i < 0x3c0; i++) {
         t_ch13_text[i] = (uint16)0x780;                /* byte offset of END */
     }
-    current_chapter_text = (uint32)t_ch13_text;
+    data_fd2_current_chapter_text = (uint32)t_ch13_text;
 }
 
 /* All slots team=2 / alive so fd2_check_battle_end_condition yields flag=2,
@@ -788,7 +788,7 @@ static void test_chpost16_neighbor_slots_ignored(void)
  *           fd2_check_char_is_dead(0x34) != 0.
  * Both must hold; gate 1 short-circuits (when 蜜蒂 is still present the
  * dead-check and dialog are skipped). When both hold the handler sets
- * game_event_flag = 1 AND plays current_chapter_text page 2 through the
+ * game_event_flag = 1 AND plays data_fd2_current_chapter_text page 2 through the
  * REAL fd2_display_dialog_scene.
  *
  * Unlike the other handlers in this file, the first gate is NOT a
@@ -804,7 +804,7 @@ static void test_chpost16_neighbor_slots_ignored(void)
  * The dialog write and the CALL sit in the same basic block (disassembly
  * has no branch between MOV [0x53ECC],1 and CALL 0x15F84), so the flag's
  * 2 -> 1 transition fully pins that the override block ran and the dialog
- * call follows. current_chapter_text is pointed at an immediate-END program
+ * call follows. data_fd2_current_chapter_text is pointed at an immediate-END program
  * (the same fixture shape used by the chapter-13 suite) so the real VM
  * returns at once without touching the framebuffer or loading DATO.DAT; a
  * clean pass also confirms the real VM survives the chapter-17 call shape.
@@ -822,7 +822,7 @@ static void test_chpost16_neighbor_slots_ignored(void)
  *     override, pinning the dead-checked slot as exactly 0x34.
  * ============================================================ */
 
-/* Immediate-END dialog program for current_chapter_text (covers page 2). */
+/* Immediate-END dialog program for data_fd2_current_chapter_text (covers page 2). */
 static uint16 t_ch17_text[0x400];
 
 static void ch17_text_all_end(void)
@@ -836,7 +836,7 @@ static void ch17_text_all_end(void)
     for (i = 0; i < 0x3c0; i++) {
         t_ch17_text[i] = (uint16)0x780;                /* byte offset of END */
     }
-    current_chapter_text = (uint32)t_ch17_text;
+    data_fd2_current_chapter_text = (uint32)t_ch17_text;
 }
 
 static void chpost17_setup(void)
@@ -1226,7 +1226,7 @@ static void test_chpost19_neighbor_slots_ignored(void)
  *   Stage 1 — NPC group extinction (LOSE + dialog). Full-scan (no early
  *     exit) of the 8-slot NPC group runtime_char[0x35..0x3C] (loop i in
  *     0x26..0x2D, slot i + 0xF): if every slot is dead, set flag = 1 and
- *     play current_chapter_text page 10 through the REAL
+ *     play data_fd2_current_chapter_text page 10 through the REAL
  *     fd2_display_dialog_scene. Flag is written before the dialog call,
  *     both in the same basic block.
  *   Stage 2 — key-char extinction (LOSE). If hero runtime_char[0] OR
@@ -1248,7 +1248,7 @@ static void test_chpost19_neighbor_slots_ignored(void)
  *
  * As elsewhere every slot is team=2 / alive at setup so the default check
  * yields flag=2; stage writes are then observable against that baseline.
- * current_chapter_text points at an immediate-END program (same fixture
+ * data_fd2_current_chapter_text points at an immediate-END program (same fixture
  * shape as the chapter-13 suite) so the real dialog VM returns at once
  * without touching the framebuffer or loading DATO.DAT; a clean pass also
  * confirms the real VM survives the chapter-20 page-10 call shape.
@@ -1290,7 +1290,7 @@ static void test_chpost19_neighbor_slots_ignored(void)
 #define CH20_RC_SLOTS 88
 static runtime_char t_rc20[CH20_RC_SLOTS];
 
-/* Immediate-END dialog program for current_chapter_text (covers page 10). */
+/* Immediate-END dialog program for data_fd2_current_chapter_text (covers page 10). */
 static uint16 t_ch20_text[0x400];
 
 static void ch20_text_all_end(void)
@@ -1304,7 +1304,7 @@ static void ch20_text_all_end(void)
     for (i = 0; i < 0x3c0; i++) {
         t_ch20_text[i] = (uint16)0x780;                /* byte offset of END */
     }
-    current_chapter_text = (uint32)t_ch20_text;
+    data_fd2_current_chapter_text = (uint32)t_ch20_text;
 }
 
 static void chpost20_setup(void)
@@ -2147,7 +2147,7 @@ static void test_chpost26_upper_neighbor_ignored(void)
  *   1. WIN: tile-event-consumed-flags[0x12] && [0x13] && [0x14] all nonzero
  *      (three altars activated) -> flag = 2. The && short-circuits.
  *   2. LOSE: runtime_char[0] (hero) dead -> flag = 1.
- *   3. LOSE + dialog: runtime_char[1] (ally) dead -> show current_chapter_text
+ *   3. LOSE + dialog: runtime_char[1] (ally) dead -> show data_fd2_current_chapter_text
  *      page 9 (REAL fd2_display_dialog_scene) then flag = 1.
  * The tile bytes are read through the pointer global
  * data_fd2_field_map_tile_event_consumed_flags_ptr; deadness through
@@ -2161,7 +2161,7 @@ static void test_chpost26_upper_neighbor_ignored(void)
  * a three-altar WIN. That ordering is the headline risk and is pinned by the
  * win_then_hero_dead / win_then_ally_dead cases below.
  *
- * fd2_display_dialog_scene is linked real; current_chapter_text is pointed at
+ * fd2_display_dialog_scene is linked real; data_fd2_current_chapter_text is pointed at
  * the shared immediate-END program (ch13_text_all_end, covering page 9) so the
  * VM returns at once without touching the framebuffer or loading DATO.DAT, and
  * a clean pass also confirms the real VM survives the chapter-29 call shape.
@@ -2205,7 +2205,7 @@ static void chpost29_setup(void)
     data_fd2_field_map_tile_event_consumed_flags_ptr =
         (uint32)t_ch29_tile_flags;
 
-    ch13_text_all_end();   /* current_chapter_text -> immediate-END, covers page 9 */
+    ch13_text_all_end();   /* data_fd2_current_chapter_text -> immediate-END, covers page 9 */
 }
 
 static void chpost29_teardown(void)
@@ -2380,7 +2380,7 @@ static void test_chpost29_win_then_ally_dead_lose_overrides(void)
  *   1. WIN: final boss runtime_char[0x14] dead -> flag = 2.
  *   2. LOSE: protagonist (蘭) runtime_char[0] dead -> flag = 1.
  *   3. LOSE + dialog: second main runtime_char[1] dead -> show
- *      current_chapter_text page 7 (REAL fd2_display_dialog_scene) then
+ *      data_fd2_current_chapter_text page 7 (REAL fd2_display_dialog_scene) then
  *      flag = 1.
  * Deadness is queried through fd2_check_char_is_dead (per-slot .flags bit0 in
  * array-reading mode g_check_char_is_dead_use_array = 1).
@@ -2395,7 +2395,7 @@ static void test_chpost29_win_then_ally_dead_lose_overrides(void)
  * That ordering is pinned by the boss_then_hero_dead / boss_then_ally_dead
  * cases below.
  *
- * fd2_display_dialog_scene is linked real; current_chapter_text is pointed at
+ * fd2_display_dialog_scene is linked real; data_fd2_current_chapter_text is pointed at
  * the shared immediate-END program (ch13_text_all_end, covering page 7) so the
  * VM returns at once without touching the framebuffer or loading DATO.DAT, and
  * a clean pass also confirms the real VM survives the chapter-30 call shape.
@@ -2430,7 +2430,7 @@ static void chpost30_setup(void)
     data_fd2_chapter_event_or_battle_end_code = 0;
     g_check_char_is_dead_use_array = 1;   /* per-slot .flags drive deadness */
 
-    ch13_text_all_end();   /* current_chapter_text -> immediate-END, covers page 7 */
+    ch13_text_all_end();   /* data_fd2_current_chapter_text -> immediate-END, covers page 7 */
 }
 
 static void chpost30_teardown(void)

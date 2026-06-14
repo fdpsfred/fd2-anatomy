@@ -32,9 +32,9 @@
  * --- handler_44 ---
  * Straight-line three-call ch28 turn-FF marker scene followed by one state
  * mutation. Functionally-exact body:
- *     fd2_display_dialog_scene(current_chapter_text, 4, 0xA0000, ...);   page 4
+ *     fd2_display_dialog_scene(data_fd2_current_chapter_text, 4, 0xA0000, ...);   page 4
  *     fd2_cinematic_chapter_portrait_dump_with_white_flash(0xE, 7, 2);
- *     fd2_display_dialog_scene(current_chapter_text, 6, 0xA0000, ...);   page 6
+ *     fd2_display_dialog_scene(data_fd2_current_chapter_text, 6, 0xA0000, ...);   page 6
  *     tile_event_consumed_flags[0x12] = 1;                               consume
  *
  * The cinematic helper's own contract and the dialog VM opcode handling are
@@ -257,15 +257,15 @@ static void ce44_setup(int count, const uint8 *races,
     }
     data_fd2_tile_event_data_table_ptr = (uint32)g_ce44_tileevent;
     data_fd2_resource_portrait_cache_alloc_offset = (uint32)count;
-    chapter_portrait_load_buffer = 0;            /* loaded fresh by the loader  */
+    data_fd2_chapter_portrait_load_buffer = 0;            /* loaded fresh by the loader  */
     data_fd2_chapter_init_phase_flag = 1;        /* spawn = field value verbatim */
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     data_fd2_battle_party_member_count = 0;
     data_fd2_chapter_current_chapter_id = 4;     /* re-read idx = 4*3+2 = 0xE    */
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
@@ -296,7 +296,7 @@ static void ce44_setup(int count, const uint8 *races,
     g_ce44_prog[6]  = 0x18;          /* page-6 body byte offset (same body)      */
     g_ce44_prog[12] = 0x41;          /* one TEXT glyph */
     g_ce44_prog[13] = -1;            /* END */
-    current_chapter_text = (uint32)g_ce44_prog;
+    data_fd2_current_chapter_text = (uint32)g_ce44_prog;
 
     /* empty BIOS keyboard buffer + audio gated so the per-glyph blink/typewriter
      * step is host-safe; no active portrait, so END does not run the
@@ -323,13 +323,13 @@ static void ce44_teardown(void)
     audiofix_disable_sfx();
     free(g_ce44_tileevent);
     g_ce44_tileevent = 0;
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_resource_portrait_cache_alloc_offset = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_chapter_init_phase_flag = 0;
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     data_fd2_battle_party_member_count = 4;
@@ -602,11 +602,11 @@ static void test_h45_turn_counter_low_byte_only(void)
  *
  * Straight-line ch28 turn-FF marker scene. Functionally-exact body:
  *     fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x29, 0x2D, 0);  disarm
- *     fd2_display_dialog_scene(current_chapter_text, 5, 0xA0000, ...);     page 5
+ *     fd2_display_dialog_scene(data_fd2_current_chapter_text, 5, 0xA0000, ...);     page 5
  *     fd2_cinematic_chapter_portrait_dump_with_white_flash(8, 7, 3);
  *     fd2_cinematic_chapter_portrait_dump_with_white_flash(4, 7, 4);
  *     fd2_cinematic_chapter_portrait_dump_with_white_flash(0, 7, 5);
- *     fd2_display_dialog_scene(current_chapter_text, 6, 0xA0000, ...);     page 6
+ *     fd2_display_dialog_scene(data_fd2_current_chapter_text, 6, 0xA0000, ...);     page 6
  *
  * The dialog VM opcode handling, the cinematic helper's own white-flash contract
  * and the AI-flag writer's range semantics are each pinned elsewhere (the dialog
@@ -681,13 +681,13 @@ static void ce46_setup(int count, const uint8 *races,
     }
     data_fd2_tile_event_data_table_ptr = (uint32)g_ce46_tileevent;
     data_fd2_resource_portrait_cache_alloc_offset = (uint32)count;
-    chapter_portrait_load_buffer = 0;            /* loaded fresh by the loader  */
+    data_fd2_chapter_portrait_load_buffer = 0;            /* loaded fresh by the loader  */
     data_fd2_chapter_init_phase_flag = 1;        /* spawn = field value verbatim */
     data_fd2_battle_party_member_count = 0;
     data_fd2_chapter_current_chapter_id = 4;     /* re-read idx = 4*3+2 = 0xE    */
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
@@ -718,7 +718,7 @@ static void ce46_setup(int count, const uint8 *races,
     g_ce46_prog[6]  = 0x18;          /* page-6 body byte offset (same body)      */
     g_ce46_prog[12] = 0x41;          /* one TEXT glyph */
     g_ce46_prog[13] = -1;            /* END */
-    current_chapter_text = (uint32)g_ce46_prog;
+    data_fd2_current_chapter_text = (uint32)g_ce46_prog;
 
     /* empty BIOS keyboard buffer + audio gated so the per-glyph blink/typewriter
      * step is host-safe; no active portrait, so END does not run the
@@ -741,7 +741,7 @@ static void ce46_setup(int count, const uint8 *races,
      * compositor's sprite sources with terminating all-SKIP atlases so every blit
      * is a deterministic no-op (the cutscene pan/flash composites are deferred
      * display side effect, not asserted here). Must run AFTER the env above sets
-     * portrait_sprite_cache / runtime_battle_state_ptr. */
+     * data_fd2_portrait_sprite_cache / runtime_battle_state_ptr. */
     tg_install_compositor_safe_atlases();
 }
 
@@ -751,14 +751,14 @@ static void ce46_teardown(void)
     audiofix_disable_sfx();
     free(g_ce46_tileevent);
     g_ce46_tileevent = 0;
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_resource_portrait_cache_alloc_offset = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_chapter_init_phase_flag = 0;
     data_fd2_battle_party_member_count = 4;
     data_fd2_chapter_current_chapter_id = 1;
@@ -880,7 +880,7 @@ static void test_h46_third_cutscene_runs_and_pans_to_zero_seven(void)
  * counter tile_event_consumed_flags[0x13], then UNCONDITIONALLY advance that
  * byte. Functionally-exact body:
  *     if (tile_event_consumed_flags[0x13] != 0) {
- *         fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, ...);   page 2
+ *         fd2_display_dialog_scene(data_fd2_current_chapter_text, 2, 0xA0000, ...);   page 2
  *         fd2_kill_runtime_chars_from_index_to_end(0x14);                    kill
  *     }
  *     tile_event_consumed_flags[0x13]++;                                     advance
@@ -939,7 +939,7 @@ static void ce47_setup(uint8 gate, int glyphs)
         g_ce47_prog[8 + i] = 0x41;        /* TEXT glyph */
     }
     g_ce47_prog[8 + glyphs] = -1;         /* END */
-    current_chapter_text = (uint32)g_ce47_prog;
+    data_fd2_current_chapter_text = (uint32)g_ce47_prog;
 
     /* deterministic dialog VM env: empty BIOS keyboard buffer + audio gated so
      * the per-glyph blink/typewriter step is host-safe. No active portrait, so
@@ -959,7 +959,7 @@ static void ce47_teardown(void)
 {
     audiofix_disable_sfx();
     data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
 }
 
 /* ----------------------------------------------------------------

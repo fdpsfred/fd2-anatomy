@@ -114,10 +114,10 @@ uint32 data_fd2_battle_tile_map_ptr = 0;
 uint32 data_fd2_battle_party_member_count = 4;
 uint32 data_fd2_tile_attribute_flags_buffer_ptr = 0;
 uint32 data_fd2_tile_event_data_table_ptr = 0;
-uint32 chapter_portrait_load_buffer = 0;
-uint32 battle_scene_snapshot = 0;
-uint32 current_chapter_text = 0;
-uint32 portrait_sprite_cache = 0;
+uint32 data_fd2_chapter_portrait_load_buffer = 0;
+uint32 data_fd2_battle_scene_snapshot = 0;
+uint32 data_fd2_current_chapter_text = 0;
+uint32 data_fd2_portrait_sprite_cache = 0;
 uint32 data_fd2_resource_portrait_cache_count = 0;
 uint32 data_fd2_resource_portrait_cache_total_size = 0;
 uint32 data_fd2_resource_portrait_cache_alloc_offset = 0;
@@ -792,7 +792,7 @@ void tg_install_compositor_safe_atlases(void)
 {
     uint32 i;
 
-    tg_saved_pcache      = portrait_sprite_cache;
+    tg_saved_pcache      = data_fd2_portrait_sprite_cache;
     tg_saved_rbs         = data_fd2_runtime_battle_state_ptr;
     tg_saved_tile_map    = data_fd2_battle_tile_map_ptr;
     tg_saved_tile_attr   = data_fd2_tile_attribute_flags_buffer_ptr;
@@ -800,7 +800,7 @@ void tg_install_compositor_safe_atlases(void)
     tg_saved_play_active = data_fd2_ui_play_active_flag;
 
     /* per-char painter: a static safe portrait cache (NOT heap, so callers whose
-     * teardown does NOT free portrait_sprite_cache, e.g. the spelleff impact
+     * teardown does NOT free data_fd2_portrait_sprite_cache, e.g. the spelleff impact
      * fixture, leak nothing). The +0 offset table all points at one transparent
      * "SKIP 24 x 24" sprite at +0x780. Pre-seed the portrait cache id-list (id 0)
      * + count 1 so a matching tile-event record's fd2_load_portrait_to_cache takes
@@ -808,7 +808,7 @@ void tg_install_compositor_safe_atlases(void)
      * re-loading real FDICON. (The chapter-event loader fixtures zero every
      * tile-event byte but the race tag, so the matched record's char_id is 0.)
      * tg_restore_compositor_safe_atlases puts the saved pointer back, so a caller
-     * teardown that DOES free(portrait_sprite_cache) frees its own pointer, never
+     * teardown that DOES free(data_fd2_portrait_sprite_cache) frees its own pointer, never
      * this static buffer. */
     for (i = 0; i < TG_PCACHE_SPAN; i++) {
         tg_pcache[i] = 0;
@@ -817,7 +817,7 @@ void tg_install_compositor_safe_atlases(void)
         *(int32 *)(tg_pcache + i * 4u) = (int32)0x780;
     }
     tg_fill_skip_sprite(tg_pcache + 0x780);
-    portrait_sprite_cache = (uint32)tg_pcache;
+    data_fd2_portrait_sprite_cache = (uint32)tg_pcache;
     *(uint32 *)data_fd2_resource_portrait_cache_id_list_base = 0;  /* char_id 0    */
     data_fd2_resource_portrait_cache_count = 1;                    /* -> cache hit */
     data_fd2_resource_portrait_cache_buffer_used = 0x780;
@@ -849,7 +849,7 @@ void tg_install_compositor_safe_atlases(void)
 
 void tg_restore_compositor_safe_atlases(void)
 {
-    portrait_sprite_cache                    = tg_saved_pcache;
+    data_fd2_portrait_sprite_cache                    = tg_saved_pcache;
     data_fd2_runtime_battle_state_ptr        = tg_saved_rbs;
     data_fd2_battle_tile_map_ptr             = tg_saved_tile_map;
     data_fd2_tile_attribute_flags_buffer_ptr = tg_saved_tile_attr;
@@ -2705,7 +2705,7 @@ void fd2_animate_shop_transaction_feedback(void) { g_shop_txn_feedback_calls++; 
  * caller fd2_play_game_ending_cinematic). It is a straight-line orchestration
  * wrapper (cyclomatic complexity 1: no branches/computation/RNG) that runs
  * clear_kbd -> load_chapter_portrait(portrait_id) -> clear_kbd ->
- * display_dialog_scene(current_chapter_text, text_idx, ...) -> paint(0) ->
+ * display_dialog_scene(data_fd2_current_chapter_text, text_idx, ...) -> paint(0) ->
  * wait_for_input_dialog_with_blink(0) -> close_intro_dialog -> clear_kbd.
  * No direct test drives it: it clears the BIOS keyboard buffer immediately
  * before the unconditional blocking fd2_wait_for_input_dialog_with_blink(0),

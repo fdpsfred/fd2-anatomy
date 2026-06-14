@@ -8,7 +8,7 @@
  *     fd2_pan_cursor_and_window(6, 0x28)
  *     fd2_load_chapter_portraits_and_dump_tmp(1)
  *     fd2_cutscene_event_trigger(0x4A)
- *     fd2_display_dialog_scene(current_chapter_text, page 5, ...)
+ *     fd2_display_dialog_scene(data_fd2_current_chapter_text, page 5, ...)
  *     fd2_clear_all_chars_facing()
  * In the binary the last call is a tail-JMP into fd2_clear_all_chars_facing
  * (a binary-size optimisation); the source is a plain call + return.
@@ -94,14 +94,14 @@ static void ce22_setup(int glyphs)
      * the real staged FDFIELD.DAT[4*3+2] and rewrites FD2.TMP). --- */
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_resource_portrait_cache_alloc_offset = 0;
-    chapter_portrait_load_buffer = 0;            /* loaded fresh by the loader  */
+    data_fd2_chapter_portrait_load_buffer = 0;            /* loaded fresh by the loader  */
     data_fd2_chapter_init_phase_flag = 1;
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     data_fd2_chapter_current_chapter_id = 4;     /* re-read idx = 4*3+2 = 0xE   */
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
@@ -132,7 +132,7 @@ static void ce22_setup(int glyphs)
         g_ce22_dlg_prog[8 + i] = 0x41;           /* TEXT glyph */
     }
     g_ce22_dlg_prog[8 + glyphs] = -1;            /* END */
-    current_chapter_text = (uint32)g_ce22_dlg_prog;
+    data_fd2_current_chapter_text = (uint32)g_ce22_dlg_prog;
 
     /* --- deterministic dialog VM env: empty BIOS keyboard buffer + audio gated;
      * no active portrait so END skips the portrait-close path. --- */
@@ -148,19 +148,19 @@ static void ce22_setup(int glyphs)
 
 static void ce22_teardown(void)
 {
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_chapter_cutscene_event_script_ptr_table_106[0x4A] = 0;
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_resource_portrait_cache_alloc_offset = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_chapter_init_phase_flag = 0;
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     data_fd2_battle_party_member_count = 4;
     data_fd2_chapter_current_chapter_id = 1;
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     remove("FD2.TMP");                  /* generated swap file (not a game file) */
 }
 
@@ -191,7 +191,7 @@ static void test_h38_pan_to_6_28_then_page5_dialog(void)
     /* the page-5 dialog body executed (rendered the single glyph) */
     ASSERT_EQ((long)g_dlg_glyph_calls, 1);
     /* the portrait loader ran its no-op scan and nulled its load buffer */
-    ASSERT_EQ((long)chapter_portrait_load_buffer, 0);
+    ASSERT_EQ((long)data_fd2_chapter_portrait_load_buffer, 0);
 
     ce22_teardown();
 }
@@ -277,7 +277,7 @@ static void test_h39_portrait_index_is_raw_counter(void)
     /* exactly the race==5 record matched -> one char inited; the race==2 decoy
      * (the only other non-zero record) would have matched a wrong /2 port. */
     ASSERT_EQ((long)data_fd2_battle_party_member_count, 1);
-    ASSERT_EQ((long)chapter_portrait_load_buffer, 0);  /* loader freed+nulled */
+    ASSERT_EQ((long)data_fd2_chapter_portrait_load_buffer, 0);  /* loader freed+nulled */
 
     free(g_ce22_h39_tileevent);
     g_ce22_h39_tileevent = 0;
@@ -867,7 +867,7 @@ static void test_h3c_range_boundaries_and_gap_exact(void)
  * real only as a byproduct (the atlas blit is the testglob counting spy).
  *
  * Host-safety recipe mirrors the proven h3a (tile-pickup) suite above, extended
- * with: current_chapter_text (not all_game_text) for the page dialogs, a real
+ * with: data_fd2_current_chapter_text (not all_game_text) for the page dialogs, a real
  * menu-party roster buffer + zeroed char_base/growth tables for the spawn, and
  * the h39 portrait-loader env (alloc_offset 0 -> no-op scan; still re-reads the
  * real staged FDFIELD.DAT and rewrites FD2.TMP) for fd2_load_chapter_portraits_
@@ -903,7 +903,7 @@ static void ce3d_setup(void)
 
     minip_setup_env();                 /* sprite sheet + dialog-blit spies      */
 
-    /* immediate-END program for pages 2, 3, 4 (current_chapter_text scope) */
+    /* immediate-END program for pages 2, 3, 4 (data_fd2_current_chapter_text scope) */
     for (i = 0; i < 0x10; i++) {
         g_ce3d_text[i] = 0;
     }
@@ -911,7 +911,7 @@ static void ce3d_setup(void)
     g_ce3d_text[3] = (int16)(0xF * 2);     /* page 3 -> END word */
     g_ce3d_text[4] = (int16)(0xF * 2);     /* page 4 -> END word */
     g_ce3d_text[0xF] = -1;                  /* END */
-    current_chapter_text = (uint32)(uint8 *)g_ce3d_text;
+    data_fd2_current_chapter_text = (uint32)(uint8 *)g_ce3d_text;
 
     /* runtime_char array (the shared 8-slot fixture covers char 0) */
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
@@ -949,12 +949,12 @@ static void ce3d_setup(void)
      * the real staged FDFIELD.DAT[chapter*3+2] and rewrites FD2.TMP). */
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_resource_portrait_cache_alloc_offset = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_chapter_init_phase_flag = 1;
     data_fd2_chapter_current_chapter_id = 4;     /* re-read idx = 4*3+2 = 0xE   */
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
@@ -989,18 +989,18 @@ static void ce3d_teardown(void)
         free((void *)data_fd2_portrait_sprite_buffer);
         data_fd2_portrait_sprite_buffer = 0;
     }
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_battle_tile_map_ptr = 0;
     data_fd2_tile_attribute_flags_buffer_ptr = 0;
     data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_resource_portrait_cache_alloc_offset = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_chapter_init_phase_flag = 0;
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_battle_party_member_count = 4;

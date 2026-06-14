@@ -9,7 +9,7 @@
  *
  * Both callees are the real linked functions, so this test stands up the same
  * safe in-memory fixtures their own suites use:
- *   - dialog VM: current_chapter_text points at a minimal int16 program whose
+ *   - dialog VM: data_fd2_current_chapter_text points at a minimal int16 program whose
  *     page-9 header word redirects to a single glyph + END, so the real VM runs
  *     to completion using the testglob.c glyph/blink recording stubs (no VGA),
  *     with the BIOS keyboard buffer empty and the portrait latch cleared.
@@ -18,7 +18,7 @@
  *     so the real persistence pass and its fd2_recompute_runtime_char_total_stats
  *     callee run harmlessly.
  *
- * Asserted: the dialog VM actually ran against page 9 of current_chapter_text
+ * Asserted: the dialog VM actually ran against page 9 of data_fd2_current_chapter_text
  * (glyph recorder), and the chapter-id state transition committed to 1. The
  * pixel output of the dialog page is pure display and is deferred to Phase 9.
  */
@@ -73,7 +73,7 @@ static void ce1_fixture_reset(void)
     g_ce1_text[9] = 20;       /* byte offset to prog[10] (page 9 start) */
     g_ce1_text[10] = 0x41;    /* one glyph */
     g_ce1_text[11] = -1;      /* END */
-    current_chapter_text = (uint32)g_ce1_text;
+    data_fd2_current_chapter_text = (uint32)g_ce1_text;
 
     /* save-template safe env (save suite baseline). */
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
@@ -90,7 +90,7 @@ static void ce1_fixture_reset(void)
 /* ----------------------------------------------------------------
  * End-to-end: the handler runs the dialog page then advances chapter id to 1.
  * The glyph recorder proves the real dialog VM was invoked on page 9 of
- * current_chapter_text (guards against a wrong text base / page index), and the
+ * data_fd2_current_chapter_text (guards against a wrong text base / page index), and the
  * chapter-id write is the handler's state-transition contract.
  * ---------------------------------------------------------------- */
 static void test_chapter_01_end_runs_dialog_and_advances_id(void)
@@ -143,7 +143,7 @@ static void test_chapter_01_end_overwrites_stale_id(void)
  *   - portrait dump (real fd2_load_chapter_portraits_and_dump_tmp): the staged
  *     real FDFIELD.DAT re-read + FD2.TMP (0x32A00) rewrite run for real; the
  *     race-scan length (alloc_offset) is 0 so no FDICON parse / per-char init
- *     fires, and portrait_sprite_cache points at a 0x32A00 scratch buffer.
+ *     fires, and data_fd2_portrait_sprite_cache points at a 0x32A00 scratch buffer.
  *   - cutscene events 0xE/0xF/0x10 (real fd2_cutscene_event_trigger): their
  *     script-table slots point at an n_groups==0 script, so each is a no-op
  *     plus the trailing composite.
@@ -169,7 +169,7 @@ extern runtime_char *data_fd2_battle_runtime_char_array_ptr;
 static runtime_char g_ce2_rc[16];
 static uint8        g_ce2_roster[8 * 0x50];
 static uint8        g_ce2_script[1];           /* n_groups == 0 */
-static uint32       g_ce2_psc;                 /* portrait_sprite_cache scratch */
+static uint32       g_ce2_psc;                 /* data_fd2_portrait_sprite_cache scratch */
 
 /* dialog program: header words prog[6..10] redirect each page to its opcode
  * stream. Pages 6/7 -> one distinct glyph + END; pages 8/9/10 -> immediate END.
@@ -203,7 +203,7 @@ static void ce2_fixture_reset(void)
     g_ce2_text[14] = 0x77;    /* page 7 glyph */
     g_ce2_text[15] = -1;      /* END */
     g_ce2_text[16] = -1;      /* END (pages 8/9/10) */
-    current_chapter_text = (uint32)g_ce2_text;
+    data_fd2_current_chapter_text = (uint32)g_ce2_text;
 
     /* runtime-char array: 16 local slots so chars[5..0xA] + char-#8 roster
      * append are valid. char 0 = team-2 player with empty backpack for the
@@ -236,8 +236,8 @@ static void ce2_fixture_reset(void)
     if (g_ce2_psc == 0) {
         g_ce2_psc = (uint32)malloc(0x32a00);
     }
-    portrait_sprite_cache = g_ce2_psc;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_portrait_sprite_cache = g_ce2_psc;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_resource_portrait_cache_alloc_offset = 0;
     data_fd2_chapter_current_chapter_id = 4;      /* FDFIELD re-read idx 0xE */
@@ -272,7 +272,7 @@ static void ce2_fixture_teardown(void)
     data_fd2_battle_view_window_origin_y = 0;
     data_fd2_battle_cursor_world_x = 5;
     data_fd2_battle_cursor_world_y = 5;
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_resource_portrait_cache_alloc_offset = 0;
@@ -281,8 +281,8 @@ static void ce2_fixture_teardown(void)
     data_fd2_chapter_cutscene_event_script_ptr_table_106[0xe] = 0;
     data_fd2_chapter_cutscene_event_script_ptr_table_106[0xf] = 0;
     data_fd2_chapter_cutscene_event_script_ptr_table_106[0x10] = 0;
-    portrait_sprite_cache = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_portrait_sprite_cache = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_chapter_current_chapter_id = 1;
     data_fd2_battle_anim_phase = 0;
     remove("FD2.TMP");
@@ -461,7 +461,7 @@ static void ce3_fixture_reset(void)
     g_ce3_text[13] = -1;      /* END */
     g_ce3_text[14] = 0x77;    /* page 7 glyph */
     g_ce3_text[15] = -1;      /* END */
-    current_chapter_text = (uint32)g_ce3_text;
+    data_fd2_current_chapter_text = (uint32)g_ce3_text;
 
     /* save-template safe env (chapter 01 baseline): zeroed runtime chars +
      * zeroed roster, one scanned runtime char and one template entry. */
@@ -490,7 +490,7 @@ static void ce3_fixture_reset(void)
 
 static void ce3_fixture_teardown(void)
 {
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_battle_party_member_count = 4;
@@ -612,7 +612,7 @@ static void test_chapter_03_end_survivor_dead_no_recruit(void)
  * INCREMENTS the id (+= 1, the binary's `INC [0x53c03]`).
  *
  * Both callees are the real linked functions, so the fixture stands up the same
- * in-memory env the chapter 1 suite uses: current_chapter_text points at a
+ * in-memory env the chapter 1 suite uses: data_fd2_current_chapter_text points at a
  * minimal int16 program whose page-4 header word redirects to one glyph + END
  * (so the real dialog VM runs headless via the testglob.c glyph recorder), plus
  * a zeroed runtime-char array + zeroed roster with member_count = 1 so the real
@@ -646,7 +646,7 @@ static void ce4_fixture_reset(void)
     g_ce4_text[4] = 10;       /* byte offset to prog[5] (page 4 start) */
     g_ce4_text[5] = 0x44;     /* one glyph */
     g_ce4_text[6] = -1;       /* END */
-    current_chapter_text = (uint32)g_ce4_text;
+    data_fd2_current_chapter_text = (uint32)g_ce4_text;
 
     /* save-template safe env (save suite baseline). */
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
@@ -659,7 +659,7 @@ static void ce4_fixture_reset(void)
 
 static void ce4_fixture_teardown(void)
 {
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_battle_party_member_count = 4;
@@ -670,7 +670,7 @@ static void ce4_fixture_teardown(void)
  * End-to-end: the handler runs dialog page 4 then advances the chapter id by 1.
  * Seeded at the in-game value (3, chapter 4 follows chapter 3), it lands on 4.
  * The glyph recorder proves the real dialog VM ran on page 4 of
- * current_chapter_text (guards a wrong text base / page index).
+ * data_fd2_current_chapter_text (guards a wrong text base / page index).
  * ---------------------------------------------------------------- */
 static void test_chapter_04_end_runs_dialog_page4_and_increments_id(void)
 {
@@ -777,7 +777,7 @@ static void ce5_fixture_reset(void)
     g_ce5_text[9]  = 20;      /* byte offset to prog[10] (page 9 start) */
     g_ce5_text[10] = 0x99;    /* one glyph */
     g_ce5_text[11] = -1;      /* END */
-    current_chapter_text = (uint32)g_ce5_text;
+    data_fd2_current_chapter_text = (uint32)g_ce5_text;
 
     /* save-template safe env (chapter 01 baseline): zeroed runtime chars +
      * zeroed roster, one scanned runtime char and one template entry. */
@@ -810,7 +810,7 @@ static void ce5_fixture_reset(void)
 
 static void ce5_fixture_teardown(void)
 {
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_battle_party_member_count = 4;
@@ -926,7 +926,7 @@ static void test_chapter_05_end_increments_not_absolute(void)
  *       static char base/growth tables),
  *   (2) refreshes the portrait cache for race 3 via the real
  *       fd2_load_chapter_portraits_and_dump_tmp (re-reads FDFIELD.DAT, race-scans
- *       the tile-event table, rewrites FD2.TMP from portrait_sprite_cache),
+ *       the tile-event table, rewrites FD2.TMP from data_fd2_portrait_sprite_cache),
  *   (3) pans the view window to (5,0xE) via the real fd2_pan_cursor_and_window,
  *   (4) fires cutscene event 0x1B via the real fd2_cutscene_event_trigger,
  *   (5) shows chapter-end dialog page 6 via the real fd2_display_dialog_scene,
@@ -935,13 +935,13 @@ static void test_chapter_05_end_increments_not_absolute(void)
  *
  * EVERY callee is the real linked function (no fakes). The fixture mirrors the
  * chapter 02 suite's safe headless env for the same real callees:
- *   - dialog VM: current_chapter_text points at a minimal int16 program whose
+ *   - dialog VM: data_fd2_current_chapter_text points at a minimal int16 program whose
  *     page-6 header word redirects to one glyph (0x66) + END, so the real VM
  *     runs headless via the testglob.c glyph recorder (BIOS kbd buffer empty,
  *     portrait latch cleared).
  *   - portrait dump: the staged real FDICON.B24 + FDFIELD.DAT are read for real
  *     and FD2.TMP is rewritten for real; alloc_offset == 0 makes the race-3 scan
- *     loop body never fire (no FDICON per-char parse), portrait_sprite_cache
+ *     loop body never fire (no FDICON per-char parse), data_fd2_portrait_sprite_cache
  *     points at a 0x32A00 scratch buffer, and chapter_id is seeded to a value
  *     whose FDFIELD re-read index (idx 0xE @ chapter_id 4) is valid.
  *   - cutscene event 0x1B: its script-table slot points at an n_groups==0 script
@@ -962,7 +962,7 @@ static void test_chapter_05_end_increments_not_absolute(void)
 static uint8  g_ce6_roster[8 * 0x50];
 static int16  g_ce6_text[16];
 static uint8  g_ce6_script[1];           /* n_groups == 0 */
-static uint32 g_ce6_psc;                 /* portrait_sprite_cache scratch */
+static uint32 g_ce6_psc;                 /* data_fd2_portrait_sprite_cache scratch */
 
 static void ce6_fixture_reset(void)
 {
@@ -983,7 +983,7 @@ static void ce6_fixture_reset(void)
     g_ce6_text[6] = 14;       /* byte offset to prog[7] (page 6 start) */
     g_ce6_text[7] = 0x66;     /* one glyph */
     g_ce6_text[8] = -1;       /* END */
-    current_chapter_text = (uint32)g_ce6_text;
+    data_fd2_current_chapter_text = (uint32)g_ce6_text;
 
     /* recruit + save safe env (chapter 01 baseline): zeroed runtime chars +
      * zeroed roster, one scanned runtime char and one template entry. */
@@ -1000,8 +1000,8 @@ static void ce6_fixture_reset(void)
     if (g_ce6_psc == 0) {
         g_ce6_psc = (uint32)malloc(0x32a00);
     }
-    portrait_sprite_cache = g_ce6_psc;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_portrait_sprite_cache = g_ce6_psc;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_resource_portrait_cache_alloc_offset = 0;
 
@@ -1021,7 +1021,7 @@ static void ce6_fixture_reset(void)
 
 static void ce6_fixture_teardown(void)
 {
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_battle_party_member_count = 4;
@@ -1033,8 +1033,8 @@ static void ce6_fixture_teardown(void)
     data_fd2_resource_portrait_cache_alloc_offset = 0;
     data_fd2_chapter_cutscene_event_state = 0;
     data_fd2_chapter_cutscene_event_script_ptr_table_106[0x1b] = 0;
-    portrait_sprite_cache = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_portrait_sprite_cache = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_chapter_current_chapter_id = 1;
     remove("FD2.TMP");
 }
@@ -1044,7 +1044,7 @@ static void ce6_fixture_teardown(void)
  * portrait set (real FDICON/FDFIELD read + FD2.TMP rewrite), pans the window,
  * fires the (empty) cutscene event, runs dialog page 6 (its single glyph 0x66),
  * persists the party, and advances chapter_id 4 -> 5. The glyph recorder pins
- * that the real dialog VM ran on page 6 of current_chapter_text; FD2.TMP's
+ * that the real dialog VM ran on page 6 of data_fd2_current_chapter_text; FD2.TMP's
  * presence proves the real portrait dump completed.
  * ---------------------------------------------------------------- */
 static void test_chapter_06_end_recruits_loads_and_increments_id(void)
@@ -1179,7 +1179,7 @@ static void ce7_fixture_reset(void)
     g_ce7_text[9]  = -1;      /* END */
     g_ce7_text[10] = 0x55;    /* page 5 glyph */
     g_ce7_text[11] = -1;      /* END */
-    current_chapter_text = (uint32)g_ce7_text;
+    data_fd2_current_chapter_text = (uint32)g_ce7_text;
 
     /* save pass made a clean no-op (no runtime chars scanned) so the dead-check
      * recorder reflects only the dual-condition's query; the recruit append uses
@@ -1221,7 +1221,7 @@ static void ce7_fixture_reset(void)
 
 static void ce7_fixture_teardown(void)
 {
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_battle_party_member_count = 4;
@@ -1485,7 +1485,7 @@ static void ce8_fixture_reset(void)
     g_ce8_text[9]  = -1;      /* END */
     g_ce8_text[10] = 0x44;    /* page 4 glyph */
     g_ce8_text[11] = -1;      /* END */
-    current_chapter_text = (uint32)g_ce8_text;
+    data_fd2_current_chapter_text = (uint32)g_ce8_text;
 
     /* save pass made a clean no-op (no runtime chars scanned), which also makes
      * the composite char-paint loop a no-op; the recruit append uses the
@@ -1538,7 +1538,7 @@ static void ce8_fixture_reset(void)
 
 static void ce8_fixture_teardown(void)
 {
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_battle_party_member_count = 4;
@@ -1677,7 +1677,7 @@ static void test_chapter_08_end_increments_not_absolute(void)
  *   (2) pans the view window to (6,1) via the real fd2_pan_cursor_and_window,
  *   (3) refreshes the portrait cache for race 4 via the real
  *       fd2_load_chapter_portraits_and_dump_tmp (re-reads FDFIELD.DAT, race-scans
- *       the tile-event table, rewrites FD2.TMP from portrait_sprite_cache),
+ *       the tile-event table, rewrites FD2.TMP from data_fd2_portrait_sprite_cache),
  *   (4) fires cutscene event 0x24 via the real fd2_cutscene_event_trigger,
  *   (5) shows chapter-end dialog page 4 via the real fd2_display_dialog_scene
  *       (the shared chapter-04 tail @ 0x231C6),
@@ -1702,7 +1702,7 @@ static void test_chapter_08_end_increments_not_absolute(void)
 static runtime_char g_ce9_rc[16];
 static uint8        g_ce9_roster[8 * 0x50];
 static uint8        g_ce9_script[1];           /* n_groups == 0 */
-static uint32       g_ce9_psc;                 /* portrait_sprite_cache scratch */
+static uint32       g_ce9_psc;                 /* data_fd2_portrait_sprite_cache scratch */
 static int16        g_ce9_text[16];
 static runtime_char *g_ce9_saved_rc_ptr;
 
@@ -1725,7 +1725,7 @@ static void ce9_fixture_reset(void)
     g_ce9_text[4] = 10;       /* byte offset to prog[5] (page 4 start) */
     g_ce9_text[5] = 0x66;     /* one glyph */
     g_ce9_text[6] = -1;       /* END */
-    current_chapter_text = (uint32)g_ce9_text;
+    data_fd2_current_chapter_text = (uint32)g_ce9_text;
 
     /* runtime-char array: 16 local slots so char #11 (revive) is in bounds.
      * Seed char #11 with poisoned flags so the revive (flags -> 0) is visible;
@@ -1749,8 +1749,8 @@ static void ce9_fixture_reset(void)
     if (g_ce9_psc == 0) {
         g_ce9_psc = (uint32)malloc(0x32a00);
     }
-    portrait_sprite_cache = g_ce9_psc;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_portrait_sprite_cache = g_ce9_psc;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_resource_portrait_cache_alloc_offset = 0;
 
@@ -1771,7 +1771,7 @@ static void ce9_fixture_reset(void)
 static void ce9_fixture_teardown(void)
 {
     data_fd2_battle_runtime_char_array_ptr = g_ce9_saved_rc_ptr;
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_battle_party_member_count = 4;
@@ -1783,8 +1783,8 @@ static void ce9_fixture_teardown(void)
     data_fd2_resource_portrait_cache_alloc_offset = 0;
     data_fd2_chapter_cutscene_event_state = 0;
     data_fd2_chapter_cutscene_event_script_ptr_table_106[0x24] = 0;
-    portrait_sprite_cache = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_portrait_sprite_cache = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_chapter_current_chapter_id = 1;
     remove("FD2.TMP");
 }
@@ -1794,7 +1794,7 @@ static void ce9_fixture_teardown(void)
  * refreshes the race-4 portrait set (real FDICON/FDFIELD read + FD2.TMP rewrite),
  * fires the (empty) cutscene event, runs dialog page 4 (its single glyph 0x66),
  * persists the party, and advances chapter_id 4 -> 5. The glyph recorder pins
- * that the real dialog VM ran on page 4 of current_chapter_text; FD2.TMP's
+ * that the real dialog VM ran on page 4 of data_fd2_current_chapter_text; FD2.TMP's
  * presence proves the real portrait dump completed.
  * ---------------------------------------------------------------- */
 static void test_chapter_09_end_revives_char11_and_increments_id(void)
@@ -1961,7 +1961,7 @@ static void ce10_fixture_reset(void)
     g_ce10_text[9]  = -1;     /* END */
     g_ce10_text[10] = 0x55;   /* page 5 glyph */
     g_ce10_text[11] = -1;     /* END */
-    current_chapter_text = (uint32)g_ce10_text;
+    data_fd2_current_chapter_text = (uint32)g_ce10_text;
 
     /* runtime-char array: 64 local slots so the 0..0xA placement loop and the
      * 0x32/0x33/0x34/5 revives are in bounds. Poison the revive targets so the
@@ -2033,7 +2033,7 @@ static void ce10_fixture_reset(void)
 static void ce10_fixture_teardown(void)
 {
     data_fd2_battle_runtime_char_array_ptr = g_ce10_saved_rc_ptr;
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_battle_party_member_count = 4;
@@ -2058,7 +2058,7 @@ static void ce10_fixture_teardown(void)
  * 0), runs dialog pages 4 then 5 (glyphs 0x44 then 0x55), sets the view-window
  * and cursor to (9,34) and cursor-screen to (0,0) with battle_anim_phase 0, and
  * advances chapter_id 10 -> 11. The glyph recorder pins that the real dialog VM
- * ran on pages 4 and 5 of current_chapter_text in order.
+ * ran on pages 4 and 5 of data_fd2_current_chapter_text in order.
  * ---------------------------------------------------------------- */
 static void test_chapter_10_end_places_party_revives_npcs_and_increments(void)
 {
@@ -2176,7 +2176,7 @@ static void test_chapter_10_end_increments_not_absolute(void)
  *
  * Every callee is the real linked function (no fakes). The fixture stands up the
  * same safe headless env the chapter 1 / 4 / 6 suites use for the same real
- * callees: current_chapter_text points at a minimal int16 program whose page-3
+ * callees: data_fd2_current_chapter_text points at a minimal int16 program whose page-3
  * header word redirects to one glyph (0x33) + END (so the real dialog VM runs
  * headless via the testglob.c glyph recorder, BIOS kbd buffer empty, portrait
  * latch cleared), plus a zeroed runtime-char array + zeroed roster with the
@@ -2211,7 +2211,7 @@ static void ce11_fixture_reset(void)
     g_ce11_text[3] = 8;        /* byte offset to prog[4] (page 3 start) */
     g_ce11_text[4] = 0x33;     /* one glyph */
     g_ce11_text[5] = -1;       /* END */
-    current_chapter_text = (uint32)g_ce11_text;
+    data_fd2_current_chapter_text = (uint32)g_ce11_text;
 
     /* save + recruit safe env (chapter 01 baseline): zeroed runtime chars +
      * zeroed roster, one scanned runtime char and one template entry so the
@@ -2229,7 +2229,7 @@ static void ce11_fixture_reset(void)
 
 static void ce11_fixture_teardown(void)
 {
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_battle_party_member_count = 4;
@@ -2240,7 +2240,7 @@ static void ce11_fixture_teardown(void)
  * End-to-end: the straight-line handler runs dialog page 3 (its single glyph
  * 0x33), persists the party, recruits char #14, and advances chapter_id 10 -> 11
  * (chapter 11 follows chapter 10). The glyph recorder proves the real dialog VM
- * ran on page 3 of current_chapter_text (guards a wrong text base / page index);
+ * ran on page 3 of data_fd2_current_chapter_text (guards a wrong text base / page index);
  * the roster delta proves the real recruit ran.
  * ---------------------------------------------------------------- */
 static void test_chapter_11_end_runs_dialog_recruits_and_increments_id(void)
@@ -2360,7 +2360,7 @@ static void ce12_fixture_reset(void)
     g_ce12_text[9]  = -1;     /* END */
     g_ce12_text[10] = 0x44;   /* page 4 glyph */
     g_ce12_text[11] = -1;     /* END */
-    current_chapter_text = (uint32)g_ce12_text;
+    data_fd2_current_chapter_text = (uint32)g_ce12_text;
 
     /* save + recruit safe env (chapter 01 baseline): zeroed runtime chars +
      * zeroed roster, one scanned runtime char and one template entry so the
@@ -2405,7 +2405,7 @@ static void ce12_fixture_reset(void)
 
 static void ce12_fixture_teardown(void)
 {
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_battle_party_member_count = 4;
@@ -2537,7 +2537,7 @@ static void test_chapter_12_end_increments_not_absolute(void)
  *
  * Every callee is the real linked function (no fakes). The fixture stands up the
  * same safe headless env the chapter 11 suite uses for the same real callees:
- * current_chapter_text points at a minimal int16 program whose page-9 header word
+ * data_fd2_current_chapter_text points at a minimal int16 program whose page-9 header word
  * redirects to one glyph (0x33) + END (so the real dialog VM runs headless via
  * the testglob.c glyph recorder, BIOS kbd buffer empty, portrait latch cleared),
  * plus a zeroed runtime-char array + zeroed roster with the roster pointer set and
@@ -2572,7 +2572,7 @@ static void ce13_fixture_reset(void)
     g_ce13_text[9] = 20;        /* byte offset to prog[10] (page 9 start) */
     g_ce13_text[10] = 0x33;     /* one glyph */
     g_ce13_text[11] = -1;       /* END */
-    current_chapter_text = (uint32)g_ce13_text;
+    data_fd2_current_chapter_text = (uint32)g_ce13_text;
 
     /* save + recruit safe env (chapter 01 baseline): zeroed runtime chars +
      * zeroed roster, one scanned runtime char and one template entry so the
@@ -2590,7 +2590,7 @@ static void ce13_fixture_reset(void)
 
 static void ce13_fixture_teardown(void)
 {
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_battle_party_member_count = 4;
@@ -2601,7 +2601,7 @@ static void ce13_fixture_teardown(void)
  * End-to-end: the straight-line handler runs dialog page 9 (its single glyph
  * 0x33), persists the party, recruits char #3, and advances chapter_id 12 -> 13
  * (chapter 13 follows chapter 12). The glyph recorder proves the real dialog VM
- * ran on page 9 of current_chapter_text (guards a wrong text base / page index);
+ * ran on page 9 of data_fd2_current_chapter_text (guards a wrong text base / page index);
  * the roster delta proves the real recruit ran.
  * ---------------------------------------------------------------- */
 static void test_chapter_13_end_runs_dialog_recruits_and_increments_id(void)
@@ -2677,7 +2677,7 @@ static void test_chapter_13_end_increments_not_absolute(void)
  * only gates the save's char-0 dead-skip (harmless). The real portrait loader
  * reads the staged FDICON.B24 + FDFIELD.DAT for real and rewrites FD2.TMP: with
  * alloc_offset == 0 the race-1 scan loop body never fires (no FDICON per-char
- * parse), portrait_sprite_cache points at a 0x32A00 scratch buffer, and
+ * parse), data_fd2_portrait_sprite_cache points at a 0x32A00 scratch buffer, and
  * chapter_id is seeded so the FDFIELD re-read index (chapter_id*3+2) is valid.
  * The real fd2_cutscene_event_trigger(0x2F) runs against an empty (n_groups == 0)
  * script, so it is a no-op plus its trailing composite (party_member_count is the
@@ -2704,7 +2704,7 @@ extern uint8 data_fd2_chapter_ch14_end_scene_char_facing_table[16];
 static uint8  g_ce14_roster[8 * 0x50];
 static int16  g_ce14_text[16];
 static uint8  g_ce14_script[1];           /* cutscene 0x2F: n_groups == 0 */
-static uint32 g_ce14_psc;                 /* portrait_sprite_cache scratch */
+static uint32 g_ce14_psc;                 /* data_fd2_portrait_sprite_cache scratch */
 
 static void ce14_fixture_reset(void)
 {
@@ -2728,7 +2728,7 @@ static void ce14_fixture_reset(void)
     g_ce14_text[9]  = -1;     /* END */
     g_ce14_text[10] = 0x33;   /* page 3 glyph */
     g_ce14_text[11] = -1;     /* END */
-    current_chapter_text = (uint32)g_ce14_text;
+    data_fd2_current_chapter_text = (uint32)g_ce14_text;
 
     /* save safe env (chapter 01 baseline): zeroed runtime chars + zeroed roster,
      * one scanned runtime char and one template entry. No recruit here, so the
@@ -2747,8 +2747,8 @@ static void ce14_fixture_reset(void)
     if (g_ce14_psc == 0) {
         g_ce14_psc = (uint32)malloc(0x32a00);
     }
-    portrait_sprite_cache = g_ce14_psc;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_portrait_sprite_cache = g_ce14_psc;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_resource_portrait_cache_alloc_offset = 0;
 
@@ -2784,7 +2784,7 @@ static void ce14_fixture_reset(void)
 
 static void ce14_fixture_teardown(void)
 {
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_battle_party_member_count = 4;
@@ -2796,8 +2796,8 @@ static void ce14_fixture_teardown(void)
     data_fd2_resource_portrait_cache_alloc_offset = 0;
     data_fd2_chapter_cutscene_event_script_ptr_table_106[0x2f] = 0;
     data_fd2_chapter_cutscene_event_state = 0;
-    portrait_sprite_cache = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_portrait_sprite_cache = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_chapter_current_chapter_id = 1;
     remove("FD2.TMP");
 }
@@ -2932,7 +2932,7 @@ static void test_chapter_14_end_increments_not_absolute(void)
  *       reuses chapter 11's tail: recruit, then `INC [0x53c03]; RET` @ 0x231F2).
  *
  * Every callee is the real linked function (no fakes), reusing the chapter 13
- * suite's safe headless env: current_chapter_text points at a minimal int16
+ * suite's safe headless env: data_fd2_current_chapter_text points at a minimal int16
  * program whose page-12 and page-13 header words each redirect to ONE distinct
  * glyph (0xC5 vs 0xD5) + END, so the recorded glyph id pins which page the branch
  * selected; a zeroed runtime-char array + zeroed roster with the roster pointer
@@ -2974,7 +2974,7 @@ static void ce15_fixture_reset(int kelly_present)
     g_ce15_text[13] = 32;       /* byte offset to prog[16] (page 13 body) */
     g_ce15_text[16] = 0xd5;     /* page 13: one glyph */
     g_ce15_text[17] = -1;       /* END */
-    current_chapter_text = (uint32)g_ce15_text;
+    data_fd2_current_chapter_text = (uint32)g_ce15_text;
 
     /* The 凱麗-membership branch goes through fd2_check_party_has_char_id, which
      * is the testglob.c recording fake (real one routes to src/util/misc.c, not
@@ -2999,7 +2999,7 @@ static void ce15_fixture_reset(int kelly_present)
 
 static void ce15_fixture_teardown(void)
 {
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_battle_party_member_count = 4;
@@ -3185,7 +3185,7 @@ static void ce16_fixture_reset(uint32 turn_count, int dead_idx_count, uint16 hp_
     g_ce16_text[19] = -1;     /* END */
     g_ce16_text[20] = 0x44;   /* page 4 glyph */
     g_ce16_text[21] = -1;     /* END */
-    current_chapter_text = (uint32)g_ce16_text;
+    data_fd2_current_chapter_text = (uint32)g_ce16_text;
 
     /* save + recruit safe env: zeroed runtime chars + zeroed roster, one scanned
      * runtime char and one template entry so the recruit appends at slot 1. Seed
@@ -3244,7 +3244,7 @@ static void ce16_fixture_reset(uint32 turn_count, int dead_idx_count, uint16 hp_
 
 static void ce16_fixture_teardown(void)
 {
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_battle_party_member_count = 4;
@@ -3557,7 +3557,7 @@ static void ce17_fixture_reset(int mitsuki_present, int page5_only, int page7_on
     g_ce17_text[21] = -1;
     g_ce17_text[22] = ((page5_only || page7_only) ? -1 : 0x88); /* page 8 */
     g_ce17_text[23] = -1;
-    current_chapter_text = (uint32)g_ce17_text;
+    data_fd2_current_chapter_text = (uint32)g_ce17_text;
 
     /* membership branch: testglob.c recording fake return + arg log. */
     g_has_char_fake = (uint32)(mitsuki_present ? 1 : 0);
@@ -3603,7 +3603,7 @@ static void ce17_fixture_reset(int mitsuki_present, int page5_only, int page7_on
 
 static void ce17_fixture_teardown(void)
 {
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_battle_party_member_count = 4;
@@ -3891,7 +3891,7 @@ static void ce18_fixture_reset(void)
     g_ce18_text[19] = -1;     /* END */
     g_ce18_text[20] = 0xaa;   /* page 10 glyph */
     g_ce18_text[21] = -1;     /* END */
-    current_chapter_text = (uint32)g_ce18_text;
+    data_fd2_current_chapter_text = (uint32)g_ce18_text;
 
     /* save + recruit safe env (chapter 01 baseline): zeroed runtime chars +
      * zeroed roster, one scanned runtime char and one template entry so the two
@@ -3937,7 +3937,7 @@ static void ce18_fixture_reset(void)
 
 static void ce18_fixture_teardown(void)
 {
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_battle_party_member_count = 4;
@@ -4075,7 +4075,7 @@ static void test_chapter_18_end_increments_not_absolute(void)
  *
  * Every callee is the real linked function (no fakes). The fixture stands up the
  * same safe headless env the chapter 1 / 11 suites use for the same real
- * callees: current_chapter_text points at a minimal int16 program whose page-3
+ * callees: data_fd2_current_chapter_text points at a minimal int16 program whose page-3
  * header word redirects to one glyph (0x33) + END (so the real dialog VM runs
  * headless via the testglob.c glyph recorder, BIOS kbd buffer empty, portrait
  * latch cleared), plus a zeroed runtime-char array + zeroed roster with the
@@ -4109,7 +4109,7 @@ static void ce19_fixture_reset(void)
     g_ce19_text[3] = 8;        /* byte offset to prog[4] (page 3 start) */
     g_ce19_text[4] = 0x33;     /* one glyph */
     g_ce19_text[5] = -1;       /* END */
-    current_chapter_text = (uint32)g_ce19_text;
+    data_fd2_current_chapter_text = (uint32)g_ce19_text;
 
     /* save-template safe env (chapter 01 baseline): zeroed runtime chars +
      * zeroed roster, one scanned runtime char and one template entry. */
@@ -4126,7 +4126,7 @@ static void ce19_fixture_reset(void)
 
 static void ce19_fixture_teardown(void)
 {
-    current_chapter_text = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_shared_menu_party_roster_buffer_ptr = 0;
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_battle_party_member_count = 4;
@@ -4137,7 +4137,7 @@ static void ce19_fixture_teardown(void)
  * End-to-end: the straight-line handler persists the party, runs dialog page 3
  * (its single glyph 0x33), and advances chapter_id 18 -> 19 (chapter 19 follows
  * chapter 18). The glyph recorder proves the real dialog VM ran on page 3 of
- * current_chapter_text (guards a wrong text base / page index).
+ * data_fd2_current_chapter_text (guards a wrong text base / page index).
  * ---------------------------------------------------------------- */
 static void test_chapter_19_end_saves_runs_dialog_and_increments_id(void)
 {

@@ -81,8 +81,8 @@ void fd2_animate_status_effect_overlay_flicker(uint32 param_1, uint32 status_kin
             frame_idx = frame_off + data_fd2_graphics_chapter_ambient_palette_anim_idx;
         }
 
-        src_sprite = portrait_sprite_cache +
-                     *(uint32 *)(portrait_sprite_cache + frame_idx * 4);
+        src_sprite = data_fd2_portrait_sprite_cache +
+                     *(uint32 *)(data_fd2_portrait_sprite_cache + frame_idx * 4);
         dst_addr = data_fd2_large_game_state_buffer_ptr +
                    (pos_y - data_fd2_battle_view_window_origin_y) * 0x2ac0 +
                    (pos_x - data_fd2_battle_view_window_origin_x) * 0x18 + 0x75d8;
@@ -373,8 +373,8 @@ void fd2_animate_spell_overlay_blink(uint32 param_1, uint32 spell_id,
                     frame_idx = frame_off + data_fd2_graphics_chapter_ambient_palette_anim_idx;
                 }
 
-                src_sprite = portrait_sprite_cache +
-                             *(uint32 *)(portrait_sprite_cache + frame_idx * 4);
+                src_sprite = data_fd2_portrait_sprite_cache +
+                             *(uint32 *)(data_fd2_portrait_sprite_cache + frame_idx * 4);
                 dst_addr = data_fd2_large_game_state_buffer_ptr +
                            (pos_y - data_fd2_battle_view_window_origin_y) * 0x2ac0 +
                            (pos_x - data_fd2_battle_view_window_origin_x) * 0x18 + 0x75d8;

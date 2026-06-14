@@ -771,7 +771,7 @@ void fd2_render_mini_char_status_panel(uint32 buf, uint32 stride, uint32 char_id
  *
  * The cursor tile's attribute word and its second attribute byte are read
  * into an 8-byte local via fd2_read_tile_attribute_at_pos:
- *   word[0] -> battle_scene_snapshot row index (terrain icon source)
+ *   word[0] -> data_fd2_battle_scene_snapshot row index (terrain icon source)
  *   byte[5] -> index into the MV / DEF per-tile modifier tables
  *
  * If a non-hidden unit stands under the cursor
@@ -825,8 +825,8 @@ void fd2_render_terrain_info_hud_panel(uint32 buf, uint32 stride)
     tile_attr_word = *(uint16 *)tile_attr;
     tile_attr2 = tile_attr[5];
 
-    icon_src = battle_scene_snapshot
-             + *(int32 *)(battle_scene_snapshot
+    icon_src = data_fd2_battle_scene_snapshot
+             + *(int32 *)(data_fd2_battle_scene_snapshot
                           + (uint32)tile_attr_word * 4 + 6);
     fd2_tile_blit_24x24_passthrough(icon_src, panel_base + stride * 5 + 6,
                                     stride);
@@ -854,8 +854,8 @@ void fd2_render_terrain_info_hud_panel(uint32 buf, uint32 stride)
     if (frame_mod == 3) {
         frame_mod = 1;
     }
-    portrait_src = portrait_sprite_cache
-                 + *(int32 *)(portrait_sprite_cache
+    portrait_src = data_fd2_portrait_sprite_cache
+                 + *(int32 *)(data_fd2_portrait_sprite_cache
                               + (frame_mod + (uint32)rc->sprite_state[0] * 0xc)
                                 * 4);
     fd2_tile_blit_24x24_passthrough(portrait_src, panel_base + stride * 5 + 6,

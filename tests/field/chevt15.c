@@ -93,7 +93,7 @@ static void ev0d_install_env(void)
         g_ev0d_dlg[0x11 + 2 * p] = (int16)(0x50 + p);  /* page p glyph idx */
         g_ev0d_dlg[0x12 + 2 * p] = -1;                  /* page p END */
     }
-    current_chapter_text = (uint32)g_ev0d_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ev0d_dlg;
 
     /* no portrait open on entry, so the dialog END path skips the close
      * sequence and returns at once (one glyph for the dispatched page). */
@@ -240,7 +240,7 @@ static void ev12_install_env(void)
         g_ev12_dlg[0x11 + 2 * p] = (int16)(0x50 + p);  /* page p glyph idx */
         g_ev12_dlg[0x12 + 2 * p] = -1;                  /* page p END */
     }
-    current_chapter_text = (uint32)g_ev12_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ev12_dlg;
 
     /* no portrait open on entry, so the dialog END path skips the close
      * sequence and returns at once (one glyph for the dispatched page). */
@@ -360,7 +360,7 @@ static void ev26_install_env(void)
         g_ev26_dlg[0x11 + 2 * p] = (int16)(0x50 + p);  /* page p glyph idx */
         g_ev26_dlg[0x12 + 2 * p] = -1;                  /* page p END */
     }
-    current_chapter_text = (uint32)g_ev26_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ev26_dlg;
 
     /* no portrait open on entry, so the dialog END path skips the close
      * sequence and returns at once (one glyph for the dispatched page). */
@@ -448,7 +448,7 @@ static void ev27_install_env(void)
         g_ev27_dlg[0x11 + 2 * p] = (int16)(0x50 + p);  /* page p glyph idx */
         g_ev27_dlg[0x12 + 2 * p] = -1;                  /* page p END */
     }
-    current_chapter_text = (uint32)g_ev27_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ev27_dlg;
 
     /* no portrait open on entry, so the dialog END path skips the close
      * sequence and returns at once (one glyph for the dispatched page). */
@@ -567,7 +567,7 @@ static void ev28_install_env(void)
         g_ev28_dlg[0x11 + 2 * p] = (int16)(0x50 + p);  /* page p glyph idx */
         g_ev28_dlg[0x12 + 2 * p] = -1;                  /* page p END */
     }
-    current_chapter_text = (uint32)g_ev28_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ev28_dlg;
 
     /* no portrait open on entry, so the dialog END path skips the close
      * sequence and returns at once (one glyph for the dispatched page). */
@@ -679,7 +679,7 @@ static void ev29_install_env(void)
         g_ev29_dlg[0x11 + 2 * p] = (int16)(0x50 + p);  /* page p glyph idx */
         g_ev29_dlg[0x12 + 2 * p] = -1;                  /* page p END */
     }
-    current_chapter_text = (uint32)g_ev29_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ev29_dlg;
 
     /* no portrait open on entry, so the dialog END path skips the close
      * sequence and returns at once (one glyph for each dispatched page). */
@@ -791,7 +791,7 @@ static void ev2a_install_env(void)
         g_ev2a_dlg[0x11 + 2 * p] = (int16)(0x50 + p);  /* page p glyph idx */
         g_ev2a_dlg[0x12 + 2 * p] = -1;                  /* page p END */
     }
-    current_chapter_text = (uint32)g_ev2a_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ev2a_dlg;
 
     /* no portrait open on entry, so the dialog END path skips the close
      * sequence and returns at once (one glyph for the dispatched page). */

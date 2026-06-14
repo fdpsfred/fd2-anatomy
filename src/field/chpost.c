@@ -108,12 +108,12 @@ void fd2_chapter_12_post_action(uint32 event_arg)
  * game_event_flag (0x53ECC) to 1 AND plays a chapter dialog page:
  *
  *   1. If every one of the 12 NPC/enemy slots runtime_char[0xF..0x1A] is
- *      dead, show current_chapter_text page 10. The loop does NOT early
+ *      dead, show data_fd2_current_chapter_text page 10. The loop does NOT early
  *      exit; it sets a "some slot still alive" flag the instant any slot
  *      reports alive (fd2_check_char_is_dead == 0) and runs to completion,
  *      so the condition fires only when no slot in the range is alive.
  *   2. If the turn counter (0x53BEF) is greater than 5 AND the boss-ish
- *      NPC at runtime_char[0x3B] is dead, show current_chapter_text page 2.
+ *      NPC at runtime_char[0x3B] is dead, show data_fd2_current_chapter_text page 2.
  *
  * The dialog calls use the chapter's standard glyph geometry (render base
  * 0xA0000, pitch 0x140, glyph params 0xCD/0x4C/0x4A, height 0x13) with
@@ -138,14 +138,14 @@ void fd2_chapter_13_post_action(uint32 event_arg)
 
     if (some_npc_alive == 0) {
         data_fd2_chapter_event_or_battle_end_code = 1;
-        fd2_display_dialog_scene(current_chapter_text, 10, 0xA0000, 0x140,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text, 10, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
     }
 
     if ((int32)data_fd2_battle_turn_counter > 5) {
         if (fd2_check_char_is_dead(0x3B) != 0) {
             data_fd2_chapter_event_or_battle_end_code = 1;
-            fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, 0x140,
+            fd2_display_dialog_scene(data_fd2_current_chapter_text, 2, 0xA0000, 0x140,
                                      0xCD, 0x4C, 0x4A, 0x13, 1);
         }
     }
@@ -213,7 +213,7 @@ void fd2_chapter_16_post_action(uint32 event_arg)
  * tested against the template/snapshot roster via
  * fd2_check_party_has_char_id) AND the NPC at runtime_char[0x34] is dead,
  * set game_event_flag (0x53ECC) to 1 (game over) and show
- * current_chapter_text page 2. Both conditions must hold: the char-id
+ * data_fd2_current_chapter_text page 2. Both conditions must hold: the char-id
  * check short-circuits (when 蜜蒂 is still present the dead-check and
  * dialog are skipped entirely). The dialog call uses the chapter's
  * standard glyph geometry (render base 0xA0000, pitch 0x140, glyph params
@@ -227,7 +227,7 @@ void fd2_chapter_17_post_action(uint32 event_arg)
 
     if (fd2_check_party_has_char_id(0x12) == 0) {
         if (fd2_check_char_is_dead(0x34) != 0) {
-            fd2_display_dialog_scene(current_chapter_text, 2, 0xA0000, 0x140,
+            fd2_display_dialog_scene(data_fd2_current_chapter_text, 2, 0xA0000, 0x140,
                                      0xCD, 0x4C, 0x4A, 0x13, 1);
             data_fd2_chapter_event_or_battle_end_code = 1;
         }
@@ -324,7 +324,7 @@ void fd2_chapter_19_post_action(uint32 event_arg)
  *     The loop does NOT early-exit; it sets a "some slot still alive" flag
  *     the instant any slot reports alive (fd2_check_char_is_dead == 0) and
  *     runs to completion. If every slot is dead, set the flag to 1 (game
- *     over) and show current_chapter_text page 10. Flag is written before
+ *     over) and show data_fd2_current_chapter_text page 10. Flag is written before
  *     the dialog call.
  *
  *   Stage 2 — key-char extinction (LOSE). If the hero runtime_char[0] OR
@@ -361,7 +361,7 @@ void fd2_chapter_20_post_action(uint32 event_arg)
     }
     if (some_alive == 0) {
         data_fd2_chapter_event_or_battle_end_code = 1;
-        fd2_display_dialog_scene(current_chapter_text, 10, 0xA0000, 0x140,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text, 10, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
     }
 
@@ -564,7 +564,7 @@ void fd2_chapter_26_post_action(uint32 event_arg)
  *   2. LOSE: if the hero runtime_char[0] is dead, set the flag to 1 (LOSE).
  *      This runs after step 1, so a hero death overrides a WIN from step 1.
  *   3. LOSE + dialog: if the protected ally runtime_char[1] is dead, show
- *      current_chapter_text page 9 and set the flag to 1 (LOSE). Runs after
+ *      data_fd2_current_chapter_text page 9 and set the flag to 1 (LOSE). Runs after
  *      steps 1-2.
  *
  * Deadness is queried through fd2_check_char_is_dead (runtime_char[idx].flags
@@ -591,7 +591,7 @@ void fd2_chapter_29_post_action(uint32 event_arg)
     }
 
     if (fd2_check_char_is_dead(1) != 0) {
-        fd2_display_dialog_scene(current_chapter_text, 9, 0xA0000, 0x140,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text, 9, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
         data_fd2_chapter_event_or_battle_end_code = 1;
     }
@@ -615,7 +615,7 @@ void fd2_chapter_29_post_action(uint32 event_arg)
  *   2. LOSE: if the protagonist (蘭) runtime_char[0] is dead, set the flag
  *      to 1. This runs after step 1, so a protagonist death overrides a WIN.
  *   3. LOSE + dialog: if the second main runtime_char[1] is dead, show
- *      current_chapter_text page 7 (the special "lost ally" ending text) and
+ *      data_fd2_current_chapter_text page 7 (the special "lost ally" ending text) and
  *      set the flag to 1. Runs after steps 1-2.
  *
  * Because the WIN stage is written FIRST and the two LOSE stages run after,
@@ -639,7 +639,7 @@ void fd2_chapter_30_post_action(uint32 event_arg)
     }
 
     if (fd2_check_char_is_dead(1) != 0) {
-        fd2_display_dialog_scene(current_chapter_text, 7, 0xA0000, 0x140,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text, 7, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
         data_fd2_chapter_event_or_battle_end_code = 1;
     }

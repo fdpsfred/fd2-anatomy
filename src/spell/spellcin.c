@@ -69,8 +69,8 @@ void fd2_cast_earthquake_spell_with_screen_shake(
 
     shake_params = data_fd2_animation_earthquake_screen_shake_params_table;
 
-    orig_battle_scene_snapshot = battle_scene_snapshot;
-    battle_scene_snapshot = (uint32)fd2_convert_battle_tiles_to_24px();
+    orig_battle_scene_snapshot = data_fd2_battle_scene_snapshot;
+    data_fd2_battle_scene_snapshot = (uint32)fd2_convert_battle_tiles_to_24px();
     data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
     fd2_deduct_caster_mp(caster_unit_id, spell_id);
 
@@ -92,7 +92,7 @@ void fd2_cast_earthquake_spell_with_screen_shake(
         for (x = 0; (int)x < (int)data_fd2_battle_map_width_tiles; x++) {
             fd2_read_tile_attribute_at_pos(x, y, (uint32)tile_attr_buf);
             *(uint32 *)((char *)tile_table + (y * 0x40 + x) * 4) =
-                battle_scene_snapshot + (uint32)tile_attr_buf[0] * 0x240 + 6;
+                data_fd2_battle_scene_snapshot + (uint32)tile_attr_buf[0] * 0x240 + 6;
         }
     }
 
@@ -132,8 +132,8 @@ void fd2_cast_earthquake_spell_with_screen_shake(
     free(buf_1_alloc);
     free(buf_3_alloc);
     data_fd2_large_game_state_buffer_ptr = orig_large_game_state_buffer;
-    free((void *)battle_scene_snapshot);
-    battle_scene_snapshot = orig_battle_scene_snapshot;
+    free((void *)data_fd2_battle_scene_snapshot);
+    data_fd2_battle_scene_snapshot = orig_battle_scene_snapshot;
     fd2_composite_battle_frame(0);
 
     for (target_idx = 0; target_idx < (int)num_targets; target_idx++) {
@@ -1089,10 +1089,10 @@ void fd2_execute_special_attack_skill(uint32 caster_idx, uint32 spell_id,
     fade_steps = 0;
     palette_color_or_neg1 = 0xffffffff;
 
-    free((void *)portrait_sprite_cache);
+    free((void *)data_fd2_portrait_sprite_cache);
     free((void *)data_fd2_large_game_state_buffer_ptr);
-    free((void *)battle_scene_snapshot);
-    battle_scene_snapshot = 0;
+    free((void *)data_fd2_battle_scene_snapshot);
+    data_fd2_battle_scene_snapshot = 0;
 
     for (i = 0; i < 0x1e; i++) {
         target_figani_arr[i] = 0;
@@ -1274,9 +1274,9 @@ void fd2_execute_special_attack_skill(uint32 caster_idx, uint32 spell_id,
     }
 
     data_fd2_large_game_state_buffer_ptr = (uint32)malloc(0x25680);
-    battle_scene_snapshot = fd2_load_dat_resource(
+    data_fd2_battle_scene_snapshot = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdshap_dat_51a65,
-        battle_scene_snapshot,
+        data_fd2_battle_scene_snapshot,
         (uint32)*(uint8 *)data_fd2_tile_event_data_table_ptr * 2);
     fd2_restore_portrait_cache_from_tmp();
     fd2_wait_n_bios_ticks(6);
@@ -1324,7 +1324,7 @@ void fd2_execute_special_attack_skill(uint32 caster_idx, uint32 spell_id,
  *                         (plate wrongly said FDOTHER)
  *   FDOTHER.DAT[0x51A4D] (idx spell_id+0x21) → summon sprite
  *   FDOTHER.DAT[0x51A4D] (idx sfx_bank_index_table[spell_id-0x20]) → SFX bank
- *   FDSHAP.DAT[0x51A65] (idx *tile_event_data*2) → battle_scene_snapshot
+ *   FDSHAP.DAT[0x51A65] (idx *tile_event_data*2) → data_fd2_battle_scene_snapshot
  *                         (plate wrongly said FDOTHER)
  *
  * Phases (each blits to the mode-13h framebuffer at 0xA0000):
@@ -1337,7 +1337,7 @@ void fd2_execute_special_attack_skill(uint32 caster_idx, uint32 spell_id,
  *   6. (0x20/0x23 only) 11-frame strobe between the last two summon frames with
  *      a shrinking palette-interpolation toward the per-summon RGB.
  *   7. Reset to game state: free temp buffers, re-alloc the large game-state
- *      buffer + battle_scene_snapshot, then a 0x29-step palette fade-in.
+ *      buffer + data_fd2_battle_scene_snapshot, then a 0x29-step palette fade-in.
  *   8. Gameplay effect dispatch by spell_id:
  *      0x20 — attack-spell damage (spell 0x20).
  *      0x21 — clear per-target status bytes [+0x25..+0x27] then group HP heal 800.
@@ -1389,8 +1389,8 @@ void fd2_execute_summon_spell_cast(uint32 caster_idx, uint32 spell_id,
     sfx_bank_index = data_fd2_battle_summon_spell_sfx_bank_index_table;
 
     free((void *)data_fd2_large_game_state_buffer_ptr);
-    free((void *)battle_scene_snapshot);
-    battle_scene_snapshot = 0;
+    free((void *)data_fd2_battle_scene_snapshot);
+    data_fd2_battle_scene_snapshot = 0;
 
     caster_char = &data_fd2_battle_runtime_char_array_ptr[caster_idx];
     /* tile_attr_buf is sized 8 to hold the full +0..+7 write fd2_read_tile_-
@@ -1521,9 +1521,9 @@ void fd2_execute_summon_spell_cast(uint32 caster_idx, uint32 spell_id,
     free((void *)pCaster_figani_b);
 
     data_fd2_large_game_state_buffer_ptr = (uint32)malloc(0x25680);
-    battle_scene_snapshot = fd2_load_dat_resource(
+    data_fd2_battle_scene_snapshot = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdshap_dat_51a65,
-        battle_scene_snapshot,
+        data_fd2_battle_scene_snapshot,
         (uint32)*(uint8 *)data_fd2_tile_event_data_table_ptr * 2);
 
     palette_offset = (uint32)summon_idx;

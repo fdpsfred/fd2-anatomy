@@ -102,8 +102,8 @@ static void setup_load_save_fixture(void)
     data_fd2_battle_runtime_char_array_ptr = NULL;
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_battle_tile_map_ptr = 0;
-    portrait_sprite_cache = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_portrait_sprite_cache = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
 
     /* The real fd2_play_palette_fade_to_black() runs (src/life/main.c:178)
      * BEFORE the FDOTHER palette is (re)loaded, reading max(0,base[i]-sub) over
@@ -113,8 +113,8 @@ static void setup_load_save_fixture(void)
      * fresh one (so it must be malloc'd, not static; teardown frees the
      * loader's replacement). */
     data_fd2_vga_palette_data_ptr = (uint32)malloc(256 * 3);
-    current_chapter_text = 0;
-    battle_scene_snapshot = 0;
+    data_fd2_current_chapter_text = 0;
+    data_fd2_battle_scene_snapshot = 0;
     data_fd2_tile_attribute_flags_buffer_ptr = 0;
     data_fd2_graphics_static_bg_buffer_ptr = 0;
     data_fd2_graphics_animated_bg_buffer_ptr = 0;
@@ -133,19 +133,19 @@ static void teardown_load_save_fixture(void)
         free(data_fd2_battle_runtime_char_array_ptr);
     if (data_fd2_tile_event_data_table_ptr != 0)
         free((void *)data_fd2_tile_event_data_table_ptr);
-    if (portrait_sprite_cache != 0)
-        free((void *)portrait_sprite_cache);
-    if (chapter_portrait_load_buffer != 0)
-        free((void *)chapter_portrait_load_buffer);
+    if (data_fd2_portrait_sprite_cache != 0)
+        free((void *)data_fd2_portrait_sprite_cache);
+    if (data_fd2_chapter_portrait_load_buffer != 0)
+        free((void *)data_fd2_chapter_portrait_load_buffer);
     /* loader-returned buffers left live by the function */
     if (data_fd2_vga_palette_data_ptr != 0)
         free((void *)data_fd2_vga_palette_data_ptr);
-    if (current_chapter_text != 0)
-        free((void *)current_chapter_text);
+    if (data_fd2_current_chapter_text != 0)
+        free((void *)data_fd2_current_chapter_text);
     if (data_fd2_battle_tile_map_ptr != 0)
         free((void *)data_fd2_battle_tile_map_ptr);
-    if (battle_scene_snapshot != 0)
-        free((void *)battle_scene_snapshot);
+    if (data_fd2_battle_scene_snapshot != 0)
+        free((void *)data_fd2_battle_scene_snapshot);
     if (data_fd2_tile_attribute_flags_buffer_ptr != 0)
         free((void *)data_fd2_tile_attribute_flags_buffer_ptr);
     if (data_fd2_graphics_static_bg_buffer_ptr != 0)
@@ -166,10 +166,10 @@ static void teardown_load_save_fixture(void)
     data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
     data_fd2_battle_tile_map_ptr = 0;
     data_fd2_tile_event_data_table_ptr = 0;
-    portrait_sprite_cache = 0;
-    chapter_portrait_load_buffer = 0;
-    battle_scene_snapshot = 0;
-    current_chapter_text = 0;
+    data_fd2_portrait_sprite_cache = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
+    data_fd2_battle_scene_snapshot = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_battle_map_width_tiles = 20;
     data_fd2_battle_map_height_tiles = 15;
 

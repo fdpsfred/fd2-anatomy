@@ -683,7 +683,7 @@ static void test_reorder_high_bit_selected(void)
  * data_fd2_shared_menu_party_roster_buffer_ptr (snapshot -> slot 1 gets
  * snapshot[match_idx]; slots 2.. get snapshot[1..N) skipping match_idx, in
  * order). It finishes by reloading the portrait cache from the REAL staged
- * FDICON.B24: free(portrait_sprite_cache); fopen; count=0; for each roster
+ * FDICON.B24: free(data_fd2_portrait_sprite_cache); fopen; count=0; for each roster
  * slot [0,member_count) load roster[slot].portrait_id (+0x07); fclose.
  *
  * The reorder logic is the load-bearing core and is asserted exactly via a
@@ -745,12 +745,12 @@ static void pin_rc_reset(void)
 }
 
 /* free()/reset the portrait cache so the function's reload starts clean and
- * its leading free(portrait_sprite_cache) is a safe free(NULL). */
+ * its leading free(data_fd2_portrait_sprite_cache) is a safe free(NULL). */
 static void pin_cache_reset(void)
 {
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
@@ -760,9 +760,9 @@ static void pin_cache_reset(void)
 
 static void pin_cache_teardown(void)
 {
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;

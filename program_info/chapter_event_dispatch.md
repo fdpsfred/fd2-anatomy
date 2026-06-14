@@ -218,8 +218,8 @@ ch27 / 28 / 29 / 30 的「turn=0xFF 但 event_code 非 0xFF」entries 是動態�
 
 ## Handler 重要結構性發現
 
-1. **53 / 90 handler 用 `current_chapter_text`**：呼
-   `fd2_display_dialog_scene(current_chapter_text, page_id)`，FDTXT 入口 idx 在
+1. **53 / 90 handler 用 `data_fd2_current_chapter_text`**：呼
+   `fd2_display_dialog_scene(data_fd2_current_chapter_text, page_id)`，FDTXT 入口 idx 在
    chapter init 時設定。同一 handler 若被 N 個 chapter 用，產生 N 個 page→scene
    mapping。
 2. **idx 0x3A 例外用 `all_game_text`**：唯一的 pickup 處理 handler，呼

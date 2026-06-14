@@ -343,8 +343,8 @@ void fd2_load_state_from_selected_slot(void)
                     data_fd2_audio_bgm_enabled_flag = slot_base[0xa08];
                     data_fd2_audio_sfx_enabled_flag = slot_base[0xa09];
 
-                    if (portrait_sprite_cache != 0) {
-                        free((void *)portrait_sprite_cache);
+                    if (data_fd2_portrait_sprite_cache != 0) {
+                        free((void *)data_fd2_portrait_sprite_cache);
                     }
                     fp = fopen("FDICON.B24", "rb");
                     data_fd2_resource_portrait_cache_count = 0;

@@ -30,7 +30,7 @@
  * followed by a single dialog page-7 display.
  *
  * The dialog call (fd2_display_dialog_scene, page 7) runs FOR REAL against the
- * immediate-END dialog program (current_chapter_text[7] -> a single -1 END
+ * immediate-END dialog program (data_fd2_current_chapter_text[7] -> a single -1 END
  * opcode): with no portrait open the VM reads END and returns at once, so it
  * performs zero glyph blits and never touches the compositor, palette, BIOS
  * tick, or the runtime-char sprite-load opcodes. Handler_04 calls NONE of the
@@ -62,7 +62,7 @@ static void ev4_install_safe_env(void)
         g_ev4_dlg[i] = (int16)(0x11 * 2);   /* byte offset of the END opcode */
     }
     g_ev4_dlg[0x11] = -1;                    /* END */
-    current_chapter_text = (uint32)g_ev4_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ev4_dlg;
 
     /* no portrait open on entry, so the END path skips the close sequence. */
     data_fd2_dialog_active_portrait_blit_offset = 0;
@@ -197,7 +197,7 @@ static void test_ch2_event6_arms_reinforcement_enemies(void)
 
     /* the real portrait reload ran: field buffer freed+nulled, and FD2.TMP
      * was rewritten to its full 0x32A00-byte size. */
-    ASSERT_EQ(chapter_portrait_load_buffer, 0);
+    ASSERT_EQ(data_fd2_chapter_portrait_load_buffer, 0);
     ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
 
     /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
@@ -243,7 +243,7 @@ static void test_ch2_event6_arms_reinforcement_enemies(void)
  *
  * DEAD path: with the dead-check pinned to 1 the guard fails and NONE of the
  * body runs; the test proves it via a per-handler memory observable
- * (chapter_portrait_load_buffer): the env seeds it NULL and the real reload
+ * (data_fd2_chapter_portrait_load_buffer): the env seeds it NULL and the real reload
  * would assign it a fresh buffer (and ultimately null it after freeing), so a
  * still-NULL buffer afterward proves fd2_load_chapter_portraits_and_dump_tmp
  * never executed. This is independent of the shared FD2.TMP swap file (a
@@ -287,7 +287,7 @@ static void test_ch3_event9_char6_alive_reloads_and_shows_dialog(void)
 
     /* and the real portrait reload ran: field buffer freed+nulled, and FD2.TMP
      * was rewritten to its full 0x32A00-byte size. */
-    ASSERT_EQ(chapter_portrait_load_buffer, 0);
+    ASSERT_EQ(data_fd2_chapter_portrait_load_buffer, 0);
     ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
 
     /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
@@ -335,7 +335,7 @@ static void test_ch3_event9_char6_dead_skips_beat(void)
  *
  * In the binary the handler prepares its own 8 PUSHes (page=2 plus the
  * fixed dialog geometry) and JMPs into handler_09's shared tail at 0x3452F
- * (PUSH current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24;
+ * (PUSH data_fd2_current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24;
  * RET); the emit reproduces that tail inline. It has NO state of its own
  * and NO branch, so its entire testable risk core is that the real portrait
  * reload happens and the whole beat runs to completion without faulting.
@@ -376,7 +376,7 @@ static void test_ch4_event0b_reloads_portraits_and_shows_dialog(void)
 
     /* the real portrait reload ran: field buffer freed+nulled, and FD2.TMP
      * was rewritten to its full 0x32A00-byte size. */
-    ASSERT_EQ(chapter_portrait_load_buffer, 0);
+    ASSERT_EQ(data_fd2_chapter_portrait_load_buffer, 0);
     ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
 
     /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
@@ -412,7 +412,7 @@ static void test_ch4_event0b_reloads_portraits_and_shows_dialog(void)
  * at a private 0x20-byte buffer so both the read and the write stay in-bounds.
  *
  * The dialog call (fd2_display_dialog_scene, page 3) runs FOR REAL against the
- * immediate-END dialog program (current_chapter_text[3] -> a single -1 END
+ * immediate-END dialog program (data_fd2_current_chapter_text[3] -> a single -1 END
  * opcode): with no portrait open the VM reads END and returns at once, so it
  * performs zero glyph blits and never touches the compositor, palette, BIOS
  * tick, or the runtime-char sprite-load opcodes. Handler_0c calls NONE of the
@@ -455,7 +455,7 @@ static void ev0c_install_safe_env(void)
         g_ev0c_dlg[i] = (int16)(0x11 * 2);   /* byte offset of the END opcode */
     }
     g_ev0c_dlg[0x11] = -1;                    /* END */
-    current_chapter_text = (uint32)g_ev0c_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ev0c_dlg;
 
     /* no portrait open on entry, so the END path skips the close sequence. */
     data_fd2_dialog_active_portrait_blit_offset = 0;
@@ -554,7 +554,7 @@ static void test_ch_event0c_already_consumed_skips_beat(void)
  *
  * In the binary the handler prepares its own 8 PUSHes (page=3 plus the fixed
  * dialog geometry) and JMPs into handler_09's shared tail at 0x3452F (PUSH
- * current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24; RET); the
+ * data_fd2_current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24; RET); the
  * emit reproduces that tail inline.
  *
  * The two AI-flag disarms are its distinguishing, deterministic state contract
@@ -567,7 +567,7 @@ static void test_ch_event0c_already_consumed_skips_beat(void)
  * below/above the second) is left untouched.
  *
  * The dialog call (fd2_display_dialog_scene, page 3) runs FOR REAL against the
- * immediate-END dialog program (current_chapter_text[3] -> a single -1 END
+ * immediate-END dialog program (data_fd2_current_chapter_text[3] -> a single -1 END
  * opcode): with no portrait open the VM reads END and returns at once, so it
  * performs zero glyph blits and never touches the compositor, palette, BIOS
  * tick, or the runtime-char sprite-load opcodes. Handler_0e calls NONE of the
@@ -599,7 +599,7 @@ static void ev0e_install_safe_env(void)
         g_ev0e_dlg[i] = (int16)(0x11 * 2);   /* byte offset of the END opcode */
     }
     g_ev0e_dlg[0x11] = -1;                    /* END */
-    current_chapter_text = (uint32)g_ev0e_dlg;
+    data_fd2_current_chapter_text = (uint32)g_ev0e_dlg;
 
     /* no portrait open on entry, so the END path skips the close sequence. */
     data_fd2_dialog_active_portrait_blit_offset = 0;
@@ -676,7 +676,7 @@ static void test_ch5_event0e_disarms_two_ranges_and_shows_dialog(void)
  *   display_dialog_scene(page 4, ...);
  *
  * In the binary the trailing dialog call is reached by a JMP into handler_09's
- * shared tail at 0x34516 (PUSH page=4..PUSH current_chapter_text; CALL
+ * shared tail at 0x34516 (PUSH page=4..PUSH data_fd2_current_chapter_text; CALL
  * fd2_display_dialog_scene; ADD ESP,0x24; RET); the emit reproduces that tail
  * inline.
  *
@@ -804,7 +804,7 @@ static void test_ch5_event0f_reloads_and_disarms_two_ranges(void)
 
     /* the real portrait reload ran: field buffer freed+nulled, and FD2.TMP
      * was rewritten to its full 0x32A00-byte size. */
-    ASSERT_EQ(chapter_portrait_load_buffer, 0);
+    ASSERT_EQ(data_fd2_chapter_portrait_load_buffer, 0);
     ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
 
     /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
@@ -825,7 +825,7 @@ static void test_ch5_event0f_reloads_and_disarms_two_ranges(void)
  *
  * In the binary the handler prepares its own 8 PUSHes (page=5 plus the fixed
  * dialog geometry) and JMPs into handler_09's shared tail at 0x3452F (PUSH
- * current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24; RET); the
+ * data_fd2_current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24; RET); the
  * emit reproduces that tail inline. It has NO state of its own and NO branch,
  * so its entire testable risk core is that the real portrait reload happens
  * and the whole beat runs to completion without faulting.
@@ -866,7 +866,7 @@ static void test_ch5_event10_reloads_portraits_and_shows_dialog(void)
 
     /* the real portrait reload ran: field buffer freed+nulled, and FD2.TMP
      * was rewritten to its full 0x32A00-byte size. */
-    ASSERT_EQ(chapter_portrait_load_buffer, 0);
+    ASSERT_EQ(data_fd2_chapter_portrait_load_buffer, 0);
     ASSERT_EQ(ev_fd2_tmp_size(), 0x32A00);
 
     /* leave the FD2.TMP swap file out of the shared cwd for later suites. */
@@ -887,7 +887,7 @@ static void test_ch5_event10_reloads_portraits_and_shows_dialog(void)
  *   display_dialog_scene(page 7, ...);
  *
  * In the binary the trailing page-7 dialog call is reached by a JMP into the
- * shared tail of handler_04 at 0x343FA (PUSH page=7..PUSH current_chapter_text;
+ * shared tail of handler_04 at 0x343FA (PUSH page=7..PUSH data_fd2_current_chapter_text;
  * CALL fd2_display_dialog_scene; ADD ESP,0x24; RET); the emit reproduces that
  * tail inline.
  *
@@ -902,7 +902,7 @@ static void test_ch5_event10_reloads_portraits_and_shows_dialog(void)
  *
  * The rest of the beat runs FOR REAL against the same proven ch25-style env
  * handler_06/0f use. Both fd2_display_dialog_scene calls (pages 6 and 7) run
- * against the immediate-END dialog program (current_chapter_text[6]/[7] -> a
+ * against the immediate-END dialog program (data_fd2_current_chapter_text[6]/[7] -> a
  * single -1 END opcode): with no portrait open the VM reads END and returns at
  * once, so each performs zero glyph blits and never touches the compositor,
  * palette, BIOS tick, or the runtime-char sprite-load opcodes. The single

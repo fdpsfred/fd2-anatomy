@@ -197,7 +197,7 @@ static void install_anim_tile_map(int renderable)
     data_fd2_battle_tile_map_ptr = (uint32)g_anim_tile_map;
     data_fd2_battle_map_width_tiles = ANIM_MAP_W;
     data_fd2_tile_attribute_flags_buffer_ptr = (uint32)g_anim_attr_buf;
-    battle_scene_snapshot = (uint32)g_anim_scene_snapshot;
+    data_fd2_battle_scene_snapshot = (uint32)g_anim_scene_snapshot;
     data_fd2_graphics_bg_anim_flip_flag = 0;
 }
 
@@ -448,7 +448,7 @@ static void install_paint_atlas(void)
         bp_probe1(g_paint_atlas + PAINT_SPRITE_BASE + (uint32)i * PAINT_SPRITE_SPAN,
                   (uint8)(i + 1));
     }
-    portrait_sprite_cache = (uint32)g_paint_atlas;
+    data_fd2_portrait_sprite_cache = (uint32)g_paint_atlas;
 }
 
 /* probe value the portrait-cache slot `frame_idx` paints (1-based) */
@@ -501,7 +501,7 @@ static void plant_dim_sprite(uint32 frame_idx, uint8 src_b)
     for (i = 1; i < 24; i++) {
         sprite[2 + i] = DIM_SKIP(24);   /* rows 1..23 transparent */
     }
-    portrait_sprite_cache = (uint32)g_dim_cache;
+    data_fd2_portrait_sprite_cache = (uint32)g_dim_cache;
     memset(g_dim_lgs, 0, sizeof(g_dim_lgs));
     data_fd2_large_game_state_buffer_ptr = (uint32)g_dim_lgs;
 }
@@ -780,7 +780,7 @@ static void test_paint_jitter_bit_toggles_on_tick_change(void)
  * fd2_paint_char_sprite_at_world_with_mode — mode-aware per-char paint
  * onto a caller-supplied surface.
  *
- * Reuses g_paint_atlas (portrait_sprite_cache, table[i]==i) so the
+ * Reuses g_paint_atlas (data_fd2_portrait_sprite_cache, table[i]==i) so the
  * recorded src recovers sprite_idx. dst_buf is the test-chosen base
  * (a large constant so the negative -stride*6 term never underflows
  * a check), and the recorded dst is matched against the closed-form
@@ -1371,7 +1371,7 @@ static void test_threat_empty_party(void)
  * table (table[i]==i) makes fx_sprite_addr == sheet + fx_sprite_idx, so
  * the recorded g_blitdec_sprite reveals which fx index was loaded.
  *
- * Portrait source: portrait_sprite_cache is install_paint_atlas()'s probe atlas,
+ * Portrait source: data_fd2_portrait_sprite_cache is install_paint_atlas()'s probe atlas,
  * so the painted portrait byte == paint_frame_value(frame_idx), where
  * frame_idx = cache_idx*0xC + (ambient_palette==3 ? 2 : ambient_palette).
  * ---------------------------------------------------------------- */
@@ -1405,7 +1405,7 @@ static void reset_spell_overlay(void)
     memset(g_paint_buf, 0, sizeof(g_paint_buf));
     data_fd2_large_game_state_buffer_ptr = SPELL_BUF;   /* unused by this fn */
     data_fd2_graphics_chapter_ambient_palette_anim_idx = 0;
-    install_paint_atlas();      /* portrait_sprite_cache probe atlas */
+    install_paint_atlas();      /* data_fd2_portrait_sprite_cache probe atlas */
     install_spell_sheet();      /* effect-sprite sheet identity table */
     g_blitdec_calls = 0;
     g_tile_map_calls = 0;

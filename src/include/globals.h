@@ -180,10 +180,10 @@ extern uint32 data_fd2_battle_ai_best_physical_score;                   /* 0x53C
 /* ---- battle tile map ---- */
 extern uint32 data_fd2_battle_tile_map_ptr;                             /* 0x53A51 */
 extern uint32 data_fd2_tile_event_data_table_ptr;                       /* 0x53A55 */
-extern uint32 chapter_portrait_load_buffer;                             /* 0x53A59 */
-extern uint32 battle_scene_snapshot;                                    /* 0x53A5D */
+extern uint32 data_fd2_chapter_portrait_load_buffer;                             /* 0x53A59 */
+extern uint32 data_fd2_battle_scene_snapshot;                                    /* 0x53A5D */
 extern uint32 data_fd2_tile_attribute_flags_buffer_ptr;                 /* 0x53A69 */
-extern uint32 current_chapter_text;                                     /* 0x53A79 */
+extern uint32 data_fd2_current_chapter_text;                                     /* 0x53A79 */
 
 /* ---- cursor & map viewport ---- */
 extern uint32 data_fd2_battle_view_window_origin_x;                     /* 0x53AA9 */
@@ -377,7 +377,7 @@ extern uint32 data_fd2_resource_portrait_sheet_ptr;                     /* 0x53A
 extern uint32 data_fd2_resource_portrait_cache_count;                   /* 0x53BDF */
 extern uint32 data_fd2_resource_portrait_cache_alloc_offset;            /* 0x53BE3 */
 extern uint32 data_fd2_resource_portrait_cache_total_size;              /* 0x53BE7 */
-extern uint32 portrait_sprite_cache;                                    /* 0x53A61 */
+extern uint32 data_fd2_portrait_sprite_cache;                                    /* 0x53A61 */
 extern uint8  data_fd2_resource_portrait_cache_id_list_base[40];        /* 0x53B17 */
 extern uint32 data_fd2_resource_last_loaded_resource_size;              /* 0x53BFF */
 extern uint32 data_fd2_field_map_tile_event_consumed_flags_ptr;         /* 0x53AD5 */

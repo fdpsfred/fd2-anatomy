@@ -332,10 +332,10 @@ void fd2_load_save_and_init_engine(void)
             (uint32)data_fd2_string_resource_filename_fdother_dat,
             data_fd2_vga_palette_data_ptr, 0);
     data_fd2_chapter_current_chapter_id = (uint32)pBuf[0x30C5];
-    chapter_portrait_load_buffer =
+    data_fd2_chapter_portrait_load_buffer =
         fd2_load_dat_resource(
             (uint32)data_fd2_string_resource_filename_fdfield_dat_51a59,
-            chapter_portrait_load_buffer,
+            data_fd2_chapter_portrait_load_buffer,
             data_fd2_chapter_current_chapter_id * 3 + 2);
 
     if (data_fd2_tile_event_data_table_ptr != 0)
@@ -352,10 +352,10 @@ void fd2_load_save_and_init_engine(void)
 
     memmove((void *)data_fd2_tile_event_data_table_ptr, pBuf, 0x8A3);
     fd2_load_chapter_background_layers();
-    current_chapter_text =
+    data_fd2_current_chapter_text =
         fd2_load_dat_resource(
             (uint32)data_fd2_string_resource_filename_fdtxt_dat,
-            current_chapter_text,
+            data_fd2_current_chapter_text,
             data_fd2_chapter_current_chapter_id + 1);
     data_fd2_battle_tile_map_ptr =
         fd2_load_dat_resource(
@@ -367,10 +367,10 @@ void fd2_load_save_and_init_engine(void)
     data_fd2_battle_map_height_tiles =
         (int)*(int16 *)(data_fd2_battle_tile_map_ptr + 2);
     scene_id = *(uint8 *)data_fd2_tile_event_data_table_ptr;
-    battle_scene_snapshot =
+    data_fd2_battle_scene_snapshot =
         fd2_load_dat_resource(
             (uint32)data_fd2_string_resource_filename_fdshap_dat_51a65,
-            battle_scene_snapshot, (uint32)scene_id * 2);
+            data_fd2_battle_scene_snapshot, (uint32)scene_id * 2);
     data_fd2_tile_attribute_flags_buffer_ptr =
         fd2_load_dat_resource(
             (uint32)data_fd2_string_resource_filename_fdshap_dat_51a65,
@@ -399,8 +399,8 @@ void fd2_load_save_and_init_engine(void)
             data_fd2_battle_party_member_count * 0x50);
     memmove((void *)data_fd2_field_map_tile_event_consumed_flags_ptr,
             pBuf + 0x30A3, 0x20);
-    if (portrait_sprite_cache != 0)
-        free((void *)portrait_sprite_cache);
+    if (data_fd2_portrait_sprite_cache != 0)
+        free((void *)data_fd2_portrait_sprite_cache);
 
     fp = fopen("FDICON.B24", "rb");
     data_fd2_resource_portrait_cache_count = 0;
@@ -415,7 +415,7 @@ void fd2_load_save_and_init_engine(void)
     fclose(fp);
 
     fp = fopen("FD2.TMP", "wb");
-    fwrite((void *)portrait_sprite_cache, 1, 0x32A00, fp);
+    fwrite((void *)data_fd2_portrait_sprite_cache, 1, 0x32A00, fp);
     fclose(fp);
 
     data_fd2_battle_turn_counter = (uint32)pBuf[0x30C3];
@@ -433,8 +433,8 @@ void fd2_load_save_and_init_engine(void)
     data_fd2_audio_sfx_enabled_flag = pBuf[0x30D4];
 
     free(pBuf);
-    free((void *)chapter_portrait_load_buffer);
-    chapter_portrait_load_buffer = 0;
+    free((void *)data_fd2_chapter_portrait_load_buffer);
+    data_fd2_chapter_portrait_load_buffer = 0;
 
     fd2_set_bgm_track_with_fade(
         (uint32)data_fd2_audio_per_chapter_player_turn_bgm_track

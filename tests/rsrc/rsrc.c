@@ -132,9 +132,9 @@ static FILE *g_lpc_fp;
 
 static void lpc_setup(void)
 {
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
@@ -147,9 +147,9 @@ static void lpc_teardown(void)
         fclose(g_lpc_fp);
         g_lpc_fp = NULL;
     }
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
@@ -173,10 +173,10 @@ static void test_lpc_first_init(void)
     ASSERT_EQ((long)idx, 0);
     ASSERT_EQ((long)data_fd2_resource_portrait_cache_count, 1);
     ASSERT_EQ((long)*(uint32 *)data_fd2_resource_portrait_cache_id_list_base, 2);
-    ASSERT_TRUE(portrait_sprite_cache != 0);
+    ASSERT_TRUE(data_fd2_portrait_sprite_cache != 0);
     ASSERT_EQ((long)data_fd2_resource_portrait_cache_buffer_used,
               (long)(data_size + 0x780));
-    tbl = (int32 *)portrait_sprite_cache;
+    tbl = (int32 *)data_fd2_portrait_sprite_cache;
     for (i = 0; i < 12; i++) {
         ASSERT_EQ((long)tbl[i], (long)((off[i] - off[0]) + 0x780));
     }
@@ -234,7 +234,7 @@ static void test_lpc_append_miss(void)
     ASSERT_EQ((long)data_fd2_resource_portrait_cache_buffer_used,
               (long)(used_after_first + (uint32)(off5[12] - off5[0])));
     /* slot 1 frame table at ((int*)cache)[12..23] = used_after_first + delta */
-    tbl = (int32 *)portrait_sprite_cache;
+    tbl = (int32 *)data_fd2_portrait_sprite_cache;
     for (i = 0; i < 12; i++) {
         ASSERT_EQ((long)tbl[12 + i],
                   (long)(used_after_first + (uint32)(off5[i] - off5[0])));
@@ -530,12 +530,12 @@ static void setup_cb_fixture(int chapter, int menu_party_count,
 
     /* freed-if-nonzero then re-malloc'd / reloaded; NULL so no stale free */
     data_fd2_battle_runtime_char_array_ptr = NULL;
-    portrait_sprite_cache = 0;
-    current_chapter_text = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_portrait_sprite_cache = 0;
+    data_fd2_current_chapter_text = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_battle_tile_map_ptr = 0;
-    battle_scene_snapshot = 0;
+    data_fd2_battle_scene_snapshot = 0;
     data_fd2_tile_attribute_flags_buffer_ptr = 0;
     data_fd2_graphics_static_bg_buffer_ptr = 0;
     data_fd2_graphics_animated_bg_buffer_ptr = 0;
@@ -545,26 +545,26 @@ static void teardown_cb_fixture(void)
 {
     if (data_fd2_battle_runtime_char_array_ptr != NULL)
         free(data_fd2_battle_runtime_char_array_ptr);
-    if (portrait_sprite_cache != 0)
-        free((void *)portrait_sprite_cache);
+    if (data_fd2_portrait_sprite_cache != 0)
+        free((void *)data_fd2_portrait_sprite_cache);
     /* loader-returned buffers the function leaves live (it does NOT free
-     * these): current_chapter_text, tile_event, tile_map, scene snapshot,
+     * these): data_fd2_current_chapter_text, tile_event, tile_map, scene snapshot,
      * tile-attr flags, and the background buffers. */
-    if (current_chapter_text != 0)
-        free((void *)current_chapter_text);
+    if (data_fd2_current_chapter_text != 0)
+        free((void *)data_fd2_current_chapter_text);
     if (data_fd2_tile_event_data_table_ptr != 0)
         free((void *)data_fd2_tile_event_data_table_ptr);
     if (data_fd2_battle_tile_map_ptr != 0)
         free((void *)data_fd2_battle_tile_map_ptr);
-    if (battle_scene_snapshot != 0)
-        free((void *)battle_scene_snapshot);
+    if (data_fd2_battle_scene_snapshot != 0)
+        free((void *)data_fd2_battle_scene_snapshot);
     if (data_fd2_tile_attribute_flags_buffer_ptr != 0)
         free((void *)data_fd2_tile_attribute_flags_buffer_ptr);
     if (data_fd2_graphics_static_bg_buffer_ptr != 0)
         free((void *)data_fd2_graphics_static_bg_buffer_ptr);
     if (data_fd2_graphics_animated_bg_buffer_ptr != 0)
         free((void *)data_fd2_graphics_animated_bg_buffer_ptr);
-    /* chapter_portrait_load_buffer was freed+nulled by the function */
+    /* data_fd2_chapter_portrait_load_buffer was freed+nulled by the function */
 
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     data_fd2_battle_party_member_count = 4;
@@ -572,13 +572,13 @@ static void teardown_cb_fixture(void)
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_battle_tile_map_ptr = 0;
-    chapter_portrait_load_buffer = 0;
-    battle_scene_snapshot = 0;
-    current_chapter_text = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
+    data_fd2_battle_scene_snapshot = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_tile_attribute_flags_buffer_ptr = 0;
     data_fd2_graphics_static_bg_buffer_ptr = 0;
     data_fd2_graphics_animated_bg_buffer_ptr = 0;
-    portrait_sprite_cache = 0;
+    data_fd2_portrait_sprite_cache = 0;
     data_fd2_battle_map_width_tiles = 20;
     data_fd2_battle_map_height_tiles = 15;
     data_fd2_chapter_current_chapter_id = 1;
@@ -624,7 +624,7 @@ static void test_cb_all_active(void)
     ASSERT_EQ((long)arr[2].pos_y, (long)py);
     ASSERT_EQ((long)arr[2].team, 2);
 
-    ASSERT_EQ((long)chapter_portrait_load_buffer, 0);
+    ASSERT_EQ((long)data_fd2_chapter_portrait_load_buffer, 0);
     teardown_cb_fixture();
 }
 
@@ -731,7 +731,7 @@ static void setup_pt_fixture(int count, const uint8 *race_of)
     g_pt_tilemap[2] = 2;   /* map height (header byte 2) */
     data_fd2_battle_tile_map_ptr = (uint32)g_pt_tilemap;
 
-    chapter_portrait_load_buffer = 0;          /* loaded fresh by the function */
+    data_fd2_chapter_portrait_load_buffer = 0;          /* loaded fresh by the function */
     data_fd2_chapter_init_phase_flag = 1;       /* spawn = field value verbatim */
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
@@ -741,9 +741,9 @@ static void setup_pt_fixture(int count, const uint8 *race_of)
     /* the real fd2_load_portrait_to_cache (reached via the real
      * fd2_init_runtime_char_for_battle for matching races) parses the staged
      * real FDICON.B24; reset the cache so it first-inits cleanly. */
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
@@ -753,14 +753,14 @@ static void teardown_pt_fixture(void)
 {
     free(g_pt_tileevent);
     g_pt_tileevent = 0;
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_battle_tile_map_ptr = 0;   /* g_pt_tilemap is static; just unlink */
     data_fd2_resource_portrait_cache_alloc_offset = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_chapter_init_phase_flag = 0;
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     data_fd2_battle_party_member_count = 4;
@@ -792,7 +792,7 @@ static void test_pt_single_match(void)
     fd2_load_chapter_portraits_and_dump_tmp(0x07);
 
     ASSERT_EQ((long)data_fd2_battle_party_member_count, 1);
-    ASSERT_EQ((long)chapter_portrait_load_buffer, 0);
+    ASSERT_EQ((long)data_fd2_chapter_portrait_load_buffer, 0);
     ASSERT_EQ(fd2_tmp_size(), 0x32A00);
 
     teardown_pt_fixture();
@@ -807,7 +807,7 @@ static void test_pt_no_match(void)
     fd2_load_chapter_portraits_and_dump_tmp(0x7F);
 
     ASSERT_EQ((long)data_fd2_battle_party_member_count, 0);
-    ASSERT_EQ((long)chapter_portrait_load_buffer, 0);
+    ASSERT_EQ((long)data_fd2_chapter_portrait_load_buffer, 0);
     ASSERT_EQ(fd2_tmp_size(), 0x32A00);
 
     teardown_pt_fixture();
@@ -1042,10 +1042,10 @@ static void test_cinematic_keeps_palette_when_idx_neg1(void)
  * fd2_restore_portrait_cache_from_tmp @ 0x29117
  *
  * Reads the full 0x32A00-byte portrait sprite cache back from FD2.TMP into a
- * freshly malloc'd portrait_sprite_cache. This is the symmetric read of the
+ * freshly malloc'd data_fd2_portrait_sprite_cache. This is the symmetric read of the
  * swap file written by fd2_load_chapter_portraits_and_dump_tmp's fwrite tail.
  *
- * Genuine round-trip (no fabricated file): seed portrait_sprite_cache with
+ * Genuine round-trip (no fabricated file): seed data_fd2_portrait_sprite_cache with
  * real FDICON.B24-loaded portrait bytes, dump it to FD2.TMP with the REAL
  * writer (alloc_offset 0 so the writer's per-record loop is skipped and it
  * fwrites the cache verbatim), snapshot those genuine on-disk bytes, then drive
@@ -1053,7 +1053,7 @@ static void test_cinematic_keeps_palette_when_idx_neg1(void)
  * identical content. Also asserts the on-disk FD2.TMP is exactly 0x32A00.
  * ================================================================ */
 
-/* Fill the first `n` bytes of portrait_sprite_cache with genuine sprite bytes
+/* Fill the first `n` bytes of data_fd2_portrait_sprite_cache with genuine sprite bytes
  * by loading real portraits from the staged FDICON.B24 until the cache's used
  * span covers `n`; the rest of the 0x32A00 buffer keeps its malloc contents
  * (also written out verbatim by the dump, so the round-trip stays exact). */
@@ -1062,9 +1062,9 @@ static void rt_seed_cache_from_fdicon(void)
     FILE *fp;
     int   pid;
 
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
@@ -1090,26 +1090,26 @@ static void test_restore_roundtrip_from_tmp(void)
     FILE  *vf;
     long   fsize;
 
-    /* --- seed portrait_sprite_cache with genuine FDICON sprite content --- */
+    /* --- seed data_fd2_portrait_sprite_cache with genuine FDICON sprite content --- */
     rt_seed_cache_from_fdicon();
-    ASSERT_TRUE(portrait_sprite_cache != 0);
+    ASSERT_TRUE(data_fd2_portrait_sprite_cache != 0);
 
     /* snapshot the genuine cache image we are about to write out */
     ref = (uint8 *)malloc(0x32a00);
-    memcpy(ref, (void *)portrait_sprite_cache, 0x32a00);
+    memcpy(ref, (void *)data_fd2_portrait_sprite_cache, 0x32a00);
 
     /* --- write FD2.TMP with the REAL writer, loop skipped (alloc_offset 0) --- */
     saved_alloc   = data_fd2_resource_portrait_cache_alloc_offset;
     saved_chapter = data_fd2_chapter_current_chapter_id;
     saved_tileptr = data_fd2_tile_event_data_table_ptr;
-    saved_loadbuf = chapter_portrait_load_buffer;
+    saved_loadbuf = data_fd2_chapter_portrait_load_buffer;
     saved_rc      = data_fd2_battle_runtime_char_array_ptr;
 
     prev_tileevent_dummy = 0;
     data_fd2_tile_event_data_table_ptr = (uint32)&prev_tileevent_dummy;
     data_fd2_resource_portrait_cache_alloc_offset = 0; /* no per-record inits */
     data_fd2_chapter_current_chapter_id = 4;           /* re-read FDFIELD[0xE] */
-    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
 
     fd2_load_chapter_portraits_and_dump_tmp(0xFF);     /* no race matches -> dump */
@@ -1122,21 +1122,21 @@ static void test_restore_roundtrip_from_tmp(void)
     fclose(vf);
     ASSERT_EQ(fsize, 0x32a00);
 
-    /* the writer freed+nulled chapter_portrait_load_buffer; drop the cache so
+    /* the writer freed+nulled data_fd2_chapter_portrait_load_buffer; drop the cache so
      * the reader must re-malloc a fresh buffer */
-    free((void *)portrait_sprite_cache);
-    portrait_sprite_cache = 0;
+    free((void *)data_fd2_portrait_sprite_cache);
+    data_fd2_portrait_sprite_cache = 0;
 
     /* --- drive the reader under test --- */
     fd2_restore_portrait_cache_from_tmp();
 
     /* fresh non-NULL buffer holding the exact genuine bytes written out */
-    ASSERT_TRUE(portrait_sprite_cache != 0);
-    ASSERT_EQ((long)memcmp((void *)portrait_sprite_cache, ref, 0x32a00), 0);
+    ASSERT_TRUE(data_fd2_portrait_sprite_cache != 0);
+    ASSERT_EQ((long)memcmp((void *)data_fd2_portrait_sprite_cache, ref, 0x32a00), 0);
 
     /* cleanup */
-    free((void *)portrait_sprite_cache);
-    portrait_sprite_cache = 0;
+    free((void *)data_fd2_portrait_sprite_cache);
+    data_fd2_portrait_sprite_cache = 0;
     free(ref);
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
@@ -1145,7 +1145,7 @@ static void test_restore_roundtrip_from_tmp(void)
     data_fd2_resource_portrait_cache_alloc_offset = saved_alloc;
     data_fd2_chapter_current_chapter_id = saved_chapter;
     data_fd2_tile_event_data_table_ptr = saved_tileptr;
-    chapter_portrait_load_buffer = saved_loadbuf;
+    data_fd2_chapter_portrait_load_buffer = saved_loadbuf;
     data_fd2_battle_runtime_char_array_ptr = saved_rc;
 }
 

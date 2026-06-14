@@ -253,7 +253,7 @@ static void setup_atm(void)
     data_fd2_battle_tile_map_ptr = (uint32)g_atm_map;
     data_fd2_battle_map_width_tiles = ATM_W;
     data_fd2_tile_attribute_flags_buffer_ptr = (uint32)g_atm_attr;
-    battle_scene_snapshot = (uint32)g_atm_scene;
+    data_fd2_battle_scene_snapshot = (uint32)g_atm_scene;
     data_fd2_tile_anim_table_base = (uint32)g_atm_anim_tbl;
     data_fd2_graphics_bg_anim_flip_flag = 0;
     data_fd2_battle_tile_map_anim_frame_counter = 0;

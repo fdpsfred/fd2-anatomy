@@ -84,8 +84,8 @@ static void intro_setup(uint8 category, uint32 cursor_state)
     memset(data_fd2_chapter_intro_portrait_pose_x_column_table, 0, 18);
 
     data_fd2_large_game_state_buffer_ptr = (uint32)g_lgsb_buf;
-    battle_scene_snapshot                = (uint32)g_snapshot_buf;
-    portrait_sprite_cache                = (uint32)g_portrait_cache;
+    data_fd2_battle_scene_snapshot                = (uint32)g_snapshot_buf;
+    data_fd2_portrait_sprite_cache                = (uint32)g_portrait_cache;
     data_fd2_chapter_intro_menu_overlay_buf_ptr = 0x12345678;
 
     data_fd2_chapter_current_chapter_id  = (uint32)chapter_id;
@@ -314,7 +314,7 @@ static void panels_setup(void)
     }
     data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = (uint32)g_panel_atlas;
     data_fd2_ui_menu_candidate_array_ptr = g_candidate_arr;
-    portrait_sprite_cache = (uint32)g_portrait_cache;
+    data_fd2_portrait_sprite_cache = (uint32)g_portrait_cache;
     memset(g_portrait_cache, 0, sizeof(g_portrait_cache));
     vga_clear();   /* mode-2 icons / mode-3 roster bg-fill into the VGA primary */
 
@@ -1144,7 +1144,7 @@ static void roster_setup(uint32 member_count, uint32 scroll, uint32 subframe)
     memset(g_roster_surface, 0, sizeof(g_roster_surface));
 
     data_fd2_battle_runtime_char_array_ptr = g_roster_chars;
-    portrait_sprite_cache = (uint32)g_portrait_cache;
+    data_fd2_portrait_sprite_cache = (uint32)g_portrait_cache;
     data_fd2_shared_menu_party_member_count = member_count;
     data_fd2_ui_menu_scroll_offset = scroll;
     data_fd2_chapter_intro_dialog_subframe_anim_counter = subframe;
@@ -1446,7 +1446,7 @@ static void pv_setup(uint32 scroll, uint32 subframe)
     *(int32 *)(g_pv_atlas + 0x5e) = PV_ATLAS_PREV;
 
     data_fd2_battle_runtime_char_array_ptr = g_pv_chars;
-    portrait_sprite_cache = (uint32)g_portrait_cache;
+    data_fd2_portrait_sprite_cache = (uint32)g_portrait_cache;
     data_fd2_ui_anim_sprite_sheet_ptr = (uint32)g_pv_anim;
     data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = (uint32)g_pv_atlas;
     data_fd2_ui_menu_scroll_offset = scroll;
@@ -2200,7 +2200,7 @@ static void promo_setup(uint32 scroll, uint32 subframe)
     g_shop_anim_base = (uint32)anim;
     g_shop_menu_base = (uint32)menu;
     data_fd2_battle_runtime_char_array_ptr = g_roster_chars;
-    portrait_sprite_cache = (uint32)g_portrait_cache;
+    data_fd2_portrait_sprite_cache = (uint32)g_portrait_cache;
     /* coin icon is blit from the MENU atlas (param [0x54147]); the price digit
      * glyphs come from the anim sheet ([0x53A81]) inside
      * fd2_render_decimal_number_to_buffer. Both use table[i]=i so a resolved
@@ -2568,7 +2568,7 @@ static void cand_setup(uint32 scroll, uint32 subframe)
     }
 
     data_fd2_battle_runtime_char_array_ptr = g_roster_chars;
-    portrait_sprite_cache = (uint32)g_portrait_cache;
+    data_fd2_portrait_sprite_cache = (uint32)g_portrait_cache;
     data_fd2_ui_menu_scroll_offset = scroll;
     data_fd2_chapter_intro_dialog_subframe_anim_counter = subframe;
 
@@ -2933,7 +2933,7 @@ static uint32 recr_setup(uint32 anim_idx, uint32 member_count)
     recr_plant_highlight(0x70);
 
     data_fd2_ui_slide_composed_target_buf_ptr = (uint32)g_recr_surface;
-    portrait_sprite_cache                     = (uint32)g_recr_cache;
+    data_fd2_portrait_sprite_cache                     = (uint32)g_recr_cache;
     data_fd2_runtime_battle_state_ptr         = (uint32)g_recr_battlestate;
     data_fd2_shared_menu_party_member_count   = member_count;
     data_fd2_graphics_chapter_ambient_palette_anim_idx = anim_idx;

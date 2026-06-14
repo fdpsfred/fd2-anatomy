@@ -158,9 +158,9 @@ void fd2_render_chapter_intro_dialog_panels(uint32 corner_offs_ptr, uint32 mode)
             portrait_id = (uint32)data_fd2_ui_menu_candidate_array_ptr[
                 data_fd2_ui_menu_scroll_offset + icon_iter];
             fd2_tile_blit_24x24_with_dialog_bg_fill(
-                *(int32 *)(portrait_sprite_cache
+                *(int32 *)(data_fd2_portrait_sprite_cache
                            + portrait_id * 0x30 + anim_phase * 4)
-                    + portrait_sprite_cache,
+                    + data_fd2_portrait_sprite_cache,
                 (icon_iter * 0x1A + 0x75) * 0x140 + 0xA000E,
                 0x140);
         }
@@ -179,7 +179,7 @@ void fd2_render_chapter_intro_overlay(void)
     chapter_meta_byte = *chapter_meta;
 
     memmove((void *)data_fd2_large_game_state_buffer_ptr,
-            (void *)battle_scene_snapshot, 0x25680);
+            (void *)data_fd2_battle_scene_snapshot, 0x25680);
 
     fd2_dialog_sprite_blit_normal(data_fd2_large_game_state_buffer_ptr + 0x1a20c,
                                   data_fd2_chapter_intro_menu_overlay_buf_ptr,
@@ -199,7 +199,7 @@ void fd2_render_chapter_intro_overlay(void)
               + data_fd2_chapter_intro_menu_cursor_state;
 
     fd2_tile_blit_24x24_passthrough(
-        *(int32 *)(portrait_sprite_cache + frame_idx * 4) + portrait_sprite_cache,
+        *(int32 *)(data_fd2_portrait_sprite_cache + frame_idx * 4) + data_fd2_portrait_sprite_cache,
         data_fd2_large_game_state_buffer_ptr
             + (uint32)data_fd2_chapter_intro_portrait_pose_x_column_table[table_off] * 0x1c8
             + data_fd2_chapter_intro_portrait_pose_y_row_table[table_off] + 0x8088,
@@ -418,9 +418,9 @@ void fd2_render_party_roster_grid(uint32 highlight_idx, uint32 surface_offset)
         row_off = ((int32)iter / 2) * 0x1a;
 
         fd2_tile_blit_24x24_with_dialog_bg_fill(
-            *(int32 *)(portrait_sprite_cache
+            *(int32 *)(data_fd2_portrait_sprite_cache
                        + char_idx * 0x30 + blink_frame * 4)
-                + portrait_sprite_cache,
+                + data_fd2_portrait_sprite_cache,
             (row_off + 0x75) * 0x140 + surface_offset + 0xe + col_off,
             0x140);
 
@@ -531,9 +531,9 @@ void fd2_render_party_roster_with_item_stat_preview(uint32 candidate_count,
         cur_stat4 = (uint32)rt_chars[char_idx].stat4_current;
         row_y = iter * 0x1a + 0x75;
 
-        portrait_src = *(int32 *)(portrait_sprite_cache
+        portrait_src = *(int32 *)(data_fd2_portrait_sprite_cache
                                   + char_idx * 0x30 + blink_frame * 4)
-                     + portrait_sprite_cache;
+                     + data_fd2_portrait_sprite_cache;
         fd2_tile_blit_24x24_with_dialog_bg_fill(
             portrait_src, row_y * 0x140 + surface_offset + 0xe, 0x140);
 
@@ -769,9 +769,9 @@ void fd2_render_promote_members_grid(uint32 candidate_count,
         level  = rt_chars[char_idx].status_flags_block[0];
         row_off = iter * 0x1a;
 
-        portrait_src = *(int32 *)(portrait_sprite_cache
+        portrait_src = *(int32 *)(data_fd2_portrait_sprite_cache
                                   + char_idx * 0x30 + blink_frame * 4)
-                     + portrait_sprite_cache;
+                     + data_fd2_portrait_sprite_cache;
         fd2_tile_blit_24x24_with_dialog_bg_fill(
             portrait_src,
             (row_off + 0x75) * 0x140 + surface_offset + 0xe,
@@ -881,9 +881,9 @@ void fd2_render_promote_candidates_grid(uint32 candidate_count,
                                               + iter];
         row_off = iter * 0x1a;
 
-        portrait_src = *(int32 *)(portrait_sprite_cache
+        portrait_src = *(int32 *)(data_fd2_portrait_sprite_cache
                                   + char_idx * 0x30 + blink_frame * 4)
-                     + portrait_sprite_cache;
+                     + data_fd2_portrait_sprite_cache;
         fd2_tile_blit_24x24_with_dialog_bg_fill(
             portrait_src,
             (row_off + 0x75) * 0x140 + surface_offset + 0xe,
@@ -1005,8 +1005,8 @@ void fd2_render_recruitment_select_screen(uint32 panel_buf,
          iter++) {
         char_off = (iter % 10) * 0x1c + 0x17
                  + ((iter / 10) * 0x1e + 100) * 0x140;
-        rle_stream = portrait_sprite_cache
-                   + *(int32 *)(portrait_sprite_cache
+        rle_stream = data_fd2_portrait_sprite_cache
+                   + *(int32 *)(data_fd2_portrait_sprite_cache
                                 + (iter * 0xc + palette_idx + 0xc) * 4);
         if (*(char *)(sel_state + iter) == '\0') {
             fd2_tile_blit_24x24_dimmed_grayscale(

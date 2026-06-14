@@ -190,9 +190,9 @@ void fd2_composite_all_chars_overlay(void)
  *     plus the shake jitter byte when sleeping.
  *   - Palette: walk_phase==0 -> ambient palette idx, else alt palette
  *     idx; palette 3 falls back to 1; sleeping forces palette 0.
- *   - Sprite lookup through portrait_sprite_cache:
+ *   - Sprite lookup through data_fd2_portrait_sprite_cache:
  *       idx  = facing*3 + sprite_state[0]*0xC + palette_idx
- *       base = portrait_sprite_cache
+ *       base = data_fd2_portrait_sprite_cache
  *       sprite_ptr = base + *(int32 *)(base + idx*4)
  *   - blit_offset += 0x75D8 (char layer base in the workspace);
  *     if non-negative, blit the 24x24 tile into
@@ -269,7 +269,7 @@ void fd2_paint_char_sprite_at_world_pos(uint32 char_idx)
     }
 
     sprite_idx = facing * 3 + (uint32)pchar->sprite_state[0] * 0xc + palette_idx;
-    cache_base = portrait_sprite_cache;
+    cache_base = data_fd2_portrait_sprite_cache;
     sprite_ptr = cache_base + (uint32)*(int32 *)(cache_base + sprite_idx * 4);
 
     blit_offset += 0x75d8;
@@ -490,8 +490,8 @@ void fd2_composite_chars_with_spell_effect_overlay(uint32 dst_buf, uint32 n_targ
             } else {
                 frame_idx += (int32)data_fd2_graphics_chapter_ambient_palette_anim_idx;
             }
-            src_ptr = portrait_sprite_cache +
-                      (uint32)*(int32 *)(portrait_sprite_cache + (uint32)frame_idx * 4);
+            src_ptr = data_fd2_portrait_sprite_cache +
+                      (uint32)*(int32 *)(data_fd2_portrait_sprite_cache + (uint32)frame_idx * 4);
             fd2_tile_blit_24x24_passthrough(src_ptr, char_screen_addr, 0x1c8);
         }
     }
@@ -531,8 +531,8 @@ void fd2_composite_chars_with_spell_effect_overlay(uint32 dst_buf, uint32 n_targ
  *   walk_phase != 0 -> frame = chapter_walk_anim_alt_palette_idx
  *   frame == 3      -> frame = 1   (fold)
  *   sprite_idx = facing*3 + sprite_state[0]*0xC + frame
- *   rle_stream = portrait_sprite_cache
- *              + *(int32 *)(portrait_sprite_cache + sprite_idx*4)
+ *   rle_stream = data_fd2_portrait_sprite_cache
+ *              + *(int32 *)(data_fd2_portrait_sprite_cache + sprite_idx*4)
  *
  * Destination address (note: uses dst_stride, not the workspace pitch):
  *   dst = dst_buf - dst_stride*6
@@ -610,8 +610,8 @@ void fd2_paint_char_sprite_at_world_with_mode(uint32 dst_buf, uint32 dst_stride,
     }
 
     sprite_idx = facing * 3 + (uint32)pchar->sprite_state[0] * 0xc + frame;
-    rle_stream = portrait_sprite_cache +
-                 (uint32)*(int32 *)(portrait_sprite_cache + sprite_idx * 4);
+    rle_stream = data_fd2_portrait_sprite_cache +
+                 (uint32)*(int32 *)(data_fd2_portrait_sprite_cache + sprite_idx * 4);
 
     dst = dst_buf - dst_stride * 6 +
           (uint32)(pos_y - (int32)data_fd2_battle_view_window_origin_y) *

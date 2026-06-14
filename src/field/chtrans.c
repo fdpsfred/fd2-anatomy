@@ -304,16 +304,16 @@ int fd2_chapter_transition_menu(void)
         free((void *)data_fd2_tile_event_data_table_ptr);
     }
     data_fd2_tile_event_data_table_ptr = 0;
-    if (battle_scene_snapshot != 0) {
-        free((void *)battle_scene_snapshot);
+    if (data_fd2_battle_scene_snapshot != 0) {
+        free((void *)data_fd2_battle_scene_snapshot);
     }
-    battle_scene_snapshot = 0;
+    data_fd2_battle_scene_snapshot = 0;
     if (data_fd2_battle_tile_map_ptr != 0) {
         free((void *)data_fd2_battle_tile_map_ptr);
     }
     data_fd2_battle_tile_map_ptr = 0;
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
     }
 
     /* Phase 2: rebuild portrait cache from FDICON.B24 for menu-party members. */
@@ -331,7 +331,7 @@ int fd2_chapter_transition_menu(void)
     if (data_fd2_chapter_per_chapter_category_table[
             data_fd2_chapter_current_chapter_id] == 0) {
         /* ---- STORY CHAPTER: intro panel + radio menu ---- */
-        battle_scene_snapshot = (uint32)malloc(0x25680);
+        data_fd2_battle_scene_snapshot = (uint32)malloc(0x25680);
         metadata = fd2_get_chapter_intro_metadata_entry(
             (int)data_fd2_chapter_current_chapter_id);
         category = metadata[0];
@@ -343,7 +343,7 @@ int fd2_chapter_transition_menu(void)
         intro_rle = (void *)fd2_load_dat_resource(
             0x51a4d, 0, (uint32)intro_panel_idx_lut[category]);
         fd2_rle_blit_sprite((uint32)intro_rle, 0, 0,
-                            battle_scene_snapshot + 0x8088, 0x1c8, 0xffffffff);
+                            data_fd2_battle_scene_snapshot + 0x8088, 0x1c8, 0xffffffff);
         free(intro_rle);
 
         data_fd2_chapter_intro_menu_overlay_buf_ptr = 0;
