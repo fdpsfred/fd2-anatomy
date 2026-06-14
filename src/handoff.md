@@ -2,7 +2,7 @@
 
 目標：`src/` 自身 compile+link 出可正確執行的 `fd2.exe`；`src/`+`tests/` compile 出測試執行檔。
 **全 650 個遊戲 function 已 emit（reviewed 629 + 待補 21）、四分支 merge cascade 已落入 `integ`。
-當前進入「真實資料落地 + 測試重寫 + 收斂 fd2.exe」收斂計畫（data-first），Step 0 進行中。**
+當前進入「真實資料落地 + 測試重寫 + 收斂 fd2.exe」收斂計畫（data-first）。**Step 0 已完成，Phase 1（把真實資料填進 src/）的 worklist 已定案，下一步即開始 Phase 1。**
 完整計畫：`C:\Users\fdpsf\.claude\plans\plan-plan-soft-dongarra.md`（**新 session 先讀它 + 下面這段**）。
 
 **溝通方式（使用者要求）**：給使用者的所有文字（含對話回覆，不只文件）一律用淺白通順的繁體中文完整句子，
@@ -17,7 +17,7 @@
 `Step 0 神諭+盤點 → Phase 1 真資料落地 src/ → Phase 2 補完 21 fn → Phase 3 測試重寫到全綠 →
 Phase 4 收斂 fd2.exe + 實機對照`。
 
-**Step 0 — 進行中**（工具操作見 `tools/fd2_build/_index.md`、`tools/data_emit/_index.md`）
+**Step 0 — 完成**（工具操作見 `tools/fd2_build/_index.md`、`tools/data_emit/_index.md`）
 - ✅ **神諭** `tools/fd2_build/`：`mklnk.py` 產 `tests/fd2.lnk`（src-only FD2.EXE wlink）；
   `link_oracle.py` 在 DOSBox 跑 `wlink`；`analyze_undefined.py` 分類。**src-only link 的 undefined
   symbol = 「fd2.exe 還缺什麼在 src/」的權威 worklist**（以 linker 符號引用為準，比 name-grep 可靠）。
@@ -34,19 +34,32 @@ Phase 4 收斂 fd2.exe + 實機對照`。
   **⚠ g_ gate 陷阱**：`rename_data` / `rename_or_label` 對已定型 data（string/struct 型別）強制 `g_`、拒
   `data_fd2_`；**正解＝`run_script_inline` 跑 `symbol.setName("data_fd2_...", SourceType.USER_DEFINED)`
   （逐一、包 transaction），絕不退讓改用 Ghidra 爛名**（label 創建 / undefined-data rename 不受 gate 影響）。
-- **神諭結果**：421 undefined = 339 `data_fd2_`（Phase 1 worklist）+ 17 `fd2_` fn + 60 vendor
-  libc/math（Phase 4 CRT wiring，非 src 缺口）+ 1 dangling。**數值即時重跑神諭取得，勿從本檔抄。**
+- ✅ **Task #2 收尾完成**（commits `4a97fdd` `7ba6569` `28e8f2e` `b378dfa`）：
+  - **stub-only 函式**：`fd2_composite_battle_tile_map`（真 884B 函式，從基線就被誤標 done、所有 branch 都查無 body）
+    改 `done=false` 歸 Phase 2（await_emit 21→22）；`fd2_set_runtime_char_evade` / `fd2_wrapper_clear_keyboard_buffer`
+    是已被 parent inline 的 shared-epilogue fragment，只把 routing target 修成 `<fragment:inline-epilogue>`（不動 src）；
+    `fd2_delay_ticks`（battle.c）是 emitter 捏的假名，統一成全 codebase 用的 `__delay_thunk_375b2`，刪掉死掉的 stub/proto。
+  - **dangling ref**：`crt_equivalent_dos_main_bootstrap` 早已被 Unit C（`447c37c`）修掉，新鮮 oracle 確認 crt_/AIL_ undefined=0。
+  - **home-file 對映**：見下方定案 worklist。
 
-**Task #2 剩餘（Step 0 收尾，新 session 下一步做；皆一次一個，memory `feedback_strict_one_at_a_time`）**：
-1. **2 個 stub-only fn**：`fd2_composite_battle_tile_map` / `fd2_delay_ticks` 只活在 testglob stub、
-   未 emit 到 src/，對 fd2.exe 是真缺口。查在不在 routing 650 內、該 emit 或 link。
-2. **修 dangling ref**：`src/crt/crt.c` 引用已被 Unit C 移除的 `crt_equivalent_dos_main_bootstrap`。
-3. **home-file 對映**：給每個待遷 data 符號定所屬 src 檔 → 完整 Phase 1 worklist。
+**Step 0 定案的 Phase 1 worklist（全 563 個 Ghidra `data_fd2_` 符號帳目完全對齊）**：
+28 `real_in_src`（已完成）+ 347 `fake_in_testglob`（待遷）+ 187 `undefined` + 1 sublabel = 563。
+- **347 待遷**經「bytes 非 0 × 有無 writer」精確分類（emit 形式的鐵證）：`const` 141（`const T[]={真bytes}`）
+  + `init-data` 12（`T name={真bytes};`，可變）+ `zero-bss` 194（`T name;`，零初始化）。**需抽真 byte 並過
+  `verify_real` 的 = 153（const+init-data）；zero-init = 194。** 每符號的 home 檔 + emit_class + needs_bytes
+  在 `workspace/data_emit/home_map.tsv`（由 `tools/data_emit/home_map.py` 即時重生）。
+- **187 undefined 的分流**：106 個 `cutscene_event_script` 隨「正確 emit cutscene ptr table（用具名目標）」帶出；
+  58 個 `data_fd2_string_*` 在 emit 端已是 inline 字面值（非缺口）；約 23 個 graphics/battle state 隨 Phase 2 函式落地。
+- **fd2_ 函式缺口**：composite + 21 個 await_emit（blit/pathfind）= Phase 2；vendor 60 個 + `__delay_thunk_375b2`
+  （200+ caller，目前只有 testglob recorder stub）= Phase 4 CRT wiring。
+- 所有數值即時重跑 oracle / reconcile / home_map 取得（工具見 `tools/data_emit/_index.md`），勿從本檔抄。
 
-**Phase 1 起手**：data-emit workflow，逐表抽 Ghidra 真 byte → emit 一般 `const` C 進 src/
-（**不用 FAR_DATA/object3，Layer-2**，見 memory `feedback_layer2_no_byte_exact_overengineering`）→
-`verify_real` byte gate + `build_test` 0err/0warn → 刪 testglob 假版。四類分別處理（唯讀表 / fn-ptr 表 /
-data-ptr 表 / mutable state）。
+**Phase 1 起手**：依 `home_map.tsv` 的 `emit_class` 逐符號 emit 進它的 home 檔 —— `const` → `const T[]={真bytes}`、
+`init-data` → `T name={真bytes};`、`zero-bss` → `T name;`（**不用 FAR_DATA/object3，走 Layer-2**，見 memory
+`feedback_layer2_no_byte_exact_overengineering`）。function-pointer handler 表 emit 成函式名初始化列；data-ptr 表
+（含那 106 個 cutscene script）連具名目標一起 emit。每個 `needs_bytes=Y` 的符號都要抽 Ghidra 真 byte 並過
+`verify_real` gate，再跑 `build_test` 確認 0err/0warn，最後刪掉 testglob 的假版。用 workflow 多代理 fan-out
+（一個符號或一個檔一個 agent，各自 read_memory + 驗證 + emit；每 item 獨立，不 bulk derive）。
 
 **Phase 4 連結注意**：`fd2.lnk` 需顯式 `library clib3s`（`system dos4g` 在「遊戲只用 crt_* wrapper」
 時不自動 pull CLIB3S，但 AIL lib 引用真 libc）；AIL lib（`workspace/ail_extract/out/{ailv3,fd2common}.lib`）
