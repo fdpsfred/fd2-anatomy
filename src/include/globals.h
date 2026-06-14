@@ -160,7 +160,7 @@ extern const int32 data_fd2_battle_combat_hit_shake_y_offset_table[6];  /* 0x525
 /* ---- battle spell-effect constants ---- */
 extern double data_fd2_battle_spell_ap_boost_factor_015;                /* 0x50210  const 0.15 */
 extern double data_fd2_battle_spell_dp_boost_factor_015;                /* 0x50218  const 0.15 */
-extern uint32 data_fd2_battle_combat_speech_bubble_pos_pairs[4];        /* 0x53A30  attacker/counter bubble (x,y) pairs; [2]=-1 means no counter */
+extern int32  data_fd2_battle_combat_speech_bubble_pos_pairs[4];        /* 0x53A30  attacker/counter bubble (x,y) pairs; [2]=-1 means no counter */
 
 /* ---- battle AI scoring ---- */
 extern double data_fd2_battle_ai_enemy_spell_score_multiplier_15;       /* 0x50144  const 1.5 */
@@ -419,7 +419,7 @@ extern char   data_fd2_string_resource_filename_fdmus_dat[];                    
 /* ---- animation tables (.object2 const) ---- */
 extern const uint8  data_fd2_audio_footstep_sfx_per_job_cadence_class_table[29]; /* 0x52618  29B */
 extern int32  data_fd2_animation_earthquake_screen_shake_params_table[9]; /* 0x52096  3 X-off + 3 Y-off + 3 scale */
-extern uint8  data_fd2_battle_special_attack_shake_x_offset_table[6];   /* 0x52549  per-sub-frame X-offset cache */
+extern const uint8 data_fd2_battle_special_attack_shake_x_offset_table[6];   /* 0x52549  per-sub-frame X-offset cache */
 extern uint8  data_fd2_animation_status_overlay_flicker_color_template[32]; /* 0x51F15 */
 extern uint8  data_fd2_animation_spell_palette_flash_table[108];        /* 0x51AAD  36*3 RGB planes R/G/B */
 extern uint8  data_fd2_animation_spell_sprite_offset_table[33];         /* 0x51F33 */
@@ -437,15 +437,15 @@ extern uint8  data_fd2_battle_summon_spell_8slot_visibility_table[7];           
 extern uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7];              /* 0x523E8 */
 extern int32  data_fd2_battle_summon_spell_8slot_row_multiplier_table[7];        /* 0x52404 */
 extern int32  data_fd2_battle_summon_aura_ring_8slot_x_offset_table[8];          /* 0x52420 */
-extern int32  data_fd2_battle_summon_aura_ring_8slot_row_multiplier_table[8];    /* 0x52440 */
+extern const int32 data_fd2_battle_summon_aura_ring_8slot_row_multiplier_table[8];    /* 0x52440 */
 extern int32  data_fd2_battle_summon_main_anim_12slot_frame_counter_array[12];    /* 0x53F81 */
 extern int32  data_fd2_battle_summon_main_anim_12slot_color_idx_array[12];       /* 0x53FB1 */
 extern uint8  data_fd2_battle_summon_main_anim_color_rotation_counter;           /* 0x53FE1 */
 extern uint8  data_fd2_battle_summon_main_anim_terminate_flag;                   /* 0x53FE2 */
 extern uint8  data_fd2_battle_summon_main_anim_odd_even_frame_toggle;            /* 0x53FE3 */
-extern int32  data_fd2_battle_summon_main_anim_12slot_y_offset_table[12];        /* 0x52460 */
-extern uint8  data_fd2_battle_summon_main_anim_12color_v_offset_table[12];       /* 0x52490 */
-extern uint8  data_fd2_battle_summon_main_anim_12color_sprite_offset_table[12];  /* 0x5249C */
+extern const int32 data_fd2_battle_summon_main_anim_12slot_y_offset_table[12];        /* 0x52460 */
+extern const uint8 data_fd2_battle_summon_main_anim_12color_v_offset_table[12];       /* 0x52490 */
+extern const uint8 data_fd2_battle_summon_main_anim_12color_sprite_offset_table[12];  /* 0x5249C */
 extern uint8  data_fd2_battle_summon_spell_anim_phase_byte;                      /* 0x53F7E */
 extern uint8  data_fd2_battle_summon_spell_anim_aux_state_byte_unread;           /* 0x53F7F */
 extern uint8  data_fd2_battle_summon_spell_sprite_anim_tick_counter;             /* 0x53F80 */
@@ -454,13 +454,13 @@ extern int32  data_fd2_battle_summon_anim_variant_a_6slot_color_idx_array[6];   
 extern uint8  data_fd2_battle_summon_anim_variant_a_6slot_jitter_byte_array[6];  /* 0x54014 */
 extern uint8  data_fd2_battle_summon_anim_variant_a_color_rotation_counter;      /* 0x5401A */
 extern uint8  data_fd2_battle_summon_anim_variant_a_terminate_flag;              /* 0x5401B */
-extern int32  data_fd2_battle_summon_anim_variant_a_10color_y_offset_table[10];  /* 0x524A8 */
+extern const int32 data_fd2_battle_summon_anim_variant_a_10color_y_offset_table[10];  /* 0x524A8 */
 extern int32  data_fd2_battle_summon_anim_variant_b_6slot_frame_counter_array[6]; /* 0x5401C */
 extern int32  data_fd2_battle_summon_anim_variant_b_6slot_color_idx_array[6];    /* 0x54034 */
 extern uint8  data_fd2_battle_summon_anim_variant_b_6slot_jitter_byte_array[6];  /* 0x5404C */
 extern uint8  data_fd2_battle_summon_anim_variant_b_color_rotation_counter;      /* 0x54052 */
 extern uint8  data_fd2_battle_summon_anim_variant_b_terminate_flag;              /* 0x54053 */
-extern int32  data_fd2_battle_summon_anim_variant_b_10color_y_offset_table[10];  /* 0x524D0 */
+extern const int32 data_fd2_battle_summon_anim_variant_b_10color_y_offset_table[10];  /* 0x524D0 */
 extern int32  data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[4]; /* 0x54097 */
 extern int32  data_fd2_battle_summon_anim_variant_d_4slot_color_idx_array[4];    /* 0x540A7 */
 extern uint8  data_fd2_battle_summon_anim_variant_d_color_rotation_counter;      /* 0x540B7 */
@@ -479,10 +479,10 @@ extern int32  data_fd2_animation_summon_variant_c_radial_5slot_offsets[5];      
 extern uint8  data_fd2_animation_summon_variant_c_radial_5slot_byte_offsets[5];  /* 0x5250C */
 extern double data_fd2_animation_summon_radial_angle_step_12;                    /* 0x5022B (1.2 y-amplitude) */
 extern double data_fd2_animation_summon_radial_radius_30;                        /* 0x50233 (30.0) */
-extern uint32 data_fd2_battle_summon_spell_palette_r_table;             /* 0x5254F */
-extern uint32 data_fd2_battle_summon_spell_palette_g_table;             /* 0x52553 */
-extern uint32 data_fd2_battle_summon_spell_palette_b_table;             /* 0x52557 */
-extern uint32 data_fd2_battle_summon_spell_sfx_bank_index_table;        /* 0x5255B */
+extern const uint32 data_fd2_battle_summon_spell_palette_r_table;       /* 0x5254F = {3F,33,35,35} LE-packed; byte-indexed by summon_idx in caller's local dword copy */
+extern const uint32 data_fd2_battle_summon_spell_palette_g_table;       /* 0x52553 */
+extern const uint32 data_fd2_battle_summon_spell_palette_b_table;       /* 0x52557 = {3F,3F,00,09} LE-packed = 0x09003F3F; byte-indexed by summon_idx in caller's local dword copy */
+extern const uint32 data_fd2_battle_summon_spell_sfx_bank_index_table;  /* 0x5255B = {5B,5C,5D,5E} LE-packed; byte-indexed by summon_idx in caller's local dword copy */
 
 /* ---- dispatch tables (.object2 const) ---- */
 extern void (*data_fd2_chapter_init_handler_table[30])(void);           /* 0x51D71 */

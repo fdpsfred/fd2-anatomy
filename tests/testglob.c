@@ -97,9 +97,9 @@ uint32 data_fd2_audio_figani_sfx_bank_buf_ptr = 0;
 uint32 data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = 0;
 uint32 data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = 0;
 uint32 data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = 0;
-/* real values from FD2.LE @ 0x52549 (per-sub-frame hit-shake X-offset cache) */
-uint8  data_fd2_battle_special_attack_shake_x_offset_table[6] =
-    { 0, 4, 9, 14, 18, 14 };
+/* data_fd2_battle_special_attack_shake_x_offset_table: now homed (const) in
+ * src/table/btltab2.c (real .object2 const @ 0x52549); its fake def here was
+ * removed. */
 uint32 data_fd2_battle_tile_attr_mv_modifier_table[32];
 uint32 data_fd2_battle_tile_attr_def_modifier_table[32];
 uint32 data_fd2_vga_palette_data_ptr = 0;
@@ -340,9 +340,9 @@ uint8 data_fd2_chapter_ch12_end_scene_char_pos_x_table[14] =
 /* Resource portrait sheet base pointer (data segment @ 0x53AD1). Tests point it
  * at a zeroed scratch buffer. */
 uint32 data_fd2_resource_portrait_sheet_ptr = 0;
-/* Combat speech-bubble screen-position pairs (data segment @ 0x53A30):
- * [0..1] attacker bubble (x,y), [2..3] counter bubble (x,y); [2]==-1 = none. */
-uint32 data_fd2_battle_combat_speech_bubble_pos_pairs[4] = { 0, 0, 0, 0 };
+/* data_fd2_battle_combat_speech_bubble_pos_pairs: now homed (zero-bss int32[4])
+ * in src/table/btltab2.c (data segment @ 0x53A30); its fake def here was
+ * removed. */
 /* fd2_play_rising_pre_cast_effect and fd2_play_variant_b_slide_pre_effect are
  * now real emitted functions (src/spell/spellcin.c); their former stubs were
  * removed. Both are pure VGA/VRAM cinematic workers whose behavior is deferred
@@ -1213,12 +1213,12 @@ void fd2_show_status_effect_overlay(uint32 t, uint32 s) { }
  * @ 0x21190, routed to gfx/rndscene.c. Stub here so callers link. */
 void fd2_animate_spell_projectile_paths(void) { }
 void fd2_composite_then_animate_projectiles(void) { }
-/* Floating-damage FX queue tables read by the real fd2_animate_spell_projectile_paths
- * (sprite-id / x-offset / target-char-idx, each 200B @ 0x53C6C/0x53D34/0x53DFC) and
- * the 28-byte projectile y-offset table (@ 0x0202C, real binary bytes). */
-uint8 data_fd2_battle_floating_damage_sprite_id_queue[200] = {0};
-uint8 data_fd2_battle_floating_damage_x_offset_queue[200] = {0};
-uint8 data_fd2_battle_floating_damage_target_char_idx_queue[200] = {0};
+/* The three floating-damage FX queues read by the real
+ * fd2_animate_spell_projectile_paths (sprite-id / x-offset / target-char-idx,
+ * each 200B @ 0x53C6C/0x53D34/0x53DFC) are now homed (zero-bss uint8[200]) in
+ * src/table/btltab2.c; their fake defs here were removed. The 28-byte
+ * projectile y-offset table (@ 0x0202C, real binary bytes) is still defined
+ * below. */
 /* damage-number work-buffer template — real FD2.LE bytes @ 0x52045, byte[8].
  * fd2_show_damage_number copies the first 5 bytes ("    \0") into an 8-byte
  * stack buffer before sprintf overwrites it; bytes 5..7 are never read. */
@@ -1845,35 +1845,37 @@ int32  data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[15] = {0};
 uint8  data_fd2_battle_summon_spell_8slot_visibility_table[7] = {0};
 uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7] = {0};
 int32  data_fd2_battle_summon_spell_8slot_row_multiplier_table[7] = {0};
-/* .rodata const tables for fd2_render_summon_aura_sprite_ring @ 0x262EF.
- * Real in-binary values: x-offset @ 0x52420, row-multiplier @ 0x52440. */
+/* .rodata x-offset table for fd2_render_summon_aura_sprite_ring @ 0x262EF.
+ * Real in-binary values: x-offset @ 0x52420. The companion row-multiplier
+ * table (@ 0x52440) is now homed (const) in src/table/btltab2.c. */
 int32  data_fd2_battle_summon_aura_ring_8slot_x_offset_table[8] =
     {-59, -39, 0, 39, 55, 39, 0, -39};
-int32  data_fd2_battle_summon_aura_ring_8slot_row_multiplier_table[8] =
-    {-10, -24, -30, -24, -10, 4, 10, 4};
 int32  data_fd2_battle_summon_main_anim_12slot_frame_counter_array[12] = {0};
 int32  data_fd2_battle_summon_main_anim_12slot_color_idx_array[12] = {0};
 uint8  data_fd2_battle_summon_main_anim_color_rotation_counter = 0;
 uint8  data_fd2_battle_summon_main_anim_terminate_flag = 0;
 uint8  data_fd2_battle_summon_main_anim_odd_even_frame_toggle = 0;
-int32  data_fd2_battle_summon_main_anim_12slot_y_offset_table[12] = {0};
-uint8  data_fd2_battle_summon_main_anim_12color_v_offset_table[12] = {0};
-uint8  data_fd2_battle_summon_main_anim_12color_sprite_offset_table[12] = {0};
+/* summon_main_anim 12slot_y_offset / 12color_v_offset / 12color_sprite_offset
+ * tables now homed (const) in src/table/btltab2.c (@ 0x52460 / 0x52490 /
+ * 0x5249C); their fake defs here were removed. */
 uint8  data_fd2_battle_summon_spell_anim_phase_byte = 0;
 uint8  data_fd2_battle_summon_spell_anim_aux_state_byte_unread = 0;
 uint8  data_fd2_battle_summon_spell_sprite_anim_tick_counter = 0;
-int32  data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[6] = {0};
+/* data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array: now homed
+ * (zero-bss int32[6]) in src/table/btltab2.c (@ 0x53FE4); fake def removed. */
 int32  data_fd2_battle_summon_anim_variant_a_6slot_color_idx_array[6] = {0};
 uint8  data_fd2_battle_summon_anim_variant_a_6slot_jitter_byte_array[6] = {0};
 uint8  data_fd2_battle_summon_anim_variant_a_color_rotation_counter = 0;
 uint8  data_fd2_battle_summon_anim_variant_a_terminate_flag = 0;
-int32  data_fd2_battle_summon_anim_variant_a_10color_y_offset_table[10] = {0};
+/* data_fd2_battle_summon_anim_variant_a_10color_y_offset_table: now homed
+ * (const int32[10]) in src/table/btltab2.c (@ 0x524A8); fake def removed. */
 int32  data_fd2_battle_summon_anim_variant_b_6slot_frame_counter_array[6] = {0};
 int32  data_fd2_battle_summon_anim_variant_b_6slot_color_idx_array[6] = {0};
 uint8  data_fd2_battle_summon_anim_variant_b_6slot_jitter_byte_array[6] = {0};
 uint8  data_fd2_battle_summon_anim_variant_b_color_rotation_counter = 0;
 uint8  data_fd2_battle_summon_anim_variant_b_terminate_flag = 0;
-int32  data_fd2_battle_summon_anim_variant_b_10color_y_offset_table[10] = {0};
+/* data_fd2_battle_summon_anim_variant_b_10color_y_offset_table: now homed
+ * (const int32[10]) in src/table/btltab2.c (@ 0x524D0); fake def removed. */
 int32  data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[4] = {0};
 int32  data_fd2_battle_summon_anim_variant_d_4slot_color_idx_array[4] = {0};
 uint8  data_fd2_battle_summon_anim_variant_d_color_rotation_counter = 0;
@@ -1882,16 +1884,10 @@ uint8  data_fd2_battle_summon_anim_variant_d_odd_even_frame_toggle = 0;
 int32  data_fd2_animation_summon_variant_d_3slot_color_row_offsets[10] = {0};
 uint8  data_fd2_animation_summon_variant_e_16slot_sprite_base_table[16] = {0};
 int32  data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[16] = {0};
-/* Summon-spell per-summon RGB + SFX-bank-index tables (4-byte read-only game
- * data, indexed by spell_id-0x20). The binary declares each as a dword that it
- * byte-indexes; defined here with the real .object3 values (little-endian
- * packed) so ((uint8*)&x)[i] yields the table byte on x86.
- *   R @0x5254F = {3F,33,35,35}  G @0x52553 = {3F,39,00,3A}
- *   B @0x52557 = {3F,3F,00,09}  sfx_idx @0x5255B = {5B,5C,5D,5E} */
-uint32 data_fd2_battle_summon_spell_palette_r_table = 0x3535333fU;
-uint32 data_fd2_battle_summon_spell_palette_g_table = 0x3a00393fU;
-uint32 data_fd2_battle_summon_spell_palette_b_table = 0x09003f3fU;
-uint32 data_fd2_battle_summon_spell_sfx_bank_index_table = 0x5e5d5c5bU;
+/* Summon-spell per-summon RGB palette + SFX-bank-index tables (4-byte read-only
+ * game data @ 0x5254F/0x52553/0x52557/0x5255B, indexed by spell_id-0x20) are all
+ * now homed (const uint32) in src/table/btltab2.c; their fake defs here were
+ * removed. */
 int32  data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[5] = {0};
 int32  data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[5] = {0};
 int32  data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[5] = {0};
@@ -2220,14 +2216,10 @@ void fd2_animate_bg_zoom_transition_out(uint32 char_idx, uint32 figani,
     g_zoom_out_calls++;
     (void)figani; (void)framebuffer; (void)workspace; (void)bg_buf;
 }
-/* Real combat-hit shake offset tables (.object2 const @ 0x5255F / 0x52577),
- * defined here with the real FD2.LE bytes until the data segment is emitted so
- * the anicine.c combat-hit test asserts on the true per-subframe shake offsets.
- * x = {0,4,9,14,18,14}; y = {0,2,4,6,8,10}. */
-const int32 data_fd2_battle_combat_hit_shake_x_offset_table[6] =
-    { 0, 4, 9, 14, 18, 14 };
-const int32 data_fd2_battle_combat_hit_shake_y_offset_table[6] =
-    { 0, 2, 4, 6, 8, 10 };
+/* data_fd2_battle_combat_hit_shake_y_offset_table: now homed in
+ * src/table/btltab2.c (real .object2 const @ 0x52577, companion of the
+ * horizontal table @ 0x5255F also there); its leftover fake def here was
+ * removed. */
 void fd2_process_xp_and_level_up_for_char(uint32 ci) { }
 /* fd2_execute_ai_item_use: now in btl_ai.c */
 /* fd2_play_figani_char_intro_animation: now emitted for real in

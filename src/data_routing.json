@@ -490,8 +490,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_spell_palette_g_table": {
@@ -505,8 +505,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_spell_palette_b_table": {
@@ -520,8 +520,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_resource_portrait_cache_buffer_used": {
@@ -2287,8 +2287,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_intro_portrait_pose_y_row_table": {
@@ -2849,8 +2849,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "indirect-write bss",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_floating_damage_x_offset_queue": {
@@ -2864,8 +2864,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "indirect-write bss",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_floating_damage_target_char_idx_queue": {
@@ -2879,8 +2879,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "indirect-write bss",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_init_phase_flag": {
@@ -3280,8 +3280,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "indirect-write bss",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_chapter_init_done_flag": {
@@ -3753,9 +3753,9 @@
     "needs_bytes": true,
     "home": "table/btltab2.c",
     "writers": [],
-    "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "note": "read-only const scalar uint32 (0x5E5D5C5B); byte-indexed by summon_idx in caller's local dword copy, not as a global array",
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_chapter_intro_dialog_corner_offset_table_b": {
@@ -3934,8 +3934,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_combat_hit_shake_y_offset_table": {
@@ -3948,9 +3948,9 @@
     "needs_bytes": true,
     "home": "table/btltab2.c",
     "writers": [],
-    "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "note": "read-only const int32[6] vertical shake table {0,2,4,6,8,10}; REP MOVSD-copied whole (4-byte stride x6) into caller's local int[6], signed +/-400-scaled",
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_figani_sfx_bank_fdother_index_lut": {
@@ -4688,8 +4688,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_main_anim_12slot_y_offset_table": {
@@ -4703,8 +4703,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_main_anim_12color_v_offset_table": {
@@ -4718,8 +4718,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_main_anim_12color_sprite_offset_table": {
@@ -4733,8 +4733,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_anim_variant_a_10color_y_offset_table": {
@@ -4748,8 +4748,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_anim_variant_b_10color_y_offset_table": {
@@ -4763,8 +4763,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_summon_variant_c_radial_5slot_offsets": {
@@ -5160,8 +5160,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "indirect-write bss",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_anim_variant_a_6slot_color_idx_array": {
