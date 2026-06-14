@@ -130,8 +130,6 @@ uint32 data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = 0;
 uint8  data_fd2_ui_click_debounce_skip_count = 0;
 uint8  data_fd2_audio_bgm_last_set_track_id = 0xFF;
 uint8  data_fd2_audio_bgm_enabled_flag = 1;
-uint8  data_fd2_audio_per_chapter_player_turn_bgm_track[30] = {0};
-uint8  data_fd2_audio_per_chapter_enemy_turn_bgm_track[30] = {0};
 uint8  data_fd2_audio_bgm_driver_available_flag = 1;
 uint32 data_fd2_audio_bgm_sequence_data_buf_ptr = 0;
 char   data_fd2_string_resource_filename_fdmus_dat[] = "FDMUS.DAT";
@@ -1899,7 +1897,6 @@ int g_cast_status_via_d1b_calls = 0;
  * in tests/battle/battle2.c) drive the real painter via the shared mini-panel
  * fixture (tests/include/minipfix.h) and observe the forwarded buf/char through
  * the real background blit + sleep-indicator digit, so no stub/spy is kept. */
-uint8 data_fd2_audio_footstep_sfx_per_job_cadence_class_table[29] = {0};
 uint8 data_fd2_audio_walk_step_sfx_cadence_counter = 0;
 uint8 data_fd2_battle_summon_minor_anim_state5_frame_counter = 0;
 uint8 data_fd2_battle_summon_minor_anim_alternating_blit_toggle = 0;
@@ -1957,10 +1954,6 @@ uint32 data_fd2_battle_summon_spell_palette_r_table = 0x3535333fU;
 uint32 data_fd2_battle_summon_spell_palette_g_table = 0x3a00393fU;
 uint32 data_fd2_battle_summon_spell_palette_b_table = 0x09003f3fU;
 uint32 data_fd2_battle_summon_spell_sfx_bank_index_table = 0x5e5d5c5bU;
-/* fd2_load_figani_sfx_bank FDOTHER index LUT @0x525D6, real binary bytes
- * (1-based: lut[sfx_id-1]); 6 bytes copied onto the stack by the binary. */
-uint8 data_fd2_audio_figani_sfx_bank_fdother_index_lut[6] =
-    {0x30, 0x31, 0x32, 0x33, 0x34, 0x35};
 int32  data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[5] = {0};
 int32  data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[5] = {0};
 int32  data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[5] = {0};
