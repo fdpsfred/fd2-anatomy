@@ -72,15 +72,15 @@ extern const uint8 data_fd2_chapter_ch30_end_scene_char_facing_table[20];  /* 0x
 
 /* Per-chapter combat-cinematic terrain override byte for immune (flying/
  * lifted) classes; indexed by chapter id. (.object2 const, byte[30]) */
-extern uint8  data_fd2_chapter_combat_cinematic_mode_per_chapter[30];   /* 0x52363 */
+extern const uint8 data_fd2_chapter_combat_cinematic_mode_per_chapter[30];   /* 0x52363 */
 
 /* ---- ending cinematic scripted-frame table (.object2 const) ---- */
 extern int32  data_fd2_chapter_ending_music_trigger_frames[15];         /* 0x5204E  scroll-row thresholds for SFX/palette swaps */
 
 /* ---- game-clear credit-roll per-duel tables (.object2 const, 20 bytes each) ---- */
-extern uint8  data_fd2_chapter_ending_credit_roll_top_portrait_id_table[20];    /* 0x525DC  top-half portrait ids */
-extern uint8  data_fd2_chapter_ending_credit_roll_bottom_portrait_id_table[20]; /* 0x525F0  bottom-half portrait ids */
-extern uint8  data_fd2_chapter_ending_credit_roll_scripted_outcome_table[20];   /* 0x52604  scripted_cinematic mode per duel */
+extern const uint8 data_fd2_chapter_ending_credit_roll_top_portrait_id_table[20];    /* 0x525DC  top-half portrait ids */
+extern const uint8 data_fd2_chapter_ending_credit_roll_bottom_portrait_id_table[20]; /* 0x525F0  bottom-half portrait ids */
+extern const uint8 data_fd2_chapter_ending_credit_roll_scripted_outcome_table[20];   /* 0x52604  scripted_cinematic mode per duel */
 
 /* ---- chapter 3 end recruit-scene char placement tables (.object2 const) ---- */
 extern uint8  data_fd2_chapter_ch03_end_scene_char_pos_x_table[7];      /* 0x520BA  7 chars X */
@@ -108,27 +108,27 @@ extern uint8  data_fd2_chapter_ch10_end_scene_char_pos_x_table[11];     /* 0x521
 extern uint8  data_fd2_chapter_ch10_end_scene_char_pos_y_table[11];     /* 0x5211E  11 chars Y */
 
 /* ---- chapter 12 end scene char placement tables (.object2 const) ---- */
-extern uint8  data_fd2_chapter_ch12_end_scene_char_pos_x_table[14];     /* 0x52129  14 chars X */
-extern uint8  data_fd2_chapter_ch12_end_scene_char_pos_y_table[14];     /* 0x52137  14 chars Y */
-extern uint8  data_fd2_chapter_ch12_end_scene_char_facing_table[14];    /* 0x52145  14 chars facing */
+extern uint8  data_fd2_chapter_ch12_end_scene_char_pos_x_table[14];     /* 0x52129  14 chars X (sibling still in testglob.c, non-const) */
+extern const uint8 data_fd2_chapter_ch12_end_scene_char_pos_y_table[14];     /* 0x52137  14 chars Y */
+extern const uint8 data_fd2_chapter_ch12_end_scene_char_facing_table[14];    /* 0x52145  14 chars facing */
 
 /* ---- chapter 14 end scene char placement tables (.object2 const) ---- */
-extern uint8  data_fd2_chapter_ch14_end_scene_char_pos_x_table[16];     /* 0x52153  16 chars X */
-extern uint8  data_fd2_chapter_ch14_end_scene_char_pos_y_table[16];     /* 0x52163  16 chars Y */
-extern uint8  data_fd2_chapter_ch14_end_scene_char_facing_table[16];    /* 0x52173  16 chars facing */
+extern const uint8 data_fd2_chapter_ch14_end_scene_char_pos_x_table[16];     /* 0x52153  16 chars X */
+extern const uint8 data_fd2_chapter_ch14_end_scene_char_pos_y_table[16];     /* 0x52163  16 chars Y */
+extern const uint8 data_fd2_chapter_ch14_end_scene_char_facing_table[16];    /* 0x52173  16 chars facing */
 
 /* ---- chapter 16 end scene char placement tables (.object2 const) ---- */
-extern uint8  data_fd2_chapter_ch16_end_scene_char_pos_x_table[16];     /* 0x52183  16 chars X */
-extern uint8  data_fd2_chapter_ch16_end_scene_char_pos_y_table[16];     /* 0x52193  16 chars Y */
+extern const uint8 data_fd2_chapter_ch16_end_scene_char_pos_x_table[16];     /* 0x52183  16 chars X */
+extern const uint8 data_fd2_chapter_ch16_end_scene_char_pos_y_table[16];     /* 0x52193  16 chars Y */
 
 /* ---- chapter 17 end scene char placement tables (.object2 const) ---- */
-extern uint8  data_fd2_chapter_ch17_end_scene_char_pos_x_table[16];     /* 0x521A3  16 chars X */
-extern uint8  data_fd2_chapter_ch17_end_scene_char_pos_y_table[16];     /* 0x521B3  16 chars Y */
+extern const uint8 data_fd2_chapter_ch17_end_scene_char_pos_x_table[16];     /* 0x521A3  16 chars X */
+extern const uint8 data_fd2_chapter_ch17_end_scene_char_pos_y_table[16];     /* 0x521B3  16 chars Y */
 
 /* ---- chapter 18 end scene char placement tables (.object2 const) ---- */
-extern uint8  data_fd2_chapter_ch18_end_scene_char_pos_x_table[17];     /* 0x521C3  17 chars X */
-extern uint8  data_fd2_chapter_ch18_end_scene_char_pos_y_table[17];     /* 0x521D4  17 chars Y */
-extern uint8  data_fd2_chapter_ch18_end_scene_char_facing_table[17];    /* 0x521E5  17 chars facing */
+extern const uint8 data_fd2_chapter_ch18_end_scene_char_pos_x_table[17];     /* 0x521C3  17 chars X */
+extern const uint8 data_fd2_chapter_ch18_end_scene_char_pos_y_table[17];     /* 0x521D4  17 chars Y */
+extern const uint8 data_fd2_chapter_ch18_end_scene_char_facing_table[17];    /* 0x521E5  17 chars facing */
 
 /* ---- battle state ---- */
 extern uint32 data_fd2_battle_anim_phase;                               /* 0x51A83 */
@@ -277,8 +277,8 @@ extern uint8  data_fd2_chapter_intro_panel_resource_idx_per_metadata_category_ta
  * blit's X arg (-0x96, *0x80, +0x5000); the "x_column" table feeds the Y
  * arg (-0x64, *0x80, +0x3200) -- the column/row naming is the world-grid
  * axis the byte selects, not the screen axis it scales into. */
-extern uint8  data_fd2_chapter_intro_portrait_pose_y_row_table[18];     /* 0x52635 */
-extern uint8  data_fd2_chapter_intro_portrait_pose_x_column_table[18];  /* 0x52647 */
+extern const uint8 data_fd2_chapter_intro_portrait_pose_y_row_table[18];     /* 0x52635 */
+extern const uint8 data_fd2_chapter_intro_portrait_pose_x_column_table[18];  /* 0x52647 */
 
 /* ---- recruitment screen ---- */
 extern uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch;         /* 0x54127 */

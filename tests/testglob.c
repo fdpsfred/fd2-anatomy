@@ -82,14 +82,8 @@ uint32 data_fd2_battle_anim_phase = 0;
 uint32 data_fd2_battle_ai_post_action_consequence_idx = 0;
 uint32 data_fd2_battle_player_action_result_code = 0;
 uint32 data_fd2_chapter_current_chapter_id = 1;
-/* per-chapter combat-cinematic terrain override byte — real FD2.LE values
- * @ 0x52363 (30 bytes, indexed by chapter id 0..29). Read by
- * fd2_play_full_combat_cinematic: when non-zero it overrides the under-foot
- * tile for immune (flying/lifted) classes. */
-uint8  data_fd2_chapter_combat_cinematic_mode_per_chapter[30] = {
-    3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,
-    3,3,3,3,3,3,3,3,0,0,0,3,0,0
-};
+/* data_fd2_chapter_combat_cinematic_mode_per_chapter is defined (const) in
+ * src/table/chtab2.c. */
 uint32 data_fd2_chapter_cutscene_event_state = 0;
 uint32 data_fd2_graphics_static_bg_buffer_ptr = 0;
 uint8  data_fd2_graphics_text_scroll_pending_line_count = 0;
@@ -283,22 +277,8 @@ int32 data_fd2_chapter_ending_music_trigger_frames[15] = {
     0x208, 0x1AE, 0x19A, 0x154, 0x136, 0x12C, 0xF0, 0xB4,
     0x96,  0x82,  0x6E,  0x57,  0x40,  0x16,  0x3E8
 };
-/* Game-clear credit-roll per-duel tables (data segment @ 0x525DC / 0x525F0 /
- * 0x52604). Real binary bytes until the data segment is emitted;
- * fd2_play_game_ending_cinematic copies each 20-byte table to its stack and
- * drives the 20-char credit roll from them. */
-uint8 data_fd2_chapter_ending_credit_roll_top_portrait_id_table[20] = {
-    0x33,0x6E,0x13,0x69,0x36,0x75,0x1E,0x7B,0x27,0x7F,
-    0x40,0x51,0x34,0x7D,0x1A,0x73,0x29,0x5B,0x1F,0x7E
-};
-uint8 data_fd2_chapter_ending_credit_roll_bottom_portrait_id_table[20] = {
-    0x67,0x14,0x53,0x1C,0x7C,0x26,0x5D,0x22,0x70,0x2C,
-    0x56,0x35,0x50,0x37,0x78,0x24,0x6A,0x3C,0x7A,0x32
-};
-uint8 data_fd2_chapter_ending_credit_roll_scripted_outcome_table[20] = {
-    0x04,0x03,0x33,0x0E,0x19,0x12,0x28,0x35,0x16,0x18,
-    0x1C,0x11,0x1E,0x1F,0x32,0x21,0x22,0x34,0x24,0x2F
-};
+/* Game-clear credit-roll per-duel tables (top/bottom portrait ids + scripted
+ * outcome) are defined (const) in src/table/chtab2.c. */
 /* Chapter 3 end recruit-scene char placement tables (data segment @ 0x520BA /
  * 0x520C1 / 0x520C8). Real binary bytes until the data segment is emitted;
  * fd2_chapter_03_end copies each 7-byte table into an on-stack placement block.
@@ -355,51 +335,8 @@ uint8 data_fd2_chapter_ch10_end_scene_char_pos_y_table[11] =
  * direction (0..3). */
 uint8 data_fd2_chapter_ch12_end_scene_char_pos_x_table[14] =
     { 10, 11, 9, 12, 8, 10, 11, 9, 12, 8, 8, 12, 8, 12 };
-uint8 data_fd2_chapter_ch12_end_scene_char_pos_y_table[14] =
-    { 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 3, 3, 2, 2 };
-uint8 data_fd2_chapter_ch12_end_scene_char_facing_table[14] =
-    { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 3, 1 };
-/* Chapter 14 end scene char placement tables (data segment @ 0x52153 /
- * 0x52163 / 0x52173). Real binary bytes until the data segment is emitted;
- * fd2_chapter_14_end copies each 16-byte table into an on-stack placement block
- * and places chars 0..0xF. X/Y are battle-tile coords, facing is sprite
- * direction (0..3). */
-uint8 data_fd2_chapter_ch14_end_scene_char_pos_x_table[16] =
-    { 18, 17, 19, 18, 17, 19, 16, 20, 16, 15, 15, 16, 20, 21, 21, 20 };
-uint8 data_fd2_chapter_ch14_end_scene_char_pos_y_table[16] =
-    { 15, 15, 15, 16, 16, 16, 15, 15, 12, 13, 14, 14, 12, 13, 14, 14 };
-uint8 data_fd2_chapter_ch14_end_scene_char_facing_table[16] =
-    { 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 1, 1, 1, 1 };
-/* Chapter 16 end scene char placement tables (data segment @ 0x52183 / 0x52193).
- * Real binary bytes until the data segment is emitted; fd2_chapter_16_end copies
- * each 16-byte table into an on-stack placement block and places chars 0..0xF.
- * X/Y are battle-tile coords; chapter 16 has no facing table (the handler passes
- * the inline fixed facing value 0 to fd2_setup_chars_and_camera_for_intro). */
-uint8 data_fd2_chapter_ch16_end_scene_char_pos_x_table[16] =
-    { 28, 27, 28, 29, 30, 25, 26, 27, 26, 29, 30, 31, 25, 26, 30, 31 };
-uint8 data_fd2_chapter_ch16_end_scene_char_pos_y_table[16] =
-    { 28, 27, 27, 27, 27, 28, 28, 28, 27, 28, 28, 28, 29, 29, 29, 29 };
-/* Chapter 17 end scene char placement tables (data segment @ 0x521A3 / 0x521B3).
- * Real binary bytes until the data segment is emitted; fd2_chapter_17_end copies
- * each 16-byte table into an on-stack placement block and places chars 0..0xF on
- * the 蜜蒂-absent branch. X/Y are battle-tile coords; chapter 17 has no facing
- * table (the handler passes the inline fixed facing value 0 to
- * fd2_setup_chars_and_camera_for_intro). */
-uint8 data_fd2_chapter_ch17_end_scene_char_pos_x_table[16] =
-    { 23, 22, 23, 24, 21, 22, 23, 24, 25, 20, 21, 22, 23, 24, 25, 26 };
-uint8 data_fd2_chapter_ch17_end_scene_char_pos_y_table[16] =
-    { 18, 19, 19, 19, 20, 20, 20, 20, 20, 21, 21, 21, 21, 21, 21, 21 };
-/* Chapter 18 end scene char placement tables (data segment @ 0x521C3 / 0x521D4 /
- * 0x521E5). Real binary bytes until the data segment is emitted;
- * fd2_chapter_18_end copies each 17-byte table into an on-stack placement block
- * and places chars 0..0x10. X/Y are battle-tile coords, facing is sprite
- * direction (0..3). */
-uint8 data_fd2_chapter_ch18_end_scene_char_pos_x_table[17] =
-    { 22, 22, 21, 21, 21, 21, 20, 20, 20, 20, 22, 23, 24, 22, 23, 24, 25 };
-uint8 data_fd2_chapter_ch18_end_scene_char_pos_y_table[17] =
-    { 7, 8, 6, 7, 8, 9, 6, 7, 8, 9, 5, 5, 5, 10, 10, 10, 7 };
-uint8 data_fd2_chapter_ch18_end_scene_char_facing_table[17] =
-    { 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 2, 2, 2, 1 };
+/* ch12 pos_y/facing and the chapter 14/16/17/18 end-scene placement tables are
+ * defined (const) in src/table/chtab2.c. */
 /* Resource portrait sheet base pointer (data segment @ 0x53AD1). Tests point it
  * at a zeroed scratch buffer. */
 uint32 data_fd2_resource_portrait_sheet_ptr = 0;
@@ -1117,11 +1054,12 @@ uint32 data_fd2_chapter_intro_active_metadata_entry_ptr = 0;
 uint32 data_fd2_chapter_intro_dialog_subframe_anim_counter = 0;
 uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
 uint8 *data_fd2_ui_menu_candidate_array_ptr = 0;
-/* chapter-intro overlay (rndmenu.c) globals */
+/* chapter-intro overlay (rndmenu.c) globals.
+ * data_fd2_chapter_intro_portrait_pose_y_row_table /
+ * data_fd2_chapter_intro_portrait_pose_x_column_table are defined (const) in
+ * src/table/chtab2.c. */
 uint32 data_fd2_chapter_intro_menu_cursor_state = 0;
 uint32 data_fd2_chapter_intro_menu_overlay_buf_ptr = 0;
-uint8  data_fd2_chapter_intro_portrait_pose_y_row_table[18] = {0};
-uint8  data_fd2_chapter_intro_portrait_pose_x_column_table[18] = {0};
 /* chapter-intro menu globals + heavy-callee stubs for fd2_run_chapter_intro_menu_main
  * (src/ui_menu/chintro.c). That orchestrator is itself deferred to Phase 9 (no
  * in-process seam: real-file loaders + VGA port I/O + four nested interactive

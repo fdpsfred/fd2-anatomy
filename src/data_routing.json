@@ -2302,8 +2302,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_intro_portrait_pose_x_column_table": {
@@ -2317,8 +2317,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_intro_menu_speaker_portrait_id_table": {
@@ -3589,8 +3589,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch12_end_scene_char_facing_table": {
@@ -3604,8 +3604,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch14_end_scene_char_pos_x_table": {
@@ -3619,8 +3619,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch14_end_scene_char_pos_y_table": {
@@ -3634,8 +3634,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch14_end_scene_char_facing_table": {
@@ -3649,8 +3649,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch16_end_scene_char_pos_x_table": {
@@ -3664,8 +3664,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch16_end_scene_char_pos_y_table": {
@@ -3679,8 +3679,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch17_end_scene_char_pos_x_table": {
@@ -3694,8 +3694,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch17_end_scene_char_pos_y_table": {
@@ -3709,8 +3709,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch18_end_scene_char_pos_y_table": {
@@ -3724,8 +3724,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch18_end_scene_char_facing_table": {
@@ -3739,8 +3739,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_spell_sfx_bank_index_table": {
@@ -3919,8 +3919,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_combat_hit_shake_x_offset_table": {
@@ -3979,8 +3979,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ending_credit_roll_bottom_portrait_id_table": {
@@ -3994,8 +3994,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ending_credit_roll_scripted_outcome_table": {
@@ -4009,8 +4009,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_footstep_sfx_per_job_cadence_class_table": {
@@ -4583,8 +4583,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_resource_filename_tai_dat": {
