@@ -126,5 +126,73 @@ def main():
         print("  FAIL  %-58s %s" % (name, why))
     sys.exit(1 if nfail else 0)
 
+def _parse_c_values_raw(text, name):
+    """Like parse_c_initializer but returns RAW integer tokens (no &0xFF), so a
+    caller can pack them at a chosen element width. Returns list[int] or None /
+    ('UNPARSED', tok)."""
+    m = re.search(r"(?m)^(?:const\s+)?[A-Za-z_][\w ]*\*?\s*" +
+                  re.escape(name) + r"\s*(?:\[[^\]]*\])?\s*=\s*", text)
+    if not m:
+        return None
+    rest = text[m.end():]
+    depth = 0; end = None
+    for i, ch in enumerate(rest):
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+        elif ch == ";" and depth == 0:
+            end = i; break
+    if end is None:
+        return None
+    body = COMMENT_RE.sub(" ", rest[:end])
+    body = LINECOM_RE.sub(" ", body).strip().lstrip("{").rstrip("}")
+    vals = []
+    for tok in re.split(r"[,\s{}]+", body):
+        tok = tok.strip()
+        if not tok:
+            continue
+        if tok.startswith(("0x", "0X")):
+            vals.append(int(tok, 16))
+        elif re.fullmatch(r"-?\d+", tok):
+            vals.append(int(tok))
+        else:
+            return ("UNPARSED", tok)
+    return vals
+
+
+def verify_one(name, hexstr, home_path, width=1):
+    """Per-symbol byte gate for Phase 1. Compares the file-scope C initializer of
+    `name` in `home_path` against `hexstr` (the real bytes the caller read from
+    Ghidra via read_memory). Each parsed integer token is packed as `width`
+    little-endian bytes (width 1 = uint8/byte table, 2 = uint16, 4 = uint32/dword
+    scalar). For mixed-width struct tables this flat packer is NOT valid -- use a
+    struct-aware check instead. Prints PASS/FAIL(+first diff); returns bool."""
+    try:
+        text = io.open(home_path, encoding="utf-8").read()
+    except OSError as e:
+        print("  FAIL  %-58s cannot read %s (%s)" % (name, home_path, e)); return False
+    parsed = _parse_c_values_raw(text, name)
+    if parsed is None:
+        print("  FAIL  %-58s C def not found in %s" % (name, home_path)); return False
+    if isinstance(parsed, tuple):
+        print("  FAIL  %-58s unparsed token %r" % (name, parsed[1])); return False
+    cbytes = b"".join((v & ((1 << (8 * width)) - 1)).to_bytes(width, "little") for v in parsed)
+    gbytes = bytes(int(hexstr[i:i+2], 16) for i in range(0, len(hexstr), 2))
+    if len(cbytes) != len(gbytes):
+        print("  FAIL  %-58s length C=%d Ghidra=%d (width=%d, %d tokens)" %
+              (name, len(cbytes), len(gbytes), width, len(parsed))); return False
+    if cbytes != gbytes:
+        di = next(i for i in range(len(gbytes)) if cbytes[i] != gbytes[i])
+        print("  FAIL  %-58s byte[%d] C=0x%02x Ghidra=0x%02x" %
+              (name, di, cbytes[di], gbytes[di])); return False
+    print("  PASS  %-58s %d bytes (width=%d)" % (name, len(gbytes), width)); return True
+
+
 if __name__ == "__main__":
+    if len(sys.argv) >= 2 and sys.argv[1] == "--one":
+        # python verify_real.py --one <name> <ghidra_hex> <home_path> [width]
+        nm, hx, home = sys.argv[2], sys.argv[3], sys.argv[4]
+        w = int(sys.argv[5]) if len(sys.argv) > 5 else 1
+        sys.exit(0 if verify_one(nm, hx, home, w) else 1)
     main()

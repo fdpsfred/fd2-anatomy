@@ -2,7 +2,7 @@
 
 目標：`src/` 自身 compile+link 出可正確執行的 `fd2.exe`；`src/`+`tests/` compile 出測試執行檔。
 **全 650 個遊戲 function 已 emit（reviewed 629 + 待補 21）、四分支 merge cascade 已落入 `integ`。
-當前進入「真實資料落地 + 測試重寫 + 收斂 fd2.exe」收斂計畫（data-first）。**Step 0 已完成，Phase 1（把真實資料填進 src/）的 worklist 已定案，下一步即開始 Phase 1。**
+當前進入「真實資料落地 + 測試重寫 + 收斂 fd2.exe」收斂計畫（data-first）。**Step 0 完成；Phase 1（真實資料落地 src/）進行中：data-emit 工具鏈與 workflow 已建好、pilot（audtab.c 4 表）已落地，下一步＝四路並行 emit（見下方「當前斷點」）。**
 完整計畫：`C:\Users\fdpsf\.claude\plans\plan-plan-soft-dongarra.md`（**新 session 先讀它 + 下面這段**）。
 
 **溝通方式（使用者要求）**：給使用者的所有文字（含對話回覆，不只文件）一律用淺白通順的繁體中文完整句子，
@@ -42,24 +42,41 @@ Phase 4 收斂 fd2.exe + 實機對照`。
   - **dangling ref**：`crt_equivalent_dos_main_bootstrap` 早已被 Unit C（`447c37c`）修掉，新鮮 oracle 確認 crt_/AIL_ undefined=0。
   - **home-file 對映**：見下方定案 worklist。
 
-**Step 0 定案的 Phase 1 worklist（全 563 個 Ghidra `data_fd2_` 符號帳目完全對齊）**：
-28 `real_in_src`（已完成）+ 347 `fake_in_testglob`（待遷）+ 187 `undefined` + 1 sublabel = 563。
-- **347 待遷**經「bytes 非 0 × 有無 writer」精確分類（emit 形式的鐵證）：`const` 141（`const T[]={真bytes}`）
-  + `init-data` 12（`T name={真bytes};`，可變）+ `zero-bss` 194（`T name;`，零初始化）。**需抽真 byte 並過
-  `verify_real` 的 = 153（const+init-data）；zero-init = 194。** 每符號的 home 檔 + emit_class + needs_bytes
-  在 `workspace/data_emit/home_map.tsv`（由 `tools/data_emit/home_map.py` 即時重生）。
-- **187 undefined 的分流**：106 個 `cutscene_event_script` 隨「正確 emit cutscene ptr table（用具名目標）」帶出；
-  58 個 `data_fd2_string_*` 在 emit 端已是 inline 字面值（非缺口）；約 23 個 graphics/battle state 隨 Phase 2 函式落地。
-- **fd2_ 函式缺口**：composite + 21 個 await_emit（blit/pathfind）= Phase 2；vendor 60 個 + `__delay_thunk_375b2`
-  （200+ caller，目前只有 testglob recorder stub）= Phase 4 CRT wiring。
-- 所有數值即時重跑 oracle / reconcile / home_map 取得（工具見 `tools/data_emit/_index.md`），勿從本檔抄。
+**Phase 1（真實資料落地 src/）— 進行中**。操作指南：`tools/data_emit/_index.md`（新 session 先讀它）。
 
-**Phase 1 起手**：依 `home_map.tsv` 的 `emit_class` 逐符號 emit 進它的 home 檔 —— `const` → `const T[]={真bytes}`、
-`init-data` → `T name={真bytes};`、`zero-bss` → `T name;`（**不用 FAR_DATA/object3，走 Layer-2**，見 memory
-`feedback_layer2_no_byte_exact_overengineering`）。function-pointer handler 表 emit 成函式名初始化列；data-ptr 表
-（含那 106 個 cutscene script）連具名目標一起 emit。每個 `needs_bytes=Y` 的符號都要抽 Ghidra 真 byte 並過
-`verify_real` gate，再跑 `build_test` 確認 0err/0warn，最後刪掉 testglob 的假版。用 workflow 多代理 fan-out
-（一個符號或一個檔一個 agent，各自 read_memory + 驗證 + emit；每 item 獨立，不 bulk derive）。
+- **[Phase 1] 待決（開四路前）**：emit 路徑 bug 已修（root cause＝`data_emit.wf.js` 主迴圈漏把 `file.home`
+  傳到 `sym`，prompt 變「ROOT/src/undefined」；修法＝迴圈內 `sym.home = file.home`，deterministic）。
+  待使用者定：四路前要不要再跑一次 audtab pilot 親驗路徑乾淨，或直接四路（finalizer fold + build-gate 抓重複
+  定義為雙層防護）。
+
+- **事實來源 = `src/data_routing.json`**（347 符號 × {addr/segment/len/datatype/kind/emit_class/needs_bytes/
+  home/writers/emitted/reviewed/commit}；**`reviewed` 欄＝斷點**，mirrors function 的 routing.json）。由
+  `mk_routing.py`（home_map+worklist join、const-data:X 桶→`table/*tab.c` 8.3 檔）+ `mkpart.py`（切 N 分區、
+  大表切編號子檔、回寫 split home）產生。進度查詢：`python tools/data_emit/scout.py --stats`。
+- **workflow = `tools/data_emit/data_emit.wf.js`**：per-symbol〔emitter：caller 分析定真型別/維度 + `read_memory`
+  抽真 byte + `verify_real.py --one <name> <hex> <home> <width>` byte gate → 獨立 reviewer 自抓三源復核（自己重讀
+  hex 再跑 byte gate）→ ≤10 round〕→ **per-home-file finalizer**〔globals.h const extern + 移 testglob 假版 +
+  `genbuild --apply` + `build_test` 0err/0warn + commit + 標 `data_routing` reviewed〕。finalizer 只做機械收尾。
+- **分區 = N=4 file-disjoint**：`python tools/data_emit/mkpart.py 4` → `workspace/data_emit/partitions/part_{1..4}.json`
+  （weight 各 125；btltab/chtab 切 btltab2/3、chtab2/3 分散到不同 worktree）。
+- **已完成 pilot**：`table/audtab.c` 4 個 audio const 表（commit `1b00d14`，byte-verified、build 0/0、該 4 符號
+  `reviewed=true`）。（integ 史：`455e9d1` pilot v1 → `2abc7b0` revert → `1b00d14` 正式落地。）
+- **決策（鎖定）**：①const 照計畫加（測試若寫入 const 表 → 該測試用 `#if 0` SKIP + `/* SKIP (Phase 3) */` marker、
+  連只它用到的 fixture 一起 SKIP，finalizer 回報 `skipped_tests` 當 Phase 3 worklist，**禁改測試邏輯**）；
+  ②build 每個 home 檔一次（非 per-symbol），`verify_real --one` 為 per-symbol byte gate；③emitter+獨立 reviewer 每符號全套；
+  ④resumability per-home-file（中斷重跑前先 `git -C <worktree> checkout -- src tests` 清半成品，否則 emitter 會重複 append）。
+- **下一步＝四路並行**（主 session 統籌）：①commit 工具（若 working tree 有未 commit 的 `tools/data_emit/*`）；
+  ②建 4 worktree（`../fd2-wt/dp1..dp4` from integ HEAD）；③每路 `python tools/data_emit/scout.py
+  workspace/data_emit/partitions/part_N.json <worktree_abs_path> data-pN` → 取輸出 args →
+  `Workflow(scriptPath:"tools/data_emit/data_emit.wf.js", args:<scout 輸出>)` 背景跑，4 個並行（各 worktree 隔離
+  build/testglob/globals/branch）；④全完成後 merge cascade 併回 integ（testglob/globals union，沿 §3 方法論）；
+  ⑤驗 `scout.py --stats` reviewed=347 + `verify_real`（全批）全 PASS + build 0/0 → hard-stop 等使用者再進 Phase 2。
+
+**帳目（全 563 `data_fd2_` 符號，即時重跑 reconcile/scout 取得、勿抄本檔）**：28 已完成 real_in_src + 347
+worklist（const 141 + init-data 12 + zero-bss 194；needs_bytes=153）+ 187 undefined + 1 sublabel。**187 undefined 分流**：
+106 `cutscene_event_script`（隨 cutscene ptr table 具名目標帶出）+ 58 `data_fd2_string_*`（emit 端已 inline、非缺口）
++ ~23 graphics/battle state（隨 Phase 2 函式落地）。**fd2_ 函式缺口**：composite + 21 await_emit（blit/pathfind）= Phase 2；
+vendor 60 + `__delay_thunk_375b2` = Phase 4 CRT wiring。
 
 **Phase 4 連結注意**：`fd2.lnk` 需顯式 `library clib3s`（`system dos4g` 在「遊戲只用 crt_* wrapper」
 時不自動 pull CLIB3S，但 AIL lib 引用真 libc）；AIL lib（`workspace/ail_extract/out/{ailv3,fd2common}.lib`）

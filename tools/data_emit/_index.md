@@ -12,6 +12,10 @@
 | `verify_real.py` | **byte-equality 驗證器（內容正解的唯一憑據）**。對每個 `real_in_src` 符號，從 Ghidra `read_memory` 抽真 bytes（dump 進 `real_in_src_ghidra_bytes.tsv`），解析 src/ 的 C initializer，逐 byte + 長度比對，輸出 PASS/FAIL（FAIL 附首個 diff 位置）。全 PASS 才能把 `real_in_src` 當可信。**Phase 1 每 emit 一個 data table 都要過此 gate（抽 Ghidra → emit → re-verify byte-identical）—— 它是所有 emitted data 的 regression 關卡，不只首批 28 個。** 自帶負控（同長度不同內容須區分、A 的 C 值比 B 的 Ghidra bytes 須 FAIL）以防假 PASS。 |
 | `home_map.py` | 為每個待遷 data 符號定 **home src 檔** + **emit_class**。emit_class 用鐵證(symbol 位址的 bytes 非 0 = 有真初值)× write-xref 分:`const`(無 writer + 非 0 → `const T[]={bytes}`)/ `init-data`(有 writer + 非 0 → `T name={bytes};` 可變)/ `zero-bss`(全 0 → `T name;`,執行期或經 memcpy/ptr 間接寫)。`needs_bytes` = const∪init-data,須過 `verify_real`。home:有 writer → 該 owner 函式的 routing target 檔;否則 `const-data:<subsystem>`(Phase 1 取 8.3 檔名)。讀 `worklist.tsv` + `data_xref_owners.tsv` + `fake_bytes_nonzero.tsv`(皆 Ghidra dump)+ `routing.json`。 |
 | `rename_global.py` | 安全 whole-word 全域改名的**機械套用器**（caller 逐一決定 old→new，工具不 derive 名）。whole-word boundary 避免誤傷子字串（如 local `orig_<name>`）；掃 `src/`+`tests/` 的 `.c/.h` **與 KB `.md`（program_info / resource_info / rebuild_info / assets + index.md / open_issues.md）做 code+KB 同步**；套用後驗證舊名殘留 = 0。Ghidra 端另改（per 命名規則 [[feedback_game_data_symbol_naming]]）。 |
+| `mk_routing.py` | 產 **`src/data_routing.json`**（Phase 1 的進度＋home 事實來源，mirrors function 的 routing.json）。join `home_map.tsv`+`worklist.tsv`，把 `const-data:<sub>` 桶解析成 `table/<sub>tab.c` 8.3 檔，每符號輸出 {addr/segment/len/datatype/kind/emit_class/needs_bytes/home/writers/emitted/reviewed/commit}。 |
+| `mkpart.py [N]` | 把 worklist 切成 **N 個 file-disjoint 分區**（greedy-LPT，needs_bytes 權重 ×2）供並行 worktree emit。過大的 `table/*` 桶依位址切編號子檔（`btltab.c`/`btltab2.c`…，CAP 18 syms / 12000 bytes），split home 回寫 `data_routing.json`，分區寫 `workspace/data_emit/partitions/part_{1..N}.json`。idempotent。 |
+| `scout.py` | 為一個分區產 `data_emit.wf.js` 的 `args` JSON（跳過 `reviewed=true`）。`scout.py <manifest> <worktree_abs_root> [label]` → 印 args；`scout.py --stats` 看覆蓋率（reviewed / needs_bytes / pending by home）。 |
+| `data_emit.wf.js` | **Phase 1 主 workflow**。per-symbol〔emitter：caller 分析定真型別/維度 + `read_memory` 抽真 byte + `verify_real --one` byte gate → 獨立 reviewer 自抓三源復核 → ≤10 round〕→ **per-home-file finalizer**〔globals.h const extern + 移 testglob 假版 + `genbuild --apply` + `build_test` 0err/0warn + commit + 標 routing reviewed〕。const-writer 測試衝突 → `#if 0` SKIP（不改測試邏輯）+ 回報 `skipped_tests`。內含 budget guard / Ghidra 斷線偵測（沿 emit_review.wf.js 範式）。 |
 
 ## 跑法
 
@@ -30,6 +34,26 @@ python tools/data_emit/home_map.py
 ```
 
 中間檔（`ghidra_data_symbols.tsv` / `worklist.tsv`）寫到 `workspace/data_emit/`（scratch）。
+
+## Phase 1 emit run（四路並行，主 session 統籌）
+
+進度單一事實來源 = `src/data_routing.json` 的 `reviewed` 欄；per-home-file commit = 斷點，中斷零成本續做。
+
+```bash
+# 1. 重生事實來源 + 分區（idempotent，任何時候可重跑）
+python tools/data_emit/mk_routing.py && python tools/data_emit/mkpart.py 4
+# 2. 建 4 worktree（from integ HEAD）：N = 1..4
+git worktree add ../fd2-wt/dpN -b data-pN integ
+# 3. 每路取 args 並啟動背景 workflow（主 session 同時 4 個並行）：
+python tools/data_emit/scout.py workspace/data_emit/partitions/part_N.json <ABS path ../fd2-wt/dpN> data-pN
+#    把輸出 JSON 當 args -> Workflow(scriptPath:"tools/data_emit/data_emit.wf.js", args:<scout 輸出>)
+# 4. 進度 / 收尾
+python tools/data_emit/scout.py --stats        # reviewed 應收斂到 347
+```
+
+- **中斷重跑**：先 `git -C ../fd2-wt/dpN checkout -- src tests` 清掉半成品 def（否則 emitter 會重複 append），再重跑 scout（自動跳過 `reviewed=true`）+ Workflow。
+- **全部完成** → merge cascade 併回 `integ`（testglob/globals union，沿 `src/handoff.md` §3 方法論）→ 驗收：`scout.py --stats` reviewed=347、`verify_real` 全批 PASS、`build_test` 0err/0warn → hard-stop 等使用者再進 Phase 2。
+- **emitter/reviewer/finalizer 前景跑 `build_test`，嚴禁 `run_in_background`**（同 emit pipeline 鐵則）。
 
 ## 已知分類陷阱（reconcile 後逐項處理時注意）
 
