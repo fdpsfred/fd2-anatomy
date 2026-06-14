@@ -386,7 +386,7 @@ extern uint32 data_fd2_field_map_tile_event_consumed_flags_ptr;         /* 0x53A
 extern uint32 data_fd2_battle_turn_counter;                             /* 0x53BEF */
 
 /* ---- save/load ---- */
-extern uint32 data_fd2_shared_party_total_gold;                         /* 0x53BF3 */
+extern int32  data_fd2_shared_party_total_gold;                         /* 0x53BF3 */
 extern uint32 data_fd2_shared_menu_party_roster_buffer_ptr;             /* 0x53BF7 */
 extern uint32 data_fd2_shared_menu_party_member_count;                  /* 0x53BFB */
 

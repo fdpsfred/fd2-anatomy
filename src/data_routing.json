@@ -375,8 +375,8 @@
       "fd2_main_menu_continue_dispatcher"
     ],
     "note": "multi-writer:battle/btl_turn.c,life/main.c,ui_menu/menu.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_bgm_enabled_flag": {
@@ -395,8 +395,8 @@
       "fd2_load_state_from_selected_slot"
     ],
     "note": "multi-writer:life/main.c,save/save.c,ui_menu/menucfg.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_sfx_enabled_flag": {
@@ -415,8 +415,8 @@
       "fd2_load_state_from_selected_slot"
     ],
     "note": "multi-writer:life/main.c,save/save.c,ui_menu/menucfg.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_spell_sprite_offset_table": {
@@ -632,8 +632,8 @@
       "fd2_display_cinematic_image_with_fade"
     ],
     "note": "multi-writer:anim/anicine.c,anim/aniend.c,life/main.c,rsrc/rsrc.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_tile_attribute_flags_buffer_ptr": {
@@ -651,8 +651,8 @@
       "fd2_chapter_23_end"
     ],
     "note": "multi-writer:field/chend2.c,life/main.c,rsrc/rsrc.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_tile_anim_table_base": {
@@ -668,8 +668,8 @@
       "fd2_main"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chinese_font_sheet": {
@@ -685,8 +685,8 @@
       "fd2_main"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_all_game_text_ptr": {
@@ -702,8 +702,8 @@
       "fd2_main"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_anim_sprite_sheet_ptr": {
@@ -719,8 +719,8 @@
       "fd2_main"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_input_last_key_pressed": {
@@ -739,8 +739,8 @@
       "fd2_load_chapter_battle_data"
     ],
     "note": "multi-writer:life/main.c,rsrc/rsrc.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_input_key_input_mode": {
@@ -897,8 +897,8 @@
       "fd2_load_chapter_battle_data"
     ],
     "note": "multi-writer:life/main.c,rsrc/rsrc.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_map_height_tiles": {
@@ -915,8 +915,8 @@
       "fd2_load_chapter_battle_data"
     ],
     "note": "multi-writer:life/main.c,rsrc/rsrc.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_resource_portrait_sheet_ptr": {
@@ -932,8 +932,8 @@
       "fd2_main"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_field_map_tile_event_consumed_flags_ptr": {
@@ -949,8 +949,8 @@
       "fd2_main"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_last_action_sprite_id_param": {
@@ -1045,8 +1045,8 @@
       "fd2_load_state_from_selected_slot"
     ],
     "note": "multi-writer:life/main.c,save/save.c,ui_menu/menucfg.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_cutscene_event_state": {
@@ -1172,8 +1172,8 @@
       "fd2_load_chapter_battle_data"
     ],
     "note": "multi-writer:battle/btl_init.c,life/main.c,rsrc/rsrc.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_turn_counter": {
@@ -1191,8 +1191,8 @@
       "fd2_init_battle_state_for_chapter"
     ],
     "note": "multi-writer:battle/btl_init.c,battle/btl_turn.c,life/main.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_shared_party_total_gold": {
@@ -1211,8 +1211,8 @@
       "fd2_main_menu_continue_dispatcher"
     ],
     "note": "multi-writer:anim/aniui.c,battle/btl_turn.c,field/chinit.c,life/main.c,save/save.c,ui_menu/menufld.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_shared_menu_party_roster_buffer_ptr": {
@@ -1228,8 +1228,8 @@
       "fd2_main"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_shared_menu_party_member_count": {
@@ -1248,8 +1248,8 @@
       "fd2_init_runtime_char_from_base_growth"
     ],
     "note": "multi-writer:battle/btl_init.c,life/main.c,save/save.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_resource_last_loaded_resource_size": {
@@ -1720,8 +1720,8 @@
       "fd2_main"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_sfx_dig_driver_handle": {
@@ -1737,8 +1737,8 @@
       "fd2_main"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_sfx_sample_handle_0": {
@@ -1754,8 +1754,8 @@
       "fd2_main"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_sfx_sample_handle_1": {
@@ -1771,8 +1771,8 @@
       "fd2_main"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_fdother_sfx_bank_buf_ptr": {
@@ -1788,8 +1788,8 @@
       "fd2_main"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_walk_step_sfx_cadence_counter": {
@@ -1822,8 +1822,8 @@
       "fd2_main"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_scripted_cinematic_mode_or_terrain_idx": {
@@ -2637,8 +2637,8 @@
       "fd2_load_state_from_selected_slot"
     ],
     "note": "multi-writer:life/main.c,save/save.c,ui_menu/menucfg.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_player_action_menu_state_template": {
@@ -2970,8 +2970,8 @@
       "fd2_load_chapter_battle_data"
     ],
     "note": "multi-writer:life/main.c,rsrc/rsrc.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_resource_portrait_cache_total_size": {
@@ -2988,8 +2988,8 @@
       "fd2_load_chapter_battle_data"
     ],
     "note": "multi-writer:life/main.c,rsrc/rsrc.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_chapter_walk_anim_alt_palette_idx": {
@@ -3145,8 +3145,8 @@
       "fd2_main"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_figani_pose_anim_subframe_idx": {
@@ -3314,8 +3314,8 @@
       "fd2_main"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_tile_map_anim_frame_counter": {
@@ -3456,8 +3456,8 @@
       "fd2_main"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_compose_parallax_scroll_y_rows": {
@@ -3510,8 +3510,8 @@
       "fd2_main"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_figani_pose_anim_pose_idx": {
@@ -4991,8 +4991,8 @@
       "fd2_tick_chapter_palette_animation"
     ],
     "note": "multi-writer:gfx/palette.c,life/main.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_blink_phase_oscillator_tick_latch": {
@@ -5630,8 +5630,8 @@
       "fd2_load_chapter_battle_data"
     ],
     "note": "multi-writer:life/main.c,rsrc/rsrc.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_portrait_sprite_cache": {
@@ -5762,8 +5762,8 @@
       "fd2_load_chapter_battle_data"
     ],
     "note": "multi-writer:field/chtrans.c,life/main.c,rsrc/rsrc.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   }
 }
