@@ -39,7 +39,7 @@ void fd2_set_bgm_track_with_fade(uint32 track_id,
 
     data_fd2_audio_bgm_sequence_data_buf_ptr =
         (uint32)fd2_load_dat_resource(
-            (uint32)data_fd2_string_fdmus_dat,
+            (uint32)data_fd2_string_resource_filename_fdmus_dat,
             data_fd2_audio_bgm_sequence_data_buf_ptr,
             track_id);
     fd2_dpmi_lock_size(

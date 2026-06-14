@@ -1501,7 +1501,7 @@ extern uint32 g_grant_spell_last_char;
 extern uint32 g_grant_spell_last_spell;
 extern uint32 data_fd2_dialog_last_action_sprite_id_param;
 extern character_growth data_fd2_battle_character_growth_table[68];
-extern uint8 data_fd2_spell_learning_table[20 * 12];
+extern uint8 data_fd2_battle_spell_learning_table[20 * 12];
 
 /* END-only dialog page table covering every page index the handler emits
  * (0x1E8/0x1E9/0x1EA-0x1EE and 0x24B). */
@@ -1691,7 +1691,7 @@ static void test_xp_spell_learn_on_match(void)
     uint8 *learn;
 
     xp_setup(5, 3);                                    /* growth[5].spell_learning_idx = 3 */
-    learn = &data_fd2_spell_learning_table[3 * 12];
+    learn = &data_fd2_battle_spell_learning_table[3 * 12];
     memset(learn, 0xEE, 12);                           /* no pair matches by default */
     learn[0] = 2;                                      /* pair0 req_level = 2 (the new level) */
     learn[1] = 7;                                      /* pair0 spell_id = 7 */
@@ -1712,7 +1712,7 @@ static void test_xp_spell_learn_no_match(void)
     uint8 *learn;
 
     xp_setup(5, 3);
-    learn = &data_fd2_spell_learning_table[3 * 12];
+    learn = &data_fd2_battle_spell_learning_table[3 * 12];
     memset(learn, 0xEE, 12);                           /* no req_level equals level 2 */
     g_test_rc_array[0].status_flags_block[0] = 1;
     data_fd2_battle_pending_xp_credit = 150;

@@ -1186,11 +1186,11 @@ static void test_job_equip_match_at_first_slot(void)
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     memset(data_fd2_battle_item_effect_table, 0,
            sizeof(data_fd2_battle_item_effect_table));
-    memset(data_fd2_job_allowed_items_table, 0,
-           sizeof(data_fd2_job_allowed_items_table));
+    memset(data_fd2_battle_job_allowed_items_table, 0,
+           sizeof(data_fd2_battle_job_allowed_items_table));
 
     g_test_rc_array[0].job_id = 3;                      /* job 3 -> row at *7 */
-    data_fd2_job_allowed_items_table[3 * 7 + 0] = 0x42; /* allowed[0] */
+    data_fd2_battle_job_allowed_items_table[3 * 7 + 0] = 0x42; /* allowed[0] */
     data_fd2_battle_item_effect_table[10].type = 0x42;  /* item category match */
 
     ASSERT_EQ(fd2_check_job_can_equip_item(0, 10), 1);
@@ -1204,14 +1204,14 @@ static void test_job_equip_match_at_last_scanned_slot(void)
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     memset(data_fd2_battle_item_effect_table, 0,
            sizeof(data_fd2_battle_item_effect_table));
-    memset(data_fd2_job_allowed_items_table, 0,
-           sizeof(data_fd2_job_allowed_items_table));
+    memset(data_fd2_battle_job_allowed_items_table, 0,
+           sizeof(data_fd2_battle_job_allowed_items_table));
 
     g_test_rc_array[0].job_id = 1;
     for (k = 0; k < 5; k++) {
-        data_fd2_job_allowed_items_table[1 * 7 + k] = (uint8)(0x10 + k);
+        data_fd2_battle_job_allowed_items_table[1 * 7 + k] = (uint8)(0x10 + k);
     }
-    data_fd2_job_allowed_items_table[1 * 7 + 5] = 0x99; /* allowed[5] match */
+    data_fd2_battle_job_allowed_items_table[1 * 7 + 5] = 0x99; /* allowed[5] match */
     data_fd2_battle_item_effect_table[20].type = 0x99;
 
     ASSERT_EQ(fd2_check_job_can_equip_item(0, 20), 1);
@@ -1224,12 +1224,12 @@ static void test_job_equip_no_match_returns_zero(void)
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     memset(data_fd2_battle_item_effect_table, 0,
            sizeof(data_fd2_battle_item_effect_table));
-    memset(data_fd2_job_allowed_items_table, 0,
-           sizeof(data_fd2_job_allowed_items_table));
+    memset(data_fd2_battle_job_allowed_items_table, 0,
+           sizeof(data_fd2_battle_job_allowed_items_table));
 
     g_test_rc_array[0].job_id = 2;
     for (k = 0; k < 6; k++) {
-        data_fd2_job_allowed_items_table[2 * 7 + k] = (uint8)(0x30 + k);
+        data_fd2_battle_job_allowed_items_table[2 * 7 + k] = (uint8)(0x30 + k);
     }
     data_fd2_battle_item_effect_table[5].type = 0x7F; /* not in 0x30..0x35 */
 
@@ -1245,14 +1245,14 @@ static void test_job_equip_seventh_byte_not_scanned(void)
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     memset(data_fd2_battle_item_effect_table, 0,
            sizeof(data_fd2_battle_item_effect_table));
-    memset(data_fd2_job_allowed_items_table, 0,
-           sizeof(data_fd2_job_allowed_items_table));
+    memset(data_fd2_battle_job_allowed_items_table, 0,
+           sizeof(data_fd2_battle_job_allowed_items_table));
 
     g_test_rc_array[0].job_id = 4;
     for (k = 0; k < 6; k++) {
-        data_fd2_job_allowed_items_table[4 * 7 + k] = (uint8)(0x50 + k);
+        data_fd2_battle_job_allowed_items_table[4 * 7 + k] = (uint8)(0x50 + k);
     }
-    data_fd2_job_allowed_items_table[4 * 7 + 6] = 0xAB; /* 7th byte */
+    data_fd2_battle_job_allowed_items_table[4 * 7 + 6] = 0xAB; /* 7th byte */
     data_fd2_battle_item_effect_table[7].type = 0xAB;   /* matches only [6] */
 
     ASSERT_EQ(fd2_check_job_can_equip_item(0, 7), 0);
@@ -1267,12 +1267,12 @@ static void test_job_equip_uses_indexed_char_job(void)
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
     memset(data_fd2_battle_item_effect_table, 0,
            sizeof(data_fd2_battle_item_effect_table));
-    memset(data_fd2_job_allowed_items_table, 0,
-           sizeof(data_fd2_job_allowed_items_table));
+    memset(data_fd2_battle_job_allowed_items_table, 0,
+           sizeof(data_fd2_battle_job_allowed_items_table));
 
     data_fd2_battle_item_effect_table[12].type = 0x66;
     g_test_rc_array[5].job_id = 7;
-    data_fd2_job_allowed_items_table[7 * 7 + 2] = 0x66;   /* job 7 permits */
+    data_fd2_battle_job_allowed_items_table[7 * 7 + 2] = 0x66;   /* job 7 permits */
     g_test_rc_array[0].job_id = 9;                         /* job 9 row left 0 */
 
     ASSERT_EQ(fd2_check_job_can_equip_item(5, 12), 1);

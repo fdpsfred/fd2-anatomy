@@ -18,8 +18,12 @@ the old whole-word is gone (0). UTF-8 reads/writes, preserves newlines.
 import io, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DIRS = [os.path.join(ROOT, "src"), os.path.join(ROOT, "tests")]
-EXTS = (".c", ".h")
+CODE_DIRS = [os.path.join(ROOT, "src"), os.path.join(ROOT, "tests")]
+KB_DIRS = [os.path.join(ROOT, d) for d in
+           ("program_info", "resource_info", "rebuild_info", "assets")]
+KB_FILES = [os.path.join(ROOT, f) for f in ("index.md", "open_issues.md")]
+DIRS = CODE_DIRS + KB_DIRS                      # code (.c/.h) + KB (.md) full sync
+EXTS = (".c", ".h", ".md")
 
 
 def iter_files():
@@ -30,6 +34,9 @@ def iter_files():
             for fn in fns:
                 if fn.endswith(EXTS):
                     yield os.path.join(dp, fn)
+    for f in KB_FILES:
+        if os.path.isfile(f):
+            yield f
 
 
 def main():

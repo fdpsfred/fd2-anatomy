@@ -652,8 +652,8 @@ static void test_promote_exec_learns_spell(void)
     rc = &g_test_rc_array[0];
 
     /* promotion entry: [0]=new job id (unused here), [1]=learned spell id. */
-    data_fd2_class_promotion_data_table[(0x30 - 0x20) * 2 + 0] = 0x09;
-    data_fd2_class_promotion_data_table[(0x30 - 0x20) * 2 + 1] = 0x0B;  /* spell 11 */
+    data_fd2_battle_class_promotion_data_table[(0x30 - 0x20) * 2 + 0] = 0x09;
+    data_fd2_battle_class_promotion_data_table[(0x30 - 0x20) * 2 + 1] = 0x0B;  /* spell 11 */
 
     /* the roll fake returns this as the threaded cursor / spell-dialog row. */
     g_roll_stat_next_row = 2;
@@ -709,8 +709,8 @@ static void test_promote_exec_no_spell(void)
     promote_exec_setup(0x20, 0x11);
     rc = &g_test_rc_array[0];
 
-    data_fd2_class_promotion_data_table[(0x20 - 0x20) * 2 + 0] = 0x21;
-    data_fd2_class_promotion_data_table[(0x20 - 0x20) * 2 + 1] = 0x00;  /* no spell */
+    data_fd2_battle_class_promotion_data_table[(0x20 - 0x20) * 2 + 0] = 0x21;
+    data_fd2_battle_class_promotion_data_table[(0x20 - 0x20) * 2 + 1] = 0x00;  /* no spell */
 
     g_roll_stat_next_row = 1;
 

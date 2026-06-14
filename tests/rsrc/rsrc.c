@@ -48,7 +48,7 @@ extern runtime_char g_test_rc_array[8];
 
 /* DAT filename strings (match the Ghidra/globals symbols; equal to the staged
  * real file names). */
-extern char data_fd2_string_fdmus_dat[];
+extern char data_fd2_string_resource_filename_fdmus_dat[];
 extern char data_fd2_string_resource_filename_fdother_dat[];
 
 /* Read the 13 sprite-header ints (12 frame offsets + 1 end-mark) for a
@@ -81,7 +81,7 @@ static void test_ldr_normal_load_and_size(void)
     /* real FDMUS.DAT index 0 (a tiny 3-byte resource) */
     ref_size = realdat_read_resource("FDMUS.DAT", 0, &ref);
     ASSERT_TRUE(ref_size > 0);
-    buf = (uint8 *)fd2_load_dat_resource((uint32)data_fd2_string_fdmus_dat, 0, 0);
+    buf = (uint8 *)fd2_load_dat_resource((uint32)data_fd2_string_resource_filename_fdmus_dat, 0, 0);
     ASSERT_TRUE(buf != 0);
     ASSERT_EQ((long)data_fd2_resource_last_loaded_resource_size, ref_size);
     ASSERT_EQ((long)memcmp(buf, ref, (size_t)ref_size), 0);
@@ -91,7 +91,7 @@ static void test_ldr_normal_load_and_size(void)
     /* real FDMUS.DAT index 3 (a larger FORM chunk) — distinct payload+size */
     ref_size = realdat_read_resource("FDMUS.DAT", 3, &ref);
     ASSERT_TRUE(ref_size > 0);
-    buf = (uint8 *)fd2_load_dat_resource((uint32)data_fd2_string_fdmus_dat, 0, 3);
+    buf = (uint8 *)fd2_load_dat_resource((uint32)data_fd2_string_resource_filename_fdmus_dat, 0, 3);
     ASSERT_TRUE(buf != 0);
     ASSERT_EQ((long)data_fd2_resource_last_loaded_resource_size, ref_size);
     ASSERT_EQ((long)memcmp(buf, ref, (size_t)ref_size), 0);

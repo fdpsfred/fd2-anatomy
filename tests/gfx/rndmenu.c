@@ -2525,7 +2525,7 @@ static void test_promo_row_offset_per_iter(void)
  *     proves that page index reached the VM and g_dlg_glyph_last_pos / _p5
  *     capture the dst arithmetic and the border glyph.
  *   - target job: the REAL fd2_get_class_promotion_data_entry against the
- *     file-scope data_fd2_class_promotion_data_table (seeded per test), so the
+ *     file-scope data_fd2_battle_class_promotion_data_table (seeded per test), so the
  *     target-list indexing AND the entry[0] dereference are both exercised.
  *
  * Risk-bearing logic under test: the visible-count cap (min 3), the blink-frame
@@ -2564,7 +2564,7 @@ static void cand_setup(uint32 scroll, uint32 subframe)
         g_cand_targets[i] = 0x20;              /* default target class 0x20 */
     }
     for (i = 0; i < 20 * 2; i++) {
-        data_fd2_class_promotion_data_table[i] = 0;
+        data_fd2_battle_class_promotion_data_table[i] = 0;
     }
 
     data_fd2_battle_runtime_char_array_ptr = g_roster_chars;
@@ -2786,8 +2786,8 @@ static void test_cand_target_job_page_dst_via_real_table(void)
     cand_setup(0, 0);
     g_cand_targets[0] = 0x25;                    /* target class 0x25 */
     /* class 0x25 -> table index (0x25-0x20)*2 = 10 */
-    data_fd2_class_promotion_data_table[10] = 0x07;   /* entry[0] -> page 0x9D */
-    data_fd2_class_promotion_data_table[11] = 0x40;   /* entry[1] decoy (spell id) */
+    data_fd2_battle_class_promotion_data_table[10] = 0x07;   /* entry[0] -> page 0x9D */
+    data_fd2_battle_class_promotion_data_table[11] = 0x40;   /* entry[1] decoy (spell id) */
     roster_text_glyph_at(0x9D, 0x71);            /* only the target-job page glyphs */
 
     fd2_render_promote_candidates_grid(1, surf, 99, g_promo_cands,
@@ -2812,7 +2812,7 @@ static void test_cand_target_list_indexed_by_scroll(void)
     g_promo_cands[1]  = 7;                        /* candidate (char) index, unrelated */
     g_cand_targets[1] = 0x28;                     /* target class for slot scroll+0 */
     /* class 0x28 -> table index (0x28-0x20)*2 = 16 */
-    data_fd2_class_promotion_data_table[16] = 0x12;   /* entry[0] -> page 0xA8 */
+    data_fd2_battle_class_promotion_data_table[16] = 0x12;   /* entry[0] -> page 0xA8 */
     roster_text_glyph_at(0xA8, 0x4D);
 
     fd2_render_promote_candidates_grid(1, surf, 99, g_promo_cands,

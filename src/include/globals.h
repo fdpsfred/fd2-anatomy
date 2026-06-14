@@ -414,7 +414,7 @@ extern uint32 data_fd2_audio_figani_sfx_bank_buf_ptr;                  /* 0x5411
 extern uint8  data_fd2_audio_figani_sfx_bank_fdother_index_lut[];       /* 0x525D6  6B; 1-based id->FDOTHER idx */
 extern uint8  data_fd2_audio_walk_step_sfx_cadence_counter;             /* 0x540FE */
 extern uint32 data_fd2_audio_figani_sfx_bank_defender_buf_ptr;          /* 0x5411B */
-extern char   data_fd2_string_fdmus_dat[];                              /* 0x51A79  "FDMUS.DAT" */
+extern char   data_fd2_string_resource_filename_fdmus_dat[];                              /* 0x51A79  "FDMUS.DAT" */
 
 /* ---- animation tables (.object2 const) ---- */
 extern uint8  data_fd2_audio_footstep_sfx_per_job_cadence_class_table[]; /* 0x52618  29B */
@@ -546,9 +546,9 @@ extern uint8  data_fd2_battle_pathfind_current_depth;                    /* 0x60
 extern uint8  data_fd2_battle_pathfind_best_path_length;                 /* 0x60078 */
 extern uint8  data_fd2_battle_pathfind_step_stack[];                     /* 0x60079  8B per frame */
 extern uint8  data_fd2_battle_pathfind_mode_flags;                       /* 0x6017A  0/1/2 tiebreak/dst-record mode */
-extern uint8  data_fd2_class_promotion_data_table[];                    /* 0x615FE  2B per entry */
-extern uint8  data_fd2_movement_cost_table[];                           /* 0x61646  20B per job */
-extern uint8  data_fd2_job_allowed_items_table[27 * 7];                 /* 0x6188A  7B per job, 27 jobs */
+extern uint8  data_fd2_battle_class_promotion_data_table[];                    /* 0x615FE  2B per entry */
+extern uint8  data_fd2_battle_movement_cost_table[];                           /* 0x61646  20B per job */
+extern uint8  data_fd2_battle_job_allowed_items_table[27 * 7];                 /* 0x6188A  7B per job, 27 jobs */
 
 /* ---- .object3 pointer tables ---- */
 extern void  *data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21[21]; /* 0x61955 */
@@ -556,7 +556,7 @@ extern void  *data_fd2_chapter_cutscene_event_script_ptr_table_106[106];   /* 0x
 
 /* ---- .object3 additional tables ---- */
 extern uint8  data_fd2_chapter_intro_metadata_table[];                  /* 0x6238D  31B per ch */
-extern uint8  data_fd2_spell_learning_table[];                          /* 0x626B3  12B per entry */
+extern uint8  data_fd2_battle_spell_learning_table[];                          /* 0x626B3  12B per entry */
 extern uint8  data_fd2_orphan_table_60181[];                           /* 0x60181  3B per entry (orphan) */
 
 #endif /* GLOBALS_H */
