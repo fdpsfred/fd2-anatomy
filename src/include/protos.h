@@ -294,6 +294,7 @@ void fd2_chapter_25_end(void);
 void fd2_chapter_26_end(void);
 void fd2_chapter_27_end(void);
 void fd2_chapter_28_end(void);
+void fd2_chapter_29_end(void);
 void fd2_chapter_30_end(void);
 
 /* ---- chapter turn-event handlers (dispatch table 0x51B91) ---- */

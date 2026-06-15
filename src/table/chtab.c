@@ -105,3 +105,55 @@ void (*const data_fd2_chapter_init_handler_table[30])(void) = {
     fd2_chapter_29_init,                 /* [28] ch29 */
     fd2_chapter_30_init                  /* [29] ch30 */
 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_chapter_end_handler_table @ 0x51DE9  (30 entries, 4-byte ptrs)
+ *
+ * Per-chapter end handler, invoked once when a chapter is being switched out
+ * (game_event_flag == 2: chapter-switch branch of the main loop). Indexed by
+ * current_chapter_id (index 0 = chapter 1 .. index 29 = chapter 30).
+ * Read-only const table in .object2. The pointed-to handlers live in
+ * src/field/chend1.c / chend2.c; prototypes are in protos.h.
+ *
+ * Caller (fd2_main @ 0x25BF4, chapter-switch branch @ 0x25E23):
+ *     MOV  EAX,[0x53C03]                 ; current_chapter_id
+ *     CALL dword ptr [EAX*0x4 + 0x51DE9] ; stride 4, call thru fn ptr, no args
+ *     ; (cdecl, no stack cleanup -> zero-arg, void return)
+ * => element type: void (*)(void), 30 entries, cdecl, indexed by chapter-1.
+ *
+ * Unlike the post-action / init tables, every chapter has its own distinct end
+ * handler (no shared / default slots); entries are strictly sequential
+ * fd2_chapter_01_end .. fd2_chapter_30_end.
+ * ---------------------------------------------------------------- */
+void (*const data_fd2_chapter_end_handler_table[30])(void) = {
+    fd2_chapter_01_end,                  /* [0]  ch1  */
+    fd2_chapter_02_end,                  /* [1]  ch2  */
+    fd2_chapter_03_end,                  /* [2]  ch3  */
+    fd2_chapter_04_end,                  /* [3]  ch4  */
+    fd2_chapter_05_end,                  /* [4]  ch5  */
+    fd2_chapter_06_end,                  /* [5]  ch6  */
+    fd2_chapter_07_end,                  /* [6]  ch7  */
+    fd2_chapter_08_end,                  /* [7]  ch8  */
+    fd2_chapter_09_end,                  /* [8]  ch9  */
+    fd2_chapter_10_end,                  /* [9]  ch10 */
+    fd2_chapter_11_end,                  /* [10] ch11 */
+    fd2_chapter_12_end,                  /* [11] ch12 */
+    fd2_chapter_13_end,                  /* [12] ch13 */
+    fd2_chapter_14_end,                  /* [13] ch14 */
+    fd2_chapter_15_end,                  /* [14] ch15 */
+    fd2_chapter_16_end,                  /* [15] ch16 */
+    fd2_chapter_17_end,                  /* [16] ch17 */
+    fd2_chapter_18_end,                  /* [17] ch18 */
+    fd2_chapter_19_end,                  /* [18] ch19 */
+    fd2_chapter_20_end,                  /* [19] ch20 */
+    fd2_chapter_21_end,                  /* [20] ch21 */
+    fd2_chapter_22_end,                  /* [21] ch22 */
+    fd2_chapter_23_end,                  /* [22] ch23 */
+    fd2_chapter_24_end,                  /* [23] ch24 */
+    fd2_chapter_25_end,                  /* [24] ch25 */
+    fd2_chapter_26_end,                  /* [25] ch26 */
+    fd2_chapter_27_end,                  /* [26] ch27 */
+    fd2_chapter_28_end,                  /* [27] ch28 */
+    fd2_chapter_29_end,                  /* [28] ch29 */
+    fd2_chapter_30_end                   /* [29] ch30 */
+};
