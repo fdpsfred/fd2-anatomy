@@ -1011,8 +1011,6 @@ int32  data_fd2_ui_save_load_newgame_menu_template[4] = { 12, 13, 14, 15 };
 int32  data_fd2_ui_save_load_menu_state_template[4] = { 0, 0, 0, 0 };
 /* player action menu state template — real FD2.LE value @ 0x53F12 (all zero) */
 int32  data_fd2_ui_player_action_menu_state_template[4] = { 0, 0, 0, 0 };
-/* inline action menu template — real FD2.LE value @ 0x51ED5 (Attack/Spell/Item/Wait slot ids) */
-int32  data_fd2_ui_inline_action_menu_template[4] = { 0, 1, 2, 3 };
 /* item command menu templates — real FD2.LE values @ 0x51F05 / 0x53F32
  * (Use/Give/Sort/Drop slot ids; state all zero) */
 int32  data_fd2_ui_item_command_menu_template[4] = { 8, 9, 10, 11 };

@@ -33,3 +33,16 @@ const int32 data_fd2_ui_field_command_menu_options_template[4] = { 7, 5, 6, 4 };
  * written -- only the local copies are mutated.
  */
 const int32 data_fd2_ui_game_options_menu_slots_template[4] = { 0x12, 0x14, 0x16, 0x18 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_inline_action_menu_template @ 0x51ED5  (16 bytes)
+ *
+ * Inline action submenu option list: 4 x int32 entries { 0, 1, 2, 3 }
+ * (Attack / Spell / Item / Wait), opened after the player picks a
+ * destination tile. fd2_player_inline_action_menu_dispatch copies all four
+ * 32-bit words into a local menu_template[16] buffer with an int* / stride-4
+ * loop (REP MOVSD, count 4), then passes that buffer to the settings-dialog
+ * open / input / close routines. Read-only; the source array is never
+ * written -- only the local copy is consumed.
+ */
+const int32 data_fd2_ui_inline_action_menu_template[4] = { 0, 1, 2, 3 };

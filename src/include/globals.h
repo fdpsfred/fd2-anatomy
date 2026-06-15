@@ -210,7 +210,7 @@ extern uint32 data_fd2_ui_menu_saved_scroll_offset;                     /* 0x541
 extern const int32  data_fd2_ui_field_command_menu_options_template[4]; /* 0x51E9F */
 extern int32  data_fd2_ui_field_command_menu_state_template[4];         /* 0x53EF2 */
 extern int32  data_fd2_ui_player_action_menu_state_template[4];         /* 0x53F12 */
-extern int32  data_fd2_ui_inline_action_menu_template[4];               /* 0x51ED5 */
+extern const int32 data_fd2_ui_inline_action_menu_template[4];          /* 0x51ED5 */
 extern const int32 data_fd2_ui_game_options_menu_slots_template[4];     /* 0x51EAF */
 extern int32  data_fd2_ui_game_options_menu_state_template[4];          /* 0x53F02 */
 extern int32  data_fd2_dialog_advance_collapse_template[4];             /* 0x51EE5 */
