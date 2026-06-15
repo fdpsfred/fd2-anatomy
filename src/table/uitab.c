@@ -60,3 +60,20 @@ const int32 data_fd2_ui_inline_action_menu_template[4] = { 0, 1, 2, 3 };
  * which holds the per-option enable/disable flags mutated on the stack).
  */
 const int32 data_fd2_ui_save_load_newgame_menu_template[4] = { 12, 13, 14, 15 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_item_command_menu_template @ 0x51F05  (16 bytes)
+ *
+ * Item command submenu option list: 4 x int32 entries { 8, 9, 10, 11 }
+ * (Use / Give / Sort-Equip / Drop). The sole reader
+ * fd2_item_command_menu_dispatch copies all four 32-bit words into a local
+ * menu_options[16] buffer with a count-4 REP MOVSD (MOV ECX,4; MOV ESI,0x51F05;
+ * REP MOVSD -> 32-bit elements, int* / stride-4 loop), then passes that buffer
+ * to fd2_open_settings_dialog_with_slide. The current_menu_cursor_idx (0..3)
+ * selected from this menu dispatches the Use/Give/Sort/Drop branches.
+ * Read-only; the source array is never written -- only the local copy is
+ * consumed (paired with data_fd2_ui_item_command_menu_state_template @ 0x53F32,
+ * which holds the per-option enable/disable flags mutated on the stack, e.g.
+ * Give is greyed out when no adjacent ally tile is in range).
+ */
+const int32 data_fd2_ui_item_command_menu_template[4] = { 8, 9, 10, 11 };
