@@ -320,8 +320,8 @@
       "fd2_player_action_menu_loop"
     ],
     "note": "multi-writer:battle/btl_ai.c,battle/btl_aitg.c,battle/btl_init.c,battle/btl_turn.c,dialog/dialog.c,field/chend1.c,field/chend2.c,field/chevt1.c,field/chevt2.c,field/chinit.c,field/chtrans.c,life/main.c,spell/spelleff.c,spell/spellsel.c,ui_menu/cursor.c,ui_menu/menu.c,ui_menu/status.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_ai_post_action_consequence_idx": {
@@ -355,8 +355,8 @@
     "home": "table/gfxtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_play_active_flag": {
@@ -490,8 +490,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_spell_palette_g_table": {
@@ -505,8 +505,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_spell_palette_b_table": {
@@ -520,8 +520,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_resource_portrait_cache_buffer_used": {
@@ -538,8 +538,8 @@
       "_cstart_"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs": {
@@ -759,8 +759,8 @@
       "fd2_wait_for_input_v2"
     ],
     "note": "multi-writer:anim/aniend.c,dialog/dialog.c,field/chtrans.c,input/input.c,save/save.c,ui_menu/menufld.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_view_window_origin_x": {
@@ -1006,8 +1006,8 @@
       "fd2_process_xp_and_level_up_for_char"
     ],
     "note": "multi-writer:battle/btl_turn.c,gfx/rndmenu.c,ui_menu/menufld.c,ui_menu/promote.c,ui_menu/shop.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_current_active_char_idx": {
@@ -1081,8 +1081,8 @@
       "fd2_load_chapter_background_layers"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_animated_bg_buffer_ptr": {
@@ -1098,8 +1098,8 @@
       "fd2_load_chapter_background_layers"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_status_effect_sfx_handle_ptr": {
@@ -1116,15 +1116,15 @@
       "fd2_chapter_25_init"
     ],
     "note": "multi-writer:audio/audio.c,field/chinit.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_resource_portrait_cache_id_list_base": {
     "addr": "53b17",
     "segment": ".object2",
-    "len": 40,
-    "datatype": "byte[40]",
+    "len": 160,
+    "datatype": "byte[160]",
     "kind": "byte_data",
     "emit_class": "zero-bss",
     "needs_bytes": false,
@@ -1133,8 +1133,8 @@
       "fd2_load_portrait_to_cache"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_resource_portrait_cache_count": {
@@ -1153,8 +1153,8 @@
       "fd2_load_state_from_selected_slot"
     ],
     "note": "multi-writer:field/chtrans.c,life/main.c,rsrc/rsrc.c,save/save.c,ui_menu/promote.c,util/misc.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_party_member_count": {
@@ -1265,8 +1265,8 @@
       "fd2_load_dat_resource"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_current_chapter_id": {
@@ -1566,8 +1566,8 @@
       "fd2_open_shop_dialog_panel"
     ],
     "note": "multi-writer:rsrc/rsrc.c,save/save.c,spell/spellsel.c,ui_menu/chintro.c,ui_menu/promote.c,ui_menu/shop.c,ui_menu/status.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_slide_bg_snapshot_buf_ptr": {
@@ -1586,8 +1586,8 @@
       "fd2_open_shop_dialog_panel"
     ],
     "note": "multi-writer:rsrc/rsrc.c,save/save.c,spell/spellsel.c,ui_menu/chintro.c,ui_menu/promote.c,ui_menu/shop.c,ui_menu/status.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_slide_composed_target_buf_ptr": {
@@ -1606,8 +1606,8 @@
       "fd2_open_shop_dialog_panel"
     ],
     "note": "multi-writer:rsrc/rsrc.c,save/save.c,spell/spellsel.c,ui_menu/chintro.c,ui_menu/promote.c,ui_menu/shop.c,ui_menu/status.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_active_portrait_blit_offset": {
@@ -1663,8 +1663,8 @@
       "fd2_execute_summon_spell_cast"
     ],
     "note": "multi-writer:anim/anicombt.c,spell/spell.c,spell/spellcin.c,spell/spelleff.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_pending_xp_credit": {
@@ -1683,8 +1683,8 @@
       "fd2_execute_ai_offensive_spell"
     ],
     "note": "multi-writer:battle/battle.c,battle/btl_ai.c,battle/btl_turn.c,field/chevt1.c,field/chevt2.c,spell/spelleff.c,ui_menu/menu.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_event_or_battle_end_code": {
@@ -1805,8 +1805,8 @@
       "fd2_tick_tutorial_progress_with_sfx"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_bgm_driver_handle": {
@@ -1969,8 +1969,8 @@
       "fd2_wait_input_with_recruitment_repaint"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_intro_menu_cursor_state": {
@@ -2043,8 +2043,8 @@
       "fd2_promote_member_select_loop"
     ],
     "note": "multi-writer:ui_menu/promote.c,ui_menu/shop.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_menu_screen_sprite_atlas_buf_ptr": {
@@ -2287,8 +2287,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_intro_portrait_pose_y_row_table": {
@@ -2302,8 +2302,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_intro_portrait_pose_x_column_table": {
@@ -2317,8 +2317,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_intro_menu_speaker_portrait_id_table": {
@@ -2362,8 +2362,8 @@
     "home": "table/dlgtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_intro_panel_resource_idx_per_metadata_category_table": {
@@ -2392,8 +2392,8 @@
     "home": "table/dlgtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_shop_no_money_dialog_text_id_table": {
@@ -2407,8 +2407,8 @@
     "home": "table/dlgtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_shop_no_equip_dialog_text_id_table": {
@@ -2422,8 +2422,8 @@
     "home": "table/dlgtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_shop_auto_equip_dialog_text_id_table": {
@@ -2437,8 +2437,8 @@
     "home": "table/dlgtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_shop_sell_for_dialog_text_id_table": {
@@ -2452,8 +2452,8 @@
     "home": "table/dlgtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_shop_sell_nothing_to_sell_text_id_table": {
@@ -2467,8 +2467,8 @@
     "home": "table/dlgtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch03_end_scene_char_pos_x_table": {
@@ -2759,8 +2759,8 @@
     "home": "table/dlgtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_save_load_newgame_menu_template": {
@@ -2849,8 +2849,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "indirect-write bss",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_floating_damage_x_offset_queue": {
@@ -2864,8 +2864,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "indirect-write bss",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_floating_damage_target_char_idx_queue": {
@@ -2879,8 +2879,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "indirect-write bss",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_init_phase_flag": {
@@ -2952,8 +2952,8 @@
       "fd2_maybe_load_speed_mode_overlay"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_resource_portrait_cache_alloc_offset": {
@@ -3023,8 +3023,8 @@
       "fd2_text_dialog_typewriter_loop"
     ],
     "note": "multi-writer:dialog/dialog.c,input/input.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_current_speaker_char_ptr": {
@@ -3040,8 +3040,8 @@
       "fd2_find_char_by_id_or_template"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_bgm_sequence_data_buf_ptr": {
@@ -3057,8 +3057,8 @@
       "fd2_set_bgm_track_with_fade"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_palette_cycle_frame_idx": {
@@ -3231,8 +3231,8 @@
       "fd2_wait_one_bios_tick"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_portrait_blink_frame_idx": {
@@ -3280,8 +3280,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "indirect-write bss",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_chapter_init_done_flag": {
@@ -3589,8 +3589,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch12_end_scene_char_facing_table": {
@@ -3604,8 +3604,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch14_end_scene_char_pos_x_table": {
@@ -3619,8 +3619,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch14_end_scene_char_pos_y_table": {
@@ -3634,8 +3634,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch14_end_scene_char_facing_table": {
@@ -3649,8 +3649,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch16_end_scene_char_pos_x_table": {
@@ -3664,8 +3664,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch16_end_scene_char_pos_y_table": {
@@ -3679,8 +3679,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch17_end_scene_char_pos_x_table": {
@@ -3694,8 +3694,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch17_end_scene_char_pos_y_table": {
@@ -3709,8 +3709,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch18_end_scene_char_pos_y_table": {
@@ -3724,8 +3724,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch18_end_scene_char_facing_table": {
@@ -3739,8 +3739,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_spell_sfx_bank_index_table": {
@@ -3753,9 +3753,9 @@
     "needs_bytes": true,
     "home": "table/btltab2.c",
     "writers": [],
-    "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "note": "read-only const scalar uint32 (0x5E5D5C5B); byte-indexed by summon_idx in caller's local dword copy, not as a global array",
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_chapter_intro_dialog_corner_offset_table_b": {
@@ -3919,8 +3919,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_combat_hit_shake_x_offset_table": {
@@ -3934,8 +3934,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_combat_hit_shake_y_offset_table": {
@@ -3948,9 +3948,9 @@
     "needs_bytes": true,
     "home": "table/btltab2.c",
     "writers": [],
-    "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "note": "read-only const int32[6] vertical shake table {0,2,4,6,8,10}; REP MOVSD-copied whole (4-byte stride x6) into caller's local int[6], signed +/-400-scaled",
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_figani_sfx_bank_fdother_index_lut": {
@@ -3979,8 +3979,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ending_credit_roll_bottom_portrait_id_table": {
@@ -3994,8 +3994,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ending_credit_roll_scripted_outcome_table": {
@@ -4009,8 +4009,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_footstep_sfx_per_job_cadence_class_table": {
@@ -4056,8 +4056,8 @@
       "fd2_wait_n_bios_ticks"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_save_load_oom_msg_load_pbuf_50004": {
@@ -4367,8 +4367,8 @@
     "home": "table/gfxtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_radian_per_degree_const": {
@@ -4382,8 +4382,8 @@
     "home": "table/gfxtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_scatter_y_offset_neg8": {
@@ -4397,8 +4397,8 @@
     "home": "table/gfxtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_circle_band_radius_scale_16": {
@@ -4412,8 +4412,8 @@
     "home": "table/gfxtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_spell_ap_boost_factor_015": {
@@ -4523,8 +4523,8 @@
       "fd2_set_bgm_track_with_fade"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_tile_attr_mv_modifier_table": {
@@ -4583,8 +4583,8 @@
     "home": "table/chtab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_resource_filename_tai_dat": {
@@ -4688,8 +4688,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_main_anim_12slot_y_offset_table": {
@@ -4703,8 +4703,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_main_anim_12color_v_offset_table": {
@@ -4718,8 +4718,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_main_anim_12color_sprite_offset_table": {
@@ -4733,8 +4733,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_anim_variant_a_10color_y_offset_table": {
@@ -4748,8 +4748,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_anim_variant_b_10color_y_offset_table": {
@@ -4763,8 +4763,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_summon_variant_c_radial_5slot_offsets": {
@@ -4922,8 +4922,8 @@
       "_cstart_"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_input_idle_last_rendered_tick_word": {
@@ -4939,8 +4939,8 @@
       "fd2_wait_for_input_with_idle"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_char_sprite_shake_jitter_bit": {
@@ -5009,8 +5009,8 @@
       "fd2_text_dialog_typewriter_loop"
     ],
     "note": "multi-writer:dialog/dialog.c,input/input.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_spell_shared_15slot_frame_counter_array": {
@@ -5160,8 +5160,8 @@
     "home": "table/btltab2.c",
     "writers": [],
     "note": "indirect-write bss",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_anim_variant_a_6slot_color_idx_array": {
@@ -5612,8 +5612,8 @@
       "fd2_load_chapter_battle_data"
     ],
     "note": "multi-writer:life/main.c,rsrc/rsrc.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_current_chapter_text": {
@@ -5648,8 +5648,8 @@
       "fd2_restore_portrait_cache_from_tmp"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_class_promotion_data_table": {

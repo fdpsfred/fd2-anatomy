@@ -78,7 +78,9 @@ static void intro_text_all_end(void)
 }
 
 /* SKIP (Phase 3): intro_setup + the 4 chapter-intro overlay tests write now-const
- * data_fd2_chapter_intro_metadata_table; restore + rewrite to drive real data */
+ * data_fd2_chapter_intro_metadata_table and
+ * data_fd2_chapter_intro_portrait_pose_y_row_table / _x_column_table;
+ * restore + rewrite to drive real data */
 #if 0
 /* Common fixture: known chapter, pose tables, portrait cache, surfaces, text. */
 static void intro_setup(uint8 category, uint32 cursor_state)
@@ -3359,8 +3361,9 @@ static void test_battlescene_highlight_uses_runtime_state_atlas(void)
 void run_gfx_rndmenu_tests(void)
 {
     SUITE_BEGIN(gfx_rndmenu);
-/* SKIP (Phase 3): these 4 tests write now-const data_fd2_chapter_intro_metadata_table
- * via intro_setup; restore + rewrite to drive real data */
+    /* SKIP (Phase 3): these 4 tests write now-const data_fd2_chapter_intro_metadata_table
+     * and data_fd2_chapter_intro_portrait_pose_y_row_table / _x_column_table
+     * via intro_setup; restore + rewrite to drive real data */
 #if 0
     RUN_TEST(test_compose_args_frame_nonremap);
     RUN_TEST(test_frame_index_3_remaps_to_1);

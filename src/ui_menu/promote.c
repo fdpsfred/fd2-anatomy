@@ -1044,3 +1044,49 @@ void fd2_run_revive_menu_main(void)
         fd2_close_intro_dialog_with_slide_out();
     } while (1);
 }
+
+/* ----------------------------------------------------------------
+ * UI slide-in/out animation render-workspace pointer (BSS, zero at rest).
+ *
+ * data_fd2_ui_slide_anim_accumulator_buf_ptr @ 0x53C5B (.object2)
+ *   Per-frame interpolated 320x200 (mode 13h) image buffer used by the
+ *   menu slide-in/slide-out transitions (status / portrait / shop /
+ *   promote / save / spell-select / chapter-intro). Assigned at runtime
+ *   via (uint32)malloc(64000) by each opener and free()d on close; never
+ *   statically initialized, so it lives in BSS and rests at 0.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_ui_slide_anim_accumulator_buf_ptr;
+
+/* data_fd2_ui_slide_bg_snapshot_buf_ptr @ 0x53C5F (.object2)
+ *   Pristine 320x200 background snapshot captured from VGA (0xA0000) at
+ *   the start of each slide transition and used to restore the backdrop
+ *   between frames. Same lifecycle as the accumulator above: assigned via
+ *   (uint32)malloc(64000) by each opener, free()d on close, never
+ *   statically initialized -> lives in BSS, rests at 0. */
+uint32 data_fd2_ui_slide_bg_snapshot_buf_ptr;
+
+/* data_fd2_ui_slide_composed_target_buf_ptr @ 0x53C63 (.object2)
+ *   Fully composed 320x200 target image for the slide transition: the
+ *   background snapshot is copied in, then the status panel / inventory
+ *   grid / portrait / shop / promote content is rendered on top, giving
+ *   the final frame the animation slides toward. Same lifecycle as the
+ *   two pointers above: assigned via (uint32)malloc(64000) by each opener,
+ *   free()d on close, never statically initialized -> lives in BSS, rests
+ *   at 0. */
+uint32 data_fd2_ui_slide_composed_target_buf_ptr;
+
+/* data_fd2_ui_menu_candidate_array_ptr @ 0x54143 (.object2)
+ *   Universal scrollable-menu candidate pointer: points at the byte array
+ *   of valid candidate ids currently shown in the active menu/grid. Paired
+ *   with the visible-row count @ 0x5413F. Each menu flow assigns it to a
+ *   local byte[] up front (writers: fd2_run_buy_item_menu sets it to the
+ *   equip-eligible char-id list; fd2_promote_members_select_loop and
+ *   fd2_promote_member_select_loop set it to the promotable-member /
+ *   candidate-class list); the chapter-intro panel renderer reads it back
+ *   as candidate_array_ptr[scroll_offset + i] (a byte index into the
+ *   portrait/sprite cache). Asm: store at 0x2F24C is MOV [0x54143],EAX with
+ *   EAX = ESP (address of a stack-local byte[32]) -> a single 4-byte
+ *   pointer slot; reads are byte-wide. Never statically initialized -> lives
+ *   in BSS, rests at 0. (Ghidra previously mis-labeled this as
+ *   chapter_intro_face_table_ptr after its first-observed chapter-face use.) */
+uint8 *data_fd2_ui_menu_candidate_array_ptr;

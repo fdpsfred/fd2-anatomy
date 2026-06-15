@@ -726,8 +726,13 @@ static void terr_begin(void)
     memset(t_terr_attr, 0, sizeof(t_terr_attr));
     data_fd2_battle_map_width_tiles = 8;
     data_fd2_tile_attribute_flags_buffer_ptr = (uint32)t_terr_attr;
-    data_fd2_chapter_current_chapter_id = 1;
-    data_fd2_chapter_combat_cinematic_mode_per_chapter[1] = 0;
+    /* data_fd2_chapter_combat_cinematic_mode_per_chapter is a read-only const
+     * table (real FD2.LE bytes; 0 runtime writers in the game). Tests select
+     * the per-chapter override by pointing current_chapter_id at a real entry
+     * instead of writing the array. Index 24 holds 0 in the genuine table, so
+     * chapter 24 gives the "no chapter override" (fallback==0) seed these
+     * tests need. */
+    data_fd2_chapter_current_chapter_id = 24;
 }
 
 /* Single non-immune target: immune==0 -> fallback adopts its tile byte.
@@ -762,21 +767,23 @@ static void test_resolve_terrain_backward_last_wins(void)
 }
 
 /* All targets immune AND chapter override nonzero: every iteration takes
- * the else branch (immune!=0 && fallback!=0) and preserves the override. */
+ * the else branch (immune!=0 && fallback!=0) and preserves the override.
+ * The nonzero override comes from the real const table: chapter 0 holds 3
+ * (no array write -- the table is read-only const). */
 static void test_resolve_terrain_all_immune_keep_override(void)
 {
     uint8 targets[2];
     char result;
 
     terr_begin();
-    data_fd2_chapter_combat_cinematic_mode_per_chapter[1] = 0x77;
+    data_fd2_chapter_current_chapter_id = 0;   /* real entry [0] == 3 (nonzero) */
     terr_setup_char(0, 1, 1, 0x11);
     terr_setup_char(1, 2, 1, 0x22);
     g_test_rc_array[0].job_id = 0x13;      /* immune */
     g_test_rc_array[1].archetype_flag = 4; /* immune */
     targets[0] = 0; targets[1] = 1;
     result = fd2_resolve_terrain_for_aoe_targets(2, targets);
-    ASSERT_EQ((int)(uint8)result, 0x77);
+    ASSERT_EQ((int)(uint8)result, 3);
 }
 
 /* All targets immune AND chapter override == 0: the FIRST-processed

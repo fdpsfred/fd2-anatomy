@@ -56,6 +56,10 @@ D:\BIN\WCC386.EXE table\orphan.c %CF% -fo=E:\out\obj\orphan.obj >> E:\out\build.
 D:\BIN\WCC386.EXE table\anitab.c %CF% -fo=E:\out\obj\anitab.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE table\chtab.c %CF% -fo=E:\out\obj\chtab.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE table\chtab3.c %CF% -fo=E:\out\obj\chtab3.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE table\btltab2.c %CF% -fo=E:\out\obj\btltab2.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE table\chtab2.c %CF% -fo=E:\out\obj\chtab2.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE table\dlgtab.c %CF% -fo=E:\out\obj\dlgtab.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE table\gfxtab.c %CF% -fo=E:\out\obj\gfxtab.obj >> E:\out\build.out
 
 echo === compile tests === >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\testmain.c %CF% -fo=E:\out\obj\testmain.obj >> E:\out\build.out

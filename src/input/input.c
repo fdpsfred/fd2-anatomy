@@ -668,3 +668,134 @@ wait_input:
             data_fd2_audio_fdother_sfx_bank_buf_ptr, 0, 1);
     }
 }
+
+/* ----------------------------------------------------------------
+ * Data definitions
+ * ---------------------------------------------------------------- */
+
+/* data_fd2_input_idle_current_bios_tick_word @ 0x539F0  (zero-bss)
+ *
+ * Latest BIOS midnight-tick counter (0:046C, 18.2 Hz word) snapshot,
+ * captured each idle iteration of fd2_wait_for_input_with_idle. Compared
+ * against the last-rendered tick to drive the 18.2 Hz cursor-blink redraw.
+ * Zero-initialized in BSS; first touched by a runtime write. */
+uint16 data_fd2_input_idle_current_bios_tick_word;
+
+/* data_fd2_input_idle_last_rendered_tick_word @ 0x539F2  (zero-bss)
+ *
+ * Last BIOS midnight-tick value (0:046C, 18.2 Hz word) for which the
+ * cursor-blink frame was composited. Each idle iteration of
+ * fd2_wait_for_input_with_idle compares the freshly snapshotted tick
+ * against this; when they differ it re-composites the blink frame and
+ * stores the new tick here, yielding the 18.2 Hz cursor blink. Read as
+ * a sign-extended 16-bit word (asm: MOVSX EAX,word ptr [0x539F2]).
+ * Zero-initialized in BSS; first touched by a runtime write. */
+uint16 data_fd2_input_idle_last_rendered_tick_word;
+
+/* data_fd2_engine_wait_one_bios_tick_last_seen @ 0x53A0C  (zero-bss)
+ *
+ * Private 1-tick frame-pacer state for fd2_wait_one_bios_tick: caches the
+ * last-observed BIOS midnight-tick (0:046C, 18.2 Hz). The function spins
+ * while the live tick equals this cached value, then stores the new tick
+ * here so the next call waits for the following tick (~55 ms step). The
+ * tick is read sign-extended to 32 bits (asm: MOVSX EAX,word ptr [0x46C])
+ * and the full 32-bit EAX is compared/stored as a dword (CMP EAX,dword
+ * ptr [0x53A0C] / MOV [0x53A0C],EAX), so a low word of 0xFFFF caches as
+ * 0xFFFFFFFF. Only read/written by fd2_wait_one_bios_tick.
+ * Zero-initialized in BSS; first touched by a runtime write. */
+uint32 data_fd2_engine_wait_one_bios_tick_last_seen;
+
+/* data_fd2_engine_wait_n_bios_ticks_last_seen @ 0x53A2C  (zero-bss)
+ *
+ * Private N-tick frame-pacer state for fd2_wait_n_bios_ticks: caches the
+ * last-observed BIOS midnight-tick (0:046C, 18.2 Hz). On entry the function
+ * snapshots the current tick here, spins until the live tick has advanced by
+ * at least n_ticks, then re-stores the new tick so the next call counts from
+ * the latest reference (~55 ms per tick). The tick is read sign-extended to
+ * 32 bits (asm: MOVSX EAX,word ptr [0x46C]) and the full 32-bit EAX is
+ * stored / read back as a dword (MOV [0x53A2C],EAX / SUB EAX,dword ptr
+ * [0x53A2C]), so a low word of 0xFFFF caches as 0xFFFFFFFF. Sibling of
+ * data_fd2_engine_wait_one_bios_tick_last_seen with identical semantics.
+ * Only read/written by fd2_wait_n_bios_ticks.
+ * Zero-initialized in BSS; first touched by a runtime write. */
+uint32 data_fd2_engine_wait_n_bios_ticks_last_seen;
+
+/* data_fd2_input_key_input_mode @ 0x53A8E  (zero-bss)
+ *
+ * Last-key scancode / input mode byte. Every input-wait routine first writes
+ * 0x10 here (cursor-mode preset), then calls
+ *   int386(0x16, (union REGS *)&data_fd2_input_last_key_pressed,
+ *                (union REGS *)&data_fd2_input_last_key_pressed);
+ * INT 16h "read key" returns AH=scancode / AL=ASCII in AX; this byte aliases
+ * the AH field of that REGS union (it sits at &data_fd2_input_last_key_pressed
+ * + 1), so the INT 16h call fills it with the received scancode. The routine
+ * then remaps special scancodes (0xE0 / 'R' 0x52 -> 0x1C Enter; 'S' 0x53 ->
+ * 0x01 Esc) and returns this byte. Accessed only as a single byte (asm:
+ * MOV byte ptr [0x53A8E],imm8 / MOVZX EAX,byte ptr [0x53A8E]).
+ *
+ * Layout dependency: this byte must be placed at
+ * data_fd2_input_last_key_pressed + 1 for the INT 16h AH result to land here
+ * (vendor union-REGS overlap); data_fd2_input_last_key_pressed (home
+ * life/main.c) owns the REGS-union base.
+ * Zero-initialized in BSS; first touched by a runtime write. */
+uint8 data_fd2_input_key_input_mode;
+
+/* data_fd2_dialog_blink_phase_oscillator @ 0x53C13  (zero-bss)
+ *
+ * Dialog cursor/border blink-phase counter. A small free-running phase index
+ * advanced off the BIOS midnight tick (0:046C) and read by the dialog repaint
+ * code to alternate the selected corner/box sprite frame, producing the
+ * highlight-blink animation. Accessed only as a 32-bit dword at every site
+ * (asm: INC dword ptr [0x53C13] / CMP dword ptr [0x53C13],imm /
+ * MOV dword ptr [0x53C13],0).
+ *
+ * Two writers with different wrap moduli share this one counter:
+ *   - fd2_wait_input_with_dialog_repaint (settings/options dialog): increments
+ *     once per >3-tick step and wraps 0<->1 (CMP ...,2), so the selected
+ *     border corner toggles between sprite frame A and A+1.
+ *   - fd2_text_dialog_typewriter_loop (text / Yes-No prompt): increments once
+ *     per >=2-tick step and wraps 0..3 (CMP ...,4); the Yes/No highlight uses
+ *     value/2 as its 0/1 frame offset, and the value is reset to 0 on both
+ *     exit paths (Esc -> return -1, confirm -> return 1).
+ * Read-only consumer fd2_repaint_settings_dialog_borders adds this value to a
+ * sprite index for the currently-selected corner.
+ * Zero-initialized in BSS; first touched by a runtime read-modify-write. */
+uint32 data_fd2_dialog_blink_phase_oscillator;
+
+/* data_fd2_dialog_blink_phase_oscillator_tick_latch @ 0x53C17  (zero-bss)
+ *
+ * Tick reference for the dialog-blink oscillator's step divider. Latches the
+ * BIOS midnight tick counter (0:046C) at the moment the oscillator above last
+ * advanced; the repaint loops gate the next advance on
+ * (signed) (BIOS_tick - this_latch) crossing their step threshold.
+ * Accessed only as a 32-bit dword at every site (asm:
+ * SUB EAX,dword ptr [0x53C17] / MOV [0x53C17],EAX with the tick sign-extended
+ * via CWDE/MOVSX), and the difference is compared with signed jumps (JG/JGE),
+ * so the divider re-arms correctly across the day rollover.
+ *
+ * Both writers of the partner counter (0x53C13) share this latch:
+ *   - fd2_wait_input_with_dialog_repaint: re-latches once the diff exceeds 3.
+ *   - fd2_text_dialog_typewriter_loop:    re-latches once the diff reaches 2.
+ * Zero-initialized in BSS; the first loop entry reads 0, which forces an
+ * immediate advance + latch of the current tick. */
+uint32 data_fd2_dialog_blink_phase_oscillator_tick_latch;
+
+/* data_fd2_ui_recruitment_screen_repaint_tick_latch @ 0x54127  (zero-bss)
+ *
+ * Tick reference for the recruitment screen's throttled repaint. Latches the
+ * BIOS midnight tick counter (0:046C) at the moment the recruitment select
+ * screen was last redrawn; the wait-for-input loop repaints (and blits the
+ * composed frame to 0xA0000) only when the current tick differs from this
+ * latch, so the screen refreshes at most once per BIOS tick.
+ * Accessed only as a 32-bit dword at both sites (asm:
+ * CMP EAX,dword ptr [0x54127] / MOV [0x54127],EAX with the tick sign-extended
+ * via MOVSX from word [0x46C]); the C model compares with the latch cast to
+ * (int) and stores the sign-extended word.
+ *
+ * Single writer/reader fd2_wait_input_with_recruitment_repaint:
+ *   - reads the latch each iteration to decide whether to repaint;
+ *   - re-latches the current tick right before it repaints.
+ * Zero-initialized in BSS; the first loop entry reads 0, which (unless the
+ * BIOS tick is also 0) forces an immediate repaint + latch of the current
+ * tick. */
+uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch;

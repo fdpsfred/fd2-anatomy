@@ -2331,8 +2331,8 @@ static void test_chapter_11_end_increments_not_absolute(void)
  * ================================================================ */
 
 extern const uint8 data_fd2_chapter_ch12_end_scene_char_pos_x_table[14];
-extern uint8 data_fd2_chapter_ch12_end_scene_char_pos_y_table[14];
-extern uint8 data_fd2_chapter_ch12_end_scene_char_facing_table[14];
+extern const uint8 data_fd2_chapter_ch12_end_scene_char_pos_y_table[14];
+extern const uint8 data_fd2_chapter_ch12_end_scene_char_facing_table[14];
 
 static uint8  g_ce12_roster[8 * 0x50];
 static int16  g_ce12_text[16];
@@ -2697,9 +2697,9 @@ static void test_chapter_13_end_increments_not_absolute(void)
  * relative increment, not absolute).
  * ================================================================ */
 
-extern uint8 data_fd2_chapter_ch14_end_scene_char_pos_x_table[16];
-extern uint8 data_fd2_chapter_ch14_end_scene_char_pos_y_table[16];
-extern uint8 data_fd2_chapter_ch14_end_scene_char_facing_table[16];
+extern const uint8 data_fd2_chapter_ch14_end_scene_char_pos_x_table[16];
+extern const uint8 data_fd2_chapter_ch14_end_scene_char_pos_y_table[16];
+extern const uint8 data_fd2_chapter_ch14_end_scene_char_facing_table[16];
 
 static uint8  g_ce14_roster[8 * 0x50];
 static int16  g_ce14_text[16];
@@ -3130,8 +3130,8 @@ static void test_chapter_15_end_increments_not_absolute(void)
  * Phase 9.
  * ================================================================ */
 
-extern uint8 data_fd2_chapter_ch16_end_scene_char_pos_x_table[16];
-extern uint8 data_fd2_chapter_ch16_end_scene_char_pos_y_table[16];
+extern const uint8 data_fd2_chapter_ch16_end_scene_char_pos_x_table[16];
+extern const uint8 data_fd2_chapter_ch16_end_scene_char_pos_y_table[16];
 
 /* per-index fd2_check_char_is_dead override (testglob.c). */
 extern int   g_check_char_is_dead_use_by_idx;
@@ -3518,8 +3518,8 @@ static void test_chapter_16_end_increments_not_absolute(void)
  * recorder pins the page sequence; on-screen pixels are deferred to Phase 9.
  * ================================================================ */
 
-extern uint8 data_fd2_chapter_ch17_end_scene_char_pos_x_table[16];
-extern uint8 data_fd2_chapter_ch17_end_scene_char_pos_y_table[16];
+extern const uint8 data_fd2_chapter_ch17_end_scene_char_pos_x_table[16];
+extern const uint8 data_fd2_chapter_ch17_end_scene_char_pos_y_table[16];
 
 static uint8 g_ce17_roster[8 * 0x50];
 static int16 g_ce17_text[24];
@@ -3855,9 +3855,9 @@ static void test_chapter_17_end_increments_not_absolute(void)
  * absolute).
  * ================================================================ */
 
-extern uint8 data_fd2_chapter_ch18_end_scene_char_pos_x_table[17];
-extern uint8 data_fd2_chapter_ch18_end_scene_char_pos_y_table[17];
-extern uint8 data_fd2_chapter_ch18_end_scene_char_facing_table[17];
+extern const uint8 data_fd2_chapter_ch18_end_scene_char_pos_x_table[17];
+extern const uint8 data_fd2_chapter_ch18_end_scene_char_pos_y_table[17];
+extern const uint8 data_fd2_chapter_ch18_end_scene_char_facing_table[17];
 
 static uint8 g_ce18_roster[8 * 0x50];
 static int16 g_ce18_text[24];
