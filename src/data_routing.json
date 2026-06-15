@@ -3559,8 +3559,8 @@
       "fd2_game_main_loop"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch12_end_scene_char_pos_x_table": {

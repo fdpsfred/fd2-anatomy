@@ -612,3 +612,14 @@ int fd2_player_inline_action_menu_dispatch(int char_idx,
 
     return 1;
 }
+
+/* ---- file-scope data owned by menu.c ---- */
+
+/*
+ * data_fd2_ui_click_debounce_skip_count @ 0x51A42 (.object2), 1 byte.
+ * Click/keypress debounce counter for the Space/Enter action path in
+ * fd2_game_main_loop: while >0 it is decremented (one skipped press per
+ * frame); once it reaches 0 the spin-wait-for-chapter-init logic engages.
+ * Mutable state with a writer (DEC byte ptr [0x51A42]); initial value 0x03.
+ */
+uint8  data_fd2_ui_click_debounce_skip_count = 3;
