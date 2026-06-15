@@ -106,7 +106,6 @@ char   data_fd2_string_resource_filename_fdmus_dat[] = "FDMUS.DAT";
 uint32 data_fd2_resource_last_loaded_resource_size = 0;
 uint32 data_fd2_battle_view_window_origin_y = 0;
 uint32 data_fd2_battle_cursor_world_x = 5;
-uint32 data_fd2_battle_cursor_screen_y = 5;
 uint8  data_fd2_chapter_init_phase_flag = 0;
 uint16 data_fd2_input_idle_current_bios_tick_word = 0;
 uint16 data_fd2_input_idle_last_rendered_tick_word = 0;

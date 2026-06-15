@@ -282,3 +282,22 @@ uint32 data_fd2_battle_cursor_world_y;
  * runtime, so the BSS bytes are identical either way.
  * ---------------------------------------------------------------- */
 uint32 data_fd2_battle_cursor_screen_x;
+
+/* ----------------------------------------------------------------
+ * Battle cursor screen Y (cursor row within the on-screen viewport) @ 0x53ABD
+ *
+ * Runtime cursor state, not a constant. Zero at load (BSS); explicitly
+ * cleared to 0 by the battle/chapter init path (MOV dword ptr [0x53ABD],0x0
+ * at 0x2064B in fd2_init_battle_state_for_chapter) and set from the save
+ * header via MOVZX byte->dword in save-load (pBuf[0x30CB] at 0x10415),
+ * then incremented/decremented by the cursor-move and walk-step functions
+ * as the cursor moves up/down across the viewport (inner step vs scroll is
+ * decided by comparing this against the top/bottom viewport edges, e.g.
+ * < 2 to scroll up, < 6 to step down). uint32 matches the DWORD access
+ * width seen in every reader/writer (INC/DEC/CMP/MOV dword ptr [0x53ABD]);
+ * range is a small non-negative screen row. The move handlers compare it
+ * with signed branches (JGE), i.e. it is read as a signed coordinate at
+ * those sites, but it is never negative at runtime, so the BSS bytes are
+ * identical either way.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_cursor_screen_y;
