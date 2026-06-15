@@ -586,3 +586,17 @@ uint8 data_fd2_battle_pathfind_map_height;
  * zero at load, set at runtime by both pathfind orchestrators.
  */
 uint32 data_fd2_battle_pathfind_caller_context;
+
+/*
+ * flood-fill / pathfind origin tile X (source column) @ 0x6006E.
+ * Single unsigned byte. Both orchestrators write it at entry from the src_x
+ * argument truncated to its low byte (MOV EAX,[EBP+0xC]; MOV [0x6006E],AL at
+ * 0x4E050 and 0x4E1B6), in the contiguous seed block seed_x(0x6006E) /
+ * seed_y(0x6006F) / max_steps(0x60070). Readers load it 8-bit and zero-extend
+ * (XOR AH,AH; MOV AL,[0x6006E] at 0x4E0A7/0x4E22D; MOV DL,byte ptr [0x6006E]
+ * at 0x4E0BA/0x4E240) before using it unsigned as the column term in the
+ * origin tile-index math ((map_width * seed_y + seed_x) * 4 + 7). Scalar, not
+ * an array (0x6006F is the separate seed_y field). Zero at load; set at
+ * runtime by both pathfind orchestrators.
+ */
+uint8 data_fd2_battle_pathfind_floodfill_seed_x;
