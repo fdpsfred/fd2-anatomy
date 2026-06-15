@@ -693,3 +693,21 @@ uint32 data_fd2_battle_pathfind_path_output_buffer_ptr;
  * value is never observed.
  */
 uint8 data_fd2_battle_pathfind_best_path_length;
+
+/*
+ * pathfind neighbor-step mode flags @ 0x6017A.
+ * Single unsigned byte selecting the neighbor-step commit policy for the
+ * path-aware search. Written 8-bit by the path-aware orchestrator
+ * fd2_pathfind_to_destination at entry, storing its mode_flags argument
+ * (MOV [0x6017A],AL at 0x4E1E6); the plain flood-fill orchestrator never sets
+ * it. Read back 8-bit unsigned by fd2_pathfind_neighbor_step_with_tiebreak as
+ * two equality probes against small constants: on a cost tie, the tiebreak is
+ * attempted only when the value is 1 (CMP byte ptr [0x6017A],0x1 at 0x4E35B),
+ * and the ignore-obstacles + destination-record path is taken only when the
+ * value is 2 (CMP byte ptr [0x6017A],0x2 at 0x4E385). Modes: 0 = standard
+ * (strictly-better commits, ties never win); 1 = standard + direction-diversity
+ * tiebreak; 2 = ignore-obstacles + dst-record. Scalar, not an array (the
+ * adjacent nonzero bytes belong to separate globals). Zero at load;
+ * write-before-read (the orchestrator sets it before any reader runs).
+ */
+uint8 data_fd2_battle_pathfind_mode_flags;
