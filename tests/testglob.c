@@ -488,8 +488,6 @@ uint32 data_fd2_dialog_blink_phase_oscillator_tick_latch = 0;
 uint32 data_fd2_graphics_chapter_walk_anim_alt_palette_idx = 0;
 uint32 data_fd2_graphics_chapter_ambient_palette_anim_idx = 0;
 uint32 data_fd2_graphics_chapter_ambient_palette_anim_tick_latch = 0;
-uint8  data_fd2_graphics_char_sprite_shake_jitter_bit = 0;
-int32  data_fd2_graphics_char_sprite_paint_jitter_tick_latch = 0;
 /* fd2_composite_battle_frame (rndscene.c) pipeline-callee stubs with arg
  * capture, so the compositor test can assert workspace address, pixel
  * constants, and call ordering forwarded to each stage. */
@@ -2259,8 +2257,6 @@ uint32 fd2_load_figani_sfx_bank(uint32 figani_data)
  * (src/anim/anicine.c); its former spy stub here is retired. Sibling tests
  * (figani intro / combat cinematic) now exercise it for real. */
 /* fd2_apply_use_effect_dispatch: already in spellwk.c */
-uint32 data_fd2_battle_tile_map_anim_frame_counter = 0;
-uint32 data_fd2_graphics_bg_anim_flip_flag = 0;
 uint8  data_fd2_graphics_tile_anim_palette_phase_lookup[20] = {0};
 /* fd2_add_item_to_inventory is now emitted for real in src/ui_menu/status.c
  * (and covered there by the test_add_item_* cases). The battle-drop suite that

@@ -572,8 +572,8 @@
       "fd2_composite_battle_tile_map"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_large_game_state_buffer_ptr": {
@@ -3214,8 +3214,8 @@
       "fd2_paint_char_sprite_at_world_pos"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_engine_wait_one_bios_tick_last_seen": {
@@ -3332,8 +3332,8 @@
       "fd2_execute_ai_item_use"
     ],
     "note": "multi-writer:battle/btl_ai.c,gfx/rndscene.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_pathfind_mode_flags": {
@@ -4956,8 +4956,8 @@
       "fd2_paint_char_sprite_at_world_pos"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_compose_left_edge_clip_offset": {
