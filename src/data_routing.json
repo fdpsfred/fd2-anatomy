@@ -1683,8 +1683,8 @@
       "fd2_execute_ai_offensive_spell"
     ],
     "note": "multi-writer:battle/battle.c,battle/btl_ai.c,battle/btl_turn.c,field/chevt1.c,field/chevt2.c,spell/spelleff.c,ui_menu/menu.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_event_or_battle_end_code": {
