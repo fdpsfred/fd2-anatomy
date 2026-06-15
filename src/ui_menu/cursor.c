@@ -226,3 +226,42 @@ void fd2_pan_cursor_and_window(uint32 target_ox, uint32 target_oy)
  * small non-negative tile column (0 .. map_width_tiles - 13).
  * ---------------------------------------------------------------- */
 uint32 data_fd2_battle_view_window_origin_x;
+
+/* ----------------------------------------------------------------
+ * Battle viewport window origin Y (tile row of top edge) @ 0x53AAD
+ *
+ * Runtime camera-scroll state, not a constant. Zero at load (BSS);
+ * first set by battle/chapter init + save-load, then incremented/
+ * decremented by the cursor-move and pan functions above as the
+ * viewport scrolls vertically. uint32 matches the DWORD access width
+ * seen in the writers (DEC/INC/CMP/MOV dword ptr [0x53AAD]); range is
+ * a small non-negative tile row (0 .. map_height_tiles - 8).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_view_window_origin_y;
+
+/* ----------------------------------------------------------------
+ * Battle cursor world X (tile column the cursor points at) @ 0x53AB1
+ *
+ * Runtime cursor state, not a constant. Zero at load (BSS); first set
+ * by battle/chapter init + save-load (engine init loads it from the
+ * map header via MOVZX byte->dword), then incremented/decremented by
+ * the cursor-move, walk-step and pan functions as the cursor traverses
+ * the map. uint32 matches the DWORD access width seen in every
+ * reader/writer (INC/CMP/MOV dword ptr [0x53AB1]); range is a small
+ * non-negative tile column (0 .. map_width_tiles - 1).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_cursor_world_x;
+
+/* ----------------------------------------------------------------
+ * Battle cursor world Y (tile row the cursor points at) @ 0x53AB5
+ *
+ * Runtime cursor state, not a constant. Zero at load (BSS); first set
+ * by battle/chapter init + save-load (engine init / chapter-end
+ * handlers store it, init zeroes the whole cursor/window block at
+ * 0x53AA9..0x53ABD), then incremented/decremented by the cursor-move,
+ * walk-step and pan functions as the cursor traverses the map. uint32
+ * matches the DWORD access width seen in every reader/writer
+ * (DEC/INC/CMP/MOV dword ptr [0x53AB5]); range is a small
+ * non-negative tile row (0 .. map_height_tiles - 1).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_cursor_world_y;
