@@ -507,7 +507,7 @@ extern const item_effect data_fd2_battle_item_effect_table[215];        /* 0x602
 extern const spell_effect data_fd2_battle_spell_effect_table[36];       /* 0x619FD */
 extern const enemy_data  data_fd2_battle_enemy_data_table[68];          /* 0x61AF9 */
 extern const character_base data_fd2_battle_character_base_table[32];   /* 0x61DA1 */
-extern character_growth  data_fd2_battle_character_growth_table[68];    /* 0x620A1 */
+extern const character_growth  data_fd2_battle_character_growth_table[68];    /* 0x620A1 */
 
 /* ---- input state ---- */
 extern uint16 data_fd2_input_idle_current_bios_tick_word;               /* 0x539F0 */
