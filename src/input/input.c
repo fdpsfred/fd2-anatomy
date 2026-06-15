@@ -668,3 +668,15 @@ wait_input:
             data_fd2_audio_fdother_sfx_bank_buf_ptr, 0, 1);
     }
 }
+
+/* ----------------------------------------------------------------
+ * Data definitions
+ * ---------------------------------------------------------------- */
+
+/* data_fd2_input_idle_current_bios_tick_word @ 0x539F0  (zero-bss)
+ *
+ * Latest BIOS midnight-tick counter (0:046C, 18.2 Hz word) snapshot,
+ * captured each idle iteration of fd2_wait_for_input_with_idle. Compared
+ * against the last-rendered tick to drive the 18.2 Hz cursor-blink redraw.
+ * Zero-initialized in BSS; first touched by a runtime write. */
+uint16 data_fd2_input_idle_current_bios_tick_word;

@@ -143,7 +143,6 @@ uint32 data_fd2_battle_cursor_screen_y = 5;
 uint32 data_fd2_battle_map_width_tiles = 20;
 uint32 data_fd2_battle_map_height_tiles = 15;
 uint8  data_fd2_chapter_init_phase_flag = 0;
-uint16 data_fd2_input_idle_current_bios_tick_word = 0;
 uint16 data_fd2_input_idle_last_rendered_tick_word = 0;
 uint8  data_fd2_input_last_key_pressed = 0;
 uint8  data_fd2_input_key_input_mode = 0;
