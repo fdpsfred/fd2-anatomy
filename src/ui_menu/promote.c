@@ -1056,3 +1056,11 @@ void fd2_run_revive_menu_main(void)
  *   statically initialized, so it lives in BSS and rests at 0.
  * ---------------------------------------------------------------- */
 uint32 data_fd2_ui_slide_anim_accumulator_buf_ptr;
+
+/* data_fd2_ui_slide_bg_snapshot_buf_ptr @ 0x53C5F (.object2)
+ *   Pristine 320x200 background snapshot captured from VGA (0xA0000) at
+ *   the start of each slide transition and used to restore the backdrop
+ *   between frames. Same lifecycle as the accumulator above: assigned via
+ *   (uint32)malloc(64000) by each opener, free()d on close, never
+ *   statically initialized -> lives in BSS, rests at 0. */
+uint32 data_fd2_ui_slide_bg_snapshot_buf_ptr;
