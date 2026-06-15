@@ -505,7 +505,7 @@ extern void  *data_fd2_animation_ani_decoder_frame_dispatch_table[10];  /* 0x527
 /* ---- .object3 data tables ---- */
 extern const item_effect data_fd2_battle_item_effect_table[215];        /* 0x602AC */
 extern const spell_effect data_fd2_battle_spell_effect_table[36];       /* 0x619FD */
-extern enemy_data        data_fd2_battle_enemy_data_table[68];          /* 0x61AF9 */
+extern const enemy_data  data_fd2_battle_enemy_data_table[68];          /* 0x61AF9 */
 extern character_base    data_fd2_battle_character_base_table[32];      /* 0x61DA1 */
 extern character_growth  data_fd2_battle_character_growth_table[68];    /* 0x620A1 */
 

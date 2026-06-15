@@ -220,8 +220,8 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_job_magic_resist_table": {
