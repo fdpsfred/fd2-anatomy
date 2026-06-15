@@ -1184,3 +1184,10 @@ int fd2_find_inventory_slot_with_item(uint32 char_idx, uint32 item_id)
     }
     return -1;
 }
+
+/* ---- battle teleport-spell scratch state ----
+ * Runtime scratch: written (= cursor_world_x/y) in
+ * fd2_item_command_menu_dispatch (USE-spellbook branch) and
+ * fd2_spell_selection_menu_main before fd2_cast_spell_17_complex reads it,
+ * so it is zero-bss despite a stale nonzero image byte. */
+uint32 data_fd2_battle_teleport_dest_world_x;

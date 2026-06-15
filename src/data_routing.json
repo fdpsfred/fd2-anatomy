@@ -4319,8 +4319,8 @@
       "fd2_spell_selection_menu_main"
     ],
     "note": "multi-writer:spell/spellsel.c,ui_menu/status.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_teleport_dest_world_y": {
