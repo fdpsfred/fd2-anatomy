@@ -4489,8 +4489,8 @@
       "fd2_render_terrain_info_hud_panel"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_text_scroll_pending_line_count": {

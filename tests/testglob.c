@@ -39,7 +39,6 @@ uint32 data_fd2_menu_dialog_state_handle = 0;
 uint32 data_fd2_tile_anim_table_base = 0;
 uint32 data_fd2_chinese_font_sheet = 0;
 uint8  data_fd2_ui_terrain_hud_user_enabled = 0;
-uint32 data_fd2_ui_terrain_hud_panel_offset_51a0c = 0;
 uint8  data_fd2_audio_sfx_driver_available_flag = 0;
 uint8  data_fd2_audio_sfx_enabled_flag = 0;
 uint32 data_fd2_audio_sfx_sample_handle_0 = 0;
