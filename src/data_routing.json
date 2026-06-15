@@ -4973,8 +4973,8 @@
       "fd2_walk_step_left"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_chapter_ambient_palette_anim_tick_latch": {
