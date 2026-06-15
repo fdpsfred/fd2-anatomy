@@ -997,9 +997,6 @@ void fd2_render_shop_item_grid(uint32 item_count, uint32 item_id_array,
  * are host-safe to call directly. The shop navigation test observes that an
  * animation paced via g_delay375b2_calls == 3, with the branch direction
  * pinned independently by data_fd2_ui_menu_scroll_offset. */
-/* item command menu state template — real FD2.LE value @ 0x53F32
- * (state all zero) */
-int32  data_fd2_ui_item_command_menu_state_template[4] = { 0, 0, 0, 0 };
 /* status-effect overlay flicker colour template — real FD2.LE values @ 0x51F15
  * (32 bytes; mostly 0xC0 with a few status-specific colours). The real
  * fd2_animate_status_effect_overlay_flicker copies the first 30 bytes into a

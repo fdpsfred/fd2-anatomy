@@ -248,3 +248,25 @@ int32 data_fd2_ui_player_action_menu_state_template[4] = { 0, 0, 0, 0 };
  * family (e.g. data_fd2_ui_player_action_menu_state_template @ 0x53F12).
  */
 int32 data_fd2_ui_save_load_menu_state_template[4] = { 0, 0, 0, 0 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_item_command_menu_state_template @ 0x53F32  (16 bytes)
+ *
+ * Per-option enable/disable flag state for the battle item command submenu
+ * (Use / Give / Sort-Equip / Drop), paired with
+ * data_fd2_ui_item_command_menu_template @ 0x51F05. 4 x int32 entries, all 0
+ * at rest (= all four options selectable). The sole reader
+ * fd2_item_command_menu_dispatch (@ 0x1BC0A) copies all four 32-bit words into
+ * a local menu_state[16] buffer with a count-4 REP MOVSD (MOV ECX,4;
+ * MOV ESI,0x53F32; REP MOVSD -> 32-bit elements), then mutates only that local
+ * copy: when fd2_compute_aoe_targets finds no adjacent ally tile in range it
+ * sets menu_state[4] = 1 (((int*)menu_state)[1] = 1, greys out the Give
+ * option). The mutated copy is handed to fd2_count_active_menu_items_until_zero
+ * / fd2_open_settings_dialog_with_slide / fd2_settings_menu_input_step. The
+ * global source array is never written -> statically all zero. Element type
+ * int32[4] is confirmed by both the dword copy stride and the consumer's
+ * element-wise int32 indexing (menu_state[0..3] = template[0..3]), and matches
+ * the sibling *_menu_state_template family (e.g.
+ * data_fd2_ui_save_load_menu_state_template @ 0x53F22).
+ */
+int32 data_fd2_ui_item_command_menu_state_template[4] = { 0, 0, 0, 0 };
