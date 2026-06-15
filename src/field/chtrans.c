@@ -572,3 +572,14 @@ cleanup:
     data_fd2_battle_runtime_char_array_ptr = (runtime_char *)0;
     return result_code;
 }
+
+/* ----------------------------------------------------------------
+ * Data symbol owned by this module (.object2 @ 0x53A45)
+ *
+ * data_fd2_battle_runtime_char_array_ptr -- pointer to the active
+ * runtime_char[] array (each entry 0x50 bytes). Zero (NULL) at program
+ * start; assigned a malloc(0x1E00) buffer on chapter load / save restore,
+ * freed and reset to NULL on chapter transition. Indexed throughout the
+ * battle/field engine as data_fd2_battle_runtime_char_array_ptr[idx].field.
+ * ---------------------------------------------------------------- */
+runtime_char *data_fd2_battle_runtime_char_array_ptr;

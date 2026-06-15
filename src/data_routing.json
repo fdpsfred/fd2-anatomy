@@ -300,8 +300,8 @@
       "fd2_chapter_transition_with_intro"
     ],
     "note": "multi-writer:anim/aniend.c,field/chtrans.c,life/main.c,rsrc/rsrc.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_anim_phase": {
