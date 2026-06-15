@@ -1055,8 +1055,7 @@ uint8  data_fd2_animation_spell_overlay_blink_mask_table[30] = {
     0x10,0x10,0x08,0x08,0x10,0x10,0x10,0x08,
     0x08,0x10,0x10,0x10,0x08,0x08
 };
-/* game options menu templates — real FD2.LE values @ 0x51EAF / 0x53F02 */
-int32  data_fd2_ui_game_options_menu_slots_template[4] = { 0x12, 0x14, 0x16, 0x18 };
+/* game options menu state template -- real FD2.LE value @ 0x53F02 */
 int32  data_fd2_ui_game_options_menu_state_template[4] = { 0, 0, 0, 0 };
 /* dialog page-advance collapse template — real FD2.LE value @ 0x51EE5
  * (two corner sprite-index selectors, replicated to 16 bytes) */

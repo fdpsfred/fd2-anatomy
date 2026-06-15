@@ -20,3 +20,16 @@
  * never written.
  */
 const int32 data_fd2_ui_field_command_menu_options_template[4] = { 7, 5, 6, 4 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_game_options_menu_slots_template @ 0x51EAF  (16 bytes)
+ *
+ * Game options menu base text-token IDs: 4 x int32 entries
+ * { 0x12, 0x14, 0x16, 0x18 } (BGM / SE / Speed / Other).
+ * fd2_game_options_menu_loop copies all four 32-bit words into a local
+ * menu_slot_0..3 buffer with an int* / stride-4 loop (REP MOVSD, count 4),
+ * then adds 0 or 1 to each slot per the current toggle state to pick the
+ * ON/OFF (or Slow/Fast) label variant. Read-only; the source array is never
+ * written -- only the local copies are mutated.
+ */
+const int32 data_fd2_ui_game_options_menu_slots_template[4] = { 0x12, 0x14, 0x16, 0x18 };
