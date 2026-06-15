@@ -157,3 +157,28 @@ void (*const data_fd2_chapter_end_handler_table[30])(void) = {
     fd2_chapter_29_end,                  /* [28] ch29 */
     fd2_chapter_30_end                   /* [29] ch30 */
 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_chapter_ending_music_trigger_frames @ 0x5204E  (15 entries, 4-byte int)
+ *
+ * Scripted scroll-row thresholds that drive the GAME-CLEAR credit-roll SFX /
+ * palette swaps. During the countdown loop the credit panel scrolls from row
+ * 0x217 down to 0; whenever the current row equals the next unconsumed entry
+ * of this table, the ending SFX is fired and the palette is swapped, then the
+ * music index advances to the next entry. Read-only const table in .object2.
+ *
+ * Caller (fd2_play_ending_and_record_clear @ 0x1F894):
+ *     int *piVar3 = data_fd2_chapter_ending_music_trigger_frames;
+ *     for (n = 15; n != 0; n--) { *(int *)dst = *piVar3; piVar3++; dst += 4; }
+ *     ...
+ *     if (iVar4 == *(int *)(stack_copy + music_idx * 4)) { ... music_idx++; }
+ * => element type: signed int (32-bit), stride 4, 15 entries; values are
+ *    descending scroll-row indices (520,430,410,...,22) plus a trailing 1000
+ *    sentinel, compared against the signed scroll countdown iVar4.
+ *
+ * No writers: the table is only copied (read) onto the caller's stack.
+ * ---------------------------------------------------------------- */
+const int32 data_fd2_chapter_ending_music_trigger_frames[15] = {
+    0x208, 0x1AE, 0x19A, 0x154, 0x136, 0x12C, 0xF0, 0xB4,
+    0x96,  0x82,  0x6E,  0x57,  0x40,  0x16,  0x3E8
+};

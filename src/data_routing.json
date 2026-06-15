@@ -2572,8 +2572,8 @@
     "home": "table/chtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_field_command_menu_options_template": {

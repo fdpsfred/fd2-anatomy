@@ -249,13 +249,6 @@ void AIL_set_sample_loop_count(uint32 sample, int count)
     g_sfx_last_arg_c = count;
 }
 void AIL_start_sample(uint32 sample) { (void)sample; g_ail_start_sample_calls++; }
-/* Ending cinematic scripted-frame thresholds (data segment @ 0x5204E). Real
- * binary int values until the data segment is emitted; aniend tests assert on
- * them and fd2_play_ending_and_record_clear copies the table to its stack. */
-int32 data_fd2_chapter_ending_music_trigger_frames[15] = {
-    0x208, 0x1AE, 0x19A, 0x154, 0x136, 0x12C, 0xF0, 0xB4,
-    0x96,  0x82,  0x6E,  0x57,  0x40,  0x16,  0x3E8
-};
 /* Game-clear credit-roll per-duel tables (data segment @ 0x525DC / 0x525F0 /
  * 0x52604). Real binary bytes until the data segment is emitted;
  * fd2_play_game_ending_cinematic copies each 20-byte table to its stack and

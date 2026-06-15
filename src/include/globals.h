@@ -75,7 +75,7 @@ extern const uint8 data_fd2_chapter_ch30_end_scene_char_facing_table[20];  /* 0x
 extern uint8  data_fd2_chapter_combat_cinematic_mode_per_chapter[30];   /* 0x52363 */
 
 /* ---- ending cinematic scripted-frame table (.object2 const) ---- */
-extern int32  data_fd2_chapter_ending_music_trigger_frames[15];         /* 0x5204E  scroll-row thresholds for SFX/palette swaps */
+extern const int32 data_fd2_chapter_ending_music_trigger_frames[15];    /* 0x5204E  scroll-row thresholds for SFX/palette swaps */
 
 /* ---- game-clear credit-roll per-duel tables (.object2 const, 20 bytes each) ---- */
 extern uint8  data_fd2_chapter_ending_credit_roll_top_portrait_id_table[20];    /* 0x525DC  top-half portrait ids */
