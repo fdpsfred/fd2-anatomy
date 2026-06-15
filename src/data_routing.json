@@ -2652,8 +2652,8 @@
     "home": "table/uitab.c",
     "writers": [],
     "note": "indirect-write bss",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_save_load_menu_state_template": {

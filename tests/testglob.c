@@ -999,8 +999,6 @@ void fd2_render_shop_item_grid(uint32 item_count, uint32 item_id_array,
  * pinned independently by data_fd2_ui_menu_scroll_offset. */
 /* save/load/quit sub-menu templates — real FD2.LE values @ 0x51EF5 / 0x53F22 */
 int32  data_fd2_ui_save_load_menu_state_template[4] = { 0, 0, 0, 0 };
-/* player action menu state template — real FD2.LE value @ 0x53F12 (all zero) */
-int32  data_fd2_ui_player_action_menu_state_template[4] = { 0, 0, 0, 0 };
 /* item command menu state template — real FD2.LE value @ 0x53F32
  * (state all zero) */
 int32  data_fd2_ui_item_command_menu_state_template[4] = { 0, 0, 0, 0 };

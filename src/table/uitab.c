@@ -206,3 +206,25 @@ int32 data_fd2_ui_field_command_menu_state_template[4] = { 0, 0, 0, 0 };
  * family (e.g. data_fd2_ui_field_command_menu_state_template @ 0x53EF2).
  */
 int32 data_fd2_ui_game_options_menu_state_template[4] = { 0, 0, 0, 0 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_player_action_menu_state_template @ 0x53F12  (16 bytes)
+ *
+ * Per-slot enable/disable flag state for the player's inline action submenu
+ * (Attack / Spell / Item / Wait), paired with
+ * data_fd2_ui_inline_action_menu_template @ 0x51ED5. 4 x int32 entries, all 0.
+ * The sole reader fd2_player_action_menu_loop (@ 0x18890) copies all four
+ * 32-bit words into a local menu_state[16] buffer with a count-4 REP MOVSD
+ * (MOV ECX,4; MOV ESI,0x53F12; REP MOVSD -> 32-bit elements) at the start of
+ * the player's turn UI. It then mutates only that local copy -- when the unit
+ * actually moved before acting it sets menu_state[4] = 1 (a full dword write,
+ * MOV dword ptr [ESP+4],1, i.e. ((int*)menu_state)[1] = 1) to grey out the
+ * Spell slot, and passes the local copy to
+ * fd2_player_inline_action_menu_dispatch, which declares it as int* and indexes
+ * it as a 4-int gating array (pSlot_disable_arr[0..3], non-zero = disabled).
+ * The global source array is never written -> statically all zero. Element type
+ * int32[4] is confirmed by both the dword copy stride and the consumer's int*
+ * indexing, and matches the sibling *_menu_state_template family (e.g.
+ * data_fd2_ui_game_options_menu_state_template @ 0x53F02).
+ */
+int32 data_fd2_ui_player_action_menu_state_template[4] = { 0, 0, 0, 0 };
