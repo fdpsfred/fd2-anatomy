@@ -821,7 +821,6 @@ uint32 g_blittint_team_offset[64];
  * moved up into the fd2_composite_battle_tile_map stub, which also runs once per
  * idle-loop body. */
 void fd2_render_recruitment_party_screen(void) { }
-uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch = 0;
 uint32 data_fd2_ui_slide_composed_target_buf_ptr = 0;
 uint32 data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
 uint32 data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;

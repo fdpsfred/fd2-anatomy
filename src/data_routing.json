@@ -1969,8 +1969,8 @@
       "fd2_wait_input_with_recruitment_repaint"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_intro_menu_cursor_state": {

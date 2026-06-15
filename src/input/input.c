@@ -779,3 +779,23 @@ uint32 data_fd2_dialog_blink_phase_oscillator;
  * Zero-initialized in BSS; the first loop entry reads 0, which forces an
  * immediate advance + latch of the current tick. */
 uint32 data_fd2_dialog_blink_phase_oscillator_tick_latch;
+
+/* data_fd2_ui_recruitment_screen_repaint_tick_latch @ 0x54127  (zero-bss)
+ *
+ * Tick reference for the recruitment screen's throttled repaint. Latches the
+ * BIOS midnight tick counter (0:046C) at the moment the recruitment select
+ * screen was last redrawn; the wait-for-input loop repaints (and blits the
+ * composed frame to 0xA0000) only when the current tick differs from this
+ * latch, so the screen refreshes at most once per BIOS tick.
+ * Accessed only as a 32-bit dword at both sites (asm:
+ * CMP EAX,dword ptr [0x54127] / MOV [0x54127],EAX with the tick sign-extended
+ * via MOVSX from word [0x46C]); the C model compares with the latch cast to
+ * (int) and stores the sign-extended word.
+ *
+ * Single writer/reader fd2_wait_input_with_recruitment_repaint:
+ *   - reads the latch each iteration to decide whether to repaint;
+ *   - re-latches the current tick right before it repaints.
+ * Zero-initialized in BSS; the first loop entry reads 0, which (unless the
+ * BIOS tick is also 0) forces an immediate repaint + latch of the current
+ * tick. */
+uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch;
