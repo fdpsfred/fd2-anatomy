@@ -83,3 +83,38 @@ int32 data_fd2_battle_summon_anim_variant_b_6slot_color_idx_array[6];
  * (runtime-initialized, all-zero static storage).
  */
 uint8 data_fd2_battle_summon_anim_variant_b_6slot_jitter_byte_array[6];
+
+/* ----------------------------------------------------------------
+ * data_fd2_battle_pathfind_step_stack @ 0x60079  (256 bytes)
+ *
+ * Scratch recursion step-stack shared by the two battle pathfinding engines.
+ * It is plain working memory: written before read on every search, never
+ * initialized at load time (all-zero static storage is incidental) -> zero-bss.
+ *
+ * The region is overlaid with two different per-frame entry layouts depending
+ * on which engine drives the recursion, so the honest C representation is a
+ * flat byte buffer rather than a struct array:
+ *
+ *   - Path-search engine fd2_pathfind_recursive_with_direction (0x4E27C):
+ *     8-byte frames. EDI is seeded with LEA EDI,[0x60079] in
+ *     fd2_pathfind_check_destination_save_path (0x4E252) before the first
+ *     recursive call. Each push writes "MOV word ptr [EDI],DX" (tile x,y at +0),
+ *     "MOV word ptr [EDI+0x2],CX" (CH at +3 = direction code 0..3),
+ *     "MOV dword ptr [EDI+0x4],EBX" (tile-map address at +4), then "ADD EDI,0x8".
+ *     The retry path rewrites the previous frame's +3 direction via
+ *     "MOV byte ptr [EDI-0x5],CH". Pop is "SUB DI,0x8".
+ *
+ *   - Flood-fill engine fd2_flood_fill_movement_range_recursive (0x4E0DC):
+ *     7-byte frames. Each push writes "MOV word ptr [EDI],DX" (+0),
+ *     "MOV byte ptr [EDI+0x2],CL" (+2), "MOV dword ptr [EDI+0x3],EBX" (+3),
+ *     then "ADD EDI,0x7"; pop is "SUB DI,0x7".
+ *
+ * Readers fd2_pathfind_count_unique_directions (0x4E3DA) and
+ * fd2_pathfind_check_destination_save_path (0x4E42B) walk the path-search
+ * frames with "LEA ESI,[0x60079]" + "MOV AL,byte ptr [ESI+0x3]" + "ADD ESI,0x8",
+ * looping data_fd2_battle_pathfind_current_depth (0x60077) times to collect the
+ * per-frame direction bytes. 256 bytes bounds the recursion depth (>=32 frames
+ * at the larger 8-byte stride). First access on every search is a write
+ * -> zero-bss (runtime-initialized).
+ */
+uint8 data_fd2_battle_pathfind_step_stack[256];

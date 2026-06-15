@@ -2135,7 +2135,6 @@ uint8  data_fd2_battle_pathfind_dst_y = 0;
 uint32 data_fd2_battle_pathfind_path_output_buffer_ptr = 0;
 uint8  data_fd2_battle_pathfind_current_depth = 0;
 uint8  data_fd2_battle_pathfind_best_path_length = 0;
-uint8  data_fd2_battle_pathfind_step_stack[256] = {0};
 uint8  data_fd2_battle_pathfind_mode_flags = 0;
 void  *data_fd2_animation_ani_decoder_frame_dispatch_table[10] = {0};
 uint16 data_fd2_animation_ani_decoder_target_width = 0;
