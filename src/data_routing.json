@@ -206,7 +206,7 @@
     "writers": [],
     "note": "read-only const table",
     "emitted": true,
-    "reviewed": false,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_enemy_data_table": {
