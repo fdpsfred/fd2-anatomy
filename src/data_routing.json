@@ -2240,8 +2240,8 @@
       "fd2_pathfind_check_destination_save_path"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_shared_rng_seed": {

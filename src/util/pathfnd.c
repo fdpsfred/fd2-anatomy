@@ -673,3 +673,23 @@ uint8 data_fd2_battle_pathfind_dst_y;
  * orchestrator.
  */
 uint32 data_fd2_battle_pathfind_path_output_buffer_ptr;
+
+/*
+ * pathfind best-known path length so far @ 0x60078.
+ * Single unsigned byte holding the shortest step depth at which the directional
+ * DFS has reached the destination during the current search; it is the running
+ * minimum that later arrivals must beat. Initialised to 0xFF (the "no path yet"
+ * sentinel, so any first arrival wins) by the path-aware orchestrator
+ * fd2_pathfind_to_destination right after zeroing current_depth (MOV byte ptr
+ * [0x60078],0xFF at 0x4E261), and read back by that same orchestrator as the
+ * return value (XOR EAX,EAX; MOV AL,[0x60078] at 0x4E275). Updated and read
+ * 8-bit unsigned by fd2_pathfind_check_destination_save_path: the depth-vs-best
+ * guard is an unsigned compare (CMP AH,byte ptr [0x60078]; JA at 0x4E417), and
+ * on pass the current depth is stored as the new best (MOV byte ptr
+ * [0x60078],AH at 0x4E41F). Also force-set to 1 by
+ * fd2_pathfind_record_destination_xy on a mode-2 one-step destination commit
+ * (MOV byte ptr [0x60078],1 at 0x4E3C6). Scalar, not an array. Write-before-read:
+ * the orchestrator overwrites it with 0xFF before any reader runs, so the load
+ * value is never observed.
+ */
+uint8 data_fd2_battle_pathfind_best_path_length;
