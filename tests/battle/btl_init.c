@@ -189,9 +189,9 @@ static void test_set_battle_anim_phase_to_1(void)
 
 /* ---- Tests: fd2_init_runtime_char_for_battle ---- */
 
-extern enemy_data        data_fd2_battle_enemy_data_table[68];
-extern character_base    data_fd2_battle_character_base_table[32];
-extern character_growth  data_fd2_battle_character_growth_table[68];
+extern const enemy_data        data_fd2_battle_enemy_data_table[68];
+extern const character_base    data_fd2_battle_character_base_table[32];
+extern const character_growth  data_fd2_battle_character_growth_table[68];
 
 static runtime_char g_irc_slots[8];
 static uint8 g_irc_field[64];
@@ -458,7 +458,7 @@ static void test_irc_tile_search_nearest(void)
 
 /* ---- Tests: fd2_init_runtime_char_from_base_growth ---- */
 
-extern item_effect data_fd2_battle_item_effect_table[215];
+extern const item_effect data_fd2_battle_item_effect_table[215];
 
 static uint8 g_ircbg_roster[2 * RUNTIME_CHAR_SIZE + 4];
 

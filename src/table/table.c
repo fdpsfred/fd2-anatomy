@@ -85,7 +85,7 @@ uint8 *fd2_get_chapter_intro_metadata_entry(int chapter_id)
  * ---------------------------------------------------------------- */
 uint8 *fd2_get_spell_learning_entry(int idx)
 {
-    return data_fd2_battle_spell_learning_table + idx * 0xC;
+    return (uint8 *)(data_fd2_battle_spell_learning_table + idx * 0xC);
 }
 
 /* ----------------------------------------------------------------
@@ -96,8 +96,8 @@ uint8 *fd2_get_spell_learning_entry(int idx)
  * ---------------------------------------------------------------- */
 uint8 *fd2_get_class_promotion_data_entry(int class_id)
 {
-    return data_fd2_battle_class_promotion_data_table
-         + (class_id - 0x20) * 2;
+    return (uint8 *)(data_fd2_battle_class_promotion_data_table
+         + (class_id - 0x20) * 2);
 }
 
 /* ----------------------------------------------------------------
@@ -120,7 +120,7 @@ uint8 *fd2_get_attack_anim_pattern_for_weapon(int weapon_type)
  * ---------------------------------------------------------------- */
 uint8 *fd2_get_job_allowed_items_table_entry(int job_id)
 {
-    return data_fd2_battle_job_allowed_items_table + job_id * 7;
+    return (uint8 *)(data_fd2_battle_job_allowed_items_table + job_id * 7);
 }
 
 /* ----------------------------------------------------------------
@@ -131,7 +131,7 @@ uint8 *fd2_get_job_allowed_items_table_entry(int job_id)
  * ---------------------------------------------------------------- */
 uint8 *fd2_get_movement_cost_table_for_job(int job_id)
 {
-    return data_fd2_battle_movement_cost_table + job_id * 0x14;
+    return (uint8 *)(data_fd2_battle_movement_cost_table + job_id * 0x14);
 }
 
 /* ----------------------------------------------------------------
