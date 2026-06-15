@@ -600,3 +600,18 @@ uint32 data_fd2_battle_pathfind_caller_context;
  * runtime by both pathfind orchestrators.
  */
 uint8 data_fd2_battle_pathfind_floodfill_seed_x;
+
+/*
+ * flood-fill / pathfind origin tile Y (source row) @ 0x6006F.
+ * Single unsigned byte. Both orchestrators write it at entry from the src_y
+ * argument truncated to its low byte (MOV EAX,[EBP+0x10]; MOV [0x6006F],AL at
+ * 0x4E058 and 0x4E1BE), in the contiguous seed block seed_x(0x6006E) /
+ * seed_y(0x6006F) / max_steps(0x60070). Readers load it 8-bit and use it
+ * unsigned as the row term in the origin tile-index math: it is the multiplier
+ * in map_width * seed_y (MOV AH,byte ptr [0x6006F]; MUL AH at 0x4E09B/0x4E221)
+ * and is also reloaded into DH (MOV DH,byte ptr [0x6006F] at 0x4E0C0/0x4E246)
+ * as the starting y coordinate handed to the recursion. Scalar, not an array
+ * (0x6006E is the separate seed_x field, 0x60070 the separate max_steps).
+ * Zero at load; set at runtime by both pathfind orchestrators.
+ */
+uint8 data_fd2_battle_pathfind_floodfill_seed_y;
