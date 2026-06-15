@@ -1941,14 +1941,6 @@ double data_fd2_graphics_circle_band_radius_scale_16 = 1.6;
 void (*data_fd2_battle_ai_post_action_consequence_table[90])(uint32);
 void (*data_fd2_battle_spell_handler_table[28])(uint32, uint32, uint8 *);
 static void g_noop_void_handler(void) { }
-void (*data_fd2_chapter_init_handler_table[30])(void) = {
-    g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler,
-    g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler,
-    g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler,
-    g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler,
-    g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler,
-    g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler
-};
 void (*data_fd2_chapter_end_handler_table[30])(void) = {
     g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler,
     g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler,
