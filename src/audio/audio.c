@@ -282,3 +282,13 @@ uint8 data_fd2_audio_bgm_last_set_track_id = 0xFF;
  * fd2_play_sfx_with_handle, and fd2_play_and_free_status_effect_sfx
  * free()s it. Accessed as a single 32-bit value (MOV dword ptr). */
 uint32 data_fd2_audio_status_effect_sfx_handle_ptr;
+
+/* data_fd2_audio_bgm_sequence_data_buf_ptr @ 0x53EE0
+ *
+ * Runtime-loaded pointer to the current BGM sequence (an FDMUS.DAT
+ * entry buffer) used by fd2_set_bgm_track_with_fade. Zero in the image;
+ * the first access is a NULL test (skip AIL_stop_sequence on the very
+ * first track), then it is overwritten by the fd2_load_dat_resource()
+ * return pointer and passed to fd2_dpmi_lock_size / AIL_init_sequence.
+ * Accessed as a single 32-bit value (CMP/PUSH/MOV dword ptr [0x53EE0]). */
+uint32 data_fd2_audio_bgm_sequence_data_buf_ptr;

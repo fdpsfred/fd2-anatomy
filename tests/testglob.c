@@ -123,7 +123,6 @@ uint32 data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = 0;
 uint8  data_fd2_ui_click_debounce_skip_count = 0;
 uint8  data_fd2_audio_bgm_enabled_flag = 1;
 uint8  data_fd2_audio_bgm_driver_available_flag = 1;
-uint32 data_fd2_audio_bgm_sequence_data_buf_ptr = 0;
 char   data_fd2_string_resource_filename_fdmus_dat[] = "FDMUS.DAT";
 uint32 data_fd2_audio_bgm_sequence_handle = 0;
 /* AIL driver / sample handles -- first used by fd2_main (life/main.c). */

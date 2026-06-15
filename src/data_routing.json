@@ -3057,8 +3057,8 @@
       "fd2_set_bgm_track_with_fade"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_palette_cycle_frame_idx": {
