@@ -2917,8 +2917,8 @@
       "fd2_walk_step_right"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_walk_anim_y_scroll_rows": {

@@ -236,7 +236,7 @@ extern uint32 data_fd2_battle_compose_parallax_scroll_y_rows;          /* 0x53AF
 extern uint32 data_fd2_battle_compose_walk_step_y_sub_pixel_offset;     /* 0x53AF5 */
 extern uint32 data_fd2_graphics_static_bg_buffer_ptr;                   /* 0x53AFF */
 extern uint32 data_fd2_graphics_animated_bg_buffer_ptr;                 /* 0x53B03 */
-extern uint32 data_fd2_battle_walk_anim_x_scroll_offset;                /* 0x53B07 */
+extern int    data_fd2_battle_walk_anim_x_scroll_offset;                /* 0x53B07 -- signed: reader does signed /2 (SAR) and left-scroll stores negatives */
 extern uint32 data_fd2_battle_walk_anim_y_scroll_rows;                  /* 0x53B0B */
 extern uint8  data_fd2_graphics_char_sprite_shake_jitter_bit;          /* 0x53A04 */
 extern int32  data_fd2_graphics_char_sprite_paint_jitter_tick_latch;    /* 0x53A08 */
