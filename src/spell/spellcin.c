@@ -1585,3 +1585,13 @@ void fd2_execute_summon_spell_cast(uint32 caster_idx, uint32 spell_id,
     fd2_play_and_free_status_effect_sfx();
     return;
 }
+
+/*
+ * Shared game-state working buffer pointer (0x53A49).
+ * Holds a malloc(0x25680)=153216-byte block allocated once at startup by
+ * fd2_main; callers index it as base+byte-offset (e.g. base+0x8088 for the
+ * combat panel scratch region). Several cinematic routines temporarily swap
+ * it to a scratch allocation and restore it. Zero (NULL) until the startup
+ * allocation fills it in.
+ */
+uint32 data_fd2_large_game_state_buffer_ptr;

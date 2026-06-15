@@ -592,8 +592,8 @@
       "fd2_play_full_combat_cinematic"
     ],
     "note": "multi-writer:anim/anicine.c,anim/anicombt.c,anim/anispell.c,anim/aniui.c,field/chtrans.c,life/main.c,spell/spellcin.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_tile_map_ptr": {
