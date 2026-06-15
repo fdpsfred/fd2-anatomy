@@ -51,3 +51,19 @@ uint8 data_fd2_battle_summon_anim_variant_a_6slot_jitter_byte_array[6];
  * -> zero-bss (runtime-initialized, all-zero static storage).
  */
 int32 data_fd2_battle_summon_anim_variant_b_6slot_frame_counter_array[6];
+
+/* ----------------------------------------------------------------
+ * data_fd2_battle_summon_anim_variant_b_6slot_color_idx_array @ 0x54034  (24 bytes)
+ *
+ * Per-slot color index (one int32 per slot, 6 slots) for the variant-B 6-slot
+ * summon-spell animation state machine (fd2_tick_summon_anim_variant_b_6slot).
+ * Written by that function: INIT seeds slot i with i; the frame-7 color-rotation
+ * path stores (rotation_counter % 10). Read in TICK frames as the index into the
+ * local per-color vertical row-offset table (aiStack_3c[color]). Values stay in
+ * 0..9. Accessed via DWORD moves "[idx*4 + 0x54034]": writes 0x26C78 (store i)
+ * and 0x26D75 (store rotation index), read 0x26DD1 (used as a *4-scaled array
+ * index), confirming int32 elements with stride 4 across a 6-iteration loop
+ * (CMP ...,6; JL/JGE). First access is a write (INIT) -> zero-bss
+ * (runtime-initialized, all-zero static storage).
+ */
+int32 data_fd2_battle_summon_anim_variant_b_6slot_color_idx_array[6];
