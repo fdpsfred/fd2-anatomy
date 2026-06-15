@@ -574,3 +574,6 @@ int32 data_fd2_battle_ai_best_spell_score;
 
 /* 0x53C27: best offensive-spell target tile X (zero-extended tile coord; full dword store @0x15AFF) */
 uint32 data_fd2_battle_ai_best_spell_target_x;
+
+/* 0x53C2B: best offensive-spell target tile Y (zero-extended tile coord; full dword store @0x15B08) */
+uint32 data_fd2_battle_ai_best_spell_target_y;
