@@ -598,3 +598,17 @@ runtime_char *data_fd2_battle_runtime_char_array_ptr;
  * 32-bit integer slot rather than a typed pointer.
  * ---------------------------------------------------------------- */
 uint32 data_fd2_battle_tile_map_ptr;
+
+/* ----------------------------------------------------------------
+ * Data symbol owned by this module (.object2 @ 0x5412B)
+ *
+ * data_fd2_chapter_intro_menu_cursor_state -- chapter-intro / save menu
+ * radio cursor. Zero at program start (BSS); reset to 0 each time the
+ * intro panel opens, then driven by left/right input as a wrapped 0..4
+ * selection (5 = special-hotkey commit, 2 = "save" branch). The wrap is
+ * computed with signed arithmetic: decrement below 0 wraps to 4 and
+ * increment above 4 wraps to 0, so use sites read it via an (int) cast
+ * even though the slot is an unsigned 32-bit word. Held in a 32-bit
+ * integer slot to match the dword loads/stores in the menu loop.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_chapter_intro_menu_cursor_state;
