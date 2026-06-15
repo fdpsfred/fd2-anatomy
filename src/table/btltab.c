@@ -69,7 +69,7 @@ const double data_fd2_battle_spell_dp_boost_factor_015 = 0.15;
  * ---------------------------------------------------------------- */
 /* Non-const: read-only in-game (no writers), but mutated by test fixtures; the
  * Watcom extern in globals.h must agree (const/non-const mismatch is E1129). */
-int32 data_fd2_battle_tile_attr_mv_modifier_table[6] = {
+const int32 data_fd2_battle_tile_attr_mv_modifier_table[6] = {
     5, 0, -5, -5, -5, 0
 };
 
@@ -101,7 +101,7 @@ int32 data_fd2_battle_tile_attr_mv_modifier_table[6] = {
  * = { 0, 0, 10, 10, -5, 0 }
  * ---------------------------------------------------------------- */
 /* Non-const for the same reason as the MV sibling above. */
-int32 data_fd2_battle_tile_attr_def_modifier_table[6] = {
+const int32 data_fd2_battle_tile_attr_def_modifier_table[6] = {
     0, 0, 10, 10, -5, 0
 };
 
@@ -131,7 +131,7 @@ int32 data_fd2_battle_tile_attr_def_modifier_table[6] = {
  * Raw bytes @ 0x51A87 (LE): 0d 00 00 00  = 13.
  * ---------------------------------------------------------------- */
 /* Non-const: read-only in-game, but tests set the window extent as a fixture. */
-uint32 data_fd2_battle_view_window_max_x = 13;
+const uint32 data_fd2_battle_view_window_max_x = 13;
 
 /* ----------------------------------------------------------------
  * data_fd2_battle_view_window_max_y @ 0x51A8B  (4 bytes, dword scalar)
@@ -161,7 +161,7 @@ uint32 data_fd2_battle_view_window_max_x = 13;
  * Raw bytes @ 0x51A8B (LE): 08 00 00 00  = 8.
  * ---------------------------------------------------------------- */
 /* Non-const for the same reason as the X sibling above. */
-uint32 data_fd2_battle_view_window_max_y = 8;
+const uint32 data_fd2_battle_view_window_max_y = 8;
 
 /* ----------------------------------------------------------------
  * data_fd2_battle_ai_post_action_consequence_table @ 0x51B91
@@ -381,7 +381,7 @@ void (*data_fd2_battle_spell_handler_table[28])(uint32, uint32, uint8 *) = {
  * No writers.
  * ---------------------------------------------------------------- */
 /* Non-const: read-only in-game, but seeded by test fixtures. */
-uint32 data_fd2_battle_job_magic_resist_table[28] = {
+const uint32 data_fd2_battle_job_magic_resist_table[28] = {
     /* job 0x01 */ 10, /* job 0x02 */ 10, /* job 0x03 */ 10, /* job 0x04 */ 10,
     /* job 0x05 */  7, /* job 0x06 */  7, /* job 0x07 */ 10, /* job 0x08 */ 10,
     /* job 0x09 */ 10, /* job 0x0a */ 10, /* job 0x0b */  9, /* job 0x0c */ 10,
@@ -454,7 +454,7 @@ const uint8 data_fd2_battle_miss_indicator_sprite_ids[4] = {
  * No writers.
  * ---------------------------------------------------------------- */
 /* Non-const: read-only in-game, but seeded by test fixtures. */
-uint8 data_fd2_battle_job_crit_rate_table[27] = {
+const uint8 data_fd2_battle_job_crit_rate_table[27] = {
     /* job 0x01 */  5, /* job 0x02 */  3, /* job 0x03 */  3, /* job 0x04 */  5,
     /* job 0x05 */  3, /* job 0x06 */  3, /* job 0x07 */  0, /* job 0x08 */ 18,
     /* job 0x09 */  5, /* job 0x0a */  3, /* job 0x0b */  3, /* job 0x0c */ 12,
@@ -539,7 +539,7 @@ int (*data_fd2_battle_spell_cast_cinematic_phase_handler_table[10])(
  * at 0x523E8.
  * ---------------------------------------------------------------- */
 /* Non-const: read-only in-game, but mutated by anisumm1 test fixtures. */
-uint8 data_fd2_battle_summon_spell_8slot_visibility_table[7] = {
+const uint8 data_fd2_battle_summon_spell_8slot_visibility_table[7] = {
     /* slot 0 */ 0x00, /* slot 1 */ 0x00, /* slot 2 */ 0x01, /* slot 3 */ 0x00,
     /* slot 4 */ 0x01, /* slot 5 */ 0x00, /* slot 6 */ 0x00
 };
@@ -570,7 +570,7 @@ uint8 data_fd2_battle_summon_spell_8slot_visibility_table[7] = {
  * 7-entry i32 row-multiplier table at 0x52404.
  * ---------------------------------------------------------------- */
 /* Non-const for the same reason as the visibility sibling above. */
-uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7] = {
+const uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7] = {
     /* slot 0 */ 0x28, /* slot 1 */ 0x46, /* slot 2 */ 0x78, /* slot 3 */ 0x50,
     /* slot 4 */ 0x32, /* slot 5 */ 0x64, /* slot 6 */ 0x46
 };
@@ -605,7 +605,7 @@ uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7] = {
  *   = { 0, -10, -20, 0, -15, -5, 0 }
  * ---------------------------------------------------------------- */
 /* Non-const for the same reason as the visibility sibling above. */
-int32 data_fd2_battle_summon_spell_8slot_row_multiplier_table[7] = {
+const int32 data_fd2_battle_summon_spell_8slot_row_multiplier_table[7] = {
     /* slot 0 */ 0, /* slot 1 */ -10, /* slot 2 */ -20, /* slot 3 */ 0,
     /* slot 4 */ -15, /* slot 5 */ -5, /* slot 6 */ 0
 };

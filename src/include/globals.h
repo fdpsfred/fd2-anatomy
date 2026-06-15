@@ -225,8 +225,8 @@ extern uint32 data_fd2_ui_slide_composed_target_buf_ptr;                /* 0x53C
 
 /* ---- graphics ---- */
 extern uint8  data_fd2_graphics_text_scroll_pending_line_count;         /* 0x51A10 */
-extern uint32 data_fd2_battle_view_window_max_x;                        /* 0x51A87 */
-extern uint32 data_fd2_battle_view_window_max_y;                        /* 0x51A8B */
+extern const uint32 data_fd2_battle_view_window_max_x;                        /* 0x51A87 */
+extern const uint32 data_fd2_battle_view_window_max_y;                        /* 0x51A8B */
 extern uint32 data_fd2_graphics_forced_tile_anim_frame;                 /* 0x51A93 */
 extern uint8  data_fd2_graphics_tile_anim_palette_phase_lookup[20];     /* 0x51A97 */
 extern uint32 data_fd2_graphics_bg_animation_frame_idx;                 /* 0x539FC */
@@ -433,9 +433,9 @@ extern uint8  data_fd2_graphics_figani_pose_anim_subframe_idx;           /* 0x54
 extern uint8  data_fd2_graphics_figani_pose_anim_pose_idx;               /* 0x540FD */
 extern uint32 data_fd2_audio_summon_spell_sfx_bank_buf_ptr;             /* 0x5411F */
 extern int32  data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[15]; /* 0x53F42 */
-extern uint8  data_fd2_battle_summon_spell_8slot_visibility_table[7];            /* 0x523E1 */
-extern uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7];              /* 0x523E8 */
-extern int32  data_fd2_battle_summon_spell_8slot_row_multiplier_table[7];        /* 0x52404 */
+extern const uint8  data_fd2_battle_summon_spell_8slot_visibility_table[7];            /* 0x523E1 */
+extern const uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7];              /* 0x523E8 */
+extern const int32  data_fd2_battle_summon_spell_8slot_row_multiplier_table[7];        /* 0x52404 */
 extern const int32 data_fd2_battle_summon_aura_ring_8slot_x_offset_table[8];     /* 0x52420 */
 extern int32  data_fd2_battle_summon_aura_ring_8slot_row_multiplier_table[8];    /* 0x52440 */
 extern int32  data_fd2_battle_summon_main_anim_12slot_frame_counter_array[12];    /* 0x53F81 */
@@ -520,15 +520,15 @@ extern uint32 data_fd2_engine_wait_one_bios_tick_last_seen;             /* 0x53A
 extern uint32 data_fd2_engine_wait_n_bios_ticks_last_seen;              /* 0x53A2C */
 
 /* ---- tile attribute modifier tables (.object2 const) ---- */
-extern int32  data_fd2_battle_tile_attr_mv_modifier_table[6];           /* 0x51A12 */
-extern int32  data_fd2_battle_tile_attr_def_modifier_table[6];          /* 0x51A2A */
+extern const int32  data_fd2_battle_tile_attr_mv_modifier_table[6];           /* 0x51A12 */
+extern const int32  data_fd2_battle_tile_attr_def_modifier_table[6];          /* 0x51A2A */
 
 /* ---- RNG ---- */
 extern uint16 data_fd2_shared_rng_seed;                                 /* 0x627B8 (.object3) */
 
 /* ---- battle misc const tables ---- */
-extern uint32 data_fd2_battle_job_magic_resist_table[28];               /* 0x51F96 */
-extern uint8  data_fd2_battle_job_crit_rate_table[27];                  /* 0x5239B */
+extern const uint32 data_fd2_battle_job_magic_resist_table[28];               /* 0x51F96 */
+extern const uint8  data_fd2_battle_job_crit_rate_table[27];                  /* 0x5239B */
 
 /* ---- .object3 tables accessed by table accessors (live sub-regions of former orphan blob) ---- */
 extern uint32 data_fd2_battle_pathfind_tile_cost_table_ptr;               /* 0x60060 */

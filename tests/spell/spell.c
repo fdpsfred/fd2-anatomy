@@ -65,6 +65,8 @@ extern int g_repaint_flip_buffer_after;
 static uint8 g_spell_smoke_lgs[SPELL_LGS_SPAN];
 static uint8 g_spell_smoke_sheet[2048];
 
+/* SKIP (Phase 3): writes now-const data_fd2_battle_view_window_max_x, data_fd2_battle_view_window_max_y; restore + rewrite to drive real const data */
+#if 0
 static void setup_spell_smoke_buffers(void)
 {
     memset(g_spell_smoke_lgs, 0, sizeof(g_spell_smoke_lgs));
@@ -76,6 +78,7 @@ static void setup_spell_smoke_buffers(void)
     data_fd2_battle_view_window_max_x = 0x0D;
     data_fd2_battle_view_window_max_y = 0x08;
 }
+#endif
 
 /* The id-0 dispatch wrapper must forward to the blink-overlay worker with
  * spell_id 0 and not crash. The target sits at (0,0) -> window-culled, and the
@@ -84,6 +87,8 @@ static void setup_spell_smoke_buffers(void)
  * the real worker (the worker's behavior proper is covered in spell/spelleff).
  * party_member_count 0 bounds the impact/overlay finalizer loops. */
 /* SKIP (Phase 3): writes now-const data_fd2_battle_spell_effect_table; restore + rewrite to drive real data */
+#if 0
+/* SKIP (Phase 3): writes now-const data_fd2_battle_view_window_max_x, data_fd2_battle_view_window_max_y; restore + rewrite to drive real const data */
 #if 0
 static void test_spell_handler_0_smoke(void)
 {
@@ -102,6 +107,7 @@ static void test_spell_handler_0_smoke(void)
     ASSERT_EQ(g_test_rc_array[0].mp_current, 35);
 }
 #endif
+#endif
 
 
 void run_spell_spell_tests(void)
@@ -109,7 +115,9 @@ void run_spell_spell_tests(void)
     int _prev_fails = g_test_fail_count;
     printf("Suite: spell/spell\n");
 #if 0 /* SKIP (Phase 3): test writes now-const data_fd2_battle_spell_effect_table */
+#if 0
     RUN_TEST(test_spell_handler_0_smoke);
+#endif
 #endif
     (void)_prev_fails;
     printf("\n");
