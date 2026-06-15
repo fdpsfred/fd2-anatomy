@@ -170,3 +170,21 @@ const int32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_a[4] = { -39, -
  * written -> const int32 flat table.
  */
 const int32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4] = { -39, -13, 13, 39 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_field_command_menu_state_template @ 0x53EF2  (16 bytes)
+ *
+ * Per-option enable/disable flag state for the in-field command menu,
+ * paired with data_fd2_ui_field_command_menu_options_template @ 0x51E9F.
+ * 4 x int32 entries, all 0 (= all four options Save/Load, End Turn,
+ * Options, Suspend are always selectable). The sole reader
+ * fd2_field_command_menu_loop (@ 0x16F55) copies all four 32-bit words into
+ * a local menu_state[16] buffer with a count-4 REP MOVSD (MOV ECX,4;
+ * MOV ESI,0x53EF2; REP MOVSD -> 32-bit elements), then hands that buffer to
+ * fd2_open_settings_dialog_with_slide / fd2_settings_menu_input_step, which
+ * mutate the per-option flags on the local copy during navigation. The
+ * global source array is never written -> statically all zero. Element type
+ * int32[4] matches the dword copy stride and the sibling *_menu_state_template
+ * family (e.g. data_fd2_ui_save_load_menu_state_template @ 0x53F22).
+ */
+int32 data_fd2_ui_field_command_menu_state_template[4] = { 0, 0, 0, 0 };

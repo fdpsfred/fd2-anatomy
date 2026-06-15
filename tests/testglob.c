@@ -997,8 +997,6 @@ void fd2_render_shop_item_grid(uint32 item_count, uint32 item_id_array,
  * are host-safe to call directly. The shop navigation test observes that an
  * animation paced via g_delay375b2_calls == 3, with the branch direction
  * pinned independently by data_fd2_ui_menu_scroll_offset. */
-/* field command menu templates — real FD2.LE values @ 0x51E9F / 0x53EF2 */
-int32  data_fd2_ui_field_command_menu_state_template[4] = { 0, 0, 0, 0 };
 /* save/load/quit sub-menu templates — real FD2.LE values @ 0x51EF5 / 0x53F22 */
 int32  data_fd2_ui_save_load_menu_state_template[4] = { 0, 0, 0, 0 };
 /* player action menu state template — real FD2.LE value @ 0x53F12 (all zero) */
