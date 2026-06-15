@@ -771,3 +771,17 @@ LAB_rerender:
 
     return result;
 }
+
+/* ----------------------------------------------------------------
+ * Global state owned by this translation unit.
+ *
+ * data_fd2_ui_menu_cursor_idx @ 0x53C57 (uint32, 4 bytes, zero-init)
+ *   Shared current-selection cursor index for the active modal menu
+ *   (field command menu, options, settings, shop/inventory/spell/promote
+ *   pickers, chapter-intro menu, etc). Runtime state: every menu-open
+ *   site stores 0 here first, then key handlers bump it (e.g.
+ *   fd2_settings_menu_input_step writes 0/1/2/3 for Home/Up/Left/Down,
+ *   accessed as dword), and dispatch code reads it back. Never preset in
+ *   the image; the linker places it in BSS (load-time zeroed).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_ui_menu_cursor_idx;

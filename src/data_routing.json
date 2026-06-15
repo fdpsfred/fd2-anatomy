@@ -1546,8 +1546,8 @@
       "fd2_count_active_menu_items_until_zero"
     ],
     "note": "multi-writer:battle/btl_ai.c,dialog/dialog.c,life/main.c,save/save.c,spell/spellsel.c,ui_menu/chintro.c,ui_menu/menu.c,ui_menu/menucfg.c,ui_menu/promote.c,ui_menu/shop.c,ui_menu/status.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_slide_anim_accumulator_buf_ptr": {

@@ -806,7 +806,6 @@ uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch = 0;
 uint32 data_fd2_ui_slide_composed_target_buf_ptr = 0;
 uint32 data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
 uint32 data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
-uint32 data_fd2_ui_menu_cursor_idx = 0;
 /* shop "inventory full" FDTXT dialog-id table — real FD2.LE values @ 0x5265F.
  * The church-revive menu aliases the same bytes as a per-job revive-price
  * multiplier table, read as [bJob_id + 5]. (int16; vendor data overlap) */
