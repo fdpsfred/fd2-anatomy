@@ -2043,8 +2043,8 @@
       "fd2_promote_member_select_loop"
     ],
     "note": "multi-writer:ui_menu/promote.c,ui_menu/shop.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_menu_screen_sprite_atlas_buf_ptr": {

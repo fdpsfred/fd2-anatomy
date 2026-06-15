@@ -1074,3 +1074,19 @@ uint32 data_fd2_ui_slide_bg_snapshot_buf_ptr;
  *   free()d on close, never statically initialized -> lives in BSS, rests
  *   at 0. */
 uint32 data_fd2_ui_slide_composed_target_buf_ptr;
+
+/* data_fd2_ui_menu_candidate_array_ptr @ 0x54143 (.object2)
+ *   Universal scrollable-menu candidate pointer: points at the byte array
+ *   of valid candidate ids currently shown in the active menu/grid. Paired
+ *   with the visible-row count @ 0x5413F. Each menu flow assigns it to a
+ *   local byte[] up front (writers: fd2_run_buy_item_menu sets it to the
+ *   equip-eligible char-id list; fd2_promote_members_select_loop and
+ *   fd2_promote_member_select_loop set it to the promotable-member /
+ *   candidate-class list); the chapter-intro panel renderer reads it back
+ *   as candidate_array_ptr[scroll_offset + i] (a byte index into the
+ *   portrait/sprite cache). Asm: store at 0x2F24C is MOV [0x54143],EAX with
+ *   EAX = ESP (address of a stack-local byte[32]) -> a single 4-byte
+ *   pointer slot; reads are byte-wide. Never statically initialized -> lives
+ *   in BSS, rests at 0. (Ghidra previously mis-labeled this as
+ *   chapter_intro_face_table_ptr after its first-observed chapter-face use.) */
+uint8 *data_fd2_ui_menu_candidate_array_ptr;

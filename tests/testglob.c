@@ -999,7 +999,6 @@ uint32 data_fd2_chapter_intro_dialog_anim_frame_idx = 0;
 uint32 data_fd2_chapter_intro_active_metadata_entry_ptr = 0;
 uint32 data_fd2_chapter_intro_dialog_subframe_anim_counter = 0;
 uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
-uint8 *data_fd2_ui_menu_candidate_array_ptr = 0;
 /* chapter-intro overlay (rndmenu.c) globals.
  * data_fd2_chapter_intro_portrait_pose_y_row_table /
  * data_fd2_chapter_intro_portrait_pose_x_column_table are defined (const) in
