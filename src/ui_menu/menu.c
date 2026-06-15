@@ -635,3 +635,16 @@ uint8  data_fd2_ui_click_debounce_skip_count = 3;
  * Accessed as a full dword (MOV dword ptr [0x51A8F],EDX); initial value 0xFF.
  */
 uint32 data_fd2_battle_ai_post_action_consequence_idx = 0xFF;
+
+/*
+ * data_fd2_battle_current_active_char_idx @ 0x53AE9 (.object2), 4 bytes.
+ * Index of the party slot the turn cursor advances from -- a runtime battle
+ * state scalar, zero-initialized (all bytes 0 in the image). The engine writes
+ * it before it is ever read: fd2_load_save_and_init_engine sets it to 0 at the
+ * end of a LOAD GAME, and fd2_run_full_turn_cycle sets it to 0 when a new player
+ * turn begins. fd2_game_main_loop's "next actor" path reads it as the starting
+ * slot, then writes back (slot+1, wrapping to 0 at party_member_count).
+ * Accessed as a full dword (MOV EBX,dword ptr [0x53AE9] / MOV [0x53AE9],EAX);
+ * used as an unsigned index into data_fd2_battle_runtime_char_array_ptr.
+ */
+uint32 data_fd2_battle_current_active_char_idx;

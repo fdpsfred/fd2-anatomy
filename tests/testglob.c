@@ -116,7 +116,6 @@ uint32 data_fd2_resource_portrait_cache_total_size = 0;
 uint32 data_fd2_resource_portrait_cache_alloc_offset = 0;
 uint32 data_fd2_resource_portrait_cache_buffer_used = 0;
 uint8  data_fd2_resource_portrait_cache_id_list_base[40] = {0};
-uint32 data_fd2_battle_current_active_char_idx = 0;
 uint8  data_fd2_audio_bgm_last_set_track_id = 0xFF;
 uint8  data_fd2_audio_bgm_enabled_flag = 1;
 uint8  data_fd2_audio_bgm_driver_available_flag = 1;

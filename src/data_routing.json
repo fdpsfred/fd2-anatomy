@@ -1025,8 +1025,8 @@
       "fd2_run_full_turn_cycle"
     ],
     "note": "multi-writer:battle/btl_turn.c,life/main.c,ui_menu/menu.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_game_speed_flag": {
