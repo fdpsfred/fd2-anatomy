@@ -4887,8 +4887,8 @@
       "fd2_ani_decoder_set_target_buffer"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_ani_decoder_src_buf": {

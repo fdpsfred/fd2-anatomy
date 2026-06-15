@@ -22,6 +22,13 @@ static uint8 *g_ani_cursor;
  * the binary (filled at runtime). */
 uint16 data_fd2_animation_ani_decoder_target_width;
 
+/* ANI frame decoder destination buffer address @ 0x52762.
+ * Linear address of the destination row start. Written each frame by
+ * fd2_ani_decoder_set_target_buffer; read by the row/sparse chunk handlers
+ * (REP STOSD/memcpy target). Zero-initialized in the binary (filled at
+ * runtime by the setter before the decoder runs). */
+uint32 data_fd2_animation_ani_decoder_dst_buf;
+
 /* ----------------------------------------------------------------
  * fd2_ani_decoder_set_target_buffer @ 0x36C7D
  * ---------------------------------------------------------------- */
