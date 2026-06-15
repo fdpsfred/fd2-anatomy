@@ -573,3 +573,17 @@ void fd2_open_tactical_overview_zoom(void)
     data_fd2_battle_scene_snapshot = saved_tile_cache;
     fd2_composite_battle_frame(0);
 }
+
+/* ----------------------------------------------------------------
+ * Field-map tile-event dialog state (zero-initialized at startup).
+ *
+ * data_fd2_dialog_drop_swap_text_id_param @ 0x53ADD
+ *   Staging holder for the "drop/swap" sub-dialog text id. Written by
+ *   fd2_handle_tile_event_interaction (above) as (swapped_out_item_id +
+ *   0xB5) right before the full-bag swap dialog (text 0x1A9) is shown,
+ *   then consumed by the dialog VM (fd2_display_dialog_scene) on the
+ *   recursive sub-dialog opcode (-5) as the page/text id. 32-bit; both
+ *   the writer (MOV [0x53ADD],EAX) and reader (PUSH dword [0x53ADD])
+ *   access the full dword.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_dialog_drop_swap_text_id_param;

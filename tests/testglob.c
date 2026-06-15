@@ -2341,7 +2341,6 @@ void fd2_restore_screen_block_from_buffer(uint32 saved_block, uint32 dst, uint32
  * never reached. With the BIOS keyboard buffer left empty (head==tail), the
  * real keyboard poll returns 0 so blink_flag stays set and the blink stub runs. */
 uint32 data_fd2_dialog_last_action_sprite_id_param = 0;
-uint32 data_fd2_dialog_drop_swap_text_id_param = 0;
 uint8 *data_fd2_portrait_sprite_buffer = (uint8 *)0;
 
 int    g_dlg_glyph_calls = 0;
