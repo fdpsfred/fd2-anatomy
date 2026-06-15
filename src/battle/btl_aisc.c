@@ -595,3 +595,12 @@ uint32 data_fd2_battle_ai_best_spell_id;
             sibling spell/physical scores. Item-use analogue of
             data_fd2_battle_ai_best_spell_score @0x53C23. */
 int32 data_fd2_battle_ai_best_item_score;
+
+/* 0x53C3F: best item candidate inventory slot index (zero-init BSS scalar).
+            Writer @0x15823 stores the winning loop counter slot_iter as a full
+            dword (MOV [0x53C3F],EAX) when a candidate beats the running best
+            score; fd2_execute_ai_item_use reads it @0x1507C (passed to
+            fd2_get_inventory_slot_item_id) and @0x152E9 (passed to
+            fd2_apply_use_effect_dispatch) as the selected slot. Unsigned slot
+            index. Item-use analogue of data_fd2_battle_ai_best_spell_slot. */
+uint32 data_fd2_battle_ai_best_item_slot;
