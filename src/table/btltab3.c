@@ -532,3 +532,69 @@ const uint8 data_fd2_battle_job_allowed_items_table[29 * 7] = {
     0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0x01,  /* job 27 */
     0x07,0x15,0x1A,0xFF,0xFF,0xFF,0x01   /* job 28 */
 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21 @ 0x61955  (84 bytes)
+ * data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b @ 0x619A9  (84 bytes)
+ *
+ * Per-weapon-type attack-hit animation scripts. 21-entry pointer table indexed
+ * by weapon attack-pattern id (0..20); each entry points into the immediately
+ * following 84-byte script pool. Read-only: the sole table reader is
+ * fd2_get_attack_anim_pattern_for_weapon @ 0x4E536 (returns
+ * table[weapon_type], asm "MOV EAX,[EBX*4 + 0x61955]"); the pool reader is
+ * fd2_animate_attack_hit_sequence @ 0x1E98C, which dereferences the returned
+ * pointer as a byte stream:
+ *     step_count = p[0];
+ *     for step 0..step_count: sprite_id = p[step*2+1]; sfx_id = p[step*2+2];
+ *     (sfx_id 0xFF means "no sound").
+ * No writers anywhere -> const. Each pool record is
+ * { step_count, (sprite_id, sfx_id) * step_count } so its length is
+ * 1 + 2*step_count bytes; records are packed and shared across multiple weapon
+ * types (several table slots point at the same record).
+ *
+ * Pool record start offsets (raw table dword targets -> offset into pool):
+ *   0x619A9 -> +0   0x619B6 -> +13  0x619C3 -> +26
+ *   0x619D0 -> +39  0x619E1 -> +56  0x619F2 -> +73
+ *
+ * Emitted as a named data-ptr table: the pool is its own symbol and the table
+ * entries reference it via &pool[offset] (Layer-2 equivalent; linker places
+ * both, original byte layout has table directly preceding pool).
+ */
+const uint8 data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[84] = {
+    /* +0  record A (step_count 6) */
+    0x06, 0x00,0xFF, 0x01,0x00, 0x02,0xFF, 0x03,0xFF, 0x04,0xFF, 0x05,0xFF,
+    /* +13 record B (step_count 6) */
+    0x06, 0x06,0x03, 0x07,0x03, 0x08,0x03, 0x09,0xFF, 0x0A,0xFF, 0x0B,0xFF,
+    /* +26 record C (step_count 6) */
+    0x06, 0x0C,0xFF, 0x0D,0x01, 0x0E,0xFF, 0x0F,0xFF, 0x10,0xFF, 0x11,0xFF,
+    /* +39 record D (step_count 8) */
+    0x08, 0x12,0x02, 0x13,0x02, 0x14,0x02, 0x15,0xFF, 0x16,0xFF, 0x17,0xFF, 0x18,0xFF, 0x19,0xFF,
+    /* +56 record E (step_count 8) */
+    0x08, 0x1F,0x05, 0x20,0x05, 0x21,0x05, 0x22,0xFF, 0x23,0xFF, 0x24,0xFF, 0x25,0xFF, 0x26,0xFF,
+    /* +73 record F (step_count 5) */
+    0x05, 0x1A,0xFF, 0x1B,0x03, 0x1C,0xFF, 0x1D,0xFF, 0x1E,0xFF
+};
+
+const uint8 *data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21[21] = {
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[0],   /* idx  0 -> 0x619A9 */
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[0],   /* idx  1 -> 0x619A9 */
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[0],   /* idx  2 -> 0x619A9 */
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[13],  /* idx  3 -> 0x619B6 */
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[26],  /* idx  4 -> 0x619C3 */
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[39],  /* idx  5 -> 0x619D0 */
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[56],  /* idx  6 -> 0x619E1 */
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[73],  /* idx  7 -> 0x619F2 */
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[56],  /* idx  8 -> 0x619E1 */
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[0],   /* idx  9 -> 0x619A9 */
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[13],  /* idx 10 -> 0x619B6 */
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[39],  /* idx 11 -> 0x619D0 */
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[0],   /* idx 12 -> 0x619A9 */
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[56],  /* idx 13 -> 0x619E1 */
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[73],  /* idx 14 -> 0x619F2 */
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[56],  /* idx 15 -> 0x619E1 */
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[56],  /* idx 16 -> 0x619E1 */
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[13],  /* idx 17 -> 0x619B6 */
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[0],   /* idx 18 -> 0x619A9 */
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[56],  /* idx 19 -> 0x619E1 */
+    &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[56]   /* idx 20 -> 0x619E1 */
+};

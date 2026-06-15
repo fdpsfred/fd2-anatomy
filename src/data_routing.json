@@ -115,8 +115,8 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_cutscene_event_script_ptr_table_106": {

@@ -551,7 +551,8 @@ extern const uint8 data_fd2_battle_movement_cost_table[580];                   /
 extern const uint8 data_fd2_battle_job_allowed_items_table[29 * 7];            /* 0x6188A  7B per job, 29 rows (27 logical jobs + 2 reserved) */
 
 /* ---- .object3 pointer tables ---- */
-extern void  *data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21[21]; /* 0x61955 */
+extern const uint8 data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[84]; /* 0x619A9 */
+extern const uint8 *data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21[21]; /* 0x61955 */
 extern void  *data_fd2_chapter_cutscene_event_script_ptr_table_106[106];   /* 0x627D8 */
 
 /* ---- .object3 additional tables ---- */
