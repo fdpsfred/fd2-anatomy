@@ -957,3 +957,19 @@ void fd2_chapter_19_end(void)
                              0x4c, 0x4a, 0x13, 1);
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }
+
+/* ----------------------------------------------------------------
+ * data_fd2_chapter_cutscene_event_state @ 0x53AFB  (.object2, 4 bytes)
+ *
+ * Cutscene palette fade-in tween counter / state flag. Read+written as a
+ * 32-bit dword by fd2_cutscene_event_trigger @ 0x138B8 (CMP ==0, CMP ==0x40,
+ * INC, then PUSH as the palette index arg to fd2_set_vga_palette_range).
+ * Writers fd2_chapter_08_end @ 0x23568/0x23586 and fd2_chapter_01_init set it
+ * to 1 (arm the fade-in) then back to 0 (disarm); value range 0..0x40.
+ *
+ * Zero-initialized runtime state (memory image all-zero; first touched by an
+ * init handler write before any read). Lives here with chend1.c per the
+ * data-emit home assignment (multi-writer across field/chinit.c,
+ * field/chend1.c, field/chtrans.c).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_chapter_cutscene_event_state;

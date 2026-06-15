@@ -68,7 +68,6 @@ uint8  data_fd2_chapter_combat_cinematic_mode_per_chapter[30] = {
     3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,
     3,3,3,3,3,3,3,3,0,0,0,3,0,0
 };
-uint32 data_fd2_chapter_cutscene_event_state = 0;
 uint32 data_fd2_graphics_static_bg_buffer_ptr = 0;
 uint32 data_fd2_graphics_animated_bg_buffer_ptr = 0;
 uint32 data_fd2_chapter_event_or_battle_end_code = 0;
