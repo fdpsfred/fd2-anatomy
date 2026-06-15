@@ -1856,12 +1856,9 @@ int g_cast_status_via_d1b_calls = 0;
  * fixture (tests/include/minipfix.h) and observe the forwarded buf/char through
  * the real background blit + sleep-indicator digit, so no stub/spy is kept. */
 uint8 data_fd2_audio_walk_step_sfx_cadence_counter = 0;
-uint8 data_fd2_battle_summon_minor_anim_state5_frame_counter = 0;
-uint8 data_fd2_battle_summon_minor_anim_alternating_blit_toggle = 0;
 uint8 data_fd2_graphics_figani_pose_anim_subframe_idx = 0;
 uint8 data_fd2_graphics_figani_pose_anim_pose_idx = 0;
 uint32 data_fd2_audio_summon_spell_sfx_bank_buf_ptr = 0;
-int32  data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[15] = {0};
 uint8  data_fd2_battle_summon_spell_8slot_visibility_table[7] = {0};
 uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7] = {0};
 int32  data_fd2_battle_summon_spell_8slot_row_multiplier_table[7] = {0};
@@ -1871,37 +1868,19 @@ int32  data_fd2_battle_summon_aura_ring_8slot_x_offset_table[8] =
     {-59, -39, 0, 39, 55, 39, 0, -39};
 int32  data_fd2_battle_summon_aura_ring_8slot_row_multiplier_table[8] =
     {-10, -24, -30, -24, -10, 4, 10, 4};
-int32  data_fd2_battle_summon_main_anim_12slot_frame_counter_array[12] = {0};
-int32  data_fd2_battle_summon_main_anim_12slot_color_idx_array[12] = {0};
-uint8  data_fd2_battle_summon_main_anim_color_rotation_counter = 0;
-uint8  data_fd2_battle_summon_main_anim_terminate_flag = 0;
-uint8  data_fd2_battle_summon_main_anim_odd_even_frame_toggle = 0;
 int32  data_fd2_battle_summon_main_anim_12slot_y_offset_table[12] = {0};
 uint8  data_fd2_battle_summon_main_anim_12color_v_offset_table[12] = {0};
 uint8  data_fd2_battle_summon_main_anim_12color_sprite_offset_table[12] = {0};
-uint8  data_fd2_battle_summon_spell_anim_phase_byte = 0;
-uint8  data_fd2_battle_summon_spell_anim_aux_state_byte_unread = 0;
-uint8  data_fd2_battle_summon_spell_sprite_anim_tick_counter = 0;
 int32  data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[6] = {0};
 int32  data_fd2_battle_summon_anim_variant_a_6slot_color_idx_array[6] = {0};
 uint8  data_fd2_battle_summon_anim_variant_a_6slot_jitter_byte_array[6] = {0};
-uint8  data_fd2_battle_summon_anim_variant_a_color_rotation_counter = 0;
-uint8  data_fd2_battle_summon_anim_variant_a_terminate_flag = 0;
 int32  data_fd2_battle_summon_anim_variant_a_10color_y_offset_table[10] = {0};
 int32  data_fd2_battle_summon_anim_variant_b_6slot_frame_counter_array[6] = {0};
 int32  data_fd2_battle_summon_anim_variant_b_6slot_color_idx_array[6] = {0};
 uint8  data_fd2_battle_summon_anim_variant_b_6slot_jitter_byte_array[6] = {0};
-uint8  data_fd2_battle_summon_anim_variant_b_color_rotation_counter = 0;
-uint8  data_fd2_battle_summon_anim_variant_b_terminate_flag = 0;
 int32  data_fd2_battle_summon_anim_variant_b_10color_y_offset_table[10] = {0};
-int32  data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[4] = {0};
-int32  data_fd2_battle_summon_anim_variant_d_4slot_color_idx_array[4] = {0};
-uint8  data_fd2_battle_summon_anim_variant_d_color_rotation_counter = 0;
-uint8  data_fd2_battle_summon_anim_variant_d_terminate_flag = 0;
-uint8  data_fd2_battle_summon_anim_variant_d_odd_even_frame_toggle = 0;
 int32  data_fd2_animation_summon_variant_d_3slot_color_row_offsets[10] = {0};
 uint8  data_fd2_animation_summon_variant_e_16slot_sprite_base_table[16] = {0};
-int32  data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[16] = {0};
 /* Summon-spell per-summon RGB + SFX-bank-index tables (4-byte read-only game
  * data, indexed by spell_id-0x20). The binary declares each as a dword that it
  * byte-indexes; defined here with the real .object3 values (little-endian
@@ -1912,12 +1891,6 @@ uint32 data_fd2_battle_summon_spell_palette_r_table = 0x3535333fU;
 uint32 data_fd2_battle_summon_spell_palette_g_table = 0x3a00393fU;
 uint32 data_fd2_battle_summon_spell_palette_b_table = 0x09003f3fU;
 uint32 data_fd2_battle_summon_spell_sfx_bank_index_table = 0x5e5d5c5bU;
-int32  data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[5] = {0};
-int32  data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[5] = {0};
-int32  data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[5] = {0};
-uint8  data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[5] = {0};
-uint8  data_fd2_battle_summon_anim_variant_c_angle_accumulator = 0;
-uint8  data_fd2_battle_summon_anim_variant_c_swap_done_latch = 0;
 /* rodata offset tables: real binary values (0x524F8 / 0x5250C) */
 int32  data_fd2_animation_summon_variant_c_radial_5slot_offsets[5] =
     {10, 8, 3, 0, 0};
