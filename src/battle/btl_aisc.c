@@ -614,3 +614,13 @@ uint32 data_fd2_battle_ai_best_item_slot;
             ai_best_physical_* result group (X @0x53C43, Y @0x53C47,
             idx @0x53C4B, score @0x53C4F). */
 uint32 data_fd2_battle_ai_best_physical_target_x;
+
+/* 0x53C47: best physical-attack target tile Y coordinate (zero-init BSS scalar).
+            Writer @0x144E6 stores candidate_y as a full dword (MOV [0x53C47],EAX)
+            when a candidate beats the running best score; fd2_execute_ai_physical_attack
+            reads it @0x154BA (PUSH dword [0x53C47]) and passes it to
+            fd2_ai_walk_to_target_tile. Unsigned tile coordinate (byte value
+            zero-extended into the dword slot). Second member of the
+            ai_best_physical_* result group (X @0x53C43, Y @0x53C47,
+            idx @0x53C4B, score @0x53C4F). */
+uint32 data_fd2_battle_ai_best_physical_target_y;
