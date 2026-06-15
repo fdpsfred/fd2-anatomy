@@ -1191,3 +1191,4 @@ int fd2_find_inventory_slot_with_item(uint32 char_idx, uint32 item_id)
  * fd2_spell_selection_menu_main before fd2_cast_spell_17_complex reads it,
  * so it is zero-bss despite a stale nonzero image byte. */
 uint32 data_fd2_battle_teleport_dest_world_x;
+uint32 data_fd2_battle_teleport_dest_world_y;
