@@ -25,7 +25,6 @@ void test_heartbeat(const char *name)
 }
 
 runtime_char  g_test_rc_array[8];
-runtime_char *data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
 item_effect       data_fd2_battle_item_effect_table[215];
 spell_effect      data_fd2_battle_spell_effect_table[36];
 enemy_data        data_fd2_battle_enemy_data_table[68];
@@ -35,7 +34,6 @@ uint8  data_fd2_chapter_intro_metadata_table[26 * 31];
 uint8  data_fd2_battle_spell_learning_table[20 * 12];
 uint8  data_fd2_battle_class_promotion_data_table[20 * 2];
 uint8  data_fd2_battle_movement_cost_table[27 * 20];
-uint8  data_fd2_orphan_table_60181[99 * 3];
 uint8  data_fd2_battle_job_allowed_items_table[27 * 7];
 void  *data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21[21];
 void  *data_fd2_chapter_cutscene_event_script_ptr_table_106[106];
@@ -44,23 +42,8 @@ uint8  data_fd2_battle_last_hit_or_miss_flag = 1;
 uint16 data_fd2_shared_rng_seed = 0;
 uint32 data_fd2_battle_job_magic_resist_table[27];
 uint8  data_fd2_battle_job_crit_rate_table[27];
-uint32 data_fd2_battle_turn_counter = 0;
-uint32 data_fd2_runtime_battle_state_ptr = 0;
 uint32 data_fd2_battle_fast_mode_walk_overlay_ptr = 0;
-uint32 data_fd2_menu_dialog_state_handle = 0;
-uint32 data_fd2_tile_anim_table_base = 0;
-uint32 data_fd2_chinese_font_sheet = 0;
-uint8  data_fd2_ui_terrain_hud_user_enabled = 0;
 uint32 data_fd2_ui_terrain_hud_panel_offset_51a0c = 0;
-uint8  data_fd2_audio_sfx_driver_available_flag = 0;
-uint8  data_fd2_audio_sfx_enabled_flag = 0;
-uint32 data_fd2_audio_sfx_sample_handle_0 = 0;
-/* Distinct non-zero default so the AIL_stop_sample spy can tell which real SFX
- * player called it: fd2_play_sfx_sample_from_bank drives this slot-1 handle,
- * fd2_play_sfx_with_handle drives slot-0 (handle_0). Callers that fire both
- * players (summon ticks, etc.) don't set the handles, so this sentinel keeps the
- * two routable. Tests that care set both handles explicitly. */
-uint32 data_fd2_audio_sfx_sample_handle_1 = 0x5EE80000;
 char   data_fd2_string_ui_render_decimal_format_template[6] = "%0.5d";
 char   data_fd2_string_resource_filename_fdtxt_dat[] = "FDTXT.DAT";
 char   data_fd2_string_resource_filename_fdother_dat[] = "FDOTHER.DAT";
@@ -75,9 +58,6 @@ char   data_fd2_string_save_load_oom_msg_tile_event_50023[] = " Out of Memory !!
 char   data_fd2_string_save_load_oom_msg_runtime_char_50037[] = " Out of Memory !!!\n";
 char   data_fd2_string_field_map_oom_msg_chapter_runtime_50064[] = " Out of Memory !!!\n";
 char   data_fd2_string_field_map_fdicon_not_found_err_50086[] = "\n\n File not found 'FDICON.B24!! \n\n";
-uint32 data_fd2_shared_party_total_gold = 0;
-uint32 data_fd2_shared_menu_party_roster_buffer_ptr = 0;
-uint32 data_fd2_shared_menu_party_member_count = 0;
 uint32 data_fd2_battle_anim_phase = 0;
 uint32 data_fd2_battle_ai_post_action_consequence_idx = 0;
 uint32 data_fd2_battle_player_action_result_code = 0;
@@ -96,8 +76,6 @@ uint8  data_fd2_graphics_text_scroll_pending_line_count = 0;
 uint32 data_fd2_graphics_animated_bg_buffer_ptr = 0;
 uint32 data_fd2_chapter_event_or_battle_end_code = 0;
 uint32 data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
-uint32 data_fd2_battle_teleport_dest_world_x = 0;
-uint32 data_fd2_battle_teleport_dest_world_y = 0;
 uint32 data_fd2_audio_status_effect_sfx_handle_ptr = 0;
 uint32 data_fd2_audio_figani_sfx_bank_buf_ptr = 0;
 uint32 data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = 0;
@@ -108,19 +86,9 @@ uint8  data_fd2_battle_special_attack_shake_x_offset_table[6] =
     { 0, 4, 9, 14, 18, 14 };
 uint32 data_fd2_battle_tile_attr_mv_modifier_table[32];
 uint32 data_fd2_battle_tile_attr_def_modifier_table[32];
-uint32 data_fd2_vga_palette_data_ptr = 0;
-uint32 data_fd2_all_game_text_ptr = 0;
-uint32 data_fd2_battle_tile_map_ptr = 0;
-uint32 data_fd2_battle_party_member_count = 4;
-uint32 data_fd2_tile_attribute_flags_buffer_ptr = 0;
-uint32 data_fd2_tile_event_data_table_ptr = 0;
 uint32 data_fd2_chapter_portrait_load_buffer = 0;
-uint32 data_fd2_battle_scene_snapshot = 0;
-uint32 data_fd2_current_chapter_text = 0;
 uint32 data_fd2_portrait_sprite_cache = 0;
 uint32 data_fd2_resource_portrait_cache_count = 0;
-uint32 data_fd2_resource_portrait_cache_total_size = 0;
-uint32 data_fd2_resource_portrait_cache_alloc_offset = 0;
 uint32 data_fd2_resource_portrait_cache_buffer_used = 0;
 uint8  data_fd2_resource_portrait_cache_id_list_base[40] = {0};
 uint32 data_fd2_battle_current_active_char_idx = 0;
@@ -129,29 +97,12 @@ uint32 data_fd2_battle_current_active_char_idx = 0;
 uint32 data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = 0;
 uint8  data_fd2_ui_click_debounce_skip_count = 0;
 uint8  data_fd2_audio_bgm_last_set_track_id = 0xFF;
-uint8  data_fd2_audio_bgm_enabled_flag = 1;
-uint8  data_fd2_audio_bgm_driver_available_flag = 1;
 uint32 data_fd2_audio_bgm_sequence_data_buf_ptr = 0;
 char   data_fd2_string_resource_filename_fdmus_dat[] = "FDMUS.DAT";
-uint32 data_fd2_audio_bgm_sequence_handle = 0;
-/* AIL driver / sample handles -- first used by fd2_main (life/main.c). */
-void  *data_fd2_audio_bgm_driver_handle = 0;
-uint32 data_fd2_audio_sfx_dig_driver_handle = 0;
 uint32 data_fd2_resource_last_loaded_resource_size = 0;
-uint32 data_fd2_audio_fdother_sfx_bank_buf_ptr = 0;
-uint32 data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
-uint32 data_fd2_battle_view_window_origin_x = 0;
-uint32 data_fd2_battle_view_window_origin_y = 0;
-uint32 data_fd2_battle_cursor_world_x = 5;
-uint32 data_fd2_battle_cursor_world_y = 5;
-uint32 data_fd2_battle_cursor_screen_x = 5;
-uint32 data_fd2_battle_cursor_screen_y = 5;
-uint32 data_fd2_battle_map_width_tiles = 20;
-uint32 data_fd2_battle_map_height_tiles = 15;
 uint8  data_fd2_chapter_init_phase_flag = 0;
 uint16 data_fd2_input_idle_current_bios_tick_word = 0;
 uint16 data_fd2_input_idle_last_rendered_tick_word = 0;
-uint8  data_fd2_input_last_key_pressed = 0;
 uint8  data_fd2_input_key_input_mode = 0;
 uint32 data_ail_alloc_fnptr = 0;
 uint32 data_ail_free_fnptr = 0;
@@ -400,9 +351,6 @@ uint8 data_fd2_chapter_ch18_end_scene_char_pos_y_table[17] =
     { 7, 8, 6, 7, 8, 9, 6, 7, 8, 9, 5, 5, 5, 10, 10, 10, 7 };
 uint8 data_fd2_chapter_ch18_end_scene_char_facing_table[17] =
     { 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 2, 2, 2, 1 };
-/* Resource portrait sheet base pointer (data segment @ 0x53AD1). Tests point it
- * at a zeroed scratch buffer. */
-uint32 data_fd2_resource_portrait_sheet_ptr = 0;
 /* Combat speech-bubble screen-position pairs (data segment @ 0x53A30):
  * [0..1] attacker bubble (x,y), [2..3] counter bubble (x,y); [2]==-1 = none. */
 uint32 data_fd2_battle_combat_speech_bubble_pos_pairs[4] = { 0, 0, 0, 0 };
@@ -493,7 +441,6 @@ int fd2_check_char_is_dead(uint32 c)
     return g_check_char_is_dead_return;
 }
 /* fd2_scan_chars_within_manhattan_range: now in btl_ai.c */
-uint32 data_fd2_ui_anim_sprite_sheet_ptr = 0;
 void  *data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[5] = {0};
 uint32 data_fd2_dialog_portrait_blink_frame_idx = 0;
 uint32 data_fd2_dialog_portrait_blink_subtick_counter = 0;
@@ -501,12 +448,10 @@ uint32 data_fd2_dialog_last_action_value_param = 0;
 uint32 data_fd2_dialog_active_portrait_blit_offset = 0;
 void  *data_fd2_dialog_area_backup_buffer = 0;
 uint32 data_fd2_dialog_current_speaker_char_ptr = 0;
-uint32 data_fd2_large_game_state_buffer_ptr = 0;
 uint32 data_fd2_dialog_blink_phase_oscillator = 0;
 uint32 data_fd2_dialog_blink_phase_oscillator_tick_latch = 0;
 uint32 data_fd2_graphics_chapter_walk_anim_alt_palette_idx = 0;
 uint32 data_fd2_graphics_chapter_ambient_palette_anim_idx = 0;
-uint32 data_fd2_graphics_chapter_ambient_palette_anim_tick_latch = 0;
 uint8  data_fd2_graphics_char_sprite_shake_jitter_bit = 0;
 int32  data_fd2_graphics_char_sprite_paint_jitter_tick_latch = 0;
 /* fd2_composite_battle_frame (rndscene.c) pipeline-callee stubs with arg
@@ -909,13 +854,6 @@ int16  data_fd2_dialog_shop_inventory_full_dialog_text_id_table[36] = {
     0x04B0, 0x03E8, 0x0BB8, 0x03E8, 0x03E8, 0x0578, 0x015E, 0x0064,
     0x0064, 0x0064, 0x0064, 0x0064
 };
-/* per-basic-class required class-change key-item id — real FD2.LE values
- * @ 0x526A7 (= 0x5266B + 0x3C). Indexed directly by runtime_char.portrait_id
- * (basic classes 0..0x11); 0xFF marks classes with no table-driven item. */
-uint8  data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[18] = {
-    0x59, 0x5D, 0xFF, 0x5D, 0xCD, 0xCD, 0xCD, 0xCD, 0x5C,
-    0x58, 0x58, 0x58, 0x5B, 0x5C, 0x58, 0x5B, 0xFF, 0xFF
-};
 /* Shop / give-item menu scroll offset (top-row index of the 6-item viewport,
  * steps of 2). Real FD2.LE global @ 0x5412F; shared menu-scroll state. */
 uint32 data_fd2_ui_menu_scroll_offset = 0;
@@ -1046,23 +984,6 @@ void fd2_render_shop_item_grid(uint32 item_count, uint32 item_id_array,
  * are host-safe to call directly. The shop navigation test observes that an
  * animation paced via g_delay375b2_calls == 3, with the branch direction
  * pinned independently by data_fd2_ui_menu_scroll_offset. */
-/* field command menu templates — real FD2.LE values @ 0x51E9F / 0x53EF2 */
-int32  data_fd2_ui_field_command_menu_options_template[4] = { 7, 5, 6, 4 };
-int32  data_fd2_ui_field_command_menu_state_template[4] = { 0, 0, 0, 0 };
-/* save/load/quit sub-menu templates — real FD2.LE values @ 0x51EF5 / 0x53F22 */
-int32  data_fd2_ui_save_load_newgame_menu_template[4] = { 12, 13, 14, 15 };
-int32  data_fd2_ui_save_load_menu_state_template[4] = { 0, 0, 0, 0 };
-/* player action menu state template — real FD2.LE value @ 0x53F12 (all zero) */
-int32  data_fd2_ui_player_action_menu_state_template[4] = { 0, 0, 0, 0 };
-/* inline action menu template — real FD2.LE value @ 0x51ED5 (Attack/Spell/Item/Wait slot ids) */
-int32  data_fd2_ui_inline_action_menu_template[4] = { 0, 1, 2, 3 };
-/* item command menu templates — real FD2.LE values @ 0x51F05 / 0x53F32
- * (Use/Give/Sort/Drop slot ids; state all zero) */
-int32  data_fd2_ui_item_command_menu_template[4] = { 8, 9, 10, 11 };
-int32  data_fd2_ui_item_command_menu_state_template[4] = { 0, 0, 0, 0 };
-/* tactical-overview per-team color base table — real FD2.LE values @ 0x5208a
- * (player 0x20, enemy 0x50, neutral 0x48) */
-int32  data_fd2_ui_tactical_overview_team_colors_table[3] = { 0x20, 0x50, 0x48 };
 /* status-effect overlay flicker colour template — real FD2.LE values @ 0x51F15
  * (32 bytes; mostly 0xC0 with a few status-specific colours). The real
  * fd2_animate_status_effect_overlay_flicker copies the first 30 bytes into a
@@ -1098,28 +1019,12 @@ uint8  data_fd2_animation_spell_overlay_blink_mask_table[30] = {
     0x10,0x10,0x08,0x08,0x10,0x10,0x10,0x08,
     0x08,0x10,0x10,0x10,0x08,0x08
 };
-/* game options menu templates — real FD2.LE values @ 0x51EAF / 0x53F02 */
-int32  data_fd2_ui_game_options_menu_slots_template[4] = { 0x12, 0x14, 0x16, 0x18 };
-int32  data_fd2_ui_game_options_menu_state_template[4] = { 0, 0, 0, 0 };
 /* dialog page-advance collapse template — real FD2.LE value @ 0x51EE5
  * (two corner sprite-index selectors, replicated to 16 bytes) */
 int32  data_fd2_dialog_advance_collapse_template[4] = { 0x10, 0x11, 0x10, 0x11 };
-/* speech-bubble wing corner offsets — real FD2.LE values @ 0x526DA
- * (signed: -39, -13, 13, 39; consumed via signed IDIV in the wing anim) */
-int32  data_fd2_ui_chapter_intro_dialog_corner_offset_table_a[4] =
-    { -39, -13, 13, 39 };
-uint32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4] = {0};
-uint32 data_fd2_chapter_intro_dialog_anim_frame_idx = 0;
-/* chapter-intro metadata entry pointer (real data @ 0x54137). Restored by
- * fd2_load_state_from_selected_slot via fd2_get_chapter_intro_metadata_entry;
- * its load test asserts against the real accessor's return. */
-uint32 data_fd2_chapter_intro_active_metadata_entry_ptr = 0;
-uint32 data_fd2_chapter_intro_dialog_subframe_anim_counter = 0;
 uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
 uint8 *data_fd2_ui_menu_candidate_array_ptr = 0;
 /* chapter-intro overlay (rndmenu.c) globals */
-uint32 data_fd2_chapter_intro_menu_cursor_state = 0;
-uint32 data_fd2_chapter_intro_menu_overlay_buf_ptr = 0;
 uint8  data_fd2_chapter_intro_portrait_pose_y_row_table[18] = {0};
 uint8  data_fd2_chapter_intro_portrait_pose_x_column_table[18] = {0};
 /* chapter-intro menu globals + heavy-callee stubs for fd2_run_chapter_intro_menu_main
@@ -1127,11 +1032,6 @@ uint8  data_fd2_chapter_intro_portrait_pose_x_column_table[18] = {0};
  * in-process seam: real-file loaders + VGA port I/O + four nested interactive
  * sub-menus — see the deferral note in tests/ui_menu/chintro.c), so these only
  * satisfy the link and are never invoked by a test. */
-/* per-job revive/promote price multiplier (real int16 data @ 0x5266B, emit'd
- * by the data pipeline; zero-filled fake here, sized past job_id 0x1A for the
- * table[job_id-1] read in fd2_render_promote_members_grid). Tests seed the
- * entries they exercise. */
-int16  data_fd2_ui_per_job_revive_or_promote_cost_table[32] = {0};
 /* per-chapter dispatch category (real data @ 0x526B9, emit'd by the data
  * pipeline; zero-filled fake here, sized past chapter_id 30 (0x1E) for the
  * indexed read in fd2_save_current_state_to_slot / fd2_chapter_transition_menu /
@@ -1898,12 +1798,9 @@ int g_cast_status_via_d1b_calls = 0;
  * fixture (tests/include/minipfix.h) and observe the forwarded buf/char through
  * the real background blit + sleep-indicator digit, so no stub/spy is kept. */
 uint8 data_fd2_audio_walk_step_sfx_cadence_counter = 0;
-uint8 data_fd2_battle_summon_minor_anim_state5_frame_counter = 0;
-uint8 data_fd2_battle_summon_minor_anim_alternating_blit_toggle = 0;
 uint8 data_fd2_graphics_figani_pose_anim_subframe_idx = 0;
 uint8 data_fd2_graphics_figani_pose_anim_pose_idx = 0;
 uint32 data_fd2_audio_summon_spell_sfx_bank_buf_ptr = 0;
-int32  data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[15] = {0};
 uint8  data_fd2_battle_summon_spell_8slot_visibility_table[7] = {0};
 uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7] = {0};
 int32  data_fd2_battle_summon_spell_8slot_row_multiplier_table[7] = {0};
@@ -1913,37 +1810,19 @@ int32  data_fd2_battle_summon_aura_ring_8slot_x_offset_table[8] =
     {-59, -39, 0, 39, 55, 39, 0, -39};
 int32  data_fd2_battle_summon_aura_ring_8slot_row_multiplier_table[8] =
     {-10, -24, -30, -24, -10, 4, 10, 4};
-int32  data_fd2_battle_summon_main_anim_12slot_frame_counter_array[12] = {0};
-int32  data_fd2_battle_summon_main_anim_12slot_color_idx_array[12] = {0};
-uint8  data_fd2_battle_summon_main_anim_color_rotation_counter = 0;
-uint8  data_fd2_battle_summon_main_anim_terminate_flag = 0;
-uint8  data_fd2_battle_summon_main_anim_odd_even_frame_toggle = 0;
 int32  data_fd2_battle_summon_main_anim_12slot_y_offset_table[12] = {0};
 uint8  data_fd2_battle_summon_main_anim_12color_v_offset_table[12] = {0};
 uint8  data_fd2_battle_summon_main_anim_12color_sprite_offset_table[12] = {0};
-uint8  data_fd2_battle_summon_spell_anim_phase_byte = 0;
-uint8  data_fd2_battle_summon_spell_anim_aux_state_byte_unread = 0;
-uint8  data_fd2_battle_summon_spell_sprite_anim_tick_counter = 0;
 int32  data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[6] = {0};
 int32  data_fd2_battle_summon_anim_variant_a_6slot_color_idx_array[6] = {0};
 uint8  data_fd2_battle_summon_anim_variant_a_6slot_jitter_byte_array[6] = {0};
-uint8  data_fd2_battle_summon_anim_variant_a_color_rotation_counter = 0;
-uint8  data_fd2_battle_summon_anim_variant_a_terminate_flag = 0;
 int32  data_fd2_battle_summon_anim_variant_a_10color_y_offset_table[10] = {0};
 int32  data_fd2_battle_summon_anim_variant_b_6slot_frame_counter_array[6] = {0};
 int32  data_fd2_battle_summon_anim_variant_b_6slot_color_idx_array[6] = {0};
 uint8  data_fd2_battle_summon_anim_variant_b_6slot_jitter_byte_array[6] = {0};
-uint8  data_fd2_battle_summon_anim_variant_b_color_rotation_counter = 0;
-uint8  data_fd2_battle_summon_anim_variant_b_terminate_flag = 0;
 int32  data_fd2_battle_summon_anim_variant_b_10color_y_offset_table[10] = {0};
-int32  data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array[4] = {0};
-int32  data_fd2_battle_summon_anim_variant_d_4slot_color_idx_array[4] = {0};
-uint8  data_fd2_battle_summon_anim_variant_d_color_rotation_counter = 0;
-uint8  data_fd2_battle_summon_anim_variant_d_terminate_flag = 0;
-uint8  data_fd2_battle_summon_anim_variant_d_odd_even_frame_toggle = 0;
 int32  data_fd2_animation_summon_variant_d_3slot_color_row_offsets[10] = {0};
 uint8  data_fd2_animation_summon_variant_e_16slot_sprite_base_table[16] = {0};
-int32  data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[16] = {0};
 /* Summon-spell per-summon RGB + SFX-bank-index tables (4-byte read-only game
  * data, indexed by spell_id-0x20). The binary declares each as a dword that it
  * byte-indexes; defined here with the real .object3 values (little-endian
@@ -1954,12 +1833,6 @@ uint32 data_fd2_battle_summon_spell_palette_r_table = 0x3535333fU;
 uint32 data_fd2_battle_summon_spell_palette_g_table = 0x3a00393fU;
 uint32 data_fd2_battle_summon_spell_palette_b_table = 0x09003f3fU;
 uint32 data_fd2_battle_summon_spell_sfx_bank_index_table = 0x5e5d5c5bU;
-int32  data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[5] = {0};
-int32  data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[5] = {0};
-int32  data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[5] = {0};
-uint8  data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[5] = {0};
-uint8  data_fd2_battle_summon_anim_variant_c_angle_accumulator = 0;
-uint8  data_fd2_battle_summon_anim_variant_c_swap_done_latch = 0;
 /* rodata offset tables: real binary values (0x524F8 / 0x5250C) */
 int32  data_fd2_animation_summon_variant_c_radial_5slot_offsets[5] =
     {10, 8, 3, 0, 0};
@@ -2097,18 +1970,6 @@ int    g_spell_phase_handler_log_count = 0;
 int    g_spell_phase_handler_phase_log[64] = {0};
 uint32 g_spell_phase_handler_arg2_log[64] = {0};
 uint32 g_spell_phase_handler_dst_log[64] = {0};
-uint32 data_fd2_battle_ai_best_spell_score = 0;
-uint32 data_fd2_battle_ai_best_item_score = 0;
-uint32 data_fd2_battle_ai_best_spell_target_x = 0;
-uint32 data_fd2_battle_ai_best_spell_target_y = 0;
-uint32 data_fd2_battle_ai_best_spell_id = 0;
-uint32 data_fd2_battle_ai_best_item_target_x = 0;
-uint32 data_fd2_battle_ai_best_item_target_y = 0;
-uint32 data_fd2_battle_ai_best_item_slot = 0;
-uint32 data_fd2_battle_ai_best_physical_target_x = 0;
-uint32 data_fd2_battle_ai_best_physical_target_y = 0;
-uint32 data_fd2_battle_ai_best_physical_target_idx = 0;
-uint32 data_fd2_battle_ai_best_physical_score = 0;
 int g_blit_indexed_sprite_calls = 0;
 uint32 g_blit_indexed_sprite_last_frame = 0;
 int g_blit_indexed_sprite_last_x = 0;
@@ -2183,8 +2044,6 @@ void fd2_rle_blit_with_palette_remap(uint16 *rle_stream, int32 dst_x, int32 dst_
     (void)dst_buf; (void)stride;
 }
 uint8  data_fd2_chapter_chapter_init_done_flag = 0;
-uint8  data_fd2_ui_play_active_flag = 0;
-uint8  data_fd2_ui_game_speed_flag = 0;
 uint32 data_fd2_battle_view_window_max_x = 13;
 uint32 data_fd2_battle_view_window_max_y = 8;
 uint32 data_fd2_battle_compose_left_edge_clip_offset = 0;

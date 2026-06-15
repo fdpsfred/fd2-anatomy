@@ -561,3 +561,94 @@ int fd2_ai_score_physical_attack(uint32 caster_idx, uint32 ctx_flag)
     free((void *)pTile_pos_buf);
     return 0;
 }
+
+/* ----------------------------------------------------------------
+ * Battle AI scratch state (zero-initialized BSS scalars).
+ * fd2_ai_score_offensive_spell @ 0x1598A resets this to 0 at the start
+ * of each evaluation pass, then accumulates the best offensive spell
+ * candidate. Read by attack/turn dispatchers (compared signed).
+ * ---------------------------------------------------------------- */
+
+/* 0x53C23: best offensive-spell candidate score (signed max accumulator) */
+int32 data_fd2_battle_ai_best_spell_score;
+
+/* 0x53C27: best offensive-spell target tile X (zero-extended tile coord; full dword store @0x15AFF) */
+uint32 data_fd2_battle_ai_best_spell_target_x;
+
+/* 0x53C2B: best offensive-spell target tile Y (zero-extended tile coord; full dword store @0x15B08) */
+uint32 data_fd2_battle_ai_best_spell_target_y;
+
+/* 0x53C2F: chosen offensive-spell id (zero-extended spell id 0x00-0x23; full dword store @0x15B12;
+            readers compare signed against 0xB/10 and index the spell handler table) */
+uint32 data_fd2_battle_ai_best_spell_id;
+
+/* ----------------------------------------------------------------
+ * Battle AI scratch state for offensive ITEM use (zero-initialized BSS scalars).
+ * fd2_ai_score_item_use @ 0x1568F resets the score to 0 at the start of each
+ * evaluation pass, then keeps the best item candidate. Read by attack/turn
+ * dispatchers (compared signed against the spell/physical scores and 0x6).
+ * ---------------------------------------------------------------- */
+
+/* 0x53C33: best item candidate score (signed max accumulator).
+            Writer @0x1568F (init 0) and @0x15808 (store best); attack dispatch
+            @0x14F74.. compares it as a full signed dword against 0x6 and the
+            sibling spell/physical scores. Item-use analogue of
+            data_fd2_battle_ai_best_spell_score @0x53C23. */
+int32 data_fd2_battle_ai_best_item_score;
+
+/* 0x53C3F: best item candidate inventory slot index (zero-init BSS scalar).
+            Writer @0x15823 stores the winning loop counter slot_iter as a full
+            dword (MOV [0x53C3F],EAX) when a candidate beats the running best
+            score; fd2_execute_ai_item_use reads it @0x1507C (passed to
+            fd2_get_inventory_slot_item_id) and @0x152E9 (passed to
+            fd2_apply_use_effect_dispatch) as the selected slot. Unsigned slot
+            index. Item-use analogue of data_fd2_battle_ai_best_spell_slot. */
+uint32 data_fd2_battle_ai_best_item_slot;
+
+/* 0x53C43: best physical-attack target tile X coordinate (zero-init BSS scalar).
+            Writer @0x144DD stores candidate_x as a full dword (MOV [0x53C43],EAX)
+            when a candidate beats the running best score; fd2_execute_ai_physical_attack
+            reads it @0x154C0 (PUSH dword [0x53C43]) and passes it to
+            fd2_ai_walk_to_target_tile. Unsigned tile coordinate (byte value
+            zero-extended into the dword slot). First member of the
+            ai_best_physical_* result group (X @0x53C43, Y @0x53C47,
+            idx @0x53C4B, score @0x53C4F). */
+uint32 data_fd2_battle_ai_best_physical_target_x;
+
+/* 0x53C47: best physical-attack target tile Y coordinate (zero-init BSS scalar).
+            Writer @0x144E6 stores candidate_y as a full dword (MOV [0x53C47],EAX)
+            when a candidate beats the running best score; fd2_execute_ai_physical_attack
+            reads it @0x154BA (PUSH dword [0x53C47]) and passes it to
+            fd2_ai_walk_to_target_tile. Unsigned tile coordinate (byte value
+            zero-extended into the dword slot). Second member of the
+            ai_best_physical_* result group (X @0x53C43, Y @0x53C47,
+            idx @0x53C4B, score @0x53C4F). */
+uint32 data_fd2_battle_ai_best_physical_target_y;
+
+/* 0x53C4B: best physical-attack target runtime_char index (zero-init BSS scalar).
+            Writer @0x144EF stores target_idx as a full dword (MOV [0x53C4B],EAX)
+            when a candidate beats the running best score; the source value is the
+            byte target-id zero-extended into the dword, so it is an unsigned index.
+            fd2_execute_ai_physical_attack reads it as a full dword many times
+            (PUSH dword [0x53C4B] @0x154D8/0x154E6/0x15522/.../0x15664) and passes
+            it as the runtime_char index of the chosen target to the attack /
+            animation / counter routines; runtime_char address is computed as
+            idx*0x50 + data_fd2_battle_runtime_char_array_ptr. Third member of the
+            ai_best_physical_* result group (X @0x53C43, Y @0x53C47,
+            idx @0x53C4B, score @0x53C4F). */
+uint32 data_fd2_battle_ai_best_physical_target_idx;
+
+/* 0x53C4F: best physical-attack candidate score / priority class (zero-init BSS scalar).
+            fd2_ai_score_physical_attack @0x14237 resets it to 0 at entry
+            (MOV dword [0x53C4F],0x0 @0x1427E), then stores the winning score class
+            score_class as a full dword (MOV [0x53C4F],EDI @0x144F4) when a candidate
+            beats the running best (CMP EDI,[0x53C4F]; JG @0x144C5 -- signed compare).
+            Values are the priority classes 0 (negligible) / 8 (normal hit) /
+            0x12 (kill shot). fd2_attack_action_dispatch @0x14F62 reads it as a full
+            dword and compares it signed against 0x6 and the sibling spell/physical
+            scores to pick the winning action. Signed score accumulator, same shape
+            as data_fd2_battle_ai_best_spell_score @0x53C23 and
+            data_fd2_battle_ai_best_item_score @0x53C33. Fourth and last member of the
+            ai_best_physical_* result group (X @0x53C43, Y @0x53C47,
+            idx @0x53C4B, score @0x53C4F). */
+int32 data_fd2_battle_ai_best_physical_score;

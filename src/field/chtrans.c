@@ -572,3 +572,89 @@ cleanup:
     data_fd2_battle_runtime_char_array_ptr = (runtime_char *)0;
     return result_code;
 }
+
+/* ----------------------------------------------------------------
+ * Data symbol owned by this module (.object2 @ 0x53A45)
+ *
+ * data_fd2_battle_runtime_char_array_ptr -- pointer to the active
+ * runtime_char[] array (each entry 0x50 bytes). Zero (NULL) at program
+ * start; assigned a malloc(0x1E00) buffer on chapter load / save restore,
+ * freed and reset to NULL on chapter transition. Indexed throughout the
+ * battle/field engine as data_fd2_battle_runtime_char_array_ptr[idx].field.
+ * ---------------------------------------------------------------- */
+runtime_char *data_fd2_battle_runtime_char_array_ptr;
+
+/* ----------------------------------------------------------------
+ * Data symbol owned by this module (.object2 @ 0x53A51)
+ *
+ * data_fd2_battle_tile_map_ptr -- pointer to the decoded per-chapter
+ * battle tile map (loaded from FDFIELD.DAT, then decrypted in place by
+ * fd2_obfuscate_battle_tile_map). The map header packs map_width_tiles /
+ * map_height_tiles as the first two 16-bit words, followed by a packed
+ * array of 4-byte tile-meta records indexed as
+ * ((row * map_width + col) * 4 + base). Zero (NULL) at program start;
+ * assigned on chapter load / save restore. The dialog/menu code also
+ * tests it as a 0/1 sentinel ("battle map present?"), so it is held in a
+ * 32-bit integer slot rather than a typed pointer.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_tile_map_ptr;
+
+/* ----------------------------------------------------------------
+ * Data symbol owned by this module (.object2 @ 0x5412B)
+ *
+ * data_fd2_chapter_intro_menu_cursor_state -- chapter-intro / save menu
+ * radio cursor. Zero at program start (BSS); reset to 0 each time the
+ * intro panel opens, then driven by left/right input as a wrapped 0..4
+ * selection (5 = special-hotkey commit, 2 = "save" branch). The wrap is
+ * computed with signed arithmetic: decrement below 0 wraps to 4 and
+ * increment above 4 wraps to 0, so use sites read it via an (int) cast
+ * even though the slot is an unsigned 32-bit word. Held in a 32-bit
+ * integer slot to match the dword loads/stores in the menu loop.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_chapter_intro_menu_cursor_state;
+
+/* ----------------------------------------------------------------
+ * Data symbol owned by this module (.object2 @ 0x54133)
+ *
+ * data_fd2_chapter_intro_dialog_anim_frame_idx -- chapter-intro dialog
+ * blink/idle animation frame index, wrapped 0..3. Zero at program start
+ * (BSS). Advanced once every few BIOS ticks while the intro panel waits
+ * for input (and re-seeded to 2 at the top of the dialog-blink wait
+ * loop), wrapping back to 0 after frame 3; read by the intro-overlay /
+ * dialog-panel renderers to pick the current blink frame. Held in a
+ * 32-bit integer slot to match the dword INC/CMP/MOV accesses at the
+ * use sites.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_chapter_intro_dialog_anim_frame_idx;
+
+/* ----------------------------------------------------------------
+ * Data symbol owned by this module (.object2 @ 0x54137)
+ *
+ * data_fd2_chapter_intro_active_metadata_entry_ptr -- cached pointer to
+ * the active chapter's intro metadata entry (the byte array returned by
+ * fd2_get_chapter_intro_metadata_entry). Zero (NULL) at program start
+ * (BSS); assigned at runtime when a chapter intro opens
+ * (fd2_chapter_transition_menu) or a save slot is restored
+ * (fd2_load_state_from_selected_slot). Dereferenced byte-wise at fixed
+ * offsets into the entry: [+1]/[+2] are the special-hotkey cursor/scancode
+ * pair tested by the intro menu loop, and [+3..]/[+0x0F..]/[+0x17..] are
+ * per-state party-roster byte slices read by fd2_load_chapter_party_roster.
+ * Held in a 32-bit integer slot to match the dword load/store of the
+ * pointer at the use sites (the entry is then read via *(uint8 *)(ptr+N)).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_chapter_intro_active_metadata_entry_ptr;
+
+/* ----------------------------------------------------------------
+ * Data symbol owned by this module (.object2 @ 0x5413B)
+ *
+ * data_fd2_chapter_intro_menu_overlay_buf_ptr -- heap pointer to the
+ * chapter-intro menu overlay sprite buffer (FDOTHER.DAT entry 10). Zero
+ * (NULL) at program start (BSS); set to 0 then assigned the malloc'd
+ * resource buffer at the top of the story-chapter intro branch in
+ * fd2_chapter_transition_menu (= fd2_load_dat_resource("FDOTHER.DAT", 10)),
+ * read by fd2_render_chapter_intro_overlay as the panel sprite source for
+ * fd2_dialog_sprite_blit_normal, and free'd when the intro loop ends. Held
+ * in a 32-bit integer slot to match the dword load/store of the pointer at
+ * the use sites (the buffer is then cast to void * for free / blit).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_chapter_intro_menu_overlay_buf_ptr;

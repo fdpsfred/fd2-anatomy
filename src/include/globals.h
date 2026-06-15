@@ -164,18 +164,18 @@ extern uint32 data_fd2_battle_combat_speech_bubble_pos_pairs[4];        /* 0x53A
 
 /* ---- battle AI scoring ---- */
 extern double data_fd2_battle_ai_enemy_spell_score_multiplier_15;       /* 0x50144  const 1.5 */
-extern uint32 data_fd2_battle_ai_best_spell_score;                      /* 0x53C23 */
+extern int32 data_fd2_battle_ai_best_spell_score;                       /* 0x53C23  signed max accumulator (writer @0x15AE8 uses JG) */
 extern uint32 data_fd2_battle_ai_best_spell_target_x;                   /* 0x53C27 */
 extern uint32 data_fd2_battle_ai_best_spell_target_y;                   /* 0x53C2B */
 extern uint32 data_fd2_battle_ai_best_spell_id;                         /* 0x53C2F */
-extern uint32 data_fd2_battle_ai_best_item_score;                       /* 0x53C33 */
+extern int32 data_fd2_battle_ai_best_item_score;                        /* 0x53C33 */
 extern uint32 data_fd2_battle_ai_best_item_target_x;                    /* 0x53C37 */
 extern uint32 data_fd2_battle_ai_best_item_target_y;                    /* 0x53C3B */
 extern uint32 data_fd2_battle_ai_best_item_slot;                        /* 0x53C3F */
 extern uint32 data_fd2_battle_ai_best_physical_target_x;                /* 0x53C43 */
 extern uint32 data_fd2_battle_ai_best_physical_target_y;                /* 0x53C47 */
 extern uint32 data_fd2_battle_ai_best_physical_target_idx;              /* 0x53C4B */
-extern uint32 data_fd2_battle_ai_best_physical_score;                   /* 0x53C4F */
+extern int32 data_fd2_battle_ai_best_physical_score;                    /* 0x53C4F */
 
 /* ---- battle tile map ---- */
 extern uint32 data_fd2_battle_tile_map_ptr;                             /* 0x53A51 */
@@ -207,17 +207,17 @@ extern uint32 data_fd2_ui_menu_scroll_offset;                           /* 0x541
 extern uint32 data_fd2_ui_menu_visible_item_count;                      /* 0x5413F */
 extern uint32 data_fd2_ui_menu_saved_cursor_idx;                        /* 0x5414B */
 extern uint32 data_fd2_ui_menu_saved_scroll_offset;                     /* 0x5414F */
-extern int32  data_fd2_ui_field_command_menu_options_template[4];       /* 0x51E9F */
+extern const int32  data_fd2_ui_field_command_menu_options_template[4]; /* 0x51E9F */
 extern int32  data_fd2_ui_field_command_menu_state_template[4];         /* 0x53EF2 */
 extern int32  data_fd2_ui_player_action_menu_state_template[4];         /* 0x53F12 */
-extern int32  data_fd2_ui_inline_action_menu_template[4];               /* 0x51ED5 */
-extern int32  data_fd2_ui_game_options_menu_slots_template[4];          /* 0x51EAF */
+extern const int32 data_fd2_ui_inline_action_menu_template[4];          /* 0x51ED5 */
+extern const int32 data_fd2_ui_game_options_menu_slots_template[4];     /* 0x51EAF */
 extern int32  data_fd2_ui_game_options_menu_state_template[4];          /* 0x53F02 */
 extern int32  data_fd2_dialog_advance_collapse_template[4];             /* 0x51EE5 */
-extern int32  data_fd2_ui_save_load_newgame_menu_template[4];           /* 0x51EF5 */
+extern const int32 data_fd2_ui_save_load_newgame_menu_template[4];      /* 0x51EF5 */
 extern int32  data_fd2_ui_save_load_menu_state_template[4];             /* 0x53F22 */
-extern int32  data_fd2_ui_tactical_overview_team_colors_table[3];       /* 0x5208a  3 x 4B per-team color base */
-extern int32  data_fd2_ui_item_command_menu_template[4];                /* 0x51F05  const {8,9,10,11} */
+extern const int32 data_fd2_ui_tactical_overview_team_colors_table[3];  /* 0x5208a  3 x 4B per-team color base */
+extern const int32 data_fd2_ui_item_command_menu_template[4];          /* 0x51F05  const {8,9,10,11} */
 extern int32  data_fd2_ui_item_command_menu_state_template[4];          /* 0x53F32 */
 extern uint32 data_fd2_ui_slide_anim_accumulator_buf_ptr;               /* 0x53C5B */
 extern uint32 data_fd2_ui_slide_bg_snapshot_buf_ptr;                    /* 0x53C5F */
@@ -251,8 +251,8 @@ extern double data_fd2_graphics_circle_band_radius_scale_16;            /* 0x502
 /* ---- chapter intro dialog corner offsets (.object2 const) ----
  * table_a is signed (used with IDIV in the wing slide-in/out animation:
  * base + corner_offs[i]/divisor); table_b is sign-agnostic (additive). */
-extern int32  data_fd2_ui_chapter_intro_dialog_corner_offset_table_a[4]; /* 0x526DA */
-extern uint32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4]; /* 0x526EA */
+extern const int32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_a[4]; /* 0x526DA */
+extern const int32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4]; /* 0x526EA */
 extern uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6];  /* 0x52659 */
 
 /* Per-chapter shop "inventory full" FDTXT dialog-id table (int16, indexed
@@ -263,7 +263,7 @@ extern int16  data_fd2_dialog_shop_inventory_full_dialog_text_id_table[]; /* 0x5
 
 /* Per-basic-class required key-item id for class change, indexed directly by
  * runtime_char.portrait_id (basic classes 0..0x11). 18 bytes. (= 0x5266B+0x3C) */
-extern uint8  data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[18]; /* 0x526A7 */
+extern const uint8 data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[18]; /* 0x526A7 */
 
 /* ---- per-chapter transition tables (.object2 const) ----
  * category: 0 = story (intro panel + radio menu), nonzero = battle (save
@@ -293,7 +293,7 @@ extern uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr;             /* 0x541
 extern uint8 *data_fd2_ui_menu_candidate_array_ptr;                     /* 0x54143 */
 /* per-job revive/promote price multiplier (signed int16), indexed by
  * job_id-1; promote/revive grid price = char.level * table[job_id-1]. */
-extern int16  data_fd2_ui_per_job_revive_or_promote_cost_table[];       /* 0x5266B  int16 per job */
+extern const int16 data_fd2_ui_per_job_revive_or_promote_cost_table[30]; /* 0x5266B  int16 per job */
 
 /* inline 3-byte battle-drop entry blob for chapter-event handler 0x27
  * (type byte + LE uint16 value); read only by
@@ -386,7 +386,7 @@ extern uint32 data_fd2_field_map_tile_event_consumed_flags_ptr;         /* 0x53A
 extern uint32 data_fd2_battle_turn_counter;                             /* 0x53BEF */
 
 /* ---- save/load ---- */
-extern uint32 data_fd2_shared_party_total_gold;                         /* 0x53BF3 */
+extern int32  data_fd2_shared_party_total_gold;                         /* 0x53BF3 */
 extern uint32 data_fd2_shared_menu_party_roster_buffer_ptr;             /* 0x53BF7 */
 extern uint32 data_fd2_shared_menu_party_member_count;                  /* 0x53BFB */
 
@@ -557,6 +557,6 @@ extern void  *data_fd2_chapter_cutscene_event_script_ptr_table_106[106];   /* 0x
 /* ---- .object3 additional tables ---- */
 extern uint8  data_fd2_chapter_intro_metadata_table[];                  /* 0x6238D  31B per ch */
 extern uint8  data_fd2_battle_spell_learning_table[];                          /* 0x626B3  12B per entry */
-extern uint8  data_fd2_orphan_table_60181[];                           /* 0x60181  3B per entry (orphan) */
+extern const uint8 data_fd2_orphan_table_60181[299];                   /* 0x60181  3B per entry (orphan) */
 
 #endif /* GLOBALS_H */
