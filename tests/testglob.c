@@ -1992,7 +1992,6 @@ uint32 data_fd2_battle_view_window_max_x = 13;
 uint32 data_fd2_battle_view_window_max_y = 8;
 uint8  data_fd2_battle_pathfind_current_depth = 0;
 uint8  data_fd2_battle_pathfind_step_stack[256] = {0};
-uint16 data_fd2_animation_ani_decoder_target_width = 0;
 uint32 data_fd2_animation_ani_decoder_dst_buf = 0;
 uint32 data_fd2_animation_ani_decoder_src_buf = 0;
 /* fd2_composite_battle_frame is now a real emitted function (src/gfx/rndscene.c).

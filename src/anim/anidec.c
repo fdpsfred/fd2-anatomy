@@ -16,6 +16,12 @@
 
 static uint8 *g_ani_cursor;
 
+/* ANI frame decoder target-buffer state @ 0x52760.
+ * Row stride in bytes. Written each frame by fd2_ani_decoder_set_target_buffer
+ * before the decoder runs; read by the row chunk handlers. Zero-initialized in
+ * the binary (filled at runtime). */
+uint16 data_fd2_animation_ani_decoder_target_width;
+
 /* ----------------------------------------------------------------
  * fd2_ani_decoder_set_target_buffer @ 0x36C7D
  * ---------------------------------------------------------------- */
