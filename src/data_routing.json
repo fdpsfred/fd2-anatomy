@@ -2063,8 +2063,8 @@
       "fd2_run_chapter_intro_menu_typeB"
     ],
     "note": "multi-writer:field/chtrans.c,life/main.c,ui_menu/chintro.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_intro_dialog_subframe_anim_counter": {

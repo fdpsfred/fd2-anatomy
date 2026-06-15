@@ -987,7 +987,6 @@ uint32 data_fd2_chapter_intro_dialog_anim_frame_idx = 0;
  * its load test asserts against the real accessor's return. */
 uint32 data_fd2_chapter_intro_active_metadata_entry_ptr = 0;
 uint32 data_fd2_chapter_intro_dialog_subframe_anim_counter = 0;
-uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
 uint8 *data_fd2_ui_menu_candidate_array_ptr = 0;
 /* chapter-intro overlay (rndmenu.c) globals */
 uint32 data_fd2_chapter_intro_menu_cursor_state = 0;

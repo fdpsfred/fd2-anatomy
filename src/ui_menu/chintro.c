@@ -785,3 +785,27 @@ LAB_rerender:
  *   the image; the linker places it in BSS (load-time zeroed).
  * ---------------------------------------------------------------- */
 uint32 data_fd2_ui_menu_cursor_idx;
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_menu_screen_sprite_atlas_buf_ptr @ 0x54147
+ *   (uint32 holding a heap pointer, 4 bytes, zero-init)
+ *
+ *   Pointer to the chapter-intro / menu sprite atlas buffer loaded on
+ *   demand from FDOTHER.DAT entry 0x0D. The CONTINUE / chapter-intro /
+ *   chapter-transition flows assign it the malloc'd buffer returned by
+ *   fd2_load_dat_resource(FDOTHER, ..., 0x0D), then later free() it and
+ *   store 0 back (e.g. fd2_main_menu_continue_dispatcher @ 0x25F5D /
+ *   0x260CF, fd2_chapter_transition_menu @ 0x2CCAF,
+ *   fd2_run_chapter_intro_menu_main @ 0x2E3A7 / 0x2E694,
+ *   fd2_run_chapter_intro_menu_typeB @ 0x2FCC1 / 0x2FF92,
+ *   fd2_run_chapter_intro_menu_typeC @ 0x3076B).
+ *
+ *   Many render helpers read it as a base pointer and parse the atlas
+ *   header (e.g. fd2_blit_money_digit_sprite @ 0x2D636:
+ *   MOV EBX,[0x54147]; ADD EBX,[EBX+0x0E]; ADD EBX,4 -- sprite-record
+ *   offset table at +0x0E). Stored as uint32 (the project convention for
+ *   runtime heap-pointer globals, cast to void* at the malloc/free sites);
+ *   never preset in the image, so the linker places it in BSS
+ *   (load-time zeroed).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr;
