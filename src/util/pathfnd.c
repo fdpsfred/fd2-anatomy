@@ -657,3 +657,19 @@ uint8 data_fd2_battle_pathfind_dst_x;
  * dst_x field). Zero at load; set at runtime by the path-aware orchestrator.
  */
 uint8 data_fd2_battle_pathfind_dst_y;
+
+/*
+ * pathfind path output buffer base pointer @ 0x60073.
+ * Holds the caller-supplied output-buffer base where the search records the
+ * resulting path (passed as the output-buffer argument). Written only by the
+ * path-aware orchestrator fd2_pathfind_to_destination at entry, storing the
+ * full 32-bit pointer (MOV EAX,[EBP+0x18]; MOV [0x60073],EAX at 0x4E1CE); the
+ * plain flood-fill orchestrator never sets it. Read back by the path-recording
+ * helpers as a (uint8 *) and written through byte-by-byte:
+ * fd2_pathfind_record_destination_xy stores the landed (x, y) at [0]/[1], and
+ * fd2_pathfind_check_destination_save_path copies the direction stack into it
+ * (out_iter[0] = dir; out_iter += 1) for best_path_length steps. Single scalar
+ * pointer, not a table. Zero at load; set at runtime by the path-aware
+ * orchestrator.
+ */
+uint32 data_fd2_battle_pathfind_path_output_buffer_ptr;

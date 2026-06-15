@@ -2018,7 +2018,6 @@ uint32 data_fd2_battle_compose_parallax_scroll_y_rows = 0;
 uint32 data_fd2_battle_compose_walk_step_y_sub_pixel_offset = 0;
 uint32 data_fd2_battle_walk_anim_x_scroll_offset = 0;
 uint32 data_fd2_battle_walk_anim_y_scroll_rows = 0;
-uint32 data_fd2_battle_pathfind_path_output_buffer_ptr = 0;
 uint8  data_fd2_battle_pathfind_current_depth = 0;
 uint8  data_fd2_battle_pathfind_best_path_length = 0;
 uint8  data_fd2_battle_pathfind_step_stack[256] = {0};
