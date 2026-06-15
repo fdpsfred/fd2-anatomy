@@ -1005,7 +1005,6 @@ void fd2_render_shop_item_grid(uint32 item_count, uint32 item_id_array,
  * animation paced via g_delay375b2_calls == 3, with the branch direction
  * pinned independently by data_fd2_ui_menu_scroll_offset. */
 /* field command menu templates — real FD2.LE values @ 0x51E9F / 0x53EF2 */
-int32  data_fd2_ui_field_command_menu_options_template[4] = { 7, 5, 6, 4 };
 int32  data_fd2_ui_field_command_menu_state_template[4] = { 0, 0, 0, 0 };
 /* save/load/quit sub-menu templates — real FD2.LE values @ 0x51EF5 / 0x53F22 */
 int32  data_fd2_ui_save_load_newgame_menu_template[4] = { 12, 13, 14, 15 };

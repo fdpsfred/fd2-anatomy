@@ -207,7 +207,7 @@ extern uint32 data_fd2_ui_menu_scroll_offset;                           /* 0x541
 extern uint32 data_fd2_ui_menu_visible_item_count;                      /* 0x5413F */
 extern uint32 data_fd2_ui_menu_saved_cursor_idx;                        /* 0x5414B */
 extern uint32 data_fd2_ui_menu_saved_scroll_offset;                     /* 0x5414F */
-extern int32  data_fd2_ui_field_command_menu_options_template[4];       /* 0x51E9F */
+extern const int32  data_fd2_ui_field_command_menu_options_template[4]; /* 0x51E9F */
 extern int32  data_fd2_ui_field_command_menu_state_template[4];         /* 0x53EF2 */
 extern int32  data_fd2_ui_player_action_menu_state_template[4];         /* 0x53F12 */
 extern int32  data_fd2_ui_inline_action_menu_template[4];               /* 0x51ED5 */
