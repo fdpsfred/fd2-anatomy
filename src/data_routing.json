@@ -2899,8 +2899,8 @@
       "fd2_chapter_event_handler_03__ch1_dialog_with_state"
     ],
     "note": "multi-writer:field/chevt1.c,field/chinit.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_walk_anim_x_scroll_offset": {
