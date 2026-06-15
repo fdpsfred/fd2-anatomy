@@ -1088,3 +1088,30 @@ void fd2_cast_status_inflict_spell(uint32 caster_unit_id, uint32 spell_id,
         fd2_animate_spell_projectile_paths();
     }
 }
+
+/* ----------------------------------------------------------------
+ * data_fd2_battle_spell_aoe_count_and_fx_queue_idx @ 0x53EC4  (4 bytes)
+ *
+ * Dual-purpose 32-bit battle-FX state cell, shared by the spell/item
+ * effect, animation and summon code paths.
+ *
+ *   1) Per-cast AOE hit counter: the use-effect dispatcher resets it to 0
+ *      at the start of a cast, and the cure/inflict helpers test it (!= 0)
+ *      before replaying projectile-path animation.
+ *   2) FX-queue write cursor: the damage-number and miss-indicator
+ *      routines load it as a base index/offset (MOV EAX,[0x53EC4]) into the
+ *      parallel FX queue byte arrays at 0x53C6C / 0x53D34 / 0x53DFC, write
+ *      a batch of up to 4 entries, then advance it (ADD dword [0x53EC4],4).
+ *
+ * Accessed exclusively as a full 32-bit cell: written via
+ * MOV dword ptr [0x53EC4],0 and ADD dword ptr [0x53EC4],4; read via
+ * MOV EAX,[0x53EC4]. Used unsigned (a non-negative running index/count).
+ * Zero-initialized at load; first touch on every path is a write (the
+ * dispatcher's reset), so it carries no static non-zero seed.
+ *
+ * Writers: fd2_apply_use_effect_dispatch, fd2_show_damage_number,
+ * fd2_show_miss_indicator, fd2_execute_summon_spell_cast and the
+ * earthquake / variant / staged / status-clear casts. Readers: the same
+ * plus fd2_animate_spell_projectile_paths and fd2_cast_status_inflict_spell.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_spell_aoe_count_and_fx_queue_idx;

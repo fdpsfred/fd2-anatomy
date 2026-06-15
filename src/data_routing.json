@@ -1663,8 +1663,8 @@
       "fd2_execute_summon_spell_cast"
     ],
     "note": "multi-writer:anim/anicombt.c,spell/spell.c,spell/spellcin.c,spell/spelleff.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_pending_xp_credit": {

@@ -88,7 +88,6 @@ uint32 data_fd2_chapter_cutscene_event_state = 0;
 uint8  data_fd2_graphics_text_scroll_pending_line_count = 0;
 /* data_fd2_graphics_animated_bg_buffer_ptr: real definition homed in src/rsrc/rsrc.c. */
 uint32 data_fd2_chapter_event_or_battle_end_code = 0;
-uint32 data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
 uint32 data_fd2_battle_teleport_dest_world_x = 0;
 uint32 data_fd2_battle_teleport_dest_world_y = 0;
 uint32 data_fd2_audio_figani_sfx_bank_buf_ptr = 0;
