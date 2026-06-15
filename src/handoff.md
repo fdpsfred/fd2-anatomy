@@ -1,8 +1,8 @@
 # FD2 Rebuild — Handoff
 
 目標：`src/` 自身 compile+link 出可正確執行的 `fd2.exe`；`src/`+`tests/` compile 出測試執行檔。
-**全 650 個遊戲 function 已 emit（reviewed 629 + 待補 21）、四分支 merge cascade 已落入 `integ`。
-當前進入「真實資料落地 + 測試重寫 + 收斂 fd2.exe」收斂計畫（data-first）。**Step 0 完成；Phase 1（真實資料落地 src/）進行中：data-emit 工具鏈與 workflow 已建好、pilot（audtab.c 4 表）已落地，下一步＝四路並行 emit（見下方「當前斷點」）。**
+**全 650 個遊戲 function 已 emit、四分支 merge cascade 已落入 `integ`。
+當前在「真實資料落地 + 測試重寫 + 收斂 fd2.exe」收斂計畫（data-first）。**Phase 1（真資料落地 src/）四路並行 data emit 主體完成（per-symbol commit 版）：337/343 符號已 committed 落在 4 個 worktree、各檔 build gate 綠、尚未 merge 回 integ。下一步＝補完 6 個 leftover → merge cascade → 驗收（見下方「當前斷點」）。**
 完整計畫：`C:\Users\fdpsf\.claude\plans\plan-plan-soft-dongarra.md`（**新 session 先讀它 + 下面這段**）。
 
 **溝通方式（使用者要求）**：給使用者的所有文字（含對話回覆，不只文件）一律用淺白通順的繁體中文完整句子，
@@ -42,45 +42,43 @@ Phase 4 收斂 fd2.exe + 實機對照`。
   - **dangling ref**：`crt_equivalent_dos_main_bootstrap` 早已被 Unit C（`447c37c`）修掉，新鮮 oracle 確認 crt_/AIL_ undefined=0。
   - **home-file 對映**：見下方定案 worklist。
 
-**Phase 1（真實資料落地 src/）— 進行中**。操作指南：`tools/data_emit/_index.md`（新 session 先讀它）。
+**Phase 1（真資料落地 src/）— 四路並行 data emit 主體完成（per-symbol commit 版）**。操作指南：`tools/data_emit/_index.md`。
+4 個 worktree（`../fd2-wt/dp1..dp4`，branch `data-p1..p4`，皆從 integ@`786fdc7` 切）各自把分區 data **逐 symbol commit** 落地。
 
-- **[Phase 1] 待決（開四路前）**：emit 路徑 bug 已修（root cause＝`data_emit.wf.js` 主迴圈漏把 `file.home`
-  傳到 `sym`，prompt 變「ROOT/src/undefined」；修法＝迴圈內 `sym.home = file.home`，deterministic）。
-  待使用者定：四路前要不要再跑一次 audtab pilot 親驗路徑乾淨，或直接四路（finalizer fold + build-gate 抓重複
-  定義為雙層防護）。
+> **接手鐵則：所有狀態一律從 git / 各 worktree 的 `src/data_routing.json` / `scout.py` 即時推導，不要死記下面的數字快照。**
+> 每路即時查剩餘：`python ../fd2-wt/dpN/tools/data_emit/scout.py workspace/data_emit/partitions/part_N.json C:/Users/fdpsf/Documents/fd2-wt/dpN data-pN`
+> （印剩餘 pending；該輸出 JSON 同時就是 mop-up 的 `Workflow` args）。
 
-- **事實來源 = `src/data_routing.json`**（347 符號 × {addr/segment/len/datatype/kind/emit_class/needs_bytes/
-  home/writers/emitted/reviewed/commit}；**`reviewed` 欄＝斷點**，mirrors function 的 routing.json）。由
-  `mk_routing.py`（home_map+worklist join、const-data:X 桶→`table/*tab.c` 8.3 檔）+ `mkpart.py`（切 N 分區、
-  大表切編號子檔、回寫 split home）產生。進度查詢：`python tools/data_emit/scout.py --stats`。
-- **workflow = `tools/data_emit/data_emit.wf.js`**：per-symbol〔emitter：caller 分析定真型別/維度 + `read_memory`
-  抽真 byte + `verify_real.py --one <name> <hex> <home> <width>` byte gate → 獨立 reviewer 自抓三源復核（自己重讀
-  hex 再跑 byte gate）→ ≤10 round〕→ **per-home-file finalizer**〔globals.h const extern + 移 testglob 假版 +
-  `genbuild --apply` + `build_test` 0err/0warn + commit + 標 `data_routing` reviewed〕。finalizer 只做機械收尾。
-- **分區 = N=4 file-disjoint**：`python tools/data_emit/mkpart.py 4` → `workspace/data_emit/partitions/part_{1..4}.json`
-  （weight 各 125；btltab/chtab 切 btltab2/3、chtab2/3 分散到不同 worktree）。
-- **已完成 pilot**：`table/audtab.c` 4 個 audio const 表（commit `1b00d14`，byte-verified、build 0/0、該 4 符號
-  `reviewed=true`）。（integ 史：`455e9d1` pilot v1 → `2abc7b0` revert → `1b00d14` 正式落地。）
-- **決策（鎖定）**：①const 照計畫加（測試若寫入 const 表 → 該測試用 `#if 0` SKIP + `/* SKIP (Phase 3) */` marker、
-  連只它用到的 fixture 一起 SKIP，finalizer 回報 `skipped_tests` 當 Phase 3 worklist，**禁改測試邏輯**）；
-  ②build 每個 home 檔一次（非 per-symbol），`verify_real --one` 為 per-symbol byte gate；③emitter+獨立 reviewer 每符號全套；
-  ④resumability per-home-file（中斷重跑前先 `git -C <worktree> checkout -- src tests` 清半成品，否則 emitter 會重複 append）。
-- **下一步＝四路並行**（主 session 統籌）：①commit 工具（若 working tree 有未 commit 的 `tools/data_emit/*`）；
-  ②建 4 worktree（`../fd2-wt/dp1..dp4` from integ HEAD）；③每路 `python tools/data_emit/scout.py
-  workspace/data_emit/partitions/part_N.json <worktree_abs_path> data-pN` → 取輸出 args →
-  `Workflow(scriptPath:"tools/data_emit/data_emit.wf.js", args:<scout 輸出>)` 背景跑，4 個並行（各 worktree 隔離
-  build/testglob/globals/branch）；④全完成後 merge cascade 併回 integ（testglob/globals union，沿 §3 方法論）；
-  ⑤驗 `scout.py --stats` reviewed=347 + `verify_real`（全批）全 PASS + build 0/0 → hard-stop 等使用者再進 Phase 2。
+### 待解（依序，做完才算 Phase 1 收斂）
 
-**帳目（全 563 `data_fd2_` 符號，即時重跑 reconcile/scout 取得、勿抄本檔）**：28 已完成 real_in_src + 347
-worklist（const 141 + init-data 12 + zero-bss 194；needs_bytes=153）+ 187 undefined + 1 sublabel。**187 undefined 分流**：
-106 `cutscene_event_script`（隨 cutscene ptr table 具名目標帶出）+ 58 `data_fd2_string_*`（emit 端已 inline、非缺口）
-+ ~23 graphics/battle state（隨 Phase 2 函式落地）。**fd2_ 函式缺口**：composite + 21 await_emit（blit/pathfind）= Phase 2；
-vendor 60 + `__delay_thunk_375b2` = Phase 4 CRT wiring。
+**① [mop-up] 6 個 leftover 符號未落地**（皆 529/parse 失敗的犧牲者；已 committed 的 337/343 零損失）：
+- dp1 ×2：`data_fd2_battle_view_window_origin_y`、`data_fd2_battle_cursor_world_x`（reviewer 撞 529）。**半落地**：def 已被同檔後續符號的 lander `git add -A` 掃進 `dp1/src/ui_menu/cursor.c`（`uint32 ...;`，約 line 240/253）但未經本輪 review、testglob 假版仍在。
+- dp2 ×1：`data_fd2_battle_pathfind_current_depth`（lander 撞 529）。**clean**（pathfnd.c 無 file-scope def、testglob 假版在）。
+- dp4 ×3：`data_fd2_ui_terrain_hud_panel_offset_51a0c`（rndstat.c, init-data）、`data_fd2_audio_summon_spell_sfx_bank_buf_ptr`（anispell.c, zero-bss）、`data_fd2_chapter_chapter_init_done_flag`（btl_init.c, zero-bss）。**clean**（dp4 提前停、沒跑到這 3 檔）。
+- **做法**：(a) 半落地的 2 個先把 cursor.c 那 2 行未 review 的 def **整行刪掉 + commit**（讓 re-emit 乾淨；否則 emitter append 會變重複定義）；(b) 每路 re-scout（自動跳過已 reviewed）取 args → `Workflow(scriptPath:"tools/data_emit/data_emit.wf.js", args:<scout 輸出>)` 補完。4 個 worktree 目前都乾淨（無 uncommitted）。
 
-**Phase 4 連結注意**：`fd2.lnk` 需顯式 `library clib3s`（`system dos4g` 在「遊戲只用 crt_* wrapper」
-時不自動 pull CLIB3S，但 AIL lib 引用真 libc）；AIL lib（`workspace/ail_extract/out/{ailv3,fd2common}.lib`）
-要 stage 到穩定路徑（`build_test.py` 會清 `tests/OUT`）。
+**② [merge] merge cascade `data-p1..p4` → integ**（沿下方 §3 方法論：testglob.c / globals.h / data_routing.json 取 union；`src/*.c` 多 file-disjoint git 自動合）。注意：(a) 第一輪有**良性 caller-const 傳遞** commit 跨分區動到別檔（dp2 改過 `gfx/palette.c`/`spell/spellcin.c` 讀 const 表的區域指標加 `const`、dp4 改過 `life/main.c`），非重複定義、merge 時併即可；(b) worktree 的 `tools/data_emit/*` 仍是 `786fdc7` 舊版、integ 已是新版（worktree 沒改它故不衝突，取 integ 版）。
+
+**③ [verify] 最終驗收**：merge 後在 integ 跑 `python tools/emit/build_test.py` 0err/0warn、`python tools/data_emit/verify_real.py` 全批 byte-identical、`python tools/data_emit/scout.py --stats` reviewed 收斂到 347 → Phase 1 hard-stop 等使用者再進 Phase 2。
+
+### 工具現況（接手必懂；與上一版 handoff 不同處）
+
+- **workflow 已改 per-symbol commit**（commit `2220dbb`）：emit → 獨立 reviewer 三源復核 → **lander**（per-symbol：改 globals.h extern、移 testglob 假版、`data_routing` reviewed=true、clobber 防線、`git commit`，**不 build**）→ 每 home 檔最後一次 **buildGate**（`build_test` 0err/0warn + 純機械修正：extern 對齊 / const-writer `#if0` SKIP）。**撞 limit/529/斷線零浪費**，re-scout 跳過 reviewed 續跑。見 memory `feedback_per_symbol_commit_durability`。
+- **emitter anti-clobber**（commit `356b824`）：append-only、嚴禁 Write 整檔覆寫、寫完 grep 自驗檔案沒變短（防同檔其他定義被抹）。⚠ **re-emit 已有 def 的符號（半落地）要先手刪舊 def**，emitter 目前沒有「偵測既有 def 先刪再 emit」的邏輯。
+- **scout 讀哪個 routing**：必須跑 **該 worktree 的** `dpN/tools/data_emit/scout.py`（由 `__file__` 解析 ROOT＝該 worktree，才讀該 worktree routing、跳過已 commit）；跑主 repo 的 scout 讀 integ routing（reviewed=4，尚未 merge）。
+- **leftover 從何來 / 怎麼補**：Anthropic 529 overload 打死零星 reviewer/lander → 那些符號成為上面 6 個 leftover。workflow 對 529/limit 的行為：sub-agent retry 用盡回 null → 該符號記 needs_user/land_failed、迴圈續跑，**不崩、不停整批**；已 commit 零損失，re-scout 跳過 reviewed 補 leftover 即可。
+
+### Phase 3 待辦（本輪 build gate 累積的測試債，非 Phase 1 blocker）
+
+- **const-writer SKIP**：多個 const 表的寫入測試被 `#if0` SKIP（各 build gate 回報的 `skipped_tests`，如 dp1 uitab → `tests/gfx/rndmenu.c` 13 個 promo 測試）。Phase 3 還原成驅動真 const data。
+- **dp2 `data_fd2_chapter_intro_metadata_table`（chtab3.c，維持 const）**：被共享 fixture（`tests/gfx/rndmenu.c::intro_setup()`、`tests/save/save.c::scs_setup/teardown`）寫入 → chtab3.c build gate 為保綠對這兩個 fixture 做過處置（最終 build 綠）。**接手要 review dp2 該檔相關 commits 看它具體改了什麼**（可能 SKIP/註解 fixture 寫入），Phase 3 還原。
+- **dp1 `life/main.c` 自癒符號**：第一輪（commit `9691ff0`）finalizer 自補 16 個未經獨立 reviewer 的 def（4 init-data 已對 binary 驗、12 zero-bss 為 `T name;`），Phase 2.6 復驗一併過。
+
+### 帳目（即時重算，勿抄）
+
+各 worktree 分區內已 committed（= 該 worktree reviewed − 4 audtab）：dp1=106/108、dp2=83/84、dp3=79/79、dp4=69/72 → 合計 **337/343，leftover 6**。全 563 `data_fd2_` 帳目不變（28 real_in_src + 347 worklist + 187 undefined + 1 sublabel；187 undefined 分流：106 cutscene 隨 ptr table 帶出 + 58 string 已 inline + ~23 graphics/battle 隨 Phase 2）。fd2_ 函式缺口：composite + 21 await_emit（blit/pathfind）= Phase 2；vendor 60 + `__delay_thunk_375b2` = Phase 4。
+
+**Phase 4 連結注意**：`fd2.lnk` 需顯式 `library clib3s`；AIL lib（`workspace/ail_extract/out/{ailv3,fd2common}.lib`）要 stage 到穩定路徑（`build_test.py` 會清 `tests/OUT`）。
 
 ---
 
