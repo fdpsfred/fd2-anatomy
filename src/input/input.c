@@ -761,3 +761,21 @@ uint8 data_fd2_input_key_input_mode;
  * sprite index for the currently-selected corner.
  * Zero-initialized in BSS; first touched by a runtime read-modify-write. */
 uint32 data_fd2_dialog_blink_phase_oscillator;
+
+/* data_fd2_dialog_blink_phase_oscillator_tick_latch @ 0x53C17  (zero-bss)
+ *
+ * Tick reference for the dialog-blink oscillator's step divider. Latches the
+ * BIOS midnight tick counter (0:046C) at the moment the oscillator above last
+ * advanced; the repaint loops gate the next advance on
+ * (signed) (BIOS_tick - this_latch) crossing their step threshold.
+ * Accessed only as a 32-bit dword at every site (asm:
+ * SUB EAX,dword ptr [0x53C17] / MOV [0x53C17],EAX with the tick sign-extended
+ * via CWDE/MOVSX), and the difference is compared with signed jumps (JG/JGE),
+ * so the divider re-arms correctly across the day rollover.
+ *
+ * Both writers of the partner counter (0x53C13) share this latch:
+ *   - fd2_wait_input_with_dialog_repaint: re-latches once the diff exceeds 3.
+ *   - fd2_text_dialog_typewriter_loop:    re-latches once the diff reaches 2.
+ * Zero-initialized in BSS; the first loop entry reads 0, which forces an
+ * immediate advance + latch of the current tick. */
+uint32 data_fd2_dialog_blink_phase_oscillator_tick_latch;
