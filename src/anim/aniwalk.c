@@ -695,3 +695,15 @@ uint32 data_fd2_battle_compose_left_edge_clip_offset;
  * (dst stride) and added into the source/dst offset for parallax chapters.
  * ---------------------------------------------------------------- */
 uint32 data_fd2_battle_compose_parallax_scroll_y_rows;
+
+/* ----------------------------------------------------------------
+ * Walk-step composite Y sub-pixel scroll offset @ 0x53AF5  (.object2, zero-init)
+ *
+ * Cumulative sub-pixel Y scroll accumulator for the smooth walk-step slide.
+ * Each of fd2_walk_step_down/left/up/right adds the per-frame scroll delta
+ * (0x720) into it once per slide frame (6 frames) and clears it to 0 after
+ * the step completes, so the static image is zero.
+ * Read by fd2_composite_battle_tile_map as a dword added into the background
+ * source offset alongside the left-edge clip / parallax-scroll offsets.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_compose_walk_step_y_sub_pixel_offset;

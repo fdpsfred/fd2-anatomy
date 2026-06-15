@@ -3493,8 +3493,8 @@
       "fd2_walk_step_right"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_sfx_driver_available_flag": {

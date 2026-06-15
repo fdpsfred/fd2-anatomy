@@ -1994,7 +1994,6 @@ uint8  data_fd2_ui_play_active_flag = 0;
 uint8  data_fd2_ui_game_speed_flag = 0;
 uint32 data_fd2_battle_view_window_max_x = 13;
 uint32 data_fd2_battle_view_window_max_y = 8;
-uint32 data_fd2_battle_compose_walk_step_y_sub_pixel_offset = 0;
 uint32 data_fd2_battle_walk_anim_x_scroll_offset = 0;
 uint32 data_fd2_battle_walk_anim_y_scroll_rows = 0;
 uint8  data_fd2_battle_pathfind_current_depth = 0;
