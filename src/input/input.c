@@ -704,3 +704,18 @@ uint16 data_fd2_input_idle_last_rendered_tick_word;
  * 0xFFFFFFFF. Only read/written by fd2_wait_one_bios_tick.
  * Zero-initialized in BSS; first touched by a runtime write. */
 uint32 data_fd2_engine_wait_one_bios_tick_last_seen;
+
+/* data_fd2_engine_wait_n_bios_ticks_last_seen @ 0x53A2C  (zero-bss)
+ *
+ * Private N-tick frame-pacer state for fd2_wait_n_bios_ticks: caches the
+ * last-observed BIOS midnight-tick (0:046C, 18.2 Hz). On entry the function
+ * snapshots the current tick here, spins until the live tick has advanced by
+ * at least n_ticks, then re-stores the new tick so the next call counts from
+ * the latest reference (~55 ms per tick). The tick is read sign-extended to
+ * 32 bits (asm: MOVSX EAX,word ptr [0x46C]) and the full 32-bit EAX is
+ * stored / read back as a dword (MOV [0x53A2C],EAX / SUB EAX,dword ptr
+ * [0x53A2C]), so a low word of 0xFFFF caches as 0xFFFFFFFF. Sibling of
+ * data_fd2_engine_wait_one_bios_tick_last_seen with identical semantics.
+ * Only read/written by fd2_wait_n_bios_ticks.
+ * Zero-initialized in BSS; first touched by a runtime write. */
+uint32 data_fd2_engine_wait_n_bios_ticks_last_seen;

@@ -147,7 +147,6 @@ uint8  data_fd2_input_last_key_pressed = 0;
 uint8  data_fd2_input_key_input_mode = 0;
 uint32 data_ail_alloc_fnptr = 0;
 uint32 data_ail_free_fnptr = 0;
-uint32 data_fd2_engine_wait_n_bios_ticks_last_seen = 0;
 void fd2_execute_offensive_targeted_spell(int a, int b, int c, int d) { }
 void fd2_execute_offensive_full_screen_flash_spell(int a, int b, int c, int d) { }
 /* fd2_dispatch_variant_b_cast: now emitted for real in src/spell/spellcin.c;
