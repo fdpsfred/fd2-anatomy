@@ -84,7 +84,7 @@ extern uint8  data_fd2_chapter_ending_credit_roll_scripted_outcome_table[20];   
 
 /* ---- chapter 3 end recruit-scene char placement tables (.object2 const) ---- */
 extern const uint8 data_fd2_chapter_ch03_end_scene_char_pos_x_table[7];      /* 0x520BA  7 chars X */
-extern uint8  data_fd2_chapter_ch03_end_scene_char_pos_y_table[7];      /* 0x520C1  7 chars Y */
+extern const uint8 data_fd2_chapter_ch03_end_scene_char_pos_y_table[7];   /* 0x520C1  7 chars Y */
 extern uint8  data_fd2_chapter_ch03_end_scene_char_facing_table[7];     /* 0x520C8  7 chars facing */
 
 /* ---- chapter 5 end recruit-scene char placement tables (.object2 const) ---- */

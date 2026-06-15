@@ -269,8 +269,6 @@ uint8 data_fd2_chapter_ending_credit_roll_scripted_outcome_table[20] = {
  * 0x520C1 / 0x520C8). Real binary bytes until the data segment is emitted;
  * fd2_chapter_03_end copies each 7-byte table into an on-stack placement block.
  * X/Y are battle-tile coords, facing is sprite direction (0..3). */
-uint8 data_fd2_chapter_ch03_end_scene_char_pos_y_table[7] =
-    { 3, 3, 3, 2, 2, 4, 1 };
 uint8 data_fd2_chapter_ch03_end_scene_char_facing_table[7] =
     { 2, 2, 2, 3, 1, 2, 0 };
 /* Chapter 5 end recruit-scene char placement tables (data segment @ 0x520CF /
