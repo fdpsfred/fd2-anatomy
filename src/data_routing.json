@@ -3128,8 +3128,8 @@
       "fd2_pathfind_to_destination"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_bgm_driver_available_flag": {

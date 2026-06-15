@@ -615,3 +615,17 @@ uint8 data_fd2_battle_pathfind_floodfill_seed_x;
  * Zero at load; set at runtime by both pathfind orchestrators.
  */
 uint8 data_fd2_battle_pathfind_floodfill_seed_y;
+
+/*
+ * flood-fill / pathfind step budget (max_steps / range_remaining) @ 0x60070.
+ * Single unsigned byte, last field of the contiguous seed block seed_x(0x6006E)
+ * / seed_y(0x6006F) / max_steps(0x60070). Both orchestrators write it at entry
+ * from the step-budget argument truncated to its low byte (MOV EAX,[EBP+0x14];
+ * MOV [0x60070],AL at 0x4E060 and 0x4E1C6). It is then read 8-bit (MOV CL,byte
+ * ptr [0x60070] at 0x4E0C6 / 0x4E24C) and stored as the origin tile's initial
+ * movement cost (tile_map[(map_width*seed_y+seed_x)*4+7] = max_steps), giving
+ * the flood-fill / recursion a full budget to decrement during expansion.
+ * Scalar, not an array (0x6006F is the separate seed_y field). Zero at load;
+ * set at runtime by both pathfind orchestrators.
+ */
+uint8 data_fd2_battle_pathfind_floodfill_max_steps;
