@@ -577,3 +577,7 @@ uint32 data_fd2_battle_ai_best_spell_target_x;
 
 /* 0x53C2B: best offensive-spell target tile Y (zero-extended tile coord; full dword store @0x15B08) */
 uint32 data_fd2_battle_ai_best_spell_target_y;
+
+/* 0x53C2F: chosen offensive-spell id (zero-extended spell id 0x00-0x23; full dword store @0x15B12;
+            readers compare signed against 0xB/10 and index the spell handler table) */
+uint32 data_fd2_battle_ai_best_spell_id;

@@ -1992,7 +1992,6 @@ int    g_spell_phase_handler_phase_log[64] = {0};
 uint32 g_spell_phase_handler_arg2_log[64] = {0};
 uint32 g_spell_phase_handler_dst_log[64] = {0};
 uint32 data_fd2_battle_ai_best_item_score = 0;
-uint32 data_fd2_battle_ai_best_spell_id = 0;
 uint32 data_fd2_battle_ai_best_item_target_x = 0;
 uint32 data_fd2_battle_ai_best_item_target_y = 0;
 uint32 data_fd2_battle_ai_best_item_slot = 0;
