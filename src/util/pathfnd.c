@@ -522,3 +522,211 @@ void fd2_pathfind_check_destination_save_path(uint8 x, uint8 y)
         }
     }
 }
+
+/* ----------------------------------------------------------------
+ * Pathfind state globals (.object3, 0x60060+)
+ *
+ * Runtime-populated pathfinding state shared between the movement-range
+ * flood-fill and the destination pathfinder. Each field is written by
+ * fd2_init_movement_range_floodfill / fd2_pathfind_to_destination before
+ * any reader runs, so the load-time value is zero (BSS).
+ * ---------------------------------------------------------------- */
+
+/*
+ * tile-attribute -> movement-cost primary lookup table pointer @ 0x60060.
+ * Holds a caller-supplied table base (passed as pCost_table). Readers
+ * dereference it as (uint8 *): cost_idx = table[(attr & 0x3FF) * 4 + 1].
+ * Zero at load; set at runtime by both pathfind orchestrators.
+ */
+uint32 data_fd2_battle_pathfind_tile_cost_table_ptr;
+
+/*
+ * battle tile map base pointer @ 0x60064.
+ * Holds the caller-supplied battle tile map base (passed as pTile_map, a
+ * byte * to the 4-byte-per-tile map). Both orchestrators write the full
+ * 32-bit pointer (MOV [0x60064],EAX) at entry, then read it back as the
+ * base for tile-address arithmetic (ADD EBX,dword ptr [0x60064]); map_width
+ * and map_height are read from [ptr+0] and [ptr+2]. Zero at load; set at
+ * runtime by both pathfind orchestrators.
+ */
+uint32 data_fd2_battle_pathfind_battle_tile_map_ptr;
+
+/*
+ * battle map width (tiles per row) @ 0x60068.
+ * Single unsigned byte read from the tile-map header [pTile_map + 0] by
+ * both orchestrators (MOV BL,byte ptr [EAX]; MOV byte ptr [0x60068],BL),
+ * with map_height stored in the adjacent byte at 0x60069. Readers load it
+ * 8-bit and zero-extend (MOV AL,[0x60068]; XOR AH,AH) before using it as
+ * the unsigned row stride in tile-index math (map_width * src_y + src_x).
+ * Zero at load; set at runtime by both pathfind orchestrators.
+ */
+uint8 data_fd2_battle_pathfind_map_width;
+
+/*
+ * battle map height (number of tile rows) @ 0x60069.
+ * Single unsigned byte read from the tile-map header [pTile_map + 2] by both
+ * orchestrators (MOV [0x60069] from the map header), stored in the byte
+ * adjacent to map_width at 0x60068. Readers load it 8-bit and use it
+ * unsigned as the down-direction bound in the flood-fill / pathfinder:
+ * (uint8)(y + 1) < map_height. Zero at load; set at runtime by both
+ * pathfind orchestrators.
+ */
+uint8 data_fd2_battle_pathfind_map_height;
+
+/*
+ * caller-supplied secondary cost-table base / caller context @ 0x6006A.
+ * Both orchestrators write the full 32-bit value at entry as the FIRST store
+ * of the pathfind setup (MOV ESI,[EBP+8]; MOV dword ptr [0x6006A],ESI at
+ * 0x4E047 and 0x4E1AD). In the original binary the recursion leaves inherit
+ * that value through the live ESI register, so Ghidra records only the two
+ * writes and no direct memory reads; the leaf helpers
+ * fd2_flood_fill_neighbor_step / fd2_pathfind_neighbor_step_with_tiebreak read
+ * it back here as the secondary cost-table base:
+ * tile_cost = *(uint8 *)(ctx + cost_idx). Stored 32-bit (used as an address);
+ * zero at load, set at runtime by both pathfind orchestrators.
+ */
+uint32 data_fd2_battle_pathfind_caller_context;
+
+/*
+ * flood-fill / pathfind origin tile X (source column) @ 0x6006E.
+ * Single unsigned byte. Both orchestrators write it at entry from the src_x
+ * argument truncated to its low byte (MOV EAX,[EBP+0xC]; MOV [0x6006E],AL at
+ * 0x4E050 and 0x4E1B6), in the contiguous seed block seed_x(0x6006E) /
+ * seed_y(0x6006F) / max_steps(0x60070). Readers load it 8-bit and zero-extend
+ * (XOR AH,AH; MOV AL,[0x6006E] at 0x4E0A7/0x4E22D; MOV DL,byte ptr [0x6006E]
+ * at 0x4E0BA/0x4E240) before using it unsigned as the column term in the
+ * origin tile-index math ((map_width * seed_y + seed_x) * 4 + 7). Scalar, not
+ * an array (0x6006F is the separate seed_y field). Zero at load; set at
+ * runtime by both pathfind orchestrators.
+ */
+uint8 data_fd2_battle_pathfind_floodfill_seed_x;
+
+/*
+ * flood-fill / pathfind origin tile Y (source row) @ 0x6006F.
+ * Single unsigned byte. Both orchestrators write it at entry from the src_y
+ * argument truncated to its low byte (MOV EAX,[EBP+0x10]; MOV [0x6006F],AL at
+ * 0x4E058 and 0x4E1BE), in the contiguous seed block seed_x(0x6006E) /
+ * seed_y(0x6006F) / max_steps(0x60070). Readers load it 8-bit and use it
+ * unsigned as the row term in the origin tile-index math: it is the multiplier
+ * in map_width * seed_y (MOV AH,byte ptr [0x6006F]; MUL AH at 0x4E09B/0x4E221)
+ * and is also reloaded into DH (MOV DH,byte ptr [0x6006F] at 0x4E0C0/0x4E246)
+ * as the starting y coordinate handed to the recursion. Scalar, not an array
+ * (0x6006E is the separate seed_x field, 0x60070 the separate max_steps).
+ * Zero at load; set at runtime by both pathfind orchestrators.
+ */
+uint8 data_fd2_battle_pathfind_floodfill_seed_y;
+
+/*
+ * flood-fill / pathfind step budget (max_steps / range_remaining) @ 0x60070.
+ * Single unsigned byte, last field of the contiguous seed block seed_x(0x6006E)
+ * / seed_y(0x6006F) / max_steps(0x60070). Both orchestrators write it at entry
+ * from the step-budget argument truncated to its low byte (MOV EAX,[EBP+0x14];
+ * MOV [0x60070],AL at 0x4E060 and 0x4E1C6). It is then read 8-bit (MOV CL,byte
+ * ptr [0x60070] at 0x4E0C6 / 0x4E24C) and stored as the origin tile's initial
+ * movement cost (tile_map[(map_width*seed_y+seed_x)*4+7] = max_steps), giving
+ * the flood-fill / recursion a full budget to decrement during expansion.
+ * Scalar, not an array (0x6006F is the separate seed_y field). Zero at load;
+ * set at runtime by both pathfind orchestrators.
+ */
+uint8 data_fd2_battle_pathfind_floodfill_max_steps;
+
+/*
+ * pathfind destination tile X (target column) @ 0x60071.
+ * Single unsigned byte, first field of the destination-coord pair dst_x(0x60071)
+ * / dst_y(0x60072). Written only by the path-aware orchestrator
+ * fd2_pathfind_to_destination at entry from the dst_x argument truncated to its
+ * low byte (MOV EAX,[EBP+0x1C]; MOV [0x60071],AL at 0x4E1D6); the plain
+ * flood-fill orchestrator never sets it. Read 8-bit by
+ * fd2_pathfind_check_destination_save_path as the destination column compared
+ * against the current search position (in_DL == data_fd2_battle_pathfind_dst_x
+ * at 0x4E409) to decide arrival. Scalar, not an array (0x60072 is the separate
+ * dst_y field). Zero at load; set at runtime by the path-aware orchestrator.
+ */
+uint8 data_fd2_battle_pathfind_dst_x;
+
+/*
+ * pathfind destination tile Y (target row) @ 0x60072.
+ * Single unsigned byte, second field of the destination-coord pair dst_x(0x60071)
+ * / dst_y(0x60072). Written only by the path-aware orchestrator
+ * fd2_pathfind_to_destination at entry from the dst_y argument truncated to its
+ * low byte (MOV EAX,[EBP+0x20]; MOV [0x60072],AL at 0x4E1DE); the plain
+ * flood-fill orchestrator never sets it. Read 8-bit by
+ * fd2_pathfind_check_destination_save_path as the destination row compared
+ * against the current search position (in_DH == data_fd2_battle_pathfind_dst_y
+ * at 0x4E409) to decide arrival. Scalar, not an array (0x60071 is the separate
+ * dst_x field). Zero at load; set at runtime by the path-aware orchestrator.
+ */
+uint8 data_fd2_battle_pathfind_dst_y;
+
+/*
+ * pathfind path output buffer base pointer @ 0x60073.
+ * Holds the caller-supplied output-buffer base where the search records the
+ * resulting path (passed as the output-buffer argument). Written only by the
+ * path-aware orchestrator fd2_pathfind_to_destination at entry, storing the
+ * full 32-bit pointer (MOV EAX,[EBP+0x18]; MOV [0x60073],EAX at 0x4E1CE); the
+ * plain flood-fill orchestrator never sets it. Read back by the path-recording
+ * helpers as a (uint8 *) and written through byte-by-byte:
+ * fd2_pathfind_record_destination_xy stores the landed (x, y) at [0]/[1], and
+ * fd2_pathfind_check_destination_save_path copies the direction stack into it
+ * (out_iter[0] = dir; out_iter += 1) for best_path_length steps. Single scalar
+ * pointer, not a table. Zero at load; set at runtime by the path-aware
+ * orchestrator.
+ */
+uint32 data_fd2_battle_pathfind_path_output_buffer_ptr;
+
+/*
+ * pathfind best-known path length so far @ 0x60078.
+ * Single unsigned byte holding the shortest step depth at which the directional
+ * DFS has reached the destination during the current search; it is the running
+ * minimum that later arrivals must beat. Initialised to 0xFF (the "no path yet"
+ * sentinel, so any first arrival wins) by the path-aware orchestrator
+ * fd2_pathfind_to_destination right after zeroing current_depth (MOV byte ptr
+ * [0x60078],0xFF at 0x4E261), and read back by that same orchestrator as the
+ * return value (XOR EAX,EAX; MOV AL,[0x60078] at 0x4E275). Updated and read
+ * 8-bit unsigned by fd2_pathfind_check_destination_save_path: the depth-vs-best
+ * guard is an unsigned compare (CMP AH,byte ptr [0x60078]; JA at 0x4E417), and
+ * on pass the current depth is stored as the new best (MOV byte ptr
+ * [0x60078],AH at 0x4E41F). Also force-set to 1 by
+ * fd2_pathfind_record_destination_xy on a mode-2 one-step destination commit
+ * (MOV byte ptr [0x60078],1 at 0x4E3C6). Scalar, not an array. Write-before-read:
+ * the orchestrator overwrites it with 0xFF before any reader runs, so the load
+ * value is never observed.
+ */
+uint8 data_fd2_battle_pathfind_best_path_length;
+
+/*
+ * pathfind neighbor-step mode flags @ 0x6017A.
+ * Single unsigned byte selecting the neighbor-step commit policy for the
+ * path-aware search. Written 8-bit by the path-aware orchestrator
+ * fd2_pathfind_to_destination at entry, storing its mode_flags argument
+ * (MOV [0x6017A],AL at 0x4E1E6); the plain flood-fill orchestrator never sets
+ * it. Read back 8-bit unsigned by fd2_pathfind_neighbor_step_with_tiebreak as
+ * two equality probes against small constants: on a cost tie, the tiebreak is
+ * attempted only when the value is 1 (CMP byte ptr [0x6017A],0x1 at 0x4E35B),
+ * and the ignore-obstacles + destination-record path is taken only when the
+ * value is 2 (CMP byte ptr [0x6017A],0x2 at 0x4E385). Modes: 0 = standard
+ * (strictly-better commits, ties never win); 1 = standard + direction-diversity
+ * tiebreak; 2 = ignore-obstacles + dst-record. Scalar, not an array (the
+ * adjacent nonzero bytes belong to separate globals). Zero at load;
+ * write-before-read (the orchestrator sets it before any reader runs).
+ */
+uint8 data_fd2_battle_pathfind_mode_flags;
+
+/*
+ * pathfind current recursion depth @ 0x60077.
+ * Single unsigned byte tracking how many tiles deep the directional DFS
+ * currently is; it doubles as the candidate step count compared against
+ * best_path_length when the destination is reached. Zeroed 8-bit by the
+ * path-aware orchestrator fd2_pathfind_to_destination at entry (MOV byte ptr
+ * [0x60077],0 right after storing the search params, paired with the 0xFF
+ * init of best_path_length). The recursive expander
+ * fd2_pathfind_recursive_with_direction increments it on entry and decrements
+ * it on exit, both 8-bit (INC byte ptr [0x60077] at 0x4E28B, DEC byte ptr
+ * [0x60077] at 0x4E329), so it holds the live depth of the current DFS branch.
+ * Read 8-bit unsigned by fd2_pathfind_check_destination_save_path as the
+ * arrival depth (compared to best, then stored as the new best on a win) and
+ * by fd2_pathfind_count_unique_directions when walking the path-direction grid.
+ * Scalar, not an array. Zero at load; write-before-read (the orchestrator
+ * zeroes it before any reader runs, so the load value is never observed).
+ */
+uint8 data_fd2_battle_pathfind_current_depth;

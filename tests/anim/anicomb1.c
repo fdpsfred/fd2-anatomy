@@ -30,10 +30,10 @@ extern int    g_sfx_id_log[64];
 extern uint32 g_blitdec_dst, g_blitdec_sprite, g_blitdec_stride;
 extern int    g_blitdec_calls;
 
-/* per-spell animation parameter tables (testglob.c, real binary bytes) */
-extern uint8  data_fd2_animation_spell_sprite_offset_table[33];
-extern uint8  data_fd2_animation_spell_frame_count_table[33];
-extern uint8  data_fd2_animation_spell_sfx_frame_table[33];
+/* per-spell animation parameter tables (src/table/anitab.c, real binary bytes) */
+extern const uint8 data_fd2_animation_spell_sprite_offset_table[33];
+extern const uint8 data_fd2_animation_spell_frame_count_table[33];
+extern const uint8 data_fd2_animation_spell_sfx_frame_table[33];
 
 /* Battle back-buffer backing. The real flicker body memmoves 0x25680 bytes
  * out of data_fd2_large_game_state_buffer_ptr and the real fd2_blit_rectangle
@@ -638,8 +638,8 @@ extern int    g_blittint_calls;
 extern uint32 g_blittint_color_base[64];
 extern uint32 g_blittint_team_offset[64];
 
-/* per-spell tint-mask byte table (testglob.c, real binary bytes) */
-extern uint8  data_fd2_animation_spell_overlay_blink_mask_table[30];
+/* per-spell tint-mask byte table (src/table/anitab.c, real binary bytes) */
+extern const uint8 data_fd2_animation_spell_overlay_blink_mask_table[30];
 
 /*
  * Drives the full 10-frame blink over one in-window char and one out-of-window

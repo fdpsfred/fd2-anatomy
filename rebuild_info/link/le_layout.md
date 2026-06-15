@@ -85,8 +85,8 @@ Watcom 9.5a `system dos4g` 的 cstart 設計：
 | `0x620A1..0x626B2` | `data_fd2_battle_character_growth_table` (68 × 11) |
 | `0x626B3..0x627A2` | `data_fd2_battle_spell_learning_table` (20 × 12) + 對齊 |
 | `0x627A3..0x627C4` | `data_fd2_graphics_glyph_blit_state` + RNG seed |
-| `0x627D8..0x62FFF` | `data_fd2_chapter_cutscene_event_script_ptr_table_106` (106 × 4) + 對齊 |
-| `0x63000..0x634D1` | `data_fd2_chapter_cutscene_event_script_NNN` 106 個 script blob |
+| `0x627D8..0x6297F` | `data_fd2_chapter_cutscene_event_script_ptr_table_106` (106 × 4 = 424 byte，無尾端對齊) |
+| `0x62980..0x634D1` | 106 個 cutscene script blob 連續排放 (共 2898 byte，緊接表尾，entry 0 = 0x62980)，至 .object3 結尾 |
 
 混了大資料表（4945 B item table）與小狀態變數（30 B sprite blit state）— **不能用 size threshold 解釋**。最合理的 source-level 結構：FD2 工程師在這些 source file 用 `#pragma data_seg("FAR_DATA")` 顯式把 segment 改名，wlink 自動把所有 `FAR_DATA` class segment group 起來變成 object 3。
 

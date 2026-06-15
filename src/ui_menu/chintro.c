@@ -771,3 +771,76 @@ LAB_rerender:
 
     return result;
 }
+
+/* ----------------------------------------------------------------
+ * Global state owned by this translation unit.
+ *
+ * data_fd2_ui_menu_cursor_idx @ 0x53C57 (uint32, 4 bytes, zero-init)
+ *   Shared current-selection cursor index for the active modal menu
+ *   (field command menu, options, settings, shop/inventory/spell/promote
+ *   pickers, chapter-intro menu, etc). Runtime state: every menu-open
+ *   site stores 0 here first, then key handlers bump it (e.g.
+ *   fd2_settings_menu_input_step writes 0/1/2/3 for Home/Up/Left/Down,
+ *   accessed as dword), and dispatch code reads it back. Never preset in
+ *   the image; the linker places it in BSS (load-time zeroed).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_ui_menu_cursor_idx;
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_menu_screen_sprite_atlas_buf_ptr @ 0x54147
+ *   (uint32 holding a heap pointer, 4 bytes, zero-init)
+ *
+ *   Pointer to the chapter-intro / menu sprite atlas buffer loaded on
+ *   demand from FDOTHER.DAT entry 0x0D. The CONTINUE / chapter-intro /
+ *   chapter-transition flows assign it the malloc'd buffer returned by
+ *   fd2_load_dat_resource(FDOTHER, ..., 0x0D), then later free() it and
+ *   store 0 back (e.g. fd2_main_menu_continue_dispatcher @ 0x25F5D /
+ *   0x260CF, fd2_chapter_transition_menu @ 0x2CCAF,
+ *   fd2_run_chapter_intro_menu_main @ 0x2E3A7 / 0x2E694,
+ *   fd2_run_chapter_intro_menu_typeB @ 0x2FCC1 / 0x2FF92,
+ *   fd2_run_chapter_intro_menu_typeC @ 0x3076B).
+ *
+ *   Many render helpers read it as a base pointer and parse the atlas
+ *   header (e.g. fd2_blit_money_digit_sprite @ 0x2D636:
+ *   MOV EBX,[0x54147]; ADD EBX,[EBX+0x0E]; ADD EBX,4 -- sprite-record
+ *   offset table at +0x0E). Stored as uint32 (the project convention for
+ *   runtime heap-pointer globals, cast to void* at the malloc/free sites);
+ *   never preset in the image, so the linker places it in BSS
+ *   (load-time zeroed).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr;
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_menu_saved_cursor_idx @ 0x5414B (uint32, 4 bytes, zero-init)
+ *   Persisted shop-menu cursor index, the saved companion to the live
+ *   data_fd2_ui_menu_cursor_idx (0x53C57). fd2_run_buy_item_menu copies
+ *   it into the live cursor before each panel re-open and snapshots the
+ *   live cursor back into it after the input loop, so the highlight
+ *   survives across the open/select/close dialog round trips
+ *   (0x2F1B0: MOV EAX,[0x5414B]; MOV [0x53C57],EAX  and the reverse at
+ *   0x2F1E9). The saved index is then used to fetch the chosen item id
+ *   from the shop item-id array, e.g. 0x2F206:
+ *   MOV EAX,[0x5414B]; MOVZX EBX,byte ptr [EAX+EBP*1] -- accessed as a
+ *   full dword and treated as an unsigned offset into the byte array.
+ *   fd2_run_chapter_intro_menu_main resets it on menu entry
+ *   (0x2E4A1: MOV dword ptr [0x5414B],0x0). Never preset in the image,
+ *   so the linker places it in BSS (load-time zeroed).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_ui_menu_saved_cursor_idx;
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_menu_saved_scroll_offset @ 0x5414F (uint32, 4 bytes, zero-init)
+ *   Persisted shop-menu scroll offset, the saved companion to the live
+ *   data_fd2_ui_menu_scroll_offset (0x5412F). It pairs with the saved
+ *   cursor index above: fd2_run_buy_item_menu copies it into the live
+ *   scroll offset before each panel re-open and snapshots the live
+ *   offset back into it after the input loop, so the visible scroll
+ *   window survives across the open/select/close dialog round trips
+ *   (0x2F1BA: MOV EAX,[0x5414F]; MOV [0x5412F],EAX  and the reverse at
+ *   0x2F1F3: MOV EAX,[0x5412F]; MOV [0x5414F],EAX -- accessed as a full
+ *   dword in every reference, never a byte/word slice).
+ *   fd2_run_chapter_intro_menu_main resets it on menu entry alongside the
+ *   saved cursor (0x2E4AB: MOV dword ptr [0x5414F],0x0). Never preset in
+ *   the image, so the linker places it in BSS (load-time zeroed).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_ui_menu_saved_scroll_offset;

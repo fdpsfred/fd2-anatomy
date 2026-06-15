@@ -2091,3 +2091,23 @@ void fd2_chapter_event_handler_2e__ch19_reinforcement(uint32 event_arg)
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_init_runtime_char_from_base_growth(0x1B);
 }
+
+/* ----------------------------------------------------------------
+ * data_fd2_chapter_init_phase_flag @ 0x53AFA (.object2, 1 byte)
+ *
+ * Single-byte chapter-init phase flag. Spawn-placement mode toggle
+ * read by fd2_init_runtime_char_for_battle @ 0x10CB7: when the flag
+ * is 0 it runs the nearest-available-tile search to place a newly
+ * spawned battle char; when nonzero it uses the desired x/y from the
+ * chapter portrait-load record as-is (no search).
+ *
+ * The chapter init/event handlers in this file (and the chinit.c
+ * chapter init handlers) bracket their mid-chapter portrait reloads
+ * with `flag = 1` ... `flag = 0`, so the value is 0 at rest. The
+ * binary image is zero at this address and the first runtime touch
+ * is a write, hence a zero-initialized tentative definition.
+ *
+ * Accessed strictly as a byte (MOV byte ptr [0x53AFA], imm8 by every
+ * writer; byte compare-to-0 by the reader).
+ * ---------------------------------------------------------------- */
+uint8 data_fd2_chapter_init_phase_flag;

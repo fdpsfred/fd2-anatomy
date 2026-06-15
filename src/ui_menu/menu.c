@@ -612,3 +612,52 @@ int fd2_player_inline_action_menu_dispatch(int char_idx,
 
     return 1;
 }
+
+/* ---- file-scope data owned by menu.c ---- */
+
+/*
+ * data_fd2_ui_click_debounce_skip_count @ 0x51A42 (.object2), 1 byte.
+ * Click/keypress debounce counter for the Space/Enter action path in
+ * fd2_game_main_loop: while >0 it is decremented (one skipped press per
+ * frame); once it reaches 0 the spin-wait-for-chapter-init logic engages.
+ * Mutable state with a writer (DEC byte ptr [0x51A42]); initial value 0x03.
+ */
+uint8  data_fd2_ui_click_debounce_skip_count = 3;
+
+/*
+ * data_fd2_battle_ai_post_action_consequence_idx @ 0x51A8F (.object2), 4 bytes.
+ * Pending post-action consequence selector. Set to 0xFF ("none") before each
+ * actor finishes its action; an action handler may store an index into
+ * data_fd2_battle_ai_post_action_consequence_table here. After the action,
+ * callers (fd2_game_main_loop, fd2_field_command_menu_loop, the battle AI turn
+ * phases, etc.) test it: if != 0xFF they invoke the indexed consequence handler
+ * (counter-attack / death / status proc), then reset it to 0xFF.
+ * Accessed as a full dword (MOV dword ptr [0x51A8F],EDX); initial value 0xFF.
+ */
+uint32 data_fd2_battle_ai_post_action_consequence_idx = 0xFF;
+
+/*
+ * data_fd2_battle_current_active_char_idx @ 0x53AE9 (.object2), 4 bytes.
+ * Index of the party slot the turn cursor advances from -- a runtime battle
+ * state scalar, zero-initialized (all bytes 0 in the image). The engine writes
+ * it before it is ever read: fd2_load_save_and_init_engine sets it to 0 at the
+ * end of a LOAD GAME, and fd2_run_full_turn_cycle sets it to 0 when a new player
+ * turn begins. fd2_game_main_loop's "next actor" path reads it as the starting
+ * slot, then writes back (slot+1, wrapping to 0 at party_member_count).
+ * Accessed as a full dword (MOV EBX,dword ptr [0x53AE9] / MOV [0x53AE9],EAX);
+ * used as an unsigned index into data_fd2_battle_runtime_char_array_ptr.
+ */
+uint32 data_fd2_battle_current_active_char_idx;
+
+/*
+ * data_fd2_battle_player_action_result_code @ 0x53C53 (.object2), 4 bytes.
+ * Player-turn action outcome flag, a runtime battle-state scalar that is
+ * zero-initialized in the image (all bytes 0). The engine always writes it
+ * before reading: fd2_player_action_menu_loop stores 0 at its entry
+ * (MOV dword ptr [0x53C53],0x0), then later returns it as the function's
+ * int result; fd2_item_command_menu_dispatch stores 1 on a committed GIVE.
+ * Read back as a full dword (MOV EAX,dword ptr [0x53C53]) and compared
+ * against 0 (CMP dword ptr [0x53C53],0x0) on several re-prompt paths.
+ * 0 = "cancelled / no commit, re-prompt"; non-zero = "action committed".
+ */
+uint32 data_fd2_battle_player_action_result_code;

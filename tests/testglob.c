@@ -30,16 +30,12 @@ spell_effect      data_fd2_battle_spell_effect_table[36];
 enemy_data        data_fd2_battle_enemy_data_table[68];
 character_base    data_fd2_battle_character_base_table[32];
 character_growth  data_fd2_battle_character_growth_table[68];
-uint8  data_fd2_chapter_intro_metadata_table[26 * 31];
 uint8  data_fd2_battle_spell_learning_table[20 * 12];
 uint8  data_fd2_battle_class_promotion_data_table[20 * 2];
 uint8  data_fd2_battle_movement_cost_table[27 * 20];
 uint8  data_fd2_battle_job_allowed_items_table[27 * 7];
 void  *data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21[21];
-void  *data_fd2_chapter_cutscene_event_script_ptr_table_106[106];
 uint32 data_fd2_battle_pending_xp_credit = 0;
-uint8  data_fd2_battle_last_hit_or_miss_flag = 1;
-uint16 data_fd2_shared_rng_seed = 0;
 uint32 data_fd2_battle_job_magic_resist_table[27];
 uint8  data_fd2_battle_job_crit_rate_table[27];
 uint32 data_fd2_battle_fast_mode_walk_overlay_ptr = 0;
@@ -59,8 +55,6 @@ char   data_fd2_string_save_load_oom_msg_runtime_char_50037[] = " Out of Memory 
 char   data_fd2_string_field_map_oom_msg_chapter_runtime_50064[] = " Out of Memory !!!\n";
 char   data_fd2_string_field_map_fdicon_not_found_err_50086[] = "\n\n File not found 'FDICON.B24!! \n\n";
 uint32 data_fd2_battle_anim_phase = 0;
-uint32 data_fd2_battle_ai_post_action_consequence_idx = 0;
-uint32 data_fd2_battle_player_action_result_code = 0;
 uint32 data_fd2_chapter_current_chapter_id = 1;
 /* per-chapter combat-cinematic terrain override byte — real FD2.LE values
  * @ 0x52363 (30 bytes, indexed by chapter id 0..29). Read by
@@ -74,13 +68,8 @@ uint32 data_fd2_chapter_cutscene_event_state = 0;
 uint32 data_fd2_graphics_static_bg_buffer_ptr = 0;
 uint8  data_fd2_graphics_text_scroll_pending_line_count = 0;
 uint32 data_fd2_graphics_animated_bg_buffer_ptr = 0;
-uint32 data_fd2_chapter_event_or_battle_end_code = 0;
 uint32 data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
 uint32 data_fd2_audio_status_effect_sfx_handle_ptr = 0;
-uint32 data_fd2_audio_figani_sfx_bank_buf_ptr = 0;
-uint32 data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = 0;
-uint32 data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = 0;
-uint32 data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = 0;
 /* real values from FD2.LE @ 0x52549 (per-sub-frame hit-shake X-offset cache) */
 uint8  data_fd2_battle_special_attack_shake_x_offset_table[6] =
     { 0, 4, 9, 14, 18, 14 };
@@ -91,16 +80,10 @@ uint32 data_fd2_portrait_sprite_cache = 0;
 uint32 data_fd2_resource_portrait_cache_count = 0;
 uint32 data_fd2_resource_portrait_cache_buffer_used = 0;
 uint8  data_fd2_resource_portrait_cache_id_list_base[40] = {0};
-uint32 data_fd2_battle_current_active_char_idx = 0;
-/* 0x540FF: scripted-cinematic mode / terrain idx. First compiled reader/writer
- * is fd2_play_game_ending_cinematic (sets it per credit-roll duel). */
-uint32 data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = 0;
-uint8  data_fd2_ui_click_debounce_skip_count = 0;
 uint8  data_fd2_audio_bgm_last_set_track_id = 0xFF;
 uint32 data_fd2_audio_bgm_sequence_data_buf_ptr = 0;
 char   data_fd2_string_resource_filename_fdmus_dat[] = "FDMUS.DAT";
 uint32 data_fd2_resource_last_loaded_resource_size = 0;
-uint8  data_fd2_chapter_init_phase_flag = 0;
 uint16 data_fd2_input_idle_current_bios_tick_word = 0;
 uint16 data_fd2_input_idle_last_rendered_tick_word = 0;
 uint8  data_fd2_input_key_input_mode = 0;
@@ -207,33 +190,6 @@ void AIL_set_sample_loop_count(uint32 sample, int count)
     g_sfx_last_arg_c = count;
 }
 void AIL_start_sample(uint32 sample) { (void)sample; g_ail_start_sample_calls++; }
-/* Per-spell animation parameter tables (data segment @ 0x51F33/0x51F54/0x51F75).
- * Defined here with the real binary bytes until the data segment is emitted, so
- * anim tests assert on true frame counts / sprite offsets / SFX ids. */
-uint8 data_fd2_animation_spell_sprite_offset_table[33] = {
-    0x31,0x31,0x31,0x31,0x40,0x40,0x40,0x40,0x4c,0x57,0x31,0x31,0x31,0x39,0x39,
-    0x39,0x39,0xb7,0x7e,0x93,0xcc,0xd9,0xaa,0x31,0x31,0xbf,0x8a,0x9e,0x31,0x31,
-    0x00,0x00,0x40
-};
-uint8 data_fd2_animation_spell_frame_count_table[33] = {
-    8,8,8,8,10,10,10,10,11,27,8,8,8,7,7,7,7,8,12,11,13,13,13,8,8,13,9,12,8,8,
-    0,0,10
-};
-uint8 data_fd2_animation_spell_sfx_frame_table[33] = {
-    6,6,6,6,9,9,9,9,10,14,0,0,0,12,12,12,12,6,7,8,4,4,3,0,0,5,3,2,0,0,0,0,9
-};
-/* Earthquake screen-shake params (data segment @ 0x52096). int[9] laid out as
- * 3 X-offsets, 3 Y-offsets, 3 scales. Real binary values until data emitted. */
-int32 data_fd2_animation_earthquake_screen_shake_params_table[9] = {
-    128, 0, -128, 128, 0, 128, 131, 128, 125
-};
-/* Ending cinematic scripted-frame thresholds (data segment @ 0x5204E). Real
- * binary int values until the data segment is emitted; aniend tests assert on
- * them and fd2_play_ending_and_record_clear copies the table to its stack. */
-int32 data_fd2_chapter_ending_music_trigger_frames[15] = {
-    0x208, 0x1AE, 0x19A, 0x154, 0x136, 0x12C, 0xF0, 0xB4,
-    0x96,  0x82,  0x6E,  0x57,  0x40,  0x16,  0x3E8
-};
 /* Game-clear credit-roll per-duel tables (data segment @ 0x525DC / 0x525F0 /
  * 0x52604). Real binary bytes until the data segment is emitted;
  * fd2_play_game_ending_cinematic copies each 20-byte table to its stack and
@@ -250,62 +206,23 @@ uint8 data_fd2_chapter_ending_credit_roll_scripted_outcome_table[20] = {
     0x04,0x03,0x33,0x0E,0x19,0x12,0x28,0x35,0x16,0x18,
     0x1C,0x11,0x1E,0x1F,0x32,0x21,0x22,0x34,0x24,0x2F
 };
-/* Chapter 3 end recruit-scene char placement tables (data segment @ 0x520BA /
- * 0x520C1 / 0x520C8). Real binary bytes until the data segment is emitted;
- * fd2_chapter_03_end copies each 7-byte table into an on-stack placement block.
- * X/Y are battle-tile coords, facing is sprite direction (0..3). */
-uint8 data_fd2_chapter_ch03_end_scene_char_pos_x_table[7] =
-    { 8, 7, 9, 6, 10, 8, 8 };
-uint8 data_fd2_chapter_ch03_end_scene_char_pos_y_table[7] =
-    { 3, 3, 3, 2, 2, 4, 1 };
-uint8 data_fd2_chapter_ch03_end_scene_char_facing_table[7] =
-    { 2, 2, 2, 3, 1, 2, 0 };
-/* Chapter 5 end recruit-scene char placement tables (data segment @ 0x520CF /
- * 0x520D6 / 0x520DD). Real binary bytes until the data segment is emitted;
- * fd2_chapter_05_end copies each 7-byte table into an on-stack placement block.
- * X/Y are battle-tile coords, facing is sprite direction (0..3). */
-uint8 data_fd2_chapter_ch05_end_scene_char_pos_x_table[7] =
-    { 12, 11, 13, 10, 10, 14, 14 };
-uint8 data_fd2_chapter_ch05_end_scene_char_pos_y_table[7] =
-    { 11, 11, 11, 9, 10, 9, 10 };
-uint8 data_fd2_chapter_ch05_end_scene_char_facing_table[7] =
-    { 2, 2, 2, 3, 3, 1, 1 };
-/* Chapter 7 end recruit-scene char placement tables (data segment @ 0x520E4 /
- * 0x520ED / 0x520F6). Real binary bytes until the data segment is emitted;
- * fd2_chapter_07_end copies each 9-byte table into an on-stack placement block.
- * X/Y are battle-tile coords, facing is sprite direction (0..3). */
-uint8 data_fd2_chapter_ch07_end_scene_char_pos_x_table[9] =
-    { 12, 11, 13, 10, 14, 10, 14, 9, 15 };
-uint8 data_fd2_chapter_ch07_end_scene_char_pos_y_table[9] =
-    { 4, 4, 4, 5, 5, 6, 6, 7, 7 };
-uint8 data_fd2_chapter_ch07_end_scene_char_facing_table[9] =
-    { 0, 0, 0, 3, 1, 3, 1, 3, 1 };
-/* Chapter 8 end recruit-scene char placement tables (data segment @ 0x520FF /
- * 0x52109). Real binary bytes until the data segment is emitted;
- * fd2_chapter_08_end copies each 10-byte table into an on-stack placement block.
- * X/Y are battle-tile coords; chapter 8 has no facing table (the handler passes
- * the inline fixed facing value 2 to fd2_setup_chars_and_camera_for_intro). */
-uint8 data_fd2_chapter_ch08_end_scene_char_pos_x_table[10] =
-    { 14, 13, 15, 12, 13, 14, 16, 11, 15, 17 };
-uint8 data_fd2_chapter_ch08_end_scene_char_pos_y_table[10] =
-    { 20, 20, 20, 19, 19, 18, 19, 18, 19, 18 };
 /* Chapter 10 end scene char placement tables (data segment @ 0x52113 /
  * 0x5211E). Real binary bytes until the data segment is emitted;
  * fd2_chapter_10_end copies each 11-byte table into an on-stack placement block
  * and places chars 0..0xA at those tiles. X/Y are battle-tile coords; chapter
  * 10 has no facing table (the handler writes the inline fixed facing value 2
  * into sprite_state[1] for every placed char). */
-uint8 data_fd2_chapter_ch10_end_scene_char_pos_x_table[11] =
-    { 14, 15, 16, 13, 14, 15, 16, 17, 14, 15, 16 };
-uint8 data_fd2_chapter_ch10_end_scene_char_pos_y_table[11] =
-    { 38, 39, 38, 38, 39, 38, 39, 39, 40, 40, 40 };
+/* data_fd2_chapter_ch10_end_scene_char_pos_x_table now has its real const
+ * definition in src/table/chtab.c (emitted), so no stand-in here. */
+/* data_fd2_chapter_ch10_end_scene_char_pos_y_table now has its real const
+ * definition in src/table/chtab.c (emitted), so no stand-in here. */
 /* Chapter 12 end scene char placement tables (data segment @ 0x52129 /
  * 0x52137 / 0x52145). Real binary bytes until the data segment is emitted;
  * fd2_chapter_12_end copies each 14-byte table into an on-stack placement block
  * and places chars 0..0xD. X/Y are battle-tile coords, facing is sprite
  * direction (0..3). */
-uint8 data_fd2_chapter_ch12_end_scene_char_pos_x_table[14] =
-    { 10, 11, 9, 12, 8, 10, 11, 9, 12, 8, 8, 12, 8, 12 };
+/* data_fd2_chapter_ch12_end_scene_char_pos_x_table now has its real const
+ * definition in src/table/chtab.c (emitted), so no stand-in here. */
 uint8 data_fd2_chapter_ch12_end_scene_char_pos_y_table[14] =
     { 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 3, 3, 2, 2 };
 uint8 data_fd2_chapter_ch12_end_scene_char_facing_table[14] =
@@ -380,16 +297,6 @@ void fd2_play_variant_b_slide_pre_effect(int a, int b) { }
  * stubs were removed. */
 uint16 data_fd2_animation_palette_cycle_last_tick = 0;
 uint8  data_fd2_animation_palette_cycle_frame_idx = 0;
-uint8  data_fd2_animation_palette_cycle_rgb_table[93] = {0};
-/* FIGANI cinematic backdrop / SFX-bank pointers (data segment @ 0x54107 /
- * 0x54117). Written + read by fd2_play_figani_char_intro_animation
- * (src/anim/anicine.c); zero-init writable BSS-style globals. */
-uint32 data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr = 0;
-/* Full-combat-cinematic state (data segment @ 0x540FF / 0x54103 / 0x54113 /
- * 0x5411B). Written + read by fd2_play_full_combat_cinematic
- * (src/anim/anicine.c); zero-init writable globals. */
-uint32 data_fd2_battle_combat_cinematic_split_bg_b_buf_ptr = 0;
-uint32 data_fd2_audio_figani_sfx_bank_defender_buf_ptr = 0;
 /* fd2_restore_portrait_cache_from_tmp: slated for src/rsrc/rsrc.c (not yet
  * emitted). The non-scripted cleanup path of fd2_play_full_combat_cinematic
  * reaches it, but the anicine.c unit tests exercise only the scripted path
@@ -840,10 +747,6 @@ uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch = 0;
 uint32 data_fd2_ui_slide_composed_target_buf_ptr = 0;
 uint32 data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
 uint32 data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
-uint32 data_fd2_ui_menu_cursor_idx = 0;
-/* chapter-intro menu speaker portrait IDs — real FD2.LE values @ 0x52659 */
-uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6] =
-    { 0x81, 0x80, 0x00, 0x82, 0x83, 0x84 };
 /* shop "inventory full" FDTXT dialog-id table — real FD2.LE values @ 0x5265F.
  * The church-revive menu aliases the same bytes as a per-job revive-price
  * multiplier table, read as [bJob_id + 5]. (int16; vendor data overlap) */
@@ -862,8 +765,6 @@ uint32 data_fd2_ui_menu_scroll_offset = 0;
  *   candidate_array_ptr @ 0x54143  -> the equip-eligible char-id byte array
  *   saved_cursor / saved_scroll @ 0x5414B / 0x5414F  persist across re-opens */
 uint32 data_fd2_ui_menu_visible_item_count = 0;
-uint32 data_fd2_ui_menu_saved_cursor_idx = 0;
-uint32 data_fd2_ui_menu_saved_scroll_offset = 0;
 /* per-shop-tier dialog text-id tables (short[6], indexed by
  * data_fd2_chapter_intro_menu_cursor_state) — real FD2.LE values:
  *   speaker portrait id  @ 0x52659 (byte[6])
@@ -984,45 +885,9 @@ void fd2_render_shop_item_grid(uint32 item_count, uint32 item_id_array,
  * are host-safe to call directly. The shop navigation test observes that an
  * animation paced via g_delay375b2_calls == 3, with the branch direction
  * pinned independently by data_fd2_ui_menu_scroll_offset. */
-/* status-effect overlay flicker colour template — real FD2.LE values @ 0x51F15
- * (32 bytes; mostly 0xC0 with a few status-specific colours). The real
- * fd2_animate_status_effect_overlay_flicker copies the first 30 bytes into a
- * stack scratch and indexes it by status_kind. */
-uint8  data_fd2_animation_status_overlay_flicker_color_template[32] = {
-    0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,
-    0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,
-    0xc0,0x92,0x48,0xd8,0xc0,0xc0,0x23,0xc0,
-    0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0x31,0x31
-};
-/* spell palette-flash colour table — real FD2.LE values @ 0x51AAD
- * (108 bytes = 36 entries x 3, laid out as three contiguous 36-byte planes:
- * R at +0x00, G at +0x24, B at +0x48). fd2_play_spell_palette_flash_with_sfx
- * indexes it by spell_id (0x00..0x23) to drive the VGA DAC index-0 flash. */
-uint8  data_fd2_animation_spell_palette_flash_table[108] = {
-    0x3f,0x3f,0x3f,0x3f,0x2b,0x2b,0x2b,0x2b,0x3f,0x23,0x2e,0x2e,
-    0x2e,0x3f,0x3f,0x3f,0x3f,0x32,0x32,0x32,0x3f,0x3f,0x23,0x1e,
-    0x00,0x3f,0x0a,0x23,0x3f,0x3f,0x3f,0x3f,0x2b,0x3f,0x3f,0x2b,
-    0x00,0x00,0x00,0x00,0x32,0x32,0x32,0x32,0x3f,0x10,0x28,0x28,
-    0x28,0x3d,0x3d,0x28,0x28,0x32,0x32,0x32,0x28,0x28,0x00,0x2a,
-    0x00,0x3d,0x1f,0x19,0x3f,0x3f,0x3f,0x3f,0x32,0x3f,0x00,0x32,
-    0x00,0x00,0x00,0x00,0x3c,0x3c,0x3c,0x3c,0x3f,0x08,0x1e,0x1e,
-    0x1e,0x2e,0x2e,0x1e,0x1e,0x32,0x32,0x32,0x1e,0x1e,0x00,0x23,
-    0x00,0x2e,0x00,0x00,0x3f,0x3f,0x3f,0x3f,0x3c,0x3f,0x00,0x3c
-};
-/* spell-overlay-blink per-spell tint-mask byte table — real FD2.LE values @
- * 0x52006 (30 bytes). The real fd2_animate_spell_overlay_blink copies all 30
- * bytes into a stack scratch and indexes it by spell_id to pick the per-spell
- * colour_base anchor for the fading 24x24 tint blit. */
-uint8  data_fd2_animation_spell_overlay_blink_mask_table[30] = {
-    0x20,0x20,0x20,0x20,0x08,0x08,0x08,0x08,
-    0xc8,0x08,0x08,0x08,0x08,0x08,0x10,0x10,
-    0x10,0x10,0x08,0x08,0x10,0x10,0x10,0x08,
-    0x08,0x10,0x10,0x10,0x08,0x08
-};
 /* dialog page-advance collapse template — real FD2.LE value @ 0x51EE5
  * (two corner sprite-index selectors, replicated to 16 bytes) */
 int32  data_fd2_dialog_advance_collapse_template[4] = { 0x10, 0x11, 0x10, 0x11 };
-uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
 uint8 *data_fd2_ui_menu_candidate_array_ptr = 0;
 /* chapter-intro overlay (rndmenu.c) globals */
 uint8  data_fd2_chapter_intro_portrait_pose_y_row_table[18] = {0};
@@ -1058,16 +923,6 @@ void fd2_run_revive_menu_main(void) { }
 void fd2_run_class_promotion_menu_main(void) { }
 void fd2_blit_scaled_chapter_pose(uint32 cx, uint32 cy, uint32 bmp, int32 s)
 { (void)cx; (void)cy; (void)bmp; (void)s; }
-/* chapter transition radio-menu state (BSS) + per-chapter tables.
- * category table is the real FD2.LE @0x526B9 (0=story, nonzero=battle);
- * intro-panel resource-idx table is the real FD2.LE @0x526D7. */
-uint8  data_fd2_chapter_per_chapter_category_table[30] = {
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    1, 1, 1, 0, 0, 1, 1, 1
-};
-uint8  data_fd2_chapter_intro_panel_resource_idx_per_metadata_category_table[3] = {
-    0x0b, 0x3d, 0x3e
-};
 void fd2_render_chapter_dialog_borders(void) { }
 /* fd2_render_chapter_intro_dialog_panels now has a real body in
  * src/gfx/rndmenu.c (driven by the mode-0/1/2/3 tests in tests/gfx/rndmenu.c);
@@ -1192,16 +1047,6 @@ uint8 data_fd2_battle_damage_number_format_buffer[8] = {
  * all 4 as one dword into a stack buffer, then enqueues one per indicator slot. */
 uint8 data_fd2_battle_miss_indicator_sprite_ids[4] = {
     0x74,0x75,0x76,0x76
-};
-/* projectile y-offset table — real FD2.LE values @ 0x0202C (runtime 0x5202C),
- * 28 bytes (4-frame x 6-row rise pattern). The real
- * fd2_animate_spell_projectile_paths copies the first 25 bytes into a stack
- * scratch and indexes it by (fx_iter % 4 + frame). */
-uint8 data_fd2_animation_spell_projectile_y_offset_table[28] = {
-    0x0f,0x0f,0x0f,0x0f,0x07,0x03,0x01,0x00,
-    0x00,0x01,0x03,0x07,0x0f,0x0f,0x0b,0x09,
-    0x08,0x08,0x09,0x0b,0x0f,0x0f,0x0f,0x0f,
-    0x0f,0x20,0x20,0x20
 };
 /* fd2_remove_inventory_slot_at: now emitted for real in src/ui_menu/status.c.
  * Its old spy global g_remove_inventory_calls is gone; spell/spelleff.c now
@@ -1798,8 +1643,6 @@ int g_cast_status_via_d1b_calls = 0;
  * fixture (tests/include/minipfix.h) and observe the forwarded buf/char through
  * the real background blit + sleep-indicator digit, so no stub/spy is kept. */
 uint8 data_fd2_audio_walk_step_sfx_cadence_counter = 0;
-uint8 data_fd2_graphics_figani_pose_anim_subframe_idx = 0;
-uint8 data_fd2_graphics_figani_pose_anim_pose_idx = 0;
 uint32 data_fd2_audio_summon_spell_sfx_bank_buf_ptr = 0;
 uint8  data_fd2_battle_summon_spell_8slot_visibility_table[7] = {0};
 uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7] = {0};
@@ -1821,8 +1664,6 @@ int32  data_fd2_battle_summon_anim_variant_b_6slot_frame_counter_array[6] = {0};
 int32  data_fd2_battle_summon_anim_variant_b_6slot_color_idx_array[6] = {0};
 uint8  data_fd2_battle_summon_anim_variant_b_6slot_jitter_byte_array[6] = {0};
 int32  data_fd2_battle_summon_anim_variant_b_10color_y_offset_table[10] = {0};
-int32  data_fd2_animation_summon_variant_d_3slot_color_row_offsets[10] = {0};
-uint8  data_fd2_animation_summon_variant_e_16slot_sprite_base_table[16] = {0};
 /* Summon-spell per-summon RGB + SFX-bank-index tables (4-byte read-only game
  * data, indexed by spell_id-0x20). The binary declares each as a dword that it
  * byte-indexes; defined here with the real .object3 values (little-endian
@@ -1833,14 +1674,6 @@ uint32 data_fd2_battle_summon_spell_palette_r_table = 0x3535333fU;
 uint32 data_fd2_battle_summon_spell_palette_g_table = 0x3a00393fU;
 uint32 data_fd2_battle_summon_spell_palette_b_table = 0x09003f3fU;
 uint32 data_fd2_battle_summon_spell_sfx_bank_index_table = 0x5e5d5c5bU;
-/* rodata offset tables: real binary values (0x524F8 / 0x5250C) */
-int32  data_fd2_animation_summon_variant_c_radial_5slot_offsets[5] =
-    {10, 8, 3, 0, 0};
-uint8  data_fd2_animation_summon_variant_c_radial_5slot_byte_offsets[5] =
-    {10, 8, 3, 0, 0};
-/* sin/cos y placement constants: real binary values (0x5022B / 0x50233) */
-double data_fd2_animation_summon_radial_angle_step_12 = 1.2;
-double data_fd2_animation_summon_radial_radius_30 = 30.0;
 /* fd2_tick_tutorial_progress_with_sfx: now in anim.c */
 /* fd2_run_full_turn_cycle: now emitted in src/battle/btl_turn.c */
 /* fd2_enemy_turn_action_dispatcher: now in btl_ai.c */
@@ -1907,40 +1740,6 @@ double data_fd2_graphics_circle_band_radius_scale_16 = 1.6;
  * tests/ui_menu/menufld.c. */
 void (*data_fd2_battle_ai_post_action_consequence_table[90])(uint32);
 void (*data_fd2_battle_spell_handler_table[28])(uint32, uint32, uint8 *);
-static void g_noop_post_action_handler(uint32 x) { (void)x; }
-static void g_noop_void_handler(void) { }
-void (*data_fd2_chapter_init_handler_table[30])(void) = {
-    g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler,
-    g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler,
-    g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler,
-    g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler,
-    g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler,
-    g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler
-};
-void (*data_fd2_chapter_end_handler_table[30])(void) = {
-    g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler,
-    g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler,
-    g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler,
-    g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler,
-    g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler,
-    g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler, g_noop_void_handler
-};
-void (*data_fd2_chapter_post_action_handler_table[30])(uint32) = {
-    g_noop_post_action_handler, g_noop_post_action_handler,
-    g_noop_post_action_handler, g_noop_post_action_handler,
-    g_noop_post_action_handler, g_noop_post_action_handler,
-    g_noop_post_action_handler, g_noop_post_action_handler,
-    g_noop_post_action_handler, g_noop_post_action_handler,
-    g_noop_post_action_handler, g_noop_post_action_handler,
-    g_noop_post_action_handler, g_noop_post_action_handler,
-    g_noop_post_action_handler, g_noop_post_action_handler,
-    g_noop_post_action_handler, g_noop_post_action_handler,
-    g_noop_post_action_handler, g_noop_post_action_handler,
-    g_noop_post_action_handler, g_noop_post_action_handler,
-    g_noop_post_action_handler, g_noop_post_action_handler,
-    g_noop_post_action_handler, g_noop_post_action_handler,
-    g_noop_post_action_handler, g_noop_post_action_handler
-};
 /* spell-cast cinematic phase-handler table (0x523B9): 10 per-spell handlers, each
  * int(caster_idx, caster_sprite, work_buf, stride, phase_code) returning a frame
  * count. Initialized to a noop returning 0 (fnptr table noop-init rule). The real
@@ -2046,30 +1845,7 @@ void fd2_rle_blit_with_palette_remap(uint16 *rle_stream, int32 dst_x, int32 dst_
 uint8  data_fd2_chapter_chapter_init_done_flag = 0;
 uint32 data_fd2_battle_view_window_max_x = 13;
 uint32 data_fd2_battle_view_window_max_y = 8;
-uint32 data_fd2_battle_compose_left_edge_clip_offset = 0;
-uint32 data_fd2_battle_compose_parallax_scroll_y_rows = 0;
-uint32 data_fd2_battle_compose_walk_step_y_sub_pixel_offset = 0;
-uint32 data_fd2_battle_walk_anim_x_scroll_offset = 0;
-uint32 data_fd2_battle_walk_anim_y_scroll_rows = 0;
-uint32 data_fd2_battle_pathfind_tile_cost_table_ptr = 0;
-uint32 data_fd2_battle_pathfind_battle_tile_map_ptr = 0;
-uint8  data_fd2_battle_pathfind_map_width = 0;
-uint8  data_fd2_battle_pathfind_map_height = 0;
-uint32 data_fd2_battle_pathfind_caller_context = 0;
-uint8  data_fd2_battle_pathfind_floodfill_seed_x = 0;
-uint8  data_fd2_battle_pathfind_floodfill_seed_y = 0;
-uint8  data_fd2_battle_pathfind_floodfill_max_steps = 0;
-uint8  data_fd2_battle_pathfind_dst_x = 0;
-uint8  data_fd2_battle_pathfind_dst_y = 0;
-uint32 data_fd2_battle_pathfind_path_output_buffer_ptr = 0;
-uint8  data_fd2_battle_pathfind_current_depth = 0;
-uint8  data_fd2_battle_pathfind_best_path_length = 0;
 uint8  data_fd2_battle_pathfind_step_stack[256] = {0};
-uint8  data_fd2_battle_pathfind_mode_flags = 0;
-void  *data_fd2_animation_ani_decoder_frame_dispatch_table[10] = {0};
-uint16 data_fd2_animation_ani_decoder_target_width = 0;
-uint32 data_fd2_animation_ani_decoder_dst_buf = 0;
-uint32 data_fd2_animation_ani_decoder_src_buf = 0;
 /* fd2_composite_battle_frame is now a real emitted function (src/gfx/rndscene.c).
  * g_composite_call_count (defined above with the pipeline stubs) remains the
  * observable that existing caller tests (cursor.c, spelleff.c, btl_ai.c, ...)
@@ -2421,7 +2197,6 @@ void fd2_restore_screen_block_from_buffer(uint32 saved_block, uint32 dst, uint32
  * never reached. With the BIOS keyboard buffer left empty (head==tail), the
  * real keyboard poll returns 0 so blink_flag stays set and the blink stub runs. */
 uint32 data_fd2_dialog_last_action_sprite_id_param = 0;
-uint32 data_fd2_dialog_drop_swap_text_id_param = 0;
 uint8 *data_fd2_portrait_sprite_buffer = (uint8 *)0;
 
 int    g_dlg_glyph_calls = 0;

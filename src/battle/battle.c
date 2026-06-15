@@ -894,3 +894,33 @@ int fd2_check_char_is_dead(uint32 char_idx)
     return data_fd2_battle_runtime_char_array_ptr[char_idx].flags
          & CHARFLAG_DEAD;
 }
+
+/* ----------------------------------------------------------------
+ * Battle global data
+ * ---------------------------------------------------------------- */
+
+/*
+ * data_fd2_battle_last_hit_or_miss_flag @ 0x53C6B
+ *
+ * Last physical-attack hit/miss result flag. Encoding: 0 = HIT, 1 = MISS.
+ * Written by fd2_execute_attack_damage_calculation (set to 1 = MISS at
+ * entry, then 0 = HIT when the hit roll succeeds), read by
+ * fd2_animate_attack_hit_sequence to force the miss "whoosh" SFX and to
+ * suppress the attack pose on a miss. Runtime state: always written before
+ * read, so zero-initialized (the static value carries no semantics).
+ * Accessed as a single byte (MOV/CMP byte ptr, MOVZX => unsigned).
+ */
+uint8 data_fd2_battle_last_hit_or_miss_flag;
+
+/*
+ * data_fd2_shared_rng_seed @ 0x627B8 (.object3)
+ *
+ * Shared 16-bit pseudorandom number generator state. The sole accessor
+ * fd2_advance_rng_state reads it, applies seed = ROL16(seed + 0x9014, 3),
+ * and writes it back (read-modify-write in place). No other code reads or
+ * writes this address, so there is no explicit initializer: the seed starts
+ * at the C default of 0, and the first advance yields ROL16(0x9014, 3) =
+ * 0x80A4. Hence zero-initialized (BSS) runtime state.
+ * Accessed as a whole 16-bit word (MOV AX,[..] / MOV [..],AX => unsigned).
+ */
+uint16 data_fd2_shared_rng_seed;

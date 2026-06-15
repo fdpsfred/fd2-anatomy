@@ -11,6 +11,137 @@
 #include <conio.h>
 
 /* ----------------------------------------------------------------
+ * Owned global data (definition; extern in globals.h).
+ *
+ * data_fd2_battle_scripted_cinematic_mode_or_terrain_idx @ 0x540FF
+ *   Scripted-cinematic mode flag / terrain-index latch for the full
+ *   combat cinematic. Zero in the normal battle path; the writers
+ *   (fd2_play_full_combat_cinematic here, fd2_play_game_ending_cinematic
+ *   in aniend.c, and the ch25 scripted event) store a non-zero value
+ *   before the cinematic reads it, then it is latched to 1. Accessed as
+ *   a full 32-bit word at every site; zero-initialized (.bss).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_scripted_cinematic_mode_or_terrain_idx;
+
+/* ----------------------------------------------------------------
+ * data_fd2_battle_combat_cinematic_split_bg_b_buf_ptr @ 0x54103
+ *   Heap pointer to the "B" split-screen background RLE buffer used
+ *   by the full combat cinematic when the defender is counter-capable
+ *   (separate idle FIGANI present). Owner/writer:
+ *   fd2_play_full_combat_cinematic here -- zeroed first, then assigned
+ *   the malloc-backed result of fd2_load_dat_resource(BG.DAT), swapped
+ *   with the spotlight background when the attacker is enemy-team, blit
+ *   to the framebuffer, and finally freed. Also read by
+ *   fd2_execute_combat_hit_cinematic (passed to the bg zoom
+ *   transitions). Accessed as a full 32-bit pointer at every site;
+ *   zero-initialized at rest (.bss), populated only at runtime.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_combat_cinematic_split_bg_b_buf_ptr;
+
+/* ----------------------------------------------------------------
+ * data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr @ 0x54107
+ *   Heap pointer to the terrain-backdrop ("spotlight" background) RLE
+ *   buffer for the combat/character cinematics. Writers/readers here:
+ *   fd2_play_figani_char_intro_animation and fd2_play_full_combat_cinematic
+ *   each zero it first, then store the malloc-backed result of
+ *   fd2_load_dat_resource(BG.DAT) into it, RLE-blit it as the spotlight
+ *   background, and free it on cleanup; fd2_play_full_combat_cinematic also
+ *   swaps it with the "B" split background (0x54103) when the attacker is
+ *   enemy-team. Also read by fd2_execute_combat_hit_cinematic (passed to the
+ *   bg zoom transitions). Accessed as a full 32-bit pointer at every site;
+ *   zero-initialized at rest (.bss), populated only at runtime.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr;
+
+/* ----------------------------------------------------------------
+ * data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr @ 0x5410B
+ *   Heap pointer to parallax background sub-layer 0 of the special-attack
+ *   / class-promotion full-screen cinematics. First of three contiguous
+ *   sibling pointers (layer_0 @ 0x5410B, layer_1 @ 0x5410F, layer_2 @
+ *   0x54113); accessed both individually and as a 3-element array base
+ *   (&data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr)[i] with i
+ *   cycling 0..2, so the three must stay adjacent in declaration order.
+ *   Writers/readers: fd2_play_full_combat_cinematic and
+ *   fd2_execute_special_attack_skill here, plus fd2_play_spell_cast_cinematic
+ *   (anispell.c) and the spell-cast cinematic in spellcin.c -- each zeroes
+ *   it first, then stores the malloc-backed result of
+ *   fd2_load_dat_resource(BG.DAT, ..., 0) into it, RLE-blits it as a
+ *   parallax backdrop, and frees it on cleanup. Accessed as a full 32-bit
+ *   pointer (MOV dword) at every site; zero-initialized at rest (.bss),
+ *   populated only at runtime.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr;
+
+/* ----------------------------------------------------------------
+ * data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr @ 0x5410F
+ *   Heap pointer to parallax background sub-layer 1 of the special-attack
+ *   / class-promotion full-screen cinematics. Middle of the three
+ *   contiguous sibling pointers (layer_0 @ 0x5410B, layer_1 @ 0x5410F,
+ *   layer_2 @ 0x54113); accessed both individually and as the i==1 slot
+ *   of the 3-element array base
+ *   (&data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr)[i] (the reader
+ *   in fd2_animate_bg_zoom_transition_out loads [(i%3)*4 + 0x5410B]), so
+ *   the three must stay adjacent in declaration order. Same writers/readers
+ *   as layer_0: zeroed first, then stores the malloc-backed result of
+ *   fd2_load_dat_resource(BG.DAT, ..., 1) into it, RLE-blits it as a
+ *   parallax backdrop, and frees it on cleanup. Accessed as a full 32-bit
+ *   pointer (MOV dword) at every site; zero-initialized at rest (.bss),
+ *   populated only at runtime.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr;
+
+/* ----------------------------------------------------------------
+ * data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr @ 0x54113
+ *   Heap pointer to parallax background sub-layer 2 of the special-attack
+ *   / class-promotion full-screen cinematics. Last of the three
+ *   contiguous sibling pointers (layer_0 @ 0x5410B, layer_1 @ 0x5410F,
+ *   layer_2 @ 0x54113); accessed both individually and as the i==2 slot
+ *   of the 3-element array base
+ *   (&data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr)[i] (the reader
+ *   in fd2_animate_bg_zoom_transition_in cycles [(i%3)*4 + 0x5410B]), so
+ *   the three must stay adjacent in declaration order. Same writers/readers
+ *   as layer_0: zeroed first, then stores the malloc-backed result of
+ *   fd2_load_dat_resource(BG.DAT, ..., 2) into it, RLE-blits it as a
+ *   parallax backdrop, and frees it on cleanup. Accessed as a full 32-bit
+ *   pointer (MOV dword) at every site; zero-initialized at rest (.bss),
+ *   populated only at runtime.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr;
+
+/* ----------------------------------------------------------------
+ * data_fd2_audio_figani_sfx_bank_buf_ptr @ 0x54117
+ *   Heap pointer to the SFX handle bank extracted from a FIGANI
+ *   animation byte stream. The three cinematic players that drive
+ *   FIGANI overlays each store this the same way:
+ *   fd2_play_figani_char_intro_animation and
+ *   fd2_play_full_combat_cinematic here, and
+ *   fd2_execute_special_attack_skill (special-attack cinematic). Every
+ *   writer assigns it the return of fd2_load_figani_sfx_bank(figani_buf)
+ *   before any read, passes it by value to fd2_play_sfx_with_handle(bank,
+ *   sfx_id, 1) on per-pose SFX hooks, then on cleanup calls
+ *   fd2_play_sfx_with_handle(bank, -1, 1) to stop all SFX and frees it
+ *   when non-NULL. Accessed as a full 32-bit pointer (MOV dword) at every
+ *   site, never indexed locally; zero-initialized at rest (.bss),
+ *   populated only at runtime.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_audio_figani_sfx_bank_buf_ptr;
+
+/* ----------------------------------------------------------------
+ * data_fd2_audio_figani_sfx_bank_defender_buf_ptr @ 0x5411B
+ *   Defender-side counterpart of data_fd2_audio_figani_sfx_bank_buf_ptr
+ *   (0x54117): the SFX handle bank extracted from the DEFENDER's FIGANI
+ *   animation stream so the counter-attack pose can play its own sound
+ *   effects. Sole owner/writer: fd2_play_full_combat_cinematic here. In
+ *   the normal (non-scripted) path it assigns the return of
+ *   fd2_load_figani_sfx_bank(defender_figani) before any read, passes it
+ *   by value to fd2_execute_combat_hit_cinematic for the swapped-role
+ *   counter cinematic, then on cleanup frees it when non-NULL. Accessed
+ *   as a full 32-bit pointer (MOV dword) at every site, never indexed;
+ *   zero-initialized at rest (.bss), populated only at runtime.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_audio_figani_sfx_bank_defender_buf_ptr;
+
+/* ----------------------------------------------------------------
  * fd2_display_cinematic_image_with_fade @ 0x1F73F  (1 caller)
  *
  * Two-stage cinematic image display with palette transitions.
@@ -1091,6 +1222,19 @@ void fd2_play_figani_animation_loop(uint32 caster_idx, uint32 spell_id,
         }
     }
 }
+
+/* FIGANI pose-loop sub-frame counter @ 0x540FC. Runtime state for
+ * fd2_step_figani_pose_animation: current sub-frame within the active pose.
+ * Zero-initialized; the stepper writes it (reset path stores 0) before any
+ * read. Accessed only as a byte and read zero-extended -> unsigned 8-bit. */
+uint8 data_fd2_graphics_figani_pose_anim_subframe_idx;
+
+/* FIGANI pose-loop pose counter @ 0x540FD. Runtime state for
+ * fd2_step_figani_pose_animation: current pose index (0..figani[+0]-1),
+ * used to index the per-pose metadata table at figani+8+idx*4. Zero-
+ * initialized; the stepper writes it (INC and reset-store 0) and reads it
+ * only as a byte, zero-extended -> unsigned 8-bit. */
+uint8 data_fd2_graphics_figani_pose_anim_pose_idx;
 
 /* ----------------------------------------------------------------
  * fd2_step_figani_pose_animation @ 0x2B9A1  (3 callers)

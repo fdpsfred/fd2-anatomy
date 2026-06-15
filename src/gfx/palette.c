@@ -106,7 +106,7 @@ void fd2_update_palette_cycle_anim(void)
 {
     uint16 tick;
     uint32 offset;
-    uint8 *rgb_ptr;
+    const uint8 *rgb_ptr;
     int i;
     uint8 palette_idx;
 

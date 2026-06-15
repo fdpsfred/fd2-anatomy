@@ -433,9 +433,9 @@ extern uint32 g_setup_intro_extra_char_idx;
 extern uint32 g_setup_intro_camera_x;
 extern uint32 g_setup_intro_camera_y;
 
-extern uint8 data_fd2_chapter_ch03_end_scene_char_pos_x_table[7];
-extern uint8 data_fd2_chapter_ch03_end_scene_char_pos_y_table[7];
-extern uint8 data_fd2_chapter_ch03_end_scene_char_facing_table[7];
+extern const uint8 data_fd2_chapter_ch03_end_scene_char_pos_x_table[7];
+extern const uint8 data_fd2_chapter_ch03_end_scene_char_pos_y_table[7];
+extern const uint8 data_fd2_chapter_ch03_end_scene_char_facing_table[7];
 
 static uint8  g_ce3_roster[8 * 0x50];
 static int16  g_ce3_text[20];
@@ -751,9 +751,9 @@ extern int32  g_setup_intro_extra_pos_x;
 extern int32  g_setup_intro_extra_pos_y;
 extern int32  g_setup_intro_extra_facing;
 
-extern uint8 data_fd2_chapter_ch05_end_scene_char_pos_x_table[7];
-extern uint8 data_fd2_chapter_ch05_end_scene_char_pos_y_table[7];
-extern uint8 data_fd2_chapter_ch05_end_scene_char_facing_table[7];
+extern const uint8 data_fd2_chapter_ch05_end_scene_char_pos_x_table[7];
+extern const uint8 data_fd2_chapter_ch05_end_scene_char_pos_y_table[7];
+extern const uint8 data_fd2_chapter_ch05_end_scene_char_facing_table[7];
 
 static uint8  g_ce5_roster[8 * 0x50];
 static int16  g_ce5_text[16];
@@ -1150,9 +1150,9 @@ static void test_chapter_06_end_increments_not_absolute(void)
 extern int    g_check_char_is_dead_calls;
 extern uint32 g_check_char_is_dead_last_arg;
 
-extern uint8 data_fd2_chapter_ch07_end_scene_char_pos_x_table[9];
-extern uint8 data_fd2_chapter_ch07_end_scene_char_pos_y_table[9];
-extern uint8 data_fd2_chapter_ch07_end_scene_char_facing_table[9];
+extern const uint8 data_fd2_chapter_ch07_end_scene_char_pos_x_table[9];
+extern const uint8 data_fd2_chapter_ch07_end_scene_char_pos_y_table[9];
+extern const uint8 data_fd2_chapter_ch07_end_scene_char_facing_table[9];
 
 static uint8  g_ce7_roster[8 * 0x50];
 static int16  g_ce7_text[16];
@@ -1455,8 +1455,8 @@ static void test_chapter_07_end_flag_clear_short_circuits(void)
 
 extern uint32 g_setup_intro_facing_arg;
 
-extern uint8 data_fd2_chapter_ch08_end_scene_char_pos_x_table[10];
-extern uint8 data_fd2_chapter_ch08_end_scene_char_pos_y_table[10];
+extern const uint8 data_fd2_chapter_ch08_end_scene_char_pos_x_table[10];
+extern const uint8 data_fd2_chapter_ch08_end_scene_char_pos_y_table[10];
 
 static uint8  g_ce8_roster[8 * 0x50];
 static int16  g_ce8_text[16];
@@ -2330,7 +2330,7 @@ static void test_chapter_11_end_increments_not_absolute(void)
  * delta), and chapter_id := prev+1 (a relative increment, not absolute).
  * ================================================================ */
 
-extern uint8 data_fd2_chapter_ch12_end_scene_char_pos_x_table[14];
+extern const uint8 data_fd2_chapter_ch12_end_scene_char_pos_x_table[14];
 extern uint8 data_fd2_chapter_ch12_end_scene_char_pos_y_table[14];
 extern uint8 data_fd2_chapter_ch12_end_scene_char_facing_table[14];
 
