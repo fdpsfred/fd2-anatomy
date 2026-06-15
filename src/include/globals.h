@@ -164,7 +164,7 @@ extern uint32 data_fd2_battle_combat_speech_bubble_pos_pairs[4];        /* 0x53A
 
 /* ---- battle AI scoring ---- */
 extern double data_fd2_battle_ai_enemy_spell_score_multiplier_15;       /* 0x50144  const 1.5 */
-extern uint32 data_fd2_battle_ai_best_spell_score;                      /* 0x53C23 */
+extern int32 data_fd2_battle_ai_best_spell_score;                       /* 0x53C23  signed max accumulator (writer @0x15AE8 uses JG) */
 extern uint32 data_fd2_battle_ai_best_spell_target_x;                   /* 0x53C27 */
 extern uint32 data_fd2_battle_ai_best_spell_target_y;                   /* 0x53C2B */
 extern uint32 data_fd2_battle_ai_best_spell_id;                         /* 0x53C2F */

@@ -1319,8 +1319,8 @@
       "fd2_ai_score_offensive_spell"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_ai_best_spell_target_x": {

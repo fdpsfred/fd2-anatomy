@@ -561,3 +561,13 @@ int fd2_ai_score_physical_attack(uint32 caster_idx, uint32 ctx_flag)
     free((void *)pTile_pos_buf);
     return 0;
 }
+
+/* ----------------------------------------------------------------
+ * Battle AI scratch state (zero-initialized BSS scalars).
+ * fd2_ai_score_offensive_spell @ 0x1598A resets this to 0 at the start
+ * of each evaluation pass, then accumulates the best offensive spell
+ * candidate. Read by attack/turn dispatchers (compared signed).
+ * ---------------------------------------------------------------- */
+
+/* 0x53C23: best offensive-spell candidate score (signed max accumulator) */
+int32 data_fd2_battle_ai_best_spell_score;
