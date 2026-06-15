@@ -1044,3 +1044,15 @@ void fd2_run_revive_menu_main(void)
         fd2_close_intro_dialog_with_slide_out();
     } while (1);
 }
+
+/* ----------------------------------------------------------------
+ * UI slide-in/out animation render-workspace pointer (BSS, zero at rest).
+ *
+ * data_fd2_ui_slide_anim_accumulator_buf_ptr @ 0x53C5B (.object2)
+ *   Per-frame interpolated 320x200 (mode 13h) image buffer used by the
+ *   menu slide-in/slide-out transitions (status / portrait / shop /
+ *   promote / save / spell-select / chapter-intro). Assigned at runtime
+ *   via (uint32)malloc(64000) by each opener and free()d on close; never
+ *   statically initialized, so it lives in BSS and rests at 0.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_ui_slide_anim_accumulator_buf_ptr;

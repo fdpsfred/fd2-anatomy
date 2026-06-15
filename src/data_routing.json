@@ -1566,8 +1566,8 @@
       "fd2_open_shop_dialog_panel"
     ],
     "note": "multi-writer:rsrc/rsrc.c,save/save.c,spell/spellsel.c,ui_menu/chintro.c,ui_menu/promote.c,ui_menu/shop.c,ui_menu/status.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_slide_bg_snapshot_buf_ptr": {
