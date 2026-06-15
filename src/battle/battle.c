@@ -894,3 +894,20 @@ int fd2_check_char_is_dead(uint32 char_idx)
     return data_fd2_battle_runtime_char_array_ptr[char_idx].flags
          & CHARFLAG_DEAD;
 }
+
+/* ----------------------------------------------------------------
+ * Battle global data
+ * ---------------------------------------------------------------- */
+
+/*
+ * data_fd2_battle_last_hit_or_miss_flag @ 0x53C6B
+ *
+ * Last physical-attack hit/miss result flag. Encoding: 0 = HIT, 1 = MISS.
+ * Written by fd2_execute_attack_damage_calculation (set to 1 = MISS at
+ * entry, then 0 = HIT when the hit roll succeeds), read by
+ * fd2_animate_attack_hit_sequence to force the miss "whoosh" SFX and to
+ * suppress the attack pose on a miss. Runtime state: always written before
+ * read, so zero-initialized (the static value carries no semantics).
+ * Accessed as a single byte (MOV/CMP byte ptr, MOVZX => unsigned).
+ */
+uint8 data_fd2_battle_last_hit_or_miss_flag;
