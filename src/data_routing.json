@@ -5593,8 +5593,8 @@
       "fd2_play_full_combat_cinematic"
     ],
     "note": "multi-writer:anim/anicine.c,anim/anispell.c,field/chend2.c,field/chtrans.c,life/main.c,rsrc/rsrc.c,spell/spellcin.c,ui_menu/menufld.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_portrait_load_buffer": {

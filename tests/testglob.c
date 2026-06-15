@@ -88,7 +88,6 @@ uint8  data_fd2_battle_special_attack_shake_x_offset_table[6] =
 uint32 data_fd2_battle_tile_attr_mv_modifier_table[32];
 uint32 data_fd2_battle_tile_attr_def_modifier_table[32];
 uint32 data_fd2_chapter_portrait_load_buffer = 0;
-uint32 data_fd2_battle_scene_snapshot = 0;
 uint32 data_fd2_portrait_sprite_cache = 0;
 uint32 data_fd2_resource_portrait_cache_count = 0;
 uint32 data_fd2_resource_portrait_cache_buffer_used = 0;

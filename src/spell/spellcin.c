@@ -1595,3 +1595,16 @@ void fd2_execute_summon_spell_cast(uint32 caster_idx, uint32 spell_id,
  * allocation fills it in.
  */
 uint32 data_fd2_large_game_state_buffer_ptr;
+
+/*
+ * Battle scene tile-graphics cache pointer (0x53A5D).
+ * void*-semantic runtime buffer pointer (stored as uint32 per the engine's
+ * idiom for malloc'd buffer pointers). Points at a tile graphics/attribute
+ * cache loaded from a packed DAT resource; callers index it as
+ * base + tile_attr*0x240 + 6 (per-tile entry = 0x240 = 576 bytes, 6-byte
+ * header). Loaded/reloaded via fd2_load_dat_resource(name, old_ptr, index)
+ * which frees the previous buffer and returns the new one. Several routines
+ * (e.g. tactical overview zoom) temporarily swap it to a 24px-converted
+ * scratch cache and restore it. Zero (NULL) until first load fills it in.
+ */
+uint32 data_fd2_battle_scene_snapshot;
