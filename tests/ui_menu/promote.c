@@ -38,7 +38,7 @@ extern int    g_promote_scroll_up_calls;
 /* per-basic-class required class-change key-item id (real FD2.LE values
  * @ 0x526A7), mirrored from testglob.c so the builder's expected key item per
  * portrait_id can be referenced in assertions. */
-extern uint8  data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[18];
+extern const uint8 data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[18];
 
 /* class-promotion candidate-grid spy (5-arg renderer, testglob.c) */
 extern int    g_promote_cand_grid_calls;
