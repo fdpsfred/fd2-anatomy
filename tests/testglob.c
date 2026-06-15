@@ -1046,10 +1046,6 @@ int32  data_fd2_ui_game_options_menu_state_template[4] = { 0, 0, 0, 0 };
 /* dialog page-advance collapse template — real FD2.LE value @ 0x51EE5
  * (two corner sprite-index selectors, replicated to 16 bytes) */
 int32  data_fd2_dialog_advance_collapse_template[4] = { 0x10, 0x11, 0x10, 0x11 };
-/* speech-bubble wing corner offsets — real FD2.LE values @ 0x526DA
- * (signed: -39, -13, 13, 39; consumed via signed IDIV in the wing anim) */
-int32  data_fd2_ui_chapter_intro_dialog_corner_offset_table_a[4] =
-    { -39, -13, 13, 39 };
 uint32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4] = {0};
 uint32 data_fd2_chapter_intro_dialog_anim_frame_idx = 0;
 /* chapter-intro metadata entry pointer (real data @ 0x54137). Restored by

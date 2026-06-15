@@ -136,3 +136,20 @@ const uint8 data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[18] = 
     0x59, 0x5D, 0xFF, 0x5D, 0xCD, 0xCD, 0xCD, 0xCD, 0x5C,
     0x58, 0x58, 0x58, 0x5B, 0x5C, 0x58, 0x5B, 0xFF, 0xFF
 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_chapter_intro_dialog_corner_offset_table_a @ 0x526DA  (16 bytes)
+ *
+ * Speech-bubble "wing" corner offsets for the chapter-intro dialog panel
+ * open/close animation: 4 x int32 (signed) { -39, -13, 13, 39 }. The sole
+ * reader fd2_animate_tutorial_dialog_intro_or_outro (@ 0x2D669) copies all
+ * four 32-bit words into a local corner_offs[16] buffer with a count-4 REP
+ * MOVSD (MOV ECX,4; MOV ESI,0x526DA; REP MOVSD -> 32-bit elements), then per
+ * animation frame computes each wing's blit destination as
+ *     base + corner_offs[i] / divisor + 0xD430
+ * where the element is loaded as a signed dword and divided via IDIV (SAR
+ * EDX,0x1F sign-extend then IDIV). The symmetric -39/-13/13/39 pairs place
+ * the four wings around the panel center; divisor ramps 1..4 (open) or 4..1
+ * (close) to slide the wings in/out. Stride 4, signed int32, never written.
+ */
+const int32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_a[4] = { -39, -13, 13, 39 };
