@@ -1,9 +1,9 @@
 export const meta = {
   name: 'fd2-data-emit',
-  description: 'FD2 Phase 1 data landing: per-symbol caller analysis + real-byte emit + verify_real byte gate + independent review, per-home-file build/finalize/commit. One symbol at a time (serial within a file).',
+  description: 'FD2 Phase 1 data landing: per-symbol caller analysis + real-byte emit + verify_real byte gate + independent review, then per-symbol land+commit (globals/testglob/routing, NO build) so a limit/disconnect wastes nothing; one build_test gate per home file at the end. One symbol at a time (serial within a file).',
   phases: [
     { title: 'Emit', detail: 'per symbol: emit (caller analysis + bytes) -> review -> iterate' },
-    { title: 'Finalize', detail: 'per home file: globals/testglob + build_test + commit' },
+    { title: 'Finalize', detail: 'per symbol: land+commit (globals/testglob/routing, no build); per home file: one build_test gate + mechanical fixes' },
   ],
 }
 
@@ -138,29 +138,44 @@ function reviewerPrompt(sym, emitterOut) {
   ].join('\n')
 }
 
-function finalizePrompt(file, approved) {
+function landerPrompt(sym, emitterOut) {
   return [
     ENV, '',
-    '# 角色：Finalizer（per-home-file 收尾 + build gate + commit）。本 home 檔的所有符號已逐一 emit+reviewer-approved。做機械收尾，不改任何已 approved 的定義邏輯。',
-    'home 檔：ROOT/src/' + file.home,
-    '已 approved 的符號（連同各自 finalize 需要的 extern）：',
-    JSON.stringify(approved.map(function (x) { return { name: x.name, emit_class: x.emit_class_final || x.emit_class, extern_needed: x.extern_needed, home: 'src/' + file.home, testglob_fake_present: x.testglob_fake_present }; }), null, 2),
+    '# 角色：Lander（per-symbol 落地 + commit；**不 build**）。本符號已 emit + reviewer-approved。只做機械收尾，**不改已 approved 的定義邏輯、不動別的符號、不改任何測試行為**。目的：每個符號一完成就 commit，撞 limit 時零浪費。',
+    '目標符號：' + sym.name + '（home：ROOT/src/' + sym.home + '；emit_class：' + ((emitterOut && (emitterOut.emit_class_final || emitterOut.emit_class)) || sym.emit_class) + '）',
+    'emitter 回報（定位用，非權威）：' + JSON.stringify({ extern_needed: emitterOut && emitterOut.extern_needed, testglob_fake_present: emitterOut && emitterOut.testglob_fake_present }, null, 2),
     '',
-    '步驟（逐符號做完 globals/testglob，再一次 build）：',
-    '1. ROOT/src/include/globals.h：把每個符號的 extern 改成 extern_needed 指定的樣子（const 表→ `extern const <type> <name>[N];`、維度正確；init-data/zero-bss→ 確認 extern 型別與定義一致，drift 就修）。用 whole-word 取代既有那一行，不要動到別的符號。',
-    '2. ROOT/tests/testglob.c：移除每個符號的「假 file-scope 定義」那一段（zero-fill / 假初值）。只刪該符號的定義，別誤刪相鄰符號或測試基建。',
-    '3. 若本 home 檔是新建的 src 子檔：跑前景 python ROOT/tests/genbuild.py --apply（重產 build.bat/test.lnk/testmain.c；嚴禁手改這三檔）。',
-    '4. build gate（前景，嚴禁背景）：python ROOT/tools/emit/build_test.py --changed "src/' + file.home + ',src/include/globals.h,tests/testglob.c"。',
-    '   通過條件 = error_count==0 且 warning_count==0（run 階段 hang/fail 忽略；link 階段 W1027 redefinition 是 cascade 預期、不計入 warning_count）。',
-    '   **絕對禁止為了過 build 而改寫任何測試的邏輯/行為**（不可像 emitter/reviewer 那樣重設 fixture、換 driver flag、改斷言）。允許的修正只有兩種：',
-    '   (a) 純機械的型別對齊：某測試檔內 redundant 的 `extern <type> <name>...` 區域宣告與 canonical globals.h extern 不符（如少了 const）→ 改成與 canonical 一致；',
-    '   (b) **const-writer 衝突 SKIP**：若把某表 const 化後，有測試「寫入該 const 表」造成 compile error（write to const）→ **不要改測試邏輯、不要想辦法讓它換個方式達到原效果**，直接 SKIP：用 `#if 0` / `#endif` 把「該 static 測試 function 定義」整段包起來，並把它在 run_*_tests() 內的 `RUN_TEST(...)` 那一行也用 `#if 0`/`#endif` 包住（#if 0 可安全處理內含的 /* */ 註解，勿用 /* */ 包整個 function）；各 #if 0 上方加一行 ASCII 標記 `/* SKIP (Phase 3): writes now-const <table>; restore + rewrite to drive real data */`。把所有 skip 的測試名記進回報的 skipped_tests[]（Phase 3 worklist）。',
-    '   其它任何 compile error（移除假定義造成的真實型別不符、const 取址 discard-const）→ 機械修正（const 取址沿用既有 precedent 的顯式 cast）；若需要的修正會碰到測試的「行為」而非單純型別/skip → 不要動，改在回報 notes 標記 needs_user 並說明，不要 improvise。',
-    '5. ROOT/src/data_routing.json：把本次 finalize 的每個符號 entry 設 emitted=true、reviewed=true（json.load→改→json.dump(indent=2, ensure_ascii=False)+結尾換行寫回；只改這些 entry）。',
-    '6. git add 相關檔（ROOT/src/' + file.home + ' ROOT/src/include/globals.h ROOT/tests/testglob.c ROOT/src/data_routing.json，genbuild 動過的 ROOT/tests/build.bat ROOT/tests/test.lnk ROOT/tests/testmain.c，連帶 KB 改動）→ git commit：',
-    '   data-emit: src/' + file.home + ' (' + approved.length + ' symbols, reviewed)',
-    '   空行 + 一行摘要 + 空行 + Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>',
-    '7. 回報 JSON：home, committed(bool), commit_hash, build{error_count,warning_count}, finalized_names[], skipped_tests[](被 #if 0 SKIP 的測試名 + 原因), needs_user[], failed_names[], notes。git diff/commit 用 git -C ' + ROOT + '。',
+    '步驟（檔案路徑全用 ROOT 絕對前綴；git 一律用 git -C ' + ROOT + '）：',
+    '1. 先驗定義在位：跑前景 `grep -c "\\b' + sym.name + '\\b" ROOT/src/' + sym.home + '` 必 >=1。若不在（emitter 沒寫成或被覆寫）→ status=blocked、committed=false、**不要自己補 emit、不要 commit**，回報讓外層處理。',
+    '2. ROOT/src/include/globals.h：把 ' + sym.name + ' 的 extern 改成與定義「完全一致」（const 定義→ extern 也要 const、維度 [N] 正確；非 const 定義→ 非 const extern）。**Watcom 9.5a E1129：extern 與定義的 const 修飾或型別不一致是 HARD error，必須完全一致**。只用 whole-word 改這一行；extern 不存在就新增一行。',
+    '3. ROOT/tests/testglob.c：若有 ' + sym.name + ' 的假 file-scope 定義（zero-fill/假初值）就移除那一段；只刪這一個符號，別誤刪相鄰符號或測試基建。沒有就跳過。',
+    '4. 跑前景 `python ROOT/tests/genbuild.py --apply`（idempotent：掃 src/+tests/ 重產 build.bat/test.lnk/testmain.c；home 是新檔會接進去、已接過則無變動。嚴禁手改這三檔）。',
+    '5. ROOT/src/data_routing.json：把 ' + sym.name + ' 這一個 entry 設 emitted=true、reviewed=true（json.load → 只改這個 entry → json.dump(indent=2, ensure_ascii=False) + 結尾換行）。',
+    '6. **clobber 防線（必做）**：`git -C ' + ROOT + ' add -A` 後跑 `git -C ' + ROOT + ' diff --cached -- src/' + sym.home + ' | grep "^-" | grep "data_fd2_"`。若這個指令有輸出（代表本次 staged 把別的 data_fd2_ 定義行刪掉了）→ 立刻 `git -C ' + ROOT + ' checkout -- src/' + sym.home + '` 還原、status=blocked、committed=false、回報，**不要 commit**。沒有輸出才繼續。',
+    '7. commit：`git -C ' + ROOT + ' commit`，訊息第一行：',
+    '   data-emit: ' + sym.name + ' (src/' + sym.home + ', reviewed)',
+    '   後接空行 + 一行摘要 + 空行 + Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>',
+    '   （staged 範圍：src/' + sym.home + '、src/include/globals.h、tests/testglob.c、src/data_routing.json，genbuild 動到的 tests/build.bat tests/test.lnk tests/testmain.c，連帶這個符號的 KB 改動。）',
+    '8. **不要 build**（整檔最後由 BuildGate 做一次）；**不要改任何測試邏輯/行為**（const-writer 衝突留給 BuildGate）。',
+    '輸出（最後一則訊息＝此 JSON）：name, committed(bool), commit_hash, def_present(bool), status(done|blocked), notes。',
+  ].join('\n')
+}
+
+function buildGatePrompt(file, names) {
+  return [
+    ENV, '',
+    '# 角色：BuildGate（per-home-file build 驗證 + 純機械修正）。本 home 檔的符號已逐一 land+commit（都在 git 內了）。現在做整檔 build gate；**不回退任何已 land 的 commit、不改定義邏輯**。',
+    'home 檔：ROOT/src/' + file.home + '；本批已 land 的符號（' + names.length + '）：' + JSON.stringify(names),
+    '',
+    '步驟（git 一律用 git -C ' + ROOT + '）：',
+    '1. build gate（前景，嚴禁背景）：`python ROOT/tools/emit/build_test.py --changed "src/' + file.home + ',src/include/globals.h,tests/testglob.c"`。通過 = error_count==0 且 warning_count==0（run 階段 hang/fail 一律忽略；link 階段 W1027 redefinition 是預期 cascade、不計入 warning_count）。',
+    '2. 若 error_count==0 且 warning_count==0：什麼都不用改，回報 build pass（已 land 的 commit 就是最終狀態）。',
+    '3. 若 error/warning>0：只做**純機械修正**，改完另起一個 commit。允許的修正只有：',
+    '   (a) 型別/const 對齊：測試檔內 redundant 區域 `extern <type> <name>...` 與 canonical globals.h 不符（如少 const）→ 對齊；globals.h 某 extern 與定義的 const/維度不符（E1129）→ 對齊成與定義一致。',
+    '   (b) **const-writer 衝突 SKIP**：測試「寫入已 const 化的表」造成 compile error → 不改測試邏輯，直接用 `#if 0`/`#endif` 把該 static 測試 function 整段 + 其 RUN_TEST 行包住，上方加 ASCII 標記 `/* SKIP (Phase 3): writes now-const <table>; restore + rewrite to drive real data */`；記進 skipped_tests[]。',
+    '   (c) 其它純型別 compile error（discard-const 取址等）→ 機械修正（沿用既有顯式 cast precedent）。',
+    '   會碰到測試「行為」（重設 fixture / 換 driver / 改斷言）的 → 不要動，記 needs_user。修完 `git -C ' + ROOT + ' commit`（訊息：build-gate: src/' + file.home + ' (fixes)）。',
+    '4. 回報（最後一則訊息＝此 JSON）：home, build{error_count,warning_count}, fixed(bool), commit_hash(若有修正), skipped_tests[], needs_user[], notes。',
   ].join('\n')
 }
 
@@ -190,6 +205,24 @@ const REVIEWER_SCHEMA = {
     discussion_for_emitter: { type: 'string' },
   },
 }
+const LANDER_SCHEMA = {
+  type: 'object',
+  required: ['name', 'committed'],
+  properties: {
+    name: { type: 'string' }, committed: { type: 'boolean' }, commit_hash: { type: 'string' },
+    def_present: { type: 'boolean' }, status: { type: 'string' }, notes: { type: 'string' },
+  },
+}
+const BUILDGATE_SCHEMA = {
+  type: 'object',
+  required: ['home'],
+  properties: {
+    home: { type: 'string' },
+    build: { type: 'object', properties: { error_count: { type: ['number', 'null'] }, warning_count: { type: ['number', 'null'] } } },
+    fixed: { type: 'boolean' }, commit_hash: { type: 'string' },
+    skipped_tests: { type: 'array' }, needs_user: { type: 'array' }, notes: { type: 'string' },
+  },
+}
 
 function agentReportsGhidraDown(out) { return !!out && out.ghidra_unreachable === true }
 async function runAgent(promptStr, opts) {
@@ -215,15 +248,15 @@ let symDone = 0
 outer:
 for (let fi = 0; fi < FILES.length; fi++) {
   const file = FILES[fi]
-  const approved = []
+  const landed = []
   for (let si = 0; si < file.symbols.length; si++) {
     const sym = file.symbols[si]
     sym.home = file.home   // home lives on the file unit, not per-symbol; propagate so
-                           // symHead/emitter/reviewer prompts get the real path (not "undefined")
+                           // symHead/emitter/reviewer/lander prompts get the real path
     symDone++
     const tag = '[' + symDone + '/' + symTotal + '] ' + sym.name + ' (' + file.home + ')'
     if (budget.total && budget.remaining() < MIN_BUDGET_PER_SYM) {
-      log('budget low: ' + Math.round(budget.remaining() / 1000) + 'k left; stopping before ' + tag + '. re-run skips done (data_routing.reviewed).')
+      log('budget low: ' + Math.round(budget.remaining() / 1000) + 'k left; stopping before ' + tag + '. re-run skips committed (data_routing.reviewed).')
       stopped = 'budget'; break outer
     }
     log(tag + ' — emit start [batch ' + kStr(k()) + ']')
@@ -238,9 +271,16 @@ for (let fi = 0; fi < FILES.length; fi++) {
         round++
       }
       if (verdict && verdict.approved) {
-        approved.push(emitterOut)
-        results.push({ name: sym.name, home: file.home, status: 'approved', rounds: round, reclassified: !!(emitterOut && emitterOut.reclassified) })
-        log(tag + ' — APPROVED (' + round + ' fix round(s))')
+        // per-symbol land + commit (NO build) -- a committed symbol survives a limit/disconnect
+        const land = await agent(landerPrompt(sym, emitterOut), { schema: LANDER_SCHEMA, label: 'land:' + sym.name, phase: 'Finalize' })
+        if (land && land.committed) {
+          landed.push(sym.name)
+          results.push({ name: sym.name, home: file.home, status: 'committed', rounds: round, commit: land.commit_hash, reclassified: !!(emitterOut && emitterOut.reclassified) })
+          log(tag + ' — COMMITTED ' + (land.commit_hash || '') + ' (' + round + ' fix round(s))')
+        } else {
+          results.push({ name: sym.name, home: file.home, status: 'land_failed', rounds: round, land_notes: (land && land.notes) || '(no detail)' })
+          log(tag + ' — LAND FAILED: ' + ((land && land.notes) || '(no detail)'))
+        }
       } else {
         results.push({ name: sym.name, home: file.home, status: 'needs_user', rounds: round, blocking_issues: (verdict && verdict.blocking_issues) || [] })
         log(tag + ' — NOT approved after ' + round + ' rounds — left for user')
@@ -252,22 +292,24 @@ for (let fi = 0; fi < FILES.length; fi++) {
       stopped = isG ? 'ghidra_disconnect' : 'interrupt'; break outer
     }
   }
-  if (approved.length) {
-    log('FINALIZE ' + file.home + ' — ' + approved.length + ' approved symbol(s) [batch ' + kStr(k()) + ']')
+  if (landed.length) {
+    log('BUILD GATE ' + file.home + ' — ' + landed.length + ' committed symbol(s) [batch ' + kStr(k()) + ']')
     try {
-      const fin = await agent(finalizePrompt(file, approved), { label: 'finalize:' + file.home, phase: 'Finalize' })
-      results.push({ home: file.home, status: 'finalized', finalize: fin })
-      log('FINALIZE ' + file.home + ' — done')
+      const bg = await agent(buildGatePrompt(file, landed), { schema: BUILDGATE_SCHEMA, label: 'build:' + file.home, phase: 'Finalize' })
+      const bok = !!(bg && bg.build && bg.build.error_count === 0 && bg.build.warning_count === 0)
+      results.push({ home: file.home, status: 'build_gate', build_pass: bok, build: (bg && bg.build) || null, fixed: !!(bg && bg.fixed), skipped_tests: (bg && bg.skipped_tests) || [], needs_user: (bg && bg.needs_user) || [] })
+      log('BUILD GATE ' + file.home + ' — ' + (bok ? 'PASS' : 'see report') + (bg && bg.fixed ? ' (mechanical fixes committed)' : ''))
     } catch (e) {
+      // symbols are already committed (reviewed); a build-gate agent error does NOT waste
+      // emit work. record and continue (final per-worktree build is authoritative).
       const msg = String((e && e.message) || e)
-      results.push({ home: file.home, status: 'finalize_failed', error: msg })
-      log('FINALIZE ' + file.home + ' — FAILED: ' + msg)
-      stopped = 'finalize_error'; break outer
+      results.push({ home: file.home, status: 'build_gate_error', error: msg })
+      log('BUILD GATE ' + file.home + ' — agent error (symbols already committed): ' + msg)
     }
   }
 }
 
-const okSyms = results.filter(r => r.status === 'approved').length
-const finFiles = results.filter(r => r.status === 'finalized').length
-log('Batch ' + (stopped ? 'STOPPED (' + stopped + ')' : 'complete') + ': ' + okSyms + '/' + symTotal + ' symbols approved, ' + finFiles + ' file(s) finalized | out-tok ' + kStr(k()))
-return { label: A.label || 'unnamed', root: ROOT, total_symbols: symTotal, approved: okSyms, finalized_files: finFiles, stopped, out_tok_k: (k() < 0 ? null : k()), results }
+const okSyms = results.filter(r => r.status === 'committed').length
+const bgFiles = results.filter(r => r.status === 'build_gate').length
+log('Batch ' + (stopped ? 'STOPPED (' + stopped + ')' : 'complete') + ': ' + okSyms + '/' + symTotal + ' symbols committed, ' + bgFiles + ' file(s) build-gated | out-tok ' + kStr(k()))
+return { label: A.label || 'unnamed', root: ROOT, total_symbols: symTotal, committed: okSyms, build_gated_files: bgFiles, stopped, out_tok_k: (k() < 0 ? null : k()), results }
