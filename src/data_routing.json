@@ -5269,8 +5269,8 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "indirect-write bss",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_anim_variant_b_color_rotation_counter": {

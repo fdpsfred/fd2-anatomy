@@ -67,3 +67,19 @@ int32 data_fd2_battle_summon_anim_variant_b_6slot_frame_counter_array[6];
  * (runtime-initialized, all-zero static storage).
  */
 int32 data_fd2_battle_summon_anim_variant_b_6slot_color_idx_array[6];
+
+/* ----------------------------------------------------------------
+ * data_fd2_battle_summon_anim_variant_b_6slot_jitter_byte_array @ 0x5404C  (6 bytes)
+ *
+ * Per-slot vertical jitter byte (one uint8 per slot, 6 slots) for the variant-B
+ * 6-slot summon-spell animation state machine (fd2_tick_summon_anim_variant_b_6slot).
+ * Written by that function: both the INIT state and the per-slot frame-7 wrap path
+ * store (rng % 2) * 6, i.e. 0 or 6 (variant-A uses 0 or 7). Read in TICK frames as
+ * an additive offset to the sprite frame index passed to fd2_blit_indexed_sprite.
+ * Accessed via byte moves "MOV byte ptr [idx + 0x5404C],DL" (writes 0x26C97 /
+ * 0x26D9D) and "MOVZX EDX, byte ptr [idx + 0x5404C]" (read 0x26DE4), confirming
+ * uint8 elements with stride 1, read zero-extended (unsigned), across a
+ * 6-iteration loop (CMP ...,6; JL/JGE). First access is a write (INIT) -> zero-bss
+ * (runtime-initialized, all-zero static storage).
+ */
+uint8 data_fd2_battle_summon_anim_variant_b_6slot_jitter_byte_array[6];

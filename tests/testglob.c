@@ -1887,7 +1887,6 @@ int32  data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[6] = {0};
 uint8  data_fd2_battle_summon_anim_variant_a_color_rotation_counter = 0;
 uint8  data_fd2_battle_summon_anim_variant_a_terminate_flag = 0;
 int32  data_fd2_battle_summon_anim_variant_a_10color_y_offset_table[10] = {0};
-uint8  data_fd2_battle_summon_anim_variant_b_6slot_jitter_byte_array[6] = {0};
 uint8  data_fd2_battle_summon_anim_variant_b_color_rotation_counter = 0;
 uint8  data_fd2_battle_summon_anim_variant_b_terminate_flag = 0;
 int32  data_fd2_battle_summon_anim_variant_b_10color_y_offset_table[10] = {0};
