@@ -1775,7 +1775,6 @@ int g_cast_status_via_d1b_calls = 0;
  * in tests/battle/battle2.c) drive the real painter via the shared mini-panel
  * fixture (tests/include/minipfix.h) and observe the forwarded buf/char through
  * the real background blit + sleep-indicator digit, so no stub/spy is kept. */
-uint8 data_fd2_audio_walk_step_sfx_cadence_counter = 0;
 uint8 data_fd2_battle_summon_minor_anim_state5_frame_counter = 0;
 uint8 data_fd2_battle_summon_minor_anim_alternating_blit_toggle = 0;
 uint8 data_fd2_graphics_figani_pose_anim_subframe_idx = 0;

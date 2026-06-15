@@ -807,3 +807,16 @@ void fd2_animate_palette_flash_pulse_white(void)
         __delay_thunk_375b2(8);
     }
 }
+
+/* ----------------------------------------------------------------
+ * data_fd2_audio_walk_step_sfx_cadence_counter @ 0x540FE  (.object2)
+ *
+ * Per-step footstep/cadence counter for fd2_tick_tutorial_progress_with_sfx.
+ * Free-running uint8: each step does (counter % divisor) to gate a
+ * milestone SFX, then INC (byte ptr [0x540FE]). Zero-initialized; first
+ * runtime use is read-modulo-then-increment. Tutorial code also reads it
+ * as a "steps taken so far" milestone.
+ *
+ * Accessed exclusively as byte ptr (MOVZX = unsigned) -> uint8 scalar.
+ * ---------------------------------------------------------------- */
+uint8 data_fd2_audio_walk_step_sfx_cadence_counter;
