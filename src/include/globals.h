@@ -487,7 +487,7 @@ extern uint32 data_fd2_battle_summon_spell_sfx_bank_index_table;        /* 0x525
 /* ---- dispatch tables (.object2 const) ---- */
 extern void (*data_fd2_chapter_init_handler_table[30])(void);           /* 0x51D71 */
 extern void (*data_fd2_chapter_end_handler_table[30])(void);            /* 0x51DE9 */
-extern void (*data_fd2_chapter_post_action_handler_table[30])(uint32);  /* 0x51B19 */
+extern void (*const data_fd2_chapter_post_action_handler_table[30])(uint32);  /* 0x51B19 */
 extern void (*data_fd2_battle_ai_post_action_consequence_table[90])(uint32); /* 0x51B91 */
 extern void (*data_fd2_battle_spell_handler_table[28])(uint32, uint32, uint8 *); /* 0x51D01 */
 /* 10-entry summon-spell tick dispatch table. Each entry takes
