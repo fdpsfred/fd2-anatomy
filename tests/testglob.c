@@ -1033,7 +1033,6 @@ uint8  data_fd2_animation_spell_overlay_blink_mask_table[30] = {
 /* dialog page-advance collapse template — real FD2.LE value @ 0x51EE5
  * (two corner sprite-index selectors, replicated to 16 bytes) */
 int32  data_fd2_dialog_advance_collapse_template[4] = { 0x10, 0x11, 0x10, 0x11 };
-uint32 data_fd2_chapter_intro_dialog_anim_frame_idx = 0;
 /* chapter-intro metadata entry pointer (real data @ 0x54137). Restored by
  * fd2_load_state_from_selected_slot via fd2_get_chapter_intro_metadata_entry;
  * its load test asserts against the real accessor's return. */

@@ -2024,8 +2024,8 @@
       "fd2_wait_input_with_chapter_dialog_blink"
     ],
     "note": "multi-writer:field/chtrans.c,input/input.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_menu_candidate_array_ptr": {

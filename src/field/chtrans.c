@@ -612,3 +612,17 @@ uint32 data_fd2_battle_tile_map_ptr;
  * integer slot to match the dword loads/stores in the menu loop.
  * ---------------------------------------------------------------- */
 uint32 data_fd2_chapter_intro_menu_cursor_state;
+
+/* ----------------------------------------------------------------
+ * Data symbol owned by this module (.object2 @ 0x54133)
+ *
+ * data_fd2_chapter_intro_dialog_anim_frame_idx -- chapter-intro dialog
+ * blink/idle animation frame index, wrapped 0..3. Zero at program start
+ * (BSS). Advanced once every few BIOS ticks while the intro panel waits
+ * for input (and re-seeded to 2 at the top of the dialog-blink wait
+ * loop), wrapping back to 0 after frame 3; read by the intro-overlay /
+ * dialog-panel renderers to pick the current blink frame. Held in a
+ * 32-bit integer slot to match the dword INC/CMP/MOV accesses at the
+ * use sites.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_chapter_intro_dialog_anim_frame_idx;
