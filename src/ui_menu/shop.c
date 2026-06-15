@@ -801,3 +801,17 @@ void fd2_run_give_item_menu(void)
         fd2_recalculate_combat_stats(source);
     }
 }
+
+/* ----------------------------------------------------------------
+ * data_fd2_dialog_last_action_sprite_id_param @ 0x53AD9  (.object2, uint32)
+ *
+ * Transient dialog-VM parameter: the FDTXT page/text index used by the
+ * dialog interpreter (fd2_display_dialog_scene @ 0x16067) when it hits the
+ * -4 RECURSIVE opcode (it loads this and re-enters itself with it as the
+ * page_idx). Writers across the shop / give / promote / revive / battle-drop
+ * / tile-event paths set it (typically item_id+0xB5, portrait_id+1, or
+ * char_id+1) immediately before invoking the dialog scene, so first access
+ * on every code path is a write -- the binary image is statically zero, so
+ * this is a zero-initialized (BSS) scalar, not a constant table.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_dialog_last_action_sprite_id_param;

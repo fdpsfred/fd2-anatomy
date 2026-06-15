@@ -969,8 +969,8 @@
       "fd2_run_buy_item_menu"
     ],
     "note": "multi-writer:battle/btl_turn.c,field/chevt2.c,ui_menu/menufld.c,ui_menu/promote.c,ui_menu/shop.c,util/misc.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_drop_swap_text_id_param": {
