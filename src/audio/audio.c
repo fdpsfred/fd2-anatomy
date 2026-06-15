@@ -271,3 +271,14 @@ uint32 fd2_load_figani_sfx_bank(uint32 figani_data)
  * (unsigned 8-bit). Static initial value 0xFF marks "no track set
  * yet" (the stop sentinel, since 0xFFFFFFFF requests fade-out). */
 uint8 data_fd2_audio_bgm_last_set_track_id = 0xFF;
+
+/* data_fd2_audio_status_effect_sfx_handle_ptr @ 0x53B13
+ *
+ * Runtime-loaded pointer to the status-effect / spell SFX sample bank
+ * (an FDOTHER.DAT entry buffer). Zero in the image; first use is a
+ * write. fd2_load_status_effect_sfx and fd2_chapter_25_init clear it to
+ * 0 then store the fd2_load_dat_resource() return pointer; many spell /
+ * battle SFX readers pass it as the sample-bank base to
+ * fd2_play_sfx_with_handle, and fd2_play_and_free_status_effect_sfx
+ * free()s it. Accessed as a single 32-bit value (MOV dword ptr). */
+uint32 data_fd2_audio_status_effect_sfx_handle_ptr;

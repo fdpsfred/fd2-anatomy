@@ -1116,8 +1116,8 @@
       "fd2_chapter_25_init"
     ],
     "note": "multi-writer:audio/audio.c,field/chinit.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_resource_portrait_cache_id_list_base": {

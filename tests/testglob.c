@@ -92,7 +92,6 @@ uint32 data_fd2_chapter_event_or_battle_end_code = 0;
 uint32 data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
 uint32 data_fd2_battle_teleport_dest_world_x = 0;
 uint32 data_fd2_battle_teleport_dest_world_y = 0;
-uint32 data_fd2_audio_status_effect_sfx_handle_ptr = 0;
 uint32 data_fd2_audio_figani_sfx_bank_buf_ptr = 0;
 uint32 data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = 0;
 uint32 data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = 0;
