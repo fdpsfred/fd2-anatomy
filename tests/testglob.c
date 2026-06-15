@@ -427,7 +427,6 @@ uint32 data_fd2_dialog_portrait_blink_frame_idx = 0;
 uint32 data_fd2_dialog_portrait_blink_subtick_counter = 0;
 uint32 data_fd2_dialog_active_portrait_blit_offset = 0;
 void  *data_fd2_dialog_area_backup_buffer = 0;
-uint32 data_fd2_dialog_current_speaker_char_ptr = 0;
 uint32 data_fd2_large_game_state_buffer_ptr = 0;
 uint32 data_fd2_graphics_chapter_walk_anim_alt_palette_idx = 0;
 uint32 data_fd2_graphics_chapter_ambient_palette_anim_idx = 0;

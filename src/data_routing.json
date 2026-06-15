@@ -3040,8 +3040,8 @@
       "fd2_find_char_by_id_or_template"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_bgm_sequence_data_buf_ptr": {

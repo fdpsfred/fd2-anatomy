@@ -975,3 +975,18 @@ void fd2_kill_runtime_chars_from_index_to_end(uint32 start_char_idx)
  * ui_menu/menufld.c, ui_menu/promote.c, ui_menu/shop.c (multi-writer).
  * ---------------------------------------------------------------- */
 uint32 data_fd2_dialog_last_action_value_param = 0;
+
+/* ----------------------------------------------------------------
+ * data_fd2_dialog_current_speaker_char_ptr @ 0x53C1B (.object2, 4 bytes)
+ *
+ * Cached pointer to the dialog speaker's character record, used to fetch
+ * the portrait/name when the dialog VM loads an ally sprite. Written by
+ * fd2_find_char_by_id_or_template: cleared to NULL at entry, then set to
+ * either a runtime_char* (alive/dead battle slot whose bChar_id matched)
+ * or a menu-roster template* (battle miss, found in the menu party).
+ * Read by fd2_display_dialog_scene (opcodes -0x13/-0x14 ally portrait):
+ * dereferenced as runtime_char* to read ->bPortrait_id and ->bPos_x/y.
+ * Always cleared before first use each call, so the binary stores it
+ * zero-init (NULL). Home owner: btl_turn.c (alongside the writer).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_dialog_current_speaker_char_ptr = 0;
