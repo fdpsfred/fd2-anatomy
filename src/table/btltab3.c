@@ -35,3 +35,19 @@ int32 data_fd2_battle_summon_anim_variant_a_6slot_color_idx_array[6];
  * write (INIT) -> zero-bss (runtime-initialized, all-zero static storage).
  */
 uint8 data_fd2_battle_summon_anim_variant_a_6slot_jitter_byte_array[6];
+
+/* ----------------------------------------------------------------
+ * data_fd2_battle_summon_anim_variant_b_6slot_frame_counter_array @ 0x5401C  (24 bytes)
+ *
+ * Per-slot frame counter (one int32 per slot, 6 slots) for the variant-B 6-slot
+ * summon-spell animation state machine (fd2_tick_summon_anim_variant_b_6slot).
+ * Written by that function: INIT seeds slot i with -2*i (so 0,-2,-4,..,-10); the
+ * TICK states (2/5/8) increment it, wrap it to 0 at frame 7, and gate blitting on
+ * "0 <= counter < 6". Signed values arise (negative seed and signed "< 0" test),
+ * so elements are signed int32. Accessed via DWORD moves "[idx*4 + 0x5401C]"
+ * (writes 0x26C71 / 0x26D7B, read-modify-write 0x26D22, signed compares 0x26D29 /
+ * 0x26D3F / 0x26DB9 / 0x26DC2 / 0x26E02), confirming int32 elements with stride 4
+ * across a 6-iteration loop (CMP ...,6; JL/JGE). First access is a write (INIT)
+ * -> zero-bss (runtime-initialized, all-zero static storage).
+ */
+int32 data_fd2_battle_summon_anim_variant_b_6slot_frame_counter_array[6];
