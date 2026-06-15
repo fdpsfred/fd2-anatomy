@@ -1093,3 +1093,14 @@ void fd2_render_battle_scene_with_portrait_grid_layout(
     memmove((void *)0xa0000, dst, 64000);
     free(dst);
 }
+
+/* ----------------------------------------------------------------
+ * Module data definitions (owned by this translation unit)
+ * ---------------------------------------------------------------- */
+
+/* @ 0x54153  Sub-frame animation counter for the chapter-intro dialog
+ * panels. Advanced by fd2_render_chapter_intro_dialog_panels on every
+ * odd master frame_idx, wrapping 0->1->2->3->0 (reset at 4). Read by
+ * the dialog/roster renderers to pick the portrait animation phase.
+ * Zero-initialized; first runtime use is the increment/reset path. */
+uint32 data_fd2_chapter_intro_dialog_subframe_anim_counter;

@@ -1024,7 +1024,6 @@ uint8  data_fd2_animation_spell_overlay_blink_mask_table[30] = {
 /* dialog page-advance collapse template — real FD2.LE value @ 0x51EE5
  * (two corner sprite-index selectors, replicated to 16 bytes) */
 int32  data_fd2_dialog_advance_collapse_template[4] = { 0x10, 0x11, 0x10, 0x11 };
-uint32 data_fd2_chapter_intro_dialog_subframe_anim_counter = 0;
 uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
 uint8 *data_fd2_ui_menu_candidate_array_ptr = 0;
 /* chapter-intro overlay (rndmenu.c) globals */

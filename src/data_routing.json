@@ -2080,8 +2080,8 @@
       "fd2_render_chapter_intro_dialog_panels"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_pathfind_map_width": {
