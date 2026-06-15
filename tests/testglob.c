@@ -99,10 +99,6 @@ uint32 data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
 uint32 data_fd2_battle_teleport_dest_world_x = 0;
 uint32 data_fd2_battle_teleport_dest_world_y = 0;
 uint32 data_fd2_audio_status_effect_sfx_handle_ptr = 0;
-uint32 data_fd2_audio_figani_sfx_bank_buf_ptr = 0;
-uint32 data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = 0;
-uint32 data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = 0;
-uint32 data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = 0;
 /* real values from FD2.LE @ 0x52549 (per-sub-frame hit-shake X-offset cache) */
 uint8  data_fd2_battle_special_attack_shake_x_offset_table[6] =
     { 0, 4, 9, 14, 18, 14 };
@@ -124,9 +120,6 @@ uint32 data_fd2_resource_portrait_cache_alloc_offset = 0;
 uint32 data_fd2_resource_portrait_cache_buffer_used = 0;
 uint8  data_fd2_resource_portrait_cache_id_list_base[40] = {0};
 uint32 data_fd2_battle_current_active_char_idx = 0;
-/* 0x540FF: scripted-cinematic mode / terrain idx. First compiled reader/writer
- * is fd2_play_game_ending_cinematic (sets it per credit-roll duel). */
-uint32 data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = 0;
 uint8  data_fd2_ui_click_debounce_skip_count = 0;
 uint8  data_fd2_audio_bgm_last_set_track_id = 0xFF;
 uint8  data_fd2_audio_bgm_enabled_flag = 1;
@@ -412,15 +405,6 @@ void fd2_play_variant_b_slide_pre_effect(int a, int b) { }
  * stubs were removed. */
 uint16 data_fd2_animation_palette_cycle_last_tick = 0;
 uint8  data_fd2_animation_palette_cycle_frame_idx = 0;
-/* FIGANI cinematic backdrop / SFX-bank pointers (data segment @ 0x54107 /
- * 0x54117). Written + read by fd2_play_figani_char_intro_animation
- * (src/anim/anicine.c); zero-init writable BSS-style globals. */
-uint32 data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr = 0;
-/* Full-combat-cinematic state (data segment @ 0x540FF / 0x54103 / 0x54113 /
- * 0x5411B). Written + read by fd2_play_full_combat_cinematic
- * (src/anim/anicine.c); zero-init writable globals. */
-uint32 data_fd2_battle_combat_cinematic_split_bg_b_buf_ptr = 0;
-uint32 data_fd2_audio_figani_sfx_bank_defender_buf_ptr = 0;
 /* fd2_restore_portrait_cache_from_tmp: slated for src/rsrc/rsrc.c (not yet
  * emitted). The non-scripted cleanup path of fd2_play_full_combat_cinematic
  * reaches it, but the anicine.c unit tests exercise only the scripted path
@@ -1834,8 +1818,6 @@ int g_cast_status_via_d1b_calls = 0;
 uint8 data_fd2_audio_walk_step_sfx_cadence_counter = 0;
 uint8 data_fd2_battle_summon_minor_anim_state5_frame_counter = 0;
 uint8 data_fd2_battle_summon_minor_anim_alternating_blit_toggle = 0;
-uint8 data_fd2_graphics_figani_pose_anim_subframe_idx = 0;
-uint8 data_fd2_graphics_figani_pose_anim_pose_idx = 0;
 uint32 data_fd2_audio_summon_spell_sfx_bank_buf_ptr = 0;
 int32  data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[15] = {0};
 uint8  data_fd2_battle_summon_spell_8slot_visibility_table[7] = {0};

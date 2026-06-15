@@ -2330,7 +2330,7 @@ static void test_chapter_11_end_increments_not_absolute(void)
  * delta), and chapter_id := prev+1 (a relative increment, not absolute).
  * ================================================================ */
 
-extern uint8 data_fd2_chapter_ch12_end_scene_char_pos_x_table[14];
+extern const uint8 data_fd2_chapter_ch12_end_scene_char_pos_x_table[14];
 extern uint8 data_fd2_chapter_ch12_end_scene_char_pos_y_table[14];
 extern uint8 data_fd2_chapter_ch12_end_scene_char_facing_table[14];
 

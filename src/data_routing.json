@@ -1840,8 +1840,8 @@
       "fd2_play_game_ending_cinematic"
     ],
     "note": "multi-writer:anim/anicine.c,anim/aniend.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr": {
@@ -1858,8 +1858,8 @@
       "fd2_play_full_combat_cinematic"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr": {
@@ -1877,8 +1877,8 @@
       "fd2_play_spell_cast_cinematic"
     ],
     "note": "multi-writer:anim/anicine.c,anim/anispell.c,spell/spellcin.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr": {
@@ -1896,8 +1896,8 @@
       "fd2_play_spell_cast_cinematic"
     ],
     "note": "multi-writer:anim/anicine.c,anim/anispell.c,spell/spellcin.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr": {
@@ -1915,8 +1915,8 @@
       "fd2_play_spell_cast_cinematic"
     ],
     "note": "multi-writer:anim/anicine.c,anim/anispell.c,spell/spellcin.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_figani_sfx_bank_buf_ptr": {
@@ -1934,8 +1934,8 @@
       "fd2_execute_special_attack_skill"
     ],
     "note": "multi-writer:anim/anicine.c,spell/spellcin.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_summon_spell_sfx_bank_buf_ptr": {
@@ -3162,8 +3162,8 @@
       "fd2_step_figani_pose_animation"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_combat_cinematic_split_bg_b_buf_ptr": {
@@ -3179,8 +3179,8 @@
       "fd2_play_full_combat_cinematic"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_intro_active_metadata_entry_ptr": {
@@ -3439,8 +3439,8 @@
       "fd2_play_full_combat_cinematic"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_menu_dialog_state_handle": {
@@ -3527,8 +3527,8 @@
       "fd2_step_figani_pose_animation"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_palette_cycle_rgb_table": {
