@@ -1455,8 +1455,8 @@ static void test_chapter_07_end_flag_clear_short_circuits(void)
 
 extern uint32 g_setup_intro_facing_arg;
 
-extern uint8 data_fd2_chapter_ch08_end_scene_char_pos_x_table[10];
-extern uint8 data_fd2_chapter_ch08_end_scene_char_pos_y_table[10];
+extern const uint8 data_fd2_chapter_ch08_end_scene_char_pos_x_table[10];
+extern const uint8 data_fd2_chapter_ch08_end_scene_char_pos_y_table[10];
 
 static uint8  g_ce8_roster[8 * 0x50];
 static int16  g_ce8_text[16];
