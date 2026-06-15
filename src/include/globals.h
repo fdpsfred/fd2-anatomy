@@ -552,7 +552,7 @@ extern uint8  data_fd2_battle_job_allowed_items_table[27 * 7];                 /
 
 /* ---- .object3 pointer tables ---- */
 extern void  *data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21[21]; /* 0x61955 */
-extern void  *data_fd2_chapter_cutscene_event_script_ptr_table_106[106];   /* 0x627D8 */
+extern const uint8 *data_fd2_chapter_cutscene_event_script_ptr_table_106[106];   /* 0x627D8 */
 
 /* ---- .object3 additional tables ---- */
 extern const uint8 data_fd2_chapter_intro_metadata_table[26 * 31];      /* 0x6238D  31B per ch */
