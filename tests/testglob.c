@@ -271,8 +271,8 @@ uint8 data_fd2_chapter_ending_credit_roll_scripted_outcome_table[20] = {
  * and places chars 0..0xA at those tiles. X/Y are battle-tile coords; chapter
  * 10 has no facing table (the handler writes the inline fixed facing value 2
  * into sprite_state[1] for every placed char). */
-uint8 data_fd2_chapter_ch10_end_scene_char_pos_x_table[11] =
-    { 14, 15, 16, 13, 14, 15, 16, 17, 14, 15, 16 };
+/* data_fd2_chapter_ch10_end_scene_char_pos_x_table now has its real const
+ * definition in src/table/chtab.c (emitted), so no stand-in here. */
 uint8 data_fd2_chapter_ch10_end_scene_char_pos_y_table[11] =
     { 38, 39, 38, 38, 39, 38, 39, 39, 40, 40, 40 };
 /* Chapter 12 end scene char placement tables (data segment @ 0x52129 /

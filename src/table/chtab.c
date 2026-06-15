@@ -449,3 +449,28 @@ const uint8 data_fd2_chapter_ch08_end_scene_char_pos_x_table[10] = {
 const uint8 data_fd2_chapter_ch08_end_scene_char_pos_y_table[10] = {
     20, 20, 20, 19, 19, 18, 19, 18, 19, 18
 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_chapter_ch10_end_scene_char_pos_x_table @ 0x52113  (11 entries, uint8)
+ *
+ * Chapter 10 end-scene character placement: per-character battle-tile X
+ * coordinate for the 11 characters staged at the end of chapter 10
+ * (洞窟中的激戰). First of two parallel 11-byte tables (X @ 0x52113,
+ * Y @ 0x5211E). Sprite facing is an inline fixed value (2) written into
+ * pSprite_state[1] for every placed char in the caller, so there is no
+ * facing table. Read-only const table in .object2.
+ *
+ * Caller (fd2_chapter_10_end @ 0x235F9):
+ *     local_24[0] = data_fd2_chapter_ch10_end_scene_char_pos_x_table[0];
+ *     ... (indices 0..10 copied one byte at a time onto an on-stack block)
+ *     local_24[10] = data_fd2_chapter_ch10_end_scene_char_pos_x_table[10];
+ *     for (i = 0; i < 0xb; i++)
+ *         runtime_char[i].bPos_x = local_24[i];   // single-byte field
+ * => each entry is consumed one byte at a time and stored into the byte
+ *    field runtime_char.bPos_x. No struct stride, no wider element access,
+ *    no sign extension. Values are small tile coords (13..17).
+ * => element type: uint8, 11 entries, read-only (single READ xref, no writer).
+ * ---------------------------------------------------------------- */
+const uint8 data_fd2_chapter_ch10_end_scene_char_pos_x_table[11] = {
+    14, 15, 16, 13, 14, 15, 16, 17, 14, 15, 16
+};

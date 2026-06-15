@@ -104,7 +104,7 @@ extern const uint8 data_fd2_chapter_ch08_end_scene_char_pos_y_table[10];   /* 0x
 
 /* ---- chapter 10 end scene char placement tables (.object2 const;
  *      facing is an inline fixed value (2), so there is no facing table) ---- */
-extern uint8  data_fd2_chapter_ch10_end_scene_char_pos_x_table[11];     /* 0x52113  11 chars X */
+extern const uint8 data_fd2_chapter_ch10_end_scene_char_pos_x_table[11]; /* 0x52113  11 chars X */
 extern uint8  data_fd2_chapter_ch10_end_scene_char_pos_y_table[11];     /* 0x5211E  11 chars Y */
 
 /* ---- chapter 12 end scene char placement tables (.object2 const) ---- */
