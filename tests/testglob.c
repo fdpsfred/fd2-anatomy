@@ -144,7 +144,6 @@ uint32 data_fd2_battle_map_width_tiles = 20;
 uint32 data_fd2_battle_map_height_tiles = 15;
 uint8  data_fd2_chapter_init_phase_flag = 0;
 uint8  data_fd2_input_last_key_pressed = 0;
-uint8  data_fd2_input_key_input_mode = 0;
 uint32 data_ail_alloc_fnptr = 0;
 uint32 data_ail_free_fnptr = 0;
 void fd2_execute_offensive_targeted_spell(int a, int b, int c, int d) { }

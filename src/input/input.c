@@ -719,3 +719,23 @@ uint32 data_fd2_engine_wait_one_bios_tick_last_seen;
  * Only read/written by fd2_wait_n_bios_ticks.
  * Zero-initialized in BSS; first touched by a runtime write. */
 uint32 data_fd2_engine_wait_n_bios_ticks_last_seen;
+
+/* data_fd2_input_key_input_mode @ 0x53A8E  (zero-bss)
+ *
+ * Last-key scancode / input mode byte. Every input-wait routine first writes
+ * 0x10 here (cursor-mode preset), then calls
+ *   int386(0x16, (union REGS *)&data_fd2_input_last_key_pressed,
+ *                (union REGS *)&data_fd2_input_last_key_pressed);
+ * INT 16h "read key" returns AH=scancode / AL=ASCII in AX; this byte aliases
+ * the AH field of that REGS union (it sits at &data_fd2_input_last_key_pressed
+ * + 1), so the INT 16h call fills it with the received scancode. The routine
+ * then remaps special scancodes (0xE0 / 'R' 0x52 -> 0x1C Enter; 'S' 0x53 ->
+ * 0x01 Esc) and returns this byte. Accessed only as a single byte (asm:
+ * MOV byte ptr [0x53A8E],imm8 / MOVZX EAX,byte ptr [0x53A8E]).
+ *
+ * Layout dependency: this byte must be placed at
+ * data_fd2_input_last_key_pressed + 1 for the INT 16h AH result to land here
+ * (vendor union-REGS overlap); data_fd2_input_last_key_pressed (home
+ * life/main.c) owns the REGS-union base.
+ * Zero-initialized in BSS; first touched by a runtime write. */
+uint8 data_fd2_input_key_input_mode;
