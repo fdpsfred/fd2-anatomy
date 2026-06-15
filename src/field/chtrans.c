@@ -643,3 +643,18 @@ uint32 data_fd2_chapter_intro_dialog_anim_frame_idx;
  * pointer at the use sites (the entry is then read via *(uint8 *)(ptr+N)).
  * ---------------------------------------------------------------- */
 uint32 data_fd2_chapter_intro_active_metadata_entry_ptr;
+
+/* ----------------------------------------------------------------
+ * Data symbol owned by this module (.object2 @ 0x5413B)
+ *
+ * data_fd2_chapter_intro_menu_overlay_buf_ptr -- heap pointer to the
+ * chapter-intro menu overlay sprite buffer (FDOTHER.DAT entry 10). Zero
+ * (NULL) at program start (BSS); set to 0 then assigned the malloc'd
+ * resource buffer at the top of the story-chapter intro branch in
+ * fd2_chapter_transition_menu (= fd2_load_dat_resource("FDOTHER.DAT", 10)),
+ * read by fd2_render_chapter_intro_overlay as the panel sprite source for
+ * fd2_dialog_sprite_blit_normal, and free'd when the intro loop ends. Held
+ * in a 32-bit integer slot to match the dword load/store of the pointer at
+ * the use sites (the buffer is then cast to void * for free / blit).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_chapter_intro_menu_overlay_buf_ptr;

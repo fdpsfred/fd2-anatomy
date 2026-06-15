@@ -3366,8 +3366,8 @@
       "fd2_chapter_transition_menu"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_menu_visible_item_count": {

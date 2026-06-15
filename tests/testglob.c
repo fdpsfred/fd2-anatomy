@@ -1037,7 +1037,6 @@ uint32 data_fd2_chapter_intro_dialog_subframe_anim_counter = 0;
 uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = 0;
 uint8 *data_fd2_ui_menu_candidate_array_ptr = 0;
 /* chapter-intro overlay (rndmenu.c) globals */
-uint32 data_fd2_chapter_intro_menu_overlay_buf_ptr = 0;
 uint8  data_fd2_chapter_intro_portrait_pose_y_row_table[18] = {0};
 uint8  data_fd2_chapter_intro_portrait_pose_x_column_table[18] = {0};
 /* chapter-intro menu globals + heavy-callee stubs for fd2_run_chapter_intro_menu_main
