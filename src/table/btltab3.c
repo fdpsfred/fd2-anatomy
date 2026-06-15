@@ -421,3 +421,60 @@ const uint8 data_fd2_battle_class_promotion_data_table[72] = {
     0x12, 0x00,  /* 34  0x42  0x12 RuneWarrior   -  (alt-path only) */
     0x17, 0x01   /* 35  0x43  0x17 Ninja         1  (alt-path only) */
 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_battle_movement_cost_table @ 0x61646  (580 bytes, .object3)
+ *
+ * Per-job movement-cost table: 29 rows x 20 bytes (uint8). Row r is the
+ * cost vector for job r, indexed by tile-attribute class (0..19).
+ * Accessor fd2_get_movement_cost_table_for_job @ 0x4E555 returns
+ * &table[job_id*0x14]; job_id range is 0..0x1A (27 logical jobs, rows
+ * 0..26). The physical symbol allocates 29 rows (580 bytes) ending
+ * exactly at 0x6188A where data_fd2_battle_job_allowed_items_table
+ * begins; rows 27..28 are reserved/extra slots past the accessor range.
+ *
+ * Element type and stride are proven by the consumer
+ * fd2_flood_fill_neighbor_step @ 0x4E16E: "SUB CL, byte ptr [ESI+EAX*1]"
+ * subtracts cost_table[tile_attr] (single-byte read, stride 1) from the
+ * residual movement budget. Value meaning: 1 = normal step, 2..3 =
+ * costlier terrain, 20 (0x14) = effectively impassable (drains budget).
+ * Read-only const (no writers).
+ *
+ * Readers (the row pointer is forwarded into floodfill/pathfind):
+ * fd2_player_action_menu_loop @ 0x18890, fd2_wait_for_action_target_input
+ * @ 0x115B6, fd2_ai_score_physical_attack @ 0x14237,
+ * fd2_ai_score_item_use @ 0x1567E, fd2_ai_score_offensive_spell @ 0x1598A,
+ * fd2_ai_seek_optimal_position @ 0x14121, fd2_ai_walk_to_target_tile
+ * @ 0x14B78, fd2_compute_aoe_targets @ 0x14818.
+ */
+const uint8 data_fd2_battle_movement_cost_table[580] = {
+     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job  0 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job  1 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job  2 */
+     1,20, 2, 3, 3,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job  3 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job  4 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job  5 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job  6 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job  7 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job  8 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job  9 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job 10 */
+     1,20, 2, 3, 3,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job 11 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job 12 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job 13 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job 14 */
+     1, 1, 1, 1, 1,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job 15 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job 16 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job 17 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job 18 */
+     1, 1, 1, 1, 1,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job 19 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job 20 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job 21 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job 22 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job 23 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job 24 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job 25 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job 26 */
+     1,20, 1, 2, 2,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  /* job 27 */
+    20,20,20,20, 1,20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1  /* job 28 */
+};

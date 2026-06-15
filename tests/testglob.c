@@ -32,7 +32,6 @@ character_base    data_fd2_battle_character_base_table[32];
 character_growth  data_fd2_battle_character_growth_table[68];
 uint8  data_fd2_chapter_intro_metadata_table[26 * 31];
 uint8  data_fd2_battle_spell_learning_table[20 * 12];
-uint8  data_fd2_battle_movement_cost_table[27 * 20];
 uint8  data_fd2_orphan_table_60181[99 * 3];
 uint8  data_fd2_battle_job_allowed_items_table[27 * 7];
 void  *data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21[21];

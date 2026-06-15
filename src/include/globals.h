@@ -547,7 +547,7 @@ extern uint8  data_fd2_battle_pathfind_best_path_length;                 /* 0x60
 extern uint8  data_fd2_battle_pathfind_step_stack[256];                  /* 0x60079 scratch recursion step-stack, 8B(path)/7B(floodfill) frames */
 extern uint8  data_fd2_battle_pathfind_mode_flags;                       /* 0x6017A  0/1/2 tiebreak/dst-record mode */
 extern const uint8 data_fd2_battle_class_promotion_data_table[72];             /* 0x615FE  2B per entry */
-extern uint8  data_fd2_battle_movement_cost_table[];                           /* 0x61646  20B per job */
+extern const uint8 data_fd2_battle_movement_cost_table[580];                   /* 0x61646  20B per job, 29 rows */
 extern uint8  data_fd2_battle_job_allowed_items_table[27 * 7];                 /* 0x6188A  7B per job, 27 jobs */
 
 /* ---- .object3 pointer tables ---- */
