@@ -1526,8 +1526,8 @@
       "fd2_item_command_menu_dispatch"
     ],
     "note": "multi-writer:ui_menu/menu.c,ui_menu/status.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_menu_cursor_idx": {

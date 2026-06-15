@@ -648,3 +648,16 @@ uint32 data_fd2_battle_ai_post_action_consequence_idx = 0xFF;
  * used as an unsigned index into data_fd2_battle_runtime_char_array_ptr.
  */
 uint32 data_fd2_battle_current_active_char_idx;
+
+/*
+ * data_fd2_battle_player_action_result_code @ 0x53C53 (.object2), 4 bytes.
+ * Player-turn action outcome flag, a runtime battle-state scalar that is
+ * zero-initialized in the image (all bytes 0). The engine always writes it
+ * before reading: fd2_player_action_menu_loop stores 0 at its entry
+ * (MOV dword ptr [0x53C53],0x0), then later returns it as the function's
+ * int result; fd2_item_command_menu_dispatch stores 1 on a committed GIVE.
+ * Read back as a full dword (MOV EAX,dword ptr [0x53C53]) and compared
+ * against 0 (CMP dword ptr [0x53C53],0x0) on several re-prompt paths.
+ * 0 = "cancelled / no commit, re-prompt"; non-zero = "action committed".
+ */
+uint32 data_fd2_battle_player_action_result_code;
