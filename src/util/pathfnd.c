@@ -572,3 +572,17 @@ uint8 data_fd2_battle_pathfind_map_width;
  * pathfind orchestrators.
  */
 uint8 data_fd2_battle_pathfind_map_height;
+
+/*
+ * caller-supplied secondary cost-table base / caller context @ 0x6006A.
+ * Both orchestrators write the full 32-bit value at entry as the FIRST store
+ * of the pathfind setup (MOV ESI,[EBP+8]; MOV dword ptr [0x6006A],ESI at
+ * 0x4E047 and 0x4E1AD). In the original binary the recursion leaves inherit
+ * that value through the live ESI register, so Ghidra records only the two
+ * writes and no direct memory reads; the leaf helpers
+ * fd2_flood_fill_neighbor_step / fd2_pathfind_neighbor_step_with_tiebreak read
+ * it back here as the secondary cost-table base:
+ * tile_cost = *(uint8 *)(ctx + cost_idx). Stored 32-bit (used as an address);
+ * zero at load, set at runtime by both pathfind orchestrators.
+ */
+uint32 data_fd2_battle_pathfind_caller_context;
