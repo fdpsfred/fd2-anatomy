@@ -1387,8 +1387,8 @@
       "fd2_ai_score_item_use"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_ai_best_item_target_x": {

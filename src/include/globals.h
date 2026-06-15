@@ -168,7 +168,7 @@ extern int32 data_fd2_battle_ai_best_spell_score;                       /* 0x53C
 extern uint32 data_fd2_battle_ai_best_spell_target_x;                   /* 0x53C27 */
 extern uint32 data_fd2_battle_ai_best_spell_target_y;                   /* 0x53C2B */
 extern uint32 data_fd2_battle_ai_best_spell_id;                         /* 0x53C2F */
-extern uint32 data_fd2_battle_ai_best_item_score;                       /* 0x53C33 */
+extern int32 data_fd2_battle_ai_best_item_score;                        /* 0x53C33 */
 extern uint32 data_fd2_battle_ai_best_item_target_x;                    /* 0x53C37 */
 extern uint32 data_fd2_battle_ai_best_item_target_y;                    /* 0x53C3B */
 extern uint32 data_fd2_battle_ai_best_item_slot;                        /* 0x53C3F */

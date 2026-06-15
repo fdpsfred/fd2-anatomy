@@ -581,3 +581,17 @@ uint32 data_fd2_battle_ai_best_spell_target_y;
 /* 0x53C2F: chosen offensive-spell id (zero-extended spell id 0x00-0x23; full dword store @0x15B12;
             readers compare signed against 0xB/10 and index the spell handler table) */
 uint32 data_fd2_battle_ai_best_spell_id;
+
+/* ----------------------------------------------------------------
+ * Battle AI scratch state for offensive ITEM use (zero-initialized BSS scalars).
+ * fd2_ai_score_item_use @ 0x1568F resets the score to 0 at the start of each
+ * evaluation pass, then keeps the best item candidate. Read by attack/turn
+ * dispatchers (compared signed against the spell/physical scores and 0x6).
+ * ---------------------------------------------------------------- */
+
+/* 0x53C33: best item candidate score (signed max accumulator).
+            Writer @0x1568F (init 0) and @0x15808 (store best); attack dispatch
+            @0x14F74.. compares it as a full signed dword against 0x6 and the
+            sibling spell/physical scores. Item-use analogue of
+            data_fd2_battle_ai_best_spell_score @0x53C23. */
+int32 data_fd2_battle_ai_best_item_score;
