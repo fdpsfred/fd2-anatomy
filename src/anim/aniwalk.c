@@ -723,3 +723,21 @@ uint32 data_fd2_battle_compose_walk_step_y_sub_pixel_offset;
  * left-scroll path.
  * ---------------------------------------------------------------- */
 int data_fd2_battle_walk_anim_x_scroll_offset;
+
+/* ----------------------------------------------------------------
+ * Walk-step vertical (Y) parallax scroll row counter @ 0x53B0B  (.object2, zero-init)
+ *
+ * Cumulative row-scroll counter for the smooth walk-step slide, the Y/row
+ * counterpart of data_fd2_battle_walk_anim_x_scroll_offset.
+ * fd2_walk_step_down clears it to 0 before the slide loop and adds the
+ * per-frame window-scroll flag (0 / +1) into it each of the 6 slide frames;
+ * fd2_walk_step_up seeds it to 6 and adds the per-frame delta (-1 / 0) each
+ * frame. Both clear it to 0 after the step completes, so the static image is
+ * zero.
+ * Read by fd2_composite_battle_tile_map for the extra-wide parallax chapters
+ * (0x11/0x15/0x16/0x1B): the value is signed-divided by 3 (asm uses the
+ * MOV/SAR EDX,0x1f + IDIV signed-divide idiom), multiplied by the row stride,
+ * and added into the background source offset, so the stored value is a
+ * signed int. All accesses are dword (32-bit).
+ * ---------------------------------------------------------------- */
+int data_fd2_battle_walk_anim_y_scroll_rows;
