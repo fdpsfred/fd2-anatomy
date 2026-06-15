@@ -214,3 +214,15 @@ void fd2_pan_cursor_and_window(uint32 target_ox, uint32 target_oy)
         fd2_clear_keyboard_buffer();
     }
 }
+
+/* ----------------------------------------------------------------
+ * Battle viewport window origin X (tile column of left edge) @ 0x53AA9
+ *
+ * Runtime camera-scroll state, not a constant. Zero at load (BSS);
+ * first set by battle/chapter init + save-load, then incremented/
+ * decremented by the cursor-move and pan functions above as the
+ * viewport scrolls horizontally. uint32 matches the DWORD access
+ * width seen in the writers (INC/CMP dword ptr [0x53AA9]); range is a
+ * small non-negative tile column (0 .. map_width_tiles - 13).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_view_window_origin_x;
