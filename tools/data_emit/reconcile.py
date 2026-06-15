@@ -27,12 +27,13 @@ OUT  = os.path.join(ROOT, "workspace", "data_emit", "worklist.tsv")
 # contains the data_fd2_ name, and an array '[' or initializer/'=' on the line.
 DEF_RE = re.compile(
     r"^(?:const\s+)?[A-Za-z_][A-Za-z0-9_ ]*?\*?\s*"   # type (maybe trailing *)
-    r"(data_fd2_[A-Za-z0-9_]+)\s*(\[|=)"               # name then [ or =
+    r"(data_fd2_[A-Za-z0-9_]+)\s*(\[|=|;)"             # name then [ , = , or ; (tentative/bss def)
 )
-# function-pointer (array) definitions: `RET (*data_fd2_name[N])(params) = ...`
-# or the tentative-def `;` form. DEF_RE's leading-type pattern can't span `(*`.
+# function-pointer (array) definitions: `RET (*[const] data_fd2_name[N])(params) = ...`.
+# DEF_RE's leading-type pattern can't span `(*`. Allow an optional `const`
+# qualifier between the `*` and the name (e.g. `void (*const tbl[30])(void)`).
 FNPTR_RE = re.compile(
-    r"^[A-Za-z_][\w ]*\(\s*\*\s*(data_fd2_[A-Za-z0-9_]+)\s*[\[)]"
+    r"^[A-Za-z_][\w ]*\(\s*\*\s*(?:const\s+)?(data_fd2_[A-Za-z0-9_]+)\s*[\[)]"
 )
 
 def scan_defs(path):
@@ -42,6 +43,8 @@ def scan_defs(path):
         text = f.read()
     base = os.path.basename(path)
     for line in text.splitlines():
+        if line.startswith("extern"):       # declaration, not a definition
+            continue
         m = DEF_RE.match(line) or FNPTR_RE.match(line)
         if m:
             name = m.group(1)

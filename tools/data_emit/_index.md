@@ -67,11 +67,12 @@ python tools/data_emit/scout.py --stats        # reviewed 應收斂到 347
 - **g_ gate 陷阱**：`rename_data` / `rename_or_label` 對已定型 data（string / struct 型別）強制 `g_`
   前綴、拒 `data_fd2_`。**正解＝`run_script_inline` 跑 `symbol.setName("data_fd2_...", SourceType.USER_DEFINED)`
   （包 transaction、逐一）**，絕不可退讓去用 Ghidra 爛名。label 創建 / undefined-data rename 不受 gate 影響。
-- **全 data_fd2_ 帳目（563 = 28 real_in_src + 347 fake_in_testglob + 187 undefined + 1 sublabel）**：
-  `fake_in_testglob`（347，含 6 個 fn-ptr handler 表）= Phase 1 worklist（`home_map.tsv`）。`undefined`
-  187 個 = Ghidra 有、C 兩端皆無 file-scope 定義，**經神諭驗證後分三類**：(a) 106 個
-  `cutscene_event_script_NNN` —— 只經 cutscene ptr table 間接引用，隨「正確 emit 該 ptr table（具名目標）」
-  帶出；(b) 58 個 `data_fd2_string_*` —— **emit 端已是 inline 字面值、非缺口**（src 無具名引用）；
-  (c) ~23 個 graphics/battle state —— 隨尚未 emit 的函式（blit / cinematic，Phase 2）落地。
-- **scan_defs 須涵蓋 fn-ptr 陣列定義**（`RET (*data_fd2_name[N])(params)`）—— DEF_RE 的前導型別 pattern
-  跨不過 `(*`，需 `FNPTR_RE` 補抓，否則 testglob 的 handler 表會被誤判 undefined。
+- **全 data_fd2_ 帳目（563；即時跑 `reconcile.py`，勿抄）**：Phase 1 完工後 = real_in_src 376 /
+  undefined 186 / sublabel 1 / fake_in_testglob 0。186 undefined = Ghidra 有、C 無同名 file-scope 定義，
+  分三類：(a) 106 `cutscene_event_script_NNN` —— 資料已在 `chtab3.c` 的單一 pool `cutscene_event_script_data`
+  + offset 指標表落地，個別 label 非獨立符號（非缺口）；(b) 58 `data_fd2_string_*` —— inline 字面值 /
+  `strtab.c`（非缺口）；(c) 22 個 graphics/battle/spell anim state + `stat_buff_multiplier_115` const ——
+  隨 Phase 2 的 21 函式 emit 一起落地。**權威缺口以 src-only `fd2.lnk` 神諭的 undefined symbol 為準。**
+- **scan_defs 涵蓋三種定義形式並跳過 `extern` 宣告**：DEF_RE 抓 `[const] type name (= | [ | ;)`（`;`
+  即 bss tentative `type name;`）、FNPTR_RE 抓 `RET (*[const] name[N])(params)`（含 `(*const tbl[])` 派遣表）。
+  三者缺一會低報 real_in_src（bss tentative 與 const 派遣表會被誤判成 undefined）。

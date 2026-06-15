@@ -72,9 +72,9 @@ Phase 4 收斂 fd2.exe + 實機對照`。
 - **dp2 `data_fd2_chapter_intro_metadata_table`（chtab3.c，維持 const）**：被共享 fixture（`tests/gfx/rndmenu.c::intro_setup()`、`tests/save/save.c::scs_setup/teardown`）寫入 → chtab3.c build gate 為保綠對這兩個 fixture 做過處置（最終 build 綠）。**接手要 review dp2 該檔相關 commits 看它具體改了什麼**（可能 SKIP/註解 fixture 寫入），Phase 3 還原。
 - **dp1 `life/main.c` 自癒符號**：第一輪（commit `9691ff0`）finalizer 自補 16 個未經獨立 reviewer 的 def（4 init-data 已對 binary 驗、12 zero-bss 為 `T name;`），Phase 2.6 復驗一併過。
 
-### 帳目（即時重算，勿抄）
+### 帳目（即時重算：`python tools/data_emit/reconcile.py`，勿抄）
 
-各 worktree 分區內已 committed（= 該 worktree reviewed − 4 audtab）：dp1=106/108、dp2=83/84、dp3=79/79、dp4=69/72 → 合計 **337/343，leftover 6**。全 563 `data_fd2_` 帳目不變（28 real_in_src + 347 worklist + 187 undefined + 1 sublabel；187 undefined 分流：106 cutscene 隨 ptr table 帶出 + 58 string 已 inline + ~23 graphics/battle 隨 Phase 2）。fd2_ 函式缺口：composite + 21 await_emit（blit/pathfind）= Phase 2；vendor 60 + `__delay_thunk_375b2` = Phase 4。
+全 563 `data_fd2_` 符號（Ghidra 即時查證一致）post-merge 分流：**real_in_src 376**（已落地 src/ file-scope，含初值表 / bss tentative / `void (*const tbl[])()` 派遣表）、**undefined 186**、**sublabel 1**（`chapter_intro_menu_typeC_portrait_id`，母表帶出）、fake_in_testglob 0。186 undefined 拆解：**106 cutscene**（chtab3.c 已 emit 單一 pool `cutscene_event_script_data` + offset 指標表，資料已落地、非待辦）+ **58 string**（使用點 inline 字面值 / strtab.c，資料已落地）+ **22 真待落地**（21 blit/pathfind/spell anim state + `stat_buff_multiplier_115` const）→ 全部隨 Phase 2 的 21 函式 emit 一起落地。**權威缺口以 src-only `fd2.lnk` 神諭的 undefined symbol 為準（Phase 4）。** reconcile.py 正確計入 tentative/bss 定義與 const 函式指標表（DEF_RE 含 `;` 結尾、FNPTR_RE 含 `(*const tbl[])`）。fd2_ 函式缺口：composite + 21 await_emit（blit/pathfind）= Phase 2；vendor 60 + `__delay_thunk_375b2` = Phase 4。
 
 **Phase 4 連結注意**：`fd2.lnk` 需顯式 `library clib3s`；AIL lib（`workspace/ail_extract/out/{ailv3,fd2common}.lib`）要 stage 到穩定路徑（`build_test.py` 會清 `tests/OUT`）。
 
