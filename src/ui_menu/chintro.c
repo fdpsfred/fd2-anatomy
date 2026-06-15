@@ -809,3 +809,21 @@ uint32 data_fd2_ui_menu_cursor_idx;
  *   (load-time zeroed).
  * ---------------------------------------------------------------- */
 uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr;
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_menu_saved_cursor_idx @ 0x5414B (uint32, 4 bytes, zero-init)
+ *   Persisted shop-menu cursor index, the saved companion to the live
+ *   data_fd2_ui_menu_cursor_idx (0x53C57). fd2_run_buy_item_menu copies
+ *   it into the live cursor before each panel re-open and snapshots the
+ *   live cursor back into it after the input loop, so the highlight
+ *   survives across the open/select/close dialog round trips
+ *   (0x2F1B0: MOV EAX,[0x5414B]; MOV [0x53C57],EAX  and the reverse at
+ *   0x2F1E9). The saved index is then used to fetch the chosen item id
+ *   from the shop item-id array, e.g. 0x2F206:
+ *   MOV EAX,[0x5414B]; MOVZX EBX,byte ptr [EAX+EBP*1] -- accessed as a
+ *   full dword and treated as an unsigned offset into the byte array.
+ *   fd2_run_chapter_intro_menu_main resets it on menu entry
+ *   (0x2E4A1: MOV dword ptr [0x5414B],0x0). Never preset in the image,
+ *   so the linker places it in BSS (load-time zeroed).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_ui_menu_saved_cursor_idx;

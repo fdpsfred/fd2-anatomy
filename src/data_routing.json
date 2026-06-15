@@ -3404,8 +3404,8 @@
       "fd2_run_buy_item_menu"
     ],
     "note": "multi-writer:ui_menu/chintro.c,ui_menu/shop.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_menu_saved_scroll_offset": {
