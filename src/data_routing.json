@@ -3799,8 +3799,8 @@
     "home": "table/chtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch05_end_scene_char_facing_table": {

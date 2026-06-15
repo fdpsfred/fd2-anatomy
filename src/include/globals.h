@@ -89,7 +89,7 @@ extern const uint8 data_fd2_chapter_ch03_end_scene_char_facing_table[7];     /* 
 
 /* ---- chapter 5 end recruit-scene char placement tables (.object2 const) ---- */
 extern const uint8 data_fd2_chapter_ch05_end_scene_char_pos_x_table[7]; /* 0x520CF  7 chars X */
-extern uint8  data_fd2_chapter_ch05_end_scene_char_pos_y_table[7];      /* 0x520D6  7 chars Y */
+extern const uint8 data_fd2_chapter_ch05_end_scene_char_pos_y_table[7]; /* 0x520D6  7 chars Y */
 extern uint8  data_fd2_chapter_ch05_end_scene_char_facing_table[7];     /* 0x520DD  7 chars facing */
 
 /* ---- chapter 7 end recruit-scene char placement tables (.object2 const) ---- */
