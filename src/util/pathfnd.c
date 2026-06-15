@@ -539,3 +539,14 @@ void fd2_pathfind_check_destination_save_path(uint8 x, uint8 y)
  * Zero at load; set at runtime by both pathfind orchestrators.
  */
 uint32 data_fd2_battle_pathfind_tile_cost_table_ptr;
+
+/*
+ * battle tile map base pointer @ 0x60064.
+ * Holds the caller-supplied battle tile map base (passed as pTile_map, a
+ * byte * to the 4-byte-per-tile map). Both orchestrators write the full
+ * 32-bit pointer (MOV [0x60064],EAX) at entry, then read it back as the
+ * base for tile-address arithmetic (ADD EBX,dword ptr [0x60064]); map_width
+ * and map_height are read from [ptr+0] and [ptr+2]. Zero at load; set at
+ * runtime by both pathfind orchestrators.
+ */
+uint32 data_fd2_battle_pathfind_battle_tile_map_ptr;
