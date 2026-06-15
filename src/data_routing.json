@@ -2952,8 +2952,8 @@
       "fd2_maybe_load_speed_mode_overlay"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_resource_portrait_cache_alloc_offset": {

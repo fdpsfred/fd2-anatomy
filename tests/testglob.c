@@ -45,7 +45,6 @@ uint32 data_fd2_battle_job_magic_resist_table[27];
 uint8  data_fd2_battle_job_crit_rate_table[27];
 uint32 data_fd2_battle_turn_counter = 0;
 uint32 data_fd2_runtime_battle_state_ptr = 0;
-uint32 data_fd2_battle_fast_mode_walk_overlay_ptr = 0;
 uint32 data_fd2_menu_dialog_state_handle = 0;
 uint32 data_fd2_tile_anim_table_base = 0;
 uint32 data_fd2_chinese_font_sheet = 0;
