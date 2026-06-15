@@ -188,3 +188,21 @@ const int32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4] = { -39, -
  * family (e.g. data_fd2_ui_save_load_menu_state_template @ 0x53F22).
  */
 int32 data_fd2_ui_field_command_menu_state_template[4] = { 0, 0, 0, 0 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_game_options_menu_state_template @ 0x53F02  (16 bytes)
+ *
+ * Per-option enable/disable flag state for the game-options (settings) menu,
+ * paired with data_fd2_ui_game_options_menu_slots_template @ 0x51EAF.
+ * 4 x int32 entries, all 0 (= all four options BGM / SE / Speed / Other are
+ * always selectable). The sole reader fd2_game_options_menu_loop (@ 0x16FDD)
+ * copies all four 32-bit words into a local menu_state[16] buffer with a
+ * count-4 REP MOVSD (MOV ECX,4; MOV ESI,0x53F02; REP MOVSD -> 32-bit
+ * elements), then hands that buffer to fd2_open_settings_dialog_with_slide /
+ * fd2_settings_menu_input_step, which read the per-option flags on the local
+ * copy (EBX[0/4/8/0xc]) to skip greyed-out options during navigation. The
+ * global source array is never written -> statically all zero. Element type
+ * int32[4] matches the dword copy stride and the sibling *_menu_state_template
+ * family (e.g. data_fd2_ui_field_command_menu_state_template @ 0x53EF2).
+ */
+int32 data_fd2_ui_game_options_menu_state_template[4] = { 0, 0, 0, 0 };
