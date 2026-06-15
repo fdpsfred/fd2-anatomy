@@ -4939,8 +4939,8 @@
       "fd2_wait_for_input_with_idle"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_char_sprite_shake_jitter_bit": {

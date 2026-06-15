@@ -680,3 +680,14 @@ wait_input:
  * against the last-rendered tick to drive the 18.2 Hz cursor-blink redraw.
  * Zero-initialized in BSS; first touched by a runtime write. */
 uint16 data_fd2_input_idle_current_bios_tick_word;
+
+/* data_fd2_input_idle_last_rendered_tick_word @ 0x539F2  (zero-bss)
+ *
+ * Last BIOS midnight-tick value (0:046C, 18.2 Hz word) for which the
+ * cursor-blink frame was composited. Each idle iteration of
+ * fd2_wait_for_input_with_idle compares the freshly snapshotted tick
+ * against this; when they differ it re-composites the blink frame and
+ * stores the new tick here, yielding the 18.2 Hz cursor blink. Read as
+ * a sign-extended 16-bit word (asm: MOVSX EAX,word ptr [0x539F2]).
+ * Zero-initialized in BSS; first touched by a runtime write. */
+uint16 data_fd2_input_idle_last_rendered_tick_word;
