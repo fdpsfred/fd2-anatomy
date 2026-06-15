@@ -1013,9 +1013,6 @@ int32  data_fd2_ui_player_action_menu_state_template[4] = { 0, 0, 0, 0 };
 /* item command menu state template — real FD2.LE value @ 0x53F32
  * (state all zero) */
 int32  data_fd2_ui_item_command_menu_state_template[4] = { 0, 0, 0, 0 };
-/* tactical-overview per-team color base table — real FD2.LE values @ 0x5208a
- * (player 0x20, enemy 0x50, neutral 0x48) */
-int32  data_fd2_ui_tactical_overview_team_colors_table[3] = { 0x20, 0x50, 0x48 };
 /* status-effect overlay flicker colour template — real FD2.LE values @ 0x51F15
  * (32 bytes; mostly 0xC0 with a few status-specific colours). The real
  * fd2_animate_status_effect_overlay_flicker copies the first 30 bytes into a

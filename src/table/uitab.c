@@ -77,3 +77,18 @@ const int32 data_fd2_ui_save_load_newgame_menu_template[4] = { 12, 13, 14, 15 };
  * Give is greyed out when no adjacent ally tile is in range).
  */
 const int32 data_fd2_ui_item_command_menu_template[4] = { 8, 9, 10, 11 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_tactical_overview_team_colors_table @ 0x5208A  (12 bytes)
+ *
+ * Tactical-overview (zoom-out battlefield map) per-team palette color bases:
+ * 3 x int32 entries { 0x20, 0x50, 0x48 } for player / enemy / neutral team.
+ * The sole reader fd2_open_tactical_overview_zoom copies all three 32-bit
+ * words into a local team_color_table_a[3] stack buffer with a count-3 MOVSD
+ * (MOV ESI,0x5208A; 3 x MOVSD -> 32-bit elements), then indexes that buffer by
+ * each char's team id (rt_char[6], values 0..2) with stride 4 as a full dword:
+ * team_color_base + anim_phase (0..7) yields the palette index passed to
+ * fd2_fill_screen_rect_with_byte to draw the char's 1-byte team-tinted square.
+ * Read-only; the source array is never written -- only the local copy is read.
+ */
+const int32 data_fd2_ui_tactical_overview_team_colors_table[3] = { 0x20, 0x50, 0x48 };

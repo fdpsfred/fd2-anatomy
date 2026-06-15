@@ -216,7 +216,7 @@ extern int32  data_fd2_ui_game_options_menu_state_template[4];          /* 0x53F
 extern int32  data_fd2_dialog_advance_collapse_template[4];             /* 0x51EE5 */
 extern const int32 data_fd2_ui_save_load_newgame_menu_template[4];      /* 0x51EF5 */
 extern int32  data_fd2_ui_save_load_menu_state_template[4];             /* 0x53F22 */
-extern int32  data_fd2_ui_tactical_overview_team_colors_table[3];       /* 0x5208a  3 x 4B per-team color base */
+extern const int32 data_fd2_ui_tactical_overview_team_colors_table[3];  /* 0x5208a  3 x 4B per-team color base */
 extern const int32 data_fd2_ui_item_command_menu_template[4];          /* 0x51F05  const {8,9,10,11} */
 extern int32  data_fd2_ui_item_command_menu_state_template[4];          /* 0x53F32 */
 extern uint32 data_fd2_ui_slide_anim_accumulator_buf_ptr;               /* 0x53C5B */
