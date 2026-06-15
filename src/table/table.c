@@ -73,8 +73,8 @@ uint8 *fd2_get_char_growth_entry(int idx)
  * ---------------------------------------------------------------- */
 uint8 *fd2_get_chapter_intro_metadata_entry(int chapter_id)
 {
-    return data_fd2_chapter_intro_metadata_table
-         + (chapter_id - 1) * 0x1F;
+    return (uint8 *)(data_fd2_chapter_intro_metadata_table
+         + (chapter_id - 1) * 0x1F);
 }
 
 /* ----------------------------------------------------------------

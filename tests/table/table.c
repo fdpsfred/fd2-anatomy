@@ -118,7 +118,7 @@ static void test_char_growth_entry(void)
 static void test_chapter_intro_ch1(void)
 {
     uint8 *result = fd2_get_chapter_intro_metadata_entry(1);
-    uint8 *expected = data_fd2_chapter_intro_metadata_table;
+    const uint8 *expected = data_fd2_chapter_intro_metadata_table;
     ASSERT_EQ((long)result, (long)expected);
 }
 
@@ -126,7 +126,7 @@ static void test_chapter_intro_ch1(void)
 static void test_chapter_intro_ch5(void)
 {
     uint8 *result = fd2_get_chapter_intro_metadata_entry(5);
-    uint8 *expected = data_fd2_chapter_intro_metadata_table + 4 * 0x1F;
+    const uint8 *expected = data_fd2_chapter_intro_metadata_table + 4 * 0x1F;
     ASSERT_EQ((long)result, (long)expected);
 }
 
