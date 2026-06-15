@@ -8,6 +8,7 @@
 
 #include "types.h"
 #include "globals.h"
+#include "protos.h"
 
 /* ----------------------------------------------------------------
  * data_fd2_chapter_post_action_handler_table @ 0x51B19  (30 entries, 4-byte ptrs)
@@ -369,4 +370,29 @@ const uint8 data_fd2_chapter_ch07_end_scene_char_pos_x_table[9] = {
  * ---------------------------------------------------------------- */
 const uint8 data_fd2_chapter_ch07_end_scene_char_pos_y_table[9] = {
     4, 4, 4, 5, 5, 6, 6, 7, 7
+};
+
+/* ----------------------------------------------------------------
+ * data_fd2_chapter_ch07_end_scene_char_facing_table @ 0x520F6  (9 bytes)
+ *
+ * Chapter 7 end-scene character placement: per-character sprite facing
+ * direction for the 9 characters staged in the chapter-7 recruit cutscene
+ * (recruit char #12, 武者凱麗). Third of three parallel 9-byte tables
+ * (X @ 0x520E4, Y @ 0x520ED, facing @ 0x520F6). Read-only const table in
+ * .object2.
+ *
+ * Caller (fd2_chapter_07_end @ 0x232E8):
+ *     MOV  ESI,0x520F6
+ *     MOV  EDI,ESP
+ *     MOVSD ; MOVSD ; MOVSB        ; copy 9 raw bytes onto stack scene block
+ * => the table is block-copied (4+4+1 = 9 bytes) as a flat byte source into
+ *    an on-stack character-placement block; each entry is consumed one byte
+ *    at a time (var_2c._0_1_ .. bStack_24). No struct stride, no wider element
+ *    access, no sign extension. Values are sprite direction codes (0..3).
+ * => element type: uint8, 9 entries, read-only (single READ xref, no writer).
+ *    The block is passed as the facing argument to
+ *    fd2_setup_chars_and_camera_for_intro @ 0x233C6.
+ * ---------------------------------------------------------------- */
+const uint8 data_fd2_chapter_ch07_end_scene_char_facing_table[9] = {
+    0, 0, 0, 3, 1, 3, 1, 3, 1
 };
