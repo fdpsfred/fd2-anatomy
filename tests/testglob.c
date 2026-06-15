@@ -1038,12 +1038,7 @@ void fd2_run_class_promotion_menu_main(void) { }
 void fd2_blit_scaled_chapter_pose(uint32 cx, uint32 cy, uint32 bmp, int32 s)
 { (void)cx; (void)cy; (void)bmp; (void)s; }
 /* chapter transition radio-menu state (BSS) + per-chapter tables.
- * category table is the real FD2.LE @0x526B9 (0=story, nonzero=battle);
  * intro-panel resource-idx table is the real FD2.LE @0x526D7. */
-uint8  data_fd2_chapter_per_chapter_category_table[30] = {
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    1, 1, 1, 0, 0, 1, 1, 1
-};
 uint8  data_fd2_chapter_intro_panel_resource_idx_per_metadata_category_table[3] = {
     0x0b, 0x3d, 0x3e
 };

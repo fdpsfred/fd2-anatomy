@@ -269,7 +269,7 @@ extern uint8  data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[18];
  * category: 0 = story (intro panel + radio menu), nonzero = battle (save
  * prompt + recruitment). intro panel resource idx is selected by the
  * chapter-intro category byte (metadata[0]). */
-extern uint8  data_fd2_chapter_per_chapter_category_table[30];                       /* 0x526B9 */
+extern const uint8 data_fd2_chapter_per_chapter_category_table[30];                  /* 0x526B9 */
 extern uint8  data_fd2_chapter_intro_panel_resource_idx_per_metadata_category_table[3]; /* 0x526D7 */
 
 /* chapter-intro pose target position tables, indexed by
