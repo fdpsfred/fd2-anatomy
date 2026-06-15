@@ -5723,8 +5723,8 @@
     "home": "table/orphan.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_portrait_sprite_buffer": {
