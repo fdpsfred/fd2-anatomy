@@ -2150,8 +2150,8 @@
       "fd2_pathfind_to_destination"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_pathfind_path_output_buffer_ptr": {

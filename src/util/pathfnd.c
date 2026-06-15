@@ -643,3 +643,17 @@ uint8 data_fd2_battle_pathfind_floodfill_max_steps;
  * dst_y field). Zero at load; set at runtime by the path-aware orchestrator.
  */
 uint8 data_fd2_battle_pathfind_dst_x;
+
+/*
+ * pathfind destination tile Y (target row) @ 0x60072.
+ * Single unsigned byte, second field of the destination-coord pair dst_x(0x60071)
+ * / dst_y(0x60072). Written only by the path-aware orchestrator
+ * fd2_pathfind_to_destination at entry from the dst_y argument truncated to its
+ * low byte (MOV EAX,[EBP+0x20]; MOV [0x60072],AL at 0x4E1DE); the plain
+ * flood-fill orchestrator never sets it. Read 8-bit by
+ * fd2_pathfind_check_destination_save_path as the destination row compared
+ * against the current search position (in_DH == data_fd2_battle_pathfind_dst_y
+ * at 0x4E409) to decide arrival. Scalar, not an array (0x60071 is the separate
+ * dst_x field). Zero at load; set at runtime by the path-aware orchestrator.
+ */
+uint8 data_fd2_battle_pathfind_dst_y;
