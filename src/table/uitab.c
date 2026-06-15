@@ -46,3 +46,17 @@ const int32 data_fd2_ui_game_options_menu_slots_template[4] = { 0x12, 0x14, 0x16
  * written -- only the local copy is consumed.
  */
 const int32 data_fd2_ui_inline_action_menu_template[4] = { 0, 1, 2, 3 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_save_load_newgame_menu_template @ 0x51EF5  (16 bytes)
+ *
+ * Field status/save/load/quit submenu option list: 4 x int32 entries
+ * { 12, 13, 14, 15 } (Status / Save / Load / Quit). The sole reader
+ * fd2_field_menu_status_save_load_quit_dispatch copies all four 32-bit words
+ * into a local menu_options[16] buffer with a count-4 REP MOVSD (32-bit
+ * elements), then passes that buffer to fd2_open_settings_dialog_with_slide.
+ * Read-only; the source array is never written -- only the local copy is
+ * consumed (paired with data_fd2_ui_save_load_menu_state_template @ 0x53F22,
+ * which holds the per-option enable/disable flags mutated on the stack).
+ */
+const int32 data_fd2_ui_save_load_newgame_menu_template[4] = { 12, 13, 14, 15 };
