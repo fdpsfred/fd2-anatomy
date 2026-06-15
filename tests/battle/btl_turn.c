@@ -1700,7 +1700,7 @@ static void test_xp_spell_learn_on_match(void)
     uint8 *learn;
 
     xp_setup(5, 3);                                    /* growth[5].spell_learning_idx = 3 */
-    learn = &data_fd2_battle_spell_learning_table[3 * 12];
+    learn = (uint8 *)&data_fd2_battle_spell_learning_table[3 * 12];
     memset(learn, 0xEE, 12);                           /* no pair matches by default */
     learn[0] = 2;                                      /* pair0 req_level = 2 (the new level) */
     learn[1] = 7;                                      /* pair0 spell_id = 7 */
@@ -1721,7 +1721,7 @@ static void test_xp_spell_learn_no_match(void)
     uint8 *learn;
 
     xp_setup(5, 3);
-    learn = &data_fd2_battle_spell_learning_table[3 * 12];
+    learn = (uint8 *)&data_fd2_battle_spell_learning_table[3 * 12];
     memset(learn, 0xEE, 12);                           /* no req_level equals level 2 */
     g_test_rc_array[0].status_flags_block[0] = 1;
     data_fd2_battle_pending_xp_credit = 150;
