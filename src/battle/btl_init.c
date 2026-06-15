@@ -473,3 +473,13 @@ void *fd2_convert_battle_tiles_to_24px(void)
 
     return bank;
 }
+/* ----------------------------------------------------------------
+ * data_fd2_chapter_chapter_init_done_flag @ 0x53A44  (.object2, zero-bss)
+ *
+ * Single-byte runtime state flag. Cleared (0) at program load; set to 1
+ * by fd2_set_chapter_init_done_flag (this file, MOV byte [0x53A44],1).
+ * Read byte-wide by fd2_game_main_loop (compares == 0) to gate the
+ * transition from chapter-init into active gameplay. Mutable (game-side
+ * writer exists) -> not const; zero initial value -> tentative definition.
+ * ---------------------------------------------------------------- */
+uint8  data_fd2_chapter_chapter_init_done_flag;

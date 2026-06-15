@@ -3297,8 +3297,8 @@
       "fd2_set_chapter_init_done_flag"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_runtime_battle_state_ptr": {

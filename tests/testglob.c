@@ -2096,7 +2096,6 @@ void fd2_rle_blit_with_palette_remap(uint16 *rle_stream, int32 dst_x, int32 dst_
     }
     (void)dst_buf; (void)stride;
 }
-uint8  data_fd2_chapter_chapter_init_done_flag = 0;
 uint8  data_fd2_ui_play_active_flag = 0;
 uint8  data_fd2_ui_game_speed_flag = 0;
 uint32 data_fd2_battle_compose_left_edge_clip_offset = 0;
