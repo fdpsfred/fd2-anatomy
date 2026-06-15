@@ -396,3 +396,30 @@ const uint8 data_fd2_chapter_ch07_end_scene_char_pos_y_table[9] = {
 const uint8 data_fd2_chapter_ch07_end_scene_char_facing_table[9] = {
     0, 0, 0, 3, 1, 3, 1, 3, 1
 };
+
+
+/* ----------------------------------------------------------------
+ * data_fd2_chapter_ch08_end_scene_char_pos_x_table @ 0x520FF  (10 bytes)
+ *
+ * Chapter 8 end-scene character placement: per-character battle-tile X
+ * coordinate for the 10 characters staged in the chapter-8 recruit cutscene
+ * (recruit char #5, 騎士洛娜). First of two parallel 10-byte tables
+ * (X @ 0x520FF, Y @ 0x52109). Sprite facing is an inline fixed value (2)
+ * in the caller, so there is no facing table. Read-only const table in
+ * .object2.
+ *
+ * Caller (fd2_chapter_08_end @ 0x234BB):
+ *     MOV  ESI,0x520FF
+ *     LEA  EDI,[ESP+0xC]
+ *     MOVSD ; MOVSD ; MOVSW       ; copy 10 raw bytes onto stack scene block
+ * => the table is block-copied (4+4+2 = 10 bytes) as a flat byte source into
+ *    an on-stack character-placement block; each entry is consumed one byte
+ *    at a time (var_14._0_1_ .. bStack_c[1]). No struct stride, no wider
+ *    element access, no sign extension. Values are small tile coords (11..17).
+ * => element type: uint8, 10 entries, read-only (single READ xref, no writer).
+ *    The block is passed as the X-position argument to
+ *    fd2_setup_chars_and_camera_for_intro @ 0x233C6 (facing arg = inline 2).
+ * ---------------------------------------------------------------- */
+const uint8 data_fd2_chapter_ch08_end_scene_char_pos_x_table[10] = {
+    14, 13, 15, 12, 13, 14, 16, 11, 15, 17
+};

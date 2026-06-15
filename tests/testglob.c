@@ -270,8 +270,6 @@ uint8 data_fd2_chapter_ending_credit_roll_scripted_outcome_table[20] = {
  * fd2_chapter_08_end copies each 10-byte table into an on-stack placement block.
  * X/Y are battle-tile coords; chapter 8 has no facing table (the handler passes
  * the inline fixed facing value 2 to fd2_setup_chars_and_camera_for_intro). */
-uint8 data_fd2_chapter_ch08_end_scene_char_pos_x_table[10] =
-    { 14, 13, 15, 12, 13, 14, 16, 11, 15, 17 };
 uint8 data_fd2_chapter_ch08_end_scene_char_pos_y_table[10] =
     { 20, 20, 20, 19, 19, 18, 19, 18, 19, 18 };
 /* Chapter 10 end scene char placement tables (data segment @ 0x52113 /
