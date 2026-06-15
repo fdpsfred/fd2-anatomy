@@ -960,3 +960,18 @@ void fd2_kill_runtime_chars_from_index_to_end(uint32 start_char_idx)
     }
     fd2_play_death_animation_and_mark_dead();
 }
+
+/* ----------------------------------------------------------------
+ * data_fd2_dialog_last_action_value_param @ 0x53AE1 (.object2, 4 bytes)
+ *
+ * Transient 32-bit staging value passed to the dialog VM. Written just
+ * before a dialog that shows a number (gold amount, poison damage, XP
+ * gained, stat-gain delta, shop price, promote cost, save-slot index),
+ * then read by fd2_display_dialog_scene -6 LITERAL-NUMBER opcode via
+ * sprintf("%d", ...) and by gold/price arithmetic. Always written
+ * before first read on every path, so the binary stores it zero-init.
+ *
+ * Home owner: btl_turn.c. Also written from gfx/rndmenu.c,
+ * ui_menu/menufld.c, ui_menu/promote.c, ui_menu/shop.c (multi-writer).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_dialog_last_action_value_param = 0;

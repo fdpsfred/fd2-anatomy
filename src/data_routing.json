@@ -1006,8 +1006,8 @@
       "fd2_process_xp_and_level_up_for_char"
     ],
     "note": "multi-writer:battle/btl_turn.c,gfx/rndmenu.c,ui_menu/menufld.c,ui_menu/promote.c,ui_menu/shop.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_current_active_char_idx": {
