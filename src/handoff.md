@@ -2,7 +2,7 @@
 
 目標：`src/` 自身 compile+link 出可正確執行的 `fd2.exe`；`src/`+`tests/` compile 出測試執行檔。
 **全 650 個遊戲 function 已 emit、四分支 merge cascade 已落入 `integ`。
-當前在「真實資料落地 + 測試重寫 + 收斂 fd2.exe」收斂計畫（data-first）。**Phase 1（真資料落地 src/）四路 data emit 全數完成（per-symbol commit 版）：343/343 符號 committed 落在 4 個 worktree、const-fix 完成、6 個 529 leftover 補完、四 worktree 已驗證 pending=0 + 乾淨 + build gate 0/0；尚未 merge 回 integ。下一步＝merge cascade dp1..4 → integ → 最終驗收（見下方「當前斷點」）。**
+當前在「真實資料落地 + 測試重寫 + 收斂 fd2.exe」收斂計畫（data-first）。**Phase 1（真資料落地 src/）已全部完成並合併回 `integ`（commit `cd2c0a8`）：343/343 data symbol 全 emit+review+commit，data-p1..p4 四分支 merge cascade 收尾，最終驗收全綠（build gate 0 err/0 warn、verify_real 28/28 byte-identical、scout reviewed 347/347、src 資料檔與來源分支 byte-identical、testglob 只剩 3 個 Phase-2/4 fake）。下一步＝Phase 2（補完 21 個 blit/pathfind function），在此 Phase 1 hard-stop 等使用者評估。**
 完整計畫：`C:\Users\fdpsf\.claude\plans\plan-plan-soft-dongarra.md`（**新 session 先讀它 + 下面這段**）。
 
 **溝通方式（使用者要求）**：給使用者的所有文字（含對話回覆，不只文件）一律用淺白通順的繁體中文完整句子，
@@ -55,9 +55,9 @@ Phase 4 收斂 fd2.exe + 實機對照`。
 
 **✅ [mop-up] 完成**：6 個 529 leftover 全數補完、各 build-gate 0/0 —— dp1 ×2（`view_window_origin_y` `9fbfd46`、`cursor_world_x` `2923d09`；先預清 cursor.c 半落地 def，commit `d4d5956`）、dp2 ×1（`pathfind_current_depth` `e2dc1e2`）、dp4 ×3（`ui_terrain_hud_panel_offset_51a0c` `2af14bd`、`audio_summon_spell_sfx_bank_buf_ptr` `0dfb3c5`、`chapter_chapter_init_done_flag` `7caacd1`）。**四 worktree 已驗證**：pending=0、reviewed=112/88/83/76（各分區 100%）、working tree 乾淨、dp4 的 9 個 const 仍 const。整體 343/343 data symbol 全數 emit+review+commit。
 
-**② [merge] merge cascade `data-p1..p4` → integ**（沿下方 §3 方法論：testglob.c / globals.h / data_routing.json 取 union；`src/*.c` 多 file-disjoint git 自動合）。注意：(a) 第一輪有**良性 caller-const 傳遞** commit 跨分區動到別檔（dp2 改過 `gfx/palette.c`/`spell/spellcin.c` 讀 const 表的區域指標加 `const`、dp4 改過 `life/main.c`），非重複定義、merge 時併即可；(b) worktree 的 `tools/data_emit/*` 仍是 `786fdc7` 舊版、integ 已是新版（worktree 沒改它故不衝突，取 integ 版）。
+**✅ [merge] 完成**：data-p1..p4 四分支 merge cascade 全部落入 `integ`（merge commits `6adc9f1` `e891630` `e381fd6` `cd2c0a8`）。衝突全依 §3 方法論手解：globals.h extern 一律對齊 src/ 真 def（const-ness 由真 def 決定）；testglob.c 移除所有已 real 的 fake、只留無 src def 者；測試檔 const extern 對齊 + Phase-3 SKIP `#if0` 取兩分支聯集且 `#if/#endif` 平衡。良性 caller-const 與新表檔皆 file-disjoint 自動合。
 
-**③ [verify] 最終驗收**：merge 後在 integ 跑 `python tools/emit/build_test.py` 0err/0warn、`python tools/data_emit/verify_real.py` 全批 byte-identical、`python tools/data_emit/scout.py --stats` reviewed 收斂到 347 → Phase 1 hard-stop 等使用者再進 Phase 2。
+**✅ [verify] 完成**：`build_test.py` 0 err/0 warn；`verify_real.py` 28/28 byte-identical；`scout --stats` reviewed 347/347；12 個 src/table 資料檔與來源分支 byte-identical（merge 零改 src 資料值）；src 內 0 重複定義、src↔testglob 0 重複；testglob 只剩 3 個 Phase-2/4 fake（`ani_decoder_frame_dispatch_table`、`data_ail_alloc/free_fnptr`）。**Phase 1 全部收斂 → hard-stop 等使用者再進 Phase 2。**
 
 ### 工具現況（接手必懂；與上一版 handoff 不同處）
 
