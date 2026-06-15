@@ -561,3 +561,14 @@ uint32 data_fd2_battle_pathfind_battle_tile_map_ptr;
  * Zero at load; set at runtime by both pathfind orchestrators.
  */
 uint8 data_fd2_battle_pathfind_map_width;
+
+/*
+ * battle map height (number of tile rows) @ 0x60069.
+ * Single unsigned byte read from the tile-map header [pTile_map + 2] by both
+ * orchestrators (MOV [0x60069] from the map header), stored in the byte
+ * adjacent to map_width at 0x60068. Readers load it 8-bit and use it
+ * unsigned as the down-direction bound in the flood-fill / pathfinder:
+ * (uint8)(y + 1) < map_height. Zero at load; set at runtime by both
+ * pathfind orchestrators.
+ */
+uint8 data_fd2_battle_pathfind_map_height;
