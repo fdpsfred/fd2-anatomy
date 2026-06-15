@@ -637,3 +637,18 @@ uint32 data_fd2_battle_ai_best_physical_target_y;
             ai_best_physical_* result group (X @0x53C43, Y @0x53C47,
             idx @0x53C4B, score @0x53C4F). */
 uint32 data_fd2_battle_ai_best_physical_target_idx;
+
+/* 0x53C4F: best physical-attack candidate score / priority class (zero-init BSS scalar).
+            fd2_ai_score_physical_attack @0x14237 resets it to 0 at entry
+            (MOV dword [0x53C4F],0x0 @0x1427E), then stores the winning score class
+            score_class as a full dword (MOV [0x53C4F],EDI @0x144F4) when a candidate
+            beats the running best (CMP EDI,[0x53C4F]; JG @0x144C5 -- signed compare).
+            Values are the priority classes 0 (negligible) / 8 (normal hit) /
+            0x12 (kill shot). fd2_attack_action_dispatch @0x14F62 reads it as a full
+            dword and compares it signed against 0x6 and the sibling spell/physical
+            scores to pick the winning action. Signed score accumulator, same shape
+            as data_fd2_battle_ai_best_spell_score @0x53C23 and
+            data_fd2_battle_ai_best_item_score @0x53C33. Fourth and last member of the
+            ai_best_physical_* result group (X @0x53C43, Y @0x53C47,
+            idx @0x53C4B, score @0x53C4F). */
+int32 data_fd2_battle_ai_best_physical_score;

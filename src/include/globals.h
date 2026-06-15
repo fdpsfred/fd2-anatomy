@@ -175,7 +175,7 @@ extern uint32 data_fd2_battle_ai_best_item_slot;                        /* 0x53C
 extern uint32 data_fd2_battle_ai_best_physical_target_x;                /* 0x53C43 */
 extern uint32 data_fd2_battle_ai_best_physical_target_y;                /* 0x53C47 */
 extern uint32 data_fd2_battle_ai_best_physical_target_idx;              /* 0x53C4B */
-extern uint32 data_fd2_battle_ai_best_physical_score;                   /* 0x53C4F */
+extern int32 data_fd2_battle_ai_best_physical_score;                    /* 0x53C4F */
 
 /* ---- battle tile map ---- */
 extern uint32 data_fd2_battle_tile_map_ptr;                             /* 0x53A51 */
