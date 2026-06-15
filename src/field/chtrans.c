@@ -583,3 +583,18 @@ cleanup:
  * battle/field engine as data_fd2_battle_runtime_char_array_ptr[idx].field.
  * ---------------------------------------------------------------- */
 runtime_char *data_fd2_battle_runtime_char_array_ptr;
+
+/* ----------------------------------------------------------------
+ * Data symbol owned by this module (.object2 @ 0x53A51)
+ *
+ * data_fd2_battle_tile_map_ptr -- pointer to the decoded per-chapter
+ * battle tile map (loaded from FDFIELD.DAT, then decrypted in place by
+ * fd2_obfuscate_battle_tile_map). The map header packs map_width_tiles /
+ * map_height_tiles as the first two 16-bit words, followed by a packed
+ * array of 4-byte tile-meta records indexed as
+ * ((row * map_width + col) * 4 + base). Zero (NULL) at program start;
+ * assigned on chapter load / save restore. The dialog/menu code also
+ * tests it as a 0/1 sentinel ("battle map present?"), so it is held in a
+ * 32-bit integer slot rather than a typed pointer.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_tile_map_ptr;

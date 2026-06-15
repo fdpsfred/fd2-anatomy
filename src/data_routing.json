@@ -612,8 +612,8 @@
       "fd2_run_recruitment_or_branch_screen"
     ],
     "note": "multi-writer:field/chend2.c,field/chtrans.c,life/main.c,rsrc/rsrc.c,ui_menu/promote.c,util/misc.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_vga_palette_data_ptr": {
