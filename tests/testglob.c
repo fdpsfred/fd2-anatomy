@@ -1884,7 +1884,6 @@ uint8  data_fd2_battle_summon_spell_anim_phase_byte = 0;
 uint8  data_fd2_battle_summon_spell_anim_aux_state_byte_unread = 0;
 uint8  data_fd2_battle_summon_spell_sprite_anim_tick_counter = 0;
 int32  data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array[6] = {0};
-int32  data_fd2_battle_summon_anim_variant_a_6slot_color_idx_array[6] = {0};
 uint8  data_fd2_battle_summon_anim_variant_a_6slot_jitter_byte_array[6] = {0};
 uint8  data_fd2_battle_summon_anim_variant_a_color_rotation_counter = 0;
 uint8  data_fd2_battle_summon_anim_variant_a_terminate_flag = 0;
