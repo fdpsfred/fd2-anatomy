@@ -1703,8 +1703,8 @@
       "fd2_chapter_02_post_action"
     ],
     "note": "multi-writer:battle/btl_init.c,battle/btl_turn.c,field/chpost.c,life/main.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_bgm_sequence_handle": {
