@@ -550,3 +550,14 @@ uint32 data_fd2_battle_pathfind_tile_cost_table_ptr;
  * runtime by both pathfind orchestrators.
  */
 uint32 data_fd2_battle_pathfind_battle_tile_map_ptr;
+
+/*
+ * battle map width (tiles per row) @ 0x60068.
+ * Single unsigned byte read from the tile-map header [pTile_map + 0] by
+ * both orchestrators (MOV BL,byte ptr [EAX]; MOV byte ptr [0x60068],BL),
+ * with map_height stored in the adjacent byte at 0x60069. Readers load it
+ * 8-bit and zero-extend (MOV AL,[0x60068]; XOR AH,AH) before using it as
+ * the unsigned row stride in tile-index math (map_width * src_y + src_x).
+ * Zero at load; set at runtime by both pathfind orchestrators.
+ */
+uint8 data_fd2_battle_pathfind_map_width;
