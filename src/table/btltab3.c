@@ -598,3 +598,62 @@ const uint8 *data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21[21] = {
     &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[56],  /* idx 19 -> 0x619E1 */
     &data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[56]   /* idx 20 -> 0x619E1 */
 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_battle_spell_effect_table @ 0x619FD  (36 entries x 7 bytes = 252)
+ *
+ * Read-only spell stat/effect table (struct spell_effect, 7-byte stride). One
+ * entry per spell id 0..0x23 (36 spells). Accessed exclusively through the
+ * accessor fd2_get_spell_effect_entry (0x4E516), whose body is
+ * "EAX = spell_id * 7; return 0x619FD + EAX" (= &table[spell_id]). The 10
+ * caller functions (combat / AI / cast / MP / draw paths) read fields off the
+ * returned pointer at their struct byte offsets:
+ *   +0 damage  read as *(short *) (signed 16-bit) -- fd2_calc_magic_damage
+ *              (0x1C79E), fd2_apply_heal_spell_to_target (0x1C8FC)
+ *   +2 hit_rate read as *(byte *)  -- fd2_calc_magic_damage chance_pct
+ *   +5 mp_cost  read as *(byte *)  -- fd2_deduct_caster_mp (0x1CA98),
+ *              fd2_draw_spell_selection_list (0x1CF7F)
+ * No writer exists; const data table.
+ *
+ * Field order (pack(1), little-endian) per struct spell_effect in types.h:
+ *   damage(u16), hit_rate, cast_range_flags, area, mp_cost, target_side.
+ * Bytes are byte-exact from FD2.LE .object3 @ 0x619FD.
+ */
+const spell_effect data_fd2_battle_spell_effect_table[36] = {
+    { 50, 90, 5, 0, 2, 0 },  /* 0x00 */
+    { 120, 90, 5, 0, 6, 0 },  /* 0x01 */
+    { 250, 90, 5, 1, 20, 0 },  /* 0x02 */
+    { 500, 85, 5, 1, 42, 0 },  /* 0x03 */
+    { 40, 85, 4, 1, 4, 0 },  /* 0x04 */
+    { 100, 80, 4, 1, 15, 0 },  /* 0x05 */
+    { 220, 80, 4, 2, 30, 0 },  /* 0x06 */
+    { 450, 80, 4, 2, 60, 0 },  /* 0x07 */
+    { 440, 100, 8, 0, 24, 0 },  /* 0x08 */
+    { 999, 50, 3, 0, 30, 0 },  /* 0x09 */
+    { 80, 95, 0, 5, 18, 0 },  /* 0x0A */
+    { 160, 90, 0, 7, 45, 0 },  /* 0x0B */
+    { 340, 90, 0, 9, 80, 0 },  /* 0x0C */
+    { 70, 0, 4, 0, 3, 1 },  /* 0x0D */
+    { 140, 0, 4, 1, 10, 1 },  /* 0x0E */
+    { 260, 0, 5, 2, 20, 1 },  /* 0x0F */
+    { 500, 0, 5, 3, 40, 1 },  /* 0x10 */
+    { 0, 0, 4, 2, 5, 1 },  /* 0x11 */
+    { 0, 0, 4, 2, 5, 1 },  /* 0x12 */
+    { 0, 0, 4, 2, 8, 1 },  /* 0x13 */
+    { 0, 0, 4, 2, 5, 1 },  /* 0x14 */
+    { 0, 0, 4, 2, 5, 1 },  /* 0x15 */
+    { 0, 0, 4, 2, 8, 0 },  /* 0x16 */
+    { 0, 0, 3, 0, 20, 3 },  /* 0x17 */
+    { 0, 0, 5, 1, 22, 0 },  /* 0x18 */
+    { 0, 0, 3, 1, 24, 1 },  /* 0x19 */
+    { 10, 50, 4, 2, 8, 0 },  /* 0x1A */
+    { 10, 50, 4, 2, 10, 0 },  /* 0x1B */
+    { 0, 0, 1, 0, 22, 0 },  /* 0x1C */
+    { 0, 0, 0, 2, 26, 0 },  /* 0x1D */
+    { 0, 0, 20, 0, 24, 0 },  /* 0x1E */
+    { 0, 0, 0, 2, 26, 0 },  /* 0x1F */
+    { 800, 90, 5, 3, 76, 0 },  /* 0x20 */
+    { 0, 0, 5, 3, 52, 1 },  /* 0x21 */
+    { 0, 0, 5, 3, 28, 1 },  /* 0x22 */
+    { 0, 0, 4, 2, 36, 0 },  /* 0x23 */
+};
