@@ -624,3 +624,16 @@ uint32 data_fd2_battle_ai_best_physical_target_x;
             ai_best_physical_* result group (X @0x53C43, Y @0x53C47,
             idx @0x53C4B, score @0x53C4F). */
 uint32 data_fd2_battle_ai_best_physical_target_y;
+
+/* 0x53C4B: best physical-attack target runtime_char index (zero-init BSS scalar).
+            Writer @0x144EF stores target_idx as a full dword (MOV [0x53C4B],EAX)
+            when a candidate beats the running best score; the source value is the
+            byte target-id zero-extended into the dword, so it is an unsigned index.
+            fd2_execute_ai_physical_attack reads it as a full dword many times
+            (PUSH dword [0x53C4B] @0x154D8/0x154E6/0x15522/.../0x15664) and passes
+            it as the runtime_char index of the chosen target to the attack /
+            animation / counter routines; runtime_char address is computed as
+            idx*0x50 + data_fd2_battle_runtime_char_array_ptr. Third member of the
+            ai_best_physical_* result group (X @0x53C43, Y @0x53C47,
+            idx @0x53C4B, score @0x53C4F). */
+uint32 data_fd2_battle_ai_best_physical_target_idx;
