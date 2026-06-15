@@ -378,7 +378,7 @@ extern uint32 data_fd2_resource_portrait_cache_count;                   /* 0x53B
 extern uint32 data_fd2_resource_portrait_cache_alloc_offset;            /* 0x53BE3 */
 extern uint32 data_fd2_resource_portrait_cache_total_size;              /* 0x53BE7 */
 extern uint32 data_fd2_portrait_sprite_cache;                                    /* 0x53A61 */
-extern uint8  data_fd2_resource_portrait_cache_id_list_base[40];        /* 0x53B17 */
+extern uint8  data_fd2_resource_portrait_cache_id_list_base[160];       /* 0x53B17 */
 extern uint32 data_fd2_resource_last_loaded_resource_size;              /* 0x53BFF */
 extern uint32 data_fd2_field_map_tile_event_consumed_flags_ptr;         /* 0x53AD5 */
 

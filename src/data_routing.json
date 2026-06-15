@@ -538,8 +538,8 @@
       "_cstart_"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs": {
@@ -1081,8 +1081,8 @@
       "fd2_load_chapter_background_layers"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_animated_bg_buffer_ptr": {
@@ -1098,8 +1098,8 @@
       "fd2_load_chapter_background_layers"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_status_effect_sfx_handle_ptr": {
@@ -1123,8 +1123,8 @@
   "data_fd2_resource_portrait_cache_id_list_base": {
     "addr": "53b17",
     "segment": ".object2",
-    "len": 40,
-    "datatype": "byte[40]",
+    "len": 160,
+    "datatype": "byte[160]",
     "kind": "byte_data",
     "emit_class": "zero-bss",
     "needs_bytes": false,
@@ -1133,8 +1133,8 @@
       "fd2_load_portrait_to_cache"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_resource_portrait_cache_count": {
@@ -1153,8 +1153,8 @@
       "fd2_load_state_from_selected_slot"
     ],
     "note": "multi-writer:field/chtrans.c,life/main.c,rsrc/rsrc.c,save/save.c,ui_menu/promote.c,util/misc.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_party_member_count": {
@@ -1265,8 +1265,8 @@
       "fd2_load_dat_resource"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_current_chapter_id": {
@@ -5612,8 +5612,8 @@
       "fd2_load_chapter_battle_data"
     ],
     "note": "multi-writer:life/main.c,rsrc/rsrc.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_current_chapter_text": {
@@ -5648,8 +5648,8 @@
       "fd2_restore_portrait_cache_from_tmp"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_class_promotion_data_table": {

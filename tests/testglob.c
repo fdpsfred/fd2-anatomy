@@ -85,9 +85,9 @@ uint32 data_fd2_chapter_current_chapter_id = 1;
 /* data_fd2_chapter_combat_cinematic_mode_per_chapter is defined (const) in
  * src/table/chtab2.c. */
 uint32 data_fd2_chapter_cutscene_event_state = 0;
-uint32 data_fd2_graphics_static_bg_buffer_ptr = 0;
+/* data_fd2_graphics_static_bg_buffer_ptr: real definition homed in src/rsrc/rsrc.c. */
 uint8  data_fd2_graphics_text_scroll_pending_line_count = 0;
-uint32 data_fd2_graphics_animated_bg_buffer_ptr = 0;
+/* data_fd2_graphics_animated_bg_buffer_ptr: real definition homed in src/rsrc/rsrc.c. */
 uint32 data_fd2_chapter_event_or_battle_end_code = 0;
 uint32 data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
 uint32 data_fd2_battle_teleport_dest_world_x = 0;
@@ -108,15 +108,15 @@ uint32 data_fd2_battle_tile_map_ptr = 0;
 uint32 data_fd2_battle_party_member_count = 4;
 uint32 data_fd2_tile_attribute_flags_buffer_ptr = 0;
 uint32 data_fd2_tile_event_data_table_ptr = 0;
-uint32 data_fd2_chapter_portrait_load_buffer = 0;
+/* data_fd2_chapter_portrait_load_buffer: real definition homed in src/rsrc/rsrc.c. */
 uint32 data_fd2_battle_scene_snapshot = 0;
 uint32 data_fd2_current_chapter_text = 0;
-uint32 data_fd2_portrait_sprite_cache = 0;
-uint32 data_fd2_resource_portrait_cache_count = 0;
+/* data_fd2_portrait_sprite_cache: real definition homed in src/rsrc/rsrc.c. */
+/* data_fd2_resource_portrait_cache_count: real definition homed in src/rsrc/rsrc.c. */
 uint32 data_fd2_resource_portrait_cache_total_size = 0;
 uint32 data_fd2_resource_portrait_cache_alloc_offset = 0;
-uint32 data_fd2_resource_portrait_cache_buffer_used = 0;
-uint8  data_fd2_resource_portrait_cache_id_list_base[40] = {0};
+/* data_fd2_resource_portrait_cache_buffer_used: real definition homed in src/rsrc/rsrc.c. */
+/* data_fd2_resource_portrait_cache_id_list_base: real definition homed in src/rsrc/rsrc.c. */
 uint32 data_fd2_battle_current_active_char_idx = 0;
 /* 0x540FF: scripted-cinematic mode / terrain idx. First compiled reader/writer
  * is fd2_play_game_ending_cinematic (sets it per credit-roll duel). */
@@ -131,7 +131,7 @@ uint32 data_fd2_audio_bgm_sequence_handle = 0;
 /* AIL driver / sample handles -- first used by fd2_main (life/main.c). */
 void  *data_fd2_audio_bgm_driver_handle = 0;
 uint32 data_fd2_audio_sfx_dig_driver_handle = 0;
-uint32 data_fd2_resource_last_loaded_resource_size = 0;
+/* data_fd2_resource_last_loaded_resource_size: real definition homed in src/rsrc/rsrc.c. */
 uint32 data_fd2_audio_fdother_sfx_bank_buf_ptr = 0;
 uint32 data_fd2_field_map_tile_event_consumed_flags_ptr = 0;
 uint32 data_fd2_battle_view_window_origin_x = 0;
