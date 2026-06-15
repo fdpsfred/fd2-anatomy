@@ -813,9 +813,6 @@ uint32 data_fd2_ui_slide_composed_target_buf_ptr = 0;
 uint32 data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
 uint32 data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
 uint32 data_fd2_ui_menu_cursor_idx = 0;
-/* chapter-intro menu speaker portrait IDs — real FD2.LE values @ 0x52659 */
-uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6] =
-    { 0x81, 0x80, 0x00, 0x82, 0x83, 0x84 };
 /* shop "inventory full" FDTXT dialog-id table — real FD2.LE values @ 0x5265F.
  * The church-revive menu aliases the same bytes as a per-job revive-price
  * multiplier table, read as [bJob_id + 5]. (int16; vendor data overlap) */
