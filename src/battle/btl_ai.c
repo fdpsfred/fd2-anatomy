@@ -648,3 +648,25 @@ postlude:
     fd2_clear_all_chars_facing();
     fd2_composite_battle_frame(0);
 }
+
+/* ----------------------------------------------------------------
+ * Battle AI scratch state for offensive ITEM use (zero-initialized
+ * BSS scalars). Target-tile members of the ai_best_item_* result
+ * group; the score (0x53C33) and slot (0x53C3F) members live in
+ * btl_aisc.c. fd2_ai_score_item_use stores the winning candidate
+ * tile here; fd2_execute_ai_item_use reads them to drive the AOE /
+ * projectile resolution and tile animation (compared signed and
+ * clamped to the map bounds).
+ * ---------------------------------------------------------------- */
+
+/* 0x53C37: best item-use target tile X coordinate (zero-init BSS scalar).
+            Writer @0x15811 stores the winning candidate X as a full dword
+            (MOV [0x53C37],EAX) where the source is a byte tile coord
+            zero-extended into the dword (MOVZX @0x1583A). fd2_execute_ai_item_use
+            reads it many times (@0x150EB/0x1510E/0x15155/0x15281), rewrites it
+            in-place during the long-range projectile interpolation, and clamps
+            it signed to [0, data_fd2_battle_map_width_tiles-1]. Unsigned tile
+            coordinate. First target member of the ai_best_item_* result group
+            (X @0x53C37, Y @0x53C3B); analogue of
+            data_fd2_battle_ai_best_spell_target_x @0x53C27. */
+uint32 data_fd2_battle_ai_best_item_target_x;
