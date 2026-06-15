@@ -881,9 +881,6 @@ uint8  data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[18] = {
     0x59, 0x5D, 0xFF, 0x5D, 0xCD, 0xCD, 0xCD, 0xCD, 0x5C,
     0x58, 0x58, 0x58, 0x5B, 0x5C, 0x58, 0x5B, 0xFF, 0xFF
 };
-/* Shop / give-item menu scroll offset (top-row index of the 6-item viewport,
- * steps of 2). Real FD2.LE global @ 0x5412F; shared menu-scroll state. */
-uint32 data_fd2_ui_menu_scroll_offset = 0;
 /* Shop / roster menu shared state (BSS) — real FD2.LE globals.
  *   visible_item_count @ 0x5413F  rows the renderer paints
  *   candidate_array_ptr @ 0x54143  -> the equip-eligible char-id byte array

@@ -2006,8 +2006,8 @@
       "fd2_party_roster_class_select_loop"
     ],
     "note": "multi-writer:ui_menu/chintro.c,ui_menu/promote.c,ui_menu/shop.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_intro_dialog_anim_frame_idx": {

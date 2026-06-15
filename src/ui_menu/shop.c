@@ -815,3 +815,25 @@ void fd2_run_give_item_menu(void)
  * this is a zero-initialized (BSS) scalar, not a constant table.
  * ---------------------------------------------------------------- */
 uint32 data_fd2_dialog_last_action_sprite_id_param;
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_menu_scroll_offset @ 0x5412F  (.object2, uint32)
+ *
+ * Shared menu-scroll state: the top-row index of the 6-item visible
+ * viewport in every chapter-intro roster/shop/promote grid (scrolls in
+ * steps of 2 for the 2-wide buy/sell/give/roster grids, steps of 1 for
+ * the 1-wide promote lists). Every menu loop that uses it writes 0 to it
+ * during setup before the first read (fd2_shop_menu_input_loop,
+ * fd2_party_roster_single_select_loop, fd2_party_roster_class_select_loop,
+ * fd2_promote_member(s)_select_loop, the chapter-intro dialog loops);
+ * fd2_run_buy_item_menu reloads it from data_fd2_ui_menu_saved_scroll_offset
+ * and writes it back to persist across panel re-opens. Comparisons against
+ * the cursor index are signed (the readers cast to int32 at the use site:
+ * MOV/SUB DWORD + JL/JGE in the binary), but the stored value is always a
+ * small non-negative viewport index, so it is declared uint32 to match the
+ * sibling menu-state globals (cursor_idx / visible_item_count /
+ * saved_cursor_idx / saved_scroll_offset). The binary image is statically
+ * zero and first access on every path is a write, so this is a
+ * zero-initialized (BSS) scalar, not a constant.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_ui_menu_scroll_offset;
