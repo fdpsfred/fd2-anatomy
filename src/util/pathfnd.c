@@ -522,3 +522,20 @@ void fd2_pathfind_check_destination_save_path(uint8 x, uint8 y)
         }
     }
 }
+
+/* ----------------------------------------------------------------
+ * Pathfind state globals (.object3, 0x60060+)
+ *
+ * Runtime-populated pathfinding state shared between the movement-range
+ * flood-fill and the destination pathfinder. Each field is written by
+ * fd2_init_movement_range_floodfill / fd2_pathfind_to_destination before
+ * any reader runs, so the load-time value is zero (BSS).
+ * ---------------------------------------------------------------- */
+
+/*
+ * tile-attribute -> movement-cost primary lookup table pointer @ 0x60060.
+ * Holds a caller-supplied table base (passed as pCost_table). Readers
+ * dereference it as (uint8 *): cost_idx = table[(attr & 0x3FF) * 4 + 1].
+ * Zero at load; set at runtime by both pathfind orchestrators.
+ */
+uint32 data_fd2_battle_pathfind_tile_cost_table_ptr;
