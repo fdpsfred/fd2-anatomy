@@ -340,8 +340,8 @@
       "fd2_player_action_menu_loop"
     ],
     "note": "multi-writer:battle/btl_ai.c,battle/btl_turn.c,ui_menu/menu.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_tile_anim_palette_phase_lookup": {

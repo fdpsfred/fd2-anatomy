@@ -623,3 +623,15 @@ int fd2_player_inline_action_menu_dispatch(int char_idx,
  * Mutable state with a writer (DEC byte ptr [0x51A42]); initial value 0x03.
  */
 uint8  data_fd2_ui_click_debounce_skip_count = 3;
+
+/*
+ * data_fd2_battle_ai_post_action_consequence_idx @ 0x51A8F (.object2), 4 bytes.
+ * Pending post-action consequence selector. Set to 0xFF ("none") before each
+ * actor finishes its action; an action handler may store an index into
+ * data_fd2_battle_ai_post_action_consequence_table here. After the action,
+ * callers (fd2_game_main_loop, fd2_field_command_menu_loop, the battle AI turn
+ * phases, etc.) test it: if != 0xFF they invoke the indexed consequence handler
+ * (counter-attack / death / status proc), then reset it to 0xFF.
+ * Accessed as a full dword (MOV dword ptr [0x51A8F],EDX); initial value 0xFF.
+ */
+uint32 data_fd2_battle_ai_post_action_consequence_idx = 0xFF;
