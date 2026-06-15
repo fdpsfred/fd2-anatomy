@@ -2,7 +2,7 @@
 
 目標：`src/` 自身 compile+link 出可正確執行的 `fd2.exe`；`src/`+`tests/` compile 出測試執行檔。
 **全 650 個遊戲 function 已 emit、四分支 merge cascade 已落入 `integ`。
-當前在「真實資料落地 + 測試重寫 + 收斂 fd2.exe」收斂計畫（data-first）。**Phase 1（真資料落地 src/）四路並行 data emit 主體完成（per-symbol commit 版）：337/343 符號已 committed 落在 4 個 worktree、各檔 build gate 綠、尚未 merge 回 integ。下一步＝補完 6 個 leftover → merge cascade → 驗收（見下方「當前斷點」）。**
+當前在「真實資料落地 + 測試重寫 + 收斂 fd2.exe」收斂計畫（data-first）。**Phase 1（真資料落地 src/）四路 data emit 全數完成（per-symbol commit 版）：343/343 符號 committed 落在 4 個 worktree、const-fix 完成、6 個 529 leftover 補完、四 worktree 已驗證 pending=0 + 乾淨 + build gate 0/0；尚未 merge 回 integ。下一步＝merge cascade dp1..4 → integ → 最終驗收（見下方「當前斷點」）。**
 完整計畫：`C:\Users\fdpsf\.claude\plans\plan-plan-soft-dongarra.md`（**新 session 先讀它 + 下面這段**）。
 
 **溝通方式（使用者要求）**：給使用者的所有文字（含對話回覆，不只文件）一律用淺白通順的繁體中文完整句子，
@@ -53,11 +53,7 @@ Phase 4 收斂 fd2.exe + 實機對照`。
 
 **✅ [const-fix] 完成（dp4 commit `ff05f00`）**：9 個被誤 demote 的真 const 表（`view_window_max_x/y`、`tile_attr_mv/def_modifier_table`、`job_magic_resist_table`、`job_crit_rate_table`、`summon_spell_8slot_visibility/y_offset/row_multiplier_table`，`dp4/src/table/btltab.c`）已改回 const（def + globals.h extern），寫它們的測試以 **whole-function `#if0`** SKIP（非改寫、非 demote）。**已驗證**：9 個 def+extern 全 const、`build_test` 0err/0warn、commit diff 只加 `#if0`/marker（零碼改、零刪除、零 demote）；Ghidra 實查 9 位址遊戲端全 READ、零 WRITE＝真 const。原則已鎖（memory `feedback_const_data_never_demote_for_tests`；workflow SOP/buildGate 禁 demote）。**代價（Phase 3 債，見下）**：compiler-forced cascade 共 SKIP 255 個測試 + ~53 個 helper、24 檔（約 dp4 1739 測試的 15%）——因 const-9 是被大量 fixture 當前置條件寫入的遊戲常數。
 
-**① [mop-up] 6 個 leftover 符號未落地**（皆 529/parse 失敗的犧牲者；已 committed 的 337/343 零損失）：
-- dp1 ×2：`data_fd2_battle_view_window_origin_y`、`data_fd2_battle_cursor_world_x`（reviewer 撞 529）。**半落地**：def 已被同檔後續符號的 lander `git add -A` 掃進 `dp1/src/ui_menu/cursor.c`（`uint32 ...;`，約 line 240/253）但未經本輪 review、testglob 假版仍在。
-- dp2 ×1：`data_fd2_battle_pathfind_current_depth`（lander 撞 529）。**clean**（pathfnd.c 無 file-scope def、testglob 假版在）。
-- dp4 ×3：`data_fd2_ui_terrain_hud_panel_offset_51a0c`（rndstat.c, init-data）、`data_fd2_audio_summon_spell_sfx_bank_buf_ptr`（anispell.c, zero-bss）、`data_fd2_chapter_chapter_init_done_flag`（btl_init.c, zero-bss）。**clean**（dp4 提前停、沒跑到這 3 檔）。
-- **做法**：(a) 半落地的 2 個先把 cursor.c 那 2 行未 review 的 def **整行刪掉 + commit**（讓 re-emit 乾淨；否則 emitter append 會變重複定義）；(b) 每路 re-scout（自動跳過已 reviewed）取 args → `Workflow(scriptPath:"tools/data_emit/data_emit.wf.js", args:<scout 輸出>)` 補完。4 個 worktree 目前都乾淨（無 uncommitted）。
+**✅ [mop-up] 完成**：6 個 529 leftover 全數補完、各 build-gate 0/0 —— dp1 ×2（`view_window_origin_y` `9fbfd46`、`cursor_world_x` `2923d09`；先預清 cursor.c 半落地 def，commit `d4d5956`）、dp2 ×1（`pathfind_current_depth` `e2dc1e2`）、dp4 ×3（`ui_terrain_hud_panel_offset_51a0c` `2af14bd`、`audio_summon_spell_sfx_bank_buf_ptr` `0dfb3c5`、`chapter_chapter_init_done_flag` `7caacd1`）。**四 worktree 已驗證**：pending=0、reviewed=112/88/83/76（各分區 100%）、working tree 乾淨、dp4 的 9 個 const 仍 const。整體 343/343 data symbol 全數 emit+review+commit。
 
 **② [merge] merge cascade `data-p1..p4` → integ**（沿下方 §3 方法論：testglob.c / globals.h / data_routing.json 取 union；`src/*.c` 多 file-disjoint git 自動合）。注意：(a) 第一輪有**良性 caller-const 傳遞** commit 跨分區動到別檔（dp2 改過 `gfx/palette.c`/`spell/spellcin.c` 讀 const 表的區域指標加 `const`、dp4 改過 `life/main.c`），非重複定義、merge 時併即可；(b) worktree 的 `tools/data_emit/*` 仍是 `786fdc7` 舊版、integ 已是新版（worktree 沒改它故不衝突，取 integ 版）。
 
