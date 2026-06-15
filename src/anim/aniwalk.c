@@ -683,3 +683,15 @@ void fd2_play_status_screen_outro_step(uint32 frame_idx,
  * offset alongside the sub-pixel/parallax offsets.
  * ---------------------------------------------------------------- */
 uint32 data_fd2_battle_compose_left_edge_clip_offset;
+
+/* ----------------------------------------------------------------
+ * Walk-step composite parallax scroll Y-row count @ 0x53AF1  (.object2, zero-init)
+ *
+ * Top-margin row count for the scroll-up battle tile-map composite.
+ * fd2_walk_step_up sets it to 0x18 just before each composite pass
+ * (scroll-up render uses a +1 top-margin row from the lower workspace
+ * position) and clears it to 0 right after, so the static image is zero.
+ * Read by fd2_composite_battle_tile_map as a dword multiplied by 0x1C8
+ * (dst stride) and added into the source/dst offset for parallax chapters.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_compose_parallax_scroll_y_rows;
