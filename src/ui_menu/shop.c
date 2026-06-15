@@ -837,3 +837,25 @@ uint32 data_fd2_dialog_last_action_sprite_id_param;
  * zero-initialized (BSS) scalar, not a constant.
  * ---------------------------------------------------------------- */
 uint32 data_fd2_ui_menu_scroll_offset;
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_menu_visible_item_count @ 0x5413F  (.object2, uint32)
+ *
+ * Shared menu-row-count state: how many roster/item rows the chapter-intro
+ * grid renderer (fd2_render_chapter_intro_dialog_panels @ 0x2D9FE) paints
+ * for the current selection screen. Every menu loop sets it during setup
+ * before the first read: fd2_run_chapter_intro_menu_main writes the party
+ * member count to it (MOVZX EBX,AL; MOV [0x5413F],EBX) before opening any
+ * panel, and the buy/sell/equip/give/status/promote loops overwrite it with
+ * their own list length. fd2_run_buy_item_menu snapshots the previous value
+ * (MOV EDI,[0x5413F]) and restores it (MOV [0x5413F],EDI) around the
+ * recipient-select sub-loop. Every access is a full 32-bit dword and the
+ * renderer's bound checks are signed (CMP DWORD + JGE/JLE in the binary),
+ * but the stored value is always a small non-negative row count, so it is
+ * declared uint32 to match the sibling menu-state globals (cursor_idx /
+ * scroll_offset / saved_cursor_idx / saved_scroll_offset) and the partner
+ * data_fd2_shared_menu_party_member_count. The binary image is statically
+ * zero and first access on every path is a write, so this is a
+ * zero-initialized (BSS) scalar, not a constant.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_ui_menu_visible_item_count;

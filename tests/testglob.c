@@ -885,7 +885,6 @@ uint8  data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[18] = {
  *   visible_item_count @ 0x5413F  rows the renderer paints
  *   candidate_array_ptr @ 0x54143  -> the equip-eligible char-id byte array
  *   saved_cursor / saved_scroll @ 0x5414B / 0x5414F  persist across re-opens */
-uint32 data_fd2_ui_menu_visible_item_count = 0;
 uint32 data_fd2_ui_menu_saved_cursor_idx = 0;
 uint32 data_fd2_ui_menu_saved_scroll_offset = 0;
 /* per-shop-tier dialog text-id tables (short[6], indexed by
