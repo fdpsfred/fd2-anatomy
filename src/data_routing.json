@@ -1457,8 +1457,8 @@
       "fd2_ai_score_physical_attack"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_ai_best_physical_target_y": {

@@ -604,3 +604,13 @@ int32 data_fd2_battle_ai_best_item_score;
             fd2_apply_use_effect_dispatch) as the selected slot. Unsigned slot
             index. Item-use analogue of data_fd2_battle_ai_best_spell_slot. */
 uint32 data_fd2_battle_ai_best_item_slot;
+
+/* 0x53C43: best physical-attack target tile X coordinate (zero-init BSS scalar).
+            Writer @0x144DD stores candidate_x as a full dword (MOV [0x53C43],EAX)
+            when a candidate beats the running best score; fd2_execute_ai_physical_attack
+            reads it @0x154C0 (PUSH dword [0x53C43]) and passes it to
+            fd2_ai_walk_to_target_tile. Unsigned tile coordinate (byte value
+            zero-extended into the dword slot). First member of the
+            ai_best_physical_* result group (X @0x53C43, Y @0x53C47,
+            idx @0x53C4B, score @0x53C4F). */
+uint32 data_fd2_battle_ai_best_physical_target_x;
