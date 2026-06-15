@@ -500,3 +500,27 @@ const uint8 data_fd2_chapter_ch10_end_scene_char_pos_x_table[11] = {
 const uint8 data_fd2_chapter_ch10_end_scene_char_pos_y_table[11] = {
     38, 39, 38, 38, 39, 38, 39, 39, 40, 40, 40
 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_chapter_ch12_end_scene_char_pos_x_table @ 0x52129  (14 entries, uint8)
+ *
+ * Chapter 12 end-scene character placement: per-character battle-tile X
+ * coordinate for the 14 characters staged at the end of chapter 12
+ * (北山道). First of three parallel 14-byte tables (X @ 0x52129,
+ * Y @ 0x52137, facing @ 0x52145). Read-only const table in .object2.
+ *
+ * Caller (fd2_chapter_12_end @ 0x237D5):
+ *     var_18._0_1_ = data_fd2_chapter_ch12_end_scene_char_pos_x_table[0];
+ *     ... (indices 0..0xD copied one byte at a time onto an on-stack block)
+ *     abStack_c[1] = data_fd2_chapter_ch12_end_scene_char_pos_x_table[0xd];
+ *     fd2_setup_chars_and_camera_for_intro(&var_18, &var_28, facing, ...);
+ * asm @ 0x237E8: MOV ESI,0x52129; MOVSD/MOVSD/MOVSD/MOVSW copies 14 bytes
+ *     onto [ESP+0x20]; the block is then passed to the placement routine.
+ * => each entry is consumed one byte at a time as a battle-tile X coord.
+ *    No struct stride, no wider element access, no sign extension.
+ *    Values are small tile coords (8..12).
+ * => element type: uint8, 14 entries, read-only (single READ xref, no writer).
+ * ---------------------------------------------------------------- */
+const uint8 data_fd2_chapter_ch12_end_scene_char_pos_x_table[14] = {
+    10, 11, 9, 12, 8, 10, 11, 9, 12, 8, 8, 12, 8, 12
+};
