@@ -29,6 +29,15 @@ uint16 data_fd2_animation_ani_decoder_target_width;
  * runtime by the setter before the decoder runs). */
 uint32 data_fd2_animation_ani_decoder_dst_buf;
 
+/* ANI frame decoder source/palette-area base address @ 0x52766.
+ * Linear address used as the palette write base by the palette chunk
+ * handlers (fill/literal/RLE/run-pairs). Written each frame by
+ * fd2_ani_decoder_set_target_buffer (32-bit store of src_buf); read by the
+ * palette chunk handlers which cast it to a byte/dword pointer base.
+ * Zero-initialized in the binary (filled at runtime by the setter before
+ * the decoder runs). */
+uint32 data_fd2_animation_ani_decoder_src_buf;
+
 /* ----------------------------------------------------------------
  * fd2_ani_decoder_set_target_buffer @ 0x36C7D
  * ---------------------------------------------------------------- */
