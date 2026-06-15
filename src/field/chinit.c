@@ -1784,3 +1784,19 @@ void fd2_chapter_30_init(void)
     fd2_clear_all_chars_facing();
     fd2_pan_cursor_to_char(0);
 }
+
+/* ----------------------------------------------------------------
+ * Global data owned by this translation unit
+ * ---------------------------------------------------------------- */
+
+/* data_fd2_battle_anim_phase @ 0x51A83  (.object2, dword)
+ *
+ * Battle/cutscene animation-phase flag. A single 32-bit scalar that
+ * many engine paths (chapter init/end handlers, AI turn logic, menu
+ * and dialog loops, spell effects) toggle between 0 and 1 to gate
+ * cursor-overlay animation. Cursor/paint readers test it via
+ * "CMP dword ptr [0x51A83], 0" and the dedicated setter does
+ * "MOV dword ptr [0x51A83], 1"; all accesses are full dword, unsigned
+ * (only compared == 0 / assigned 0 or 1). The static image value is 1.
+ */
+uint32 data_fd2_battle_anim_phase = 1;

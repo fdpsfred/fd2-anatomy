@@ -320,8 +320,8 @@
       "fd2_player_action_menu_loop"
     ],
     "note": "multi-writer:battle/btl_ai.c,battle/btl_aitg.c,battle/btl_init.c,battle/btl_turn.c,dialog/dialog.c,field/chend1.c,field/chend2.c,field/chevt1.c,field/chevt2.c,field/chinit.c,field/chtrans.c,life/main.c,spell/spelleff.c,spell/spellsel.c,ui_menu/cursor.c,ui_menu/menu.c,ui_menu/status.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_ai_post_action_consequence_idx": {
