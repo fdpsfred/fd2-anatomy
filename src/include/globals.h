@@ -252,7 +252,7 @@ extern double data_fd2_graphics_circle_band_radius_scale_16;            /* 0x502
  * table_a is signed (used with IDIV in the wing slide-in/out animation:
  * base + corner_offs[i]/divisor); table_b is sign-agnostic (additive). */
 extern const int32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_a[4]; /* 0x526DA */
-extern uint32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4]; /* 0x526EA */
+extern const int32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4]; /* 0x526EA */
 extern uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6];  /* 0x52659 */
 
 /* Per-chapter shop "inventory full" FDTXT dialog-id table (int16, indexed

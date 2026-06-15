@@ -153,3 +153,20 @@ const uint8 data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[18] = 
  * (close) to slide the wings in/out. Stride 4, signed int32, never written.
  */
 const int32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_a[4] = { -39, -13, 13, 39 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_chapter_intro_dialog_corner_offset_table_b @ 0x526EA  (16 bytes)
+ *
+ * Twin of table_a above (immediately adjacent: 0x526DA + 0x10 = 0x526EA),
+ * with the same four signed corner offsets { -39, -13, 13, 39 }. Used by the
+ * chapter-intro dialog input-wait loop fd2_wait_input_with_chapter_dialog_blink
+ * (@ 0x2D85F): it copies all four 32-bit words into a local corner_offs[16]
+ * buffer with a count-4 REP MOVSD (MOV ECX,4; MOV ESI,0x526EA; REP MOVSD ->
+ * 32-bit elements), then on each frame passes that buffer to
+ * fd2_render_chapter_intro_dialog_panels. When mode==0 it also indexes the
+ * local copy by corner i (0..3) with stride 4, loading each element as a signed
+ * dword (MOV EAX,[ESP+i*4+8]) and adding the framebuffer base 0xAD430 to place
+ * the four cursor-corner indicator sprites. Stride 4, signed int32, never
+ * written -> const int32 flat table.
+ */
+const int32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4] = { -39, -13, 13, 39 };
