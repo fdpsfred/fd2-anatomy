@@ -10,6 +10,40 @@
 #include <math.h>
 
 /* ----------------------------------------------------------------
+ * File-scope render state (zero-initialized at startup)
+ * ---------------------------------------------------------------- */
+
+/* @ 0x53A04 -- character-sprite sleep shake-jitter toggle bit (u8, value
+ * 0 or 1). Read/written by fd2_paint_char_sprite_at_world_pos: when the
+ * BIOS tick changes the bit is flipped (bit ^= 1), and when the painted
+ * char has the sleep status the bit is added onto blit_offset (a +0 or
+ * +1 pixel shake). Zero-initialized at startup. Sibling of the tick
+ * latch below at 0x53A08. */
+uint8 data_fd2_graphics_char_sprite_shake_jitter_bit;
+
+/* @ 0x53A08 -- last BIOS tick (signed, sign-extended from the 16-bit
+ * counter at 0x46C) that toggled the sleep shake jitter bit. Read/
+ * written by fd2_paint_char_sprite_at_world_pos to flip the jitter bit
+ * at most once per tick. Accessed as a 32-bit dword: the writer does
+ * MOVSX EAX,word[0x46C] then CMP EAX,[0x53A08] / MOV [0x53A08],EAX, so
+ * it holds a sign-extended tick. Zero-initialized at startup. */
+int32 data_fd2_graphics_char_sprite_paint_jitter_tick_latch;
+
+/* @ 0x53C1F -- battle tile-map animation sub-counter (the "compose
+ * state_b" frame index). Free-running 0..19 cycle that advances once
+ * every 3 BIOS ticks; wraps at 0x14 (20). Used as a byte index into
+ * data_fd2_graphics_tile_anim_palette_phase_lookup[20] to pick the
+ * per-frame tile palette-remap phase. Accessed as a 32-bit dword:
+ * fd2_composite_battle_tile_map does INC/CMP/MOV dword[0x53C1F] for the
+ * free-running advance (or loads it from the forced-frame override),
+ * and fd2_execute_ai_item_use resets it to 0 then drives it 1..8 for
+ * the long-range item-cast burst animation. Zero-initialized at
+ * startup (memory image is all zero; first free-running use is a
+ * read-modify-write increment). Multi-writer (also written from
+ * battle AI item-use path). */
+uint32 data_fd2_battle_tile_map_anim_frame_counter;
+
+/* ----------------------------------------------------------------
  * fd2_composite_battle_frame @ 0x11CAC (61 callers)
  *
  * Battle screen frame finalizer. Composites tile map + character
@@ -1282,3 +1316,12 @@ int fd2_render_summon_aura_sprite_ring(int caster_unit_id, int sprite_handle,
 
     return 0;
 }
+
+/* Background-animation flip flag (0x53A40). Every-other-frame toggle used by
+   the battle tile-map compositor to swap animated tile sprites. Owned and
+   driven by fd2_composite_battle_tile_map, which toggles it (flag ^= 1) once
+   per BIOS-tick change; readers add it (or it*2) onto the tile id. Storage is
+   a 32-bit slot read as a dword; the writer touches only the low byte (the
+   value never leaves 0/1), so the upper bytes stay zero. Established at
+   runtime, zero-initialized. */
+uint32 data_fd2_graphics_bg_anim_flip_flag;

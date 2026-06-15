@@ -5,8 +5,12 @@
 ## struct
 
 ```
-byte[27]   每 byte 是 job_id (0x00..0x1A) 對應的暴擊率 %
+byte[27]   每 byte 是某職業的暴擊率 %（unsigned）
 ```
+
+accessor 為 `table[job_id - 1]`（job_id 1-based），故 element 0 對應 job 0x01。
+job 0x00（龍）無此資料，永不被查表。consumer 反組譯：
+`MOVZX EAX, byte ptr [EAX + 0x5239B]`，EAX = bJob_id - 1，stride 1。
 
 ## 跨版本偏移
 
@@ -20,38 +24,37 @@ byte[27]   每 byte 是 job_id (0x00..0x1A) 對應的暴擊率 %
 
 ## values
 
-```
-job  0: 5     (龍 — actually unused, 龍職位無此資料；記錄為 0 應被視為 placeholder)
-job  1: 5     劍士
-job  2: 3     戰士
-job  3: 3     騎士
-job  4: 5     弓兵
-job  5: 3     法師
-job  6: 3     僧侶
-job  7: 0     盜賊
-job  8: 18    武者
-job  9: 5     劍聖
-job 10: 3     聖戰士
-job 11: 3     聖騎士
-job 12: 12    狙擊手
-job 13: 3     大法師
-job 14: 3     祭師
-job 15: 12    龍劍士
-job 16: 10    鬥士
-job 17: 6     英雄
-job 18: 3     魔戰士
-job 19: 3     龍騎士
-job 20: 7     神射手
-job 21: 3     召喚師
-job 22: 3     聖者
-job 23: 30    忍者
-job 24: 18    武聖
-job 25: 0     機兵
-job 26: 0     ？？？
-```
+byte index N 對應 job_id (N+1)：
 
-(列表顯示的 job 0 數值 `5` 是 binary raw byte；實際遊戲 job 0 = 龍未做暴擊判定，
-attack guide 註明從 job 0x01 開始。)
+```
+idx  0  job 0x01: 5     劍士
+idx  1  job 0x02: 3     戰士
+idx  2  job 0x03: 3     騎士
+idx  3  job 0x04: 5     弓兵
+idx  4  job 0x05: 3     法師
+idx  5  job 0x06: 3     僧侶
+idx  6  job 0x07: 0     盜賊
+idx  7  job 0x08: 18    武者
+idx  8  job 0x09: 5     劍聖
+idx  9  job 0x0a: 3     聖戰士
+idx 10  job 0x0b: 3     聖騎士
+idx 11  job 0x0c: 12    狙擊手
+idx 12  job 0x0d: 3     大法師
+idx 13  job 0x0e: 3     祭師
+idx 14  job 0x0f: 12    龍劍士
+idx 15  job 0x10: 10    鬥士
+idx 16  job 0x11: 6     英雄
+idx 17  job 0x12: 3     魔戰士
+idx 18  job 0x13: 3     龍騎士
+idx 19  job 0x14: 7     神射手
+idx 20  job 0x15: 3     召喚師
+idx 21  job 0x16: 3     聖者
+idx 22  job 0x17: 30    忍者
+idx 23  job 0x18: 18    武聖
+idx 24  job 0x19: 0     機兵
+idx 25  job 0x1a: 0     ？？？
+idx 26           0     trailing pad（無 job 0x1b）
+```
 
 ## 全表
 

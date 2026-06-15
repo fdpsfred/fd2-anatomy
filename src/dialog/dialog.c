@@ -1225,3 +1225,131 @@ void fd2_show_portrait_dialog_with_input(uint32 portrait_id, uint32 text_idx)
     fd2_close_intro_dialog_with_slide_out();
     fd2_clear_keyboard_buffer();
 }
+
+/* ----------------------------------------------------------------
+ * data_fd2_graphics_text_scroll_pending_line_count @ 0x51A10
+ *
+ * Pending line-count state for fd2_scroll_text_screen_up_by_lines
+ * (background-buffer cylinder scroll). Mode A stores the low byte of
+ * the row count here (MOV [0x51A10],AL); Mode B reads it back
+ * unsigned (MOVZX, byte ptr) to drive the scroll. Single writable
+ * unsigned byte; static initial value 0x01.
+ * ---------------------------------------------------------------- */
+uint8 data_fd2_graphics_text_scroll_pending_line_count = 1;
+
+/* ----------------------------------------------------------------
+ * data_fd2_dialog_portrait_blink_frame_idx @ 0x53A10
+ *
+ * Internal frame counter for the talking-portrait mouth animation in
+ * fd2_portrait_blink_animation_step. Advanced once every 2 calls
+ * (gated by the subtick divider at 0x53A14); cycles 0 -> 1 -> 2 -> 3
+ * -> 0, with frame 3 collapsed to 1 when painted (visible sequence
+ * 0/1/2/1). Accessed exclusively as dword ptr (INC / CMP ...,0x4 /
+ * MOV ...,0 / MOV EAX,[...]) -> unsigned 32-bit. Pure runtime state:
+ * relies on zero-initialization at startup (the 0..3 cycle is correct
+ * only from initial 0); no static initializer.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_dialog_portrait_blink_frame_idx;
+
+/* ----------------------------------------------------------------
+ * data_fd2_dialog_portrait_blink_subtick_counter @ 0x53A14
+ *
+ * 2-call subtick divider gating the talking-portrait mouth animation
+ * in fd2_portrait_blink_animation_step. Incremented every call; when
+ * it reaches 2 the frame counter at 0x53A10 advances and it resets to
+ * 0 (cycles 0/1 across calls, so the visible frame updates once per 2
+ * calls). Accessed exclusively as dword ptr (INC [...] / CMP ...,0x2 /
+ * MOV ...,0) -> unsigned 32-bit. Pure runtime state: relies on
+ * zero-initialization at startup (first call INCs from 0); no static
+ * initializer.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_dialog_portrait_blink_subtick_counter;
+
+/* ----------------------------------------------------------------
+ * data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs @ 0x53A18
+ *
+ * 5-entry array of save-buffer pointers (void *[5], 20 bytes total),
+ * one per assemble stage of the layered dialog frame. Populated at
+ * runtime by fd2_play_dialog_open_animation: the open loop fills each
+ * slot via malloc(0x682C) (asm: MOV [ESI*4 + 0x53A18], EAX, stride 4,
+ * ESI = 0..4), then every slot is read back as a 32-bit pointer arg to
+ * fd2_save_screen_block_to_buffer (slots 0x53A18 / 0x53A1C / 0x53A20 /
+ * 0x53A24 / 0x53A28) to snapshot the band of screen each stage covers.
+ * fd2_close_dialog_panels_then_slide_in_at later frees the buffers in
+ * reverse-Z order to restore the screen when the dialog closes; the
+ * array head address is returned to the caller as the restore handle.
+ * Pure runtime state: every slot is written (malloc / blit result)
+ * before it is read, so it relies on zero-initialization at startup;
+ * no static initializer.
+ * ---------------------------------------------------------------- */
+void *data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[5];
+
+/* ----------------------------------------------------------------
+ * data_fd2_dialog_area_backup_buffer @ 0x53A71
+ *
+ * Single heap pointer (void *) for the dialog "save under" snapshot.
+ * fd2_backup_dialog_area_to_buffer frees any prior buffer, then sets
+ * this to malloc(0x1440) (a 0x48 x 0x48 = 5184-byte pixel patch) and
+ * fills it row by row from the working framebuffer at the cursor
+ * corner; fd2_restore_dialog_area_from_buffer reads it back as the
+ * memmove source to repaint the hidden background when the dialog
+ * closes. Accessed exclusively as dword ptr (CMP [...] ,0x0 / PUSH
+ * dword ptr [...] to free / MOV [...] ,EAX from malloc / MOV EDX,
+ * dword ptr [...] base) -> a 4-byte pointer. Pure runtime state:
+ * first use is a write (the malloc store after a NULL check), so it
+ * relies on zero-initialization at startup; no static initializer.
+ * ---------------------------------------------------------------- */
+void *data_fd2_dialog_area_backup_buffer;
+
+/* ----------------------------------------------------------------
+ * data_fd2_portrait_sprite_buffer @ 0x53A85
+ *
+ * Single heap pointer (uint8 *) to the currently loaded portrait
+ * sprite blob (a DATO.DAT resource). The dialog/status-screen open
+ * paths reload it with the running pattern
+ *   data_fd2_portrait_sprite_buffer =
+ *       fd2_load_dat_resource("DATO.DAT",
+ *                             (uint32)data_fd2_portrait_sprite_buffer,
+ *                             portrait_id);
+ * i.e. the prior pointer is handed back to the loader as the reusable
+ * buffer and the fresh pointer is stored. Consumers then dereference
+ * it as a byte buffer whose first byte is the header-size offset:
+ * sprite_pixels = data_fd2_portrait_sprite_buffer +
+ *                 *data_fd2_portrait_sprite_buffer (skip header).
+ * Accessed exclusively as dword ptr (asm: MOV [0x53A85],EAX from the
+ * loader return; PUSH dword ptr [0x53A85] back into the loader; MOVZX
+ * EBX,byte ptr [EAX] to read the header offset) -> a 4-byte pointer.
+ * Writers: fd2_display_dialog_scene, fd2_load_chapter_portrait,
+ * fd2_render_status_screen_static_layout, fd2_run_equip_member_menu,
+ * fd2_run_status_screen_member_menu, fd2_play_final_chapter_30_ending.
+ * Pure runtime state: first use is the loader-return write, so it
+ * relies on zero-initialization at startup; no static initializer.
+ * ---------------------------------------------------------------- */
+uint8 *data_fd2_portrait_sprite_buffer;
+
+/* ----------------------------------------------------------------
+ * data_fd2_dialog_active_portrait_blit_offset @ 0x53C67
+ *
+ * Active dialog/portrait blit offset: a mode-13h (320x200) linear
+ * pixel offset added to a framebuffer base (0xA0000 VRAM or a 64000-
+ * byte composed-overlay workspace) to position the current portrait /
+ * dialog panel. Also doubles as the active-dialog-mode selector that
+ * readers test to pick a rendering path.
+ *
+ * Writers set it to one of a small set of slot offsets per scene:
+ *   0x728  in-field NPC dialog slot      0x9017 status/wide slot
+ *   0xC88  status-screen portrait slot   0x10BB/0x6AB/0xF63/0x576/
+ *   0xE3C  five chapter-intro special-positioned portraits
+ * and reset it to 0 on the dialog-close path (the "no active dialog"
+ * sentinel that readers compare against, e.g. != 0x9017 / == 0x728).
+ *
+ * Accessed exclusively as dword ptr (asm: MOV dword ptr [0x53C67],imm
+ * to set a slot; CMP dword ptr [0x53C67],0x728 / 0x9017 to branch;
+ * ADD EAX,dword ptr [0x53C67] to bias the blit base) -> unsigned
+ * 32-bit. The largest value 0x9017 (36887) exceeds a signed 16-bit
+ * range, confirming a >=32-bit unsigned cell; tests round-trip a full
+ * 0xABCD1234 through it. Pure runtime state: every scene writes a slot
+ * (or 0) before the readers run, so it relies on zero-initialization
+ * at startup; no static initializer.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_dialog_active_portrait_blit_offset;

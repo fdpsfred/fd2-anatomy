@@ -60,6 +60,9 @@ D:\BIN\WCC386.EXE table\btltab2.c %CF% -fo=E:\out\obj\btltab2.obj >> E:\out\buil
 D:\BIN\WCC386.EXE table\chtab2.c %CF% -fo=E:\out\obj\chtab2.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE table\dlgtab.c %CF% -fo=E:\out\obj\dlgtab.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE table\gfxtab.c %CF% -fo=E:\out\obj\gfxtab.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE table\btltab.c %CF% -fo=E:\out\obj\btltab.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE table\btltab3.c %CF% -fo=E:\out\obj\btltab3.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE table\strtab.c %CF% -fo=E:\out\obj\strtab.obj >> E:\out\build.out
 
 echo === compile tests === >> E:\out\build.out
 D:\BIN\WCC386.EXE E:\testmain.c %CF% -fo=E:\out\obj\testmain.obj >> E:\out\build.out

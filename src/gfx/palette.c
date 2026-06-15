@@ -10,6 +10,70 @@
 #include <dos.h>
 
 /* ----------------------------------------------------------------
+ * Palette-cycle "last update" BIOS tick @ 0x60000.
+ * Throttle timestamp for fd2_update_palette_cycle_anim: stores the
+ * BIOS midnight tick at which the 16-frame water/lava palette cycle
+ * was last advanced. The animator only steps a frame when
+ * (current_tick - last_tick) >= 2 ticks (about 110ms).
+ *
+ * uint16 (not uint8/uint32): the sole accessor reads it as
+ * SUB AX,word ptr [0x60000] and writes it as MOV [0x60000],AX --
+ * both 16-bit, matching the ushort return of
+ * fd2_read_bios_midnight_tick. Zero-initialized: it lives in the
+ * uninitialized .object3 region and is first touched at runtime
+ * (the first frame's tick delta vs. 0 trips the threshold, then the
+ * real tick is stored). No static non-zero seed.
+ * ---------------------------------------------------------------- */
+uint16 data_fd2_animation_palette_cycle_last_tick;
+
+/* ----------------------------------------------------------------
+ * Palette-cycle frame counter @ 0x60002.
+ * Current frame index (0..15) of the 16-frame water/lava palette
+ * cycle driven by fd2_update_palette_cycle_anim. Each advance does
+ * frame_idx++ then wraps to 0 at 16; the value scales by 3 to pick
+ * the RGB window into data_fd2_animation_palette_cycle_rgb_table.
+ *
+ * uint8 (not uint16/uint32): every access in the sole accessor is
+ * 8-bit -- INC byte ptr [0x60002], CMP byte ptr [0x60002],0x10,
+ * MOV byte ptr [0x60002],0x0, MOV AL,[0x60002]. Zero-initialized:
+ * it lives in the uninitialized .object3 region and is first
+ * touched at runtime by the increment (the first step relies on it
+ * starting at 0). No static non-zero seed.
+ * ---------------------------------------------------------------- */
+uint8 data_fd2_animation_palette_cycle_frame_idx;
+
+/* ----------------------------------------------------------------
+ * Chapter walk-anim alternate palette index @ 0x53C07.
+ * Fast palette-animation phase (0..3) advanced once per call of
+ * fd2_tick_chapter_palette_animation. Selects which alternate
+ * palette/tile-frame the walk-cycle compositor paints; read by the
+ * char/tile painters (fd2_paint_char_sprite_at_world_pos and
+ * _with_mode) as the animated-tile frame selector.
+ *
+ * uint32: every accessor reads it with a plain 32-bit MOV (no sign
+ * idiom); the writer does INC / CMP ==4 / reset-to-0, so the value
+ * never leaves 0..3. Zero-initialized .object2 scalar -- first
+ * advance relies on it starting at 0; no static non-zero seed.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_graphics_chapter_walk_anim_alt_palette_idx;
+
+/* ----------------------------------------------------------------
+ * Chapter ambient palette-animation index @ 0x53C0B.
+ * Slow palette-animation phase (0..3) advanced by
+ * fd2_tick_chapter_palette_animation every 4 BIOS ticks. Drives the
+ * ambient (idle) palette/tile-frame for chapter visuals; read by the
+ * scene compositors as the animated-tile frame selector.
+ *
+ * int32 (signed): the compositor reader @ 0x121CF loads it and applies
+ * the signed divide-by-two idiom (MOV EDX,EAX; SAR EDX,0x1f; SUB EAX,
+ * EDX; SAR EAX,1) -- a uint32 would use SHR -- so the canonical type
+ * is signed. The writer only does INC / CMP ==4 / reset-to-0, so the
+ * live value stays 0..3 and the sign is benign. Zero-initialized
+ * .object2 scalar; no static non-zero seed.
+ * ---------------------------------------------------------------- */
+int32 data_fd2_graphics_chapter_ambient_palette_anim_idx;
+
+/* ----------------------------------------------------------------
  * fd2_set_vga_palette_range @ 0x11D40
  *
  * Write palette entries [start..end] to VGA DAC, subtracting
@@ -99,7 +163,7 @@ void fd2_set_vga_palette_range_with_add(uint32 start_idx, uint32 end_idx,
  *
  * Palette cycling for env effects (water/lava/fire). Cycles
  * palette entries 0xE0..0xEF via a 93-byte sliding-window table
- * (16 frames × 3-byte stride, each frame reads 48 sequential bytes).
+ * (16 frames x 3-byte stride, each frame reads 48 sequential bytes).
  * Throttled to ~2 BIOS ticks (~110ms) between updates.
  * ---------------------------------------------------------------- */
 void fd2_update_palette_cycle_anim(void)

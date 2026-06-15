@@ -1062,3 +1062,20 @@ void fd2_render_chapter_status_panel_segments(uint32 sheet, uint32 active_idx,
         fd2_blit_indexed_sprite_at_xy(0xae401, 0x140, sheet, sprite_idx);
     }
 }
+
+/* ----------------------------------------------------------------
+ * Terrain-info HUD panel X-offset latch @ 0x51A0C.
+ * Horizontal placement of the corner "terrain info" HUD panel,
+ * relative to (panel_dst_base + render_stride*0x9D), so the panel
+ * does not cover the cursor. fd2_render_terrain_info_hud_panel
+ * latches it to 0xF2 (right side) when the cursor is top-left, to
+ * 1 (left side) when the cursor is bottom-right, and otherwise
+ * keeps the previous value.
+ *
+ * uint32: both writers use a 32-bit immediate store
+ * (MOV dword ptr [0x51A0C], 0xF2 / 0x1) and the reader adds it with
+ * a plain 32-bit load (ADD EBP, dword ptr [0x51A0C]); no sign idiom.
+ * .object2 scalar with a non-zero static seed of 1 (the panel
+ * defaults to the left position before the first latch write).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_ui_terrain_hud_panel_offset_51a0c = 1;

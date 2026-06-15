@@ -25,8 +25,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_init_handler_table": {
@@ -65,13 +65,13 @@
     "len": 360,
     "datatype": "pointer[90]",
     "kind": "ptr_table",
-    "emit_class": "const",
+    "emit_class": "fnptr_table",
     "needs_bytes": true,
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_spell_cast_cinematic_phase_handler_table": {
@@ -80,13 +80,13 @@
     "len": 40,
     "datatype": "pointer[10]",
     "kind": "ptr_table",
-    "emit_class": "const",
+    "emit_class": "fnptr_table",
     "needs_bytes": true,
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_ani_decoder_frame_dispatch_table": {
@@ -115,8 +115,8 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_cutscene_event_script_ptr_table_106": {
@@ -145,8 +145,8 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_spell_effect_table": {
@@ -160,8 +160,8 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_character_base_table": {
@@ -175,8 +175,8 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_character_growth_table": {
@@ -190,8 +190,8 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_spell_learning_table": {
@@ -205,8 +205,8 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_enemy_data_table": {
@@ -220,23 +220,23 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_job_magic_resist_table": {
     "addr": "51f96",
     "segment": ".object2",
-    "len": 108,
-    "datatype": "dword[27]",
+    "len": 112,
+    "datatype": "dword[28]",
     "kind": "byte_data",
     "emit_class": "const",
     "needs_bytes": true,
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_job_crit_rate_table": {
@@ -250,8 +250,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_per_chapter_player_turn_bgm_track": {
@@ -555,8 +555,8 @@
       "fd2_play_dialog_open_animation"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_bg_anim_flip_flag": {
@@ -572,8 +572,8 @@
       "fd2_composite_battle_tile_map"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_large_game_state_buffer_ptr": {
@@ -969,8 +969,8 @@
       "fd2_run_buy_item_menu"
     ],
     "note": "multi-writer:battle/btl_turn.c,field/chevt2.c,ui_menu/menufld.c,ui_menu/promote.c,ui_menu/shop.c,util/misc.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_drop_swap_text_id_param": {
@@ -1064,8 +1064,8 @@
       "fd2_chapter_01_init"
     ],
     "note": "multi-writer:field/chend1.c,field/chinit.c,field/chtrans.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_static_bg_buffer_ptr": {
@@ -1285,8 +1285,8 @@
       "fd2_chapter_05_end"
     ],
     "note": "multi-writer:field/chend1.c,field/chend2.c,field/chinit.c,life/main.c,save/save.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_chapter_ambient_palette_anim_idx": {
@@ -1302,8 +1302,8 @@
       "fd2_tick_chapter_palette_animation"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_ai_best_spell_score": {
@@ -1626,8 +1626,8 @@
       "fd2_run_equip_member_menu"
     ],
     "note": "multi-writer:anim/aniend.c,dialog/dialog.c,gfx/rndstat.c,rsrc/rsrc.c,ui_menu/shop.c,ui_menu/status.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_last_hit_or_miss_flag": {
@@ -1952,8 +1952,8 @@
       "fd2_execute_summon_spell_cast"
     ],
     "note": "multi-writer:anim/anispell.c,spell/spellcin.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_recruitment_screen_repaint_tick_latch": {
@@ -2006,8 +2006,8 @@
       "fd2_party_roster_class_select_loop"
     ],
     "note": "multi-writer:ui_menu/chintro.c,ui_menu/promote.c,ui_menu/shop.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_intro_dialog_anim_frame_idx": {
@@ -2272,8 +2272,8 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "indirect-write bss",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_special_attack_shake_x_offset_table": {
@@ -2542,8 +2542,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_tactical_overview_team_colors_table": {
@@ -2729,8 +2729,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_inline_action_menu_template": {
@@ -2819,8 +2819,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_view_window_max_y": {
@@ -2834,8 +2834,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_floating_damage_sprite_id_queue": {
@@ -3005,8 +3005,8 @@
       "fd2_tick_chapter_palette_animation"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_blink_phase_oscillator": {
@@ -3074,8 +3074,8 @@
       "fd2_update_palette_cycle_anim"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_pathfind_floodfill_seed_x": {
@@ -3214,8 +3214,8 @@
       "fd2_paint_char_sprite_at_world_pos"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_engine_wait_one_bios_tick_last_seen": {
@@ -3248,8 +3248,8 @@
       "fd2_portrait_blink_animation_step"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_portrait_blink_subtick_counter": {
@@ -3265,8 +3265,8 @@
       "fd2_portrait_blink_animation_step"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_combat_speech_bubble_pos_pairs": {
@@ -3297,8 +3297,8 @@
       "fd2_set_chapter_init_done_flag"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_runtime_battle_state_ptr": {
@@ -3332,8 +3332,8 @@
       "fd2_execute_ai_item_use"
     ],
     "note": "multi-writer:battle/btl_ai.c,gfx/rndscene.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_pathfind_mode_flags": {
@@ -3386,8 +3386,8 @@
       "fd2_run_equip_member_menu"
     ],
     "note": "multi-writer:ui_menu/chintro.c,ui_menu/promote.c,ui_menu/shop.c,ui_menu/status.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_menu_saved_cursor_idx": {
@@ -4071,8 +4071,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_save_load_oom_msg_tile_event_50023": {
@@ -4086,8 +4086,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_save_load_oom_msg_runtime_char_50037": {
@@ -4101,8 +4101,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_field_map_oom_msg_chapter_runtime_50064": {
@@ -4116,8 +4116,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_field_map_fdicon_not_found_err_50086": {
@@ -4131,8 +4131,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_resource_filename_fdtxt_dat": {
@@ -4146,8 +4146,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_resource_filename_fdother_dat": {
@@ -4161,8 +4161,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_resource_filename_fdfield_dat_51a59": {
@@ -4176,8 +4176,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_resource_filename_fdshap_dat_51a65": {
@@ -4191,8 +4191,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_resource_filename_dato_dat_51a70": {
@@ -4206,8 +4206,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_resource_filename_fdmus_dat": {
@@ -4221,8 +4221,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_resource_filename_bg_dat_52381": {
@@ -4236,8 +4236,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_string_resource_filename_figani_dat_52388": {
@@ -4251,8 +4251,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_intro_metadata_table": {
@@ -4283,8 +4283,8 @@
       "fd2_update_palette_cycle_anim"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_pathfind_caller_context": {
@@ -4352,8 +4352,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_circle_anim_div_10": {
@@ -4427,8 +4427,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_spell_dp_boost_factor_015": {
@@ -4442,8 +4442,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_summon_radial_angle_step_12": {
@@ -4489,8 +4489,8 @@
       "fd2_render_terrain_info_hud_panel"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_text_scroll_pending_line_count": {
@@ -4506,8 +4506,8 @@
       "fd2_scroll_text_screen_up_by_lines"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_audio_bgm_last_set_track_id": {
@@ -4538,8 +4538,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_tile_attr_def_modifier_table": {
@@ -4553,8 +4553,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_spell_palette_flash_table": {
@@ -4598,8 +4598,8 @@
     "home": "table/strtab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_chapter_intro_dialog_corner_offset_table_a": {
@@ -4628,8 +4628,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_spell_8slot_y_offset_table": {
@@ -4643,8 +4643,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_spell_8slot_row_multiplier_table": {
@@ -4658,8 +4658,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_aura_ring_8slot_x_offset_table": {
@@ -4673,8 +4673,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_aura_ring_8slot_row_multiplier_table": {
@@ -4956,8 +4956,8 @@
       "fd2_paint_char_sprite_at_world_pos"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_compose_left_edge_clip_offset": {
@@ -5175,8 +5175,8 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "indirect-write bss",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_anim_variant_a_6slot_jitter_byte_array": {
@@ -5190,8 +5190,8 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "indirect-write bss",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_anim_variant_a_color_rotation_counter": {
@@ -5239,8 +5239,8 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "indirect-write bss",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_anim_variant_b_6slot_color_idx_array": {
@@ -5254,8 +5254,8 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "indirect-write bss",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_anim_variant_b_6slot_jitter_byte_array": {
@@ -5269,8 +5269,8 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "indirect-write bss",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_summon_anim_variant_b_color_rotation_counter": {
@@ -5558,8 +5558,8 @@
       "fd2_backup_dialog_area_to_buffer"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_chapter_ch10_end_scene_char_pos_x_table": {
@@ -5663,8 +5663,8 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_movement_cost_table": {
@@ -5678,8 +5678,8 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_job_allowed_items_table": {
@@ -5693,8 +5693,8 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_miss_indicator_sprite_ids": {
@@ -5708,8 +5708,8 @@
     "home": "table/btltab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_orphan_table_60181": {
@@ -5743,8 +5743,8 @@
       "fd2_run_equip_member_menu"
     ],
     "note": "multi-writer:anim/aniend.c,dialog/dialog.c,gfx/rndstat.c,rsrc/rsrc.c,ui_menu/shop.c,ui_menu/status.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_tile_event_data_table_ptr": {

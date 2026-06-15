@@ -801,3 +801,61 @@ void fd2_run_give_item_menu(void)
         fd2_recalculate_combat_stats(source);
     }
 }
+
+/* ----------------------------------------------------------------
+ * data_fd2_dialog_last_action_sprite_id_param @ 0x53AD9  (.object2, uint32)
+ *
+ * Transient dialog-VM parameter: the FDTXT page/text index used by the
+ * dialog interpreter (fd2_display_dialog_scene @ 0x16067) when it hits the
+ * -4 RECURSIVE opcode (it loads this and re-enters itself with it as the
+ * page_idx). Writers across the shop / give / promote / revive / battle-drop
+ * / tile-event paths set it (typically item_id+0xB5, portrait_id+1, or
+ * char_id+1) immediately before invoking the dialog scene, so first access
+ * on every code path is a write -- the binary image is statically zero, so
+ * this is a zero-initialized (BSS) scalar, not a constant table.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_dialog_last_action_sprite_id_param;
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_menu_scroll_offset @ 0x5412F  (.object2, uint32)
+ *
+ * Shared menu-scroll state: the top-row index of the 6-item visible
+ * viewport in every chapter-intro roster/shop/promote grid (scrolls in
+ * steps of 2 for the 2-wide buy/sell/give/roster grids, steps of 1 for
+ * the 1-wide promote lists). Every menu loop that uses it writes 0 to it
+ * during setup before the first read (fd2_shop_menu_input_loop,
+ * fd2_party_roster_single_select_loop, fd2_party_roster_class_select_loop,
+ * fd2_promote_member(s)_select_loop, the chapter-intro dialog loops);
+ * fd2_run_buy_item_menu reloads it from data_fd2_ui_menu_saved_scroll_offset
+ * and writes it back to persist across panel re-opens. Comparisons against
+ * the cursor index are signed (the readers cast to int32 at the use site:
+ * MOV/SUB DWORD + JL/JGE in the binary), but the stored value is always a
+ * small non-negative viewport index, so it is declared uint32 to match the
+ * sibling menu-state globals (cursor_idx / visible_item_count /
+ * saved_cursor_idx / saved_scroll_offset). The binary image is statically
+ * zero and first access on every path is a write, so this is a
+ * zero-initialized (BSS) scalar, not a constant.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_ui_menu_scroll_offset;
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_menu_visible_item_count @ 0x5413F  (.object2, uint32)
+ *
+ * Shared menu-row-count state: how many roster/item rows the chapter-intro
+ * grid renderer (fd2_render_chapter_intro_dialog_panels @ 0x2D9FE) paints
+ * for the current selection screen. Every menu loop sets it during setup
+ * before the first read: fd2_run_chapter_intro_menu_main writes the party
+ * member count to it (MOVZX EBX,AL; MOV [0x5413F],EBX) before opening any
+ * panel, and the buy/sell/equip/give/status/promote loops overwrite it with
+ * their own list length. fd2_run_buy_item_menu snapshots the previous value
+ * (MOV EDI,[0x5413F]) and restores it (MOV [0x5413F],EDI) around the
+ * recipient-select sub-loop. Every access is a full 32-bit dword and the
+ * renderer's bound checks are signed (CMP DWORD + JGE/JLE in the binary),
+ * but the stored value is always a small non-negative row count, so it is
+ * declared uint32 to match the sibling menu-state globals (cursor_idx /
+ * scroll_offset / saved_cursor_idx / saved_scroll_offset) and the partner
+ * data_fd2_shared_menu_party_member_count. The binary image is statically
+ * zero and first access on every path is a write, so this is a
+ * zero-initialized (BSS) scalar, not a constant.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_ui_menu_visible_item_count;

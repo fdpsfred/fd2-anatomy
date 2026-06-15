@@ -25,42 +25,6 @@ void test_heartbeat(const char *name)
 }
 
 runtime_char  g_test_rc_array[8];
-item_effect       data_fd2_battle_item_effect_table[215];
-spell_effect      data_fd2_battle_spell_effect_table[36];
-enemy_data        data_fd2_battle_enemy_data_table[68];
-character_base    data_fd2_battle_character_base_table[32];
-character_growth  data_fd2_battle_character_growth_table[68];
-uint8  data_fd2_battle_spell_learning_table[20 * 12];
-uint8  data_fd2_battle_class_promotion_data_table[20 * 2];
-uint8  data_fd2_battle_movement_cost_table[27 * 20];
-uint8  data_fd2_battle_job_allowed_items_table[27 * 7];
-void  *data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21[21];
-uint32 data_fd2_battle_job_magic_resist_table[27];
-uint8  data_fd2_battle_job_crit_rate_table[27];
-uint32 data_fd2_ui_terrain_hud_panel_offset_51a0c = 0;
-char   data_fd2_string_ui_render_decimal_format_template[6] = "%0.5d";
-char   data_fd2_string_resource_filename_fdtxt_dat[] = "FDTXT.DAT";
-char   data_fd2_string_resource_filename_fdother_dat[] = "FDOTHER.DAT";
-char   data_fd2_string_resource_filename_fdfield_dat_51a59[] = "FDFIELD.DAT";
-char   data_fd2_string_resource_filename_fdshap_dat_51a65[] = "FDSHAP.DAT";
-char   data_fd2_string_resource_filename_dato_dat_51a70[] = "DATO.DAT";
-char   data_fd2_string_resource_filename_bg_dat_52381[] = "BG.DAT";
-char   data_fd2_string_resource_filename_figani_dat_52388[] = "FIGANI.DAT";
-char   data_fd2_string_resource_filename_tai_dat[] = "TAI.DAT";
-char   data_fd2_string_save_load_oom_msg_load_pbuf_50004[] = " Out of Memory !!!\n";
-char   data_fd2_string_save_load_oom_msg_tile_event_50023[] = " Out of Memory !!!\n";
-char   data_fd2_string_save_load_oom_msg_runtime_char_50037[] = " Out of Memory !!!\n";
-char   data_fd2_string_field_map_oom_msg_chapter_runtime_50064[] = " Out of Memory !!!\n";
-char   data_fd2_string_field_map_fdicon_not_found_err_50086[] = "\n\n File not found 'FDICON.B24!! \n\n";
-uint32 data_fd2_chapter_current_chapter_id = 1;
-/* data_fd2_chapter_combat_cinematic_mode_per_chapter is defined (const) in
- * src/table/chtab2.c. */
-uint32 data_fd2_chapter_cutscene_event_state = 0;
-/* data_fd2_graphics_static_bg_buffer_ptr: real definition homed in src/rsrc/rsrc.c. */
-uint8  data_fd2_graphics_text_scroll_pending_line_count = 0;
-uint32 data_fd2_battle_tile_attr_mv_modifier_table[32];
-uint32 data_fd2_battle_tile_attr_def_modifier_table[32];
-char   data_fd2_string_resource_filename_fdmus_dat[] = "FDMUS.DAT";
 uint32 data_ail_alloc_fnptr = 0;
 uint32 data_ail_free_fnptr = 0;
 void fd2_execute_offensive_targeted_spell(int a, int b, int c, int d) { }
@@ -201,8 +165,6 @@ void fd2_play_variant_b_slide_pre_effect(int a, int b) { }
  * fd2_animate_warp_portal_open_at, fd2_animate_warp_out_collapse,
  * fd2_animate_warp_in_expand) now live in src/spell/spellcin.c; their former
  * stubs were removed. */
-uint16 data_fd2_animation_palette_cycle_last_tick = 0;
-uint8  data_fd2_animation_palette_cycle_frame_idx = 0;
 /* fd2_restore_portrait_cache_from_tmp: slated for src/rsrc/rsrc.c (not yet
  * emitted). The non-scripted cleanup path of fd2_play_full_combat_cinematic
  * reaches it, but the anicine.c unit tests exercise only the scripted path
@@ -254,15 +216,6 @@ int fd2_check_char_is_dead(uint32 c)
     return g_check_char_is_dead_return;
 }
 /* fd2_scan_chars_within_manhattan_range: now in btl_ai.c */
-void  *data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[5] = {0};
-uint32 data_fd2_dialog_portrait_blink_frame_idx = 0;
-uint32 data_fd2_dialog_portrait_blink_subtick_counter = 0;
-uint32 data_fd2_dialog_active_portrait_blit_offset = 0;
-void  *data_fd2_dialog_area_backup_buffer = 0;
-uint32 data_fd2_graphics_chapter_walk_anim_alt_palette_idx = 0;
-uint32 data_fd2_graphics_chapter_ambient_palette_anim_idx = 0;
-uint8  data_fd2_graphics_char_sprite_shake_jitter_bit = 0;
-int32  data_fd2_graphics_char_sprite_paint_jitter_tick_latch = 0;
 /* fd2_composite_battle_frame (rndscene.c) pipeline-callee stubs with arg
  * capture, so the compositor test can assert workspace address, pixel
  * constants, and call ordering forwarded to each stage. */
@@ -645,14 +598,10 @@ uint32 g_blittint_team_offset[64];
  * moved up into the fd2_composite_battle_tile_map stub, which also runs once per
  * idle-loop body. */
 void fd2_render_recruitment_party_screen(void) { }
-/* Shop / give-item menu scroll offset (top-row index of the 6-item viewport,
- * steps of 2). Real FD2.LE global @ 0x5412F; shared menu-scroll state. */
-uint32 data_fd2_ui_menu_scroll_offset = 0;
 /* Shop / roster menu shared state (BSS) — real FD2.LE globals.
  *   visible_item_count @ 0x5413F  rows the renderer paints
  *   candidate_array_ptr @ 0x54143  -> the equip-eligible char-id byte array
  *   saved_cursor / saved_scroll @ 0x5414B / 0x5414F  persist across re-opens */
-uint32 data_fd2_ui_menu_visible_item_count = 0;
 /* not-yet-emitted buy-flow callees (real fns in src later; stubbed for the
  * link). The buy-menu cancel test never reaches these — Esc on the item grid
  * returns before the eligibility scan / recipient select. */
@@ -884,24 +833,6 @@ void fd2_show_status_effect_overlay(uint32 t, uint32 s) { }
  * @ 0x21190, routed to gfx/rndscene.c. Stub here so callers link. */
 void fd2_animate_spell_projectile_paths(void) { }
 void fd2_composite_then_animate_projectiles(void) { }
-/* The three floating-damage FX queues read by the real
- * fd2_animate_spell_projectile_paths (sprite-id / x-offset / target-char-idx,
- * each 200B @ 0x53C6C/0x53D34/0x53DFC) are now homed (zero-bss uint8[200]) in
- * src/table/btltab2.c; their fake defs here were removed. The 28-byte
- * projectile y-offset table (@ 0x0202C, real binary bytes) is still defined
- * below. */
-/* damage-number work-buffer template — real FD2.LE bytes @ 0x52045, byte[8].
- * fd2_show_damage_number copies the first 5 bytes ("    \0") into an 8-byte
- * stack buffer before sprintf overwrites it; bytes 5..7 are never read. */
-uint8 data_fd2_battle_damage_number_format_buffer[8] = {
-    0x20,0x20,0x20,0x20,0x00,0x74,0x75,0x76
-};
-/* miss-indicator sprite ids — real FD2.LE bytes @ 0x5204A (= format buffer + 5;
- * the two are physically adjacent in the binary). fd2_show_miss_indicator loads
- * all 4 as one dword into a stack buffer, then enqueues one per indicator slot. */
-uint8 data_fd2_battle_miss_indicator_sprite_ids[4] = {
-    0x74,0x75,0x76,0x76
-};
 /* fd2_remove_inventory_slot_at: now emitted for real in src/ui_menu/status.c.
  * Its old spy global g_remove_inventory_calls is gone; spell/spelleff.c now
  * observes the real slot-consume by checking slot[7].flag == 0x80. */
@@ -1496,20 +1427,6 @@ int g_cast_status_via_d1b_calls = 0;
  * in tests/battle/battle2.c) drive the real painter via the shared mini-panel
  * fixture (tests/include/minipfix.h) and observe the forwarded buf/char through
  * the real background blit + sleep-indicator digit, so no stub/spy is kept. */
-uint32 data_fd2_audio_summon_spell_sfx_bank_buf_ptr = 0;
-uint8  data_fd2_battle_summon_spell_8slot_visibility_table[7] = {0};
-uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7] = {0};
-int32  data_fd2_battle_summon_spell_8slot_row_multiplier_table[7] = {0};
-/* .rodata x-offset table for fd2_render_summon_aura_sprite_ring @ 0x262EF.
- * Real in-binary values: x-offset @ 0x52420. The companion row-multiplier
- * table (@ 0x52440) is now homed (const) in src/table/btltab2.c. */
-int32  data_fd2_battle_summon_aura_ring_8slot_x_offset_table[8] =
-    {-59, -39, 0, 39, 55, 39, 0, -39};
-int32  data_fd2_battle_summon_anim_variant_a_6slot_color_idx_array[6] = {0};
-uint8  data_fd2_battle_summon_anim_variant_a_6slot_jitter_byte_array[6] = {0};
-int32  data_fd2_battle_summon_anim_variant_b_6slot_frame_counter_array[6] = {0};
-int32  data_fd2_battle_summon_anim_variant_b_6slot_color_idx_array[6] = {0};
-uint8  data_fd2_battle_summon_anim_variant_b_6slot_jitter_byte_array[6] = {0};
 /* fd2_tick_tutorial_progress_with_sfx: now in anim.c */
 /* fd2_run_full_turn_cycle: now emitted in src/battle/btl_turn.c */
 /* fd2_enemy_turn_action_dispatcher: now in btl_ai.c */
@@ -1518,9 +1435,6 @@ uint8  data_fd2_battle_summon_anim_variant_b_6slot_jitter_byte_array[6] = {0};
  * via the queried unit's spells_known_bitmap (+0x1A) so the real enumerator
  * produces the desired (count, ascending ids). */
 /* fd2_score_spell_candidate: now in btl_ai.c */
-double data_fd2_battle_ai_enemy_spell_score_multiplier_15 = 1.5;
-double data_fd2_battle_spell_ap_boost_factor_015 = 0.15;
-double data_fd2_battle_spell_dp_boost_factor_015 = 0.15;
 /* fd2_ai_score_item_use: now in btl_ai.c */
 /* fd2_count_usable_inventory_slots: now REAL in src/ui_menu/status.c */
 /* fd2_spell_selection_menu_main is now emitted for real in src/spell/spellsel.c
@@ -1563,25 +1477,6 @@ double data_fd2_battle_spell_dp_boost_factor_015 = 0.15;
  * gate-returns on a non-event cursor tile (see tests/ui_menu/menu.c iam_setup's
  * zeroed tile-map / attr buffers). Its own behavioral coverage lives in
  * tests/ui_menu/menufld.c. */
-void (*data_fd2_battle_ai_post_action_consequence_table[90])(uint32);
-void (*data_fd2_battle_spell_handler_table[28])(uint32, uint32, uint8 *);
-/* spell-cast cinematic phase-handler table (0x523B9): 10 per-spell handlers, each
- * int(caster_idx, caster_sprite, work_buf, stride, phase_code) returning a frame
- * count. Initialized to a noop returning 0 (fnptr table noop-init rule). The real
- * handlers are heavy VGA cinematics; fd2_play_spell_cast_sequence is deferred to
- * Phase 9 so this table is never invoked by a unit test. */
-static int g_noop_spell_phase_handler(uint32 a, uint32 b, uint32 c,
-                                      uint32 d, uint32 e) {
-    (void)a; (void)b; (void)c; (void)d; (void)e; return 0;
-}
-int (*data_fd2_battle_spell_cast_cinematic_phase_handler_table[10])(
-        uint32, uint32, uint32, uint32, uint32) = {
-    g_noop_spell_phase_handler, g_noop_spell_phase_handler,
-    g_noop_spell_phase_handler, g_noop_spell_phase_handler,
-    g_noop_spell_phase_handler, g_noop_spell_phase_handler,
-    g_noop_spell_phase_handler, g_noop_spell_phase_handler,
-    g_noop_spell_phase_handler, g_noop_spell_phase_handler
-};
 /* 10-entry summon-spell tick dispatch table (@ 0x523B9). Real entries return an
  * int frame count and perform per-element palette flash / sprite tick. The
  * fd2_animate_spell_hit_cinematic test drives the cinematic and needs this
@@ -1667,10 +1562,7 @@ void fd2_rle_blit_with_palette_remap(uint16 *rle_stream, int32 dst_x, int32 dst_
     }
     (void)dst_buf; (void)stride;
 }
-uint8  data_fd2_chapter_chapter_init_done_flag = 0;
-uint32 data_fd2_battle_view_window_max_x = 13;
-uint32 data_fd2_battle_view_window_max_y = 8;
-uint8  data_fd2_battle_pathfind_step_stack[256] = {0};
+void  *data_fd2_animation_ani_decoder_frame_dispatch_table[10] = {0};
 /* fd2_composite_battle_frame is now a real emitted function (src/gfx/rndscene.c).
  * g_composite_call_count (defined above with the pipeline stubs) remains the
  * observable that existing caller tests (cursor.c, spelleff.c, btl_ai.c, ...)
@@ -1774,8 +1666,6 @@ uint32 fd2_load_figani_sfx_bank(uint32 figani_data)
  * (src/anim/anicine.c); its former spy stub here is retired. Sibling tests
  * (figani intro / combat cinematic) now exercise it for real. */
 /* fd2_apply_use_effect_dispatch: already in spellwk.c */
-uint32 data_fd2_battle_tile_map_anim_frame_counter = 0;
-uint32 data_fd2_graphics_bg_anim_flip_flag = 0;
 /* fd2_add_item_to_inventory is now emitted for real in src/ui_menu/status.c
  * (and covered there by the test_add_item_* cases). The battle-drop suite that
  * once used the g_add_item_* spy now asserts on the real inventory state. */
@@ -2016,8 +1906,6 @@ void fd2_restore_screen_block_from_buffer(uint32 saved_block, uint32 dst, uint32
  * -1 opcodes so the busy-wait (page-break) and portrait/file-load paths are
  * never reached. With the BIOS keyboard buffer left empty (head==tail), the
  * real keyboard poll returns 0 so blink_flag stays set and the blink stub runs. */
-uint32 data_fd2_dialog_last_action_sprite_id_param = 0;
-uint8 *data_fd2_portrait_sprite_buffer = (uint8 *)0;
 
 int    g_dlg_glyph_calls = 0;
 uint32 g_dlg_glyph_last_idx = 0;

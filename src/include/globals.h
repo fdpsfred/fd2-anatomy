@@ -140,8 +140,8 @@ extern uint8  data_fd2_battle_last_hit_or_miss_flag;                    /* 0x53C
 extern uint32 data_fd2_battle_pending_xp_credit;                       /* 0x53EC8 */
 extern uint32 data_fd2_battle_tile_map_anim_frame_counter;              /* 0x53C1F */
 extern uint32 data_fd2_battle_spell_aoe_count_and_fx_queue_idx;         /* 0x53EC4 */
-extern uint8  data_fd2_battle_damage_number_format_buffer[8];           /* 0x52045  "    \0" template */
-extern uint8  data_fd2_battle_miss_indicator_sprite_ids[4];             /* 0x5204A  adjacent to format buffer; 4 sprite ids for the MISS indicator */
+extern const uint8 data_fd2_battle_damage_number_format_buffer[5];      /* 0x52045  "    \0" template */
+extern const uint8 data_fd2_battle_miss_indicator_sprite_ids[4];        /* 0x5204A  adjacent to format buffer; 4 sprite ids for the MISS indicator */
 extern uint8  data_fd2_battle_floating_damage_sprite_id_queue[200];     /* 0x53C6C */
 extern uint8  data_fd2_battle_floating_damage_x_offset_queue[200];      /* 0x53D34 */
 extern uint8  data_fd2_battle_floating_damage_target_char_idx_queue[200]; /* 0x53DFC */
@@ -158,12 +158,12 @@ extern const int32 data_fd2_battle_combat_hit_shake_x_offset_table[6];  /* 0x525
 extern const int32 data_fd2_battle_combat_hit_shake_y_offset_table[6];  /* 0x52577 */
 
 /* ---- battle spell-effect constants ---- */
-extern double data_fd2_battle_spell_ap_boost_factor_015;                /* 0x50210  const 0.15 */
-extern double data_fd2_battle_spell_dp_boost_factor_015;                /* 0x50218  const 0.15 */
+extern const double data_fd2_battle_spell_ap_boost_factor_015;          /* 0x50210  const 0.15 */
+extern const double data_fd2_battle_spell_dp_boost_factor_015;          /* 0x50218  const 0.15 */
 extern int32  data_fd2_battle_combat_speech_bubble_pos_pairs[4];        /* 0x53A30  attacker/counter bubble (x,y) pairs; [2]=-1 means no counter */
 
 /* ---- battle AI scoring ---- */
-extern double data_fd2_battle_ai_enemy_spell_score_multiplier_15;       /* 0x50144  const 1.5 */
+extern const double data_fd2_battle_ai_enemy_spell_score_multiplier_15; /* 0x50144  const 1.5 */
 extern int32 data_fd2_battle_ai_best_spell_score;                       /* 0x53C23  signed max accumulator (writer @0x15AE8 uses JG) */
 extern uint32 data_fd2_battle_ai_best_spell_target_x;                   /* 0x53C27 */
 extern uint32 data_fd2_battle_ai_best_spell_target_y;                   /* 0x53C2B */
@@ -225,8 +225,8 @@ extern uint32 data_fd2_ui_slide_composed_target_buf_ptr;                /* 0x53C
 
 /* ---- graphics ---- */
 extern uint8  data_fd2_graphics_text_scroll_pending_line_count;         /* 0x51A10 */
-extern uint32 data_fd2_battle_view_window_max_x;                        /* 0x51A87 */
-extern uint32 data_fd2_battle_view_window_max_y;                        /* 0x51A8B */
+extern const uint32 data_fd2_battle_view_window_max_x;                        /* 0x51A87 */
+extern const uint32 data_fd2_battle_view_window_max_y;                        /* 0x51A8B */
 extern uint32 data_fd2_graphics_forced_tile_anim_frame;                 /* 0x51A93 */
 extern const uint8 data_fd2_graphics_tile_anim_palette_phase_lookup[20]; /* 0x51A97 */
 extern uint32 data_fd2_graphics_bg_animation_frame_idx;                 /* 0x539FC */
@@ -241,7 +241,7 @@ extern int    data_fd2_battle_walk_anim_y_scroll_rows;                  /* 0x53B
 extern uint8  data_fd2_graphics_char_sprite_shake_jitter_bit;          /* 0x53A04 */
 extern int32  data_fd2_graphics_char_sprite_paint_jitter_tick_latch;    /* 0x53A08 */
 extern uint32 data_fd2_graphics_chapter_walk_anim_alt_palette_idx;      /* 0x53C07 */
-extern uint32 data_fd2_graphics_chapter_ambient_palette_anim_idx;       /* 0x53C0B */
+extern int32  data_fd2_graphics_chapter_ambient_palette_anim_idx;       /* 0x53C0B  signed: reader@0x121CF SAR/2 idiom */
 extern uint32 data_fd2_graphics_chapter_ambient_palette_anim_tick_latch; /* 0x53C0F */
 extern const double data_fd2_graphics_radian_per_degree_const;          /* 0x501F8  const 0.0174532 (deg->rad) */
 extern const double data_fd2_graphics_scatter_y_offset_neg8;            /* 0x50200  const -8.0 (AoE scatter Y skew) */
@@ -350,26 +350,26 @@ extern uint32 data_fd2_tile_anim_table_base;                            /* 0x53A
 extern uint32 data_fd2_chinese_font_sheet;                              /* 0x53A75 */
 
 /* ---- resource filename strings (.object2 const) ---- */
-extern char   data_fd2_string_resource_filename_fdtxt_dat[];            /* 0x51A43  "FDTXT.DAT" */
-extern char   data_fd2_string_resource_filename_fdother_dat[];          /* 0x51A4D  "FDOTHER.DAT" */
-extern char   data_fd2_string_resource_filename_fdfield_dat_51a59[];    /* 0x51A59  "FDFIELD.DAT" */
-extern char   data_fd2_string_resource_filename_fdshap_dat_51a65[];     /* 0x51A65  "FDSHAP.DAT" */
-extern char   data_fd2_string_resource_filename_dato_dat_51a70[];       /* 0x51A70  "DATO.DAT" */
-extern char   data_fd2_string_resource_filename_bg_dat_52381[];         /* 0x52381  "BG.DAT" */
-extern char   data_fd2_string_resource_filename_figani_dat_52388[];     /* 0x52388  "FIGANI.DAT" */
-extern char   data_fd2_string_resource_filename_tai_dat[];              /* 0x52393  "TAI.DAT" */
+extern const char data_fd2_string_resource_filename_fdtxt_dat[10];      /* 0x51A43  "FDTXT.DAT" */
+extern const char data_fd2_string_resource_filename_fdother_dat[12];    /* 0x51A4D  "FDOTHER.DAT" */
+extern const char data_fd2_string_resource_filename_fdfield_dat_51a59[12]; /* 0x51A59  "FDFIELD.DAT" */
+extern const char data_fd2_string_resource_filename_fdshap_dat_51a65[11];  /* 0x51A65  "FDSHAP.DAT" */
+extern const char data_fd2_string_resource_filename_dato_dat_51a70[9];  /* 0x51A70  "DATO.DAT" */
+extern const char data_fd2_string_resource_filename_bg_dat_52381[7];    /* 0x52381  "BG.DAT" */
+extern const char data_fd2_string_resource_filename_figani_dat_52388[11]; /* 0x52388  "FIGANI.DAT" */
+extern const char data_fd2_string_resource_filename_tai_dat[8];         /* 0x52393  "TAI.DAT" */
 
 /* ---- UI render format strings (.object2 const) ---- */
-extern char   data_fd2_string_ui_render_decimal_format_template[6];     /* 0x51EBF  "%0.5d" */
+extern const char data_fd2_string_ui_render_decimal_format_template[6]; /* 0x51EBF  "%0.5d" */
 
 /* ---- save/load OOM message strings (.object2 const, 3 cross-.obj copies) ---- */
-extern char   data_fd2_string_save_load_oom_msg_load_pbuf_50004[];      /* 0x50004  " Out of Memory !!!\n" */
-extern char   data_fd2_string_save_load_oom_msg_tile_event_50023[];     /* 0x50023  " Out of Memory !!!\n" */
-extern char   data_fd2_string_save_load_oom_msg_runtime_char_50037[];   /* 0x50037  " Out of Memory !!!\n" */
+extern const char data_fd2_string_save_load_oom_msg_load_pbuf_50004[20];   /* 0x50004  " Out of Memory !!!\n" */
+extern const char data_fd2_string_save_load_oom_msg_tile_event_50023[20];  /* 0x50023  " Out of Memory !!!\n" */
+extern const char data_fd2_string_save_load_oom_msg_runtime_char_50037[20]; /* 0x50037  " Out of Memory !!!\n" */
 
 /* ---- chapter battle-data load error strings (.object2 const) ---- */
-extern char   data_fd2_string_field_map_oom_msg_chapter_runtime_50064[];   /* 0x50064  " Out of Memory !!!\n" */
-extern char   data_fd2_string_field_map_fdicon_not_found_err_50086[];      /* 0x50086  "\n\n File not found 'FDICON.B24!! \n\n" */
+extern const char data_fd2_string_field_map_oom_msg_chapter_runtime_50064[20]; /* 0x50064  " Out of Memory !!!\n" */
+extern const char data_fd2_string_field_map_fdicon_not_found_err_50086[35];    /* 0x50086  "\n\n File not found 'FDICON.B24!! \n\n" */
 
 /* ---- resource / portrait cache ---- */
 extern uint32 data_fd2_resource_portrait_cache_buffer_used;             /* 0x539EC */
@@ -414,7 +414,7 @@ extern uint32 data_fd2_audio_figani_sfx_bank_buf_ptr;                  /* 0x5411
 extern const uint8  data_fd2_audio_figani_sfx_bank_fdother_index_lut[6];      /* 0x525D6  6B; 1-based id->FDOTHER idx */
 extern uint8  data_fd2_audio_walk_step_sfx_cadence_counter;             /* 0x540FE */
 extern uint32 data_fd2_audio_figani_sfx_bank_defender_buf_ptr;          /* 0x5411B */
-extern char   data_fd2_string_resource_filename_fdmus_dat[];                              /* 0x51A79  "FDMUS.DAT" */
+extern const char data_fd2_string_resource_filename_fdmus_dat[10];                        /* 0x51A79  "FDMUS.DAT" */
 
 /* ---- animation tables (.object2 const) ---- */
 extern const uint8  data_fd2_audio_footstep_sfx_per_job_cadence_class_table[29]; /* 0x52618  29B */
@@ -433,10 +433,10 @@ extern uint8  data_fd2_graphics_figani_pose_anim_subframe_idx;           /* 0x54
 extern uint8  data_fd2_graphics_figani_pose_anim_pose_idx;               /* 0x540FD */
 extern uint32 data_fd2_audio_summon_spell_sfx_bank_buf_ptr;             /* 0x5411F */
 extern int32  data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[15]; /* 0x53F42 */
-extern uint8  data_fd2_battle_summon_spell_8slot_visibility_table[7];            /* 0x523E1 */
-extern uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7];              /* 0x523E8 */
-extern int32  data_fd2_battle_summon_spell_8slot_row_multiplier_table[7];        /* 0x52404 */
-extern int32  data_fd2_battle_summon_aura_ring_8slot_x_offset_table[8];          /* 0x52420 */
+extern const uint8  data_fd2_battle_summon_spell_8slot_visibility_table[7];            /* 0x523E1 */
+extern const uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7];              /* 0x523E8 */
+extern const int32  data_fd2_battle_summon_spell_8slot_row_multiplier_table[7];        /* 0x52404 */
+extern const int32 data_fd2_battle_summon_aura_ring_8slot_x_offset_table[8];     /* 0x52420 */
 extern const int32 data_fd2_battle_summon_aura_ring_8slot_row_multiplier_table[8];    /* 0x52440 */
 extern int32  data_fd2_battle_summon_main_anim_12slot_frame_counter_array[12];    /* 0x53F81 */
 extern int32  data_fd2_battle_summon_main_anim_12slot_color_idx_array[12];       /* 0x53FB1 */
@@ -503,11 +503,11 @@ extern uint32 data_fd2_animation_ani_decoder_src_buf;                   /* 0x527
 extern void (*data_fd2_animation_ani_decoder_frame_dispatch_table[10])(void);  /* 0x5276A */
 
 /* ---- .object3 data tables ---- */
-extern item_effect       data_fd2_battle_item_effect_table[215];        /* 0x602AC */
-extern spell_effect      data_fd2_battle_spell_effect_table[36];        /* 0x619FD */
-extern enemy_data        data_fd2_battle_enemy_data_table[68];          /* 0x61AF9 */
-extern character_base    data_fd2_battle_character_base_table[32];      /* 0x61DA1 */
-extern character_growth  data_fd2_battle_character_growth_table[68];    /* 0x620A1 */
+extern const item_effect data_fd2_battle_item_effect_table[215];        /* 0x602AC */
+extern const spell_effect data_fd2_battle_spell_effect_table[36];       /* 0x619FD */
+extern const enemy_data  data_fd2_battle_enemy_data_table[68];          /* 0x61AF9 */
+extern const character_base data_fd2_battle_character_base_table[32];   /* 0x61DA1 */
+extern const character_growth  data_fd2_battle_character_growth_table[68];    /* 0x620A1 */
 
 /* ---- input state ---- */
 extern uint16 data_fd2_input_idle_current_bios_tick_word;               /* 0x539F0 */
@@ -520,15 +520,15 @@ extern uint32 data_fd2_engine_wait_one_bios_tick_last_seen;             /* 0x53A
 extern uint32 data_fd2_engine_wait_n_bios_ticks_last_seen;              /* 0x53A2C */
 
 /* ---- tile attribute modifier tables (.object2 const) ---- */
-extern uint32 data_fd2_battle_tile_attr_mv_modifier_table[];            /* 0x51A12 */
-extern uint32 data_fd2_battle_tile_attr_def_modifier_table[];           /* 0x51A2A */
+extern const int32  data_fd2_battle_tile_attr_mv_modifier_table[6];           /* 0x51A12 */
+extern const int32  data_fd2_battle_tile_attr_def_modifier_table[6];          /* 0x51A2A */
 
 /* ---- RNG ---- */
 extern uint16 data_fd2_shared_rng_seed;                                 /* 0x627B8 (.object3) */
 
 /* ---- battle misc const tables ---- */
-extern uint32 data_fd2_battle_job_magic_resist_table[27];               /* 0x51F96 */
-extern uint8  data_fd2_battle_job_crit_rate_table[27];                  /* 0x5239B */
+extern const uint32 data_fd2_battle_job_magic_resist_table[28];               /* 0x51F96 */
+extern const uint8  data_fd2_battle_job_crit_rate_table[27];                  /* 0x5239B */
 
 /* ---- .object3 tables accessed by table accessors (live sub-regions of former orphan blob) ---- */
 extern uint32 data_fd2_battle_pathfind_tile_cost_table_ptr;               /* 0x60060 */
@@ -544,19 +544,20 @@ extern uint8  data_fd2_battle_pathfind_dst_y;                            /* 0x60
 extern uint32 data_fd2_battle_pathfind_path_output_buffer_ptr;           /* 0x60073 */
 extern uint8  data_fd2_battle_pathfind_current_depth;                    /* 0x60077 */
 extern uint8  data_fd2_battle_pathfind_best_path_length;                 /* 0x60078 */
-extern uint8  data_fd2_battle_pathfind_step_stack[];                     /* 0x60079  8B per frame */
+extern uint8  data_fd2_battle_pathfind_step_stack[256];                  /* 0x60079 scratch recursion step-stack, 8B(path)/7B(floodfill) frames */
 extern uint8  data_fd2_battle_pathfind_mode_flags;                       /* 0x6017A  0/1/2 tiebreak/dst-record mode */
-extern uint8  data_fd2_battle_class_promotion_data_table[];                    /* 0x615FE  2B per entry */
-extern uint8  data_fd2_battle_movement_cost_table[];                           /* 0x61646  20B per job */
-extern uint8  data_fd2_battle_job_allowed_items_table[27 * 7];                 /* 0x6188A  7B per job, 27 jobs */
+extern const uint8 data_fd2_battle_class_promotion_data_table[72];             /* 0x615FE  2B per entry */
+extern const uint8 data_fd2_battle_movement_cost_table[580];                   /* 0x61646  20B per job, 29 rows */
+extern const uint8 data_fd2_battle_job_allowed_items_table[29 * 7];            /* 0x6188A  7B per job, 29 rows (27 logical jobs + 2 reserved) */
 
 /* ---- .object3 pointer tables ---- */
-extern void  *data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21[21]; /* 0x61955 */
+extern const uint8 data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b[84]; /* 0x619A9 */
+extern const uint8 *data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21[21]; /* 0x61955 */
 extern const uint8 *data_fd2_chapter_cutscene_event_script_ptr_table_106[106];   /* 0x627D8 */
 
 /* ---- .object3 additional tables ---- */
 extern const uint8 data_fd2_chapter_intro_metadata_table[26 * 31];      /* 0x6238D  31B per ch */
-extern uint8  data_fd2_battle_spell_learning_table[];                          /* 0x626B3  12B per entry */
+extern const uint8 data_fd2_battle_spell_learning_table[20 * 12];              /* 0x626B3  12B per entry */
 extern const uint8 data_fd2_orphan_table_60181[299];                   /* 0x60181  3B per entry (orphan) */
 
 #endif /* GLOBALS_H */
