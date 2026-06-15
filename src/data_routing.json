@@ -5693,8 +5693,8 @@
     "home": "table/btltab3.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_miss_indicator_sprite_ids": {

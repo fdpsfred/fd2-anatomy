@@ -33,7 +33,6 @@ character_growth  data_fd2_battle_character_growth_table[68];
 uint8  data_fd2_chapter_intro_metadata_table[26 * 31];
 uint8  data_fd2_battle_spell_learning_table[20 * 12];
 uint8  data_fd2_orphan_table_60181[99 * 3];
-uint8  data_fd2_battle_job_allowed_items_table[27 * 7];
 void  *data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21[21];
 void  *data_fd2_chapter_cutscene_event_script_ptr_table_106[106];
 uint32 data_fd2_battle_pending_xp_credit = 0;

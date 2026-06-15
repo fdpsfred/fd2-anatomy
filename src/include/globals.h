@@ -548,7 +548,7 @@ extern uint8  data_fd2_battle_pathfind_step_stack[256];                  /* 0x60
 extern uint8  data_fd2_battle_pathfind_mode_flags;                       /* 0x6017A  0/1/2 tiebreak/dst-record mode */
 extern const uint8 data_fd2_battle_class_promotion_data_table[72];             /* 0x615FE  2B per entry */
 extern const uint8 data_fd2_battle_movement_cost_table[580];                   /* 0x61646  20B per job, 29 rows */
-extern uint8  data_fd2_battle_job_allowed_items_table[27 * 7];                 /* 0x6188A  7B per job, 27 jobs */
+extern const uint8 data_fd2_battle_job_allowed_items_table[29 * 7];            /* 0x6188A  7B per job, 29 rows (27 logical jobs + 2 reserved) */
 
 /* ---- .object3 pointer tables ---- */
 extern void  *data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21[21]; /* 0x61955 */
