@@ -258,3 +258,16 @@ uint32 fd2_load_figani_sfx_bank(uint32 figani_data)
     }
     return sfx_bank;
 }
+
+/* ----------------------------------------------------------------
+ * Audio module data
+ * ---------------------------------------------------------------- */
+
+/* data_fd2_audio_bgm_last_set_track_id @ 0x51A11
+ *
+ * Cache of the most recently requested BGM track id, used by
+ * fd2_set_bgm_track_with_fade to skip reloading a track that is
+ * already playing. Read via MOVZX byte and written via MOV AL
+ * (unsigned 8-bit). Static initial value 0xFF marks "no track set
+ * yet" (the stop sentinel, since 0xFFFFFFFF requests fade-out). */
+uint8 data_fd2_audio_bgm_last_set_track_id = 0xFF;
