@@ -416,8 +416,6 @@ void fd2_play_variant_b_slide_pre_effect(int a, int b) { }
  * fd2_animate_warp_portal_open_at, fd2_animate_warp_out_collapse,
  * fd2_animate_warp_in_expand) now live in src/spell/spellcin.c; their former
  * stubs were removed. */
-uint16 data_fd2_animation_palette_cycle_last_tick = 0;
-uint8  data_fd2_animation_palette_cycle_frame_idx = 0;
 uint8  data_fd2_animation_palette_cycle_rgb_table[93] = {0};
 /* FIGANI cinematic backdrop / SFX-bank pointers (data segment @ 0x54107 /
  * 0x54117). Written + read by fd2_play_figani_char_intro_animation
@@ -485,8 +483,6 @@ uint32 data_fd2_dialog_current_speaker_char_ptr = 0;
 uint32 data_fd2_large_game_state_buffer_ptr = 0;
 uint32 data_fd2_dialog_blink_phase_oscillator = 0;
 uint32 data_fd2_dialog_blink_phase_oscillator_tick_latch = 0;
-uint32 data_fd2_graphics_chapter_walk_anim_alt_palette_idx = 0;
-uint32 data_fd2_graphics_chapter_ambient_palette_anim_idx = 0;
 uint32 data_fd2_graphics_chapter_ambient_palette_anim_tick_latch = 0;
 /* fd2_composite_battle_frame (rndscene.c) pipeline-callee stubs with arg
  * capture, so the compositor test can assert workspace address, pixel

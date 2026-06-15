@@ -241,7 +241,7 @@ extern uint32 data_fd2_battle_walk_anim_y_scroll_rows;                  /* 0x53B
 extern uint8  data_fd2_graphics_char_sprite_shake_jitter_bit;          /* 0x53A04 */
 extern int32  data_fd2_graphics_char_sprite_paint_jitter_tick_latch;    /* 0x53A08 */
 extern uint32 data_fd2_graphics_chapter_walk_anim_alt_palette_idx;      /* 0x53C07 */
-extern uint32 data_fd2_graphics_chapter_ambient_palette_anim_idx;       /* 0x53C0B */
+extern int32  data_fd2_graphics_chapter_ambient_palette_anim_idx;       /* 0x53C0B  signed: reader@0x121CF SAR/2 idiom */
 extern uint32 data_fd2_graphics_chapter_ambient_palette_anim_tick_latch; /* 0x53C0F */
 extern double data_fd2_graphics_radian_per_degree_const;                /* 0x501F8  const 0.0174532 (deg->rad) */
 extern double data_fd2_graphics_scatter_y_offset_neg8;                  /* 0x50200  const -8.0 (AoE scatter Y skew) */

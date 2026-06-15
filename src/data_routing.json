@@ -1302,8 +1302,8 @@
       "fd2_tick_chapter_palette_animation"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_ai_best_spell_score": {
@@ -3005,8 +3005,8 @@
       "fd2_tick_chapter_palette_animation"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_dialog_blink_phase_oscillator": {
@@ -3074,8 +3074,8 @@
       "fd2_update_palette_cycle_anim"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_pathfind_floodfill_seed_x": {
@@ -4283,8 +4283,8 @@
       "fd2_update_palette_cycle_anim"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_pathfind_caller_context": {
