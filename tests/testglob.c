@@ -26,7 +26,6 @@ void test_heartbeat(const char *name)
 
 runtime_char  g_test_rc_array[8];
 runtime_char *data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
-item_effect       data_fd2_battle_item_effect_table[215];
 spell_effect      data_fd2_battle_spell_effect_table[36];
 enemy_data        data_fd2_battle_enemy_data_table[68];
 character_base    data_fd2_battle_character_base_table[32];
