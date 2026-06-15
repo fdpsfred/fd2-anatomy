@@ -834,3 +834,15 @@ void fd2_play_spell_cast_sequence(uint32 caster_idx, uint32 spell_id,
     fd2_composite_battle_frame(1);
     fd2_play_palette_fade_in();
 }
+
+/* --------------------------------------------------------------------------
+ * Module data
+ * ------------------------------------------------------------------------ */
+
+/*
+ * Summon-spell SFX bank buffer pointer (FDOTHER.DAT bank, malloc-backed).
+ * Mutable runtime handle: set to 0 then assigned the loaded bank buffer in
+ * fd2_execute_summon_spell_cast / fd2_play_spell_cast_sequence, read by the
+ * summon animation tick handlers, freed at teardown. Zero-initialized (.bss).
+ */
+uint32 data_fd2_audio_summon_spell_sfx_bank_buf_ptr;

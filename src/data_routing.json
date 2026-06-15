@@ -1952,8 +1952,8 @@
       "fd2_execute_summon_spell_cast"
     ],
     "note": "multi-writer:anim/anispell.c,spell/spellcin.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_recruitment_screen_repaint_tick_latch": {

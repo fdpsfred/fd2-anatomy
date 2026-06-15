@@ -1848,7 +1848,6 @@ uint8 data_fd2_battle_summon_minor_anim_state5_frame_counter = 0;
 uint8 data_fd2_battle_summon_minor_anim_alternating_blit_toggle = 0;
 uint8 data_fd2_graphics_figani_pose_anim_subframe_idx = 0;
 uint8 data_fd2_graphics_figani_pose_anim_pose_idx = 0;
-uint32 data_fd2_audio_summon_spell_sfx_bank_buf_ptr = 0;
 int32  data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[15] = {0};
 /* .rodata const table for fd2_render_summon_aura_sprite_ring @ 0x262EF.
  * Real in-binary values: row-multiplier @ 0x52440. (The sibling x-offset table
