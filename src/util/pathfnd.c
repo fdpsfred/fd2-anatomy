@@ -711,3 +711,22 @@ uint8 data_fd2_battle_pathfind_best_path_length;
  * write-before-read (the orchestrator sets it before any reader runs).
  */
 uint8 data_fd2_battle_pathfind_mode_flags;
+
+/*
+ * pathfind current recursion depth @ 0x60077.
+ * Single unsigned byte tracking how many tiles deep the directional DFS
+ * currently is; it doubles as the candidate step count compared against
+ * best_path_length when the destination is reached. Zeroed 8-bit by the
+ * path-aware orchestrator fd2_pathfind_to_destination at entry (MOV byte ptr
+ * [0x60077],0 right after storing the search params, paired with the 0xFF
+ * init of best_path_length). The recursive expander
+ * fd2_pathfind_recursive_with_direction increments it on entry and decrements
+ * it on exit, both 8-bit (INC byte ptr [0x60077] at 0x4E28B, DEC byte ptr
+ * [0x60077] at 0x4E329), so it holds the live depth of the current DFS branch.
+ * Read 8-bit unsigned by fd2_pathfind_check_destination_save_path as the
+ * arrival depth (compared to best, then stored as the new best on a win) and
+ * by fd2_pathfind_count_unique_directions when walking the path-direction grid.
+ * Scalar, not an array. Zero at load; write-before-read (the orchestrator
+ * zeroes it before any reader runs, so the load value is never observed).
+ */
+uint8 data_fd2_battle_pathfind_current_depth;
