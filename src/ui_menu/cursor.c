@@ -250,6 +250,7 @@ uint32 data_fd2_battle_view_window_origin_y;
  * reader/writer (INC/CMP/MOV dword ptr [0x53AB1]); range is a small
  * non-negative tile column (0 .. map_width_tiles - 1).
  * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_cursor_world_x;
 
 /* ----------------------------------------------------------------
  * Battle cursor world Y (tile row the cursor points at) @ 0x53AB5

@@ -100,7 +100,6 @@ uint8  data_fd2_audio_bgm_last_set_track_id = 0xFF;
 uint32 data_fd2_audio_bgm_sequence_data_buf_ptr = 0;
 char   data_fd2_string_resource_filename_fdmus_dat[] = "FDMUS.DAT";
 uint32 data_fd2_resource_last_loaded_resource_size = 0;
-uint32 data_fd2_battle_cursor_world_x = 5;
 uint8  data_fd2_chapter_init_phase_flag = 0;
 uint16 data_fd2_input_idle_current_bios_tick_word = 0;
 uint16 data_fd2_input_idle_last_rendered_tick_word = 0;
