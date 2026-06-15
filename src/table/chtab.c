@@ -226,3 +226,25 @@ const uint8 data_fd2_chapter_ch03_end_scene_char_pos_x_table[7] = {
 const uint8 data_fd2_chapter_ch03_end_scene_char_pos_y_table[7] = {
     3, 3, 3, 2, 2, 4, 1
 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_chapter_ch03_end_scene_char_facing_table @ 0x520C8  (7 bytes)
+ *
+ * Chapter 3 end-scene character placement: per-character sprite facing
+ * direction (0..3) for the 7 characters staged in the chapter-3 recruit
+ * cutscene. Third of three parallel 7-byte tables (X @ 0x520BA,
+ * Y @ 0x520C1, facing @ 0x520C8). Read-only const table in .object2.
+ *
+ * Caller (fd2_chapter_03_end @ 0x230F2):
+ *     MOV  ESI,0x520C8
+ *     MOV  EDI,ESP
+ *     MOVSD ; MOVSW ; MOVSB        ; copy 7 raw bytes onto stack scene block
+ * => the table is block-copied (4+2+1 = 7 bytes) as a flat byte source into
+ *    an on-stack character-placement block; each entry is consumed one byte
+ *    at a time (recruit_block_c._0_1_ .. [6]). No struct stride, no wider
+ *    element access.
+ * => element type: uint8, 7 entries, read-only (single READ xref, no writer).
+ * ---------------------------------------------------------------- */
+const uint8 data_fd2_chapter_ch03_end_scene_char_facing_table[7] = {
+    2, 2, 2, 3, 1, 2, 0
+};
