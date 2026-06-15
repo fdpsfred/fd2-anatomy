@@ -626,3 +626,20 @@ uint32 data_fd2_chapter_intro_menu_cursor_state;
  * use sites.
  * ---------------------------------------------------------------- */
 uint32 data_fd2_chapter_intro_dialog_anim_frame_idx;
+
+/* ----------------------------------------------------------------
+ * Data symbol owned by this module (.object2 @ 0x54137)
+ *
+ * data_fd2_chapter_intro_active_metadata_entry_ptr -- cached pointer to
+ * the active chapter's intro metadata entry (the byte array returned by
+ * fd2_get_chapter_intro_metadata_entry). Zero (NULL) at program start
+ * (BSS); assigned at runtime when a chapter intro opens
+ * (fd2_chapter_transition_menu) or a save slot is restored
+ * (fd2_load_state_from_selected_slot). Dereferenced byte-wise at fixed
+ * offsets into the entry: [+1]/[+2] are the special-hotkey cursor/scancode
+ * pair tested by the intro menu loop, and [+3..]/[+0x0F..]/[+0x17..] are
+ * per-state party-roster byte slices read by fd2_load_chapter_party_roster.
+ * Held in a 32-bit integer slot to match the dword load/store of the
+ * pointer at the use sites (the entry is then read via *(uint8 *)(ptr+N)).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_chapter_intro_active_metadata_entry_ptr;
