@@ -739,3 +739,25 @@ uint32 data_fd2_engine_wait_n_bios_ticks_last_seen;
  * life/main.c) owns the REGS-union base.
  * Zero-initialized in BSS; first touched by a runtime write. */
 uint8 data_fd2_input_key_input_mode;
+
+/* data_fd2_dialog_blink_phase_oscillator @ 0x53C13  (zero-bss)
+ *
+ * Dialog cursor/border blink-phase counter. A small free-running phase index
+ * advanced off the BIOS midnight tick (0:046C) and read by the dialog repaint
+ * code to alternate the selected corner/box sprite frame, producing the
+ * highlight-blink animation. Accessed only as a 32-bit dword at every site
+ * (asm: INC dword ptr [0x53C13] / CMP dword ptr [0x53C13],imm /
+ * MOV dword ptr [0x53C13],0).
+ *
+ * Two writers with different wrap moduli share this one counter:
+ *   - fd2_wait_input_with_dialog_repaint (settings/options dialog): increments
+ *     once per >3-tick step and wraps 0<->1 (CMP ...,2), so the selected
+ *     border corner toggles between sprite frame A and A+1.
+ *   - fd2_text_dialog_typewriter_loop (text / Yes-No prompt): increments once
+ *     per >=2-tick step and wraps 0..3 (CMP ...,4); the Yes/No highlight uses
+ *     value/2 as its 0/1 frame offset, and the value is reset to 0 on both
+ *     exit paths (Esc -> return -1, confirm -> return 1).
+ * Read-only consumer fd2_repaint_settings_dialog_borders adds this value to a
+ * sprite index for the currently-selected corner.
+ * Zero-initialized in BSS; first touched by a runtime read-modify-write. */
+uint32 data_fd2_dialog_blink_phase_oscillator;
