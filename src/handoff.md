@@ -51,7 +51,7 @@ Phase 4 收斂 fd2.exe + 實機對照`。
 
 ### 待解（依序，做完才算 Phase 1 收斂）
 
-**⚠ [const-fix] dp4 btltab.c 9 個真 const 表被誤 demote 成 non-const（必修，使用者判定「絕對不可接受」）**：第一輪 btltab.c finalizer 為了讓「寫它們的測試」能編譯，把 9 個 Ghidra 遊戲端零 write-xref 的真唯讀表改成 non-const（`view_window_max_x/y`、`tile_attr_mv/def_modifier_table`、`job_magic_resist_table`、`job_crit_rate_table`、`summon_spell_8slot_visibility/y_offset/row_multiplier_table`，全在 `dp4/src/table/btltab.c`）。**正解＝改回 const（def + globals.h extern 都加 const）+ 把寫它們的測試 `#if0` SKIP**（鎖定決策①、Phase 3 重寫），**絕不維持 non-const**。SKIP 規模：`view_window_max_x/y` 各約 44 處、橫跨 18 個測試檔（相機/cinematic/battle）；其餘 7 個合計約 48 處、集中少數檔（job 表 3 檔、summon 三表全在 `tests/anim/anisumm1.c`）。已 Ghidra 實查 9 個位址遊戲端全 READ/DATA、零 WRITE＝真 const。原則已鎖（memory `feedback_const_data_never_demote_for_tests`；workflow SOP / buildGate 已禁 demote，故 mop-up / re-run 不會再犯）。
+**✅ [const-fix] 完成（dp4 commit `ff05f00`）**：9 個被誤 demote 的真 const 表（`view_window_max_x/y`、`tile_attr_mv/def_modifier_table`、`job_magic_resist_table`、`job_crit_rate_table`、`summon_spell_8slot_visibility/y_offset/row_multiplier_table`，`dp4/src/table/btltab.c`）已改回 const（def + globals.h extern），寫它們的測試以 **whole-function `#if0`** SKIP（非改寫、非 demote）。**已驗證**：9 個 def+extern 全 const、`build_test` 0err/0warn、commit diff 只加 `#if0`/marker（零碼改、零刪除、零 demote）；Ghidra 實查 9 位址遊戲端全 READ、零 WRITE＝真 const。原則已鎖（memory `feedback_const_data_never_demote_for_tests`；workflow SOP/buildGate 禁 demote）。**代價（Phase 3 債，見下）**：compiler-forced cascade 共 SKIP 255 個測試 + ~53 個 helper、24 檔（約 dp4 1739 測試的 15%）——因 const-9 是被大量 fixture 當前置條件寫入的遊戲常數。
 
 **① [mop-up] 6 個 leftover 符號未落地**（皆 529/parse 失敗的犧牲者；已 committed 的 337/343 零損失）：
 - dp1 ×2：`data_fd2_battle_view_window_origin_y`、`data_fd2_battle_cursor_world_x`（reviewer 撞 529）。**半落地**：def 已被同檔後續符號的 lander `git add -A` 掃進 `dp1/src/ui_menu/cursor.c`（`uint32 ...;`，約 line 240/253）但未經本輪 review、testglob 假版仍在。
@@ -72,7 +72,7 @@ Phase 4 收斂 fd2.exe + 實機對照`。
 
 ### Phase 3 待辦（本輪 build gate 累積的測試債，非 Phase 1 blocker）
 
-- **const-writer SKIP**：多個 const 表的寫入測試被 `#if0` SKIP（各 build gate 回報的 `skipped_tests`，如 dp1 uitab → `tests/gfx/rndmenu.c` 13 個 promo 測試）。Phase 3 還原成驅動真 const data。
+- **const-writer SKIP**：多個 const 表的寫入測試被 `#if0` SKIP（各 build gate 回報的 `skipped_tests`，如 dp1 uitab → `tests/gfx/rndmenu.c` 13 個 promo 測試）。**最大宗＝dp4 const-fix（commit `ff05f00`）**：255 測試 + ~53 helper 跨 24 檔被 whole-function `#if0`（marker `SKIP (Phase 3): writes now-const <table>` 可 grep），涵蓋寫 view_window_max / job_magic_resist / job_crit_rate / tile_attr_mv-def / summon_spell_8slot×3 的 fixture 級聯。Phase 3 逐一還原成「讀固定 const 值佈置情境」而非寫 const。
 - **dp2 `data_fd2_chapter_intro_metadata_table`（chtab3.c，維持 const）**：被共享 fixture（`tests/gfx/rndmenu.c::intro_setup()`、`tests/save/save.c::scs_setup/teardown`）寫入 → chtab3.c build gate 為保綠對這兩個 fixture 做過處置（最終 build 綠）。**接手要 review dp2 該檔相關 commits 看它具體改了什麼**（可能 SKIP/註解 fixture 寫入），Phase 3 還原。
 - **dp1 `life/main.c` 自癒符號**：第一輪（commit `9691ff0`）finalizer 自補 16 個未經獨立 reviewer 的 def（4 init-data 已對 binary 驗、12 zero-bss 為 `T name;`），Phase 2.6 復驗一併過。
 
