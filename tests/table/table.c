@@ -198,7 +198,7 @@ static void test_cutscene_script_deref(void)
 static void test_orphan_table_60181_0(void)
 {
     uint8 *result = fd2_get_orphan_table_60181_entry(0);
-    uint8 *expected = data_fd2_orphan_table_60181;
+    uint8 *expected = (uint8 *)data_fd2_orphan_table_60181;
     ASSERT_EQ((long)result, (long)expected);
 }
 
@@ -206,7 +206,7 @@ static void test_orphan_table_60181_0(void)
 static void test_orphan_table_60181_offset(void)
 {
     uint8 *result = fd2_get_orphan_table_60181_entry(7);
-    uint8 *expected = data_fd2_orphan_table_60181 + 7 * 3;
+    uint8 *expected = (uint8 *)(data_fd2_orphan_table_60181 + 7 * 3);
     ASSERT_EQ((long)result, (long)expected);
 }
 
