@@ -92,3 +92,25 @@ const int32 data_fd2_ui_item_command_menu_template[4] = { 8, 9, 10, 11 };
  * Read-only; the source array is never written -- only the local copy is read.
  */
 const int32 data_fd2_ui_tactical_overview_team_colors_table[3] = { 0x20, 0x50, 0x48 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_per_job_revive_or_promote_cost_table @ 0x5266B  (60 bytes)
+ *
+ * Per-job cost multiplier used to price the revive/promote candidate grid:
+ * 30 x int16 (signed short), indexed by (job_id - 1) where job_id is 1..0x1A.
+ * The sole reader fd2_render_promote_members_grid (@ 0x30A47) computes the
+ * displayed price as:
+ *     price = char.bLevel * cost_table[char.bJob_id - 1]
+ * then renders it as an orange 5-digit decimal beside a coin icon. The element
+ * access uses a (signed short) load sign-extended to int -- a stride-2 / 16-bit
+ * read (the older Ghidra plate showed BYTE_ARRAY[(job_id - 1) * 2], i.e. byte
+ * stride 2). All stored values are positive (max 3000), so the sign extension
+ * never alters the result. 26 meaningful job entries (indices 0..25) cover
+ * job_id 1..0x1A; the final 4 entries are 100 filler. Read-only; never written.
+ */
+const int16 data_fd2_ui_per_job_revive_or_promote_cost_table[30] = {
+     100,  150,  100,  100,  100,  100,  100,  100,
+    1200, 1600, 1000, 1000, 1200, 1400, 1200, 1600,
+     100, 1800, 1200, 1000, 3000, 1000, 1000, 1400,
+     350,  100,  100,  100,  100,  100
+};

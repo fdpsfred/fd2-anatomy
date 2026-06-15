@@ -4838,8 +4838,8 @@
     "home": "table/uitab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_ui_per_basic_portrait_class_change_key_item_id_table": {

@@ -293,7 +293,7 @@ extern uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr;             /* 0x541
 extern uint8 *data_fd2_ui_menu_candidate_array_ptr;                     /* 0x54143 */
 /* per-job revive/promote price multiplier (signed int16), indexed by
  * job_id-1; promote/revive grid price = char.level * table[job_id-1]. */
-extern int16  data_fd2_ui_per_job_revive_or_promote_cost_table[];       /* 0x5266B  int16 per job */
+extern const int16 data_fd2_ui_per_job_revive_or_promote_cost_table[30]; /* 0x5266B  int16 per job */
 
 /* inline 3-byte battle-drop entry blob for chapter-event handler 0x27
  * (type byte + LE uint16 value); read only by
