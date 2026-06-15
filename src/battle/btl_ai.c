@@ -670,3 +670,15 @@ postlude:
             (X @0x53C37, Y @0x53C3B); analogue of
             data_fd2_battle_ai_best_spell_target_x @0x53C27. */
 uint32 data_fd2_battle_ai_best_item_target_x;
+
+/* 0x53C3B: best item-use target tile Y coordinate (zero-init BSS scalar).
+            Writer @0x1581A stores the winning candidate Y as a full dword
+            (MOV [0x53C3B],EAX) where the source is a byte tile coord
+            zero-extended into the dword (MOVZX @0x15841). fd2_execute_ai_item_use
+            reads it many times (@0x150E5/0x15108/0x1514F/0x1527B), rewrites it
+            in-place during the long-range projectile interpolation, and clamps
+            it signed to [0, data_fd2_battle_map_height_tiles-1]. Unsigned tile
+            coordinate. Second target member of the ai_best_item_* result group
+            (X @0x53C37, Y @0x53C3B); analogue of
+            data_fd2_battle_ai_best_spell_target_y @0x53C2B. */
+uint32 data_fd2_battle_ai_best_item_target_y;

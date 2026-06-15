@@ -1974,7 +1974,6 @@ int    g_spell_phase_handler_log_count = 0;
 int    g_spell_phase_handler_phase_log[64] = {0};
 uint32 g_spell_phase_handler_arg2_log[64] = {0};
 uint32 g_spell_phase_handler_dst_log[64] = {0};
-uint32 data_fd2_battle_ai_best_item_target_y = 0;
 int g_blit_indexed_sprite_calls = 0;
 uint32 g_blit_indexed_sprite_last_frame = 0;
 int g_blit_indexed_sprite_last_x = 0;
