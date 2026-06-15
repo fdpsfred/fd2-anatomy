@@ -228,3 +228,23 @@ int32 data_fd2_ui_game_options_menu_state_template[4] = { 0, 0, 0, 0 };
  * data_fd2_ui_game_options_menu_state_template @ 0x53F02).
  */
 int32 data_fd2_ui_player_action_menu_state_template[4] = { 0, 0, 0, 0 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_save_load_menu_state_template @ 0x53F22  (16 bytes)
+ *
+ * Per-option enable/disable flag state for the field status/save/load/quit
+ * submenu, paired with data_fd2_ui_save_load_newgame_menu_template @ 0x51EF5.
+ * 4 x int32 entries, all 0 at rest. The sole reader
+ * fd2_field_menu_status_save_load_quit_dispatch (@ 0x19DF7) copies all four
+ * 32-bit words into a local menu_state[16] buffer with a count-4 REP MOVSD
+ * (MOV ECX,4; MOV ESI,0x53F22; REP MOVSD -> 32-bit elements), then mutates
+ * only that local copy: when no save file exists it sets menu_state[8] = 1
+ * (((int*)menu_state)[2] = 1, greys out the Load option), and when a party
+ * member is alive-but-acted it sets menu_state[4] = 1 (((int*)menu_state)[1]
+ * = 1, greys out the Save option). The mutated copy is handed to
+ * fd2_open_settings_dialog_with_slide / fd2_settings_menu_input_step. The
+ * global source array is never written -> statically all zero. Element type
+ * int32[4] matches the dword copy stride and the sibling *_menu_state_template
+ * family (e.g. data_fd2_ui_player_action_menu_state_template @ 0x53F12).
+ */
+int32 data_fd2_ui_save_load_menu_state_template[4] = { 0, 0, 0, 0 };
