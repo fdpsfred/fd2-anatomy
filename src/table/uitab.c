@@ -114,3 +114,25 @@ const int16 data_fd2_ui_per_job_revive_or_promote_cost_table[30] = {
      100, 1800, 1200, 1000, 3000, 1000, 1000, 1400,
      350,  100,  100,  100,  100,  100
 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_per_basic_portrait_class_change_key_item_id_table @ 0x526A7
+ *   (18 bytes, = 0x5266B + 0x3C, immediately after the cost table above)
+ *
+ * Per-basic-class required class-change key-item id, indexed directly by
+ * runtime_char.bPortrait_id (basic classes 0..0x11 -> 18 entries). Both
+ * readers load a single byte and zero-extend it (MOVZX EAX, byte ptr
+ * [idx + 0x526A7]) to use as an item id:
+ *   - fd2_build_promotion_candidates_with_targets (@ 0x3180A) passes
+ *       table[portrait_id] to fd2_find_inventory_slot_with_item to test
+ *       whether the member carries the item that unlocks the alt promotion.
+ *   - fd2_run_class_promotion_menu_main (@ 0x31525) reads
+ *       table[bPortrait_id] as the item to consume when class_id > 0x31.
+ * Stride 1, unsigned byte, never written -> const uint8 flat table.
+ * 0xFF marks classes with no table-driven item; the 0xCD bytes at indices
+ * 4..7 are unused filler (portrait_id 7 is skipped by the candidate loop).
+ */
+const uint8 data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[18] = {
+    0x59, 0x5D, 0xFF, 0x5D, 0xCD, 0xCD, 0xCD, 0xCD, 0x5C,
+    0x58, 0x58, 0x58, 0x5B, 0x5C, 0x58, 0x5B, 0xFF, 0xFF
+};

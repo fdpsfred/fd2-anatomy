@@ -867,13 +867,6 @@ int16  data_fd2_dialog_shop_inventory_full_dialog_text_id_table[36] = {
     0x04B0, 0x03E8, 0x0BB8, 0x03E8, 0x03E8, 0x0578, 0x015E, 0x0064,
     0x0064, 0x0064, 0x0064, 0x0064
 };
-/* per-basic-class required class-change key-item id — real FD2.LE values
- * @ 0x526A7 (= 0x5266B + 0x3C). Indexed directly by runtime_char.portrait_id
- * (basic classes 0..0x11); 0xFF marks classes with no table-driven item. */
-uint8  data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[18] = {
-    0x59, 0x5D, 0xFF, 0x5D, 0xCD, 0xCD, 0xCD, 0xCD, 0x5C,
-    0x58, 0x58, 0x58, 0x5B, 0x5C, 0x58, 0x5B, 0xFF, 0xFF
-};
 /* Shop / give-item menu scroll offset (top-row index of the 6-item viewport,
  * steps of 2). Real FD2.LE global @ 0x5412F; shared menu-scroll state. */
 uint32 data_fd2_ui_menu_scroll_offset = 0;

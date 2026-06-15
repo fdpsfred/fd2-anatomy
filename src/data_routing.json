@@ -4853,8 +4853,8 @@
     "home": "table/uitab.c",
     "writers": [],
     "note": "read-only const table",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_animation_ani_decoder_target_width": {
