@@ -973,3 +973,26 @@ void fd2_chapter_19_end(void)
  * field/chend1.c, field/chtrans.c).
  * ---------------------------------------------------------------- */
 uint32 data_fd2_chapter_cutscene_event_state;
+
+
+/* ----------------------------------------------------------------
+ * data_fd2_chapter_current_chapter_id @ 0x53C03  (.object2, 4 bytes)
+ *
+ * Current chapter id (0-based engine chapter index). Read+written as a 32-bit
+ * dword. Used everywhere as an unsigned index: resource loads
+ * (FDFIELD.DAT idx = id*3, FDTXT.DAT idx = id+1) in
+ * fd2_load_save_and_init_engine @ 0x10147, and per-chapter dispatch tables
+ * (CALL [id*4 + 0x51DE9], CALL [id*4 + 0x51D71], MOVZX [id + 0x51E63]) in
+ * fd2_main_menu_continue_dispatcher @ 0x25E1E/0x25E35/0x25E42.
+ *
+ * Writers set it from the save header byte pBuf[0x30C5] (load), or to a chapter
+ * constant on chapter entry/exit: fd2_chapter_01_init @ 0x32326/0x3252E/0x327EB
+ * (MOV dword [0x53C03], 0x20 / 0x1F / 0), the chapter-end handlers in this file
+ * (INC current_chapter_id), and fd2_load_state_from_selected_slot @ 0x30316.
+ *
+ * Zero-initialized runtime state (memory image all-zero; first touched by a
+ * load/init handler write before any read). Lives here with chend1.c per the
+ * data-emit home assignment (multi-writer across field/chend1.c, field/chend2.c,
+ * field/chinit.c, life/main.c, save/save.c).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_chapter_current_chapter_id;

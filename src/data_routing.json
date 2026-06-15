@@ -1285,8 +1285,8 @@
       "fd2_chapter_05_end"
     ],
     "note": "multi-writer:field/chend1.c,field/chend2.c,field/chinit.c,life/main.c,save/save.c",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_graphics_chapter_ambient_palette_anim_idx": {

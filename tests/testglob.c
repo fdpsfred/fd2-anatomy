@@ -59,7 +59,6 @@ uint32 data_fd2_shared_menu_party_member_count = 0;
 uint32 data_fd2_battle_anim_phase = 0;
 uint32 data_fd2_battle_ai_post_action_consequence_idx = 0;
 uint32 data_fd2_battle_player_action_result_code = 0;
-uint32 data_fd2_chapter_current_chapter_id = 1;
 /* per-chapter combat-cinematic terrain override byte — real FD2.LE values
  * @ 0x52363 (30 bytes, indexed by chapter id 0..29). Read by
  * fd2_play_full_combat_cinematic: when non-zero it overrides the under-foot
