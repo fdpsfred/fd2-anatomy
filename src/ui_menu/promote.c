@@ -1064,3 +1064,13 @@ uint32 data_fd2_ui_slide_anim_accumulator_buf_ptr;
  *   (uint32)malloc(64000) by each opener, free()d on close, never
  *   statically initialized -> lives in BSS, rests at 0. */
 uint32 data_fd2_ui_slide_bg_snapshot_buf_ptr;
+
+/* data_fd2_ui_slide_composed_target_buf_ptr @ 0x53C63 (.object2)
+ *   Fully composed 320x200 target image for the slide transition: the
+ *   background snapshot is copied in, then the status panel / inventory
+ *   grid / portrait / shop / promote content is rendered on top, giving
+ *   the final frame the animation slides toward. Same lifecycle as the
+ *   two pointers above: assigned via (uint32)malloc(64000) by each opener,
+ *   free()d on close, never statically initialized -> lives in BSS, rests
+ *   at 0. */
+uint32 data_fd2_ui_slide_composed_target_buf_ptr;

@@ -818,7 +818,6 @@ uint32 g_blittint_team_offset[64];
  * moved up into the fd2_composite_battle_tile_map stub, which also runs once per
  * idle-loop body. */
 void fd2_render_recruitment_party_screen(void) { }
-uint32 data_fd2_ui_slide_composed_target_buf_ptr = 0;
 uint32 data_fd2_ui_menu_cursor_idx = 0;
 /* chapter-intro menu speaker portrait IDs — real FD2.LE values @ 0x52659 */
 uint8  data_fd2_chapter_intro_menu_speaker_portrait_id_table[6] =
