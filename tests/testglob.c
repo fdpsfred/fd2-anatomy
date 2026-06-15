@@ -273,8 +273,8 @@ uint8 data_fd2_chapter_ending_credit_roll_scripted_outcome_table[20] = {
  * into sprite_state[1] for every placed char). */
 /* data_fd2_chapter_ch10_end_scene_char_pos_x_table now has its real const
  * definition in src/table/chtab.c (emitted), so no stand-in here. */
-uint8 data_fd2_chapter_ch10_end_scene_char_pos_y_table[11] =
-    { 38, 39, 38, 38, 39, 38, 39, 39, 40, 40, 40 };
+/* data_fd2_chapter_ch10_end_scene_char_pos_y_table now has its real const
+ * definition in src/table/chtab.c (emitted), so no stand-in here. */
 /* Chapter 12 end scene char placement tables (data segment @ 0x52129 /
  * 0x52137 / 0x52145). Real binary bytes until the data segment is emitted;
  * fd2_chapter_12_end copies each 14-byte table into an on-stack placement block

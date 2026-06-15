@@ -474,3 +474,29 @@ const uint8 data_fd2_chapter_ch08_end_scene_char_pos_y_table[10] = {
 const uint8 data_fd2_chapter_ch10_end_scene_char_pos_x_table[11] = {
     14, 15, 16, 13, 14, 15, 16, 17, 14, 15, 16
 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_chapter_ch10_end_scene_char_pos_y_table @ 0x5211E  (11 entries, uint8)
+ *
+ * Chapter 10 end-scene character placement: per-character battle-tile Y
+ * coordinate for the 11 characters staged at the end of chapter 10
+ * (洞窟中的激戰). Second of two parallel 11-byte tables (X @ 0x52113,
+ * Y @ 0x5211E). Read-only const table in .object2.
+ *
+ * Caller (fd2_chapter_10_end @ 0x235F9):
+ *     var_18._0_1_ = data_fd2_chapter_ch10_end_scene_char_pos_y_table[0];
+ *     ... (indices 0..10 copied one byte at a time onto an on-stack block)
+ *     bStack_e     = data_fd2_chapter_ch10_end_scene_char_pos_y_table[10];
+ *     for (i = 0; i < 0xb; i++)
+ *         runtime_char[i].bPos_y = ((byte *)&var_18)[i];   // single-byte field
+ * asm @ 0x2361E: MOV ESI,0x5211E; MOVSD/MOVSD/MOVSW/MOVSB copies 11 bytes;
+ *     MOV BL,byte ptr [ESP+EAX+0xc]; MOV byte ptr [EDX+1],BL
+ *     (EDX+1 = runtime_char.bPos_y, a single byte field).
+ * => each entry is consumed one byte at a time and stored into the byte
+ *    field runtime_char.bPos_y. No struct stride, no wider element access,
+ *    no sign extension. Values are small tile coords (38..40).
+ * => element type: uint8, 11 entries, read-only (single READ xref, no writer).
+ * ---------------------------------------------------------------- */
+const uint8 data_fd2_chapter_ch10_end_scene_char_pos_y_table[11] = {
+    38, 39, 38, 38, 39, 38, 39, 39, 40, 40, 40
+};
