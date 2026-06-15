@@ -51,6 +51,8 @@ Phase 4 收斂 fd2.exe + 實機對照`。
 
 ### 待解（依序，做完才算 Phase 1 收斂）
 
+**⚠ [const-fix] dp4 btltab.c 9 個真 const 表被誤 demote 成 non-const（必修，使用者判定「絕對不可接受」）**：第一輪 btltab.c finalizer 為了讓「寫它們的測試」能編譯，把 9 個 Ghidra 遊戲端零 write-xref 的真唯讀表改成 non-const（`view_window_max_x/y`、`tile_attr_mv/def_modifier_table`、`job_magic_resist_table`、`job_crit_rate_table`、`summon_spell_8slot_visibility/y_offset/row_multiplier_table`，全在 `dp4/src/table/btltab.c`）。**正解＝改回 const（def + globals.h extern 都加 const）+ 把寫它們的測試 `#if0` SKIP**（鎖定決策①、Phase 3 重寫），**絕不維持 non-const**。SKIP 規模：`view_window_max_x/y` 各約 44 處、橫跨 18 個測試檔（相機/cinematic/battle）；其餘 7 個合計約 48 處、集中少數檔（job 表 3 檔、summon 三表全在 `tests/anim/anisumm1.c`）。已 Ghidra 實查 9 個位址遊戲端全 READ/DATA、零 WRITE＝真 const。原則已鎖（memory `feedback_const_data_never_demote_for_tests`；workflow SOP / buildGate 已禁 demote，故 mop-up / re-run 不會再犯）。
+
 **① [mop-up] 6 個 leftover 符號未落地**（皆 529/parse 失敗的犧牲者；已 committed 的 337/343 零損失）：
 - dp1 ×2：`data_fd2_battle_view_window_origin_y`、`data_fd2_battle_cursor_world_x`（reviewer 撞 529）。**半落地**：def 已被同檔後續符號的 lander `git add -A` 掃進 `dp1/src/ui_menu/cursor.c`（`uint32 ...;`，約 line 240/253）但未經本輪 review、testglob 假版仍在。
 - dp2 ×1：`data_fd2_battle_pathfind_current_depth`（lander 撞 529）。**clean**（pathfnd.c 無 file-scope def、testglob 假版在）。
