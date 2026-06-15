@@ -359,3 +359,65 @@ const item_effect data_fd2_battle_item_effect_table[215] = {
     { 0,34,0,0,0,0,0,0,0,0,15,0,0,4,1,1,2,1 },
     { 0,34,0,0,0,0,0,0,0,0,16,0,0,4,1,1,2,1 },
 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_battle_class_promotion_data_table @ 0x615FE  (72 bytes, .object3)
+ *
+ * Class-promotion result table. 36 entries x 2 bytes, indexed by
+ * (target_class_id - 0x20) where target_class_id is a promoted-class portrait
+ * id in [0x20, 0x43]. Accessor fd2_get_class_promotion_data_entry @ 0x4E48D
+ * returns &table[(class_id - 0x20)*2]; callers read only byte[0] and byte[1]
+ * (8-bit MOVs), so element type is uint8 and stride is 2.
+ *   byte[0] = post-promotion job_id (00h..1Ah job-id space)
+ *   byte[1] = learned-spell id on promotion (0 = none)
+ * Read-only const (no writers). Index bound 0x43 is set by
+ * fd2_build_promotion_candidates_with_targets @ 0x31793, whose target class is
+ * portrait_id+0x20 (default) / portrait_id+0x32 (alt key-item path) / 0x34
+ * (Lord), with portrait_id in [0,0x12); max = 0x11+0x32 = 0x43. Table ends at
+ * 0x61646 where data_fd2_battle_movement_cost_table begins. The last two
+ * entries (class 0x42/0x43) are alt-path-only promotions absent from the
+ * named-portrait guide list but proven reachable by the builder.
+ *
+ * Readers (all via the accessor): fd2_run_class_promotion_menu_main @ 0x31385,
+ * fd2_execute_class_promotion_with_dialog @ 0x31602,
+ * fd2_render_promote_candidates_grid @ 0x31019.
+ */
+const uint8 data_fd2_battle_class_promotion_data_table[72] = {
+    /* idx  class  job   spell */
+    0x09, 0x01,  /*  0  0x20  0x09 SwordMaster   1 */
+    0x0A, 0x00,  /*  1  0x21  0x0A Paladin       - */
+    0x09, 0x01,  /*  2  0x22  0x09 SwordMaster   1 */
+    0x0A, 0x00,  /*  3  0x23  0x0A Paladin       - */
+    0x0B, 0x01,  /*  4  0x24  0x0B HolyKnight    1 */
+    0x0B, 0x01,  /*  5  0x25  0x0B HolyKnight    1 */
+    0x0B, 0x01,  /*  6  0x26  0x0B HolyKnight    1 */
+    0x0B, 0x01,  /*  7  0x27  0x0B HolyKnight    1 */
+    0x0C, 0x01,  /*  8  0x28  0x0C Sniper        1 */
+    0x0D, 0x01,  /*  9  0x29  0x0D ArchMage      1 */
+    0x0E, 0x01,  /* 10  0x2A  0x0E Priest        1 */
+    0x0E, 0x01,  /* 11  0x2B  0x0E Priest        1 */
+    0x10, 0x00,  /* 12  0x2C  0x10 Gladiator     - */
+    0x0C, 0x01,  /* 13  0x2D  0x0C Sniper        1 */
+    0x0D, 0x01,  /* 14  0x2E  0x0D ArchMage      1 */
+    0x10, 0x00,  /* 15  0x2F  0x10 Gladiator     - */
+    0x0A, 0x00,  /* 16  0x30  0x0A Paladin       - */
+    0x0F, 0x01,  /* 17  0x31  0x0F DragonKnightL 1 */
+    0x11, 0x02,  /* 18  0x32  0x11 Hero          2 */
+    0x12, 0x00,  /* 19  0x33  0x12 RuneWarrior   - */
+    0x15, 0x02,  /* 20  0x34  0x15 Summoner      2 */
+    0x12, 0x00,  /* 21  0x35  0x12 RuneWarrior   - */
+    0x13, 0x02,  /* 22  0x36  0x13 DragonKnight  2 */
+    0x13, 0x02,  /* 23  0x37  0x13 DragonKnight  2 */
+    0x13, 0x02,  /* 24  0x38  0x13 DragonKnight  2 */
+    0x13, 0x02,  /* 25  0x39  0x13 DragonKnight  2 */
+    0x14, 0x01,  /* 26  0x3A  0x14 SharpShooter  1 */
+    0x16, 0x01,  /* 27  0x3B  0x16 Saint         1 */
+    0x16, 0x01,  /* 28  0x3C  0x16 Saint         1 */
+    0x16, 0x01,  /* 29  0x3D  0x16 Saint         1 */
+    0x18, 0x01,  /* 30  0x3E  0x18 WarSaint      1 */
+    0x14, 0x01,  /* 31  0x3F  0x14 SharpShooter  1 */
+    0x16, 0x01,  /* 32  0x40  0x16 Saint         1 */
+    0x18, 0x01,  /* 33  0x41  0x18 WarSaint      1 */
+    0x12, 0x00,  /* 34  0x42  0x12 RuneWarrior   -  (alt-path only) */
+    0x17, 0x01   /* 35  0x43  0x17 Ninja         1  (alt-path only) */
+};
