@@ -571,3 +571,6 @@ int fd2_ai_score_physical_attack(uint32 caster_idx, uint32 ctx_flag)
 
 /* 0x53C23: best offensive-spell candidate score (signed max accumulator) */
 int32 data_fd2_battle_ai_best_spell_score;
+
+/* 0x53C27: best offensive-spell target tile X (zero-extended tile coord; full dword store @0x15AFF) */
+uint32 data_fd2_battle_ai_best_spell_target_x;
