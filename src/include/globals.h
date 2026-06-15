@@ -83,7 +83,7 @@ extern uint8  data_fd2_chapter_ending_credit_roll_bottom_portrait_id_table[20]; 
 extern uint8  data_fd2_chapter_ending_credit_roll_scripted_outcome_table[20];   /* 0x52604  scripted_cinematic mode per duel */
 
 /* ---- chapter 3 end recruit-scene char placement tables (.object2 const) ---- */
-extern uint8  data_fd2_chapter_ch03_end_scene_char_pos_x_table[7];      /* 0x520BA  7 chars X */
+extern const uint8 data_fd2_chapter_ch03_end_scene_char_pos_x_table[7];      /* 0x520BA  7 chars X */
 extern uint8  data_fd2_chapter_ch03_end_scene_char_pos_y_table[7];      /* 0x520C1  7 chars Y */
 extern uint8  data_fd2_chapter_ch03_end_scene_char_facing_table[7];     /* 0x520C8  7 chars facing */
 

@@ -182,3 +182,25 @@ const int32 data_fd2_chapter_ending_music_trigger_frames[15] = {
     0x208, 0x1AE, 0x19A, 0x154, 0x136, 0x12C, 0xF0, 0xB4,
     0x96,  0x82,  0x6E,  0x57,  0x40,  0x16,  0x3E8
 };
+
+/* ----------------------------------------------------------------
+ * data_fd2_chapter_ch03_end_scene_char_pos_x_table @ 0x520BA  (7 bytes)
+ *
+ * Chapter 3 end-scene character placement: per-character X tile coordinate
+ * for the 7 characters staged in the chapter-3 recruit cutscene. First of
+ * three parallel 7-byte tables (X @ 0x520BA, Y @ 0x520C1, facing @ 0x520C8).
+ * Read-only const table in .object2.
+ *
+ * Caller (fd2_chapter_03_end @ 0x230F2):
+ *     MOV  ESI,0x520BA
+ *     LEA  EDI,[ESP+0x10]
+ *     MOVSD ; MOVSW ; MOVSB        ; copy 7 raw bytes onto stack scene block
+ * => the table is block-copied (4+2+1 = 7 bytes) as a flat byte source into
+ *    an on-stack character-placement block; each entry is consumed one byte
+ *    at a time (recruit_block_a._0_1_ .. [6]). No struct stride, no wider
+ *    element access.
+ * => element type: uint8, 7 entries, read-only (single READ xref, no writer).
+ * ---------------------------------------------------------------- */
+const uint8 data_fd2_chapter_ch03_end_scene_char_pos_x_table[7] = {
+    8, 7, 9, 6, 10, 8, 8
+};
