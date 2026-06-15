@@ -38,7 +38,6 @@ uint8  data_fd2_orphan_table_60181[99 * 3];
 uint8  data_fd2_battle_job_allowed_items_table[27 * 7];
 void  *data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21[21];
 uint32 data_fd2_battle_pending_xp_credit = 0;
-uint16 data_fd2_shared_rng_seed = 0;
 uint32 data_fd2_battle_job_magic_resist_table[27];
 uint8  data_fd2_battle_job_crit_rate_table[27];
 uint32 data_fd2_battle_turn_counter = 0;

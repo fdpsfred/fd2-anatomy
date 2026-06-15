@@ -2257,8 +2257,8 @@
       "fd2_advance_rng_state"
     ],
     "note": "",
-    "emitted": false,
-    "reviewed": false,
+    "emitted": true,
+    "reviewed": true,
     "commit": null
   },
   "data_fd2_battle_pathfind_step_stack": {
