@@ -831,7 +831,6 @@ uint32 data_fd2_ui_menu_scroll_offset = 0;
  *   candidate_array_ptr @ 0x54143  -> the equip-eligible char-id byte array
  *   saved_cursor / saved_scroll @ 0x5414B / 0x5414F  persist across re-opens */
 uint32 data_fd2_ui_menu_visible_item_count = 0;
-uint32 data_fd2_ui_menu_saved_scroll_offset = 0;
 /* per-shop-tier dialog text-id tables (short[6], indexed by
  * data_fd2_chapter_intro_menu_cursor_state) — real FD2.LE values:
  *   speaker portrait id  @ 0x52659 (byte[6])

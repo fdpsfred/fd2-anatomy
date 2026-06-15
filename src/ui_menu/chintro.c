@@ -827,3 +827,20 @@ uint32 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr;
  *   so the linker places it in BSS (load-time zeroed).
  * ---------------------------------------------------------------- */
 uint32 data_fd2_ui_menu_saved_cursor_idx;
+
+/* ----------------------------------------------------------------
+ * data_fd2_ui_menu_saved_scroll_offset @ 0x5414F (uint32, 4 bytes, zero-init)
+ *   Persisted shop-menu scroll offset, the saved companion to the live
+ *   data_fd2_ui_menu_scroll_offset (0x5412F). It pairs with the saved
+ *   cursor index above: fd2_run_buy_item_menu copies it into the live
+ *   scroll offset before each panel re-open and snapshots the live
+ *   offset back into it after the input loop, so the visible scroll
+ *   window survives across the open/select/close dialog round trips
+ *   (0x2F1BA: MOV EAX,[0x5414F]; MOV [0x5412F],EAX  and the reverse at
+ *   0x2F1F3: MOV EAX,[0x5412F]; MOV [0x5414F],EAX -- accessed as a full
+ *   dword in every reference, never a byte/word slice).
+ *   fd2_run_chapter_intro_menu_main resets it on menu entry alongside the
+ *   saved cursor (0x2E4AB: MOV dword ptr [0x5414F],0x0). Never preset in
+ *   the image, so the linker places it in BSS (load-time zeroed).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_ui_menu_saved_scroll_offset;
