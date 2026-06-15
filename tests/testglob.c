@@ -265,13 +265,6 @@ uint8 data_fd2_chapter_ending_credit_roll_scripted_outcome_table[20] = {
     0x04,0x03,0x33,0x0E,0x19,0x12,0x28,0x35,0x16,0x18,
     0x1C,0x11,0x1E,0x1F,0x32,0x21,0x22,0x34,0x24,0x2F
 };
-/* Chapter 8 end recruit-scene char placement tables (data segment @ 0x520FF /
- * 0x52109). Real binary bytes until the data segment is emitted;
- * fd2_chapter_08_end copies each 10-byte table into an on-stack placement block.
- * X/Y are battle-tile coords; chapter 8 has no facing table (the handler passes
- * the inline fixed facing value 2 to fd2_setup_chars_and_camera_for_intro). */
-uint8 data_fd2_chapter_ch08_end_scene_char_pos_y_table[10] =
-    { 20, 20, 20, 19, 19, 18, 19, 18, 19, 18 };
 /* Chapter 10 end scene char placement tables (data segment @ 0x52113 /
  * 0x5211E). Real binary bytes until the data segment is emitted;
  * fd2_chapter_10_end copies each 11-byte table into an on-stack placement block
