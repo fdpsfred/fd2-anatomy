@@ -10,7 +10,14 @@
  */
 
 /* ---- lifecycle ---- */
-void fd2_main(void);
+/* main() (the game C entry point, src/life/main.c @ 0x25BF4) is called by the
+ * Watcom CRT startup; it is intentionally NOT prototyped here (declaring `main`
+ * in a shared header is non-standard). SPECIAL CASE: it is the one game function
+ * exempt from the project's `fd2_` prefix convention -- the C entry must be
+ * literally `main` (CRT contract). Ghidra/src had named it fd2_main per that
+ * convention; restored to `main` so the src-only FD2.EXE links. The TEST build
+ * compiles src/life/main.c with -Dmain=fd2_main (tests/genbuild.py) to avoid a
+ * duplicate-main with tests/testmain.c's runner main(). */
 
 /* ---- table_accessor ---- */
 uint8 *fd2_get_item_effect_entry(int item_id);
@@ -808,7 +815,7 @@ void fd2_noop_stub_4e915(void);
 void fd2_delay_400ms_via_idle_thunk(void);
 
 /* ---- crt thunks ---- */
-void __delay_thunk_375b2(uint32 ticks);
+void fd2_delay_ms(uint32 ticks);
 
 /* ---- crt_equivalent (FD2-specific CRT helpers; src/crt/crt.c) ---- */
 int crt_equivalent_lx_chunk_read_36107(int file_handle, int offset,

@@ -7,12 +7,17 @@ it reports are exactly what real data/functions are still missing from src/.
 
 Reuses tests/genbuild.src_compile_list() for the canonical src .obj set (same
 objs the test build compiles), puts the obj holding fd2_main first, then the
-Miles AIL vendor libs. Watcom CRT (clib3s/math387s/emu387/graph) is auto-pulled
-by `system dos4g`, so it is not listed. Layer-2 target: no FAR_DATA / object
-layout directives -- the linker places data freely (see KB rebuild_info/link).
+Miles AIL vendor libs, then the Watcom CRT libs. `system dos4g` does NOT
+auto-pull the CRT here (the link-oracle proved clib3s/math387s/emu387 symbols
+undefined -- the OBJ default-library records are not resolved without an
+explicit libpath), so the CRT libs are listed explicitly by full DOSBox path
+(D: = WATCOM_9.5a). `-3s` -> clib3s (stack model); default `-fpi` 387 +
+emulator -> math387s + emu387. Layer-2 target: no FAR_DATA / object layout
+directives -- the linker places data freely (see KB rebuild_info/link).
 
 Output: tests/fd2.lnk  (= DOSBox E:\\fd2.lnk). AIL libs are staged into
-E:\\out by link_oracle.py before the link runs.
+E:\\out by link_oracle.py before the link runs; CRT libs resolve from the
+mounted Watcom tree (D:).
 """
 import io, os, sys
 
@@ -21,6 +26,11 @@ sys.path.insert(0, os.path.join(ROOT, "tests"))
 import genbuild  # noqa: E402
 
 AIL_LIBS = ["ailv3.lib", "fd2common.lib"]
+# Watcom 9.5a CRT, by full path on the mounted Watcom tree (D: = WATCOM_9.5a).
+# clib3s = stack-call C lib (matches -3s); math387s + emu387 = 387 math + emulator.
+CRT_LIBS = [r"D:\LIB386\DOS\CLIB3S.LIB",
+            r"D:\LIB386\MATH387S.LIB",
+            r"D:\LIB386\DOS\EMU387.LIB"]
 MAIN_OBJ = "lifemain"  # src/life/main.c holds fd2_main; first file -> module name
 
 
@@ -32,6 +42,8 @@ def gen():
         lines.append(r"file E:\out\obj\%s.obj" % obj)
     for lib in AIL_LIBS:
         lines.append(r"library E:\out\%s" % lib)
+    for lib in CRT_LIBS:
+        lines.append("library %s" % lib)
     return "\n".join(lines) + "\n", len(src_list)
 
 

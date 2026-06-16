@@ -104,7 +104,7 @@
 
 | File | 包含的 function 類別 | fn |
 |------|---------------------|-----|
-| `main.c` | 程式進入點 (`fd2_main`), 主選單 (`main_menu_continue_dispatcher`), 讀檔初始化 (`load_save_and_init_engine`) | 3 |
+| `main.c` | 程式進入點 (`main`), 主選單 (`main_menu_continue_dispatcher`), 讀檔初始化 (`load_save_and_init_engine`) | 3 |
 
 ### `save/` — 存檔系統
 

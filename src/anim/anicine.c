@@ -989,7 +989,7 @@ int fd2_execute_combat_hit_cinematic(uint32 attacker_idx, uint32 defender_idx,
                         outp(0x3C9, 1);
                         outp(0x3C9, 0x20);
                         outp(0x3C9, 0);
-                        __delay_thunk_375b2(0x14);
+                        fd2_delay_ms(0x14);
                         outp(0x3C8, 0);
                         outp(0x3C9, 0);
                         outp(0x3C9, 0);
@@ -1000,12 +1000,12 @@ int fd2_execute_combat_hit_cinematic(uint32 attacker_idx, uint32 defender_idx,
                         outp(0x3C9, 0x3F);
                         outp(0x3C9, 0x3F);
                         outp(0x3C9, 0x3F);
-                        __delay_thunk_375b2(0x14);
+                        fd2_delay_ms(0x14);
                         outp(0x3C8, 0);
                         outp(0x3C9, 0);
                         outp(0x3C9, 0);
                         outp(0x3C9, 0);
-                        __delay_thunk_375b2(0x28);
+                        fd2_delay_ms(0x28);
                     }
                 }
                 subframe_step = subframe_step + 1;
@@ -1199,7 +1199,7 @@ void fd2_play_figani_animation_loop(uint32 caster_idx, uint32 spell_id,
                 outp(0x3C9,
                      data_fd2_animation_spell_palette_flash_table[spell_id
                                                                   + 0x48]);
-                __delay_thunk_375b2(0x1E);
+                fd2_delay_ms(0x1E);
                 outp(0x3C8, 0);
                 outp(0x3C9, 0);
                 outp(0x3C9, 0);

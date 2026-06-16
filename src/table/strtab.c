@@ -54,7 +54,7 @@ const char data_fd2_string_field_map_fdicon_not_found_err_50086[35] = {
 
 /* 0x51A43  "FDTXT.DAT" + NUL (10 bytes).
  * Resource filename passed as the first argument to fd2_load_dat_resource to
- * open the chapter/dialog text archive FDTXT.DAT. Readers: fd2_main (idx 0 ->
+ * open the chapter/dialog text archive FDTXT.DAT. Readers: main (idx 0 ->
  * all-game-text), fd2_load_save_and_init_engine and fd2_load_chapter_battle_data
  * (idx chapter+1 -> current-chapter-text). Read-only; consumed as a char* path.
  * Immediately precedes the "FDOTHER.DAT" filename string at 0x51A4D. */

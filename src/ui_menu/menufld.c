@@ -74,10 +74,10 @@ void fd2_handle_tile_event_interaction(uint32 char_idx)
 
     if ((typewriter_result != 1) || (data_fd2_ui_menu_cursor_idx != 0)) {
         /* NO branch */
-        __delay_thunk_375b2(100);
+        fd2_delay_ms(100);
         fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x19c,
             0xab6e3, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
-        __delay_thunk_375b2(200);
+        fd2_delay_ms(200);
         fd2_close_status_screen_with_slide_out();
         return;
     }
@@ -85,7 +85,7 @@ void fd2_handle_tile_event_interaction(uint32 char_idx)
     /* YES branch */
     fd2_play_sfx_sample_from_bank(data_fd2_audio_fdother_sfx_bank_buf_ptr,
         0xc, 1);
-    __delay_thunk_375b2(300);
+    fd2_delay_ms(300);
     p_event_entry = (uint8 *)(data_fd2_tile_event_data_table_ptr
                   + tile_y_idx * 3);
     event_value = (uint32)*(uint16 *)(p_event_entry + 0x54);
@@ -106,7 +106,7 @@ void fd2_handle_tile_event_interaction(uint32 char_idx)
             fd2_paint_portrait_to_dialog_area(0);
             fd2_wait_for_input_dialog_with_blink(0);
             fd2_close_status_screen_with_slide_out();
-            __delay_thunk_375b2(100);
+            fd2_delay_ms(100);
             fd2_load_chapter_portrait((uint32)
                 data_fd2_battle_runtime_char_array_ptr[char_idx].portrait_id);
             fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1a7,
@@ -126,7 +126,7 @@ void fd2_handle_tile_event_interaction(uint32 char_idx)
                     *(int16 *)(tile_y_idx * 3
                         + data_fd2_tile_event_data_table_ptr + 0x54) =
                         (int16)swapped_out_id;
-                    __delay_thunk_375b2(100);
+                    fd2_delay_ms(100);
                     fd2_load_chapter_portrait((uint32)
                         data_fd2_battle_runtime_char_array_ptr[char_idx]
                             .portrait_id);
@@ -139,7 +139,7 @@ void fd2_handle_tile_event_interaction(uint32 char_idx)
                     fd2_close_status_screen_with_slide_out();
                     return;
                 }
-                __delay_thunk_375b2(100);
+                fd2_delay_ms(100);
                 fd2_load_chapter_portrait((uint32)
                     data_fd2_battle_runtime_char_array_ptr[char_idx]
                         .portrait_id);
@@ -149,7 +149,7 @@ void fd2_handle_tile_event_interaction(uint32 char_idx)
                 fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1a8,
                     0xab6e3, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
             }
-            __delay_thunk_375b2(200);
+            fd2_delay_ms(200);
             fd2_close_status_screen_with_slide_out();
             return;
         }
@@ -165,7 +165,7 @@ void fd2_handle_tile_event_interaction(uint32 char_idx)
 
     if (event_type != 1) {
         /* EVENT: chapter-scripted post-action dispatch */
-        __delay_thunk_375b2(200);
+        fd2_delay_ms(200);
         fd2_close_status_screen_with_slide_out();
         data_fd2_battle_ai_post_action_consequence_table[event_value](char_idx);
         return;
@@ -364,7 +364,7 @@ int fd2_field_menu_status_save_load_quit_dispatch(void)
         if (typewriter_result == 1 && data_fd2_ui_menu_cursor_idx == 0) {
             fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x19E,
                 0xAB6E3, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
-            __delay_thunk_375b2(200);
+            fd2_delay_ms(200);
             fd2_close_status_screen_with_slide_out();
             fd2_set_bgm_track_with_fade(0xFFFFFFFF, 0);
             fd2_load_save_and_init_engine();
@@ -385,7 +385,7 @@ int fd2_field_menu_status_save_load_quit_dispatch(void)
             fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1A0,
                 0xAB6E3, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
             fd2_set_bgm_track_with_fade(0xFFFFFFFF, 1);
-            __delay_thunk_375b2(200);
+            fd2_delay_ms(200);
             fd2_close_status_screen_with_slide_out();
             return -1;
         }
@@ -394,14 +394,14 @@ int fd2_field_menu_status_save_load_quit_dispatch(void)
          * Save/Load cancel tail, WITHOUT the trailing clear-keyboard call. */
         fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x19C,
             0xAB6E3, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
-        __delay_thunk_375b2(200);
+        fd2_delay_ms(200);
         fd2_close_status_screen_with_slide_out();
         return 1;
     }
 
     fd2_display_dialog_scene(data_fd2_all_game_text_ptr, result_text_id,
         0xAB6E3, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     fd2_close_status_screen_with_slide_out();
     fd2_clear_keyboard_buffer();
     return 1;

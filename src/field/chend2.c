@@ -111,7 +111,7 @@ void fd2_chapter_20_end(void)
 
     fd2_composite_battle_frame(1);
     fd2_play_palette_fade_in();
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
 
     fd2_display_dialog_scene(data_fd2_current_chapter_text, 0xB, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
@@ -324,7 +324,7 @@ void fd2_chapter_22_end(void)
     fd2_cast_screen_wide_spell_with_fade(data_fd2_battle_cursor_screen_x,
                                          data_fd2_battle_cursor_screen_y + 3,
                                          10, 8);
-    __delay_thunk_375b2(500);
+    fd2_delay_ms(500);
     memset((void *)0xA0000, 0xFF, 64000);
     fd2_play_palette_fade_to_black();
     memset((void *)0xA0000, 0, 64000);
@@ -440,22 +440,22 @@ void fd2_chapter_23_end(void)
 
     fd2_display_dialog_scene(data_fd2_current_chapter_text, 0xE, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
-    __delay_thunk_375b2(400);
+    fd2_delay_ms(400);
     fd2_play_rising_pre_cast_effect(1, 0xF, 10);
     fd2_animate_screen_shake(0x1E);
     fd2_display_dialog_scene(data_fd2_current_chapter_text, 0xF, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
-    __delay_thunk_375b2(400);
+    fd2_delay_ms(400);
     fd2_play_rising_pre_cast_effect(1, 0xF, 10);
     fd2_animate_screen_shake(0x1E);
     fd2_display_dialog_scene(data_fd2_current_chapter_text, 0x10, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
-    __delay_thunk_375b2(400);
+    fd2_delay_ms(400);
     fd2_play_rising_pre_cast_effect(1, 0x1E, 0x10);
 
     for (v = 0; (int32)v < 0x40; v += 2) {
         fd2_set_vga_palette_range_with_add(0, 0xFF, v);
-        __delay_thunk_375b2(4);
+        fd2_delay_ms(4);
     }
 
     data_fd2_battle_tile_map_ptr = fd2_load_dat_resource(
@@ -754,18 +754,18 @@ void fd2_chapter_27_end(void)
         fd2_display_dialog_scene(data_fd2_current_chapter_text, 0xC, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
         fd2_palette_overbright_settle_step_loop(0x50, 4);
-        __delay_thunk_375b2(500);
+        fd2_delay_ms(500);
         fd2_palette_overbright_settle_step_loop(0x50, 3);
-        __delay_thunk_375b2(250);
+        fd2_delay_ms(250);
         fd2_palette_overbright_settle_step_loop(0x50, 2);
-        __delay_thunk_375b2(100);
+        fd2_delay_ms(100);
         fd2_palette_overbright_settle_step_loop(0x50, 2);
-        __delay_thunk_375b2(50);
+        fd2_delay_ms(50);
         fd2_palette_overbright_settle_step_loop(0x50, 2);
         fd2_cast_screen_wide_spell_with_fade(data_fd2_battle_cursor_screen_x,
                                              data_fd2_battle_cursor_screen_y - 1,
                                              10, 10);
-        __delay_thunk_375b2(500);
+        fd2_delay_ms(500);
         memset((void *)0xA0000, 0xFF, 64000);
         fd2_play_palette_fade_to_black();
         memset((void *)0xA0000, 0, 64000);
@@ -870,47 +870,47 @@ void fd2_chapter_29_end(void)
     data_fd2_battle_anim_phase = 0;
 
     fd2_animate_screen_shake(0x14);
-    __delay_thunk_375b2(600);
+    fd2_delay_ms(600);
     fd2_animate_screen_shake(0x14);
-    __delay_thunk_375b2(600);
+    fd2_delay_ms(600);
     fd2_animate_screen_shake(0x14);
     fd2_display_dialog_scene(data_fd2_current_chapter_text, 0xD, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     data_fd2_battle_anim_phase = 0;
 
     fd2_animate_screen_shake(0x14);
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     fd2_animate_screen_shake(0x14);
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     fd2_animate_screen_shake(0x14);
     fd2_display_dialog_scene(data_fd2_current_chapter_text, 0xE, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     data_fd2_battle_anim_phase = 0;
 
     fd2_animate_screen_shake(0x14);
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     fd2_animate_screen_shake(0x14);
-    __delay_thunk_375b2(100);
+    fd2_delay_ms(100);
     fd2_animate_screen_shake(0x28);
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     fd2_animate_palette_flash_pulse_white();
-    __delay_thunk_375b2(300);
+    fd2_delay_ms(300);
     fd2_animate_palette_flash_pulse_white();
-    __delay_thunk_375b2(300);
+    fd2_delay_ms(300);
     fd2_animate_palette_flash_pulse_white();
-    __delay_thunk_375b2(300);
+    fd2_delay_ms(300);
     fd2_display_dialog_scene(data_fd2_current_chapter_text, 0xF, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 
     for (v = 0; (int32)v < 0x40; v++) {
         fd2_set_vga_palette_range_with_add(0, 0xFF, v);
-        __delay_thunk_375b2(4);
+        fd2_delay_ms(4);
     }
     memset((void *)0xA0000, 0, 64000);
-    __delay_thunk_375b2(800);
+    fd2_delay_ms(800);
     for (v = 0x3E; -1 < (int32)v; v--) {
         fd2_set_vga_palette_range_with_add(0, 0xFF, v);
-        __delay_thunk_375b2(4);
+        fd2_delay_ms(4);
     }
 
     fd2_save_runtime_char_to_template();
@@ -1008,7 +1008,7 @@ void fd2_chapter_30_end(void)
 
     for (v = 0x3E; -1 < (int32)v; v--) {
         fd2_set_vga_palette_range_with_add(0, 0xFF, v);
-        __delay_thunk_375b2(4);
+        fd2_delay_ms(4);
     }
     for (i = 0; i < 0x28; i++) {
         fd2_composite_battle_frame(0);

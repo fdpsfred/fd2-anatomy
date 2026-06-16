@@ -96,7 +96,7 @@ void fd2_animate_screen_shake(uint32 num_frames)
             data_fd2_large_game_state_buffer_ptr + 0x8088 +
                 (i & 1) * 0x1C8,
             0x1C8, 0x138, 0xC0);
-        __delay_thunk_375b2(0x14);
+        fd2_delay_ms(0x14);
     }
 }
 
@@ -118,7 +118,7 @@ void fd2_animate_screen_shake(uint32 num_frames)
  * (wrapping 10->0). Carries to higher positions are resolved on the
  * next outer re-diff. Loops until current digits equal target digits.
  *
- * Cadence: 9 rolling frames per advance step, 10ms (__delay_thunk_375b2)
+ * Cadence: 9 rolling frames per advance step, 10ms (fd2_delay_ms)
  * per frame.
  *
  * Caller:
@@ -179,7 +179,7 @@ void fd2_animate_money_increment(uint32 delta)
                         }
                     }
                 }
-                __delay_thunk_375b2(10);
+                fd2_delay_ms(10);
             }
         }
     } while (!all_match);
@@ -204,7 +204,7 @@ void fd2_animate_money_increment(uint32 delta)
  * resolved on the next outer re-diff. Loops until current digits
  * equal target digits.
  *
- * Cadence: 9 rolling frames per advance step, 10ms (__delay_thunk_375b2)
+ * Cadence: 9 rolling frames per advance step, 10ms (fd2_delay_ms)
  * per frame.
  *
  * Callers:
@@ -264,7 +264,7 @@ void fd2_animate_money_decrement(uint32 delta)
                         anim_state[digit_iter] = anim_state[digit_iter] - 1;
                     }
                 }
-                __delay_thunk_375b2(10);
+                fd2_delay_ms(10);
             }
         }
     } while (!all_match);
@@ -361,7 +361,7 @@ void fd2_animate_tutorial_dialog_intro_or_outro(uint32 open_or_close)
  * Phase 1 (3 x 6-row shifts, each followed by a 6-row dark-grey fill):
  *   per step: shift the 0x4A-row block up by 6 rows
  *   (src 0xA974A = dst 0xA8FCA + 0x780 = +6*0x140), clear the bottom 6
- *   rows to palette 0x49 at 0xAEC4A, then __delay_thunk_375b2(10).
+ *   rows to palette 0x49 at 0xAEC4A, then fd2_delay_ms(10).
  * Phase 2 (single 8-row final shift): shift the 0x48-row block up by 8
  *   rows (src 0xA99CA = dst 0xA8FCA + 0xA00 = +8*0x140), clear the
  *   bottom 8 rows to palette 0x49 at 0xAE9CA.
@@ -390,7 +390,7 @@ void fd2_animate_scroll_up_in_shop_dialog(void)
         for (row = 0; row < 6; row++) {
             memset((void *)(row * 0x140 + 0xAEC4A), 0x49, 0x11C);
         }
-        __delay_thunk_375b2(10);
+        fd2_delay_ms(10);
     }
 
     for (row = 0; row < 0x48; row++) {
@@ -416,7 +416,7 @@ void fd2_animate_scroll_up_in_shop_dialog(void)
  *   per step: shift the 0x4A-row block down by 6 rows (dst 0xA974A =
  *   src 0xA8FCA + 0x780 = +6*0x140) iterating row 0x49..0 descending,
  *   then clear the top 6 rows to palette 0x49 at 0xA8FCA, then
- *   __delay_thunk_375b2(10).
+ *   fd2_delay_ms(10).
  * Phase 2 (single 8-row final shift): shift the 0x48-row block down by 8
  *   rows (dst 0xA99CA = src 0xA8FCA + 0xA00 = +8*0x140) iterating row
  *   0x47..0 descending, then clear the top 8 rows to palette 0x49 at
@@ -447,7 +447,7 @@ void fd2_animate_scroll_down_in_shop_dialog(void)
         for (row = 0; row < 6; row++) {
             memset((void *)(row * 0x140 + 0xA8FCA), 0x49, 0x11C);
         }
-        __delay_thunk_375b2(10);
+        fd2_delay_ms(10);
     }
 
     for (row = 0x47; row >= 0; row--) {
@@ -530,12 +530,12 @@ void fd2_animate_shop_transaction_feedback(void)
         }
         for (brightness = 0; (int32)brightness < 0x40; brightness += 2) {
             fd2_set_vga_palette_range_with_add(0, 0xFF, brightness);
-            __delay_thunk_375b2(4);
+            fd2_delay_ms(4);
         }
         fd2_wait_n_bios_ticks(10);
         for (brightness = 0x3E; -1 < (int32)brightness; brightness -= 2) {
             fd2_set_vga_palette_range_with_add(0, 0xFF, brightness);
-            __delay_thunk_375b2(4);
+            fd2_delay_ms(4);
         }
         wait_ticks = 5;
         fd2_wait_n_bios_ticks(wait_ticks);
@@ -778,7 +778,7 @@ void fd2_cinematic_warp_char_to_tile(uint32 char_id, uint32 tile_x, uint32 tile_
  * fd2_set_vga_palette_range_with_add (port 0x3C8/0x3C9 writes).
  *
  *   Fade UP:   brightness 0..0x3F  (64 steps, 8ms each = 512ms)
- *   Hold:      __delay_thunk_375b2(400)  (400ms at peak brightness)
+ *   Hold:      fd2_delay_ms(400)  (400ms at peak brightness)
  *   Fade DOWN: brightness 0x3E..0  (63 steps, 8ms each = 504ms)
  *
  * Total duration ~1.4s. Used for celebratory / dramatic moments
@@ -799,12 +799,12 @@ void fd2_animate_palette_flash_pulse_white(void)
 
     for (brightness = 0; (int32)brightness < 0x40; brightness++) {
         fd2_set_vga_palette_range_with_add(0, 0xFF, brightness);
-        __delay_thunk_375b2(8);
+        fd2_delay_ms(8);
     }
-    __delay_thunk_375b2(400);
+    fd2_delay_ms(400);
     for (brightness = 0x3E; -1 < (int32)brightness; brightness--) {
         fd2_set_vga_palette_range_with_add(0, 0xFF, brightness);
-        __delay_thunk_375b2(8);
+        fd2_delay_ms(8);
     }
 }
 

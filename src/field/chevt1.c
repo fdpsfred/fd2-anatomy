@@ -168,7 +168,7 @@ void fd2_chapter_event_handler_00__ch1_dialog_with_state(uint32 event_arg)
     fd2_load_chapter_portraits_and_dump_tmp(3);
     fd2_pan_cursor_and_window(5, 8);
     fd2_composite_battle_frame(1);
-    __delay_thunk_375b2(100);
+    fd2_delay_ms(100);
     fd2_cutscene_event_trigger(7);
     fd2_clear_keyboard_buffer();
     fd2_display_dialog_scene(data_fd2_current_chapter_text, 0xB, 0xA0000, 0x140,
@@ -177,7 +177,7 @@ void fd2_chapter_event_handler_00__ch1_dialog_with_state(uint32 event_arg)
 
     fd2_load_chapter_portraits_and_dump_tmp(7);
     fd2_composite_battle_frame(1);
-    __delay_thunk_375b2(100);
+    fd2_delay_ms(100);
     fd2_cutscene_event_trigger(8);
     fd2_clear_keyboard_buffer();
     fd2_display_dialog_scene(data_fd2_current_chapter_text, 3, 0xA0000, 0x140,
@@ -347,12 +347,12 @@ void fd2_chapter_event_handler_06__ch2_reinforcement(uint32 event_arg)
     (void)event_arg;
 
     fd2_pan_cursor_and_window(9, 1);
-    __delay_thunk_375b2(100);
+    fd2_delay_ms(100);
     data_fd2_chapter_init_phase_flag = 1;
     fd2_load_chapter_portraits_and_dump_tmp(3);
     data_fd2_chapter_init_phase_flag = 0;
     fd2_cutscene_event_trigger(0xD);
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     fd2_display_dialog_scene(data_fd2_current_chapter_text, 4, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 
@@ -476,9 +476,9 @@ void fd2_chapter_event_handler_09__ch3_char_cond(uint32 event_arg)
     if (fd2_check_char_is_dead(6) == 0) {
         fd2_load_chapter_portraits_and_dump_tmp(2);
         fd2_pan_cursor_and_window(3, 0);
-        __delay_thunk_375b2(800);
+        fd2_delay_ms(800);
         fd2_pan_cursor_and_window(3, 0x11);
-        __delay_thunk_375b2(200);
+        fd2_delay_ms(200);
         fd2_display_dialog_scene(data_fd2_current_chapter_text, 4, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
     }
@@ -1131,9 +1131,9 @@ void fd2_chapter_event_handler_1a__ch7_char_cond(uint32 stepping_char_id)
  * cinematic, no dialog. A straight-line beat with no branch, no RNG, no
  * numeric computation and no CALL-return value used:
  *   fd2_pan_cursor_and_window(8, 2);                            // pan camera to (8,2)
- *   __delay_thunk_375b2(100);                                   // ~100ms hold
+ *   fd2_delay_ms(100);                                   // ~100ms hold
  *   fd2_load_chapter_portraits_and_dump_tmp(turn_counter);      // reload portrait set
- *   __delay_thunk_375b2(100);                                   // ~100ms hold
+ *   fd2_delay_ms(100);                                   // ~100ms hold
  *
  * The portrait set reloaded each turn is keyed off the battle turn counter
  * (data_fd2_battle_turn_counter @ 0x53BEF), which fd2_run_full_turn_cycle
@@ -1148,10 +1148,10 @@ void fd2_chapter_event_handler_1a__ch7_char_cond(uint32 stepping_char_id)
  * __CHK(0xC) stack-probe prologue is compiler-injected and omitted here.
  *
  * In the binary the final 100ms hold is emitted as "PUSH 0x64; JMP 0x353D1":
- * a tail-jump into the shared CALL __delay_thunk_375b2 / ADD ESP,4 / RET
+ * a tail-jump into the shared CALL fd2_delay_ms / ADD ESP,4 / RET
  * tail of fd2_delay_400ms_via_idle_thunk (0x353CC..0x353D9). The borrowed
  * tail performs the cdecl 4-byte cleanup and RET; reproduced here as the
- * inline __delay_thunk_375b2(100) call for Layer-2 equivalence.
+ * inline fd2_delay_ms(100) call for Layer-2 equivalence.
  *
  * Walkthrough SOT: assets/chapters/chapter_08.md
  * ---------------------------------------------------------------- */
@@ -1160,9 +1160,9 @@ void fd2_chapter_event_handler_1b__ch8_cinematic(uint32 event_arg)
     (void)event_arg;
 
     fd2_pan_cursor_and_window(8, 2);
-    __delay_thunk_375b2(100);
+    fd2_delay_ms(100);
     fd2_load_chapter_portraits_and_dump_tmp(data_fd2_battle_turn_counter);
-    __delay_thunk_375b2(100);
+    fd2_delay_ms(100);
 }
 
 /* ----------------------------------------------------------------
@@ -1323,7 +1323,7 @@ void fd2_chapter_event_handler_1e__unref_major_cinematic(uint32 event_arg)
  * batch counter is byte [0x10] of that block.
  *
  * In the original binary the final ~200ms hold is the head of a shared
- * tail at 0x353D1 (CALL __delay_thunk_375b2; ADD ESP,4; RET) that this
+ * tail at 0x353D1 (CALL fd2_delay_ms; ADD ESP,4; RET) that this
  * handler reaches via "PUSH 0xC8; JMP 0x353D1"; reproduced here as the
  * inline call for Layer-2 equivalence.
  *
@@ -1338,13 +1338,13 @@ void fd2_chapter_event_handler_1f__ch9_reinforcement(uint32 event_arg)
     (*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10))++;
 
     fd2_pan_cursor_and_window(0, 0);
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     fd2_pan_cursor_and_window(0xC, 0);
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     fd2_pan_cursor_and_window(0xC, 0xB);
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     fd2_pan_cursor_and_window(0, 0xB);
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
 }
 
 /* ----------------------------------------------------------------

@@ -227,14 +227,14 @@ void fd2_setup_chars_and_camera_for_intro(uint32 pX_byte_array,
 
     fd2_composite_battle_frame(1);
     fd2_play_palette_fade_in();
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
 }
 
 /* ----------------------------------------------------------------
  * fd2_chapter_transition_menu @ 0x2CAD7  (2 callers)
  *
  * Between-chapter dispatch + intro/save menu. Invoked from the main loop
- * (fd2_main / fd2_main_menu_continue_dispatcher) when a chapter transition
+ * (main / fd2_main_menu_continue_dispatcher) when a chapter transition
  * is pending. Returns:
  *   1 - story-chapter intro committed without choosing "save" (cursor != 2)
  *       => caller continues normal flow.

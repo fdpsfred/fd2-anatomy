@@ -430,7 +430,7 @@ static void test_sci_camera_and_delay(void)
     ASSERT_EQ(data_fd2_battle_cursor_screen_x, 0);
     ASSERT_EQ(data_fd2_battle_cursor_screen_y, 0);
 
-    /* post-reveal hold: __delay_thunk_375b2(200). */
+    /* post-reveal hold: fd2_delay_ms(200). */
     ASSERT_EQ(g_delay375b2_last_ticks, 200);
     ASSERT_TRUE(g_delay375b2_calls >= 1);
 }

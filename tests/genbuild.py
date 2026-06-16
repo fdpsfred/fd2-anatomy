@@ -113,8 +113,16 @@ def gen_bat(test_files, test_objmap, src_list):
     the FD2.TMP output resolve there, keeping src/ clean."""
     L = [r'echo === compile src === > E:\out\build.out']
     for rel, obj in src_list:
-        L.append(r'D:\BIN\WCC386.EXE %s %%CF%% -fo=E:\out\obj\%s.obj '
-                 r'>> E:\out\build.out' % (rel.replace('/', '\\'), obj))
+        # src/life/main.c defines the game entry as `main` (the real C entry, used
+        # by the src-only FD2.EXE / Watcom CRT). The TEST build ALSO links
+        # tests/testmain.c, whose main() is the test runner -> two `main` symbols
+        # would collide. Compile ONLY this file with -Dmain=fd2_main so the game
+        # entry is aliased away in TEST.EXE (no test calls it), leaving testmain's
+        # main() as the entry. fd2.exe compiles src/ without this define. See the
+        # plate at FD2.LE 0x25BF4 and the header in src/life/main.c.
+        extra = ' -Dmain=fd2_main' if rel == 'life/main.c' else ''
+        L.append(r'D:\BIN\WCC386.EXE %s %%CF%%%s -fo=E:\out\obj\%s.obj '
+                 r'>> E:\out\build.out' % (rel.replace('/', '\\'), extra, obj))
     L.append('')
     L.append(r'echo === compile tests === >> E:\out\build.out')
     L.append(r'D:\BIN\WCC386.EXE E:\testmain.c %CF% '

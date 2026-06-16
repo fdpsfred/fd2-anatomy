@@ -49,7 +49,7 @@
 extern runtime_char g_test_rc_array[8];
 extern void *data_fd2_chapter_cutscene_event_script_ptr_table_106[106];
 
-/* __delay_thunk_375b2 call recorder (tests/testglob.c) — used by the ch29
+/* fd2_delay_ms call recorder (tests/testglob.c) — used by the ch29
  * suite to confirm both palette fade loops ran to completion. */
 extern int    g_delay375b2_calls;
 extern uint32 g_delay375b2_last_ticks;
@@ -952,7 +952,7 @@ static void test_ch28_end_runs_and_advances(void)
  *   - it advances current_chapter_id by exactly one;
  *   - the two palette fade loops run to completion: a 64-step fade-out
  *     (v=0..0x3F) and a 63-step fade-in (v=0x3E..0), each step doing one
- *     __delay_thunk_375b2(4). The total __delay_thunk_375b2 call count
+ *     fd2_delay_ms(4). The total fd2_delay_ms call count
  *     (2+2+6 earthquake/flash holds + 64 fade-out + 1 black hold + 63 fade-in
  *     = 138) and a final ticks value of 4 confirm both signed-comparison
  *     loops iterated the right number of times in the right direction.

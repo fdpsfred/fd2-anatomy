@@ -150,7 +150,7 @@ static void test_ending_music_trigger_frames_real_values(void)
  *     shared-index continuation (sprite_idx is NOT reset between phases);
  *   - the single mid-show ANI playback fires exactly once, between the phases,
  *     with the (0, 0xF, 0) argument triple;
- *   - the white-flash sequence runs exactly once: the two __delay_thunk_375b2
+ *   - the white-flash sequence runs exactly once: the two fd2_delay_ms
  *     holds (100 then 500) bracket the palette flash, and the loops themselves
  *     use fd2_wait_n_bios_ticks (not the delay thunk), so the delay-thunk call
  *     count is precisely 2 with a final ticks of 500.
@@ -161,7 +161,7 @@ static void test_ending_music_trigger_frames_real_values(void)
  * fd2_wait_n_bios_ticks, fd2_clear_keyboard_buffer, fd2_pan_cursor_and_window
  * and fd2_composite_battle_frame_zero are all real-linked and run end-to-end;
  * fd2_blit_indexed_sprite, fd2_play_ani_file_animation_sequence and
- * __delay_thunk_375b2 are testglob recording spies.
+ * fd2_delay_ms are testglob recording spies.
  * ================================================================ */
 
 extern int    g_blit_indexed_sprite_calls;

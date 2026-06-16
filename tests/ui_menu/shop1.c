@@ -46,7 +46,7 @@ extern uint32 g_shop_grid_last_sell;
  * (anim/aniui.c): fd2_animate_scroll_up_in_shop_dialog (page-DOWN) and
  * fd2_animate_scroll_down_in_shop_dialog (page-UP). Each shifts the shop-dialog
  * block along the VGA aperture (host-safe scratch under DOS/4GW) and paces with
- * three __delay_thunk_375b2(10) calls. A paging move is therefore observed via
+ * three fd2_delay_ms(10) calls. A paging move is therefore observed via
  * the delay-thunk spy (g_delay375b2_calls == 3); the direction that ran is
  * pinned independently by data_fd2_ui_menu_scroll_offset (page-up lands lower,
  * page-down lands higher), so no per-animation call counter is needed. */

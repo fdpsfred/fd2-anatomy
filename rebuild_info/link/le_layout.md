@@ -139,9 +139,9 @@ Object 3 內的 pointer table（cutscene script ptr table、weapon attack anim p
    - 把 env 後段 program path 接在 cmdline 後面（共享 4 KB buffer）
    - **BSS zero-init**：`REP STOSD` 從 `0x539EC` 寫 0x331 個 dword (0xCC4 byte) 到 `0x546B0`
    - CALL `__InitRtns @ 0x45D9A` (跑 XI ctor chain @ 0x539A0..0x539F1 的 10 個 entries)
-   - JMP `__CMain @ 0x45D4B` (call `fd2_main`，main return 後 `__FiniRtns` + INT 21 AH=4Ch exit)
+   - JMP `__CMain @ 0x45D4B` (call `main`，main return 後 `__FiniRtns` + INT 21 AH=4Ch exit)
 
-3. **`fd2_main`** — FD2 遊戲主邏輯入口。
+3. **`main`** — FD2 遊戲主邏輯入口。
 
 ## 與 LE 規範的對齊驗證
 

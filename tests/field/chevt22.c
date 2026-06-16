@@ -239,13 +239,13 @@ static void test_h38_ignores_dispatch_arg(void)
  *       -- the RAW counter, same as the ch24 handler_36, NOT the signed /2 used
  *          by the ch21/ch22 handlers
  *   fd2_pan_cursor_and_window(9, 0)
- *   __delay_thunk_375b2(400)
+ *   fd2_delay_ms(400)
  * No turn gate, no dialog. In the binary the pan + 400ms hold + RET is a
  * Class-3 shared tail borrowed from handler_36 @ 0x353C4; these tests pin THIS
  * handler's functionally-exact contract: the RAW-counter portrait index and the
  * single pan target (9, 0). Reuses ce22_setup's real render/portrait env above
  * (the portrait loader re-reads the staged real FDFIELD.DAT and rewrites
- * FD2.TMP); __delay_thunk_375b2 is REAL and paces 400ms against the
+ * FD2.TMP); fd2_delay_ms is REAL and paces 400ms against the
  * host-advancing BIOS tick word.
  * ================================================================ */
 

@@ -256,9 +256,9 @@ void fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(
  * Sequence (functionally-exact):
  *   fd2_pan_cursor_and_window(target_tile_x, target_tile_y)
  *   fd2_load_chapter_portraits_and_dump_tmp(chapter_id & 0xFF)
- *   __delay_thunk_375b2(300)                            -- hold the new portrait
+ *   fd2_delay_ms(300)                            -- hold the new portrait
  *   fd2_set_vga_palette_range_with_add(0, 0xFF, 0xFF)   -- +0xFF = pure white
- *   __delay_thunk_375b2(200)                            -- white screen
+ *   fd2_delay_ms(200)                            -- white screen
  *   fd2_set_vga_palette_range_with_add(0, 0xFF, 0)      -- restore palette
  *   fd2_composite_battle_frame(0)
  *   fd2_delay_400ms_via_idle_thunk()                    -- 400ms recovery hold
@@ -267,7 +267,7 @@ void fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(
  * MOVZX of its low byte (param_3 & 0xFF) before forwarding it to the portrait
  * loader. In the binary the final delay is reached by JMP into
  * fd2_delay_400ms_via_idle_thunk @ 0x353CC (a tail-call that borrows that
- * function's PUSH 0x190 / CALL __delay_thunk_375b2 / cleanup / RET); the
+ * function's PUSH 0x190 / CALL fd2_delay_ms / cleanup / RET); the
  * functionally-exact source is a plain call followed by return.
  * ---------------------------------------------------------------- */
 void fd2_cinematic_chapter_portrait_dump_with_white_flash(
@@ -275,9 +275,9 @@ void fd2_cinematic_chapter_portrait_dump_with_white_flash(
 {
     fd2_pan_cursor_and_window(target_tile_x, target_tile_y);
     fd2_load_chapter_portraits_and_dump_tmp(chapter_id & 0xFF);
-    __delay_thunk_375b2(300);
+    fd2_delay_ms(300);
     fd2_set_vga_palette_range_with_add(0, 0xFF, 0xFF);
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     fd2_set_vga_palette_range_with_add(0, 0xFF, 0);
     fd2_composite_battle_frame(0);
     fd2_delay_400ms_via_idle_thunk();
@@ -341,13 +341,13 @@ void fd2_chapter_event_handler_36__ch24_cinematic(uint32 event_arg)
     fd2_load_chapter_portraits_and_dump_tmp(data_fd2_battle_turn_counter);
 
     fd2_pan_cursor_and_window(0, 4);
-    __delay_thunk_375b2(400);
+    fd2_delay_ms(400);
     fd2_pan_cursor_and_window(0, 0x16);
-    __delay_thunk_375b2(400);
+    fd2_delay_ms(400);
     fd2_pan_cursor_and_window(0x1A, 0x18);
-    __delay_thunk_375b2(400);
+    fd2_delay_ms(400);
     fd2_pan_cursor_and_window(0x1A, 2);
-    __delay_thunk_375b2(400);
+    fd2_delay_ms(400);
 }
 
 /* ----------------------------------------------------------------
@@ -454,7 +454,7 @@ void fd2_chapter_event_handler_38__ch25_dialog_with_state(uint32 event_arg)
  * In the binary the final pan + 400ms hold + RET is a Class-3 shared tail at
  * 0x353C4 hosted in fd2_chapter_event_handler_36__ch24_cinematic: after pushing
  * its pan args (Y=0, X=9) this handler does JMP 0x353C4, falling into the
- * CALL fd2_pan_cursor_and_window; ADD ESP,8; PUSH 0x190; CALL __delay_thunk_375b2;
+ * CALL fd2_pan_cursor_and_window; ADD ESP,8; PUSH 0x190; CALL fd2_delay_ms;
  * ADD ESP,4; RET tail. That tail-merge is a binary size optimisation; the
  * functionally-exact source is the portrait load followed by one pan + 400ms hold.
  * ---------------------------------------------------------------- */
@@ -464,7 +464,7 @@ void fd2_chapter_event_handler_39__ch26_cinematic(uint32 event_arg)
 
     fd2_load_chapter_portraits_and_dump_tmp(data_fd2_battle_turn_counter);
     fd2_pan_cursor_and_window(9, 0);
-    __delay_thunk_375b2(400);
+    fd2_delay_ms(400);
 }
 
 /* ----------------------------------------------------------------
@@ -1260,9 +1260,9 @@ void fd2_chapter_event_handler_4c__ch29_major_cinematic(uint32 event_arg)
         (uint8)data_fd2_battle_turn_counter;
 
     fd2_animate_palette_flash_pulse_white();
-    __delay_thunk_375b2(400);
+    fd2_delay_ms(400);
     fd2_animate_palette_flash_pulse_white();
-    __delay_thunk_375b2(400);
+    fd2_delay_ms(400);
 
     for (page = 3; page < 7; page = page + 1) {
         fd2_animate_palette_flash_pulse_white();

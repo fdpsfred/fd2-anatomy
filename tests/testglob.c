@@ -671,7 +671,7 @@ void fd2_render_shop_item_grid(uint32 item_count, uint32 item_id_array,
 /* Both shop-dialog scroll animations are now REAL emitted functions in
  * src/anim/aniui.c: fd2_animate_scroll_up_in_shop_dialog (page-DOWN) and
  * fd2_animate_scroll_down_in_shop_dialog (page-UP). Each only writes the
- * mode13h aperture + paces with three __delay_thunk_375b2(10) calls, so both
+ * mode13h aperture + paces with three fd2_delay_ms(10) calls, so both
  * are host-safe to call directly. The shop navigation test observes that an
  * animation paced via g_delay375b2_calls == 3, with the branch direction
  * pinned independently by data_fd2_ui_menu_scroll_offset. */
@@ -953,28 +953,18 @@ uint32 g_delay375b2_last_ticks = 0;
 int    g_delay375b2_log_on = 0;
 int    g_delay375b2_log_count = 0;
 uint32 g_delay375b2_log[16];
-void __delay_thunk_375b2(uint32 ticks)
-{
-    g_delay375b2_calls++;
-    g_delay375b2_last_ticks = ticks;
-    if (g_delay375b2_log_on && g_delay375b2_log_count < 16) {
-        g_delay375b2_log[g_delay375b2_log_count] = ticks;
-        g_delay375b2_log_count++;
-    }
-}
-/* fd2_delay_400ms_via_idle_thunk @ 0x353CC: a separately-routed real function
- * (target src/util/misc.c, not yet emitted) whose entire body is
- * __delay_thunk_375b2(400). The white-flash cinematic tail-calls it (JMP 0x353CC)
- * for its final 400ms hold. Stub forwards to the real delay thunk so callers link
- * and the 400 is observed in the delay log; remove when misc.c emits the real
- * body. */
-void fd2_delay_400ms_via_idle_thunk(void) { __delay_thunk_375b2(400); }
+/* fd2_delay_ms and fd2_delay_400ms_via_idle_thunk are now real in
+ * src/util/misc.c; their former testglob stubs (the latter forwarding into the
+ * delay wrapper) were removed once misc.c emitted the bodies. The g_delay375b2_*
+ * recorders above are retained for tests that still reference them but are no
+ * longer filled -- the real fd2_delay_ms calls the Watcom CRT delay and does not
+ * record (those tests move to real-output assertions in Phase 3). */
 
 /* fd2_animate_palette_flash_pulse_white @ 0x35E5A: a separately-routed real
  * function (target src/anim/aniui.c, not yet emitted) whose body is the
  * ~1.4s pulse-white palette flash (a 64-step fade-up, 400ms peak hold, 63-step
  * fade-down, all driven through fd2_set_vga_palette_range_with_add +
- * __delay_thunk_375b2). The ch29 endgame handler_4c fires it six times, so a
+ * fd2_delay_ms). The ch29 endgame handler_4c fires it six times, so a
  * real run would churn ~750 palette writes and ~750 delay-log entries with no
  * value to that handler's risk-bearing logic (its branch, the 8-bit
  * party_member_count-3 / turn-counter stores, and the flash/dialog sequencing).
@@ -1188,11 +1178,11 @@ void AIL_stop_sequence(uint32 s) { (void)s; }
 int  AIL_init_sequence(uint32 s, uint32 d, int i) { (void)s; (void)d; (void)i; return 0; }
 void AIL_start_sequence(uint32 s) { (void)s; }
 void AIL_set_sequence_loop_count(uint32 s, uint32 c) { (void)s; (void)c; }
-/* AIL sound-system lifecycle stubs. Referenced only by fd2_main (whose own
+/* AIL sound-system lifecycle stubs. Referenced only by main (whose own
  * behavioral test is deferred to Phase 9 integration -- it issues INT 10h via
  * the real linked int386, which has no deterministic seam in the DOS/4GW
  * harness; see src/emit_issues.json @00025bf4). These exist purely to satisfy
- * the link; returning NULL handles keeps fd2_main's "driver installed?" arms
+ * the link; returning NULL handles keeps main's "driver installed?" arms
  * un-taken if it were ever driven. */
 void  AIL_startup(void) {}
 void  AIL_shutdown(void) {}
@@ -1201,7 +1191,7 @@ int   AIL_install_DIG_INI(void) { return 0; }
 void *AIL_allocate_sequence_handle(void *mdi_driver) { (void)mdi_driver; return (void *)0; }
 void *AIL_allocate_sample_handle(void *dig_driver) { (void)dig_driver; return (void *)0; }
 /* fd2_play_chapter_clear_fanfare: chapter-clear jingle, not yet emitted;
- * referenced only by the (Phase 9-deferred) fd2_main loop. */
+ * referenced only by the (Phase 9-deferred) main loop. */
 void fd2_play_chapter_clear_fanfare(void) {}
 /* fd2_load_dat_resource: now emitted in src/rsrc/rsrc.c. Its caller tests
  * drive the real loader against the staged real DAT files (copied into the

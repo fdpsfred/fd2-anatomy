@@ -37,7 +37,7 @@ FD2.LE 是 Watcom C/C++ 9.5a 編譯的 DOS 32-bit Linear Executable（見
 ```
 crt_entry_start (0x3C964)
  └─ crt_main_trampoline (0x45D4B)  ← Watcom CRT startup
-     └─ fd2_main (0x25BF4)
+     └─ main (0x25BF4)
          ├─ AIL_startup() — audio init
          ├─ load .DAT resources (FDTXT/FDOTHER/FDFIELD/FDSHAP/DATO/FDMUS/...)
          ├─ malloc 大型 buffer (game state 152 KB 等)
@@ -63,7 +63,7 @@ crt_entry_start (0x3C964)
              └─ if game_over: break outer loop
 ```
 
-關鍵：FD2 沒有獨立的 `battle_loop()` function。戰鬥就是 `fd2_main` 的內迴圈反覆呼叫
+關鍵：FD2 沒有獨立的 `battle_loop()` function。戰鬥就是 `main` 的內迴圈反覆呼叫
 `fd2_game_main_loop`，每 frame 處理一個輸入或繼續動畫。chapter init 把地圖、敵人配置好之後，
 `fd2_game_main_loop` 自己跑，直到 `game_event_flag` 變成 1（主角索爾死）或 2（敵全滅）。
 
@@ -71,7 +71,7 @@ crt_entry_start (0x3C964)
 
 | System | 主要 functions | 進入點 |
 |---|---|---|
-| **lifecycle** | fd2_main, AIL_startup/shutdown, fd2_load_save_and_init_engine | crt_main_entry |
+| **lifecycle** | main, AIL_startup/shutdown, fd2_load_save_and_init_engine | crt_main_entry |
 | **resource** | fd2_load_dat_resource | 各 system 自己呼叫 |
 | **save_load** | save/load FD2.SAV (8 helpers), fd2_field_menu_status_save_load_quit_dispatch | fd2_field_command_menu_loop |
 | **field_map** | 60 個 chapter init/end handlers, fd2_chapter_transition_menu | jump tables |
@@ -89,7 +89,7 @@ table @ 0x51B91 → 編譯好的 cinematic C 函數的 dispatch 機制（同一�
 AI post-action consequence 共用）。
 
 四 pool 分類 (`ail` / `crt` / `fd2` / `binary_artifact`)、entry chain
-(`_cstart_` → `__CMain` → `fd2_main`)、結局 cinematic、binary_artifact pool 的 alignment NOP 詳見
+(`_cstart_` → `__CMain` → `main`)、結局 cinematic、binary_artifact pool 的 alignment NOP 詳見
 `rebuild_info/emission/pool_routing.md`；Watcom CRT 真符號 inventory 見
 `rebuild_info/crt/lookup_9.5a.json` 與 `matched_function_sources.md`，
 15 個 `crt_equivalent_*` / 10 個 `fd2_*` CRT-style primitive 見

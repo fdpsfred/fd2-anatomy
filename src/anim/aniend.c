@@ -215,9 +215,9 @@ int fd2_play_ending_and_record_clear(void)
             fd2_set_vga_palette_range(0, 0xFF, 0);
         }
         music_step = music_step + 1;
-        __delay_thunk_375b2(0x1E);
+        fd2_delay_ms(0x1E);
         if (iVar4 == 0) {
-            __delay_thunk_375b2(1000);
+            fd2_delay_ms(1000);
         }
         if (fd2_check_keyboard_buffer_nonempty() != 0) {
             break;
@@ -227,9 +227,9 @@ int fd2_play_ending_and_record_clear(void)
     /* Phase 6 — red-tint fade to black */
     for (uVar5 = 0x28; uVar5 >= 0; uVar5--) {
         fd2_interpolate_palette_range_toward_color(0, 0xFF, (uint32)uVar5, 0x3F, 0, 0);
-        __delay_thunk_375b2(8);
+        fd2_delay_ms(8);
     }
-    __delay_thunk_375b2(100);
+    fd2_delay_ms(100);
     fd2_clear_keyboard_buffer();
     free(panel_buf);
     free(scroll_segment_buf);
@@ -248,7 +248,7 @@ int fd2_play_ending_and_record_clear(void)
     fd2_blit_indexed_sprite_at_xy(0xA0000, 0x140, (uint32)ptr_00, 0);
     for (uVar5 = 0; uVar5 < 0x29; uVar5++) {
         fd2_interpolate_palette_range_toward_color(0, 0xFF, (uint32)uVar5, 0x38, 0x3C, 0x3F);
-        __delay_thunk_375b2(8);
+        fd2_delay_ms(8);
     }
     fd2_clear_keyboard_buffer();
 
@@ -308,9 +308,9 @@ int fd2_play_ending_and_record_clear(void)
     /* Phase 10 — commit highlight blink */
     for (i = 0; i < 4; i++) {
         fd2_render_chapter_status_panel_segments((uint32)ptr_00, 0xFFFFFFFF, menu_options);
-        __delay_thunk_375b2(0x50);
+        fd2_delay_ms(0x50);
         fd2_render_chapter_status_panel_segments((uint32)ptr_00, active_idx_var, menu_options);
-        __delay_thunk_375b2(0x50);
+        fd2_delay_ms(0x50);
     }
 
     /* Phase 11 — cleanup + tail */
@@ -325,9 +325,9 @@ int fd2_play_ending_and_record_clear(void)
 /* ----------------------------------------------------------------
  * fd2_play_chapter_clear_fanfare @ 0x22E5C  (1 caller)
  *
- * Sole caller: fd2_main @ 0x25BF4 (entered when game_event_flag == 1, i.e. a
+ * Sole caller: main @ 0x25BF4 (entered when game_event_flag == 1, i.e. a
  * chapter was just cleared). Plays a short 2-frame "chapter cleared" fanfare
- * sprite sequence, then returns; fd2_main clears the event flag afterward.
+ * sprite sequence, then returns; main clears the event flag afterward.
  *
  * Sequence:
  *   - stop BGM with fade
@@ -408,9 +408,9 @@ void fd2_play_chapter_intro_sprite_slideshow(void)
 
     fd2_play_ani_file_animation_sequence(0, 0xF, 0);
     fd2_set_vga_palette_range_with_add(0, 0xFF, 0x3F);
-    __delay_thunk_375b2(100);
+    fd2_delay_ms(100);
     fd2_set_vga_palette_range_with_add(0, 0xFF, 0);
-    __delay_thunk_375b2(500);
+    fd2_delay_ms(500);
 
     /* Phase 2 — frames 0x45..0x64 without palette cycling */
     for (; (int)sprite_idx < 0x65; sprite_idx++) {
@@ -518,7 +518,7 @@ void fd2_play_game_ending_cinematic(void)
     fd2_play_palette_fade_to_black();
     memmove((void *)0xA0000, vga_backup, 64000);
     fd2_play_palette_fade_in();
-    __delay_thunk_375b2(1000);
+    fd2_delay_ms(1000);
     fd2_play_ani_file_animation_sequence(2, 100, 0);
 
     /* highlight frame 9 + fade-down */
@@ -527,9 +527,9 @@ void fd2_play_game_ending_cinematic(void)
     fd2_blit_indexed_sprite((uint32)sheet, 9, 0xA0000, 0x140, -1);
     for (v = 0x3F; (int)v >= 0; v--) {
         fd2_set_vga_palette_range_with_add(0, 0xFF, v);
-        __delay_thunk_375b2(4);
+        fd2_delay_ms(4);
     }
-    __delay_thunk_375b2(2000);
+    fd2_delay_ms(2000);
 
     /* dialog dispatch 1 */
     if (data_fd2_chapter_current_chapter_id == 0x1A) {
@@ -544,21 +544,21 @@ void fd2_play_game_ending_cinematic(void)
         dialog_id   = 0x20;
     }
     fd2_show_portrait_dialog_with_input(dialog_id, portrait_id);
-    __delay_thunk_375b2(500);
+    fd2_delay_ms(500);
 
     /* 3x full palette fade + 200ms hold */
     for (i = 0; i < 3; i++) {
         for (v = 0x3F; (int)v >= 0; v--) {
             fd2_set_vga_palette_range_with_add(0, 0xFF, v);
-            __delay_thunk_375b2(4);
+            fd2_delay_ms(4);
         }
-        __delay_thunk_375b2(200);
+        fd2_delay_ms(200);
     }
 
     /* sprite cycling 0x0C..0x6C */
     for (sprite_idx = 0xC; (int)sprite_idx < 0x6D; sprite_idx++) {
         fd2_blit_indexed_sprite((uint32)sheet, sprite_idx, 0xA0000, 0x140, -1);
-        __delay_thunk_375b2(0x14);
+        fd2_delay_ms(0x14);
     }
     memmove((void *)0xA0000, vga_backup, 64000);
 
@@ -573,7 +573,7 @@ void fd2_play_game_ending_cinematic(void)
         dialog_id   = 0x2D;
     }
     fd2_show_portrait_dialog_with_input(dialog_id, portrait_id);
-    __delay_thunk_375b2(2000);
+    fd2_delay_ms(2000);
 
     /* 0x28-iteration horizontal-scroll duel intro */
     for (i = 0; i < 0x28; i++) {
@@ -589,7 +589,7 @@ void fd2_play_game_ending_cinematic(void)
         } else {
             off_down = off_down - 2;
         }
-        __delay_thunk_375b2(0x14);
+        fd2_delay_ms(0x14);
         fd2_blit_rectangle(0xA0000, 0x140, (uint32)workspace + 0xA0,
                            0x280, 0x140, 0xC8);
     }
@@ -618,7 +618,7 @@ void fd2_play_game_ending_cinematic(void)
         memmove(workspace, vga_backup, 64000);
         fd2_blit_indexed_sprite((uint32)sheet, i % 4 + 1, (int)workspace, 0x140, -1);
         fd2_blit_indexed_sprite((uint32)sheet, i % 4 + 5, (int)workspace, 0x140, -1);
-        __delay_thunk_375b2(0x14);
+        fd2_delay_ms(0x14);
         fd2_blit_rectangle(0xA0000, 0x140, (uint32)workspace, 0x140, 0x140, 0xC8);
         if (i > 0x87) {
             brightness_sub = brightness_sub + 1;

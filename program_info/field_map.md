@@ -218,8 +218,8 @@ player→NPC→enemy 循環後，下一輪 player turn 開場時才 += 1。所�
 `game_event_flag @ 0x53ECC`：
 
 - **0** = battle ongoing (default)
-- **1** = char[0] (索爾) dead → game over (`fd2_main` 觸發 fanfare/over screen 然後 reset 0)
-- **2** = all team-0 (敵全滅) → chapter cleared (`fd2_main` 觸發 chapter_end + transition + next_init)
+- **1** = char[0] (索爾) dead → game over (`main` 觸發 fanfare/over screen 然後 reset 0)
+- **2** = all team-0 (敵全滅) → chapter cleared (`main` 觸發 chapter_end + transition + next_init)
 
 寫入由 `fd2_check_battle_end_condition @ 0x205BE` 在每次 turn cycle 結束時計算寫入；
 guard 在 `fd2_run_full_turn_cycle` 多處用 `if (game_event_flag == 0)` 在每階段切換前

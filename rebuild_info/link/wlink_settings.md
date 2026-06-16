@@ -20,7 +20,7 @@ option stack=4K                    # 覆寫 dos4g 預設 8K，FD2 用 4K（與 c
 option quiet                       # 安靜輸出（推測，無證據要求）
 
 # ---- 主入口物件（決定模組內部名 "f2"）----
-file f2.obj                        # 含 fd2_main；模組名取 file 列表第一個的 basename
+file f2.obj                        # 含 main；模組名取 file 列表第一個的 basename
 
 # ---- 全 FD2 source objects (≈652 個 emit_fd2_source function 分散在多個 .obj) ----
 file <chapter_*.obj>               # ch01..ch30 init/end/post_action handler

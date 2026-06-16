@@ -140,7 +140,7 @@ Dispatch callee 分兩組，差別在 dispatch site 是否 push args：
 | `chapter_NN_init` | 26 | `chapter_init_handler_table @ 0x51D71` (28 slot) |
 | `chapter_NN_end` | 30 | `chapter_end_handler_table @ 0x51DE9` (30 slot) |
 
-dispatch sites (`fd2_main_menu_continue_dispatcher @ 0x25f10/0x260f5`, `fd2_main @ 0x25e3a/0x25e23`)
+dispatch sites (`fd2_main_menu_continue_dispatcher @ 0x25f10/0x260f5`, `main @ 0x25e3a/0x25e23`)
 皆 `CALL dword ptr [EAX*4 + table]` 無 PUSH/ADD ESP，故 callee 為 0-arg signature。
 
 ### 1-arg dispatch callees — `void __cdecl func(uint event_arg)`

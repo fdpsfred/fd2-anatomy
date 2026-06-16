@@ -11,7 +11,7 @@
 - `field_map.md` — 30 章 init/end handler、4 張 chapter jump table、
   `data_fd2_chapter_post_action_handler_table` 5 大模式、`save_metadata_block` turn counter、
   跨章機制總覽
-- `battle.md` — fd2_main + fd2_game_main_loop 戰鬥架構、damage pipeline、enemy AI
+- `battle.md` — main + fd2_game_main_loop 戰鬥架構、damage pipeline、enemy AI
   主架構、AI 評分三路 (物理/法術/道具)、12 種 AI behavior class semantic
 - `ui_menu.md` — `fd2_game_main_loop` per-frame scancode 分派、3 層 cursor 座標、
   `fd2_player_action_menu_loop` UI orchestrator、`fd2_field_command_menu_loop` modal、

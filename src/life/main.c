@@ -12,7 +12,7 @@
 #include <dos.h>
 
 /* ----------------------------------------------------------------
- * fd2_main @ 0x25BF4  (1 caller: __CMain @ 0x45D4B)
+ * main @ 0x25BF4  (1 caller: __CMain @ 0x45D4B)
  *
  * FD2 game entry point. __CMain pushes (argv, argc) and consumes the
  * EAX result as the DOS exit code (PUSH EAX; JMP _exit), but the
@@ -22,6 +22,16 @@
  * normal void function (pipeline_spec pattern A, rule A-1): Watcom 9.5a
  * regenerates an equivalent POP/RET epilogue; the shared tail-jump is
  * not reproduced and is not required for Layer-2 equivalence.
+ *
+ * NAMING (rebuild special case): this is literally `main` -- the C entry point
+ * the Watcom CRT startup (__CMain) calls, so it MUST carry that exact name. It is
+ * the one game function exempt from the project's `fd2_` prefix convention (every
+ * other game-logic function is named fd2_*). The Ghidra/src name had followed that
+ * convention as fd2_main, but the CRT entry contract requires `main`, so it is
+ * restored to `main` here for the src-only FD2.EXE link. Separately, because the
+ * TEST build also links tests/testmain.c's own main() (the test runner), genbuild
+ * compiles ONLY this file with -Dmain=fd2_main there to avoid a duplicate-main
+ * link error; fd2.exe compiles it as `main`.
  *
  * One-shot init: AIL sound startup + driver/handle allocation, eight
  * fd2_load_dat_resource loads (FDOTHER/FDTXT banks), three work-buffer
@@ -34,7 +44,7 @@
  * data_fd2_chapter_event_or_battle_end_code @ 0x53ECC). Quit drops to
  * AIL_shutdown + INT 10h text mode 3.
  * ---------------------------------------------------------------- */
-void fd2_main(void)
+void main(void)
 {
     uint32 menu_result;
     uint32 game_loop_result;
@@ -164,7 +174,7 @@ void fd2_main(void)
  * fd2_main_menu_continue_dispatcher @ 0x25EBB
  *
  * Main-menu: NEW GAME / CONTINUE / fallback. Returns 0 (menu),
- * 1 (gameplay), or -1 (quit) for fd2_main's outer loop.
+ * 1 (gameplay), or -1 (quit) for main's outer loop.
  * ---------------------------------------------------------------- */
 int fd2_main_menu_continue_dispatcher(void)
 {
@@ -454,9 +464,9 @@ void fd2_load_save_and_init_engine(void)
             fd2_render_decimal_number_to_buffer(
                 0xA726B, 0x140, data_fd2_battle_turn_counter, 0x2A, 3);
         }
-        __delay_thunk_375b2(0x46);
+        fd2_delay_ms(0x46);
         if (i == 8)
-            __delay_thunk_375b2(500);
+            fd2_delay_ms(500);
         fd2_cleanup_dialog_sprite_buffer(saved_block, 0xA0000, 0x140);
     }
 
@@ -483,7 +493,7 @@ void fd2_load_save_and_init_engine(void)
     }
 
     fd2_composite_battle_frame(0);
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     data_fd2_battle_current_active_char_idx = 0;
     data_fd2_battle_anim_phase = 1;
     fd2_clear_keyboard_buffer();
@@ -516,7 +526,7 @@ uint32 data_fd2_battle_map_height_tiles;
  * malloc'd resource buffer returned by fd2_load_dat_resource; stored as a 32-bit
  * address slot (uint32), matching the engine-wide convention for DAT resource
  * pointers (siblings data_fd2_ui_anim_sprite_sheet_ptr / data_fd2_all_game_text_ptr
- * in the same fd2_main load block). The sole writer fd2_main @ 0x25BF4 does
+ * in the same main load block). The sole writer main @ 0x25BF4 does
  *   data_fd2_resource_portrait_sheet_ptr =
  *       fd2_load_dat_resource(<FDOTHER.DAT name>, data_fd2_resource_portrait_sheet_ptr, 6);
  * passing the prior value (NULL on first call) so the loader frees-then-reloads.
@@ -538,7 +548,7 @@ uint32 data_fd2_resource_portrait_sheet_ptr;
  * already been triggered so they fire only once. Stored as a 32-bit address slot
  * (uint32), matching the engine-wide convention for malloc'd buffer pointers
  * (siblings data_fd2_large_game_state_buffer_ptr / data_fd2_resource_portrait_sheet_ptr).
- * The sole writer fd2_main @ 0x25BF4 does
+ * The sole writer main @ 0x25BF4 does
  *   data_fd2_field_map_tile_event_consumed_flags_ptr = (uint32)malloc(0x20);
  * allocating the 32-byte block once at startup. fd2_load_save_and_init_engine
  * @ 0x10010 then memmove's 0x20 bytes from the save buffer (pBuf + 0x30A3) into
@@ -690,7 +700,7 @@ int32 data_fd2_shared_party_total_gold;
  * active-battle copy). Stored as a 32-bit address slot (uint32), matching the
  * engine-wide convention for malloc'd buffer pointers (siblings
  * data_fd2_large_game_state_buffer_ptr / data_fd2_field_map_tile_event_consumed_flags_ptr).
- * The sole writer fd2_main @ 0x25BF4 does
+ * The sole writer main @ 0x25BF4 does
  *   data_fd2_shared_menu_party_roster_buffer_ptr = (uint32)malloc(0xA00);
  * allocating the buffer once at startup. Readers (~28 sites across the
  * menu/save/load/recruit/promotion code) all treat it as the base of an array of
@@ -749,13 +759,13 @@ uint32 data_fd2_shared_menu_party_member_count;
  * signed CMP/JG/JGE against 4), so it behaves as a signed timer snapshot, but
  * storage and access width are 32-bit (kept uint32 to match the slot width).
  * Writers:
- *   fd2_main @ 0x25D8B  MOV [0x53C0F],EAX  (startup: latch = (int32)*(int16*)0x46C)
+ *   main @ 0x25D8B  MOV [0x53C0F],EAX  (startup: latch = (int32)*(int16*)0x46C)
  *   fd2_tick_chapter_palette_animation @ 0x129CD  re-latch to current tick once
  *     >4 ticks have elapsed (advances the ambient-palette index and resets latch)
  * Readers:
  *   fd2_tick_chapter_palette_animation @ 0x1298F, 0x129A2
  *     delta = (int32)*(int16*)0x46C - latch; if (delta > 4 || delta < 0) advance.
- * Zero in the image; the first use on every path is the startup write in fd2_main
+ * Zero in the image; the first use on every path is the startup write in main
  * (latched before the animation tick ever reads it), so this is a zero-init (BSS)
  * scalar.
  */
@@ -770,7 +780,7 @@ uint32 data_fd2_graphics_chapter_ambient_palette_anim_tick_latch;
  * kept uint32 to match the handle width (the byte_data size hint was wrong --
  * caller width is dword, not byte).
  * Writer:
- *   fd2_main @ 0x25C26  MOV [0x53ED0],EAX
+ *   main @ 0x25C26  MOV [0x53ED0],EAX
  *     handle = AIL_allocate_sequence_handle(data_fd2_audio_bgm_driver_handle),
  *     done only when the MDI driver installed successfully.
  * Readers (all in fd2_set_bgm_track_with_fade @ 0x259AA..0x25A86, passed as
@@ -779,7 +789,7 @@ uint32 data_fd2_graphics_chapter_ambient_palette_anim_tick_latch;
  *   AIL_start_sequence / AIL_set_sequence_loop_count.
  * Also read once in fd2_game_options_menu_loop @ 0x17380 for live volume.
  * Zero in the image; the first write on every path is the startup allocation
- * in fd2_main (before any BGM playback reads it), so this is a zero-init (BSS)
+ * in main (before any BGM playback reads it), so this is a zero-init (BSS)
  * scalar.
  */
 uint32 data_fd2_audio_bgm_sequence_handle;
@@ -791,10 +801,10 @@ uint32 data_fd2_audio_bgm_sequence_handle;
  * is a full 32-bit pointer; declared void * to match the install return value
  * and the AIL_allocate_sequence_handle(void *mdi_driver) parameter type.
  * Writer:
- *   fd2_main @ 0x25C0D  MOV [0x53ED8],EAX
+ *   main @ 0x25C0D  MOV [0x53ED8],EAX
  *     data_fd2_audio_bgm_driver_handle = (void *)AIL_install_MDI_INI().
  * Reader (same function, gated on a non-NULL install):
- *   fd2_main @ 0x25C1D  passes the handle to
+ *   main @ 0x25C1D  passes the handle to
  *     data_fd2_audio_bgm_sequence_handle = AIL_allocate_sequence_handle(handle);
  *     it also sets data_fd2_audio_bgm_driver_available_flag = 1.
  * Zero in the image; the first access is the startup install write, so this is
@@ -808,14 +818,14 @@ void *data_fd2_audio_bgm_driver_handle;
  * then used only as the opaque dig_driver argument to
  * AIL_allocate_sample_handle (twice, for the two SFX channels). Every access
  * is a full 32-bit dword; kept uint32 to match the handle width and the
- * already-emitted fd2_main body (the byte_data size hint was wrong -- caller
+ * already-emitted main body (the byte_data size hint was wrong -- caller
  * width is dword, not byte). The handle is cast to void * at each
  * AIL_allocate_sample_handle(void *dig_driver) call site.
  * Writer:
- *   fd2_main @ 0x25C32  MOV [0x53EDC],EAX
+ *   main @ 0x25C32  MOV [0x53EDC],EAX
  *     data_fd2_audio_sfx_dig_driver_handle = (uint32)AIL_install_DIG_INI().
  * Readers (same function, gated on a non-NULL install):
- *   fd2_main @ 0x25C50  passes the handle to AIL_allocate_sample_handle for
+ *   main @ 0x25C50  passes the handle to AIL_allocate_sample_handle for
  *     data_fd2_audio_sfx_sample_handle_1 (channel 1); the channel-0 allocation
  *     at 0x25C42 reuses the value still live in EAX from the install. It also
  *     sets data_fd2_audio_sfx_driver_available_flag = 1.
@@ -832,7 +842,7 @@ uint32 data_fd2_audio_sfx_dig_driver_handle;
  * uint32 to match the handle width (the byte_data size hint was wrong --
  * caller width is dword, not byte).
  * Writer:
- *   fd2_main @ 0x25C4B  MOV [0x53EE4],EAX
+ *   main @ 0x25C4B  MOV [0x53EE4],EAX
  *     data_fd2_audio_sfx_sample_handle_0 = AIL_allocate_sample_handle(
  *         data_fd2_audio_sfx_dig_driver_handle); gated on a non-NULL DIG
  *     install (the value is the return still live in EAX from the install).
@@ -853,7 +863,7 @@ uint32 data_fd2_audio_sfx_sample_handle_0;
  * uint32 to match the handle width and the sibling channel-0 handle (the
  * byte_data size hint was wrong -- caller width is dword, not byte).
  * Writer:
- *   fd2_main @ 0x25C5E  MOV [0x53EE8],EAX
+ *   main @ 0x25C5E  MOV [0x53EE8],EAX
  *     data_fd2_audio_sfx_sample_handle_1 = AIL_allocate_sample_handle(
  *         data_fd2_audio_sfx_dig_driver_handle); gated on a non-NULL DIG
  *     install.
@@ -873,7 +883,7 @@ uint32 data_fd2_audio_sfx_sample_handle_1;
  * resource buffer returned by fd2_load_dat_resource; stored as a 32-bit address
  * slot (uint32), matching the engine-wide convention for DAT resource pointers
  * (siblings data_fd2_resource_portrait_sheet_ptr / data_fd2_ui_anim_sprite_sheet_ptr).
- * The sole writer fd2_main @ 0x25BF4 does
+ * The sole writer main @ 0x25BF4 does
  *   data_fd2_audio_fdother_sfx_bank_buf_ptr =
  *       fd2_load_dat_resource(<FDOTHER.DAT name>,
  *           data_fd2_audio_fdother_sfx_bank_buf_ptr, 0x1F);
@@ -902,7 +912,7 @@ uint32 data_fd2_audio_fdother_sfx_bank_buf_ptr;
  * track load/playback. Every access is byte-width, so the slot is a single
  * uint8 used as a boolean (the byte_data size hint is correct here).
  * Writer:
- *   fd2_main @ 0x25C16  MOV byte ptr [0x53EF0],0x1
+ *   main @ 0x25C16  MOV byte ptr [0x53EF0],0x1
  *     done only inside the AIL_install_MDI_INI() != NULL branch (right after
  *     storing data_fd2_audio_bgm_driver_handle and allocating
  *     data_fd2_audio_bgm_sequence_handle).
@@ -923,7 +933,7 @@ uint8 data_fd2_audio_bgm_driver_available_flag;
  * SFX sample playback. Every access is byte-width, so the slot is a single
  * uint8 used as a boolean (the byte_data size hint is correct here).
  * Writer:
- *   fd2_main @ 0x25C3B  MOV byte ptr [0x53EF1],0x1
+ *   main @ 0x25C3B  MOV byte ptr [0x53EF1],0x1
  *     done only inside the AIL_install_DIG_INI() != 0 branch (right after
  *     storing data_fd2_audio_sfx_dig_driver_handle and allocating
  *     data_fd2_audio_sfx_sample_handle_0 / data_fd2_audio_sfx_sample_handle_1).
@@ -949,7 +959,7 @@ uint8 data_fd2_ui_terrain_hud_user_enabled = 1;
 /*
  * data_fd2_ui_play_active_flag @ 0x51AAC -- "gameplay loop active" gate. uint8
  * boolean; ships set (image value 1). Cleared around chapter init/end + fanfare
- * transitions in fd2_main / fd2_main_menu_continue_dispatcher and re-set after.
+ * transitions in main / fd2_main_menu_continue_dispatcher and re-set after.
  */
 uint8 data_fd2_ui_play_active_flag = 1;
 
@@ -970,7 +980,7 @@ uint8 data_fd2_audio_sfx_enabled_flag = 1;
 /*
  * data_fd2_runtime_battle_state_ptr @ 0x53A4D -- base pointer of the runtime
  * battle/cursor state block (FDOTHER.DAT resource index 1). uint32 address slot.
- * Written by fd2_main's load block; zero-init (BSS) pointer slot.
+ * Written by main's load block; zero-init (BSS) pointer slot.
  */
 uint32 data_fd2_runtime_battle_state_ptr;
 
@@ -1037,7 +1047,7 @@ uint32 data_fd2_menu_dialog_state_handle;
 
 /*
  * data_fd2_input_last_key_pressed @ 0x53A8D -- low byte of the int386 REGS block
- * fd2_main reuses for INT 10h video-mode calls (AX low). uint8; zero-init (BSS).
+ * main reuses for INT 10h video-mode calls (AX low). uint8; zero-init (BSS).
  */
 uint8 data_fd2_input_last_key_pressed;
 

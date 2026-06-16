@@ -565,7 +565,7 @@
  * the same family as chapters 02..14/18/22: re-init battle state, play a dialog
  * page (page 0), load portrait set 1, sweep the camera-and-window to the four
  * map corners — fd2_pan_cursor_and_window to (0,4)/(0,0x16)/(0x1A,0x18)/(0x1A,2)
- * each held 400ms via __delay_thunk_375b2(400) — play a second dialog page
+ * each held 400ms via fd2_delay_ms(400) — play a second dialog page
  * (page 1), and pan the camera to char 0. NO cutscene, NO char init, NO
  * battle_anim_phase reset, NO clear-facing. It has NO numeric computation, NO
  * RNG, NO data-dependent branch, NO loops, and NO CALL-result consumption (no
@@ -591,7 +591,7 @@
  * 0x58)) into the shared status-effect SFX handle, pan the camera-and-window
  * (5,0), play dialog page 1, memset the 0x25680-byte large game-state buffer,
  * then four SFX-prefixed screen-shake cycles — three normal-magnitude
- * (fd2_animate_screen_shake(0x14)) shakes separated by __delay_thunk_375b2(600)
+ * (fd2_animate_screen_shake(0x14)) shakes separated by fd2_delay_ms(600)
  * holds and a final 3x-magnitude (0x3C) shake with no trailing hold — then
  * dialog page 2, pan to char 0, and fd2_play_and_free_status_effect_sfx(). NO
  * char init, NO portrait load. It has NO numeric computation, NO RNG, NO

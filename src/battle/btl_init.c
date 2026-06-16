@@ -371,7 +371,7 @@ void fd2_clear_all_chars_facing(void)
         pSlot[3] = 0;
         pSlot = pSlot + RUNTIME_CHAR_SIZE;
     }
-    __delay_thunk_375b2(0x14);
+    fd2_delay_ms(0x14);
 }
 
 /* ----------------------------------------------------------------

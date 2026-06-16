@@ -650,7 +650,7 @@ void fd2_chapter_30_post_action(uint32 event_arg)
  *
  * Shared turn-cycle / chapter event-and-battle-end status code. Set by
  * fd2_check_battle_end_condition and the per-chapter post-action handlers
- * in this file, and read by fd2_main (chapter-clear vs chapter-switch
+ * in this file, and read by main (chapter-clear vs chapter-switch
  * dispatch) and fd2_run_full_turn_cycle (NPC/enemy/new-turn phase gate).
  *
  * Values:  0 = none / battle continues

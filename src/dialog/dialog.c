@@ -408,7 +408,7 @@ uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 flip)
                     fd2_blit_indexed_sprite_with_alloc(sprite_addr, 0xa0000,
                                                        0x140, (uint32)interp_x,
                                                        (uint32)interp_y);
-                __delay_thunk_375b2(10);
+                fd2_delay_ms(10);
                 fd2_clear_keyboard_buffer();
                 fd2_cleanup_dialog_sprite_buffer(
                     (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[0],
@@ -427,25 +427,25 @@ uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 flip)
         (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[0],
         0x136, 0x56, 0xa0000, width, 0x140);
     fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, flip, 4, 2);
-    __delay_thunk_375b2(10);
+    fd2_delay_ms(10);
 
     fd2_save_screen_block_to_buffer(
         (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[1],
         0x136, 0x56, 0xa0000, width, 0x140);
     fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, flip, 8, 3);
-    __delay_thunk_375b2(10);
+    fd2_delay_ms(10);
 
     fd2_save_screen_block_to_buffer(
         (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[2],
         0x136, 0x56, 0xa0000, width, 0x140);
     fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, flip, 0xc, 4);
-    __delay_thunk_375b2(10);
+    fd2_delay_ms(10);
 
     fd2_save_screen_block_to_buffer(
         (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[3],
         0x136, 0x56, 0xa0000, width, 0x140);
     fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, flip, 0x10, 5);
-    __delay_thunk_375b2(10);
+    fd2_delay_ms(10);
 
     fd2_save_screen_block_to_buffer(
         (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[4],
@@ -496,7 +496,7 @@ void fd2_close_dialog_panels_then_slide_in_at(uint32 anim_handle,
 
     for (slot = 4; slot > 0; slot--) {
         fd2_cleanup_dialog_sprite_buffer(layer_ptr_array[slot], 0xa0000, 0x140);
-        __delay_thunk_375b2(10);
+        fd2_delay_ms(10);
     }
     fd2_cleanup_dialog_sprite_buffer(layer_ptr_array[0], 0xa0000, 0x140);
 
@@ -518,7 +518,7 @@ void fd2_close_dialog_panels_then_slide_in_at(uint32 anim_handle,
                     (uint32)fd2_blit_indexed_sprite_with_alloc(
                                 sprite_addr, 0xa0000, 0x140,
                                 (uint32)interp_y, (uint32)interp_x);
-                __delay_thunk_375b2(10);
+                fd2_delay_ms(10);
                 fd2_cleanup_dialog_sprite_buffer(layer_ptr_array[0],
                                                  0xa0000, 0x140);
             }

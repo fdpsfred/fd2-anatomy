@@ -2,7 +2,7 @@
 
 ## Per-frame 主迴圈：`fd2_game_main_loop @ 0x117E7`
 
-從 `fd2_main` 的內迴圈每 frame 呼叫，分派鍵盤掃描碼：
+從 `main` 的內迴圈每 frame 呼叫，分派鍵盤掃描碼：
 
 | Scancode | 動作 | 處理函式 |
 |---|---|---|

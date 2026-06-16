@@ -125,7 +125,7 @@ void fd2_cast_earthquake_spell_with_screen_shake(
         }
         fd2_blit_rectangle(0xa0504, 0x140, buf_table[i % 4] + 0x8088,
             0x1c8, 0x138, 0xc0);
-        __delay_thunk_375b2(10);
+        fd2_delay_ms(10);
     }
 
     free(buf0);
@@ -466,7 +466,7 @@ void fd2_execute_aoe_spell_with_caster_portrait_radial_scatter(
             }
         }
 
-        __delay_thunk_375b2(10);
+        fd2_delay_ms(10);
     }
 
     return;
@@ -543,10 +543,10 @@ void fd2_play_variant_b_slide_pre_effect(int offset0, int step)
         fd2_blit_rectangle(0xa0504, 0x140,
             data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1c8, 0x138, 0xc0);
         offset0 += step;
-        __delay_thunk_375b2(5);
+        fd2_delay_ms(5);
     }
 
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
 
     /* slide-UP: radius held at (offset0 - step) for all 7 frames */
     for (frame_iter = 3; frame_iter < 10; frame_iter++) {
@@ -559,12 +559,12 @@ void fd2_play_variant_b_slide_pre_effect(int offset0, int step)
             (uint32)(offset0 - step), 0, 0xc0, (int)sprite_addr);
         fd2_blit_rectangle(0xa0504, 0x140,
             data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1c8, 0x138, 0xc0);
-        __delay_thunk_375b2(5);
+        fd2_delay_ms(5);
     }
 
     free((void *)snapshot);
     fd2_composite_battle_frame(0);
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     return;
 }
 
@@ -611,7 +611,7 @@ void fd2_play_variant_b_slide_pre_effect(int offset0, int step)
  *   // top edge (dst_tile_y == origin_y).
  *   for i in 0..row_count-1:
  *     memmove(fb_dst_row, src_row, 0x18);
- *     fb_dst_row += 0x140;  src_row += 0x1C8;  __delay_thunk_375b2(10);
+ *     fb_dst_row += 0x140;  src_row += 0x1C8;  fd2_delay_ms(10);
  *
  *   fd2_animate_warp_in_expand(dst_tile_x, dst_tile_y, snapshot, src_x, src_y,
  *                              warp_in_sprite, radius);
@@ -703,7 +703,7 @@ void fd2_animate_warp_teleport_char(uint32 char_slot, uint32 new_pos_x,
         memmove((void *)fb_dst_row, (void *)src_row, 0x18);
         fb_dst_row = fb_dst_row + 0x140;
         src_row = src_row + 0x1c8;
-        __delay_thunk_375b2(10);
+        fd2_delay_ms(10);
     }
 
     fd2_animate_warp_in_expand(dst_tile_x, dst_tile_y, snapshot,
@@ -829,7 +829,7 @@ int fd2_animate_warp_out_collapse(int tile_x, int tile_y, void *snapshot,
             0xc0, sprite_addr);
         fd2_blit_rectangle(0xa0504, 0x140,
             data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1c8, 0x138, 0xc0);
-        __delay_thunk_375b2(10);
+        fd2_delay_ms(10);
     }
 
     fd2_wait_n_bios_ticks(1);
@@ -928,15 +928,15 @@ void fd2_animate_warp_in_expand(uint32 dst_tile_x, uint32 dst_tile_y,
  *     fd2_blit_rectangle(0xA0504, 0x140, large_game_state_buffer+0x8088,
  *                        0x1C8, 0x138, 0xC0);
  *     radius += radius_increment;
- *     __delay_thunk_375b2(5);
+ *     fd2_delay_ms(5);
  *
  *   free(snapshot);
- *   __delay_thunk_375b2(500);                           // long hold for impact
+ *   fd2_delay_ms(500);                           // long hold for impact
  *
  *   // palette flash fade-in (brightness 0 -> 0x3E in steps of 2):
  *   for brightness = 0; brightness < 0x40; brightness += 2:
  *     fd2_set_vga_palette_range_with_add(0, 0xFF, brightness);
- *     __delay_thunk_375b2(4);
+ *     fd2_delay_ms(4);
  *
  *   fd2_load_status_effect_sfx();                       // re-arm SFX bank for next use
  *
@@ -990,15 +990,15 @@ void fd2_cast_screen_wide_spell_with_fade(uint32 epicenter_tile_x,
         fd2_blit_rectangle(0xa0504, 0x140,
             data_fd2_large_game_state_buffer_ptr + 0x8088, 0x1c8, 0x138, 0xc0);
         radius += radius_increment;
-        __delay_thunk_375b2(5);
+        fd2_delay_ms(5);
     }
 
     free((void *)snapshot);
-    __delay_thunk_375b2(500);
+    fd2_delay_ms(500);
 
     for (brightness = 0; (int)brightness < 0x40; brightness += 2) {
         fd2_set_vga_palette_range_with_add(0, 0xff, brightness);
-        __delay_thunk_375b2(4);
+        fd2_delay_ms(4);
     }
 
     fd2_load_status_effect_sfx();
@@ -1540,7 +1540,7 @@ void fd2_execute_summon_spell_cast(uint32 caster_idx, uint32 spell_id,
             (uint32)((uint8 *)&palette_R)[palette_offset],
             (uint32)((uint8 *)&palette_G)[palette_offset],
             (uint32)((uint8 *)&palette_B)[palette_offset]);
-        __delay_thunk_375b2(6);
+        fd2_delay_ms(6);
     }
 
     fd2_play_sfx_with_handle(data_fd2_audio_summon_spell_sfx_bank_buf_ptr,
@@ -1589,7 +1589,7 @@ void fd2_execute_summon_spell_cast(uint32 caster_idx, uint32 spell_id,
 /*
  * Shared game-state working buffer pointer (0x53A49).
  * Holds a malloc(0x25680)=153216-byte block allocated once at startup by
- * fd2_main; callers index it as base+byte-offset (e.g. base+0x8088 for the
+ * main; callers index it as base+byte-offset (e.g. base+0x8088 for the
  * combat panel scratch region). Several cinematic routines temporarily swap
  * it to a scratch allocation and restore it. Zero (NULL) until the startup
  * allocation fills it in.

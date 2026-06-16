@@ -219,7 +219,7 @@ static void test_tick_chapter_palette_slow_triggers_negative_delta(void)
 
 
 /* fade-IN: walks brightness_subtract 0x40 down to 0 INCLUSIVE = 0x41
- * iterations, each calling __delay_thunk_375b2(2). The loop count and the
+ * iterations, each calling fd2_delay_ms(2). The loop count and the
  * delay argument are the load-bearing correctness properties (the inner
  * palette write is a pure port-write side effect). The stubbed delay thunk
  * records call count + last arg, giving a deterministic check that the loop
@@ -243,7 +243,7 @@ static void test_play_palette_fade_in(void)
 
 /* fade-OUT: walks brightness_subtract 0 up to 0x3F (the signed `< 0x40`
  * exclusive bound) = exactly 0x40 iterations, each calling
- * __delay_thunk_375b2(2). The 0x40 loop count is the load-bearing direction
+ * fd2_delay_ms(2). The 0x40 loop count is the load-bearing direction
  * marker that distinguishes this fade-OUT entry from the fade-IN counterpart
  * (which runs 0x41 times via a `>= 0` inclusive bound); the inner palette
  * write is a pure port-write side effect. The stubbed delay thunk records the

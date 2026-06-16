@@ -56,7 +56,7 @@ Phase 4 收斂 fd2.exe + 實機對照`。
   - **stub-only 函式**：`fd2_composite_battle_tile_map`（真 884B 函式，從基線就被誤標 done、所有 branch 都查無 body）
     改 `done=false` 歸 Phase 2（await_emit 21→22）；`fd2_set_runtime_char_evade` / `fd2_wrapper_clear_keyboard_buffer`
     是已被 parent inline 的 shared-epilogue fragment，只把 routing target 修成 `<fragment:inline-epilogue>`（不動 src）；
-    `fd2_delay_ticks`（battle.c）是 emitter 捏的假名，統一成全 codebase 用的 `__delay_thunk_375b2`，刪掉死掉的 stub/proto。
+    `fd2_delay_ticks`（battle.c）是 emitter 捏的假名，統一成全 codebase 用的 `fd2_delay_ms`，刪掉死掉的 stub/proto。
   - **dangling ref**：`crt_equivalent_dos_main_bootstrap` 早已被 Unit C（`447c37c`）修掉，新鮮 oracle 確認 crt_/AIL_ undefined=0。
   - **home-file 對映**：見下方定案 worklist。
 
@@ -93,7 +93,7 @@ Phase 4 收斂 fd2.exe + 實機對照`。
 
 ### 帳目（即時重算：`python tools/data_emit/reconcile.py`，勿抄）
 
-全 563 `data_fd2_` 符號（Ghidra 即時查證一致）post-merge 分流：**real_in_src 376**（已落地 src/ file-scope，含初值表 / bss tentative / `void (*const tbl[])()` 派遣表）、**undefined 186**、**sublabel 1**（`chapter_intro_menu_typeC_portrait_id`，母表帶出）、fake_in_testglob 0。186 undefined 拆解：**106 cutscene**（chtab3.c 已 emit 單一 pool `cutscene_event_script_data` + offset 指標表，資料已落地、非待辦）+ **58 string**（使用點 inline 字面值 / strtab.c，資料已落地）+ **22 真待落地**（21 blit/pathfind/spell anim state + `stat_buff_multiplier_115` const）→ 全部隨 Phase 2 的 21 函式 emit 一起落地。**權威缺口以 src-only `fd2.lnk` 神諭的 undefined symbol 為準（Phase 4）。** reconcile.py 正確計入 tentative/bss 定義與 const 函式指標表（DEF_RE 含 `;` 結尾、FNPTR_RE 含 `(*const tbl[])`）。fd2_ 函式缺口：**0（全 650 emit+reviewed，Phase 2 完成）**；Phase 2 一併 land 12 個 graphics/compose-state 全域（blit 9 + composite 3，全 mutable zero-init）；vendor 60 + `__delay_thunk_375b2` = Phase 4 link。
+全 563 `data_fd2_` 符號（Ghidra 即時查證一致）post-merge 分流：**real_in_src 376**（已落地 src/ file-scope，含初值表 / bss tentative / `void (*const tbl[])()` 派遣表）、**undefined 186**、**sublabel 1**（`chapter_intro_menu_typeC_portrait_id`，母表帶出）、fake_in_testglob 0。186 undefined 拆解：**106 cutscene**（chtab3.c 已 emit 單一 pool `cutscene_event_script_data` + offset 指標表，資料已落地、非待辦）+ **58 string**（使用點 inline 字面值 / strtab.c，資料已落地）+ **22 真待落地**（21 blit/pathfind/spell anim state + `stat_buff_multiplier_115` const）→ 全部隨 Phase 2 的 21 函式 emit 一起落地。**權威缺口以 src-only `fd2.lnk` 神諭的 undefined symbol 為準（Phase 4）。** reconcile.py 正確計入 tentative/bss 定義與 const 函式指標表（DEF_RE 含 `;` 結尾、FNPTR_RE 含 `(*const tbl[])`）。fd2_ 函式缺口：**0（全 650 emit+reviewed，Phase 2 完成）**；Phase 2 一併 land 12 個 graphics/compose-state 全域（blit 9 + composite 3，全 mutable zero-init）；vendor 60 + `fd2_delay_ms` = Phase 4 link。
 
 **Phase 4 連結注意**：`fd2.lnk` 需顯式 `library clib3s`；AIL lib（`workspace/ail_extract/out/{ailv3,fd2common}.lib`）要 stage 到穩定路徑（`build_test.py` 會清 `tests/OUT`）。
 

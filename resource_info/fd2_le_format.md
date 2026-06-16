@@ -78,7 +78,7 @@ DOS/4GW 是 Tenberry 的 32-bit Protected Mode Extender，FLAME2 目錄下的
 ```
 crt_entry_start @ 0x3C964
   └─ crt_main_trampoline @ 0x45D4B  (Watcom CRT startup, _main argument parsing)
-      └─ fd2_main @ 0x25BF4
+      └─ main @ 0x25BF4
           ├─ AIL_startup()                — Miles AIL init
           ├─ load .DAT resources           — 8 個 FDOTHER + FDTXT idx 0 等
           ├─ malloc 大型 buffer (game state 152 KB 等)

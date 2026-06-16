@@ -84,7 +84,7 @@ void fd2_play_ani_file_animation_sequence(uint32 anim_idx,
         if (anim_idx == 1 && frame_iter == 0) {
             fd2_play_sfx_with_handle(sfx_buf, 0, 1);
         }
-        __delay_thunk_375b2(per_frame_delay);
+        fd2_delay_ms(per_frame_delay);
         if (skip_on_key_flag != 0) {
             if (fd2_check_keyboard_buffer_nonempty()) break;
         }
@@ -322,7 +322,7 @@ void fd2_play_spell_cast_cinematic(uint32 caster_char_idx, uint32 spell_id)
     /* Phase 3 — additive palette flash burst (20 steps, 10ms each). */
     for (flash_iter = 0; flash_iter < 0x14; flash_iter++) {
         fd2_set_vga_palette_range_with_add(0, 0xff, flash_iter * 3);
-        __delay_thunk_375b2(10);
+        fd2_delay_ms(10);
     }
 
     /* Phase 4 — swap to the target-class silhouette at the slide-in cap. */
@@ -643,7 +643,7 @@ void fd2_play_spell_cast_sequence(uint32 caster_idx, uint32 spell_id,
             fd2_blit_indexed_sprite(figani_buf[0], 0, (int)((uint32)work + 0x140), 0x280, -1);
             fd2_blit_rectangle(0xa0000, 0x140, (uint32)work + 0x140, 0x280, 0x140, 0xc8);
         }
-        __delay_thunk_375b2(500);
+        fd2_delay_ms(500);
     }
 
     caster_last_frame = *(uint8 *)caster_figani_b - 1;

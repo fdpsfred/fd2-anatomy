@@ -13,7 +13,7 @@ FD2 game-side 自寫的 audio 派遣層（BGM dispatcher、SFX trigger）。Mile
 - `track_id` 直接對應 FDMUS idx (沒有 lookup table)
 - `track_id == 0xFFFFFFFF` → 4 秒 fade-out 然後停
 - `track_id == 0x10` 或 `0x11` → 立即音量切換 (無 fade-in)
-- 主選單 BGM = 0x12 (在 `fd2_main`)
+- 主選單 BGM = 0x12 (在 `main`)
 
 每章兩個 BGM 表：
 

@@ -35,7 +35,7 @@
  *      0xA0000 — i.e. an end-to-end decode of the real cinematic, which is an
  *      integration scenario, not a unit test of this orchestrator.
  *   3. The remaining observable effects are display/timing side effects only
- *      (VGA pixels, BIOS-tick delay via the __delay_thunk_375b2 spy, keyboard
+ *      (VGA pixels, BIOS-tick delay via the fd2_delay_ms spy, keyboard
  *      poll on the real BIOS buffer, and the intro chime via the
  *      fd2_play_sfx_with_handle spy). Per the project test policy, pure
  *      blit/display side-effect state defers to Phase 9 integration.
@@ -135,7 +135,7 @@
  *   4. Everything else is pure display/timing side effects: malloc + memmove of
  *      the VGA aperture (0xA0000), fade-to-black / fade-in (no-op stubs),
  *      set_vga_palette_range[_with_add] (real, exercised by tests/gfx/palette.c),
- *      blit_rectangle / blit_indexed_sprite, __delay_thunk_375b2 (spy). Per the
+ *      blit_rectangle / blit_indexed_sprite, fd2_delay_ms (spy). Per the
  *      project test policy, pure blit/display side-effect state defers to Phase 9
  *      integration.
  *

@@ -295,7 +295,7 @@ static void test_event22_shows_dialog_page3(void)
  *   - fd2_pan_cursor_and_window / fd2_composite_battle_frame run against the
  *     staged camera + compositor workspace with the empty active party;
  *   - fd2_clear_all_chars_facing iterates party_member_count (= 0) so its facing
- *     loop is a no-op and only its __delay_thunk_375b2(20) busy-wait runs.
+ *     loop is a no-op and only its fd2_delay_ms(20) busy-wait runs.
  *
  * The observable, deterministic contract: the init-phase flag is set to 1 around
  * the reload and reset to 0 afterward, the real reload happened (field buffer

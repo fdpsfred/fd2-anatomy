@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <conio.h>
+#include <dos.h>
 
 /* ----------------------------------------------------------------
  * fd2_debug_print_ans_and_length @ 0x16F0B  (0 callers, dead code)
@@ -394,18 +395,36 @@ void fd2_pin_required_char_to_party_slot1(uint32 char_id)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_delay_ms @ 0x375B2  (50+ callers, game-wide)
+ *
+ * Thin millisecond-delay wrapper: the binary's body is a single tail-call
+ * (JMP) to the Watcom CRT __delay (0x3DCCD). Called directly from across the
+ * game (field menus, dialog / battle / AI / spell animations, save-load, the
+ * turn cycle) wherever a fixed pause is needed; e.g. fd2_delay_ms(0x50) ~ 80ms.
+ *
+ * The emit pipeline had carried this as a synthetic address-suffixed thunk name
+ * (__delay_thunk_375b2; the binary has no symbol at 0x375B2); renamed to
+ * fd2_delay_ms and restored here as a real function. The delay(ms) call re-emits
+ * the equivalent CRT tail-call.
+ * ---------------------------------------------------------------- */
+void fd2_delay_ms(uint32 ms)
+{
+    delay(ms);
+}
+
+/* ----------------------------------------------------------------
  * fd2_delay_400ms_via_idle_thunk @ 0x353CC  (1 caller)
  *
- * 400ms idle-delay wrapper: PUSH 0x190 (=400); CALL __delay_thunk_375b2;
+ * 400ms idle-delay wrapper: PUSH 0x190 (=400); CALL fd2_delay_ms;
  * ADD ESP,4; RET. No params, void return. The single argument is pushed
  * by the caller and cleaned up by the caller's ADD ESP,4, i.e. cdecl.
  *
  * Caller: fd2_cinematic_chapter_portrait_dump_with_white_flash @ 0x35822.
  * (The same 4-instruction body is also reached as the fall-through tail of
  * fd2_chapter_event_handler_36__ch24_cinematic @ 0x3535D, which the other
- * handlers reproduce as their own inline __delay_thunk_375b2 calls.)
+ * handlers reproduce as their own inline fd2_delay_ms calls.)
  * ---------------------------------------------------------------- */
 void fd2_delay_400ms_via_idle_thunk(void)
 {
-    __delay_thunk_375b2(400);
+    fd2_delay_ms(400);
 }

@@ -291,10 +291,10 @@ void fd2_animate_spell_full_screen_flash(uint32 param_1, uint32 spell_id,
         fd2_blit_rectangle(0xa0504, 0x140,
                            data_fd2_large_game_state_buffer_ptr + 0x8088,
                            0x1c8, 0x138, 0xc0);
-        __delay_thunk_375b2(0x5a);
+        fd2_delay_ms(0x5a);
         fd2_blit_rectangle(0xa0504, 0x140, (uint32)flash_buf + 0x8088,
                            0x1c8, 0x138, 0xc0);
-        __delay_thunk_375b2(0x5a);
+        fd2_delay_ms(0x5a);
     }
 
     fd2_composite_battle_frame(0);
@@ -659,11 +659,11 @@ void fd2_animate_spell_projectile_paths(void)
         fd2_blit_rectangle(0xa0504, 0x140,
                            data_fd2_large_game_state_buffer_ptr + 0x8088,
                            0x1c8, 0x138, 0xc0);
-        __delay_thunk_375b2(2);
+        fd2_delay_ms(2);
     }
 
     free(snapshot_buf);
-    __delay_thunk_375b2(500);
+    fd2_delay_ms(500);
 }
 
 /* ----------------------------------------------------------------
@@ -929,7 +929,7 @@ int fd2_animate_combat_hit_with_hp_drain(uint32 attacker_idx, uint32 defender_id
                 (*(int32 *)(panel_xy_ptr + 4) + 6) * 0x140 +
                     *(int32 *)panel_xy_ptr + 0xa0007,
                 0x140, bar_pixels);
-            __delay_thunk_375b2(8);
+            fd2_delay_ms(8);
         }
         hits_remaining--;
     } while (surviving_HP != 0);
@@ -963,7 +963,7 @@ int fd2_animate_combat_hit_with_hp_drain(uint32 attacker_idx, uint32 defender_id
  *       saved = fd2_alloc_and_blit_indexed_sprite_chunk(
  *                   portrait_sheet, 0xA0000, 0x140,
  *                   (pos_x - origin_x)*0x18 + 4, (pos_y - origin_y)*0x18, sprite_id)
- *       __delay_thunk_375b2(0x50)   (~80 ms)
+ *       fd2_delay_ms(0x50)   (~80 ms)
  *       fd2_cleanup_dialog_sprite_buffer(saved, 0xA0000, 0x140)
  *
  * The paint target index is the defender (EBP = arg2 = defender_idx at
@@ -1023,7 +1023,7 @@ void fd2_animate_attack_hit_sequence(uint32 attacker_idx, uint32 defender_idx)
         saved_block = fd2_alloc_and_blit_indexed_sprite_chunk(
             data_fd2_resource_portrait_sheet_ptr, 0xa0000, 0x140,
             dst_x, dst_y, sprite_id);
-        __delay_thunk_375b2(0x50);
+        fd2_delay_ms(0x50);
         fd2_cleanup_dialog_sprite_buffer(saved_block, 0xa0000, 0x140);
     }
 }
@@ -1091,7 +1091,7 @@ uint32 fd2_animate_combat_speech_bubbles(uint32 attacker_idx, uint32 defender_id
                 data_fd2_battle_combat_speech_bubble_pos_pairs[3], sprite_id);
         }
 
-        __delay_thunk_375b2(0x19);
+        fd2_delay_ms(0x19);
 
         if ((int)frame_iter < 9) {
             fd2_cleanup_dialog_sprite_buffer(attacker_buf, 0xa0000, 0x140);

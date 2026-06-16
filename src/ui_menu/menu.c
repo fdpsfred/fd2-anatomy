@@ -9,17 +9,17 @@
 #include "protos.h"
 
 /* ----------------------------------------------------------------
- * fd2_game_main_loop @ 0x117E7  (1 caller: fd2_main)
+ * fd2_game_main_loop @ 0x117E7  (1 caller: main)
  *
- * Per-frame game event handler, dispatched from fd2_main's main loop.
+ * Per-frame game event handler, dispatched from main's main loop.
  * Covers both field/map exploration and in-battle input. Reads one
  * keyboard scancode from fd2_wait_for_input_with_idle and dispatches.
  *
- * Returns an int consumed by fd2_main: the field-command path returns
+ * Returns an int consumed by main: the field-command path returns
  * the command-loop result (0 mapped to non-zero / 1 mapped to 0), every
  * other path returns 0. (Ghidra decompiles this as void and drops the
  * EAX return values; the disassembly shows MOV EAX,EBX / XOR EAX,EAX
- * return paths and fd2_main consuming EAX via MOV ESI,EAX.)
+ * return paths and main consuming EAX via MOV ESI,EAX.)
  * ---------------------------------------------------------------- */
 /* ----------------------------------------------------------------
  * fd2_field_command_menu_loop @ 0x16F55  (1 caller: fd2_game_main_loop)
@@ -93,7 +93,7 @@ int fd2_field_command_menu_loop(void)
         if ((dialog_result == 1) && (data_fd2_ui_menu_cursor_idx == 0)) {
             fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1a2, 0xab6e3,
                 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
-            __delay_thunk_375b2(200);
+            fd2_delay_ms(200);
             fd2_close_status_screen_with_slide_out();
             cursor_world_x = data_fd2_battle_cursor_world_x;
             cursor_world_y = data_fd2_battle_cursor_world_y;
@@ -143,7 +143,7 @@ int fd2_field_command_menu_loop(void)
         if ((dialog_result == 1) && (data_fd2_ui_menu_cursor_idx == 0)) {
             fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1a4, 0xab6e3,
                 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
-            __delay_thunk_375b2(200);
+            fd2_delay_ms(200);
             fd2_close_status_screen_with_slide_out();
             data_fd2_ui_play_active_flag = 0;
             fd2_run_full_turn_cycle();
@@ -154,7 +154,7 @@ int fd2_field_command_menu_loop(void)
 
     fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x19c, 0xab6e3, 0x140,
         0xcd, 0x4c, 0x4a, 0x13, 1);
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     fd2_close_status_screen_with_slide_out();
     return 1;
 }

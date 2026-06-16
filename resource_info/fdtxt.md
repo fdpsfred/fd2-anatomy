@@ -62,7 +62,7 @@ LLLLLL archive (詳 `overview.md`):
 
 | Callsite | 函式 | 條件 | 目標 buffer |
 |---|---|---|---|
-| `0x25D07` | `fd2_main` | 程式啟動 (一次性) | `all_game_text @ 0x53A7D` ← idx 0 |
+| `0x25D07` | `main` | 程式啟動 (一次性) | `all_game_text @ 0x53A7D` ← idx 0 |
 | `0x108B7` | `fd2_load_chapter_battle_data` | 每章開戰前 | `data_fd2_current_chapter_text @ 0x53A79` ← idx = chapter_id + 1 |
 | `0x101E9` | `fd2_load_save_and_init_engine` | save 載入 | `data_fd2_current_chapter_text` ← idx = chapter_id + 1 |
 

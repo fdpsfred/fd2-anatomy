@@ -87,10 +87,10 @@ u32 sample_len = end - off;
 
 | Caller | AIL APIs |
 |---|---|
-| `fd2_main` | startup, shutdown, install_DIG/MDI_INI, allocate_sample_handle ×2, allocate_sequence_handle |
+| `main` | startup, shutdown, install_DIG/MDI_INI, allocate_sample_handle ×2, allocate_sequence_handle |
 | `fd2_play_sfx_with_handle` | stop_sample, init_sample, set_sample_address, set_sample_loop_count, start_sample |
 | `fd2_play_sfx_sample_from_bank` | 同上（使用第二個 sample handle） |
 | `fd2_set_bgm_track_with_fade` | stop_sequence, init_sequence, start_sequence, set_sequence_volume (fade-in), set_sequence_loop_count |
 | `fd2_game_options_menu_loop` | set_sequence_volume (BGM on/off toggle with 1s fade) |
 
-`fd2_main` 在 shutdown 時**只呼叫 `AIL_shutdown()`**，不先 uninstall driver。
+`main` 在 shutdown 時**只呼叫 `AIL_shutdown()`**，不先 uninstall driver。

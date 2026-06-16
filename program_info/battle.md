@@ -1,7 +1,7 @@
 # battle
 
 FD2 沒有獨立的 `battle_turn_loop()` 或 `start_battle()` function。戰鬥狀態
-由 chapter init 把地圖設定好之後，透過 `fd2_main` 外迴圈反覆呼叫
+由 chapter init 把地圖設定好之後，透過 `main` 外迴圈反覆呼叫
 `fd2_game_main_loop` 推進。「回合」概念分散在 `fd2_game_main_loop` 的鍵盤分派、
 `fd2_enemy_turn_phase_team0` / `fd2_npc_turn_phase_team1` 與底下的
 `fd2_enemy_turn_action_dispatcher` (12-case AI behavior class lookup)。
@@ -83,7 +83,7 @@ if (hit_roll > spell.HT) return 0;            // miss
 ## Enemy AI 主架構
 
 ```
-[Per-frame from fd2_main game_main_loop, when 「enemy phase」 token active]
+[Per-frame from main game_main_loop, when 「enemy phase」 token active]
 
   enemy_turn_phase_team0 @ 0x1D8BA          兩階段 enemy AI 主迴圈
     ├─ Pass 1：smart caster 優先

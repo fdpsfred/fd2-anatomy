@@ -6,9 +6,9 @@
  * is the fixed call sequence:
  *     fd2_pan_cursor_and_window(target_tile_x, target_tile_y)
  *     fd2_load_chapter_portraits_and_dump_tmp(chapter_id & 0xFF)
- *     __delay_thunk_375b2(300)
+ *     fd2_delay_ms(300)
  *     fd2_set_vga_palette_range_with_add(0, 0xFF, 0xFF)    -- pure-white flash
- *     __delay_thunk_375b2(200)
+ *     fd2_delay_ms(200)
  *     fd2_set_vga_palette_range_with_add(0, 0xFF, 0)       -- restore
  *     fd2_composite_battle_frame(0)
  *     fd2_delay_400ms_via_idle_thunk()                     -- JMP tail-call
@@ -35,7 +35,7 @@
  *     loader inited),
  *   - a full 768-byte palette buffer backs the two real
  *     fd2_set_vga_palette_range_with_add white-flash writes (256 DAC entries),
- *   - __delay_thunk_375b2 is the testglob recorder; the opt-in g_delay375b2_log
+ *   - fd2_delay_ms is the testglob recorder; the opt-in g_delay375b2_log
  *     captures the exact 300/200/400 tick sequence, and the
  *     fd2_delay_400ms_via_idle_thunk testglob stub forwards 400 into it.
  * The palette-port writes and composited pixels are pure display side effects
@@ -476,7 +476,7 @@ static void test_h3f_two_portrait_pair_routes_both_cutscenes(void)
  * per record whose race byte equals the forwarded id. Seeding tile-event records
  * with races {3, 4, 5} therefore makes party_member_count == 3 prove all three
  * cutscenes ran AND carried the correct ids in order (this is the dialog-delay-
- * immune signal; the dialog itself can call __delay_thunk_375b2 on its panel
+ * immune signal; the dialog itself can call fd2_delay_ms on its panel
  * open/close paths, so the delay log is NOT used to count cutscenes). The kill
  * callee (0x35BBA, not yet emitted) is the testglob recording stub
  * (g_kill_from_calls / g_kill_from_index). The dialog glyph pixels, the cutscene
@@ -585,7 +585,7 @@ static void test_h40_stage1_cutscene_reveal_then_advance(void)
  * start index 0x10. NO cutscene runs: the tile-event table carries races {3, 4, 5}
  * (the stage-1 cutscene ids), so party_member_count staying 0 proves the loader —
  * and thus no stage-1 cutscene — never executed (the delay log is not used here
- * because the page-2 dialog can itself call __delay_thunk_375b2). anim_phase is
+ * because the page-2 dialog can itself call fd2_delay_ms). anim_phase is
  * NOT written (stays at the 0x55 sentinel); and the stage byte advances 2 -> 3.
  * ---------------------------------------------------------------- */
 /* SKIP (Phase 3): writes now-const data_fd2_battle_view_window_max_x, data_fd2_battle_view_window_max_y; restore + rewrite to drive real const data */

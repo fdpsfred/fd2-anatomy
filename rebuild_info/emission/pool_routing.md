@@ -73,7 +73,7 @@ emit_action 對應 wlink / Watcom 9.5a recompile pipeline 的處理：
    spell handler、戰鬥流程、AI 控制、地圖渲染、portrait / sprite blit、
    FDFIELD / FDSHAP / FDOTHER / FDTXT 資源解碼、cursor / menu、chapter
    event handler、SHARED EPILOGUE / TAIL JMP THUNK stub (`fd2_noop_stub_*`)、
-   6 個 DPMI region/size primitive (`fd2_dpmi_*`)、2 個 FD2 global accessor、`fd2_main`。
+   6 個 DPMI region/size primitive (`fd2_dpmi_*`)、2 個 FD2 global accessor、`main`。
 4. **binary_artifact pool** (`binary_artifact_*`, 93 個) — Watcom 9.5a compiler
    在 function 之間插入的多位元組 NOP padding (`LEA EAX,[EAX]` / `MOV EDX,EDX`
    等)，建為 Function entity 但 0 caller、永不執行。詳見下文「binary_artifact
@@ -83,8 +83,8 @@ emit_action 對應 wlink / Watcom 9.5a recompile pipeline 的處理：
 
 DOS LE entry + Watcom CRT startup + FD2 main 的 chain
 （`_cstart_ @ 0x3C964`（stock Watcom cstart，`link_vendor_lib`）→ `__CMain`
-→ `fd2_main`）見 `program_info/overview.md` §「執行流程」。
-emit pipeline 只需知道 `_cstart_` / `__CMain` 屬 crt pool，`fd2_main` 屬 fd2 pool。
+→ `main`）見 `program_info/overview.md` §「執行流程」。
+emit pipeline 只需知道 `_cstart_` / `__CMain` 屬 crt pool，`main` 屬 fd2 pool。
 
 ## binary_artifact pool
 

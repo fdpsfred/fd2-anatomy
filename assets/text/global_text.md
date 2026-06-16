@@ -7,7 +7,7 @@ chapter dialogs 遞迴到此；`fd2_play_final_chapter_30_ending` 用 `char.iden
 ## Entry metadata
 
 - idx: 0
-- purpose: `all_game_text` (`fd2_main` 啟動載入)
+- purpose: `all_game_text` (`main` 啟動載入)
 - range: [0x92, 0x1e66) size 7636 bytes
 - page_count: 661
 

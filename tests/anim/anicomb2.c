@@ -697,7 +697,7 @@ static void hpdrain_reset(void)
  *   - pre-hit bar length = hp_current(100) * 0x46 / hp_max(100) = 70 px
  *   - post-hit floor     = surviving(0) * 0x45 / hp_max + 1     = 1 px
  *   - the inner loop renders bar_pixels = 70,69,...,1  -> 70 frames, each
- *     followed by __delay_thunk_375b2(8)
+ *     followed by fd2_delay_ms(8)
  *   - dst = (panel_y(4)+6)*0x140 + panel_x(8) + 0xA0007 = 0xA0C8F, surfaced as
  *     the dst of the first segment blit (the 0x17 left cap).
  * Also confirms the defender HP was clamped to 0 and the return value is 0. */

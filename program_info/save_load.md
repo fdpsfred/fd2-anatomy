@@ -17,7 +17,7 @@ FD2.SAV 檔案的存讀寫，4-slot 選擇器，game-time 與 main-menu 兩條�
 
 `fd2_play_ending_and_record_clear @ 0x1F894` 屬 lifecycle，但會讀 FD2.SAV
 確認通關狀態並寫 clear flag，是跨系統的特例 — 結局動畫播放、與
-`fd2_main` 退出條件直接耦合。
+`main` 退出條件直接耦合。
 
 ## FD2.SAV 檔案結構
 

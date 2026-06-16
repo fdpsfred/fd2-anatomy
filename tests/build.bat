@@ -20,7 +20,7 @@ D:\BIN\WCC386.EXE battle\btl_ai.c %CF% -fo=E:\out\obj\btlai.obj >> E:\out\build.
 D:\BIN\WCC386.EXE battle\btl_aitg.c %CF% -fo=E:\out\obj\btlaitg.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE battle\btl_aisc.c %CF% -fo=E:\out\obj\btlaisc.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE audio\audio.c %CF% -fo=E:\out\obj\audio.obj >> E:\out\build.out
-D:\BIN\WCC386.EXE life\main.c %CF% -fo=E:\out\obj\lifemain.obj >> E:\out\build.out
+D:\BIN\WCC386.EXE life\main.c %CF% -Dmain=fd2_main -fo=E:\out\obj\lifemain.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE save\save.c %CF% -fo=E:\out\obj\save.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE util\noop.c %CF% -fo=E:\out\obj\noop.obj >> E:\out\build.out
 D:\BIN\WCC386.EXE rsrc\rsrc.c %CF% -fo=E:\out\obj\rsrc.obj >> E:\out\build.out

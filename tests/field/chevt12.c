@@ -118,7 +118,7 @@ static void test_ch_event4_flips_hawat_to_ally(void)
  * valid FDFIELD index 0xE), bracketed by data_fd2_chapter_init_phase_flag
  * 1->0; the loader does not read that flag, so the bracketing is harmless
  * for the reload itself and ends back at 0. fd2_pan_cursor_and_window(9,1),
- * the two __delay_thunk_375b2 busy-waits, the zero-group cutscene event
+ * the two fd2_delay_ms busy-waits, the zero-group cutscene event
  * 0xD, and the immediate-END dialog page 4 all run for real and return
  * fast. The portrait-set argument (3 here vs 6 in handler_03) only selects
  * which portrait pixels load; the FDFIELD re-read index and the full
@@ -235,7 +235,7 @@ static void test_ch2_event6_arms_reinforcement_enemies(void)
  * field buffer and rewrites the full 0x32A00-byte FD2.TMP. The portrait-set
  * argument (2 here) only selects which portrait pixels load; the FDFIELD
  * re-read index and the FD2.TMP rewrite are identical to the other reloads.
- * The two __delay_thunk_375b2 busy-waits spin on the live BIOS tick, the two
+ * The two fd2_delay_ms busy-waits spin on the live BIOS tick, the two
  * fd2_pan_cursor_and_window calls run against the staged camera, and the
  * immediate-END dialog program (page 4 <= 0x10) makes fd2_display_dialog_scene
  * return at once with no glyph blits. Handler_09 fires NO cutscene event, so

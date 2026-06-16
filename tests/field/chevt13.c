@@ -50,7 +50,7 @@
 extern int    g_dlg_glyph_calls;
 extern uint32 g_dlg_glyph_last_idx;
 
-/* testglob.c's __delay_thunk_375b2 stub records each idle-hold (call count +
+/* testglob.c's fd2_delay_ms stub records each idle-hold (call count +
  * last tick arg), so handler_1b's two 100ms holds are observable. */
 extern int    g_delay375b2_calls;
 extern uint32 g_delay375b2_last_ticks;
@@ -441,9 +441,9 @@ static void test_ch7_event1a_enemy_steps_skips_beat(void)
  * cinematic beat with NO branch, no RNG, no numeric computation and no
  * CALL-return value used:
  *   pan_cursor_and_window(8, 2);
- *   __delay_thunk_375b2(100);                          // ~100ms hold
+ *   fd2_delay_ms(100);                          // ~100ms hold
  *   load_chapter_portraits_and_dump_tmp(turn_counter); // reload portrait set
- *   __delay_thunk_375b2(100);                          // ~100ms hold
+ *   fd2_delay_ms(100);                          // ~100ms hold
  *
  * Two observable, deterministic contracts are pinned:
  *   1. the portrait-set arg is wired to the battle turn counter
@@ -451,10 +451,10 @@ static void test_ch7_event1a_enemy_steps_skips_beat(void)
  *      end-to-end against the staged FDICON.B24 + FDFIELD.DAT, rewriting
  *      FD2.TMP to its full 0x32A00 bytes — proving the whole real callee
  *      chain (pan + portrait reload) runs to completion without faulting;
- *   2. both ~100ms holds fire: the testglob __delay_thunk_375b2 recorder
+ *   2. both ~100ms holds fire: the testglob fd2_delay_ms recorder
  *      stub sees exactly two calls, the last with ticks == 100 (0x64). This
  *      is what nails the binary's "PUSH 0x64; JMP 0x353D1" tail-jump (into
- *      the shared CALL __delay_thunk_375b2 / RET tail) as a real 100ms hold
+ *      the shared CALL fd2_delay_ms / RET tail) as a real 100ms hold
  *      rather than fd2_delay_400ms_via_idle_thunk's own 0x190 PUSH.
  *
  * The env is the shared ch25-style real-portrait-reload fixture: alloc_offset
@@ -875,10 +875,10 @@ static void test_ch_event1e_shows_dialog_pages_2_then_3(void)
  * spawner cinematic with NO branch, no RNG, and no CALL-return value used:
  *   load_chapter_portraits_and_dump_tmp(tile_event_consumed_flags[0x10]); // load batch N
  *   tile_event_consumed_flags[0x10]++;                                    // advance counter
- *   pan_cursor_and_window(0,    0);    __delay_thunk_375b2(200);          // TL
- *   pan_cursor_and_window(0xC,  0);    __delay_thunk_375b2(200);          // TR
- *   pan_cursor_and_window(0xC,  0xB);  __delay_thunk_375b2(200);          // BR
- *   pan_cursor_and_window(0,    0xB);  __delay_thunk_375b2(200);          // BL
+ *   pan_cursor_and_window(0,    0);    fd2_delay_ms(200);          // TL
+ *   pan_cursor_and_window(0xC,  0);    fd2_delay_ms(200);          // TR
+ *   pan_cursor_and_window(0xC,  0xB);  fd2_delay_ms(200);          // BR
+ *   pan_cursor_and_window(0,    0xB);  fd2_delay_ms(200);          // BL
  *
  * Two observable, deterministic contracts are pinned:
  *   1. the batch counter is byte [0x10] of the tile-event consumed-flags block
@@ -891,10 +891,10 @@ static void test_ch_event1e_shows_dialog_pages_2_then_3(void)
  *      against the staged FDICON.B24 + FDFIELD.DAT, rewriting FD2.TMP to its
  *      full 0x32A00 bytes — proving the whole real callee chain (portrait
  *      reload + the four corner pans) runs to completion without faulting;
- *   2. all four 200ms holds fire: the testglob __delay_thunk_375b2 recorder
+ *   2. all four 200ms holds fire: the testglob fd2_delay_ms recorder
  *      stub sees exactly four calls, the last with ticks == 200 (0xC8). The
  *      final hold nails the binary's "PUSH 0xC8; JMP 0x353D1" tail-jump (into
- *      the shared CALL __delay_thunk_375b2 / RET tail) as a real 200ms hold.
+ *      the shared CALL fd2_delay_ms / RET tail) as a real 200ms hold.
  *
  * The env is the shared ch25-style real-portrait-reload fixture: alloc_offset
  * 0 (the per-record race scan iterates zero, so the seeded batch counter gates

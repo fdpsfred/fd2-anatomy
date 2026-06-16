@@ -726,6 +726,23 @@ static uint8 g_chit_def_figani[32];
 static uint8 g_chit_workbuf[0x1F400];
 static uint8 g_chit_framebuf[64000];
 
+/* Plant a valid, terminating, fully-transparent sprite at frame block `foff`'s
+ * blit payload (foff + 9), so the real fd2_blit_indexed_sprite -> fd2_rle_blit_sprite
+ * decodes cleanly and returns instead of spinning. A blit-indexed sheet stores the
+ * sprite's RLE stream at offset+9; fd2_rle_blit_sprite reads width = stream[0..1],
+ * rows = stream[2..3] then command bytes from stream[4..]. The RLE row loop exits
+ * ONLY when the per-row column counter hits exactly 0 and the row loop only when
+ * rows decrements to 0, so width 0 OR rows 0 (the all-zero synthetic stream) spins
+ * forever. A single SKIP command (0xC0 | (w-1)) advances w transparent columns and
+ * writes no pixels, so [w,1,SKIP w] is a safe 1-row no-op that touches no dst byte. */
+static void chit_plant_safe_sprite(uint8 *figani, uint32 foff)
+{
+    uint8 *s = figani + foff + 9;      /* sheet stores the RLE stream at +9 */
+    s[0] = 4;  s[1] = 0;               /* width  = 4 */
+    s[2] = 1;  s[3] = 0;               /* rows   = 1 */
+    s[4] = 0xC0 | (4 - 1);             /* cmd: SKIP 4 transparent cols -> x_remain 0 */
+}
+
 static void chit_build_figani(void)
 {
     uint32 off;
@@ -740,11 +757,13 @@ static void chit_build_figani(void)
     g_chit_att_figani[16 + 5] = 0;     /* no SFX hook */
     g_chit_att_figani[16 + 6] = 1;     /* 1 subframe */
     g_chit_att_figani[16 + 7] = 0;     /* no special slash flag */
+    chit_plant_safe_sprite(g_chit_att_figani, 16);  /* real blit of frame 0 = no-op */
 
     memset(g_chit_def_figani, 0, sizeof(g_chit_def_figani));
     g_chit_def_figani[0] = 1;          /* 1 pose */
     memcpy(g_chit_def_figani + 8, &off, 4);
     g_chit_def_figani[16 + 6] = 2;     /* pose subframe count */
+    chit_plant_safe_sprite(g_chit_def_figani, 16);  /* real blit of pose 0 = no-op */
 }
 
 /* Independent oracle for the RNG step (battle.c fd2_advance_rng_state):

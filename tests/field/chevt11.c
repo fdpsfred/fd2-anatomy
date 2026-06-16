@@ -40,7 +40,7 @@
  *   - the real fd2_composite_battle_frame runs against the staged compositor
  *     workspace (HUD gated off, anim_phase=0 -> cursor overlay no-op, palette
  *     cycle throttled), fd2_pan_cursor_and_window runs against the staged
- *     camera, the two __delay_thunk_375b2(100) busy-waits spin on the live BIOS
+ *     camera, the two fd2_delay_ms(100) busy-waits spin on the live BIOS
  *     tick, and the empty active party makes the real callees' char loops
  *     iterate zero chars.
  *

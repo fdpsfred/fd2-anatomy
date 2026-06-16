@@ -26,7 +26,7 @@ Watcom 9.5a C runtime 在 FD2.LE 內的命名約定、static-link duplicates、1
 接受同名 function（unique key 是 name+address），KB 不另加 suffix。本 binary
 觀察到的 case：
 
-- `__delay` @ `0x3DCCD` (71 callers, active) / `__delay_thunk_375b2` @ `0x375B2` (0 caller, dead)
+- `__delay` @ `0x3DCCD` (71 callers, active) / `fd2_delay_ms` @ `0x375B2` (0 caller, dead)
   — Watcom CRT delay (DOS 21h tick wait) 兩份 obj 各帶一份
 - `__exit` family @ `0x3CB91` / `0x3CB93` (`__exit_with_msg`) — terminate wrapper
   系列；emit pipeline 連結 Watcom CRT 後對 binary 影響為 0

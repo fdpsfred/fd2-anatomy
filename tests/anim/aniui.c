@@ -427,7 +427,7 @@ static void test_wing_slide_open_and_close(void)
  * framebuffer in three 6-row steps (each followed by a 6-row palette-0x49 fill
  * and a 10ms pace), then a final 8-row shift + 8-row fill. It takes no args,
  * returns nothing, reads no state back; its only host-observable side-effect is
- * the pacing: exactly three __delay_thunk_375b2(10) calls (one per Phase-1
+ * the pacing: exactly three fd2_delay_ms(10) calls (one per Phase-1
  * step), and none in the final Phase-2 shift. The page-stepping callers depend
  * on that fixed three-beat cadence, so it is pinned here.
  *
@@ -462,7 +462,7 @@ static void test_shop_scroll_up_cadence(void)
  * 0x47..0) so the overlapping copy proceeds high-address-first and never
  * clobbers a not-yet-moved source row.
  *
- * Host-observable side-effect = the pacing: exactly three __delay_thunk_375b2(10)
+ * Host-observable side-effect = the pacing: exactly three fd2_delay_ms(10)
  * calls (one per Phase-1 step), none in Phase 2. The page-stepping callers depend
  * on that fixed three-beat cadence (identical to scroll_up), so it is pinned
  * here. The actual 0x11C-byte-per-row block scroll, the descending-iteration
@@ -503,7 +503,7 @@ static void test_shop_scroll_down_cadence(void)
  *     call count (the real fd2_paint_portrait_to_dialog_area forwards to it);
  *   - the state-4 palette ramp iteration count: UP 0..0x3E step 2 (32 steps) +
  *     DOWN 0x3E..0 step 2 (32 steps) = 64, each step paced by
- *     __delay_thunk_375b2(4) — pinned by the delay-thunk count + tick value.
+ *     fd2_delay_ms(4) — pinned by the delay-thunk count + tick value.
  *
  * The frame blits target fixed mode13h aperture addresses and the palette ramp
  * writes the VGA DAC (port 0x3C8/0x3C9 via the real
@@ -869,9 +869,9 @@ static void test_cinematic_warp_arg_routing(void)
  * back down. The load-bearing, host-verifiable logic is the exact step cadence,
  * which pins both loop bounds and the mid-hold:
  *
- *   - fade UP   brightness 0..0x3F (64 steps, INC), each paced __delay_thunk_375b2(8)
- *   - hold      one __delay_thunk_375b2(400) at peak brightness
- *   - fade DOWN brightness 0x3E..0 (63 steps, DEC), each paced __delay_thunk_375b2(8)
+ *   - fade UP   brightness 0..0x3F (64 steps, INC), each paced fd2_delay_ms(8)
+ *   - hold      one fd2_delay_ms(400) at peak brightness
+ *   - fade DOWN brightness 0x3E..0 (63 steps, DEC), each paced fd2_delay_ms(8)
  *
  * => exactly 64 + 1 + 63 = 128 delay calls; the final delay (fade-DOWN tail) is
  * 8ms, so g_delay375b2_last_ticks == 8. The 128 count is unique to these two

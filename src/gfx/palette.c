@@ -332,7 +332,7 @@ void fd2_play_palette_fade_in(void)
 
     for (subtract = 0x40; subtract >= 0; subtract--) {
         fd2_set_vga_palette_range(0, 0xFF, (uint32)subtract);
-        __delay_thunk_375b2(2);
+        fd2_delay_ms(2);
     }
 }
 
@@ -362,7 +362,7 @@ void fd2_play_palette_fade_to_black(void)
 
     for (subtract = 0; subtract < 0x40; subtract++) {
         fd2_set_vga_palette_range(0, 0xFF, (uint32)subtract);
-        __delay_thunk_375b2(2);
+        fd2_delay_ms(2);
     }
 }
 

@@ -790,11 +790,11 @@ int fd2_execute_attack_damage_calculation(int attacker_idx, int defender_idx)
             *(uint8 *)(pDefender + 0x25) =
                 (uint8)((int)rng_val % 4) + 2;
             fd2_set_full_vga_palette_to_color(1, 0x20, 0);
-            __delay_thunk_375b2(0x14);
+            fd2_delay_ms(0x14);
             fd2_set_vga_palette_range_with_add(0, 0xff, 0);
-            __delay_thunk_375b2(0x28);
+            fd2_delay_ms(0x28);
             fd2_set_full_vga_palette_to_color(1, 0x20, 0);
-            __delay_thunk_375b2(0x14);
+            fd2_delay_ms(0x14);
             fd2_set_vga_palette_range_with_add(0, 0xff, 0);
         }
     }
@@ -807,11 +807,11 @@ int fd2_execute_attack_damage_calculation(int attacker_idx, int defender_idx)
         rng_val = fd2_advance_rng_state();
         if ((int)(rng_val % 100) < (int)total_crit_pct) {
             fd2_set_vga_palette_range_with_add(0, 0xff, 0x3f);
-            __delay_thunk_375b2(0x14);
+            fd2_delay_ms(0x14);
             fd2_set_vga_palette_range_with_add(0, 0xff, 0);
-            __delay_thunk_375b2(0x28);
+            fd2_delay_ms(0x28);
             fd2_set_vga_palette_range_with_add(0, 0xff, 0x3f);
-            __delay_thunk_375b2(0x14);
+            fd2_delay_ms(0x14);
             fd2_set_vga_palette_range_with_add(0, 0xff, 0);
             defender_DP = (int)defender_DP / 2;
         }

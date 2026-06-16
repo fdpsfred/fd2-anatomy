@@ -116,7 +116,7 @@ void (*const data_fd2_chapter_init_handler_table[30])(void) = {
  * Read-only const table in .object2. The pointed-to handlers live in
  * src/field/chend1.c / chend2.c; prototypes are in protos.h.
  *
- * Caller (fd2_main @ 0x25BF4, chapter-switch branch @ 0x25E23):
+ * Caller (main @ 0x25BF4, chapter-switch branch @ 0x25E23):
  *     MOV  EAX,[0x53C03]                 ; current_chapter_id
  *     CALL dword ptr [EAX*0x4 + 0x51DE9] ; stride 4, call thru fn ptr, no args
  *     ; (cdecl, no stack cleanup -> zero-arg, void return)

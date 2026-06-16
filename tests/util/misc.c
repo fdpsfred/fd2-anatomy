@@ -22,7 +22,7 @@ extern int g_ce_find_have_d6;
 extern int g_ce_find_have_item100;
 extern int g_ce_find_calls;
 
-/* __delay_thunk_375b2 recorder (tests/testglob.c): the stub increments
+/* fd2_delay_ms recorder (tests/testglob.c): the stub increments
  * g_delay375b2_calls and stores the last ticks argument, which lets the
  * delay-wrapper test prove the exact 400-tick argument and single call. */
 extern int    g_delay375b2_calls;
@@ -912,7 +912,7 @@ static void test_pin_low_byte_only(void)
 
 /* ----------------------------------------------------------------
  * fd2_delay_400ms_via_idle_thunk @ 0x353CC: a one-line wrapper that calls
- * __delay_thunk_375b2(400) exactly once. Drive it through the testglob
+ * fd2_delay_ms(400) exactly once. Drive it through the testglob
  * recorder and assert the single call and the load-bearing 400-tick
  * (0x190) argument.
  * ---------------------------------------------------------------- */

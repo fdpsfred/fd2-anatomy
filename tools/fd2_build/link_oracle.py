@@ -43,7 +43,17 @@ def check_objs():
 def write_batch():
     bat = os.path.join(TESTS, "fd2link.bat")
     L = [
-        r"echo === fd2 link === > E:\out\fd2link.out",
+        r"echo === fd2 build === > E:\out\fd2link.out",
+        # The TEST build (build_test.py) compiles src/life/main.c with
+        # -Dmain=fd2_main so its `main` does not clash with tests/testmain.c's
+        # runner main(); that leaves tests/OUT/obj/lifemain.obj exporting
+        # fd2_main, NOT main. For the src-only FD2.EXE the entry MUST be `main`
+        # (the CRT cmain386 calls it), so recompile this one file here WITHOUT
+        # the define before linking. Every other obj is -D-free already and is
+        # reused as-is. (cwd is C: = src, set by the dosbox.conf autoexec.)
+        r"C:",
+        "cd \\",
+        r"D:\BIN\WCC386.EXE life\main.c %CF% -fo=E:\out\obj\lifemain.obj >> E:\out\fd2link.out",
         r"D:\BIN\WLINK.EXE @E:\fd2.lnk >> E:\out\fd2link.out",
         r"echo done > E:\out\fd2link.done",
         "exit",

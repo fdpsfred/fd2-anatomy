@@ -7,7 +7,7 @@ FD2.LE 連結環境的解析：LE binary layout、wlink 命令列重建、DOS/4G
 - `le_layout.md` — FD2.LE 的 LE header 全欄位 + 3 個 object (CGROUP _TEXT / DGROUP /
   FAR_DATA) 的 base / virtual_size / flags + DGROUP 內部排列 (CONST → _DATA →
   _BSS → STACK + cmdline buffer 共用 4K)、page map / fixup section 統計、入口流程
-  (`_cstart_` cstart → `__InitRtns` + `__CMain` → `fd2_main`)、FD2.EXE 的 10424-byte Watcom DOS bind stub
+  (`_cstart_` cstart → `__InitRtns` + `__CMain` → `main`)、FD2.EXE 的 10424-byte Watcom DOS bind stub
 - `wlink_settings.md` — 從 binary 反推的 wlink directive (`system dos4g` +
   `name FD2.EXE` + `option stack=4K` + Miles lib + Watcom CRT auto-pull)、每條
   directive 對 binary 內哪個特徵負責的證據鏈、source-side `#pragma data_seg("FAR_DATA")`

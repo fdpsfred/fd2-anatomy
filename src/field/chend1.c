@@ -69,23 +69,23 @@ void fd2_chapter_02_end(void)
 
     fd2_pan_cursor_and_window(0xe, 2);
     fd2_load_chapter_portraits_and_dump_tmp(4);
-    __delay_thunk_375b2(100);
+    fd2_delay_ms(100);
     fd2_cutscene_event_trigger(0xe);
 
     fd2_display_dialog_scene(data_fd2_current_chapter_text, 8, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     data_fd2_battle_anim_phase = 0;
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     fd2_cutscene_event_trigger(0xf);
 
     fd2_display_dialog_scene(data_fd2_current_chapter_text, 9, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     data_fd2_battle_anim_phase = 0;
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     fd2_pan_cursor_and_window(0xe, 1);
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     fd2_cutscene_event_trigger(0x10);
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
 
     fd2_display_dialog_scene(data_fd2_current_chapter_text, 10, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
@@ -478,7 +478,7 @@ void fd2_chapter_10_end(void)
 
     fd2_composite_battle_frame(1);
     fd2_play_palette_fade_in();
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
 
     fd2_display_dialog_scene(data_fd2_current_chapter_text, 4, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);

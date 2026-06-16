@@ -140,7 +140,7 @@ uint32 fd2_run_chapter_intro_menu_main(uint32 pose_bitmap)
     data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = atlas;
     fd2_blit_indexed_sprite_at_xy(0xa0000, 0x140, atlas, 0);
     fd2_play_palette_fade_in();
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     fd2_load_chapter_portrait(
         data_fd2_chapter_intro_menu_speaker_portrait_id_table[
             data_fd2_chapter_intro_menu_cursor_state]);
@@ -205,7 +205,7 @@ uint32 fd2_run_chapter_intro_menu_main(uint32 pose_bitmap)
 
     fd2_blit_indexed_sprite_at_xy(0xa0000, 0x140,
         data_fd2_ui_menu_screen_sprite_atlas_buf_ptr, 0);
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     fd2_play_palette_fade_to_black();
     for (iVar5 = 10; iVar5 >= 0; iVar5--) {
         table_off = (int)data_fd2_chapter_intro_menu_cursor_state +
@@ -299,7 +299,7 @@ uint32 fd2_run_chapter_intro_menu_typeB(uint32 snapshot_buf)
     data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = atlas;
     fd2_blit_indexed_sprite_at_xy(0xa0000, 0x140, atlas, 0);
     fd2_play_palette_fade_in();
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     fd2_load_chapter_portrait(
         data_fd2_chapter_intro_menu_speaker_portrait_id_table[0]);
     fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x249, 0xa94cc, 0x140,
@@ -334,7 +334,7 @@ uint32 fd2_run_chapter_intro_menu_typeB(uint32 snapshot_buf)
                 if (typewriter_ret != -1 && data_fd2_ui_menu_cursor_idx == 0) {
                     fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1a0,
                         0xaac8c, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
-                    __delay_thunk_375b2(200);
+                    fd2_delay_ms(200);
                     fd2_close_intro_dialog_with_slide_out();
                     return 1;
                 }
@@ -350,7 +350,7 @@ uint32 fd2_run_chapter_intro_menu_typeB(uint32 snapshot_buf)
 
     fd2_blit_indexed_sprite_at_xy(0xa0000, 0x140,
         data_fd2_ui_menu_screen_sprite_atlas_buf_ptr, 0);
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     fd2_play_palette_fade_to_black();
     for (iVar5 = 10; iVar5 >= 0; iVar5--) {
         table_off = (int)data_fd2_chapter_intro_menu_cursor_state +
@@ -451,7 +451,7 @@ uint32 fd2_run_chapter_intro_menu_typeC(uint32 pose_bitmap)
     data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = atlas;
     fd2_blit_indexed_sprite_at_xy(0xa0000, 0x140, atlas, 0);
     fd2_play_palette_fade_in();
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     fd2_load_chapter_portrait(
         data_fd2_chapter_intro_menu_speaker_portrait_id_table[4]);
 
@@ -500,7 +500,7 @@ uint32 fd2_run_chapter_intro_menu_typeC(uint32 pose_bitmap)
 
     fd2_blit_indexed_sprite_at_xy(0xa0000, 0x140,
         data_fd2_ui_menu_screen_sprite_atlas_buf_ptr, 0);
-    __delay_thunk_375b2(200);
+    fd2_delay_ms(200);
     fd2_play_palette_fade_to_black();
     for (iVar5 = 10; iVar5 >= 0; iVar5--) {
         table_off = (int)data_fd2_chapter_intro_menu_cursor_state +

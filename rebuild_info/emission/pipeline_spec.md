@@ -84,7 +84,7 @@ emit pipeline 必須：
 
 | addr    | filename    | 主要 callers                                                            |
 | ------- | ----------- | ----------------------------------------------------------------------- |
-| 0x51a43 | FDTXT.DAT   | fd2_load_save_and_init_engine / fd2_main / fd2_load_chapter_battle_data |
+| 0x51a43 | FDTXT.DAT   | fd2_load_save_and_init_engine / main / fd2_load_chapter_battle_data |
 | 0x51a4d | FDOTHER.DAT | 50+ fd2_* callers (palette + cinematic + sprite assets)                 |
 | 0x51a59 | FDFIELD.DAT | fd2_load_save_and_init_engine / fd2_load_chapter_*                      |
 | 0x51a65 | FDSHAP.DAT  | fd2_play_full_combat_cinematic / fd2_execute_special_attack_skill / ... |

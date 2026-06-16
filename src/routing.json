@@ -4724,6 +4724,15 @@
     "asm": false,
     "reviewed": true
   },
+  "000375b2": {
+    "name": "fd2_delay_ms",
+    "target": "util/misc.c",
+    "phase": 4,
+    "done": true,
+    "asm": false,
+    "reviewed": true,
+    "review_note": "Phase 4 landing: the binary thunk @0x375b2 (JMP CRT __delay), emit-pipeline synthetic name __delay_thunk_375b2, renamed fd2_delay_ms and emitted as void fd2_delay_ms(uint32 ms){delay(ms);} in src/util/misc.c; closes the fd2.exe src-only link."
+  },
   "00037f86": {
     "name": "crt_equivalent_get_eflags_thunk",
     "target": "crt/crt.c",

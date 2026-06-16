@@ -9,9 +9,9 @@ file size 3,382,481 bytes，103 outer entries (idx 0..102) + 166 sub-entries。
 LLLLLL archive (outer)。29 個 outer entries 自身又是 LLLLLL sub-archive，
 sub-entries 各自獨立索引。
 
-## 啟動載入靜態 (fd2_main 序列)
+## 啟動載入靜態 (main 序列)
 
-`fd2_main @ 0x25BF4` 啟動時依序載入 8 個 FDOTHER + 1 個 FDTXT entry：
+`main @ 0x25BF4` 啟動時依序載入 8 個 FDOTHER + 1 個 FDTXT entry：
 
 | idx | 全域變數 | 用途 | 大小 |
 |---|---|---|---|
@@ -139,7 +139,7 @@ instruction 範圍內：
 |---|---|---|---|
 | 0x07 | 23377 | 7 | ending sprite (`fd2_play_ending_and_record_clear`) |
 | 0x0C | 51759 | 28 | dynamic |
-| 0x1F | 31771 | 13 | UI sprite + sfx (`fd2_main` 啟動) |
+| 0x1F | 31771 | 13 | UI sprite + sfx (`main` 啟動) |
 | 0x30 | 24183 | 6 | dynamic |
 | 0x31 | 27871 | 7 | confirmed_dead |
 | 0x32 | 31429 | 5 | dynamic |
