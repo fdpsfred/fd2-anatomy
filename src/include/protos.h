@@ -688,7 +688,7 @@ void fd2_fill_screen_rect_with_byte(uint32 x, uint32 y, uint32 color, uint32 siz
 void fd2_paint_portrait_to_dialog_area(uint32 frame);
 void fd2_render_horizontal_bar_segments(uint32 dst_offset, uint32 dst_pitch, uint32 filled_count, uint32 sprite_base);
 void fd2_render_chapter_status_panel_segments(uint32 sheet, uint32 active_idx, uint32 segment_count);
-void fd2_composite_battle_tile_map(uint32 dst, uint32 stride, uint32 w, uint32 h, uint32 ox, uint32 oy);
+void fd2_composite_battle_tile_map(uint32 dst_buf, uint32 dst_stride, uint32 n_cols, uint32 n_rows, uint32 win_origin_x, uint32 win_origin_y);
 void fd2_composite_chars_with_spell_effect_overlay(uint32 dst_buf, uint32 n_targets, uint32 target_array, int fx_sprite_idx);
 void fd2_paint_cursor_overlay_pattern(void);
 void fd2_blit_24x24_at_window_relative_pos(uint32 world_x, uint32 world_y, uint32 sprite_idx);

@@ -1325,3 +1325,218 @@ int fd2_render_summon_aura_sprite_ring(int caster_unit_id, int sprite_handle,
    value never leaves 0/1), so the upper bytes stay zero. Established at
    runtime, zero-initialized. */
 uint32 data_fd2_graphics_bg_anim_flip_flag;
+
+/* Per-frame BIOS-tick latches owned by fd2_composite_battle_tile_map (it reads
+ * then writes each on a tick change). All three are game-written scratch state
+ * (verified WRITE xrefs) -> mutable, zero-initialised; dword tick snapshots. */
+uint32 data_fd2_battle_tile_anim_last_advance_tick;      /* 0x539F4 */
+uint32 data_fd2_battle_bg_anim_last_advance_tick;        /* 0x539F8 */
+uint32 data_fd2_graphics_battle_compose_flip_tick_latch; /* 0x53A00 */
+
+/* ----------------------------------------------------------------
+ * fd2_composite_battle_tile_map @ 0x11EEE (22 callers)
+ *
+ * Composite the battle map's tile layer onto the destination buffer
+ * with chapter-aware background animation. First rendering pass of
+ * fd2_composite_battle_frame.
+ *
+ * Signature (true 6-param order, confirmed by all 22 callers which pass
+ * (ws, 456, 13, 8, origin_x, origin_y)):
+ *   dst_buf       -- render workspace base
+ *   dst_stride    -- destination/workspace pitch (456 = 0x1C8)
+ *   n_cols        -- per-row tile count (inner loop bound, 13)
+ *   n_rows        -- tile-row count (outer loop bound, 8)
+ *   win_origin_x  -- battle view window origin tile X
+ *   win_origin_y  -- battle view window origin tile Y
+ * (Ghidra's decompiler scrambled these into param_1..3 + dst_buf/
+ *  dst_stride/n_cols; the ESP-relative arg offsets and the caller call
+ *  sites give the true order above.)
+ *
+ * Setup (animation tick management):
+ *   if BIOS tick (signed word @ 0x46C) changed since last call:
+ *     bg_anim_flip_flag ^= 1   (every-other-frame flip for tile swaps)
+ *     compose_flip_tick_latch = current tick
+ *
+ * Chapter-specific background source (current_chapter_id dispatch):
+ *   Chapters 9, 0x18, 0x19, 0x1C, 0x1D (animated):
+ *     if tick changed: blit animated bg into static work buffer via the
+ *       per-row offset table indexed by bg_animation_frame_idx (0..15);
+ *       advance + wrap that index at 0x10.
+ *     src = animated_bg_buffer; src_stride = 0x140.
+ *   Chapters 0x11, 0x15, 0x16, 0x1B (extra-wide parallax):
+ *     src = static_bg_buffer + (walk_anim_y_scroll/3)*stride
+ *           + walk_anim_x_scroll/2 + win_origin_y*stride*2 + win_origin_x*3
+ *     src_stride = 0x1CE (0x11/0x1B) or 0x198 (others).
+ *   Chapter 0x17 (text-screen background):
+ *     if tick changed: fd2_scroll_text_screen_up_by_lines(0).
+ *     src = static_bg_buffer; src_stride = 0x138.
+ *   Default: skip the background blit entirely (goto the tile pass).
+ *
+ * If a source resolved: fd2_blit_rectangle(dst + clip/scroll offset,
+ *   dst_stride, src, src_stride, 0x138, 0xC0) -- 312x192 visible area.
+ *
+ * Tile-animation sub-counter (data_fd2_battle_tile_map_anim_frame_counter):
+ *   forced_tile_anim_frame == -1 (free-running): advance once every 3
+ *     BIOS ticks, wrapping at 0x14 (20 frames). Else: lock to the forced
+ *     value.
+ *   palette_remap = tile_anim_table_base
+ *                 + *(tile_anim_table_base + 6
+ *                     + tile_anim_palette_phase_lookup[counter]*4)
+ *
+ * Per-tile loop (n_rows x n_cols):
+ *   pTile_meta = tile_map_ptr + ((row + win_origin_y)*map_width
+ *                                 + win_origin_x)*4 + 4
+ *   tile_id = meta.word[2] & 0x3FF; flags = attr_buffer[tile_id*4]
+ *     flags & 0x08 : tile_id += bg_anim_flip_flag * 2
+ *     flags & 0x10 : tile_id += chapter_ambient_palette_anim_idx / 2
+ *     flags & 0x04 : tile_id += bg_anim_flip_flag
+ *   sprite = scene_snapshot + *(scene_snapshot + 6 + tile_id*4)
+ *   meta.byte[7] == -1 : passthrough blit; else remap blit (palette_remap)
+ *
+ * One of the hottest functions in the battle render path. __cdecl
+ * (caller cleans 6 stack args; all callees __cdecl). No callee return
+ * value is consumed (no EAX-after-CALL reads).
+ * ---------------------------------------------------------------- */
+void fd2_composite_battle_tile_map(uint32 dst_buf, uint32 dst_stride,
+                                   uint32 n_cols, uint32 n_rows,
+                                   uint32 win_origin_x, uint32 win_origin_y)
+{
+    int32 cur_tick;
+    uint32 src_stride;
+    uint32 bg_src;
+    uint32 dst_off;
+    uint32 base_off;
+    int32 palette_remap;
+    uint32 row_iter;
+    int32 col_iter;
+    uint32 pTile_meta;
+    uint32 pDst_row;
+    uint32 tile_id;
+    uint8 tile_attr_flags;
+    int32 tile_id_adjust;
+    uint32 pTile_sprite;
+
+    cur_tick = (int32)(int16)BIOS_TICK_WORD;
+    if (cur_tick != (int32)data_fd2_graphics_battle_compose_flip_tick_latch) {
+        data_fd2_graphics_bg_anim_flip_flag ^= 1;
+        data_fd2_graphics_battle_compose_flip_tick_latch = (uint32)cur_tick;
+    }
+
+    if (data_fd2_chapter_current_chapter_id == 9 ||
+        data_fd2_chapter_current_chapter_id == 0x18 ||
+        data_fd2_chapter_current_chapter_id == 0x19 ||
+        data_fd2_chapter_current_chapter_id == 0x1c ||
+        data_fd2_chapter_current_chapter_id == 0x1d) {
+        cur_tick = (int32)(int16)BIOS_TICK_WORD;
+        if (cur_tick != (int32)data_fd2_battle_bg_anim_last_advance_tick) {
+            fd2_blit_buffer_with_per_row_offset(
+                data_fd2_graphics_static_bg_buffer_ptr,
+                (uint32 *)data_fd2_graphics_animated_bg_buffer_ptr,
+                data_fd2_graphics_bg_animation_frame_idx);
+            data_fd2_battle_bg_anim_last_advance_tick = (uint32)cur_tick;
+            data_fd2_graphics_bg_animation_frame_idx += 1;
+            if (data_fd2_graphics_bg_animation_frame_idx == 0x10) {
+                data_fd2_graphics_bg_animation_frame_idx = 0;
+            }
+        }
+        src_stride = 0x140;
+        dst_off = data_fd2_battle_compose_walk_step_y_sub_pixel_offset +
+                  dst_buf + data_fd2_battle_compose_left_edge_clip_offset;
+        base_off = data_fd2_battle_compose_parallax_scroll_y_rows * 0x1c8;
+        bg_src = data_fd2_graphics_animated_bg_buffer_ptr;
+    } else if (data_fd2_chapter_current_chapter_id == 0x11 ||
+               data_fd2_chapter_current_chapter_id == 0x15 ||
+               data_fd2_chapter_current_chapter_id == 0x16 ||
+               data_fd2_chapter_current_chapter_id == 0x1b) {
+        if (data_fd2_chapter_current_chapter_id == 0x11 ||
+            data_fd2_chapter_current_chapter_id == 0x1b) {
+            src_stride = 0x1ce;
+        } else {
+            src_stride = 0x198;
+        }
+        bg_src = data_fd2_graphics_static_bg_buffer_ptr +
+                 (uint32)(data_fd2_battle_walk_anim_y_scroll_rows / 3) * src_stride +
+                 (uint32)(data_fd2_battle_walk_anim_x_scroll_offset / 2) +
+                 win_origin_y * src_stride * 2 + win_origin_x * 3;
+        dst_off = dst_buf + data_fd2_battle_compose_left_edge_clip_offset +
+                  data_fd2_battle_compose_walk_step_y_sub_pixel_offset;
+        base_off = data_fd2_battle_compose_parallax_scroll_y_rows * 0x1c8;
+    } else if (data_fd2_chapter_current_chapter_id == 0x17) {
+        cur_tick = (int32)(int16)BIOS_TICK_WORD;
+        if (cur_tick != (int32)data_fd2_battle_bg_anim_last_advance_tick) {
+            fd2_scroll_text_screen_up_by_lines(0);
+            data_fd2_battle_bg_anim_last_advance_tick = (uint32)cur_tick;
+        }
+        src_stride = 0x138;
+        dst_off = data_fd2_battle_compose_walk_step_y_sub_pixel_offset +
+                  dst_buf + data_fd2_battle_compose_left_edge_clip_offset;
+        base_off = data_fd2_battle_compose_parallax_scroll_y_rows * 0x1c8;
+        bg_src = data_fd2_graphics_static_bg_buffer_ptr;
+    } else {
+        goto tile_pass;
+    }
+
+    fd2_blit_rectangle(base_off + dst_off, dst_stride, bg_src, src_stride,
+                       0x138, 0xc0);
+
+tile_pass:
+    if (data_fd2_graphics_forced_tile_anim_frame == 0xffffffff) {
+        cur_tick = (int32)(int16)BIOS_TICK_WORD;
+        if (cur_tick - (int32)data_fd2_battle_tile_anim_last_advance_tick > 2 ||
+            cur_tick < (int32)data_fd2_battle_tile_anim_last_advance_tick) {
+            data_fd2_battle_tile_map_anim_frame_counter += 1;
+            if (data_fd2_battle_tile_map_anim_frame_counter == 0x14) {
+                data_fd2_battle_tile_map_anim_frame_counter = 0;
+            }
+            data_fd2_battle_tile_anim_last_advance_tick = (uint32)cur_tick;
+        }
+    } else {
+        data_fd2_battle_tile_map_anim_frame_counter =
+            data_fd2_graphics_forced_tile_anim_frame;
+    }
+
+    palette_remap =
+        *(int32 *)(data_fd2_tile_anim_table_base + 6 +
+                   (uint32)data_fd2_graphics_tile_anim_palette_phase_lookup
+                       [data_fd2_battle_tile_map_anim_frame_counter] * 4) +
+        data_fd2_tile_anim_table_base;
+
+    for (row_iter = 0; (int32)row_iter < (int32)n_rows; row_iter++) {
+        pDst_row = dst_buf + row_iter * dst_stride * 0x18;
+        pTile_meta = ((row_iter + win_origin_y) * data_fd2_battle_map_width_tiles +
+                      win_origin_x) * 4 + data_fd2_battle_tile_map_ptr + 4;
+
+        for (col_iter = 0; col_iter < (int32)n_cols; col_iter++) {
+            tile_id = (uint32)(*(uint16 *)pTile_meta & 0x3ff);
+            tile_attr_flags =
+                *(uint8 *)(tile_id * 4 + data_fd2_tile_attribute_flags_buffer_ptr);
+
+            if ((tile_attr_flags & 8) != 0) {
+                tile_id_adjust = (int32)data_fd2_graphics_bg_anim_flip_flag * 2;
+                tile_id += (uint32)tile_id_adjust;
+            } else if ((tile_attr_flags & 0x10) != 0) {
+                tile_id_adjust =
+                    data_fd2_graphics_chapter_ambient_palette_anim_idx / 2;
+                tile_id += (uint32)tile_id_adjust;
+            } else if ((tile_attr_flags & 4) != 0) {
+                tile_id += data_fd2_graphics_bg_anim_flip_flag;
+            }
+
+            pTile_sprite =
+                (uint32)*(int32 *)(data_fd2_battle_scene_snapshot + 6 +
+                                   tile_id * 4) +
+                data_fd2_battle_scene_snapshot;
+
+            if (*(int8 *)(pTile_meta + 3) == -1) {
+                fd2_tile_blit_24x24_passthrough(pTile_sprite, pDst_row,
+                                                dst_stride);
+            } else {
+                fd2_tile_blit_24x24_remap(pTile_sprite, pDst_row, dst_stride,
+                                          (uint32)palette_remap);
+            }
+
+            pDst_row += 0x18;
+            pTile_meta += 4;
+        }
+    }
+}

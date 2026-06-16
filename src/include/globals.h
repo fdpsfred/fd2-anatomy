@@ -230,6 +230,10 @@ extern const uint32 data_fd2_battle_view_window_max_y;                        /*
 extern uint32 data_fd2_graphics_forced_tile_anim_frame;                 /* 0x51A93 */
 extern const uint8 data_fd2_graphics_tile_anim_palette_phase_lookup[20]; /* 0x51A97 */
 extern uint32 data_fd2_graphics_bg_animation_frame_idx;                 /* 0x539FC */
+/* per-frame BIOS-tick latches owned by fd2_composite_battle_tile_map (mutable) */
+extern uint32 data_fd2_battle_tile_anim_last_advance_tick;              /* 0x539F4 */
+extern uint32 data_fd2_battle_bg_anim_last_advance_tick;                /* 0x539F8 */
+extern uint32 data_fd2_graphics_battle_compose_flip_tick_latch;         /* 0x53A00 */
 extern uint32 data_fd2_graphics_bg_anim_flip_flag;                      /* 0x53A40 */
 extern uint32 data_fd2_battle_compose_left_edge_clip_offset;            /* 0x53AED */
 extern uint32 data_fd2_battle_compose_parallax_scroll_y_rows;          /* 0x53AF1 */

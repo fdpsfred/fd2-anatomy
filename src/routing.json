@@ -234,9 +234,9 @@
     "name": "fd2_composite_battle_tile_map",
     "target": "gfx/rndscene.c",
     "phase": 3,
-    "done": false,
+    "done": true,
     "asm": false,
-    "reviewed": false
+    "reviewed": true
   },
   "00012263": {
     "name": "fd2_tick_tile_event_animations",

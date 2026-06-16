@@ -247,30 +247,10 @@ uint32 g_tile_map_log_dst[16];
  * that function is now a real emitted routine in src/gfx/rndstat.c.) */
 int g_repaint_settings_calls = 0;
 int g_repaint_flip_buffer_after = 0;
-void fd2_composite_battle_tile_map(uint32 d, uint32 s, uint32 w, uint32 h, uint32 ox, uint32 oy) {
-    /* The tile-map blit is the first stage of every fd2_composite_battle_frame
-     * pass and runs exactly once per composite (unconditional, both skip-cycle
-     * paths). It is the host-observable proxy that counts composite frames for
-     * caller tests (cursor.c, spelleff.c, btl_ai.c, ...) that only care "a frame
-     * composited". fd2_blit_rectangle is now a real emitted function
-     * (src/gfx/blitspr.c) and no longer available as that proxy. */
-    g_composite_call_count++;
-    g_tile_map_calls++;
-    g_tile_map_last_dst = d; g_tile_map_last_stride = s;
-    g_tile_map_last_w = w; g_tile_map_last_h = h;
-    g_tile_map_last_ox = ox; g_tile_map_last_oy = oy;
-    if (g_tile_map_log_on && g_tile_map_log_count < 16) {
-        g_tile_map_log_dst[g_tile_map_log_count] = d;
-        g_tile_map_log_count++;
-    }
-
-    g_repaint_settings_calls++;
-    if (g_repaint_flip_buffer_after != 0 &&
-        g_repaint_settings_calls >= g_repaint_flip_buffer_after) {
-        *(volatile uint16 *)0x41CuL =
-            (uint16)(*(volatile uint16 *)0x41AuL + 2);
-    }
-}
+/* fd2_composite_battle_tile_map @ 0x11EEE: real in src/gfx/rndscene.c; spy removed.
+ * The recorders above (g_composite_call_count / g_tile_map_* / g_repaint_*) are
+ * retained for the ~7 caller suites; rewriting their assertions and the idle-loop
+ * break seam (BIOS-key inject instead of the composite stub) is Phase 3. */
 /* fd2_paint_cursor_overlay_pattern, fd2_composite_all_chars_overlay,
  * fd2_paint_char_sprite_at_world_pos, fd2_paint_chars_shadow_overlay and
  * fd2_blit_animated_tile_at_pos are now real emitted functions
