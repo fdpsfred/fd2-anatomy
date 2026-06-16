@@ -524,6 +524,214 @@ void fd2_pathfind_check_destination_save_path(uint8 x, uint8 y)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_init_movement_range_floodfill @ 0x4E040 (5 callers: the player action
+ * menu fd2_player_action_menu_loop @ 0x18890 and the AI scoring/targeting
+ * paths fd2_ai_score_physical_attack @ 0x14237, fd2_compute_aoe_targets
+ * @ 0x14818, fd2_ai_walk_to_target_tile @ 0x14B78 (twice), and
+ * fd2_ai_score_offensive_spell @ 0x1598A)
+ *
+ * Movement-range flood-fill orchestrator: seeds the pathfind state globals
+ * from the caller's arguments, marks the origin tile with the full step
+ * budget, and kicks off the recursive 4-neighbour expansion that paints the
+ * "where can this unit move?" markers (one residual-cost byte per tile in the
+ * battle tile map's +7 marker byte).
+ *
+ * In FD2.LE this is a register-passing setup routine (PUSH EBP / PUSHAD frame,
+ * no __CHK). It first spills all six __cdecl stack arguments into the pathfind
+ * state globals at 0x60060..0x60070, reads map_width and map_height out of the
+ * tile-map header, computes the origin tile's marker pointer, stores the step
+ * budget there, then hands DL/DH/CL/EBX (= seed_x / seed_y / max_steps /
+ * origin marker pointer) to the recursive expander, which inherits the
+ * secondary cost-table base through ESI (captured into
+ * data_fd2_battle_pathfind_caller_context) and the map_width*4 row stride
+ * through EBP (recomputed inside the recursive helper from the map_width
+ * global). This emit is Layer-2 equivalent: the global spills are the same
+ * writes, the origin pointer / marker write are identical, and the no-argument
+ * binary CALL becomes a native C call passing the four register values
+ * explicitly. The binary's "return in_EAX" is a pass-through signature artifact
+ * -- every caller does ADD ESP,0x18 (6 args) and discards EAX -- so this is a
+ * void function.
+ *
+ *   ct  : secondary cost-table base (the per-job movement-cost table the caller
+ *         obtained from fd2_get_movement_cost_table_for_job); stored 32-bit into
+ *         data_fd2_battle_pathfind_caller_context (the binary's ESI capture),
+ *         where the leaf step reads it back as the cost table indexed by the
+ *         primary table's secondary index.
+ *   x   : origin tile X (source column); truncated to its low byte into seed_x.
+ *   y   : origin tile Y (source row); truncated to its low byte into seed_y.
+ *   rng : movement step budget; truncated to its low byte into max_steps and
+ *         written into the origin tile's marker as the starting (highest)
+ *         residual cost.
+ *   tm  : battle tile map base (4-byte-per-tile map); stored 32-bit and used as
+ *         the base for origin-tile address math; map_width = tm[0],
+ *         map_height = tm[2].
+ *   af  : primary tile-attribute -> cost lookup table base; stored 32-bit into
+ *         data_fd2_battle_pathfind_tile_cost_table_ptr.
+ *
+ * Origin marker pointer = tm + ((uint16)(map_width * seed_y) + seed_x) * 4 + 7.
+ * The map_width * seed_y product is formed 8-bit-by-8-bit into a 16-bit value
+ * (binary MUL AH), matching the (uint16) cast here (both operands <= 255 so it
+ * never actually wraps).
+ * ---------------------------------------------------------------- */
+void fd2_init_movement_range_floodfill(uint32 ct, uint32 x, uint32 y,
+    uint32 rng, uint32 tm, uint32 af)
+{
+    uint8 *origin_ptr;
+    uint32 tile_index;
+
+    /* Spill the six arguments into the pathfind state globals (same order /
+     * widths as the binary's MOV stores at 0x4E044..0x4E081). */
+    data_fd2_battle_pathfind_caller_context = ct;
+    data_fd2_battle_pathfind_floodfill_seed_x = (uint8)x;
+    data_fd2_battle_pathfind_floodfill_seed_y = (uint8)y;
+    data_fd2_battle_pathfind_floodfill_max_steps = (uint8)rng;
+    data_fd2_battle_pathfind_battle_tile_map_ptr = tm;
+    data_fd2_battle_pathfind_map_width = *(uint8 *)tm;
+    data_fd2_battle_pathfind_map_height = *(uint8 *)(tm + 2);
+    data_fd2_battle_pathfind_tile_cost_table_ptr = af;
+
+    /* Origin tile marker address inside the battle tile map (EBX in the
+     * binary): ((map_width * seed_y) + seed_x) * 4 + 7, added to the map base. */
+    tile_index = (uint32)(uint16)((uint16)data_fd2_battle_pathfind_map_width
+            * (uint16)data_fd2_battle_pathfind_floodfill_seed_y)
+        + (uint32)data_fd2_battle_pathfind_floodfill_seed_x;
+    origin_ptr = (uint8 *)(data_fd2_battle_pathfind_battle_tile_map_ptr
+        + tile_index * 4 + 7);
+
+    /* Seed the origin with the full step budget so expansion can decrement. */
+    *origin_ptr = data_fd2_battle_pathfind_floodfill_max_steps;
+
+    /* Kick off the recursion (binary loads DL=seed_x, DH=seed_y, CL=max_steps,
+     * EBX=origin_ptr, then CALL 0x4E0DC with no stack args). */
+    fd2_flood_fill_movement_range_recursive(
+        data_fd2_battle_pathfind_floodfill_seed_x,
+        data_fd2_battle_pathfind_floodfill_seed_y,
+        data_fd2_battle_pathfind_floodfill_max_steps,
+        origin_ptr);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_pathfind_to_destination @ 0x4E1A6 (3 callers: the AI position seeker
+ * fd2_ai_seek_optimal_position @ 0x14121, the AI tile-walker
+ * fd2_ai_walk_to_target_tile @ 0x14B78 (three call sites), and the player
+ * action menu fd2_player_action_menu_loop @ 0x18890)
+ *
+ * Top-level destination pathfinding driver: the path-aware sibling of
+ * fd2_init_movement_range_floodfill @ 0x4E040. It seeds the same pathfind
+ * state globals (0x60060..0x6017A) from the caller's arguments, additionally
+ * recording the destination coords, the path output buffer, the neighbor-step
+ * mode, a zeroed recursion depth, and a 0xFF best-path-length sentinel; marks
+ * the origin tile with the full step budget; then runs the destination check
+ * once for the origin-equals-destination short-circuit and kicks off the
+ * direction-tracked recursive search. It returns the best (shortest) step
+ * count found: 0xFF = unreachable, 0 = origin already is the destination,
+ * else N steps.
+ *
+ * In FD2.LE this is a register-passing setup routine (PUSH EBP / PUSHAD frame,
+ * no __CHK). It spills all ten __cdecl stack arguments into the pathfind state
+ * globals, reads map_width / map_height out of the tile-map header, computes
+ * the origin tile's marker pointer and stores the step budget there, then --
+ * with DL=seed_x, DH=seed_y, CL=max_steps, EBX=origin marker pointer, EDI=step
+ * stack base live in registers -- issues two no-argument CALLs:
+ * fd2_pathfind_check_destination_save_path (initial origin==dst check; it reads
+ * the position from DL/DH) and fd2_pathfind_recursive_with_direction (the
+ * directional DFS, which reloads seed_x/seed_y/max_steps/origin_ptr from those
+ * same registers). The secondary cost-table base is captured into
+ * data_fd2_battle_pathfind_caller_context (the binary's ESI spill, the FIRST
+ * store) so the recursion leaves read it back from there. This emit is Layer-2
+ * equivalent: the global spills are the same writes (same order / widths), the
+ * origin pointer / marker write are identical, and the two no-argument binary
+ * CALLs become native C calls passing the register values explicitly --
+ * check_destination_save_path(seed_x, seed_y) and
+ * recursive_with_direction(seed_x, seed_y, max_steps, origin_ptr). The return
+ * value is data_fd2_battle_pathfind_best_path_length (the binary's
+ * XOR EAX,EAX; MOV AL,[0x60078]); neither CALL's EAX result is used, so the
+ * Ghidra EAX-tracking artifact does not apply here.
+ *
+ *   ct  : caller context / secondary cost-table base (the binary's ESI spill,
+ *         stored 32-bit into data_fd2_battle_pathfind_caller_context, where the
+ *         leaf step reads it back as the cost table indexed by the primary
+ *         table's secondary index).
+ *   sx  : origin tile X (source column); truncated to its low byte into seed_x.
+ *   sy  : origin tile Y (source row); truncated to its low byte into seed_y.
+ *   ms  : movement step budget; truncated to its low byte into max_steps and
+ *         written into the origin tile's marker as the starting residual.
+ *   db  : path output buffer base; stored 32-bit into
+ *         data_fd2_battle_pathfind_path_output_buffer_ptr, where the path
+ *         recorders write the landed (x, y) / direction sequence.
+ *   f1  : destination tile X; truncated to its low byte into dst_x.
+ *   f2  : destination tile Y; truncated to its low byte into dst_y.
+ *   md  : neighbor-step mode flags (0 = standard, 1 = standard + diversity
+ *         tiebreak, 2 = ignore-obstacles + dst-record); low byte into
+ *         data_fd2_battle_pathfind_mode_flags.
+ *   tm  : battle tile map base (4-byte-per-tile map); stored 32-bit and used as
+ *         the base for origin-tile address math; map_width = tm[0],
+ *         map_height = tm[2].
+ *   af  : primary tile-attribute -> cost lookup table base; stored 32-bit into
+ *         data_fd2_battle_pathfind_tile_cost_table_ptr.
+ *
+ * Origin marker pointer = tm + ((uint16)(map_width * seed_y) + seed_x) * 4 + 7.
+ * The map_width * seed_y product is formed 8-bit-by-8-bit into a 16-bit value
+ * (binary MUL AH), matching the (uint16) cast here (both operands <= 255 so it
+ * never actually wraps).
+ * ---------------------------------------------------------------- */
+uint8 fd2_pathfind_to_destination(uint32 ct, uint32 sx, uint32 sy, uint32 ms,
+    uint32 db, uint32 f1, uint32 f2, uint32 md, uint32 tm, uint32 af)
+{
+    uint8 *origin_ptr;
+    uint32 tile_index;
+
+    /* Spill the ten arguments into the pathfind state globals. caller_context
+     * (the binary's ESI) is written first, then the seed block, output buffer,
+     * destination coords, mode, tile map, and primary cost table -- same order /
+     * widths as the binary's MOV stores at 0x4E1AD..0x4E207. */
+    data_fd2_battle_pathfind_caller_context = ct;
+    data_fd2_battle_pathfind_floodfill_seed_x = (uint8)sx;
+    data_fd2_battle_pathfind_floodfill_seed_y = (uint8)sy;
+    data_fd2_battle_pathfind_floodfill_max_steps = (uint8)ms;
+    data_fd2_battle_pathfind_path_output_buffer_ptr = db;
+    data_fd2_battle_pathfind_dst_x = (uint8)f1;
+    data_fd2_battle_pathfind_dst_y = (uint8)f2;
+    data_fd2_battle_pathfind_mode_flags = (uint8)md;
+    data_fd2_battle_pathfind_battle_tile_map_ptr = tm;
+    data_fd2_battle_pathfind_map_width = *(uint8 *)tm;
+    data_fd2_battle_pathfind_map_height = *(uint8 *)(tm + 2);
+    data_fd2_battle_pathfind_tile_cost_table_ptr = af;
+
+    /* Origin tile marker address inside the battle tile map (EBX in the
+     * binary): ((map_width * seed_y) + seed_x) * 4 + 7, added to the map base. */
+    tile_index = (uint32)(uint16)((uint16)data_fd2_battle_pathfind_map_width
+            * (uint16)data_fd2_battle_pathfind_floodfill_seed_y)
+        + (uint32)data_fd2_battle_pathfind_floodfill_seed_x;
+    origin_ptr = (uint8 *)(data_fd2_battle_pathfind_battle_tile_map_ptr
+        + tile_index * 4 + 7);
+
+    /* Seed the origin with the full step budget so the search can decrement. */
+    *origin_ptr = data_fd2_battle_pathfind_floodfill_max_steps;
+
+    /* Reset the search bookkeeping: depth 0, best-path-length sentinel 0xFF
+     * (so any first arrival wins). Binary: MOV [0x60077],0 / MOV [0x60078],0xFF. */
+    data_fd2_battle_pathfind_current_depth = 0;
+    data_fd2_battle_pathfind_best_path_length = 0xFF;
+
+    /* Short-circuit: if the origin already is the destination, record path
+     * length 0 (binary CALL 0x4E401 with DL=seed_x, DH=seed_y live). */
+    fd2_pathfind_check_destination_save_path(
+        data_fd2_battle_pathfind_floodfill_seed_x,
+        data_fd2_battle_pathfind_floodfill_seed_y);
+
+    /* Run the directional DFS (binary CALL 0x4E27C with DL=seed_x, DH=seed_y,
+     * CL=max_steps, EBX=origin_ptr, EDI=step stack base live). */
+    fd2_pathfind_recursive_with_direction(
+        data_fd2_battle_pathfind_floodfill_seed_x,
+        data_fd2_battle_pathfind_floodfill_seed_y,
+        data_fd2_battle_pathfind_floodfill_max_steps,
+        origin_ptr);
+
+    return data_fd2_battle_pathfind_best_path_length;
+}
+
+/* ----------------------------------------------------------------
  * Pathfind state globals (.object3, 0x60060+)
  *
  * Runtime-populated pathfinding state shared between the movement-range

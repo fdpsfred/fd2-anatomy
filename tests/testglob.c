@@ -1692,30 +1692,10 @@ uint32 fd2_load_figani_sfx_bank(uint32 figani_data)
  * right counter. (Counter defined near the top of this file, ahead of the AIL
  * spy that increments it.) */
 void fd2_paint_char_sprite_at_world_with_mode(uint32 w, uint32 s, uint32 c, uint32 m, uint32 co) { }
-/* Pathfind stub. Behavior is selected by the `md` (mode) arg:
- *   md==2  -> "find optimal reachable cell" call (fd2_ai_seek_optimal_position).
- *            When g_pathfind_write_dst!=0 it writes the discovered destination
- *            (g_pathfind_dst_x, g_pathfind_dst_y) into the db output buffer, and
- *            returns g_pathfind_return (the step/0xFF code).
- *   md==0/1 -> "route toward a specific target" call (inside
- *            fd2_ai_walk_to_target_tile). Returns g_pathfind_walk_return.
- * This separation lets a seek-position test pin the seek's pathfind result and
- * reported destination independently of the walk routine's own return value,
- * which is required to lock in the EAX-tracking semantics of did_move.
- *
- * Sequenced mode (g_pathfind_seq_enable != 0, default OFF so every existing test
- * keeps the single-value behavior above): fd2_ai_walk_to_target_tile issues THREE
- * sequential pathfinds in a fixed order -- Stage A (md==0), Stage B (md==1), and
- * the final route (md==0). A walk test that must drive distinct outcomes per call
- * (e.g. Stage A unreachable 0xFF -> Stage B succeeds -> final route) scripts the
- * per-call return codes in g_pathfind_seq[0..3] indexed by call order, and injects
- * a deterministic Stage B step-byte path (g_pathfind_step_bytes, length
- * g_pathfind_seq_steps) into the md==1 db buffer so the routine's step-decode +
- * furthest-walkable scan runs over known data.
- *
- * Always (both modes): the destination (f1,f2) of the LAST md==0 call is recorded
- * in g_pathfind_md0_dst_x/y, letting a test observe which tile the routine finally
- * routed to (the chosen "best adjacent tile"). */
+/* g_pathfind_* recorders -- retained (unfilled) so the caller suites still
+ * compile/link. The spy that used to fill them is now emitted for real in
+ * src/util/pathfnd.c (coordinated landing, open_issues #33); those suites'
+ * assertions are rewritten to drive the real pathfind in Phase 3. */
 int g_pathfind_return = 0;
 int g_pathfind_walk_return = 0;
 int g_pathfind_write_dst = 0;
@@ -1728,50 +1708,16 @@ int g_pathfind_seq_steps = 0;
 uint8 g_pathfind_step_bytes[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 int g_pathfind_md0_dst_x = -1;
 int g_pathfind_md0_dst_y = -1;
-int fd2_pathfind_to_destination(uint32 ct, uint32 sx, uint32 sy, uint32 ms,
-    uint32 db, uint32 f1, uint32 f2, uint32 md, uint32 tm, uint32 af) {
-    (void)ct; (void)sx; (void)sy; (void)ms; (void)tm; (void)af;
-    if (md == 0) {
-        g_pathfind_md0_dst_x = (int)f1;
-        g_pathfind_md0_dst_y = (int)f2;
-    }
-    if (g_pathfind_seq_enable != 0) {
-        int idx;
-        int rc;
-        int k;
-        idx = g_pathfind_seq_idx;
-        if (idx > 3) idx = 3;
-        rc = g_pathfind_seq[idx];
-        if (md == 1 && db != 0) {
-            for (k = 0; k < g_pathfind_seq_steps && k < 8; k++) {
-                ((uint8 *)db)[k] = g_pathfind_step_bytes[k];
-            }
-        }
-        g_pathfind_seq_idx++;
-        return rc;
-    }
-    if (md == 2) {
-        if (g_pathfind_write_dst != 0 && db != 0) {
-            ((uint8 *)db)[0] = (uint8)g_pathfind_dst_x;
-            ((uint8 *)db)[1] = (uint8)g_pathfind_dst_y;
-        }
-        return g_pathfind_return;
-    }
-    return g_pathfind_walk_return;
-}
+/* fd2_pathfind_to_destination @ 0x4E1A6: real in src/util/pathfnd.c; spy removed. */
 /* fd2_obfuscate_battle_tile_map: now in save/save.c */
 
-/* --- battle-AI tile-map reachability snapshot ---
- * The real fd2_obfuscate_battle_tile_map (now linked from save/save.c, no
- * longer a no-op stub) resets every tile record's +7 reachability byte to
- * 0xFF. In the live game the very next call -- fd2_init_movement_range_
- * floodfill -- recomputes that reachability layer. The battle-AI unit tests
- * (battlfix.h) instead pre-paint the +7 bytes and stub the floodfill, so the
- * stub must now repaint the test's intended reachability after obfuscate has
- * wiped it. bf_capture_tilemap() snapshots the test's painted map; the stub
- * restores it on every floodfill call (count = header[0]*header[2] tiles,
- * 4-byte records after the 4-byte header). When disarmed (count 0) the stub
- * is inert, matching its prior no-op behaviour for non-battle suites. */
+/* --- battle-AI tile-map reachability snapshot (retained for Phase 3) ---
+ * fd2_init_movement_range_floodfill is now emitted for real in
+ * src/util/pathfnd.c (coordinated landing, open_issues #33); its former repaint
+ * stub is removed below. bf_capture_tilemap() and the snapshot globals are kept
+ * because the battle-AI suites (btl_ais1/btl_aitg) still reference them; with
+ * the real floodfill now recomputing the +7 reachability layer, those suites'
+ * reachability assertions are rewritten to drive the real floodfill in Phase 3. */
 uint8  g_bf_tilemap_snapshot[4 + 20 * 15 * 4];
 uint32 g_bf_tilemap_snapshot_bytes = 0;
 uint32 g_bf_tilemap_snapshot_ptr = 0;   /* map the snapshot was taken from */
@@ -1791,19 +1737,7 @@ void bf_capture_tilemap(void)
     }
 }
 
-void fd2_init_movement_range_floodfill(uint32 ct, uint32 x, uint32 y,
-    uint32 rng, uint32 tm, uint32 af)
-{
-    /* Repaint only when armed AND the live map is the exact buffer the
-     * snapshot was captured from. The pointer guard keeps a stale armed flag
-     * from a prior battle suite from copying the (1204-byte) snapshot into a
-     * different, smaller tile-map buffer owned by a later suite. */
-    if (g_bf_tilemap_snapshot_bytes != 0 &&
-        data_fd2_battle_tile_map_ptr == g_bf_tilemap_snapshot_ptr) {
-        memcpy((void *)data_fd2_battle_tile_map_ptr, g_bf_tilemap_snapshot,
-               g_bf_tilemap_snapshot_bytes);
-    }
-}
+/* fd2_init_movement_range_floodfill @ 0x4E040: real in src/util/pathfnd.c; spy removed. */
 
 /* fd2_flood_fill_neighbor_step @ 0x4E16E: now emitted for real in
  * src/util/pathfnd.c (coordinated landing per open_issues #33). Its former

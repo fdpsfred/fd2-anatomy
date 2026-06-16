@@ -4897,8 +4897,9 @@
     "name": "fd2_init_movement_range_floodfill",
     "target": "util/pathfnd.c",
     "phase": 2,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004e0dc": {
     "name": "fd2_flood_fill_movement_range_recursive",
@@ -4920,8 +4921,9 @@
     "name": "fd2_pathfind_to_destination",
     "target": "util/pathfnd.c",
     "phase": 2,
-    "done": false,
-    "asm": false
+    "done": true,
+    "asm": false,
+    "reviewed": true
   },
   "0004e27c": {
     "name": "fd2_pathfind_recursive_with_direction",
