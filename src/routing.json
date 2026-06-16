@@ -2874,7 +2874,7 @@
     "phase": 3,
     "done": true,
     "asm": false,
-    "reviewed": false
+    "reviewed": true
   },
   "0002939d": {
     "name": "fd2_execute_combat_hit_cinematic",
@@ -4972,7 +4972,7 @@
     "phase": 3,
     "done": true,
     "asm": false,
-    "reviewed": false
+    "reviewed": true
   },
   "0004e48d": {
     "name": "fd2_get_class_promotion_data_entry",
@@ -5068,7 +5068,7 @@
     "phase": 3,
     "done": true,
     "asm": false,
-    "reviewed": false
+    "reviewed": true
   },
   "0004e63d": {
     "name": "fd2_rle_blit_sprite",
@@ -5076,7 +5076,7 @@
     "phase": 3,
     "done": true,
     "asm": false,
-    "reviewed": false
+    "reviewed": true
   },
   "0004e7f8": {
     "name": "fd2_get_cutscene_event_script",
@@ -5092,7 +5092,7 @@
     "phase": 5,
     "done": true,
     "asm": false,
-    "reviewed": false
+    "reviewed": true
   },
   "0004e85b": {
     "name": "fd2_blit_sprite_with_decoded_pixels",
@@ -5100,7 +5100,7 @@
     "phase": 3,
     "done": true,
     "asm": false,
-    "reviewed": false
+    "reviewed": true
   },
   "0004e893": {
     "name": "fd2_advance_rng_state",
@@ -5116,7 +5116,7 @@
     "phase": 3,
     "done": true,
     "asm": false,
-    "reviewed": false
+    "reviewed": true
   },
   "0004e8e1": {
     "name": "fd2_dialog_sprite_blit_mirrored",
@@ -5124,7 +5124,7 @@
     "phase": 3,
     "done": true,
     "asm": false,
-    "reviewed": false
+    "reviewed": true
   },
   "0004e915": {
     "name": "fd2_noop_stub_4e915",
@@ -5140,7 +5140,7 @@
     "phase": 3,
     "done": true,
     "asm": false,
-    "reviewed": false
+    "reviewed": true
   },
   "0004e92c": {
     "name": "fd2_restore_screen_block_from_buffer",
@@ -5148,7 +5148,7 @@
     "phase": 5,
     "done": true,
     "asm": false,
-    "reviewed": false
+    "reviewed": true
   },
   "0004e954": {
     "name": "fd2_restore_block_loop",
@@ -5156,7 +5156,7 @@
     "phase": 5,
     "done": true,
     "asm": false,
-    "reviewed": false
+    "reviewed": true
   },
   "0004e96f": {
     "name": "fd2_save_screen_block_to_buffer",
@@ -5164,7 +5164,7 @@
     "phase": 5,
     "done": true,
     "asm": false,
-    "reviewed": false
+    "reviewed": true
   },
   "0004e9a0": {
     "name": "fd2_save_block_loop",
@@ -5172,7 +5172,7 @@
     "phase": 5,
     "done": true,
     "asm": false,
-    "reviewed": false
+    "reviewed": true
   },
   "0004e9bb": {
     "name": "fd2_blit_sprite_raw_with_header",
@@ -5180,7 +5180,7 @@
     "phase": 3,
     "done": true,
     "asm": false,
-    "reviewed": false
+    "reviewed": true
   },
   "0004e9e4": {
     "name": "fd2_blit_sprite_with_stride_setup",
@@ -5188,7 +5188,7 @@
     "phase": 3,
     "done": true,
     "asm": false,
-    "reviewed": false
+    "reviewed": true
   },
   "0004e9ff": {
     "name": "fd2_blit_sprite_with_stride_loop",
@@ -5196,7 +5196,7 @@
     "phase": 3,
     "done": true,
     "asm": false,
-    "reviewed": false
+    "reviewed": true
   },
   "0004ea2a": {
     "name": "fd2_blit_glyph_2bpp_with_outline",
@@ -5204,7 +5204,7 @@
     "phase": 3,
     "done": true,
     "asm": false,
-    "reviewed": false
+    "reviewed": true
   },
   "0004eae6": {
     "name": "fd2_blit_sprite_scaled_with_skip",
@@ -5212,7 +5212,7 @@
     "phase": 3,
     "done": true,
     "asm": false,
-    "reviewed": false
+    "reviewed": true
   },
   "0004eb90": {
     "name": "fd2_blit_buffer_with_per_row_offset",
@@ -5220,6 +5220,6 @@
     "phase": 3,
     "done": true,
     "asm": false,
-    "reviewed": false
+    "reviewed": true
   }
 }
