@@ -150,6 +150,13 @@ def main():
     ap.add_argument("--poll", type=int, default=2, help="poll interval seconds")
     ap.add_argument("--hang-stall", type=int, default=20,
                     help="seconds with no test heartbeat change (run phase) before declaring a hang")
+    ap.add_argument("--only", default="",
+                    help="run only the test suite(s) whose runner name or source path "
+                         "contains this substring (e.g. 'anicine1' or 'gfx/rndstat'); "
+                         "still compiles everything, but TEST.EXE runs only the matched "
+                         "runner(s) so an earlier suite's hang can't block verification. "
+                         "tests/testmain.c is filtered for the run and restored after. "
+                         "Does NOT modify src/.")
     args = ap.parse_args()
 
     if not CONF.is_file():
@@ -157,6 +164,29 @@ def main():
     DRIVE_DIR.mkdir(parents=True, exist_ok=True)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     OBJ_DIR.mkdir(parents=True, exist_ok=True)
+
+    # --only: temporarily rewrite tests/testmain.c's GENBUILD calls block to invoke
+    # only the matched suite runner(s), so the run completes for that suite instead
+    # of stalling on an earlier suite's hang. The full file (all runners) is restored
+    # in every exit path below. The build still compiles all of src/ + tests/; only
+    # which runners main() calls changes. src/ is never touched.
+    testmain_backup = None
+    testmain_path = None
+    only_runners = []
+    if args.only:
+        sys.path.insert(0, str(TESTS_DIR))
+        import genbuild as _gb
+        only_runners = [s["run"] for s in _gb.suite_files()
+                        if args.only in s["run"] or args.only in s["rel"]]
+        if not only_runners:
+            raise SystemExit("--only '%s' matched no test suite runner" % args.only)
+        testmain_path = _gb.TESTMAIN
+        testmain_backup = testmain_path.read_text(encoding="utf-8")
+        _calls = "\n".join("    %s();" % r for r in only_runners)
+        _filtered = _gb._replace_between(testmain_backup, _gb.CALL_START,
+                                         _gb.CALL_END, _calls)
+        # NB: the filtered file is WRITTEN later (just before launch), after the host
+        # prep that can fail safely with testmain.c still in its full committed form.
 
     dosbox = resolve_dosbox()
     run_conf = gen_run_conf()   # mounts point at THIS checkout (worktree-safe)
@@ -180,6 +210,15 @@ def main():
 
     # stage real game files into tests/OUT (TEST.EXE's cwd) before launch.
     staged_game, missing_game = stage_game_files()
+
+    # NOW write the --only-filtered testmain.c: every earlier step that could fail
+    # (resolve_dosbox / gen_run_conf / OUT clean / stage_game_files) has run with the
+    # file in its full committed form, so a failure there leaves testmain.c intact.
+    # It is restored on both exit paths below. Belt-and-suspenders: if a hard
+    # interrupt ever leaves it filtered, `python tests/genbuild.py --apply`
+    # regenerates the full runner list from the marker block.
+    if testmain_backup is not None:
+        testmain_path.write_text(_filtered, encoding="utf-8")
 
     # launch DOSBox-X (non-blocking); build.bat ends with `exit` so DOSBox closes
     # ONLY when the batch completes. Empirically (tools/hangprobe): a normal run
@@ -205,6 +244,8 @@ def main():
     except OSError as e:
         if stdio_fp:
             stdio_fp.close()
+        if testmain_backup is not None:
+            testmain_path.write_text(testmain_backup, encoding="utf-8")
         raise SystemExit("failed to launch dosbox-x: %s" % e)
 
     done = False
@@ -254,6 +295,11 @@ def main():
             stdio_fp.close()
         except OSError:
             pass
+
+    # restore the full-runner testmain.c (compile is long finished by now). Done on
+    # every path: normal here, launch-failure above. Keeps --only side-effect-free.
+    if testmain_backup is not None:
+        testmain_path.write_text(testmain_backup, encoding="utf-8")
 
     # parse build.out (Watcom diagnostics: "Error!" / "Warning!")
     errors, warnings, build_tail = [], [], ""
@@ -340,6 +386,7 @@ def main():
         "missing_game_files": missing_game,
         "elapsed_sec": elapsed,
         "changed": args.changed,
+        "only_runners": only_runners,
         "error_count": len(errors),
         "warning_count": len(warnings),
         "errors": errors,
