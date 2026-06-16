@@ -97,7 +97,7 @@ Phase 4 收斂 fd2.exe + 實機對照`。
 
 全 563 `data_fd2_` 符號（Ghidra 即時查證一致）post-merge 分流：**real_in_src 376**（已落地 src/ file-scope，含初值表 / bss tentative / `void (*const tbl[])()` 派遣表）、**undefined 186**、**sublabel 1**（`chapter_intro_menu_typeC_portrait_id`，母表帶出）、fake_in_testglob 0。186 undefined 拆解：**106 cutscene**（chtab3.c 已 emit 單一 pool `cutscene_event_script_data` + offset 指標表，資料已落地、非待辦）+ **58 string**（使用點 inline 字面值 / strtab.c，資料已落地）+ **22 真待落地**（21 blit/pathfind/spell anim state + `stat_buff_multiplier_115` const）→ 全部隨 Phase 2 的 21 函式 emit 一起落地。**權威缺口以 src-only `fd2.lnk` 神諭的 undefined symbol 為準（Phase 4）。** reconcile.py 正確計入 tentative/bss 定義與 const 函式指標表（DEF_RE 含 `;` 結尾、FNPTR_RE 含 `(*const tbl[])`）。fd2_ 函式缺口：**0（全 650 emit+reviewed，Phase 2 完成）**；Phase 2 一併 land 12 個 graphics/compose-state 全域（blit 9 + composite 3，全 mutable zero-init）；vendor 60 + `fd2_delay_ms` = Phase 4 link。
 
-**Phase 4 連結注意**：`fd2.lnk` 需顯式 `library clib3s`；AIL lib（`workspace/ail_extract/out/{ailv3,fd2common}.lib`）要 stage 到穩定路徑（`build_test.py` 會清 `tests/OUT`）。
+**Phase 4 連結（LINK 步驟已完成，commit `17e7a8d`；0 undefined、FD2.EXE 產出）**：`fd2.lnk` 已由 `mklnk.py` 顯式列 `library` CLIB3S/MATH387S/EMU387（全路徑 `D:\LIB386\...`，`system dos4g` 不自動 pull）；AIL lib（`workspace/ail_extract/out/{ailv3,fd2common}.lib`）由 `link_oracle.py` 每次 stage 進 `E:\out`（`build_test.py` 會清 `tests/OUT`，故每跑 oracle 前都 re-stage）；`link_oracle` 另不帶 `-Dmain` 重編 lifemain.obj 給 FD2.EXE（test build 帶 `-Dmain=fd2_main`）。已知小 warning：曾出現一次 `cannot open fd2common.lib`（staging 時序；該 lib 不被引用、連結仍 0 undefined，非阻斷）。**Phase 4 剩：DOSBox 實機跑 FD2.EXE 對照原版。**
 
 ---
 
