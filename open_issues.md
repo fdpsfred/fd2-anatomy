@@ -187,7 +187,11 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
   可作為 lookup 維護 regression script 重建（原 crt_audit pipeline 已移除），
   避免未來新增 byte_match entry 時再現此問題。
 
-### 32. gfx/blitspr.c blit-leaf cluster 需跨分支 coordinated landing（不可單分支 emit）
+### ✅ 32. gfx/blitspr.c blit-leaf cluster coordinated landing（Phase 2 已解）
+
+**已解**：19 個 blit 函式 emit+review+commit（`59dd5e4` landing + `41750d3` reviewed，22/22 approved）、9 個 graphics blit-state 全域 land（`glyph_blit_state` struct + 8 scalar/array，全 mutable zero-init）、13 個 testglob spy body 刪（recorder 全保留）、build gate 0err/0warn。約 40 個依賴套件的 spy-recorder 斷言重寫＝Phase 3。下方為已執行的配方（歷史記錄）。
+
+（原 needs-action）：gfx/blitspr.c blit-leaf cluster 需跨分支 coordinated landing（不可單分支 emit）
 
 - **現狀**：`gfx/blitspr.c` 的 blit 子系統有 19 個 function 尚未 emit（branch_4 分區內、
   全部 `done=false`），且**整批不能用 per-function workflow 逐一落地**。核心是測試端有兩層
@@ -243,7 +247,11 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
     binary 正確 emit 的——它傳的第 3 引數是算好的目標 offset、第 4 是 stride，只是舊 prototype
     名字把它們叫成 x/y。
 
-### 33. util/pathfnd.c 的 2 個 pathfind/floodfill entry 需 coordinated landing
+### ✅ 33. util/pathfnd.c pathfind/floodfill entry coordinated landing（Phase 2 已解）
+
+**已解**：`fd2_init_movement_range_floodfill` + `fd2_pathfind_to_destination` emit+review+commit（`2643652`）、2 個 testglob spy 刪（`g_pathfind_*` / `g_bf_tilemap` recorder 保留）、build gate 0err/0warn。約 26 個依賴套件的斷言重寫＝Phase 3。下方為已執行的配方（歷史記錄）。
+
+（原 needs-action）：util/pathfnd.c 的 2 個 pathfind/floodfill entry 需 coordinated landing
 
 - **現狀**：`util/pathfnd.c` 的 pathfind/floodfill 子系統共 8 個 function 待 emit（branch_4 分區），
   其中 **6 個內部 helper 可正常 bottom-up emit**（`0004e0dc fd2_flood_fill_movement_range_recursive`、

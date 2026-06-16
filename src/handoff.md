@@ -1,8 +1,8 @@
 # FD2 Rebuild — Handoff
 
 目標：`src/` 自身 compile+link 出可正確執行的 `fd2.exe`；`src/`+`tests/` compile 出測試執行檔。
-**全 650 個遊戲 function 已 emit、四分支 merge cascade 已落入 `integ`。
-當前在「真實資料落地 + 測試重寫 + 收斂 fd2.exe」收斂計畫（data-first）。**Phase 1（真資料落地 src/）已全部完成並合併回 `integ`（commit `cd2c0a8`）：343/343 data symbol 全 emit+review+commit，data-p1..p4 四分支 merge cascade 收尾，最終驗收全綠（build gate 0 err/0 warn、verify_real 28/28 byte-identical、scout reviewed 347/347、src 資料檔與來源分支 byte-identical、testglob 只剩 3 個 Phase-2/4 fake）。下一步＝Phase 2（補完 21 個 blit/pathfind function），在此 Phase 1 hard-stop 等使用者評估。**
+**全 650 個遊戲 function 已 emit+review+commit 進 `integ`。當前在「真實資料落地 + 測試重寫 + 收斂 fd2.exe」收斂計畫（data-first）。**
+**Phase 1（真資料落地，commit `cd2c0a8`）+ Phase 2（補完 22 個 blit/pathfind/composite coordinated landing）皆已完成。** routing 650/650 emit+reviewed、await_emit 0、build gate 0 err/0 warn、Ghidra Bad Instruction 0、FD2.LE 已存。**下一步＝Phase 3（系統性測試重寫到實際全綠），在此 Phase 2 hard-stop 等使用者評估。**
 完整計畫：`C:\Users\fdpsf\.claude\plans\plan-plan-soft-dongarra.md`（**新 session 先讀它 + 下面這段**）。
 
 **溝通方式（使用者要求）**：給使用者的所有文字（含對話回覆，不只文件）一律用淺白通順的繁體中文完整句子，
@@ -49,15 +49,15 @@ Phase 4 收斂 fd2.exe + 實機對照`。
 > 每路即時查剩餘：`python ../fd2-wt/dpN/tools/data_emit/scout.py workspace/data_emit/partitions/part_N.json C:/Users/fdpsf/Documents/fd2-wt/dpN data-pN`
 > （印剩餘 pending；該輸出 JSON 同時就是 mop-up 的 `Workflow` args）。
 
-### 待解（依序，做完才算 Phase 1 收斂）
+### Phase 1 + Phase 2 完成（記錄）
 
-**✅ [const-fix] 完成（dp4 commit `ff05f00`）**：9 個被誤 demote 的真 const 表（`view_window_max_x/y`、`tile_attr_mv/def_modifier_table`、`job_magic_resist_table`、`job_crit_rate_table`、`summon_spell_8slot_visibility/y_offset/row_multiplier_table`，`dp4/src/table/btltab.c`）已改回 const（def + globals.h extern），寫它們的測試以 **whole-function `#if0`** SKIP（非改寫、非 demote）。**已驗證**：9 個 def+extern 全 const、`build_test` 0err/0warn、commit diff 只加 `#if0`/marker（零碼改、零刪除、零 demote）；Ghidra 實查 9 位址遊戲端全 READ、零 WRITE＝真 const。原則已鎖（memory `feedback_const_data_never_demote_for_tests`；workflow SOP/buildGate 禁 demote）。**代價（Phase 3 債，見下）**：compiler-forced cascade 共 SKIP 255 個測試 + ~53 個 helper、24 檔（約 dp4 1739 測試的 15%）——因 const-9 是被大量 fixture 當前置條件寫入的遊戲常數。
+**Phase 1（真資料落地）✅** — 343/343 data symbol emit+review+commit、data-p1..p4 merge cascade 落入 `integ`（`cd2c0a8`）、`verify_real.py` 28/28 byte-identical、9 個誤 demote 真 const 已改回 const（原則鎖在 memory `feedback_const_data_never_demote_for_tests`）。
 
-**✅ [mop-up] 完成**：6 個 529 leftover 全數補完、各 build-gate 0/0 —— dp1 ×2（`view_window_origin_y` `9fbfd46`、`cursor_world_x` `2923d09`；先預清 cursor.c 半落地 def，commit `d4d5956`）、dp2 ×1（`pathfind_current_depth` `e2dc1e2`）、dp4 ×3（`ui_terrain_hud_panel_offset_51a0c` `2af14bd`、`audio_summon_spell_sfx_bank_buf_ptr` `0dfb3c5`、`chapter_chapter_init_done_flag` `7caacd1`）。**四 worktree 已驗證**：pending=0、reviewed=112/88/83/76（各分區 100%）、working tree 乾淨、dp4 的 9 個 const 仍 const。整體 343/343 data symbol 全數 emit+review+commit。
-
-**✅ [merge] 完成**：data-p1..p4 四分支 merge cascade 全部落入 `integ`（merge commits `6adc9f1` `e891630` `e381fd6` `cd2c0a8`）。衝突全依 §3 方法論手解：globals.h extern 一律對齊 src/ 真 def（const-ness 由真 def 決定）；testglob.c 移除所有已 real 的 fake、只留無 src def 者；測試檔 const extern 對齊 + Phase-3 SKIP `#if0` 取兩分支聯集且 `#if/#endif` 平衡。良性 caller-const 與新表檔皆 file-disjoint 自動合。
-
-**✅ [verify] 完成**：`build_test.py` 0 err/0 warn；`verify_real.py` 28/28 byte-identical；`scout --stats` reviewed 347/347；12 個 src/table 資料檔與來源分支 byte-identical（merge 零改 src 資料值）；src 內 0 重複定義、src↔testglob 0 重複；testglob 只剩 3 個 Phase-2/4 fake（`ani_decoder_frame_dispatch_table`、`data_ail_alloc/free_fnptr`）。**Phase 1 全部收斂 → hard-stop 等使用者再進 Phase 2。**
+**Phase 2（補完 22 函式）✅** — 3 個 coordinated landing，用新工具 `tools/emit/coland.wf.js`（emit 序列 / review 並行雙模式；orchestrator 擁有 spy 刪除 + data-land + build gate + commit，sub-agent 只做單函式三源 emit / 唯讀 review）：
+- **pathfind**（`2643652`）：`fd2_init_movement_range_floodfill` + `fd2_pathfind_to_destination` 真 body，刪 2 spy。
+- **blit**（`59dd5e4` landing + `41750d3` reviewed）：19 函式 + 9 個 graphics blit-state 全域（`glyph_blit_state` struct〔types.h packed 17B〕+ 8 scalar/array，全 mutable zero-init）+ 13 spy 刪。
+- **composite**（`42a2dd0`）：`fd2_composite_battle_tile_map`（885B 熱路徑）+ 3 個 BIOS-tick-latch 全域 + spy 刪。
+- 全程：每函式獨立 reviewer 三源復驗（**22/22 approved，零 blocking**）、所有 12 個新 data 全域逐一 write-xref 定 const-ness（全有遊戲 WRITE→mutable）、保留全部 `g_*` recorder（依賴測試斷言重寫 → Phase 3）、build gate 全 0err/0warn。**Phase 2 收斂 → hard-stop 等使用者再進 Phase 3。**
 
 ### 工具現況（接手必懂；與上一版 handoff 不同處）
 
@@ -66,15 +66,16 @@ Phase 4 收斂 fd2.exe + 實機對照`。
 - **scout 讀哪個 routing**：必須跑 **該 worktree 的** `dpN/tools/data_emit/scout.py`（由 `__file__` 解析 ROOT＝該 worktree，才讀該 worktree routing、跳過已 commit）；跑主 repo 的 scout 讀 integ routing（reviewed=4，尚未 merge）。
 - **leftover 從何來 / 怎麼補**：Anthropic 529 overload 打死零星 reviewer/lander → 那些符號成為上面 6 個 leftover。workflow 對 529/limit 的行為：sub-agent retry 用盡回 null → 該符號記 needs_user/land_failed、迴圈續跑，**不崩、不停整批**；已 commit 零損失，re-scout 跳過 reviewed 補 leftover 即可。
 
-### Phase 3 待辦（本輪 build gate 累積的測試債，非 Phase 1 blocker）
+### Phase 3 待辦（累積的測試債）
 
+- **Phase 2 函式的依賴測試重寫（最大宗，新增）**：22 個 blit/pathfind/composite 落地後刪了共享 spy、保留 recorder（不填值），故依賴 spy recorder 斷言的套件 runtime-fail/hang（pathfind ~26 套件、blit ~40 套件〔g_rle_blit_* 10 + g_blit_indexed_* 30〕、composite ~7 套件，多有重疊）。Phase 3 逐套件改「seed 真輸入 → 驅動真函式 → 斷言真像素 / 真演算法結果」（範本 `tests/gfx/rndstat.c`、`tests/include/blitprob.h`）。**特例**：composite spy 兼 idle-loop break seam（`g_repaint_flip_buffer_after`，menu/idle-loop 測試靠它翻 BIOS 鍵盤 buffer 中斷迴圈）→ 改直接 BIOS 鍵盤注入。已知 hang：pathfind `test_ai_walk_no_path` 等。
 - **const-writer SKIP**：多個 const 表的寫入測試被 `#if0` SKIP（各 build gate 回報的 `skipped_tests`，如 dp1 uitab → `tests/gfx/rndmenu.c` 13 個 promo 測試）。**最大宗＝dp4 const-fix（commit `ff05f00`）**：255 測試 + ~53 helper 跨 24 檔被 whole-function `#if0`（marker `SKIP (Phase 3): writes now-const <table>` 可 grep），涵蓋寫 view_window_max / job_magic_resist / job_crit_rate / tile_attr_mv-def / summon_spell_8slot×3 的 fixture 級聯。Phase 3 逐一還原成「讀固定 const 值佈置情境」而非寫 const。
 - **dp2 `data_fd2_chapter_intro_metadata_table`（chtab3.c，維持 const）**：被共享 fixture（`tests/gfx/rndmenu.c::intro_setup()`、`tests/save/save.c::scs_setup/teardown`）寫入 → chtab3.c build gate 為保綠對這兩個 fixture 做過處置（最終 build 綠）。**接手要 review dp2 該檔相關 commits 看它具體改了什麼**（可能 SKIP/註解 fixture 寫入），Phase 3 還原。
 - **dp1 `life/main.c` 自癒符號**：第一輪（commit `9691ff0`）finalizer 自補 16 個未經獨立 reviewer 的 def（4 init-data 已對 binary 驗、12 zero-bss 為 `T name;`），Phase 2.6 復驗一併過。
 
 ### 帳目（即時重算：`python tools/data_emit/reconcile.py`，勿抄）
 
-全 563 `data_fd2_` 符號（Ghidra 即時查證一致）post-merge 分流：**real_in_src 376**（已落地 src/ file-scope，含初值表 / bss tentative / `void (*const tbl[])()` 派遣表）、**undefined 186**、**sublabel 1**（`chapter_intro_menu_typeC_portrait_id`，母表帶出）、fake_in_testglob 0。186 undefined 拆解：**106 cutscene**（chtab3.c 已 emit 單一 pool `cutscene_event_script_data` + offset 指標表，資料已落地、非待辦）+ **58 string**（使用點 inline 字面值 / strtab.c，資料已落地）+ **22 真待落地**（21 blit/pathfind/spell anim state + `stat_buff_multiplier_115` const）→ 全部隨 Phase 2 的 21 函式 emit 一起落地。**權威缺口以 src-only `fd2.lnk` 神諭的 undefined symbol 為準（Phase 4）。** reconcile.py 正確計入 tentative/bss 定義與 const 函式指標表（DEF_RE 含 `;` 結尾、FNPTR_RE 含 `(*const tbl[])`）。fd2_ 函式缺口：composite + 21 await_emit（blit/pathfind）= Phase 2；vendor 60 + `__delay_thunk_375b2` = Phase 4。
+全 563 `data_fd2_` 符號（Ghidra 即時查證一致）post-merge 分流：**real_in_src 376**（已落地 src/ file-scope，含初值表 / bss tentative / `void (*const tbl[])()` 派遣表）、**undefined 186**、**sublabel 1**（`chapter_intro_menu_typeC_portrait_id`，母表帶出）、fake_in_testglob 0。186 undefined 拆解：**106 cutscene**（chtab3.c 已 emit 單一 pool `cutscene_event_script_data` + offset 指標表，資料已落地、非待辦）+ **58 string**（使用點 inline 字面值 / strtab.c，資料已落地）+ **22 真待落地**（21 blit/pathfind/spell anim state + `stat_buff_multiplier_115` const）→ 全部隨 Phase 2 的 21 函式 emit 一起落地。**權威缺口以 src-only `fd2.lnk` 神諭的 undefined symbol 為準（Phase 4）。** reconcile.py 正確計入 tentative/bss 定義與 const 函式指標表（DEF_RE 含 `;` 結尾、FNPTR_RE 含 `(*const tbl[])`）。fd2_ 函式缺口：**0（全 650 emit+reviewed，Phase 2 完成）**；Phase 2 一併 land 12 個 graphics/compose-state 全域（blit 9 + composite 3，全 mutable zero-init）；vendor 60 + `__delay_thunk_375b2` = Phase 4 link。
 
 **Phase 4 連結注意**：`fd2.lnk` 需顯式 `library clib3s`；AIL lib（`workspace/ail_extract/out/{ailv3,fd2common}.lib`）要 stage 到穩定路徑（`build_test.py` 會清 `tests/OUT`）。
 
