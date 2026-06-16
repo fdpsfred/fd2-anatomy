@@ -43,6 +43,21 @@ int32 data_fd2_graphics_char_sprite_paint_jitter_tick_latch;
  * battle AI item-use path). */
 uint32 data_fd2_battle_tile_map_anim_frame_counter;
 
+/* @ 0x539FC -- background shimmer animation frame index (u32). Passed by
+ * fd2_composite_battle_tile_map to fd2_blit_buffer_with_per_row_offset as the
+ * starting per-row offset into the 16-entry shimmer table; incremented once
+ * per tick and wrapped at 0x10 on the animated-background chapters (9, 0x18,
+ * 0x19, 0x1C, 0x1D). Zero-initialized at startup. */
+uint32 data_fd2_graphics_bg_animation_frame_idx;
+
+/* @ 0x51A93 -- forced tile-animation frame override (u32). The default
+ * sentinel 0xFFFFFFFF lets the tile-map palette-phase counter free-run; any
+ * other value would be copied into data_fd2_battle_tile_map_anim_frame_counter
+ * by fd2_composite_battle_tile_map to pin the tile palette phase. The shipped
+ * binary only reads this (no writer), so it stays at the sentinel;
+ * initialized to 0xFFFFFFFF. */
+uint32 data_fd2_graphics_forced_tile_anim_frame = 0xffffffff;
+
 /* ----------------------------------------------------------------
  * fd2_composite_battle_frame @ 0x11CAC (61 callers)
  *

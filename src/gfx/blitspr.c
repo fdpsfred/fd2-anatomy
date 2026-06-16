@@ -24,6 +24,14 @@ uint16 data_fd2_graphics_sprite_blit_src_height;          /* 0x627C2 */
 uint16 data_fd2_graphics_sprite_blit_scale_num;           /* 0x627C4 */
 uint16 data_fd2_graphics_sprite_blit_scale_den;           /* 0x627C6 */
 
+/* @ 0x627C8 -- 16-entry per-row x-shift table for the chapter-background
+ * shimmer / heat-haze effect. Read-only (no game WRITE xrefs -> const) by
+ * fd2_blit_buffer_with_per_row_offset, indexed by a cyclic 0..15 counter to
+ * displace each copied source row horizontally. */
+const uint8 data_fd2_graphics_shimmer_offset_table_16b[16] = {
+    2, 3, 3, 4, 4, 4, 3, 3, 2, 1, 1, 0, 0, 0, 1, 1
+};
+
 /* ----------------------------------------------------------------
  * fd2_blit_rectangle @ 0x11EB0 (53 callers)
  *
