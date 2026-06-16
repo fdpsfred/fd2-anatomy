@@ -739,33 +739,13 @@ int    g_blitsetup_calls = 0;
 /* per-call log (page-advance collapse test verifies all 8 corner blits) */
 uint32 g_blitsetup_dst_log[32];
 uint32 g_blitsetup_sprite_log[32];
-void fd2_blit_sprite_with_stride_setup(uint32 d, uint32 s, uint32 st)
-{
-    if (g_blitsetup_calls < 32) {
-        g_blitsetup_dst_log[g_blitsetup_calls] = d;
-        g_blitsetup_sprite_log[g_blitsetup_calls] = s;
-    }
-    g_blitsetup_dst = d;
-    g_blitsetup_sprite = s;
-    g_blitsetup_stride = st;
-    g_blitsetup_calls++;
-}
+/* fd2_blit_sprite_with_stride_setup @ 0x4e9e4: real in src/gfx/blitspr.c; spy removed (recorders retained for Phase 3). */
 /* fd2_restore_dialog_area_from_buffer now has a real body in
  * src/dialog/dialog.c (inverse of fd2_backup_dialog_area_to_buffer). */
 uint32 g_saveblk_out, g_saveblk_w, g_saveblk_h, g_saveblk_dst,
        g_saveblk_src, g_saveblk_stride;
 int    g_saveblk_calls = 0;
-void fd2_save_screen_block_to_buffer(uint32 out_buf, uint32 width, uint32 height,
-                                     uint32 dst, uint32 src_ptr, uint32 stride)
-{
-    g_saveblk_out = out_buf;
-    g_saveblk_w = width;
-    g_saveblk_h = height;
-    g_saveblk_dst = dst;
-    g_saveblk_src = src_ptr;
-    g_saveblk_stride = stride;
-    g_saveblk_calls++;
-}
+/* fd2_save_screen_block_to_buffer @ 0x4e96f: real in src/gfx/blitspr.c; spy removed (recorders retained for Phase 3). */
 /* fd2_assemble_dialog_frame_layered is now emitted for real in
  * src/dialog/dialog.c. Its callers' tests (fd2_play_dialog_open_animation,
  * and the dedicated frame-layout test) drive the real function and observe
@@ -780,18 +760,7 @@ int    g_blitdec_log_on = 0;
 int    g_blitdec_log_count = 0;
 uint32 g_blitdec_log_dst[16];
 uint32 g_blitdec_log_sprite[16];
-void fd2_blit_sprite_with_decoded_pixels(uint32 d, uint32 s, uint32 st)
-{
-    g_blitdec_dst = d;
-    g_blitdec_sprite = s;
-    g_blitdec_stride = st;
-    if (g_blitdec_log_on && g_blitdec_log_count < 16) {
-        g_blitdec_log_dst[g_blitdec_log_count] = d;
-        g_blitdec_log_sprite[g_blitdec_log_count] = s;
-        g_blitdec_log_count++;
-    }
-    g_blitdec_calls++;
-}
+/* fd2_blit_sprite_with_decoded_pixels @ 0x4e85b: real in src/gfx/blitspr.c; spy removed (recorders retained for Phase 3). */
 /* capture wiring for fd2_blit_sheet_sprite_at_offset tests */
 uint32 g_blitraw_dst, g_blitraw_sprite, g_blitraw_stride;
 /* full call log (used by dialog frame-layout tests): records every raw blit */
@@ -799,18 +768,7 @@ int    g_blitraw_log_on = 0;
 int    g_blitraw_count = 0;
 uint32 g_blitraw_log_dst[512];
 uint32 g_blitraw_log_sprite[512];
-uint32 fd2_blit_sprite_raw_with_header(uint32 d, uint32 s, uint32 st)
-{
-    g_blitraw_dst = d;
-    g_blitraw_sprite = s;
-    g_blitraw_stride = st;
-    if (g_blitraw_log_on && g_blitraw_count < 512) {
-        g_blitraw_log_dst[g_blitraw_count] = d;
-        g_blitraw_log_sprite[g_blitraw_count] = s;
-        g_blitraw_count++;
-    }
-    return 0;
-}
+/* fd2_blit_sprite_raw_with_header @ 0x4e9bb: real in src/gfx/blitspr.c; spy removed (recorders retained for Phase 3). */
 /* fd2_render_recruitment_select_screen is now a real emitted function
  * (src/gfx/rndmenu.c); its former no-op stub here was removed. The
  * recruitment render test (tests/gfx/rndmenu.c) drives the real renderer. */
@@ -1106,10 +1064,7 @@ void fd2_cinematic_warp_char_to_tile(uint32 char_id, uint32 tile_x, uint32 tile_
  * this when emitted. (The sibling scatter callee
  * fd2_scatter_sprite_around_origin_with_random_offset is now the real emitted
  * function in src/spell/spellcin.c; its former stub here was removed.) */
-void fd2_blit_palette_remap_with_sprite_mask(
-    uint8 *dst, uint16 *sprite_mask, uint32 stride, uint32 remap_table) {
-    (void)dst; (void)sprite_mask; (void)stride; (void)remap_table;
-}
+/* fd2_blit_palette_remap_with_sprite_mask @ 0x4e445: real in src/gfx/blitspr.c; spy removed (recorders retained for Phase 3). */
 
 /* fd2_animate_party_addition_with_appear_effect (@0x32999) is not yet emitted.
  * It is a heavy 12-frame "new char appearance" explosion animation (real
@@ -1293,36 +1248,7 @@ uint32 g_rle_blit_log_palette[64];
 int32  g_rle_blit_log_y[64];
 int32  g_rle_blit_log_x[64];
 uint8  g_rle_blit_log_first_byte[64];
-void fd2_rle_blit_sprite(uint32 rle_stream, int32 dst_x, int32 dst_y,
-                         uint32 dst_buf, int32 stride, uint32 palette_op) {
-    g_rle_blit_last_sprite = rle_stream;
-    g_rle_blit_last_x = dst_x;
-    g_rle_blit_last_y = dst_y;
-    g_rle_blit_last_buf = dst_buf;
-    g_rle_blit_last_stride = stride;
-    g_rle_blit_last_palette = palette_op;
-    if (g_rle_blit_calls < 4) {
-        g_rle_blit_y_log[g_rle_blit_calls] = dst_y;
-        /* first payload byte of the loaded sprite, used by the rsrc tests to
-         * verify which DAT index the real loader fetched (each fixture seeds
-         * payload[idx][0] = idx). */
-        g_rle_blit_sprite_first_byte_log[g_rle_blit_calls] =
-            (rle_stream != 0) ? *(uint8 *)rle_stream : 0;
-    }
-    if (g_rle_blit_log_on && g_rle_blit_calls < 64) {
-        g_rle_blit_log_sprite[g_rle_blit_calls] = rle_stream;
-        g_rle_blit_log_dst[g_rle_blit_calls] = dst_buf;
-        g_rle_blit_log_stride[g_rle_blit_calls] = stride;
-        g_rle_blit_log_palette[g_rle_blit_calls] = palette_op;
-        g_rle_blit_log_y[g_rle_blit_calls] = dst_y;
-        g_rle_blit_log_x[g_rle_blit_calls] = dst_x;
-        /* capture the first payload byte NOW (the sprite buffer may be freed
-         * by the caller's cleanup before the test inspects it). */
-        g_rle_blit_log_first_byte[g_rle_blit_calls] =
-            (rle_stream != 0) ? *(uint8 *)rle_stream : 0;
-    }
-    g_rle_blit_calls++;
-}
+/* fd2_rle_blit_sprite @ 0x4e63d: real in src/gfx/blitspr.c; spy removed (recorders retained for Phase 3). */
 /* fd2_render_signed_modifier_with_icon: now emitted in src/gfx/rndstat.c. The
  * rndstat HUD tests drive the real function (through its only caller
  * fd2_render_terrain_info_hud_panel), observing the sign-icon blit and the
@@ -1381,13 +1307,7 @@ uint32 g_play_ani_last_skip = 0;
  * counting 0x11..1. */
 int g_scroll_buffer_calls = 0;
 uint32 g_scroll_buffer_last_wrap = 0;
-void fd2_scroll_buffer_block_with_wrap(uint32 wrap_param, void *dst_buf,
-                                       void *src_buf) {
-    g_scroll_buffer_calls++;
-    g_scroll_buffer_last_wrap = wrap_param;
-    (void)dst_buf;
-    (void)src_buf;
-}
+/* fd2_scroll_buffer_block_with_wrap @ 0x4e809: real in src/gfx/blitspr.c; spy removed (recorders retained for Phase 3). */
 /* fd2_process_battle_drop_entries: now emitted for real in
  * src/battle/btl_turn.c; its former noop stub here was removed. The
  * battle/btl_turn.c drop tests drive the real function (control-flow gates +
@@ -1516,27 +1436,7 @@ int    g_blit_indexed_y_log[64] = {0};
  * the _calls / _last_* scalars and are unaffected. */
 uint32 g_blit_indexed_sprite_frame_log[128];
 int    g_blit_indexed_sprite_frame_log_n = 0;
-void fd2_blit_indexed_sprite(uint32 a, uint32 f, int x, int y, int m) {
-    if (g_blit_indexed_log_on && g_blit_indexed_sprite_calls < 64) {
-        g_blit_indexed_log_frame[g_blit_indexed_sprite_calls] = f;
-    }
-    g_blit_indexed_sprite_calls++;
-    g_blit_indexed_sprite_last_frame = f;
-    g_blit_indexed_sprite_last_x = x;
-    g_blit_indexed_sprite_last_y = y;
-    if (g_blit_indexed_log_on && g_blit_indexed_log_count < 64) {
-        g_blit_indexed_atlas_log[g_blit_indexed_log_count] = a;
-        g_blit_indexed_frame_log[g_blit_indexed_log_count] = f;
-        g_blit_indexed_x_log[g_blit_indexed_log_count] = x;
-        g_blit_indexed_y_log[g_blit_indexed_log_count] = y;
-        g_blit_indexed_log_count++;
-    }
-    if (g_blit_indexed_sprite_frame_log_n < 128) {
-        g_blit_indexed_sprite_frame_log[g_blit_indexed_sprite_frame_log_n] = f;
-        g_blit_indexed_sprite_frame_log_n++;
-    }
-    (void)m;
-}
+/* fd2_blit_indexed_sprite @ 0x2935b: real in src/gfx/blitspr.c; spy removed (recorders retained for Phase 3). */
 /* fd2_rle_blit_with_palette_remap @ 0x4E583 is a display-only RLE sprite
  * decoder with a 256-entry palette LUT; it is not emitted yet (only the FIGANI
  * animation loop references it). Recording spy: the loop's spell-cast-frame
@@ -1550,18 +1450,7 @@ int32  g_rle_remap_log_palette[16] = {0};
 int32  g_rle_remap_log_dstx[16] = {0};
 int32  g_rle_remap_log_dsty[16] = {0};
 uint32 g_rle_remap_log_stream[16] = {0};
-void fd2_rle_blit_with_palette_remap(uint16 *rle_stream, int32 dst_x, int32 dst_y,
-                                     int32 dst_buf, int32 stride, int32 palette_remap) {
-    g_rle_remap_calls++;
-    if (g_rle_remap_log_count < 16) {
-        g_rle_remap_log_palette[g_rle_remap_log_count] = palette_remap;
-        g_rle_remap_log_dstx[g_rle_remap_log_count] = dst_x;
-        g_rle_remap_log_dsty[g_rle_remap_log_count] = dst_y;
-        g_rle_remap_log_stream[g_rle_remap_log_count] = (uint32)rle_stream;
-        g_rle_remap_log_count++;
-    }
-    (void)dst_buf; (void)stride;
-}
+/* fd2_rle_blit_with_palette_remap @ 0x4e583: real in src/gfx/blitspr.c; spy removed (recorders retained for Phase 3). */
 void  *data_fd2_animation_ani_decoder_frame_dispatch_table[10] = {0};
 /* fd2_composite_battle_frame is now a real emitted function (src/gfx/rndscene.c).
  * g_composite_call_count (defined above with the pipeline stubs) remains the
@@ -1823,12 +1712,7 @@ int    g_restore_block_calls = 0;
 uint32 g_restore_block_last_buf = 0;
 uint32 g_restore_block_last_dst = 0;
 uint32 g_restore_block_last_stride = 0;
-void fd2_restore_screen_block_from_buffer(uint32 saved_block, uint32 dst, uint32 stride) {
-    g_restore_block_calls++;
-    g_restore_block_last_buf = saved_block;
-    g_restore_block_last_dst = dst;
-    g_restore_block_last_stride = stride;
-}
+/* fd2_restore_screen_block_from_buffer @ 0x4e92c: real in src/gfx/blitspr.c; spy removed (recorders retained for Phase 3). */
 
 /* ---- fd2_display_dialog_scene (dialog VM) support ----
  * Globals it reads/writes (not yet defined elsewhere) and display-side-effect
@@ -1846,16 +1730,7 @@ uint32 g_dlg_glyph_last_idx = 0;
 uint32 g_dlg_glyph_last_pos = 0;
 uint32 g_dlg_glyph_last_p5 = 0;   /* glyph colour/border param (p5) */
 
-void fd2_blit_glyph_2bpp_with_outline(uint32 font_sheet, uint32 glyph_idx,
-                                      uint32 render_pos, uint32 render_pitch,
-                                      uint32 p5, uint32 p6, uint16 p7) {
-    (void)font_sheet; (void)render_pitch; (void)p6; (void)p7;
-    g_dlg_glyph_calls++;
-    g_dlg_glyph_last_idx = glyph_idx;
-    g_dlg_glyph_last_pos = render_pos;
-    g_dlg_glyph_last_p5 = p5;
-    g_dlg_glyph_last_p5  = p5;
-}
+/* fd2_blit_glyph_2bpp_with_outline @ 0x4ea2a: real in src/gfx/blitspr.c; spy removed (recorders retained for Phase 3). */
 /* fd2_play_dialog_open_animation: now emitted in src/dialog/dialog.c and
  * linked for real; its 5-stage frame assembly is driven by the
  * test_open_anim_* cases in tests/dialog/dialog.c.
@@ -1882,29 +1757,8 @@ uint32 g_dlg_blit_sprite_log[16];
  * record-only behaviour for every other test. */
 int    g_dlg_blit_mirror_inject_after = 0;     /* 0 = disabled */
 int    g_dlg_blit_mirror_inject_scancode = 0;
-void fd2_dialog_sprite_blit_normal(uint32 dst, uint32 sprite, uint32 stride) {
-    if (g_dlg_blit_normal_calls < 16) {
-        g_dlg_blit_dst_log[g_dlg_blit_normal_calls] = dst;
-        g_dlg_blit_sprite_log[g_dlg_blit_normal_calls] = sprite;
-    }
-    g_dlg_blit_normal_calls++;
-    g_dlg_blit_last_dst = dst;
-    g_dlg_blit_last_sprite = sprite;
-    g_dlg_blit_last_stride = stride;
-}
-void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite, uint32 stride) {
-    g_dlg_blit_mirrored_calls++;
-    g_dlg_blit_last_dst = dst;
-    g_dlg_blit_last_sprite = sprite;
-    g_dlg_blit_last_stride = stride;
-    if (g_dlg_blit_mirror_inject_after != 0
-        && g_dlg_blit_mirrored_calls == g_dlg_blit_mirror_inject_after) {
-        *(volatile uint16 *)0x41AuL = 0x1E;                 /* head        */
-        *(volatile uint16 *)0x41CuL = 0x20;                 /* tail=head+2 */
-        *(volatile uint16 *)0x41EuL =
-            (uint16)((g_dlg_blit_mirror_inject_scancode << 8) & 0xFF00);
-    }
-}
+/* fd2_dialog_sprite_blit_normal @ 0x4e8af: real in src/gfx/blitspr.c; spy removed (recorders retained for Phase 3). */
+/* fd2_dialog_sprite_blit_mirrored @ 0x4e8e1: real in src/gfx/blitspr.c; spy removed (recorders retained for Phase 3). */
 /* Promote/revive candidate-picker callees (not yet emitted in src) — recording
  * no-op spies driving tests/ui_menu/promote.c fd2_promote_members_select_loop.
  * The grid renderer records its arg snapshot; the two scroll animators just

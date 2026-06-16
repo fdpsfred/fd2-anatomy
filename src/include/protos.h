@@ -436,7 +436,8 @@ void fd2_draw_spell_selection_list(uint32 char_idx, uint32 spell_idx, uint32 ove
 void fd2_display_cinematic_image_with_fade(uint32 image1_idx, uint32 palette_idx,
                                            uint32 src_x_off, int32 row_idx);
 void fd2_tick_sprite_animation_step(uint8 *p_frame_idx, uint8 *p_tick, int x, int y, uint32 atlas);
-void fd2_blit_indexed_sprite(uint32 atlas, uint32 frame_idx, int x, int y, int mode);
+void fd2_blit_indexed_sprite(uint32 sheet_ptr, uint32 sprite_idx, uint32 dst_buf,
+                             int32 dst_stride, uint32 palette_op);
 void fd2_ani_decoder_set_target_buffer(uint16 width, uint32 dst_buf, uint32 src_buf);
 int fd2_tally_chars_with_zero_at_field(int len, uint32 char_idx_arr, int field_offset, int weight);
 int fd2_find_tile_with_attribute_match(uint32 target_tag, uint32 out_pos);
@@ -654,12 +655,12 @@ void fd2_load_save_and_init_engine(void);
 
 /* ---- dialog / UI screens ---- */
 uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx, uint32 render_pos, uint32 render_pitch, uint32 glyph_p5, uint32 glyph_p6, uint32 glyph_p7, uint32 glyph_height, uint32 blink_flag);
-void fd2_blit_glyph_2bpp_with_outline(uint32 font_sheet, uint32 glyph_idx, uint32 render_pos, uint32 render_pitch, uint32 p5, uint32 p6, uint16 p7);
+void fd2_blit_glyph_2bpp_with_outline(uint32 font_data, uint32 glyph_idx, uint32 dst_buf, uint32 pitch, uint32 fill_color, uint32 outline_color, uint16 bg_color);
 uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 flip);
 void fd2_assemble_dialog_frame_layered(uint32 dst, uint32 pitch, uint32 col_offset, int row_offset, int n_cols, int n_rows);
 void fd2_cinematic_scroll_text_up_for_special_scenes(void);
-void fd2_dialog_sprite_blit_normal(uint32 dst, uint32 sprite, uint32 stride);
-void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite, uint32 stride);
+void fd2_dialog_sprite_blit_normal(uint32 dst, uint32 sprite_hdr, uint32 stride);
+void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite_hdr, uint32 stride);
 void fd2_close_dialog_panels_then_slide_in_at(uint32 anim_handle, uint32 slot_offset);
 void fd2_portrait_blink_animation_step(void);
 void fd2_load_chapter_portrait(uint32 portrait_id);
@@ -680,7 +681,7 @@ void fd2_wait_ticks_or_keypress_with_palette(uint32 max_ticks);
 int fd2_wait_for_input_v2(void);
 int fd2_wait_for_action_target_input(int mode, uint32 n_options, uint8 *pTarget_array);
 /* forward decl — gfx stubs */
-uint32 fd2_blit_sprite_raw_with_header(uint32 dst, uint32 sprite_hdr, uint32 stride);
+void fd2_blit_sprite_raw_with_header(uint32 dst, uint32 sprite_hdr, uint32 stride);
 void fd2_blit_sheet_sprite_at_offset(uint32 dst, uint32 dst_pitch, uint32 sheet, uint32 sprite_idx);
 void fd2_blit_indexed_sprite_at_xy(uint32 dst, uint32 dst_pitch, uint32 sheet, uint32 sprite_idx);
 void fd2_fill_screen_rect_with_byte(uint32 x, uint32 y, uint32 color, uint32 size);
@@ -724,6 +725,8 @@ void fd2_render_number_red_when_full(uint32 dst_off, uint32 pitch, uint32 curren
 void fd2_render_signed_modifier_with_icon(uint32 dst, uint32 stride, int32 modifier);
 void fd2_cleanup_dialog_sprite_buffer(uint32 saved_block, uint32 dst, uint32 stride);
 void fd2_restore_screen_block_from_buffer(uint32 saved_block, uint32 dst, uint32 stride);
+void fd2_restore_block_loop(uint32 dst, uint32 src, uint32 stride);
+void fd2_save_block_loop(uint32 src, uint32 dst, uint32 stride);
 void fd2_repaint_settings_dialog_borders(uint32 menu_options, uint32 menu_state);
 int fd2_wait_input_with_dialog_repaint(uint32 menu_state, uint32 pSlot_disable_arr);
 void fd2_wait_input_with_status_panel_repaint(uint32 char_idx);
@@ -735,12 +738,16 @@ void fd2_render_party_roster_grid(uint32 highlight_idx, uint32 surface_offset);
 void fd2_render_party_roster_with_item_stat_preview(uint32 candidate_count, uint32 candidate_array_ptr, uint32 item_id, int32 highlight_idx, int32 surface_offset);
 void fd2_render_promote_members_grid(uint32 candidate_count, uint32 surface_offset, uint32 highlight_idx, uint8 *candidate_idx_list);
 void fd2_render_promote_candidates_grid(uint32 candidate_count, uint32 surface_offset, uint32 highlight_idx, uint8 *candidate_idx_list, uint8 *promotion_target_list);
-void fd2_blit_sprite_with_stride_setup(uint32 dst, uint32 sprite, uint32 stride);
+void fd2_blit_sprite_with_stride_setup(uint32 dst, uint32 sprite_hdr, uint32 stride);
+void fd2_blit_sprite_with_stride_loop(uint32 dst_buf, uint32 sprite_hdr);
+void fd2_blit_sprite_scaled_with_skip(uint32 sprite_hdr, uint32 dst_buf, uint32 stride, uint32 scale_num, uint32 scale_den);
+void fd2_blit_buffer_with_per_row_offset(uint32 src_buf, uint32 *dst_buf, uint32 offset_idx);
 void fd2_backup_dialog_area_to_buffer(void);
 void fd2_restore_dialog_area_from_buffer(void);
 void fd2_blit_sprite_with_decoded_pixels(uint32 dst, uint32 sprite_hdr, uint32 stride);
+uint16 fd2_decode_dialog_pixel_byte(uint16 state, uint8 **stream);
 void fd2_save_screen_block_to_buffer(uint32 out_buf, uint32 width, uint32 height,
-                                     uint32 dst, uint32 src_ptr, uint32 stride);
+                                     uint32 src_base, uint32 src_offset, uint32 stride);
 void *fd2_blit_indexed_sprite_with_alloc(uint32 sprite_hdr, uint32 dst,
                                          uint32 dst_pitch, uint32 sheet_base,
                                          uint32 sprite_idx);

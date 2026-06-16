@@ -243,6 +243,21 @@ extern int32  data_fd2_graphics_char_sprite_paint_jitter_tick_latch;    /* 0x53A
 extern uint32 data_fd2_graphics_chapter_walk_anim_alt_palette_idx;      /* 0x53C07 */
 extern int32  data_fd2_graphics_chapter_ambient_palette_anim_idx;       /* 0x53C0B  signed: reader@0x121CF SAR/2 idiom */
 extern uint32 data_fd2_graphics_chapter_ambient_palette_anim_tick_latch; /* 0x53C0F */
+/* blit scratch state (verified game-side WRITE xrefs -> mutable, zero-init) */
+extern glyph_blit_state data_fd2_graphics_glyph_blit_state;             /* 0x627A3 */
+extern uint16 data_fd2_graphics_sprite_mask_blit_width;                 /* 0x6017B */
+extern uint16 data_fd2_graphics_rle_blit_cur_width;                     /* 0x627B4 */
+extern uint16 data_fd2_graphics_rle_blit_remaining_rows;                /* 0x627B6 */
+extern uint8  data_fd2_graphics_sprite_blit_scaler_loop_state[6];       /* 0x627BA */
+extern uint16 data_fd2_graphics_sprite_blit_src_width;                  /* 0x627C0 */
+extern uint16 data_fd2_graphics_sprite_blit_src_height;                 /* 0x627C2 */
+extern uint16 data_fd2_graphics_sprite_blit_scale_num;                  /* 0x627C4 */
+extern uint16 data_fd2_graphics_sprite_blit_scale_den;                  /* 0x627C6 */
+/* Per-row x displacement table for the background shimmer / heat-haze blit
+ * (fd2_blit_buffer_with_per_row_offset); a smooth 0..4..0..1 up/down ramp
+ * cycled by row. Two readers, no writers -> read-only const.
+ * {2,3,3,4,4,4,3,3,2,1,1,0,0,0,1,1} */
+extern const uint8 data_fd2_graphics_shimmer_offset_table_16b[16];      /* 0x627C8 */
 extern const double data_fd2_graphics_radian_per_degree_const;          /* 0x501F8  const 0.0174532 (deg->rad) */
 extern const double data_fd2_graphics_scatter_y_offset_neg8;            /* 0x50200  const -8.0 (AoE scatter Y skew) */
 extern const double data_fd2_graphics_circle_anim_div_10;               /* 0x501F0  const 10.0 */
