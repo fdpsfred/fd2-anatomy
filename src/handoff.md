@@ -6,7 +6,9 @@
 
 ### Phase 3 進度（current，最先讀）
 
-**⏸ 目前暫停點（OPEN，先處理）**：基礎已就緒並 commit（HEAD `57b826e`；序列 `e280ff8` build-fix → `762b2b1` --only 工具 → `0f2dd2e` handoff → `57b826e` minip+finding）。攻 anicine1 範本已**校準出 Phase 3b 真實難度**（見下兩條「發現」）。**正等使用者裁示 Phase 3b 排序**，使用者要先釐清問題再決定 → 新 session 先把此決定談定再動手：
+**✅ Phase 4 LINK 里程碑達成（commit `17e7a8d`，HEAD）**：src-only `fd2.lnk` 神諭已連結出 **FD2.EXE（349 KB、合法 MZ/DOS4GW）、0 undefined** —— `src/` 已能自給自足連出遊戲執行檔（Phase 4 只剩 DOSBox 實機 playtest 對照原版，尚未做）。補掉神諭最後缺口的三件事：(1) `fd2_main`→`main`（CRT cmain386 進入點契約；是唯一豁免 `fd2_` 前綴的 game function，見 memory [[project_fd2_function_prefix_main_exempt]]）；(2) `__delay_thunk_375b2`→`fd2_delay_ms` 落地 `src/util/misc.c`（真函式 `void fd2_delay_ms(uint32 ms){delay(ms);}`，routing 651 筆）；(3) `mklnk.py` 在 `fd2.lnk` 顯式列 Watcom CRT（CLIB3S/MATH387S/EMU387；`system dos4g` 不自動 pull）。雙 main 處置：`genbuild` 在 test build 只對 `life/main.c` 加 `-Dmain=fd2_main`、`link_oracle` 不帶 define 重編 lifemain 給 FD2.EXE。TEST build 仍綠（`build_test --only table` 18/18）、Ghidra 已存、0 Bad Instruction。**重跑神諭/最終建置**：先 `python tools/emit/build_test.py`（編 src obj）→ `python tools/fd2_build/{mklnk.py --apply, link_oracle.py, analyze_undefined.py}`。
+
+**⏸ Phase 3 暫停點（OPEN，仍未完成）**：Phase 3「測試實際全綠」尚未做完（Phase 4 LINK 是這次順著使用者提問先完成的支線）。基礎工具齊備（`--only`、minip safe-fixture；commits `e280ff8`/`762b2b1`/`57b826e`）。攻 anicine1 範本已**校準出 Phase 3b 真實難度**（見下兩條「發現」）。**正等使用者裁示 Phase 3b 排序**，使用者要先釐清問題再決定 → 新 session 先把此決定談定再動手：
 - **A（建議）**：可解的非-cinematic suites 先衝綠拿動能（battle/spell 邏輯、table、save、input 等真值觀測、不依賴 display spy）＋ 建中央 `tg_install_cinematic_safe_atlases()`＋清 testglob 殘留 spy＋產出完整「spy-now-real」清單；~30 個 cinematic 法醫重設計留最後一波集中做。
 - **B**：照原訂先把最難的 anicine1 整支重設計到綠（chit 相對-HP + zoom/flash safe-atlas + 4 個 #if0 重啟），確立完整法醫範本再 fan-out。
 - **C**：先只做中央基建（safe-atlas + 清 spy + spy-now-real 清單）這一步，再評估下一波。
