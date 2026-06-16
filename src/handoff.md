@@ -1,7 +1,7 @@
 # FD2 Rebuild — Handoff
 
 目標：`src/` 自身 compile+link 出可正確執行的 `fd2.exe`；`src/`+`tests/` compile 出測試執行檔。
-**全 650 個遊戲 function 已 emit+review+commit 進 `integ`。當前在「真實資料落地 + 測試重寫 + 收斂 fd2.exe」收斂計畫（data-first）。**
+**全 650 個遊戲 function 已 emit+review+commit。Phase 1+2 全部工作已從 `integ` 用 `--no-ff` merge 進 `main`（merge commit `89268a4`，main tree == integ）；當前 branch ＝ `main`，`integ` 已整合（下方 §0-§7 與本段以下對 `integ` / `data-pN` / `emit-pN` 的引用皆為歷史記錄）。當前在「真實資料落地 + 測試重寫 + 收斂 fd2.exe」收斂計畫（data-first）。**
 **Phase 1（真資料落地，commit `cd2c0a8`）+ Phase 2（補完 22 個 blit/pathfind/composite coordinated landing）皆已完成。** routing 650/650 emit+reviewed、await_emit 0、build gate 0 err/0 warn、Ghidra Bad Instruction 0、FD2.LE 已存。**下一步＝Phase 3（系統性測試重寫到實際全綠），在此 Phase 2 hard-stop 等使用者評估。**
 完整計畫：`C:\Users\fdpsf\.claude\plans\plan-plan-soft-dongarra.md`（**新 session 先讀它 + 下面這段**）。
 
@@ -327,7 +327,7 @@ reviewer。`python tools/emit/next_batch.py --mode review` 掃出 +
 `Workflow(scriptPath:"tools/emit/emit_review.wf.js", args:…)` review 模式逐一三源復驗 → approved →
 per-function commit 設 `reviewed=true`。
 
-**Phase 3 — 收斂 main**：`git checkout main && git merge integ` → 最終 `build_test.py` 全綠 →
+**收斂 main（舊 emit-pipeline 計畫的最終步；`integ`→`main` merge 已完成 `89268a4`，main tree == integ）**：剩餘 → 最終 `build_test.py` 全綠 →
 `next_batch.py --stats` 應 `reviewed=650 / await_emit=0 / await_review=0` →
 `list_bookmarks(category="Bad Instruction")`=0 → 清 worktree（`git worktree remove ../fd2-wt/p1..p4`）
 + branch（`emit-p1..p4` / `integ`）→ 無 dosbox 孤兒 → 回寫本檔（完工時清空 §1 斷點 + protos.h 做
