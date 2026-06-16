@@ -790,11 +790,11 @@ int fd2_execute_attack_damage_calculation(int attacker_idx, int defender_idx)
             *(uint8 *)(pDefender + 0x25) =
                 (uint8)((int)rng_val % 4) + 2;
             fd2_set_full_vga_palette_to_color(1, 0x20, 0);
-            fd2_delay_ticks(0x14);
+            __delay_thunk_375b2(0x14);
             fd2_set_vga_palette_range_with_add(0, 0xff, 0);
-            fd2_delay_ticks(0x28);
+            __delay_thunk_375b2(0x28);
             fd2_set_full_vga_palette_to_color(1, 0x20, 0);
-            fd2_delay_ticks(0x14);
+            __delay_thunk_375b2(0x14);
             fd2_set_vga_palette_range_with_add(0, 0xff, 0);
         }
     }
@@ -807,11 +807,11 @@ int fd2_execute_attack_damage_calculation(int attacker_idx, int defender_idx)
         rng_val = fd2_advance_rng_state();
         if ((int)(rng_val % 100) < (int)total_crit_pct) {
             fd2_set_vga_palette_range_with_add(0, 0xff, 0x3f);
-            fd2_delay_ticks(0x14);
+            __delay_thunk_375b2(0x14);
             fd2_set_vga_palette_range_with_add(0, 0xff, 0);
-            fd2_delay_ticks(0x28);
+            __delay_thunk_375b2(0x28);
             fd2_set_vga_palette_range_with_add(0, 0xff, 0x3f);
-            fd2_delay_ticks(0x14);
+            __delay_thunk_375b2(0x14);
             fd2_set_vga_palette_range_with_add(0, 0xff, 0);
             defender_DP = (int)defender_DP / 2;
         }
@@ -881,3 +881,46 @@ uint32 fd2_find_equipped_item_by_kind(uint32 char_idx, uint32 kind)
     }
     return 0xffffffff;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_check_char_is_dead @ 0x3453E  (33 callers)
+ *
+ * Return the dead bit (bit0) of runtime_char[char_idx].flags, as 0
+ * (alive) or 1 (dead). Counterpart to fd2_mark_char_as_dead @ 0x32975
+ * which writes flags = 1. Body: AL = flags; AL &= 1; MOVZX EAX,AL.
+ * ---------------------------------------------------------------- */
+int fd2_check_char_is_dead(uint32 char_idx)
+{
+    return data_fd2_battle_runtime_char_array_ptr[char_idx].flags
+         & CHARFLAG_DEAD;
+}
+
+/* ----------------------------------------------------------------
+ * Battle global data
+ * ---------------------------------------------------------------- */
+
+/*
+ * data_fd2_battle_last_hit_or_miss_flag @ 0x53C6B
+ *
+ * Last physical-attack hit/miss result flag. Encoding: 0 = HIT, 1 = MISS.
+ * Written by fd2_execute_attack_damage_calculation (set to 1 = MISS at
+ * entry, then 0 = HIT when the hit roll succeeds), read by
+ * fd2_animate_attack_hit_sequence to force the miss "whoosh" SFX and to
+ * suppress the attack pose on a miss. Runtime state: always written before
+ * read, so zero-initialized (the static value carries no semantics).
+ * Accessed as a single byte (MOV/CMP byte ptr, MOVZX => unsigned).
+ */
+uint8 data_fd2_battle_last_hit_or_miss_flag;
+
+/*
+ * data_fd2_shared_rng_seed @ 0x627B8 (.object3)
+ *
+ * Shared 16-bit pseudorandom number generator state. The sole accessor
+ * fd2_advance_rng_state reads it, applies seed = ROL16(seed + 0x9014, 3),
+ * and writes it back (read-modify-write in place). No other code reads or
+ * writes this address, so there is no explicit initializer: the seed starts
+ * at the C default of 0, and the first advance yields ROL16(0x9014, 3) =
+ * 0x80A4. Hence zero-initialized (BSS) runtime state.
+ * Accessed as a whole 16-bit word (MOV AX,[..] / MOV [..],AX => unsigned).
+ */
+uint16 data_fd2_shared_rng_seed;

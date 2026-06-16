@@ -11,7 +11,7 @@ LLLLLL archive (詳 `overview.md`)。
 
 ```
 shap_id = tile_event_data_table[0]   // FDFIELD chapter_id × 3 + 1 entry 的 first byte
-FDSHAP[shap_id × 2 + 0] = battle_scene_snapshot   (RLE 320×200 image)
+FDSHAP[shap_id × 2 + 0] = data_fd2_battle_scene_snapshot   (RLE 320×200 image)
 FDSHAP[shap_id × 2 + 1] = tile_attribute_flags    (4 bytes/tile)
 ```
 
@@ -60,7 +60,7 @@ ch23 mid-switch 切到 ch24 用 ch24 自己的 shap_id 0x17 → FDSHAP[46/47]
 (load `current_chapter_id = 24` 然後 `fd2_load_chapter_battle_data(24)` 讀 FDFIELD ch24
 tile_event[0] = 0x17)。
 
-## battle_scene_snapshot (`shap_id × 2 + 0`)
+## data_fd2_battle_scene_snapshot (`shap_id × 2 + 0`)
 
 - RLE-encoded indexed 320×200 image
 - 由 `fd2_rle_blit_sprite @ 0x4E63D` 解 (RLE format 詳 `program_info/graphics.md`)

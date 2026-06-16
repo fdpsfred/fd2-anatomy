@@ -72,7 +72,7 @@ crt_fclose(file_handle);
 
 `fd2_load_portrait_to_cache @ 0x11019` 是 200 KB linear-probe 快取系統。每次 chapter
 init 開啟 FDICON.B24 → 對該章每個 char 讀 portrait_id 對應的 24×24 icon → 存到
-portrait_sprite_cache。
+data_fd2_portrait_sprite_cache。
 
 ## 工具
 

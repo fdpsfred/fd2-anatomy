@@ -441,3 +441,18 @@ void fd2_maybe_free_speed_mode_overlay(void)
         free((void *)data_fd2_battle_fast_mode_walk_overlay_ptr);
     }
 }
+
+/* ----------------------------------------------------------------
+ * data_fd2_battle_fast_mode_walk_overlay_ptr @ 0x53B0F  (4 bytes, .object2)
+ *
+ * Fast-mode walk-animation overlay resource handle. NULL in the initial
+ * image (zero-bss); first touched by a write. When fast mode is on,
+ * fd2_maybe_load_speed_mode_overlay stores NULL then assigns the
+ * fd2_load_dat_resource(FDOTHER.DAT, 0, 0x40) result here;
+ * fd2_maybe_free_speed_mode_overlay frees it and
+ * fd2_animate_attack_hit_sequence passes it to fd2_play_sfx_with_handle as
+ * the SFX resource handle. When fast mode is off it stays NULL and is never
+ * read. Accessor: MOV dword ptr [0x53B0F] (32-bit), a single pointer-sized
+ * resource handle.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_fast_mode_walk_overlay_ptr;

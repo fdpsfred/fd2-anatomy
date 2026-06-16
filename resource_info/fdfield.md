@@ -12,7 +12,7 @@ LLLLLL archive (詳 `overview.md`)。
 ```
 chapter_id × 3 + 0  →  tile_map               (battle_tile_map: map dimensions + tile data)
 chapter_id × 3 + 1  →  tile_event             (tile_event_data_table: shap_id + event hooks + char spawns)
-chapter_id × 3 + 2  →  portrait_load_buffer   (chapter_portrait_load_buffer: portrait sprite list)
+chapter_id × 3 + 2  →  portrait_load_buffer   (data_fd2_chapter_portrait_load_buffer: portrait sprite list)
 ```
 
 `chapter_id` 是 0-indexed (ch1 = 0, ch30 = 29)。30 章 × 3 = 90 entries 對應正章。

@@ -96,7 +96,7 @@ char[0]=索爾、char[1]=希爾法、char[0x10]=卡里斯、char[0x11]=羅德曼
 9. **64-step palette fade-out** (`for i in [0..0x40) step 2`)
 10. **Reload battle scene**：
     - `fd2_load_dat_resource("FDFIELD.DAT", 0x45)` → `battle_tile_map` (新地圖)
-    - `fd2_load_dat_resource("FDSHAP.DAT", 0x2E)` → `battle_scene_snapshot`
+    - `fd2_load_dat_resource("FDSHAP.DAT", 0x2E)` → `data_fd2_battle_scene_snapshot`
     - `fd2_load_dat_resource("FDSHAP.DAT", 0x2F)` → `tile_attribute_flags_buffer`
     - `fd2_obfuscate_battle_tile_map(battle_tile_map)`
     - `fd2_load_chapter_background_layers`

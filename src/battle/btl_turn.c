@@ -735,7 +735,7 @@ void fd2_process_battle_drop_entries(uint32 recipient_idx,
                 [entry_value](recipient_idx);
         } else if (entry_type == 3) {
             fd2_display_dialog_scene(
-                current_chapter_text, entry_value, 0xA0000,
+                data_fd2_current_chapter_text, entry_value, 0xA0000,
                 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
         }
     }
@@ -769,3 +769,224 @@ int fd2_count_active_chars_for_team_filter(uint32 team)
     }
     return count;
 }
+
+/* ----------------------------------------------------------------
+ * fd2_roll_stat_gain_and_show_message @ 0x1E529 (2 callers)
+ *
+ * Level-up / promotion single-stat gain roll + on-screen message.
+ * Callers: fd2_process_xp_and_level_up_for_char (x5 stat slots),
+ * fd2_execute_class_promotion_with_dialog (x5 promotion bonuses).
+ *
+ *   min_gain   = growth_pair[0]
+ *   range      = growth_pair[1] - growth_pair[0]   (growth_pair = min,max)
+ *   rand_extra = (range != 0) ? fd2_advance_rng_state() % range : 0
+ *   gain (data_fd2_dialog_last_action_value_param) = min_gain + rand_extra
+ *
+ * Only when gain != 0 is the message shown and the gain applied:
+ *   - row_idx 3 is the 4th (bottom) row; scroll up one and use row 2.
+ *   - render the FDTXT page dialog_text_id at row_idx * 0x17C0 + 0xA951F.
+ *   - *(int16 *)stat_ptr += gain (low 16 bits).
+ *   - row_idx++ (advance to the next message row).
+ * Returns the next row index (unchanged when gain == 0).
+ *
+ * NOTE (Ghidra EAX-tracking bug): the decompiler dropped the
+ * fd2_advance_rng_state() return value and rendered the modulo dividend
+ * as growth_pair. The assembly (CALL 0x4E893 then MOV EDX,EAX; SAR;
+ * IDIV ESI) shows the dividend is the RNG result. Encoded as such.
+ * ---------------------------------------------------------------- */
+int fd2_roll_stat_gain_and_show_message(short *stat_ptr, uint8 *growth_pair,
+                                        uint32 dialog_text_id, int row_idx)
+{
+    int min_gain;
+    int range;
+    int rand_extra;
+    int gain;
+
+    min_gain = (int)growth_pair[0];
+    range = (int)growth_pair[1] - min_gain;
+    rand_extra = 0;
+    if (range != 0) {
+        rand_extra = (int)fd2_advance_rng_state() % range;
+    }
+    gain = min_gain + rand_extra;
+    data_fd2_dialog_last_action_value_param = (uint32)gain;
+
+    if (gain != 0) {
+        if (row_idx == 3) {
+            row_idx = 2;
+            fd2_cinematic_scroll_text_up_for_special_scenes();
+        }
+        fd2_clear_keyboard_buffer();
+        fd2_display_dialog_scene(
+            data_fd2_all_game_text_ptr, dialog_text_id,
+            (uint32)row_idx * 0x17C0 + 0xA951F, 0x140, 0xCD,
+            0x4C, 0x4A, 0x13, 1);
+        *(int16 *)stat_ptr = (int16)(*(int16 *)stat_ptr +
+            (int16)data_fd2_dialog_last_action_value_param);
+        row_idx++;
+    }
+    return row_idx;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_process_xp_and_level_up_for_char @ 0x1E292 (2 callers)
+ *
+ * Apply accumulated XP, run level-up animation and spell learning for
+ * one unit. Callers: fd2_game_main_loop, fd2_execute_ai_physical_attack.
+ *
+ * Gate (any one skips): pending_xp_credit == 0, flags bit0 (dead), or
+ * already at level cap (portrait 0x1E/0x1F hero -> 99; others -> 0x28).
+ *
+ * remaining_xp = pending_xp_credit + carry-over movement_order.
+ * Per level-up: level++, roll 5 stat slots, learn spells whose required
+ * level matches, recalc stats, subtract 100. A per-call cap forces an
+ * early exit at level 30 (normal) or 99 (hero), discarding leftover XP.
+ * On exit movement_order keeps the (possibly zeroed) remainder and
+ * pending_xp_credit is cleared.
+ * ---------------------------------------------------------------- */
+void fd2_process_xp_and_level_up_for_char(uint32 ci)
+{
+    runtime_char *pCharArray;
+    uint8 *pGrowth;
+    uint8 *pSpellLearn;
+    uint8 portrait_id;
+    int remaining_xp;
+    int row;
+    uint32 spell_pair_iter;
+    uint32 spell_id;
+    uint8 at_level_cap;
+
+    pCharArray = data_fd2_battle_runtime_char_array_ptr;
+    row = 2;
+    portrait_id = pCharArray[ci].portrait_id;
+
+    if (data_fd2_battle_pending_xp_credit == 0 ||
+        (pCharArray[ci].flags & 1) != 0) {
+        return;
+    }
+
+    if (portrait_id == 0x1E || portrait_id == 0x1F) {
+        at_level_cap = (pCharArray[ci].status_flags_block[0] == 99);
+    } else {
+        at_level_cap = (pCharArray[ci].status_flags_block[0] == 0x28);
+    }
+    if (at_level_cap) {
+        return;
+    }
+
+    pGrowth = fd2_get_char_growth_entry((int)pCharArray[ci].portrait_id);
+    remaining_xp = (int)(data_fd2_battle_pending_xp_credit
+                       + (uint32)pCharArray[ci].movement_order);
+    data_fd2_dialog_last_action_value_param = data_fd2_battle_pending_xp_credit;
+    fd2_clear_keyboard_buffer();
+    fd2_load_chapter_portrait((uint32)pCharArray[ci].portrait_id);
+    fd2_display_dialog_scene(
+        data_fd2_all_game_text_ptr, 0x1E8, 0xA951F,
+        0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
+    fd2_paint_portrait_to_dialog_area(0);
+
+    while (remaining_xp > 99) {
+        fd2_clear_keyboard_buffer();
+        pCharArray[ci].status_flags_block[0] =
+            (uint8)(pCharArray[ci].status_flags_block[0] + 1);
+        fd2_display_dialog_scene(
+            data_fd2_all_game_text_ptr, 0x1E9, 0xAACDF,
+            0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
+        row = fd2_roll_stat_gain_and_show_message(
+            (short *)(pCharArray[ci].combat_aux_block + 0x10), pGrowth, 0x1EA, row);
+        row = fd2_roll_stat_gain_and_show_message(
+            (short *)(pCharArray[ci].combat_aux_block + 0x12), pGrowth + 2, 0x1EB, row);
+        row = fd2_roll_stat_gain_and_show_message(
+            (short *)(pCharArray[ci].ai_target_and_dx_block + 1), pGrowth + 4, 0x1EC, row);
+        row = fd2_roll_stat_gain_and_show_message(
+            (short *)&pCharArray[ci].hp_max, pGrowth + 6, 0x1ED, row);
+        row = fd2_roll_stat_gain_and_show_message(
+            (short *)&pCharArray[ci].mp_max, pGrowth + 8, 0x1EE, row);
+
+        if (pGrowth[10] != 0xFF) {
+            pSpellLearn = fd2_get_spell_learning_entry((int)pGrowth[10]);
+            for (spell_pair_iter = 0; (int)spell_pair_iter < 6;
+                 spell_pair_iter++) {
+                if ((uint32)pCharArray[ci].status_flags_block[0] ==
+                    pSpellLearn[spell_pair_iter * 2]) {
+                    spell_id = pSpellLearn[spell_pair_iter * 2 + 1];
+                    data_fd2_dialog_last_action_sprite_id_param =
+                        spell_id + 0x1B9;
+                    fd2_grant_spell_to_char(ci, spell_id);
+                    fd2_display_dialog_scene(
+                        data_fd2_all_game_text_ptr, 0x24B,
+                        (uint32)row * 0x17C0 + 0xA951F,
+                        0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
+                }
+            }
+        }
+
+        fd2_recalculate_combat_stats(ci);
+        remaining_xp = remaining_xp - 100;
+        if (((portrait_id == 0x1E || portrait_id == 0x1F) &&
+             pCharArray[ci].status_flags_block[0] == 99) ||
+            pCharArray[ci].status_flags_block[0] == 0x1E) {
+            remaining_xp = 0;
+        }
+    }
+
+    fd2_wait_ticks_or_keypress_with_palette(0xB);
+    fd2_close_status_screen_with_slide_out();
+    pCharArray[ci].movement_order = (uint8)remaining_xp;
+    data_fd2_battle_pending_xp_credit = 0;
+}
+
+/* ----------------------------------------------------------------
+ * fd2_kill_runtime_chars_from_index_to_end @ 0x35BBA (4 callers)
+ *
+ * Sets hp_current = 0 for every runtime_char_array entry from
+ * start_char_idx (inclusive) to party_member_count-1, then plays the
+ * death animation once.
+ *
+ * Usage: game-over / story-event mass kill of trailing party slots
+ * (e.g. wiping enemy reinforcement squads at chapter transitions).
+ * Callers: fd2_chapter_29_end @ 0x2548C,
+ *   fd2_chapter_event_handler_35__unref_dialog_with_state @ 0x35321,
+ *   fd2_chapter_event_handler_40__unref_dyn_turn_event @ 0x358EA,
+ *   fd2_chapter_event_handler_47__unref_dyn_turn_event @ 0x35B6B.
+ * ---------------------------------------------------------------- */
+void fd2_kill_runtime_chars_from_index_to_end(uint32 start_char_idx)
+{
+    uint32 i;
+
+    for (i = start_char_idx;
+         (int)i < (int)data_fd2_battle_party_member_count; i++) {
+        data_fd2_battle_runtime_char_array_ptr[i].hp_current = 0;
+    }
+    fd2_play_death_animation_and_mark_dead();
+}
+
+/* ----------------------------------------------------------------
+ * data_fd2_dialog_last_action_value_param @ 0x53AE1 (.object2, 4 bytes)
+ *
+ * Transient 32-bit staging value passed to the dialog VM. Written just
+ * before a dialog that shows a number (gold amount, poison damage, XP
+ * gained, stat-gain delta, shop price, promote cost, save-slot index),
+ * then read by fd2_display_dialog_scene -6 LITERAL-NUMBER opcode via
+ * sprintf("%d", ...) and by gold/price arithmetic. Always written
+ * before first read on every path, so the binary stores it zero-init.
+ *
+ * Home owner: btl_turn.c. Also written from gfx/rndmenu.c,
+ * ui_menu/menufld.c, ui_menu/promote.c, ui_menu/shop.c (multi-writer).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_dialog_last_action_value_param = 0;
+
+/* ----------------------------------------------------------------
+ * data_fd2_dialog_current_speaker_char_ptr @ 0x53C1B (.object2, 4 bytes)
+ *
+ * Cached pointer to the dialog speaker's character record, used to fetch
+ * the portrait/name when the dialog VM loads an ally sprite. Written by
+ * fd2_find_char_by_id_or_template: cleared to NULL at entry, then set to
+ * either a runtime_char* (alive/dead battle slot whose bChar_id matched)
+ * or a menu-roster template* (battle miss, found in the menu party).
+ * Read by fd2_display_dialog_scene (opcodes -0x13/-0x14 ally portrait):
+ * dereferenced as runtime_char* to read ->bPortrait_id and ->bPos_x/y.
+ * Always cleared before first use each call, so the binary stores it
+ * zero-init (NULL). Home owner: btl_turn.c (alongside the writer).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_dialog_current_speaker_char_ptr = 0;

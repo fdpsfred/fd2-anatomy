@@ -16,6 +16,28 @@
 
 static uint8 *g_ani_cursor;
 
+/* ANI frame decoder target-buffer state @ 0x52760.
+ * Row stride in bytes. Written each frame by fd2_ani_decoder_set_target_buffer
+ * before the decoder runs; read by the row chunk handlers. Zero-initialized in
+ * the binary (filled at runtime). */
+uint16 data_fd2_animation_ani_decoder_target_width;
+
+/* ANI frame decoder destination buffer address @ 0x52762.
+ * Linear address of the destination row start. Written each frame by
+ * fd2_ani_decoder_set_target_buffer; read by the row/sparse chunk handlers
+ * (REP STOSD/memcpy target). Zero-initialized in the binary (filled at
+ * runtime by the setter before the decoder runs). */
+uint32 data_fd2_animation_ani_decoder_dst_buf;
+
+/* ANI frame decoder source/palette-area base address @ 0x52766.
+ * Linear address used as the palette write base by the palette chunk
+ * handlers (fill/literal/RLE/run-pairs). Written each frame by
+ * fd2_ani_decoder_set_target_buffer (32-bit store of src_buf); read by the
+ * palette chunk handlers which cast it to a byte/dword pointer base.
+ * Zero-initialized in the binary (filled at runtime by the setter before
+ * the decoder runs). */
+uint32 data_fd2_animation_ani_decoder_src_buf;
+
 /* ----------------------------------------------------------------
  * fd2_ani_decoder_set_target_buffer @ 0x36C7D
  * ---------------------------------------------------------------- */

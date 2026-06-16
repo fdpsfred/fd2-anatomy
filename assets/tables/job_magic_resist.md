@@ -1,12 +1,16 @@
 # data_fd2_battle_job_magic_resist_table
 
-`.object2 @ 0x51F96`，27 entries × 4 bytes = 108 bytes。signature `09 0A 00 00 00`
-(注意：`09` 是表前一個 anchor byte，**不**在表內)。
+`.object2 @ 0x51F96`。可讀區間 `[0x51F96, 0x52006)` = 28 dword = 112 bytes：
+前 27 dword 是各職業的魔法抗性原始值，第 28 dword (值 7) 是消費端
+`fd2_calc_magic_damage` 的 REP MOVSD (ECX=0x1C) 連帶複製進堆疊暫存區的尾端 dword；
+下一張表 (供 `fd2_animate_spell_overlay_blink` 用) 才從 0x52006 開始。
+signature `09 0A 00 00 00` (注意：`09` 是表前一個 anchor byte，**不**在表內)。
 
 ## struct
 
 ```
-dword[27]   每 dword 是 job_id (0x00..0x1A) 對應的魔法抗性原始值 (u32 LE)
+dword[28]   前 27 dword 是 job_id (0x00..0x1A) 對應的魔法抗性原始值 (u32 LE)；
+            第 28 dword 是 REP MOVSD 連帶複製的尾端值，不對應任何職業
 ```
 
 ## 跨版本偏移
@@ -33,7 +37,8 @@ dword[27]   每 dword 是 job_id (0x00..0x1A) 對應的魔法抗性原始值 (u3
 10, 10, 10, 10, 7, 7, 10, 10, 10, 10, 9, 10, 5, 5, 8, 10, 6, 8, 10, 9, 5, 5, 10, 8, 8, 4, 10
 ```
 
-對應 job 0x00..0x1A。job 0 (龍) 無此資料，binary value 為佔位 placeholder。
+對應 job 0x00..0x1A (27 個值)。job 0 (龍) 無此資料，binary value 為佔位 placeholder。
+可讀區間第 28 dword 的尾端值為 7，不對應任何職業 (僅因 REP MOVSD 複製 28 dword 連帶帶入)。
 
 ## 全表 readable
 

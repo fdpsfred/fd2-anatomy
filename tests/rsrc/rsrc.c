@@ -33,13 +33,23 @@ extern uint8  g_rle_blit_sprite_first_byte_log[4];
 extern int    g_scroll_text_calls;
 extern uint32 g_scroll_text_last_arg;
 
+/* fd2_load_and_fade_in_cinematic_image captures (testglob.c spies). Note:
+ * fd2_set_vga_palette_range is NOT a spy -- it is the real emitted primitive
+ * (src/gfx/palette.c) and runs end-to-end, reading the 768-byte palette at
+ * data_fd2_vga_palette_data_ptr and outp-ing to the (no-op) VGA DAC. */
+extern int    g_play_ani_calls;
+extern uint32 g_play_ani_last_idx;
+extern uint32 g_play_ani_last_delay;
+extern uint32 g_play_ani_last_skip;
+extern int    g_fade_to_black_calls;
+
 /* fd2_load_chapter_battle_data captures (testglob.c) */
 extern runtime_char g_test_rc_array[8];
 
 /* DAT filename strings (match the Ghidra/globals symbols; equal to the staged
  * real file names). */
-extern char data_fd2_string_fdmus_dat[];
-extern char data_fd2_string_resource_filename_fdother_dat[];
+extern const char data_fd2_string_resource_filename_fdmus_dat[10];
+extern const char data_fd2_string_resource_filename_fdother_dat[12];
 
 /* Read the 13 sprite-header ints (12 frame offsets + 1 end-mark) for a
  * portrait from the staged real FDICON.B24: entries portrait_id*12..+12,
@@ -71,7 +81,7 @@ static void test_ldr_normal_load_and_size(void)
     /* real FDMUS.DAT index 0 (a tiny 3-byte resource) */
     ref_size = realdat_read_resource("FDMUS.DAT", 0, &ref);
     ASSERT_TRUE(ref_size > 0);
-    buf = (uint8 *)fd2_load_dat_resource((uint32)data_fd2_string_fdmus_dat, 0, 0);
+    buf = (uint8 *)fd2_load_dat_resource((uint32)data_fd2_string_resource_filename_fdmus_dat, 0, 0);
     ASSERT_TRUE(buf != 0);
     ASSERT_EQ((long)data_fd2_resource_last_loaded_resource_size, ref_size);
     ASSERT_EQ((long)memcmp(buf, ref, (size_t)ref_size), 0);
@@ -81,7 +91,7 @@ static void test_ldr_normal_load_and_size(void)
     /* real FDMUS.DAT index 3 (a larger FORM chunk) — distinct payload+size */
     ref_size = realdat_read_resource("FDMUS.DAT", 3, &ref);
     ASSERT_TRUE(ref_size > 0);
-    buf = (uint8 *)fd2_load_dat_resource((uint32)data_fd2_string_fdmus_dat, 0, 3);
+    buf = (uint8 *)fd2_load_dat_resource((uint32)data_fd2_string_resource_filename_fdmus_dat, 0, 3);
     ASSERT_TRUE(buf != 0);
     ASSERT_EQ((long)data_fd2_resource_last_loaded_resource_size, ref_size);
     ASSERT_EQ((long)memcmp(buf, ref, (size_t)ref_size), 0);
@@ -122,9 +132,9 @@ static FILE *g_lpc_fp;
 
 static void lpc_setup(void)
 {
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
@@ -137,9 +147,9 @@ static void lpc_teardown(void)
         fclose(g_lpc_fp);
         g_lpc_fp = NULL;
     }
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
@@ -163,10 +173,10 @@ static void test_lpc_first_init(void)
     ASSERT_EQ((long)idx, 0);
     ASSERT_EQ((long)data_fd2_resource_portrait_cache_count, 1);
     ASSERT_EQ((long)*(uint32 *)data_fd2_resource_portrait_cache_id_list_base, 2);
-    ASSERT_TRUE(portrait_sprite_cache != 0);
+    ASSERT_TRUE(data_fd2_portrait_sprite_cache != 0);
     ASSERT_EQ((long)data_fd2_resource_portrait_cache_buffer_used,
               (long)(data_size + 0x780));
-    tbl = (int32 *)portrait_sprite_cache;
+    tbl = (int32 *)data_fd2_portrait_sprite_cache;
     for (i = 0; i < 12; i++) {
         ASSERT_EQ((long)tbl[i], (long)((off[i] - off[0]) + 0x780));
     }
@@ -224,7 +234,7 @@ static void test_lpc_append_miss(void)
     ASSERT_EQ((long)data_fd2_resource_portrait_cache_buffer_used,
               (long)(used_after_first + (uint32)(off5[12] - off5[0])));
     /* slot 1 frame table at ((int*)cache)[12..23] = used_after_first + delta */
-    tbl = (int32 *)portrait_sprite_cache;
+    tbl = (int32 *)data_fd2_portrait_sprite_cache;
     for (i = 0; i < 12; i++) {
         ASSERT_EQ((long)tbl[12 + i],
                   (long)(used_after_first + (uint32)(off5[i] - off5[0])));
@@ -263,9 +273,6 @@ static void reset_capture(void)
     memset(g_rle_blit_sprite_first_byte_log, 0,
            sizeof(g_rle_blit_sprite_first_byte_log));
 
-    g_scroll_text_calls = 0;
-    g_scroll_text_last_arg = 0;
-
     data_fd2_graphics_static_bg_buffer_ptr = 0;
     data_fd2_graphics_animated_bg_buffer_ptr = 0;
 }
@@ -293,7 +300,6 @@ static void test_default_path_chapter9_idx_f(void)
     fd2_load_chapter_background_layers();
 
     ASSERT_EQ(g_rle_blit_calls, 0);
-    ASSERT_EQ(g_scroll_text_calls, 0);
     ASSERT_NE(data_fd2_graphics_static_bg_buffer_ptr, 0);   /* loaded sprite */
     ASSERT_NE(data_fd2_graphics_animated_bg_buffer_ptr, 0); /* malloc(64000) */
     ASSERT_EQ((long)*(uint8 *)data_fd2_graphics_static_bg_buffer_ptr,
@@ -342,7 +348,6 @@ static void test_unmatched_chapter_no_load(void)
     fd2_load_chapter_background_layers();
 
     ASSERT_EQ(g_rle_blit_calls, 0);
-    ASSERT_EQ(g_scroll_text_calls, 0);
     ASSERT_EQ(data_fd2_graphics_static_bg_buffer_ptr, 0);
     ASSERT_EQ(data_fd2_graphics_animated_bg_buffer_ptr, 0);
     reset_capture_teardown();
@@ -425,11 +430,18 @@ static void test_two_sprite_chapter1b(void)
     reset_capture_teardown();
 }
 
-/* Text-scroll cinematic, chapter 0x17: idx 0x2A, stride 0x138, one blit,
-   scroll armed with arg 0, animated_bg freed+nulled. */
+/* Text-scroll cinematic, chapter 0x17: idx 0x2A, stride 0x138, one blit, the
+   real fd2_scroll_text_screen_up_by_lines(0) tail call (Mode B), animated_bg
+   freed+nulled. The scroll's own cylinder-permutation behavior is covered by
+   the dialog tests; here we pin the caller's dispatch (blit + buffer state) and
+   drive the real tail call against the caller's malloc(0xea00) static_bg buffer.
+   We arm the pending line count to a small bounded value first so the Mode-B
+   scroll stays in bounds (0xC0 * 0x138 = 59904 <= 60000) and is deterministic
+   regardless of any leftover state from other suites. */
 static void test_text_scroll_chapter17(void)
 {
     reset_capture();
+    data_fd2_graphics_text_scroll_pending_line_count = 4;
     data_fd2_chapter_current_chapter_id = 0x17;
 
     fd2_load_chapter_background_layers();
@@ -441,10 +453,10 @@ static void test_text_scroll_chapter17(void)
     ASSERT_EQ(g_rle_blit_last_y, 0);
     ASSERT_EQ(g_rle_blit_last_stride, 0x138);
     ASSERT_EQ(g_rle_blit_last_palette, 0xffffffff);
-    ASSERT_EQ(g_scroll_text_calls, 1);
-    ASSERT_EQ(g_scroll_text_last_arg, 0);
+    /* real scroll(0) ran without disturbing buffer ownership */
     ASSERT_NE(data_fd2_graphics_static_bg_buffer_ptr, 0);
     ASSERT_EQ(data_fd2_graphics_animated_bg_buffer_ptr, 0);
+    data_fd2_graphics_text_scroll_pending_line_count = 0;
     reset_capture_teardown();
 }
 
@@ -518,12 +530,12 @@ static void setup_cb_fixture(int chapter, int menu_party_count,
 
     /* freed-if-nonzero then re-malloc'd / reloaded; NULL so no stale free */
     data_fd2_battle_runtime_char_array_ptr = NULL;
-    portrait_sprite_cache = 0;
-    current_chapter_text = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_portrait_sprite_cache = 0;
+    data_fd2_current_chapter_text = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_battle_tile_map_ptr = 0;
-    battle_scene_snapshot = 0;
+    data_fd2_battle_scene_snapshot = 0;
     data_fd2_tile_attribute_flags_buffer_ptr = 0;
     data_fd2_graphics_static_bg_buffer_ptr = 0;
     data_fd2_graphics_animated_bg_buffer_ptr = 0;
@@ -533,26 +545,26 @@ static void teardown_cb_fixture(void)
 {
     if (data_fd2_battle_runtime_char_array_ptr != NULL)
         free(data_fd2_battle_runtime_char_array_ptr);
-    if (portrait_sprite_cache != 0)
-        free((void *)portrait_sprite_cache);
+    if (data_fd2_portrait_sprite_cache != 0)
+        free((void *)data_fd2_portrait_sprite_cache);
     /* loader-returned buffers the function leaves live (it does NOT free
-     * these): current_chapter_text, tile_event, tile_map, scene snapshot,
+     * these): data_fd2_current_chapter_text, tile_event, tile_map, scene snapshot,
      * tile-attr flags, and the background buffers. */
-    if (current_chapter_text != 0)
-        free((void *)current_chapter_text);
+    if (data_fd2_current_chapter_text != 0)
+        free((void *)data_fd2_current_chapter_text);
     if (data_fd2_tile_event_data_table_ptr != 0)
         free((void *)data_fd2_tile_event_data_table_ptr);
     if (data_fd2_battle_tile_map_ptr != 0)
         free((void *)data_fd2_battle_tile_map_ptr);
-    if (battle_scene_snapshot != 0)
-        free((void *)battle_scene_snapshot);
+    if (data_fd2_battle_scene_snapshot != 0)
+        free((void *)data_fd2_battle_scene_snapshot);
     if (data_fd2_tile_attribute_flags_buffer_ptr != 0)
         free((void *)data_fd2_tile_attribute_flags_buffer_ptr);
     if (data_fd2_graphics_static_bg_buffer_ptr != 0)
         free((void *)data_fd2_graphics_static_bg_buffer_ptr);
     if (data_fd2_graphics_animated_bg_buffer_ptr != 0)
         free((void *)data_fd2_graphics_animated_bg_buffer_ptr);
-    /* chapter_portrait_load_buffer was freed+nulled by the function */
+    /* data_fd2_chapter_portrait_load_buffer was freed+nulled by the function */
 
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     data_fd2_battle_party_member_count = 4;
@@ -560,13 +572,13 @@ static void teardown_cb_fixture(void)
     data_fd2_shared_menu_party_member_count = 0;
     data_fd2_tile_event_data_table_ptr = 0;
     data_fd2_battle_tile_map_ptr = 0;
-    chapter_portrait_load_buffer = 0;
-    battle_scene_snapshot = 0;
-    current_chapter_text = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
+    data_fd2_battle_scene_snapshot = 0;
+    data_fd2_current_chapter_text = 0;
     data_fd2_tile_attribute_flags_buffer_ptr = 0;
     data_fd2_graphics_static_bg_buffer_ptr = 0;
     data_fd2_graphics_animated_bg_buffer_ptr = 0;
-    portrait_sprite_cache = 0;
+    data_fd2_portrait_sprite_cache = 0;
     data_fd2_battle_map_width_tiles = 20;
     data_fd2_battle_map_height_tiles = 15;
     data_fd2_chapter_current_chapter_id = 1;
@@ -612,7 +624,7 @@ static void test_cb_all_active(void)
     ASSERT_EQ((long)arr[2].pos_y, (long)py);
     ASSERT_EQ((long)arr[2].team, 2);
 
-    ASSERT_EQ((long)chapter_portrait_load_buffer, 0);
+    ASSERT_EQ((long)data_fd2_chapter_portrait_load_buffer, 0);
     teardown_cb_fixture();
 }
 
@@ -689,6 +701,12 @@ static void test_cb_slot6_special_active(void)
  * file (0x32A00 bytes).
  * ================================================================ */
 static uint8 *g_pt_tileevent;   /* tile-event table for the race scan */
+/* Tile map for the real fd2_init_runtime_char_for_battle -> the real
+ * fd2_obfuscate_battle_tile_map (count = header[0]*header[2]). phase_flag=1
+ * here skips the spawn search, so a tiny valid 2x2 map (4 records) is enough
+ * to keep the obfuscate do-while bounded instead of underflowing on a NULL
+ * map pointer. */
+static uint8 g_pt_tilemap[64];
 
 /* Build a tile-event table of `count` records (stride 0x1A); record k has its
  * race byte (+0x98) set to race_of[k]. alloc_offset = count drives the scan
@@ -705,7 +723,15 @@ static void setup_pt_fixture(int count, const uint8 *race_of)
     data_fd2_tile_event_data_table_ptr = (uint32)g_pt_tileevent;
     data_fd2_resource_portrait_cache_alloc_offset = (uint32)count;
 
-    chapter_portrait_load_buffer = 0;          /* loaded fresh by the function */
+    /* valid 2x2 tile map so the real obfuscate (invoked by the real
+     * fd2_init_runtime_char_for_battle on a race match) iterates 4 records
+     * instead of underflowing on a NULL map pointer. */
+    memset(g_pt_tilemap, 0, sizeof(g_pt_tilemap));
+    g_pt_tilemap[0] = 2;   /* map width  (header byte 0) */
+    g_pt_tilemap[2] = 2;   /* map height (header byte 2) */
+    data_fd2_battle_tile_map_ptr = (uint32)g_pt_tilemap;
+
+    data_fd2_chapter_portrait_load_buffer = 0;          /* loaded fresh by the function */
     data_fd2_chapter_init_phase_flag = 1;       /* spawn = field value verbatim */
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
@@ -715,9 +741,9 @@ static void setup_pt_fixture(int count, const uint8 *race_of)
     /* the real fd2_load_portrait_to_cache (reached via the real
      * fd2_init_runtime_char_for_battle for matching races) parses the staged
      * real FDICON.B24; reset the cache so it first-inits cleanly. */
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_resource_portrait_cache_count = 0;
     data_fd2_resource_portrait_cache_buffer_used = 0;
@@ -727,13 +753,14 @@ static void teardown_pt_fixture(void)
 {
     free(g_pt_tileevent);
     g_pt_tileevent = 0;
-    if (portrait_sprite_cache != 0) {
-        free((void *)portrait_sprite_cache);
-        portrait_sprite_cache = 0;
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
     }
     data_fd2_tile_event_data_table_ptr = 0;
+    data_fd2_battle_tile_map_ptr = 0;   /* g_pt_tilemap is static; just unlink */
     data_fd2_resource_portrait_cache_alloc_offset = 0;
-    chapter_portrait_load_buffer = 0;
+    data_fd2_chapter_portrait_load_buffer = 0;
     data_fd2_chapter_init_phase_flag = 0;
     data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
     data_fd2_battle_party_member_count = 4;
@@ -765,7 +792,7 @@ static void test_pt_single_match(void)
     fd2_load_chapter_portraits_and_dump_tmp(0x07);
 
     ASSERT_EQ((long)data_fd2_battle_party_member_count, 1);
-    ASSERT_EQ((long)chapter_portrait_load_buffer, 0);
+    ASSERT_EQ((long)data_fd2_chapter_portrait_load_buffer, 0);
     ASSERT_EQ(fd2_tmp_size(), 0x32A00);
 
     teardown_pt_fixture();
@@ -780,7 +807,7 @@ static void test_pt_no_match(void)
     fd2_load_chapter_portraits_and_dump_tmp(0x7F);
 
     ASSERT_EQ((long)data_fd2_battle_party_member_count, 0);
-    ASSERT_EQ((long)chapter_portrait_load_buffer, 0);
+    ASSERT_EQ((long)data_fd2_chapter_portrait_load_buffer, 0);
     ASSERT_EQ(fd2_tmp_size(), 0x32A00);
 
     teardown_pt_fixture();
@@ -914,6 +941,324 @@ static void test_lcp_default_kind(void)
     lcp_check_kind(0x40, 0x9017);
 }
 
+/* ================================================================
+ * fd2_load_and_fade_in_cinematic_image @ 0x1f81e
+ *
+ * Loads FDOTHER.DAT[palette_idx] into data_fd2_vga_palette_data_ptr (the real
+ * loader, driven against the staged real FDOTHER.DAT), applies it at full
+ * brightness via the real fd2_set_vga_palette_range, renders the ANI cinematic,
+ * then falls through into fd2_play_palette_fade_to_black (emit pipeline §模式 B).
+ * The anim arg pass-through and the fade-out tail are observed via testglob
+ * spies; the loaded palette bytes are cross-checked against an independent
+ * realdat parse. The framebuffer memset + ANI playback are display
+ * side-effects deferred to Phase 9. fd2_set_vga_palette_range runs for real and
+ * reads the full 768-byte palette, so the global must point at a valid palette
+ * buffer across the call (the real FDOTHER.DAT[0] palette is exactly that).
+ * ================================================================ */
+
+/* Reset the spies + the loaded palette buffer between cases. */
+static void cinematic_reset(void)
+{
+    if (data_fd2_vga_palette_data_ptr != 0) {
+        free((void *)data_fd2_vga_palette_data_ptr);
+        data_fd2_vga_palette_data_ptr = 0;
+    }
+    g_play_ani_calls = 0;
+    g_fade_to_black_calls = 0;
+}
+
+/* palette_idx != -1: clears + loads the real FDOTHER.DAT palette into the
+ * global, passes (anim_idx,delay,0) straight to the ANI renderer, and fades to
+ * black exactly once. */
+static void test_cinematic_loads_palette_and_renders(void)
+{
+    uint8 *ref;
+    long   ref_size;
+
+    cinematic_reset();
+    ref_size = realdat_read_resource("FDOTHER.DAT", 0, &ref);   /* vga palette */
+    ASSERT_TRUE(ref_size > 0);
+
+    fd2_load_and_fade_in_cinematic_image(7, 3, 0);
+
+    /* palette actually loaded from the real archive into the global (and is the
+     * buffer the real fd2_set_vga_palette_range just consumed) */
+    ASSERT_TRUE(data_fd2_vga_palette_data_ptr != 0);
+    ASSERT_EQ((long)data_fd2_resource_last_loaded_resource_size, ref_size);
+    ASSERT_EQ((long)memcmp((void *)data_fd2_vga_palette_data_ptr, ref,
+                           (size_t)ref_size), 0);
+
+    /* anim_idx / per_frame_delay passed through; skip-on-key hardwired to 0 */
+    ASSERT_EQ((long)g_play_ani_calls, 1);
+    ASSERT_EQ((long)g_play_ani_last_idx, 7);
+    ASSERT_EQ((long)g_play_ani_last_delay, 3);
+    ASSERT_EQ((long)g_play_ani_last_skip, 0);
+
+    /* fall-through tail fades to black once */
+    ASSERT_EQ((long)g_fade_to_black_calls, 1);
+
+    free(ref);
+    cinematic_reset();
+}
+
+/* palette_idx == -1: keeps the current palette (no framebuffer clear, no
+ * FDOTHER load); the global keeps pointing at the pre-existing buffer and the
+ * loader never runs, but the palette is still applied, the cinematic still
+ * renders, and the screen still fades out with the same arg pass-through.
+ * Pre-seed the global with a REAL FDOTHER.DAT palette so the real
+ * fd2_set_vga_palette_range has a full 768-byte buffer to read. */
+static void test_cinematic_keeps_palette_when_idx_neg1(void)
+{
+    uint32 pal_buf;
+
+    cinematic_reset();
+    /* a genuine 768-byte palette already resident from a prior load */
+    pal_buf = fd2_load_dat_resource(
+        (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 0);
+    ASSERT_TRUE(pal_buf != 0);
+    data_fd2_vga_palette_data_ptr = pal_buf;
+
+    /* poison the loader's size output so a stray reload would be detectable */
+    data_fd2_resource_last_loaded_resource_size = 0xdeadbeef;
+
+    fd2_load_and_fade_in_cinematic_image(2, 5, 0xffffffff);
+
+    /* no reload: same pointer, and the loader's size output is still the poison
+     * value (the FDOTHER load block was skipped entirely) */
+    ASSERT_EQ((long)data_fd2_vga_palette_data_ptr, (long)pal_buf);
+    ASSERT_EQ((long)data_fd2_resource_last_loaded_resource_size, (long)0xdeadbeef);
+
+    ASSERT_EQ((long)g_play_ani_calls, 1);
+    ASSERT_EQ((long)g_play_ani_last_idx, 2);
+    ASSERT_EQ((long)g_play_ani_last_delay, 5);
+    ASSERT_EQ((long)g_play_ani_last_skip, 0);
+
+    ASSERT_EQ((long)g_fade_to_black_calls, 1);
+
+    cinematic_reset();                       /* frees the global (= pal_buf) */
+}
+
+/* ================================================================
+ * fd2_restore_portrait_cache_from_tmp @ 0x29117
+ *
+ * Reads the full 0x32A00-byte portrait sprite cache back from FD2.TMP into a
+ * freshly malloc'd data_fd2_portrait_sprite_cache. This is the symmetric read of the
+ * swap file written by fd2_load_chapter_portraits_and_dump_tmp's fwrite tail.
+ *
+ * Genuine round-trip (no fabricated file): seed data_fd2_portrait_sprite_cache with
+ * real FDICON.B24-loaded portrait bytes, dump it to FD2.TMP with the REAL
+ * writer (alloc_offset 0 so the writer's per-record loop is skipped and it
+ * fwrites the cache verbatim), snapshot those genuine on-disk bytes, then drive
+ * the reader and assert it restored a fresh non-NULL buffer holding byte-
+ * identical content. Also asserts the on-disk FD2.TMP is exactly 0x32A00.
+ * ================================================================ */
+
+/* Fill the first `n` bytes of data_fd2_portrait_sprite_cache with genuine sprite bytes
+ * by loading real portraits from the staged FDICON.B24 until the cache's used
+ * span covers `n`; the rest of the 0x32A00 buffer keeps its malloc contents
+ * (also written out verbatim by the dump, so the round-trip stays exact). */
+static void rt_seed_cache_from_fdicon(void)
+{
+    FILE *fp;
+    int   pid;
+
+    if (data_fd2_portrait_sprite_cache != 0) {
+        free((void *)data_fd2_portrait_sprite_cache);
+        data_fd2_portrait_sprite_cache = 0;
+    }
+    data_fd2_resource_portrait_cache_count = 0;
+    data_fd2_resource_portrait_cache_buffer_used = 0;
+
+    fp = fopen("FDICON.B24", "rb");
+    /* load a handful of distinct real portraits -> genuine packed sprite bytes
+     * land at cache+0x780.. ; first call malloc's the 0x32A00 buffer */
+    for (pid = 1; pid <= 8; pid++) {
+        fd2_load_portrait_to_cache((uint32)pid, (uint32)fp);
+    }
+    fclose(fp);
+}
+
+static void test_restore_roundtrip_from_tmp(void)
+{
+    uint8 *ref;
+    uint8  prev_tileevent_dummy;
+    uint32 saved_alloc;
+    uint32 saved_chapter;
+    uint32 saved_tileptr;
+    uint32 saved_loadbuf;
+    runtime_char *saved_rc;
+    FILE  *vf;
+    long   fsize;
+
+    /* --- seed data_fd2_portrait_sprite_cache with genuine FDICON sprite content --- */
+    rt_seed_cache_from_fdicon();
+    ASSERT_TRUE(data_fd2_portrait_sprite_cache != 0);
+
+    /* snapshot the genuine cache image we are about to write out */
+    ref = (uint8 *)malloc(0x32a00);
+    memcpy(ref, (void *)data_fd2_portrait_sprite_cache, 0x32a00);
+
+    /* --- write FD2.TMP with the REAL writer, loop skipped (alloc_offset 0) --- */
+    saved_alloc   = data_fd2_resource_portrait_cache_alloc_offset;
+    saved_chapter = data_fd2_chapter_current_chapter_id;
+    saved_tileptr = data_fd2_tile_event_data_table_ptr;
+    saved_loadbuf = data_fd2_chapter_portrait_load_buffer;
+    saved_rc      = data_fd2_battle_runtime_char_array_ptr;
+
+    prev_tileevent_dummy = 0;
+    data_fd2_tile_event_data_table_ptr = (uint32)&prev_tileevent_dummy;
+    data_fd2_resource_portrait_cache_alloc_offset = 0; /* no per-record inits */
+    data_fd2_chapter_current_chapter_id = 4;           /* re-read FDFIELD[0xE] */
+    data_fd2_chapter_portrait_load_buffer = 0;
+    data_fd2_battle_runtime_char_array_ptr = g_test_rc_array;
+
+    fd2_load_chapter_portraits_and_dump_tmp(0xFF);     /* no race matches -> dump */
+
+    /* FD2.TMP now on disk, exactly the cache size */
+    vf = fopen("FD2.TMP", "rb");
+    ASSERT_TRUE(vf != NULL);
+    fseek(vf, 0, SEEK_END);
+    fsize = ftell(vf);
+    fclose(vf);
+    ASSERT_EQ(fsize, 0x32a00);
+
+    /* the writer freed+nulled data_fd2_chapter_portrait_load_buffer; drop the cache so
+     * the reader must re-malloc a fresh buffer */
+    free((void *)data_fd2_portrait_sprite_cache);
+    data_fd2_portrait_sprite_cache = 0;
+
+    /* --- drive the reader under test --- */
+    fd2_restore_portrait_cache_from_tmp();
+
+    /* fresh non-NULL buffer holding the exact genuine bytes written out */
+    ASSERT_TRUE(data_fd2_portrait_sprite_cache != 0);
+    ASSERT_EQ((long)memcmp((void *)data_fd2_portrait_sprite_cache, ref, 0x32a00), 0);
+
+    /* cleanup */
+    free((void *)data_fd2_portrait_sprite_cache);
+    data_fd2_portrait_sprite_cache = 0;
+    free(ref);
+    data_fd2_resource_portrait_cache_count = 0;
+    data_fd2_resource_portrait_cache_buffer_used = 0;
+    remove("FD2.TMP");        /* generated swap file (not a staged game file) */
+
+    data_fd2_resource_portrait_cache_alloc_offset = saved_alloc;
+    data_fd2_chapter_current_chapter_id = saved_chapter;
+    data_fd2_tile_event_data_table_ptr = saved_tileptr;
+    data_fd2_chapter_portrait_load_buffer = saved_loadbuf;
+    data_fd2_battle_runtime_char_array_ptr = saved_rc;
+}
+
+/* ================================================================
+ * fd2_load_chapter_party_roster @ 0x2d392
+ *
+ * Pure in-memory extractor: copies the chapter-intro shop byte slice from
+ * data_fd2_chapter_intro_active_metadata_entry_ptr + state_offset into the
+ * caller's buffer, stopping at the first 0xFF or the state-specific cap, and
+ * returns the count. No file I/O. The cursor state selects (cap, offset):
+ *   state==1 -> (0xC, 0x03)   state==3 -> (8, 0xF)   else -> (8, 0x17).
+ * The fixture is a single byte array the global points at; the expected
+ * result is the same slice re-read independently here.
+ * ================================================================ */
+
+/* A metadata entry blob large enough to cover the 0x17+8 = 0x1F-byte window.
+ * Filled with a recognizable ramp; specific 0xFF sentinels are placed per
+ * test. The roster reader reads [offset .. offset+cap-1]. */
+static uint8 g_lpr_meta[0x40];
+
+static void lpr_setup(void)
+{
+    int i;
+
+    for (i = 0; i < (int)sizeof(g_lpr_meta); i++) {
+        g_lpr_meta[i] = (uint8)(0x10 + i);   /* never 0xFF on its own */
+    }
+    data_fd2_chapter_intro_active_metadata_entry_ptr = (uint32)g_lpr_meta;
+}
+
+/* Drive the reader for `state` and cross-check against an independent copy of
+ * the same slice (offset/cap derived the same way the function does), honoring
+ * the 0xFF terminator. */
+static void lpr_check(uint32 state, uint32 exp_off, int exp_cap)
+{
+    uint8 out[16];
+    int   ref_count;
+    int   ret;
+    int   i;
+
+    data_fd2_chapter_intro_menu_cursor_state = state;
+    memset(out, 0xAA, sizeof(out));
+
+    /* independent reference: walk the same window, stop at 0xFF */
+    ref_count = 0;
+    for (i = 0; i < exp_cap; i++) {
+        if (g_lpr_meta[exp_off + i] == 0xff) break;
+        ref_count++;
+    }
+
+    ret = fd2_load_chapter_party_roster(out);
+
+    ASSERT_EQ((long)ret, (long)ref_count);
+    for (i = 0; i < ref_count; i++) {
+        ASSERT_EQ((long)out[i], (long)g_lpr_meta[exp_off + i]);
+    }
+    /* the byte just past the written count must be untouched (no overrun) */
+    ASSERT_EQ((long)out[ref_count], 0xAA);
+}
+
+/* state==1: cap 0xC, offset 0x03; no sentinel in the window -> full 12 bytes. */
+static void test_lpr_state1_weapons_full(void)
+{
+    lpr_setup();
+    lpr_check(1, 0x03, 0xc);
+}
+
+/* state==3: cap 8, offset 0x0F; full 8 bytes when no sentinel. */
+static void test_lpr_state3_items_full(void)
+{
+    lpr_setup();
+    lpr_check(3, 0x0f, 8);
+}
+
+/* else (state 0): cap 8, offset 0x17; full 8 bytes when no sentinel. */
+static void test_lpr_state_other_mystery_full(void)
+{
+    lpr_setup();
+    lpr_check(0, 0x17, 8);
+}
+
+/* else path is also taken for state 5 (and any non-1/3 value): same offset. */
+static void test_lpr_state5_uses_else(void)
+{
+    lpr_setup();
+    lpr_check(5, 0x17, 8);
+}
+
+/* 0xFF mid-window truncates: state==1, sentinel at window index 4 -> count 4. */
+static void test_lpr_sentinel_truncates(void)
+{
+    lpr_setup();
+    g_lpr_meta[0x03 + 4] = 0xff;        /* 5th byte of the state==1 window */
+    lpr_check(1, 0x03, 0xc);
+}
+
+/* 0xFF at the first window byte -> count 0, nothing written. */
+static void test_lpr_sentinel_at_start(void)
+{
+    lpr_setup();
+    g_lpr_meta[0x0f] = 0xff;            /* first byte of the state==3 window */
+    lpr_check(3, 0x0f, 8);
+}
+
+/* Cap boundary: a 0xFF sits exactly one past the cap, so it must NOT be seen;
+ * the full cap is returned (state==3, sentinel at window index 8). */
+static void test_lpr_sentinel_past_cap_ignored(void)
+{
+    lpr_setup();
+    g_lpr_meta[0x0f + 8] = 0xff;        /* index == cap, outside the loop */
+    lpr_check(3, 0x0f, 8);
+}
+
 void run_rsrc_rsrc_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -942,5 +1287,15 @@ void run_rsrc_rsrc_tests(void)
     RUN_TEST(test_pt_empty_table);
     RUN_TEST(test_lcp_special_kinds);
     RUN_TEST(test_lcp_default_kind);
+    RUN_TEST(test_cinematic_loads_palette_and_renders);
+    RUN_TEST(test_cinematic_keeps_palette_when_idx_neg1);
+    RUN_TEST(test_restore_roundtrip_from_tmp);
+    RUN_TEST(test_lpr_state1_weapons_full);
+    RUN_TEST(test_lpr_state3_items_full);
+    RUN_TEST(test_lpr_state_other_mystery_full);
+    RUN_TEST(test_lpr_state5_uses_else);
+    RUN_TEST(test_lpr_sentinel_truncates);
+    RUN_TEST(test_lpr_sentinel_at_start);
+    RUN_TEST(test_lpr_sentinel_past_cap_ignored);
     printf("\n");
 }

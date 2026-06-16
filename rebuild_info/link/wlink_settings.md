@@ -22,7 +22,7 @@ option quiet                       # 安靜輸出（推測，無證據要求）
 # ---- 主入口物件（決定模組內部名 "f2"）----
 file f2.obj                        # 含 fd2_main；模組名取 file 列表第一個的 basename
 
-# ---- 全 FD2 source objects (≈653 個 emit_fd2_source function 分散在多個 .obj) ----
+# ---- 全 FD2 source objects (≈652 個 emit_fd2_source function 分散在多個 .obj) ----
 file <chapter_*.obj>               # ch01..ch30 init/end/post_action handler
 file <battle_*.obj>                # 戰鬥流程、AI、damage、傷害數字
 file <ui_*.obj>                    # 選單、cursor、portrait blit
@@ -67,7 +67,7 @@ wlink @fd2.lnk
 | LE format (`'LE'` signature) | `system dos4g` 預設 format LE |
 | module_flags `0x200` (PM-compatible bit) | wlink dos4g 預設旗標 |
 | obj 1 base = `0x10000` | wlink dos4g 預設 code base |
-| EIP = `0x3C964` 指向 `crt_equivalent_entry_start` → 跳 `crt_equivalent_dos_main_bootstrap` | 對應 Watcom 9.5a `cstart.obj _cstart_`，由 `system dos4g` 預設 `libfile` |
+| EIP = `0x3C964` 指向 `_cstart_`（stock Watcom cstart）| 對應 Watcom 9.5a `cstart.obj _cstart_`，由 `system dos4g` 預設 `libfile` 連入（`link_vendor_lib`）|
 | 引用 `data_crt_emu387_*` / `__sys_init_387_emulator` / `__hook387` | math387s + emu387 lib，由 `system dos4g` 預設 link |
 | 字串 `"RATIONAL DOS/4G"` @ `0x51760` (被 `__hook387` 引用) | DOS/4G 認證字串，emu387 內 |
 | FD2.EXE 含 Watcom DOS bind stub (10424 byte) | `system dos4g` 預設打包 stub |

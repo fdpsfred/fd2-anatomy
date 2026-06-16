@@ -20,7 +20,6 @@ extern uint8 data_fd2_audio_bgm_last_set_track_id;
 extern uint8 data_fd2_battle_summon_minor_anim_state5_frame_counter;
 extern uint8 data_fd2_battle_summon_minor_anim_alternating_blit_toggle;
 extern int g_ending_menu_return;
-extern int g_slot_selector_return;
 extern int g_chapter_transition_return;
 extern int g_play_sfx_with_handle_calls;
 extern int g_play_sfx_sample_from_bank_calls;
@@ -54,6 +53,8 @@ extern int g_cast_status_cure_calls;
 extern int g_cast_status_via_d1b_calls;
 extern int g_repaint_settings_calls;
 extern int g_repaint_flip_buffer_after;
+extern int    g_delay375b2_calls;
+extern uint32 g_delay375b2_last_ticks;
 
 
 static void test_set_full_palette_smoke(void)
@@ -217,6 +218,96 @@ static void test_tick_chapter_palette_slow_triggers_negative_delta(void)
 }
 
 
+/* fade-IN: walks brightness_subtract 0x40 down to 0 INCLUSIVE = 0x41
+ * iterations, each calling __delay_thunk_375b2(2). The loop count and the
+ * delay argument are the load-bearing correctness properties (the inner
+ * palette write is a pure port-write side effect). The stubbed delay thunk
+ * records call count + last arg, giving a deterministic check that the loop
+ * runs exactly 65 times (i.e. the signed `>= 0` bound includes subtract=0,
+ * not 64 times) with the right tick arg. A full 768-byte base palette keeps
+ * the inner fd2_set_vga_palette_range (idx 0..0xFF, base[0..767]) in-bounds. */
+static void test_play_palette_fade_in(void)
+{
+    static uint8 fake_pal[256 * 3];
+    int i;
+    for (i = 0; i < 256 * 3; i++) fake_pal[i] = 0x20;
+    data_fd2_vga_palette_data_ptr = (uint32)fake_pal;
+
+    g_delay375b2_calls = 0;
+    g_delay375b2_last_ticks = 0;
+    fd2_play_palette_fade_in();
+    ASSERT_EQ(g_delay375b2_calls, 0x41);
+    ASSERT_EQ(g_delay375b2_last_ticks, 2u);
+}
+
+
+/* fade-OUT: walks brightness_subtract 0 up to 0x3F (the signed `< 0x40`
+ * exclusive bound) = exactly 0x40 iterations, each calling
+ * __delay_thunk_375b2(2). The 0x40 loop count is the load-bearing direction
+ * marker that distinguishes this fade-OUT entry from the fade-IN counterpart
+ * (which runs 0x41 times via a `>= 0` inclusive bound); the inner palette
+ * write is a pure port-write side effect. The stubbed delay thunk records the
+ * call count + last arg for a deterministic check. A full 768-byte base
+ * palette keeps the inner fd2_set_vga_palette_range (idx 0..0xFF,
+ * base[0..767]) in-bounds. */
+static void test_play_palette_fade_to_black(void)
+{
+    static uint8 fake_pal[256 * 3];
+    int i;
+    for (i = 0; i < 256 * 3; i++) fake_pal[i] = 0x20;
+    data_fd2_vga_palette_data_ptr = (uint32)fake_pal;
+
+    g_delay375b2_calls = 0;
+    g_delay375b2_last_ticks = 0;
+    fd2_play_palette_fade_to_black();
+    ASSERT_EQ(g_delay375b2_calls, 0x40);
+    ASSERT_EQ(g_delay375b2_last_ticks, 2u);
+}
+
+
+/* fill_palette_blink_pattern_6byte: out[i] = base + bump + i for i in 0..5,
+ * where base = input_index & 0xF8 and bump = (input_index % 8 > 3) ? 2 : 0.
+ * Numeric + branchy, so assert the exact 6-byte sequence across both the
+ * bump-off / bump-on arms and the nonzero-base case. A guard byte at out[6]
+ * (and the slot before the buffer) confirms exactly 6 bytes are written —
+ * no over/underrun. Expected values hand-derived from the disassembly at
+ * 0x33FC1 (signed IDIV by 8; for the 0..255 byte domain == unsigned %8). */
+static void check_blink_pattern(int input_index, uint8 e0, uint8 e1,
+                                uint8 e2, uint8 e3, uint8 e4, uint8 e5)
+{
+    uint8 buf[8];
+    memset(buf, 0xAA, sizeof(buf));
+    /* write into buf[1..6]; buf[0] and buf[7] are write guards */
+    fd2_fill_palette_blink_pattern_6byte(input_index, (uint32)(buf + 1));
+    ASSERT_EQ(buf[1], e0);
+    ASSERT_EQ(buf[2], e1);
+    ASSERT_EQ(buf[3], e2);
+    ASSERT_EQ(buf[4], e3);
+    ASSERT_EQ(buf[5], e4);
+    ASSERT_EQ(buf[6], e5);
+    ASSERT_EQ(buf[0], 0xAA);   /* no underrun */
+    ASSERT_EQ(buf[7], 0xAA);   /* no overrun (exactly 6 bytes) */
+}
+
+static void test_fill_palette_blink_pattern_6byte(void)
+{
+    /* base=0, bump=0 */
+    check_blink_pattern(0,    0,  1,  2,  3,  4,  5);
+    /* %8==3 boundary: still bump=0 */
+    check_blink_pattern(3,    0,  1,  2,  3,  4,  5);
+    /* %8==4 boundary: bump turns on (=2) */
+    check_blink_pattern(4,    2,  3,  4,  5,  6,  7);
+    /* base=0, bump=2 */
+    check_blink_pattern(5,    2,  3,  4,  5,  6,  7);
+    /* nonzero base, bump=0 */
+    check_blink_pattern(0x10, 16, 17, 18, 19, 20, 21);
+    /* nonzero base AND bump=2 */
+    check_blink_pattern(0x1F, 26, 27, 28, 29, 30, 31);
+    /* top of byte domain: base=0xF8, bump=2 */
+    check_blink_pattern(0xFF, 250, 251, 252, 253, 254, 255);
+}
+
+
 void run_gfx_palette_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -232,5 +323,8 @@ void run_gfx_palette_tests(void)
     RUN_TEST(test_tick_chapter_palette_fast_wrap);
     RUN_TEST(test_tick_chapter_palette_slow_triggers);
     RUN_TEST(test_tick_chapter_palette_slow_triggers_negative_delta);
+    RUN_TEST(test_play_palette_fade_in);
+    RUN_TEST(test_play_palette_fade_to_black);
+    RUN_TEST(test_fill_palette_blink_pattern_6byte);
     printf("\n");
 }

@@ -66,7 +66,8 @@ GAME_DIR = _resolve_game_dir()
 # presence and copy from fd2_game_files/ only when missing/stale — no DOSBox
 # mount. tests/OUT is gitignored, so src/ stays clean.
 GAME_FILES = ["FDICON.B24", "FDFIELD.DAT", "FDSHAP.DAT", "FDOTHER.DAT",
-              "FDTXT.DAT", "FDMUS.DAT", "DATO.DAT", "FD2.SAV"]
+              "FDTXT.DAT", "FDMUS.DAT", "DATO.DAT", "FD2.SAV",
+              "FIGANI.DAT", "BG.DAT", "TAI.DAT"]
 
 
 def stage_game_files():
@@ -112,13 +113,26 @@ def gen_run_conf():
     """Generate a per-worktree dosbox conf from the committed template, rewriting
     ONLY the repo-relative mounts (C:=src, E:=tests) to THIS checkout's REPO_ROOT
     so a git worktree builds its own tree, not the main checkout. The Watcom mount
-    (D:) and the entire [autoexec] tail are copied verbatim from the template."""
+    (D:) and the entire [autoexec] tail are copied verbatim from the template.
+
+    A [log] section is injected just before [autoexec] (which must stay last, as it
+    consumes every following line as a guest command) so DOSBox-X writes its log to
+    a host file we can parse. A test that drives a real cinematic over an untamed
+    sprite source can trip an "Illegal descriptor" / GP fault that DOSBox-X surfaces
+    as a modal dialog -> the process blocks -> the run is flagged as a hang; the log
+    lets us see the fault was real (and where), independent of -silent."""
     src_mount = str(REPO_ROOT / "src")
     tests_mount = str(REPO_ROOT / "tests")
+    log_path = str(OUT_DIR / "dosbox.log")
     out = []
     for ln in CONF.read_text(encoding="latin-1").splitlines():
         s = ln.strip().lower()
-        if s.startswith("mount c "):
+        if s.startswith("[autoexec]"):
+            out.append("[log]")
+            out.append("logfile=%s" % log_path)
+            out.append("")
+            out.append(ln)
+        elif s.startswith("mount c "):
             out.append('mount C "%s"' % src_mount)
         elif s.startswith("mount e "):
             out.append('mount E "%s"' % tests_mount)
@@ -177,9 +191,20 @@ def main():
     # A host-side test.out-growth heartbeat is NOT usable: DOSBox caches the
     # redirected stdout until file close, so test.out stays empty mid-run.
     start = time.time()
+    # Capture DOSBox-X's own stdout/stderr too (belt-and-suspenders alongside the
+    # [log] logfile): whichever channel carries the protected-mode fault text, we
+    # keep it on the host for post-run parsing.
+    stdio_log = OUT_DIR / "dosbox_stdio.log"
     try:
-        proc = subprocess.Popen([dosbox, "-silent", "-conf", str(run_conf)])
+        stdio_fp = open(str(stdio_log), "wb")
+    except OSError:
+        stdio_fp = None
+    try:
+        proc = subprocess.Popen([dosbox, "-silent", "-conf", str(run_conf)],
+                                stdout=stdio_fp, stderr=subprocess.STDOUT)
     except OSError as e:
+        if stdio_fp:
+            stdio_fp.close()
         raise SystemExit("failed to launch dosbox-x: %s" % e)
 
     done = False
@@ -224,6 +249,11 @@ def main():
             proc.kill()
         except OSError:
             pass
+    if stdio_fp:
+        try:
+            stdio_fp.close()
+        except OSError:
+            pass
 
     # parse build.out (Watcom diagnostics: "Error!" / "Warning!")
     errors, warnings, build_tail = [], [], ""
@@ -255,6 +285,29 @@ def main():
             if "DOS/4G" in ln or "exception" in ln:
                 crash_dump = "\n".join(lines[i:i + 6])
                 break
+
+    # scan the DOSBox-X host log (logfile=) + captured stdio for a protected-mode
+    # fault. A test that drives a real cinematic over an untamed sprite source can
+    # trip an "Illegal descriptor" / GP fault that DOSBox-X surfaces as a modal
+    # dialog; the dialog blocks the process, so the run is flagged as a hang while
+    # the real cause is a fault. Surfacing the fault line (and any guest address)
+    # tells the caller a "hang" is really a fault.
+    dosbox_fault = None
+    fault_rx = re.compile(
+        r"illegal descriptor|general protection|invalid opcode|"
+        r"privileged instruction|paging fault|cpu exception|fatal", re.I)
+    for logname in ("dosbox.log", "dosbox_stdio.log"):
+        lp = OUT_DIR / logname
+        if not lp.is_file():
+            continue
+        try:
+            llines = lp.read_text(encoding="latin-1", errors="replace").splitlines()
+        except OSError:
+            continue
+        hits = [l.strip() for l in llines if l.strip() and fault_rx.search(l)]
+        if hits:
+            dosbox_fault = "\n".join(hits[-6:])
+            break
 
     build_ok = bool(done and not errors and tests_passed is not None and tests_failed == 0)
     gate_pass = bool(build_ok and not warnings)
@@ -294,6 +347,7 @@ def main():
         "tests_passed": tests_passed,
         "tests_failed": tests_failed,
         "crash_dump": crash_dump,
+        "dosbox_fault": dosbox_fault,
         "test_out_tail": test_tail,
         "build_out_tail": build_tail,
     }

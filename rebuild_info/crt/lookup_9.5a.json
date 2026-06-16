@@ -6,9 +6,9 @@
     "total_input": 131,
     "auto_pass": 102,
     "conflict_resolved": 3,
-    "manual_pass": 35,
+    "manual_pass": 36,
     "rejected": 3,
-    "in_lookup": 193,
+    "in_lookup": 194,
     "byte_match": 52
   },
   "by_address": {
@@ -1348,6 +1348,29 @@
         }
       ],
       "source_summary": "CLIB3S:9.5+9.5a+9.5b+9.5c"
+    },
+    "0003c964": {
+      "name": "_cstart_",
+      "current_name": "_cstart_",
+      "body_size": 557,
+      "source_obj": "ec67ee7a9d15_cstart.obj",
+      "verified": "manual",
+      "aliases": [],
+      "score": 0.0,
+      "notes": "Watcom 9.5a C/C++32 startup `_cstart_`: the DOS LE entry point @ 0x3c964 plus the cstart body. Instruction-for-instruction identical to WATCOM 9.5a SRC/STARTUP/386/CSTART3S.ASM `_cstart_ proc` (stack/CLIB3S model); not a byte_match only because its data-ref FIXUPP relocations to FD2 DGROUP addresses defeat the masked compare (its obj-mate __GETDS @ 0x3cbc4 byte_matched the same obj). Ghidra previously split it into crt_equivalent_entry_start (the 2-byte entry jmp) + crt_equivalent_dos_main_bootstrap (the body) because of the embedded copyright string + __saved_DS + ConsoleName between them; merged into one _cstart_ with non-contiguous body {0x3c964-0x3c965, 0x3c9de-0x3cb90} (437 code bytes). emit_action link_vendor_lib via wlink `system dos4g`.",
+      "source_libs": [
+        {
+          "version": "9.5",
+          "lib": "CLIB3S",
+          "module": "cstart"
+        },
+        {
+          "version": "9.5a",
+          "lib": "CLIB3S",
+          "module": "cstart"
+        }
+      ],
+      "source_summary": "CLIB3S:9.5+9.5a (cstart.obj, source CSTART3S.ASM; obj-mates __exit/__exit_with_msg/__GETDS)"
     },
     "0003cb91": {
       "name": "__exit",
@@ -6488,6 +6511,9 @@
     ],
     "_asctime": [
       "0003fc3b"
+    ],
+    "_cstart_": [
+      "0003c964"
     ],
     "_ctime": [
       "0003fd40"

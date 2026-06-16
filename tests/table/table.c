@@ -20,7 +20,6 @@ extern uint8 data_fd2_audio_bgm_last_set_track_id;
 extern uint8 data_fd2_battle_summon_minor_anim_state5_frame_counter;
 extern uint8 data_fd2_battle_summon_minor_anim_alternating_blit_toggle;
 extern int g_ending_menu_return;
-extern int g_slot_selector_return;
 extern int g_chapter_transition_return;
 extern int g_play_sfx_with_handle_calls;
 extern int g_play_sfx_sample_from_bank_calls;
@@ -119,7 +118,7 @@ static void test_char_growth_entry(void)
 static void test_chapter_intro_ch1(void)
 {
     uint8 *result = fd2_get_chapter_intro_metadata_entry(1);
-    uint8 *expected = data_fd2_chapter_intro_metadata_table;
+    const uint8 *expected = data_fd2_chapter_intro_metadata_table;
     ASSERT_EQ((long)result, (long)expected);
 }
 
@@ -127,7 +126,7 @@ static void test_chapter_intro_ch1(void)
 static void test_chapter_intro_ch5(void)
 {
     uint8 *result = fd2_get_chapter_intro_metadata_entry(5);
-    uint8 *expected = data_fd2_chapter_intro_metadata_table + 4 * 0x1F;
+    const uint8 *expected = data_fd2_chapter_intro_metadata_table + 4 * 0x1F;
     ASSERT_EQ((long)result, (long)expected);
 }
 
@@ -135,7 +134,7 @@ static void test_chapter_intro_ch5(void)
 static void test_spell_learning(void)
 {
     uint8 *result = fd2_get_spell_learning_entry(3);
-    uint8 *expected = data_fd2_spell_learning_table + 3 * 0xC;
+    uint8 *expected = (uint8 *)data_fd2_battle_spell_learning_table + 3 * 0xC;
     ASSERT_EQ((long)result, (long)expected);
 }
 
@@ -143,7 +142,7 @@ static void test_spell_learning(void)
 static void test_class_promotion(void)
 {
     uint8 *result = fd2_get_class_promotion_data_entry(0x20);
-    uint8 *expected = data_fd2_class_promotion_data_table;
+    uint8 *expected = (uint8 *)data_fd2_battle_class_promotion_data_table;
     ASSERT_EQ((long)result, (long)expected);
 }
 
@@ -151,7 +150,7 @@ static void test_class_promotion(void)
 static void test_class_promotion_offset(void)
 {
     uint8 *result = fd2_get_class_promotion_data_entry(0x25);
-    uint8 *expected = data_fd2_class_promotion_data_table + 5 * 2;
+    uint8 *expected = (uint8 *)data_fd2_battle_class_promotion_data_table + 5 * 2;
     ASSERT_EQ((long)result, (long)expected);
 }
 
@@ -171,7 +170,7 @@ static void test_weapon_anim_deref(void)
 static void test_job_allowed_items(void)
 {
     uint8 *result = fd2_get_job_allowed_items_table_entry(2);
-    uint8 *expected = data_fd2_job_allowed_items_table + 2 * 7;
+    uint8 *expected = (uint8 *)data_fd2_battle_job_allowed_items_table + 2 * 7;
     ASSERT_EQ((long)result, (long)expected);
 }
 
@@ -179,7 +178,7 @@ static void test_job_allowed_items(void)
 static void test_movement_cost(void)
 {
     uint8 *result = fd2_get_movement_cost_table_for_job(5);
-    uint8 *expected = data_fd2_movement_cost_table + 5 * 0x14;
+    uint8 *expected = (uint8 *)data_fd2_battle_movement_cost_table + 5 * 0x14;
     ASSERT_EQ((long)result, (long)expected);
 }
 
@@ -199,7 +198,7 @@ static void test_cutscene_script_deref(void)
 static void test_orphan_table_60181_0(void)
 {
     uint8 *result = fd2_get_orphan_table_60181_entry(0);
-    uint8 *expected = data_fd2_orphan_table_60181;
+    uint8 *expected = (uint8 *)data_fd2_orphan_table_60181;
     ASSERT_EQ((long)result, (long)expected);
 }
 
@@ -207,7 +206,7 @@ static void test_orphan_table_60181_0(void)
 static void test_orphan_table_60181_offset(void)
 {
     uint8 *result = fd2_get_orphan_table_60181_entry(7);
-    uint8 *expected = data_fd2_orphan_table_60181 + 7 * 3;
+    uint8 *expected = (uint8 *)(data_fd2_orphan_table_60181 + 7 * 3);
     ASSERT_EQ((long)result, (long)expected);
 }
 

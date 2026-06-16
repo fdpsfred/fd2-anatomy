@@ -69,5 +69,5 @@ if (computed != buffer[0x59C7]) → 顯示錯誤
 
 `fd2_load_chapter_portraits_and_dump_tmp @ 0x10B4E` 與
 `fd2_restore_portrait_cache_from_tmp @ 0x29117` 兩個 helper 用 FD2.TMP 暫存
-portrait_sprite_cache (200 KB region from `0x53A61`)。換章節時把當前 portrait
+data_fd2_portrait_sprite_cache (200 KB region from `0x53A61`)。換章節時把當前 portrait
 set dump 到 TMP，之後再 restore。

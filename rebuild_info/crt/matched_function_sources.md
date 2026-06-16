@@ -201,6 +201,12 @@ Total entries: **193**
 | `0x0004db0a` | `frexp` | 88 | byte_match | `3bf50f39eafd_frexp.obj` | MATH387S:9.5+9.5a+9.5b+9.5c |
 | `0x0004db64` | `modf` | 32 | byte_match | `3ede649993e4_modf387.obj` | MATH387S:9.5+9.5a+9.5b+9.5c |
 
+註：`__int7 @ 0x49D98`（11830B emu387.obj）body 內部，Ghidra 額外 carve 出一個獨立 Function
+entity `crt_emu387_int7_fptan_opcode_worker_4c630 @ 0x4C630`（503B，x87 `FPTAN` opcode 的軟體
+模擬 worker）。它無獨立 PUBDEF，是 `__int7` 內部 subroutine（與 6 個 sibling helper、8 個 inline
+x87-opcode jump table 同性質，只是其他都沒有 Function entity），靠 link 同一 `__int7` module
+解析（emit_action `link_vendor_lib`），不重 emit C source。詳見 `symbol_inventory.md`。
+
 ## Aggregate by source lib + version
 
 Each (lib, version) pair lists the FD2 functions that came from a obj in that lib for that Watcom 9.5x sub-version.

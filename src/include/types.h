@@ -144,6 +144,20 @@ typedef struct {
     uint8  spell_learning_idx;  /* +10 index into spell_learning_table; 0xFF=none */
 } character_growth;
 
+/* glyph_blit_state @ 0x627A3 -- shared scratch render-state for the 1bpp glyph
+ * blitter (fd2_blit_glyph_2bpp_with_outline) and the stride-blit pair
+ * (fd2_blit_sprite_with_stride_setup / _loop). Inside the packed region, so it
+ * is 17B alignment-1, byte-identical to the Ghidra struct layout. */
+typedef struct {
+    uint16 wPitch;          /* +0  destination row stride (bytes) */
+    uint8  bFill_color;     /* +2  glyph body palette index */
+    uint8  bBg_color;       /* +3  background fill palette index (0 = skip) */
+    uint8  bOutline_color;  /* +4  drop-shadow palette index */
+    uint8 *pDst_buf;        /* +5  destination base linear address */
+    uint8 *pFont_data;      /* +9  1bpp font sheet base */
+    int32  nGlyph_idx;      /* +13 glyph index into the font sheet */
+} glyph_blit_state;
+
 #pragma pack()
 
 #endif /* TYPES_H */

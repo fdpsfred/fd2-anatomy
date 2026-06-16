@@ -45,7 +45,7 @@ void fd2_init_battle_state_for_chapter(void)
  * char_field_idx selects the per-char field record; fdicon_fp is the
  * open FDICON.B24 handle passed to the portrait loader.
  *
- * 1. Desired spawn position from chapter_portrait_load_buffer
+ * 1. Desired spawn position from data_fd2_chapter_portrait_load_buffer
  *    + char_field_idx*6 : byte +2 = desired_x, byte +4 = desired_y.
  * 2. Repaint threat overlay (clear team 0/1 paint).
  * 3. If chapter_init_phase_flag == 0: scan the tile map for the
@@ -89,7 +89,7 @@ void fd2_init_runtime_char_for_battle(uint32 char_field_idx, uint32 fdicon_fp)
     pSlot = (uint8 *)data_fd2_battle_runtime_char_array_ptr
           + data_fd2_battle_party_member_count * RUNTIME_CHAR_SIZE;
 
-    pField = (uint8 *)(chapter_portrait_load_buffer + char_field_idx * 6);
+    pField = (uint8 *)(data_fd2_chapter_portrait_load_buffer + char_field_idx * 6);
     desired_x = (uint32)pField[2];
     desired_y = (uint32)pField[4];
 
@@ -311,6 +311,44 @@ void fd2_init_runtime_char_from_base_growth(uint32 char_id)
 }
 
 /* ----------------------------------------------------------------
+ * fd2_restore_all_chars_full_hp_mp @ 0x25089  (2 callers)
+ *
+ * Walk the menu/template char roster (menu_party_roster_buffer_ptr,
+ * stride RUNTIME_CHAR_SIZE; count = menu_party_member_count) and reset
+ * every slot to a fully-healed state:
+ *   flags (+0x05) := 0          // clear status bits
+ *   hp_current (+0x40) := hp_max (+0x42)
+ *   mp_current (+0x44) := mp_max (+0x46)
+ *
+ * The loop counter is a byte (BL in the binary), so it implicitly caps
+ * at 0xFF entries — safe given menu_party_member_count is always a small
+ * party-roster value.
+ *
+ * Callers (chapter-end cinematic full-restore points):
+ *   fd2_chapter_27_end — BAD-path revive sequence.
+ *   fd2_chapter_30_end — final-boss-death "double restore" before the
+ *                        epilogue battle-data load.
+ *
+ * void __cdecl with the __CHK(8) stack-probe prologue (compiler-injected,
+ * not written here). EBX is the loop counter; POP EBX + RET is the
+ * shared epilogue.
+ * ---------------------------------------------------------------- */
+void fd2_restore_all_chars_full_hp_mp(void)
+{
+    runtime_char *roster;
+    uint8         char_iter;
+
+    roster = (runtime_char *)data_fd2_shared_menu_party_roster_buffer_ptr;
+    for (char_iter = 0;
+         (int)(uint32)char_iter < (int)data_fd2_shared_menu_party_member_count;
+         char_iter = char_iter + 1) {
+        roster[char_iter].flags = 0;
+        roster[char_iter].hp_current = roster[char_iter].hp_max;
+        roster[char_iter].mp_current = roster[char_iter].mp_max;
+    }
+}
+
+/* ----------------------------------------------------------------
  * fd2_clear_all_chars_facing @ 0x134E4  (23 callers)
  *
  * Reset facing direction (= 0 / south) for every party member, then
@@ -385,10 +423,10 @@ void fd2_set_battle_anim_phase_to_1(void)
 /* ----------------------------------------------------------------
  * fd2_convert_battle_tiles_to_24px @ 0x1399C  (2 callers)
  *
- * Convert battle_scene_snapshot's encoded tile data into a packed
+ * Convert data_fd2_battle_scene_snapshot's encoded tile data into a packed
  * 24x24 8bpp tile bank, returning the freshly allocated buffer.
  *
- * Layout of battle_scene_snapshot consumed here:
+ * Layout of data_fd2_battle_scene_snapshot consumed here:
  *   +4  : uint16 tile_count
  *   +6  : int32[tile_count] offset table (each entry is a byte offset
  *         from snapshot base to that tile's RLE stream)
@@ -413,7 +451,7 @@ void *fd2_convert_battle_tiles_to_24px(void)
     uint8  *bank;
     int     i;
 
-    tile_count = *(uint16 *)(battle_scene_snapshot + 4);
+    tile_count = *(uint16 *)(data_fd2_battle_scene_snapshot + 4);
     bank = (uint8 *)malloc(tile_count * 0x240 + 6);
     if (bank == (uint8 *)0) {
         printf("Out of memory at rease shape !!!\n");
@@ -427,11 +465,21 @@ void *fd2_convert_battle_tiles_to_24px(void)
 
     for (i = 0; i < (int)tile_count; i = i + 1) {
         fd2_tile_blit_24x24_passthrough(
-            (uint32)(*(int32 *)(battle_scene_snapshot + 6 + i * 4)
-                     + battle_scene_snapshot),
+            (uint32)(*(int32 *)(data_fd2_battle_scene_snapshot + 6 + i * 4)
+                     + data_fd2_battle_scene_snapshot),
             (uint32)(bank + i * 0x240 + 6),
             0x18);
     }
 
     return bank;
 }
+/* ----------------------------------------------------------------
+ * data_fd2_chapter_chapter_init_done_flag @ 0x53A44  (.object2, zero-bss)
+ *
+ * Single-byte runtime state flag. Cleared (0) at program load; set to 1
+ * by fd2_set_chapter_init_done_flag (this file, MOV byte [0x53A44],1).
+ * Read byte-wide by fd2_game_main_loop (compares == 0) to gate the
+ * transition from chapter-init into active gameplay. Mutable (game-side
+ * writer exists) -> not const; zero initial value -> tentative definition.
+ * ---------------------------------------------------------------- */
+uint8  data_fd2_chapter_chapter_init_done_flag;

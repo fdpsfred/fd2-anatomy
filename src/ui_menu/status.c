@@ -1104,3 +1104,91 @@ void fd2_give_item_to_first_player_char(uint32 item_id)
         }
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_run_status_screen_member_menu @ 0x2FFA5  (2 callers)
+ *
+ * Status-screen viewer loop for party members. Each iteration picks a
+ * member via the standard party-roster select, opens that member's
+ * status screen, then reloads the DATO.DAT portrait sheet (which the
+ * status screen overwrote) before looping again. Loops until Esc.
+ *
+ * Called from the chapter-intro menus (option 0 = 状態).
+ *
+ * void __cdecl with the __CHK(0x1c) stack-probe prologue (compiler-
+ * injected, not part of the source). EBX and ESI both hold the
+ * roster-select return value; EBX gates the in-body break and ESI the
+ * loop-back test — both compare against -1, so the trailing
+ * "while (sel != -1)" is the same value already broken on, i.e. an
+ * infinite loop with an Esc break. EDI saves dialog_portrait_mode
+ * across the status submenu; it is restored only on the non-Esc path.
+ * The CALL fd2_load_dat_resource return value is stored back into
+ * data_fd2_portrait_sprite_buffer (genuine return use).
+ * ---------------------------------------------------------------- */
+void fd2_run_status_screen_member_menu(void)
+{
+    int sel;
+    uint32 saved_portrait_mode;
+
+    data_fd2_ui_menu_visible_item_count = data_fd2_shared_menu_party_member_count;
+    for (;;) {
+        sel = fd2_party_roster_single_select_loop();
+        fd2_close_intro_dialog_with_slide_out();
+        saved_portrait_mode = data_fd2_dialog_active_portrait_blit_offset;
+        if (sel == -1) {
+            break;
+        }
+        fd2_open_char_status_screen(data_fd2_ui_menu_cursor_idx);
+        data_fd2_dialog_active_portrait_blit_offset = saved_portrait_mode;
+        data_fd2_portrait_sprite_buffer = (uint8 *)fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_dato_dat_51a70,
+            (uint32)data_fd2_portrait_sprite_buffer,
+            (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[0]);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * fd2_find_inventory_slot_with_item @ 0x31860  (5 callers)
+ *
+ * Search runtime_char[char_idx]'s inventory for a slot holding item_id.
+ * Iterates over the per-char usable slot count returned by
+ * fd2_count_usable_inventory_slots(char_idx); for each slot it reads the
+ * slot's item id via fd2_get_inventory_slot_item_id(char_idx, slot) and
+ * returns the first slot index whose item id equals item_id. Returns -1
+ * when the usable count is 0 or no slot matches.
+ *
+ * Used to detect whether a char carries a specific key item (promotion
+ * key, plot item, the Sword that triggers the Lord-class path).
+ *
+ * Callers: fd2_run_class_promotion_menu_main,
+ * fd2_build_promotion_candidates_with_targets, fd2_any_char_has_item,
+ * fd2_chapter_21_end, fd2_chapter_event_handler_3d__ch26_pickup.
+ *
+ * int __cdecl with the __CHK(0x1c) stack-probe prologue (compiler-
+ * injected, not part of the source). fd2_get_inventory_slot_item_id
+ * returns a zero-extended byte (MOVZX), so the full-EAX compare in the
+ * asm is exactly a byte == item_id test.
+ * ---------------------------------------------------------------- */
+int fd2_find_inventory_slot_with_item(uint32 char_idx, uint32 item_id)
+{
+    int slot_count;
+    uint32 slot_iter;
+
+    slot_count = fd2_count_usable_inventory_slots(char_idx);
+    if (slot_count != 0) {
+        for (slot_iter = 0; (int)slot_iter < slot_count; slot_iter++) {
+            if (fd2_get_inventory_slot_item_id(char_idx, slot_iter) == item_id) {
+                return (int)slot_iter;
+            }
+        }
+    }
+    return -1;
+}
+
+/* ---- battle teleport-spell scratch state ----
+ * Runtime scratch: written (= cursor_world_x/y) in
+ * fd2_item_command_menu_dispatch (USE-spellbook branch) and
+ * fd2_spell_selection_menu_main before fd2_cast_spell_17_complex reads it,
+ * so it is zero-bss despite a stale nonzero image byte. */
+uint32 data_fd2_battle_teleport_dest_world_x;
+uint32 data_fd2_battle_teleport_dest_world_y;

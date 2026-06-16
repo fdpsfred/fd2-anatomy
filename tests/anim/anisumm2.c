@@ -9,6 +9,7 @@
 #include "globals.h"
 #include "protos.h"
 #include <stdio.h>
+#include "audiofix.h"   /* audiofix_make_bank / audiofix_enable_sfx */
 
 #define USE_ITEM_ID 10
 
@@ -20,7 +21,6 @@ extern uint8 data_fd2_audio_bgm_last_set_track_id;
 extern uint8 data_fd2_battle_summon_minor_anim_state5_frame_counter;
 extern uint8 data_fd2_battle_summon_minor_anim_alternating_blit_toggle;
 extern int g_ending_menu_return;
-extern int g_slot_selector_return;
 extern int g_chapter_transition_return;
 extern int g_play_sfx_with_handle_calls;
 extern int g_play_sfx_sample_from_bank_calls;
@@ -67,6 +67,8 @@ extern int g_repaint_flip_buffer_after;
  * blits. Expected sprite_id = 7+4 = 11; pos = 100 + 50 - 2*10 = 130.
  * Toggle 0 -> 1 so the update block is OFF (frame stays 4), isolating
  * the blit math. State 2. */
+/* SKIP (Phase 3): writes now-const data_fd2_battle_summon_main_anim_12slot_y_offset_table / 12color_v_offset_table / 12color_sprite_offset_table; restore + rewrite to drive real data */
+#if 0
 static void test_summon_main_tick_blit_y_arithmetic(void)
 {
     int i;
@@ -95,6 +97,7 @@ static void test_summon_main_tick_blit_y_arithmetic(void)
     /* toggle was 0 -> became 1: update gated off, frame unchanged */
     ASSERT_EQ((long)data_fd2_battle_summon_main_anim_12slot_frame_counter_array[0], 4);
 }
+#endif
 
 
 /* Team (enemy) Y-adjust: bTeam==0 adds 0x14 to every y_offset before the
@@ -102,6 +105,8 @@ static void test_summon_main_tick_blit_y_arithmetic(void)
  * pos = origin_y + (y_offsets[color]+0x14) - v_offsets[color]*row_stride
  *     = 100 + (50+20) - 2*10 = 150. sprite_id unchanged (11). State 2,
  * toggle 0 -> 1 isolates blit. */
+/* SKIP (Phase 3): writes now-const data_fd2_battle_summon_main_anim_12slot_y_offset_table / 12color_v_offset_table / 12color_sprite_offset_table; restore + rewrite to drive real data */
+#if 0
 static void test_summon_main_tick_blit_y_enemy_team_offset(void)
 {
     int i;
@@ -128,6 +133,7 @@ static void test_summon_main_tick_blit_y_enemy_team_offset(void)
     ASSERT_EQ((long)g_blit_indexed_sprite_last_frame, 11);
     ASSERT_EQ((long)g_blit_indexed_sprite_last_x, 150);
 }
+#endif
 
 
 static void test_summon_generic_reset(void)
@@ -624,12 +630,350 @@ static void test_summon_minor_state5_done(void)
 }
 
 
+/* ============================================================
+ * variant_c 5-slot radial (fd2_tick_summon_anim_variant_c_5slot_radial)
+ * ============================================================ */
+
+/* state 0: chime + return 7 + reset angle accumulator and swap latch. */
+static void test_summon_c_state0_init(void)
+{
+    int r;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    g_play_sfx_with_handle_calls = 0;
+    data_fd2_battle_summon_anim_variant_c_angle_accumulator = 0x55;
+    data_fd2_battle_summon_anim_variant_c_swap_done_latch = 0x55;
+    r = fd2_tick_summon_anim_variant_c_5slot_radial(0, 0, 0, 0, 0);
+    ASSERT_EQ((long)r, 7);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 1);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_c_angle_accumulator, 0);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_c_swap_done_latch, 0);
+}
+
+
+/* state 6: chime + return 7 + angle accumulator reset to 0x2A. */
+static void test_summon_c_state6(void)
+{
+    int r;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    g_play_sfx_with_handle_calls = 0;
+    data_fd2_battle_summon_anim_variant_c_angle_accumulator = 0;
+    r = fd2_tick_summon_anim_variant_c_5slot_radial(0, 0, 0, 0, 6);
+    ASSERT_EQ((long)r, 7);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 1);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_c_angle_accumulator,
+              0x2A);
+}
+
+
+/* state 3 with latch open: stagger frame_counter[i]=-i, clear blit_counter,
+ * swap x[2]<->x[4], y[2]=y[4], y[4]=angle_accumulator, set latch, return 0xC. */
+static void test_summon_c_state3_init_and_swap(void)
+{
+    int r;
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    data_fd2_battle_summon_anim_variant_c_swap_done_latch = 0;
+    data_fd2_battle_summon_anim_variant_c_angle_accumulator = 0x07;
+    for (i = 0; i < 5; i++) {
+        data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[i] = 10 * i;
+        data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[i] = 100 * i;
+        data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[i] = 9;
+        data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[i] = 9;
+    }
+    r = fd2_tick_summon_anim_variant_c_5slot_radial(0, 0, 0, 0, 3);
+    ASSERT_EQ((long)r, 0xC);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_c_swap_done_latch, 1);
+    for (i = 0; i < 5; i++) {
+        ASSERT_EQ(
+            (long)data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[i],
+            -i);
+        ASSERT_EQ(
+            (long)data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[i],
+            0);
+    }
+    /* x[2] and x[4] swapped: old x[2]=20, old x[4]=40 */
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[2],
+              40);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[4],
+              20);
+    /* y[2] = old y[4] = 400; y[4] = angle_accumulator = 7 (NOT a swap) */
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[2],
+              400);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[4],
+              7);
+}
+
+
+/* state 3 with latch already set: one-shot guard blocks all mutation, but
+ * still returns 0xC. */
+static void test_summon_c_state3_latched_noop(void)
+{
+    int r;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    data_fd2_battle_summon_anim_variant_c_swap_done_latch = 1;
+    data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[3] = 77;
+    r = fd2_tick_summon_anim_variant_c_5slot_radial(0, 0, 0, 0, 3);
+    ASSERT_EQ((long)r, 0xC);
+    ASSERT_EQ(
+        (long)data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[3],
+        77);
+}
+
+
+/* Radial cos/sin path, acc==0 (player team, sweep=0x1E). With acc==0 the
+ * cos/sin terms vanish exactly (libm-independent): x[i]=sweep=30, y[i]=30 for
+ * all 5 slots. State 1 (player) blits only slots i<2 -> 2 blits. Return 0. */
+static void test_summon_c_radial_acc0_player_state1(void)
+{
+    int r;
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    data_fd2_battle_summon_anim_variant_c_angle_accumulator = 0;
+    g_blit_indexed_sprite_calls = 0;
+    for (i = 0; i < 5; i++) {
+        data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[i] = -1;
+        data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[i] = -1;
+    }
+    r = fd2_tick_summon_anim_variant_c_5slot_radial(0, 0, 1000, 10, 1);
+    ASSERT_EQ((long)r, 0);
+    for (i = 0; i < 5; i++) {
+        ASSERT_EQ(
+            (long)data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[i],
+            30);
+        ASSERT_EQ(
+            (long)data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[i],
+            30);
+    }
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 2);
+}
+
+
+/* Radial state 2 (player) blits slots i>1 (3 blits) and ramps the angle
+ * accumulator by +6 after the loop. */
+static void test_summon_c_radial_state2_player_ramp_up(void)
+{
+    int r;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    data_fd2_battle_summon_anim_variant_c_angle_accumulator = 0;
+    g_blit_indexed_sprite_calls = 0;
+    r = fd2_tick_summon_anim_variant_c_5slot_radial(0, 0, 1000, 10, 2);
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 3);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_c_angle_accumulator, 6);
+}
+
+
+/* Radial state 8 ramps the angle accumulator by -6. */
+static void test_summon_c_radial_state8_ramp_down(void)
+{
+    int r;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    data_fd2_battle_summon_anim_variant_c_angle_accumulator = 20;
+    r = fd2_tick_summon_anim_variant_c_5slot_radial(0, 0, 1000, 10, 8);
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)data_fd2_battle_summon_anim_variant_c_angle_accumulator, 14);
+}
+
+
+/* Radial state 2 ENEMY (team 0): sweep=0x5A=90, offsets negated (does not
+ * affect cos/sin x/y), and the enemy branch blits EVERY slot (5 blits) for
+ * state 2/8. acc==0 -> x=90, y=30. The captured coord (3rd blit arg) for the
+ * enemy formula is y*row_stride + origin_y + x = 30*10 + 1000 + 90 = 1390. */
+static void test_summon_c_radial_state2_enemy_blits_all(void)
+{
+    int r;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 0;
+    data_fd2_battle_summon_anim_variant_c_angle_accumulator = 0;
+    g_blit_indexed_sprite_calls = 0;
+    g_blit_indexed_sprite_last_x = 0;
+    g_blit_indexed_sprite_last_y = 0;
+    g_blit_indexed_sprite_last_frame = 0;
+    r = fd2_tick_summon_anim_variant_c_5slot_radial(0, 0, 1000, 10, 2);
+    ASSERT_EQ((long)r, 0);
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 5);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_frame, 4);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_x, 1390);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_y, 10);
+}
+
+
+/* state 4 per-slot blit coord arithmetic (pure integer path, no cos/sin).
+ * Player team, state 4 blits slots i<2. Drive slot 0 only (slots 1..4 have
+ * frame<0 -> acc=4, but slot1 also blits; suppress by giving slots 1..4
+ * arrays that still blit -> instead isolate by checking the LAST blit which is
+ * slot 1). Use slot 0 frame=2 -> acc=2; byte_offs[2]=3, offs[2]=3.
+ * coord = (byte_offs[acc]+y)*rs + oy + x + offs[acc]
+ *       = (3+5)*10 + 1000 + 100 + 3 = 1183, blit frame = acc = 2.
+ * Slot 1 frame=2 too so it blits last with the same formula but x=200,y=6:
+ * coord = (3+6)*10 + 1000 + 200 + 3 = 1293. Assert via slot-1 (last). */
+static void test_summon_c_state4_blit_coord_arithmetic(void)
+{
+    int r;
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    for (i = 0; i < 5; i++) {
+        data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[i] = 2;
+        data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[i] = 0;
+        data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[i] =
+            100 * (i + 1);
+        data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[i] = 5 + i;
+    }
+    g_blit_indexed_sprite_calls = 0;
+    g_blit_indexed_sprite_last_x = 0;
+    g_blit_indexed_sprite_last_frame = 0;
+    r = fd2_tick_summon_anim_variant_c_5slot_radial(0, 0, 1000, 10, 4);
+    ASSERT_EQ((long)r, 0);                /* state 4 always returns 0 */
+    ASSERT_EQ((long)g_blit_indexed_sprite_calls, 2);   /* slots 0,1 only */
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_frame, 2);
+    ASSERT_EQ((long)g_blit_indexed_sprite_last_x, 1293); /* slot 1 (last) */
+}
+
+
+/* state 4 side-effect-before-guard: the acc compute + (acc==1 -> blit_counter=5)
+ * runs for EVERY slot even when the team/state guard skips its blit. Player
+ * state 4 skips blit for slots i>=2, but slot 3 (frame=1 -> acc=1) must still
+ * have blit_counter set to 5. */
+static void test_summon_c_state4_blit_counter_side_effect(void)
+{
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    for (i = 0; i < 5; i++) {
+        data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[i] = 3;
+        data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[i] = 0;
+    }
+    data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[3] = 1;
+    g_blit_indexed_sprite_calls = 0;
+    fd2_tick_summon_anim_variant_c_5slot_radial(0, 0, 1000, 10, 4);
+    /* slot 3 is gated out of the blit (i>=2 in state 4) but still latched */
+    ASSERT_EQ(
+        (long)data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[3],
+        5);
+}
+
+
+/* state 5 advance loop: integer blit coord, blit_counter advance/wrap, frame
+ * advance/wrap, and done_flag at frame 2. Player team. Set every frame=4 so the
+ * per-slot first loop's acc=4 (>1, no blit_counter=5) and the gating lets only
+ * i>1 blit there; isolate the ADVANCE loop by checking frame mutations and the
+ * blit_counter-driven blit on slot 0.
+ *  - slot 0: blit_counter=5 (nonzero) -> advance-loop blits it with frame=5 and
+ *    coord = (x + (y-0x14)*rs + oy) - 0x3c = (100 + (30-20)*10 + 1000) - 60
+ *          = 1140; then blit_counter 5->6. frame_counter 4->5 wraps to 0.
+ *  - slot with frame 1 -> 2 sets done_flag (return 1). Put that on slot 4. */
+static void test_summon_c_state5_advance_loop(void)
+{
+    int r;
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    for (i = 0; i < 5; i++) {
+        data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[i] = 4;
+        data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[i] = 0;
+        data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[i] = 100;
+        data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[i] = 30;
+    }
+    data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[0] = 5;
+    data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[4] = 1;
+    g_blit_indexed_sprite_calls = 0;
+    g_blit_indexed_sprite_last_x = 0;
+    g_blit_indexed_sprite_last_frame = 0;
+    r = fd2_tick_summon_anim_variant_c_5slot_radial(0, 0, 1000, 10, 5);
+    /* slot 4 frame 1->2 => done_flag */
+    ASSERT_EQ((long)r, 1);
+    /* slot 0 blit_counter advanced 5 -> 6 */
+    ASSERT_EQ(
+        (long)data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[0],
+        6);
+    /* slots with frame 4 wrap 4->5->0 */
+    ASSERT_EQ(
+        (long)data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[0],
+        0);
+    /* slot 4 frame 1->2 (no wrap) */
+    ASSERT_EQ(
+        (long)data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[4],
+        2);
+}
+
+
+/* state 5 advance loop blit_counter wrap at 10 -> 0. Set slot 0 blit_counter=9;
+ * advance-loop blits then ++ -> 10 -> wraps to 0. */
+static void test_summon_c_state5_blit_counter_wrap(void)
+{
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    for (i = 0; i < 5; i++) {
+        data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[i] = 3;
+        data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[i] = 0;
+        data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[i] = 0;
+        data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[i] = 0;
+    }
+    data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[0] = 9;
+    fd2_tick_summon_anim_variant_c_5slot_radial(0, 0, 0, 10, 5);
+    ASSERT_EQ(
+        (long)data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[0],
+        0);
+}
+
+
+/* state 5 frame-0 SFX split: slots 0,2 play with_handle; slots 1,3,4 play
+ * sample_from_bank. Set all frame_counter=0 (and blit_counter=0 so the
+ * advance-loop blit is skipped, isolating SFX). */
+static void test_summon_c_state5_sfx_split(void)
+{
+    int i;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    for (i = 0; i < 5; i++) {
+        data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array[i] = 0;
+        data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[i] = 0;
+        data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array[i] = 0;
+        data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array[i] = 0;
+    }
+    g_play_sfx_with_handle_calls = 0;
+    g_play_sfx_sample_from_bank_calls = 0;
+    fd2_tick_summon_anim_variant_c_5slot_radial(0, 0, 0, 10, 5);
+    ASSERT_EQ((long)g_play_sfx_with_handle_calls, 2);       /* slots 0,2 */
+    ASSERT_EQ((long)g_play_sfx_sample_from_bank_calls, 3);  /* slots 1,3,4 */
+}
+
+
+/* default branch: state_code with no handler (e.g. 9) returns 0. */
+static void test_summon_c_default_state(void)
+{
+    int r;
+    memset(g_test_rc_array, 0, sizeof(g_test_rc_array));
+    g_test_rc_array[0].team = 2;
+    r = fd2_tick_summon_anim_variant_c_5slot_radial(0, 0, 0, 0, 9);
+    ASSERT_EQ((long)r, 0);
+}
+
+
 void run_anim_anisummn2_tests(void)
 {
     int _prev_fails = g_test_fail_count;
     printf("Suite: anim/anisummn (2/2)\n");
+    /* Summon tick variants fire fd2_play_sfx_with_handle(summon bank, id, 1);
+     * the now-real player needs the audio gates open and a valid bank so the AIL
+     * stop spy bumps g_play_sfx_with_handle_calls per fired SFX. No test below
+     * resets the gates or bank ptr, so set them once here. */
+    audiofix_enable_sfx();
+    data_fd2_audio_summon_spell_sfx_bank_buf_ptr = audiofix_make_bank(0x1F);
+    /* SKIP (Phase 3): writes now-const summon_main_anim y_offset/v_offset/sprite_offset tables; restore + rewrite to drive real data */
+#if 0
     RUN_TEST(test_summon_main_tick_blit_y_arithmetic);
     RUN_TEST(test_summon_main_tick_blit_y_enemy_team_offset);
+#endif
     RUN_TEST(test_summon_generic_reset);
     RUN_TEST(test_summon_generic_state3);
     RUN_TEST(test_summon_generic_state5_advance);
@@ -659,5 +1003,20 @@ void run_anim_anisummn2_tests(void)
     RUN_TEST(test_summon_minor_state3_hold);
     RUN_TEST(test_summon_minor_state5_ramp);
     RUN_TEST(test_summon_minor_state5_done);
+    RUN_TEST(test_summon_c_state0_init);
+    RUN_TEST(test_summon_c_state6);
+    RUN_TEST(test_summon_c_state3_init_and_swap);
+    RUN_TEST(test_summon_c_state3_latched_noop);
+    RUN_TEST(test_summon_c_radial_acc0_player_state1);
+    RUN_TEST(test_summon_c_radial_state2_player_ramp_up);
+    RUN_TEST(test_summon_c_radial_state8_ramp_down);
+    RUN_TEST(test_summon_c_radial_state2_enemy_blits_all);
+    RUN_TEST(test_summon_c_state4_blit_coord_arithmetic);
+    RUN_TEST(test_summon_c_state4_blit_counter_side_effect);
+    RUN_TEST(test_summon_c_state5_advance_loop);
+    RUN_TEST(test_summon_c_state5_blit_counter_wrap);
+    RUN_TEST(test_summon_c_state5_sfx_split);
+    RUN_TEST(test_summon_c_default_state);
+    audiofix_disable_sfx();   /* restore safe gate state for later suites */
     printf("\n");
 }

@@ -397,6 +397,174 @@ static void test_indexed_xy_negative_offset(void)
     ASSERT_EQ((long)g_rle_blit_last_palette, (long)0xFFFFFFFF);
 }
 
+/*
+ * fd2_fill_screen_rect_with_byte paints its (size-1)x(size-1) marker square
+ * with memset DIRECTLY into the hard-coded mode13h VGA framebuffer at linear
+ * 0xA0000 (row_ptr = 0xA0000 + y*320 + x; (size-1) rows x (size-1) bytes,
+ * stride 320; signed loop bound so size<=1 paints nothing).
+ *
+ * Behavioral read-back verification is DEFERRED to Phase 9 integration: the
+ * destination is the literal 0xA0000 hard-coded in the binary (not a redirect-
+ * able parameter), so the fill cannot be aimed at observable RAM without
+ * altering the emitted code. Under the text-mode test harness, 0xA0000 maps to
+ * inactive VGA planar hardware (the active text buffer is 0xB8000), so reads
+ * back 0xFF regardless of what was written and cannot witness the fill — this
+ * is the pure display side-effect category the test policy defers to Phase 9.
+ * Equivalence rests on the three-source match: the arithmetic and the size-1
+ * geometry are identical in form to the read-back-verified fd2_blit_rectangle
+ * family above (only the count is memset width vs memmove width).
+ */
+
+/*
+ * fd2_blit_money_digit_sprite resolves a 9-row x 6-byte digit sprite out of
+ * the chapter-intro sprite atlas and copies it row-by-row into dst at a given
+ * row stride. The source address is:
+ *   src = atlas + *(int32*)(atlas + 0xE) + 4 + sprite_idx * 6
+ * The atlas base is the global data_fd2_ui_menu_screen_sprite_atlas_buf_ptr,
+ * which here points at an in-memory buffer (no file I/O: the function only
+ * dereferences the pointer value).
+ *
+ * This test verifies the full pipeline: the +0xE offset-table indirection,
+ * the +4 section-header skip, the sprite_idx*6 source selection, all nine
+ * 6-byte rows copied, the source row stride of 6, and the destination row
+ * stride applied between rows (with bytes outside the 6-wide window left
+ * intact so an over-copy would be caught).
+ */
+static void test_money_digit_full_blit(void)
+{
+    static uint8 atlas[512];
+    static uint8 dst[9 * 10];
+    uint32 saved_atlas;
+    int32 section_off;
+    uint32 src_base;
+    int row, col;
+    uint32 sprite_idx;
+    uint32 dst_stride;
+
+    /* offset-table entry at atlas+0xE points to the digit-sprite section */
+    section_off = 0x80;
+    *(int32 *)(atlas + 0xE) = section_off;
+
+    /* sprite rows begin at section + 4 (header skip) + sprite_idx*6 */
+    sprite_idx = 3;
+    src_base = (uint32)atlas + (uint32)section_off + 4 + sprite_idx * 6;
+
+    /* lay 9 rows of 6 distinct bytes at the resolved source */
+    for (row = 0; row < 9; row++) {
+        for (col = 0; col < 6; col++) {
+            *(uint8 *)(src_base + row * 6 + col) =
+                (uint8)(0x10 * (row + 1) + col);
+        }
+    }
+
+    dst_stride = 10;                 /* wider than the 6-byte copy window */
+    memset(dst, 0xEE, sizeof(dst));
+
+    saved_atlas = data_fd2_ui_menu_screen_sprite_atlas_buf_ptr;
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = (uint32)atlas;
+
+    fd2_blit_money_digit_sprite((uint32)dst, dst_stride, sprite_idx);
+
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = saved_atlas;
+
+    /* each of the 9 dst rows got its 6 source bytes; dst[row][6..9] untouched */
+    for (row = 0; row < 9; row++) {
+        for (col = 0; col < 6; col++) {
+            ASSERT_EQ((long)dst[row * dst_stride + col],
+                      (long)(uint8)(0x10 * (row + 1) + col));
+        }
+        ASSERT_EQ((long)dst[row * dst_stride + 6], 0xEE);
+        ASSERT_EQ((long)dst[row * dst_stride + 9], 0xEE);
+    }
+}
+
+/*
+ * The section offset at atlas+0xE is read as a signed 32-bit value: a
+ * negative entry resolves the digit-sprite section BELOW the atlas base.
+ * Confirms the *(int32*) signed read (an unsigned read would land ~4GB away
+ * and fault). The atlas pointer is aimed mid-buffer so a negative offset
+ * still lands in valid memory.
+ */
+static void test_money_digit_signed_section_offset(void)
+{
+    static uint8 backing[512];
+    static uint8 dst[9 * 6];
+    uint32 atlas_base;
+    uint32 saved_atlas;
+    int32 section_off;
+    uint32 src_base;
+    int row, col;
+
+    /* place the atlas pointer mid-buffer so atlas + (negative) stays in range */
+    atlas_base = (uint32)backing + 0x100;
+    section_off = -0x40;                          /* negative -> below base */
+    *(int32 *)(atlas_base + 0xE) = section_off;
+
+    /* sprite_idx 0: src = atlas + section_off + 4 */
+    src_base = atlas_base + (uint32)section_off + 4;
+    for (row = 0; row < 9; row++) {
+        for (col = 0; col < 6; col++) {
+            *(uint8 *)(src_base + row * 6 + col) = (uint8)(0xA0 + row * 6 + col);
+        }
+    }
+
+    memset(dst, 0x00, sizeof(dst));
+
+    saved_atlas = data_fd2_ui_menu_screen_sprite_atlas_buf_ptr;
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = atlas_base;
+
+    fd2_blit_money_digit_sprite((uint32)dst, 6, 0);
+
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = saved_atlas;
+
+    for (row = 0; row < 9; row++) {
+        for (col = 0; col < 6; col++) {
+            ASSERT_EQ((long)dst[row * 6 + col], (long)(uint8)(0xA0 + row * 6 + col));
+        }
+    }
+}
+
+/*
+ * sprite_idx selects the source by sprite_idx*6: two adjacent indices pick
+ * source windows exactly 6 bytes apart. Drive the same atlas with sprite_idx
+ * 0 and sprite_idx 1 and confirm the second blit reads the bytes one 6-byte
+ * sprite-row further along than the first.
+ */
+static void test_money_digit_sprite_idx_stride(void)
+{
+    static uint8 atlas[512];
+    /* the blit always writes 9 rows; size each dst to hold the full 9x6 run */
+    static uint8 dst0[9 * 6];
+    static uint8 dst1[9 * 6];
+    uint32 saved_atlas;
+    uint32 section_base;
+    int i;
+
+    *(int32 *)(atlas + 0xE) = 0x20;
+    /* section payload begins at atlas + 0x20 + 4; fill a ramp so each
+       6-byte window is distinguishable. sprite_idx 1 reads up through
+       section[6 + 8*6 .. +5] = section[54..59], so the ramp must span >= 60. */
+    section_base = (uint32)atlas + 0x20 + 4;
+    for (i = 0; i < 128; i++) {
+        *(uint8 *)(section_base + i) = (uint8)(0x01 + i);
+    }
+
+    saved_atlas = data_fd2_ui_menu_screen_sprite_atlas_buf_ptr;
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = (uint32)atlas;
+
+    /* stride 6 packs the 9 rows contiguously; only row 0 is asserted below */
+    fd2_blit_money_digit_sprite((uint32)dst0, 6, 0);
+    fd2_blit_money_digit_sprite((uint32)dst1, 6, 1);
+
+    data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = saved_atlas;
+
+    /* sprite_idx 0 row 0 = section[0..5]; sprite_idx 1 row 0 = section[6..11] */
+    for (i = 0; i < 6; i++) {
+        ASSERT_EQ((long)dst0[i], (long)(uint8)(0x01 + i));
+        ASSERT_EQ((long)dst1[i], (long)(uint8)(0x01 + 6 + i));
+    }
+}
+
 void run_gfx_blitspr_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -412,5 +580,8 @@ void run_gfx_blitspr_tests(void)
     RUN_TEST(test_sheet_sprite_negative_offset);
     RUN_TEST(test_indexed_xy_offset_and_arg_routing);
     RUN_TEST(test_indexed_xy_negative_offset);
+    RUN_TEST(test_money_digit_full_blit);
+    RUN_TEST(test_money_digit_signed_section_offset);
+    RUN_TEST(test_money_digit_sprite_idx_stride);
     printf("\n");
 }

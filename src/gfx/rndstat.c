@@ -771,7 +771,7 @@ void fd2_render_mini_char_status_panel(uint32 buf, uint32 stride, uint32 char_id
  *
  * The cursor tile's attribute word and its second attribute byte are read
  * into an 8-byte local via fd2_read_tile_attribute_at_pos:
- *   word[0] -> battle_scene_snapshot row index (terrain icon source)
+ *   word[0] -> data_fd2_battle_scene_snapshot row index (terrain icon source)
  *   byte[5] -> index into the MV / DEF per-tile modifier tables
  *
  * If a non-hidden unit stands under the cursor
@@ -825,8 +825,8 @@ void fd2_render_terrain_info_hud_panel(uint32 buf, uint32 stride)
     tile_attr_word = *(uint16 *)tile_attr;
     tile_attr2 = tile_attr[5];
 
-    icon_src = battle_scene_snapshot
-             + *(int32 *)(battle_scene_snapshot
+    icon_src = data_fd2_battle_scene_snapshot
+             + *(int32 *)(data_fd2_battle_scene_snapshot
                           + (uint32)tile_attr_word * 4 + 6);
     fd2_tile_blit_24x24_passthrough(icon_src, panel_base + stride * 5 + 6,
                                     stride);
@@ -854,8 +854,8 @@ void fd2_render_terrain_info_hud_panel(uint32 buf, uint32 stride)
     if (frame_mod == 3) {
         frame_mod = 1;
     }
-    portrait_src = portrait_sprite_cache
-                 + *(int32 *)(portrait_sprite_cache
+    portrait_src = data_fd2_portrait_sprite_cache
+                 + *(int32 *)(data_fd2_portrait_sprite_cache
                               + (frame_mod + (uint32)rc->sprite_state[0] * 0xc)
                                 * 4);
     fd2_tile_blit_24x24_passthrough(portrait_src, panel_base + stride * 5 + 6,
@@ -1003,3 +1003,79 @@ void fd2_render_party_status_overview_content(uint32 dst_surface, uint32 stride)
                              dst_surface + 0x50 + stride * 0x74, stride,
                              0xcd, 0x4c, 0, 0x13, 0);
 }
+
+/* ----------------------------------------------------------------
+ * fd2_render_chapter_status_panel_segments @ 0x1ff79 (1 caller)
+ *
+ * Render the chapter-overview status "tabs" (up to 3 segments). Each
+ * segment is one indexed sprite blitted at a fixed framebuffer row offset
+ * on the mode13h surface 0xA0000, via fd2_blit_indexed_sprite_at_xy (pitch
+ * 0x140).
+ *
+ * Params:
+ *   sheet         = source sprite sheet (caller's FDOTHER.DAT[7] clear-status
+ *                   panel sprites)
+ *   active_idx    = active segment index (0/1/2); pass any value outside
+ *                   0..2 (e.g. -1) to render every segment INACTIVE — used by
+ *                   the highlight-blink animation
+ *   segment_count = total segment count (1, 2 or 3; matches the caller's
+ *                   menu_options 1/2/3)
+ *
+ * Sprite index scheme (i = segment index): 2*i+1 = inactive, 2*i+2 = active.
+ * The active segment is the one whose index equals active_idx.
+ *   segment 0 @ 0xACD81  -> idx (active_idx==0 ? 2 : 1)
+ *   segment 1 @ 0xAD8C1  -> idx (active_idx==1 ? 4 : 3)   [if count > 1]
+ *   segment 2 @ 0xAE401  -> idx (active_idx==2 ? 6 : 5)   [if count > 2]
+ * Row offsets are spaced 0xB40 apart (= 9 * 320 stride, ~9 scanlines/segment).
+ *
+ * Sole caller: fd2_play_ending_and_record_clear @ 0x1f894 (end-of-game menu).
+ *
+ * Cdecl, 3 stack params; void return. The active-segment test on active_idx
+ * is an unsigned equality (== 0/1/2); the segment_count gates are signed
+ * (> 1 / > 2), matching the binary's JNZ / JLE. The binary's __CHK(0x14)
+ * stack-probe prologue is compiler-generated and omitted here.
+ * ---------------------------------------------------------------- */
+void fd2_render_chapter_status_panel_segments(uint32 sheet, uint32 active_idx,
+                                              uint32 segment_count)
+{
+    uint32 sprite_idx;
+
+    sprite_idx = 1;
+    if (active_idx == 0) {
+        sprite_idx = 2;
+    }
+    fd2_blit_indexed_sprite_at_xy(0xacd81, 0x140, sheet, sprite_idx);
+
+    if (1 < (int32)segment_count) {
+        sprite_idx = 3;
+        if (active_idx == 1) {
+            sprite_idx = 4;
+        }
+        fd2_blit_indexed_sprite_at_xy(0xad8c1, 0x140, sheet, sprite_idx);
+    }
+
+    if (2 < (int32)segment_count) {
+        sprite_idx = 5;
+        if (active_idx == 2) {
+            sprite_idx = 6;
+        }
+        fd2_blit_indexed_sprite_at_xy(0xae401, 0x140, sheet, sprite_idx);
+    }
+}
+
+/* ----------------------------------------------------------------
+ * Terrain-info HUD panel X-offset latch @ 0x51A0C.
+ * Horizontal placement of the corner "terrain info" HUD panel,
+ * relative to (panel_dst_base + render_stride*0x9D), so the panel
+ * does not cover the cursor. fd2_render_terrain_info_hud_panel
+ * latches it to 0xF2 (right side) when the cursor is top-left, to
+ * 1 (left side) when the cursor is bottom-right, and otherwise
+ * keeps the previous value.
+ *
+ * uint32: both writers use a 32-bit immediate store
+ * (MOV dword ptr [0x51A0C], 0xF2 / 0x1) and the reader adds it with
+ * a plain 32-bit load (ADD EBP, dword ptr [0x51A0C]); no sign idiom.
+ * .object2 scalar with a non-zero static seed of 1 (the panel
+ * defaults to the left position before the first latch write).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_ui_terrain_hud_panel_offset_51a0c = 1;

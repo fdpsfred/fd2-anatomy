@@ -45,7 +45,7 @@ fd2_display_dialog_scene(text_resource, page_id, font_sheet, ...)
 ## Portrait 快取
 
 `fd2_load_portrait_to_cache` 維護 200 KB portrait sprite cache
-(`portrait_sprite_cache @ 0x53A61`)：
+(`data_fd2_portrait_sprite_cache @ 0x53A61`)：
 
 ```
 Bytes [0..0x77F]    = 12 sprite-offset entries × 0xC bytes per portrait (前置查表)
@@ -115,7 +115,7 @@ DAT_00053B17[N]     = 第 N 個 cached portrait_id (線性比對用)
 | 位址 | 名稱 |
 |---|---|
 | `0x53A7D` | `all_game_text` (fd2_main 載入的全文字 buffer，FDTXT idx 0，661 pages 全遊戲共用) |
-| `0x53A79` | `current_chapter_text` (每章自己的文字資源，FDTXT idx = chapter_id+1) |
+| `0x53A79` | `data_fd2_current_chapter_text` (每章自己的文字資源，FDTXT idx = chapter_id+1) |
 
 `fd2_display_dialog_scene` 第 5 個參數 = `page_id`，索引到對應 chapter_text 中的對話頁。
 

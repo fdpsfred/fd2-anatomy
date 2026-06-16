@@ -45,7 +45,7 @@ Total placeholder (3-byte): 144 entries (= 136 frame_c slots + 8 extra slot
 per pose entry (per `fd2_step_figani_pose_animation @ 0x2B9A1`):
 
 - byte +4: type (1 = spell-cast frame，會觸發 `deduct_caster_mp` + flash)
-- byte +5: sfx_hook_id (0 = no sfx; non-0 = index into special_attack_sfx_bank)
+- byte +5: sfx_hook_id (0 = no sfx; non-0 = index into data_fd2_audio_figani_sfx_bank_buf_ptr)
 - byte +6: sub_frame_count
 - byte +8 onwards: sub-frame sprite indices
 

@@ -10,6 +10,7 @@
 #include "globals.h"
 #include "protos.h"
 #include <stdio.h>
+#include "audiofix.h"   /* audiofix_make_bank / audiofix_enable_sfx */
 
 /* recording stub for fd2_restore_screen_block_from_buffer (testglob.c) */
 extern int    g_restore_block_calls;
@@ -84,6 +85,13 @@ static void dlg_reset(void)
     g_dlg_glyph_last_pos = 0;
     g_dlg_blink_calls = 0;
     data_fd2_dialog_active_portrait_blit_offset = 0;
+
+    /* The typewriter step fires fd2_play_sfx_with_handle(fdother bank, 2, 1)
+     * once per rendered glyph; g_dlg_blink_calls counts those via the relocated
+     * AIL stop spy. Open the audio gates and stage a valid bank so the now-real
+     * player reaches that spy. */
+    audiofix_enable_sfx();
+    data_fd2_audio_fdother_sfx_bank_buf_ptr = audiofix_make_bank(0x1F);
 }
 
 /*
@@ -1324,6 +1332,186 @@ static void test_typewriter_battle_gate_primes_scene(void)
     tw_teardown();
 }
 
+/* ---- fd2_scroll_text_screen_up_by_lines (0x24D22) ---------------- */
+#define SCROLL_ROWS   0xC0
+#define SCROLL_STRIDE 0x138
+
+/* unique 3-byte fingerprint for a given source row index */
+static uint8 scroll_tag0(int idx)  { return (uint8)idx; }
+static uint8 scroll_tag1(int idx)  { return (uint8)(idx * 7 + 3); }
+static uint8 scroll_tag2(int idx)  { return (uint8)(idx ^ 0xAA); }
+
+static void scroll_fill_rows(uint8 *buf)
+{
+    int idx;
+    for (idx = 0; idx < SCROLL_ROWS; idx++) {
+        uint8 *row = buf + (uint32)idx * SCROLL_STRIDE;
+        row[0]                  = scroll_tag0(idx);
+        row[5]                  = scroll_tag1(idx);
+        row[SCROLL_STRIDE - 1]  = scroll_tag2(idx);
+    }
+}
+
+/* assert that destination row `dst` holds the full 0x138-byte fingerprint
+ * of source row `src` (all three witness bytes), i.e. the whole row moved. */
+static int scroll_row_is(uint8 *buf, int dst, int src)
+{
+    uint8 *row = buf + (uint32)dst * SCROLL_STRIDE;
+    return row[0] == scroll_tag0(src)
+        && row[5] == scroll_tag1(src)
+        && row[SCROLL_STRIDE - 1] == scroll_tag2(src);
+}
+
+/*
+ * Mode A: lines != 0 stores the low byte of `lines` into the pending
+ * line-count state and returns without touching the buffer. We also pass a
+ * value > 0xFF (0x105) to confirm only the low byte (0x05) is kept -- the
+ * binary does MOV AL,[ESP+0xc] / MOV [0x51A10],AL (byte store).
+ */
+static void test_scroll_mode_a_stores_low_byte(void)
+{
+    uint8 *buf;
+
+    buf = (uint8 *)malloc(SCROLL_ROWS * SCROLL_STRIDE);
+    ASSERT_TRUE(buf != NULL);
+    scroll_fill_rows(buf);
+    data_fd2_graphics_static_bg_buffer_ptr = (uint32)buf;
+
+    data_fd2_graphics_text_scroll_pending_line_count = 0;
+    fd2_scroll_text_screen_up_by_lines(7);
+    ASSERT_EQ((long)data_fd2_graphics_text_scroll_pending_line_count, 7);
+
+    /* low-byte truncation: 0x105 -> 0x05 */
+    fd2_scroll_text_screen_up_by_lines(0x105);
+    ASSERT_EQ((long)data_fd2_graphics_text_scroll_pending_line_count, 0x05);
+
+    /* buffer must be untouched in Mode A (row 0 still tagged for row 0) */
+    ASSERT_TRUE(scroll_row_is(buf, 0, 0));
+    ASSERT_TRUE(scroll_row_is(buf, SCROLL_ROWS - 1, SCROLL_ROWS - 1));
+
+    free(buf);
+    data_fd2_graphics_static_bg_buffer_ptr = 0;
+    data_fd2_graphics_text_scroll_pending_line_count = 0;
+}
+
+/*
+ * Mode B cylinder scroll, N=1. Derived from the disassembly:
+ *   dst row[p] for p in [0 .. N-1]   == old row[(0xC0-N) + p]   (bottom wraps to top)
+ *   dst row[p] for p in [N .. 0xBF]  == old row[p - N]          (shift down by N)
+ * So with N=1: row[0]==old row[0xBF]; row[p]==old row[p-1] for p in 1..0xBF.
+ * Verifying the full 0x138-byte fingerprint guards against partial-row moves.
+ */
+static void test_scroll_mode_b_cylinder_n1(void)
+{
+    uint8 *buf;
+    int p;
+    int ok;
+
+    buf = (uint8 *)malloc(SCROLL_ROWS * SCROLL_STRIDE);
+    ASSERT_TRUE(buf != NULL);
+    scroll_fill_rows(buf);
+    data_fd2_graphics_static_bg_buffer_ptr = (uint32)buf;
+    data_fd2_graphics_text_scroll_pending_line_count = 1;
+
+    fd2_scroll_text_screen_up_by_lines(0);
+
+    ok = scroll_row_is(buf, 0, SCROLL_ROWS - 1);   /* row 0 <- old last row */
+    for (p = 1; p < SCROLL_ROWS; p++) {
+        if (!scroll_row_is(buf, p, p - 1)) {
+            ok = 0;
+        }
+    }
+    ASSERT_TRUE(ok);
+
+    free(buf);
+    data_fd2_graphics_static_bg_buffer_ptr = 0;
+    data_fd2_graphics_text_scroll_pending_line_count = 0;
+}
+
+/*
+ * Mode B cylinder scroll with N=3 (multi-row wrap, exercises the malloc
+ * scratch + the i = 0xBF-N..0 loop boundary).
+ *   row[0]==old 0xBD, row[1]==old 0xBE, row[2]==old 0xBF   (bottom 3 wrap to top)
+ *   row[p]==old (p-3) for p in [3 .. 0xBF]                 (shift down by 3)
+ */
+static void test_scroll_mode_b_cylinder_n3(void)
+{
+    uint8 *buf;
+    int p;
+    int ok;
+    int N;
+
+    N = 3;
+    buf = (uint8 *)malloc(SCROLL_ROWS * SCROLL_STRIDE);
+    ASSERT_TRUE(buf != NULL);
+    scroll_fill_rows(buf);
+    data_fd2_graphics_static_bg_buffer_ptr = (uint32)buf;
+    data_fd2_graphics_text_scroll_pending_line_count = (uint8)N;
+
+    fd2_scroll_text_screen_up_by_lines(0);
+
+    ok = 1;
+    /* bottom N rows wrapped to the top */
+    for (p = 0; p < N; p++) {
+        if (!scroll_row_is(buf, p, (SCROLL_ROWS - N) + p)) {
+            ok = 0;
+        }
+    }
+    /* everything else shifted down by N */
+    for (p = N; p < SCROLL_ROWS; p++) {
+        if (!scroll_row_is(buf, p, p - N)) {
+            ok = 0;
+        }
+    }
+    ASSERT_TRUE(ok);
+
+    free(buf);
+    data_fd2_graphics_static_bg_buffer_ptr = 0;
+    data_fd2_graphics_text_scroll_pending_line_count = 0;
+}
+
+/*
+ * fd2_close_intro_dialog_with_slide_out @ 0x2D31B — end-to-end teardown.
+ *
+ * Identical teardown shape to fd2_close_status_screen_with_slide_out, with
+ * one deliberate difference: this chapter-transition variant does NOT
+ * recomposite a battle frame at the end. So the host-observable proxies are
+ * (1) it runs the fixed 1..5 slide loop + VRAM-restore memmove + three
+ * free()s and returns (never hangs), and (2) g_composite_call_count stays 0
+ * — that final assertion is what distinguishes this emit from the status
+ * counterpart and guards against accidentally copying the composite call.
+ *
+ * We pre-allocate the three 64000-byte workspaces (the open counterpart's
+ * job) so the real fd2_slide_panel_down_step memmoves stay in bounds; the
+ * function free()s all three, so the test must NOT free them again and
+ * resets the globals to 0 afterward to avoid dangling pointers. The in-loop
+ * blit and the restore memmove both target 0xA0000 (real VGA RAM under
+ * DOS/4GW, harmless — same convention as tests/anim/aniwalk2.c).
+ */
+static void test_close_intro_dialog_slide_out_no_composite(void)
+{
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = (uint32)malloc(64000);
+    data_fd2_ui_slide_composed_target_buf_ptr = (uint32)malloc(64000);
+    ASSERT_TRUE(data_fd2_ui_slide_anim_accumulator_buf_ptr != 0);
+    ASSERT_TRUE(data_fd2_ui_slide_bg_snapshot_buf_ptr != 0);
+    ASSERT_TRUE(data_fd2_ui_slide_composed_target_buf_ptr != 0);
+
+    g_composite_call_count = 0;
+
+    fd2_close_intro_dialog_with_slide_out();
+
+    /* The chapter-transition close, unlike the status close, performs NO
+     * recomposite after the teardown. */
+    ASSERT_EQ((long)g_composite_call_count, 0);
+
+    /* The function already free()d all three; drop the dangling globals so
+     * later tests in the suite never reuse a freed pointer. */
+    data_fd2_ui_slide_anim_accumulator_buf_ptr = 0;
+    data_fd2_ui_slide_bg_snapshot_buf_ptr = 0;
+    data_fd2_ui_slide_composed_target_buf_ptr = 0;
+}
+
 void run_dialog_dialog_tests(void)
 {
     int _prev_fails = g_test_fail_count;
@@ -1357,5 +1545,10 @@ void run_dialog_dialog_tests(void)
     RUN_TEST(test_typewriter_cursor_right_then_confirm);
     RUN_TEST(test_typewriter_intro_emits_eight_corner_blits);
     RUN_TEST(test_typewriter_battle_gate_primes_scene);
+    RUN_TEST(test_scroll_mode_a_stores_low_byte);
+    RUN_TEST(test_scroll_mode_b_cylinder_n1);
+    RUN_TEST(test_scroll_mode_b_cylinder_n3);
+    RUN_TEST(test_close_intro_dialog_slide_out_no_composite);
+    audiofix_disable_sfx();   /* restore safe gate state for later suites */
     printf("\n");
 }

@@ -186,7 +186,7 @@ void fd2_load_chapter_background_layers(void)
  * Load a portrait's 12-sprite frames from FDICON.B24 into the global
  * 200KB cache. Idempotent on repeat calls (returns existing idx).
  *
- * Cache structure (200KB buffer at portrait_sprite_cache):
+ * Cache structure (200KB buffer at data_fd2_portrait_sprite_cache):
  *   [0 .. 0x77F]  sprite-offset lookup table: 40-portrait capacity
  *                 (40 x 12 sprites x 4-byte abs-offset)
  *   [0x780 ..]    packed sprite data, sequential per portrait
@@ -221,12 +221,12 @@ int fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp)
 
     if (data_fd2_resource_portrait_cache_count == 0) {
         *(uint32 *)data_fd2_resource_portrait_cache_id_list_base = portrait_id;
-        portrait_sprite_cache = (uint32)malloc(0x32a00);
+        data_fd2_portrait_sprite_cache = (uint32)malloc(0x32a00);
         fseek((void *)fp, sprite_offsets[0], SEEK_SET);
-        fread((void *)(portrait_sprite_cache + 0x780), 1, data_size,
+        fread((void *)(data_fd2_portrait_sprite_cache + 0x780), 1, data_size,
               (void *)fp);
         for (i = 0; i < 0xc; i++) {
-            *(int32 *)(portrait_sprite_cache + i * 4) =
+            *(int32 *)(data_fd2_portrait_sprite_cache + i * 4) =
                 (sprite_offsets[i] - sprite_offsets[0]) + 0x780;
         }
         data_fd2_resource_portrait_cache_buffer_used = data_size + 0x780;
@@ -242,11 +242,11 @@ int fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp)
         *(uint32 *)(data_fd2_resource_portrait_cache_id_list_base + i * 4) =
             portrait_id;
         fseek((void *)fp, sprite_offsets[0], SEEK_SET);
-        fread((void *)(portrait_sprite_cache
+        fread((void *)(data_fd2_portrait_sprite_cache
                        + data_fd2_resource_portrait_cache_buffer_used),
               1, data_size, (void *)fp);
         for (i = 0; i < 0xc; i++) {
-            *(int32 *)(portrait_sprite_cache
+            *(int32 *)(data_fd2_portrait_sprite_cache
                        + (data_fd2_resource_portrait_cache_count * 0xc + i) * 4)
                 = (int32)(data_fd2_resource_portrait_cache_buffer_used
                           + (sprite_offsets[i] - sprite_offsets[0]));
@@ -269,21 +269,21 @@ int fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp)
  *
  * Pipeline:
  *   1. fd2_load_chapter_background_layers()
- *   2. FDTXT.DAT[chapter+1] -> current_chapter_text
- *   3. FDFIELD.DAT[chapter*3 + 2/1/0] -> chapter_portrait_load_buffer /
+ *   2. FDTXT.DAT[chapter+1] -> data_fd2_current_chapter_text
+ *   3. FDFIELD.DAT[chapter*3 + 2/1/0] -> data_fd2_chapter_portrait_load_buffer /
  *      tile_event_data_table / battle_tile_map
  *   4. map width/height = tile_map[0]/[2] (16-bit)
- *   5. FDSHAP.DAT[tile_event[0]*2 (+1)] -> battle_scene_snapshot /
+ *   5. FDSHAP.DAT[tile_event[0]*2 (+1)] -> data_fd2_battle_scene_snapshot /
  *      tile_attribute_flags_buffer
  *   6. fd2_obfuscate_battle_tile_map(battle_tile_map)
  *   7. cache_total_size=tile_event[1], cache_alloc_offset=tile_event[2],
  *      party_member_count=cache_total_size
- *   8. free portrait_sprite_cache + old runtime_char_array
+ *   8. free data_fd2_portrait_sprite_cache + old runtime_char_array
  *   9. runtime_char_array = malloc(0x1E00)  (96 chars x 0x50)
  *  10. fopen("FDICON.B24","rb")
  *  11. per slot (0..cache_total_size): build active player units from the
  *      shared menu party roster template, or zero+mark dead for empty slots
- *  12. fclose; free chapter_portrait_load_buffer
+ *  12. fclose; free data_fd2_chapter_portrait_load_buffer
  *  13. fd2_load_chapter_portraits_and_dump_tmp(0)
  *
  * malloc/fopen failure -> INT 10h text-mode reset + printf + exit.
@@ -306,14 +306,14 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
     active_count = 0;
     fd2_load_chapter_background_layers();
 
-    current_chapter_text = fd2_load_dat_resource(
+    data_fd2_current_chapter_text = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdtxt_dat,
-        current_chapter_text, chapter_id + 1);
+        data_fd2_current_chapter_text, chapter_id + 1);
 
     fdfield_x3 = chapter_id * 3;
-    chapter_portrait_load_buffer = fd2_load_dat_resource(
+    data_fd2_chapter_portrait_load_buffer = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdfield_dat_51a59,
-        chapter_portrait_load_buffer, fdfield_x3 + 2);
+        data_fd2_chapter_portrait_load_buffer, fdfield_x3 + 2);
     data_fd2_tile_event_data_table_ptr = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdfield_dat_51a59,
         data_fd2_tile_event_data_table_ptr, fdfield_x3 + 1);
@@ -327,9 +327,9 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
         (int)*(int16 *)(data_fd2_battle_tile_map_ptr + 2);
 
     scene_id = *(uint8 *)data_fd2_tile_event_data_table_ptr;
-    battle_scene_snapshot = fd2_load_dat_resource(
+    data_fd2_battle_scene_snapshot = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdshap_dat_51a65,
-        battle_scene_snapshot, (uint32)scene_id * 2);
+        data_fd2_battle_scene_snapshot, (uint32)scene_id * 2);
     data_fd2_tile_attribute_flags_buffer_ptr = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdshap_dat_51a65,
         data_fd2_tile_attribute_flags_buffer_ptr, (uint32)scene_id * 2 + 1);
@@ -343,8 +343,8 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
     data_fd2_battle_party_member_count =
         data_fd2_resource_portrait_cache_total_size;
 
-    if (portrait_sprite_cache != 0)
-        free((void *)portrait_sprite_cache);
+    if (data_fd2_portrait_sprite_cache != 0)
+        free((void *)data_fd2_portrait_sprite_cache);
     if (data_fd2_battle_runtime_char_array_ptr != NULL)
         free(data_fd2_battle_runtime_char_array_ptr);
 
@@ -368,7 +368,7 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
         exit(1);
     }
 
-    field_pos = (uint8 *)(chapter_portrait_load_buffer
+    field_pos = (uint8 *)(data_fd2_chapter_portrait_load_buffer
         + data_fd2_resource_portrait_cache_alloc_offset * 6 + 2);
     template_ptr = (uint8 *)data_fd2_shared_menu_party_roster_buffer_ptr;
 
@@ -404,8 +404,8 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
     }
 
     fclose(fp);
-    free((void *)chapter_portrait_load_buffer);
-    chapter_portrait_load_buffer = 0;
+    free((void *)data_fd2_chapter_portrait_load_buffer);
+    data_fd2_chapter_portrait_load_buffer = 0;
     fd2_load_chapter_portraits_and_dump_tmp(0);
 }
 
@@ -419,14 +419,14 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
  *   1. fopen("FDICON.B24", "rb"); if NULL -> INT 10h text-mode reset +
  *      printf("File 'FDICON.B24' error !!\n") + exit.
  *   2. Re-read FDFIELD.DAT[current_chapter_id*3 + 2] into
- *      chapter_portrait_load_buffer (the buffer was freed by
+ *      data_fd2_chapter_portrait_load_buffer (the buffer was freed by
  *      fd2_load_chapter_battle_data after its own load).
  *   3. For each entry in the tile-event table (count =
  *      portrait_cache_alloc_offset, stride 0x1A, race byte at +0x98):
  *      if race == target_race_id, call fd2_init_runtime_char_for_battle
  *      to populate a runtime_char + load its portrait from FDICON.B24.
- *   4. fclose(FDICON); free + null chapter_portrait_load_buffer.
- *   5. fopen("FD2.TMP", "wb"); fwrite(portrait_sprite_cache, 1, 0x32A00);
+ *   4. fclose(FDICON); free + null data_fd2_chapter_portrait_load_buffer.
+ *   5. fopen("FD2.TMP", "wb"); fwrite(data_fd2_portrait_sprite_cache, 1, 0x32A00);
  *      fclose. FD2.TMP is the cross-chapter sprite swap file, refreshed
  *      (truncated + rewritten) after each portrait load.
  *
@@ -449,9 +449,9 @@ void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id)
         exit(1);
     }
 
-    chapter_portrait_load_buffer = fd2_load_dat_resource(
+    data_fd2_chapter_portrait_load_buffer = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdfield_dat_51a59,
-        chapter_portrait_load_buffer,
+        data_fd2_chapter_portrait_load_buffer,
         data_fd2_chapter_current_chapter_id * 3 + 2);
 
     for (iter = 0;
@@ -465,11 +465,11 @@ void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id)
     }
 
     fclose(fp);
-    free((void *)chapter_portrait_load_buffer);
-    chapter_portrait_load_buffer = 0;
+    free((void *)data_fd2_chapter_portrait_load_buffer);
+    data_fd2_chapter_portrait_load_buffer = 0;
 
     fp = fopen("FD2.TMP", "wb");
-    fwrite((void *)portrait_sprite_cache, 1, 0x32a00, fp);
+    fwrite((void *)data_fd2_portrait_sprite_cache, 1, 0x32a00, fp);
     fclose(fp);
 }
 
@@ -556,3 +556,305 @@ void fd2_load_chapter_portrait(uint32 portrait_kind)
             data_fd2_ui_slide_composed_target_buf_ptr);
     }
 }
+
+/* ----------------------------------------------------------------
+ * fd2_load_and_fade_in_cinematic_image @ 0x1f81e  (1 caller)
+ *
+ * Loads a cinematic image palette, plays its ANI.DAT animation
+ * sequence, then fades the screen to black. Used during the chapter
+ * ending cinematic (fd2_play_ending_and_record_clear, 3 sites).
+ *
+ * Steps:
+ *   1. If palette_idx != -1: clear the mode-13h framebuffer
+ *      (memset 0xA0000 = 0, 64000 bytes), then load FDOTHER.DAT
+ *      entry palette_idx into data_fd2_vga_palette_data_ptr.
+ *      (palette_idx == -1 keeps the current palette.)
+ *   2. fd2_set_vga_palette_range(0, 0xff, 0) — apply the palette at
+ *      FULL brightness (3rd arg = darken-amount, 0 = no darkening).
+ *   3. fd2_play_ani_file_animation_sequence(anim_idx, per_frame_delay, 0)
+ *      — render the cinematic (its ANI frames carry their own fade-in).
+ *   4. Fall through into fd2_play_palette_fade_to_black @ 0x1f882,
+ *      which ramps darken 0..0x3F (fade-OUT to black) and RETs. The
+ *      fall-through's RET also returns from this function, so this is
+ *      emitted as a direct tail-call to that function (emit pipeline
+ *      §模式 B — shared fade-loop body; fade_to_black is a real,
+ *      separately-emitted function with 22 callers).
+ *
+ * Params: anim_idx, per_frame_delay = passed through to
+ * fd2_play_ani_file_animation_sequence; palette_idx = FDOTHER.DAT
+ * palette resource index, or -1 to keep the current palette.
+ * ---------------------------------------------------------------- */
+void fd2_load_and_fade_in_cinematic_image(uint32 anim_idx, uint32 per_frame_delay,
+                                          uint32 palette_idx)
+{
+    if (palette_idx != 0xffffffff) {
+        memset((void *)0xa0000, 0, 64000);
+        data_fd2_vga_palette_data_ptr = fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_fdother_dat,
+            data_fd2_vga_palette_data_ptr, palette_idx);
+    }
+
+    fd2_set_vga_palette_range(0, 0xff, 0);
+    fd2_play_ani_file_animation_sequence(anim_idx, per_frame_delay, 0);
+    fd2_play_palette_fade_to_black();
+}
+
+/* ----------------------------------------------------------------
+ * fd2_restore_portrait_cache_from_tmp @ 0x29117  (3 callers)
+ *
+ * Restores the portrait sprite cache (data_fd2_portrait_sprite_cache @ 0x53A61)
+ * by reading the full 0x32A00-byte (~207KB) image back from FD2.TMP.
+ * Symmetric read-back of the swap file written by
+ * fd2_load_chapter_portraits_and_dump_tmp's fopen("FD2.TMP","wb")+
+ * fwrite tail. Called after FIGANI combat cinematics that freed and
+ * replaced the in-game portrait/tile caches; this re-loads the working
+ * portrait set from the precomputed file written during chapter init.
+ * Callers: fd2_execute_special_attack_skill, fd2_play_full_combat_cinematic,
+ * fd2_play_spell_cast_sequence.
+ *
+ * void __cdecl, no params. fp is held in EBX (callee-saved) across the
+ * malloc/fread; the __CHK(0x18) stack-probe prologue is compiler-injected.
+ * Note the freshly malloc'd buffer is stored into data_fd2_portrait_sprite_cache
+ * and reused as the fread destination (same pointer), so the cache global
+ * is the read target.
+ * ---------------------------------------------------------------- */
+void fd2_restore_portrait_cache_from_tmp(void)
+{
+    void *fp;
+
+    fp = fopen("FD2.TMP", "rb");
+    data_fd2_portrait_sprite_cache = (uint32)malloc(0x32a00);
+    fread((void *)data_fd2_portrait_sprite_cache, 1, 0x32a00, fp);
+    fclose(fp);
+}
+
+/* ----------------------------------------------------------------
+ * fd2_load_chapter_party_roster @ 0x2d392  (1 caller)
+ *
+ * Extract the chapter intro shop/equip menu's "available rows" byte array
+ * from the cached chapter-intro metadata entry
+ * (data_fd2_chapter_intro_active_metadata_entry_ptr @ 0x54137) into the
+ * caller's out_buf, stopping at the first 0xFF terminator or a
+ * state-specific cap. Returns the number of bytes written.
+ *
+ * Sole caller: fd2_run_chapter_intro_menu_main @ 0x2E341, which passes a
+ * 12-byte stack buffer and uses the count for the shop sub-menus.
+ *
+ * Layout selection by data_fd2_chapter_intro_menu_cursor_state @ 0x5412B:
+ *   state == 1: cap = 0xC, source offset within metadata = 0x03 (weapons)
+ *   state == 3: cap = 8,   source offset = 0x0F                  (items)
+ *   else:       cap = 8,   source offset = 0x17                  (mystery)
+ *
+ * The metadata entry is the FDFIELD-style chapter intro record fetched by
+ * fd2_get_chapter_intro_metadata_entry; bytes are item IDs with 0xFF as the
+ * empty-slot sentinel. The store index (out_count) and the loop counter
+ * (iter) are tracked separately to mirror the disassembly, but since 0xFF
+ * only breaks (never skips), out_count == iter at every step.
+ * ---------------------------------------------------------------- */
+int fd2_load_chapter_party_roster(uint8 *out_buf)
+{
+    uint32 table_off;
+    uint32 max_count;
+    uint32 out_count;
+    uint32 iter;
+    uint32 src_byte;
+
+    max_count = 8;
+    if (data_fd2_chapter_intro_menu_cursor_state == 1) {
+        max_count = 0xc;
+        table_off = 3;
+    } else if (data_fd2_chapter_intro_menu_cursor_state == 3) {
+        table_off = 0xf;
+    } else {
+        table_off = 0x17;
+    }
+
+    out_count = 0;
+    for (iter = 0; (int)iter < (int)max_count; iter++) {
+        src_byte = data_fd2_chapter_intro_active_metadata_entry_ptr
+                   + table_off + iter;
+        if (*(uint8 *)src_byte == 0xff) {
+            break;
+        }
+        *(uint8 *)(out_buf + out_count) = *(uint8 *)src_byte;
+        out_count++;
+    }
+
+    return (int)out_count;
+}
+
+/* ----------------------------------------------------------------
+ * data_fd2_chapter_portrait_load_buffer @ 0x53A59 (zero-init BSS)
+ *
+ * Pointer to the per-chapter FDFIELD char-placement record loaded by
+ * fd2_load_dat_resource(FDFIELD.DAT[chapter_id*3 + 2]). Holds the 6-byte
+ * stride array indexed by char field index (byte +2 = desired_x,
+ * byte +4 = desired_y) consumed by fd2_init_runtime_char_for_battle and
+ * fd2_load_chapter_battle_data. Lifecycle is transient: NULL at startup,
+ * reassigned from the loader, then free()'d and reset to 0 after the
+ * portraits are consumed. Stored/loaded as a full 32-bit dword everywhere
+ * (callers cast to uint8* for the +idx*6 byte arithmetic); cleared to 0 by
+ * the CRT BSS-zero loop at startup. (sublabel @ .object2, 4 bytes.)
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_chapter_portrait_load_buffer;
+
+/* ----------------------------------------------------------------
+ * data_fd2_portrait_sprite_cache @ 0x53A61 (zero-init BSS)
+ *
+ * Base pointer to the heap-allocated 200KB portrait sprite cache buffer
+ * (malloc(0x32A00)). NULL at program startup -- cleared by the CRT BSS-zero
+ * loop -- then assigned at runtime by fd2_load_portrait_to_cache (first-time
+ * alloc + fill from FDICON.B24) and fd2_restore_portrait_cache_from_tmp
+ * (realloc + reload from FD2.TMP), and free()'d / reset to 0 on teardown.
+ *
+ * Pointed-to buffer layout (this slot is only the 4-byte pointer):
+ *   [0 .. 0x77F]  frame-offset lookup table: 40 portraits x 12 sprites x 4-byte
+ *                 absolute offset
+ *   [0x780 ..]    packed sprite payload, appended per cached portrait
+ * Readers load this pointer, index *(int32 *)(ptr + frame*4) for the per-frame
+ * offset, and add it back to ptr to reach the sprite bytes. Stored/loaded as a
+ * full 32-bit dword everywhere (callers cast to void* / uint8* for the pointer
+ * arithmetic); modeled as uint32. (sublabel @ .object2, 4 bytes.)
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_portrait_sprite_cache;
+
+/* ----------------------------------------------------------------
+ * data_fd2_graphics_static_bg_buffer_ptr @ 0x53AFF (zero-init BSS)
+ *
+ * Base pointer to the heap-allocated static (non-animated) battle/chapter
+ * background work buffer. NULL at program startup -- cleared by the CRT
+ * BSS-zero loop -- then owned by fd2_load_chapter_background_layers, which on
+ * each chapter load does free(old)/NULL then either malloc(bg_w*bg_h) (wide
+ * parallax / text-scroll chapters) or assigns the result of
+ * fd2_load_dat_resource("FDOTHER.DAT", idx) (single-sprite default path).
+ * Read as a base address by:
+ *   - fd2_composite_battle_tile_map: blit source for the background pass
+ *     (src = ptr [+ scroll offset], strides 0x140 / 0x1CE / 0x198 / 0x138).
+ *   - fd2_scroll_text_screen_up_by_lines: cylinder-scrolls the 0xC0-line x
+ *     0x138-byte buffer in place via memmove from this base.
+ * Stored/loaded as a full 32-bit dword everywhere (callers cast to void* / int
+ * for the pointer arithmetic and free()); modeled as uint32, matching the
+ * sibling data_fd2_graphics_animated_bg_buffer_ptr @ 0x53B03.
+ * (sublabel @ .object2, 4 bytes.)
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_graphics_static_bg_buffer_ptr;
+
+/* ----------------------------------------------------------------
+ * data_fd2_graphics_animated_bg_buffer_ptr @ 0x53B03 (zero-init BSS)
+ *
+ * Base pointer to the heap-allocated animated background source buffer (the
+ * 16-frame per-row-offset scroll source for the looping-water/lava chapters).
+ * NULL at program startup -- cleared by the CRT BSS-zero loop -- then owned by
+ * fd2_load_chapter_background_layers, which on each chapter load does
+ * free(old)/NULL then, for animated chapters (9/0x18/0x19/0x1C/0x1D), assigns
+ * malloc(64000) (a 320x200 work buffer). For the wide-parallax, text-scroll,
+ * and 2-sprite widescreen paths it is left at NULL (the static buffer carries
+ * the image), and the 2-sprite path also borrows this slot transiently to hold
+ * each loaded FDOTHER sprite before free()/NULL.
+ * Read as a base address by fd2_composite_battle_tile_map: on animated chapters
+ * it is both the per-row-offset blit source fed to
+ * fd2_blit_buffer_with_per_row_offset and the blit source (stride 0x140) for
+ * the background pass.
+ * Stored/loaded as a full 32-bit dword everywhere (callers cast to
+ * void* / ushort* for the pointer arithmetic and free()); modeled as uint32,
+ * matching the sibling data_fd2_graphics_static_bg_buffer_ptr @ 0x53AFF.
+ * (sublabel @ .object2, 4 bytes.)
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_graphics_animated_bg_buffer_ptr;
+
+/* ----------------------------------------------------------------
+ * data_fd2_resource_portrait_cache_id_list_base @ 0x53B17 (zero-init BSS)
+ *
+ * Parallel array of cached portrait IDs: id_list[k] == portrait_id of the
+ * k-th slot in the portrait sprite cache. NULL/zero at program startup --
+ * cleared by the CRT BSS-zero loop -- then filled at runtime by
+ * fd2_load_portrait_to_cache, which writes id_list[portrait_cache_count]
+ * on each first-time/append load and scans id_list[0 .. count-1] for a
+ * cache hit. The writer/reader index this region with a 4-byte stride and
+ * full dword (uint32) access: store is `*(uint32*)(base + k*4) = portrait_id`,
+ * read is `CMP portrait_id, dword ptr [base + k*4]` (see fd2_load_portrait_to_cache
+ * @ 0x1109d WRITE, @ 0x11129 READ, @ 0x11138 append). The base is therefore a
+ * byte pointer carrying uint32 entries via explicit *4 byte arithmetic.
+ *
+ * Capacity: the cache's frame-offset lookup table (0x780 bytes at the head of
+ * the 200KB sprite buffer) holds 40 portraits x 12 sprites x 4 bytes, so the
+ * engine's structural ceiling is 40 cached portraits; this parallel ID list
+ * needs 40 uint32 entries = 160 bytes. (Ghidra typed it byte[40] = only the
+ * first 10 entries; the reserved gap up to portrait_cache_count @ 0x53BDF is
+ * 200 bytes, which absorbs the full 160-byte list in the original binary.)
+ * (sublabel @ .object2.)
+ * ---------------------------------------------------------------- */
+uint8 data_fd2_resource_portrait_cache_id_list_base[160];
+
+/* ----------------------------------------------------------------
+ * data_fd2_resource_portrait_cache_count @ 0x53BDF (zero-init BSS)
+ *
+ * Runtime counter: number of portraits currently resident in the sprite
+ * cache (data_fd2_portrait_sprite_cache @ 0x53A61). Range 0..40, where 40 is
+ * the cache's structural capacity (frame-offset lookup table holds 40 x 12
+ * sprites). Zero at program startup via the CRT BSS-zero loop; this zero is
+ * the live signal for "cache empty / needs first-time alloc" inside
+ * fd2_load_portrait_to_cache.
+ *
+ * Accessed as a single 32-bit scalar (full dword) by every caller:
+ *   - fd2_load_portrait_to_cache @ 0x11090: `CMP dword ptr [0x53BDF],0` gate,
+ *     append index `IMUL ..,dword ptr [0x53BDF],0xc`, post-increment
+ *     `INC dword ptr [0x53BDF]` / `MOV EDX,[0x53BDF]; LEA EAX,[EDX+1]; MOV [0x53BDF],EAX`,
+ *     and signed loop bound `for (i=0; i < (int)count; i++)`.
+ *   - reset to 0 on cache rebuild: fd2_chapter_transition_menu @ 0x2CBB3,
+ *     fd2_load_state_from_selected_slot @ 0x30377, and the other re-init
+ *     writers (engine init, class-promotion / recruitment screens) all do
+ *     `MOV dword ptr [0x53BDF],0`.
+ * Declared uint32 (matches the dword access width); signed comparisons are
+ * expressed with explicit (int) casts at the use sites (see above in this file).
+ * (sublabel @ .object2.)
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_resource_portrait_cache_count;
+
+/* ----------------------------------------------------------------
+ * data_fd2_resource_portrait_cache_buffer_used @ 0x539EC (zero-init BSS)
+ *
+ * Running write cursor into the portrait sprite cache buffer
+ * (data_fd2_portrait_sprite_cache @ 0x53A61): the byte offset of the
+ * end of the packed sprite payload, i.e. where the next appended
+ * portrait's sprite bytes start. Zero at program startup via the CRT
+ * BSS-zero loop; never relies on the initializer at runtime because
+ * fd2_load_portrait_to_cache seeds it on the first-time fill before any
+ * append read.
+ *
+ * Accessed as a single 32-bit scalar (full dword), only by
+ * fd2_load_portrait_to_cache:
+ *   - first-time init @ 0x1110b: `MOV [0x539EC],EAX` (= data_size + 0x780,
+ *     where 0x780 is the head frame-offset lookup table size).
+ *   - append fread dest @ 0x1115f: `ADD EAX,dword ptr [0x539EC]`
+ *     (cache_base + used = where the new portrait's sprites are read).
+ *   - append per-frame offset @ 0x11178: `MOV EBX,dword ptr [0x539EC]`.
+ *   - append advance @ 0x1119c: `ADD dword ptr [0x539EC],EAX`
+ *     (used += data_size).
+ * Holds a non-negative buffer byte-offset; declared uint32 to match the
+ * dword access width. (sublabel @ .object2, 4 bytes.)
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_resource_portrait_cache_buffer_used;
+
+/* ----------------------------------------------------------------
+ * data_fd2_resource_last_loaded_resource_size @ 0x53BFF (zero-init BSS)
+ *
+ * Byte size of the most recently loaded DAT resource, computed and cached
+ * by fd2_load_dat_resource on every load. Zero at program startup via the
+ * CRT BSS-zero loop; never relies on the initializer at runtime because the
+ * loader always writes it before any read (it is set = end - start from the
+ * archive's 8-byte [start,end] offset pair, then immediately consumed as the
+ * malloc / fread size in the same call).
+ *
+ * Accessed as a single 32-bit scalar (full dword) everywhere:
+ *   - fd2_load_dat_resource @ 0x1123c: `SUB EAX,EDI; MOV [0x53BFF],EAX`
+ *     (store size = header[1] - header[0]); then `PUSH dword ptr [0x53BFF]`
+ *     @ 0x1124a (malloc arg) and @ 0x11285 (fread byte-count arg).
+ *   - fd2_set_bgm_track_with_fade @ 0x25a07: `PUSH dword ptr [0x53BFF]`
+ *     passed as the size arg to fd2_dpmi_lock_size(buf, size) to DPMI-lock
+ *     the just-loaded FDMUS sequence.
+ * Holds a non-negative resource byte-count; declared uint32 to match the
+ * dword access width and its use as a malloc/fread/lock size.
+ * (sublabel @ .object2, 4 bytes.)
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_resource_last_loaded_resource_size;

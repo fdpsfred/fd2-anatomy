@@ -214,3 +214,90 @@ void fd2_pan_cursor_and_window(uint32 target_ox, uint32 target_oy)
         fd2_clear_keyboard_buffer();
     }
 }
+
+/* ----------------------------------------------------------------
+ * Battle viewport window origin X (tile column of left edge) @ 0x53AA9
+ *
+ * Runtime camera-scroll state, not a constant. Zero at load (BSS);
+ * first set by battle/chapter init + save-load, then incremented/
+ * decremented by the cursor-move and pan functions above as the
+ * viewport scrolls horizontally. uint32 matches the DWORD access
+ * width seen in the writers (INC/CMP dword ptr [0x53AA9]); range is a
+ * small non-negative tile column (0 .. map_width_tiles - 13).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_view_window_origin_x;
+
+/* ----------------------------------------------------------------
+ * Battle viewport window origin Y (tile row of top edge) @ 0x53AAD
+ *
+ * Runtime camera-scroll state, not a constant. Zero at load (BSS);
+ * first set by battle/chapter init + save-load, then incremented/
+ * decremented by the cursor-move and pan functions above as the
+ * viewport scrolls vertically. uint32 matches the DWORD access width
+ * seen in the writers (DEC/INC/CMP/MOV dword ptr [0x53AAD]); range is
+ * a small non-negative tile row (0 .. map_height_tiles - 8).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_view_window_origin_y;
+
+/* ----------------------------------------------------------------
+ * Battle cursor world X (tile column the cursor points at) @ 0x53AB1
+ *
+ * Runtime cursor state, not a constant. Zero at load (BSS); first set
+ * by battle/chapter init + save-load (engine init loads it from the
+ * map header via MOVZX byte->dword), then incremented/decremented by
+ * the cursor-move, walk-step and pan functions as the cursor traverses
+ * the map. uint32 matches the DWORD access width seen in every
+ * reader/writer (INC/CMP/MOV dword ptr [0x53AB1]); range is a small
+ * non-negative tile column (0 .. map_width_tiles - 1).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_cursor_world_x;
+
+/* ----------------------------------------------------------------
+ * Battle cursor world Y (tile row the cursor points at) @ 0x53AB5
+ *
+ * Runtime cursor state, not a constant. Zero at load (BSS); first set
+ * by battle/chapter init + save-load (engine init / chapter-end
+ * handlers store it, init zeroes the whole cursor/window block at
+ * 0x53AA9..0x53ABD), then incremented/decremented by the cursor-move,
+ * walk-step and pan functions as the cursor traverses the map. uint32
+ * matches the DWORD access width seen in every reader/writer
+ * (DEC/INC/CMP/MOV dword ptr [0x53AB5]); range is a small
+ * non-negative tile row (0 .. map_height_tiles - 1).
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_cursor_world_y;
+
+/* ----------------------------------------------------------------
+ * Battle cursor screen X (cursor column within the 13-tile viewport) @ 0x53AB9
+ *
+ * Runtime cursor state, not a constant. Zero at load (BSS); first set
+ * by engine init / save-load (loads it from the map header via MOVZX
+ * byte->dword at 0x1040C), then incremented/decremented by the
+ * cursor-move and walk-step functions as the cursor moves across the
+ * on-screen viewport (inner step vs scroll is decided by comparing this
+ * against the viewport edges). uint32 matches the DWORD access width
+ * seen in every reader/writer (INC/DEC/CMP/MOV dword ptr [0x53AB9]);
+ * range is a small non-negative screen column (0 .. 12). The move
+ * handlers compare it with signed branches (JLE/JGE), i.e. it is read
+ * as a signed coordinate at those sites, but it is never negative at
+ * runtime, so the BSS bytes are identical either way.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_cursor_screen_x;
+
+/* ----------------------------------------------------------------
+ * Battle cursor screen Y (cursor row within the on-screen viewport) @ 0x53ABD
+ *
+ * Runtime cursor state, not a constant. Zero at load (BSS); explicitly
+ * cleared to 0 by the battle/chapter init path (MOV dword ptr [0x53ABD],0x0
+ * at 0x2064B in fd2_init_battle_state_for_chapter) and set from the save
+ * header via MOVZX byte->dword in save-load (pBuf[0x30CB] at 0x10415),
+ * then incremented/decremented by the cursor-move and walk-step functions
+ * as the cursor moves up/down across the viewport (inner step vs scroll is
+ * decided by comparing this against the top/bottom viewport edges, e.g.
+ * < 2 to scroll up, < 6 to step down). uint32 matches the DWORD access
+ * width seen in every reader/writer (INC/DEC/CMP/MOV dword ptr [0x53ABD]);
+ * range is a small non-negative screen row. The move handlers compare it
+ * with signed branches (JGE), i.e. it is read as a signed coordinate at
+ * those sites, but it is never negative at runtime, so the BSS bytes are
+ * identical either way.
+ * ---------------------------------------------------------------- */
+uint32 data_fd2_battle_cursor_screen_y;
