@@ -2,7 +2,17 @@
 
 目標：`src/` 自身 compile+link 出可正確執行的 `fd2.exe`；`src/`+`tests/` compile 出測試執行檔。
 **全 650 個遊戲 function 已 emit+review+commit。Phase 1+2 全部工作已從 `integ` 用 `--no-ff` merge 進 `main`（merge commit `89268a4`，main tree == integ）；當前 branch ＝ `main`，`integ` 已整合（下方 §0-§7 與本段以下對 `integ` / `data-pN` / `emit-pN` 的引用皆為歷史記錄）。當前在「真實資料落地 + 測試重寫 + 收斂 fd2.exe」收斂計畫（data-first）。**
-**Phase 1（真資料落地，commit `cd2c0a8`）+ Phase 2（補完 22 個 blit/pathfind/composite coordinated landing）皆已完成。** routing 650/650 emit+reviewed、await_emit 0、build gate 0 err/0 warn、Ghidra Bad Instruction 0、FD2.LE 已存。**下一步＝Phase 3（系統性測試重寫到實際全綠），在此 Phase 2 hard-stop 等使用者評估。**
+**Phase 1（真資料落地，commit `cd2c0a8`）+ Phase 2（補完 22 個 blit/pathfind/composite coordinated landing）皆已完成。** routing 650/650 emit+reviewed、await_emit 0、build gate 0 err/0 warn、Ghidra Bad Instruction 0、FD2.LE 已存。**Phase 3（測試重寫到實際全綠）進行中 — 見下方「Phase 3 進度」。**
+
+### Phase 3 進度（current，最先讀）
+
+**使用者鐵則（覆寫一切）**：`src/` 內容絕對不可改動。唯一已授權例外 ＝ Phase 3a 補的 3 個 graphics global（見下）。目標：`src/` 每個 function 都被測到、邊界 case 完整、測試實際跑全綠。
+
+- **Phase 3a — build 連結修復（已 commit `e280ff8`）**：3 個被 src/ 引用卻從未定義的 global（連結期 undefined，Phase 2 gate 只看編譯期 warning 而漏掉，`build_ok` 一直是 false）以 Ghidra 真值落地：`data_fd2_graphics_shimmer_offset_table_16b[16]`（const，blitspr.c）、`data_fd2_graphics_bg_animation_frame_idx`(=0) + `data_fd2_graphics_forced_tile_anim_frame`(=0xFFFFFFFF)（rndscene.c）。使用者核准的唯一 src/ 例外。結果：0 undefined、TEST.EXE 可建。
+- **單 suite 驅動工具（已 commit `762b2b1`）**：`build_test.py --only <substr>` 暫濾 testmain.c 只跑指定 suite，繞過「執行順序在前的 suite hang 擋住後面全部」；跑完保證還原、不碰 src/。逐 suite 修復與 fan-out 的前提。
+- **關鍵發現（決定 fan-out 策略）**：Phase 2 把 `fd2_blit_indexed_sprite` / `fd2_rle_blit_sprite` / `fd2_dialog_sprite_blit_normal` 等 spy 換成 real，但測試的**共享 fixture（`tests/include/minipfix.h` 的 `minip_setup_env`、`blitprob.h` 的 compositor-safe atlas、testglob recorder）仍是 spy 時代為「只記錄、不解碼」設計的**。real blitter 會真的解碼：minip 的 sheet offset table（`table[i]=i`）讓 mini-panel 的 bg sprite 解析到 header `rows=0` 的位置 → `fd2_dialog_sprite_blit_normal` 寫 65535 列暴衝 spin（anicine1 test #4 真正卡點，在 figani blit 之前）；digit glyph 走 real `fd2_rle_blit_sprite` 同理。**結論：Phase 3b 不能純逐 suite fan-out — 必須先「集中修共享 fixture」讓 real blit 變有界 no-op（minip sheet 種合法小 sprite、digit-glyph 源、compositor-safe atlas、cinematic figani safe-sprite），再逐 suite fan-out 改斷言 + 解 #if 0**（並行編輯共享檔會衝突，且每 suite 否則重撞同一 spin）。安全 sprite 配方：`fd2_rle_blit_sprite` 用 `[W,H>0, 每列一個 SKIP 命令 0xC0|(W-1)]`（透明 no-op）；`fd2_dialog_sprite_blit_normal` 用小 `[W=4,rows=1,+cursor bytes]`（寫 W*rows bytes，要有界）。
+- **WIP（未 commit）**：`tests/anim/anicine1.c` 的 `chit_plant_safe_sprite`（給 figani frame 塞合法透明 sprite，正確但不足 — minip 才是 #4 主因）。下一步 ＝ 集中修 `minip_setup_env`（sheet 全 offset 指向一個合法 4x1 dialog sprite payload）+ 查 digit-glyph 源，再 `--only anicine1` 驗。
+- **覆蓋現況（reconcile 自 routing + tests grep）**：641 個真實 function，**142 個目前零有效測試**（98 個測試被 `#if 0`、44 個從未寫）；其餘 499 個邊界完整度待逐一查核。`#if 0` 主因 ＝ 寫 now-const 表（改讀固定 const 值）+ cinematic hang。9 個讀檔 function 測試被標 reverted（用假檔）需改真檔。
 完整計畫：`C:\Users\fdpsf\.claude\plans\plan-plan-soft-dongarra.md`（**新 session 先讀它 + 下面這段**）。
 
 **溝通方式（使用者要求）**：給使用者的所有文字（含對話回覆，不只文件）一律用淺白通順的繁體中文完整句子，
