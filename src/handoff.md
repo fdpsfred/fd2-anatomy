@@ -6,6 +6,13 @@
 
 ### Phase 3 進度（current，最先讀）
 
+**⏸ 目前暫停點（OPEN，先處理）**：基礎已就緒並 commit（HEAD `57b826e`；序列 `e280ff8` build-fix → `762b2b1` --only 工具 → `0f2dd2e` handoff → `57b826e` minip+finding）。攻 anicine1 範本已**校準出 Phase 3b 真實難度**（見下兩條「發現」）。**正等使用者裁示 Phase 3b 排序**，使用者要先釐清問題再決定 → 新 session 先把此決定談定再動手：
+- **A（建議）**：可解的非-cinematic suites 先衝綠拿動能（battle/spell 邏輯、table、save、input 等真值觀測、不依賴 display spy）＋ 建中央 `tg_install_cinematic_safe_atlases()`＋清 testglob 殘留 spy＋產出完整「spy-now-real」清單；~30 個 cinematic 法醫重設計留最後一波集中做。
+- **B**：照原訂先把最難的 anicine1 整支重設計到綠（chit 相對-HP + zoom/flash safe-atlas + 4 個 #if0 重啟），確立完整法醫範本再 fan-out。
+- **C**：先只做中央基建（safe-atlas + 清 spy + spy-now-real 清單）這一步，再評估下一波。
+
+**關鍵認知：`--only` 已讓任一 suite 可獨立攻、不再被執行順序（frontier）綁住** — 故不必卡在最難的 anicine1，可任選 suite。
+
 **使用者鐵則（覆寫一切）**：`src/` 內容絕對不可改動。唯一已授權例外 ＝ Phase 3a 補的 3 個 graphics global（見下）。目標：`src/` 每個 function 都被測到、邊界 case 完整、測試實際跑全綠。
 
 - **Phase 3a — build 連結修復（已 commit `e280ff8`）**：3 個被 src/ 引用卻從未定義的 global（連結期 undefined，Phase 2 gate 只看編譯期 warning 而漏掉，`build_ok` 一直是 false）以 Ghidra 真值落地：`data_fd2_graphics_shimmer_offset_table_16b[16]`（const，blitspr.c）、`data_fd2_graphics_bg_animation_frame_idx`(=0) + `data_fd2_graphics_forced_tile_anim_frame`(=0xFFFFFFFF)（rndscene.c）。使用者核准的唯一 src/ 例外。結果：0 undefined、TEST.EXE 可建。
