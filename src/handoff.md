@@ -70,6 +70,10 @@
 - **鍵盤失效 + sfx_flag 被清零 → union REGS scratch 拆散修復**（commit `4ca8ad0`）：原版 0x53A8D 是 28-byte
   `union REGS` 共用 INT scratch，`last_key`/`key_input_mode` 是其相鄰 byte，rebuild 拆成獨立 uint8 被
   linker 拆散。合回單一 `data_fd2_input_int16_regs` union（globals.h + `<i86.h>`），兩符號變 macro。
+  已全盤複查確認**無其他** union REGS / int scratch 拆散問題：23 個 int386 call site 全用此 0x53A8D
+  scratch（input/video 路徑）或 dpmi 的 stack local union、0x53A8D 的 28-byte REGS 範圍內無其他全域
+  （view_window_origin_x @ 0x53AA9 在 REGS 之後不受影響）、int386x 未被遊戲使用、跨相鄰 punning 僅
+  last_key（union 涵蓋）與 scaler_loop_state（單一 `uint8[6]` array）兩處皆安全。
 - **"File not found" 開場退出 → 9 處 hardcoded 字串位址改 symbol**（commit `f44a0a1`）：`fd2_load_dat_resource`
   把原版字串位址寫死成 immediate；rebuild linker 把字串擺別處 → fopen 空檔名失敗。改用 symbol。
 
