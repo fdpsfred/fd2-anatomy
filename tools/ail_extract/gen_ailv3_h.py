@@ -73,6 +73,23 @@ HANDLE_PARAM_NAMES: dict[str, str] = {
     "timer_handle": "HTIMER",
 }
 
+# Per-function argument-list overrides where Ghidra mis-typed a handle as a
+# raw int with a generic param_N name, so the HANDLE_PARAM_NAMES mechanism
+# cannot reach it. AIL_set_sample_address's first arg is the HSAMPLE handle:
+# the worker at 0x41250 dereferences it (MOV [handle+8],start; MOV
+# [handle+0x10],len), it is not an int. Leaving it int makes a -3s client that
+# passes a void* HSAMPLE trip W113 (pointer type mismatch).
+SIGNATURE_OVERRIDE: dict[str, str] = {
+    "AIL_set_sample_address": "HSAMPLE sample, unsigned int start, unsigned int len",
+    # xmi_data is a buffer pointer. FD2's resource layer (fd2_load_dat_resource)
+    # represents all loaded-buffer pointers as a 32-bit value (uint32), so the
+    # client passes one here; declaring it unsigned int (not void*) matches that
+    # convention and avoids W113 without rippling void* through the whole
+    # resource layer. Handles stay void* (opaque, AIL-only); data buffers are
+    # the game's uint32 -- that split is intentional.
+    "AIL_init_sequence": "HSEQUENCE sequence, unsigned int xmi_data, int sequence_idx",
+}
+
 
 def transform_signature(sig: str) -> str:
     out = sig
@@ -125,6 +142,8 @@ def emit_prototype(fn: dict) -> str:
     sig = transform_signature(fn["signature"])
     ret, args = split_signature(sig, fn["name"])
     ret, args = apply_handle_types(fn["name"], ret, args)
+    if fn["name"] in SIGNATURE_OVERRIDE:
+        args = SIGNATURE_OVERRIDE[fn["name"]]
     cc = fn.get("cc") or "__cdecl"
     if cc == "__cdecl":
         return f"extern {ret} __cdecl {fn['name']}({args});"
@@ -141,7 +160,9 @@ HEADER = """\
  * Signature notes
  *   - `__cdecl` / `__watcall` keyword follows Ghidra audit of each function.
  *   - `#pragma aux <name> "*"` keeps PUBDEF symbol byte-identical with
- *     `ailv3.lib`. `modify [ebx]` declares vendor EBX-clobber convention.
+ *     `ailv3.lib`. `modify [eax ebx ecx edx]` declares the vendor clobber set
+ *     (EBX is clobbered without a PUSH; EAX/ECX/EDX are ordinary volatiles).
+ *     The full list is required for -3s clients; a bare [ebx] is unsafe there.
  *   - `param_N` parameter names are Ghidra defaults where the original
  *     C names have not been recovered; clients pass arguments by position.
  */
@@ -189,13 +210,15 @@ def main():
         proto = emit_prototype(fn)
         lines.append(proto)
         # `"*"` keeps the PUBDEF name byte-identical with the lib.
-        # `modify [ebx]` tells wcc386 that this fn clobbers EBX without
-        # restoring it — many AIL internal helpers strip the PUSH EBX in
-        # their prologue (vendor optimiser observed in FD2.LE bytes). Without
-        # this pragma, the client compiler register-allocates a live value
-        # into EBX, the AIL helper trashes it, and the client crashes /
-        # loops on the next use of the local.
-        lines.append(f'#pragma aux {fn["name"]} "*" modify [ebx];')
+        # The modify set lists ALL four caller-saved registers (eax ebx ecx
+        # edx), not just ebx. AIL helpers clobber EBX without restoring it
+        # (vendor optimiser stripped the PUSH EBX), and being ordinary calls
+        # they also clobber the volatile EAX/ECX/EDX. Watcom reads the modify
+        # set as EXACT: a bare "modify [ebx]" would mark EAX/ECX/EDX preserved,
+        # which is only harmless under -3r (where they are arg-volatile anyway)
+        # but corrupts a -3s client (it then keeps a live value in EDX/ECX
+        # across the call). Listing all four is correct under both -3r and -3s.
+        lines.append(f'#pragma aux {fn["name"]} "*" modify [eax ebx ecx edx];')
         lines.append("")
     lines.append(FOOTER)
 

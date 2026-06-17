@@ -49,7 +49,7 @@ static void play_sfx_on_handle(void *handle, u8 *bank, int sfx_id, int loop) {
     off = *(u32 *)(entry + 6);
     end_off = *(u32 *)(entry + 10);
     AIL_init_sample(handle);
-    AIL_set_sample_address((int)handle, (u32)(bank + off), end_off - off);
+    AIL_set_sample_address(handle, (u32)(bank + off), end_off - off);
     AIL_set_sample_loop_count(handle, loop);
     AIL_start_sample(handle);
 }
@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
                 (unsigned long)off, (unsigned long)(end - off));
         trace_line(buf);
         AIL_init_sample(hsfx0);
-        AIL_set_sample_address((int)hsfx0, (u32)(sfx_bank_buf + off), end - off);
+        AIL_set_sample_address(hsfx0, (u32)(sfx_bank_buf + off), end - off);
         AIL_set_sample_loop_count(hsfx0, 1);
         AIL_start_sample(hsfx0);
         AIL_delay(90);

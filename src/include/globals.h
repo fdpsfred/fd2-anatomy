@@ -420,14 +420,14 @@ extern uint8  data_fd2_audio_bgm_enabled_flag;                          /* 0x51E
 extern uint8  data_fd2_audio_sfx_enabled_flag;                          /* 0x51E62 */
 extern const uint8  data_fd2_audio_per_chapter_player_turn_bgm_track[30];     /* 0x51E63 */
 extern const uint8  data_fd2_audio_per_chapter_enemy_turn_bgm_track[30];      /* 0x51E81 */
-extern uint32 data_fd2_audio_bgm_sequence_handle;                       /* 0x53ED0 */
+extern void  *data_fd2_audio_bgm_sequence_handle;                      /* 0x53ED0 */
 extern void  *data_fd2_audio_bgm_driver_handle;                         /* 0x53ED8 */
 extern uint32 data_fd2_audio_bgm_sequence_data_buf_ptr;                 /* 0x53EE0 */
-extern uint32 data_fd2_audio_sfx_dig_driver_handle;                     /* 0x53EDC */
+extern void  *data_fd2_audio_sfx_dig_driver_handle;                    /* 0x53EDC */
 extern uint8  data_fd2_audio_bgm_driver_available_flag;                  /* 0x53EF0 */
 extern uint8  data_fd2_audio_sfx_driver_available_flag;                  /* 0x53EF1 */
-extern uint32 data_fd2_audio_sfx_sample_handle_0;                       /* 0x53EE4 */
-extern uint32 data_fd2_audio_sfx_sample_handle_1;                       /* 0x53EE8 */
+extern void  *data_fd2_audio_sfx_sample_handle_0;                      /* 0x53EE4 */
+extern void  *data_fd2_audio_sfx_sample_handle_1;                      /* 0x53EE8 */
 extern uint32 data_fd2_audio_fdother_sfx_bank_buf_ptr;                  /* 0x53EEC */
 extern uint32 data_fd2_audio_status_effect_sfx_handle_ptr;              /* 0x53B13 */
 extern uint32 data_fd2_audio_figani_sfx_bank_buf_ptr;                  /* 0x54117 */

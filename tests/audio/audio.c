@@ -204,7 +204,7 @@ static void test_play_sfx_gates_block(void)
     uint32 base;
 
     base = audiofix_make_bank(8);
-    data_fd2_audio_sfx_sample_handle_0 = 0x1234;
+    data_fd2_audio_sfx_sample_handle_0 = (void *)0x1234;
 
     /* driver flag off */
     data_fd2_audio_sfx_driver_available_flag = 0;
@@ -239,7 +239,7 @@ static void test_play_sfx_stop_only(void)
 
     base = audiofix_make_bank(8);
     audiofix_enable_sfx();
-    data_fd2_audio_sfx_sample_handle_0 = 0x55;
+    data_fd2_audio_sfx_sample_handle_0 = (void *)0x55;
 
     g_ail_stop_sample_calls = 0;
     g_ail_init_sample_calls = 0;
@@ -266,7 +266,7 @@ static void test_play_sfx_normal_play(void)
 
     base = audiofix_make_bank(8);
     audiofix_enable_sfx();
-    data_fd2_audio_sfx_sample_handle_0 = 0x77;
+    data_fd2_audio_sfx_sample_handle_0 = (void *)0x77;
 
     /* id 5, loop 1 */
     g_ail_stop_sample_calls = 0;
@@ -309,7 +309,7 @@ static void test_play_sfx_from_bank_gates_block(void)
     uint32 base;
 
     base = audiofix_make_bank(8);
-    data_fd2_audio_sfx_sample_handle_1 = 0x5EE80000;
+    data_fd2_audio_sfx_sample_handle_1 = (void *)0x5EE80000;
 
     /* driver flag off */
     data_fd2_audio_sfx_driver_available_flag = 0;
@@ -346,7 +346,7 @@ static void test_play_sfx_from_bank_stop_only(void)
 
     base = audiofix_make_bank(8);
     audiofix_enable_sfx();
-    data_fd2_audio_sfx_sample_handle_1 = 0x5EE80000;
+    data_fd2_audio_sfx_sample_handle_1 = (void *)0x5EE80000;
 
     g_ail_stop_sample_calls = 0;
     g_ail_init_sample_calls = 0;
@@ -379,8 +379,8 @@ static void test_play_sfx_from_bank_normal_play(void)
     base = audiofix_make_bank(8);
     audiofix_enable_sfx();
     /* distinct sentinels so the captured handle proves slot 1, not slot 0 */
-    data_fd2_audio_sfx_sample_handle_0 = 0x5EE40000;
-    data_fd2_audio_sfx_sample_handle_1 = 0x5EE80000;
+    data_fd2_audio_sfx_sample_handle_0 = (void *)0x5EE40000;
+    data_fd2_audio_sfx_sample_handle_1 = (void *)0x5EE80000;
 
     /* id 5, loop 1 */
     g_ail_stop_sample_calls = 0;
@@ -434,7 +434,7 @@ static void test_play_and_free_status_effect_sfx(void)
     ASSERT_TRUE(buf != 0);
 
     audiofix_enable_sfx();
-    data_fd2_audio_sfx_sample_handle_0 = 0x99;
+    data_fd2_audio_sfx_sample_handle_0 = (void *)0x99;
     data_fd2_audio_status_effect_sfx_handle_ptr = (uint32)buf;
     g_ail_stop_sample_calls = 0;
     g_ail_init_sample_calls = 0;

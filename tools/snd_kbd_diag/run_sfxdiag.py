@@ -10,6 +10,12 @@ workspace/snd_kbd_diag/sfxdiag_stage/{SFXDIAG.LOG, captures/*.wav}.
 """
 import io, os, shutil, struct, subprocess, sys, time, wave
 
+# Negative-control knob: BLASTER IRQ advertised to AIL's autodetect. When it
+# mismatches the emulated card IRQ ([sblaster] irq below), AIL hooks the wrong
+# vector and PCM should silent-fail -- a probe for whether AIL_sample_status
+# reaching DONE actually requires a real IRQ (i.e. real DMA consumption).
+BLASTER_IRQ = sys.argv[1] if len(sys.argv) > 1 else "5"
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TOOLS = os.path.join(ROOT, "tools", "snd_kbd_diag")
 AIL_OUT = os.path.join(ROOT, "workspace", "ail_extract", "out")
@@ -64,7 +70,7 @@ set PATH=Z:\\;C:\\BIN;C:\\BINB
 set INCLUDE=C:\\H
 d:
 cd \\
-set BLASTER=A220 I5 D1 H5 P330 T6
+set BLASTER=A220 I{birq} D1 H5 P330 T6
 call buildsfx.bat
 if not exist sfxdiag.exe goto done
 set DOS4G=quiet
@@ -139,7 +145,7 @@ def main():
 
     conf = os.path.join(STAGE, "sfxdiag.conf")
     io.open(conf, "w", newline="\n").write(
-        CONF.format(caps=CAPS, watcom=WATCOM, stage=STAGE))
+        CONF.format(caps=CAPS, watcom=WATCOM, stage=STAGE, birq=BLASTER_IRQ))
 
     done = os.path.join(STAGE, "run.done")
     # non-silent so SB hardware emulation + mixer wave capture work

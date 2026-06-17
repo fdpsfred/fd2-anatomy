@@ -101,7 +101,7 @@ void AIL_stop_sample(uint32 sample)
      * real function passed: slot 1 (handle_1) is fd2_play_sfx_sample_from_bank;
      * everything else (slot 0 / handle_0) is fd2_play_sfx_with_handle, which the
      * dialog typewriter and most callers drive. */
-    if (sample == data_fd2_audio_sfx_sample_handle_1) {
+    if (sample == (uint32)data_fd2_audio_sfx_sample_handle_1) {
         g_play_sfx_sample_from_bank_calls++;
     } else {
         g_play_sfx_with_handle_calls++;

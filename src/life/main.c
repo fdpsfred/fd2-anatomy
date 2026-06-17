@@ -54,23 +54,23 @@ void main(void)
 
     AIL_startup();
 
-    data_fd2_audio_bgm_driver_handle = (void *)AIL_install_MDI_INI();
+    data_fd2_audio_bgm_driver_handle = AIL_install_MDI_INI();
     if (data_fd2_audio_bgm_driver_handle != NULL) {
         data_fd2_audio_bgm_driver_available_flag = 1;
         data_fd2_audio_bgm_sequence_handle =
-            (uint32)AIL_allocate_sequence_handle(
+            AIL_allocate_sequence_handle(
                 data_fd2_audio_bgm_driver_handle);
     }
 
-    data_fd2_audio_sfx_dig_driver_handle = (uint32)AIL_install_DIG_INI();
-    if (data_fd2_audio_sfx_dig_driver_handle != 0) {
+    data_fd2_audio_sfx_dig_driver_handle = AIL_install_DIG_INI();
+    if (data_fd2_audio_sfx_dig_driver_handle != NULL) {
         data_fd2_audio_sfx_driver_available_flag = 1;
         data_fd2_audio_sfx_sample_handle_0 =
-            (uint32)AIL_allocate_sample_handle(
-                (void *)data_fd2_audio_sfx_dig_driver_handle);
+            AIL_allocate_sample_handle(
+                data_fd2_audio_sfx_dig_driver_handle);
         data_fd2_audio_sfx_sample_handle_1 =
-            (uint32)AIL_allocate_sample_handle(
-                (void *)data_fd2_audio_sfx_dig_driver_handle);
+            AIL_allocate_sample_handle(
+                data_fd2_audio_sfx_dig_driver_handle);
     }
 
     data_fd2_audio_fdother_sfx_bank_buf_ptr =
@@ -792,7 +792,7 @@ uint32 data_fd2_graphics_chapter_ambient_palette_anim_tick_latch;
  * in main (before any BGM playback reads it), so this is a zero-init (BSS)
  * scalar.
  */
-uint32 data_fd2_audio_bgm_sequence_handle;
+void *data_fd2_audio_bgm_sequence_handle;
 
 /*
  * data_fd2_audio_bgm_driver_handle @ 0x53ED8 -- the AIL (Miles Sound System)
@@ -832,7 +832,7 @@ void *data_fd2_audio_bgm_driver_handle;
  * Zero in the image; the first access is the startup install write, so this is
  * a zero-init (BSS) scalar handle.
  */
-uint32 data_fd2_audio_sfx_dig_driver_handle;
+void *data_fd2_audio_sfx_dig_driver_handle;
 
 /*
  * data_fd2_audio_sfx_sample_handle_0 @ 0x53EE4 -- the AIL (Miles Sound
@@ -853,7 +853,7 @@ uint32 data_fd2_audio_sfx_dig_driver_handle;
  * Zero in the image; the first access is the startup allocation write, so
  * this is a zero-init (BSS) scalar handle.
  */
-uint32 data_fd2_audio_sfx_sample_handle_0;
+void *data_fd2_audio_sfx_sample_handle_0;
 
 /*
  * data_fd2_audio_sfx_sample_handle_1 @ 0x53EE8 -- the AIL (Miles Sound
@@ -875,7 +875,7 @@ uint32 data_fd2_audio_sfx_sample_handle_0;
  * Zero in the image; the first access is the startup allocation write, so
  * this is a zero-init (BSS) scalar handle.
  */
-uint32 data_fd2_audio_sfx_sample_handle_1;
+void *data_fd2_audio_sfx_sample_handle_1;
 
 /*
  * data_fd2_audio_fdother_sfx_bank_buf_ptr @ 0x53EEC -- base pointer of the

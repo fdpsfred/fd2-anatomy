@@ -35,7 +35,7 @@ int main(void)
     unsigned char *bank;
     long banksize;
     unsigned long sfx_off, sfx_end;
-    int st, i;
+    int st;
     FILE *t;
 
     t = fopen("SFXDIAG.LOG", "w");
@@ -75,27 +75,34 @@ int main(void)
     sprintf(buf, "[5] SFXBANK.DAT %ld bytes magic=%.6s", banksize, (char *)bank);
     logln(buf);
 
-    /* SFX id 0, exactly as fd2_play_sfx_with_handle: entry=bank+0; off=[entry+6]; end=[entry+10] */
-    sfx_off = *(unsigned long *)(bank + 6);
-    sfx_end = *(unsigned long *)(bank + 10);
-    sprintf(buf, "[6] sfx0 off=%lu end=%lu len=%lu", sfx_off, sfx_end, sfx_end - sfx_off);
-    logln(buf);
-
-    AIL_init_sample(hsfx);
-    AIL_set_sample_address((int)hsfx, (unsigned)(bank + sfx_off),
-                           (unsigned)(sfx_end - sfx_off));
-    AIL_set_sample_loop_count(hsfx, 1);
-    AIL_start_sample(hsfx);
-    logln("[7] start_sample called");
-
-    /* poll status for ~2s; status 4 = PLAYING, 2 = DONE. If the sample really
-     * plays, status should be PLAYING then transition to DONE; a stuck or
-     * never-PLAYING status hints at a silent DMA/IRQ failure. */
-    for (i = 0; i < 8; i++) {
-        st = AIL_sample_status(hsfx);
-        sprintf(buf, "[8.%d] sample_status=%d", i, st);
-        logln(buf);
-        AIL_delay(250);
+    /* Play a sequence of the longer FDOTHER[0x1F] SFX (each 0.2-0.6 s) so a
+     * human listener can clearly tell sound-vs-silence. Status alone is
+     * unreliable: it reaches DONE within one 250 ms poll regardless of loop
+     * count (220x tested) or whether BLASTER IRQ matches the card -- so the
+     * audible playout below is what actually answers "does PCM come out".
+     * Each entry resolved exactly as fd2_play_sfx_with_handle:
+     * entry = bank + id*4; off = [entry+6]; end = [entry+10]. */
+    {
+        static const int play_ids[8] = {1, 3, 4, 5, 8, 10, 11, 12};
+        int n;
+        for (n = 0; n < 8; n++) {
+            int id;
+            unsigned char *entry;
+            id = play_ids[n];
+            entry = bank + id * 4;
+            sfx_off = *(unsigned long *)(entry + 6);
+            sfx_end = *(unsigned long *)(entry + 10);
+            AIL_init_sample(hsfx);
+            AIL_set_sample_address(hsfx, (unsigned)(bank + sfx_off),
+                                   (unsigned)(sfx_end - sfx_off));
+            AIL_set_sample_loop_count(hsfx, 1);
+            AIL_start_sample(hsfx);
+            st = AIL_sample_status(hsfx);
+            sprintf(buf, "[8.%d] sfx%d len=%lu status=%d",
+                    n, id, sfx_end - sfx_off, st);
+            logln(buf);
+            AIL_delay(45);  /* ~0.75 s: cover playout + a short gap */
+        }
     }
 
     free(bank);

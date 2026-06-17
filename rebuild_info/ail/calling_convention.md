@@ -19,27 +19,48 @@ register-cc）；對 `__cdecl` fn emit `__cdecl` keyword。
 search_functions(name_pattern="^AIL_")  # 過濾 cc == __watcall
 ```
 
-## EBX-clobber convention（多數 fn）
+## Caller-saved 暫存器 clobber convention
 
-大量 AIL internal helper（含 cdecl 公開的 wrapper）內部 clobber EBX 不
-push/pop — vendor optimizer 移除了 unused-by-wrapper 的 push。
+AIL 的 helper 內部 clobber EBX 卻不 push/pop（vendor optimizer 移除了 wrapper
+不用到的 push），而且身為一般呼叫，也會破壞 volatile 的 EAX/ECX/EDX。client 端
+是否出錯，取決於它用哪種 calling convention：
 
-對 client 影響：wcc386 `-3s` cdecl 預期 EBX callee-saved，client code 可能
-register-allocate local 到 EBX。AIL fn call 後 EBX corrupted → 用 EBX 為
-local pointer / counter 時失敗。
+- `-3r`（register-cc，`test_audio.c` / `tau.c` 採用）：EAX/EBX/ECX/EDX 本來就是
+  傳引數的 volatile 暫存器，編譯器一定把跨呼叫存活的值放到 ESI/EDI/EBP（AIL 有
+  保留），所以即使只標 `modify [ebx]` 也安全。
+- `-3s`（stack-cc，**FD2 遊戲採用**）：EBX 預設是 callee-saved，編譯器會把跨呼叫
+  存活的值放進它，AIL 破壞 EBX → 該值損毀。**而且 Watcom 把 modify list 當「精確
+  集合」解讀**——只寫 `modify [ebx]` 反而會讓編譯器誤以為 EAX/ECX/EDX 被保留，
+  污染只是從 EBX 搬到 EDX/ECX，沒有真正修好（已用三個 pragma 變體實測證實）。
 
 **Fix**：`gen_ailv3_h.py` 對每個 public AIL fn emit：
 
 ```c
 extern <ret> __cdecl AIL_<fn>(<args>);
-#pragma aux AIL_<fn> "*" modify [ebx];
+#pragma aux AIL_<fn> "*" modify [eax ebx ecx edx];
 ```
 
 - `"*"` 抑制 cdecl 預設的 `_` prefix/suffix 對 PUBDEF 名（讓 lib EXTDEF 對得上）
-- `modify [ebx]` 告訴 wcc386 該 fn 不 preserve EBX
+- `modify [eax ebx ecx edx]` 列出全部四個 caller-saved 暫存器，在 `-3r` 與 `-3s`
+  下都正確；少列任何一個在 `-3s` 下都會把污染轉移到沒列的那顆暫存器
 
-這是 1990 年代 Watcom 生態系的標準做法 — `#pragma aux` 是 Watcom 設計
-用來描述非標準 ABI 的機制。Miles vendor SDK 的 Watcom 版 header 同樣使用此 pattern。
+FD2 遊戲端的 `src/include/protos.h` 直接 `#include "ailv3.h"`，所以這份 clobber
+資訊對遊戲所有 AIL 呼叫生效（`fd2_play_sfx_with_handle` 把 sample offset 跨
+`AIL_init_sample` 存活，正是靠它才不被破壞、避免 SFX 靜音）。
+
+## Handle 與 buffer-pointer 型別
+
+`ailv3.h` 的 handle typedef（`HSAMPLE` / `HDIGDRIVER` / ...）是 `void *`：Ghidra
+確認 AIL 內部把 handle 當指標 dereference（`AIL_allocate_sample_handle` 回傳 slot
+指標，`AIL_set_sample_address` 的 worker 0x41250 寫 `[handle+8]=address`）。遊戲端
+對應的 handle 全域（`data_fd2_audio_sfx_sample_handle_0/1`、driver / sequence
+handle）因此也用 `void *`。
+
+但 buffer-pointer 型參數（如 `AIL_init_sequence` 的 XMI data、`AIL_set_sample_address`
+的 sample 位址）在 ailv3.h 用 `unsigned int` 而非 `void *`：FD2 的 resource 層
+（`fd2_load_dat_resource`）一律用 32-bit 值（`uint32`）表示載入緩衝的指標，client
+照此傳遞，配 `unsigned int` 才不噴 W113，也不必把 `void *` 擴散進整個 resource 層。
+handle 用 `void *`、data buffer 用 `uint32`，這個區分是刻意的。
 
 ## Handle typedef
 

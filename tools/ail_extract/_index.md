@@ -65,7 +65,7 @@ Step  Script                         Input                          Output
 | `bin_to_omf.py` | Stage 5: **核心** — OMF .obj emit（consolidated / per-item 雙模式） |
 | `omf_writer.py` | OMF 32-bit record encoder（bin_to_omf 依賴） |
 | `pack_libs.py` | Stage 6: DOSBox-X + wlib 9.5a → `.lib` 打包 |
-| `gen_ailv3_h.py` | Stage 7: inventory → `ailv3.h`（handle typedef + `#pragma aux`） |
+| `gen_ailv3_h.py` | Stage 7: inventory → `ailv3.h`（handle typedef + `#pragma aux ... "*" modify [eax ebx ecx edx]`）。產物同時是 FD2 遊戲建置輸入：複製成 `src/include/ailv3.h`，由 `src/include/protos.h` `#include`，取代舊的 plain AIL 宣告（缺 clobber pragma 曾導致 SFX 靜音）。`SIGNATURE_OVERRIDE` 修正 Ghidra 把 `AIL_set_sample_address` handle 誤標 int |
 | `dump_ghidra_supplements.py` | Stage 0: 7 個 Ghidra inline Java snippet，產生 raw/ + audit/ 下所有 supplement 檔案 |
 
 ### Verdict 管理工具（Stage 4 手動分類用）

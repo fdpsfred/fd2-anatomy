@@ -228,7 +228,7 @@ int main(int argc, char **argv) {
                 (unsigned long)sfx_end, (unsigned long)fdother_1f_size);
     } else {
         AIL_init_sample(hsfx);
-        AIL_set_sample_address((int)hsfx,
+        AIL_set_sample_address(hsfx,
                                (u32)(fdother_1f_buf + sfx_offset),
                                sfx_end - sfx_offset);
         AIL_set_sample_loop_count(hsfx, 1);
