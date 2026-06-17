@@ -269,35 +269,41 @@ uint32 data_fd2_battle_cursor_world_y;
 /* ----------------------------------------------------------------
  * Battle cursor screen X (cursor column within the 13-tile viewport) @ 0x53AB9
  *
- * Runtime cursor state, not a constant. Zero at load (BSS); first set
- * by engine init / save-load (loads it from the map header via MOVZX
- * byte->dword at 0x1040C), then incremented/decremented by the
- * cursor-move and walk-step functions as the cursor moves across the
- * on-screen viewport (inner step vs scroll is decided by comparing this
- * against the viewport edges). uint32 matches the DWORD access width
- * seen in every reader/writer (INC/DEC/CMP/MOV dword ptr [0x53AB9]);
- * range is a small non-negative screen column (0 .. 12). The move
- * handlers compare it with signed branches (JLE/JGE), i.e. it is read
- * as a signed coordinate at those sites, but it is never negative at
- * runtime, so the BSS bytes are identical either way.
+ * Runtime cursor state, not a constant. SIGNED int: the move handlers
+ * fd2_cursor_move_left/right compare it against the viewport edges with
+ * SIGNED branches (JGE/JLE), and it DOES go negative when the cursor or a
+ * walking char reaches the map's left edge -- once view_window_origin_x
+ * hits 0 the walk-step inner branch keeps decrementing cursor_screen_x
+ * past 0. Declaring it unsigned makes those edge comparisons unsigned
+ * (JAE/JB), which mis-classifies a negative column as a huge value and
+ * takes the wrong scroll-vs-inner-step branch.
+ *
+ * Zero at load (BSS); first set by engine init / save-load (MOVZX
+ * byte->dword from the map header at 0x1040C), then INC/DEC by the
+ * cursor-move and walk-step functions. Width is dword (every access is
+ * dword ptr [0x53AB9]).
  * ---------------------------------------------------------------- */
-uint32 data_fd2_battle_cursor_screen_x;
+int data_fd2_battle_cursor_screen_x;
 
 /* ----------------------------------------------------------------
  * Battle cursor screen Y (cursor row within the on-screen viewport) @ 0x53ABD
  *
- * Runtime cursor state, not a constant. Zero at load (BSS); explicitly
- * cleared to 0 by the battle/chapter init path (MOV dword ptr [0x53ABD],0x0
- * at 0x2064B in fd2_init_battle_state_for_chapter) and set from the save
- * header via MOVZX byte->dword in save-load (pBuf[0x30CB] at 0x10415),
- * then incremented/decremented by the cursor-move and walk-step functions
- * as the cursor moves up/down across the viewport (inner step vs scroll is
- * decided by comparing this against the top/bottom viewport edges, e.g.
- * < 2 to scroll up, < 6 to step down). uint32 matches the DWORD access
- * width seen in every reader/writer (INC/DEC/CMP/MOV dword ptr [0x53ABD]);
- * range is a small non-negative screen row. The move handlers compare it
- * with signed branches (JGE), i.e. it is read as a signed coordinate at
- * those sites, but it is never negative at runtime, so the BSS bytes are
- * identical either way.
+ * Runtime cursor state, not a constant. SIGNED int: the move handlers
+ * fd2_cursor_move_up/down compare it against the top/bottom viewport edges
+ * with SIGNED branches (JGE/JLE; e.g. < 2 to scroll up, <= 5 to step down),
+ * and it DOES go negative in a cinematic walk that reaches the map top --
+ * once view_window_origin_y hits 0 the walk-step scroll branch is disabled
+ * (its origin_y != 0 guard fails) so the inner branch keeps decrementing
+ * cursor_screen_y past 0. The chapter-1 prologue walk-up does exactly this;
+ * with an unsigned declaration the subsequent dialog camera pan reads the
+ * negative row as a huge value, mis-takes the scroll branch in
+ * fd2_cursor_move_down and scrolls the view to the map bottom (the prologue
+ * "scene jumps back to the bottom" bug). Signed is required for a faithful
+ * match to the original's JGE/JLE.
+ *
+ * Zero at load (BSS); cleared to 0 by fd2_init_battle_state_for_chapter
+ * (0x2064B) and set from the save header via MOVZX byte->dword in save-load
+ * (pBuf[0x30CB] at 0x10415), then INC/DEC by the cursor-move and walk-step
+ * functions. Width is dword (every access is dword ptr [0x53ABD]).
  * ---------------------------------------------------------------- */
-uint32 data_fd2_battle_cursor_screen_y;
+int data_fd2_battle_cursor_screen_y;

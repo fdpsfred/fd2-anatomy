@@ -191,8 +191,8 @@ extern uint32 data_fd2_battle_view_window_origin_x;                     /* 0x53A
 extern uint32 data_fd2_battle_view_window_origin_y;                     /* 0x53AAD */
 extern uint32 data_fd2_battle_cursor_world_x;                           /* 0x53AB1 */
 extern uint32 data_fd2_battle_cursor_world_y;                           /* 0x53AB5 */
-extern uint32 data_fd2_battle_cursor_screen_x;                          /* 0x53AB9 */
-extern uint32 data_fd2_battle_cursor_screen_y;                          /* 0x53ABD */
+extern int    data_fd2_battle_cursor_screen_x;                          /* 0x53AB9 -- signed: move handlers compare JGE/JLE; goes negative scrolling to map left edge */
+extern int    data_fd2_battle_cursor_screen_y;                          /* 0x53ABD -- signed: move handlers compare JGE/JLE; goes negative scrolling to map top edge */
 extern uint32 data_fd2_battle_map_width_tiles;                          /* 0x53AC1 */
 extern uint32 data_fd2_battle_map_height_tiles;                         /* 0x53AC5 */
 extern uint8  data_fd2_chapter_init_phase_flag;                         /* 0x53AFA */

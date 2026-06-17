@@ -40,6 +40,12 @@
 window origin，否則只動 screen cursor。每次都 trigger `fd2_composite_battle_frame`
 （除非動畫進行中）。
 
+`cursor_screen_x/y` 是**有號 int**：move handler 用有號分支（JGE/JLE）和視窗邊緣
+比較。當 cursor 或行走中的角色捲到地圖頂／左邊緣（origin 已到 0、walk-step 的
+scroll 分支被 `origin != 0` 守衛擋掉而改走 inner 分支持續遞減）時，screen 座標
+會變負值。若誤宣告成無號，邊緣比較會把負值座標當成極大值、取錯 scroll/inner
+分支——這正是第一章開場走位動畫「對話框跳出時畫面捲到地圖底部」的成因。
+
 ## Player 行動 UI：`fd2_player_action_menu_loop @ 0x18890`
 
 250 行的核心 UI orchestrator：
