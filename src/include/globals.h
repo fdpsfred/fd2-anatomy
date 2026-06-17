@@ -2,6 +2,7 @@
 #define GLOBALS_H
 
 #include "types.h"
+#include <i86.h>   /* union REGS for the shared int386 INT-call scratch below */
 
 /*
  * FD2 global variable extern declarations.
@@ -531,8 +532,19 @@ extern const character_growth  data_fd2_battle_character_growth_table[68];    /*
 /* ---- input state ---- */
 extern uint16 data_fd2_input_idle_current_bios_tick_word;               /* 0x539F0 */
 extern uint16 data_fd2_input_idle_last_rendered_tick_word;               /* 0x539F2 */
-extern uint8  data_fd2_input_last_key_pressed;                          /* 0x53A8D */
-extern uint8  data_fd2_input_key_input_mode;                            /* 0x53A8E */
+/* Shared INT 10h/16h REGS scratch (orig 0x53A8D), one 28-byte union REGS. The
+ * game casts &data_fd2_input_last_key_pressed to union REGS* and hands it to
+ * int386(); last_key aliases byte 0 (AL / ASCII), input_key_mode aliases byte 1
+ * (AH / scancode). They MUST be two adjacent bytes of ONE scratch: int386 reads/
+ * writes the whole REGS and the AH result must land at last_key+1. Emitting them
+ * as two separate uint8 globals lets the linker (a) drop input_key_mode far from
+ * byte 1 and (b) place data_fd2_audio_sfx_driver_available_flag exactly at byte 1,
+ * where `*(uint16*)&last_key = AX` clobbers it (= dead SFX) while the scancode
+ * lands in the wrong byte (= dead keyboard). Macros over one union REGS preserve
+ * the vendor union-REGS overlap and keep all call sites unchanged. */
+extern union REGS data_fd2_input_int16_regs;                           /* 0x53A8D */
+#define data_fd2_input_last_key_pressed (data_fd2_input_int16_regs.h.al)
+#define data_fd2_input_key_input_mode   (data_fd2_input_int16_regs.h.ah)
 
 /* ---- timing state ---- */
 extern uint32 data_fd2_engine_wait_one_bios_tick_last_seen;             /* 0x53A0C */

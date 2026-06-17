@@ -720,25 +720,16 @@ uint32 data_fd2_engine_wait_one_bios_tick_last_seen;
  * Zero-initialized in BSS; first touched by a runtime write. */
 uint32 data_fd2_engine_wait_n_bios_ticks_last_seen;
 
-/* data_fd2_input_key_input_mode @ 0x53A8E  (zero-bss)
- *
- * Last-key scancode / input mode byte. Every input-wait routine first writes
- * 0x10 here (cursor-mode preset), then calls
- *   int386(0x16, (union REGS *)&data_fd2_input_last_key_pressed,
- *                (union REGS *)&data_fd2_input_last_key_pressed);
- * INT 16h "read key" returns AH=scancode / AL=ASCII in AX; this byte aliases
- * the AH field of that REGS union (it sits at &data_fd2_input_last_key_pressed
- * + 1), so the INT 16h call fills it with the received scancode. The routine
- * then remaps special scancodes (0xE0 / 'R' 0x52 -> 0x1C Enter; 'S' 0x53 ->
- * 0x01 Esc) and returns this byte. Accessed only as a single byte (asm:
- * MOV byte ptr [0x53A8E],imm8 / MOVZX EAX,byte ptr [0x53A8E]).
- *
- * Layout dependency: this byte must be placed at
- * data_fd2_input_last_key_pressed + 1 for the INT 16h AH result to land here
- * (vendor union-REGS overlap); data_fd2_input_last_key_pressed (home
- * life/main.c) owns the REGS-union base.
- * Zero-initialized in BSS; first touched by a runtime write. */
-uint8 data_fd2_input_key_input_mode;
+/* data_fd2_input_key_input_mode (orig 0x53A8E) is byte 1 (AH / scancode) of the
+ * shared union REGS data_fd2_input_int16_regs (home life/main.c); it is a macro
+ * over that union in globals.h, NOT a standalone global -- see the globals.h
+ * comment for why the two byte aliases must share one REGS scratch (the linker
+ * is free to separate two independent uint8 globals, which breaks the vendor
+ * union-REGS overlap and silently kills both SFX and keyboard input).
+ * Every input-wait routine writes 0x10 here (INT 16h AH=10h "read enhanced
+ * keyboard" preset), calls int386(0x16, (union REGS *)&data_fd2_input_last_key_pressed,
+ * ...), then reads the AH scancode back from this same byte and remaps special
+ * scancodes (0xE0 / 'R' 0x52 -> 0x1C Enter; 'S' 0x53 -> 0x01 Esc). */
 
 /* data_fd2_dialog_blink_phase_oscillator @ 0x53C13  (zero-bss)
  *

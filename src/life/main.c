@@ -1046,10 +1046,14 @@ uint32 data_fd2_ui_anim_sprite_sheet_ptr;
 uint32 data_fd2_menu_dialog_state_handle;
 
 /*
- * data_fd2_input_last_key_pressed @ 0x53A8D -- low byte of the int386 REGS block
- * main reuses for INT 10h video-mode calls (AX low). uint8; zero-init (BSS).
+ * data_fd2_input_int16_regs @ 0x53A8D -- the shared 28-byte union REGS scratch
+ * every int386() INT 10h/16h call reuses (video-mode set, keyboard read). Its
+ * two byte aliases data_fd2_input_last_key_pressed (byte 0 = AL / ascii) and
+ * data_fd2_input_key_input_mode (byte 1 = AH / scancode) are macros over this
+ * union in globals.h, which preserves the vendor union-REGS overlap the original
+ * relies on (see that comment). zero-init (BSS).
  */
-uint8 data_fd2_input_last_key_pressed;
+union REGS data_fd2_input_int16_regs;
 
 /*
  * data_fd2_battle_map_width_tiles @ 0x53AC1 -- width of the current battle map in
