@@ -341,14 +341,14 @@ int fd2_chapter_transition_menu(void)
         data_fd2_chapter_intro_menu_cursor_state = 0;
 
         intro_rle = (void *)fd2_load_dat_resource(
-            0x51a4d, 0, (uint32)intro_panel_idx_lut[category]);
+            (uint32)data_fd2_string_resource_filename_fdother_dat, 0, (uint32)intro_panel_idx_lut[category]);
         fd2_rle_blit_sprite((uint32)intro_rle, 0, 0,
                             data_fd2_battle_scene_snapshot + 0x8088, 0x1c8, 0xffffffff);
         free(intro_rle);
 
         data_fd2_chapter_intro_menu_overlay_buf_ptr = 0;
         data_fd2_chapter_intro_menu_overlay_buf_ptr =
-            fd2_load_dat_resource(0x51a4d, 0, 10);
+            fd2_load_dat_resource((uint32)data_fd2_string_resource_filename_fdother_dat, 0, 10);
         fd2_render_chapter_intro_overlay();
         fd2_play_palette_fade_in();
         fd2_clear_keyboard_buffer();
@@ -428,7 +428,7 @@ int fd2_chapter_transition_menu(void)
         fd2_close_intro_dialog_with_slide_out();
         if (dialog_result != -1 && data_fd2_ui_menu_cursor_idx == 0) {
             data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = fd2_load_dat_resource(
-                0x51a4d, data_fd2_ui_menu_screen_sprite_atlas_buf_ptr, 0xd);
+                (uint32)data_fd2_string_resource_filename_fdother_dat, data_fd2_ui_menu_screen_sprite_atlas_buf_ptr, 0xd);
             fd2_save_current_state_to_slot(0);
             free((void *)data_fd2_ui_menu_screen_sprite_atlas_buf_ptr);
         }

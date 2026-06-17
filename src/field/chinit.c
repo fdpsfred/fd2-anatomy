@@ -1396,7 +1396,8 @@ void fd2_chapter_25_init(void)
     fd2_init_battle_state_for_chapter();
     data_fd2_audio_status_effect_sfx_handle_ptr = 0;
     data_fd2_audio_status_effect_sfx_handle_ptr =
-        fd2_load_dat_resource(0x51a4d, 0, 0x58);
+        fd2_load_dat_resource(
+            (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 0x58);
     fd2_pan_cursor_and_window(5, 0);
     fd2_display_dialog_scene(data_fd2_current_chapter_text, 1, 0xa0000, 0x140,
                              0xcd, 0x4c, 0x4a, 0x13, 1);

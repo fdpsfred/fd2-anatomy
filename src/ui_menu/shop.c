@@ -634,7 +634,8 @@ void fd2_run_equip_member_menu(void)
         data_fd2_dialog_active_portrait_blit_offset = saved_blit_offset;
 
         data_fd2_portrait_sprite_buffer =
-            (uint8 *)fd2_load_dat_resource(0x51a70,
+            (uint8 *)fd2_load_dat_resource(
+                (uint32)data_fd2_string_resource_filename_dato_dat_51a70,
                 (uint32)data_fd2_portrait_sprite_buffer,
                 data_fd2_chapter_intro_menu_speaker_portrait_id_table[
                     data_fd2_chapter_intro_menu_cursor_state]);
