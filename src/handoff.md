@@ -4,6 +4,89 @@
 **全 650 個遊戲 function 已 emit+review+commit。Phase 1+2 全部工作已從 `integ` 用 `--no-ff` merge 進 `main`（merge commit `89268a4`，main tree == integ）；當前 branch ＝ `main`，`integ` 已整合（下方 §0-§7 與本段以下對 `integ` / `data-pN` / `emit-pN` 的引用皆為歷史記錄）。當前在「真實資料落地 + 測試重寫 + 收斂 fd2.exe」收斂計畫（data-first）。**
 **Phase 1（真資料落地，commit `cd2c0a8`）+ Phase 2（補完 22 個 blit/pathfind/composite coordinated landing）皆已完成。** routing 650/650 emit+reviewed、await_emit 0、build gate 0 err/0 warn、Ghidra Bad Instruction 0、FD2.LE 已存。**Phase 3（測試重寫到實際全綠）進行中 — 見下方「Phase 3 進度」。**
 
+---
+
+## ⚑ 實機 playtest debug（最新，最先讀）
+
+把 src-only 連出的 FD2.EXE 放進 `fd2_game_files/`（完整遊戲環境）對照原版 `~FD2.EXE` 跑出來的問題。
+**DOSBox 由使用者跑。** 鐵則（使用者定）：要「當場聽音效內容對不對」的驗證由使用者跑；「看數值 /
+波形的診斷」（flag 值、install 結果、WAV 有無聲波）由 AI 做；build/link 產 FD2.EXE 由 AI 做。
+三個問題，2 個已修、3 個待解。
+
+### 待解問題（OPEN，最優先）
+
+1. **音效完全無聲（只 SFX 啞、BGM 正常）— 根因已縮到「PCM 送聲層」，不是 src/ code**
+   - **已 runtime 證實 SFX 三道 gate 全過**（臨時 instrument main 印 `AUDDBG.TXT`，已讀完移除）：
+     `sfx_driver_available_flag=1`、`sfx_enabled_flag=1`、cinematic flag(0x540FF) 開場=0；
+     DIG driver 裝起來（handle 非 0）、兩個 sample handle 都分配、FDOTHER SFX bank 載入成功。
+     **故 `AIL_start_sample` 一定被呼叫，問題不在任何 flag / handle / 資源載入 / src code。**
+   - **已排除**：fd2common DPMI（逐行比對原版一致）、AIL driver 安裝、allocator slot
+     （`data_ail_alloc_fnptr` 連結時已正確 = CLIB3S `malloc`，且 AIL MDI setup 也讀它→BGM 正常即反證
+     它對）、memory model（`-ms` 下 DIG 一樣裝得起來）、union REGS 覆寫（已修，見下）。
+   - **剩餘根因 = SB DMA/IRQ 真正送聲**（MDI/BGM 走 OPL FM、不碰 DMA/IRQ，所以只 SFX 啞）。最可能是
+     `AIL_install_DIG_INI` 的 IRQ autodetect（DIG.INI `IRQ=-1`→從 `BLASTER` 解析）路徑：ail_extract 的
+     `test_audio.c` 用 `AIL_install_DIG_driver_file` **硬編 IRQ=5** 能播（L3 WAV），但**從沒測過
+     `install_DIG_INI` 路徑**（其註解明說 INI 格式 not audited）。使用者回報「環境完全相同、原版有聲、
+     rebuild 沒聲」→ 排除純環境，差異在 rebuild 用的 ailv3.lib install_DIG_INI 抽取 vs 原版內嵌 AIL。
+   - **下一步**：對照 sfxdiag 的 `install_DIG_INI` vs `install_DIG_driver_file` 是否「實際送出聲波」。
+     卡在 DOSBox-X 錄 WAV 命令：`mixer wavstart`/`wavstop` 在此版（2026.05.02）無效（ail_extract baseline
+     也沒錄到）；正確機制待查（可能是 mapper host-key Ctrl+Alt+F5，難自動觸發）。**注意別誤設
+     `SDL_VIDEODRIVER=dummy`，會連 audio 一起 dummy、錄不到聲。**
+
+2. **開場 scene 顯示錯亂（NEW GAME → chapter 1 prologue）— 未診斷**
+   - 使用者實測：下一個 scene 提早出現；過幾個對話框後正確 scene 才回來、但畫面上人物消失了。
+   - file not found 修好後才暴露。推測在 `fd2_chapter_01_init`（30 章唯一含 prologue，chapter_id 在
+     0x20→0x1F→0 三段切換 + 大量 walk/cutscene/dialog）的 scene 切換 / composite / runtime_char 載入。
+
+3. **開場第一個 scene 後黑畫面卡住（hang）— 未診斷**
+   - 使用者實測：第一個 scene 漸暗後停在黑畫面、完全沒反應。
+   - 同樣 file not found 修好後暴露。可能 `fd2_play_palette_fade_in` 沒 reveal、或某 cinematic loop 卡住。
+
+### 已修復（本 session，皆未 commit）
+
+- **鍵盤完全無效 ＋ sfx_driver_flag 被清零 — union REGS scratch 被拆散（使用者已確認鍵盤恢復）**
+  - 根因：原版 `0x53A8D` 是一塊 **28-byte `union REGS` 共用 INT scratch**，
+    `data_fd2_input_last_key_pressed`(byte0=AL)、`data_fd2_input_key_input_mode`(byte1=AH/scancode)
+    是它相鄰的兩個 byte。rebuild 把它拆成兩個獨立 `uint8`、還分屬 main.c / input.c，linker 拆散後：
+    (a) `int386(0x16)` 的 AH scancode 落到鄰居（rebuild 剛好把 `sfx_driver_flag` 排在 last_key+1）→
+    鍵盤讀不到真值（恆得 preset 0x10）、且 `*(uint16*)&last_key=0x13` 設 video mode 時順手把 sfx_flag
+    清零；(b) mode byte 根本不在 last_key+1。
+  - 修法：合回單一 `union REGS data_fd2_input_int16_regs`，兩符號變 macro 指它 `h.al`/`h.ah`（globals.h
+    + `#include <i86.h>`），定義在 main.c，input.c 移除舊定義。**8 處引用點 code 一行不動**。link map
+    已驗證 union 獨佔 0x7808–0x7823（28B）、sfx_flag 移到 union 外。
+
+- **"File not found !!!"（空檔名）開場退出 — 9 處 hardcoded 字串位址（使用者已確認不再退出）**
+  - 根因：9 處 `fd2_load_dat_resource` 把原版字串位址寫死成 immediate（`0x51a70`=DATO.DAT、
+    `0x51a4d`=FDOTHER.DAT）而非用 symbol。rebuild 後 linker 把字串擺到別處，這些位址指到垃圾、fopen
+    失敗（該位址開頭剛好是 0→`%s` 印空檔名）。`dialog.c` 的 `0x51a70`（對話框頭像 DATO）= NEW GAME 第一
+    個對話框退出的直接原因；`chinit.c` 的 `0x51a4d` 載的是 chapter 25 狀態效果 SFX bank（呼應「跟音效相關」）。
+  - 修法（9 處改 symbol）：`dialog.c`×4 + `shop.c`×1 → `data_fd2_string_resource_filename_dato_dat_51a70`；
+    `chtrans.c`×3 + `chinit.c`×1 → `data_fd2_string_resource_filename_fdother_dat`。grep 全 src/ 已確認
+    無其他 hardcoded 指標解參考（`(uint8*)0x5…` 等）。
+
+### ⚠ 新 session 起手 TODO（重編乾淨 FD2.EXE）
+
+- **改過的 src/ 檔（皆未 commit）**：`globals.h`、`life/main.c`（union 定義；臨時 audio 診斷已移除、src/
+  乾淨）、`input/input.c`、`dialog/dialog.c`、`ui_menu/shop.c`、`field/chtrans.c`、`field/chinit.c`。
+- **`tests/OUT/FD2.EXE` 是含診斷的舊版**（最後一次乾淨 rebuild 被使用者中止）。先重編乾淨版：
+  `python tools/emit/build_test.py --only table`（gate 0err/0warn）→ `python tools/snd_kbd_diag/genmap.py`
+  → 複製 `tests/OUT/FD2.EXE` 到 `fd2_game_files/FD2.EXE`。`fd2_game_files/` 現有的 FD2.EXE 已是
+  「union+fname 修好、無診斷」版（與乾淨 src/ 一致），只是 tests/OUT 要同步。
+- 建議先把這兩個修復（鍵盤 union REGS + 9 處 fname）commit 再繼續。
+
+### 診斷工具（本 session 新增 `tools/snd_kbd_diag/`；中間檔在 `workspace/snd_kbd_diag/`）
+
+- `genmap.py` — 重連 FD2.EXE + 產 wlink map（看 BSS symbol 實際擺放，union REGS 驗證用）。
+- `lib_probe.py` — dump fd2common.lib / ailv3.lib 的 module+symbol。**Watcom host 工具 `BINNT\WLIB.EXE`
+  / `BINNT\WDISASM.EXE` 可直接在 Windows 跑、免 DOSBox**（路徑含 `-` 會被當 option，要先 cd 進目錄用相對檔名）。
+- `sfxdiag.c` + `run_sfxdiag.py` — 用 FD2 編譯參數重現 AIL init（install_DIG_INI）+ 播一個 FDOTHER SFX +
+  輪詢 `AIL_sample_status`（已證 install_DIG_INI 在好環境 DIG=OK、status 4→2、alloc_fnptr=&malloc；想錄
+  WAV 對照但命令卡關）。要加 sample 播放才看得到送聲。
+- `run_fd2_audbg.py` — 把臨時 instrument 的 FD2.EXE 放遊戲目錄 headless 跑、讀 main 寫的 `AUDDBG.TXT`、
+  還原原 FD2.EXE。（本次取得「gate 全過」runtime 值用的。）
+
+---
+
 ### Phase 3 進度（current，最先讀）
 
 **✅ Phase 4 LINK 里程碑達成（commit `17e7a8d`，HEAD）**：src-only `fd2.lnk` 神諭已連結出 **FD2.EXE（349 KB、合法 MZ/DOS4GW）、0 undefined** —— `src/` 已能自給自足連出遊戲執行檔（Phase 4 只剩 DOSBox 實機 playtest 對照原版，尚未做）。補掉神諭最後缺口的三件事：(1) `fd2_main`→`main`（CRT cmain386 進入點契約；是唯一豁免 `fd2_` 前綴的 game function，見 memory [[project_fd2_function_prefix_main_exempt]]）；(2) `__delay_thunk_375b2`→`fd2_delay_ms` 落地 `src/util/misc.c`（真函式 `void fd2_delay_ms(uint32 ms){delay(ms);}`，routing 651 筆）；(3) `mklnk.py` 在 `fd2.lnk` 顯式列 Watcom CRT（CLIB3S/MATH387S/EMU387；`system dos4g` 不自動 pull）。雙 main 處置：`genbuild` 在 test build 只對 `life/main.c` 加 `-Dmain=fd2_main`、`link_oracle` 不帶 define 重編 lifemain 給 FD2.EXE。TEST build 仍綠（`build_test --only table` 18/18）、Ghidra 已存、0 Bad Instruction。**重跑神諭/最終建置**：先 `python tools/emit/build_test.py`（編 src obj）→ `python tools/fd2_build/{mklnk.py --apply, link_oracle.py, analyze_undefined.py}`。
