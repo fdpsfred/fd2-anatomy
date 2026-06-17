@@ -54,59 +54,24 @@ uint32 data_fd2_battle_combat_cinematic_split_bg_b_buf_ptr;
 uint32 data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr;
 
 /* ----------------------------------------------------------------
- * data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr @ 0x5410B
- *   Heap pointer to parallax background sub-layer 0 of the special-attack
- *   / class-promotion full-screen cinematics. First of three contiguous
- *   sibling pointers (layer_0 @ 0x5410B, layer_1 @ 0x5410F, layer_2 @
- *   0x54113); accessed both individually and as a 3-element array base
- *   (&data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr)[i] with i
- *   cycling 0..2, so the three must stay adjacent in declaration order.
- *   Writers/readers: fd2_play_full_combat_cinematic and
- *   fd2_execute_special_attack_skill here, plus fd2_play_spell_cast_cinematic
- *   (anispell.c) and the spell-cast cinematic in spellcin.c -- each zeroes
- *   it first, then stores the malloc-backed result of
- *   fd2_load_dat_resource(BG.DAT, ..., 0) into it, RLE-blits it as a
- *   parallax backdrop, and frees it on cleanup. Accessed as a full 32-bit
- *   pointer (MOV dword) at every site; zero-initialized at rest (.bss),
+ * data_fd2_battle_special_cinematic_bg_layers[3] @ 0x5410B/0F/13
+ *   Three heap pointers to the parallax background sub-layers (layer 0 @
+ *   0x5410B, 1 @ 0x5410F, 2 @ 0x54113) of the special-attack / class-promotion
+ *   full-screen cinematics. The BG zoom/scroll readers index them as a
+ *   uint32[3] (e.g. bg_layers[frame % 3]); a real array is used so C
+ *   guarantees the ascending adjacency the indexing relies on. Separate
+ *   tentative scalars do NOT guarantee it -- Watcom lays BSS/COMDEF objects in
+ *   reverse definition order, which inverts slots [1]/[2] and feeds garbage
+ *   pointers to the RLE blitter (the special-attack cinematic crash).
+ *   Writers/readers: fd2_play_full_combat_cinematic here and
+ *   fd2_execute_special_attack_skill (spellcin.c), plus
+ *   fd2_play_spell_cast_cinematic and the two BG zoom transitions (anispell.c)
+ *   -- each zeroes a slot, stores the malloc-backed result of
+ *   fd2_load_dat_resource(BG.DAT, ..., n) into it, RLE-blits it as a parallax
+ *   backdrop, and frees it on cleanup. Zero-initialized at rest (.bss),
  *   populated only at runtime.
  * ---------------------------------------------------------------- */
-uint32 data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr;
-
-/* ----------------------------------------------------------------
- * data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr @ 0x5410F
- *   Heap pointer to parallax background sub-layer 1 of the special-attack
- *   / class-promotion full-screen cinematics. Middle of the three
- *   contiguous sibling pointers (layer_0 @ 0x5410B, layer_1 @ 0x5410F,
- *   layer_2 @ 0x54113); accessed both individually and as the i==1 slot
- *   of the 3-element array base
- *   (&data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr)[i] (the reader
- *   in fd2_animate_bg_zoom_transition_out loads [(i%3)*4 + 0x5410B]), so
- *   the three must stay adjacent in declaration order. Same writers/readers
- *   as layer_0: zeroed first, then stores the malloc-backed result of
- *   fd2_load_dat_resource(BG.DAT, ..., 1) into it, RLE-blits it as a
- *   parallax backdrop, and frees it on cleanup. Accessed as a full 32-bit
- *   pointer (MOV dword) at every site; zero-initialized at rest (.bss),
- *   populated only at runtime.
- * ---------------------------------------------------------------- */
-uint32 data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr;
-
-/* ----------------------------------------------------------------
- * data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr @ 0x54113
- *   Heap pointer to parallax background sub-layer 2 of the special-attack
- *   / class-promotion full-screen cinematics. Last of the three
- *   contiguous sibling pointers (layer_0 @ 0x5410B, layer_1 @ 0x5410F,
- *   layer_2 @ 0x54113); accessed both individually and as the i==2 slot
- *   of the 3-element array base
- *   (&data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr)[i] (the reader
- *   in fd2_animate_bg_zoom_transition_in cycles [(i%3)*4 + 0x5410B]), so
- *   the three must stay adjacent in declaration order. Same writers/readers
- *   as layer_0: zeroed first, then stores the malloc-backed result of
- *   fd2_load_dat_resource(BG.DAT, ..., 2) into it, RLE-blits it as a
- *   parallax backdrop, and frees it on cleanup. Accessed as a full 32-bit
- *   pointer (MOV dword) at every site; zero-initialized at rest (.bss),
- *   populated only at runtime.
- * ---------------------------------------------------------------- */
-uint32 data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr;
+uint32 data_fd2_battle_special_cinematic_bg_layers[3];
 
 /* ----------------------------------------------------------------
  * data_fd2_audio_figani_sfx_bank_buf_ptr @ 0x54117
@@ -500,25 +465,25 @@ void fd2_play_full_combat_cinematic(uint32 a, uint32 d)
         uint32 swap_tmp;
 
         data_fd2_battle_combat_cinematic_split_bg_b_buf_ptr = 0;
-        data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = 0;
-        data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = 0;
-        data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = 0;
+        data_fd2_battle_special_cinematic_bg_layers[0] = 0;
+        data_fd2_battle_special_cinematic_bg_layers[1] = 0;
+        data_fd2_battle_special_cinematic_bg_layers[2] = 0;
         data_fd2_battle_combat_cinematic_split_bg_b_buf_ptr =
             fd2_load_dat_resource(
                 (uint32)data_fd2_string_resource_filename_bg_dat_52381, 0,
                 defender_terrain);
-        data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr =
+        data_fd2_battle_special_cinematic_bg_layers[0] =
             fd2_load_dat_resource(
                 (uint32)data_fd2_string_resource_filename_bg_dat_52381,
-                data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr, 0);
-        data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr =
+                data_fd2_battle_special_cinematic_bg_layers[0], 0);
+        data_fd2_battle_special_cinematic_bg_layers[1] =
             fd2_load_dat_resource(
                 (uint32)data_fd2_string_resource_filename_bg_dat_52381,
-                data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr, 1);
-        data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr =
+                data_fd2_battle_special_cinematic_bg_layers[1], 1);
+        data_fd2_battle_special_cinematic_bg_layers[2] =
             fd2_load_dat_resource(
                 (uint32)data_fd2_string_resource_filename_bg_dat_52381,
-                data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr, 2);
+                data_fd2_battle_special_cinematic_bg_layers[2], 2);
         swap_tmp = data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr;
         if (p_attacker->team == 0) {
             data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr =
@@ -577,9 +542,9 @@ void fd2_play_full_combat_cinematic(uint32 a, uint32 d)
     free((void *)banner_rle);
     if (split_screen_flag != 0) {
         free((void *)data_fd2_battle_combat_cinematic_split_bg_b_buf_ptr);
-        free((void *)data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr);
-        free((void *)data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr);
-        def_anim_figani = data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr;
+        free((void *)data_fd2_battle_special_cinematic_bg_layers[0]);
+        free((void *)data_fd2_battle_special_cinematic_bg_layers[1]);
+        def_anim_figani = data_fd2_battle_special_cinematic_bg_layers[2];
     }
     free((void *)def_anim_figani);
 

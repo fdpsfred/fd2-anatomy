@@ -106,7 +106,7 @@ void fd2_play_ani_file_animation_sequence(uint32 anim_idx,
  * BG zoom-in scroll transition for a combat cinematic — the
  * "approaching attacker" visual. Iterates 10 frames down then 10 frames
  * up through the 3-layer parallax BG cache
- * (data_fd2_battle_special_cinematic_bg_layer_0/1/2 @ 0x5410B/0F/13)
+ * (data_fd2_battle_special_cinematic_bg_layers @ 0x5410B/0F/13)
  * loaded by the caller, painting the attacker silhouette into the work
  * buffer between the two scroll passes.
  *
@@ -120,9 +120,9 @@ void fd2_play_ani_file_animation_sequence(uint32 anim_idx,
  *   workspace       128K (0x1F400) work buffer holding the scrolled BG
  *   caster_figani   FIGANI sprite stream for the caster silhouette
  *
- * The three BG-layer pointers sit contiguously at 0x5410B/0F/13 and the
- * original indexes them as a uint32[3]; reproduced here by indexing
- * through the address of the first slot. See emit_issues.json.
+ * The three BG-layer pointers are a real uint32[3] array
+ * (data_fd2_battle_special_cinematic_bg_layers), indexed directly so C
+ * guarantees the ascending adjacency the frame cycling relies on.
  * ---------------------------------------------------------------- */
 void fd2_animate_bg_zoom_transition_in(uint32 char_unit_id,
                                        uint32 char_sprite_idx,
@@ -130,12 +130,11 @@ void fd2_animate_bg_zoom_transition_in(uint32 char_unit_id,
                                        uint32 workspace,
                                        uint32 caster_figani)
 {
-    uint32 *bg_layer = &data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr;
     int frame_iter;
 
     /* Phase 1 — descending scroll (frame_iter = 9..0) */
     for (frame_iter = 9; frame_iter >= 0; frame_iter--) {
-        fd2_rle_blit_sprite(bg_layer[frame_iter % 3], 0, 0x32,
+        fd2_rle_blit_sprite(data_fd2_battle_special_cinematic_bg_layers[frame_iter % 3], 0, 0x32,
                             workspace, 0x280, 0xffffffff);
         fd2_blit_rectangle(0xa0000, 0x140, frame_iter * 0x20 + workspace,
                            0x280, 0x140, 0xc8);
@@ -151,7 +150,7 @@ void fd2_animate_bg_zoom_transition_in(uint32 char_unit_id,
 
     /* Phase 3 — ascending scroll with rotated BG cycling (frame_iter = 9..0) */
     for (frame_iter = 9; frame_iter >= 0; frame_iter--) {
-        fd2_rle_blit_sprite(bg_layer[(frame_iter + 2) % 3], 0, 0x32,
+        fd2_rle_blit_sprite(data_fd2_battle_special_cinematic_bg_layers[(frame_iter + 2) % 3], 0, 0x32,
                             workspace + 0x140, 0x280, 0xffffffff);
         fd2_blit_rectangle(0xa0000, 0x140, frame_iter * 0x20 + workspace,
                            0x280, 0x140, 0xc8);
@@ -166,7 +165,7 @@ void fd2_animate_bg_zoom_transition_in(uint32 char_unit_id,
  * fd2_animate_bg_zoom_transition_in. Runs an outward scroll, repaints the
  * defender into the work buffer, then a second outward scroll with a
  * rotated BG cycle, all over the 3-layer parallax BG cache
- * (data_fd2_battle_special_cinematic_bg_layer_0/1/2 @ 0x5410B/0F/13)
+ * (data_fd2_battle_special_cinematic_bg_layers @ 0x5410B/0F/13)
  * loaded by the caller.
  *
  * Called by fd2_execute_combat_hit_cinematic.
@@ -183,9 +182,9 @@ void fd2_animate_bg_zoom_transition_in(uint32 char_unit_id,
  *                       blits target workspace + 0x140 in the lower row band
  *   name_banner_sprite  RLE sprite stream for the unit name banner
  *
- * The three BG-layer pointers sit contiguously at 0x5410B/0F/13 and the
- * original indexes them as a uint32[3]; reproduced here by indexing
- * through the address of the first slot. See emit_issues.json.
+ * The three BG-layer pointers are a real uint32[3] array
+ * (data_fd2_battle_special_cinematic_bg_layers), indexed directly so C
+ * guarantees the ascending adjacency the frame cycling relies on.
  *
  * Unlike the zoom-in counterpart, both scroll passes here count forward
  * (1..9 and 1..10) and the second pass blits into bare workspace while the
@@ -198,13 +197,12 @@ void fd2_animate_bg_zoom_transition_out(uint32 char_unit_id,
                                         uint32 workspace,
                                         uint32 name_banner_sprite)
 {
-    uint32 *bg_layer = &data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr;
     uint32 lower_band = workspace + 0x140;
     int frame_iter;
 
     /* Phase 1 — outward scroll, BG cycle (frame_iter = 1..9) */
     for (frame_iter = 1; frame_iter < 10; frame_iter++) {
-        fd2_rle_blit_sprite(bg_layer[frame_iter % 3], 0, 0x32,
+        fd2_rle_blit_sprite(data_fd2_battle_special_cinematic_bg_layers[frame_iter % 3], 0, 0x32,
                             lower_band, 0x280, 0xffffffff);
         fd2_blit_rectangle(0xa0000, 0x140, frame_iter * 0x20 + workspace,
                            0x280, 0x140, 0xc8);
@@ -221,7 +219,7 @@ void fd2_animate_bg_zoom_transition_out(uint32 char_unit_id,
 
     /* Phase 3 — outward scroll with rotated BG cycling (frame_iter = 1..10) */
     for (frame_iter = 1; frame_iter <= 10; frame_iter++) {
-        fd2_rle_blit_sprite(bg_layer[(frame_iter + 1) % 3], 0, 0x32,
+        fd2_rle_blit_sprite(data_fd2_battle_special_cinematic_bg_layers[(frame_iter + 1) % 3], 0, 0x32,
                             workspace, 0x280, 0xffffffff);
         fd2_blit_rectangle(0xa0000, 0x140, frame_iter * 0x20 + workspace,
                            0x280, 0x140, 0xc8);
@@ -239,7 +237,7 @@ void fd2_animate_bg_zoom_transition_out(uint32 char_unit_id,
  * spell semantics.
  *
  * Loads three parallax BGs from BG.DAT[0..2] into the 3-layer cache
- * (data_fd2_battle_special_cinematic_bg_layer_0/1/2 @ 0x5410B/0F/13), loads the
+ * (data_fd2_battle_special_cinematic_bg_layers @ 0x5410B/0F/13), loads the
  * caster silhouette FIGANI.DAT[caster.portrait_id*3] and the target-class
  * silhouette FIGANI.DAT[class_id*3], backs up the current VGA frame, then plays:
  *   Phase 1  fade out + 9-frame (iter 8..0) zoom-in slide of the caster figure,
@@ -251,9 +249,9 @@ void fd2_animate_bg_zoom_transition_out(uint32 char_unit_id,
  *            restore full brightness, then anim it (0x18 = 24 frames);
  *   Phase 5  fade to black, restore the pre-cinematic VGA frame, fade in, free.
  *
- * The three BG-layer pointers sit contiguously at 0x5410B/0F/13; the original
- * indexes them as a uint32[3], reproduced here by indexing through the address
- * of the first slot (same idiom as the bg_zoom_transition siblings above).
+ * The three BG-layer pointers are a real uint32[3] array
+ * (data_fd2_battle_special_cinematic_bg_layers), indexed directly so C
+ * guarantees the ascending adjacency the BG cycling relies on.
  *
  * Phase-1 BG cycler note: in the disassembly the per-frame cycler
  * (bg_idx = (bg_idx+1) % 3) is reached via a JZ that tests the flags left by the
@@ -268,7 +266,6 @@ void fd2_animate_bg_zoom_transition_out(uint32 char_unit_id,
  * ---------------------------------------------------------------- */
 void fd2_play_spell_cast_cinematic(uint32 caster_char_idx, uint32 spell_id)
 {
-    uint32 *bg_layer = &data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr;
     void   *work;
     void   *caster_figani;
     void   *target_figani;
@@ -277,18 +274,18 @@ void fd2_play_spell_cast_cinematic(uint32 caster_char_idx, uint32 spell_id)
     int     zoom_iter;
     int     flash_iter;
 
-    data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = 0;
-    data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = 0;
-    data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = 0;
+    data_fd2_battle_special_cinematic_bg_layers[0] = 0;
+    data_fd2_battle_special_cinematic_bg_layers[1] = 0;
+    data_fd2_battle_special_cinematic_bg_layers[2] = 0;
 
-    data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = fd2_load_dat_resource(
+    data_fd2_battle_special_cinematic_bg_layers[0] = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_bg_dat_52381, 0, 0);
-    data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = fd2_load_dat_resource(
+    data_fd2_battle_special_cinematic_bg_layers[1] = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_bg_dat_52381,
-        data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr, 1);
-    data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = fd2_load_dat_resource(
+        data_fd2_battle_special_cinematic_bg_layers[1], 1);
+    data_fd2_battle_special_cinematic_bg_layers[2] = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_bg_dat_52381,
-        data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr, 2);
+        data_fd2_battle_special_cinematic_bg_layers[2], 2);
 
     work = malloc(0x1f400);
     caster_figani = (void *)fd2_load_dat_resource(
@@ -308,7 +305,7 @@ void fd2_play_spell_cast_cinematic(uint32 caster_char_idx, uint32 spell_id)
     for (zoom_iter = 8; zoom_iter >= 0; zoom_iter--) {
         memset(work, 0, 0x1f400);
         bg_idx = (bg_idx + 1) % 3;
-        fd2_rle_blit_sprite(bg_layer[bg_idx], 0, 0x32, (uint32)work, 0x280,
+        fd2_rle_blit_sprite(data_fd2_battle_special_cinematic_bg_layers[bg_idx], 0, 0x32, (uint32)work, 0x280,
                             0xffffffff);
         fd2_blit_indexed_sprite((uint32)caster_figani, 0,
                                 zoom_iter * 10 + (int)work, 0x280, -1);
@@ -327,7 +324,7 @@ void fd2_play_spell_cast_cinematic(uint32 caster_char_idx, uint32 spell_id)
 
     /* Phase 4 — swap to the target-class silhouette at the slide-in cap. */
     memset(work, 0, 0x1f400);
-    fd2_rle_blit_sprite(data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr, 0,
+    fd2_rle_blit_sprite(data_fd2_battle_special_cinematic_bg_layers[0], 0,
                         0x32, (uint32)work, 0x280, 0xffffffff);
     fd2_blit_indexed_sprite((uint32)target_figani, 0,
                             flash_iter * 10 + (int)work, 0x280, -1);
@@ -341,9 +338,9 @@ void fd2_play_spell_cast_cinematic(uint32 caster_char_idx, uint32 spell_id)
     fd2_play_palette_fade_in();
 
     free(vga_backup);
-    free((void *)data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr);
-    free((void *)data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr);
-    free((void *)data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr);
+    free((void *)data_fd2_battle_special_cinematic_bg_layers[0]);
+    free((void *)data_fd2_battle_special_cinematic_bg_layers[1]);
+    free((void *)data_fd2_battle_special_cinematic_bg_layers[2]);
     free(caster_figani);
     free(target_figani);
     free(work);
@@ -375,15 +372,13 @@ void fd2_play_spell_cast_cinematic(uint32 caster_char_idx, uint32 spell_id)
  *
  * The tick / frame_idx resets use the original's XOR-with-self idiom
  * (tick ^= hold_count when equal -> 0; frame_idx ^= frame_count at wrap -> 0);
- * preserved verbatim. The three BG-layer pointers sit contiguously at
- * 0x5410B/0F/13 and the original indexes them as a uint32[3]; reproduced here by
- * indexing through the address of the first slot (same idiom as the
- * bg_zoom_transition / spell_cast_cinematic siblings above).
+ * preserved verbatim. The three BG-layer pointers are a real uint32[3] array
+ * (data_fd2_battle_special_cinematic_bg_layers), indexed directly so C
+ * guarantees the ascending adjacency the per-frame cycling relies on.
  * ---------------------------------------------------------------- */
 void fd2_cycle_sprite_anim_with_bg_frames(uint32 sprite_atlas, uint32 workspace,
                                           uint32 iter_count)
 {
-    uint32 *bg_layer = &data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr;
     uint32  frame_idx;
     uint32  bg_variant_idx;
     uint32  tick;
@@ -396,7 +391,7 @@ void fd2_cycle_sprite_anim_with_bg_frames(uint32 sprite_atlas, uint32 workspace,
     for (iter = 0; (int)iter < (int)iter_count; iter++) {
         memset((void *)workspace, 0, 0x1f400);
         bg_variant_idx = (int)(bg_variant_idx + 1) % 3;
-        fd2_rle_blit_sprite(bg_layer[bg_variant_idx], 0, 0x32, workspace, 0x280,
+        fd2_rle_blit_sprite(data_fd2_battle_special_cinematic_bg_layers[bg_variant_idx], 0, 0x32, workspace, 0x280,
                             0xffffffff);
         fd2_blit_indexed_sprite(sprite_atlas, frame_idx, (int)workspace, 0x280, -1);
         fd2_blit_rectangle(0xa0000, 0x140, workspace, 0x280, 0x140, 0xc8);

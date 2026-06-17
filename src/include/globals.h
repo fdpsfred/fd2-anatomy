@@ -149,9 +149,13 @@ extern uint8  data_fd2_battle_floating_damage_target_char_idx_queue[200]; /* 0x5
 extern uint32 data_fd2_battle_scripted_cinematic_mode_or_terrain_idx;   /* 0x540FF */
 extern uint32 data_fd2_battle_combat_cinematic_split_bg_b_buf_ptr;      /* 0x54103 */
 extern uint32 data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr;    /* 0x54107 */
-extern uint32 data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr;     /* 0x5410B */
-extern uint32 data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr;     /* 0x5410F */
-extern uint32 data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr;     /* 0x54113 */
+/* Three parallax BG sub-layer heap pointers @ 0x5410B/0F/13, indexed as a
+ * uint32[3] by the BG zoom/scroll cinematic readers (PUSH dword [idx*4 +
+ * 0x5410B]). Defined as a real array so C guarantees ascending adjacency:
+ * separate tentative scalars do NOT -- Watcom lays BSS/COMDEF objects in
+ * REVERSE definition order, which inverts [1]/[2] and feeds garbage pointers
+ * to the RLE blitter (the special-attack cinematic crash). */
+extern uint32 data_fd2_battle_special_cinematic_bg_layers[3];           /* 0x5410B[3] */
 extern uint32 data_fd2_battle_fast_mode_walk_overlay_ptr;               /* 0x53B0F */
 /* Per-subframe defender-sprite shake offsets for the combat-hit cinematic;
  * indexed by a decaying shake counter (5..0). (.object2 const int[6]) */

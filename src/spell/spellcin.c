@@ -1129,18 +1129,18 @@ void fd2_execute_special_attack_skill(uint32 caster_idx, uint32 spell_id,
         (uint32)data_fd2_string_resource_filename_bg_dat_52381,
         pBg_resource, (uint32)resolved_terrain);
 
-    data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = 0;
-    data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = 0;
-    data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = 0;
+    data_fd2_battle_special_cinematic_bg_layers[0] = 0;
+    data_fd2_battle_special_cinematic_bg_layers[1] = 0;
+    data_fd2_battle_special_cinematic_bg_layers[2] = 0;
     pBg_resource = pTai_layer;
-    data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = fd2_load_dat_resource(
+    data_fd2_battle_special_cinematic_bg_layers[0] = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_bg_dat_52381, 0, 0);
-    data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = fd2_load_dat_resource(
+    data_fd2_battle_special_cinematic_bg_layers[1] = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_bg_dat_52381,
-        data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr, 1);
-    data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = fd2_load_dat_resource(
+        data_fd2_battle_special_cinematic_bg_layers[1], 1);
+    data_fd2_battle_special_cinematic_bg_layers[2] = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_bg_dat_52381,
-        data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr, 2);
+        data_fd2_battle_special_cinematic_bg_layers[2], 2);
 
     pAnimWorkBuf1 = (uint32)malloc(64000);
     pAnimWorkBuf2 = (uint32)malloc(0x1f400);
@@ -1261,9 +1261,9 @@ void fd2_execute_special_attack_skill(uint32 caster_idx, uint32 spell_id,
     free((void *)pBg_layer_saved);
     free((void *)pAnimWorkBuf1);
     free((void *)pAnimWorkBuf2);
-    free((void *)data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr);
-    free((void *)data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr);
-    free((void *)data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr);
+    free((void *)data_fd2_battle_special_cinematic_bg_layers[0]);
+    free((void *)data_fd2_battle_special_cinematic_bg_layers[1]);
+    free((void *)data_fd2_battle_special_cinematic_bg_layers[2]);
     free((void *)pCaster_figani_a);
     free((void *)pCaster_figani_b);
 

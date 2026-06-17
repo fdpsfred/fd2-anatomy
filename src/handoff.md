@@ -11,9 +11,24 @@
 把 src-only 連出的 FD2.EXE 放進 `fd2_game_files/`（完整遊戲環境）對照原版 `~FD2.EXE` 跑出來的問題。
 **DOSBox 由使用者跑。** 鐵則（使用者定）：要「當場聽音效內容對不對」的驗證由使用者跑；「看數值 / 看
 畫面行為的診斷」由 AI 做；build/link 產 FD2.EXE 由 AI 做。原本三個問題（音效全靜音、開場 hang、開場
-顯示錯亂）**全部找到根因、修復、commit、使用者實機確認**。此 playtest debug 階段目前無未解問題。
+顯示錯亂）**全部找到根因、修復、commit、使用者實機確認**。後續實機再發現「炙焰刀（鐵諾劍聖必殺技）
+施法平移 crash」，已找到根因並修復、build/relink 完成，**待使用者實機確認後 commit**（見下方第一條）。
 
 ### 已修復並 commit
+
+- **炙焰刀（熾炎刀＝鐵諾劍聖必殺技 spell 0x1D）施法平移 crash → 已修復（待實機確認 + 待 commit）**
+  - **根因**：`fd2_animate_bg_zoom_transition_in`（往左平移顯示敵人受攻擊；0x1D 走此路、0x1C 跳過）用
+    `bg_layer[idx%3]` 把三個 BG layer 指標當 `uint32[3]` 索引（@0x5410B/0F/13）。src/ 原 emit 成三個獨立
+    tentative scalar，但 wlink map 證實 Watcom 對 BSS/COMDEF 是**反序** layout（layer_2 在最低位址），故
+    reader 的 `[1]`/`[2]` 讀到鄰居 spotlight_bg / split_bg_b 的 garbage 指標 → 餵 `fd2_rle_blit_sprite`
+    wild read → protected-mode fault；zoom phase1 第二格（idx 2）即引爆，正是「畫面開始往左平移」瞬間。
+  - **修法（root-cause）**：三個 scalar 併成單一 `uint32[3]` array
+    `data_fd2_battle_special_cinematic_bg_layers`（C 保證升序相鄰），所有引用明確改 array index（甲案、
+    無 macro）。涉 globals.h / anicine.c / anispell.c / spellcin.c / tests + Ghidra 0x5410B 改 `dword[3]`
+    + emit_issues 三條 RESOLVED。emit pipeline 教訓：**BSS/COMDEF tentative scalar 的相鄰與順序 linker 不
+    保證，凡 reader 把多個 scalar 當 array 索引者一律 emit 成真 array**。
+  - **驗證**：build 0err/0warn；wlink map 證 array 升序（base+0/4/8、spotlight 緊接其後）；FD2.EXE relink
+    0 undefined 已複製進 `fd2_game_files/`。**待使用者實機測炙焰刀**。
 
 - **開場 scene 顯示錯亂（NEW GAME → chapter 1 prologue）→ 解決（commit `a9b772e`，使用者實機確認開場顯示恢復正常）**
   - **根因**：`data_fd2_battle_cursor_screen_x/y`（0x53AB9 / 0x53ABD）src/ 誤宣告 `uint32`，原版是**有號
@@ -94,7 +109,7 @@
 - **Phase 3a — build 連結修復（已 commit `e280ff8`）**：3 個被 src/ 引用卻從未定義的 global（連結期 undefined，Phase 2 gate 只看編譯期 warning 而漏掉，`build_ok` 一直是 false）以 Ghidra 真值落地：`data_fd2_graphics_shimmer_offset_table_16b[16]`（const，blitspr.c）、`data_fd2_graphics_bg_animation_frame_idx`(=0) + `data_fd2_graphics_forced_tile_anim_frame`(=0xFFFFFFFF)（rndscene.c）。使用者核准的唯一 src/ 例外。結果：0 undefined、TEST.EXE 可建。
 - **單 suite 驅動工具（已 commit `762b2b1`）**：`build_test.py --only <substr>` 暫濾 testmain.c 只跑指定 suite，繞過「執行順序在前的 suite hang 擋住後面全部」；跑完保證還原、不碰 src/。逐 suite 修復與 fan-out 的前提。
 - **關鍵發現（決定 fan-out 策略）**：Phase 2 把 `fd2_blit_indexed_sprite` / `fd2_rle_blit_sprite` / `fd2_dialog_sprite_blit_normal` 等 spy 換成 real，但測試的**共享 fixture（`tests/include/minipfix.h` 的 `minip_setup_env`、`blitprob.h` 的 compositor-safe atlas、testglob recorder）仍是 spy 時代為「只記錄、不解碼」設計的**。real blitter 會真的解碼：minip 的 sheet offset table（`table[i]=i`）讓 mini-panel 的 bg sprite 解析到 header `rows=0` 的位置 → `fd2_dialog_sprite_blit_normal` 寫 65535 列暴衝 spin（anicine1 test #4 真正卡點，在 figani blit 之前）；digit glyph 走 real `fd2_rle_blit_sprite` 同理。**結論：Phase 3b 不能純逐 suite fan-out — 必須先「集中修共享 fixture」讓 real blit 變有界 no-op（minip sheet 種合法小 sprite、digit-glyph 源、compositor-safe atlas、cinematic figani safe-sprite），再逐 suite fan-out 改斷言 + 解 #if 0**（並行編輯共享檔會衝突，且每 suite 否則重撞同一 spin）。安全 sprite 配方：`fd2_rle_blit_sprite` 用 `[W,H>0, 每列一個 SKIP 命令 0xC0|(W-1)]`（透明 no-op）；`fd2_dialog_sprite_blit_normal` 用小 `[W=4,rows=1,+cursor bytes]`（寫 W*rows bytes，要有界）。
-- **更深一層發現（決定 Phase 3b 真實難度）**：不只共享 fixture spin。**測試當初拿來當觀測 seam 的「內層呼叫 spy」有不少已被 emit 成 real**（routing done=True，link 序 src 在前 → real 勝出、testglob 的殘留 spy 被 W1027 忽略、其 recorder 永遠不被填）。實例：`test_chit_*` 用 `fd2_animate_bg_zoom_transition_in`(anispell.c, real)的 `g_zoom_in_calls` 數 strike，但該 spy 已死、且 real zoom 會 blit `data_fd2_battle_special_cinematic_bg_layer_0/1/2_buf_ptr`(@0x5410B/F/13 連續)+ spotlight(@0x54107)未設 → spin（在 flash 之前）；備援觀測 `g_sfx_id_count` 也死（`fd2_play_sfx_with_handle` 亦 real, audio.c）。**testglob.c 有殘留 spy（如 1486 行 zoom_in，與 1985 行「已移除」註解自相矛盾）需清**。**結論升級**：每個 cinematic 測試是「法醫級重設計」——(a) 重建觀測手段（多數 spy 已 real）；(b) 馴服巢狀 real cinematic 的多個 sprite-source 全域。chit 可行重設計：`frame_iter` 每 do-while 迭代重置(anicine.c:846) → 傷害跨 strike 複利 → **用非零傷害 + 相對斷言（低 roll 種子最終 HP < 高 roll 種子最終 HP）**驗 3% gate，免精確傷害值；前提是 zoom/flash 全 safe-atlas。建議做一個集中的 `tg_install_cinematic_safe_atlases()`（仿 blitprob 的 compositor 版，涵蓋 bg_layer/spotlight/split_bg/anim-sheet）讓所有 real cinematic blit 變有界 no-op。
+- **更深一層發現（決定 Phase 3b 真實難度）**：不只共享 fixture spin。**測試當初拿來當觀測 seam 的「內層呼叫 spy」有不少已被 emit 成 real**（routing done=True，link 序 src 在前 → real 勝出、testglob 的殘留 spy 被 W1027 忽略、其 recorder 永遠不被填）。實例：`test_chit_*` 用 `fd2_animate_bg_zoom_transition_in`(anispell.c, real)的 `g_zoom_in_calls` 數 strike，但該 spy 已死、且 real zoom 會 blit `data_fd2_battle_special_cinematic_bg_layers[3]`(@0x5410B)+ spotlight(@0x54107)未設 → spin（在 flash 之前）；備援觀測 `g_sfx_id_count` 也死（`fd2_play_sfx_with_handle` 亦 real, audio.c）。**testglob.c 有殘留 spy（如 1486 行 zoom_in，與 1985 行「已移除」註解自相矛盾）需清**。**結論升級**：每個 cinematic 測試是「法醫級重設計」——(a) 重建觀測手段（多數 spy 已 real）；(b) 馴服巢狀 real cinematic 的多個 sprite-source 全域。chit 可行重設計：`frame_iter` 每 do-while 迭代重置(anicine.c:846) → 傷害跨 strike 複利 → **用非零傷害 + 相對斷言（低 roll 種子最終 HP < 高 roll 種子最終 HP）**驗 3% gate，免精確傷害值；前提是 zoom/flash 全 safe-atlas。建議做一個集中的 `tg_install_cinematic_safe_atlases()`（仿 blitprob 的 compositor 版，涵蓋 bg_layer/spotlight/split_bg/anim-sheet）讓所有 real cinematic blit 變有界 no-op。
 - **WIP（未 commit，皆正確的建構塊但未綠）**：`tests/include/minipfix.h`（sheet 全 offset → 合法 4x1 safe sprite，對 rle + dialog 兩解碼器都有界；shared，惠及所有用 minip 的 suite）；`tests/anim/anicine1.c` 的 `chit_plant_safe_sprite`（figani frame safe sprite）。兩者正確但不足以讓 chit 轉綠（real zoom 在更前面 spin + 觀測點已死，需上述完整重設計）。
 - **覆蓋現況（reconcile 自 routing + tests grep）**：641 個真實 function，**142 個目前零有效測試**（98 個測試被 `#if 0`、44 個從未寫）；其餘 499 個邊界完整度待逐一查核。`#if 0` 主因 ＝ 寫 now-const 表（改讀固定 const 值）+ cinematic hang。9 個讀檔 function 測試被標 reverted（用假檔）需改真檔。
 完整計畫：`C:\Users\fdpsf\.claude\plans\plan-plan-soft-dongarra.md`（**新 session 先讀它 + 下面這段**）。

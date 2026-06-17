@@ -63,8 +63,8 @@
  * left to Phase 9.
  *
  * The function's only non-display logic is the BG-layer index math:
- *   - phase 1 (frame_iter 9..0): bg_layer[frame_iter % 3]
- *   - phase 3 (frame_iter 9..0): bg_layer[(frame_iter + 2) % 3]
+ *   - phase 1 (frame_iter 9..0): bg_layers[frame_iter % 3]
+ *   - phase 3 (frame_iter 9..0): bg_layers[(frame_iter + 2) % 3]
  * a signed-IDIV-by-3 modulo (matches C `%` for the non-negative frame range)
  * plus the per-phase blit dst/stride. fd2_rle_blit_sprite is a recording stub
  * (testglob.c) that logs every resolved BG-layer pointer + dst into
@@ -88,8 +88,8 @@
  *
  * The non-display logic differs from zoom-in in three ways, all asserted here:
  *   - both scroll passes count FORWARD (phase 1 frame_iter 1..9, phase 3 1..10)
- *   - the index math is bg_layer[frame_iter % 3] (phase 1) and
- *     bg_layer[(frame_iter + 1) % 3] (phase 3)
+ *   - the index math is bg_layers[frame_iter % 3] (phase 1) and
+ *     bg_layers[(frame_iter + 1) % 3] (phase 3)
  *   - phase 1 + the phase-2 defender repaint blit into workspace + 0x140, while
  *     phase 3 blits into bare workspace (the reverse band assignment of zoom-in)
  * plus the extra phase-2 banner + terrain backdrop rle blits (the zoom-in has
@@ -324,10 +324,10 @@ static void test_bg_zoom_transition_bg_cycling(void)
     ASSERT_TRUE(workspace != NULL);
     ASSERT_TRUE(clear_buf != NULL);
 
-    /* the function indexes the three contiguous globals as uint32[3]. */
-    data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = BG_SENTINEL_0;
-    data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = BG_SENTINEL_1;
-    data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = BG_SENTINEL_2;
+    /* the function indexes the bg_layers[] array as uint32[3]. */
+    data_fd2_battle_special_cinematic_bg_layers[0] = BG_SENTINEL_0;
+    data_fd2_battle_special_cinematic_bg_layers[1] = BG_SENTINEL_1;
+    data_fd2_battle_special_cinematic_bg_layers[2] = BG_SENTINEL_2;
 
     /* stand up the real mini-panel painter (sprite sheet + immediate-END text)
      * so the phase-2 fd2_flash_char_hit_sprite runs without touching VGA/fopen;
@@ -368,9 +368,9 @@ static void test_bg_zoom_transition_bg_cycling(void)
 
     free(workspace);
     free(clear_buf);
-    data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = 0;
-    data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = 0;
-    data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = 0;
+    data_fd2_battle_special_cinematic_bg_layers[0] = 0;
+    data_fd2_battle_special_cinematic_bg_layers[1] = 0;
+    data_fd2_battle_special_cinematic_bg_layers[2] = 0;
 }
 
 /* opaque, never-dereferenced sentinels for the phase-2 banner + terrain blits.
@@ -419,10 +419,10 @@ static void test_bg_zoom_transition_out_bg_cycling(void)
     ASSERT_TRUE(workspace != NULL);
     ASSERT_TRUE(clear_buf != NULL);
 
-    /* the function indexes the three contiguous globals as uint32[3]. */
-    data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = BG_SENTINEL_0;
-    data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = BG_SENTINEL_1;
-    data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = BG_SENTINEL_2;
+    /* the function indexes the bg_layers[] array as uint32[3]. */
+    data_fd2_battle_special_cinematic_bg_layers[0] = BG_SENTINEL_0;
+    data_fd2_battle_special_cinematic_bg_layers[1] = BG_SENTINEL_1;
+    data_fd2_battle_special_cinematic_bg_layers[2] = BG_SENTINEL_2;
 
     /* stand up the real mini-panel painter so the phase-2
      * fd2_flash_char_hit_sprite runs without touching VGA/fopen; also resets
@@ -483,9 +483,9 @@ static void test_bg_zoom_transition_out_bg_cycling(void)
 
     free(workspace);
     free(clear_buf);
-    data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = 0;
-    data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = 0;
-    data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = 0;
+    data_fd2_battle_special_cinematic_bg_layers[0] = 0;
+    data_fd2_battle_special_cinematic_bg_layers[1] = 0;
+    data_fd2_battle_special_cinematic_bg_layers[2] = 0;
 }
 
 /*
@@ -542,9 +542,9 @@ static void test_cycle_sprite_anim_frame_advance(void)
         bg_buf[i][0] = (uint8)(0x10 + i);
         bg_ptr[i] = (uint32)bg_buf[i];
     }
-    data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = bg_ptr[0];
-    data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = bg_ptr[1];
-    data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = bg_ptr[2];
+    data_fd2_battle_special_cinematic_bg_layers[0] = bg_ptr[0];
+    data_fd2_battle_special_cinematic_bg_layers[1] = bg_ptr[1];
+    data_fd2_battle_special_cinematic_bg_layers[2] = bg_ptr[2];
 
     g_rle_blit_calls = 0;
     g_rle_blit_log_on = 1;
@@ -582,9 +582,9 @@ static void test_cycle_sprite_anim_frame_advance(void)
     for (i = 0; i < 3; i++) {
         free(bg_buf[i]);
     }
-    data_fd2_battle_special_cinematic_bg_layer_0_buf_ptr = 0;
-    data_fd2_battle_special_cinematic_bg_layer_1_buf_ptr = 0;
-    data_fd2_battle_special_cinematic_bg_layer_2_buf_ptr = 0;
+    data_fd2_battle_special_cinematic_bg_layers[0] = 0;
+    data_fd2_battle_special_cinematic_bg_layers[1] = 0;
+    data_fd2_battle_special_cinematic_bg_layers[2] = 0;
 }
 
 void run_anim_anispell_tests(void)
