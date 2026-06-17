@@ -267,10 +267,17 @@ void fd2_blit_scaled_tile_map_view(uint32 src_cx_fp, uint32 src_cy_fp,
  * Cdecl, 4 stack params; void return. The binary's __CHK(0x28)
  * stack-probe prologue is compiler-injected, not emitted here.
  *
- * The fixed-point fraction strip is an arithmetic right shift
- * ((int)>>7); the source coord is always >= 0 at the point of use
- * (the in-bounds guard rejects negatives), so >>7 reproduces the
- * Watcom signed-shift flooring idiom seen in the disassembly exactly.
+ * The fixed-point fraction strip recovers the integer pixel index via
+ * a SIGNED divide by 128 ((int)/128). The disassembly is Watcom's
+ * signed div-by-power-of-2 idiom (sign-bias + SAR, ~6 instructions),
+ * NOT a bare arithmetic shift. The in-bounds guard means the coord is
+ * always >= 0 here, so a bare (int)>>7 would pick the same pixel -- but
+ * >>7 compiles to only 2 instructions and runs the inner 320x200 loop
+ * measurably faster. Over the 10/11-frame pose zoom that speed-up
+ * shortens the chapter-intro transition below the ~0.9s footstep SFX,
+ * so the shop-greeting typewriter SFX cuts the footstep off (the
+ * original lets it finish). Keep the /128 form so the per-frame timing
+ * matches the original binary.
  * ---------------------------------------------------------------- */
 void fd2_blit_scaled_chapter_pose(uint32 src_cx, uint32 src_cy,
                                   uint32 src_bitmap, int32 scale_fp_step)
@@ -291,11 +298,11 @@ void fd2_blit_scaled_chapter_pose(uint32 src_cx, uint32 src_cy,
     for (out_row = 0; (int)out_row < 200; out_row = out_row + 1) {
         if ((int)src_y_fp >= 0 && (int)src_y_fp < 0x6400) {
             src_x_fp = src_x_fp_start;
-            src_row_base = src_bitmap + ((int)src_y_fp >> 7) * 0x140;
+            src_row_base = src_bitmap + ((int)src_y_fp / 128) * 0x140;
             for (out_col = 0; (int)out_col < 0x140; out_col = out_col + 1) {
                 if ((int)src_x_fp >= 0 && (int)src_x_fp < 0xA000) {
                     *(uint8 *)(out_col + out_row_ptr) =
-                        *(uint8 *)(src_row_base + ((int)src_x_fp >> 7));
+                        *(uint8 *)(src_row_base + ((int)src_x_fp / 128));
                 }
                 src_x_fp = src_x_fp + scale_fp_step;
             }

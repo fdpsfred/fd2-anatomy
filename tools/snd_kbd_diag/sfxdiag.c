@@ -11,6 +11,7 @@
 #include "ailv3.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <dos.h>
 
 extern char data_ail_diagnostic_message_scratch_buffer[];
 #pragma aux data_ail_diagnostic_message_scratch_buffer "*";
@@ -40,6 +41,27 @@ int main(void)
 
     t = fopen("SFXDIAG.LOG", "w");
     if (t) fclose(t);
+
+    /* [D] delay-calibration probe: CLIB3S delay() vs BIOS tick @0x46C.
+     * __delay_init (XI-chain ctor) calibrates data_crt_delay_calibration_counter
+     * at CRT startup; this checks the resulting delay(ms) actually waits ms.
+     * fd2's fade_in (0x41 x delay(2)) + delay(200) gate the shop-entry footstep
+     * window, so a short delay() shrinks that window and cuts the footstep. */
+    {
+        unsigned long bt0, bt1;
+        bt0 = *(volatile unsigned long *)0x46cUL;
+        delay(1000);
+        bt1 = *(volatile unsigned long *)0x46cUL;
+        sprintf(buf, "[D0] delay(1000)=%lu BIOS ticks (1s expects ~18)",
+                bt1 - bt0);
+        logln(buf);
+        bt0 = *(volatile unsigned long *)0x46cUL;
+        delay(200);
+        bt1 = *(volatile unsigned long *)0x46cUL;
+        sprintf(buf, "[D1] delay(200)=%lu BIOS ticks (0.2s expects ~4)",
+                bt1 - bt0);
+        logln(buf);
+    }
 
     data_ail_alloc_fnptr = (void *)malloc;
     data_ail_free_fnptr = (void *)free;
