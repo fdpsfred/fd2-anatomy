@@ -12,9 +12,14 @@
 **DOSBox 由使用者跑。** 鐵則（使用者定）：要「當場聽音效內容對不對」的驗證由使用者跑；「看數值 / 看
 畫面行為的診斷」由 AI 做；build/link 產 FD2.EXE 由 AI 做。原本三個問題（音效全靜音、開場 hang、開場
 顯示錯亂）**全部找到根因、修復、commit、使用者實機確認**。後續實機再發現「炙焰刀（鐵諾劍聖必殺技）
-施法平移 crash」，已解決（commit `329ca2a`、使用者實機確認，見下方第一條）。此 playtest debug 階段目前無未解問題。
+施法平移 crash」，已解決（commit `329ca2a`）；最新「商店進入腳步聲被對話音效打斷」（pose 縮放取整除法 codegen 時序）亦已解決（commit `a195696`），皆使用者實機確認。此 playtest debug 階段目前無未解問題（見下方「已修復並 commit」）。
 
-### 已修復並 commit
+### 已修復並 commit（最新）
+
+- **村莊商店進入「腳步聲被店主對話音效打斷」→ 解決（commit `a195696`，使用者實機確認）**
+  - **根因**：`fd2_blit_scaled_chapter_pose`（chapter-intro pose zoom 過場最大頭，10/11 frame × 64000px 純 CPU 縮放 loop）的 fixed-point 取整除法，src 誤 emit 成 `(int)>>7`（算術右移，2 指令），原版是有號 `/128`（Watcom signed div-by-2^n idiom，6 指令）。in-bounds guard 保證 src>=0、兩者結果相同（功能等價），但 `>>7` 每像素少 ~4 指令 → pose 動畫快約 0.13s → 進場過場從 ~0.93s 縮到 ~0.80s，低於「腳步聲」SFX（FDOTHER[0x1F] id1 loop3，固定 0.9s real-time DMA）→ 店主問候 typewriter SFX（id2，與腳步聲同走 `fd2_play_sfx_with_handle` 的 sample handle_0）的 `AIL_stop_sample` 把還沒播完的腳步聲切掉。原版過場 >=0.9s（脆弱時序平衡剛好夠）讓腳步聲先播完。
+  - **修法（root-cause，對齊原版 codegen）**：`src/gfx/blittile.c` 的 `fd2_blit_scaled_chapter_pose` 兩處 `((int)src_x_fp >> 7)` / `((int)src_y_fp >> 7)` 改回 `(int).../128`，Watcom 即 emit signed div（與原版逐指令相同），恢復 pose 每 frame 時長；同時修正該 function 原本誤稱 ">>7 reproduces the signed-shift idiom exactly" 的 plate 註解。純恢復時序、功能不變（src>=0）。
+  - **驗證**：build_test 0err/0warn、wdis 確認 blittile.obj 兩處除法已變 signed div（與原版 0x2fc67-0x73 逐指令相同）、relink 0 undefined、`tests/OUT/FD2.EXE` 已複製進 `fd2_game_files/`，使用者實機確認腳步聲完整播完才接對話音效、問題解決。定位重點：整條過場路徑（transition_menu/with_intro、run_chapter_intro_menu_main、play_sfx、fade_in/out、set_vga_palette、portrait_blink）src+codegen byte-identical、`fd2_delay_ms` runtime 實測正常（delay(1000)=21 ticks，甚至略長，此反向矛盾排除 delay）、AIL 兩 sample handle 不撞、sample rate 0x2b11 一致 → 收斂到 pose（過場唯一純 CPU 大頭、時間隨指令數）的除法 codegen。關鍵認知：腳步聲時長固定（AIL DMA real-time，不隨 DOSBox cycles）而過場繪圖隨 cycles，故高 cycles 下尤其脆弱。
 
 - **炙焰刀（熾炎刀＝鐵諾劍聖必殺技 spell 0x1D）施法平移 crash → 解決（commit `329ca2a`，使用者實機確認）**
   - **根因**：`fd2_animate_bg_zoom_transition_in`（往左平移顯示敵人受攻擊；0x1D 走此路、0x1C 跳過）用
