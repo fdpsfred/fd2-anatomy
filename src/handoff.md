@@ -12,11 +12,11 @@
 **DOSBox 由使用者跑。** 鐵則（使用者定）：要「當場聽音效內容對不對」的驗證由使用者跑；「看數值 / 看
 畫面行為的診斷」由 AI 做；build/link 產 FD2.EXE 由 AI 做。原本三個問題（音效全靜音、開場 hang、開場
 顯示錯亂）**全部找到根因、修復、commit、使用者實機確認**。後續實機再發現「炙焰刀（鐵諾劍聖必殺技）
-施法平移 crash」，已找到根因並修復、build/relink 完成，**待使用者實機確認後 commit**（見下方第一條）。
+施法平移 crash」，已解決（commit `329ca2a`、使用者實機確認，見下方第一條）。此 playtest debug 階段目前無未解問題。
 
 ### 已修復並 commit
 
-- **炙焰刀（熾炎刀＝鐵諾劍聖必殺技 spell 0x1D）施法平移 crash → 已修復（待實機確認 + 待 commit）**
+- **炙焰刀（熾炎刀＝鐵諾劍聖必殺技 spell 0x1D）施法平移 crash → 解決（commit `329ca2a`，使用者實機確認）**
   - **根因**：`fd2_animate_bg_zoom_transition_in`（往左平移顯示敵人受攻擊；0x1D 走此路、0x1C 跳過）用
     `bg_layer[idx%3]` 把三個 BG layer 指標當 `uint32[3]` 索引（@0x5410B/0F/13）。src/ 原 emit 成三個獨立
     tentative scalar，但 wlink map 證實 Watcom 對 BSS/COMDEF 是**反序** layout（layer_2 在最低位址），故
@@ -28,7 +28,7 @@
     + emit_issues 三條 RESOLVED。emit pipeline 教訓：**BSS/COMDEF tentative scalar 的相鄰與順序 linker 不
     保證，凡 reader 把多個 scalar 當 array 索引者一律 emit 成真 array**。
   - **驗證**：build 0err/0warn；wlink map 證 array 升序（base+0/4/8、spotlight 緊接其後）；FD2.EXE relink
-    0 undefined 已複製進 `fd2_game_files/`。**待使用者實機測炙焰刀**。
+    0 undefined 已複製進 `fd2_game_files/`。使用者實機確認炙焰刀（及一併修好的 zoom_out / 轉職動畫）正常。
 
 - **開場 scene 顯示錯亂（NEW GAME → chapter 1 prologue）→ 解決（commit `a9b772e`，使用者實機確認開場顯示恢復正常）**
   - **根因**：`data_fd2_battle_cursor_screen_x/y`（0x53AB9 / 0x53ABD）src/ 誤宣告 `uint32`，原版是**有號
