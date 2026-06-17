@@ -9,81 +9,82 @@
 ## ⚑ 實機 playtest debug（最新，最先讀）
 
 把 src-only 連出的 FD2.EXE 放進 `fd2_game_files/`（完整遊戲環境）對照原版 `~FD2.EXE` 跑出來的問題。
-**DOSBox 由使用者跑。** 鐵則（使用者定）：要「當場聽音效內容對不對」的驗證由使用者跑；「看數值 /
-波形的診斷」（flag 值、install 結果、WAV 有無聲波）由 AI 做；build/link 產 FD2.EXE 由 AI 做。
-三個問題，2 個已修、3 個待解。
+**DOSBox 由使用者跑。** 鐵則（使用者定）：要「當場聽音效內容對不對」的驗證由使用者跑；「看數值 / 看
+畫面行為的診斷」由 AI 做；build/link 產 FD2.EXE 由 AI 做。原本三個問題（音效全靜音、開場 hang、開場
+顯示錯亂）**前兩個已解並 commit，只剩「開場顯示錯亂」**。
 
-### 待解問題（OPEN，最優先）
+### 待解問題（OPEN，唯一剩餘，最先讀）
 
-1. **音效完全無聲（只 SFX 啞、BGM 正常）— 根因已縮到「PCM 送聲層」，不是 src/ code**
-   - **已 runtime 證實 SFX 三道 gate 全過**（臨時 instrument main 印 `AUDDBG.TXT`，已讀完移除）：
-     `sfx_driver_available_flag=1`、`sfx_enabled_flag=1`、cinematic flag(0x540FF) 開場=0；
-     DIG driver 裝起來（handle 非 0）、兩個 sample handle 都分配、FDOTHER SFX bank 載入成功。
-     **故 `AIL_start_sample` 一定被呼叫，問題不在任何 flag / handle / 資源載入 / src code。**
-   - **已排除**：fd2common DPMI（逐行比對原版一致）、AIL driver 安裝、allocator slot
-     （`data_ail_alloc_fnptr` 連結時已正確 = CLIB3S `malloc`，且 AIL MDI setup 也讀它→BGM 正常即反證
-     它對）、memory model（`-ms` 下 DIG 一樣裝得起來）、union REGS 覆寫（已修，見下）。
-   - **剩餘根因 = SB DMA/IRQ 真正送聲**（MDI/BGM 走 OPL FM、不碰 DMA/IRQ，所以只 SFX 啞）。最可能是
-     `AIL_install_DIG_INI` 的 IRQ autodetect（DIG.INI `IRQ=-1`→從 `BLASTER` 解析）路徑：ail_extract 的
-     `test_audio.c` 用 `AIL_install_DIG_driver_file` **硬編 IRQ=5** 能播（L3 WAV），但**從沒測過
-     `install_DIG_INI` 路徑**（其註解明說 INI 格式 not audited）。使用者回報「環境完全相同、原版有聲、
-     rebuild 沒聲」→ 排除純環境，差異在 rebuild 用的 ailv3.lib install_DIG_INI 抽取 vs 原版內嵌 AIL。
-   - **下一步**：對照 sfxdiag 的 `install_DIG_INI` vs `install_DIG_driver_file` 是否「實際送出聲波」。
-     卡在 DOSBox-X 錄 WAV 命令：`mixer wavstart`/`wavstop` 在此版（2026.05.02）無效（ail_extract baseline
-     也沒錄到）；正確機制待查（可能是 mapper host-key Ctrl+Alt+F5，難自動觸發）。**注意別誤設
-     `SDL_VIDEODRIVER=dummy`，會連 audio 一起 dummy、錄不到聲。**
+**開場 scene 顯示錯亂（NEW GAME → chapter 1 prologue）— 未解，已縮到 2 個嫌疑函式**
 
-2. **開場 scene 顯示錯亂（NEW GAME → chapter 1 prologue）— 未診斷**
-   - 使用者實測：下一個 scene 提早出現；過幾個對話框後正確 scene 才回來、但畫面上人物消失了。
-   - file not found 修好後才暴露。推測在 `fd2_chapter_01_init`（30 章唯一含 prologue，chapter_id 在
-     0x20→0x1F→0 三段切換 + 大量 walk/cutscene/dialog）的 scene 切換 / composite / runtime_char 載入。
+- **症狀（使用者實機確認）**：開場 prologue「下一個 scene 的背景提早出現；過幾個對話框後正確 scene 才
+  回來，但畫面上人物消失了」。**不卡死**（hang 已解）。
+- **本質**：`src/` 邏輯是忠實反編譯（與 FD2.LE 一致），所以這是**編譯/連結期的 rebuild-vs-原版差異**，
+  同 SFX(AIL pragma) / union REGS(layout) / fname(hardcoded) 那幾類。修法靠「反組譯 rebuild 的 `.obj`
+  對照原版 Ghidra disasm」找差異，不是改 C 邏輯。
+- **prologue 主控** `fd2_chapter_01_init`（`src/field/chinit.c:37`，原版 @0x3231B）：線性序列
+  `fd2_cutscene_event_trigger`（換場景/事件，chtrans.c:33）+ `fd2_display_dialog_scene`（對話寫 VGA
+  0xA0000，dialog.c:56）+ `fd2_pan_cursor_and_window`（cursor.c:179）+ composite，分 A/B/C/D 四階段
+  （chapter_id 0x20→0x1F→0）。
+- **已排除（有證據）**：runtime_char layout（types.h `#pragma pack(1)`、0x50B、欄位 offset 對）；
+  camera/cursor block layout（`fd2_init_battle_state_for_chapter` btl_init.c:26-31 逐一賦值歸零、
+  layout-independent，非 union-REGS 式拆散）；AIL codegen 類（已修且症狀仍在，render path 無 hand-asm
+  EBX-clobber callee）；Phase-3a 手動 3 globals（逐一 byte-compare Ghidra 一致：`forced_tile_anim_frame`
+  @0x51A93=0xFFFFFFFF、`bg_animation_frame_idx`@0x539FC=0、`shimmer_offset_table_16b`@0x627C8=
+  [2,3,3,4,4,4,3,3,2,1,1,0,0,0,1,1]）。
+- **待查嫌疑（disasm-compare rebuild .obj vs 原版 Ghidra，SFX 式）依序**：
+  1. **`fd2_composite_battle_tile_map`**（rndscene.c:1415，原版 @0x11EEE，**885B、Phase 2 composite
+     landing 重 emit**）—— 場景/背景算繪器，直接對應「背景錯/提早」；最大最新的 emit，最可能藏 offset/
+     codegen slip。「正確 scene 回來但人物消失」也像它重畫背景卻丟了人物 sprite 層。
+  2. **`fd2_load_chapter_battle_data`**（rsrc.c:295，原版 @0x1088d）—— 載入每階段 tile map + 人物擺位，
+     若 load offset/count 錯可同時解釋「場景錯」與「人物消失」。
+- **下一步（先 localize 再 diff 885B）**：temp-instrument prologue（仿 `run_fd2_audbg.py` headless），在
+  `fd2_chapter_01_init` 每個 composite/phase 邊界 append log：`data_fd2_battle_party_member_count`（gate
+  人物繪製→「人物消失」，最先看）、`view_window_origin_x/y` + `cursor_world_x/y`（gate 場景區域→「提早」）、
+  `data_fd2_battle_anim_phase`、`data_fd2_chapter_current_chapter_id`、`data_fd2_large_game_state_buffer_ptr`。
+  headless 跑、與 chinit.c 預期序列 diff；第一個發散的值指出其 writer（camera→pan、count→load/char-init、
+  tile-map ptr→load），再 disasm-compare 該 writer 函式 vs 原版。
 
-3. **開場第一個 scene 後黑畫面卡住（hang）— 未診斷**
-   - 使用者實測：第一個 scene 漸暗後停在黑畫面、完全沒反應。
-   - 同樣 file not found 修好後暴露。可能 `fd2_play_palette_fade_in` 沒 reveal、或某 cinematic loop 卡住。
+### 已修復並 commit
 
-### 已修復（本 session，皆未 commit）
+- **音效全靜音（SFX 啞、BGM 正常）→ 解決（commit `e8dc10e`，使用者實機確認 SFX 恢復、BGM 維持正常）**
+  - 根因：`protos.h` 的 AIL 函式宣告缺 clobber pragma。Watcom `-3s` 預設視 EBX callee-saved，編譯器把
+    sample offset 留在 EBX 跨 `AIL_init_sample`（實際會 clobber EBX）→ `set_sample_address` 拿到垃圾
+    bank 位址 → 全 SFX 靜音。BGM 正常是因第一首走的 `AIL_stop_sequence` 被條件跳過、offset 未被破壞。
+    原版把值 spill 到 stack 規避，rebuild 在 emit 時遺失了 clobber 資訊。
+  - 修法（統一到 vendor header）：`gen_ailv3_h.py` 的 pragma 改 `modify [eax ebx ecx edx]`（實測 Watcom
+    把 modify 當精確集合，少列會把污染轉到未列的 volatile；`-3r` client 因 eax/ebx/ecx/edx 皆 arg-volatile
+    而倖免，`-3s` 不然，所以 ail_extract 的 `-3r` test_audio.c 一直能播）；`src/include/protos.h` 改
+    `#include "ailv3.h"`、移除 16 個 plain AIL 宣告；AIL handle 全域 `uint32`→`void *`（Ghidra 證實 handle
+    是指標：`AIL_allocate_sample_handle` 回 ptr-to-slot、worker 0x41250 寫 `[handle+8]`）；`set_sample_address`
+    首參 `int`→`HSAMPLE`。data-buffer 參數維持 `uint32`（遊戲 resource 層慣例）。詳見
+    `rebuild_info/ail/calling_convention.md`。
+  - 驗證：build_test table 18 + audio 16 測試 0err/0warn；audio.obj disasm 確認 offset 改放 ESI（AIL
+    保留）跨呼叫存活；FD2.EXE 重連結 0 undefined。
+- **開場 hang（第一個 scene 後黑畫面）→ 已解**（使用者確認不再卡死，先前 fname / union REGS 修復連帶解決）。
+- **鍵盤失效 + sfx_flag 被清零 → union REGS scratch 拆散修復**（commit `4ca8ad0`）：原版 0x53A8D 是 28-byte
+  `union REGS` 共用 INT scratch，`last_key`/`key_input_mode` 是其相鄰 byte，rebuild 拆成獨立 uint8 被
+  linker 拆散。合回單一 `data_fd2_input_int16_regs` union（globals.h + `<i86.h>`），兩符號變 macro。
+- **"File not found" 開場退出 → 9 處 hardcoded 字串位址改 symbol**（commit `f44a0a1`）：`fd2_load_dat_resource`
+  把原版字串位址寫死成 immediate；rebuild linker 把字串擺別處 → fopen 空檔名失敗。改用 symbol。
 
-- **鍵盤完全無效 ＋ sfx_driver_flag 被清零 — union REGS scratch 被拆散（使用者已確認鍵盤恢復）**
-  - 根因：原版 `0x53A8D` 是一塊 **28-byte `union REGS` 共用 INT scratch**，
-    `data_fd2_input_last_key_pressed`(byte0=AL)、`data_fd2_input_key_input_mode`(byte1=AH/scancode)
-    是它相鄰的兩個 byte。rebuild 把它拆成兩個獨立 `uint8`、還分屬 main.c / input.c，linker 拆散後：
-    (a) `int386(0x16)` 的 AH scancode 落到鄰居（rebuild 剛好把 `sfx_driver_flag` 排在 last_key+1）→
-    鍵盤讀不到真值（恆得 preset 0x10）、且 `*(uint16*)&last_key=0x13` 設 video mode 時順手把 sfx_flag
-    清零；(b) mode byte 根本不在 last_key+1。
-  - 修法：合回單一 `union REGS data_fd2_input_int16_regs`，兩符號變 macro 指它 `h.al`/`h.ah`（globals.h
-    + `#include <i86.h>`），定義在 main.c，input.c 移除舊定義。**8 處引用點 code 一行不動**。link map
-    已驗證 union 獨佔 0x7808–0x7823（28B）、sfx_flag 移到 union 外。
+> **重編 FD2.EXE 給實機測試**：`python tools/emit/build_test.py`（編 src obj）→ `python tools/fd2_build/`
+> `{mklnk.py --apply, link_oracle.py, analyze_undefined.py}`（重連、確認 0 undefined）→ 複製
+> `tests/OUT/FD2.EXE` 到 `fd2_game_files/FD2.EXE`。link_oracle 會不帶 `-Dmain` 重編 lifemain。
 
-- **"File not found !!!"（空檔名）開場退出 — 9 處 hardcoded 字串位址（使用者已確認不再退出）**
-  - 根因：9 處 `fd2_load_dat_resource` 把原版字串位址寫死成 immediate（`0x51a70`=DATO.DAT、
-    `0x51a4d`=FDOTHER.DAT）而非用 symbol。rebuild 後 linker 把字串擺到別處，這些位址指到垃圾、fopen
-    失敗（該位址開頭剛好是 0→`%s` 印空檔名）。`dialog.c` 的 `0x51a70`（對話框頭像 DATO）= NEW GAME 第一
-    個對話框退出的直接原因；`chinit.c` 的 `0x51a4d` 載的是 chapter 25 狀態效果 SFX bank（呼應「跟音效相關」）。
-  - 修法（9 處改 symbol）：`dialog.c`×4 + `shop.c`×1 → `data_fd2_string_resource_filename_dato_dat_51a70`；
-    `chtrans.c`×3 + `chinit.c`×1 → `data_fd2_string_resource_filename_fdother_dat`。grep 全 src/ 已確認
-    無其他 hardcoded 指標解參考（`(uint8*)0x5…` 等）。
+### 診斷工具（`tools/snd_kbd_diag/`；中間檔在 `workspace/snd_kbd_diag/`）
 
-### ⚠ 新 session 起手 TODO（重編乾淨 FD2.EXE）
-
-- **改過的 src/ 檔（皆未 commit）**：`globals.h`、`life/main.c`（union 定義；臨時 audio 診斷已移除、src/
-  乾淨）、`input/input.c`、`dialog/dialog.c`、`ui_menu/shop.c`、`field/chtrans.c`、`field/chinit.c`。
-- **`tests/OUT/FD2.EXE` 是含診斷的舊版**（最後一次乾淨 rebuild 被使用者中止）。先重編乾淨版：
-  `python tools/emit/build_test.py --only table`（gate 0err/0warn）→ `python tools/snd_kbd_diag/genmap.py`
-  → 複製 `tests/OUT/FD2.EXE` 到 `fd2_game_files/FD2.EXE`。`fd2_game_files/` 現有的 FD2.EXE 已是
-  「union+fname 修好、無診斷」版（與乾淨 src/ 一致），只是 tests/OUT 要同步。
-- 建議先把這兩個修復（鍵盤 union REGS + 9 處 fname）commit 再繼續。
-
-### 診斷工具（本 session 新增 `tools/snd_kbd_diag/`；中間檔在 `workspace/snd_kbd_diag/`）
-
-- `genmap.py` — 重連 FD2.EXE + 產 wlink map（看 BSS symbol 實際擺放，union REGS 驗證用）。
-- `lib_probe.py` — dump fd2common.lib / ailv3.lib 的 module+symbol。**Watcom host 工具 `BINNT\WLIB.EXE`
-  / `BINNT\WDISASM.EXE` 可直接在 Windows 跑、免 DOSBox**（路徑含 `-` 會被當 option，要先 cd 進目錄用相對檔名）。
-- `sfxdiag.c` + `run_sfxdiag.py` — 用 FD2 編譯參數重現 AIL init（install_DIG_INI）+ 播一個 FDOTHER SFX +
-  輪詢 `AIL_sample_status`（已證 install_DIG_INI 在好環境 DIG=OK、status 4→2、alloc_fnptr=&malloc；想錄
-  WAV 對照但命令卡關）。要加 sample 播放才看得到送聲。
-- `run_fd2_audbg.py` — 把臨時 instrument 的 FD2.EXE 放遊戲目錄 headless 跑、讀 main 寫的 `AUDDBG.TXT`、
-  還原原 FD2.EXE。（本次取得「gate 全過」runtime 值用的。）
+- **host 反組譯比對（找 codegen/layout bug 的主力，免 DOSBox）**：`WATCOM_9.5a\BINNT\WDISASM.EXE` 直接在
+  Windows 跑，反組譯 `tests/OUT/obj/*.obj`（先複製到**無 `-` 的暫存目錄**再跑、用相對檔名，repo 路徑含 `-`
+  會被當 option）；對照 Ghidra MCP `disassemble_function` 即為「rebuild vs 原版」差異定位法——SFX bug 就是
+  這樣抓到的（rebuild 把 offset 留 EBX、原版 spill stack）。**scene 錯亂的嫌疑函式照此 diff。**
+- `run_fd2_audbg.py` — 把臨時 instrument 的 FD2.EXE 放遊戲目錄 headless 跑、讀 main 寫的 log 檔、還原原檔。
+  **scene 錯亂下一步的 prologue instrument 直接複用此模式。**
+- `sfxdiag.c` + `run_sfxdiag.py` — 用 FD2 編譯參數重現 AIL init（install_DIG_INI）+ 依序播多個 FDOTHER SFX
+  （可聽測試）；`run_sfxdiag.py N` 指定 BLASTER IRQ（負對照用，曾證 status 4→2 不可靠：IRQ 不匹配也照樣
+  到 DONE）。SFX 已解，此工具留作 AIL 回歸測試。
+- `genmap.py` — 重連 FD2.EXE + 產 wlink map（看 BSS symbol 實際擺放）。
+- `lib_probe.py` — dump fd2common.lib / ailv3.lib 的 module+symbol。
 
 ---
 
