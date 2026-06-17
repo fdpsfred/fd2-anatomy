@@ -11,41 +11,31 @@
 把 src-only 連出的 FD2.EXE 放進 `fd2_game_files/`（完整遊戲環境）對照原版 `~FD2.EXE` 跑出來的問題。
 **DOSBox 由使用者跑。** 鐵則（使用者定）：要「當場聽音效內容對不對」的驗證由使用者跑；「看數值 / 看
 畫面行為的診斷」由 AI 做；build/link 產 FD2.EXE 由 AI 做。原本三個問題（音效全靜音、開場 hang、開場
-顯示錯亂）**前兩個已解並 commit，只剩「開場顯示錯亂」**。
-
-### 待解問題（OPEN，唯一剩餘，最先讀）
-
-**開場 scene 顯示錯亂（NEW GAME → chapter 1 prologue）— 未解，已縮到 2 個嫌疑函式**
-
-- **症狀（使用者實機確認）**：開場 prologue「下一個 scene 的背景提早出現；過幾個對話框後正確 scene 才
-  回來，但畫面上人物消失了」。**不卡死**（hang 已解）。
-- **本質**：`src/` 邏輯是忠實反編譯（與 FD2.LE 一致），所以這是**編譯/連結期的 rebuild-vs-原版差異**，
-  同 SFX(AIL pragma) / union REGS(layout) / fname(hardcoded) 那幾類。修法靠「反組譯 rebuild 的 `.obj`
-  對照原版 Ghidra disasm」找差異，不是改 C 邏輯。
-- **prologue 主控** `fd2_chapter_01_init`（`src/field/chinit.c:37`，原版 @0x3231B）：線性序列
-  `fd2_cutscene_event_trigger`（換場景/事件，chtrans.c:33）+ `fd2_display_dialog_scene`（對話寫 VGA
-  0xA0000，dialog.c:56）+ `fd2_pan_cursor_and_window`（cursor.c:179）+ composite，分 A/B/C/D 四階段
-  （chapter_id 0x20→0x1F→0）。
-- **已排除（有證據）**：runtime_char layout（types.h `#pragma pack(1)`、0x50B、欄位 offset 對）；
-  camera/cursor block layout（`fd2_init_battle_state_for_chapter` btl_init.c:26-31 逐一賦值歸零、
-  layout-independent，非 union-REGS 式拆散）；AIL codegen 類（已修且症狀仍在，render path 無 hand-asm
-  EBX-clobber callee）；Phase-3a 手動 3 globals（逐一 byte-compare Ghidra 一致：`forced_tile_anim_frame`
-  @0x51A93=0xFFFFFFFF、`bg_animation_frame_idx`@0x539FC=0、`shimmer_offset_table_16b`@0x627C8=
-  [2,3,3,4,4,4,3,3,2,1,1,0,0,0,1,1]）。
-- **待查嫌疑（disasm-compare rebuild .obj vs 原版 Ghidra，SFX 式）依序**：
-  1. **`fd2_composite_battle_tile_map`**（rndscene.c:1415，原版 @0x11EEE，**885B、Phase 2 composite
-     landing 重 emit**）—— 場景/背景算繪器，直接對應「背景錯/提早」；最大最新的 emit，最可能藏 offset/
-     codegen slip。「正確 scene 回來但人物消失」也像它重畫背景卻丟了人物 sprite 層。
-  2. **`fd2_load_chapter_battle_data`**（rsrc.c:295，原版 @0x1088d）—— 載入每階段 tile map + 人物擺位，
-     若 load offset/count 錯可同時解釋「場景錯」與「人物消失」。
-- **下一步（先 localize 再 diff 885B）**：temp-instrument prologue（仿 `run_fd2_audbg.py` headless），在
-  `fd2_chapter_01_init` 每個 composite/phase 邊界 append log：`data_fd2_battle_party_member_count`（gate
-  人物繪製→「人物消失」，最先看）、`view_window_origin_x/y` + `cursor_world_x/y`（gate 場景區域→「提早」）、
-  `data_fd2_battle_anim_phase`、`data_fd2_chapter_current_chapter_id`、`data_fd2_large_game_state_buffer_ptr`。
-  headless 跑、與 chinit.c 預期序列 diff；第一個發散的值指出其 writer（camera→pan、count→load/char-init、
-  tile-map ptr→load），再 disasm-compare 該 writer 函式 vs 原版。
+顯示錯亂）**全部找到根因、修復、commit、使用者實機確認**。此 playtest debug 階段目前無未解問題。
 
 ### 已修復並 commit
+
+- **開場 scene 顯示錯亂（NEW GAME → chapter 1 prologue）→ 解決（commit `a9b772e`，使用者實機確認開場顯示恢復正常）**
+  - **根因**：`data_fd2_battle_cursor_screen_x/y`（0x53AB9 / 0x53ABD）src/ 誤宣告 `uint32`，原版是**有號
+    `int`**。4 個 `fd2_cursor_move_up/down/left/right` 拿它和視窗邊緣比較，原版編成有號分支（JGE/JLE），
+    rebuild 因 uint32 編成無號（JAE/JB）；兩者只在 cursor_screen 為負時分歧。開場走到地圖頂時 `origin_y`
+    到 0、`fd2_walk_step_up` 的 scroll 分支被 `origin_y != 0` 守衛擋掉而改走 inner 分支持續 `cursor_screen_y--`
+    →壓成負值；對話框 `fd2_play_dialog_open_animation` → `fd2_pan_cursor_to_tile_animated` pan 到講話者時，
+    `fd2_cursor_move_down` 的無號 `< 6` 把負值座標當成極大值→誤取 `origin_y++` scroll 分支把畫面捲到地圖底
+    （「對話框跳出瞬間畫面跳回底部」）。pan 仍朝講話者移動（cursor_move 照樣呼叫），故「移動方向/量看似正常」；
+    fade 後 `fd2_init_battle_state_for_chapter` 歸零 cursor_screen_y→後續 scene 正常。
+  - **修法（root-cause，非 workaround）**：`src/include/globals.h` + `src/ui_menu/cursor.c` 把這兩個 global
+    型別 `uint32`→`int`（並改掉 cursor.c 兩段註解原本「never negative」的錯誤前提）。其餘用點全是 ++/--/×/＋
+    算術，int/uint32 位元相同、不受影響（spellcin.c local 像素換算不動）。
+  - **驗證**：重編 cursor.obj，WDISASM 確認 4 個比較從 JAE/JB 變回 **JGE/JL（有號，與原版一致）**；build
+    0 err / 0 warn（無新轉換 warning）。Ghidra 0x53AB9/0x53ABD 型別改 `int` + 加 data plate + 0 Bad
+    Instruction + 已存。FD2.EXE 已 relink（0 undefined）並複製進 `fd2_game_files/`。
+  - **定位法記錄**：使用者精修症狀（捲動正確→對話框跳出瞬間跳底→pan 相對量正確→走回見 scene 2 緊貼→fade 後
+    正常）一路排除：walk 用 `fd2_composite_battle_tile_map` 直繪且正確 → 排除原 handoff 頭號嫌疑（885B composite）；
+    dialog 走 `fd2_composite_battle_frame` 另一路；逐一反組譯比對 walk_step_up / composite_battle_frame 皆等價、
+    origin_y 在 walk 後正確 → 收斂到 cursor_move 的號性。
+
+- **音效全靜音（SFX 啞、BGM 正常）→ 解決（commit `e8dc10e`，使用者實機確認 SFX 恢復、BGM 維持正常）**
 
 - **音效全靜音（SFX 啞、BGM 正常）→ 解決（commit `e8dc10e`，使用者實機確認 SFX 恢復、BGM 維持正常）**
   - 根因：`protos.h` 的 AIL 函式宣告缺 clobber pragma。Watcom `-3s` 預設視 EBX callee-saved，編譯器把
@@ -76,10 +66,10 @@
 
 - **host 反組譯比對（找 codegen/layout bug 的主力，免 DOSBox）**：`WATCOM_9.5a\BINNT\WDISASM.EXE` 直接在
   Windows 跑，反組譯 `tests/OUT/obj/*.obj`（先複製到**無 `-` 的暫存目錄**再跑、用相對檔名，repo 路徑含 `-`
-  會被當 option）；對照 Ghidra MCP `disassemble_function` 即為「rebuild vs 原版」差異定位法——SFX bug 就是
-  這樣抓到的（rebuild 把 offset 留 EBX、原版 spill stack）。**scene 錯亂的嫌疑函式照此 diff。**
+  會被當 option）；對照 Ghidra MCP `disassemble_function` 即為「rebuild vs 原版」差異定位法——SFX bug
+  （offset 留 EBX、原版 spill stack）與開場 scene 跳底 bug（cursor_screen 號性：rebuild 無號 JAE/JB、
+  原版有號 JGE/JLE）都是這樣抓到的。
 - `run_fd2_audbg.py` — 把臨時 instrument 的 FD2.EXE 放遊戲目錄 headless 跑、讀 main 寫的 log 檔、還原原檔。
-  **scene 錯亂下一步的 prologue instrument 直接複用此模式。**
 - `sfxdiag.c` + `run_sfxdiag.py` — 用 FD2 編譯參數重現 AIL init（install_DIG_INI）+ 依序播多個 FDOTHER SFX
   （可聽測試）；`run_sfxdiag.py N` 指定 BLASTER IRQ（負對照用，曾證 status 4→2 不可靠：IRQ 不匹配也照樣
   到 DONE）。SFX 已解，此工具留作 AIL 回歸測試。
