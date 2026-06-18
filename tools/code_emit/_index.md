@@ -1,4 +1,4 @@
-# tools/emit/ — FD2 function emit + review pipeline
+# tools/code_emit/ — FD2 function emit + review pipeline
 
 把 Ghidra 內 decompiled function 產出為 functionally-equivalent C、寫 unit test、
 經 build gate 驗證、由 reviewer 獨立復驗、per-function commit 的整套工具與 workflow。
@@ -12,11 +12,9 @@
 | 檔案 | 用途 |
 |---|---|
 | `emit_review.wf.js` | **Workflow 雙模式編排**。序列(一次一個 function):`review`(已 emit 復驗)/ `emit`(從零產出)→ reviewer → 迭代(≤ MAX_ROUNDS)→ bookkeeper per-function commit。內含 budget guard、try/catch(token/usage limit 優雅停)、reviewer 主動查 Ghidra 事實、output-token 統計。 |
+| `coland.wf.js` | **coordinated landing Workflow**。emit 序列 / review 並行雙模式;orchestrator 擁有 spy 刪除 + data-land + build gate + commit,sub-agent 只做單函式三源 emit / 唯讀 review;供需同時碰共享 testglob spy + 多套件的 coordinated landing(blit / pathfind / composite)。 |
 | `build_test.py` | **build gate**(single source of truth)。clean → 啟動 DOSBox-X 跑生成的 `workspace/emit_drive/run.conf`(依各 checkout 的 `REPO_ROOT` 重寫 C:/E: mount,**worktree-safe**;`tests/dosbox.conf` 僅為模板;遊戲檔來源 `$FD2_GAME_DIR`→local→主 repo fallback)(compile src+tests / link / run)→ 前景輪詢結束訊號 → 解析 `BUILD.OUT`/`TEST.OUT` → 回傳 JSON。三種結束訊號(無固定等待):①`DONE.TXT` 出現(正常完成);②**DOSBox process 退出**(`proc.poll()`,涵蓋正常完成與「會交回 batch 的 crash」如 DOS/4GW GP fault,~2s 即偵測);③**heartbeat 停滯**(`tests/OUT/HB.TXT` 每個 test open/write/close 一次;run 階段若停滯 `--hang-stall` 秒〔預設 20s〕且 proc 仍存活 → 判定 hang,真無窮迴圈的唯一偵測)。**DOSBox-X fault logging**:`gen_run_conf()` 注入 `[log] logfile=…/dosbox.log`、Popen 另導 stdout/stderr 到 `dosbox_stdio.log`,run 後掃兩檔的 protected-mode fault(`illegal descriptor`/GP/invalid opcode…)放進結果 `dosbox_fault`——cinematic 測試驅動 real composite 讀 garbage sprite → wild access → DOSBox-X 彈「illegal descriptor」modal 卡住被判 hang,此欄揭露「hang 其實是 fault」。回傳 `{gate_pass, build_ok, done, failure_mode(completed/crash/hang/aborted/timeout), hung_test, crash_dump, dosbox_fault, errors, warnings, tests_passed, tests_failed}`。**merge gate 看 `error_count==0 && warning_count==0`**(run 階段 hang/fail 忽略)。**`--only <substr>`**:暫時把 `tests/testmain.c` 的 GENBUILD calls 區塊濾成只呼叫名稱/路徑含該 substr 的 suite runner,讓該 suite 跑到完成而不被「執行順序在前的 suite 卡死」擋住(Phase 3 逐 suite 修復用);仍編譯全部 src+tests,只改 main() 呼叫哪些 runner,跑完所有路徑都會還原 testmain.c,**不碰 src/**。JSON 多回 `only_runners`。若硬中斷殘留 filtered 狀態,`python tests/genbuild.py --apply` 可從 marker 重生完整清單。 |
-| `next_batch.py` | **scout 下一批 work-list**。從 `src/routing.json` 取 `done & !reviewed`(review 模式)或 `!done`(emit 模式),輸出 Workflow `args.functions`。`--stats` 看覆蓋率;`--partition <branch_N.json>` 限定 4-way 分區 scout/stats。 |
-| `mkpart.py` / `partitions/branch_{1..4}.json` | **4-way 並行分區**。讀 routing.json 取未 emit function,依 target 子檔 greedy-LPT bin-pack 成 4 個 file-disjoint 分區(各 93,不跨同一 `.c`);輸出 manifest(subfiles + addrs)。供並行 emit + merge cascade(見 `src/handoff.md`)。 |
-| `mkroute.py` | routing.json 生成/管理(從 emit_functions.json + 規則)。`generate`/`status`/`mark`/`pending`/`validate`/`resplit`。大 subsystem 依子功能切成多個 ≤~1000 行 .c 的規則在 `_subsplit()`，`resplit` 把切分套到既有 routing.json。 |
-| `count_cats.py` / `dump_emit_functions.java` | 既有分類計數 / Ghidra dump 工具。 |
+| `next_batch.py` | **scout 下一批 work-list**。從 `src/routing.json` 取 `done & !reviewed`(review 模式)或 `!done`(emit 模式),輸出 Workflow `args.functions`。`--stats` 看覆蓋率。 |
 
 測試架構：`tests/` 下每個測試檔對應一個 src 子檔（`tests/<domain>/<stem>.c`）。落點查詢用 `tests/where.py`；`build.bat` 的 src/test 編譯區、`test.lnk`、`testmain.c` runner 清單全部由 `tests/genbuild.py` 從 `src/` 與 `tests/` 自動產生——新建任何 src 或測試 .c 檔後跑一次 `python tests/genbuild.py --apply` 即可接上 build，嚴禁手改這三個檔。
 
@@ -26,18 +24,18 @@
 - `done` = 已 emit C;`reviewed` = 已經 workflow 復驗通過。
 - **進度 = `reviewed` 欄**;per-function commit 是斷點。任何中斷後重跑零成本續做。
 
-進度查詢:`python tools/emit/next_batch.py --stats`
+進度查詢:`python tools/code_emit/next_batch.py --stats`
 
 ## 新 session 如何繼續(session 被刪/換機都適用)
 
 狀態全在磁碟 + git,不依賴任何對話 context。步驟:
 
 1. 確認可用工具(Ghidra MCP 已開 FD2.LE / DOSBox-X 在 PATH / Watcom 9.5a)，per `CLAUDE.md`。
-2. `python tools/emit/next_batch.py --stats` 看還剩多少 review / emit。
+2. `python tools/code_emit/next_batch.py --stats` 看還剩多少 review / emit。
 3. `git status`;若有上次中斷殘留的未 commit 改動 → `git checkout -- src tests` 清半成品。
-4. scout 下一批:`python tools/emit/next_batch.py --mode review --limit 12`(review 全部做完再 `--mode emit`)。
+4. scout 下一批:`python tools/code_emit/next_batch.py --mode review --limit 12`(review 全部做完再 `--mode emit`)。
 5. 對 Ghidra live 對齊:`search_functions` 比對 routing.json，drift 拋警告(audit source-of-truth)。
-6. 跑:`Workflow({scriptPath: "tools/emit/emit_review.wf.js", args: <上一步 next_batch 的 JSON>})`。
+6. 跑:`Workflow({scriptPath: "tools/code_emit/emit_review.wf.js", args: <上一步 next_batch 的 JSON>})`。
 7. 跑完一批 hard-stop,報告 + 等使用者確認下一批。
 
 ### 硬性注意(踩過的坑)

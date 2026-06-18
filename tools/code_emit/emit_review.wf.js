@@ -39,7 +39,7 @@ const SOP = [
   '- Ghidra 連線失敗：某個 Ghidra MCP 呼叫失敗、或回任何形式的「instance 不可用 / 無法連線 / 連線中斷 / 逾時」錯誤（不限特定字串）時，先「快速重試該呼叫一次」（僅一次，不可反覆重試以免 hammer/wedge Ghidra）排除瞬間 blip；重試成功就照常繼續、不要設旗標。若重試仍失敗（持續無法連線）→ 立刻停止本 function、不臆測不硬湊，務必設 ghidra_unreachable=true（bool），並把你實際看到的錯誤訊息/原因寫進 ghidra_error_detail（string）。這是給外層 watchdog 的唯一停批訊號。',
   '  例外：若 timeout 緊接在你呼叫 `emulate_function` 之後（emulate 格式錯造成 runaway 會連帶卡死 Ghidra、後續所有呼叫也 timeout）→ 這不是真連線中斷，**不要設 ghidra_unreachable**，改走下方「emulate_function 使用規範」的自助重啟+重試流程（最多 5 次）。',
   '- Test 覆蓋政策＝風險導向：對「數值計算 / 複雜控制流分支 / RNG / EAX-bug 風險 / 狀態轉移」的 state/path 強制測；純 blit/display 副作用的 state 可延到 Phase 9 integration（但須在輸出註明延後與理由）。',
-  '- build gate：前景執行  python tools/emit/build_test.py --changed "<改動檔,逗號分隔>"  ，它內部自己輪詢 DONE.TXT（約 20-30 秒）並回傳 JSON。',
+  '- build gate：前景執行  python tools/code_emit/build_test.py --changed "<改動檔,逗號分隔>"  ，它內部自己輪詢 DONE.TXT（約 20-30 秒）並回傳 JSON。',
   '  嚴禁用背景 / run_in_background 跑它——subagent 一旦交出最終訊息就結束，收不到背景通知、不會閉環。必須前景阻塞等它回 JSON。',
   '- build 目前 0 warning；gate（gate_pass）要求 0 warning，絕不可新增任何 warning。',
 ].join('\n')
@@ -110,7 +110,7 @@ function emitterPrompt(fn, mode, verdict) {
     '# 共同收尾',
     '1. KB / Ghidra 同步：若三源比對發現 plate 描述錯誤 → set_plate_comment 修正；發現命名前綴不符 → rename + 同步 globals.h/testglob.c；KB doc 與事實不符 → 修對應 .md。所有改動都會被 reviewer 經 git diff 一併檢查。',
     '2. emit_issues：需實際編譯才能確認的等價性疑慮（FPU rounding / word width / table-copy）→ append src/emit_issues.json（key 用 routing.json 同款 8-hex address，例如 00010b43，不要寫成 0x10b43；utf-8），寫後讀回檢查編碼。',
-    '3. build gate：前景跑 python tools/emit/build_test.py --changed "<改動檔>" ，必須 0 error、0 新增 warning、全部 test PASS（含新增）。紅燈就修到綠或回報 blocked + 真因。',
+    '3. build gate：前景跑 python tools/code_emit/build_test.py --changed "<改動檔>" ，必須 0 error、0 新增 warning、全部 test PASS（含新增）。紅燈就修到綠或回報 blocked + 真因。',
     '4. 用 git --no-pager diff 看自己這次的所有改動，確認無越界（沒動到別的 function）。',
     '',
     '# 輸出（最後一則訊息＝下列 JSON）：addr,name,three_source_done{plate,disasm,decomp},c_changed,files_touched[],test_cases_added[],',

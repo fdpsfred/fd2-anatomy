@@ -169,7 +169,7 @@ function buildGatePrompt(file, names) {
     'home 檔：ROOT/src/' + file.home + '；本批已 land 的符號（' + names.length + '）：' + JSON.stringify(names),
     '',
     '步驟（git 一律用 git -C ' + ROOT + '）：',
-    '1. build gate（前景，嚴禁背景）：`python ROOT/tools/emit/build_test.py --changed "src/' + file.home + ',src/include/globals.h,tests/testglob.c"`。通過 = error_count==0 且 warning_count==0（run 階段 hang/fail 一律忽略；link 階段 W1027 redefinition 是預期 cascade、不計入 warning_count）。',
+    '1. build gate（前景，嚴禁背景）：`python ROOT/tools/code_emit/build_test.py --changed "src/' + file.home + ',src/include/globals.h,tests/testglob.c"`。通過 = error_count==0 且 warning_count==0（run 階段 hang/fail 一律忽略；link 階段 W1027 redefinition 是預期 cascade、不計入 warning_count）。',
     '2. 若 error_count==0 且 warning_count==0：什麼都不用改，回報 build pass（已 land 的 commit 就是最終狀態）。',
     '3. 若 error/warning>0：只做**純機械修正**，改完另起一個 commit。允許的修正只有：',
     '   (a) 型別/const 對齊：測試檔內 redundant 區域 `extern <type> <name>...` 與 canonical globals.h 不符（如少 const）→ 對齊；globals.h 某 extern 與定義的 const/維度不符（E1129）→ 對齊成與定義一致。',

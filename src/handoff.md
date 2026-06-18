@@ -82,7 +82,7 @@
 - **"File not found" 開場退出 → 9 處 hardcoded 字串位址改 symbol**（commit `f44a0a1`）：`fd2_load_dat_resource`
   把原版字串位址寫死成 immediate；rebuild linker 把字串擺別處 → fopen 空檔名失敗。改用 symbol。
 
-> **重編 FD2.EXE 給實機測試**：`python tools/emit/build_test.py`（編 src obj）→ `python tools/fd2_build/`
+> **重編 FD2.EXE 給實機測試**：`python tools/code_emit/build_test.py`（編 src obj）→ `python tools/fd2_build/`
 > `{mklnk.py --apply, link_oracle.py, analyze_undefined.py}`（重連、確認 0 undefined）→ 複製
 > `tests/OUT/FD2.EXE` 到 `fd2_game_files/FD2.EXE`。link_oracle 會不帶 `-Dmain` 重編 lifemain。
 
@@ -104,7 +104,7 @@
 
 ### Phase 3 進度（current，最先讀）
 
-**✅ Phase 4 LINK 里程碑達成（commit `17e7a8d`，HEAD）**：src-only `fd2.lnk` 神諭已連結出 **FD2.EXE（349 KB、合法 MZ/DOS4GW）、0 undefined** —— `src/` 已能自給自足連出遊戲執行檔（Phase 4 只剩 DOSBox 實機 playtest 對照原版，尚未做）。補掉神諭最後缺口的三件事：(1) `fd2_main`→`main`（CRT cmain386 進入點契約；是唯一豁免 `fd2_` 前綴的 game function，見 memory [[project_fd2_function_prefix_main_exempt]]）；(2) `__delay_thunk_375b2`→`fd2_delay_ms` 落地 `src/util/misc.c`（真函式 `void fd2_delay_ms(uint32 ms){delay(ms);}`，routing 651 筆）；(3) `mklnk.py` 在 `fd2.lnk` 顯式列 Watcom CRT（CLIB3S/MATH387S/EMU387；`system dos4g` 不自動 pull）。雙 main 處置：`genbuild` 在 test build 只對 `life/main.c` 加 `-Dmain=fd2_main`、`link_oracle` 不帶 define 重編 lifemain 給 FD2.EXE。TEST build 仍綠（`build_test --only table` 18/18）、Ghidra 已存、0 Bad Instruction。**重跑神諭/最終建置**：先 `python tools/emit/build_test.py`（編 src obj）→ `python tools/fd2_build/{mklnk.py --apply, link_oracle.py, analyze_undefined.py}`。
+**✅ Phase 4 LINK 里程碑達成（commit `17e7a8d`，HEAD）**：src-only `fd2.lnk` 神諭已連結出 **FD2.EXE（349 KB、合法 MZ/DOS4GW）、0 undefined** —— `src/` 已能自給自足連出遊戲執行檔（Phase 4 只剩 DOSBox 實機 playtest 對照原版，尚未做）。補掉神諭最後缺口的三件事：(1) `fd2_main`→`main`（CRT cmain386 進入點契約；是唯一豁免 `fd2_` 前綴的 game function，見 memory [[project_fd2_function_prefix_main_exempt]]）；(2) `__delay_thunk_375b2`→`fd2_delay_ms` 落地 `src/util/misc.c`（真函式 `void fd2_delay_ms(uint32 ms){delay(ms);}`，routing 651 筆）；(3) `mklnk.py` 在 `fd2.lnk` 顯式列 Watcom CRT（CLIB3S/MATH387S/EMU387；`system dos4g` 不自動 pull）。雙 main 處置：`genbuild` 在 test build 只對 `life/main.c` 加 `-Dmain=fd2_main`、`link_oracle` 不帶 define 重編 lifemain 給 FD2.EXE。TEST build 仍綠（`build_test --only table` 18/18）、Ghidra 已存、0 Bad Instruction。**重跑神諭/最終建置**：先 `python tools/code_emit/build_test.py`（編 src obj）→ `python tools/fd2_build/{mklnk.py --apply, link_oracle.py, analyze_undefined.py}`。
 
 **⏸ Phase 3 暫停點（OPEN，仍未完成）**：Phase 3「測試實際全綠」尚未做完（Phase 4 LINK 是這次順著使用者提問先完成的支線）。基礎工具齊備（`--only`、minip safe-fixture；commits `e280ff8`/`762b2b1`/`57b826e`）。攻 anicine1 範本已**校準出 Phase 3b 真實難度**（見下兩條「發現」）。**正等使用者裁示 Phase 3b 排序**，使用者要先釐清問題再決定 → 新 session 先把此決定談定再動手：
 - **A（建議）**：可解的非-cinematic suites 先衝綠拿動能（battle/spell 邏輯、table、save、input 等真值觀測、不依賴 display spy）＋ 建中央 `tg_install_cinematic_safe_atlases()`＋清 testglob 殘留 spy＋產出完整「spy-now-real」清單；~30 個 cinematic 法醫重設計留最後一波集中做。
@@ -171,7 +171,7 @@ Phase 4 收斂 fd2.exe + 實機對照`。
 
 **Phase 1（真資料落地）✅** — 343/343 data symbol emit+review+commit、data-p1..p4 merge cascade 落入 `integ`（`cd2c0a8`）、`verify_real.py` 28/28 byte-identical、9 個誤 demote 真 const 已改回 const（原則鎖在 memory `feedback_const_data_never_demote_for_tests`）。
 
-**Phase 2（補完 22 函式）✅** — 3 個 coordinated landing，用新工具 `tools/emit/coland.wf.js`（emit 序列 / review 並行雙模式；orchestrator 擁有 spy 刪除 + data-land + build gate + commit，sub-agent 只做單函式三源 emit / 唯讀 review）：
+**Phase 2（補完 22 函式）✅** — 3 個 coordinated landing，用新工具 `tools/code_emit/coland.wf.js`（emit 序列 / review 並行雙模式；orchestrator 擁有 spy 刪除 + data-land + build gate + commit，sub-agent 只做單函式三源 emit / 唯讀 review）：
 - **pathfind**（`2643652`）：`fd2_init_movement_range_floodfill` + `fd2_pathfind_to_destination` 真 body，刪 2 spy。
 - **blit**（`59dd5e4` landing + `41750d3` reviewed）：19 函式 + 9 個 graphics blit-state 全域（`glyph_blit_state` struct〔types.h packed 17B〕+ 8 scalar/array，全 mutable zero-init）+ 13 spy 刪。
 - **composite**（`42a2dd0`）：`fd2_composite_battle_tile_map`（885B 熱路徑）+ 3 個 BIOS-tick-latch 全域 + spy 刪。
@@ -208,7 +208,7 @@ Phase 4 收斂 fd2.exe + 實機對照`。
 
 ## 0. 開工確認
 
-**必讀（依序）**：本檔 → `tools/emit/_index.md`（emit-review workflow 操作）→ 需要時
+**必讀（依序）**：本檔 → `tools/code_emit/_index.md`（emit-review workflow 操作）→ 需要時
 `rebuild_info/emission/`、`rebuild_info/link/wlink_settings.md`。（`CLAUDE.md` / `index.md` /
 `MEMORY.md` 由 session 自動載入。）
 
@@ -221,11 +221,11 @@ Phase 4 收斂 fd2.exe + 實機對照`。
 ## 1. 精確斷點（最重要，先讀這段）
 
 **Phase 0 並行基礎建設 — 完成**（commit `28e1cd6` on `main`）
-- `tools/emit/mkpart.py` → `tools/emit/partitions/branch_{1..4}.json`：4 路 file-disjoint 分區
+- `tools/code_emit/mkpart.py` → `tools/code_emit/partitions/branch_{1..4}.json`：4 路 file-disjoint 分區
   （依 `routing.json` target 子檔切，每路 93 個未 emit function、不跨同一 `.c`）。
-- `tools/emit/build_test.py` 已支援 worktree 隔離：依各 checkout 的 `REPO_ROOT` 生成
+- `tools/code_emit/build_test.py` 已支援 worktree 隔離：依各 checkout 的 `REPO_ROOT` 生成
   `workspace/emit_drive/run.conf`（改寫 C:/E: mount），遊戲檔經 `$FD2_GAME_DIR`→local→主 repo fallback。
-- `tools/emit/next_batch.py --partition <branch_N.json>`：限定分區 scout/stats。
+- `tools/code_emit/next_batch.py --partition <branch_N.json>`：限定分區 scout/stats。
 - 4 worktree：`../fd2-wt/p1..p4`（branch `emit-p1..p4`，皆由 `28e1cd6`）。
 
 **Phase 1 四路並行 emit — 完成**
@@ -377,7 +377,7 @@ DOSBox playtest 對比；規格見 `rebuild_info/emission/`。
 2. 逐衝突檔親自手解（下列規則）；**不靠任何 script / merge-driver auto-resolve**。
 3. genbuild 三檔重生（不 merge）：`git checkout --ours tests/build.bat tests/test.lnk
    tests/testmain.c` 清 marker → `python tests/genbuild.py --apply`。
-4. `python tools/emit/build_test.py` 前景跑，**gate = compile+link 通過、`error_count=0`、`warning_count=0`**
+4. `python tools/code_emit/build_test.py` 前景跑，**gate = compile+link 通過、`error_count=0`、`warning_count=0`**
    （run 階段 hang/fail/skip **一律忽略**，見 §1 ⚑⚑）。compile-error（如移除 stub 造成 `E1011 未宣告`）要
    修到 0；link 階段 W1027 redefinition 不計入 `warning_count`、合法留存。
 5. gate 過即 commit（merge commit），進下一個 branch。**所有 run-green / 測試遷移工作延到「系統性修復階段」**
@@ -441,8 +441,8 @@ gate 過；**runtime-fail / spin 一律延到系統性修復階段**逐一遷移
   per-function workflow**（刻意碰共享檔 + 多套件）。落地後在 `routing.json` 設 `done=true, reviewed=false`。
 
 **Phase 2.6 — 21 個 coordinated function review-mode 復驗**（blit 19 + pathfind 2；Unit C cstart 走 link_vendor_lib 不經此）：它們是 coordinated 落地、未經獨立
-reviewer。`python tools/emit/next_batch.py --mode review` 掃出 +
-`Workflow(scriptPath:"tools/emit/emit_review.wf.js", args:…)` review 模式逐一三源復驗 → approved →
+reviewer。`python tools/code_emit/next_batch.py --mode review` 掃出 +
+`Workflow(scriptPath:"tools/code_emit/emit_review.wf.js", args:…)` review 模式逐一三源復驗 → approved →
 per-function commit 設 `reviewed=true`。
 
 **收斂 main（舊 emit-pipeline 計畫的最終步；`integ`→`main` merge 已完成 `89268a4`，main tree == integ）**：剩餘 → 最終 `build_test.py` 全綠 →
@@ -456,12 +456,12 @@ per-function commit 設 `reviewed=true`。
 ## 5. emit-review workflow（供 Phase 2.6 review + 任何補 emit）
 
 進度單一事實來源 = `src/routing.json` 的 `reviewed`（+`done`）。scout：`python
-tools/emit/next_batch.py --mode review|emit [--partition <branch_N.json>] --limit 12`（輸出即
-Workflow 的 `args.functions`）。`Workflow(scriptPath:"tools/emit/emit_review.wf.js", args:<JSON>)`：
+tools/code_emit/next_batch.py --mode review|emit [--partition <branch_N.json>] --limit 12`（輸出即
+Workflow 的 `args.functions`）。`Workflow(scriptPath:"tools/code_emit/emit_review.wf.js", args:<JSON>)`：
 序列一次一個 function；`emit` 模式先 emitter；reviewer 獨立三源復驗 → 迭代（≤10 round）→ approved
 → bookkeeper per-function commit（code + test + KB + `routing.reviewed=true` + emit_issues）。中斷
 （token/usage limit）零成本續：`reviewed` 欄 + per-function commit = 斷點。禁忌與細節見
-`tools/emit/_index.md`。
+`tools/code_emit/_index.md`。
 
 `src/emit_issues.json` 累積「需實際編譯才能確認的等價性疑慮」（FPU rounding / word width /
 table-copy / fragment 等價轉移到 parent…），留待全 function 完成後（Phase 8）統一用 Watcom 9.5a
@@ -471,7 +471,7 @@ table-copy / fragment 等價轉移到 parent…），留待全 function 完成�
 
 ## 6. build / test 知識
 
-- build gate：`python tools/emit/build_test.py`（前景跑，回 JSON `{gate_pass, build_ok, done, failure_mode, hung_test, crash_dump, dosbox_fault, errors, warnings, tests_passed, tests_failed}`）。**merge gate 看 `error_count==0 && warning_count==0`**（不是 `gate_pass`，那含 test 結果；run 階段忽略）。
+- build gate：`python tools/code_emit/build_test.py`（前景跑，回 JSON `{gate_pass, build_ok, done, failure_mode, hung_test, crash_dump, dosbox_fault, errors, warnings, tests_passed, tests_failed}`）。**merge gate 看 `error_count==0 && warning_count==0`**（不是 `gate_pass`，那含 test 結果；run 階段忽略）。
 - **DOSBox-X fault logging**：`gen_run_conf()` 注入 `[log] logfile=…/dosbox.log`（在 `[autoexec]` 前，後者須最後），且 Popen 把 dosbox stdout/stderr 導到 `tests/OUT/dosbox_stdio.log`；run 後掃這兩檔的 protected-mode fault（`illegal descriptor` / GP / invalid opcode…）放進結果 `dosbox_fault`。用途：cinematic 測試驅動 real composite 讀 garbage sprite → wild access → DOSBox-X 彈「illegal descriptor」modal → 卡住被判 `hang`；`dosbox_fault` 揭露「hang 其實是 fault」。兩 log 每 run 重生（OUT 清檔不留），`-silent` 不抑制 `[log]` 檔。
 - **結束偵測無固定等待**：三訊號擇一 —— `DONE.TXT` 出現（正常完成）／ DOSBox process 退出（`proc.poll()`，涵蓋正常完成與會交回 batch 的 crash 如 DOS/4GW GP fault，~2s 偵測）／ heartbeat 停滯（`tests/OUT/HB.TXT` 每個 test 重寫；run 階段停滯 `--hang-stall` 秒〔預設 20s〕且 proc 存活 → hang，`hung_test` 指出卡住的 test）。`failure_mode` ∈ completed/crash/hang/aborted/timeout。**無 stale-cache / DPMI-OOM 問題**；不要加 copy→rename / sleep / 兩段式 session 等 workaround。
 - **worktree 隔離**：`build_test.py` 依各 checkout 的 `REPO_ROOT` 生成 `workspace/emit_drive/run.conf`（重寫 C:/E: mount 指向該 checkout 的 src/tests），故主 repo 與任一 worktree 都能各自正確 build；遊戲檔來源 `$FD2_GAME_DIR`→`REPO_ROOT/fd2_game_files`→主 repo 絕對路徑。`tests/dosbox.conf` 只是模板。

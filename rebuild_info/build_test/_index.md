@@ -19,4 +19,4 @@
 
 - src-only 神諭與最終建置：`tools/fd2_build/_index.md`
 - 實機 playtest 診斷腳本：`tools/snd_kbd_diag/_index.md`
-- build_test gate：`tools/emit/_index.md`
+- build_test gate：`tools/code_emit/_index.md`

@@ -4,8 +4,8 @@
 
 ## Source of Truth
 
-**`src/routing.json`** 是 function → target file 的唯一 source of truth（650 entries，key = address）。
-由 `tools/emit/mkroute.py generate` 從 `emit_functions.json` + 內建 routing rules 生成。
+**`src/routing.json`** 是 function → target file 的唯一 source of truth（650 entries，key = address），
+由 emit/review workflow 直接維護（`done` / `reviewed` 欄）。
 
 查詢方式：`python -c "import json; d=json.load(open('src/routing.json')); print(d['<address>'])"`
 
@@ -13,7 +13,7 @@
 
 **emit 過程中發現某 function 的 routing 不正確時，必須立即：**
 1. 修正 `src/routing.json` 中該 address 的 `target` 欄位
-2. 重新執行 `python tools/emit/mkroute.py` 驗證計數
+2. 重新執行 `python tools/code_emit/next_batch.py --stats` 確認計數
 3. 若已將 code 寫入錯誤的 .c 檔，立刻搬移到正確的檔案
 4. 更新本文件 §一 的 fn 計數和 Decision Notes（如有新決策）
 
@@ -279,8 +279,7 @@ python -c "import json; d=json.load(open('src/routing.json')); e=d['000115b6']; 
     `spell/spellwk.c`→3（spelleff/spellsel/spellcin）、`battle/btl_ai.c`→3（btl_ai/btl_aitg/btl_aisc）、
     `battle/btl_turn.c`→2（btl_turn/btl_init）、`ui_menu/shop.c`→3（shop/chintro/promote）、
     `ui_menu/menu.c`→3（menu/menucfg/menufld）、`field/chevt.c`→2（chevt1/chevt2 依 handler index）、
-    `field/chend.c`→2（chend1/chend2 依章號）。切分規則編在 `tools/emit/mkroute.py` 的 `_subsplit()`；
-    每個 function 的大小預估來自 Ghidra decompiled code 行數。
+    `field/chend.c`→2（chend1/chend2 依章號）。每個 function 的大小預估來自 Ghidra decompiled code 行數。
 
 19. **`fd2_set_tile_overlay_bit_80` → battle/btl_aitg.c（更正先前 btl_turn 誤判）**
     名稱含 "set_tile_overlay" 曾使 routing 規則歸入 btl_turn，但其唯一 caller 是

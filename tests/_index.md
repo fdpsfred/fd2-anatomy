@@ -5,7 +5,7 @@
 ## 執行方式
 
 ```
-python tools/emit/build_test.py
+python tools/code_emit/build_test.py
 ```
 
 這會啟動 DOSBox-X 跑 `tests/dosbox.conf`，編譯 `src/` 與 `tests/` 下所有檔案、連結成 `tests/OUT/TEST.EXE`、執行並把結果寫到 `tests/OUT/test.out`，最後回傳 JSON（`gate_pass` / 通過數 / 失敗數 / 警告）。也可以直接 `dosbox-x -silent -conf tests/dosbox.conf` 後讀 `tests/OUT/test.out`，末行應為 `Results: N passed, 0 failed`。
@@ -35,7 +35,7 @@ python tools/emit/build_test.py
 3. 新的 stub 或假全域加到 `testglob.c`（名稱必須與 Ghidra 一致；function pointer table 初始化指向 noop）。
 4. 要被多個測試檔共用的輔助函式或緩衝區，放到 `tests/include/<domain>fix.h`。
 5. 若新建了測試檔，跑一次 `python tests/genbuild.py --apply`，`build.bat`、`test.lnk`、`testmain.c` 都會自動更新。
-6. 跑 `python tools/emit/build_test.py` 過 build gate。
+6. 跑 `python tools/code_emit/build_test.py` 過 build gate。
 
 ## 規範
 

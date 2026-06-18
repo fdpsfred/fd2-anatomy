@@ -43,4 +43,4 @@ vendor binary 可能有不同 address 共用同名 Ghidra label。wlink 的
   → 0x54354 rename 為 `data_ail_driver_timer_isr_saved_eflags`
 
 （注意這與 emit pipeline merge 期間 stub + real 並存的 W1027 redefinition 是兩回事 —— 後者是預期
-產物、real 勝出、合法留存，見 `tools/emit/_index.md`。）
+產物、real 勝出、合法留存，見 `tools/code_emit/_index.md`。）

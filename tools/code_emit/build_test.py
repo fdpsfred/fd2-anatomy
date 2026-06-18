@@ -22,7 +22,7 @@ regenerates workspace/emit_drive/run.conf from it, rewriting the C:/E: mounts to
 THIS checkout's REPO_ROOT so a git worktree builds its own src/tests tree.
 
 Usage:
-    python tools/emit/build_test.py [--changed "src/gfx/blit.c,tests/testgfx.c"]
+    python tools/code_emit/build_test.py [--changed "src/gfx/blit.c,tests/testgfx.c"]
                                     [--timeout 300] [--poll 5]
 Exit code: 0 if the run completed (DONE.TXT seen), 2 on timeout. The pass/fail
 verdict is in the JSON (gate_pass / build_ok), not the exit code.

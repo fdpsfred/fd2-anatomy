@@ -66,7 +66,7 @@ Layer-2 src-only 建置只需這三個 CRT lib 即達 0 undefined；原版 binar
 ## 重編 FD2.EXE 給實機測試
 
 ```bash
-python tools/emit/build_test.py                 # 編 src .obj 到 tests/OUT/obj
+python tools/code_emit/build_test.py                 # 編 src .obj 到 tests/OUT/obj
 python tools/fd2_build/mklnk.py --apply          # 產 tests/fd2.lnk
 python tools/fd2_build/link_oracle.py            # 在 DOSBox 跑 wlink，確認 0 undefined
 python tools/fd2_build/analyze_undefined.py      # （若有 undefined）分類
@@ -141,4 +141,4 @@ DATO.DAT / FD2.SAV）從 `fd2_game_files/` stage 到 `tests/OUT`（= cwd，缺�
 - emit pipeline 規則（E-8 array / Layer-2 時序 / 硬編位址）：`../emission/pipeline_spec.md`
 - src-only 神諭與最終建置操作：`tools/fd2_build/_index.md`
 - 診斷工具操作細節：`tools/snd_kbd_diag/_index.md`
-- build_test gate 操作：`tools/emit/_index.md`
+- build_test gate 操作：`tools/code_emit/_index.md`

@@ -16,7 +16,7 @@ worklist**（比 name-pattern grep 可靠，因為以 linker 的符號引用為�
 ## 跑法
 
 ```bash
-python tools/emit/build_test.py            # 先把 src .obj 編到 tests/OUT/obj
+python tools/code_emit/build_test.py            # 先把 src .obj 編到 tests/OUT/obj
 python tools/fd2_build/mklnk.py --apply    # 產 tests/fd2.lnk
 python tools/fd2_build/link_oracle.py      # 跑 wlink，取 undefined（前景）
 python tools/fd2_build/analyze_undefined.py

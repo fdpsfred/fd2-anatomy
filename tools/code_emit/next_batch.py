@@ -9,9 +9,9 @@ returns the NEXT not-yet-done work, so it is safe to re-run after ANY interrupti
 (token/usage limit, crash). Re-running picks up exactly where it stopped.
 
 Usage:
-  python tools/emit/next_batch.py --stats
-  python tools/emit/next_batch.py --mode review --limit 12 [--name summon] [--target anim/aniwalk.c]
-  python tools/emit/next_batch.py --mode emit   --limit 12
+  python tools/code_emit/next_batch.py --stats
+  python tools/code_emit/next_batch.py --mode review --limit 12 [--name summon] [--target anim/aniwalk.c]
+  python tools/code_emit/next_batch.py --mode emit   --limit 12
 Output: JSON on stdout. For a batch: {batchLabel, count, remaining_in_filter, functions:[...]}.
 
 NOTE: this reads routing.json only (the durable truth). The main agent should still
@@ -33,8 +33,8 @@ def main():
     ap.add_argument('--target', default='', help='substring filter on target .c')
     ap.add_argument('--stats', action='store_true', help='print coverage only')
     ap.add_argument('--partition', default='',
-                    help='path to a tools/emit/partitions/branch_N.json; restrict '
-                         'scout + stats to its file-disjoint subfiles')
+                    help='path to a partition manifest JSON; restrict scout + stats '
+                         'to its file-disjoint subfiles')
     a = ap.parse_args()
 
     d = json.loads(ROUTING.read_text(encoding='utf-8'))

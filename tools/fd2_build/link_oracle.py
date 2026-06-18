@@ -4,7 +4,7 @@ undefined symbols. Those symbols are the authoritative worklist of what real
 data/functions are still missing from src/ for a self-contained FD2.EXE.
 
 Prereq: the src .obj files already exist in tests/OUT/obj (run a normal
-`python tools/emit/build_test.py` first if not -- this script does NOT compile).
+`python tools/code_emit/build_test.py` first if not -- this script does NOT compile).
 
 Reuses the proven DOSBox-X environment from tests/dosbox.conf (mounts C:=src,
 E:=tests, D:=Watcom; WATCOM/PATH/INCLUDE env that lets `system dos4g` auto-pull

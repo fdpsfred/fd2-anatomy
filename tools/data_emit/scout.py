@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """scout.py -- emit the data_emit.wf.js `args` JSON for one partition, skipping
 symbols already finalized (data_routing.reviewed == true). Mirrors
-tools/emit/next_batch.py for the data pipeline.
+tools/code_emit/next_batch.py for the data pipeline.
 
 The main agent runs this once per worktree at 4-way launch time; the printed
 JSON is passed straight to Workflow({scriptPath:"tools/data_emit/data_emit.wf.js",
