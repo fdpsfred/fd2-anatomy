@@ -308,7 +308,7 @@ range [0x1a7ea, 0x1c24e), size 6756 bytes, 46 pages.
 ```text
 萊汀仍任王國禁衛軍隊長一職。瑪爾的死解
 [PAGE_BREAK]
-開了他心��的死結，而莎拉的英姿則讓他找
+開了他心裏的死結，而莎拉的英姿則讓他找
 [PAGE_BREAK]
 到了生命的另一個目標‥這是讓眾人深深祝
 [PAGE_BREAK]
@@ -345,7 +345,7 @@ range [0x1a7ea, 0x1c24e), size 6756 bytes, 46 pages.
 ### Page 21  (offset 0xbe6, span 118 bytes)
 
 ```text
-在漂浮在另一個時空的黃金城��，悠妮在休
+在漂浮在另一個時空的黃金城裏，悠妮在休
 [PAGE_BREAK]
 眠艙裡沈睡著‥等待著她的是另一段長久的
 [PAGE_BREAK]
@@ -464,7 +464,7 @@ range [0x1a7ea, 0x1c24e), size 6756 bytes, 46 pages.
 [PAGE_BREAK]
 之所，繼續劍術和心靈的修練。那個年輕人
 [PAGE_BREAK]
-又在她沈靜的心湖��掀起了一陣波瀾‥但她
+又在她沈靜的心湖裏掀起了一陣波瀾‥但她
 [PAGE_BREAK]
 相信，絕不會再有第三次了‥‥
 [END]
@@ -540,7 +540,7 @@ range [0x1a7ea, 0x1c24e), size 6756 bytes, 46 pages.
 ```text
 希爾法在事件結束後又開始了他的新課題，
 [PAGE_BREAK]
-整天待在位於哈斯米爾的的新研究所��，據
+整天待在位於哈斯米爾的的新研究所裏，據
 [PAGE_BREAK]
 說他正致力於時空魔法的研究，希望能再把
 [PAGE_BREAK]
@@ -654,7 +654,7 @@ range [0x1a7ea, 0x1c24e), size 6756 bytes, 46 pages.
 [PAGE_BREAK]
 　　　在往日的回憶中，
 [PAGE_BREAK]
-　　　在未來的歲月��，
+　　　在未來的歲月裏，
 [PAGE_BREAK]
 　或許很難有再相見的機會，
 [PAGE_BREAK]
@@ -1207,7 +1207,7 @@ range [0x1caea, 0x1d6b6), size 3020 bytes, 6 pages — 推測為 final ending sc
 [PORTRAIT_RIGHT_BY_CHAR=0x0003]
 『我怎麼會喜歡國王一職！整
 [PAGE_BREAK]
-　天待在王城��哪裡也不能去
+　天待在王城裏哪裡也不能去
 [PAGE_BREAK]
 　還得管理繁瑣的政務、應付
 [PARAGRAPH]

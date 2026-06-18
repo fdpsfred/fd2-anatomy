@@ -76,7 +76,7 @@ init 階段以 7× cinematic warp 將魔神群傳送進場（4 個上方 + 3 個
 [PORTRAIT_LEFT_BY_ID=0x007E]
 『ASR一07，我偉大的計畫差點
 [PAGE_BREAK]
-　毀在你手��，這次我不會再
+　毀在你手裏，這次我不會再
 [PAGE_BREAK]
 　重蹈覆轍了，我要先把你和
 [PARAGRAPH]

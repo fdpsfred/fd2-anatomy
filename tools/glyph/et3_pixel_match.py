@@ -11,7 +11,7 @@ Strategy:
        gives the matched ET3 index.
     5. Map matched ET3 STDFONT index -> Big5 codepoint via the verified
        layout (Lead 0xA4..0xC5 157 each, Lead 0xC6 63, Lead 0xC9..0xF8 157
-       each, Lead 0xF9 116, then 41 ETEN extension chars in PUA).
+       each, Lead 0xF9 116, then 41 ETEN extension chars (cp950 0xF9D6..0xF9FE)).
 
 Confidence = 1 - hamming_distance / total_pixels (15 * 16 = 240).
 
@@ -90,7 +90,8 @@ def build_et3_stdfont_index_table(num_slots: int) -> list[tuple[int, int]]:
         idx 5401..13052  = Big5 Level 2 (7652 chars, 0xC940..0xF9D5)
                             Lead 0xC9..0xF8 = 157 entries each
                             Lead 0xF9 = 116 entries (0x40..0x7E + 0xA1..0xD5)
-        idx 13053..13093 = 41 ETEN extension chars (PUA codepoints)
+        idx 13053..13093 = 41 ETEN extension chars (cp950 0xF9D6..0xF9FE;
+                            e.g. 0xF9D8 = '裏' U+88CF)
     """
     out = []
     for lead in range(0xA4, 0xC6):
@@ -104,6 +105,11 @@ def build_et3_stdfont_index_table(num_slots: int) -> list[tuple[int, int]]:
     for tail in range(0x40, 0x7F):
         out.append((0xF9, tail))
     for tail in range(0xA1, 0xD6):
+        out.append((0xF9, tail))
+    # idx 13053..13093 = 41 ETEN extension chars = cp950 0xF9D6..0xF9FE
+    # (NOT PUA, NOT standard Big5). '裏' (U+88CF) lives at 0xF9D8 here -- leaving
+    # these as (0,0) made glyph_id 0x02FD decode to '?' and corrupted glyph_table.
+    for tail in range(0xD6, 0xFF):
         out.append((0xF9, tail))
     while len(out) < num_slots:
         out.append((0, 0))

@@ -66,7 +66,7 @@ FDFIELD.DAT[23]：古代機兵守衛，含機甲隊長 boss (char[0x12])。後�
 [PAGE_BREAK]
 　擾，我們沒有全部嵌到岩壁
 [PAGE_BREAK]
-　��去就該慶幸不已了。不過
+　裏去就該慶幸不已了。不過
 [PARAGRAPH]
 　這裡應該離原來的目的地不
 [PAGE_BREAK]
@@ -650,7 +650,7 @@ FDFIELD.DAT[23]：古代機兵守衛，含機甲隊長 boss (char[0x12])。後�
 [PORTRAIT_RIGHT_BY_ID=0x0008]
 『將軍你都可以蹺班來考古了
 [PAGE_BREAK]
-　，我怎麼可以待在宮��發呆
+　，我怎麼可以待在宮裏發呆
 [PAGE_BREAK]
 　呢？』
 [PAGE_BREAK]

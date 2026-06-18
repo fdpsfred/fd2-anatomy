@@ -34,7 +34,7 @@ FDFIELD.DAT[28]：要塞防衛機甲部隊（多 wave）。
 
 ```text
 [PORTRAIT_RIGHT_BY_ID=0x0000]
-『這��就是黃金城嗎？好奇怪
+『這裏就是黃金城嗎？好奇怪
 [PAGE_BREAK]
 　的建築，這哪像什麼城堡！
 [PAGE_BREAK]

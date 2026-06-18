@@ -209,7 +209,7 @@ End handler 對隊伍進行雙重迴圈，計算「持有 item 0xD1..0xD6 任一
 [PORTRAIT_LEFT_BY_CHAR=0x001A]
 『‥哼，小伙子們還真有一手
 [PAGE_BREAK]
-　啊‥‥敗在你們手��，我沒
+　啊‥‥敗在你們手裏，我沒
 [PAGE_BREAK]
 　什麼話好說了‥』
 [PAGE_BREAK]

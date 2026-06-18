@@ -365,7 +365,7 @@
 　樣呢？』
 [PAGE_BREAK]
 [PORTRAIT_LEFT_BY_ID=0x000D]
-『先和我回城��一趟，等我收
+『先和我回城裏一趟，等我收
 [PAGE_BREAK]
 　拾一下東西，待會兒就可以
 [PAGE_BREAK]

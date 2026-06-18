@@ -53,7 +53,7 @@ ET3 STDFONT.15 的真實 layout 與標準 Big5 lead/tail 線性 formula 不同�
 - idx 0 = `一` (Big5 0xA440)，**不是** `、` (0xA140) — 不含 symbols block 0xA1xx-0xA3xx
 - Lead 0xC6 只有 63 entries (tail 0x40..0x7E)；0xA1..0xFE 是 HKSCS 擴充 (cp950 解但 ET3 沒)
 - Lead 0xF9 完整 116 entries (tail 0x40..0x7E + 0xA1..0xD5)
-- 41 個倚天擴充字在 idx 13053..13093，標準 Big5 codec 無對應 codepoint
+- 41 個倚天 (ETEN) 擴充字在 idx 13053..13093 = cp950 0xF9D6..0xF9FE (標準 Big5 無此 codepoint，須用 cp950 解碼；例 0xF9D8 = 裏 = glyph_id 0x02FD)
 
 ## 完整 1824 字 lookup 表
 
@@ -62,6 +62,5 @@ ET3 STDFONT.15 的真實 layout 與標準 Big5 lead/tail 線性 formula 不同�
 ## 工具
 
 - 從 FDOTHER[4] 抽 1824 個 1bpp 16×16 glyphs：`tools/glyph/render_glyph_atlas.py`
-- ET3 字型像素比對：`tools/glyph/et3_explore.py` + `tools/glyph/pixel_match.py`
-- 建 lookup table：`tools/glyph/build_lookup_table.py`
+- ET3 字型像素比對 + 產生 glyph_id ↔ Big5 候選：`tools/glyph/et3_pixel_match.py`
 - ET3 字型檔本身：`tools/glyph/ET3_fonts/{ASCFONT.15, STDFONT.15}` (解 glyph 必備)
