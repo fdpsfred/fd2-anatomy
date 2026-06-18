@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""analyze_undefined.py -- classify the fd2.lnk oracle's undefined symbols into
-an actionable worklist, with the referencing .obj for each (home-file hint).
+"""analyze_undefined.py -- classify build_fd2's undefined symbols into an
+actionable worklist, with the referencing .obj for each (home-file hint).
 
-Reads workspace/fd2_build/fd2link.out (raw wlink output). Buckets each distinct
-undefined symbol:
+Reads workspace/fd2_build/exe/out/build.out (raw wcc386+wlink output written by
+build_fd2.py). Buckets each distinct undefined symbol:
 
   vendor   -- libc / x87-math / Watcom-startup names (resolve by wiring an
               explicit CRT library into fd2.lnk; NOT a src/ gap)
@@ -19,7 +19,7 @@ import io, os, re, sys
 from collections import defaultdict
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-RAW = os.path.join(ROOT, "workspace", "fd2_build", "fd2link.out")
+RAW = os.path.join(ROOT, "workspace", "fd2_build", "exe", "out", "build.out")
 WORKLIST = os.path.join(ROOT, "workspace", "data_emit", "worklist.tsv")
 OUT = os.path.join(ROOT, "workspace", "fd2_build", "game_worklist.tsv")
 
@@ -77,7 +77,7 @@ def main():
                     (wl_fake if p[7] == "fake_in_testglob" else wl_real if p[7] == "real_in_src" else set()).add(p[2]) if p[7] in ("fake_in_testglob", "real_in_src") else None
     data_not_in_wl = [s for s in data if s not in wl_fake and s not in wl_real]
 
-    print("=== fd2.lnk oracle: %d distinct undefined symbols ===" % len(syms))
+    print("=== build_fd2: %d distinct undefined symbols ===" % len(syms))
     print("  vendor (libc/math/startup) : %4d  -> wire explicit CRT lib in fd2.lnk" % len(vendor))
     print("  data_fd2_* (DATA worklist) : %4d  -> Phase 1" % len(data))
     print("  fd2_* functions            : %4d  -> Phase 2 / still-stub fns" % len(func))

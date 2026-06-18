@@ -504,7 +504,7 @@ linker 拆散。詳見 `../build_test/playtest_bugs.md` B 類。
 
 **規則**：**凡 reader 把多個 global 當 array 索引、或對相鄰全域做 struct punning，一律 emit 成單一的
 真 array / struct**（C 標準保證 array element 與 struct member 升序相鄰），不可拆成多個 scalar。
-Ghidra 端同步成 `dword[N]` / 對應 struct 型別，並用 wlink map（`tools/snd_kbd_diag/genmap.py`）驗證
+Ghidra 端同步成 `dword[N]` / 對應 struct 型別，並用 wlink map（`tools/fd2_build/build_fd2.py --map`）驗證
 實際 layout。
 
 ### 規則 E-9: Unaligned dword global access (Watcom default-alignment override)

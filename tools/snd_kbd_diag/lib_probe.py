@@ -10,7 +10,7 @@ probe shows (a) which lib owns them and with what initial value, and (b) the
 full fd2common PUBDEF set so we can confirm src/ covers every AIL-referenced
 fd2common symbol with matching behaviour.
 
-Reuses link_oracle's DOSBox-X env (D: = Watcom 9.5a). Output -> workspace/snd_kbd_diag/.
+Self-contained DOSBox-X env (D: = Watcom 9.5a). Output -> workspace/snd_kbd_diag/.
 """
 import io, os, shutil, subprocess, time
 

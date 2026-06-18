@@ -123,6 +123,7 @@ def gen_run_conf():
     lets us see the fault was real (and where), independent of -silent."""
     src_mount = str(REPO_ROOT / "src")
     tests_mount = str(REPO_ROOT / "tests")
+    libs_mount = str(REPO_ROOT / "libs")
     log_path = str(OUT_DIR / "dosbox.log")
     out = []
     for ln in CONF.read_text(encoding="latin-1").splitlines():
@@ -136,6 +137,8 @@ def gen_run_conf():
             out.append('mount C "%s"' % src_mount)
         elif s.startswith("mount e "):
             out.append('mount E "%s"' % tests_mount)
+        elif s.startswith("mount f "):
+            out.append('mount F "%s"' % libs_mount)
         else:
             out.append(ln)
     RUN_CONF.write_text("\n".join(out) + "\n", encoding="latin-1")

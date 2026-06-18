@@ -111,7 +111,7 @@ site 全部用這塊 0x53A8D scratch（input / video 路徑）或 dpmi 的 stack
 **凡 reader 把多個 global 當 array 索引（`(&g0)[i]`）或對相鄰全域做 struct punning，就必須 emit
 成單一的真 array / struct，不能拆成多個 scalar。** Watcom 的 BSS/COMDEF tentative scalar 既不保證
 宣告順序、也不保證相鄰（實測反序）。Ghidra 端要同步成 `dword[N]` / 對應 struct 型別，並用 wlink map
-（`genmap.py`）驗證實際 layout。此規則寫進 emit pipeline `../emission/pipeline_spec.md` 規則 E-8b。
+（`build_fd2.py --map`）驗證實際 layout。此規則寫進 emit pipeline `../emission/pipeline_spec.md` 規則 E-8b。
 
 ---
 

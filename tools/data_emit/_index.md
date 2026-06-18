@@ -45,7 +45,7 @@ python tools/data_emit/verify_real.py
   分三類：(a) 106 `cutscene_event_script_NNN` —— 資料已在 `chtab3.c` 的單一 pool `cutscene_event_script_data`
   + offset 指標表落地，個別 label 非獨立符號（非缺口）；(b) 58 `data_fd2_string_*` —— inline 字面值 /
   `strtab.c`（非缺口）；(c) 22 個 graphics/battle/spell anim state + `stat_buff_multiplier_115` const ——
-  隨 Phase 2 的 21 函式 emit 一起落地。**權威缺口以 src-only `fd2.lnk` 神諭的 undefined symbol 為準。**
+  隨 Phase 2 的 21 函式 emit 一起落地。**權威缺口以 `build_fd2.py`（src-only FD2.EXE 建置）回報的 undefined symbol 為準。**
 - **scan_defs 涵蓋三種定義形式並跳過 `extern` 宣告**：DEF_RE 抓 `[const] type name (= | [ | ;)`（`;`
   即 bss tentative `type name;`）、FNPTR_RE 抓 `RET (*[const] name[N])(params)`（含 `(*const tbl[])` 派遣表）。
   三者缺一會低報 real_in_src（bss tentative 與 const 派遣表會被誤判成 undefined）。

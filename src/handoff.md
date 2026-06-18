@@ -4,6 +4,14 @@
 **全 650 個遊戲 function 已 emit+review+commit。Phase 1+2 全部工作已從 `integ` 用 `--no-ff` merge 進 `main`（merge commit `89268a4`，main tree == integ）；當前 branch ＝ `main`，`integ` 已整合（下方 §0-§7 與本段以下對 `integ` / `data-pN` / `emit-pN` 的引用皆為歷史記錄）。當前在「真實資料落地 + 測試重寫 + 收斂 fd2.exe」收斂計畫（data-first）。**
 **Phase 1（真資料落地，commit `cd2c0a8`）+ Phase 2（補完 22 個 blit/pathfind/composite coordinated landing）皆已完成。** routing 650/650 emit+reviewed、await_emit 0、build gate 0 err/0 warn、Ghidra Bad Instruction 0、FD2.LE 已存。**Phase 3（測試重寫到實際全綠）進行中 — 見下方「Phase 3 進度」。**
 
+## build 工具鏈現況
+
+- **FD2.EXE 正式建置**：`python tools/fd2_build/build_fd2.py` — 自編全部 `src/*.c` + link，**零 `tests/` 依賴、完全自包含**，輸出 `workspace/fd2_build/exe/out/FD2.EXE`（349 KB、0 undefined）。`--map` 出 wlink layout map（看 BSS/COMDEF 擺放）。`analyze_undefined.py` 接它的 `build.out` 分類 undefined。
+- **vendor lib / header**：`ailv3.lib` + `ailv3.h` 置於 `libs/ailv3/`（DOSBox 掛 `F:`、compile `-i=F:\ailv3`）；`src/include/` 不再放 `ailv3.h`。
+- **`fd2common.lib` 不參與 FD2.EXE 連結** — 其 8 個 `fd2_dpmi_*` / `crt_equivalent_get_eflags` 已由 `src/util/dpmi.c` + `src/crt/crt.c` 以裸名 PUBDEF 定義（`file` obj 排在 `library` 前先滿足、library 不被 pull；實測不連仍 0 undefined）；只供獨立用 ailv3.lib 的 client（`tau.c` / `snd_kbd_diag`）。
+- **TEST build（不變）**：`tools/code_emit/build_test.py`（src + tests，編 obj + link TEST.EXE + run）。
+- **已移除的舊流程**：`mklnk.py` / `link_oracle.py` / `genmap.py` / 孤兒 `tests/fd2.lnk` / `tests/fd2link.bat`（功能併入 `build_fd2.py` + `--map`）。
+
 ---
 
 ## ⚑ 實機 playtest debug（最新，最先讀）
@@ -82,9 +90,9 @@
 - **"File not found" 開場退出 → 9 處 hardcoded 字串位址改 symbol**（commit `f44a0a1`）：`fd2_load_dat_resource`
   把原版字串位址寫死成 immediate；rebuild linker 把字串擺別處 → fopen 空檔名失敗。改用 symbol。
 
-> **重編 FD2.EXE 給實機測試**：`python tools/code_emit/build_test.py`（編 src obj）→ `python tools/fd2_build/`
-> `{mklnk.py --apply, link_oracle.py, analyze_undefined.py}`（重連、確認 0 undefined）→ 複製
-> `tests/OUT/FD2.EXE` 到 `fd2_game_files/FD2.EXE`。link_oracle 會不帶 `-Dmain` 重編 lifemain。
+> **重編 FD2.EXE 給實機測試**：`python tools/fd2_build/build_fd2.py`（自編 src + link，零 `tests/`
+> 依賴，確認 0 undefined）→ 複製 `workspace/fd2_build/exe/out/FD2.EXE` 到 `fd2_game_files/FD2.EXE`。
+> `build_fd2.py` 編 `life/main.c` 不帶 `-Dmain`（FD2.EXE 用真正的 `main` 入口）。
 
 ### 診斷工具（`tools/snd_kbd_diag/`；中間檔在 `workspace/snd_kbd_diag/`）
 
@@ -97,14 +105,14 @@
 - `sfxdiag.c` + `run_sfxdiag.py` — 用 FD2 編譯參數重現 AIL init（install_DIG_INI）+ 依序播多個 FDOTHER SFX
   （可聽測試）；`run_sfxdiag.py N` 指定 BLASTER IRQ（負對照用，曾證 status 4→2 不可靠：IRQ 不匹配也照樣
   到 DONE）。SFX 已解，此工具留作 AIL 回歸測試。
-- `genmap.py` — 重連 FD2.EXE + 產 wlink map（看 BSS symbol 實際擺放）。
+- layout map — `tools/fd2_build/build_fd2.py --map`（看 BSS symbol 實際擺放）。
 - `lib_probe.py` — dump fd2common.lib / ailv3.lib 的 module+symbol。
 
 ---
 
 ### Phase 3 進度（current，最先讀）
 
-**✅ Phase 4 LINK 里程碑達成（commit `17e7a8d`，HEAD）**：src-only `fd2.lnk` 神諭已連結出 **FD2.EXE（349 KB、合法 MZ/DOS4GW）、0 undefined** —— `src/` 已能自給自足連出遊戲執行檔（Phase 4 只剩 DOSBox 實機 playtest 對照原版，尚未做）。補掉神諭最後缺口的三件事：(1) `fd2_main`→`main`（CRT cmain386 進入點契約；是唯一豁免 `fd2_` 前綴的 game function，見 memory [[project_fd2_function_prefix_main_exempt]]）；(2) `__delay_thunk_375b2`→`fd2_delay_ms` 落地 `src/util/misc.c`（真函式 `void fd2_delay_ms(uint32 ms){delay(ms);}`，routing 651 筆）；(3) `mklnk.py` 在 `fd2.lnk` 顯式列 Watcom CRT（CLIB3S/MATH387S/EMU387；`system dos4g` 不自動 pull）。雙 main 處置：`genbuild` 在 test build 只對 `life/main.c` 加 `-Dmain=fd2_main`、`link_oracle` 不帶 define 重編 lifemain 給 FD2.EXE。TEST build 仍綠（`build_test --only table` 18/18）、Ghidra 已存、0 Bad Instruction。**重跑神諭/最終建置**：先 `python tools/code_emit/build_test.py`（編 src obj）→ `python tools/fd2_build/{mklnk.py --apply, link_oracle.py, analyze_undefined.py}`。
+**✅ Phase 4 LINK 里程碑達成（commit `17e7a8d`，HEAD）**：src-only `fd2.lnk` 神諭已連結出 **FD2.EXE（349 KB、合法 MZ/DOS4GW）、0 undefined** —— `src/` 已能自給自足連出遊戲執行檔（Phase 4 只剩 DOSBox 實機 playtest 對照原版，尚未做）。補掉神諭最後缺口的三件事：(1) `fd2_main`→`main`（CRT cmain386 進入點契約；是唯一豁免 `fd2_` 前綴的 game function，見 memory [[project_fd2_function_prefix_main_exempt]]）；(2) `__delay_thunk_375b2`→`fd2_delay_ms` 落地 `src/util/misc.c`（真函式 `void fd2_delay_ms(uint32 ms){delay(ms);}`，routing 651 筆）；(3) `fd2.lnk` 顯式列 Watcom CRT（CLIB3S/MATH387S/EMU387；`system dos4g` 不自動 pull）。雙 main 處置：test build 對 `life/main.c` 加 `-Dmain=fd2_main`、正式 build（`build_fd2.py`）不帶 define 編 lifemain 給 FD2.EXE。TEST build 仍綠（`build_test --only table` 18/18）、Ghidra 已存、0 Bad Instruction。**重跑/最終建置**：`python tools/fd2_build/build_fd2.py`（自編 src + link，零 `tests/` 依賴）。
 
 **⏸ Phase 3 暫停點（OPEN，仍未完成）**：Phase 3「測試實際全綠」尚未做完（Phase 4 LINK 是這次順著使用者提問先完成的支線）。基礎工具齊備（`--only`、minip safe-fixture；commits `e280ff8`/`762b2b1`/`57b826e`）。攻 anicine1 範本已**校準出 Phase 3b 真實難度**（見下兩條「發現」）。**正等使用者裁示 Phase 3b 排序**，使用者要先釐清問題再決定 → 新 session 先把此決定談定再動手：
 - **A（建議）**：可解的非-cinematic suites 先衝綠拿動能（battle/spell 邏輯、table、save、input 等真值觀測、不依賴 display spy）＋ 建中央 `tg_install_cinematic_safe_atlases()`＋清 testglob 殘留 spy＋產出完整「spy-now-real」清單；~30 個 cinematic 法醫重設計留最後一波集中做。
@@ -136,9 +144,9 @@
 Phase 4 收斂 fd2.exe + 實機對照`。
 
 **Step 0 — 完成**（工具操作見 `tools/fd2_build/_index.md`、`tools/data_emit/_index.md`）
-- ✅ **神諭** `tools/fd2_build/`：`mklnk.py` 產 `tests/fd2.lnk`（src-only FD2.EXE wlink）；
-  `link_oracle.py` 在 DOSBox 跑 `wlink`；`analyze_undefined.py` 分類。**src-only link 的 undefined
-  symbol = 「fd2.exe 還缺什麼在 src/」的權威 worklist**（以 linker 符號引用為準，比 name-grep 可靠）。
+- ✅ **正式建置 + 神諭** `tools/fd2_build/`：`build_fd2.py` 自編 src + link 出 FD2.EXE（零 `tests/`
+  依賴）；`analyze_undefined.py` 分類。**src-only link 的 undefined symbol = 「fd2.exe 還缺什麼在
+  src/」的權威 worklist**（以 linker 符號引用為準，比 name-grep 可靠）。
 - ✅ **盤點 + 驗證器** `tools/data_emit/`：`reconcile.py` 對帳 Ghidra↔testglob↔src；
   **`verify_real.py` = byte-equality gate**（emitted data 每筆都要過；已證 28 個 real_in_src 全
   byte-identical）；`rename_global.py` 安全 whole-word 全域改名（caller 決定 old→new，工具只機械套用）。
@@ -195,7 +203,7 @@ Phase 4 收斂 fd2.exe + 實機對照`。
 
 全 563 `data_fd2_` 符號（Ghidra 即時查證一致）post-merge 分流：**real_in_src 376**（已落地 src/ file-scope，含初值表 / bss tentative / `void (*const tbl[])()` 派遣表）、**undefined 186**、**sublabel 1**（`chapter_intro_menu_typeC_portrait_id`，母表帶出）、fake_in_testglob 0。186 undefined 拆解：**106 cutscene**（chtab3.c 已 emit 單一 pool `cutscene_event_script_data` + offset 指標表，資料已落地、非待辦）+ **58 string**（使用點 inline 字面值 / strtab.c，資料已落地）+ **22 真待落地**（21 blit/pathfind/spell anim state + `stat_buff_multiplier_115` const）→ 全部隨 Phase 2 的 21 函式 emit 一起落地。**權威缺口以 src-only `fd2.lnk` 神諭的 undefined symbol 為準（Phase 4）。** reconcile.py 正確計入 tentative/bss 定義與 const 函式指標表（DEF_RE 含 `;` 結尾、FNPTR_RE 含 `(*const tbl[])`）。fd2_ 函式缺口：**0（全 650 emit+reviewed，Phase 2 完成）**；Phase 2 一併 land 12 個 graphics/compose-state 全域（blit 9 + composite 3，全 mutable zero-init）；vendor 60 + `fd2_delay_ms` = Phase 4 link。
 
-**Phase 4 連結（LINK 步驟已完成，commit `17e7a8d`；0 undefined、FD2.EXE 產出）**：`fd2.lnk` 已由 `mklnk.py` 顯式列 `library` CLIB3S/MATH387S/EMU387（全路徑 `D:\LIB386\...`，`system dos4g` 不自動 pull）；AIL lib（`workspace/ail_extract/out/{ailv3,fd2common}.lib`）由 `link_oracle.py` 每次 stage 進 `E:\out`（`build_test.py` 會清 `tests/OUT`，故每跑 oracle 前都 re-stage）；`link_oracle` 另不帶 `-Dmain` 重編 lifemain.obj 給 FD2.EXE（test build 帶 `-Dmain=fd2_main`）。已知小 warning：曾出現一次 `cannot open fd2common.lib`（staging 時序；該 lib 不被引用、連結仍 0 undefined，非阻斷）。**Phase 4 剩：DOSBox 實機跑 FD2.EXE 對照原版。**
+**Phase 4 連結（LINK 步驟已完成，commit `17e7a8d`；0 undefined、FD2.EXE 產出）**：`fd2.lnk`（由 `build_fd2.py` 產）顯式列 `library` CLIB3S/MATH387S/EMU387（全路徑 `D:\LIB386\...`，`system dos4g` 不自動 pull）；AIL lib `ailv3.lib`（置於 `libs/ailv3/`，DOSBox 掛成 `F:`）以 `library F:\ailv3\ailv3.lib` 直接連、不再 stage；**不連 `fd2common.lib`**（其 8 個 `fd2_dpmi_*` / `crt_equivalent_get_eflags` 已由 `src/util/dpmi.c` + `src/crt/crt.c` 裸名 PUBDEF 定義，`file` obj 排在 `library` 前先滿足、library 不被 pull，實測仍 0 undefined）；正式 build `build_fd2.py` 編 lifemain.obj 不帶 `-Dmain` 給 FD2.EXE（test build 帶 `-Dmain=fd2_main`）。**Phase 4 剩：DOSBox 實機跑 FD2.EXE 對照原版。**
 
 ---
 

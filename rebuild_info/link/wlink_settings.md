@@ -65,15 +65,16 @@ wlink @fd2.lnk
 上面的骨架是從 binary 反推、用邏輯主題分組 `.obj` 名的**理論重建**（目標 byte-exact 還原原版）。
 本專案實際做的是 **Layer-2 src-only 連結**：把 `src/` emit 出來的 C source 編成 `.obj`、加 vendor lib
 連出可跑的 FD2.EXE，讓 linker 自由擺放資料（不下 FAR_DATA / object layout directive）。這份連結已驗證
-連到 0 undefined，是目前的 ground truth。`fd2.lnk` 由 `tools/fd2_build/mklnk.py` 產生：
+連到 0 undefined，是目前的 ground truth。`fd2.lnk` 由 `tools/fd2_build/build_fd2.py` 產生：
 
 ```
 system dos4g
 name E:\out\FD2.EXE              # 全路徑；輸出含 DOS bind stub 的 FD2.EXE
 file E:\out\obj\lifemain.obj      # 含 main，擺第一 -> 決定模組內部名
 file E:\out\obj\<...>.obj         # 其餘全部 src .obj（重用 tests/genbuild.src_compile_list）
-library E:\out\ailv3.lib          # Miles AIL（每次 link 前 stage 進 E:\out）
-library E:\out\fd2common.lib      # FD2 自寫的 AIL-support helper
+library F:\ailv3\ailv3.lib        # Miles AIL：libs/ailv3 掛成 F:，直接連（不再 stage 進 E:\out）
+                                  # 不連 fd2common.lib：8 個 fd2_dpmi_*/crt_equivalent_get_eflags 已由
+                                  # src/util/dpmi.c + src/crt/crt.c 裸名 PUBDEF 定義 -> library 不被 pull
 library D:\LIB386\DOS\CLIB3S.LIB  # Watcom 9.5a CRT，顯式全路徑（D: = 掛載的 Watcom 樹）
 library D:\LIB386\MATH387S.LIB
 library D:\LIB386\DOS\EMU387.LIB
