@@ -9,9 +9,12 @@ FD2.LE 連結環境的解析：LE binary layout、wlink 命令列重建、DOS/4G
   _BSS → STACK + cmdline buffer 共用 4K)、page map / fixup section 統計、入口流程
   (`_cstart_` cstart → `__InitRtns` + `__CMain` → `main`)、FD2.EXE 的 10424-byte Watcom DOS bind stub
 - `wlink_settings.md` — 從 binary 反推的 wlink directive (`system dos4g` +
-  `name FD2.EXE` + `option stack=4K` + Miles lib + Watcom CRT auto-pull)、每條
+  `name FD2.EXE` + `option stack=4K` + Miles lib + 顯式列 Watcom CRT)、每條
   directive 對 binary 內哪個特徵負責的證據鏈、source-side `#pragma data_seg("FAR_DATA")`
-  把大型 data table 推進 object 3 的推測、`wcc386` 編譯旗標、重建驗證流程
+  把大型 data table 推進 object 3 的推測、`wcc386` 編譯旗標、重建驗證流程。**含
+  「實測：src-only Layer-2 連結（已驗證 0 undefined）」一節** —— `system dos4g` 不自動
+  加 C runtime，CLIB3S / MATH387S / EMU387 必須顯式 `library` 列出（實際建置流程見
+  `../build_test/`）
 
 ## 結論摘要
 

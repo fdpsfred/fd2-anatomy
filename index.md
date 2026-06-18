@@ -32,4 +32,5 @@
 - 想理解 emit pipeline / pool routing / fall-through pattern：`rebuild_info/emission/_index.md`
 - 想抽 AIL `.obj` 重建：`rebuild_info/ail/_index.md` + `tools/ail_extract/_index.md`
 - 想知道 FD2.LE 怎麼連結出來 / wlink 設定：`rebuild_info/link/wlink_settings.md` + `rebuild_info/link/le_layout.md`
+- 想知道實機 playtest 解過哪些 rebuild bug / 怎麼建置測試 src-only FD2.EXE：`rebuild_info/build_test/_index.md`
 - 想看每個 folder 的檔案清單：各 folder 內的 `_index.md`

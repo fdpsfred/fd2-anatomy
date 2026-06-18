@@ -76,6 +76,17 @@ emit pipeline 必須：
   audit 工具的 disambiguation label，非真正獨立 data item
 - 9 個已觀察的 sub-string anchor 列於 D3 group_3 proposal 詳細 KB sync
 
+### 規則 E-3b: 絕對位址引用一律改 symbol（禁 hardcoded immediate）
+
+原版 code 常以絕對位址 immediate 常數引用字串 / 資料（例如把某 `.DAT` 檔名字串的位址直接寫死成
+`push 0x51a4d`）。Layer-2 不追求 byte-exact、linker 會自由擺放資料，所以**任何寫死的絕對位址在
+rebuild 都會指錯**。emit pipeline 必須把這類引用改成 **symbol 引用**，讓 linker 自己填正確位址。
+
+**實證（"File not found" 開場退出）**：`fd2_load_dat_resource` 把原版字串位址寫死成 immediate，
+rebuild linker 把字串擺到別處 → `fopen` 拿到空檔名失敗，開場就退出。修法是把 9 處 hardcoded 字串
+位址全改 symbol。詳見 `../build_test/playtest_bugs.md` E 類。這條與上面 E-2 / E-3 的 string-pool
+處理同源 —— 字串一律以 source-level literal / named symbol emit，絕不以絕對位址 immediate 引用。
+
 ### 規則 E-4: FD2 game-side `.DAT` filename strings 走 emit_c_const
 
 8 個 FD2 game `.DAT` filename strings 在 `.object2` string 區（0x51a43..0x52388）
@@ -469,10 +480,32 @@ FD2 .object2 BSS 區的 globals 是 Watcom 編譯時按 source declaration order
 
 emit pipeline 對 BSS group 只需要：
 
-- 保持 source 內 declaration 順序與 binary 內 byte offset 順序一致
 - 不需要 `#pragma pack` 或特殊 wlink config — Watcom default 行為已正確
 - 若以 single struct 包裹 BSS group 則須 `#pragma pack(1)` 避免 struct member
   alignment 干擾；但個別 global declarations 自然 byte-pack，不需特殊處理
+
+**⚠ 順序與相鄰只對「已定義 / 已初始化」的 global 成立，不適用 tentative BSS scalar** ——
+見下方 E-8b。
+
+### 規則 E-8b: BSS/COMDEF tentative scalar 不保證順序與相鄰 —— reader-as-array 必 emit 真 array
+
+未初始化的 global（`int x;` 無初值）在 Watcom 是 **tentative definition**，編成 COMDEF/COMMON
+record 交給 linker 合併。**linker 不保證這些 tentative scalar 的擺放順序與相鄰關係** —— 實測甚至是
+**反序**（wlink map 證實）。因此原版若把多個相鄰全域當成一塊連續記憶體存取（array 索引
+`(&g0)[i]`、或對相鄰全域做 struct punning），rebuild 一旦把它們 emit 成多個獨立 tentative scalar，
+linker 就會把它們拆散、塞進別的全域之間，reader 讀到的是鄰居的 garbage。
+
+**實證（炙焰刀施法平移 crash）**：`fd2_animate_bg_zoom_transition_in` 用 `bg_layer[idx % 3]` 把三個
+BG layer 指標當 `uint32[3]`（@0x5410B/0F/13）。emit 成三個獨立 tentative scalar 後，wlink map 顯示
+Watcom 反序擺放（layer_2 在最低位址），reader 的 `[1]`/`[2]` 讀到鄰居 spotlight_bg / split_bg_b 的
+garbage 指標 → 餵 `fd2_rle_blit_sprite` wild read → protected-mode fault。另一實證是 28-byte
+`union REGS` INT scratch 被拆成獨立 `uint8` 全域，相鄰 byte（`last_key` / `key_input_mode`）被
+linker 拆散。詳見 `../build_test/playtest_bugs.md` B 類。
+
+**規則**：**凡 reader 把多個 global 當 array 索引、或對相鄰全域做 struct punning，一律 emit 成單一的
+真 array / struct**（C 標準保證 array element 與 struct member 升序相鄰），不可拆成多個 scalar。
+Ghidra 端同步成 `dword[N]` / 對應 struct 型別，並用 wlink map（`tools/snd_kbd_diag/genmap.py`）驗證
+實際 layout。
 
 ### 規則 E-9: Unaligned dword global access (Watcom default-alignment override)
 
@@ -726,6 +759,16 @@ state」下執行完，必須產出「相同的 return value / register state /
 selection / scheduling 細節由 source code 結構 + 編譯器旗標決定，emit pipeline
 產出的 C source 可能與原 1998 年 FD2 source 結構不同，導致部分 function 即使
 用同版編譯器（Watcom 9.5a）也 emit 出不同 instruction sequence。
+
+**⚠ 例外：時序敏感的純 CPU 熱迴圈，codegen 要對齊原版指令數。** 功能等價的 codegen
+簡化（例如有號 `/128` → 算術 `>>7`，in-bounds guard 保證 `src >= 0` 時結果相同）會改變
+指令數，而純 CPU 熱迴圈（縮放 / blit，每 frame 數萬像素）的執行時間隨指令數變動，會改變
+動畫 / 過場的牆鐘時長，進而破壞遊戲隱性的時序平衡。實證（商店進入腳步聲被對話音效打斷）：
+`fd2_blit_scaled_chapter_pose` 的 pose 縮放除法 emit 成 `>>7`（2 指令）而非原版 `/128`
+（6 指令），每像素少約 4 指令 → 過場從約 0.93 秒縮到約 0.80 秒 → 短於固定 0.9 秒的腳步聲
+SFX（AIL DMA real-time、不隨 DOSBox cycles）→ 後續 SFX 的 `AIL_stop_sample` 把腳步聲切掉。
+所以時序敏感熱迴圈不能為了「等價且更短」而簡化，要對齊原版 codegen（wdis 逐指令比指令數驗
+證）。詳見 `../build_test/playtest_bugs.md` D 類。
 
 驗證手段：對 pure-compute leaf function（damage 計算、softfp、decoder helper、
 hash / checksum）跑 emulator 雙邊 trace（原 FD2.LE vs 重建版），對相同 input

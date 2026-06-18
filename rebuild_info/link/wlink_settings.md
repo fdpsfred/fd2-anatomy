@@ -41,20 +41,57 @@ file <fd2_crt_wrapper.obj>         # 15 個 `crt_equivalent_*` + 10 個 `fd2_*` 
 # ---- Miles AIL static lib ----
 library miles.lib                  # AIL3DIG + AIL3MDI merged (Miles Sound System 3.x for Watcom)
 
-# ---- Watcom 9.5a CRT (由 `system dos4g` 自動 pull，不用顯式列；列出僅為驗證用) ----
-# libfile cstart.obj                # _cstart_ entry (Watcom 9.5a)
-# library clib3s.lib                # 標準 C runtime (stack-call ABI)
-# library math387s.lib              # x87 數學 + 387 emu init/fini + softfp
-# library emu387.lib                # x87 FPU emulator
-# library graph.lib                 # Watcom graphics primitives（FD2 用 `_outtext` 等少量函數）
-# library dos4gw.lib                # DPMI / int31 helpers
+# ---- Watcom 9.5a CRT (必須顯式列；`system dos4g` 不會自己加 C runtime) ----
+library clib3s.lib                 # 標準 C runtime (stack-call ABI，配 -3s)
+library math387s.lib               # x87 數學 + 387 emu init/fini + softfp
+library emu387.lib                 # x87 FPU emulator
+# library graph.lib                # Watcom graphics primitives；src-only Layer-2 建置實測不需要
 ```
+
+> **`system dos4g` 不自動加 C runtime**：早期從 binary 反推時曾推測「CRT 由 `system dos4g` 自動
+> pull、不用顯式列」，但實際連結 src-only FD2.EXE 證明這是錯的（見下節「實測」）。`system dos4g`
+> 只負責 format LE + cstart + dos4g stub；C runtime 是靠每個 `.obj` 的 **default-library 記錄**
+> 在 wlink 找得到 libpath 時才解析，建置環境沒設好 libpath 就全 undefined。所以 `fd2.lnk` 顯式
+> `library` 列出 CLIB3S / MATH387S / EMU387。
 
 執行（在 DOSBox-X 內跑 Watcom 9.5a `wlink`，bin 路徑 `C:\Users\fdpsf\Documents\WATCOM_9.5a\BIN`）：
 
 ```sh
 wlink @fd2.lnk
 ```
+
+## 實測：src-only Layer-2 連結（已驗證 0 undefined）
+
+上面的骨架是從 binary 反推、用邏輯主題分組 `.obj` 名的**理論重建**（目標 byte-exact 還原原版）。
+本專案實際做的是 **Layer-2 src-only 連結**：把 `src/` emit 出來的 C source 編成 `.obj`、加 vendor lib
+連出可跑的 FD2.EXE，讓 linker 自由擺放資料（不下 FAR_DATA / object layout directive）。這份連結已驗證
+連到 0 undefined，是目前的 ground truth。`fd2.lnk` 由 `tools/fd2_build/mklnk.py` 產生：
+
+```
+system dos4g
+name E:\out\FD2.EXE              # 全路徑；輸出含 DOS bind stub 的 FD2.EXE
+file E:\out\obj\lifemain.obj      # 含 main，擺第一 -> 決定模組內部名
+file E:\out\obj\<...>.obj         # 其餘全部 src .obj（重用 tests/genbuild.src_compile_list）
+library E:\out\ailv3.lib          # Miles AIL（每次 link 前 stage 進 E:\out）
+library E:\out\fd2common.lib      # FD2 自寫的 AIL-support helper
+library D:\LIB386\DOS\CLIB3S.LIB  # Watcom 9.5a CRT，顯式全路徑（D: = 掛載的 Watcom 樹）
+library D:\LIB386\MATH387S.LIB
+library D:\LIB386\DOS\EMU387.LIB
+```
+
+實測得到的兩個關鍵結論：
+
+1. **`system dos4g` 不自動加 C runtime**（見上一節的說明框）。遊戲只透過 `crt_*` wrapper、不直接呼叫
+   libc 時，`.obj` 的 default-library 記錄在沒有 libpath 的情況下不會被解析，CLIB3S / MATH387S /
+   EMU387 的符號全部 undefined。必須顯式 `library` 列出（全路徑）。Miles AIL lib 又會引用真 libc
+   （`strcpy` / `memset` / `sprintf` / `malloc`）與 math387s/emu387 的 `__8087` / `__hook387`，所以這
+   三個 CRT lib 一定要連。
+2. **GRAPH.LIB 不需要**：Layer-2 src-only 建置只需 CLIB3S / MATH387S / EMU387 三個 CRT lib 即達 0
+   undefined，沒有未解析的 GRAPH 符號。
+
+src-only 連結還身兼**神諭**：資料 / 函式沒補齊時它 link 不過，回報的 undefined symbol 就是「FD2.EXE
+還缺哪些東西在 `src/`」的權威 worklist（以 linker 符號引用為準，比 name-grep 可靠）。完整建置流程、
+雙 main 處置、AIL lib staging、實機 playtest 見 `../build_test/workflow.md` 與 `tools/fd2_build/_index.md`。
 
 ## 證據鏈：directive ↔ binary 對照
 
@@ -68,7 +105,7 @@ wlink @fd2.lnk
 | module_flags `0x200` (PM-compatible bit) | wlink dos4g 預設旗標 |
 | obj 1 base = `0x10000` | wlink dos4g 預設 code base |
 | EIP = `0x3C964` 指向 `_cstart_`（stock Watcom cstart）| 對應 Watcom 9.5a `cstart.obj _cstart_`，由 `system dos4g` 預設 `libfile` 連入（`link_vendor_lib`）|
-| 引用 `data_crt_emu387_*` / `__sys_init_387_emulator` / `__hook387` | math387s + emu387 lib，由 `system dos4g` 預設 link |
+| 引用 `data_crt_emu387_*` / `__sys_init_387_emulator` / `__hook387` | 用到 math387s + emu387 lib（屬 Watcom CRT，須顯式 `library` 連入，見「實測」節，非 `system dos4g` 自帶）|
 | 字串 `"RATIONAL DOS/4G"` @ `0x51760` (被 `__hook387` 引用) | DOS/4G 認證字串，emu387 內 |
 | FD2.EXE 含 Watcom DOS bind stub (10424 byte) | `system dos4g` 預設打包 stub |
 
