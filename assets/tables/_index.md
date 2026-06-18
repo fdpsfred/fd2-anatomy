@@ -31,3 +31,9 @@ binary 內主要 data table 的 struct layout 與資料來源。實際數值內�
 - `job_crit.md` — `.object2 @ 0x5239B`，27 bytes。每 byte = job_id 對應的
   暴擊率 %。
 - `job_magic_resist.md` — `.object2 @ 0x51F96`，27 dword。`抗性 = (10 - 數值) / 10`。
+
+### 文字
+
+- `glyph_id_to_character.csv` — glyph id ↔ 字元對照表（欄位 `glyph_id_hex,character`）。
+  FDOTHER.DAT[4] 的 1824 個 16×16 glyph 各對應一個字元，FDTXT 對話文字 id 解碼用。
+  由 `tools/glyph/` 渲染 + ET3 STDFONT pixel-match 產生。
