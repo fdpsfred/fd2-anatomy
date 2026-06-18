@@ -21,7 +21,7 @@ import struct
 import sys
 from pathlib import Path
 
-GAME = Path(__file__).resolve().parents[2] / "fd2_game_files"
+GAME = Path(__file__).resolve().parents[3] / "fd2_game_files"
 
 
 def u32(b, off):

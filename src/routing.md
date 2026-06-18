@@ -280,7 +280,7 @@ python -c "import json; d=json.load(open('src/routing.json')); e=d['000115b6']; 
     `battle/btl_turn.c`→2（btl_turn/btl_init）、`ui_menu/shop.c`→3（shop/chintro/promote）、
     `ui_menu/menu.c`→3（menu/menucfg/menufld）、`field/chevt.c`→2（chevt1/chevt2 依 handler index）、
     `field/chend.c`→2（chend1/chend2 依章號）。切分規則編在 `tools/emit/mkroute.py` 的 `_subsplit()`；
-    每個 function 的大小預估來自 Ghidra decompiled code 行數（見 `tools/file_split/`）。
+    每個 function 的大小預估來自 Ghidra decompiled code 行數。
 
 19. **`fd2_set_tile_overlay_bit_80` → battle/btl_aitg.c（更正先前 btl_turn 誤判）**
     名稱含 "set_tile_overlay" 曾使 routing 規則歸入 btl_turn，但其唯一 caller 是

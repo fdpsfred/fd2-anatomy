@@ -68,7 +68,7 @@ def resolve(target):
                         note='%d lines, ~%d free' % (ln, 1000 - ln))
         return dict(leaf=leaf, runner=runner_of(leaf), action='append-tight',
                     note='%d lines (near 1000); if it would cross 1000, split it '
-                         'with tools/test_split/move.py first' % ln)
+                         'into a new part file first (see tests/_index.md)' % ln)
 
     parts = [(f, n, nlines(f)) for (f, n) in files if n is not None]
     summary = ', '.join('%s=%d' % (f.name, ln) for (f, _, ln) in parts)

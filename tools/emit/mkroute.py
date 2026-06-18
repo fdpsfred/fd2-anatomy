@@ -284,7 +284,7 @@ def _base_target(name, phase):
 # ── Sub-file split (keep each .c <= ~1000 emitted lines) ──
 # Oversized base targets are split by cohesive sub-feature into 8.3 sub-files.
 # chevt/chend split by handler-index / chapter-number; the rest by name pattern.
-# Mirrors workspace/file_split/split_design.md (the reviewed design).
+# These rules are the reviewed sub-feature split design, baked in here.
 
 def _any(name, subs):
     return any(s in name for s in subs)

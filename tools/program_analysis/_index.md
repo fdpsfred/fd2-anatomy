@@ -1,8 +1,8 @@
 # tools/program_analysis/
 
-FD2.LE 結構性分析工具集合 — 5 個 audit pipeline + 1 個 call graph build
-script。所有 script 只做機械處理（dump / classify / 套用 verdict /
-categorise）；命名與分類決策一律由人親自讀 disasm / decomp / bytes 後判定。
+FD2.LE 結構性分析工具集合 — 5 個 audit pipeline + call graph builder + 真遊戲檔
+ground-truth dump。audit / call-graph script 只做機械處理（dump / classify /
+套用 verdict / categorise）；命名與分類決策一律由人親自讀 disasm / decomp / bytes 後判定。
 
 ## Audit pipeline (subfolders)
 
@@ -13,6 +13,12 @@ categorise）；命名與分類決策一律由人親自讀 disasm / decomp / byt
 | `function_audit/` | 全 function 結構性 audit (9-group G1→G9)：body 邊界 / cc / shared prologue / jump-into-middle / plate / name 六類問題 |
 | `data_audit/` | 全 data item 結構性 audit (12-group D1→D12)：name / type / boundary / caller association / plate 五類問題 |
 | `jump_table_audit/` | indirect-JMP / orphan code / fragmented body / lookup-vs-lib size diff regression |
+
+## 真遊戲檔 ground-truth (subfolder)
+
+| Subfolder | 用途 |
+|---|---|
+| `realfile_groundtruth/` | 從 `fd2_game_files/` 真檔 dump 資源 loader 期望值（DAT offset/size、FDICON portrait header、FD2.SAV 解密欄位），供 RE 理解與測試設計參考 |
 
 ## Top-level script
 

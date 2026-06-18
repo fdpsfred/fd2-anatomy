@@ -42,4 +42,4 @@ python tools/emit/build_test.py
 - 檔名與標頭都要符合 DOS 8.3（Watcom 9.5a 無 LFN）。子檔切分用 `<stem>` 前 7 字元加序號；共用標頭用 domain 前 5 字元加 `fix`（如 `battlfix.h`）。
 - 每個測試檔只含 `static` 的 `test_*` 函式、它們用到的輔助碼、以及一個匯出的 `run_*_tests()`。
 - 受測函式的外部依賴（假全域、stub）集中在 `testglob.c`；只在單一測試檔用到的輔助碼就放該檔，跨檔共用的才進 `tests/include/<domain>fix.h`。
-- 日常的落點查詢與 build 接線用 `tests/where.py`、`tests/genbuild.py`。一次性的大規模切分／搬移用 `tools/test_split/`（`inventory.py` 判定落點、`move.py` 搬移與切分）。
+- 落點查詢與 build 接線用 `tests/where.py`、`tests/genbuild.py`。

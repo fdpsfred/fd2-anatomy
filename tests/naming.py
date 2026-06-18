@@ -1,5 +1,5 @@
 """
-naming.py - shared name derivation for tools/test_split.
+naming.py - shared name derivation for where.py / genbuild.py.
 
 Filenames obey DOS 8.3 (Watcom 9.5a has no LFN). C identifiers (runner names)
 do not. Object stems must be <=8 chars and unique across the whole link.

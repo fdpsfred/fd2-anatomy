@@ -221,7 +221,7 @@ def main():
         testmain_path.write_text(_filtered, encoding="utf-8")
 
     # launch DOSBox-X (non-blocking); build.bat ends with `exit` so DOSBox closes
-    # ONLY when the batch completes. Empirically (tools/hangprobe): a normal run
+    # ONLY when the batch completes. Empirically, a normal run
     # AND a hard DOS/4GW crash (e.g. NULL call -> GP fault) both return to the
     # batch and DOSBox exits within ~2s; only a TRUE hang (infinite loop in the
     # test) leaves DOSBox alive forever. So:
