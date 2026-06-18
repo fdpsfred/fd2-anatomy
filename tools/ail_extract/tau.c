@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
     trace_line("[S0] loaded BGM + SFX bank");
 
     /* BGM start — instant volume (original Step 2 pattern) */
-    if (AIL_init_sequence(hseq, bgm_xmi_buf, 0) == 0) {
+    if (AIL_init_sequence(hseq, (u32)bgm_xmi_buf, 0) == 0) {
         trace_line("[S0_FAIL] init_sequence"); return 7;
     }
     AIL_set_sequence_volume(hseq, 127, 0);
@@ -129,7 +129,7 @@ int main(int argc, char **argv) {
      * S4: fd2_set_bgm_track_with_fade — BGM with 2s fade-in
      * ================================================================ */
     trace_line("[S4] fd2_set_bgm_track_with_fade pattern");
-    AIL_init_sequence(hseq, bgm_xmi_buf, 0);
+    AIL_init_sequence(hseq, (u32)bgm_xmi_buf, 0);
     AIL_start_sequence(hseq);
     AIL_set_sequence_volume(hseq, 0, 0);
     AIL_set_sequence_volume(hseq, 127, 2000);
@@ -235,7 +235,7 @@ int main(int argc, char **argv) {
         sprintf(buf, "[S6] seq_status=%d", val);
         trace_line(buf);
 
-        AIL_init_sequence(hseq, bgm_xmi_buf, 0);
+        AIL_init_sequence(hseq, (u32)bgm_xmi_buf, 0);
         AIL_start_sequence(hseq);
         AIL_set_sequence_volume(hseq, 80, 0);
 
@@ -258,7 +258,7 @@ int main(int argc, char **argv) {
             trace_line(buf);
         }
 
-        AIL_set_sequence_tempo(hseq, 120);
+        AIL_set_sequence_tempo(hseq, 120, 0);
         AIL_delay(30);
         AIL_stop_sequence(hseq);
         AIL_resume_sequence(hseq);

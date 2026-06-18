@@ -1,7 +1,6 @@
 system dos4g
 name test_aud.exe
 option stack=16K
-option heapsize=2M
 option quiet
 option map=test_aud.map
 file test_audio.obj

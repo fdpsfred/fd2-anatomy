@@ -32,6 +32,14 @@ DOSBOX = "dosbox-x"
 
 
 def stage_assets():
+    # Wipe any prior staging first. A failed compile does NOT remove a
+    # previous build's test_aud.exe, and the autoexec's
+    # `if not exist test_aud.exe goto skip_run` would then run that STALE exe
+    # and emit a bogus [FINAL] -- masking the broken build. trace.log is also
+    # opened append-mode by tau.c, so a stale copy would concatenate runs.
+    # Starting from an empty dir makes a COMPILE_FAILED build truly skip the run.
+    if STAGE.exists():
+        shutil.rmtree(STAGE)
     STAGE.mkdir(parents=True, exist_ok=True)
     # Source files
     sources = [
