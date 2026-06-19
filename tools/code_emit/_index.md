@@ -3,9 +3,7 @@
 把 Ghidra 內 decompiled function 產出為 functionally-equivalent C、寫 unit test、
 經 build gate 驗證、由 reviewer 獨立復驗、per-function commit 的整套工具與 workflow。
 
-> **目前階段：Phase 2 手動 merge cascade**（function emit 已用 4-way 並行 branch 完成）。
-> 新 session 先讀 `src/handoff.md` §1 的精確斷點與 §3 merge 方法論;**本檔是 emit/review
-> workflow 的操作參考**（供 Phase 2.6 review 與任何補 emit 使用）。
+> **本檔是 emit/review workflow 的操作參考**（emit / review / 補 emit 皆適用）。
 
 ## 元件
 
@@ -43,7 +41,7 @@
 
 - **Workflow `args` 經 tool-call 會被當 string** → script 已 `JSON.parse` 容錯;傳 work-list 照常傳即可。
 - **emitter/reviewer 必須前景跑 `build_test.py`，嚴禁 `run_in_background`** — subagent 一交出最終訊息就結束、收不到背景通知、不閉環(且會留 dosbox 孤兒)。
-- build gate 結束偵測無固定等待:`DONE.TXT` 出現 / DOSBox process 退出 / heartbeat(`HB.TXT`)停滯三訊號擇一(見上表);不存在 stale-cache / DPMI-OOM 問題(舊文件誤判,見 `src/handoff.md` §6)。**測試的 heartbeat 機制**:`testharn.h` 的 `TEST_BEGIN` 呼叫 `test_heartbeat()`(定義在 `testglob.c`),每個 test 用 fopen/fprintf/**fclose** 重寫 `E:\OUT\HB.TXT`;close 才會讓 DOSBox 把寫入 commit 到 host 檔(光 `fflush` 不會,DOSBox local-drive 會快取重導向 stdout 到 file close),所以 host 端輪詢看得到即時進度、卡住時 `HB.TXT` 凍在 hang 的 test 名。
+- build gate 結束偵測無固定等待:`DONE.TXT` 出現 / DOSBox process 退出 / heartbeat(`HB.TXT`)停滯三訊號擇一(見上表);不存在 stale-cache / DPMI-OOM 問題(舊文件誤判)。**測試的 heartbeat 機制**:`testharn.h` 的 `TEST_BEGIN` 呼叫 `test_heartbeat()`(定義在 `testglob.c`),每個 test 用 fopen/fprintf/**fclose** 重寫 `E:\OUT\HB.TXT`;close 才會讓 DOSBox 把寫入 commit 到 host 檔(光 `fflush` 不會,DOSBox local-drive 會快取重導向 stdout 到 file close),所以 host 端輪詢看得到即時進度、卡住時 `HB.TXT` 凍在 hang 的 test 名。
 - **路徑佈局**:compile cwd=`C:\`(=src),`.obj`→`tests/OUT/obj\`,`TEST.EXE`→`tests/OUT`,run 段 `cd \out` 使 TEST.EXE cwd=`tests/OUT`,**src/ 乾淨**。`build.bat`/`test.lnk` 由 `genbuild.py` 全產生,勿手改。
 - **真實檔案測試 gate**:build_test.py 啟動前把 8 個遊戲檔從 `fd2_game_files/` stage 到 `tests/OUT`(=cwd,缺/size 不符才複製,不掛載)。讀檔 function 的 test 必須讀 staged 真檔、斷言真實解析值;禁捏造假檔(`write_fake_*`)、禁 remove() staged 真檔。reviewer checklist 7b 強制。見 memory `feedback_real_file_tests_mandatory`。
 - 每批 ≤ 12(checkpoint 粒度);全程 Opus。
@@ -53,4 +51,4 @@
 
 本 workflow 只處理 **function**(`routing.json` 650 個)。完整可執行檔還需:
 A. 本 workflow(function emit+review,650)→ B. Phase 8 data emit(~1300 data items,真實 byte → C const;建議沿用同架構 per-item workflow)→ C. wlink 整合(src `.obj` + Watcom CLIB3S + AIL lib → LE)→ D. Layer 1 驗證(DOSBox scripted playtest 對比原版)。
-規格見 `rebuild_info/emission/`(pipeline_spec / calling_convention / pool_routing)、進度與嚴格規則見 `src/handoff.md`。
+規格見 `rebuild_info/emission/`(pipeline_spec / calling_convention / pool_routing)、進度見 `routing.json`(本檔「狀態 source of truth」段)。

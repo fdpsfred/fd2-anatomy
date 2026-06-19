@@ -1107,7 +1107,7 @@ void run_field_chend2_tests(void)
      * fd2_obfuscate_battle_tile_map / camera pan) became real in the merge, but
      * ce_install_safe_env never sets their inputs (camera origin / anim-table /
      * caster pos) -> layered RLE spin -> HANG. Re-enable in the systematic repair
-     * phase once the fixture seeds those (see handoff BLOCKER #0). */
+     * phase once the fixture seeds those. */
     /* RUN_TEST(test_ch23_end_key_held_miti_present); */
     /* RUN_TEST(test_ch23_end_no_key_miti_absent_within_15_turns); */
     /* RUN_TEST(test_ch23_end_key_held_miti_absent_after_15_turns); */

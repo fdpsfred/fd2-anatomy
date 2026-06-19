@@ -20,7 +20,7 @@
  *   6. Wait 3s, stop / release / shutdown
  *
  * AIL handle types currently exposed as `void *` (HSAMPLE / HDIGDRIVER /
- * etc typedefs pending Phase C audit per workspace/ail_extract/handoff.md).
+ * etc typedefs pending Phase C audit).
  *
  * LLLLLL archive layout (FD2-internal container):
  *   [ 0.. 5] 6-byte magic "LLLLLL"

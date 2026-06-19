@@ -16,5 +16,3 @@ Miles AIL audio library (AIL3DIG + AIL3MDI) 在 FD2.LE 內的逆向工程資料�
 ## Pipeline 與工具
 
 pipeline scripts 和完整用法見 `tools/ail_extract/_index.md`。
-
-目前狀態和 open issues 見 `workspace/ail_extract/handoff.md`。

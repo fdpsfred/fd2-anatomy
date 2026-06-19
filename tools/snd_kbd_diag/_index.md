@@ -1,8 +1,7 @@
 # tools/snd_kbd_diag/ — 實機 playtest debug 的診斷工具
 
 把 src-only 連出的 FD2.EXE 放進完整遊戲環境跑、對照原版發現的問題（鍵盤、音效、開場
-scene）的診斷腳本。完整脈絡與待解問題見 `src/handoff.md` 開頭的「實機 playtest debug」段。
-中間檔一律寫 `workspace/snd_kbd_diag/`。BSS/COMDEF layout map（看 symbol 實際擺放）已併入
+scene）的診斷腳本。中間檔一律寫 `workspace/snd_kbd_diag/`。BSS/COMDEF layout map（看 symbol 實際擺放）已併入
 `tools/fd2_build/build_fd2.py --map`（見 `tools/fd2_build/_index.md`）。
 
 | 檔案 | 用途 |
