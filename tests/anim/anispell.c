@@ -47,7 +47,7 @@
  * count), and the emitted C mirrors the disassembly exactly. The Ghidra
  * EAX-tracking artifacts (the CONCAT22 frame-count packing fed only its low 16
  * bits to the loop, and the bool-return of the keyboard poll) were resolved by
- * reading the assembly. See src/emit_issues.json (00020421).
+ * reading the assembly. See tools/code_emit/data/emit_issues.json (00020421).
  *
  * The Phase 9 integration test will drive the real function with the real
  * handler table installed, against the staged real ANI.DAT, asserting the
@@ -145,7 +145,7 @@
  * (char_idx, class_id) argument order from fd2_run_class_promotion_menu_main @
  * 0x31385, the BG.DAT / FIGANI.DAT filename constants at 0x52381 / 0x52388, and
  * the unconditional phase-1 cycler from the JZ-on-ADD-flags disassembly. The
- * emitted C mirrors the disassembly exactly. See src/emit_issues.json (0002a2e8).
+ * emitted C mirrors the disassembly exactly. See tools/code_emit/data/emit_issues.json (0002a2e8).
  *
  * The Phase 9 integration test will stage the real BG.DAT + FIGANI.DAT, install
  * the real fd2_cycle_sprite_anim_with_bg_frames, and drive the real function,
@@ -205,16 +205,16 @@
  *     by the CALL at 0x2af40 -- NOT a stale EAX read of flash_unit (the Ghidra
  *     EAX-tracking bug: fd2_advance_rng_state decompiles as void). It feeds only
  *     the cosmetic shake X-offset sign; the RNG primitive itself is unit-tested
- *     in tests/battle. See src/emit_issues.json (0002a6bd). Reachable only
+ *     in tests/battle. See tools/code_emit/data/emit_issues.json (0002a6bd). Reachable only
  *     behind the same real-cinematic / real-file wall as the rest of this fn, so
  *     it defers with the function.
  *   - The 6 function-local const tables (shake X/Y offsets, HP-lerp hit counts,
  *     player/enemy caster sprite-id tables, intro SFX-bank table) and the latent
- *     spell_id >= table-length over-read documented in src/emit_issues.json.
+ *     spell_id >= table-length over-read documented in tools/code_emit/data/emit_issues.json.
  *   - The 10 indirect dispatch-table calls' reconstructed 5 args (the decompiler
  *     masks them as "()"): handler(caster_idx, team_caster_sprite, work_buffer,
  *     stride, phase_code) with phase_code the per-site immediate 0..8.
- * See src/emit_issues.json (0002a6bd).
+ * See tools/code_emit/data/emit_issues.json (0002a6bd).
  *
  * The Phase 9 integration test will stage the real BG.DAT / TAI.DAT / FIGANI.DAT,
  * install controllable phase handlers in the 0x523B9 table, drive the real

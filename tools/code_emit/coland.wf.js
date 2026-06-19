@@ -43,7 +43,7 @@ const COLAND = [
   '# 這是 Phase-2 COORDINATED LANDING（特殊約束，務必遵守）',
   '- 不要跑 build_test.py。本單元在全部 body 落地 + orchestrator 刪除 testglob spy 之前 build 會故意是紅的；你跑只會浪費時間且看起來像失敗。',
   '- 不要新增或修改任何 unit test。本單元相關測試的重寫由 user 決定延到 Phase 3。',
-  '- 不要碰 tests/testglob.c（spy 由 orchestrator 刪）。不要碰 src/routing.json（記帳由 orchestrator 做）。',
+  '- 不要碰 tests/testglob.c（spy 由 orchestrator 刪）。不要碰 tools/code_emit/data/routing.json（記帳由 orchestrator 做）。',
 ].join('\n')
 
 function emitPrompt(fn) {

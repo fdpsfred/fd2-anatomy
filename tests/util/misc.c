@@ -288,7 +288,7 @@ static void test_check_party_has_char_wide_arg_no_match(void)
  * is the REAL blocking busy-wait released only by async keyboard input
  * (the same deferral testglob.c already documents for every caller that
  * reaches that wait), after running the real heavy chapter-portrait load
- * and dialog-VM render. See src/emit_issues.json @00031dbe.
+ * and dialog-VM render. See tools/code_emit/data/emit_issues.json @00031dbe.
  * ================================================================ */
 
 /* Zero the active-party array and set a sentinel char_id (0xFF, distinct

@@ -674,7 +674,7 @@ static void test_shop_feedback_state_other_noop(void)
  * drags in the tile-map / tile-attr / portrait-cache redraw fixtures of the
  * frame-6/7/8 paint + shadow-overlay paths). That is deferred to Phase 9
  * integration (real chapter-1 party assembly), consistent with the other
- * VGA-output side-effects deferred across this suite; see src/emit_issues.json
+ * VGA-output side-effects deferred across this suite; see tools/code_emit/data/emit_issues.json
  * (00032999). The frame blits land in the mode13h aperture (0xA0504) via the
  * real fd2_blit_rectangle; large_game_state_buffer is backed by a >= 0x25680
  * host buffer so the per-frame memmove(base, backup, 0x25680) stays in-bounds,

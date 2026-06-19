@@ -22,7 +22,7 @@ import argparse
 import json
 from pathlib import Path
 
-ROUTING = Path(__file__).resolve().parents[2] / 'src' / 'routing.json'
+ROUTING = Path(__file__).resolve().parent / 'data' / 'routing.json'
 
 
 def main():

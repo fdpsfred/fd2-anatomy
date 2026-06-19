@@ -171,7 +171,7 @@ Phase 4 收斂 fd2.exe + 實機對照`。
 **Phase 1（真資料落地 src/）— 四路並行 data emit 主體完成（per-symbol commit 版）**。操作指南：`tools/data_emit/_index.md`。
 4 個 worktree（`../fd2-wt/dp1..dp4`，branch `data-p1..p4`，皆從 integ@`786fdc7` 切）各自把分區 data **逐 symbol commit** 落地。
 
-> **接手鐵則：所有狀態一律從 git / 各 worktree 的 `src/data_routing.json` / `scout.py` 即時推導，不要死記下面的數字快照。**
+> **接手鐵則：所有狀態一律從 git / 各 worktree 的 `tools/data_emit/data/data_routing.json` / `scout.py` 即時推導，不要死記下面的數字快照。**
 > 每路即時查剩餘：`python ../fd2-wt/dpN/tools/data_emit/scout.py workspace/data_emit/partitions/part_N.json C:/Users/fdpsf/Documents/fd2-wt/dpN data-pN`
 > （印剩餘 pending；該輸出 JSON 同時就是 mop-up 的 `Workflow` args）。
 
@@ -242,7 +242,7 @@ Phase 4 收斂 fd2.exe + 實機對照`。
 - **p4：71/93 完成，deferred 22 個 coordinated-landing function**（19 `gfx/blitspr.c` + 2
   `util/pathfnd.c` + 1 `crt/crt.c`；crt 已於 Phase 2.5 Unit C 落地，剩 21）—— **deferred 到 Phase 2.5**：其 test spy 住在共享
   `tests/testglob.c` 且被跨 branch + base 套件依賴，無法單分支落地。完整依據在 p4 worktree 的
-  `open_issues.md` #32 / #33 / #34 與 `src/emit_issues.json` `0002935b`。
+  `open_issues.md` #32 / #33 / #34 與 `tools/code_emit/data/emit_issues.json` `0002935b`。
 
 **Phase 2 手動 merge cascade — merge 1/2/3 全部完成（cascade 收尾）。下一步＝Phase 2.5（§4）**
 - 順序：`integ`(=p1) ← `emit-p2` ← `emit-p3` ← `emit-p4`，在主 repo 工作目錄序列做。
@@ -404,7 +404,7 @@ DOSBox playtest 對比；規格見 `rebuild_info/emission/`。
   `E1129 / E1034 / E1068` → **dedup**：保留型別／真實值正確的一份（如型別衝突保留與 `globals.h`
   一致者、有真實值版優於 zero-fill 版）；**若兩 branch 的 stub 記錄不同全域且各被自己測試依賴 →
   合併兩種記錄行為到同一份**。`globals.h` 自己也會有重複 extern，一併 dedup（用全檔掃描找）。
-- **`src/routing.json`**：各 branch 翻 disjoint entry，git 多自動合；手解 conflict hunk 取聯集
+- **`tools/code_emit/data/routing.json`**：各 branch 翻 disjoint entry，git 多自動合；手解 conflict hunk 取聯集
   （任一 true 即 true）；驗 `reviewed` 數。
 - **`src/include/protos.h` / `globals.h`**：取 extern 聯集。**「型別相同／僅參數名異」的合法 C 重複 prototype
   是 build-safe**（留到四方全 merge 後一次性 dedup）；**但「參數型別不同」的重複 prototype 會 `E1071`、必須當下
@@ -415,7 +415,7 @@ DOSBox playtest 對比；規格見 `rebuild_info/emission/`。
   stride/count/flag/純轉手位址用 → uint32），proto/def/caller 三方統一成真型別，只有真指標的跨 branch caller
   才在呼叫點加 cast。完整實例見 §1 merge 2 完成摘要與 commit `98ea47b`。**globals.h dedup defrx 要涵蓋 fn-ptr-array
   定義**（`int (*name[N])(...)`）——一般 `type name=` 正則會漏（merge 2 漏過一次 → E1068）。
-- **`src/emit_issues.json`**：key 聯集（8-hex）。
+- **`tools/code_emit/data/emit_issues.json`**：key 聯集（8-hex）。
 - **`open_issues.md`**：彙整各 branch（目前只 p4 改過 → merge p4 時帶入）。
 
 **級聯遷移＝系統性修復階段的工作（非 merge 期間）**：移除 `done=true` stub 後，其他 branch 用該 stub
@@ -463,7 +463,7 @@ per-function commit 設 `reviewed=true`。
 
 ## 5. emit-review workflow（供 Phase 2.6 review + 任何補 emit）
 
-進度單一事實來源 = `src/routing.json` 的 `reviewed`（+`done`）。scout：`python
+進度單一事實來源 = `tools/code_emit/data/routing.json` 的 `reviewed`（+`done`）。scout：`python
 tools/code_emit/next_batch.py --mode review|emit [--partition <branch_N.json>] --limit 12`（輸出即
 Workflow 的 `args.functions`）。`Workflow(scriptPath:"tools/code_emit/emit_review.wf.js", args:<JSON>)`：
 序列一次一個 function；`emit` 模式先 emitter；reviewer 獨立三源復驗 → 迭代（≤10 round）→ approved
@@ -471,7 +471,7 @@ Workflow 的 `args.functions`）。`Workflow(scriptPath:"tools/code_emit/emit_re
 （token/usage limit）零成本續：`reviewed` 欄 + per-function commit = 斷點。禁忌與細節見
 `tools/code_emit/_index.md`。
 
-`src/emit_issues.json` 累積「需實際編譯才能確認的等價性疑慮」（FPU rounding / word width /
+`tools/code_emit/data/emit_issues.json` 累積「需實際編譯才能確認的等價性疑慮」（FPU rounding / word width /
 table-copy / fragment 等價轉移到 parent…），留待全 function 完成後（Phase 8）統一用 Watcom 9.5a
 編譯 + disasm 比對解決，不在 review 階段處理。key 用 8-hex（如 `00010b43`）、utf-8。
 

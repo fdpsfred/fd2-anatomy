@@ -11,7 +11,7 @@ import shared lib、不依賴 `legacy/`。CLI 用法看 `python <script> --help`
 | `glyph/` | 中文字 glyph atlas 渲染 + ET3 STDFONT pixel-match，產 glyph id ↔ Big5 對照 |
 | `program_analysis/` | FD2.LE 結構性分析：CRT / 函式 / 資料 / jump-table audit pipeline、call graph builder、真遊戲檔 ground-truth dump |
 | `ail_extract/` | 從 FD2.LE 抽 Miles AIL 重建為 `ailv3.lib` + `ailv3.h` + `fd2common.lib`，DOSBox-X 內 build / run 驗證 |
-| `emit/` | FD2 function emit + review pipeline：`emit_review.wf.js` 編排、`build_test.py` build gate、routing scout |
+| `code_emit/` | FD2 function emit + review pipeline：`emit_review.wf.js` 編排、`build_test.py` build gate、routing scout |
 | `data_emit/` | 真實 global data 從 FD2.LE 落地 `src/` 的 emit pipeline + `verify_real.py` byte-equality gate |
 | `fd2_build/` | src-only FD2.EXE 正式建置（`build_fd2` 自編 src + link，零 `tests/` 依賴；`analyze_undefined` 把 undefined 分類成「`src/` 還缺什麼」worklist）|
 | `snd_kbd_diag/` | 實機 playtest 診斷（wlink map / lib dump / SFX 重現 / runtime audio 狀態）|

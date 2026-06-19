@@ -211,7 +211,7 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
     `sprite_data = sheet_ptr + *(int*)(sheet_ptr+8+sprite_idx*4)`、width/height = sprite_data
     起 uint16 zero-extend、再 `fd2_rle_blit_sprite(sprite_data+9, w, h, dst_buf, dst_stride,
     palette_op)`。三源已逐一驗證、body emit-ready，逐 function 的完整 disasm/分類證據保存在
-    `src/emit_issues.json` 的 `0002935b` 條目（blocker commit 9c8b8a3）。
+    `tools/code_emit/data/emit_issues.json` 的 `0002935b` 條目（blocker commit 9c8b8a3）。
 - **為什麼還沒解**：emit 任一真 body 會與 testglob.c 的同名 spy 形成 Watcom W1027
   redefinition，而 0-warning gate 要求刪掉 spy；但 spy 一刪，依賴它的套件全垮。其中
   `rndstat.c` 屬 branch_2、`anisumm1/2` 是已 commit 的舊套件、`testglob.c` 本身是所有分支

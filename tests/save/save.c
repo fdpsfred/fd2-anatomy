@@ -402,7 +402,7 @@ static void test_crypt_size_one(void)
  * save-path tests pick a chapter whose category is non-zero to skip
  * it. The cancel path and the slot-write arithmetic / field widths /
  * checksum round-trip are covered here; the confirmation-dialog arm is
- * deferred to Phase 9 integration (see src/emit_issues.json).
+ * deferred to Phase 9 integration (see tools/code_emit/data/emit_issues.json).
  *
  * Expected slot bytes are read back from the same real FD2.SAV after
  * the write and decrypted with the linked real cipher — no fabricated

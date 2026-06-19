@@ -259,7 +259,7 @@ void fd2_animate_bg_zoom_transition_out(uint32 char_unit_id,
  * never taken and the cycler advances every frame, exactly like the unconditional
  * cycler in fd2_cycle_sprite_anim_with_bg_frames. The dead `MOV EAX,0x46C; MOVSX`
  * BIOS-tick read that precedes the JZ has no effect (result discarded); it is not
- * reproduced. See src/emit_issues.json (0002a2e8).
+ * reproduced. See tools/code_emit/data/emit_issues.json (0002a2e8).
  *
  * caster_char_idx indexes data_fd2_battle_runtime_char_array_ptr (stride 0x50);
  * .portrait_id is at +0x07. cdecl, void return.

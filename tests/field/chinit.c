@@ -33,7 +33,7 @@
  * display pipeline runs. Equivalence of the translation was instead verified
  * statically, line-by-line, against the disassembly @0x3231B (call sequence,
  * constants, the two loop bounds, and the four phase current_chapter_id
- * transitions 0x20 -> 0x1F -> 0). See src/emit_issues.json (0003231b).
+ * transitions 0x20 -> 0x1F -> 0). See tools/code_emit/data/emit_issues.json (0003231b).
  *
  * This suite is intentionally empty pending the Phase 9 integration harness
  * (scripted input + staged chapter-1 cutscene scripts), mirroring the
@@ -56,7 +56,7 @@
  * page-3 dialog call and the final fd2_pan_cursor_to_char(0) are physically a
  * tail-JMP into the shared epilogues of fd2_chapter_07_init (@0x33206) and
  * fd2_chapter_05_init (@0x33140); the emit reconstructs the equivalent
- * straight-line form. See src/emit_issues.json (00032d18).
+ * straight-line form. See tools/code_emit/data/emit_issues.json (00032d18).
  *
  * fd2_chapter_03_init @0x32E8C is the same shape as chapter 02: a flat
  * orchestrator playing four dialog pages chained with three cutscenes
@@ -73,7 +73,7 @@
  * page 3). Note the page-3 dialog call plus the trailing
  * fd2_clear_all_chars_facing() and fd2_pan_cursor_to_char(0) are physically a
  * tail-JMP into the shared epilogue at 0x3312D; the emit reconstructs the
- * equivalent straight-line form. See src/emit_issues.json (00032e8c).
+ * equivalent straight-line form. See tools/code_emit/data/emit_issues.json (00032e8c).
  *
  * fd2_chapter_04_init @0x32FB2 is the same shape as chapter 03 (and simpler:
  * two dialog pages bracketing a single cutscene 0x14, portrait set 1 loaded
@@ -90,7 +90,7 @@
  * the trailing fd2_clear_all_chars_facing() and fd2_pan_cursor_to_char(0) are
  * physically a tail-JMP into the same shared epilogue at 0x3312D used by
  * chapter 03; the emit reconstructs the equivalent straight-line form. See
- * src/emit_issues.json (00032fb2).
+ * tools/code_emit/data/emit_issues.json (00032fb2).
  *
  * fd2_chapter_05_init @0x33049 is the same shape as chapter 03: a flat
  * orchestrator playing three dialog pages chained with two cutscenes
@@ -107,7 +107,7 @@
  * after pages 0/1 but not page 2). Note this function is itself the OWNER of
  * four shared alt-entry points (0x3310C/0x3312D/0x3313B/0x33140) that
  * chapters 11/18, 03/04/26, 30, and 07 tail-JMP into; the straight-line body
- * here is the canonical full code path. See src/emit_issues.json (00033049).
+ * here is the canonical full code path. See tools/code_emit/data/emit_issues.json (00033049).
  *
  * fd2_chapter_06_init @0x3314B is the MINIMAL chapter init and the same
  * shape as the others, but reduced to the bare skeleton: re-init battle
@@ -128,7 +128,7 @@
  * fd2_chapter_12_init), 0x33206 (the dialog call, owned by
  * fd2_chapter_07_init), and 0x33140 (the pan + RET, owned by
  * fd2_chapter_05_init); the emit reconstructs the equivalent straight-line
- * form. See src/emit_issues.json (0003314b).
+ * form. See tools/code_emit/data/emit_issues.json (0003314b).
  *
  * fd2_chapter_07_init @0x33169 is the same shape as chapter 04: a flat
  * orchestrator playing two dialog pages (pages 0/1), portrait set 1 loaded
@@ -148,7 +148,7 @@
  * entered directly without a clear-facing); the emit reconstructs the
  * equivalent straight-line form. This function is itself the OWNER of two
  * shared alt-entry points (0x331EA, entered by chapter_24_init; 0x33206,
- * entered by chapter_02_init / chapter_12_init). See src/emit_issues.json
+ * entered by chapter_02_init / chapter_12_init). See tools/code_emit/data/emit_issues.json
  * (00033169).
  *
  * fd2_chapter_08_init @0x33219 is the SIMPLEST chapter init: a flat
@@ -169,7 +169,7 @@
  * in turn JMPs (0x33044 -> 0x3312D) into the shared epilogue owned by
  * fd2_chapter_05_init; the emit reconstructs the equivalent straight-line form
  * (page-1 dialog + clear_facing + pan_cursor_to_char(0)). See
- * src/emit_issues.json (00033219).
+ * tools/code_emit/data/emit_issues.json (00033219).
  *
  * fd2_chapter_09_init @0x3327D is the same shape as chapter 04: a flat
  * orchestrator playing two dialog pages (pages 0/1) bracketing one cutscene
@@ -194,7 +194,7 @@
  * i*0x50+3 element address and value 2, the call sequence and constants, and
  * the single battle_anim_phase reset after page 0 only — page 1 has no reset).
  * Note this handler is fully self-contained (no tail-JMP into another
- * chapter's epilogue and no alt-entry of its own). See src/emit_issues.json
+ * chapter's epilogue and no alt-entry of its own). See tools/code_emit/data/emit_issues.json
  * (0003327d).
  *
  * fd2_chapter_10_init @0x3332B is a flat orchestrator of the same family as
@@ -227,7 +227,7 @@
  * owned by fd2_chapter_12_init) -> 0x33206 (the dialog call, in
  * fd2_chapter_07_init) -> 0x33140 (the pan + RET, owned by fd2_chapter_05_init,
  * entered directly without a clear-facing); the emit reconstructs the equivalent
- * straight-line form. See src/emit_issues.json (0003332b).
+ * straight-line form. See tools/code_emit/data/emit_issues.json (0003332b).
  *
  * fd2_chapter_11_init @0x33367 is the same shape as chapters 02..08: a flat
  * orchestrator playing three dialog pages (pages 0/1/2), portrait set 1 loaded
@@ -246,7 +246,7 @@
  * tail-JMP (0x333f0 -> 0x3310c) into the shared epilogue owned by
  * fd2_chapter_05_init (which fd2_chapter_11_init enters at the cutscene-0x27
  * trigger CALL); the emit reconstructs the equivalent straight-line form. See
- * src/emit_issues.json (00033367).
+ * tools/code_emit/data/emit_issues.json (00033367).
  *
  * fd2_chapter_12_init @0x333F5 is a flat orchestrator of the same family as
  * chapters 02..11 but is CUTSCENE-FIRST (it leads with the portrait load + two
@@ -271,7 +271,7 @@
  * two shared alt-entry points: 0x33440 (cutscene-0x29 CALL onward), entered by
  * chapter_22_init; and 0x3344D (page-0 dialog-arg push onward), the shared
  * page-0 dialog tail entered by chapters 06/10/13/14/17. See
- * src/emit_issues.json (000333f5).
+ * tools/code_emit/data/emit_issues.json (000333f5).
  *
  * fd2_chapter_13_init @0x3346B is the SMALLEST chapter init in the game (17
  * bytes) — even more reduced than the minimal chapter 06: it only re-inits
@@ -296,7 +296,7 @@
  * reconstructs the equivalent straight-line form. The handler's own entry
  * (0x33470, the fd2_init_battle_state_for_chapter CALL onward) is itself a
  * shared alt-entry tail-JMPed into by fd2_chapter_16_init and
- * fd2_chapter_19_20_21_init_shared. See src/emit_issues.json (0003346b).
+ * fd2_chapter_19_20_21_init_shared. See tools/code_emit/data/emit_issues.json (0003346b).
  *
  * fd2_chapter_14_init @0x3347C is a minimal chapter init of the same family
  * as chapter 06 / 13: it re-inits battle state, pans the camera-and-window
@@ -320,7 +320,7 @@
  * (page-0 dialog-arg push, owned by fd2_chapter_12_init) -> 0x33206 (the
  * dialog call, in fd2_chapter_07_init) -> 0x33140 (the pan + RET, owned by
  * fd2_chapter_05_init, entered directly without a clear-facing); the emit
- * reconstructs the equivalent straight-line form. See src/emit_issues.json
+ * reconstructs the equivalent straight-line form. See tools/code_emit/data/emit_issues.json
  * (0003347c).
  *
  * fd2_chapter_15_init @0x334D9 is the FIRST chapter init in this file with a
@@ -361,7 +361,7 @@
  * the three page_base+{0,1,2} dialog page indices, the (0x18,0x11) pan, the 0x30
  * cutscene, the single battle_anim_phase reset after page_base+1 only, and the
  * self-contained 0x33594 pan_cursor_to_char(0)+RET tail shared into by chapters
- * 23/28). See src/emit_issues.json (000334d9).
+ * 23/28). See tools/code_emit/data/emit_issues.json (000334d9).
  *
  * fd2_chapter_16_init @0x335A0 is, in the binary, a PURE THUNK (just PUSH 0x28;
  * JMP 0x33470) that tail-jumps into the shared body owned by fd2_chapter_13_init
@@ -385,7 +385,7 @@
  * call in fd2_chapter_07_init -> 0x33140 the pan + RET owned by fd2_chapter_05_init,
  * entered directly without a clear-facing). The straight-line form is identical to
  * the fd2_chapter_13_init body. The leading __CHK(0x28) is the Watcom frame-size
- * stack-probe and is not part of the source body. See src/emit_issues.json
+ * stack-probe and is not part of the source body. See tools/code_emit/data/emit_issues.json
  * (000335a0).
  *
  * fd2_chapter_17_init @0x335AA is a near-minimal chapter init of the same family
@@ -429,7 +429,7 @@
  * (page-0 dialog-arg push, owned by fd2_chapter_12_init) -> 0x33206 (the dialog
  * call, in fd2_chapter_07_init) -> 0x33140 (the pan + RET, owned by
  * fd2_chapter_05_init, entered directly without a clear-facing); the emit
- * reconstructs the equivalent straight-line form. See src/emit_issues.json
+ * reconstructs the equivalent straight-line form. See tools/code_emit/data/emit_issues.json
  * (000335aa).
  *
  * fd2_chapter_18_init @0x335DA is the same shape as chapters 02..08/11: a
@@ -450,7 +450,7 @@
  * physically a tail-JMP (0x3366f -> 0x3310c) into the shared epilogue owned by
  * fd2_chapter_05_init (the same 0x3310C alt-entry fd2_chapter_11_init enters,
  * at the cutscene-trigger CALL); the emit reconstructs the equivalent
- * straight-line form. See src/emit_issues.json (000335da).
+ * straight-line form. See tools/code_emit/data/emit_issues.json (000335da).
  *
  * fd2_chapter_19_20_21_init_shared @0x33674 is the game's ONLY three-chapter
  * shared init (chapters 19/20/21) and, in the binary, a 10-byte PURE THUNK
@@ -479,7 +479,7 @@
  * straight-line form is identical to the fd2_chapter_13_init body. Unlike the
  * other chapter inits (one dispatch-table slot each), this single function is
  * dispatched from THREE consecutive table slots (xrefs @0x51DB9 / 0x51DBD /
- * 0x51DC1 = chapters 19/20/21). See src/emit_issues.json (00033674).
+ * 0x51DC1 = chapters 19/20/21). See tools/code_emit/data/emit_issues.json (00033674).
  *
  * fd2_chapter_22_init @0x3367E is a minimal flat orchestrator of the same
  * family as chapter 06/14: re-init battle state, one camera-pan-and-window
@@ -505,7 +505,7 @@
  * push, owned by fd2_chapter_12_init) -> 0x33206 (the dialog call, in
  * fd2_chapter_07_init) -> 0x33140 (the pan + RET, owned by
  * fd2_chapter_05_init, entered directly without a clear-facing); the emit
- * reconstructs the equivalent straight-line form. See src/emit_issues.json
+ * reconstructs the equivalent straight-line form. See tools/code_emit/data/emit_issues.json
  * (0003367e).
  *
  * fd2_chapter_23_init @0x336A0 is the LARGEST chapter init in the game (548
@@ -559,7 +559,7 @@
  * battle_anim_phase reset after page 3 only). Note the final
  * fd2_pan_cursor_to_char(0) is physically a tail-JMP (0x336BF -> 0x33594) into
  * the shared epilogue owned by fd2_chapter_15_init; the emit reconstructs the
- * equivalent straight-line form. See src/emit_issues.json (000336a0).
+ * equivalent straight-line form. See tools/code_emit/data/emit_issues.json (000336a0).
  *
  * fd2_chapter_24_init @0x338C4 is back to a pure straight-line orchestrator of
  * the same family as chapters 02..14/18/22: re-init battle state, play a dialog
@@ -582,7 +582,7 @@
  * fd2_chapter_07_init (its page-1 dialog-arg push), which in turn JMPs (0x33214
  * -> 0x33140) into the shared epilogue owned by fd2_chapter_05_init (entered
  * directly without a clear-facing); the emit reconstructs the equivalent
- * straight-line form. See src/emit_issues.json (000338c4).
+ * straight-line form. See tools/code_emit/data/emit_issues.json (000338c4).
  *
  * fd2_chapter_25_init @0x3396A is the ONLY chapter init that stages an
  * earthquake set-piece, but structurally it remains a flat orchestrator of
@@ -630,7 +630,7 @@
  * first three only, and the final fd2_pan_cursor_to_char(0)). Note the final
  * fd2_play_and_free_status_effect_sfx() is physically a tail-JMP (0x33AA9 ->
  * 0x1D4F6) to that self-contained handler; the emit reconstructs the
- * equivalent straight-line call form. See src/emit_issues.json (0003396a).
+ * equivalent straight-line call form. See tools/code_emit/data/emit_issues.json (0003396a).
  *
  * fd2_chapter_26_init @0x33AAE is back to a minimal flat orchestrator of the
  * same family as chapter 22: re-init battle state, one camera-pan-and-window
@@ -653,7 +653,7 @@
  * the shared epilogue owned by fd2_chapter_05_init (PUSH data_fd2_current_chapter_text;
  * CALL fd2_display_dialog_scene; clear-facing; pan_cursor_to_char(0); RET — the
  * same 0x3312D alt-entry chapters 03/04 reach); the emit reconstructs the
- * equivalent straight-line form. See src/emit_issues.json (00033aae).
+ * equivalent straight-line form. See tools/code_emit/data/emit_issues.json (00033aae).
  *
  * fd2_chapter_27_init @0x33AF1 is the GOOD/BAD ENDING fork chapter — a
  * cinematic prologue built around three screen-wide spell visual effects:
@@ -709,7 +709,7 @@
  * fd2_pan_cursor_to_char(0) are physically a tail-JMP (0x33C98 -> 0x3312D)
  * into the shared epilogue owned by fd2_chapter_05_init (the same 0x3312D
  * alt-entry chapters 03/04/26 reach); the emit reconstructs the equivalent
- * straight-line form. See src/emit_issues.json (00033af1).
+ * straight-line form. See tools/code_emit/data/emit_issues.json (00033af1).
  *
  * fd2_chapter_28_init @0x33C9D is the direct twin of fd2_chapter_23_init — a
  * cinematic "reassemble the party" prologue built around a screen-wide spell.
@@ -768,7 +768,7 @@
  * (0x33DB5 -> 0x33594) into the shared epilogue owned by fd2_chapter_15_init
  * (PUSH 0; CALL fd2_pan_cursor_to_char; POP EBX; RET — the same 0x33594
  * alt-entry chapter 23 reaches); the emit reconstructs the equivalent
- * straight-line form. See src/emit_issues.json (00033c9d).
+ * straight-line form. See tools/code_emit/data/emit_issues.json (00033c9d).
  *
  * fd2_chapter_29_init @0x33DBA is back to a pure straight-line orchestrator of
  * the same family as chapters 02..08/18/26: a flat handler that plays two
@@ -800,7 +800,7 @@
  * fd2_clear_all_chars_facing() and fd2_pan_cursor_to_char(0) are physically a
  * tail-JMP (0x33E37 -> 0x3312D) into the shared epilogue owned by
  * fd2_chapter_05_init (the same 0x3312D alt-entry chapters 03/04/26 reach); the
- * emit reconstructs the equivalent straight-line form. See src/emit_issues.json
+ * emit reconstructs the equivalent straight-line form. See tools/code_emit/data/emit_issues.json
  * (00033dba).
  *
  * fd2_chapter_30_init @0x33E3C is the FINAL chapter init — a cinematic
@@ -847,7 +847,7 @@
  * fd2_chapter_05_init (entered at its clear-facing point); the emit
  * reconstructs the equivalent straight-line form. This is the GOOD-ENDING
  * chapter (end handler fd2_chapter_30_end @0x25757 + staff roll). See
- * src/emit_issues.json (00033e3c).
+ * tools/code_emit/data/emit_issues.json (00033e3c).
  */
 
 #include <stdio.h>
@@ -861,77 +861,77 @@ void run_field_chinit_tests(void)
 {
     printf("Suite: field/chinit\n");
     printf("  (fd2_chapter_01_init: behavioral test deferred to Phase 9 "
-           "integration; see src/emit_issues.json 0003231b)\n");
+           "integration; see tools/code_emit/data/emit_issues.json 0003231b)\n");
     printf("  (fd2_chapter_02_init: behavioral test deferred to Phase 9 "
-           "integration; see src/emit_issues.json 00032d18)\n");
+           "integration; see tools/code_emit/data/emit_issues.json 00032d18)\n");
     printf("  (fd2_chapter_03_init: behavioral test deferred to Phase 9 "
-           "integration; see src/emit_issues.json 00032e8c)\n");
+           "integration; see tools/code_emit/data/emit_issues.json 00032e8c)\n");
     printf("  (fd2_chapter_04_init: behavioral test deferred to Phase 9 "
-           "integration; see src/emit_issues.json 00032fb2)\n");
+           "integration; see tools/code_emit/data/emit_issues.json 00032fb2)\n");
     printf("  (fd2_chapter_05_init: behavioral test deferred to Phase 9 "
-           "integration; see src/emit_issues.json 00033049)\n");
+           "integration; see tools/code_emit/data/emit_issues.json 00033049)\n");
     printf("  (fd2_chapter_06_init: behavioral test deferred to Phase 9 "
-           "integration; see src/emit_issues.json 0003314b)\n");
+           "integration; see tools/code_emit/data/emit_issues.json 0003314b)\n");
     printf("  (fd2_chapter_07_init: behavioral test deferred to Phase 9 "
-           "integration; see src/emit_issues.json 00033169)\n");
+           "integration; see tools/code_emit/data/emit_issues.json 00033169)\n");
     printf("  (fd2_chapter_08_init: behavioral test deferred to Phase 9 "
-           "integration; see src/emit_issues.json 00033219)\n");
+           "integration; see tools/code_emit/data/emit_issues.json 00033219)\n");
     printf("  (fd2_chapter_09_init: behavioral test deferred to Phase 9 "
-           "integration; see src/emit_issues.json 0003327d)\n");
+           "integration; see tools/code_emit/data/emit_issues.json 0003327d)\n");
     printf("  (fd2_chapter_10_init: behavioral test deferred to Phase 9 "
-           "integration; see src/emit_issues.json 0003332b)\n");
+           "integration; see tools/code_emit/data/emit_issues.json 0003332b)\n");
     printf("  (fd2_chapter_11_init: behavioral test deferred to Phase 9 "
-           "integration; see src/emit_issues.json 00033367)\n");
+           "integration; see tools/code_emit/data/emit_issues.json 00033367)\n");
     printf("  (fd2_chapter_12_init: behavioral test deferred to Phase 9 "
-           "integration; see src/emit_issues.json 000333f5)\n");
+           "integration; see tools/code_emit/data/emit_issues.json 000333f5)\n");
     printf("  (fd2_chapter_13_init: behavioral test deferred to Phase 9 "
-           "integration; see src/emit_issues.json 0003346b)\n");
+           "integration; see tools/code_emit/data/emit_issues.json 0003346b)\n");
     printf("  (fd2_chapter_14_init: behavioral test deferred to Phase 9 "
-           "integration; see src/emit_issues.json 0003347c)\n");
+           "integration; see tools/code_emit/data/emit_issues.json 0003347c)\n");
     printf("  (fd2_chapter_15_init: data-dependent page_base swap; behavioral "
-           "test deferred to Phase 9 integration; see src/emit_issues.json "
+           "test deferred to Phase 9 integration; see tools/code_emit/data/emit_issues.json "
            "000334d9)\n");
     printf("  (fd2_chapter_16_init: pure thunk into chapter_13 shared body; "
            "behavioral test deferred to Phase 9 integration; see "
-           "src/emit_issues.json 000335a0)\n");
+           "tools/code_emit/data/emit_issues.json 000335a0)\n");
     printf("  (fd2_chapter_17_init: data-dependent gated portrait load; "
            "behavioral test deferred to Phase 9 integration; see "
-           "src/emit_issues.json 000335aa)\n");
+           "tools/code_emit/data/emit_issues.json 000335aa)\n");
     printf("  (fd2_chapter_18_init: behavioral test deferred to Phase 9 "
-           "integration; see src/emit_issues.json 000335da)\n");
+           "integration; see tools/code_emit/data/emit_issues.json 000335da)\n");
     printf("  (fd2_chapter_19_20_21_init_shared: pure thunk into chapter_13 "
            "shared body (3-chapter shared init); behavioral test deferred to "
-           "Phase 9 integration; see src/emit_issues.json 00033674)\n");
+           "Phase 9 integration; see tools/code_emit/data/emit_issues.json 00033674)\n");
     printf("  (fd2_chapter_22_init: behavioral test deferred to Phase 9 "
-           "integration; see src/emit_issues.json 0003367e)\n");
+           "integration; see tools/code_emit/data/emit_issues.json 0003367e)\n");
     printf("  (fd2_chapter_23_init: largest init (548B); mark-dead loop + "
            "screen-wide spell + HP-survivor revive filter (no CALL-result "
            "consumption); behavioral test deferred to Phase 9 integration; "
-           "see src/emit_issues.json 000336a0)\n");
+           "see tools/code_emit/data/emit_issues.json 000336a0)\n");
     printf("  (fd2_chapter_24_init: 4-corner camera scan orchestrator; "
            "behavioral test deferred to Phase 9 integration; see "
-           "src/emit_issues.json 000338c4)\n");
+           "tools/code_emit/data/emit_issues.json 000338c4)\n");
     printf("  (fd2_chapter_25_init: earthquake set-piece (SFX load + 4x "
            "screen shake); behavioral test deferred to Phase 9 integration; "
-           "see src/emit_issues.json 0003396a)\n");
+           "see tools/code_emit/data/emit_issues.json 0003396a)\n");
     printf("  (fd2_chapter_26_init: minimal orchestrator (pan + cutscene 0x4C "
            "+ single dialog page); behavioral test deferred to Phase 9 "
-           "integration; see src/emit_issues.json 00033aae)\n");
+           "integration; see tools/code_emit/data/emit_issues.json 00033aae)\n");
     printf("  (fd2_chapter_27_init: GOOD/BAD ending fork; data-dependent "
            "Sky-Key bonus page + 3x screen-wide spell; behavioral test "
-           "deferred to Phase 9 integration; see src/emit_issues.json "
+           "deferred to Phase 9 integration; see tools/code_emit/data/emit_issues.json "
            "00033af1)\n");
     printf("  (fd2_chapter_28_init: twin of chapter_23; mark-dead loop + "
            "screen-wide spell + HP-survivor revive filter (no CALL-result "
            "consumption); behavioral test deferred to Phase 9 integration; "
-           "see src/emit_issues.json 00033c9d)\n");
+           "see tools/code_emit/data/emit_issues.json 00033c9d)\n");
     printf("  (fd2_chapter_29_init: flat orchestrator (pan + cutscene 0x56 + "
            "pages 7/8 bracketing portrait dump); tile-event win/lose; "
            "behavioral test deferred to Phase 9 integration; see "
-           "src/emit_issues.json 00033dba)\n");
+           "tools/code_emit/data/emit_issues.json 00033dba)\n");
     printf("  (fd2_chapter_30_init: FINAL chapter; 魔神 warp-in cinematic "
            "(7x cinematic_warp + white palette flash); GOOD ENDING; behavioral "
-           "test deferred to Phase 9 integration; see src/emit_issues.json "
+           "test deferred to Phase 9 integration; see tools/code_emit/data/emit_issues.json "
            "00033e3c)\n");
     printf("\n");
 }

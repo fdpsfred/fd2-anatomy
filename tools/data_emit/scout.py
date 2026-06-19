@@ -15,7 +15,7 @@ Usage:
 import io, os, sys, json
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-ROUTING = os.path.join(ROOT, "src", "data_routing.json")
+ROUTING = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "data_routing.json")
 FIELDS = ("name", "addr", "segment", "len", "datatype", "kind",
           "emit_class", "needs_bytes", "writers", "note")
 

@@ -28,6 +28,8 @@ python tools/data_emit/verify_real.py
 
 中間檔（`ghidra_data_symbols.tsv` / `worklist.tsv`）寫到 `workspace/data_emit/`（scratch）。
 
+持久狀態檔 `data/data_routing.json`（per-symbol routing + `emitted`/`reviewed` 旗標；非 script 可重生的 primary input，依 tools 慣例放 `tools/data_emit/data/`）由 `scout.py` 讀、`data_emit.wf.js` 的 lander 維護。
+
 ## 已知分類陷阱（reconcile 後逐項處理時注意）
 
 - `kind=ptr_table` 混三種：真 function-pointer 表（handler tables，emit 成函式名初始化列）、

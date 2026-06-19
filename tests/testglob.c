@@ -1181,7 +1181,7 @@ void AIL_set_sequence_loop_count(uint32 s, uint32 c) { (void)s; (void)c; }
 /* AIL sound-system lifecycle stubs. Referenced only by main (whose own
  * behavioral test is deferred to Phase 9 integration -- it issues INT 10h via
  * the real linked int386, which has no deterministic seam in the DOS/4GW
- * harness; see src/emit_issues.json @00025bf4). These exist purely to satisfy
+ * harness; see tools/code_emit/data/emit_issues.json @00025bf4). These exist purely to satisfy
  * the link; returning NULL handles keeps main's "driver installed?" arms
  * un-taken if it were ever driven. */
 void  AIL_startup(void) {}
@@ -1818,7 +1818,7 @@ void fd2_animate_shop_transaction_feedback(void) { g_shop_txn_feedback_calls++; 
  * the not-yet-emitted display callees they reference. */
 /* fd2_render_status_screen_static_layout: now emitted for real in
  * src/gfx/rndstat.c; deferred to Phase 9 integration for its dedicated test
- * (see src/emit_issues.json @00017eef). */
+ * (see tools/code_emit/data/emit_issues.json @00017eef). */
 /* fd2_render_inventory_item_grid: now emitted for real in src/gfx/rndstat.c
  * (with host unit tests in tests/gfx/rndstat.c); stub removed. */
 /* fd2_paint_status_panel_layer_left / _right: both now emitted for real in

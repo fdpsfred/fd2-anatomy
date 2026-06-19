@@ -4,15 +4,15 @@
 
 ## Source of Truth
 
-**`src/routing.json`** 是 function → target file 的唯一 source of truth（650 entries，key = address），
+**`tools/code_emit/data/routing.json`** 是 function → target file 的唯一 source of truth（650 entries，key = address），
 由 emit/review workflow 直接維護（`done` / `reviewed` 欄）。
 
-查詢方式：`python -c "import json; d=json.load(open('src/routing.json')); print(d['<address>'])"`
+查詢方式：`python -c "import json; d=json.load(open('tools/code_emit/data/routing.json')); print(d['<address>'])"`
 
 ## Routing 修正規則
 
 **emit 過程中發現某 function 的 routing 不正確時，必須立即：**
-1. 修正 `src/routing.json` 中該 address 的 `target` 欄位
+1. 修正 `tools/code_emit/data/routing.json` 中該 address 的 `target` 欄位
 2. 重新執行 `python tools/code_emit/next_batch.py --stats` 確認計數
 3. 若已將 code 寫入錯誤的 .c 檔，立刻搬移到正確的檔案
 4. 更新本文件 §一 的 fn 計數和 Decision Notes（如有新決策）
@@ -149,11 +149,11 @@
 
 ## 二、Per-function Routing（650 entries）
 
-完整 function → target 對照見 **`src/routing.json`**（JSON key = address hex）。
+完整 function → target 對照見 **`tools/code_emit/data/routing.json`**（JSON key = address hex）。
 
 查詢範例：
 ```
-python -c "import json; d=json.load(open('src/routing.json')); e=d['000115b6']; print(e['name'], '→', e['target'])"
+python -c "import json; d=json.load(open('tools/code_emit/data/routing.json')); e=d['000115b6']; print(e['name'], '→', e['target'])"
 # fd2_wait_for_action_target_input → input/input.c
 ```
 

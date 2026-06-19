@@ -195,7 +195,7 @@ static void teardown_load_save_fixture(void)
  * stubbed (testglob g_ending_menu_return) these branches were unit-tested; that
  * stub is removed to avoid a linker redefinition once the real function exists.
  * fd2_load_save_and_init_engine (the menu_choice==2 target) is still covered
- * directly below. See src/emit_issues.json. */
+ * directly below. See tools/code_emit/data/emit_issues.json. */
 
 /* ---- Test: fd2_load_save_and_init_engine ---- */
 
@@ -288,7 +288,7 @@ static void test_load_save_cinematic_loop_counts(void)
  * keypress and would hang forever in the silent automated harness. That arm
  * only differs by an error-dialog (display + blocking input) and then falls
  * through to the same restore path covered above; its coverage is deferred to
- * Phase 9 integration. See src/emit_issues.json. */
+ * Phase 9 integration. See tools/code_emit/data/emit_issues.json. */
 
 
 void run_life_main_tests(void)
