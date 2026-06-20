@@ -116,13 +116,20 @@ void main(void)
 
     data_fd2_graphics_chapter_ambient_palette_anim_tick_latch =
         (uint32)(int32)*(int16 *)0x46C;
+#ifdef FD2_REPLAY
+    rng_warmup_count = 0;   /* deterministic warm-up; script SEED sets state */
+#else
     rng_warmup_count = rand();
+#endif
     for (calibration_iter = 0;
          (int32)calibration_iter < (int32)rng_warmup_count % 0x100;
          calibration_iter++) {
         fd2_advance_rng_state();
     }
 
+#ifdef FD2_REPLAY
+    fd2_replay_init();
+#endif
     do {
         fd2_set_bgm_track_with_fade(0x12, 0);
         menu_result = fd2_main_menu_continue_dispatcher();

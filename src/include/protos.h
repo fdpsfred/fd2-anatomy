@@ -9,6 +9,15 @@
  * Convention: ~95% are __cdecl (Watcom -3s default).
  */
 
+/* ---- replay/capture harness (TEST build only, -DFD2_REPLAY) ----
+ * Defined in tests/play/{replay,capture}.c; compiled into FD2RP.EXE only.
+ * In a production build (no -DFD2_REPLAY) these decls and every call site
+ * vanish, so FD2.EXE is byte-identical. */
+#ifdef FD2_REPLAY
+void fd2_replay_init(void);   /* load input script + pin rng warm-up */
+void fd2_replay_pump(void);   /* inject next scripted key / run captures */
+#endif
+
 /* ---- lifecycle ---- */
 /* main() (the game C entry point, src/life/main.c @ 0x25BF4) is called by the
  * Watcom CRT startup; it is intentionally NOT prototyped here (declaring `main`

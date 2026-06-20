@@ -19,6 +19,9 @@
  * ---------------------------------------------------------------- */
 int fd2_check_keyboard_buffer_nonempty(void)
 {
+#ifdef FD2_REPLAY
+    fd2_replay_pump();   /* feed next scripted key so idle loops never spin */
+#endif
     return BIOS_KBD_TAIL != BIOS_KBD_HEAD;
 }
 

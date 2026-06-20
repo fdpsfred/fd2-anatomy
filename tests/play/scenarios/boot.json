@@ -1,0 +1,8 @@
+{
+  "_desc": "P0 smoke: boot to the first input-wait screen (title/main menu), capture one checkpoint, end. Validates build->run->inject-path-reached->capture->DONE end to end.",
+  "script": [
+    "# boot smoke: capture the first input-wait screen, then finish",
+    "CAP",
+    "END"
+  ]
+}

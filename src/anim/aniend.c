@@ -278,6 +278,9 @@ int fd2_play_ending_and_record_clear(void)
     fd2_render_chapter_status_panel_segments((uint32)ptr_00, 0, menu_options);
     while (exit_flag == 0) {
         fd2_render_chapter_status_panel_segments((uint32)ptr_00, active_idx_var, menu_options);
+#ifdef FD2_REPLAY
+        fd2_replay_pump();   /* non-polling read: ensure a scripted key is ready */
+#endif
         data_fd2_input_key_input_mode = 0x10;
         int386(0x16, (union REGS *)&data_fd2_input_last_key_pressed,
                      (union REGS *)&data_fd2_input_last_key_pressed);

@@ -441,6 +441,9 @@ int fd2_save_slot_selector_ui(uint32 sav_decrypted_buf, uint32 manual_mode)
 
     do {
         if (manual_mode == 0) {
+#ifdef FD2_REPLAY
+            fd2_replay_pump();   /* non-polling read: ensure a scripted key is ready */
+#endif
             data_fd2_input_key_input_mode = 0x10;
             int386(0x16, (union REGS *)&data_fd2_input_last_key_pressed,
                          (union REGS *)&data_fd2_input_last_key_pressed);

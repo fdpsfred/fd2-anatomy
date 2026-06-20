@@ -1,0 +1,9 @@
+{
+  "_desc": "P0 discrimination probe: press DOWN at the main menu, THEN capture. Its screen should differ from the boot golden (cursor moved), proving compare.py flags a real rendering difference and localizes it.",
+  "script": [
+    "# move menu cursor down, then capture the (different) screen",
+    "KEY 50",
+    "CAP",
+    "END"
+  ]
+}
