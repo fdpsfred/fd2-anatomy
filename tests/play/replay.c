@@ -40,6 +40,17 @@ static FILE         *g_script = (FILE *)0;
 static int           g_active = 0;
 static int           g_cap_idx = 0;
 static unsigned long g_hb_seq = 0;
+static uint32        g_vtick = 0;
+
+/*
+ * Deterministic virtual clock (see consts.h BIOS_TICK_* under FD2_REPLAY).
+ * Monotonic, advances one step per read. Replaces the wall-clock BDA tick so
+ * animation phases and frame-pacing are reproducible run to run.
+ */
+uint32 fd2_replay_tick(void)
+{
+    return ++g_vtick;
+}
 
 /*
  * Inject one keystroke into the BIOS keyboard ring. The ring is 16 two-byte
@@ -87,6 +98,7 @@ static void replay_finish(void)
 
 void fd2_replay_init(void)
 {
+    g_vtick = 0;
     g_script = fopen(SCRIPT_NAME, "r");
     g_active = (g_script != (FILE *)0);
     fd2_play_heartbeat("init");

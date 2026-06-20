@@ -1,0 +1,15 @@
+{
+  "_desc": "P1 chapter 1 intro arc: NEW GAME -> chapter 1 prologue (map 0x20). Skip intro waits + confirm START (4x Enter 1C 0D), then capture the prologue opening beats. Expected state at first in-game checkpoint: chapter_id=0x20, party=21, turn=1.",
+  "script": [
+    "KEY 1C 0D",
+    "KEY 1C 0D",
+    "KEY 1C 0D",
+    "KEY 1C 0D",
+    "CAP",
+    "KEY 1C 0D",
+    "CAP",
+    "KEY 1C 0D",
+    "CAP",
+    "END"
+  ]
+}

@@ -76,7 +76,20 @@
 /* BIOS Data Area addresses (DOS/4G flat model, real-mode mem mapped linearly) */
 #define BIOS_KBD_HEAD   (*(volatile uint16 *)0x41AuL)
 #define BIOS_KBD_TAIL   (*(volatile uint16 *)0x41CuL)
+#ifdef FD2_REPLAY
+/* Deterministic virtual clock for replay (tests/play/replay.c). Every BIOS-tick
+ * READ advances a counter, so animation phases derived from the tick (palette
+ * cycle, portrait blink, dialog typewriter pacing) become a function of the
+ * deterministic call sequence rather than wall-clock -- making framebuffer
+ * captures byte-stable across runs. The tick-wait loops (fd2_wait_one_bios_tick /
+ * fd2_wait_n_bios_ticks) still terminate because each read advances the counter.
+ * Production (no FD2_REPLAY) reads the real BDA tick verbatim. */
+uint32 fd2_replay_tick(void);
+#define BIOS_TICK_COUNT  (fd2_replay_tick())
+#define BIOS_TICK_WORD   ((uint16)fd2_replay_tick())
+#else
 #define BIOS_TICK_COUNT  (*(volatile uint32 *)0x46CuL)
 #define BIOS_TICK_WORD   (*(volatile uint16 *)0x46CuL)
+#endif
 
 #endif /* CONSTS_H */

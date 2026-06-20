@@ -69,12 +69,16 @@ def stage(run_dir, scenario):
     game-file count."""
     run_dir.mkdir(parents=True, exist_ok=True)
     staged = 0
-    # copy every game file (data + audio drivers + DOS4GW.EXE + stock FD2.SAV)
+    # copy every game file (data + audio drivers + DOS4GW.EXE + stock FD2.SAV).
+    # FD2.SAV is game-WRITABLE, so size-check would let a stale save survive in a
+    # reused run dir -> always overwrite it (and the scenario may override below).
+    # Big read-only DATs keep the size-check.
     for src in GAME_DIR.iterdir():
         if not src.is_file():
             continue
         dst = run_dir / src.name
-        if dst.is_file() and dst.stat().st_size == src.stat().st_size:
+        if dst.is_file() and dst.stat().st_size == src.stat().st_size \
+                and src.name.upper() != "FD2.SAV":
             continue
         shutil.copyfile(src, dst)
         staged += 1
@@ -94,15 +98,21 @@ def stage(run_dir, scenario):
 
 
 def clean_outputs(run_dir):
-    """Remove this-scenario artifacts so polled signals are unambiguous; keep the
-    staged game files + EXE (re-staged by size check)."""
+    """Remove this-scenario artifacts AND game-generated scratch so every run
+    starts from a pristine, identical dir (else a leftover FD2.TMP / AUDDBG.TXT
+    from a prior run perturbs the next run -> non-determinism across reused dirs).
+    Staged game files + EXE stay (re-staged by stage())."""
+    scratch = ("DONE.TXT", "HB.TXT", "DOSBOX.LOG", "DBSTDIO.LOG",
+               "FD2.TMP", "AUDDBG.TXT")
     for p in run_dir.iterdir():
         if not p.is_file():
             continue
         nm = p.name.upper()
-        if nm in ("DONE.TXT", "HB.TXT", "DOSBOX.LOG", "DBSTDIO.LOG") \
-                or nm.startswith("FB") and nm.endswith(".BIN") \
-                or nm.startswith("ST") and nm.endswith(".BIN"):
+        if nm in scratch \
+                or (nm.startswith("FB") and nm.endswith(".BIN")) \
+                or (nm.startswith("ST") and nm.endswith(".BIN")) \
+                or (nm.startswith("PAL") and nm.endswith(".BIN")) \
+                or (nm.startswith("PNG") and nm.endswith(".PNG")):
             try:
                 p.unlink()
             except OSError:

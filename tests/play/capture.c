@@ -1,13 +1,15 @@
 /*
  * capture.c -- checkpoint state dump for the FD2 replay harness.
  *
- * Replay build only (-DFD2_REPLAY). Writes the "state triple" surfaces the
- * host comparator reads: the raw VGA framebuffer and a fixed-layout snapshot
- * of the key game globals plus the active runtime_char array. All writes are
- * fopen/fwrite/fclose so DOSBox-X flushes them to the host on close.
+ * Replay build only (-DFD2_REPLAY). Writes the surfaces the host comparator
+ * reads: the raw VGA framebuffer, the 256-entry DAC palette (so the host can
+ * render a viewable PNG), and a fixed-layout snapshot of the key game globals
+ * plus the active runtime_char array. All writes are fopen/fwrite/fclose so
+ * DOSBox-X flushes them to the host on close.
  */
 
 #include <stdio.h>
+#include <conio.h>
 #include "types.h"
 #include "consts.h"
 #include "globals.h"
@@ -30,12 +32,28 @@ void fd2_play_capture(int idx)
     char name[16];
     FILE *f;
     long hdr[ST_HDR_WORDS];
+    uint8 pal[768];
     uint32 n;
+    int k;
 
     sprintf(name, "FB%02d.BIN", idx);
     f = fopen(name, "wb");
     if (f != NULL) {
         fwrite((void *)FB_ADDR, 1, FB_SIZE, f);
+        fclose(f);
+    }
+
+    /* DAC palette: 256 entries x (R,G,B), 6-bit each. Read via VGA ports
+     * (3C7h = read index, 3C9h = data) -- works in DOS/4GW flat PM without a
+     * real-mode buffer. Host scales 6->8 bit when rendering. */
+    sprintf(name, "PAL%02d.BIN", idx);
+    f = fopen(name, "wb");
+    if (f != NULL) {
+        outp(0x3C7, 0);
+        for (k = 0; k < 768; k++) {
+            pal[k] = (uint8)inp(0x3C9);
+        }
+        fwrite(pal, 1, 768, f);
         fclose(f);
     }
 
