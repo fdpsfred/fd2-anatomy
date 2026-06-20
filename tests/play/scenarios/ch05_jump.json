@@ -1,0 +1,16 @@
+{
+  "_desc": "P2 chapter-jump demo: synthesize a CONTINUE save at chapter_id=4 (chapter 5), quick-load it, capture the chapter-5 init/map. Validates save-jump as the mechanism to exercise any chapter's loader/render without playing through.",
+  "jump_chapter": 4,
+  "script": [
+    "KEY 1C 0D",
+    "KEY 1C 0D",
+    "KEY 1C 0D",
+    "KEY 50",
+    "KEY 50",
+    "KEY 1C 0D",
+    "CAP",
+    "KEY 1C 0D",
+    "CAP",
+    "END"
+  ]
+}

@@ -12,6 +12,8 @@ DOSBox-X silent 跑腳本、在邏輯檢查點擷取輸出、對 golden / 期望
 | `compare.py` | 比對 dump:framebuffer 走 Hamming distance、state 走 byte-equality。預設比 `tests/play/golden/<scenario>`;`--against DIR` 比另一 run 目錄(determinism);`--bless` 把 run dump 複製成 golden。 |
 | `fb2png.py` | 把 `FBnn.BIN`(調色盤索引)+ `PALnn.BIN`(DAC 256 色)還原成 `PNGnn.png`(自帶 zlib PNG 編碼器,不依賴 PIL)。**編寫/除錯腳本時用來實際看畫面**。 |
 | `run_all.py` | regression 套件入口:跑所有「有 golden」的 scenario 並逐一比對,印 per-scenario verdict + 總結。`--build` 先重建、`--only <substr>` 過濾。取代舊 per-function 套件做整合覆蓋。 |
+| `gen_scenario.py` | 移植遊戲存檔 codec(crypt XOR involution + checksum,save.c)。`--validate` round-trip 內建存檔自我驗證;`--chapter N` 合成跳章存檔。scenario 用 `"jump_chapter": N` 即由 run_play 即時合成(免版控 sav)。 |
+| `sweep_chapters.py` | P2 章節 init smoke sweep:0..29 章逐一 jump+CONTINUE+擷取,驗證每章 loader headless 不 fault + chapter_id 正確。 |
 
 ## 使用
 

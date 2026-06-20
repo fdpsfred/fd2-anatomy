@@ -3,6 +3,25 @@
 整理自比對所有 program_info / resource_info / assets 文件後仍存在的「未確定」、
 「待驗證」與「待做」項目。每條描述：現狀 + 為什麼還沒解 + 解需要做什麼。
 
+## 測試系統(playthrough 整合測試)
+
+### chapter 7 / chapter 22 (0-based) jump-load hang
+
+- **現狀**:P2 chapter-init sweep(`tools/fd2_play/sweep_chapters.py`,save-jump +
+  CONTINUE)30 章中 28 章 headless 載入乾淨;chapter_id 7 與 22 hang(heartbeat
+  停在載入確認鍵後、0 dump、無 GP fault),卡在 `fd2_load_save_and_init_engine`
+  載入期間的無窮迴圈。
+- **為什麼還沒解**:`gen_scenario.py` 的 jump-save 只改 chapter_id,存檔其餘
+  (tile-event 表 @+0、地圖快照 @+0x8A3、runtime 單位 @+0x12A3)仍是第 1 章資料,
+  載入時形成「chapter N 地圖 + 第 1 章 tile-event/單位」的不一致組合。28 章能容忍,
+  ch7/ch22 觸發迴圈 -> **極可能是合成存檔不一致的 jump-artifact 而非重建 bug**
+  (28/30 證明 loader 本身正常),但未經一致存檔或原版差分驗證前不能定論。
+- **解需要做什麼**:(a) 用母本鏈(從 ch1 連續打通,逐章擷取一致的 entry SAV)替代
+  crude jump 重測 ch7/ch22;或 (b) 用同一 crude jump-save 驅動原版 ~FD2.EXE,若原版
+  亦 hang 即確認為 artifact、重建忠實;或 (c) 加 replay 命令直接呼叫
+  `fd2_chapter_init_handler_table[N]()`(NEW-GAME 式 fresh init,無存檔不一致)做 P2
+  init 覆蓋,繞過 save-jump 的資料不一致。
+
 ## 資源檔未完整解析的格式段落
 
 ### 3. TAI.DAT byte-stream payload format

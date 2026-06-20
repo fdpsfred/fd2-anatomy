@@ -91,6 +91,14 @@ def stage(run_dir, scenario):
         if not sp.is_absolute():
             sp = ROOT / sav
         shutil.copyfile(sp, run_dir / "FD2.SAV")
+    # jump_chapter: synthesize a CONTINUE-loadable save at chapter N from the
+    # stock save (gen_scenario ports the game's crypt+checksum). No sav file to
+    # version -- regenerated deterministically each run.
+    jc = scenario.get("jump_chapter")
+    if jc is not None:
+        import gen_scenario as _gs
+        stock = _gs.resolve_stock_sav().read_bytes()
+        (run_dir / "FD2.SAV").write_bytes(_gs.make_jump(stock, int(jc)))
     # the input script
     lines = scenario.get("script", [])
     (run_dir / "SCRIPT.TXT").write_text("\n".join(lines) + "\n", encoding="latin-1")
