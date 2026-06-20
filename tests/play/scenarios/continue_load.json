@@ -1,0 +1,18 @@
+{
+  "_desc": "P4 save-load + menu nav: skip intro (3 confirms), DOWN x2 to CONTINUE, confirm -> quick-load stock FD2.SAV. Maps menu nav and reveals the stock save's chapter.",
+  "script": [
+    "KEY 1C 0D",
+    "KEY 1C 0D",
+    "KEY 1C 0D",
+    "CAP",
+    "KEY 50",
+    "CAP",
+    "KEY 50",
+    "CAP",
+    "KEY 1C 0D",
+    "CAP",
+    "KEY 1C 0D",
+    "CAP",
+    "END"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "_desc": "P3 combat-ops: load the stock battle (CONTINUE), then move the cursor (arrows) and open a unit action menu (Space). Asserts cursor_world_x/y change and the action UI renders. Base state = chapter 1 main battle, turn 6, 23 units.",
+  "script": [
+    "KEY 1C 0D",
+    "KEY 1C 0D",
+    "KEY 1C 0D",
+    "KEY 50",
+    "KEY 50",
+    "KEY 1C 0D",
+    "CAP",
+    "KEY 4D",
+    "CAP",
+    "KEY 4D",
+    "CAP",
+    "KEY 50",
+    "CAP",
+    "KEY 39 20",
+    "CAP",
+    "END"
+  ]
+}
