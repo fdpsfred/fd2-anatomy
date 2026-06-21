@@ -11,8 +11,19 @@
 /* ----------------------------------------------------------------
  * fd2_tick_tile_event_animations @ 0x12263
  *
- * Advance per-tile animation counter for all consumed event tiles.
- * Called once per frame from main composite.
+ * Advance the per-tile animation frame counter for every consumed
+ * event tile so a just-consumed tile (opened chest / picked-up item /
+ * triggered event) redraws in its "open" / "empty" sprite frame.
+ *
+ * Invoked once right after an event tile is marked consumed -- NOT a
+ * per-frame tick. Callers: field pickup, enemy event-tile action,
+ * scripted chapter pickups, and load-save engine init.
+ *
+ * Scans the whole battle map grid; for each event tile
+ * ((attr & 0x60) == 0x20) whose consumed flag is set, bumps the +4
+ * word (frame counter) and zeroes the +6 byte (phase flag) in the
+ * tile-map record. The +4/+6 writes land in the next tile's record by
+ * design (intended vendor stride; see fd2_obfuscate_battle_tile_map).
  * ---------------------------------------------------------------- */
 void fd2_tick_tile_event_animations(void)
 {
