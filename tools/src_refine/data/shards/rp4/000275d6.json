@@ -1,0 +1,87 @@
+{
+  "address": "000275d6",
+  "name_current": "fd2_tick_summon_spell_minor_animation_state",
+  "name_final": "fd2_tick_summon_spell_minor_animation_state",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; no address residue; accurately describes a per-tick summon-spell minor (single-sprite) animation state machine. Consistent with sibling tick fns in the same file (fd2_tick_summon_spell_main_animation_state @ 0x26795, fd2_tick_summon_spell_animation_state @ 0x26528).",
+  "kind": "function",
+  "home": "src/anim/anisummn.c",
+  "purpose": "Per-tick state machine for the single-sprite 'minor' summon-spell animation -- the simplest summon variant (no per-slot arrays, no color rotation); dispatch-table entry #9 (last) of 10 at 0x523B9, returns a frame-hold/status code to the caller's dispatch loop.",
+  "logic_summary": "Switches on state_code. state 0 (INIT): clears alternating_blit_toggle, seeds state5_frame_counter=1, returns 0x14. state 3: returns 0x3C. state 6: returns 0x14. states 1/7 (flicker): blit sprite index 0 only when toggle==0, then XOR-flip toggle (blit every other tick), return 0. state 4: blit sprite 0 every tick, return 0. state 5 (ramp): blit sprite (state5_frame_counter/2, signed div -> slow 0..0x16 ramp); one-shot SFX at frame 6 (fd2_play_sfx_with_handle bank,1,1) and frame 0x24 (fd2_play_sfx_sample_from_bank bank,2,1); frame_counter++; while 0x10<counter<0x2C return 1 (in-flight) else return 0. Other states return 0. Prologue PUSH 0x18;CALL __CHK is the Watcom stack-probe.",
+  "signature": "int __cdecl fd2_tick_summon_spell_minor_animation_state(uint32 sprite_handle, uint32 sprite_atlas, uint32 origin_y, uint32 row_stride, uint32 state_code)",
+  "params": [
+    {
+      "name": "sprite_handle",
+      "type": "uint32",
+      "semantics": "UNUSED in the body (Stack[0x4] is never referenced; cast to void in src). Param 0; sibling tick fns put caster_unit_id here but this minor variant ignores it.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Param is genuinely unused, so name is low-stakes; src name is harmless and not address-tainted. No change."
+    },
+    {
+      "name": "sprite_atlas",
+      "type": "uint32",
+      "semantics": "Sprite-sheet/atlas pointer. Passed as the first (sheet_ptr) argument of fd2_blit_indexed_sprite in states 1/4/5/7 (disasm: blit's sheet arg = Stack[0x8] = this param).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "src name 'sprite_atlas' is accurate. NOTE: the live Ghidra param is mislabeled 'origin_x' (a misnomer -- it carries the atlas, not an x-coordinate); Stage 2 should align the Ghidra param name to sprite_atlas. src is already correct."
+    },
+    {
+      "name": "origin_y",
+      "type": "uint32",
+      "semantics": "Destination y / row origin, forwarded as the dst arg of fd2_blit_indexed_sprite.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; matches usage and sibling convention."
+    },
+    {
+      "name": "row_stride",
+      "type": "uint32",
+      "semantics": "Destination row stride (pitch), forwarded to fd2_blit_indexed_sprite.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; matches usage and sibling convention."
+    },
+    {
+      "name": "state_code",
+      "type": "uint32",
+      "semantics": "Animation phase selector driving the switch (0,1,3,4,5,6,7 handled; others -> 0). Declared char in Ghidra (read MOVZX byte ptr [ESP+0x14]); src widens to uint32 which is equivalent for the compared small values.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; matches usage and sibling convention."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Frame-hold / status code for the dispatch loop: 0x14 (INIT and state 6), 0x3C (state 3 hold), 1 (state-5 in-flight while 0x10<frame_counter<0x2C), 0 (per-tick blit done / unhandled state)."
+  },
+  "reads_globals": [
+    "data_fd2_battle_summon_minor_anim_alternating_blit_toggle (0x540FB)",
+    "data_fd2_battle_summon_minor_anim_state5_frame_counter (0x540FA)",
+    "data_fd2_audio_summon_spell_sfx_bank_buf_ptr (0x5411F)"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_summon_minor_anim_alternating_blit_toggle (0x540FB)",
+    "data_fd2_battle_summon_minor_anim_state5_frame_counter (0x540FA)"
+  ],
+  "comment_original_issue": "src comment block (lines 44-49) was correct but overly terse: it named the function and dispatch-table slot but omitted the actual per-state behavior (flicker toggle, frame-ramp, SFX triggers, return codes) that the sibling fns in this file document.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "updated",
+  "issues": [
+    {
+      "category": "naming",
+      "severity": "low",
+      "title": "Ghidra param 2 mislabeled origin_x (is the sprite atlas)",
+      "description": "The live Ghidra signature/plate names param 2 'origin_x', but the disassembly shows Stack[0x8] is pushed as the sheet_ptr (first) argument of fd2_blit_indexed_sprite, i.e. it is the sprite-sheet/atlas pointer, not an x-coordinate. The src already names it 'sprite_atlas' correctly. Recorded for Stage 2 to rename the Ghidra param (param-name only; not a symbol rename). No code/logic change.",
+      "evidence": "disasm @ 0x27632 PUSH dword ptr [ESP+0x18] (= original Stack[0x8] after 4 pushes) is blit arg0=sheet_ptr; protos.h:455 fd2_blit_indexed_sprite(uint32 sheet_ptr, uint32 sprite_idx, uint32 dst_buf, ...). The old plate body even passed 'sprite_handle' as the blit's first arg, which was internally inconsistent; corrected in the updated plate."
+    }
+  ],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decompile, disasm, src, and globals.h all consistent. Function logic is correct and verified equivalent (no change made to logic per refiner rules). Globals are declared uint8 (0x540FA/0x540FB) in globals.h, matching byte-wide MOVZX access. Dispatch-table position confirmed: 0x523B9 + 9*4 = 0x523DD = the sole DATA xref to this fn. Comment augmented in src (Edit, scoped to this fn's block only); Ghidra plate updated to fix the param-2 misnomer and an internal inconsistency (blit calls now reference sprite_atlas, not sprite_handle). No symbol/param rename applied (deferred to Stage 2 per rules)."
+}

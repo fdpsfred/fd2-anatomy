@@ -44,8 +44,27 @@ void fd2_tick_sprite_animation_step(uint8 *p_frame_idx, uint8 *p_tick,
 /* ----------------------------------------------------------------
  * fd2_tick_summon_spell_minor_animation_state @ 0x275D6
  *
- * Single-sprite minor animation state machine for summon spells.
- * Dispatch table entry #9 (last) at 0x523B9.
+ * Per-tick state machine for the single-sprite "minor" summon-spell
+ * animation -- the simplest summon variant (no per-slot arrays, no
+ * color rotation). Dispatch-table entry #9 (last) of 10 at 0x523B9
+ * (referenced only via DATA; no direct callers). Returns a frame-hold
+ * / status code consumed by the caller's dispatch loop. sprite_handle
+ * is unused; sprite_atlas is the sprite-sheet pointer passed straight
+ * to fd2_blit_indexed_sprite.
+ *
+ * state 0 (INIT) : clear the alternating-blit toggle, seed the
+ *   state-5 frame counter to 1; return 0x14.
+ * state 3        : return 0x3C (hold).
+ * state 6        : return 0x14 (hold).
+ * state 1 / 7    : flicker phase -- blit sprite 0 only on ticks where
+ *   the toggle is 0, then XOR-flip the toggle (blit every other tick);
+ *   return 0.
+ * state 4        : blit sprite 0 every tick; return 0.
+ * state 5        : ramp phase -- blit sprite (frame_counter / 2), a
+ *   slow 0..0x16 ramp. Fire a one-shot SFX at frame 6 and frame 0x24,
+ *   then frame_counter++. While 0x10 < frame_counter < 0x2C return 1
+ *   (in-flight); otherwise return 0.
+ * other states   : return 0.
  * ---------------------------------------------------------------- */
 int fd2_tick_summon_spell_minor_animation_state(
     uint32 sprite_handle, uint32 sprite_atlas,
