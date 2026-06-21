@@ -1,0 +1,42 @@
+{
+  "address": "0003431d",
+  "name_current": "fd2_chapter_event_handler_02__ch1_dialog_with_state",
+  "name_final": "fd2_chapter_event_handler_02__ch1_dialog_with_state",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows convention fd2_<domain>_<descriptor>. '02' is the dispatch-slot index of the per-event handler table at 0x51B91 (a meaningful domain ID, not an address residue: the function is at 0x3431D and '02' matches no part of the address). 'ch1' = chapter 1 (the chapter this beat fires in). 'dialog_with_state' = dialog beat that also mutates runtime state (party/roster addition + cutscene), matching the sibling slot-00/01/03 handlers' descriptor. Name accurately reflects purpose and is consistent across the group.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter 1 turn-event handler (dispatch idx 0x02, fires at turn 5 / phase 0): plays the mid-turn beat where a new field-char group (race/slot id 5 = the pirate boss group per the ch1 walkthrough) appears at the lower-left with the new-char appearance explosion animation, runs cutscene event 4, and shows dialog page 5.",
+  "logic_summary": "Straight-line, no-branch, no-RNG, no-arith sequence (cyclomatic 1). __CHK(0x2C) stack-probe prologue; EBX callee-saved; the cdecl event_arg is never read. Calls in order: fd2_pan_cursor_and_window(0,0x10) (camera to lower-left); fd2_animate_party_addition_with_appear_effect(5) (spawn+animate field chars whose race byte matches 5, growing the runtime roster); fd2_clear_keyboard_buffer(); fd2_composite_battle_frame(1); fd2_cutscene_event_trigger(4); fd2_clear_all_chars_facing(); then fd2_display_dialog_scene(data_fd2_current_chapter_text, page=5, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1). In the original binary the trailing dialog call is reached by JMP 0x3430D into the shared text-push+CALL+cleanup tail of handler_01 @ 0x342B5; the src inlines the call for Layer-2 equivalence. The dialog call's uint32 return is discarded.",
+  "signature": "void __cdecl fd2_chapter_event_handler_02__ch1_dialog_with_state(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform dispatch argument from the 1-arg cdecl per-event handler table at 0x51B91. Never read by this handler (confirmed: disasm pushes EBX but never touches the stack arg). Kept only to satisfy the uniform table calling convention.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately describes the unused dispatch arg; no address residue; matches the convention used by all sibling handlers in the table."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Walkthrough cross-check (fd2-knowledge chapter 1 --events): turn 5 player-phase end = pirate boss + 4 subordinates appear lower-left, consistent with pan(0,0x10) and the slot-5 appearance animation. Callee fd2_animate_party_addition_with_appear_effect @ 0x32999 documents param as a race-id/slot filter forwarded to the portrait loader (not a chapter id), so the src comment phrase 'party slot 5 joins' is a fair mechanical description (roster grows + new chars animated) even though narratively it is an enemy group. Existing src comment already correct and precise -> kept verbatim (no Edit). Ghidra plate consistent with refined understanding -> not modified. xref: dispatched from 0x00051B99 [DATA] in the handler table; 0 direct callers."
+}
