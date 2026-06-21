@@ -744,12 +744,15 @@ void fd2_play_status_screen_outro_step(uint32 frame_idx,
 /* ----------------------------------------------------------------
  * Walk-step composite left-edge clip offset @ 0x53AED  (.object2, zero-init)
  *
- * Per-frame X clip marker added into the battle tile-map composite source
- * offset. fd2_walk_step_left sets it to 0x18 just before each composite
- * pass (clip the leftmost 24px column while the +1-column-wide map slides in)
- * and clears it to 0 right after, so the static image is zero.
- * Read by fd2_composite_battle_tile_map as a dword added to the source
- * offset alongside the sub-pixel/parallax offsets.
+ * Per-frame X clip offset added into the battle tile-map composite source
+ * byte offset. fd2_walk_step_left sets it to 0x18 (24px = one tile column)
+ * just before each of the 6 composite passes (clips the leftmost column while
+ * the +1-column-wide map slides in) and clears it to 0 right after, so the
+ * static image is zero. Only the left-walk path touches it.
+ * Read by fd2_composite_battle_tile_map at all three background branches as a
+ * dword added directly into the source byte offset (next to the sub-pixel
+ * offset @0x53AF5; the parallax row offset @0x53AF1 is scaled separately).
+ * Mutable BSS (game has WRITE xrefs); all accesses are dword.
  * ---------------------------------------------------------------- */
 uint32 data_fd2_battle_compose_left_edge_clip_offset;
 
