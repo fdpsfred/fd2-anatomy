@@ -1,0 +1,43 @@
+{
+  "address": "0001db65",
+  "name_current": "fd2_play_death_animation_and_mark_dead",
+  "name_final": "fd2_play_death_animation_and_mark_dead",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention and accurately captures both responsibilities: it plays the on-screen death (flicker + decay/explosion) animation for dying party chars AND permanently marks them dead (flags |= 1). No address residue in the name; '2'/'4'-style suffixes absent.",
+  "kind": "function",
+  "home": "src/anim/anicombt.c",
+  "purpose": "Scan party slots for newly-dying chars (hp_current==0, flags bit0 not yet set), play their on-screen death flicker + decay/explosion animation, and permanently mark them dead.",
+  "logic_summary": "Phase 1: iterate 0..data_fd2_battle_party_member_count-1; for each runtime char with flags bit0==0 AND hp_current==0 AND (pos_x,pos_y) inside the battle view window, cache its screen-pixel pointer (lgs + ((pos_y-1)-origin_y)*0x2AC0 + ((pos_x-1)-origin_x)*0x18 + 0x75D8) into stack array dying_screen_pos[] and count n_dying. If n_dying==0: set flags|=1 on every hp_current==0 char and return (silent off-screen death). Phase 2 (13-frame flicker, f=0..12): composite battle tile map into lgs+0x8088; for each non-dead char, if hp_current==0 set sprite_state[1]=f%4 then paint sprite; paint shadow overlay; blit_rectangle to mode13h; wait 1 BIOS tick. After loop set flags|=1 on every hp_current==0 char (PERMANENTLY DEAD). Phase 3 (decay/explosion, 12 frames split 0..5 + 6..11): malloc 0x25680 scratch buffer, composite a clean tile map into it, swap data_fd2_large_game_state_buffer_ptr to the scratch buffer, composite_all_chars_overlay, restore the pointer; fire death SFX via fd2_play_sfx_with_handle(...,3,1). Frames 0..5: blit per-frame death sprite (sheet base + *(sheet+(f+0x44)*4+6)) at each cached pos, no per-frame restore; frames 6..11: memmove the clean scratch back into the live buffer each frame first, then blit the death sprite. free(scratch); fd2_composite_battle_frame(0) final cleanup.",
+  "signature": "void __cdecl fd2_play_death_animation_and_mark_dead(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects: marks dying chars permanently dead (flags|=1) and renders the death animation to the mode13h primary."
+  },
+  "reads_globals": [
+    "data_fd2_battle_party_member_count",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y",
+    "data_fd2_battle_view_window_max_x",
+    "data_fd2_battle_view_window_max_y",
+    "data_fd2_large_game_state_buffer_ptr",
+    "data_fd2_ui_anim_sprite_sheet_ptr",
+    "data_fd2_audio_fdother_sfx_bank_buf_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_large_game_state_buffer_ptr"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (anicombt.c lines 400-436) is already thorough, accurate, and ASCII-only; it correctly matches the decompilation (off-screen silent-death path, the -1 on both pos axes, Phase 2 13-frame flicker, Phase 3 split 0..5/6..11 with memmove restore, death SFX with handle id 3). Ghidra plate is the same content (slightly more verbose) and does not contradict src, so left untouched. Name follows convention with no address residue. params=[] (void). writes_globals lists data_fd2_large_game_state_buffer_ptr because Phase 3 temporarily swaps it to the scratch buffer and restores it (net unchanged, but it is written). runtime_char field writes (flags, sprite_state[1]) go through data_fd2_battle_runtime_char_array_ptr and are struct-field writes, not separate globals. No logic/equivalence issues found; no src edit made."
+}
