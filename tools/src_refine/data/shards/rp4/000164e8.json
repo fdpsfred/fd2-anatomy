@@ -1,0 +1,38 @@
+{
+  "address": "000164e8",
+  "name_current": "fd2_portrait_blink_animation_step",
+  "name_final": "fd2_portrait_blink_animation_step",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>; no Ghidra address residue. 'blink' is the established descriptor for this per-glyph talking-portrait tick and matches its own state globals (data_fd2_dialog_portrait_blink_subtick_counter / data_fd2_dialog_portrait_blink_frame_idx). Strictly the painted effect is a mouth open/close cycle (frames 0,1,2,1) rather than an eye-blink, but the existing name is defensible and renaming would cascade to two globals + the sole caller for no semantic gain.",
+  "kind": "function",
+  "home": "src/dialog/dialog.c",
+  "purpose": "One step of the talking-portrait mouth animation, called once per rendered glyph from fd2_display_dialog_scene's per-glyph loop while blink_flag is set; also drives the typewriter click SFX and text-type pacing.",
+  "logic_summary": "A 2-call subtick divider gates the visible-frame update: subtick_counter++ each call; when it reaches 2, frame_idx advances 0->1->2->3->0 (wrap at 4), the value 3 is collapsed to 1 for the paint index so painted frames cycle 0,1,2,1, fd2_paint_portrait_to_dialog_area(paint_idx) is called, and subtick_counter resets to 0. Every call (regardless of divider) fires fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr, 2, 1) (typewriter click) and fd2_wait_n_bios_ticks(1) (one BIOS tick of pacing). The leading __CHK(0x10) is the Watcom stack-probe prologue.",
+  "signature": "void __cdecl fd2_portrait_blink_animation_step(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects only: mutates the two blink-state globals, paints a portrait frame on every 2nd call, plays the typewriter SFX, and paces 1 BIOS tick."
+  },
+  "reads_globals": [
+    "data_fd2_dialog_portrait_blink_subtick_counter",
+    "data_fd2_dialog_portrait_blink_frame_idx",
+    "data_fd2_audio_fdother_sfx_bank_buf_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_dialog_portrait_blink_subtick_counter",
+    "data_fd2_dialog_portrait_blink_frame_idx"
+  ],
+  "comment_original_issue": "None. The existing src comment block (above the definition) already accurately and concisely describes the 2-call divider, the 0->1->2->3->0 frame cycle with 3 collapsed to 1 (painted 0,1,2,1), the typewriter click SFX, and the 1-tick pacing. ASCII, no address residue. Kept as-is.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "2f8f73a9b19658660bdd7679a3b723e9e76e35cf",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified state-global addresses: subtick_counter @ 0x53A14 (decompile fixup 0x3a14), frame_idx @ 0x53A10 (fixup 0x3a10), both BSS zero-init (read_memory 0x53A10 = 0x00..00). SFX bank ptr fixup 0x3eec. src body (dialog.c L336-357) matches the Ghidra decompilation statement-for-statement. Sole caller fd2_display_dialog_scene @ 0x15F84 invokes it at the -6 literal-number digit loop (dialog.c L164) and the default TEXT-glyph path (dialog.c L318), both gated on blink_flag != 0. No logic touched; name/comment both correct -> keep/keep, plate left untouched (semantically consistent with src)."
+}
