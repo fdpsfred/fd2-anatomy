@@ -861,9 +861,14 @@ void fd2_play_spell_cast_sequence(uint32 caster_idx, uint32 spell_id,
  * ------------------------------------------------------------------------ */
 
 /*
- * Summon-spell SFX bank buffer pointer (FDOTHER.DAT bank, malloc-backed).
- * Mutable runtime handle: set to 0 then assigned the loaded bank buffer in
- * fd2_execute_summon_spell_cast / fd2_play_spell_cast_sequence, read by the
- * summon animation tick handlers, freed at teardown. Zero-initialized (.bss).
+ * Spell-cast SFX bank buffer pointer @ 0x5411F (FDOTHER.DAT bank, malloc-backed).
+ * Mutable runtime handle: zeroed then assigned the loaded FDOTHER.DAT bank in
+ * fd2_play_spell_cast_sequence (intro_sfx_bank[spell_id], the inline-spell path)
+ * and fd2_execute_summon_spell_cast (sfx_bank_index_table[spell_id-0x20], the
+ * summon path 0x20..0x23). Read back by those two casters and by the summon
+ * animation tick handlers / fd2_play_figani_animation_loop to play sample slots
+ * during the cinematic; played out and freed at teardown. Zero-initialized
+ * (.bss). The "summon" in the name reflects the heaviest user, but the general
+ * spell-cast path uses it too.
  */
 uint32 data_fd2_audio_summon_spell_sfx_bank_buf_ptr;
