@@ -11,9 +11,12 @@
  * fd2_chapter_01_end @ 0x22EF6  (0 direct callers; dispatched via the
  *   chapter-end handler pointer table @ 0x51DE9)
  *
- * Chapter 1 end handler. Shows the chapter-end dialog page, persists the
- * party's runtime-character state back to the template store, then advances
- * the current-chapter id to 1 (the next chapter the engine will load).
+ * Chapter 1「初試身手」end handler. Shows the chapter-end dialog page 9,
+ * persists the party's runtime-character state back to the template store,
+ * then sets the current-chapter id to the literal 1 (the next chapter the
+ * engine will load). Unlike its INC-pattern siblings this handler writes the
+ * id directly. No char is recruited here -- 戰士哈諾 joins via an in-battle
+ * FDFIELD event, not this handler.
  *
  * Paired init handler: fd2_chapter_01_init @ 0x3231B.
  * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
