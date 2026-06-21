@@ -1,0 +1,37 @@
+{
+  "address": "00013565",
+  "name_current": "fd2_check_all_player_acted_or_asleep",
+  "name_final": "fd2_check_all_player_acted_or_asleep",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain implied: battle turn flow). No Ghidra address residue. Descriptor accurately summarizes the gate: scans all units and, when no awake/alive player unit still has a turn left, triggers the full turn cycle. 'acted_or_asleep' captures the two salient player-turn-end conditions; the dead case is the universal end-state and need not be enumerated in the name. Name is clear and correct.",
+  "kind": "function",
+  "home": "src/battle/btl_turn.c",
+  "purpose": "Detect end of the player phase: if every player unit has acted, is asleep, or is dead, run the full turn cycle (enemy/NPC phase + new round) with the active-unit HUD panel suppressed during the transition.",
+  "logic_summary": "all_done = 1. Loop char_iter over [0, data_fd2_battle_party_member_count): pChar = runtime_char base + char_iter*RUNTIME_CHAR_SIZE(0x50). If (pChar[5].flags & 0x81)==0 (neither dead bit0 nor acted bit7) AND pChar[6].team==TEAM_PLAYER(2) AND pChar[0x26].status_sleep_flag==0, then an awake/alive player unit still has a turn -> all_done = 0. The loop scans the whole party (no early break). If all_done: data_fd2_ui_play_active_flag=0 and data_fd2_battle_anim_phase=0 (suppress active-unit HUD / mark transition), call fd2_run_full_turn_cycle(), then restore data_fd2_battle_anim_phase=1 and data_fd2_ui_play_active_flag=1.",
+  "signature": "void __cdecl fd2_check_all_player_acted_or_asleep(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effect: may invoke fd2_run_full_turn_cycle() (enemy/NPC phase) and toggles HUD/anim-phase globals around it."
+  },
+  "reads_globals": [
+    "data_fd2_battle_party_member_count",
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_ui_play_active_flag",
+    "data_fd2_battle_anim_phase"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Caller: fd2_game_main_loop @ 0x117e7 (call site 0x11985), invoked after a player unit completes an action (post fd2_process_xp_and_level_up_for_char + per-chapter post-action handler) to decide whether the player phase should end. Field offsets verified against project struct runtime_char in src/include/types.h (+0x05 flags bit0=dead/bit7=acted, +0x06 team 2=player, +0x26 status_sleep_flag), which is authoritative for this build; the fd2-knowledge guide layout is an 8-byte-shifted display mapping and was not used. Source comment (btl_turn.c:179-184) is already concise and correct (covers dead/acted/asleep -> trigger full turn cycle); kept as-is per terse-comment convention. Ghidra plate is detailed and consistent with the refined understanding; left unchanged. Source file not modified, so only the shard is staged."
+}
