@@ -1,0 +1,78 @@
+{
+  "address": "0001c4cc",
+  "name_current": "fd2_animate_spell_impact_per_target",
+  "name_final": "fd2_animate_spell_impact_per_target",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (domain=animate, descriptor=spell_impact_per_target). Accurately names the behavior: a per-spell impact animation drawn over each target tile. No address residue. The numeric IDs referenced inside (spell_id 0x08/0x09/0x12/0x13/0x16/0x19) are real spell IDs (verified vs fd2-knowledge: 0x16=封咒術, 0x19=行動術, 0x09=咒殺術) and stay in the comment, not the name.",
+  "kind": "function",
+  "home": "src/anim/anicombt.c",
+  "purpose": "Plays the most-used per-spell impact animation, drawing each animation frame's sprite over every in-window target tile while firing per-spell SFX hooks.",
+  "logic_summary": "Copies three parallel per-spell byte tables (sprite-offset @0x51F33, frame-count @0x51F54, sfx-frame @0x51F75) into local 33-byte scratch buffers. mallocs a 0x25680 preserve buffer and snapshots the live back-buffer into it (printf+exit on OOM). For each frame 0..frame_count_tbl[spell_id]-1: restores the clean baseline back-buffer from the preserve buffer; computes the frame sprite address via the portrait sheet's offset table (entry [6+(sprite_off+frame)*4]); for each target index in char_idx_array whose runtime-char pos_x/pos_y falls inside the battle view window, blits the frame sprite at the tile's screen offset (row stride 0x2ac0, col stride 0x18, +0x75d8); flushes the composite to the mode13h primary; runs the SFX hook (frame 0 fires sfx_frame_tbl[spell_id] when non-zero, plus a per-spell dispatch chain that fires extra SFX on specific frames: 0x16/f7->3, 0x19/f3,f6->5, 0x12/f4->7, 0x13/f3,f6->8, 0x08/f3,f6->10, 0x09/f15,f19->0xf); then one BIOS-tick timing pulse. Frees the preserve buffer and finalizes with fd2_composite_battle_frame(0).",
+  "signature": "void __cdecl fd2_animate_spell_impact_per_target(uint32 param_1, uint32 spell_id, uint32 target_count, uint32 char_idx_array)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint32",
+      "semantics": "Caster runtime-char index. Callers pass caster_idx but the body never reads it; only forwarded to the __CHK stack-probe.",
+      "verdict": "rename",
+      "proposed": "caster_idx",
+      "reason": "Generic placeholder name. Callers (e.g. fd2_apply_attack_spell_damage @0x2111a) pass caster_idx; renaming to caster_idx reflects the actual argument and removes the param_N placeholder. Rename deferred to Stage 2 (touches signature/protos)."
+    },
+    {
+      "name": "spell_id",
+      "type": "uint32",
+      "semantics": "Spell ID, index 0..35 into the three per-spell byte tables and the SFX special-case dispatch.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate domain name; matches use as the table/dispatch index."
+    },
+    {
+      "name": "target_count",
+      "type": "uint32",
+      "semantics": "Number of entries in char_idx_array (the target overlay loop bound).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; names the loop count over the target array."
+    },
+    {
+      "name": "char_idx_array",
+      "type": "uint32",
+      "semantics": "Pointer to a byte array of runtime-char indices to overlay the animation onto (cast to uint8* in the body).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; describes the byte index array indexed by tgt_iter."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; performs the animation as a side effect (renders frames, plays SFX, leaves a final composite)."
+  },
+  "reads_globals": [
+    "data_fd2_animation_spell_sprite_offset_table",
+    "data_fd2_animation_spell_frame_count_table",
+    "data_fd2_animation_spell_sfx_frame_table",
+    "data_fd2_large_game_state_buffer_ptr",
+    "data_fd2_resource_portrait_sheet_ptr",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y",
+    "data_fd2_battle_view_window_max_x",
+    "data_fd2_battle_view_window_max_y",
+    "data_fd2_audio_status_effect_sfx_handle_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_large_game_state_buffer_ptr"
+  ],
+  "comment_original_issue": "Pre-existing comment block was accurate and precise. Minor refinement only: the param_1 line said 'unused by the body' without noting that callers pass caster_idx; augmented that one line to record the caller semantics.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "9e72d5e079e09ee03700442f4e66ccc0d2623a4a",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Caller fd2_apply_attack_spell_damage @0x2111a confirms arg order (caster_idx, spell_id, target_count, p_target_ids). Disassembly confirms param_1 is loaded only via __CHK; EBP=spell_id drives the table index and SFX dispatch; window check uses origin/max globals. The decompiler's exit(anim_frame_count_tbl._0_4_) is an artifact of the shared printf+exit epilogue jump (0001c534 PUSH 0x50195; JMP 0x10056); src uses exit(1), the standard OOM idiom -- equivalent, not a logic concern. Ghidra plate enumerates the SFX special-cases while src summarizes them; both consistent, plate left unchanged. write to large_game_state_buffer is via memmove restore each frame plus the per-target blit base."
+}

@@ -117,7 +117,7 @@ void fd2_animate_status_effect_overlay_flicker(uint32 param_1, uint32 status_kin
  * spells).
  *
  * Parameters (__cdecl, 4 args; param_1 only forwarded to the stack check):
- *   param_1            unused by the body
+ *   param_1 (caster_idx)  unused by the body (callers pass caster_idx)
  *   spell_id           index 0..35 into the three per-spell byte tables
  *   target_count       number of entries in char_idx_array
  *   char_idx_array     byte array of runtime-char indices to overlay
