@@ -1247,10 +1247,11 @@ void fd2_chapter_event_handler_1d__unref_dialog_with_state(uint32 event_arg)
  *     turn_counter+1 and that of entry +6 to turn_counter+2 (entries
  *     begin at byte offset +3 with a 3-byte stride inside the table
  *     pointed to by data_fd2_tile_event_data_table_ptr).
- *   - Spawn / configure runtime-char slot 0x0B as an enemy: clear its
- *     flags byte (revive if dead), set team=1, portrait_id=6, char_id=6,
- *     combat_aux_block[0x0A]=0xFF, combat_aux_block[0x0D]=0x80 (AI byte
- *     with the locked bit 7 set), and hp_current=1.
+ *   - Spawn / configure runtime-char slot 0x0B on the NPC/ally side
+ *     (team=1; 0=enemy 1=npc 2=player) as 萊汀 (char_id 6, portrait_id 6):
+ *     clear its flags byte (revive if dead), set combat_aux_block[0x0A]=0xFF,
+ *     combat_aux_block[0x0D]=0x80 (AI byte with the locked bit 7 set), and
+ *     hp_current=1 (spawn at 1 HP).
  *   - Show dialog page 2, reload portrait set 1, show dialog page 3.
  *   - Reset pending XP (data_fd2_battle_pending_xp_credit = 0).
  *   - Consume tile-event slot 0x10 with value 2 (distinct from the "1"

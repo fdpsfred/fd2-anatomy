@@ -1,0 +1,51 @@
+{
+  "address": "00034a7a",
+  "name_current": "fd2_chapter_event_handler_1e__unref_major_cinematic",
+  "name_final": "fd2_chapter_event_handler_1e__unref_major_cinematic",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant and accurate. fd2_ prefix (game fn); '_1e' is the dispatch-table index (slot 0x1E in the per-event handler table at 0x51B91), confirmed by xref math: the only xref to this fn is the DATA pointer at 0x51c09, and 0x51c09-0x51b91=0x78=30*4 -> index 30 = 0x1E; the value at 0x51c09 reads back 7a 4a 03 00 = 0x34a7a. The '1e' is a meaningful domain ID, not an address residue (fn address is 0x34a7a). '__unref' is correct: no chapter FDFIELD turn-event/tile-step hook references this slot; reachable only via the dispatch table (no callers). 'major_cinematic' fits the body (char spawn + dynamic turn-event scheduling + 2-page dialog + portrait swap). Naming is consistent with all sibling handlers in chevt1.c (e.g. _25__unref_major_cinematic).",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Unreferenced (dispatch-only, slot 0x1E) major-cinematic chapter event handler: clears AI bytes for a char band, schedules two future turn events, spawns NPC/ally 萊汀 (char_id 6) at 1 HP, plays a 2-page dialog with a portrait swap, resets pending XP, and consumes tile-event slot 0x10 with value 2.",
+  "logic_summary": "1) for i in 0x0C..0x21 (22 slots): runtime_char[i].combat_aux_block[0xD]=0 (clear AI/sub-state byte). 2) Schedule two future turn events: *(tile_event_data_table+3)=(uint8)(turn_counter+1), *(tile_event_data_table+6)=(uint8)(turn_counter+2) (trigger-turn byte of table entries +3 and +6, 3-byte stride). 3) Configure runtime_char[0x0B] on the NPC/ally side: flags=0 (revive if dead), team=1 (npc), portrait_id=6, char_id=6 (=萊汀), combat_aux_block[0x0A]=0xFF, combat_aux_block[0x0D]=0x80 (AI byte, locked bit7), hp_current=1. 4) display_dialog_scene(page 2); load_chapter_portraits_and_dump_tmp(1); display_dialog_scene(page 3). 5) pending_xp_credit=0. 6) tile_event_consumed_flags[0x10]=2 (distinct from the '1' written by other handlers). Single branch = the AI-clear loop; no RNG, no numeric computation, no CALL-return value used.",
+  "signature": "void __cdecl fd2_chapter_event_handler_1e__unref_major_cinematic(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform 1-arg cdecl dispatch slot argument from the per-event handler table at 0x51B91. The body never reads it (cast to void); kept for the uniform table calling convention.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate generic name matching every sibling handler's unread dispatch arg; no address residue, not param_N. Body ignores it, so a more specific name is not warranted."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_tile_event_data_table_ptr",
+    "data_fd2_battle_turn_counter",
+    "data_fd2_current_chapter_text",
+    "data_fd2_field_map_tile_event_consumed_flags_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_runtime_char_array_ptr (combat_aux_block[0xD] for slots 0x0C..0x21; slot 0x0B fields flags/team/portrait_id/char_id/combat_aux_block[0x0A,0x0D]/hp_current)",
+    "data_fd2_tile_event_data_table_ptr (+3 and +6 trigger-turn bytes)",
+    "data_fd2_battle_pending_xp_credit (=0)",
+    "data_fd2_field_map_tile_event_consumed_flags_ptr (byte [0x10]=2)"
+  ],
+  "comment_original_issue": "The src comment described slot 0x0B spawn as 'as an enemy' while the code sets team=1, which is the NPC/ally side (types.h: team 0=enemy 1=npc 2=player; consts.h TEAM_NPC=1). The Ghidra plate already documented team=1 correctly as the ally side. Fixed the src wording to 'on the NPC/ally side (team=1)' and named the spawned character 萊汀 (char_id 6, portrait_id 6).",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "59fb6b99070b71f8f4897c1d8b4672e4420d64ee",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "team field semantics verified against src/include/types.h:24 (0=enemy 1=npc 2=player) and src/include/consts.h:49-51 (TEAM_ENEMY=0 TEAM_NPC=1 TEAM_PLAYER=2). portrait_id/char_id 6 -> 萊汀 verified via fd2-knowledge query.py portrait 06. Dispatch index 0x1E and the '__unref' claim verified: sole xref to fn is DATA at 0x51c09 (table entry, no callers); the 3 xrefs to table base 0x51b91 are the dispatchers (fd2_handle_tile_event_interaction, fd2_fire_chapter_turn_events_for_phase, fd2_process_battle_drop_entries). No logic changes made. Ghidra plate left untouched (already consistent and more verbose; src is the precise SOT)."
+}
