@@ -966,8 +966,9 @@ int fd2_animate_combat_hit_with_hp_drain(uint32 attacker_idx, uint32 defender_id
  *       fd2_delay_ms(0x50)   (~80 ms)
  *       fd2_cleanup_dialog_sprite_buffer(saved, 0xA0000, 0x140)
  *
- * The paint target index is the defender (EBP = arg2 = defender_idx at
- * 0x1E99D / 0x1EA4E / 0x1EA4E), per both the disassembly and the decompiler.
+ * The paint target index is the defender: arg2 is loaded into EBP at 0x1E99D
+ * and pushed as the paint target at 0x1EA4E (both pose paths converge there),
+ * per both the disassembly and the decompiler.
  *
  * EAX-bug note: the cleanup call receives the SAVE-BLOCK HANDLE returned by
  * fd2_alloc_and_blit_indexed_sprite_chunk (asm 0x1EA86 MOV ESI,EAX captures
