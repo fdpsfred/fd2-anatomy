@@ -1,0 +1,40 @@
+{
+  "address": "0004d340",
+  "name_current": "crt_equivalent_matherr_default_thunk_4d340",
+  "name_final": "crt_equivalent_matherr_default_thunk",
+  "name_verdict": "rename",
+  "name_proposed": "crt_equivalent_matherr_default_thunk",
+  "name_reason": "CRT wrapper, so crt_equivalent_* prefix is correct. The _4d340 suffix equals the function's own entry address (0x4d340 = slot [0x539A8]'s default contents, confirmed via read_memory at 0x539A8 -> bytes 40d30400) -- a Ghidra address residue, not a domain ID, so it must be stripped. Stripped name crt_equivalent_matherr_default_thunk is unique: search_functions(crt_equivalent_matherr_default) returns only this thunk and its JMP target crt_equivalent_matherr_default_return_zero_4d8ea, and the descriptors 'thunk' vs 'return_zero' already distinguish them. Rename recorded only; applied in Stage 2 (touches protos.h + the slot-init/_set_matherr call sites that reference the PUBDEF).",
+  "kind": "function",
+  "home": "src/crt/crt.c",
+  "purpose": "Default value of the user-matherr-handler slot [0x539A8]. A 5-byte JMP thunk that tail-transfers to the 'return 0' primitive at 0x4d8ea; returning 0 from a matherr handler signals 'I did not handle this error', so _matherr proceeds with its default diagnostic behaviour. _set_matherr overwrites the slot to install a custom handler, bypassing this thunk.",
+  "logic_summary": "Single instruction: JMP 0x4d8ea (5-byte E9 form). No prologue/frame -- ESP reaches the target exactly as _matherr left it (exc still pushed). The target crt_equivalent_matherr_default_return_zero_4d8ea (PUSH EBP; MOV EBP,ESP; XOR EAX,EAX; POP EBP; RET) sets EAX=0 and RETs straight back to _matherr (caller cleans the cdecl arg via ADD ESP,4). Net effect at the call boundary: EAX=0, stack balanced. The thunk never reads exc. Its address is taken (it IS the default contents of slot [0x539A8], read+CALLed indirectly by _matherr at 0x4ccf9, written by _set_matherr), so it must remain a real callable function with its own PUBDEF, not folded away.",
+  "signature": "int __cdecl crt_equivalent_matherr_default_thunk_4d340(void *exc)",
+  "params": [
+    {
+      "name": "exc",
+      "type": "void *",
+      "semantics": "Pointer to the matherr exception struct, passed by _matherr as a single cdecl stack arg (PUSH EBX where EBX=_matherr's own exc at [EBP+0xC], then CALL [0x539A8], ADD ESP,4). The thunk never dereferences it (JMPs straight through); it is declared only so the thunk's PUBDEF carries the correct cdecl signature for the slot.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name 'exc' accurately describes the matherr exception-struct pointer per the matherr ABI; no Ghidra address residue, not generic param_1. Matches the sibling crt_equivalent_matherr_default_return_zero_4d8ea param name."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Always 0 (produced in EAX by the JMP target 0x4d8ea). 0 signals to _matherr 'handler did not handle this error', causing _matherr to run its default path (fputs diagnostic to stderr + __set_EDOM/__set_ERANGE + return the exception struct's pre-populated retval)."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Comment kept: the src block (lines 496-552 + the per-definition note 559-567) is detailed, accurate, and matches the binary -- verified slot [0x539A8] = 0x4d340 via read_memory (bytes 40d30400), JMP 0x4d8ea via disassemble_function, and _matherr's indirect-call-before-diagnostic pattern via disassemble_function at 0x4ccee (PUSH EBX=exc; CALL [0x539A8]; ADD ESP,4; TEST EAX,EAX; JNZ skip-diagnostic). Ghidra plate is consistent with the refined understanding so left untouched (ghidra_plate_action=none). No logic touched (the thunk body is the verified JMP, emitted via the #pragma aux helper crt_matherr_jmp_to_return_zero). Out-of-scope observation (NOT an issue for this symbol, belongs to _matherr @ 0x4ccee): _matherr's decompile renders the second fputs literal at 0x517f5 as \" in \" while the _matherr plate text says \" error in: \"; this thunk's plate/comment do not reference that string, so no change made here. Name rename (strip address residue _4d340 -> crt_equivalent_matherr_default_thunk) deferred to Stage 2 per workflow; src declarations/signature left unchanged this stage."
+}
