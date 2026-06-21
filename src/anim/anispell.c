@@ -101,24 +101,34 @@ void fd2_play_ani_file_animation_sequence(uint32 anim_idx,
 }
 
 /* ----------------------------------------------------------------
- * fd2_animate_bg_zoom_transition_in @ 0x29C90  (2 callers)
+ * fd2_animate_bg_zoom_transition_in @ 0x29C90  (2 callers, 3 call sites)
  *
- * BG zoom-in scroll transition for a combat cinematic — the
- * "approaching attacker" visual. Iterates 10 frames down then 10 frames
- * up through the 3-layer parallax BG cache
+ * BG zoom-in scroll transition for a combat cinematic -- the camera pushes
+ * in toward the unit. Iterates 10 frames down then 10 frames up through the
+ * 3-layer parallax BG cache
  * (data_fd2_battle_special_cinematic_bg_layers @ 0x5410B/0F/13)
- * loaded by the caller, painting the attacker silhouette into the work
- * buffer between the two scroll passes.
+ * loaded by the caller, compositing the relevant combat unit (the attacker
+ * or the defender, depending on phase) into the work buffer between the two
+ * scroll passes.
+ *
+ * Callers: fd2_execute_combat_hit_cinematic (charge-in and second-strike
+ * branches, on the player/ally-attacker side) and
+ * fd2_execute_special_attack_skill (per-target loop, non-0x1C path).
  *
  * Params (__cdecl):
- *   char_unit_id    runtime-char index of the attacker (forwarded to the
+ *   char_unit_id    runtime-char index of the unit (forwarded to the
  *                   hit-flash overlay)
- *   char_sprite_idx atlas/sprite index blitted into the workspace after
- *                   the silhouette is composed
- *   clear_buf       64000-byte (mode-13h sized) scratch the silhouette is
- *                   rendered into before being blitted into workspace
+ *   char_sprite_idx FIGANI/sprite-sheet stream pointer for the unit pose,
+ *                   blitted (frame 0) into the workspace. NOTE: misnomer --
+ *                   this is a sheet pointer, not an index (it is passed as
+ *                   fd2_blit_indexed_sprite's sheet_ptr with idx 0).
+ *   clear_buf       64000-byte (mode-13h sized) scratch the unit pose is
+ *                   composed into before being blitted into workspace
  *   workspace       128K (0x1F400) work buffer holding the scrolled BG
- *   caster_figani   FIGANI sprite stream for the caster silhouette
+ *   caster_figani   terrain/BG backdrop RLE stream rendered into clear_buf
+ *                   under the unit. NOTE: misnomer -- this is the terrain
+ *                   backdrop (cf. the terrain_bg param of the zoom-out
+ *                   counterpart), not a caster FIGANI.
  *
  * The three BG-layer pointers are a real uint32[3] array
  * (data_fd2_battle_special_cinematic_bg_layers), indexed directly so C
