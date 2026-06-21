@@ -1,0 +1,56 @@
+{
+  "address": "00015e71",
+  "name_current": "fd2_cleanup_dialog_sprite_buffer",
+  "name_final": "fd2_cleanup_dialog_sprite_buffer",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>. Home dialog/dialog.c; restores the screen block snapshotted in a transient sprite-backup buffer and frees it. Name accurately reflects cleanup (restore + free) of a dialog sprite buffer. No address residue.",
+  "kind": "function",
+  "home": "src/dialog/dialog.c",
+  "purpose": "Undo a transient overlay-sprite blit: restore the pre-blit screen content saved inside saved_block back to dst at the given stride, then free the temp buffer.",
+  "logic_summary": "void cleanup helper. After the Watcom __CHK(0x14) stack-probe prologue, calls fd2_restore_screen_block_from_buffer(saved_block, dst, stride) to repaint the saved screen region (saved_block holds an 8-byte header [w,h,dst_offset] followed by w*h saved pixels), then free(saved_block). Plain RET, no value. Disassembly: PUSH 0x14;CALL __CHK -> CALL 0x4e92c (3 args, cdecl) -> CALL free (1 arg) -> RET; matches src exactly.",
+  "signature": "void fd2_cleanup_dialog_sprite_buffer(uint32 saved_block, uint32 dst, uint32 stride)",
+  "params": [
+    {
+      "name": "saved_block",
+      "type": "uint32",
+      "semantics": "Saved-block buffer pointer: 8-byte header (uint16 width @0, uint16 height @2, uint32 dst_offset @4) then width*height saved pixel bytes. Restored to screen then freed.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the saved screen-block backup buffer; matches the callee fd2_restore_screen_block_from_buffer parameter name; no address residue."
+    },
+    {
+      "name": "dst",
+      "type": "uint32",
+      "semantics": "Destination base linear address the saved block is restored to (call sites pass 0xa0000, the Mode 13h VGA segment A000:0).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate destination-base name; matches callee parameter; no address residue."
+    },
+    {
+      "name": "stride",
+      "type": "uint32",
+      "semantics": "Bytes to advance dst per row during restore (call sites pass 0x140 = 320, the Mode 13h screen pitch).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate pitch/stride name; matches callee parameter; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Binary RET leaves EAX at entry value; the decompiler shows no return and all 13 callers discard, confirming void."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment block (lines 14-23) already precise and correct: restore saved_block to dst at stride then free; pairs with fd2_blit_indexed_sprite_with_alloc / fd2_alloc_and_blit_indexed_sprite_chunk; undoes transient sprite blit. __CHK(0x14) is the Watcom compiler stack-probe prologue (not game logic) and is correctly omitted from src. Ghidra plate matches refined understanding (adds a Body pseudocode block) -> left untouched. Verified callee semantics via blitspr.c fd2_restore_screen_block_from_buffer doc + disassembly. 13 call sites (7 distinct callers) all discard the (nonexistent) return -> void confirmed."
+}
