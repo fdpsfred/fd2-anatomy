@@ -12,8 +12,20 @@
 /* ----------------------------------------------------------------
  * fd2_tick_sprite_animation_step @ 0x2673F
  *
- * One tick of frame-paced sprite animation. Renders current frame,
- * advances tick counter, and moves to next frame when hold expires.
+ * One tick of a generic frame-paced sprite animation. Blits the
+ * current frame, bumps the hold tick, and advances to the next frame
+ * once the tick reaches that frame's hold count. Wraparound / end of
+ * animation is the caller's responsibility, not handled here.
+ *
+ * The last three args forward straight into fd2_blit_indexed_sprite:
+ * x = dst buffer, y = dst stride, atlas = sprite-sheet pointer (also
+ * the source of the per-frame metadata read below).
+ *
+ * Per-frame metadata layout within the sheet blob:
+ *   +8 + idx*4   uint32 offset to this frame's metadata
+ *   +off + 6     uint8  hold count (ticks to display this frame)
+ *
+ * Helper for fd2_tick_summon_spell_animation_state (@ 0x26528) only.
  * ---------------------------------------------------------------- */
 void fd2_tick_sprite_animation_step(uint8 *p_frame_idx, uint8 *p_tick,
                                      int x, int y, uint32 atlas)

@@ -1,0 +1,72 @@
+{
+  "address": "0002673f",
+  "name_current": "fd2_tick_sprite_animation_step",
+  "name_final": "fd2_tick_sprite_animation_step",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Already follows fd2_<domain>_<descriptor>; 'tick_sprite_animation_step' accurately describes one frame-paced animation step (blit current frame, advance hold tick, advance frame at hold expiry). No address residue.",
+  "kind": "function",
+  "home": "src/anim/anisummn.c",
+  "purpose": "Advance one tick of a generic frame-paced sprite animation: blit the current frame, bump the hold-tick counter, and advance to the next frame when the tick reaches that frame's per-frame hold count.",
+  "logic_summary": "Compiler-inserted __CHK(0x20) stack guard (not game logic, omitted in src). Blit current frame: fd2_blit_indexed_sprite(atlas, *p_frame_idx, x, y, -1). Read per-frame metadata offset from the sheet's table at +8 (frame_off = *(u32*)(atlas + (*p_frame_idx)*4 + 8)), then the hold count at frame_off+6. Increment *p_tick; if it equals the hold count, reset *p_tick to 0 and increment *p_frame_idx. Frame wraparound / animation end is left to the caller.",
+  "signature": "void fd2_tick_sprite_animation_step(uint8 *p_frame_idx, uint8 *p_tick, int x, int y, uint32 atlas)",
+  "params": [
+    {
+      "name": "p_frame_idx",
+      "type": "uint8 *",
+      "semantics": "Pointer to the current sprite frame index byte (caller passes &data_fd2_battle_summon_spell_anim_phase_byte). Read for the blit and used to index the per-frame metadata table; incremented in place when the hold expires.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate and address-residue-free; matches the by-address frame-index usage."
+    },
+    {
+      "name": "p_tick",
+      "type": "uint8 *",
+      "semantics": "Pointer to the per-frame hold-tick counter byte (caller passes &data_fd2_battle_summon_spell_sprite_anim_tick_counter). Incremented each call, reset to 0 on frame advance. Read via MOVZX in asm so the comparison is an unsigned byte compare; src uint8* is more accurate than Ghidra's char*.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate and address-residue-free."
+    },
+    {
+      "name": "x",
+      "type": "int",
+      "semantics": "Destination buffer argument forwarded verbatim as fd2_blit_indexed_sprite's dst_buf (3rd arg). Caller passes origin_y. The name 'x' wrongly implies a coordinate; it is actually the blit destination buffer pointer.",
+      "verdict": "rename",
+      "proposed": "dst_buf",
+      "reason": "Pure pass-through to fd2_blit_indexed_sprite(dst_buf); 'x' is misleading (not an X coordinate). Match the callee param name. Stage-2 rename only."
+    },
+    {
+      "name": "y",
+      "type": "int",
+      "semantics": "Destination stride argument forwarded verbatim as fd2_blit_indexed_sprite's dst_stride (4th arg). Caller passes row_stride. The name 'y' wrongly implies a coordinate; it is actually the destination row stride.",
+      "verdict": "rename",
+      "proposed": "dst_stride",
+      "reason": "Pure pass-through to fd2_blit_indexed_sprite(dst_stride); 'y' is misleading (not a Y coordinate). Match the callee param name. Stage-2 rename only."
+    },
+    {
+      "name": "atlas",
+      "type": "uint32",
+      "semantics": "Sprite-sheet pointer. Forwarded as fd2_blit_indexed_sprite's sheet_ptr (1st arg) and also the base for the per-frame metadata reads (offset table at +8, hold count at off+6). Caller passes sprite_handle.",
+      "verdict": "rename",
+      "proposed": "sheet_ptr",
+      "reason": "Codebase blit primitive names this param sheet_ptr and sibling tick fns call it sprite_handle; 'atlas' is an outlier term. Rename to sheet_ptr for consistency with fd2_blit_indexed_sprite. Stage-2 rename only."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; all effects are in-place via p_frame_idx/p_tick plus the blit side effect."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": "Original src comment was correct but terse: it omitted that the last three args are a dst-buffer / dst-stride / sprite-sheet pointer forwarded to the blit, the per-frame metadata layout (offset table at +8, hold count at +6), and that frame wraparound is the caller's job.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disasm confirms PUSH 0x20; CALL __CHK stack guard (compiler-inserted, correctly absent in src) and that the hold-count compare uses two MOVZX operands (unsigned byte compare) -- src uint8* typing is correct/better than Ghidra char*. Single caller fd2_tick_summon_spell_animation_state @ 0x26528 (2 call sites 0x2660E, 0x2667B). No globals read/written directly; both pointer args target globals owned by the caller. No logic touched."
+}
