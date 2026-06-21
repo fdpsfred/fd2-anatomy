@@ -1,0 +1,44 @@
+{
+  "address": "0x00034d72",
+  "name_current": "fd2_chapter_event_handler_07__ch13_dialog_with_state",
+  "name_final": "fd2_chapter_event_handler_07__ch13_dialog_with_state",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows the file-wide convention fd2_chapter_event_handler_<idx>__<chapter>_<category>. The '07' is the dispatch-table index (slot 0x07 of the per-event handler table at 0x51B91; xref confirmed from 0x51bad), a meaningful domain ID, NOT an address residue (function's own address is 0x34d72, unrelated). '__ch13_dialog_with_state' is accurate: chapter 13 turn-9/phase-0 beat (KB walkthrough: enemy reinforcements appear on the right at end of player turn 9), dialog category, 'with_state' because it brackets the portrait reload with writes to data_fd2_chapter_init_phase_flag. Consistent with all sibling handlers in chevt1.c.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter 13 turn-event slot 1 (turn 9 / phase 0), dispatch idx 0x07 of the per-event handler table at 0x51B91: pan camera, reload portrait set 2 as an init-phase load, play cutscene 0x2E, reset all character facing, and show dialog page 8.",
+  "logic_summary": "Straight-line, no-branch sequence (no RNG, no numeric computation, no CALL-return value consumed). After the compiler-injected __CHK(0x28) stack probe: fd2_pan_cursor_and_window(0x1B, 5); set data_fd2_chapter_init_phase_flag=1; fd2_load_chapter_portraits_and_dump_tmp(2); set data_fd2_chapter_init_phase_flag=0; fd2_cutscene_event_trigger(0x2E); fd2_clear_all_chars_facing(); fd2_display_dialog_scene(text, page 8, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1). In the original binary the trailing dialog call is reached by 8 PUSHes then JMP 0x34DC8 -> 0x34C0F, the shared display-dialog tail inside fd2_show_chapter_dialog_with_portrait_set_1 (0x34BE7-0x34C1D); reproduced inline in src for Layer-2 equivalence.",
+  "signature": "void __cdecl fd2_chapter_event_handler_07__ch13_dialog_with_state(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform 1-arg cdecl dispatch argument from the handler table at 0x51B91. Never read by the body (this slot is a turn-event handler, so the arg carries no used value). Stack[0x4].",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately describes the unread event-dispatch argument; no address residue, matches the file-wide param name used by every sibling turn-event handler."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. fd2_display_dialog_scene's return (if any) is discarded; the original tail-JMPs into a RET."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text @ 0x53a79 (dialog text base pointer passed to fd2_display_dialog_scene; pushed in the shared tail)"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_init_phase_flag @ 0x53afa (set to 1 before the portrait reload and back to 0 after, marking the reload as an init-phase load)"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "a2ff3fcbe2da7f72eb36c10f46c1297ced6a603b",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified against disassembly (PUSH 0x28/CALL __CHK; pan(0x1B,5); MOV [0x53afa],1; load(2); MOV [0x53afa],0; trigger(0x2E); clear_facing; 8 PUSHes; JMP 0x34C0F). Called functions confirmed by address: 0x135dd=fd2_pan_cursor_and_window, 0x10b4e=fd2_load_chapter_portraits_and_dump_tmp, 0x1366a=fd2_cutscene_event_trigger, 0x134e4=fd2_clear_all_chars_facing; 0x34C0F lies inside fd2_show_chapter_dialog_with_portrait_set_1 (0x34BE7-0x34C1D). Dispatch index 0x07 confirmed via table read at 0x51ba9: entries 0x34422(06),0x34d72(07,this),0x34dcd(08),0x344c2(09); only xref to this fn is the DATA ref at 0x51bad. Chapter-13 walkthrough (fd2-knowledge) confirms turn-9 reinforcement timing. Source comment and Ghidra plate both already accurate; no edits made to either."
+}
