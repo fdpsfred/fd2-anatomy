@@ -333,8 +333,19 @@ void fd2_check_battle_end_condition(void)
 /* ----------------------------------------------------------------
  * fd2_check_battle_end_default_handler @ 0x205B4
  *
- * Default post_action_handler entry. Falls through to
- * fd2_check_battle_end_condition.
+ * Default entry of the per-chapter post-action handler table
+ * (data_fd2_chapter_post_action_handler_table @ 0x51B19). The 11
+ * chapters with no bespoke win/lose rule (ch 1,3,4,5,6,7,8,9,11,14,24)
+ * point their slot here; the other slots use chapter-specific handlers.
+ *
+ * Just runs the standard win/lose check via fd2_check_battle_end_condition.
+ * event_arg is the shared dispatch argument (always 0 from the turn-cycle
+ * callers); this default handler ignores it.
+ *
+ * In the original binary this is a distinct symbol that falls through
+ * into fd2_check_battle_end_condition @ 0x205BE -- the only machine-code
+ * difference is one extra Watcom __CHK(4) stack-frame probe, hence the
+ * separate entry point modeled here as a thin wrapper.
  * ---------------------------------------------------------------- */
 void fd2_check_battle_end_default_handler(uint32 event_arg)
 {
