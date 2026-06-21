@@ -1,0 +1,48 @@
+{
+  "address": "0001e292",
+  "name_current": "fd2_process_xp_and_level_up_for_char",
+  "name_final": "fd2_process_xp_and_level_up_for_char",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor> name (domain implicitly battle/progression). The descriptor 'process_xp_and_level_up_for_char' accurately covers the three responsibilities seen in the body: apply accumulated XP (data_fd2_battle_pending_xp_credit), run the per-level-up stat-gain/level animation, and grant level-gated spells, all for the single runtime_char at the index argument. No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/battle/btl_turn.c",
+  "purpose": "Apply accumulated XP, run the level-up animation/stat-gain, and learn level-gated spells for one runtime character. Invoked right after a kill (fd2_execute_ai_physical_attack) and from the main loop (fd2_game_main_loop).",
+  "logic_summary": "Reads data_fd2_battle_pending_xp_credit; early-returns if it is 0, if the char is dead (flags bit0), or if the char is already at its level cap (portrait 0x1E/0x1F hero -> 99, otherwise -> 0x28=40). Otherwise: looks up the growth table via fd2_get_char_growth_entry(portrait_id); remaining_xp = pending_xp_credit + carry-over movement_order; stashes the XP amount in data_fd2_dialog_last_action_value_param; clears keyboard, loads portrait, shows dialog 0x1E8 (\"gained N XP\"), paints portrait. While remaining_xp > 99: increments status_flags_block[0] (level), shows 0x1E9 (\"level up\"), rolls 5 stat slots via fd2_roll_stat_gain_and_show_message (AP at combat_aux+0x10, DP at +0x12, DX at ai_target_and_dx_block+1, HP_max, MP_max with growth pairs at pGrowth+0/+2/+4/+6/+8 and text ids 0x1EA..0x1EE). If pGrowth[10] != 0xFF, reads the spell-learning table (fd2_get_spell_learning_entry) and, for each of 6 (req_level,spell_id) pairs whose req_level equals the new level, sets data_fd2_dialog_last_action_sprite_id_param = spell_id+0x1B9, grants the spell (fd2_grant_spell_to_char), and shows dialog 0x24B (\"learned X\"). Calls fd2_recalculate_combat_stats, subtracts 100 from remaining_xp, and applies a per-call cap: if hero hit 99 or any char hit level 30 (0x1E), forces remaining_xp = 0 (early loop exit, discarding leftover XP). On exit: fd2_wait_ticks_or_keypress_with_palette(0xB), fd2_close_status_screen_with_slide_out(), stores the (possibly zeroed) remainder into movement_order as carry-over, and clears data_fd2_battle_pending_xp_credit.",
+  "signature": "void __cdecl fd2_process_xp_and_level_up_for_char(uint param_1)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Index into data_fd2_battle_runtime_char_array_ptr selecting the character whose accumulated XP is processed; used for every runtime_char field access, passed to fd2_grant_spell_to_char and fd2_recalculate_combat_stats. (src already names it 'ci'.)",
+      "verdict": "rename",
+      "proposed": "char_idx",
+      "reason": "Live Ghidra name 'param_1' is a generic placeholder with no semantics. It is a runtime_char array index; 'char_idx' is descriptive, matches the plate header's documented argument name, and has no address residue. (Rename applied in Stage 2; src already uses 'ci'.)"
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects: mutates the selected runtime_char (level, AP/DP/DX/HP_max/MP_max, learned spells, movement_order carry-over), clears data_fd2_battle_pending_xp_credit, writes the dialog staging globals, and drives on-screen level-up dialogs."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_pending_xp_credit",
+    "data_fd2_all_game_text_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_pending_xp_credit",
+    "data_fd2_dialog_last_action_value_param",
+    "data_fd2_dialog_last_action_sprite_id_param"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "8dd46c7b",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Src comment block (btl_turn.c lines 867-882) is already concise and accurate against the decompilation: gate conditions, carry-over XP, per-level loop (level++, 5 stat rolls, level-matched spell learn, recalc, -100), per-call cap (30 normal / 99 hero) discarding leftover, and movement_order carry-over / pending_xp_credit clear all verified -- kept as-is. Ghidra plate is the long-form version and is semantically consistent with the src comment (no contradiction), so left unchanged. Design note (not a bug, matches plate): the entry-gate cap is level 40 (0x28) but the in-loop per-call cap only zeroes XP exactly at level 30 (0x1E) or hero 99, so a normal char already above 30 is bounded only by available XP, intentionally requiring multiple kills/calls to approach the 40 absolute cap. Callers confirmed via Ghidra xrefs: fd2_game_main_loop @ 0x117e7, fd2_execute_ai_physical_attack @ 0x1548e. Both written globals are also declared in src/include/globals.h."
+}
