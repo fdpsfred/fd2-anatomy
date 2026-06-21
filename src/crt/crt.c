@@ -442,14 +442,14 @@ unsigned long crt_equivalent_get_eflags_thunk(void)
  * expression (its way of showing PUSHFD;POP EAX) and cannot represent the
  * CLI; the disassembly is authoritative.
  *
- * Emit form: identical to the thunk above — the raw opcodes
+ * Emit form: identical to the thunk above -- the raw opcodes
  * PUSHFD; POP EAX; CLI are spliced in from the shared #pragma aux in-line
  * helper crt_capture_eflags_cli (declared once above; reused here, NOT
  * re-declared). The optimiser inlines it, so this externally-linked
- * wrapper expands to PUSHFD; POP EAX; CLI; RET — exactly the original
+ * wrapper expands to PUSHFD; POP EAX; CLI; RET -- exactly the original
  * 4-byte body. As anticipated when the thunk was emitted, the program now
  * holds two byte copies of these opcodes (the thunk's inline copy and this
- * one); that is Layer 2 (functionally exact) — byte-exact deduplication of
+ * one); that is Layer 2 (functionally exact) -- byte-exact deduplication of
  * the JMP-to-shared-target structure is a Layer 3 detail not pursued.
  *
  * __cdecl unsigned long(void): no parameters, returns EFLAGS in EAX. The
