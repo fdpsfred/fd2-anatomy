@@ -1,0 +1,36 @@
+{
+  "address": "00036b0f",
+  "name_current": "fd2_ani_decoder_chunk_palette_load_rle",
+  "name_final": "fd2_ani_decoder_chunk_palette_load_rle",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>: ani_decoder = ANI file decoder domain, chunk = dispatch-table chunk handler, palette_load_rle = loads the 768-byte palette area via RLE decode. 'rle' is the encoding scheme (semantic), not address residue. Matches sibling handler naming (fd2_ani_decoder_chunk_palette_load_literal / _fill_byte). Accurately reflects purpose and logic.",
+  "kind": "function",
+  "home": "src/anim/anidec.c",
+  "purpose": "ANI frame-decoder chunk handler that RLE-decodes a 768-byte palette block (256 RGB triples) from the delta stream into the decoder palette/source buffer.",
+  "logic_summary": "dst = palette base (data_fd2_animation_ani_decoder_src_buf); pos = 0. Loop until pos reaches 0x300 (768): read stream byte b. If (b & 0xC0) == 0xC0 it is an RLE run token: run_len = b & 0x3F, pos += run_len, read next stream byte as fill value, memset(dst, fill, run_len), advance dst by run_len. Otherwise b is a literal byte: write b once, dst++, pos++. The original uses ESI as the stream cursor (LODSB) and a SHR/REP STOSW + RCL/REP STOSB word/odd-byte run-fill; the C uses the file-scope g_ani_cursor and an equivalent memset. Functionally equivalent (Layer-2 codegen, not byte-exact).",
+  "signature": "void fd2_ani_decoder_chunk_palette_load_rle(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effect: writes exactly 768 decoded palette bytes to the buffer at data_fd2_animation_ani_decoder_src_buf and advances the stream cursor g_ani_cursor (original: ESI) past the consumed RLE tokens."
+  },
+  "reads_globals": [
+    "data_fd2_animation_ani_decoder_src_buf",
+    "g_ani_cursor"
+  ],
+  "writes_globals": [
+    "g_ani_cursor"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly and decompiled C agree fully. Verified literal-branch writes the original byte b: AND AH,0xC0 modifies only AH, so AL (=b) is unchanged before STOSB; src writes *dst++ = b, correct. Verified run-fill: SHR ECX,1 + REP STOSW writes run_len/2 word pairs (AX=fill:fill), RCL ECX,1 recovers the odd bit, REP STOSB writes the trailing byte if run_len odd; src memset(dst,fill,run_len) is the idiomatic equivalent. Only xref-in is the dispatch-table slot @ 0x52772 (data_fd2_animation_ani_decoder_frame_dispatch_table + 8); no direct callers (indirect call from fd2_ani_decoder_decode_frame_bytes). g_ani_cursor is a file-scope static in anidec.c modeling the ESI stream cursor; not address residue. src comment block (anidec.c lines 99-103) is already precise and correct; Ghidra plate is detailed and consistent with src conclusion, left unchanged."
+}
