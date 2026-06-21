@@ -68,8 +68,12 @@ int fd2_find_tile_with_attribute_match(uint32 target_tag, uint32 out_pos)
 /* ----------------------------------------------------------------
  * fd2_collect_unmarked_tile_positions @ 0x14B16
  *
- * Collect all tiles whose overlay byte +7 is not 0xFF.
- * Write (x,y) byte-pairs to out_buf, return count.
+ * Enumerate every battle tile whose overlay byte +7 is not 0xFF and
+ * write its (x,y) as a byte-pair into out_buf; return the tile count.
+ * Counterpart to fd2_mark_char_occupant_tiles_for_team. Callers first
+ * run fd2_init_movement_range_floodfill (reachable tiles keep +7,
+ * unreachable get 0xFF) then mark occupant tiles 0xFF, so the gathered
+ * set is the reachable, unoccupied tiles used for AI move/AoE scans.
  * ---------------------------------------------------------------- */
 int fd2_collect_unmarked_tile_positions(uint32 out_buf)
 {

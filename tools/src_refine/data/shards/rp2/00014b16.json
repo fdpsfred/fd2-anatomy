@@ -1,0 +1,44 @@
+{
+  "address": "00014b16",
+  "name_current": "fd2_collect_unmarked_tile_positions",
+  "name_final": "fd2_collect_unmarked_tile_positions",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> for battle-AI tile scanning. 'collect_unmarked_tile_positions' accurately describes the body: collect (x,y) of tiles whose overlay byte +7 != 0xFF (i.e. not marked). No address residue; consistent with siblings fd2_mark_char_occupant_tiles_for_team / fd2_scan_chars_*.",
+  "kind": "function",
+  "home": "src/battle/btl_aitg.c",
+  "purpose": "Enumerate every battle tile whose overlay byte +7 is not 0xFF and write its (x,y) byte-pair into the output buffer, returning the tile count; gathers the reachable, unoccupied tile set callers use for AI movement/AoE candidate scans.",
+  "logic_summary": "count=0; tile_ptr = tile_map_ptr + 7 (overlay byte at +7 within each 4-byte tile entry). Nested loop y in [0,map_height_tiles), x in [0,map_width_tiles): if *tile_ptr != 0xFF, write (uint8)x to out_buf[0] and (uint8)y to out_buf[1], advance out_buf by 2, count++. tile_ptr advances by 4 each inner step (tile entry stride). Return count. Prologue calls __CHK(0x10) (stack probe). Counterpart to fd2_mark_char_occupant_tiles_for_team: callers run fd2_init_movement_range_floodfill (reachable tiles keep +7, unreachable set to 0xFF) then mark occupant tiles 0xFF beforehand, so 'unmarked' == reachable AND unoccupied.",
+  "signature": "int __cdecl fd2_collect_unmarked_tile_positions(uint32 out_buf)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint32",
+      "semantics": "Output buffer pointer; receives one (x_byte, y_byte) pair per collected tile (2 bytes each). Src home file already names it 'out_buf'.",
+      "verdict": "rename",
+      "proposed": "out_buf",
+      "reason": "Live Ghidra still has generic placeholder 'param_1'; rename to 'out_buf' (already used in src home file) to match its role as the output (x,y)-pair buffer. Stage 2 applies the Ghidra rename."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Number of collected tiles (count of unmarked tiles, i.e. tiles with overlay byte +7 != 0xFF). Equals the number of (x,y) byte-pairs written to out_buf."
+  },
+  "reads_globals": [
+    "data_fd2_battle_tile_map_ptr",
+    "data_fd2_battle_map_height_tiles",
+    "data_fd2_battle_map_width_tiles"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Original src comment was mechanically correct ('Collect all tiles whose overlay byte +7 is not 0xFF. Write (x,y) byte-pairs to out_buf, return count.') but omitted the semantic role: that 'unmarked' is meaningful only because callers first floodfill reachability and mark occupant tiles 0xFF, so the result is the reachable, unoccupied tile set.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified via disassembly (0x14b16): MOV EDX,[0x53a51](tile_map_ptr)+7; outer bound [0x53ac5]=map_height_tiles, inner bound [0x53ac1]=map_width_tiles; MOVZX byte then CMP 0xFF (byte compare, decompiler's '(char*) != -1' is equivalent to src '*tile_ptr != 0xFF'); writes BL(x)/CL(y), ADD EAX,2, INC ESI(count), ADD EDX,4 (stride). 4 callers all consume buffer as (x,y) byte-pairs to score reachable candidate tiles: fd2_ai_walk_to_target_tile, fd2_ai_score_physical_attack, fd2_ai_score_item_use, fd2_ai_score_offensive_spell. Ghidra plate is detailed and consistent (its speculative 'animation scatter positions' use is an unconfirmed 'or' but not contradictory), left unchanged."
+}
