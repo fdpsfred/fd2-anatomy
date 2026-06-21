@@ -43,6 +43,19 @@ def main():
         shards = ROOT / "tools" / "src_refine" / "data" / "shards" / a.partition
     done = {p.stem for p in shards.glob("*.json")} if shards.is_dir() else set()
 
+    def slim(s):
+        # the refiner re-derives every detail from Ghidra; pass only what the
+        # workflow needs to identify+route the symbol (keeps full-partition args small).
+        o = {"address": s["address"], "name": s["name"], "kind": s["kind"]}
+        if s["kind"] == "global":
+            if s.get("datatype"):
+                o["datatype"] = s["datatype"]
+            if s.get("segment"):
+                o["segment"] = s["segment"]
+        else:
+            o["is_thunk"] = bool(s.get("is_thunk"))
+        return o
+
     total = part["n_syms"]
     files_out, n_in_batch, remaining = [], 0, 0
     for f in part["files"]:
@@ -52,7 +65,7 @@ def main():
             continue
         take = undone[: max(0, a.limit - n_in_batch)]
         if take:
-            files_out.append({"home": f["home"], "symbols": take})
+            files_out.append({"home": f["home"], "symbols": [slim(s) for s in take]})
             n_in_batch += len(take)
 
     if a.stats:
