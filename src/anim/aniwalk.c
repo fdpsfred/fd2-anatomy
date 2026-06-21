@@ -423,7 +423,21 @@ void fd2_slide_panel_step_left_main(uint32 src_buffer, uint32 frame_idx)
 /* ----------------------------------------------------------------
  * fd2_slide_panel_step_right_main @ 0x1AF99
  *
- * Right panel slide-in (mirror of left_main).
+ * Party status overview wide (0xAA-byte) main panel, one slide-IN
+ * frame entering from the right edge. Right-edge mirror of
+ * fd2_slide_panel_step_left_main; driven by the INTRO loop in
+ * fd2_open_party_status_overview_screen (frame_idx counts 0->0xB),
+ * while the left variant drives the OUTRO (slide-out).
+ *
+ * Copies 0x75 (117) rows, 0xAA bytes wide, from src_buffer into
+ * data_fd2_large_game_state_buffer_ptr. The source always starts at
+ * row-0 offset 0x2E8B (= src x 0x4B + 0xAA, i.e. the panel's right
+ * portion) and never advances, because the right edge clips by
+ * shrinking the copy width only. For frame_idx <= 4 the dst x
+ * descends from 0xF5 toward 0x4B by 0x32 per frame; while the panel
+ * right edge (dst_x + 0xAA) runs past the screen width 0x140 the copy
+ * width is right-clipped (row_bytes = 0x140 - dst_x). For
+ * frame_idx >= 5 the panel sits stationary at dst x = 0x4B.
  * ---------------------------------------------------------------- */
 void fd2_slide_panel_step_right_main(uint32 src_buffer, uint32 frame_idx)
 {
