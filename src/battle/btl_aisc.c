@@ -15,9 +15,10 @@
  * Per-candidate spell scorer for AI. Dispatch by spell_id range:
  *   <0xD  damage (kill=0x18, else=8, priority*=1.5)
  *   0xD-0x10 heal (HP deficit scoring, heal-boost doubles)
- *   0x11-0x13 status-effect (tally with spell_id+0x11)
- *   0x14 cure poison, 0x15 cure sleep, 0x16 silence
- *   0x1A/0x1B summon (tally with 0x25/0x26)
+ *   0x11-0x13 buff (tally targets lacking the buff at field spell_id+0x11)
+ *   0x14 cure poison, 0x15 cure paralysis, 0x16 silence
+ *   0x1A poison-strike / 0x1B paralysis
+ *     (tally targets lacking the status at field 0x25 / 0x26)
  * ---------------------------------------------------------------- */
 int fd2_score_spell_candidate(uint32 spell_id, uint32 n_targets,
                                uint32 target_array_ptr)
