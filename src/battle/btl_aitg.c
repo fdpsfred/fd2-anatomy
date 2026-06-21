@@ -279,8 +279,12 @@ void fd2_mark_aoe_plus_pattern_at(uint32 x, uint32 y)
 /* ----------------------------------------------------------------
  * fd2_ai_pass_turn_with_heal @ 0x13FD4
  *
- * AI "pass turn": if HP < max and no poison/sleep, heal 20% of
- * max HP with glow animation. Returns 1 if healed, 0 otherwise.
+ * "Pass turn" / Rest action, shared by AI characters (enemy-turn
+ * dispatcher fall-through) and the player's Wait command. If HP < max
+ * and the char is not poisoned (status[0x25]) and not paralyzed
+ * (status[0x26]), heal 20% of max HP (clamped to max) with a brief
+ * glow animation + recovery SFX. Returns 1 if healed, 0 otherwise.
+ * Note: FD2 has no "sleep" ailment; the 0x26 flag is paralysis (麻痹).
  * ---------------------------------------------------------------- */
 int fd2_ai_pass_turn_with_heal(uint32 char_idx)
 {
