@@ -1,0 +1,48 @@
+{
+  "address": "0001c8ed",
+  "name_current": "fd2_apply_heal_spell_to_target",
+  "name_final": "fd2_apply_heal_spell_to_target",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=battle/spell). Name accurately reflects behavior: looks up the spell effect entry for spell_id, reads its heal HP value (entry+0), and applies it to the given battle target via fd2_apply_hp_heal_and_award_xp. No Ghidra address residue in the name. Caller fd2_dispatch_variant_b_cast and inner fd2_apply_hp_heal_and_award_xp both corroborate the heal-application semantics.",
+  "kind": "function",
+  "home": "src/battle/battle.c",
+  "purpose": "Apply a heal spell to one battle target: resolve the spell's heal HP value and heal the target (with XP award handled by the inner heal fn), returning the actual heal amount.",
+  "logic_summary": "Two-line dispatcher. spell_entry = fd2_get_spell_effect_entry(spell_id); reads heal HP value at *(int16*)spell_entry (spell effect entry +0); return fd2_apply_hp_heal_and_award_xp(target_idx, heal_value). The return value (actual applied heal) is tail-propagated from the inner fn's EAX -- the asm tail (CALL inner; ADD ESP,8; POP EBX; RET) leaves EAX untouched. __CHK(0x10,...) is the Watcom stack-probe prologue.",
+  "signature": "int __cdecl fd2_apply_heal_spell_to_target(uint32 target_idx, uint32 spell_id)",
+  "params": [
+    {
+      "name": "target_idx",
+      "type": "uint32",
+      "semantics": "Index of the battle participant (target slot) receiving the heal; passed straight through to fd2_apply_hp_heal_and_award_xp. Caller passes the per-target id p_targets[i] from the AoE target list.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the target slot index used to locate the unit to heal. No address residue, matches caller usage."
+    },
+    {
+      "name": "spell_id",
+      "type": "uint32",
+      "semantics": "Spell ID (valid range 0x00-0x23) used to look up the spell effect entry whose +0 int16 is the heal HP value. Reached at runtime via variant-B spell ids 0xD/0xE/0xF/0x10.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the spell identifier; 0x00-0x23 is the meaningful spell-ID domain (not address residue). Matches caller (EDI=spell_id)."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Actual heal amount applied (= inner fd2_apply_hp_heal_and_award_xp return, extra_heal + base_heal). The sole caller fd2_dispatch_variant_b_cast feeds it to fd2_show_damage_number(heal_amount, 0x69, target_id) to display the floating heal number ('i' indicator)."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "161a148d067ee752526eef7aac5e673355c27693",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Clean 2-line heal-spell dispatcher. Source comment block (lines 87-96) and Ghidra plate are both already accurate and mutually consistent -- no edits to src comment or plate. name_verdict=keep, both params keep. No logic concerns. Only the shard file is staged for commit (battle.c unchanged)."
+}
