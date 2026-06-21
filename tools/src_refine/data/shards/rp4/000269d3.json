@@ -1,0 +1,87 @@
+{
+  "address": "000269d3",
+  "name_current": "fd2_tick_summon_anim_variant_a_6slot",
+  "name_final": "fd2_tick_summon_anim_variant_a_6slot",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>. 'tick' = per-frame animation tick; 'summon_anim_variant_a' = one of the 5 distinct summon-spell animation families (variant_a..e) in anisummn.c; '6slot' is a real structural dimension (the per-slot arrays frame_counter[6]/color_idx[6]/jitter[6]), not address residue. Consistent with siblings fd2_tick_summon_anim_variant_b_6slot / _d_3slot / _e_16slot. No hex address suffix.",
+  "kind": "function",
+  "home": "src/anim/anisummn.c",
+  "purpose": "Per-tick state machine for the variant-A 6-slot summon-spell animation: 6 sprite slots with staggered start, mod-10 color rotation, and RNG-driven per-slot vertical jitter (0 or 7 px). Dispatch-table entry #4 of the 10-entry summon-spell tick table at 0x523B9.",
+  "logic_summary": "Copies the 10-entry per-color Y-offset table (0x524A8) into a local; if the caster is on the enemy team (runtime_char[caster] offset+6 == 0) adds 0x8F to every local offset. Then dispatches on state_code: 0 (INIT) seeds the 6 slots' frame counters to -2*i (staggered) and color indices to i, sets each jitter byte to (rng()%2)*7, sets color_rotation_counter=6, clears terminate_flag, returns 2; 3 returns 0xC; 6 sets terminate_flag and returns 8; 2/5/8 (TICK) for each of 6 slots blits the current frame (when 0<=frame<7) at jitter+frame / origin_y+local_offset[color], fires a chime SFX at frame 0, increments frame, sets done_flag at frame 3, and at frame 8 (unless terminate_flag) advances color_rotation_counter mod 10 into the slot's color index, restarts the slot at frame 0, and re-rolls its RNG jitter; returns done_flag. Any other state_code returns 0.",
+  "signature": "int fd2_tick_summon_anim_variant_a_6slot(uint32 caster_unit_id, uint32 sprite_handle, uint32 origin_y, uint32 row_stride, uint32 state_code)",
+  "params": [
+    {
+      "name": "caster_unit_id",
+      "type": "uint32",
+      "semantics": "Runtime-character index of the caster; used to index data_fd2_battle_runtime_char_array_ptr to read the team byte (offset+6) for the enemy-team Y-offset shift.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the caster unit index; no address residue."
+    },
+    {
+      "name": "sprite_handle",
+      "type": "uint32",
+      "semantics": "Sprite atlas/handle passed as the first argument to fd2_blit_indexed_sprite for every per-slot blit.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Matches its use as the blit sprite handle; no address residue."
+    },
+    {
+      "name": "origin_y",
+      "type": "uint32",
+      "semantics": "Base Y coordinate; the per-color local row offset is added to it to form the blit destination Y.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the base Y origin; no address residue."
+    },
+    {
+      "name": "row_stride",
+      "type": "uint32",
+      "semantics": "Destination row stride passed straight through as the stride argument to fd2_blit_indexed_sprite.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Matches its use as the blit row stride; no address residue."
+    },
+    {
+      "name": "state_code",
+      "type": "uint32",
+      "semantics": "Animation phase selector dispatched on (0=INIT, 3, 6, 2/5/8=TICK frame, else no-op); read as a byte at [ESP+0x50].",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the dispatched animation state; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Frame-hold / status code consumed by the caller's dispatch loop: 2 on INIT, 0xC on state 3, 8 on state 6, the per-tick done_flag (1 when any slot's frame hit 3, else 0) on TICK states, 0 otherwise."
+  },
+  "reads_globals": [
+    "data_fd2_battle_summon_anim_variant_a_10color_y_offset_table",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array",
+    "data_fd2_battle_summon_anim_variant_a_6slot_color_idx_array",
+    "data_fd2_battle_summon_anim_variant_a_6slot_jitter_byte_array",
+    "data_fd2_battle_summon_anim_variant_a_color_rotation_counter",
+    "data_fd2_battle_summon_anim_variant_a_terminate_flag",
+    "data_fd2_audio_summon_spell_sfx_bank_buf_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_summon_anim_variant_a_6slot_frame_counter_array",
+    "data_fd2_battle_summon_anim_variant_a_6slot_color_idx_array",
+    "data_fd2_battle_summon_anim_variant_a_6slot_jitter_byte_array",
+    "data_fd2_battle_summon_anim_variant_a_color_rotation_counter",
+    "data_fd2_battle_summon_anim_variant_a_terminate_flag"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment (anisummn.c lines 411-417) is already terse+accurate and matches the sibling variant_b/d/e comment style; kept as-is. Ghidra plate is detailed and consistent with the source understanding (RNG-driven jitter, dispatch table #4, all globals); left unchanged. Verified disassembly 0x26a55-0x26a71: jitter = (fd2_advance_rng_state() return % 2) * 7 (SAR/IDIV by 2, then SHL 3 / SUB = *7), confirming the source's 'EAX tracking bug corrected' note -- the Ghidra decompile's uVar2=var_14 conflation (loop index vs RNG return) is the known decompiler bug; the source is correct. Note on runtime_char team offset: code reads team at struct offset +6 (disasm MOVZX [EDX+EAX+0x6]); the fd2-knowledge strategy guide records the team field at +0x0E, but that guide is for a different FD2.EXE build (explicit version caveat) -- offset+6 is the consistent, ground-truth team read across all of anisummn.c for this FD2.LE binary, so the comment's 'bTeam (0=enemy)' label is correct. No logic changes made."
+}
