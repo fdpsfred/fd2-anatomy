@@ -1218,7 +1218,7 @@ uint8 data_fd2_graphics_figani_pose_anim_pose_idx;
  * fd2_step_figani_pose_animation @ 0x2B9A1  (3 callers)
  *
  * Per-frame state stepper for a free-running FIGANI pose-loop. Maintains
- * two module-global byte counters that walk forward through pose ×
+ * two module-global byte counters that walk forward through pose x
  * sub-frame, blitting the current pose into dst_buf and auto-wrapping back
  * to the start of the loop once the last pose finishes.
  *
@@ -1247,7 +1247,7 @@ uint8 data_fd2_graphics_figani_pose_anim_pose_idx;
  * Callers: fd2_execute_special_attack_skill @ 0x276EC,
  *   fd2_play_final_chapter_30_ending @ 0x2C405,
  *   fd2_play_spell_cast_sequence @ 0x2A6BD.
- * System = graphics (FIGANI pose-loop state machine; pose × sub-frame walk
+ * System = graphics (FIGANI pose-loop state machine; pose x sub-frame walk
  * with auto-reset).
  * ---------------------------------------------------------------- */
 void fd2_step_figani_pose_animation(uint32 figani_data, uint32 palette_op,

@@ -1,0 +1,70 @@
+{
+  "address": "0002b9a1",
+  "name_current": "fd2_step_figani_pose_animation",
+  "name_final": "fd2_step_figani_pose_animation",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Already conformant: fd2_<domain>_<descriptor> with domain=graphics(FIGANI pose-loop) implied by descriptor. 'step' accurately captures the per-frame state-advance role; 'figani_pose_animation' names the subject. No Ghidra address residue. Confirmed by 3 callers (spell-cast/special-attack/ch30-ending) all using it as the central per-frame pose-state advance.",
+  "kind": "function",
+  "home": "src/anim/anicine.c",
+  "purpose": "Per-frame state stepper for a free-running FIGANI pose-loop: blits the current pose into dst_buf, advances the two module-global counters (pose index x sub-frame), and auto-wraps to the start when the last pose finishes or when palette_op==0 (explicit rewind).",
+  "logic_summary": "if palette_op!=0: blit current pose via fd2_blit_indexed_sprite(figani_data, pose_idx, dst_buf, dst_stride, palette_op); subframe_idx++; if subframe_idx < pose_block.sub_count (pose_block = figani_data + *(int32*)(figani_data+8+pose_idx*4), sub_count at +6) return (still inside pose); else pose_idx++; if pose_idx < figani_data[+0] (pose count) { subframe_idx=0; return } (advance to next pose). Fall-through (palette_op==0 OR pose_idx ran past last pose): pose_idx=0; subframe_idx=0 (rewind both). __CHK(0x1c) stack-probe prologue is compiler-injected.",
+  "signature": "void __cdecl fd2_step_figani_pose_animation(uint32 figani_data, uint32 palette_op, uint32 dst_buf, uint32 dst_stride)",
+  "params": [
+    {
+      "name": "figani_data",
+      "type": "uint32",
+      "semantics": "Base pointer of the FIGANI animation stream. Read for pose count at +0, per-pose metadata-block offset at +8+pose_idx*4 (relative to stream base), and the pose's sub-frame count at pose_block+6; forwarded to fd2_blit_indexed_sprite as the sprite atlas.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the FIGANI stream base; no address residue."
+    },
+    {
+      "name": "palette_op",
+      "type": "uint32",
+      "semantics": "Blit-mode / palette-blend value forwarded verbatim to fd2_blit_indexed_sprite (0xFFFFFFFF=passthrough, >0xFF=translucent blend, <=0xFF=silhouette). A zero value is the explicit 'rewind to start' sentinel that skips blitting and resets both counters. Callers pass 0 (rewind), 0xFFFFFFFF (passthrough), or a computed blend (e.g. loop*0x100+base).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name matches its dual role (blit/palette mode + 0=rewind sentinel); no address residue."
+    },
+    {
+      "name": "dst_buf",
+      "type": "uint32",
+      "semantics": "Destination composite work buffer that the current pose is blitted into (callers pass the per-frame scratch base, e.g. work_buf+0x4ba0 or work_buf).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate destination-buffer name; no address residue."
+    },
+    {
+      "name": "dst_stride",
+      "type": "uint32",
+      "semantics": "Destination row stride in bytes passed through to fd2_blit_indexed_sprite (callers pass 0x280 for the wide composite or 0x140 for full-frame).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate stride name; no address residue. (Type differs from Ghidra's byte* but that is a non-naming signature concern, out of scope for this stage.)"
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effects are the pose blit into dst_buf and the updates to the two module-global counters."
+  },
+  "reads_globals": [
+    "data_fd2_graphics_figani_pose_anim_pose_idx",
+    "data_fd2_graphics_figani_pose_anim_subframe_idx"
+  ],
+  "writes_globals": [
+    "data_fd2_graphics_figani_pose_anim_pose_idx",
+    "data_fd2_graphics_figani_pose_anim_subframe_idx"
+  ],
+  "comment_original_issue": "Source comment block was already accurate and well-refined, but contained two non-ASCII U+00D7 multiplication-sign characters ('pose x sub-frame') on lines 1221 and 1250, violating the ASCII-only rule for code text.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "99940f038a4ec5b545c30d0929c19fa3491122ce",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Logic in src matches Ghidra decompile exactly (no logic changed). Param NAME 'dst_stride' is correct; note a non-naming signature difference exists (src uint32 vs Ghidra byte* for dst_stride) -- not actioned here per scope (no signature/type edits). Ghidra plate is consistent with the src conclusion (same algorithm/globals/callers) so left untouched. Only edit to src was replacing two U+00D7 with ASCII 'x' in this function's comment block."
+}
