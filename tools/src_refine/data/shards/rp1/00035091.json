@@ -1,0 +1,40 @@
+{
+  "address": "00035091",
+  "name_current": "fd2_chapter_event_handler_2b__ch18_ai_ctrl",
+  "name_final": "fd2_chapter_event_handler_2b__ch18_ai_ctrl",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with fd2_<domain>_<descriptor> convention. The '2b' is the dispatch index (idx 0x2B) into the per-event handler table at 0x51B91 -- a meaningful domain ID, not a Ghidra address residue (the function's own address is 0x35091, unrelated to 2b). The '__ch18_ai_ctrl' suffix accurately captures the role: chapter-18 turn-event handler that performs AI-flag control. No address residue present.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter-18 turn-event handler (dispatch idx 0x2B, turn 3 / phase 0): set the per-event AI/dialog control flag to 3 for a single runtime-char slot (0x10).",
+  "logic_summary": "Single straight-line call: fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x10, 0x10, 3) writes 3 into the low 4 bits of combat_aux_block[0xD] for the inclusive range [0x10, 0x10] (one char). No dialog, no RNG, no numeric computation, no CALL-return value used. The event_arg parameter is unread. In the original binary the body pre-pushes the flag (3) and end (0x10) args, then JMPs (0x3509F -> 0x34F37) into the class-3 shared tail hosted by fd2_chapter_event_handler_12__ch15_dialog_with_state @ 0x34F02 ('PUSH 0x10 start; CALL fd2_set_combat_aux_block_byte_d_low4_for_char_range; ADD ESP,0xC; RET', the tail fixing start=0x10); the src reproduces the effect as an inline call for Layer-2 equivalence. Compiler-injected __CHK(0x10) stack probe omitted in src.",
+  "signature": "void __cdecl fd2_chapter_event_handler_2b__ch18_ai_ctrl(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform 1-arg cdecl dispatch argument from the per-event handler table at 0x51B91. Never read by this handler body (cast to void).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Matches the uniform dispatch-arg naming used consistently across all sibling handlers in chevt1.c; no address residue; accurately reflects it is the (unread) event dispatch argument."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": "Comment content was accurate and well-structured, but contained 3 non-ASCII em-dash characters (U+2014) at lines 1966, 1986, 1987, violating the project src ASCII-only rule (em-dash must be '--').",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly confirms plate exactly: PUSH 0x10; CALL 0x36cd7 (__CHK); PUSH 0x3; PUSH 0x10; JMP 0x34F37. Callee 0x3419C = fd2_set_combat_aux_block_byte_d_low4_for_char_range (verified). Shared-tail host 0x34F02 = fd2_chapter_event_handler_12__ch15_dialog_with_state (verified). Sole xref is data dispatch-table slot at 0x51C3D (bytes 91 50 03 00 = 0x35091). Ghidra plate is semantically consistent with refined src ('set AI flag = 3 for char 0x10 only, single-char range') so left untouched. reads_globals/writes_globals empty because the only global write (combat_aux_block of the runtime-char array) happens inside the callee, not directly in this function."
+}

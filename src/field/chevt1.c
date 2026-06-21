@@ -1963,7 +1963,7 @@ void fd2_chapter_event_handler_2a__ch18_dialog(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_2b__ch18_ai_ctrl @ 0x35091
- *   — Chapter 18 turn-event slot 0 (triggered at turn 3 / phase 0),
+ *   -- Chapter 18 turn-event slot 0 (triggered at turn 3 / phase 0),
  *     dispatched as idx 0x2B of the per-event handler table at 0x51B91.
  *
  * ch18 turn-3 AI-control beat: set the per-event AI/dialog control flag
@@ -1983,8 +1983,8 @@ void fd2_chapter_event_handler_2a__ch18_dialog(uint32 event_arg)
  * hosted by fd2_chapter_event_handler_12__ch15_dialog_with_state @ 0x34F02
  * (the tail "PUSH 0x10 start; CALL fd2_set_combat_aux_block_byte_d_low4_
  * for_char_range; ADD ESP,0xC; RET" fixes the start arg at 0x10). That
- * borrowed tail is an in-binary code-folding artifact; its effect — the
- * single-char AI-flag write — is reproduced here as the inline call for
+ * borrowed tail is an in-binary code-folding artifact; its effect -- the
+ * single-char AI-flag write -- is reproduced here as the inline call for
  * Layer-2 equivalence.
  *
  * Walkthrough SOT: assets/chapters/chapter_18.md
