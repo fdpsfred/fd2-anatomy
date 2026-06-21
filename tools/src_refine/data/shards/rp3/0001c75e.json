@@ -1,0 +1,51 @@
+{
+  "address": "0001c75e",
+  "name_current": "fd2_calc_magic_damage",
+  "name_final": "fd2_calc_magic_damage",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>. Accurately describes purpose: compute magic damage (resist-scaled) with a hit-chance roll and apply it (also awards XP via callee). No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/battle/battle.c",
+  "purpose": "Roll hit chance for a spell against a target, and if it lands, compute resist-scaled magic damage and apply it to that target (returning the damage dealt).",
+  "logic_summary": "Reads target's job_id from runtime_char_array[target_idx] (offset +0x20). Fetches the spell effect entry via fd2_get_spell_effect_entry(spell_id): base_power = *(s16) at +0, chance_pct = *(byte) at +2. Looks up the per-job magic-resist scale factor data_fd2_battle_job_magic_resist_table[job_id-1] (1-based job_id; the function bulk-copies all 28 dwords to a stack scratch buffer first). damage = (s32)(base_power * resist) / 10. For status spells (spell_id 10..12) it first calls fd2_check_char_status_immunity(target_idx); if immune, returns 0. Then fd2_advance_rng_state(); if (rng % 100) >= chance_pct, returns 0 (miss/resisted). Otherwise returns fd2_apply_damage_and_award_xp(target_idx, damage).",
+  "signature": "int __cdecl fd2_calc_magic_damage(uint32 target_idx, uint32 spell_id)",
+  "params": [
+    {
+      "name": "target_idx",
+      "type": "uint32",
+      "semantics": "Index into runtime_char_array of the target/defender (NOT the caster). Used to read the defender's job_id for resist lookup, passed to the status-immunity check, and passed to the damage-apply callee.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate (defender index) and no address residue. Callers pass the per-target id (tid2 / target_id)."
+    },
+    {
+      "name": "spell_id",
+      "type": "uint32",
+      "semantics": "Spell effect id (0x00..0x23). Indexes fd2_get_spell_effect_entry for base_power/chance_pct, and gates the status-immunity precheck for ids 10..12.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate and no address residue."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Damage dealt to the target on a successful hit (return of fd2_apply_damage_and_award_xp); 0 on miss/resist or on status-spell immunity."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr (0x53A45) -- target's job_id at +0x20",
+    "data_fd2_battle_job_magic_resist_table (0x51F96) -- 28 dwords, per-job magic resist/scale factor"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment block (battle.c ~L150-155) is concise, correct, ASCII -> kept. Ghidra plate is more detailed (zh) but not contradictory with the src understanding -> left unchanged. No logic concern: decompile's 'uVar3 = 0' reset and rng_or_chance/uVar3 aliasing are pure Ghidra EAX-tracking artifacts; disassembly (0x1C7ED CALL rng; MOV EDX,EAX; IDIV 0x64; CMP EDX,[ESP+0x70]; JGE ret0) confirms the src interpretation rng%100 >= chance_pct exactly. job_id offset +0x20, struct stride 0x50, table stride 4 with index job_id-1 all verified against disasm + types.h/btltab.c. No src edit needed beyond shard."
+}
