@@ -1,0 +1,35 @@
+{
+  "address": "0001d4cb",
+  "name_current": "fd2_load_status_effect_sfx",
+  "name_final": "fd2_load_status_effect_sfx",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; descriptor accurately reflects body and call context. The function loads the status-effect/spell SFX sample bank (FDOTHER.DAT entry 0x50) into data_fd2_audio_status_effect_sfx_handle_ptr. No Ghidra address residue in the name; 0x50 is a resource entry index, not part of the name. All 6 call sites are spell/SFX casting paths (fd2_spell_selection_menu_main, fd2_execute_ai_offensive_spell, fd2_apply_use_effect_dispatch, fd2_execute_summon_spell_cast, fd2_cast_screen_wide_spell_with_fade x2), confirming the name.",
+  "kind": "function",
+  "home": "src/audio/audio.c",
+  "purpose": "Load the status-effect / spell SFX sample bank (FDOTHER.DAT entry 0x50) into the global handle, ready for fd2_play_sfx_with_handle to play from.",
+  "logic_summary": "Compiler-injected __CHK(0x10) stack-probe prologue (not source). Clears data_fd2_audio_status_effect_sfx_handle_ptr (0x53B13) to 0, then sets it to the cdecl return of fd2_load_dat_resource(\"FDOTHER.DAT\"=0x51A4D, 0, 0x50). The leading clear-to-0 is reproduced 1:1 from the binary (MOV [0x53B13],0 then MOV [0x53B13],EAX). Disassembly confirms: PUSH 0x10; CALL __CHK; MOV dword[0x53B13],0; PUSH 0x50; PUSH 0; PUSH 0x51A4D; CALL fd2_load_dat_resource; ADD ESP,0xC; MOV [0x53B13],EAX; RET.",
+  "signature": "void fd2_load_status_effect_sfx(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effect: data_fd2_audio_status_effect_sfx_handle_ptr is set to the loaded sample-bank buffer pointer."
+  },
+  "reads_globals": [
+    "data_fd2_string_resource_filename_fdother_dat"
+  ],
+  "writes_globals": [
+    "data_fd2_audio_status_effect_sfx_handle_ptr"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "675334c",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment (audio.c lines 72-84) is already precise and correct: states purpose, FDOTHER.DAT entry 0x50, companion fd2_play_and_free_status_effect_sfx, cdecl void(void), the clear-to-0-then-set behavior, and that __CHK(0x10) is compiler-injected. Kept verbatim. Ghidra plate is consistent with the refined understanding (same load behavior, same 6 callers, same FDOTHER.DAT entry 0x50) and not contradictory, so left untouched. The redundant-looking initial '=0' is a faithful binary reproduction, not a logic bug. fd2_cast_screen_wide_spell_with_fade appears twice among the 6 call sites; matches xrefs (0x2462d, 0x2474a)."
+}
