@@ -295,9 +295,12 @@ void fd2_animate_money_decrement(uint32 delta)
 /* ----------------------------------------------------------------
  * fd2_animate_tutorial_dialog_intro_or_outro @ 0x2D669 (3 callers)
  *
- * 4-frame "speech-bubble wing" slide-in/out animation for the
+ * 4-frame "speech-bubble wing" deploy/retract animation for the
  * chapter-intro dialog panel. Used by all three chapter-intro menu
  * types (main / typeB / typeC) when opening or closing the panel.
+ * NOTE: the "tutorial" framing in the name is a misnomer -- this drives
+ * the chapter-intro shop/menu dialog panel, not any tutorial.
+ * Rename candidate: fd2_animate_chapter_intro_dialog_wings.
  *
  * Setup: backs up the current mode13h framebuffer (0xA0000, 64000 B)
  * into a malloc'd scratch, paints a 20-row dark band (palette 0x4A,
@@ -307,14 +310,24 @@ void fd2_animate_money_decrement(uint32 delta)
  * Per-frame loop (frame = 0..3): restores the banded backdrop into the
  * working buffer, then for each of the 4 corners blits the corner
  * sprite into the buffer at base + corner_offs[corner]/divisor + 0xD430.
- * The divisor ramps the wing size: OPEN (open_or_close != 0) uses
- * frame+1 (1,2,3,4 -> wings grow); CLOSE (open_or_close == 0) uses
- * 4-frame (4,3,2,1 -> wings shrink). Each frame is then committed to
- * 0xA0000. corner_offs is the 4-entry signed offset table @ 0x526DA
- * (-39,-13,13,39); the per-corner divide is signed (truncates toward 0).
+ * The divisor scales each corner's signed offset, so a larger divisor
+ * pulls the wings closer to the center (0xD430). open_or_close picks the
+ * ramp direction:
+ *   open_or_close == 0  -> OPEN/deploy:  divisor 4,3,2,1 over the frames,
+ *                          so the offsets grow 1/4 -> full and the wings
+ *                          spread OUT from center. Matches the menu-open
+ *                          call site, which passes 0.
+ *   open_or_close != 0  -> CLOSE/retract: divisor 1,2,3,4 over the frames,
+ *                          so the offsets shrink full -> 1/4 and the wings
+ *                          converge IN toward center. Matches the menu-
+ *                          close call site, which passes 1.
+ * Each frame is then committed to 0xA0000. corner_offs is the 4-entry
+ * signed offset table @ 0x526DA (-39,-13,13,39); the per-corner divide is
+ * signed (truncates toward 0).
  *
- * Cleanup: OPEN leaves the band+wings on screen; CLOSE restores the
- * original framebuffer from the backup. The scratch is freed.
+ * Cleanup: OPEN (param 0) leaves the band+wings on screen; CLOSE (param
+ * non-zero) repaints the band-only backdrop to 0xA0000 (erasing the
+ * wings). The scratch is freed.
  *
  * The sprite source is atlas-indexed exactly like the sibling
  * fd2_wait_input_with_chapter_dialog_blink corner blit: atlas base +

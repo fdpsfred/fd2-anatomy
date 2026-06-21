@@ -1,0 +1,44 @@
+{
+  "address": "0002d669",
+  "name_current": "fd2_animate_tutorial_dialog_intro_or_outro",
+  "name_final": "fd2_animate_chapter_intro_dialog_wings",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_animate_chapter_intro_dialog_wings",
+  "name_reason": "Current name calls it 'tutorial_dialog' but this is a misnomer: all 3 callers are fd2_run_chapter_intro_menu_main/typeB/typeC (the between-chapter shop/equip/sell/give dialog panel), and the home-file comment + sibling fn fd2_close_intro_dialog_with_slide_out establish 'chapter-intro dialog' as the domain vocabulary. No tutorial code path touches it. It animates the 4-frame 'speech-bubble wing' deploy/retract of the chapter-intro dialog panel. Proposed name uses domain 'chapter_intro_dialog' + the visual element 'wings'. (Recorded only; rename applied in Stage 2.)",
+  "kind": "function",
+  "home": "src/anim/aniui.c",
+  "purpose": "4-frame speech-bubble 'wing' deploy/retract animation for the chapter-intro dialog panel (open when arg 0, close when arg non-zero).",
+  "logic_summary": "Backs up the mode13h framebuffer (0xA0000, 64000 B) into a malloc'd scratch, paints a 20-row palette-0x4A dark band into it (rows y=0xA9..0xBC, x=0xC9, 0x68 px wide), and seeds the working composite buffer (data_fd2_large_game_state_buffer_ptr) with the banded backup. Then 4 frames: per frame restore the banded backdrop, and for each of 4 corners blit the corner sprite into the buffer at base + corner_offs[corner]/divisor + 0xD430, then commit the buffer to 0xA0000. corner_offs = the 4-entry signed table {-39,-13,13,39} @ 0x526DA. divisor = (open_or_close!=0)?(frame+1):(4-frame); a larger divisor pulls a corner closer to center (0xD430), so arg 0 ramps divisor 4->1 (offsets grow, wings spread OUT = OPEN) and arg non-zero ramps divisor 1->4 (offsets shrink, wings converge IN = CLOSE). Cleanup: arg non-zero (CLOSE) repaints the band-only backup to 0xA0000 (erasing wings); arg 0 (OPEN) leaves band+wings on screen. free(scratch). Polarity confirmed by both the cleanup branch and the 3 call sites (menu-open passes 0, menu-close passes 1).",
+  "signature": "void __cdecl fd2_animate_tutorial_dialog_intro_or_outro(uint open_or_close)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Open/close selector for the wing animation. 0 = OPEN/deploy (wings spread out from center, left on screen); non-zero = CLOSE/retract (wings converge to center, then band-only backdrop repainted erasing them). Drives both the per-frame divisor ramp direction and the final cleanup branch. The 3 call sites pass literal 0 (open) and 1 (close). In src/ this param is already named open_or_close; the live Ghidra var is the generic param_1.",
+      "verdict": "rename",
+      "proposed": "open_or_close",
+      "reason": "Live Ghidra param is the generic placeholder param_1; rename to open_or_close (the name already used in src/) to reflect its open(0)/close(non-zero) role. No address residue. Recorded only; applied in Stage 2."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_ui_chapter_intro_dialog_corner_offset_table_a @ 0x526DA (4x i32 signed corner offsets -39,-13,13,39; sole reader)",
+    "data_fd2_large_game_state_buffer_ptr @ 0x53A49 (working composite buffer pointer; read and written-through as the per-frame canvas)",
+    "data_fd2_ui_menu_screen_sprite_atlas_buf_ptr @ 0x54147 (chapter-intro sprite atlas; corner sprites looked up via atlas + *(int*)(atlas+6+(corner*2+3)*4))"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Original src comment (and the Ghidra plate) had the OPEN/CLOSE polarity swapped relative to actual behavior and caller usage: it labeled 'open_or_close != 0' as OPEN with 'wings grow' and '== 0' as CLOSE with 'wings shrink'. In fact a larger divisor pulls wings toward center, so non-zero (divisor 1->4) makes wings CONVERGE and the cleanup branch erases them (= CLOSE/retract), while 0 (divisor 4->1) makes wings SPREAD and leaves them on screen (= OPEN/deploy); the call sites confirm 0 at menu-open and 1 at menu-close. The 'tutorial' framing in the name/comment is also a misnomer (this is the chapter-intro shop/menu dialog panel).",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Code logic is correct and untouched (only comment + name-judgement + plate changed). Corner offset table bytes verified @ 0x526DA = d9 ff ff ff / f3 ff ff ff / 0d 00 00 00 / 27 00 00 00 = -39,-13,13,39, and it is read only by this function (xrefs_to 0x526DA: 2 refs both inside this fn). Disassembly confirms cleanup branch: JNZ at 0x2d75d selects divisor=frame+1 for param!=0; JZ at 0x2d791 skips the band-only restore for param==0. No logic/equivalence issues found."
+}
