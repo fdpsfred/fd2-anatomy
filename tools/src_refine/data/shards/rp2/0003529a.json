@@ -1,0 +1,43 @@
+{
+  "address": "0003529a",
+  "name_current": "fd2_chapter_event_handler_33__unref_drop",
+  "name_final": "fd2_chapter_event_handler_33__unref_drop",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor>. '_33' is the per-event handler-table dispatch index (0x33) from the table at 0x51B91 (data_fd2_battle_ai_post_action_consequence_table), a meaningful domain ID, not address residue. '__unref_drop' descriptor reflects that the only xref is the DATA table slot (no tile-step / turn-event hook references it -> unreferenced/cut content) and that it performs a battle item drop. No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Unreferenced chapter event-handler slot 0x33: drop one inline battle item to the stepping char, then show dialog page 3.",
+  "logic_summary": "Copies the inline 3-byte drop entry data_fd2_chapter_event_handler_33_drop_entry_inline (00 65 00 = byte type 0 ITEM + ushort value 0x0065 = item id 101, Teleport Staff) onto the stack, calls fd2_process_battle_drop_entries(stepping_char_id, 1, &entry) to award it to the recipient, then calls fd2_display_dialog_scene(current_chapter_text, page=3, 0xA0000, 320, 0xCD, 0x4C, 0x4A, 0x13, 1). In the binary the dialog call is a tail-merge: after pushing its 8 args the function does JMP 0x34FB7, falling into the PUSH current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24 tail hosted in fd2_chapter_event_handler_27__unref_drop @ 0x34F74. The source encodes the functionally-exact self-contained dialog call; the tail-merge is a pure binary size optimisation. Single basic block, cyclomatic complexity 1, __CHK frame 0x34.",
+  "signature": "void __cdecl fd2_chapter_event_handler_33__unref_drop(uint32 stepping_char_id)",
+  "params": [
+    {
+      "name": "stepping_char_id",
+      "type": "uint32",
+      "semantics": "Tile-step ABI arg (the stepping char id) forwarded unchanged as the recipient_idx of the dropped item to fd2_process_battle_drop_entries; selects which runtime char receives the item.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately reflects the dispatch-table tile-step ABI argument and its use as the drop recipient. No address residue, not a generic param_N."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Tail-jumps into the shared display_dialog tail of handler 27 which performs the dialog call + stack cleanup + RET."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_event_handler_33_drop_entry_inline (0x52748, inline 3-byte drop entry: byte type + ushort value)",
+    "data_fd2_current_chapter_text (current chapter FDTXT pointer, passed to fd2_display_dialog_scene)"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Source comment was accurate; minor imprecision: 'value=0x65' could read as a single byte. Clarified that the drop entry is byte type + ushort value (matching fd2_process_battle_drop_entries' entry layout), named item id 101 = Teleport Staff, and noted stepping_char_id is forwarded as the recipient.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "adbf6c35",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "0 direct callers (callers query returns none); only xref is the DATA handler-table slot at 0x51C5D (per-event table @ 0x51B91, dispatch idx 0x33). Entry layout confirmed from fd2_process_battle_drop_entries decomp: each entry = byte type + ushort value; type 0 = ITEM with value as item id. Item 0x65 = 傳送法杖 (Teleport Staff) per fd2-knowledge. JMP-to-shared-tail (0x34FB7, handler 27 @ 0x34F74) verified via disassembly. Plate already accurate and consistent with refined source understanding -> left unchanged."
+}

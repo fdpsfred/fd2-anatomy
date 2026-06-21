@@ -161,8 +161,9 @@ void fd2_chapter_event_handler_32__ch22_reinforcement(uint32 event_arg)
  * forwards the arg as the drop recipient.
  *
  * Effect: drop one battle item from an inline 3-byte drop entry
- * (type=0 ITEM, value=0x65 -> item id 101), then unconditionally show dialog
- * page 3.
+ * (byte type + ushort value; here type=0 ITEM, value=0x0065 -> item id 101 =
+ * Teleport Staff), forwarding stepping_char_id as the recipient to
+ * fd2_process_battle_drop_entries, then unconditionally show dialog page 3.
  *
  * In the binary the dialog call shares a borrowed tail: after pushing its 8
  * args (page=3) the handler does JMP 0x34FB7, falling into the
