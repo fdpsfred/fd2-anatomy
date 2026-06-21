@@ -772,10 +772,10 @@ void fd2_chapter_event_handler_12__ch15_dialog_with_state(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_13__unref_char_cond @ 0x34716
- *   — Dispatch idx 0x13 of the per-event handler table at 0x51B91.
+ *   -- Dispatch idx 0x13 of the per-event handler table at 0x51B91.
  *
  * No chapter FDFIELD turn-event / tile-step hook references this slot
- * (unreferenced — possibly cut content / non-chapter dispatcher). It is
+ * (unreferenced -- possibly cut content / non-chapter dispatcher). It is
  * a char-conditional beat that arms an AI flag across a wide character
  * band, shows a dialog page unconditionally, then re-scans the same band
  * and shows a second dialog page only if any of those characters is still
@@ -796,7 +796,7 @@ void fd2_chapter_event_handler_12__ch15_dialog_with_state(uint32 event_arg)
  * and omitted here.
  *
  * The alive scan walks all 30 chars (0x07..0x24) even after the first
- * alive one is found — there is no early break in the original; the loop
+ * alive one is found -- there is no early break in the original; the loop
  * just keeps re-setting the flag. Reproduced faithfully here for Layer-2
  * equivalence.
  * ---------------------------------------------------------------- */
