@@ -1998,7 +1998,7 @@ void fd2_chapter_event_handler_2b__ch18_ai_ctrl(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_2c__ch19_ai_ctrl @ 0x350A4
- *   — Chapter 19 turn-event handler, dispatched as idx 0x2C of the
+ *   -- Chapter 19 turn-event handler, dispatched as idx 0x2C of the
  *     per-event handler table at 0x51B91.
  *
  * ch19 AI-control beat: set the per-event AI/dialog control flag
@@ -2019,7 +2019,7 @@ void fd2_chapter_event_handler_2b__ch18_ai_ctrl(uint32 event_arg)
  * @ 0x34F02. The borrowed tail is just "CALL fd2_set_combat_aux_block_byte_
  * d_low4_for_char_range; ADD ESP,0xC; RET" (tighter than the 0x2B variant,
  * which lets the tail supply the start arg). That borrowed tail is an
- * in-binary code-folding artifact; its effect — the AI-flag range write —
+ * in-binary code-folding artifact; its effect -- the AI-flag range write --
  * is reproduced here as the inline call for Layer-2 equivalence.
  *
  * Walkthrough SOT: assets/chapters/chapter_19.md
