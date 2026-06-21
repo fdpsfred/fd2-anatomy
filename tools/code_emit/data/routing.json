@@ -2708,7 +2708,7 @@
     "reviewed": true
   },
   "00025bf4": {
-    "name": "fd2_main",
+    "name": "main",
     "target": "life/main.c",
     "phase": 2,
     "done": true,
