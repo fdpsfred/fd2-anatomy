@@ -1,0 +1,40 @@
+{
+  "address": "0003d26e",
+  "name_current": "crt_equivalent_fpe_default_handler_3d26e",
+  "name_final": "crt_equivalent_fpe_default_handler",
+  "name_verdict": "rename",
+  "name_proposed": "crt_equivalent_fpe_default_handler",
+  "name_reason": "Base name crt_equivalent_fpe_default_handler is compliant (CRT wrapper = crt_equivalent_*) and accurately reflects the function's role: the Watcom CRT default SIGFPE/FPU-exception no-op handler. The _3d26e suffix is exactly the function's own entry address (0x3d26e), i.e. Ghidra address residue, not a domain ID (not a chapter/item/spell/job/portrait ID nor an array dimension), so it must be stripped. Strip suffix only; no semantic change.",
+  "kind": "function",
+  "home": "src/crt/crt.c",
+  "purpose": "Watcom CRT default SIGFPE / FPU-exception handler: a 1-byte RET no-op installed in the FPE dispatch slot @ 0x5283c so an unhandled FPU exception harmlessly returns until the program installs its own handler via signal(SIGFPE, fn).",
+  "logic_summary": "Single RET (byte 0xc3). Does nothing: returns immediately. Its sole behavioral role is to be the address seeded into dispatch slot @ 0x5283c (slot contents verified = LE 0x0003d26e). Two indirect-call deliverers reach it through that slot when no user handler is installed: __FPE_exception_ @ 0x4d3d6 (PUSH EAX; CALL [0x5283c]; ADD ESP,4 -- verified) and __int7 @ 0x49fe8 (MOVZX EAX,AH; CALL [0x5283c] at 0x49feb -- verified from bytes 0f b6 c4 ff 15 3c 28 05 00). Address-taken via the slot, so it must stay a real callable function.",
+  "signature": "void __cdecl crt_equivalent_fpe_default_handler_3d26e(int fpe_code)",
+  "params": [
+    {
+      "name": "fpe_code",
+      "type": "int",
+      "semantics": "FPU/SIGFPE exception code the deliverer supplies (pushed as a cdecl stack arg by __FPE_exception_; placed in EAX by __int7). The no-op body never reads it; it exists so the slot's PUBDEF carries the correct cdecl signature.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, accurate, no address residue; matches the value the callers pass."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Plain near RET (not RET 4): the cdecl caller reclaims the pushed arg (__FPE_exception_ via ADD ESP,4)."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "All comment/plate claims cross-checked against ground truth: function body = single RET (mem 0xc3); slot @ 0x5283c = LE 0x0003d26e (points here); __FPE_exception_ call site 0x4d3d6 = PUSH EAX;CALL [0x5283c];ADD ESP,4; __int7 call site 0x49feb = CALL [0x5283c] preceded by MOVZX EAX,AH. src comment (crt.c lines 465-494) is precise and matches; left unchanged. Ghidra plate consistent with refined understanding; left unchanged. Only finding: name carries address-suffix residue _3d26e -> proposed crt_equivalent_fpe_default_handler (rename deferred to Stage 2; not applied here)."
+}
