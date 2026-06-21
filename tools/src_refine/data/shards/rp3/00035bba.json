@@ -1,0 +1,45 @@
+{
+  "address": "00035bba",
+  "name_current": "fd2_kill_runtime_chars_from_index_to_end",
+  "name_final": "fd2_kill_runtime_chars_from_index_to_end",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Name follows fd2_<domain>_<descriptor> and accurately describes the behavior: set hp_current=0 for every runtime_char_array entry from a start index to party_member_count-1, then play the death animation. No Ghidra address residue in the name. Verified against disassembly (loop EDX*0x50 + 0x40 = hp_current write, CMP against party_member_count @0x53BEB) and 4 callers (all pass a constant start boundary: 0x14, 0x12, etc.).",
+  "kind": "function",
+  "home": "src/battle/btl_turn.c",
+  "purpose": "Mass-kill trailing party slots: zero hp_current for runtime_char_array[start_char_idx .. party_member_count-1], then run the death animation/mark-dead pass once.",
+  "logic_summary": "Watcom __CHK(8) stack-frame probe at entry. for (i = start_char_idx; (int)i < party_member_count; i++) data_fd2_battle_runtime_char_array_ptr[i].hp_current = 0; then fd2_play_death_animation_and_mark_dead(). void return. Disasm confirms: stride 0x50 (LEA-by-shifts EAX=EDX*5<<4), write u16 0 at +0x40 (hp_current), loop bound at [0x53BEB], tail CALL 0x1db65.",
+  "signature": "void __cdecl fd2_kill_runtime_chars_from_index_to_end(uint32 start_char_idx)",
+  "params": [
+    {
+      "name": "start_char_idx",
+      "type": "uint32",
+      "semantics": "Inclusive starting party-slot index; loop wipes hp_current for slots [start_char_idx .. party_member_count-1]. Callers pass constant boundaries (fd2_chapter_29_end=0x14, handler_35=0x12, handler_40/47 push their own kill-from index).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "src/protos.h declaration uses start_char_idx which is descriptive and address-residue-free; matches the actual use (start of the kill range). Live Ghidra still shows param_1 (Ghidra param rename to start_char_idx is a Stage 2 task, not done here)."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_party_member_count"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "72a3d7a1",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Globals verified against src/include/globals.h (runtime_char_array_ptr @0x53A45, party_member_count @0x53BEB) matching the disasm operand addresses; protos.h declares the exact signature. Note writes_globals lists data_fd2_battle_runtime_char_array_ptr because the loop writes through the pointed-to array element (.hp_current), not the pointer itself. src comment block (lines 996-1009) already concise/accurate/ASCII with correct caller list -> keep. Ghidra plate consistent with src understanding -> plate untouched. Stage-2 follow-up: rename Ghidra param param_1 -> start_char_idx."
+}
