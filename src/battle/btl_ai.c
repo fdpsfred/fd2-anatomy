@@ -12,9 +12,26 @@
 /* ----------------------------------------------------------------
  * fd2_npc_turn_phase_team1 @ 0x1D80B
  *
- * AI turn loop for team 1 (NPC allies). Iterates chars, runs
- * enemy_turn_action_dispatcher, then post-action consequences
- * and chapter handlers.
+ * AI turn loop for team 1 (NPC allies that act on their own, e.g.
+ * kingdom soldiers in joint missions). Called as "Phase C" of the
+ * full turn cycle, between the player turn and the enemy turn.
+ *
+ * Iterates runtime chars [0 .. party_member_count). Skips a char
+ * unless: bTeam(+6)==1, (bFlags(+5) & 0x81)==0 (not dead 0x01 /
+ * not acted-this-turn 0x80), and sleep flag(+0x26)==0. Eligible
+ * chars run through fd2_enemy_turn_action_dispatcher(i, 1).
+ *
+ * After each char (whether it acted or not):
+ *   - if a post-action consequence index was set (!=0xFF), invoke
+ *     the consequence handler from the table (counter-attack /
+ *     death / status proc);
+ *   - always run the per-chapter post-action handler for the
+ *     current chapter (scripted-event probe);
+ *   - break the loop if the chapter event / battle-end code became
+ *     non-zero.
+ *
+ * anim_phase is forced to 0 before the loop and again each
+ * iteration, and the keyboard buffer is flushed each iteration.
  * ---------------------------------------------------------------- */
 void fd2_npc_turn_phase_team1(void)
 {
