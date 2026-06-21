@@ -522,7 +522,16 @@ void fd2_slide_panel_step_top_small(uint32 src_buffer, uint32 frame_idx)
 /* ----------------------------------------------------------------
  * fd2_slide_panel_step_bottom_main @ 0x1B0AD
  *
- * Bottom main panel slide-in from below (0xAA-wide, 0x10 rows).
+ * Party Status Overview screen: one frame of the bottom wide ("main")
+ * panel sliding up from below into its settled position at y = 0x9B
+ * (0xAA bytes wide, up to 0x10 rows high). Driven by
+ * fd2_open_party_status_overview_screen (intro + outro), one of the
+ * four per-frame panel steps. Frames < 5 are skipped (other panels not
+ * yet in place). Frames 5..9 rise toward y = 0x9B by 9 rows/frame; the
+ * first slide frame (frame 5) clips off the screen bottom (row count
+ * goes non-positive, so nothing is drawn that frame). Frame >= 10 is
+ * fully settled. Source row 0 is at src_buffer + 0xC20B; copies
+ * row_count rows into data_fd2_large_game_state_buffer_ptr.
  * ---------------------------------------------------------------- */
 void fd2_slide_panel_step_bottom_main(uint32 src_buffer, uint32 frame_idx)
 {
