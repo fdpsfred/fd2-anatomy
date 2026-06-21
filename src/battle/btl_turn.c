@@ -813,8 +813,10 @@ int fd2_count_active_chars_for_team_filter(uint32 team)
  * Callers: fd2_process_xp_and_level_up_for_char (x5 stat slots),
  * fd2_execute_class_promotion_with_dialog (x5 promotion bonuses).
  *
+ * growth_pair is a 2-byte char_growth_entry stat field: byte[0] = min
+ * gain, byte[1] = max gain + 1. So the rolled gain spans [min, max]:
  *   min_gain   = growth_pair[0]
- *   range      = growth_pair[1] - growth_pair[0]   (growth_pair = min,max)
+ *   range      = growth_pair[1] - growth_pair[0]   (= max+1 - min)
  *   rand_extra = (range != 0) ? fd2_advance_rng_state() % range : 0
  *   gain (data_fd2_dialog_last_action_value_param) = min_gain + rand_extra
  *
