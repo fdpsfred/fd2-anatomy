@@ -1673,14 +1673,14 @@ void fd2_chapter_event_handler_25__unref_major_cinematic(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_0a__ch14_first_time @ 0x34E3B
- *   — Dispatch idx 0x0A of the per-event handler table at 0x51B91.
+ *   -- Dispatch idx 0x0A of the per-event handler table at 0x51B91.
  *
  * Triggered in chapter 14 as tile-step event_type 0x00 (ch14 tile-step
  * slot 0). First-time-gated: the body runs only while
  * tile_event_consumed_flags[0x10] is still 0, and consuming the flag
  * (set to 1) at the end makes every later call a no-op. Its single beat
- * disarms the AI flag on 56 chars — the low nibble of combat_aux_block[0xD]
- * becomes 0 for chars 0x10..0x47 (the largest range in this group) — and
+ * disarms the AI flag on 56 chars -- the low nibble of combat_aux_block[0xD]
+ * becomes 0 for chars 0x10..0x47 (the largest range in this group) -- and
  * then shows dialog page 1.
  *
  * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
