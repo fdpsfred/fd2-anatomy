@@ -124,8 +124,23 @@ int fd2_score_spell_candidate(uint32 spell_id, uint32 n_targets,
 /* ----------------------------------------------------------------
  * fd2_score_item_candidate @ 0x15880
  *
- * Score an item for AI use: sum per-target priority based on
- * HP thresholds and effect type.
+ * Per-candidate offensive-item scorer for enemy AI. Called by
+ * fd2_ai_score_item_use for one (item, tile) candidate to sum a
+ * priority score over the affected targets. Dispatches on the
+ * item effect-code (item_effect_entry[0xD]):
+ *
+ *   0x05 / 0x0D (HP-damage item): per target by current HP vs max,
+ *     +0 if hp > max/2, +3 if hp > max/3, +8 if hp <= max/3; then
+ *     x3 if the target's combat_aux_block[0xD] bit 0x80 is set
+ *     (high-value / vulnerable target amplification).
+ *   0x14 / 0x15 / 0x18 (spell-wrapper item): threshold is the wrapped
+ *     spell's base damage (spell_effect_entry[0]), or item[0xE] when
+ *     effect-code == 0x18; per target +8 if hp > threshold, else +0x12
+ *     (kill shot).
+ *   other effect-codes: score 0 (not treated as offensive).
+ *
+ * Returns the summed score. Reads runtime_char wHP_current (+0x40),
+ * wHP_max (+0x42), combat_aux_block[0xD] (+0x34).
  * ---------------------------------------------------------------- */
 int fd2_score_item_candidate(uint32 item_id, uint32 n_targets,
                               uint32 target_array_ptr)
