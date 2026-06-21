@@ -686,8 +686,19 @@ void fd2_recalculate_combat_stats(uint32 char_idx)
 /* ----------------------------------------------------------------
  * fd2_check_can_counter_attack @ 0x1F0DC  (6 callers)
  *
- * Returns 1 if defender can counter (adjacent + awake + melee weapon).
- * Returns -1 otherwise.
+ * Can `defender_idx` counter-attack `attacker_idx`? Returns 1 if yes,
+ * -1 on any failure.
+ *
+ * The defender can counter only when: it is awake (status_sleep_flag
+ * == 0); the attacker is orthogonally adjacent (Manhattan distance of
+ * their tiles == 1); it has an equipped weapon (kind 0 = physical);
+ * and that weapon's min attack range (item_entry[0xB] = R1) is exactly
+ * 1, i.e. a true melee weapon. attacker_idx is used only as the
+ * adjacency reference point; all weapon/status checks read the
+ * defender.
+ *
+ * Cf. sibling fd2_check_can_default_attack_target, which rejects R1 > 1
+ * (range 1 OK); here R1 must equal 1 (R1 == 0 also fails).
  * ---------------------------------------------------------------- */
 int fd2_check_can_counter_attack(uint32 attacker_idx, uint32 defender_idx)
 {
