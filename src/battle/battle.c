@@ -493,8 +493,12 @@ int fd2_apply_mp_heal_and_award_xp(uint32 target_idx, uint32 base_heal)
 /* ----------------------------------------------------------------
  * fd2_get_inventory_slot_item_id @ 0x1B722
  *
- * Returns item_id from runtime_char inventory. Each slot is 2 bytes
- * (flag + item_id); item_id is at inventory_slots[slot*2 + 1].
+ * One-line accessor: returns the item_id byte of one inventory slot.
+ *   char_idx -> index into runtime_char array (which combatant)
+ *   slot_idx -> inventory slot 0..7
+ * Each slot is 2 bytes: [0]=flag (bit 0x80 = empty), [1]=item_id.
+ * inventory_slots[] starts at struct +0x0A, so item_id lives at
+ * inventory_slots[slot_idx*2 + 1]. Return feeds get_item_effect_entry.
  * ---------------------------------------------------------------- */
 uint8 fd2_get_inventory_slot_item_id(uint32 char_idx, uint32 slot_idx)
 {
