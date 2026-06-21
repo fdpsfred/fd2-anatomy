@@ -597,7 +597,18 @@ void fd2_slide_panel_up_partial_step(uint32 y_offset,
 /* ----------------------------------------------------------------
  * fd2_slide_panel_down_step @ 0x1974C
  *
- * Restore background, copy panel rows, blit to VGA.
+ * Render one full frame of the chapter-portrait dialog-panel slide.
+ *   1. Restore dst_workspace from the clean background snapshot.
+ *   2. Copy up to 0x56 panel rows (310 bytes wide) from
+ *      src_buffer + 0x8C05 (composed dialog buffer at y=0x70, x=5)
+ *      into dst_workspace at screen row y_offset, x=5, clipping the
+ *      row count to the screen bottom (row 200).
+ *   3. Blit the whole 320x200 workspace to mode-13h VRAM (0xA0000).
+ *
+ * Direction-agnostic: the caller drives y_offset per frame
+ * (slide-in y descends toward 0x70, slide-out y ascends off-screen).
+ * Unlike the sibling fd2_slide_panel_up_partial_step, this one owns
+ * the background restore and VGA flush, so it is a full-frame step.
  * ---------------------------------------------------------------- */
 void fd2_slide_panel_down_step(uint32 y_offset,
                                 uint32 dst_workspace,
