@@ -1,0 +1,58 @@
+{
+  "address": "0001debe",
+  "name_current": "fd2_check_can_default_attack_target",
+  "name_final": "fd2_check_can_default_attack_target",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Descriptive and accurate (battle melee-attack precondition check); no Ghidra address residue; consistent with sibling battle helper naming (fd2_find_equipped_item_by_kind, fd2_get_item_effect_entry) that use descriptive names without a strict _battle_ infix.",
+  "kind": "function",
+  "home": "ROOT/src/battle/battle.c",
+  "purpose": "Precheck whether a runtime char can launch a default (melee) physical attack on a given tile; used by enemy AI to decide if an AoE target could counter-attack (counter-bonus gate).",
+  "logic_summary": "rc = runtime_char[char_idx]. Fail (-1) if rc.status_sleep_flag != 0 (asleep). Compute Manhattan distance dx=abs(tile_x-rc.pos_x), dy=abs(tile_y-rc.pos_y); fail if dx+dy != 1 (must be orthogonally adjacent). weapon_slot = find_equipped_item_by_kind(char_idx, 0=physical); fail if -1 (no weapon). weapon_id = inventory_slot_item_id; weapon_entry = item_effect_entry(weapon_id); fail if weapon_entry[0xB] (R1 = min attack range) > 1 (bow/staff cannot melee). Else return 1.",
+  "signature": "int __cdecl fd2_check_can_default_attack_target(uint32 char_idx, uint32 tile_x, uint32 tile_y)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "runtime_char index whose default-attack capability is being tested (caller passes the AoE target's index).",
+      "verdict": "rename",
+      "proposed": "char_idx",
+      "reason": "Ghidra name param_1 is a generic placeholder; src already uses char_idx which matches usage as index into data_fd2_battle_runtime_char_array_ptr."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "Target tile X coordinate (caller passes attacker's candidate tile x); compared to rc.pos_x for adjacency.",
+      "verdict": "rename",
+      "proposed": "tile_x",
+      "reason": "Generic placeholder param_2; src uses tile_x matching the abs(tile_x - pos_x) adjacency computation."
+    },
+    {
+      "name": "param_3",
+      "type": "uint",
+      "semantics": "Target tile Y coordinate (caller passes attacker's candidate tile y); compared to rc.pos_y for adjacency.",
+      "verdict": "rename",
+      "proposed": "tile_y",
+      "reason": "Generic placeholder param_3; src uses tile_y matching the abs(tile_y - pos_y) adjacency computation."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "1 = can default-attack the tile; -1 = cannot (asleep / not adjacent / no weapon / weapon min range > 1)."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Original src comment was too terse: only stated the 1/-1 return contract without the precondition checks (sleep, adjacency, weapon presence, weapon min-range) or the contextual purpose (the single caller uses it as a counter-attack feasibility gate for the AI counter-bonus).",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "a987c808e2f8add187f375eda13f5f2346785ebe",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Function logic in src matches Ghidra decompilation byte-for-byte semantically (verified). item_entry[0xB]=R1 (attack range min) confirmed via fd2-knowledge struct item. runtime_char offsets confirmed via get_struct_layout (bStatus_sleep_flag@0x26, bPos_x@0, bPos_y@1). Ghidra plate is already detailed/consistent with refined understanding (documents caller + counter-bonus), left unchanged. Ghidra params still param_1/2/3 (generic) -> rename recorded for Stage 2; src declarations already use good names so no src signature change needed this stage."
+}

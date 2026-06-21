@@ -710,8 +710,17 @@ int fd2_check_can_counter_attack(uint32 attacker_idx, uint32 defender_idx)
 /* ----------------------------------------------------------------
  * fd2_check_can_default_attack_target @ 0x1DEBE  (1 caller)
  *
- * Returns 1 if char can default-attack tile (x,y).
- * Returns -1 otherwise.
+ * Precheck: can runtime char `char_idx` make a default (melee) attack
+ * on tile (tile_x, tile_y)? Returns 1 if yes, -1 on any failure.
+ *
+ * Excluded when: char is asleep (status_sleep_flag); tile is not
+ * orthogonally adjacent (Manhattan distance != 1); char has no equipped
+ * weapon (kind 0 = physical); or the weapon's min attack range
+ * (item_entry[0xB] = R1) > 1, i.e. a bow/staff that cannot melee.
+ *
+ * Caller fd2_ai_score_physical_attack passes (target_idx, cand_x,
+ * cand_y) to test whether the AoE target could counter-attack the
+ * attacker's candidate tile; a result of 1 grants the counter-bonus.
  * ---------------------------------------------------------------- */
 int fd2_check_can_default_attack_target(uint32 char_idx,
                                          uint32 tile_x, uint32 tile_y)
