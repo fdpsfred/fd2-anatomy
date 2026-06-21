@@ -1,0 +1,118 @@
+{
+  "address": "0x00015f84",
+  "name_current": "fd2_display_dialog_scene",
+  "name_final": "fd2_display_dialog_scene",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor> name; accurately describes a dialog-scene display routine. No address residue. It is the dialog bytecode VM (interprets int16 opcodes), and 'display_dialog_scene' is a correct, descriptive label already cross-referenced by ~30 callers and documented in the plate/src comment; renaming would be churn for marginal gain.",
+  "kind": "function",
+  "home": "src/dialog/dialog.c",
+  "purpose": "FD2 dialog bytecode VM: interprets a compiled int16 opcode stream (a 'page' of FDTXT chapter text) to render a dialog scene -- glyph text plus speaker/enemy portrait load/animation, line reflow, page-break input waits, recursive sub-dialogs, and literal-number insertion.",
+  "logic_summary": "cur_op = text_base + (int16)text_base[page_idx*2] (header word is a byte offset). Loop reading int16 opcodes: -1 END (flush open portrait, return render_pos); -2 LINE ADVANCE (line_count++, reflow render_pos = render_base + render_pitch*glyph_height*line_count, no input wait; if portrait active and line_count==3 first cinematic-scroll and reset line_count=2); -3 PAGE BREAK (same reflow, then paint portrait if active and wait_for_input(1), set blink_flag=1); -4/-5 recursive self-call on data_fd2_all_game_text_ptr at last_action_sprite_id / drop_swap_text_id; -6 LITERAL NUMBER (sprintf %d of last_action_value, blit each digit glyph, advance 0x10/glyph, poll keyboard to cancel blink); -0x11/-0x12 load ENEMY portrait (find_char_by_id_or_template gates flip; 0x27 keeps prior pSpeaker else uses current_speaker_char_ptr), load DATO.DAT asset, open-animation, blit normal(slot1 0x728)/mirrored(slot2 0x9017), reset render to 0xa0b4f/0xa951f; -0x13/-0x14 load ALLY portrait from runtime_char_array[next u16], same slot1/slot2 handling; default = TEXT glyph via fd2_blit_glyph_2bpp_with_outline then render_pos += 0x10 and keyboard-poll/blink-step. Each portrait opcode first tears down any previously open portrait (paint/wait/close-slide).",
+  "signature": "uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx, uint32 render_pos, uint32 render_pitch, uint32 glyph_p5, uint32 glyph_p6, uint32 glyph_p7, uint32 glyph_height, uint32 blink_flag)",
+  "params": [
+    {
+      "name": "text_base",
+      "type": "uint32",
+      "semantics": "Base linear address of the chapter text block (FDTXT[chapter]); the per-page header word at text_base[page_idx*2] gives the byte offset to this page's first opcode.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the bytecode-stream base; no residue."
+    },
+    {
+      "name": "page_idx",
+      "type": "uint32",
+      "semantics": "Index of the page header word within text_base used to locate this page's starting opcode (NOT a linear 'page number'; pages are -3 delimited).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Matches usage *(int16*)(text_base + page_idx*2); descriptive, no residue."
+    },
+    {
+      "name": "render_pos",
+      "type": "uint32",
+      "semantics": "Initial destination linear address (typically VGA mode13h 0xA0000+offset) where glyph rendering begins; mutated through the loop and returned.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Correct; also the return value. No residue."
+    },
+    {
+      "name": "render_pitch",
+      "type": "uint32",
+      "semantics": "Destination row stride in bytes (typ. 0x140=320). Passed to the glyph blitter as 'pitch' and used for per-line reflow (render_base + render_pitch*glyph_height*line_count).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Correctly named; matches both blit pitch arg and reflow math. No residue. (Note: Ghidra decompile mislabels this param 'pChapter_text'; src name is the correct one.)"
+    },
+    {
+      "name": "glyph_p5",
+      "type": "uint32",
+      "semantics": "Glyph fill color: passed straight through to fd2_blit_glyph_2bpp_with_outline as its 'fill_color' (palette index of glyph body). Recursive call passes 0xcd.",
+      "verdict": "rename",
+      "proposed": "glyph_fill_color",
+      "reason": "Placeholder name 'glyph_p5' (parameter 5) does not reflect use; callee param is fill_color. Rename to glyph_fill_color (Stage 2 applies)."
+    },
+    {
+      "name": "glyph_p6",
+      "type": "uint32",
+      "semantics": "Glyph outline/shadow color: passed through as fd2_blit_glyph_2bpp_with_outline 'outline_color' (drop-shadow palette index). Recursive call passes 0x4c.",
+      "verdict": "rename",
+      "proposed": "glyph_outline_color",
+      "reason": "Placeholder 'glyph_p6' does not reflect use; callee param is outline_color. Rename to glyph_outline_color (Stage 2 applies)."
+    },
+    {
+      "name": "glyph_p7",
+      "type": "uint32",
+      "semantics": "Glyph background fill color: passed through (as uint16) to fd2_blit_glyph_2bpp_with_outline 'bg_color' (0 = skip bg box fill). Recursive call passes 0x4a.",
+      "verdict": "rename",
+      "proposed": "glyph_bg_color",
+      "reason": "Placeholder 'glyph_p7' does not reflect use; callee param is bg_color. Rename to glyph_bg_color (Stage 2 applies)."
+    },
+    {
+      "name": "glyph_height",
+      "type": "uint32",
+      "semantics": "Per-line vertical advance in bytes-of-pitch units used in reflow (render_pitch * glyph_height * line_count); typ. 0x13 (19).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and matches reflow use; 0x13 is the line height. No residue."
+    },
+    {
+      "name": "blink_flag",
+      "type": "uint32",
+      "semantics": "Enable the per-glyph talking-portrait blink animation (fd2_portrait_blink_animation_step) and typewriter pacing; cleared to 0 when a keypress is detected (skip-text), re-armed to 1 after page break / portrait load.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Correctly describes the boolean's role. No residue."
+    }
+  ],
+  "returns": {
+    "type": "uint32",
+    "semantics": "Final render_pos (cursor linear address) after the stream ends at opcode -1; consumed by the -4/-5 recursive callers to continue rendering inline after a sub-dialog."
+  },
+  "reads_globals": [
+    "data_fd2_dialog_active_portrait_blit_offset",
+    "data_fd2_dialog_current_speaker_char_ptr",
+    "data_fd2_portrait_sprite_buffer",
+    "data_fd2_chinese_font_sheet",
+    "data_fd2_dialog_last_action_sprite_id_param",
+    "data_fd2_dialog_drop_swap_text_id_param",
+    "data_fd2_dialog_last_action_value_param",
+    "data_fd2_all_game_text_ptr",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_string_resource_filename_dato_dat_51a70"
+  ],
+  "writes_globals": [
+    "data_fd2_dialog_active_portrait_blit_offset",
+    "data_fd2_portrait_sprite_buffer"
+  ],
+  "comment_original_issue": "Pre-edit src comment was already correct/concise but did not state what params 5/6/7 (glyph_p5/p6/p7) mean, nor that render_pitch also drives line reflow. Augmented to note render_pitch's reflow role and that glyph_p5/p6/p7 are the glyph fill/outline/bg palette colors passed through to fd2_blit_glyph_2bpp_with_outline.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Ghidra decompile parameter names are unreliable here (it labels param4 'pChapter_text' and param5 'page_idx'); the src signature names (render_pitch, glyph_p5..p7) are positionally correct and authoritative. Plate header is far more detailed than src and semantically consistent (its global aliases like 'dialog_portrait_mode' are old display names for data_fd2_dialog_active_portrait_blit_offset @ 0x53C67 -- not contradictory), so plate left untouched; global-symbol name consistency belongs to the separate Stage 2 rename pass. Body verified to match decompile incl. the 0x27 pSpeaker-reuse register-liveness behavior. All 10 referenced globals confirmed present in src/include/globals.h with byte-identical names."
+}

@@ -47,6 +47,10 @@ void fd2_cleanup_dialog_sprite_buffer(uint32 saved_block, uint32 dst, uint32 str
  *
  * Args (9, __cdecl): text_base, page_idx, render_pos, render_pitch,
  *   glyph_p5, glyph_p6, glyph_p7, glyph_height, blink_flag.
+ *   render_pitch also drives the per-line reflow (render_base +
+ *   render_pitch * glyph_height * line_count).  glyph_p5/p6/p7 are
+ *   passed straight through to fd2_blit_glyph_2bpp_with_outline as its
+ *   fill_color / outline_color / bg_color palette indices.
  * Returns final render_pos (consumed by the -4/-5 recursive callers).
  *
  * Mirrors the vendor's register-liveness behaviour: pSpeaker (slot1)
