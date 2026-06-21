@@ -1,0 +1,42 @@
+{
+  "address": "0002073d",
+  "name_current": "fd2_chapter_12_post_action",
+  "name_final": "fd2_chapter_12_post_action",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>; '12' is the chapter ID (valid 01-30 domain ID), '_post_action' is the descriptor. No Ghidra address residue. Dispatched via handler table slot index 11 (= chapter_id 12 - 1), confirmed by xref @ 0x51b45 holding 0x0002073d.",
+  "kind": "function",
+  "home": "src/field/chpost.c",
+  "purpose": "Chapter 12 turn-cycle post-action handler: runs the default win/lose check then adds a lose-condition override for the single escort NPC at runtime_char slot 0xE.",
+  "logic_summary": "Calls fd2_check_battle_end_condition() (default win/lose evaluation), then queries fd2_check_char_is_dead(0xE) for the one must-protect escort NPC; if that slot is dead, sets data_fd2_chapter_event_or_battle_end_code (@0x53ECC) = 1 (game over). event_arg is the Watcom __CHK-prologue artifact and is unused by the body.",
+  "signature": "void __cdecl fd2_chapter_12_post_action(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Unused by the body; Watcom __CHK-prologue / dispatch-contract artifact (dispatch site may push active char_idx and cleans it). Read nowhere in the function.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately reflects the dispatch contract and that it is an unused incoming event argument; no address residue and consistent with sibling chapter post-action handlers in chpost.c."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; communicates result via the data_fd2_chapter_event_or_battle_end_code global."
+  },
+  "reads_globals": [],
+  "writes_globals": [
+    "data_fd2_chapter_event_or_battle_end_code"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disasm @0x2073d confirms: __CHK(8) prologue, CALL 0x205be (fd2_check_battle_end_condition), PUSH 0xe; CALL 0x3453e (fd2_check_char_is_dead(0xE)); ADD ESP,4 cdecl cleanup; TEST EAX,EAX; JZ; MOV dword ptr [0x53ecc],1. Matches decompile and src body byte-for-byte in logic. Slot 0xE is a runtime_char index (escort NPC), a domain-meaningful ID, not an address residue. src comment (chpost.c lines 74-86) already accurate and concise; Ghidra plate is terse but consistent (no contradiction), left untouched. Other shard files showing as modified in git status belong to concurrent refiner agents; only src/field/chpost.c (unmodified here) and this shard are in my scope."
+}
