@@ -33,6 +33,13 @@ uint32 fd2_advance_rng_state(void)
 
 /* ----------------------------------------------------------------
  * fd2_deduct_caster_mp @ 0x1CA89  (14 callers)
+ *
+ * Subtract a spell's MP cost from the caster's current MP. Called on
+ * every successful cast path after the effect resolves.
+ *   rc[caster_idx].mp_current -= spell_entry[5]   (entry +5 = MP cost)
+ * spell_entry is the 7-byte spell_effect_table row (see types.h /
+ * KB spell_entry: +5 = MP cost). No clamp; MP is assumed sufficient
+ * (callers gate on affordability before casting).
  * ---------------------------------------------------------------- */
 void fd2_deduct_caster_mp(uint32 caster_idx, uint32 spell_id)
 {
