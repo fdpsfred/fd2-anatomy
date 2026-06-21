@@ -587,8 +587,9 @@ void fd2_play_full_combat_cinematic(uint32 a, uint32 d)
  * 9-frame zoom-in / fade-in introduction animation for a character
  * displayed in a special-attack cinematic backdrop. Each frame combines a
  * 10-px-per-frame slide with a palette-darkening fade (intensity steps of 6
- * from 0x36 down to 0). Drives the "character sweeps onto the screen" intro
- * before the per-hit FIGANI frames play.
+ * from 0x30 down to 0; the loop counter runs 8..0, so max = 8*6 = 0x30).
+ * Drives the "character sweeps onto the screen" intro before the per-hit
+ * FIGANI frames play.
  *
  * Branch on data_fd2_battle_runtime_char_array_ptr[char_unit_id].team
  * (0 = enemy, 1 = NPC ally, 2 = player):
@@ -613,14 +614,16 @@ void fd2_play_full_combat_cinematic(uint32 a, uint32 d)
  * (used when the caller pre-composited the character into the backdrop, e.g.
  * for split-screen 1-on-1 cinematics).
  *
- * Positional args mirror the two callers in this file:
+ * Positional args (consistent across all 6 callers):
  *   char_unit_id  unit index -> runtime_char.team selects top/bottom half
  *   mode_flag     0 = draw static char layer, nonzero = skip it
  *   char_sprite   sliding overlay sprite (blitted every frame at the offset)
  *   char_sprite2  static character sprite (blitted at the fixed origin)
  *   workspace     composite work buffer (0x280-stride slide base)
  *   bg_sprite     clear source + final-settle RLE destination (0x140 stride)
- *   weapon_sprite RLE background sprite stream
+ *   weapon_sprite RLE backdrop sprite blitted at (0xA4, 0x9D) -- despite the
+ *                 name this is NEVER a weapon; every caller passes a
+ *                 TAI.DAT / FDSHAP.DAT name-banner / character-base sprite.
  *
  * Globals touched: data_fd2_battle_runtime_char_array_ptr [0x53A45] (read team).
  *
