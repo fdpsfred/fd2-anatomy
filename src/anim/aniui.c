@@ -497,9 +497,10 @@ void fd2_animate_scroll_down_in_shop_dialog(void)
 /* ----------------------------------------------------------------
  * fd2_animate_shop_transaction_feedback @ 0x2F4C6 (3 callers)
  *
- * Animation feedback for a successful shop transaction (buy / sell /
- * give). Plays a per-chapter-type sprite cycle and (for state 4 only)
- * a cyan additive palette flash. Dispatches on the per-chapter byte
+ * Animation feedback for a successful gold transaction in one of the
+ * shop-style menus (buy / sell / revive). Plays a per-chapter-type
+ * sprite cycle and (for state 4 only) a cyan additive palette flash.
+ * Dispatches on the per-chapter byte
  * data_fd2_chapter_intro_menu_cursor_state @ 0x5412B:
  *
  *   state 1: 5-frame sprite cycle (atlas frames 0x17..0x1B at framebuffer
@@ -522,8 +523,8 @@ void fd2_animate_scroll_down_in_shop_dialog(void)
  * data_fd2_ui_menu_screen_sprite_atlas_buf_ptr @ 0x54147, frame_idx); the
  * destinations are fixed mode13h aperture addresses (real VGA RAM under
  * DOS/4GW). The palette flash drives the DAC via the real
- * fd2_set_vga_palette_range_with_add (port 0x3C8/0x3C9 writes). Used by all
- * four shop flows (buy / sell / equip / give) and the class-promotion path.
+ * fd2_set_vga_palette_range_with_add (port 0x3C8/0x3C9 writes). Invoked by
+ * the buy / sell / revive menus after a successful gold transaction.
  *
  * Cdecl, no params, void return. The binary's __CHK(0x18) stack-probe
  * prologue is compiler-generated and omitted here.
