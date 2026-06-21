@@ -168,29 +168,45 @@ void fd2_animate_bg_zoom_transition_in(uint32 char_unit_id,
 }
 
 /* ----------------------------------------------------------------
- * fd2_animate_bg_zoom_transition_out @ 0x29DED  (1 caller)
+ * fd2_animate_bg_zoom_transition_out @ 0x29DED  (1 caller, 2 call sites)
  *
- * BG zoom-out scroll transition for a combat cinematic — the camera
- * pulls back from the attacker (player/ally side), the mirror of
- * fd2_animate_bg_zoom_transition_in. Runs an outward scroll, repaints the
- * defender into the work buffer, then a second outward scroll with a
- * rotated BG cycle, all over the 3-layer parallax BG cache
- * (data_fd2_battle_special_cinematic_bg_layers @ 0x5410B/0F/13)
- * loaded by the caller.
+ * BG zoom-out scroll transition for a combat cinematic -- the camera
+ * pulls back from the unit, the mirror of fd2_animate_bg_zoom_transition_in.
+ * Runs an outward scroll, repaints the unit (banner + terrain backdrop +
+ * pose) into the lower row band of the work buffer, then a second outward
+ * scroll with a rotated BG cycle, all over the 3-layer parallax BG cache
+ * (data_fd2_battle_special_cinematic_bg_layers @ 0x5410B/0F/13) loaded by
+ * the caller.
  *
- * Called by fd2_execute_combat_hit_cinematic.
+ * Called by fd2_execute_combat_hit_cinematic (enemy-team-attacker branches:
+ * the charge-in section and the second-strike loop tail; the player/ally
+ * branch at each site uses fd2_animate_bg_zoom_transition_in instead).
  *
- * Params (__cdecl):
+ * Params (__cdecl). Three current names are misnomers; the true semantics
+ * (proven via the caller chain fd2_play_full_combat_cinematic and the blit
+ * coordinates) are noted, and corrected names are slated for Stage 2 rename:
  *   char_unit_id        runtime-char index of the unit (forwarded to the
  *                       hit-flash overlay)
- *   char_sprite_idx     atlas/sprite index blitted into the workspace after
- *                       the defender is composed
- *   terrain_bg          terrain backdrop RLE sprite stream
- *   clear_buf           64000-byte (mode-13h sized) scratch the defender is
- *                       composed into before being blitted into workspace
+ *   char_sprite_idx     FIGANI/sprite-sheet stream POINTER for the unit pose,
+ *                       blitted (frame 0) into the lower band. NOTE: misnomer
+ *                       -- a sheet pointer, not an index (passed as
+ *                       fd2_blit_indexed_sprite's sheet_ptr with idx 0).
+ *   terrain_bg          NAME-BANNER RLE sprite, painted at (0xA4,0x9D) into
+ *                       clear_buf. NOTE: misnomer -- this is the TAI.DAT name
+ *                       banner the caller loads, NOT the terrain backdrop
+ *                       (see name_banner_sprite below; the two are swapped).
+ *   clear_buf           64000-byte (mode-13h sized) scratch the banner,
+ *                       backdrop and unit are composed into before being
+ *                       blitted into the workspace lower band
  *   workspace           128K (0x1F400) work buffer holding the scrolled BG;
- *                       blits target workspace + 0x140 in the lower row band
- *   name_banner_sprite  RLE sprite stream for the unit name banner
+ *                       the unit repaint targets workspace + 0x140 (lower
+ *                       row band)
+ *   name_banner_sprite  TERRAIN/BG backdrop RLE sprite, painted at (0,0x32)
+ *                       into clear_buf. NOTE: misnomer -- this is the BG.DAT
+ *                       spotlight terrain backdrop the caller loads, NOT the
+ *                       name banner (cf. terrain_bg above; the two are
+ *                       swapped). Mirrors the caster_figani backdrop of the
+ *                       zoom-in counterpart.
  *
  * The three BG-layer pointers are a real uint32[3] array
  * (data_fd2_battle_special_cinematic_bg_layers), indexed directly so C
@@ -198,7 +214,7 @@ void fd2_animate_bg_zoom_transition_in(uint32 char_unit_id,
  *
  * Unlike the zoom-in counterpart, both scroll passes here count forward
  * (1..9 and 1..10) and the second pass blits into bare workspace while the
- * first pass and the defender repaint use workspace + 0x140.
+ * first pass and the unit repaint use workspace + 0x140.
  * ---------------------------------------------------------------- */
 void fd2_animate_bg_zoom_transition_out(uint32 char_unit_id,
                                         uint32 char_sprite_idx,

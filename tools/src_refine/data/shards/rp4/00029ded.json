@@ -1,0 +1,83 @@
+{
+  "address": "00029ded",
+  "name_current": "fd2_animate_bg_zoom_transition_out",
+  "name_final": "fd2_animate_bg_zoom_transition_out",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Accurately describes the function: a BG zoom-out scroll transition for a combat cinematic, the mirror counterpart of fd2_animate_bg_zoom_transition_in. Follows fd2_<domain>_<descriptor> convention (domain=animate/bg, descriptor=zoom_transition_out). No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/anim/anispell.c",
+  "purpose": "BG zoom-out scroll transition for a combat cinematic: camera pulls back from a combat unit by scrolling a 3-layer parallax background outward, repainting the unit (name banner + terrain backdrop + pose) into the lower row band of the work buffer between two outward scroll passes. Mirror of fd2_animate_bg_zoom_transition_in.",
+  "logic_summary": "Phase 1: for frame_iter 1..9, RLE-blit special_attack_bg_layer[frame_iter%3] into workspace+0x140 (lower band), then blit a vertically-offset (frame_iter*0x20) 0x140-row band to mode-13h (0xA0000), giving an outward scroll. Phase 2: clear the 128K workspace and the 64000-byte clear_buf, RLE-blit the terrain/BG backdrop (param name_banner_sprite, a misnomer) at (0,0x32) and the TAI name banner (param terrain_bg, a misnomer) at (0xA4,0x9D) into clear_buf, overlay the unit hit-flash (fd2_flash_char_hit_sprite with char_unit_id), blit clear_buf into workspace+0x140, then blit the unit pose sheet (param char_sprite_idx, frame 0) into workspace+0x140. Phase 3: for frame_iter 1..10, RLE-blit special_attack_bg_layer[(frame_iter+1)%3] into bare workspace (rotated layer cycle), then blit the offset band to mode-13h, giving a second outward scroll. The 3 BG-layer pointers are read directly from the real uint32[3] array data_fd2_battle_special_cinematic_bg_layers @ 0x5410B/0F/13.",
+  "signature": "void __cdecl fd2_animate_bg_zoom_transition_out(uint32 char_unit_id, uint32 char_sprite_idx, uint32 terrain_bg, uint32 clear_buf, uint32 workspace, uint32 name_banner_sprite)",
+  "params": [
+    {
+      "name": "char_unit_id",
+      "type": "uint32",
+      "semantics": "Runtime-char index of the combat unit being shown; forwarded to fd2_flash_char_hit_sprite to overlay its hit-flash. Caller fd2_execute_combat_hit_cinematic passes defender_idx (charge-in site) / attacker_idx (second-strike site).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Correctly identifies a runtime-char index; no address residue."
+    },
+    {
+      "name": "char_sprite_idx",
+      "type": "uint32",
+      "semantics": "FIGANI/sprite-sheet stream POINTER for the unit pose; passed as fd2_blit_indexed_sprite's sheet_ptr with frame index 0. Caller passes defender_figani / attacker_figani (FIGANI stream pointers).",
+      "verdict": "rename",
+      "proposed": "char_figani",
+      "reason": "Misnomer: the name says 'index' but the value is a FIGANI/sprite-sheet pointer (it is the sheet_ptr argument of fd2_blit_indexed_sprite, with the literal 0 as the index). Matches the IN counterpart's identical param (00029c90 proposes char_sprite_idx->char_figani) and the *_figani caller arguments. Rename deferred to Stage 2.",
+      "issue": null
+    },
+    {
+      "name": "terrain_bg",
+      "type": "uint32",
+      "semantics": "RLE sprite stream painted at dst (0xA4,0x9D) into clear_buf. This is actually the TAI.DAT NAME-BANNER sprite: the caller chain passes fd2_play_full_combat_cinematic's rle_stream (= fd2_load_dat_resource(0x52393 TAI.DAT, banner_idx)) through fd2_execute_combat_hit_cinematic's name_banner_sprite param to this argument. Blit position (0xA4,0x9D) matches the name-banner blit in fd2_play_full_combat_cinematic's own non-cinematic compose path.",
+      "verdict": "rename",
+      "proposed": "name_banner_sprite",
+      "reason": "Misnomer/swap: the current name says terrain_bg but the value is the TAI.DAT name banner, not the terrain backdrop. The param currently named name_banner_sprite (position 6) holds the actual terrain backdrop. The two should swap names. Rename deferred to Stage 2."
+    },
+    {
+      "name": "clear_buf",
+      "type": "uint32",
+      "semantics": "64000-byte (mode-13h sized) scratch buffer; cleared then used to compose the terrain backdrop + name banner + unit hit-flash before being blitted into workspace+0x140. Caller passes framebuffer (the 64000-byte dst work area).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Correctly describes a cleared 64000-byte scratch buffer; no address residue. Matches the IN counterpart's clear_buf."
+    },
+    {
+      "name": "workspace",
+      "type": "uint32",
+      "semantics": "128K (0x1F400) work buffer holding the scrolled background; Phase 1 and the unit repaint target workspace+0x140 (lower row band) while Phase 3 blits into bare workspace; scroll bands are read from here and committed to mode-13h. Caller passes the 0x1F400 workspace.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Correctly describes the 128K work buffer; no address residue. Matches the IN counterpart's workspace."
+    },
+    {
+      "name": "name_banner_sprite",
+      "type": "uint32",
+      "semantics": "RLE sprite stream painted at dst (0,0x32) into clear_buf. This is actually the BG.DAT spotlight TERRAIN BACKDROP: the caller passes data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr (0x54107, = fd2_load_dat_resource(0x52381 BG.DAT, spotlight_terrain)) / split_bg_b_buf_ptr (0x54103) to this argument. Blit position (0,0x32) matches the BG-backdrop blit position used by the IN counterpart's caster_figani and by fd2_play_full_combat_cinematic's backdrop blits.",
+      "verdict": "rename",
+      "proposed": "terrain_bg",
+      "reason": "Misnomer/swap: the current name says name_banner_sprite but the value is the BG.DAT terrain/spotlight backdrop, not the name banner. The param currently named terrain_bg (position 3) holds the actual name banner. The two should swap names; after the swap this terrain-backdrop param will be named terrain_bg, consistent with the IN counterpart's proposed terrain_bg. Rename deferred to Stage 2."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; output is the scrolled cinematic painted to VGA mode-13h (0xA0000) and the composed unit (banner + backdrop + pose) left in workspace+0x140."
+  },
+  "reads_globals": [
+    "data_fd2_battle_special_cinematic_bg_layers (uint32[3] @ 0x5410B/0F/13; the 3-layer parallax BG cache, indexed [frame_iter%3] in Phase 1 and [(frame_iter+1)%3] in Phase 3)"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "The src Params block had char_sprite_idx wrong (called an 'atlas/sprite index'; it is actually a FIGANI sheet pointer passed as sheet_ptr with idx 0), and -- more seriously -- swapped terrain_bg and name_banner_sprite: the param named terrain_bg is actually the TAI.DAT name banner (blitted at 0xA4,0x9D) and the param named name_banner_sprite is actually the BG.DAT terrain/spotlight backdrop (blitted at 0,0x32), proven via the caller chain fd2_play_full_combat_cinematic -> fd2_execute_combat_hit_cinematic and by matching blit coordinates. The header also said '(1 caller)' without noting the 2 call sites and described the unit only as 'defender'.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Logic verified equivalent to decompile + disassembly (3 phases; all callees and the single global read match get_function_signature callee_names; arg order at both call sites confirmed from caller disassembly PUSH sequences at 0x296d4-0x296fd and 0x29bde-0x29c01). True param semantics established by tracing the grandparent fd2_play_full_combat_cinematic: rle_stream = TAI.DAT banner -> passed as name_banner_sprite through the middle caller -> arrives as this function's terrain_bg (drawn at 0xA4,0x9D); spotlight_bg_buf_ptr/split_bg_b_buf_ptr = BG.DAT backdrop -> arrives as this function's name_banner_sprite (drawn at 0,0x32). The two names are swapped; corrected names recorded as rename proposals only (char_sprite_idx->char_figani, terrain_bg<->name_banner_sprite swap). Per rules no symbol/param/declaration was changed in this stage and no logic touched. The IN counterpart shard 00029c90 references 'the terrain_bg param of the zoom-out counterpart' for IN's caster_figani note; that cross-reference is based on the (wrong) current OUT name and should be revisited when these renames land in Stage 2, but IN is out of scope for this symbol."
+}
