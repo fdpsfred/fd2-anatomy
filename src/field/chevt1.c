@@ -1170,7 +1170,7 @@ void fd2_chapter_event_handler_1b__ch8_cinematic(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_1c__ch8_ai_ctrl @ 0x34A0E
- *   — Chapter 8 turn-event slot 6 (triggered at turn 15 / phase 0),
+ *   -- Chapter 8 turn-event slot 6 (triggered at turn 15 / phase 0),
  *     dispatched as idx 0x1C of the per-event handler table at 0x51B91.
  *     Also tail-called from
  *     fd2_chapter_event_handler_1d__unref_dialog_with_state @ 0x34A3C.
