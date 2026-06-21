@@ -262,6 +262,12 @@ void fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(
  * low byte), then plays a brief pure-white screen flash (palette +0xFF then +0)
  * to mask the portrait change.
  *
+ * Despite the name, the third arg is NOT a chapter number: it is forwarded (low
+ * byte only) to fd2_load_chapter_portraits_and_dump_tmp as its target_race_id --
+ * a portrait-group / race selector that picks which characters in the current
+ * chapter's portrait set get (re)loaded. Callers pass small group indices
+ * (portrait-pair ids 0/1, 2/3, ... or group ids 1..5), never chapter ids 1..30.
+ *
  * Sequence (functionally-exact):
  *   fd2_pan_cursor_and_window(target_tile_x, target_tile_y)
  *   fd2_load_chapter_portraits_and_dump_tmp(chapter_id & 0xFF)
