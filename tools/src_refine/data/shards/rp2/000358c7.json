@@ -1,0 +1,40 @@
+{
+  "address": "000358c7",
+  "name_current": "fd2_chapter_event_handler_3f__ch27_ai_ctrl",
+  "name_final": "fd2_chapter_event_handler_3f__ch27_cinematic",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_chapter_event_handler_3f__ch27_cinematic",
+  "name_reason": "Current suffix '__ch27_ai_ctrl' is factually wrong: this handler performs NO AI control. Body is two fd2_cinematic_chapter_portrait_dump_with_white_flash calls (2nd via the transparent thunk it tail-JMPs into) at tiles (3,0x1B)/id 1 and (0xF,0x1B)/id 2 -- a 2-portrait white-flash cutscene reveal with no dialog and no combat_aux_block AI-flag writes. AI-control handlers in this same file call fd2_set_combat_aux_block_byte_d_low4_for_char_range (e.g. handler_30/3b/3c); this one does not. The dispatch index '3f' (per-event handler-table idx 0x3F, verified: (0x51c8d-0x51b91)/4 = 0x3F) and chapter 'ch27' are meaningful domain IDs and must be kept. The descriptor must change to 'cinematic' to match sibling cinematic handlers fd2_chapter_event_handler_36__ch24_cinematic and fd2_chapter_event_handler_39__ch26_cinematic. No address residue in the name. Recorded only; Stage 2 applies (touches protos.h, the dispatch-table @ 0x51C8D reference, the handler-table emit, and the wrap-thunk's '1 caller' plate cross-reference).",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Chapter 27 per-event handler (dispatch idx 0x3F), turn-event slot 0 at the turn=0xFF sentinel marker: plays a 2-portrait white-flash cinematic reveal. No AI control, no dialog.",
+  "logic_summary": "Stack-frame __CHK(0x10). Calls fd2_cinematic_chapter_portrait_dump_with_white_flash(3, 0x1B, 1) for the first portrait reveal at tile (3,0x1B) with portrait-group id 1, then issues the second reveal at tile (0xF,0x1B) with id 2 via fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(0xF, 0x1B, 2). In the binary the second reveal is reached by pushing its 3 args and tail-JMPing into the wrap thunk @ 0x35318 so the handler borrows that thunk's 0xC-byte cleanup tail; the thunk forwards straight to the cinematic helper @ 0x35822 (pan -> portrait swap -> white palette flash -> composite -> 400ms hold). The dispatch ABI passes 1 arg (event_arg) which this handler does not read; the decompiler's in_stack_00000000 / in_stack_00000008 are tail-call stack residue, not real reads.",
+  "signature": "void __cdecl fd2_chapter_event_handler_3f__ch27_ai_ctrl(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Dispatch-table ABI argument (1-arg cdecl void fn(uint event_arg)) passed by the chapter-event dispatcher. This handler does not read it (body casts it to void).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name 'event_arg' accurately describes the dispatch-ABI argument and carries no address residue; unused-but-present is the standard shape for the 1-arg cdecl handler-table signature."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value (cinematic side-effects only)."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (chevt2.c lines 715-742) is already accurate and precise: states 'Category: 2-portrait cinematic pair', 'ch27 turn-FF marker -- a 2-portrait reveal', and correctly documents the tail-JMP/thunk relationship. Its body does NOT claim AI control, so it does not need rewriting; the only stale element is the header line echoing the current (wrong) symbol name, which Stage 2 fixes when it renames the symbol everywhere. Therefore chevt2.c was NOT edited this stage (comment_verdict=keep) -> no clobber risk for the source file; staged scope is only the shard. Ghidra plate is consistent with the refined understanding (also says '2-portrait cinematic pair'), so plate left untouched. Sibling handler_34 @ 0x352E2 (__ch23_ai_ctrl) shares the exact same two-cinematic-call body pattern and is similarly mislabeled '_ai_ctrl' -- out of scope for this symbol but flagged here for whoever processes 0x352E2."
+}
