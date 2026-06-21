@@ -1,0 +1,44 @@
+{
+  "address": "0002d3ff",
+  "name_current": "fd2_animate_money_increment",
+  "name_final": "fd2_animate_money_increment",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=animate, descriptor=money_increment); name accurately reflects purpose (animated increment of the party gold counter with slot-machine roll). Consistent with sibling fd2_animate_money_decrement @ 0x2D516. No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/anim/aniui.c",
+  "purpose": "Animated increment of the party gold counter: applies delta to the gold total immediately, then rolls each affected 8-digit decimal slot forward to its new value with a slot-machine sprite animation.",
+  "logic_summary": "Snapshots the 8 current decimal digits via sprintf(\"%0.8d\", gold) minus 0x30, adds delta to data_fd2_shared_party_total_gold, snapshots the 8 target digits the same way. Then an outer do-while diffs the two arrays: each position that differs is flagged (anim_state=1, all_match=0). While not all matched, an inner 9-frame loop, for each of 8 digit slots with anim_state!=0, blits sprite (cur_digit*9 + anim_state) at screen offset 0xA7A90 + pos*6 with width 0x140, increments anim_state, and on anim_state hitting 10 advances cur_digit by one (wrapping 10->0); each frame calls fd2_delay_ms(10). Carries to higher digit positions are resolved on the next outer re-diff. Loops until current digits equal target digits.",
+  "signature": "void __cdecl fd2_animate_money_increment(uint32 delta)",
+  "params": [
+    {
+      "name": "delta",
+      "type": "uint32",
+      "semantics": "Amount of gold to add to data_fd2_shared_party_total_gold; drives how many digit-roll steps the animation performs.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and accurate (the increment amount); no address residue, not the generic param_1."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effect is the updated gold total and the on-screen rolling animation."
+  },
+  "reads_globals": [
+    "data_fd2_shared_party_total_gold @ 0x53BF3"
+  ],
+  "writes_globals": [
+    "data_fd2_shared_party_total_gold @ 0x53BF3 (incremented by delta at the start)"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (aniui.c lines 125-151) is already precise, ASCII-only, and accurate against the decompilation and ground truth: data_fd2_shared_party_total_gold confirmed @ 0x53BF3 (list_globals), slot offset 0xA7A90 + pos*6, 9 rolling frames per advance, 10ms/frame cadence, carry resolution via next outer re-diff. Ghidra plate conveys the same algorithm and globals and is consistent with src, so no plate change. Sole caller: fd2_run_sell_item_menu @ 0x2F642 (credit gold from item sale), confirmed via get_function_callers and get_xrefs_to. No edits made to src; comment kept as-is."
+}
