@@ -94,10 +94,15 @@ void fd2_load_status_effect_sfx(void)
 /* ----------------------------------------------------------------
  * fd2_play_and_free_status_effect_sfx @ 0x1d4f6 (5 callers)
  *
- * Companion to fd2_load_status_effect_sfx: play the loaded
- * status-effect SFX bank in kill-all mode (handle == -1 tells
- * fd2_play_sfx_with_handle to stop every currently-playing sample
- * first), then release the bank buffer.
+ * Teardown counterpart to fd2_load_status_effect_sfx: stop the
+ * status-effect SFX and release the bank buffer. Despite the name,
+ * this does NOT start playback -- passing sfx_id == -1 routes
+ * fd2_play_sfx_with_handle to its stop-only branch (it issues
+ * AIL_stop_sample on the shared sample slot and returns before the
+ * playback code). The actual SFX playback for this bank happens
+ * earlier in the cast sequence via fd2_play_spell_palette_flash_with_sfx
+ * (which passes sfx_id 0). After stopping, free() releases the bank
+ * loaded into data_fd2_audio_status_effect_sfx_handle_ptr.
  *
  * Cdecl, void(void). The binary's __CHK(0x10) stack-probe prologue
  * is compiler-injected and not source. The final free() is emitted
