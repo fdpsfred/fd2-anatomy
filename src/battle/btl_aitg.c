@@ -13,7 +13,13 @@
  * fd2_tally_chars_with_zero_at_field @ 0x15DA2
  *
  * Sum weight for each char in char_idx_arr[0..len-1] whose
- * runtime_char byte at field_offset is zero.
+ * runtime_char byte at field_offset is zero, and return the total.
+ *
+ * Generic AI-scoring helper for "count targets whose status byte at
+ * field_offset is clear, times weight". Used by fd2_score_spell_candidate
+ * to score status-effect spells (17..19), summon a (0x1A) and summon b
+ * (0x1B): a clear status byte means the effect is not yet applied, so
+ * that target is worth scoring.
  * ---------------------------------------------------------------- */
 int fd2_tally_chars_with_zero_at_field(int len, uint32 char_idx_arr,
                                         int field_offset, int weight)
