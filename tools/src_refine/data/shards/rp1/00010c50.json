@@ -1,0 +1,59 @@
+{
+  "address": "0x00010c50",
+  "name_current": "fd2_init_runtime_char_for_battle",
+  "name_final": "fd2_init_runtime_char_for_battle",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; accurately describes initializing a NEW battle runtime_char slot from chapter field data (FDFIELD per-char record + FDICON.B24 portrait). Cleanly distinguished from the sibling fd2_init_runtime_char_from_base_growth (menu/post-end recruit variant that uses only the static base+growth tables and operates on the menu roster). No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/battle/btl_init.c",
+  "purpose": "Initialize one new battle runtime_char slot (at party_member_count) from the current chapter's per-char field record: pick a spawn tile, fill identity/equip/inventory/spells/AI fields, compute level-scaled HP/MP/AP/DP/DX from either the player class base+growth tables or the enemy data table, load the portrait, then recompute equipment-adjusted stats and advance the member count.",
+  "logic_summary": "pSlot = runtime_char_array + party_member_count*RUNTIME_CHAR_SIZE. Read desired_x/desired_y from chapter_portrait_load_buffer + char_field_idx*6 (+2,+4). Repaint threat overlay (paint_threat_overlay_for_team 0 then 1). spawn=desired; if chapter_init_phase_flag==0 scan tile map (height*width tiles, attr byte at stride*4+6) for the nearest walkable+unoccupied tile (bit 0x40 clear) by taxicab |dx|+|dy| from desired, taking that as spawn. Call fd2_obfuscate_battle_tile_map. pRec = tile_event_data_table + char_field_idx*0x1a + 0x83: team=pRec[0], char_id=pRec[1], level=pRec[4]. If char_id<0x44 (player class): base=fd2_get_char_base_entry, growth=fd2_get_char_growth_entry; HP=base[3]+growth[6]*(level-1), MP=base[5]+growth[8]*(level-1), AP=base[0x12]+growth[0]*level, DP=base[0x14]+growth[2]*level, DX=base[0x16]+growth[4]*level, magic_resist=base[7], slot+0x1f/+0x20=base[0]/base[1]. Else (enemy, char_id>=0x44): enemy=fd2_get_enemy_data_entry(char_id-0x44); HP=level*enemy_word[2], MP=level*enemy[4], AP=level*enemy[5], DP=level*enemy[6], DX=level*enemy[7], magic_resist=enemy[8], slot+0x1f/+0x20=enemy[0]/enemy[1]. Populate slot: pos x/y from spawn; sprite_state[0]=fd2_load_portrait_to_cache(char_id,fdicon_fp), [1..3]=0; team; char_id (twice, +7/+8); equip-slot encoding from pRec[5]/[6] (pRec[5]==0xFF -> second-slot-only mask 0x80, else dual 0x40/0x40); 6 inventory item IDs+flags from pRec[7..0xc] (-1 -> flag 0x80); status bytes +0x22..+0x27 zeroed; spell bitmap memmove pRec+0xd (4 bytes) to slot+0x1a; +0x21=level; pickup kind pRec[0x16]->+0x31; pickup param ushort pRec[0x17]->+0x32; AI overrides pRec[0x11..0x13]->+0x34..+0x36; ai_target_id pRec[2]->+0x3d; movement_order +0x3c = 0 if team==2 (player) else 0xFF; HP_cur=HP_max=HP (+0x40/+0x42), MP_cur=MP_max=MP (+0x44/+0x46). fd2_recalculate_combat_stats(party_member_count); party_member_count++.",
+  "signature": "void __cdecl fd2_init_runtime_char_for_battle(uint32 char_field_idx, uint32 fdicon_fp)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint32",
+      "semantics": "Per-char field record index. Caller (fd2_load_chapter_portraits_and_dump_tmp) passes the loop counter uVar2 that walks tile_event_data_table entries. Used to index chapter_portrait_load_buffer + idx*6 (desired spawn pos) and tile_event_data_table + idx*0x1a + 0x83 (the per-char record).",
+      "verdict": "rename",
+      "proposed": "char_field_idx",
+      "reason": "Ghidra live name param_1 is a generic placeholder that does not reflect purpose; src declaration already uses char_field_idx. Stage 2 should rename the Ghidra param to char_field_idx."
+    },
+    {
+      "name": "param_2",
+      "type": "uint32",
+      "semantics": "Open FDICON.B24 FILE* handle (caller fopen'd it). Passed straight through to fd2_load_portrait_to_cache(char_id, fdicon_fp) to load this character's portrait into the sprite cache.",
+      "verdict": "rename",
+      "proposed": "fdicon_fp",
+      "reason": "Ghidra live name param_2 is a generic placeholder; src declaration already uses fdicon_fp. Stage 2 should rename the Ghidra param to fdicon_fp."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; writes the new runtime_char slot in place and increments data_fd2_battle_party_member_count as the visible side effect."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_party_member_count",
+    "data_fd2_chapter_portrait_load_buffer",
+    "data_fd2_chapter_init_phase_flag",
+    "data_fd2_battle_map_height_tiles",
+    "data_fd2_battle_map_width_tiles",
+    "data_fd2_battle_tile_map_ptr",
+    "data_fd2_tile_event_data_table_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_party_member_count"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "2e7307bae5c7d50855466f2e8d7ad2916190df1d",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src signature already uses good param names (char_field_idx, fdicon_fp); rename verdicts apply only to the Ghidra live params (param_1/param_2) for Stage 2. The src comment block (btl_init.c lines 39-61) is already accurate, ASCII-clean, and concise (correctly summarizes all 8 pipeline steps incl. the id<0x44 player vs id>=0x44 enemy stat split), so it was left untouched (comment_verdict=keep). The Ghidra plate is far more detailed (full byte-by-byte field map) but is fully consistent with the decompilation and the src comment -- neither contradictory, outdated, nor empty -- so the plate was left as-is (ghidra_plate_action=none). Decompilation matches the src operation-for-operation (stat formulas, equip-slot encoding, inventory loop -1->0x80 flag, spell-bitmap memmove, movement_order team==2 branch, HP/MP cur=max); no equivalence concerns, issues=[]. writes_globals lists only party_member_count as a true global write; the many slot stores are through the pSlot base derived from data_fd2_battle_runtime_char_array_ptr (offset writes, not a write to the pointer global itself). __CHK(0x54,...) prologue is the compiler-injected stack-frame probe, not source logic. Sole caller: fd2_load_chapter_portraits_and_dump_tmp @ 0x10b4e (CALL inside the race-match loop), which passes the entry index and the FDICON.B24 handle."
+}
