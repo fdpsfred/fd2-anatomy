@@ -1,0 +1,87 @@
+{
+  "address": "000272b8",
+  "name_current": "fd2_tick_summon_anim_variant_d_3slot",
+  "name_final": "fd2_tick_summon_anim_variant_d_3slot",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor>: fd2_ game prefix; tick_summon_anim domain (per-tick summon-spell animation state machine); variant_d is the variant letter (file has variants a/b/c/d/e plus main/minor, this is dispatch-table idx 7); 3slot = the 3 active sprite slots iterated in the TICK loop (for i in 0..2), even though INIT seeds 4. The 'd' and '3' are semantic (variant letter + active-slot count), NOT Ghidra address residue. Consistent with sibling fd2_tick_summon_anim_variant_a_6slot / _b_6slot / _e_16slot in the same file.",
+  "kind": "function",
+  "home": "src/anim/anisummn.c",
+  "purpose": "Per-tick state machine for the variant-D summon-spell animation (3 active sprite slots), dispatched as entry idx 7 of the 10-entry summon-spell tick table; returns a frame-hold / done status code consumed by the caster's dispatch loop.",
+  "logic_summary": "Copies the 10-entry int32 per-color row y-offset rodata table into a local; if the caster is on the enemy team (runtime_char.bTeam==0) shifts every local offset by +0x82. Then dispatches on state_code: state 0 (INIT) seeds 4 slots (frame_counter[i]=-3*i staggered, color_idx[i]=i), sets color_rotation_counter=4, clears terminate_flag and odd/even toggle, returns 2; state 3 returns 0x20 (hold); state 6 sets terminate_flag, returns 0x10 (hold); states 2/5/8 (TICK) flip the mod-2 odd/even toggle then iterate the first 3 slots: blit current frame when 0<=frame<5 at origin_y+local_offset[color_idx], and on even ticks only advance the frame counter, fire a frame-1 chime (slot 0 via fd2_play_sfx_with_handle, slot 1 via fd2_play_sfx_sample_from_bank, slot 2 silent), set done_flag at frame 2, and at frame 7 rotate the color (counter+1 mod 10, copy into slot color_idx, reset slot frame to 0) unless terminate_flag is set; returns done_flag. All other states return 0.",
+  "signature": "int fd2_tick_summon_anim_variant_d_3slot(uint32 caster_unit_id, uint32 sprite_handle, uint32 origin_y, uint32 row_stride, uint32 state_code)",
+  "params": [
+    {
+      "name": "caster_unit_id",
+      "type": "uint32",
+      "semantics": "Index into data_fd2_battle_runtime_char_array_ptr; used to read the caster's bTeam (offset +6) for the enemy-team y-offset adjustment.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the runtime-char index identifying the casting unit; no address residue."
+    },
+    {
+      "name": "sprite_handle",
+      "type": "uint32",
+      "semantics": "Sprite atlas/handle passed straight to fd2_blit_indexed_sprite for each slot blit.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Matches usage as the sprite handle argument to the blit; no address residue."
+    },
+    {
+      "name": "origin_y",
+      "type": "uint32",
+      "semantics": "Base destination y-coordinate; added to the per-color row offset to position each slot's blit.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the base y origin; no address residue."
+    },
+    {
+      "name": "row_stride",
+      "type": "uint32",
+      "semantics": "Destination row stride passed to fd2_blit_indexed_sprite.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Matches usage as the row-stride blit argument; no address residue."
+    },
+    {
+      "name": "state_code",
+      "type": "uint32",
+      "semantics": "Dispatch selector chosen by the caster's animation loop (0=init, 3/6=hold phases, 2/5/8=tick frames, others=noop).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the state-machine selector; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Frame-hold / status code for the dispatch loop: 2 on INIT, 0x20 on state 3, 0x10 on state 6, done_flag (0 or 1; 1 once a slot reaches frame 2) on tick states 2/5/8, 0 for any other state."
+  },
+  "reads_globals": [
+    "data_fd2_animation_summon_variant_d_3slot_color_row_offsets",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array",
+    "data_fd2_battle_summon_anim_variant_d_4slot_color_idx_array",
+    "data_fd2_battle_summon_anim_variant_d_color_rotation_counter",
+    "data_fd2_battle_summon_anim_variant_d_terminate_flag",
+    "data_fd2_battle_summon_anim_variant_d_odd_even_frame_toggle",
+    "data_fd2_audio_summon_spell_sfx_bank_buf_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_summon_anim_variant_d_4slot_frame_counter_array",
+    "data_fd2_battle_summon_anim_variant_d_4slot_color_idx_array",
+    "data_fd2_battle_summon_anim_variant_d_color_rotation_counter",
+    "data_fd2_battle_summon_anim_variant_d_terminate_flag",
+    "data_fd2_battle_summon_anim_variant_d_odd_even_frame_toggle"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "60f1bdf7d0f4f2ff92ebddb9419fbe57a177f316",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "No direct CALL callers; invoked via DATA xref from dispatch-table slot 0x523D5 (= table base 0x523B9 + idx 7*4 = +0x1C; slot bytes b8 72 02 00 = 0x272B8 confirmed). rodata table data_fd2_animation_summon_variant_d_3slot_color_row_offsets @ 0x52511 is const int32[10] in src/table/anitab.c, referenced only by this function (READ/DATA at 0x272D2/0x272D7). RUNTIME_CHAR_SIZE=0x50 (consts.h) is the known FD2 runtime-char struct size. Source comment block (anisummn.c lines 203-208) is already accurate and concise; Ghidra plate is detailed and consistent with the refined understanding -> both left unchanged. All param names accurate, no address residue, all keep. Decompile sig shows char state_code / int args vs source uint32 args; per rules signature/types are NOT touched and this is a benign Ghidra-vs-source type-width difference, not a logic issue."
+}
