@@ -313,7 +313,7 @@ void fd2_animate_spell_full_screen_flash(uint32 param_1, uint32 spell_id,
  * steps 7..0 across the loop so the mark fades out.
  *
  * Parameters (__cdecl, 4 args; param_1 only forwarded to the stack check):
- *   param_1            unused by the body
+ *   param_1            unused by the body (callers pass the caster char index)
  *   spell_id           index into the per-spell tint-mask byte table
  *   target_count       number of entries in char_idx_array
  *   char_idx_array     byte array of runtime-char indices to overlay
