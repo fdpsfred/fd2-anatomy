@@ -102,8 +102,21 @@ void fd2_enemy_turn_phase_team0(void)
 /* ----------------------------------------------------------------
  * fd2_execute_ai_physical_attack @ 0x1548E
  *
- * Execute AI physical attack with animation + retaliation.
- * Always returns 1.
+ * Execute the physical attack chosen by the enemy AI, with full
+ * sprite animation. Called when the physical option wins the 3-way
+ * contest in fd2_attack_action_dispatch, or from the AI dispatcher
+ * (ai_class 11) physical fallback. ctx_flag is the caster's team/side
+ * context, forwarded to fd2_ai_walk_to_target_tile.
+ *
+ * Reads the ai_best_physical_* selection globals (target x/y/idx) set
+ * by fd2_ai_score_physical_attack. Walks caster to the target tile,
+ * faces it, then branches on game_speed_flag:
+ *   speed == 0 -> fd2_play_full_combat_cinematic (pre-rendered).
+ *   speed != 0 -> fast path: paint HP bars, play the hit with HP
+ *                 drain, and -- if the hit landed and the defender
+ *                 can counter -- play one retaliation hit back.
+ * Then resolves deaths, processes drops (target =
+ * ai_best_physical_target_idx) and XP/level-up. Always returns 1.
  * ---------------------------------------------------------------- */
 int fd2_execute_ai_physical_attack(uint32 caster_idx,
                                     uint32 ctx_flag)
