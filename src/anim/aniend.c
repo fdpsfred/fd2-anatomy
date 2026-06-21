@@ -370,9 +370,13 @@ void fd2_play_chapter_clear_fanfare(void)
 /* ----------------------------------------------------------------
  * fd2_play_chapter_intro_sprite_slideshow @ 0x24336  (1 caller)
  *
+ * Chapter-21 hidden-stage UNLOCK cinematic (not a chapter intro: it runs at
+ * chapter-21 END, after the player is granted item 100 = sky key / 天空之鑰).
+ *
  * Sole caller: fd2_chapter_21_end @ 0x240FA (call site 0x242C9), reached only
- * after the chapter-21 hidden-stage 6-item collection unlock. Plays a 101-frame
- * (0x65) sprite slideshow off FDOTHER.DAT[0x22], with a mid-show white flash.
+ * after the chapter-21 hidden-stage 6-item collection unlock (items 0xD1..0xD6).
+ * Plays a 101-frame (0x65) sprite slideshow off FDOTHER.DAT[0x22], with a
+ * mid-show white flash between the two frame phases.
  *
  * Sequence:
  *   - pan cursor/window to (0xE, 8)
