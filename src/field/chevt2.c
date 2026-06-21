@@ -18,10 +18,16 @@
  * Dispatch-table signature is 1-arg cdecl (void fn(uint event_arg)); this
  * handler does not read the arg.
  *
- * Effect: ch21 every-2-turns reinforcement scan — load portrait set indexed
- * by turn_counter/2 (data_fd2_battle_turn_counter, signed /2, rotates per
- * call), 4-corner camera sweep with 8-tick pauses, finally show dialog
- * page 3 only when the counter equals 2 (the 5th call).
+ * Effect: ch21 every-2-turns reinforcement scan (matches the guide: a devil
+ * appears at each of the four map corners at the end of the player's 2nd/4th/
+ * 6th/8th turns) — load portrait set indexed by turn_counter/2
+ * (data_fd2_battle_turn_counter, signed /2, rotates per call), 4-corner camera
+ * sweep with 8-tick pauses, finally show dialog page 3 only on the turn-2 call
+ * (when the counter equals 2, the first of the four firings).
+ *
+ * The global at 0x53BEF is the battle turn counter (written by the turn loop /
+ * battle-state init, read by the turn-event dispatcher), not a save-metadata
+ * field; SAR/SUB/SAR lowers the signed /2.
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_2f__ch21_turn_gated(uint32 event_arg)
 {

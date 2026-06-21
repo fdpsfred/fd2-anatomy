@@ -1,0 +1,43 @@
+{
+  "address": "00035112",
+  "name_current": "fd2_chapter_event_handler_2f__ch21_turn_gated",
+  "name_final": "fd2_chapter_event_handler_2f__ch21_turn_gated",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant: fd2_ prefix (game fn) + chapter_event_handler domain + _2f = real dispatch index 0x2F (table @ 0x51B91, entry @ 0x51B91+0x2F*4 = 0x51C4D holds 0x00035112; 0x2F is a domain dispatch id, not address residue) + __ch21_turn_gated accurate descriptor. Strategy guide confirms ch21 spawns a devil at each map corner at end of player turns 2/4/6/8 -> turn-gated cinematic. No address residue.",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Chapter 21 turn-gated cinematic (dispatch idx 0x2F): on turns 2/4/6/8 load a portrait set keyed by turn_counter/2 and sweep the camera around the four map corners (the four devils appearing), showing dialog page 3 on the turn-2 firing.",
+  "logic_summary": "__CHK(0x28) frame. Calls fd2_load_chapter_portraits_and_dump_tmp(turn_counter/2) where the /2 is signed (SAR EDX,0x1F / SUB EAX,EDX / SAR EAX,1). Then fd2_wait_n_bios_ticks(1), then four (fd2_pan_cursor_and_window + fd2_wait_n_bios_ticks(8)) pairs sweeping corners (0,0)->(0x1C,0)->(0x1C,0x20)->(0,0x20). Finally, if data_fd2_battle_turn_counter == 2, fd2_display_dialog_scene(data_fd2_current_chapter_text, page=3, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1). No use of the dispatch arg.",
+  "signature": "void fd2_chapter_event_handler_2f__ch21_turn_gated(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Per-event dispatch-table ABI arg (1-arg cdecl). This handler does not read it; body uses globals only. Cast to void.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Generic-but-correct name matching the convention used by every sibling turn-event handler in this file for the unused dispatch arg. Not address-tainted; renaming would break consistency without adding meaning."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_battle_turn_counter (0x53BEF) -- read twice: as signed /2 portrait index, and compared == 2 for the page-3 dialog gate",
+    "data_fd2_current_chapter_text (0x53A79) -- chapter text base for the page-3 dialog"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Src comment line 24 said 'show dialog page 3 only when the counter equals 2 (the 5th call)'. The '(the 5th call)' parenthetical is stale residue from a previous (incorrect) save_metadata interpretation: under the verified turn_counter logic the handler fires at turns 2/4/6/8, so counter==2 is the FIRST firing (turn 2), not the 5th. That contradicted line 15 ('turns 2, 4, 6, 8'). The live Ghidra plate was worse: it described the gating global as _save_metadata_block (portrait index = save_metadata/2, dialog gated on save_metadata==2), but the binary reads 0x53BEF = data_fd2_battle_turn_counter (confirmed by 30+ xrefs from fd2_run_full_turn_cycle [RW], fd2_init_battle_state_for_chapter [W], fd2_fire_chapter_turn_events_for_phase [R]).",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Global identity verified: 0x53BEF reads/writes come from the turn loop (fd2_run_full_turn_cycle RW), per-chapter battle init (fd2_init_battle_state_for_chapter W), and the turn-event dispatcher (fd2_fire_chapter_turn_events_for_phase R) -> definitively data_fd2_battle_turn_counter, not save metadata. Dispatch idx 0x2F confirmed: table base 0x51B91 + 0x2F*4 = 0x51C4D, which contains little-endian 12 51 03 00 = 0x00035112. globals.h declares data_fd2_current_chapter_text @0x53A79 and data_fd2_battle_turn_counter @0x53BEF, matching the disasm operands. No rename applied (Stage 2 owns rename); name_verdict=keep so no Stage 2 action needed for this symbol. Logic untouched."
+}
