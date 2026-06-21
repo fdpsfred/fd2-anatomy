@@ -1,0 +1,52 @@
+{
+  "address": "00016b43",
+  "name_current": "fd2_close_dialog_panels_then_slide_in_at",
+  "name_final": "fd2_close_dialog_panels_then_slide_out_to_cursor",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_close_dialog_panels_then_slide_out_to_cursor",
+  "name_reason": "Directional error in current name. Proven by comparing this function's interpolation against fd2_play_dialog_open_animation and resolving the blit arg roles via fd2_blit_indexed_sprite_with_alloc (arg4 sheet_base = screen X, arg5 sprite_idx = screen Y, sprite_data = sprite_idx*0x140 + sheet_base). Open animation moves the panel cursor->(X=5, Y=slot_offset) (slide IN). This function's Phase-2 moves the panel (X=5, Y=slot_offset)->battle cursor pixel (slide OUT / retract). So 'slide_in_at' is backwards, and the trailing '_at' dangles with no coordinate suffix. Proposed name keeps fd2_<domain>_<descriptor> form (domain=dialog), names both phases (close panels, then slide out), and points the destination at the battle cursor (where it retracts to). No address residue in either name. Rename to be applied in Stage 2 (touches the 5 call sites in fd2_display_dialog_scene + protos.h).",
+  "kind": "function",
+  "home": "src/dialog/dialog.c",
+  "purpose": "Close an open dialog/portrait box: free its 5 layered frame-save buffers in reverse-Z order, then optionally play the inverse of the open slide -- retracting the panel sprite from its resting screen position back to the battle cursor.",
+  "logic_summary": "__CHK(0x30) stack-probe prologue. Phase 1: loop slot=4..1 calling fd2_cleanup_dialog_sprite_buffer(anim_handle[slot], 0xA0000, 0x140) with fd2_delay_ms(10) between each, then a final cleanup of anim_handle[0] (reverse-Z teardown of the 5 save buffers from fd2_play_dialog_open_animation). Phase 2 (only if slot_offset != 0): src_x=cursor_screen_x*0x18, src_y=cursor_screen_y*0x18, total=cursor_screen_x+cursor_screen_y; if total!=0, for frame=0..total compute local interp_y=5-((5-(src_x+4))*frame)/total (-> screen X, 5->cursor_x_px) and local interp_x=slot_offset-((slot_offset-(src_y+4))*frame)/total (-> screen Y, slot_offset->cursor_y_px), blit sprite (ui_anim_sprite_sheet + *(int16*)(sheet+6)) via fd2_blit_indexed_sprite_with_alloc passing sheet_base=interp_y(X), sprite_idx=interp_x(Y), store result into anim_handle[0], fd2_delay_ms(10), then fd2_cleanup_dialog_sprite_buffer(anim_handle[0],...). Net Phase-2 motion: panel slides from (X=5, Y=slot_offset) back to the battle cursor pixel -- exact directional inverse of the open animation. Returns via the shared Watcom epilogue thunk (asm JZ/JMP 0x00010b46); not a fall-through bug.",
+  "signature": "void __cdecl fd2_close_dialog_panels_then_slide_in_at(uint param_1, uint param_2)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Restore handle returned by fd2_play_dialog_open_animation: pointer to the 5-entry layer save-buffer array (uint32*[5] = data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs). Indexed as anim_handle[slot] for cleanup; slot 0 reused as a transient blit save buffer in Phase 2. src already names it anim_handle.",
+      "verdict": "rename",
+      "proposed": "anim_handle",
+      "reason": "Live Ghidra name is generic placeholder param_1. Should match the descriptive src name anim_handle (pointer to the 5 layer save-buffer pointers / open-animation restore handle). Rename applied in Stage 2."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "Portrait slot offset the caller (fd2_display_dialog_scene) tracked for the open box: 0 (no slide / char not found), 2 (enemy slot, blit offset 0x728), or 0x70 (ally slot, blit offset 0x9017). Acts as the enable flag (==0 skips Phase 2) AND as the panel's resting screen-Y for the retract slide. src already names it slot_offset.",
+      "verdict": "rename",
+      "proposed": "slot_offset",
+      "reason": "Live Ghidra name is generic placeholder param_2. The earlier plate term 'slide_to_y_pixel' was misleading -- the value is the portrait slot offset (0/2/0x70), not a free Y pixel. Should match the descriptive src name slot_offset. Rename applied in Stage 2."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effects only (frees the 5 layer save buffers, plays optional retract animation, overwrites anim_handle[0] during Phase 2)."
+  },
+  "reads_globals": [
+    "data_fd2_battle_cursor_screen_x (0x53AB9)",
+    "data_fd2_battle_cursor_screen_y (0x53ABD)",
+    "data_fd2_ui_anim_sprite_sheet_ptr (0x53A81)"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Existing src comment was good quality but directionally inaccurate: it described the slide as 'toward (slide_to_y_pixel, 5)' and 'from the battle-cursor pixel back toward (slide_to_y_pixel, 5)', when the math actually slides FROM (X=5, Y=slot_offset) BACK TO the battle cursor (mirror-inverse of the open animation). It also used the misleading term 'slide_to_y_pixel' for what the signature/caller treat as slot_offset (0/2/0x70).",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "15151c37",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Single caller fd2_display_dialog_scene (5 call sites @ 0x1616c/0x16256/0x1638f/0x1640b/0x164cf), always invoked as fd2_close_dialog_panels_then_slide_in_at(pPortrait_anim_state, portrait_slot_offset) when a dialog opcode (-1 END / -0x11..-0x14 portrait load) tears down the active speaker portrait. Disassembly verified to match decompile/src 1:1; immediates 0x30/0xA0000/0x140/0x18/5/4 confirmed. Did NOT edit the stale reference to the old name in the comment for data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs (line ~1286) -- that belongs to a different symbol and will be swept by the Stage 2 rename. No logic changed."
+}
