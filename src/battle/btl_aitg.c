@@ -497,8 +497,29 @@ int fd2_ai_walk_to_target_tile(uint32 target_x, uint32 target_y,
 /* ----------------------------------------------------------------
  * fd2_compute_aoe_targets @ 0x14818
  *
- * Paint affected-tile overlay for spell/skill at (center_x,
- * center_y), gather char indices in range by team filter.
+ * Paint the affected-tile overlay for a spell/skill/weapon at
+ * (center_x, center_y) into tile-map byte +7, then gather the
+ * runtime_char indices standing on an affected tile whose team
+ * matches team_filter. If out_buf != 0 the matching indices are
+ * written there (one byte each). Returns the match count.
+ *
+ * spell_range selects the area shape:
+ *   < 0x10 -> floodfill movement-range from center (class-0 cost
+ *             table) covering range tiles; if aoe_radius != 0, any
+ *             tile within manhattan aoe_radius of center is then
+ *             marked 0xFF (excluded from the target scan).
+ *   >= 0x10 -> orthogonal cross: two stripes (along x through
+ *              center_y, along y through center_x) extending
+ *              +/-(spell_range - 0x10) from center are cleared to 0.
+ *
+ * team_filter (runtime_char team byte +6: 0=enemy,1=NPC ally,2=player):
+ *   0 -> enemies only (team == 0)   2 -> NPC allies only (team == 1)
+ *   1 -> any ally (team != 0)       3 -> players only    (team == 2)
+ *
+ * Dead chars (flag +5 bit 0) and chars on a 0xFF-marked tile are
+ * skipped. Tile byte +7 is the same overlay slot used by the cursor
+ * markers; this scan writes it transiently. Wide-xref: all AI
+ * scoring and player spell/skill target-preview paths call this.
  * ---------------------------------------------------------------- */
 int fd2_compute_aoe_targets(uint32 center_x, uint32 center_y,
                              uint32 out_buf, uint32 spell_range,
