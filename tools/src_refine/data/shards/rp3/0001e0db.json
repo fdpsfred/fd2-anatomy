@@ -1,0 +1,69 @@
+{
+  "address": "0001e0db",
+  "name_current": "fd2_show_damage_number",
+  "name_final": "fd2_show_damage_number",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<descriptor> convention and matches the file-local sibling fd2_show_miss_indicator; descriptor accurately reflects 'enqueue a floating damage number FX'. No address residue. Keep.",
+  "kind": "function",
+  "home": "src/anim/anicombt.c",
+  "purpose": "Enqueue a 4-digit right-aligned floating-damage (or heal) number over a target's battle tile by appending four FX queue slots, one per decimal place.",
+  "logic_summary": "Primes an 8-byte stack work buffer from the '    \\0' template @ 0x52045 (5 bytes), sets magnitude_threshold=3 and digit_pos=0. Reads the target runtime-char's pos_x/pos_y and applies an asymmetric viewport cull (x: origin_x-1 exclusive lower / origin_x+max_x exclusive upper; y: origin_y-1 inclusive lower / origin_y+max_y inclusive upper); if culled it returns without touching the queue count. Otherwise loops digit_iter 0..3 (magnitude_threshold stepping 3..0): re-formats the full number with sprintf(\"%d\"), writes x_offset_queue[base+i]=i*5+2 and target_char_idx_queue[base+i]=target_idx; if strlen(num)>magnitude_threshold it writes sprite_id_queue[base+i]=marker_char+num[digit_pos]-'0' and advances digit_pos, else blanks the slot (sprite_id 0). Finally advances spell_aoe_count_and_fx_queue_idx by 4. The queue is later consumed/animated by fd2_animate_spell_projectile_paths.",
+  "signature": "void __cdecl fd2_show_damage_number(uint param_1, uint param_2, uint param_3)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "amount: the numeric value to display (a resolved damage or heal value); formatted via sprintf(\"%d\") and split into per-digit sprite ids.",
+      "verdict": "rename",
+      "proposed": "amount",
+      "reason": "Generic Ghidra placeholder param_1; src already names it 'amount'. Caller sites pass the resolved damage/heal magnitude. Rename to amount (apply in Stage 2)."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "marker_char: sprite-id base added to each digit value; '^' (0x5E) red attack/magic damage, 'i' (0x69) green heal/positive, '_' suppress.",
+      "verdict": "rename",
+      "proposed": "marker_char",
+      "reason": "Generic Ghidra placeholder param_2; src already names it 'marker_char'. Used as sprite_id = marker_char + digit - '0'. Rename to marker_char (apply in Stage 2)."
+    },
+    {
+      "name": "param_3",
+      "type": "uint",
+      "semantics": "target_idx: index into data_fd2_battle_runtime_char_array_ptr whose tile the number floats over; also stored into target_char_idx_queue.",
+      "verdict": "rename",
+      "proposed": "target_idx",
+      "reason": "Generic Ghidra placeholder param_3; src already names it 'target_idx'. Indexes the runtime-char array for the cull position and is the per-slot target. Rename to target_idx (apply in Stage 2)."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effect only: appends four entries to the floating-damage FX queues and advances spell_aoe_count_and_fx_queue_idx by 4 (or no-op if the target is culled)."
+  },
+  "reads_globals": [
+    "data_fd2_battle_damage_number_format_buffer",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_max_x",
+    "data_fd2_battle_view_window_origin_y",
+    "data_fd2_battle_view_window_max_y",
+    "data_fd2_battle_spell_aoe_count_and_fx_queue_idx"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_floating_damage_x_offset_queue",
+    "data_fd2_battle_floating_damage_target_char_idx_queue",
+    "data_fd2_battle_floating_damage_sprite_id_queue",
+    "data_fd2_battle_spell_aoe_count_and_fx_queue_idx"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (anicombt.c lines 669-707) is already accurate, precise, ASCII, and free of phase/process narrative; it correctly documents the asymmetric viewport cull, the right-aligned 4-digit fill, the marker_char sprite-id bases, and the template-prime nuance (only 5 bytes copied, overwritten by sprintf). Kept verbatim. Ghidra plate is detailed and semantically consistent with the src conclusions (no contradiction), so plate left untouched. No src edit made; only the shard is staged for commit. The template-prime-before-sprintf and the never-read trailing buffer bytes are faithful reproductions of original behavior, not logic bugs. The 'fd2_noop_stub_b43' / '_b43' reference in the comment is another symbol's name (out of this symbol's rename scope)."
+}
