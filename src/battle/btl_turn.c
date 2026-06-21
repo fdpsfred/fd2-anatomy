@@ -212,8 +212,21 @@ void fd2_check_all_player_acted_or_asleep(void)
 /* ----------------------------------------------------------------
  * fd2_check_tile_event_post_action @ 0x13A44
  *
- * After a walk-step lands on (world_x, world_y), check if the
- * tile fires a scripted post-action consequence.
+ * After a character lands on tile (world_x, world_y) via a walk-step
+ * or an action, check whether the tile fires a scripted post-action
+ * consequence (e.g. a chapter reinforcement event).
+ *
+ * Reads the tile attribute (8 bytes). Skips animated event-tiles
+ * (tile_buf[4] & 0x60) and tiles with no terrain class. Otherwise
+ * indexes tile_event_data_table by (terrain_class - 1) and reads the
+ * record's consequence index (+0x33) and event_type (+0x34). When the
+ * index is valid (!= 0xFF) and event_type matches the expected one, it
+ * latches ai_post_action_consequence_idx, which the next AI phase loop
+ * iteration dispatches as a consequence handler.
+ *
+ * expected_event_type discriminates the trigger source:
+ *   0 = walked into the tile (passed by every walk_step_*)
+ *   1 = took an action at the tile (player/enemy action handlers).
  * ---------------------------------------------------------------- */
 void fd2_check_tile_event_post_action(uint32 world_x, uint32 world_y,
                                        uint32 expected_event_type)
