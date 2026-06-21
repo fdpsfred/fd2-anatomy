@@ -13,8 +13,24 @@
 /* ----------------------------------------------------------------
  * fd2_set_bgm_track_with_fade @ 0x25977
  *
- * BGM track manager. Stop (0xFF), change track with fade, or
- * no-op if already playing.
+ * BGM track manager. No-op if track_id already matches the cached
+ * last-set id (data_fd2_audio_bgm_last_set_track_id); otherwise
+ * caches the new id and acts:
+ *   - track_id == 0xFFFFFFFF: stop with a 4s fade-out
+ *     (AIL_set_sequence_volume vol=0, 4000ms) and return.
+ *   - else, only if the MDI driver is present
+ *     (data_fd2_audio_bgm_driver_available_flag != 0): stop any
+ *     current sequence, load FDMUS.DAT[track_id] via
+ *     fd2_load_dat_resource, DPMI-lock it, then init + start.
+ *     Initial volume/fade:
+ *       BGM disabled        -> vol 0,    fade 0   (muted)
+ *       track 0x10 or 0x11  -> vol 0x7F, fade 0   (instant cues)
+ *       other tracks        -> vol 0x7F, fade 2000ms (anchored
+ *                              by a prior vol 0, fade 0)
+ *     Finally set the AIL loop count to loop_count.
+ *
+ * loop_count is passed straight to AIL_set_sequence_loop_count
+ * (0 = loop indefinitely per AIL convention).
  * ---------------------------------------------------------------- */
 void fd2_set_bgm_track_with_fade(uint32 track_id,
                                   uint32 loop_count)
