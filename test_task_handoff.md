@@ -1,8 +1,8 @@
 # FD2 測試重寫 — 交接文件
 
 `tests/` 從「1758 個 per-function spy 單元測試」完全重寫成「決定論 playthrough 整合測試系統」。
-本檔讓新 session 零 context 接續。**最新 main commit:`86815a2`**(工作樹乾淨;`test_plan.txt`
-與 `.claude/skills/anthropic_agent_sdk/` 是無關的既有未追蹤檔,別動)。
+本檔讓新 session 零 context 接續。**最新測試里程碑 commit:`9dc4dc3`(P3-E 戰鬥傷害 oracle)**。
+未追蹤檔 `.claude/skills/anthropic_agent_sdk/` 與本任務無關,別提交。
 
 ---
 
@@ -199,3 +199,4 @@ python tools/fd2_build/build_fd2.py
 | `825fcef` | P1 ch1 + 虛擬時鐘決定論 + fb2png + run_all |
 | `fe72d84` | P3 戰鬥操作 + P4 存檔載入(continue_load / combat_move) |
 | `86815a2` | P2 save-jump + 30 章 sweep(28/30)+ gen_scenario + open_issues |
+| `9dc4dc3` | P3-E 戰鬥傷害 oracle(combat_attack + expect.py LFSR/公式斷言 + st_dump) |
