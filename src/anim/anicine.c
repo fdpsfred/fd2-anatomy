@@ -109,26 +109,33 @@ uint32 data_fd2_audio_figani_sfx_bank_defender_buf_ptr;
 /* ----------------------------------------------------------------
  * fd2_display_cinematic_image_with_fade @ 0x1F73F  (1 caller)
  *
- * Two-stage cinematic image display with palette transitions.
+ * Two-stage cinematic image display with palette transitions, used by the
+ * title-screen attract / credit-roll sequence.
  *
- * Stage 1 — full-screen image:
+ * Stage 1 -- full-screen FDOTHER.DAT image:
  *   fade current screen to black, clear the 64000-byte framebuffer at
  *   0xA0000, load FDOTHER.DAT[palette_idx] palette into
  *   data_fd2_vga_palette_data_ptr, load FDOTHER.DAT[image1_idx] sprite,
  *   RLE-blit it full-screen (320 stride) to 0xA0000, fade in to reveal
  *   the blit, hold for 1 + 6 BIOS ticks (~385ms), then fade to black.
  *
- * Stage 2 — flash card:
- *   load cinematic 0x65 (final-clear notice) palette, blit a 320x200
- *   region from offset (row_idx*320 + src_x_off) within the loaded
- *   source buffer to 0xA0000, then fade in to reveal it.
+ * Stage 2 -- reveal one screenful out of the caller's scroll panel:
+ *   load FDOTHER.DAT[0x65] (final-clear notice) palette, then blit a full
+ *   320x200 window from (src_buf + row_idx*320) with src stride 320 into
+ *   0xA0000, and fade in to reveal it. The window is the caller's panel
+ *   buffer scrolled to start row row_idx.
  *
  * Params: image1_idx = stage-1 image idx (FDOTHER.DAT entry),
- *   palette_idx = stage-1 palette idx, src_x_off = stage-2 source x
- *   offset, row_idx = stage-2 source y offset (row, multiplied by the
- *   320 stride).
+ *   palette_idx = stage-1 palette idx,
+ *   src_buf = stage-2 SOURCE BUFFER BASE pointer -- the caller's malloc'd
+ *     scroll-panel buffer, NOT an x offset (the current param name
+ *     "src_x_off" is a misnomer; pending rename to src_buf),
+ *   row_idx = stage-2 source start row (multiplied by the 320 stride to
+ *     index into src_buf, i.e. the panel scroll position).
  *
- * Sole caller: fd2_play_ending_and_record_clear @ 0x1FBAF.
+ * Sole caller: fd2_play_ending_and_record_clear @ 0x1FBAF (two scroll-loop
+ *   sites: row 0x1C2 with image 0x64 / palette 99, and row 0x0A with image
+ *   0x4B / palette 0x4C).
  * ---------------------------------------------------------------- */
 void fd2_display_cinematic_image_with_fade(uint32 image1_idx, uint32 palette_idx,
                                            uint32 src_x_off, int32 row_idx)

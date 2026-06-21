@@ -1,0 +1,69 @@
+{
+  "address": "0x0001f73f",
+  "name_current": "fd2_display_cinematic_image_with_fade",
+  "name_final": "fd2_display_cinematic_image_with_fade",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Name matches fd2_<domain>_<descriptor> (anim/cinematic) and accurately reflects the two-stage full-screen image display with palette fades. No address residue in the name. No domain-ID component involved.",
+  "kind": "function",
+  "home": "src/anim/anicine.c",
+  "purpose": "Two-stage cinematic full-screen image display with palette fade transitions for the title-screen attract / credit-roll sequence: stage 1 shows an FDOTHER.DAT image, stage 2 reveals one screenful scrolled out of the caller's panel buffer.",
+  "logic_summary": "Stage 1: fade-to-black, memset 64000B VGA framebuffer at 0xA0000, load FDOTHER.DAT[palette_idx] into data_fd2_vga_palette_data_ptr, load FDOTHER.DAT[image1_idx] sprite, fd2_rle_blit_sprite it full-screen (stride 0x140) to 0xA0000, fade-in, hold 1+6 BIOS ticks (~385ms), fade-to-black. Stage 2: load FDOTHER.DAT[0x65] palette, compute stage2_src = row_idx*0x140 + src_buf (caller panel buffer base + row offset), fd2_blit_rectangle a 320x200 (0x140 x 0xC8) window from stage2_src (src stride 0x140) into 0xA0000, fade-in.",
+  "signature": "void __cdecl fd2_display_cinematic_image_with_fade(uint32 image1_idx, uint32 palette_idx, uint32 src_x_off, int32 row_idx)",
+  "params": [
+    {
+      "name": "image1_idx",
+      "type": "uint32",
+      "semantics": "Stage-1 image index: FDOTHER.DAT entry loaded as the full-screen sprite (callers pass 0x64 or 0x4B).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the stage-1 FDOTHER.DAT image index; no address residue."
+    },
+    {
+      "name": "palette_idx",
+      "type": "uint32",
+      "semantics": "Stage-1 palette index: FDOTHER.DAT entry loaded into data_fd2_vga_palette_data_ptr for the stage-1 image (callers pass 99 or 0x4C).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the stage-1 palette index; no address residue."
+    },
+    {
+      "name": "src_x_off",
+      "type": "uint32",
+      "semantics": "Stage-2 SOURCE BUFFER BASE pointer: the caller's malloc'd scroll-panel buffer (pvVar2/panel_buf = malloc(0x396C0)). Used as base in stage2_src = row_idx*0x140 + this; fd2_blit_rectangle then copies a full 320x200 window from there. It is NOT an x offset.",
+      "verdict": "rename",
+      "proposed": "src_buf",
+      "reason": "Current name 'src_x_off' is a misnomer: both call sites in fd2_play_ending_and_record_clear pass the malloc(0x396C0) panel buffer base pointer (pvVar2), and the body adds row_idx*320 to it to form a source address for a full-screen blit. It is a source buffer base pointer, not an x offset. Proposed src_buf reflects true semantics; rename applied in Stage 2."
+    },
+    {
+      "name": "row_idx",
+      "type": "int32",
+      "semantics": "Stage-2 start row within src_buf: multiplied by the 0x140 (320) stride to index into the source panel buffer, i.e. the panel scroll position. Callers pass the scroll-loop counter iVar4 (0x1C2 or 0x0A).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the source start row (scroll position) used as row_idx*320 stride offset into the source buffer; no address residue. The corrected comment carries the precise scroll-source-row semantics."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_vga_palette_data_ptr",
+    "data_fd2_string_resource_filename_fdother_dat"
+  ],
+  "writes_globals": [
+    "data_fd2_vga_palette_data_ptr"
+  ],
+  "comment_original_issue": "Stage-2 description and Params block were factually wrong: they labeled param_3 (src_x_off) as a 'stage-2 source x offset' and row_idx as a 'source y offset', and called stage 2 a 'flash card'. In reality param_3 is the caller's scroll-panel SOURCE BUFFER BASE pointer and stage 2 blits one full 320x200 screenful from src_buf + row_idx*320. Also used non-ASCII em-dashes (violates the ASCII-only code-text rule).",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "4c86056",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Sole binary caller fd2_play_ending_and_record_clear @ 0x1F894 (call @ 0x1FBAF); its src home is aniend.c (lines 193/198) -- the aniend.c calls are the same caller, not a second caller, so 'sole caller' is correct. fd2_blit_rectangle signature (protos.h:724) = (dst,dstride,src,sstride,w,h) confirms stage2_src is the src arg and 0x140/0xC8 are a full 320x200 copy. Ghidra plate already states param_3 is the source buffer base pointer (not an x offset) and matches the refined understanding, so plate left unchanged. Decompile shows a __CHK(0x20) stack-probe prologue (compiler-injected) and 'fixup to' annotations (linker fixups); these are not game logic. Only the comment block was edited; no logic/type/name/signature changes. Rename of src_x_off->src_buf recorded as proposal only (Stage 2 will apply across protos.h + definition + both call sites)."
+}
