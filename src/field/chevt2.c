@@ -61,7 +61,7 @@ void fd2_chapter_event_handler_2f__ch21_turn_gated(uint32 event_arg)
  * this handler does not read the arg.
  *
  * Effect: arm AI control flag 3 (combat_aux_block[0xD] low nibble) for two
- * NPC char ranges — 0x23..0x2A and 0x43..0x4A (8 + 8 = 16 chars).
+ * NPC char ranges -- 0x23..0x2A and 0x43..0x4A (8 + 8 = 16 chars).
  *
  * In the binary the second call shares a borrowed tail: after pushing its
  * 3 args the handler does JMP 0x34F39, falling through into the
