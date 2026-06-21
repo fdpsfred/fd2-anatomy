@@ -325,9 +325,10 @@ int32 data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[16];
 /* ----------------------------------------------------------------
  * fd2_tick_summon_anim_variant_e_16slot @ 0x274B0
  *
- * Variant-E 16-slot summon animation. Simplest variant — no team
+ * Variant-E 16-slot summon animation. Simplest variant -- no team
  * adjust, no color rotation, per-slot sprite base offsets.
- * Dispatch table #8.
+ * Dispatch table #8 (entry +0x20 at 0x523B9; reached only via that
+ * table by the spell-cast/hit dispatch loops, no direct callers).
  * ---------------------------------------------------------------- */
 int fd2_tick_summon_anim_variant_e_16slot(
     uint32 caster_unit_id, uint32 sprite_handle,
