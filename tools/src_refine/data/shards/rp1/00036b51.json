@@ -1,0 +1,34 @@
+{
+  "address": "0x00036b51",
+  "name_current": "fd2_ani_decoder_chunk_palette_load_run_pairs",
+  "name_final": "fd2_ani_decoder_chunk_palette_load_run_pairs",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant game-function name: fd2_<domain=ani_decoder>_<descriptor>. Descriptor accurately reflects an ANI delta-stream chunk handler that loads palette entries via a list of (start_entry, count_entries) 'run pairs' each followed by count*3 literal RGB bytes. No Ghidra address residue (no hex suffix matching its own address 0x36b51 nor any data address). Consistent with sibling handlers in anidec.c (fd2_ani_decoder_chunk_palette_load_literal/rle, etc.).",
+  "kind": "function",
+  "home": "C:/Users/fdpsf/Documents/fd2-wt/rp1/src/anim/anidec.c",
+  "purpose": "ANI delta-stream chunk handler that applies a partial-palette update: a header count of segments, each segment a (start_entry, count_entries) pair plus count_entries*3 raw RGB bytes copied into the palette area.",
+  "logic_summary": "Reads N = segment count (1 byte) from the stream cursor; caches the palette base (data_fd2_animation_ani_decoder_src_buf @ 0x52766). Loops N times: read start_entry, read count_entries, compute dst = base + start_entry*3 and byte_count = count_entries*3, copy byte_count raw bytes from the stream cursor into dst, advance the cursor by byte_count. In the binary the stream cursor is ESI (LODSB/REP MOVSW+MOVSB; word copy of (count*3)>>1 then RCL-recovered odd trailing MOVSB); the C port models the cursor with the file-scope static g_ani_cursor and uses memcpy. Binary loop is do-while (>=1 iteration); C uses while(count!=0) with count read upfront, equivalent for the N>=1 the binary assumes.",
+  "signature": "void fd2_ani_decoder_chunk_palette_load_run_pairs(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value (binary RET with no value). Side effect: writes count_entries*3 RGB bytes per segment into the palette area at base+start_entry*3, and (in the binary) advances the ESI stream cursor past the whole segment list; the C port advances the g_ani_cursor static equivalently."
+  },
+  "reads_globals": [
+    "data_fd2_animation_ani_decoder_src_buf",
+    "data_fd2_animation_ani_decoder_frame_dispatch_table"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Three-source agreement (Ghidra plate + disasm + src) confirmed. Disasm: ESI cursor advance after REP MOVSW + RCL-recovered REP MOVSB equals exactly count_entries*3 per segment, matching C's g_ani_cursor += byte_count -- no equivalence bug. reads_globals lists data_fd2_animation_ani_decoder_src_buf (palette base, read directly) and the dispatch table only as the indirect-entry context (this handler is reached via slot @ +0xC / 0x52776, the sole xref-to); the global the handler itself dereferences is src_buf. writes_globals empty: the function writes into the buffer src_buf points at, not into any global symbol. Naked register-protocol function in the binary (no stack args); both binary and C signatures are void. Src comment (anidec.c lines 130-134) already concise and correct; Ghidra plate already detailed and non-contradictory -- left both untouched."
+}
