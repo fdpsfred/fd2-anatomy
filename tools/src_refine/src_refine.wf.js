@@ -21,10 +21,32 @@ export const meta = {
 const A = (typeof args === 'string' && args.length) ? JSON.parse(args) : (args || {})
 const ROOT = A.root
 const PART = A.partition || 'rp?'
-const FILES = (A && A.files) || []
+const MAINROOT = A.mainRoot || 'C:/Users/fdpsf/Documents/fd2-anatomy'
+let FILES = (A && A.files) || []
 const MIN_BUDGET_PER_SYM = (A && A.minBudgetPerSym) || 120000
 if (!ROOT) { log('args.root missing (absolute worktree path required)'); return { error: 'no root' } }
-if (!FILES.length) { log('args.files empty -- nothing to do.'); return { error: 'empty worklist', argsType: typeof args } }
+
+// Bootstrap: if no inline worklist, derive it via scout.py. Workflow scripts have no
+// filesystem access, but an agent does -- it runs scout (which reads the partition
+// manifest + this worktree's committed shards) and returns the not-yet-refined files.
+// Keeps the launch args tiny ({root,partition}) and makes resume a re-launch.
+if (!FILES.length && PART !== 'rp?') {
+  log('bootstrap: scouting ' + PART + ' worklist via scout.py')
+  const scoutCmd = 'python ' + MAINROOT + '/tools/src_refine/scout.py --partition ' + PART +
+    ' --root ' + ROOT + ' --shards-dir ' + ROOT + '/tools/src_refine/data/shards/' + PART + ' --limit 99999'
+  const argsPath = MAINROOT + '/workspace/src_refine/args/' + PART + '.args.json'
+  const sc = await agent(
+    ['Run EXACTLY this command in the foreground (it is read-only bookkeeping):',
+     '  ' + scoutCmd,
+     'Then Read the file it wrote: ' + argsPath,
+     'Return that file\'s top-level "files" array VERBATIM as {"files": [...]} (a list of',
+     '{home, symbols:[{address,name,kind,...}]} objects). Do nothing else -- no analysis, no edits.'].join('\n'),
+    { schema: { type: 'object', required: ['files'], properties: { files: { type: 'array' } } },
+      label: 'scout:' + PART, phase: 'Refine' })
+  FILES = (sc && sc.files) || []
+  log('bootstrap: ' + FILES.length + ' file(s) to process')
+}
+if (!FILES.length) { log('worklist empty -- nothing to do.'); return { error: 'empty worklist', argsType: typeof args } }
 
 const ENV = [
   'environment: Ghidra 已開啟 FD2.LE（單一 program）。呼叫 Ghidra MCP 時 program 參數留空。',
