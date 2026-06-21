@@ -1,0 +1,58 @@
+{
+  "address": "0001598a",
+  "name_current": "fd2_ai_score_offensive_spell",
+  "name_final": "fd2_ai_score_offensive_spell",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>: domain=ai, descriptor=score_offensive_spell. Function scores every castable offensive spell over every reachable cast tile and records the best into the ai_best_spell_* globals (no execution). Name accurately reflects purpose; no Ghidra address residue.",
+  "kind": "function",
+  "home": "src/battle/btl_aisc.c",
+  "purpose": "Enemy AI offensive-spell planner: scores every castable spell x every reachable cast tile and writes the single best candidate (score, target tile, spell id) into the ai_best_spell_* globals.",
+  "logic_summary": "Resets ai_best_spell_score to 0 and preloads the job-0 movement-cost table. Builds the caster's castable spell list (fd2_build_usable_spell_list); bails if empty or the caster is silenced (pCaster[0x27]!=0). For each spell whose MP cost (pSpell[5]) <= caster MP, flood-fills the caster's movement range (range=pSpell[3]), enumerates reachable tiles, and for each tile computes AoE targets (shape=pSpell[4]; aoe arg selected via ctx_flag and pSpell[6]) then scores via fd2_score_spell_candidate. A candidate replaces the running best when its score is strictly greater, or equal with a higher spell base damage (*(uint16*)pSpell) tiebreak, updating ai_best_spell_score/_target_x/_target_y/_id. Frees the tile buffer; returns 0 (declared void in src).",
+  "signature": "void fd2_ai_score_offensive_spell(uint32 caster_idx, uint32 ctx_flag)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint32",
+      "semantics": "runtime_char index of the casting enemy; used to index data_fd2_battle_runtime_char_array_ptr to read position, MP (offset 0x44), and the silence status byte (offset 0x27), and passed to fd2_build_usable_spell_list.",
+      "verdict": "rename",
+      "proposed": "caster_idx",
+      "reason": "Generic placeholder param_1; actual role is the caster runtime-char index. src already names it caster_idx."
+    },
+    {
+      "name": "param_2",
+      "type": "uint32",
+      "semantics": "AoE-shape selector. When 0, the spell's pSpell[6] AoE byte is inverted to a 0/1 flag (pSpell[6]==0 ? 1 : 0); when non-zero, pSpell[6] is passed through to fd2_compute_aoe_targets. Propagated from the AI turn dispatcher's context argument.",
+      "verdict": "rename",
+      "proposed": "ctx_flag",
+      "reason": "Generic placeholder param_2; actual role is the AI context flag that selects AoE-shape argument handling. src already names it ctx_flag, consistent with sibling fd2_ai_score_item_use and the dispatcher callers."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No meaningful return (Ghidra shows undefined4 returning constant 0; src declares void). Output is side-effect via the ai_best_spell_* globals."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_tile_map_ptr",
+    "data_fd2_tile_attribute_flags_buffer_ptr",
+    "data_fd2_battle_ai_best_spell_score"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_ai_best_spell_score",
+    "data_fd2_battle_ai_best_spell_target_x",
+    "data_fd2_battle_ai_best_spell_target_y",
+    "data_fd2_battle_ai_best_spell_id"
+  ],
+  "comment_original_issue": "Original src block was a 2-line summary that omitted the specific output globals/addresses, the ctx_flag AoE-shape semantics, the silence gate, and the tiebreak rule.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src logic verified equivalent to Ghidra decompile (score comparison a<b vs b>a and tiebreak are mirror-equivalent; signed comparisons consistent with int32 global). RUNTIME_CHAR_SIZE=0x50 matches runtime_char indexing. Minor non-blocking note: Ghidra plate labels the chosen-spell global 'active_spell_id @ 0x53C2F' while the live symbol is data_fd2_battle_ai_best_spell_id; plate is otherwise accurate and not contradictory, so left unchanged per src-as-source-of-truth rule."
+}

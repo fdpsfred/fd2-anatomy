@@ -206,8 +206,34 @@ int fd2_score_item_candidate(uint32 item_id, uint32 n_targets,
 /* ----------------------------------------------------------------
  * fd2_ai_score_offensive_spell @ 0x1598A
  *
- * Score every castable spell × every reachable tile. Writes best
- * to ai_best_spell_* globals. Returns 0.
+ * Enemy AI offensive-spell planner. Scores every castable spell over
+ * every reachable cast tile and records the single best candidate
+ * into the ai_best_spell_* globals:
+ *   ai_best_spell_score    @ 0x53C23  (best score so far)
+ *   ai_best_spell_target_x @ 0x53C27  (chosen cast tile x)
+ *   ai_best_spell_target_y @ 0x53C2B  (chosen cast tile y)
+ *   ai_best_spell_id       @ 0x53C2F  (chosen spell id)
+ *
+ * caster_idx = runtime_char index of the casting enemy.
+ * ctx_flag   = AoE-shape selector: when 0 the spell's "needs an
+ *              actual target" AoE byte (pSpell[6]) is inverted to a
+ *              0/1 flag; when non-zero pSpell[6] is passed through.
+ *
+ * Steps:
+ *   1. Reset ai_best_spell_score to 0; preload job-0 move-cost table.
+ *   2. fd2_build_usable_spell_list -> spell_list (MP/learn gated).
+ *   3. Gate: bail if no castable spells OR caster is silenced
+ *      (pCaster[0x27] != 0).
+ *   4. Per spell with MP <= caster_mp: flood-fill movement range
+ *      (range = pSpell[3]), enumerate reachable tiles, and for each
+ *      tile compute AoE targets (shape = pSpell[4]). When the
+ *      candidate beats the running best (score, tie-broken by spell
+ *      base damage *(uint16*)pSpell), update the ai_best_spell_*
+ *      globals.
+ *
+ * Paired executor: fd2_execute_ai_offensive_spell.
+ * Callers: fd2_attack_action_dispatch, fd2_enemy_turn_action_dispatcher
+ *          (AI class 11), fd2_enemy_turn_phase_team0 (precompute pass).
  * ---------------------------------------------------------------- */
 void fd2_ai_score_offensive_spell(uint32 caster_idx,
                                    uint32 ctx_flag)
