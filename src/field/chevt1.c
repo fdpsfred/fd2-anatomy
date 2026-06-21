@@ -2068,7 +2068,7 @@ void fd2_chapter_event_handler_2d__ch19_ai_ctrl(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_2e__ch19_reinforcement @ 0x350CC
- *   — Chapter 19 turn-event slot 1 (triggered at turn 6 / phase 1),
+ *   -- Chapter 19 turn-event slot 1 (triggered at turn 6 / phase 1),
  *     dispatched as idx 0x2E of the per-event handler table at 0x51B91.
  *
  * ch19 turn-6 reinforcement beat: a straight-line, no-branch sequence
@@ -2076,7 +2076,7 @@ void fd2_chapter_event_handler_2d__ch19_ai_ctrl(uint32 event_arg)
  *   - reload portrait set 1 via fd2_load_chapter_portraits_and_dump_tmp(1);
  *   - show dialog page 1;
  *   - recruit char_id 0x1B as reinforcement via
- *     fd2_init_runtime_char_from_base_growth(0x1B) — appends one template
+ *     fd2_init_runtime_char_from_base_growth(0x1B) -- appends one template
  *     slot (team=2, char_id at +7/+8) to the menu-party roster and
  *     increments the member count.
  *
