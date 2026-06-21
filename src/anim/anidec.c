@@ -60,8 +60,16 @@ void fd2_ani_decoder_set_target_buffer(uint16 width, uint32 dst_buf,
 /* ----------------------------------------------------------------
  * fd2_ani_decoder_decode_frame_bytes @ 0x36C9E
  *
- * Main decoder loop: reads chunk_count chunk-type bytes from the
- * stream, dispatches each to the handler table.
+ * Top-level ANI frame decoder. Points the shared stream cursor
+ * g_ani_cursor at src_buf_ptr, then runs chunk_count iterations: each
+ * reads one chunk-type byte and dispatches it through
+ * data_fd2_animation_ani_decoder_frame_dispatch_table[chunk_type]().
+ * Only the chunk-type byte is consumed here; each handler advances the
+ * same g_ani_cursor by however many operand bytes it needs, so the
+ * cursor walks the whole stream cooperatively (mirrors the binary's
+ * single ESI loaded once before the loop, advanced by LODSB and by
+ * every handler). Called once per frame after
+ * fd2_ani_decoder_set_target_buffer sets the output triple. No return.
  * ---------------------------------------------------------------- */
 void fd2_ani_decoder_decode_frame_bytes(uint16 chunk_count,
                                          uint32 src_buf_ptr)
