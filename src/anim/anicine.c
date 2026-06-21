@@ -102,15 +102,18 @@ uint32 data_fd2_audio_figani_sfx_bank_buf_ptr;
 /* ----------------------------------------------------------------
  * data_fd2_audio_figani_sfx_bank_defender_buf_ptr @ 0x5411B
  *   Defender-side counterpart of data_fd2_audio_figani_sfx_bank_buf_ptr
- *   (0x54117): the SFX handle bank extracted from the DEFENDER's FIGANI
+ *   (0x54117): the SFX handle bank loaded for the DEFENDER's FIGANI
  *   animation stream so the counter-attack pose can play its own sound
- *   effects. Sole owner/writer: fd2_play_full_combat_cinematic here. In
- *   the normal (non-scripted) path it assigns the return of
- *   fd2_load_figani_sfx_bank(defender_figani) before any read, passes it
- *   by value to fd2_execute_combat_hit_cinematic for the swapped-role
- *   counter cinematic, then on cleanup frees it when non-NULL. Accessed
- *   as a full 32-bit pointer (MOV dword) at every site, never indexed;
- *   zero-initialized at rest (.bss), populated only at runtime.
+ *   effects. Sole owner/writer: fd2_play_full_combat_cinematic here. The
+ *   assignment (return of fd2_load_figani_sfx_bank(def_anim_figani)) runs
+ *   only on the non-scripted path; the value is then passed by value to
+ *   fd2_execute_combat_hit_cinematic for the swapped-role counter
+ *   cinematic on BOTH the normal-counter and the scripted forced-counter
+ *   paths (in scripted mode it was never assigned, so it passes NULL,
+ *   which the muted scripted-mode audio path ignores). On cleanup it is
+ *   freed when non-NULL. Accessed as a full 32-bit pointer (MOV dword) at
+ *   every site, never indexed; zero-initialized at rest (.bss), populated
+ *   only at runtime.
  * ---------------------------------------------------------------- */
 uint32 data_fd2_audio_figani_sfx_bank_defender_buf_ptr;
 
