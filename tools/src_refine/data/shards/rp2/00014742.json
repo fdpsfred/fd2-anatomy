@@ -1,0 +1,83 @@
+{
+  "address": "00014742",
+  "name_current": "fd2_scan_chars_within_manhattan_range",
+  "name_final": "fd2_scan_chars_within_manhattan_range",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention and accurately describes the body (scan runtime chars within a manhattan-distance range). No address residue; no domain ID involved.",
+  "kind": "function",
+  "home": "src/battle/btl_aitg.c",
+  "purpose": "Count alive battle chars whose manhattan distance from a center tile is strictly less than max_range and whose team matches team_filter, optionally recording their indices into out_buf.",
+  "logic_summary": "count=0; loop char_idx over 0..party_member_count-1 on the runtime_char array. Per char: dx=abs(bPos_x-center_x), dy=abs(bPos_y-center_y). Skip if dead flag (bFlags&1) set, or if dx+dy >= max_range (strict-less-than inclusion). Team gate: team_filter 0->team==0 (enemy), 1->team!=0 (any ally), 2->team==1 (NPC ally), 3->team==2 (player). On match: if out_buf!=0 write char_idx byte at out_buf[count]; count++. Return count. (Sites in the body annotated with 'fixup to ->' notes are Ghidra fixup artifacts, not extra logic.)",
+  "signature": "int __cdecl fd2_scan_chars_within_manhattan_range(uint32 center_x, uint32 center_y, uint32 max_range, uint32 out_buf, int team_filter)",
+  "params": [
+    {
+      "name": "center_x",
+      "type": "uint32",
+      "semantics": "Center tile x of the scan; sole caller passes data_fd2_battle_cursor_world_x.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; matches caller value and body use as the x reference for the manhattan distance."
+    },
+    {
+      "name": "center_y",
+      "type": "uint32",
+      "semantics": "Center tile y of the scan; sole caller passes data_fd2_battle_cursor_world_y.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; matches caller value and body use as the y reference for the manhattan distance."
+    },
+    {
+      "name": "max_range",
+      "type": "uint32",
+      "semantics": "Exclusive manhattan-distance bound (a char is included only when dx+dy < max_range); sole caller passes anim_phase_ref derived from battle_anim_phase.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; describes the range comparison. Strict-less-than (exclusive) nature documented in comment."
+    },
+    {
+      "name": "out_buf",
+      "type": "uint32",
+      "semantics": "Optional output buffer base address; if nonzero, each matching char_idx is written as one byte at out_buf[count]. Sole caller passes 0 (NULL).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurate for its role. Declared uint32 (used as a pointer base); type/signature unchanged per refine rules."
+    },
+    {
+      "name": "team_filter",
+      "type": "int",
+      "semantics": "Selects which team the char must belong to (0=enemies, 1=any ally, 2=NPC ally, 3=player). Sole caller passes the target-input mode value.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; matches the four-way team gate in the body."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Number of alive chars matching range + team_filter; also the number of indices written to out_buf when out_buf is nonzero."
+  },
+  "reads_globals": [
+    "data_fd2_battle_party_member_count",
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "src block was correct but terse: it omitted the team_filter value encoding (the one non-obvious aspect) and the strict-less-than range semantics.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "updated",
+  "issues": [
+    {
+      "category": "doc_drift",
+      "severity": "low",
+      "title": "Ghidra plate listed non-existent callers",
+      "description": "The prior Ghidra plate claimed this scan was 'used everywhere' and named fd2_ai_score_physical_attack, fd2_ai_score_offensive_spell and render_threat_overlay as callers. Verified xrefs show exactly one caller (fd2_wait_for_action_target_input @ call site 0001175f). Updated the plate to state the single real caller; no code change needed.",
+      "evidence": "get_xrefs_to(0x00014742) and get_function_callers both return only 'fd2_wait_for_action_target_input @ 000115b6' (UNCONDITIONAL_CALL from 0001175f)."
+    }
+  ],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "49cbcaebda29826feb7169b6e2e3013a7de0391e",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Logic verified equivalent to decompilation; no logic touched. team field meaning (0=enemy/1=NPC ally/2=player) cross-checked against fd2-knowledge runtime_char struct (offset 0x0E) and src/include/consts.h (TEAM_ENEMY=0/TEAM_NPC=1/TEAM_PLAYER=2, CHARFLAG_DEAD=0x01, RUNTIME_CHAR_SIZE=0x50). Ghidra auto-derived param names (param_1/param_2/param_3/center_x/center_y) are the mislabeled set; the src C signature order (center_x,center_y,max_range,out_buf,team_filter) is the correct semantic order confirmed by the caller's argument order."
+}

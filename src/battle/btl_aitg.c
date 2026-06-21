@@ -134,9 +134,19 @@ void fd2_mark_char_occupant_tiles_for_team(uint32 exclude_idx,
 /* ----------------------------------------------------------------
  * fd2_scan_chars_within_manhattan_range @ 0x14742
  *
- * Find alive chars within manhattan distance of (center_x, center_y)
- * matching team_filter. Optionally write indices to out_buf.
- * Returns count.
+ * Count alive chars whose manhattan distance from (center_x, center_y)
+ * is strictly less than max_range and whose team matches team_filter.
+ * If out_buf != 0, the matching char indices are also written there
+ * (one byte each). Returns the match count.
+ *
+ * team_filter encoding (team field: 0=enemy, 1=NPC ally, 2=player):
+ *   0 -> enemies only      (team == 0)
+ *   1 -> any ally          (team != 0, NPC or player)
+ *   2 -> NPC allies only    (team == 1)
+ *   3 -> players only       (team == 2)
+ *
+ * Generic targeting scan reused by AI scoring and target-input
+ * validation (sole caller: fd2_wait_for_action_target_input).
  * ---------------------------------------------------------------- */
 int fd2_scan_chars_within_manhattan_range(uint32 center_x, uint32 center_y,
                                           uint32 max_range,
