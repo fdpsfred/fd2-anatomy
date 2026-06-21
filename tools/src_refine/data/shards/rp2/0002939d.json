@@ -1,0 +1,46 @@
+{
+  "address": "0002939d",
+  "name_current": "fd2_execute_combat_hit_cinematic",
+  "name_final": "fd2_execute_combat_hit_cinematic",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Well-formed per fd2_<domain>_<descriptor>: this battle/animation routine executes one combat hit's worth of FIGANI cinematic frames (per-frame attacker/defender composite, progressive damage application, SFX hooks, crit/poison palette flash). No Ghidra address residue in the name; 'combat_hit_cinematic' accurately captures both the per-hit damage semantics and the cinematic per-frame rendering. No domain ID involved.",
+  "kind": "function",
+  "home": "src/anim/anicine.c",
+  "purpose": "Executes the per-frame combat-hit cinematic for one strike phase: composites the attacker's strike against the shaken defender pose, applies HP damage progressively, fires per-frame SFX, and plays the crit/poison DAC palette flash; returns the defender's final HP.",
+  "logic_summary": "Copies the 6-entry x/y shake offset tables to locals; counts hit-marker frames (frame[+4]!=0) in the attacker FIGANI into total_hit_frames (min 1); a 3% RNG roll (fd2_advance_rng_state()%100<3) or the double-hit flag raises hit_count to 2. Outer do-loop per strike: in non-scripted mode snapshots defender HP and calls fd2_calculate_combat_hit_outcome (6-dword block: miss/crit/poison/reserved/double-hit/damage); scripted mode forces the block to zero. Optional charge-in sub-animation (attacker_figani[+1]!=0) plays approach frames then a bg zoom transition, branching on attacker.team (team!=0 -> transition_in top-half workspace+0x140; team==0 -> transition_out bottom-half). Per-frame inner loop restores from framebuffer, composites attacker frame + defender pose (defender shaken by shake tables via a counter that resets to 5 on a landed hit and decays), frame[+7]&1 selects draw order; frame[+4]==1 marks a hit -> HP = HP_initial - hit_idx*damage/total_hit_frames (clamped >=0) and fd2_flash_char_hit_sprite (non-scripted); frame[+5] is an SFX hook (forced id 0 on a miss). On the final hit frame, poison flashes DAC 0x3C8/0x3C9 magenta and crit flashes white. Loop tail: defender HP==0 forces hit_count=0; while positive and attacker_figani[+1]==1 the attacker recoil + opposite-direction zoom replays for the second strike. Returns defender HP_current; scripted mode returns 1 early once the latched flag is 1 and the last hit landed.",
+  "signature": "int __cdecl fd2_execute_combat_hit_cinematic(uint32 attacker_idx, uint32 defender_idx, uint32 attacker_figani, uint32 defender_figani, uint32 workspace, uint32 framebuffer, uint32 name_banner_sprite, uint32 sfx_bank)",
+  "params": [
+    {"name": "attacker_idx", "type": "uint32", "semantics": "runtime_char index of the striking unit; selects team (top/bottom-half composite) and is passed to fd2_calculate_combat_hit_outcome.", "verdict": "keep", "proposed": null, "reason": "Accurate; matches usage rt_chars[attacker_idx].team and the outcome call. No address residue."},
+    {"name": "defender_idx", "type": "uint32", "semantics": "runtime_char index of the target; its hp_current is read and progressively written.", "verdict": "keep", "proposed": null, "reason": "Accurate; matches rt_chars[defender_idx].hp_current reads/writes."},
+    {"name": "attacker_figani", "type": "uint32", "semantics": "Pointer to the attacker's FIGANI animation byte stream (frame count at +0, charge flag at +1, charge-frame count at +2, per-frame table at +8); drives the per-frame loop and hit-marker count.", "verdict": "keep", "proposed": null, "reason": "Accurate; this is the primary loop driver. No address residue."},
+    {"name": "defender_figani", "type": "uint32", "semantics": "Pointer to the defending side's FIGANI/silhouette pose stream composited (shaken) as the reacting target; caller passes the defender silhouette for the attacker phase and the attacker silhouette for the swapped counter phase.", "verdict": "keep", "proposed": null, "reason": "Accurate for this call's defender role; matches fd2_blit_indexed_sprite(defender_figani,...). No address residue."},
+    {"name": "workspace", "type": "uint32", "semantics": "128 KB composite work buffer; sub-regions +0x140 (top-half) and +0x3EA8 (per-frame composite) are used as blit targets.", "verdict": "keep", "proposed": null, "reason": "Accurate; matches memset(workspace,0,0x1F400) and the offset composites."},
+    {"name": "framebuffer", "type": "uint32", "semantics": "64 KB mode-13h scratch used as the restore source for each frame's fd2_blit_rectangle and the flash-hit target.", "verdict": "keep", "proposed": null, "reason": "Accurate; matches the restore-from-framebuffer blits and fd2_flash_char_hit_sprite(framebuffer,...)."},
+    {"name": "name_banner_sprite", "type": "uint32", "semantics": "TAI.DAT name-banner RLE sprite passed through to fd2_animate_bg_zoom_transition_out for the bottom-half (enemy-attacker) zoom.", "verdict": "keep", "proposed": null, "reason": "Accurate; only consumed by the transition_out call. No address residue."},
+    {"name": "sfx_bank", "type": "uint32", "semantics": "FIGANI-extracted SFX handle bank for fd2_play_sfx_with_handle on per-frame SFX hooks.", "verdict": "keep", "proposed": null, "reason": "Accurate; matches every fd2_play_sfx_with_handle(sfx_bank,...) call."}
+  ],
+  "returns": {"type": "int", "semantics": "Defender's final hp_current after all hits applied (caller uses != 0 as 'defender survived this strike' to gate the counter-attack). In scripted mode, once the latched flag is 1 and the last hit landed, returns 1 early."},
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr (0x53A45) -- reads attacker.team / defender pointer",
+    "data_fd2_battle_scripted_cinematic_mode_or_terrain_idx (0x540FF) -- gates scripted vs normal outcome",
+    "data_fd2_battle_combat_hit_shake_x_offset_table (0x5255F)",
+    "data_fd2_battle_combat_hit_shake_y_offset_table (0x52577)",
+    "data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr (0x54107) -- passed to charge-in zoom transitions",
+    "data_fd2_battle_combat_cinematic_split_bg_b_buf_ptr (0x54103) -- passed to second-strike zoom transitions"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_runtime_char_array_ptr (0x53A45) -- writes defender.hp_current progressively"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment block (anicine.c lines 681-730) is already accurate, concise, ASCII, and correctly documents the Ghidra EAX-tracking artifact (the 3% bonus-hit roll keys off fd2_advance_rng_state()'s return value, which the decompiler mis-attributes to defender_idx*0x50; verified at disasm 0x2946a CALL then 0x2946f MOV EDX,EAX then IDIV 0x64 CMP EDX,3). No source edit needed. Ghidra plate is substantively consistent with the src understanding and the decompile (plate uses binary-offset Hungarian field names wHP_current/bTeam which describe the binary, not a contradiction with the C struct's hp_current/team), so plate left untouched. Outcome 6-dword layout confirmed against fd2_calculate_combat_hit_outcome @ 0x29F72. runtime_char field offsets (team +6, portrait_id +7, archetype_flag +0x1F, job_id +0x20, hp_current +0x40) match src/include/types.h. No logic/equivalence concerns; the function faithfully reproduces the binary including the loop-tail attacker_figani[+1]==1 vs charge-in attacker_figani[+1]!=0 distinction."
+}
