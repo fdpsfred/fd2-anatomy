@@ -1,0 +1,40 @@
+{
+  "address": "000350b9",
+  "name_current": "fd2_chapter_event_handler_2d__ch19_ai_ctrl",
+  "name_final": "fd2_chapter_event_handler_2d__ch19_ai_ctrl",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>: fd2_ prefix; chapter_event_handler_2d where 2d is the dispatch-table index 0x2D (meaningful domain ID, NOT an address residue -- the function's own address is 0x350b9, unrelated to 0x2d); __ch19_ai_ctrl accurately describes chapter 19 + AI-control beat. Consistent with sibling handlers (2c__ch19_ai_ctrl, 2b__ch18_ai_ctrl). No address residue.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter 19 turn-event handler (dispatch idx 0x2D from the per-event handler table @ 0x51B91): sets the per-event AI/dialog control flag (low nibble of combat_aux_block[0xD]) to 3 for the runtime-char range [0x10, 0x1F] inclusive (16 chars).",
+  "logic_summary": "Single straight-line call fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x10, 0x1F, 3). No dialog, no RNG, no numeric computation, no branching, no CALL-return value used. The compiler-injected __CHK(0x10) stack probe is the only other instruction. In the original binary it pre-pushes flag=3 and end=0x1F, then JMPs (0x350C7 -> 0x34F37) into the class-3 shared tail hosted by fd2_chapter_event_handler_12 @ 0x34F02; that tail does PUSH 0x10 (start) / CALL the AI-range fn / ADD ESP,0xC / RET, fixing the start arg at 0x10. The shared tail is an in-binary code-folding artifact; the src reproduces its effect as the inline call for Layer-2 equivalence.",
+  "signature": "void __cdecl fd2_chapter_event_handler_2d__ch19_ai_ctrl(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform 1-arg cdecl dispatch argument from the per-event handler table @ 0x51B91; the body never reads it ((void)event_arg). Named per the turn-event dispatch convention.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately reflects role (the dispatched turn-event arg) and carries no address residue. Matches the src declaration and the sibling turn-event handlers. The decompiler local view labels it event_arg (src) -- the sibling 2c decompile mislabels it stepping_char_id, but that is a decompiler artifact: this is a turn-event handler, not a tile-step handler, so event_arg is correct."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": "Content was accurate and precise, but three comment lines used the non-ASCII em-dash character (U+2014), violating the project ASCII-only rule for src/.c files.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Comment edit was purely ASCII normalization: 3 em-dashes (U+2014) -> '--', no semantic change. Ghidra plate is accurate and consistent with src (uses em-dashes, but ASCII-only rule applies to src/.c, not Ghidra plates), so left untouched. The function's first 'PUSH 0x10' @ 0x350b9 is the __CHK stack-frame-size argument (0x10), NOT the start_char; the shared tail @ 0x34F37 re-pushes 0x10 as the real start_char -- the plate already documents this correctly. Callee fd2_set_combat_aux_block_byte_d_low4_for_char_range @ 0x3419c confirmed as 3-param (start, end, flag) cdecl. Clobber-defense diff confirmed only my 3 intended comment lines were deleted from chevt1.c."
+}
