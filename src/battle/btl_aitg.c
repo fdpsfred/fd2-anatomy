@@ -576,8 +576,20 @@ int fd2_compute_aoe_targets(uint32 center_x, uint32 center_y,
 /* ----------------------------------------------------------------
  * fd2_ai_seek_optimal_position @ 0x14121
  *
- * Pathfind to best cell for char's job movement class, then walk.
- * Returns 1 if walked, 0 if unreachable or already at optimum.
+ * AI "move toward best cell" fallback. Paints the team threat
+ * overlay, pathfinds to the highest-scoring reachable tile for the
+ * char's movement-cost class, then walks one step there.
+ *
+ * Movement-cost class = runtime_char[char_idx][0x20] (job-based),
+ * with two overrides:
+ *   - status-immunity set    -> class 0x13 (flying / unrestricted)
+ *   - identity byte 8 == 0x1C -> class 1   (cheap movement)
+ *
+ * Returns 1 if it walked, 0 if the target is unreachable (pathfind
+ * 0xFF) or the char is already at the optimum.
+ *
+ * Called by fd2_enemy_turn_action_dispatcher AI classes 1/3/5/11 as
+ * the "scoring/attack failed, move instead" branch.
  * ---------------------------------------------------------------- */
 int fd2_ai_seek_optimal_position(uint32 char_idx, uint32 ctx)
 {
