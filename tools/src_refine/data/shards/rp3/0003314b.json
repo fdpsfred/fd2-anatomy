@@ -1,0 +1,35 @@
+{
+  "address": "0003314b",
+  "name_current": "fd2_chapter_06_init",
+  "name_final": "fd2_chapter_06_init",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with fd2_<domain>_<descriptor>: 'fd2_' prefix + 'chapter_06' (06 is a meaningful chapter ID in the 01-30 range, dispatched as index-5 of the chapter-init handler table at 0x51d81; must be preserved, not address residue) + 'init' descriptor. Name accurately reflects role as the Chapter 6 init handler. No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/field/chinit.c",
+  "purpose": "Chapter 6 (普里茲港) init handler: the minimal chapter init -- re-init battle state, play one dialog page, pan camera to char 0. No cutscene/portrait/char-init; party carries over from chapter 5.",
+  "logic_summary": "Entry block does __CHK(0x28) frame check, calls fd2_init_battle_state_for_chapter(), sets data_fd2_battle_anim_phase=0, then tail-JMPs (0x33164 -> 0x3344d) into the shared dialog-arg-push chain owned by fd2_chapter_12_init: 0x3344d -> 0x33206 (fd2_display_dialog_scene call, page 0, owned by fd2_chapter_07_init) -> 0x33140 (fd2_pan_cursor_to_char(0)+RET, owned by fd2_chapter_05_init, entered without clear-facing). The straight-line C body (init battle state; anim_phase=0; dialog page 0; pan to char 0) is the functionally-equivalent Layer-2 reconstruction. Verified vs disassembly: PUSH 0x28; CALL __CHK; CALL fd2_init_battle_state_for_chapter; MOV [0x51a83],0; JMP 0x3344d.",
+  "signature": "void __cdecl fd2_chapter_06_init(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Dispatched (not called by C code); void side-effect handler that sets up the chapter-6 battle scene."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_anim_phase"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "5f5d9a7a91b2c9bbea09bd1d3ad4c59a70f599d7",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (chinit.c lines 410-449) is already precise and matches disassembly + callee identities exactly (init battle state, single anim_phase reset, tail-JMP chain through chapters 12/07/05, linked handlers end@0x23296 + default post-action, walkthrough SOT). No src edit. Ghidra plate is terser but consistent (no contradiction), so left untouched. Callees verified: 0x205da=fd2_init_battle_state_for_chapter, 0x36cd7=__CHK, 0x3344d inside fd2_chapter_12_init. xref-to from data 0x51d85 = handler-table slot (chapter-06 entry). 0 direct callers (dispatched). Other shards in this worktree are concurrent fan-out runs; staged only my shard."
+}
