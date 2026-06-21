@@ -126,7 +126,9 @@ void fd2_chapter_event_handler_31__ch22_turn_gated(uint32 event_arg)
  *
  * Effect: ch22 turn-5 reinforcement — load portrait set 2, a single-corner pan
  * to window origin (0x10, 0x2A), an 8-tick hold, spawn reinforcement char id
- * 0x14 from base+growth, then unconditionally show dialog page 2.
+ * 0x14 from base+growth, then unconditionally show dialog page 2. Char 0x14 is
+ * the joining ally 莎拉 (Sara) -- the chapter-22 guide notes she appears from
+ * the south at the start of turn 5 to help and joins the party.
  *
  * In the binary the dialog call shares a borrowed tail: after the spawn the
  * handler does JMP 0x347F1, falling into the
