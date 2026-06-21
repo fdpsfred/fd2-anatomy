@@ -25,9 +25,13 @@ def main():
     recs = {}
     for p in sorted(glob.glob(str(SHARDS / "rp*" / "*.json"))):
         r = json.loads(Path(p).read_text(encoding="utf-8"))
-        a = r["address"]
+        # the shard FILENAME is the canonical 8-hex address (from scout/args); the
+        # agent-written "address" field may vary (some add a 0x prefix), so key off
+        # the filename and normalize the record's address to match.
+        a = Path(p).stem.lower().replace("0x", "").zfill(8)
         if a in recs:
             raise SystemExit("duplicate shard address %s (%s vs %s)" % (a, p, recs[a].get("_shard")))
+        r["address"] = a
         r["_shard"] = p.replace("\\", "/").split("/tools/")[-1]
         recs[a] = r
 
