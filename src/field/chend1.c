@@ -972,8 +972,10 @@ void fd2_chapter_19_end(void)
  *
  * Zero-initialized runtime state (memory image all-zero; first touched by an
  * init handler write before any read). Lives here with chend1.c per the
- * data-emit home assignment (multi-writer across field/chinit.c,
- * field/chend1.c, field/chtrans.c).
+ * data-emit home assignment. Accessed across three field/ files: written
+ * (arm=1 / disarm=0) by fd2_chapter_01_init in field/chinit.c and by
+ * fd2_chapter_08_end in this file (field/chend1.c); read + incremented (the
+ * fade-in tween) by fd2_cutscene_event_trigger in field/chtrans.c.
  * ---------------------------------------------------------------- */
 uint32 data_fd2_chapter_cutscene_event_state;
 
