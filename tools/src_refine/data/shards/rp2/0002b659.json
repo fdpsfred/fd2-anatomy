@@ -1,0 +1,102 @@
+{
+  "address": "0002b659",
+  "name_current": "fd2_play_figani_animation_loop",
+  "name_final": "fd2_play_figani_animation_loop",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (play/animation domain, figani_animation_loop descriptor) and accurately reflects the body: it is the master FIGANI byte-stream pose loop driving every special-attack/summon visual sequence. No Ghidra address-residue suffix. The branch-gate numerics (spell IDs 0x18, 0x1C-0x1E, 0x20-0x23) are meaningful spell-domain IDs that are preserved, not address tails.",
+  "kind": "function",
+  "home": "src/anim/anicine.c",
+  "purpose": "Master FIGANI animation player: iterates a caster FIGANI byte stream pose by pose, performing per-pose SFX hooks, MP deduction, character/target composite, and per-spell palette flash FX; the shared heart of every special-attack and summon cinematic.",
+  "logic_summary": "Selects a palette-remap table index (remap_idx) from spell_id: {8,0x20,0x21}->0x13, else spell_id>3 or 0x23 ->0x0F, else 0x0B. Loops pose_iter over caster_figani[2] poses; pose_entry = caster_figani + *(int*)(caster_figani+8+pose_iter*4). Per pose: (1) if spell_id is a special-technique id (0x18, or 0x1C..0x1E) and pose+5 SFX hook != 0, play it from the figani SFX bank; (2) if pose+4 type marker == 1 (spell-cast frame): deduct caster MP, flash the caster hit-sprite onto dst_buf, and when spell_id<10 or >31 arm a 6-subframe palette write, compute remap_table from data_fd2_tile_anim_table_base, RLE-blit bg_layer_a at (0,0x32) and bg_layer_b at (0xA4,0x9D) with the remap, then fire the summon cast SFX. Per sub-frame (pose+6 count): restore dst_buf into workspace; composite caster/target poses into workspace with the draw order keyed on caster team (team!=0 draws caster first) gated by spell_id<10||==0x1C; flush workspace to mode-13h 0xA0000; if the palette countdown is armed, write DAC index 0 to the per-spell RGB from data_fd2_animation_spell_palette_flash_table (R@+0, G@+0x24, B@+0x48), hold 30ms, reset index 0, decrement; advance the free-running target FIGANI sub-frame/pose counters (wrap at the active target pose's +6 count, then at target_figani[0]); wait 1 BIOS tick. Returns when all poses are processed.",
+  "signature": "void fd2_play_figani_animation_loop(uint32 caster_idx, uint32 spell_id, uint8 *caster_figani, uint8 *target_figani, uint32 workspace, uint32 dst_buf, uint32 bg_layer_a, uint32 bg_layer_b)",
+  "params": [
+    {
+      "name": "caster_idx",
+      "type": "uint32",
+      "semantics": "runtime_char index of the casting unit; indexes data_fd2_battle_runtime_char_array_ptr for the .team check and is passed to fd2_deduct_caster_mp / fd2_flash_char_hit_sprite. Verified arg0 at disasm [ESP+0x34] feeding [0x53A45]+idx*0x50.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, address-clean; matches all 3 call sites (each passes the caster index)."
+    },
+    {
+      "name": "spell_id",
+      "type": "uint32",
+      "semantics": "Spell/technique id (= ESI); drives every branch gate (remap_idx selection, special-technique SFX gate 0x18/0x1C-0x1E, palette-arm gate <10||>31, composite-order gate <10||==0x1C) and indexes data_fd2_animation_spell_palette_flash_table.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, address-clean; the embedded numeric gates are meaningful spell IDs preserved as constants."
+    },
+    {
+      "name": "caster_figani",
+      "type": "uint8 *",
+      "semantics": "Caster animation FIGANI byte stream (= arg3); the per-pose loop driver. Header +2 = pose count; per-pose table at +8 (idx*4 -> relative offset); per-pose +4 type, +5 SFX hook, +6 sub-frame count. Also the indexed-sprite source for the caster composite.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, address-clean; matches caller pCaster_figani_b at all sites."
+    },
+    {
+      "name": "target_figani",
+      "type": "uint8 *",
+      "semantics": "Target pose FIGANI byte stream (= EDI); the wrapping pose composited alongside the caster. Header +0 = pose count (the target-pose wrap bound); the free-running target_pose_idx/subframe_in_target counters walk it.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, address-clean; matches caller target_figani[0] / pTarget_first_figani / pCaster_figani_b (summon reuses caster stream as target)."
+    },
+    {
+      "name": "workspace",
+      "type": "uint32",
+      "semantics": "128 KB composite work buffer (= EBP); 0x140-stride blit target into which the backdrop is restored and the caster/target poses are composited before the flush to 0xA0000.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, address-clean; matches caller pAnimWorkBuf2 / pWorkbuf_64k / ptr."
+    },
+    {
+      "name": "dst_buf",
+      "type": "uint32",
+      "semantics": "64 KB framebuffer-sized scratch (= arg6); the restore SOURCE copied into workspace each sub-frame, and the buffer flashed by fd2_flash_char_hit_sprite and RLE-blitted into by the two palette-remap blits.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, address-clean; matches caller pAnimWorkBuf1 / pCaster_figani / pbVar4. Note Ghidra decompile mislabeled the flash arg as caster_figani; disasm 0x2b75a pushes [ESP+0x4c]=dst_buf (already noted in plate)."
+    },
+    {
+      "name": "bg_layer_a",
+      "type": "uint32",
+      "semantics": "Background sprite stream for the 1st palette-remap RLE blit (x=0, y=0x32) -- the full-screen battle backdrop (BG.DAT). = arg7, pushed from disasm [ESP+0x60].",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, address-clean; matches caller pBg_layer_saved / pBg_or_alt (always a BG.DAT layer)."
+    },
+    {
+      "name": "bg_layer_b",
+      "type": "uint32",
+      "semantics": "Sprite stream for the 2nd palette-remap RLE blit (x=0xA4, y=0x9D). Despite the bg_layer_b name, every caller passes a TAI.DAT character-base / name-banner sprite (pTai_resource / pTai_saved / pTai_or_count), blitted at the same 0xA4,0x9D banner position used by fd2_play_char_intro_zoom_anim's weapon_sprite. = arg8, pushed from disasm [ESP+0x64].",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Loosely imprecise (it is a TAI.DAT name-banner, not strictly a background layer) but NOT address-tainted and not misleading enough to force a Stage-2 rename that would churn protos.h/globals.h and all 3 call sites; the semantics note records the true source. Treated as keep; a future rename to e.g. name_banner_sprite would be cosmetic only."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; runs the full pose loop and returns when caster_figani[2] poses are exhausted. Every CALL in the body discards its return value (the loop drives off memory loads), so there is no EAX-tracking hazard."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr (0x53A45; reads [caster_idx].team for composite order)",
+    "data_fd2_audio_figani_sfx_bank_buf_ptr (0x54117; passed by value to fd2_play_sfx_with_handle for per-pose special-technique SFX)",
+    "data_fd2_audio_summon_spell_sfx_bank_buf_ptr (0x5411F; passed by value to fd2_play_sfx_with_handle for the cast SFX)",
+    "data_fd2_tile_anim_table_base (0x53A6D; base for the palette-remap table lookup, remap_idx*4+6)",
+    "data_fd2_animation_spell_palette_flash_table (0x51AAD; per-spell-id RGB for the DAC index-0 cast highlight, R@+0/G@+0x24/B@+0x48)"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "d54de96cb03f6ed24e87790d54c19d09f886c5ca",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disasm-verified arg order (Ghidra formal names are __CHK-scrambled): arg0 caster_idx [ESP+0x34], arg1 spell_id [ESP+0x38]=ESI, arg2 caster_figani [ESP+0x3c], arg3 target_figani [ESP+0x40]=EDI, arg4 workspace [ESP+0x44]=EBP, arg5 dst_buf [ESP+0x4c at flash], arg6 bg_layer_a [ESP+0x60 at 1st blit], arg7 bg_layer_b [ESP+0x64 at 2nd blit]. Source body (anicine.c) and protos.h prototype both already match this and are correct; runtime_char.team is the established struct field (types.h +0x06). Source comment already precise/ASCII -> kept. Ghidra plate is a consistent superset -> unchanged. No source Edit performed; only the shard was created. No logic changes."
+}
