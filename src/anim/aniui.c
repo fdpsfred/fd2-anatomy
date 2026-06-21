@@ -13,9 +13,31 @@
 /* ----------------------------------------------------------------
  * fd2_tick_tutorial_progress_with_sfx @ 0x2C9EC
  *
- * Per-step tick + footstep SFX dispatcher.
- * Selects cadence divisor and SFX based on char job/immunity.
- * Plays SFX when counter aligns, increments counter.
+ * Per-frame footstep SFX dispatcher. Ticked once per frame inside the
+ * 6-frame walk-step slide loop by all four directional walk_step
+ * handlers and by fd2_cutscene_event_trigger (cutscene-driven walk
+ * simulation). Picks a cadence (divisor + SFX id) for the walking unit,
+ * plays the footstep SFX on each divisor-aligned frame, then advances
+ * the cadence counter.
+ *
+ * Cadence selection (char_idx = walking unit index):
+ *   - status-immune (flying/lifted): divisor 6, sfx 10.
+ *   - else by per-job cadence class job_tbl[job_id - 1]
+ *     (job_tbl copied from data_fd2_audio_footstep_sfx_per_job_cadence_class_table,
+ *      29 bytes covering job ids 1..0x1C):
+ *       class 0  -> divisor 6, sfx 9
+ *       class 1  -> divisor 4, sfx 9
+ *       other    -> divisor 9, sfx 11
+ *   SFX fires when data_fd2_audio_walk_step_sfx_cadence_counter % divisor
+ *   == 0; the counter is then incremented.
+ *
+ * Globals: reads runtime_char[char_idx].job_id and the per-job cadence
+ * table; reads/writes data_fd2_audio_walk_step_sfx_cadence_counter (that
+ * counter is touched ONLY here -- it has no external reader).
+ *
+ * NOTE: the "tutorial_progress" framing in the name is a misnomer; the
+ * counter is a pure footstep cadence counter, not a tutorial milestone.
+ * Rename candidate: fd2_tick_walk_step_footstep_sfx.
  * ---------------------------------------------------------------- */
 void fd2_tick_tutorial_progress_with_sfx(uint32 char_idx)
 {
