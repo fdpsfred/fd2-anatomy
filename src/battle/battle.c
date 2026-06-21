@@ -428,9 +428,25 @@ void fd2_flash_char_hit_sprite(uint32 workspace_buf,
 /* ----------------------------------------------------------------
  * fd2_compute_combat_bubble_screen_pos @ 0x1EC2A  (2 callers)
  *
- * Compute speech bubble screen position for a char, adjusting
- * for facing direction and screen boundaries. Output is two
- * int32 values at out_xy_ptr: [0]=x, [4]=y.
+ * Compute the combat speech-bubble screen position for one runtime
+ * char (char_idx), writing two int32 results at out_xy_ptr:
+ * [0]=x, [4]=y. Both callers are fd2_animate_combat_speech_bubbles
+ * (defender bubble + counter-attacker bubble).
+ *
+ * Base anchor = char tile relative to the battle view window:
+ *   x = (pos_x - view_origin_x) * 24 + 4
+ *   y = (pos_y - view_origin_y) * 24
+ *
+ * Adjust by facing (sprite_state[1]) and clamp against the 320x200
+ * screen so the bubble stays on-screen:
+ *   facing < 2 (down/right): place bubble ABOVE the char
+ *     y -= 18 (but if that goes negative, y += 5 instead)
+ *     if right edge would overflow 320: x -= 0x56 and return
+ *   facing >= 2 (up/left): place bubble BELOW the char
+ *     y += 22 if it still fits (y+0x25 < 200), else y += 5
+ *     if left edge stays >= 0: x -= 0x58 and return
+ * If neither edge-fix applied (would overflow both sides), nudge
+ * x += 0x1C as a fallback.
  * ---------------------------------------------------------------- */
 void fd2_compute_combat_bubble_screen_pos(uint32 out_xy_ptr,
                                            uint32 char_idx)
