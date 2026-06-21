@@ -1,0 +1,47 @@
+{
+  "address": "000235f9",
+  "name_current": "fd2_chapter_10_end",
+  "name_final": "fd2_chapter_10_end",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=chapter, descriptor=10_end). The '10' is a meaningful chapter ID (valid range 1-30 per assets/chapters), not an address residue; function address is 0x235f9 and bears no relation to the literal 10. Name accurately reflects the chapter-10 end handler role confirmed by the 0x51DE9 dispatch-table xref and the walkthrough (洞窟中的激戰).",
+  "kind": "function",
+  "home": "src/field/chend1.c",
+  "purpose": "Chapter 10「洞窟中的激戰」end-of-battle handler: plays the post-rescue cutscene, repositions and revives the party and the rescued NPCs (索菲亞/卡納恩三世), shows the closing dialog, recruits 索菲亞 (char 11) and resets 萊汀 (char 6), then advances the chapter id.",
+  "logic_summary": "1) Copies the two 11-byte scene position tables (X @0x52113, Y @0x5211E) onto the stack. 2) Fades palette to black and clears every char's acted flag. 3) Loops i=0..10 placing party units 0..0xA at the table tiles with sprite_state[1] (facing)=2. 4) Repositions/revives the rescued NPCs: char 0x32(索菲亞)->(15,35) sleep flag cleared, char 0x33(卡納恩三世)->(14,35) sleep flag cleared, char 0x34->(16,35) flags cleared, char 5 flags cleared. 5) Resets battle_anim_phase; sets view-window origin and cursor-world to (9,34) and cursor-screen to (0,0). 6) Composites one battle frame, fades palette in, delays 200ms. 7) Shows dialog page 4, resets battle_anim_phase, fires cutscene event 0x25, shows dialog page 5. 8) Saves runtime chars to template, recruits char 11(索菲亞) and re-inits char 6(萊汀) from base/growth (resets his stats/items per the walkthrough), then increments current_chapter_id.",
+  "signature": "void __cdecl fd2_chapter_10_end(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects only: mutates the runtime_char array, battle view/cursor/anim globals, the template store, and current_chapter_id."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_ch10_end_scene_char_pos_x_table",
+    "data_fd2_chapter_ch10_end_scene_char_pos_y_table",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_current_chapter_text",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_anim_phase",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y",
+    "data_fd2_battle_cursor_world_x",
+    "data_fd2_battle_cursor_world_y",
+    "data_fd2_battle_cursor_screen_x",
+    "data_fd2_battle_cursor_screen_y",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "comment_original_issue": "Source comment block (chend1.c lines 412-440) is already comprehensive and accurate against the decompiled body and the chapter_10 walkthrough; no source edit needed. The Ghidra plate still referenced the pre-rename callee __delay_thunk_375b2(200), which is stale because the live decompile and source use fd2_delay_ms(200).",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified against fd2-knowledge: chapter 10 = 洞窟中的激戰, recruits 騎士萊汀 + 僧侶索菲亞, lose if 索爾/索菲亞/卡納恩三世 die (confirms char 0x32=索菲亞, char 0x33=卡納恩三世). Walkthrough note '萊汀 attributes/items reset after this chapter' matches fd2_init_runtime_char_from_base_growth(6). runtime_char struct fields (pos_x +0x00, sprite_state[1]=facing, flags +0x05 bit0=dead, status_sleep_flag +0x26) confirmed from src/include/types.h. All globals confirmed declared in src/include/globals.h. Positions in plate use decimal (15,35),(14,35),(16,35),(9,34) = hex 0xf/0xe/0x10 x, 0x23/0x22 y -- consistent with decompile. Source comment left untouched (keep)."
+}
