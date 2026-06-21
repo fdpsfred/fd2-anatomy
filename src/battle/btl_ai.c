@@ -182,8 +182,22 @@ int fd2_execute_ai_physical_attack(uint32 caster_idx,
 /* ----------------------------------------------------------------
  * fd2_execute_ai_offensive_spell @ 0x15311
  *
- * Execute AI offensive spell. Gate: score < 6 → return 0.
- * Dispatch via spell handler table or basic cast sequence.
+ * Execute the offensive spell chosen by the enemy AI. Reads the
+ * ai_best_spell_* selection globals (id, target x/y, score) set by
+ * fd2_ai_score_offensive_spell. Returns 0 (no-op) if the gate
+ * ai_best_spell_score < 6, else 1 after casting.
+ *
+ * ctx_flag selects how the spell's AOE field pSpell[6] is read when
+ * gathering targets: ctx_flag == 0 -> pass (pSpell[6] == 0) as the
+ * AOE flag; otherwise pass pSpell[6] directly.
+ *
+ * Cast path split: spell id < 10 (basic offensive spells) with
+ * game_speed_flag == 0 -> fd2_play_spell_cast_sequence; otherwise
+ * dispatch through data_fd2_battle_spell_handler_table[id] (special
+ * spells, or any spell when fast-speed is on), bracketed by the
+ * status-effect SFX setup/teardown hooks. Then resolves deaths,
+ * processes drops (target = ai_best_physical_target_idx) and clears
+ * pending_xp_credit / anim_phase.
  * ---------------------------------------------------------------- */
 int fd2_execute_ai_offensive_spell(uint32 caster_idx,
                                     uint32 ctx_flag)
