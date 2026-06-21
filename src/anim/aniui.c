@@ -390,7 +390,7 @@ void fd2_animate_tutorial_dialog_intro_or_outro(uint32 open_or_close)
  * Animate a 0x4A-row x 0x11C-byte block scrolling UP within the shop
  * dialog area at framebuffer offset 0xA8FCA. Three staged shifts of 6
  * rows each (with 10ms pacing), then a final 8-row shift to land 2 rows
- * below original — total scroll distance 0x1A rows (the per-row height
+ * below original -- total scroll distance 0x1A rows (the per-row height
  * in the shop grid layout). Row stride is 0x140 (mode13h scanline).
  *
  * Phase 1 (3 x 6-row shifts, each followed by a 6-row dark-grey fill):
