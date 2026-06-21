@@ -1,0 +1,48 @@
+{
+  "address": "0001af1e",
+  "name_current": "fd2_slide_panel_step_left_main",
+  "name_final": "fd2_slide_panel_step_left_main",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>. 'slide_panel_step' is the panel-slide family (siblings: right_main, top_small, bottom_main, bottom_small); 'left' = slide direction; 'main' = the wide 0xAA-byte main panel size variant (vs the '_small' siblings). No Ghidra address residue; matches purpose and internal logic.",
+  "kind": "function",
+  "home": "src/anim/aniwalk.c",
+  "purpose": "Render one slide-OUT frame of the party-status-overview wide main panel moving toward the left edge (left-edge mirror of the right-panel slide-in step).",
+  "logic_summary": "Defaults row_bytes=0xAA, src_x=0x4B, dst_x=0x4B. For frame_idx<5: x_shift=(4-frame_idx)*0x32, dst_x=0x4B-x_shift; if dst_x<0 (panel past left edge) left-clip: row_bytes+=dst_x (shrink width), src_x-=dst_x (advance source), dst_x=0. For frame_idx>=5 the panel is stationary at dst_x=0x4B. Then copies 0x75 (117) rows of row_bytes each, memmove from src_buffer+src_x+0x2E40 to data_fd2_large_game_state_buffer_ptr+dst_x+0x2E40, advancing both pointers by 0x140 (320, screen stride) per row.",
+  "signature": "void __cdecl fd2_slide_panel_step_left_main(byte *src_buffer, int frame_idx)",
+  "params": [
+    {
+      "name": "src_buffer",
+      "type": "byte * (Ghidra) / uint32 (src)",
+      "semantics": "Base of the off-screen panel image buffer (the malloc'd panel_buf the caller filled via fd2_render_party_status_overview_content); the per-row source bytes are read from src_buffer + src_x + 0x2E40 + row*0x140.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the source panel image buffer; no address residue."
+    },
+    {
+      "name": "frame_idx",
+      "type": "int (Ghidra) / uint32 (src)",
+      "semantics": "Animation frame index 0..0xB driven by the OUTRO loop (counts 0xB->0); selects horizontal offset: <5 slides left (dst_x descends 0x4B->0 by 0x32/frame, with left-clip past edge), >=5 stationary at x=0x4B.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the per-frame animation index; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; the visible effect is the panel rows written into data_fd2_large_game_state_buffer_ptr for this frame."
+  },
+  "reads_globals": ["data_fd2_large_game_state_buffer_ptr"],
+  "writes_globals": ["data_fd2_large_game_state_buffer_ptr (memmove dst contents; the pointer itself is not modified)"],
+  "comment_original_issue": "Original src comment said 'left panel slide-IN' and 'frame_idx 0..4 slide in', but this LEFT variant is the slide-OUT mirror (driven by the OUTRO loop counting 0xB->0); the RIGHT variant is the slide-in. Also lacked the wide-panel ('main') size note, the 0x75 row / 0xAA width / 0x140 stride details, and the left-edge clip behavior.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Signature differs between Ghidra (byte*, int) and src (uint32, uint32); this is a type-representation difference matching the sibling slide_panel_step_* functions' uint32 convention, not a logic issue, and was not changed per the no-logic/no-signature rule. Ghidra plate already accurately describes the slide-OUT/OUTRO role and full algorithm (matches src conclusion) -> left unchanged. Sibling fd2_slide_panel_step_right_main src comment also imprecisely says 'slide-in (mirror of left_main)' but that is a different symbol and out of scope for this refine."
+}

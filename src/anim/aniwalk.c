@@ -372,9 +372,18 @@ void fd2_walk_path_animation_loop(uint32 char_idx, uint32 path_buf,
 /* ----------------------------------------------------------------
  * fd2_slide_panel_step_left_main @ 0x1AF1E
  *
- * Party status overview left panel slide-in single frame.
- * Copies src_buffer rows into large_game_state_buffer with
- * x-offset based on frame_idx (0..4 slide in, >=5 stationary).
+ * Party status overview wide (0xAA-byte) main panel, one slide-OUT
+ * frame toward the left edge. Left-edge mirror of
+ * fd2_slide_panel_step_right_main; driven by the OUTRO loop in
+ * fd2_open_party_status_overview_screen (frame_idx counts 0xB->0),
+ * while the right variant drives the INTRO (slide-in).
+ *
+ * Copies 0x75 (117) rows, 0xAA bytes wide, from src_buffer into
+ * data_fd2_large_game_state_buffer_ptr (both at row-0 base 0x2E40).
+ * For frame_idx < 5 the dst x descends from 0x4B toward 0 by 0x32 per
+ * frame; once the panel runs past x=0 the copy width is left-clipped
+ * (row_bytes shrinks, src_x advances, dst_x pins to 0). For
+ * frame_idx >= 5 the panel sits stationary at x = 0x4B.
  * ---------------------------------------------------------------- */
 void fd2_slide_panel_step_left_main(uint32 src_buffer, uint32 frame_idx)
 {
