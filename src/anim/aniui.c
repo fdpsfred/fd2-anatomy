@@ -817,8 +817,8 @@ void fd2_cinematic_warp_char_to_tile(uint32 char_id, uint32 tile_x, uint32 tile_
  *   Hold:      fd2_delay_ms(400)  (400ms at peak brightness)
  *   Fade DOWN: brightness 0x3E..0  (63 steps, 8ms each = 504ms)
  *
- * Total duration ~1.4s. Used for celebratory / dramatic moments
- * (level-up flash, victory, ch29/ch30 endgame transitions).
+ * Total duration ~1.4s. Used for dramatic endgame transitions;
+ * all 7 call sites are in the ch29/ch30 endgame cinematics.
  *
  * Cdecl, no params, void return. EBX is the loop counter (callee-saved).
  * The binary's __CHK(0x14) stack-probe prologue is compiler-generated
