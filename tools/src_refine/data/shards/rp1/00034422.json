@@ -1,0 +1,46 @@
+{
+  "address": "00034422",
+  "name_current": "fd2_chapter_event_handler_06__ch2_reinforcement",
+  "name_final": "fd2_chapter_event_handler_06__ch2_reinforcement",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>. The '06' is the dispatch-table index (domain ID), confirmed from the per-event handler table at 0x51B91: the DATA xref is at 0x51ba9 = base 0x51b91 + 0x18, and 0x18/4 = idx 6; the 4-byte slot there reads 22 44 03 00 = 0x00034422 (self). 'ch2_reinforcement' matches the chapter-2 event (walkthrough: at the end of player turn 3 six bandit reinforcements appear from the top), and the body arms exactly 6 runtime-char slots (5..0xA). No Ghidra address residue in the name (0x34422 absent).",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter-2 reinforcement turn-event handler (dispatch idx 0x06 in the per-event handler table at 0x51B91): plays the turn-3 reinforcement cinematic and arms 6 enemy reinforcements with an AI behaviour pair.",
+  "logic_summary": "Straight-line cinematic followed by one bounded loop. Pans camera to world (9,1), ~100ms hold; brackets a portrait-set-3 reload with data_fd2_chapter_init_phase_flag=1/0 so it is treated as an init-phase load; triggers cutscene event 0xD, ~200ms hold, shows dialog page 4 (fixed geometry); then for runtime-char slots i=5..0xA sets combat_aux_block[0xE]=0x1A and combat_aux_block[0xF]=0x0F (the AI behaviour pair for the 6 reinforcement enemies). No RNG, no return value consumed. event_arg is ignored. __CHK(0x2C) stack-probe prologue is compiler-injected.",
+  "signature": "void __cdecl fd2_chapter_event_handler_06__ch2_reinforcement(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform 1-arg cdecl dispatch argument from the per-event handler table at 0x51B91; never read by this handler's body (turn-event slot, not a tile-step slot). Storage Stack[0x4]:4.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately reflects the uniform dispatch arg and matches sibling handlers in the same file; no address residue, not param_1."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text",
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_init_phase_flag",
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decompile + domain KB cross-checked. Chapter-2 walkthrough (fd2-knowledge: '第三回合己方結束時，六名強盜援軍出現在上方') confirms 6 reinforcements at player turn-3 end, matching the loop arming slots 5..0xA (6 chars). reads_globals/writes_globals: data_fd2_battle_runtime_char_array_ptr is the base pointer (read each iteration) and the array elements it points to are written. Ghidra signature shows param_count=1 (event_arg); decompile's in_stack_00000000/in_stack_00000008 are __CHK stack-probe artifacts, not real params; no stack locals (loop var i is a register temp). Ghidra plate fully and correctly describes the behaviour; its 'No params' shorthand means no param is read and is not contradictory with the src text, so plate left unchanged per rules. src comment block (lines 323-363) already precise/accurate/ASCII with chapter_02.md SOT cite; kept verbatim, no Edit needed."
+}
