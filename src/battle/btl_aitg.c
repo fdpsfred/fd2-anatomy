@@ -44,8 +44,21 @@ int fd2_tally_chars_with_zero_at_field(int len, uint32 char_idx_arr,
 /* ----------------------------------------------------------------
  * fd2_find_tile_with_attribute_match @ 0x15DF3
  *
- * Find first event-type-1 tile with secondary_attr == target_tag.
- * Writes x,y to out_pos[0..1] as bytes. Returns 0 or -1.
+ * Scan the battle map (row-major, y outer / x inner) for the first
+ * event-type-1 tile carrying the given tag, and report its position.
+ *
+ * Per-tile fd2_read_tile_attribute_at_pos fills tile_buf: [+2] is the
+ * tile's 5-bit terrain_class (used here as the event-tile tag), [+4]
+ * is attribute-flags byte 0. A tile matches when
+ *   (attr_flags & 0x60) == 0x20   (event tile type 1) AND
+ *   terrain_class == target_tag.
+ * On match: out_pos[0]=x, out_pos[1]=y (as bytes); returns 0.
+ * Returns -1 if no tile matches.
+ *
+ * Sole caller: fd2_enemy_turn_action_dispatcher AI class 5 (item
+ * pickup). target_tag is the char's AI event-target id
+ * (pAi_target_and_DX_block[0]), which also indexes the tile-event
+ * data table; the dispatcher then walks to the found tile to grab it.
  * ---------------------------------------------------------------- */
 int fd2_find_tile_with_attribute_match(uint32 target_tag, uint32 out_pos)
 {
