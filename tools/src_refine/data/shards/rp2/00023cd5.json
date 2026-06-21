@@ -1,0 +1,40 @@
+{
+  "address": "00023cd5",
+  "name_current": "fd2_chapter_18_end",
+  "name_final": "fd2_chapter_18_end",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (chapter end handler). '18' is a meaningful chapter ID (chapters 01-30), not an address residue; body matches a chapter-18 end handler (recruits char 0x15 約拿 / char 7 蘭斯洛特, fires cutscene events 0x38-0x3A, advances chapter id). Name correctly reflects purpose and logic.",
+  "kind": "function",
+  "home": "src/field/chend1.c",
+  "purpose": "Chapter 18「遙遠的彼岸」end handler: stages the post-battle scene, plays the closing dialog/cutscene sequence, recruits 約拿 and 蘭斯洛特, then advances the current-chapter id.",
+  "logic_summary": "Copies three 17-byte scene tables (post-battle X/Y/facing @ 0x521C3/0x521D4/0x521E5) onto on-stack placement blocks, persists the party up front via fd2_save_runtime_char_to_template(), then stages the scene via fd2_setup_chars_and_camera_for_intro (place chars 0..0x10, extra char 0x11 at (0x19,8) facing 1, camera origin (0x12,4)). Plays the closing cutscene interleaving dialog pages with cutscene events: dialog page 7 + battle_anim_phase=0 + cutscene 0x38; page 8 + 0x39; page 9 + 0x3A; page 10 (no trailing event). Recruits char #21 (約拿, id 0x15) and char #7 (蘭斯洛特, id 7) via fd2_init_runtime_char_from_base_growth, then current_chapter_id += 1. Self-contained in the binary (no fall-through / jump-into-middle sharing). The __CHK(0x74,...) at entry is the Watcom stack-overflow-check prologue, not a real parameter.",
+  "signature": "void __cdecl fd2_chapter_18_end(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effects are scene setup, dialog/cutscene playback, two recruits, and incrementing data_fd2_chapter_current_chapter_id."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_ch18_end_scene_char_pos_x_table",
+    "data_fd2_chapter_ch18_end_scene_char_pos_y_table",
+    "data_fd2_chapter_ch18_end_scene_char_facing_table",
+    "data_fd2_current_chapter_text",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_anim_phase",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Existing src comment block (chend1.c lines 783-850) is already precise, accurate, and ASCII-clean (CJK proper nouns retained as allowed); verified against decompile (17-byte table copies = 4 dwords + 1 byte; save-up-front ordering; setup args 0,0x10,0x11,0x19,8,1,0x12,4; dialog pages 7/8/9/10 with events 0x38/0x39/0x3A; recruits 0x15 and 7), so kept verbatim with no Edit. Ghidra plate matches the same understanding -> left untouched. No direct callers; dispatched via the chapter-end pointer table -- slot @ 0x51E2D contains d53c0200 = 0x00023cd5 (verified). 約拿 confirmed as a real character via fd2-knowledge."
+}
