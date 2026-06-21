@@ -1,0 +1,40 @@
+{
+  "address": "00035487",
+  "name_current": "fd2_chapter_event_handler_38__ch25_dialog_with_state",
+  "name_final": "fd2_chapter_event_handler_38__ch25_dialog_with_state",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>. '38' is the dispatch index (0x38) into the per-event handler table @ 0x51B91 -- a meaningful event-slot domain ID (table entry @ 0x51C71 = 0x35487, confirmed by reading table bytes; (0x51C71-0x51B91)/4 = 0x38), NOT a Ghidra address residue. 'ch25' is the chapter ID. Descriptor 'dialog_with_state' matches the body: pan/window + portrait load + cutscene trigger + dialog page 5 + reset facing. Name accurately reflects purpose and logic.",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Chapter event handler dispatched via idx 0x38 of the per-event handler table @ 0x51B91; the chapter-25 turn-6 establishing/dialog scene (player reinforcements arrive from the south at the start of turn 6).",
+  "logic_summary": "Linear, no-branch handler. __CHK(0x28) stack-frame check, then: fd2_pan_cursor_and_window(6, 0x28) -> fd2_load_chapter_portraits_and_dump_tmp(1) (portrait set 1) -> fd2_cutscene_event_trigger(0x4A) -> fd2_display_dialog_scene(data_fd2_current_chapter_text, page=5, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1) -> tail-call fd2_clear_all_chars_facing (binary: JMP 0x134E4, a size-optimisation tail-merge). Does not read its arg.",
+  "signature": "void __cdecl fd2_chapter_event_handler_38__ch25_dialog_with_state(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Dispatch-table ABI arg (1-arg cdecl void fn(uint event_arg)). This handler is a turn-event slot and does NOT read the arg (decompiler shows (void)event_arg; disasm has no [ESP+..] arg read). Name matches every sibling handler's dispatch-ABI param in this file.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Generic but accurate for the shared dispatch ABI; no address residue; consistent with sibling handlers. The arg is unused here so a more specific name would be misleading."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; ends with a tail-JMP into fd2_clear_all_chars_facing."
+  },
+  "reads_globals": ["data_fd2_current_chapter_text"],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified against binary: disasm at 0x35487 matches src body and plate exactly (PUSH 6/0x28 pan, PUSH 1 portrait load, PUSH 0x4A cutscene, 9-arg dialog page=5 with PUSH dword ptr [0x53A79] = data_fd2_current_chapter_text, JMP 0x134E4 tail-call). globals.h line 191 confirms data_fd2_current_chapter_text @ 0x53A79. Chapter-25 guide (fd2-knowledge) confirms turn-6 reinforcement-from-south scene. Dispatch idx 0x38 confirmed by table bytes at 0x51C71. Comment block (src lines 419-447) already precise/ASCII/correct -> no edit. Plate consistent with src -> not touched."
+}
