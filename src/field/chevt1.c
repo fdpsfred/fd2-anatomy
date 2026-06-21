@@ -1044,19 +1044,19 @@ void fd2_show_chapter_intro_text_dialog_mode_3(void)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_19__ch7_first_time @ 0x34924
- *   — Chapter 7 turn-event slot 0 (triggered at turn 10 / phase 0),
+ *   -- Chapter 7 turn-event slot 0 (triggered at turn 10 / phase 0),
  *     dispatched as idx 0x19 of the per-event handler table at 0x51B91.
  *
  * A first-time-gated SECOND-STAGE beat: unlike the first-time handlers
  * whose gate fires while their slot is still 0, this one runs only AFTER
  * a prior event (tile-event slot 0x10) has been consumed (its byte set to
- * 1) — i.e. it is the second half of a two-stage trigger. Once it fires it
+ * 1) -- i.e. it is the second half of a two-stage trigger. Once it fires it
  * consumes its OWN slot (byte [0x11] set to 1), so it runs at most once.
  *
- * When the gate passes its single beat is: portrait set 2 reloads —
+ * When the gate passes its single beat is: portrait set 2 reloads --
  * bracketed by setting data_fd2_chapter_init_phase_flag to 1 before the
  * reload and back to 0 after, so the reload is treated as an "init phase"
- * load — the camera pans to world (0x10, 10), cutscene event 0x1E plays,
+ * load -- the camera pans to world (0x10, 10), cutscene event 0x1E plays,
  * dialog page 2 is shown, and finally tile-event slot 0x11 is consumed.
  *
  * void __cdecl(uint event_arg) per the dispatch table at 0x51B91

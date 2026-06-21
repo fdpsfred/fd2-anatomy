@@ -1,0 +1,46 @@
+{
+  "address": "00034924",
+  "name_current": "fd2_chapter_event_handler_19__ch7_first_time",
+  "name_final": "fd2_chapter_event_handler_19__ch7_first_time",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>. Suffix components are all semantic domain IDs, not address residue: '19' is the per-event handler dispatch index 0x19 (xref confirms entry at table base 0x51B91 + 0x19*4 = 0x51BF5); 'ch7' is chapter 7; 'first_time' is the event category (matches the sibling handlers' category suffixes, e.g. 0x1A is _char_cond). Body matches name: it is the ch7 turn-event handler dispatched at idx 0x19. No hex equal to its own/any data address. Name is consistent with the whole chapter_event_handler family.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter 7 turn-event handler (dispatch idx 0x19): a first-time-gated second-stage beat that, only after tile-event slot 0x10 was consumed, reloads portrait set 2, pans the camera, plays cutscene 0x1E, shows dialog page 2, then consumes its own slot 0x11 (runs at most once).",
+  "logic_summary": "Gate: if tile_event_consumed_flags[0x10] == 1 (a prior event -- handler 0x1A -- already consumed slot 0x10). When the gate passes: set data_fd2_chapter_init_phase_flag=1, call fd2_load_chapter_portraits_and_dump_tmp(2) (portrait set 2), set data_fd2_chapter_init_phase_flag=0 (bracketing the reload as an init-phase load), fd2_pan_cursor_and_window(0x10,10), fd2_cutscene_event_trigger(0x1E), fd2_display_dialog_scene(current_chapter_text, page=2, 0xA0000,0x140,0xCD,0x4C,0x4A,0x13,1), then write tile_event_consumed_flags[0x11]=1 to consume its own slot. Single branch (the slot-0x10 gate); no RNG, no numeric computation, no use of any CALL return value. __CHK(0x28) stack-probe prologue is compiler-injected.",
+  "signature": "void __cdecl fd2_chapter_event_handler_19__ch7_first_time(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform dispatch argument passed by the per-event handler table at 0x51B91 (all slots are 1-arg cdecl). This turn-event handler never reads it (cast to void in src). Distinct from tile-step handlers (e.g. 0x1A) which read the same slot as the stepping char id.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive of its role as the unread uniform dispatch arg; not a param_1 placeholder and carries no address residue. Body genuinely ignores it, so the generic 'event_arg' is the correct name (a more specific name would mis-imply it is consumed)."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; performs side effects only when the slot-0x10 gate passes."
+  },
+  "reads_globals": [
+    "data_fd2_field_map_tile_event_consumed_flags_ptr (base of 0x20-byte tile-event consumed-flags block; gate reads byte [0x10])",
+    "data_fd2_current_chapter_text (passed to fd2_display_dialog_scene)"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_init_phase_flag (set to 1 then 0 to bracket the portrait reload as an init-phase load)",
+    "data_fd2_field_map_tile_event_consumed_flags_ptr[0x11] (own consumed flag set to 1)"
+  ],
+  "comment_original_issue": "Comment block content was accurate and well-scoped, but contained four em-dash characters ('—') in the prose (lines 1047, 1053, 1056, 1059), violating the ASCII-only rule for code comments.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "0b3b282fa4ee5aabeb02ab82bab6ba8f6a8baa4d",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Two-stage relationship confirmed by decompiling sibling handler 0x1A @ 0x3499B: handler 0x1A consumes slot 0x10 when a non-enemy steps on the trigger tile, and only then does this handler 0x19 fire and consume slot 0x11. Ghidra plate already matches the refined src understanding (both describe the slot-0x10 gate, portrait set 2 bracketed by init_phase_flag, pan, cutscene 0x1E, dialog page 2, consume slot 0x11), so plate left untouched. comment_verdict=rewrite reflects only the em-dash->'--' ASCII fix; no semantic change to the comment. No logic/type/signature changes made."
+}
