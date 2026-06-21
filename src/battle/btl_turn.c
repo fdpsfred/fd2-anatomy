@@ -11,9 +11,24 @@
 /* ----------------------------------------------------------------
  * fd2_tick_status_effects_and_show_messages @ 0x1A866
  *
- * End-of-turn status effect ticker. Two passes:
- *   Pass 1: poison damage (10% max HP) with dialog + death check
- *   Pass 2: timer-status countdown (slots 0..5) with removal dialog
+ * End-of-turn status effect ticker for one team. Called from
+ * fd2_run_full_turn_cycle at three points: team==1 (end of player
+ * turn), team==0 (enemy turn intro), team==2 (new player turn).
+ * Only alive chars whose bTeam == team are processed.
+ *
+ * Pass 1 -- poison: if status byte at +0x25 is non-zero, deal
+ *   damage = HP_max/10, clamp HP to >=0, stash damage in the dialog
+ *   value placeholder (text 0x1E7 "poisoned for N HP"), pan/show/wait.
+ * Between passes: fd2_play_death_animation_and_mark_dead() handles
+ *   anyone the poison just killed, then the per-chapter post-action
+ *   hook for the current chapter runs.
+ * Pass 2 -- timer countdown: status bytes at +0x22..+0x27 (6 slots,
+ *   poison's own slot +0x25 included). Each non-zero slot decrements;
+ *   on reaching 0 show removal dialog (text 0x1E1+slot) and
+ *   fd2_recalculate_combat_stats() to drop the expired modifier.
+ *
+ * Note: HP_max/10 is an unsigned widen of a uint16, so the division
+ * is non-negative -- equivalent to the original signed IDIV.
  * ---------------------------------------------------------------- */
 void fd2_tick_status_effects_and_show_messages(uint32 team)
 {
