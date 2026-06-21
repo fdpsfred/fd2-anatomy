@@ -539,7 +539,20 @@ void fd2_read_tile_attribute_at_pos(uint32 world_x, uint32 world_y,
 /* ----------------------------------------------------------------
  * fd2_recompute_runtime_char_total_stats @ 0x1145A  (2 callers)
  *
- * Sums base + equipped-item boosts. Operates on menu roster buffer.
+ * Re-derive a menu/roster slot's equip-adjusted combat aggregates.
+ * Operates on the menu roster buffer (roster_buffer_ptr + slot_idx *
+ * 0x50), not the active battle array.
+ *
+ * Seeds AP/DP/DX from the slot's per-level base fields (+0x37/+0x39/
+ * +0x3E); the 4th total (evade/defender-DX) starts equal to DX. Then
+ * for each of the 8 inventory slots whose flag byte has bit 0x40
+ * (equipped), adds that item's AP/HT/DP/EV boosts. Writes the four
+ * totals back to +0x48 (AP) / +0x4A (DP) / +0x4C (DX) / +0x4E (evade).
+ *
+ * Item-effect entry fields (offsets off fd2_get_item_effect_entry
+ * pointer): +1 AP, +3 HT(->DX), +5 DP, +7 EV(->evade), all s16.
+ *
+ * Twin of fd2_recalculate_combat_stats (battle-array version below).
  * ---------------------------------------------------------------- */
 void fd2_recompute_runtime_char_total_stats(uint32 slot_idx)
 {
