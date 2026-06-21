@@ -603,10 +603,10 @@ void fd2_play_death_animation_and_mark_dead(void)
  *         + floating_damage_x_offset_queue[fx_iter]
  *         + (y_offset_table[fx_iter % 4 + frame] - 3) * 0x1C8
  *     fd2_blit_sprite_with_decoded_pixels(dst, sprite_addr, 0x1C8)
- *   flush composite to the mode13h primary; delay 2 BIOS ticks.
+ *   flush composite to the mode13h primary; fd2_delay_ms(2) (~2ms pacing).
  *
- * End: free the snapshot, a ~500ms settle delay, then tail-jump to the
- * shared epilogue (reproduced as the function return).
+ * End: free the snapshot, fd2_delay_ms(500) (~500ms settle), then tail-jump
+ * to the shared epilogue (reproduced as the function return).
  * ---------------------------------------------------------------- */
 void fd2_animate_spell_projectile_paths(void)
 {
