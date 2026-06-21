@@ -1423,7 +1423,10 @@ uint8 data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[5];
  * data_fd2_battle_summon_anim_variant_c_angle_accumulator @ 0x54095
  *
  * Ring-radius accumulator for the variant-C 5-slot radial summon
- * animation, runtime state. Zero-initialized (BSS): the host tick
+ * animation, runtime state. In the radial-blit phase (state 1/2/7/8)
+ * it is the radius multiplier fed into the per-slot cos/sin position
+ * compute: x_coord[i] = sweep + acc*cos(angle), y_coord[i] =
+ * acc*sin(angle)*1.2 + 30. Zero-initialized (BSS): the host tick
  * fd2_tick_summon_anim_variant_c_5slot_radial writes it to 0 in the
  * state-0 INIT phase before any read, then ramps it +6 (state 2,
  * open ring) / -6 (state 8, close ring), and resets it to 0x2A in
