@@ -1,0 +1,44 @@
+{
+  "address": "0x00020707",
+  "name_current": "fd2_chapter_10_post_action",
+  "name_final": "fd2_chapter_10_post_action",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>. 'chapter_10' is a real chapter ID (1-30 are meaningful domain IDs, not address residue); 'post_action' accurately names this as a per-chapter turn-cycle post-action handler. No Ghidra address residue. Name matches role: dispatched via data_fd2_chapter_post_action_handler_table[9] @ 0x51B19 and matches the sibling naming pattern in chpost.c.",
+  "kind": "function",
+  "home": "src/field/chpost.c",
+  "purpose": "Chapter 10 turn-cycle post-action handler: runs the default battle win/lose check, then forces game-over if either of the two escort NPCs (runtime_char slots 0x32, 0x33) has died.",
+  "logic_summary": "Calls fd2_check_battle_end_condition() (default win/lose). Then tests fd2_check_char_is_dead(0x32) and, only if that slot is alive, fd2_check_char_is_dead(0x33). If both are alive, returns (leaving the default flag intact). If either is dead, sets data_fd2_chapter_event_or_battle_end_code @ 0x53ECC = 1 (game over). The OR short-circuits: slot 0x33 is only queried when slot 0x32 is alive.",
+  "signature": "void __cdecl fd2_chapter_10_post_action(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "The cdecl argument the dispatch site (fd2_game_main_loop) pushes when invoking handler-table entries = the active char_idx. This handler ignores it; cast to (void) in src. Watcom __CHK prologue also touches it.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Not an address residue and not misleading: it correctly denotes the single arg supplied at the dispatch site. Uniformly named 'event_arg' across all sibling handlers in chpost.c; renaming this one alone would break family consistency for an arg the body never uses."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effect is the possible write of data_fd2_chapter_event_or_battle_end_code @ 0x53ECC = 1."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr (slots 0x32 and 0x33 .bFlags bit0, via fd2_check_char_is_dead)"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_event_or_battle_end_code @ 0x53ECC (set to 1 on lose condition)"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "067a49665ffdb1aa541137719449d9e7abfe41b2",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment block (chpost.c lines 45-60) was already accurate, precise and ASCII; kept as-is. Ghidra plate was updated only to replace stale placeholder symbol names (game_event_flag / runtime_char[..] / per_chapter_post_action_handler[9]) with the settled src symbol names (data_fd2_chapter_event_or_battle_end_code / data_fd2_chapter_post_action_handler_table) and to note the cdecl arg = active char_idx pushed by fd2_game_main_loop; semantics unchanged. Dispatch confirmed: table @ 0x51B19 entry [9] = bytes 07 07 02 00 = 0x00020707; fd2_game_main_loop calls (*table[current_chapter_id])() pushing ESI=char_idx. No logic changes made (refine-only)."
+}
