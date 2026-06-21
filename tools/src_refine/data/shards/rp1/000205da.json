@@ -1,0 +1,44 @@
+{
+  "address": "0x000205da",
+  "name_current": "fd2_init_battle_state_for_chapter",
+  "name_final": "fd2_init_battle_state_for_chapter",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; accurately describes initializing the battle/field state for the chapter currently selected in data_fd2_chapter_current_chapter_id (clear flags, load chapter battle data, zero viewport/cursor, first paint, fade-in, turn=1). No Ghidra address residue. 'for_chapter' is apt because the routine acts on whatever chapter id is currently loaded and is re-invoked on each sub-map transition within a chapter.",
+  "kind": "function",
+  "home": "src/battle/btl_init.c",
+  "purpose": "Initialize the battle/field state for the chapter currently in data_fd2_chapter_current_chapter_id: lock the UI during setup, clear the game-over/battle-end code, load this chapter's tile map + spawn data, mark all tile events fresh, reset the view window and cursor to the origin, paint the first frame, fade the freshly composited scene in from black, reset the turn counter to 1, and flush the keyboard buffer.",
+  "logic_summary": "data_fd2_battle_anim_phase=0 (UI lockout during init). data_fd2_chapter_event_or_battle_end_code=0 (clear game-over/end code). fd2_load_chapter_battle_data(data_fd2_chapter_current_chapter_id) loads the tile map + spawn data for the currently selected chapter id. memset(data_fd2_field_map_tile_event_consumed_flags_ptr, 0, 0x20) zeros the 32-byte tile-event-consumed bitmap so every map event is fresh. Reset the six viewport/cursor scalars to 0: view_window_origin_x/y, cursor_world_x/y, cursor_screen_x/y. fd2_composite_battle_frame(1) renders the first frame. data_fd2_battle_anim_phase=1 (UI ready). fd2_play_palette_fade_in() reveals the composited scene from black. data_fd2_battle_turn_counter=1 (start on turn 1). fd2_wrapper_clear_keyboard_buffer() flushes pending input (tail JMP 0x17ee8 in the binary). Straight-line, single basic block, cyclomatic complexity 1.",
+  "signature": "void __cdecl fd2_init_battle_state_for_chapter(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Visible effects are the global-state writes (anim phase, end code, tile-event flags, viewport/cursor scalars, turn counter), the loaded chapter battle data, and the composited+faded-in first frame."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_current_chapter_id",
+    "data_fd2_field_map_tile_event_consumed_flags_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_anim_phase",
+    "data_fd2_chapter_event_or_battle_end_code",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y",
+    "data_fd2_battle_cursor_world_x",
+    "data_fd2_battle_cursor_world_y",
+    "data_fd2_battle_cursor_screen_x",
+    "data_fd2_battle_cursor_screen_y",
+    "data_fd2_battle_turn_counter"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "void(void) function; params=[]. Name kept: fd2_init_battle_state_for_chapter matches fd2_<domain>_<descriptor> and the verified behavior; no address residue. The src comment block (btl_init.c lines 13-18) is already accurate, ASCII-clean, and concise (clear flags / load battle data / zero viewport+cursor / first paint / fade in), so it was left untouched (comment_verdict=keep) and only the shard was staged. The Ghidra plate is more detailed (lists each global by old DAT_ name with inline rationale) but is fully consistent with the decompilation and the src comment -- not contradictory, outdated, nor empty -- so the plate was left as-is (ghidra_plate_action=none). Decompilation, disassembly, and src agree operation-for-operation; no equivalence concerns, issues=[]. __CHK(0x14,...) is the compiler-injected stack-frame probe, not source logic, correctly omitted from src. reads_globals: current_chapter_id (passed to fd2_load_chapter_battle_data) and the tile-event-flags pointer (its value is the memset dest; the pointer global itself is read, the 32-byte buffer it points to is written). writes_globals lists the scalar globals assigned directly; the tile-event buffer write goes through the pointer and is not a write to a named scalar global. Plate prose says 'clear_keyboard_buffer' which is a behavioral description; the actual tail-call callee is fd2_wrapper_clear_keyboard_buffer @ 0x17ee8 -- not a contradiction. Called from all 26 chapter_NN_init handlers (chapters with battle maps); chapter_01_init calls it 3x as it walks its prologue sub-maps 0x20 -> 0x1F -> 0. Note the src calls the keyboard-flush as fd2_clear_keyboard_buffer while Ghidra's callee is named fd2_wrapper_clear_keyboard_buffer -- that callee-name divergence is out of scope for this symbol (it is the callee's name, not this function's); left for whoever owns 0x17ee8."
+}
