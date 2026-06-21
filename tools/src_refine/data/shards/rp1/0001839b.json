@@ -1,0 +1,56 @@
+{
+  "address": "0001839b",
+  "name_current": "fd2_slide_panel_up_partial_step",
+  "name_final": "fd2_slide_panel_up_partial_step",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; no address residue. Accurately describes behavior: copies a partial vertical slice of the middle status panel into the workspace at a given y_offset, one step of the multi-frame slide-up animation (panel ascends as y_offset decreases across frames). Consistent with sibling fd2_slide_panel_down_step in the same file.",
+  "kind": "function",
+  "home": "src/anim/aniwalk.c",
+  "purpose": "Copy up to 102 (0x66) status-panel rows from src_buffer into dst_workspace starting at vertical position y_offset, clipping at screen bottom (row 200); one frame's worth of the middle-panel vertical slide.",
+  "logic_summary": "row_count = 0x66; if y_offset + 0x66 would extend past screen row 199, clip row_count to 200 - y_offset. For each row 0..row_count-1: memmove(dst_workspace + 5 + (y_offset+row)*0x140, src_buffer + 0x7585 + row*0x140, 0x136). Dst and src row stride = 0x140 (320-px mode13h pitch); 0x136 (310) bytes copied per row (5-px left margin + 5-px right margin trimmed); source panel data lives at fixed offset 0x7585 within src_buffer.",
+  "signature": "void __cdecl fd2_slide_panel_up_partial_step(uint y_offset, uint dst_workspace, uint src_buffer)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Vertical (y) start offset in pixels for the destination panel rows; caller passes frame_idx*0x10 + 0x5E so the panel rises by 0x10 px per frame as frame_idx decreases.",
+      "verdict": "rename",
+      "proposed": "y_offset",
+      "reason": "Generic param_1 in live Ghidra; src already uses y_offset. Describes the vertical destination start position."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "Linear address of the destination composite workspace (320x200 mode13h render buffer); rows written at +5 x-margin.",
+      "verdict": "rename",
+      "proposed": "dst_workspace",
+      "reason": "Generic param_2 in live Ghidra; src already uses dst_workspace. It is the destination render buffer."
+    },
+    {
+      "name": "param_3",
+      "type": "uint",
+      "semantics": "Linear base address of the source buffer holding the panel sprite bitmap; the middle-panel rows are read from base + 0x7585.",
+      "verdict": "rename",
+      "proposed": "src_buffer",
+      "reason": "Generic param_3 in live Ghidra; src already uses src_buffer. It is the source panel bitmap buffer."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; renders directly into dst_workspace."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decompiled `199 < (int)(y_offset + 0x66)` and src `(int)(y_offset + 0x66) >= 200` are equivalent (x > 199 == x >= 200); not a logic issue. No globals read/written (all data flows via the three pointer params). Both callers (fd2_open_char_status_screen intro/outro loops, fd2_play_status_screen_outro_step) confirm param_1=y_offset, param_2=dst workspace, param_3=src panel buffer, all passing y = frame*0x10 + 0x5E. src comment block is terse and accurate; plate is more detailed; the two are consistent so neither changed. Param renames deferred to Stage 2 (touch protos.h + call sites)."
+}
