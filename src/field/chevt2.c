@@ -485,9 +485,13 @@ void fd2_chapter_event_handler_39__ch26_cinematic(uint32 event_arg)
  * Dispatch-table signature is 1-arg cdecl (the stepping char id under the
  * tile-step ABI); this handler uses it as the pickup recipient.
  *
- * Effect: tile-pickup — copy the inline 5-byte item-id lookup table (from
+ * Effect: tile-pickup -- copy the inline 5-byte item-id lookup table (from
  * 0x5274E: { 0x1D, 0x2B, 0x33, 0x3D, 0x47 }, indexed by tile terrain class)
  * into a local, clear the keyboard buffer, load the stepping char's portrait.
+ * The 5 ids are the five class-best ultimate weapons -- 0x1D 戰神戟 (knight),
+ * 0x2B 魔神斧 (warrior), 0x33 風神弓 (archer), 0x3D 光之杖 (priest),
+ * 0x47 魔龍爪 (samurai) -- so terrain class picks which line's ultimate weapon
+ * the tile hands out.
  * If the char's inventory is full (8 usable slots) show the "inventory full"
  * dialog page 0x1E0 and slide the status screen back out. Otherwise read the
  * cursor tile's attribute, take its terrain-class byte as the table index,

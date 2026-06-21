@@ -1,0 +1,58 @@
+{
+  "address": "000354fe",
+  "name_current": "fd2_chapter_event_handler_3a__unref_pickup",
+  "name_final": "fd2_chapter_event_handler_3a__unref_pickup",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor>. '_3a' is the per-event handler-table dispatch index (0x3A) from the table at 0x51B91, with the slot at 0x51C79 holding this function's address (the sole xref). That is a meaningful domain ID, not Ghidra address residue (0x3A is neither this function's address 0x354FE nor any referenced data address). '__unref_pickup' descriptor reflects that the only xref is the DATA table slot (no chapter FDFIELD tile-step / turn-event hook references it -> unreferenced/cut content) and that the body performs an item pickup at the cursor tile. No address residue anywhere in the name.",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Unreferenced chapter event-handler slot 0x3A: give the stepping char a class-best ultimate weapon picked from a 5-entry table by the cursor tile's terrain class (or show 'inventory full' if no slot).",
+  "logic_summary": "Copies the inline 5-byte item-id lookup table data_fd2_chapter_event_handler_3a_pickup_item_id_table_inline (0x5274E = {0x1D,0x2B,0x33,0x3D,0x47}, the five class-best ultimate weapons) onto the stack, clears the keyboard buffer, and loads the stepping char's portrait. If fd2_count_usable_inventory_slots(stepping_char_id) == 8 (inventory full): show fd2_display_dialog_scene(all_game_text, page=0x1E0, 0xA9F23, ...) 'inventory full', paint portrait, wait for input, slide status screen out. Otherwise: read the cursor tile attribute via fd2_read_tile_attribute_at_pos(cursor_world_x, cursor_world_y, &buf), take buf[2] (low byte of the +2 ushort terrain_class field) as the table index, publish data_fd2_dialog_last_action_sprite_id_param = table[idx] + 0xB5 (the picked-up item sprite), show page 0x1A6 'you got [item]', paint portrait, wait, grant the item via fd2_add_item_to_inventory(stepping_char_id, table[idx]), slide status screen out, set all 5 tile_event_consumed_flags[0..4] = 1 (broad lockout), then fd2_tick_tile_event_animations. Renders against data_fd2_all_game_text_ptr + 0xA9F23 (shop/battle item text scope), unlike the data_fd2_current_chapter_text chapter-dialog handlers in this file. __CHK frame 0x44, cyclomatic complexity 3, 8 basic blocks.",
+  "signature": "void __cdecl fd2_chapter_event_handler_3a__unref_pickup(uint32 stepping_char_id)",
+  "params": [
+    {
+      "name": "stepping_char_id",
+      "type": "uint32",
+      "semantics": "Tile-step ABI arg (the stepping char id). Used three ways: index into data_fd2_battle_runtime_char_array_ptr to load the char's portrait, as the char whose inventory is queried (fd2_count_usable_inventory_slots) and credited (fd2_add_item_to_inventory). Selects which runtime char picks up the weapon.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the dispatch-table tile-step ABI argument and matches its body usage as the pickup recipient. No address residue, not a generic param_N."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Both branches converge on the shared ADD ESP,0x10 / POP EDI/ESI/EBX / RET epilogue at 0x3563A."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_event_handler_3a_pickup_item_id_table_inline (0x5274E, inline 5-byte item-id lookup table {0x1D,0x2B,0x33,0x3D,0x47} = class-best ultimate weapons)",
+    "data_fd2_battle_runtime_char_array_ptr (0x53A45, runtime char array base; reads [stepping_char_id].portrait_id)",
+    "data_fd2_all_game_text_ptr (0x53A7D, all-game FDTXT pointer passed to fd2_display_dialog_scene)",
+    "data_fd2_battle_cursor_world_x (0x53AB1, cursor tile X for the tile-attribute read)",
+    "data_fd2_battle_cursor_world_y (0x53AB5, cursor tile Y for the tile-attribute read)",
+    "data_fd2_field_map_tile_event_consumed_flags_ptr (0x53AD5, base of the tile-event consumed-flag array; slots 0..4 written)"
+  ],
+  "writes_globals": [
+    "data_fd2_dialog_last_action_sprite_id_param (0x53AD9, set to table[tile_attr] + 0xB5 = picked-up item sprite id for the dialog)",
+    "*(data_fd2_field_map_tile_event_consumed_flags_ptr + 0..4) (sets 5 tile-event consumed flags to 1 on a successful pickup -- broad lockout)"
+  ],
+  "comment_original_issue": "Source comment was already accurate, precise, well-structured and ASCII (table contents, full-inventory branch, terrain-class index, sprite-offset, broad lockout, all_game_text scope, and the OOB-index emit_issues cross-ref all correct). Augmented only to identify the 5 table entries concretely as the five class-best ultimate weapons (0x1D 戰神戟 knight, 0x2B 魔神斧 warrior, 0x33 風神弓 archer, 0x3D 光之杖 priest, 0x47 魔龍爪 samurai), which characterizes the cut feature ('grab a class ultimate weapon') and makes the table semantics concrete. Converted the em-dashes on the edited lines to ASCII '--'.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [
+    {
+      "category": "equivalence",
+      "severity": "low",
+      "title": "Out-of-bounds frame read when terrain class exceeds the 5-entry table",
+      "description": "The handler indexes the 5-byte local item_id_table by tile_attr = tile_read_buf[2], the low byte of the +2 ushort terrain_class field, whose range is 0..0x1F. Only classes 0..4 select a defined table entry; classes 5..0x1F read past item_id_table[5] into adjacent stack-frame bytes. In the binary this is the literal frame read *(byte*)((int)&var_14 + var_1a); the emitted C item_id_table[tile_attr] reads whatever Watcom lays out after the 5-byte array, which is frame-layout dependent and not guaranteed bit-identical for out-of-range indices. Already tracked in tools/code_emit/data/emit_issues.json '000354fe' (type frame_layout_oob_index, severity low) and referenced by the source comment. Recording here for refine traceability; NOT fixing in this stage (it is a cut/unreferenced path -- no chapter FDFIELD hook reaches this slot with live tile data, so classes 0..4 are byte-identical and the OOB case is unreachable in real play).",
+      "evidence": "disasm 0x355AF MOV BL,[ESP+0x2]; 0x355B6 MOVZX EAX,byte ptr [ESP+EAX*0x1+0x8] (frame-relative index past the 5-byte item_id_table). Table = {0x1D,0x2B,0x33,0x3D,0x47} @ 0x5274E (5 entries). Only xref to 0x354FE is the DATA handler-table slot 0x51C79 (no tile-step/turn-event hook). emit_issues.json:756-766."
+    }
+  ],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "0 direct callers (callers query returns none); only xref is the DATA handler-table slot at 0x51C79 (per-event table @ 0x51B91, dispatch idx 0x3A; read_memory confirms slot bytes fe540300 = LE 0x000354FE). Disassembly matches source exactly: inline table @ 0x5274E = {0x1D,0x2B,0x33,0x3D,0x47} (read_memory confirmed); tile_attr = buf[2]; sprite = table[idx]+0xB5 -> [0x53AD9]; consume loop writes 5 flags (CMP EAX,5 / JL). All referenced global symbol names verified present and consistent in src/include/globals.h. Item ids cross-checked against fd2-knowledge: 0x1D 戰神戟 / 0x2B 魔神斧 / 0x33 風神弓 / 0x3D 光之杖 / 0x47 魔龍爪 -- the five class-best ('最強武器') weapons. Ghidra plate is consistent with the refined source understanding (slightly less enriched but not contradictory) -> left unchanged per the 'consistent -> do not touch plate' rule. Name + param both kept (Stage-2 rename not needed)."
+}
