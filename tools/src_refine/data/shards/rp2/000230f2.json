@@ -1,0 +1,39 @@
+{
+  "address": "000230f2",
+  "name_current": "fd2_chapter_03_end",
+  "name_final": "fd2_chapter_03_end",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention. '03' is the meaningful chapter id (chapters 01-30 per the FDFIELD/FDTXT chapter set and the chapter-end dispatch table @ 0x51DE9 slot 2 @ 0x51DF1), not an address residue. Descriptor 'end' correctly marks it as the chapter-end (post-clear) handler, paired with fd2_chapter_03_init @ 0x32E8C.",
+  "kind": "function",
+  "home": "src/field/chend1.c",
+  "purpose": "Chapter 3 (往塞拉村途中) end handler: persists the party, conditionally stages the recruit scene and recruits 劍士鐵諾 if the survivor unit is alive, then advances to the next chapter.",
+  "logic_summary": "Unconditionally copies the three 7-byte chapter-3 end-scene placement tables (X/Y/facing @ 0x520BA/0x520C1/0x520C8) into three on-stack char-placement blocks. Calls fd2_save_runtime_char_to_template() to persist the party. Branches on fd2_check_char_is_dead(6): if survivor runtime char #6 is alive (==0), stages the scene via fd2_setup_chars_and_camera_for_intro (place chars 0..6, no extra char, camera origin (2,0)), shows recruit dialog page 7, and recruits char #2 (劍士鐵諾) via fd2_init_runtime_char_from_base_growth(2); if dead, shows the no-recruit dialog page 6 only. Finally increments data_fd2_chapter_current_chapter_id by 1. The placement tables are read before the branch (matching the binary) but consumed only on the alive/recruit path. Matches walkthrough: 加入: 劍士鐵諾若未死時加入.",
+  "signature": "void __cdecl fd2_chapter_03_end(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effects only (party persisted, scene/dialog staged, optional recruit, current chapter id advanced)."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_ch03_end_scene_char_pos_x_table",
+    "data_fd2_chapter_ch03_end_scene_char_pos_y_table",
+    "data_fd2_chapter_ch03_end_scene_char_facing_table",
+    "data_fd2_current_chapter_text",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "0bf7bc3753e7601923edf19872cea206a8464086",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "No params: __cdecl void; the decompiler's in_stack_* are artifacts of the __CHK stack-probe builtin, not real arguments. Dispatch verified: dword @ 0x51DF1 = f2 30 02 00 = 0x000230f2 (this fn), next slot bc 31 02 00 = fd2_chapter_04_end; table base 0x51DE9 referenced from main @ 0x25E23. Recruit identity confirmed via fd2-knowledge chapter 3 walkthrough (劍士鐵諾 joins if not dead). Source comment and Ghidra plate both accurate and consistent with the binary -> left unchanged. Source for-loop copy of 7 bytes/table is functionally equivalent to the decompiler's unrolled reads of indices [0..6]; no logic discrepancy."
+}
