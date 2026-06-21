@@ -1,0 +1,36 @@
+{
+  "address": "000231bc",
+  "name_current": "fd2_chapter_04_end",
+  "name_final": "fd2_chapter_04_end",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention. '04' is a meaningful chapter ID (chapters 01-30), not an address residue; the function's own address 0x231bc leaves no hex suffix in the name. Descriptor 'chapter_04_end' accurately names the chapter-4 end handler.",
+  "kind": "function",
+  "home": "src/field/chend1.c",
+  "purpose": "Chapter 4 (塞拉村前) end handler: shows the chapter-end dialog page 4, persists the party runtime-char state to the template store, then advances the current-chapter id by 1.",
+  "logic_summary": "Stack-probe (__CHK 0x28), then fd2_display_dialog_scene(data_fd2_current_chapter_text, page=4, 0xa0000,0x140,0xcd,0x4c,0x4a,0x13,1); fd2_save_runtime_char_to_template(); data_fd2_chapter_current_chapter_id += 1 (INC [0x53c03]). Trivial linear body (cyclomatic 1). In the binary it carries three mid-function entry points (+0xA=0x231c6 <- ch09_end; +0x23=0x231df <- ch06_end/ch28_end; +0x36=0x231f2 <- ch11_end/ch19_end) that sibling handlers JMP into; chapter 4 is emitted self-contained (Layer 2 functional equivalence, jump-into-middle sharing not preserved). Dispatched via the chapter-end handler pointer table; slot @ 0x51df5 holds 0x000231bc.",
+  "signature": "void __cdecl fd2_chapter_04_end(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effects = dialog display, party save, current_chapter_id increment."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text (chapter text pointer @ 0x53a79, passed to dialog)",
+    "data_fd2_chapter_current_chapter_id (@ 0x53c03, read for increment)"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_current_chapter_id (@ 0x53c03, += 1)"
+  ],
+  "comment_original_issue": "Source comment was accurate and precise but contained one em-dash (U+2014) on the Layer-2 equivalence line, violating the ASCII-only rule for src .c comments. The Chinese place name 塞拉村前 (chapter title proper noun) is correctly retained.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "ad0820eeee4b63b9fdd26b92343dd44bf161c024",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified body against decompile + disassembly: matches src exactly. xref source 0x51df5 = handler pointer table slot containing LE 0x000231bc; next slot 0x51df9 = 0x000231f9 (fd2_chapter_05_end), confirming table layout. No direct callers (table-dispatched only). Ghidra plate is accurate and consistent with src (documents same body / paired init / post-action / alt-entries); left untouched per 'consistent -> do not touch plate'. Em-dash usage in the Ghidra plate is KB-side and not a src ASCII violation. No logic/equivalence concerns."
+}

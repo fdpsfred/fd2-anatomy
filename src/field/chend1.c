@@ -169,7 +169,7 @@ void fd2_chapter_03_end(void)
  *   0x231F2 (+0x36) <- fd2_chapter_11_end, fd2_chapter_19_end
  * Those handlers replicate the relevant portion of this tail when emitted;
  * chapter 4 itself is emitted as a self-contained function (Layer 2 functional
- * equivalence — the jump-into-middle sharing is not preserved in source).
+ * equivalence -- the jump-into-middle sharing is not preserved in source).
  *
  * Paired init handler: fd2_chapter_04_init @ 0x32FB2.
  * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
