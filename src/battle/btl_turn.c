@@ -115,10 +115,15 @@ int fd2_find_char_at_cursor_pos(void)
 /* ----------------------------------------------------------------
  * fd2_find_char_by_id_or_template @ 0x12C60
  *
- * Locate alive battle char with char_id == target_char_id.
- * Fallback: if no battle match, scan menu party roster for
- * template ptr (for dialog portrait rendering).
- * Side-effect: sets data_fd2_dialog_current_speaker_char_ptr.
+ * Locate alive battle char whose char_id (runtime_char +8) ==
+ * target_char_id; return its slot index, else -1.
+ * Fallback: only when NO battle slot matched the id at all, scan
+ * the menu party roster (stride 0x50) for a template ptr (used for
+ * dialog portrait rendering). A dead battle match still caches its
+ * runtime_char* and suppresses the fallback (returns -1).
+ * Side-effect: always sets data_fd2_dialog_current_speaker_char_ptr
+ * (NULL on no match, runtime_char* on battle id-hit, or roster
+ * template* on the fallback path).
  * ---------------------------------------------------------------- */
 int fd2_find_char_by_id_or_template(uint32 target_char_id)
 {
