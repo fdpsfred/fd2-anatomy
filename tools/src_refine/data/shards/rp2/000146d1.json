@@ -1,0 +1,53 @@
+{
+  "address": "000146d1",
+  "name_current": "fd2_mark_char_occupant_tiles_for_team",
+  "name_final": "fd2_mark_char_occupant_tiles_for_team",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with game-function convention fd2_<domain>_<descriptor>: fd2_ prefix present, descriptor accurately states the action (mark char-occupant tiles for a team). No Ghidra address residue in the name. Reflects the verified body (writes 0xFF into battle_tile_map overlay byte +7 for alive chars of the selected team).",
+  "kind": "function",
+  "home": "src/battle/btl_aitg.c",
+  "purpose": "Mark battle-tile overlay byte +7 = 0xFF at the position of every alive character matching team_selector (skipping exclude_idx), so movement/pathfinding scans treat those tiles as impassable (occupied).",
+  "logic_summary": "Stack-check __CHK(0x10), then iterate i=0..data_fd2_battle_party_member_count-1 over runtime_char records (stride RUNTIME_CHAR_SIZE=0x50) starting at data_fd2_battle_runtime_char_array_ptr. Skip i==exclude_idx and chars with CHARFLAG_DEAD (pChar[5]&1). Team gate: if team_selector==0 act only when pChar[6]==TEAM_ENEMY (==0); else (team_selector!=0) act only when pChar[6]!=TEAM_ENEMY. When gate passes, set *(battle_tile_map_ptr + ((pChar[1]*map_width_tiles + pChar[0]) * 4) + 7) = 0xFF, where pChar[0]=bPos_x, pChar[1]=bPos_y. No return value.",
+  "signature": "void __cdecl fd2_mark_char_occupant_tiles_for_team(uint32 exclude_idx, uint32 team_selector)",
+  "params": [
+    {
+      "name": "exclude_idx",
+      "type": "uint32",
+      "semantics": "Index of the acting character to skip while marking (caster_idx / char_idx passed by all three callers). Used as i != exclude_idx so the actor's own tile is not marked occupied.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name precisely reflects use (the excluded character index) and carries no address residue."
+    },
+    {
+      "name": "team_selector",
+      "type": "uint32",
+      "semantics": "Team polarity selector. 0 -> mark chars with bTeam==0 (TEAM_ENEMY); non-zero -> mark chars with bTeam!=0. Callers pass the battle context flag (ctx/ctx_flag) or literal 1.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately describes the parameter's role (selects which team's chars are marked) and has no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; effect is in-place writes to the battle_tile_map +7 overlay bytes."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_party_member_count",
+    "data_fd2_battle_map_width_tiles",
+    "data_fd2_battle_tile_map_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Polarity note: TEAM_ENEMY is defined as 0 in src/include/consts.h, so 'team_selector==0 marks team 0' equals 'marks pChar[6]==TEAM_ENEMY'. Source comment (btl_aitg.c lines 97-103) uses neutral 'team 0 / team !=0' phrasing which is correct and clearer than tying it to TEAM_ENEMY; left unchanged. Constants verified: RUNTIME_CHAR_SIZE=0x50, CHARFLAG_DEAD=0x01, TEAM_ENEMY=0. global writes_globals empty: the function writes into the buffer pointed to by data_fd2_battle_tile_map_ptr (heap/overlay memory), not into a named global variable itself. No source edits (comment kept, no rename in this stage); plate consistent with refined understanding."
+}
