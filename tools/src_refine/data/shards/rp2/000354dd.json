@@ -1,0 +1,40 @@
+{
+  "address": "000354dd",
+  "name_current": "fd2_chapter_event_handler_39__ch26_cinematic",
+  "name_final": "fd2_chapter_event_handler_39__ch26_cinematic",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>. '_39' is the per-event dispatch-table index (0x39) -- a domain ID, not an address residue (function is at 0x354DD, table entry at 0x51C75; neither equals 0x39). '__ch26' is a meaningful chapter ID (1-30 range). '_cinematic' is the verified category. Name accurately reflects purpose and logic.",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Chapter 26 establishing-shot cinematic event handler: loads a turn-indexed portrait set, pans the camera/window to (9,0), and holds 400ms. No dialog.",
+  "logic_summary": "Stack-check prologue (__CHK, frame 0xC). Calls fd2_load_chapter_portraits_and_dump_tmp(data_fd2_battle_turn_counter) using the RAW turn counter (same convention as ch24 handler_36, NOT the signed /2 used by ch21/ch22 handlers; the portrait set rotates per turn). Pushes pan args Y=0, X=9 then JMPs to the Class-3 shared tail at 0x353C4 (hosted in fd2_chapter_event_handler_36__ch24_cinematic, body 0x3535D-0x353CB): CALL fd2_pan_cursor_and_window; ADD ESP,8; PUSH 0x190; CALL fd2_delay_ms; ADD ESP,4; RET. Source renders the functionally-exact equivalent: portrait load + one pan + 400ms hold. event_arg is unread.",
+  "signature": "void fd2_chapter_event_handler_39__ch26_cinematic(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Dispatch-table event argument passed by the 1-arg cdecl per-event handler ABI. This handler does not read it ((void)event_arg).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the dispatch event argument required by the handler-table calling convention; no address residue; matches the established naming used across sibling chapter event handlers."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value (event handler executed for its visual side effects)."
+  },
+  "reads_globals": ["data_fd2_battle_turn_counter"],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "a490d6e8f99c052467dbc69c55b19da5adf071fc",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (chevt2.c lines 449-477) is already precise, accurate, and matches all verified facts (dispatch idx 0x39, table entry 0x51C75, chapter 26 turn slots, RAW counter vs signed/2 distinction, shared-tail borrow from handler_36 ch24 at 0x353C4, functionally-exact equivalence). Left unchanged. Ghidra plate updated only to replace the stale thunk-level name '__delay_thunk_375b2' with the current real callee names (fd2_delay_ms / fd2_pan_cursor_and_window) and to record the unread cdecl param, keeping the plate consistent with src. Verified: 0x10b4e=fd2_load_chapter_portraits_and_dump_tmp, 0x53bef=data_fd2_battle_turn_counter, 0x353c4 inside fd2_chapter_event_handler_36__ch24_cinematic, data xref at 0x51C75 holds LE 0x000354dd. No logic changed."
+}
