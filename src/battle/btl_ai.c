@@ -63,8 +63,25 @@ void fd2_npc_turn_phase_team1(void)
 /* ----------------------------------------------------------------
  * fd2_enemy_turn_phase_team0 @ 0x1D8BA
  *
- * Two-pass enemy AI: pass 1 lets smart casters (spell/item score
- * >= 6) act first, pass 2 runs everyone else.
+ * Enemy-phase entry point per turn. Two-pass AI over runtime chars
+ * [0 .. party_member_count). Eligibility filter (both passes): team
+ * 0 (TEAM_ENEMY) and (bFlags(+5) & 0x81)==0 (not dead 0x01 / not
+ * acted-this-turn 0x80) and sleep flag(+0x26)==0.
+ *
+ * Pass 1 -- smart casters first: score offensive spell + item; only
+ * if best spell score >= 6 OR best item score >= 6 dispatch the
+ * action now. Low-score chars skip and fall through to pass 2.
+ * Pass 2 -- everyone else: dispatch unconditionally; chars that
+ * already acted in pass 1 are blocked by the 0x80 (acted) bit.
+ *
+ * Shared per-char postlude (both passes): reset consequence index to
+ * 0xFF before acting, then -- if it was set (!=0xFF) -- invoke the
+ * consequence handler (counter/death/status proc), always run the
+ * per-chapter post-action handler, and return early if the chapter
+ * event / battle-end code became non-zero. anim_phase forced to 0
+ * and keyboard buffer flushed each iteration (pass 1 only forces
+ * anim_phase). Mirrors fd2_npc_turn_phase_team1 (team 1) but adds
+ * the caster-priority first pass.
  * ---------------------------------------------------------------- */
 void fd2_enemy_turn_phase_team0(void)
 {
