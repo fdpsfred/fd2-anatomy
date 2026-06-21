@@ -1,0 +1,47 @@
+{
+  "address": "0x000353da",
+  "name_current": "fd2_chapter_event_handler_37__ch25_first_time",
+  "name_final": "fd2_chapter_event_handler_37__ch25_first_time",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows the chapter-event-handler scheme fd2_chapter_event_handler_<idx>__ch<NN>_<category> used by all siblings in chevt2.c (e.g. _38__ch25_dialog_with_state, _27__unref_drop). '37' is the dispatch index into the per-event handler table @ 0x51B91 (entry verified: 0x51B91 + 0x37*4 = 0x51C6D holds 0x000353DA), a domain ID to keep. 'ch25' is the chapter id (domain ID, keep). 'first_time' matches the documented dispatch category 'first-time gated tile-step combat trigger' (the consumed-flag gate). No Ghidra address residue. Domain-knowledge cross-check: ch25 walkthrough has the lord 索爾(Sol=char 0) step onto tile (10,1), fight a 火龍(Fire Dragon=char 0x11), and on kill receive 炎龍劍(item 0x0B) -- exactly this handler's body.",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Chapter 25 lord-only first-time tile-step combat trigger (dispatch idx 0x37). When the lord (char 0) steps on the trigger tile for the first time: show dialog, fight target char 0x11 (the Fire Dragon), and on a confirmed kill mark the tile event consumed and grant the lord the inline battle drop (item id 0x0B = 炎龍劍 / Flame Dragon Sword). Always clears the pending XP credit on exit.",
+  "logic_summary": "Stack-check prologue __CHK(0x34). Copies the inline 3-byte battle-drop entry data_fd2_chapter_event_handler_37_drop_entry_inline {0x00,0x0B,0x00} (type=0 ITEM, value=0x0B item id) from 0x5274B into a local drop_entry[3]. Gate: if event_arg==0 (stepping char is the lord) AND *data_fd2_field_map_tile_event_consumed_flags_ptr==0 (slot 0 not yet consumed): call fd2_display_dialog_scene(data_fd2_current_chapter_text, page 0, 0xA0000,0x140,0xCD,0x4C,0x4A,0x13,1); fd2_play_full_combat_cinematic(0x11, event_arg) -- fight target char 0x11 (in-branch event_arg is provably 0, so lord is defender); fd2_play_death_animation_and_mark_dead(); then if fd2_check_char_is_dead(0x11)!=0 (combat killed char 0x11): set consumed_flags[0]=1, fd2_tick_tile_event_animations(), fd2_composite_battle_frame(1), fd2_process_battle_drop_entries(event_arg, 1, drop_entry) -- lord (char 0) receives the drop. Unconditionally data_fd2_battle_pending_xp_credit=0; return. Binary tail is JMP 0x34FC5 (shared Class-3 cleanup tail borrowed from fd2_chapter_event_handler_27__unref_drop, body 0x34F74-0x34FCA); a size optimisation equivalent to a plain return.",
+  "signature": "void __cdecl fd2_chapter_event_handler_37__ch25_first_time(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform 1-arg dispatch-table ABI argument; here it is the stepping char id (read from [ESP+0x10]). Gate requires event_arg==0, so the only path that does anything is the lord (char 0) stepping; inside the gate it is reused as the combat defender_idx and as the drop recipient (both provably 0).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "event_arg is the consistent name for the uniform per-event handler-table ABI argument used across all sibling handlers in chevt2.c; not address residue. The src comments already document the stepping-char-id semantic, and renaming would break the uniform dispatch-ABI naming convention."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value (uniform cdecl dispatch entry). Side effects: may show a dialog, run a combat cinematic vs char 0x11, set tile_event_consumed_flags[0], grant char 0 a battle drop (item 0x0B); always clears data_fd2_battle_pending_xp_credit."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_event_handler_37_drop_entry_inline",
+    "data_fd2_field_map_tile_event_consumed_flags_ptr",
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [
+    "data_fd2_field_map_tile_event_consumed_flags_ptr",
+    "data_fd2_battle_pending_xp_credit"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified dispatch wiring: per-event handler table base 0x51B91; index 0x37 -> 0x51B91+0x37*4 = 0x51C6D which holds little-endian da 53 03 00 = 0x000353DA (the sole xref to this function is from 0x51C6D [DATA]). The plate's '0x51B91' table base and the disassembly agree; no contradiction. Decompile shows literal fd2_play_full_combat_cinematic(0x11,0) but disassembly (0003542F PUSH [ESP+0x10]) confirms it pushes event_arg; since the gate proves event_arg==0 the src form fd2_play_full_combat_cinematic(0x11, event_arg) is functionally exact and the existing src comment already explains this (lines 401-403). Same for the drop recipient (00035 46C PUSH [ESP+0x18] = event_arg). JMP 0x34FC5 tail target verified inside fd2_chapter_event_handler_27__unref_drop (body 0x34F74-0x34FCA) = the cleanup-only shared tail; equivalent to plain return. All three referenced globals exist in src/include/globals.h with matching addresses (0x53A79 current_chapter_text, 0x53AD5 consumed_flags_ptr, 0x53EC8 pending_xp_credit). Domain cross-check via fd2-knowledge: ch25 火焰的審判 -> Sol(char 0) rests on tile (10,1), a Fire Dragon (char 0x11, LV16 HP1280) appears, defeating it yields 炎龍劍 (item 0x0B). Name, params, and src comment block (chevt2.c lines 362-385) are all already accurate and refined -> kept; Ghidra plate consistent -> left untouched. No logic touched."
+}
