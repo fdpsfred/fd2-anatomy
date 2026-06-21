@@ -1,0 +1,39 @@
+{
+  "address": "00023b5f",
+  "name_current": "fd2_chapter_17_end",
+  "name_final": "fd2_chapter_17_end",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor>: domain=chapter, descriptor carries the meaningful chapter ID 17 (per rules chapter IDs 01-30 are kept, not address residue) plus _end. Name accurately reflects the role: it is the chapter-17 end handler dispatched via the chapter-end pointer table (xref from 0x51e29 DATA = table slot holding 0x00023b5f). No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/field/chend1.c",
+  "purpose": "Chapter 17 (血與冰之刃) end handler: stages the post-battle scene, plays the closing cutscene/dialog (蜜蒂 farewell branch when she has not joined), recruits 凱拉斯, and advances the chapter id.",
+  "logic_summary": "Copies two 16-byte scene position tables (X @ data_fd2_chapter_ch17_end_scene_char_pos_x_table, Y @ ..._pos_y_table) onto stack blocks (4x dword copy loops), persists the party via fd2_save_runtime_char_to_template(). Branches on fd2_check_party_has_char_id(0x12) (蜜蒂): if absent (==0), calls fd2_setup_chars_and_camera_for_intro (chars 0..0xF, inline facing 0 so no facing table, extra char 0x34 at (0x17,0x17) facing 2, camera (0x11,0x11)), shows 蜜蒂 farewell dialog page 7, resets data_fd2_battle_anim_phase, fires cutscene event 0x32, pans to (0x11,0xE), loads race-3 portraits, selects next_cutscene=0x33; else shows dialog page 5, resets anim phase, pans to (0x11,0xE), loads race-3 portraits, selects next_cutscene=0x34. Then fires next_cutscene, shows dialog page 6, fires cutscene 0x35, shows dialog page 8, recruits char 0x10 (凱拉斯) via fd2_init_runtime_char_from_base_growth, and increments data_fd2_chapter_current_chapter_id. Cyclomatic complexity 2 (single if/else). Position tables are read unconditionally but only consumed on the 蜜蒂-absent branch (matches binary). Self-contained in the binary (no fall-through / jump-into-middle sharing).",
+  "signature": "void __cdecl fd2_chapter_17_end(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects: advances data_fd2_chapter_current_chapter_id, recruits char 0x10, runs end-of-chapter cutscene/dialog, persists party state."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_ch17_end_scene_char_pos_x_table",
+    "data_fd2_chapter_ch17_end_scene_char_pos_y_table",
+    "data_fd2_current_chapter_text",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_anim_phase",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "comment_original_issue": "Source comment block was accurate, precise, and in final-conclusion style; only defect was a single em-dash (U+2014) on line 715 violating the ASCII-only rule. Replaced with '--'.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "bd003843c53bf18328a09ebaae1d6fbaf2b2e62b",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified against decompile (4x dword loops = two 16-byte tables; branch on fd2_check_party_has_char_id(0x12); recruit fd2_init_runtime_char_from_base_growth(0x10); INC chapter id), xref (0x51e29 DATA = chapter-end pointer table slot containing 0x00023b5f, next slot = 0x00023cd5 fd2_chapter_18_end), and fd2-knowledge (chapter 17 walkthrough: 必出蜜蒂; 若蜜蒂未加入她仍出戰本章結束後離開 -> matches farewell-page-7 branch; char 0x10=凱拉斯, char 0x12=蜜蒂 both valid). Name keep (chapter 17 ID is a domain ID, not address residue; no _<hex> suffix). Comment keep aside from em-dash->-- ASCII fix. Ghidra plate consistent with refined source understanding -> left untouched. No logic touched."
+}

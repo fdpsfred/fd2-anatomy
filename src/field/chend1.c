@@ -712,7 +712,7 @@ void fd2_chapter_15_end(void)
  * then branches on whether 蜜蒂 (char #0x12) is currently in the party
  * (fd2_check_party_has_char_id(0x12)):
  *   蜜蒂未加入 (returns 0): stages the post-battle scene via
- *     fd2_setup_chars_and_camera_for_intro — the facing argument is the inline
+ *     fd2_setup_chars_and_camera_for_intro -- the facing argument is the inline
  *     fixed value 0 (< 4), so every placed char faces direction 0 and there is no
  *     facing table (chars 0..0xF, plus an extra char 0x34 placed at (0x17,0x17)
  *     facing 2, camera origin (0x11,0x11)). Shows the 蜜蒂 farewell dialog page 7,
