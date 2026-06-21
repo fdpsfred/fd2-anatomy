@@ -1,0 +1,45 @@
+{
+  "address": "0x0001f30a",
+  "name_current": "fd2_animate_phase_banner_slide_out",
+  "name_final": "fd2_animate_phase_banner_slide_out",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (battle/animation domain). Descriptor accurately reflects behaviour: animate the turn-phase banner sliding out with a palette fade-out. No Ghidra address residue in the name. Confirmed by caller fd2_run_full_turn_cycle which invokes it as the slide-out half paired with fd2_animate_phase_banner_slide_in (Phase D enemy 0x52, Phase F player 0x50).",
+  "kind": "function",
+  "home": "src/anim/anicombt.c",
+  "purpose": "Plays the turn-phase banner (\"ENEMY TURN\" / \"PLAYER TURN\") slide-out animation: palette fade-out over the banner, then restores the battle scene and slides the two banner halves out to the screen edges.",
+  "logic_summary": "Allocates a 64000-byte scratch frame and clears it to black. Phase 1 (17-frame palette fade-out, fade_iter 0x10..0 counting down, scroll_offset 0x11 counting down): each frame scrolls the source block into the scratch frame, blits the main banner sprite (banner_sprite_id) at (0x59,0x56) and the corner-frame sprite 0x51 at (0xA9,0x56) -- each blit returns its own freshly malloc'd save buffer that is freed immediately after -- fades the VGA palette down (brightness 16..0), pushes the frame to VGA 0xA0000, and waits 1 BIOS tick. The scratch frame is freed once after the loop. Phase 2 restores the battle scene: recomposite the battle tile map (stride 456) and overlay all chars. Phase 3 (5-frame slide-out, x_offset = iter*0x19 = 0,0x19,0x32,0x4B,0x64) calls fd2_render_phase_banner_frame to slide the banner halves out to the edges.",
+  "signature": "void __cdecl fd2_animate_phase_banner_slide_out(uint32 banner_sprite_id)",
+  "params": [
+    {
+      "name": "banner_sprite_id",
+      "type": "uint32",
+      "semantics": "Sprite index of the turn-phase banner to animate (caller passes 0x52 = ENEMY TURN, 0x50 = PLAYER TURN). Used as the sprite-index argument to the per-frame fd2_alloc_and_blit_indexed_sprite_chunk blit in the fade loop and to fd2_render_phase_banner_frame in the slide-out loop.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately describes the value (a banner sprite ID) and matches both caller usage and body usage. No address residue, not a param_N placeholder."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effects are the on-screen animation and restoration of the battle scene into the working buffer."
+  },
+  "reads_globals": [
+    "data_fd2_large_game_state_buffer_ptr",
+    "data_fd2_ui_anim_sprite_sheet_ptr",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (anicombt.c lines 1185-1215) is already precise, ASCII, and correct, including a NOTE documenting the Ghidra EAX-tracking artifact (collapsed blit/memmove return temporaries and hoisted frees) -- the encoded C matches the assembly (each blit's save buffer freed right after; scratch freed once after the loop). No equivalence/logic bug: the EAX artifact is a documented decompiler quirk, not a code defect. Ghidra plate (Traditional Chinese, allowed for plates) is consistent with the refined understanding; left unchanged. No source edit needed (comment kept). Caller fd2_run_full_turn_cycle confirms the slide-in/slide-out pairing and the 0x50/0x52 banner sprite IDs."
+}
