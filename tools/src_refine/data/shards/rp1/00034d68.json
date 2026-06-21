@@ -1,0 +1,40 @@
+{
+  "address": "00034d68",
+  "name_current": "fd2_chapter_event_handler_05__ch13_thunk",
+  "name_final": "fd2_chapter_event_handler_05__ch13_thunk",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor>. Both numeric suffixes are meaningful domain IDs that must be preserved: '05' = dispatch idx 0x05 of the per-event handler table at 0x51B91 (verified: table slot at 0x51BA5 holds 0x34D68; idx = (0x51BA5-0x51B91)/4 = 5), 'ch13' = chapter 13 = Battle of Hasmir (verified via assets/chapters/chapter_13.md). 'thunk' accurately reflects the original 7-byte adapter stub (PUSH 0x28; JMP 0x34BE7) that tail-jumps into the shared body. No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter-event dispatch handler idx 0x05 (chapter 13 / Battle of Hasmir turn-event beat): reload portrait set 1 and show chapter-text dialog page 1.",
+  "logic_summary": "In the original binary a 7-byte adapter stub: PUSH 0x28; JMP 0x34BE7. The pushed 0x28 is the __CHK stack-probe frame size that the shared body fd2_show_chapter_dialog_with_portrait_set_1 @ 0x34BE7 consumes via its compiler-injected CALL __CHK prologue; the tail-JMP transfers into that shared body so the thunk's whole effect is the shared body's effect (fd2_load_chapter_portraits_and_dump_tmp(1) then fd2_display_dialog_scene(text, page=1, fixed dialog geometry)). The compiler-injected __CHK probe is omitted at Layer-2, so src emits this as a direct call to the helper fd2_show_chapter_dialog_with_portrait_set_1(). Straight-line, no branch, no RNG, no numeric computation, no CALL-return value used; the dispatch arg is never read.",
+  "signature": "void __cdecl fd2_chapter_event_handler_05__ch13_thunk(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Dispatch argument supplied by the uniform 1-arg cdecl per-event handler table at 0x51B91; never read by this handler's body.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive of the table-dispatch contract, consistent with every other handler in chevt1.c, and carries no address residue. Body marks it unused via (void)event_arg."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified: disassembly @ 0x34D68 = PUSH 0x28 (68 28000000); JMP rel32 e9 75feffff -> 0x34BE7. Handler-table slot @ 0x51BA5 = 0x34D68 (684D0300 LE), confirming dispatch idx 0x05. JMP target 0x34BE7 = fd2_show_chapter_dialog_with_portrait_set_1 whose entry begins CALL __CHK (0x36CD7), consuming the caller-pushed 0x28 frame size (Class-3 shared-body pattern). Chapter 13 = Battle of Hasmir confirmed via fd2-knowledge chapter 13. src comment block (chevt1.c lines 1446-1469) already accurate/precise/ASCII and consistent with Ghidra plate; no edit to src, no plate change. is_thunk metadata was false but function is in fact an adapter thunk in the original binary -- this is correctly captured by the existing name/comment and is not a logic concern (the src emits the equivalent direct call)."
+}
