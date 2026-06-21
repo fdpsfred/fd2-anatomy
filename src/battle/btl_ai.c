@@ -374,8 +374,15 @@ void fd2_execute_ai_item_use(uint32 caster_idx, uint32 ctx_flag)
 /* ----------------------------------------------------------------
  * fd2_attack_action_dispatch @ 0x14EF0
  *
- * Score phys/spell/item, pick best, execute winner. Returns 1 if
- * action executed, 0 if all scores < 6.
+ * Enemy-AI offensive action selector. Scores the 3 candidate
+ * categories (physical / offensive spell / item) via the
+ * fd2_ai_score_* trio, then executes the highest-scoring one.
+ * Strict-max wins; ties are resolved by tie_break (caster
+ * pCombat_aux_block[0xD] & 0x40 forces physical) and, for a
+ * phys==spell tie with a low spell id, by comparing the spell's
+ * base damage against caster wAP - target wDP.
+ * Returns 1 if an action was dispatched, 0 if all scores < 6.
+ * ctx_flag is passed through unchanged to every score/execute call.
  * ---------------------------------------------------------------- */
 int fd2_attack_action_dispatch(uint32 caster_idx, uint32 ctx_flag)
 {
