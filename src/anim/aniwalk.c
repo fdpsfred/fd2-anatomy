@@ -766,14 +766,23 @@ uint32 data_fd2_battle_compose_left_edge_clip_offset;
 uint32 data_fd2_battle_compose_parallax_scroll_y_rows;
 
 /* ----------------------------------------------------------------
- * Walk-step composite Y sub-pixel scroll offset @ 0x53AF5  (.object2, zero-init)
+ * Walk-step composite sub-pixel scroll offset @ 0x53AF5  (.object2, zero-init)
  *
- * Cumulative sub-pixel Y scroll accumulator for the smooth walk-step slide.
- * Each of fd2_walk_step_down/left/up/right adds the per-frame scroll delta
- * (0x720) into it once per slide frame (6 frames) and clears it to 0 after
- * the step completes, so the static image is zero.
- * Read by fd2_composite_battle_tile_map as a dword added into the background
- * source offset alongside the left-edge clip / parallax-scroll offsets.
+ * Shared smooth-scroll byte-offset accumulator for the walk-step slide; one
+ * global serves whichever axis is currently stepping (only one walk-step runs
+ * at a time). Each of the four direction steps adds its per-frame scroll delta
+ * once per slide frame (6 frames) and resets it to 0 at step end:
+ *   fd2_walk_step_down  : += +0x720 (vertical)   / 0 when not scrolling
+ *   fd2_walk_step_up    : += -0x720 (vertical)   / 0
+ *   fd2_walk_step_right : += +4     (horizontal) / 0
+ *   fd2_walk_step_left  : += -4     (horizontal) / 0
+ * Read by fd2_composite_battle_tile_map as a dword added unscaled into the
+ * background-blit source byte offset, alongside the left-edge clip offset
+ * (@0x53AED). Mutable BSS (game has WRITE xrefs); all accesses are dword.
+ *
+ * NOTE: the "y" in the current symbol name is a misnomer -- the accumulator is
+ * single-axis and carries the X byte-offset during left/right steps. Rename is
+ * recorded for Stage 2 (proposed: data_fd2_battle_compose_walk_step_sub_pixel_offset).
  * ---------------------------------------------------------------- */
 uint32 data_fd2_battle_compose_walk_step_y_sub_pixel_offset;
 
