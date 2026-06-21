@@ -401,7 +401,16 @@ void fd2_clear_all_chars_acted_flag(void)
 /* ----------------------------------------------------------------
  * fd2_set_chapter_init_done_flag @ 0x33FAF
  *
- * Set chapter_init_done_flag byte to 1.
+ * Unconditionally set chapter_init_done_flag (byte @ 0x53A44) to 1.
+ *
+ * Sole caller fd2_game_main_loop runs this in a
+ *   while (chapter_init_done_flag == 0) fd2_set_chapter_init_done_flag();
+ * spin on the action/confirm (Space/Enter) key path. Because the flag is
+ * BSS-cleared at load and this setter always writes 1, the loop body runs
+ * exactly once -- on the first confirm press while the click-debounce skip
+ * count is zero -- latching the flag 0 -> 1; later confirm presses skip it.
+ * The flag has exactly one reader (that loop condition) and one writer
+ * (this function).
  * ---------------------------------------------------------------- */
 void fd2_set_chapter_init_done_flag(void)
 {
