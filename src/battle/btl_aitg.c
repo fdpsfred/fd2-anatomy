@@ -365,8 +365,16 @@ int fd2_ai_pass_turn_with_heal(uint32 char_idx)
 /* ----------------------------------------------------------------
  * fd2_ai_walk_to_target_tile @ 0x14B78
  *
- * Execute AI walk toward target. Two-stage pathfind with fallback
- * to closest approachable tile. Returns 1 if walked, 0 if not.
+ * Walk an AI/player char along a path toward (target_x, target_y).
+ * Stage A: direct pathfind within the char's remaining move range.
+ * Stage B (only if unreachable): long-range retry (range 0x1C) and
+ *   scan its path for the furthest walkable tile, adopting it as the
+ *   new target. Then pick the unmarked reachable tile with the
+ *   smallest taxicab distance to the target (tiebreak: smaller
+ *   |dx|-|dy|, i.e. a straighter approach) and pathfind to it.
+ * If a path exists, fd2_walk_path_animation_loop animates the move.
+ * ctx is the team/context flag forwarded to the threat-overlay and
+ * occupant-marking helpers. Returns 1 if a walk happened, else 0.
  * ---------------------------------------------------------------- */
 int fd2_ai_walk_to_target_tile(uint32 target_x, uint32 target_y,
                                 uint32 char_idx, uint32 ctx)
