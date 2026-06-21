@@ -393,8 +393,27 @@ void fd2_ai_score_item_use(uint32 caster_idx, uint32 ctx_flag)
 /* ----------------------------------------------------------------
  * fd2_ai_score_physical_attack @ 0x14237
  *
- * Score every reachable tile for physical attack. Writes best
- * candidate to ai_best_physical_* globals. Returns 0.
+ * Enemy AI: score every reachable tile for a physical attack with the
+ * caster's equipped weapon and record the single best candidate into the
+ * ai_best_physical_* result globals (target_x/y/idx/score). Returns 0.
+ *
+ * Setup: find the equipped weapon (kind 0), read its AoE shape; pick the
+ * movement-cost table by job, or by class 0x13 when the caster passes the
+ * status-immunity predicate; flood-fill reachable tiles minus friendly
+ * occupants. ctx_flag selects the team/context (passed to the threat and
+ * occupant passes) and, when 0, enables small-AoE evaluation mode.
+ *
+ * Per candidate tile x AoE target: effective AP/DP = base stat + terrain
+ * percent bonus (mv/def modifier tables), applied only when the status-
+ * immunity predicate holds for that unit. raw_dmg = effective_AP -
+ * target_DP, yielding score class 0 (negligible, raw_dmg <= 2), 8 (normal
+ * hit), or 0x12 (kill shot when raw_dmg > target HP; raw_dmg doubled).
+ * Bonuses: +counter when the target can default-attack back; *3/2 when the
+ * target is the party leader (char_id 0). Best is chosen by (score class,
+ * then raw_dmg tiebreak). Allocates 3 scratch buffers and frees them.
+ *
+ * Called by fd2_attack_action_dispatch and fd2_enemy_turn_action_dispatcher;
+ * paired with fd2_execute_ai_physical_attack, which reads the result globals.
  * ---------------------------------------------------------------- */
 int fd2_ai_score_physical_attack(uint32 caster_idx, uint32 ctx_flag)
 {
