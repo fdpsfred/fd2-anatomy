@@ -591,8 +591,8 @@ void fd2_animate_shop_transaction_feedback(void)
  * fd2_animate_party_addition_with_appear_effect @ 0x32999 (4 callers)
  *
  * Plays the "new char appearance" 12-frame animation with explosion
- * sprites + SFX for newly added party members. param_1 is the joining
- * recruit / party-slot id used as the target race-id filter; it is
+ * sprites + SFX for newly added party members. target_race_id is the
+ * joining recruit / party-slot id used as the target race-id filter; it is
  * forwarded to fd2_load_chapter_portraits_and_dump_tmp, which spawns
  * only the field chars whose race byte matches it. The actual chapter
  * index is read separately from data_fd2_chapter_current_chapter_id
@@ -607,9 +607,9 @@ void fd2_animate_shop_transaction_feedback(void)
  *   - malloc(0x25680) -> backup buf; memmove(backup,
  *       large_game_state_buffer, 0x25680) (snapshot working surface).
  *   - old_char_count = party_member_count (record pre-join count).
- *   - fd2_load_chapter_portraits_and_dump_tmp(param_1) (spawns the
- *       field chars whose race byte matches param_1, so may grow
- *       party_member_count by adding the new chars).
+ *   - fd2_load_chapter_portraits_and_dump_tmp(target_race_id) (spawns
+ *       the field chars whose race byte matches target_race_id, so may
+ *       grow party_member_count by adding the new chars).
  *
  * 12-frame loop (snapshot = 0..0xB):
  *   - if snapshot == 1: fd2_play_sfx_with_handle(sfx_buf, 0, 1).
