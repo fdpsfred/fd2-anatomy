@@ -1,0 +1,50 @@
+{
+  "address": "000344c2",
+  "name_current": "fd2_chapter_event_handler_09__ch3_char_cond",
+  "name_final": "fd2_chapter_event_handler_09__ch3_char_cond",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=chapter_event_handler; descriptor=09=dispatch idx 0x09 of the per-event handler table @ 0x51B91, a meaningful domain ID, plus ch3 chapter tag + char_cond category). The 09 suffix is the dispatch-table index (not a Ghidra address residue: the function address is 0x344c2). Consistent with the whole chevt1.c _NN__chMM_category naming scheme across ~40 sibling handlers.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter 3 turn-3 char-conditional cutscene beat (per-event handler table idx 0x09): if the protected ally swordsman 鐵諾 (runtime char #6) is still alive, reload portrait set 2, pan the camera from world (3,0) to (3,0x11) with ~800ms/~200ms holds, and show dialog page 4.",
+  "logic_summary": "Single guard: if fd2_check_char_is_dead(6) == 0 (runtime char #6 = ch3 ally 鐵諾 alive, bFlags bit0 clear) then run the cutscene: fd2_load_chapter_portraits_and_dump_tmp(2) -> fd2_pan_cursor_and_window(3,0) -> fd2_delay_ms(800) -> fd2_pan_cursor_and_window(3,0x11) -> fd2_delay_ms(200) -> fd2_display_dialog_scene(text, page 4, fixed geometry 0xA0000/0x140/0xCD/0x4C/0x4A/0x13/1). If char #6 is dead the whole body is skipped. No RNG, no numeric computation; the only branch is the alive gate, and no CALL-return value is used except the dead-bit zero test. event_arg is unread.",
+  "signature": "void __cdecl fd2_chapter_event_handler_09__ch3_char_cond(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform dispatch argument from the per-event handler table @ 0x51B91 (all slots are 1-arg cdecl). This handler never reads it (cast to void).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately describes the unread dispatch-table event argument; no address residue, not a generic param_N placeholder."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "The original src comment and Ghidra plate attributed runtime char #6 to '沃斯', but that name does not appear in the KB 32-character roster and contradicts the chapter-3 walkthrough. Per fd2-knowledge: ch3 turn-3 event = enemy leader + reinforcements appear; the party protects the ally swordsman 鐵諾, who 'joins if not dead'. The paired fd2_chapter_03_end (chend1.c) gates on the same fd2_check_char_is_dead(6) and recruits char #2 = 劍士鐵諾 when alive (portrait 02h = 鐵諾; code-hack note '22 = 劍聖鐵諾'). So runtime char #6 is the in-battle representation of 鐵諾 (recruited as permanent party char #2 if he survives), NOT 沃斯.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "updated",
+  "issues": [
+    {
+      "category": "comment_accuracy",
+      "severity": "low",
+      "title": "char_id 6 mis-attributed to 沃斯 (corrected to 鐵諾)",
+      "description": "Both the src comment block and the Ghidra plate named runtime char #6 as '沃斯', an unverified name absent from the KB 32-char roster. Cross-checking fd2-knowledge (chapter 3 events/recruitment, portraits 02h, code_hacks '22 = 劍聖鐵諾') and the sibling fd2_chapter_03_end handler (chend1.c, same fd2_check_char_is_dead(6) gate -> recruits char #2 劍士鐵諾) establishes char #6 as the in-battle ally swordsman 鐵諾. Fixed in this refine (src comment + plate). This is a comment/attribution correction only; no game logic changed (the code uses literal index 6, which is correct).",
+      "evidence": "KB chapter 3: '加入：劍士鐵諾若未死時加入' and '索爾及亞雷斯前去幫助鐵諾'; KB portraits 02h=鐵諾, code_hacks '22 = 劍聖鐵諾'; chend1.c fd2_chapter_03_end @0x230F2 gates on fd2_check_char_is_dead(6)==0 then fd2_init_runtime_char_from_base_growth(2) recruiting 劍士鐵諾; '沃斯' has zero matches in the KB (query.py grep)."
+    }
+  ],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "79e26bcadf86d810227605916534125360d3a20b",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Logic verified correct and left untouched (refine-only). Disassembly @0x344c2 confirms the exact sequence and the +0x54 (0x34516) / +0x6D (0x3452F) shared tails the plate documents; the 0x3452F tail's 4 consumers are handlers 0B/0E/10/14 (each confirmed by their own src comments stating they JMP into handler_09's shared tail at 0x3452F) -- the original plate's '+1 more' was resolved to 14. data_fd2_current_chapter_text @0x53A79 (globals.h) is the only directly-read global (pushed as dialog text-source); data_fd2_battle_runtime_char_array_ptr is read transitively inside fd2_check_char_is_dead, not in this body. Name + param kept; no Stage 2 rename needed for this symbol."
+}

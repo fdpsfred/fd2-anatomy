@@ -450,11 +450,14 @@ void fd2_chapter_event_handler_08__ch13_first_time(uint32 stepping_char_id)
  *   — Chapter 3 turn-event slot 0 (triggered at turn 3 / phase 2),
  *     dispatched as idx 0x09 of the per-event handler table at 0x51B91.
  *
- * char-conditional beat: gated on 沃斯 (char_id 6) still being alive
- * (flags bit0 clear). If alive, portrait set 2 reloads, the camera pans
- * from world (3, 0) to (3, 0x11) with an ~800ms / ~200ms hold between
- * the two pans, and dialog page 4 is shown. If 沃斯 is already dead the
- * whole beat is skipped.
+ * char-conditional beat: gated on the ch3 ally swordsman 鐵諾
+ * (runtime char #6, the NPC the party protects this battle) still being
+ * alive (flags bit0 clear). If alive, portrait set 2 reloads, the camera
+ * pans from world (3, 0) to (3, 0x11) with an ~800ms / ~200ms hold
+ * between the two pans, and dialog page 4 is shown. If 鐵諾 is already
+ * dead the whole beat is skipped. (Surviving runtime char #6 is later
+ * recruited as the permanent party slot char #2 by fd2_chapter_03_end,
+ * which gates on the same fd2_check_char_is_dead(6) test.)
  *
  * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
  * (1-arg uniform cdecl); the body never reads the arg. EBX is not
