@@ -1050,15 +1050,22 @@ int fd2_tick_summon_spell_main_animation_state(
  * orbit @ 0x53F42
  *
  * Fifteen 32-bit signed entries (int[15]), one per orbit slot. Plain
- * zero-bss runtime scratch; the on-disk image is all 0x00. The
- * pre-animation setup (state_code 3) seeds the first 8 slots with a
- * staggered negative value (frame_counter[i] = -2*i) before any read
- * this run; the state-5 advance walks the first 7. Treated signed: the
- * blit phases test 0 <= frame_counter[i] < 0x10 with a signed compare,
- * and the value may be negative while staggered slots ramp up. All
- * access is dword-wide and 4-byte strided. Shared with the scene
- * renderer (fd2_render_summon_aura_sprite_ring in src/gfx/rndscene.c),
- * but seeded/owned here by fd2_tick_summon_spell_setup_pre_animation_8slot.
+ * zero-bss runtime scratch; the on-disk image is all 0x00. Treated
+ * signed: the blit phases test 0 <= frame_counter[i] < 0x10 (setup) /
+ * < 0xF (renderer) with a signed compare, and the value may be negative
+ * while staggered slots ramp up. All access is dword-wide and 4-byte
+ * strided.
+ *
+ * The 15-element size comes from two summon-spell handlers sharing this
+ * one array over disjoint slot windows:
+ *   - fd2_tick_summon_spell_setup_pre_animation_8slot uses slots 0..7:
+ *     state_code 3 seeds frame_counter[i] = -2*i (i in 0..7); the
+ *     state-5 advance walks slots 0..6.
+ *   - fd2_render_summon_aura_sprite_ring (src/gfx/rndscene.c) uses slots
+ *     7..14 via index [i+7] (i in 0..7): state_code 3 seeds
+ *     frame_counter[i+7] = -2*i; state 5 advances and chimes those 8.
+ * Slot 7 (0x53F5E) is the renderer's own init base, so the two windows
+ * touch but do not race (each handler owns its own window per run).
  * ---------------------------------------------------------------- */
 int32 data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[15];
 
