@@ -334,9 +334,10 @@ int fd2_play_ending_and_record_clear(void)
 /* ----------------------------------------------------------------
  * fd2_play_chapter_clear_fanfare @ 0x22E5C  (1 caller)
  *
- * Sole caller: main @ 0x25BF4 (entered when game_event_flag == 1, i.e. a
- * chapter was just cleared). Plays a short 2-frame "chapter cleared" fanfare
- * sprite sequence, then returns; main clears the event flag afterward.
+ * Sole caller: main @ 0x25BF4 (entered when
+ * data_fd2_chapter_event_or_battle_end_code == 1, i.e. a chapter was just
+ * cleared). Plays a short 2-frame "chapter cleared" fanfare sprite sequence,
+ * then returns; main clears that event code afterward.
  *
  * Sequence:
  *   - stop BGM with fade
