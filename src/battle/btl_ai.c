@@ -250,8 +250,23 @@ int fd2_execute_ai_offensive_spell(uint32 caster_idx,
 /* ----------------------------------------------------------------
  * fd2_execute_ai_item_use @ 0x15055
  *
- * Execute AI item use. Reads ai_best_item_* globals, applies
- * item effect with animation. Returns 0.
+ * Execute the item-use action chosen by the enemy AI (called from
+ * fd2_attack_action_dispatch when the item score wins). Reads the
+ * ai_best_item_* selection globals (slot, target x/y), resolves the
+ * item id and its effect entry, then runs the use animation and
+ * applies the effect.
+ *
+ * ctx_flag selects how the item's small-AOE field (pItem[0x11]) is
+ * interpreted when gathering targets: ctx_flag == 0 -> AI usage,
+ * pass (small_aoe == 0) as the AOE flag; otherwise pass small_aoe
+ * directly.
+ *
+ * Branch on pItem[0x10] (range class): < 0x10 = short-range
+ * (fd2_compute_aoe_targets + tile-flash animation); >= 0x10 =
+ * long-range projectile (fd2_scan_chars_along_line + caster figani
+ * intro, palette fade, projectile-tile interpolation/clamp and an
+ * 8-frame burst). Effect is applied via fd2_apply_use_effect_dispatch.
+ * Caller discards the result (Ghidra: returns int 0).
  * ---------------------------------------------------------------- */
 void fd2_execute_ai_item_use(uint32 caster_idx, uint32 ctx_flag)
 {
