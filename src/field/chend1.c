@@ -269,7 +269,7 @@ void fd2_chapter_06_end(void)
  *     plus extra char 0x2B placed at (0xC,7) facing 2, camera origin (6,2)),
  *     shows the recruit dialog page 4, then recruits char #12 (武者凱麗) via
  *     fd2_init_runtime_char_from_base_growth.
- *   else: shows the no-recruit dialog page 5 only — no scene, no recruit.
+ *   else: shows the no-recruit dialog page 5 only -- no scene, no recruit.
  * It then advances the current-chapter id by 1.
  *
  * The position tables are read unconditionally into the stack blocks before
