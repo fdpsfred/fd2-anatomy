@@ -784,13 +784,18 @@ int fd2_ai_advance_to_nearest_team_target(uint32 char_idx,
  * fd2_resolve_terrain_for_aoe_targets @ 0x2B5E1  (2 callers)
  *
  * Resolve the terrain-attribute byte that should back an AoE spell's
- * cinematic, given n_chars target chars in target_byte_array.
+ * cinematic, given n_chars target chars in target_byte_array (each
+ * byte is a runtime_char index). Both callers use the returned byte
+ * as the BG.DAT / TAI.DAT backdrop resource index for the targets'
+ * side of the spell-cast animation.
  *
- * Starts with the per-chapter override byte, then walks the target
- * array backwards (last non-immune wins): for each target, read its
- * tile-attribute byte (buf[+6] = attr_ptr[+2]) and, when the target
- * is not status-immune OR the running fallback is still 0, adopt that
- * tile byte. Immune targets keep a nonzero chapter override.
+ * Starts with the per-chapter override byte
+ * (chapter_combat_cinematic_mode_per_chapter[current_chapter_id]),
+ * then walks the target array backwards (last non-immune wins): for
+ * each target, read its tile-attribute byte (buf[+6] = attr_ptr[+2])
+ * and, when the target is not status-immune OR the running fallback
+ * is still 0, adopt that tile byte. Immune targets keep a nonzero
+ * chapter override.
  * ---------------------------------------------------------------- */
 char fd2_resolve_terrain_for_aoe_targets(int n_chars,
                                          uint8 *target_byte_array)
