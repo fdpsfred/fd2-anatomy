@@ -1,0 +1,42 @@
+{
+  "address": "000352e2",
+  "name_current": "fd2_chapter_event_handler_34__ch23_ai_ctrl",
+  "name_final": "fd2_chapter_event_handler_34__ch23_ai_ctrl",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with fd2_<domain>_<descriptor>. 'chapter_event_handler_34' encodes dispatch idx 0x34 in the per-event handler table @ 0x51B91 (table entry @ 0x51C61, verified via read_memory: bytes e2 52 03 00 = 0x352e2) -- 0x34 is a legitimate dispatch-index domain ID, not an address residue (the function lives at 0x352e2, not 0x34). '__ch23_ai_ctrl' accurately reflects chapter 23 (confirmed by fd2-knowledge ch23 events: reinforcements at upper-left/upper-right of enemy base) and the AI/cinematic-no-dialog category. No address residue anywhere.",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Chapter-23 turn-event handler (dispatch idx 0x34): plays a 2-portrait white-flash cinematic pair at fixed tile positions, with portrait ids derived from the current battle turn counter.",
+  "logic_summary": "Reads data_fd2_battle_turn_counter (@ 0x53BEF) as a byte and computes a portrait id in 8-bit AL arithmetic: id = (uint8)((turn - 0x0E) * 2). Calls fd2_cinematic_chapter_portrait_dump_with_white_flash twice -- first at tile (2, 0xB) with that id, then at tile (0x1A, 0xB) with id+1 (also 8-bit). The two ids form an even/odd pair; as the counter advances 0xE->0xF->0x10->0x11 the pairs rotate 0/1, 2/3, 4/5, 6/7. Does not read event_arg (1-arg cdecl dispatch ABI). Disassembly confirms: MOV AL,[0x53bef]; SUB AL,0xe; ADD AL,AL; MOVZX EAX,AL for the first id, plus INC AL for the second. The function body ends at 0x35316 and falls through (no JMP) into the CALL/ADD ESP,0xC/RET tail hosted in fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash @ 0x35318 -- a binary size optimisation; the functionally-exact source is two complete calls.",
+  "signature": "void __cdecl fd2_chapter_event_handler_34__ch23_ai_ctrl(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Unused dispatch-table argument (per-event handler table @ 0x51B91 uses a uniform 1-arg cdecl ABI, void fn(uint event_arg)). This handler ignores it; source casts (void)event_arg.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Generic but correct for an intentionally-unused dispatch-ABI arg; matches the convention used by all sibling handlers in chevt2.c. No address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_battle_turn_counter"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "src comment (lines 191-224) was already accurate, refined, ASCII, and matched the disassembly exactly (8-bit AL arithmetic on data_fd2_battle_turn_counter, fall-through tail-merge into the wrap thunk @ 0x35318, ch23 context). No issue; left unchanged. NOTE: the LIVE Ghidra plate was stale -- it attributed the portrait id to 'save_metadata_block' (wrong; disasm reads data_fd2_battle_turn_counter @ 0x53BEF) and carried an obsolete 'FUN_00035822 resolved' note. Plate updated to match the src conclusion.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "d6c74c53986f56095ca2dc5d403cacde8a8cf109",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment kept verbatim (already correct), so src/field/chevt2.c has no edits this round; only the shard is staged from this worktree. Ghidra plate was rewritten to fix the stale save_metadata_block attribution and drop the obsolete FUN_ shorthand note, aligning it with the src conclusion. xref to fn: single DATA ref from dispatch table @ 0x51C61. Callee fd2_cinematic_chapter_portrait_dump_with_white_flash confirmed @ 0x35822. Domain check via fd2-knowledge ch23 events corroborates the reinforcement/cinematic semantics."
+}
