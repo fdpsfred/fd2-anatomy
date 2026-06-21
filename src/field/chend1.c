@@ -233,10 +233,10 @@ void fd2_chapter_05_end(void)
  * shows the chapter-end dialog page 6, persists the party's runtime-char
  * state to the template store, then advances the current-chapter id by 1.
  *
- * In the binary the function falls through into the shared tail of
+ * In the binary the function ends with a tail-jump into the shared tail of
  * fd2_chapter_04_end @ 0x231DF (PUSH data_fd2_current_chapter_text; dialog; cleanup;
  * save; INC chapter id; RET). It is emitted here as a self-contained
- * function (Layer 2 functional equivalence — the jump-into-middle sharing is
+ * function (Layer 2 functional equivalence -- the jump-into-middle sharing is
  * not preserved in source).
  *
  * Paired init handler: fd2_chapter_06_init @ 0x3314B.
