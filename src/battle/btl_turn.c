@@ -162,7 +162,10 @@ int fd2_find_char_by_id_or_template(uint32 target_char_id)
 /* ----------------------------------------------------------------
  * fd2_mark_char_acted_this_turn @ 0x13512
  *
- * Set runtime_char[char_idx].flags bit 0x80 (acted-this-turn).
+ * Set runtime_char[char_idx].flags bit 0x80 (CHARFLAG_ACTED), marking
+ * the char as having taken its action this turn. The bit is consumed by
+ * the sprite painter (renders the char dimmed) and by the turn/AI
+ * dispatcher loops (skip an already-acted char).
  * ---------------------------------------------------------------- */
 void fd2_mark_char_acted_this_turn(uint32 char_idx)
 {
