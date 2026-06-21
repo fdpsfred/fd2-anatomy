@@ -1,0 +1,60 @@
+{
+  "address": "0003419c",
+  "name_current": "fd2_set_combat_aux_block_byte_d_low4_for_char_range",
+  "name_final": "fd2_set_combat_aux_block_byte_d_low4_for_char_range",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Name is accurate and free of address residue. 'byte_d' refers to combat_aux_block field index 0xD (a struct field offset documented in types.h as ai_class), 'low4' = the low 4 bits actually written, 'for_char_range' = the inclusive [start,end] loop. domain prefix fd2_ present. The literal offset-based descriptor matches how every caller comment in the codebase refers to this field (combat_aux_block[0xD]); a semantic rename to ai_class would be slightly clearer but the field is multi-purpose (AI mode / dialog control state per plate) so the literal name is safer and consistent. No param_1-style generic, no mismatch with body.",
+  "kind": "function",
+  "home": "src/battle/btl_turn.c",
+  "purpose": "Set the low nibble (AI class / AI-dialog control flag) of combat_aux_block[0xD] for every runtime char in an inclusive index range, preserving the high nibble.",
+  "logic_summary": "for (i = start_idx; (int)i <= (int)end_idx; i++) { pChar = runtime_char_array + i*RUNTIME_CHAR_SIZE; pChar[0x34] = (pChar[0x34] & 0xF0) | (uint8)new_val; }. pChar[0x34] == combat_aux_block[0xD] (combat_aux_block base = +0x27). The high 4 bits are preserved; new_val is OR'd raw (not pre-masked), so callers must pass 0..0xF for low-nibble-only semantics (all 15 callers do: values seen are 0, 3, 7). Signed comparison on the loop bound. Watcom __CHK(0xC) stack probe in prologue.",
+  "signature": "void __cdecl fd2_set_combat_aux_block_byte_d_low4_for_char_range(uint32 start_idx, uint32 end_idx, uint32 new_val)",
+  "params": [
+    {
+      "name": "start_idx",
+      "type": "uint32",
+      "semantics": "First runtime_char_array index in the inclusive range to update (NPC/enemy group start). Compared signed against end_idx.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, matches body usage as the loop start index; no address residue."
+    },
+    {
+      "name": "end_idx",
+      "type": "uint32",
+      "semantics": "Last runtime_char_array index in the inclusive range (loop runs while i <= end_idx).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, matches the inclusive loop bound; no address residue."
+    },
+    {
+      "name": "new_val",
+      "type": "uint32",
+      "semantics": "New AI class / AI-dialog control flag value; only its low 4 bits are written into combat_aux_block[0xD]. Callers pass 0..0xF (0/3/7 observed).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the value being written; no address residue. (Body casts to (uint8) and ORs raw, hence the caller-must-mask note in the comment.)"
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; mutates runtime_char_array in place."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "comment_original_issue": "Original src comment was correct but terse: it stated only 'write low 4 bits of new_val into combat_aux_block[0xD] for chars in range' without noting the high-nibble preservation, the absolute offset 0x34, the field meaning (AI class / control flag), or the important caller-must-mask-to-0..0xF correctness note (body ORs raw, does not pre-mask).",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Validated semantics against types.h (combat_aux_block base +0x27, [0xD]=ai_class -> absolute 0x34) and against two callers (handler_3b passes (0x27,0x2C,0) to disarm; handler_30 passes (0x23,0x2A,3) and (0x43,0x4A,3) to arm AI mode 3). Many sibling caller comments in the codebase already reference combat_aux_block[0xD] by this literal offset, so keeping the name preserves cross-reference consistency. Ghidra plate is more verbose than src but consistent (documents same masking note, abs offset 0x34, 15 callers, AI/dialog control flag) -> left unchanged. No logic touched."
+}

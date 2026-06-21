@@ -288,8 +288,16 @@ void fd2_mark_char_as_dead(uint32 char_idx)
 /* ----------------------------------------------------------------
  * fd2_set_combat_aux_block_byte_d_low4_for_char_range @ 0x3419C
  *
- * Write low 4 bits of new_val into combat_aux_block[0xD] for
- * chars in range [start_idx, end_idx] inclusive.
+ * For every runtime char i in the inclusive range [start_idx, end_idx],
+ * write the low nibble of new_val into combat_aux_block[0xD] (= absolute
+ * runtime_char offset 0x34, the per-char AI class / AI-dialog control
+ * flag) while preserving its high 4 bits:
+ *   combat_aux_block[0xD] = (combat_aux_block[0xD] & 0xF0) | (new_val & 0xF).
+ *
+ * The body does NOT mask new_val before the OR, so a caller passing a
+ * value > 0xF would set high nibble bits too; every caller passes 0..0xF.
+ * Used exclusively by chapter event handlers to arm/disarm the AI mode
+ * (typically 0/3/7) of an NPC or enemy group for a story beat.
  * ---------------------------------------------------------------- */
 void fd2_set_combat_aux_block_byte_d_low4_for_char_range(
     uint32 start_idx, uint32 end_idx, uint32 new_val)
