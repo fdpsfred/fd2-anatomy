@@ -1,0 +1,99 @@
+{
+  "address": "0x0002ba22",
+  "name_current": "fd2_animate_spell_hit_cinematic",
+  "name_final": "fd2_animate_spell_hit_cinematic",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Convention-compliant fd2_<domain>_<descriptor>: domain 'animate' matches the animation-family siblings (fd2_animate_bg_zoom_transition_in/out), descriptor 'spell_hit_cinematic' accurately names the spell-HIT cinematic sub-loop. No Ghidra address residue. Verified against disasm 0x2BA22-0x2BC98 and the sole caller (fd2_play_spell_cast_sequence) call site.",
+  "kind": "function",
+  "home": "src/anim/anicine.c",
+  "purpose": "9-frame spell-HIT cinematic sub-loop that brackets one AoE target's hit moment inside the basic-spell cast sequence: Phase 1 slides the caster sprite IN (zoom-in, frame 1..4), Phase 2 slides the next target's hit-effect sprite OUT (zoom-out, frame 4..0).",
+  "logic_summary": "Setup: workspace_ptr = base_workspace_offset + 0x49C0; pose_count = *(byte*)spell_sprite_atlas; team_dir_sign = runtime_char[attacker_idx].team==0 ? +1 : -1 (enemy casters slide in from right, players from left); flicker_toggle = 0 (shared across both phases). Each phase loops the same per-frame body: (1) if spell_type_idx is 3 or 7 (electric/lightning) toggle flicker and set flicker_dst = workspace_ptr - flicker_toggle*0x280 (1-row jitter), else flicker_dst = workspace_ptr; blit background (bg_workbuf -> flicker_dst, 0x280 stride). (2) pre-blit per-element palette-flash dispatch table[spell_type_idx](attacker_idx, dispatch_sprite_atlas, workspace_ptr, 0x280, 4) (int return ignored). (3) blit spell top-half pose (spell_sprite_atlas, pose_count-1). (4) blit the sliding sprite at frame*0x23*team_dir_sign px (Phase 1: caster_sprite_atlas; Phase 2: hit_effect_sprite). (5) post-blit dispatch table[spell_type_idx](..., 5). (6) push workspace to mode13h primary 0xA0000. (7) wait 1 BIOS tick. Frame count is fixed 4+5 (dispatch return discarded).",
+  "signature": "void __cdecl fd2_animate_spell_hit_cinematic(uint32 attacker_idx, uint32 dispatch_sprite_atlas, uint32 spell_sprite_atlas, int caster_sprite_atlas, uint32 base_workspace_offset, uint32 bg_workbuf, int hit_effect_sprite, int spell_type_idx)",
+  "params": [
+    {
+      "name": "attacker_idx",
+      "type": "uint32",
+      "semantics": "runtime_char index of the caster; indexes data_fd2_battle_runtime_char_array_ptr[].team for the slide-direction sign, and is passed as arg0 (sprite_handle) to the palette-flash dispatch.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, address-residue-free; matches caller arg 'caster_idx'. (Live Ghidra decompiler mislabels this 'param_1' but the stored prototype/plate and src are correct.)"
+    },
+    {
+      "name": "dispatch_sprite_atlas",
+      "type": "uint32",
+      "semantics": "FDOTHER.DAT team-caster effect sprite handle (caller's team_caster_sprite); passed as arg1 (sprite_atlas) to the per-element palette-flash dispatch table entry both before and after the per-frame sprite blits.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, address-residue-free; matches caller arg 'team_caster_sprite'. (Live Ghidra mislabels 'param_2'.)"
+    },
+    {
+      "name": "spell_sprite_atlas",
+      "type": "uint32",
+      "semantics": "Caster's spell-animation FIGANI atlas (caller's caster_figani_b); its first byte is the pose count, and pose (pose_count-1) is blit as the top-half spell pose every frame.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, address-residue-free; matches caller arg 'caster_figani_b'. *(byte*)spell_sprite_atlas -> pose_count confirmed at disasm 0x2BA48. (Live Ghidra mislabels 'param_3'.)"
+    },
+    {
+      "name": "caster_sprite_atlas",
+      "type": "int",
+      "semantics": "Current target's FIGANI atlas (caller's figani_buf[target_iter]); used ONLY in Phase 1 as the zoom-IN sliding sprite (pose 0) at frame*0x23*team_dir_sign.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, address-residue-free; matches caller arg figani_buf[target_iter]. (Live Ghidra display happens to show 'caster_idx' here, but that is a decompiler mislabel; the value is a sprite atlas, not an index.)"
+    },
+    {
+      "name": "base_workspace_offset",
+      "type": "uint32",
+      "semantics": "Base of the 0x2A300 composite frame-scratch buffer (caller's work); workspace_ptr = base_workspace_offset + 0x49C0 is the 0x280-stride composite origin for all blits.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, address-residue-free; matches caller arg 'work'. EBX = [ESP+0x30] + 0x49C0 confirmed at disasm 0x2BA33/0x2BA4F. (Live Ghidra mislabels 'spell_id_arg'.)"
+    },
+    {
+      "name": "bg_workbuf",
+      "type": "uint32",
+      "semantics": "64000-byte mode13h backbuffer holding the static battle background (caller's backbuf); blit as the per-frame background composite source (stride 0x140) into flicker_dst.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, address-residue-free; matches caller arg 'backbuf'. (Live Ghidra mislabels 'pSpell_anim_stream'.)"
+    },
+    {
+      "name": "hit_effect_sprite",
+      "type": "int",
+      "semantics": "NEXT target's FIGANI atlas (caller's figani_buf[target_iter+1]); used ONLY in Phase 2 as the zoom-OUT sliding sprite (pose 0), reversing Phase 1's slide-in.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, address-residue-free; matches caller arg figani_buf[target_iter+1]. (Live Ghidra mislabels 'pHit_sprite'.)"
+    },
+    {
+      "name": "spell_type_idx",
+      "type": "int",
+      "semantics": "Spell id (caller's spell_id); selects the palette-flash dispatch table entry data_fd2_battle_spell_cast_cinematic_phase_handler_table[spell_type_idx], and gates the electric/lightning flicker (==3 || ==7).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, address-residue-free; matches caller arg 'spell_id'. EDI = [ESP+0x3c], used as table index [EBP*4+0x523B9] and compared to 7/3 (disasm 0x2BA99/0x2BB27/0x2BB2C). (Live Ghidra mislabels 'pWorkbuf'.)"
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value (pure side-effect: renders 9 cinematic frames to mode13h VGA)."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr (0x53A45) -- reads [attacker_idx].team for the slide-direction sign",
+    "data_fd2_battle_spell_cast_cinematic_phase_handler_table (0x523B9) -- 10-entry int(*)(u32,u32,u32,u32,u32) fn-ptr table; entry [spell_type_idx] invoked twice per frame (phase codes 4 then 5) for the per-element palette flash"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Function fully verified against disasm 0x2BA22-0x2BC98, decompile, the home src definition (anicine.c:1331), and the sole caller's call site (anispell.c:744 / Ghidra fd2_play_spell_cast_sequence @ 0x2A6BD, xref from 0x2B059). All correct: name keep, all 8 params keep, comment keep, plate consistent (none). No logic/equivalence issue. INFORMATIONAL (not a logic issue, so not in issues[]): the live Ghidra DECOMPILER displays mislabeled local param names (param_1/param_2/param_3/caster_idx/spell_id_arg/pSpell_anim_stream/pHit_sprite/pWorkbuf) -- a decompiler display artifact because the Ghidra stored prototype has no committed param names; the Ghidra plate header text and the src definition both carry the correct semantic names, and the src is authoritative. Verified detail: Phase 2's pre-blit dispatch uses phase_code 4 and post-blit uses 5 (disasm 0x2BB96 PUSH 0x4 / 0x2BBE8 PUSH 0x5), matching Phase 1; src lines 1383/1390 are correct. No src edit was needed (comment already precise and ASCII-only); only the shard was added."
+}
