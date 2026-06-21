@@ -171,8 +171,10 @@ void fd2_display_cinematic_image_with_fade(uint32 image1_idx, uint32 palette_idx
  * fd2_play_figani_char_intro_animation @ 0x28784  (1 caller)
  *
  * Plays the FIGANI character intro animation (full-screen pose with
- * name banner) for the runtime char given by char_idx. Used at chapter
- * intros / character introductions.
+ * name banner) for the runtime char given by char_idx. The sole live
+ * trigger is the long-range branch of fd2_execute_ai_item_use: it is
+ * the caster's spotlight pose shown just before a long-range item/spell
+ * strike (char_idx is the caster).
  *
  * Setup: free large_game_state_buffer + data_fd2_battle_scene_snapshot, allocate
  * a 64000-byte mode-13h framebuffer scratch (dst) and a 0x1F400 work
