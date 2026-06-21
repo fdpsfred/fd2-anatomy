@@ -1,0 +1,35 @@
+{
+  "address": "0002d31b",
+  "name_current": "fd2_close_intro_dialog_with_slide_out",
+  "name_final": "fd2_close_intro_dialog_with_slide_out",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>. Accurately describes behavior: closes a chapter-intro/menu dialog panel with a 5-frame slide-down (slide-out) animation, restores the framebuffer snapshot, and frees the three dialog workspace buffers. No address-residue suffix; the trailing token 'slide_out' is semantic, not a hex address.",
+  "kind": "function",
+  "home": "src/dialog/dialog.c",
+  "purpose": "Close a chapter-intro / menu dialog panel: play a 5-frame slide-down animation, restore the underlying mode-13h framebuffer from a backup snapshot, then free the three 64000-byte dialog workspace buffers.",
+  "logic_summary": "Compiler-injected __CHK(0x14) stack-probe prologue (not source). Loop frame_iter = 1..5 calls fd2_slide_panel_down_step(frame_iter*0xD + 0x70, accumulator_buf, composed_target_buf), giving panel_y = 0x7D,0x8A,0x97,0xA4,0xB1. Then memmove(0xA0000, bg_snapshot_buf, 64000) restores the saved screen to VRAM, followed by free() of the three workspaces (accumulator, bg_snapshot, composed_target). Unlike the in-battle sibling fd2_close_status_screen_with_slide_out @ 0x196CB, this variant does NOT recomposite a battle frame afterward.",
+  "signature": "void __cdecl fd2_close_intro_dialog_with_slide_out(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_ui_slide_anim_accumulator_buf_ptr @ 0x53C5B (per-frame animation accumulator buffer pointer; passed to slide step, then freed)",
+    "data_fd2_ui_slide_bg_snapshot_buf_ptr @ 0x53C5F (framebuffer backup snapshot pointer; memmove source to restore VRAM, then freed)",
+    "data_fd2_ui_slide_composed_target_buf_ptr @ 0x53C63 (composed dialog-panel target image pointer; passed to slide step, then freed)"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block, Ghidra plate, and decompile are mutually consistent and accurate; nothing changed in src or plate. Global symbol names at 0x53C5B/0x53C5F/0x53C63 verified to byte-match the source body references. Header '(19 callers)' is correct: get_function_callers reports 19 distinct caller functions (get_xrefs_to lists 42 call-site references across those 19). Decompile shows phantom in_stack_* vars from the __CHK stack-probe prologue; signature confirms param_count=0 (true void). No logic issues. No name changes recorded (verdict keep)."
+}
