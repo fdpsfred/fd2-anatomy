@@ -1,0 +1,31 @@
+{
+  "address": "00036de3",
+  "name_current": "crt_equivalent_exit_chain_stub_36de3",
+  "name_final": "crt_equivalent_atexit_default_stub",
+  "name_verdict": "rename",
+  "name_proposed": "crt_equivalent_atexit_default_stub",
+  "name_reason": "Prefix crt_equivalent_ is correct (Watcom CRT wrapper). The descriptor 'exit_chain_stub' is accurate, but the suffix '_36de3' is Ghidra address residue: 0x36de3 is this function's own entry address (read_memory confirms byte 0xC3=RET at 0x36de3; same class as the spec example fd2_noop_stub_4e915). No domain ID is involved (no chapter/item/spell/job/portrait ID, dimension, or multiplier), so the suffix must be dropped. Proposed crt_equivalent_atexit_default_stub keeps the CRT prefix and names the role precisely (the default no-op target the three atexit chain slots point to). Name is free (no collision in src/). Recorded only; rename applied in Stage 2 across protos.h/crtcomp.h + call sites.",
+  "kind": "function",
+  "home": "src/crt/crt.c",
+  "purpose": "Watcom CRT atexit default no-op handler: a single-byte RET that the three atexit chain slots (0x527d8/0x527dc/0x527e0) point to until atexit(fn) overwrites a slot. When exit/_exit walk the chain via indirect CALL [slot], an unregistered slot lands here and returns immediately, so it is a harmless no-op.",
+  "logic_summary": "Body is the single instruction RET (0xC3 at 0x36de3). __cdecl, no parameters, no return value, no callee stack cleanup (nothing pushed), no CALL inside (no EAX-tracking concern). Its address is taken as DATA from the three atexit fn-pointer slots (each slot holds little-endian e3 6d 03 00 = 0x00036de3, confirmed via read_memory at 0x527d8), so it must remain a real, callable function and cannot be folded away.",
+  "signature": "void __cdecl crt_equivalent_exit_chain_stub_36de3(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Control returns immediately to the indirect CALL site in exit/_exit; the function performs nothing."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": "Original src comment block (lines 348-365) is accurate, precise, and complete: it states the atexit default no-op purpose, the slot-init / chain-walk / atexit-overwrite mechanism, that the address is taken (DATA from the three slots) so it must remain a real callable function, and the __cdecl/no-param/no-return/single-RET/no-EAX-concern details. Matches the Ghidra decompilation and disassembly exactly; no change needed.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified: disassemble_function -> single 'RET'; read_memory(0x36de3) -> 0xC3 (followed by 55 89 e5 = start of exit @0x36de4). Callers = exit @0x36de4 and _exit @0x36df6 (get_function_callers); xrefs_to shows 4 COMPUTED_CALL sites (0x36de7/0x36ded in exit, 0x36df9/0x36dff in _exit) plus 3 DATA refs from atexit slots 0x527d8/0x527dc/0x527e0. read_memory(0x527d8,16) = e3 6d 03 00 x3 then 00 00 00 00 -> all three slots default to this stub's address 0x36de3. exit/_exit decompiles confirm the chain-walk (CALL [slot]) and reference the slot globals as data_crt_atexit_chain_slot_{1,2,3}_fnptr. This stub itself reads/writes no globals (pure RET). Ghidra plate already describes the identical atexit no-op mechanism and is consistent with the refined understanding; left unchanged. comment_verdict=keep so src/crt/crt.c was not edited."
+}
