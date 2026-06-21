@@ -1,0 +1,40 @@
+{
+  "address": "000347b1",
+  "name_current": "fd2_chapter_event_handler_14__ch6_dialog",
+  "name_final": "fd2_chapter_event_handler_14__ch6_dialog",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with fd2_<domain>_<descriptor>. '14' is the per-event handler table slot index idx 0x14 (confirmed: table entry @ 0x51be1 holds little-endian bytes b1470300 = 0x000347b1, this function's own address), a domain ID not an address residue. 'ch6' = chapter 6 (valid chapter domain ID 06). 'dialog' = category (dialog-only). Matches all sibling handler names in chevt1.c; accurately reflects purpose and body.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter 6 turn-event slot 0 (turn 5 / phase 2): the minimal dialog-only beat -- show dialog page 1, no other side effects.",
+  "logic_summary": "Single straight-line call: fd2_display_dialog_scene(data_fd2_current_chapter_text, page=1, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1). No branches, no RNG, no numeric computation; the dialog return value is discarded; event_arg is never read. In the original binary it pushes its 8 args then JMP 0x3452F into handler_09's shared tail (PUSH data_fd2_current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24; RET); src inlines the call for Layer-2 equivalence. __CHK(0x28) stack-probe prologue is compiler-injected.",
+  "signature": "void __cdecl fd2_chapter_event_handler_14__ch6_dialog(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform 1-arg cdecl dispatch arg from the per-event handler table at 0x51B91; never read by this handler.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive of the dispatch-table arg slot; no address residue. Matches the parameter name used across all sibling handlers in this file."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value (fd2_display_dialog_scene's uint32 return is discarded)."
+  },
+  "reads_globals": ["data_fd2_current_chapter_text"],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly confirms PUSH 0x28 / CALL __CHK prologue, 8 PUSHes (1,0x13,0x4A,0x4C,0xCD,0x140,0xA0000,page=1), JMP 0x3452F (shared-tail borrow from handler_09). Xref-to is sole DATA ref from 0x00051be1 (dispatch table). Src comment (chevt1.c lines 825-854) already precise and consistent with Ghidra plate; both left unchanged. No src edit made (comment_verdict=keep), so only the shard file is staged for commit."
+}
