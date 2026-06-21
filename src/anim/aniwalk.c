@@ -780,16 +780,17 @@ uint32 data_fd2_battle_compose_walk_step_y_sub_pixel_offset;
 /* ----------------------------------------------------------------
  * Walk-step horizontal (X) parallax scroll offset @ 0x53B07  (.object2, zero-init)
  *
- * Cumulative sub-pixel X scroll accumulator for the smooth walk-step slide.
- * fd2_walk_step_left and fd2_walk_step_right seed it to 6 before the slide
- * loop, add the per-frame window-scroll delta (-1 / 0 / +1) into it each of
- * the 6 slide frames, and clear it to 0 after the step completes, so the
- * static image is zero.
+ * Cumulative window/sub-pixel X scroll accumulator for the smooth walk-step
+ * slide; horizontal counterpart of data_fd2_battle_walk_anim_y_scroll_rows.
+ * fd2_walk_step_left seeds it to 6, fd2_walk_step_right seeds it to 0; both
+ * then add the per-frame window-scroll flag into it on each of the 6 slide
+ * frames (left: -1 when scrolling, else 0; right: +1 when scrolling, else 0)
+ * and clear it to 0 after the step completes, so the static image is zero.
+ * In practice the value stays in [0, 6].
  * Read by fd2_composite_battle_tile_map for the extra-wide parallax chapters
- * (0x11/0x15/0x16/0x1B): the value is signed-divided by 2 (asm uses the
- * SAR/SUB/SAR signed /2 idiom) and added into the background source offset,
- * so the stored value is a signed int and does take negative values via the
- * left-scroll path.
+ * (0x11/0x15/0x16/0x1B): declared signed int (dword accesses); the reader
+ * does a signed divide by 2 (SAR/SUB/SAR idiom @ 0x12055) and adds the result
+ * into the static-background source offset.
  * ---------------------------------------------------------------- */
 int data_fd2_battle_walk_anim_x_scroll_offset;
 
