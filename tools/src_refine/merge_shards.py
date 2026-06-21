@@ -75,8 +75,12 @@ def main():
     ngl = sum(1 for r in recs.values() if r.get("kind") == "global")
     nren = sum(1 for r in recs.values() if r.get("name_verdict") == "rename")
     nunc = sum(1 for r in recs.values() if r.get("name_verdict") == "uncertain")
+    nparamren = sum(1 for r in recs.values() for p in (r.get("params") or []) if p.get("verdict") == "rename")
+    nfn_with_paramren = sum(1 for r in recs.values()
+                            if any(p.get("verdict") == "rename" for p in (r.get("params") or [])))
     print(json.dumps({"shards": len(recs), "functions": nfn, "globals": ngl,
-                      "rename_proposed": nren, "uncertain": nunc,
+                      "symbol_rename_proposed": nren, "uncertain": nunc,
+                      "param_rename_proposed": nparamren, "fns_with_param_rename": nfn_with_paramren,
                       "issues": len(issues), "by_name_keys": len(name_idx)}, indent=2))
 
 

@@ -110,16 +110,20 @@ function refinerPrompt(sym) {
     symHead(sym), '',
     analyze, '',
     'B. 結論：用途(purpose 一句) + 內部邏輯摘要(logic_summary)。' +
-      (isFn ? ' function 另列 signature、每個參數的語義(params)、回傳語義(returns)、讀/寫的 global(reads_globals/writes_globals)。'
+      (isFn ? ' function 另列 signature、回傳語義(returns)、讀/寫的 global(reads_globals/writes_globals)，以及每個參數(params，見 C2)。'
             : ' global 另列真實 datatype 與每元素語義(element_semantics)、是否 const(is_const，由遊戲端有無 write-xref 判定)。'),
     '',
-    'C. 名稱判定（**只記錄，不套用**）：依命名規範檢查 current name 是否正確反映用途：',
+    'C. 名稱判定（**只記錄，不套用**；rename 一律在 Stage 2 序列套用，因牽動 protos.h/globals.h/call site/簽章）：',
+    '  C1. 符號名(' + (isFn ? 'function' : 'global') + ')：依命名規範檢查 current name 是否正確反映' + (isFn ? '用途與內部邏輯' : '用途與資料型態') + '：',
     '   - 規範：遊戲 function=fd2_<domain>_<descriptor>（main 唯一豁免）；CRT 包裝=crt_equivalent_*；DPMI=fd2_dpmi_*；',
-    '     global=data_fd2_<domain>_<descriptor>（battle 核心表 data_fd2_battle_*；CRT=data_crt_*）。',
-    '   - **名稱不得帶 Ghidra 位址殘留**（如尾碼 hex 等於自身或某 data 的位址，例 _b43=0x10b43、_52758=0x52758）。',
+    '     global=data_fd2_<domain>_<descriptor>（battle 核心表 data_fd2_battle_*；CRT=data_crt_*）。' + (isFn ? '' : ' global 名應同時反映資料型態（表/陣列/旗標/指標/計數器等）。'),
+    '   - **名稱不得帶 Ghidra 位址殘留**（尾碼 hex 等於自身或某 data 的位址，例 _b43=0x10b43、_52758=0x52758；fd2_noop_stub_4e915 的 _4e915 亦是）。',
     '     但**領域 ID 必須保留**（章節/道具/法術/職業/頭像 ID、陣列維度、倍率），用領域知識判定，不可 regex 機械剝除。',
     '   - 判 name_verdict: keep（已正確）/ rename（需改，給 name_proposed 合規新名 + name_reason + evidence）/ uncertain（給 name_reason）。',
-    '   - **本階段絕不 rename、絕不改 src 符號名/宣告**。',
+    (isFn ?
+     '  C2. **每個參數名逐一判定**(params)：依每個參數的實際用途（caller 傳入值 + body 使用方式判定）檢查名稱是否貼切，且**不得帶 address 殘留**（param_1 泛稱、與用途不符、帶位址都算需改）。每筆 params 記 {name(現名), type, semantics(用途), verdict(keep|rename), proposed(改名時新名，否則 null), reason}。void 則 params=[]。'
+     : '  C2. （global 無參數，略。）'),
+    '   - **本階段絕不 rename 任何符號名或參數名、絕不改 src 宣告/簽章**；全部 rename（符號名+參數名）一律 Stage 2 套用。',
     '',
     'D. 註解 refine（**一致即可、src 為準**）：',
     '   1. 用 Edit 改 ROOT/src/' + sym.home + ' 內本 symbol 上方的註解區塊，使其精煉正確反映用途+邏輯（ASCII；保留 `@ 0x' + sym.address + '` 之類位址標註是允許的，那是註解不是名稱）。原註解已正確精煉就維持(comment_verdict=keep)。**嚴禁 Write 整檔**。',
@@ -144,7 +148,7 @@ function refinerPrompt(sym) {
     '# 輸出（最後一則訊息＝下列 JSON，且與 shard 檔內容一致）：',
     'address, name_current, name_final(=current 若 keep；rename 時=proposed), name_verdict(keep|rename|uncertain), name_proposed, name_reason,',
     'kind, home, purpose, logic_summary, ' +
-      (isFn ? 'signature, params[{name,type,semantics}], returns{type,semantics}, reads_globals[], writes_globals[],'
+      (isFn ? 'signature, params[{name,type,semantics,verdict(keep|rename),proposed,reason}], returns{type,semantics}, reads_globals[], writes_globals[],'
             : 'datatype, element_semantics, is_const,') +
     ' comment_original_issue, comment_verdict(keep|rewrite|augment), ghidra_plate_action(none|updated|created),',
     'issues[{category,severity,title,description,evidence}], processed(true), committed(bool), commit_hash,',
@@ -162,7 +166,8 @@ const REFINER_SCHEMA = {
     kind: { type: 'string' }, home: { type: 'string' },
     purpose: { type: 'string' }, logic_summary: { type: 'string' },
     signature: { type: 'string' },
-    params: { type: 'array' }, returns: { type: 'object' },
+    params: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, type: { type: 'string' }, semantics: { type: 'string' }, verdict: { type: 'string' }, proposed: { type: ['string', 'null'] }, reason: { type: 'string' } } } },
+    returns: { type: 'object' },
     reads_globals: { type: 'array' }, writes_globals: { type: 'array' },
     datatype: { type: 'string' }, element_semantics: { type: 'string' }, is_const: { type: ['boolean', 'null'] },
     comment_original_issue: { type: ['string', 'null'] },
@@ -194,7 +199,7 @@ const kStr = (x) => (x < 0 ? 'n/a' : '~' + x + 'k')
 
 let symTotal = 0
 for (const f of FILES) symTotal += f.symbols.length
-let symDone = 0, renameProposed = 0, issuesFound = 0
+let symDone = 0, renameProposed = 0, paramRenameProposed = 0, issuesFound = 0
 
 outer:
 for (let fi = 0; fi < FILES.length; fi++) {
@@ -214,13 +219,16 @@ for (let fi = 0; fi < FILES.length; fi++) {
       if (out && out.committed && out.status === 'done') {
         const rp = out.name_verdict === 'rename'
         const nis = (out.issues || []).length
+        const npr = ((out.params || []).filter(p => p && p.verdict === 'rename')).length
         if (rp) renameProposed++
+        paramRenameProposed += npr
         issuesFound += nis
         results.push({ address: sym.address, name: sym.name, home: file.home, status: 'committed',
                        name_verdict: out.name_verdict, name_proposed: out.name_proposed || null,
-                       comment_verdict: out.comment_verdict, issues: nis, commit: out.commit_hash })
+                       param_renames: npr, comment_verdict: out.comment_verdict, issues: nis, commit: out.commit_hash })
         log(tag + ' -- COMMITTED ' + (out.commit_hash || '') + ' | name:' + out.name_verdict +
-            (rp ? ('->' + out.name_proposed) : '') + ' | comment:' + out.comment_verdict + (nis ? (' | ' + nis + ' issue(s)') : ''))
+            (rp ? ('->' + out.name_proposed) : '') + (npr ? (' | ' + npr + ' param-rename') : '') +
+            ' | comment:' + out.comment_verdict + (nis ? (' | ' + nis + ' issue(s)') : ''))
       } else {
         results.push({ address: sym.address, name: sym.name, home: file.home, status: out ? (out.status || 'not_committed') : 'no_output',
                        notes: (out && out.notes) || '(no detail)' })
@@ -237,7 +245,8 @@ for (let fi = 0; fi < FILES.length; fi++) {
 
 const ok = results.filter(r => r.status === 'committed').length
 log('Batch ' + (stopped ? 'STOPPED (' + stopped + ')' : 'complete') + ': ' + ok + '/' + symTotal +
-    ' committed | ' + renameProposed + ' rename proposed | ' + issuesFound + ' issue(s) | out-tok ' + kStr(k()))
+    ' committed | ' + renameProposed + ' name-rename | ' + paramRenameProposed + ' param-rename | ' +
+    issuesFound + ' issue(s) | out-tok ' + kStr(k()))
 return { label: A.label || PART, partition: PART, root: ROOT, total: symTotal, committed: ok,
-         rename_proposed: renameProposed, issues_found: issuesFound, stopped,
-         out_tok_k: (k() < 0 ? null : k()), results }
+         rename_proposed: renameProposed, param_rename_proposed: paramRenameProposed, issues_found: issuesFound,
+         stopped, out_tok_k: (k() < 0 ? null : k()), results }
