@@ -1,0 +1,54 @@
+{
+  "address": "0001300d",
+  "name_current": "fd2_walk_step_left",
+  "name_final": "fd2_walk_step_left",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (anim/walk domain, descriptor 'step_left'). 'left' is a semantic walk direction (matches siblings down/left/up/right), not an ID to strip. No Ghidra address residue. Caller fd2_walk_path_animation_loop maps path-byte 1 -> this function, and body sets facing=1 (west) and decrements pos_x, confirming LEFT/west semantics.",
+  "kind": "function",
+  "home": "src/anim/aniwalk.c",
+  "purpose": "Render a 6-frame animated walk step LEFT (west, -1 x tile) for runtime character char_idx, scrolling the battle viewport one column left when the character is near the left edge and the window can still retreat.",
+  "logic_summary": "Caches pos_x (pChar[0]), sets facing pChar[3]=1 (west), seeds walk_anim_x_scroll_offset=6. Scroll decision: if char's on-screen column < 2 AND view_window_origin_x != 0, set per-frame scroll_delta_x=-4 and scroll_window_flag=-1 (viewport will retreat 1 col); else just decrement cursor_screen_x (no scroll). 6-frame slide loop: tick tutorial/sfx + palette-cycle anim, set walk_anim_phase pChar[4]=frame, tick chapter palette anim, set left-edge clip marker=0x18, accumulate the Y sub-pixel offset and X scroll offset by the per-frame deltas, composite the 14-col-wide battle tile map (origin_x-1, +1 left margin), clear clip marker, composite character overlay, advance blit_offset by scroll_delta_x, blit the rectangle to VRAM 0xA0504, wait one BIOS tick. Finalize: pos_x--, view_window_origin_x += scroll_window_flag, cursor_world_x--, clear walk_anim_phase, clear Y sub-pixel offset and X scroll offset, then call fd2_check_tile_event_post_action(cursor_world_x, cursor_world_y, 0).",
+  "signature": "void fd2_walk_step_left(uint32 char_idx)",
+  "params": [
+    {
+      "name": "char_idx",
+      "type": "uint32",
+      "semantics": "Index of the moving runtime character into data_fd2_battle_runtime_char_array_ptr (entry stride RUNTIME_CHAR_SIZE). Passed straight through from fd2_walk_path_animation_loop and forwarded to fd2_tick_tutorial_progress_with_sfx each frame.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the runtime character array index; no address residue, not a generic param_N. Matches usage in all sibling walk_step_* functions."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; mutates runtime char position/facing/anim-phase, viewport origin, cursor world/screen coords, and renders frames to VRAM."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y",
+    "data_fd2_battle_cursor_world_x",
+    "data_fd2_battle_cursor_world_y",
+    "data_fd2_large_game_state_buffer_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_walk_anim_x_scroll_offset",
+    "data_fd2_battle_cursor_screen_x",
+    "data_fd2_battle_compose_left_edge_clip_offset",
+    "data_fd2_battle_compose_walk_step_y_sub_pixel_offset",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_cursor_world_x"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (aniwalk.c lines 125-131) is already concise and accurate (6-frame walk LEFT, facing=1 west, -1 x, viewport scroll, shared epilogue with walk_step_down) and parallel with sibling step functions, so kept as-is. Ghidra plate is detailed and consistent with the implementation -> not modified. runtime_char field semantics cross-checked against fd2-knowledge struct runtime_char (guide base+0x08: x,y,graphic,direction,running-action -> here pChar[0]=pos_x, pChar[1]=pos_y, pChar[3]=facing/direction, pChar[4]=walk_anim_phase/running-action); facing=1 for west is consistent with siblings (down=0,left=1,up=2,right=3). Plate notes an asm-level shared epilogue (tail 0x13167..0x13184 reused by fd2_walk_step_down via JMP); at C-source level both just call fd2_check_tile_event_post_action then return, so the 'shared epilogue' wording in the src comment is accurate. No logic/equivalence concerns found. Concurrent refiner's shard 00036b0f.json left unstaged (not mine)."
+}
