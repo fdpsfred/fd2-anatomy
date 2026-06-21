@@ -1,0 +1,31 @@
+{
+  "address": "0x0004e893",
+  "name_current": "fd2_advance_rng_state",
+  "name_final": "fd2_advance_rng_state",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; descriptor 'advance_rng_state' accurately reflects the read-modify-write that advances the shared 16-bit RNG seed. No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/battle/battle.c",
+  "purpose": "Advance the shared 16-bit pseudorandom number generator: read seed, compute next = ROL16(seed + 0x9014, 3), store it back, and return the new seed.",
+  "logic_summary": "Read-modify-write on the sole RNG global data_fd2_shared_rng_seed @ 0x627B8. Disasm: XOR EAX,EAX; MOV AX,[0x627B8]; ADD AX,0x9014; ROL AX,1 (x3); MOV [0x627B8],AX; RET. The leading XOR EAX,EAX zero-extends the 16-bit result so the function returns uint32(seed) in EAX -- Ghidra mis-decompiles this as void (documented EAX-tracking artifact). src emits 'seed=seed+0x9014u; seed=(seed<<3)|(seed>>13)' which is exactly ROL16(seed+0x9014, 3); the +0x9014 unsigned equals the -0x6fec the decompiler prints. Same scramble step as fd2_save_crypt_buffer @ 0x4DBD8.",
+  "signature": "uint32 fd2_advance_rng_state(void)",
+  "params": [],
+  "returns": {
+    "type": "uint32",
+    "semantics": "The freshly-advanced 16-bit seed, zero-extended into EAX. All 23 call sites consume the return value directly (rng_val = fd2_advance_rng_state()) rather than re-reading the global."
+  },
+  "reads_globals": ["data_fd2_shared_rng_seed"],
+  "writes_globals": ["data_fd2_shared_rng_seed"],
+  "comment_original_issue": "src comment (battle.c lines 18-23) is accurate and concise: states the LFSR formula, address, and that the result is returned in EAX and used by callers. No issue; kept as-is.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Plate previously claimed 'void return (side-effect only -- caller reads rng_seed afterward)', which contradicts the verified truth (returns new seed in EAX; all 23 callers use the return value). Updated the plate to state the correct return semantics and explain the Ghidra void mis-decompile, while preserving the body trace and the shared-formula note with fd2_save_crypt_buffer @ 0x4DBD8. No src code/comment change needed; src signature uint32 and the return are correct and must not be altered."
+}
