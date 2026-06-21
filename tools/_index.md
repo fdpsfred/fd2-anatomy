@@ -13,6 +13,7 @@ import shared lib、不依賴 `legacy/`。CLI 用法看 `python <script> --help`
 | `ail_extract/` | 從 FD2.LE 抽 Miles AIL 重建為 `ailv3.lib` + `ailv3.h` + `fd2common.lib`，DOSBox-X 內 build / run 驗證 |
 | `code_emit/` | FD2 function emit + review pipeline：`emit_review.wf.js` 編排、`build_test.py` build gate、routing scout |
 | `data_emit/` | 真實 global data 從 FD2.LE 落地 `src/` 的 emit pipeline + `verify_real.py` byte-equality gate |
+| `src_refine/` | `src/` 逐 symbol 解析 + refine（只改名稱/註解）+ 同步 Ghidra：worklist/partition/scout + `src_refine.wf.js` Stage 1 workflow + `hash_check` byte-identical gate + `merge_shards` 產 src_info/src_issues |
 | `fd2_build/` | src-only FD2.EXE 正式建置（`build_fd2` 自編 src + link，零 `tests/` 依賴；`analyze_undefined` 把 undefined 分類成「`src/` 還缺什麼」worklist）|
 | `snd_kbd_diag/` | 實機 playtest 診斷（wlink map / lib dump / SFX 重現 / runtime audio 狀態）|
 

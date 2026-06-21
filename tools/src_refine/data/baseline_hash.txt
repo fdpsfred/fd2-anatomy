@@ -1,0 +1,6 @@
+ab5f110af02608462a1da464732c098ef4dc8e17e6dc43252b535ed1cbf3bd9b
+# FD2.EXE production build sha256 (sha256sum of workspace/fd2_build/exe/out/FD2.EXE)
+# baseline source commit: f83ec3c977835a8a121296868b082f22900ca1d3
+# confirmed byte-identical to current HEAD production build (FD2_REPLAY-gated src changes are transparent to the no-FD2_REPLAY production build)
+# FD2.EXE size: 349189 bytes; 0 undefined symbols; built with tools/fd2_build/build_fd2.py (Watcom 9.5a, DOSBox-X)
+# tracked location (workspace/ is gitignored) so refine worktrees inherit it.
