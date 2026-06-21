@@ -889,9 +889,30 @@ uint8 data_fd2_battle_summon_main_anim_odd_even_frame_toggle;
 /* ----------------------------------------------------------------
  * fd2_tick_summon_spell_main_animation_state @ 0x26795
  *
- * Main 12-slot summon animation. Dispatch table #3.
- * 12 color rotation mod 12, odd/even frame toggle,
- * 3 rodata tables (y-offsets, v-offsets, sprite offsets).
+ * Per-tick state machine for the main 12-slot summon-spell
+ * animation. Dispatch-table entry #3 (referenced only via DATA at
+ * 0x523C5; no direct callers). Returns a frame-hold / status code
+ * consumed by the caller's dispatch loop.
+ *
+ * Copies three rodata tables into locals each call: per-slot y
+ * offsets (12 x int32), per-color vertical offsets (12 x uint8),
+ * and per-color sprite/SFX-mask offsets (12 x uint8). If the
+ * caster is on the enemy team (runtime_char.bTeam == 0), shifts
+ * every local y offset down by 0x14.
+ *
+ * state 0 (INIT): seed each slot's frame counter to -2*i (staggered
+ *   start) and color index to i; set color_rotation_counter=12,
+ *   clear terminate_flag and odd/even toggle; return 2.
+ * state 3: return 0x28 (40-tick hold).
+ * state 6: set terminate_flag (stops color rotation); return 0x14.
+ * state 2/5/8 (TICK): flip the mod-2 odd/even toggle. For each of
+ *   12 slots, blit the current frame (frame in [0,0xB)) using the
+ *   slot's color-indexed sprite/y/v offsets. On even ticks only,
+ *   advance the frame counter, trigger frame-0 / frame-3 SFX chimes
+ *   (gated by the color's SFX-mask byte), set done_flag at frame 3,
+ *   and at frame 0xB rotate to the next color (unless terminated)
+ *   and restart that slot. Return done_flag.
+ * other states: return 0.
  * ---------------------------------------------------------------- */
 int fd2_tick_summon_spell_main_animation_state(
     uint32 caster_unit_id, uint32 sprite_handle,
