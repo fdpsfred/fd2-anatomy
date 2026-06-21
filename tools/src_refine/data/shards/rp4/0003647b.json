@@ -1,0 +1,58 @@
+{
+  "address": "0003647b",
+  "name_current": "crt_equivalent_lx_module_loader_3647b",
+  "name_final": "crt_equivalent_lx_module_loader_3647b",
+  "name_verdict": "uncertain",
+  "name_proposed": null,
+  "name_reason": "Descriptor 'crt_equivalent_lx_module_loader' is correct and convention-compliant (crt_equivalent_* CRT wrapper that loads an LX module). The trailing '_3647b' equals the function's own entry address (0x3647b), so by the strict no-address-residue rule it is a Ghidra address tag rather than a domain ID, which would argue for stripping it to crt_equivalent_lx_module_loader. However, the entire CRT-equivalent LX family in src/crt/crt.c uses the same address-tag convention as a stable disambiguator (crt_equivalent_lx_chunk_read_36107 @0x36107, crt_equivalent_lx_header_reader_36344 @0x36344, crt_equivalent_exit_chain_stub_36de3 @0x36de3); renaming this one in isolation would break the family's uniform naming and these siblings are referenced by call site inside this very body. Decision deferred to Stage 2 (which owns rename + protos.h/globals.h/call-site propagation and can decide the family policy as a whole). Marked uncertain rather than rename so Stage 2 makes the family-wide call.",
+  "kind": "function",
+  "home": "src/crt/crt.c",
+  "purpose": "Watcom CRT-equivalent LX/LE runtime module loader: reads the MZ->LX header, walks the object + page + fixup tables, writes the loaded image into a caller buffer (or a freshly allocated one) and applies 32-bit relocations. Dead in FD2 (static-link single-LE never invokes runtime LE loading) but re-emitted because the CLIB3S overlay/dynamic-load chain pulls in the __loadm-family obj and this body does not byte-match the public Watcom one.",
+  "logic_summary": "1) handle = (flags&1)?path-as-handle : open(path,0x200); open==-1 -> return 0. 2) total_size = crt_equivalent_lx_header_reader_36344(path,flags). 3) if flags&4: caller_buf = (*data_ail_alloc_fnptr)(total_size); null -> close(if !flags&1)+return 0; else use caller_buf. 4) memset(caller_buf,0,total_size); out_cursor=alloc_base=caller_buf. 5) read e_lfanew (MZ+0x3C, 4B) + 2B magic; strcmp vs \"LX\"; mismatch -> close+return 0. 6) read full 0xAC LX header into lx_header. 7) for each object (lx_header+0x44 count): read 0x18 object record; for each page (obj+0x10 count): read 0x8 page entry; on first page of a flag-3 (bit0|bit1) object with a misaligned cursor and obj_idx!=0, bump out_cursor by 0x10-(alloc_base&0xf) for 16-byte inter-object alignment; record obj_base_table[obj_idx+1]=out_cursor and page_base_table[page_count]=out_cursor; read min(obj_remaining, page byte-count) bytes from (page_data_idx<<shift)+page_data_base into out_cursor; advance out_cursor. 8) read first cumulative fixup-page offset (lx_header+0x68). 9) for each fixup page (lx_header+0x14 count): read next cumulative offset; for each fixup record in [prev,this): read src_type+target_type, validate ((src_type&7)!=0 && !((target_type&4)&&!(target_type&0x20)) && !(src_type&0x20)) else abort->close->return 0; read src_offset(2)+target_obj(1)+target_disp(2); if src_offset<=lx_header+0x28 write obj_base_table[target_obj]+target_disp at page_base_table[page]+src_offset (32-bit reloc). 10) close handle (if !flags&1); return caller_buf.",
+  "signature": "void *crt_equivalent_lx_module_loader_3647b(char *path, int flags, void *caller_buf)",
+  "params": [
+    {
+      "name": "path",
+      "type": "char *",
+      "semantics": "Overloaded by flags bit0: when flags&1==0 it is a null-terminated path string passed to open(); when flags&1==1 it is a caller-supplied int handle reused as an in-memory base (each chunk read becomes a memcpy). Also forwarded verbatim to crt_equivalent_lx_header_reader_36344.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name reflects the documented dominant role (path to open). The flags&1 handle-overload is fully documented in the comment block, so 'path' remains the clearest primary label; no address residue."
+    },
+    {
+      "name": "flags",
+      "type": "int",
+      "semantics": "Bit-flags controlling load mode: bit0 = use-caller-handle (skip open/close, treat path as handle), bit2 = allocate the output buffer via data_ail_alloc_fnptr (else use caller_buf). Low byte also passed to the header reader and every chunk read.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, generic, no address residue."
+    },
+    {
+      "name": "caller_buf",
+      "type": "void *",
+      "semantics": "Caller-supplied output buffer for the loaded image; used only when flags&4==0. When flags&4==1 it is ignored on entry and overwritten by the alloc result. Returned (the load base) on success.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, matches usage, no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void *",
+    "semantics": "On success returns the output buffer base (caller-supplied when flags&4==0, or the allocated buffer when flags&4==1). Returns 0 on any failure: open failure, alloc failure, LX magic mismatch, or an invalid fixup record."
+  },
+  "reads_globals": [
+    "data_ail_alloc_fnptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "0 callers / 0 xrefs confirmed via get_function_callers + get_xrefs_to (dead code, consistent with plate and src comment). Verified data_ail_alloc_fnptr @ 0x52758 holds 0x00036d16 (CRT malloc) via read_memory, matching the plate's 'malloc @ 0x36d16' data-flow note; the Ghidra global symbol name byte-matches the src reference and the globals.h extern decl. Src comment block (crt.c lines 147-182) is a faithful, accurate ASCII condensation of the more verbose Ghidra plate (flow steps, arg semantics, fixup validation, __cdecl note all cross-checked against the body lines 218-345); the two are consistent (not contradictory), so src comment kept and Ghidra plate left untouched. Source uses cleaner local/label names (out_cursor, obj_base_table, loader_abort) than the raw Ghidra decompile (local_24, aiStack_90, LAB_000364f5); no logic differences observed. No equivalence/logic concerns found."
+}
