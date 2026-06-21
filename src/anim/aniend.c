@@ -737,16 +737,16 @@ void fd2_play_game_ending_cinematic(void)
  * EAX-tracking-bug correction: the decompiler renders the mouth-jitter reload
  * as `(byte)DATO_load_result & 0x1F`, but the machine code reloads it from the
  * RNG: `CALL fd2_advance_rng_state; AND AL,0x1F; ADD AL,0x28`. Reproduced as
- * `(fd2_advance_rng_state() & 0x1F) + 0x28` — the advance returns the new seed
+ * `(fd2_advance_rng_state() & 0x1F) + 0x28` -- the advance returns the new seed
  * in AX, which the compiler reuses in AL.
  *
  * Resources:
  *   chapter-30 battle data row (idx 0x1E)
- *   TAI.DAT[3]            — chapter-30 ending backdrop sprite
- *   FDOTHER.DAT[0x38]     — RLE base image
- *   FIGANI.DAT[portrait*3 (+1)] — per-char sprite sheet + pose data
- *   DATO.DAT[portrait_id] — large portrait sprite
- *   BGM track 4          — ending BGM
+ *   TAI.DAT[3]            -- chapter-30 ending backdrop sprite
+ *   FDOTHER.DAT[0x38]     -- RLE base image
+ *   FIGANI.DAT[portrait*3 (+1)] -- per-char sprite sheet + pose data
+ *   DATO.DAT[portrait_id] -- large portrait sprite
+ *   BGM track 4          -- ending BGM
  *
  * The tail free(workspace) compiles (in the original) into a jump into the
  * shared free-wrapper epilogue; the plain call below is the equivalent.
