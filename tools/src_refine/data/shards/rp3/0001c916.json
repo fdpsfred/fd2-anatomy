@@ -1,0 +1,53 @@
+{
+  "address": "0x0001c916",
+  "name_current": "fd2_apply_hp_heal_and_award_xp",
+  "name_final": "fd2_apply_hp_heal_and_award_xp",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Game function with correct fd2_<domain>_<descriptor> form: domain=battle (HP heal primitive), descriptor=apply_hp_heal_and_award_xp. Accurately reflects body: applies HP heal to a runtime_char and accumulates healing XP for player-side targets. No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/battle/battle.c",
+  "purpose": "Apply an HP heal to runtime_char[target_idx] (clamped to hp_max) and accumulate healing XP into data_fd2_battle_pending_xp_credit for player-side targets; returns the actual heal amount.",
+  "logic_summary": "hp_before/hp_max read from rc[target_idx]. base_heal_90 = base_heal*9/10; after fd2_advance_rng_state(), extra_heal = (rng%100 * base_heal)/1000, giving total heal in 90%..100% of base (matches guide '法術恢復力 = 最大恢復*0.9 ~ 最大恢復-1'). hp_after = min(hp_max, hp_before + base_heal_90 + extra_heal); stored back to hp_current. hp_gained = hp_after - hp_before. level_mod = target level (status_flags_block[0]); +0x1E (30) if job_id in [9,24] (mid-tier promoted jobs). If portrait_id < 0x4B (player side), pending_xp_credit += level_mod*0x28(40)*hp_gained/hp_max (full heal -> max XP; partial scaled). Returns extra_heal + base_heal_90 (the actual heal applied).",
+  "signature": "int __cdecl fd2_apply_hp_heal_and_award_xp(uint32 target_idx, uint32 base_heal)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "runtime_char array index of the heal target; used to index rc[] for hp_current/hp_max read+write, level, job_id, portrait_id, and XP gating. All 3 callers pass a target char index (src already names it target_idx).",
+      "verdict": "rename",
+      "proposed": "target_idx",
+      "reason": "Live Ghidra name param_1 is a generic placeholder not reflecting purpose; it is the target runtime_char index. src already uses target_idx; align Ghidra in Stage 2."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "Base heal magnitude before the 90-100% RNG scaling. Callers pass the spell's heal value (fd2_apply_heal_spell_to_target -> *spell_entry; fd2_cast_group_hp_heal_spell -> heal_base) or a fixed +10 bonus (fd2_cast_status_cure_spell).",
+      "verdict": "rename",
+      "proposed": "base_heal",
+      "reason": "Live Ghidra name param_2 is a generic placeholder; it is the base heal amount. src already uses base_heal; align Ghidra in Stage 2."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "The actual heal amount applied (extra_heal + base_heal_90, i.e. the pre-clamp computed heal). Consumed by callers as heal_amount passed to fd2_show_damage_number(heal, 0x69='i', target) for the on-screen heal number."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_pending_xp_credit"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_pending_xp_credit"
+  ],
+  "comment_original_issue": "Original src comment was correct but terse (only heal formula + 'XP for player chars'); omitted the hp_max clamp, the portrait_id<0x4B player-side XP gate, the mid-tier job +30 bonus, the XP credit formula, and the return-value semantics (load-bearing: callers display it via fd2_show_damage_number).",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "218ec38bf57c214cbd4574af0329241beaaf2393",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified against fd2-knowledge: guide '法術恢復力 = 最大恢復*0.9 ~ 最大恢復-1' matches base*9/10 + (rng%100*base)/1000; guide '恢復法術經驗值 = (40/施法者等級)*Σ(恢復HP/總HP)*受法者等級' -- this fn implements the per-target inner term 40*target_level*hp_gained/hp_max (the /caster_level and Σ are applied at the cast level), with an additional code-level +30 job bonus not stated in the guide. struct runtime_char status_flags_block[0]=level confirmed in types.h. Both globals confirmed in globals.h with matching addresses (0x53A45, 0x53EC8). Note: decompiler re-reads hp_current into uVar1 just before the store and uses it for hp_gained; equals hp_before since nothing writes between -- equivalent, no logic issue; src preserves this faithfully. No logic changes made."
+}

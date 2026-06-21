@@ -46,7 +46,15 @@ void fd2_deduct_caster_mp(uint32 caster_idx, uint32 spell_id)
 /* ----------------------------------------------------------------
  * fd2_apply_hp_heal_and_award_xp @ 0x1C916  (3 callers)
  *
- * heal = base*9/10 + (rng%100 * base)/1000.  XP for player chars.
+ * Apply HP heal to rc[target_idx] and accumulate heal XP.
+ *   heal     = base*9/10 + (rng%100 * base)/1000   (90%..100% of base)
+ *   hp_after = min(hp_max, hp_before + heal)
+ * Heal XP only for player side (portrait_id < 0x4B), credited to
+ * data_fd2_battle_pending_xp_credit:
+ *   level_mod = target level (status_flags_block[0]); +30 if job 9..24
+ *   credit += level_mod * 40 * hp_gained / hp_max  (full heal -> max XP)
+ * Returns the actual heal amount (consumed by callers for the heal
+ * number display via fd2_show_damage_number).
  * ---------------------------------------------------------------- */
 int fd2_apply_hp_heal_and_award_xp(uint32 target_idx, uint32 base_heal)
 {
