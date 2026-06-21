@@ -6,27 +6,35 @@
 
 ---
 
-## 0. 下一步該做什麼(已替你決定:P3 戰鬥傷害斷言)
+## 0. 下一步該做什麼(P3-E 傷害 oracle 已完成,等你選下一步)
 
-**做這個:在已載入的戰場驅動一次完整攻擊,斷言傷害數值 = 公式預測值。** 這是整個系統最重要
-的驗證能力(戰鬥邏輯 oracle),也是後續「打贏一場戰鬥 → 建母本鏈」的前置。
+**已完成(本批次):P3-E 戰鬥傷害 oracle**。`combat_attack` scenario 驅動玩家 idx0 攻擊敵人
+idx14,固定 seed 0x1234,`tools/fd2_play/expect.py` 用同一 LFSR + 物理公式預算傷害(此 seed
+觸發爆擊 = 12)並斷言 idx14 `hp_current` 減少量。決定論雙跑 byte-identical、blessed、`run_all`
+5/5(oracle 自動納入)。expect.py 三方驗證(手算 LFSR / 實機 / port 皆得 12),且 seed 敏感、
+雙擊/爆擊路徑皆測過,靜態表即時從 `FD2.LE` 解析(不硬編)。
 
-具體步驟:
-1. 基座已現成:`continue_load` 載入到第一章主戰場(turn 6、23 單位、gold 8000),`combat_move`
-   已示範移動游標 + Space 開動作選單。從這裡接續。
-2. 用 `fb2png.py` 看動作選單(`combat_move` 的 `PNG04`),找出「攻擊」是哪一個選項、要按哪些鍵
-   (方向選項 + `KEY 39 20`/`1C 0D` 確認),再選一個相鄰敵人當目標。一步一擷取、看圖確認。
-3. 攻擊前用 `SEED` 固定亂數(`data_fd2_shared_rng_seed`,uint16 @0x627B8),攻擊後 `CAP`。
-4. 寫 `tools/fd2_play/expect.py`:用 `program_info/battle.md` 的傷害公式 + KB 的 AP/DP(查
-   `fd2-knowledge` skill 或 `assets/tables/`)+ 同一個 LFSR(`fd2_advance_rng_state` =
-   `ROL16(seed+0x9014,3)`)**預算**出固定 seed 下的傷害定值。
-5. 斷言:目標 runtime_char 的 `hp_current`(struct +0x40)減少量 == 預算值。runtime_char 在 ST
-   blob 裡(見 §5)。
-6. 決定論雙跑 + bless,加進 `run_all`。
+**下一步選項(等你決定)**:
+- (a) **擴充戰鬥 oracle**(最自然的延續):依 `combat_attack` 範式加更多攻擊者/武器/地形、
+  **法術傷害**(`fd2_calc_magic_damage`)、**12 種 AI behavior class**、命中/狀態效果。
+- (b) **建母本鏈**:從 ch1 連續通關逐章擷取一致 entry SAV,當跨章期望值母本,順帶解 §3 的
+  ch7/ch22 open issue。這是 P4(招募/兌換/結局/商店)的前置。
+- (c) **P4 分歧 + 村莊**:招募/兌換/結局 fork + 商店金額/save round-trip 的狀態斷言。
 
-**為什麼選這個**:戰鬥是遊戲核心,且「能驅動戰鬥到結算」會解鎖打贏整場 →「母本鏈」(從 ch1 連續
-通關逐章擷取一致 entry SAV)→ 同時解掉 §3 的 ch7/ch22 open issue,並提供 P4 分支的跨章期望值。
-較省事的替代起點見 §3 的選項 (c)(INITCH 命令)。
+範式已備齊:驅動 UI 看 `combat_attack`/`atk_probe`、狀態斷言看 `st_dump.py`、公式 oracle 看
+`expect.py`。
+
+## 0a. 注意:expect.py 的 RNG 對齊(踩過的雷)
+
+玩家攻擊的 RNG 序列從 seed 起算是 **雙擊(1) → 命中(1) → [命中]爆擊(1) → [命中]jitter(1)**:
+- cinematic(`fd2_execute_combat_hit_cinematic`)在傷害計算「前」先抽 1 次做 3% 雙擊判定;
+  intro-zoom 不抽 RNG(實證:commit 後首個擷取 seed 未變)。
+- 玩家攻擊走 `fd2_calculate_combat_hit_outcome`(算 outcome,cinematic 跨 frame 套用 HP),
+  **不是** `fd2_execute_attack_damage_calculation`(後者自己寫 HP,1 caller 非玩家路徑)。
+- 小 AP/DP 時地形修正整除歸零 → 傷害與地形無關(expect.py 會檢查並在可能非零時擋下)。
+- weapon `item_effect.special_type`(struct +10)決定爆擊/毒/雙擊類;`range_min`(+12)==1 才
+  能反擊。注意 `fd2_get_item_effect_entry` 回傳 `&entry.type`(+1),故 battle.c 的
+  `weapon_entry[9]` = struct +10。
 
 ---
 
@@ -106,12 +114,14 @@ python tools/fd2_build/build_fd2.py
 | P2 任意章 init/render(save-jump) | ✅ 機制 | `ch05_jump`;sweep 28/30(ch7/ch22 見 §3) |
 | P3 戰鬥操作(游標/選取/動作選單) | ✅ 機制 | `combat_move`(游標座標斷言) |
 | P4 存檔載入(CONTINUE) | ✅ | `continue_load` |
-| P3-E AI/傷害/命中/狀態 數值斷言 | ⬜ | **下一步(§0)** |
+| P3-E 傷害數值斷言(host LFSR 預算) | ✅ | `combat_attack`(物理攻擊 oracle,固定 seed 預算定值;`expect.py`) |
+| P3-E 其餘(12 class AI / 法術傷害 / 命中 / 狀態) | ⬜ | 依 `combat_attack` 範式擴充 |
 | P4 招募/兌換/結局/商店/options | ⬜ | 需到達章節點 + 狀態斷言 |
 | P5 cinematic golden + 原版差分背書 | ⬜ | dialog/FIGANI/spell/ending;`diff_original.py` 未建 |
 | P6 舊 spy 測試退役 + 文件收斂 | ⬜ | 判準見計畫第三部分 |
 
-`run_all` 目前 **4/4 PASS**(boot、ch01_intro、combat_move、continue_load),連跑穩定。
+`run_all` 目前 **5/5 PASS**(boot、ch01_intro、combat_move、continue_load、combat_attack
+[含 oracle]),連跑穩定。
 
 ---
 
@@ -141,7 +151,8 @@ python tools/fd2_build/build_fd2.py
 
 ### host 工具(`tools/fd2_play/`)
 `build_replay.py`、`run_play.py`、`compare.py`、`fb2png.py`、`run_all.py`、`gen_scenario.py`、
-`sweep_chapters.py`、`_index.md`。
+`sweep_chapters.py`、`expect.py`(戰鬥傷害 oracle)、`st_dump.py`(ST blob 解讀)、`_index.md`。
+帶 `oracle` 區塊的 scenario 由 `run_all` 在 golden 比對外自動跑 `expect.py`。
 
 ### SCRIPT.TXT 命令格式
 `SEED <hex16>` / `KEY <hexSc> [hexAsc]` / `CAP` / `END`(EOF 等同 END;`#` 註解)。

@@ -78,8 +78,7 @@ def main():
             print("  %-16s RUN-FAIL (%s)" % (n, mode))
             continue
         crc, cso, _ = run([base + "/compare.py", "--scenario", n, "--out", n])
-        verdict = "PASS" if crc == 0 else "DIFF"
-        results.append((n, verdict, mode))
+        ok = (crc == 0)
         extra = ""
         if crc != 0:
             try:
@@ -88,6 +87,24 @@ def main():
                 extra = " <- " + ",".join(bad)
             except Exception:
                 pass
+        # Scenarios with an "oracle" block also get a formula-predicted
+        # assertion (expect.py): the golden proves the capture is byte-stable,
+        # the oracle proves the captured numbers match the game's formula.
+        scen = json.loads((SCEN_DIR / (n + ".json")).read_text("utf-8"))
+        if scen.get("oracle"):
+            erc, eso, _ = run([base + "/expect.py", "--scenario", n, "--out", n])
+            if erc != 0:
+                ok = False
+                try:
+                    ej = json.loads(eso)
+                    extra += " <- oracle pred=%s act=%s" % (
+                        ej.get("predicted_damage"), ej.get("actual_damage"))
+                except Exception:
+                    extra += " <- oracle FAIL"
+            else:
+                extra += " [oracle ok]"
+        verdict = "PASS" if ok else "DIFF"
+        results.append((n, verdict, mode))
         print("  %-16s %s%s" % (n, verdict, extra))
 
     npass = sum(1 for _, v, _ in results if v == "PASS")

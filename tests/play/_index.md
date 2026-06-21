@@ -32,7 +32,11 @@ src/ 端 gated hook:`life/main.c`(init + warmup pin)、`input/input.c`
 | ---- | ------ | ---- |
 | `boot` | 有 | 開機到標題畫面(首個輸入等待)擷取一次。 |
 | `ch01_intro` | 有 | NEW GAME -> 第一章 prologue(map 0x20,party 21):送 4 個 Enter(`1C 0D`)穿過開場+選單 START,擷取 prologue 開場 3 拍。 |
+| `continue_load` | 有 | CONTINUE 載入內建存檔(第一章主戰場,turn 6,23 單位)。 |
+| `combat_move` | 有 | 戰場游標移動 + Space 開動作選單(游標座標斷言)。 |
+| `combat_attack` | 有 + oracle | 玩家 idx0 攻擊敵人 idx14:固定 seed 0x1234,擷取攻擊前/後。帶 `oracle` 區塊,`expect.py` 用 LFSR + 公式預算傷害(此 seed 觸發爆擊 = 12)並斷言 idx14 hp_current 減少量。 |
 | `bootdown` | 無 | 鑑別力探針:按下後再擷取,畫面應與 `boot` golden 不同(驗證比對器會變紅)。 |
+| `atk_probe` | 無 | 探測 scenario:逐步擷取玩家攻擊 UI 流程(選單位->移動->動作選單->選攻擊->目標選取),供編寫/除錯。 |
 
 `run_all.py` 只跑「有 golden」者。新增章節 scenario 的範式即 `ch01_intro`:用 `KEY` 行驅動、`CAP` 在穩定輸入等待點擷取,`fb2png.py` 看畫面確認後 `compare.py --bless` 凍結。
 
@@ -47,9 +51,10 @@ src/ 端 gated hook:`life/main.c`(init + warmup pin)、`input/input.c`
 | P2 任意章節 init/render(save-jump) | ✅ 機制驗證 | `ch05_jump`;sweep 28/30 章 headless 乾淨(ch7/ch22 見 open_issues) |
 | P3 戰鬥操作(游標/選取/動作選單) | ✅ 機制驗證 | `combat_move`(游標座標斷言,blessed) |
 | P4 存檔載入(CONTINUE) | ✅ 驗證 | `continue_load`(blessed) |
-| P3-E AI/傷害狀態斷言 | ⬜ 待做 | 需在戰場驅動攻擊 + host LFSR 預算期望值(expect.py) |
+| P3-E 傷害數值斷言(host LFSR 預算) | ✅ 機制驗證 | `combat_attack`(物理攻擊傷害 oracle,固定 seed 預算定值斷言,blessed) |
+| P3-E 其餘(12 class AI / 三路 score / 命中/狀態) | ⬜ 待做 | 依 `combat_attack` 範式擴充:更多攻擊者/武器/法術傷害/AI 行為 |
 | P4 招募/兌換/結局/商店/options | ⬜ 待做 | 需到達對應章節點(母本鏈或 jump)+ 狀態斷言 |
 | P5 cinematic golden + 原版差分背書 | ⬜ 待做 | dialog/FIGANI/spell/ending golden;diff_original.py |
 | P6 舊 spy 測試退役 + 文件 | ⬜ 待做 | 見計畫第三部分判準 |
 
-**待續重點**:(1) 建母本鏈(從 ch1 連續通關逐章擷取一致 entry SAV),解 open_issues 的 ch7/ch22 並當跨章期望值母本;(2) `expect.py` 用 KB 公式 + LFSR 預算戰鬥傷害定值;(3) 逐章/逐動作 scenario 依 `ch01_intro`/`combat_move` 範式擴充並 bless。
+**待續重點**:(1) 依 `combat_attack` 範式擴充戰鬥 oracle(法術傷害、12 class AI、命中/狀態、不同武器/地形);(2) 建母本鏈(從 ch1 連續通關逐章擷取一致 entry SAV),解 open_issues 的 ch7/ch22 並當跨章期望值母本;(3) 逐章/逐動作 scenario 依既有範式擴充並 bless。

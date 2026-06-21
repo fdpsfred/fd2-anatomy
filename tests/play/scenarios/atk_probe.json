@@ -1,0 +1,28 @@
+{
+  "_desc": "PROBE (not blessed): drive player idx0 to attack enemy idx14. Steps captured to verify the UI flow before adding SEED + commit. CONTINUE-load, move cursor onto idx0 (9,15), select, move to (10,17) adjacent to idx14 (11,17), open inline action menu, select Attack, reach target selection. Stops before committing the attack.",
+  "script": [
+    "KEY 1C 0D",
+    "KEY 1C 0D",
+    "KEY 1C 0D",
+    "KEY 50",
+    "KEY 50",
+    "KEY 1C 0D",
+    "CAP",
+    "KEY 50",
+    "KEY 50",
+    "CAP",
+    "KEY 39 20",
+    "CAP",
+    "KEY 4D",
+    "CAP",
+    "KEY 50",
+    "CAP",
+    "KEY 50",
+    "CAP",
+    "KEY 39 20",
+    "CAP",
+    "KEY 39 20",
+    "CAP",
+    "END"
+  ]
+}

@@ -14,6 +14,8 @@ DOSBox-X silent 跑腳本、在邏輯檢查點擷取輸出、對 golden / 期望
 | `run_all.py` | regression 套件入口:跑所有「有 golden」的 scenario 並逐一比對,印 per-scenario verdict + 總結。`--build` 先重建、`--only <substr>` 過濾。取代舊 per-function 套件做整合覆蓋。 |
 | `gen_scenario.py` | 移植遊戲存檔 codec(crypt XOR involution + checksum,save.c)。`--validate` round-trip 內建存檔自我驗證;`--chapter N` 合成跳章存檔。scenario 用 `"jump_chapter": N` 即由 run_play 即時合成(免版控 sav)。 |
 | `sweep_chapters.py` | P2 章節 init smoke sweep:0..29 章逐一 jump+CONTINUE+擷取,驗證每章 loader headless 不 fault + chapter_id 正確。 |
+| `expect.py` | 戰鬥傷害 oracle:讀 scenario 的 `oracle` 區塊(attacker/defender idx、before/after 擷取點),從 before 擷取取攻防 runtime_char + seed,port `fd2_calculate_combat_hit_outcome`(雙擊判定 + 命中/爆擊/jitter)用同一 LFSR 預算傷害,斷言目標 hp_current 減少量 == 預算值。weapon class / crit rate / terrain modifier 表即時從原 binary `fd2_game_files/FD2.LE`(自解 LE vaddr->檔案偏移)讀,不硬編。`--golden` 比 golden 擷取。 |
+| `st_dump.py` | 把 `STnn.BIN` 解成可讀欄位:16 個 int32 header(chapter/turn/gold/cursor/rng_seed/AI score)+ 每單位一列(pos/team/portrait/job/lvl/HP/MP/AP/DP/hit/evade)。`--raw IDX` 印某單位 0x50 byte hex dump。編寫戰鬥腳本必用。 |
 
 ## 使用
 
@@ -21,9 +23,13 @@ DOSBox-X silent 跑腳本、在邏輯檢查點擷取輸出、對 golden / 期望
 python tools/fd2_play/build_replay.py                          # 改 src/harness 後重建
 python tools/fd2_play/run_play.py --scenario boot              # 跑單一 scenario
 python tools/fd2_play/fb2png.py   --scenario boot              # 還原 PNG 來看畫面
+python tools/fd2_play/st_dump.py  workspace/fd2_play/run/boot/ST00.BIN   # 看狀態欄位
 python tools/fd2_play/compare.py  --scenario boot --bless      # 首次凍結 golden
+python tools/fd2_play/expect.py   --scenario combat_attack     # 戰鬥傷害 oracle 斷言
 python tools/fd2_play/run_all.py                               # 跑整個 regression 套件
 ```
+
+`run_all.py` 對帶 `oracle` 區塊的 scenario(如 `combat_attack`)會在 golden 比對外**再跑 `expect.py`**:golden 保證擷取 byte 穩定,oracle 保證擷取的數值符合遊戲公式。兩者皆過才算該 scenario PASS。
 
 scenario 定義與 guest harness 在 `tests/play/`。中間/輸出產物在 `workspace/fd2_play/`(scratch)。
 

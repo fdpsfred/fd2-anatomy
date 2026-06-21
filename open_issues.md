@@ -127,15 +127,6 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
 - **推測**：Watcom 標準 near-heap layout 通常含 heap_top (+0) + heap_limit (+4) 兩個 dword，但 FD2.LE 內未見直接讀寫。Plate 標 `inferred ... pending verify`.
 - **解需要做什麼**：(1) 在 Watcom 9.5a RTL source 查 `__nheap` descriptor struct 完整定義；(2) 對其他類似 binary（同 Watcom 9.5a 版本）比對 0x527B0 起始 byte 在啟動後的填入值 — 如執行期 dump 是 `heap_top` 則確認。Static-only 分析無法確定，需要 emulator-level 驗證。
 
-## 程式行為未完全理解的段落
-
-### 13. runtime_char `+0x4E wStat4_current` 的真實語意
-
-- **現狀**：已知 `wStat4_current = DX_total + sum item.short@+7`，由
-  `fd2_recalculate_combat_stats @ 0x1b750` 寫入。但這個 stat 的遊戲意義 (魔抗 / 命中 / 迴避 /
-  其他) 未 emulator 驗證。
-- **解需要做什麼**：emulator 觀察戰鬥中此值如何影響擊中率 / 傷害計算。
-
 ## 未做的批次分析
 
 ### 17. FDOTHER 21 個 confirmed_dead idx 的 binary content
@@ -395,6 +386,10 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
 - ✅ FDSHAP idx 公式 — `shap_id = tile_event_data_table[0]`，`shap_id × 2` 取 snapshot/+1 取 attribute
 - ✅ chinese_glyph_table — 1824 glyphs full ET3 STDFONT 比對 + 人工校正完成
 - ✅ runtime_char struct layout (80 bytes) — 主要 fields 全部 confirmed
+- ✅ #13 runtime_char `+0x4E wStat4_current` 語意 — 物理命中判定為
+  `攻擊者 +0x4C(dx_current) - 防禦者 +0x4E(stat4_current)`（`fd2_calculate_combat_hit_outcome`
+  / `fd2_execute_attack_damage_calculation`），故 **+0x4C = 物理命中率、+0x4E = 物理迴避率**；
+  詳見 `program_info/battle.md`「物理攻擊結算」
 - ✅ Enemy AI 12 種 behavior class semantic
 - ✅ AI kill-shot 加權 (物理 0x12 / item 0x12 / spell 0x18)
 - ✅ 20% HP_max idle heal mechanism

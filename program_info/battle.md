@@ -80,6 +80,47 @@ if (hit_roll > spell.HT) return 0;            // miss
 傷害 × 0.X」吻合（0.X = resist/10，故 job_resist 值 0..10 代表 0..100% 線性
 衰減）。
 
+## 物理攻擊結算（實際套用傷害）
+
+AI 與玩家共用同一條物理傷害公式，由兩個等價函式實作（同公式、不同用途）：
+
+| 位址 | 名稱 | 用途 |
+|---|---|---|
+| `0x0001ECC7` | `fd2_execute_attack_damage_calculation` | 直接套用：自己寫 `hp_current`，含命中爆擊動畫 |
+| `0x00029F72` | `fd2_calculate_combat_hit_outcome` | 只算 outcome（不寫 HP），結果由 cinematic 跨 frame 套用 |
+
+公式（單次命中）：
+
+```
+AP_eff = AP + (tile_attr_mv_modifier_table[tile_id]  * AP) / 100   # 攻擊者免疫則跳過
+DP_eff = DP + (tile_attr_def_modifier_table[tile_id] * DP) / 100   # 防禦者免疫則跳過
+命中: rng % 100 < attacker.+0x4C - defender.+0x4E                  # 不命中則傷害 0
+爆擊: rng % 100 < job_crit_rate_table[attacker.job_id - 1]         # 爆擊把 DP_eff 折半
+damage = (AP_eff - DP_eff) * 9 / 10           # < 0 取 0
+jitter_range = damage / 9
+if jitter_range != 0: damage += rng % jitter_range
+hp_current -= damage                          # 夾到 0
+```
+
+整數除法皆截尾向零，故小 AP/DP（如 16/4）時 ±5/+10% 的地形修正會整除歸零、
+傷害與地形無關。
+
+**runtime_char 命中/迴避 stat**：物理命中判定為
+`攻擊者 +0x4C(dx_current) - 防禦者 +0x4E(stat4_current)`，故 **+0x4C = 物理命中率、
++0x4E = 物理迴避率**（兩者皆由 `fd2_recalculate_combat_stats` 從 DX 基底 + 不同
+裝備加成欄位算出）。
+
+**玩家攻擊路徑**：`fd2_game_main_loop`（游標在我方單位上按 Space/Enter）→
+`fd2_player_action_menu_loop`（選目的地 tile，可不移動）→
+`fd2_player_inline_action_menu_dispatch`（動作選單 Attack=0/Spell=1/Item=2/Wait=3）→
+選 Attack 後 `fd2_wait_for_action_target_input` 選目標 →
+`fd2_play_full_combat_cinematic` → `fd2_execute_combat_hit_cinematic`。後者先抽
+**1 次 RNG 做 3% 雙擊（double-strike）判定**（命中 2 下），再每下呼叫
+`fd2_calculate_combat_hit_outcome` 算傷害並跨 hit-frame 寫入目標 HP；命中後若防禦者
+近戰且相鄰會接一段反擊 cinematic（`fd2_check_can_counter_attack`，武器
+`item_effect.range_min == 1`）。固定 seed 下整條 RNG 序列為：雙擊 → 命中 → 爆擊 →
+jitter（每項依分支決定是否抽）。
+
 ## Enemy AI 主架構
 
 ```

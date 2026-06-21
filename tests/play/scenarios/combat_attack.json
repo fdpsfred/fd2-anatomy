@@ -1,0 +1,32 @@
+{
+  "_desc": "P3-E combat damage oracle: player idx0 (AP16, weapon item0 class0, job1) attacks enemy idx14 (HP28, DP4) with a fixed RNG seed 0x1234. CONTINUE-load, select idx0, walk to (10,17) adjacent to idx14 (11,17), open inline action menu, select Attack, target idx14, SEED, commit. CAP00 = pre-attack (idx14 HP28, seed 0x1234). CAP01 = post-attack (idx14 HP reduced). RNG draws from seed: 1=double-strike(77, no), 2=hit(13<95, hit), 3=crit(1<5, CRIT halves DP 4->2), 4=jitter(range1,+0); damage = (16-2)*9/10 = 12. expect.py recomputes this from the seed via the LFSR + fd2_calculate_combat_hit_outcome port and asserts idx14 hp_current delta == predicted. The 'KEY 1C 0D' after commit is consumed by the combat-cinematic intro-zoom skip poll (it draws no RNG); CAP01 then fires at the post-attack XP-dialog input wait.",
+  "oracle": {
+    "type": "physical_attack",
+    "attacker_idx": 0,
+    "defender_idx": 14,
+    "before_cap": 0,
+    "after_cap": 1
+  },
+  "script": [
+    "KEY 1C 0D",
+    "KEY 1C 0D",
+    "KEY 1C 0D",
+    "KEY 50",
+    "KEY 50",
+    "KEY 1C 0D",
+    "KEY 50",
+    "KEY 50",
+    "KEY 39 20",
+    "KEY 4D",
+    "KEY 50",
+    "KEY 50",
+    "KEY 39 20",
+    "KEY 39 20",
+    "SEED 1234",
+    "CAP",
+    "KEY 39 20",
+    "KEY 1C 0D",
+    "CAP",
+    "END"
+  ]
+}

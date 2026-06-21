@@ -40,8 +40,8 @@ typedef struct {
     uint16 mp_max;                      /* +0x46 */
     uint16 ap;                          /* +0x48 */
     uint16 dp;                          /* +0x4A */
-    uint16 dx_current;                  /* +0x4C */
-    uint16 stat4_current;               /* +0x4E */
+    uint16 dx_current;                  /* +0x4C  physical accuracy (hit %) */
+    uint16 stat4_current;               /* +0x4E  physical evasion (dodge %) */
 } runtime_char;
 
 /* ========================================================================
