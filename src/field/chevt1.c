@@ -1089,7 +1089,7 @@ void fd2_chapter_event_handler_19__ch7_first_time(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_1a__ch7_char_cond @ 0x3499B
- *   — Chapter 7 tile-step event slot 0 (tile-step event_type 0x00),
+ *   -- Chapter 7 tile-step event slot 0 (tile-step event_type 0x00),
  *     dispatched as idx 0x1A of the per-event handler table at 0x51B91.
  *
  * char-conditional, tile-step variant. Unlike the turn-event handlers in
