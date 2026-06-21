@@ -1,0 +1,40 @@
+{
+  "address": "000349d9",
+  "name_current": "fd2_chapter_event_handler_1b__ch8_cinematic",
+  "name_final": "fd2_chapter_event_handler_1b__ch8_cinematic",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant and accurate. fd2_ game prefix present; 'chapter_event_handler' is the correct domain descriptor; '_1b' is the per-event dispatch-table index (idx 0x1B), a meaningful domain ID -- confirmed by the DATA xref at 0x51BFD = table base 0x51B91 + 0x1B*4 -- not an address residue, and consistent with the whole sibling family (_00.._1a, _1c..). '__ch8_cinematic' correctly captures that this is chapter 8's every-turn (turns 2-7/phase 0) camera-pan + portrait-swap cinematic with no dialog.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter 8 every-turn cinematic beat (dispatch idx 0x1B): pan camera to (8,2), hold ~100ms, reload the portrait set keyed off the battle turn counter (so the NPC pose rotates per turn), hold ~100ms.",
+  "logic_summary": "Straight-line, no-branch, no-RNG, no return value used. Body (after the compiler __CHK(0xc) stack-probe prologue): fd2_pan_cursor_and_window(8,2); fd2_delay_ms(100); fd2_load_chapter_portraits_and_dump_tmp(data_fd2_battle_turn_counter); fd2_delay_ms(100). Bound to turn-event slots 0-5 (turns 2,3,4,5,6,7, all phase 0) so it fires once on each of chapter 8's first six player turns; the portrait loader is fed the battle turn counter (incremented per new player turn by fd2_run_full_turn_cycle), so each turn selects a different portrait pose -> animated NPC sequence. Verified against disasm 0x349d9: PUSH 0xc;CALL __CHK / PUSH 2;PUSH 8;CALL pan;ADD ESP,8 / PUSH 0x64;CALL delay;ADD ESP,4 / PUSH [0x53bef];CALL load_portraits;ADD ESP,4 / PUSH 0x64;JMP 0x353d1 (final delay emitted as a tail-jump into the shared CALL fd2_delay_ms/ADD ESP,4/RET tail of fd2_delay_400ms_via_idle_thunk).",
+  "signature": "void __cdecl fd2_chapter_event_handler_1b__ch8_cinematic(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform 1-arg cdecl argument supplied by the per-event handler dispatch table at 0x51B91. Never read by the body ((void)event_arg).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate generic name for the unread per-event dispatch arg; no address residue, matches the dispatch-table calling convention shared by the sibling handlers."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": ["data_fd2_battle_turn_counter"],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Comment block (chevt1.c lines 1127-1160), decompilation, Ghidra plate, and disassembly are all mutually consistent and accurate; src comment left unchanged (already precise + ASCII-clean). Verified data_fd2_battle_turn_counter @ 0x53BEF via Ghidra symbol lookup and globals.h declaration. Dispatch idx confirmed: DATA xref to function comes from 0x51BFD = 0x51B91 + 0x1B*4. No source code change in this shard's run; only the shard file is added."
+}
