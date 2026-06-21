@@ -473,7 +473,13 @@ void fd2_slide_panel_step_right_main(uint32 src_buffer, uint32 frame_idx)
 /* ----------------------------------------------------------------
  * fd2_slide_panel_step_top_small @ 0x1B019
  *
- * Top narrow panel slide-in from above (0x66-wide, 0x24-high max).
+ * Party Status Overview screen: one frame of the top narrow panel
+ * slide-in from above (0x66 bytes wide, up to 0x24 rows high),
+ * settling at y = 0x13. Driven by fd2_open_party_status_overview_screen
+ * (intro + outro). Frames < 3 are skipped (main panel not yet in place);
+ * frames 3..7 descend by 6 rows/frame with top-edge clipping; frame >= 8
+ * is fully settled. Copies row_count rows from src_buffer into
+ * data_fd2_large_game_state_buffer_ptr.
  * ---------------------------------------------------------------- */
 void fd2_slide_panel_step_top_small(uint32 src_buffer, uint32 frame_idx)
 {
