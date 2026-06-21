@@ -679,9 +679,10 @@ int fd2_tick_summon_anim_variant_b_6slot(
  * generic summon animation. The INIT state (state_code 0) clears it
  * before any read this run, so it is plain zero-bss runtime scratch;
  * the on-disk image is 0x00. Seeded/advanced across states (set to
- * 0x10 in state 3, 0xA in state 6, ramped 0x10..0x12 in state 5) and
- * passed by address to fd2_tick_sprite_animation_step as the frame
- * index. All access is byte-wide and unsigned. Used only by
+ * 0x10 in state 3, 0xA in state 6, snapped 0xA->0xF in the state-1/2
+ * late-fix paths, ramped 0x10..0x12 in state 5) and passed by address
+ * to fd2_tick_sprite_animation_step as the frame index. All access is
+ * byte-wide and unsigned. Used only by
  * fd2_tick_summon_spell_animation_state.
  * ---------------------------------------------------------------- */
 uint8 data_fd2_battle_summon_spell_anim_phase_byte;
