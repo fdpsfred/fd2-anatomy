@@ -1,0 +1,38 @@
+{
+  "address": "00036b8a",
+  "name_current": "fd2_ani_decoder_chunk_row_fill_byte",
+  "name_final": "fd2_ani_decoder_chunk_row_fill_byte",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=ani_decoder). Descriptor accurately reflects body: a frame-dispatch chunk handler (slot @ data_fd2_animation_ani_decoder_frame_dispatch_table + 0x10 = 0x5277A, the sole DATA xref to this function) that fills one full row (target_width bytes) in the destination buffer with a single broadcast byte value. 'row' distinguishes it from the palette-area sibling fd2_ani_decoder_chunk_palette_fill_byte (which fills the 768-byte palette at src_buf); 'fill_byte' distinguishes it from row_copy_literal / row_decode_rle. No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/anim/anidec.c",
+  "purpose": "ANI frame-decoder chunk handler (dispatch slot @ table+0x10): fill one full destination row (data_fd2_animation_ani_decoder_target_width bytes) with a single byte value read from the frame stream.",
+  "logic_summary": "Reads one byte from the ANI frame stream cursor (LODSB consumes *ESI++ = the fill value), broadcasts it across all 4 bytes of EAX (AH=AL; BX=AX; EAX<<=16; AX=BX -> EAX=bbbb), loads EBX=target_width (ushort @ 0x52760) and EDI=dst_buf (@ 0x52762), then REP STOSD with ECX=width>>2 (width/4 dwords) followed by REP STOSB with CL=width&3 (remainder bytes). Equivalent to memset(dst_buf, val, target_width). No return value; advances stream cursor by 1.",
+  "signature": "void fd2_ani_decoder_chunk_row_fill_byte(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effect: writes target_width bytes (one broadcast value) into the destination row at data_fd2_animation_ani_decoder_dst_buf; advances the frame-stream cursor (ESI in binary / g_ani_cursor in C) by 1 consumed byte."
+  },
+  "reads_globals": [
+    "data_fd2_animation_ani_decoder_target_width",
+    "data_fd2_animation_ani_decoder_dst_buf",
+    "g_ani_cursor (file-scope static stream cursor; binary uses ESI register)"
+  ],
+  "writes_globals": [
+    "g_ani_cursor (file-scope static stream cursor; binary uses ESI register)",
+    "*data_fd2_animation_ani_decoder_dst_buf (destination row buffer pointed to by dst_buf; the global pointer itself is only read)"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "9cfb9428469708bf56b7dce3200a4b2aaddcbe3a",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source (anidec.c lines 163-171) is already a correct, concise C equivalent: val=*g_ani_cursor++; width=target_width; memset(dst_buf, val, width). The binary's REP STOSD (width/4 dwords) + REP STOSB (width&3 bytes) == width-byte fill == memset. Row-buffer analog of the palette sibling fd2_ani_decoder_chunk_palette_fill_byte (0x36AE7); same broadcast-then-fill idiom but width/dst_buf-driven instead of fixed 768/src_buf. Source comment block (lines 158-162) is accurate and concise -> keep. Ghidra plate is far more detailed (register protocol, algorithm, dispatch+caller chain: fd2_play_ani_file_animation_sequence -> fd2_ani_decoder_decode_frame_bytes @ 0x36C9E -> indirect via table @ 0x5276A -> here) and consistent with the source understanding -> not modified (ghidra_plate_action=none). Function is void(void) so params=[]. The binary's stream cursor is the ESI register handed off by the dispatcher fd2_ani_decoder_decode_frame_bytes; the C port models it via file-scope static g_ani_cursor. memset here is the canonical fill idiom and is the existing (already-verified) code; not a timing-sensitive scaling/blit hot loop, so no codegen-shape concern."
+}
