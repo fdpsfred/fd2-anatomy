@@ -467,9 +467,17 @@ void fd2_compute_combat_bubble_screen_pos(uint32 out_xy_ptr,
 /* ----------------------------------------------------------------
  * fd2_apply_mp_heal_and_award_xp @ 0x1C9DD  (1 caller)
  *
- * MP version of fd2_apply_hp_heal_and_award_xp. Same 90-100% RNG
- * formula but for MP. No job bonus on level (unlike HP version).
- * Tail-jumps into hp_heal's shared XP epilogue at 0x1C9C7.
+ * Apply MP heal to rc[target_idx] and accumulate heal XP. MP twin of
+ * fd2_apply_hp_heal_and_award_xp with the same 90%..100% RNG formula:
+ *   heal     = base*9/10 + (rng%100 * base)/1000
+ *   mp_after = min(mp_max, mp_before + heal)
+ * Heal XP only for player side (portrait_id < 0x4B), credited to
+ * data_fd2_battle_pending_xp_credit:
+ *   credit += level(status_flags_block[0]) * 40 * mp_gained / mp_max
+ * Unlike the HP version there is NO +30 mid-tier job bonus on level.
+ * Returns the actual heal amount; the sole caller
+ * (fd2_apply_use_effect_dispatch effect code B "回MP") feeds it to
+ * fd2_show_damage_number for the MP-restore number display.
  * ---------------------------------------------------------------- */
 int fd2_apply_mp_heal_and_award_xp(uint32 target_idx, uint32 base_heal)
 {
