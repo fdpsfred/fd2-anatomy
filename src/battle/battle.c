@@ -105,7 +105,12 @@ int fd2_apply_heal_spell_to_target(uint32 target_idx, uint32 spell_id)
 /* ----------------------------------------------------------------
  * fd2_apply_damage_and_award_xp @ 0x1C81F  (3 callers)
  *
- * damage = base*9/10 + (rng%100 * base)/1000.  XP for enemy kills.
+ * Apply HP damage and accumulate kill XP.  Returns actual damage.
+ *   actual = base*9/10 + (rng%100 * base)/1000   (90%..100% of base)
+ *   hp_current = max(0, hp_current - actual)
+ * If target is an enemy (portrait_id >= 0x44): XP = enemy[+9](per-level EX)
+ *   * level; on kill (hp_after==0) full XP, else scaled by actual/hp_max.
+ *   Credited to data_fd2_battle_pending_xp_credit.
  * ---------------------------------------------------------------- */
 int fd2_apply_damage_and_award_xp(uint32 target_idx, uint32 base_damage)
 {
