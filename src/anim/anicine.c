@@ -301,9 +301,10 @@ void fd2_play_figani_char_intro_animation(uint32 char_idx)
  * free the three big in-game caches, then allocate a 64000-byte mode-13h
  * framebuffer scratch (dst) and a 0x1F400 composite work buffer.
  *
- * Pick the "spotlight" char (the player-side combatant) and the "terrain"
+ * Pick the "spotlight" char (the enemy-side combatant) and the "terrain"
  * char (the other one): if the attacker is enemy-team (team==0) the
- * attacker is spotlight, else the defender is. For each, derive a terrain
+ * attacker is spotlight, else the defender is -- so the spotlight always
+ * resolves to the enemy unit. For each, derive a terrain
  * background byte: normally the tile attribute under the char's grid pos,
  * but for immune (job 0x13, or archetype 4/5 with portrait != 0x1C)
  * classes whose under-foot tile is wrong, use the per-chapter override

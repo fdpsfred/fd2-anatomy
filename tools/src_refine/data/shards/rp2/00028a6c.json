@@ -1,0 +1,72 @@
+{
+  "address": "0x00028a6c",
+  "name_current": "fd2_play_full_combat_cinematic",
+  "name_final": "fd2_play_full_combat_cinematic",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; accurately names the dramatic full 1-on-1 attack/counter combat cinematic. No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/anim/anicine.c",
+  "purpose": "Plays the dramatic full 1-on-1 attack/counter close-up cinematic for major hits (boss attacks, climactic moments, scripted event set pieces).",
+  "logic_summary": "__CHK(0x64) prologue. When not in scripted mode (data_fd2_battle_scripted_cinematic_mode_or_terrain_idx==0), frees the three big in-game caches (portrait_sprite_cache, large_game_state_buffer, battle_scene_snapshot). Allocates a 64000-byte mode-13h framebuffer scratch (dst) and a 0x1F400 composite work buffer; zeros dst. Picks the spotlight char (the enemy-side combatant: if attacker.team==0 the attacker, else the defender) and the terrain char (the other). Derives a terrain BG byte from the under-foot tile attribute (tile_attr[6]), except for immune classes (job==0x13 or archetype in {4,5}) with portrait!=0x1C, where the per-chapter override byte data_fd2_chapter_combat_cinematic_mode_per_chapter[chapter] is used when non-zero. Keeps two distinct terrain values: banner_term (EAX, the TAI.DAT banner index) and defender_terrain (BG.DAT split-bg index); they stay in lockstep except in the immune+override==0 sub-case where EAX/banner_term keeps override(0) while defender_terrain reloads to the tile attribute (verified in disasm at 0x28bda-0x28c11). In scripted mode forces spotlight_terrain and banner_idx to the scripted value, and banner_idx to 3 for climactic portraits (attacker 0x1A/0x36 or defender 0x37). Loads name-banner (TAI.DAT), attacker/defender FIGANI silhouettes + attacker animation stream (FIGANI.DAT), terrain backdrop (BG.DAT). split_screen_flag = byte +1 of the attacker animation FIGANI; when non-zero builds a 3-layer split background (BG.DAT[0/1/2]) and swaps spotlight/split buffers for an enemy-team attacker. Loads the defender counter-blow FIGANI only when counter-eligible or scripted. Sequence: fade to black, flash attacker silhouette (non-scripted), zoom the pose in, run the attacker hit cinematic; if it landed and the defender can counter (non-scripted) run the swapped counter cinematic; in scripted mode latch the flag to 1 and run the counter cinematic. Cleanup: frees all scratch + loaded resources (split-bg B + 3 sub-layers only when split); when non-scripted reallocates the large game-state buffer, reloads the battle-scene snapshot from FDSHAP.DAT, restores the portrait cache, settles 6 ticks, fades to black, clears VGA, recomposites the battle frame, stops the FIGANI SFX, frees both SFX banks, fades in.",
+  "signature": "void __cdecl fd2_play_full_combat_cinematic(uint32 a, uint32 d)",
+  "params": [
+    {
+      "name": "a",
+      "type": "uint32",
+      "semantics": "Attacker runtime-char index into data_fd2_battle_runtime_char_array_ptr (the unit delivering the blow).",
+      "verdict": "rename",
+      "proposed": "attacker_idx",
+      "reason": "Single-letter 'a' is a terse mnemonic; the plate already documents the parameter as attacker_idx, which is self-documenting and matches usage (indexes runtime_char array as the attacker). Low-priority readability rename; recorded only, applied in Stage 2."
+    },
+    {
+      "name": "d",
+      "type": "uint32",
+      "semantics": "Defender runtime-char index into data_fd2_battle_runtime_char_array_ptr (the unit being hit / the counter-attacker).",
+      "verdict": "rename",
+      "proposed": "defender_idx",
+      "reason": "Single-letter 'd' is a terse mnemonic; the plate already documents the parameter as defender_idx, matching usage (indexes runtime_char array as the defender). Low-priority readability rename; recorded only, applied in Stage 2."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_battle_scripted_cinematic_mode_or_terrain_idx (0x540FF) -- gates scripted-mode path, forces terrain/banner, then latched to 1",
+    "data_fd2_battle_runtime_char_array_ptr (0x53A45) -- attacker/defender/spotlight runtime_char records",
+    "data_fd2_chapter_combat_cinematic_mode_per_chapter (0x52363) -- per-chapter immune-class terrain override byte",
+    "data_fd2_chapter_current_chapter_id (0x53C03) -- chapter index for the override array",
+    "data_fd2_portrait_sprite_cache (0x53A61) -- freed at start (non-scripted)",
+    "data_fd2_large_game_state_buffer_ptr (0x53A49) -- freed at start, reallocated at end (non-scripted)",
+    "data_fd2_battle_scene_snapshot (0x53A5D) -- freed/NULLed at start, reloaded from FDSHAP.DAT at end (non-scripted)",
+    "data_fd2_tile_event_data_table_ptr (0x53A55) -- [0]*2 = FDSHAP.DAT reload index (non-scripted cleanup)",
+    "data_fd2_audio_figani_sfx_bank_buf_ptr (0x54117) -- attacker FIGANI SFX bank handle",
+    "data_fd2_audio_figani_sfx_bank_defender_buf_ptr (0x5411B) -- defender FIGANI SFX bank handle",
+    "data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr (0x54107)",
+    "data_fd2_battle_combat_cinematic_split_bg_b_buf_ptr (0x54103)",
+    "data_fd2_battle_special_cinematic_bg_layers (0x5410B/0F/13)",
+    "data_fd2_string_resource_filename_tai_dat / figani_dat_52388 / bg_dat_52381 / fdshap_dat_51a65 (resource path strings)"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr (0x54107) -- zeroed, loaded with BG.DAT spotlight backdrop, swapped for enemy-team attacker in split path, freed",
+    "data_fd2_battle_combat_cinematic_split_bg_b_buf_ptr (0x54103) -- B split background (split path), swapped, freed",
+    "data_fd2_battle_special_cinematic_bg_layers (0x5410B/0F/13) -- 3 parallax sub-layers (split path), freed",
+    "data_fd2_audio_figani_sfx_bank_buf_ptr (0x54117) -- attacker FIGANI SFX bank, freed at end (non-scripted)",
+    "data_fd2_audio_figani_sfx_bank_defender_buf_ptr (0x5411B) -- defender FIGANI SFX bank, freed at end (non-scripted)",
+    "data_fd2_battle_scripted_cinematic_mode_or_terrain_idx (0x540FF) -- latched to 1 in the scripted-mode path",
+    "data_fd2_large_game_state_buffer_ptr (0x53A49) -- reallocated 0x25680 at end (non-scripted)",
+    "data_fd2_battle_scene_snapshot (0x53A5D) -- NULLed at start, reloaded from FDSHAP.DAT at end (non-scripted)"
+  ],
+  "comment_original_issue": "The src comment's spotlight description (line 304) said the spotlight char is 'the player-side combatant'. That is factually inverted: team==0 means enemy (per the runtime_char team encoding 0=enemy/1=ally/2=player and the sibling fd2_play_char_intro_zoom_anim comment), so the rule (attacker spotlight when attacker.team==0, else defender spotlight) always resolves the spotlight to the enemy-side unit. Corrected to 'the enemy-side combatant'.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Plate comment was inspected and is consistent with the refined understanding (it states the spotlight rule mechanically and annotates 'attacker is enemy-team' / 'attacker on player/ally team' without mislabeling), so it was left untouched. The subtle banner_term(EAX) vs defender_terrain([ESP+8]) split documented in src/plate was independently verified against the disassembly at 0x28bda-0x28c11. Code/logic was not modified. Param renames are recorded only (Stage 2)."
+}
