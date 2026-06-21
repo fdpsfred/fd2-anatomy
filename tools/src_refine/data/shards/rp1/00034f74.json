@@ -1,0 +1,40 @@
+{
+  "address": "00034f74",
+  "name_current": "fd2_chapter_event_handler_27__unref_drop",
+  "name_final": "fd2_chapter_event_handler_27__unref_drop",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor> name. The '27' is the dispatch-table index 0x27 (a domain ID), not an address residue: verified via the only xref from data 0x51c2d, where (0x51c2d - table_base 0x51b91)/4 = 0x27, and the slot stores 0x00034f74 (this function's address). '__unref_drop' is accurate: no FDFIELD turn-event/tile-step hook references slot 0x27 (unreferenced; only the dispatch table points here), and the body is a battle-item drop + dialog. Callees __CHK, fd2_process_battle_drop_entries, fd2_display_dialog_scene are all correctly named.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Per-event handler dispatch slot 0x27 (unreferenced by any chapter hook): grant battle-drop item id 0xD3 to the stepping char (only shown if that char is on the player team), then display dialog page 0xB from the current chapter text.",
+  "logic_summary": "__CHK(0x34) stack-probe prologue (PUSH ESI/EDI, 4-byte local slot). Inline-copies the 3-byte drop-entry blob at 0x52742 ({0x00,0xD3,0x00} = type 0 ITEM, value 0x00D3 = item id 0xD3) into a local via MOVSW+MOVSB, then calls fd2_process_battle_drop_entries(stepping_char_id, 1, &local) which, for a type-0 entry, only opens the drop dialog when pCharArray[recipient].bTeam==2 (player team) and otherwise returns having consumed the entry. Finally calls fd2_display_dialog_scene(data_fd2_current_chapter_text, page=0xB, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1). Straight-line, no branches, no RNG, no numeric computation; both call return values discarded. The function body 0x34F74-0x34FCA also hosts two shared epilogue tails reused by other handlers (code-folding artifact): alt_43 @ 0x34FB7 (PUSH chapter_text; CALL display_dialog; ADD ESP,0x24; cleanup; RET) consumed by handlers 0x29 and 0x33 (verified via xrefs), and alt_51 @ 0x34FC5 (ADD ESP,4; POP EDI; POP ESI; RET cleanup-only) consumed by handler 0x37 (verified via xref).",
+  "signature": "void __cdecl fd2_chapter_event_handler_27__unref_drop(uint32 stepping_char_id)",
+  "params": [
+    {
+      "name": "stepping_char_id",
+      "type": "uint32",
+      "semantics": "Tile-step dispatch arg: id of the char who stepped onto the trigger tile; forwarded as the recipient_idx of the battle drop (only granted/shown when that char is on the player team).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the tile-step recipient char id; matches how the body forwards it to fd2_process_battle_drop_entries(recipient_idx,...). No address residue, not a generic param_N name."
+    }
+  ],
+  "returns": { "type": "void", "semantics": "none" },
+  "reads_globals": [
+    "data_fd2_chapter_event_handler_27_drop_entry_inline",
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (chevt1.c lines 1751-1794) plus the inline-data comment (lines 1741-1746) are already precise, accurate, ASCII-only, and consistent with the disassembly. Cross-checked the behavioral claim 'dialog only shown when recipient is on player team (team==2)' against the decompile of fd2_process_battle_drop_entries: type-0 entry returns early when bTeam!=2 -- claim correct. Inline blob bytes at 0x52742 read as 00 d3 00, matching {0x00,0xD3,0x00}. Dispatch idx 0x27 confirmed (xref from data 0x51c2d; (0x51c2d-0x51b91)/4=0x27; slot holds 0x34f74). Shared tails alt_43/alt_51 confirmed by xrefs to 0x34fb7 (handlers 0x29,0x33) and 0x34fc5 (handler 0x37). Global 0x53a79 confirmed = data_fd2_current_chapter_text. Ghidra plate is consistent with this understanding (it documents the same dispatch idx, drop blob, page 0xB, and shared tails) so left untouched. No source edit needed; shard-only commit."
+}
