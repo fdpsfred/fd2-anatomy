@@ -1041,8 +1041,10 @@ uint32 data_fd2_dialog_last_action_value_param = 0;
  * fd2_find_char_by_id_or_template: cleared to NULL at entry, then set to
  * either a runtime_char* (alive/dead battle slot whose bChar_id matched)
  * or a menu-roster template* (battle miss, found in the menu party).
- * Read by fd2_display_dialog_scene (opcodes -0x13/-0x14 ally portrait):
- * dereferenced as runtime_char* to read ->bPortrait_id and ->bPos_x/y.
+ * Read by fd2_display_dialog_scene in the -0x11/-0x12 sprite-load opcodes
+ * (only when the opcode's char_id != 0x27), right after it calls
+ * fd2_find_char_by_id_or_template: dereferenced as runtime_char* to read
+ * ->bPortrait_id (+7) and ->bPos_x/y (+0/+1) for the speaker portrait.
  * Always cleared before first use each call, so the binary stores it
  * zero-init (NULL). Home owner: btl_turn.c (alongside the writer).
  * ---------------------------------------------------------------- */
