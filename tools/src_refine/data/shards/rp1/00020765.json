@@ -1,0 +1,45 @@
+{
+  "address": "0x00020765",
+  "name_current": "fd2_chapter_13_post_action",
+  "name_final": "fd2_chapter_13_post_action",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Convention-compliant fd2_<domain>_<descriptor>: domain chapter_13 is a valid game chapter ID (range 01-30, verified meaningful per dispatch table index 12 = chapter 13), descriptor post_action matches the handler family. No Ghidra address residue. Consistent with all 18 sibling handlers in chpost.c.",
+  "kind": "function",
+  "home": "src/field/chpost.c",
+  "purpose": "Chapter 13 turn-cycle post-action handler: runs the default win/lose check then layers two independent lose conditions, each setting the game-over status code and playing a chapter dialog page.",
+  "logic_summary": "Calls fd2_check_battle_end_condition (default win/lose). Cond 1: loops slots runtime_char[0xF..0x1A] (i+0xF for i in 0..0xB) via fd2_check_char_is_dead; loop does NOT early-exit, it sets some_npc_alive=1 the instant any slot reports alive (==0) and runs to completion; if no slot alive, sets data_fd2_chapter_event_or_battle_end_code=1 and shows data_fd2_current_chapter_text page 10. Cond 2: if (int32)data_fd2_battle_turn_counter > 5 AND runtime_char[0x3B] is dead, sets the same status code=1 and shows page 2. Both dialog calls use standard glyph geometry (0xA0000/0x140/0xCD/0x4C/0x4A/0x13, blink 1).",
+  "signature": "void __cdecl fd2_chapter_13_post_action(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Unused dispatch artifact. The dispatch site (via data_fd2_chapter_post_action_handler_table[12]) passes one cdecl arg, but the body ignores it; the PUSH 0x30; CALL __CHK prologue is the Watcom stack-check artifact. Body casts (void)event_arg.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Generic but accurate (it is the dispatch event arg) and carries no address residue; not a param_1 placeholder. Consistent with all sibling handlers in chpost.c. Renaming would only be a family-wide stylistic change, not required."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Effects via global data_fd2_chapter_event_or_battle_end_code (0x53ECC) writes and dialog scene side-effects."
+  },
+  "reads_globals": [
+    "data_fd2_battle_turn_counter (0x53BEF, signed > 5 turn gate for cond 2)",
+    "data_fd2_current_chapter_text (0x53A79, dialog text base for both pages)"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_event_or_battle_end_code (0x53ECC, set to 1 = game over on either lose condition)"
+  ],
+  "comment_original_issue": "src comment (lines 99-121) was already accurate, precise, and ASCII; correctly described dispatch table[12]@0x51B19, both lose conditions, loop-no-early-exit semantics, slot ranges, dialog pages, and glyph geometry. No change needed.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "3312911bf280152b1289e3e8c8ec96dedfe06061",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified disassembly @ 0x20765 line-by-line against src: __CHK(0x30) prologue; fd2_check_battle_end_condition @0x205be; loop EBX 0..0xB, LEA [EBX+0xF], fd2_check_char_is_dead @0x3453e; both dialog calls fd2_display_dialog_scene @0x15f84 push dword[0x53a79] with pages 0xA and 0x2; turn gate CMP dword[0x53bef],0x5/JLE. Dispatch table base 0x51B19, slot for chapter 13 @0x51B49 = index 12*4 holds 0x20765 (confirmed by memory dump). Ghidra plate was stale (old names: per_chapter_post_action_handler, runtime_char, game_event_flag, display_dialog_scene, and the INCORRECT label '_save_metadata_block @ 0x53BEF' -- canonical symbol is data_fd2_battle_turn_counter, confirmed via symbol table + xrefs from fd2_run_full_turn_cycle); plate rewritten to current data_fd2_* symbol names, src kept as source of truth. Globals/protos confirmed in src/include/globals.h + protos.h. No logic changes made."
+}
