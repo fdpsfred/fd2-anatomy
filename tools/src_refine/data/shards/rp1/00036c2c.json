@@ -1,0 +1,36 @@
+{
+  "address": "0x00036c2c",
+  "name_current": "fd2_ani_decoder_chunk_sparse_set_run_byte",
+  "name_final": "fd2_ani_decoder_chunk_sparse_set_run_byte",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>: domain ani_decoder, descriptor chunk_sparse_set_run_byte. Accurately describes a sparse delta chunk handler that reads N (offset, run_length, fill_byte) records and run-fills each at base+offset (REP STOSW + trailing STOSB == memset of run_length bytes). No Ghidra address residue; 'byte' = element size semantics (vs sibling chunk_sparse_copy_literal which copies literal bytes; vs chunk_sparse_set_byte which sets a single byte per offset).",
+  "kind": "function",
+  "home": "src/anim/anidec.c",
+  "purpose": "ANI frame-decoder dispatch handler (table slot 8 @ 0x5278A): applies N sparse run-fills, each writing run_length copies of a fill byte at base+offset within the destination row buffer.",
+  "logic_summary": "Reads ushort N from the shared stream cursor. base = dst_buf (data_fd2_animation_ani_decoder_dst_buf @ 0x52762). Loops N times: read ushort offset, byte run_length, byte fill; memset(base+offset, fill, run_length). In the binary this is REP STOSW of run_length>>1 broadcast words plus a trailing STOSB when run_length is odd (== run_length bytes total). Cursor advances 2 + 4*N bytes; void return; no stack args (custom ESI register protocol, modeled in C by file-scope g_ani_cursor).",
+  "signature": "void fd2_ani_decoder_chunk_sparse_set_run_byte(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effect: writes run-filled bytes into the destination row buffer and advances the shared stream cursor by 2 + 4*N bytes."
+  },
+  "reads_globals": [
+    "data_fd2_animation_ani_decoder_dst_buf (@0x52762, destination row base)",
+    "g_ani_cursor (file-scope shared stream cursor modeling ESI)"
+  ],
+  "writes_globals": [
+    "g_ani_cursor (advanced by 2 + 4*N bytes)"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly (0x36c2c) confirms: LODSW N; EBX=[0x52762] dst_buf; per record EDI=base+offset, CL=run_length, AL/AH=fill broadcast, SHR ECX,1 + REP STOSW + RCL ECX,1 + REP STOSB == memset(base+offset, fill, run_length); DEC EDX loop. Invoked only indirectly via dispatch table slot @0x5278A (xref to fn is DATA from 0005278a; get_function_callers empty as expected). Caller chain: fd2_ani_decoder_decode_frame_bytes @0x36C9E dispatches by opcode byte. src comment (anidec.c lines 244-249) already concise and correct; Ghidra plate detailed and consistent -> no edits. Byte read order (length at lower addr, fill at higher addr) matches src's two sequential g_ani_cursor reads. No logic/equivalence concerns."
+}
