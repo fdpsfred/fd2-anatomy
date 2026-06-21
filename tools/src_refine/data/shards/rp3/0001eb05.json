@@ -1,0 +1,53 @@
+{
+  "address": "0001eb05",
+  "name_current": "fd2_animate_combat_speech_bubbles",
+  "name_final": "fd2_animate_combat_speech_bubbles",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with fd2_<domain>_<descriptor>: domain=animate/combat, descriptor=speech_bubbles. No Ghidra address residue. Accurately reflects the behavior (a 10-frame fade-in of the pre-attack combat 'vs' speech bubbles).",
+  "kind": "function",
+  "home": "ROOT/src/anim/anicombt.c",
+  "purpose": "Pre-attack 'vs' speech-bubble fade-in for an AI fast-path physical attack: compute bubble screen positions (attacker bubble for the defender, plus the counter bubble for the attacker if the defender can counter), play a 10-frame fade-in, and return the pos-pairs table address for combatant HP-bar placement.",
+  "logic_summary": "Step 1: fd2_compute_combat_bubble_screen_pos(&pos_pairs[0], defender_idx) writes the primary bubble (x,y) into pos_pairs[0..1]. Step 2: fd2_check_can_counter_attack(attacker_idx, defender_idx); if it returns 1, compute the counter bubble into pos_pairs[2..3] from attacker_idx, else store -1 in pos_pairs[2] as the no-counter sentinel. Then a 10-iteration loop (frame_iter 0..9, sprite_id = frame_iter + 0x27 = 0x27..0x30): each frame alloc+blit the attacker bubble at (pos_pairs[0],pos_pairs[1]) onto surface 0xA0000 (pitch 0x140) via fd2_alloc_and_blit_indexed_sprite_chunk, and the counter bubble at (pos_pairs[2],pos_pairs[3]) when pos_pairs[2] != -1; fd2_delay_ms(0x19) (~25ms); for frames 0..8 undo the blit(s) via fd2_cleanup_dialog_sprite_buffer before the next frame. After the loop (frame 9 left on screen) free(attacker_buf) and free(counter_buf) when present, then return &pos_pairs[0].",
+  "signature": "uint32 fd2_animate_combat_speech_bubbles(uint32 attacker_idx, uint32 defender_idx)",
+  "params": [
+    {
+      "name": "attacker_idx",
+      "type": "uint32",
+      "semantics": "Runtime-char index of the attacking/casting char (caller passes param_1, the AI caster). Forwarded to fd2_check_can_counter_attack and used as the source index for the counter-attacker's bubble position (pos_pairs[2..3]).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name matches its use as the attacker index; no address residue."
+    },
+    {
+      "name": "defender_idx",
+      "type": "uint32",
+      "semantics": "Runtime-char index of the targeted char (caller passes ai_best_physical_target_idx). Used as the source index for the primary bubble position (pos_pairs[0..1]) and forwarded to fd2_check_can_counter_attack.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name matches its use as the defender/target index; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "uint32",
+    "semantics": "Address of data_fd2_battle_combat_speech_bubble_pos_pairs. The sole caller reads [0..1] (defender bubble x,y) via this pointer and [2..3] (counter bubble x,y) via pointer+8 to place the combatants' HP bars; [2]==-1 signals no counter."
+  },
+  "reads_globals": [
+    "data_fd2_resource_portrait_sheet_ptr",
+    "data_fd2_battle_combat_speech_bubble_pos_pairs"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_combat_speech_bubble_pos_pairs"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Caller fd2_execute_ai_physical_attack @ 0x1548e (sole caller, fast-path branch, call site 0x1554c) confirms param mapping (param_1->attacker_idx, ai_best_physical_target_idx->defender_idx) and return-value consumption (HP-bar placement via ptr and ptr+8). src comment block (lines 1032-1058) is already accurate/precise/ASCII; left unchanged. Ghidra plate is more detailed but fully consistent with src understanding; left unchanged. Global declared as 'extern int32 data_fd2_battle_combat_speech_bubble_pos_pairs[4]' in globals.h. No source edit was needed (comment kept), so anicombt.c is not part of this commit."
+}
