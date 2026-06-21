@@ -290,7 +290,8 @@ uint32 fd2_load_figani_sfx_bank(uint32 figani_data)
  * fd2_set_bgm_track_with_fade to skip reloading a track that is
  * already playing. Read via MOVZX byte and written via MOV AL
  * (unsigned 8-bit). Static initial value 0xFF marks "no track set
- * yet" (the stop sentinel, since 0xFFFFFFFF requests fade-out). */
+ * yet": it zero-extends to 0x000000FF, so it never matches the
+ * 0xFFFFFFFF fade-out/stop request. */
 uint8 data_fd2_audio_bgm_last_set_track_id = 0xFF;
 
 /* data_fd2_audio_status_effect_sfx_handle_ptr @ 0x53B13
