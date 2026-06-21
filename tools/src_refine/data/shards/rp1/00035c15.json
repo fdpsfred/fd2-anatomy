@@ -1,0 +1,31 @@
+{
+  "address": "00035c15",
+  "name_current": "fd2_set_battle_anim_phase_to_1",
+  "name_final": "fd2_set_battle_anim_phase_to_1",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with fd2_<domain>_<descriptor>: domain=battle, descriptor=set_battle_anim_phase_to_1. The trailing '1' is the literal value written to data_fd2_battle_anim_phase (a semantic constant), NOT a Ghidra address residue -- 1 is not a hex address and matches the body MOV [0x51A83],1. Name accurately reflects the sole action (set the battle animation phase flag to 1).",
+  "kind": "function",
+  "home": "src/battle/btl_init.c",
+  "purpose": "Shared tail stub that sets the global battle animation-phase flag (data_fd2_battle_anim_phase) to 1.",
+  "logic_summary": "Three-instruction tail: ADD ESP,0xC (drops the 3 dword args the caller pushed for the preceding 3-arg warp helper), MOV dword [0x51A83],1 (battle_anim_phase=1), RET. In the original binary it is a JMP/CALL target shared by multiple chapter cinematic handlers; the emitted C is a plain void setter performing just the flag write (data_fd2_battle_anim_phase = 1), with the arg cleanup subsumed by the C calling convention. Functionally equivalent.",
+  "signature": "void __cdecl fd2_set_battle_anim_phase_to_1(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effect: data_fd2_battle_anim_phase := 1."
+  },
+  "reads_globals": [],
+  "writes_globals": ["data_fd2_battle_anim_phase"],
+  "comment_original_issue": "Original src comment was correct and concise but minimal -- it did not state the 3-arg (ADD ESP,0xC) cleanup origin nor name the emitted consumer, so the rationale for emitting a standalone setter (vs. inlining) was implicit.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "bf3bb7f8e828532c2abde1b173fd376e1c940f2f",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Sole emitted CALL caller: fd2_chapter_event_handler_52__ch30_major_cinematic (@0x35F92), calls it on both return branches (xrefs @0x36073, @0x36083). Verified the plate's previously-unverified Class-3 alt-entry claims via xrefs: alt_3 @0x35C18 reached by UNCONDITIONAL_JUMP from fd2_chapter_event_handler_17 (@0x348F7) and fd2_chapter_event_handler_25 (@0x34D63); alt_D @0x35C22 reached by CONDITIONAL_JUMP from fd2_chapter_event_handler_17 (@0x3488A). Updated the Ghidra plate to record these as verified and drop the stale 'verify if needed' caveat. data_fd2_battle_anim_phase @0x51A83 is a shared uint32 game-state flag (globals.h), written/read by many functions (dialog.c, main.c, spelleff.c, input.c, cursor.c) -- not unique to this stub; no rename concern for the global. This function is also catalogued in open_issues.md as a benign SHARED EPILOGUE STUB; emit pipeline impact on the binary is zero."
+}

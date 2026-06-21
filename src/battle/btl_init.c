@@ -421,8 +421,15 @@ void fd2_set_chapter_init_done_flag(void)
  * fd2_set_battle_anim_phase_to_1 @ 0x35C15
  *
  * Shared tail chunk: set battle_anim_phase = 1.
- * Originally a JMP target with stack cleanup; emitted as
- * standalone setter.
+ *
+ * In the original this is a tail entered via JMP from several chapter
+ * cinematic handlers; it opened with ADD ESP,0xC to drop the 3 args
+ * the caller had pushed (for the preceding 3-arg warp helper) before
+ * deciding to flip the flag, then MOV [battle_anim_phase],1 and RET.
+ * Here it is emitted as a plain void setter -- the arg cleanup is now
+ * handled by the normal calling convention, so only the flag write
+ * remains. Sole emitted caller: fd2_chapter_event_handler_52
+ * (ch30 cinematic), which calls it on both return branches.
  * ---------------------------------------------------------------- */
 void fd2_set_battle_anim_phase_to_1(void)
 {
