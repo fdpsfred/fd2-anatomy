@@ -1,0 +1,31 @@
+{
+  "address": "0x00037f86",
+  "name_current": "crt_equivalent_get_eflags_thunk",
+  "name_final": "crt_equivalent_get_eflags_thunk",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Correct per CRT wrapper convention (crt_equivalent_*). 'get_eflags' describes the EAX return value (prior EFLAGS image), the primary observable contract both callers consume. '_thunk' suffix correctly distinguishes the 5-byte near-JMP wrapper from its JMP target crt_equivalent_get_eflags @ 0x3ed58, forming a consistent naming pair. No Ghidra address residue (_thunk is a descriptor, not a hex suffix). The CLI (interrupt-disable) side effect is captured in the comment; naming after the EAX return is appropriate.",
+  "kind": "function",
+  "home": "src/crt/crt.c",
+  "purpose": "Watcom _disable-style critical-section entry primitive: 5-byte near-JMP thunk that captures the prior EFLAGS into EAX and disables interrupts (CLI), letting the two AIL ISRs enter a critical section.",
+  "logic_summary": "Live Ghidra body is a single 5-byte instruction at 0x37f86: JMP 0x3ed58 (bytes e9 cd 6d 00 00; 0x37f86+5+0x6dcd=0x3ed58). The JMP target crt_equivalent_get_eflags @ 0x3ed58 is the 4-byte primitive PUSHFD; POP EAX; CLI; RET, returning the prior EFLAGS in EAX and clearing IF as a side effect. The thunk lets AIL _TEXT callers reach the lib-side _disable implementation with a uniform near-CALL. (The decompiler follows the JMP and renders the target's PUSHFD;POP EAX as an EFLAGS bit-reassembly expression; the disassembly is authoritative.) src emits it as a real out-of-line function returning the shared #pragma aux inline helper crt_capture_eflags_cli (PUSHFD; POP EAX; CLI) -- Layer-2 functionally-exact equivalent; the JMP-vs-inline byte difference is an unpursued Layer-3 detail.",
+  "signature": "unsigned long crt_equivalent_get_eflags_thunk(void)",
+  "params": [],
+  "returns": {
+    "type": "unsigned long",
+    "semantics": "Prior EFLAGS image captured in EAX (before interrupts were disabled). Callers stash it to restore interrupt state on critical-section exit (via the sibling restore thunk / POPFD). Side effect: IF cleared (interrupts disabled)."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly confirms 5-byte JMP thunk (e9 cd 6d 00 00 -> 0x3ed58), not the EFLAGS-reassembly body the decompiler shows (decompiler follows the JMP into target 0x3ed58). 2 callers, both AIL ISRs: AIL_internal_driver_timer_isr @ 0x3f215 (CALL 0x3f22a) and AIL_internal_audio_mix_isr @ 0x40170 (CALL 0x4019a); each does saved_eflags=thunk() ... restore_thunk(saved_eflags), the standard enter/exit critical-section pattern. Sibling EXIT thunk AIL_internal_isr_eflags_restore_thunk_37f8b carries a Ghidra address suffix (_37f8b) but is a SEPARATE symbol, not handled here. src/crt/crt.c comment block (lines 371-414) is already accurate, precise, ASCII-clean, and matches the disasm+caller evidence; left unchanged (comment_verdict=keep, crt.c 0 diff). Ghidra plate is consistent with src conclusion; left unchanged (ghidra_plate_action=none). Name kept; params none. No logic issues."
+}
