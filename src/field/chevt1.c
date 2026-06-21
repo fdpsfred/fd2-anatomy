@@ -1515,13 +1515,13 @@ void fd2_chapter_event_handler_21__ch10_dialog_with_state(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_22__unref_dialog @ 0x34C6C
- *   — Dispatch idx 0x22 of the per-event handler table at 0x51B91.
+ *   -- Dispatch idx 0x22 of the per-event handler table at 0x51B91.
  *
  * No chapter FDFIELD turn-event / tile-step hook references this slot
- * (unreferenced — possibly cut content / non-chapter dispatcher). Its
+ * (unreferenced -- possibly cut content / non-chapter dispatcher). Its
  * single beat is the minimal dialog-only call: a straight-line, no-branch
  * sequence with no portrait reload, no camera pan, no state writes, no
- * RNG, no numeric computation, and no CALL-return value used — it just
+ * RNG, no numeric computation, and no CALL-return value used -- it just
  * shows dialog page 3 and returns. Its effect is identical to
  * fd2_chapter_event_handler_18__unref_dialog @ 0x348FC.
  *
