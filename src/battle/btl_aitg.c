@@ -188,9 +188,22 @@ int fd2_scan_chars_within_manhattan_range(uint32 center_x, uint32 center_y,
 /* ----------------------------------------------------------------
  * fd2_scan_chars_along_line_with_team_filter @ 0x149F8
  *
- * Walk a 4-cardinal line from start toward target for step_count
- * steps. Collect matching-team char indices into out_buf.
- * Returns hit_count.
+ * Walk a straight 4-cardinal line (no diagonals) from (start_x,
+ * start_y) toward (target_x, target_y) for up to step_count steps;
+ * collect indices of chars found at each in-bounds step that match
+ * the team filter into out_buf, returning the hit count.
+ *
+ * Direction: pure vertical if start_x == target_x (down when
+ * start_y <= target_y, else up), otherwise pure horizontal toward
+ * target_x. Steps that fall outside the map bounds are skipped.
+ *
+ * team_filter polarity: 0 collects chars on a non-zero team (enemy
+ * of player team 0); non-zero collects team-0 chars. The global
+ * battle cursor is driven during the walk and restored on return.
+ *
+ * Used for line / piercing targeting: spell 0x1E (the line spell)
+ * and long-range projectile items (range_class >= 0x10, where
+ * step_count = range_class - 0x10).
  * ---------------------------------------------------------------- */
 int fd2_scan_chars_along_line_with_team_filter(
     uint32 target_x, uint32 target_y, uint32 out_buf,
