@@ -67,7 +67,7 @@ void fd2_tick_tutorial_progress_with_sfx(uint32 char_idx)
  * each frame blits the visible 312x192 region to the mode13h primary
  * at 0xA0504 from either the workspace base (even iterations) or one
  * row (0x1C8 bytes) further down (odd iterations), giving a perceived
- * up/down jitter, with a 20-tick (~1100ms) delay per frame.
+ * up/down jitter, with a ~20ms delay (fd2_delay_ms) per frame.
  *
  * Used after big spells (earthquake / boss attacks) and chapter event
  * cinematics (earthquake intros).
