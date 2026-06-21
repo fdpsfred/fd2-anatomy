@@ -40,6 +40,14 @@ uint32 data_fd2_animation_ani_decoder_src_buf;
 
 /* ----------------------------------------------------------------
  * fd2_ani_decoder_set_target_buffer @ 0x36C7D
+ *
+ * Stores the three decoder target-buffer parameters into the adjacent
+ * globals consumed by the chunk handlers:
+ *   width   -> target_width @ 0x52760 (per-chunk output byte length)
+ *   dst_buf -> dst_buf      @ 0x52762 (destination linear address)
+ *   src_buf -> src_buf      @ 0x52766 (palette-area base address)
+ * Called once per frame by fd2_play_ani_file_animation_sequence before
+ * fd2_ani_decoder_decode_frame_bytes runs. Void return, no state read.
  * ---------------------------------------------------------------- */
 void fd2_ani_decoder_set_target_buffer(uint16 width, uint32 dst_buf,
                                         uint32 src_buf)
