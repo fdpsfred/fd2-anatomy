@@ -683,9 +683,25 @@ uint8 data_fd2_battle_summon_spell_sprite_anim_tick_counter;
 /* ----------------------------------------------------------------
  * fd2_tick_summon_spell_animation_state @ 0x26528
  *
- * Generic single-target summon animation. Dispatch table #2.
- * Plate comment had incorrect is_enemy condition for state {1,7}
- * and state 4 — assembly verified: NON-enemy does the tick/blit.
+ * Generic single-target summon animation tick state machine.
+ * Dispatch table entry #2 (at 0x523C1). is_enemy = caster's
+ * runtime_char.bTeam == 0; it gates which states drive the
+ * frame-paced sprite tick vs. a direct blit.
+ *
+ * Per state_code (phase byte = current sprite frame index):
+ *   0     : reset phase/aux/tick to 0; return 0x1D.
+ *   3     : phase = 0x10; return 0xC.
+ *   6     : SFX chime; phase = 0xA; return 0xA.
+ *   1 / 7 : ally only -- on entry (state 1 && phase 0xA) snap
+ *           phase to 0xF, then advance the paced sprite tick.
+ *   2 / 8 : SFX click when phase == 7; enemy only runs the paced
+ *           tick (with the same 0xA->0xF entry snap on state 2);
+ *           when phase reaches 0x10 blit frame 0x10.
+ *   4     : ally only -- blit frame 0xF one row above origin.
+ *   5     : enemy adds a frame-0xF blit one row higher; always
+ *           blit phase one row above origin, then phase++. At 0x11
+ *           SFX + return 1 (done); at 0x12 wrap phase back to 0x10.
+ *   other : return 0.
  * ---------------------------------------------------------------- */
 int fd2_tick_summon_spell_animation_state(
     uint32 caster_unit_id, uint32 sprite_handle,
