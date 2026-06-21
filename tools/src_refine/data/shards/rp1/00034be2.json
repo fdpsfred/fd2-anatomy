@@ -1,0 +1,42 @@
+{
+  "address": "00034be2",
+  "name_current": "fd2_chapter_event_handler_20__ch10_dialog",
+  "name_final": "fd2_chapter_event_handler_20__ch10_dialog",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>. Domain = chapter_event_handler; descriptor = dispatch index 0x20 plus ch10_dialog. The '_20' is the per-event handler-table index (table at 0x51B91, dispatched range 0x00-0x2E), a meaningful domain ID, NOT an address residue (self addr 0x34BE2 != 0x20; xref entry at 0x51C11 holds 0x34BE2). The '_10' is chapter 10 (valid chapter ID 1-30; verified vs chapter_10 walkthrough). 'dialog' matches the category (dialog-only beat). Consistent with the entire sibling handler family in chevt1.c.",
+  "kind": "function",
+  "home": "ROOT/src/field/chevt1.c",
+  "purpose": "Chapter 10 turn-event slot 0 handler (dispatched as idx 0x20 of the per-event handler table at 0x51B91): the reinforcement-arrival dialog beat that reloads portrait set 1 and shows chapter-text dialog page 1 when the player's 5th turn ends.",
+  "logic_summary": "Straight-line, dialog-only. Ignores its dispatch arg. Calls fd2_load_chapter_portraits_and_dump_tmp(1) then fd2_display_dialog_scene(data_fd2_current_chapter_text, page=1, 0xA0000 VGA base, 0x140 stride, 0xCD/0x4C window X/Y, 0x4A style, 0x13 max lines, 1 wait-flag). No branch, no RNG, no numeric computation, no CALL-return value used. In the original binary the function is a 5-byte adapter stub (PUSH 0x28) that falls through (no JMP; 0x34BE2 -> 0x34BE7) into the shared body fd2_show_chapter_dialog_with_portrait_set_1 @ 0x34BE7; the pushed 0x28 is the __CHK frame size consumed by that body's compiler-injected CALL __CHK. The body's effect is reproduced inline in src for Layer-2 equivalence. Sibling handler_05 @ 0x34D68 reaches the same body via 'PUSH 0x28; JMP'.",
+  "signature": "void __cdecl fd2_chapter_event_handler_20__ch10_dialog(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform 1-arg cdecl dispatch argument from the per-event handler table at 0x51B91. Never read by this handler (cast to void). Standard name used across all sibling handlers in chevt1.c.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, matches the dispatch-table convention, consistent with siblings, no address residue. Body never reads it."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Content was factually correct and precise (dispatch idx 0x20, ch10 turn 5 / phase 1, 5-byte PUSH 0x28 fall-through into shared body @ 0x34BE7, Layer-2 inline reproduction; verified vs chapter_10 walkthrough 'turn-5 reinforcement arrival'). Only defect: two em-dash glyphs (U+2014) in the comment block, which violate the ASCII-only rule for code text. Sibling refine (handler_1c, commit 9e506902) set the precedent of converting the title-line em-dash to '--'.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "0bdb57c9",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Comment content kept verbatim; only normalized two U+2014 em-dashes to ASCII '--' (title line + 'dialog page 1 -- a straight-line') per the ASCII-only code-text rule, with sibling precedent (handler_1c). Chinese walkthrough term 援軍 kept (already glossed as 'reinforcements'; established chevt1.c convention keeps Chinese walkthrough terms/quotes, cf. handler_21). Ghidra plate is consistent with the refined src understanding (describes the same behavior at the binary-stub level) so plate left untouched. Factual accuracy cross-checked against fd2-knowledge chapter 10 events: '第五回合己方結束時,己方援軍出現...' matches 'turn 5 / phase 1, reinforcements appear'. xref at 0x51C11 (DATA) holds 0x34BE2, confirming dispatch idx 0x20. No rename applied (per workflow, all renames deferred to Stage 2); name_verdict=keep so nothing to defer."
+}

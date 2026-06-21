@@ -1353,12 +1353,12 @@ void fd2_chapter_event_handler_1f__ch9_reinforcement(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_20__ch10_dialog @ 0x34BE2
- *   — Chapter 10 turn-event slot 0 (triggered at turn 5 / phase 1).
+ *   -- Chapter 10 turn-event slot 0 (triggered at turn 5 / phase 1).
  *
  * ch10 reinforcement-arrival beat: when the player's 5th turn ends the
  * reinforcements (援軍) appear, and this dialog-only handler shows the
  * accompanying line. Its single beat reloads portrait set 1 and shows
- * dialog page 1 — a straight-line, no-branch sequence with no camera
+ * dialog page 1 -- a straight-line, no-branch sequence with no camera
  * pan, no cutscene trigger, no state writes, no RNG, no numeric
  * computation, and no CALL-return value used.
  *
