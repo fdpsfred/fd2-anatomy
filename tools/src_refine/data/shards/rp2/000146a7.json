@@ -1,0 +1,53 @@
+{
+  "address": "000146a7",
+  "name_current": "fd2_set_tile_overlay_bit_80",
+  "name_final": "fd2_set_tile_overlay_bit_80",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Format matches fd2_<domain>_<descriptor>; descriptor accurately states the action (set overlay bit 0x80). The _80 suffix is the literal bit value 0x80 being OR-ed in (semantic: the 'AoE splash' marker, distinct from the center tile's 0x40 bit set by the caller), NOT a Ghidra address residue. Sibling functions in this file (e.g. fd2_mark_aoe_plus_pattern_at) likewise omit a _battle_ infix, so the name is consistent with local convention.",
+  "kind": "function",
+  "home": "src/battle/btl_aitg.c",
+  "purpose": "One-tile primitive that ORs bit 0x80 (the AoE-splash overlay marker) into the battle tile map's overlay byte (+6 within each tile's 4-byte stride) at tile (x, y).",
+  "logic_summary": "Computes the overlay byte address as data_fd2_battle_tile_map_ptr + (y * data_fd2_battle_map_width_tiles + x) * 4 + 6, then OR-assigns 0x80 into that byte. Single basic block, no branches, no bounds check (caller fd2_mark_aoe_plus_pattern_at validates the tile is inside the map before each of its four neighbor calls). The leading __CHK(4) is the Watcom stack-probe/range-check thunk, not game logic.",
+  "signature": "void fd2_set_tile_overlay_bit_80(uint32 x, uint32 y)",
+  "params": [
+    {
+      "name": "x",
+      "type": "uint32",
+      "semantics": "Tile column (X) coordinate of the target tile; multiplied into the linear tile index x + y*width.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name 'x' correctly denotes the tile column; caller passes column values (x-1 / x+1 for left/right neighbors). No address residue."
+    },
+    {
+      "name": "y",
+      "type": "uint32",
+      "semantics": "Tile row (Y) coordinate of the target tile; row component of the linear tile index x + y*width.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name 'y' correctly denotes the tile row; caller passes row values (y-1 / y+1 for upper/lower neighbors). No address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; the function only mutates one overlay byte in place."
+  },
+  "reads_globals": [
+    "data_fd2_battle_tile_map_ptr",
+    "data_fd2_battle_map_width_tiles"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_tile_map_ptr (writes one byte inside the buffer it points to, not the pointer itself)"
+  ],
+  "comment_original_issue": "Original src comment was correct but terse ('Set bit 0x80 on tile overlay byte +6 at (x, y).'); it omitted the bit's semantic meaning (AoE splash marker), the caller relationship, and the fact that there is no in-function bounds check.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Body matches the decompile byte-for-byte: overlay offset (y*width + x)*4 + 6, OR 0x80. Caller fd2_mark_aoe_plus_pattern_at @ 0x14625 (4 call sites) uses this for the 4 plus-pattern neighbors while marking the center with 0x40. Ghidra plate already documents bit meaning, body, caller, and no-bounds-check, so it is consistent with the refined understanding and was left untouched."
+}

@@ -248,7 +248,13 @@ int fd2_scan_chars_along_line_with_team_filter(
 /* ----------------------------------------------------------------
  * fd2_set_tile_overlay_bit_80 @ 0x146A7
  *
- * Set bit 0x80 on tile overlay byte +6 at (x, y).
+ * Set bit 0x80 ("AoE splash" marker) on the tile overlay byte at
+ * offset +6 of the battle tile map, at tile (x, y).
+ *
+ * One-tile primitive used by fd2_mark_aoe_plus_pattern_at to flag
+ * the four non-center neighbors of an AoE "+" pattern (the center
+ * uses bit 0x40 instead). No in-function bounds check -- the caller
+ * is responsible for keeping (x, y) inside the map.
  * ---------------------------------------------------------------- */
 void fd2_set_tile_overlay_bit_80(uint32 x, uint32 y)
 {
