@@ -20,9 +20,15 @@
 /* ----------------------------------------------------------------
  * fd2_play_ending_and_record_clear @ 0x1F894  (1 caller)
  *
- * Sole caller: fd2_main_menu_continue_dispatcher @ 0x25EBB (entered when the
- * player selects "Continue" on the main menu and the save shows the final
- * chapter cleared).
+ * Title-screen attract cinematic + main menu. Despite the "ending" art it
+ * draws from, this is the top-level menu screen, not a post-clear-only path.
+ *
+ * Sole caller: fd2_main_menu_continue_dispatcher @ 0x25EBB, called
+ * UNCONDITIONALLY at the top of the dispatcher (call site 0x25EC8) on every
+ * return to the top level. Its EAX return selects the dispatcher branch:
+ *   0 -> NEW GAME ; 1 -> CONTINUE (save-slot loader) ; 2 -> continue an
+ *   already-completed game (full engine reload). The 3rd option only appears
+ *   when FD2.SAV holds a finished save (Phase 8).
  *
  * Phases (see plate @ 0x1F894 for full per-address breakdown):
  *   1  Setup: copy ending_music_trigger_frames[15] to stack.
@@ -38,7 +44,7 @@
  *   9  Menu loop: INT 16h key read; up/down move cursor (wrap), Enter/Space/
  *      0xE0/0x52 commit.
  *  10  Commit highlight blink (4x).
- *  11  Cleanup; tail-jumps the shared epilogue → returns active_idx_var.
+ *  11  Cleanup; tail-jumps the shared epilogue -> returns active_idx_var.
  *
  * Returns: final menu selection (0..menu_options-1).
  *
@@ -82,7 +88,7 @@ int fd2_play_ending_and_record_clear(void)
         music_trigger_frames[k] = data_fd2_chapter_ending_music_trigger_frames[k];
     }
 
-    /* Phase 2 — title splash */
+    /* Phase 2 -- title splash */
     sfx_bank = (uint8 *)fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 0x4D);
     memset((void *)0xA0000, 0, 64000);
@@ -98,7 +104,7 @@ int fd2_play_ending_and_record_clear(void)
     fd2_wait_n_bios_ticks(0x1E);
     fd2_play_palette_fade_to_black();
 
-    /* Phase 3 — mid ANI */
+    /* Phase 3 -- mid ANI */
     data_fd2_vga_palette_data_ptr = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdother_dat,
         data_fd2_vga_palette_data_ptr, 0x63);
@@ -107,7 +113,7 @@ int fd2_play_ending_and_record_clear(void)
     fd2_play_ani_file_animation_sequence(3, 0x5A, 1);
     fd2_play_palette_fade_to_black();
 
-    /* Phase 4 — build scrollable panel */
+    /* Phase 4 -- build scrollable panel */
     memset((void *)0xA0000, 0, 64000);
     data_fd2_vga_palette_data_ptr = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdother_dat,
@@ -128,7 +134,7 @@ int fd2_play_ending_and_record_clear(void)
     }
     data_fd2_battle_runtime_char_array_ptr = (runtime_char *)malloc(0xA0);
 
-    /* Phase 5 — scrolling-credit countdown */
+    /* Phase 5 -- scrolling-credit countdown */
     for (iVar4 = 0x217; iVar4 >= 0; iVar4--) {
         fd2_blit_rectangle(0xA0000, 0x140,
                            (uint32)panel_buf + (uint32)(iVar4 * 0x140),
@@ -224,7 +230,7 @@ int fd2_play_ending_and_record_clear(void)
         }
     }
 
-    /* Phase 6 — red-tint fade to black */
+    /* Phase 6 -- red-tint fade to black */
     for (uVar5 = 0x28; uVar5 >= 0; uVar5--) {
         fd2_interpolate_palette_range_toward_color(0, 0xFF, (uint32)uVar5, 0x3F, 0, 0);
         fd2_delay_ms(8);
@@ -234,7 +240,7 @@ int fd2_play_ending_and_record_clear(void)
     free(panel_buf);
     free(scroll_segment_buf);
 
-    /* Phase 7 — clear-status panel reveal */
+    /* Phase 7 -- clear-status panel reveal */
     ptr_00 = (uint8 *)fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 7);
     data_fd2_vga_palette_data_ptr = fd2_load_dat_resource(
@@ -252,7 +258,7 @@ int fd2_play_ending_and_record_clear(void)
     }
     fd2_clear_keyboard_buffer();
 
-    /* Phase 8 — FD2.SAV read for completion check */
+    /* Phase 8 -- FD2.SAV read for completion check */
     save_buf = (uint8 *)fopen("FD2.SAV", "rb");
     if (save_buf != (uint8 *)0) {
         FILE *fp;
@@ -271,7 +277,7 @@ int fd2_play_ending_and_record_clear(void)
         free(save_buf);
     }
 
-    /* Phase 9 — 3/2-option menu loop.
+    /* Phase 9 -- 3/2-option menu loop.
        active_idx_var (the EBP state register) is mutated in place by each
        arrow branch; the commit branch sets exit_flag. The middle arg
        0xFFFFFFFF passed in Phase 10 is the "no highlight" sentinel. */
@@ -308,7 +314,7 @@ int fd2_play_ending_and_record_clear(void)
         }
     }
 
-    /* Phase 10 — commit highlight blink */
+    /* Phase 10 -- commit highlight blink */
     for (i = 0; i < 4; i++) {
         fd2_render_chapter_status_panel_segments((uint32)ptr_00, 0xFFFFFFFF, menu_options);
         fd2_delay_ms(0x50);
@@ -316,7 +322,7 @@ int fd2_play_ending_and_record_clear(void)
         fd2_delay_ms(0x50);
     }
 
-    /* Phase 11 — cleanup + tail */
+    /* Phase 11 -- cleanup + tail */
     fd2_play_palette_fade_to_black();
     memset((void *)0xA0000, 0, 64000);
     free(ptr_00);
