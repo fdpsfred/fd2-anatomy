@@ -880,6 +880,8 @@ int fd2_execute_attack_damage_calculation(int attacker_idx, int defender_idx)
  *   kind == 0 (physical / weapon / armor): item_id <  0x80
  *   kind != 0 (magical / spellbook):       item_id >= 0x80
  * Item id 0x80 is the physical/magical split (assets/items.md).
+ * All 8 current callers pass kind=0 (find equipped weapon); the
+ * kind!=0 (>=0x80) branch is supported but currently unexercised.
  * ---------------------------------------------------------------- */
 uint32 fd2_find_equipped_item_by_kind(uint32 char_idx, uint32 kind)
 {
