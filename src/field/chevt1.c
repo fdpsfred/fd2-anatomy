@@ -1612,18 +1612,18 @@ void fd2_chapter_event_handler_24__ch12_ai_ctrl(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_25__unref_major_cinematic @ 0x34CCC
- *   — Dispatch idx 0x25 of the per-event handler table at 0x51B91.
+ *   -- Dispatch idx 0x25 of the per-event handler table at 0x51B91.
  *
  * No chapter FDFIELD turn-event / tile-step hook references this slot
- * (unreferenced — possibly cut content / non-chapter dispatcher),
+ * (unreferenced -- possibly cut content / non-chapter dispatcher),
  * categorised as a major endgame cinematic. A straight-line beat with no
  * branch, no RNG, no numeric computation, and no CALL-return value used:
  * dialog page 1 is shown, then a two-stage cutscene cinematic plays.
  *
  *   Stage A: the camera pans to world (0xF, 0x22), portrait set 3 reloads
- *     — bracketed by setting data_fd2_chapter_init_phase_flag to 1 before
+ *     -- bracketed by setting data_fd2_chapter_init_phase_flag to 1 before
  *     the reload and back to 0 after, so it is treated as an "init phase"
- *     load — cutscene event 0x2B plays, and every character's facing is
+ *     load -- cutscene event 0x2B plays, and every character's facing is
  *     reset.
  *   Stage B: the camera pans to world (0, 0x1A), portrait set 4 reloads
  *     (same init-phase bracket), cutscene event 0x2C plays, and every
@@ -1638,7 +1638,7 @@ void fd2_chapter_event_handler_24__ch12_ai_ctrl(uint32 event_arg)
  *
  * In the original binary the closing battle_anim_phase = 1 store is
  * reached by a tail-JMP (0x34D63 -> 0x35C18) into the shared __CHK
- * epilogue tail at 0x35C18 (MOV [0x51A83],1; RET) — the same shared tail
+ * epilogue tail at 0x35C18 (MOV [0x51A83],1; RET) -- the same shared tail
  * fd2_chapter_event_handler_17 @ 0x34844 jumps into. Reproduced here as
  * the inline store for Layer-2 equivalence.
  *
