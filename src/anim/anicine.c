@@ -14,12 +14,20 @@
  * Owned global data (definition; extern in globals.h).
  *
  * data_fd2_battle_scripted_cinematic_mode_or_terrain_idx @ 0x540FF
- *   Scripted-cinematic mode flag / terrain-index latch for the full
- *   combat cinematic. Zero in the normal battle path; the writers
- *   (fd2_play_full_combat_cinematic here, fd2_play_game_ending_cinematic
- *   in aniend.c, and the ch25 scripted event) store a non-zero value
- *   before the cinematic reads it, then it is latched to 1. Accessed as
- *   a full 32-bit word at every site; zero-initialized (.bss).
+ *   Dual-purpose scripted-cinematic mode flag / forced terrain-index
+ *   latch for the full combat cinematic. Zero in the normal battle path.
+ *   The writers store a non-zero value before the cinematic reads it,
+ *   then it is latched to 1: fd2_play_full_combat_cinematic here,
+ *   fd2_play_game_ending_cinematic in aniend.c (stores the per-duel
+ *   scripted-outcome table value before each credit-roll cinematic), and
+ *   the ch25 scripted event. When non-zero, scripted mode is ON and the
+ *   same value is reused as the forced spotlight / split-bg terrain
+ *   index here. Readers also use non-zero as a mute / scripted-outcome
+ *   gate: fd2_play_sfx_with_handle and fd2_play_sfx_sample_from_bank in
+ *   audio.c silence SFX (their comments name it tutorial_mode_flag), and
+ *   fd2_execute_combat_hit_cinematic forces the hit-outcome rolls to 0.
+ *   Accessed as a full 32-bit word at every site; zero-initialized
+ *   (.bss).
  * ---------------------------------------------------------------- */
 uint32 data_fd2_battle_scripted_cinematic_mode_or_terrain_idx;
 
