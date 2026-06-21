@@ -1,0 +1,43 @@
+{
+  "address": "0002bc9a",
+  "name_current": "fd2_load_figani_sfx_bank",
+  "name_final": "fd2_load_figani_sfx_bank",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Consistent with the audio.c module's fd2_<verb>_<descriptor> naming (siblings: fd2_set_bgm_track_with_fade, fd2_load_status_effect_sfx, fd2_play_sfx_with_handle, fd2_play_sfx_sample_from_bank). Descriptor accurately reflects the body: it loads the FIGANI animation's SFX bank from FDOTHER.DAT. 'figani' and 'sfx' are domain terms (FIGANI.DAT animation resource, sound-effect bank), not Ghidra address residue. No hex suffix. All 3 callers (fd2_execute_special_attack_skill, fd2_play_figani_char_intro_animation, fd2_play_full_combat_cinematic) store the result into data_fd2_audio_figani_sfx_bank_buf_ptr (0x54117), confirming it is the FIGANI SFX-bank loader.",
+  "kind": "function",
+  "home": "src/audio/audio.c",
+  "purpose": "Translate a FIGANI header's SFX-bank reference byte (figani_data[+4]) into an FDOTHER.DAT entry index via a 6-byte lookup table, then load that entry as the animation's SFX bank; returns the loaded buffer pointer (0 when figani_data is NULL or the reference byte is 0).",
+  "logic_summary": "Compiler-injected __CHK(0x20) stack-probe + unused PUSH/POP ESI/EDI reservation (not source). Returns 0 unless figani_data!=0 AND figani_data[+4]!=0. The prologue MOVSD+MOVSW-copies the 6 bytes of data_fd2_audio_figani_sfx_bank_fdother_index_lut (0x525D6 = {0x30,0x31,0x32,0x33,0x34,0x35}, ASCII \"012345\") into an 8-byte stack local, then indexes it 1-based: fdother_idx = lut[sfx_id_byte-1] (disasm: MOVZX EAX,byte[ESP+EAX*1-1]). It calls fd2_load_dat_resource(\"FDOTHER.DAT\"=0x51A4D, 0, fdother_idx) and returns its pointer. Source reproduces the bounded 8-byte local + memcpy-of-6 + 1-based index 1:1 so the binary's buffer/indexing behavior is preserved exactly. Disasm verified: PUSH 0x20;CALL __CHK; SUB ESP,8; MOV EAX,[ESP+0x14]; MOV ESI,0x525d6;MOVSD;MOVSW; TEST EAX,EAX;JZ; CMP byte[EAX+4],0;JZ; MOVZX EAX,byte[EAX+4]; MOVZX EAX,byte[ESP+EAX-1]; PUSH EAX;PUSH 0;PUSH 0x51a4d;CALL fd2_load_dat_resource;ADD ESP,0xC; RET.",
+  "signature": "uint32 fd2_load_figani_sfx_bank(uint32 figani_data)",
+  "params": [
+    {
+      "name": "figani_data",
+      "type": "uint32",
+      "semantics": "Pointer (as uint32) to the FIGANI animation byte-stream buffer (the caller loads it as FIGANI.DAT[portrait_id*3+1] / a per-cinematic animation stream). The function reads *(uint8*)(figani_data+4) as the SFX-bank reference byte. Treated as a far pointer-in-integer per the codebase convention.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive of the value passed by all callers (the FIGANI animation buffer) and matches body usage (figani_data+4). No address residue, not the generic param_1."
+    }
+  ],
+  "returns": {
+    "type": "uint32",
+    "semantics": "The loaded SFX-bank buffer pointer (return of fd2_load_dat_resource), or 0 when figani_data is NULL or its +4 reference byte is 0. Each caller stores this into data_fd2_audio_figani_sfx_bank_buf_ptr (0x54117) and frees it after the cinematic."
+  },
+  "reads_globals": [
+    "data_fd2_audio_figani_sfx_bank_fdother_index_lut",
+    "data_fd2_string_resource_filename_fdother_dat"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment (audio.c lines 242-262) is already precise and correct: purpose, figani_data[+4] -> FDOTHER.DAT entry translation, NULL/zero-byte -> 0 return, the 6-byte LUT @ 0x525D6 copied to an 8-byte local and 1-based-indexed, the verbatim reproduction note, cdecl uint32(uint32), compiler-injected __CHK(0x20)+ESI/EDI reservation, and caller-store-into-0x54117 + caller-free semantics. Kept verbatim (comment_verdict=keep). Ghidra plate is consistent with this understanding (same algorithm, same 3 callers, same LUT) and not contradictory, so left untouched (ghidra_plate_action=none). Verified LUT bytes at 0x525D6 = 30 31 32 33 34 35 via read_memory. Verified caller fd2_play_figani_char_intro_animation: stores return into data_fd2_audio_figani_sfx_bank_buf_ptr (0x54117) then frees it at cleanup. The 8-byte local fed by only 6 copied bytes plus 1-based indexing can in theory read uninitialized stack for reference-byte values 7..255, but this is a faithful 1:1 reproduction of the binary (in practice the FIGANI reference byte is constrained to 1..6), not a logic/equivalence bug, so nothing flagged in issues[]. No source code logic was changed."
+}
