@@ -439,7 +439,9 @@ void fd2_set_battle_anim_phase_to_1(void)
  *
  * Each tile is decoded by fd2_tile_blit_24x24_passthrough from its
  * RLE source into its 24x24 cell. On malloc failure the original
- * tail-JMPs into _main's shared printf("%s")+exit(1) error path.
+ * pushes the message string and tail-JMPs into the shared
+ * printf(msg)+exit(1) error stub at 0x10056 (emitted inline here as
+ * printf(...)+exit(1)). The "rease" in the message is a vendor typo.
  *
  * Callers (need the unpacked tile bank for cinematic effects):
  *   fd2_cast_earthquake_spell_with_screen_shake @ 0x21548
