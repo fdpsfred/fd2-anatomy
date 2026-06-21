@@ -1,0 +1,64 @@
+{
+  "address": "00029f72",
+  "name_current": "fd2_calculate_combat_hit_outcome",
+  "name_final": "fd2_calculate_combat_hit_outcome",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Already matches fd2_<domain>_<descriptor> (domain=combat/battle). Descriptor 'calculate_combat_hit_outcome' accurately reflects the body: pre-compute the result of a single combat hit (miss/crit/poison/double/damage) into an output struct. No address residue; all trailing tokens are semantic words, not hex. Verified against decompile, struct types.h, and the sole caller fd2_execute_combat_hit_cinematic.",
+  "kind": "function",
+  "home": "src/battle/battle.c",
+  "purpose": "Pre-compute the outcome of one physical combat hit (attacker vs defender) and write a 6-dword result block (miss, crit, poison, reserved, double-hit, damage) for the combat-hit cinematic to play out frame by frame; also writes poison status onto the defender and accumulates pending XP when a player kills/wounds an enemy. Pure pre-compute: it does NOT write back defender HP.",
+  "logic_summary": "Initializes outcome_out_ptr[0..5] = {1,0,0,0,0,0} (miss by default). Reads attacker/defender stats from data_fd2_battle_runtime_char_array_ptr (80-byte runtime_char stride): atk.ap(+0x48), def.dp(+0x4A), def.hp_current(+0x40), def.hp_max(+0x42), atk.dx_current/hit(+0x4C), def.stat4/evade(+0x4E), atk.job_id(+0x20, minus 1 for table index), atk/def.level(+0x21). Resolves attacker's equipped weapon via fd2_find_equipped_item_by_kind(idx,0)->fd2_get_inventory_slot_item_id->fd2_get_item_effect_entry; weapon_class=item_effect[+9], special_chance=item_effect[+10]. Per-side terrain bonus: unless fd2_check_char_status_immunity(idx)!=0, reads the tile under the unit (fd2_read_tile_attribute_at_pos, tile_id = buf[5]) and adds data_fd2_battle_tile_attr_mv_modifier_table[tile_id]*ap/100 (attacker AP) / data_fd2_battle_tile_attr_def_modifier_table[tile_id]*dp/100 (defender DP). crit_total = data_fd2_battle_job_crit_rate_table[job_idx]; weapon_class 4 adds special_chance to crit_total; weapon_class 2 rolls poison (rand%100 < special_chance) BEFORE the hit roll and on success writes poison kind 2..5 into defender.status_flags_block[4] (+0x25) and sets output[2]; weapon_class 3 sets output[4] (double-hit). Hit roll: advance RNG, if rand%100 < (atk_hit - def_evade): output[0]=0; crit roll (rand%100 < crit_total) halves def_dp and sets output[1]; damage = (atk_ap - def_dp)*9/10 clamped >=0, plus rand jitter when damage/9 != 0; def_hp_after = max(0, hp_current - damage) (local only). XP: if attacker.team==TEAM_PLAYER(2) and defender.portrait_id > 0x43 (enemy unit), fetch enemy_data via fd2_get_enemy_data_entry(portrait-0x44); promoted classes (job_id in 9..0x18 or char_id==0x1C) add 0x1E to atk_level (XP discount); data_fd2_battle_pending_xp_credit = def_level*enemy.exp_reward(+9)/atk_level, scaled by damage/hp_max if the defender survived. Finally output[5]=damage. Leading __CHK(0x5C,...) is the Watcom stack/bounds-check CRT intrinsic, not game logic.",
+  "signature": "void fd2_calculate_combat_hit_outcome(uint32 attacker_idx, uint32 defender_idx, uint32 *outcome_out_ptr)",
+  "params": [
+    {
+      "name": "attacker_idx",
+      "type": "uint",
+      "semantics": "Index of the attacking unit into data_fd2_battle_runtime_char_array_ptr (80-byte runtime_char). Used to read atk AP/hit/job/level/team/char_id and as the unit id passed to fd2_find_equipped_item_by_kind / fd2_get_inventory_slot_item_id / fd2_check_char_status_immunity. The sole caller passes its own attacker_idx.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Live Ghidra name attacker_idx (needs_rename=false) is already accurate and carries the runtime_char-array index semantics; matches the src declaration. No address residue."
+    },
+    {
+      "name": "defender_idx",
+      "type": "uint",
+      "semantics": "Index of the defending/target unit into the runtime_char array. Used to read def DP/HP/evade/level/portrait_id and to write poison status (+0x25); also passed to fd2_check_char_status_immunity for terrain gating. Sole caller passes its own defender_idx.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Live Ghidra name defender_idx (needs_rename=false) is already accurate and matches the src declaration / runtime_char-array index usage. No address residue."
+    },
+    {
+      "name": "outcome_out_ptr",
+      "type": "uint *",
+      "semantics": "Output pointer to a contiguous 6-dword result block the caller stack-allocates: [0]=miss_flag, [1]=crit_flag, [2]=poison_applied, [3]=reserved/unused, [4]=double_hit_flag, [5]=damage. fd2_execute_combat_hit_cinematic reads this block to drive the per-frame hit cinematic.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Live Ghidra name outcome_out_ptr (needs_rename=false) accurately names the output-struct pointer; matches the src declaration and caller usage (&miss_flag block). No address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; all results are written through outcome_out_ptr[0..5], plus side effects: defender.status_flags_block[4] (poison) and data_fd2_battle_pending_xp_credit."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_tile_attr_mv_modifier_table",
+    "data_fd2_battle_tile_attr_def_modifier_table",
+    "data_fd2_battle_job_crit_rate_table"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_pending_xp_credit"
+  ],
+  "comment_original_issue": "src comment was concise and mostly correct but stated 'Writes poison to defender on hit', which is imprecise: the poison roll (weapon_class==2) happens BEFORE the hit/miss roll and is gated only by its own chance roll, so poison can be applied even on a miss. It also did not name the consumer cinematic, the terrain bonus, or the XP-credit side effect. Rewrote to fix the poison-timing claim and add those facts while staying concise.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "1fe22140",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Sole caller fd2_execute_combat_hit_cinematic @ 0x2939D passes (attacker_idx, defender_idx, &miss_flag 6-dword block); its plate documents the identical outcome layout. Struct types.h confirms field offsets used via raw byte arithmetic: team(+0x06)==TEAM_PLAYER(2) consts.h, portrait_id(+0x07)>0x43, char_id(+0x08)==0x1C, job_id(+0x20), level=status_flags_block[0](+0x21), poison=status_flags_block[4](+0x25), ap(+0x48)/dp(+0x4A)/hp_current(+0x40)/hp_max(+0x42)/dx_current(+0x4C)/stat4_current(+0x4E). enemy_data.exp_reward(+9) drives XP. Ghidra plate is already detailed, accurate, and consistent with the refined src understanding (it correctly places the poison roll in the weapon-class-2 branch before the hit roll), so plate left unchanged. The decompiler's local var aliasing around rand_quotient/uVar2 in the weapon_class==2 path is a decompiler artifact (HASH-storage SSA temps); src already mirrors the real flow (two rng draws, poison kind = rand%4 + 2). No logic/equivalence issues found; src body matches decompile."
+}

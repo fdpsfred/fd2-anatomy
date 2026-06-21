@@ -257,9 +257,23 @@ int fd2_check_char_status_immunity(uint32 char_idx)
  * fd2_calculate_combat_hit_outcome @ 0x29F72  (1 caller)
  *
  * Pre-compute a single combat hit outcome into a 6-element uint
- * struct. Same formula as fd2_execute_attack_damage_calculation
- * but without visual effects. Writes poison to defender on hit.
- * Output: [miss, crit, poison, reserved, double_hit, damage].
+ * struct for fd2_execute_combat_hit_cinematic to play out frame by
+ * frame. Same damage/hit/crit formula as
+ * fd2_execute_attack_damage_calculation but pure pre-compute: it
+ * does NOT write back defender HP (the cinematic applies damage
+ * progressively).
+ * Output[0..5]: [miss, crit, poison, reserved, double_hit, damage].
+ *
+ * Stat reads from runtime_char[attacker/defender]; adds per-side
+ * terrain AP/DP % bonus unless the unit has terrain immunity.
+ * Weapon class (item_effect[+9]) branches: 4=extra crit chance,
+ * 3=double strike, 2=poison roll. Poison is applied on its own
+ * chance roll (rand%100 < special_chance) BEFORE the hit/miss
+ * roll, so it can land even on a miss: writes poison kind 2..5 into
+ * defender.status_flags_block[4] (+0x25) and sets output[2].
+ * When a player (team 2) hits an enemy unit (portrait >= 0x44),
+ * accumulates pending XP into data_fd2_battle_pending_xp_credit
+ * from the enemy's exp_reward, scaled down on a non-kill.
  * ---------------------------------------------------------------- */
 void fd2_calculate_combat_hit_outcome(uint32 attacker_idx,
                                        uint32 defender_idx,
