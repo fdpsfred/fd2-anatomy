@@ -28,9 +28,23 @@ Ghidra MCP 已開 FD2.LE；DOSBox-X 在 `C:\DOSBox-X\dosbox-x.exe`；Watcom 9.5a
 ## 3. 第一步：重建 auto-resume timer cron（必做）
 
 cron 是 **session-only**（不跨 session），新 session 一定要重建，否則撞 limit 後不會自動續跑。
-先 `CronList` 看有沒有 prompt 開頭是 `[src_refine auto-resume timer]` 的 job；沒有就用 `CronCreate` 建：
-- `cron="37 * * * *"`, `recurring=true`, `durable=true`
-- prompt = 與 `tools/src_refine/_index.md`「撞 usage limit 自動續跑」一致的檢查邏輯：每小時檢查，**partition 正在跑→no-op；停了且未完成→整理狀態(commit backfill)+重啟該 partition 的 workflow；全部完成→CronDelete 自己 + PushNotification 通知 Stage 2 可開始**。完整 prompt 內容照本 session 建立的版本（見 `_index.md` 描述）。
+先 `CronList` 看有沒有 prompt 開頭是 `[src_refine auto-resume timer]` 的 job；沒有就 `CronCreate({cron:"37 * * * *", recurring:true, durable:true, prompt:<下方逐字>})`：
+
+```
+[src_refine auto-resume timer] Hourly timer: just a reminder to CHECK src_refine Stage 1 and resume it only if it stalled on a usage limit. The user pre-authorized this auto-resume, so calling the Workflow tool here is approved. Be terse; do ONLY the steps below, then END the turn (never wait for workflows):
+
+1. If you lack context, read C:/Users/fdpsf/Documents/fd2-anatomy/tools/src_refine/_index.md and repo-root src_refine_handoff.md.
+2. committed per partition = `find C:/Users/fdpsf/Documents/fd2-wt/<P>/tools/src_refine/data/shards/<P> -name '*.json' | wc -l`. Totals: rp1=253, rp2=253, rp3=255, rp4=255.
+3. Call TaskList. A partition <P> is RUNNING iff a Workflow/local_workflow task with label 'refine-<P>' is in_progress.
+4. Decide PER partition:
+   - RUNNING  -> NO-OP (skip; never relaunch a running partition).
+   - committed==total -> done (skip).
+   - committed<total AND not running (= stalled, usually the usage limit) -> organize state then relaunch: in wt=C:/Users/fdpsf/Documents/fd2-wt/<P>, if `git -C "$wt" status --porcelain` is non-empty run `git -C "$wt" add -A && git -C "$wt" commit -m "src-refine: shard backfill (auto-resume cleanup)" -m "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`; then Workflow({scriptPath:"tools/src_refine/src_refine.wf.js", args:{root:"$wt", partition:"<P>", label:"refine-<P>"}}).
+5. If ALL four committed==total -> Stage 1 COMPLETE: CronList then CronDelete the job whose prompt starts '[src_refine auto-resume timer]'; PushNotification "src_refine Stage 1 complete (1016/1016); Stage 2 (merge + symbol/param rename) can begin per tools/src_refine/_index.md"; do NOT start Stage 2 yourself. End.
+6. If you are still usage-limited and cannot act at all, do nothing -- the next hourly fire retries automatically.
+```
+
+**唯一 driver 原則**：同時只能有一個 session 驅動（cron 跨 session 不可見，兩個 driver 會搶開同一 partition 而毀檔）。所以舊 session 要先關掉（其 session-only cron 與 workflow 隨之消失），再讓這個新 session 重建 cron 當唯一 driver。重建後可等 cron 下次 :37 自動啟動，或照 §4「手動立即啟動」即時開跑。
 
 cron 只是 timer：撞 limit 時 session 不死，cron 每小時 fire，limit reset 後那次 fire 就會重啟停掉的 workflow（limit 期間的 fire 因 LLM 無 capacity 自動 no-op，下次再試）。
 
