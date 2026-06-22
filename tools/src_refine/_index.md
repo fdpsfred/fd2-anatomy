@@ -42,3 +42,4 @@ production FD2.EXE 與 baseline byte-identical。
 - 名稱位址殘留 vs 領域 ID 靠**語意人工判定**（領域 ID 範圍見遊戲 KB / fd2-knowledge skill），**嚴禁 regex 機械剝除**。
 - emitter/build 一律前景跑（嚴禁背景），否則 subagent 不閉環。
 - 並發呼叫同一 Ghidra instance OK；Ghidra 斷線靠 refiner 設 `ghidra_unreachable` → workflow fast-stop。
+- **撞 usage limit 自動續跑**：agent() 撞 limit 回傳 null（workflow JS 拿不到 "resets HH:MM" 訊息、也無 sleep/Date.now），故 workflow 連續 3 個 null 就 **fast-stop** 回報 `stopped=usage_limit_suspected`（不空轉幾百個 null）；**sleep+resume 在 orchestrator 層**：從完成通知的 `<failures>` 讀 "resets H:MMam" → `python tools/src_refine/limit_wait.py "<msg>"` 得等待秒數 → 背景 `sleep <秒>`（完成會通知）→ 醒來重啟尚未完成的 partition（scout 跳過已 commit shard）。循環直到 4 partition 全 complete。

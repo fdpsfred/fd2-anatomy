@@ -199,7 +199,7 @@ const kStr = (x) => (x < 0 ? 'n/a' : '~' + x + 'k')
 
 let symTotal = 0
 for (const f of FILES) symTotal += f.symbols.length
-let symDone = 0, renameProposed = 0, paramRenameProposed = 0, issuesFound = 0
+let symDone = 0, renameProposed = 0, paramRenameProposed = 0, issuesFound = 0, consecutiveFail = 0
 
 outer:
 for (let fi = 0; fi < FILES.length; fi++) {
@@ -217,6 +217,7 @@ for (let fi = 0; fi < FILES.length; fi++) {
     try {
       const out = await runAgent(refinerPrompt(sym), { schema: REFINER_SCHEMA, label: 'refine:' + sym.name, phase: 'Refine' })
       if (out && out.committed && out.status === 'done') {
+        consecutiveFail = 0
         const rp = out.name_verdict === 'rename'
         const nis = (out.issues || []).length
         const npr = ((out.params || []).filter(p => p && p.verdict === 'rename')).length
@@ -229,10 +230,23 @@ for (let fi = 0; fi < FILES.length; fi++) {
         log(tag + ' -- COMMITTED ' + (out.commit_hash || '') + ' | name:' + out.name_verdict +
             (rp ? ('->' + out.name_proposed) : '') + (npr ? (' | ' + npr + ' param-rename') : '') +
             ' | comment:' + out.comment_verdict + (nis ? (' | ' + nis + ' issue(s)') : ''))
+      } else if (out === null) {
+        // agent() returns null when the subagent died on a terminal API error after retries --
+        // the usage-limit signature (the workflow JS can't read the "resets HH:MM" message). A few
+        // in a row = systemic (limit/outage), NOT a per-symbol problem -> STOP FAST so the
+        // orchestrator can sleep-until-reset and resume, instead of churning hundreds of null calls.
+        consecutiveFail++
+        results.push({ address: sym.address, name: sym.name, home: file.home, status: 'agent_null' })
+        log(tag + ' -- agent null (terminal failure ' + consecutiveFail + '/3; likely usage limit)')
+        if (consecutiveFail >= 3) {
+          log('STOP fast: 3 consecutive agent failures -- likely usage limit / API outage. Resume after reset (scout skips committed shards).')
+          stopped = 'usage_limit_suspected'; break outer
+        }
       } else {
-        results.push({ address: sym.address, name: sym.name, home: file.home, status: out ? (out.status || 'not_committed') : 'no_output',
-                       notes: (out && out.notes) || '(no detail)' })
-        log(tag + ' -- NOT committed: ' + ((out && out.notes) || out && out.status || '(no output)'))
+        // non-null but not committed = a real per-symbol outcome (e.g. blocked); record + continue.
+        consecutiveFail = 0
+        results.push({ address: sym.address, name: sym.name, home: file.home, status: out.status || 'not_committed', notes: out.notes || '(no detail)' })
+        log(tag + ' -- NOT committed: ' + (out.notes || out.status || '(no output)'))
       }
     } catch (e) {
       const msg = String((e && e.message) || e); const isG = !!(e && e.ghidra)
