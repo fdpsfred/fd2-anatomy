@@ -32,7 +32,7 @@
   "issues": [],
   "processed": true,
   "committed": true,
-  "commit_hash": "",
+  "commit_hash": "215c1f7dea497b15de0726a1865e83d0e60b2ac7",
   "status": "done",
   "ghidra_unreachable": false,
   "ghidra_error_detail": "",
