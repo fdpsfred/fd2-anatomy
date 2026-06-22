@@ -772,8 +772,45 @@ int fd2_check_can_default_attack_target(uint32 char_idx,
 /* ----------------------------------------------------------------
  * fd2_execute_attack_damage_calculation @ 0x1ECC7  (1 caller)
  *
- * CORE PHYSICAL COMBAT FORMULA.
- * All RNG sites verified against assembly — decompiler had 4 bugs.
+ * CORE PHYSICAL COMBAT FORMULA. Resolves one physical hit of attacker
+ * against defender: gathers stats, applies terrain modifiers, rolls
+ * hit/crit/poison, computes and applies damage to defender HP, and
+ * stages the kill XP credit. Returns defender's HP after the hit.
+ * Sole caller: fd2_animate_combat_hit_with_hp_drain (combat animation).
+ *
+ * Stats (runtime_char at +offset): AP +0x48, DP +0x4A, HP_cur +0x40,
+ * HP_max +0x42, attacker HIT (offensive DX) +0x4C, defender EV
+ * (evade, defensive DX) +0x4E, job_id +0x20, level +0x21, team +6,
+ * portrait_id +7, char_id +8, poison-duration byte +0x25.
+ *
+ * Step 1 - terrain: weapon = item-effect entry of the equipped weapon;
+ *   weapon_class = entry[9] (1 normal / 2 poison / 4 always-crit),
+ *   weapon_elem = entry[10] (crit-bonus % for class 4, poison-hit %
+ *   for class 2). For each side not status-immune, look up the tile at
+ *   its (x,y); AP/DP += stat * pct_table[tile_attr_buf[5]] / 100, using
+ *   the MV table @0x51A12 for AP and DEF table @0x51A2A for DP.
+ * Step 2 - crit/poison setup: base_crit = job_crit_table[job_id-1].
+ *   class 4: total_crit = base_crit + weapon_elem. class 2: roll RNG,
+ *   and if rng%100 < weapon_elem, apply poison -- defender[+0x25] =
+ *   rng%4 + 2 (duration 2..5, from a *second* RNG roll) + green flash.
+ * Step 3 - hit roll: roll RNG; HIT iff rng%100 < (HIT - EV). On HIT set
+ *   hit/miss flag = 0; roll RNG for crit: if rng%100 < total_crit, white
+ *   flash and DP /= 2. damage = (AP-DP)*9/10, clamped >=0; if damage>=9,
+ *   add jitter rng % (damage/9). defender HP_cur = max(0, HP_cur-damage).
+ *   (MISS leaves the flag at its entry default 1 and damage 0.)
+ * Step 4 - apply HP; XP credit (only when attacker.team == TEAM_PLAYER
+ *   and defender is an enemy portrait >= 0x44): enemy = enemy-data entry
+ *   [portrait-0x44]; mid-tier jobs (9..24) or char_id 0x1C add +0x1E to
+ *   the attacker level used as divisor; pending_xp = enemy[9] * def_level
+ *   / atk_level, then (if defender survived) scaled * damage / HP_max.
+ *
+ * NOTE: this C is the assembly-verified ground truth. The Ghidra
+ * decompiler mis-folded the RNG return value into the crit variable in
+ * four spots; the correct (assembly) predicates/values are: poison-hit
+ * uses rng%100 < weapon_elem; poison duration is rng%4 + 2 (NOT
+ * (rng/4)%4); the hit roll uses rng%100 < (HIT-EV); the crit roll uses
+ * rng%100 < total_crit; and the damage jitter is rng % (damage/9). Each
+ * RNG-consuming step calls fd2_advance_rng_state() exactly once.
  * ---------------------------------------------------------------- */
 int fd2_execute_attack_damage_calculation(int attacker_idx, int defender_idx)
 {
