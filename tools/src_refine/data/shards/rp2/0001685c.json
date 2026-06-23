@@ -1,0 +1,64 @@
+{
+  "address": "0001685c",
+  "name_current": "fd2_blit_sheet_sprite_at_offset",
+  "name_final": "fd2_blit_sheet_sprite_at_offset",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; 'blit_sheet_sprite_at_offset' accurately describes the behavior: resolve sprite #sprite_idx via the sprite-atlas sheet's offset table (sheet + 6 + idx*4) and blit it. No Ghidra address residue (no hex suffix). Verified against disasm at 0x1685c (ADD EDX,[EDX+EAX*4+6]) and caller fd2_draw_spell_selection_list which passes sprite 0x5C (MP icon) as sprite_idx.",
+  "kind": "function",
+  "home": "ROOT/src/gfx/blitspr.c",
+  "purpose": "Resolve sprite #sprite_idx in a sprite-atlas sheet via its 4-byte-per-entry offset table (base sheet+6) and paint it opaquely (raw header+pixel blit) at dst.",
+  "logic_summary": "sprite_addr = sheet + *(int32*)(sheet + 6 + sprite_idx*4); then fd2_blit_sprite_raw_with_header(dst, sprite_addr, dst_pitch). The atlas offset table starts at sheet+6, 4 bytes per entry, giving the byte offset (relative to sheet) of each sprite's header (width word 0, height word 2, then width*height raw pixel bytes). Compiler-generated __CHK(0x14) stack probe at entry (omitted in C source per house pattern). Cyclomatic complexity 1, single basic block, 2 callees (__CHK, fd2_blit_sprite_raw_with_header).",
+  "signature": "void fd2_blit_sheet_sprite_at_offset(uint32 dst, uint32 dst_pitch, uint32 sheet, uint32 sprite_idx)",
+  "params": [
+    {
+      "name": "dst",
+      "type": "uint32",
+      "semantics": "Destination base linear address where the resolved sprite is painted. Verified: caller passes a computed framebuffer/backbuffer address (e.g. blit_addr = col_addr_offset + 0x32 + row_y in fd2_draw_spell_selection_list).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate and address-residue-free. Note: in the raw Ghidra decompile the param names are jumbled (Ghidra maps this stack slot to param_1); the C source already declares the correct name 'dst'."
+    },
+    {
+      "name": "dst_pitch",
+      "type": "uint32",
+      "semantics": "Destination row stride in bytes, forwarded unchanged to fd2_blit_sprite_raw_with_header as its per-row dst advance. Verified: callers pass 0x140 (320, mode13h row width).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate and address-residue-free; matches the stride argument of the callee."
+    },
+    {
+      "name": "sheet",
+      "type": "uint32",
+      "semantics": "Sprite-atlas base linear address. Its 4-byte-per-entry offset table starts at sheet+6. Verified: caller passes data_fd2_ui_anim_sprite_sheet_ptr.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate and address-residue-free; consistent with sibling atlas-lookup functions in the same file."
+    },
+    {
+      "name": "sprite_idx",
+      "type": "uint32",
+      "semantics": "Index into the sheet's offset table selecting which sub-sprite to blit. Verified: caller passes literal 0x5C (the MP-cost icon) in fd2_draw_spell_selection_list.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate and address-residue-free. The disasm reads it as EAX scaled by *4 with +6 base, i.e. an offset-table index, exactly as the name says. (The Ghidra decompile mislabels this slot as 'dst' due to a known param-naming artifact, noted in the plate; the C source has the correct name.)"
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. (The decompiler shows a pass-through in_EAX artifact via the callee, but the binary leaves EAX as the callee left it and no caller consumes a result.)"
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": "Comment was accurate but (a) understated callers as '17x by fd2_assemble_dialog_frame_layered ... also called by other panel/grid renderers' without the 9-total breakdown, (b) omitted the compiler-generated __CHK(0x14) stack-probe note that sibling functions in this file document, and (c) used em-dash (U+2014) bullets in the Args list, violating the ASCII-only code-text rule.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified caller arg order via fd2_draw_spell_selection_list @ 0x1ceed: call is fd2_blit_sheet_sprite_at_offset(blit_addr, 0x140, ui_anim_sprite_sheet, 0x5C) -> (dst, dst_pitch, sheet, sprite_idx), matching the C signature. Verified arithmetic via disasm @ 0x1685c: ADD EDX,[EDX+EAX*0x4+0x6] == sheet + *(int*)(sheet + 6 + sprite_idx*4). Verified 9 callers and exactly 17 call sites inside fd2_assemble_dialog_frame_layered via get_xrefs_to. Plate left untouched: it is accurate (correctly flags the Ghidra param-name jumble) and not contradictory/stale; the C-source comment is the more complete of the two and remains the source of truth. Logic untouched (name/comment only)."
+}

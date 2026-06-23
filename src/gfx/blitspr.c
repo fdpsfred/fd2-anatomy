@@ -202,13 +202,18 @@ uint32 fd2_alloc_and_blit_indexed_sprite_chunk(uint32 sheet_base, uint32 dst,
  * then painted opaquely via fd2_blit_sprite_raw_with_header.
  *
  * Used 17x by fd2_assemble_dialog_frame_layered to compose a dialog box
- * from 17 tile sprites; also called by other panel/grid renderers.
+ * from 17 tile sprites; also called by other panel/grid renderers
+ * (9 callers total: the dialog assembler plus 8 stat / inventory / shop /
+ * promote / spell-list / HP-bar panel renderers).
  *
  * Args (cdecl, 4x uint32 on stack):
- *   dst        — destination base linear address
- *   dst_pitch  — destination row stride
- *   sheet      — sprite atlas base linear address
- *   sprite_idx — index into the sheet's offset table
+ *   dst        -- destination base linear address
+ *   dst_pitch  -- destination row stride
+ *   sheet      -- sprite atlas base linear address
+ *   sprite_idx -- index into the sheet's offset table
+ *
+ * The binary's __CHK(0x14) stack-probe prologue is compiler-generated
+ * and omitted here.
  * ---------------------------------------------------------------- */
 void fd2_blit_sheet_sprite_at_offset(uint32 dst, uint32 dst_pitch,
                                      uint32 sheet, uint32 sprite_idx)
