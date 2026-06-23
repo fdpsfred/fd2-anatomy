@@ -1070,7 +1070,15 @@ uint32 data_fd2_current_chapter_text;
 
 /*
  * data_fd2_all_game_text_ptr @ 0x53A7D -- base pointer of the global FDTXT.DAT
- * text bank (resource index 0). uint32 address slot; zero-init (BSS) pointer slot.
+ * text bank (resource index 0): the engine-wide, non-chapter-specific text used
+ * by system/menu dialog (shop buy/sell/give, save/load, revive, class promotion,
+ * recruitment, chapter-intro, level-up and status messages, ending), as distinct
+ * from data_fd2_current_chapter_text @ 0x53A79 which holds the per-chapter bank.
+ * uint32 address slot; zero-init (BSS) pointer slot. Loaded once at startup by the
+ * sole writer main @ 0x25BF4 (passing the prior value so the loader frees-then-
+ * reloads); ~90 readers pass it as the text_base argument of
+ * fd2_display_dialog_scene, which reads it as a page-index header table followed
+ * by an int16 dialog-opcode stream.
  */
 uint32 data_fd2_all_game_text_ptr;
 
