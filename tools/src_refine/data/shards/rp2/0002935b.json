@@ -1,0 +1,72 @@
+{
+  "address": "0002935b",
+  "name_current": "fd2_blit_indexed_sprite",
+  "name_final": "fd2_blit_indexed_sprite",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=blit/gfx, descriptor=indexed_sprite). Accurately describes the body: it indexes sprite #sprite_idx via the sheet's 4-byte-per-entry offset table and dispatches the decode+paint. No Ghidra address residue. Canonical, cleanest-named member of the indexed-sprite blit family (the sibling fd2_blit_indexed_sprite_at_xy carries a misleading legacy name, but this one is accurate); ~30 callers across battle/event/cinematic rendering.",
+  "kind": "function",
+  "home": "src/gfx/blitspr.c",
+  "purpose": "Indexed-sprite blit dispatcher: looks up sprite #sprite_idx in a sprite-atlas sheet's offset table and forwards the actual RLE decode + paint to fd2_rle_blit_sprite.",
+  "logic_summary": "sprite_data = sheet_ptr + *(int32*)(sheet_ptr + 8 + sprite_idx*4); then fd2_rle_blit_sprite(sprite_data+9, width=*(uint16*)sprite_data, height=*(uint16*)(sprite_data+2), dst_buf, dst_stride, palette_op). The sheet's offset table base is sheet_ptr+8 (vs +6 in the sibling _at_offset/_at_xy variants) and the RLE stream begins 9 bytes into each sprite data block (after the 4-byte width/height header + 5 reserved bytes). The two header words are MOVZX zero-extended into the dst_x/dst_y argument slots of fd2_rle_blit_sprite (so inside the blit, start = dst_buf + height*stride + width), and palette_op is forwarded verbatim (0xFFFFFFFF passthrough / >0xFF translucent / <=0xFF silhouette). Disassembly @ 0x2935B confirms the +8 table base, +9 stream offset, MOVZX width/height, and the 6-arg push order. Binary has a compiler-generated __CHK(0x20) stack-probe prologue (omitted in src).",
+  "signature": "void fd2_blit_indexed_sprite(uint32 sheet_ptr, uint32 sprite_idx, uint32 dst_buf, int32 dst_stride, uint32 palette_op)",
+  "params": [
+    {
+      "name": "sheet_ptr",
+      "type": "uint32",
+      "semantics": "Sprite atlas base linear address; header byte[0..7] then int[8..] offset table.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, no address residue."
+    },
+    {
+      "name": "sprite_idx",
+      "type": "uint32",
+      "semantics": "Index into the sheet's 4-byte-per-entry offset table (selects the sprite/frame).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, no address residue."
+    },
+    {
+      "name": "dst_buf",
+      "type": "uint32",
+      "semantics": "Destination base linear address; callers (e.g. fd2_render_summon_aura_sprite_ring) bake the x/y paint position into this value before the call.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, no address residue."
+    },
+    {
+      "name": "dst_stride",
+      "type": "int32",
+      "semantics": "Bytes to advance dst per row (forwarded as fd2_rle_blit_sprite's stride).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, no address residue."
+    },
+    {
+      "name": "palette_op",
+      "type": "uint32",
+      "semantics": "Palette operation selector forwarded verbatim to fd2_rle_blit_sprite (0xFFFFFFFF passthrough / >0xFF translucent overlay / <=0xFF silhouette fill).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly @ 0x2935B verified against src: MOV EAX,[ESP+0xc] (sprite_idx); SHL EAX,2; ADD EAX,[ESP+0x8] (sheet_ptr) -> sheet_ptr+sprite_idx*4; ADD EDX,[EAX+0x8] -> sprite_data = sheet_ptr + *(int)(sheet_ptr + sprite_idx*4 + 8); MOVZX width=[EDX], height=[EAX+2]; ADD EAX,9 -> rle_stream; push order palette_op,dst_stride,dst_buf,height,width,rle_stream; CALL 0x4e63d (fd2_rle_blit_sprite). The +8 table base and +9 stream offset distinguish it from the +6-table-base siblings. Caller fd2_render_summon_aura_sprite_ring confirms arg semantics (sheet_ptr=sprite_handle, sprite_idx=frame counter, dst_buf=row_mult*stride+x_off+0x50+origin_y, dst_stride=row_stride, palette_op=-1 passthrough). Source comment block (blitspr.c lines 1873-1911) already precise, correct, ASCII -> keep, no src edit. Ghidra plate describes the same sheet format/dispatch/palette_op modes and is consistent (slightly less explicit on the width/height->dst_x/dst_y nuance but not contradictory) -> plate untouched. is_thunk=false. category/emit_action were 'undefined' in the task input but the function is plainly a real game gfx dispatcher."
+}
