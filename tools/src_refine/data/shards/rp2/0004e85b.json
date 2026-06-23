@@ -1,0 +1,56 @@
+{
+  "address": "0004e85b",
+  "name_current": "fd2_blit_sprite_with_decoded_pixels",
+  "name_final": "fd2_blit_sprite_with_decoded_pixels",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (gfx/blit domain). Descriptor accurately reflects body: paints a rectangular sprite by chaining the per-pixel run decoder fd2_decode_dialog_pixel_byte and skipping zero (transparent) pixels. No Ghidra address residue in the name; no domain ID involved.",
+  "kind": "function",
+  "home": "src/gfx/blitspr.c",
+  "purpose": "Paint a rectangular sprite from the dialog-pixel run-encoded stream into a destination buffer, skipping zero (transparent) pixels.",
+  "logic_summary": "Reads col_count = *(uint16*)sprite_hdr and row_count = *(uint16*)(sprite_hdr+2); cursor starts at sprite_hdr+4; decode state seeded to 0 once. Outer post-test row loop (DEC DX; JNZ, count=row_count): dst_row=dst, inner post-test col loop (LOOP on CX, count=col_count) calls fd2_decode_dialog_pixel_byte(state) per pixel, feeding the returned packed (run_remain<<8)|pixel back as next state and advancing the shared stream cursor 0/1/2 bytes; writes the low byte to *dst_row only when non-zero (zero=transparent), then dst_row++. After each row dst += stride. Body wrapped in PUSHAD/POPAD with a plain RET, so EAX is unchanged (decompiler 'return in_EAX' is a passthrough artifact) and every call site discards it -> effectively void.",
+  "signature": "void fd2_blit_sprite_with_decoded_pixels(uint32 dst, uint32 sprite_hdr, uint32 stride)",
+  "params": [
+    {
+      "name": "dst",
+      "type": "uint32",
+      "semantics": "Destination base linear address (row base); advanced by stride per row [EDI from EBP+8].",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, descriptive, no address residue; matches caller (resolved screen/buffer address) and body usage."
+    },
+    {
+      "name": "sprite_hdr",
+      "type": "uint32",
+      "semantics": "Sprite header pointer [ESI from EBP+0xC]: ushort width @+0 (cols per row), ushort height @+2 (rows), then the encoded pixel byte stream at +4.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, descriptive, no address residue; matches caller (resolved portrait/atlas sprite address) and the two LODSW header reads."
+    },
+    {
+      "name": "stride",
+      "type": "uint32",
+      "semantics": "Bytes to advance dst per destination row [EBX from EBP+0x10].",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, descriptive, no address residue; matches caller (e.g. 0x1c8) and the ADD EDI,EBX per-row advance."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No meaningful return. Binary leaves EAX at its entry value (PUSHAD/POPAD wrap, plain RET); decompiler's 'return in_EAX' is a passthrough artifact and all 9 call sites discard it."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (blitspr.c lines 1456-1500) and Ghidra plate are both accurate and consistent with the decompiled logic and the verified disassembly (PUSH EBP/PUSHAD prologue; LODSW->BP col_count, LODSW->DX row_count; XOR ECX,ECX + XOR AX,AX; PUSH EDI/MOV CX,BP; CALL 0x4e916; OR AL,AL/JZ skip-zero; MOV [EDI],AL; INC EDI; LOOP; POP EDI/ADD EDI,EBX; DEC DX/JNZ; POPAD/POP EBP/RET). No edit needed to either. Callers confirm dst/sprite_hdr/stride semantics and discarded return; representative caller fd2_animate_spell_impact_per_target @ 0x1c4cc passes (screen addr, resolved portrait sprite addr, 0x1c8). 9 call sites total. Per-pixel decoder is fd2_decode_dialog_pixel_byte @ 0x4e916."
+}
