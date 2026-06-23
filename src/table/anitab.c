@@ -102,8 +102,8 @@ const uint8 data_fd2_animation_spell_palette_flash_table[108] = {
  *
  * Read-only (single READ xref, no writers); compiler rodata table.
  *
- * NOTE: Ghidra mislabelled this as int[4] (len 16); the byte-stride caller
- * usage and the 30-byte copy extent prove uint8[30].
+ * Type is uint8[30], not a 4-byte-element array: the byte-stride MOVZX
+ * caller access and the 30-byte REP MOVSD+MOVSW copy extent are decisive.
  */
 const uint8 data_fd2_animation_status_overlay_flicker_color_template[30] = {
     0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,
