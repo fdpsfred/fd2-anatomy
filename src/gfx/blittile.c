@@ -143,7 +143,8 @@ void fd2_blit_animated_tile_at_pos(uint32 buf, int32 tile_x, int32 tile_y)
  *
  * Coordinate format: 12.12 fixed-point, 0xC00 fixed units = 1 tile.
  * (src_cx_fp, src_cy_fp) is the screen-center source position; scale is
- * the per-pixel source step (0x800 ~= 1:1; smaller = more zoomed in).
+ * the per-pixel source step (0xC00 fixed = 1 tile = 24 source pixels, so
+ * 0x80 = 1 source pixel = 1:1; smaller = more zoomed in).
  *
  * Top-left source = center - scale*(half-extent):
  *   src_x_fp = src_cx_fp - scale*0x9C   (0x9C = 156 = 312/2 cols)
