@@ -1,0 +1,59 @@
+{
+  "address": "0x0001ceed",
+  "name_current": "fd2_draw_spell_selection_list",
+  "name_final": "fd2_draw_spell_selection_list",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (UI spell-picker draw). Accurately reflects behavior: renders the battle spell list as a 4-column grid into a framebuffer. No address residue. 'selection_list' fits its role; 'usable' from the helper name is conventional and already explained in the comment.",
+  "kind": "function",
+  "home": "ROOT/src/spell/spellsel.c",
+  "purpose": "Draw the battle spell-picker as a 4-column list of the caster's learned spells (name + MP icon + MP cost) into a render buffer, optionally highlighting one entry.",
+  "logic_summary": "Calls fd2_build_usable_spell_list(caster_idx, local_buf) to enumerate the caster's learned spell ids and their count. For each spell entry: row_pixel = (iter%4)*0x16 (4 per row); color = (iter==highlighted_idx)?0xC9:0xCD (highlighted yellow vs normal red); col_addr_offset = render_buf + (iter/4)*100 + 0x12. Per cell it draws (1) spell name text via fd2_display_dialog_scene from data_fd2_all_game_text_ptr at page id spell_id+0x1B9, position (row_pixel+0x67)*320+col_addr_offset, glyph border=color; (2) MP icon sprite 0x5C from data_fd2_ui_anim_sprite_sheet_ptr via fd2_blit_sheet_sprite_at_offset at col_addr_offset+0x32+(row_pixel+0x6C)*320; (3) MP cost as a 2-digit decimal (spell record byte +5) via fd2_render_decimal_number_to_buffer at col_addr_offset+0x49+(row_pixel+0x6C)*320. The iter/4 and iter%4 are signed divisions in the binary but iter is a non-negative loop counter, so the (int) casts only pin codegen.",
+  "signature": "void __cdecl fd2_draw_spell_selection_list(uint32 caster_idx, uint32 highlighted_idx, uint32 render_buf)",
+  "params": [
+    {
+      "name": "caster_idx",
+      "type": "uint32",
+      "semantics": "Runtime-character index whose learned spells are enumerated and drawn (passed straight to fd2_build_usable_spell_list). All three callers pass the caster/character index.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, descriptive, no address residue."
+    },
+    {
+      "name": "highlighted_idx",
+      "type": "uint32",
+      "semantics": "Index of the spell entry to highlight (color 0xC9 yellow); any non-matching value (e.g. 0xFFFFFFFF/-1) leaves all entries normal (0xCD red). fd2_open_char_status_screen and fd2_spell_selection_menu_main pass -1 (no highlight); fd2_spell_select_input_loop passes the live cursor index.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the highlight selector; no address residue."
+    },
+    {
+      "name": "render_buf",
+      "type": "uint32",
+      "semantics": "Destination framebuffer linear offset; cells are laid out as render_buf + (iter/4)*100 + 0x12 plus per-row pixel offsets. Callers pass either an off-screen composed buffer or 0xA0000 (VGA mode 13h) directly.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, descriptive, no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; purely renders into render_buf."
+  },
+  "reads_globals": [
+    "data_fd2_all_game_text_ptr",
+    "data_fd2_ui_anim_sprite_sheet_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Name and all three parameter names are already correct and convention-compliant (no rename needed). Source comment block (spellsel.c lines 115-146) is accurate, precise, and ASCII-only; matches the decompilation and all three call sites (fd2_open_char_status_screen 0x17c44 passes -1; fd2_spell_selection_menu_main 0x1d08f passes -1; fd2_spell_select_input_loop 0x1d53c passes live cursor index data_fd2_ui_menu_cursor_idx). Ghidra plate (Chinese) is consistent with the refined understanding and lists the same 3 live callers, so left unchanged. No source Edit made (comment kept verbatim)."
+}
