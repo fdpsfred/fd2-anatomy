@@ -27,10 +27,15 @@
  *   3. Blit the intro panel sprite at working-surface offset 0x1A20C.
  *   4. Render the chapter title text at offset 0x1ACC4 (FDTXT page
  *      = chapter_intro_menu_cursor_state + 0x1EF).
- *   5. Blit the speaker portrait icon. The animation frame index is
- *      remapped 3 -> 1; the destination is keyed off the per-chapter
- *      pose X (column) / Y (row) tables indexed by
- *      chapter_category * 6 + chapter_intro_menu_cursor_state.
+ *   5. Blit the chapter-intro character portrait icon. The animation
+ *      frame index is remapped 3 -> 1; the destination is keyed off two
+ *      per-chapter pose-byte tables indexed by
+ *      chapter_category * 6 + chapter_intro_menu_cursor_state. One table
+ *      (data_fd2_chapter_intro_portrait_pose_x_column_table) is multiplied
+ *      by the 0x1C8 row pitch -> the row (Y) contribution; the other
+ *      (data_fd2_chapter_intro_portrait_pose_y_row_table) is added
+ *      directly -> the within-row (X) contribution. NOTE the two global
+ *      names read inverted vs this behaviour (see issues).
  *   6. Commit the visible 312x192 region from working-surface +0x8088
  *      to the VGA primary at 0xA0504.
  *

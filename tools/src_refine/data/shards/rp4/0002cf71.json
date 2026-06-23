@@ -1,0 +1,50 @@
+{
+  "address": "0002cf71",
+  "name_current": "fd2_render_chapter_intro_overlay",
+  "name_final": "fd2_render_chapter_intro_overlay",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Already compliant: fd2_ prefix + render_chapter_intro_overlay accurately describes compositing the chapter-intro overlay (panel + title text + portrait) into the working buffer and committing to VGA. No address residue; no domain ID involved.",
+  "kind": "function",
+  "home": "ROOT/src/gfx/rndmenu.c",
+  "purpose": "Composite one frame of the chapter-intro/transition screen (intro panel sprite + chapter title text + character portrait icon) into the large game-state working buffer, then commit the visible 312x192 region to the VGA framebuffer.",
+  "logic_summary": "__CHK(0x34) stack probe. Look up current chapter's intro metadata entry via fd2_get_chapter_intro_metadata_entry(current_chapter_id @0x53C03); its first byte (chapter category) drives the portrait pose-table index. memmove the battle-scene snapshot (0x53A5D) into the large game-state working buffer (0x53A49), 0x25680 bytes, as the base surface. Blit the intro panel sprite (chapter_intro_menu_overlay_buf @0x5413B) at working-surface +0x1A20C via fd2_dialog_sprite_blit_normal (stride 0x1C8). Render the chapter title text via fd2_display_dialog_scene (all_game_text @0x53A7D, FDTXT page = chapter_intro_menu_cursor_state @0x5412B + 0x1EF) at +0x1ACC4. Compute portrait frame_idx = chapter_intro_dialog_anim_frame_idx @0x54133, remapped 3->1. table_off = chapter_meta_byte*6 + chapter_intro_menu_cursor_state. Blit the 24x24 portrait via fd2_tile_blit_24x24_passthrough from portrait_sprite_cache (0x53A61) at dst = working_surface + table@0x52647[table_off]*0x1C8 (row/Y) + table@0x52635[table_off] (within-row/X) + 0x8088. Finally fd2_blit_rectangle commits the region at working_surface+0x8088 (stride 0x1C8, 0x138x0xC0) to VGA 0xA0504.",
+  "signature": "void __cdecl fd2_render_chapter_intro_overlay(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects only: writes the composed frame into the large game-state working buffer and commits the visible region to the VGA framebuffer."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_current_chapter_id (0x53C03)",
+    "data_fd2_large_game_state_buffer_ptr (0x53A49)",
+    "data_fd2_battle_scene_snapshot (0x53A5D)",
+    "data_fd2_portrait_sprite_cache (0x53A61)",
+    "data_fd2_chapter_intro_menu_overlay_buf_ptr (0x5413B)",
+    "data_fd2_all_game_text_ptr (0x53A7D)",
+    "data_fd2_chapter_intro_menu_cursor_state (0x5412B)",
+    "data_fd2_chapter_intro_dialog_anim_frame_idx (0x54133)",
+    "data_fd2_chapter_intro_portrait_pose_y_row_table (0x52635)",
+    "data_fd2_chapter_intro_portrait_pose_x_column_table (0x52647)"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Step 5 of the source comment said 'speaker portrait icon' (imprecise: this is the chapter-intro character portrait, not a dialog speaker) and described the two pose tables only as generic 'X (column) / Y (row)' which, against the swapped global symbol names, is misleading about which table is multiplied by the 0x1C8 row pitch.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "updated",
+  "issues": [
+    {
+      "category": "naming",
+      "severity": "low",
+      "title": "Pose-table global names read inverted vs their actual axis use",
+      "description": "The two per-chapter portrait pose-byte tables used to position the portrait icon have Ghidra/C symbol names whose X/Y axis semantics are swapped relative to their actual use. data_fd2_chapter_intro_portrait_pose_y_row_table @0x52635 is added DIRECTLY to the destination (within-row / X contribution), while data_fd2_chapter_intro_portrait_pose_x_column_table @0x52647 is MULTIPLIED by the 0x1C8 row pitch (row / Y contribution). The names therefore suggest the opposite axes. These are shared globals (also referenced by fd2_chapter_transition_with_intro, fd2_run_chapter_intro_menu_main/typeB/typeC), so this is NOT in scope for renaming under this single-function refine task; recorded for a future global-rename pass.",
+      "evidence": "Disassembly @0x2CF71: 0002d031 'MOVZX EDX,byte ptr [EAX + 0x52635]' then 0002d044 'ADD EDX,EBX' (direct add, no multiply); 0002d046 'MOVZX EAX,byte ptr [EAX + 0x52647]' then 0002d04d 'IMUL EAX,EAX,0x1c8' (multiplied by row pitch). Ghidra primary symbols: 0x52635 => data_fd2_chapter_intro_portrait_pose_y_row_table, 0x52647 => data_fd2_chapter_intro_portrait_pose_x_column_table."
+    }
+  ],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Function name compliant (keep), void/no-params. Source comment refined (augment): replaced 'speaker portrait icon' with 'chapter-intro character portrait icon' and clarified the two pose tables' actual behaviour (which is multiplied by 0x1C8 pitch = Y/row, which is added directly = X/within-row), with a NOTE that the global names read inverted. Ghidra plate updated to match: replaced stale short table names in the portrait-blit pseudo-code and the two globals-touched lines with current symbol names + actual behaviour + a swap NOTE; plate behaviour is disassembly ground truth. Single global-naming issue logged (out of scope for this single-function task). No game logic changed."
+}
