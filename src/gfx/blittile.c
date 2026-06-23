@@ -954,11 +954,11 @@ void fd2_tile_blit_24x24_with_dialog_bg_fill(uint32 rle_stream, uint32 dst_buf,
  * start, and 24 rows are rendered in total.
  *
  * Args (cdecl, 4x stack params; caller pops 0x10):
- *   src        — source RLE-encoded 24x24 sprite stream
- *   dst        — destination base linear address
- *   stride     — destination row stride in bytes (0x1C8 from the sole
+ *   src        -- source RLE-encoded 24x24 sprite stream
+ *   dst        -- destination base linear address
+ *   stride     -- destination row stride in bytes (0x1C8 from the sole
  *                caller; the row reset advances stride - 0x18)
- *   remap_table — 256-entry palette translation table
+ *   remap_table -- 256-entry palette translation table
  *
  * Hand-written asm leaf: no __CHK probe, no CALLs.
  * ---------------------------------------------------------------- */
