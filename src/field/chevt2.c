@@ -1550,7 +1550,7 @@ void fd2_chapter_event_handler_53__unref_dialog_with_state(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_54__ch27_ai_ctrl @ 0x360C0
- *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CDD)
+ *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CE1)
  *
  * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x54. Triggered
  * in chapter 27. Category: AI setup. Dispatch-table signature is 1-arg cdecl
