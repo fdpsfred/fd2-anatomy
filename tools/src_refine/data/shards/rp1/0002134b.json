@@ -1,0 +1,56 @@
+{
+  "address": "0002134b",
+  "name_current": "fd2_spell_handler_id_1_via_targeted_blink",
+  "name_final": "fd2_spell_handler_id_1_via_targeted_blink",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (domain=spell). 'id_1' is a meaningful spell-domain ID (spell IDs 00h-23h are valid, confirmed entry index 1 of dispatch table @0x51D01). 'via_targeted_blink' names the worker family fd2_execute_offensive_targeted_spell. No address residue. src name byte-identical.",
+  "kind": "function",
+  "home": "ROOT/src/spell/spell.c",
+  "purpose": "Spell dispatch thunk for spell_id=1 (targeted-blink offensive family); delegates to fd2_execute_offensive_targeted_spell with hardcoded spell_id=1.",
+  "logic_summary": "Thin wrapper. Calls fd2_execute_offensive_targeted_spell(caster, 1, n_tgt, tgt_arr). In the LE binary it physically shares the {PUSH caster + CALL worker + ADD ESP,0x10 + RET} tail of fd2_spell_handler_id_0_via_targeted_blink via JMP 0x2121A (alt-entry/shared-tail), and the leading PUSH 0x14 + CALL __CHK is the Watcom stack-check intrinsic. The C source correctly expresses only the semantic call; __CHK and the shared-tail are compiler-emitted artifacts, not game logic. Registered as entry index 1 of the spell function-pointer dispatch table @0x51D01 (verified: 0x51D01+4 = 0x2134B).",
+  "signature": "void __cdecl fd2_spell_handler_id_1_via_targeted_blink(int caster, int n_tgt, uint8 *tgt_arr)",
+  "params": [
+    {
+      "name": "caster",
+      "type": "int",
+      "semantics": "Caster unit id; passed through unchanged as 1st arg to fd2_execute_offensive_targeted_spell.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Concise, accurate, matches use as caster unit id. No address residue."
+    },
+    {
+      "name": "n_tgt",
+      "type": "int",
+      "semantics": "Number of targets; passed through as 3rd arg to the worker.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive abbreviation for num_targets; accurate to use. No address residue."
+    },
+    {
+      "name": "tgt_arr",
+      "type": "uint8 *",
+      "semantics": "Pointer to target-id byte array; cast to int and passed as 4th arg to the worker.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive for target_id_array; accurate to use. No address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; pure dispatch thunk."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "e5fa01645591406fa48f718be9bd721edb0b397a",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment context = file header (lines 1-17, accurate family/dispatch table summary) + family banner '/* === Targeted blink family (id 0-3, 8) === */' (line 24, accurate); no per-function block, matching sibling style. Both accurate -> comment kept, src untouched. Ghidra plate is detailed and consistent with src understanding (verified vs disasm + dispatch table read), no contradiction -> plate left as-is. Live Ghidra signature uses param names caster_unit_id/num_targets/target_id_array; src uses caster/n_tgt/tgt_arr -- both accurate and address-residue-free, judged keep against src per FD2 rule (src is authority). Watcom __CHK(0x14,...) stack-check is compiler-emitted, not game logic; correctly absent from src. Only shard staged; src/spell/spell.c unchanged."
+}
