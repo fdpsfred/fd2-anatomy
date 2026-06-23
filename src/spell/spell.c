@@ -104,6 +104,9 @@ void fd2_cast_spell_0b_with_prefx(
         caster, 0xb, n_tgt, tgt_arr);
 }
 
+/* spell_id 0xC: like 0xB but adds a pre-effect before the earthquake worker --
+ * generic cast SFX (id 2) + rising pre-cast effect (initial=0x1E, step=0x10,
+ * faster/higher than 0xB's {0xF, 0xA}). @ 0x21A9E */
 void fd2_cast_spell_0c_with_prefx(
     int caster, int n_tgt, uint8 *tgt_arr)
 {
