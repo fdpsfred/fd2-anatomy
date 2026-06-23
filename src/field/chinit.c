@@ -1307,7 +1307,7 @@ void fd2_chapter_23_init(void)
  * four map corners holding 400ms at each, plays a second dialog page
  * (page 1), and pans the camera to char 0. There is NO cutscene, NO
  * char init, NO data_fd2_battle_anim_phase reset, and NO clear-facing
- * — chapter 24 carries the party over from the previous chapter.
+ * -- chapter 24 carries the party over from the previous chapter.
  *
  * The four corner pans are fd2_pan_cursor_and_window(ox, oy) to
  * (0, 4) -> (0, 0x16) -> (0x1A, 0x18) -> (0x1A, 2), each immediately
@@ -1317,14 +1317,14 @@ void fd2_chapter_23_init(void)
  * stack-probe is the Watcom-injected frame-size check and is not part
  * of the source body. It is a pure straight-line orchestrator: NO
  * numeric computation, NO RNG, NO data-dependent branch, and NO
- * CALL-result consumption (no Ghidra EAX-tracking-bug exposure) — the
+ * CALL-result consumption (no Ghidra EAX-tracking-bug exposure) -- the
  * dialog-scene CALL returns are discarded.
  *
  * In the binary this handler physically contains only its entry block
  * (init battle state, page-0 dialog, portrait load, and the 4-corner
  * scan); after the final hold it tail-JMPs (0x33965 -> 0x331EA) into
- * the alt-entry owned by fd2_chapter_07_init — the page-1 dialog-arg
- * push (PUSH text; PUSH 1; CALL fd2_display_dialog_scene) — which in
+ * the alt-entry owned by fd2_chapter_07_init -- the page-1 dialog-arg
+ * push (PUSH text; PUSH 1; CALL fd2_display_dialog_scene) -- which in
  * turn JMPs (0x33214 -> 0x33140) into the shared epilogue owned by
  * fd2_chapter_05_init (fd2_pan_cursor_to_char(0); RET, entered directly
  * without a clear-facing). The straight-line form here is the
@@ -1332,7 +1332,7 @@ void fd2_chapter_23_init(void)
  *
  * Linked handlers:
  *   End:         fd2_chapter_24_end @ 0x24C1E
- *   Post-action: (default — fd2_check_battle_end_default_handler
+ *   Post-action: (default -- fd2_check_battle_end_default_handler
  *                @ 0x205B4)
  *
  * Walkthrough SOT: assets/chapters/chapter_24.md
