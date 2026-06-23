@@ -190,10 +190,25 @@ void fd2_apply_item_stat_modifier_with_anim(
 }
 
 /* ----------------------------------------------------------------
- * fd2_apply_attack_spell_damage @ 0x2111A
+ * fd2_apply_attack_spell_damage @ 0x2111A  (2 callers)
  *
- * Attack spell (effect 0x15): animate impact + full-screen flash,
- * then apply magic damage per target. Shows miss or damage number.
+ * Attack-spell damage applier with full impact + full-screen-flash
+ * animations. Plays the per-target impact animation and the full-screen
+ * flash (both keyed by the spell id in arg 4), then for every target in
+ * the byte array calls fd2_calc_magic_damage(target_id, spell_id): a 0
+ * return is a miss (draw the miss indicator), otherwise draw the damage
+ * number with glyph 0x5E ('^'). Closes with fd2_composite_battle_frame(0)
+ * + fd2_animate_spell_projectile_paths().
+ *
+ * fd2_calc_magic_damage applies the HP decrement internally; this
+ * function only drives the visual presentation (impact + flash + per-
+ * target number + composite + projectile trail) and never touches HP.
+ *
+ * Arg 4 is a spell id (used for the animations and the damage calc), not
+ * an item field: caller fd2_apply_use_effect_dispatch @ 0x20C6F passes
+ * the item's effect_param (item effect 0x15 = the attack-spell variant),
+ * and caller fd2_execute_summon_spell_cast @ 0x27FC9 passes literal 0x20
+ * (the 熾天使 summon finale).
  * ---------------------------------------------------------------- */
 void fd2_apply_attack_spell_damage(uint32 caster_idx,
                                     uint32 target_count,
