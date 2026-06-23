@@ -1,0 +1,75 @@
+{
+  "address": "000187d6",
+  "name_current": "fd2_render_decimal_number_to_buffer",
+  "name_final": "fd2_render_decimal_number_to_buffer",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain=render>_<descriptor> name with no Ghidra address residue. Accurately reflects the purpose: render an integer value as decimal digit glyphs into a pixel buffer. 16 callers across UI/status/HUD renderers all use it for this. No change needed.",
+  "kind": "function",
+  "home": "ROOT/src/gfx/rndstat.c",
+  "purpose": "Render the integer `value` as `digit_count` decimal-digit glyph sprites into the pixel buffer at `dst` (6 px per column), drawing single overflow placeholder glyphs when the value exceeds the digit budget.",
+  "logic_summary": "Clamp negative value to 0 (signed test). If digit_count==3 && value>999: blit one 'MAX' glyph (sprite_base_idx+10) and return. If digit_count==2 && value>=100: blit one fixed 'in99+' glyph (sprite 0x5D, color-agnostic) and return. Otherwise copy the 6-byte format template data_fd2_string_ui_render_decimal_format_template (\"%0.5d\") into a local buffer, overwrite byte[3] ('5') with ('0'+digit_count) to form \"%0.Nd\", sprintf the zero-padded decimal into a local digit buffer, then loop i=0..digit_count-1 blitting glyph sprite (sprite_base_idx + digit_buf[i] - '0') at dst + i*6. All glyphs come from data_fd2_ui_anim_sprite_sheet_ptr. Disassembly confirms signed comparisons (TEST/JGE clamp; CMP 0x3E7/JLE for >999; CMP 0x63/JLE for >=100) and the byte[3] overwrite (MOV BL,[digit_count]; ADD BL,0x30; MOV [ESP+0x17],BL).",
+  "signature": "void __cdecl fd2_render_decimal_number_to_buffer(uint32 dst, uint32 stride, uint32 value, uint32 sprite_base_idx, uint32 digit_count)",
+  "params": [
+    {
+      "name": "dst",
+      "type": "uint32",
+      "semantics": "Destination linear pixel-buffer address where the first digit glyph is blitted; subsequent columns at dst + i*6.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, no address residue; matches usage (base blit address)."
+    },
+    {
+      "name": "stride",
+      "type": "uint32",
+      "semantics": "Surface pitch in bytes (0x140 = 320 for the mode13h-style surfaces), forwarded to the blit helper.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate pitch/stride name; no residue."
+    },
+    {
+      "name": "value",
+      "type": "uint32",
+      "semantics": "Integer to render; treated as signed for the negative clamp and the overflow comparisons.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear and correct."
+    },
+    {
+      "name": "sprite_base_idx",
+      "type": "uint32",
+      "semantics": "Base index into the UI/anim sprite sheet for the '0'..'9' digit glyph run; selects digit color theme (0x2A white, 0x77 red boosted, 0x1F red HP/MP-full). sheet[base+10] is the 'MAX' overflow glyph.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Precisely describes the parameter; no address residue. (protos.h currently spells this param 'x', which is weaker, but declarations are reconciled in Stage 2; the in-body name is correct.)"
+    },
+    {
+      "name": "digit_count",
+      "type": "uint32",
+      "semantics": "Number of decimal columns to render (2 or 3 in all call sites); also drives the format width and the per-mode overflow rule.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear and correct; no residue. (protos.h spells this 'digits'; reconciled in Stage 2.)"
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; effect is the blitted digit/placeholder glyphs in the destination buffer."
+  },
+  "reads_globals": [
+    "data_fd2_string_ui_render_decimal_format_template",
+    "data_fd2_ui_anim_sprite_sheet_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (rndstat.c lines 613-679) is already precise, accurate, and ASCII-clean; verified against decompilation and full disassembly (signed clamps, >999/>=100 overflow rules, fmt byte[3] overwrite, i*6 column stride, sprite_base+digit indexing). Format template bytes 25 30 2e 35 64 00 = \"%0.5d\" confirmed in strtab.c. Ghidra plate is consistent (more verbose) so left untouched. No logic touched. Name and all 5 params kept. Note for Stage 2: protos.h (line 730) declares 4th/5th params as 'x'/'digits'; canonical in-body names are sprite_base_idx/digit_count -- Stage 2 may align the prototype, but no rename is recorded here because the live function-body names are already correct."
+}
