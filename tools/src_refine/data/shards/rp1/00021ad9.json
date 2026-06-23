@@ -1,0 +1,56 @@
+{
+  "address": "00021ad9",
+  "name_current": "fd2_cast_spell_0d_variant_b",
+  "name_final": "fd2_cast_spell_0d_variant_b",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with fd2_<domain>_<descriptor>. '0d' is spell id 0xD (= 治療術/Cure, a heal spell; spell IDs are domain values 00h-23h) -- a meaningful domain ID that must be preserved, not an address residue. 'variant_b' correctly distinguishes the heal-style dispatch path (fd2_dispatch_variant_b_cast -> fd2_apply_heal_spell_to_target) from the offensive-A family. Name accurately reflects purpose and internal logic.",
+  "kind": "function",
+  "home": "src/spell/spell.c",
+  "purpose": "Battle spell-dispatch entry for spell_id 0xD (治療術/Cure heal spell): plays the status-effect SFX then a variant-B slide pre-cast effect, then hands off to the variant-B heal worker.",
+  "logic_summary": "Calls fd2_play_sfx_with_handle(data_fd2_audio_status_effect_sfx_handle_ptr, 0xB, 1) to play status-effect SFX id 0xB; calls fd2_play_variant_b_slide_pre_effect(1, 2) for the pre-cast slide animation; then calls fd2_dispatch_variant_b_cast(caster, 0xD, n_tgt, tgt_arr) which runs per-target impact + status-overlay animation, deducts caster MP, applies fd2_apply_heal_spell_to_target per target and shows the heal number. Also serves as the shared-tail anchor (alt-entry at 0x21B0B) for sibling spell ids 0xE/0xF/0x10. Cyclomatic complexity 1 (straight-line). Leading __CHK(0x14,...) is the Watcom stack-probe, not game logic.",
+  "signature": "void __cdecl fd2_cast_spell_0d_variant_b(int caster, int n_tgt, uint8 *tgt_arr)",
+  "params": [
+    {
+      "name": "caster",
+      "type": "int",
+      "semantics": "Caster unit id; forwarded unchanged to fd2_dispatch_variant_b_cast (param_1).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, ASCII, no address residue; matches actual use (passed through as caster)."
+    },
+    {
+      "name": "n_tgt",
+      "type": "int",
+      "semantics": "Number of targets; forwarded unchanged to the dispatch worker (param_3, loop bound).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, ASCII, no address residue; matches actual use (target count)."
+    },
+    {
+      "name": "tgt_arr",
+      "type": "uint8 *",
+      "semantics": "Pointer to the target-id array; cast to int and forwarded to the dispatch worker (param_4), indexed per target inside the heal loop.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, ASCII, no address residue; matches actual use (target id array base)."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; dispatch entry that delegates to the variant-B heal worker."
+  },
+  "reads_globals": ["data_fd2_audio_status_effect_sfx_handle_ptr"],
+  "writes_globals": [],
+  "comment_original_issue": "Function had no per-function comment; only the family header at line 120 covered it. Siblings 0xB/0xC (same in-file convention) each carry a per-function comment with their distinctive SFX id + pre-effect params, but the variant-B entries (0xD-0x10) did not, so 0xD's specific SFX/pre-effect params and heal identity were not documented.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Spell identity confirmed via fd2-knowledge: spell 0Dh = 治療術 (heal/recovery). Heal path confirmed by decompiling worker fd2_dispatch_variant_b_cast @ 0x21B18 (uses fd2_apply_heal_spell_to_target, shows damage number with indicator 0x69='i'). Sole xref to this function is DATA @ 0x51D35 (spell dispatch table @ 0x51D01 + 0x34 = entry index 0xD); no direct CALL callers (table-driven). Ghidra plate is detailed, accurate, and consistent with refined understanding -- left unchanged. No logic touched."
+}

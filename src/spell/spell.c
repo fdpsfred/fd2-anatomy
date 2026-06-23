@@ -117,8 +117,14 @@ void fd2_cast_spell_0c_with_prefx(
         caster, 0xc, n_tgt, tgt_arr);
 }
 
-/* === Variant-B heal/buff family (id 0xD-0x10) === */
+/* === Variant-B heal/buff family (id 0xD-0x10) ===
+ * All four play status-effect SFX (id 0xB) + a slide pre-cast effect, then
+ * dispatch via fd2_dispatch_variant_b_cast (heal-style worker that applies
+ * fd2_apply_heal_spell_to_target, not damage calc). They differ only by their
+ * slide pre-effect params and spell_id literal. */
 
+/* spell_id 0xD (heal/cure): status SFX (id 0xB) + slide pre-effect (1, 2),
+ * then the variant-B heal dispatch. @ 0x21AD9 */
 void fd2_cast_spell_0d_variant_b(
     int caster, int n_tgt, uint8 *tgt_arr)
 {
