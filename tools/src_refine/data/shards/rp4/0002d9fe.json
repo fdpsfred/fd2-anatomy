@@ -1,0 +1,59 @@
+{
+  "address": "0002d9fe",
+  "name_current": "fd2_render_chapter_intro_dialog_panels",
+  "name_final": "fd2_render_chapter_intro_dialog_panels",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=render/ui_menu, descriptor=chapter_intro_dialog_panels). Accurately reflects the purpose: renders the chapter-intro dialog panels (animated frame/scroll indicators + optional party roster) across three layout modes. No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/gfx/rndmenu.c",
+  "purpose": "Render the chapter-intro dialog panels (background frame indicators + animated foreground sprites), dispatching three layout modes; called per BIOS-tick from fd2_wait_input_with_chapter_dialog_blink.",
+  "logic_summary": "First advances the sub-frame cycler: if (frame_idx & 1) subframe_counter++, then if subframe_counter==4 reset to 0 (unconditional). Then dispatches on mode. mode 0: single-corner cursor indicator -- blit corner_offs[cursor_idx]+0xAD430 with atlas sprite atlas[+6+(frame_idx/2 + cursor_idx*2 + 3)*4]. mode 1/3: two scroll panels (and on mode 3 first overlays fd2_render_party_roster_grid(cursor_idx,0xA0000)); left panel @0xA972A picks static atlas[+0x4A] when scroll==0 else animated scroll-up sprite; right panel @0xAE36A picks animated scroll-down sprite when scroll+6<visible_count else static. mode 2: same two panels but the right cap uses scroll+3 instead of +6, plus a 3-icon party roster row -- icon_count=min(3,visible_count), anim_phase maps 0/1/2/3 -> 0/1/2/1, and for each icon blits a 24x24 portrait from the portrait cache (portrait_id from candidate_array[scroll+i]) at y=0x75+i*0x1A. frame_idx/2 is a signed divide.",
+  "signature": "void __cdecl fd2_render_chapter_intro_dialog_panels(uint32 corner_offs_ptr, uint32 mode)",
+  "params": [
+    {
+      "name": "corner_offs_ptr",
+      "type": "uint32",
+      "semantics": "Pointer to a u32[4] table of corner offsets (the caller copies tutorial_dialog_intro_constants_b @ [0x526EA] into a stack-local). Used only in mode 0 as *(int32*)(cursor_idx*4 + corner_offs_ptr) + 0xAD430 to compute the VRAM destination of the single-corner cursor sprite.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately describes a pointer to the corner-offset table; no address residue."
+    },
+    {
+      "name": "mode",
+      "type": "uint32",
+      "semantics": "Dialog layout mode selector (0=single-corner cursor indicator, 1/3=two scroll panels with optional party-roster overlay, 2=two scroll panels + 3-icon party roster row).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately describes the layout-mode dispatch value; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; performs rendering side-effects (sprite blits) only."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_intro_dialog_anim_frame_idx",
+    "data_fd2_chapter_intro_dialog_subframe_anim_counter",
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_ui_menu_scroll_offset",
+    "data_fd2_ui_menu_visible_item_count",
+    "data_fd2_ui_menu_candidate_array_ptr",
+    "data_fd2_ui_menu_screen_sprite_atlas_buf_ptr",
+    "data_fd2_portrait_sprite_cache"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_intro_dialog_subframe_anim_counter"
+  ],
+  "comment_original_issue": "Comment body was accurate and well-structured but used 3 non-ASCII em-dash characters (U+2014) on the 'mode 0', 'mode 1 / 3', and 'mode 2' header lines, violating the code-comment ASCII-only rule.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Caller fd2_wait_input_with_chapter_dialog_blink @ 0x2D85F (2 call sites, the initial render + per-tick render) confirms param semantics: corner_offs_ptr -> u32[4] corner offsets, mode -> layout selector. Src comment block (lines 45-81) matches the decompilation; only fix needed was ASCII em-dash -> '--'. Ghidra plate is more detailed than src but fully consistent (no contradiction), so left unchanged. No logic touched. (git add -A had staged 3 unrelated shard files from other runs; reset and staged only my 2 files.)"
+}

@@ -54,17 +54,17 @@
  *   if (frame_idx & 1) subframe_counter++;
  *   if (subframe_counter == 4) subframe_counter = 0;     // unconditional
  *
- * mode 0  — single-corner cursor indicator:
+ * mode 0  -- single-corner cursor indicator:
  *   blit corner_offs[cursor_idx]+0xAD430 with atlas sprite
  *   atlas[+6 + (frame_idx/2 + cursor_idx*2 + 3)*4].
  *
- * mode 1 / 3 — two scroll panels (+ party roster overlay when mode 3):
+ * mode 1 / 3 -- two scroll panels (+ party roster overlay when mode 3):
  *   if mode 3: fd2_render_party_roster_grid(cursor_idx, 0xA0000).
  *   left  @ 0xA972A : scroll==0 ? atlas[+0x4A] : atlas[+6+(frame_idx/2+0xB)*4]
  *   right @ 0xAE36A : (scroll+6 < visible_count) ? atlas[+6+(frame_idx/2+0xD)*4]
  *                                                 : atlas[+0x4A]
  *
- * mode 2  — same two panels (right cap uses scroll+3 instead of +6) plus a
+ * mode 2  -- same two panels (right cap uses scroll+3 instead of +6) plus a
  *   3-icon party roster row:
  *     icon_count = min(3, visible_count)
  *     anim_phase = (subframe_counter == 3) ? 1 : subframe_counter  // 0,1,2,3->0,1,2,1
