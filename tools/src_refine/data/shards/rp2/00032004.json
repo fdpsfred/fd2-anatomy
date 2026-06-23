@@ -1,0 +1,74 @@
+{
+  "address": "00032004",
+  "name_current": "fd2_wait_input_with_recruitment_repaint",
+  "name_final": "fd2_wait_input_with_recruitment_repaint",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>: domain=input (wait_input), descriptor=with_recruitment_repaint. Accurately reflects a wait-for-input loop that throttle-repaints the recruitment select screen each BIOS tick until a key is queued, then reads+normalizes the scancode. No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/input/input.c",
+  "purpose": "Block until a key is queued while repainting the recruitment (party-select) screen at most once per BIOS tick; then read the key via INT 16h and return the normalized scancode.",
+  "logic_summary": "while (keyboard buffer empty): if BIOS tick word @0x46C != recruitment_screen_repaint_tick_latch, latch the current tick, call fd2_render_recruitment_select_screen(panel_buf,max_chars,sel_state,cursor_idx), then memmove the composed buffer (data_fd2_ui_slide_composed_target_buf_ptr) to VGA 0xA0000 (64000 bytes). On key-available, set data_fd2_input_key_input_mode=0x10 and int386(0x16,&data_fd2_input_last_key_pressed,...) to read AH(scancode)/AL(ascii) into the shared union REGS bytes. Normalize: if key_input_mode==0xE0 || ==0x52('R') || last_key_pressed==0x20(space) -> 0x1C(Enter); if key_input_mode==0x53('S') -> 0x01(Esc). Return key_input_mode. Distinguishing trait vs sibling wait-input loops: ASCII space (0x20) also remaps to Enter.",
+  "signature": "int __cdecl fd2_wait_input_with_recruitment_repaint(uint32 panel_buf, uint32 max_chars, uint32 sel_state, uint32 cursor_idx)",
+  "params": [
+    {
+      "name": "panel_buf",
+      "type": "uint32",
+      "semantics": "Flat address of the composed recruitment panel buffer (the malloc'd 64000-byte 'pvVar2' the caller built the recruitment grid/banner into); passed straight through as arg1 to fd2_render_recruitment_select_screen.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and matches caller usage (panel_buf passed from fd2_run_recruitment_or_branch_screen). No address residue."
+    },
+    {
+      "name": "max_chars",
+      "type": "uint32",
+      "semantics": "Max selectable characters for this chapter (0x0F normally, 0x13 when current_chapter_id > 0x1A); passed through as arg2 to the render function.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the per-chapter selection cap; no address residue."
+    },
+    {
+      "name": "sel_state",
+      "type": "uint32",
+      "semantics": "Flat address of the 32-byte selection-state array (selection_state[]) tracking which roster slots are toggled on; passed through as arg3.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive of the selection-state buffer; no address residue."
+    },
+    {
+      "name": "cursor_idx",
+      "type": "uint32",
+      "semantics": "Current grid cursor index (the caller passes the integer cursor position as (uint32)cursor_idx); passed through as arg4 to the render function. Note: Ghidra types this param as 'uint *backup_buf', a decompiler artifact -- the runtime value is the integer cursor index, not a pointer.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Matches caller intent (cursor index into the 10x3 recruitment grid); no address residue. Better than the Ghidra 'backup_buf' artifact name."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Normalized scancode (in key_input_mode / AH byte): raw scancode with E0/0x52('R')/space->0x1C(Enter) and 0x53('S')->0x01(Esc) remaps applied. Caller fd2_run_recruitment_or_branch_screen consumes the full EAX value as the cursor/menu scancode."
+  },
+  "reads_globals": [
+    "BIOS_TICK_WORD (0:046C BIOS midnight tick word)",
+    "data_fd2_ui_recruitment_screen_repaint_tick_latch (0x54127)",
+    "data_fd2_ui_slide_composed_target_buf_ptr (0x53C63)",
+    "data_fd2_input_key_input_mode (0x53A8E, AH byte of shared union REGS)",
+    "data_fd2_input_last_key_pressed (0x53A8D, AL byte of shared union REGS)"
+  ],
+  "writes_globals": [
+    "data_fd2_ui_recruitment_screen_repaint_tick_latch (0x54127)",
+    "data_fd2_input_key_input_mode (0x53A8E)",
+    "data_fd2_input_last_key_pressed (0x53A8D, via int386 INT16h)"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "164f5ade5c21366dce4137b261a7f26df19faa17",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment block (input.c lines 101-106) is already concise and correct -- it captures the distinguishing space(0x20)->Enter remap that the four sibling wait-input loops lack; kept verbatim (no Edit to input.c). Ghidra plate had ONE stale fact: it claimed the single caller's call site was '@ 0x31B0E', but the actual call site is 0x31a29 inside fd2_run_recruitment_or_branch_screen (function start 0x318ad); plate corrected to '@ 0x31a29'. Verified callers/xrefs: exactly one caller (fd2_run_recruitment_or_branch_screen, UNCONDITIONAL_CALL from 0x31a29). Disasm confirms tick read via MOVSX word[0x46C], latch compared as dword[0x54127], render call target 0x31e80, VGA memmove of 0xFA00(64000) bytes from [0x53C63] to 0xA0000. No logic concerns -- src is equivalence-correct. Note (not a logic issue, deferred to Stage 2): protos.h declares generic p1..p4 while the definition uses descriptive names; param-name sync to protos.h is a Stage-2 concern, not changed here."
+}
