@@ -425,13 +425,17 @@ void fd2_chapter_21_post_action(uint32 event_arg)
  * real arguments; event_arg is the Watcom __CHK-prologue artifact and
  * is unused by the body.
  *
- * Runs the default win/lose check, then adds a single-slot lose-condition
- * override: if the must-protect NPC at runtime_char[1] is dead, set
- * game_event_flag (0x53ECC) to 1 (game over). Deadness is queried through
- * fd2_check_char_is_dead (runtime_char[idx].flags bit0); the body reads no
- * bFlags inline. char[1] is the same protected NPC across all three
- * chapters (a continuous "protect ally" story arc), which is why one
- * handler is shared.
+ * Runs the default win/lose check (which already loses on the protagonist
+ * runtime_char[0] dying), then adds a single-slot lose-condition override:
+ * if the must-protect ally at runtime_char[1] is dead, set
+ * data_fd2_chapter_event_or_battle_end_code (0x53ECC) to 1 (game over).
+ * Deadness is queried through fd2_check_char_is_dead (runtime_char[idx].flags
+ * bit0); the body reads no bFlags inline.
+ *
+ * The three chapters share this handler because their lose condition has the
+ * same structure (default check + one extra protected ally at slot 1), not
+ * because slot 1 holds the same character: per the walkthrough the slot-1
+ * ally is 希爾法 in chapter 22 but 悠妮 in chapters 27 and 28.
  * ---------------------------------------------------------------- */
 void fd2_chapter_22_27_28_post_action_shared(uint32 event_arg)
 {
