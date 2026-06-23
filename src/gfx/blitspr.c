@@ -756,14 +756,16 @@ void fd2_scroll_buffer_block_with_wrap(uint32 wrap_param, void *dst_buf,
  *
  * Stream encoding:
  *   bytes 0x00..0xC0 : direct pixel write (193 distinct values).
- *   bytes 0xC1..0xFF : start a run of (b - 0xC1) + 1 extra pixels of
- *                      the following byte's value (so the run paints
- *                      (b - 0xC1) + 2 pixels total of that value).
- *                      Used to compress the large background-color
- *                      runs in portrait sprites.
+ *   bytes 0xC1..0xFF : start a run of the following byte's value. The
+ *                      run_remain field is set to (b - 0xC1), i.e.
+ *                      (b - 0xC1) MORE pixels reuse this value after the
+ *                      one painted now, so the run paints (b - 0xC1) + 1
+ *                      pixels total (1..63 pixels for b = 0xC1..0xFF).
+ *                      Used to compress the large background-color runs
+ *                      in portrait sprites.
  *
- * (b - 0xC1) and (b + 0x3F) are the same value for a byte; the binary
- * computes it with SUB AH,0xC1, mirrored here.
+ * run_remain = (b - 0xC1); the binary computes it with SUB AH,0xC1 on the
+ * 8-bit AH register (the 0..0x3E result, not a >0xFF value), mirrored here.
  *
  * No stack frame in the binary; register-only.
  *
