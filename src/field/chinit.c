@@ -662,11 +662,11 @@ void fd2_chapter_10_init(void)
  * orchestrator that plays three dialog pages (pages 0/1/2), loads
  * portrait set 1 after page 0, and chains two cutscenes (event ids
  * 0x26 / 0x27) between the pages, before handing the chapter off to
- * the player. There is NO char init — chapter 11 carries the party
+ * the player. There is NO char init -- chapter 11 carries the party
  * over from chapter 10.
  *
  * data_fd2_battle_anim_phase is reset to 0 after page 0 only; pages 1
- * and 2 have no reset — page 2 is the tail before the final
+ * and 2 have no reset -- page 2 is the tail before the final
  * clear-facing + camera-to-char pan.
  *
  * void __cdecl, no real params, void return. The leading __CHK(0x28)
@@ -682,7 +682,7 @@ void fd2_chapter_10_init(void)
  *
  * Linked handlers:
  *   End:         fd2_chapter_11_end @ 0x23790
- *   Post-action: (default — fd2_check_battle_end_default_handler
+ *   Post-action: (default -- fd2_check_battle_end_default_handler
  *                @ 0x205B4)
  *
  * Walkthrough SOT: assets/chapters/chapter_11.md
