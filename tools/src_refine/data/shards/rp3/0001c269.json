@@ -1,0 +1,50 @@
+{
+  "address": "0001c269",
+  "name_current": "fd2_build_usable_spell_list",
+  "name_final": "fd2_build_usable_spell_list",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with fd2_<domain>_<descriptor> (domain = spell, descriptor = build_usable_spell_list). No Ghidra address residue, no domain-ID suffix. Strictly the function enumerates *learned* spells (walks spells_known_bitmap) with no MP/usability check, so 'usable' is slightly imprecise vs a literal 'learned'/'known'. But it is a deliberate, documented convention: this is the source list that feeds the spell picker, where usability (MP sufficiency) is then checked downstream (fd2_spell_select_input_loop). Both the existing Ghidra plate and the src comment explicitly note 'usable' is conventional. Keeping avoids rippling a marginal semantic refinement through 8 call sites + protos.h for an intentionally-conventional name.",
+  "kind": "function",
+  "home": "src/spell/spellsel.c",
+  "purpose": "Enumerate every spell a runtime character has learned by scanning its 5-byte spells_known_bitmap; optionally emit the spell ids into a caller buffer, and return the learned-spell count.",
+  "logic_summary": "pCharArray = data_fd2_battle_runtime_char_array_ptr; spell_count = 0. Outer loop byte_iter 0..4 over the 5 bytes of pCharArray[char_idx].spells_known_bitmap (struct stride 0x50, field @ +0x1A). Inner loop bit_iter 0..7: if bit set ((bitmap_byte >> bit_iter) & 1), then if out_buf != NULL store spell_id = byte_iter*8 + bit_iter at out_buf[spell_count], and increment spell_count regardless. Returns spell_count. Bitmap has 40-bit capacity but only ids 0x00..0x23 (36 spells) are real. Body tail-calls JMP 0x22bbe (Watcom shared epilogue); PUSH 0x18 prologue is the __CHK stack probe.",
+  "signature": "int __cdecl fd2_build_usable_spell_list(uint32 char_idx, uint32 out_buf)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint32",
+      "semantics": "Runtime-character index (selects pCharArray[char_idx], stride 0x50). Callers thread their own caster/char index in (caster_idx, char_idx).",
+      "verdict": "rename",
+      "proposed": "char_idx",
+      "reason": "Ghidra name 'param_1' is a generic placeholder. The disassembly (MOV EDX,[ESP+0x18]; EDX*5<<4 = *0x50 array index) confirms it is the runtime_char index; src already names it 'ci'. Canonical name char_idx matches the plate doc and caller naming. (Rename applied in Stage 2.)"
+    },
+    {
+      "name": "param_2",
+      "type": "uint32",
+      "semantics": "Output buffer pointer (as uint32) receiving the learned spell ids, one byte per spell. If 0/NULL, ids are not written and only the count is returned (used to size a buffer before allocating).",
+      "verdict": "rename",
+      "proposed": "out_buf",
+      "reason": "Ghidra name 'param_2' is a generic placeholder. Disassembly (MOV ESI,[ESP+0x1c]; TEST ESI,ESI / JZ skip-store; MOV [ESI+EBX],CL) confirms it is the optional output buffer; src already names it 'buf'. Canonical name out_buf matches the plate doc. (Rename applied in Stage 2.)"
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Count of spells the character has learned (number of set bits across the 5-byte bitmap). Independent of out_buf being NULL. Callers use it both as a list length and, when out_buf==NULL, as a has-any-spells / count probe (e.g. fd2_open_char_status_screen: 'if count != 0')."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Source comment is accurate, precise, and ASCII; it correctly documents the bitmap walk, the NULL-buffer count-only contract, the 36-of-40 spell-id note, and the compiler-injected __CHK prologue / Watcom shared-epilogue tail. No correctness or precision gap.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "7f203a70",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "8 call sites across 7 functions (verified via get_function_callers + get_xrefs_to): fd2_open_char_status_screen, fd2_player_inline_action_menu_dispatch, fd2_draw_spell_selection_list, fd2_spell_selection_menu_main, fd2_spell_select_input_loop (x2), fd2_ai_score_offensive_spell, fd2_score_spell_candidate. Two usage patterns confirmed: out_buf==NULL count probe (status screen 'if has spells', input-loop count for cursor wrap math) and out_buf!=NULL list build (draw list, commit path, AI scoring). Struct field verified: types.h spells_known_bitmap[5] @ +0x1A; Ghidra plate calls it pSpells_known_bitmap (same field, src name is canonical). Global name byte-identical between Ghidra (data_fd2_battle_runtime_char_array_ptr @ 0x53a45) and src. Ghidra plate is a detailed, consistent superset (matches src behavior), so left untouched. Name kept (see name_reason): 'usable' is a documented conventional descriptor for the picker's learned-spell source list."
+}
