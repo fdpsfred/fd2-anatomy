@@ -588,7 +588,7 @@ const uint8 data_fd2_chapter_ch26_end_scene_char_facing_table[16] = {
 };
 
 /* ----------------------------------------------------------------
- * fd2_chapter_26_end @ 0x24E80  — Chapter 26「未知的迴廊」end handler
+ * fd2_chapter_26_end @ 0x24E80  -- Chapter 26「未知的迴廊」end handler
  * (0 direct callers, dispatched via data_fd2_chapter_end_handler_table[26]).
  *
  * Copies the three 16-byte end-scene tables onto the stack, then force-
@@ -601,7 +601,7 @@ const uint8 data_fd2_chapter_ch26_end_scene_char_facing_table[16] = {
  * 0..4): the first dialog uses page (flag + 5) and the third uses page
  * (flag + 8); pages 7, 10 and 11 are fixed. Finishes by saving the runtime
  * char templates and advancing current_chapter_id by one. No char is added in
- * the handler — 機器人渥德 joins via an FDFIELD event; this handler only
+ * the handler -- 機器人渥德 joins via an FDFIELD event; this handler only
  * positions it.
  *
  * Walkthrough SOT: assets/chapters/chapter_26.md
