@@ -1,0 +1,36 @@
+{
+  "address": "0003332b",
+  "name_current": "fd2_chapter_10_init",
+  "name_final": "fd2_chapter_10_init",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention. 'chapter_10' encodes the meaningful chapter ID (chapters 01-30 are domain IDs, not Ghidra address residue). Dispatched from data_fd2_chapter_init_handler_table at index 9 (entry @0x51d95 = table base 0x51d71 + 0x24), which is chapter 10 (0-indexed table, chapter N at index N-1). Name accurately reflects purpose.",
+  "kind": "function",
+  "home": "src/field/chinit.c",
+  "purpose": "Chapter 10 init handler: re-inits battle state, pans the camera, seeds two NPC units asleep, plays one dialog page, and pans the camera to char 0.",
+  "logic_summary": "Calls fd2_init_battle_state_for_chapter(); pans via fd2_pan_cursor_and_window(0xA,0); sets runtime_char[0x32].status_sleep_flag=100 (索菲亞) and runtime_char[0x33].status_sleep_flag=100 (卡納恩三世) so both NPCs start the battle asleep (field at struct offset +0x26); plays dialog page 0 via fd2_display_dialog_scene(data_fd2_current_chapter_text,0,...); then fd2_pan_cursor_to_char(0). No cutscene, no portrait load, no char init -- party carries over from chapter 9. Leading __CHK(0x28) is the Watcom frame-size probe, not source body. In the binary the page-0 dialog + final pan are a tail-JMP into the shared chain (0x3344D -> 0x33206 -> 0x33140); src is the functionally-equivalent straight-line reconstruction.",
+  "signature": "void __cdecl fd2_chapter_10_init(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; dispatched handler invoked for side effects (battle/NPC/camera/dialog setup)."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text",
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_runtime_char_array_ptr (writes status_sleep_flag of elements 0x32 and 0x33)"
+  ],
+  "comment_original_issue": "src comment block (lines 608-646) was already accurate, precise, and non-narrative (correct field name status_sleep_flag, correct offset +0x26, correct NPC ids/names, correct tail-JMP chain, correct linked handlers). Kept as-is. The Ghidra plate was slightly stale: it used the old Hungarian field name 'bStatus_sleep_flag' and was terser; updated to align with src (current field name status_sleep_flag, added dispatch-table index, kept tail-JMP + linked-handler detail).",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Dispatched (0 direct callers); sole xref is DATA from data_fd2_chapter_init_handler_table[9] @0x51d95 (table is pointer[30] @0x51d71). Field name verified in src/include/types.h line 33: status_sleep_flag at +0x26; sprite_state at +0x02. src body matches decompile byte-for-semantics. No logic touched. chinit.c unchanged (comment kept), so only the shard is staged."
+}
