@@ -1,0 +1,74 @@
+{
+  "address": "00022cda",
+  "name_current": "fd2_cast_status_spell_via_d1b",
+  "name_final": "fd2_cast_status_inflict_spell_wrapper",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_cast_status_inflict_spell_wrapper",
+  "name_reason": "The '_via_d1b' suffix is a Ghidra address residual: d1b = 0xD1B, the low bytes of address 0x22D1B = the worker fd2_cast_status_inflict_spell this function delegates to. The naming rule forbids encoding a callee's address in the name. Proposed fd2_cast_status_inflict_spell_wrapper references the worker by its semantic name (fd2_cast_status_inflict_spell) and marks this as its MP-deduct + delegate wrapper. Mirrors the family naming and parallels the sister wrapper fd2_apply_status_effect_with_anim @ 0x22AA8 (same reset/deduct/delegate shape but delegating to the cure worker). Evidence: disasm 0x22d12 CALL 0x22d1b (target = fd2_cast_status_inflict_spell); the wrapper forwards all 5 of its params to that worker after deducting MP with params 1,2.",
+  "kind": "function",
+  "home": "src/spell/spelleff.c",
+  "purpose": "Thin wrapper for status-effect (inflict) spells: reset the AoE/fx-queue counter, deduct the caster's MP for the spell, then delegate the whole cast to the status-inflict worker fd2_cast_status_inflict_spell @ 0x22D1B.",
+  "logic_summary": "Stack check (__CHK 0x18), then: (1) data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0 (asm MOV dword [0x53ec4],0); (2) fd2_deduct_caster_mp(caster_idx, status_spell_id) using params 1 and 2 (asm PUSH [ESP+8]x2 / CALL 0x1ca89); (3) fd2_cast_status_inflict_spell(caster_idx, status_spell_id, target_count, p_target_array, status_byte_offset) forwarding all 5 params verbatim (asm PUSH [ESP+0x14]x5 / CALL 0x22d1b); explicit RET. No post-delegate animate tail of its own -- the worker handles the conditional projectile pass internally. Single basic block, cyclomatic complexity 1.",
+  "signature": "void fd2_cast_status_spell_via_d1b(int caster_idx, int status_spell_id, int target_count, int p_target_array, int status_byte_offset)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Caster unit index (runtime_char index of the spell caster). Forwarded to fd2_deduct_caster_mp and to the inflict worker. src declares this as caster_idx.",
+      "verdict": "rename",
+      "proposed": "caster_idx",
+      "reason": "Live Ghidra name is the generic param_1; src already uses the accurate caster_idx. Rename to match src (Stage 2)."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "Status spell id (sole caller fd2_cast_spell_16_dispatch_cda passes 0x16; sibling thunks pass 0x1A / 0x1B). Used as the MP-cost key for fd2_deduct_caster_mp and forwarded to the worker as its spell_id. src declares this as status_spell_id.",
+      "verdict": "rename",
+      "proposed": "status_spell_id",
+      "reason": "Live Ghidra name is the generic param_2; src already uses the accurate status_spell_id. Rename to match src (Stage 2)."
+    },
+    {
+      "name": "param_3",
+      "type": "uint",
+      "semantics": "Number of selected targets; forwarded to the worker as num_targets. src declares this as target_count.",
+      "verdict": "rename",
+      "proposed": "target_count",
+      "reason": "Live Ghidra name is the generic param_3; src already uses the accurate target_count. Rename to match src (Stage 2)."
+    },
+    {
+      "name": "caster_idx",
+      "type": "int",
+      "semantics": "Pointer (as int) to the byte array of target unit ids; forwarded verbatim to the worker as target_id_array. The live Ghidra name 'caster_idx' on this 4th formal is a mislabel -- per the sole caller this is the p_targets pointer, not a caster index. src declares this as p_target_array.",
+      "verdict": "rename",
+      "proposed": "p_target_array",
+      "reason": "Live Ghidra name caster_idx is wrong for the 4th param (it is the target-id array pointer, confirmed by caller passing target_id_array and the 5-arg forward at 0x22d12). src already uses the accurate p_target_array. Rename to match src (Stage 2)."
+    },
+    {
+      "name": "spell_id",
+      "type": "int",
+      "semantics": "Status sprite / runtime_char byte offset of the status byte the worker writes (sole caller passes 0x27 = combat_aux_block[0] for spell 0x16; siblings pass 0x26 = status_sleep_flag). The live Ghidra name 'spell_id' on this 5th formal is a mislabel -- it is a struct byte offset, not a spell id. src declares this as status_byte_offset.",
+      "verdict": "rename",
+      "proposed": "status_byte_offset",
+      "reason": "Live Ghidra name spell_id is wrong for the 5th param (it is the status-byte struct offset forwarded to the worker's sprite_id, e.g. 0x27/0x26). src already uses the accurate status_byte_offset. Rename to match src (Stage 2)."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; explicit RET after the delegate call."
+  },
+  "reads_globals": [],
+  "writes_globals": [
+    "data_fd2_battle_spell_aoe_count_and_fx_queue_idx"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Body verified three ways (plate, disasm 0x22cda..0x22d1a, decompile, and src lines 999-1025) -- all agree: reset AoE counter, deduct MP, delegate to fd2_cast_status_inflict_spell, RET. Sole caller fd2_cast_spell_16_dispatch_cda @ 0x22be1 (CALL @ 0x22bfb / xref 0x22bfb) passes (caster_unit_id, 0x16, n_targets, target_id_array, 0x27); sibling thunks for ids 0x1A/0x1B reach this via that caller's shared tail at 0x22bf7. Worker delegate fd2_cast_status_inflict_spell @ 0x22d1b has a stable semantic name (not address-residual), so referencing it in the proposed name is safe. Comment: src block (spelleff.c lines 999-1016) is accurate, precise, ASCII, and already notes the 4th-param Ghidra mislabel and the sole caller -- left unchanged (comment_verdict=keep). The comment header line still carries the current name 'fd2_cast_status_spell_via_d1b @ 0x22CDA'; that name will be synced by Stage 2 along with the function rename (this stage does not rename or alter the symbol name in src). Ghidra plate is consistent with the refined understanding (it documents the same behavior with extra detail: CHK 0x18, 15 inst, body range, sibling thunks, dispatch-table xref, and the same param-mislabel note) and does not contradict src, so left untouched (ghidra_plate_action=none). No logic concerns: src is functionally equivalent to the decompilation/asm."
+}
