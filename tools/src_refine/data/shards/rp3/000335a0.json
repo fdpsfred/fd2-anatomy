@@ -1,0 +1,33 @@
+{
+  "address": "000335a0",
+  "name_current": "fd2_chapter_16_init",
+  "name_final": "fd2_chapter_16_init",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=chapter, descriptor=16_init). The '16' is a chapter ID (valid range 01-30, chapter 16 = 冰原之戰), a meaningful game-domain ID that must be preserved, NOT a Ghidra address residue. No address-derived suffix present. Name accurately reflects purpose (chapter 16 init handler).",
+  "kind": "function",
+  "home": "src/field/chinit.c",
+  "purpose": "Chapter 16 (冰原之戰) battle-init handler; dispatched from the per-chapter init handler table. In the binary it is a pure thunk (PUSH 0x28; JMP 0x33470) into fd2_chapter_13_init+5, so it runs the identical minimal init body.",
+  "logic_summary": "Re-inits battle state, plays a single dialog page (page 0) of the current chapter text, and pans the camera to char 0. No cutscene, no portrait load, no per-unit char init, no camera-pan-and-window prelude, no battle_anim_phase reset, no clear-facing -- chapter 16 carries the party over from the previous chapter. Physically a 10-byte thunk: PUSH 0x28 (frame-size arg consumed by the shared CALL __CHK at 0x33470) then JMP 0x33470 (= fd2_chapter_13_init + 5), sharing the entire chapter-13 tail which itself tail-JMPs through the chapters-06/10/13/14 page-0 dialog chain (0x3344D -> 0x33206 -> 0x33140). The straight-line C is the functionally-equivalent Layer-2 reconstruction, byte-for-byte identical body to fd2_chapter_13_init.",
+  "signature": "void __cdecl fd2_chapter_16_init(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Pure side-effect handler (battle-state init + dialog scene + camera pan)."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Comment block was accurate and complete (correct thunk description, verified linked handlers End @ 0x23A0A / Post-action @ 0x2084A, verified shared body @ 0x33470 = chapter_13_init+5). Only issue: it used non-ASCII em-dashes (U+2014 '—') in 6 places, violating the src/tests ASCII-only rule (Chinese proper names 冰原之戰 / 蜜蒂 are allowed to stay).",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified: PUSH 0x28; JMP 0x00033470 (bytes 68 28 00 00 00 e9 c6 fe ff ff). 0x33470 is inside fd2_chapter_13_init (0x3346b-0x3347b), i.e. chapter_13_init+5 = its CALL __CHK site; shared alt-entry also used by fd2_chapter_19_20_21_init_shared. Decompile of 0x3346b and 0x335a0 confirm identical inlined body. Dispatched: 0 direct callers; sole xref From 00051dad [DATA] (chapter init handler table: bytes at 0x51dad = a0 35 03 00 = 0x000335a0 self, then aa 35 03 00 = 0x000335aa = fd2_chapter_17_init). Linked handlers confirmed live: fd2_chapter_16_end @ 0x23a0a, fd2_chapter_16_post_action @ 0x2084a (decompiled: char[0x41] 蜜蒂 dead -> lose flag). Ghidra plate is semantically consistent with src (not contradictory/outdated/blank) so left untouched; plate's em-dash/arrow chars are Ghidra-plate convention, outside the src ASCII rule. Edits confined to my own comment block (lines 924-964); other functions' em-dashes left for their own refine. clobber check passed (diff --cached only shows my 6 em-dash->'--' lines)."
+}
