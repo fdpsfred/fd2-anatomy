@@ -1,0 +1,78 @@
+{
+  "address": "00031019",
+  "name_current": "fd2_render_promote_candidates_grid",
+  "name_final": "fd2_render_promote_candidates_grid",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Convention-compliant fd2_<domain>_<descriptor> (gfx render). Accurately reflects body: renders the class-PROMOTION candidate grid (portrait + char name + current job + promotion arrow + target job). No Ghidra address residue. Caller fd2_promote_member_select_loop @ 0x311DC and use of fd2_get_class_promotion_data_entry + FDTXT sprite 0x251 (promotion icon) confirm the promotion (not revive) semantics already captured in the plate.",
+  "kind": "function",
+  "home": "ROOT/src/gfx/rndmenu.c",
+  "purpose": "Render the class-promotion candidate grid: up to 3 visible characters in a single column, each row showing portrait + char name + current job + a promotion arrow icon + the target post-promotion job.",
+  "logic_summary": "Computes blink_frame from the chapter-intro dialog subframe counter (0,1,2,3 -> 0,1,2,1). Caps draw_count at min(candidate_count,3). For each visible row iter: char_idx = candidate_idx_list[scroll_offset+iter]; blits a 24x24 blink-variant portrait via fd2_tile_blit_24x24_with_dialog_bg_fill at dst=(iter*0x1A+0x75)*0x140+surface_offset+0x0E; picks border_glyph 0xC9 if (scroll_offset+iter)==highlight_idx else 0xCD; then emits four FDTXT labels at text_col=surface_offset+(iter*0x1A+0x79)*0x140 via fd2_display_dialog_scene -- char name (page char_id+1, +0x28), current job (page job_id+0x96, +0x82), promotion icon (page 0x251, +0xAF), and target job (page promo_entry[0]+0x96, +0xEF) where promo_entry=fd2_get_class_promotion_data_entry(promotion_target_list[scroll_offset+iter]). Reads runtime_char fields char_id/job_id. No writes to globals.",
+  "signature": "void __cdecl fd2_render_promote_candidates_grid(uint32 candidate_count, uint32 surface_offset, uint32 highlight_idx, uint8 *candidate_idx_list, uint8 *promotion_target_list)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "candidate_count -- number of promotion candidates; draw loop is capped to min(this,3) visible rows. Caller passes char_count (param_4 of fd2_promote_member_select_loop).",
+      "verdict": "rename",
+      "proposed": "candidate_count",
+      "reason": "Generic Ghidra placeholder param_1; body uses it only as the draw-count cap (min(.,3)). src already names it candidate_count. No residue but uninformative -> rename in Stage 2 to match src declaration."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "surface_offset -- base byte offset of the compose surface (either data_fd2_ui_slide_composed_target_buf_ptr during initial draw, or 0xA0000 VGA directly on cursor moves). Added to per-row pixel offsets for portrait and text destinations.",
+      "verdict": "rename",
+      "proposed": "surface_offset",
+      "reason": "Generic Ghidra placeholder param_2; body uses it as the render-surface base address for all blit/text destinations. src names it surface_offset. Rename in Stage 2."
+    },
+    {
+      "name": "param_3",
+      "type": "uint",
+      "semantics": "highlight_idx -- the selected cursor index (data_fd2_ui_menu_cursor_idx); the row whose viewport slot index (scroll_offset+iter) equals this gets the 0xC9 selection border.",
+      "verdict": "rename",
+      "proposed": "highlight_idx",
+      "reason": "Generic Ghidra placeholder param_3; body compares (scroll_offset+iter)==this to pick the highlighted border glyph. src names it highlight_idx. Rename in Stage 2."
+    },
+    {
+      "name": "char_count",
+      "type": "int",
+      "semantics": "candidate_idx_list -- base pointer of the byte array of candidate character indices; body reads candidate_idx_list[scroll_offset+iter] to get char_idx. Caller passes char_list_ptr (param_5).",
+      "verdict": "rename",
+      "proposed": "candidate_idx_list",
+      "reason": "Live Ghidra name char_count is semantically WRONG: ordinal-3 is used as a base pointer indexed by (scroll_offset+iter) to fetch char_idx, i.e. the candidate index list, not a count. Type should also be a byte pointer (src: uint8*). src names it candidate_idx_list. Rename in Stage 2 (Ghidra name + type)."
+    },
+    {
+      "name": "surface",
+      "type": "int",
+      "semantics": "promotion_target_list -- base pointer of the parallel byte array of promotion-target class ids; body reads promotion_target_list[scroll_offset+iter] and feeds it to fd2_get_class_promotion_data_entry to obtain the target-job label page. Caller passes price_aux_list_ptr (param_6).",
+      "verdict": "rename",
+      "proposed": "promotion_target_list",
+      "reason": "Live Ghidra name surface is semantically WRONG: ordinal-4 is the promotion-target class list base pointer (indexed and passed to fd2_get_class_promotion_data_entry), not the render surface (that is param_2). src names it promotion_target_list. Rename in Stage 2 (Ghidra name + type to uint8*)."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; renders directly into the surface at surface_offset."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_intro_dialog_subframe_anim_counter @ 0x54153 (blink-frame cycler)",
+    "data_fd2_battle_runtime_char_array_ptr @ 0x53A45 (runtime_char array; reads char_id/job_id)",
+    "data_fd2_ui_menu_scroll_offset @ 0x5412F (viewport top index)",
+    "data_fd2_portrait_sprite_cache @ 0x53A61 (24x24 portrait source + offset table)",
+    "data_fd2_all_game_text_ptr @ 0x53A7D (FDTXT.DAT base)"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment block (rndmenu.c lines 818-857) is already accurate and precise: correct blink mapping (0,1,2,3->0,1,2,1), draw cap min(.,3), per-row layout, four FDTXT label pages/positions, promo_entry[0] target-job derivation, and the EAX-tracking-decompiler caveat verified against disassembly. comment_verdict=keep, no src edit. Ghidra plate (verbose, includes historical 'previously misnamed fd2_render_revive_members_grid' note and asm-verification detail) is consistent with refined understanding -> ghidra_plate_action=none. Function name keep. Two live-Ghidra param names are genuinely misleading and recorded for Stage 2 rename: ordinal-3 'char_count' is actually the candidate index-list pointer; ordinal-4 'surface' is actually the promotion-target class-list pointer (both also need byte-pointer types). param_1/2/3 are generic placeholders to be renamed to candidate_count/surface_offset/highlight_idx. No logic concerns found; body matches caller-supplied semantics exactly."
+}
