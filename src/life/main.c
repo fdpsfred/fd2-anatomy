@@ -800,8 +800,8 @@ uint32 data_fd2_graphics_chapter_ambient_palette_anim_tick_latch;
  * startup and then handed to every AIL sequence call as an opaque 4-byte
  * handle. Every access is a full 32-bit dword (the writer stores EAX, every
  * reader does PUSH dword ptr [0x53ED0]), so the slot is a 4-byte value;
- * kept uint32 to match the handle width (the byte_data size hint was wrong --
- * caller width is dword, not byte).
+ * declared void * to match the opaque handle width (the byte_data size hint
+ * was wrong -- caller width is dword, not byte).
  * Writer:
  *   main @ 0x25C26  MOV [0x53ED0],EAX
  *     handle = AIL_allocate_sequence_handle(data_fd2_audio_bgm_driver_handle),
