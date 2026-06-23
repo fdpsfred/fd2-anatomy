@@ -605,24 +605,28 @@ uint8 data_fd2_ui_game_speed_flag;
 
 /*
  * data_fd2_resource_portrait_cache_alloc_offset @ 0x53BE3 -- per-chapter count of
- * field-map portrait/character records, taken from the third byte of the loaded
- * FDFIELD.DAT tile-event table (tile_event_data_table[2]). Stored as a 32-bit
- * scalar (uint32), matching its two siblings in the same load block
- * data_fd2_resource_portrait_cache_count @ 0x53BDF and
- * data_fd2_resource_portrait_cache_total_size @ 0x53BE7. Both writers widen a
- * zero-extended byte into the full dword slot:
+ * field-character spawn records (the chapter's NPC/enemy definitions). Taken from
+ * the third byte of the loaded FDFIELD.DAT tile-event table (tile_event_data_table[2]).
+ * Despite the legacy name, this is NOT the portrait sprite cache size: the actual
+ * portrait-cache fill counter is the separate sibling
+ * data_fd2_resource_portrait_cache_count @ 0x53BDF (driven by fd2_load_portrait_to_cache).
+ * Stored as a 32-bit scalar (uint32). Both writers widen a zero-extended byte into
+ * the full dword slot:
  *   fd2_load_chapter_battle_data @ 0x10991  MOVZX EAX,byte ptr [EAX+2]; MOV [0x53BE3],EAX
  *   fd2_load_save_and_init_engine @ 0x10291 (same MOVZX byte -> MOV dword) i.e.
  *   data_fd2_resource_portrait_cache_alloc_offset = (uint32)tile_event_data_table[2];
- * so the value is an unsigned record count. It is consumed at 32-bit width as both
- * an index base and a loop bound: fd2_load_chapter_battle_data @ 0x10A5B does
- *   IMUL EAX,dword ptr [0x53BE3],0x6      (record index * 6-byte position stride)
- * to seed the field-position pointer (chapter_portrait_load_buffer + offset*6 + 2),
- * and fd2_load_chapter_portraits_and_dump_tmp @ 0x10BCC uses it as the record-scan
- * loop count (entries of stride 0x1A, race byte at +0x98). Every access is a full
- * dword load/store of a small positive count. Zero-initialized in the image; the
- * first use on every path is the load-time write, so this is a zero-init (BSS)
- * scalar.
+ * so the value is an unsigned record count. It is consumed at 32-bit width in two
+ * dual roles:
+ *   - As a loop bound: fd2_load_chapter_portraits_and_dump_tmp @ 0x10BCC scans the
+ *     tile-event records (stride 0x1A, race byte at +0x98) for indices 0..count and
+ *     spawns each matching-race entry via fd2_init_runtime_char_for_battle.
+ *   - As a position-table index base: fd2_load_chapter_battle_data @ 0x10A5B does
+ *     IMUL EAX,dword ptr [0x53BE3],0x6 to seed the field-position pointer
+ *     (chapter_portrait_load_buffer + count*6 + 2); player-party positions begin
+ *     after these N field-character position records.
+ * Every access is a full dword load/store of a small positive count. Zero-initialized
+ * in the image; the first use on every path is the load-time write, so this is a
+ * zero-init (BSS) scalar.
  */
 uint32 data_fd2_resource_portrait_cache_alloc_offset;
 
