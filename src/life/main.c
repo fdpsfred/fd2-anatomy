@@ -975,9 +975,14 @@ uint8 data_fd2_audio_sfx_driver_available_flag;
 uint8 data_fd2_ui_terrain_hud_user_enabled = 1;
 
 /*
- * data_fd2_ui_play_active_flag @ 0x51AAC -- "gameplay loop active" gate. uint8
- * boolean; ships set (image value 1). Cleared around chapter init/end + fanfare
- * transitions in main / fd2_main_menu_continue_dispatcher and re-set after.
+ * data_fd2_ui_play_active_flag @ 0x51AAC -- "gameplay active" gate. uint8
+ * boolean; ships set (image value 1). Sole reader is the terrain-info HUD
+ * panel render in fd2_render_terrain_info_hud_panel (gfx/rndstat.c): the
+ * panel is suppressed while this flag is 0. Cleared (0) then re-set (1) around
+ * any transition where that HUD must not draw -- the player-turn -> enemy-turn
+ * cycle (fd2_check_all_player_acted_or_asleep / fd2_field_command_menu_loop),
+ * chapter init/end + clear fanfare here in main, and the chapter
+ * transition / save-load paths in fd2_main_menu_continue_dispatcher.
  */
 uint8 data_fd2_ui_play_active_flag = 1;
 
