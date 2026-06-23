@@ -1,0 +1,40 @@
+{
+  "address": "0x00036088",
+  "name_current": "fd2_chapter_event_handler_53__unref_dialog_with_state",
+  "name_final": "fd2_chapter_event_handler_53__unref_dialog_with_state",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Convention-compliant game function name (fd2_<domain>_<descriptor>). '_53' is the per-event dispatch-table index 0x53 (entry @ 0x51CDD in table @ 0x51B91), a legitimate domain ID, NOT address residue. '__unref' is accurate: 0 direct callers, referenced only by the dispatch table (xref solely from 0x51CDD [DATA]); no chapter FDFIELD turn-event/tile-step hook reaches this slot. 'dialog_with_state' is the shared category descriptor used identically by its twin handler_35 (fd2_chapter_event_handler_35__unref_dialog_with_state); renaming only this one would break that family consistency, and the handler genuinely is a dialog handler. No hex address residue anywhere in the name.",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Chapter event dispatch handler for table index 0x53: show inline dialog page 8, then mass-kill every runtime_char slot from index 0x14 to the end (cinematic terminator-style mass kill).",
+  "logic_summary": "Watcom __CHK(0x28) stack-probe prologue, then a single 9-arg cdecl call to fd2_display_dialog_scene(data_fd2_current_chapter_text, page=8, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1) followed by fd2_kill_runtime_chars_from_index_to_end(0x14). In the binary the kill call is reached by 'PUSH 0x14; JMP 0x35354', borrowing the Class-3 shared tail (CALL fd2_kill_runtime_chars_from_index_to_end; ADD ESP,4; RET) hosted inside handler_35 @ 0x35354 as a code-size optimisation; the functionally-exact source is just the two sequential calls. Differs from handler_35 @ 0x35321 only in dialog page (8 vs 5) and kill-from index (0x14 vs 0x12); all other dialog args are byte-identical. The event_arg parameter is ignored.",
+  "signature": "void __cdecl fd2_chapter_event_handler_53__unref_dialog_with_state(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Event argument supplied by the chapter-event dispatcher per the table's 1-arg cdecl calling convention. This handler does not read it (cast to void).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate generic name for the dispatcher-supplied event argument; not param_1, not misleading, no address residue. The arg being unused does not warrant renaming since the dispatch-table contract defines the parameter."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": ["data_fd2_current_chapter_text"],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified all plate/comment claims against ground truth: disasm @ 0x36088 shows PUSH 0x28/CALL __CHK 0x36cd7, the 9 dialog pushes (page 0x8, ptr [0x53a79]), CALL fd2_display_dialog_scene @ 0x15f84, ADD ESP,0x24, PUSH 0x14, JMP 0x35354. 0x35354 tail = CALL 0x35bba (fd2_kill_runtime_chars_from_index_to_end) + ADD ESP,4 + RET, hosted in handler_35 @ 0x35321. handler_35 disasm confirms page=5/index=0x12 (the documented 8-vs-5 / 0x14-vs-0x12 delta). 0x53a79 = data_fd2_current_chapter_text (confirmed via symbol table). Dispatch-table entry @ 0x51CDD holds LE 0x00036088 (this fn) followed by 0x000360C0 (handler_54), confirming idx 0x53 slot. Home-file comment block already precise/accurate -> keep; Ghidra plate consistent (no contradiction) -> no plate action. No logic touched."
+}
