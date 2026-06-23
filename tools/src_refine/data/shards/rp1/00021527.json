@@ -1,0 +1,56 @@
+{
+  "address": "00021527",
+  "name_current": "fd2_cast_spell_0a_basic",
+  "name_final": "fd2_cast_spell_0a_basic",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>. '0a' is spell_id 0xA (valid spell-id domain range 00h-23h, meaningful ID to preserve, not address residue since fn is at 0x21527). '_basic' descriptor correctly distinguishes the minimal earthquake-family entry from siblings fd2_cast_spell_0b_with_prefx / fd2_cast_spell_0c_with_prefx, which add pre-cast SFX + rising effect. No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/spell/spell.c",
+  "purpose": "Spell dispatch-table handler for spell id 0xA (earthquake family, minimal path): a thin wrapper that delegates to the earthquake worker with no pre-cast SFX or animation.",
+  "logic_summary": "Single delegate call: fd2_cast_earthquake_spell_with_screen_shake(caster, 0xa, n_tgt, tgt_arr). Passes its spell-id literal 0xA hardcoded; no other logic. Registered at index 0xA (offset 0x28) of the spell dispatch table @ 0x51D01. In the original binary it also serves as the shared-tail anchor that siblings 0xB/0xC JMP into after pushing their own spell_id; in the decompiled source the three are separate full wrappers (functionally equivalent). The __CHK(0x14,...) seen in the Ghidra decomp is the Watcom stack-probe prologue artifact, not game logic.",
+  "signature": "void fd2_cast_spell_0a_basic(int caster, int n_tgt, uint8 *tgt_arr)",
+  "params": [
+    {
+      "name": "caster",
+      "type": "int",
+      "semantics": "Caster unit id; passed through unchanged to the earthquake worker (arg1).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear, accurate, consistent with sibling wrappers in spell.c; no address residue."
+    },
+    {
+      "name": "n_tgt",
+      "type": "int",
+      "semantics": "Number of targets; passed through to the worker (arg3 = num_targets).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear abbreviation for number-of-targets, consistent with rest of file; no address residue."
+    },
+    {
+      "name": "tgt_arr",
+      "type": "uint8 *",
+      "semantics": "Pointer to target unit-id array; passed through to the worker (arg4 = target_id_array).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear, matches worker's target_id_array semantics and sibling naming; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value (declared void in src). The Ghidra int return is an artifact of the __CHK stack-probe wrapper; the real worker is void and the result is unused."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Thin dispatch-table wrapper, comment is the shared family header '=== Earthquake family (id 0xA-0xC) ===' plus the top-of-file pattern table, both accurate. Ghidra plate is very detailed and fully consistent with src understanding (no contradiction), so plate left unchanged. Worker name fd2_cast_earthquake_spell_with_screen_shake matches between Ghidra and src/spell/spellcin.c. Dispatch table @ 0x51D01 entry idx 0xA = 0x21527 confirmed via read_memory. Siblings JMP shared-tail @ 0x2153B confirmed via xrefs (fd2_cast_spell_0b_with_prefx @0x21895, fd2_cast_spell_0c_with_prefx @0x21ad4)."
+}
