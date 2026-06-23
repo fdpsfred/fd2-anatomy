@@ -1,0 +1,56 @@
+{
+  "address": "00021396",
+  "name_current": "fd2_spell_handler_id_4_via_full_screen_flash",
+  "name_final": "fd2_spell_handler_id_4_via_full_screen_flash",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor> form: domain=spell, descriptor=handler_id_4_via_full_screen_flash. The '4'/'id_4' is the spell ID (valid 00h-23h domain ID, registered at dispatch table 0x51D01 entry index 4 per xref 0x51D11=0x51D01+0x10) and MUST be preserved, not an address residue (self addr 0x21396 has no '4' suffix relation). 'full_screen_flash' matches the worker fd2_execute_offensive_full_screen_flash_spell @ 0x213B7 and distinguishes this animation variant from the blink-overlay family (id 0-3,8). Name accurately reflects purpose and internal logic.",
+  "kind": "function",
+  "home": "src/spell/spell.c",
+  "purpose": "Spell dispatch thunk for spell_id=4: forwards the cast to the full-screen-flash offensive spell worker.",
+  "logic_summary": "Watcom stack-probe preamble __CHK(0x14), then tail-calls fd2_execute_offensive_full_screen_flash_spell(caster, 4, n_tgt, tgt_arr) with the spell_id literal 4 hardcoded. No branching (cyclomatic complexity 1). In the original binary this is the shared-tail anchor for sibling thunks id 5/6/7, which JMP into its tail at 0x213AA after pushing their own spell_id; the Layer-2 rebuild emits each handler as a separate equivalent C function (functional equivalence, not byte-exact codegen).",
+  "signature": "void fd2_spell_handler_id_4_via_full_screen_flash(int caster, int n_tgt, uint8 *tgt_arr)",
+  "params": [
+    {
+      "name": "caster",
+      "type": "int",
+      "semantics": "Caster unit id; passed straight through to the worker as arg 0.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear, no address residue, and consistent with the entire spell.c handler family. Ghidra's longer alias 'caster_unit_id' is not needed; 'caster' is unambiguous in context."
+    },
+    {
+      "name": "n_tgt",
+      "type": "int",
+      "semantics": "Number of targets; forwarded to the worker as the num_targets arg.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Concise and accurate; consistent across all sibling handlers in spell.c. No address residue."
+    },
+    {
+      "name": "tgt_arr",
+      "type": "uint8 *",
+      "semantics": "Pointer to the target unit-id array (byte[]); cast to int and forwarded to the worker.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the target id array; consistent with the family. No address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; pure dispatch forwarder."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Clean dispatch thunk; logic verified equivalent (no logic change made). src comment is the file header + section banner '/* === Full screen flash family (id 4-7) === */' which is accurate and concise, so comment kept. Ghidra plate is a detailed superset documenting the binary shared-tail/alt-entry construct and does not contradict src understanding, so plate left untouched. No src edit was needed; only the shard is staged for commit."
+}
