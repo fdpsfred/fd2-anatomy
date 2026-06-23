@@ -1795,12 +1795,28 @@ void fd2_chapter_30_init(void)
 
 /* data_fd2_battle_anim_phase @ 0x51A83  (.object2, dword)
  *
- * Battle/cutscene animation-phase flag. A single 32-bit scalar that
- * many engine paths (chapter init/end handlers, AI turn logic, menu
- * and dialog loops, spell effects) toggle between 0 and 1 to gate
- * cursor-overlay animation. Cursor/paint readers test it via
- * "CMP dword ptr [0x51A83], 0" and the dedicated setter does
- * "MOV dword ptr [0x51A83], 1"; all accesses are full dword, unsigned
- * (only compared == 0 / assigned 0 or 1). The static image value is 1.
+ * Battle/field cursor-overlay mode selector. A single 32-bit scalar
+ * (unsigned, full-dword accesses) that selects which cursor highlight /
+ * range-indicator pattern fd2_paint_cursor_overlay_pattern draws, and
+ * gates cursor-redraw + animation pulses. Observed values 0..6 across
+ * all reference sites (writers assign 0/1/6 directly, others store a
+ * computed value; readers compare against 0,1,2,3,4,5,6):
+ *   0 = idle, no overlay -- cursor steppers skip the immediate composite
+ *       redraw (the main loop's next tick repaints); paint_cursor draws
+ *       nothing. Set during cutscenes / dialog / phase transitions.
+ *   1 = plain cursor box (sprite 0); normal active-turn cursor.
+ *   2 = alternate single cursor sprite (sprite 1).
+ *   3 = manhattan-range-1 ring overlay (5 sprites).
+ *   4 = manhattan-range-2 area overlay (13 sprites).
+ *   5 = manhattan-range-3 area overlay (21 sprites).
+ *   6 = clear cursor flag from tile map; also a no-pulse sentinel in
+ *       fd2_pan_cursor_to_tile_animated (skips the per-step wait).
+ * In fd2_wait_for_action_target_input the value is read as a range hint:
+ * (phase > 1 ? phase - 1 : phase) feeds the manhattan scan radius, so the
+ * range-ring phases 3/4/5 map to scan radius 2/3/4. Widely written by
+ * chapter init/end handlers, AI turn logic, menu/dialog loops, and spell
+ * effects (canonical 0-then-1 envelope around fd2_run_full_turn_cycle);
+ * fd2_set_battle_anim_phase_to_1 is the dedicated "= 1" setter. The
+ * static image value is 1.
  */
 uint32 data_fd2_battle_anim_phase = 1;
