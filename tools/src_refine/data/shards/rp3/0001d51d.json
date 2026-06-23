@@ -1,0 +1,46 @@
+{
+  "address": "0001d51d",
+  "name_current": "fd2_spell_select_input_loop",
+  "name_final": "fd2_spell_select_input_loop",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain 'spell', descriptor 'select_input_loop'). Accurately reflects body: one frame of battle spell-picker selection input, called repeatedly in a loop by the single caller fd2_spell_selection_menu_main until it returns non-zero. No Ghidra address residue; the scancode constants (0x48/0x50/0x4B/0x4D/0x1C/0x39/0x01) and the +5 MP-cost offset are semantic, not address-derived suffixes.",
+  "kind": "function",
+  "home": "src/spell/spellsel.c",
+  "purpose": "Process one frame of in-battle spell-picker selection input: redraw the list with the cursor highlighted, wait for a key, then move the cursor / commit / cancel based on the scancode.",
+  "logic_summary": "Redraws the spell list via fd2_draw_spell_selection_list(caster_idx, cursor, 0xA0000) and gets the learned-spell count via fd2_build_usable_spell_list(caster_idx, NULL). Waits for a key with fd2_wait_for_input_dialog_with_blink(0) and dispatches on the low byte (scancode): 0x48 Up = cursor-- or wrap to count-1; 0x50 Down = cursor++ or wrap to 0; 0x4B Left = cursor-=4 when cursor>=4 (else no move); 0x4D Right = cursor+=4 when cursor<count-4 (else no move); 0x1C/0x39 Enter/Space = rebuild full id list, read picked spell's MP cost (spell record +5) and return 1 if cost <= caster mp_current (commit), else stay; 0x01 Esc = return -1; any other key = return 0. All cursor moves play the UI move SFX (handle 0) and the no-move/wrap branches fall through to the shared return 0. The cursor is the shared global data_fd2_ui_menu_cursor_idx.",
+  "signature": "int fd2_spell_select_input_loop(uint32 caster_idx)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint32",
+      "semantics": "Index of the casting character into data_fd2_battle_runtime_char_array_ptr (stride 0x50). Passed straight through to fd2_draw_spell_selection_list and fd2_build_usable_spell_list, and used as pCharArray[caster_idx].mp_current on the commit branch.",
+      "verdict": "rename",
+      "proposed": "caster_idx",
+      "reason": "Live Ghidra param is the generic placeholder param_1 (needs_rename). Body uses it solely as the runtime-char index of the spell caster; src already declares it caster_idx. Rename param_1 -> caster_idx in Stage 2 (address-free, matches actual use)."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "1 = commit the selection at data_fd2_ui_menu_cursor_idx (Enter/Space with sufficient MP); 0 = stay in the loop (cursor moved, no-move/wrap branch, insufficient MP, or an unmapped key); -1 = cancel the menu (Esc). The decompiler shows the Esc path as return 0xffffffff, which is -1 for the signed int return."
+  },
+  "reads_globals": [
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_audio_fdother_sfx_bank_buf_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_ui_menu_cursor_idx"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decompile matches src logic exactly. The src comment block (spellsel.c lines 182-214) is already concise, accurate, ASCII, and consistent with the Ghidra plate (which is the same dispatch table in Traditional Chinese, more verbose but not contradictory/stale), so no src edit and no plate edit were performed -- only the shard is committed. The leading __CHK(0x28,...) in the decompile is the Watcom compiler-emitted stack-probe intrinsic, correctly omitted from src; the body's tail JMP 0x16f04 is Watcom's shared epilogue. The decompiler's three 'in_stack_*' phantom vars are __CHK artifacts, not real params (function is cdecl, 1 stack param). Globals confirmed via decompile fixup comments: 0x3c57=data_fd2_ui_menu_cursor_idx (0x53C57), 0x3a45=data_fd2_battle_runtime_char_array_ptr, 0x3eec=data_fd2_audio_fdother_sfx_bank_buf_ptr (0x53EEC). Single caller fd2_spell_selection_menu_main @ 0x1cff0 (xref from 0x1d0cf)."
+}
