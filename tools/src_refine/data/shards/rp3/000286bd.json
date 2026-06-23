@@ -1,0 +1,82 @@
+{
+  "address": "000286bd",
+  "name_current": "fd2_interpolate_palette_range_toward_color",
+  "name_final": "fd2_interpolate_palette_range_toward_color",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (domain=palette/graphics). 'interpolate_palette_range_toward_color' accurately describes the body: per-index linear interpolation of a contiguous VGA-palette range between the stored base palette and a target (R,G,B). No Ghidra address residue (no hex suffix). Verified against disasm at 0x286bd and both callers.",
+  "kind": "function",
+  "home": "src/gfx/palette.c",
+  "purpose": "Linearly interpolate a contiguous VGA palette range [start_idx, end_idx) between the stored base palette (data_fd2_vga_palette_data_ptr) and a target color (R,G,B), writing the blended result straight to the Mode-13h DAC.",
+  "logic_summary": "__CHK(0x1c) stack probe, then for i in [start_idx, end_idx): outp(0x3C8, i) selects the DAC index; for each component c in {R,G,B}: out_c = target_c + (base_palette[i*3+c] - target_c) * blend / 0x28 (signed IDIV by 40; SAR/IDIV idiom), then outp(0x3C9, out_c). blend==0x28 yields the original palette, blend==0 yields the flat target color. Target components are masked to 8 bits (MOVZX). cdecl, void; EBX/ESI/EDI/EBP callee-saved.",
+  "signature": "void fd2_interpolate_palette_range_toward_color(uint32 start_idx, uint32 end_idx, uint32 blend, uint32 target_r, uint32 target_g, uint32 target_b)",
+  "params": [
+    {
+      "name": "start_idx",
+      "type": "uint32",
+      "semantics": "First DAC palette index of the range (inclusive). Loop counter i in EBX; both call sites pass 0.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the inclusive lower bound; no address residue."
+    },
+    {
+      "name": "end_idx",
+      "type": "uint32",
+      "semantics": "One-past-last DAC palette index (exclusive); loop runs while i < end_idx (CMP EBX,[ESP+0x18]; JL). Both call sites pass 0xFF.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the exclusive upper bound of the half-open range; no address residue."
+    },
+    {
+      "name": "blend",
+      "type": "uint32",
+      "semantics": "Blend weight in [0..0x28]; multiplies the (base - target) delta before signed divide by 0x28 (held in EDI). 0x28 = full base palette, 0 = flat target. Callers walk it 0x28->0 (fade toward color) and 0->0x28 (fade in from color).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the interpolation weight; no address residue."
+    },
+    {
+      "name": "target_r",
+      "type": "uint32",
+      "semantics": "Target red component (low 8 bits used, MOVZX from [ESP+0x20]); the R channel the palette blends toward. Callers pass 0x3F (red tint) and 0x38 (cyan tint).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the target red channel; no address residue."
+    },
+    {
+      "name": "target_g",
+      "type": "uint32",
+      "semantics": "Target green component (low 8 bits, MOVZX from [ESP+0x24]). Callers pass 0 (red tint) and 0x3C (cyan tint).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the target green channel; no address residue."
+    },
+    {
+      "name": "target_b",
+      "type": "uint32",
+      "semantics": "Target blue component (low 8 bits, MOVZX from [ESP+0x28]). Callers pass 0 (red tint) and 0x3F (cyan tint).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the target blue channel; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effect is writing the blended palette range to the VGA DAC (ports 0x3C8/0x3C9)."
+  },
+  "reads_globals": [
+    "data_fd2_vga_palette_data_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src/gfx/palette.c comment block (lines 257-263) and the live src signature (target_r/target_g/target_b) are already correct and match the verified disasm at 0x286bd; no src edit needed. Ghidra plate at 0x286bd is comprehensive and consistent with src (formula, boundaries, DAC writes, both callers, system=graphics); not modified. Ghidra decompiler shows scrambled local param names (start_idx/end_idx/blend mapped onto the R/G/B stack slots) -- a decompiler artifact under cdecl that does not affect the binary; the plate prototype and src signature are the authoritative naming. Verified caller call sites: fd2_play_ending_and_record_clear @ 0x1f894 passes (0,0xFF,uVar5,0x3F,0,0) [red tint] and (0,0xFF,uVar5,0x38,0x3C,0x3F) [cyan tint]; fd2_execute_summon_spell_cast @ 0x27FC9 has 3 call sites (cinematic palette blends mid-cast). Base palette pointer load is [0x00053a65] = data_fd2_vga_palette_data_ptr; range is half-open [start,end); divide by 0x28 is signed."
+}
