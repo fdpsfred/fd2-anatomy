@@ -170,13 +170,20 @@ const uint32 data_fd2_battle_view_window_max_y = 8;
  * Chapter-event handler dispatch table. Each slot is the entry address of
  * one fd2_chapter_event_handler_NN__* function (NN = the slot's 2-digit hex
  * index; all 90 names carry their own index, so the table is self-checking).
- * Indexed by an 8-bit event id taken from a 3-byte tile/drop/turn event
- * record, and the selected handler is tail-called as a single-argument cdecl
- * function: the dispatch site loads the index, PUSHes one arg (the active
- * char_idx), CALLs through the table, and cleans the arg with ADD ESP,4.
- * Hence the element type is void (*)(uint32).
+ * Indexed by an 8-bit event id and the selected handler is tail-called as a
+ * single-argument cdecl function: the dispatch site loads the index, PUSHes one
+ * arg (the active char_idx), CALLs through the table, and cleans the arg with
+ * ADD ESP,4. Hence the element type is void (*)(uint32).
  *
- * Three readers, all using the identical (*table[idx])(char_idx) form:
+ * The symbol is named for its primary battle-system role: the enemy-AI/turn
+ * loops (fd2_enemy_turn_phase_team0/1, fd2_run_full_turn_cycle, the player
+ * action menus) latch an index into the sibling scalar
+ * data_fd2_battle_ai_post_action_consequence_idx @ 0x51A8F, then on the next
+ * loop iteration -- if it is != 0xFF -- dispatch table[idx](char_idx) as the
+ * post-action consequence (counter / death / status proc after a battle move),
+ * resetting the latch to 0xFF. The same table is reused directly (no latch) by
+ * the three FDFIELD/drop event paths that load the table base with a literal
+ * [idx*4 + 0x51B91], the form Ghidra reports as the only three xrefs:
  *   fd2_handle_tile_event_interaction   @ 0x19511  (field-map event tile,
  *                                                   3-byte entry type "other")
  *   fd2_fire_chapter_turn_events_for_phase @ 0x1A85A (turn-gated chapter
