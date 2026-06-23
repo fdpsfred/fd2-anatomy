@@ -1,0 +1,77 @@
+{
+  "address": "0002dc55",
+  "name_current": "fd2_render_shop_item_grid",
+  "name_final": "fd2_render_shop_item_grid",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=render/gfx, descriptor=shop_item_grid). Name accurately reflects the function's purpose: composing the 6-item shop/equip/give item grid (name + category icon + primary stat + price) into a surface. No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/gfx/rndmenu.c",
+  "purpose": "Render the SHOP/equip/give item grid: up to 6 visible items in a 2-column x 3-row layout, each cell showing item name, category icon, primary stat (AP/DP/HP/MP) and price (full, or 75% in sell mode).",
+  "logic_summary": "Caps draw_count to <=6 (5 at scroll-end tail). For each visible iter: read item_id = item_id_array[scroll_offset+iter], look up the 23-byte item_effect_table row via fd2_get_item_effect_entry, compute column (iter%2*0x94+10) and row (iter/2*0x1A) offsets. Pick category icon from TY byte (kind<0x15 weapon->0x3B, kind<0x20 armor->0x3C, else->0x3D). Highlight border glyph 0xC9 vs 0xCD by whether scroll_offset+iter matches highlight_slot. Draw item name via fd2_display_dialog_scene (FDTXT page = item_id+0xB5). Draw primary-stat icon + 3-digit value by branch: weapon -> AP icon 0x40 / entry[+1] int16; armor -> DP icon 0x41 / entry[+5] int16; kind==0x20 & K1[+0xD]==5 -> HP icon 0x42 / entry[+0xE]; kind==0x20 & K1==0x0B -> MP icon 0x43 / entry[+0xE]; otherwise blit a '-' placeholder sprite 0x29 with no number. Finally blit coin icon 0x0F and render the 5-digit price = entry[+0x13] uint16 (signed (price*3)/4 when sell_mode_flag set).",
+  "signature": "void __cdecl fd2_render_shop_item_grid(uint32 item_count, uint8 *item_id_array, uint32 highlight_slot, int32 surface_offset, int32 sell_mode_flag)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint32",
+      "semantics": "item_count -- total number of items in item_id_array; capped to the 6-item viewport (5 at the scroll-tail).",
+      "verdict": "rename",
+      "proposed": "item_count",
+      "reason": "Live Ghidra param_1 is a decompiler auto-name. Caller passes the total item count; body uses it for the draw_count cap. src already documents/uses the name 'item_count'."
+    },
+    {
+      "name": "param_2",
+      "type": "uint8 *",
+      "semantics": "item_id_array -- base of a byte array of item IDs; indexed by scroll_offset+iter to fetch each cell's item_id.",
+      "verdict": "rename",
+      "proposed": "item_id_array",
+      "reason": "Live Ghidra param_2 is a decompiler auto-name typed as uint. It is dereferenced as a byte pointer (item_id_array[scroll_offset+iter]); src already declares it as 'uint8 *item_id_array'."
+    },
+    {
+      "name": "param_3",
+      "type": "uint32",
+      "semantics": "highlight_slot -- absolute item index that should get the highlight border glyph (0xC9 vs 0xCD).",
+      "verdict": "rename",
+      "proposed": "highlight_slot",
+      "reason": "Live Ghidra param_3 is a decompiler auto-name. Compared against scroll_offset+iter to pick the highlight glyph; callers pass data_fd2_ui_menu_cursor_idx (the cursor). src uses 'highlight_slot'."
+    },
+    {
+      "name": "item_count",
+      "type": "int32",
+      "semantics": "surface_offset -- byte offset into the destination compose surface (0xA0000 from the input loop, the slide composed-target buffer from the open-panel fn). Added into every blit/text destination.",
+      "verdict": "rename",
+      "proposed": "surface_offset",
+      "reason": "Live Ghidra 4th param is MISNAMED 'item_count' but is actually the surface base offset (added to every destination address). The real item count is param_1. Highly misleading name; src declares it 'int32 surface_offset'."
+    },
+    {
+      "name": "item_ids",
+      "type": "int32",
+      "semantics": "sell_mode_flag -- low byte tested; when nonzero the price is reduced to 75% ((price*3)/4) for the sell flow.",
+      "verdict": "rename",
+      "proposed": "sell_mode_flag",
+      "reason": "Live Ghidra 5th param is MISNAMED 'item_ids' but is actually the sell-mode flag: only its low byte is tested ((sell_mode_flag & 0xFF)) to apply the sell discount. Misleading name; src declares it 'int32 sell_mode_flag'."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; renders directly into the destination surface at surface_offset."
+  },
+  "reads_globals": [
+    "data_fd2_ui_menu_scroll_offset @ 0x5412F (top item index in the 6-item viewport)",
+    "data_fd2_all_game_text_ptr @ 0x53A7D (FDTXT.DAT base for item-name dialog scenes)",
+    "data_fd2_ui_anim_sprite_sheet_ptr @ 0x53A81 (UI sprite source for category + stat icons)",
+    "data_fd2_ui_menu_screen_sprite_atlas_buf_ptr @ 0x54147 (source of the gold-coin price icon)"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "src comment block (lines 218-257) was already precise, accurate and ASCII -- correctly documents the visible-count cap, per-item render, stat-icon branches, and the signed (price*3)/4 sell discount. No issue; kept verbatim. The Ghidra plate, however, referred to [0x54147] by a stale name 'chapter_intro_sprite_atlas' that contradicts the live symbol/src name data_fd2_ui_menu_screen_sprite_atlas_buf_ptr, and listed the callers via the old run_buy/sell/give/equip wrappers rather than the two direct callers.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "The 4th and 5th live-Ghidra param names (item_count, item_ids) are decompiler auto-names that are actively MISLEADING -- they actually mean surface_offset and sell_mode_flag respectively. The real item count is param_1 and the real item-id array is param_2. src/gfx/rndmenu.c already declares the correct names (item_count, item_id_array, highlight_slot, surface_offset, sell_mode_flag); the Stage-2 rename should align the live Ghidra signature to those. Item field offsets validated against fd2-knowledge item_entry struct (23 bytes): +0 TY/kind, +1 AP, +5 DP, +0xD K1 use-effect (0x05=HP,0x0B=MP), +0xE K2 value, +0x13 MM price. Disassembly confirms PUSH 0x54 (__CHK 0x54), MOVZX word[EBX+0x13] (zero-extended uint16 price), and the signed div-by-4 idiom (MOV/SHL/SUB for *3, then SAR;SHL;SBB;SAR 2 for /4). src comment left unchanged (no Edit needed)."
+}
