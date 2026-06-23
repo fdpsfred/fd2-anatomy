@@ -1,0 +1,64 @@
+{
+  "address": "0001f6ef",
+  "name_current": "fd2_fill_screen_rect_with_byte",
+  "name_final": "fd2_fill_screen_rect_with_byte",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>: fills a rectangle directly in the mode13h screen framebuffer with a single byte (the color). No Ghidra address residue. Descriptor accurately reflects the body (memset of color byte across a (size-1)x(size-1) square at 0xA0000 + y*320 + x).",
+  "kind": "function",
+  "home": "src/gfx/blitspr.c",
+  "purpose": "Fill a solid (size-1)x(size-1) byte square directly into the mode13h VGA framebuffer (0xA0000), no backbuffer; used to draw the per-unit colored marker squares in the tactical overview.",
+  "logic_summary": "row_ptr = 0xA0000 + y*0x140 + x. Loop row = 0 while (int)row < (int)(size-1): memset(row_ptr, color, size-1); row_ptr += 0x140 (320). Both the row count and the per-row byte count are (size-1); the loop bound is a signed compare so size 0 and size 1 paint nothing. __CHK(0x20) stack-probe prologue is compiler-generated. No backbuffer: writes straight to the primary VGA page.",
+  "signature": "void __cdecl fd2_fill_screen_rect_with_byte(uint32 x, uint32 y, uint32 color, uint32 size)",
+  "params": [
+    {
+      "name": "x",
+      "type": "uint32",
+      "semantics": "Destination screen pixel column (added directly to the framebuffer base 0xA0000 + y*320). Caller passes a per-unit/cursor world coordinate scaled by zoom and recentered (e.g. pos_x*zoom + 0xA0 - half_extent).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate (column offset into the framebuffer), no address residue."
+    },
+    {
+      "name": "y",
+      "type": "uint32",
+      "semantics": "Destination screen pixel row (scaled by 320/0x140 stride). Caller passes pos_y*zoom + 100 - half_extent.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate (row offset into the framebuffer), no address residue."
+    },
+    {
+      "name": "color",
+      "type": "uint32",
+      "semantics": "VGA palette index byte written to every pixel of the square (low byte used by memset). Caller passes team_color_base + anim_phase for unit markers, or anim_phase + 0x18 for the cursor marker.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate (the fill color/palette byte), no address residue."
+    },
+    {
+      "name": "size",
+      "type": "uint32",
+      "semantics": "Square edge length parameter; the painted square is (size-1) rows by (size-1) bytes. Caller passes zoom_level (3 or 4 depending on map height).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate (drives both the row count and per-row width as size-1), no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment block (lines 265-298) already precise/accurate/ASCII and matches decompilation (row_ptr=0xA0000+y*320+x; signed loop bound (int)row<(int)(size-1); memset width size-1; row_ptr+=320; size 0/1 paint nothing; __CHK(0x20) noted; void return; 4 cdecl params). Ghidra plate is consistent in meaning (tactical overview marker squares, player=green/enemy=red/NPC=blue), so left untouched. Param names x/y/color/size are all accurate and address-free; rename not needed. Function reads no named globals (writes the hardcoded VGA framebuffer 0xA0000); only callees are __CHK and memset. Sole caller fd2_open_tactical_overview_zoom @ 0x2000a invokes it at two sites (per-unit marker loop + cursor marker), confirming param semantics."
+}
