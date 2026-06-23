@@ -1,0 +1,58 @@
+{
+  "address": "0001cff0",
+  "name_current": "fd2_spell_selection_menu_main",
+  "name_final": "fd2_spell_selection_menu_main",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>: domain = battle in-combat spell-selection UI, descriptor = menu_main (the main modal entry, the only caller fd2_player_inline_action_menu_dispatch invokes it when the player picks 'Spell'). Name accurately reflects purpose (drive the whole spell pick + target + cast flow). No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/spell/spellsel.c",
+  "purpose": "Battle in-combat spell-selection modal main entry: slide in the spell-picker over the status screen, run the selection input loop, then resolve targets and perform the chosen spell (ordinary cast or per-spell status handler), returning whether a cast happened / target was cancelled / the menu was cancelled.",
+  "logic_summary": "Allocates 3x64000 work buffers (accumulator/snapshot/composed), snapshots the VGA frame at 0xA0000, renders the static status layout + spell list (highlight -1) into the composed buffer, plays a 12-frame slide-in. Resets the shared menu cursor to 0 and repeats fd2_spell_select_input_loop(caster_idx) until non-zero. Plays a 12-frame slide-out, restores the VGA snapshot, frees the buffers. On Esc (loop_result == -1) returns -1. Otherwise rebuilds the usable-spell id list, looks up the spell effect record, sets battle_anim_phase = pSpell[4]+2, reads aoe_kind = pSpell[3]. Three target-selection branches: (a) aoe_kind != 0 && spell_id == 0x17 (teleport-class): source-range pick then a free destination pick via wait mode 6, recording the teleport destination world coords and panning the cursor on commit; (b) aoe_kind == 0 || spell_id == 0x17 (single target): compute targets in range, wait mode 5 when none in range else 4; (c) else (AoE): compute the AoE anchor (wait mode pSpell[6]), with spell 0x1E using a line scan and all others a second AoE compute pass to resolve the final hit list. On cancel (result_or_aoe == -1) restore the cursor and return 0. On hit: composite the frame, then for spell_id < 9 || == 0x18 || > 0x1B call fd2_play_spell_cast_sequence, else (status/special spells 9..0x1B except 0x18) load status SFX, play the palette flash, invoke data_fd2_battle_spell_handler_table[spell_id](caster_idx, n_targets, target_buf), free the SFX; then collect/animate/process death drops, set battle_anim_phase = 1, return 1.",
+  "signature": "int fd2_spell_selection_menu_main(uint32 caster_idx)",
+  "params": [
+    {
+      "name": "caster_idx",
+      "type": "uint32",
+      "semantics": "Runtime character array index of the acting character (the spell caster). Caller fd2_player_inline_action_menu_dispatch passes its own char_idx. Forwarded to fd2_render_status_screen_static_layout, fd2_draw_spell_selection_list, fd2_spell_select_input_loop, fd2_build_usable_spell_list, fd2_pan_cursor_to_char, fd2_play_spell_cast_sequence, and the per-spell status handler.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the caster/acting character index used throughout; no address residue, not a generic param_N placeholder."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "1 = a cast was performed; 0 = target selection cancelled (Esc during targeting); -1 = the spell menu itself was cancelled (Esc in the list). Caller loops while 0 (re-prompt) and treats -1 as 'back to outer menu'."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr (via callees, caster lookup)",
+    "data_fd2_battle_cursor_world_x (0x53AB1)",
+    "data_fd2_battle_cursor_world_y (0x53AB5)",
+    "data_fd2_battle_tile_map_ptr (0x53A51)",
+    "data_fd2_ui_menu_cursor_idx (0x53C57)",
+    "data_fd2_ui_slide_anim_accumulator_buf_ptr (0x53C5B)",
+    "data_fd2_ui_slide_bg_snapshot_buf_ptr (0x53C5F)",
+    "data_fd2_ui_slide_composed_target_buf_ptr (0x53C63)",
+    "data_fd2_battle_spell_handler_table (0x51D01, 32-entry status-spell jump table)"
+  ],
+  "writes_globals": [
+    "data_fd2_ui_slide_anim_accumulator_buf_ptr (0x53C5B)",
+    "data_fd2_ui_slide_bg_snapshot_buf_ptr (0x53C5F)",
+    "data_fd2_ui_slide_composed_target_buf_ptr (0x53C63)",
+    "data_fd2_ui_menu_cursor_idx (0x53C57)",
+    "data_fd2_battle_anim_phase (0x51A83)",
+    "data_fd2_battle_teleport_dest_world_x (0x51CF9)",
+    "data_fd2_battle_teleport_dest_world_y (0x51CFD)"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (spellsel.c lines 282-336) is already accurate, precise, ASCII-clean, and reflects the final logic (setup/teardown, three target-selection branches, return codes, and a NOTE that the three decompiler-flagged dropped-argument CALLs are reconstructed from disassembly). No source edit needed (name keep + comment keep). Ghidra plate is the detailed verbatim version and is consistent with (does not contradict) the refined source comment, so left untouched per the 'consistent = leave plate' rule. Caller confirmed via decompile of fd2_player_inline_action_menu_dispatch @ 0x18d8c (case 1 = Spell, do/while loop, -1 -> back to outer menu). No logic/equivalence issues found."
+}
