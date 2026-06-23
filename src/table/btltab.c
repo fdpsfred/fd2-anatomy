@@ -581,8 +581,10 @@ const uint8 data_fd2_battle_summon_spell_8slot_visibility_table[7] = {
  *   = {   40,   70,  120,   80,   50,  100,   70 }
  * Sits immediately between the 7-byte visibility mask at 0x523E1 and the
  * 7-entry i32 row-multiplier table at 0x52404.
+ *
+ * const: read-only in-game (zero game-side write xrefs; the consumer only
+ * bulk-copies it out, then mutates only its stack-local copy).
  * ---------------------------------------------------------------- */
-/* Non-const for the same reason as the visibility sibling above. */
 const uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7] = {
     /* slot 0 */ 0x28, /* slot 1 */ 0x46, /* slot 2 */ 0x78, /* slot 3 */ 0x50,
     /* slot 4 */ 0x32, /* slot 5 */ 0x64, /* slot 6 */ 0x46
