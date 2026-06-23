@@ -323,12 +323,15 @@ void fd2_apply_status_effect_with_anim(int caster_idx,
 /* ----------------------------------------------------------------
  * fd2_cast_status_cure_spell @ 0x22AF6  (2 callers)
  *
- * STATUS-CURE spell worker (Antidote / De-Sleep / De-Silence family).
- * Plays the per-target impact + status-overlay-flicker animations, then
- * for each target in the byte array checks the status byte at runtime_char
- * offset `sprite_id` (e.g. 0x25=poison, 0x26=sleep, 0x27=silence): if the
- * byte is 0 the unit has no such status -> draw the miss indicator;
- * otherwise heal +10 HP via fd2_apply_hp_heal_and_award_xp, draw the heal
+ * STATUS-CURE spell worker (Antidote / De-Paralyze family). Plays the
+ * per-target impact + status-overlay-flicker animations, then for each
+ * target in the byte array checks the status byte at the raw runtime_char
+ * byte offset `sprite_id` (item effect 6 / antidote passes 0x25 = the
+ * poison byte at pStatus_flags_block[4]; effect 7 / de-paralyze passes
+ * 0x26 = bStatus_sleep_flag; sprite_id is a struct byte offset, not a
+ * fixed status enum): if the byte is 0 the unit has no such status ->
+ * draw the miss indicator; otherwise heal +10 HP via
+ * fd2_apply_hp_heal_and_award_xp, draw the heal
  * number (glyph 0x69 = 'i'), clear the status byte, and credit level_mod*4
  * pending XP (cure XP is 4x level_mod vs 2x for the AP/DP/speed buffs).
  * Closes with fd2_composite_battle_frame(0) + its own POP/RET epilogue.
