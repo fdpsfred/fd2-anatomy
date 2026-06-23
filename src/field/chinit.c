@@ -979,11 +979,11 @@ void fd2_chapter_16_init(void)
  * (char id 0x12) is NOT currently in the party, plays a single dialog
  * page (page 0), and pans the camera to char 0. There is NO cutscene,
  * NO char init, NO camera-pan-and-window prelude, NO
- * data_fd2_battle_anim_phase reset, and NO clear-facing — chapter 17
+ * data_fd2_battle_anim_phase reset, and NO clear-facing -- chapter 17
  * carries the party over from the previous chapter.
  *
  * The portrait load is gated by fd2_check_party_has_char_id(0x12): the
- * disassembly is TEST EAX,EAX; JNZ (skip the load) — so the load runs
+ * disassembly is TEST EAX,EAX; JNZ (skip the load) -- so the load runs
  * only on the return == 0 (蜜蒂 absent) branch. The TEST EAX,EAX
  * consumes the genuine return value of the CALL (not a Ghidra
  * EAX-tracking artifact).
@@ -1005,7 +1005,7 @@ void fd2_chapter_16_init(void)
  *
  * Linked handlers:
  *   End:         fd2_chapter_17_end @ 0x23B5F
- *   Post-action: fd2_chapter_17_post_action @ 0x20872 — gated lose:
+ *   Post-action: fd2_chapter_17_post_action @ 0x20872 -- gated lose:
  *     蜜蒂(char 0x12) not joined AND char[0x34] dead -> page 2 + lose.
  *
  * Walkthrough SOT: assets/chapters/chapter_17.md
