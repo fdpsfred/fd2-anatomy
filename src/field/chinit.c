@@ -1482,20 +1482,20 @@ void fd2_chapter_26_init(void)
 /* ----------------------------------------------------------------
  * fd2_chapter_27_init @ 0x33AF1  (dispatched, 0 direct callers)
  *
- * Chapter 27「命運的交會點」init handler — the GOOD/BAD ENDING fork
+ * Chapter 27「命運的交會點」init handler -- the GOOD/BAD ENDING fork
  * chapter. A cinematic prologue built around three screen-wide spell
  * visual effects: it re-inits battle state, pans the camera-and-window
  * once (target 9, 0x31), plays a cutscene (event id 0x4C) and dialog
- * page 0, then — ONLY if any party member is carrying item 100
- * (天空之鑰 / Sky Key) — plays a bonus dialog page 3. It then plays
+ * page 0, then -- ONLY if any party member is carrying item 100
+ * (天空之鑰 / Sky Key) -- plays a bonus dialog page 3. It then plays
  * dialog page 4, re-pans the camera, and runs three spell-effect beats
  * each followed by a full VGA palette reset (add 0) and a dialog page,
  * before clearing all facings and panning the camera to char 0. There
- * is NO portrait load and NO char init — chapter 27 carries the party
+ * is NO portrait load and NO char init -- chapter 27 carries the party
  * over from the previous chapter.
  *
  * The Sky-Key gate is fd2_any_char_has_item(100): the disassembly is
- * CALL; CMP EAX,-1; JZ (skip page 3) — so the bonus page plays only on
+ * CALL; CMP EAX,-1; JZ (skip page 3) -- so the bonus page plays only on
  * the return != -1 (Sky Key present) branch. The CMP EAX,-1 consumes
  * the genuine return value of the CALL (not a Ghidra EAX-tracking
  * artifact); it is the sole CALL-result consumed in this handler (the
@@ -1527,7 +1527,7 @@ void fd2_chapter_26_init(void)
  *   End:         fd2_chapter_27_end @ 0x250CC (BAD: game-over hard-lock
  *                if the party has no 天空之鑰).
  *   Post-action: fd2_chapter_22_27_28_post_action_shared @ 0x20A87
- *                (shared with ch22/28) — extra lose if char[1] dead
+ *                (shared with ch22/28) -- extra lose if char[1] dead
  *                (悠妮).
  *
  * Walkthrough SOT: assets/chapters/chapter_27.md
