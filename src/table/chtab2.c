@@ -282,25 +282,40 @@ const uint8 data_fd2_chapter_ending_credit_roll_scripted_outcome_table[20] = {
 /* ----------------------------------------------------------------
  * data_fd2_chapter_intro_portrait_pose_y_row_table @ 0x52635  (18 bytes)
  *
- * Per-(chapter-category, transition-state) target Y pixel coordinate for the
- * chapter-intro portrait pose zoom-in/zoom-out animation. Indexed flat as
- *   pose_y_row_table[chapter_meta_byte * 6 + chapter_transition_state]
+ * One member of the (X,Y) coordinate pair for the chapter-intro portrait pose
+ * zoom-in/zoom-out animation. Indexed flat as
+ *   table[chapter_meta_byte * 6 + chapter_transition_state]
  * where chapter_meta_byte (0..2) is the first byte of the chapter-intro
- * metadata entry and chapter_transition_state (0..5) is the intro variant,
- * giving a logical [3][6] grid laid out as a flat uint8[18] (stride 6).
+ * metadata entry (from fd2_get_chapter_intro_metadata_entry) and
+ * chapter_transition_state (0..5) is the intro variant, giving a logical
+ * [3][6] grid laid out as a flat uint8[18] (stride 6).
+ *
+ * NOTE: the symbol name "pose_y_row_table" is a known misnomer (inverted vs the
+ * actual blit math) and is queued for a paired rename with the companion at
+ * 0x52647. The compositor disassembly is the ground truth: this table @ 0x52635
+ * supplies the WITHIN-ROW (X/column) contribution -- it is ADDED DIRECTLY to the
+ * destination address -- while the companion @ 0x52647 supplies the ROW (Y)
+ * contribution (multiplied by the 0x1C8 working-buffer row pitch). See the
+ * 0x2D031/0x2D046 listing: MOVZX [..+0x52635] then ADD (direct), vs
+ * MOVZX [..+0x52647] then IMUL ..,0x1C8.
  *
  * Read-only; accessed as a flat uint8 (one MOVZX/byte load per lookup, no
- * element scaling). Used by 3 reader sites (no writers):
- *   fd2_render_chapter_intro_overlay     @ 0x2D031 -- adds the byte as a Y
- *       row offset (+ pose_y[off]) into the row-major working buffer when
- *       blitting the static portrait icon.
- *   fd2_chapter_transition_with_intro    @ 0x2D208 -- (pose_y[off] - 0x96) is
- *       the per-frame Y delta for the 10-frame zoom-in pose animation.
- *   fd2_run_chapter_intro_menu_main      @ 0x2E628 -- (pose_y[off] - 0x96) is
- *       the per-frame Y delta for the 11-frame zoom-out pose animation.
- * Values are screen-Y pixel coordinates (e.g. 0x9A=154, 0xDE=222), unsigned
- * (entries exceed signed-byte range). The adjacent pose_x_column_table
- * follows at 0x52647, bounding this table at 18 bytes.
+ * element scaling). Used by 5 reader sites (no writers):
+ *   fd2_render_chapter_intro_overlay     @ 0x2D031 -- adds the byte directly
+ *       (within-row/X offset) into the row-major working buffer when blitting
+ *       the static portrait icon.
+ *   fd2_chapter_transition_with_intro    @ 0x2D208 -- (v - 0x96) is the per-frame
+ *       delta (first positional arg to fd2_blit_scaled_chapter_pose) for the
+ *       10-frame zoom-in pose animation.
+ *   fd2_run_chapter_intro_menu_main      @ 0x2E628 -- (v - 0x96) per-frame delta
+ *       (first arg to fd2_blit_scaled_chapter_pose), 11-frame zoom-out anim.
+ *   fd2_run_chapter_intro_menu_typeB     @ 0x2FF26 -- same (v - 0x96) per-frame
+ *       delta, 11-frame zoom-out anim (non-shop between-chapters menu).
+ *   fd2_run_chapter_intro_menu_typeC     @ 0x3099C -- same (v - 0x96) per-frame
+ *       delta, 11-frame zoom-out anim (town-services menu).
+ * Values are unsigned screen pixel coordinates (e.g. 0x9A=154, 0xDE=222), some
+ * exceeding signed-byte range. The companion table follows at 0x52647, bounding
+ * this table at 18 bytes.
  * ---------------------------------------------------------------- */
 const uint8 data_fd2_chapter_intro_portrait_pose_y_row_table[18] = {
     29,  41,  59, 154, 182,  10,
