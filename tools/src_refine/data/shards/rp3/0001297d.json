@@ -1,0 +1,39 @@
+{
+  "address": "0001297d",
+  "name_current": "fd2_tick_chapter_palette_animation",
+  "name_final": "fd2_tick_chapter_palette_animation",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (verb 'tick' + descriptor 'chapter_palette_animation'). Accurately reflects body: per-frame tick that advances chapter palette-animation phase indices. No Ghidra address residue; the embedded constants 4 (cycle length / tick threshold) and the BDA tick word @ 0x46C are semantic, not address-derived suffixes. The umbrella term 'chapter_palette_animation' correctly covers both phases driven here (slow ambient + fast walk-anim alt).",
+  "kind": "function",
+  "home": "src/gfx/palette.c",
+  "purpose": "Per-frame palette-animation tick for chapter (field/scene) visuals: advances a fast phase index every call and a slow phase index roughly every 4 BIOS ticks.",
+  "logic_summary": "delta = (int16)BIOS_TICK_WORD - ambient_tick_latch. If delta > 4 OR delta < 0 (i.e. >=4 ticks elapsed, or the 16-bit tick word wrapped/went backwards): advance ambient_palette_anim_idx (++ , wrap 4->0) and re-latch the tick word into ambient_palette_anim_tick_latch. Then unconditionally advance walk_anim_alt_palette_idx (++ , wrap 4->0). Two independent 0..3 cycles: slow ambient cycle gated on the BIOS tick, fast walk-anim cycle advanced once per frame/call. No return value.",
+  "signature": "void fd2_tick_chapter_palette_animation(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effects only on the three module-level globals."
+  },
+  "reads_globals": [
+    "data_fd2_graphics_chapter_ambient_palette_anim_tick_latch",
+    "data_fd2_graphics_chapter_ambient_palette_anim_idx",
+    "data_fd2_graphics_chapter_walk_anim_alt_palette_idx"
+  ],
+  "writes_globals": [
+    "data_fd2_graphics_chapter_ambient_palette_anim_idx",
+    "data_fd2_graphics_chapter_ambient_palette_anim_tick_latch",
+    "data_fd2_graphics_chapter_walk_anim_alt_palette_idx"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decompile reads the BDA tick word as raw _DAT_0000046c; src abstracts the same access through the BIOS_TICK_WORD macro (consts.h: production maps to *(volatile uint16*)0x46C, FD2_REPLAY maps to (uint16)fd2_replay_tick()) -- functionally equivalent, not a logic concern. The leading __CHK(4,...) in the decompile is the Watcom compiler-emitted stack-probe/check intrinsic, correctly omitted from src. tick_latch global is declared in globals.h @ 0x53C0F and defined in src/life/main.c. Comment block (palette.c lines 214-220) already concise and accurate and consistent with the Ghidra plate, so left unchanged; no src edit performed, only the shard is committed."
+}
