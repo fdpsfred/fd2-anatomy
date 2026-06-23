@@ -211,6 +211,11 @@ void fd2_cast_spell_13_stage_c(
 
 /* === Status effect family (id 0x14-0x15) === */
 
+/* spell_id 0x14 (解毒術, cure-poison): dispatch-table entry @ 0x22A85
+ * (table[0x14] @ 0x51D51). Forwards to the shared status-cure worker with
+ * effect animation/sprite id 0x25. Shares its {push caster + call + cleanup}
+ * tail with the 0x15 sibling: that sibling jumps into this body at 0x22A9B
+ * after pushing its own sprite id 0x26 / spell id 0x15. */
 void fd2_cast_spell_14_dispatch_aa8(
     int caster, int n_tgt, uint8 *tgt_arr)
 {
