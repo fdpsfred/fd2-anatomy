@@ -1,0 +1,34 @@
+{
+  "address": "0x00052006",
+  "name_current": "data_fd2_animation_spell_overlay_blink_mask_table",
+  "name_final": "data_fd2_animation_spell_overlay_blink_mask_table",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with data_fd2_<domain>_<descriptor> convention: data_fd2_ prefix (game rodata global), 'animation' domain (animation-system table; sole reader is animator fd2_animate_spell_overlay_blink, defined in src/table/anitab.c), descriptor 'spell_overlay_blink_mask' precisely names the per-spell tint mask for the overlay-blink animation, and '_table' suffix reflects the array/table data type. No Ghidra address residue (no hex suffix equal to any address). 'blink' matches the reader name. Already accurate.",
+  "kind": "global",
+  "home": "src/table/anitab.c",
+  "purpose": "Per-spell tint-mask byte table for the 10-frame 'spell hit-mark fade' overlay animation; one tint anchor byte per spell_id, fed as the tint-mask argument of each fading 24x24 tile blit.",
+  "logic_summary": "Sole reader fd2_animate_spell_overlay_blink (@0x1CD17) copies the whole table into a 32-byte stack scratch via REP MOVSD x7 + MOVSW (= 30 bytes, @0x1CD38), then indexes it by spell_id with a zero-extended byte load (MOVZX @0x1CDE9) to obtain the per-spell tint anchor passed to fd2_tile_blit_24x24_with_tint_offset for each of the 10 fading frames. Fire spells (0x00-0x03) share 0x20; lightning (0x04-0x07,0x09-0x0D groups) share 0x08; holy 聖光彈 (0x08) uses 0xC8; later groups use 0x10. The DWORD copy granularity is a memcpy optimisation, not a 4-byte element stride.",
+  "datatype": "uint8[30] (Ghidra: byte[30])",
+  "element_semantics": "One unsigned byte per spell_id = a VGA palette tint-anchor index applied as the tint-mask argument of the fading sprite blit; spells of the same element share the same anchor (fire=0x20, lightning=0x08, holy=0xC8, etc.).",
+  "is_const": true,
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [
+    {
+      "category": "vendor_quirk",
+      "severity": "info",
+      "title": "Table extent (30) is shorter than the full spell-id index space (max 0x23=35)",
+      "description": "Spell IDs reach 0x23 (35), but the table is 30 bytes (indices 0..29) and the reader copies exactly 30 bytes into a 32-byte stack scratch. For spell_id >= 30 (sword skill 音速刃 0x1E=30 and summons 0x20-0x23) the indexed byte load reads beyond the 30 copied bytes (into the upper, uninitialised slots of the 32-byte local). This is the vendor binary's own behaviour, faithfully reproduced: the C array holds the exact 30 vendor bytes and the reader copies exactly 30 as the original does, so it is NOT a rebuild equivalence bug. It is the same buffer-larger-than-table pattern used by the sibling tables in this file (e.g. the 25-byte projectile table in a 28-byte buffer). High-ID offensive effects most likely route through other visual paths; left as-is per Layer-2 functional-equivalence goal. No fix in this stage.",
+      "evidence": "Reader @0x1CD2C: MOV ECX,7 / MOV ESI,0x52006 / REP MOVSD / MOVSW = 30 bytes into ESP[32]; index @0x1CDE9 MOVZX EAX,byte[ESP+EBP*1+4] (EBP=spell_id). Next named table data_fd2_battle_spell_bit_mask_lookup_table begins at 0x52024 (=+30). Spell list: IDs 0x00..0x23, max 35."
+    }
+  ],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "09244f96acec03b944d6ee5d94345da249e50fe3",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Only xrefs are READ + base DATA from fd2_animate_spell_overlay_blink; no writers -> const. Ghidra applied datatype already byte[30] (corrected) and an accurate PLATE comment already exists, consistent with the src block (lines 226-260) and the refined understanding -> plate left untouched. src comment block is final-conclusion style and accurate (extent, element type, boundary, copy-width proof) -> kept. No src edit was made (comment verdict keep), so the staged scope is the shard file only."
+}
