@@ -223,6 +223,11 @@ void fd2_cast_spell_14_dispatch_aa8(
         caster, 0x14, n_tgt, (int)tgt_arr, 0x25);
 }
 
+/* spell_id 0x15 (祛麻術, cure-paralysis): dispatch-table entry @ 0x22BC6
+ * (table[0x15] @ 0x51D55). Mirrors the 0x14 sibling, forwarding to the same
+ * shared status-cure worker but with effect animation/sprite id 0x26 (vs 0x14's
+ * 0x25). In the original binary this entry tail-jumps into the 0x14 body to
+ * reuse its {push caster + call worker + cleanup} tail. */
 void fd2_cast_spell_15_dispatch_aa8(
     int caster, int n_tgt, uint8 *tgt_arr)
 {
