@@ -1,0 +1,48 @@
+{
+  "address": "00035ab8",
+  "name_current": "fd2_chapter_event_handler_45__ch28_dyn_turn_event",
+  "name_final": "fd2_chapter_event_handler_45__ch28_dyn_turn_event",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor>. '_45' is dispatch idx 0x45 in the per-event handler table @ 0x51B91 (table entry @ 0x51CA5), a meaningful slot ID, not address residue (fn is at 0x35AB8). '_ch28' is chapter 28 (valid chapter ID 01-30). 'dyn_turn_event' accurately names the dynamic turn-event scheduler behavior and is consistent with sibling handlers 3e/41/43.",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Chapter-28 tile-step handler (dispatch idx 0x45): a dependency-gated dynamic turn-event scheduler that arms a follow-up turn event for the current turn once its prerequisite sentinel scene has fired.",
+  "logic_summary": "1-arg cdecl with __CHK(4) stack-frame check. Reads stepping_char_id from [ESP+0x4], indexes data_fd2_battle_runtime_char_array_ptr (stride 0x50). Fires only when all three gates hold: runtime_char[stepping_char_id].team != 0 (non-enemy: npc/player, team encoding 0=enemy 1=npc 2=player, field at +0x06) AND consumed_flags[0x11] == 0 (own slot unconsumed) AND consumed_flags[0x12] != 0 (prereq slot 0x12 already consumed by handler_44/handler_49). When triggered: store data_fd2_battle_turn_counter (8-bit load MOV DL,[0x53BEF]) as a byte into data_fd2_tile_event_data_table_ptr+9 (hook entry 2's turn byte, no +1), then set consumed_flags[0x11]=1 to consume own slot. Disassembly confirms 8-bit move; (uint8) truncation in src is exact.",
+  "signature": "void __cdecl fd2_chapter_event_handler_45__ch28_dyn_turn_event(uint32 stepping_char_id)",
+  "params": [
+    {
+      "name": "stepping_char_id",
+      "type": "uint32",
+      "semantics": "Tile-step ABI arg: index of the char that stepped the tile. Read from [ESP+0x4], used to index data_fd2_battle_runtime_char_array_ptr to test the stepping char's team. Passed by the tile-step dispatcher (fd2_handle_tile_event_interaction).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately describes the value (stepping char id); no address residue; consistent with sibling tile-step handlers 3b/3c which also name it stepping_char_id."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr (0x53A45) -- .team field at +0x06 of the indexed runtime_char",
+    "data_fd2_field_map_tile_event_consumed_flags_ptr (0x53AD5) -- bytes [0x11] (own slot) and [0x12] (prereq slot)",
+    "data_fd2_tile_event_data_table_ptr (0x53A55) -- base for the +9 hook-entry-2 turn byte store",
+    "data_fd2_battle_turn_counter (0x53BEF) -- current battle turn, read as a byte"
+  ],
+  "writes_globals": [
+    "data_fd2_tile_event_data_table_ptr (0x53A55) -- byte at +9 set to (uint8)turn_counter (arms hook entry 2)",
+    "data_fd2_field_map_tile_event_consumed_flags_ptr (0x53AD5) -- byte at [0x11] set to 1 (consume own slot)"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "64e8a09079f9a24f21985a1a766acea402b9680b",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Comment block (chevt2.c lines 932-960) is accurate, ASCII-clean, and matches verified disassembly: __CHK(4) frame, 3-gate condition (team!=0, flags[0x11]==0, flags[0x12]!=0), 8-bit turn_counter store at data_table+9, consume flags[0x11]=1. No em-dash/non-ASCII in this symbol's block (em-dashes seen elsewhere belong to other handlers; not touched per per-symbol rule). Ghidra decompiler shows struct member as bTeam; src uses .team (types.h +0x06) -- naming difference only, semantics identical, src is source of truth. Name and param both kept; rename (none needed) would be a Stage-2 concern anyway. No callers (dispatch-table-only, xref from 0x51CA5)."
+}
