@@ -1,0 +1,52 @@
+{
+  "address": "000301f4",
+  "name_current": "fd2_load_state_from_selected_slot",
+  "name_final": "fd2_load_state_from_selected_slot",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=load_state, descriptor=from_selected_slot) and accurately reflects the body: it restores live game state from the FD2.SAV slot the user picks in the slot selector. No Ghidra address residue (no hex suffix matching 0x301f4 or any data address); no domain-ID suffix to preserve. Mirror/inverse of fd2_save_current_state_to_slot @ 0x30012.",
+  "kind": "function",
+  "home": "src/save/save.c",
+  "purpose": "Restore live game state (char roster + scalar flags + portrait cache + active chapter intro metadata) from a user-selected FD2.SAV slot; the load counterpart of fd2_save_current_state_to_slot.",
+  "logic_summary": "malloc(0x59CB) then read FD2.SAV (\"rb\"): on fopen failure fill the buffer with 0xFF, else fread + fd2_save_crypt_buffer decrypt + fclose. Reset data_fd2_ui_menu_cursor_idx to 0, then do-while: call fd2_save_slot_selector_ui(pBuf,1) (mode 1 = poll-and-blink; chosen slot 0..3 left in cursor_idx, returns -1 on cancel) and always fd2_close_intro_dialog_with_slide_out after. On cancel (-1) skip the body and exit. Otherwise compute slot_base = pBuf + cursor_idx*0xA28 + 0x312B; the chapter header byte is at slot_base[0xA00]. If slot_base[0xA00]==0xFF (empty) silently re-prompt. If that chapter's per_chapter_category != 0 (not a story chapter) show error dialog text 0x1DF and re-prompt. If category==0 (loadable story slot): memmove the 0xA00-byte roster into data_fd2_shared_menu_party_roster_buffer_ptr, restore 8 scalars (current_chapter_id <- +0xA00, member_count <- +0xA01, party_total_gold u32 <- +0xA02, terrain_hud_user_enabled <- +0xA06, game_speed_flag <- +0xA07, bgm_enabled_flag <- +0xA08, sfx_enabled_flag <- +0xA09), free the old portrait sprite cache if present, reopen FDICON.B24, reset portrait_cache_count to 0 and rebuild the per-member portrait cache via fd2_load_portrait_to_cache using each roster entry's bPortrait_id (roster[i*0x50 + 7], loop bound = restored member_count), fclose, refresh chapter intro metadata via fd2_get_chapter_intro_metadata_entry(current_chapter_id), force slot_result=-1 to end the loop, then show the \"loaded\" confirmation dialog (text 0x1DE). Both the error and confirm paths run fd2_load_chapter_portrait(speaker_portrait_id[0]), fd2_display_dialog_scene, fd2_paint_portrait_to_dialog_area(0), fd2_wait_for_input_dialog_with_blink(0), fd2_close_intro_dialog_with_slide_out. After the loop free(pBuf).",
+  "signature": "void fd2_load_state_from_selected_slot(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects only: live game-state globals are overwritten and the portrait cache + chapter intro metadata are rebuilt when a loadable slot is chosen; cancel/empty/non-story selections leave state unchanged."
+  },
+  "reads_globals": [
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_chapter_per_chapter_category_table",
+    "data_fd2_shared_menu_party_roster_buffer_ptr",
+    "data_fd2_shared_menu_party_member_count",
+    "data_fd2_portrait_sprite_cache",
+    "data_fd2_chapter_current_chapter_id",
+    "data_fd2_chapter_intro_menu_speaker_portrait_id_table",
+    "data_fd2_all_game_text_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_shared_menu_party_roster_buffer_ptr",
+    "data_fd2_chapter_current_chapter_id",
+    "data_fd2_shared_menu_party_member_count",
+    "data_fd2_shared_party_total_gold",
+    "data_fd2_ui_terrain_hud_user_enabled",
+    "data_fd2_ui_game_speed_flag",
+    "data_fd2_audio_bgm_enabled_flag",
+    "data_fd2_audio_sfx_enabled_flag",
+    "data_fd2_resource_portrait_cache_count",
+    "data_fd2_chapter_intro_active_metadata_entry_ptr"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (save.c lines 272-306) already precise, correct, and ASCII-only; matches decompiled logic exactly (slot stride 0xA28, base offset 0x312B, header at +0xA00, 8 restored scalars, portrait cache rebuild via roster[i].bPortrait_id at +7, text ids 0x1DE confirm / 0x1DF error). comment_verdict=keep, no Edit needed. Ghidra plate is consistent (more verbose but no contradiction with src conclusions), so ghidra_plate_action=none. Function name correct, void/void so params=[]. Single caller: fd2_run_chapter_intro_menu_typeB @ 0x2FC85 (option 2 = load). No logic/equivalence concerns found."
+}
