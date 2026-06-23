@@ -1571,10 +1571,13 @@ void fd2_blit_sprite_with_decoded_pixels(uint32 dst, uint32 sprite_hdr,
  * so the decompiler's "return in_EAX" is a pass-through artifact. All
  * call sites discard the result, so this is a void function.
  *
- * Reached via fd2_paint_portrait_to_dialog_area when DAT_00053C67 !=
- * 0x9017 (enemy portraits / default speaker positions); the == 0x9017
- * branch instead calls the mirrored sister
- * fd2_dialog_sprite_blit_mirrored @ 0x4E8E1.
+ * The general-purpose opaque painter for every dialog/UI sprite that
+ * must overwrite its background (status panels, shop/party-roster panels,
+ * chapter-intro overlays, save-slot selector, typewriter dialog, ...). One
+ * representative caller is fd2_paint_portrait_to_dialog_area, which uses
+ * this normal (left-to-right) variant when
+ * data_fd2_dialog_active_portrait_blit_offset != 0x9017 and the mirrored
+ * sister fd2_dialog_sprite_blit_mirrored @ 0x4E8E1 when it == 0x9017.
  *
  * Args (cdecl, 3x uint32 on stack; void return):
  *   dst        -- destination base linear address (row base)
