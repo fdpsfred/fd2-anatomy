@@ -618,8 +618,11 @@ const uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7] = {
  *   00 00 00 00  f6 ff ff ff  ec ff ff ff  00 00 00 00
  *   f1 ff ff ff  fb ff ff ff  00 00 00 00
  *   = { 0, -10, -20, 0, -15, -5, 0 }
+ *
+ * const: read-only in-game (zero game-side write xrefs; the consumer only
+ * bulk-copies it out, then IMULs only its stack-local copy), same as the
+ * visibility and y-offset siblings above.
  * ---------------------------------------------------------------- */
-/* Non-const for the same reason as the visibility sibling above. */
 const int32 data_fd2_battle_summon_spell_8slot_row_multiplier_table[7] = {
     /* slot 0 */ 0, /* slot 1 */ -10, /* slot 2 */ -20, /* slot 3 */ 0,
     /* slot 4 */ -15, /* slot 5 */ -5, /* slot 6 */ 0
