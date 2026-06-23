@@ -64,7 +64,7 @@
   "issues": [],
   "processed": true,
   "committed": true,
-  "commit_hash": "",
+  "commit_hash": "cc0daa22",
   "status": "done",
   "ghidra_unreachable": false,
   "ghidra_error_detail": "",

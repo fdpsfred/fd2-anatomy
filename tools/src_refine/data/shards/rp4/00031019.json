@@ -70,7 +70,7 @@
   "issues": [],
   "processed": true,
   "committed": true,
-  "commit_hash": "",
+  "commit_hash": "984667e79c160618ed8c0452e35cf3dbd1e33e09",
   "status": "done",
   "ghidra_unreachable": false,
   "ghidra_error_detail": "",
