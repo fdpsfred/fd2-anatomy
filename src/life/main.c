@@ -1122,7 +1122,16 @@ union REGS data_fd2_input_int16_regs;
 
 /*
  * data_fd2_battle_map_width_tiles @ 0x53AC1 -- width of the current battle map in
- * tiles, read from the FDFIELD.DAT tile-map header (first 16-bit field, MOVSX)
- * and widened into this 32-bit slot. uint32; zero-init (BSS) scalar.
+ * tiles. Companion of data_fd2_battle_map_height_tiles @ 0x53AC5. Loaded at
+ * chapter\save-load time from the FDFIELD.DAT tile-map header: both writers
+ * (fd2_load_chapter_battle_data @ 0x10932 and
+ * fd2_load_save_and_init_engine @ 0x1022e) do
+ *   data_fd2_battle_map_width_tiles = (int)*(short *)_battle_tile_map;
+ * i.e. read the first 16-bit field of the decrypted tile map (MOVSX, signed) and
+ * widen it into this 32-bit slot. It is then consumed by many readers as the
+ * row-major column stride for tile-grid addressing -- e.g. the render loop indexes
+ * `((row + win_y) * data_fd2_battle_map_width_tiles + win_x) * 4` -- and as the
+ * right-edge limit for cursor clamping (`data_fd2_battle_map_width_tiles - 1`).
+ * uint32; zero-init (BSS) scalar.
  */
 uint32 data_fd2_battle_map_width_tiles;
