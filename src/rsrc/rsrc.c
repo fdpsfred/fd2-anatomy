@@ -632,26 +632,32 @@ void fd2_restore_portrait_cache_from_tmp(void)
 
 /* ----------------------------------------------------------------
  * fd2_load_chapter_party_roster @ 0x2d392  (1 caller)
+ * (name is a misnomer: this loads the chapter-intro SHOP inventory
+ *  item-id list, not a party roster -- rename pending.)
  *
- * Extract the chapter intro shop/equip menu's "available rows" byte array
- * from the cached chapter-intro metadata entry
+ * Extract the active shop tier's item-id list for the chapter-intro shop
+ * menu from the cached chapter-intro metadata entry
  * (data_fd2_chapter_intro_active_metadata_entry_ptr @ 0x54137) into the
- * caller's out_buf, stopping at the first 0xFF terminator or a
- * state-specific cap. Returns the number of bytes written.
+ * caller's out_buf, stopping at the first 0xFF empty-slot sentinel or a
+ * tier-specific cap. Returns the number of item ids written.
  *
  * Sole caller: fd2_run_chapter_intro_menu_main @ 0x2E341, which passes a
- * 12-byte stack buffer and uses the count for the shop sub-menus.
+ * 12-byte stack buffer, stores the count in menu_visible_item_count, and
+ * forwards the buffer to fd2_run_buy_item_menu as the shop item-id array.
  *
- * Layout selection by data_fd2_chapter_intro_menu_cursor_state @ 0x5412B:
+ * Shop tier (and thus which metadata sub-array to read) is selected by
+ * data_fd2_chapter_intro_menu_cursor_state @ 0x5412B; the offsets index
+ * the three shop arrays inside the chapter_intro_metadata_entry struct
+ * (see fd2_get_chapter_intro_metadata_entry: +3 bWeapons[12], +0xF
+ * bItems[8], +0x17 bMystery[8]):
  *   state == 1: cap = 0xC, source offset within metadata = 0x03 (weapons)
  *   state == 3: cap = 8,   source offset = 0x0F                  (items)
  *   else:       cap = 8,   source offset = 0x17                  (mystery)
  *
- * The metadata entry is the FDFIELD-style chapter intro record fetched by
- * fd2_get_chapter_intro_metadata_entry; bytes are item IDs with 0xFF as the
- * empty-slot sentinel. The store index (out_count) and the loop counter
- * (iter) are tracked separately to mirror the disassembly, but since 0xFF
- * only breaks (never skips), out_count == iter at every step.
+ * Bytes are item IDs with 0xFF as the empty-slot sentinel. The store index
+ * (out_count) and the loop counter (iter) are tracked separately to mirror
+ * the disassembly, but since 0xFF only breaks (never skips), out_count ==
+ * iter at every step.
  * ---------------------------------------------------------------- */
 int fd2_load_chapter_party_roster(uint8 *out_buf)
 {
