@@ -1,0 +1,68 @@
+{
+  "address": "0004e445",
+  "name_current": "fd2_blit_palette_remap_with_sprite_mask",
+  "name_final": "fd2_blit_palette_remap_with_sprite_mask",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows the file's gfx house style fd2_blit_*/fd2_*_blit_* (cf. fd2_blit_rectangle, fd2_blit_money_digit_sprite, fd2_rle_blit_sprite). Accurately reflects the behavior: in-place palette remap (dst pixel -> remap_table[dst pixel]) gated by a 1-byte-per-pixel sprite mask. No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/gfx/blitspr.c",
+  "purpose": "In-place palette-remap blit gated by a 1-byte-per-pixel sprite mask: for each non-zero mask byte, replace the underlying destination pixel with remap_table[dst_pixel].",
+  "logic_summary": "Stores sprite_mask[0] (width) into global data_fd2_graphics_sprite_mask_blit_width (0x6017B) and computes row_advance = stride - width. mask_ptr = sprite_mask + 4 bytes (skip the 2-ushort header); row_remain = sprite_mask[1] (height). Outer do/while over rows: reload col_remain from the width global; inner do/while over columns: if *mask_ptr != 0 then *dst = remap_table[*dst]; advance mask_ptr and dst, decrement col_remain. After each row dst += row_advance; decrement row_remain. The mask pointer advances continuously across all rows (never reset per row); only the column counter is reloaded each row, matching the binary's word store / word reload of 0x6017B.",
+  "signature": "void __cdecl fd2_blit_palette_remap_with_sprite_mask(byte *dst_buf, ushort *sprite_mask, int stride, int remap_table)",
+  "params": [
+    {
+      "name": "dst_buf",
+      "type": "byte *",
+      "semantics": "Destination base linear address; pixels are recolored in place. In the sole caller this is an off-screen 0x1c8-stride buffer position (large_game_state_buffer + x + y*0x1c8 + 0x8088).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, matches usage, no address residue."
+    },
+    {
+      "name": "sprite_mask",
+      "type": "ushort *",
+      "semantics": "Mask source: header = (ushort width, ushort height) followed by width*height mask bytes (1 byte/pixel). Non-zero byte selects which dst pixels are recolored. Resolved by the caller from the portrait sheet offset table.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the masked-sprite source; no address residue."
+    },
+    {
+      "name": "stride",
+      "type": "int",
+      "semantics": "Destination row stride in bytes (0x1c8 in the sole caller). row_advance = stride - width steps dst to the next row.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Standard blit stride name; accurate, no address residue."
+    },
+    {
+      "name": "remap_table",
+      "type": "int",
+      "semantics": "Base address of a 256-entry palette translation table, indexed by the existing dst pixel value (out = remap_table[dst_pixel]). Disasm confirms MOV AL,[EDI] then MOV AL,[EAX+EBP] with EBP=remap_table. Caller passes a per-spell remap table from data_fd2_tile_anim_table_base.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the palette translation table base; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; effect is the in-place recoloring of dst pixels plus the width side-effect global."
+  },
+  "reads_globals": [
+    "data_fd2_graphics_sprite_mask_blit_width (0x6017B) -- reloaded per row as the column counter"
+  ],
+  "writes_globals": [
+    "data_fd2_graphics_sprite_mask_blit_width (0x6017B) -- written once with width at entry, then reused as the per-row column-count source"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "32d8de1e31923b509b46dd64eb7f0dc0fd2f0c79",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (blitspr.c lines 350-386) is already precise, accurate and ASCII; it matches the decompilation, the disassembly (LODSW width->0x6017B; per-row MOV CX,[0x6017B]; mask byte gate; MOV AL,[EDI] / MOV AL,[EAX+EBP] / MOV [EDI],AL), and the call site -- so comment kept verbatim. Ghidra plate is consistent (same algorithm, same 0x6017B side effect, same param semantics); not contradictory, so left unchanged. Sole caller fd2_execute_aoe_spell_with_caster_portrait_radial_scatter @ 0x21bd0 is an orphan/unreachable AoE-spell effect, but the call site confirms all four parameter semantics. No logic touched. Live Ghidra param names (dst_buf, sprite_mask, stride, remap_table) all kept; any future rename handled in Stage 2."
+}
