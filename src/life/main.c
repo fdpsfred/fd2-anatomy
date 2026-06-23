@@ -1084,8 +1084,22 @@ uint32 data_fd2_all_game_text_ptr;
 
 /*
  * data_fd2_ui_anim_sprite_sheet_ptr @ 0x53A81 -- base pointer of the UI/menu
- * animation sprite sheet (FDOTHER.DAT resource index 5). uint32 address slot;
- * zero-init (BSS) pointer slot.
+ * animation sprite sheet (FDOTHER.DAT resource index 5). Holds the malloc'd
+ * resource buffer returned by fd2_load_dat_resource; uint32 address slot,
+ * zero-init (BSS), matching the engine-wide convention for DAT resource
+ * pointers (siblings data_fd2_resource_portrait_sheet_ptr /
+ * data_fd2_all_game_text_ptr in the same main load block). Sole writer main @
+ * 0x25BF4 does
+ *   data_fd2_ui_anim_sprite_sheet_ptr =
+ *       fd2_load_dat_resource(<FDOTHER.DAT name>,
+ *                             data_fd2_ui_anim_sprite_sheet_ptr, 5);
+ * (passing the prior value so the loader frees-then-reloads). ~70 readers pass
+ * it as the sprite-sheet argument of the blit helpers
+ * (fd2_blit_sheet_sprite_at_offset / fd2_alloc_and_blit_indexed_sprite_chunk):
+ * the dialog/window frame is composed from 17 tiles in this sheet (corners,
+ * stretchable edges, center fill), and the rest of the menu UI, status/inventory
+ * panels, HP/phase banners, projectile animations, shop and recruitment screens
+ * index further sprites out of it.
  */
 uint32 data_fd2_ui_anim_sprite_sheet_ptr;
 
