@@ -53,11 +53,12 @@ const int16 data_fd2_dialog_shop_inventory_full_dialog_text_id_table[6] = {
  * data_fd2_chapter_intro_menu_cursor_state (0..5).
  *
  * Sole reader fd2_run_buy_item_menu @ 0x2F0CE block-copies the 12 bytes into a
- * stack-local buffer (3x MOVSD from 0x526FA), then reads it back as a signed
- * 16-bit word: MOVSX EAX, word ptr [ESP + cursor_state*2 + ...] @ 0x2F184, and
- * passes the value as the FDTXT page id to fd2_display_dialog_scene. The *2
- * stride + MOVSX word confirms int16 (signed) elements; index range 0..5 gives
- * the 6-element dimension.
+ * stack-local buffer (3x MOVSD from 0x526FA), then on the confirm branch reads
+ * it back as a signed 16-bit word: MOVSX EAX, word ptr [ESP + cursor_state*2 +
+ * 0x48] @ 0x2F282, passes the value as the FDTXT page id to
+ * fd2_display_dialog_scene, then runs fd2_text_dialog_typewriter_loop for the
+ * Yes/No reply. The *2 stride + MOVSX word confirms int16 (signed) elements;
+ * index range 0..5 gives the 6-element dimension.
  * Read-only constant table; no writers.
  */
 const int16 data_fd2_dialog_shop_buy_for_dialog_text_id_table[6] = {
