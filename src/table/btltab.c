@@ -159,7 +159,6 @@ const uint32 data_fd2_battle_view_window_max_x = 13;
  *
  * Raw bytes @ 0x51A8B (LE): 08 00 00 00  = 8.
  * ---------------------------------------------------------------- */
-/* Non-const for the same reason as the X sibling above. */
 const uint32 data_fd2_battle_view_window_max_y = 8;
 
 /* ----------------------------------------------------------------
