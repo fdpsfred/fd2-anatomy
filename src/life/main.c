@@ -1018,6 +1018,12 @@ uint32 data_fd2_tile_event_data_table_ptr;
  * data_fd2_vga_palette_data_ptr @ 0x53A65 -- base pointer of the loaded VGA
  * palette resource (FDOTHER.DAT resource index 0). uint32 address slot; reloaded
  * (free-then-load) on each new-game / continue / load path. Zero-init (BSS).
+ *
+ * Points at a 768-byte buffer = 256 palette entries x 3 RGB bytes (6-bit DAC
+ * values 0..0x3F). Palette primitives index it as ptr[idx*3 + component] to
+ * source the base colour for fade/flash/tint DAC writes. Cinematic / ending
+ * code reassigns it to other FDOTHER.DAT palettes for each scene (some paths
+ * save and restore the previous pointer).
  */
 uint32 data_fd2_vga_palette_data_ptr;
 
