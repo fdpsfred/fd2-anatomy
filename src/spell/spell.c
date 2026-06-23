@@ -156,6 +156,11 @@ void fd2_cast_spell_0f_variant_b(
     fd2_dispatch_variant_b_cast(caster, 0xf, n_tgt, (int)tgt_arr);
 }
 
+/* spell_id 0x10: status SFX (id 0xB) + slide pre-effect (6, 6), then the
+ * variant-B heal dispatch. @ 0x22153. The dispatch table @ 0x51D01 maps this
+ * handler to TWO slots -- entry 0x10 (primary) and entry 0x18 (duplicate, the
+ * 淒煌斬 special-attack slot, which is normally driven by
+ * fd2_execute_special_attack_skill, so 0x18 here is a fallback/placeholder). */
 void fd2_cast_spell_10_variant_b(
     uint32 caster, uint32 n_tgt, uint8 *tgt_arr)
 {
