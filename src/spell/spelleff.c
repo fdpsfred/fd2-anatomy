@@ -540,24 +540,26 @@ void fd2_execute_offensive_targeted_spell(int caster, int spell_id,
  *
  * Reached only through the spell dispatch table @ 0x51D01 (entry index
  * 9 = 0x51D01 + 0x24); no direct callers. spell_id literal 9 is baked
- * into the body. Dedicated SINGLE-TARGET offensive worker: unlike the
- * looping siblings (0x21227 / 0x213B7) it hits only target_id_array[0],
- * has no per-target loop, plays NO second (blink/flash) animation, and
- * ends with its own explicit RET instead of borrowing the 0x21190
- * shared epilogue.
+ * into the body. Dedicated SINGLE-TARGET offensive worker for spell 9
+ * (咒殺術, an attack spell whose AoE radius is 0, so by design it can
+ * only strike one unit). Unlike the looping siblings (0x21227 / 0x213B7)
+ * it hits only target_id_array[0], has no per-target loop, plays NO
+ * second (blink/flash) animation, and ends with its own explicit RET
+ * instead of borrowing the 0x21190 shared epilogue.
  *
  * Resets the AoE/fx-queue counter, plays the per-target impact
- * animation (spell_arg is forwarded as its 3rd arg = n_targets so the
- * sprite covers every selected target even though only target[0] is
- * damaged), deducts the caster's MP for spell 9, then applies magic
- * damage to target[0]: a miss (damage 0) shows the miss indicator,
- * otherwise the damage number is drawn with glyph 0x5E ('^'). Finishes
- * by compositing the battle frame and animating the projectile paths.
+ * animation (the 2nd parameter is the selected-target count, forwarded
+ * as the impact animation's 3rd arg = n_targets so the sprite covers
+ * every selected target even though only target[0] is damaged), deducts
+ * the caster's MP for spell 9, then applies magic damage to target[0]:
+ * a miss (damage 0) shows the miss indicator, otherwise the damage
+ * number is drawn with glyph 0x5E ('^'). Finishes by compositing the
+ * battle frame and animating the projectile paths.
  *
- * damage is the return of fd2_calc_magic_damage: asm 0x214ED CALL
- * leaves it in EAX, and on the hit path 0x21513 .. only MOVZX EBX /
- * PUSH 0x5E intervene before 0x2150D PUSH EAX (no EAX clobber between
- * TEST and PUSH), so the inner return IS the displayed number.
+ * damage is the return of fd2_calc_magic_damage: asm 0x214ED CALL leaves
+ * it in EAX; on the hit path only 0x21507 MOVZX EBX / 0x2150B PUSH 0x5E
+ * intervene before 0x2150D PUSH EAX (no EAX clobber between the TEST at
+ * 0x214F5 and the PUSH), so the inner return IS the displayed number.
  * ---------------------------------------------------------------- */
 void fd2_execute_offensive_single_target_spell_id_9(
     int caster_unit_id, int spell_arg, uint8 *target_id_array)
