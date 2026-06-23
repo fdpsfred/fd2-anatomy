@@ -1,0 +1,44 @@
+{
+  "address": "0001e5c0",
+  "name_current": "fd2_wait_ticks_or_keypress_with_palette",
+  "name_final": "fd2_wait_ticks_or_keypress_with_palette",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=wait/timing primitive). Accurately describes behavior: wait up to N BIOS ticks OR any keypress, while keeping the palette-cycle animation running. No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/input/input.c",
+  "purpose": "Wait up to max_ticks BIOS ticks (18.2 Hz) or until any key is pressed, driving the palette-cycle animation throughout; drains the keyboard buffer on exit.",
+  "logic_summary": "start_tick = sign-extended 16-bit BIOS tick word [0x46C]. Loop: call fd2_update_palette_cycle_anim(); keypress = fd2_check_keyboard_buffer_nonempty(); re-read current tick; if (current_tick - start_tick >= max_ticks) OR (current_tick < start_tick, i.e. tick wraparound/rollover) force keypress=true (timeout). Repeat until keypress. On exit call fd2_clear_keyboard_buffer(). Disassembly confirms: MOVSX ESI,word[0x46C] for start; SUB EAX,ESI / CMP EAX,EDI / JGE for elapsed>=max_ticks; CMP EAX,ESI / JGE for the wraparound guard; CALL 0x4e031 = clear buffer.",
+  "signature": "void __cdecl fd2_wait_ticks_or_keypress_with_palette(uint32 max_ticks)",
+  "params": [
+    {
+      "name": "max_ticks",
+      "type": "uint32",
+      "semantics": "Timeout duration expressed in BIOS midnight ticks (~55 ms each, 18.2 Hz). The wait returns when elapsed ticks reach this value or earlier on a keypress. Caller fd2_process_xp_and_level_up_for_char passes 0xB (~600 ms) for the level-up 'press a key to continue' pause. (C source already declares this as 'max_ticks'; Ghidra side is param_1 and would be renamed to max_ticks in Stage 2.)",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "The C declaration already names it max_ticks, which accurately reflects its use as the tick-count timeout. The Ghidra param_1 placeholder maps to this and is the only thing needing a Stage-2 rename; the source name is correct as-is."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effects are the elapsed wait, continuous palette-cycle animation, and a cleared keyboard buffer."
+  },
+  "reads_globals": [
+    "BIOS_TICK_WORD (BDA 0:046C, 18.2 Hz midnight tick counter, read sign-extended as int16)"
+  ],
+  "writes_globals": [
+    "BIOS keyboard buffer state via fd2_clear_keyboard_buffer (sets BDA tail [0x41C] = head [0x41A])"
+  ],
+  "comment_original_issue": "None; the existing src comment block (lines 428-434) already states the purpose, palette-keep behavior, and buffer-clear-on-exit concisely and correctly.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Equivalence between src and binary already verified upstream; this pass only confirmed naming/comment accuracy. Three call sites confirmed via xrefs: fd2_tick_status_effects_and_show_messages (0x1a92f, 0x1aa02) and fd2_process_xp_and_level_up_for_char (0x1e506). src comment and Ghidra plate are mutually consistent (plate is more detailed, src is the concise canonical form); no edits to input.c or the plate were needed."
+}
