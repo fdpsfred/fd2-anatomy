@@ -1216,9 +1216,20 @@ void fd2_composite_battle_frame_zero(void)
  *                  ==5 play per-slot chime SFX ; return done.
  *   other     : return 0.
  *
- * Blit gate per slot: 0 <= counter < 0xF. Blit position passed as the x
- * argument is row_mul[k]*row_stride + x_off[k] + 0x50 + origin_y, with
- * row_stride passed as the y argument and -1 as mode.
+ * Params (caller fd2_play_spell_cast_sequence pushes, per phase):
+ *   caster_unit_id : runtime_char index for the team-baseline test.
+ *   sprite_handle  : sprite-sheet handle (blit sheet_ptr).
+ *   origin_y       : destination work-buffer base (caller passes the
+ *                    0x2A300 frame-scratch buffer or that + an offset);
+ *                    it is the blit dst_buf base, NOT a y coordinate
+ *                    despite the name. Stage-2 rename pending.
+ *   row_stride     : destination row stride (0x140 / 0x280); also the
+ *                    per-slot row multiplier.
+ *   state_code     : phase/state dispatch code.
+ *
+ * Blit gate per slot: 0 <= counter < 0xF. The blit dst_buf is
+ * row_mul[k]*row_stride + x_off[k] + 0x50 + origin_y; row_stride is the
+ * blit dst_stride and -1 is the palette_op.
  *
  * cc __cdecl (caller cleans 5 stack args; callees blit/sfx are __cdecl).
  * System=battle.
