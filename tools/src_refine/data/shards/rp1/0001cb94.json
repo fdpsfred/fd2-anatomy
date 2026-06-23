@@ -1,0 +1,74 @@
+{
+  "address": "0001cb94",
+  "name_current": "fd2_composite_chars_with_spell_effect_overlay",
+  "name_final": "fd2_composite_chars_with_spell_effect_overlay",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (battle/gfx domain). Name accurately describes the body: composites the battle tile map + all alive party-member sprites, drawing a spell-effect overlay sprite over chars in the hit list and the normal portrait over the rest. No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/gfx/rndscene.c",
+  "purpose": "Render the per-char layer of a spell-cast frame: chars in the target/hit list get the spell-effect sprite (spark/glow) drawn over them, every other alive char keeps its normal portrait.",
+  "logic_summary": "1) Composite the battle tile map into dst_buf+0x8088. 2) Resolve the effect sprite address from the portrait sheet: fx_sprite_addr = sheet + *(int32*)(sheet + 6 + fx_sprite_idx*4). 3) For each party slot (skip dead via flags bit0): window-cull against the battle view window (origin +/- max, +/-1 margins); compute char_screen_addr = dst_buf + 0x75D8 + (pos_y-origin_y)*0x2AC0 + (pos_x-origin_x)*0x18; scan the n_targets-byte target_array for char_idx (no early break -- scans whole list). Hit -> fd2_blit_sprite_with_decoded_pixels(char_screen_addr, fx_sprite_addr, 456). Miss -> normal portrait: frame = sprite_state[0]*0xC + (chapter_ambient_palette_anim_idx==3 ? 2 : idx); src = cache + *(int32*)(cache + frame*4); fd2_tile_blit_24x24_passthrough(src, char_screen_addr, 456). Original tail-calls a shared epilogue (JMP 0x1317D); the C equivalent is the loop running to completion.",
+  "signature": "void __cdecl fd2_composite_chars_with_spell_effect_overlay(uint32 dst_buf, uint32 n_targets, uint32 target_array, int fx_sprite_idx)",
+  "params": [
+    {
+      "name": "dst_buf",
+      "type": "uint32",
+      "semantics": "Base address of the destination render buffer. Tile map is composited at dst_buf+0x8088 and char sprites land at dst_buf+0x75D8+row/col offsets. Caller passes the live large_game_state_buffer (variant A, fx 0x4A) and a malloc'd secondary buffer (variant B, fx 0x4B).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the destination buffer base; no address residue."
+    },
+    {
+      "name": "n_targets",
+      "type": "uint32",
+      "semantics": "Number of entries (bytes) in target_array; loop bound for the hit-list scan (signed compare).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the target-list count."
+    },
+    {
+      "name": "target_array",
+      "type": "uint32",
+      "semantics": "Pointer to a byte array of char indices that are spell targets/hits; body reads *(uint8*)(target_array + scan_idx) and compares to char_idx.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the hit-list array pointer; no address residue."
+    },
+    {
+      "name": "fx_sprite_idx",
+      "type": "int",
+      "semantics": "Index into the portrait sheet directory selecting the spell-effect sprite (fx_sprite_addr = sheet + *(int32*)(sheet + 6 + fx_sprite_idx*4)). Caller passes 0x4A (variant A / white flash) or 0x4B (variant B / colour flash) to alternate the strobe.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the effect-sprite selector. 0x4A/0x4B are portrait-sheet sprite IDs (domain values), not address residue. Note: live Ghidra still labels this param 'workspace', a stale generic name; the src name fx_sprite_idx is correct and is the one to keep."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Composites directly into dst_buf."
+  },
+  "reads_globals": [
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y",
+    "data_fd2_battle_view_window_max_x",
+    "data_fd2_battle_view_window_max_y",
+    "data_fd2_resource_portrait_sheet_ptr",
+    "data_fd2_battle_party_member_count",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_graphics_chapter_ambient_palette_anim_idx",
+    "data_fd2_portrait_sprite_cache"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment block (lines 442-477) already matches the decompile and is a precise final-state description (ASCII, accurate algorithm, correct constants 0x8088/0x75D8/0x2AC0/0x18/0x1C8, correct globals, correct caller context). No edit needed -> comment_verdict=keep, so src/gfx/rndscene.c is left untouched. Ghidra plate (Chinese) conveys the same algorithm and is not contradictory/outdated -> ghidra_plate_action=none. Live Ghidra 4th param name is the stale generic 'workspace'; src already uses the correct fx_sprite_idx; all rename application is deferred to Stage 2 per protocol. Caller: fd2_animate_spell_full_screen_flash @ 0x1cac7 (two call sites, fx 0x4A and 0x4B). NOTE on staging: pre-existing modified shards (000145cd.json, 00053a51.json) from concurrent refiners were present in the worktree; staged ONLY src(none)+0001cb94.json to keep commit scope clean (did not use git add -A)."
+}
