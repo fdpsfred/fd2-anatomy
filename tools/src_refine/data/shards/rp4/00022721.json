@@ -1,0 +1,62 @@
+{
+  "address": "00022721",
+  "name_current": "fd2_cast_ap_boost_spell",
+  "name_final": "fd2_cast_ap_boost_spell",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor> (domain=cast, descriptor=ap_boost_spell). Accurately reflects the purpose: the AP (Attack Power) boost spell/item effect worker. 'ap' = Attack Power stat (matches sibling fd2_cast_dp_boost_spell @0x22866 which boosts DP); 'boost_spell' = the buff effect class. No Ghidra address residue; no domain-ID to preserve.",
+  "kind": "function",
+  "home": "src/spell/spelleff.c",
+  "purpose": "AP-boost (Attack-Up) spell/item effect: plays the per-target impact + status-overlay-flicker animations (effect id 0x11), then for each target unit applies a one-shot AP buff guarded by a per-target stack-protection timer, drawing the boost amount as a heal-style number and crediting pending XP.",
+  "logic_summary": "Play fd2_animate_spell_impact_per_target(caster,0x11,n,targets) then fd2_animate_status_effect_overlay_flicker(caster,0x11,n,targets). For iter=0..num_targets-1: target_id=target_id_array[iter]; target_rc=&runtime_char_array[target_id]; level_mod=target_rc->status_flags_block[0] (unit level byte), +0x1e (30) when 8<job_id<0x19 (intermediate class). If target_rc->status_flags_block[1] (AP-buff timer) == 0 (not yet boosted): call fd2_advance_rng_state and set timer = (rng_return % 4) + 2 (2..5 turns); delta = (int)(1.0 + ap * 0.15) with Watcom truncate-toward-zero; fd2_show_damage_number(delta, 0x69 'i', target_id); target_rc->ap += (int16)delta; pending_xp_credit += level_mod*2. Else (already boosted): fd2_show_miss_indicator(target_id) (no stacking). After the loop: fd2_composite_battle_frame(0); fd2_animate_spell_projectile_paths().",
+  "signature": "void __cdecl fd2_cast_ap_boost_spell(uint caster_unit_id, uint num_targets, byte *target_id_array)",
+  "params": [
+    {
+      "name": "caster_unit_id",
+      "type": "uint",
+      "semantics": "Casting unit's runtime_char index. Passed unchanged to fd2_animate_spell_impact_per_target / fd2_animate_status_effect_overlay_flicker as the source-of-effect unit. Callers (fd2_cast_spell_11_stage_a, fd2_apply_use_effect_dispatch, fd2_execute_summon_spell_cast) forward it directly.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Live Ghidra name is already descriptive (caster_unit_id), matches its use as the caster index, no address residue. Matches the src declaration."
+    },
+    {
+      "name": "num_targets",
+      "type": "uint",
+      "semantics": "Count of entries in target_id_array; the loop bound (treated as signed for the for-loop comparison) and passed as the target count to both animation helpers.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Live Ghidra name num_targets accurately names the target count / loop bound, no address residue. Matches the src declaration."
+    },
+    {
+      "name": "target_id_array",
+      "type": "byte *",
+      "semantics": "Pointer to a byte array of target runtime_char indices (length num_targets). Each element indexes data_fd2_battle_runtime_char_array_ptr to fetch the unit being buffed; also passed to the two animation helpers as the target list.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Live Ghidra name target_id_array correctly describes the byte array of target unit IDs, no address residue. Matches the src declaration (uint8 *target_id_array)."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Effects are the per-target AP buff (target_rc->ap, status_flags_block[1] timer), the on-screen damage/miss numbers, the pending XP credit global, and the frame/projectile animations."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_spell_ap_boost_factor_015",
+    "data_fd2_battle_pending_xp_credit"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_pending_xp_credit"
+  ],
+  "comment_original_issue": "None. The existing src comment block (lines 646-690) is already a precise, refined conclusion: it covers the AP-buff effect, the level_mod/intermediate-class +30, the stack-protection timer (rng%4)+2, the 0.15 factor truncating cast, the heal-style number (glyph 0x69), the pending-XP credit, the EAX-bug correction (RNG return vs old flag value), and the Pattern-A shared-epilogue note vs sibling fd2_cast_dp_boost_spell. ASCII-clean, no process-log content. Kept as-is.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified src body (lines 691-732) against the decompilation: faithful Layer-2 equivalent. Confirmed level_mod intermediate-class gate src 'job_id>8 && job_id<0x19' == decomp '8 < bJob_id && bJob_id < 0x19'. Timer src '(int)fd2_advance_rng_state() % 4 + 2' matches the asm-correct RNG-return modulo (decomp mis-attributes %4 to old flag uVar3==0; both plate and src already document this EAX bug). delta src '(int)(1.0 + ap*0.15)' == decomp __CHP truncating cast of FILD/FMUL/FLD1/FADDP. Global names in src match decomp byte-identical (data_fd2_battle_runtime_char_array_ptr, data_fd2_battle_spell_ap_boost_factor_015, data_fd2_battle_pending_xp_credit). All three live Ghidra param names already good (caster_unit_id/num_targets/target_id_array) -> params all keep. Callers confirmed via decompile of fd2_cast_spell_11_stage_a @0x226ea: forwards (caster_unit_id, n_targets, target_id_array) unchanged after spell-0x12 MP deduct; other callers fd2_apply_use_effect_dispatch @0x20c6f (item effect 0x10) and fd2_execute_summon_spell_cast @0x27fc9 (summon combo). Ghidra plate is comprehensive and consistent with the refined understanding; left unchanged. No logic concerns -> issues empty. No src edit needed (comment keep, plate none)."
+}
