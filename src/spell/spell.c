@@ -251,6 +251,12 @@ void fd2_cast_spell_16_dispatch_cda(
         caster, 0x16, n_tgt, (int)tgt_arr, 0x27);
 }
 
+/* spell_id 0x1A (毒擊術, poison-strike): dispatch-table entry @ 0x22CBF
+ * (table[0x1A] @ 0x51D69). Same family as the 0x16 entry above -- forwards to
+ * the shared status-inflict worker fd2_cast_status_spell_via_d1b, here with
+ * effect/sprite id 0x25. In the original binary this entry tail-jumps into the
+ * 0x16 body (@ 0x22BF7) to reuse its {push caster + call worker + cleanup}
+ * tail. Sibling: the 0x1B entry below (spell 0x1B with effect 0x26). */
 void fd2_spell_handler_id_26_via_status_d1b_effect_25(
     int caster, int n_tgt, int tgt_arr)
 {
