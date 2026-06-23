@@ -139,7 +139,8 @@ const uint8 data_fd2_animation_status_overlay_flicker_color_template[30] = {
  * The next table (data_fd2_animation_spell_frame_count_table) begins exactly
  * at +33 (0x51F54), confirming the 33-byte boundary.
  *
- * Read-only (single READ xref, no writers); compiler rodata table.
+ * Read-only (single READ xref + the base-address DATA xref, no writers);
+ * compiler rodata table.
  */
 const uint8 data_fd2_animation_spell_sprite_offset_table[33] = {
     0x31,0x31,0x31,0x31,0x40,0x40,0x40,0x40,0x4c,0x57,0x31,
