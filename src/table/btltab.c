@@ -130,7 +130,6 @@ const int32 data_fd2_battle_tile_attr_def_modifier_table[6] = {
  *
  * Raw bytes @ 0x51A87 (LE): 0d 00 00 00  = 13.
  * ---------------------------------------------------------------- */
-/* Non-const: read-only in-game, but tests set the window extent as a fixture. */
 const uint32 data_fd2_battle_view_window_max_x = 13;
 
 /* ----------------------------------------------------------------
