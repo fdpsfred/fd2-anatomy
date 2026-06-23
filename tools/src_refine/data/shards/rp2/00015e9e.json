@@ -1,0 +1,72 @@
+{
+  "address": "00015e9e",
+  "name_current": "fd2_blit_indexed_sprite_with_alloc",
+  "name_final": "fd2_blit_indexed_sprite_with_alloc",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Convention-compliant fd2_<domain>_<descriptor> with no address residue. 'blit ... sprite' is accurate (blits a sprite via fd2_blit_sprite_with_stride_setup); 'with_alloc' is accurate (mallocs the save-under buffer and returns it); 'indexed' reflects the sprite_idx*dst_pitch+sheet_base offset addressing and keeps terminology consistent with the sibling blit-sprite family in the same file (fd2_alloc_and_blit_indexed_sprite_chunk @0x15F0E, fd2_blit_indexed_sprite_at_xy @0x16886, fd2_blit_sheet_sprite_at_offset @0x1685C). Name adequately reflects purpose and logic; renaming would only break family consistency for marginal gain.",
+  "kind": "function",
+  "home": "src/gfx/blitspr.c",
+  "purpose": "Allocate a save-under buffer, snapshot the destination region into it, then blit one sprite into the destination at a computed base+index*stride offset; return the save buffer for the caller to restore+free later.",
+  "logic_summary": "Reads width=*(int16*)sprite_hdr and height=*(int16*)(sprite_hdr+2). Computes sprite_data = sprite_idx*dst_pitch + sheet_base. mallocs width*height+8 bytes (the +8 is the snapshot header width/height/src_ptr written by fd2_save_screen_block_to_buffer). Calls fd2_save_screen_block_to_buffer(save_buf, width, height, dst, sprite_data, dst_pitch) to snapshot the dst block, then fd2_blit_sprite_with_stride_setup(sprite_data+dst, sprite_hdr, dst_pitch) to paint the sprite. Returns the malloc'd save buffer. In both real callers (dialog open/close slide animation) sprite_idx=interp_y, sheet_base=interp_x, so sprite_data = interp_y*0x140 + interp_x resolves a destination page position within the 0xA0000 framebuffer. Single basic block, cyclomatic complexity 1; binary __CHK(0x30) stack probe is compiler-generated.",
+  "signature": "void *fd2_blit_indexed_sprite_with_alloc(uint32 sprite_hdr, uint32 dst, uint32 dst_pitch, uint32 sheet_base, uint32 sprite_idx)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "sprite header pointer: width = signed 16-bit word at +0, height = signed 16-bit word at +2. (Ghidra placeholder name; ordinal 0 / Stack[0x4]).",
+      "verdict": "rename",
+      "proposed": "sprite_hdr",
+      "reason": "Live Ghidra name is a generic placeholder (param_1). Body dereferences it for width/height, so it is the sprite header pointer. Clean source signature already uses sprite_hdr; Stage 2 applies the rename."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "destination base linear address (0xA0000 mode13h framebuffer in both callers); used as the snapshot target and added to sprite_data for the blit position. (Ghidra placeholder; ordinal 1 / Stack[0x8]).",
+      "verdict": "rename",
+      "proposed": "dst",
+      "reason": "Live Ghidra name is a generic placeholder (param_2). Passed as the dst arg to fd2_save_screen_block_to_buffer and added to sprite_data for fd2_blit_sprite_with_stride_setup, so it is the destination base. Clean source signature already uses dst."
+    },
+    {
+      "name": "param_3",
+      "type": "uint",
+      "semantics": "destination row stride / per-index source stride (0x140 in both callers); multiplies sprite_idx and is the row pitch for both save and blit. (Ghidra placeholder; ordinal 2 / Stack[0xc]).",
+      "verdict": "rename",
+      "proposed": "dst_pitch",
+      "reason": "Live Ghidra name is a generic placeholder (param_3). Used as the stride argument to both callees and as the multiplier of sprite_idx, so it is the destination/row pitch. Clean source signature already uses dst_pitch."
+    },
+    {
+      "name": "sprite_hdr",
+      "type": "short *",
+      "semantics": "base linear address added to the index*stride term to form sprite_data (interp_x in both callers). (Ghidra name misattached: this ordinal is NOT the sprite header; ordinal 3 / Stack[0x10]).",
+      "verdict": "rename",
+      "proposed": "sheet_base",
+      "reason": "Ghidra's name 'sprite_hdr' is attached to the wrong ordinal (the real sprite-header pointer is ordinal 0). Body uses this as the base of sprite_data = sprite_idx*dst_pitch + this. Clean source signature already uses sheet_base; Stage 2 reassigns the name to the correct position."
+    },
+    {
+      "name": "palette_op",
+      "type": "uint",
+      "semantics": "index multiplied by dst_pitch when forming sprite_data (interp_y in both callers). Despite the Ghidra name, it is NOT a palette operation. (ordinal 4 / Stack[0x14]).",
+      "verdict": "rename",
+      "proposed": "sprite_idx",
+      "reason": "Ghidra's 'palette_op' is semantically wrong: the value is never used as a palette op; it is the index term in sprite_data = this*dst_pitch + sheet_base. Clean source signature already uses sprite_idx."
+    }
+  ],
+  "returns": {
+    "type": "void *",
+    "semantics": "Pointer to the malloc'd save-under buffer (width*height+8 bytes: 8-byte snapshot header followed by the saved destination pixels). The caller owns it and frees it via fd2_cleanup_dialog_sprite_buffer, which restores the snapshot first."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (blitspr.c lines 71-120) is already precise and correct (save-under + blit + return-buffer flow, sprite_data = sheet_base + sprite_idx*dst_pitch, caller-specific interp_y/interp_x resolution, +8 buffer header, caller-frees-via-cleanup); kept verbatim. Ghidra plate is consistent with the refined understanding; left untouched. Function reads/writes no globals directly (the data_fd2_graphics_* state is touched by the callees, not here). All five live Ghidra param names are wrong (three placeholders + two misattached, one of which 'palette_op' is semantically misleading); proposed names match the clean source signature and are applied in Stage 2."
+}
