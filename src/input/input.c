@@ -72,11 +72,11 @@ void fd2_wait_one_bios_tick(void)
  *
  * Both cache-stores read the BIOS tick as a SIGN-EXTENDED 16-bit
  * word (asm: MOVSX EAX,word ptr [0x46C]; MOV [0x53A2C],EAX), NOT as
- * a full 32-bit dword — identical to the sibling fd2_wait_one_bios_tick.
+ * a full 32-bit dword -- identical to the sibling fd2_wait_one_bios_tick.
  * The sign-extended int32 is stored verbatim, so a low word of 0xFFFF
  * caches as 0xFFFFFFFF.
  *
- * NOTE: Ghidra decompiler has a bug here — renders the subtraction
+ * NOTE: Ghidra decompiler has a bug here -- renders the subtraction
  * as "tick - tick" (= 0). Assembly confirms it reads
  * wait_n_bios_ticks_last_seen as the second operand.
  * ---------------------------------------------------------------- */
