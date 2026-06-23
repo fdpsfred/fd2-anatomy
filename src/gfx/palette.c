@@ -242,7 +242,14 @@ void fd2_tick_chapter_palette_animation(void)
  * fd2_apply_palette_remap_run @ 0x4DB9C
  *
  * In-place byte remap: buf[i] = remap_table[buf[i]] for byte_count
- * bytes. Uses LODSB/STOSB/LOOP. byte_count must be >= 1 (do-while).
+ * bytes, via remap_table (a 256-byte translation LUT). Uses
+ * LODSB/STOSB/LOOP. byte_count must be >= 1 (do-while, no zero-check).
+ *
+ * Sole callers are the filled-circle / AoE band animators
+ * (fd2_render_circle_anim_row, fd2_render_filled_circle_band_anim):
+ * buf is a horizontal pixel run inside the off-screen render buffer
+ * (data_fd2_large_game_state_buffer + 0x8088 + row*0x1C8 + left_clip),
+ * so this recolors the pixels under a circular spell/warp effect.
  * ---------------------------------------------------------------- */
 void fd2_apply_palette_remap_run(uint32 remap_table,
                                   uint32 byte_count, uint8 *buf)
