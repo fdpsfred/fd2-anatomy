@@ -462,7 +462,7 @@ void fd2_load_save_and_init_engine(void)
     fd2_play_palette_fade_in();
 
     /* Cinematic intro: 9 sprite frames @ sheet idx 0x53..0x5B;
-       last 3 overlay save_metadata number. */
+       last 3 overlay the restored turn counter (data_fd2_battle_turn_counter). */
     for (i = 0; i < 9; i++) {
         saved_block = fd2_alloc_and_blit_indexed_sprite_chunk(
             data_fd2_ui_anim_sprite_sheet_ptr, 0xA0000, 0x140, 0x78,
