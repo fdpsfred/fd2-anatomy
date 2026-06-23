@@ -172,6 +172,9 @@ void fd2_cast_spell_10_variant_b(
 
 /* === Stat boost wrappers (id 0x11-0x13) === */
 
+/* spell_id 0x11 (AP boost): reset the AoE target counter, deduct caster MP using
+ * cost-table index 0x12 (not 0x11 -- intentional cost-table mapping, matching the
+ * 0x12 stage_b wrapper), then delegate to the AP-boost worker. @ 0x226EA */
 void fd2_cast_spell_11_stage_a(
     int caster, int n_tgt, uint8 *tgt_arr)
 {
