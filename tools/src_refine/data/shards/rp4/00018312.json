@@ -1,0 +1,56 @@
+{
+  "address": "00018312",
+  "name_current": "fd2_paint_status_panel_layer_right",
+  "name_final": "fd2_paint_status_panel_layer_right",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (gfx/paint domain). Accurately reflects purpose: paint the RIGHT status panel layer of the slide-animated status screen. No Ghidra address residue. Sister-named with fd2_paint_status_panel_layer_left; consistent.",
+  "kind": "function",
+  "home": "src/gfx/rndstat.c",
+  "purpose": "Copy the RIGHT status panel (86 rows x 223 bytes) from a source buffer into the render workspace, applying signed VERTICAL-shift clipping so the panel can be drawn part-way off the top screen edge during the status-screen slide animation.",
+  "logic_summary": "row_count=0x56, src_y_skip=0. If y_offset<0 (panel pushed off top edge): row_count = y_offset+0x56 (shortened copy), src_y_skip = -y_offset (advance source rows so visible part stays aligned), y_offset = 0 (clamp dst row base). Then for row in [0,row_count): memmove(dst_workspace + 0x5C + (y_offset+row)*0x140, src_buffer + 0x91C + (src_y_skip+row)*0x140, 0xDF). Stride 0x140 = 320 px/row. Dst col base 0x5C (row 0); src base 0x91C = row 7*0x140 + 0x5C (right panel sits 7 rows below source-buffer head). Compiler-injected __CHK(0x20) stack probe precedes the body.",
+  "signature": "void __cdecl fd2_paint_status_panel_layer_right(uint32 y_offset, uint32 dst_workspace, uint32 src_buffer)",
+  "params": [
+    {
+      "name": "y_offset",
+      "type": "uint32",
+      "semantics": "Signed vertical destination shift in rows. >=0 draws in place at base; <0 pushes the panel off the top edge (copy shortened, source advanced, dst clamped to row 0). Caller fd2_play_status_screen_outro_step passes 7 - 16*(frame-3) for slide frames.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the signed vertical row shift; matches body usage (compared <0, added to dst row index) and caller intent. No address residue. Distinct from sister-left's x_offset (horizontal)."
+    },
+    {
+      "name": "dst_workspace",
+      "type": "uint32",
+      "semantics": "Linear address of the 320-byte-stride offscreen render workspace (the `workspace` buffer the caller composites to 0xA0000). Destination of the per-row memmove at base offset 0x5C.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Correctly identifies the destination render workspace; matches caller passing its `workspace` arg. No address residue."
+    },
+    {
+      "name": "src_buffer",
+      "type": "uint32",
+      "semantics": "Linear address of the source panel-data buffer holding the assembled status-screen art; the right panel resides 7 rows below its head (offset 0x91C). Source of the per-row memmove.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Correctly identifies the source art buffer; matches caller passing its `src_buffer` arg. No address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; effect is the row-by-row blit into dst_workspace."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "a7214cce8fed0df5b83c8dc1ad33bbd669486306",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly cross-checked against decompilation and src: param resolution (param_1=y_offset, param_2=dst_workspace, param_3=src_buffer) verified via ESP-relative slot tracing through the in-loop pushes (PUSH 0xdf size + PUSH src ptr); EDI*5<<6 and EBX*5<<6 confirm the *0x140 strides; offsets 0x91C (src) and 0x5C (dst) confirmed. No EAX-tracking artifact; src/ is a faithful transcription. Source comment (lines 356-382) and Ghidra plate are mutually consistent and accurate; both left unchanged. Caller fd2_play_status_screen_outro_step confirms y_offset is the vertical slide amount. No logic concerns."
+}
