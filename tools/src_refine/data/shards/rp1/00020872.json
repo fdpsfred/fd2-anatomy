@@ -1,0 +1,44 @@
+{
+  "address": "00020872",
+  "name_current": "fd2_chapter_17_post_action",
+  "name_final": "fd2_chapter_17_post_action",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor>: fd2_ prefix, domain 'chapter_17' (17 is a meaningful chapter ID in range 01-30 and must be preserved -- not address residue), descriptor 'post_action' accurately reflects the per-chapter turn-cycle post-action handler role. No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/field/chpost.c",
+  "purpose": "Chapter 17 turn-cycle post-action handler: runs the default win/lose check then adds a compound lose condition tied to the swordsmaster 蜜蒂.",
+  "logic_summary": "Dispatched via data_fd2_chapter_post_action_handler_table[16] (table @ 0x51B19, indexed by current_chapter_id); event_arg (the pushed active char_idx) is unused. Body: (1) call fd2_check_battle_end_condition() for the default win/lose decision; (2) if fd2_check_party_has_char_id(0x12) == 0 (party no longer permanently contains 蜜蒂, char_id 0x12) AND fd2_check_char_is_dead(0x34) != 0 (her runtime slot is dead), then call fd2_display_dialog_scene(data_fd2_current_chapter_text, page=2, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, blink=1) and set data_fd2_chapter_event_or_battle_end_code = 1 (LOSE). The char-id check short-circuits: when 蜜蒂 is still present the dead-check and dialog are skipped. Disasm confirmed: PUSH 0x12/CALL fd2_check_party_has_char_id, JNZ skip; PUSH 0x34/CALL fd2_check_char_is_dead, JZ skip; dialog operand is dword ptr [0x53a79] (= data_fd2_current_chapter_text); MOV dword ptr [0x53ecc],1.",
+  "signature": "void __cdecl fd2_chapter_17_post_action(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "cdecl arg the dispatch site pushes (active char_idx) and cleans with ADD ESP,4; unused by the body (the leading __CHK(0x28,...) prologue is a Watcom stack-check artifact). Generic name shared across all handlers in this file.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Reasonable generic name for this dispatched-handler signature; the body does not use it, so a domain-specific name would not be more accurate. No address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; observable effect is the conditional write of data_fd2_chapter_event_or_battle_end_code (=1 LOSE) plus the dialog render side-effect."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_event_or_battle_end_code"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "char_id 0x12 = 蜜蒂 verified via fd2-knowledge KB (code_hacks.md: '12 = 蜜蒂'; '0D是貝克威，12才是蜜蒂') and chapter_17.md (蜜蒂 必出; if not joined she still fights but leaves after the chapter -- matching this handler's compound lose logic). Callee names all match src: fd2_check_battle_end_condition @ 0x205be, fd2_check_party_has_char_id @ 0x33499, fd2_check_char_is_dead @ 0x3453e, fd2_display_dialog_scene @ 0x15f84. Source comment and Ghidra plate are consistent and accurate -- no edits made; no source diff this commit (shard only)."
+}
