@@ -1,0 +1,50 @@
+{
+  "address": "00035c79",
+  "name_current": "fd2_chapter_event_handler_4b__ch29_major_cinematic",
+  "name_final": "fd2_chapter_event_handler_4b__ch29_major_cinematic",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant and accurate. fd2_ prefix (game fn). Domain descriptor chapter_event_handler is correct: this is a per-event dispatch-table handler. The _4b suffix is the dispatch table index 0x4B (pointer sits at table entry 0x51CBD, the 0x4B-th slot of the per-event handler table @ 0x51B91) -- a meaningful domain ID, NOT a Ghidra address residue (0x4B != self addr 0x35c79 and != any data addr); matches the naming scheme of all 30+ sibling handlers (handler_2f..handler_53). ch29 is correct (triggered in chapter 29, confirmed by the ch29 walkthrough: escort Yuni to the upper stone tablet, a designated-character trigger tile). major_cinematic is accurate: the right-character branch fires the full-screen page-1 endgame cinematic dialog and arms the ch29 multi-stage rotation (handler_4a/4c) via the turn-event hook and stage counter.",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Chapter-29 trigger-tile event handler (dispatch idx 0x4B, tile-step slot 1): fires the major endgame cinematic only when the designated trigger character (char_id 9) steps on the tile; any other non-enemy stepper gets a 'you're not the one' dialog and the tile stays armed.",
+  "logic_summary": "Tile-step ABI: stepping_char_id is the char that stepped on the tile. Gate: act only when the stepper is non-enemy (runtime_char_array[stepping_char].team != 0; encoding 0=enemy/1=npc/2=player) AND this slot is unconsumed (tile_event_consumed_flags[0x11] == 0). Inside the gate it branches on stepper char_id: (wrong char, char_id != 9) load the stepper's portrait, show in-frame dialog page 0 (render target 0xA951F), paint portrait, wait for input, close the status screen, and return WITHOUT consuming the slot so another character can retry. (right char, char_id == 9) show the full-screen page-1 cinematic dialog (render target 0xA0000), then perform four state mutations: consume this slot (tile_event_consumed_flags[0x11]=1), arm turn-event hook entry 1 for next turn (tile_event_data_table[+6]=(uint8)(turn_counter+1)), prime handler_4A's 8-stage counter to 4 (tile_event_consumed_flags[0x10]=4, skipping stages 0-3), and arm turn-event hook entry 0 for this turn (tile_event_data_table[+3]=(uint8)turn_counter). Both turn-counter stores are read as one byte; the +6 store is incremented in 8-bit (matches binary INC DL) and the +3 store is verbatim. The wrong-char path tail-calls fd2_close_status_screen_with_slide_out via JMP 0x196CB (binary size optimisation). __CHK(0x28) is the Watcom stack-probe prologue, no source semantics.",
+  "signature": "void __cdecl fd2_chapter_event_handler_4b__ch29_major_cinematic(uint32 stepping_char_id)",
+  "params": [
+    {
+      "name": "stepping_char_id",
+      "type": "uint32",
+      "semantics": "Index of the runtime char that stepped on the trigger tile (tile-step ABI, read from [ESP+0x4]). Used as the index into data_fd2_battle_runtime_char_array_ptr[] to read .team, .char_id and .portrait_id.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate (the stepping character id under the tile-step ABI), no address residue, matches the convention used by sibling tile-step handlers (handler_3a/3b/3c/3d use the same arg role)."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Falls through to RET in all paths (the wrong-char path returns early via a borrowed tail-call into fd2_close_status_screen_with_slide_out)."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr (0x53A45; reads .team, .char_id, .portrait_id of stepping_char_id)",
+    "data_fd2_field_map_tile_event_consumed_flags_ptr (0x53AD5; reads [+0x11] gate)",
+    "data_fd2_battle_turn_counter (0x53BEF; feeds both turn-event hook stores)",
+    "data_fd2_current_chapter_text (0x53A79; dialog text scope)"
+  ],
+  "writes_globals": [
+    "data_fd2_field_map_tile_event_consumed_flags_ptr[+0x11] = 1 (consume own slot, right-char path)",
+    "data_fd2_field_map_tile_event_consumed_flags_ptr[+0x10] = 4 (prime handler_4A stage counter, right-char path)",
+    "data_fd2_tile_event_data_table_ptr[+6] = (uint8)(turn_counter+1) (arm turn-event hook entry 1, right-char path)",
+    "data_fd2_tile_event_data_table_ptr[+3] = (uint8)turn_counter (arm turn-event hook entry 0, right-char path)"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (chevt2.c lines 1159-1196) is already precise, accurate, and matches the Ghidra decompilation exactly (gate, char_id-9 branch, 4 state mutations, tail-call note, 8-bit turn-counter truncation) -- no edit needed. Ghidra plate is consistent with the refined understanding; left unchanged. Name and single param are both correct/compliant -> no rename queued. Chapter-29 context confirmed via fd2-knowledge walkthrough (escort Yuni to the upper stone tablet -> designated-character trigger tile -> three-dragon endgame). char_id 9 is documented as 'the designated trigger character' without over-claiming a roster identity (the char query subcommand's id scheme differs from this in-chapter runtime char_id). No staging of unrelated modified shard 00035c23.json."
+}
