@@ -1,0 +1,64 @@
+{
+  "address": "00016886",
+  "name_current": "fd2_blit_indexed_sprite_at_xy",
+  "name_final": "fd2_blit_indexed_sprite_rle",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_blit_indexed_sprite_rle",
+  "name_reason": "Current name has the misleading suffix 'at_xy' implying it takes destination x/y coordinates, but the body always RLE-blits at the fixed origin (0, 0) -- there are NO xy params. The 4th arg is sprite_idx (index into the atlas offset table), not an x coordinate (both the Ghidra plate and src comment already flag this). Proposed 'fd2_blit_indexed_sprite_rle' follows fd2_<domain>_<descriptor>, keeps the file-consistent 'indexed_sprite' wording (cf. fd2_blit_indexed_sprite_with_alloc, fd2_alloc_and_blit_indexed_sprite_chunk), drops the false 'at_xy', and adds 'rle' to distinguish it from the raw/opaque offset-table sibling fd2_blit_sheet_sprite_at_offset @ 0x1685C. No address residue.",
+  "kind": "function",
+  "home": "src/gfx/blitspr.c",
+  "purpose": "Thin wrapper that looks up sub-sprite `sprite_idx` in a sprite-atlas sheet's offset table and RLE-blits it with transparent passthrough at origin (0, 0) within dst.",
+  "logic_summary": "Resolves sprite_addr = sheet + *(int32*)(sheet + 6 + sprite_idx*4) (4-byte-per-entry offset table starting at sheet+6), then calls fd2_rle_blit_sprite(sprite_addr, dst_x=0, dst_y=0, dst, dst_pitch, palette_op=0xFFFFFFFF). palette_op 0xFFFFFFFF selects RLE PASSTHROUGH (transparent skip-runs preserved, opaque pixels copied unchanged). Body is preceded by the compiler-generated __CHK(0x20) stack-probe prologue (omitted in src). Single basic block, cyclomatic complexity 1.",
+  "signature": "void fd2_blit_indexed_sprite_at_xy(uint32 dst, uint32 dst_pitch, uint32 sheet, uint32 sprite_idx)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Destination base linear address (passed straight through to fd2_rle_blit_sprite as dst_buf).",
+      "verdict": "rename",
+      "proposed": "dst",
+      "reason": "param_1 is a generic placeholder; arg is the destination buffer base. src already names it 'dst'."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "Destination row stride in bytes (passed through as the rle blit's stride arg).",
+      "verdict": "rename",
+      "proposed": "dst_pitch",
+      "reason": "param_2 is a generic placeholder; arg is the destination row stride. src already names it 'dst_pitch'."
+    },
+    {
+      "name": "param_3",
+      "type": "uint",
+      "semantics": "Sprite-atlas sheet base linear address; offset table read at sheet+6, sprite header at sheet + table[sprite_idx].",
+      "verdict": "rename",
+      "proposed": "sheet",
+      "reason": "param_3 is a generic placeholder; arg is the atlas sheet base. src already names it 'sheet'."
+    },
+    {
+      "name": "screen_x",
+      "type": "int",
+      "semantics": "Index into the sheet's 4-byte-per-entry offset table (selects which sub-sprite). NOT a screen x coordinate.",
+      "verdict": "rename",
+      "proposed": "sprite_idx",
+      "reason": "Name 'screen_x' is actively wrong/misleading: the value is the atlas sprite index used as table[6 + screen_x*4], never an x coordinate (rle blit's dst_x is hardcoded 0). src already names it 'sprite_idx'."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value (void). The binary leaves EAX as set by fd2_rle_blit_sprite; no caller consumes a result."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": "Src comment block (lines 227-263) was accurate and well-refined, but the Args section (lines 251-254) used non-ASCII em-dashes (U+2014), violating the code-ASCII-only rule.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Wrapper body in src (lines 256-263) is byte-faithful to the decompile (sprite_addr lookup + fd2_rle_blit_sprite call with dst_x=dst_y=0, palette_op=0xFFFFFFFF); no logic touched. 11 distinct callers (UI/inventory/shop/party-status/chapter-intro/ending render paths), 23 call sites; src comment 'optid 11 callers' line is correct. Ghidra plate is semantically consistent with refined understanding (also flags the misleading name and that param 'screen_x' = sprite_idx), so plate left unchanged. Sibling raw/opaque variant: fd2_blit_sheet_sprite_at_offset @ 0x1685C. ASCII fix: only changed em-dashes to '--' in the Args lines; no other comment text altered. name_final reflects proposed rename (applied in Stage 2, not here)."
+}

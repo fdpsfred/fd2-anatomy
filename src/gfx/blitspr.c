@@ -248,10 +248,10 @@ void fd2_blit_sheet_sprite_at_offset(uint32 dst, uint32 dst_pitch,
  * transparency.
  *
  * Args (cdecl, 4x uint32 on stack):
- *   dst        — destination base linear address
- *   dst_pitch  — destination row stride
- *   sheet      — sprite atlas base linear address
- *   sprite_idx — index into the sheet's offset table
+ *   dst        -- destination base linear address
+ *   dst_pitch  -- destination row stride
+ *   sheet      -- sprite atlas base linear address
+ *   sprite_idx -- index into the sheet's offset table
  * ---------------------------------------------------------------- */
 void fd2_blit_indexed_sprite_at_xy(uint32 dst, uint32 dst_pitch,
                                    uint32 sheet, uint32 sprite_idx)
