@@ -74,10 +74,13 @@ const uint8 data_fd2_battle_summon_main_anim_12color_sprite_offset_table[12] =
  *
  * Per-color vertical pixel offset for the variant-A summon-spell (召喚系)
  * animation's 10 color phases. Read-only base offset consumed by
- * fd2_tick_summon_anim_variant_a_6slot (@ 0x269D3); the slot's screen y is
- * origin_y + y_offset[color]. Whole-dword
- * indexing at a 4-byte stride fixes the int32[10] type (matches the Ghidra
- * int[10]). Values (LE) = {30,50,70,40,80,100,70,30,60,90}.
+ * fd2_tick_summon_anim_variant_a_6slot (@ 0x269D3): the whole table is copied
+ * to a stack-local int[10] (MOV ECX,0xA / MOV ESI,0x524A8 / REP MOVSD), then
+ * each slot's screen y is origin_y + y_offset[color]. For the enemy team
+ * (runtime_char[caster].bTeam == 0) every local entry is biased by +0x8F
+ * before use; the bias lives in the consumer's local copy, so the global stays
+ * read-only. Whole-dword indexing at a 4-byte stride fixes the int32[10] type
+ * (matches the Ghidra int[10]). Values (LE) = {30,50,70,40,80,100,70,30,60,90}.
  * ---------------------------------------------------------------- */
 const int32 data_fd2_battle_summon_anim_variant_a_10color_y_offset_table[10] =
     { 30, 50, 70, 40, 80, 100, 70, 30, 60, 90 };
