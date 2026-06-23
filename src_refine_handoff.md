@@ -6,9 +6,8 @@
 
 ## 0. 目前狀態（最重要）
 
-- **Stage 1（逐 symbol refine，4 worktree 平行）進行中，未完成**。已 commit：
-  - rp1 100/253、rp2 82/253、rp3 86/255、rp4 84/255 = **352 / 1016**。剩 ~664。
-  - 撞過一次 usage limit（per-symbol commit 全 durable，零損失）。目前 4 個 workflow 都**停著**（已手動停）。
+- **Stage 1（逐 symbol refine，4 worktree 平行）進行中，未完成**。**4 個 workflow 已重啟、進行中**；task ID 在 `workspace/src_refine/running_tasks.json`，auto-resume cron job 每 :37 看守。實時進度＝各 worktree `shards/rpN` 計數（見 §4 查詢指令），不要信本檔的靜態快照。
+  - 上次快照（會過時）：rp1 100/253、rp2 82/253、rp3 86/255、rp4 84/255 = 352/1016，剩 ~664。per-symbol commit 全 durable，撞 limit 零損失。
 - 累計（僅這 352 個，partial）：符號改名 ~19、**參數改名 ~98**、logic issue ~10。最終數字待 Stage 1 全完成後 `merge_shards.py` 統計。
 - baseline hash：`ab5f110af02608462a1da464732c098ef4dc8e17e6dc43252b535ed1cbf3bd9b`（在 `tools/src_refine/data/baseline_hash.txt`）。
 - **尚未做**：Stage 2（套用 symbol + 參數 rename）、merge 回 main、merge_shards、最終 build gate、收尾 reconcile、處理 src_issues。
@@ -27,21 +26,23 @@ Ghidra MCP 已開 FD2.LE；DOSBox-X 在 `C:\DOSBox-X\dosbox-x.exe`；Watcom 9.5a
 
 ## 3. 第一步：重建 auto-resume timer cron（必做）
 
-cron 是 **session-only**（不跨 session），新 session 一定要重建，否則撞 limit 後不會自動續跑。
-先 `CronList` 看有沒有 prompt 開頭是 `[src_refine auto-resume timer]` 的 job；沒有就 `CronCreate({cron:"37 * * * *", recurring:true, durable:true, prompt:<下方逐字>})`：
+cron 是 **session-only**（撞 limit 時 session 不死、cron 仍在，故能自動續跑；跨 session 不保證存在），新 session 一定要重建。先 `CronList` 看有沒有 prompt 開頭是 `[src_refine auto-resume timer]` 的 job；沒有就 `CronCreate({cron:"37 * * * *", recurring:true, durable:false, prompt:<下方逐字>})`。
+
+**RUNNING 偵測用 `TaskOutput`，不可用 `TaskList`**（已實測）：本 harness 的 `TaskList` 不追蹤 `local_workflow` 背景任務（workflow 在跑時 `TaskList` 仍回 "No tasks found"），它只追蹤 `TaskCreate` todo。所以每次（手動或 cron）啟動某 partition 後，必須把 Workflow 回傳的 Task ID 寫進 `workspace/src_refine/running_tasks.json`（`{partition: taskId}` map，gitignored）；偵測 RUNNING 時讀此檔 + `TaskOutput({task_id, block:false})`，輸出含 `<status>running</status>` 才算 RUNNING。若改用 `TaskList`，它永遠回空 → cron 會把正在跑的 partition 也重啟 → 同一 partition 兩 workflow 競寫同檔毀檔。`durable:false` 理由：避免 durable cron 在未來 session 殘留成第二 driver 重複啟動；撞 limit 的主要續跑情境 session 仍存活，false 已足夠。
 
 ```
-[src_refine auto-resume timer] Hourly timer: just a reminder to CHECK src_refine Stage 1 and resume it only if it stalled on a usage limit. The user pre-authorized this auto-resume, so calling the Workflow tool here is approved. Be terse; do ONLY the steps below, then END the turn (never wait for workflows):
+[src_refine auto-resume timer] Hourly safety-net: resume ONLY src_refine Stage 1 partitions that stalled (usually a usage limit). The user pre-authorized this auto-resume, so calling the Workflow tool here is approved. Be terse; do ONLY the steps below, then END the turn (never wait for workflows).
 
-1. If you lack context, read C:/Users/fdpsf/Documents/fd2-anatomy/tools/src_refine/_index.md and repo-root src_refine_handoff.md.
-2. committed per partition = `find C:/Users/fdpsf/Documents/fd2-wt/<P>/tools/src_refine/data/shards/<P> -name '*.json' | wc -l`. Totals: rp1=253, rp2=253, rp3=255, rp4=255.
-3. Call TaskList. A partition <P> is RUNNING iff a Workflow/local_workflow task with label 'refine-<P>' is in_progress.
-4. Decide PER partition:
-   - RUNNING  -> NO-OP (skip; never relaunch a running partition).
+SETUP: load deferred tools first -> ToolSearch query="select:TaskOutput,CronList,CronDelete,PushNotification" (Workflow is already available). If you lack context, read C:/Users/fdpsf/Documents/fd2-anatomy/tools/src_refine/_index.md and repo-root src_refine_handoff.md.
+
+1. committed per P in {rp1,rp2,rp3,rp4} = count of *.json in C:/Users/fdpsf/Documents/fd2-wt/<P>/tools/src_refine/data/shards/<P>. Totals: rp1=253, rp2=253, rp3=255, rp4=255.
+2. RUNNING detection -- do NOT use TaskList (it does NOT track local_workflow tasks in this harness; it returns empty even while workflows run). Read C:/Users/fdpsf/Documents/fd2-anatomy/workspace/src_refine/running_tasks.json (a JSON map {partition: taskId}). For each P that has a taskId, call TaskOutput({task_id:<id>, block:false, timeout:15000}); P is RUNNING iff the output contains the literal substring "<status>running</status>". Missing entry / completed / stopped / error => NOT running.
+3. Decide PER partition:
+   - RUNNING -> NO-OP (never relaunch a running partition; double-launch corrupts shards).
    - committed==total -> done (skip).
-   - committed<total AND not running (= stalled, usually the usage limit) -> organize state then relaunch: in wt=C:/Users/fdpsf/Documents/fd2-wt/<P>, if `git -C "$wt" status --porcelain` is non-empty run `git -C "$wt" add -A && git -C "$wt" commit -m "src-refine: shard backfill (auto-resume cleanup)" -m "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`; then Workflow({scriptPath:"tools/src_refine/src_refine.wf.js", args:{root:"$wt", partition:"<P>", label:"refine-<P>"}}).
-5. If ALL four committed==total -> Stage 1 COMPLETE: CronList then CronDelete the job whose prompt starts '[src_refine auto-resume timer]'; PushNotification "src_refine Stage 1 complete (1016/1016); Stage 2 (merge + symbol/param rename) can begin per tools/src_refine/_index.md"; do NOT start Stage 2 yourself. End.
-6. If you are still usage-limited and cannot act at all, do nothing -- the next hourly fire retries automatically.
+   - committed<total AND not running (= stalled) -> RESUME: let wt=C:/Users/fdpsf/Documents/fd2-wt/<P>. If `git -C "$wt" status --porcelain` is non-empty, run `git -C "$wt" add -A && git -C "$wt" commit -m "src-refine: shard backfill (auto-resume cleanup)" -m "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`. Then launch Workflow({scriptPath:"tools/src_refine/src_refine.wf.js", args:{root:"<wt>", partition:"<P>", label:"refine-<P>"}}) using the LITERAL partition name for <P> (e.g. rp1). Capture the returned Task ID and update running_tasks.json key "<P>" to it (preserve the other partitions' entries).
+4. If ALL four committed==total -> Stage 1 COMPLETE: CronList, then CronDelete the job whose prompt starts "[src_refine auto-resume timer]"; PushNotification "src_refine Stage 1 complete (1016/1016); Stage 2 (merge + symbol/param rename) can begin per tools/src_refine/_index.md"; do NOT start Stage 2 yourself. End.
+5. If still usage-limited and you cannot act at all, do nothing -- the next hourly fire retries automatically.
 ```
 
 **唯一 driver 原則**：同時只能有一個 session 驅動（cron 跨 session 不可見，兩個 driver 會搶開同一 partition 而毀檔）。所以舊 session 要先關掉（其 session-only cron 與 workflow 隨之消失），再讓這個新 session 重建 cron 當唯一 driver。重建後可等 cron 下次 :37 自動啟動，或照 §4「手動立即啟動」即時開跑。
@@ -63,9 +64,10 @@ git -C C:/Users/fdpsf/Documents/fd2-wt/<P> add -A && git -C ... commit -m "src-r
 Workflow({scriptPath:"tools/src_refine/src_refine.wf.js",
           args:{root:"C:/Users/fdpsf/Documents/fd2-wt/<P>", partition:"<P>", label:"refine-<P>"}})
 ```
+**啟動後立刻把回傳的 Task ID 寫進 `workspace/src_refine/running_tasks.json` 的 `<P>` 鍵**（其他 partition 鍵保留）——cron 與後續偵測都靠這個檔判 RUNNING。
 進度查詢：`find C:/Users/fdpsf/Documents/fd2-wt/<P>/tools/src_refine/data/shards/<P> -name '*.json' | wc -l`
 vs 總數 rp1=253 rp2=253 rp3=255 rp4=255。
-**嚴禁同一 partition 開兩個 workflow**（會競寫同檔）；先 TaskList 確認沒在跑。
+**嚴禁同一 partition 開兩個 workflow**（會競寫同檔）；啟動前先用 `running_tasks.json` + `TaskOutput({task_id, block:false})` 確認沒在跑（**不可用 `TaskList`**，它查不到 `local_workflow` 任務）。
 
 每個 partition 跑完後在該 worktree 跑 build gate（須 byte-identical）：
 ```
