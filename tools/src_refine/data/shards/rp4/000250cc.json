@@ -1,0 +1,44 @@
+{
+  "address": "000250cc",
+  "name_current": "fd2_chapter_27_end",
+  "name_final": "fd2_chapter_27_end",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=chapter, descriptor=27_end). The 27 is the meaningful chapter ID (chapters 01-30 are domain IDs), not an address residue (function is at 0x250cc, unrelated to 27). Consistent with all sibling end handlers (ch20-30) in chend2.c, each dispatched via data_fd2_chapter_end_handler_table[N].",
+  "kind": "function",
+  "home": "src/field/chend2.c",
+  "purpose": "Chapter 27 (命運的交會點) end handler; the FD2 GOOD/BAD ending fork, dispatched via data_fd2_chapter_end_handler_table[27] (table entry @ 0x51e51).",
+  "logic_summary": "Copies the two 16-byte ch27 end-scene pos_x/pos_y tables onto the stack and snapshots the vestigial byte, clears every active runtime_char flags byte (slots 0..15), places the cast and re-aims the camera via fd2_setup_chars_and_camera_for_intro, runs opening dialog page 8 and cutscene event 0x52, then forks on whether any party char holds 天空之鑰 (item 100). GOOD path (key held): dialog pages 9/10/11/12 with cutscene events 0x53/0x54 and a cursor/window pan, a sequence of additive over-bright palette pulses with shrinking 500/250/100/50ms holds, a screen-wide spell centred on the cursor, a 500ms hold, a white-screen flash (memset 0xA0000=0xFF), palette fade to black, a black-screen clear (memset 0xA0000=0), then saves the runtime char templates, advances current_chapter_id, restores all chars to full HP/MP, and returns (tail shares the function epilogue of fd2_render_party_status_overview_content @ 0x1b5ea via JMP) so play continues into chapter 28. BAD path (key NOT held): dialog pages 13/14/15 with cutscene events 0x54/0x52, a status-effect overlay flicker, warps 悠妮 (runtime_char[1]) off the field, final dialog page 16, restores all chars to full HP/MP, plays the game-over cinematic, then hard-locks in an infinite loop -- the binary's 沒天空之鑰悠妮獨自回黃金城無法玩 game-over.",
+  "signature": "void __cdecl fd2_chapter_27_end(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. GOOD path returns normally (play continues to chapter 28); BAD path never returns (infinite loop after the game-over cinematic)."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_ch27_end_scene_char_pos_x_table",
+    "data_fd2_chapter_ch27_end_scene_char_pos_y_table",
+    "data_fd2_chapter_ch27_end_scene_vestigial_byte",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_current_chapter_text",
+    "data_fd2_battle_cursor_screen_x",
+    "data_fd2_battle_cursor_screen_y",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_anim_phase",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "57477ecaad558db5d9d38cde0052acd218eb55c8",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified xref @ 0x51e51 is data_fd2_chapter_end_handler_table[27] (read_memory: cc500200 -> 0x250cc; next entry 0x25464=ch28 end). The in_stack_* decompiler vars and __CHK (PUSH 0x60; CALL 0x36cd7 @ 0x250d1) are the Watcom stack-probe, not real parameters -> signature is void(void). GOOD-path JMP 0x1b5ea confirmed to land inside fd2_render_party_status_overview_content (0x1b41d-0x1b5f0) epilogue. Src comment block (chend2.c lines 683-716) is accurate, concise, ASCII (only Chinese proper nouns retained) and matches decomp precisely -> comment kept. Ghidra plate is the more verbose but consistent version -> plate left untouched. No logic/equivalence issues found; infinite loops and vestigial byte are intentional binary design."
+}
