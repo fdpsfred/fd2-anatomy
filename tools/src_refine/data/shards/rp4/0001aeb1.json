@@ -1,0 +1,56 @@
+{
+  "address": "0001aeb1",
+  "name_current": "fd2_render_signed_modifier_with_icon",
+  "name_final": "fd2_render_signed_modifier_with_icon",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (gfx render domain). Descriptor accurately captures behaviour: render a signed (+/-) numeric modifier preceded by a sign icon. No Ghidra address residue. The 0x83/0x84 sprite indices live in the body, not the name.",
+  "kind": "function",
+  "home": "src/gfx/rndstat.c",
+  "purpose": "Render a small \"+/-NN\" signed-modifier display (sign icon glyph + 2-digit magnitude in red) into a pixel buffer; used for the terrain MV-cost / DEF-bonus indicators in the tile info HUD.",
+  "logic_summary": "sign_sprite_idx defaults to 0x83 (cyan '+'). If modifier < 0, switch to sprite 0x84 (red '-') and replace modifier with abs(modifier). Blit the sign icon via fd2_rle_blit_sprite from the UI/anim sprite sheet, indexing its sprite-stream offset table at sheet + *(int*)(sheet + 6 + idx*4), at dst (x=0,y=0), pitch=stride, palette op 0xFFFFFFFF. Then draw the 2-digit magnitude 8 bytes to the right (dst+8) in red (color 0x1F) via fd2_render_decimal_number_to_buffer.",
+  "signature": "void __cdecl fd2_render_signed_modifier_with_icon(uint32 dst, uint32 stride, int32 modifier)",
+  "params": [
+    {
+      "name": "dst",
+      "type": "uint32",
+      "semantics": "Destination pixel-buffer linear address where the sign icon is blitted (sole caller passes panel_base + stride*8 + 0x2B for the MV indicator and panel_base + stride*0x13 + 0x2B for the DEF indicator).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear, conventional destination-address name; no address residue; matches body usage as the blit/number destination base."
+    },
+    {
+      "name": "stride",
+      "type": "uint32",
+      "semantics": "Render pitch / row stride of the destination surface; forwarded unchanged to fd2_rle_blit_sprite (as pitch) and fd2_render_decimal_number_to_buffer.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Standard stride/pitch name matching the rest of the gfx renderers in this file; no residue."
+    },
+    {
+      "name": "modifier",
+      "type": "int32",
+      "semantics": "Signed modifier value to display (caller supplies per-tile-attr MV-cost / DEF-bonus from data_fd2_battle_tile_attr_mv_modifier_table / def_modifier_table). Sign selects the icon; magnitude (abs) is the rendered number.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name precisely reflects the value's role (the signed modifier being displayed); no residue; the signedness is load-bearing for the < 0 branch."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effect is the rendered sign icon + 2-digit number in the destination buffer."
+  },
+  "reads_globals": ["data_fd2_ui_anim_sprite_sheet_ptr"],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Sole caller fd2_render_terrain_info_hud_panel @ 0x1ACF3 invokes it twice (MV and DEF modifiers). Source comment block (rndstat.c lines 872-916) was already precise, accurate, and consistent with the Ghidra plate and decompilation; both kept unchanged. The 0x83/0x84 sprite indices and 0x1F color are domain constants (UI/anim sprite-sheet glyph indices), not address residue. The dst+8 offset table indexing (sheet+6+idx*4) matches the shared HUD sprite indexing convention. __CHK(0x20) is the compiler-injected stack-probe prologue, correctly noted as omitted in src. abs() negative-branch matches the binary's abs() CALL with EAX stored back over the modifier arg."
+}
