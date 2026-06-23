@@ -978,7 +978,7 @@ void fd2_chapter_event_handler_45__ch28_dyn_turn_event(uint32 stepping_char_id)
  * dialog with state. Dispatch-table signature is 1-arg cdecl
  * (void fn(uint event_arg)); this handler does not read the arg.
  *
- * Effect: ch28 turn-FF marker scene — disarm AI control flag 0 (combat_aux
+ * Effect: ch28 turn-FF marker scene -- disarm AI control flag 0 (combat_aux
  * block[0xD] low nibble = 0) for the NPC range 0x29..0x2D (5 chars), show dialog
  * page 5, play a three-portrait white-flash cutscene chain (chapter ids 3, 4, 5
  * at tiles (8,7) / (4,7) / (0,7)), then show dialog page 6.
