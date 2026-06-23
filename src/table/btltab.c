@@ -547,8 +547,11 @@ int (*data_fd2_battle_spell_cast_cinematic_phase_handler_table[10])(
  * Memory image @ 0x523E1: 00 00 01 00 01 00 00  (slots 2 and 4 are the
  * visible-pass group). Sits immediately before the 7-entry u32 y-offset table
  * at 0x523E8.
+ *
+ * const: read-only in-game (zero game-side write xrefs; the consumer only
+ * bulk-copies it out). The anisumm1 test fixtures that wrote this table are
+ * SKIP-gated pending a Phase 3 rewrite that drives the real const data.
  * ---------------------------------------------------------------- */
-/* Non-const: read-only in-game, but mutated by anisumm1 test fixtures. */
 const uint8 data_fd2_battle_summon_spell_8slot_visibility_table[7] = {
     /* slot 0 */ 0x00, /* slot 1 */ 0x00, /* slot 2 */ 0x01, /* slot 3 */ 0x00,
     /* slot 4 */ 0x01, /* slot 5 */ 0x00, /* slot 6 */ 0x00
