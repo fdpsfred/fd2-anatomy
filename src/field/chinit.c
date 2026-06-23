@@ -1435,14 +1435,14 @@ void fd2_chapter_25_init(void)
  * orchestrator: it re-inits battle state, pans the camera-and-window
  * once (target 9, 0x27), plays a single cutscene (event id 0x4C),
  * plays exactly one dialog page (page 0), clears all facings, and pans
- * the camera to char 0. There is NO portrait load and NO char init —
+ * the camera to char 0. There is NO portrait load and NO char init --
  * chapter 26 carries the party over from the previous chapter.
  *
  * There is NO data_fd2_battle_anim_phase reset anywhere on this
  * handler's code path (no MOV [0x51A83],0): page 0 is the sole, tail
  * dialog page. It is a pure straight-line orchestrator: NO numeric
  * computation, NO RNG, NO data-dependent branch, and NO CALL-result
- * consumption (no Ghidra EAX-tracking-bug exposure) — the dialog-scene
+ * consumption (no Ghidra EAX-tracking-bug exposure) -- the dialog-scene
  * CALL return is discarded.
  *
  * void __cdecl, no real params, void return. The leading __CHK(0x28)
@@ -1461,7 +1461,7 @@ void fd2_chapter_25_init(void)
  * Linked handlers:
  *   End:         fd2_chapter_26_end @ 0x24E80
  *   Post-action: fd2_chapter_26_post_action @ 0x20B3C
- *                (extra lose if char[1] OR char[2] dead — 悠妮/亞奇梅吉)
+ *                (extra lose if char[1] OR char[2] dead -- 悠妮/亞奇梅吉)
  *
  * (9 階段密集 reinforcement turn 2/4/6/8/10/12/15/16/17 = FDFIELD event
  * 觸發, 非此 init handler.)
