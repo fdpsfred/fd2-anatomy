@@ -1,0 +1,58 @@
+{
+  "address": "0x0002d620",
+  "name_current": "fd2_blit_money_digit_sprite",
+  "name_final": "fd2_blit_money_digit_sprite",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; 'blit_money_digit_sprite' accurately reflects the purpose (per-digit blit primitive for the money-roller slot-machine animation). No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "ROOT/src/gfx/blitspr.c",
+  "purpose": "Per-digit blit primitive that copies one 9-row x 6-pixel money-digit sprite from the UI-menu sprite atlas into the destination buffer at a given row stride.",
+  "logic_summary": "Resolves the source row pointer as atlas + *(int32*)(atlas+0xE) (offset to digit-sprite section) + 4 (skip 4-byte section header) + sprite_idx*6 (sprite stride within row), where atlas = data_fd2_ui_menu_screen_sprite_atlas_buf_ptr. Then loops 9 times (signed compare row < 9): each iteration memmoves 6 bytes src_row -> dst_buf, advances dst_buf by dst_stride and src_row by 6. sprite_idx = digit_value*9 + animation_frame (0..89 covers all 10 digits x 9 rolling frames). Disasm confirms: ADD EBX,[EBX+0xe]; ADD EBX,0x4; IMUL ESI,...,0x6; CMP ESI,0x9/JL; PUSH 0x6/CALL memmove; ADD EDI,EBP; ADD EBX,0x6.",
+  "signature": "void __cdecl fd2_blit_money_digit_sprite(uint32 dst_buf, uint32 dst_stride, uint32 sprite_idx)",
+  "params": [
+    {
+      "name": "dst_buf",
+      "type": "uint32",
+      "semantics": "Destination base linear address (row start). Caller passes 0xA7A90 + digit_iter*6 -- the per-digit slot position in the 8-digit money display.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the destination buffer base; no address residue."
+    },
+    {
+      "name": "dst_stride",
+      "type": "uint32",
+      "semantics": "Bytes to advance the destination pointer per row. Caller passes 0x140 (= 320, the mode13h row stride).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the per-row destination advance; no address residue."
+    },
+    {
+      "name": "sprite_idx",
+      "type": "uint32",
+      "semantics": "Sprite selector within the digit-sprite section = digit_value*9 + animation_frame; scaled by 6 to index the 6-byte-wide row run. Caller passes cur_digits[i]*9 + anim_state[i].",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the sprite index; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_ui_menu_screen_sprite_atlas_buf_ptr (0x54147) -- FDOTHER.DAT[0xD] payload; base of the sprite atlas. Read for the base pointer and for the int32 digit-sprite section offset stored at atlas+0xE."
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (blitspr.c lines 300-333) is already precise, ASCII, and byte-for-byte consistent with the decompile and disassembly (9x6 blit, atlas+0xE section offset, +4 header skip, sprite_idx*6, 6-byte memmove per row, dst+=stride). Kept as-is. Ghidra plate is semantically equivalent (uses the older descriptive label 'chapter_intro_sprite_atlas' for the same global, but the live symbol name is data_fd2_ui_menu_screen_sprite_atlas_buf_ptr; this is descriptive prose, not a name mismatch); no plate change needed. The signature's immediate '12' (0xC) is the ADD ESP,0xc stack cleanup after the 3-arg memmove push, not a source offset -- the section offset is at +0xE as decompiled. No logic concerns."
+}
