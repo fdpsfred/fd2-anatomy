@@ -256,7 +256,7 @@ void fd2_apply_attack_spell_damage(uint32 caster_idx,
  * fd2_composite_battle_frame(0) then fd2_animate_spell_projectile_
  * paths() (inlined here; the wrapper is a shared-epilogue fragment,
  * not a standalone C function). The function has no explicit RET of
- * its own — it borrows 0x21190's POP/RET epilogue.
+ * its own -- it borrows 0x21190's POP/RET epilogue.
  *
  * damage is the per-target return of fd2_calc_magic_damage: asm
  * 0x2142F CALL leaves it in EAX, 0x21434 ADD ESP,8 / 0x21412 PUSH EAX

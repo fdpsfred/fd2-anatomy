@@ -1,0 +1,68 @@
+{
+  "address": "000213b7",
+  "name_current": "fd2_execute_offensive_full_screen_flash_spell",
+  "name_final": "fd2_execute_offensive_full_screen_flash_spell",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (battle/spell domain). 'execute_offensive' = offensive spell worker; 'full_screen_flash' is the distinguishing second-animation variant (vs sibling fd2_execute_offensive_targeted_spell @ 0x21227 which uses overlay_blink). Name accurately reflects body. No Ghidra address residue. No domain ID to preserve. Keep.",
+  "kind": "function",
+  "home": "ROOT/src/spell/spelleff.c",
+  "purpose": "Generic offensive spell worker (full-screen-flash animation variant, spell ids 4-7): plays the impact + full-screen-flash animations, deducts caster MP, then applies magic damage to every target in the byte array (miss indicator on 0, else damage number glyph 0x5E).",
+  "logic_summary": "Resets data_fd2_battle_spell_aoe_count_and_fx_queue_idx=0; calls fd2_animate_spell_impact_per_target(caster,spell_id,n_targets,p_targets) then fd2_animate_spell_full_screen_flash(same args); fd2_deduct_caster_mp(caster,spell_id). Loops iter=0..n_targets-1: target_id=((uint8*)p_targets)[iter]; damage=fd2_calc_magic_damage(target_id,spell_id); if damage!=0 -> fd2_show_damage_number(damage,0x5E,target_id) else fd2_show_miss_indicator(target_id). Closes with fd2_composite_battle_frame(0) + fd2_animate_spell_projectile_paths(). In binary the loop-exit JGE 0x2141E falls into the Pattern-A shared epilogue @ 0x21190 (no explicit RET); src inlines it as the two trailing calls. Byte-identical to sibling fd2_execute_offensive_targeted_spell @ 0x21227 except the 2nd animation (full_screen_flash vs overlay_blink). Ghidra __CHK(0x24,...) stack probe is the Watcom prologue, not game logic, and is correctly omitted in src.",
+  "signature": "void fd2_execute_offensive_full_screen_flash_spell(int caster, int spell_id, int n_targets, int p_targets)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Caster unit id (forwarded to fd2_animate_spell_impact_per_target / fd2_animate_spell_full_screen_flash / fd2_deduct_caster_mp). src already names it 'caster'.",
+      "verdict": "rename",
+      "proposed": "caster",
+      "reason": "Live Ghidra name param_1 is a generic placeholder; actual use is the caster unit id. src already uses 'caster'. Rename in Stage 2."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "Spell id (caller fd2_spell_handler_id_4_via_full_screen_flash passes literal 4; ids 5/6/7 reach via shared-tail). Used for both animations, MP deduction, and the damage calc. src already names it 'spell_id'.",
+      "verdict": "rename",
+      "proposed": "spell_id",
+      "reason": "Live Ghidra name param_2 is a generic placeholder; actual use is the spell id. src already uses 'spell_id'. Rename in Stage 2."
+    },
+    {
+      "name": "param_3",
+      "type": "uint",
+      "semantics": "Number of targets / loop bound (compared signed against iter). src already names it 'n_targets'.",
+      "verdict": "rename",
+      "proposed": "n_targets",
+      "reason": "Live Ghidra name param_3 is a generic placeholder; actual use is the target count. src already uses 'n_targets'. Rename in Stage 2."
+    },
+    {
+      "name": "caster_unit_id",
+      "type": "int",
+      "semantics": "Pointer to the byte array of target unit ids; indexed as ((uint8*)p)[iter] inside the loop. NOT the caster. src already names it 'p_targets'.",
+      "verdict": "rename",
+      "proposed": "p_targets",
+      "reason": "Live Ghidra name 'caster_unit_id' is outright misleading -- it is the target-id array pointer, not the caster (Ghidra's own plate flags it as misleading). src already uses 'p_targets'. Rename in Stage 2."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. In the binary the function has no explicit RET of its own; the loop-exit JGE falls through into the shared epilogue @ 0x21190 (composite_battle_frame(0) + animate_spell_projectile_paths + that fragment's POP/RET). Layer-2 src inlines the two calls and returns normally."
+  },
+  "reads_globals": [
+    "data_fd2_battle_spell_aoe_count_and_fx_queue_idx"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_spell_aoe_count_and_fx_queue_idx"
+  ],
+  "comment_original_issue": "Comment content was accurate but contained a non-ASCII em-dash ('--' required by ASCII-only rule) in the 'no explicit RET of its own -- it borrows ...' sentence.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Single em-dash -> '--' fix in the src comment (ASCII compliance); both this fn's block (241-301) and the sibling fn @ 0x21227 (line 496) shared the wording, edit was disambiguated by the unique 'JGE 0x2141E' anchor so only this symbol's comment was touched (sibling line 496 left untouched). Name verdict keep; all 4 param renames recorded only (Stage 2 will apply). Ghidra plate is accurate and consistent with refined understanding (its em-dash is allowed in plates), so left untouched."
+}
