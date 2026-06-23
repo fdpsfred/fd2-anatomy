@@ -73,9 +73,11 @@ uint32 fd2_load_dat_resource(uint32 fname, uint32 old_buf, uint32 index)
 }
 
 /* ----------------------------------------------------------------
- * fd2_load_chapter_background_layers @ 0x10652  (1 caller)
+ * fd2_load_chapter_background_layers @ 0x10652  (3 callers)
  *
  * Chapter-specific background layer load from FDOTHER.DAT.
+ * Callers: fd2_load_chapter_battle_data, fd2_load_save_and_init_engine,
+ * fd2_chapter_23_end.
  *
  * Frees + nulls both static_bg_buffer and animated_bg_buffer, then
  * selects one of three load shapes by current chapter id:
