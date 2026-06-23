@@ -1,0 +1,44 @@
+{
+  "address": "00020957",
+  "name_current": "fd2_chapter_20_post_action",
+  "name_final": "fd2_chapter_20_post_action",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>. The '20' is the chapter-ID domain value (chapters 01-30 are meaningful IDs), confirmed by dispatch-table index 19 at 0x51B19 (0x51B65-0x51B19=0x4C, /4 = 19 -> chapter 20). It is NOT an address remnant (the function sits at 0x20957, not 0x20). Name accurately describes the chapter-20 turn-cycle post-action handler.",
+  "kind": "function",
+  "home": "src/field/chpost.c",
+  "purpose": "Chapter 20 turn-cycle post-action handler: large multi-faction battle win/lose decision dispatched from the per-chapter post-action handler table.",
+  "logic_summary": "Calls default fd2_check_battle_end_condition, then layers three stages writing data_fd2_chapter_event_or_battle_end_code (0x53ECC). Stage 1 (LOSE+dialog): scan NPC group runtime_char[0x35..0x3C] (loop i=0x26..0x2D, slot i+0xF); loop does not early-exit, sets some_alive on any live slot; if all dead set code=1 and show current_chapter_text page 10. Stage 2 (LOSE): if hero runtime_char[0] OR boss-ally runtime_char[0x34] dead, set code=1 (OR short-circuits). Stage 3 (WIN): reset some_alive, scan enemy union runtime_char[0x24..0x33] (i=0x15..0x24) and runtime_char[0x3D..0x52] (i=0x2E..0x43); if all dead set code=2. Stage 3 runs last so a full enemy wipe overrides an earlier LOSE (win-overrides-loss).",
+  "signature": "void fd2_chapter_20_post_action(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Unused dispatch-artifact argument. Body does (void)event_arg. In the binary it is the Watcom __CHK-prologue artifact (function consumes no real incoming stack arg; epilogue is bare ADD ESP,4 / POP EBX / RET with no caller-side arg cleanup). Ghidra mislabels it 'chapter_id'; 'event_arg' is the consistent convention across all sibling post-action handlers in this file.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Conventional, accurate name for the ignored dispatch-artifact parameter shared by the whole post-action handler family; not an address remnant and not misleading. No rename warranted."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effect is writing data_fd2_chapter_event_or_battle_end_code (0=continue, 1=lose/game-over, 2=win)."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text @ 0x53A79 (passed to fd2_display_dialog_scene in Stage 1)"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_event_or_battle_end_code @ 0x53ECC (set to 1 in Stage 1/Stage 2, set to 2 in Stage 3)"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly verified line-by-line against chpost.c source: prologue PUSH 0x30/CALL __CHK(0x36cd7); callees fd2_check_battle_end_condition(0x205be), fd2_check_char_is_dead(0x3453e), fd2_display_dialog_scene(0x15f84); dialog page 0xA=10 with geometry 0xA0000/0x140/0xCD/0x4C/0x4A/0x13/blink=1; current_chapter_text read from 0x53A79. Dispatch xref confirmed at 0x51B65 (table 0x51B19 index 19 = chapter 20). Source comment is accurate, precise, ASCII-clean, no process/phase narration -> kept verbatim; chpost.c not modified."
+}
