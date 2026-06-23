@@ -1,0 +1,48 @@
+{
+  "address": "00016c57",
+  "name_current": "fd2_wait_for_input_dialog_with_blink",
+  "name_final": "fd2_wait_for_input_dialog_with_blink",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=input/dialog wait). No Ghidra address residue. Descriptor accurately reflects behavior: block until key while running the end-of-dialog-page portrait blink + optional down-arrow animation, then INT 16h read with scancode remap. Lives in the input.c family alongside sibling fd2_wait_input_with_* routines; name is consistent with them.",
+  "kind": "function",
+  "home": "src/input/input.c",
+  "purpose": "Block waiting for a keypress at the end of a dialog page ('press any key' prompt), animating the portrait blink and an optional blinking down-arrow cursor while idle, then read the key via BIOS INT 16h and return the normalized scancode.",
+  "logic_summary": "Init: blink_state=0, arrow_sprite_idx=0x12, arrow_anim_div=0. blink_period = (data_fd2_battle_tile_map_ptr==0) ? 0x4770 : 0x47A0 (menu vs in-battle layout). Snapshot saved_tick from BIOS tick (0:046C); advance RNG and seed blink_countdown = rng%30 + 2 (random 2..31 ticks). pos_offset = (data_fd2_dialog_active_portrait_blit_offset==0x728) ? 0xA0B4F : 0xA951F. If animated_cursor_mode==1, blit the initial down-arrow sprite (0x12) at pos_offset+blink_period+0x640. Idle loop while keyboard buffer empty: run palette-cycle anim; when BIOS tick has advanced (>=2 since saved_tick): if mode==1, every 3 ticks toggle arrow sprite 0x12<->0x13 and re-blit; portrait blink countdown -- when it hits 0 paint mouth-open portrait (sprite 3) and set blink_state, else on next pass paint mouth-closed (sprite 0), re-seed blink_countdown via RNG; re-latch saved_tick. On key arrival: if mode==1, commit final arrow sprite 0x0D at pos_offset+blink_period. Then set key_input_mode=0x10 (INT 16h AH=10h read-enhanced-keyboard preset), call int386(0x16,...) reading scancode back into the shared REGS byte, remap 0xE0/0x52->0x1C (Enter) and 0x53->0x01 (Esc), and return the scancode.",
+  "signature": "int __cdecl fd2_wait_for_input_dialog_with_blink(uint32 animated_cursor_mode)",
+  "params": [
+    {
+      "name": "animated_cursor_mode",
+      "type": "uint32",
+      "semantics": "When ==1, draws and animates the blinking down-arrow ('more text' indicator) sprite during the wait and commits a final arrow frame on exit; any other value suppresses the arrow and only animates the portrait blink. Callers pass 1 for normal dialog pages and 0 where no arrow indicator is wanted.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Decompiled param_1 already renamed to animated_cursor_mode in src; name matches its actual use (gates the arrow-cursor animation paths) and carries no address residue."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Normalized BIOS scancode of the pressed key read from the shared INT 16h REGS byte (data_fd2_input_key_input_mode AH), after remapping extended/numpad-Insert (0xE0/0x52) to Enter (0x1C) and Delete (0x53) to Esc (0x01). src widens the binary's char return to int, matching the sibling wait routines that all return (int)(uint32)data_fd2_input_key_input_mode."
+  },
+  "reads_globals": [
+    "data_fd2_battle_tile_map_ptr",
+    "data_fd2_dialog_active_portrait_blit_offset",
+    "data_fd2_ui_anim_sprite_sheet_ptr",
+    "BIOS_TICK_WORD (0:046C)"
+  ],
+  "writes_globals": [
+    "data_fd2_input_key_input_mode",
+    "data_fd2_input_last_key_pressed"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment block (input.c:320-326) is already accurate, concise, and ASCII; matches the decompilation (random 2..31-tick portrait blink, optional down-arrow toggling sprite 0x12/0x13 every 3 ticks, INT 16h + scancode remap). Kept verbatim, no Edit to input.c. Ghidra plate is highly detailed and fully consistent with the decompile/src understanding -> plate left untouched. Name and the single parameter both compliant; no rename. Only the shard JSON is staged (input.c unchanged). Pre-existing modified shards for other addresses in the working tree are not mine and were not staged."
+}
