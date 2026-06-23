@@ -1130,7 +1130,8 @@ void fd2_cast_status_inflict_spell(uint32 caster_unit_id, uint32 spell_id,
  *   2) FX-queue write cursor: the damage-number and miss-indicator
  *      routines load it as a base index/offset (MOV EAX,[0x53EC4]) into the
  *      parallel FX queue byte arrays at 0x53C6C / 0x53D34 / 0x53DFC, write
- *      a batch of up to 4 entries, then advance it (ADD dword [0x53EC4],4).
+ *      a 4-entry batch (some sprite-id slots may be 0 for blank digits),
+ *      then advance it (ADD dword [0x53EC4],4).
  *
  * Accessed exclusively as a full 32-bit cell: written via
  * MOV dword ptr [0x53EC4],0 and ADD dword ptr [0x53EC4],4; read via
