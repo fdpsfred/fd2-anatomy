@@ -1,0 +1,33 @@
+{
+  "address": "0003367e",
+  "name_current": "fd2_chapter_22_init",
+  "name_final": "fd2_chapter_22_init",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention exactly. The trailing 22 is a chapter ID (chapters 1-30 are meaningful domain IDs per fd2-knowledge: '第22章 遠古呼喚'), confirmed by the dispatch-table index (chapter ID = index + 1) and the linked end/post-action handlers, not a Ghidra address residue. Name accurately reflects the per-chapter init-handler role.",
+  "kind": "function",
+  "home": "src/field/chinit.c",
+  "purpose": "Chapter 22 (遠古呼喚) init handler: a minimal flat chapter-prologue orchestrator dispatched via the chapter init-handler table (no direct callers).",
+  "logic_summary": "Re-inits battle state, pans camera-and-window once to (0x10,0x1C), triggers cutscene event 0x43, clears all char facings, plays exactly one dialog page (page 0) via fd2_display_dialog_scene(current_chapter_text, 0, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1), then pans the camera to char 0. No portrait load and no char init -- chapter 22 carries the party over from the previous chapter; battle_anim_phase is never reset on this path. In the binary the function physically holds only its entry block plus PUSH 0x43, then tail-JMPs 0x3369B -> 0x33440 into the shared body owned by fd2_chapter_12_init (cutscene CALL -> clear-facing -> shared page-0 dialog chain 0x3344D -> 0x33206 -> 0x33140 pan+RET). The straight-line C is the functionally-equivalent Layer-2 reconstruction. Leading __CHK(0x28) is the Watcom frame-size stack probe, not part of the source body.",
+  "signature": "void __cdecl fd2_chapter_22_init(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; orchestrates the chapter-22 prologue sequence for side effects."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "The original comment was accurate and detailed but referenced the post-action handler by a stale name (fd2_chapter_22_post_action) instead of its current live Ghidra name (fd2_chapter_22_27_28_post_action_shared @ 0x20A87), and contained two non-ASCII em-dashes within the comment block.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified against Ghidra disassembly (PUSH 0x28/CALL __CHK; CALL 0x205da fd2_init_battle_state_for_chapter; PUSH 0x1c/PUSH 0x10/CALL 0x135dd fd2_pan_cursor_and_window; ADD ESP,0x8; PUSH 0x43; JMP 0x33440) and the fd2-knowledge walkthrough ('第22章 遠古呼喚'; 必出 希爾法; 失敗條件 索爾死亡/希爾法死亡, i.e. runtime_char[0]/runtime_char[1]). End handler fd2_chapter_22_end @ 0x244B6 confirmed live. Post-action live name confirmed by get_function_by_address(0x20A87) = fd2_chapter_22_27_28_post_action_shared, whose body adds the char[1]-dead lose condition. xrefs_to(0x3367E) = single DATA ref from 0x51dc5 (dispatch table entry), consistent with dispatched/0-direct-caller status. File-wide em-dash usage left untouched in other functions' blocks per single-symbol scope."
+}

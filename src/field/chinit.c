@@ -1148,12 +1148,12 @@ void fd2_chapter_19_20_21_init_shared(void)
  * orchestrator: it re-inits battle state, pans the camera-and-window
  * once (target 0x10, 0x1C), plays a single cutscene (event id 0x43),
  * clears all facings, plays exactly one dialog page (page 0), and pans
- * the camera to char 0. There is NO portrait load and NO char init —
+ * the camera to char 0. There is NO portrait load and NO char init --
  * chapter 22 carries the party over from the previous chapter.
  *
  * Unlike chapter 06, this handler never resets
  * data_fd2_battle_anim_phase (there is no MOV [0x51A83],0 anywhere on
- * its code path) — page 0 is the sole, tail dialog page. Note the
+ * its code path) -- page 0 is the sole, tail dialog page. Note the
  * clear-facing happens BEFORE the dialog page here (between cutscene
  * 0x43 and the dialog), not after it.
  *
@@ -1175,8 +1175,9 @@ void fd2_chapter_19_20_21_init_shared(void)
  *
  * Linked handlers:
  *   End:         fd2_chapter_22_end @ 0x244B6
- *   Post-action: fd2_chapter_22_post_action @ 0x20A87 (shared with
- *                ch27/28) — extra lose if char[1] dead (希爾法).
+ *   Post-action: fd2_chapter_22_27_28_post_action_shared @ 0x20A87
+ *                (shared with ch27/28) -- extra lose if runtime_char[1]
+ *                dead (the slot-1 ally is 希爾法 in chapter 22).
  *
  * Walkthrough SOT: assets/chapters/chapter_22.md
  * ---------------------------------------------------------------- */
