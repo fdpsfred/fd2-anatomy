@@ -1359,7 +1359,7 @@ void fd2_chapter_24_init(void)
 /* ----------------------------------------------------------------
  * fd2_chapter_25_init @ 0x3396A  (dispatched, 0 direct callers)
  *
- * Chapter 25「火焰的審判」init handler — the only chapter init that
+ * Chapter 25「火焰的審判」init handler -- the only chapter init that
  * stages an earthquake set-piece. It re-inits battle state, loads the
  * earthquake SFX wave from FDOTHER.DAT (entry 0x58) into the shared
  * status-effect SFX handle, plays dialog page 1, wipes the large game-
@@ -1368,14 +1368,14 @@ void fd2_chapter_24_init(void)
  * by 600ms holds, followed by a final 3x-magnitude (0x3C frames) shake
  * with no trailing hold. After the quake it plays dialog page 2, pans
  * the camera to char 0, and frees the status-effect SFX. There is NO
- * char init and NO portrait load — chapter 25 carries the party over
+ * char init and NO portrait load -- chapter 25 carries the party over
  * from the previous chapter.
  *
  * The earthquake SFX handle is stored to / replayed from the shared
  * data_fd2_audio_status_effect_sfx_handle_ptr global; it is cleared to
  * 0 before the load. The memset zeroes the 0x25680-byte
  * data_fd2_large_game_state_buffer. The fd2_load_dat_resource return
- * (the loaded wave handle) is the sole CALL-result consumed — stored to
+ * (the loaded wave handle) is the sole CALL-result consumed -- stored to
  * the handle global, matching the disassembly (MOV [0x53B13],EAX); the
  * dialog-scene CALL returns are discarded (no Ghidra EAX-tracking-bug
  * exposure on those).
@@ -1390,7 +1390,7 @@ void fd2_chapter_24_init(void)
  * Linked handlers:
  *   End:         fd2_chapter_25_end @ 0x24DF2
  *   Post-action: fd2_chapter_25_post_action @ 0x20B14
- *                (extra lose if char[0x10] dead — 聖寇拉斯)
+ *                (extra lose if char[0x10] dead -- 聖寇拉斯)
  *
  * Walkthrough SOT: assets/chapters/chapter_25.md
  * ---------------------------------------------------------------- */
