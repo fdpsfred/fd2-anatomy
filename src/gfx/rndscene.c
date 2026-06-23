@@ -77,10 +77,10 @@ uint32 data_fd2_graphics_forced_tile_anim_frame = 0xffffffff;
  *   fd2_blit_rectangle(0xA0504, 320, ws, 456, 312, 192);
  *
  * Pixel constants:
- *   0x1C8 = 456 — workspace pitch
- *   0x140 = 320 — mode13h primary stride
- *   0x138 = 312 — visible clipped width
- *   0xC0  = 192 — visible clipped height
+ *   0x1C8 = 456 -- workspace pitch
+ *   0x140 = 320 -- mode13h primary stride
+ *   0x138 = 312 -- visible clipped width
+ *   0xC0  = 192 -- visible clipped height
  *
  * skip_palette_cycle: 0 = advance palette cycle this frame;
  *   non-zero = skip (caller drives palette timing).
