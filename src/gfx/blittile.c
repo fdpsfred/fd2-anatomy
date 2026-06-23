@@ -1050,9 +1050,10 @@ void fd2_tile_blit_24x24_with_remap_table(uint32 src, uint32 dst,
  * case of the sibling fd2_tile_blit_24x24_with_tint_offset @ 0x4DC34;
  * the RLE command syntax and the four mode bodies are identical. Used
  * to render dimmed / inactive portraits: the un-selected portrait grid
- * in the recruitment/promotion menu, and the dead-character path in the
- * battle-map sprite painter. Callers: fd2_paint_char_sprite_at_world_pos
- * @ 0x127E0 and fd2_render_recruitment_select_screen @ 0x31E80.
+ * in the recruitment/promotion menu, and the already-acted-character
+ * path in the battle-map sprite painter (the bFlags & 0x80 = acted-this-
+ * turn branch). Callers: fd2_paint_char_sprite_at_world_pos @ 0x127E0
+ * and fd2_render_recruitment_select_screen @ 0x31E80.
  *
  * Each command byte's top two bits select the mode; the low 6 bits + 1
  * are the run length:
