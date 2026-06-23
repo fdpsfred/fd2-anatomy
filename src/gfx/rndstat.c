@@ -62,11 +62,15 @@ void fd2_paint_portrait_to_dialog_area(uint32 frame)
  *   (filled_count-1) middle sprites (sprite_base+1) at dst_offset+1 ..,
  *   then right cap (sprite_base+2) at dst_offset+filled_count.
  *
- * Sprite base indices: 0x17 = HP bar (red), 0x1A = MP bar (blue).
+ * All segment sprites come from the shared UI/anim sprite sheet
+ * (data_fd2_ui_anim_sprite_sheet_ptr). Sprite base indices: 0x17 = HP bar
+ * (red, caps 0x17/middle 0x18/cap 0x19), 0x1A = MP bar (blue, 0x1A/0x1B/0x1C);
+ * 0x1D/0x1E are the empty-bar middle/right-cap sprites used when filled_count
+ * is 0. (Ghidra mislabels the 4th param as dst_buf; it is sprite_base.)
  *
  * Cdecl, 4 stack params; void return. Mirrors the binary's shared-final-blit
- * control flow: the offset of the trailing cap (uVar1) is the value left in
- * EAX by the last LEA inside whichever branch ran.
+ * control flow: the offset of the trailing cap (cap_offset) is the value left
+ * in EAX by the last LEA inside whichever branch ran.
  * ---------------------------------------------------------------- */
 void fd2_render_horizontal_bar_segments(uint32 dst_offset, uint32 dst_pitch,
                                         uint32 filled_count, uint32 sprite_base)
