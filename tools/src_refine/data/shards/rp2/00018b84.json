@@ -1,0 +1,46 @@
+{
+  "address": "00018b84",
+  "name_current": "fd2_wait_input_with_status_panel_repaint",
+  "name_final": "fd2_wait_input_with_status_panel_repaint",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; accurately describes behavior (wait for keyboard input while repainting the in-battle field + mini-status overlay panel). No Ghidra address residue. The 'wait_input' + 'status_panel_repaint' descriptor matches the body: spins until fd2_check_keyboard_buffer_nonempty(), and each tick repaints field, cursor overlay, chars, mini-status panel, terrain HUD, then blits to screen.",
+  "kind": "function",
+  "home": "src/input/input.c",
+  "purpose": "Wait until keyboard input is available while continuously repainting the in-battle field and a mini-status overlay panel for runtime_char[char_idx]; does NOT consume the key (caller reads it afterward via fd2_wait_for_action_target_input).",
+  "logic_summary": "Picks panel screen-side offset based on cursor screen X to avoid covering the cursor: panel_off = (data_fd2_battle_cursor_screen_x < 7) ? 0x984 (left) : 0x8ED (right). Then loops: while keyboard buffer is empty, calls fd2_update_palette_cycle_anim(); when BIOS tick word (0x46C) changes from last_tick, does a second palette-cycle update, ticks chapter palette animation, composites the battle tile map into the offscreen buffer (base+0x8088, stride 0x1C8) at the battle view window origin, paints the cursor/range overlay, composites all char sprites, renders the mini char status panel for char_idx at base+0x8088+panel_off, renders the terrain info HUD panel, blits the assembled 0x138x0xC0 region to VRAM 0xA0504 (stride 0x140), and latches last_tick. Returns when a key becomes available.",
+  "signature": "void __cdecl fd2_wait_input_with_status_panel_repaint(uint32 char_idx)",
+  "params": [
+    {
+      "name": "char_idx",
+      "type": "uint32",
+      "semantics": "Index into data_fd2_battle_runtime_char_array_ptr of the character whose HP/MP is shown in the mini-status panel. Passed straight through (as param_1) by the sole caller fd2_player_action_menu_loop and forwarded unchanged to fd2_render_mini_char_status_panel.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately reflects the runtime_char array index role and matches its forwarded use; no address residue, not a generic param_N name."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; loop simply exits once fd2_check_keyboard_buffer_nonempty() reports a pending key, which the caller then reads."
+  },
+  "reads_globals": [
+    "data_fd2_battle_cursor_screen_x",
+    "BIOS_TICK_WORD (_DAT_0000046c)",
+    "data_fd2_large_game_state_buffer_ptr",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (input.c lines 227-233) and the symbol name are already accurate and concise; comment_verdict=keep, no Edit to input.c. Ghidra plate is a detailed superset consistent with the refined understanding, so plate left untouched. Sole caller fd2_player_action_menu_loop @ 0x18890 calls this once right after building the movement-range floodfill and saving the cursor position, to do the initial status-panel render before target selection. Body matches src statement-for-statement; no logic concerns."
+}
