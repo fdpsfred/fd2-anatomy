@@ -129,8 +129,18 @@ void fd2_set_full_vga_palette_to_color(uint32 r, uint32 g, uint32 b)
 /* ----------------------------------------------------------------
  * fd2_set_vga_palette_range_with_add @ 0x11DF2
  *
- * Sister to fd2_set_vga_palette_range: ADDs brightness and caps
- * each channel at 0x3F (VGA 6-bit max). Used for fade-from-black.
+ * Write palette entries [start..end] to the VGA DAC, ADDing
+ * brightness_add to each R/G/B component and saturating at 0x3F
+ * (VGA channel is 6-bit, max 63). Source data at
+ * data_fd2_vga_palette_data_ptr (768-byte palette).
+ *
+ * Additive sister of fd2_set_vga_palette_range (which SUBTRACTS
+ * and clamps to 0). brightness_add=0 writes the base palette
+ * unchanged; brightness_add>=0x3F saturates every channel to full
+ * white. Callers walk brightness_add 0->0x3F for a white-flash /
+ * over-bright pulse and 0x3F->0 to settle back to base (e.g.
+ * fd2_animate_palette_flash_pulse_white,
+ * fd2_palette_overbright_settle_step_loop, end-chapter cinematics).
  * ---------------------------------------------------------------- */
 void fd2_set_vga_palette_range_with_add(uint32 start_idx, uint32 end_idx,
                                          uint32 brightness_add)
