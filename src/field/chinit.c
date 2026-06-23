@@ -511,12 +511,12 @@ void fd2_chapter_07_init(void)
  * (pages 0/1) bracketing two cutscenes (event ids 0x1F / 0x20), each
  * cutscene preceded by a camera pan, before handing the chapter off
  * to the player. There is NO char init, NO portrait load, and NO
- * global-state writes at all — chapter 8 carries the party over from
+ * global-state writes at all -- chapter 8 carries the party over from
  * chapter 7.
  *
  * Unlike the other chapter inits, this handler never resets
  * data_fd2_battle_anim_phase (there is no MOV [0x51A83],0 anywhere on
- * its code path, not even between the two dialog pages) — it is a pure
+ * its code path, not even between the two dialog pages) -- it is a pure
  * sequence of void side-effect calls.
  *
  * void __cdecl, no real params, void return. The leading __CHK(0x28)
@@ -535,7 +535,7 @@ void fd2_chapter_07_init(void)
  *
  * Linked handlers:
  *   End:         fd2_chapter_08_end @ 0x234BB
- *   Post-action: (default — fd2_check_battle_end_default_handler
+ *   Post-action: (default -- fd2_check_battle_end_default_handler
  *                @ 0x205B4)
  *
  * Walkthrough SOT: assets/chapters/chapter_08.md
