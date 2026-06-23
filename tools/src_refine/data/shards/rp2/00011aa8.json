@@ -1,0 +1,42 @@
+{
+  "address": "00011aa8",
+  "name_current": "fd2_wait_for_input_with_idle",
+  "name_final": "fd2_wait_for_input_with_idle",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention: domain = input, descriptor 'wait_for_input_with_idle' accurately captures the busy-wait input loop with idle-frame animation. No Ghidra address residue. Sits consistently alongside its sibling input-wait routines (fd2_wait_for_input_v2, fd2_wait_for_input_dialog_with_blink) in input.c.",
+  "kind": "function",
+  "home": "src/input/input.c",
+  "purpose": "Main game-loop input wait point: blocks until a key is pressed while running idle cursor-blink/palette animation, then reads and remaps the scancode.",
+  "logic_summary": "while (keyboard buffer empty): advance cyclic palette (fd2_update_palette_cycle_anim), snapshot BIOS midnight tick (0:046C 18.2Hz word) into data_fd2_input_idle_current_bios_tick_word; if the tick differs (sign-extended int16 compare) from data_fd2_input_idle_last_rendered_tick_word, composite the cursor-blink battle frame (fd2_composite_battle_frame(0)) and re-latch the rendered tick -- yielding an 18.2Hz idle redraw. On key arrival: preset data_fd2_input_key_input_mode (AH) = 0x10 (INT 16h AH=10h read enhanced keyboard), int386(0x16, &data_fd2_input_last_key_pressed, &data_fd2_input_last_key_pressed) reads the key, then remap special scancodes (0xE0 or 'R'/0x52 -> 0x1C Enter; 'S'/0x53 -> 0x01 Esc) and return the scancode byte.",
+  "signature": "int __cdecl fd2_wait_for_input_with_idle(void)",
+  "params": [],
+  "returns": {
+    "type": "int (char in Ghidra; src returns int)",
+    "semantics": "The received/remapped keyboard scancode read from data_fd2_input_key_input_mode (AH byte after INT 16h). Consumed by the sole caller fd2_game_main_loop as the dispatch scancode (ESC-like 0x01/0x2C/0x4C; action 0x39/0x1C; F-keys; arrows)."
+  },
+  "reads_globals": [
+    "data_fd2_input_idle_last_rendered_tick_word",
+    "data_fd2_input_key_input_mode",
+    "data_fd2_input_last_key_pressed",
+    "BIOS_TICK_WORD (0:046C)",
+    "BIOS_KBD_HEAD/BIOS_KBD_TAIL (via fd2_check_keyboard_buffer_nonempty)"
+  ],
+  "writes_globals": [
+    "data_fd2_input_idle_current_bios_tick_word",
+    "data_fd2_input_idle_last_rendered_tick_word",
+    "data_fd2_input_key_input_mode",
+    "data_fd2_input_last_key_pressed"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Sole caller fd2_game_main_loop @ 0x117E7 (decompiled & read): uses the return value as the keyboard dispatch scancode. params=[] because the function is void; the Ghidra in_stack_00000000/4/8 vars are __CHK stack-probe artifacts (param_count=0), not real parameters. Src comment (input.c lines 501-507) already accurately and concisely states purpose + idle-loop logic + INT 16h remap, and is consistent with the (more detailed) live Ghidra plate, so both comment and plate left unchanged. data_fd2_input_key_input_mode / data_fd2_input_last_key_pressed are the AH/AL byte aliases of the shared union REGS data_fd2_input_int16_regs (documented in input.c data-definition block and globals.h)."
+}
