@@ -1,0 +1,72 @@
+{
+  "address": "0001875d",
+  "name_current": "fd2_render_number_red_when_full",
+  "name_final": "fd2_render_number_red_when_full",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (render / number_red_when_full). No address residue. Accurately reflects the wrapper's behavior confirmed by all 3 callers (fd2_render_full_char_stat_panel, fd2_render_mini_char_status_panel, fd2_render_terrain_info_hud_panel): render a decimal number drawn with the red 'full' glow when current == max, else white.",
+  "kind": "function",
+  "home": "src/gfx/rndstat.c",
+  "purpose": "Thin wrapper around fd2_render_decimal_number_to_buffer that selects the digit color from whether current equals max (red 'full' glow 0x1F when current==max, else white 0x2A), then draws current as the value.",
+  "logic_summary": "color = (current == max) ? 0x1F : 0x2A; then fd2_render_decimal_number_to_buffer(dst_off, pitch, current, color, digits). max is used only for the equality test; current is forwarded as the value to render. The binary's __CHK(0x18) stack-probe prologue is compiler-generated. In Ghidra's decompile the 5 params show as confused placeholders (param_1..param_3, dst_buf, stride) where dst_buf actually holds max (equality RHS) and stride actually holds digits (5th arg passed through to the callee); this is the known __CHK/EAX-tracking placeholder confusion, not a real type/semantics difference. Cyclomatic complexity 2 (single equality branch).",
+  "signature": "void __cdecl fd2_render_number_red_when_full(uint32 dst_off, uint32 pitch, uint32 current, uint32 max, uint32 digits)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Destination buffer byte-offset where the number is drawn; forwarded unchanged as the dst arg of fd2_render_decimal_number_to_buffer. Callers pass e.g. overlay_buffer + 0x344B (HP current digits).",
+      "verdict": "rename",
+      "proposed": "dst_off",
+      "reason": "Live Ghidra name is the generic placeholder param_1; src already uses the correct semantic name dst_off. Stage-2 rename to dst_off."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "Destination surface stride/pitch in bytes (callers pass 0x140 or the panel stride); forwarded unchanged as the stride arg of fd2_render_decimal_number_to_buffer.",
+      "verdict": "rename",
+      "proposed": "pitch",
+      "reason": "Live Ghidra name is the generic placeholder param_2; src uses pitch. Stage-2 rename to pitch."
+    },
+    {
+      "name": "param_3",
+      "type": "uint",
+      "semantics": "The current stat value (e.g. HP/MP current). Used both as the left operand of the current==max equality test AND as the value forwarded to fd2_render_decimal_number_to_buffer to be drawn.",
+      "verdict": "rename",
+      "proposed": "current",
+      "reason": "Live Ghidra name is the generic placeholder param_3; src uses current. Stage-2 rename to current."
+    },
+    {
+      "name": "dst_buf",
+      "type": "int",
+      "semantics": "The maximum stat value (e.g. HP/MP max). Used only as the right operand of the current==max equality test that selects the red full-glow color; never forwarded to the renderer.",
+      "verdict": "rename",
+      "proposed": "max",
+      "reason": "Live Ghidra name dst_buf is flatly wrong/misleading (it is the equality RHS 'max', not a destination buffer) and is a placeholder from the __CHK prologue confusion. src already declares it uint32 max. Stage-2 rename to max."
+    },
+    {
+      "name": "stride",
+      "type": "int",
+      "semantics": "Digit count forwarded unchanged as the 5th (digit_count) arg of fd2_render_decimal_number_to_buffer; callers pass 3 (HP/MP 3-digit fields).",
+      "verdict": "rename",
+      "proposed": "digits",
+      "reason": "Live Ghidra name stride is flatly wrong/misleading (it is the digit_count passed through to the renderer, not a stride; the real pitch is param_2). Placeholder from the __CHK prologue confusion. src already declares it uint32 digits. Stage-2 rename to digits."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; delegates all rendering to fd2_render_decimal_number_to_buffer."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": "Source comment block (lines 549-563) is already precise and conclusion-style: it correctly states the wrapper behavior, the color choice (0x1F red full glow / 0x2A white), the forwarding of current as the value, the 3-caller usage, and the cdecl/5-param signature with the omitted __CHK(0x18) prologue. No flux/history wording. Left unchanged.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "046f1fab",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Function is a 15-instruction, 3-basic-block cdecl wrapper (param_count 5) calling __CHK and fd2_render_decimal_number_to_buffer. The 3 live callers and 7 call sites from get_xrefs_to (4 in fd2_render_full_char_stat_panel, 2 in fd2_render_mini_char_status_panel, 1 in fd2_render_terrain_info_hud_panel) match the plate's '3 callers' claim and the src call sites. Color constants 0x1F (red HP/MP full) and 0x2A (white) are corroborated by the callee plate fd2_render_decimal_number_to_buffer (sprite_base convention: 0x2A=white, 0x77=red boosted, 0x1F=red full). 0x18 is the __CHK stack-probe size (compiler artifact), not a domain ID. No globals read/written directly (the callee touches data_fd2_ui_anim_sprite_sheet_ptr). Name kept; all 5 params flagged for Stage-2 rename to the clean src names (dst_off/pitch/current/max/digits) since live Ghidra names are confused placeholders, with dst_buf/stride being outright wrong. src comment kept; Ghidra plate already consistent, left untouched. No logic touched."
+}
