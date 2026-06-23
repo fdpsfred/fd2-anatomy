@@ -141,18 +141,27 @@ void *fd2_blit_indexed_sprite_with_alloc(uint32 sprite_hdr, uint32 dst,
  * sprite pixels are decoded and painted at dst + dst_off.
  *
  * The malloc'd buffer pointer is left in EAX (asm tail: MOV EAX,EDI into
- * the shared epilogue at 0x22BBE) and thus returned, but the sole live
- * caller (fd2_load_save_and_init_engine's chapter-intro slideshow)
- * discards it and frees the snapshot separately via
- * fd2_cleanup_dialog_sprite_buffer.
+ * the shared epilogue at 0x22BBE) and thus returned, but every caller
+ * discards the result: the save-under snapshot is restored / freed on a
+ * separate path (e.g. via fd2_cleanup_dialog_sprite_buffer), so per call
+ * the returned pointer is effectively leaked at the call site while the
+ * function itself still returns it.
+ *
+ * The 8 callers are the combat-overlay and chapter-intro render paths:
+ * fd2_render_combat_combatant_panels (VS panel, sprite 0x30),
+ * fd2_render_phase_banner_frame / fd2_animate_phase_banner_slide_in /
+ * fd2_animate_phase_banner_slide_out (turn banners),
+ * fd2_animate_attack_hit_sequence, fd2_animate_combat_speech_bubbles,
+ * fd2_run_full_turn_cycle, and fd2_load_save_and_init_engine
+ * (chapter-intro slideshow).
  *
  * Args (cdecl, 6x uint32 on stack):
- *   sheet_base    — sprite atlas base linear address
- *   dst           — destination surface base linear address
- *   surface_pitch — destination row stride
- *   col_offset    — column byte offset within the destination row
- *   row_idx       — destination row index
- *   sprite_idx    — index into the sheet's offset table
+ *   sheet_base    -- sprite atlas base linear address
+ *   dst           -- destination surface base linear address
+ *   surface_pitch -- destination row stride
+ *   col_offset    -- column byte offset within the destination row
+ *   row_idx       -- destination row index
+ *   sprite_idx    -- index into the sheet's offset table
  * ---------------------------------------------------------------- */
 uint32 fd2_alloc_and_blit_indexed_sprite_chunk(uint32 sheet_base, uint32 dst,
                                                uint32 surface_pitch,
