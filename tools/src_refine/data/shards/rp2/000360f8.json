@@ -1,0 +1,40 @@
+{
+  "address": "000360f8",
+  "name_current": "fd2_chapter_event_handler_59__unref_sentinel",
+  "name_final": "fd2_chapter_event_handler_59__unref_sentinel",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention. The trailing 59 is a meaningful domain ID (dispatch index 0x59 into the per-event handler table @ 0x51B91, table entry @ 0x51CF5), NOT a Ghidra address residue (the function's own address is 0x360F8, unrelated to 59). The __unref_sentinel suffix accurately captures its role: an unreferenced no-op placeholder dispatch slot. Matches the consistent naming of sibling handlers 55/56/57/58.",
+  "kind": "function",
+  "home": "ROOT/src/field/chevt2.c",
+  "purpose": "Unreferenced no-op chapter-event dispatch sentinel for handler index 0x59 (placeholder slot in the per-event handler table @ 0x51B91; does nothing meaningful).",
+  "logic_summary": "Binary body is a 7-byte stub: PUSH 4; JMP 0x360DD. It pushes its own __CHK frame size (4) then jumps into the Class-3 SHARED ENTRY at 0x360DD (the CALL __CHK; RET tail hosted in fd2_chapter_event_handler_55 @ 0x360D8), the last of four consumers (handlers 56/57/58/59) that borrow that tail-merged stack-probe/return. Net effect: a Watcom stack probe then an immediate return. No state mutation, no display, no dialog, not even a flag-byte write. The functionally-exact source is an empty body (identical to handler_55); the __CHK probe carries no source-level semantics.",
+  "signature": "void __cdecl fd2_chapter_event_handler_59__unref_sentinel(uint event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Per-event dispatch argument from the handler-table call site; the dispatch-table signature is 1-arg cdecl, but this no-op handler ignores it ((void)event_arg).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, matches the dispatch-table calling contract and the consistent naming of sibling sentinel handlers; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; no observable effect."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decompiled body matches plate and source: PUSH 0x4; JMP 0x000360dd (verified via disassemble_function). Xref to 0x360F8 is from 0x51CF5 [DATA]; read_memory at 0x51CF5 = f8 60 03 00 = LE 0x000360f8, confirming this is the dispatch-table entry (source comment 'entry @ 0x51CF5' is accurate). 0 direct callers. Source comment block (chevt2.c lines 1694-1719) is already precise, accurate, ASCII, and consistent with the binary; no Edit needed. Pre-existing modified shards (00035c23/00035ed2/00035f92/000360c0) from concurrent work were intentionally NOT staged; commit scope limited to my shard. chevt2.c unchanged this turn (comment kept)."
+}
