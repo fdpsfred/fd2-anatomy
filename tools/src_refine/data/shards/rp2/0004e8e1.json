@@ -1,0 +1,56 @@
+{
+  "address": "0004e8e1",
+  "name_current": "fd2_dialog_sprite_blit_mirrored",
+  "name_final": "fd2_dialog_sprite_blit_mirrored",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>: domain=dialog_sprite, descriptor=blit_mirrored. Accurately reflects purpose (opaque dialog-pixel sprite painter that writes a horizontally mirrored image by walking dst LEFT/DEC EDI per decoded pixel). No Ghidra address residue. Verified against decomp, disassembly (MOV [EDI],AL; DEC EDI distinguishes it from the normal sibling's STOSB) and caller fd2_paint_portrait_to_dialog_area.",
+  "kind": "function",
+  "home": "src/gfx/blitspr.c",
+  "purpose": "Opaque dialog-portrait sprite painter that draws a horizontally mirrored (right-to-left) image: same dialog-pixel decoder/header layout as fd2_dialog_sprite_blit_normal, but dst is the row's RIGHT edge and each decoded pixel walks LEFT.",
+  "logic_summary": "width=hdr[+0], row_count=hdr[+2], cursor=hdr+4, state=0 seeded once and threaded across the whole rectangle. Per row: dst_row=dst (right edge), col=width; per pixel: state=fd2_decode_dialog_pixel_byte(state,&cursor); *dst_row=(uint8)state; dst_row-- (mirror walk left). After each row: dst+=stride; row_count--. Post-test do/while on both loops. Differs from the normal sibling @0x4E8AF only in the per-pixel step (DEC EDI vs INC via STOSB); row-to-row step (saved row-start via PUSH/POP EDI then +stride) is identical, so the image flips horizontally only. Inner loop count is the literal width header word (LOOP with CX=BP, ECX pre-zeroed); the decompiler's 'while (extraout_ECX != 1)' is a phantom from the LOOP/CALL interaction.",
+  "signature": "void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite_hdr, uint32 stride)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Destination linear address pointing at the RIGHT edge of the first row; decoded pixels are written here and the pointer is decremented (walks left). Caller fd2_paint_portrait_to_dialog_area passes 0xA9017 (mode13h framebuffer 0xA0000 + right-ally slot offset 0x9017).",
+      "verdict": "rename",
+      "proposed": "dst",
+      "reason": "Live Ghidra name is the generic placeholder param_1 (needs_rename=true). Matches the already-vetted C source name 'dst'. Rename applied in Stage 2."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "Sprite header pointer: ushort width at +0, ushort row_count at +2, encoded dialog-pixel byte stream from +4. In the dialog caller it is a resolved DATO.DAT portrait-frame sprite address.",
+      "verdict": "rename",
+      "proposed": "sprite_hdr",
+      "reason": "Live Ghidra name is the generic placeholder param_2 (needs_rename=true). Matches the already-vetted C source name 'sprite_hdr'. Rename applied in Stage 2."
+    },
+    {
+      "name": "param_3",
+      "type": "uint",
+      "semantics": "Destination row stride in bytes, added to the saved row-start to advance to the next row. Caller passes 0x140 (mode13h pitch 320).",
+      "verdict": "rename",
+      "proposed": "stride",
+      "reason": "Live Ghidra name is the generic placeholder param_3 (needs_rename=true). Matches the already-vetted C source name 'stride'. Rename applied in Stage 2."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No meaningful return. The binary wraps the body in PUSHAD/POPAD and ends with a plain RET (cdecl, caller does ADD ESP,0xC), leaving EAX at its entry value; the decompiler's 'return in_EAX' is a pass-through signature artifact and all 5 call sites discard it. Emitted C is correctly void."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "C source comment block (blitspr.c lines 1616-1671) and body (1672-1698) verified accurate against decomp + disassembly + caller fd2_paint_portrait_to_dialog_area; no edit needed -> comment_verdict=keep, blitspr.c not modified. Ghidra plate is consistent (more verbose) and not contradictory -> plate left untouched. 5 call sites (xrefs) across 4 callers, matching both plate and src wording. Function name and locals (decode_pack/decoded/dst_row) are already good; only the 3 stack params are generic placeholders, recorded for Stage 2 rename. No logic concerns. Pre-staged shards from concurrent agents present in index; committed only my own shard with an explicit path to keep staged scope minimal (blitspr.c unchanged)."
+}
