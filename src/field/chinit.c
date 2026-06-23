@@ -767,12 +767,12 @@ void fd2_chapter_12_init(void)
 /* ----------------------------------------------------------------
  * fd2_chapter_13_init @ 0x3346B  (dispatched, 0 direct callers)
  *
- * Chapter 13「哈斯米爾之戰」init handler — the smallest chapter init
+ * Chapter 13「哈斯米爾之戰」init handler -- the smallest chapter init
  * in the game (17 bytes). It only re-inits battle state, plays a
  * single dialog page (page 0), and pans the camera to char 0. There
  * is NO cutscene, NO portrait load, NO char init, NO camera-pan-and-
  * window prelude, NO data_fd2_battle_anim_phase reset, and NO
- * clear-facing — chapter 13 carries the party over from chapter 12.
+ * clear-facing -- chapter 13 carries the party over from chapter 12.
  *
  * void __cdecl, no real params, void return. The leading __CHK(0x28)
  * stack-probe is the Watcom-injected frame-size check and is not part
@@ -789,13 +789,15 @@ void fd2_chapter_12_init(void)
  * reconstruction.
  *
  * Shared alt-entry:
- *   0x33470 (the fd2_init_battle_state_for_chapter CALL onward) is
- *   itself tail-JMPed into by fd2_chapter_16_init and
- *   fd2_chapter_19_20_21_init_shared.
+ *   0x33470 (the CALL __CHK site, i.e. fd2_chapter_13_init + 5; the
+ *   __CHK + init-battle-state + tail-JMP run from here) is itself
+ *   tail-JMPed into by fd2_chapter_16_init and
+ *   fd2_chapter_19_20_21_init_shared, each of which pushes its own
+ *   frame-size arg before entering.
  *
  * Linked handlers:
  *   End:         fd2_chapter_13_end @ 0x2389F
- *   Post-action: fd2_chapter_13_post_action @ 0x20765 — non-default:
+ *   Post-action: fd2_chapter_13_post_action @ 0x20765 -- non-default:
  *     (1) chars[0xF..0x1A] (12 NPCs) all dead = lose + dialog page 10;
  *     (2) save_metadata > 5 AND char[0x3B] dead = lose + dialog page 2.
  *
