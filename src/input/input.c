@@ -267,11 +267,18 @@ void fd2_wait_input_with_status_panel_repaint(uint32 char_idx)
 }
 
 /* ----------------------------------------------------------------
- * fd2_wait_input_with_dialog_repaint @ 0x17898
+ * fd2_wait_input_with_dialog_repaint @ 0x17898  (1 caller)
  *
  * Wait for key while repainting dialog background + borders.
- * Includes blink oscillator (0/1 toggle every >3 ticks) and
- * full tile-map + chars + HUD composite each frame.
+ * Includes blink oscillator (0/1 toggle every >3 ticks, or on tick
+ * rollover) and full tile-map + chars + HUD composite each frame.
+ * On key, reads via INT 16h and remaps extended keys (E0/Down->Enter,
+ * Right/0x53->Esc); returns the resulting scancode.
+ *
+ * menu_state and pSlot_disable_arr are not used by this loop directly;
+ * both are passed through to fd2_repaint_settings_dialog_borders, which
+ * draws the cross-shape settings menu (pSlot_disable_arr = int[4] of
+ * per-direction slot-disable flags).
  * ---------------------------------------------------------------- */
 int fd2_wait_input_with_dialog_repaint(uint32 menu_state,
                                         uint32 pSlot_disable_arr)
