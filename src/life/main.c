@@ -1010,9 +1010,30 @@ uint8 data_fd2_audio_bgm_enabled_flag = 1;
 uint8 data_fd2_audio_sfx_enabled_flag = 1;
 
 /*
- * data_fd2_runtime_battle_state_ptr @ 0x53A4D -- base pointer of the runtime
- * battle/cursor state block (FDOTHER.DAT resource index 1). uint32 address slot.
- * Written by main's load block; zero-init (BSS) pointer slot.
+ * data_fd2_runtime_battle_state_ptr @ 0x53A4D -- base pointer of the cursor /
+ * highlight 24x24 sprite atlas (FDOTHER.DAT resource index 1). uint32 address
+ * slot; not battle state -- the current symbol name is a misnomer (it holds a
+ * sprite sheet, like its siblings data_fd2_chinese_font_sheet /
+ * data_fd2_ui_anim_sprite_sheet_ptr / data_fd2_resource_portrait_sheet_ptr).
+ *
+ * Holds the malloc'd resource buffer returned by fd2_load_dat_resource; stored
+ * as a 32-bit address slot, matching the engine-wide convention for DAT
+ * resource pointers. The sole writer main @ 0x25BF4 does
+ *   data_fd2_runtime_battle_state_ptr =
+ *       fd2_load_dat_resource(<FDOTHER.DAT name>,
+ *                             data_fd2_runtime_battle_state_ptr, 1);
+ * passing the prior value (NULL on first call) so the loader frees-then-reloads.
+ *
+ * The three readers treat it as a sprite-sheet base, resolving each packed
+ * 24x24 tile via the in-buffer offset table at +6 (4-byte absolute offsets):
+ *   tile_src = base + *(int32 *)(base + 6 + tile_idx*4)
+ * fd2_blit_24x24_at_window_relative_pos @ 0x12779 uses tile_idx = caller arg;
+ * fd2_render_recruitment_select_screen @ 0x31F27 and
+ * fd2_render_battle_scene_with_portrait_grid_layout @ 0x3412C use tile 0 as the
+ * cursor / reserved-position highlight overlay.
+ *
+ * Zero-initialized in the image; the first use is the load-time write, so this
+ * is a zero-init (BSS) pointer slot.
  */
 uint32 data_fd2_runtime_battle_state_ptr;
 
