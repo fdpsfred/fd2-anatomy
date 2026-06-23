@@ -615,10 +615,11 @@ void fd2_chapter_29_post_action(uint32 event_arg)
  * itself with three sequential, independent flag writes to game_event_flag
  * (0x53ECC), in this exact order (later writes override earlier):
  *
- *   1. WIN: if the final boss runtime_char[0x14] is dead, set the flag to 2.
- *   2. LOSE: if the protagonist (蘭) runtime_char[0] is dead, set the flag
+ *   1. WIN: if the final boss (空魔神) runtime_char[0x14] is dead, set the
+ *      flag to 2.
+ *   2. LOSE: if the protagonist (索爾) runtime_char[0] is dead, set the flag
  *      to 1. This runs after step 1, so a protagonist death overrides a WIN.
- *   3. LOSE + dialog: if the second main runtime_char[1] is dead, show
+ *   3. LOSE + dialog: if the second main (悠妮) runtime_char[1] is dead, show
  *      data_fd2_current_chapter_text page 7 (the special "lost ally" ending text) and
  *      set the flag to 1. Runs after steps 1-2.
  *

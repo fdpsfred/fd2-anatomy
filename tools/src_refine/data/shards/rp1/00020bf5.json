@@ -1,0 +1,45 @@
+{
+  "address": "00020bf5",
+  "name_current": "fd2_chapter_30_post_action",
+  "name_final": "fd2_chapter_30_post_action",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>. The '30' is the chapter ID (chapters 1-30, a meaningful domain ID), NOT an address residue (function is at 0x20bf5, unrelated to 30). Name accurately reflects role: per-chapter turn-cycle post-action handler for chapter 30, the final battle.",
+  "kind": "function",
+  "home": "ROOT/src/field/chpost.c",
+  "purpose": "Chapter 30 (final battle) turn-cycle post-action handler: decides win/lose for the final battle by checking the final boss and the two protected characters.",
+  "logic_summary": "Does NOT call fd2_check_battle_end_condition (unlike most handlers). Three sequential independent writes to data_fd2_chapter_event_or_battle_end_code (0x53ECC), later overriding earlier: (1) if final boss (空魔神) runtime_char[0x14] dead -> code=2 (WIN); (2) if protagonist (索爾) runtime_char[0] dead -> code=1 (LOSE); (3) if second main (悠妮) runtime_char[1] dead -> show dialog page 7 then code=1 (LOSE). WIN written first, LOSE stages after, so a protagonist/ally death overrides a boss-kill WIN (lose-overrides-win, inverse of ch.18/23). Deadness via fd2_check_char_is_dead (runtime_char[idx].bFlags bit0). Disasm confirms decompilation exactly: PUSH 0x14/0/1 to fd2_check_char_is_dead, MOV dword[0x53ecc] with 2/1/1, dialog call pushes page=7 + [0x53a79] + standard glyph geometry.",
+  "signature": "void __cdecl fd2_chapter_30_post_action(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Unused by the body. The dispatch site invokes the handler with no real arguments; this slot is the Watcom __CHK(0x28,...) stack-check prologue artifact. Named consistently with every sibling handler in chpost.c (all (void)event_arg).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Consistent naming across the whole handler family in this file; not an address residue; '(void)event_arg' documents that it is intentionally ignored. No improvement available without diverging from siblings."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Communicates result by writing data_fd2_chapter_event_or_battle_end_code (0=continue, 1=lose/game-over, 2=win/chapter-clear), read elsewhere by main and fd2_run_full_turn_cycle."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr (indirect, via fd2_check_char_is_dead for slots 0x14, 0, 1)",
+    "data_fd2_current_chapter_text @ 0x53A79 (text base passed to fd2_display_dialog_scene)"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_event_or_battle_end_code @ 0x53ECC (set to 2, then possibly 1, then possibly 1)"
+  ],
+  "comment_original_issue": "Both the src comment and the Ghidra plate annotated runtime_char[0] as the protagonist '蘭' and runtime_char[1] as 'second main' (unnamed). The slot semantics (protagonist / second main) are correct, but '蘭' is the WRONG character name -- it is an FD1 carry-over. The FD2 protagonist is 索爾 (confirmed by chapter 1 and chapter 30 lose conditions '索爾死亡') and the chapter-30 slot-1 ally is 悠妮 (chapter 30 lose conditions: '索爾死亡，悠妮死亡'). The final boss is 空魔神 (win condition '空魔神死亡'). The Ghidra plate additionally used stale global/callee names (game_event_flag, display_dialog_scene, runtime_char, _current_chapter_text).",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Char identities cross-checked against fd2-knowledge: chapter 30 win = 空魔神(runtime_char[0x14]) dead; lose = 索爾(runtime_char[0]) or 悠妮(runtime_char[1]) dead. fd2_check_char_is_dead decompile confirms bit0 of runtime_char[idx].bFlags. All symbol names in src (data_fd2_chapter_event_or_battle_end_code, data_fd2_current_chapter_text, fd2_check_char_is_dead, fd2_display_dialog_scene) match live Ghidra symbols and protos.h/globals.h declarations. Function name and the sole parameter both kept. Only edit to src was correcting character names in the comment block (蘭->索爾, added 悠妮 and 空魔神); no code/logic touched. Chinese character names retained as proper nouns per ASCII-exception rule."
+}
