@@ -195,7 +195,7 @@ void fd2_obfuscate_battle_tile_map(uint32 tile_map)
  *   3. slot_base = pBuf + cursor_idx * 0xA28 + 0x312B; the scalar
  *      header lives at slot_base + 0xA00.
  *   4. memmove the 0xA00-byte template/menu roster into the slot, then
- *      store the 8 scalar fields (chapter id / member count / gold u32
+ *      store the 7 scalar fields (chapter id / member count / gold u32
  *      / terrain-hud / game speed / bgm / sfx flags).
  *   5. fopen("wb"); recompute checksum into pBuf[0x59C7..0x59CA];
  *      re-encrypt; fwrite the whole buffer; close; decrypt again so the
