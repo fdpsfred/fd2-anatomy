@@ -702,14 +702,16 @@ void fd2_render_save_slot_grid(uint32 highlight_slot, uint32 surface_offset,
 /* ----------------------------------------------------------------
  * fd2_render_promote_members_grid @ 0x30A47  (1 caller)
  *
- * Render the promote / revive candidate grid — up to 3 visible chars in
+ * Render the church-revive candidate grid -- up to 3 visible chars in
  * a single column, each showing portrait + char name + archetype + job +
- * a per-job price (5-digit decimal). Shared by both the promote-member and
- * class-promotion menu loops (both display the same fields).
+ * a per-job revive price (5-digit decimal). Used ONLY by the church-revive
+ * picker; class promotion has its own grid fd2_render_promote_candidates_grid
+ * @ 0x31019 (which shows the post-promotion target job instead of a price).
  *
  * Sole caller: fd2_promote_members_select_loop @ 0x30C22 (the in-grid
- * Up/Down cursor loop), which passes the candidate count, the compose
- * surface, the highlight cursor index, and the candidate index list.
+ * Up/Down cursor loop of the church-revive picker), which passes the
+ * candidate count, the compose surface, the highlight cursor index, and
+ * the candidate index list.
  *
  * Blink-frame mapping:
  *   blink_frame = (subframe_counter == 3) ? 1 : counter   // 0,1,2,3->0,1,2,1
