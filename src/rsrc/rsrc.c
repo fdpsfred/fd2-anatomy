@@ -694,15 +694,20 @@ int fd2_load_chapter_party_roster(uint8 *out_buf)
 /* ----------------------------------------------------------------
  * data_fd2_chapter_portrait_load_buffer @ 0x53A59 (zero-init BSS)
  *
- * Pointer to the per-chapter FDFIELD char-placement record loaded by
- * fd2_load_dat_resource(FDFIELD.DAT[chapter_id*3 + 2]). Holds the 6-byte
- * stride array indexed by char field index (byte +2 = desired_x,
- * byte +4 = desired_y) consumed by fd2_init_runtime_char_for_battle and
- * fd2_load_chapter_battle_data. Lifecycle is transient: NULL at startup,
- * reassigned from the loader, then free()'d and reset to 0 after the
- * portraits are consumed. Stored/loaded as a full 32-bit dword everywhere
- * (callers cast to uint8* for the +idx*6 byte arithmetic); cleared to 0 by
- * the CRT BSS-zero loop at startup. (sublabel @ .object2, 4 bytes.)
+ * Pointer to the per-chapter FDFIELD char-placement table loaded by
+ * fd2_load_dat_resource(FDFIELD.DAT[chapter_id*3 + 2]). Holds a 6-byte
+ * stride array indexed by char field index; each record is three u16
+ * fields: +0 = sprite/portrait reference, +2 = desired_x, +4 = desired_y.
+ * Only the +2/+4 spawn coordinates are read (as bytes), by
+ * fd2_init_runtime_char_for_battle and fd2_load_chapter_battle_data.
+ * The "portrait" in the symbol name is a misnomer carried over from the
+ * +0 field -- the table's actual job is supplying spawn coordinates, not
+ * portrait pixels (those live in data_fd2_portrait_sprite_cache @ 0x53A61).
+ * Lifecycle is transient: NULL at startup, reassigned from the loader,
+ * then free()'d and reset to 0 once the chapter's units are placed.
+ * Stored/loaded as a full 32-bit dword everywhere (callers cast to uint8*
+ * for the +idx*6 byte arithmetic); cleared to 0 by the CRT BSS-zero loop
+ * at startup. (sublabel @ .object2, 4 bytes.)
  * ---------------------------------------------------------------- */
 uint32 data_fd2_chapter_portrait_load_buffer;
 
