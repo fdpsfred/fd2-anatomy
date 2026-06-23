@@ -666,11 +666,15 @@ void fd2_chapter_26_end(void)
  * 0x52316 / 0x52326). Private read-only data referenced only by
  * fd2_chapter_27_end; the Watcom prologue copies each 16-byte table onto
  * stack scratch as four dwords (the placement of slots 0..15) before
- * fd2_setup_chars_and_camera_for_intro indexes them by char slot. The
- * trailing byte @ 0x52326 (value 0x01) is copied as a one-byte scratch
- * (var_10) whose address is later handed to
- * fd2_animate_status_effect_overlay_flicker on the bad-ending path; the
- * routine ignores the pointee, so the byte is vestigial.
+ * fd2_setup_chars_and_camera_for_intro indexes them by char slot.
+ *
+ * The trailing byte @ 0x52326 (value 0x01) is a one-element char-index
+ * array for the bad-ending status-flicker: fd2_chapter_27_end copies it to a
+ * one-byte stack scratch and passes its address (with count 1) to
+ * fd2_animate_status_effect_overlay_flicker, which dereferences element 0 and
+ * uses it as a runtime_char slot index (byte * 0x50 + runtime_char_array
+ * base). Value 0x01 selects slot 1 = 悠妮, so her on-field status sprite
+ * flickers right before she is warped off the field. Not vestigial.
  * ---------------------------------------------------------------- */
 const uint8 data_fd2_chapter_ch27_end_scene_char_pos_x_table[16] = {
     0x0F, 0x0F, 0x0C, 0x0D, 0x11, 0x12, 0x0D, 0x0E,
@@ -688,8 +692,9 @@ const uint8 data_fd2_chapter_ch27_end_scene_vestigial_byte = 0x01;
  * This is the FD2 GOOD/BAD ending fork.
  *
  * Copies the two 16-byte end-scene tables onto the stack, snapshots the
- * vestigial byte, resets every active runtime_char's flags byte (slots
- * 0..15), then places the cast / re-aims the camera via
+ * bad-path status-flicker char index (the trailing 0x52326 byte = slot 1,
+ * 悠妮) to a stack scratch, resets every active runtime_char's flags byte
+ * (slots 0..15), then places the cast / re-aims the camera via
  * fd2_setup_chars_and_camera_for_intro and runs the opening dialog (page 8)
  * and cutscene event 0x52. The ending then forks on whether any party char
  * holds 天空之鑰 (item 100):
@@ -707,8 +712,9 @@ const uint8 data_fd2_chapter_ch27_end_scene_vestigial_byte = 0x01;
  *     into chapter 28.
  *
  *   BAD PATH (key NOT held): dialog pages 13/14/15 interleaved with cutscene
- *     events 0x54/0x52, a status-effect overlay flicker, then 悠妮
- *     (runtime_char[1]) is warped off the field
+ *     events 0x54/0x52, a status-effect overlay flicker on 悠妮
+ *     (runtime_char[1], selected by the 0x52326 char-index byte), then 悠妮
+ *     is warped off the field
  *     (fd2_animate_warp_teleport_char from her current tile), final dialog
  *     page 16, all chars restored to full HP/MP, and the game-over cinematic
  *     (fd2_play_game_ending_cinematic). It then hard-locks in an infinite
