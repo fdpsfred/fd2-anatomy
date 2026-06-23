@@ -318,7 +318,8 @@ uint8 data_fd2_battle_floating_damage_x_offset_queue[200];
  * Producers append 4 entries per call at the running queue index
  * data_fd2_battle_spell_aoe_count_and_fx_queue_idx (advanced by 4 each call),
  * writing the target character index of the overlay being enqueued:
- *   fd2_show_damage_number (@ 0x1E1C7): slot = (byte)target_char_idx (param_3).
+ *   fd2_show_damage_number (@ 0x1E19E): slot = (byte)target_char_idx (param_3):
+ *       MOV byte ptr [EBX + EAX*1 + 0x53DFC], DL   ; 8-bit store, stride 1
  *   fd2_show_miss_indicator (@ 0x1E24E): slot = (byte)target_char_idx (param_1):
  *       MOV byte ptr [EDX + EAX*1 + 0x53DFC], CL   ; 8-bit store, stride 1
  * Consumer fd2_animate_spell_projectile_paths (@ 0x1E012) walks slots
