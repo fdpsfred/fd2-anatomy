@@ -298,7 +298,7 @@ const int32 data_fd2_animation_earthquake_screen_shake_params_table[9] = {
 };
 
 /* ----------------------------------------------------------------
- * data_fd2_animation_spell_projectile_y_offset_table @ 0x0202C  (25 bytes, uint8[25])
+ * data_fd2_animation_spell_projectile_y_offset_table @ 0x5202C  (25 bytes, uint8[25])
  *
  * AoE spell projectile / spark vertical-rise offset sequence, used by
  * fd2_animate_spell_projectile_paths (@ 0x1DF58) for the 22-frame multi-target
