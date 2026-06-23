@@ -840,10 +840,8 @@ void *data_fd2_audio_bgm_driver_handle;
  * System) DIG driver handle for digital SFX. Installed once at startup and
  * then used only as the opaque dig_driver argument to
  * AIL_allocate_sample_handle (twice, for the two SFX channels). Every access
- * is a full 32-bit dword; kept uint32 to match the handle width and the
- * already-emitted main body (the byte_data size hint was wrong -- caller
- * width is dword, not byte). The handle is cast to void * at each
- * AIL_allocate_sample_handle(void *dig_driver) call site.
+ * is a full 32-bit pointer; declared void * to match the install return value
+ * and the AIL_allocate_sample_handle(void *dig_driver) parameter type.
  * Writer:
  *   main @ 0x25C32  MOV [0x53EDC],EAX
  *     data_fd2_audio_sfx_dig_driver_handle = (uint32)AIL_install_DIG_INI().
