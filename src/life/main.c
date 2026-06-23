@@ -1039,8 +1039,30 @@ uint32 data_fd2_runtime_battle_state_ptr;
 
 /*
  * data_fd2_tile_event_data_table_ptr @ 0x53A55 -- base pointer of the per-chapter
- * tile-event data table (0x8A3-byte malloc'd block restored from FD2.SAV).
- * uint32 address slot; zero-init (BSS) pointer slot.
+ * tile-event data table (0x8A3-byte block). uint32 address slot; zero-init (BSS)
+ * pointer slot, reloaded on each chapter-init / continue / load path.
+ *
+ * Source of the block:
+ *   - Normal chapter init (fd2_load_chapter_battle_data): loaded fresh via
+ *     fd2_load_dat_resource(FDFIELD.DAT, chapter*3 + 1).
+ *   - Load-game path (fd2_load_save_and_init_engine): malloc(0x8A3) + memmove
+ *     the leading 0x8A3 bytes of the decrypted FD2.SAV buffer (the save embeds a
+ *     snapshot of this same block).
+ *
+ * Layout of the pointed-to block (byte offsets):
+ *   [0]            scene_id -- selects FDSHAP.DAT scene snapshot (idx*2) and tile
+ *                  attribute flags (idx*2 + 1).
+ *   [1]            chapter roster slot count (-> party_member_count, bounds the
+ *                  runtime_char fill loop).
+ *   [2]            field-character spawn-record count (-> alloc_offset; also the
+ *                  base index into the FDFIELD.DAT 6-byte position table).
+ *   +0x33 + (terrain_class-1)*2  walk-step post-action consequence records (2B):
+ *                  +0 = consequence handler index (0xFF = none),
+ *                  +1 = event-type gate. Consumed by fd2_check_tile_event_post_action.
+ *   +0x53 + terrain_class*3      interaction event records (3B): +0 = type
+ *                  (0 = ITEM, 1 = GOLD, other = scripted EVENT),
+ *                  +1 = uint16 value (item_id / gold amount / event-handler index).
+ *                  Consumed by fd2_handle_tile_event_interaction.
  */
 uint32 data_fd2_tile_event_data_table_ptr;
 
