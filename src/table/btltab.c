@@ -67,8 +67,6 @@ const double data_fd2_battle_spell_dp_boost_factor_015 = 0.15;
  *   fb ff ff ff  fb ff ff ff  00 00 00 00
  * = { 5, 0, -5, -5, -5, 0 }
  * ---------------------------------------------------------------- */
-/* Non-const: read-only in-game (no writers), but mutated by test fixtures; the
- * Watcom extern in globals.h must agree (const/non-const mismatch is E1129). */
 const int32 data_fd2_battle_tile_attr_mv_modifier_table[6] = {
     5, 0, -5, -5, -5, 0
 };
