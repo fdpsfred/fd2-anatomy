@@ -460,8 +460,9 @@ const uint8 data_fd2_battle_miss_indicator_sprite_ids[4] = {
  *            bJob_id - 1. The value seeds total_crit_pct for the crit roll.
  *
  * Extent is 27 bytes: entries 0..25 map to jobs 0x01..0x1A (the 26 defined
- * jobs); byte 26 is a trailing 0 pad. The table sits immediately after the
- * "TAI.DAT" string (ends at 0x5239B) and before zero padding at 0x523B2.
+ * jobs); byte 26 (@ 0x523B5) is a trailing 0 pad. The table sits immediately
+ * after the "TAI.DAT" string (NUL-terminated @ 0x5239A) and is followed by
+ * 3 bytes of alignment padding @ 0x523B6 before the next table @ 0x523B9.
  * No writers.
  * ---------------------------------------------------------------- */
 /* Non-const: read-only in-game, but seeded by test fixtures. */
