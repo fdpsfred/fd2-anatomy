@@ -1,0 +1,58 @@
+{
+  "address": "0002211c",
+  "name_current": "fd2_cast_spell_0f_variant_b",
+  "name_final": "fd2_cast_spell_0f_variant_b",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Name follows fd2_<domain>_<descriptor> convention and accurately reflects purpose: dispatch entry for spell_id 0xF (heal/buff variant-B family). The '0f' suffix is a meaningful spell ID (spell IDs span 0x00-0x23), NOT a Ghidra address residue (function address is 0x2211c, unrelated to 0x0f). 'variant_b' correctly distinguishes the heal-style dispatch path (fd2_dispatch_variant_b_cast applying fd2_apply_heal_spell_to_target) from the offensive-A family. Consistent with sibling thunks 0d/0e/10.",
+  "kind": "function",
+  "home": "src/spell/spell.c",
+  "purpose": "Battle spell dispatch entry for spell_id 0xF (15): plays the status-effect SFX and a slide pre-cast visual effect, then forwards to the shared variant-B heal/buff dispatch worker with spell_id 0xF.",
+  "logic_summary": "Stack-probe (__CHK 0x14), then fd2_play_sfx_with_handle(status-effect SFX handle table, sfx_id=0xB, repeat=1); fd2_play_variant_b_slide_pre_effect(8, 4); finally fd2_dispatch_variant_b_cast(caster, 0xF, n_tgt, tgt_arr). In the binary the tail is implemented as a JMP into sibling fd2_cast_spell_0d_variant_b's shared tail (alt-entry label 0x21b0b), so there is no explicit RET; the src expresses the equivalent direct call. Differs from siblings only by SFX id usage, the slide pre-effect params {8,4}, and the spell_id literal 0xF.",
+  "signature": "void __cdecl fd2_cast_spell_0f_variant_b(uint32 caster, uint32 n_tgt, uint8 *tgt_arr)",
+  "params": [
+    {
+      "name": "caster",
+      "type": "uint32",
+      "semantics": "Caster unit id; passed straight through to fd2_dispatch_variant_b_cast as the casting unit.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, matches usage and matches sibling functions' param naming (caster). No address residue."
+    },
+    {
+      "name": "n_tgt",
+      "type": "uint32",
+      "semantics": "Number of target units; forwarded unchanged to the dispatch worker (target count).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear abbreviation for num_targets, consistent with sibling functions. No address residue."
+    },
+    {
+      "name": "tgt_arr",
+      "type": "uint8 *",
+      "semantics": "Pointer to the array of target unit ids; cast to int and forwarded to the dispatch worker.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Describes a target-id array, consistent with sibling functions. No address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; the dispatch worker performs the spell application."
+  },
+  "reads_globals": [
+    "data_fd2_audio_status_effect_sfx_handle_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "The function had no comment block above its definition, unlike sibling variant-B entries 0xD and 0xE which each document their slide pre-effect params and address.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "4fb9745ff6cd749ea00a465d9001e30e479accd6",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Body verified against decompile + disassembly: PUSH 0x14/__CHK, play_sfx(handle_table,0xB,1), slide_pre_effect(8,4), PUSH args + PUSH 0xF + JMP 0x21b0b into 0x21AD9's shared tail (no explicit RET). Xref 0x51d3d holds bytes 1c 21 02 00 = LE 0x0002211c (self), confirming this is spell dispatch table entry index 0xF (table @ 0x51d01 + 0x3c). Ghidra plate is detailed and consistent with src; left unchanged. Only the missing src comment block was added; no symbol/param rename needed (all deferred to Stage 2 regardless)."
+}
