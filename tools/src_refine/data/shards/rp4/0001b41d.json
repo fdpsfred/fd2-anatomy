@@ -1,0 +1,54 @@
+{
+  "address": "0001b41d",
+  "name_current": "fd2_render_party_status_overview_content",
+  "name_final": "fd2_render_party_status_overview_content",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=render/gfx, descriptor=party_status_overview_content). No Ghidra address residue. Accurately describes the function: it draws the entire static content (icon labels, chapter/turn/gold numbers, per-team alive counts, chapter title/subtitle) of the 'Army Status' overview panel into the supplied surface. Sole caller is fd2_open_party_status_overview_screen, the screen orchestrator, which delegates the content painting here -- name correctly distinguishes 'content' from the orchestration.",
+  "kind": "function",
+  "home": "src/gfx/rndstat.c",
+  "purpose": "Draw the complete static content of the 'Army Status' overview panel (chapter/turn/gold/per-team alive counts/character-roster labels and the chapter title+subtitle text) onto a destination surface.",
+  "logic_summary": "Blits four static icon-label sprites (0x85 chapter, 0x86 turn, 0x87 money, 0x88 roster) from the shared UI/anim sprite sheet at fixed offsets. Renders three numbers via fd2_render_decimal_number_to_buffer: chapter = current_chapter_id+1 (2-digit white 0x2A), turn = battle_turn_counter (3-digit white 0x2A), party gold (8-digit yellow 0x1F). Renders three per-team alive counts from fd2_count_active_chars_for_team_filter(0/2/1) (enemy/player/npc-ally, 2-digit each) along the same row (stride*0x9F). Computes chapter title text_id = current_chapter_id*2 + 0x255 and draws title and subtitle via fd2_display_dialog_scene. Mitti exception: when current_chapter_id == 0x10 (chapter 17) and fd2_check_party_has_char_id(0x12) == 0 (Mitti not recruited), text_id is decremented by 2 before the subtitle, so the subtitle uses the 'Mitti absent' variant. The binary reuses one register (EDI) for title id / optional -2 / +1 subtitle; mirrored here by mutating text_id in place.",
+  "signature": "void __cdecl fd2_render_party_status_overview_content(uint32 dst_surface, uint32 stride)",
+  "params": [
+    {
+      "name": "dst_surface",
+      "type": "uint32",
+      "semantics": "Base linear address of the destination pixel surface. Caller passes panel_buf (off-screen) with stride 0x140, or data_fd2_large_game_state_buffer_ptr + 0x7964 (in-battle composite) with stride 0x1c8. All blit offsets are computed relative to this base.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "src declaration already names it dst_surface, which accurately reflects its role as the destination surface base; no address residue. (Ghidra decompiler shows generic param_1 but the src name governs.)"
+    },
+    {
+      "name": "stride",
+      "type": "uint32",
+      "semantics": "Row pitch (bytes per scanline) of dst_surface. 0x140 (320) for panel_buf, 0x1c8 (456) for the in-battle composite. Used both as the row multiplier for vertical offsets and forwarded as the render pitch to the blit/number/dialog helpers.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "src declaration already names it stride, accurately describing the surface row pitch; no address residue. (Ghidra decompiler shows generic param_2 but the src name governs.)"
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; renders into dst_surface as a side effect."
+  },
+  "reads_globals": [
+    "data_fd2_ui_anim_sprite_sheet_ptr (0x53A81) -- shared UI/anim sprite sheet source for icon labels",
+    "data_fd2_chapter_current_chapter_id (0x53C03) -- current chapter id, drives chapter number, title text_id, and Mitti exception",
+    "data_fd2_battle_turn_counter (0x53BEF) -- turn count drawn as 3-digit number",
+    "data_fd2_shared_party_total_gold (0x53BF3) -- party gold drawn as 8-digit number",
+    "data_fd2_all_game_text_ptr (0x53A7D) -- text resource base for the title/subtitle dialog scenes"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "None. The src comment block above the function (rndstat.c lines 918-954) is already concise, accurate, ASCII-only (with Chinese only for the proper-noun labels), and matches the decompilation exactly: all layout offsets, the chapter/turn/gold numbers, per-team alive counts, the title/subtitle text_id formula, and the Mitti (char_id 0x12 / chapter 0x10) exception are correctly documented. No change needed.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "0ddf351a1a00bf97035757b49b682fda2de9ede8",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Caller fd2_open_party_status_overview_screen confirms usage: it builds an off-screen panel_buf (stride 320) for the slide-in/out animation and repaints the in-battle composite (stride 456) during the wait loop. The Ghidra plate carries extra detail not in src -- the shared internal landing label L_render_party_status_overview_content_alt_1cd @ 0x1B5EA (the final fd2_display_dialog_scene + RET sequence, tail-JMP-borrowed by fd2_chapter_27_end's GOOD/BAD ending). The plate's Globals enumeration uses some older symbol spellings (save_metadata_block / current_chapter_id without the data_fd2_ prefix) but all addresses are correct and the descriptions are not in semantic conflict with the refined src understanding, so the plate is left untouched (consistent-is-enough rule). No logic touched; name/params recorded only (Stage 2 would apply any rename -- none needed)."
+}
