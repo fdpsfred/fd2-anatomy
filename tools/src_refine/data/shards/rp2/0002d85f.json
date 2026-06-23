@@ -1,0 +1,49 @@
+{
+  "address": "0002d85f",
+  "name_current": "fd2_wait_input_with_chapter_dialog_blink",
+  "name_final": "fd2_wait_input_with_chapter_dialog_blink",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>; domain=input (lives in input.c, blocks on keyboard), descriptor accurately captures the wait-for-key loop that cycles the chapter-intro dialog panels and animates the portrait mouth-blink. No address residue; '2'/'4' frame counts are semantic dimensions, not address tails. Name matches all 6 callers (chapter-intro / shop / party-roster / promote menu input loops).",
+  "kind": "function",
+  "home": "src/input/input.c",
+  "purpose": "Block until a key is pressed while cycling the chapter-intro dialog panels (4 frames) and animating the portrait mouth-blink; then read and normalize the scancode via INT 16h.",
+  "logic_summary": "Copies the 4-entry corner-offset table into a stack array; seeds saved_tick from the BIOS tick word and a random initial blink countdown (rng%0x32+8); sets dialog anim frame to 2 and does an initial panel render. When mode==0, blits 4 corner indicator sprites (highlighted sprite for the entry == ui_menu_cursor_idx). Then loops: on each real BIOS-tick advance (>=2 ticks, signed-wrap aware) it advances the panel frame (mod 4), re-renders, and drives the blink state machine -- when not blinking it tests the OLD countdown for 0 then decrements (==0 -> paint mouth-CLOSED sprite 3, set blinking); when blinking it paints mouth-OPEN sprite 0, reseeds the countdown (rng%0x1E+2), clears blinking. Loop exits when the keyboard buffer is non-empty. Finally sets key_input_mode=0x10 and calls int386(0x16) to fetch the scancode into last_key_pressed/key_input_mode, normalizes extended/numpad keys (0xE0 or 0x52 -> 0x1C Enter; 0x53 -> 0x01 Esc), and returns the (possibly remapped) scancode byte.",
+  "signature": "int fd2_wait_input_with_chapter_dialog_blink(uint32 mode)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Render mode flag forwarded to fd2_render_chapter_intro_dialog_panels each frame; when 0 the function also blits the 4 corner cursor-indicator sprites (highlight on the entry matching ui_menu_cursor_idx).",
+      "verdict": "rename",
+      "proposed": "mode",
+      "reason": "Live Ghidra name is the generic placeholder param_1; the value is a render-mode selector (==0 gates the corner-sprite pass and is passed through to the panel renderer). src already declares it as 'mode', which is the accurate descriptor."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "The pressed key's scancode byte (data_fd2_input_key_input_mode) after INT 16h read and Enter/Esc normalization; returned zero-extended."
+  },
+  "reads_globals": [
+    "data_fd2_ui_chapter_intro_dialog_corner_offset_table_b",
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_ui_menu_screen_sprite_atlas_buf_ptr",
+    "BIOS_TICK_WORD (0x46C)"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_intro_dialog_anim_frame_idx",
+    "data_fd2_input_key_input_mode",
+    "data_fd2_input_last_key_pressed"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decomp cross-checked against src lines 145-225: BIOS-tick gate (decomp '1 < x' == src 'elapsed >= 2'), the test-old-value-then-decrement blink countdown (decomp 'next_blink=uVar2-1; if(uVar2==0)' == src 'old_cd=blink_countdown; blink_countdown--; if(old_cd==0)'), and the 0xE0/0x52->0x1C, 0x53->0x01 normalization all match. NOTE: the immediately-preceding function in input.c (ends line 136, a different symbol) has an EXTRA normalization term 'last_key_pressed == 0x20' that the target does NOT have -- not an issue for this symbol, just flagged to avoid confusion. Ghidra plate is detailed and consistent with src; left untouched. src comment (lines 138-144) is accurate and concise; kept. Only change recorded is the param rename param_1 -> mode, to be applied in Stage 2. No src edit performed (comment kept), so the only staged file is the shard."
+}
