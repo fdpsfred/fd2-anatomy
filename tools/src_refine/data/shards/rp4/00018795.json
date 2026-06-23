@@ -1,0 +1,72 @@
+{
+  "address": "00018795",
+  "name_current": "fd2_render_hp_or_mp_bar_proportional",
+  "name_final": "fd2_render_hp_or_mp_bar_proportional",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor>: domain render, descriptor hp_or_mp_bar_proportional. No address residue (0x65/0x14 are layout/probe constants, not in the name). Accurately reflects purpose confirmed by both callers: it computes a proportional fill-segment count and dispatches the HP (sprite_base 0x17) or MP (0x1A) bar.",
+  "kind": "function",
+  "home": "src/gfx/rndstat.c",
+  "purpose": "Compute a proportional fill-segment count from current/max and dispatch to fd2_render_horizontal_bar_segments to paint an HP or MP bar.",
+  "logic_summary": "If max==0 return without drawing (div-by-zero guard; absent stat draws no bar). Else if current==0 segments=0 (fully empty bar). Else segments=(current*0x65)/max + 1. The binary does a SIGNED multiply/divide (IMUL EDX,[current],0x65 / MOV EAX,EDX / SAR EDX,0x1F / IDIV [max] / INC EAX), so src performs the arithmetic with signed int32 operands to match. 0x65 (101) is the max fillable segment count (reached at current==max); the +1 guarantees a 1-segment minimum sliver for any non-zero current (so '1 HP left' still shows a visible bar). Finally calls fd2_render_horizontal_bar_segments(dst_off, pitch, segments, sprite_base).",
+  "signature": "void __cdecl fd2_render_hp_or_mp_bar_proportional(uint32 dst_off, uint32 pitch, uint32 sprite_base, uint32 current, uint32 max)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Destination buffer byte-offset where the bar starts (caller passes overlay_buffer+0x2A06 for HP, +0x41C6 for MP in the full panel; buf+stride*0x16+0x15 / +stride*0x1F+0x15 in the mini panel). Forwarded unchanged as arg1 of fd2_render_horizontal_bar_segments.",
+      "verdict": "rename",
+      "proposed": "dst_off",
+      "reason": "Live Ghidra name is the generic placeholder param_1; src already uses dst_off. Stage-2 rename to dst_off."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "Destination surface stride/pitch in bytes (0x140 from the full panel; the caller-supplied stride from the mini panel). Forwarded unchanged as arg2 of fd2_render_horizontal_bar_segments.",
+      "verdict": "rename",
+      "proposed": "pitch",
+      "reason": "Live Ghidra name is the generic placeholder param_2; src already uses pitch. Stage-2 rename to pitch."
+    },
+    {
+      "name": "param_3",
+      "type": "uint",
+      "semantics": "Base sprite-sheet index selecting the bar color theme: 0x17 = HP (red), 0x1A = MP (blue). Forwarded unchanged as arg4 (sprite_base) of fd2_render_horizontal_bar_segments.",
+      "verdict": "rename",
+      "proposed": "sprite_base",
+      "reason": "Live Ghidra name is the generic placeholder param_3; src already uses sprite_base. Stage-2 rename to sprite_base."
+    },
+    {
+      "name": "dst_buf",
+      "type": "byte *",
+      "semantics": "Current stat value (HP_current or MP_current), the numerator. It is the IMUL multiplicand (current*0x65); when 0 the fully-empty branch (segments=0) is taken. NOT a buffer pointer.",
+      "verdict": "rename",
+      "proposed": "current",
+      "reason": "Live Ghidra name dst_buf is actively misleading (Stack[0x10] ordinal 3 is the current stat value, not a destination buffer) and is wrongly typed byte*; src already declares it uint32 current. Stage-2 rename to current."
+    },
+    {
+      "name": "stride",
+      "type": "int",
+      "semantics": "Maximum stat value (HP_max or MP_max), the denominator. It is the IDIV divisor and the operand of the div-by-zero guard (max==0 returns without drawing). NOT a surface stride.",
+      "verdict": "rename",
+      "proposed": "max",
+      "reason": "Live Ghidra name stride is actively misleading (Stack[0x14] ordinal 4 is the max stat / IDIV divisor, not the surface stride which is param_2); src already declares it uint32 max. Stage-2 rename to max."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; either returns early (max==0) or dispatches to fd2_render_horizontal_bar_segments which renders into the destination surface."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly confirms cdecl stack args (after PUSH 0x14 probe): [ESP+4]=dst_off, [ESP+8]=pitch, [ESP+0xc]=sprite_base, [ESP+0x10]=current (IMUL *0x65), [ESP+0x14]=max (IDIV divisor + JZ guard). Both callers confirm semantics: fd2_render_full_char_stat_panel passes (overlay+0x2A06,0x140,0x17,hp_cur,hp_max) and (+0x41C6,0x140,0x1A,mp_cur,mp_max); fd2_render_mini_char_status_panel passes the same with stride/0x17 and stride/0x1A. SIGNED IMUL/SAR EDX,0x1F/IDIV in the binary -> src uses signed int32 multiply/divide (matches). 0x65=101 (max fillable count) and 0x14=stack-probe size are layout/probe constants, not domain IDs. Source comment (rndstat.c lines 573-611) is accurate and precise (guard, +1 floor, 0x65 meaning, signed-arith note, both callers) -> comment_verdict=keep, no Edit. Ghidra plate already consistent with src (logical param names dst_buf_offset/pitch/sprite_base/current/max, accurate body) -> plate left untouched. No logic touched; all five params recorded for Stage-2 rename (live dst_buf/stride names are misleading)."
+}
