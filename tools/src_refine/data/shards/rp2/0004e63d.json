@@ -1,0 +1,86 @@
+{
+  "address": "0004e63d",
+  "name_current": "fd2_rle_blit_sprite",
+  "name_final": "fd2_rle_blit_sprite",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (gfx/blit domain, descriptor rle_blit_sprite). No address residue. Name accurately reflects the core RLE sprite decoder+painter -- THE sprite drawing function (20 callers: chapter bg loaders, spell/summon/special-attack cinematics, HUD panel renderers, indexed-sprite wrappers).",
+  "kind": "function",
+  "home": "ROOT/src/gfx/blitspr.c",
+  "purpose": "Core custom-RLE sprite decoder + painter; decodes an RLE command stream and writes pixels to a destination buffer under one of three palette operations (passthrough / translucent-overlay / silhouette-fill).",
+  "logic_summary": "Reads width/height from the stream header (first two uint16 words) into globals data_fd2_graphics_rle_blit_cur_width/_remaining_rows; command bytes start at stream+4. Computes start dst = dst_buf + dst_y*stride + dst_x and per-row advance = stride - width. Branches once on palette_op into three near-identical row/column loops. Each command byte: high 2 bits select op, low 6 bits are len-1 (len = (cmd & 0x3F)+1): 0b00 = RLE fill (next byte -> len pixels), 0b01 = stretched fill (next byte -> len pixels every other dst column, consuming 2*len width), 0b10 = literal copy of len bytes, 0b11 = transparent skip of len pixels. After each command, len (2*len for stretched) is subtracted from the per-row width counter (x_remain); when x_remain hits 0, dst += row_advance and remaining_rows is decremented; loop ends when remaining_rows reaches 0. PASSTHROUGH (palette_op==0xFFFFFFFF) copies src bytes verbatim; TRANSLUCENT ((uint16)palette_op>0xFF) outputs ((src+rotation_key)&7)+color_base; SILHOUETTE ((uint16)palette_op<=0xFF) writes a single fill byte for every opaque pixel while still advancing the source stream past its (ignored) source byte(s) so the stream stays in sync across modes. Disassembly (0x4E63D-0x4E7F7) confirms LODSW header reads, the bit-test dispatch order (SHL CL,1 / JC), the INC ESI / ADD ESI,ECX source-skip in silhouette mode, and the word store / word reload of both globals each row.",
+  "signature": "void __cdecl fd2_rle_blit_sprite(uint32 rle_stream, int32 dst_x, int32 dst_y, uint32 dst_buf, int32 stride, uint32 palette_op)",
+  "params": [
+    {
+      "name": "rle_stream",
+      "type": "uint32",
+      "semantics": "RLE stream base address: uint16 width, uint16 height, then the command byte stream. Callers pass a sprite-atlas-resolved stream pointer or a DAT-loaded image buffer.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the input as an RLE stream; matches all caller usage. No address residue."
+    },
+    {
+      "name": "dst_x",
+      "type": "int32",
+      "semantics": "Destination column offset, added directly to the start address (dst_buf + dst_y*stride + dst_x). Callers commonly pass 0 (e.g. fd2_blit_indexed_sprite_at_xy, cinematic full-screen blits).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and matches the address computation; no address residue."
+    },
+    {
+      "name": "dst_y",
+      "type": "int32",
+      "semantics": "Destination row offset, scaled by stride in the start-address computation. Callers pass e.g. 0 (full screen) or 0x32 (special-attack/summon background offset).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and matches the address computation; no address residue."
+    },
+    {
+      "name": "dst_buf",
+      "type": "uint32",
+      "semantics": "Destination base linear address (work buffer or mode13h primary at 0xA0000).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate destination-base name; no address residue."
+    },
+    {
+      "name": "stride",
+      "type": "int32",
+      "semantics": "Destination row stride in bytes; used both for dst_y scaling and to compute the next-row advance (stride - width). Callers pass 0x140 (320) for the standard surface.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Standard stride name; matches usage. No address residue."
+    },
+    {
+      "name": "palette_op",
+      "type": "uint32",
+      "semantics": "Palette-operation selector. 0xFFFFFFFF = passthrough; (uint16)>0xFF = translucent overlay where low byte is color_base and (palette_op>>8)&0xFF is rotation_key; (uint16)<=0xFF = silhouette fill where low byte is the uniform fill byte.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Captures the multi-mode selector role; matches caller values (-1 passthrough, 0x21 hit-flash silhouette, etc.). No address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; paints directly into dst_buf and mutates the two row-state globals."
+  },
+  "reads_globals": [
+    "data_fd2_graphics_rle_blit_cur_width",
+    "data_fd2_graphics_rle_blit_remaining_rows"
+  ],
+  "writes_globals": [
+    "data_fd2_graphics_rle_blit_cur_width",
+    "data_fd2_graphics_rle_blit_remaining_rows"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (blitspr.c lines 416-468) and C body (470-643) are an exact, verified match to the binary at 0x4E63D-0x4E7F7: confirmed via disassembly the bit-test dispatch order, the silhouette-mode source-stream skip (INC ESI for RLE fill/stretched, ADD ESI,ECX for literal copy), and the word store/reload of both globals per row. Decompiler SUB43/CONCAT31 artifacts in the silhouette path are just AL/AH fill-byte register tracking (MOV AL,AH), correctly modeled as fill_byte in source. Both globals are graphics-domain scratch state named per data_fd2_graphics_* convention (correct -- not battle core tables). All 6 param names accurate; verified against callers fd2_execute_special_attack_skill (0x276EC), fd2_display_cinematic_image_with_fade (0x1F73F), fd2_render_signed_modifier_with_icon (0x1AEB1), fd2_execute_summon_spell_cast (0x27FC9). Source comment is precise, ASCII-only, and consistent with the Ghidra plate -> keep both unchanged. No source edit needed; only shard committed (used targeted git add to avoid sweeping in 4 unrelated pre-existing modified shards)."
+}
