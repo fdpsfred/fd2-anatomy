@@ -1,0 +1,44 @@
+{
+  "address": "00035ebe",
+  "name_current": "fd2_chapter_event_handler_4d__unref_sentinel",
+  "name_final": "fd2_chapter_event_handler_4d__unref_sentinel",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows convention fd2_<domain>_<descriptor>. '_4d' is the per-event dispatch-table index 0x4D, verified by table math: entry at 0x51CC5, table base 0x51B91, (0x51CC5-0x51B91)/4 = 0x4D; this is a domain ID (dispatch slot), not an address residue (function lives at 0x35EBE). '__unref_sentinel' accurately reflects (a) no chapter FDFIELD turn-event/tile-step hook references this slot, and (b) the sentinel category (consumed-flag setter only). Consistent with sibling handlers 49/4e which use the same __unref_sentinel suffix. No address residue.",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Chapter-event dispatch slot 0x4D: a sentinel handler that sets tile_event_consumed_flags[0x13] = 1, priming handler_47's 2nd-call mass-kill branch.",
+  "logic_summary": "Loads the tile-event consumed-flags base pointer (data_fd2_field_map_tile_event_consumed_flags_ptr @ 0x53AD5) and stores 1 into byte [base+0x13]. No other side effects, no branches, ignores its arg. Disasm: PUSH 4; CALL __CHK (Watcom stack probe); MOV EAX,[0x53AD5]; MOV byte [EAX+0x13],1; RET. Self-contained 10-byte stub, no borrowed tail. Pre-setting slot 0x13 non-zero makes handler_47's next invocation (which gates on flags[0x13]!=0) take its 2nd-call mass-kill path instead of merely advancing the counter.",
+  "signature": "void __cdecl fd2_chapter_event_handler_4d__unref_sentinel(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Dispatch-table ABI arg (1-arg cdecl void fn(uint event_arg)); this handler does not read it (cast to void).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name matches the dispatch-table ABI convention used by every sibling handler in this file; unused but correctly typed/named, no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_field_map_tile_event_consumed_flags_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_field_map_tile_event_consumed_flags_ptr[0x13] (via the pointer; the global pointer itself is not rewritten, only the byte it targets)"
+  ],
+  "comment_original_issue": "Source comment block was accurate and well-structured; only ASCII violation was a single em-dash on the 'Effect:' line (-- primes ...), per project ASCII-only rule for code comments.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Dispatch idx 0x4D confirmed by table math (entry @0x51CC5, base @0x51B91). Global @0x53AD5 confirmed against disasm MOV EAX,[0x53AD5] and globals.h:407 (data_fd2_field_map_tile_event_consumed_flags_ptr, /* 0x53AD5 */). Source correctly omits the __CHK stack-probe prologue (Watcom-generated). Functionally exact vs binary. Plate is consistent with refined understanding (mentions the handler_47 priming relationship and the 10-byte self-contained stub); left untouched per src-is-authority/consistency-only rule. Em-dash -> -- fix is the only src edit. Sibling sentinel handlers 49 (slot 0x12) and 4e (slot 0x14) confirm the naming/structure pattern."
+}

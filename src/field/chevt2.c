@@ -1300,7 +1300,7 @@ void fd2_chapter_event_handler_4c__ch29_major_cinematic(uint32 event_arg)
  * only). Dispatch-table signature is 1-arg cdecl (void fn(uint event_arg)); this
  * handler does not read the arg.
  *
- * Effect: set tile_event_consumed_flags[0x13] = 1 (no other side effects) — primes
+ * Effect: set tile_event_consumed_flags[0x13] = 1 (no other side effects) -- primes
  * handler_47, whose first invocation merely advances flags[0x13] 0 -> 1 before its
  * mass-kill path; pre-setting the flag non-zero makes handler_47's very next
  * invocation take that 2nd-call mass-kill branch.
