@@ -1,0 +1,59 @@
+{
+  "address": "0004e9a0",
+  "name_current": "fd2_save_block_loop",
+  "name_final": "fd2_save_block_loop",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Name follows fd2_<domain>_<descriptor> convention and accurately reflects purpose (inner copy loop for screen-block SAVE). No Ghidra address residue. Consistent with its mirror twin fd2_restore_block_loop @ 0x4E954 (same _block_loop suffix scheme). 'save' correctly denotes the direction: stride is applied to the SOURCE (live screen) while the destination (backup buffer) is packed contiguously, the inverse of restore.",
+  "kind": "function",
+  "home": "ROOT/src/gfx/blitspr.c",
+  "purpose": "Inner copy loop that packs a width*height pixel block from a strided live-screen source into a contiguous backup buffer (the 'save under' snapshot before painting a transient overlay sprite).",
+  "logic_summary": "row_remain = data_fd2_graphics_rle_blit_remaining_rows (0x627B6, height). do: col_remain = data_fd2_graphics_rle_blit_cur_width (0x627B4, width, re-read at the top of every row -> binary loops back to MOV CX,[0x627B4]); copy col_remain bytes src->dst (REP MOVSB; in binary ESI advances during copy then is restored via PUSH/POP, dst/EDI advances continuously and is NOT restored); src += stride (binary ADD ESI,EBP); row_remain-- (DEC DX); while (row_remain != 0). Net per-row effect: src goes row_start -> row_start+stride, dst runs contiguously across all rows. C model uses memmove + dst += col_remain + src += stride, faithfully reproducing this. Post-test do/while: a height of 0 wraps to 0x10000 rows.",
+  "signature": "void fd2_save_block_loop(uint32 src, uint32 dst, uint32 stride)  /* C portable model; binary is void __cdecl with src=ESI, dst=EDI, stride=EBP register-carried, void return */",
+  "params": [
+    {
+      "name": "src",
+      "type": "uint32",
+      "semantics": "Source pixel data base = live screen region top-left; advanced by stride per row. In the binary this arrives in ESI (seeded by caller fd2_save_screen_block_to_buffer as src_base + src_offset).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the strided source; no address residue. Matches the mirror twin's parameter naming and the comment's Args list."
+    },
+    {
+      "name": "dst",
+      "type": "uint32",
+      "semantics": "Destination base = contiguous backup buffer cursor (out_buf+8, just past the 8-byte header); packed width*height bytes, advances continuously across rows. In the binary this arrives in EDI.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the contiguous backup-buffer destination; no address residue."
+    },
+    {
+      "name": "stride",
+      "type": "uint32",
+      "semantics": "Bytes to advance the SOURCE per row (the screen row pitch). In the binary this arrives in EBP (ADD ESI,EBP per row).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the per-row source advance; no address residue. The comment clarifies stride applies to src (not dst), distinguishing it from the restore twin."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Binary is a plain RET after the row loop; EAX untouched (no PUSHAD here, this is the leaf called inside the PUSHAD/POPAD-wrapped caller). All state communicated via the destination buffer side effect."
+  },
+  "reads_globals": [
+    "data_fd2_graphics_rle_blit_remaining_rows",
+    "data_fd2_graphics_rle_blit_cur_width"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "e4f917a6395e8960a522e08cdccf13c679d2a47e",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment (blitspr.c lines 972-1009) and Ghidra plate are both accurate, precise, and mutually consistent; no refinement needed (comment_verdict=keep, ghidra_plate_action=none). Verified against disasm: XOR ECX,ECX; MOV DX,[0x627B6]; MOV CX,[0x627B4]; PUSH ESI; REP MOVSB; POP ESI; ADD ESI,EBP; DEC DX; JNZ reload-CX; RET. Width global re-read at top of each row confirmed (JNZ target is the MOV CX,[0x627B4] reload at 0x4e9a9). C model's memmove vs binary REP MOVSB is safe and equivalent (save direction: backup buffer and screen region do not overlap). Sole caller fd2_save_screen_block_to_buffer @ 0x4E96F seeds the width/height globals and registers before the call. Mirror of fd2_restore_block_loop @ 0x4E954 with src/dst roles swapped. No logic concerns."
+}
