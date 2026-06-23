@@ -1,0 +1,56 @@
+{
+  "address": "000182ad",
+  "name_current": "fd2_paint_status_panel_layer_left",
+  "name_final": "fd2_paint_status_panel_layer_left",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain = status-panel paint, descriptor = layer_left). No Ghidra address residue (no hex suffix matching 0x182ad or any data address). 'left' is a meaningful spatial descriptor identifying WHICH panel (the left status panel, copied to dst+0x8C0 / sourced from src+0x8C5), paired with the sister fd2_paint_status_panel_layer_right. Name accurately reflects purpose and body.",
+  "kind": "function",
+  "home": "src/gfx/rndstat.c",
+  "purpose": "Copy the LEFT status panel (86 rows x 86 bytes) from src_buffer into dst_workspace with horizontal-shift clipping, so the panel can be drawn part-way off the left screen edge during the status-screen slide animation.",
+  "logic_summary": "row_bytes=0x56, src_x_skip=0. If (int)x_offset<0 (panel pushed off left edge): row_bytes=x_offset+0x56 (narrows the copy by |x_offset|), src_x_skip=-x_offset (advance source to keep visible part aligned), x_offset=0 (clamp dest x). Then for row 0..0x55 (always 86 iterations): memmove(dst_workspace+0x8C0+x_offset+row*0x140, src_buffer+0x8C5+src_x_skip+row*0x140, row_bytes). Stride 0x140 = 320 px/row. Dst base 0x8C0 = row8*0x140+0xC0; src base 0x8C5 = +5 px x vs dst. Verified positive-x path (x=5, panel in place) via fd2_open_char_status_screen, and negative-x clipping path via fd2_play_status_screen_outro_step (x_left = 5-16*(frame-6) goes negative for frame>=7).",
+  "signature": "void __cdecl fd2_paint_status_panel_layer_left(uint32 x_offset, uint32 dst_workspace, uint32 src_buffer)",
+  "params": [
+    {
+      "name": "x_offset",
+      "type": "uint32",
+      "semantics": "Signed horizontal destination shift in pixels for the panel. >=0 draws the panel in place (shifted right by x_offset); <0 pushes it off the left edge and triggers the clip branch (narrow copy + source advance + dest clamp to 0).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the signed horizontal shift; used exactly that way in both branches. No address residue."
+    },
+    {
+      "name": "dst_workspace",
+      "type": "uint32",
+      "semantics": "Linear base of the destination working composite buffer (the slide-animation accumulator, e.g. data_fd2_ui_slide_anim_accumulator_buf_ptr); the left panel is written at +0x8C0 + x_offset per row.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Correct role descriptor; no address residue."
+    },
+    {
+      "name": "src_buffer",
+      "type": "uint32",
+      "semantics": "Linear base of the source composed-panel buffer (e.g. data_fd2_ui_slide_composed_target_buf_ptr); the left panel pixels are read from +0x8C5 + src_x_skip per row.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Correct role descriptor; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effect is the per-row memmove blit of the left panel into dst_workspace."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "570730be7adfda4e0176323988b55db8b9065234",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Name and comment both correct; no source edit needed. Existing src comment (rndstat.c lines 311-334) is precise, ASCII, matches logic exactly, lists both callers; no flowchart/phase/history narrative. Ghidra plate is consistent (carries more body detail, which is permitted) so left untouched. __CHK(0x20) stack probe is compiler-generated and correctly omitted from src. Reads/writes no globals (operates only on caller-supplied buffer pointers). Equivalence note: unlike sister _right (which shrinks row_count on negative offset = vertical clip), _left always loops 86 rows and shrinks row_bytes (horizontal clip) -- matches decompiled (int)row<0x56 exactly, no logic concern."
+}
