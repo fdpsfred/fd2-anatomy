@@ -134,6 +134,8 @@ void fd2_cast_spell_0d_variant_b(
     fd2_dispatch_variant_b_cast(caster, 0xd, n_tgt, (int)tgt_arr);
 }
 
+/* spell_id 0xE: status SFX (id 0xB) + slide pre-effect (2, 4) (stronger than
+ * 0xD's {1, 2}), then the variant-B heal dispatch. @ 0x21B99 */
 void fd2_cast_spell_0e_variant_b(
     int caster, int n_tgt, uint8 *tgt_arr)
 {
