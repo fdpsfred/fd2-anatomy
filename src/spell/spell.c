@@ -195,6 +195,12 @@ void fd2_cast_spell_12_stage_b(
     fd2_cast_dp_boost_spell(caster, n_tgt, (uint32)tgt_arr);
 }
 
+/* spell_id 0x13 (speed boost, 風行術): reset the AoE target counter, deduct
+ * caster MP using cost-table index 0x13, then delegate to the speed-boost
+ * worker. @ 0x22960. Sibling of the 0x11 AP-boost / 0x12 DP-boost wrappers --
+ * these are three distinct buff spells, not three stages of one. Unlike the
+ * 0x11/0x12 wrappers (which both charge MP via index 0x12), this one charges
+ * via its own spell id 0x13. */
 void fd2_cast_spell_13_stage_c(
     uint32 caster, uint32 n_tgt, uint8 *tgt_arr)
 {
