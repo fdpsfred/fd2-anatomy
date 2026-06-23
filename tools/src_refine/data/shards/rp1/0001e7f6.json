@@ -1,0 +1,66 @@
+{
+  "address": "0001e7f6",
+  "name_current": "fd2_render_combatant_hp_bar_proportional",
+  "name_final": "fd2_render_combatant_hp_bar_proportional",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (render domain). Descriptor accurately captures behaviour: draws a proportional HP bar for one combatant by scaling current/max HP to a filled-segment count. No Ghidra address residue; no embedded domain ID to preserve.",
+  "kind": "function",
+  "home": "src/gfx/rndscene.c",
+  "purpose": "Draw a proportional HP bar inside a combatant panel: scale a combatant's current HP to a 0x45-wide bar and forward the filled-segment count to the shared segmented-bar renderer.",
+  "logic_summary": "pchar = runtime_char_array[char_idx]. If pchar->hp_current == 0 (dead) return without drawing. Otherwise hp_scaled = (int32)hp_current * 0x45 (0x45=69=max bar width); segments = hp_scaled / (int32)hp_max + 1 (the +1 keeps a >=1 head while alive). bar_addr = dst_buf + anchor[0](x) + 7 + (anchor[1](y) + 6) * stride. Call fd2_render_combat_hp_bar_segments(bar_addr, stride, segments). The scale/divide is the signed IMUL/IDIV sequence; hp_current is a zero-extended word so the signed '<=0' guard reduces to '==0'.",
+  "signature": "void __cdecl fd2_render_combatant_hp_bar_proportional(uint32 dst_buf, uint32 stride, uint32 char_idx, uint32 anchor_xy_ptr)",
+  "params": [
+    {
+      "name": "dst_buf",
+      "type": "uint32",
+      "semantics": "Base address of the render target. Callers pass 0xA0000 (mode13h framebuffer base) or large_game_state_buffer + 0x7964 (offscreen workspace).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the destination buffer base; no address residue."
+    },
+    {
+      "name": "stride",
+      "type": "uint32",
+      "semantics": "Row pitch in bytes of the destination buffer (0x140=320 for framebuffer, 0x1C8=456 for workspace). Used to compute the bar row offset and forwarded to the segment renderer.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Standard, accurate name for the row stride; no address residue."
+    },
+    {
+      "name": "char_idx",
+      "type": "uint32",
+      "semantics": "Index into data_fd2_battle_runtime_char_array_ptr selecting the combatant whose HP bar is drawn.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately describes the runtime-char array index; no address residue."
+    },
+    {
+      "name": "anchor_xy_ptr",
+      "type": "uint32",
+      "semantics": "Pointer to a 2-int {x, y} panel-anchor pair. The function reads anchor[0] (x, left inset) and anchor[1] (y, row base). Callers pass &xy[0] / &xy[2] from the panel xy array, or the speech-bubble descriptor / descriptor+8 in the AI attack path.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and accurate (pointer to the {x,y} anchor); no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; renders directly into dst_buf (early-returns and renders nothing when the combatant is dead)."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block at lines 843-870 of rndscene.c is already precise, ASCII, and matches the decompilation (including the signed-arithmetic / death-guard detail); kept verbatim. Ghidra plate (Chinese) describes the same algorithm and is consistent with the refined understanding (its 'anchor_xy_ptr = 4-int xy struct (x, y)' refers to the caller's full panel xy array; this function reads only the {x,y} pair), so the plate was left untouched. Struct fields confirmed in src/include/types.h: hp_current uint16 @+0x40, hp_max uint16 @+0x42. Callers confirmed: fd2_render_combat_combatant_panels (x2) and fd2_execute_ai_physical_attack (x2). No logic/equivalence concerns. NOTE: two unrelated shard files (000145cd.json, 00053a51.json) were pre-modified in the worktree before this run; staged scope was restricted to only this symbol's shard (src comment unchanged so rndscene.c was not staged)."
+}
