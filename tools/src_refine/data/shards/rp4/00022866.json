@@ -1,0 +1,62 @@
+{
+  "address": "00022866",
+  "name_current": "fd2_cast_dp_boost_spell",
+  "name_final": "fd2_cast_dp_boost_spell",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>: domain=cast (spell/item cast effect), descriptor=dp_boost_spell. Accurately reflects the verified behavior (Defense-Up / Shield, effect id 0x12, applies a one-shot DP buff). No Ghidra address residue. 0x12 in the name is absent; the only numeric in the body (0x12 sprite id) is not in the symbol name, so no ID-vs-residue concern.",
+  "kind": "function",
+  "home": "src/spell/spelleff.c",
+  "purpose": "Cast effect for the Defense-Up / Shield (魔鎧術) spell/item: plays impact + status-overlay-flicker animations (effect id 0x12) and applies a one-shot DP buff to each target, guarded by a per-unit buff timer.",
+  "logic_summary": "CHK(0x30) prologue. Calls fd2_animate_spell_impact_per_target and fd2_animate_status_effect_overlay_flicker with sprite id 0x12 (shield). For iter in 0..num_targets-1: read target_id = target_id_array[iter]; level_mod = target.status_flags_block[0] (level byte), +0x1E when 8<job_id<0x19 (intermediate class). If target.status_flags_block[2] (DP-buff timer) == 0 (not yet buffed): advance shared RNG and set timer = (rng_return % 4) + 2 (2..5 turns); delta = (int)(1.0 + dp * 0.15) (Watcom truncate-toward-zero via __CHP); draw delta with glyph 0x69='i' (heal-style number); dp += delta; pending_xp_credit += level_mod*2. Else (already buffed): draw miss indicator (no stacking). Closes with fd2_composite_battle_frame(0) + fd2_animate_spell_projectile_paths(). Byte-for-byte sibling of fd2_cast_ap_boost_spell @ 0x22721 (AP variant uses sprite 0x11, status_flags_block[1], ap field, factor @ 0x50210); both tail-share the same epilogue via a compiler JMP into 0x2281B (size optimization, re-emitted in source as functional equivalent).",
+  "signature": "void __cdecl fd2_cast_dp_boost_spell(uint param_1, uint param_2, uint param_3)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Caster runtime_char index; passed unchanged as the caster argument to both animation calls.",
+      "verdict": "rename",
+      "proposed": "caster_unit_id",
+      "reason": "Generic Ghidra placeholder. Caller fd2_apply_use_effect_dispatch passes the caster runtime_char index here; matches the src param name caster_unit_id. Rename applied in Stage 2."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "Number of targets; used as the loop bound (iter < (int)param_2) and forwarded to the two animation calls.",
+      "verdict": "rename",
+      "proposed": "num_targets",
+      "reason": "Generic Ghidra placeholder. Value is the per-cast target count; matches the src param name num_targets. Rename applied in Stage 2."
+    },
+    {
+      "name": "param_3",
+      "type": "uint",
+      "semantics": "Pointer (carried as uint address) to a byte array of target runtime_char indices; per-iteration target = *(byte*)(param_3 + iter).",
+      "verdict": "rename",
+      "proposed": "target_id_array",
+      "reason": "Generic Ghidra placeholder. Holds the target-id byte-array address (Ghidra keeps the uint address contract; src casts to (uint8*)). Matches the src param name target_id_array. Rename applied in Stage 2."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; mutates target runtime_char dp / status_flags_block[2] and global data_fd2_battle_pending_xp_credit, and drives battle animation."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_spell_dp_boost_factor_015",
+    "data_fd2_battle_pending_xp_credit"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_pending_xp_credit"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment (spelleff.c lines 735-785) and Ghidra plate are both accurate and mutually consistent; every claim cross-checked against decompilation, struct (types.h: status_flags_block[2]=dp_buff @ +0x23, dp @ +0x4A), and caller fd2_apply_use_effect_dispatch (effect code 0xF = 魔鎧術 -> fd2_cast_dp_boost_spell). No comment edit and no plate edit needed. The dp boost factor 0.15 IEEE754 0x3FC3333333333333 lives at 0x50218 (distinct .rodata copy from AP variant's 0x50210). All three parameters are generic Ghidra placeholders flagged needs_rename; renames recorded for Stage 2 only (not applied here)."
+}
