@@ -1,0 +1,35 @@
+{
+  "address": "00033e3c",
+  "name_current": "fd2_chapter_30_init",
+  "name_final": "fd2_chapter_30_init",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>. '30' is the chapter ID (chapters 01-30 are meaningful domain IDs, must be preserved per domain knowledge; not Ghidra address residue). 'init' = chapter init handler dispatched from data_fd2_chapter_init_handler_table (xref @0x51de5 = LE dword 0x00033e3c, the dispatch table entry). Name accurately reflects purpose; no address residue.",
+  "kind": "function",
+  "home": "src/field/chinit.c",
+  "purpose": "Chapter 30 (final chapter, 傳說的終章-結局) init/prologue handler: cinematically warps the 魔神 (demon-god) group onto the battle map in two staged batches separated by a white palette flash, plays three dialog pages, then hands off the final battle.",
+  "logic_summary": "void handler dispatched from the chapter-init table. Re-inits battle state; cutscene event 0x57; pans camera/window (0x10,0x13); dialog page 0; battle_anim_phase=0; pans (0x10,1); batch-1 warp-in of 4 demon-gods to top row tile_y=5 (char ids 0x15/0x16/0x17/0x18 at tile_x 0x15/0x17/0x14/0x18); dialog page 1; white palette flash pulse; dialog page 2; battle_anim_phase=0; pans (0x10,0xe); batch-2 warp-in of 3 demon-gods to bottom row tile_y=0x12 (char ids 0x18/0x19/0x1a at tile_x 0x16/0x15/0x17); battle_anim_phase=1; clear all facings; pan camera to char 0. Total 7 fd2_cinematic_warp_char_to_tile(char_id, tile_x, tile_y) calls. In the binary the trailing clear-facing + pan-to-char are a tail-JMP into the shared epilogue owned by fd2_chapter_05_init; src is the Layer-2 straight-line equivalent.",
+  "signature": "void __cdecl fd2_chapter_30_init(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side-effect-only cutscene/warp orchestration. The leading __CHK(0x28) is the Watcom frame-size stack probe, not part of the source body."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_anim_phase"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source body (chinit.c lines 1764-1790) matches the decompilation call-for-call (init_battle_state; cutscene 0x57; pan (0x10,0x13); dialog 0; anim_phase=0; pan (0x10,1); 4x warp y=5; dialog 1; palette flash; dialog 2; anim_phase=0; pan (0x10,0xe); 3x warp y=0x12; anim_phase=1; clear facings; pan to char 0). Source comment (lines 1721-1763) is precise, ASCII (allowed Chinese proper nouns only), conclusion-form, and consistent with the Ghidra plate (same two-batch warp cinematic, same tile_y semantics, same linked handlers fd2_chapter_30_end @0x25757 good-ending and fd2_chapter_30_post_action @0x20BF5). fd2-knowledge confirms ch30 = final battle vs 魔神 group (空/火/風/水/地魔神 + 機甲隊長), win=空魔神 dead, lose=索爾 or 悠妮 dead, matching the post-action note (char[0x14]=空魔神 win; chars[0,1]=索爾/悠妮 lose). No source edit and no plate edit needed; name kept. The 'in_stack_*' vars in the decompilation are __CHK-probe artifacts, not real params (src correctly declares void)."
+}
