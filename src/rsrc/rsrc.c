@@ -571,15 +571,15 @@ void fd2_load_chapter_portrait(uint32 portrait_kind)
  *      (memset 0xA0000 = 0, 64000 bytes), then load FDOTHER.DAT
  *      entry palette_idx into data_fd2_vga_palette_data_ptr.
  *      (palette_idx == -1 keeps the current palette.)
- *   2. fd2_set_vga_palette_range(0, 0xff, 0) — apply the palette at
+ *   2. fd2_set_vga_palette_range(0, 0xff, 0) -- apply the palette at
  *      FULL brightness (3rd arg = darken-amount, 0 = no darkening).
  *   3. fd2_play_ani_file_animation_sequence(anim_idx, per_frame_delay, 0)
- *      — render the cinematic (its ANI frames carry their own fade-in).
+ *      -- render the cinematic (its ANI frames carry their own fade-in).
  *   4. Fall through into fd2_play_palette_fade_to_black @ 0x1f882,
  *      which ramps darken 0..0x3F (fade-OUT to black) and RETs. The
  *      fall-through's RET also returns from this function, so this is
- *      emitted as a direct tail-call to that function (emit pipeline
- *      §模式 B — shared fade-loop body; fade_to_black is a real,
+ *      emitted as a direct tail-call to that function (fall-through tail
+ *      pattern, shared fade-loop body; fade_to_black is a real,
  *      separately-emitted function with 22 callers).
  *
  * Params: anim_idx, per_frame_delay = passed through to
