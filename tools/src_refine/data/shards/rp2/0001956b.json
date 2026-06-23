@@ -1,0 +1,53 @@
+{
+  "address": "0001956b",
+  "name_current": "fd2_load_chapter_portrait",
+  "name_final": "fd2_dialog_open_speaker_portrait",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_dialog_open_speaker_portrait",
+  "name_reason": "Current name mischaracterizes the function. It is NOT chapter-scoped and does not load a chapter portrait set: it opens a speaker portrait + dialog box on the current screen and plays the slide-down entry animation, driven by a portrait/speaker id. The 'chapter' token is misleading and is confusingly adjacent to the genuinely chapter-init loaders fd2_load_chapter_portraits_and_dump_tmp @ 0x10b4e and fd2_load_chapter_background_layers @ 0x10652 (which do load per-chapter resources). The 52 callers invoke it as a UI dialog-open primitive (field command menu, tile-event interaction, save/load, shop/give/sell, class promotion, recruitment, chapter intro, ending cinematic) -- not as a resource init step. Proposed fd2_dialog_open_speaker_portrait follows fd2_<domain>_<descriptor> with domain=dialog (text_dialog system) and descriptor=open_speaker_portrait, matching the function's own src comment ('Open a speaker portrait + dialog box and play its slide-down entry'). No address residue in either name. Rename deferred to Stage 2 (touches protos.h + 52 call sites).",
+  "kind": "function",
+  "home": "src/rsrc/rsrc.c",
+  "purpose": "Open a speaker portrait + dialog box on the current screen and play its slide-down entry animation. UI/dialog primitive used as the first step of every portrait-dialog scene; the caller then runs the text typewriter.",
+  "logic_summary": "1) malloc three 64000-byte (320x200) mode-13h render workspaces: slide_anim_accumulator (@0x53C5B), slide_bg_snapshot (@0x53C5F), slide_composed_target (@0x53C63). 2) memmove 0xA0000 -> slide_bg_snapshot (capture current VGA screen). 3) memmove slide_bg_snapshot -> slide_composed_target (overlay starts as the snapshot). 4) fd2_assemble_dialog_frame_layered(slide_composed_target, 0x140, 5, 0x70, 0x13, 5) -- draw a 0x13-cell-wide x 5-cell-tall dialog box at (5,0x70). 5) map portrait_id to data_fd2_dialog_active_portrait_blit_offset (@0x53C67, a mode-13h pixel offset): 0x80->0x10BB, 0x81->0x06AB, 0x82->0x0F63, 0x83->0x0576, 0x84->0x0E3C, otherwise 0x9017 (default slot). 6) data_fd2_portrait_sprite_buffer (@0x53A85) = fd2_load_dat_resource(\"DATO.DAT\" @ 0x51A70, prev_buf, portrait_id) -- load the speaker sprite by id. 7) fd2_dialog_sprite_blit_mirrored(slide_composed_target + blit_offset, sprite_buffer + *sprite_buffer, 0x140) -- the buffer's first byte is the header size, so it is skipped. 8) 6-frame slide-down loop frame_iter=5..0 (DEC EBX; JGE includes 0): fd2_slide_panel_down_step(frame_iter*0xD + 0x70, slide_anim_accumulator, slide_composed_target). On return the screen carries the dialog box + portrait.",
+  "signature": "void fd2_load_chapter_portrait(uint32 portrait_kind)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint32",
+      "semantics": "Portrait / speaker id. Selects the DATO.DAT sprite resource (used directly as the load index) and the on-screen blit position: values 0x80..0x84 pick five fixed special-position story-character placements, any other value falls to the default 0x9017 slot. Callers pass runtime_char[idx].bPortrait_id (field command menu, tile-event), the literal 0x4B (suspend pose), or a portrait id forwarded from the ending cinematic. It is a sprite/speaker id, never a chapter number.",
+      "verdict": "rename",
+      "proposed": "portrait_id",
+      "reason": "Ghidra live parameter is the generic placeholder param_1. The value is consistently a portrait/speaker id (DATO.DAT sprite index + special-position selector), so portrait_id is the accurate name. The src/ home file already declares the descriptive name portrait_kind (also acceptable, but 'id' is more precise since it is an index value, not a category enum). Stage 2 should rename the Ghidra parameter to match. No address residue; 0x80..0x84 are meaningful special-placement ids, not positional artifacts."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects: allocates three render workspaces and assigns their pointers to globals; loads the speaker sprite into data_fd2_portrait_sprite_buffer; sets data_fd2_dialog_active_portrait_blit_offset; composites the dialog box + portrait and slides it onto the live VGA screen."
+  },
+  "reads_globals": [
+    "data_fd2_ui_slide_anim_accumulator_buf_ptr",
+    "data_fd2_ui_slide_bg_snapshot_buf_ptr",
+    "data_fd2_ui_slide_composed_target_buf_ptr",
+    "data_fd2_dialog_active_portrait_blit_offset",
+    "data_fd2_portrait_sprite_buffer",
+    "data_fd2_string_resource_filename_dato_dat_51a70"
+  ],
+  "writes_globals": [
+    "data_fd2_ui_slide_anim_accumulator_buf_ptr",
+    "data_fd2_ui_slide_bg_snapshot_buf_ptr",
+    "data_fd2_ui_slide_composed_target_buf_ptr",
+    "data_fd2_dialog_active_portrait_blit_offset",
+    "data_fd2_portrait_sprite_buffer"
+  ],
+  "comment_original_issue": "src/ block comment (lines 478-511) was already accurate, concise and ASCII: it correctly describes the function as 'Open a speaker portrait + dialog box and play its slide-down entry', documents all 8 pipeline steps, the five special 0x80..0x84 placements + 0x9017 default, the DATO.DAT load, the header-skip blit, and the 6-frame slide loop. All values match the decompilation and disassembly. No factual issue to fix; the comment itself flags the name/behavior mismatch by describing a dialog opener rather than a chapter loader.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified DATO.DAT string @ 0x51A70 (bytes 44 41 54 4f 2e 44 41 54 00). Disassembly confirms: 3x malloc 0xfa00, memmove 0xA0000 -> snapshot, snapshot -> composed, dialog frame, EBX-keyed 0x80..0x84 offset dispatch (else 0x9017), DATO load with portrait id as index, MOVZX header-size skip then mirror-blit, slide loop EBX 5..0 (DEC/JGE, 6 iterations). Loop bound is sound, no equivalence concern. Function name proposed rename fd2_dialog_open_speaker_portrait (the 'chapter' token is inaccurate); param proposed rename param_1 -> portrait_id; both deferred to Stage 2 (52 callers + protos.h). src comment and Ghidra plate both already consistent with refined understanding -> no edits made this stage."
+}
