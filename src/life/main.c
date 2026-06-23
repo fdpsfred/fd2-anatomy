@@ -647,10 +647,13 @@ uint32 data_fd2_resource_portrait_cache_alloc_offset;
 uint32 data_fd2_resource_portrait_cache_total_size;
 
 /*
- * data_fd2_battle_party_member_count @ 0x53BEB -- number of runtime_char slots in
- * the active battle party. Established at chapter/save load time and then consumed
- * throughout the battle as both a loop bound and the runtime_char_array element
- * count. Every access is a full 32-bit dword load/store of a small positive count;
+ * data_fd2_battle_party_member_count @ 0x53BEB -- total number of occupied
+ * runtime_char slots in the current battle (the full roster across all teams:
+ * player team 2, enemy team 0, NPC team 1 -- not only the player's party; readers
+ * such as fd2_check_battle_end_condition iterate 0..count and test bTeam to find
+ * enemies). Established at chapter/save load time and then consumed throughout the
+ * battle as both a loop bound and the runtime_char_array element count. Every
+ * access is a full 32-bit dword load/store of a small positive count;
  * it is widened from a byte at write time and used signed as a loop bound, so the
  * declared width is uint32 (not byte). Writers, in order of init:
  *   fd2_load_chapter_battle_data  @ 0x1099A  data_fd2_battle_party_member_count =
