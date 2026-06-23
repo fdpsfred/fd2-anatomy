@@ -1,0 +1,56 @@
+{
+  "address": "00021206",
+  "name_current": "fd2_spell_handler_id_0_via_targeted_blink",
+  "name_final": "fd2_spell_handler_id_0_via_targeted_blink",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Fully compliant fd2_<domain>_<descriptor>. 'spell_handler' = dispatch-table handler; 'id_0' is a real spell domain ID (spell 0x00 = 火炎術, an offensive attack spell), not address residue -- confirmed by the function-pointer table @ 0x51D01 whose slot 0 holds 0x00021206 and by the hardcoded spell_id=0 passed to the worker. 'via_targeted_blink' accurately names the worker variant fd2_execute_offensive_targeted_spell, which uses the BLINK-OVERLAY animation (fd2_animate_spell_overlay_blink), distinguishing this family from the full_screen_flash family. No address-residue suffix (fn is @ 0x21206; name has no _206/_1206).",
+  "kind": "function",
+  "home": "src/spell/spell.c",
+  "purpose": "Spell dispatch handler for spell id 0 (火炎術 / Fireball): thin wrapper that delegates to the offensive targeted-spell worker with spell_id hardcoded to 0.",
+  "logic_summary": "Calls fd2_execute_offensive_targeted_spell(caster, 0, n_targets, target_id_array). spell_id literal = 0. In the binary this entry also serves as the shared-tail for sibling thunks (id 1/2/3/8) that JMP into its body at 0x2121A to reuse the PUSH-caster + CALL-worker + cleanup + RET tail; in src each handler is emitted as its own one-line wrapper (functionally equivalent). Entry is reached via the spell function-pointer table @ 0x51D01 (slot 0).",
+  "signature": "void __cdecl fd2_spell_handler_id_0_via_targeted_blink(int caster_unit_id, int num_targets, byte *target_id_array)",
+  "params": [
+    {
+      "name": "caster_unit_id",
+      "type": "int",
+      "semantics": "Battle unit id of the casting unit; forwarded as arg1 to the worker.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the casting unit id; no address residue. (src spells it 'caster' -- same meaning.)"
+    },
+    {
+      "name": "num_targets",
+      "type": "int",
+      "semantics": "Number of target ids in target_id_array; forwarded as arg3 to the worker (drives the per-target damage loop).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate count semantics; no address residue. (src spells it 'n_tgt'.)"
+    },
+    {
+      "name": "target_id_array",
+      "type": "byte *",
+      "semantics": "Pointer to a byte array of target unit ids; forwarded (as int) as arg4 to the worker and indexed per target.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the target-id byte array pointer; no address residue. (src spells it 'tgt_arr'.)"
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; effect is the delegated spell execution (animation, MP deduction, per-target damage)."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Thin one-line wrapper; src comment coverage is the file header (pattern families + dispatch table @ 0x51D01) plus the section marker '=== Targeted blink family (id 0-3, 8) ===', which correctly documents this handler. No per-function comment needed; comment kept. Ghidra plate is far more detailed (multi-entry shared-tail structure, body instructions) and is consistent with the src conclusion -> plate left unchanged. The decompile's __CHK(0x14,...) + in_stack_00000000 are the Watcom stack-probe thunk artifacts (auto re-emitted by the compiler), not logic to port -- no issue. Arg order verified against worker signature fd2_execute_offensive_targeted_spell(caster, spell_id, n_targets, p_targets)."
+}
