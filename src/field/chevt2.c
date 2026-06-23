@@ -1328,7 +1328,7 @@ void fd2_chapter_event_handler_4d__unref_sentinel(uint32 event_arg)
  * only). Dispatch-table signature is 1-arg cdecl (void fn(uint event_arg)); this
  * handler does not read the arg.
  *
- * Effect: set tile_event_consumed_flags[0x14] = 1 (no other side effects) — marks
+ * Effect: set tile_event_consumed_flags[0x14] = 1 (no other side effects) -- marks
  * the slot adjacent to handler_4d's 0x13.
  *
  * In the binary the body is a self-contained 10-byte stub (no borrowed tail, and
