@@ -530,8 +530,8 @@ void fd2_load_save_and_init_engine(void)
  *   data_fd2_battle_map_height_tiles = (int)*(short *)(_battle_tile_map + 2);
  * i.e. read the second 16-bit field of the decrypted tile map (MOVSX, signed)
  * and widen it into this 32-bit slot. It is then consumed by ~17 readers as the
- * column count / bottom-edge limit for tile-grid traversal, e.g. cursor clamping
- * uses `data_fd2_battle_map_height_tiles - 1`. Every access is a full 32-bit
+ * row count / y-axis bottom-edge limit for tile-grid traversal, e.g. cursor
+ * clamping uses `data_fd2_battle_map_height_tiles - 1`. Every access is a full 32-bit
  * dword load/store and the value is a small positive tile count. Zero-initialized
  * in the image; the first use is the load-time write, so this is a zero-init
  * (BSS) scalar.
