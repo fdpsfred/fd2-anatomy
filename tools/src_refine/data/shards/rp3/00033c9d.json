@@ -1,0 +1,39 @@
+{
+  "address": "00033c9d",
+  "name_current": "fd2_chapter_28_init",
+  "name_final": "fd2_chapter_28_init",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>: domain=chapter, descriptor='28_init'. The '28' is a meaningful chapter ID (chapters 01-30 are domain IDs, not address residue); 'init' distinguishes the dispatched init handler from end/post_action. No Ghidra address residue. Name accurately reflects the function's role as the chapter 28 init handler dispatched from the chapter init handler table at 0x51ddd.",
+  "kind": "function",
+  "home": "ROOT/src/field/chinit.c",
+  "purpose": "Chapter 28 (探索者) init handler: cinematic 'reassemble the party' prologue that wipes all 20 active party slots, casts a screen-wide radial spell at the cursor, revives only HP-survivors, runs a triple parallel-walk cutscene and a two-pass portrait dump.",
+  "logic_summary": "__CHK(0x2C) frame probe; fd2_init_battle_state_for_chapter(); loop i=0..0x13 fd2_mark_char_as_dead(i) (clear all 20 active slots); fd2_pan_cursor_and_window(0x1d,0xf); fd2_cast_screen_wide_spell_with_fade(cursor_screen_x+6, cursor_screen_y+5, 10, 8); revive-filter loop i=0..0x13: if runtime_char[i].hp_current != 0 then runtime_char[i].flags = 0; fd2_composite_battle_frame(0); fd2_set_vga_palette_range_with_add(0,0xff,0); fd2_delay_ms(500); three back-to-back fd2_cutscene_event_trigger(0x55) (three parallel walk-in groups); fd2_clear_all_chars_facing(); fd2_display_dialog_scene(text, page 0, ...); data_fd2_battle_anim_phase=0; fd2_cinematic_chapter_portrait_dump_with_white_flash(0,0x10,6); fd2_cinematic_chapter_portrait_dump_with_white_flash(7,0x10,7); data_fd2_battle_anim_phase=1; fd2_pan_cursor_to_char(0). Cyclomatic complexity 4 (two constant-bound loops + survivor branch). In the binary the final pan is a tail-JMP into fd2_chapter_15_init's shared epilogue at 0x33594; src is the Layer-2 straight-line equivalent.",
+  "signature": "void __cdecl fd2_chapter_28_init(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; orchestrates chapter 28 prologue via side effects on battle/runtime/display state."
+  },
+  "reads_globals": [
+    "data_fd2_battle_cursor_screen_x",
+    "data_fd2_battle_cursor_screen_y",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_anim_phase"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (lines 1573-1628) and body (1629-1660) match the decompilation exactly. Source uses canonical types.h field names hp_current (+0x40 uint16) and flags (+0x05 uint8); Ghidra plate/decompiler labels them wHP_current/bFlags -- semantically identical, not contradictory, so plate left untouched per consistency-not-byte-identical rule. All globals match globals.h. Linked-handler refs in the comment verified live: fd2_chapter_28_end @ 0x25464 (40B), fd2_chapter_22_27_28_post_action_shared @ 0x20A87 (comment already reflects the updated shared name), shared epilogue owner fd2_chapter_15_init @ 0x334d9 (alt-entry 0x33594). xref to this function is DATA from 0x51ddd (chapter init handler dispatch table) -- 0 direct callers is expected for table-dispatched handlers. void signature -> params=[]."
+}
