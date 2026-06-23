@@ -352,11 +352,11 @@ void fd2_play_palette_fade_in(void)
  * VGA palette fade-OUT from full brightness to black. Walks the
  * brightness_subtract amount from 0 up to 0x3F (i.e. subtract < 0x40,
  * 0x40 iterations), each step writing the full DAC range via
- * fd2_set_vga_palette_range(0,0xFF,subtract) — which writes
- * max(0, base[i]-subtract) — then waiting 2 BIOS ticks.
+ * fd2_set_vga_palette_range(0,0xFF,subtract) -- which writes
+ * max(0, base[i]-subtract) -- then waiting 2 BIOS ticks.
  *
- *   subtract=0    → base palette written unchanged → FULL brightness
- *   subtract=0x3F → every channel clamped to 0 → screen BLACK
+ *   subtract=0    -> base palette written unchanged -> FULL brightness
+ *   subtract=0x3F -> every channel clamped to 0 -> screen BLACK
  *
  * So the loop proceeds FULL -> BLACK = fade-OUT. Pairs with
  * fd2_play_palette_fade_in @ 0x1F525 (fade-IN counterpart). In the
