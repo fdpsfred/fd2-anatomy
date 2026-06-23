@@ -1,0 +1,31 @@
+{
+  "address": "0003347c",
+  "name_current": "fd2_chapter_14_init",
+  "name_final": "fd2_chapter_14_init",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with fd2_<domain>_<descriptor>: 'fd2_' game prefix, 'chapter_14' domain (14 is a meaningful chapter ID in the 01-30 range, preserved per domain knowledge -- NOT an address residue; the function sits at 0x3347c), 'init' descriptor. Confirmed as the chapter-14 slot of the dispatch table data_fd2_chapter_init_handler_table: the lone xref is a DATA pointer at 0x51da5 (bytes 7c 34 03 00), bracketed by fd2_chapter_13_init @0x3346b (0x51da1) and fd2_chapter_15_init @0x334d9 (0x51da9) at 4-byte stride in chapter order.",
+  "kind": "function",
+  "home": "src/field/chinit.c",
+  "purpose": "Chapter 14 'PingYuan-DeHuiZhan' init handler: a minimal chapter prologue that re-inits battle state, performs one camera pan-and-window, plays a single dialog page, and pans the camera to char 0.",
+  "logic_summary": "Body (verified vs disasm @0x3347c): (1) __CHK(0x28) Watcom frame-size stack probe (not source body); (2) fd2_init_battle_state_for_chapter(); (3) fd2_pan_cursor_and_window(0x14, 0x14); (4) fd2_display_dialog_scene(data_fd2_current_chapter_text, 0, 0xa0000, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1) -- dialog page 0; (5) fd2_pan_cursor_to_char(0). No cutscene, no portrait load, no char init, no clear-facing, and notably NO data_fd2_battle_anim_phase reset (disasm has no MOV [...],0). In the binary the entry block (CALL __CHK; CALL init_battle_state; PUSH 0x14;PUSH 0x14;CALL pan_cursor_and_window;ADD ESP,0x8) tail-JMPs at 0x33497 -> 0x3344d into the shared dialog-arg-push chain (0x3344d owned by fd2_chapter_12_init -> 0x33206 in fd2_chapter_07_init -> 0x33140 owned by fd2_chapter_05_init), so the page-0 dialog call + pan_cursor_to_char(0)+RET are reused; the straight-line source is the functionally-equivalent (Layer 2) reconstruction.",
+  "signature": "void __cdecl fd2_chapter_14_init(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Dispatched chapter-init handler invoked via the function-pointer table data_fd2_chapter_init_handler_table; runs for side effects only (battle-state init + prologue scene playback)."
+  },
+  "reads_globals": ["data_fd2_current_chapter_text"],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment (chinit.c lines 814-851) and Ghidra plate are both accurate, precise, and mutually consistent (plate is a condensed form of the same conclusions). Verified against disasm: tail-JMP 0x33497 -> 0x3344d, callees fd2_init_battle_state_for_chapter @0x205da and fd2_pan_cursor_and_window @0x135dd, __CHK @0x36cd7, and no battle_anim_phase reset. No source edit needed (comment kept); no plate edit needed. 0 direct callers, 1 DATA xref (dispatch-table slot). The decompiler's in_stack_* args are spurious artifacts of the __CHK varargs-style call; true signature is void(void). No logic/equivalence concerns."
+}
