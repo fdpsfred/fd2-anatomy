@@ -97,8 +97,10 @@ const int32 data_fd2_battle_tile_attr_mv_modifier_table[6] = {
  *   00 00 00 00  00 00 00 00  0a 00 00 00
  *   0a 00 00 00  fb ff ff ff  00 00 00 00
  * = { 0, 0, 10, 10, -5, 0 }
+ *
+ * const: read-only data, zero game-side write xrefs (same as the MV
+ * sibling above).
  * ---------------------------------------------------------------- */
-/* Non-const for the same reason as the MV sibling above. */
 const int32 data_fd2_battle_tile_attr_def_modifier_table[6] = {
     0, 0, 10, 10, -5, 0
 };
