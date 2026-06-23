@@ -237,6 +237,13 @@ void fd2_cast_spell_15_dispatch_aa8(
 
 /* === Status d1b family (id 0x16, 0x1A, 0x1B) === */
 
+/* spell_id 0x16 (封咒術, seal): dispatch-table entry @ 0x22BE1
+ * (table[0x16] @ 0x51D59). Forwards to the shared status-inflict worker
+ * fd2_cast_status_spell_via_d1b with effect/sprite id 0x27. In the original
+ * binary this body also hosts the {push caster + call worker + cleanup} shared
+ * tail (@ 0x22BF7) that the 0x1A and 0x1B siblings jump into after pushing
+ * their own spell/effect ids. Distinct from the 0x14/0x15 status-cure family,
+ * which uses a different worker (0x22AA8). */
 void fd2_cast_spell_16_dispatch_cda(
     int caster, int n_tgt, uint8 *tgt_arr)
 {

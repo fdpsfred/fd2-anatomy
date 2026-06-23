@@ -1,0 +1,56 @@
+{
+  "address": "00022be1",
+  "name_current": "fd2_cast_spell_16_dispatch_cda",
+  "name_final": "fd2_cast_spell_16_dispatch",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_cast_spell_16_dispatch",
+  "name_reason": "Trailing '_cda' is an address residue: 0x22CDA is exactly the address of the called worker fd2_cast_status_spell_via_d1b. It is not a domain ID (spell ids are 0x16/0x1A/0x1B; 0x16=封咒術 is already encoded as the hex '16'). The established convention in spell.c is fd2_cast_spell_<hexid>_<descriptor> (0a/0b/.../15/16); 'dispatch' is the correct descriptor (dispatch-table entry @ table[0x16]=0x51D59). The hex spell id 0x16 alone makes the name unique, so dropping the address suffix loses no information. (Siblings fd2_cast_spell_14/15_dispatch_aa8 carry the analogous '_aa8'=0x22AA8 worker-address residue, but those are out of scope for this symbol.)",
+  "kind": "function",
+  "home": "ROOT/src/spell/spell.c",
+  "purpose": "Battle spell dispatch-table entry for spell_id 0x16 (封咒術, seal); forwards to the status-inflict worker with effect/sprite id 0x27.",
+  "logic_summary": "Tail-call wrapper: invokes fd2_cast_status_spell_via_d1b(caster, 0x16, n_tgt, tgt_arr, 0x27). The worker resets the AoE target counter, deducts caster MP (cost-table index = spell id 0x16), then calls fd2_cast_status_inflict_spell @ 0x22D1B. In the original binary this body also hosts the shared tail (PUSH caster + CALL worker + cleanup + RET) at 0x22BF7 that sibling thunks 0x22CBF (id 0x1A) and 0x22E41 (id 0x1B) jump into; the C source expresses each sibling as its own full call. Distinct from the 0x14/0x15 status-cure family which delegates through worker 0x22AA8.",
+  "signature": "void fd2_cast_spell_16_dispatch_cda(int caster, int n_tgt, uint8 *tgt_arr)",
+  "params": [
+    {
+      "name": "caster",
+      "type": "int",
+      "semantics": "Casting unit id (battle unit index); passed through to worker as caster + used as MP-deduction subject.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the casting unit; no address residue."
+    },
+    {
+      "name": "n_tgt",
+      "type": "int",
+      "semantics": "Number of targets in the target-id array (AoE count).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear and correct; no address residue."
+    },
+    {
+      "name": "tgt_arr",
+      "type": "uint8 *",
+      "semantics": "Pointer to the array of target unit ids the spell is applied to.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the target-id array pointer; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; pure dispatch/forward."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": "Function had no individual comment block; only the shared family header '=== Status d1b family (id 0x16, 0x1A, 0x1B) ===' preceded it, unlike the 0x14/0x15 siblings which carry per-function comments.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "bdd33111447abfcddd61ca97258258e332d09a8b",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Worker fd2_cast_status_spell_via_d1b @ 0x22CDA resets data_fd2_battle_spell_aoe_count_and_fx_queue_idx and deducts MP; this wrapper itself reads/writes no globals directly. Spell 0x16=封咒術 per fd2-knowledge. Ghidra plate is detailed and consistent with refined understanding (documents shared-tail anchor, worker, sprite id 0x27, distinction from aa8 family) so left unchanged. The decompiler-visible 'in_stack_00000000' arg is a __CHK stack-probe artifact, not a real parameter."
+}
