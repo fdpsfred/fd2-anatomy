@@ -180,8 +180,19 @@ void main(void)
 /* ----------------------------------------------------------------
  * fd2_main_menu_continue_dispatcher @ 0x25EBB
  *
- * Main-menu: NEW GAME / CONTINUE / fallback. Returns 0 (menu),
- * 1 (gameplay), or -1 (quit) for main's outer loop.
+ * Main-menu dispatcher. Runs the title/record-clear menu
+ * (fd2_play_ending_and_record_clear) and branches on its result:
+ *   choice 0 -> NEW GAME    (chapter 1 init, BGM, returns 0)
+ *   choice 1 -> CONTINUE    (load FD2.SAV slot via selector UI,
+ *                            returns fd2_chapter_transition_menu
+ *                            result: 0 commit, -1 back out)
+ *   else     -> fallback    (engine reload, returns 0)
+ *
+ * Return code consumed by main's outer loop (NOTE inverted from
+ * what the labels suggest):
+ *   0  -> run gameplay this iteration, then re-show the menu
+ *   1  -> quit the game (exit outer loop)
+ *   -1 -> stay in / re-enter the main menu
  * ---------------------------------------------------------------- */
 int fd2_main_menu_continue_dispatcher(void)
 {
