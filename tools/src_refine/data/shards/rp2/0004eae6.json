@@ -1,0 +1,84 @@
+{
+  "address": "0004eae6",
+  "name_current": "fd2_blit_sprite_scaled_with_skip",
+  "name_final": "fd2_blit_sprite_scaled_with_skip",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<verb>_<noun>_<qualifier> like sibling blits (fd2_blit_sprite_raw_with_header, fd2_blit_sprite_with_stride_loop). Accurately describes a nearest-neighbor sprite scaler (output scale_num wide x scale_den tall via fractional Bresenham accumulators on both axes) with transparent-zero skip (the _skip qualifier = source pixel 0 is not written). No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/gfx/blitspr.c",
+  "purpose": "Bresenham-style nearest-neighbor sprite scaler that paints a scale_num-wide x scale_den-tall output block from an arbitrary src.width x src.height source sprite, skipping transparent (zero) source pixels.",
+  "logic_summary": "Stores stride into scaler_loop_state[0..3] (dword) and scale_num/scale_den into globals; reads src width/height from the sprite header words (0,2) and sets src_row_ptr = hdr+4. Seeds both the vertical row accumulator and the output-row down-counter (scaler_loop_state[4] word) from scale_den. Outer loop per output row: vertical Bresenham advances src_row_ptr by src_width while row_acc < src_height (stepping by scale_den), then subtracts src_height (row_acc persists across rows). Inner loop per output column: horizontal Bresenham advances src_iter while col_acc < src_width (stepping by scale_num, col_acc restarts at scale_num each row), then subtracts src_width; if the sampled source pixel != 0 it is written to dst, else skipped. dst_buf advances by stride and the row down-counter is decremented until 0.",
+  "signature": "void __cdecl fd2_blit_sprite_scaled_with_skip(uint32 sprite_hdr, uint32 dst_buf, uint32 stride, uint32 scale_num, uint32 scale_den)",
+  "params": [
+    {
+      "name": "sprite_hdr",
+      "type": "uint32",
+      "semantics": "Pointer to sprite header: ushort width (word 0), ushort height (word 2), then width*height raw pixel bytes (row-major); pixel value 0 = transparent. Pixel data starts at hdr+4.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Matches body usage (reads words 0/2 as src width/height, +4 as pixel base) and sibling naming; no address residue."
+    },
+    {
+      "name": "dst_buf",
+      "type": "uint32",
+      "semantics": "Destination base linear address; row base advanced by stride per output row.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the destination buffer base; consistent with other blits in the file."
+    },
+    {
+      "name": "stride",
+      "type": "uint32",
+      "semantics": "Bytes to advance the destination per output row (stored in scaler_loop_state[0..3] and reloaded each row).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Standard stride parameter; matches body usage and file convention."
+    },
+    {
+      "name": "scale_num",
+      "type": "uint32",
+      "semantics": "Output width in pixels AND the horizontal sample step (column accumulator increment). Stored in data_fd2_graphics_sprite_blit_scale_num.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Correctly reflects its dual role as numerator/horizontal step and output column count; matches the documented Bresenham scaler semantics."
+    },
+    {
+      "name": "scale_den",
+      "type": "uint32",
+      "semantics": "Output row count AND the vertical sample step (row accumulator increment). Seeds both row_acc and the output-row down-counter. Stored in data_fd2_graphics_sprite_blit_scale_den.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Correctly reflects its dual role as denominator/vertical step and output row count; matches body usage."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Binary wraps the body in PUSHAD/POPAD and ends with a plain RET (EAX restored), so the decompiler return artifact is dropped; void."
+  },
+  "reads_globals": [
+    "data_fd2_graphics_sprite_blit_scale_num",
+    "data_fd2_graphics_sprite_blit_scale_den",
+    "data_fd2_graphics_sprite_blit_src_width",
+    "data_fd2_graphics_sprite_blit_src_height",
+    "data_fd2_graphics_sprite_blit_scaler_loop_state"
+  ],
+  "writes_globals": [
+    "data_fd2_graphics_sprite_blit_scale_num",
+    "data_fd2_graphics_sprite_blit_scale_den",
+    "data_fd2_graphics_sprite_blit_src_width",
+    "data_fd2_graphics_sprite_blit_src_height",
+    "data_fd2_graphics_sprite_blit_scaler_loop_state"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "0dc7ce2eed00947f62ea6923c2556c74c73054f2",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decompiled body and src/gfx/blitspr.c body are statement-equivalent; no logic concerns. get_xrefs_to(0x4eae6) returned no references (calls or data), confirming the comment's 'no resolvable callers; reached via indirect/pointer dispatch' note. Src comment block is already accurate, precise, and ASCII-clean -> kept. Ghidra plate is semantically consistent with the src comment (same scaler, same globals, same transparent skip) -> plate left unchanged. Name and all 5 params already correct -> no rename recorded."
+}
