@@ -685,9 +685,13 @@ wait_input:
 
 /* data_fd2_input_idle_current_bios_tick_word @ 0x539F0  (zero-bss)
  *
- * Latest BIOS midnight-tick counter (0:046C, 18.2 Hz word) snapshot,
- * captured each idle iteration of fd2_wait_for_input_with_idle. Compared
- * against the last-rendered tick to drive the 18.2 Hz cursor-blink redraw.
+ * Latest BIOS midnight-tick counter (0:046C, 18.2 Hz word) snapshot, stored
+ * each idle iteration of fd2_wait_for_input_with_idle. Write-only latch: the
+ * snapshot is stored here (asm: MOV [0x539F0],AX) but the redraw decision
+ * compares the freshly-read tick (held in the register) against the
+ * last-rendered tick data_fd2_input_idle_last_rendered_tick_word (0x539F2),
+ * not a re-read of this word -- it has no runtime readers. Sized as a word
+ * (uint16) to match the stored 16-bit tick.
  * Zero-initialized in BSS; first touched by a runtime write. */
 uint16 data_fd2_input_idle_current_bios_tick_word;
 
