@@ -183,6 +183,10 @@ void fd2_cast_spell_11_stage_a(
     fd2_cast_ap_boost_spell(caster, n_tgt, tgt_arr);
 }
 
+/* spell_id 0x12 (DP/defense boost, 魔鎧術): reset the AoE target counter, deduct
+ * caster MP using cost-table index 0x12, then delegate to the DP-boost worker.
+ * @ 0x2282F. Mirrors the 0x11 AP-boost wrapper; the DP-boost worker is shared
+ * with the item-use path and the 破壞神 summon spell. */
 void fd2_cast_spell_12_stage_b(
     int caster, int n_tgt, uint8 *tgt_arr)
 {
