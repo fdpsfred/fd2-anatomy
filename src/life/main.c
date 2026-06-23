@@ -1030,7 +1030,16 @@ uint32 data_fd2_vga_palette_data_ptr;
 /*
  * data_fd2_tile_attribute_flags_buffer_ptr @ 0x53A69 -- base pointer of the
  * battle tile-attribute buffer (FDSHAP.DAT resource, scene_id*2+1). uint32
- * address slot; zero-init (BSS) pointer slot.
+ * address slot; zero-init (BSS), reloaded (free-then-load) on each chapter /
+ * new-game / continue / load path.
+ *
+ * Points at an array of 4-byte attribute records, one per tile-sheet sprite,
+ * indexed as ptr[tile_id*4] where tile_id is the 10-bit (0..0x3FF) sprite index
+ * from the battle tile-map meta word. Byte 0 holds the animation/flag bits read
+ * by the tile compositor and tile-query accessors (0x04 / 0x08 swap-every-frame
+ * tile-id advance, 0x10 chapter-palette half-step; 0x60 event class, 0x80
+ * renderable also live in the record). Readers: fd2_read_tile_attribute_at_pos,
+ * fd2_composite_battle_tile_map, plus AI / menu / cursor tile-property queries.
  */
 uint32 data_fd2_tile_attribute_flags_buffer_ptr;
 
