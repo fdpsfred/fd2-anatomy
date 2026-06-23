@@ -1,0 +1,64 @@
+{
+  "address": "0001acf3",
+  "name_current": "fd2_render_terrain_info_hud_panel",
+  "name_final": "fd2_render_terrain_info_hud_panel",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (gfx render). Name accurately reflects purpose: render the corner terrain-info HUD panel (terrain icon + MV/DEF modifiers, plus the cursor unit's portrait + HP). No Ghidra address residue in the name. 'terrain_info' and 'hud_panel' match the body's gate, layout, and modifier rendering.",
+  "kind": "function",
+  "home": "ROOT/src/gfx/rndstat.c",
+  "purpose": "Render the corner 'terrain info' HUD panel on battle-UI repaint: shows the tile under the cursor (terrain icon, MV/DEF modifiers) and, when a non-hidden unit stands there, that unit's portrait and HP.",
+  "logic_summary": "Gate: returns immediately unless both HUD-enable flags (data_fd2_ui_terrain_hud_user_enabled, data_fd2_ui_play_active_flag) are set. Auto-positions the panel column to avoid covering the cursor: latches data_fd2_ui_terrain_hud_panel_offset_51a0c to 0xF2 when cursor_screen_y>5 && cursor_screen_x<3, to 1 when cursor_screen_y>5 && cursor_screen_x>9, else keeps the previous value. Computes panel_base = buf + stride*0x9D + latched_offset. Blits the panel backdrop (anim sheet + *(sheet+0x20E)) via fd2_rle_blit_sprite. Reads the cursor tile's attributes into an 8-byte local via fd2_read_tile_attribute_at_pos: word[0] indexes data_fd2_battle_scene_snapshot for the 24x24 terrain icon (blitted at +stride*5+6), byte[5] indexes the MV/DEF per-tile modifier tables drawn as signed glyphs at +stride*8+0x2B and +stride*0x13+0x2B. Then fd2_find_char_at_cursor_pos(): if a unit is present (idx != -1) and not hidden (portrait_id != 0x79) and not an archetype-10 team-1 enemy, computes frame_mod from chapter ambient palette idx (==3 -> 1), fetches the portrait from the portrait cache (cache + *(cache + (frame_mod + sprite_state[0]*0xC)*4)), overwrites the terrain icon with the portrait at +stride*5+6, and draws HP/HP_max as 3 digits (red glow when full) at +stride*0x15+9.",
+  "signature": "void __cdecl fd2_render_terrain_info_hud_panel(uint32 buf, uint32 stride)",
+  "params": [
+    {
+      "name": "buf",
+      "type": "uint32",
+      "semantics": "Destination render workspace base linear address. Callers pass the battle composite back-buffer (e.g. data_fd2_large_game_state_buffer_ptr + 0x8088). panel_base is derived as buf + stride*0x9D + latched_offset.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately denotes the destination buffer base; no address residue. Generic but correct and consistent with sibling renderers in this file."
+    },
+    {
+      "name": "stride",
+      "type": "uint32",
+      "semantics": "Render pitch (bytes per row) of the destination surface. fd2_composite_battle_frame passes 0x1C8 (456, the wider scrolling workspace pitch). Used as the row multiplier throughout the layout.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Correct, standard pitch/stride name used consistently across the gfx renderers; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. The binary reaches its RET via a JMP into a shared register-restore epilogue (JMP 0x1317d), behaviourally a plain return."
+  },
+  "reads_globals": [
+    "data_fd2_ui_terrain_hud_user_enabled",
+    "data_fd2_ui_play_active_flag",
+    "data_fd2_battle_cursor_screen_x",
+    "data_fd2_battle_cursor_screen_y",
+    "data_fd2_battle_cursor_world_x",
+    "data_fd2_battle_cursor_world_y",
+    "data_fd2_ui_anim_sprite_sheet_ptr",
+    "data_fd2_battle_scene_snapshot",
+    "data_fd2_battle_tile_attr_mv_modifier_table",
+    "data_fd2_battle_tile_attr_def_modifier_table",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_graphics_chapter_ambient_palette_anim_idx",
+    "data_fd2_portrait_sprite_cache"
+  ],
+  "writes_globals": [
+    "data_fd2_ui_terrain_hud_panel_offset_51a0c"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (rndstat.c lines 749-791) is already a polished, accurate, ASCII-clean final-conclusion form covering gate, auto-positioning, layout, and the unit-portrait override; left unchanged. Struct field names used in the body (sprite_state[0], team, portrait_id, archetype_flag, hp_current, hp_max) verified against runtime_char in src/include/types.h. All referenced globals verified present in src/include/globals.h. Ghidra plate is detailed and consistent with the source understanding (no contradiction), so left unchanged. Param names buf/stride confirmed via caller fd2_composite_battle_frame (passes ws back-buffer and 0x1C8 pitch)."
+}
