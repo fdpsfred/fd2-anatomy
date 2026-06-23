@@ -375,7 +375,8 @@ void fd2_chapter_event_handler_36__ch24_cinematic(uint32 event_arg)
  * [ESP+0x10]).
  *
  * Effect: ch25 lord-only tile trigger. Copy the inline 3-byte battle-drop entry
- * (type=0 ITEM, value=0x0B -> item id 11) into a local. When the lord (char 0)
+ * (type=0 ITEM, value=0x0B -> item id 11 = 炎龍劍, the strongest blade) into a
+ * local. When the lord (char 0)
  * steps and the tile event has not yet been consumed (consumed_flags[0] == 0):
  * show dialog page 0, play the full combat cinematic against target char 0x11,
  * run the death animation, and only if char 0x11 was actually killed mark the
