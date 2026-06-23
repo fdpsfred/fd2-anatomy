@@ -147,11 +147,12 @@ void fd2_chapter_20_end(void)
 /* ----------------------------------------------------------------
  * Chapter-21 end-scene character tables (FD2.LE data @ 0x52228 /
  * 0x52241 / 0x5225A). Private read-only tables referenced only by
- * fd2_chapter_21_end. Each has a 25-byte extent (7 chars x 4-byte
- * stride minus the trailing 1 byte); the Watcom prologue copies them
- * onto stack scratch (6 dwords + 1 byte each) before passing pointers
- * into fd2_setup_chars_and_camera_for_intro, which reads the bytes
- * indexed by char slot.
+ * fd2_chapter_21_end. Each is a 25-byte array; the Watcom prologue
+ * copies them onto stack scratch as six dwords plus a trailing byte
+ * (25 bytes) before passing pointers into
+ * fd2_setup_chars_and_camera_for_intro, which reads the bytes indexed
+ * by char slot. pos_x @ 0x52228 is arg1, pos_y @ 0x52241 is arg2,
+ * facing @ 0x5225A is arg3.
  * ---------------------------------------------------------------- */
 const uint8 data_fd2_chapter_ch21_end_scene_char_pos_x_table[25] = {
     0x15, 0x14, 0x16, 0x16, 0x13, 0x13, 0x13, 0x13,
