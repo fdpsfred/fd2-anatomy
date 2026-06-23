@@ -577,8 +577,10 @@ uint32 data_fd2_resource_portrait_sheet_ptr;
  *   MOV byte ptr [tile_id + EAX],0x1
  * (fd2_handle_tile_event_interaction @ 0x19246/0x194EE); the ~60 chapter event
  * handlers test/set individual slots the same way. Element stride is 1 byte; the
- * index is a 16-bit tile id. Zero-initialized in the image; the first use is the
- * startup malloc write, so this is a zero-init (BSS) pointer slot.
+ * index is the tile's 5-bit terrain_class (0..31), which is why the block is
+ * exactly 32 bytes -- one consumed-flag slot per terrain_class. Zero-initialized
+ * in the image; the first use is the startup malloc write, so this is a zero-init
+ * (BSS) pointer slot.
  */
 uint32 data_fd2_field_map_tile_event_consumed_flags_ptr;
 
