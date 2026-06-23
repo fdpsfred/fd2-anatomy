@@ -702,9 +702,16 @@ void fd2_tile_blit_24x24_remap(uint32 rle_stream, uint32 dst_buf,
  * The third parameter is a PACKED stride+colour used two ways at entry:
  *   - row advance  = (color_or_stride - 0x18)  (stride - 24)
  *   - fill colour  = (uint8)color_or_stride    (low byte)
- * So colour = stride & 0xFF. For the typical stride 0x140 the colour
- * is fixed at 0x40 (palette index 64, the white-silhouette band).
- * param_4 is unused (present so the cdecl frame matches the caller).
+ * So colour = stride & 0xFF -- it is just the low byte of whatever row
+ * stride the caller passes. In practice both observed callers use stride
+ * 0x1C8 (-> colour 0xC8) on most paths, and the attack-hit path passes
+ * stride 0x140 (-> colour 0x40); the colour therefore tracks the stride
+ * rather than being a free parameter.
+ * The 4th arg is unused: it exists only so the cdecl frame matches the
+ * callers, which compute a per-status-kind intended colour (e.g. 0xFD,
+ * 0xC0) and push it here -- but this blitter ignores it and always fills
+ * with (color_or_stride & 0xFF), so that intended colour has no effect
+ * (latent in the original game).
  *
  * Same 4-mode RLE command encoding as the sibling blitters; each
  * command byte's top two bits select the mode and the low 6 bits + 1
