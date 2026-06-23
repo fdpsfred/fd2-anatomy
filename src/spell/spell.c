@@ -264,6 +264,13 @@ void fd2_spell_handler_id_26_via_status_d1b_effect_25(
         caster, 0x1a, n_tgt, tgt_arr, 0x25);
 }
 
+/* spell_id 0x1B (麻痹術, paralysis): dispatch-table entry @ 0x22E41
+ * (table[0x1B] @ 0x51D6D). Same family as the 0x16/0x1A entries above --
+ * forwards to the shared status-inflict worker fd2_cast_status_spell_via_d1b,
+ * here with effect/sprite id 0x26. In the original binary this entry
+ * tail-jumps into the 0x16 body (@ 0x22BF7) to reuse its {push caster + call
+ * worker + cleanup} tail. Sibling of the 0x1A entry above (spell 0x1A with
+ * effect 0x25). */
 void fd2_spell_handler_id_27_via_status_d1b_effect_26(
     int caster, int n_tgt, int tgt_arr)
 {
