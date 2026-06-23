@@ -1,0 +1,48 @@
+{
+  "address": "0004dbd8",
+  "name_current": "fd2_save_crypt_buffer",
+  "name_final": "fd2_save_crypt_buffer",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=save, descriptor=crypt_buffer) and accurately reflects the purpose: an in-place XOR cipher applied to the FD2.SAV buffer. No address residue in the name. Confirmed by callers fd2_save_current_state_to_slot / fd2_load_state_from_selected_slot using it for both encrypt and decrypt.",
+  "kind": "function",
+  "home": "ROOT/src/save/save.c",
+  "purpose": "In-place self-inverse XOR cipher for the FD2.SAV buffer; the identical call encrypts on the write path and decrypts on the read path.",
+  "logic_summary": "scramble_state = 0xA5. do { scramble_state = ROL16(scramble_state + 0x9014, 3); *pBuf ^= (byte)scramble_state; pBuf++; len--; } while (len != 0). 16-bit keystream is deterministic from the constant seed, so XOR (self-inverse) makes encrypt and decrypt the same routine. Asm uses LODSB/STOSB with ESI==EDI (true in-place) and LOOP on ECX, i.e. a do-while; len==0 underflows so callers must pass len>=1. All call sites pass length 0x59CB (full SAV image size).",
+  "signature": "void __cdecl fd2_save_crypt_buffer(byte *pBuf, int len)",
+  "params": [
+    {
+      "name": "pBuf",
+      "type": "byte *",
+      "semantics": "Base pointer of the buffer to transform in place; both source (LODSB/ESI) and destination (STOSB/EDI) point at it.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive of the buffer pointer; no address residue. (Source models it as uint32 buf with a local uint8 *pBuf; semantically identical.)"
+    },
+    {
+      "name": "len",
+      "type": "int",
+      "semantics": "Number of bytes to process; loop counter (ECX) decremented per byte until zero (do-while, so must be >= 1).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive byte-count name; no address residue. (Source names it size; semantically identical.)"
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; buffer is mutated in place."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": "Source comment block was accurate and well-scoped but contained two em-dash (U+2014) characters (lines describing 'an involution' and 'rotate-left by 3 -- the Watcom shift+OR idiom'), violating the code-ASCII-only rule.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Plate comment in Ghidra already accurate, ASCII (uses --), and consistent with the refined src comment; left untouched per src-as-source-of-truth rule. Em-dashes in src replaced with '--' via a single targeted Edit (no logic/type/control-flow changes). Naming convention verified against fd2_<domain>_<descriptor>; both param names clean. 6 distinct caller functions, 9 call sites; all callers pass 0x59CB."
+}
