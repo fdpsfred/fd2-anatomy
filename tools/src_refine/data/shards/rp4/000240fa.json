@@ -1,0 +1,40 @@
+{
+  "address": "000240fa",
+  "name_current": "fd2_chapter_21_end",
+  "name_final": "fd2_chapter_21_end",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>: domain = chapter_21 (chapter 21 亞述森林, a meaningful game chapter ID in range 1-30, not an address residue), descriptor = end (end handler). Consistent with all sibling end handlers fd2_chapter_20_end..fd2_chapter_30_end in chend2.c. Accurately reflects the function's role as the chapter-21 end-of-battle handler dispatched via data_fd2_chapter_end_handler_table[21] (single xref from data @ 0x51e39).",
+  "kind": "function",
+  "home": "ROOT/src/field/chend2.c",
+  "purpose": "Chapter 21 (亞述森林) end-of-battle handler: places the cast / re-aims the camera, runs the post-battle dialog, and if the party holds all six hidden-stage collectibles (item 0xD1..0xD6) consumes them and awards 天空之鑰 (item 100) with an extended cutscene; finally re-inits 希爾法/羅蘭, saves templates, and advances the chapter id.",
+  "logic_summary": "Copies the three 25-byte end-scene tables (pos_x/pos_y/facing) onto stack scratch, then fd2_setup_chars_and_camera_for_intro(pos_x,pos_y,facing,0,0x18,0x19,0x17,0xE,1,0xE,10) and dialog page 5. Counts how many of the six collectible items 0xD1..0xD6 (黃金徽章 + 5 顆眼) the party holds across inventory slots 0..15 (collected++). If collected==6: consumes each held item (fd2_remove_inventory_slot_at), awards item 100 (天空之鑰), shows dialog page 7, fires cutscene 0x3F, page 8, cutscene 0x40, page 9, plays fd2_play_chapter_intro_sprite_slideshow, final_page=10; else final_page=6. Shows the final page, then fd2_init_runtime_char_from_base_growth(0x18 希爾法) and (0x17 羅蘭), fd2_save_runtime_char_to_template, and current_chapter_id += 1. __CHK(0x98,...) is the Watcom stack-probe prologue.",
+  "signature": "void __cdecl fd2_chapter_21_end(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; mutates global game state (battle_anim_phase, current_chapter_id, inventory, runtime/template chars) and drives cutscene I/O."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_ch21_end_scene_char_pos_x_table",
+    "data_fd2_chapter_ch21_end_scene_char_pos_y_table",
+    "data_fd2_chapter_ch21_end_scene_char_facing_table",
+    "data_fd2_current_chapter_text",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_anim_phase",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "baaa36852a2e0f614317dbb7950d2df98dd51f8e",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Clean keep/keep. Source comment (chend2.c lines 175-191) already concise and accurate vs decompile + domain KB (item 0xD1=黃金徽章/進入隱藏關物品, 0xD2..0xD6 = 星之眼/光之眼/暗之眼/冰之眼/火之眼, item 100=0x64=天空之鑰; chapter 21 failure cond = 索爾/羅蘭/希爾法 死亡, consistent with re-init of 0x17 羅蘭 + 0x18 希爾法). Ghidra plate is more verbose but consistent with src, so left untouched. void function -> params=[]. No src edit needed; only the shard file is added."
+}
