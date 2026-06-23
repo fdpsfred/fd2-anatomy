@@ -633,9 +633,11 @@ uint32 data_fd2_resource_portrait_cache_alloc_offset;
 /*
  * data_fd2_resource_portrait_cache_total_size @ 0x53BE7 -- per-chapter active
  * party/character count for the upcoming battle, taken from the second byte of the
- * loaded FDFIELD.DAT tile-event table (tile_event_data_table[1]). Sibling of
- * data_fd2_resource_portrait_cache_alloc_offset @ 0x53BE3 and
- * data_fd2_resource_portrait_cache_count @ 0x53BDF in the same load block; both
+ * loaded FDFIELD.DAT tile-event table (tile_event_data_table[1]). Despite the legacy
+ * name, this is NOT a portrait sprite-cache size: it is the chapter roster slot count
+ * that bounds the runtime_char fill loop. The actual portrait-cache fill counter is the
+ * separate sibling data_fd2_resource_portrait_cache_count @ 0x53BDF. Sibling also of
+ * data_fd2_resource_portrait_cache_alloc_offset @ 0x53BE3 in the same load block; both
  * writers widen a zero-extended byte into the full dword slot:
  *   fd2_load_chapter_battle_data    @ 0x10987 MOVZX EDX,byte ptr [EAX+1]
  *                                   @ 0x1098B MOV dword ptr [0x53BE7],EDX
