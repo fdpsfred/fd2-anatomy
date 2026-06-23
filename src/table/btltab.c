@@ -371,8 +371,12 @@ void (*data_fd2_battle_spell_handler_table[28])(uint32, uint32, uint8 *) = {
  * data_fd2_battle_job_magic_resist_table @ 0x51F96  (112 bytes, uint32[28])
  *
  * Per-job magic-damage scale factor (read-only). Indexed by job_id, which is
- * 1-based, so the accessor uses (job_id - 1). Magic damage applied to a
- * defender is (s32)(spell_base_power * resist_value) / 10.
+ * 1-based, so the accessor uses (job_id - 1). The value is the fraction of
+ * spell power the defender's job takes, in tenths: magic damage applied to a
+ * defender is (s32)(spell_base_power * resist_value) / 10. A value of 10 means
+ * full damage (no resistance); lower values resist more, so the in-game magic
+ * resistance is (10 - resist_value) * 10 percent (e.g. job 0x05 法師 -> 7 ->
+ * 30% resist; job 0x0D 大法師 -> 5 -> 50% resist; job 0x1A -> 4 -> 60% resist).
  *
  * Sole consumer fd2_calc_magic_damage @ 0x1C75E:
  *     MOV ECX,0x1C ; MOV EDI,ESP ; MOV ESI,0x51F96 ; REP MOVSD
@@ -380,14 +384,14 @@ void (*data_fd2_battle_spell_handler_table[28])(uint32, uint32, uint8 *) = {
  *     IMUL EDX,[ESP + ESI*4 - 4]   ; ESI = bJob_id
  *         -> stride 4, element = uint32, index = bJob_id - 1
  *
- * Extent is 28 dwords, not 27: the REP MOVSD count is 28 and the data region
- * runs [0x51F96, 0x52006) (112 bytes); the next table (consumed by
- * fd2_animate_spell_overlay_blink) begins at 0x52006. Entries 0..26 map to the
- * 27 jobs (job_id 1..27 -> index 0..26); entry 27 is the trailing dword the
- * copy also pulls in. Values are small positive scale factors (4..10).
- * No writers.
+ * Extent is 28 dwords: the REP MOVSD count is 28 and the data region runs
+ * [0x51F96, 0x52006) (112 bytes); the next table (consumed by
+ * fd2_animate_spell_overlay_blink) begins at 0x52006. Entries 0..25 map to the
+ * 26 defined non-dragon jobs (job_id 0x01..0x1A -> index 0..25); job 0x00 (the
+ * dragon) has no entry and is never looked up. Indices 26..27 are trailing
+ * dwords the bulk copy also pulls in (not addressed by any defined job_id).
+ * Values are small positive scale factors (4..10). No writers.
  * ---------------------------------------------------------------- */
-/* Non-const: read-only in-game, but seeded by test fixtures. */
 const uint32 data_fd2_battle_job_magic_resist_table[28] = {
     /* job 0x01 */ 10, /* job 0x02 */ 10, /* job 0x03 */ 10, /* job 0x04 */ 10,
     /* job 0x05 */  7, /* job 0x06 */  7, /* job 0x07 */ 10, /* job 0x08 */ 10,
@@ -395,7 +399,7 @@ const uint32 data_fd2_battle_job_magic_resist_table[28] = {
     /* job 0x0d */  5, /* job 0x0e */  5, /* job 0x0f */  8, /* job 0x10 */ 10,
     /* job 0x11 */  6, /* job 0x12 */  8, /* job 0x13 */ 10, /* job 0x14 */  9,
     /* job 0x15 */  5, /* job 0x16 */  5, /* job 0x17 */ 10, /* job 0x18 */  8,
-    /* job 0x19 */  8, /* job 0x1a */  4, /* job 0x1b */ 10, /* idx 27   */  7
+    /* job 0x19 */  8, /* job 0x1a */  4, /* idx 26   */ 10, /* idx 27   */  7
 };
 
 /* ----------------------------------------------------------------
