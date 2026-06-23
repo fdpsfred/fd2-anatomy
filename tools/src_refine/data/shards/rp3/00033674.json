@@ -1,0 +1,33 @@
+{
+  "address": "00033674",
+  "name_current": "fd2_chapter_19_20_21_init_shared",
+  "name_final": "fd2_chapter_19_20_21_init_shared",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention. 'chapter_19_20_21' are three legitimate chapter domain IDs (game chapters are 1-30); confirmed by the dispatch table at 0x51DB9/0x51DBD/0x51DC1, whose three consecutive pointer slots (chapters 19/20/21) all hold 0x33674. 'init_shared' accurately marks it as the shared chapter-init handler. No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/field/chinit.c",
+  "purpose": "Shared chapter-init handler for chapters 19/20/21 -- the game's only three-chapter shared init; runs the minimal init body (re-init battle state, one page-0 dialog, pan camera to char 0).",
+  "logic_summary": "In the binary this is a 10-byte pure thunk: PUSH 0x28; JMP 0x33470. 0x33470 is the alt-entry label L_chapter_13_init_alt_5 inside fd2_chapter_13_init (entry 0x3346B, so 0x33470 = +5, the CALL __CHK site) -- the same alt-entry that fd2_chapter_16_init also tail-JMPs into. The shared tail therefore runs: CALL __CHK(0x28) (Watcom frame-size probe, the PUSH 0x28 fed into it), CALL fd2_init_battle_state_for_chapter, then JMP 0x3344D into the shared page-0 dialog chain -> 0x33206 (fd2_display_dialog_scene call) -> 0x33140 (fd2_pan_cursor_to_char(0) + RET). Net effect identical to fd2_chapter_13_init / fd2_chapter_16_init: init battle state, play one dialog page (page 0), pan camera to char 0. No cutscene, no portrait load, no char init, no camera-pan-and-window prelude, no battle_anim_phase reset, no clear-facing. The three chapters share one init because the opening battle-id is selected by current_chapter_id inside fd2_init_battle_state_for_chapter; all chapter-specific behavior lives in each chapter's own post-action/end handler. The src body is the functionally-equivalent (Layer-2) straight-line reconstruction of the tail-JMP chain.",
+  "signature": "void __cdecl fd2_chapter_19_20_21_init_shared(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Plays the chapter-19/20/21 opening: re-inits battle state, shows dialog page 0, pans camera to char 0."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Pure dispatched thunk (0 direct callers; reached via 3 chapter-init table slots). Source comment block (chinit.c lines 1077-1135) was already thorough, accurate and ASCII (Chinese only for character proper names) -> comment_verdict=keep, chinit.c NOT modified. Ghidra plate is accurate and consistent: verified via run_script_inline that label 'L_chapter_13_init_alt_5' (referenced by the plate) genuinely still exists at 0x33470 as primary symbol inside fd2_chapter_13_init -> plate NOT stale, ghidra_plate_action=none. JMP target / callees verified: __CHK @0x36CD7, fd2_init_battle_state_for_chapter @0x205DA; dialog tail JMP 0x3344D->0x33206->0x33140 confirmed by disassembly. No logic concerns. Only file staged besides this shard would be chinit.c, which is unchanged."
+}
