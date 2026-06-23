@@ -928,19 +928,28 @@ void fd2_cast_speed_boost_spell(uint32 caster_unit_id, uint32 num_targets,
  * dispatched via the spell table @ 0x51D01, entry index 0x19 = 25,
  * data xref at 0x51D65)
  *
- * STATUS-CLEAR "holy word" spell worker (spell id 0x19 = 25). Resets the
- * AoE/fx queue index, deducts the caster's MP for spell 0x19, then plays
- * the per-target impact + status-overlay-flicker animations (id 0x19).
- * For each target in the byte array:
- *   if the target's flags bit-7 (the "acted"/status bit, flags & 0x80) is
- *   NOT set -> the unit has no such status, draw the miss indicator;
- *   otherwise clear bit-7 (flags &= 0x7F), take status_value =
- *   status_flags_block[0] (the unit's level byte), add +30 if its job_id
- *   is an intermediate class (9..0x18), and credit status_value*8 pending
- *   XP (the 8x multiplier is the highest, distinguishing status-clear from
- *   the 4x cure / 2x buff workers). Closes with fd2_composite_battle_frame
- *   (0) followed by a conditional fd2_animate_spell_projectile_paths() when
- *   the AoE/fx queue index is non-zero.
+ * Worker for spell id 0x19 (25) = 行動術 ("act again"): lets a unit that has
+ * already acted this turn act again. The runtime_char "acted" state is
+ * flags bit-7 (flags & 0x80); the spell hits a unit only if it has acted,
+ * and grants the re-action by clearing that bit. Resets the AoE/fx queue
+ * index, deducts the caster's MP for spell 0x19, then plays the per-target
+ * impact + status-overlay-flicker animations (id 0x19). For each target in
+ * the byte array:
+ *   if flags bit-7 is NOT set -> the unit has not acted yet, nothing to
+ *   re-enable, draw the miss indicator;
+ *   otherwise clear bit-7 (flags &= 0x7F) so the unit may act again, take
+ *   status_value = status_flags_block[0] (the unit's level byte), add +30
+ *   if its job_id is an intermediate class (9..0x18), and credit
+ *   status_value*8 pending XP (the 8x multiplier is the highest reward tier,
+ *   shared with the status-inflict worker; vs 4x cure / 2x buff). Closes
+ *   with fd2_composite_battle_frame(0) followed by a conditional
+ *   fd2_animate_spell_projectile_paths() when the AoE/fx queue index is
+ *   non-zero.
+ *
+ * Naming note: the current symbol calls this "status_clear_holy_word", which
+ * is a misnomer -- 0x19 is 行動術 (re-activate), not the heal spell 神恩術;
+ * the bit it clears is specifically the "acted" bit. Pending Stage-2 rename
+ * to fd2_execute_reactivate_spell_id_25.
  *
  * The third parameter is a byte array of target unit ids (Ghidra
  * byte *target_id_array); each entry is read as target_id_array[iter],
