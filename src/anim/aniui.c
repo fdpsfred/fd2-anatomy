@@ -625,11 +625,11 @@ void fd2_animate_shop_transaction_feedback(void)
  *   - Frame 6 special path: restore backup, paint old chars
  *       (iter < old_char_count, skip flags&1 = dead), shift buffer base
  *       by -0xE40, paint new chars (skip dead), shift base back +0xE40,
- *       fd2_paint_chars_shadow_overlay, save back to backup.
+ *       fd2_redraw_terrain_tiles_under_chars, save back to backup.
  *   - Frame 7 special path: fd2_composite_battle_tile_map(buffer+0x8088,
  *       0x1C8, 0xD, 8, origin_x, origin_y), paint old chars, shift base
  *       by -0x8E8, paint new chars, shift base back +0x8E8,
- *       fd2_paint_chars_shadow_overlay, save back to backup.
+ *       fd2_redraw_terrain_tiles_under_chars, save back to backup.
  *   - Frame 8 special path: fd2_composite_battle_tile_map(...),
  *       fd2_composite_all_chars_overlay (handles its own shadow), save
  *       back to backup.
@@ -737,7 +737,7 @@ void fd2_animate_party_addition_with_appear_effect(uint32 target_race_id)
                 }
             }
             data_fd2_large_game_state_buffer_ptr += 0xE40;
-            fd2_paint_chars_shadow_overlay();
+            fd2_redraw_terrain_tiles_under_chars();
             memmove((void *)backup,
                     (void *)data_fd2_large_game_state_buffer_ptr, 0x25680);
         } else if (snapshot == 7) {
@@ -761,7 +761,7 @@ void fd2_animate_party_addition_with_appear_effect(uint32 target_race_id)
                 }
             }
             data_fd2_large_game_state_buffer_ptr += 0x8E8;
-            fd2_paint_chars_shadow_overlay();
+            fd2_redraw_terrain_tiles_under_chars();
             memmove((void *)backup,
                     (void *)data_fd2_large_game_state_buffer_ptr, 0x25680);
         } else if (snapshot == 8) {

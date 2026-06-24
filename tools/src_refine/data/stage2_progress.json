@@ -1,0 +1,8 @@
+{
+  "_doc": "Stage-2 rename progress ledger. Source of truth for 'applied' is live Ghidra (saved .gpr) + committed src; this ledger is the resume convenience index. completed[] lists worklist item numbers done. did: name=src+ghidra rename, param=ghidra prototype sync, both=name+param.",
+  "total_items": 185,
+  "completed": [
+    {"n": 1, "address": "0001088d", "did": "param", "note": "param_1->chapter_id; src rsrc.c already correct"},
+    {"n": 10, "address": "000129ec", "did": "name", "note": "fd2_paint_chars_shadow_overlay -> fd2_redraw_terrain_tiles_under_chars; 5 files 10 occ"}
+  ]
+}

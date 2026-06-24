@@ -715,7 +715,7 @@ void fd2_tile_blit_24x24_remap(uint32 rle_stream, uint32 dst_buf, uint32 stride,
 void fd2_tile_blit_24x24_with_dialog_bg_fill(uint32 rle_stream, uint32 dst_buf, uint32 stride);
 void fd2_composite_all_chars_overlay(void);
 void fd2_paint_char_sprite_at_world_pos(uint32 char_idx);
-void fd2_paint_chars_shadow_overlay(void);
+void fd2_redraw_terrain_tiles_under_chars(void);
 void fd2_blit_animated_tile_at_pos(uint32 buf, int32 tile_x, int32 tile_y);
 void fd2_blit_scaled_tile_map_view(uint32 src_cx_fp, uint32 src_cy_fp, uint32 scale, uint32 tile_data_table);
 void fd2_blit_scaled_chapter_pose(uint32 src_cx, uint32 src_cy, uint32 src_bitmap, int32 scale_fp_step);

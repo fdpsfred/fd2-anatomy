@@ -127,7 +127,7 @@ void fd2_cutscene_event_trigger(uint32 event_id)
                 }
                 data_fd2_large_game_state_buffer_ptr = (uint32)saved_buf;
             }
-            fd2_paint_chars_shadow_overlay();
+            fd2_redraw_terrain_tiles_under_chars();
             fd2_blit_rectangle(0xA0504, 0x140,
                 data_fd2_large_game_state_buffer_ptr + 0x8088,
                 0x1C8, 0x138, 0xC0);

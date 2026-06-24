@@ -501,7 +501,7 @@ void fd2_play_death_animation_and_mark_dead(void)
             }
         }
 
-        fd2_paint_chars_shadow_overlay();
+        fd2_redraw_terrain_tiles_under_chars();
         fd2_blit_rectangle(0xa0504, 0x140,
                            data_fd2_large_game_state_buffer_ptr + 0x8088,
                            0x1c8, 0x138, 0xc0);

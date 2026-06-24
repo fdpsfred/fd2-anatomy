@@ -213,7 +213,7 @@ void fd2_composite_all_chars_overlay(void)
             fd2_paint_char_sprite_at_world_pos((uint32)i);
         }
     }
-    fd2_paint_chars_shadow_overlay();
+    fd2_redraw_terrain_tiles_under_chars();
 }
 
 /* ----------------------------------------------------------------
@@ -333,7 +333,7 @@ void fd2_paint_char_sprite_at_world_pos(uint32 char_idx)
 }
 
 /* ----------------------------------------------------------------
- * fd2_paint_chars_shadow_overlay @ 0x129EC (4 callers)
+ * fd2_redraw_terrain_tiles_under_chars @ 0x129EC (4 callers)
  *
  * Redraw the animated terrain tiles around each char position to
  * clean up the walk-animation tile-trail left under moving chars
@@ -354,7 +354,7 @@ void fd2_paint_char_sprite_at_world_pos(uint32 char_idx)
  * Called by fd2_composite_all_chars_overlay after the per-char sprite
  * paint pass.
  * ---------------------------------------------------------------- */
-void fd2_paint_chars_shadow_overlay(void)
+void fd2_redraw_terrain_tiles_under_chars(void)
 {
     uint32 i;
     runtime_char *pchar;
