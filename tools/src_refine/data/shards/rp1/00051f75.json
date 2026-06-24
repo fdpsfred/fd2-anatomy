@@ -1,10 +1,11 @@
 {
   "address": "0x00051f75",
   "name_current": "data_fd2_animation_spell_sfx_frame_table",
-  "name_final": "data_fd2_animation_spell_sfx_frame_table",
-  "name_verdict": "uncertain",
+  "name_final": "data_fd2_animation_spell_sfx_id_table",
+  "name_verdict": "rename",
   "name_proposed": "data_fd2_animation_spell_sfx_id_table",
   "name_reason": "Current name is convention-compliant (data_fd2_<domain=animation>_<descriptor>), free of Ghidra address residue, reflects a table type, and is symmetric with its two sibling tables (data_fd2_animation_spell_sprite_offset_table @0x51F33, data_fd2_animation_spell_frame_count_table @0x51F54). One minor imprecision: each element is the sound-effect id passed to fd2_play_sfx_with_handle, not a frame number; the '_sfx_frame_' descriptor conflates the SFX id with the frame-0 trigger. A tighter name would be data_fd2_animation_spell_sfx_id_table (or _frame0_sfx_id_table). Left uncertain rather than rename: the descriptor is not wrong (values drive the frame-0 SFX hook), there is no convention violation, and a Stage-2 rename (protos.h/globals.h + 2 call-site files) is hard to justify for a cosmetic precision tweak that also breaks the clean 3-table naming symmetry. Stage 2 to decide.",
+  "stage2_review": "rename -> data_fd2_animation_spell_sfx_id_table. Reverses the shard's keep lean: live decomp of the sole reader fd2_animate_spell_impact_per_target shows table[spell_id] value is passed directly as the sfx-id arg to fd2_play_sfx_with_handle (same arg slot as the special-case SFX consts 3/5/7/8/0xA/0xF), and the trigger frame is fixed at 0. So the value is an SFX id, not a frame index -- '_frame_' is a semantic error, not cosmetic. Stage 2 must also correct the Ghidra plate (currently 'SFX trigger frame index'). Symmetry with sprite_offset/frame_count siblings is preserved (all name the value).",
   "kind": "global",
   "home": "src/table/anitab.c",
   "purpose": "Per-spell primary SFX id for the per-target spell-impact animation; element value is the sound-effect id fired on frame 0 of that spell's impact effect (0 = no frame-0 SFX hook).",
