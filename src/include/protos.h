@@ -669,7 +669,7 @@ void fd2_assemble_dialog_frame_layered(uint32 dst, uint32 pitch, uint32 col_offs
 void fd2_cinematic_scroll_text_up_for_special_scenes(void);
 void fd2_dialog_sprite_blit_normal(uint32 dst, uint32 sprite_hdr, uint32 stride);
 void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite_hdr, uint32 stride);
-void fd2_close_dialog_panels_then_slide_in_at(uint32 anim_handle, uint32 slot_offset);
+void fd2_close_dialog_panels_then_slide_out_to_cursor(uint32 anim_handle, uint32 slot_offset);
 void fd2_portrait_blink_animation_step(void);
 void fd2_load_chapter_portrait(uint32 portrait_id);
 void fd2_close_status_screen_with_slide_out(void);

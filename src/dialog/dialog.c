@@ -95,7 +95,7 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
             if (portrait_anim != 0) {
                 fd2_paint_portrait_to_dialog_area(0);
                 fd2_wait_for_input_dialog_with_blink(0);
-                fd2_close_dialog_panels_then_slide_in_at(portrait_anim,
+                fd2_close_dialog_panels_then_slide_out_to_cursor(portrait_anim,
                                                          portrait_flip);
                 data_fd2_dialog_active_portrait_blit_offset = 0;
             }
@@ -173,7 +173,7 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
             if (portrait_anim != 0) {
                 fd2_paint_portrait_to_dialog_area(0);
                 fd2_wait_for_input_dialog_with_blink(0);
-                fd2_close_dialog_panels_then_slide_in_at(portrait_anim,
+                fd2_close_dialog_panels_then_slide_out_to_cursor(portrait_anim,
                                                          portrait_flip);
             }
             data_fd2_dialog_active_portrait_blit_offset = 0x728;
@@ -210,7 +210,7 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
             if (portrait_anim != 0) {
                 fd2_paint_portrait_to_dialog_area(0);
                 fd2_wait_for_input_dialog_with_blink(0);
-                fd2_close_dialog_panels_then_slide_in_at(portrait_anim,
+                fd2_close_dialog_panels_then_slide_out_to_cursor(portrait_anim,
                                                          portrait_flip);
             }
             data_fd2_dialog_active_portrait_blit_offset = 0x9017;
@@ -243,7 +243,7 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
             if (portrait_anim != 0) {
                 fd2_paint_portrait_to_dialog_area(0);
                 fd2_wait_for_input_dialog_with_blink(0);
-                fd2_close_dialog_panels_then_slide_in_at(portrait_anim,
+                fd2_close_dialog_panels_then_slide_out_to_cursor(portrait_anim,
                                                          portrait_flip);
             }
             data_fd2_dialog_active_portrait_blit_offset = 0x728;
@@ -276,7 +276,7 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
             if (portrait_anim != 0) {
                 fd2_paint_portrait_to_dialog_area(0);
                 fd2_wait_for_input_dialog_with_blink(0);
-                fd2_close_dialog_panels_then_slide_in_at(portrait_anim,
+                fd2_close_dialog_panels_then_slide_out_to_cursor(portrait_anim,
                                                          portrait_flip);
             }
             data_fd2_dialog_active_portrait_blit_offset = 0x9017;
@@ -373,7 +373,7 @@ void fd2_portrait_blink_animation_step(void)
  * before each stage so the dialog can later be closed cleanly.
  *
  * Returns the head of the 5-buffer save array (= 0x53A18), used by
- * the caller / fd2_close_dialog_panels_then_slide_in_at to restore
+ * the caller / fd2_close_dialog_panels_then_slide_out_to_cursor to restore
  * the screen when the dialog closes.
  * ---------------------------------------------------------------- */
 uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 flip)
@@ -465,7 +465,7 @@ uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 flip)
 }
 
 /* ----------------------------------------------------------------
- * fd2_close_dialog_panels_then_slide_in_at @ 0x16B43 (1 caller)
+ * fd2_close_dialog_panels_then_slide_out_to_cursor @ 0x16B43 (1 caller)
  *
  * Tear down the open dialog's 5 layered frame buffers, then
  * optionally retract the panel back toward the battle cursor.
@@ -496,7 +496,7 @@ uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 flip)
  * interpolant as sprite_idx (arg5, screen Y) -- the mirror of the
  * open animation's argument pairing.
  * ---------------------------------------------------------------- */
-void fd2_close_dialog_panels_then_slide_in_at(uint32 anim_handle,
+void fd2_close_dialog_panels_then_slide_out_to_cursor(uint32 anim_handle,
                                               uint32 slot_offset)
 {
     uint32 *layer_ptr_array;
@@ -1293,7 +1293,7 @@ uint32 data_fd2_dialog_portrait_blink_subtick_counter;
  * ESI = 0..4), then every slot is read back as a 32-bit pointer arg to
  * fd2_save_screen_block_to_buffer (slots 0x53A18 / 0x53A1C / 0x53A20 /
  * 0x53A24 / 0x53A28) to snapshot the band of screen each stage covers.
- * fd2_close_dialog_panels_then_slide_in_at later frees the buffers in
+ * fd2_close_dialog_panels_then_slide_out_to_cursor later frees the buffers in
  * reverse-Z order to restore the screen when the dialog closes; the
  * array head address is returned to the caller as the restore handle.
  * Pure runtime state: every slot is written (malloc / blit result)
