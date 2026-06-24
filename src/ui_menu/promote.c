@@ -44,7 +44,7 @@ int fd2_build_dead_chars_list_for_revive(uint8 *out_list_buf)
 }
 
 /* ----------------------------------------------------------------
- * fd2_promote_members_select_loop @ 0x30C22
+ * fd2_revive_member_select_loop @ 0x30C22
  * (1 caller: fd2_run_revive_menu_main @ 0x30E90, the church-revive
  *  candidate picker)
  *
@@ -75,7 +75,7 @@ int fd2_build_dead_chars_list_for_revive(uint8 *out_list_buf)
  * full EAX; compared directly as int (asm uses CMP EAX,imm, no byte
  * truncation), so no CONCAT31 narrowing.
  * ---------------------------------------------------------------- */
-int fd2_promote_members_select_loop(uint32 candidate_count, uint8 *candidate_idx_list)
+int fd2_revive_member_select_loop(uint32 candidate_count, uint8 *candidate_idx_list)
 {
     int result;
     int frame_iter;
@@ -188,7 +188,7 @@ int fd2_promote_members_select_loop(uint32 candidate_count, uint8 *candidate_idx
  * fd2_promote_member_select_loop @ 0x311DC  (1 caller)
  *
  * CLASS-PROMOTION member-select grid loop (singular — distinct from
- * the church-revive picker fd2_promote_members_select_loop @ 0x30C22).
+ * the church-revive picker fd2_revive_member_select_loop @ 0x30C22).
  * Allocates three 64000-byte (mode 13h) render workspaces, snapshots
  * VRAM 0xA0000 -> workspace_b -> workspace_c, blits the dialog frame
  * at workspace_c+0x8C05, renders the candidate grid (current job ->
@@ -997,7 +997,7 @@ void fd2_run_revive_menu_main(void)
         fd2_wait_for_input_dialog_with_blink(1);
         fd2_close_intro_dialog_with_slide_out();
 
-        sel = fd2_promote_members_select_loop((uint32)dead_count,
+        sel = fd2_revive_member_select_loop((uint32)dead_count,
                                               candidate_chars);
         fd2_close_intro_dialog_with_slide_out();
         if (sel == -1) {
@@ -1086,7 +1086,7 @@ uint32 data_fd2_ui_slide_composed_target_buf_ptr;
  *   of valid candidate ids currently shown in the active menu/grid. Paired
  *   with the visible-row count @ 0x5413F. Each menu flow assigns it to a
  *   local byte[] up front (writers: fd2_run_buy_item_menu sets it to the
- *   equip-eligible char-id list; fd2_promote_members_select_loop and
+ *   equip-eligible char-id list; fd2_revive_member_select_loop and
  *   fd2_promote_member_select_loop set it to the promotable-member /
  *   candidate-class list); the chapter-intro panel renderer reads it back
  *   as candidate_array_ptr[scroll_offset + i] (a byte index into the

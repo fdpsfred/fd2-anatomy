@@ -708,7 +708,7 @@ void fd2_render_save_slot_grid(uint32 highlight_slot, uint32 surface_offset,
  * picker; class promotion has its own grid fd2_render_promote_candidates_grid
  * @ 0x31019 (which shows the post-promotion target job instead of a price).
  *
- * Sole caller: fd2_promote_members_select_loop @ 0x30C22 (the in-grid
+ * Sole caller: fd2_revive_member_select_loop @ 0x30C22 (the in-grid
  * Up/Down cursor loop of the church-revive picker), which passes the
  * candidate count, the compose surface, the highlight cursor index, and
  * the candidate index list.

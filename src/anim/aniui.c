@@ -405,7 +405,7 @@ void fd2_animate_chapter_intro_dialog_wings(uint32 open_or_close)
  *   fd2_shop_menu_input_loop @ 0x2DF6B (Right/Down past the viewport)
  *   fd2_party_roster_single_select_loop @ 0x2E7D5
  *   fd2_party_roster_class_select_loop @ 0x2EA08
- *   fd2_promote_members_select_loop @ 0x30D94
+ *   fd2_revive_member_select_loop @ 0x30D94
  *   fd2_promote_member_select_loop @ 0x31356
  *
  * Cdecl, no params, void return. The binary's __CHK(0x18) stack-probe
@@ -461,7 +461,7 @@ void fd2_animate_scroll_up_in_shop_dialog(void)
  *   fd2_shop_menu_input_loop @ 0x2DF6B
  *   fd2_party_roster_single_select_loop @ 0x2E840
  *   fd2_party_roster_class_select_loop @ 0x2EA61
- *   fd2_promote_members_select_loop @ 0x30D4C
+ *   fd2_revive_member_select_loop @ 0x30D4C
  *   fd2_promote_member_select_loop @ 0x3130A
  *   (all invoked when Up/Left wraps past the visible top).
  *
