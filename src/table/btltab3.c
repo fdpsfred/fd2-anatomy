@@ -485,8 +485,9 @@ const uint8 data_fd2_battle_movement_cost_table[580] = {
  * Per-job equippable item-type table: 29 rows x 7 bytes (uint8). Row r holds
  * up to 6 allowed item-type IDs for job r (slot value 0xFF = unused), plus a
  * trailing constant 0x01 row marker at offset 6 (not consumed by the
- * accessor). Item-type IDs match the item-category byte at offset 0 of each
- * item_effect entry (e.g. 01=sword, 04=bow, 06=staff, 15=rod, 16=book...).
+ * accessor). Item-type IDs are matched against the item_effect "type" field
+ * (struct offset +1, the item-category byte that fd2_get_item_effect_entry
+ * returns a pointer to) -- e.g. 01=sword, 04=bow, 06=staff, 15=rod, 16=book...
  *
  * Element type and 7-byte stride are proven by the accessor
  * fd2_get_job_allowed_items_table_entry @ 0x4E53E, which returns
