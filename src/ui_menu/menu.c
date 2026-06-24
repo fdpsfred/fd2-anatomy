@@ -631,13 +631,17 @@ uint8  data_fd2_ui_click_debounce_skip_count = 3;
 
 /*
  * data_fd2_battle_ai_post_action_consequence_idx @ 0x51A8F (.object2), 4 bytes.
- * Pending post-action consequence selector. Set to 0xFF ("none") before each
- * actor finishes its action; an action handler may store an index into
- * data_fd2_battle_ai_post_action_consequence_table here. After the action,
- * callers (fd2_game_main_loop, fd2_field_command_menu_loop, the battle AI turn
- * phases, etc.) test it: if != 0xFF they invoke the indexed consequence handler
- * (counter-attack / death / status proc), then reset it to 0xFF.
- * Accessed as a full dword (MOV dword ptr [0x51A8F],EDX); initial value 0xFF.
+ * Pending post-action consequence selector: an index into the 90-entry
+ * data_fd2_battle_ai_post_action_consequence_table (whose slots are the
+ * fd2_chapter_event_handler_NN__* chapter-event handlers). Set to 0xFF ("none")
+ * before each actor finishes its action; fd2_check_tile_event_post_action stores
+ * the event record's consequence byte here when the actor lands on a matching
+ * event tile. After the action, callers (fd2_game_main_loop,
+ * fd2_field_command_menu_loop, the battle AI turn phases, etc.) test it: if
+ * != 0xFF they tail-call the indexed handler with the active char_idx, then
+ * reset it to 0xFF.
+ * Accessed as a full dword (MOV dword ptr [0x51A8F],EDX); the stored value
+ * itself is an 8-bit id (MOVZX from a byte). Initial value 0xFF.
  */
 uint32 data_fd2_battle_ai_post_action_consequence_idx = 0xFF;
 
