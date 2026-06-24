@@ -462,13 +462,13 @@ void fd2_tile_blit_24x24_passthrough(uint32 src, uint32 dst, uint32 stride)
  * Hand-written RLE blit of a 24x24 sprite into dst_buf, recolouring
  * every painted pixel into an 8-colour palette band:
  *
- *   out = (uint8)(((uint8)(src_pixel + team_offset) & 7) + color_base)
+ *   out = (uint8)(((uint8)(src_pixel + tint_offset) & 7) + color_base)
  *
- * team_offset rotates the source pixel within its 0..7 octet (shifting
+ * tint_offset rotates the source pixel within its 0..7 octet (shifting
  * which colour of the band each pixel lands on), then color_base anchors
  * the band; no remap LUT is needed. Sole caller is the spell-overlay
  * blink animator fd2_animate_spell_overlay_blink @ 0x1CD17, which passes
- * the per-spell tint mask byte as color_base and sweeps team_offset 7..0
+ * the per-spell tint mask byte as color_base and sweeps tint_offset 7..0
  * across 10 frames to fade a hit-mark overlay.
  *
  * The RLE stream is decoded one command byte at a time. The top two
@@ -494,7 +494,7 @@ void fd2_tile_blit_24x24_passthrough(uint32 src, uint32 dst, uint32 stride)
  *   stride      — destination row stride in bytes (0x1C8 from the
  *                 caller; the row reset advances stride - 0x18)
  *   color_base  — palette band anchor (low byte used)
- *   team_offset — octet-rotation add value applied before the &7 mask
+ *   tint_offset — octet-rotation add value applied before the &7 mask
  *                 (low byte used); the caller sweeps it 7..0 as a fade
  *                 step
  *
@@ -502,7 +502,7 @@ void fd2_tile_blit_24x24_passthrough(uint32 src, uint32 dst, uint32 stride)
  * ---------------------------------------------------------------- */
 void fd2_tile_blit_24x24_with_tint_offset(uint32 rle_stream, uint32 dst_buf,
                                           uint32 stride, uint32 color_base,
-                                          uint32 team_offset)
+                                          uint32 tint_offset)
 {
     uint32 src;
     uint32 dst;
@@ -515,7 +515,7 @@ void fd2_tile_blit_24x24_with_tint_offset(uint32 rle_stream, uint32 dst_buf,
     uint32 count;
     int    row;
 
-    off = (uint8)team_offset;
+    off = (uint8)tint_offset;
     base = (uint8)color_base;
     src = rle_stream;
     dst = dst_buf;
