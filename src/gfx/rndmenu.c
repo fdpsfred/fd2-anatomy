@@ -337,7 +337,7 @@ void fd2_render_shop_item_grid(uint32 item_count, uint8 *item_id_array,
             fd2_render_decimal_number_to_buffer(
                 (uint32)primary_y_dst, 0x140, stat_value, 0x2a, 3);
         } else {
-            fd2_blit_indexed_sprite_at_xy(
+            fd2_blit_indexed_sprite_rle(
                 (row_off + 0x7b) * 0x140 + surface_offset + col_x + 0x5f,
                 0x140, data_fd2_ui_anim_sprite_sheet_ptr, 0x29);
         }

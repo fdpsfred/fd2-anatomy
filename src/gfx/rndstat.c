@@ -537,7 +537,7 @@ void fd2_render_inventory_item_grid(uint32 char_idx, int highlight_slot,
             /* unrecognized type: placeholder dot sprite, no number; this
              * slot still counts toward active_slot_count (the binary's
              * INC active_slot_count is reached on this path too). */
-            fd2_blit_indexed_sprite_at_xy(label_blit_addr, 0x140,
+            fd2_blit_indexed_sprite_rle(label_blit_addr, 0x140,
                                           data_fd2_ui_anim_sprite_sheet_ptr,
                                           0x29);
         }
@@ -651,13 +651,13 @@ void fd2_render_decimal_number_to_buffer(uint32 dst, uint32 stride,
     }
 
     if (digit_count == 3 && (int32)value > 999) {
-        fd2_blit_indexed_sprite_at_xy(dst, stride,
+        fd2_blit_indexed_sprite_rle(dst, stride,
                                       data_fd2_ui_anim_sprite_sheet_ptr,
                                       sprite_base_idx + 10);
         return;
     }
     if (digit_count == 2 && (int32)value >= 100) {
-        fd2_blit_indexed_sprite_at_xy(dst, stride,
+        fd2_blit_indexed_sprite_rle(dst, stride,
                                       data_fd2_ui_anim_sprite_sheet_ptr, 0x5d);
         return;
     }
@@ -671,7 +671,7 @@ void fd2_render_decimal_number_to_buffer(uint32 dst, uint32 stride,
     sprintf(digit_buf, fmt, value);
 
     for (i = 0; i < (int32)digit_count; i++) {
-        fd2_blit_indexed_sprite_at_xy(dst + (uint32)(i * 6), stride,
+        fd2_blit_indexed_sprite_rle(dst + (uint32)(i * 6), stride,
                                       data_fd2_ui_anim_sprite_sheet_ptr,
                                       sprite_base_idx +
                                           (uint32)(uint8)digit_buf[i] - 0x30);
@@ -959,13 +959,13 @@ void fd2_render_party_status_overview_content(uint32 dst_surface, uint32 stride)
     int alive_count;
 
     /* static icon labels */
-    fd2_blit_indexed_sprite_at_xy(dst_surface + 0x6d + stride * 0x13, stride,
+    fd2_blit_indexed_sprite_rle(dst_surface + 0x6d + stride * 0x13, stride,
                                   data_fd2_ui_anim_sprite_sheet_ptr, 0x85);
-    fd2_blit_indexed_sprite_at_xy(dst_surface + 0x4b + stride * 0x25, stride,
+    fd2_blit_indexed_sprite_rle(dst_surface + 0x4b + stride * 0x25, stride,
                                   data_fd2_ui_anim_sprite_sheet_ptr, 0x86);
-    fd2_blit_indexed_sprite_at_xy(dst_surface + 0x4b + stride * 0x9b, stride,
+    fd2_blit_indexed_sprite_rle(dst_surface + 0x4b + stride * 0x9b, stride,
                                   data_fd2_ui_anim_sprite_sheet_ptr, 0x87);
-    fd2_blit_indexed_sprite_at_xy(dst_surface + 0x81 + stride * 0xac, stride,
+    fd2_blit_indexed_sprite_rle(dst_surface + 0x81 + stride * 0xac, stride,
                                   data_fd2_ui_anim_sprite_sheet_ptr, 0x88);
 
     /* chapter / turn / gold numbers */
@@ -1013,7 +1013,7 @@ void fd2_render_party_status_overview_content(uint32 dst_surface, uint32 stride)
  *
  * Render the chapter-overview status "tabs" (up to 3 segments). Each
  * segment is one indexed sprite blitted at a fixed framebuffer row offset
- * on the mode13h surface 0xA0000, via fd2_blit_indexed_sprite_at_xy (pitch
+ * on the mode13h surface 0xA0000, via fd2_blit_indexed_sprite_rle (pitch
  * 0x140).
  *
  * Params:
@@ -1048,14 +1048,14 @@ void fd2_render_chapter_status_panel_segments(uint32 sheet, uint32 active_idx,
     if (active_idx == 0) {
         sprite_idx = 2;
     }
-    fd2_blit_indexed_sprite_at_xy(0xacd81, 0x140, sheet, sprite_idx);
+    fd2_blit_indexed_sprite_rle(0xacd81, 0x140, sheet, sprite_idx);
 
     if (1 < (int32)segment_count) {
         sprite_idx = 3;
         if (active_idx == 1) {
             sprite_idx = 4;
         }
-        fd2_blit_indexed_sprite_at_xy(0xad8c1, 0x140, sheet, sprite_idx);
+        fd2_blit_indexed_sprite_rle(0xad8c1, 0x140, sheet, sprite_idx);
     }
 
     if (2 < (int32)segment_count) {
@@ -1063,7 +1063,7 @@ void fd2_render_chapter_status_panel_segments(uint32 sheet, uint32 active_idx,
         if (active_idx == 2) {
             sprite_idx = 6;
         }
-        fd2_blit_indexed_sprite_at_xy(0xae401, 0x140, sheet, sprite_idx);
+        fd2_blit_indexed_sprite_rle(0xae401, 0x140, sheet, sprite_idx);
     }
 }
 

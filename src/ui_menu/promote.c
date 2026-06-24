@@ -666,7 +666,7 @@ void fd2_run_class_promotion_menu_main(void)
  *   - Blit the recruitment panel layers into panel_buf: atlas-offset +0x56
  *     (header banner) -> +0x91C, atlas-offset +0x5A (grid frame) -> +0x7585
  *     (both via fd2_dialog_sprite_blit_normal), sprite_id 0x89 -> +0x8C5
- *     (fd2_blit_indexed_sprite_at_xy). Initial render.
+ *     (fd2_blit_indexed_sprite_rle). Initial render.
  *   - Intro slide-in: iter 0xB..0 (12 frames) via
  *     fd2_play_status_screen_outro_step; SFX 5 at iter==0xB and iter==5.
  *   - Input loop (do/while result_flag == 0):
@@ -773,7 +773,7 @@ int fd2_run_recruitment_or_branch_screen(void)
         data_fd2_ui_anim_sprite_sheet_ptr +
             *(int *)(data_fd2_ui_anim_sprite_sheet_ptr + 0x5a),
         0x140);
-    fd2_blit_indexed_sprite_at_xy((uint32)panel_buf + 0x8c5, 0x140,
+    fd2_blit_indexed_sprite_rle((uint32)panel_buf + 0x8c5, 0x140,
         data_fd2_ui_anim_sprite_sheet_ptr, 0x89);
 
     fd2_render_recruitment_select_screen((uint32)panel_buf, (uint32)max_chars,

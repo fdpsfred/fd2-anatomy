@@ -139,7 +139,7 @@ uint32 fd2_run_chapter_intro_menu_main(uint32 pose_bitmap)
                 (uint32)data_fd2_string_resource_filename_fdother_dat,
                 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr, fdother_idx);
     data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = atlas;
-    fd2_blit_indexed_sprite_at_xy(0xa0000, 0x140, atlas, 0);
+    fd2_blit_indexed_sprite_rle(0xa0000, 0x140, atlas, 0);
     fd2_play_palette_fade_in();
     fd2_delay_ms(200);
     fd2_load_chapter_portrait(
@@ -204,7 +204,7 @@ uint32 fd2_run_chapter_intro_menu_main(uint32 pose_bitmap)
         }
     } while ((sel & 0xff) == 1);
 
-    fd2_blit_indexed_sprite_at_xy(0xa0000, 0x140,
+    fd2_blit_indexed_sprite_rle(0xa0000, 0x140,
         data_fd2_ui_menu_screen_sprite_atlas_buf_ptr, 0);
     fd2_delay_ms(200);
     fd2_play_palette_fade_to_black();
@@ -298,7 +298,7 @@ uint32 fd2_run_chapter_intro_menu_typeB(uint32 snapshot_buf)
                 (uint32)data_fd2_string_resource_filename_fdother_dat,
                 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr, 0x0d);
     data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = atlas;
-    fd2_blit_indexed_sprite_at_xy(0xa0000, 0x140, atlas, 0);
+    fd2_blit_indexed_sprite_rle(0xa0000, 0x140, atlas, 0);
     fd2_play_palette_fade_in();
     fd2_delay_ms(200);
     fd2_load_chapter_portrait(
@@ -349,7 +349,7 @@ uint32 fd2_run_chapter_intro_menu_typeB(uint32 snapshot_buf)
         }
     } while ((sel & 0xff) == 1);
 
-    fd2_blit_indexed_sprite_at_xy(0xa0000, 0x140,
+    fd2_blit_indexed_sprite_rle(0xa0000, 0x140,
         data_fd2_ui_menu_screen_sprite_atlas_buf_ptr, 0);
     fd2_delay_ms(200);
     fd2_play_palette_fade_to_black();
@@ -450,7 +450,7 @@ uint32 fd2_run_chapter_intro_menu_typeC(uint32 pose_bitmap)
                 (uint32)data_fd2_string_resource_filename_fdother_dat,
                 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr, 0x0e);
     data_fd2_ui_menu_screen_sprite_atlas_buf_ptr = atlas;
-    fd2_blit_indexed_sprite_at_xy(0xa0000, 0x140, atlas, 0);
+    fd2_blit_indexed_sprite_rle(0xa0000, 0x140, atlas, 0);
     fd2_play_palette_fade_in();
     fd2_delay_ms(200);
     fd2_load_chapter_portrait(
@@ -499,7 +499,7 @@ uint32 fd2_run_chapter_intro_menu_typeC(uint32 pose_bitmap)
         }
     } while ((sel & 0xff) == 1);
 
-    fd2_blit_indexed_sprite_at_xy(0xa0000, 0x140,
+    fd2_blit_indexed_sprite_rle(0xa0000, 0x140,
         data_fd2_ui_menu_screen_sprite_atlas_buf_ptr, 0);
     fd2_delay_ms(200);
     fd2_play_palette_fade_to_black();

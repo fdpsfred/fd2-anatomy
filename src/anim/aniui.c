@@ -519,7 +519,7 @@ void fd2_animate_scroll_down_in_shop_dialog(void)
  * states 5 and 2/other skip that restore. Every path ends with
  * fd2_clear_keyboard_buffer().
  *
- * The frame blits go through fd2_blit_indexed_sprite_at_xy(dst, 0x140,
+ * The frame blits go through fd2_blit_indexed_sprite_rle(dst, 0x140,
  * data_fd2_ui_menu_screen_sprite_atlas_buf_ptr @ 0x54147, frame_idx); the
  * destinations are fixed mode13h aperture addresses (real VGA RAM under
  * DOS/4GW). The palette flash drives the DAC via the real
@@ -542,7 +542,7 @@ void fd2_animate_shop_transaction_feedback(void)
 
     if (data_fd2_chapter_intro_menu_cursor_state == 1) {
         for (frame = 0; frame < 5; frame++) {
-            fd2_blit_indexed_sprite_at_xy(0xA38E9, 0x140,
+            fd2_blit_indexed_sprite_rle(0xA38E9, 0x140,
                 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr,
                 (uint32)(frame + 0x17));
             fd2_wait_n_bios_ticks(2);
@@ -550,7 +550,7 @@ void fd2_animate_shop_transaction_feedback(void)
         fd2_paint_portrait_to_dialog_area(0);
     } else if (data_fd2_chapter_intro_menu_cursor_state == 3) {
         fd2_wait_n_bios_ticks(1);
-        fd2_blit_indexed_sprite_at_xy(0xA3154, 0x140,
+        fd2_blit_indexed_sprite_rle(0xA3154, 0x140,
             data_fd2_ui_menu_screen_sprite_atlas_buf_ptr, 0x17);
         wait_ticks = 8;
         fd2_wait_n_bios_ticks(wait_ticks);
@@ -559,7 +559,7 @@ void fd2_animate_shop_transaction_feedback(void)
         fd2_paint_portrait_to_dialog_area(3);
         fd2_wait_n_bios_ticks(2);
         for (frame = 0; frame < 9; frame++) {
-            fd2_blit_indexed_sprite_at_xy(0xA2893, 0x140,
+            fd2_blit_indexed_sprite_rle(0xA2893, 0x140,
                 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr,
                 (uint32)(frame + 0x17));
             fd2_wait_n_bios_ticks(2);
@@ -578,7 +578,7 @@ void fd2_animate_shop_transaction_feedback(void)
         fd2_paint_portrait_to_dialog_area(0);
     } else if (data_fd2_chapter_intro_menu_cursor_state == 5) {
         for (frame = 0; frame < 7; frame++) {
-            fd2_blit_indexed_sprite_at_xy(0xA2383, 0x140,
+            fd2_blit_indexed_sprite_rle(0xA2383, 0x140,
                 data_fd2_ui_menu_screen_sprite_atlas_buf_ptr,
                 (uint32)(frame + 0x17));
             fd2_wait_n_bios_ticks(2);

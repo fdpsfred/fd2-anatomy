@@ -225,7 +225,7 @@ void fd2_blit_sheet_sprite_at_offset(uint32 dst, uint32 dst_pitch,
 }
 
 /* ----------------------------------------------------------------
- * fd2_blit_indexed_sprite_at_xy @ 0x16886 (11 callers)
+ * fd2_blit_indexed_sprite_rle @ 0x16886 (11 callers)
  *
  * Thin wrapper around fd2_rle_blit_sprite that picks sub-sprite
  * `sprite_idx` from a sprite-atlas sheet and RLE-blits it with
@@ -253,7 +253,7 @@ void fd2_blit_sheet_sprite_at_offset(uint32 dst, uint32 dst_pitch,
  *   sheet      -- sprite atlas base linear address
  *   sprite_idx -- index into the sheet's offset table
  * ---------------------------------------------------------------- */
-void fd2_blit_indexed_sprite_at_xy(uint32 dst, uint32 dst_pitch,
+void fd2_blit_indexed_sprite_rle(uint32 dst, uint32 dst_pitch,
                                    uint32 sheet, uint32 sprite_idx)
 {
     uint32 sprite_addr;

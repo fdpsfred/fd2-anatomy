@@ -3,6 +3,7 @@
   "total_items": 185,
   "completed": [
     {"n": 1, "address": "0001088d", "did": "param", "note": "param_1->chapter_id; src rsrc.c already correct"},
-    {"n": 10, "address": "000129ec", "did": "name", "note": "fd2_paint_chars_shadow_overlay -> fd2_redraw_terrain_tiles_under_chars; 5 files 10 occ"}
+    {"n": 10, "address": "000129ec", "did": "name", "note": "fd2_paint_chars_shadow_overlay -> fd2_redraw_terrain_tiles_under_chars; 5 files 10 occ"},
+    {"n": 29, "address": "00016886", "did": "both", "note": "at_xy->rle (8 files); ghidra params param_1/2/3/screen_x -> dst/dst_pitch/sheet/sprite_idx (src already correct)"}
   ]
 }

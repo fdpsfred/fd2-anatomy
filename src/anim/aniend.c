@@ -251,7 +251,7 @@ int fd2_play_ending_and_record_clear(void)
     fd2_play_ani_file_animation_sequence(1, 0xF, 1);
     fd2_play_sfx_sample_from_bank((uint32)sfx_bank, 3, 1);
     fd2_set_vga_palette_range_with_add(0, 0xFF, 0x40);
-    fd2_blit_indexed_sprite_at_xy(0xA0000, 0x140, (uint32)ptr_00, 0);
+    fd2_blit_indexed_sprite_rle(0xA0000, 0x140, (uint32)ptr_00, 0);
     for (uVar5 = 0; uVar5 < 0x29; uVar5++) {
         fd2_interpolate_palette_range_toward_color(0, 0xFF, (uint32)uVar5, 0x38, 0x3C, 0x3F);
         fd2_delay_ms(8);
