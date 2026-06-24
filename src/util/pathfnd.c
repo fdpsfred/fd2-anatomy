@@ -797,16 +797,22 @@ uint8 data_fd2_battle_pathfind_map_width;
 uint8 data_fd2_battle_pathfind_map_height;
 
 /*
- * caller-supplied secondary cost-table base / caller context @ 0x6006A.
- * Both orchestrators write the full 32-bit value at entry as the FIRST store
- * of the pathfind setup (MOV ESI,[EBP+8]; MOV dword ptr [0x6006A],ESI at
- * 0x4E047 and 0x4E1AD). In the original binary the recursion leaves inherit
- * that value through the live ESI register, so Ghidra records only the two
- * writes and no direct memory reads; the leaf helpers
- * fd2_flood_fill_neighbor_step / fd2_pathfind_neighbor_step_with_tiebreak read
- * it back here as the secondary cost-table base:
- * tile_cost = *(uint8 *)(ctx + cost_idx). Stored 32-bit (used as an address);
- * zero at load, set at runtime by both pathfind orchestrators.
+ * per-job movement-cost table pointer (secondary cost table) @ 0x6006A.
+ * Holds the orchestrators' FIRST argument: the 20-byte per-tile-type movement
+ * cost row for the acting unit's job class, i.e. the return value of
+ * fd2_get_movement_cost_table_for_job(class) =
+ * data_fd2_battle_movement_cost_table + class * 0x14. (Not a "caller context":
+ * it is purely a table base pointer.) Both orchestrators write the full 32-bit
+ * value at entry as the FIRST store of the pathfind setup (MOV ESI,[EBP+8];
+ * MOV dword ptr [0x6006A],ESI at 0x4E047 and 0x4E1AD). In the original binary
+ * the recursion leaves inherit that value through the live ESI register, so
+ * Ghidra records only the two writes and no direct memory reads; the leaf
+ * helpers fd2_flood_fill_neighbor_step / fd2_pathfind_neighbor_step_with_tiebreak
+ * read it back here as the secondary cost-table base, indexing it with the
+ * tile-type index fetched from the primary attribute table
+ * (data_fd2_battle_pathfind_tile_cost_table_ptr):
+ * tile_cost = *(uint8 *)(this_ptr + cost_idx). Stored 32-bit (used as an
+ * address); zero at load, set at runtime by both pathfind orchestrators.
  */
 uint32 data_fd2_battle_pathfind_caller_context;
 
