@@ -810,7 +810,7 @@ void fd2_animate_shop_transaction_feedback(void);
 
 /* ---- util / misc ---- */
 void fd2_debug_print_ans_and_length(int value);
-uint32 fd2_set_word_global_52758(uint32 new_val);
+uint32 fd2_ail_set_alloc_fnptr(uint32 new_fnptr);
 uint32 fd2_set_word_global_5275c(uint32 new_val);
 void fd2_noop_stub_4e915(void);
 void fd2_delay_400ms(void);
