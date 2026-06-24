@@ -8,7 +8,7 @@
 
 - **§4 全部完成**：octopus merge rp1..rp4 回 main（commit `ddd51113`，零衝突）；`merge_shards.py` 產出 `data/src_info.json` / `src_info_by_name.json` / `src_issues.json`（1016 shard）；最終 merged build gate **byte-identical to baseline**（`ab5f110a…`）。Stage 1 機制（§3）已是歷史。
 - **4 個 uncertain 已複審定奪**：3 改判 rename（`crt_equivalent_lx_module_loader`、`fd2_get_orphan_packed3_table_entry`、`data_fd2_animation_spell_sfx_id_table`）、1 keep（`fd2_chapter_event_handler_40__unref_dyn_turn_event`）。符號 rename 總數 72→**75**。
-- **正在執行 §5（Stage 2 rename），進度 source of truth ＝ `tools/src_refine/data/stage2_progress.json`（ledger）**。worklist ＝ `workspace/src_refine/stage2_worklist.json`（185 work items；不在則用 `stage2_worklist.py` 重生）。新 session：讀 ledger 看 `completed[]`、`stage2_item.py <n>` 看下一個未做 item 詳情、續做。
+- **正在執行 §5（Stage 2 rename）。進度真相＝`tools/src_refine/stage2_reconcile.py`（讀 live Ghidra，非 ledger）**。新 session 起手：(1) `run_script_inline` 全量 dump function 參數名→`workspace/src_refine/ghidra_func_params.tsv`、34 個 global 名→`ghidra_global_names.tsv`（script 見本檔末或 git log）；(2) `python tools/src_refine/stage2_reconcile.py`→`stage2_pending.json`＋統計；(3) `python tools/src_refine/stage2_src_check.py` 比對 src 簽章 vs proposed（標哪些 param item 要改 src）。**現況 done 115/185、pending 70**：param 需改 src 26、name rename 41（9 func＋32 global）、both 3。worklist ＝ `workspace/src_refine/stage2_worklist.json`（185 items，依 address 排序；不在則 `stage2_worklist.py` 重生但**勿重生**——會因 2 個 family-add 變 187 打亂 n）。`stage2_progress.json` ledger 僅輔助、可落後。`stage2_item.py <n>` 看單 item 詳情。
 - **關鍵：Stage 2 rename 無法整檔 byte-identical**（rename 擾動 LE fixup record 順序，已 root-cause、功能等價）。**驗收 gate 改用 `tools/src_refine/eqcheck.py`（非 hash_check.py）**，參考 `data/baseline_eq.json`。詳見 memory `project_src_refine_rename_eqcheck`。
 - baseline hash：`ab5f110af02608462a1da464732c098ef4dc8e17e6dc43252b535ed1cbf3bd9b`（`data/baseline_hash.txt`，仍是 Stage-1/§4 的 byte-identical 基準）。
 
@@ -16,7 +16,7 @@
 
 - **[DEFERRED] 遺失 plate 重建**：執行中曾發生一次 Ghidra MCP wedge（hang，非乾淨斷線），4 workflow 卡 `running` 不前進、不 fast-stop；kill+重啟 Ghidra 恢復。Ghidra 最後存檔在 wedge 前約 37 分鐘，期間 refiner 建立/更新的 plate（in-memory）隨 kill 遺失。src/shard 全在 git **安全**；遺失的只有 Ghidra plate，**可重建**。**收尾必做**：對每個 `ghidra_plate_action in (updated,created)` 的 shard，驗 Ghidra 現有 plate 非空/相符，缺的就依 src 註解重套。防線已加：refiner 改 plate 後立即 `save_program` 落地（src_refine.wf.js 步驟 D3），之後不會再大量遺失。
 - **23 個 logic issue**：在 `src_issues.json`（ISS-0001..0023）；收尾前深入處理，真不行才寫 `open_issues.md`。
-- **Stage 2 rename 進行中**：ledger `stage2_progress.json` 追蹤；每 ~50 個跑 `eqcheck.py`；prefix-collision 風險用裸 old_name grep 防（見 memory）；每改一個 commit。
+- **Stage 2 rename 進行中（done 115/185）**：(a) 78 個「src 已對、純 Ghidra 同步」param item 已**經使用者批准批次**用 `run_script_inline` two-pass 套完（map 由 `stage2_src_check.py` 出，driver `clean_param_sync.tsv`）；(b) 其餘 param item 採**完整位置同步**（Ghidra params := 最終 src params 全列，非只 refiner 標的子集，以達成 Ghidra==src；`rename_variables` 整 map 一次、shift/collision 看最終態並用 `get_function_by_address` 驗）；(c) 處理順序：**PHASE A** 逐一做剩餘 26 param + 3 both 的 src 編輯（def+body+protos+註解，per-item commit）→ **PHASE B** 重生 TSV 對全部 param function 批次 two-pass 同步 Ghidra（idempotent）→ **PHASE C** 41 name rename（9 func＋32 global：逐一 `get_xrefs_to`＋caller 檢視＋改 src def/decl/callers＋Ghidra rename，每批跑 `eqcheck.py`）。param rename 是 binary-inert（純識別字，build 仍 byte-identical），eqcheck 只在 name rename 後需要。**注意 n=169 worklist name_final 疑誤**（`pose_x_column_table`→`pose_y_row_table` 與 n=168 撞名；到時查 fd2-knowledge KB 定奪，疑為 keep）。prefix-collision 風險仍用裸 old_name grep 防（見 memory）。
 
 ## 1. 必讀文件（依序）
 
