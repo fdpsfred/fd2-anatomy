@@ -12,7 +12,7 @@
  *   id 0xD-0x10:  fd2_execute_variant_b_heal_cast (heal/buff variant)
  *   id 0x11-0x13: stat boost wrappers (AP/DP/speed)
  *   id 0x14-0x15: fd2_apply_status_effect_with_anim
- *   id 0x16,0x1A-0x1B: fd2_cast_status_spell_via_d1b
+ *   id 0x16,0x1A-0x1B: fd2_cast_status_inflict_spell_wrapper
  *   id 0x17:      complex teleport spell
  */
 
@@ -239,7 +239,7 @@ void fd2_cast_spell_15_dispatch(
 
 /* spell_id 0x16 (封咒術, seal): dispatch-table entry @ 0x22BE1
  * (table[0x16] @ 0x51D59). Forwards to the shared status-inflict worker
- * fd2_cast_status_spell_via_d1b with effect/sprite id 0x27. In the original
+ * fd2_cast_status_inflict_spell_wrapper with effect/sprite id 0x27. In the original
  * binary this body also hosts the {push caster + call worker + cleanup} shared
  * tail (@ 0x22BF7) that the 0x1A and 0x1B siblings jump into after pushing
  * their own spell/effect ids. Distinct from the 0x14/0x15 status-cure family,
@@ -247,26 +247,26 @@ void fd2_cast_spell_15_dispatch(
 void fd2_cast_spell_16_dispatch(
     int caster, int n_tgt, uint8 *tgt_arr)
 {
-    fd2_cast_status_spell_via_d1b(
+    fd2_cast_status_inflict_spell_wrapper(
         caster, 0x16, n_tgt, (int)tgt_arr, 0x27);
 }
 
 /* spell_id 0x1A (毒擊術, poison-strike): dispatch-table entry @ 0x22CBF
  * (table[0x1A] @ 0x51D69). Same family as the 0x16 entry above -- forwards to
- * the shared status-inflict worker fd2_cast_status_spell_via_d1b, here with
+ * the shared status-inflict worker fd2_cast_status_inflict_spell_wrapper, here with
  * effect/sprite id 0x25. In the original binary this entry tail-jumps into the
  * 0x16 body (@ 0x22BF7) to reuse its {push caster + call worker + cleanup}
  * tail. Sibling: the 0x1B entry below (spell 0x1B with effect 0x26). */
 void fd2_cast_spell_1a_dispatch(
     int caster, int n_tgt, int tgt_arr)
 {
-    fd2_cast_status_spell_via_d1b(
+    fd2_cast_status_inflict_spell_wrapper(
         caster, 0x1a, n_tgt, tgt_arr, 0x25);
 }
 
 /* spell_id 0x1B (麻痹術, paralysis): dispatch-table entry @ 0x22E41
  * (table[0x1B] @ 0x51D6D). Same family as the 0x16/0x1A entries above --
- * forwards to the shared status-inflict worker fd2_cast_status_spell_via_d1b,
+ * forwards to the shared status-inflict worker fd2_cast_status_inflict_spell_wrapper,
  * here with effect/sprite id 0x26. In the original binary this entry
  * tail-jumps into the 0x16 body (@ 0x22BF7) to reuse its {push caster + call
  * worker + cleanup} tail. Sibling of the 0x1A entry above (spell 0x1A with
@@ -274,7 +274,7 @@ void fd2_cast_spell_1a_dispatch(
 void fd2_cast_spell_1b_dispatch(
     int caster, int n_tgt, int tgt_arr)
 {
-    fd2_cast_status_spell_via_d1b(
+    fd2_cast_status_inflict_spell_wrapper(
         caster, 0x1b, n_tgt, tgt_arr, 0x26);
 }
 

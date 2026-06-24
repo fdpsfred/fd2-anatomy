@@ -140,7 +140,7 @@ void fd2_execute_offensive_single_target_spell_id_9(int, int, uint8 *);
 void fd2_cast_earthquake_spell_with_screen_shake(uint32, uint32, uint32, uint8 *);
 void fd2_execute_variant_b_heal_cast(int, int, int, int);
 void fd2_apply_status_effect_with_anim(int, int, int, int, int);
-void fd2_cast_status_spell_via_d1b(int, int, int, int, int);
+void fd2_cast_status_inflict_spell_wrapper(int, int, int, int, int);
 void fd2_cast_ap_boost_spell(int, int, uint8 *);
 void fd2_cast_dp_boost_spell(int, int, uint32);
 void fd2_cast_speed_boost_spell(uint32, uint32, uint32);

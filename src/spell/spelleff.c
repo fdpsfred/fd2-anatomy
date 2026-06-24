@@ -997,7 +997,7 @@ void fd2_execute_reactivate_spell_id_25(int caster_unit_id,
 
 
 /* ----------------------------------------------------------------
- * fd2_cast_status_spell_via_d1b @ 0x22CDA  (1 caller)
+ * fd2_cast_status_inflict_spell_wrapper @ 0x22CDA  (1 caller)
  *
  * Thin wrapper for status-effect (inflict) spells. Resets the AoE/fx
  * queue index, deducts the caster's MP for the spell, then delegates to
@@ -1014,7 +1014,7 @@ void fd2_execute_reactivate_spell_id_25(int caster_unit_id,
  * Sole caller: fd2_cast_spell_16_dispatch @ 0x22BE1 (spell id 0x16);
  * the sibling thunks for ids 0x1A/0x1B also reach it through that caller.
  * ---------------------------------------------------------------- */
-void fd2_cast_status_spell_via_d1b(int caster_idx,
+void fd2_cast_status_inflict_spell_wrapper(int caster_idx,
     int status_spell_id, int target_count,
     int p_target_array, int status_byte_offset)
 {
@@ -1075,7 +1075,7 @@ void fd2_cast_status_spell_via_d1b(int caster_idx,
  * compiler size optimization not reproduced in source).
  *
  * Callers: fd2_apply_use_effect_dispatch @ 0x20C6F (item effects 0x0E /
- * 麻痺術 and 0x16 / 封咒術), fd2_cast_status_spell_via_d1b @ 0x22CDA
+ * 麻痺術 and 0x16 / 封咒術), fd2_cast_status_inflict_spell_wrapper @ 0x22CDA
  * (wrapper delegate), and fd2_execute_summon_spell_cast @ 0x27FC9
  * (summon combo).
  * ---------------------------------------------------------------- */
