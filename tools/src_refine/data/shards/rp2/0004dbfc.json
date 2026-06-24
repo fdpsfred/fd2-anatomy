@@ -1,0 +1,40 @@
+{
+  "address": "0004dbfc",
+  "name_current": "fd2_obfuscate_battle_tile_map",
+  "name_final": "fd2_battle_reset_tile_transient_state",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_battle_reset_tile_transient_state",
+  "name_reason": "Current name 'obfuscate' is a verified misnomer. Disassembly (0x4dbfc) shows a deterministic per-tile field clamp/reset over the battle tile-map buffer (4-byte header, then width*height 4-byte records): MOV AL,0xFF once outside the loop then store to rec[3]; rec[2]&=0x1F; rec[1]&=0x03; rec[0] untouched. No XOR/keystream/LFSR (immediates are only 0x03/0x04/0xFF/0x1F). The function's own plate and the src comment both explicitly debunk the LFSR/scramble reading as a Ghidra CONCAT11 artifact. Callers confirm intent: fd2_load_chapter_battle_data calls it once after loading FDFIELD tile data to establish a clean transient baseline; AI/pathfind callers (fd2_ai_seek_optimal_position, fd2_ai_walk_to_target_tile, fd2_init_runtime_char_for_battle) call it right after pathfinding/threat-overlay painting to clear the transient occupancy bit (tile_map[idx*4+6] & 0x40, == rec[2] bit 0x40) and movement-range marks. Proposed name follows fd2_<domain>_<descriptor> (domain=battle), accurately describes the reset of per-tile transient/dynamic state, and carries no address residue. Caller plates that say 'decrypt/obfuscate' are stale and out of scope for this symbol.",
+  "kind": "function",
+  "home": "src/save/save.c",
+  "purpose": "In-place reset of each battle tile record's transient/dynamic fields (occupancy + flag bits, and the rec[3] attribute byte) across the whole tile map, preserving the base terrain byte rec[0].",
+  "logic_summary": "Reads tile_count = header[0] (map width) * header[2] (map height) via 8-bit MUL (result fits 16 bits). Advances past the 4-byte header to the first 4-byte tile record, then a do-while over tile_count records: rec[3] = 0xFF; rec[2] &= 0x1F (clears the 0x40 'occupied' bit and 0x80 attribute bit that callers test); rec[1] &= 0x03 (keep low 2 bits); rec[0] untouched; rec += 4. Ghidra renders this as a 16-bit CONCAT11 & 0x1FFF / & 0x3FF >> 8 rolling-state cascade, but that is algebraically identical to the three masks and is a decompiler artifact (each masked byte is freshly loaded, AND-ed, stored; AL=0xFF is loaded once before the loop). No carried state, no encryption.",
+  "signature": "void __cdecl fd2_obfuscate_battle_tile_map(uint32 tile_map)",
+  "params": [
+    {
+      "name": "tile_map",
+      "type": "uint32",
+      "semantics": "Base pointer (passed as uint32) of the battle tile-map buffer: 4-byte header (header[0]=map width, header[2]=map height) followed by width*height tile records of 4 bytes each. In practice callers always pass the live tile map data_fd2_battle_tile_map_ptr (@ DAT_00053A51).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name 'tile_map' accurately describes the buffer base argument and carries no address residue. (src declares it as uint32 base; the asm dereferences it as byte*.)"
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": "None substantive. The src comment block (save.c lines 131-161) is accurate and concise: it correctly states the 4-byte header + width*height 4-byte records layout, the three per-record masks (rec[1]&=0x03, rec[2]&=0x1F, rec[3]=0xFF, rec[0] preserved), and explicitly debunks the LFSR/CONCAT11 rolling-state reading as a decompiler artifact backed by the immediate set 0x03/0x04/0xFF/0x1F. The only cosmetic wrinkle is that the header line still echoes the misnomer name 'fd2_obfuscate_battle_tile_map', which will be corrected when the Stage 2 rename lands; the comment body needs no change.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Ground truth verified against disassembly (27 instrs, immediates 0x03/0x04/0xFF/0x1F, single MOV AL,0xFF before loop, LOOP over ECX). Function lives in src/save/save.c grouped with the save crypto routines (fd2_save_compute_checksum 0x4dbb9, fd2_save_crypt_buffer 0x4dbd8) purely by address adjacency, not by domain; home file left unchanged per scope. Stale 'decrypt save-state'/'restore obfuscation' descriptions exist in caller plates (fd2_load_chapter_battle_data, fd2_ai_seek_optimal_position) but those are other symbols and out of scope here. No src edit was made because comment_verdict=keep, so only the shard is committed."
+}
