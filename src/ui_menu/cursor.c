@@ -213,7 +213,14 @@ void fd2_pan_cursor_to_char(uint32 char_idx)
 /* ----------------------------------------------------------------
  * fd2_pan_cursor_and_window @ 0x135DD  (98 callers)
  *
- * Scroll viewport + cursor together until window origin matches target.
+ * Animated camera pan: scroll the viewport window AND the cursor together,
+ * one tile per frame, until window_origin reaches (target_ox, target_oy).
+ * Resets anim_phase to 0, then pans the X axis to target_ox first and the
+ * Y axis to target_oy second; each step composites a fresh frame and drains
+ * the keyboard buffer. The cursor's WORLD position is moved in lockstep with
+ * the window origin (same delta each step), so the cursor stays at the same
+ * SCREEN position while the world scrolls beneath it. Used for cutscene /
+ * chapter-intro camera focus that scrolls to a fixed viewport origin.
  * ---------------------------------------------------------------- */
 void fd2_pan_cursor_and_window(uint32 target_ox, uint32 target_oy)
 {

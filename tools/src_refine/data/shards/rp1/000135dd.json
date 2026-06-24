@@ -1,0 +1,59 @@
+{
+  "address": "000135dd",
+  "name_current": "fd2_pan_cursor_and_window",
+  "name_final": "fd2_pan_cursor_and_window",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (domain=cursor/camera). Descriptor accurately captures the behavior: pans the cursor AND the viewport window together. No Ghidra address residue in the name. Consistent with sibling pan functions in the same file (fd2_pan_cursor_to_tile_animated, fd2_pan_cursor_to_char).",
+  "kind": "function",
+  "home": "src/ui_menu/cursor.c",
+  "purpose": "Animated camera pan that scrolls the battle viewport window and the cursor together (one tile per frame) until the window origin reaches the caller-supplied target tile position.",
+  "logic_summary": "Resets data_fd2_battle_anim_phase to 0. Pans X first: while view_window_origin_x != target_ox, step both cursor_world_x and view_window_origin_x by -1 (target below current) or +1 (target above/equal), then call fd2_composite_battle_frame(0) and fd2_clear_keyboard_buffer() each iteration. Then pans Y identically with cursor_world_y / view_window_origin_y vs target_oy. Because cursor world coord and window origin move by the same delta each step, the cursor stays at the same on-screen position while the world scrolls beneath it. Comparisons are signed (int). __CHK(0x14) is the Watcom stack-probe prologue (not game logic).",
+  "signature": "void __cdecl fd2_pan_cursor_and_window(uint32 target_ox, uint32 target_oy)",
+  "params": [
+    {
+      "name": "target_ox",
+      "type": "uint32",
+      "semantics": "Target X tile column for the viewport window origin (left edge). Callers pass small literal tile columns (e.g. 0, 3, 4, 5). Loop pans view_window_origin_x to this value.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate and unambiguous abbreviation (o = origin); not generic (not param_N), no address residue. Documented in the comment as the target window origin X."
+    },
+    {
+      "name": "target_oy",
+      "type": "uint32",
+      "semantics": "Target Y tile row for the viewport window origin (top edge). Callers pass tile rows (e.g. 0, 0xC, 0xF, 0x22, 0x2A, 0x2B for tall prologue maps). Loop pans view_window_origin_y to this value.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate and unambiguous abbreviation (o = origin); not generic, no address residue. Documented in the comment as the target window origin Y."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; effect is the animated scroll plus updated window-origin and cursor-world globals."
+  },
+  "reads_globals": [
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y",
+    "data_fd2_battle_cursor_world_x",
+    "data_fd2_battle_cursor_world_y"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_anim_phase",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y",
+    "data_fd2_battle_cursor_world_x",
+    "data_fd2_battle_cursor_world_y"
+  ],
+  "comment_original_issue": "Original src comment was accurate but terse (one line). It omitted the function's distinguishing behavior versus the sibling pan functions: the anim_phase reset, the X-then-Y pan order, and the lockstep cursor/window movement that keeps the cursor at a fixed screen position.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "d266720ee997e9b1c054c3de50a82500b88c716b",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified via Ghidra script: call_sites=98 (matches '98 callers' in src comment), distinct_caller_functions=56. Caller context (fd2_chapter_01_init) confirms params are literal target window-origin tile coords, e.g. fd2_pan_cursor_and_window(3,0x22), (0,0x2b), (5,0x2a), (4,0xc), (0,0). Global names in src match Ghidra decompilation byte-identically. Ghidra plate is detailed and consistent with refined understanding -> plate unchanged. Compile noise in the run_script_inline output is from pre-existing cached scripts in the user's ghidra_scripts dir, not from this script; this script ran successfully (result printed at end)."
+}
