@@ -141,7 +141,11 @@ uint8 *fd2_get_job_allowed_items_table_entry(int job_id)
 /* ----------------------------------------------------------------
  * fd2_get_movement_cost_table_for_job @ 0x4E555  (8 callers)
  *
- * Returns pointer to 20-byte per-tile-type movement cost array for job_id.
+ * Returns pointer to the 20-byte (0x14) per-tile-type movement cost row
+ * for job_id (one cost byte per tile attribute class). job_id is normally a
+ * job index 0..0x1A (27 jobs), but callers may substitute a movement-class
+ * value: 0x13 (flying) or 0x10 (special unit). The returned pointer is then
+ * handed to the flood-fill / pathfind routines as their cost-table argument.
  * Assembly: EAX = job_id * 0x14 + 0x61646
  * ---------------------------------------------------------------- */
 uint8 *fd2_get_movement_cost_table_for_job(int job_id)
