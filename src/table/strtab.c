@@ -82,13 +82,16 @@ const char data_fd2_string_resource_filename_fdother_dat[12] = {
 
 /* 0x51A59  "FDFIELD.DAT" + NUL (12 bytes).
  * Resource filename passed as the first argument to fd2_load_dat_resource to
- * open the per-chapter field/battle archive FDFIELD.DAT. Readers:
- * fd2_load_save_and_init_engine and fd2_load_chapter_battle_data load three
- * indices per chapter (chapter*3+2 -> portrait load buffer, chapter*3+1 ->
- * tile-event data table, chapter*3 -> battle tile map), plus
- * fd2_load_chapter_portraits_and_dump_tmp and fd2_chapter_23_end. The address
- * is taken (array decays) and consumed as a char* path; never written.
- * Immediately follows the "FDOTHER.DAT" string at 0x51A4D. */
+ * open the per-chapter field/battle archive FDFIELD.DAT, indexed by chapter:
+ * chapter*3 -> battle tile map, chapter*3+1 -> tile-event data table,
+ * chapter*3+2 -> portrait load buffer. Readers: fd2_load_chapter_battle_data
+ * loads all three indices; fd2_load_save_and_init_engine loads chapter*3 and
+ * chapter*3+2 (it restores the tile-event table from FD2.SAV instead);
+ * fd2_load_chapter_portraits_and_dump_tmp re-loads chapter*3+2; and
+ * fd2_chapter_23_end loads the fixed index 0x45 for the chapter's second
+ * battlefield. The address is taken (array decays) and consumed as a char*
+ * path; never written. Immediately follows the "FDOTHER.DAT" string at
+ * 0x51A4D. */
 const char data_fd2_string_resource_filename_fdfield_dat_51a59[12] = {
     0x46, 0x44, 0x46, 0x49, 0x45, 0x4c, 0x44, 0x2e, 0x44, 0x41,
     0x54, 0x00
