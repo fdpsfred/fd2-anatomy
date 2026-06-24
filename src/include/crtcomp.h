@@ -41,6 +41,6 @@ void crt_equivalent_lx_module_loader(void);
 void crt_equivalent_atexit_default_stub(void);
 void crt_equivalent_fpe_default_handler(void);
 int  crt_equivalent_matherr_default_thunk(void *exc);
-int  crt_equivalent_matherr_default_return_zero_4d8ea(void *exc);
+int  crt_equivalent_matherr_default_return_zero(void *exc);
 
 #endif /* CRT_COMPAT_H */

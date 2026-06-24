@@ -854,7 +854,7 @@ void crt_equivalent_fpe_default_handler(int fpe_code);
  * handled") so _matherr runs its default path. Address-taken (the slot's
  * default contents, written by _set_matherr), so it is a real callable
  * function. Real out-of-line body tail-JMPs to the separate emit target
- * crt_equivalent_matherr_default_return_zero_4d8ea @ 0x4d8ea via an in-line
+ * crt_equivalent_matherr_default_return_zero @ 0x4d8ea via an in-line
  * #pragma aux helper in src/crt/crt.c. __cdecl int(void *exc); ignores exc
  * and returns 0. */
 int crt_equivalent_matherr_default_thunk(void *exc);

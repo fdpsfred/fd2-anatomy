@@ -14,7 +14,7 @@
  *   crt_equivalent_get_eflags           @ 0x3ed58 (0 callers; thunk JMP target)
  *   crt_equivalent_fpe_default_handler @ 0x3d26e (2 callers)
  *   crt_equivalent_matherr_default_thunk @ 0x4d340 (1 caller)
- *   crt_equivalent_matherr_default_return_zero_4d8ea @ 0x4d8ea (0 callers)
+ *   crt_equivalent_matherr_default_return_zero @ 0x4d8ea (0 callers)
  */
 
 #include "types.h"
@@ -522,7 +522,7 @@ void crt_equivalent_fpe_default_handler(int fpe_code)
  * RETs directly back to _matherr. A C return-call would push a 4-byte
  * return address and route the RET back here instead of to _matherr; the
  * tail-JMP semantics (and byte-level fidelity) are preserved only by an
- * actual JMP. crt_equivalent_matherr_default_return_zero_4d8ea is a SEPARATE
+ * actual JMP. crt_equivalent_matherr_default_return_zero is a SEPARATE
  * emit target (its own routing.json entry, same target file); it must NOT be
  * re-emitted here.
  *
@@ -550,11 +550,11 @@ void crt_equivalent_fpe_default_handler(int fpe_code)
  * return value is 0, produced by the JMP target in EAX. No CALL precedes any
  * EAX use here, so there is no EAX-tracking concern.
  * ---------------------------------------------------------------- */
-extern int crt_equivalent_matherr_default_return_zero_4d8ea(void *exc);
+extern int crt_equivalent_matherr_default_return_zero(void *exc);
 
 extern void crt_matherr_jmp_to_return_zero(void);
 #pragma aux crt_matherr_jmp_to_return_zero = \
-    "jmp crt_equivalent_matherr_default_return_zero_4d8ea";
+    "jmp crt_equivalent_matherr_default_return_zero";
 
 /* The helper's `jmp` is the entire executed body and matches the original
  * 5-byte `JMP 0x4d8ea`. The trailing `return 0;` is required only to silence
@@ -573,7 +573,7 @@ int crt_equivalent_matherr_default_thunk(void *exc)
 }
 
 /* ----------------------------------------------------------------
- * crt_equivalent_matherr_default_return_zero_4d8ea @ 0x4d8ea  (0 callers)
+ * crt_equivalent_matherr_default_return_zero @ 0x4d8ea  (0 callers)
  *
  * The "return 0" primitive the default _matherr handler forwards to. It is
  * the JMP target of crt_equivalent_matherr_default_thunk @ 0x4d340
@@ -594,7 +594,7 @@ int crt_equivalent_matherr_default_thunk(void *exc)
  * via its ADD ESP,4 -- cleans the arg), confirming __cdecl. The only EAX write
  * is `XOR EAX,EAX`; no CALL precedes it, so there is no EAX-tracking concern.
  * ---------------------------------------------------------------- */
-int crt_equivalent_matherr_default_return_zero_4d8ea(void *exc)
+int crt_equivalent_matherr_default_return_zero(void *exc)
 {
     (void)exc;
     return 0;
