@@ -344,7 +344,7 @@ void fd2_load_save_and_init_engine(void)
     fd2_save_crypt_buffer((uint32)pBuf, 0x59CB);
     if (fd2_save_compute_checksum((uint32)pBuf, 0x59CB)
             != *(uint32 *)(pBuf + 0x59C7)) {
-        fd2_load_chapter_portrait(0x4B);
+        fd2_dialog_open_speaker_portrait(0x4B);
         fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1B4,
                                  0xA9F23, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
         fd2_paint_portrait_to_dialog_area(0);
@@ -617,7 +617,7 @@ uint8 data_fd2_ui_game_speed_flag;
  *   data_fd2_resource_portrait_cache_alloc_offset = (uint32)tile_event_data_table[2];
  * so the value is an unsigned record count. It is consumed at 32-bit width in two
  * dual roles:
- *   - As a loop bound: fd2_load_chapter_portraits_and_dump_tmp @ 0x10BCC scans the
+ *   - As a loop bound: fd2_dialog_open_speaker_portraits_and_dump_tmp @ 0x10BCC scans the
  *     tile-event records (stride 0x1A, race byte at +0x98) for indices 0..count and
  *     spawns each matching-race entry via fd2_init_runtime_char_for_battle.
  *   - As a position-table index base: fd2_load_chapter_battle_data @ 0x10A5B does

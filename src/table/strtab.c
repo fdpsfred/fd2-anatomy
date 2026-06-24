@@ -87,7 +87,7 @@ const char data_fd2_string_resource_filename_fdother_dat[12] = {
  * chapter*3+2 -> portrait load buffer. Readers: fd2_load_chapter_battle_data
  * loads all three indices; fd2_load_save_and_init_engine loads chapter*3 and
  * chapter*3+2 (it restores the tile-event table from FD2.SAV instead);
- * fd2_load_chapter_portraits_and_dump_tmp re-loads chapter*3+2; and
+ * fd2_dialog_open_speaker_portraits_and_dump_tmp re-loads chapter*3+2; and
  * fd2_chapter_23_end loads the fixed index 0x45 for the chapter's second
  * battlefield. The address is taken (array decays) and consumed as a char*
  * path; never written. Immediately follows the "FDOTHER.DAT" string at
@@ -121,7 +121,7 @@ const char data_fd2_string_resource_filename_fdshap_dat_51a65[11] = {
  * LOAD ENEMY/ALLY SPRITE opcodes), fd2_play_final_chapter_30_ending, plus the
  * equip / status-screen member menus (fd2_run_equip_member_menu,
  * fd2_run_status_screen_member_menu, fd2_render_status_screen_static_layout) and
- * fd2_load_chapter_portrait. The address is taken (array decays) and consumed as
+ * fd2_dialog_open_speaker_portrait. The address is taken (array decays) and consumed as
  * a char* path; never written. Immediately follows the "FDSHAP.DAT" string at
  * 0x51A65 and precedes the "FDMUS.DAT" string at 0x51A79. */
 const char data_fd2_string_resource_filename_dato_dat_51a70[9] = {

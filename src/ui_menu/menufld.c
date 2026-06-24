@@ -59,7 +59,7 @@ void fd2_handle_tile_event_interaction(uint32 char_idx)
         return;
 
     fd2_clear_keyboard_buffer();
-    fd2_load_chapter_portrait(
+    fd2_dialog_open_speaker_portrait(
         (uint32)data_fd2_battle_runtime_char_array_ptr[char_idx].portrait_id);
 
     if ((tile_attr & 0x20) == 0)
@@ -107,7 +107,7 @@ void fd2_handle_tile_event_interaction(uint32 char_idx)
             fd2_wait_for_input_dialog_with_blink(0);
             fd2_close_status_screen_with_slide_out();
             fd2_delay_ms(100);
-            fd2_load_chapter_portrait((uint32)
+            fd2_dialog_open_speaker_portrait((uint32)
                 data_fd2_battle_runtime_char_array_ptr[char_idx].portrait_id);
             fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1a7,
                 0xa9f23, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
@@ -127,7 +127,7 @@ void fd2_handle_tile_event_interaction(uint32 char_idx)
                         + data_fd2_tile_event_data_table_ptr + 0x54) =
                         (int16)swapped_out_id;
                     fd2_delay_ms(100);
-                    fd2_load_chapter_portrait((uint32)
+                    fd2_dialog_open_speaker_portrait((uint32)
                         data_fd2_battle_runtime_char_array_ptr[char_idx]
                             .portrait_id);
                     data_fd2_dialog_drop_swap_text_id_param =
@@ -140,7 +140,7 @@ void fd2_handle_tile_event_interaction(uint32 char_idx)
                     return;
                 }
                 fd2_delay_ms(100);
-                fd2_load_chapter_portrait((uint32)
+                fd2_dialog_open_speaker_portrait((uint32)
                     data_fd2_battle_runtime_char_array_ptr[char_idx]
                         .portrait_id);
                 fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1a8,
@@ -295,7 +295,7 @@ int fd2_field_menu_status_save_load_quit_dispatch(void)
 
     if (data_fd2_ui_menu_cursor_idx == 1) {
         /* SAVE */
-        fd2_load_chapter_portrait(0x4B);
+        fd2_dialog_open_speaker_portrait(0x4B);
         fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x19A,
             0xA9F23, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
         fd2_paint_portrait_to_dialog_area(0);
@@ -355,7 +355,7 @@ int fd2_field_menu_status_save_load_quit_dispatch(void)
         }
     } else if (data_fd2_ui_menu_cursor_idx == 2) {
         /* LOAD */
-        fd2_load_chapter_portrait(0x4B);
+        fd2_dialog_open_speaker_portrait(0x4B);
         fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x19D,
             0xA9F23, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
         fd2_paint_portrait_to_dialog_area(0);
@@ -375,7 +375,7 @@ int fd2_field_menu_status_save_load_quit_dispatch(void)
         result_text_id = 0x19C;            /* cancelled */
     } else {
         /* QUIT */
-        fd2_load_chapter_portrait(0x4B);
+        fd2_dialog_open_speaker_portrait(0x4B);
         fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x19F,
             0xA9F23, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
         fd2_paint_portrait_to_dialog_area(0);

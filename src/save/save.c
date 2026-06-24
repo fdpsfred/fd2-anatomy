@@ -255,7 +255,7 @@ void fd2_save_current_state_to_slot(uint32 prompt_flag)
             if (data_fd2_chapter_per_chapter_category_table
                     [data_fd2_chapter_current_chapter_id] == 0) {
                 fd2_close_intro_dialog_with_slide_out();
-                fd2_load_chapter_portrait(
+                fd2_dialog_open_speaker_portrait(
                     (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[0]);
                 fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x294,
                     0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
@@ -362,11 +362,11 @@ void fd2_load_state_from_selected_slot(void)
                         (uint32)fd2_get_chapter_intro_metadata_entry(
                             data_fd2_chapter_current_chapter_id);
                     slot_result = 0xffffffff;
-                    fd2_load_chapter_portrait(
+                    fd2_dialog_open_speaker_portrait(
                         (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[0]);
                     text_id = 0x1de;
                 } else {
-                    fd2_load_chapter_portrait(
+                    fd2_dialog_open_speaker_portrait(
                         (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[0]);
                     text_id = 0x1df;
                 }

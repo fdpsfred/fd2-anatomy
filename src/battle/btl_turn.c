@@ -55,7 +55,7 @@ void fd2_tick_status_effects_and_show_messages(uint32 team)
             data_fd2_battle_anim_phase = 0;
             fd2_pan_cursor_to_char((uint32)i);
             data_fd2_battle_anim_phase = 1;
-            fd2_load_chapter_portrait((uint32)pChar[7]);
+            fd2_dialog_open_speaker_portrait((uint32)pChar[7]);
             fd2_display_dialog_scene(
                 data_fd2_all_game_text_ptr, 0x1E7,
                 0xA9F23, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
@@ -82,7 +82,7 @@ void fd2_tick_status_effects_and_show_messages(uint32 team)
                         data_fd2_battle_anim_phase = 0;
                         fd2_pan_cursor_to_char((uint32)i);
                         data_fd2_battle_anim_phase = 1;
-                        fd2_load_chapter_portrait(
+                        fd2_dialog_open_speaker_portrait(
                             (uint32)pChar[7]);
                         fd2_display_dialog_scene(
                             data_fd2_all_game_text_ptr,
@@ -717,7 +717,7 @@ void fd2_process_battle_drop_entries(uint32 recipient_idx,
             }
             data_fd2_dialog_last_action_sprite_id_param =
                 entry_value + 0xB5;
-            fd2_load_chapter_portrait(
+            fd2_dialog_open_speaker_portrait(
                 (uint32)pCharArray[recipient_idx].portrait_id);
             fd2_display_dialog_scene(
                 data_fd2_all_game_text_ptr, 0x1B0, 0xA9F23,
@@ -729,7 +729,7 @@ void fd2_process_battle_drop_entries(uint32 recipient_idx,
                 fd2_wait_for_input_dialog_with_blink(0);
                 fd2_close_status_screen_with_slide_out();
                 fd2_delay_ms(100);
-                fd2_load_chapter_portrait(
+                fd2_dialog_open_speaker_portrait(
                     (uint32)pCharArray[recipient_idx].portrait_id);
                 fd2_display_dialog_scene(
                     data_fd2_all_game_text_ptr, 0x1B1, 0xA9F23,
@@ -753,7 +753,7 @@ void fd2_process_battle_drop_entries(uint32 recipient_idx,
                         continue;
                     }
                     fd2_delay_ms(100);
-                    fd2_load_chapter_portrait(
+                    fd2_dialog_open_speaker_portrait(
                         (uint32)pCharArray[recipient_idx].portrait_id);
                     swap_dialog_text = 0xA9F23;
                 } else {
@@ -773,7 +773,7 @@ void fd2_process_battle_drop_entries(uint32 recipient_idx,
             if (pCharArray[recipient_idx].team != 2) {
                 return;
             }
-            fd2_load_chapter_portrait(
+            fd2_dialog_open_speaker_portrait(
                 (uint32)pCharArray[recipient_idx].portrait_id);
             data_fd2_dialog_last_action_value_param = entry_value;
             fd2_display_dialog_scene(
@@ -936,7 +936,7 @@ void fd2_process_xp_and_level_up_for_char(uint32 ci)
                        + (uint32)pCharArray[ci].movement_order);
     data_fd2_dialog_last_action_value_param = data_fd2_battle_pending_xp_credit;
     fd2_clear_keyboard_buffer();
-    fd2_load_chapter_portrait((uint32)pCharArray[ci].portrait_id);
+    fd2_dialog_open_speaker_portrait((uint32)pCharArray[ci].portrait_id);
     fd2_display_dialog_scene(
         data_fd2_all_game_text_ptr, 0x1E8, 0xA951F,
         0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);

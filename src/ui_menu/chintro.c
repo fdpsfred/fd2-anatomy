@@ -142,7 +142,7 @@ uint32 fd2_run_chapter_intro_menu_main(uint32 pose_bitmap)
     fd2_blit_indexed_sprite_rle(0xa0000, 0x140, atlas, 0);
     fd2_play_palette_fade_in();
     fd2_delay_ms(200);
-    fd2_load_chapter_portrait(
+    fd2_dialog_open_speaker_portrait(
         data_fd2_chapter_intro_menu_speaker_portrait_id_table[
             data_fd2_chapter_intro_menu_cursor_state]);
 
@@ -190,7 +190,7 @@ uint32 fd2_run_chapter_intro_menu_main(uint32 pose_bitmap)
             } else {
                 fd2_run_give_item_menu();
             }
-            fd2_load_chapter_portrait(
+            fd2_dialog_open_speaker_portrait(
                 data_fd2_chapter_intro_menu_speaker_portrait_id_table[
                     data_fd2_chapter_intro_menu_cursor_state]);
             if (data_fd2_chapter_intro_menu_cursor_state == 1) {
@@ -301,7 +301,7 @@ uint32 fd2_run_chapter_intro_menu_typeB(uint32 snapshot_buf)
     fd2_blit_indexed_sprite_rle(0xa0000, 0x140, atlas, 0);
     fd2_play_palette_fade_in();
     fd2_delay_ms(200);
-    fd2_load_chapter_portrait(
+    fd2_dialog_open_speaker_portrait(
         data_fd2_chapter_intro_menu_speaker_portrait_id_table[0]);
     fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x249, 0xa94cc, 0x140,
         0xcd, 0x4c, 0x4a, 0x13, 1);
@@ -325,7 +325,7 @@ uint32 fd2_run_chapter_intro_menu_typeB(uint32 snapshot_buf)
             } else if (data_fd2_ui_menu_cursor_idx == 2) {
                 fd2_load_state_from_selected_slot();
             } else {
-                fd2_load_chapter_portrait(
+                fd2_dialog_open_speaker_portrait(
                     data_fd2_chapter_intro_menu_speaker_portrait_id_table[0]);
                 fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x19f,
                     0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
@@ -341,7 +341,7 @@ uint32 fd2_run_chapter_intro_menu_typeB(uint32 snapshot_buf)
                 }
                 fd2_close_intro_dialog_with_slide_out();
             }
-            fd2_load_chapter_portrait(
+            fd2_dialog_open_speaker_portrait(
                 data_fd2_chapter_intro_menu_speaker_portrait_id_table[0]);
             fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x24a, 0xa94cc,
                 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
@@ -453,7 +453,7 @@ uint32 fd2_run_chapter_intro_menu_typeC(uint32 pose_bitmap)
     fd2_blit_indexed_sprite_rle(0xa0000, 0x140, atlas, 0);
     fd2_play_palette_fade_in();
     fd2_delay_ms(200);
-    fd2_load_chapter_portrait(
+    fd2_dialog_open_speaker_portrait(
         data_fd2_chapter_intro_menu_speaker_portrait_id_table[4]);
 
     money_panel_sprite = (uint8 *)(*(int32 *)(atlas + 10) + atlas);
@@ -491,7 +491,7 @@ uint32 fd2_run_chapter_intro_menu_typeC(uint32 pose_bitmap)
             } else if (data_fd2_ui_menu_cursor_idx == 3) {
                 fd2_run_class_promotion_menu_main();
             }
-            fd2_load_chapter_portrait(
+            fd2_dialog_open_speaker_portrait(
                 data_fd2_chapter_intro_menu_speaker_portrait_id_table[4]);
             fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x24a, 0xa94cc,
                 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);

@@ -206,7 +206,7 @@ char fd2_require_char_id_in_active_party(uint32 max_chars, uint32 req_char_id)
         }
     }
     if (found == 0) {
-        fd2_load_chapter_portrait(0x4B);
+        fd2_dialog_open_speaker_portrait(0x4B);
         data_fd2_dialog_last_action_sprite_id_param = (req_char_id & 0xFF) + 1;
         fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x291, 0xA951F,
                                  0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);

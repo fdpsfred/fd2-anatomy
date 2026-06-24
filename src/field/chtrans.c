@@ -417,7 +417,7 @@ int fd2_chapter_transition_menu(void)
         /* ---- BATTLE CHAPTER: save prompt + recruitment screen ---- */
         memset((void *)0xa0000, 0, 64000);
         fd2_set_vga_palette_range(0, 0xff, 0);
-        fd2_load_chapter_portrait(0x4b);
+        fd2_dialog_open_speaker_portrait(0x4b);
         fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x19a, 0xa9524,
                                  0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
         fd2_paint_portrait_to_dialog_area(0);
@@ -496,7 +496,7 @@ int fd2_chapter_transition_with_intro(void)
     fd2_set_bgm_track_with_fade(0xffffffff, 0);
 
     if (data_fd2_chapter_intro_menu_cursor_state == 2) {
-        fd2_load_chapter_portrait(0x4b);
+        fd2_dialog_open_speaker_portrait(0x4b);
         fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x201, 0xa951f,
                                  0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
         data_fd2_battle_tile_map_ptr = 1;

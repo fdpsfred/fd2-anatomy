@@ -324,7 +324,7 @@ void fd2_run_buy_item_menu(uint32 shop_item_count, uint8 *shop_item_id_array)
         }
 
         if (*item_entry < 0x20 && candidate_count == 0) {
-            fd2_load_chapter_portrait(
+            fd2_dialog_open_speaker_portrait(
                 data_fd2_chapter_intro_menu_speaker_portrait_id_table[
                     data_fd2_chapter_intro_menu_cursor_state]);
             fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
@@ -340,7 +340,7 @@ void fd2_run_buy_item_menu(uint32 shop_item_count, uint8 *shop_item_id_array)
         data_fd2_ui_menu_visible_item_count = candidate_count;
         data_fd2_ui_menu_candidate_array_ptr = eligible_chars;
 
-        fd2_load_chapter_portrait(
+        fd2_dialog_open_speaker_portrait(
             data_fd2_chapter_intro_menu_speaker_portrait_id_table[
                 data_fd2_chapter_intro_menu_cursor_state]);
         fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
@@ -386,7 +386,7 @@ void fd2_run_buy_item_menu(uint32 shop_item_count, uint8 *shop_item_id_array)
             data_fd2_dialog_last_action_sprite_id_param =
                 data_fd2_battle_runtime_char_array_ptr[recipient].portrait_id
                 + 1;
-            fd2_load_chapter_portrait(
+            fd2_dialog_open_speaker_portrait(
                 data_fd2_chapter_intro_menu_speaker_portrait_id_table[
                     data_fd2_chapter_intro_menu_cursor_state]);
             fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
@@ -401,7 +401,7 @@ void fd2_run_buy_item_menu(uint32 shop_item_count, uint8 *shop_item_id_array)
 
         fd2_add_item_to_inventory(recipient, item_id);
         if (*item_entry < 0x20) {
-            fd2_load_chapter_portrait(
+            fd2_dialog_open_speaker_portrait(
                 data_fd2_chapter_intro_menu_speaker_portrait_id_table[
                     data_fd2_chapter_intro_menu_cursor_state]);
             fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
@@ -524,7 +524,7 @@ void fd2_run_sell_item_menu(void)
         if (inv_count == 0) {
             data_fd2_dialog_last_action_sprite_id_param =
                 data_fd2_battle_runtime_char_array_ptr[seller].portrait_id + 1;
-            fd2_load_chapter_portrait(
+            fd2_dialog_open_speaker_portrait(
                 data_fd2_chapter_intro_menu_speaker_portrait_id_table[
                     data_fd2_chapter_intro_menu_cursor_state]);
             fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
@@ -556,7 +556,7 @@ void fd2_run_sell_item_menu(void)
         data_fd2_dialog_last_action_value_param =
             (uint32)((int)((uint32)*(uint16 *)(item_entry + 0x13) * 3) >> 2);
 
-        fd2_load_chapter_portrait(
+        fd2_dialog_open_speaker_portrait(
             data_fd2_chapter_intro_menu_speaker_portrait_id_table[
                 data_fd2_chapter_intro_menu_cursor_state]);
         fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
@@ -711,7 +711,7 @@ void fd2_run_give_item_menu(void)
     uint8  give_item_id;
 
     for (;;) {
-        fd2_load_chapter_portrait(
+        fd2_dialog_open_speaker_portrait(
             data_fd2_chapter_intro_menu_speaker_portrait_id_table[
                 data_fd2_chapter_intro_menu_cursor_state]);
         fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x200,
@@ -744,7 +744,7 @@ void fd2_run_give_item_menu(void)
             data_fd2_dialog_last_action_sprite_id_param =
                 data_fd2_battle_runtime_char_array_ptr[
                     data_fd2_ui_menu_cursor_idx].char_id + 1;
-            fd2_load_chapter_portrait(
+            fd2_dialog_open_speaker_portrait(
                 data_fd2_chapter_intro_menu_speaker_portrait_id_table[
                     data_fd2_chapter_intro_menu_cursor_state]);
             fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1ff,
@@ -767,7 +767,7 @@ void fd2_run_give_item_menu(void)
         }
 
         fd2_close_intro_dialog_with_slide_out();
-        fd2_load_chapter_portrait(
+        fd2_dialog_open_speaker_portrait(
             data_fd2_chapter_intro_menu_speaker_portrait_id_table[
                 data_fd2_chapter_intro_menu_cursor_state]);
         fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1fe,
@@ -785,7 +785,7 @@ void fd2_run_give_item_menu(void)
             data_fd2_dialog_last_action_sprite_id_param =
                 data_fd2_battle_runtime_char_array_ptr[
                     data_fd2_ui_menu_cursor_idx].char_id + 1;
-            fd2_load_chapter_portrait(
+            fd2_dialog_open_speaker_portrait(
                 data_fd2_chapter_intro_menu_speaker_portrait_id_table[
                     data_fd2_chapter_intro_menu_cursor_state]);
             fd2_display_dialog_scene(data_fd2_all_game_text_ptr,

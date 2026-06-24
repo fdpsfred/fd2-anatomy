@@ -4,7 +4,7 @@
 
 /* Greeting-speaker DATO.DAT portrait-sprite id for each chapter-intro menu
  * variant. Indexed by chapter_intro_menu_cursor_state (0..5, @ 0x5412B); the
- * selected byte is passed to fd2_load_chapter_portrait, which loads that sprite
+ * selected byte is passed to fd2_dialog_open_speaker_portrait, which loads that sprite
  * from DATO.DAT and positions it. Values 0x80..0x84 are the five special
  * story-NPC speaker portraits (each with a fixed blit offset); other values
  * (here state 2 = 0x00) are ordinary character portrait ids. Read by the

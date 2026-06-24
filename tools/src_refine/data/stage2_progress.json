@@ -5,6 +5,9 @@
     {"n": 1, "address": "0001088d", "did": "param", "note": "param_1->chapter_id; src rsrc.c already correct"},
     {"n": 10, "address": "000129ec", "did": "name", "note": "fd2_paint_chars_shadow_overlay -> fd2_redraw_terrain_tiles_under_chars; 5 files 10 occ"},
     {"n": 29, "address": "00016886", "did": "both", "note": "at_xy->rle (8 files); ghidra params param_1/2/3/screen_x -> dst/dst_pitch/sheet/sprite_idx (src already correct)"},
-    {"n": 30, "address": "00016b43", "did": "both", "note": "slide_in_at->slide_out_to_cursor (2 files); ghidra params param_1/param_2 -> anim_handle/slot_offset (src already correct)"}
+    {"n": 30, "address": "00016b43", "did": "both", "note": "slide_in_at->slide_out_to_cursor (2 files); ghidra params param_1/param_2 -> anim_handle/slot_offset (src already correct)"},
+    {"n": 31, "address": "00016e24", "did": "name", "note": "cinematic_scroll_text_up_for_special_scenes -> scroll_portrait_dialog_text_up_one_line; 3 files"},
+    {"n": 41, "address": "00018409", "did": "both", "note": "play_status_screen_outro_step -> render_status_screen_slide_frame (6 files); ghidra params -> frame_idx/workspace/src_buffer/snapshot_b; protos.h decl aligned"},
+    {"n": 45, "address": "0001956b", "did": "both", "note": "load_chapter_portrait -> dialog_open_speaker_portrait (16 files, 52 callers); ghidra param_1 + src def/body portrait_kind -> portrait_id"}
   ]
 }

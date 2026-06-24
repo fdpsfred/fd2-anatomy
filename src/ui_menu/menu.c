@@ -85,7 +85,7 @@ int fd2_field_command_menu_loop(void)
     }
 
     if (data_fd2_ui_menu_cursor_idx == 1) {
-        fd2_load_chapter_portrait(
+        fd2_dialog_open_speaker_portrait(
             data_fd2_battle_runtime_char_array_ptr->portrait_id);
         fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1a1, 0xa9f23,
             0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
@@ -136,7 +136,7 @@ int fd2_field_command_menu_loop(void)
         if (data_fd2_ui_menu_cursor_idx != 3) {
             return 0;
         }
-        fd2_load_chapter_portrait(0x4b);
+        fd2_dialog_open_speaker_portrait(0x4b);
         fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1a3, 0xa9f23,
             0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
         fd2_paint_portrait_to_dialog_area(0);

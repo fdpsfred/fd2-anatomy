@@ -360,7 +360,7 @@ void fd2_execute_class_promotion_with_dialog(uint32 char_idx)
     rt_chars = data_fd2_battle_runtime_char_array_ptr;
     growth = fd2_get_char_growth_entry((int)rt_chars[char_idx].portrait_id);
     fd2_clear_keyboard_buffer();
-    fd2_load_chapter_portrait((uint32)rt_chars[char_idx].portrait_id);
+    fd2_dialog_open_speaker_portrait((uint32)rt_chars[char_idx].portrait_id);
     data_fd2_dialog_last_action_sprite_id_param =
         (uint32)rt_chars[char_idx].job_id + 0x96;
     fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x253, 0xa951f,
@@ -552,7 +552,7 @@ void fd2_run_class_promotion_menu_main(void)
             candidate_count = fd2_build_promotion_candidates_with_targets(
                 candidate_chars, target_classes);
             if (candidate_count == 0) {
-                fd2_load_chapter_portrait(
+                fd2_dialog_open_speaker_portrait(
                     (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[4]);
                 fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x24f,
                     0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
@@ -562,7 +562,7 @@ void fd2_run_class_promotion_menu_main(void)
                 return;
             }
 
-            fd2_load_chapter_portrait(
+            fd2_dialog_open_speaker_portrait(
                 (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[4]);
             fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x250,
                 0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
@@ -578,7 +578,7 @@ void fd2_run_class_promotion_menu_main(void)
                 return;
             }
 
-            fd2_load_chapter_portrait(
+            fd2_dialog_open_speaker_portrait(
                 (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[4]);
             rt_chars = data_fd2_battle_runtime_char_array_ptr;
             char_idx = (uint32)candidate_chars[data_fd2_ui_menu_cursor_idx];
@@ -948,7 +948,7 @@ int fd2_run_recruitment_or_branch_screen(void)
     fd2_pin_required_char_to_party_slot1(required_id);
 
 after_pin:
-    fd2_load_chapter_portrait(0x4b);
+    fd2_dialog_open_speaker_portrait(0x4b);
     fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x292, 0xa951f,
         0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
     fd2_paint_portrait_to_dialog_area(0);
@@ -979,7 +979,7 @@ void fd2_run_revive_menu_main(void)
     do {
         dead_count = fd2_build_dead_chars_list_for_revive(candidate_chars);
         if (dead_count == 0) {
-            fd2_load_chapter_portrait(
+            fd2_dialog_open_speaker_portrait(
                 (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[4]);
             fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x24c,
                 0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
@@ -989,7 +989,7 @@ void fd2_run_revive_menu_main(void)
             return;
         }
 
-        fd2_load_chapter_portrait(
+        fd2_dialog_open_speaker_portrait(
             (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[4]);
         fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x24d,
             0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
@@ -1004,7 +1004,7 @@ void fd2_run_revive_menu_main(void)
             return;
         }
 
-        fd2_load_chapter_portrait(
+        fd2_dialog_open_speaker_portrait(
             (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[4]);
         rc = data_fd2_battle_runtime_char_array_ptr;
         chosen_idx = candidate_chars[data_fd2_ui_menu_cursor_idx];

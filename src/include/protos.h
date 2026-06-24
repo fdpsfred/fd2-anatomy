@@ -606,7 +606,7 @@ void fd2_restore_portrait_cache_from_tmp(void);
 
 /* ---- chapter / battle init ---- */
 void fd2_load_chapter_battle_data(uint32 chapter_id);
-void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id);
+void fd2_dialog_open_speaker_portraits_and_dump_tmp(uint32 target_race_id);
 void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
 void fd2_restore_portrait_cache_from_tmp(void);
 int  fd2_load_chapter_party_roster(uint8 *out_buf);
@@ -671,7 +671,7 @@ void fd2_dialog_sprite_blit_normal(uint32 dst, uint32 sprite_hdr, uint32 stride)
 void fd2_dialog_sprite_blit_mirrored(uint32 dst, uint32 sprite_hdr, uint32 stride);
 void fd2_close_dialog_panels_then_slide_out_to_cursor(uint32 anim_handle, uint32 slot_offset);
 void fd2_portrait_blink_animation_step(void);
-void fd2_load_chapter_portrait(uint32 portrait_id);
+void fd2_dialog_open_speaker_portrait(uint32 portrait_id);
 void fd2_close_status_screen_with_slide_out(void);
 void fd2_show_portrait_dialog_with_input(uint32 portrait_id, uint32 text_idx);
 int fd2_party_roster_single_select_loop(void);

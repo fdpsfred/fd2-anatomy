@@ -286,7 +286,7 @@ int fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp)
  *  11. per slot (0..cache_total_size): build active player units from the
  *      shared menu party roster template, or zero+mark dead for empty slots
  *  12. fclose; free data_fd2_chapter_portrait_load_buffer
- *  13. fd2_load_chapter_portraits_and_dump_tmp(0)
+ *  13. fd2_dialog_open_speaker_portraits_and_dump_tmp(0)
  *
  * malloc/fopen failure -> INT 10h text-mode reset + printf + exit.
  *
@@ -408,11 +408,11 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
     fclose(fp);
     free((void *)data_fd2_chapter_portrait_load_buffer);
     data_fd2_chapter_portrait_load_buffer = 0;
-    fd2_load_chapter_portraits_and_dump_tmp(0);
+    fd2_dialog_open_speaker_portraits_and_dump_tmp(0);
 }
 
 /* ----------------------------------------------------------------
- * fd2_load_chapter_portraits_and_dump_tmp @ 0x10b4e  (~52 callers)
+ * fd2_dialog_open_speaker_portraits_and_dump_tmp @ 0x10b4e  (~52 callers)
  *
  * Portrait loader + FD2.TMP swap-file writer. Used by chapter init/end
  * paths and many chapter event handlers.
@@ -436,7 +436,7 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
  * printf("%s") + exit(1) stub at 0x10056; emitted inline here to match
  * the fd2_load_chapter_battle_data idiom.
  * ---------------------------------------------------------------- */
-void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id)
+void fd2_dialog_open_speaker_portraits_and_dump_tmp(uint32 target_race_id)
 {
     void  *fp;
     uint32 iter;
@@ -476,7 +476,7 @@ void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id)
 }
 
 /* ----------------------------------------------------------------
- * fd2_load_chapter_portrait @ 0x1956b  (~52 callers)
+ * fd2_dialog_open_speaker_portrait @ 0x1956b  (~52 callers)
  *
  * Open a "speaker portrait + dialog box" and play its slide-down entry.
  *
@@ -489,12 +489,12 @@ void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id)
  *   3. memmove snapshot -> composed_target (overlay starts as the snapshot).
  *   4. fd2_assemble_dialog_frame_layered(composed_target, 320, 5, 0x70,
  *      0x13, 5) — draw a 0x13-wide x 5-tall dialog box at (5, 0x70).
- *   5. portrait_kind -> dialog_active_portrait_blit_offset (0x53C67,
+ *   5. portrait_id -> dialog_active_portrait_blit_offset (0x53C67,
  *      mode-13h pixel offset):
  *        0x80 -> 0x10BB   0x81 -> 0x06AB   0x82 -> 0x0F63
  *        0x83 -> 0x0576   0x84 -> 0x0E3C   other -> 0x9017 (default)
  *   6. portrait_sprite_buffer (0x53A85) =
- *        fd2_load_dat_resource("DATO.DAT" @ 0x51A70, prev_buf, portrait_kind)
+ *        fd2_load_dat_resource("DATO.DAT" @ 0x51A70, prev_buf, portrait_id)
  *   7. fd2_dialog_sprite_blit_mirrored(composed_target + blit_offset,
  *      portrait_sprite_buffer + *portrait_sprite_buffer, 320)
  *      — the buffer's first byte is the header size; skip past the header.
@@ -505,11 +505,11 @@ void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id)
  * On return the screen carries the dialog box + portrait; the caller then
  * runs the text typewriter.
  *
- * portrait_kind:
+ * portrait_id:
  *   0x80..0x84 = the 5 special story-character placements (fixed coords)
  *   other      = standard character portrait id; falls to the 0x9017 slot
  * ---------------------------------------------------------------- */
-void fd2_load_chapter_portrait(uint32 portrait_kind)
+void fd2_dialog_open_speaker_portrait(uint32 portrait_id)
 {
     uint32 frame_iter;
     uint32 y_offset;
@@ -526,15 +526,15 @@ void fd2_load_chapter_portrait(uint32 portrait_kind)
     fd2_assemble_dialog_frame_layered(
         data_fd2_ui_slide_composed_target_buf_ptr, 0x140, 5, 0x70, 0x13, 5);
 
-    if (portrait_kind == 0x80) {
+    if (portrait_id == 0x80) {
         data_fd2_dialog_active_portrait_blit_offset = 0x10bb;
-    } else if (portrait_kind == 0x81) {
+    } else if (portrait_id == 0x81) {
         data_fd2_dialog_active_portrait_blit_offset = 0x6ab;
-    } else if (portrait_kind == 0x82) {
+    } else if (portrait_id == 0x82) {
         data_fd2_dialog_active_portrait_blit_offset = 0xf63;
-    } else if (portrait_kind == 0x83) {
+    } else if (portrait_id == 0x83) {
         data_fd2_dialog_active_portrait_blit_offset = 0x576;
-    } else if (portrait_kind == 0x84) {
+    } else if (portrait_id == 0x84) {
         data_fd2_dialog_active_portrait_blit_offset = 0xe3c;
     } else {
         data_fd2_dialog_active_portrait_blit_offset = 0x9017;
@@ -542,7 +542,7 @@ void fd2_load_chapter_portrait(uint32 portrait_kind)
 
     data_fd2_portrait_sprite_buffer = (uint8 *)fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_dato_dat_51a70,
-        (uint32)data_fd2_portrait_sprite_buffer, portrait_kind);
+        (uint32)data_fd2_portrait_sprite_buffer, portrait_id);
 
     fd2_dialog_sprite_blit_mirrored(
         data_fd2_ui_slide_composed_target_buf_ptr
@@ -607,7 +607,7 @@ void fd2_load_and_fade_in_cinematic_image(uint32 anim_idx, uint32 per_frame_dela
  * Restores the portrait sprite cache (data_fd2_portrait_sprite_cache @ 0x53A61)
  * by reading the full 0x32A00-byte (~207KB) image back from FD2.TMP.
  * Symmetric read-back of the swap file written by
- * fd2_load_chapter_portraits_and_dump_tmp's fopen("FD2.TMP","wb")+
+ * fd2_dialog_open_speaker_portraits_and_dump_tmp's fopen("FD2.TMP","wb")+
  * fwrite tail. Called after FIGANI combat cinematics that freed and
  * replaced the in-game portrait/tile caches; this re-loads the working
  * portrait set from the precomputed file written during chapter init.

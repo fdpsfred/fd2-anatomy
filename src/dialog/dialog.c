@@ -570,7 +570,7 @@ void fd2_close_dialog_panels_then_slide_out_to_cursor(uint32 anim_handle,
  *   10 / 11 bottom-row left/right secondary corners
  *
  * Used by fd2_play_dialog_open_animation (5-stage frame assembly),
- * fd2_load_chapter_portrait, fd2_play_final_chapter_30_ending and
+ * fd2_dialog_open_speaker_portrait, fd2_play_final_chapter_30_ending and
  * fd2_render_status_screen_static_layout to produce dialog boxes of
  * arbitrary (n_cols, n_rows) tile dimensions.
  * ---------------------------------------------------------------- */
@@ -1217,7 +1217,7 @@ void fd2_close_intro_dialog_with_slide_out(void)
  *
  * Sequence (fixed, no branches):
  *   fd2_clear_keyboard_buffer()
- *   fd2_load_chapter_portrait(portrait_id)        // loads from DATO.DAT
+ *   fd2_dialog_open_speaker_portrait(portrait_id)        // loads from DATO.DAT
  *   fd2_clear_keyboard_buffer()
  *   fd2_display_dialog_scene(data_fd2_current_chapter_text, text_idx,
  *                            0xA9514, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1)
@@ -1234,7 +1234,7 @@ void fd2_close_intro_dialog_with_slide_out(void)
 void fd2_show_portrait_dialog_with_input(uint32 portrait_id, uint32 text_idx)
 {
     fd2_clear_keyboard_buffer();
-    fd2_load_chapter_portrait(portrait_id);
+    fd2_dialog_open_speaker_portrait(portrait_id);
     fd2_clear_keyboard_buffer();
     fd2_display_dialog_scene(data_fd2_current_chapter_text, text_idx, 0xa9514, 0x140,
                              0xcd, 0x4c, 0x4a, 0x13, 1);
@@ -1337,7 +1337,7 @@ void *data_fd2_dialog_area_backup_buffer;
  * Accessed exclusively as dword ptr (asm: MOV [0x53A85],EAX from the
  * loader return; PUSH dword ptr [0x53A85] back into the loader; MOVZX
  * EBX,byte ptr [EAX] to read the header offset) -> a 4-byte pointer.
- * Writers: fd2_display_dialog_scene, fd2_load_chapter_portrait,
+ * Writers: fd2_display_dialog_scene, fd2_dialog_open_speaker_portrait,
  * fd2_render_status_screen_static_layout, fd2_run_equip_member_menu,
  * fd2_run_status_screen_member_menu, fd2_play_final_chapter_30_ending.
  * Pure runtime state: first use is the loader-return write, so it
