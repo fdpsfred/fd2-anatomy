@@ -163,9 +163,9 @@ out_of_memory:
  * generic summon / chapter-event rising sparkle.
  *
  * Params (cdecl, 3 stack args):
- *   caster_unit_id  — index into runtime_char_array (* 0x50 stride)
- *   initial_height  — circle-band radius on frame 0 (ESI accumulator)
- *   rise_step       — radius increment applied after each frame
+ *   caster_unit_id  -- index into runtime_char_array (* 0x50 stride)
+ *   initial_height  -- circle-band radius on frame 0 (ESI accumulator)
+ *   rise_step       -- radius increment applied after each frame
  *
  * Per frame (0..9):
  *   restore the saved backdrop into the large game-state buffer, draw the
