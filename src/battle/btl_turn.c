@@ -871,7 +871,7 @@ int fd2_roll_stat_gain_and_show_message(short *stat_ptr, uint8 *growth_pair,
     if (gain != 0) {
         if (row_idx == 3) {
             row_idx = 2;
-            fd2_cinematic_scroll_text_up_for_special_scenes();
+            fd2_scroll_portrait_dialog_text_up_one_line();
         }
         fd2_clear_keyboard_buffer();
         fd2_display_dialog_scene(

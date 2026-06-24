@@ -106,7 +106,7 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
             if (((data_fd2_dialog_active_portrait_blit_offset == 0x728) ||
                  (data_fd2_dialog_active_portrait_blit_offset == 0x9017)) &&
                 (line_count == 3)) {
-                fd2_cinematic_scroll_text_up_for_special_scenes();
+                fd2_scroll_portrait_dialog_text_up_one_line();
                 line_count = 2;
             }
             line_count += 1;
@@ -119,7 +119,7 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
             if (((data_fd2_dialog_active_portrait_blit_offset == 0x728) ||
                  (data_fd2_dialog_active_portrait_blit_offset == 0x9017)) &&
                 (line_count == 3)) {
-                fd2_cinematic_scroll_text_up_for_special_scenes();
+                fd2_scroll_portrait_dialog_text_up_one_line();
                 line_count = 2;
             }
             line_count += 1;
@@ -715,7 +715,7 @@ void fd2_backup_dialog_area_to_buffer(void)
 }
 
 /* ----------------------------------------------------------------
- * fd2_cinematic_scroll_text_up_for_special_scenes @ 0x16E24 (2 callers)
+ * fd2_scroll_portrait_dialog_text_up_one_line @ 0x16E24 (2 callers)
  *
  * Scroll the dialog text area upward by 19 pixel rows (5*3 + 4) when
  * an active portrait is on screen
@@ -728,7 +728,7 @@ void fd2_backup_dialog_area_to_buffer(void)
  * fill the bottom row with text-bg pixel 0x4A; a final pass shifts up
  * by 4 rows and clears the bottom row again.
  * ---------------------------------------------------------------- */
-void fd2_cinematic_scroll_text_up_for_special_scenes(void)
+void fd2_scroll_portrait_dialog_text_up_one_line(void)
 {
     uint32 row_iter;
     int32  iVar1;
