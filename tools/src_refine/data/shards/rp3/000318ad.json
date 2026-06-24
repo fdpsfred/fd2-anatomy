@@ -1,0 +1,49 @@
+{
+  "address": "000318ad",
+  "name_current": "fd2_run_recruitment_or_branch_screen",
+  "name_final": "fd2_run_recruitment_or_branch_screen",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (ui/menu domain, descriptor 'run_recruitment_or_branch_screen'). No Ghidra address residue. Accurately captures the dual role confirmed by callers: a mandatory chapter-transition party-select screen (10x3 grid) that also dispatches per-chapter required-char gating/branching. Caller fd2_chapter_transition_menu @ 0x2CCD6 invokes it in a do/while (ret==0) loop, matching the 'cannot ESC out of mandatory recruitment' semantics.",
+  "kind": "function",
+  "home": "src/ui_menu/promote.c",
+  "purpose": "Mandatory chapter-transition recruitment / branch party-select screen: player picks the party for the next battle on a 10x3 grid, then per-chapter required-char gates are enforced and a final 'ready to fight?' confirm is shown; returns 1 only when a full party was committed, every required-char gate passed, and confirm was YES.",
+  "logic_summary": "max_chars = current_chapter_id>0x1A ? 0x13 : 0x0F. Clear selection_state[0..29]. Alloc 4x 64000-byte mode-13h buffers (anim accumulator, bg snapshot, panel_buf local, composed target); snapshot VGA 0xA0000 -> bg -> panel_buf; blit panel layers (atlas +0x56 header -> +0x91C, atlas +0x5A grid frame -> +0x7585, sprite 0x89 -> +0x8C5); initial render; 12-frame slide-in (SFX 5 at iter 0xB and 5). Input loop do/while(result_flag==0): wait_input_with_recruitment_repaint returns scancode (full EAX); independent if-tests (not a switch); 0x01 ESC -> result_flag=-1; 0x1C Enter -> SFX 7, toggle selection_state[cursor], scancode:=0x4D, if count_selected==max_chars -> result_flag=1 + reorder_party_by_selection; 0x4B Left -> SFX 0, cursor-- (underflow wraps to count-2); 0x4D Right -> SFX 0, cursor++ (at count-1 -> cursor^=(count-1) i.e. 0); 0x48 Up (cursor>9) -> SFX 0, cursor-=10; 0x50 Down (cursor<count-11) -> SFX 0, cursor+=10; re-render then blit composed target -> 0xA0000. 12-frame slide-out (SFX 6 at iter 0 and 7); restore VGA from bg snapshot; free all 4 buffers. If result_flag==1: free portrait cache, reopen FDICON.B24, reset cache count, reload all party portraits, fclose; resolve required char_id by current_chapter_id and call require_char_id_in_active_party(max_chars,id) storing 0/1 into result_flag (chapter 0x10+has(0x12)->0x12; 0x11/0x13/>=0x1A->9; 0x12->0x10; 0x14->0x15; 0x15/0x16->0x18; 0x19+has(9)->0x1D; others no gate). Gate at LAB_31CD4 collapses every non-1 result_flag to 0 and returns 0. For result_flag==1: re-resolve same chapter table (0x19 pins char 9 first), pin_required_char_to_party_slot1(id); load_chapter_portrait(0x4B); display 'ready to fight?' dialog (FDTXT 0x292) + paint portrait; battle_tile_map guard=1; clear keyboard; typewriter loop; guard=0; page-advance collapse; slide dialog out. Return 1 iff typewriter_ret != -1 AND cursor_idx==0 (YES row), else 0.",
+  "signature": "int __cdecl fd2_run_recruitment_or_branch_screen(void)",
+  "params": [],
+  "returns": {
+    "type": "int",
+    "semantics": "1 = a full party was committed AND every required-char gate passed AND the final confirm was YES; 0 = ESC / declined / failed required-char gate / NO at confirm. Both callers TEST EAX / JZ <loop>: 0 re-runs the mandatory screen, 1 proceeds. (ESC sets internal result_flag=-1 inside the input loop, but the post-commit gate at LAB_31CD4 collapses every non-1 value to 0.)"
+  },
+  "reads_globals": [
+    "data_fd2_chapter_current_chapter_id",
+    "data_fd2_shared_menu_party_member_count",
+    "data_fd2_shared_menu_party_roster_buffer_ptr",
+    "data_fd2_ui_anim_sprite_sheet_ptr",
+    "data_fd2_audio_fdother_sfx_bank_buf_ptr",
+    "data_fd2_all_game_text_ptr",
+    "data_fd2_portrait_sprite_cache",
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_ui_slide_anim_accumulator_buf_ptr",
+    "data_fd2_ui_slide_bg_snapshot_buf_ptr",
+    "data_fd2_ui_slide_composed_target_buf_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_ui_slide_anim_accumulator_buf_ptr",
+    "data_fd2_ui_slide_bg_snapshot_buf_ptr",
+    "data_fd2_ui_slide_composed_target_buf_ptr",
+    "data_fd2_resource_portrait_cache_count",
+    "data_fd2_battle_tile_map_ptr"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (promote.c lines 639-732) is already detailed, accurate, and matches the decompilation (cursor-wrap, Left=0x4B / Right=0x4D scancode mapping, the 0x1C->0x4D Enter rewrite, the LAB_31CD4 collapse-to-0 gate, the per-chapter required-char table, and the final typewriter+cursor_idx==0 confirm); kept verbatim. Ghidra plate is even more detailed but fully consistent with the refined understanding (no contradiction), so left untouched. Caller fd2_chapter_transition_menu @ 0x2CCD6 verified: battle-chapter branch calls this in do/while(ret==0), confirming the mandatory-screen / int-return semantics already documented in the GHIDRA SIGNATURE FIX note. void function -> params=[]. No logic/equivalence concerns found. No src Edit performed (comment already correct); no rename performed (name correct)."
+}
