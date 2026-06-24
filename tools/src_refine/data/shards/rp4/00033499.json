@@ -1,0 +1,43 @@
+{
+  "address": "00033499",
+  "name_current": "fd2_check_party_has_char_id",
+  "name_final": "fd2_check_party_has_char_id",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention and accurately reflects the behavior: scans the menu/template party roster and reports whether a char with the given char_id is present. No Ghidra address residue in the name. The _id suffix is semantic (it disambiguates char_id from job_id/class and corrects the documented old misnomer fd2_check_party_has_char_class).",
+  "kind": "function",
+  "home": "ROOT/src/util/misc.c",
+  "purpose": "Returns whether the menu/template party roster contains a character whose char_id (init value) equals the argument.",
+  "logic_summary": "Linear scan over [0, data_fd2_shared_menu_party_member_count): for each 0x50-byte template entry in the buffer at data_fd2_shared_menu_party_roster_buffer_ptr, compares the byte at offset +0x08 (char_id_init) against char_id; returns 1 on the first match, 0 if the scan exhausts. __CHK(8) is the compiler-generated stack-probe prologue.",
+  "signature": "uint32 __cdecl fd2_check_party_has_char_id(uint32 char_id)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint32",
+      "semantics": "char_id to look for: the init char_id (the value passed to fd2_init_runtime_char_from_base_growth when the char joined), compared against each template entry's +0x08 byte. Callers pass concrete char_ids such as 0xC (凱麗) and 0x12 (蜜蒂). NOT a job_id/class.",
+      "verdict": "rename",
+      "proposed": "char_id",
+      "reason": "Live Ghidra parameter is the generic placeholder param_1, which does not describe its use as a char_id; rename to char_id (the name the src already uses). Recorded only; applied in Stage 2."
+    }
+  ],
+  "returns": {
+    "type": "uint32",
+    "semantics": "1 if a template-party entry with matching char_id is found, 0 otherwise."
+  },
+  "reads_globals": [
+    "data_fd2_shared_menu_party_member_count",
+    "data_fd2_shared_menu_party_roster_buffer_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (misc.c lines 109-134) is already precise, correct, ASCII-clean, and matches the live decompile (count global, 0x50 stride, +0x08 char_id byte, __CHK(8) prologue, 7 callers); kept as-is. Ghidra plate is more verbose but consistent with this understanding, so left untouched. Body is a simple correct linear scan; no logic issues. Decompile was unambiguous (cyclomatic complexity 2), so no disassembly was needed. Source file was not edited; only the shard is committed."
+}
