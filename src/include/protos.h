@@ -41,7 +41,7 @@ uint8 *fd2_get_attack_anim_pattern_for_weapon(int weapon_type);
 uint8 *fd2_get_job_allowed_items_table_entry(int job_id);
 uint8 *fd2_get_movement_cost_table_for_job(int job_id);
 uint8 *fd2_get_cutscene_event_script(int event_id);
-uint8 *fd2_get_orphan_table_60181_entry(int idx);
+uint8 *fd2_get_orphan_packed3_table_entry(int idx);
 
 /* ---- battle core ---- */
 uint32 fd2_advance_rng_state(void);

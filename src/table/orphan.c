@@ -13,7 +13,7 @@
  * data_fd2_orphan_table_60181 @ 0x60181  (299 bytes)
  *
  * Read-only table of packed 3-byte records; every byte is a 6-bit value
- * (0x00..0x3F). Sole accessor fd2_get_orphan_table_60181_entry returns
+ * (0x00..0x3F). Sole accessor fd2_get_orphan_packed3_table_entry returns
  * (data_fd2_orphan_table_60181 + idx * 3): a raw byte pointer to the idx-th
  * 3-byte record, so element type is uint8 and the stride is 3. The accessor
  * has 0 static callers (orphan -- reached, if ever, only via indirect/
