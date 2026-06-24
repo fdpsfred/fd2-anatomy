@@ -20,6 +20,10 @@
     {"n": 93, "address": "00022be1", "did": "name", "note": "cast_spell_16_dispatch_cda -> cast_spell_16_dispatch; 4 files"},
     {"n": 95, "address": "00022cbf", "did": "name", "note": "spell_handler_id_26_via_status_d1b_effect_25 -> cast_spell_1a_dispatch (family); 3 files"},
     {"n": "1b", "address": "00022e41", "did": "name", "note": "FAMILY ADD (was keep): spell_handler_id_27_... -> cast_spell_1b_dispatch; 3 files"},
-    {"n": "11", "address": "000226ea", "did": "name", "note": "FAMILY ADD (was keep): cast_spell_11_stage_a -> cast_spell_11_ap_boost; 4 files"}
+    {"n": "11", "address": "000226ea", "did": "name", "note": "FAMILY ADD (was keep): cast_spell_11_stage_a -> cast_spell_11_ap_boost; 4 files"},
+    {"n": 94, "address": "00022c04", "did": "name", "note": "execute_status_clear_holy_word_spell_id_25 -> execute_reactivate_spell_id_25; 3 files"},
+    {"n": 96, "address": "00022cda", "did": "both", "note": "cast_status_spell_via_d1b -> cast_status_inflict_spell_wrapper (3 files); 5 ghidra params synced (src already correct)"},
+    {"n": 99, "address": "00024336", "did": "name", "note": "play_chapter_intro_sprite_slideshow -> play_chapter_21_hidden_stage_unlock_cinematic; 4 files"},
+    {"_gate_change": "From item-99 build gate: full byte-identical is UNACHIEVABLE for renames -- wlink reorders LE fixup records by symbol name. Proven: code/data+headers byte-identical, fixup table same multiset (reorder-only) => functional equivalence. Stage-2 gate switched from hash_check.py to eqcheck.py (per user decision). Also fixed item-45 prefix-collision (fd2_load_chapter_portrait was a prefix of fd2_load_chapter_portraits_and_dump_tmp)."}
   ]
 }

@@ -1,0 +1,9 @@
+{
+  "size": 349189,
+  "fixup_lo": 11232,
+  "fixup_hi": 68368,
+  "outside_sha256": "e8480b712fc197958a45aac56f93b00efec91fe46a85ee9e7db2a577c9b4ed5c",
+  "fixup_multiset_sha256": "27ef7d1cdc50c4176690d2443b4ca49d7bbe75801adeaccb8a391478f24ad480",
+  "fixup_len": 57136,
+  "_doc": "Baseline functional-equivalence profile for Stage-2. outside_sha256 = sha256 of the EXE minus the LE fixup record table (must stay identical); fixup_multiset_sha256 = sha256 of the sorted fixup-table bytes (same relocation set, order may differ after renames). Generated from the byte-identical baseline build."
+}
