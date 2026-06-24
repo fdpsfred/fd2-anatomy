@@ -190,7 +190,7 @@ int fd2_add_item_to_inventory(uint32 char_idx, uint32 item_id)
  * Backs up VRAM (0xA0000) into workspace_b, copies that into workspace_c,
  * then renders the static status layout + inventory grid (item_id -1 = no
  * highlight) into workspace_c. Drives a 12-frame slide-in by calling the
- * shared fd2_play_status_screen_outro_step with the frame index running
+ * shared fd2_render_status_screen_slide_frame with the frame index running
  * backwards (0xB down to 0), i.e. the slide-out step reversed produces the
  * entrance; a chime SFX fires at frame 0xB (open) and frame 5 (mid). Finally
  * drains the keyboard buffer.
@@ -224,7 +224,7 @@ void fd2_open_status_screen_with_slide_in(uint32 char_idx)
             fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
                 5, 1);
         }
-        fd2_play_status_screen_outro_step((uint32)frame_iter,
+        fd2_render_status_screen_slide_frame((uint32)frame_iter,
             data_fd2_ui_slide_anim_accumulator_buf_ptr,
             data_fd2_ui_slide_composed_target_buf_ptr,
             (int)data_fd2_ui_slide_bg_snapshot_buf_ptr);
@@ -339,7 +339,7 @@ void fd2_open_char_status_screen(uint32 char_idx)
             fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
                 6, 1);
         }
-        fd2_play_status_screen_outro_step(outro_iter,
+        fd2_render_status_screen_slide_frame(outro_iter,
             data_fd2_ui_slide_anim_accumulator_buf_ptr,
             data_fd2_ui_slide_composed_target_buf_ptr,
             (int)data_fd2_ui_slide_bg_snapshot_buf_ptr);
@@ -582,7 +582,7 @@ int fd2_inventory_selection_modal_dispatch(uint32 char_idx, uint32 gate_flag)
     } while (input_result == 0);
 
     for (outro_iter = 0; (int)outro_iter < 0xc; outro_iter++) {
-        fd2_play_status_screen_outro_step(
+        fd2_render_status_screen_slide_frame(
             outro_iter,
             data_fd2_ui_slide_anim_accumulator_buf_ptr,
             data_fd2_ui_slide_composed_target_buf_ptr,
@@ -1009,7 +1009,7 @@ void fd2_equip_unequip_inventory_menu(uint32 char_idx)
     }
 
     for (outro_iter = 0; (int)outro_iter < 0xc; outro_iter++) {
-        fd2_play_status_screen_outro_step(
+        fd2_render_status_screen_slide_frame(
             outro_iter,
             data_fd2_ui_slide_anim_accumulator_buf_ptr,
             data_fd2_ui_slide_composed_target_buf_ptr,

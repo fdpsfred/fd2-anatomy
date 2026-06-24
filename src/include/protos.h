@@ -444,7 +444,7 @@ void fd2_slide_panel_down_step(uint32 y_offset, uint32 dst_workspace, uint32 src
 void fd2_open_status_screen_with_slide_in(uint32 char_idx);
 void fd2_paint_status_panel_layer_left(uint32 x_offset, uint32 dst_workspace, uint32 src_buffer);
 void fd2_paint_status_panel_layer_right(uint32 y_offset, uint32 dst_workspace, uint32 src_buffer);
-void fd2_play_status_screen_outro_step(uint32 frame, uint32 dst_workspace, uint32 overlay_buffer, int snapshot_buffer);
+void fd2_render_status_screen_slide_frame(uint32 frame_idx, uint32 workspace, uint32 src_buffer, int snapshot_b);
 void fd2_render_status_screen_static_layout(uint32 char_idx, uint32 overlay_buffer);
 void fd2_render_full_char_stat_panel(uint32 char_idx, uint32 overlay_buffer);
 void fd2_render_inventory_item_grid(uint32 char_idx, int highlight_slot, uint32 dst_buf);

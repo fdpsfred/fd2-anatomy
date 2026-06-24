@@ -366,7 +366,7 @@ int fd2_spell_selection_menu_main(uint32 caster_idx)
         caster_idx, 0xffffffff, data_fd2_ui_slide_composed_target_buf_ptr);
 
     for (frame = 0xb; (int)frame >= 0; frame = frame - 1) {
-        fd2_play_status_screen_outro_step(
+        fd2_render_status_screen_slide_frame(
             frame, data_fd2_ui_slide_anim_accumulator_buf_ptr,
             data_fd2_ui_slide_composed_target_buf_ptr,
             (int)data_fd2_ui_slide_bg_snapshot_buf_ptr);
@@ -378,7 +378,7 @@ int fd2_spell_selection_menu_main(uint32 caster_idx)
     } while (loop_result == 0);
 
     for (frame = 0; (int)frame < 0xc; frame = frame + 1) {
-        fd2_play_status_screen_outro_step(
+        fd2_render_status_screen_slide_frame(
             frame, data_fd2_ui_slide_anim_accumulator_buf_ptr,
             data_fd2_ui_slide_composed_target_buf_ptr,
             (int)data_fd2_ui_slide_bg_snapshot_buf_ptr);

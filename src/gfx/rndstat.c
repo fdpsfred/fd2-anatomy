@@ -326,7 +326,7 @@ void fd2_render_full_char_stat_panel(uint32 char_idx, uint32 overlay_buffer)
  *   src = src_buffer    + 0x8C5 (+5 px vs dst x; sister _right uses its
  *                                own x) + src_x_skip + row*0x140
  *
- * Callers: fd2_open_char_status_screen, fd2_play_status_screen_outro_step
+ * Callers: fd2_open_char_status_screen, fd2_render_status_screen_slide_frame
  * (the latter redraws the left panel each frame at the frame's x_offset).
  *
  * Cdecl, 3 stack params; void return. The binary's __CHK(0x20) stack-probe
@@ -374,7 +374,7 @@ void fd2_paint_status_panel_layer_left(uint32 x_offset, uint32 dst_workspace,
  * Each row copies 0xDF (223) bytes. Src offset 0x91C = row 7 * 0x140 +
  * 0x5C: the right panel lives 7 rows below the source buffer head.
  *
- * Callers: fd2_open_char_status_screen, fd2_play_status_screen_outro_step
+ * Callers: fd2_open_char_status_screen, fd2_render_status_screen_slide_frame
  * (the latter redraws the right panel each frame at the frame's y_offset).
  *
  * Cdecl, 3 stack params; void return. The binary's __CHK(0x20) stack-probe

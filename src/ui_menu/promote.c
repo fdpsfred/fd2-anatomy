@@ -668,7 +668,7 @@ void fd2_run_class_promotion_menu_main(void)
  *     (both via fd2_dialog_sprite_blit_normal), sprite_id 0x89 -> +0x8C5
  *     (fd2_blit_indexed_sprite_rle). Initial render.
  *   - Intro slide-in: iter 0xB..0 (12 frames) via
- *     fd2_play_status_screen_outro_step; SFX 5 at iter==0xB and iter==5.
+ *     fd2_render_status_screen_slide_frame; SFX 5 at iter==0xB and iter==5.
  *   - Input loop (do/while result_flag == 0):
  *       fd2_wait_input_with_recruitment_repaint -> scancode (full EAX,
  *       returned MOVZX byte; the asm compares it as int via EBX so the
@@ -784,7 +784,7 @@ int fd2_run_recruitment_or_branch_screen(void)
             fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
                 5, 1);
         }
-        fd2_play_status_screen_outro_step((uint32)iter,
+        fd2_render_status_screen_slide_frame((uint32)iter,
             data_fd2_ui_slide_anim_accumulator_buf_ptr,
             data_fd2_ui_slide_composed_target_buf_ptr,
             (int)data_fd2_ui_slide_bg_snapshot_buf_ptr);
@@ -848,7 +848,7 @@ int fd2_run_recruitment_or_branch_screen(void)
             fd2_play_sfx_with_handle(data_fd2_audio_fdother_sfx_bank_buf_ptr,
                 6, 1);
         }
-        fd2_play_status_screen_outro_step((uint32)iter,
+        fd2_render_status_screen_slide_frame((uint32)iter,
             data_fd2_ui_slide_anim_accumulator_buf_ptr,
             data_fd2_ui_slide_composed_target_buf_ptr,
             (int)data_fd2_ui_slide_bg_snapshot_buf_ptr);

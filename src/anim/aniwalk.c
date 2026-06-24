@@ -685,7 +685,7 @@ void fd2_slide_panel_down_step(uint32 y_offset,
 }
 
 /* ----------------------------------------------------------------
- * fd2_play_status_screen_outro_step @ 0x18409  (6 callers)
+ * fd2_render_status_screen_slide_frame @ 0x18409  (6 callers)
  *
  * Render one frame of the 12-frame status/menu-panel slide animation.
  * frame_idx runs 0..0xB; callers drive it 0xB->0 (intro) or 0->0xB (outro).
@@ -708,7 +708,7 @@ void fd2_slide_panel_down_step(uint32 y_offset,
  * dispatch, fd2_equip_unequip_inventory_menu, fd2_spell_selection_menu_
  * main, fd2_run_recruitment_or_branch_screen.
  * ---------------------------------------------------------------- */
-void fd2_play_status_screen_outro_step(uint32 frame_idx,
+void fd2_render_status_screen_slide_frame(uint32 frame_idx,
                                         uint32 workspace,
                                         uint32 src_buffer,
                                         int snapshot_b)
