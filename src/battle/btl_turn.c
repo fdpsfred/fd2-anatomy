@@ -901,7 +901,7 @@ int fd2_roll_stat_gain_and_show_message(short *stat_ptr, uint8 *growth_pair,
  * On exit movement_order keeps the (possibly zeroed) remainder and
  * pending_xp_credit is cleared.
  * ---------------------------------------------------------------- */
-void fd2_process_xp_and_level_up_for_char(uint32 ci)
+void fd2_process_xp_and_level_up_for_char(uint32 char_idx)
 {
     runtime_char *pCharArray;
     uint8 *pGrowth;
@@ -915,28 +915,28 @@ void fd2_process_xp_and_level_up_for_char(uint32 ci)
 
     pCharArray = data_fd2_battle_runtime_char_array_ptr;
     row = 2;
-    portrait_id = pCharArray[ci].portrait_id;
+    portrait_id = pCharArray[char_idx].portrait_id;
 
     if (data_fd2_battle_pending_xp_credit == 0 ||
-        (pCharArray[ci].flags & 1) != 0) {
+        (pCharArray[char_idx].flags & 1) != 0) {
         return;
     }
 
     if (portrait_id == 0x1E || portrait_id == 0x1F) {
-        at_level_cap = (pCharArray[ci].status_flags_block[0] == 99);
+        at_level_cap = (pCharArray[char_idx].status_flags_block[0] == 99);
     } else {
-        at_level_cap = (pCharArray[ci].status_flags_block[0] == 0x28);
+        at_level_cap = (pCharArray[char_idx].status_flags_block[0] == 0x28);
     }
     if (at_level_cap) {
         return;
     }
 
-    pGrowth = fd2_get_char_growth_entry((int)pCharArray[ci].portrait_id);
+    pGrowth = fd2_get_char_growth_entry((int)pCharArray[char_idx].portrait_id);
     remaining_xp = (int)(data_fd2_battle_pending_xp_credit
-                       + (uint32)pCharArray[ci].movement_order);
+                       + (uint32)pCharArray[char_idx].movement_order);
     data_fd2_dialog_last_action_value_param = data_fd2_battle_pending_xp_credit;
     fd2_clear_keyboard_buffer();
-    fd2_dialog_open_speaker_portrait((uint32)pCharArray[ci].portrait_id);
+    fd2_dialog_open_speaker_portrait((uint32)pCharArray[char_idx].portrait_id);
     fd2_display_dialog_scene(
         data_fd2_all_game_text_ptr, 0x1E8, 0xA951F,
         0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
@@ -944,32 +944,32 @@ void fd2_process_xp_and_level_up_for_char(uint32 ci)
 
     while (remaining_xp > 99) {
         fd2_clear_keyboard_buffer();
-        pCharArray[ci].status_flags_block[0] =
-            (uint8)(pCharArray[ci].status_flags_block[0] + 1);
+        pCharArray[char_idx].status_flags_block[0] =
+            (uint8)(pCharArray[char_idx].status_flags_block[0] + 1);
         fd2_display_dialog_scene(
             data_fd2_all_game_text_ptr, 0x1E9, 0xAACDF,
             0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
         row = fd2_roll_stat_gain_and_show_message(
-            (short *)(pCharArray[ci].combat_aux_block + 0x10), pGrowth, 0x1EA, row);
+            (short *)(pCharArray[char_idx].combat_aux_block + 0x10), pGrowth, 0x1EA, row);
         row = fd2_roll_stat_gain_and_show_message(
-            (short *)(pCharArray[ci].combat_aux_block + 0x12), pGrowth + 2, 0x1EB, row);
+            (short *)(pCharArray[char_idx].combat_aux_block + 0x12), pGrowth + 2, 0x1EB, row);
         row = fd2_roll_stat_gain_and_show_message(
-            (short *)(pCharArray[ci].ai_target_and_dx_block + 1), pGrowth + 4, 0x1EC, row);
+            (short *)(pCharArray[char_idx].ai_target_and_dx_block + 1), pGrowth + 4, 0x1EC, row);
         row = fd2_roll_stat_gain_and_show_message(
-            (short *)&pCharArray[ci].hp_max, pGrowth + 6, 0x1ED, row);
+            (short *)&pCharArray[char_idx].hp_max, pGrowth + 6, 0x1ED, row);
         row = fd2_roll_stat_gain_and_show_message(
-            (short *)&pCharArray[ci].mp_max, pGrowth + 8, 0x1EE, row);
+            (short *)&pCharArray[char_idx].mp_max, pGrowth + 8, 0x1EE, row);
 
         if (pGrowth[10] != 0xFF) {
             pSpellLearn = fd2_get_spell_learning_entry((int)pGrowth[10]);
             for (spell_pair_iter = 0; (int)spell_pair_iter < 6;
                  spell_pair_iter++) {
-                if ((uint32)pCharArray[ci].status_flags_block[0] ==
+                if ((uint32)pCharArray[char_idx].status_flags_block[0] ==
                     pSpellLearn[spell_pair_iter * 2]) {
                     spell_id = pSpellLearn[spell_pair_iter * 2 + 1];
                     data_fd2_dialog_last_action_sprite_id_param =
                         spell_id + 0x1B9;
-                    fd2_grant_spell_to_char(ci, spell_id);
+                    fd2_grant_spell_to_char(char_idx, spell_id);
                     fd2_display_dialog_scene(
                         data_fd2_all_game_text_ptr, 0x24B,
                         (uint32)row * 0x17C0 + 0xA951F,
@@ -978,18 +978,18 @@ void fd2_process_xp_and_level_up_for_char(uint32 ci)
             }
         }
 
-        fd2_recalculate_combat_stats(ci);
+        fd2_recalculate_combat_stats(char_idx);
         remaining_xp = remaining_xp - 100;
         if (((portrait_id == 0x1E || portrait_id == 0x1F) &&
-             pCharArray[ci].status_flags_block[0] == 99) ||
-            pCharArray[ci].status_flags_block[0] == 0x1E) {
+             pCharArray[char_idx].status_flags_block[0] == 99) ||
+            pCharArray[char_idx].status_flags_block[0] == 0x1E) {
             remaining_xp = 0;
         }
     }
 
     fd2_wait_ticks_or_keypress_with_palette(0xB);
     fd2_close_status_screen_with_slide_out();
-    pCharArray[ci].movement_order = (uint8)remaining_xp;
+    pCharArray[char_idx].movement_order = (uint8)remaining_xp;
     data_fd2_battle_pending_xp_credit = 0;
 }
 

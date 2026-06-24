@@ -496,7 +496,7 @@ int fd2_ai_walk_to_target_tile(uint32 tx, uint32 ty, uint32 ci, uint32 team);
 int fd2_ai_score_physical_attack(uint32 char_idx, uint32 team);
 int fd2_execute_ai_offensive_spell(uint32 char_idx, uint32 team);
 void fd2_play_spell_cast_sequence(uint32 ci, uint32 si, uint32 nt, uint32 tb);
-void fd2_play_spell_palette_flash_with_sfx(int pattern_id);
+void fd2_play_spell_palette_flash_with_sfx(int spell_id);
 int fd2_execute_ai_physical_attack(uint32 char_idx, uint32 team);
 uint32 fd2_animate_combat_speech_bubbles(uint32 ci, uint32 ti);
 void fd2_render_combatant_hp_bar_proportional(uint32 d, uint32 s, uint32 ci, uint32 st);
@@ -512,7 +512,7 @@ void fd2_animate_bg_zoom_transition_in(uint32 char_idx, uint32 figani,
     uint32 framebuffer, uint32 workspace, uint32 bg_buf);
 void fd2_animate_bg_zoom_transition_out(uint32 char_idx, uint32 figani,
     uint32 name_banner, uint32 framebuffer, uint32 workspace, uint32 bg_buf);
-void fd2_process_xp_and_level_up_for_char(uint32 ci);
+void fd2_process_xp_and_level_up_for_char(uint32 char_idx);
 int fd2_roll_stat_gain_and_show_message(short *stat_ptr, uint8 *growth_pair, uint32 dialog_text_id, int row_idx);
 void fd2_grant_spell_to_char(uint32 char_idx, uint32 spell_id);
 int fd2_count_usable_inventory_slots(uint32 char_idx);

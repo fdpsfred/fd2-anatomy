@@ -496,7 +496,7 @@ int fd2_spell_selection_menu_main(uint32 caster_idx)
 }
 
 /* ----------------------------------------------------------------
- * fd2_play_spell_palette_flash_with_sfx(pattern_id) @ 0x1d6c8 (1 caller)
+ * fd2_play_spell_palette_flash_with_sfx(spell_id) @ 0x1d6c8 (1 caller)
  *
  * Status-class spell cast effect: play the SFX that
  * fd2_load_status_effect_sfx loaded, then flash VGA DAC palette
@@ -509,12 +509,12 @@ int fd2_spell_selection_menu_main(uint32 caster_idx)
  *
  * The flash table is a 108-byte (36 entry × 3) RGB table laid out as
  * three contiguous 36-byte planes: R at +0, G at +0x24, B at +0x48,
- * indexed by pattern_id (= spell_id 0x00..0x23).
+ * indexed by spell_id (0x00..0x23).
  *
  * Cdecl, 1 stack param; returns void. The binary's __CHK(0x18)
  * stack-probe prologue is compiler-injected and not part of the source.
  * ---------------------------------------------------------------- */
-void fd2_play_spell_palette_flash_with_sfx(int pattern_id)
+void fd2_play_spell_palette_flash_with_sfx(int spell_id)
 {
     uint32 beep_iter;
 
@@ -523,11 +523,11 @@ void fd2_play_spell_palette_flash_with_sfx(int pattern_id)
     for (beep_iter = 0; (int)beep_iter < 4; beep_iter++) {
         outp(0x3C8, 0);
         outp(0x3C9,
-             data_fd2_animation_spell_palette_flash_table[pattern_id]);
+             data_fd2_animation_spell_palette_flash_table[spell_id]);
         outp(0x3C9,
-             data_fd2_animation_spell_palette_flash_table[pattern_id + 0x24]);
+             data_fd2_animation_spell_palette_flash_table[spell_id + 0x24]);
         outp(0x3C9,
-             data_fd2_animation_spell_palette_flash_table[pattern_id + 0x48]);
+             data_fd2_animation_spell_palette_flash_table[spell_id + 0x48]);
         fd2_wait_n_bios_ticks(1);
         outp(0x3C8, 0);
         outp(0x3C9, 0);
