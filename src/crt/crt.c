@@ -6,7 +6,7 @@
  * rather than linked from the vendor library.
  *
  * Functions in this file:
- *   crt_equivalent_lx_chunk_read_36107  @ 0x36107  (2 callers)
+ *   crt_equivalent_lx_chunk_read  @ 0x36107  (2 callers)
  *   crt_equivalent_lx_header_reader_36344 @ 0x36344 (1 caller)
  *   crt_equivalent_lx_module_loader_3647b @ 0x3647b (0 callers)
  *   crt_equivalent_exit_chain_stub_36de3 @ 0x36de3 (2 callers)
@@ -26,7 +26,7 @@
 #include <fcntl.h>      /* O_* flags for open() */
 
 /* ----------------------------------------------------------------
- * crt_equivalent_lx_chunk_read_36107 @ 0x36107
+ * crt_equivalent_lx_chunk_read @ 0x36107
  *
  * Mode-flag dispatcher used by the LX module-loader pipeline to fetch a
  * chunk of bytes into dest, from one of two backing stores:
@@ -42,7 +42,7 @@
  * before any callee call (EBX in the original), so it is unaffected by
  * the called helpers' return values.
  * ---------------------------------------------------------------- */
-int crt_equivalent_lx_chunk_read_36107(int file_handle, int offset,
+int crt_equivalent_lx_chunk_read(int file_handle, int offset,
                                        uint8 mode, void *dest, uint32 length)
 {
     if ((mode & 1) == 0) {
@@ -117,8 +117,8 @@ int crt_equivalent_lx_header_reader_36344(char *path, uint8 mode_byte)
         }
     }
 
-    crt_equivalent_lx_chunk_read_36107(handle, 0x3c, mode_byte, &e_lfanew, 4);
-    crt_equivalent_lx_chunk_read_36107(handle, e_lfanew, mode_byte,
+    crt_equivalent_lx_chunk_read(handle, 0x3c, mode_byte, &e_lfanew, 4);
+    crt_equivalent_lx_chunk_read(handle, e_lfanew, mode_byte,
                                        &lx_magic_buf, 2);
 
     if (strcmp((char *)&lx_magic_buf, "LX") != 0) {
@@ -126,13 +126,13 @@ int crt_equivalent_lx_header_reader_36344(char *path, uint8 mode_byte)
         return 0;
     }
 
-    crt_equivalent_lx_chunk_read_36107(handle, e_lfanew, mode_byte,
+    crt_equivalent_lx_chunk_read(handle, e_lfanew, mode_byte,
                                        lx_header, 0xac);
     num_objects = *(uint32 *)(lx_header + 0x44);
     obj_tbl_off = e_lfanew + *(int *)(lx_header + 0x40);
 
     for (i = 0; i < num_objects; i++) {
-        obj_tbl_off = crt_equivalent_lx_chunk_read_36107(handle, obj_tbl_off,
+        obj_tbl_off = crt_equivalent_lx_chunk_read(handle, obj_tbl_off,
                                                          mode_byte,
                                                          obj_record, 0x18);
         acc += obj_record[0];
@@ -240,9 +240,9 @@ void *crt_equivalent_lx_module_loader_3647b(char *path, int flags,
     alloc_base = caller_buf;
     out_cursor = caller_buf;
 
-    crt_equivalent_lx_chunk_read_36107(handle, 0x3c, (uint8)flags,
+    crt_equivalent_lx_chunk_read(handle, 0x3c, (uint8)flags,
                                        &e_lfanew, 4);
-    crt_equivalent_lx_chunk_read_36107(handle, e_lfanew, (uint8)flags,
+    crt_equivalent_lx_chunk_read(handle, e_lfanew, (uint8)flags,
                                        &magic_buf, 2);
     if (strcmp((char *)&magic_buf, "LX") != 0) {
         if ((flags & 1) == 0) {
@@ -251,17 +251,17 @@ void *crt_equivalent_lx_module_loader_3647b(char *path, int flags,
         return (void *)0;
     }
 
-    crt_equivalent_lx_chunk_read_36107(handle, e_lfanew, (uint8)flags,
+    crt_equivalent_lx_chunk_read(handle, e_lfanew, (uint8)flags,
                                        lx_header, 0xac);
 
     obj_tbl_off = e_lfanew + *(int *)(lx_header + 0x40);
     for (obj_idx = 0; obj_idx < *(uint32 *)(lx_header + 0x44); obj_idx++) {
-        save_obj_off = crt_equivalent_lx_chunk_read_36107(
+        save_obj_off = crt_equivalent_lx_chunk_read(
             handle, obj_tbl_off, (uint8)flags, obj_record, 0x18);
         page_tbl_off = e_lfanew + *(int *)(lx_header + 0x48);
         for (page_idx = 0; page_idx < *(uint32 *)((uint8 *)obj_record + 0x10);
              page_idx++) {
-            page_tbl_off = crt_equivalent_lx_chunk_read_36107(
+            page_tbl_off = crt_equivalent_lx_chunk_read(
                 handle, page_tbl_off, (uint8)flags, page_entry, 8);
             if (page_idx == 0) {
                 if (((*((uint8 *)obj_record + 0x08) & 2) != 0) &&
@@ -281,7 +281,7 @@ void *crt_equivalent_lx_module_loader_3647b(char *path, int flags,
             if (obj_remaining < page_bytes) {
                 page_bytes = obj_remaining;
             }
-            crt_equivalent_lx_chunk_read_36107(
+            crt_equivalent_lx_chunk_read(
                 handle,
                 (page_entry[0] << (*(uint8 *)(lx_header + 0x2c) & 0x1f)) +
                     *(int *)(lx_header + 0x80),
@@ -292,7 +292,7 @@ void *crt_equivalent_lx_module_loader_3647b(char *path, int flags,
         obj_tbl_off = save_obj_off;
     }
 
-    fixup_off = crt_equivalent_lx_chunk_read_36107(
+    fixup_off = crt_equivalent_lx_chunk_read(
         handle, e_lfanew + *(int *)(lx_header + 0x68), (uint8)flags,
         &prev_cum, 4);
     fixup_page_idx = 0;
@@ -303,15 +303,15 @@ void *crt_equivalent_lx_module_loader_3647b(char *path, int flags,
             }
             return caller_buf;
         }
-        fixup_off = crt_equivalent_lx_chunk_read_36107(
+        fixup_off = crt_equivalent_lx_chunk_read(
             handle, fixup_off, (uint8)flags, &this_cum, 4);
         if (prev_cum != this_cum) {
             rec_cursor = prev_cum + e_lfanew + *(int *)(lx_header + 0x6c);
             save_fixup_off = fixup_off;
             do {
-                fixup_off = crt_equivalent_lx_chunk_read_36107(
+                fixup_off = crt_equivalent_lx_chunk_read(
                     handle, rec_cursor, (uint8)flags, &src_type, 1);
-                fixup_off = crt_equivalent_lx_chunk_read_36107(
+                fixup_off = crt_equivalent_lx_chunk_read(
                     handle, fixup_off, (uint8)flags, &target_type, 1);
                 if (((src_type & 7) == 0) ||
                     (((target_type & 4) != 0) &&
@@ -319,11 +319,11 @@ void *crt_equivalent_lx_module_loader_3647b(char *path, int flags,
                     ((src_type & 0x20) != 0)) {
                     goto loader_abort;
                 }
-                fixup_off = crt_equivalent_lx_chunk_read_36107(
+                fixup_off = crt_equivalent_lx_chunk_read(
                     handle, fixup_off, (uint8)flags, &src_offset, 2);
-                fixup_off = crt_equivalent_lx_chunk_read_36107(
+                fixup_off = crt_equivalent_lx_chunk_read(
                     handle, fixup_off, (uint8)flags, &target_obj, 1);
-                rec_cursor = crt_equivalent_lx_chunk_read_36107(
+                rec_cursor = crt_equivalent_lx_chunk_read(
                     handle, fixup_off, (uint8)flags, &target_disp, 2);
                 if (src_offset <= *(uint32 *)(lx_header + 0x28)) {
                     *(uint32 *)(page_base_table[fixup_page_idx] + src_offset) =

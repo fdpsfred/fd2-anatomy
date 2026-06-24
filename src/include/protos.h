@@ -819,7 +819,7 @@ void fd2_delay_400ms(void);
 void fd2_delay_ms(uint32 ticks);
 
 /* ---- crt_equivalent (FD2-specific CRT helpers; src/crt/crt.c) ---- */
-int crt_equivalent_lx_chunk_read_36107(int file_handle, int offset,
+int crt_equivalent_lx_chunk_read(int file_handle, int offset,
                                        uint8 mode, void *dest, uint32 length);
 int crt_equivalent_lx_header_reader_36344(char *path, uint8 mode_byte);
 void *crt_equivalent_lx_module_loader_3647b(char *path, int flags,
