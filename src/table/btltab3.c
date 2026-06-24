@@ -605,7 +605,7 @@ const uint8 *data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21[21] = {
  * Read-only spell stat/effect table (struct spell_effect, 7-byte stride). One
  * entry per spell id 0..0x23 (36 spells). Accessed exclusively through the
  * accessor fd2_get_spell_effect_entry (0x4E516), whose body is
- * "EAX = spell_id * 7; return 0x619FD + EAX" (= &table[spell_id]). The 10
+ * "EAX = spell_id * 7; return 0x619FD + EAX" (= &table[spell_id]). The 11
  * caller functions (combat / AI / cast / MP / draw paths) read fields off the
  * returned pointer at their struct byte offsets:
  *   +0 damage  read as *(short *) (signed 16-bit) -- fd2_calc_magic_damage
