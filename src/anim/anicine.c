@@ -139,8 +139,7 @@ uint32 data_fd2_audio_figani_sfx_bank_defender_buf_ptr;
  * Params: image1_idx = stage-1 image idx (FDOTHER.DAT entry),
  *   palette_idx = stage-1 palette idx,
  *   src_buf = stage-2 SOURCE BUFFER BASE pointer -- the caller's malloc'd
- *     scroll-panel buffer, NOT an x offset (the current param name
- *     "src_x_off" is a misnomer; pending rename to src_buf),
+ *     scroll-panel buffer, NOT an x offset,
  *   row_idx = stage-2 source start row (multiplied by the 320 stride to
  *     index into src_buf, i.e. the panel scroll position).
  *
@@ -149,7 +148,7 @@ uint32 data_fd2_audio_figani_sfx_bank_defender_buf_ptr;
  *   0x4B / palette 0x4C).
  * ---------------------------------------------------------------- */
 void fd2_display_cinematic_image_with_fade(uint32 image1_idx, uint32 palette_idx,
-                                           uint32 src_x_off, int32 row_idx)
+                                           uint32 src_buf, int32 row_idx)
 {
     uint32 image_data;
     uint32 stage2_src;
@@ -173,7 +172,7 @@ void fd2_display_cinematic_image_with_fade(uint32 image1_idx, uint32 palette_idx
         fd2_load_dat_resource(
             (uint32)data_fd2_string_resource_filename_fdother_dat,
             data_fd2_vga_palette_data_ptr, 0x65);
-    stage2_src = (uint32)row_idx * 0x140 + src_x_off;
+    stage2_src = (uint32)row_idx * 0x140 + src_buf;
     fd2_blit_rectangle(0xA0000, 0x140, stage2_src, 0x140, 0x140, 0xC8);
     fd2_play_palette_fade_in();
 }

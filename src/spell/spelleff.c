@@ -565,14 +565,14 @@ void fd2_execute_offensive_targeted_spell(int caster, int spell_id,
  * 0x214F5 and the PUSH), so the inner return IS the displayed number.
  * ---------------------------------------------------------------- */
 void fd2_execute_offensive_single_target_spell_id_9(
-    int caster_unit_id, int spell_arg, uint8 *target_id_array)
+    int caster_unit_id, int n_targets, uint8 *target_id_array)
 {
     uint32 damage;
 
     data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
 
     fd2_animate_spell_impact_per_target(
-        (uint32)caster_unit_id, 9, (uint32)spell_arg,
+        (uint32)caster_unit_id, 9, (uint32)n_targets,
         (uint32)target_id_array);
     fd2_deduct_caster_mp((uint32)caster_unit_id, 9);
 
