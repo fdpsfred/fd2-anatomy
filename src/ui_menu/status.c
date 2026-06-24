@@ -182,8 +182,10 @@ int fd2_add_item_to_inventory(uint32 char_idx, uint32 item_id)
  *
  * Backs up VRAM (0xA0000) into workspace_b, copies that into workspace_c,
  * then renders the static status layout + inventory grid (item_id -1 = no
- * highlight) into workspace_c. Drives a 12-frame slide-in (frame 0xB down
- * to 0); a chime SFX fires at frame 0xB (open) and frame 5 (mid). Finally
+ * highlight) into workspace_c. Drives a 12-frame slide-in by calling the
+ * shared fd2_play_status_screen_outro_step with the frame index running
+ * backwards (0xB down to 0), i.e. the slide-out step reversed produces the
+ * entrance; a chime SFX fires at frame 0xB (open) and frame 5 (mid). Finally
  * drains the keyboard buffer.
  *
  * Counterpart: fd2_close_status_screen_with_slide_out.
