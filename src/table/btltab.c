@@ -361,7 +361,7 @@ void (*data_fd2_battle_spell_handler_table[28])(uint32, uint32, uint8 *) = {
     /* 0x17 */ (void (*)(uint32, uint32, uint8 *)) fd2_cast_spell_17_teleport,
     /* 0x18 */ (void (*)(uint32, uint32, uint8 *)) fd2_cast_spell_10_variant_b,
     /* 0x19 */ (void (*)(uint32, uint32, uint8 *)) fd2_execute_status_clear_holy_word_spell_id_25,
-    /* 0x1a */ (void (*)(uint32, uint32, uint8 *)) fd2_spell_handler_id_26_via_status_d1b_effect_25,
+    /* 0x1a */ (void (*)(uint32, uint32, uint8 *)) fd2_cast_spell_1a_dispatch,
     /* 0x1b */ (void (*)(uint32, uint32, uint8 *)) fd2_spell_handler_id_27_via_status_d1b_effect_26
 };
 

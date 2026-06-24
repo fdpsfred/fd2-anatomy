@@ -257,7 +257,7 @@ void fd2_cast_spell_16_dispatch(
  * effect/sprite id 0x25. In the original binary this entry tail-jumps into the
  * 0x16 body (@ 0x22BF7) to reuse its {push caster + call worker + cleanup}
  * tail. Sibling: the 0x1B entry below (spell 0x1B with effect 0x26). */
-void fd2_spell_handler_id_26_via_status_d1b_effect_25(
+void fd2_cast_spell_1a_dispatch(
     int caster, int n_tgt, int tgt_arr)
 {
     fd2_cast_status_spell_via_d1b(
