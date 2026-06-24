@@ -1,0 +1,54 @@
+{
+  "address": "0001b932",
+  "name_current": "fd2_inventory_selection_modal_dispatch",
+  "name_final": "fd2_inventory_selection_modal_dispatch",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>: domain=inventory (ui_menu sub-domain), descriptor=selection_modal_dispatch. Accurately describes the orchestrator that opens the inventory-selection modal, loops grid input until a slot is confirmed or Esc, plays the close-screen outro, restores the VGA snapshot, and returns confirmed/cancelled. No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/ui_menu/status.c",
+  "purpose": "Open and drive the character inventory-selection modal: slide in char_idx's status screen + inventory grid, loop directional/confirm input until a slot is chosen or Esc, play the 12-frame close outro, restore the saved VGA snapshot, free the slide workspace buffers, and return whether the user confirmed.",
+  "logic_summary": "fd2_open_status_screen_with_slide_in(char_idx); reset data_fd2_ui_menu_cursor_idx=0; do { input_result = fd2_inventory_grid_input_step(char_idx, gate_flag); } while (input_result==0) -- grid step returns 0 to keep looping, 1 on slot confirm, -1 on Esc. Then for outro_iter 0..11 call fd2_play_status_screen_outro_step(outro_iter, anim_accumulator_buf, composed_target_buf, bg_snapshot_buf); memmove(0xA0000, bg_snapshot_buf, 64000) restores the VGA snapshot; free the three slide buffers; return input_result != 0xffffffff (true=confirmed, chosen slot left in data_fd2_ui_menu_cursor_idx; false=Esc cancel).",
+  "signature": "int __cdecl fd2_inventory_selection_modal_dispatch(uint32 char_idx, uint32 gate_flag)",
+  "params": [
+    {
+      "name": "char_idx",
+      "type": "uint32",
+      "semantics": "Index of the character whose status screen + inventory grid are shown; passed to fd2_open_status_screen_with_slide_in and forwarded to fd2_inventory_grid_input_step.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate (character index), matches caller usage at all 6 sites, no address residue."
+    },
+    {
+      "name": "gate_flag",
+      "type": "uint32",
+      "semantics": "Selection gate forwarded to fd2_inventory_grid_input_step: 1 = only usable items selectable (item command use/equip), 0 = any slot selectable (swap/give/sort).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate (gate flag for slot selectability), consistent with callers (use/equip pass 1; give/swap/sort pass 0) and grid input body, no address residue."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Boolean (0/1) from (input_result != -1): 1 = user confirmed a slot (index in data_fd2_ui_menu_cursor_idx); 0 = Esc cancel. Callers consume it as != 0."
+  },
+  "reads_globals": [
+    "data_fd2_ui_slide_anim_accumulator_buf_ptr",
+    "data_fd2_ui_slide_composed_target_buf_ptr",
+    "data_fd2_ui_slide_bg_snapshot_buf_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_ui_menu_cursor_idx"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Clean function; no source-comment edit and no Ghidra change needed. Source comment (status.c lines 543-565) and Ghidra plate are both accurate, ASCII, and mutually consistent. Note: source header says '(3 callers)' = 3 distinct caller functions (fd2_handle_tile_event_interaction, fd2_process_battle_drop_entries, fd2_item_command_menu_dispatch); plate says 'Callers (6 sites)' = 6 call sites (item_command_menu calls it 4x). Both verified via get_xrefs_to; not contradictory. Decompile shows raw param_1/param_2 on the Ghidra side; source declaration already uses char_idx/gate_flag, so param renames are keep (any Ghidra-side param naming is a Stage 2 concern)."
+}
