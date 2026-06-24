@@ -78,13 +78,14 @@ int fd2_chapter_intro_menu_input_loop(void)
  * Setup: pick the FDOTHER BG-image idx by state (3->0x1D, 5->0x3F, else 0x0C),
  * load + fade it in, paint the speaker portrait, render the money panel
  * (live at 0xA76C5 and into the slide-snapshot shadow buffer), then show the
- * greeting dialog (idx 0x1F5 for chapter 1, else 0x1B8).
+ * greeting dialog (idx 0x1F5 when chapter_transition_state == 1, else 0x1B8).
  *
  * Main loop: restore the saved cursor, play the open animation, run the 4-way
  * input loop, save the cursor, re-read the chapter roster into a local 12-byte
  * buffer, play the close animation; on commit dispatch by cursor (0=buy,
- * 1=sell, 2=equip, else=give) and re-show the greeting (idx 0x1F7 for chapter
- * 1, else 0x1B8). Loops while the input returned commit (1); cancel (-1) exits.
+ * 1=sell, 2=equip, else=give) and re-show the greeting (idx 0x1F7 when
+ * chapter_transition_state == 1, else 0x1B8). Loops while the input returned
+ * commit (1); cancel (-1) exits.
  *
  * Exit: blit the BG image, fade to black, then an 11-frame pose-out animation
  * (iVar5 = 10..0) that nearest-neighbour-scales pose_bitmap via
