@@ -749,10 +749,17 @@ uint8 fd2_pathfind_to_destination(uint32 ct, uint32 sx, uint32 sy, uint32 ms,
  * ---------------------------------------------------------------- */
 
 /*
- * tile-attribute -> movement-cost primary lookup table pointer @ 0x60060.
- * Holds a caller-supplied table base (passed as pCost_table). Readers
- * dereference it as (uint8 *): cost_idx = table[(attr & 0x3FF) * 4 + 1].
- * Zero at load; set at runtime by both pathfind orchestrators.
+ * tile-attribute -> movement-cost PRIMARY lookup table pointer @ 0x60060.
+ * Holds the caller-supplied primary-table base (the orchestrators' `af`
+ * argument, stored 32-bit: MOV [0x60060],EAX at 0x4E081 / 0x4E207). The two
+ * leaf neighbor-step routines (fd2_flood_fill_neighbor_step,
+ * fd2_pathfind_neighbor_step_with_tiebreak) read it back as a (uint8 *) base
+ * and index it at [(attr & 0x3FF) * 4 + 1] to fetch a secondary-table index
+ * byte (binary: AND AH,3; SHL AX,2; ADD EAX,[0x60060]; INC EAX; MOV CH,[EAX]).
+ * That index then selects the tile's movement cost from the SEPARATE secondary
+ * cost table whose base lives in data_fd2_battle_pathfind_caller_context.
+ * Written (never read) by the game -> non-const runtime state. Zero at load
+ * (BSS); set at runtime by both pathfind orchestrators before any reader runs.
  */
 uint32 data_fd2_battle_pathfind_tile_cost_table_ptr;
 
