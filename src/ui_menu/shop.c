@@ -160,9 +160,9 @@ LAB_e01e:
  *
  * Setup:
  *   1. Allocate three 64000-byte render workspaces:
- *        slide_anim_accumulator (0x53C5B) — per-frame slide scratch
- *        slide_bg_snapshot      (0x53C5F) — VGA backup (restored by close fn)
- *        slide_composed_target  (0x53C63) — full panel composite
+ *        slide_anim_accumulator (0x53C5B) -- per-frame slide scratch
+ *        slide_bg_snapshot      (0x53C5F) -- VGA backup (restored by close fn)
+ *        slide_composed_target  (0x53C63) -- full panel composite
  *   2. memmove 0xA0000 -> snapshot (capture the live framebuffer), then
  *      memmove snapshot -> composed_target (composite starts as the screen).
  *   3. Paint the shop-title sprite into composed_target at mode-13h offset
