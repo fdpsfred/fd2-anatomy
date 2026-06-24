@@ -35,7 +35,10 @@ uint8 *fd2_get_spell_effect_entry(int spell_id)
 /* ----------------------------------------------------------------
  * fd2_get_enemy_data_entry @ 0x4E4FF  (4 callers)
  *
- * Returns pointer to enemy_data_table[idx].
+ * Returns pointer to the 10-byte enemy_data_table[idx] entry. idx is the
+ * enemy-relative index = (portrait/class id - 0x44), range 0..0x43 (68 entries).
+ * Entry fields: RA, CL, HP(uint16 @+2), MP, AP, DP, DX, MV(=magic_resist for
+ * enemies), EX(exp reward @+9). On battle spawn HP/MP/AP/DP/DX = field * level.
  * Assembly: EAX = idx * 0xA + 0x61AF9
  * ---------------------------------------------------------------- */
 uint8 *fd2_get_enemy_data_entry(int idx)
