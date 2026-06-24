@@ -147,7 +147,7 @@ uint8 *fd2_get_cutscene_event_script(int event_id)
 }
 
 /* ----------------------------------------------------------------
- * fd2_get_orphan_table_60181_entry @ 0x4DB84  (0 callers — orphan)
+ * fd2_get_orphan_table_60181_entry @ 0x4DB84  (0 callers -- orphan)
  *
  * Returns pointer to idx-th 3-byte entry of the table at 0x60181.
  * Assembly: EAX = idx * 3 + 0x60181

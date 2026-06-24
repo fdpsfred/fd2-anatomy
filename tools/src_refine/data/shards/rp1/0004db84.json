@@ -1,0 +1,42 @@
+{
+  "address": "0004db84",
+  "name_current": "fd2_get_orphan_table_60181_entry",
+  "name_final": "fd2_get_orphan_table_60181_entry",
+  "name_verdict": "uncertain",
+  "name_proposed": null,
+  "name_reason": "The '60181' suffix equals the table's load address 0x60181 (LEA EDX,[0x60181] in the body), so by the strict rule it is address residue, not a domain ID (not a chapter/item/spell/job/portrait ID, dimension, or multiplier). However a clean rename is not clearly safe in isolation: (1) the table this function accesses has no derivable semantic purpose -- it is an orphan with 0 static callers and opaque packed 3-byte records (all field bytes 0x00..0x3F), so there is no descriptor to replace the address; (2) the function name deliberately mirrors its sole data symbol data_fd2_orphan_table_60181, which carries the same 0x60181 identity and is NOT in scope for this task. Renaming only the function would desync the function/data-symbol pair. Recommend Stage 2 decide whether to rename the pair together (both function and global) to an address-free identity, or keep the address as the agreed identity for this unknown orphan table. Left as keep for now (name_final = current).",
+  "kind": "function",
+  "home": "src/table/table.c",
+  "purpose": "Orphan accessor that returns a raw byte pointer to the idx-th 3-byte record of the read-only table at 0x60181.",
+  "logic_summary": "Computes (uint8 *)(data_fd2_orphan_table_60181 + idx * 3) and returns it. Body: EDX=idx; EAX=3; EAX=EAX*EDX (byte offset = idx*3); EDX=0x60181 (table base, via LEA); EAX+=EDX; return EAX. Single basic block, no branches, standard EBP frame. No bounds check (caller must keep idx in range; table holds packed 3-byte records). 0 static callers / 0 xrefs -- orphan; reachable only via indirect/function-pointer call. The Ghidra decompiler renders the same arithmetic as (data_<orphan>_6017d... + idx*3 + 4) because the underlying data symbol starts at the 4-byte zero prefix 0x6017d (0x6017d + 4 = 0x60181); the src models the table itself starting at 0x60181, which is equivalent.",
+  "signature": "uint8 *fd2_get_orphan_table_60181_entry(int idx)",
+  "params": [
+    {
+      "name": "idx",
+      "type": "int",
+      "semantics": "Zero-based record index; multiplied by the 3-byte stride to form the byte offset into the table at 0x60181.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name is descriptive, matches body usage (offset = idx*3), and carries no address residue."
+    }
+  ],
+  "returns": {
+    "type": "uint8 *",
+    "semantics": "Pointer to the idx-th 3-byte record within data_fd2_orphan_table_60181 (i.e. 0x60181 + idx*3). Raw byte pointer; element/stride semantics (3 bytes) are the caller's responsibility."
+  },
+  "reads_globals": [
+    "data_fd2_orphan_table_60181"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Source comment block was accurate and concise but contained a non-ASCII em-dash ('—') in the header line '(0 callers — orphan)', violating the ASCII-only rule for code comments.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified equivalence by reading memory at 0x6017d: bytes are 00 00 00 00 (4-byte prefix at 0x6017d) then 01 2D 29 0B 12 27 15 0C 1B 01 21 18 ... starting at 0x60181, exactly matching the src array data_fd2_orphan_table_60181[] first elements (0x01,0x2D,0x29,0x0B,0x12,0x27,0x15,0x0C,0x1B,0x01,0x21,0x18). Disassembly confirms LEA EDX,[0x60181] as the base. The src already uses the clean symbol name data_fd2_orphan_table_60181 (Ghidra-side data symbol is the verbose data_orphan_6017d_303b_4b_prefix_plus_99x3byte_table_final_unreachable_unknown, which includes the 4-byte zero prefix at 0x6017d). Data symbol rename is out of scope for this function-only task; flagged the function/global naming coupling under name_reason for Stage 2. Comment change is limited to the em-dash -> '--' fix in src/table/table.c; no logic touched."
+}
