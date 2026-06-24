@@ -1,0 +1,40 @@
+{
+  "address": "0004e56c",
+  "name_current": "fd2_get_item_effect_entry",
+  "name_final": "fd2_get_item_effect_entry",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention with no address residue. Accurately names a read-only accessor into the item effect table; the _entry suffix matches the sibling table accessors in table.c (fd2_get_spell_effect_entry, fd2_get_enemy_data_entry, etc.). The 'item' domain id 0..0xD6 (215 items) is a meaningful range, not address residue.",
+  "kind": "function",
+  "home": "src/table/table.c",
+  "purpose": "Leaf accessor returning a pointer to the type byte of item_effect_table[item_id], the start of that item's meaningful effect data; callers index subsequent fields off the returned pointer.",
+  "logic_summary": "__cdecl, single stack arg item_id. Computes &data_fd2_battle_item_effect_table[item_id].bTY = 0x602AC + item_id*0x17 + 1 = 0x602AD + item_id*0x17. Disassembly: EAX=[EBP+8]; EAX*=0x17 (23-byte stride); EAX += 0x602AD; ret. No side effects, no globals written, cyclomatic complexity 1.",
+  "signature": "uint8 *fd2_get_item_effect_entry(int item_id)",
+  "params": [
+    {
+      "name": "item_id",
+      "type": "int",
+      "semantics": "Item id 0..0xD6 (215 items); used directly as the index into the 23-byte-stride item effect table. Confirmed by caller fd2_check_job_can_equip_item which passes an item id and reads *ret as the item category byte.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately reflects an item id index, no address residue, no rename needed."
+    }
+  ],
+  "returns": {
+    "type": "uint8 *",
+    "semantics": "Pointer to item_effect_table[item_id].bTY (entry offset +1, address 0x602AD + item_id*0x17), i.e. the item type/category byte that begins the entry's meaningful fields. Callers dereference *ret for the type byte and read subsequent effect fields at ret+0x01..0x16 (offensive_flag, range_class, aoe_target_flag, aoe_shape, AP/HT/DP/EV deltas, etc.)."
+  },
+  "reads_globals": ["data_fd2_battle_item_effect_table"],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Function name, parameter name, source comment (table.c lines 13-18) and Ghidra plate are all already correct and concise; no edits required. Ghidra struct item_entry has bUnknown_00 at +0 and bTY at +1, so the accessor returns &entry.bTY (the 'skips +0 prefix byte' wording in the source comment is accurate). The fd2-knowledge guide lists the entry's first byte as TY (type); that layout was recorded against a different FD2.EXE build whose table start differs, but it does not affect this accessor -- the function definitively returns the bTY (type/category) field, corroborated by caller fd2_check_job_can_equip_item. Plate's 'Callers (22)' is the distinct-function count; get_xrefs_to lists 23 call sites because fd2_compute_equipped_stats_with_item_preview calls twice -- consistent, no drift. Only this shard is staged because table.c needed no change."
+}
