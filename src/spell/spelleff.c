@@ -783,7 +783,7 @@ void fd2_cast_ap_boost_spell(int caster_unit_id, int num_targets,
  * *(byte *)(param_3 + iVar4).
  *
  * Callers: fd2_apply_use_effect_dispatch @ 0x20C6F (item effect 0x0F),
- * fd2_cast_spell_12_stage_b @ 0x2282F (spell 0x12), and
+ * fd2_cast_spell_12_dp_boost @ 0x2282F (spell 0x12), and
  * fd2_execute_summon_spell_cast @ 0x27FC9 (summon combo).
  * ---------------------------------------------------------------- */
 void fd2_cast_dp_boost_spell(int caster_unit_id, int num_targets,

@@ -353,7 +353,7 @@ void (*data_fd2_battle_spell_handler_table[28])(uint32, uint32, uint8 *) = {
     /* 0x0f */ (void (*)(uint32, uint32, uint8 *)) fd2_cast_spell_0f_variant_b,
     /* 0x10 */ (void (*)(uint32, uint32, uint8 *)) fd2_cast_spell_10_variant_b,
     /* 0x11 */ (void (*)(uint32, uint32, uint8 *)) fd2_cast_spell_11_stage_a,
-    /* 0x12 */ (void (*)(uint32, uint32, uint8 *)) fd2_cast_spell_12_stage_b,
+    /* 0x12 */ (void (*)(uint32, uint32, uint8 *)) fd2_cast_spell_12_dp_boost,
     /* 0x13 */ (void (*)(uint32, uint32, uint8 *)) fd2_cast_spell_13_stage_c,
     /* 0x14 */ (void (*)(uint32, uint32, uint8 *)) fd2_cast_spell_14_dispatch_aa8,
     /* 0x15 */ (void (*)(uint32, uint32, uint8 *)) fd2_cast_spell_15_dispatch_aa8,

@@ -187,7 +187,7 @@ void fd2_cast_spell_11_stage_a(
  * caster MP using cost-table index 0x12, then delegate to the DP-boost worker.
  * @ 0x2282F. Mirrors the 0x11 AP-boost wrapper; the DP-boost worker is shared
  * with the item-use path and the 破壞神 summon spell. */
-void fd2_cast_spell_12_stage_b(
+void fd2_cast_spell_12_dp_boost(
     int caster, int n_tgt, uint8 *tgt_arr)
 {
     data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;

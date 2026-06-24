@@ -124,7 +124,7 @@ void fd2_cast_spell_0e_variant_b(int, int, uint8 *);
 void fd2_cast_spell_0f_variant_b(uint32, uint32, uint8 *);
 void fd2_cast_spell_10_variant_b(uint32, uint32, uint8 *);
 void fd2_cast_spell_11_stage_a(int, int, uint8 *);
-void fd2_cast_spell_12_stage_b(int, int, uint8 *);
+void fd2_cast_spell_12_dp_boost(int, int, uint8 *);
 void fd2_cast_spell_13_stage_c(uint32, uint32, uint8 *);
 void fd2_cast_spell_14_dispatch_aa8(int, int, uint8 *);
 void fd2_cast_spell_15_dispatch_aa8(int, int, uint8 *);
