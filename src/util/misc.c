@@ -28,7 +28,15 @@ void fd2_debug_print_ans_and_length(int value)
 /* ----------------------------------------------------------------
  * fd2_set_word_global_52758 @ 0x3615E
  *
- * Swap AIL alloc function pointer. Returns old value.
+ * Get-and-set helper for the AIL internal allocator slot
+ * data_ail_alloc_fnptr (0x52758): stores new_val as the new allocator
+ * function pointer and returns the prior pointer (so a caller can save
+ * and restore it). The AIL internal load/alloc routines call through
+ * this slot to allocate; game main installs malloc here at startup.
+ * Dword (32-bit pointer) value, not a word. No callers in static xrefs
+ * (the API entry; the slot itself is consumed by the AIL_internal_*
+ * routines as a data pointer). Paired with the +4 slot helper @ 0x3616E
+ * which swaps data_ail_free_fnptr.
  * ---------------------------------------------------------------- */
 uint32 fd2_set_word_global_52758(uint32 new_val)
 {

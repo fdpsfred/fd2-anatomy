@@ -1,0 +1,40 @@
+{
+  "address": "0003615e",
+  "name_current": "fd2_set_word_global_52758",
+  "name_final": "fd2_ail_set_alloc_fnptr",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_ail_set_alloc_fnptr",
+  "name_reason": "Current name has two defects: (1) the '_52758' suffix is a pure Ghidra address residue equal to the operand address 0x52758 (the global it touches) and must be removed; (2) 'set_word' is wrong -- the body reads/writes a dword (32-bit pointer), not a word. The function is a get-and-set (swap) helper for the AIL internal allocator slot data_ail_alloc_fnptr (0x52758): it stores the new fnptr and returns the prior one. Proposed fd2_ail_set_alloc_fnptr follows fd2_<domain>_<descriptor> (domain=ail, matching the global data_ail_alloc_fnptr) and conveys the install-allocator semantics. The sibling @ 0x3616E (swaps data_ail_free_fnptr) would correspondingly become fd2_ail_set_free_fnptr.",
+  "kind": "function",
+  "home": "ROOT/src/util/misc.c",
+  "purpose": "Install a new AIL internal allocator function pointer (data_ail_alloc_fnptr at 0x52758) and return the previous one, so a caller can save/restore or compare it.",
+  "logic_summary": "EAX = [0x52758] (old allocator fnptr); EDX = [ESP+4] (new fnptr arg); [0x52758] = EDX (store new); RET (return old in EAX). A get-and-set/swap of a single dword pointer slot. No stack frame, no __CHK; raw register passing, 1 cdecl stack param. The AIL_internal_* load/alloc routines call indirectly through data_ail_alloc_fnptr to allocate; game main patches malloc into it at startup. 0 static callers of this function (it is the API entry; the slot itself is read by AIL_internal_load_file_to_memory, AIL_internal_alloc_and_commit, AIL_internal_mdi_driver_setup_full and the CRT loader).",
+  "signature": "uint32 fd2_set_word_global_52758(uint32 new_val)",
+  "params": [
+    {
+      "name": "new_val",
+      "type": "uint32",
+      "semantics": "New AIL allocator function pointer to install into data_ail_alloc_fnptr (a 32-bit code pointer, e.g. &malloc). Stored as-is; the prior value is returned.",
+      "verdict": "rename",
+      "proposed": "new_fnptr",
+      "reason": "new_val is acceptable (not a generic param_1, no address residue) but imprecise; the value is specifically a function pointer being installed into the allocator slot, so new_fnptr is more accurate. Minor clarity rename only; type/semantics unchanged."
+    }
+  ],
+  "returns": {
+    "type": "uint32",
+    "semantics": "The previous value of data_ail_alloc_fnptr (the allocator function pointer in effect before this call), returned in EAX. Lets the caller restore or compare the old allocator."
+  },
+  "reads_globals": ["data_ail_alloc_fnptr"],
+  "writes_globals": ["data_ail_alloc_fnptr"],
+  "comment_original_issue": "src comment was terse ('Swap AIL alloc function pointer. Returns old value.') and did not identify the target as the AIL internal allocator slot, that the value is a dword pointer (the name says 'word'), that there are no static callers, or the relationship to the consuming AIL_internal_* routines and the +4 free-slot sibling.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "data_ail_alloc_fnptr (0x52758) holds 0x36d16 statically (= malloc, confirmed by DATA xref from this function's address region) and the +4 slot 0x5275c holds 0x37416 (= free). The Ghidra decompiler 'fixup to -> 00002758' annotations are LE-relocation display artifacts; the real disassembly operand is the absolute address 0x52758 = data_ail_alloc_fnptr (confirmed via disassemble_function and get_xrefs_from). Old plate had a misleading speculative tail ('0x52758 appears in fix_off32 table cross-references suggesting it may be reached via function pointer') that conflated the global's data xrefs with this function being invoked; corrected in the refined plate. Both rename (function + param) recorded only; not applied this stage (Stage 2)."
+}
