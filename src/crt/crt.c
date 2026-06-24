@@ -13,7 +13,7 @@
  *   crt_equivalent_get_eflags_thunk     @ 0x37f86 (2 callers)
  *   crt_equivalent_get_eflags           @ 0x3ed58 (0 callers; thunk JMP target)
  *   crt_equivalent_fpe_default_handler @ 0x3d26e (2 callers)
- *   crt_equivalent_matherr_default_thunk_4d340 @ 0x4d340 (1 caller)
+ *   crt_equivalent_matherr_default_thunk @ 0x4d340 (1 caller)
  *   crt_equivalent_matherr_default_return_zero_4d8ea @ 0x4d8ea (0 callers)
  */
 
@@ -494,7 +494,7 @@ void crt_equivalent_fpe_default_handler(int fpe_code)
 }
 
 /* ----------------------------------------------------------------
- * crt_equivalent_matherr_default_thunk_4d340 @ 0x4d340  (1 caller)
+ * crt_equivalent_matherr_default_thunk @ 0x4d340  (1 caller)
  *
  * Default value of the user-matherr-handler slot @ 0x539A8. _matherr
  * (vendor CLIB3S obj) reads the slot and CALLs it before any diagnostic
@@ -532,7 +532,7 @@ void crt_equivalent_fpe_default_handler(int fpe_code)
  * `jmp <target>` (Watcom resolves the symbol with a relocation). The helper
  * (crt_matherr_jmp_to_return_zero) is only ever called, never address-taken,
  * so Watcom 9.5a expands it in place with no symbol of its own.
- * crt_equivalent_matherr_default_thunk_4d340 is a REAL out-of-line function
+ * crt_equivalent_matherr_default_thunk is a REAL out-of-line function
  * so it owns the PUBDEF that slot [0x539A8] resolves to. It has no locals and
  * no stack frame, so Watcom emits no __CHK probe / prologue before the JMP —
  * ESP reaches the target exactly as _matherr left it (exc still pushed,
@@ -565,7 +565,7 @@ extern void crt_matherr_jmp_to_return_zero(void);
  * (byte-exact) thunk-tail detail the project does not pursue; the Layer 2
  * (functionally-exact) contract is met (return 0 in EAX, stack balanced, the
  * jmp tail-transfers so 0x4d8ea's RET returns straight to _matherr). */
-int crt_equivalent_matherr_default_thunk_4d340(void *exc)
+int crt_equivalent_matherr_default_thunk(void *exc)
 {
     (void)exc;
     crt_matherr_jmp_to_return_zero();
@@ -576,7 +576,7 @@ int crt_equivalent_matherr_default_thunk_4d340(void *exc)
  * crt_equivalent_matherr_default_return_zero_4d8ea @ 0x4d8ea  (0 callers)
  *
  * The "return 0" primitive the default _matherr handler forwards to. It is
- * the JMP target of crt_equivalent_matherr_default_thunk_4d340 @ 0x4d340
+ * the JMP target of crt_equivalent_matherr_default_thunk @ 0x4d340
  * (slot [0x539A8]'s default contents); no direct callers -- control only
  * arrives via that thunk's tail JMP, then RETs straight back to _matherr.
  * Returning 0 signals "I did not handle this error", so _matherr proceeds
