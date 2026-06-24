@@ -415,9 +415,10 @@ void fd2_delay_ms(uint32 ms)
 /* ----------------------------------------------------------------
  * fd2_delay_400ms_via_idle_thunk @ 0x353CC  (1 caller)
  *
- * 400ms idle-delay wrapper: PUSH 0x190 (=400); CALL fd2_delay_ms;
- * ADD ESP,4; RET. No params, void return. The single argument is pushed
- * by the caller and cleaned up by the caller's ADD ESP,4, i.e. cdecl.
+ * Fixed 400ms delay wrapper: PUSH 0x190 (=400); CALL fd2_delay_ms;
+ * ADD ESP,4; RET. No params, void return. The 400 argument is pushed
+ * and cleaned up around the call (cdecl); fd2_delay_ms forwards it to
+ * the Watcom CRT delay(ms), so 400 is the delay duration in milliseconds.
  *
  * Caller: fd2_cinematic_chapter_portrait_dump_with_white_flash @ 0x35822.
  * (The same 4-instruction body is also reached as the fall-through tail of
