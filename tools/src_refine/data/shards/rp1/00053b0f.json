@@ -1,0 +1,34 @@
+{
+  "address": "0x00053b0f",
+  "name_current": "data_fd2_battle_fast_mode_walk_overlay_ptr",
+  "name_final": "data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr",
+  "name_verdict": "rename",
+  "name_proposed": "data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr",
+  "name_reason": "Current name 'walk_overlay' mischaracterizes the data: this is NOT a walk-animation overlay. The value is a pointer to an SFX sample bank (FDOTHER.DAT resource index 0x40), loaded only when fast/speed mode is on, and its ONLY functional reader (fd2_animate_attack_hit_sequence @0x1EA1A) passes it as the sfx_table_base / arg1 to fd2_play_sfx_with_handle, whose documented contract treats arg1 as an SFX sample bank (entry=base+sfx_id*4, sample offset at +6, end at +10). It is never passed to any sprite/animation/blit routine. This matches the established sibling family of FDOTHER.DAT SFX-bank buffer pointers in the audio domain: data_fd2_audio_fdother_sfx_bank_buf_ptr @0x53EEC (FDOTHER.DAT[0x1F], default bank loaded at startup in main.c), data_fd2_audio_figani_sfx_bank_buf_ptr @0x54117, data_fd2_audio_summon_spell_sfx_bank_buf_ptr @0x5411F. Proposed name follows that convention: data_fd2_audio_ domain prefix + speed_mode (gated on data_fd2_ui_game_speed_flag) + attack (consumed by the attack-hit animation) + _sfx_bank_buf_ptr suffix (pointer-to-SFX-bank-buffer datatype). 'speed_mode' is a semantic qualifier (matches the existing speed/fast-mode gate naming), not an address residue.",
+  "kind": "global",
+  "home": "src/ui_menu/menucfg.c",
+  "purpose": "Pointer to the speed-mode attack-hit SFX sample bank (FDOTHER.DAT resource index 0x40); loaded lazily only when fast/speed mode is enabled and consumed as the SFX bank base for weapon attack-hit sounds.",
+  "logic_summary": "Zero-bss (NULL in the initial image). Written exactly twice, both in fd2_maybe_load_speed_mode_overlay @0x1A7BD under `if (data_fd2_ui_game_speed_flag != 0)`: first a defensive NULL store, then assigned the result of fd2_load_dat_resource(\"FDOTHER.DAT\" @0x51A4D, old_buf=0, index=0x40) (disasm @0x1A7DA: PUSH 0x40; PUSH 0x0; PUSH 0x51A4D; CALL fd2_load_dat_resource @0x111BA; MOV [0x53B0F],EAX). fd2_load_dat_resource returns a malloc'd buffer pointer (undefined4 *) holding FDOTHER.DAT payload index 0x40. Read at fd2_maybe_free_speed_mode_overlay @0x1A804 (free(ptr), gated on the same flag) and at fd2_animate_attack_hit_sequence @0x1EA1A where it is passed as arg1 (sfx_table_base) to fd2_play_sfx_with_handle(ptr, sfx_id, 1) inside the per-step attack-hit loop. When fast mode is off the pointer stays NULL and is never read (the loader skips, and the attack animation in non-fast mode does not reach this path with a live pointer). Only 4 xrefs total (2 write in loader, 1 read in freer, 1 read in animator); no other consumer.",
+  "datatype": "uint32 (undefined4) -- a single pointer-sized SFX sample bank handle (void*/buffer pointer returned by fd2_load_dat_resource)",
+  "element_semantics": "Scalar pointer (4 bytes). Points at a heap buffer = FDOTHER.DAT resource index 0x40, an AIL/Miles SFX sample bank laid out as fd2_play_sfx_with_handle expects: per-entry record at base + sfx_id*4 with sample start offset at +6 and end offset at +10 (relative to bank base).",
+  "is_const": false,
+  "comment_original_issue": "The src comment block (and the loader/freer function comments) described this as a 'fast-mode walk-animation overlay resource handle' and claimed the AI/enemy turns 'swap to the trimmed walk-animation resource' -- a mischaracterization. There is no walk-animation consumer; the sole reader uses the pointer purely as an SFX sample bank base for fd2_play_sfx_with_handle. The original block did correctly note the play_sfx data flow at the end, but its opening characterization and the symbol name were misleading.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "created",
+  "issues": [
+    {
+      "category": "documentation",
+      "severity": "low",
+      "title": "Loader/freer function comments still call this an SFX bank a 'walk-animation overlay'",
+      "description": "The comment blocks of fd2_maybe_load_speed_mode_overlay (menucfg.c lines 395-412) and fd2_maybe_free_speed_mode_overlay (lines 422-436) still describe the resource as a 'fast-walk animation overlay' / claim AI/enemy turns 'swap to the trimmed walk-animation resource at FDOTHER.DAT index 0x40'. This is the same mischaracterization corrected in this global's own comment block: the pointer is an SFX sample bank, not walk-animation data. Those two function comment blocks belong to separate symbols (already refined in shards 0001a7bd.json and 0001a7f1.json) so they were NOT edited here per the one-symbol-per-message rule; they should be corrected (and the load/free function names possibly reconsidered, e.g. *_attack_sfx_bank rather than *_walk/_overlay) when those symbols are revisited. The function names fd2_maybe_load_speed_mode_overlay / fd2_maybe_free_speed_mode_overlay are acceptable (generic 'speed_mode' resource load/free) but their bodies/comments imply animation rather than SFX.",
+      "evidence": "fd2_animate_attack_hit_sequence @0x1EA1A passes the pointer only to fd2_play_sfx_with_handle as sfx_table_base; fd2_play_sfx_with_handle plate @0x25A96 documents arg1 as an SFX sample bank (entry=base+id*4, sample off +6, end +10). Sibling FDOTHER SFX banks: data_fd2_audio_fdother_sfx_bank_buf_ptr @0x53EEC=FDOTHER.DAT[0x1F], loaded in main.c:76-79."
+    }
+  ],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Datatype/const verified: read_memory @0x53B0F = all-zero (zero-bss, NULL initial), so is_const=false confirmed by 2 game write-xrefs in fd2_maybe_load_speed_mode_overlay. Resource index confirmed via disasm @0x1A7DA (PUSH 0x40). FDOTHER.DAT string confirmed at 0x51A4D (mem bytes 46 44 4f 54 48 45 52 2e 44 41 54 00 = 'FDOTHER.DAT'). Default SFX bank distinction confirmed: data_fd2_audio_fdother_sfx_bank_buf_ptr @0x53EEC loads FDOTHER.DAT index 0x1F at startup (main.c:76-79), ours loads 0x40 lazily in fast mode -- distinct banks. Rename recorded only (Stage 2 will apply across globals.h/protos and all call sites: menucfg.c defs+writes, anicombt.c:1012 read, globals.h:159 decl). src comment block (menucfg.c lines 445-466 after edit) rewritten to correct the walk-overlay mischaracterization and state it is an SFX bank; Edit-only, single block, no other symbol touched. Ghidra data plate at 0x53B0F was <null> (no existing plate) -> created a concise SFX-bank plate (PLATE_COMMENT via run_script_inline cu.setComment) and saved with save_program (success). Live symbol name left unchanged in src declaration and Ghidra per Stage-2 rule. No logic/statement/type changes."
+}
