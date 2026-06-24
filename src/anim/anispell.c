@@ -5,7 +5,7 @@
  * fd2_play_ani_file_animation_sequence    @ 0x20421 (4 callers)
  * fd2_animate_bg_zoom_transition_in       @ 0x29C90 (2 callers)
  * fd2_animate_bg_zoom_transition_out      @ 0x29DED (1 caller)
- * fd2_play_spell_cast_cinematic           @ 0x2A2E8 (1 caller)
+ * fd2_play_class_promotion_cinematic           @ 0x2A2E8 (1 caller)
  * fd2_cycle_sprite_anim_with_bg_frames    @ 0x2A5D0 (1 caller)
  */
 
@@ -253,12 +253,11 @@ void fd2_animate_bg_zoom_transition_out(uint32 char_unit_id,
 }
 
 /* ----------------------------------------------------------------
- * fd2_play_spell_cast_cinematic @ 0x2A2E8  (1 caller)
+ * fd2_play_class_promotion_cinematic @ 0x2A2E8  (1 caller)
  *
  * The CLASS PROMOTION cinematic. Sole caller: fd2_run_class_promotion_menu_main
- * @ 0x31385, which invokes it as fd2_play_spell_cast_cinematic(char_idx,
- * class_id). The "spell_cast" / "spell_id" naming is a misnomer kept stable
- * across xrefs; the second arg is the target class id, used purely to index
+ * @ 0x31385, which invokes it as fd2_play_class_promotion_cinematic(char_idx,
+ * class_id). The second arg is the target class id, used purely to index
  * FIGANI.DAT for a "becomes-this-class" silhouette — the fn does not care about
  * spell semantics.
  *
@@ -287,10 +286,10 @@ void fd2_animate_bg_zoom_transition_out(uint32 char_unit_id,
  * BIOS-tick read that precedes the JZ has no effect (result discarded); it is not
  * reproduced. See tools/code_emit/data/emit_issues.json (0002a2e8).
  *
- * caster_char_idx indexes data_fd2_battle_runtime_char_array_ptr (stride 0x50);
+ * promoting_char_idx indexes data_fd2_battle_runtime_char_array_ptr (stride 0x50);
  * .portrait_id is at +0x07. cdecl, void return.
  * ---------------------------------------------------------------- */
-void fd2_play_spell_cast_cinematic(uint32 caster_char_idx, uint32 spell_id)
+void fd2_play_class_promotion_cinematic(uint32 promoting_char_idx, uint32 target_class_id)
 {
     void   *work;
     void   *caster_figani;
@@ -316,10 +315,10 @@ void fd2_play_spell_cast_cinematic(uint32 caster_char_idx, uint32 spell_id)
     work = malloc(0x1f400);
     caster_figani = (void *)fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0,
-        (uint32)data_fd2_battle_runtime_char_array_ptr[caster_char_idx].portrait_id * 3);
+        (uint32)data_fd2_battle_runtime_char_array_ptr[promoting_char_idx].portrait_id * 3);
     target_figani = (void *)fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0,
-        spell_id * 3);
+        target_class_id * 3);
     vga_backup = malloc(64000);
     memmove(vga_backup, (void *)0xa0000, 64000);
 
@@ -376,7 +375,7 @@ void fd2_play_spell_cast_cinematic(uint32 caster_char_idx, uint32 spell_id)
  * fd2_cycle_sprite_anim_with_bg_frames @ 0x2A5D0  (1 caller)
  *
  * Generic sprite-animation player loop with a 3-variant cycling parallax
- * background. Sole caller: fd2_play_spell_cast_cinematic, which invokes it for
+ * background. Sole caller: fd2_play_class_promotion_cinematic, which invokes it for
  * both the caster phase (iter_count = 0x10) and the target-class phase
  * (iter_count = 0x18). Renders iter_count frames at 1 BIOS tick per frame.
  *

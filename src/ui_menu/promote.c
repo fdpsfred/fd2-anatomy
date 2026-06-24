@@ -503,7 +503,7 @@ uint8 fd2_build_promotion_candidates_with_targets(uint8 *out_chars,
  *      [char.portrait_id]; class_id<=0x31 (the 0x20..0x31 tier-1 upgrade)
  *      consumes nothing.
  *   7. fd2_set_bgm_track_with_fade(0x10,1) promotion fanfare,
- *      fd2_play_spell_cast_cinematic(char_idx,class_id),
+ *      fd2_play_class_promotion_cinematic(char_idx,class_id),
  *      fd2_set_bgm_track_with_fade(0xB,0).
  *   8. rt_chars[idx].job_id = *fd2_get_class_promotion_data_entry(class_id);
  *      rt_chars[idx].portrait_id = target_classes[cursor_idx]. Free the
@@ -611,7 +611,7 @@ void fd2_run_class_promotion_menu_main(void)
         }
 
         fd2_set_bgm_track_with_fade(0x10, 1);
-        fd2_play_spell_cast_cinematic(char_idx, class_id);
+        fd2_play_class_promotion_cinematic(char_idx, class_id);
         fd2_set_bgm_track_with_fade(0xb, 0);
 
         promo_entry = fd2_get_class_promotion_data_entry((int)class_id);

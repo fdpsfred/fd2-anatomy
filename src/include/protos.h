@@ -185,7 +185,7 @@ void fd2_execute_summon_spell_cast(uint32 caster_idx, uint32 spell_id, uint32 n_
 uint32 fd2_load_figani_sfx_bank(uint32 figani_data);
 void fd2_animate_bg_zoom_transition_in(uint32 char_unit_id, uint32 char_sprite_idx, uint32 clear_buf, uint32 workspace, uint32 caster_figani);
 void fd2_animate_bg_zoom_transition_out(uint32 char_unit_id, uint32 char_sprite_idx, uint32 terrain_bg, uint32 clear_buf, uint32 workspace, uint32 name_banner_sprite);
-void fd2_play_spell_cast_cinematic(uint32 caster_char_idx, uint32 spell_id);
+void fd2_play_class_promotion_cinematic(uint32 promoting_char_idx, uint32 target_class_id);
 void fd2_cycle_sprite_anim_with_bg_frames(uint32 sprite_atlas, uint32 workspace, uint32 iter_count);
 void fd2_play_char_intro_zoom_anim(uint32 caster_idx, uint32 mode_flag, uint32 caster_figani_a, uint32 target_figani0, uint32 workbuf2, uint32 workbuf1, uint32 tai_resource);
 void fd2_restore_portrait_cache_from_tmp(void);

@@ -24,6 +24,8 @@
     {"n": 94, "address": "00022c04", "did": "name", "note": "execute_status_clear_holy_word_spell_id_25 -> execute_reactivate_spell_id_25; 3 files"},
     {"n": 96, "address": "00022cda", "did": "both", "note": "cast_status_spell_via_d1b -> cast_status_inflict_spell_wrapper (3 files); 5 ghidra params synced (src already correct)"},
     {"n": 99, "address": "00024336", "did": "name", "note": "play_chapter_intro_sprite_slideshow -> play_chapter_21_hidden_stage_unlock_cinematic; 4 files"},
-    {"_gate_change": "From item-99 build gate: full byte-identical is UNACHIEVABLE for renames -- wlink reorders LE fixup records by symbol name. Proven: code/data+headers byte-identical, fixup table same multiset (reorder-only) => functional equivalence. Stage-2 gate switched from hash_check.py to eqcheck.py (per user decision). Also fixed item-45 prefix-collision (fd2_load_chapter_portrait was a prefix of fd2_load_chapter_portraits_and_dump_tmp)."}
+    {"_gate_change": "From item-99 build gate: full byte-identical is UNACHIEVABLE for renames -- wlink reorders LE fixup records by symbol name. Proven: code/data+headers byte-identical, fixup table same multiset (reorder-only) => functional equivalence. Stage-2 gate switched from hash_check.py to eqcheck.py (per user decision). Also fixed item-45 prefix-collision (fd2_load_chapter_portrait was a prefix of fd2_load_chapter_portraits_and_dump_tmp)."},
+    {"n": 103, "address": "00025ebb", "did": "name", "note": "main_menu_continue_dispatcher -> main_menu_dispatcher; 9 files"},
+    {"n": 111, "address": "0002a2e8", "did": "both", "note": "play_spell_cast_cinematic -> play_class_promotion_cinematic (5 files); ghidra+src params caster_char_idx/spell_id -> promoting_char_idx/target_class_id (spell_id surgical: shared with fd2_play_spell_cast_sequence)"}
   ]
 }

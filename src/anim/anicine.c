@@ -73,7 +73,7 @@ uint32 data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr;
  *   pointers to the RLE blitter (the special-attack cinematic crash).
  *   Writers/readers: fd2_play_full_combat_cinematic here and
  *   fd2_execute_special_attack_skill (spellcin.c), plus
- *   fd2_play_spell_cast_cinematic and the two BG zoom transitions (anispell.c)
+ *   fd2_play_class_promotion_cinematic and the two BG zoom transitions (anispell.c)
  *   -- each zeroes a slot, stores the malloc-backed result of
  *   fd2_load_dat_resource(BG.DAT, ..., n) into it, RLE-blits it as a parallax
  *   backdrop, and frees it on cleanup. Zero-initialized at rest (.bss),

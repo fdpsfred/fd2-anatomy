@@ -154,7 +154,7 @@ const char data_fd2_string_ui_render_decimal_format_template[6] = {
 /* 0x52381  "BG.DAT" + NUL (7 bytes).
  * Resource filename passed as the first argument to fd2_load_dat_resource to
  * open the parallax-background archive BG.DAT. The combat/spell/skill cinematic
- * routines (fd2_play_full_combat_cinematic, fd2_play_spell_cast_cinematic,
+ * routines (fd2_play_full_combat_cinematic, fd2_play_class_promotion_cinematic,
  * fd2_play_spell_cast_sequence, fd2_execute_special_attack_skill,
  * fd2_play_figani_char_intro_animation, fd2_execute_summon_spell_cast) load
  * indices 0/1/2 into special_attack_bg_layer_0/1/2 as the three parallax BG
@@ -169,7 +169,7 @@ const char data_fd2_string_resource_filename_bg_dat_52381[7] = {
  * Resource filename passed as the first argument to fd2_load_dat_resource to
  * open the character figure-animation archive FIGANI.DAT. The combat/spell/
  * skill cinematic routines (fd2_play_full_combat_cinematic,
- * fd2_play_spell_cast_cinematic, fd2_play_spell_cast_sequence,
+ * fd2_play_class_promotion_cinematic, fd2_play_spell_cast_sequence,
  * fd2_execute_special_attack_skill, fd2_play_figani_char_intro_animation,
  * fd2_execute_summon_spell_cast, fd2_play_final_chapter_30_ending) load a pair
  * of indices per character: portrait_id*3 -> silhouette/skeleton sprite and
