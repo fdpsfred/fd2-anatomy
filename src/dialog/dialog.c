@@ -361,7 +361,7 @@ void fd2_portrait_blink_animation_step(void)
  *
  * Animate a dialog box opening, then assemble its 5-layer frame.
  *
- * If dst_origin (flip) == 0, default it from the active portrait
+ * If dst_origin == 0, default it from the active portrait
  * mode (0x728 enemy -> 2 / 0x9017 ally -> 0x70). Otherwise pan the
  * battle cursor to (pos_x, pos_y) and linear-interpolate a sprite
  * blit from the cursor pixel toward dst_origin over (cursor_x +
@@ -376,7 +376,7 @@ void fd2_portrait_blink_animation_step(void)
  * the caller / fd2_close_dialog_panels_then_slide_out_to_cursor to restore
  * the screen when the dialog closes.
  * ---------------------------------------------------------------- */
-uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 flip)
+uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 dst_origin)
 {
     uint32 cursor_x_pixel;
     uint32 cursor_y_pixel;
@@ -389,11 +389,11 @@ uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 flip)
     uint8 *sheet;
     uint32 width;
 
-    if (flip == 0) {
+    if (dst_origin == 0) {
         if (data_fd2_dialog_active_portrait_blit_offset == 0x728) {
-            flip = 2;
+            dst_origin = 2;
         } else if (data_fd2_dialog_active_portrait_blit_offset == 0x9017) {
-            flip = 0x70;
+            dst_origin = 0x70;
         }
     } else {
         data_fd2_battle_anim_phase = 0;
@@ -406,7 +406,7 @@ uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 flip)
         if (total_steps != 0) {
             for (step = 0; step <= total_steps; step++) {
                 interp_y = (int)cursor_y_pixel -
-                           ((int)(cursor_y_pixel - flip) * step) / total_steps;
+                           ((int)(cursor_y_pixel - dst_origin) * step) / total_steps;
                 interp_x = (int)cursor_x_pixel -
                            ((int)(cursor_x_pixel - 5) * step) / total_steps;
                 sheet = (uint8 *)data_fd2_ui_anim_sprite_sheet_ptr;
@@ -429,36 +429,36 @@ uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 flip)
         data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[i] = malloc(0x682c);
     }
 
-    width = flip * 0x140 + 5;
+    width = dst_origin * 0x140 + 5;
 
     fd2_save_screen_block_to_buffer(
         (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[0],
         0x136, 0x56, 0xa0000, width, 0x140);
-    fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, flip, 4, 2);
+    fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, dst_origin, 4, 2);
     fd2_delay_ms(10);
 
     fd2_save_screen_block_to_buffer(
         (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[1],
         0x136, 0x56, 0xa0000, width, 0x140);
-    fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, flip, 8, 3);
+    fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, dst_origin, 8, 3);
     fd2_delay_ms(10);
 
     fd2_save_screen_block_to_buffer(
         (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[2],
         0x136, 0x56, 0xa0000, width, 0x140);
-    fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, flip, 0xc, 4);
+    fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, dst_origin, 0xc, 4);
     fd2_delay_ms(10);
 
     fd2_save_screen_block_to_buffer(
         (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[3],
         0x136, 0x56, 0xa0000, width, 0x140);
-    fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, flip, 0x10, 5);
+    fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, dst_origin, 0x10, 5);
     fd2_delay_ms(10);
 
     fd2_save_screen_block_to_buffer(
         (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[4],
         0x136, 0x56, 0xa0000, width, 0x140);
-    fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, flip, 0x13, 5);
+    fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, dst_origin, 0x13, 5);
 
     fd2_clear_keyboard_buffer();
     return (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs;

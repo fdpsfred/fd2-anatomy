@@ -515,8 +515,8 @@ void fd2_animate_bg_zoom_transition_out(uint32 char_idx, uint32 figani,
 void fd2_process_xp_and_level_up_for_char(uint32 ci);
 int fd2_roll_stat_gain_and_show_message(short *stat_ptr, uint8 *growth_pair, uint32 dialog_text_id, int row_idx);
 void fd2_grant_spell_to_char(uint32 char_idx, uint32 spell_id);
-int fd2_count_usable_inventory_slots(uint32 ci);
-int fd2_build_usable_spell_list(uint32 ci, uint32 buf);
+int fd2_count_usable_inventory_slots(uint32 char_idx);
+int fd2_build_usable_spell_list(uint32 char_idx, uint32 out_buf);
 void fd2_grant_spell_to_char(uint32 char_idx, uint32 spell_id);
 int fd2_score_spell_candidate(uint32 si, uint32 nt, uint32 tb);
 void fd2_execute_ai_item_use(uint32 char_idx, uint32 ctx);
@@ -664,7 +664,7 @@ void fd2_load_save_and_init_engine(void);
 /* ---- dialog / UI screens ---- */
 uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx, uint32 render_pos, uint32 render_pitch, uint32 glyph_fill_color, uint32 glyph_outline_color, uint32 glyph_bg_color, uint32 glyph_height, uint32 blink_flag);
 void fd2_blit_glyph_2bpp_with_outline(uint32 font_data, uint32 glyph_idx, uint32 dst_buf, uint32 pitch, uint32 fill_color, uint32 outline_color, uint16 bg_color);
-uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 flip);
+uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 dst_origin);
 void fd2_assemble_dialog_frame_layered(uint32 dst, uint32 pitch, uint32 col_offset, int row_offset, int n_cols, int n_rows);
 void fd2_scroll_portrait_dialog_text_up_one_line(void);
 void fd2_dialog_sprite_blit_normal(uint32 dst, uint32 sprite_hdr, uint32 stride);

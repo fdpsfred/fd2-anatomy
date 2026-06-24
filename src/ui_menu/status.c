@@ -112,7 +112,7 @@ int fd2_check_job_can_equip_item(uint32 char_idx, uint32 item_id)
 /* ----------------------------------------------------------------
  * fd2_count_usable_inventory_slots @ 0x1B8A6  (9 callers)
  *
- * Count how many of the 8 inventory slots in runtime_char[ci] are
+ * Count how many of the 8 inventory slots in runtime_char[char_idx] are
  * currently active: a slot is active when its flag byte
  * (inventory_slots[slot*2]) has bit 0x80 clear. Returns the count.
  *
@@ -124,7 +124,7 @@ int fd2_check_job_can_equip_item(uint32 char_idx, uint32 item_id)
  * not part of the source). EBX is the accumulator (callee-saved); the
  * trailing POP EBX + RET is the shared epilogue.
  * ---------------------------------------------------------------- */
-int fd2_count_usable_inventory_slots(uint32 ci)
+int fd2_count_usable_inventory_slots(uint32 char_idx)
 {
     runtime_char *rc;
     uint32 slot_iter;
@@ -133,7 +133,7 @@ int fd2_count_usable_inventory_slots(uint32 ci)
     rc = data_fd2_battle_runtime_char_array_ptr;
     active_count = 0;
     for (slot_iter = 0; (int)slot_iter < 8; slot_iter++) {
-        if ((rc[ci].inventory_slots[slot_iter * 2] & 0x80) == 0) {
+        if ((rc[char_idx].inventory_slots[slot_iter * 2] & 0x80) == 0) {
             active_count++;
         }
     }

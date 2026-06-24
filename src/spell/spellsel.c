@@ -33,7 +33,7 @@
  * stack-probe prologue is compiler-injected and not part of the source;
  * the body's tail `JMP 0x22bbe` is Watcom's shared epilogue.
  * ---------------------------------------------------------------- */
-int fd2_build_usable_spell_list(uint32 ci, uint32 buf)
+int fd2_build_usable_spell_list(uint32 char_idx, uint32 out_buf)
 {
     runtime_char *pCharArray;
     uint8 bitmap_byte;
@@ -45,11 +45,11 @@ int fd2_build_usable_spell_list(uint32 ci, uint32 buf)
     spell_count = 0;
 
     for (byte_iter = 0; (int)byte_iter < 5; byte_iter++) {
-        bitmap_byte = pCharArray[ci].spells_known_bitmap[byte_iter];
+        bitmap_byte = pCharArray[char_idx].spells_known_bitmap[byte_iter];
         for (bit_iter = 0; (int)bit_iter < 8; bit_iter++) {
             if (((bitmap_byte >> bit_iter) & 1) != 0) {
-                if (buf != 0) {
-                    *(uint8 *)(buf + spell_count) =
+                if (out_buf != 0) {
+                    *(uint8 *)(out_buf + spell_count) =
                         (uint8)(byte_iter * 8 + bit_iter);
                 }
                 spell_count++;
