@@ -1,0 +1,59 @@
+{
+  "address": "0x0004e16e",
+  "name_current": "fd2_flood_fill_neighbor_step",
+  "name_final": "fd2_flood_fill_neighbor_step",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>: domain = flood_fill (movement-range flood fill), descriptor = neighbor_step (inner step that visits one neighbour tile). No Ghidra address residual in the name. Accurately reflects purpose and matches the parallel naming of its path-aware twin fd2_pathfind_neighbor_step_with_tiebreak @ 0x4E330. Sole caller is fd2_flood_fill_movement_range_recursive @ 0x4E0DC from all four direction branches (xrefs 0x4E0F5/0x4E114/0x4E136/0x4E154), consistent with the name.",
+  "kind": "function",
+  "home": "ROOT/src/util/pathfnd.c",
+  "purpose": "Inner step of the movement-range flood fill: visit one neighbour tile, look up its movement cost via the two-level cost tables, and conditionally rewrite the tile's BTM marker (and signal the caller to recurse) when the new residual cost strictly improves on the existing marker.",
+  "logic_summary": "Reads the neighbour tile's 16-bit attribute word at btm_attr_ptr-3; its low 10 bits *4 +1 index the primary table (data_fd2_battle_pathfind_tile_cost_table_ptr) to get a secondary index, which indexes the secondary cost table (data_fd2_battle_pathfind_caller_context, the binary's inherited ESI base) to get tile_cost. new_cost = remaining_cost - tile_cost, written out through new_cost_out. Reads flags byte at btm_attr_ptr-1. Commits (rewrites *btm_attr_ptr to new_cost, returns 1) only when affordable (tile_cost <= remaining_cost), strictly improves the current marker (signed compare (int8)*btm < (int8)new_cost), and the tile is not impassable (flags & 0x40 == 0). An 0x80 'movement sink' tile is marked reachable but with residual 0 so the recursion stops expanding past it. Otherwise returns 0. Binary form is a register-passing leaf (CL/EBX/ESI, no stack frame) signalling improvement via the carry flag (CLC=recurse, STC=skip); the emit is the Layer-2 equivalent with int return (non-zero == binary CLC) and the residual handed back via new_cost_out.",
+  "signature": "int fd2_flood_fill_neighbor_step(uint8 remaining_cost, uint8 *btm_attr_ptr, uint8 *new_cost_out)",
+  "params": [
+    {
+      "name": "remaining_cost",
+      "type": "uint8",
+      "semantics": "Residual movement budget at the source tile (binary CL); the amount of movement cost still available when stepping into this neighbour.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the residual budget; matches binary CL role; no address residual."
+    },
+    {
+      "name": "btm_attr_ptr",
+      "type": "uint8 *",
+      "semantics": "Pointer to the neighbour tile's BTM marker byte (binary EBX). Raw 16-bit attribute word lives at [-3..-2] and the flags byte at [-1] relative to it; the marker byte itself is at [0].",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately describes the marker/attr pointer used for all reads/the commit write; matches binary EBX; no address residual."
+    },
+    {
+      "name": "new_cost_out",
+      "type": "uint8 *",
+      "semantics": "Output parameter receiving the residual cost passed to the neighbour (remaining_cost - tile_cost, forced to 0 for an 0x80 sink). This is how the caller obtains the value (binary CL) it feeds into the recursive descent.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Correctly named output param; the _out suffix marks it as an out-parameter; no address residual."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Non-zero (1) == binary carry-clear (CLC): the tile improved and was committed, so the caller should recurse into it. 0 == binary carry-set (STC): the tile was unaffordable, not an improvement, or impassable; skip and do not recurse."
+  },
+  "reads_globals": [
+    "data_fd2_battle_pathfind_tile_cost_table_ptr",
+    "data_fd2_battle_pathfind_caller_context"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Name and all three parameter names are already correct and convention-compliant (keep). src comment block (pathfnd.c lines 122-157) is already accurate, refined, and ASCII-compliant; cross-checked against the decompile (two-level cost lookup, signed-strictly-improves gate, 0x40 impassable / 0x80 sink handling, residual-out semantics) -- all match, so comment_verdict=keep. The Ghidra plate describes the binary's register-passing form (No params / void return / Class-3 shared-tail detail) but its algorithm description is semantically identical to the src (same cost lookup, same commit conditions, same flag semantics); not contradictory/outdated, so left as-is (ghidra_plate_action=none, no save_program needed). Reads two pathfind-state globals (primary cost-table ptr, and caller_context as the inherited secondary cost-table base); writes no globals (only via btm_attr_ptr / new_cost_out params). No logic issues found."
+}
