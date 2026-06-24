@@ -1011,7 +1011,7 @@ void fd2_execute_status_clear_holy_word_spell_id_25(int caster_unit_id,
  * Ghidra mislabels the 4th formal as caster_idx; it is the target array
  * pointer per the sole caller (asm 0x22CDA..0x22D1A, RET).
  *
- * Sole caller: fd2_cast_spell_16_dispatch_cda @ 0x22BE1 (spell id 0x16);
+ * Sole caller: fd2_cast_spell_16_dispatch @ 0x22BE1 (spell id 0x16);
  * the sibling thunks for ids 0x1A/0x1B also reach it through that caller.
  * ---------------------------------------------------------------- */
 void fd2_cast_status_spell_via_d1b(int caster_idx,

@@ -244,7 +244,7 @@ void fd2_cast_spell_15_dispatch(
  * tail (@ 0x22BF7) that the 0x1A and 0x1B siblings jump into after pushing
  * their own spell/effect ids. Distinct from the 0x14/0x15 status-cure family,
  * which uses a different worker (0x22AA8). */
-void fd2_cast_spell_16_dispatch_cda(
+void fd2_cast_spell_16_dispatch(
     int caster, int n_tgt, uint8 *tgt_arr)
 {
     fd2_cast_status_spell_via_d1b(
