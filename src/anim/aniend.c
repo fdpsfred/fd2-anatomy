@@ -368,7 +368,7 @@ void fd2_play_chapter_clear_fanfare(void)
 }
 
 /* ----------------------------------------------------------------
- * fd2_play_chapter_intro_sprite_slideshow @ 0x24336  (1 caller)
+ * fd2_play_chapter_21_hidden_stage_unlock_cinematic @ 0x24336  (1 caller)
  *
  * Chapter-21 hidden-stage UNLOCK cinematic (not a chapter intro: it runs at
  * chapter-21 END, after the player is granted item 100 = sky key / 天空之鑰).
@@ -396,7 +396,7 @@ void fd2_play_chapter_clear_fanfare(void)
  * fd2_composite_battle_frame_zero compiles (in the original) into a JMP that
  * replaces the epilogue; the plain call below is the functional equivalent.
  * ---------------------------------------------------------------- */
-void fd2_play_chapter_intro_sprite_slideshow(void)
+void fd2_play_chapter_21_hidden_stage_unlock_cinematic(void)
 {
     void *workspace;
     uint32 sheet;

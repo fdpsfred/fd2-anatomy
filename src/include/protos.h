@@ -364,7 +364,7 @@ void fd2_chapter_event_handler_2c__ch19_ai_ctrl(uint32 event_arg);
 void fd2_chapter_event_handler_2d__ch19_ai_ctrl(uint32 event_arg);
 void fd2_chapter_event_handler_2e__ch19_reinforcement(uint32 event_arg);
 
-void fd2_play_chapter_intro_sprite_slideshow(void);
+void fd2_play_chapter_21_hidden_stage_unlock_cinematic(void);
 void fd2_play_game_ending_cinematic(void);
 int fd2_any_char_has_item(int item_id);
 int fd2_find_template_char_by_id(uint32 char_id);
@@ -646,7 +646,7 @@ void fd2_chapter_19_end(void);
 
 /* ---- lifecycle / main menu ---- */
 void fd2_play_chapter_clear_fanfare(void);
-void fd2_play_chapter_intro_sprite_slideshow(void);
+void fd2_play_chapter_21_hidden_stage_unlock_cinematic(void);
 int fd2_title_attract_and_main_menu(void);
 void fd2_play_game_ending_cinematic(void);
 void fd2_play_final_chapter_30_ending(void);

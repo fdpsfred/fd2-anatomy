@@ -1172,7 +1172,7 @@ void fd2_render_filled_circle_band_anim(uint32 param_1, uint32 param_2,
  * those registers without ever pushing them at entry, relying on the
  * reaching frame to have saved them. The two reaching sites are
  * fd2_cast_status_cure_spell (conditional tail-JMP @ 0x22B49) and
- * fd2_play_chapter_intro_sprite_slideshow (unconditional CALL @ 0x244B1);
+ * fd2_play_chapter_21_hidden_stage_unlock_cinematic (unconditional CALL @ 0x244B1);
  * the +0x22BBE label is additionally reused as a folded epilogue by many
  * other functions (pure Watcom epilogue-fold, no source-level meaning).
  *

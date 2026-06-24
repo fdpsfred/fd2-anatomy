@@ -243,7 +243,7 @@ void fd2_chapter_21_end(void)
         fd2_cutscene_event_trigger(0x40);
         fd2_display_dialog_scene(data_fd2_current_chapter_text, 9, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
-        fd2_play_chapter_intro_sprite_slideshow();
+        fd2_play_chapter_21_hidden_stage_unlock_cinematic();
         final_page = 10;
     } else {
         final_page = 6;
