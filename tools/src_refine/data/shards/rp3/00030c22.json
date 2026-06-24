@@ -1,0 +1,63 @@
+{
+  "address": "00030c22",
+  "name_current": "fd2_promote_members_select_loop",
+  "name_final": "fd2_revive_member_select_loop",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_revive_member_select_loop",
+  "name_reason": "Function is the CHURCH-REVIVE candidate picker, not a class-promotion picker. Sole caller is fd2_run_revive_menu_main @ 0x30E90 (the revive menu), and the caller's payoff is revive semantics (clear dead flag + restore HP). The 'promote' in the current name is a historical misnomer inherited from the caller's old name fd2_run_promote_menu_main (already corrected to fd2_run_revive_menu_main). Today the only thing distinguishing this fn from the genuine promotion picker fd2_promote_member_select_loop @ 0x311DC is the fragile plural/singular 'members' vs 'member'. Renaming to fd2_revive_member_select_loop makes the domain distinction self-documenting (revive vs promote) and parallels the sibling. No address residue; 'member' is a domain word. Apply in Stage 2 (touches protos.h:804, caller promote.c:994, and doc cross-refs in aniui.c / rndmenu.c / shop.c / globals.h plate).",
+  "kind": "function",
+  "home": "src/ui_menu/promote.c",
+  "purpose": "Church-revive candidate selection loop: builds the panel, slides it in, runs the Up/Down cursor navigation over the dead-member list, and returns whether the user committed (1) or cancelled (-1).",
+  "logic_summary": "result=0. malloc 3 x 64000-byte (mode 13h) workspaces (anim_accumulator, bg_snapshot, composed_target). Snapshot VGA 0xA0000 -> bg_snapshot, clone bg_snapshot -> composed_target. Reset ui_menu_scroll_offset=0 and ui_menu_cursor_idx=0; stash candidate_idx_list into ui_menu_candidate_array_ptr and candidate_count into ui_menu_visible_item_count for the re-render path. Blit the panel sprite (atlas offset +0x46) into composed_target+0x8C05, render the initial grid via fd2_render_promote_members_grid, then play a 6-frame slide-down reveal (frame_iter 5..0, y = 0x70 + frame_iter*0xD) via fd2_slide_panel_down_step. Input loop: scancode = fd2_wait_input_with_chapter_dialog_blink(2). Up(0x48): if cursor!=0, cursor--, if cursor<scroll_offset then scroll_offset-- + animate_scroll_down, re-render. Down(0x50): if cursor<candidate_count-1, cursor++, if cursor-scroll_offset>2 then scroll_offset++ + animate_scroll_up, re-render. Enter(0x1C)/Space(0x39): result=1. Esc(0x01): result=-1. Loop until result!=0; return result. Buffers are intentionally NOT freed here -- caller cleans up via fd2_close_intro_dialog_with_slide_out (shared 3-buffer state). Viewport shows 3 items, scrolling 1 step at a time (vs the shop's 2-step).",
+  "signature": "int __cdecl fd2_promote_members_select_loop(uint32 candidate_count, uint8 *candidate_idx_list)",
+  "params": [
+    {
+      "name": "candidate_count",
+      "type": "uint32",
+      "semantics": "Number of revive-eligible (dead) party members in the list; caller passes dead_count from fd2_build_dead_chars_list_for_revive. Used as the Down-arrow clamp (cursor < candidate_count-1) and forwarded to the grid renderer and stashed into ui_menu_visible_item_count.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate (it is the candidate count) and free of address residue."
+    },
+    {
+      "name": "candidate_idx_list",
+      "type": "uint8 *",
+      "semantics": "Pointer to the byte array of dead-member runtime_char indices to display; caller passes its local candidate_chars[32]. Stashed into ui_menu_candidate_array_ptr for the re-render path and forwarded to fd2_render_promote_members_grid.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate (the candidate index list) and free of address residue."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "1 = user committed the highlighted candidate (Enter 0x1C / Space 0x39); -1 = user cancelled (Esc 0x01). Caller treats -1 as 'exit revive menu' and uses ui_menu_cursor_idx to identify the chosen candidate after a commit."
+  },
+  "reads_globals": [
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_ui_menu_scroll_offset",
+    "data_fd2_ui_menu_screen_sprite_atlas_buf_ptr",
+    "data_fd2_ui_slide_anim_accumulator_buf_ptr",
+    "data_fd2_ui_slide_bg_snapshot_buf_ptr",
+    "data_fd2_ui_slide_composed_target_buf_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_ui_slide_anim_accumulator_buf_ptr",
+    "data_fd2_ui_slide_bg_snapshot_buf_ptr",
+    "data_fd2_ui_slide_composed_target_buf_ptr",
+    "data_fd2_ui_menu_scroll_offset",
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_ui_menu_candidate_array_ptr",
+    "data_fd2_ui_menu_visible_item_count"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment (promote.c lines 46-77) was already accurate and concise (church-revive semantics, return values, 3-buffer setup, 3-item viewport / 1-step scroll, __CHK(0x24) prologue note, tail-jump-to-shared-epilogue note, EAX/CONCAT31 explanation), so comment_verdict=keep and promote.c was NOT edited. Ghidra plate was stale: it used pre-rename global names (current_menu_cursor_idx, render_workspace_a/b/c, chapter_intro_face_table_ptr, chapter_intro_face_count) and the obsolete chapter_intro_face labeling that the source already records as a mislabel. Updated the plate's global names to the current convention (data_fd2_ui_menu_* / data_fd2_ui_slide_*), preserving its detailed structure; plate header function name left unchanged (Stage 2 owns the rename). save_program() succeeded. Rename to fd2_revive_member_select_loop recorded for Stage 2 only -- not applied here (no rename_function, no src symbol/decl edits)."
+}
