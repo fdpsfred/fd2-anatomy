@@ -709,7 +709,7 @@ void fd2_tile_blit_24x24_dimmed_grayscale(uint32 src, uint32 dst, uint32 stride)
 void fd2_tile_blit_24x24_with_remap_table(uint32 src, uint32 dst, uint32 stride, uint32 remap_table);
 void fd2_rle_blit_with_palette_remap(uint16 *rle_stream, int32 dst_x, int32 dst_y,
                                      int32 dst_buf, int32 stride, int32 palette_remap);
-void fd2_tile_blit_24x24_solid_color(uint32 src, uint32 dst, uint32 color_or_stride, uint32 unused);
+void fd2_tile_blit_24x24_solid_color(uint32 src, uint32 dst, uint32 color_or_stride, uint32 unused_color);
 void fd2_tile_blit_24x24_with_tint_offset(uint32 rle_stream, uint32 dst_buf, uint32 stride, uint32 color_base, uint32 tint_offset);
 void fd2_tile_blit_24x24_remap(uint32 rle_stream, uint32 dst_buf, uint32 stride, uint32 palette_remap);
 void fd2_tile_blit_24x24_with_dialog_bg_fill(uint32 rle_stream, uint32 dst_buf, uint32 stride);

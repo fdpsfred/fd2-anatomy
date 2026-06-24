@@ -741,12 +741,12 @@ void fd2_tile_blit_24x24_remap(uint32 rle_stream, uint32 dst_buf,
  *   dst             — destination base linear address
  *   color_or_stride — packed (stride in low..high bytes); row advance
  *                     is value - 0x18, fill colour is the low byte
- *   unused          — present only to match the caller's cdecl frame
+ *   unused_color    — present only to match the caller's cdecl frame
  *
  * Hand-written asm leaf: no __CHK probe, no CALLs.
  * ---------------------------------------------------------------- */
 void fd2_tile_blit_24x24_solid_color(uint32 src, uint32 dst,
-                                     uint32 color_or_stride, uint32 unused)
+                                     uint32 color_or_stride, uint32 unused_color)
 {
     uint32 rle_stream;
     uint32 dst_buf;
@@ -757,7 +757,7 @@ void fd2_tile_blit_24x24_solid_color(uint32 src, uint32 dst,
     uint32 count;
     int    row;
 
-    (void)unused;
+    (void)unused_color;
     rle_stream = src;
     dst_buf = dst;
     row_advance = color_or_stride - 0x18;
