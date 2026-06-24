@@ -880,7 +880,7 @@ void fd2_cast_dp_boost_spell(int caster_unit_id, int num_targets,
  * the asm *(byte *)(param_3 + iVar5).
  *
  * Callers: fd2_apply_use_effect_dispatch @ 0x20C6F (item effect 0x0C),
- * fd2_cast_spell_13_stage_c @ 0x22960 (spell 0x13), and
+ * fd2_cast_spell_13_speed_boost @ 0x22960 (spell 0x13), and
  * fd2_execute_summon_spell_cast @ 0x27FC9 (summon combo).
  * ---------------------------------------------------------------- */
 void fd2_cast_speed_boost_spell(uint32 caster_unit_id, uint32 num_targets,

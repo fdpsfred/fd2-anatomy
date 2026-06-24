@@ -201,7 +201,7 @@ void fd2_cast_spell_12_dp_boost(
  * these are three distinct buff spells, not three stages of one. Unlike the
  * 0x11/0x12 wrappers (which both charge MP via index 0x12), this one charges
  * via its own spell id 0x13. */
-void fd2_cast_spell_13_stage_c(
+void fd2_cast_spell_13_speed_boost(
     uint32 caster, uint32 n_tgt, uint8 *tgt_arr)
 {
     data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
