@@ -1,0 +1,48 @@
+{
+  "address": "0x00031860",
+  "name_current": "fd2_find_inventory_slot_with_item",
+  "name_final": "fd2_find_inventory_slot_with_item",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain = inventory helper). No Ghidra address residue in the name. Accurately reflects purpose: search a char's inventory for a slot holding a given item id and return the slot index (-1 if none). Confirmed by all 5 callers using it exactly this way.",
+  "kind": "function",
+  "home": "ROOT/src/ui_menu/status.c",
+  "purpose": "Search runtime_char[char_idx]'s inventory for the first slot holding item_id and return that slot index, or -1 if none.",
+  "logic_summary": "slot_count = fd2_count_usable_inventory_slots(char_idx); if slot_count != 0, iterate slot_iter 0..slot_count-1, read each slot's item id via fd2_get_inventory_slot_item_id(char_idx, slot_iter), and return the first slot_iter whose id == item_id. Return -1 when count is 0 or no slot matches. fd2_get_inventory_slot_item_id returns a MOVZX zero-extended byte so the full-EAX compare is exactly a byte == item_id test.",
+  "signature": "int __cdecl fd2_find_inventory_slot_with_item(uint32 char_idx, uint32 item_id)",
+  "params": [
+    {
+      "name": "char_idx",
+      "type": "uint32",
+      "semantics": "Index into the runtime_char array; identifies which character's inventory to search. Forwarded to fd2_count_usable_inventory_slots and fd2_get_inventory_slot_item_id. Callers pass 0..15 (e.g. fd2_any_char_has_item loop index).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Precise, address-free, matches usage as the runtime_char array index."
+    },
+    {
+      "name": "item_id",
+      "type": "uint32",
+      "semantics": "The item id to find; compared (as a byte) against each slot's item id. Callers pass the searched key item id straight through (e.g. fd2_any_char_has_item forwards its own item_id; chapter handlers pass plot/promotion item ids).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Precise, address-free, matches its role as the search key compared against each slot's item id byte."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Slot index (0-based) of the first slot whose item id equals item_id; -1 if the usable slot count is 0 or no slot matches."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Comment block at src/ui_menu/status.c lines 1159-1180 already concise, accurate, and ASCII (describes per-char usable-slot loop bound, per-slot id read, first-match return, -1 fallback, key-item use case, callers, and the MOVZX byte-compare nuance); kept as-is. Ghidra plate already consistent with src understanding; left unchanged. No reads/writes of globals (it only calls fd2_count_usable_inventory_slots and fd2_get_inventory_slot_item_id, which themselves touch data_fd2_battle_runtime_char_array_ptr). Loop bound is the usable-slot count, not a fixed 8 -- faithful and already documented; not a logic issue."
+}
