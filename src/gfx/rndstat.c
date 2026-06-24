@@ -759,7 +759,7 @@ void fd2_render_mini_char_status_panel(uint32 buf, uint32 stride, uint32 char_id
  *   data_fd2_ui_play_active_flag         (0x51AAC)
  *
  * Auto-positioning (keeps the panel from covering the cursor); the chosen
- * column is latched in data_fd2_ui_terrain_hud_panel_offset_51a0c:
+ * column is latched in data_fd2_ui_terrain_hud_panel_offset:
  *   cursor_screen_y > 5  && cursor_screen_x < 3  -> right column (0xF2)
  *   cursor_screen_y > 5  && cursor_screen_x > 9  -> left  column (1)
  *   otherwise -> keep the previous latched column.
@@ -809,14 +809,14 @@ void fd2_render_terrain_info_hud_panel(uint32 buf, uint32 stride)
 
     if (data_fd2_battle_cursor_screen_y > 5
         && data_fd2_battle_cursor_screen_x < 3) {
-        data_fd2_ui_terrain_hud_panel_offset_51a0c = 0xf2;
+        data_fd2_ui_terrain_hud_panel_offset = 0xf2;
     } else if (data_fd2_battle_cursor_screen_y > 5
                && data_fd2_battle_cursor_screen_x > 9) {
-        data_fd2_ui_terrain_hud_panel_offset_51a0c = 1;
+        data_fd2_ui_terrain_hud_panel_offset = 1;
     }
 
     panel_base = buf + stride * 0x9d
-               + data_fd2_ui_terrain_hud_panel_offset_51a0c;
+               + data_fd2_ui_terrain_hud_panel_offset;
 
     sprite_src = data_fd2_ui_anim_sprite_sheet_ptr
                + *(int32 *)(data_fd2_ui_anim_sprite_sheet_ptr + 0x20e);
@@ -1082,4 +1082,4 @@ void fd2_render_chapter_status_panel_segments(uint32 sheet, uint32 active_idx,
  * .object2 scalar with a non-zero static seed of 1 (the panel
  * defaults to the left position before the first latch write).
  * ---------------------------------------------------------------- */
-uint32 data_fd2_ui_terrain_hud_panel_offset_51a0c = 1;
+uint32 data_fd2_ui_terrain_hud_panel_offset = 1;
