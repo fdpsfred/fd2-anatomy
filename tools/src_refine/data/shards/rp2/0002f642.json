@@ -1,0 +1,47 @@
+{
+  "address": "0x0002f642",
+  "name_current": "fd2_run_sell_item_menu",
+  "name_final": "fd2_run_sell_item_menu",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention and matches the sibling shop functions (fd2_run_buy_item_menu / fd2_run_equip_member_menu / fd2_run_give_item_menu). Name accurately reflects the function: the top-level loop for the SELL branch of the chapter-intro shop menu (dispatched at cursor idx 1 by fd2_run_chapter_intro_menu_main). No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "ROOT/src/ui_menu/shop.c",
+  "purpose": "Top-level loop for the SELL branch of the chapter-intro shop menu: pick a seller, list that member's inventory, pick an item, confirm, and sell it at 75% of base price.",
+  "logic_summary": "Snapshots two short[6] per-shop-tier dialog text-id tables (sell_for @ 0x5272A, no_items @ 0x52736) into local arrays. Then loops: (1) set visible_item_count = party member count and run fd2_party_roster_single_select_loop to pick a seller (Esc / -1 returns); seller = cursor idx. (2) Build the seller's inventory id list across 8 slots, skipping slots whose flag byte has bit 0x80 (empty); append item id otherwise. (3) If empty, show the 'nothing to sell' reject dialog (no_items table) and loop back. (4) Reset cursor/scroll, open the sell-mode item panel (sell_mode=1 shows 75% price), run fd2_shop_menu_input_loop (sell_mode=1); Esc loops back. (5) On commit, read the chosen slot's item id via fd2_get_inventory_slot_item_id(seller, cursor), set last_action_sprite_id_param = item_id + 0xB5, fetch item entry, and compute sale price = (uint16 price @ item_entry+0x13) * 3 >> 2 (signed >>2, floors) into last_action_value_param. (6) Show the 'sell?' yes/no confirm (sell_for table); cancel / cursor==1 (no) loops back. On yes: transaction-feedback animation, money-increment animation of the sale price, remove the slot, recompute combat stats. Repeats forever until the seller-roster Esc.",
+  "signature": "void fd2_run_sell_item_menu(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; loops internally until the seller-roster select is cancelled (Esc / -1), then returns to fd2_run_chapter_intro_menu_main."
+  },
+  "reads_globals": [
+    "data_fd2_dialog_shop_sell_for_dialog_text_id_table",
+    "data_fd2_dialog_shop_sell_nothing_to_sell_text_id_table",
+    "data_fd2_shared_menu_party_member_count",
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_chapter_intro_menu_speaker_portrait_id_table",
+    "data_fd2_chapter_intro_menu_cursor_state",
+    "data_fd2_all_game_text_ptr",
+    "data_fd2_dialog_last_action_value_param"
+  ],
+  "writes_globals": [
+    "data_fd2_ui_menu_visible_item_count",
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_ui_menu_scroll_offset",
+    "data_fd2_dialog_last_action_sprite_id_param",
+    "data_fd2_dialog_last_action_value_param"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment in shop.c is already precise and matches the decompilation (char-first then item-first flow, 75% resale price*3>>2, two dialog tables at 0x5272A/0x52736, inline 8-slot inventory build skipping bit-0x80 empties, yes/no confirm with cursor==1=no, EAX-bug notes per call site); kept verbatim. Ghidra plate is detailed and consistent with the refined understanding (not contradictory/stale), so left untouched per the conservative rule. Minor plate imprecision (lists party_total_gold @0x53BF3 as 'Incremented on sale' under Globals touched, though the increment actually happens inside the fd2_animate_money_increment callee, not directly in this function) is not contradictory and the src comment correctly attributes the gold change to fd2_animate_money_increment, so no plate edit. Caller fd2_run_chapter_intro_menu_main @ 0x2E341 confirms dispatch at cursor idx 1 (SELL). reads/writes_globals exclude callee-side effects."
+}
