@@ -2,9 +2,14 @@
 #include "types.h"
 #include "globals.h"
 
-/* Per-chapter-state speaker portrait / DATO.DAT entry id for the chapter intro
- * menu. Indexed by chapter_transition_state (0..5); element passed to
- * fd2_load_chapter_portrait / fd2_load_dat_resource. Read-only. @ 0x52659 */
+/* Greeting-speaker DATO.DAT portrait-sprite id for each chapter-intro menu
+ * variant. Indexed by chapter_intro_menu_cursor_state (0..5, @ 0x5412B); the
+ * selected byte is passed to fd2_load_chapter_portrait, which loads that sprite
+ * from DATO.DAT and positions it. Values 0x80..0x84 are the five special
+ * story-NPC speaker portraits (each with a fixed blit offset); other values
+ * (here state 2 = 0x00) are ordinary character portrait ids. Read by the
+ * chapter-intro menus and every shop sub-menu (buy/sell/give/equip) to redraw
+ * the greeting after each action. Read-only. @ 0x52659 */
 const uint8 data_fd2_chapter_intro_menu_speaker_portrait_id_table[6] =
     { 0x81, 0x80, 0x00, 0x82, 0x83, 0x84 };
 
