@@ -49,7 +49,7 @@ const char data_fd2_string_chapter_battle_oom_msg_runtime_char[20] = {
  * fd2_load_chapter_battle_data on the portrait-sheet open-fail path (after an
  * int386(0x10,...) text-mode reset) before exit. Read-only; loaded as a char*
  * and consumed directly by printf. */
-const char data_fd2_string_field_map_fdicon_not_found_err_50086[35] = {
+const char data_fd2_string_field_map_fdicon_not_found_err[35] = {
     0x0a, 0x0a, 0x20, 0x46, 0x69, 0x6c, 0x65, 0x20, 0x6e, 0x6f,
     0x74, 0x20, 0x66, 0x6f, 0x75, 0x6e, 0x64, 0x20, 0x27, 0x46,
     0x44, 0x49, 0x43, 0x4f, 0x4e, 0x2e, 0x42, 0x32, 0x34, 0x21,

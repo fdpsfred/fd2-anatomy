@@ -393,7 +393,7 @@ extern const char data_fd2_string_save_load_oom_msg_runtime_char[20]; /* 0x50037
 
 /* ---- chapter battle-data load error strings (.object2 const) ---- */
 extern const char data_fd2_string_chapter_battle_oom_msg_runtime_char[20]; /* 0x50064  " Out of Memory !!!\n" */
-extern const char data_fd2_string_field_map_fdicon_not_found_err_50086[35];    /* 0x50086  "\n\n File not found 'FDICON.B24!! \n\n" */
+extern const char data_fd2_string_field_map_fdicon_not_found_err[35];    /* 0x50086  "\n\n File not found 'FDICON.B24!! \n\n" */
 
 /* ---- resource / portrait cache ---- */
 extern uint32 data_fd2_resource_portrait_cache_buffer_used;             /* 0x539EC */

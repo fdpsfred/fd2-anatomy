@@ -366,7 +366,7 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
         *(uint16 *)&data_fd2_input_last_key_pressed = 3;
         int386(0x10, (union REGS *)&data_fd2_input_last_key_pressed,
                      (union REGS *)&data_fd2_input_last_key_pressed);
-        printf(data_fd2_string_field_map_fdicon_not_found_err_50086);
+        printf(data_fd2_string_field_map_fdicon_not_found_err);
         exit(1);
     }
 
