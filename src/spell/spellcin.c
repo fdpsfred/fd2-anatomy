@@ -1041,9 +1041,8 @@ void fd2_cast_screen_wide_spell_with_fade(uint32 epicenter_tile_x,
  *
  * Cdecl, 4 stack params; void return. The binary's __CHK(0x100) stack-probe
  * prologue is compiler-injected and not part of the source. Self-contained
- * epilogue with explicit RET at 0x27FC8 (POP EBP/EDI/ESI/EBX). The plate at
- * 0x52393 previously mis-labelled the string as FDSHAP/FIGANI; it is TAI.DAT
- * (corrected during emit).
+ * epilogue with explicit RET at 0x27FC8 (POP EBP/EDI/ESI/EBX). The string at
+ * 0x52393 is TAI.DAT (the caster base sprite bank), not FDSHAP/FIGANI.
  *
  * KNOWN DECOMPILER NOTE: every CALL-then-EAX-use site here is a genuine
  * return-value capture (resource ptrs, terrain byte, applied damage, SFX

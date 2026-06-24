@@ -1,0 +1,78 @@
+{
+  "address": "000276ec",
+  "name_current": "fd2_execute_special_attack_skill",
+  "name_final": "fd2_execute_special_attack_skill",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>; 'execute_special_attack_skill' accurately describes executing a character special attack technique (必殺技 / sword-skill cinematic for spell ids 0x18,0x1C,0x1D,0x1E). No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "ROOT/src/spell/spellcin.c",
+  "purpose": "Execute a character-specific special attack technique (必殺技): a weapon-tied cinematic attack with bigger-than-normal damage and a full character-vs-character FIGANI animation overlay, for spell ids 0x18 (淒煌斬), 0x1C (熾炎刀, multi-hit), 0x1D (音速刃), and 0x1E default fallback.",
+  "logic_summary": "Frees the large game-state/portrait/snapshot caches to reclaim heap, picks the per-spell damage multiplier {0x18:15,0x1C:20,0x1D:12,else:18}, computes raw_damage = (int16)caster.ap*multiplier/10. Reads the caster tile attribute, resolves AoE terrain, and loads BG/TAI cinematic layers (3 BG parallax sub-layers into data_fd2_battle_special_cinematic_bg_layers) plus caster and per-target FIGANI sheets; builds the FIGANI SFX bank. Plays palette fade-to-black, the caster intro-zoom, and the figani intro loop. Per target: animates the bg-zoom transition (skipped for 0x1C), snapshots HP, applies damage via fd2_apply_damage_and_award_xp (clamped to current HP, then restored), and drives the per-frame FIGANI loop (frame range [caster_figani_b[+2]..caster_figani_b[+0])). Each frame fires an optional per-frame SFX (entry +5) and an optional hit marker (entry +4==1) that progressively re-applies HP = original_HP - hit_count*applied_dmg/max_hits (max_hits=8 for 0x1C else 1) and flashes the target sprite; each sub-frame (entry +6 count) composites work buffers with a shake X-offset from data_fd2_battle_special_attack_shake_x_offset_table[fade_steps] (fade_steps ramps 5->0) and commits to the mode-13h framebuffer. Cleanup frees all loaded resources (pBg_layer_saved is freed twice, a vendor double-free preserved verbatim), stops/free the SFX bank, reallocates the large game-state buffer, reloads the battle-scene snapshot from FDSHAP.DAT, restores the portrait cache, fades out/clears/recomposites/fades in.",
+  "signature": "void __cdecl fd2_execute_special_attack_skill(uint32 caster_idx, uint32 spell_id, int n_targets, uint8 *target_idx_buf)",
+  "params": [
+    {
+      "name": "caster_idx",
+      "type": "uint32",
+      "semantics": "runtime_char_array index of the caster; used to read caster.ap/portrait_id and to flash/intro/animate the caster sprite.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the caster index; no address residue."
+    },
+    {
+      "name": "spell_id",
+      "type": "uint32",
+      "semantics": "Special-attack spell id (0x18, 0x1C, 0x1D, or default 0x1E); selects the damage multiplier, the multi-hit (0x1C) path, max_hits, and which BG vs TAI layer is blitted.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; matches caller dispatch (spell_id==0x18 or in [0x1C..0x1F])."
+    },
+    {
+      "name": "n_targets",
+      "type": "int",
+      "semantics": "Number of targets; bounds the per-target attack loop, the figani-load loop, and the cleanup free loop.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate target-count name; no address residue."
+    },
+    {
+      "name": "target_idx_buf",
+      "type": "uint8 *",
+      "semantics": "Pointer to the byte array of target runtime_char indices; indexed target_idx_buf[i] for per-target HP read/write, damage, sprite flash, and terrain resolution.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; correctly identified as the target-id buffer (the caller's 4th arg, which Ghidra auto-named 'caster_idx' at the caller side -- here the src param name is already correct)."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effects are the on-screen cinematic, progressive HP changes on the targeted runtime_char entries, and reallocation/reload of the large game-state buffer and battle-scene snapshot."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_special_attack_shake_x_offset_table",
+    "data_fd2_string_resource_filename_bg_dat_52381",
+    "data_fd2_string_resource_filename_tai_dat",
+    "data_fd2_string_resource_filename_figani_dat_52388",
+    "data_fd2_string_resource_filename_fdshap_dat_51a65",
+    "data_fd2_tile_event_data_table_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_portrait_sprite_cache",
+    "data_fd2_large_game_state_buffer_ptr",
+    "data_fd2_battle_scene_snapshot",
+    "data_fd2_battle_special_cinematic_bg_layers",
+    "data_fd2_audio_figani_sfx_bank_buf_ptr"
+  ],
+  "comment_original_issue": "Comment was already thorough and accurate; only a minor process-narrative phrase remained ('plate previously mis-labelled the string as FDSHAP/FIGANI ... corrected during emit'), which was tightened to the standing fact (the string at 0x52393 is TAI.DAT) per the KB no-narrative writing rule.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "0ff2b9e2b4d191a633c076f6ed786f8eea5a1d6b",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Plate comment is exhaustive and fully consistent with the refined src understanding (damage formula, resource loads, per-target/per-frame/per-sub-frame loop structure, double-free of pBg_layer_saved, globals touched); left unchanged per the consistency-is-enough rule. Sole caller fd2_play_spell_cast_sequence @ 0x2a6bd, call site 0x2a7fb. Struct fields ap/dp/hp_current are uint16 in types.h and cast via (int16) for signed arithmetic, matching the comment. Working tree had 4 unrelated pre-modified shards (000111ba,0002d392,0002d85f,00053c13) not authored here; staged only src/spell/spellcin.c and this shard via explicit paths."
+}
