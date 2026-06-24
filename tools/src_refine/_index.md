@@ -11,7 +11,7 @@ production FD2.EXE 與 baseline byte-identical。
 | `build_worklist.py` | 從 routing.json(function done&!skip&target=.c) + worklist.tsv(global real_in_src) + call_graph.json，與 live Ghidra dump 對齊，產 worklist.json + coverage_reconcile_start.md（可重生暫存；live name 為準、coverage gap 只報不自動加）。 |
 | `partition.py` | 把 worklist 以 .c 檔為單位、weight-balanced 切 N(預設4) 個 file-disjoint partition manifest（可重生暫存；確定性 LPT）。 |
 | `scout.py` | 某 partition 的「下一批未 refine」work-list → args（餵給 workflow）。done 判定＝該 symbol 的 shard 檔已存在；可重跑續做。 |
-| `src_refine.wf.js` | **Stage 1 workflow**（一 worktree 一實例）。serial 逐檔逐 symbol，每 symbol 一個 refiner agent：分析→refine src 註解+同步 Ghidra plate→**只記錄** 符號名與**每個參數名**改名判定（不 rename）→記 logic issue→寫 per-symbol shard→per-symbol commit（含 clobber 防線）。參數名改名同 protos.h/簽章（跨檔）故與符號名一樣延 Stage 2 套用。 |
+| `src_refine.wf.js` | **Stage 1 workflow**（一 worktree 一實例）。serial 逐檔逐 symbol，每 symbol 一個 refiner agent：分析→refine src 註解+同步 Ghidra plate（**更新/建立 plate 後立即 save_program() 落地**，避免 Ghidra wedge/被 kill 時遺失）→**只記錄** 符號名與**每個參數名**改名判定（不 rename）→記 logic issue→寫 per-symbol shard→per-symbol commit（含 clobber 防線）。參數名改名同 protos.h/簽章（跨檔）故與符號名一樣延 Stage 2 套用。 |
 | `hash_check.py` | build gate：sha256(build 出的 FD2.EXE) 必 == `data/baseline_hash.txt`。byte-identical＝沒改到 code。 |
 | `merge_shards.py` | 所有 shard → `data/src_info.json`(address 主鍵) + `data/src_info_by_name.json`(name→addr，current+final) + `data/src_issues.json`(ISS-####) + global 的 reader/writer_fns 反向關聯。 |
 

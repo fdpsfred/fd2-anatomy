@@ -11,6 +11,7 @@
 - 累計（僅這 352 個，partial）：符號改名 ~19、**參數改名 ~98**、logic issue ~10。最終數字待 Stage 1 全完成後 `merge_shards.py` 統計。
 - baseline hash：`ab5f110af02608462a1da464732c098ef4dc8e17e6dc43252b535ed1cbf3bd9b`（在 `tools/src_refine/data/baseline_hash.txt`）。
 - **尚未做**：Stage 2（套用 symbol + 參數 rename）、merge 回 main、merge_shards、最終 build gate、收尾 reconcile、處理 src_issues。
+- **[DEFERRED] 遺失 plate 重建**：曾發生一次 Ghidra MCP wedge（hang，非乾淨斷線），4 個 workflow 卡 `running` 不前進、不 fast-stop；kill+重啟 Ghidra 恢復。Ghidra 最後存檔在 wedge 前約 37 分鐘，期間 refiner 建立/更新的 plate（in-memory）隨 kill 遺失。src/shard 全在 git 安全；遺失的只有 Ghidra plate，**可重建**（shard 的 `ghidra_plate_action` 記了哪些 symbol 有 plate 動作）。**收尾前必做**：對每個 `ghidra_plate_action in (updated,created)` 的 shard，驗證 Ghidra 現有 plate 非空/相符，缺的就依 src 註解重新套用。已加防線：refiner 改 plate 後**立即 save_program 落地**（src_refine.wf.js 步驟 D3），不會再大量遺失。
 
 ## 1. 必讀文件（依序）
 

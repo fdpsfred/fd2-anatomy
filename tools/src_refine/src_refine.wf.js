@@ -51,7 +51,7 @@ if (!FILES.length) { log('worklist empty -- nothing to do.'); return { error: 'e
 const ENV = [
   'environment: Ghidra 已開啟 FD2.LE（單一 program）。呼叫 Ghidra MCP 時 program 參數留空。',
   '先用 ToolSearch 一次載入所需 Ghidra 工具：',
-  'ToolSearch query="select:mcp__ghidra__get_plate_comment,mcp__ghidra__decompile_function,mcp__ghidra__disassemble_function,mcp__ghidra__get_function_signature,mcp__ghidra__get_function_callers,mcp__ghidra__get_xrefs_to,mcp__ghidra__get_xrefs_from,mcp__ghidra__read_memory,mcp__ghidra__get_function_by_address,mcp__ghidra__set_plate_comment,mcp__ghidra__run_script_inline,mcp__ghidra__get_current_program_info"',
+  'ToolSearch query="select:mcp__ghidra__get_plate_comment,mcp__ghidra__decompile_function,mcp__ghidra__disassemble_function,mcp__ghidra__get_function_signature,mcp__ghidra__get_function_callers,mcp__ghidra__get_xrefs_to,mcp__ghidra__get_xrefs_from,mcp__ghidra__read_memory,mcp__ghidra__get_function_by_address,mcp__ghidra__set_plate_comment,mcp__ghidra__run_script_inline,mcp__ghidra__save_program,mcp__ghidra__get_current_program_info"',
   '用到不熟/沒把握的 Ghidra MCP function 前，先讀 .claude/skills/ghidra-usage/ 確認正確參數格式，不要猜。',
   '判斷名稱尾碼數字是「領域 ID（要保留）」還是「Ghidra 位址殘留（要清）」時，用遊戲領域知識：',
   '  章節 01-30、道具 00-D6、法術 00-23、職業 00-1A、頭像 00-41 是有意義 ID；陣列維度/倍率/半徑等常數也是語意。',
@@ -131,6 +131,7 @@ function refinerPrompt(sym) {
       (isFn ? 'set_plate_comment(0x' + sym.address + ', ...)'
             : '用 run_script_inline 寫 PLATE_COMMENT，data plate 機制見 .claude/skills/ghidra-usage/ 與 memory project_ghidra_data_plate_mechanism') +
       '，內容以 src 結論為準、可精煉，不必複製 src 全文）。記錄 ghidra_plate_action。',
+    '   3. **plate 落地（硬性）**：若上一步有更新/建立 plate（ghidra_plate_action=updated/created），寫完後**立即呼叫 save_program() 把該 plate 存進 Ghidra 專案**（確保 Ghidra 萬一 wedge/被 kill 也不遺失 plate）；plate=keep/none 則不需存。save_program 偶發並發存檔衝突而回錯時，視同 Ghidra 呼叫失敗：快速重試一次，仍失敗則記入 notes 但繼續（不影響已寫的 src/shard，下一次 save 會補上）。',
     '',
     'E. logic 疑慮（若有）：發現疑似邏輯/等價性問題（非命名/註解）→ 放進 issues[]（category/severity/title/description/evidence），**本階段不修**。',
     '',
