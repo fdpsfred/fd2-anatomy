@@ -23,8 +23,8 @@
  * window, then flickers the modified battle frame against an unmodified
  * snapshot 5 times, finally leaving the snapshot on screen.
  *
- * Parameters (__cdecl, 4 args; param_1 only forwarded to the stack check):
- *   param_1            unused by the body
+ * Parameters (__cdecl, 4 args; caster_idx only forwarded to the stack check):
+ *   caster_idx         unused by the body
  *   status_kind        selects the silhouette colour tmp_copy[status_kind]
  *   target_count       number of entries in char_idx_array
  *   char_idx_array     byte array of runtime-char indices to overlay
@@ -33,7 +33,7 @@
  * (7 dwords + 1 word in the original, matched here byte-for-byte) before
  * indexing by status_kind.
  * ---------------------------------------------------------------- */
-void fd2_animate_status_effect_overlay_flicker(uint32 param_1, uint32 status_kind,
+void fd2_animate_status_effect_overlay_flicker(uint32 caster_idx, uint32 status_kind,
                                                uint32 target_count,
                                                uint32 char_idx_array)
 {
@@ -48,7 +48,7 @@ void fd2_animate_status_effect_overlay_flicker(uint32 param_1, uint32 status_kin
     uint32 dst_addr;
     uint8 tmp_copy[32];
 
-    (void)param_1;
+    (void)caster_idx;
 
     /* snapshot the status-effect colour template (7 dwords + 1 word = 30B) */
     memcpy(tmp_copy, data_fd2_animation_status_overlay_flicker_color_template, 30);
@@ -116,8 +116,8 @@ void fd2_animate_status_effect_overlay_flicker(uint32 param_1, uint32 status_kin
  * spell-impact play paths (paired with full-screen flash for high-tier
  * spells).
  *
- * Parameters (__cdecl, 4 args; param_1 only forwarded to the stack check):
- *   param_1 (caster_idx)  unused by the body (callers pass caster_idx)
+ * Parameters (__cdecl, 4 args; caster_idx only forwarded to the stack check):
+ *   caster_idx  unused by the body (callers pass caster_idx)
  *   spell_id           index 0..35 into the three per-spell byte tables
  *   target_count       number of entries in char_idx_array
  *   char_idx_array     byte array of runtime-char indices to overlay
@@ -141,7 +141,7 @@ void fd2_animate_status_effect_overlay_flicker(uint32 param_1, uint32 status_kin
  *        f. one BIOS-tick frame-timing pulse.
  *   3. free the preserve buffer; finalize with a composite.
  * ---------------------------------------------------------------- */
-void fd2_animate_spell_impact_per_target(uint32 param_1, uint32 spell_id,
+void fd2_animate_spell_impact_per_target(uint32 caster_idx, uint32 spell_id,
                                          uint32 target_count,
                                          uint32 char_idx_array)
 {
@@ -156,7 +156,7 @@ void fd2_animate_spell_impact_per_target(uint32 param_1, uint32 spell_id,
     uint8 sfx_frame_tbl[33];
     uint8 frame_count_tbl[33];
 
-    (void)param_1;
+    (void)caster_idx;
 
     /* snapshot the three per-spell tables (8 dwords + 1 byte = 33B each) */
     memcpy(sprite_off_tbl, data_fd2_animation_spell_sprite_offset_table, 33);
@@ -247,9 +247,9 @@ void fd2_animate_spell_impact_per_target(uint32 param_1, uint32 spell_id,
  * and a colour-flash variant) into two separate buffers, then alternates
  * blitting them to the primary surface four times to produce a strobe.
  *
- * Parameters (__cdecl, 4 args; param_1 and spell_id are only consumed by
+ * Parameters (__cdecl, 4 args; caster_idx and spell_id are only consumed by
  * the stack check, not by the body):
- *   param_1            unused by the body
+ *   caster_idx         unused by the body
  *   spell_id           unused by the body (the flash variant is fixed)
  *   target_count       number of entries in char_idx_array
  *   char_idx_array     byte array of runtime-char indices forwarded to the
@@ -267,14 +267,14 @@ void fd2_animate_spell_impact_per_target(uint32 param_1, uint32 spell_id,
  * pointer pushed for free() is discarded by that epilogue's ADD ESP,4);
  * this is reproduced here as a plain free() at function end.
  * ---------------------------------------------------------------- */
-void fd2_animate_spell_full_screen_flash(uint32 param_1, uint32 spell_id,
+void fd2_animate_spell_full_screen_flash(uint32 caster_idx, uint32 spell_id,
                                          uint32 target_count,
                                          uint32 char_idx_array)
 {
     uint8 *flash_buf;
     int iter;
 
-    (void)param_1;
+    (void)caster_idx;
     (void)spell_id;
 
     /* variant-A (white flash) composite into the live back-buffer */
@@ -312,8 +312,8 @@ void fd2_animate_spell_full_screen_flash(uint32 param_1, uint32 spell_id,
  * the mode13h primary, and waits one BIOS tick; the per-frame tint team-offset
  * steps 7..0 across the loop so the mark fades out.
  *
- * Parameters (__cdecl, 4 args; param_1 only forwarded to the stack check):
- *   param_1            unused by the body (callers pass the caster char index)
+ * Parameters (__cdecl, 4 args; caster_idx only forwarded to the stack check):
+ *   caster_idx         unused by the body (callers pass the caster char index)
  *   spell_id           index into the per-spell tint-mask byte table
  *   target_count       number of entries in char_idx_array
  *   char_idx_array     byte array of runtime-char indices to overlay
@@ -326,7 +326,7 @@ void fd2_animate_spell_full_screen_flash(uint32 param_1, uint32 spell_id,
  * shared epilogue (snapshot pointer pushed for free() then ADD ESP,4);
  * reproduced here as a plain free() at function end.
  * ---------------------------------------------------------------- */
-void fd2_animate_spell_overlay_blink(uint32 param_1, uint32 spell_id,
+void fd2_animate_spell_overlay_blink(uint32 caster_idx, uint32 spell_id,
                                      uint32 target_count,
                                      uint32 char_idx_array)
 {
@@ -342,7 +342,7 @@ void fd2_animate_spell_overlay_blink(uint32 param_1, uint32 spell_id,
     uint32 dst_addr;
     uint8 mask_tbl[32];
 
-    (void)param_1;
+    (void)caster_idx;
 
     /* snapshot the per-spell tint-mask byte table (7 dwords + 1 word = 30B) */
     memcpy(mask_tbl, data_fd2_animation_spell_overlay_blink_mask_table, 30);
