@@ -812,7 +812,7 @@ void fd2_animate_shop_transaction_feedback(void);
 void fd2_debug_print_ans_and_length(int value);
 uint32 fd2_ail_set_alloc_fnptr(uint32 new_fnptr);
 uint32 fd2_ail_install_free_fnptr(uint32 new_free_fnptr);
-void fd2_noop_stub_4e915(void);
+void fd2_noop_ret_pad(void);
 void fd2_delay_400ms(void);
 
 /* ---- crt thunks ---- */
