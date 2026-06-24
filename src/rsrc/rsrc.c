@@ -631,7 +631,7 @@ void fd2_restore_portrait_cache_from_tmp(void)
 }
 
 /* ----------------------------------------------------------------
- * fd2_load_chapter_party_roster @ 0x2d392  (1 caller)
+ * fd2_load_chapter_shop_item_ids @ 0x2d392  (1 caller)
  * (name is a misnomer: this loads the chapter-intro SHOP inventory
  *  item-id list, not a party roster -- rename pending.)
  *
@@ -659,7 +659,7 @@ void fd2_restore_portrait_cache_from_tmp(void)
  * the disassembly, but since 0xFF only breaks (never skips), out_count ==
  * iter at every step.
  * ---------------------------------------------------------------- */
-int fd2_load_chapter_party_roster(uint8 *out_buf)
+int fd2_load_chapter_shop_item_ids(uint8 *out_buf)
 {
     uint32 table_off;
     uint32 max_count;

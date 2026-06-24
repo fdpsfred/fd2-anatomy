@@ -44,7 +44,7 @@ const uint8 data_fd2_chapter_intro_panel_resource_idx_per_metadata_category_tabl
  *   +15 bItems[8]        items-shop item ids
  *   +23 bMystery[8]      mystery-shop item ids
  * The three shop arrays are surfaced byte-by-byte (0xFF terminator) by
- * fd2_load_chapter_party_roster. Every consumer reads through byte/char casts,
+ * fd2_load_chapter_shop_item_ids. Every consumer reads through byte/char casts,
  * so the table is emitted as a flat const uint8[] (byte-identical to the struct
  * layout). Entries for battle chapters 22..24 are all-zero. Read-only.
  * @ 0x6238D */

@@ -645,7 +645,7 @@ uint32 data_fd2_chapter_intro_dialog_anim_frame_idx;
  * (fd2_load_state_from_selected_slot). Dereferenced byte-wise at fixed
  * offsets into the entry: [+1]/[+2] are the special-hotkey cursor/scancode
  * pair tested by the intro menu loop, and [+3..]/[+0x0F..]/[+0x17..] are
- * per-state party-roster byte slices read by fd2_load_chapter_party_roster.
+ * per-state party-roster byte slices read by fd2_load_chapter_shop_item_ids.
  * Held in a 32-bit integer slot to match the dword load/store of the
  * pointer at the use sites (the entry is then read via *(uint8 *)(ptr+N)).
  * ---------------------------------------------------------------- */

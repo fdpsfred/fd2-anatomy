@@ -176,7 +176,7 @@ uint32 fd2_run_chapter_intro_menu_main(uint32 pose_bitmap)
             stored_cursor = data_fd2_ui_menu_cursor_idx;
         }
         fd2_animate_tutorial_dialog_intro_or_outro(1);
-        roster_count = fd2_load_chapter_party_roster(party_roster);
+        roster_count = fd2_load_chapter_shop_item_ids(party_roster);
         data_fd2_ui_menu_visible_item_count = (uint32)(roster_count & 0xff);
         fd2_close_intro_dialog_with_slide_out();
         if ((sel & 0xff) == 1) {

@@ -67,7 +67,7 @@ int fd2_build_dead_chars_list_for_revive(uint8 *out_list_buf)
  * (callee-saved), EBX the reveal-frame counter, EDI/EBP cache the two
  * params. The function tail-jumps to a shared MOV EAX,ESI / POP
  * EBP,EDI,ESI,EBX / RET epilogue (the trailing epilogue of
- * fd2_load_chapter_party_roster @ 0x2D3F8), i.e. plain `return result`.
+ * fd2_load_chapter_shop_item_ids @ 0x2D3F8), i.e. plain `return result`.
  * The buffers are NOT freed here; cleanup is the caller's job via
  * fd2_close_intro_dialog_with_slide_out.
  *
