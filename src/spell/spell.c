@@ -216,7 +216,7 @@ void fd2_cast_spell_13_speed_boost(
  * effect animation/sprite id 0x25. Shares its {push caster + call + cleanup}
  * tail with the 0x15 sibling: that sibling jumps into this body at 0x22A9B
  * after pushing its own sprite id 0x26 / spell id 0x15. */
-void fd2_cast_spell_14_dispatch_aa8(
+void fd2_cast_spell_14_dispatch(
     int caster, int n_tgt, uint8 *tgt_arr)
 {
     fd2_apply_status_effect_with_anim(
