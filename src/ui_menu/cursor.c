@@ -13,6 +13,14 @@
 
 /* ----------------------------------------------------------------
  * fd2_cursor_move_up @ 0x11B48  (3 callers)
+ *
+ * Up-arrow (scancode 0x48) battle cursor handler. Moves the cursor one
+ * tile up unless already at the map top (world_y == 0, no-op). Near the
+ * top viewport edge (screen_y < 2) with room to scroll (window_origin_y
+ * != 0) it scrolls the view up instead of moving the cursor on screen;
+ * otherwise it steps the cursor up one screen row. Composites a fresh
+ * frame except in the plain inner-step case while no battle animation is
+ * running (anim_phase == 0), where the main loop redraws on its next tick.
  * ---------------------------------------------------------------- */
 void fd2_cursor_move_up(void)
 {
