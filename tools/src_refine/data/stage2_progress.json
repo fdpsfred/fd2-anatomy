@@ -12,6 +12,14 @@
     {"n": 62, "address": "0001d4f6", "did": "name", "note": "play_and_free_status_effect_sfx -> stop_and_free_status_effect_sfx; 7 files"},
     {"n": 76, "address": "0001f894", "did": "name", "note": "play_ending_and_record_clear -> title_attract_and_main_menu; 7 files"},
     {"n": 83, "address": "00021b18", "did": "both", "note": "dispatch_variant_b_cast -> execute_variant_b_heal_cast (5 files); ghidra params -> caster/spell_id/n_targets/p_targets"},
-    {"n": 86, "address": "0002218a", "did": "both", "note": "cast_spell_17_complex -> cast_spell_17_teleport (4 files); ghidra param_2 + src def spell_arg -> target_count"}
+    {"n": 86, "address": "0002218a", "did": "both", "note": "cast_spell_17_complex -> cast_spell_17_teleport (4 files); ghidra param_2 + src def spell_arg -> target_count"},
+    {"n": 88, "address": "0002282f", "did": "name", "note": "cast_spell_12_stage_b -> cast_spell_12_dp_boost; 4 files"},
+    {"n": 90, "address": "00022960", "did": "name", "note": "cast_spell_13_stage_c -> cast_spell_13_speed_boost; 4 files"},
+    {"n": 91, "address": "00022a85", "did": "name", "note": "cast_spell_14_dispatch_aa8 -> cast_spell_14_dispatch; 3 files"},
+    {"n": 92, "address": "00022bc6", "did": "name", "note": "cast_spell_15_dispatch_aa8 -> cast_spell_15_dispatch (family override); 3 files"},
+    {"n": 93, "address": "00022be1", "did": "name", "note": "cast_spell_16_dispatch_cda -> cast_spell_16_dispatch; 4 files"},
+    {"n": 95, "address": "00022cbf", "did": "name", "note": "spell_handler_id_26_via_status_d1b_effect_25 -> cast_spell_1a_dispatch (family); 3 files"},
+    {"n": "1b", "address": "00022e41", "did": "name", "note": "FAMILY ADD (was keep): spell_handler_id_27_... -> cast_spell_1b_dispatch; 3 files"},
+    {"n": "11", "address": "000226ea", "did": "name", "note": "FAMILY ADD (was keep): cast_spell_11_stage_a -> cast_spell_11_ap_boost; 4 files"}
   ]
 }

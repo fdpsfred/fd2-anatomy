@@ -688,7 +688,7 @@ void fd2_execute_offensive_targeted_spell_variant_b(
  * sharing is a compiler size optimization not reproduced in source).
  *
  * Callers: fd2_apply_use_effect_dispatch @ 0x20C6F (item effect 0x10),
- * fd2_cast_spell_11_stage_a @ 0x226EA (spell 0x11), and
+ * fd2_cast_spell_11_ap_boost @ 0x226EA (spell 0x11), and
  * fd2_execute_summon_spell_cast @ 0x27FC9 (summon combo).
  * ---------------------------------------------------------------- */
 void fd2_cast_ap_boost_spell(int caster_unit_id, int num_targets,

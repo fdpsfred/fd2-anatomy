@@ -123,7 +123,7 @@ void fd2_cast_spell_0d_variant_b(int, int, uint8 *);
 void fd2_cast_spell_0e_variant_b(int, int, uint8 *);
 void fd2_cast_spell_0f_variant_b(uint32, uint32, uint8 *);
 void fd2_cast_spell_10_variant_b(uint32, uint32, uint8 *);
-void fd2_cast_spell_11_stage_a(int, int, uint8 *);
+void fd2_cast_spell_11_ap_boost(int, int, uint8 *);
 void fd2_cast_spell_12_dp_boost(int, int, uint8 *);
 void fd2_cast_spell_13_speed_boost(uint32, uint32, uint8 *);
 void fd2_cast_spell_14_dispatch(int, int, uint8 *);
