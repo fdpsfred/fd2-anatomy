@@ -187,7 +187,7 @@ void fd2_animate_bg_zoom_transition_in(uint32 char_unit_id, uint32 char_sprite_i
 void fd2_animate_bg_zoom_transition_out(uint32 char_unit_id, uint32 char_sprite_idx, uint32 terrain_bg, uint32 clear_buf, uint32 workspace, uint32 name_banner_sprite);
 void fd2_play_class_promotion_cinematic(uint32 promoting_char_idx, uint32 target_class_id);
 void fd2_cycle_sprite_anim_with_bg_frames(uint32 sprite_atlas, uint32 workspace, uint32 iter_count);
-void fd2_play_char_intro_zoom_anim(uint32 caster_idx, uint32 mode_flag, uint32 caster_figani_a, uint32 target_figani0, uint32 workbuf2, uint32 workbuf1, uint32 tai_resource);
+void fd2_play_char_intro_zoom_anim(uint32 char_unit_id, uint32 mode_flag, uint32 char_sprite, uint32 char_sprite2, uint32 workspace, uint32 bg_sprite, uint32 name_banner_sprite);
 void fd2_restore_portrait_cache_from_tmp(void);
 void fd2_cinematic_warp_char_to_tile(uint32 char_id, uint32 tile_x, uint32 tile_y);
 
@@ -524,7 +524,7 @@ void fd2_play_figani_char_intro_animation(uint32 char_idx);
 void fd2_play_char_intro_zoom_anim(uint32 char_unit_id, uint32 mode_flag,
                                    uint32 char_sprite, uint32 char_sprite2,
                                    uint32 workspace, uint32 bg_sprite,
-                                   uint32 weapon_sprite);
+                                   uint32 name_banner_sprite);
 void fd2_play_figani_animation_loop(uint32 caster_idx, uint32 spell_id,
                                     uint8 *caster_figani, uint8 *target_figani,
                                     uint32 workspace, uint32 dst_buf,

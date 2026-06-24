@@ -608,7 +608,7 @@ void fd2_play_full_combat_cinematic(uint32 attacker_idx, uint32 defender_idx)
  *   team != 0 (ally / player) -> TOP-HALF display, slide-in from the right:
  *     for frame in 8..0 descending:
  *       clear workspace from bg_sprite, (mode_flag==0) lay the static char
- *       sprite (char_sprite2), RLE-blit the background (weapon_sprite) and the
+ *       sprite (char_sprite2), RLE-blit the background (name_banner_sprite) and the
  *       overlay (char_sprite) at workspace + frame*10, push to VGA, ramp the
  *       palette by frame*6.
  *     final settle: RLE-blit the background into bg_sprite at stride 0x140.
@@ -632,7 +632,7 @@ void fd2_play_full_combat_cinematic(uint32 attacker_idx, uint32 defender_idx)
  *   char_sprite2  static character sprite (blitted at the fixed origin)
  *   workspace     composite work buffer (0x280-stride slide base)
  *   bg_sprite     clear source + final-settle RLE destination (0x140 stride)
- *   weapon_sprite RLE backdrop sprite blitted at (0xA4, 0x9D) -- despite the
+ *   name_banner_sprite RLE backdrop sprite blitted at (0xA4, 0x9D) -- despite the
  *                 name this is NEVER a weapon; every caller passes a
  *                 TAI.DAT / FDSHAP.DAT name-banner / character-base sprite.
  *
@@ -646,7 +646,7 @@ void fd2_play_full_combat_cinematic(uint32 attacker_idx, uint32 defender_idx)
 void fd2_play_char_intro_zoom_anim(uint32 char_unit_id, uint32 mode_flag,
                                    uint32 char_sprite, uint32 char_sprite2,
                                    uint32 workspace, uint32 bg_sprite,
-                                   uint32 weapon_sprite)
+                                   uint32 name_banner_sprite)
 {
     int    frame;
     uint32 blit_dst;
@@ -660,19 +660,19 @@ void fd2_play_char_intro_zoom_anim(uint32 char_unit_id, uint32 mode_flag,
                                         -1);
             }
             blit_dst = workspace + (uint32)frame * 10;
-            fd2_rle_blit_sprite(weapon_sprite, 0xA4, 0x9D, blit_dst, 0x280,
+            fd2_rle_blit_sprite(name_banner_sprite, 0xA4, 0x9D, blit_dst, 0x280,
                                 0xFFFFFFFF);
             fd2_blit_indexed_sprite(char_sprite, 0, (int)blit_dst, 0x280, -1);
             fd2_blit_rectangle(0xA0000, 0x140, workspace, 0x280, 0x140, 0xC8);
             fd2_set_vga_palette_range(0, 0xFF, (uint32)frame * 6);
         }
-        fd2_rle_blit_sprite(weapon_sprite, 0xA4, 0x9D, bg_sprite, 0x140,
+        fd2_rle_blit_sprite(name_banner_sprite, 0xA4, 0x9D, bg_sprite, 0x140,
                             0xFFFFFFFF);
         return;
     }
 
     if (mode_flag == 0) {
-        fd2_rle_blit_sprite(weapon_sprite, 0xA4, 0x9D, bg_sprite, 0x140,
+        fd2_rle_blit_sprite(name_banner_sprite, 0xA4, 0x9D, bg_sprite, 0x140,
                             0xFFFFFFFF);
     }
     for (frame = 8; frame >= 0; frame--) {
