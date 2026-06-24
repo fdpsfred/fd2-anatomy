@@ -156,8 +156,10 @@ uint8 *fd2_get_movement_cost_table_for_job(int job_id)
 /* ----------------------------------------------------------------
  * fd2_get_cutscene_event_script @ 0x4E7F8  (1 caller)
  *
- * Dereferences pointer table: returns the pointer stored at
- * cutscene_event_script_ptr_table[event_id].
+ * Dereferences pointer table: returns the script byte-stream pointer stored
+ * at cutscene_event_script_ptr_table[event_id]. event_id is a walk-animation
+ * cutscene event id (0..105; 106 entries), NOT a class id.
+ * Sole caller fd2_cutscene_event_trigger interprets the returned bytes.
  * Assembly: EAX = [event_id * 4 + 0x627D8]
  * ---------------------------------------------------------------- */
 uint8 *fd2_get_cutscene_event_script(int event_id)

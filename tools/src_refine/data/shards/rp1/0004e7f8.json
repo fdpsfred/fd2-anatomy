@@ -1,0 +1,42 @@
+{
+  "address": "0x0004e7f8",
+  "name_current": "fd2_get_cutscene_event_script",
+  "name_final": "fd2_get_cutscene_event_script",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>: 'cutscene_event' domain + 'script' resource. Accurately reflects the body (dereferences the cutscene-event script pointer table). No Ghidra address residue in the name. The sole caller fd2_cutscene_event_trigger confirms the cutscene/walk-animation-event semantics.",
+  "kind": "function",
+  "home": "src/table/table.c",
+  "purpose": "Leaf accessor returning the script byte-stream pointer for a given cutscene/walk-animation event id.",
+  "logic_summary": "Single-expression accessor: returns data_fd2_chapter_cutscene_event_script_ptr_table_106[event_id], i.e. dereferences the 106-entry pointer table at 0x627D8 (4-byte stride). Assembly: EAX = [event_id*4 + 0x627D8]. No bounds check, no side effects.",
+  "signature": "uint8 *fd2_get_cutscene_event_script(int event_id)",
+  "params": [
+    {
+      "name": "class_id",
+      "type": "int",
+      "semantics": "Cutscene/walk-animation event id, range 0..105 (106 entries). Indexes the script pointer table. NOT a class id -- 'class_id' is leftover from the original misnaming; src already uses the correct name 'event_id'.",
+      "verdict": "rename",
+      "proposed": "event_id",
+      "reason": "Live Ghidra parameter is named 'class_id', which is a misnomer confirmed by the plate NOTE and by the sole caller fd2_cutscene_event_trigger (passes a cutscene event_id in range [0,105]). Rename live Ghidra param to 'event_id' in Stage 2 to match src and actual semantics."
+    }
+  ],
+  "returns": {
+    "type": "uint8 *",
+    "semantics": "Pointer to the cutscene script byte-stream for the given event_id (an entry of the table at 0x627D8 pointing into the contiguous script block at 0x62980..0x634D1). Caller interprets it as a walk-animation byte-script."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_cutscene_event_script_ptr_table_106"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Original src comment was correct and concise but described the function generically ('Dereferences pointer table') without recording the event_id range/table size (106) or the not-a-class-id caveat.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Sole caller: fd2_cutscene_event_trigger @ 0x1366A. Global table data_fd2_chapter_cutscene_event_script_ptr_table_106[106] declared in src/include/globals.h and defined in src/table/chtab3.c (@ 0x627D8); '_106' suffix is a real domain dimension (106 entries), not address residue. Ghidra plate already detailed and consistent with the refined understanding (documents table layout, event_id semantics, misnaming caveat, caller) -> left unchanged. Only changes this shard: src/table/table.c comment augmentation + (Stage 2) param rename class_id -> event_id."
+}
