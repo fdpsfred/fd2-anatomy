@@ -47,6 +47,16 @@ void fd2_cursor_move_up(void)
 
 /* ----------------------------------------------------------------
  * fd2_cursor_move_down @ 0x11B9B  (3 callers)
+ *
+ * Down-arrow (scancode 0x50) battle cursor handler; vertical mirror of
+ * fd2_cursor_move_up. Moves the cursor one tile down unless already at the
+ * map bottom (world_y == map_height_tiles - 1, no-op). When the cursor sits
+ * in the upper part of the viewport (screen_y < 6) or the view is already
+ * scrolled to its lowest position (window_origin_y == map_height_tiles - 8),
+ * it steps the cursor down one screen row; otherwise it scrolls the view
+ * down instead of moving the cursor on screen. Composites a fresh frame
+ * except in the plain inner-step case while no battle animation is running
+ * (anim_phase == 0), where the main loop redraws on its next tick.
  * ---------------------------------------------------------------- */
 void fd2_cursor_move_down(void)
 {
