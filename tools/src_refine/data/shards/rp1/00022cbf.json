@@ -1,10 +1,11 @@
 {
   "address": "00022cbf",
   "name_current": "fd2_spell_handler_id_26_via_status_d1b_effect_25",
-  "name_final": "fd2_cast_spell_1a_dispatch_cda",
+  "name_final": "fd2_cast_spell_1a_dispatch",
   "name_verdict": "rename",
-  "name_proposed": "fd2_cast_spell_1a_dispatch_cda",
+  "name_proposed": "fd2_cast_spell_1a_dispatch",
   "name_reason": "Dispatch-table entry for spell_id 0x1A (毒擊術), table[0x1A] @ 0x51D69, forwarding to fd2_cast_status_spell_via_d1b with effect/sprite id 0x25. Current name uses ambiguous decimal/hex: 'id_26' is the spell_id in DECIMAL (26 = 0x1A) while the established in-file sibling family fd2_cast_spell_14/15/16_dispatch_* uses HEX, and 'effect_25' reads as decimal but is actually 0x25. Proposed name aligns with the family sibling fd2_cast_spell_16_dispatch_cda (same 0x22CDA worker, same 0x22BF7 shared tail): spell_1a = hex spell_id; dispatch = dispatch-table entry; cda = worker-variant disambiguator (0x22CDA) shared across the whole d1b family (distinguishes it from the 0x14/0x15 cure family's _aa8). The _cda suffix is retained deliberately for family consistency (it is the family's worker-variant tag, not a per-function address residual of this thunk). Spell_id 0x1A is a meaningful domain ID (法術 00h-23h) and is preserved.",
+  "stage2_review": "FAMILY OVERRIDE -> fd2_cast_spell_1a_dispatch (dropped _cda). _cda = 0x22CDA worker-address low bytes = address residue; stripped for consistency with the unified 0x14/0x15/0x16/0x1b dispatch wrappers (all fd2_cast_spell_NN_dispatch). Decimal id_26 -> hex 1a; spell_handler_id/via_status_d1b/effect dropped.",
   "kind": "function",
   "home": "src/spell/spell.c",
   "purpose": "Spell dispatch-table entry for spell_id 0x1A (毒擊術, poison-strike): forwards to the shared status-inflict worker with effect/sprite id 0x25.",

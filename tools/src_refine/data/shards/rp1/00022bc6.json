@@ -1,10 +1,11 @@
 {
   "address": "00022bc6",
   "name_current": "fd2_cast_spell_15_dispatch_aa8",
-  "name_final": "fd2_cast_spell_15_apply_status_effect",
+  "name_final": "fd2_cast_spell_15_dispatch",
   "name_verdict": "rename",
-  "name_proposed": "fd2_cast_spell_15_apply_status_effect",
+  "name_proposed": "fd2_cast_spell_15_dispatch",
   "name_reason": "fd2_ prefix correct (game fn); _15 is a valid domain spell_id (0x15 = 祛麻術 cure-paralysis, support spell, table[0x15] @ 0x51D55) and must be kept; 'dispatch' is accurate (dispatch-table entry). BUT the '_aa8' suffix is a Ghidra address residue: aa8 = 0x22AA8 & 0xFFF = the worker fd2_apply_status_effect_with_anim @ 0x00022aa8 that this entry reaches (via the shared tail). Per naming rule, address residue must be removed. Replacing the residue with the worker's semantic role yields fd2_cast_spell_15_apply_status_effect (sibling fd2_cast_spell_14_dispatch_aa8 @ 0x22A85 carries the same _aa8 residue and would rename to fd2_cast_spell_14_apply_status_effect). NOTE: rename is RECORDED ONLY, not applied this stage.",
+  "stage2_review": "FAMILY OVERRIDE -> fd2_cast_spell_15_dispatch (not _apply_status_effect). The 0x14-0x1b spell dispatch thin-wrappers are unified to fd2_cast_spell_NN_dispatch: _aa8/_cda are worker-address residue (0x22AA8/0x22CDA) stripped per the no-address-residue rule (siblings 0x14/0x16 already strip to _dispatch). Worker identity is carried by the worker's own name, not the wrapper.",
   "kind": "function",
   "home": "ROOT/src/spell/spell.c",
   "purpose": "Spell dispatch-table entry for spell_id 0x15 (祛麻術, cure-paralysis): forwards to the shared status-effect-with-anim worker with effect/sprite id 0x26.",
