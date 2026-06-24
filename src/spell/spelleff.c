@@ -1032,7 +1032,8 @@ void fd2_cast_status_inflict_spell_wrapper(int caster_idx,
  * opponents). Plays the per-target impact + status-overlay-flicker
  * animations, then for each target in the byte array attempts to inflict
  * a status: the affliction lands only if the target does not already
- * carry that status (the status byte at struct offset sprite_id is 0),
+ * carry that status (the status byte at struct offset
+ * status_byte_offset is 0),
  * its job_id is not a boss/immune class (0x19 or 0x1A), and a ~50% RNG
  * roll succeeds. On a hit it deals a flat 10-HP bonus damage (drawn with
  * glyph 0x5E = '^'), sets the status byte to a (rng%4)+2 turn timer, and
@@ -1042,13 +1043,14 @@ void fd2_cast_status_inflict_spell_wrapper(int caster_idx,
  * fd2_animate_spell_projectile_paths() when the AoE/fx queue index is
  * non-zero.
  *
- * The status byte is addressed by the raw struct byte offset sprite_id
- * (callers pass 0x26 = status_sleep_flag for spell 0x1B / 麻痺術, and
- * 0x27 = combat_aux_block[0] for spell 0x16 / 封咒術), so it is read and
- * written as ((uint8 *)target_rc)[sprite_id], matching the asm
- * byte ptr [target_rc + sprite_id] (Ghidra prints this as the artificial
- * sprite_state[sprite_id-2]; sprite_state sits at +0x02 so that index
- * resolves to the same +sprite_id byte).
+ * The status byte is addressed by the raw struct byte offset
+ * status_byte_offset (callers pass 0x26 = status_sleep_flag for spell
+ * 0x1B / 麻痺術, and 0x27 = combat_aux_block[0] for spell 0x16 / 封咒術),
+ * so it is read and written as ((uint8 *)target_rc)[status_byte_offset],
+ * matching the asm byte ptr [target_rc + status_byte_offset] (Ghidra
+ * prints this as the artificial sprite_state[status_byte_offset-2];
+ * sprite_state sits at +0x02 so that index resolves to the same
+ * +status_byte_offset byte).
  *
  * The 4th param is the target-id byte-array pointer (Ghidra mislabels it
  * caster_idx); each entry is read as ((uint8 *)target_id_array)[iter],
@@ -1081,7 +1083,7 @@ void fd2_cast_status_inflict_spell_wrapper(int caster_idx,
  * ---------------------------------------------------------------- */
 void fd2_cast_status_inflict_spell(uint32 caster_unit_id, uint32 spell_id,
                                    uint32 num_targets, uint32 target_id_array,
-                                   uint32 sprite_id)
+                                   uint32 status_byte_offset)
 {
     int iter;
     uint8 target_id;
@@ -1097,12 +1099,12 @@ void fd2_cast_status_inflict_spell(uint32 caster_unit_id, uint32 spell_id,
         target_id = ((uint8 *)target_id_array)[iter];
         target_rc = &data_fd2_battle_runtime_char_array_ptr[
                         (uint32)target_id];
-        if (((uint8 *)target_rc)[sprite_id] == 0 &&
+        if (((uint8 *)target_rc)[status_byte_offset] == 0 &&
             target_rc->job_id != 0x19 && target_rc->job_id != 0x1a &&
             (int)fd2_advance_rng_state() % 100 < 0x32) {
             damage = fd2_apply_damage_and_award_xp((uint32)target_id, 10);
             fd2_show_damage_number((uint32)damage, 0x5e, (uint32)target_id);
-            ((uint8 *)target_rc)[sprite_id] =
+            ((uint8 *)target_rc)[status_byte_offset] =
                 (uint8)((int)fd2_advance_rng_state() % 4 + 2);
             data_fd2_battle_pending_xp_credit =
                 data_fd2_battle_pending_xp_credit +
