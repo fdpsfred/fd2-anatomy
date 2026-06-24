@@ -228,7 +228,7 @@ void fd2_cast_spell_14_dispatch(
  * shared status-cure worker but with effect animation/sprite id 0x26 (vs 0x14's
  * 0x25). In the original binary this entry tail-jumps into the 0x14 body to
  * reuse its {push caster + call worker + cleanup} tail. */
-void fd2_cast_spell_15_dispatch_aa8(
+void fd2_cast_spell_15_dispatch(
     int caster, int n_tgt, uint8 *tgt_arr)
 {
     fd2_apply_status_effect_with_anim(
