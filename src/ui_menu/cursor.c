@@ -126,6 +126,16 @@ void fd2_cursor_move_right(void)
 
 /* ----------------------------------------------------------------
  * fd2_cursor_move_left @ 0x11C59  (3 callers)
+ *
+ * Left-arrow (scancode 0x4B) battle cursor handler; horizontal mirror
+ * of fd2_cursor_move_up. Moves the cursor one tile left unless already
+ * at the map left edge (world_x == 0, no-op). Near the left viewport
+ * edge (screen_x < 2) with room to scroll (window_origin_x != 0) it
+ * scrolls the view left instead of moving the cursor on screen;
+ * otherwise it steps the cursor left one screen column. Composites a
+ * fresh frame except in the plain inner-step case while no battle
+ * animation is running (anim_phase == 0), where the main loop redraws
+ * on its next tick.
  * ---------------------------------------------------------------- */
 void fd2_cursor_move_left(void)
 {
