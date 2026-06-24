@@ -34,6 +34,7 @@
     {"n": 127, "address": "000353cc", "did": "name", "note": "delay_400ms_via_idle_thunk -> delay_400ms (4 files); stale _via_idle_thunk suffix dropped"},
     {"n": 129, "address": "000358c7", "did": "name", "note": "chapter_event_handler_3f__ch27_ai_ctrl -> ..._3f__ch27_cinematic (3 files); no AI ctrl, is cutscene"},
     {"n": 130, "address": "00035bf2", "did": "name", "note": "chapter_event_handler_48__unref_ai_ctrl -> ..._48__unref_portrait_cinematic_pair (3 files)"},
-    {"n": 131, "address": "00036107", "did": "name", "note": "crt_equivalent_lx_chunk_read_36107 -> crt_equivalent_lx_chunk_read (3 files: crt.c/protos.h/crtcomp.h); address-tag strip"}
+    {"n": 131, "address": "00036107", "did": "name", "note": "crt_equivalent_lx_chunk_read_36107 -> crt_equivalent_lx_chunk_read (3 files: crt.c/protos.h/crtcomp.h); address-tag strip"},
+    {"_batch": "clean_param_sync_78", "did": "param", "count": 78, "note": "78 clean param-only items batch-synced in Ghidra via user-approved run_script_inline (2026-06-25). Targets = already-committed src param names; positional live->src maps cross-checked by stage2_src_check.py; two-pass (temp->final) handles shift collisions. Verified by reconcile: done 35->113. Item list: workspace/src_refine/clean_param_sync.tsv + stage2_src_check.json. Ghidra-only, no src change."}
   ]
 }
