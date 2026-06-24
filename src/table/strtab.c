@@ -16,8 +16,10 @@ const char data_fd2_string_save_load_oom_msg_load_pbuf_50004[20] = {
 
 /* 0x50023  " Out of Memory !!!\n" + NUL (20 bytes).
  * Distinct literal copy used on the tile_event_data_table malloc(0x8a3)
- * failure path inside fd2_load_save_and_init_engine, printed before exit(1).
- * Read-only; consumed as a char* by printf. */
+ * failure path inside fd2_load_save_and_init_engine, printed (after a BIOS
+ * int 10h text-mode reset) before exit(1). Read-only; consumed as a char* by
+ * printf. Sibling OOM copies in the same function: 0x50004 (pBuf malloc),
+ * 0x50037 (runtime_char_array malloc). */
 const char data_fd2_string_save_load_oom_msg_tile_event_50023[20] = {
     0x20, 0x4f, 0x75, 0x74, 0x20, 0x6f, 0x66, 0x20, 0x4d, 0x65,
     0x6d, 0x6f, 0x72, 0x79, 0x20, 0x21, 0x21, 0x21, 0x0a, 0x00
