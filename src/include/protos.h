@@ -802,7 +802,7 @@ int fd2_find_inventory_slot_with_item(uint32 char_idx, uint32 item_id);
 void fd2_execute_class_promotion_with_dialog(uint32 char_idx);
 int fd2_build_dead_chars_list_for_revive(uint8 *out_list_buf);
 int fd2_revive_member_select_loop(uint32 candidate_count, uint8 *candidate_idx_list);
-int fd2_promote_member_select_loop(int char_count, void *char_list_ptr, void *price_aux_list_ptr);
+int fd2_promote_member_select_loop(int char_count, void *char_list_ptr, void *target_class_list_ptr);
 void fd2_animate_scroll_down_in_shop_dialog(void);
 void fd2_animate_scroll_up_in_shop_dialog(void);
 void fd2_animate_money_decrement(uint32 amount);

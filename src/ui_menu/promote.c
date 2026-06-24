@@ -219,7 +219,7 @@ int fd2_revive_member_select_loop(uint32 candidate_count, uint8 *candidate_idx_l
  * truncation), so no CONCAT31 narrowing is modelled.
  * ---------------------------------------------------------------- */
 int fd2_promote_member_select_loop(int char_count, void *char_list_ptr,
-                                   void *price_aux_list_ptr)
+                                   void *target_class_list_ptr)
 {
     int result;
     int frame_iter;
@@ -250,7 +250,7 @@ int fd2_promote_member_select_loop(int char_count, void *char_list_ptr,
     fd2_render_promote_candidates_grid((uint32)char_count,
         data_fd2_ui_slide_composed_target_buf_ptr,
         data_fd2_ui_menu_cursor_idx, (uint8 *)char_list_ptr,
-        (uint8 *)price_aux_list_ptr);
+        (uint8 *)target_class_list_ptr);
 
     for (frame_iter = 5; frame_iter >= 0; frame_iter--) {
         fd2_slide_panel_down_step((uint32)(frame_iter * 0xd + 0x70),
@@ -270,7 +270,7 @@ int fd2_promote_member_select_loop(int char_count, void *char_list_ptr,
                 }
                 fd2_render_promote_candidates_grid((uint32)char_count, 0xa0000,
                     data_fd2_ui_menu_cursor_idx, (uint8 *)char_list_ptr,
-                    (uint8 *)price_aux_list_ptr);
+                    (uint8 *)target_class_list_ptr);
             }
         }
         else if (scancode == 0x50) {
@@ -283,7 +283,7 @@ int fd2_promote_member_select_loop(int char_count, void *char_list_ptr,
                 }
                 fd2_render_promote_candidates_grid((uint32)char_count, 0xa0000,
                     data_fd2_ui_menu_cursor_idx, (uint8 *)char_list_ptr,
-                    (uint8 *)price_aux_list_ptr);
+                    (uint8 *)target_class_list_ptr);
             }
         }
         else if (scancode == 0x1c || scancode == 0x39) {
