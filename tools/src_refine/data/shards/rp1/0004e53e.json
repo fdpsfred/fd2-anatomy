@@ -1,0 +1,40 @@
+{
+  "address": "0004e53e",
+  "name_current": "fd2_get_job_allowed_items_table_entry",
+  "name_final": "fd2_get_job_allowed_items_table_entry",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor> name; accurately describes a leaf accessor that returns an entry of the job-allowed-items table indexed by job_id. No Ghidra address residue in the name (the '7' stride is not in the name; descriptor terms are all semantic).",
+  "kind": "function",
+  "home": "ROOT/src/table/table.c",
+  "purpose": "Leaf .object3 data-table accessor: returns a pointer to the 7-byte job_allowed_items_table entry for a given job_id.",
+  "logic_summary": "Computes base 0x6188A + job_id*7 and returns it as a byte pointer (no loads, no side effects). The 7-byte stride entry holds 6 allowed item-category bytes (caller scans them; 0xFF = empty slot) followed by a 1-byte stride separator at byte[6]. job_id range 0..0x1A (27 jobs). Verified table base 0x6188A = 0x615FD + 0x28D; data at 0x6188A confirms 7-byte-stride entries (e.g. job 0 dragon = ff ff ff ff ff ff, job 1 swordsman = 01 15 16 ff ff ff).",
+  "signature": "uint8 * __cdecl fd2_get_job_allowed_items_table_entry(int job_id)",
+  "params": [
+    {
+      "name": "job_id",
+      "type": "int",
+      "semantics": "Job/class ID, range 0..0x1A (27 jobs per assets/jobs.md). Caller passes data_fd2_battle_runtime_char_array_ptr[char_idx].bJob_id. Used as the table index (job_id*7).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, matches actual usage as a job index; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "uint8 *",
+    "semantics": "Pointer to the job's 7-byte entry in job_allowed_items_table (base 0x6188A). Caller reads the first 6 bytes as allowed item-category bytes (0xFF = empty slot); byte[6] is the stride separator."
+  },
+  "reads_globals": ["data_fd2_battle_job_allowed_items_table"],
+  "writes_globals": [],
+  "comment_original_issue": "Original src comment was correct but terse ('Returns pointer to 7-byte allowed-items list for job_id'); it omitted the job_id range, the 6-allowed-bytes + 1-separator layout, the 0xFF empty-slot sentinel, and the caller (fd2_check_job_can_equip_item).",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Bytecode-identical to fd2_get_spell_effect_entry @ 0x4E516 (same bb_hash); distinguished only by table base. Ghidra decompile anchors the base symbol to data_orphan_615fd_... + 0x28D, but src already uses the proper symbol data_fd2_battle_job_allowed_items_table -- no rename needed. Plate is already detailed and consistent with the refined src comment, so left untouched."
+}

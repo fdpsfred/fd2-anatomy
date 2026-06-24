@@ -127,7 +127,10 @@ uint8 *fd2_get_attack_anim_pattern_for_weapon(int weapon_type)
 /* ----------------------------------------------------------------
  * fd2_get_job_allowed_items_table_entry @ 0x4E53E  (1 caller)
  *
- * Returns pointer to 7-byte allowed-items list for job_id.
+ * Returns pointer to the 7-byte job_allowed_items_table entry for job_id
+ * (0..0x1A; 27 jobs). The caller scans the first 6 bytes for a matching
+ * item-category byte (0xFF = empty slot); byte[6] is the stride separator.
+ * Used by fd2_check_job_can_equip_item to decide if a job may equip an item.
  * Assembly: EAX = job_id * 7 + 0x6188A
  * ---------------------------------------------------------------- */
 uint8 *fd2_get_job_allowed_items_table_entry(int job_id)
