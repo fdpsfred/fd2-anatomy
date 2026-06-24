@@ -276,12 +276,12 @@ void fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(
  *   fd2_delay_ms(200)                            -- white screen
  *   fd2_set_vga_palette_range_with_add(0, 0xFF, 0)      -- restore palette
  *   fd2_composite_battle_frame(0)
- *   fd2_delay_400ms_via_idle_thunk()                    -- 400ms recovery hold
+ *   fd2_delay_400ms()                    -- 400ms recovery hold
  *
  * The chapter_id arg arrives as a full 32-bit stack word; the binary applies a
  * MOVZX of its low byte (param_3 & 0xFF) before forwarding it to the portrait
  * loader. In the binary the final delay is reached by JMP into
- * fd2_delay_400ms_via_idle_thunk @ 0x353CC (a tail-call that borrows that
+ * fd2_delay_400ms @ 0x353CC (a tail-call that borrows that
  * function's PUSH 0x190 / CALL fd2_delay_ms / cleanup / RET); the
  * functionally-exact source is a plain call followed by return.
  * ---------------------------------------------------------------- */
@@ -295,7 +295,7 @@ void fd2_cinematic_chapter_portrait_dump_with_white_flash(
     fd2_delay_ms(200);
     fd2_set_vga_palette_range_with_add(0, 0xFF, 0);
     fd2_composite_battle_frame(0);
-    fd2_delay_400ms_via_idle_thunk();
+    fd2_delay_400ms();
 }
 
 /* ----------------------------------------------------------------
@@ -345,7 +345,7 @@ void fd2_chapter_event_handler_35__unref_dialog_with_state(uint32 event_arg)
  * 0x353C4: fd2_chapter_event_handler_39__ch26_cinematic performs its own
  * initial pans then JMPs here for the last pan-and-delay-and-RET. Additionally
  * the 4th delay block (PUSH 0x190; CALL delay; ADD ESP,4; RET) at 0x353CC is
- * registered as a separate callable fd2_delay_400ms_via_idle_thunk. Both are
+ * registered as a separate callable fd2_delay_400ms. Both are
  * binary size optimisations; the functionally-exact source for this handler is
  * the portrait load followed by all four pan + 400ms-hold pairs.
  * ---------------------------------------------------------------- */

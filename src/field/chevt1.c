@@ -1152,7 +1152,7 @@ void fd2_chapter_event_handler_1a__ch7_char_cond(uint32 stepping_char_id)
  *
  * In the binary the final 100ms hold is emitted as "PUSH 0x64; JMP 0x353D1":
  * a tail-jump into the shared CALL fd2_delay_ms / ADD ESP,4 / RET
- * tail of fd2_delay_400ms_via_idle_thunk (0x353CC..0x353D9). The borrowed
+ * tail of fd2_delay_400ms (0x353CC..0x353D9). The borrowed
  * tail performs the cdecl 4-byte cleanup and RET; reproduced here as the
  * inline fd2_delay_ms(100) call for Layer-2 equivalence.
  *

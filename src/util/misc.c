@@ -429,7 +429,7 @@ void fd2_delay_ms(uint32 ms)
 }
 
 /* ----------------------------------------------------------------
- * fd2_delay_400ms_via_idle_thunk @ 0x353CC  (1 caller)
+ * fd2_delay_400ms @ 0x353CC  (1 caller)
  *
  * Fixed 400ms delay wrapper: PUSH 0x190 (=400); CALL fd2_delay_ms;
  * ADD ESP,4; RET. No params, void return. The 400 argument is pushed
@@ -441,7 +441,7 @@ void fd2_delay_ms(uint32 ms)
  * fd2_chapter_event_handler_36__ch24_cinematic @ 0x3535D, which the other
  * handlers reproduce as their own inline fd2_delay_ms calls.)
  * ---------------------------------------------------------------- */
-void fd2_delay_400ms_via_idle_thunk(void)
+void fd2_delay_400ms(void)
 {
     fd2_delay_ms(400);
 }

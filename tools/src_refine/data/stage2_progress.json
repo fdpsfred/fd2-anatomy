@@ -29,6 +29,8 @@
     {"n": 111, "address": "0002a2e8", "did": "both", "note": "play_spell_cast_cinematic -> play_class_promotion_cinematic (5 files); ghidra+src params caster_char_idx/spell_id -> promoting_char_idx/target_class_id (spell_id surgical: shared with fd2_play_spell_cast_sequence)"},
     {"n": 113, "address": "0002c9ec", "did": "both", "note": "tick_tutorial_progress_with_sfx -> tick_walk_step_footstep_sfx (5 files); ghidra param_1 + src char_idx -> walking_char_idx (char_idx surgical: common name in aniui.c). eqcheck PASS at this point (items 10-113 functionally equivalent)."},
     {"n": 114, "address": "0002d392", "did": "name", "note": "load_chapter_party_roster -> load_chapter_shop_item_ids; 6 files"},
-    {"n": 115, "address": "0002d669", "did": "both", "note": "animate_tutorial_dialog_intro_or_outro -> animate_chapter_intro_dialog_wings (4 files); ghidra param_1 -> open_or_close (src def already correct; protos.h dup decl 'closing' aligned)"}
+    {"n": 115, "address": "0002d669", "did": "both", "note": "animate_tutorial_dialog_intro_or_outro -> animate_chapter_intro_dialog_wings (4 files); ghidra param_1 -> open_or_close (src def already correct; protos.h dup decl 'closing' aligned)"},
+    {"n": 120, "address": "00030c22", "did": "name", "note": "promote_members_select_loop -> revive_member_select_loop (4 files); church-revive picker; distinct from singular fd2_promote_member_select_loop. eqcheck PASS at this point (items 10-120 functionally equivalent)."},
+    {"n": 127, "address": "000353cc", "did": "name", "note": "delay_400ms_via_idle_thunk -> delay_400ms (4 files); stale _via_idle_thunk suffix dropped"}
   ]
 }
