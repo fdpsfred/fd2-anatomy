@@ -502,7 +502,7 @@ extern uint8  data_fd2_battle_summon_anim_variant_c_swap_done_latch;            
 extern const int32 data_fd2_animation_summon_variant_c_radial_5slot_offsets[5];  /* 0x524F8 */
 extern const uint8 data_fd2_animation_summon_variant_c_radial_5slot_byte_offsets[5]; /* 0x5250C */
 extern const double data_fd2_animation_summon_radial_y_amplitude_scale;              /* 0x5022B (1.2 y-amplitude) */
-extern const double data_fd2_animation_summon_radial_radius_30;                  /* 0x50233 (30.0) */
+extern const double data_fd2_animation_summon_radial_y_offset_30;                  /* 0x50233 (30.0) */
 extern const uint32 data_fd2_battle_summon_spell_palette_r_table;       /* 0x5254F = {3F,33,35,35} LE-packed; byte-indexed by summon_idx in caller's local dword copy */
 extern const uint32 data_fd2_battle_summon_spell_palette_g_table;       /* 0x52553 */
 extern const uint32 data_fd2_battle_summon_spell_palette_b_table;       /* 0x52557 = {3F,3F,00,09} LE-packed = 0x09003F3F; byte-indexed by summon_idx in caller's local dword copy */

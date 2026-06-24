@@ -1301,7 +1301,7 @@ int fd2_tick_summon_anim_variant_c_5slot_radial(
                 (int)((double)data_fd2_battle_summon_anim_variant_c_angle_accumulator
                       * sin(angle_rad)
                       * data_fd2_animation_summon_radial_y_amplitude_scale
-                      + data_fd2_animation_summon_radial_radius_30);
+                      + data_fd2_animation_summon_radial_y_offset_30);
 
             if (team == 0) {
                 if (state_code == 2 || state_code == 8) {

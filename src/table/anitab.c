@@ -23,7 +23,7 @@
 const double data_fd2_animation_summon_radial_y_amplitude_scale = 1.2;
 
 /* ----------------------------------------------------------------
- * data_fd2_animation_summon_radial_radius_30 @ 0x50233  (8 bytes, double)
+ * data_fd2_animation_summon_radial_y_offset_30 @ 0x50233  (8 bytes, double)
  *
  * Summon-spell variant-C 5-slot radial animation y-offset (vertical bias).
  * Sole reader fd2_tick_summon_anim_variant_c_5slot_radial (@ 0x26E39) consumes
@@ -36,7 +36,7 @@ const double data_fd2_animation_summon_radial_y_amplitude_scale = 1.2;
  * Bytes 00 00 00 00 00 00 3E 40 (LE) = IEEE-754 double 30.0 exactly.
  * Read-only (single READ xref, no writers); compiler rodata literal.
  */
-const double data_fd2_animation_summon_radial_radius_30 = 30.0;
+const double data_fd2_animation_summon_radial_y_offset_30 = 30.0;
 
 /* ----------------------------------------------------------------
  * data_fd2_animation_spell_palette_flash_table @ 0x51AAD  (108 bytes, uint8[108])
