@@ -144,7 +144,7 @@ void fd2_cast_status_spell_via_d1b(int, int, int, int, int);
 void fd2_cast_ap_boost_spell(int, int, uint8 *);
 void fd2_cast_dp_boost_spell(int, int, uint32);
 void fd2_cast_speed_boost_spell(uint32, uint32, uint32);
-void fd2_execute_status_clear_holy_word_spell_id_25(int, int, uint8 *);
+void fd2_execute_reactivate_spell_id_25(int, int, uint8 *);
 void fd2_animate_spell_impact_per_target(uint32, uint32, uint32, uint32);
 void fd2_animate_status_effect_overlay_flicker(uint32, uint32, uint32, uint32);
 void fd2_animate_spell_full_screen_flash(uint32, uint32, uint32, uint32);

@@ -924,7 +924,7 @@ void fd2_cast_speed_boost_spell(uint32 caster_unit_id, uint32 num_targets,
 
 
 /* ----------------------------------------------------------------
- * fd2_execute_status_clear_holy_word_spell_id_25 @ 0x22C04  (0 callers;
+ * fd2_execute_reactivate_spell_id_25 @ 0x22C04  (0 callers;
  * dispatched via the spell table @ 0x51D01, entry index 0x19 = 25,
  * data xref at 0x51D65)
  *
@@ -955,7 +955,7 @@ void fd2_cast_speed_boost_spell(uint32 caster_unit_id, uint32 num_targets,
  * byte *target_id_array); each entry is read as target_id_array[iter],
  * matching the asm MOVZX from *(byte *)(ESI + iter).
  * ---------------------------------------------------------------- */
-void fd2_execute_status_clear_holy_word_spell_id_25(int caster_unit_id,
+void fd2_execute_reactivate_spell_id_25(int caster_unit_id,
     int num_targets, uint8 *target_id_array)
 {
     int iter;
