@@ -149,7 +149,7 @@ consume_item:
     }
 
     data_fd2_battle_pending_xp_credit = 0;
-    fd2_play_and_free_status_effect_sfx();
+    fd2_stop_and_free_status_effect_sfx();
     pending_drops = fd2_collect_pending_death_drops((uint32)drops_buf);
     fd2_play_death_animation_and_mark_dead();
     fd2_process_battle_drop_entries(

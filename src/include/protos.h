@@ -161,7 +161,7 @@ void fd2_apply_item_stat_modifier_with_anim(uint32, uint32, uint32, uint32, uint
 void fd2_apply_attack_spell_damage(uint32, uint32, uint32, uint32);
 void fd2_apply_use_effect_dispatch(uint32, uint32, uint32, uint32);
 void fd2_load_status_effect_sfx(void);
-void fd2_play_and_free_status_effect_sfx(void);
+void fd2_stop_and_free_status_effect_sfx(void);
 int fd2_collect_pending_death_drops(uint32 out_buffer);
 void fd2_play_death_animation_and_mark_dead(void);
 void fd2_kill_runtime_chars_from_index_to_end(uint32 start_char_idx);

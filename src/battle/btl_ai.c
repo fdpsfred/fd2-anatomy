@@ -293,7 +293,7 @@ int fd2_execute_ai_offensive_spell(uint32 caster_idx,
         data_fd2_battle_spell_handler_table
             [data_fd2_battle_ai_best_spell_id](
                 caster_idx, (uint32)n_targets, target_buf);
-        fd2_play_and_free_status_effect_sfx();
+        fd2_stop_and_free_status_effect_sfx();
     }
 
     n_drops = fd2_collect_dead_char_drops((uint32)drops_buf);

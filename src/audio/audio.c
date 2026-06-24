@@ -91,7 +91,7 @@ void fd2_set_bgm_track_with_fade(uint32 track_id,
  * Load the status-effect / spell SFX sample bank (FDOTHER.DAT
  * entry 0x50) into data_fd2_audio_status_effect_sfx_handle_ptr.
  * fd2_play_sfx_with_handle plays from this base; the matching
- * fd2_play_and_free_status_effect_sfx releases it after the
+ * fd2_stop_and_free_status_effect_sfx releases it after the
  * animation finishes.
  *
  * Cdecl, void(void). The handle is cleared to 0 first, then set
@@ -108,7 +108,7 @@ void fd2_load_status_effect_sfx(void)
 }
 
 /* ----------------------------------------------------------------
- * fd2_play_and_free_status_effect_sfx @ 0x1d4f6 (5 callers)
+ * fd2_stop_and_free_status_effect_sfx @ 0x1d4f6 (5 callers)
  *
  * Teardown counterpart to fd2_load_status_effect_sfx: stop the
  * status-effect SFX and release the bank buffer. Despite the name,
@@ -126,7 +126,7 @@ void fd2_load_status_effect_sfx(void)
  * shared `CALL free; ADD ESP,4; RET` epilogue); it is reproduced here
  * as a plain free() at function end.
  * ---------------------------------------------------------------- */
-void fd2_play_and_free_status_effect_sfx(void)
+void fd2_stop_and_free_status_effect_sfx(void)
 {
     fd2_play_sfx_with_handle(
         data_fd2_audio_status_effect_sfx_handle_ptr, 0xFFFFFFFF, 1);
@@ -301,7 +301,7 @@ uint8 data_fd2_audio_bgm_last_set_track_id = 0xFF;
  * write. fd2_load_status_effect_sfx and fd2_chapter_25_init clear it to
  * 0 then store the fd2_load_dat_resource() return pointer; many spell /
  * battle SFX readers pass it as the sample-bank base to
- * fd2_play_sfx_with_handle, and fd2_play_and_free_status_effect_sfx
+ * fd2_play_sfx_with_handle, and fd2_stop_and_free_status_effect_sfx
  * free()s it. Accessed as a single 32-bit value (MOV dword ptr). */
 uint32 data_fd2_audio_status_effect_sfx_handle_ptr;
 

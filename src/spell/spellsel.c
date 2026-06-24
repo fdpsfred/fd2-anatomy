@@ -486,7 +486,7 @@ int fd2_spell_selection_menu_main(uint32 caster_idx)
         fd2_play_spell_palette_flash_with_sfx((int)spell_id);
         data_fd2_battle_spell_handler_table[spell_id](
             caster_idx, n_targets, target_buf);
-        fd2_play_and_free_status_effect_sfx();
+        fd2_stop_and_free_status_effect_sfx();
     }
     drops_count = fd2_collect_pending_death_drops((uint32)drops_buf);
     fd2_play_death_animation_and_mark_dead();

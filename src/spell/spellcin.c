@@ -1581,7 +1581,7 @@ void fd2_execute_summon_spell_cast(uint32 caster_idx, uint32 spell_id,
             (uint32)target_id_array, 0x26);
     }
 
-    fd2_play_and_free_status_effect_sfx();
+    fd2_stop_and_free_status_effect_sfx();
     return;
 }
 

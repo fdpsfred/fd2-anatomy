@@ -1383,7 +1383,7 @@ void fd2_chapter_24_init(void)
  * void __cdecl, no real params, void return. The leading __CHK(0x28)
  * stack-probe is the Watcom-injected frame-size check and is not part
  * of the source body. In the binary the final
- * fd2_play_and_free_status_effect_sfx() is emitted as a tail-JMP
+ * fd2_stop_and_free_status_effect_sfx() is emitted as a tail-JMP
  * (0x33AA9 -> 0x1D4F6) to that self-contained handler; the straight-
  * line call form here is the functionally-equivalent reconstruction.
  *
@@ -1425,7 +1425,7 @@ void fd2_chapter_25_init(void)
     fd2_display_dialog_scene(data_fd2_current_chapter_text, 2, 0xa0000, 0x140,
                              0xcd, 0x4c, 0x4a, 0x13, 1);
     fd2_pan_cursor_to_char(0);
-    fd2_play_and_free_status_effect_sfx();
+    fd2_stop_and_free_status_effect_sfx();
 }
 
 /* ----------------------------------------------------------------
