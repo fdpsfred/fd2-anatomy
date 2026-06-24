@@ -82,7 +82,10 @@ const int32 data_fd2_ui_item_command_menu_template[4] = { 8, 9, 10, 11 };
  * data_fd2_ui_tactical_overview_team_colors_table @ 0x5208A  (12 bytes)
  *
  * Tactical-overview (zoom-out battlefield map) per-team palette color bases:
- * 3 x int32 entries { 0x20, 0x50, 0x48 } for player / enemy / neutral team.
+ * 3 x int32 entries { 0x20, 0x50, 0x48 } indexed by runtime_char team id:
+ *   [0] 0x20 -> team 0 (enemy)
+ *   [1] 0x50 -> team 1 (ally / NPC)
+ *   [2] 0x48 -> team 2 (player)
  * The sole reader fd2_open_tactical_overview_zoom copies all three 32-bit
  * words into a local team_color_table_a[3] stack buffer with a count-3 MOVSD
  * (MOV ESI,0x5208A; 3 x MOVSD -> 32-bit elements), then indexes that buffer by
