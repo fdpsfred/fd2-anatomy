@@ -18,8 +18,9 @@
  * animation is the caller's responsibility, not handled here.
  *
  * The last three args forward straight into fd2_blit_indexed_sprite:
- * x = dst buffer, y = dst stride, atlas = sprite-sheet pointer (also
- * the source of the per-frame metadata read below).
+ * dst_buf = dst buffer, dst_stride = dst stride, sheet_ptr =
+ * sprite-sheet pointer (also the source of the per-frame metadata
+ * read below).
  *
  * Per-frame metadata layout within the sheet blob:
  *   +8 + idx*4   uint32 offset to this frame's metadata
@@ -28,14 +29,14 @@
  * Helper for fd2_tick_summon_spell_animation_state (@ 0x26528) only.
  * ---------------------------------------------------------------- */
 void fd2_tick_sprite_animation_step(uint8 *p_frame_idx, uint8 *p_tick,
-                                     int x, int y, uint32 atlas)
+                                     int dst_buf, int dst_stride, uint32 sheet_ptr)
 {
     uint32 frame_off;
 
-    fd2_blit_indexed_sprite(atlas, (uint32)*p_frame_idx, x, y, -1);
-    frame_off = *(uint32 *)(atlas + (uint32)*p_frame_idx * 4 + 8);
+    fd2_blit_indexed_sprite(sheet_ptr, (uint32)*p_frame_idx, dst_buf, dst_stride, -1);
+    frame_off = *(uint32 *)(sheet_ptr + (uint32)*p_frame_idx * 4 + 8);
     (*p_tick)++;
-    if (*p_tick == *(uint8 *)(atlas + frame_off + 6)) {
+    if (*p_tick == *(uint8 *)(sheet_ptr + frame_off + 6)) {
         *p_tick = 0;
         (*p_frame_idx)++;
     }
