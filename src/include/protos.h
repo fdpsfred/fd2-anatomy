@@ -428,7 +428,7 @@ void fd2_walk_step_left(uint32 char_idx);
 void fd2_walk_step_up(uint32 char_idx);
 void fd2_walk_step_right(uint32 char_idx);
 void fd2_walk_path_animation_loop(uint32 char_idx, uint32 path_buf, uint32 step_count);
-void fd2_tick_tutorial_progress_with_sfx(uint32 char_idx);
+void fd2_tick_walk_step_footstep_sfx(uint32 walking_char_idx);
 void fd2_animate_screen_shake(uint32 num_frames);
 void fd2_animate_money_increment(uint32 delta);
 void fd2_animate_money_decrement(uint32 delta);

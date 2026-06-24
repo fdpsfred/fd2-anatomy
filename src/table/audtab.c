@@ -64,7 +64,7 @@ const uint8 data_fd2_audio_figani_sfx_bank_fdother_index_lut[6] = {
  * data_fd2_audio_footstep_sfx_per_job_cadence_class_table @ 0x52618  (29 bytes)
  *
  * Per-job footstep-SFX cadence-class table, indexed as table[job_id - 1] by
- * fd2_tick_tutorial_progress_with_sfx; each byte is the walk-step footstep-SFX
+ * fd2_tick_walk_step_footstep_sfx; each byte is the walk-step footstep-SFX
  * cadence class for that job: class 0 -> step every 6 frames (sfx 9), class 1
  * -> every 4 frames (sfx 9), any other value -> every 9 frames (sfx 11).
  * 28 entries cover job_id 1..0x1C plus 1 trailing byte that the caller's dword

@@ -11,7 +11,7 @@
 #include <stdlib.h>
 
 /* ----------------------------------------------------------------
- * fd2_tick_tutorial_progress_with_sfx @ 0x2C9EC
+ * fd2_tick_walk_step_footstep_sfx @ 0x2C9EC
  *
  * Per-frame footstep SFX dispatcher. Ticked once per frame inside the
  * 6-frame walk-step slide loop by all four directional walk_step
@@ -39,7 +39,7 @@
  * counter is a pure footstep cadence counter, not a tutorial milestone.
  * Rename candidate: fd2_tick_walk_step_footstep_sfx.
  * ---------------------------------------------------------------- */
-void fd2_tick_tutorial_progress_with_sfx(uint32 char_idx)
+void fd2_tick_walk_step_footstep_sfx(uint32 walking_char_idx)
 {
     uint8 job_tbl[32];
     int divisor;
@@ -50,12 +50,12 @@ void fd2_tick_tutorial_progress_with_sfx(uint32 char_idx)
     memcpy(job_tbl,
            data_fd2_audio_footstep_sfx_per_job_cadence_class_table, 29);
 
-    if (fd2_check_char_status_immunity(char_idx) != 0) {
+    if (fd2_check_char_status_immunity(walking_char_idx) != 0) {
         divisor = 6;
         sfx_id = 10;
     } else {
         pChar = (uint8 *)data_fd2_battle_runtime_char_array_ptr
-              + char_idx * RUNTIME_CHAR_SIZE;
+              + walking_char_idx * RUNTIME_CHAR_SIZE;
         job_mod = job_tbl[pChar[0x20] - 1];
         if (job_mod == 0) {
             divisor = 6;
@@ -848,7 +848,7 @@ void fd2_animate_palette_flash_pulse_white(void)
  * data_fd2_audio_walk_step_sfx_cadence_counter @ 0x540FE  (.object2)
  *
  * Free-running per-step footstep-SFX cadence counter; the sole state of
- * fd2_tick_tutorial_progress_with_sfx. Each walk step does
+ * fd2_tick_walk_step_footstep_sfx. Each walk step does
  * (counter % divisor) to gate a footstep SFX, then increments it. The
  * divisor (4/6/9) is chosen per job cadence class.
  *

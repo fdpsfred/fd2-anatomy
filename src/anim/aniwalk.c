@@ -88,7 +88,7 @@ void fd2_walk_step_down(uint32 char_idx)
     }
 
     for (frame = 1; frame < 7; frame++) {
-        fd2_tick_tutorial_progress_with_sfx(char_idx);
+        fd2_tick_walk_step_footstep_sfx(char_idx);
         fd2_update_palette_cycle_anim();
         pChar[4] = (uint8)frame;
         fd2_tick_chapter_palette_animation();
@@ -156,7 +156,7 @@ void fd2_walk_step_left(uint32 char_idx)
     }
 
     for (frame = 1; frame < 7; frame++) {
-        fd2_tick_tutorial_progress_with_sfx(char_idx);
+        fd2_tick_walk_step_footstep_sfx(char_idx);
         fd2_update_palette_cycle_anim();
         pChar[4] = (uint8)frame;
         fd2_tick_chapter_palette_animation();
@@ -229,7 +229,7 @@ void fd2_walk_step_up(uint32 char_idx)
     }
 
     for (frame = 1; frame < 7; frame++) {
-        fd2_tick_tutorial_progress_with_sfx(char_idx);
+        fd2_tick_walk_step_footstep_sfx(char_idx);
         fd2_update_palette_cycle_anim();
         pChar[4] = (uint8)frame;
         fd2_tick_chapter_palette_animation();
@@ -309,7 +309,7 @@ void fd2_walk_step_right(uint32 char_idx)
     }
 
     for (frame = 1; frame < 7; frame++) {
-        fd2_tick_tutorial_progress_with_sfx(char_idx);
+        fd2_tick_walk_step_footstep_sfx(char_idx);
         fd2_update_palette_cycle_anim();
         pChar[4] = (uint8)frame;
         fd2_tick_chapter_palette_animation();

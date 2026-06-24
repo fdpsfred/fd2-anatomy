@@ -67,7 +67,7 @@ void fd2_cutscene_event_trigger(uint32 event_id)
             for (walk_repeat_iter = 0; walk_repeat_iter < walk_count_or_flags;
                  walk_repeat_iter++) {
                 for (frame_iter = 1; frame_iter < 7; frame_iter++) {
-                    fd2_tick_tutorial_progress_with_sfx((uint32)step_chars[0]);
+                    fd2_tick_walk_step_footstep_sfx((uint32)step_chars[0]);
                     for (step_iter = 0; step_iter < step_count; step_iter++) {
                         pChar = data_fd2_battle_runtime_char_array_ptr +
                                 step_chars[step_iter];
