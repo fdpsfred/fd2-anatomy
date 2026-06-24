@@ -7,7 +7,7 @@
  *
  * Functions in this file:
  *   crt_equivalent_lx_chunk_read  @ 0x36107  (2 callers)
- *   crt_equivalent_lx_header_reader_36344 @ 0x36344 (1 caller)
+ *   crt_equivalent_lx_header_reader @ 0x36344 (1 caller)
  *   crt_equivalent_lx_module_loader_3647b @ 0x3647b (0 callers)
  *   crt_equivalent_exit_chain_stub_36de3 @ 0x36de3 (2 callers)
  *   crt_equivalent_get_eflags_thunk     @ 0x37f86 (2 callers)
@@ -56,7 +56,7 @@ int crt_equivalent_lx_chunk_read(int file_handle, int offset,
 }
 
 /* ----------------------------------------------------------------
- * crt_equivalent_lx_header_reader_36344 @ 0x36344  (1 caller)
+ * crt_equivalent_lx_header_reader @ 0x36344  (1 caller)
  *
  * LX executable header introspection: verify the MZ->LX wiring and
  * aggregate the object table's virtual sizes.
@@ -92,7 +92,7 @@ int crt_equivalent_lx_chunk_read(int file_handle, int offset,
  * not a standard loader-API result. __cdecl: the sole caller pushes 2
  * args and cleans up with ADD ESP,0x8; the body ends with a plain RET.
  * ---------------------------------------------------------------- */
-int crt_equivalent_lx_header_reader_36344(char *path, uint8 mode_byte)
+int crt_equivalent_lx_header_reader(char *path_or_base, uint8 mode_byte)
 {
     uint8  lx_header[0xAC];      /* full 0xAC-byte LX header copy        */
     int    obj_record[6];        /* 0x18-byte object-table record buffer */
@@ -108,10 +108,10 @@ int crt_equivalent_lx_header_reader_36344(char *path, uint8 mode_byte)
     acc = 0;
 
     if ((mode_byte & 1) != 0) {
-        handle = (int)path;
+        handle = (int)path_or_base;
     }
     else {
-        handle = open(path, 0x200);
+        handle = open(path_or_base, 0x200);
         if (handle == -1) {
             return 0;
         }
@@ -164,7 +164,7 @@ int crt_equivalent_lx_header_reader_36344(char *path, uint8 mode_byte)
  *   caller_buf  - output buffer; used only when flags&4==0 (when flags&4
  *                 is set, caller_buf is overwritten by the alloc result).
  *
- * Flow mirrors crt_equivalent_lx_header_reader_36344 for the header/object
+ * Flow mirrors crt_equivalent_lx_header_reader for the header/object
  * walk, then additionally: (a) for each page reads min(remaining_obj_size,
  * page_byte_count) bytes into the running output cursor, applying a 16-byte
  * inter-object alignment skip on the first page of flag-3 (bit0|bit1)
@@ -224,7 +224,7 @@ void *crt_equivalent_lx_module_loader_3647b(char *path, int flags,
         return (void *)0;
     }
 
-    total_size = crt_equivalent_lx_header_reader_36344(path, (uint8)flags);
+    total_size = crt_equivalent_lx_header_reader(path, (uint8)flags);
 
     if ((flags & 4) != 0) {
         caller_buf = (*(void *(*)(uint32))data_ail_alloc_fnptr)(total_size);

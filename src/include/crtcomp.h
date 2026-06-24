@@ -34,7 +34,7 @@ unsigned long crt_equivalent_get_eflags_thunk(void);
 /* LX module loader chain */
 int  crt_equivalent_lx_chunk_read(int file_handle, int offset,
                                         uint8 mode, void *dest, uint32 length);
-void crt_equivalent_lx_header_reader_36344(void);
+void crt_equivalent_lx_header_reader(void);
 void crt_equivalent_lx_module_loader_3647b(void);
 
 /* exit / error handlers */
