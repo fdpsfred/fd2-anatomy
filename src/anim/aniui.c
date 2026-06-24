@@ -293,7 +293,7 @@ void fd2_animate_money_decrement(uint32 delta)
 }
 
 /* ----------------------------------------------------------------
- * fd2_animate_tutorial_dialog_intro_or_outro @ 0x2D669 (3 callers)
+ * fd2_animate_chapter_intro_dialog_wings @ 0x2D669 (3 callers)
  *
  * 4-frame "speech-bubble wing" deploy/retract animation for the
  * chapter-intro dialog panel. Used by all three chapter-intro menu
@@ -340,7 +340,7 @@ void fd2_animate_money_decrement(uint32 delta)
  * here. The memmove traffic to/from 0xA0000 hits the VGA aperture
  * (real VGA RAM under DOS/4GW).
  * ---------------------------------------------------------------- */
-void fd2_animate_tutorial_dialog_intro_or_outro(uint32 open_or_close)
+void fd2_animate_chapter_intro_dialog_wings(uint32 open_or_close)
 {
     int32 corner_offs[4];
     void *dst;

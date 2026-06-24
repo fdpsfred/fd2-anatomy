@@ -27,6 +27,8 @@
     {"_gate_change": "From item-99 build gate: full byte-identical is UNACHIEVABLE for renames -- wlink reorders LE fixup records by symbol name. Proven: code/data+headers byte-identical, fixup table same multiset (reorder-only) => functional equivalence. Stage-2 gate switched from hash_check.py to eqcheck.py (per user decision). Also fixed item-45 prefix-collision (fd2_load_chapter_portrait was a prefix of fd2_load_chapter_portraits_and_dump_tmp)."},
     {"n": 103, "address": "00025ebb", "did": "name", "note": "main_menu_continue_dispatcher -> main_menu_dispatcher; 9 files"},
     {"n": 111, "address": "0002a2e8", "did": "both", "note": "play_spell_cast_cinematic -> play_class_promotion_cinematic (5 files); ghidra+src params caster_char_idx/spell_id -> promoting_char_idx/target_class_id (spell_id surgical: shared with fd2_play_spell_cast_sequence)"},
-    {"n": 113, "address": "0002c9ec", "did": "both", "note": "tick_tutorial_progress_with_sfx -> tick_walk_step_footstep_sfx (5 files); ghidra param_1 + src char_idx -> walking_char_idx (char_idx surgical: common name in aniui.c). eqcheck PASS at this point (items 10-113 functionally equivalent)."}
+    {"n": 113, "address": "0002c9ec", "did": "both", "note": "tick_tutorial_progress_with_sfx -> tick_walk_step_footstep_sfx (5 files); ghidra param_1 + src char_idx -> walking_char_idx (char_idx surgical: common name in aniui.c). eqcheck PASS at this point (items 10-113 functionally equivalent)."},
+    {"n": 114, "address": "0002d392", "did": "name", "note": "load_chapter_party_roster -> load_chapter_shop_item_ids; 6 files"},
+    {"n": 115, "address": "0002d669", "did": "both", "note": "animate_tutorial_dialog_intro_or_outro -> animate_chapter_intro_dialog_wings (4 files); ghidra param_1 -> open_or_close (src def already correct; protos.h dup decl 'closing' aligned)"}
   ]
 }

@@ -170,12 +170,12 @@ uint32 fd2_run_chapter_intro_menu_main(uint32 pose_bitmap)
     data_fd2_ui_menu_saved_scroll_offset = 0;
     do {
         data_fd2_ui_menu_cursor_idx = stored_cursor;
-        fd2_animate_tutorial_dialog_intro_or_outro(0);
+        fd2_animate_chapter_intro_dialog_wings(0);
         sel = fd2_chapter_intro_menu_input_loop();
         if ((sel & 0xff) == 1) {
             stored_cursor = data_fd2_ui_menu_cursor_idx;
         }
-        fd2_animate_tutorial_dialog_intro_or_outro(1);
+        fd2_animate_chapter_intro_dialog_wings(1);
         roster_count = fd2_load_chapter_shop_item_ids(party_roster);
         data_fd2_ui_menu_visible_item_count = (uint32)(roster_count & 0xff);
         fd2_close_intro_dialog_with_slide_out();
@@ -310,12 +310,12 @@ uint32 fd2_run_chapter_intro_menu_typeB(uint32 snapshot_buf)
     stored_cursor = 0;
     do {
         data_fd2_ui_menu_cursor_idx = stored_cursor;
-        fd2_animate_tutorial_dialog_intro_or_outro(0);
+        fd2_animate_chapter_intro_dialog_wings(0);
         sel = fd2_chapter_intro_menu_input_loop();
         if ((sel & 0xff) == 1) {
             stored_cursor = data_fd2_ui_menu_cursor_idx;
         }
-        fd2_animate_tutorial_dialog_intro_or_outro(1);
+        fd2_animate_chapter_intro_dialog_wings(1);
         fd2_close_intro_dialog_with_slide_out();
         if ((sel & 0xff) == 1) {
             if (data_fd2_ui_menu_cursor_idx == 0) {
@@ -474,12 +474,12 @@ uint32 fd2_run_chapter_intro_menu_typeC(uint32 pose_bitmap)
     stored_cursor = 0;
     do {
         data_fd2_ui_menu_cursor_idx = stored_cursor;
-        fd2_animate_tutorial_dialog_intro_or_outro(0);
+        fd2_animate_chapter_intro_dialog_wings(0);
         sel = fd2_chapter_intro_menu_input_loop();
         if ((sel & 0xff) == 1) {
             stored_cursor = data_fd2_ui_menu_cursor_idx;
         }
-        fd2_animate_tutorial_dialog_intro_or_outro(1);
+        fd2_animate_chapter_intro_dialog_wings(1);
         fd2_close_intro_dialog_with_slide_out();
         if ((sel & 0xff) == 1) {
             if (data_fd2_ui_menu_cursor_idx == 0) {
