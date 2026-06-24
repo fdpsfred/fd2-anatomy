@@ -57,7 +57,10 @@ uint8 *fd2_get_char_base_entry(uint32 idx)
 /* ----------------------------------------------------------------
  * fd2_get_char_growth_entry @ 0x4E4D1  (4 callers)
  *
- * Returns pointer to character_growth_table[idx].
+ * Returns pointer to character_growth_table[idx] (idx = character/portrait
+ * id). The 11-byte entry holds per-stat growth deltas (AP/DP/DX/HP/MP, each
+ * a min/max pair) plus a spell-learning index at +0x0A. Callers scale these
+ * by level to derive runtime stats.
  * Assembly: EAX = idx * 0xB + 0x620A1
  * ---------------------------------------------------------------- */
 uint8 *fd2_get_char_growth_entry(int idx)
