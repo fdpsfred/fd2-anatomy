@@ -15,11 +15,14 @@
  * Covers both field/map exploration and in-battle input. Reads one
  * keyboard scancode from fd2_wait_for_input_with_idle and dispatches.
  *
- * Returns an int consumed by main: the field-command path returns
- * the command-loop result (0 mapped to non-zero / 1 mapped to 0), every
- * other path returns 0. (Ghidra decompiles this as void and drops the
- * EAX return values; the disassembly shows MOV EAX,EBX / XOR EAX,EAX
- * return paths and main consuming EAX via MOV ESI,EAX.)
+ * Returns an int consumed by main (which re-invokes this on 0, exits its
+ * inner loop on non-zero). Only the field-command path (Space/Enter on an
+ * empty tile) can return non-zero: it loops fd2_field_command_menu_loop
+ * until that returns non-zero, then maps 1 back to 0 and returns the rest
+ * unchanged. Every other dispatch path returns 0. (Ghidra decompiles this
+ * as void and drops the EAX return values; the disassembly shows MOV
+ * EAX,EBX / XOR EAX,EAX return paths and main consuming EAX via MOV
+ * ESI,EAX.)
  * ---------------------------------------------------------------- */
 /* ----------------------------------------------------------------
  * fd2_field_command_menu_loop @ 0x16F55  (1 caller: fd2_game_main_loop)
